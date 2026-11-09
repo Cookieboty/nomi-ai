@@ -452,3 +452,58 @@ div:hover > .stageBtn,
     animation: none;
   }
 }
+
+/* 项目只有一个文件夹：仓库段就是整个「改动」视图，布局与原来一样（各块直接排在右栏里） */
+.repoSingle {
+  display: contents;
+}
+/* 多个文件夹：每个仓库一段，整体一起滚动 */
+.repoStack {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+.repoSection {
+  border-bottom: 1px solid var(--cd-color-border);
+}
+.repoSection .repoBody {
+  flex: none;
+  overflow: visible;
+}
+.repoHead {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  width: 100%;
+  height: var(--cd-control-h-sm);
+  padding: 0 var(--cd-space-3);
+  border: 0;
+  background: var(--cd-color-bg-subtle);
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-medium);
+  text-align: left;
+  cursor: pointer;
+}
+.repoHead:hover {
+  background: var(--cd-color-hover);
+}
+.repoHead:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
+.repoName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.repoPrimary {
+  flex: none;
+  padding: 0 var(--cd-space-1);
+  border-radius: var(--cd-radius-sm);
+  color: var(--cd-color-text-subtle);
+  font-weight: normal;
+}

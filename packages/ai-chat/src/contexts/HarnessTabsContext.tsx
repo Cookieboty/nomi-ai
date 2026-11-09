@@ -49,7 +49,7 @@ export type { TabLive, LiveStatus };
  * 不含完整标签列表的部分：后台标签的状态 / 未读变化不会让它换引用（activeTab 经结构共享，
  * 只有当前标签真的变了才换）。只关心当前标签与操作的消费者（如 App）用 useHarnessTabsCore()。
  */
-interface HarnessTabsCore {
+export interface HarnessTabsCore {
   available: boolean;
   /** 主进程记录的当前标签 id（状态尚未加载时为 undefined） */
   activeTabId: string | undefined;
@@ -57,7 +57,8 @@ interface HarnessTabsCore {
   /** 当前标签是独立的 CLI 标签（非 main） */
   isCliTab: boolean;
   messages: HarnessTabMessage[];
-  create: (backend: HarnessBackend, cwd?: string) => Promise<void>;
+  /** projectId：在哪个项目里开；不给 = 默认目录 */
+  create: (backend: HarnessBackend, projectId?: string) => Promise<void>;
   close: (id: string) => Promise<void>;
   rename: (id: string, title: string) => Promise<void>;
   activate: (id: string) => Promise<void>;
@@ -362,8 +363,8 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     });
   }, [activeId, cache]);
 
-  const create = useCallback(async (backend: HarnessBackend, cwd?: string) => {
-    const tab = await harnessClient.createTab(cwd ? { backend, cwd } : { backend });
+  const create = useCallback(async (backend: HarnessBackend, projectId?: string) => {
+    const tab = await harnessClient.createTab(projectId ? { backend, projectId } : { backend });
     setCache((cur) => ({ ...cur, [tab.id]: [] }));
     setLastBackend(backend);
     try {

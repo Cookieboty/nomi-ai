@@ -15,7 +15,7 @@
 
 ## 对话
 
-- 流式输出。左侧是会话列表（按工作区分组），`Ctrl/⌘+B` 或标题栏旁的按钮收起 / 展开；收起后鼠标移到导航栏的「对话」上，会话面板以浮层弹出。新会话的输入框上方是「工作区 · 分支」，工作区可以搜索、切换或不使用；发出第一条消息后工作区就定下来，不在顶栏显示。`Ctrl/⌘+F` 搜索对话。
+- 流式输出。左侧是会话列表（按项目分组，见 [个性化](personalization.md)），`Ctrl/⌘+B` 或标题栏旁的按钮收起 / 展开；收起后鼠标移到导航栏的「对话」上，会话面板以浮层弹出。新会话的输入框上方是「项目 · 分支」，项目可以搜索、切换、新建或不使用（多个文件夹的项目显示「名称 +N」，悬停看全部文件夹；分支是主文件夹的）；发出第一条消息后项目就定下来，不在顶栏显示。`Ctrl/⌘+F` 搜索对话。
 - `Enter` 发送，`Shift+Enter` 换行；输入框为空时按 `↑` 找回上一条提问；输入 `/` 打开 [斜杠命令](slash-commands.md)。
 - 输入栏一行（Codex 式，按钮都不带边框）：左边是「+」菜单和权限模式，右边是模型选择、语音和发送。「+」里是给这条消息加东西的：添加图片或文件（和拖入 / 粘贴一样）、引用文件或文件夹（插入 `@`，有工作区时）、交给编程助手（Nomi 对话，列出已安装的，选了之后输入框上方显示「交给 X」，与 `/agent` 相同）、知识库问答开关；编程助手标签里还有「插件 / 命令」。模型在模型按钮里换，设置在左侧导航栏最下面。
 - 每条回复下写着它用的模型；同一会话中途换了模型时，末尾会出现一行提示：新模型会接着之前的上下文继续。
@@ -27,7 +27,7 @@
 - 模型说「做完了」不等于做完：这一轮的计划（`plan_update`）还有没做完的步骤时，Nomi 会被提醒接着做，或者把做不了的标成跳过并说明原因，每轮最多提醒两次；提醒之后什么也没做就不再提醒。自动续轮时，如果这一轮只改了计划、或者原样重复之前的调用，就停下来，不再空转。
 - 前几轮的思考内容不随历史重发（Anthropic 以外的协议会把它算进输入）。按需提供的工具在同一个对话里开过就一直提供，系统提示也不随话题变化，前缀缓存不被打断。执行轨迹和 `/context` 里能看到上一轮的缓存命中率。
 - 和 Codex 一样，上一轮的工具调用和结果（读过的文件、命令输出）会原样带进下一轮，不只是回复的文字；发过的内容每轮按原样再发，配合供应商的提示缓存（Anthropic 的缓存断点、OpenAI 的 `prompt_cache_key`），续聊时大部分输入走缓存。
-- 会话行的菜单里可以重命名、删除，或 `Ctrl/⌘+Shift+F` 分叉为新对话。
+- 会话行的菜单里可以重命名、删除或「分叉…」；每条回复末尾有「从这里分叉」，只带到这条回复为止。`Ctrl/⌘+Shift+F` 直接把当前对话分叉为新对话。
 
 ## 会话保存在哪里
 
@@ -102,7 +102,7 @@ Nomi 可以把具体的开发、文档、审查、调研任务交给本机的编
 
 ## 实现
 
-- 视图：`packages/ai-chat/src`（`App.tsx`、`components/Sidebar`、`components/MessageInput`、`components/AssetLibrary`）。
+- 视图：`packages/ai-chat/src`（`App.tsx` 只做组装，各部分的状态在 `app/`：面板开关、命令与快捷键、斜杠命令、右栏；`components/Sidebar`、`components/MessageInput`、`components/AssetLibrary`）。
 - 会话存储：内核 `apps/desktop-go/internal/core/convstore`（契约 `conversations.*`，处理函数 `internal/core/shellhandlers/conversations.go`）；视图 `packages/ai-chat/src/services/conversationStore.ts`（同步门面 + 消息缓存 + 有序写队列）、`conversationBoot.ts`（启动时取索引、迁移）、`conversationMigration.ts`（旧 localStorage 导入）、`components/BootScreen`（启动画面）；退出前等写入：`shellhandlers.ConversationWrites`（`main.go` 的 `OnShutdown`）。
 - 跨轮上下文：内核在一轮结束时发 `steps` 块（这一轮工具循环实际发出的消息，`internal/ai/runtime/aisdk/provider.go`），视图存进回复的 `steps`，下一轮原样带回（`services/history.ts`）；新召回的记忆存在用户消息的 `memory` 上、放在用户原话前面发，不进 system；压缩时合并到压缩消息上（`services/compaction.ts`）。
 - 内核：`apps/desktop-go/internal/aichat`（2.0.4 Electron 旧对话的抽取），图片生成 `internal/ai/runtime/igtools/image.go`，素材库 `internal/core/chatassets`，委派 `internal/core/cli/harness`。

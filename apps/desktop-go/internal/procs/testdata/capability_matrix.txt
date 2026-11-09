@@ -2,7 +2,7 @@
 # 列：状态(IMPL=已注册处理器 / STUB=procs.Install 补的 UNAVAILABLE 桩)  kind  过程名。
 # 规则：STUB 集合只减不增（shrink-only）；新增契约过程必须在 Go 端实现，禁止新增桩。
 # 更新：go test ./internal/procs/ -run TestCapabilityMatrix -update
-# 合计 444：已实现 444，桩 0。
+# 合计 445：已实现 445，桩 0。
 
 [agents] 已实现 3 / 桩 0
 IMPL	mutation	agents.scan
@@ -218,7 +218,7 @@ IMPL	mutation	gateway.terminalSet
 IMPL	query	gateway.terminalState
 IMPL	mutation	gateway.upsertProvider
 
-[harness] 已实现 61 / 桩 0
+[harness] 已实现 58 / 桩 0
 IMPL	mutation	harness.geminiTrustFolder
 IMPL	query	harness.gitBranch
 IMPL	query	harness.gitBranches
@@ -239,7 +239,6 @@ IMPL	mutation	harness.gitWorktrees
 IMPL	query	harness.modelCatalog
 IMPL	mutation	harness.openTerminal
 IMPL	mutation	harness.permissionDefaults
-IMPL	mutation	harness.pickCwd
 IMPL	mutation	harness.pickDir
 IMPL	query	harness.recentCwds
 IMPL	mutation	harness.replyApprovePlan
@@ -247,7 +246,6 @@ IMPL	mutation	harness.replyPermission
 IMPL	mutation	harness.sandboxReply
 IMPL	mutation	harness.send
 IMPL	mutation	harness.setBackend
-IMPL	mutation	harness.setCwd
 IMPL	query	harness.slashDiscover
 IMPL	query	harness.slashExpand
 IMPL	query	harness.state
@@ -261,13 +259,12 @@ IMPL	mutation	harness.tabCarryClear
 IMPL	mutation	harness.tabClose
 IMPL	query	harness.tabContext
 IMPL	mutation	harness.tabCreate
-IMPL	mutation	harness.tabCwd
 IMPL	mutation	harness.tabEffort
 IMPL	mutation	harness.tabLongContext
 IMPL	query	harness.tabMessages
 IMPL	mutation	harness.tabModel
 IMPL	mutation	harness.tabPermissionMode
-IMPL	mutation	harness.tabPickCwd
+IMPL	mutation	harness.tabProject
 IMPL	mutation	harness.tabRename
 IMPL	mutation	harness.tabRewind
 IMPL	mutation	harness.tabSeed
@@ -392,6 +389,12 @@ IMPL	mutation	onboarding.setProfile
 [persona] 已实现 2 / 桩 0
 IMPL	query	persona.get
 IMPL	query	persona.systemPrompt
+
+[project] 已实现 4 / 桩 0
+IMPL	mutation	project.create
+IMPL	query	project.list
+IMPL	mutation	project.remove
+IMPL	mutation	project.update
 
 [providerLink] 已实现 4 / 桩 0
 IMPL	mutation	providerLink.accept

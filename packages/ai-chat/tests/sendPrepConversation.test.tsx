@@ -18,7 +18,7 @@ vi.mock('../src/services/api', async () =>
 
 type Api = ReturnType<typeof useAiChat>;
 type Sent = {
-  extra?: { conversationId?: string; cwd?: string };
+  extra?: { conversationId?: string; projectId?: string };
   messages?: Array<{ role: string; content: string }>;
 };
 
@@ -74,8 +74,8 @@ async function setupAB() {
   await flush();
   const ipc = ref.api.state.ipcClient as SdkIPCClient;
   const store = ipc.conversationStore();
-  const A = store.create({ cwd: '/work/a' }).id;
-  const B = store.create({ cwd: '/work/b' }).id;
+  const A = store.create({ projectId: 'p_a' }).id;
+  const B = store.create({ projectId: 'p_b' }).id;
   store.switchTo(A);
   await act(async () => {
     await ref.api.actions.loadChatHistory();
@@ -97,7 +97,7 @@ describe('Nomi 发送准备期间切换会话（#184）', () => {
     cleanup();
   });
 
-  it('准备中切到 B 再放行：请求仍带 A 的会话 id 与工作区，B 收不到 A 的消息', async () => {
+  it('准备中切到 B 再放行：请求仍带 A 的会话 id 与项目，B 收不到 A 的消息', async () => {
     const { f, ref, ipc, store, A, B } = await setupAB();
     const hold = holdPreparation();
 
@@ -122,7 +122,7 @@ describe('Nomi 发送准备期间切换会话（#184）', () => {
     });
 
     expect(f.sent).toHaveLength(1);
-    expect(f.sent[0]!.extra).toEqual({ conversationId: A, cwd: '/work/a' });
+    expect(f.sent[0]!.extra).toEqual({ conversationId: A, projectId: 'p_a' });
     expect(f.sent[0]!.messages?.at(-1)?.content).toBe('给 A 的消息');
     expect(store.getMessages(A).map((m) => [m.role, m.content])).toEqual([
       ['user', '给 A 的消息'],
@@ -134,7 +134,7 @@ describe('Nomi 发送准备期间切换会话（#184）', () => {
     expect(ref.api.state.isLoading).toBe(false);
   });
 
-  it('快速 A→B→A：仍只发一次，带 A 的会话与工作区', async () => {
+  it('快速 A→B→A：仍只发一次，带 A 的会话与项目', async () => {
     const { f, ref, ipc, A, B } = await setupAB();
     const hold = holdPreparation();
     let done!: Promise<void>;
@@ -152,7 +152,7 @@ describe('Nomi 发送准备期间切换会话（#184）', () => {
       await done;
     });
     expect(f.sent).toHaveLength(1);
-    expect(f.sent[0]!.extra).toEqual({ conversationId: A, cwd: '/work/a' });
+    expect(f.sent[0]!.extra).toEqual({ conversationId: A, projectId: 'p_a' });
     expect(ref.api.state.messages.map((m) => m.content)).toEqual(['q', 'ok']);
   });
 
@@ -180,10 +180,10 @@ describe('Nomi 发送准备期间切换会话（#184）', () => {
     expect(ref.api.state.isLoading).toBe(false);
   });
 
-  it('没有工作区的会话：请求只带会话 id，不借用别的会话的工作区', async () => {
+  it('没有项目的会话：请求只带会话 id，不借用别的会话的项目', async () => {
     const { f, ref, ipc, store, B } = await setupAB();
-    const C = store.create().id;
-    expect(store.get(C)?.cwd).toBeUndefined();
+    const C = store.create({ projectId: null }).id;
+    expect(store.get(C)?.projectId).toBeUndefined();
     const hold = holdPreparation();
     let done!: Promise<void>;
     await act(async () => {
@@ -201,13 +201,13 @@ describe('Nomi 发送准备期间切换会话（#184）', () => {
     expect(f.sent[0]!.extra).toEqual({ conversationId: C });
   });
 
-  it('不切会话的正常路径：只发送一次，带当前会话与工作区', async () => {
+  it('不切会话的正常路径：只发送一次，带当前会话与项目', async () => {
     const { f, ref, store, A } = await setupAB();
     await act(async () => {
       await ref.api.actions.sendStreamMessage('hi');
     });
     expect(f.sent).toHaveLength(1);
-    expect(f.sent[0]!.extra).toEqual({ conversationId: A, cwd: '/work/a' });
+    expect(f.sent[0]!.extra).toEqual({ conversationId: A, projectId: 'p_a' });
     expect(store.getMessages(A).map((m) => m.content)).toEqual(['hi', 'ok']);
     expect(ref.api.state.messages.map((m) => m.content)).toEqual(['hi', 'ok']);
   });
@@ -216,13 +216,13 @@ describe('Nomi 发送准备期间切换会话（#184）', () => {
     const { f, ipc, store, A, B } = await setupAB();
     store.switchTo(B);
     await ipc.sendStreamMessage('x', undefined, [], undefined, undefined, {
-      conversation: { id: A, cwd: '/work/a' },
+      conversation: { id: A, projectId: 'p_a' },
     });
-    expect(f.sent.at(-1)!.extra).toEqual({ conversationId: A, cwd: '/work/a' });
+    expect(f.sent.at(-1)!.extra).toEqual({ conversationId: A, projectId: 'p_a' });
     store.delete(A);
     await expect(
       ipc.sendStreamMessage('y', undefined, [], undefined, undefined, {
-        conversation: { id: A, cwd: '/work/a' },
+        conversation: { id: A, projectId: 'p_a' },
       }),
     ).rejects.toThrow();
     expect(f.sent).toHaveLength(1);

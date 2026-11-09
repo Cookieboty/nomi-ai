@@ -242,8 +242,8 @@ export interface AiChatActions {
   askKnowledge: (content: string, override?: { history: ChatMessage[] }) => Promise<void>;
   loadChatHistory: () => Promise<void>;
   clearChatHistory: () => Promise<void>;
-  /** cwd：新 Nomi 对话的工作区；缺省用主标签当前的目录 */
-  newConversation: (opts?: { cwd?: string }) => Promise<void>;
+  /** projectId：新 Nomi 对话的项目；缺省沿用当前 Nomi 对话的 */
+  newConversation: (opts?: { projectId?: string | null }) => Promise<void>;
   loadConfig: () => Promise<void>;
   updateConfig: (config: Partial<ChatConfig>) => Promise<void>;
 }
@@ -263,10 +263,10 @@ export interface AiChatContextProviderProps {
 export interface ConversationTurn {
   convoId: string | undefined;
   /**
-   * 发起时该会话的工作区（Nomi 对话的 cwd）：和 convoId 一起固定，随请求显式带给内核，
-   * 不在准备结束后再按「当前会话」重新读取（期间用户可能已切到另一个工作区的会话）
+   * 发起时该会话的项目：和 convoId 一起固定，随请求显式带给内核，
+   * 不在准备结束后再按「当前会话」重新读取（期间用户可能已切到另一个项目的会话）
    */
-  cwd: string | undefined;
+  projectId: string | undefined;
   /**
    * 发起这一轮的会话是否仍是当前展示的会话（且仍存在）。
    * 会话被删除后 store 的 current 可能变成 undefined 或另一个会话，二者都不算 active。
@@ -282,7 +282,7 @@ export function openTurn(client: IPCClient): ConversationTurn {
   const meta = convoId ? client.conversationStore?.()?.get(convoId) : undefined;
   return {
     convoId,
-    cwd: typeof meta?.cwd === 'string' && meta.cwd ? meta.cwd : undefined,
+    projectId: typeof meta?.projectId === 'string' && meta.projectId ? meta.projectId : undefined,
     // 有 convoId 时必须 cur === convoId：current 为 undefined 说明会话刚被删光，不能当作仍在显示。
     // 只有完全没有会话 id 接口的旧实现（convoId 为空）才走无 id 的兜底。
     isActive: () => !convoId || client.currentConversationId?.() === convoId,
@@ -836,7 +836,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
                 steps = s;
               },
               signal: controller.signal,
-              conversation: { id: turn.convoId, cwd: turn.cwd },
+              conversation: { id: turn.convoId, projectId: turn.projectId },
               onThinking: (active) => {
                 thinking = active;
                 scheduleUi();
@@ -1014,7 +1014,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
 
   // 新建会话（旧会话保留在本地存储中；进行中的流继续写回旧会话）
   const newConversation = useCallback(
-    async (opts?: { cwd?: string }) => {
+    async (opts?: { projectId?: string | null }) => {
       historySeq.current++;
       stopReplySpeech();
       dispatch({ type: 'SET_ERROR', payload: undefined });
@@ -1030,7 +1030,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           ...activeStream.current.keys(),
           ...(current && (messages.length || isLoading) ? [current] : []),
         ].filter(Boolean);
-        await ipcClient.newConversation(undefined, { cwd: opts?.cwd, notReuse });
+        await ipcClient.newConversation(undefined, { projectId: opts?.projectId, notReuse });
         historySeq.current++;
         dispatch({
           type: 'CLEAR_MESSAGES',

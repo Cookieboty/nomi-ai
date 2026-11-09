@@ -7,7 +7,7 @@
 - 视图只经契约访问内核（[contract.md](contract.md)）：每个窗口一个一次性 token，内核按 token 认出调用方界面；过程的 `surfaces` /
   `dangerous` 由 `internal/contract/frames.go` 的守卫判定。WebSocket 只监听 `127.0.0.1`。
 - 拖入文件的本机路径由宿主从原生拖放事件里拿（`wailsshell` 的 WindowFilesDropped），视图交不出任意路径。
-- 视图带来的目录（标签 cwd、Nomi 对话工作区）内核要再校验，不认就按没有处理。
+- 视图只带项目 id（Nomi 对话 `extra.projectId`、新标签 `projectId`），不带目录：项目的文件夹由内核从 `core/projects` 实时取，每次用前按工作区根规则再校验，不认就按没有处理；视图带来的 `extra.cwd` 一律丢掉。
 
 ## 桌面能力（Nomi 的文件 / 命令工具）
 
@@ -16,7 +16,7 @@
 | 文件                                 | 作用                                                                                                                                                                                                                                                                            |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `path_guard.go`                      | 授权作用域 + 黑名单 + 路径规范化 + realpath 防符号链接逃逸                                                                                                                                                                                                                      |
-| `workspace.go`                       | 对话工作区作为隐式读写作用域；拒绝过宽的根（家目录、盘符根等）                                                                                                                                                                                                                  |
+| `workspace.go`                       | 项目的文件夹（`Workspace`：主文件夹 + 其余文件夹）作为隐式读写作用域；拒绝过宽的根（家目录、盘符根等）                                                                                                                                                                          |
 | `protected_paths.go`                 | 用户的受保护文件夹（存 realpath）与放行给编程助手的环境变量；`CheckCliWorkspace` 给编程助手标签的工作目录用同一套规则                                                                                                                                                           |
 | `permission_broker.go`、`consent.go` | 授权作用域、工具策略、确认请求、云端外发同意；何时需要用户确认                                                                                                                                                                                                                  |
 | `command_class.go`                   | 命令的确定性分类（读凭据、不可逆操作、对外副作用）                                                                                                                                                                                                                              |
@@ -32,6 +32,8 @@
 
 - **工作目录**：`Deps.CwdCheck`（接 `desktop.PermissionBroker.CheckCliWorkspace`，与 Nomi 对话工作区同一套：不能过宽、不能在内置或用户的受保护文件夹里）。
   新建标签、换目录、每次起 CLI 前都查（`spawn.go` 的 `cwdErr`）。
+- **项目的其余文件夹**：标签只记 projectId，其余文件夹每次启动时从 `core/projects` 实时取（建 / 改项目时已逐个过工作区根规则，取的时候再查），
+  交给 CLI（`--add-dir` / `writableRoots` / `additionalDirectories`），系统沙箱里与工作目录一样可写（「计划」只读）。见 [coding-agents.md「项目」](coding-agents.md#项目)。
 - **环境变量**：`CliChildEnv` 先用 `cli.ScrubSecretEnv`（`internal/core/cli/envscrub.go`）去掉继承来的凭据类变量（令牌、密码、云账号密钥、
   连接串），模型服务的凭据与用户放行的变量（`Deps.EnvAllow`）除外；Nomi 自己注入的变量（标签令牌、官方账号目录）不受影响。
   Nomi 的 `workspace_run` 用同一套环境（`igtools_wiring.go` 的 `desktopShellEnv`）。

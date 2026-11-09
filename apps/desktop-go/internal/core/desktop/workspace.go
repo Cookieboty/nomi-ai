@@ -89,7 +89,44 @@ func CheckWorkspaceRoot(dir string, env WorkspaceEnv) WorkspaceCheck {
 	return WorkspaceCheck{OK: true, Real: real}
 }
 
-// WorkspaceScope 工作区当作唯一作用域
+// Workspace：Nomi 对话这一轮的项目目录（都是 realpath）。Primary 为空 = 没有项目
+type Workspace struct {
+	ProjectID string
+	Primary   string
+	Extra     []string
+}
+
+// Empty：没有项目
+func (w Workspace) Empty() bool { return w.Primary == "" }
+
+// Roots：主文件夹在前
+func (w Workspace) Roots() []string {
+	if w.Primary == "" {
+		return nil
+	}
+	return append([]string{w.Primary}, w.Extra...)
+}
+
+// Scopes：每个文件夹一个读写作用域
+func (w Workspace) Scopes() []Scope {
+	out := make([]Scope, 0, 1+len(w.Extra))
+	for _, r := range w.Roots() {
+		out = append(out, WorkspaceScope(r))
+	}
+	return out
+}
+
+// RootOf：p（realpath）落在哪个文件夹里；不在任何一个里返回 ""
+func (w Workspace) RootOf(p, platform string) string {
+	for _, r := range w.Roots() {
+		if IsInside(p, r, platform) {
+			return r
+		}
+	}
+	return ""
+}
+
+// WorkspaceScope 一个项目文件夹当作读写作用域
 func WorkspaceScope(real string) Scope {
 	return Scope{ID: "workspace", Path: real, Mode: "read-write", Kind: "folder", GrantedAt: 0}
 }

@@ -24,7 +24,10 @@ type ExecContext struct {
 	ReqID          string
 	CallerTabID    string
 	ConversationID string
-	Cwd            string
+	// Cwd：项目的主文件夹（PrepareChat 按 ProjectID 取好的；没有项目时为空）
+	Cwd string
+	// ProjectID：这一轮的项目；工具每次按它实时取项目的全部文件夹（desktop.PermissionBroker.WorkspaceOf）
+	ProjectID string
 	// UserText：本轮用户最后说的话（命令自动审核判断授权用）
 	UserText string
 }

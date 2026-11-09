@@ -62,7 +62,7 @@ func newConvHarness(t *testing.T, toolNames []string, script func(ctx context.Co
 }
 
 func conversationExecutor() ExecutorSpec {
-	return ExecutorSpec{Kind: "nomi", Tools: &[]string{}, Toolset: sp("conversation"), Cwd: sp("/work/deck"),
+	return ExecutorSpec{Kind: "nomi", Tools: &[]string{}, Toolset: sp("conversation"), Cwd: sp("/work/deck"), Project: sp("p_deck"),
 		Brief: &Brief{DoneWhen: "PPT 写进工作区", Context: sp("10 页，蓝色调")}}
 }
 
@@ -85,7 +85,7 @@ func TestNomiConversationToolsetExtraAndPrompt(t *testing.T) {
 	if want := []string{"image_generate", "fs_write_text", "delegate_to_cli"}; !reflect.DeepEqual(h.tools[0], want) {
 		t.Fatalf("tools %v", h.tools[0])
 	}
-	if h.extra[0]["conversationId"] != "c1" || h.extra[0]["cwd"] != "/work/deck" || h.extra[0]["taskId"] != id {
+	if h.extra[0]["conversationId"] != "c1" || h.extra[0]["projectId"] != "p_deck" || h.extra[0]["cwd"] != nil || h.extra[0]["taskId"] != id {
 		t.Fatalf("extra %v", h.extra[0])
 	}
 	sys := h.sys[0]

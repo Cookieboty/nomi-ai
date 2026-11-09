@@ -10,6 +10,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import type { HarnessTabMeta } from '../../services/harnessClient';
+import { sessionPlace } from '../../services/projects';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { EndpointIcon } from '../EndpointIcon';
 
@@ -33,10 +34,6 @@ export const sessionStatus = (tab: HarnessTabMeta | undefined): string => {
   const key = LIVE_LABEL[liveOf(tab)];
   return key ? t(key) : '';
 };
-
-/** 会话的工作区：Nomi 对话看会话自己的，CLI 标签看标签目录 */
-export const sessionCwd = (c: Meta, tab: HarnessTabMeta | undefined): string =>
-  c.cwd || tab?.cwd || '';
 
 const baseName = (p: string) =>
   p
@@ -109,7 +106,7 @@ export const SessionPeek: React.FC<{
   useLocale();
   const [editing, setEditing] = useState(false);
   const status = sessionStatus(tab);
-  const cwd = sessionCwd(c, tab);
+  const place = sessionPlace(c, tab);
   const name = sessionName(c);
   const commit = (v: string | null) => {
     setEditing(false);
@@ -172,10 +169,10 @@ export const SessionPeek: React.FC<{
           {t('ui.cli-monitor.delegated-by-nomi', brand.appName, t(ENDPOINT_NAME[c.backend]))}
         </span>
       )}
-      {cwd && (
-        <span className={rail.peekCwd} title={cwd} data-testid="session-peek-cwd">
+      {place.label && (
+        <span className={rail.peekCwd} title={place.title} data-testid="session-peek-cwd">
           <Icon icon={Folder} size={14} />
-          <span className={rail.peekCwdName}>{baseName(cwd)}</span>
+          <span className={rail.peekCwdName}>{place.label}</span>
         </span>
       )}
     </div>,

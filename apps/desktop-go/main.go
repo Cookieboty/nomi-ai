@@ -625,9 +625,11 @@ func main() {
 	gatewayRequests := wireGatewayRequests(userData, shellP)
 	gatewayRequestsRef.Store(gatewayRequests)
 	defer gatewayRequests.Dispose()
+	projs := wireProjects(router, userData, desktopSvc.Broker)
 	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc, shellP.Quality,
-		desktopSvc.Broker.CheckCliWorkspace, desktopSvc.Broker.CliEnvAllow, sandboxDeps(desktopSvc.Broker))
+		desktopSvc.Broker.CheckCliWorkspace, desktopSvc.Broker.CliEnvAllow, sandboxDeps(desktopSvc.Broker), projs)
 	wireNomiBroker(desktopSvc.Broker, harnessOrch)
+	migrateToProjects(projs, bundle.Conversations, harnessOrch, taskRuntime(b8.Tasks))
 	watchSandboxPolicy(desktopSvc.Broker, harnessOrch)
 	taskCliFinished.attach(harnessOrch)
 	// 委派 / 任务直接改同一仓库：按文件、按优先级裁决；启动时清理没人认领的委派 worktree

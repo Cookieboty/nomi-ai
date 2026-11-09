@@ -152,7 +152,7 @@ func newFileGuardPrep(t *testing.T, recv *Provider) (*routeEnv, ChatPrep) {
 	t.Helper()
 	e := newRouteEnv(t, true, false)
 	return e, ChatPrep{
-		Broker:      WorkspaceBroker{WorkspaceOf: func(any) string { return "" }, AutoApprove: func() bool { return false }},
+		Broker:      WorkspaceBroker{WorkspaceOf: func(any) Workspace { return Workspace{} }, AutoApprove: func() bool { return false }},
 		ProviderFor: func(Role) *Provider { return recv },
 		CheckSend:   e.s.Broker.CheckSend,
 	}

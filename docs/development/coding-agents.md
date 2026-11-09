@@ -86,6 +86,26 @@ ACP 助手的权限能力由清单推出（`shared.AcpPermissions`），不在 G
 网关里没有专门条目的用通用条目（`clients.GenericSpec`：宽松校验、不认识的模型名映射到主模型）。模型写在配置里，
 换模型时重启进程并用 `session/load` 续接。终端里的 `nomi-<cli>` 命令要启动脚本支持（清单 `host.nomiCommand`）。
 
+## 项目
+
+项目（`internal/core/projects`，`userData/projects.json`，契约 `project.*` / `project.changed`）是有名字的一组文件夹：`primary` 是主文件夹，
+`folders` 是其余文件夹。模型与 ACP 的 [Additional Directories](https://agentclientprotocol.com/rfds/additional-directories) 一致：
+`cwd` 仍是主目录、相对路径的基准，其余文件夹只扩大读写范围；git、worktree、AGENTS.md 只看主文件夹。
+
+- **会话只记 projectId**：Nomi 对话在会话元信息里，编程助手在标签对象里（`tabs.json`）。目录不存进会话，每次用时由
+  `Store.Roots(id)` 实时取并按工作区根规则再查一遍：主文件夹不能用则整个项目不可用，其余文件夹不能用则跳过。
+- **Nomi**：`desktop.ApplyConversationWorkspace` 按 `extra.projectId` 取 `desktop.Workspace`，把 `extra.cwd` 改写成主文件夹（视图带来的丢掉）；
+  文件工具每次调用按 `ExecContext.ProjectID` 重新取（`PermissionBroker.WorkspaceOf`），守卫的作用域是全部文件夹（`Workspace.Scopes`）。
+- **编程助手**：工作目录是主文件夹（委派的 worktree 标签例外），其余文件夹每次启动时由 `Orchestrator.extraDirs` 取：Claude Code `--add-dir`、
+  Codex app-server 每轮 `sandboxPolicy.writableRoots`（exec 回退用 `-c sandbox_workspace_write.writable_roots`）、Gemini `--include-directories`、
+  其余 ACP 助手声明 `sessionCapabilities.additionalDirectories` 时在 `session/new` / `session/load` 里带上；Nomi 的系统沙箱也把它们加进可写目录。
+  项目改了（`Store.OnChange` → `Orchestrator.ProjectChanged`）：空闲标签断开常驻进程，下一轮按新的文件夹重启接着原会话；主文件夹换了的换工作目录、带上前文。
+- **右栏**：视图把项目的全部文件夹（工作目录在前）传给 `SessionChangesPanel` / 中栏 Diff / 全屏审查 / `@` 路径补全，每个文件夹照常调
+  `harness.workspaceList` / `harness.gitDiff`（内核按项目文件夹认目录）。「改动」每个文件夹挂一个 `RepoGitSection`，按 `gitDiff` 返回的
+  `gitRoot` 去重；只有一个文件夹时布局与原来一样。
+- **委派与任务**：`delegate_to_cli` / `delegate_to_nomi` 把项目带进新标签与任务（`ExecutorSpec.Project`），Nomi 后台任务经 `extra.projectId` 走同一条路。
+- **迁移**：`projects.json` 不存在时（2.3.8 首启）`migrateToProjects` 把会话元信息里的 `cwd` 与标签目录各建成单文件夹项目，会话改成引用 projectId 并去掉 `cwd`。
+
 ## 权限档位
 
 清单里的档位：`plan`、`manual`、`acceptEdits`、`auto`、`bypass`（`packages/cli-catalog/src/manifest.ts`），每个 CLI 把它们映射成

@@ -16,6 +16,9 @@ type StartOptions struct {
 	ResumeID   *string
 	Signal     *jsrt.AbortSignal
 	McpServers []any // nil = undefined
+	// AdditionalDirectories：工作目录之外也能读写的目录（项目的其余文件夹，绝对路径）。
+	// ACP：agent 声明了 sessionCapabilities.additionalDirectories 才发；不支持的驱动忽略
+	AdditionalDirectories []string
 }
 
 // TurnInput：一轮的输入。

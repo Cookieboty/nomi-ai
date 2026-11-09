@@ -1,7 +1,7 @@
 {
  "version": {
-  "major": 2,
-  "minor": 4
+  "major": 3,
+  "minor": 0
  },
  "procedures": {
   "agents.scan": {
@@ -18356,6 +18356,9 @@
      },
      "truncated": {
       "type": "boolean"
+     },
+     "gitRoot": {
+      "type": "string"
      }
     },
     "required": [
@@ -18911,6 +18914,9 @@
         "cwd": {
          "type": "string"
         },
+        "projectId": {
+         "type": "string"
+        },
         "cliSessionId": {
          "type": [
           "string",
@@ -19028,42 +19034,6 @@
      "activeTabId",
      "running",
      "queued"
-    ],
-    "additionalProperties": {}
-   }
-  },
-  "harness.pickCwd": {
-   "kind": "mutation",
-   "dangerous": false,
-   "surfaces": [],
-   "input": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema"
-   },
-   "output": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
-    "properties": {
-     "backend": {
-      "type": "string"
-     },
-     "cwd": {
-      "type": "string"
-     },
-     "cliSessionId": {
-      "type": [
-       "string",
-       "null"
-      ]
-     },
-     "busy": {
-      "type": "boolean"
-     }
-    },
-    "required": [
-     "backend",
-     "cwd",
-     "cliSessionId",
-     "busy"
     ],
     "additionalProperties": {}
    }
@@ -19260,54 +19230,6 @@
     },
     "required": [
      "backend"
-    ]
-   },
-   "output": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
-    "properties": {
-     "backend": {
-      "type": "string"
-     },
-     "cwd": {
-      "type": "string"
-     },
-     "cliSessionId": {
-      "type": [
-       "string",
-       "null"
-      ]
-     },
-     "busy": {
-      "type": "boolean"
-     }
-    },
-    "required": [
-     "backend",
-     "cwd",
-     "cliSessionId",
-     "busy"
-    ],
-    "additionalProperties": {}
-   }
-  },
-  "harness.setCwd": {
-   "kind": "mutation",
-   "dangerous": false,
-   "surfaces": [],
-   "input": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
-    "properties": {
-     "cwd": {
-      "type": "string"
-     },
-     "carry": {
-      "type": "boolean"
-     }
-    },
-    "required": [
-     "cwd"
     ]
    },
    "output": {
@@ -19550,6 +19472,9 @@
      "cwd": {
       "type": "string"
      },
+     "projectId": {
+      "type": "string"
+     },
      "cliSessionId": {
       "type": [
        "string",
@@ -19664,6 +19589,9 @@
          "type": "string"
         },
         "cwd": {
+         "type": "string"
+        },
+        "projectId": {
          "type": "string"
         },
         "cliSessionId": {
@@ -19825,6 +19753,9 @@
        "cwd": {
         "type": "string"
        },
+       "projectId": {
+        "type": "string"
+       },
        "cliSessionId": {
         "type": [
          "string",
@@ -19943,6 +19874,9 @@
       "type": "string"
      },
      "cwd": {
+      "type": "string"
+     },
+     "projectId": {
       "type": "string"
      },
      "cliSessionId": {
@@ -20077,6 +20011,9 @@
      "cwd": {
       "type": "string"
      },
+     "projectId": {
+      "type": "string"
+     },
      "cliSessionId": {
       "type": [
        "string",
@@ -20191,6 +20128,9 @@
          "type": "string"
         },
         "cwd": {
+         "type": "string"
+        },
+        "projectId": {
          "type": "string"
         },
         "cliSessionId": {
@@ -20362,7 +20302,7 @@
      "backend": {
       "type": "string"
      },
-     "cwd": {
+     "projectId": {
       "type": "string"
      },
      "title": {
@@ -20420,122 +20360,7 @@
      "cwd": {
       "type": "string"
      },
-     "cliSessionId": {
-      "type": [
-       "string",
-       "null"
-      ]
-     },
-     "status": {
-      "type": "string"
-     },
-     "unread": {
-      "type": "number"
-     },
-     "createdAt": {
-      "type": "number"
-     },
-     "updatedAt": {
-      "type": "number"
-     },
-     "sandboxPending": {
-      "type": "array",
-      "items": {
-       "type": "object",
-       "properties": {
-        "id": {
-         "type": "string"
-        },
-        "kind": {
-         "type": "string",
-         "enum": [
-          "category",
-          "read",
-          "folder",
-          "file",
-          "protected"
-         ]
-        },
-        "value": {
-         "type": "string"
-        },
-        "op": {
-         "type": "string",
-         "enum": [
-          "read",
-          "write"
-         ]
-        },
-        "path": {
-         "type": "string"
-        },
-        "at": {
-         "type": "number"
-        }
-       },
-       "required": [
-        "id",
-        "kind",
-        "value",
-        "op",
-        "path",
-        "at"
-       ],
-       "additionalProperties": {}
-      }
-     }
-    },
-    "required": [
-     "id",
-     "title",
-     "backend",
-     "cwd",
-     "cliSessionId",
-     "status",
-     "unread",
-     "createdAt",
-     "updatedAt"
-    ],
-    "additionalProperties": {}
-   }
-  },
-  "harness.tabCwd": {
-   "kind": "mutation",
-   "dangerous": false,
-   "surfaces": [],
-   "input": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
-    "properties": {
-     "id": {
-      "type": "string"
-     },
-     "cwd": {
-      "type": "string"
-     },
-     "carry": {
-      "type": "boolean"
-     }
-    },
-    "required": [
-     "id",
-     "cwd"
-    ]
-   },
-   "output": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
-    "properties": {
-     "id": {
-      "type": "string"
-     },
-     "title": {
-      "type": "string"
-     },
-     "backend": {
-      "type": "string"
-     },
-     "cwd": {
+     "projectId": {
       "type": "string"
      },
      "cliSessionId": {
@@ -20656,6 +20481,9 @@
      "cwd": {
       "type": "string"
      },
+     "projectId": {
+      "type": "string"
+     },
      "cliSessionId": {
       "type": [
        "string",
@@ -20772,6 +20600,9 @@
       "type": "string"
      },
      "cwd": {
+      "type": "string"
+     },
+     "projectId": {
       "type": "string"
      },
      "cliSessionId": {
@@ -20941,6 +20772,9 @@
      "cwd": {
       "type": "string"
      },
+     "projectId": {
+      "type": "string"
+     },
      "cliSessionId": {
       "type": [
        "string",
@@ -21070,6 +20904,9 @@
      "cwd": {
       "type": "string"
      },
+     "projectId": {
+      "type": "string"
+     },
      "cliSessionId": {
       "type": [
        "string",
@@ -21149,7 +20986,7 @@
     "additionalProperties": {}
    }
   },
-  "harness.tabPickCwd": {
+  "harness.tabProject": {
    "kind": "mutation",
    "dangerous": false,
    "surfaces": [],
@@ -21159,10 +20996,20 @@
     "properties": {
      "id": {
       "type": "string"
+     },
+     "projectId": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "carry": {
+      "type": "boolean"
      }
     },
     "required": [
-     "id"
+     "id",
+     "projectId"
     ]
    },
    "output": {
@@ -21179,6 +21026,9 @@
       "type": "string"
      },
      "cwd": {
+      "type": "string"
+     },
+     "projectId": {
       "type": "string"
      },
      "cliSessionId": {
@@ -21294,6 +21144,9 @@
       "type": "string"
      },
      "cwd": {
+      "type": "string"
+     },
+     "projectId": {
       "type": "string"
      },
      "cliSessionId": {
@@ -21482,6 +21335,9 @@
       "type": "string"
      },
      "cwd": {
+      "type": "string"
+     },
+     "projectId": {
       "type": "string"
      },
      "cliSessionId": {
@@ -21681,6 +21537,9 @@
      "cwd": {
       "type": "string"
      },
+     "projectId": {
+      "type": "string"
+     },
      "cliSessionId": {
       "type": [
        "string",
@@ -21812,6 +21671,9 @@
          "type": "string"
         },
         "cwd": {
+         "type": "string"
+        },
+        "projectId": {
          "type": "string"
         },
         "cliSessionId": {
@@ -26376,6 +26238,219 @@
    "output": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "string"
+   }
+  },
+  "project.create": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "primary": {
+      "type": "string"
+     },
+     "folders": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "primary"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "primary": {
+      "type": "string"
+     },
+     "folders": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "missing": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "createdAt": {
+      "type": "number"
+     },
+     "updatedAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "primary",
+     "folders",
+     "createdAt",
+     "updatedAt"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "project.list": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      },
+      "primary": {
+       "type": "string"
+      },
+      "folders": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "missing": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "createdAt": {
+       "type": "number"
+      },
+      "updatedAt": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "id",
+      "name",
+      "primary",
+      "folders",
+      "createdAt",
+      "updatedAt"
+     ],
+     "additionalProperties": {}
+    }
+   }
+  },
+  "project.remove": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "null"
+   }
+  },
+  "project.update": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "primary": {
+      "type": "string"
+     },
+     "folders": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "primary": {
+      "type": "string"
+     },
+     "folders": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "missing": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "createdAt": {
+      "type": "number"
+     },
+     "updatedAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "primary",
+     "folders",
+     "createdAt",
+     "updatedAt"
+    ],
+    "additionalProperties": {}
    }
   },
   "providerLink.accept": {
@@ -35338,6 +35413,9 @@
        "cwd": {
         "type": "string"
        },
+       "projectId": {
+        "type": "string"
+       },
        "cliSessionId": {
         "type": [
          "string",
@@ -36085,6 +36163,51 @@
    ],
    "additionalProperties": {}
   },
+  "project.changed": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "primary": {
+      "type": "string"
+     },
+     "folders": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "missing": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "createdAt": {
+      "type": "number"
+     },
+     "updatedAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "primary",
+     "folders",
+     "createdAt",
+     "updatedAt"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "providerLink.changed": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "array",
@@ -36595,6 +36718,8 @@
   "ACCOUNT_LOCAL",
   "ACCOUNT_UNSUPPORTED",
   "ACCOUNT_UNKNOWN_LIVE",
+  "PROJECT_NOT_FOUND",
+  "PROJECT_FOLDER_DENIED",
   "FLEET_NOT_IDLE",
   "TERMINAL_CWD_DENIED",
   "TERMINAL_NOT_FOUND",

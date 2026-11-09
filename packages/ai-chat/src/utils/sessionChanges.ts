@@ -2,7 +2,7 @@
 import type { ConvMessage } from '../types/conversation';
 
 import { diffsOf, reduceTrace, type FileDiff, type ToolCall } from './toolTrace';
-import { workspaceRelPath } from './workspacePath';
+import { rootOf, workspaceRelPath } from './workspacePath';
 
 export interface ChangeEntry {
   file: string;
@@ -141,6 +141,10 @@ export interface ChangeTreeDir {
   kind: 'dir';
   name: string;
   path: string;
+  /** 默认展开（覆盖树的 defaultOpen；多个文件夹的项目里主文件夹默认展开） */
+  open?: boolean;
+  /** 悬停提示（缺省为 path） */
+  title?: string;
   /** 工作区全树：被 .gitignore 忽略（置灰展示） */
   ignored?: boolean;
   children: ChangeTreeNode[];
@@ -163,6 +167,11 @@ export interface ChangeTreeOptions {
   cwd?: string | null;
   /** 只有一个子目录的目录链压成一行（packages/ai-chat/src） */
   compact?: boolean;
+  /**
+   * 项目的全部文件夹（工作目录在前）：多于一个时每个文件夹一个顶层节点（默认展开），文件按所在文件夹归进去，
+   * 都不在的归工作目录
+   */
+  roots?: readonly string[];
 }
 
 /** 把「只有一个子目录」的目录链合并成一个节点 */
@@ -178,11 +187,26 @@ export function compactChangeTree(nodes: ChangeTreeNode[]): ChangeTreeNode[] {
   });
 }
 
-/** 按目录分组的变更树（右栏） */
+/** 按目录分组的变更树（右栏）；opts.roots 多于一个时先按文件夹分 */
 export function buildChangeFileTree(
   entries: readonly ChangeEntry[],
   opts: ChangeTreeOptions = {},
 ): ChangeTreeNode[] {
+  const roots = opts.roots ?? [];
+  if (roots.length > 1) {
+    const by = new Map<string, ChangeEntry[]>(roots.map((r) => [r, []]));
+    for (const e of entries) by.get(rootOf(roots, e.file) ?? roots[0]!)!.push(e);
+    return roots
+      .filter((r) => by.get(r)!.length)
+      .map((r) => ({
+        kind: 'dir' as const,
+        name: projectNameFromCwd(r),
+        path: r,
+        title: r,
+        open: true,
+        children: buildChangeFileTree(by.get(r)!, { ...opts, cwd: r, roots: undefined }),
+      }));
+  }
   type MutableDir = {
     kind: 'dir';
     name: string;

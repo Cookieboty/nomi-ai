@@ -601,5 +601,7 @@
   "electron.common.auto-continue-stopped-no-progress": "(The last automatic round made no real progress, so I stopped here. Say \"continue\" if you want me to keep going.)",
   "electron.common.cli-did-not-confirm-the-permission-mode-change": "{0} did not confirm the permission mode change ({1}). The current session was stopped; the next turn starts with the new mode",
   "electron.common.cli-did-not-confirm-the-permission-mode-so": "{0} did not confirm the permission mode ({1}), so this message was not sent",
-  "electron.common.list-separator": ", "
+  "electron.common.list-separator": ", ",
+  "electron.common.project-folder-denied": "“{0}” can’t be added to a project: {1}",
+  "electron.common.project-folder-nested": "“{0}” and “{1}” contain one another; folders in a project can’t be nested"
 }

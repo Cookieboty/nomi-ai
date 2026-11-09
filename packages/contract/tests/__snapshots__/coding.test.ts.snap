@@ -2,10 +2,12 @@
 
 exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces、dangerous 1`] = `
 [
+  "project.list query",
+  "project.create mutation dangerous",
+  "project.update mutation dangerous",
+  "project.remove mutation",
   "harness.state query",
   "harness.setBackend mutation",
-  "harness.setCwd mutation",
-  "harness.pickCwd mutation",
   "harness.send mutation",
   "harness.tabs query",
   "harness.tabCreate mutation",
@@ -15,7 +17,7 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
   "harness.tabApplyAutoTitle mutation",
   "harness.tabActivate mutation",
   "harness.tabBackend mutation",
-  "harness.tabCwd mutation",
+  "harness.tabProject mutation",
   "harness.tabPermissionMode mutation dangerous",
   "harness.permissionDefaults mutation",
   "harness.modelCatalog query",
@@ -24,7 +26,6 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
   "harness.tabAccount mutation",
   "harness.tabLongContext mutation",
   "harness.tabEffort mutation",
-  "harness.tabPickCwd mutation",
   "harness.tabCarryClear mutation",
   "harness.tabRewind mutation",
   "harness.pickDir mutation",
@@ -107,6 +108,7 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
 
 exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces、dangerous 2`] = `
 [
+  "project.changed",
   "harness.changed",
   "harness.tabsChanged",
   "harness.events",

@@ -9,7 +9,10 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const css = readFileSync(resolve(__dirname, '../src/App.css'), 'utf8');
-const app = readFileSync(resolve(__dirname, '../src/App.tsx'), 'utf8');
+// 对话列在 App.tsx，右栏在 app/FilesRail.tsx
+const app = ['../src/App.tsx', '../src/app/FilesRail.tsx']
+  .map((f) => readFileSync(resolve(__dirname, f), 'utf8'))
+  .join('\n');
 
 /** 侧栏 312 + 对话卡片右外边距 8 + 左右边框 2 */
 const SIDEBAR = 322;

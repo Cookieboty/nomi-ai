@@ -379,6 +379,8 @@
   flex-direction: column;
   gap: 1px;
   overflow-y: auto;
+  /* 预留滚动条的位置：列表变长出现滚动条时内容不左右跳 */
+  scrollbar-gutter: stable;
   min-height: 0;
   flex: 1;
 }
@@ -797,6 +799,14 @@
 .wsGroup {
   /* 组与组之间留一段空白，靠留白分组，不画线 */
   margin-bottom: var(--cd-space-3);
+}
+.wsEmpty {
+  padding: var(--cd-space-1) var(--cd-space-3);
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-sm);
+}
+.wsGroup[data-missing] .wsLabel {
+  color: var(--cd-color-danger-text);
 }
 .wsHead {
   position: relative;

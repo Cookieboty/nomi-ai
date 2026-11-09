@@ -5,7 +5,12 @@ import { t } from '@nomi-ai/ui';
 
 import type { ChatMessage, ConversationBackend } from '../types/chat';
 import { ENDPOINT_FULL, isCliBackend } from '../utils/endpointBadge';
-import { buildCliContextPreface, compactTranscript, keepLastTurns } from '../utils/forkTranscript';
+import {
+  buildCliContextPreface,
+  compactTranscript,
+  cutAfter,
+  keepLastTurns,
+} from '../utils/forkTranscript';
 
 import { notifyConversationsChanged, type ConversationStore } from './conversationStore';
 import {
@@ -44,7 +49,10 @@ async function loadSourceMessages(
 }
 
 export interface ForkOptions {
-  cwd?: string;
+  /** 副本放进哪个项目；不给 = 沿用源会话的 */
+  projectId?: string;
+  /** 从这条消息分叉：只带到它为止（消息末尾的「分叉」）；不给 = 带到最后 */
+  upto?: string;
   /** 只带最近几轮（undefined = 全部） */
   turns?: number;
 }
@@ -63,6 +71,17 @@ function toTabMessages(messages: ChatMessage[]): HarnessTabMessage[] {
   }));
 }
 
+/** 源会话的项目：Nomi 对话看 meta，CLI 会话看它的标签 */
+async function sourceProject(meta: {
+  projectId?: string;
+  tabId?: string;
+}): Promise<string | undefined> {
+  if (meta.projectId) return meta.projectId;
+  if (!meta.tabId) return undefined;
+  const st = await harnessClient.tabs().catch(() => null);
+  return st?.tabs.find((x) => x.id === meta.tabId)?.projectId;
+}
+
 /** 同端分叉：新会话 / 新 CLI 标签，复制可见消息 */
 export async function forkSameBackend(
   store: ConversationStore,
@@ -71,20 +90,16 @@ export async function forkSameBackend(
 ): Promise<ForkResult> {
   const { meta, messages } = await loadSourceMessages(store, sourceId);
   const title = t('ui.cli-monitor.copy', meta.name);
-  const kept = forkedMessages(messages, opts.turns);
+  const kept = forkedMessages(cutAfter(messages, opts.upto), opts.turns);
 
   if (isCliBackend(meta.backend)) {
-    // 副本默认沿用源标签的工作目录
-    let cwd = opts.cwd;
-    if (!cwd && meta.tabId) {
-      const st = await harnessClient.tabs().catch(() => null);
-      cwd = st?.tabs.find((x) => x.id === meta.tabId)?.cwd;
-    }
+    // 副本默认沿用源标签的项目
+    const projectId = opts.projectId ?? (await sourceProject(meta));
     const tab = await harnessClient.createTab({
       backend: meta.backend as Exclude<HarnessBackend, 'nomi'>,
       title,
       messages: toTabMessages(kept),
-      ...(cwd ? { cwd } : {}),
+      ...(projectId ? { projectId } : {}),
     });
     const created = store.upsertFromTab({
       id: tab.id,
@@ -108,7 +123,7 @@ export async function forkSameBackend(
     name: title,
     backend: 'nomi',
     messages: kept,
-    ...(opts.cwd ? { cwd: opts.cwd } : {}),
+    ...(opts.projectId ? { projectId: opts.projectId } : {}),
   });
   if (harnessClient.available()) {
     await harnessClient.activateTab(MAIN_TAB_ID).catch(() => undefined);
@@ -132,16 +147,18 @@ export async function forkCrossBackend(
   const { meta, messages } = await loadSourceMessages(store, sourceId);
   if (target === meta.backend) return forkSameBackend(store, sourceId, opts);
   const title = `${meta.name} → ${ENDPOINT_FULL[target]()}`;
-  const compact = forkedMessages(messages, opts.turns);
+  const compact = forkedMessages(cutAfter(messages, opts.upto), opts.turns);
+  // 项目：菜单里选的，否则沿用源会话的
+  const projectOf = opts.projectId ?? (await sourceProject(meta));
 
   if (isCliBackend(target)) {
     let seeded = toTabMessages(compact);
-    if (seeded.length === 0 && messages.length > 0) {
+    if (seeded.length === 0 && cutAfter(messages, opts.upto).length > 0) {
       seeded = [
         {
           id: `preface_${Date.now()}`,
           role: 'user',
-          content: buildCliContextPreface(messages, meta.name),
+          content: buildCliContextPreface(cutAfter(messages, opts.upto), meta.name),
           timestamp: Date.now(),
         },
       ];
@@ -150,7 +167,7 @@ export async function forkCrossBackend(
       backend: target as Exclude<HarnessBackend, 'nomi'>,
       title: title.slice(0, 60),
       messages: seeded,
-      ...(opts.cwd ? { cwd: opts.cwd } : {}),
+      ...(projectOf ? { projectId: projectOf } : {}),
     });
     const created = store.upsertFromTab({
       id: tab.id,
@@ -170,17 +187,12 @@ export async function forkCrossBackend(
     };
   }
 
-  // 分到 Nomi：工作区用菜单里选的，否则沿用源编程助手标签的目录
-  let cwd = opts.cwd;
-  if (!cwd && meta.tabId) {
-    const st = await harnessClient.tabs().catch(() => null);
-    cwd = st?.tabs.find((x) => x.id === meta.tabId)?.cwd;
-  }
+  // 分到 Nomi：项目用菜单里选的，否则沿用源会话的项目
   const forked = store.fork(sourceId, {
     name: title,
     backend: 'nomi',
     messages: compact,
-    ...(cwd ? { cwd } : {}),
+    ...(projectOf ? { projectId: projectOf } : {}),
   });
   if (harnessClient.available()) {
     await harnessClient.activateTab(MAIN_TAB_ID).catch(() => undefined);

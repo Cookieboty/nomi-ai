@@ -70,7 +70,7 @@ type target struct {
 }
 
 // missingParents：自下而上找到第一个已存在的祖先；返回要补建的文件夹（自上而下）与第一级的守卫结果
-func (k *deskKit) missingParents(ctx context.Context, p, ws string) ([]string, *guarded, error) {
+func (k *deskKit) missingParents(ctx context.Context, p string, ws desktop.Workspace) ([]string, *guarded, error) {
 	var dirs []string
 	cur := filepath.Dir(filepath.Clean(p))
 	for {
@@ -112,7 +112,7 @@ func reverse(s []string) []string {
 }
 
 // guardTarget：写入目标的守卫；上级文件夹不存在时也放行（只做规划），建文件夹在确认之后（makeDirs）
-func (k *deskKit) guardTarget(ctx context.Context, p, ws string) (target, error) {
+func (k *deskKit) guardTarget(ctx context.Context, p string, ws desktop.Workspace) (target, error) {
 	g, err := k.guard(ctx, p, "write", true, ws)
 	if err == nil {
 		return target{g: g}, nil
@@ -141,7 +141,7 @@ func (k *deskKit) guardTarget(ctx context.Context, p, ws string) (target, error)
 }
 
 // makeDirs：按规划逐级建文件夹（每一级重新守卫）；返回实际新建的真实路径
-func (k *deskKit) makeDirs(ctx context.Context, plan []string, ws string) ([]string, error) {
+func (k *deskKit) makeDirs(ctx context.Context, plan []string, ws desktop.Workspace) ([]string, error) {
 	made := []string{}
 	for _, d := range plan {
 		g, err := k.guard(ctx, d, "write", true, ws)
@@ -160,11 +160,8 @@ func (k *deskKit) makeDirs(ctx context.Context, plan []string, ws string) ([]str
 }
 
 // assertNotRoot：不能动授权根 / 工作区本身或包含它的上级（比较 realpath）
-func (k *deskKit) assertNotRoot(real, ws, what string) error {
-	var roots []string
-	if ws != "" {
-		roots = append(roots, ws)
-	}
+func (k *deskKit) assertNotRoot(real string, ws desktop.Workspace, what string) error {
+	roots := ws.Roots()
 	for _, s := range k.d.Broker.Scopes() {
 		roots = append(roots, s.Path)
 	}
@@ -248,7 +245,7 @@ func (k *deskKit) commitEditSource(real string, expected [32]byte) (desktop.Tras
 }
 
 func (k *deskKit) edit(ctx context.Context, i *u.Obj, ec tools.ExecContext) (any, string, error) {
-	ws := k.d.Broker.WorkspaceOf(k.cwd(ec))
+	ws := k.d.Broker.WorkspaceOf(k.project(ec))
 	g, err := k.guard(ctx, i.Get("path"), "write", false, ws)
 	if err != nil {
 		return nil, "", err
@@ -328,7 +325,7 @@ func (k *deskKit) edit(ctx context.Context, i *u.Obj, ec tools.ExecContext) (any
 }
 
 func (k *deskKit) mkdir(ctx context.Context, i *u.Obj, ec tools.ExecContext) (any, string, error) {
-	ws := k.d.Broker.WorkspaceOf(k.cwd(ec))
+	ws := k.d.Broker.WorkspaceOf(k.project(ec))
 	p := str0(i, "path")
 	t, err := k.guardTarget(ctx, p, ws)
 	if err != nil {
@@ -369,7 +366,7 @@ func (k *deskKit) mkdir(ctx context.Context, i *u.Obj, ec tools.ExecContext) (an
 }
 
 // dest：补建上级文件夹后重新守卫目标
-func (k *deskKit) dest(ctx context.Context, t target, p, ws string) (guarded, error) {
+func (k *deskKit) dest(ctx context.Context, t target, p string, ws desktop.Workspace) (guarded, error) {
 	if _, err := k.makeDirs(ctx, t.plan, ws); err != nil {
 		return guarded{}, err
 	}
@@ -388,7 +385,7 @@ func (k *deskKit) dest(ctx context.Context, t target, p, ws string) (guarded, er
 }
 
 func (k *deskKit) move(ctx context.Context, i *u.Obj, ec tools.ExecContext) (any, string, error) {
-	ws := k.d.Broker.WorkspaceOf(k.cwd(ec))
+	ws := k.d.Broker.WorkspaceOf(k.project(ec))
 	src, err := k.guard(ctx, i.Get("from"), "write", false, ws)
 	if err != nil {
 		return nil, "", err
@@ -411,7 +408,7 @@ func (k *deskKit) move(ctx context.Context, i *u.Obj, ec tools.ExecContext) (any
 	if i.Get("dryRun") == true {
 		return u.NewObj("dryRun", true, "plan", preview), "", nil
 	}
-	cws := ""
+	var cws desktop.Workspace
 	if src.inWorkspace && t.g.inWorkspace {
 		cws = ws
 	}
@@ -433,7 +430,7 @@ func (k *deskKit) move(ctx context.Context, i *u.Obj, ec tools.ExecContext) (any
 }
 
 func (k *deskKit) copy(ctx context.Context, i *u.Obj, ec tools.ExecContext) (any, string, error) {
-	ws := k.d.Broker.WorkspaceOf(k.cwd(ec))
+	ws := k.d.Broker.WorkspaceOf(k.project(ec))
 	src, err := k.guard(ctx, i.Get("from"), "read", false, ws)
 	if err != nil {
 		return nil, "", err

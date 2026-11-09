@@ -53,6 +53,9 @@ func (h taskCliHarness) CreateTab(c tasks.CliCreateTab) (string, error) {
 	}
 	opts := util.NewObj("backend", c.Backend, "cwd", c.Cwd, "title", c.Title, "activate", false,
 		"permissionMode", c.PermissionMode, "delegation", util.NewObj("goal", c.Goal, "taskId", c.TaskID))
+	if c.Project != "" {
+		opts.Set("projectId", c.Project)
+	}
 	if c.GithubAccess {
 		opts.Get("delegation").(*util.Obj).Set("githubAccess", true)
 	}

@@ -52,6 +52,8 @@ export interface MessageInputProps {
   fill?: { text: string; nonce: number } | null;
   /** 会话工作区 cwd（files rail）；有值时输入 @ 可路径补全 */
   cwd?: string | null;
+  /** 项目的全部文件夹（cwd 在前）：@ 路径补全覆盖每个文件夹 */
+  roots?: readonly string[] | null;
   /** Nomi 对话：「+」菜单里有「交给编程助手」（CLI 标签没有） */
   delegate?: boolean;
   /** App 持有的会话草稿 Map；与 draftKey 一起传入时按会话隔离输入 */

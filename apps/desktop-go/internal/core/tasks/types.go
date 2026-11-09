@@ -57,8 +57,10 @@ type ExecutorSpec struct {
 	// 高级权限：L4、已装的 MCP 工具全部授权、读过外部内容后的写入不再一律问人
 	Toolset *string `json:"toolset,omitempty"`
 	Cli     *string `json:"cli,omitempty"`
-	// Cwd：cli 的工作目录；nomi 的发起对话的工作区（内核照常再校验）
-	Cwd       *string `json:"cwd,omitempty"`
+	// Cwd：cli 的工作目录；nomi 的发起对话的项目主文件夹（只给提示词看）
+	Cwd *string `json:"cwd,omitempty"`
+	// Project：发起对话的项目（nomi：文件工具按它取全部文件夹；cli：标签按它带上其余文件夹）
+	Project   *string `json:"projectId,omitempty"`
 	Isolation *string `json:"isolation,omitempty"`
 	// BaseBranch：cli 的基线分支：是别的分支（不在当前分支历史里）时才开 worktree，否则直接在 cwd 里改
 	BaseBranch *string `json:"baseBranch,omitempty"`

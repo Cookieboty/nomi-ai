@@ -25,8 +25,10 @@ type CliTabEvent struct {
 
 // CliCreateTab：新建后台标签的参数
 type CliCreateTab struct {
-	Backend        string
-	Cwd            string
+	Backend string
+	Cwd     string
+	// Project：任务的项目（标签带上项目的其余文件夹）
+	Project        string
 	Title          string
 	PermissionMode string // plan | acceptEdits
 	Goal           string
@@ -380,7 +382,7 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 				key = e.d.ReuseKey(t, got.Cwd)
 			}
 			var err error
-			id, err = h.CreateTab(CliCreateTab{Backend: *ex.Cli, Cwd: got.Cwd, Title: runeSlice(t.Title, 60),
+			id, err = h.CreateTab(CliCreateTab{Backend: *ex.Cli, Cwd: got.Cwd, Project: strOr(ex.Project), Title: runeSlice(t.Title, 60),
 				PermissionMode: mode, Goal: runeSlice(t.Goal, 200), TaskID: t.ID, ModelOverride: model, ReasoningEffort: effort,
 				GithubAccess: GithubAccess(t), SandboxGrants: SandboxGrants(t), CallID: strOr(t.Executor.CallID), ReuseKey: key})
 			if err != nil {

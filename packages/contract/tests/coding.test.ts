@@ -23,6 +23,7 @@ describe('appContract · D3 coding', () => {
 
   it('只用本域的命名空间；没有 surfaces（旧通道在 aiIPC 上，两个窗口都有）', () => {
     const ns = new Set([
+      'project',
       'harness',
       'cli',
       'cliAccount',
@@ -54,6 +55,8 @@ describe('appContract · D3 coding', () => {
       'harness.replyPermission',
       'harness.sandboxReply',
       'harness.tabPermissionMode',
+      'project.create',
+      'project.update',
     ]);
   });
 

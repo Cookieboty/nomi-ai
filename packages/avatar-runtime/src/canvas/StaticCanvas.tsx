@@ -14,6 +14,37 @@ export interface StaticCanvasProps {
   style?: React.CSSProperties;
 }
 
+/** 立绘画完是空的时最多再画几次（50ms、100ms、150ms…递增） */
+const MAX_REDRAWS = 8;
+
+/** 画出的区域里有没有不透明的像素（隔行隔列抽样）；读不了像素时按画上了算 */
+export function painted(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): boolean {
+  const sx = Math.max(0, Math.floor(x));
+  const sy = Math.max(0, Math.floor(y));
+  const sw = Math.min(ctx.canvas.width - sx, Math.ceil(w));
+  const sh = Math.min(ctx.canvas.height - sy, Math.ceil(h));
+  if (sw <= 0 || sh <= 0) return true;
+  let data: Uint8ClampedArray;
+  try {
+    data = ctx.getImageData(sx, sy, sw, sh).data;
+  } catch {
+    return true;
+  }
+  const step = Math.max(1, Math.floor(Math.min(sw, sh) / 24));
+  for (let row = 0; row < sh; row += step) {
+    for (let col = 0; col < sw; col += step) {
+      if (data[(row * sw + col) * 4 + 3]! > 0) return true;
+    }
+  }
+  return false;
+}
+
 function measureGeometry(canvas: HTMLCanvasElement | null): SpriteGeometry {
   if (!canvas) return { head: null, body: null, box: null };
   const r = canvas.getBoundingClientRect();
@@ -96,13 +127,19 @@ export const StaticCanvas: React.FC<StaticCanvasProps> = ({
     if (!canvas) return undefined;
     const url = blink && blinkSrc ? blinkSrc : resolvedSrc;
     let cancelled = false;
+    let ready = false;
+    let retries = 0;
+    let retryTimer = 0;
     const img = new Image();
     img.decoding = 'async';
-    img.onload = () => {
-      if (cancelled) return;
+    const draw = () => {
+      window.clearTimeout(retryTimer);
+      if (cancelled || !ready || !img.naturalWidth || !img.naturalHeight) return;
+      // 还没布局（窗口刚建、还没显示）时尺寸是 0：等 ResizeObserver 在布局后再画，不按图片原尺寸画
+      const cssW = canvas.clientWidth;
+      const cssH = canvas.clientHeight;
+      if (cssW <= 0 || cssH <= 0) return;
       const dpr = Math.max(1, window.devicePixelRatio || 1);
-      const cssW = canvas.clientWidth || img.naturalWidth;
-      const cssH = canvas.clientHeight || img.naturalHeight;
       canvas.width = Math.max(1, Math.round(cssW * dpr));
       canvas.height = Math.max(1, Math.round(cssH * dpr));
       const ctx = canvas.getContext('2d');
@@ -118,16 +155,35 @@ export const StaticCanvas: React.FC<StaticCanvasProps> = ({
       const dx = b.x + (b.w - dw) / 2;
       const dy = b.y + b.h - dh;
       ctx.drawImage(img, dx, dy, dw, dh);
+      // WebKit（macOS）：立绘是内嵌位图的 SVG，onload 时里面的位图可能还没解码，这一笔画出来是空的，
+      // 要等下一次重画（以前是调整大小）才出现（#303）。画完看一眼，空的就退避着再画几次
+      if (retries < MAX_REDRAWS && !painted(ctx, dx * dpr, dy * dpr, dw * dpr, dh * dpr)) {
+        retries += 1;
+        retryTimer = window.setTimeout(draw, 50 * retries);
+      }
+    };
+    img.onload = () => {
+      if (cancelled) return;
+      // 先解码再画：decoding=async 时 onload 早于解码完成
+      const decoded = typeof img.decode === 'function' ? img.decode() : Promise.resolve();
+      void decoded
+        .catch(() => undefined)
+        .then(() => {
+          ready = true;
+          retries = 0;
+          draw();
+        });
     };
     img.src = url;
-    const onResize = () => {
-      // re-trigger draw by reassigning src if already loaded
-      if (img.complete && img.naturalWidth > 0) img.onload?.(new Event('load') as never);
-    };
-    window.addEventListener('resize', onResize);
+    // 画布自己的尺寸变化（布局完成、显示开关重建、窗口缩放）都重画；没有 ResizeObserver 时退回窗口 resize
+    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => draw()) : null;
+    ro?.observe(canvas);
+    window.addEventListener('resize', draw);
     return () => {
       cancelled = true;
-      window.removeEventListener('resize', onResize);
+      window.clearTimeout(retryTimer);
+      ro?.disconnect();
+      window.removeEventListener('resize', draw);
     };
   }, [resolvedSrc, blinkSrc, blink]);
 

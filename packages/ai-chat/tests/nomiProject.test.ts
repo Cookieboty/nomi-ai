@@ -9,38 +9,42 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-describe('Nomi conversation workspace (store)', () => {
-  it('new Nomi conversations take the default workspace; CLI mirrors never get one', () => {
+describe('Nomi conversation project (store)', () => {
+  it('new Nomi conversations keep the current Nomi conversation project; null = none; CLI mirrors never get one', () => {
     const store = new ConversationStore();
-    expect(store.create().cwd).toBeUndefined();
-    store.defaultNomiCwd = () => '/docs/nomi';
-    expect(store.create().cwd).toBe('/docs/nomi');
-    expect(store.create({ cwd: '/proj' }).cwd).toBe('/proj');
-    expect(store.create({ backend: 'codex', tabId: 't1' }).cwd).toBeUndefined();
+    expect(store.create().projectId).toBeUndefined();
+    const a = store.create({ projectId: 'p1' });
+    expect(a.projectId).toBe('p1');
+    // a 是当前会话：没指定项目的新对话接着在 p1 里
+    expect(store.create().projectId).toBe('p1');
+    store.switchTo(a.id);
+    expect(store.create({ projectId: null }).projectId).toBeUndefined();
+    store.switchTo(a.id);
+    expect(store.create({ backend: 'codex', tabId: 't1' }).projectId).toBeUndefined();
   });
 
   it('persists per conversation, can be cleared, and forks keep it', async () => {
     const kernel = createMemoryConversationKernel();
     const store = new ConversationStore({ kernel });
-    const a = store.create({ cwd: '/proj/a' });
-    const b = store.create({ cwd: '/proj/b' });
-    store.updateMeta(a.id, { cwd: '/proj/a2' });
+    const a = store.create({ projectId: 'p_a' });
+    const b = store.create({ projectId: 'p_b' });
+    store.updateMeta(a.id, { projectId: 'p_a2' });
     // 重新读取（重启）仍在
     const reopen = async () => {
       await store.flush();
       return new ConversationStore({ kernel, snapshot: await kernel.state() });
     };
     const again = await reopen();
-    expect(again.get(a.id)?.cwd).toBe('/proj/a2');
-    expect(again.get(b.id)?.cwd).toBe('/proj/b');
-    store.updateMeta(b.id, { cwd: undefined });
-    expect((await reopen()).get(b.id)?.cwd).toBeUndefined();
-    expect(store.fork(a.id).cwd).toBe('/proj/a2');
-    expect(store.fork(a.id, { cwd: '/other' }).cwd).toBe('/other');
+    expect(again.get(a.id)?.projectId).toBe('p_a2');
+    expect(again.get(b.id)?.projectId).toBe('p_b');
+    store.updateMeta(b.id, { projectId: undefined });
+    expect((await reopen()).get(b.id)?.projectId).toBeUndefined();
+    expect(store.fork(a.id).projectId).toBe('p_a2');
+    expect(store.fork(a.id, { projectId: 'p_other' }).projectId).toBe('p_other');
   });
 });
 
-describe('Nomi conversation workspace (send path)', () => {
+describe('Nomi conversation project (send path)', () => {
   const client = () => {
     const calls: Array<Record<string, unknown>> = [];
     const agentStream = vi.fn((opts: Record<string, unknown>) => {
@@ -59,14 +63,14 @@ describe('Nomi conversation workspace (send path)', () => {
     };
   };
 
-  it('sends the current conversation workspace as extra.cwd (core validates it)', async () => {
+  it('sends only the project id (the core resolves its folders); never a cwd', async () => {
     const c = client();
     const ipc = new SdkIPCClient(c.client as never, { defaultSystemPrompt: async () => 'sys' });
-    const id = await ipc.newConversation(undefined, { cwd: '/proj/a' });
+    const id = await ipc.newConversation(undefined, { projectId: 'p_a' });
     await ipc.sendStreamMessage('hi');
-    expect(c.calls[0]!.extra).toEqual({ conversationId: id, cwd: '/proj/a' });
-    // 没有工作区：只带会话 id（原有行为）
-    ipc.conversationStore().updateMeta(id, { cwd: undefined });
+    expect(c.calls[0]!.extra).toEqual({ conversationId: id, projectId: 'p_a' });
+    // 没有项目：只带会话 id
+    ipc.conversationStore().updateMeta(id, { projectId: undefined });
     await ipc.sendStreamMessage('again');
     expect(c.calls[1]!.extra).toEqual({ conversationId: id });
   });

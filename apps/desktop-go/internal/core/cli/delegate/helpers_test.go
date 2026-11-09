@@ -218,12 +218,12 @@ type fakeDesktop struct {
 
 func (d *fakeDesktop) sub(s string) string { return strings.ReplaceAll(s, sbTok, d.base) }
 
-func (d *fakeDesktop) WorkspaceOf(cwd any) string {
-	d.log.add(&d.log.desktop, []any{"workspaceOf", cwd})
+func (d *fakeDesktop) WorkspaceOf(projectID any) desktop.Workspace {
+	d.log.add(&d.log.desktop, []any{"workspaceOf", projectID})
 	if ws := d.sc.Get("ws"); ws != nil {
-		return d.sub(util.Str(ws))
+		return desktop.Workspace{ProjectID: "p_test", Primary: d.sub(util.Str(ws))}
 	}
-	return ""
+	return desktop.Workspace{}
 }
 
 func (d *fakeDesktop) Guard(p any, need string, allowMissing bool) desktop.GuardResult {
@@ -242,10 +242,13 @@ func (d *fakeDesktop) Guard(p any, need string, allowMissing bool) desktop.Guard
 	return desktop.GuardResult{Code: "not_granted", Message: "未授权：" + r}
 }
 
-func (d *fakeDesktop) GuardIn(ws string, p any, need string, allowMissing bool) desktop.GuardResult {
-	r := pth.Resolve(ws, jsString(p))
-	ok := r == ws || strings.HasPrefix(r, ws+string(filepath.Separator))
-	d.log.add(&d.log.desktop, []any{"guardIn", ws, p, need, ok})
+func (d *fakeDesktop) GuardIn(w desktop.Workspace, p any, need string, allowMissing bool) desktop.GuardResult {
+	r := pth.Resolve(w.Primary, jsString(p))
+	ok := false
+	for _, ws := range w.Roots() {
+		ok = ok || r == ws || strings.HasPrefix(r, ws+string(filepath.Separator))
+	}
+	d.log.add(&d.log.desktop, []any{"guardIn", w.Primary, p, need, ok})
 	if ok {
 		return desktop.GuardResult{OK: true, Real: r}
 	}

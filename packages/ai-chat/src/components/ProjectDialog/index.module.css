@@ -1,0 +1,251 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-3);
+}
+
+/* 名称：左侧文件夹图标 + 分隔线 + 输入 */
+.nameField {
+  display: flex;
+  align-items: center;
+  height: var(--cd-control-h-lg);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface);
+}
+.nameField:focus-within {
+  border-color: var(--cd-color-border-focus);
+}
+.nameIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  padding: 0 var(--cd-space-3);
+  border-right: 1px solid var(--cd-color-border);
+  color: var(--cd-color-text-muted);
+}
+.nameInput {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--cd-space-3);
+  border: 0;
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-md);
+  outline: none;
+}
+
+.sectionLabel {
+  color: var(--cd-color-text);
+  font-size: var(--cd-font-size-sm);
+}
+
+.box {
+  position: relative;
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+}
+
+/* 空：居中的「在此电脑上添加文件夹 ▾」+「添加」 */
+.empty {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-6) var(--cd-space-4);
+}
+.emptyLabel,
+.emptyAdd,
+.addRow,
+.rowBtn,
+.menuItem {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.emptyLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  height: var(--cd-control-h-sm);
+  padding: 0 var(--cd-space-2);
+  border-radius: var(--cd-radius-md);
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-sm);
+}
+.emptyAdd {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  height: var(--cd-control-h-ms);
+  padding: 0 var(--cd-space-3);
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-surface-raised);
+  color: var(--cd-color-text);
+  font-size: var(--cd-font-size-sm);
+}
+
+/* 已加的文件夹：一行一个，底部是「添加文件夹」 */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-height: var(--cd-control-h-lg);
+  padding: var(--cd-space-1) var(--cd-space-2) var(--cd-space-1) var(--cd-space-3);
+  border-bottom: 1px solid var(--cd-color-border-subtle);
+  color: var(--cd-color-text-muted);
+}
+.rowName {
+  flex: none;
+  max-width: 40%;
+  overflow: hidden;
+  color: var(--cd-color-text);
+  font-size: var(--cd-font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rowPath {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row[data-missing] .rowPath {
+  color: var(--cd-color-danger-text);
+}
+.primaryTag {
+  flex: none;
+  padding: 0 var(--cd-space-1-5);
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-color-bg-subtle);
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-control-h-2xs);
+}
+.rowBtn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--cd-control-h-sm);
+  height: var(--cd-control-h-sm);
+  border-radius: var(--cd-radius-md);
+  color: var(--cd-color-text-subtle);
+}
+.addRowWrap {
+  position: relative;
+}
+.addRow {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  width: 100%;
+  min-height: var(--cd-control-h-lg);
+  padding: 0 var(--cd-space-3);
+  border-radius: 0 0 var(--cd-radius-lg) var(--cd-radius-lg);
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-sm);
+  text-align: left;
+}
+
+.emptyLabel:hover,
+.emptyAdd:hover,
+.addRow:hover,
+.rowBtn:hover,
+.menuItem:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.emptyLabel:focus-visible,
+.emptyAdd:focus-visible,
+.addRow:focus-visible,
+.rowBtn:focus-visible,
+.menuItem:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
+
+/* 最近用过的目录 */
+.menu {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  z-index: 2;
+  width: min(420px, 100%);
+  max-height: 260px;
+  margin-top: var(--cd-space-1);
+  padding: var(--cd-space-1-5);
+  overflow-y: auto;
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-popover);
+  transform: translateX(-50%);
+}
+.addRowWrap .menu {
+  left: 0;
+  transform: none;
+}
+.menuGroup {
+  padding: var(--cd-space-1) var(--cd-space-2);
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+}
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  width: 100%;
+  height: var(--cd-control-h-ms);
+  padding: 0 var(--cd-space-2);
+  border-radius: var(--cd-radius-md);
+  color: var(--cd-color-text);
+  font-size: var(--cd-font-size-sm);
+  text-align: left;
+}
+.menuName {
+  flex: none;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menuPath {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hint {
+  margin: 0;
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+}
+.error {
+  margin: 0;
+  color: var(--cd-color-danger-text);
+  font-size: var(--cd-font-size-sm);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  width: 100%;
+}
+.spacer {
+  flex: 1;
+}

@@ -827,3 +827,41 @@ func (s *Store) MarkMigrated(count int) error {
 
 // Root：会话目录（数据导出整份打包）
 func (s *Store) Root() string { return s.dir }
+
+// RewriteMetas：逐个会话的元信息过一遍 fn（解析成 map）；fn 返回 true = 改过，写回索引。
+// 一次性迁移用（如工作区目录 → projectId）。返回改了几个
+func (s *Store) RewriteMetas(fn func(meta map[string]any) bool) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.load(); err != nil {
+		return 0, err
+	}
+	n := 0
+	old := make([]json.RawMessage, len(s.doc.Conversations))
+	for i, e := range s.doc.Conversations {
+		old[i] = e.Meta
+		var m map[string]any
+		if json.Unmarshal(e.Meta, &m) != nil || m == nil {
+			continue
+		}
+		if !fn(m) {
+			continue
+		}
+		b, err := json.Marshal(m)
+		if err != nil {
+			continue
+		}
+		s.doc.Conversations[i].Meta = b
+		n++
+	}
+	if n == 0 {
+		return 0, nil
+	}
+	if err := s.writeIndex(); err != nil {
+		for i := range s.doc.Conversations {
+			s.doc.Conversations[i].Meta = old[i]
+		}
+		return 0, err
+	}
+	return n, nil
+}

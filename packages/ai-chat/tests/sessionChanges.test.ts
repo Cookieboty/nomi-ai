@@ -382,3 +382,19 @@ describe('session changes caching', () => {
     expect(out.find((e) => e.file === 'many/f0.ts')!.messageId).toBe('m250');
   });
 });
+
+describe('buildChangeFileTree with project folders', () => {
+  const e = (file: string): ChangeEntry =>
+    ({ file, letter: 'M', added: 1, removed: 0, messageId: 'm' }) as ChangeEntry;
+  it('groups files under one open top-level node per folder; outside files go to the first', () => {
+    const tree = buildChangeFileTree([e('/w/app/a.ts'), e('/w/api/b.go'), e('/tmp/x.txt')], {
+      roots: ['/w/app', '/w/api', '/w/docs'],
+    });
+    expect(tree.map((n) => [n.name, n.kind === 'dir' && n.open])).toEqual([
+      ['app', true],
+      ['api', true],
+    ]);
+    const app = tree[0]!;
+    expect(app.kind === 'dir' && app.children.length).toBe(2);
+  });
+});

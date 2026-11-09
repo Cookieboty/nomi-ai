@@ -271,12 +271,27 @@ func (d *AcpDriver) Start(o clisdk.StartOptions) *jsrt.Promise[StartResult] {
 		if o.McpServers != nil {
 			mcp = o.McpServers
 		}
+		// 额外的根（ACP additionalDirectories，2026-06 稳定）：agent 声明支持才发，否则只在 cwd 里做
+		withDirs := func(params *util.Obj) *util.Obj {
+			if len(o.AdditionalDirectories) == 0 {
+				return params
+			}
+			sc, _ := d.AgentCapabilities.Get("sessionCapabilities").(*util.Obj)
+			if sc == nil || !util.Truthy(sc.Get("additionalDirectories")) {
+				return params
+			}
+			dirs := make([]any, len(o.AdditionalDirectories))
+			for i, x := range o.AdditionalDirectories {
+				dirs[i] = x
+			}
+			return params.Set("additionalDirectories", dirs)
+		}
 		var sid *string
 		var modeNow any
 		resumed := false
 		if o.ResumeID != nil && *o.ResumeID != "" {
 			resumeID := *o.ResumeID
-			r, err := jsrt.Await(d.Conn.Request("session/load", O("sessionId", resumeID, "cwd", o.Cwd, "mcpServers", mcp), opts))
+			r, err := jsrt.Await(d.Conn.Request("session/load", withDirs(O("sessionId", resumeID, "cwd", o.Cwd, "mcpServers", mcp)), opts))
 			if err == nil {
 				modeNow = getp(getp(r, "modes"), "currentModeId")
 				resumed = true
@@ -284,7 +299,7 @@ func (d *AcpDriver) Start(o clisdk.StartOptions) *jsrt.Promise[StartResult] {
 			}
 		}
 		if sid == nil {
-			r, err := jsrt.Await(d.Conn.Request("session/new", O("cwd", o.Cwd, "mcpServers", mcp), opts))
+			r, err := jsrt.Await(d.Conn.Request("session/new", withDirs(O("cwd", o.Cwd, "mcpServers", mcp)), opts))
 			if err != nil {
 				return nil, err
 			}

@@ -2,7 +2,7 @@
  * D3 · 编程助手（docs/development/architecture.md）。
  *
  * 本文件只属于 D3：过程、事件、业务错误码都在这里声明，`app/index.ts` 负责汇总。
- * 命名空间：harness、cli、cliAccount、cliUpdate、delegate、agents、history（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
+ * 命名空间：project、harness、cli、cliAccount、cliUpdate、delegate、agents、history（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
  *
  * 旧面（迁入后由收尾批次删除）：
  * - `ai:harness:*`（cli/harness/Orchestrator.ts + rendererSubscribers.ts）
@@ -62,6 +62,9 @@ import {
   HistoryPageOptions,
   LoginEvent,
   PermissionMode,
+  Project,
+  ProjectCreateInput,
+  ProjectUpdateInput,
   SlashDiscoveryResult,
   SlashExpansion,
   TabContext,
@@ -78,6 +81,28 @@ const carry = { carry: z.boolean().optional() };
 /** 内置 CLI id（未知值由主进程按原规则处理：更新退回 claude，账号报错） */
 const cliKind = z.string();
 
+/**
+ * 项目（core/projects，userData/projects.json）。项目里的文件夹就是 Nomi 与编程助手被授权读写的范围：
+ * 新建 / 编辑时内核逐个校验（拒绝过宽的根、受保护目录、不存在的目录、彼此嵌套），所以算 dangerous。
+ * 移除只删记录，不碰磁盘上的文件；引用它的会话变成没有项目。
+ */
+const projectProcedures = {
+  'project.list': { kind: 'query', input: z.void(), output: z.array(Project) },
+  'project.create': {
+    kind: 'mutation',
+    dangerous: true,
+    input: ProjectCreateInput,
+    output: Project,
+  },
+  'project.update': {
+    kind: 'mutation',
+    dangerous: true,
+    input: ProjectUpdateInput,
+    output: Project,
+  },
+  'project.remove': { kind: 'mutation', input: byId, output: z.null() },
+} as const satisfies ProcedureMap;
+
 const harnessProcedures = {
   'harness.state': { kind: 'query', input: z.void(), output: HarnessState },
   'harness.setBackend': {
@@ -85,13 +110,6 @@ const harnessProcedures = {
     input: z.object({ backend: HarnessBackend }),
     output: HarnessState,
   },
-  /** carry：把当前对话作为前文带进新目录的新会话 */
-  'harness.setCwd': {
-    kind: 'mutation',
-    input: z.object({ cwd: z.string(), ...carry }),
-    output: HarnessState,
-  },
-  'harness.pickCwd': { kind: 'mutation', input: z.void(), output: HarnessState },
   'harness.send': {
     kind: 'mutation',
     input: z.object({ prompt: z.string() }),
@@ -102,7 +120,8 @@ const harnessProcedures = {
     kind: 'mutation',
     input: z.looseObject({
       backend: HarnessBackend.optional(),
-      cwd: z.string().optional(),
+      /** 在哪个项目里开（工作目录 = 主文件夹，其余文件夹一并带上）；不给 = 默认目录 */
+      projectId: z.string().optional(),
       title: z.string().optional(),
       messages: z.array(HarnessTabMessage).optional(),
       permissionMode: PermissionMode.optional(),
@@ -133,9 +152,10 @@ const harnessProcedures = {
     input: z.object({ id: z.string(), backend: HarnessBackend }),
     output: HarnessTabMeta,
   },
-  'harness.tabCwd': {
+  /** 把标签换到另一个项目（工作目录换成它的主文件夹，开新会话；carry = 带上前文）；projectId 为 null = 不用项目 */
+  'harness.tabProject': {
     kind: 'mutation',
-    input: z.object({ id: z.string(), cwd: z.string(), ...carry }),
+    input: z.object({ id: z.string(), projectId: z.string().nullable(), ...carry }),
     output: HarnessTabMeta,
   },
   /**
@@ -199,7 +219,6 @@ const harnessProcedures = {
     input: z.object({ id: z.string(), effort: z.string().nullable() }),
     output: HarnessTabMeta,
   },
-  'harness.tabPickCwd': { kind: 'mutation', input: byId, output: HarnessTabMeta },
   'harness.tabCarryClear': { kind: 'mutation', input: byId, output: HarnessTabMeta },
   /** 删掉这条用户消息及之后的全部消息并丢弃 CLI 会话；返回截断后的消息 */
   'harness.tabRewind': {
@@ -582,6 +601,7 @@ const historyProcedures = {
 } as const satisfies ProcedureMap;
 
 export const codingProcedures = {
+  ...projectProcedures,
   ...harnessProcedures,
   ...cliProcedures,
   ...cliAccountProcedures,
@@ -593,6 +613,8 @@ export const codingProcedures = {
 } as const satisfies ProcedureMap;
 
 export const codingEvents = {
+  /** 项目列表变了（整份） */
+  'project.changed': z.array(Project),
   /** 主标签状态（ai:harness:changed） */
   'harness.changed': HarnessState,
   /** 标签列表（ai:harness:tabs） */
@@ -619,6 +641,7 @@ export const codingEvents = {
 
 /** 事件的订阅白名单：编程助手的会话内容（标签、消息、实时事件）只给对话窗口 */
 export const codingEventSurfaces = {
+  'project.changed': ['chat', 'settings'],
   'harness.changed': ['chat', 'settings'],
   'harness.tabsChanged': ['chat', 'settings'],
   'harness.events': ['chat', 'settings'],
@@ -636,6 +659,10 @@ export const codingErrors = [
   'ACCOUNT_LOCAL',
   'ACCOUNT_UNSUPPORTED',
   'ACCOUNT_UNKNOWN_LIVE',
+  /** project.*：项目不存在 */
+  'PROJECT_NOT_FOUND',
+  /** project.create / update：某个文件夹不能当项目目录（message 里是哪个、为什么） */
+  'PROJECT_FOLDER_DENIED',
   /** fleet.closeIdle：要关的进程已经不是空闲的外部编程助手 */
   'FLEET_NOT_IDLE',
   /** harness.openTerminal：目录不符合工作目录规则（过宽、受保护、不存在） */

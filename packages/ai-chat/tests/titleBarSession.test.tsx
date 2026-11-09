@@ -12,6 +12,7 @@ import {
 } from '../src/components/TitleBar/SessionTitle';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
+import { __setProjectsForTest } from '../src/services/projects';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
@@ -23,7 +24,7 @@ const meta = {
   backend: 'nomi',
   createdAt: 1,
   updatedAt: 2,
-  cwd: '/w/app',
+  projectId: 'p_app',
 };
 const setArchived = vi.fn();
 const updateMeta = vi.fn();
@@ -61,6 +62,16 @@ vi.mock('../src/contexts/AiChatContext', () => {
 });
 
 beforeEach(() => {
+  __setProjectsForTest([
+    {
+      id: 'p_app',
+      name: 'app',
+      primary: '/w/app',
+      folders: ['/w/api'],
+      createdAt: 1,
+      updatedAt: 1,
+    },
+  ]);
   setChatMode('normal');
   installFakeApi(
     vi.fn(async (ch: string) => {
@@ -93,13 +104,14 @@ describe('标题栏的当前会话', () => {
     expect(r.queryByTestId('titlebar-session-menu')).toBeNull();
   });
 
-  it('有消息时显示会话名与工作区目录名；「…」里能归档与永久删除', async () => {
+  it('有消息时显示会话名与项目名；「…」里能归档与永久删除', async () => {
     messages = [{ id: 'm', role: 'user', content: 'hi', timestamp: 1 }];
     const r = mount();
     const title = r.getByTestId('titlebar-session');
     expect(title.textContent).toContain('周报整理');
     expect(title.textContent).toContain('app');
-    expect(title.getAttribute('title')).toBe('/w/app');
+    // 悬停看项目的全部文件夹（主文件夹标 ★）
+    expect(title.getAttribute('title')).toBe('app\n★ /w/app\n  /w/api');
 
     fireEvent.click(r.getByTestId('titlebar-session-menu'));
     fireEvent.click(r.getByTestId('conversation-archive'));

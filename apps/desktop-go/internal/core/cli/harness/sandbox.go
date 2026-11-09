@@ -222,6 +222,10 @@ func (o *Orchestrator) buildSandboxSpec(tab *util.Obj, cwd string, env *util.Obj
 			spec.Writable = append(spec.Writable, v)
 		}
 	}
+	// 项目的其余文件夹：与工作目录一样能写（「计划」只读）
+	if spec.CwdWritable {
+		spec.Writable = append(spec.Writable, o.extraDirs(tab)...)
+	}
 	for _, g := range o.grantedFor(id) {
 		switch g.Kind {
 		case "category":

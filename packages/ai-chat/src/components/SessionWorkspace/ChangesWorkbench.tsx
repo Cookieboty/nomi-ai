@@ -16,6 +16,7 @@ import {
   summarizeChanges,
   type ChangeEntry,
 } from '../../utils/sessionChanges';
+import { rootOf } from '../../utils/workspacePath';
 
 import { ChangeFileTree } from './ChangeFileTree';
 import { useChangesUi } from './ChangesUiContext';
@@ -26,7 +27,9 @@ import pane from './WorkspacePane.module.css';
 export const ChangesWorkbenchHost: React.FC<{
   messages: readonly ConvMessage[];
   cwd?: string | null;
-}> = ({ messages, cwd }) => {
+  /** 项目的全部文件夹（工作目录在前）：多个时文件树按文件夹分，Diff 按各自的文件夹显示相对路径 */
+  roots?: readonly string[] | null;
+}> = ({ messages, cwd, roots }) => {
   const { detail: workbench, closeDetail: closeWorkbench } = useChangesUi();
   const [scopeAll, setScopeAll] = useState(false);
   const [filter, setFilter] = useState('');
@@ -50,7 +53,11 @@ export const ChangesWorkbenchHost: React.FC<{
   }, [workbench, scopeAll, sessionEntries, turnEntries]);
 
   const summary = useMemo(() => summarizeChanges(entries), [entries]);
-  const tree = useMemo(() => buildChangeFileTree(entries, { cwd, compact: true }), [entries, cwd]);
+  const tree = useMemo(
+    () => buildChangeFileTree(entries, { cwd, compact: true, roots: roots ?? undefined }),
+    [entries, cwd, roots],
+  );
+  const cwdOf = (file: string) => (roots?.length ? (rootOf(roots, file) ?? cwd) : cwd);
   const project = projectNameFromCwd(cwd);
 
   useEffect(() => {
@@ -162,7 +169,7 @@ export const ChangesWorkbenchHost: React.FC<{
                     key={e.file}
                     diff={e.diff}
                     active={e.file === activeFile}
-                    cwd={cwd}
+                    cwd={cwdOf(e.file)}
                     testId="wb-diff-block"
                     root={bodyRef}
                   />

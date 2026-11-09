@@ -283,7 +283,7 @@ describe('/mode 斜杠命令', () => {
 });
 
 describe('输入栏只留端点与权限模式', () => {
-  it('输入栏组件里没有工作目录和供应商：工作目录在对话顶栏，供应商在侧栏信息卡', async () => {
+  it('输入栏组件里没有项目和供应商：项目在新会话的输入框上方，供应商在侧栏信息卡', async () => {
     mockIpc({ backend: 'codex' });
     const bar = render(
       <HarnessTabsProvider>
@@ -291,7 +291,7 @@ describe('输入栏只留端点与权限模式', () => {
       </HarnessTabsProvider>,
     );
     await bar.findByTestId('permission-mode-chip');
-    expect(bar.queryByTestId('cli-workspace')).toBeNull();
+    expect(bar.queryByTestId('cli-project')).toBeNull();
     expect(bar.queryByTestId('cli-source-menu')).toBeNull();
     bar.unmount();
 
@@ -300,7 +300,7 @@ describe('输入栏只留端点与权限模式', () => {
         <NewChatContext />
       </HarnessTabsProvider>,
     );
-    await header.findByTestId('cli-workspace');
+    await header.findByTestId('cli-project');
     header.unmount();
 
     // 输入框下方：CLI 标签没有「带上前文」时什么都不显示（供应商不在这里选）

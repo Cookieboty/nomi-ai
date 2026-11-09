@@ -21,6 +21,7 @@ import {
   type ConversationMeta,
   type ConversationStore,
 } from '../../services/conversationStore';
+import { sessionPlace } from '../../services/projects';
 import { clearNomiAutoTitle } from '../../services/sessionTitle';
 import type { ConvMessage } from '../../types/conversation';
 import type { IPCClient } from '../../types/ipc';
@@ -36,16 +37,11 @@ interface CurrentSession {
   id: string | undefined;
   tabId: string | undefined;
   name: string;
-  cwd: string;
+  /** 会话在哪（项目名 / 编程助手标签的目录名）；title 是悬停提示 */
+  place: { label: string; title: string };
   hasMessages: boolean;
   running: boolean;
 }
-
-const baseName = (p: string) =>
-  p
-    .replace(/[\\/]+$/, '')
-    .split(/[\\/]/)
-    .pop() || p;
 
 /** 当前显示的会话：工作台里停在 CLI 标签时是标签，否则是 Nomi 当前会话 */
 function useCurrentSession(): CurrentSession | null {
@@ -68,7 +64,7 @@ function useCurrentSession(): CurrentSession | null {
       id: meta?.id,
       tabId: tab.id,
       name: tab.title,
-      cwd: tab.cwd,
+      place: sessionPlace({}, tab),
       hasMessages: (tabs.messages ?? []).length > 0,
       running: tab.status === 'running' || tab.status === 'queued',
     };
@@ -80,7 +76,7 @@ function useCurrentSession(): CurrentSession | null {
     id: meta.id,
     tabId: undefined,
     name: meta.name ? t(meta.name) : t('ui.chat-settings.new-chat'),
-    cwd: meta.cwd ?? '',
+    place: sessionPlace(meta, undefined),
     hasMessages: count > 0,
     running: false,
   };
@@ -90,16 +86,20 @@ export const SessionTitle: React.FC = () => {
   const s = useCurrentSession();
   if (!s?.hasMessages) return null;
   return (
-    <span className="app-titlebar-session" title={s.cwd || s.name} data-testid="titlebar-session">
-      {s.cwd && <Icon icon={Folder} size={14} />}
+    <span
+      className="app-titlebar-session"
+      title={s.place.title || s.name}
+      data-testid="titlebar-session"
+    >
+      {s.place.label && <Icon icon={Folder} size={14} />}
       <span className="app-titlebar-session-name">{s.name}</span>
-      {s.cwd && <span className="app-titlebar-session-cwd">{baseName(s.cwd)}</span>}
+      {s.place.label && <span className="app-titlebar-session-cwd">{s.place.label}</span>}
     </span>
   );
 };
 
 export const SessionMenuButton: React.FC<{
-  onFork?: (id: string, mode: 'same' | 'cross') => void;
+  onFork?: (id: string) => void;
 }> = ({ onFork }) => {
   const s = useCurrentSession();
   const { isDev } = useChatMode();
@@ -182,8 +182,7 @@ export const SessionMenuButton: React.FC<{
           isTab={!!s.tabId}
           onDismiss={() => setAt(null)}
           onRename={() => void rename()}
-          onFork={s.id && onFork ? () => onFork(s.id!, 'same') : undefined}
-          onForkCross={s.id && onFork && isDev ? () => onFork(s.id!, 'cross') : undefined}
+          onFork={s.id && onFork ? () => onFork(s.id!) : undefined}
           onClose={s.tabId ? () => void closeTab() : undefined}
           onArchive={s.tabId ? undefined : () => void archive()}
           onDelete={s.tabId ? undefined : () => void remove()}
@@ -195,7 +194,7 @@ export const SessionMenuButton: React.FC<{
 
 /** 标题栏右侧：会话菜单「…」+ 会话详情浮层 + 工具栏（改动 · 文件）开关（只在有工作区时） */
 export const SessionTools: React.FC<{
-  onFork?: (id: string, mode: 'same' | 'cross') => void;
+  onFork?: (id: string) => void;
   /** 当前会话的消息（变更统计、用到的智能体） */
   messages: readonly ConvMessage[];
   rail: { open: boolean; cwd: string; onToggle: () => void } | null;

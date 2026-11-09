@@ -123,7 +123,7 @@ func (k *deskKit) p2Tools() []tools.Definition {
 				rs = "（" + schedule.DescribeRepeat(rep) + "）"
 			}
 			text := str0(i, "text")
-			dec, err := k.confirm(ctx, "reminder_create", "在 "+fmtTime(due)+rs+" 提醒「"+text+"」？", u.NewObj("text", text, "dueAt", isoMs(due)), nil, nil, "")
+			dec, err := k.confirm(ctx, "reminder_create", "在 "+fmtTime(due)+rs+" 提醒「"+text+"」？", u.NewObj("text", text, "dueAt", isoMs(due)), nil, nil, desktop.Workspace{})
 			if err != nil {
 				return nil, "", err
 			}
@@ -145,7 +145,7 @@ func (k *deskKit) p2Tools() []tools.Definition {
 			if r == nil {
 				return nil, "", toolErr("not_found", "提醒不存在")
 			}
-			dec, err := k.confirm(ctx, "reminder_cancel", "取消提醒「"+r.Text+"」？", u.NewObj("id", r.ID), nil, nil, "")
+			dec, err := k.confirm(ctx, "reminder_cancel", "取消提醒「"+r.Text+"」？", u.NewObj("id", r.ID), nil, nil, desktop.Workspace{})
 			if err != nil {
 				return nil, "", err
 			}
@@ -162,7 +162,7 @@ func (k *deskKit) p2Tools() []tools.Definition {
 				return nil, "", toolErr("not_found", "提醒不存在")
 			}
 			mins, _ := i.Get("minutes").(float64)
-			dec, err := k.confirm(ctx, "reminder_snooze", "「"+r.Text+"」"+jsNum(mins)+" 分钟后再提醒？", u.NewObj("id", r.ID, "minutes", mins), nil, nil, "")
+			dec, err := k.confirm(ctx, "reminder_snooze", "「"+r.Text+"」"+jsNum(mins)+" 分钟后再提醒？", u.NewObj("id", r.ID, "minutes", mins), nil, nil, desktop.Workspace{})
 			if err != nil {
 				return nil, "", err
 			}
@@ -174,7 +174,7 @@ func (k *deskKit) p2Tools() []tools.Definition {
 			return u.NewObj("id", r.ID, "dueAt", isoMs(res.After.DueAt)), dec, nil
 		}),
 		t.def("clipboard_read", emptyIn, func(ctx context.Context, _ *u.Obj, _ tools.ExecContext) (any, string, error) {
-			dec, err := k.confirm(ctx, "clipboard_read", "允许读取剪贴板里的文字吗？", u.NewObj(), strp("剪贴板可能包含密码、验证码等敏感内容。"), nil, "")
+			dec, err := k.confirm(ctx, "clipboard_read", "允许读取剪贴板里的文字吗？", u.NewObj(), strp("剪贴板可能包含密码、验证码等敏感内容。"), nil, desktop.Workspace{})
 			if err != nil {
 				return nil, "", err
 			}
@@ -192,7 +192,7 @@ func (k *deskKit) p2Tools() []tools.Definition {
 		t.def("clipboard_write", clipWriteIn, func(ctx context.Context, i *u.Obj, _ tools.ExecContext) (any, string, error) {
 			text := str0(i, "text")
 			n := float64(u.UTF16Len(text))
-			dec, err := k.confirm(ctx, "clipboard_write", fmt.Sprintf("把 %d 个字符复制到剪贴板？", int(n)), u.NewObj("chars", n), strp(u.UTF16Slice0(text, 600)), nil, "")
+			dec, err := k.confirm(ctx, "clipboard_write", fmt.Sprintf("把 %d 个字符复制到剪贴板？", int(n)), u.NewObj("chars", n), strp(u.UTF16Slice0(text, 600)), nil, desktop.Workspace{})
 			if err != nil {
 				return nil, "", err
 			}
@@ -312,7 +312,7 @@ func (k *deskKit) p3Tools() []tools.Definition {
 			if err != nil {
 				return nil, "", err
 			}
-			dec, err := k.confirm(ctx, "browser_open", "打开网页 "+cu.Host+"？", u.NewObj("url", cu.Href), strp(cu.Href), nil, "")
+			dec, err := k.confirm(ctx, "browser_open", "打开网页 "+cu.Host+"？", u.NewObj("url", cu.Href), strp(cu.Href), nil, desktop.Workspace{})
 			if err != nil {
 				return nil, "", err
 			}
@@ -337,7 +337,7 @@ func (k *deskKit) p3Tools() []tools.Definition {
 			if label == "" {
 				label = snap.URL
 			}
-			dec, err := k.confirm(ctx, "browser_read", "读取页面「"+label+"」的内容？", u.NewObj("url", snap.URL), nil, nil, "")
+			dec, err := k.confirm(ctx, "browser_read", "读取页面「"+label+"」的内容？", u.NewObj("url", snap.URL), nil, nil, desktop.Workspace{})
 			if err != nil {
 				return nil, "", err
 			}
@@ -357,7 +357,7 @@ func (k *deskKit) p3Tools() []tools.Definition {
 			if err := needOpen(); err != nil {
 				return nil, "", err
 			}
-			dec, err := k.confirm(ctx, "browser_click", "在网页上点击 "+str0(i, "selector")+"？", i, nil, nil, "")
+			dec, err := k.confirm(ctx, "browser_click", "在网页上点击 "+str0(i, "selector")+"？", i, nil, nil, desktop.Workspace{})
 			if err != nil {
 				return nil, "", err
 			}
@@ -376,7 +376,7 @@ func (k *deskKit) p3Tools() []tools.Definition {
 			if i.Get("submit") == true {
 				sub = "并提交"
 			}
-			dec, err := k.confirm(ctx, "browser_type", fmt.Sprintf("在 %s 中输入 %d 个字%s？", str0(i, "selector"), u.UTF16Len(text), sub), i, strp(text), nil, "")
+			dec, err := k.confirm(ctx, "browser_type", fmt.Sprintf("在 %s 中输入 %d 个字%s？", str0(i, "selector"), u.UTF16Len(text), sub), i, strp(text), nil, desktop.Workspace{})
 			if err != nil {
 				return nil, "", err
 			}
@@ -425,7 +425,7 @@ func (k *deskKit) p3Tools() []tools.Definition {
 				args.Set("isolation", pyIso.Kind)
 			}
 			force := &struct{ Dialog bool }{true}
-			dec, err := k.confirm(ctx, "code_run", summary, args, strp(code), force, "")
+			dec, err := k.confirm(ctx, "code_run", summary, args, strp(code), force, desktop.Workspace{})
 			if err != nil {
 				return nil, "", err
 			}
@@ -435,7 +435,7 @@ func (k *deskKit) p3Tools() []tools.Definition {
 					kind = pyIso.Kind
 				}
 				if _, err := k.confirm(ctx, "code_run", "二次确认："+PythonNoIsolation+"确定仍要运行这段 Python 代码吗？",
-					u.NewObj("language", lang, "code", code, "timeoutSec", float64(ts), "isolation", kind), strp(code), force, ""); err != nil {
+					u.NewObj("language", lang, "code", code, "timeoutSec", float64(ts), "isolation", kind), strp(code), force, desktop.Workspace{}); err != nil {
 					return nil, "", err
 				}
 			}
@@ -486,12 +486,12 @@ func (k *deskKit) workspaceTools() []tools.Definition {
 		}
 		cmd, ts := str0(i, "command"), num0(i, "timeoutSec")
 		return k.run("workspace_run", u.NewObj("command", cmd, "timeoutSec", float64(ts)), func() (any, string, error) {
-			ws := k.d.Broker.WorkspaceOf(k.cwd(ec))
-			if ws == "" {
-				return nil, "", toolErr("no_workspace", "这次对话没有可用的工作区（没选，或者选的目录不被允许），不能执行命令")
+			ws := k.d.Broker.WorkspaceOf(k.project(ec))
+			if ws.Empty() {
+				return nil, "", toolErr("no_workspace", "这次对话没有可用的项目（没选，或者项目的主文件夹不在了 / 不再被允许），不能执行命令")
 			}
-			dec, err := k.confirmFor(ctx, "workspace_run", "在 "+ws+" 里执行命令？", u.NewObj("cwd", ws, "command", cmd),
-				strp("$ "+cmd+"\n（工作目录："+ws+"）"), runConfirm(), ws, ec.UserText)
+			dec, err := k.confirmFor(ctx, "workspace_run", "在 "+ws.Primary+" 里执行命令？", u.NewObj("cwd", ws.Primary, "command", cmd),
+				strp("$ "+cmd+"\n（工作目录："+ws.Primary+"）"), runConfirm(), ws, ec.UserText)
 			if err != nil {
 				return nil, "", err
 			}
@@ -499,7 +499,7 @@ func (k *deskKit) workspaceTools() []tools.Definition {
 			if k.d.Shell.Env != nil {
 				env = k.d.Shell.Env()
 			}
-			r := RunShellCommand(cmd, RunShellOpts{Cwd: ws, Env: env, TimeoutMs: ts * 1000, Signal: sig(ctx), Shell: k.d.Shell.Shell})
+			r := RunShellCommand(cmd, RunShellOpts{Cwd: ws.Primary, Env: env, TimeoutMs: ts * 1000, Signal: sig(ctx), Shell: k.d.Shell.Shell})
 			if r.Aborted {
 				return nil, "", toolErr("aborted", "命令已随对话停止而结束")
 			}

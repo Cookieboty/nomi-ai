@@ -313,10 +313,9 @@ describe('sidebar row actions', () => {
     fireEvent.click(within(row(r, 'n2')).getByTestId('row-more'));
     const menu = r.getByTestId('conversation-context-menu');
     expect(within(menu).getByTestId('fork-same')).toBeTruthy();
-    expect(within(menu).getByTestId('fork-cross')).toBeTruthy();
     expect(within(menu).getByTestId('conversation-delete')).toBeTruthy();
     fireEvent.click(within(menu).getByTestId('fork-same'));
-    expect(onForkRequest).toHaveBeenCalledWith('n2', 'same');
+    expect(onForkRequest).toHaveBeenCalledWith('n2');
     expect(r.queryByTestId('conversation-context-menu')).toBeNull();
     // 右键得到同一份菜单
     fireEvent.contextMenu(r.container.querySelector('[data-conversation-id="c1"]')!);
@@ -383,31 +382,18 @@ describe('sidebar row actions', () => {
     expect(row(r, 'n2').hasAttribute('data-active')).toBe(false);
   });
 
-  it('cross-endpoint fork is a dev-mode feature: normal mode menus only offer fork as a new nomi chat', async () => {
-    // 开发模式：右键 / 更多都有「分叉到其他端」
-    const dev = mount();
-    await waitFor(() => dev.getAllByTestId('history-item'));
-    fireEvent.click(within(row(dev, 'n2')).getByTestId('row-more'));
-    expect(
-      within(dev.getByTestId('conversation-context-menu')).getByTestId('fork-cross'),
-    ).toBeTruthy();
-    fireEvent.keyDown(dev.getByTestId('conversation-context-menu'), { key: 'Escape' });
-    cleanup();
-
-    // 普通模式：同端分叉可用，跨端分叉入口不存在（更多 + 右键）
-    setChatMode('normal');
+  it('one fork entry in every menu: it opens the fork dialog (new session or another endpoint is chosen there)', async () => {
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     fireEvent.click(within(row(r, 'n2')).getByTestId('row-more'));
     let menu = r.getByTestId('conversation-context-menu');
-    expect(within(menu).getByTestId('fork-same')).toBeTruthy();
+    expect(within(menu).getByTestId('fork-same').textContent).toBe('分叉对话');
     expect(within(menu).queryByTestId('fork-cross')).toBeNull();
     fireEvent.click(within(menu).getByTestId('fork-same'));
-    expect(onForkRequest).toHaveBeenCalledWith('n2', 'same');
+    expect(onForkRequest).toHaveBeenCalledWith('n2');
     fireEvent.contextMenu(r.container.querySelector('[data-conversation-id="n1"]')!);
     menu = r.getByTestId('conversation-context-menu');
     expect(within(menu).getByTestId('fork-same')).toBeTruthy();
     expect(within(menu).queryByTestId('fork-cross')).toBeNull();
-    expect(within(menu).queryByText('分叉到其他端')).toBeNull();
   });
 });

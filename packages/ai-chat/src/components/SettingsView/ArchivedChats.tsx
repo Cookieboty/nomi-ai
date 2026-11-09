@@ -11,18 +11,13 @@ import {
   type ConversationMeta,
   type ConversationStore,
 } from '../../services/conversationStore';
+import { sessionPlace } from '../../services/projects';
 import type { IPCClient } from '../../types/ipc';
 import { confirmDialog } from '../ConfirmDialog';
 import { EndpointIcon } from '../EndpointIcon';
 import { rel } from '../Sidebar/SidebarRows';
 
 import styles from './ArchivedChats.module.css';
-
-const baseName = (p: string) =>
-  p
-    .replace(/[\\/]+$/, '')
-    .split(/[\\/]/)
-    .pop() || p;
 
 export const ArchivedChats: React.FC = () => {
   useLocale();
@@ -79,10 +74,10 @@ export const ArchivedChats: React.FC = () => {
                   {c.name ? t(c.name) : t('ui.chat-settings.new-chat')}
                 </span>
                 <span className={styles.meta}>
-                  {c.cwd && (
-                    <span className={styles.cwd} title={c.cwd}>
+                  {sessionPlace(c, undefined).label && (
+                    <span className={styles.cwd} title={sessionPlace(c, undefined).title}>
                       <Folder size={12} aria-hidden />
-                      {baseName(c.cwd)}
+                      {sessionPlace(c, undefined).label}
                     </span>
                   )}
                   <span>{t('ui.chat-settings.archived-at', rel(c.archivedAt ?? c.updatedAt))}</span>
