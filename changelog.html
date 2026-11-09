@@ -61,6 +61,36 @@
           <nav class="cl-nav" data-cl-nav data-i18n-aria-label="cl.nav" aria-label="版本"></nav>
         </aside>
         <div class="changelog">
+        <article class="release" id="v237">
+          <header class="release-head">
+            <h2 data-i18n="cl.v237.title">v2.3.7 — 新增 Kimi Code 与 MiniMax Code，看板批量关闭，Key 备注</h2>
+            <time datetime="2026-11-09">2026-11-09</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v237.feat">新功能</h3>
+          <ul>
+            <li data-i18n="cl.v237.feat.1">新增内置编程助手 Kimi Code 与 MiniMax Code：在「设置 → 编程助手」安装、更新、登录官方账号（可添加多个账号），也能用「模型与供应商」里的第三方模型（经 Nomi 网关，不改你自己的配置）；可以开标签对话、切换权限模式、续接会话，Nomi 也能把任务委派给它们</li>
+            <li data-i18n="cl.v237.feat.2">Agent 看板：做完了的标签在卡片右下角可以直接关闭；空闲进程可以勾选多个（或全选）一起关闭，没关掉的逐个写明原因</li>
+            <li data-i18n="cl.v237.feat.3">第三方供应商的每个 Key 可以写备注（比如哪个账号、余额、到期时间），显示在 Key 后面；更换 Key 的值时备注保留</li>
+            <li data-i18n="cl.v237.feat.4">模型选择显示模型或供应商的品牌图标，输入栏一排的图标大小统一、和文字对齐</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v237.fix">修复</h3>
+          <ul>
+            <li data-i18n="cl.v237.fix.1">后台 Nomi 任务把同时运行名额占满后，它们派出的编程助手不再一直排队直到超时（#294）</li>
+            <li data-i18n="cl.v237.fix.2">灵动岛上旧的批准按钮不会再作用到同一任务的新请求（#293）</li>
+            <li data-i18n="cl.v237.fix.3">手动关闭空闲编程助手时，读不到最新的进程列表就提示稍后再试，不再按旧列表结束进程（#295）</li>
+            <li data-i18n="cl.v237.fix.4">内存紧张时不再暂停你正在看的编程助手标签（之前正在等的回复会一直卡住）</li>
+            <li data-i18n="cl.v237.fix.5">编程助手的提醒少打扰：几个前后脚完成时合成一条，等你处理的照常马上提醒；不再重复提醒或冒出没发生过的「已完成」</li>
+            <li data-i18n-html="cl.v237.fix.6">沙箱少打扰：工具写日志和缓存、包管理器例行读取 <code>~/.npmrc</code> / <code>~/.pypirc</code> 不再弹授权请求；Kimi Code、MiniMax Code 和第三方供应商的 dsh 标签在沙箱里能正常启动</li>
+            <li data-i18n="cl.v237.fix.7">编程助手装好就出现在侧栏，不用重启</li>
+            <li data-i18n="cl.v237.fix.8">编程助手启动失败时提示写的是它自己的名字和原因，不再一律说成「Gemini 版本过旧」</li>
+            <li data-i18n="cl.v237.fix.9">编程助手会话的标题显示你发的第一句话，不再是沙箱说明</li>
+            <li data-i18n="cl.v237.fix.10">编程助手消息底部的模型显示供应商名（如「MAAS · kimi-k3」），不再显示内部 id</li>
+            <li data-i18n="cl.v237.fix.11">Kimi Code 标签里的工具调用显示具体命令和参数</li>
+            <li data-i18n="cl.v237.fix.12">输入栏的「完全放开」按钮不再带红框和底色，只用红色文字提示</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.3.7" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
         <article class="release" id="v236">
           <header class="release-head">
             <h2 data-i18n="cl.v236.title">v2.3.6 — 灵动岛修复：打开跳到对应位置、Esc 随时收起</h2>
