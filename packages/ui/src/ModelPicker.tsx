@@ -9,8 +9,10 @@
  */
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
+import { BrandIcon } from './BrandIcon';
 import { t } from './i18n';
 import { ModelProviderTabs, modelVendorId, modelVendors, ModelVendorFilter } from './ModelBrowse';
+import { modelBrandOf } from './modelVendor';
 import { Select, type SelectOption, type SelectProps } from './Select';
 
 export interface PickerModel {
@@ -38,6 +40,8 @@ export interface PickerProvider {
   hint?: string;
   /** false：这个供应商的模型都是同一家（如编程助手自己的官方模型），不显示厂商筛选 */
   vendors?: boolean;
+  /** 供应商的品牌图标 id（预设 id）：模型认不出厂商时用它的图标 */
+  brand?: string;
   models: PickerModel[];
 }
 
@@ -168,9 +172,11 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
         meta.set(ref, { provider: p.id, model: m.id, vendor: modelVendorId(m.id) });
         const caps = capabilities(m, purpose);
         const name = m.label ?? m.id;
+        const brand = modelBrandOf(m.id, p.brand);
         opts.push({
           value: ref,
           group: p.name,
+          ...(brand ? { icon: <BrandIcon brand={brand} name={name} size={14} /> } : {}),
           // browse：去掉厂商前缀（左侧已有厂商筛选与分组标题），完整 id 照样能搜到
           label: browse ? shortModelName(name) : name,
           // 能力（推理 · 视觉 …）只放悬停提示：选项行留给模型名，避免被截断

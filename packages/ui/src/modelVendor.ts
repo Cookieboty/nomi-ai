@@ -1,3 +1,5 @@
+import { hasBrandIcon } from './BrandIcon';
+
 /**
  * 模型 id → 厂商（OpenAI、Anthropic …），给模型选择器按厂商快速筛选用。
  * 规则与内核的 usage/quality/modelNames.ts 一致；只看名字，认不出返回 undefined。
@@ -63,4 +65,14 @@ export function modelVendorOf(modelId: string): ModelVendor | undefined {
 export function modelVendorRank(id: string): number {
   const i = VENDORS.findIndex(([, v]) => v.id === id);
   return i < 0 ? VENDORS.length : i;
+}
+
+/**
+ * 模型按钮 / 模型行上的图标：先认模型厂商（kimi-k3 → Kimi），认不出再用供应商的品牌（预设 id），都没有返回 undefined
+ * （调用方显示通用图标）
+ */
+export function modelBrandOf(modelId: string, providerBrand?: string): string | undefined {
+  const b = modelVendorOf(modelId)?.brand;
+  if (hasBrandIcon(b)) return b;
+  return hasBrandIcon(providerBrand) ? providerBrand : undefined;
 }

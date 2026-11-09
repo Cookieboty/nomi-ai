@@ -69,6 +69,16 @@ export function useGatewayState(): GatewayState | null {
   return s;
 }
 
+/** 供应商的品牌图标 id（预设 id，自定义的用自己的 id）；不在网关里时 undefined */
+export function providerBrand(
+  s: GatewayState | null,
+  id: string | null | undefined,
+): string | undefined {
+  if (!id) return undefined;
+  const p = s?.providers.find((x) => x.id === id);
+  return p ? (p.presetId ?? p.id) : undefined;
+}
+
 export function splitRef(ref: string): { provider: string; model: string } | null {
   const i = ref.indexOf('/');
   return i > 0 ? { provider: ref.slice(0, i), model: ref.slice(i + 1) } : null;
@@ -140,6 +150,7 @@ export function pickerProviders(
       return {
         id: p.id,
         name: providerDisplayName(p.name),
+        brand: p.presetId ?? p.id,
         models: p.models
           // 生图模型在添加供应商时默认停用（不能对话），图片选择器照样列出来
           .filter((m) => (kind === 'image' ? isImageModel(m.id) : m.enabled && !isImageModel(m.id)))
