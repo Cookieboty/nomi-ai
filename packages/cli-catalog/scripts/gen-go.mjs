@@ -7,10 +7,12 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { repoPath } from '@nomi-ai/repo-paths';
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const r = spawnSync(
   process.execPath,
-  [path.resolve(root, '../../scripts/run-bin.mjs'), 'vitest', 'run', 'tests/go-catalog.test.ts'],
+  [repoPath('scripts/run-bin.mjs'), 'vitest', 'run', 'tests/go-catalog.test.ts'],
   { cwd: root, stdio: 'inherit', env: { ...process.env, NOMI_WRITE_GO_CATALOG: '1' } },
 );
 process.exit(r.status ?? 1);

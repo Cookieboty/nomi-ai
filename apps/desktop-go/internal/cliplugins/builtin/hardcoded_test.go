@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/repotest"
 )
 
 // hardcodedAllow：允许出现内置 CLI 名单的地方（文件 → 那一行里的片段 → 原因）。这些不是「每加一个助手都要登记」
@@ -40,7 +42,7 @@ var multilineAllow = map[string]string{
 
 // 内置 CLI 的名单只在注册表里：插件包以外不再写 3 个及以上内置 id 的列表（加一个内置助手不用到处登记）
 func TestNoHardcodedBuiltinLists(t *testing.T) {
-	root := filepath.Join("..", "..", "..")
+	root := repotest.RepoPath("apps/desktop-go")
 	var bad []string
 	_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
