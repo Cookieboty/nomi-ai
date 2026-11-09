@@ -1,96 +1,91 @@
-.backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  background: rgba(0, 0, 0, 0.35);
-  display: grid;
-  place-items: center;
-}
-.panel {
-  width: min(360px, calc(100vw - 32px));
-  padding: var(--cd-space-4);
-  border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
-  border: 1px solid var(--cd-color-border);
-  box-shadow: var(--cd-shadow-md);
-}
-.title {
-  font-size: var(--cd-font-size-lg);
-  font-weight: var(--cd-font-weight-bold);
-  margin-bottom: var(--cd-space-1-5);
-}
 .hint {
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-muted);
   margin: 0 0 var(--cd-space-3);
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-sm);
   line-height: 1.45;
 }
+.label {
+  margin-bottom: var(--cd-space-1-5);
+  color: var(--cd-color-text);
+  font-size: var(--cd-font-size-sm);
+}
+
+/* 分叉到：单选列表，第一项是同一个端的新会话，分隔线下是其他端 */
 .list {
   display: flex;
   flex-direction: column;
-  gap: var(--cd-space-1);
+  gap: 2px;
+  margin-bottom: var(--cd-space-3);
+  padding: var(--cd-space-1);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
 }
 .item {
   display: flex;
   align-items: center;
   gap: var(--cd-space-2);
-  padding: var(--cd-space-1-5) var(--cd-space-2);
+  min-height: var(--cd-control-h-ms);
+  padding: 0 var(--cd-space-2);
   border: none;
-  border-radius: var(--cd-radius-sm);
+  border-radius: var(--cd-radius-md);
   background: transparent;
   color: var(--cd-color-text);
   font: inherit;
   font-size: var(--cd-font-size-sm);
-  cursor: pointer;
   text-align: left;
-  min-height: var(--cd-control-h-ms);
+  cursor: pointer;
 }
 .item:hover:not(:disabled) {
   background: var(--cd-color-hover);
+}
+.item[data-checked] {
+  background: var(--cd-color-bg-subtle);
 }
 .item:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
+.item:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
+.check,
 .miss {
   margin-left: auto;
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-subtle);
 }
-.ws {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--cd-space-2);
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--cd-color-border);
+.check {
+  display: inline-flex;
+  color: var(--cd-color-text);
 }
-.wsLabel {
-  font-size: var(--cd-font-size-xs);
+.miss {
   color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+}
+.sep {
+  height: 1px;
+  margin: var(--cd-space-1) var(--cd-space-2);
+  background: var(--cd-color-border-subtle);
 }
 
+/* 带入上下文 / 项目：左标签右控件 */
 .row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--cd-space-2);
-  margin-bottom: var(--cd-space-3);
+  margin-top: var(--cd-space-2);
 }
 .rowLabel {
   flex-shrink: 0;
   white-space: nowrap;
-  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-sm);
 }
-/* 下拉框按内容宽度放在右侧（Select 自身是 100% 宽） */
 .rowControl {
-  flex: 0 0 140px;
-}
-.item:focus-visible {
-  outline: 2px solid var(--cd-color-accent-strong);
-  outline-offset: 2px;
+  display: flex;
+  flex: 0 0 180px;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 /* 底部按钮：同一行靠右，取消在左、确认在右 */
@@ -98,5 +93,5 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--cd-space-2);
-  margin-top: var(--cd-space-4);
+  width: 100%;
 }

@@ -139,18 +139,17 @@ const mountSidebar = () =>
   );
 
 describe('one conversation context menu', () => {
-  it('CLI conversation: rename / pin / fork / fork-cross / close / delete', async () => {
+  it('CLI conversation: rename / pin / fork / close / delete', async () => {
     mockIpc();
     const r = mountSidebar();
     await waitFor(() => expect(r.getAllByTestId('history-item')).toHaveLength(2));
     fireEvent.contextMenu(r.getAllByTestId('history-item')[0]!);
     const m = r.getByTestId('conversation-context-menu');
-    expect(m.querySelectorAll('[role=menuitem]').length).toBe(6);
+    expect(m.querySelectorAll('[role=menuitem]').length).toBe(5);
     for (const id of [
       'conversation-rename',
       'conversation-pin',
       'fork-same',
-      'fork-cross',
       'conversation-close',
       'conversation-delete',
     ])

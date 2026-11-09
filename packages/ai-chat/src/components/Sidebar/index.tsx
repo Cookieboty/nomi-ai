@@ -87,7 +87,8 @@ interface SidebarProps {
   onToggle: () => void;
   /** projectId：新 Nomi 对话放进哪个项目（null = 不放进项目；不给 = 沿用当前对话的） */
   onNewChat: (opts?: { projectId?: string | null }) => void | Promise<void>;
-  onForkRequest?: (id: string, mode: 'same' | 'cross') => void;
+  /** 打开分叉弹窗（新会话或其他端在弹窗里选） */
+  onForkRequest?: (id: string) => void;
   /** 打开历史会话失败 / 有提示时 */
   onNotice?: (message: string) => void;
   /** 跳到设置的某个分区 / 标签：「按端」信息卡、「开始使用」清单 */
@@ -1083,9 +1084,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               onRename={() => startRename(ctx.id)}
               onPin={meta ? () => togglePin(ctx.id) : undefined}
               pinned={Boolean(meta?.pinnedAt)}
-              onFork={() => onForkRequest?.(ctx.id, 'same')}
-              // 跨端分叉只在开发模式提供；普通模式只有「分叉为新对话」（同端 Nomi）
-              onForkCross={isDev ? () => onForkRequest?.(ctx.id, 'cross') : undefined}
+              onFork={() => onForkRequest?.(ctx.id)}
               onClose={meta?.tabId ? () => void removeItem(ctx.id) : undefined}
               onArchive={meta && !meta.tabId ? () => void archiveItem(ctx.id) : undefined}
               // CLI 标签：删除 = 关标签 + 把 CLI 的会话记录移到废纸篓（外部 CLI 没有本机历史，只能关闭）

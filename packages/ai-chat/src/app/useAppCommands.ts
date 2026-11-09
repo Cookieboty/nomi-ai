@@ -30,9 +30,13 @@ import type { IPCClient } from '../types/ipc';
 import type { AppPanels } from './useAppPanels';
 
 export interface ForkTarget {
+  /** 源会话 */
   id: string;
   backend: ConversationBackend;
-  mode: 'same' | 'cross';
+  /** 源会话的项目（分叉弹窗里项目的默认值） */
+  projectId?: string;
+  /** 从这条消息分叉：只带到它为止，之后的丢掉 */
+  upto?: string;
 }
 
 export function useAppCommands(opts: {
@@ -54,11 +58,11 @@ export function useAppCommands(opts: {
   const closePalette = useCallback(() => setPalette(false), []);
   const [forkTarget, setForkTarget] = useState<ForkTarget | null>(null);
   const closeFork = useCallback(() => setForkTarget(null), []);
-  // 切到普通模式时关掉已打开的「分叉到其他端」选择框（渲染期根据 isDev 变化重置，避免 effect 内 setState 级联渲染）
+  // 切到普通模式时关掉分叉弹窗（目标端可能已不可选；渲染期根据 isDev 变化重置，避免 effect 内 setState 级联渲染）
   const [prevIsDev, setPrevIsDev] = useState(isDev);
   if (prevIsDev !== isDev) {
     setPrevIsDev(isDev);
-    if (!isDev && forkTarget?.mode === 'cross') setForkTarget(null);
+    if (!isDev && forkTarget) setForkTarget(null);
   }
 
   const focusInput = useCallback(() => {
@@ -76,12 +80,14 @@ export function useAppCommands(opts: {
 
   /** 分叉完：切到新会话（CLI 标签或主对话），再广播一次（侧栏只在消息数变化时自刷新） */
   const runFork = useCallback(
-    async (run: () => ReturnType<typeof forkSameBackend>, toast: (title: string) => string) => {
+    async (id: string, target: ConversationBackend | null, pick: ForkPick & { upto?: string }) => {
       const store = ipcClient.conversationStore?.();
       if (!store) return;
       setForkTarget(null);
       try {
-        const r = await run();
+        const r = target
+          ? await forkCrossBackend(store, id, target, pick)
+          : await forkSameBackend(store, id, pick);
         if (r.backend !== 'nomi') setMode('dev');
         if (r.tabId) await tabs.activate(r.tabId);
         else {
@@ -89,46 +95,50 @@ export function useAppCommands(opts: {
           await actions.loadChatHistory();
         }
         notifyConversationsChanged();
-        setToast(toast(r.title));
+        setToast(t(target ? 'ui.cli-monitor.forked-to' : 'ui.cli-monitor.forked-as', r.title));
       } catch (e) {
         setToast(e instanceof Error ? e.message : String(e));
       }
     },
     [ipcClient, setMode, tabs, actions, setToast],
   );
-  const runForkSame = useCallback(
-    (id: string, pick: ForkPick = {}) =>
-      runFork(
-        () => forkSameBackend(ipcClient.conversationStore!(), id, { turns: pick.turns }),
-        (title) => t('ui.cli-monitor.forked-as', title),
-      ),
-    [runFork, ipcClient],
-  );
-  const runForkCross = useCallback(
-    (id: string, target: ConversationBackend, pick: ForkPick) =>
-      runFork(
-        () => forkCrossBackend(ipcClient.conversationStore!(), id, target, pick),
-        (title) => t('ui.cli-monitor.forked-to', title),
-      ),
-    [runFork, ipcClient],
-  );
-  /** 分叉菜单选好：同端只带轮数，跨端再带目标端与项目 */
+  const runForkSame = useCallback((id: string) => runFork(id, null, {}), [runFork]);
+  /** 分叉弹窗选好：同一个端 = 新会话，否则分叉到那个端 */
   const pickFork = useCallback(
     (b: ConversationBackend, pick: ForkPick) => {
       if (!forkTarget) return;
-      if (forkTarget.mode === 'same') void runForkSame(forkTarget.id, pick);
-      else void runForkCross(forkTarget.id, b, pick);
+      const p = { ...pick, ...(forkTarget.upto ? { upto: forkTarget.upto } : {}) };
+      void runFork(forkTarget.id, b === forkTarget.backend ? null : b, p);
     },
-    [forkTarget, runForkSame, runForkCross],
+    [forkTarget, runFork],
   );
+  /** 打开分叉弹窗。upto：从这条消息分叉（消息末尾的「分叉」），之后的消息不带 */
   const onForkRequest = useCallback(
-    (id: string, mode: 'same' | 'cross') => {
+    (id: string, opts: { upto?: string } = {}) => {
       const meta = ipcClient.conversationStore?.()?.get(id);
       if (!meta) return;
-      // 都先选带入几轮；普通模式不允许分叉到其他端
-      if (mode === 'same' || isDev) setForkTarget({ id, backend: meta.backend, mode });
+      const tab = tabs.activeTab;
+      const tabProject = meta.tabId && tab && tab.id === meta.tabId ? tab.projectId : undefined;
+      setForkTarget({
+        id,
+        backend: meta.backend,
+        projectId: meta.projectId ?? tabProject,
+        upto: opts.upto,
+      });
     },
-    [ipcClient, isDev],
+    [ipcClient, tabs],
+  );
+  /** 消息末尾的「分叉」：当前显示的会话从这条消息往前分叉 */
+  const forkFromMessage = useCallback(
+    (messageId: string) => {
+      const store = ipcClient.conversationStore?.();
+      const tabId = isDev && tabs.isCliTab ? tabs.activeTab?.id : undefined;
+      const id = tabId
+        ? store?.list().find((c: { tabId?: string }) => c.tabId === tabId)?.id
+        : ipcClient.currentConversationId?.();
+      if (id) onForkRequest(id, { upto: messageId });
+    },
+    [ipcClient, isDev, tabs, onForkRequest],
   );
   // ⌘⇧F：直接把当前会话分叉成新对话
   useEffect(() => {
@@ -263,5 +273,7 @@ export function useAppCommands(opts: {
     closeFork,
     pickFork,
     onForkRequest,
+    forkFromMessage,
+    isDev,
   };
 }

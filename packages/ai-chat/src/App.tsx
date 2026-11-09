@@ -14,6 +14,7 @@ import { useRail } from './app/useRail';
 import { useSplitWidths } from './app/useSplitWidths';
 import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundLayer';
 import { ChatHeader } from './components/ChatHeader';
+import { ForkFromMessageContext } from './components/Conversation/forkContext';
 import { DesktopConfirmDock } from './components/DesktopConfirmDock';
 import { NewChatContext, SessionControls } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -281,14 +282,17 @@ const AiChatContent: React.FC = () => {
                 <SessionControls />
               </div>
               <main className="chat-container">
-                <ChatBody
-                  tabs={tabs}
-                  isDev={isDev}
-                  cliMessages={cliConvMessages}
-                  nomiMessages={nomiMessages}
-                  slash={slash}
-                  onOpenModels={panels.openProviders}
-                />
+                {/* 每条回复末尾的「分叉」：从这条回复往前分叉，之后的消息不带 */}
+                <ForkFromMessageContext.Provider value={commands.forkFromMessage}>
+                  <ChatBody
+                    tabs={tabs}
+                    isDev={isDev}
+                    cliMessages={cliConvMessages}
+                    nomiMessages={nomiMessages}
+                    slash={slash}
+                    onOpenModels={panels.openProviders}
+                  />
+                </ForkFromMessageContext.Provider>
               </main>
 
               <footer className="input-container">

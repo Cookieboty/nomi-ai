@@ -6,7 +6,7 @@ import { ModalHostContext } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { CommandPalette } from '../components/CommandPalette';
-import { ForkTargetMenu } from '../components/ForkMenu';
+import { ForkDialog } from '../components/ForkMenu';
 import { HubDrawer } from '../components/HubDrawer';
 import { DesktopPanel, ExtensionsPanel, SettingsView } from '../components/lazyPanels';
 import { PluginPanel } from '../components/PluginPanel';
@@ -69,10 +69,12 @@ export const AppOverlays: React.FC<{
       <ExtensionsPanel isVisible={p.showExt} onClose={p.closeExt} />
     </ModalHostContext.Provider>
     <HubDrawer open={p.showHub} onClose={p.closeHub} onOpenSettings={p.hubToSettings} />
-    <ForkTargetMenu
+    <ForkDialog
       open={!!c.forkTarget}
-      mode={c.forkTarget?.mode}
       current={c.forkTarget?.backend ?? 'nomi'}
+      allowCross={c.isDev}
+      fromMessage={!!c.forkTarget?.upto}
+      project={c.forkTarget?.projectId}
       onClose={c.closeFork}
       onPick={c.pickFork}
     />

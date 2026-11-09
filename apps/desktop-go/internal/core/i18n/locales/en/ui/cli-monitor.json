@@ -30,7 +30,6 @@
   "ui.cli-monitor.conversation-actions": "Conversation actions",
   "ui.cli-monitor.conversation-not-found": "Conversation not found",
   "ui.cli-monitor.conversations": "{0} conversations",
-  "ui.cli-monitor.copies-visible-messages-into-a-new-chat-across": "Copies visible messages into a new chat. Across CLIs this is context only — not a resumed session.",
   "ui.cli-monitor.copy": "{0} (copy)",
   "ui.cli-monitor.could-not-be-installed-updated": "{0} could not be installed / updated:",
   "ui.cli-monitor.could-not-delete-the-session": "Could not delete the session",
@@ -49,9 +48,7 @@
   "ui.cli-monitor.failed-but-don-t-give-up": "Failed, but don't give up.",
   "ui.cli-monitor.filter-by-endpoint": "Filter by endpoint",
   "ui.cli-monitor.focus-time": "Focus time!",
-  "ui.cli-monitor.fork-as-new-chat": "Fork as new chat",
   "ui.cli-monitor.fork-the-current-conversation-into-a-new-one": "Fork the current conversation into a new one",
-  "ui.cli-monitor.fork-to-another-endpoint": "Fork to another endpoint",
   "ui.cli-monitor.forked-as": "Forked as \"{0}\"",
   "ui.cli-monitor.forked-to": "Forked to {0}",
   "ui.cli-monitor.good-night": "Good night",
@@ -176,7 +173,6 @@
   "ui.cli-monitor.all-turns": "All turns",
   "ui.cli-monitor.last-n-turns": "Last {0} turns",
   "ui.cli-monitor.fork": "Fork",
-  "ui.cli-monitor.copies-the-chosen-turns-into-a-new-chat": "Copies the chosen turns into a new chat.",
   "ui.cli-monitor.runtime-environment": "Runtime",
   "ui.cli-monitor.runtime-environment-description": "Installing and updating coding assistants uses Node.js and npm on this computer.",
   "ui.cli-monitor.node-js-not-found-install-it": "Node.js wasn't found. Install Node.js (24 or newer is recommended), then select Detect again.",
@@ -303,5 +299,11 @@
   "ui.cli-monitor.project-remove-confirm-body": "The project is only hidden; no files on disk are deleted. Its chats move to Recent.",
   "ui.cli-monitor.project-remove-confirm-title": "Remove project “{0}”?",
   "ui.cli-monitor.project-search": "Search projects",
-  "ui.cli-monitor.project-set-primary": "Set as primary"
+  "ui.cli-monitor.project-set-primary": "Set as primary",
+  "ui.cli-monitor.fork-dialog-title": "Fork chat",
+  "ui.cli-monitor.fork-dialog-hint": "Copies the chosen turns into a new session; the original is left as is.",
+  "ui.cli-monitor.fork-from-here-hint": "Forks from this reply back: only messages up to this reply are carried, later ones are left out. The original is left as is.",
+  "ui.cli-monitor.fork-to": "Fork to",
+  "ui.cli-monitor.fork-new-session-on": "New session ({0})",
+  "ui.cli-monitor.fork-from-here": "Fork from here"
 }

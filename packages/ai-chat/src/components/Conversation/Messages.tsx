@@ -11,7 +11,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { joinFileAttachments, splitFileAttachments } from '../../services/fileAttachments';
 import { refLabel, useGatewayState } from '../../services/nomiModel';
@@ -27,6 +27,8 @@ import {
 } from '../../utils/toolTrace';
 import { FileChipRow } from '../FileAttachment';
 
+import { ForkFromMessageContext } from './forkContext';
+import { ForkRight } from './forkIcon';
 import styles from './index.module.css';
 import { Markdown } from './Markdown';
 import { ToolTimeline } from './ToolTimeline';
@@ -352,6 +354,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   const full = formatFullTime(message.at);
   const body = slots?.body?.(message);
   const retry = canRetry && onRetry ? () => onRetry(message.id) : undefined;
+  const forkFrom = useContext(ForkFromMessageContext);
   return (
     <div className={styles.assistant} data-testid="msg-assistant" data-message-id={message.id}>
       {message.origin === 'background' && (
@@ -402,6 +405,14 @@ export const AssistantMessage = memo(function AssistantMessage({
               label={t('ui.usage-tools.regenerate')}
               testId="msg-retry"
               onClick={retry}
+            />
+          )}
+          {forkFrom && (
+            <ActionButton
+              icon={ForkRight}
+              label={t('ui.cli-monitor.fork-from-here')}
+              testId="msg-fork"
+              onClick={() => forkFrom(message.id)}
             />
           )}
           {slots?.actions?.(message)}

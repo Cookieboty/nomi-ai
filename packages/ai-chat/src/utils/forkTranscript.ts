@@ -64,9 +64,16 @@ export function buildCliContextPreface(messages: ChatMessage[], sourceLabel: str
 }
 
 /** 分叉时可选带入的轮数（undefined = 全部） */
-export const FORK_TURN_CHOICES = [20, 10, 5, 3, 1] as const;
+export const FORK_TURN_CHOICES = [20, 10, 5, 3] as const;
 /** 分叉弹窗默认带入的轮数 */
 export const DEFAULT_FORK_TURNS = 20;
+
+/** 从某条消息分叉：只留到它为止（含它）；找不到这条时全留 */
+export function cutAfter<T extends { id: string }>(messages: T[], id?: string): T[] {
+  if (!id) return messages;
+  const i = messages.findIndex((m) => m.id === id);
+  return i < 0 ? messages : messages.slice(0, i + 1);
+}
 
 /** 只留最近 turns 轮：从倒数第 turns 条用户消息开始；turns 不是正整数时全留 */
 export function keepLastTurns(messages: ChatMessage[], turns?: number): ChatMessage[] {

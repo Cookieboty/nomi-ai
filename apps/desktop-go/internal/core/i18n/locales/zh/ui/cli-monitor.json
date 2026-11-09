@@ -30,7 +30,6 @@
   "ui.cli-monitor.conversation-actions": "对话操作",
   "ui.cli-monitor.conversation-not-found": "会话不存在",
   "ui.cli-monitor.conversations": "{0} 个对话",
-  "ui.cli-monitor.copies-visible-messages-into-a-new-chat-across": "复制可见对话到新会话。跨 CLI 仅作上下文参考，不能续接原会话。",
   "ui.cli-monitor.copy": "{0} (副本)",
   "ui.cli-monitor.could-not-be-installed-updated": "{0} 没有安装 / 更新成功：",
   "ui.cli-monitor.could-not-delete-the-session": "删除会话失败",
@@ -49,9 +48,7 @@
   "ui.cli-monitor.failed-but-don-t-give-up": "失败了，别灰心。",
   "ui.cli-monitor.filter-by-endpoint": "按端点筛选",
   "ui.cli-monitor.focus-time": "专注时间开始！",
-  "ui.cli-monitor.fork-as-new-chat": "分叉为新对话",
   "ui.cli-monitor.fork-the-current-conversation-into-a-new-one": "把当前对话分叉为新对话",
-  "ui.cli-monitor.fork-to-another-endpoint": "分叉到其他端",
   "ui.cli-monitor.forked-as": "已分叉为「{0}」",
   "ui.cli-monitor.forked-to": "已分叉到 {0}",
   "ui.cli-monitor.good-night": "晚安",
@@ -176,7 +173,6 @@
   "ui.cli-monitor.all-turns": "全部轮次",
   "ui.cli-monitor.last-n-turns": "最近 {0} 轮",
   "ui.cli-monitor.fork": "分叉",
-  "ui.cli-monitor.copies-the-chosen-turns-into-a-new-chat": "把选中的轮次复制到新对话。",
   "ui.cli-monitor.runtime-environment": "运行环境",
   "ui.cli-monitor.runtime-environment-description": "安装和更新编程助手要用到本机的 Node.js 与 npm。",
   "ui.cli-monitor.node-js-not-found-install-it": "没有找到 Node.js。先安装 Node.js（建议 24 或更新），装好后点「重新检测」。",
@@ -303,5 +299,11 @@
   "ui.cli-monitor.project-remove-confirm-body": "只是不再显示这个项目，磁盘上的文件不会删除。项目里的对话会移到「最近」。",
   "ui.cli-monitor.project-remove-confirm-title": "移除项目「{0}」？",
   "ui.cli-monitor.project-search": "搜索项目",
-  "ui.cli-monitor.project-set-primary": "设为主文件夹"
+  "ui.cli-monitor.project-set-primary": "设为主文件夹",
+  "ui.cli-monitor.fork-dialog-title": "分叉对话",
+  "ui.cli-monitor.fork-dialog-hint": "把选中的轮次复制到新的会话，原会话不受影响。",
+  "ui.cli-monitor.fork-from-here-hint": "从这条回复往前分叉：只带到这条回复为止，之后的消息不带。原会话不受影响。",
+  "ui.cli-monitor.fork-to": "分叉到",
+  "ui.cli-monitor.fork-new-session-on": "新会话（{0}）",
+  "ui.cli-monitor.fork-from-here": "从这里分叉"
 }

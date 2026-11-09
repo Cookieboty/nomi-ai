@@ -99,7 +99,7 @@ export const SessionTitle: React.FC = () => {
 };
 
 export const SessionMenuButton: React.FC<{
-  onFork?: (id: string, mode: 'same' | 'cross') => void;
+  onFork?: (id: string) => void;
 }> = ({ onFork }) => {
   const s = useCurrentSession();
   const { isDev } = useChatMode();
@@ -182,8 +182,7 @@ export const SessionMenuButton: React.FC<{
           isTab={!!s.tabId}
           onDismiss={() => setAt(null)}
           onRename={() => void rename()}
-          onFork={s.id && onFork ? () => onFork(s.id!, 'same') : undefined}
-          onForkCross={s.id && onFork && isDev ? () => onFork(s.id!, 'cross') : undefined}
+          onFork={s.id && onFork ? () => onFork(s.id!) : undefined}
           onClose={s.tabId ? () => void closeTab() : undefined}
           onArchive={s.tabId ? undefined : () => void archive()}
           onDelete={s.tabId ? undefined : () => void remove()}
@@ -195,7 +194,7 @@ export const SessionMenuButton: React.FC<{
 
 /** 标题栏右侧：会话菜单「…」+ 会话详情浮层 + 工具栏（改动 · 文件）开关（只在有工作区时） */
 export const SessionTools: React.FC<{
-  onFork?: (id: string, mode: 'same' | 'cross') => void;
+  onFork?: (id: string) => void;
   /** 当前会话的消息（变更统计、用到的智能体） */
   messages: readonly ConvMessage[];
   rail: { open: boolean; cwd: string; onToggle: () => void } | null;

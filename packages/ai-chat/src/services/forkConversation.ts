@@ -5,7 +5,12 @@ import { t } from '@nomi-ai/ui';
 
 import type { ChatMessage, ConversationBackend } from '../types/chat';
 import { ENDPOINT_FULL, isCliBackend } from '../utils/endpointBadge';
-import { buildCliContextPreface, compactTranscript, keepLastTurns } from '../utils/forkTranscript';
+import {
+  buildCliContextPreface,
+  compactTranscript,
+  cutAfter,
+  keepLastTurns,
+} from '../utils/forkTranscript';
 
 import { notifyConversationsChanged, type ConversationStore } from './conversationStore';
 import {
@@ -46,6 +51,8 @@ async function loadSourceMessages(
 export interface ForkOptions {
   /** 副本放进哪个项目；不给 = 沿用源会话的 */
   projectId?: string;
+  /** 从这条消息分叉：只带到它为止（消息末尾的「分叉」）；不给 = 带到最后 */
+  upto?: string;
   /** 只带最近几轮（undefined = 全部） */
   turns?: number;
 }
@@ -83,7 +90,7 @@ export async function forkSameBackend(
 ): Promise<ForkResult> {
   const { meta, messages } = await loadSourceMessages(store, sourceId);
   const title = t('ui.cli-monitor.copy', meta.name);
-  const kept = forkedMessages(messages, opts.turns);
+  const kept = forkedMessages(cutAfter(messages, opts.upto), opts.turns);
 
   if (isCliBackend(meta.backend)) {
     // 副本默认沿用源标签的项目
@@ -140,18 +147,18 @@ export async function forkCrossBackend(
   const { meta, messages } = await loadSourceMessages(store, sourceId);
   if (target === meta.backend) return forkSameBackend(store, sourceId, opts);
   const title = `${meta.name} → ${ENDPOINT_FULL[target]()}`;
-  const compact = forkedMessages(messages, opts.turns);
+  const compact = forkedMessages(cutAfter(messages, opts.upto), opts.turns);
   // 项目：菜单里选的，否则沿用源会话的
   const projectOf = opts.projectId ?? (await sourceProject(meta));
 
   if (isCliBackend(target)) {
     let seeded = toTabMessages(compact);
-    if (seeded.length === 0 && messages.length > 0) {
+    if (seeded.length === 0 && cutAfter(messages, opts.upto).length > 0) {
       seeded = [
         {
           id: `preface_${Date.now()}`,
           role: 'user',
-          content: buildCliContextPreface(messages, meta.name),
+          content: buildCliContextPreface(cutAfter(messages, opts.upto), meta.name),
           timestamp: Date.now(),
         },
       ];

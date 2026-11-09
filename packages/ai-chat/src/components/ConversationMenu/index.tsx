@@ -23,7 +23,6 @@ export interface ConversationMenuProps {
   onPin?: () => void;
   pinned?: boolean;
   onFork?: () => void;
-  onForkCross?: () => void;
   onClose?: () => void;
   onCloseLeft?: () => void;
   onCloseRight?: () => void;
@@ -42,7 +41,6 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
   onPin,
   pinned,
   onFork,
-  onForkCross,
   onClose,
   onCloseLeft,
   onCloseRight,
@@ -144,18 +142,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
           onClick={act(onFork)}
           data-testid="fork-same"
         >
-          {t('ui.cli-monitor.fork-as-new-chat')}
-        </button>
-      )}
-      {onForkCross && (
-        <button
-          type="button"
-          role="menuitem"
-          className={styles.item}
-          onClick={act(onForkCross)}
-          data-testid="fork-cross"
-        >
-          {t('ui.cli-monitor.fork-to-another-endpoint')}
+          {t('ui.cli-monitor.fork-dialog-title')}
         </button>
       )}
       {(onClose || onArchive || onDelete) && <div className={styles.sep} role="separator" />}

@@ -668,6 +668,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 修复非流式（尤其 deepseek-v4-pro 等思考模型）约 30s 被客户端 Abort：首字节超时对流式 / 非流式 / reasoning 分开，默认 30s / 5min / 10min，可用 NOMI_GATEWAY_* 环境变量覆盖；ChatFacade 注明主对话应优先流式。 (`@nomi-ai/desktop-go` patch)
 - 修复项目经符号链接路径打开（含 macOS 的 /var 临时目录）时，委派任务被误判为不在 git 仓库内、失去 worktree 隔离并退回共享目录的问题。 (`@nomi-ai/desktop-go` patch)
 - 内嵌弹窗（.cd-modal--inline）在纵向 flex 宿主里撑满剩余高度，支持顶部固定、内容滚动。 (`@nomi-ai/ui` patch)
+- 分叉合成一个弹窗：分叉到同一个端的新会话或其他端、带入几轮上下文（全部 / 最近 20、10、5、3 轮）、放进哪个项目都在一处选；会话菜单只留一项「分叉对话」。每条回复末尾新增「从这里分叉」：只带到这条回复为止，之后的消息不带，原会话不受影响。 (`@nomi-ai/ai-chat` minor)
 - 切到「完全放开」后的放行对 Claude Code、Codex、Gemini、Grok 都生效：这一轮里还在等的确认会被放行，之后 CLI 仍来问（如 Codex 本轮还按旧审批策略）也直接放行，不再弹卡片和通知。 (`@nomi-ai/desktop-go` patch)
 - 切换会话与流式输出时侧栏不再整列重渲染：侧栏与行回调保持稳定引用，会话列表内容未变时跳过刷新，清除错误时同值不产生新状态。 (`@nomi-ai/ai-chat` patch)
 - 切换应用图标时同步 Windows 任务栏（#56）：每个窗口（含之后新建的窗口）调用 setIcon，Windows 上再用 setAppDetails 指向对应变体的 .ico（新增三种变体的多尺寸 .ico）；设置页文案改为如实说明：窗口、运行中的任务栏按钮和托盘立即更新，已固定到任务栏的图标可能要重启应用后才更新。 (`@nomi-ai/ai-chat` patch)

@@ -4,6 +4,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConversationView, INITIAL_RENDER } from '../src/components/Conversation';
+import { ForkFromMessageContext } from '../src/components/Conversation/forkContext';
 import type { ChatMessage } from '../src/types/chat';
 import type { ConvLive, ConvMessage } from '../src/types/conversation';
 import { splitNomiMessages } from '../src/utils/convAdapters';
@@ -359,5 +360,34 @@ describe('Nomi 对话走同一套视图', () => {
     expect(container.textContent).not.toContain('条目0条');
     await waitFor(() => expect(rows().length).toBe(20));
     expect(container.textContent).toContain('条目0');
+  });
+});
+
+describe('fork from a reply', () => {
+  it('each reply has 「从这里分叉」 when the app provides it; it passes that reply id', () => {
+    const fork = vi.fn();
+    const msgs: ChatMessage[] = [
+      { id: 'u1', role: 'user', content: 'q1', timestamp: 1 },
+      { id: 'a1', role: 'assistant', content: 'r1', timestamp: 2 },
+      { id: 'u2', role: 'user', content: 'q2', timestamp: 3 },
+      { id: 'a2', role: 'assistant', content: 'r2', timestamp: 4 },
+    ];
+    const { getAllByTestId } = render(
+      <ForkFromMessageContext.Provider value={fork}>
+        <NomiConversation messages={msgs} />
+      </ForkFromMessageContext.Provider>,
+    );
+    const buttons = getAllByTestId('msg-fork');
+    expect(buttons).toHaveLength(2);
+    expect(buttons[0]!.getAttribute('aria-label')).toBe('从这里分叉');
+    fireEvent.click(buttons[0]!);
+    expect(fork).toHaveBeenCalledWith('a1');
+  });
+
+  it('no button without a provider', () => {
+    const { queryByTestId } = render(
+      <NomiConversation messages={[{ id: 'a', role: 'assistant', content: 'r', timestamp: 1 }]} />,
+    );
+    expect(queryByTestId('msg-fork')).toBeNull();
   });
 });
