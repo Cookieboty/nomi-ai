@@ -52,6 +52,8 @@ export interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectE
   menuMinWidth?: number;
   /** 触发器上显示的内容（默认与选项的 label 相同；如列表里只写模型名、触发器写「供应商 / 模型」） */
   renderValue?: (option: SelectOption) => React.ReactNode;
+  /** 只放在触发器上的图标（选项行不带，如模型选择器的品牌图标）；没给时用选项自己的 icon */
+  valueIcon?: (option: SelectOption) => React.ReactNode;
   /** 弹层顶部（搜索框上面）的额外内容，如模型选择器的供应商标签 */
   menuHeader?: React.ReactNode;
   /** 弹层列表左侧的额外内容，如模型选择器的厂商筛选栏 */
@@ -190,6 +192,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     placeholder = tr('ui.mascot-theme.please-select'),
     menuMinWidth,
     renderValue,
+    valueIcon,
     menuHeader,
     menuAside,
     filterOption,
@@ -689,7 +692,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         onClick={() => (open ? close() : openMenu())}
         onKeyDown={onTriggerKey}
       >
-        {selected?.icon && <span className="cd-dropdown__icon">{selected.icon}</span>}
+        {(() => {
+          const icon = selected ? (valueIcon?.(selected) ?? selected.icon) : null;
+          return icon ? <span className="cd-dropdown__icon">{icon}</span> : null;
+        })()}
         <span className={cx('cd-dropdown__value cd-truncate', !selected && 'is-placeholder')}>
           {selected
             ? renderValue

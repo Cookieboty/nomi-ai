@@ -178,3 +178,13 @@ describe('ModelPicker', () => {
     expect(splitModelRef('follow')).toBeNull();
   });
 });
+
+describe('品牌图标只画在按钮上', () => {
+  it('按钮带所选模型的厂商图标，列表行不带', () => {
+    render(<Harness />);
+    const trigger = screen.getByRole('combobox');
+    expect(trigger.querySelector('.cd-brand')).not.toBeNull();
+    fireEvent.click(trigger);
+    for (const o of screen.getAllByRole('option')) expect(o.querySelector('.cd-brand')).toBeNull();
+  });
+});
