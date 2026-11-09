@@ -62,6 +62,8 @@ interface KeyDraft {
   /** 并发上限 / 每分钟请求数（输入框文本，留空 = 不限） */
   maxConcurrency?: string;
   rpm?: string;
+  /** 备注（只给用户自己看：哪个账号、余额、到期时间……） */
+  note?: string;
 }
 
 /** 限流输入框 → 正整数；留空 / 非法 = null（不限） */
@@ -102,6 +104,7 @@ const initDraft = (p: ProviderView): Draft => ({
     wire: k.wire,
     maxConcurrency: k.maxConcurrency ? String(k.maxConcurrency) : '',
     rpm: k.rpm ? String(k.rpm) : '',
+    note: k.note ?? '',
   })),
   models: p.models.map((m) => ({ ...m })),
   urls: Object.fromEntries(WIRES.map((w) => [w, p.urls[w] ?? ''])) as Record<Wire, string>,
@@ -133,6 +136,8 @@ export function buildPayload(p: ProviderView, d: Draft): ProviderInput {
       ...(k.wire ? { wire: k.wire } : {}),
       ...(limitOf(k.maxConcurrency) ? { maxConcurrency: limitOf(k.maxConcurrency) } : {}),
       ...(limitOf(k.rpm) ? { rpm: limitOf(k.rpm) } : {}),
+      // 更换值的已有 Key 也走这里：备注跟着留下
+      ...(k.note?.trim() ? { note: k.note.trim() } : {}),
     }));
   return {
     id: p.id,
@@ -156,6 +161,10 @@ export function buildPayload(p: ProviderView, d: Draft): ProviderInput {
           ? { maxConcurrency: limitOf(k.maxConcurrency) }
           : {}),
         ...(limitOf(k.rpm) !== (orig.get(k.id)?.rpm ?? null) ? { rpm: limitOf(k.rpm) } : {}),
+        // 备注只在改了时才带（空串 = 清除）
+        ...((k.note ?? '').trim() !== (orig.get(k.id)?.note ?? '')
+          ? { note: (k.note ?? '').trim() }
+          : {}),
         // 名字留空就按顺序显示；原来有名字、现在清空时写空串
         ...(k.name.trim() || orig.get(k.id)?.name ? { name: k.name.trim() } : {}),
       })),

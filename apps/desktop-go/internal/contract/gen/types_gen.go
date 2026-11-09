@@ -5334,6 +5334,7 @@ type GatewayUpsertProviderInputNewKeysItem struct {
 	Enabled        *bool                                      `json:"enabled,omitempty"`
 	MaxConcurrency *float64                                   `json:"maxConcurrency,omitempty"`
 	Rpm            *float64                                   `json:"rpm,omitempty"`
+	Note           *string                                    `json:"note,omitempty"`
 }
 
 // GatewayUpsertProviderInputKeysItemWire 枚举：messages | responses | chat | gemini
@@ -5353,6 +5354,7 @@ type GatewayUpsertProviderInputKeysItem struct {
 	Wire           *GatewayUpsertProviderInputKeysItemWire `json:"wire,omitempty"`
 	MaxConcurrency *float64                                `json:"maxConcurrency,omitempty"`
 	Rpm            *float64                                `json:"rpm,omitempty"`
+	Note           *string                                 `json:"note,omitempty"`
 }
 
 type GatewayUpsertProviderInputModelsItem struct {

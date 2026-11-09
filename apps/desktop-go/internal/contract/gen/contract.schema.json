@@ -17848,6 +17848,10 @@
           "number",
           "null"
          ]
+        },
+        "note": {
+         "type": "string",
+         "maxLength": 200
         }
        },
        "required": [
@@ -17890,6 +17894,10 @@
           "number",
           "null"
          ]
+        },
+        "note": {
+         "type": "string",
+         "maxLength": 200
         }
        },
        "required": [

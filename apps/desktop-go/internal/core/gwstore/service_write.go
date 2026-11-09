@@ -62,9 +62,19 @@ func isJSInt(v any) (float64, bool) {
 	return f, ok && !math.IsInf(f, 0) && f == math.Trunc(f)
 }
 
-// withLimits = withLimits(key, input)
+// maxKeyNote：Key 备注的长度上限（字符）
+const maxKeyNote = 200
+
+// withLimits = withLimits(key, input)；也带上备注（input 有 note 才动：去掉首尾空白，空串 = 清除，超长截断）
 func withLimits(key, input *u.Obj) *u.Obj {
 	out := key.Clone()
+	if note, ok := input.Get("note").(string); ok {
+		if r := []rune(u.JSTrim(note)); len(r) == 0 {
+			out.Delete("note")
+		} else {
+			out.Set("note", string(r[:min(len(r), maxKeyNote)]))
+		}
+	}
 	for _, f := range []string{"maxConcurrency", "rpm"} {
 		if !input.Has(f) {
 			continue

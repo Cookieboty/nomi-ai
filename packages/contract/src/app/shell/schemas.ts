@@ -168,6 +168,8 @@ export const CatalogModel = loose({
 });
 
 const KeyLimit = z.number().nullable().optional();
+/** Key 的备注（只给用户自己看：哪个账号、余额、到期时间……）；空串 = 清除 */
+const KeyNote = z.string().max(200).optional();
 export const GatewayProviderInput = loose({
   id: z.string().optional(),
   name: z.string(),
@@ -185,6 +187,7 @@ export const GatewayProviderInput = loose({
         enabled: z.boolean().optional(),
         maxConcurrency: KeyLimit,
         rpm: KeyLimit,
+        note: KeyNote,
       }),
     )
     .optional(),
@@ -197,6 +200,7 @@ export const GatewayProviderInput = loose({
         wire: Wire.optional(),
         maxConcurrency: KeyLimit,
         rpm: KeyLimit,
+        note: KeyNote,
       }),
     )
     .optional(),
