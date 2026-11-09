@@ -86,7 +86,7 @@
     "macOS",
     "Linux"
   ],
-  "softwareVersion": "2.3.7",
+  "softwareVersion": "2.3.8",
   "license": "https://opensource.org/license/mit",
   "codeRepository": "https://github.com/Cookieboty/nomi-ai",
   "downloadUrl": "https://withnomi.app/download.html",
@@ -157,6 +157,35 @@
           <nav class="cl-nav" data-cl-nav data-i18n-aria-label="cl.nav" aria-label="版本"></nav>
         </aside>
         <div class="changelog">
+        <article class="release" id="v238">
+          <header class="release-head">
+            <h2 data-i18n="cl.v238.title">v2.3.8 — 项目可以包含多个文件夹，分叉合成一个弹窗</h2>
+            <time datetime="2026-11-09">2026-11-09</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v238.feat">新功能</h3>
+          <ul>
+            <li data-i18n="cl.v238.feat.1">项目可以包含多个文件夹：其中一个是主文件夹（工作目录、git 和 AGENTS.md 以它为准），其余文件夹 Nomi 和编程助手同样能读写</li>
+            <li data-i18n="cl.v238.feat.2">侧栏「项目」标题上的按钮打开「创建项目」，不再直接开对话；项目上的「…」可以改名、增删文件夹、换主文件夹或移除项目（只移除记录，不删文件）</li>
+            <li data-i18n="cl.v238.feat.3">新会话、新建菜单和分叉都可以选项目；改了项目的文件夹，已有会话下一轮起就按新的文件夹工作</li>
+            <li data-i18n-html="cl.v238.feat.4">右栏「改动」按 git 仓库分段，每段有自己的分支、暂存和提交；「文件」每个文件夹一个节点；输入框里 <code>@</code> 引用路径覆盖所有文件夹</li>
+            <li data-i18n="cl.v238.feat.5">分叉合成一个弹窗：分叉到新会话或其他端、带入几轮上下文、放进哪个项目都在一处选</li>
+            <li data-i18n="cl.v238.feat.6">每条回复末尾新增「从这里分叉」：只带到这条回复为止，之后的消息不带，原会话不受影响</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v238.fix">修复</h3>
+          <ul>
+            <li data-i18n-html="cl.v238.fix.1">沙箱里的编程助手不能再改版本管理器的命令入口（<code>~/.pyenv/shims</code>、rbenv、asdf、mise、Volta 等），工具的日志和缓存照常能写（#302）</li>
+            <li data-i18n="cl.v238.fix.2">用第三方供应商的 MiniMax Code 标签用的是标签自己的网关令牌：思考深度、模型和用量都对得上这个标签，关掉标签后旧令牌作废（#301）</li>
+            <li data-i18n="cl.v238.fix.3">macOS 上关闭 Rive 动画后，静态形象第一次显示、重新打开显示或从 Rive 切回时不再空白，不用再调整大小（#303）</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v238.change">变化</h3>
+          <ul>
+            <li data-i18n="cl.v238.change.1">升级后第一次启动时，以前用过的每个工作目录各建成一个项目，会话照旧归在里面</li>
+            <li data-i18n="cl.v238.change.2">分叉可选的轮数去掉了「最近 1 轮」</li>
+            <li data-i18n="cl.v238.change.3">会话列表出现滚动条时内容不再左右跳动</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.3.8" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
         <article class="release" id="v237">
           <header class="release-head">
             <h2 data-i18n="cl.v237.title">v2.3.7 — 新增 Kimi Code 与 MiniMax Code，看板批量关闭，Key 备注</h2>
