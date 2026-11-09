@@ -96,13 +96,19 @@ export const StaticCanvas: React.FC<StaticCanvasProps> = ({
     if (!canvas) return undefined;
     const url = blink && blinkSrc ? blinkSrc : resolvedSrc;
     let cancelled = false;
+    let ready = false;
+    let frame: number | null = null;
     const img = new Image();
     img.decoding = 'async';
-    img.onload = () => {
-      if (cancelled) return;
+    const draw = () => {
+      frame = null;
+      if (cancelled || !ready) return;
       const dpr = Math.max(1, window.devicePixelRatio || 1);
-      const cssW = canvas.clientWidth || img.naturalWidth;
-      const cssH = canvas.clientHeight || img.naturalHeight;
+      const cssW = canvas.clientWidth;
+      const cssH = canvas.clientHeight;
+      // A new/hidden WebView may not have laid out the canvas yet. Natural image dimensions
+      // are not a substitute for the window layout; ResizeObserver will retry when it is ready.
+      if (cssW <= 0 || cssH <= 0 || img.naturalWidth <= 0 || img.naturalHeight <= 0) return;
       canvas.width = Math.max(1, Math.round(cssW * dpr));
       canvas.height = Math.max(1, Math.round(cssH * dpr));
       const ctx = canvas.getContext('2d');
@@ -119,15 +125,39 @@ export const StaticCanvas: React.FC<StaticCanvasProps> = ({
       const dy = b.y + b.h - dh;
       ctx.drawImage(img, dx, dy, dw, dh);
     };
-    img.src = url;
-    const onResize = () => {
-      // re-trigger draw by reassigning src if already loaded
-      if (img.complete && img.naturalWidth > 0) img.onload?.(new Event('load') as never);
+    const scheduleDraw = () => {
+      if (cancelled || !ready || frame !== null) return;
+      frame = window.requestAnimationFrame(draw);
     };
-    window.addEventListener('resize', onResize);
+    img.onload = async () => {
+      // SVGs can contain raster images. Wait for decoding before submitting the first frame,
+      // but retain the successful load fallback for WebViews that reject decode() for SVGs.
+      try {
+        await img.decode?.();
+      } catch {
+        if (!img.complete || img.naturalWidth <= 0) return;
+      }
+      if (cancelled) return;
+      ready = true;
+      scheduleDraw();
+    };
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleDraw);
+    observer?.observe(canvas);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') scheduleDraw();
+    };
+    window.addEventListener('resize', scheduleDraw);
+    window.addEventListener('pageshow', scheduleDraw);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    img.src = url;
     return () => {
       cancelled = true;
-      window.removeEventListener('resize', onResize);
+      img.onload = null;
+      observer?.disconnect();
+      if (frame !== null) window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', scheduleDraw);
+      window.removeEventListener('pageshow', scheduleDraw);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [resolvedSrc, blinkSrc, blink]);
 
