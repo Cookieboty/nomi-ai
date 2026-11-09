@@ -248,9 +248,8 @@ Questions and ideas go to [GitHub Issues](https://github.com/Cookieboty/nomi-ai/
 
 ## Acknowledgements
 
-- **Sponsor**: [Amux AI](https://amux.ai) sponsors Nomi's development.
+- **Sponsors**: [Amux AI](https://amux.ai) and [@zihe-xu](https://github.com/zihe-xu) sponsor Nomi's development.
 - **Community**: [Linux.do](https://linux.do), whose members have shared a great deal of feedback and ideas.
-- **Bug reports**: thanks to [@zihe-xu](https://github.com/zihe-xu) for reporting a series of privacy, permission and concurrency issues that closed many gaps in Nomi.
 
 <a href="https://github.com/zihe-xu"><img src="https://avatars.githubusercontent.com/u/25056086?v=4&s=96" width="48" height="48" alt="zihe-xu" /></a>
 

@@ -248,9 +248,8 @@ nomi://provider/import?v=1&data=<base64url(UTF-8 JSON)>
 
 ## 致谢
 
-- **赞助**：[Amux AI](https://amux.ai) 赞助了 Nomi 的开发。
+- **赞助**：[Amux AI](https://amux.ai)、[@zihe-xu](https://github.com/zihe-xu) 赞助了 Nomi 的开发。
 - **社区**：[Linux.do](https://linux.do) 社区的佬友们提了大量反馈与建议。
-- **问题反馈**：感谢 [@zihe-xu](https://github.com/zihe-xu) 报告了一批隐私、权限与并发方面的问题，帮 Nomi 堵上了不少漏洞。
 
 <a href="https://github.com/zihe-xu"><img src="https://avatars.githubusercontent.com/u/25056086?v=4&s=96" width="48" height="48" alt="zihe-xu" /></a>
 
