@@ -1,6 +1,6 @@
 /**
- * Nomi·诺米 site i18n — lightweight data-i18n + localStorage
- * Default: zh, or browser language if en*
+ * Nomi·诺米 site i18n — the zh / en dictionary (scripts/build-seo.mjs renders en/ from it),
+ * t() for strings set from script, and a tip offering the other language page.
  */
 (function () {
   var STORAGE_KEY = "nomi-lang";
@@ -46,6 +46,9 @@
       "nav.openMenu": "打开菜单",
       "nav.main": "主导航",
       "nav.lang": "语言",
+      "langHint.text": "本页有中文版",
+      "langHint.link": "查看中文",
+      "langHint.close": "关闭语言提示",
       "logo.home": "Nomi·诺米 首页",
 
       "hero.badge": "全平台",
@@ -916,6 +919,9 @@
       "nav.openMenu": "Open menu",
       "nav.main": "Main navigation",
       "nav.lang": "Language",
+      "langHint.text": "This page is available in English",
+      "langHint.link": "View in English",
+      "langHint.close": "Dismiss language tip",
       "logo.home": "Nomi home",
 
       "hero.badge": "All platforms",
@@ -1747,14 +1753,11 @@
     }
   };
 
+  var HINT_KEY = "nomi-lang-hint-dismissed";
+
+  /* Each language has its own static page (/ and /en/); the page language comes from <html lang>. */
   function detectLang() {
-    try {
-      var saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === "zh" || saved === "en") return saved;
-    } catch (e) {}
-    var nav = (navigator.language || navigator.userLanguage || "zh").toLowerCase();
-    if (nav.indexOf("en") === 0) return "en";
-    return "zh";
+    return document.documentElement.lang.toLowerCase().indexOf("en") === 0 ? "en" : "zh";
   }
 
   function t(lang, key) {
@@ -1764,85 +1767,80 @@
     return key;
   }
 
-  function apply(lang) {
-    document.documentElement.lang = lang === "en" ? "en" : "zh-CN";
-    document.documentElement.setAttribute("data-lang", lang);
-
-    document.querySelectorAll("[data-i18n]").forEach(function (el) {
-      var key = el.getAttribute("data-i18n");
-      if (!key) return;
-      var val = t(lang, key);
-      if (val === key) return; // unknown key: keep the authored fallback text, never render a raw key
-      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
-        el.value = val;
-      } else {
-        el.textContent = val;
-      }
-    });
-
-    document.querySelectorAll("[data-i18n-html]").forEach(function (el) {
-      var key = el.getAttribute("data-i18n-html");
-      if (!key) return;
-      var html = t(lang, key);
-      if (html !== key) el.innerHTML = html;
-    });
-
-    document.querySelectorAll("[data-i18n-aria-label]").forEach(function (el) {
-      var k = el.getAttribute("data-i18n-aria-label"), v = t(lang, k);
-      if (v !== k) el.setAttribute("aria-label", v);
-    });
-
-    document.querySelectorAll("[data-i18n-alt]").forEach(function (el) {
-      var k = el.getAttribute("data-i18n-alt"), v = t(lang, k);
-      if (v !== k) el.setAttribute("alt", v);
-    });
-
-    document.querySelectorAll("[data-i18n-placeholder]").forEach(function (el) {
-      var k = el.getAttribute("data-i18n-placeholder"), v = t(lang, k);
-      if (v !== k) el.setAttribute("placeholder", v);
-    });
-
-    document.querySelectorAll("[data-i18n-title]").forEach(function (el) {
-      var k = el.getAttribute("data-i18n-title"), v = t(lang, k);
-      if (v !== k) el.setAttribute("title", v);
-    });
-
-    var page = document.body.getAttribute("data-page") || "home";
-    var titleKey = "meta." + page + ".title";
-    var descKey = "meta." + page + ".desc";
-    if (dict.zh[titleKey]) document.title = t(lang, titleKey);
-    var metaDesc = document.querySelector('meta[name="description"]');
-    if (metaDesc && dict.zh[descKey]) metaDesc.setAttribute("content", t(lang, descKey));
-    var ogTitle = document.querySelector('meta[property="og:title"]');
-    if (ogTitle && dict.zh[titleKey]) ogTitle.setAttribute("content", t(lang, titleKey));
-    var ogDesc = document.querySelector('meta[property="og:description"]');
-    if (ogDesc && dict.zh[descKey]) ogDesc.setAttribute("content", t(lang, descKey));
-
-    document.querySelectorAll(".lang-btn").forEach(function (btn) {
-      var active = btn.getAttribute("data-lang") === lang;
-      btn.setAttribute("aria-pressed", active ? "true" : "false");
-      btn.classList.toggle("is-active", active);
-    });
-
-    try {
-      localStorage.setItem(STORAGE_KEY, lang);
-    } catch (e) {}
+  function storageGet(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
   }
 
+  function storageSet(key, value) {
+    try { localStorage.setItem(key, value); } catch (e) {}
+  }
+
+  /* Remembers the language the visitor picked with the 中 / EN links. */
   function setLang(lang) {
-    if (lang !== "zh" && lang !== "en") lang = "zh";
-    apply(lang);
+    if (lang === "zh" || lang === "en") storageSet(STORAGE_KEY, lang);
+  }
+
+  /* The language the visitor would rather read: their earlier pick, else the browser language. */
+  function preferredLang() {
+    var saved = storageGet(STORAGE_KEY);
+    if (saved === "zh" || saved === "en") return saved;
+    var nav = (navigator.language || "").toLowerCase();
+    if (nav.indexOf("en") === 0) return "en";
+    if (nav.indexOf("zh") === 0) return "zh";
+    return null;
+  }
+
+  /* Never redirects (search engines and shared links keep the language they asked for);
+     only offers the other page when the visitor prefers its language. */
+  function showHint(lang) {
+    var want = preferredLang();
+    if (!want || want === lang || storageGet(HINT_KEY) === "1") return;
+    var target = document.querySelector('.lang-btn[data-lang="' + want + '"]');
+    if (!target) return;
+
+    var bar = document.createElement("div");
+    bar.className = "lang-hint";
+    bar.setAttribute("role", "region");
+    bar.setAttribute("lang", want === "en" ? "en" : "zh-CN");
+    bar.setAttribute("aria-label", t(want, "langHint.text"));
+
+    var text = document.createElement("span");
+    text.textContent = t(want, "langHint.text");
+    var link = document.createElement("a");
+    link.className = "lang-hint-link";
+    link.href = target.getAttribute("href");
+    link.hreflang = target.getAttribute("hreflang");
+    link.textContent = t(want, "langHint.link");
+    link.addEventListener("click", function () { setLang(want); });
+    var close = document.createElement("button");
+    close.type = "button";
+    close.className = "lang-hint-close";
+    close.setAttribute("aria-label", t(lang, "langHint.close"));
+    close.textContent = "\u00d7";
+
+    function dismiss() {
+      storageSet(HINT_KEY, "1");
+      document.removeEventListener("keydown", onKey);
+      bar.remove();
+    }
+    function onKey(e) {
+      if (e.key === "Escape" && bar.contains(document.activeElement)) dismiss();
+    }
+    close.addEventListener("click", dismiss);
+    document.addEventListener("keydown", onKey);
+
+    bar.appendChild(text);
+    bar.appendChild(link);
+    bar.appendChild(close);
+    document.body.appendChild(bar);
   }
 
   function init() {
     var lang = detectLang();
-    apply(lang);
-
     document.querySelectorAll(".lang-btn").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        setLang(btn.getAttribute("data-lang"));
-      });
+      btn.addEventListener("click", function () { setLang(btn.getAttribute("data-lang")); });
     });
+    showHint(lang);
   }
 
   window.NomiI18n = {
