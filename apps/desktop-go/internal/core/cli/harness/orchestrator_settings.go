@@ -1,6 +1,7 @@
 package harness
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
@@ -87,7 +88,8 @@ func pickOverride(m, e any) *pickedOverride {
 
 func (o *Orchestrator) restoreOverrides(tab, raw *util.Obj) {
 	backend := str(tab, "backend")
-	if backend != "dsh" && !cli.SupportsModelOverride(backend) {
+	// 能接第三方的 CLI 都保留：第三方来源的模型经网关切换，不靠 CLI 自己的模型参数
+	if !cli.SupportsModelOverride(backend) && !builtin.WithThirdParty(backend) {
 		tab.Set("modelOverride", nil)
 		tab.Set("reasoningEffort", nil)
 		tab.Set("modelScope", nil)
