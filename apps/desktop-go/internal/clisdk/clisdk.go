@@ -135,11 +135,28 @@ const CarryEnd = "</previous_conversation>\n\n---\n\n"
 
 // StripCarriedContext removes the carried-over context from text.
 func StripCarriedContext(text string) string {
+	text = StripSandboxNote(text)
 	i := strings.Index(text, CarryEnd)
 	if i >= 0 && strings.HasPrefix(JSTrimStart(text), "[Nomi]") {
 		return text[i+len(CarryEnd):]
 	}
 	return text
+}
+
+// SandboxNoteStart：沙箱说明（prompts/text/cli-sandbox.md，一段、没有空行）的开头。
+// 没有系统提示参数的 CLI 把它放在会话第一条消息前面，和用户的话之间空一行
+const SandboxNoteStart = "You are running inside Nomi's sandbox."
+
+// StripSandboxNote：去掉第一条消息前面的沙箱说明（标题、历史里只显示用户自己的话）
+func StripSandboxNote(text string) string {
+	t := JSTrimStart(text)
+	if !strings.HasPrefix(t, SandboxNoteStart) {
+		return text
+	}
+	if i := strings.Index(t, "\n\n"); i >= 0 {
+		return t[i+2:]
+	}
+	return ""
 }
 
 /* ------------------------------- i18n.ts ------------------------------- */

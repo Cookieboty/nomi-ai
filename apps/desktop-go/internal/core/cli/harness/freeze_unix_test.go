@@ -137,3 +137,34 @@ func TestFreezeRecoveredAfterCrash(t *testing.T) {
 		t.Fatal("record is removed after recovery")
 	}
 }
+
+type focusedPorts struct{ nopPorts }
+
+func (focusedPorts) AnyFocused() bool { return true }
+
+// 内存守护不冻用户正看着的标签（窗口在前台、当前标签）；用户自己暂停的照冻，切走之后内存守护也能冻
+func TestMemoryFreezeSkipsForegroundTab(t *testing.T) {
+	tmp := t.TempDir()
+	idle := 0.0
+	jsrt.Run(func() {
+		o := New(Deps{Root: filepath.Join(tmp, "h"), Home: tmp, DefaultCwd: tmp, Logger: nopLogger{}, Ports: focusedPorts{},
+			IdleReclaimMs: &idle})
+		defer o.Dispose()
+		cmd := startSleep(t)
+		id := util.Str(o.CreateTab(util.NewObj("backend", "codex", "activate", false)).Get("id"))
+		o.trackProc(id, fakeChild{cmd.Process.Pid})
+		o.activeTabID = id
+		if o.FreezeTab(id, []int{cmd.Process.Pid}, "memory") {
+			t.Fatal("the memory guard must not freeze the tab the user is looking at")
+		}
+		o.activeTabID = ""
+		if !o.FreezeTab(id, []int{cmd.Process.Pid}, "memory") {
+			t.Fatal("a background tab can still be frozen")
+		}
+		o.ThawTab(id)
+		o.activeTabID = id
+		if !o.FreezeTab(id, []int{cmd.Process.Pid}, "user") {
+			t.Fatal("the user's own pause still applies to the current tab")
+		}
+	})
+}

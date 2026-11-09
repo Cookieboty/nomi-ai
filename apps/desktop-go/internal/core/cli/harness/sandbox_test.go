@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/sandbox"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
@@ -545,4 +547,18 @@ func TestSandboxAllowsTabAgentDir(t *testing.T) {
 			t.Fatalf("writable = %v, want %s", s.Writable, want)
 		}
 	})
+}
+
+// 沙箱说明放在第一条消息前面；标题与历史要能认出来去掉：开头与 clisdk.SandboxNoteStart 一致，中间不能有空行
+func TestSandboxNoteIsStrippable(t *testing.T) {
+	note := prompts.Text("cli-sandbox")
+	if !strings.HasPrefix(note, clisdk.SandboxNoteStart) || strings.Contains(strings.TrimSpace(note), "\n\n") {
+		t.Fatalf("cli-sandbox note must start with %q and be one paragraph", clisdk.SandboxNoteStart)
+	}
+	if got := clisdk.StripCarriedContext(note + "\n\n你好"); got != "你好" {
+		t.Fatalf("stripped = %q", got)
+	}
+	if got := clisdk.StripCarriedContext("你好"); got != "你好" {
+		t.Fatalf("plain text changed: %q", got)
+	}
 }
