@@ -194,7 +194,7 @@
     var tag = document.createElement("span");
     tag.className = "dl-yours";
     tag.setAttribute("data-i18n", "dl.yours");
-    var fb = document.documentElement.getAttribute("data-lang") === "en" ? "Your system" : "你的系统";
+    var fb = document.documentElement.lang.indexOf("en") === 0 ? "Your system" : "你的系统";
     try { tag.textContent = (window.NomiI18n && window.NomiI18n.t) ? window.NomiI18n.t("dl.yours") : fb; } catch (e) { tag.textContent = fb; }
     if (tag.textContent === "dl.yours") tag.textContent = fb;
     card.appendChild(tag);
@@ -390,12 +390,11 @@
   });
   nav.addEventListener("mouseleave", rest);
   nav.addEventListener("focusout", function (e) { if (!nav.contains(e.relatedTarget)) rest(); });
-  /* link widths change with the language and once the web font lands */
+  /* link widths change once the web font lands */
   var again = function () { nav.classList.remove("pill-ready"); rest(); requestAnimationFrame(function () { nav.classList.add("pill-ready"); }); };
   window.addEventListener("resize", again);
-  document.querySelectorAll(".lang-btn").forEach(function (b) { b.addEventListener("click", function () { setTimeout(again, 0); }); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(again);
-  /* the language is applied after first paint on some loads: follow any change in link sizes */
+  /* follow any later change in link sizes */
   if ("ResizeObserver" in window) {
     var first = true;
     new ResizeObserver(function () { if (first) { first = false; return; } again(); }).observe(nav);
