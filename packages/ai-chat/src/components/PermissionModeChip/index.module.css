@@ -45,9 +45,8 @@
 .chip:hover {
   background: var(--cd-color-hover);
 }
+/* 「完全放开」：和旁边的模型按钮一样无边框、无底色，只把文字与图标标红（风险说明在输入框上方的提示条里） */
 .danger {
-  border-color: var(--cd-color-danger);
-  background: var(--cd-color-danger-soft);
   color: var(--cd-color-danger-text);
 }
 .note {
