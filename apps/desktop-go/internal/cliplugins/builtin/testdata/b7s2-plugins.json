@@ -4,7 +4,9 @@
   "codex",
   "dsh",
   "gemini",
-  "grok"
+  "grok",
+  "kimi",
+  "minimax"
  ],
  "manifests": {
   "claude": {
@@ -319,6 +321,108 @@
     "client": "grok",
     "placeholderModel": "nomi"
    }
+  },
+  "kimi": {
+   "id": "kimi",
+   "apiVersion": 1,
+   "displayName": "Kimi Code",
+   "icon": "kimi",
+   "binary": {
+    "names": [
+     "kimi"
+    ],
+    "versionArgs": [
+     "--version"
+    ],
+    "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+    "install": {
+     "npm": "@moonshot-ai/kimi-code",
+     "url": "https://github.com/MoonshotAI/kimi-code"
+    }
+   },
+   "transport": "acp",
+   "ingress": "chat",
+   "capabilities": {
+    "officialAccount": true,
+    "thirdParty": false,
+    "images": "native",
+    "permissionModes": [
+     {
+      "mode": "plan",
+      "modeId": "plan"
+     },
+     {
+      "mode": "manual",
+      "modeId": "default"
+     },
+     {
+      "mode": "auto",
+      "modeId": "yolo"
+     },
+     {
+      "mode": "bypass",
+      "modeId": "auto"
+     }
+    ],
+    "subagents": false,
+    "slashCommands": false,
+    "resume": true,
+    "fork": false,
+    "usageQuota": false,
+    "progressMonitor": false,
+    "terminalCommand": true
+   },
+   "modelSwitch": "inplace",
+   "clientSpec": {
+    "client": "kimi"
+   }
+  },
+  "minimax": {
+   "id": "minimax",
+   "apiVersion": 1,
+   "displayName": "MiniMax Code",
+   "icon": "minimax",
+   "binary": {
+    "names": [
+     "mcode"
+    ],
+    "versionArgs": [
+     "--version"
+    ],
+    "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+    "install": {
+     "npm": "@minimax-ai/code",
+     "url": "https://agent.minimax.io/docs/cli/quick-start"
+    }
+   },
+   "transport": "acp",
+   "ingress": "chat",
+   "capabilities": {
+    "officialAccount": true,
+    "thirdParty": false,
+    "images": "native",
+    "permissionModes": [
+     {
+      "mode": "plan",
+      "modeId": "plan"
+     },
+     {
+      "mode": "manual",
+      "modeId": "default"
+     }
+    ],
+    "subagents": false,
+    "slashCommands": false,
+    "resume": true,
+    "fork": false,
+    "usageQuota": false,
+    "progressMonitor": false,
+    "terminalCommand": true
+   },
+   "modelSwitch": "inplace",
+   "clientSpec": {
+    "client": "minimax"
+   }
   }
  },
  "renderers": {
@@ -567,6 +671,80 @@
     "bypass"
    ],
    "modelSwitch": "gateway"
+  },
+  "kimi": {
+   "id": "kimi",
+   "displayName": "Kimi Code",
+   "icon": "kimi",
+   "capabilities": {
+    "officialAccount": true,
+    "thirdParty": false,
+    "images": "native",
+    "permissionModes": [
+     {
+      "mode": "plan",
+      "modeId": "plan"
+     },
+     {
+      "mode": "manual",
+      "modeId": "default"
+     },
+     {
+      "mode": "auto",
+      "modeId": "yolo"
+     },
+     {
+      "mode": "bypass",
+      "modeId": "auto"
+     }
+    ],
+    "subagents": false,
+    "slashCommands": false,
+    "resume": true,
+    "fork": false,
+    "usageQuota": false,
+    "progressMonitor": false,
+    "terminalCommand": true
+   },
+   "permissionModes": [
+    "plan",
+    "manual",
+    "auto",
+    "bypass"
+   ],
+   "modelSwitch": "inplace"
+  },
+  "minimax": {
+   "id": "minimax",
+   "displayName": "MiniMax Code",
+   "icon": "minimax",
+   "capabilities": {
+    "officialAccount": true,
+    "thirdParty": false,
+    "images": "native",
+    "permissionModes": [
+     {
+      "mode": "plan",
+      "modeId": "plan"
+     },
+     {
+      "mode": "manual",
+      "modeId": "default"
+     }
+    ],
+    "subagents": false,
+    "slashCommands": false,
+    "resume": true,
+    "fork": false,
+    "usageQuota": false,
+    "progressMonitor": false,
+    "terminalCommand": true
+   },
+   "permissionModes": [
+    "plan",
+    "manual"
+   ],
+   "modelSwitch": "inplace"
   }
  },
  "gatewayEntries": [

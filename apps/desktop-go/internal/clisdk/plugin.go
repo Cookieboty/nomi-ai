@@ -148,6 +148,10 @@ type AccountCapability struct {
 	LogoutArgs  []string // nil = 未给
 	StatusArgs  []string
 	AccountArgs []string
+	// UserHome：没有指定账号目录时 CLI 用的主目录（HomeEnv 指向的目录）；nil = 内核里按 CLI 的老逻辑
+	UserHome func(env Env, home string) string
+	// SignedIn：主目录 root 里有没有登录（读凭据文件）；nil = 内核里按 CLI 的老逻辑
+	SignedIn func(root string) bool
 }
 
 type SlashSource struct {

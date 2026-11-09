@@ -85,7 +85,21 @@ func UserCliHome(kind string, env *util.Obj, home string) string {
 		}
 		return home
 	}
+	if c := accountCap(kind); c != nil && c.UserHome != nil {
+		return c.UserHome(envMap(env), home)
+	}
 	return ""
+}
+
+// envMap：环境变量表（*util.Obj → clisdk.Env）
+func envMap(env *util.Obj) clisdk.Env {
+	m := clisdk.Env{}
+	for _, k := range env.Keys() {
+		if s, ok := env.Get(k).(string); ok {
+			m[k] = s
+		}
+	}
+	return m
 }
 
 // CanonicalDir = canonicalDir.

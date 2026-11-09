@@ -42,6 +42,16 @@
       "types": "./dist/grok/manifest.d.ts",
       "import": "./dist/grok/manifest.js",
       "require": "./dist/grok/manifest.cjs"
+    },
+    "./kimi/manifest": {
+      "types": "./dist/kimi/manifest.d.ts",
+      "import": "./dist/kimi/manifest.js",
+      "require": "./dist/kimi/manifest.cjs"
+    },
+    "./minimax/manifest": {
+      "types": "./dist/minimax/manifest.d.ts",
+      "import": "./dist/minimax/manifest.js",
+      "require": "./dist/minimax/manifest.cjs"
     }
   },
   "files": [
@@ -83,6 +93,12 @@
       ],
       "grok/manifest": [
         "./dist/grok/manifest.d.ts"
+      ],
+      "kimi/manifest": [
+        "./dist/kimi/manifest.d.ts"
+      ],
+      "minimax/manifest": [
+        "./dist/minimax/manifest.d.ts"
       ]
     }
   }

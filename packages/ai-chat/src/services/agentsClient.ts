@@ -1,4 +1,4 @@
-import { type BuiltinCliId } from '@nomi-ai/cli-catalog';
+import { type BuiltinCliId, byCli, cliFullName } from '@nomi-ai/cli-catalog';
 import { t } from '@nomi-ai/ui';
 
 import { api, hasTransport } from './api';
@@ -52,13 +52,7 @@ export interface AgentWatchState {
   lastRemindAt: number;
 }
 
-export const AGENT_LABEL: Record<AgentKind, string> = {
-  codex: 'Codex',
-  claude: 'Claude Code',
-  dsh: 'dsh',
-  grok: 'Grok',
-  gemini: 'Gemini CLI',
-};
+export const AGENT_LABEL: Record<AgentKind, string> = byCli(cliFullName);
 
 export const STATUS_LABEL: Record<AgentStatus, string> = {
   running: 'ui.chat-settings.in-progress',

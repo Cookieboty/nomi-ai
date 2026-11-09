@@ -22,7 +22,8 @@ import (
 //go:embed nomi-runner.cjs
 var WindowsRunner string
 
-var Kinds = builtin.Ordered
+// Kinds：有 nomi-<cli> 命令的（经网关启动，所以只有能接第三方模型的）
+var Kinds = builtin.Where(builtin.WithThirdParty)
 
 const (
 	tokenMark = "__NOMI_TOKEN__"

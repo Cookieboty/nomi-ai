@@ -14,10 +14,10 @@ func TestOrderedCoversAll(t *testing.T) {
 	}
 }
 
-// 由插件能力推出来的名单与原来写死的一致（行为不变）
+// 由插件能力推出来的名单（前五个与原来写死的一致；Kimi / MiniMax 只有官方账号）
 func TestDerivedLists(t *testing.T) {
 	for name, c := range map[string]struct{ got, want []string }{
-		"accounts": {Where(WithAccounts), []string{"claude", "codex", "grok", "gemini"}},
+		"accounts": {Where(WithAccounts), []string{"claude", "codex", "grok", "gemini", "kimi", "minimax"}},
 		"history":  {Where(WithHistory), []string{"claude", "codex", "grok", "gemini", "dsh"}},
 		"quota":    {Where(WithQuota), []string{"claude", "codex", "grok"}},
 	} {
@@ -27,7 +27,8 @@ func TestDerivedLists(t *testing.T) {
 	}
 	for id, want := range map[string][2]string{
 		"claude": {"Claude Code", "Claude Code"}, "codex": {"Codex", "Codex"}, "grok": {"Grok", "Grok"},
-		"gemini": {"Gemini", "Gemini CLI"}, "dsh": {"dsh", "dsh"},
+		"gemini": {"Gemini", "Gemini CLI"}, "dsh": {"dsh", "dsh"}, "kimi": {"Kimi Code", "Kimi Code"},
+		"minimax": {"MiniMax Code", "MiniMax Code"},
 	} {
 		if DisplayName(id) != want[0] || FullName(id) != want[1] {
 			t.Errorf("%s names = %q / %q", id, DisplayName(id), FullName(id))

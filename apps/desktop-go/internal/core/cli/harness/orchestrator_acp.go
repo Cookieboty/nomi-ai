@@ -5,6 +5,7 @@ package harness
 import (
 	"errors"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
+	"regexp"
 	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
@@ -90,6 +91,9 @@ func (e *causeError) Error() string { return e.msg }
 func (e *causeError) Unwrap() error { return e.cause }
 
 func withCause(msg string, cause error) error { return &causeError{msg, cause} }
+
+// acpAuthRequiredRe：ACP 建会话时 CLI 说还没登录（Kimi Code、MiniMax Code 都回 -32000 "Authentication required"）
+var acpAuthRequiredRe = regexp.MustCompile(`(?i)authentication required|auth_required|run .* login`)
 
 // acpDisplayName = acpDisplayName(backend, ext?)。
 func acpDisplayName(backend string, ext *util.Obj) string {
@@ -270,6 +274,10 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 					}
 				}
 			} else if err.Error() != "ACP agent returned no session" {
+				// 没登录（ACP 的 auth_required）：内置的告诉用户去哪里登录，别只给一句英文报错
+				if acpAuthRequiredRe.MatchString(err.Error()) && builtin.WithAccounts(backend) {
+					return struct{}{}, errors.New(i18n.T("electron.common.cli-needs-sign-in", name))
+				}
 				return struct{}{}, err
 			}
 			if sid == nil || *sid == "" {

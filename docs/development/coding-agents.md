@@ -37,6 +37,8 @@ Nomi 把 Claude Code、Codex、Gemini CLI、Grok、dsh 当作子进程驱动，�
 | Gemini CLI  | `acp`                    | —      |
 | Grok        | `acp`                    | `exec` |
 | dsh         | `exec`                   | —      |
+| Kimi Code   | `acp`                    | —      |
+| MiniMax     | `acp`                    | —      |
 
 传输写在 `packages/cli-catalog/src/<cli>/manifest.ts` 的 `transport` / `fallbackTransport`。外部 ACP 插件只有声明式清单
 （`userData/cli-plugins/external/*.json`），不加载代码。

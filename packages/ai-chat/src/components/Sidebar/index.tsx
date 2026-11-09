@@ -1,3 +1,4 @@
+import { byCli } from '@nomi-ai/cli-catalog';
 import { t, Icon, useLocale } from '@nomi-ai/ui';
 import { MessagesSquare, SquarePen } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -239,15 +240,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   }, [list, isNormal, tabById]);
 
   const counts = useMemo(() => {
-    const c: Record<ConversationBackend, number> = {
-      nomi: 0,
-      claude: 0,
-      codex: 0,
-      dsh: 0,
-      grok: 0,
-      gemini: 0,
-      external: 0,
-    };
+    const c: Record<ConversationBackend, number> = { nomi: 0, ...byCli(() => 0), external: 0 };
     for (const x of navList) c[x.backend] = (c[x.backend] ?? 0) + 1;
     return c;
   }, [navList]);

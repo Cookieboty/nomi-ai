@@ -67,6 +67,7 @@
   "electron.common.codex-could-not-start-the-app-server": "Codex could not start the app-server",
   "electron.common.codex-did-not-return-a-session": "Codex did not return a session",
   "electron.common.codex-error": "Codex error",
+  "electron.common.cli-needs-sign-in": "{0} isn't signed in. Sign in to your {0} official account in Settings → Coding agents, then try again.",
   "electron.common.cli-not-found-set-nomi-use-mock": "{0} not found (set NOMI_USE_MOCK_CLI=1 for the mock CLI)",
   "electron.common.codex-not-found-set-nomi-use-mock-cli": "Codex not found (set NOMI_USE_MOCK_CLI=1 for mock)",
   "electron.common.coding-assistant-output": "Coding assistant output",

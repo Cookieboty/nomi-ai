@@ -13,7 +13,8 @@ import (
 )
 
 // CLIENT_IDS.
-var ClientIDs = append([]string{"nomi"}, builtin.Ordered...)
+// 内置编程助手里能接第三方模型（清单 thirdParty）的才是网关客户端
+var ClientIDs = append([]string{"nomi"}, builtin.Where(builtin.WithThirdParty)...)
 
 // RuntimeKey is RuntimeKey.
 type RuntimeKey struct {

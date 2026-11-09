@@ -4,6 +4,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MessageInput } from '../src/components/MessageInput';
+import { DELEGATE_CLIS } from '../src/services/delegateClient';
 import { getNextDelegate, setNextDelegate } from '../src/services/delegateClient';
 import { nomiAdapter } from '../src/slash/adapters/nomi';
 import { agentArgQuery, filterAgents } from '../src/slash/agentComplete';
@@ -74,7 +75,7 @@ describe('/agent 补全', () => {
   it('已安装在前，按 id / 显示名前缀过滤（不区分大小写）', () => {
     const ids = filterAgents(['codex', 'grok'], '').map((o) => o.id);
     expect(ids.slice(0, 2)).toEqual(['codex', 'grok']);
-    expect(ids).toHaveLength(5);
+    expect(ids).toHaveLength(DELEGATE_CLIS.length);
     expect(filterAgents(['codex'], 'CO').map((o) => o.id)).toEqual(['codex']);
     expect(filterAgents(['codex'], 'claude c').map((o) => o.id)).toEqual(['claude']);
     expect(filterAgents([], 'cl')[0]).toMatchObject({ id: 'claude', installed: false });

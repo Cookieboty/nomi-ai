@@ -15,7 +15,7 @@ import (
 )
 
 // CLIKinds = CLI_KINDS
-var CLIKinds = builtin.Ordered
+var CLIKinds = builtin.Where(builtin.WithThirdParty)
 
 var nomiProtocolWire = map[string]string{"openai-chat": "chat", "openai-responses": "responses", "anthropic": "messages"}
 var cliFormatWire = map[string]string{

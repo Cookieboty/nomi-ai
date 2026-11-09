@@ -14,7 +14,7 @@ import (
 // 的名单，而是某几个 CLI 各自的实现（额度查询、日志解析……）；新加的内置助手要用其中的能力时，在那里补实现。
 var hardcodedAllow = map[string]map[string]string{
 	"internal/core/usage/usageservice.go": {
-		"QuotaPlaceholder{{ID: \"claude\"": "额度面板的占位：只有实现了额度查询的才有",
+		"QuotaPlaceholder{{ID: \"claude\"":                                   "额度面板的占位：只有实现了额度查询的才有",
 		"range []string{\"claude\", \"codex\", \"dsh\", \"grok\", \"nomi\"}": "各自实现的额度来源",
 	},
 	"internal/core/usage/logparsers.go": {

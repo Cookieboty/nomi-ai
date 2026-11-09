@@ -1,3 +1,4 @@
+import { byCli, cliName } from '@nomi-ai/cli-catalog';
 /**
  * 端点页的「版本」分组：已装版本 / 最新版本 / 检查更新 / 一键更新；未安装时一键安装。
  * 执行前一定弹出确认框，展示确切命令与前置检查（Node / npm / 写权限）；
@@ -21,13 +22,7 @@ import { EndpointIcon } from '../EndpointIcon';
 import { CliPlanDialog } from './CliPlanDialog';
 import styles from './index.module.css';
 
-const NAME: Record<CliUpdatableKind, string> = {
-  claude: 'Claude Code',
-  codex: 'Codex',
-  dsh: 'dsh',
-  grok: 'Grok',
-  gemini: 'Gemini',
-};
+const NAME: Record<CliUpdatableKind, string> = byCli(cliName);
 
 export type VersionState = 'missing' | 'outdated' | 'current' | 'unknown';
 

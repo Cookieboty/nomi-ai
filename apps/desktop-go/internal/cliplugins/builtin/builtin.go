@@ -14,6 +14,8 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/dsh"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/gemini"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/grok"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/kimi"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/minimax"
 	sh "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -53,6 +55,11 @@ var entries = map[string]Entry{
 		FullName: "Gemini CLI", Transcript: gemini.ParseTranscript, MinNode: 20, Vendor: "google", AcpArgs: []string{"--acp"}},
 	"grok": {Manifest: grok.Manifest, Renderer: grok.Renderer, Gateway: grok.Gateway, CreateMain: grok.CreateMain,
 		Transcript: grok.ParseTranscript, MinNode: 18, SelfUpdate: "always", Vendor: "xai", PlanFollowUp: true, AcpArgs: []string{"agent", "stdio"}},
+	// ACP 助手：不能读历史会话（Transcript nil），只用官方账号；会话在标签里用 session/load 接着聊
+	"kimi": {Manifest: kimi.Manifest, Renderer: kimi.Renderer, CreateMain: kimi.CreateMain,
+		MinNode: 22, Vendor: "moonshot", AcpArgs: []string{"acp"}},
+	"minimax": {Manifest: minimax.Manifest, Renderer: minimax.Renderer, CreateMain: minimax.CreateMain,
+		MinNode: 22, SelfUpdate: "always", Vendor: "minimax", AcpArgs: []string{"acp"}},
 }
 
 // IDs：内置 CLI 的 id（与 packages/cli-catalog/src/generated/ids.ts 一致：目录名，排好序）。
@@ -66,7 +73,7 @@ var IDs = func() []string {
 }()
 
 // Ordered：界面与名单里的顺序（先来的在前，新加的接在后面）；IDs 是按 id 排序的
-var Ordered = []string{"claude", "codex", "grok", "gemini", "dsh"}
+var Ordered = []string{"claude", "codex", "grok", "gemini", "dsh", "kimi", "minimax"}
 
 // IsBuiltinCliID：v 是否内置 CLI 的 id。
 func IsBuiltinCliID(v any) bool {
@@ -244,6 +251,9 @@ func WithHistory(id string) bool {
 	e, ok := entries[id]
 	return ok && e.Transcript != nil && Impl(id).History != nil
 }
+
+// WithThirdParty：能接第三方模型（清单 thirdParty；经 Nomi 网关）
+func WithThirdParty(id string) bool { return Capability(id, "thirdParty") }
 
 // WithQuota：能查订阅额度（清单 usageQuota）
 func WithQuota(id string) bool { return Capability(id, "usageQuota") }

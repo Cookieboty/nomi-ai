@@ -67,6 +67,7 @@
   "electron.common.codex-could-not-start-the-app-server": "Codex 没能启动 app-server",
   "electron.common.codex-did-not-return-a-session": "Codex 没有返回会话",
   "electron.common.codex-error": "Codex 错误",
+  "electron.common.cli-needs-sign-in": "{0} 还没有登录：在「设置 → 编程助手」里登录 {0} 的官方账号后再试。",
   "electron.common.cli-not-found-set-nomi-use-mock": "未找到 {0}（可设 NOMI_USE_MOCK_CLI=1）",
   "electron.common.codex-not-found-set-nomi-use-mock-cli": "未找到 Codex（可设 NOMI_USE_MOCK_CLI=1）",
   "electron.common.coding-assistant-output": "编程助手的输出",

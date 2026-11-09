@@ -1,6 +1,6 @@
 # @nomi-ai/cli-catalog
 
-内置编程助手（Claude Code、Codex、Grok、Gemini、dsh）的清单与界面信息，纯数据与纯函数，
+内置编程助手（Claude Code、Codex、Grok、Gemini、dsh、Kimi Code、MiniMax Code）的清单与界面信息，纯数据与纯函数，
 视图会 import（docs/development/coding-agents.md）。
 
 | 内容                                                                                                    | 位置                                                                                                       |
