@@ -104,10 +104,22 @@ type acpMapper struct {
 	thought string
 	context Json
 	names   map[string]string
+	// inputs：进行中的工具调用最近一次带来的参数（rawInput / 标题 / 位置），做完时 update 里没有就用它。
+	// Kimi Code 先用第一段流式参数建 tool_call（只有工具名），开始执行时才用 tool_call_update 补上 rawInput，
+	// 做完的那条又只带结果；不记下来，命令就丢了
+	inputs map[string]acpInput
+}
+
+type acpInput struct {
+	raw   any
+	title string
+	loc   any
 }
 
 // NewAcpMapper：新建 AcpMapper（Gemini 也用它）。
-func NewAcpMapper() AcpMapper { return &acpMapper{context: O(), names: map[string]string{}} }
+func NewAcpMapper() AcpMapper {
+	return &acpMapper{context: O(), names: map[string]string{}, inputs: map[string]acpInput{}}
+}
 
 func (m *acpMapper) Flush() []Ev {
 	if clisdk.JSTrim(m.thought) == "" {
@@ -205,6 +217,22 @@ func (m *acpMapper) Update(u Json) []Ev {
 		title, _ := u.Get("title").(string)
 		status := strQ(u.Get("status"))
 		terminal := status == "completed" || status == "failed"
+		var loc any
+		if arr, ok := u.Get("locations").([]any); ok && len(arr) > 0 {
+			loc = arr[0]
+		}
+		// 记下这次带来的参数（后来的覆盖先前的），做完时没带就用它
+		prev := m.inputs[id]
+		if raw := u.Get("rawInput"); isStructured(raw) {
+			prev.raw = raw
+		}
+		if title != "" {
+			prev.title = title
+		}
+		if loc != nil {
+			prev.loc = loc
+		}
+		m.inputs[id] = prev
 		if _, has := m.names[id]; !terminal && kind == "tool_call_update" && has {
 			return out
 		}
@@ -218,28 +246,22 @@ func (m *acpMapper) Update(u Json) []Ev {
 			}
 		}
 		m.names[id] = name
-		var loc any
-		if arr, ok := u.Get("locations").([]any); ok && len(arr) > 0 {
-			loc = arr[0]
-		}
 		var input string
-		raw := u.Get("rawInput")
-		if _, isObj := raw.(*util.Obj); isObj {
-			input = util.Stringify(raw)
-		} else if _, isArr := raw.([]any); isArr {
-			input = util.Stringify(raw)
+		if prev.raw != nil {
+			input = util.Stringify(prev.raw)
 		} else {
 			o := O()
-			if title != "" {
-				o.Set("description", title)
+			if prev.title != "" {
+				o.Set("description", prev.title)
 			}
-			if p, ok := getp(loc, "path").(string); ok {
+			if p, ok := getp(prev.loc, "path").(string); ok {
 				o.Set("path", p)
 			}
 			input = util.Stringify(o)
 		}
 		if terminal {
 			delete(m.names, id)
+			delete(m.inputs, id)
 			st := "done"
 			if status == "failed" {
 				st = "error"
@@ -255,6 +277,15 @@ func (m *acpMapper) Update(u Json) []Ev {
 		return out
 	}
 	return out
+}
+
+// isStructured：rawInput 是对象 / 数组（字符串等不算参数）
+func isStructured(v any) bool {
+	switch v.(type) {
+	case *util.Obj, []any:
+		return true
+	}
+	return false
 }
 
 // PickPermissionOption：按允许 / 拒绝选权限选项（"" + false = null）。
