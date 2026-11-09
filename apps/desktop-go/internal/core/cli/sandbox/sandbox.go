@@ -113,6 +113,10 @@ var homeExecConfig = []string{
 	".envrc", ".direnvrc", ".config/direnv", ".cursor/mcp.json", ".codeium/windsurf/mcp_config.json", ".config/opencode",
 	"Library/Application Support/Claude/claude_desktop_config.json",
 	"Library/Application Support/Code/User", "Library/Application Support/Cursor/User",
+	// 版本管理器的命令入口（在 PATH 里，沙箱外正常调用 python / ruby / node 就会执行它们）：
+	// 隐藏目录默认可写，这些要单独拦（#302）。装包、缓存写在别处，不受影响
+	".pyenv/shims", ".pyenv/bin", ".pyenv/libexec", ".rbenv/shims", ".rbenv/bin", ".nodenv/shims", ".nodenv/bin",
+	".asdf/shims", ".asdf/bin", ".local/share/mise/shims", ".volta/bin", ".jenv/shims",
 }
 
 // 本机 Unix socket：拿到它们等于绕过拒读（ssh-agent 里的私钥、Docker 守护进程）。没授权对应类别时不让连

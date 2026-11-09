@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
@@ -86,6 +85,8 @@ func placeholderModelOf(kind string) string {
 type CliLaunchOpts struct {
 	TabBound    bool
 	LongContext *bool
+	// Token：写进启动配置 / 环境的网关令牌；空 = 这个端的全局令牌。标签启动用标签自己的令牌（CliLaunchForTab）
+	Token string
 }
 
 // CliLaunch = cliLaunch(kind, tabId, model, opts)；nil = 网关没在运行
@@ -106,8 +107,12 @@ func (s *Service) CliLaunch(kind, tabID, model string, o CliLaunchOpts) (*agents
 	if models == nil {
 		models = u.NewObj()
 	}
+	token := ep.Token
+	if o.Token != "" {
+		token = o.Token
+	}
 	c := &agents.LaunchContext{
-		URL: ep.URL, Token: ep.Token, Model: model,
+		URL: ep.URL, Token: token, Model: model,
 		MetaOf: func(ref string) *agents.ModelMeta {
 			if ref == model && o.LongContext != nil {
 				return (*agents.ModelMeta)(s.AgentMeta(ref, o.LongContext))
@@ -137,13 +142,12 @@ func (t *TabLaunch) Obj() *u.Obj {
 var tabReadyTimeout time.Duration
 
 // CliLaunchForTab = cliLaunchForTab(kind, tabId, model, effort?, longContext?)
+//
+// 先登记标签、拿到标签自己的令牌，再用它生成启动计划：环境变量、参数和插件写盘的配置文件（如 MiniMax 的
+// config.yaml）里都是标签令牌，网关据此认出标签（tabId / generation / effort），标签关闭或换代时令牌随之作废（#301）。
+// 生成失败时撤销这次登记，不留绑定。
 func (s *Service) CliLaunchForTab(kind, tabID, model, effort string, longContext *bool) (*TabLaunch, error) {
-	ep := s.Endpoint(kind)
-	l, err := s.CliLaunch(kind, tabID, model, CliLaunchOpts{TabBound: true, LongContext: longContext})
-	if err != nil {
-		return nil, err
-	}
-	if ep == nil || l == nil {
+	if s.Endpoint(kind) == nil {
 		return nil, nil
 	}
 	if !s.rt.proc.WhenReady(tabReadyTimeout) {
@@ -162,16 +166,12 @@ func (s *Service) CliLaunchForTab(kind, tabID, model, effort string, longContext
 	if err != nil {
 		return nil, err
 	}
-	swap := func(v string) string { return strings.ReplaceAll(v, ep.Token, reg.Token) }
-	env := u.NewObj()
-	for _, k := range l.Env.Keys() {
-		env.Set(k, swap(u.JSString(l.Env.Get(k))))
+	l, err := s.CliLaunch(kind, tabID, model, CliLaunchOpts{TabBound: true, LongContext: longContext, Token: reg.Token})
+	if err != nil || l == nil {
+		s.rt.tabs.Remove(kind, tabID, reg.Generation)
+		return nil, err
 	}
-	args := make([]string, len(l.Args))
-	for i, a := range l.Args {
-		args[i] = swap(a)
-	}
-	return &TabLaunch{AgentLaunch: &agents.AgentLaunch{Env: env, Args: args, Strip: l.Strip, ModelInConfig: l.ModelInConfig}, Generation: reg.Generation}, nil
+	return &TabLaunch{AgentLaunch: &agents.AgentLaunch{Env: l.Env, Args: l.Args, Strip: l.Strip, ModelInConfig: l.ModelInConfig}, Generation: reg.Generation}, nil
 }
 
 // ReleaseTab = releaseTab(kind, tabId, generation?)；generation<0 = 不指定

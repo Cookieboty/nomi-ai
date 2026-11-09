@@ -42,9 +42,19 @@ func TestProfileClosesGaps(t *testing.T) {
 		_ = os.MkdirAll(filepath.Dir(p), 0o755)
 		return run(s, "/bin/sh", "-c", `echo x > "$1"`, "sh", p)
 	}
-	for _, p := range []string{".claude/settings.json", ".claude/hooks/pre.sh", ".codex/config.toml", ".bun/bin/node"} {
+	// 版本管理器的命令入口：隐藏目录默认可写，这些仍要拒（#302）。测试的主目录在临时目录下、本来就可写，
+	// 拒绝规则排在放行之后，所以这里验证的是实际生效的策略，不是配置里有没有某个字符串
+	for _, p := range []string{".claude/settings.json", ".claude/hooks/pre.sh", ".codex/config.toml", ".bun/bin/node",
+		".pyenv/shims/python", ".pyenv/bin/pyenv", ".rbenv/shims/ruby", ".asdf/shims/node", ".local/share/mise/shims/node",
+		".volta/bin/node"} {
 		if write(spec, filepath.Join(home, p)) {
 			t.Errorf("write ~/%s must be denied", p)
+		}
+	}
+	// 普通的工具状态照常能写（隐藏目录、pyenv 自己的缓存）
+	for _, p := range []string{".cache/tool/state", ".pyenv/cache/x", ".npm/_logs/x.log"} {
+		if !write(spec, filepath.Join(home, p)) {
+			t.Errorf("tool state ~/%s stays writable", p)
 		}
 	}
 	if !write(spec, filepath.Join(home, ".claude", "projects", "s.jsonl")) {
@@ -85,10 +95,6 @@ func TestProfileClosesGaps(t *testing.T) {
 			t.Errorf("granting %s allows %s", c.grant, c.name)
 		}
 		ln.Close()
-	}
-	// pyenv 的 shims 不再默认可写（测试里的主目录在临时目录下、本来就可写，只能看配置里有没有放行它）
-	if strings.Contains(Profile(spec), ".pyenv/shims") {
-		t.Error("~/.pyenv/shims is no longer writable by default")
 	}
 	if !strings.Contains(Profile(spec), "(deny appleevent-send") {
 		t.Error("Apple Events are denied")
