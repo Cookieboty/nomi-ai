@@ -102,7 +102,7 @@ Nomi 可以把具体的开发、文档、审查、调研任务交给本机的编
 
 ## 实现
 
-- 视图：`packages/ai-chat/src`（`App.tsx`、`components/Sidebar`、`components/MessageInput`、`components/AssetLibrary`）。
+- 视图：`packages/ai-chat/src`（`App.tsx` 只做组装，各部分的状态在 `app/`：面板开关、命令与快捷键、斜杠命令、右栏；`components/Sidebar`、`components/MessageInput`、`components/AssetLibrary`）。
 - 会话存储：内核 `apps/desktop-go/internal/core/convstore`（契约 `conversations.*`，处理函数 `internal/core/shellhandlers/conversations.go`）；视图 `packages/ai-chat/src/services/conversationStore.ts`（同步门面 + 消息缓存 + 有序写队列）、`conversationBoot.ts`（启动时取索引、迁移）、`conversationMigration.ts`（旧 localStorage 导入）、`components/BootScreen`（启动画面）；退出前等写入：`shellhandlers.ConversationWrites`（`main.go` 的 `OnShutdown`）。
 - 跨轮上下文：内核在一轮结束时发 `steps` 块（这一轮工具循环实际发出的消息，`internal/ai/runtime/aisdk/provider.go`），视图存进回复的 `steps`，下一轮原样带回（`services/history.ts`）；新召回的记忆存在用户消息的 `memory` 上、放在用户原话前面发，不进 system；压缩时合并到压缩消息上（`services/compaction.ts`）。
 - 内核：`apps/desktop-go/internal/aichat`（2.0.4 Electron 旧对话的抽取），图片生成 `internal/ai/runtime/igtools/image.go`，素材库 `internal/core/chatassets`，委派 `internal/core/cli/harness`。

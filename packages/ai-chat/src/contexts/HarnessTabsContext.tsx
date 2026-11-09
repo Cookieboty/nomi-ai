@@ -49,7 +49,7 @@ export type { TabLive, LiveStatus };
  * 不含完整标签列表的部分：后台标签的状态 / 未读变化不会让它换引用（activeTab 经结构共享，
  * 只有当前标签真的变了才换）。只关心当前标签与操作的消费者（如 App）用 useHarnessTabsCore()。
  */
-interface HarnessTabsCore {
+export interface HarnessTabsCore {
   available: boolean;
   /** 主进程记录的当前标签 id（状态尚未加载时为 undefined） */
   activeTabId: string | undefined;
