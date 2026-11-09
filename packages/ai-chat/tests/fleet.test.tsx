@@ -262,7 +262,27 @@ describe('FleetPage', () => {
     expect(row.textContent).toContain('60 MB');
     expect(row.textContent).toContain('a');
     fireEvent.click(screen.getByTestId('fleet-close-idle-64826'));
-    expect(onCloseIdle).toHaveBeenCalledWith(state.externalIdle.items[2]);
+    expect(onCloseIdle).toHaveBeenCalledWith([state.externalIdle.items[2]]);
+  });
+
+  it('closes several idle processes at once: pick rows or select all', () => {
+    const onCloseIdle = vi.fn();
+    render(<FleetPage active state={state} onBack={() => undefined} onCloseIdle={onCloseIdle} />);
+    const [first, , third] = state.externalIdle.items;
+    const closeSelected = screen.getByTestId('fleet-close-idle-selected') as HTMLButtonElement;
+    expect(closeSelected.disabled).toBe(true);
+    fireEvent.click(screen.getByTestId(`fleet-idle-pick-${first.pid}`));
+    fireEvent.click(screen.getByTestId(`fleet-idle-pick-${third.pid}`));
+    const all = screen.getByTestId('fleet-idle-select-all') as HTMLInputElement;
+    expect(all.indeterminate).toBe(true);
+    expect(closeSelected.textContent).toContain('2');
+    fireEvent.click(closeSelected);
+    expect(onCloseIdle).toHaveBeenLastCalledWith([first, third]);
+    // 关完清空勾选；全选一次勾上全部
+    expect(closeSelected.disabled).toBe(true);
+    fireEvent.click(all);
+    fireEvent.click(closeSelected);
+    expect(onCloseIdle).toHaveBeenLastCalledWith(state.externalIdle.items);
   });
 
   it('says why an idle process was not closed (no permission on Windows, no longer idle)', () => {
@@ -272,7 +292,7 @@ describe('FleetPage', () => {
         state={state}
         onBack={() => undefined}
         onCloseIdle={() => undefined}
-        idleError={{ pid: 3076, backend: 'codex', reason: 'denied' }}
+        idleErrors={[{ pid: 3076, backend: 'codex', reason: 'denied' }]}
       />,
     );
     const msg = screen.getByTestId('fleet-close-idle-error').textContent ?? '';
@@ -283,7 +303,7 @@ describe('FleetPage', () => {
         active
         state={state}
         onBack={() => undefined}
-        idleError={{ pid: 3076, backend: 'codex', reason: 'gone' }}
+        idleErrors={[{ pid: 3076, backend: 'codex', reason: 'gone' }]}
       />,
     );
     expect(screen.getByTestId('fleet-close-idle-error').textContent).toContain('已经不是空闲进程');
@@ -310,6 +330,14 @@ describe('FleetPage', () => {
     const card = screen.getByTestId('fleet-card-ext:codex:s1');
     expect(card.getAttribute('data-scope')).toBe('external');
     expect(within(card).queryAllByRole('button')).toHaveLength(0);
+  });
+
+  it('done tabs have a close button at the bottom right, not in the menu', () => {
+    const onCloseTab = vi.fn();
+    render(<FleetPage active state={state} onBack={() => undefined} onCloseTab={onCloseTab} />);
+    expect(screen.queryByTestId('fleet-close-tab-tab:a')).toBeNull();
+    fireEvent.click(screen.getByTestId('fleet-close-tab-tab:b'));
+    expect(onCloseTab).toHaveBeenCalledWith(expect.objectContaining({ id: 'tab:b' }));
   });
 
   it('archives only done items', () => {

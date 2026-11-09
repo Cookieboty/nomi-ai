@@ -167,37 +167,52 @@ export function useFleetHost(collapsed: boolean) {
     [apply, reload],
   );
   /**
-   * 手动关闭空闲的外部进程：先确认；没关掉时在列表下面写清楚为什么（没有权限、已经不是空闲进程、其他原因），
-   * 不再只是静默刷新
+   * 手动关闭空闲的外部进程（一个或勾选的几个）：先确认一次；逐个关（内核每个都重新核对进程表），没关掉的在列表下面
+   * 各写一条为什么（没有权限、已经不是空闲进程、读不到进程表、其他原因），不静默刷新
    */
-  const [idleError, setIdleError] = useState<IdleCloseError | null>(null);
+  const [idleErrors, setIdleErrors] = useState<IdleCloseError[]>([]);
   const closeIdle = useCallback(
-    async (it: FleetIdleItem) => {
-      const name = isBuiltinCliId(it.backend) ? t(ENDPOINT_NAME[it.backend]) : it.backend;
+    async (items: FleetIdleItem[]) => {
+      if (!items.length) return;
+      const nameOf = (b: string) => (isBuiltinCliId(b) ? t(ENDPOINT_NAME[b]) : b);
       const ok = await confirmDialog({
-        message: t('ui.cli-monitor.fleet-close-idle-confirm', name, it.pid, brand.appName),
+        message:
+          items.length === 1
+            ? t(
+                'ui.cli-monitor.fleet-close-idle-confirm',
+                nameOf(items[0].backend),
+                items[0].pid,
+                brand.appName,
+              )
+            : t('ui.cli-monitor.fleet-close-idle-many-confirm', items.length, brand.appName),
       });
       if (!ok) return;
-      setIdleError(null);
-      await fleetApi
-        .closeIdle(it)
-        .then(apply)
-        .catch((e: unknown) => {
-          const reason = isContractError(e, 'FLEET_CLOSE_DENIED')
-            ? 'denied'
-            : isContractError(e, 'FLEET_NOT_IDLE')
-              ? 'gone'
-              : isContractError(e, 'FLEET_CLOSE_UNVERIFIED')
-                ? 'unverified'
-                : 'failed';
-          setIdleError({
-            pid: it.pid,
-            backend: it.backend,
-            reason,
-            detail: e instanceof Error ? e.message : String(e),
+      setIdleErrors([]);
+      const errors: IdleCloseError[] = [];
+      for (const it of items) {
+        await fleetApi
+          .closeIdle(it)
+          .then(apply)
+          .catch((e: unknown) => {
+            const reason = isContractError(e, 'FLEET_CLOSE_DENIED')
+              ? 'denied'
+              : isContractError(e, 'FLEET_NOT_IDLE')
+                ? 'gone'
+                : isContractError(e, 'FLEET_CLOSE_UNVERIFIED')
+                  ? 'unverified'
+                  : 'failed';
+            errors.push({
+              pid: it.pid,
+              backend: it.backend,
+              reason,
+              detail: e instanceof Error ? e.message : String(e),
+            });
           });
-          reload();
-        });
+      }
+      if (errors.length) {
+        setIdleErrors(errors);
+        reload();
+      }
     },
     [apply, reload],
   );
@@ -246,8 +261,8 @@ export function useFleetHost(collapsed: boolean) {
         chatName={chatName}
         onArchive={archive}
         onCloseTab={(a) => void closeTab(a)}
-        onCloseIdle={(it) => void closeIdle(it)}
-        idleError={idleError}
+        onCloseIdle={(items) => void closeIdle(items)}
+        idleErrors={idleErrors}
         onPause={pause}
         onResume={resume}
         onSetAutoPause={setAutoPause}

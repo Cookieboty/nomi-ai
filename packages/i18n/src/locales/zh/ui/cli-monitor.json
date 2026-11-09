@@ -280,5 +280,9 @@
   "ui.cli-monitor.fleet-close-idle-denied": "没关掉 {0}（进程 {1}）：没有权限结束它。它可能是在以管理员身份运行的终端里开的，请在那个终端里退出它。",
   "ui.cli-monitor.fleet-close-idle-gone": "{0}（进程 {1}）已经不是空闲进程了：可能刚退出，或者开始跑会话了。列表已刷新。",
   "ui.cli-monitor.fleet-close-idle-unverified": "没关掉 {0}（进程 {1}）：这会儿读不到进程列表，没法确认它还是那个空闲进程，所以什么都没动。请稍后再试。",
-  "ui.cli-monitor.fleet-close-idle-failed": "没关掉 {0}（进程 {1}）"
+  "ui.cli-monitor.fleet-close-idle-failed": "没关掉 {0}（进程 {1}）",
+  "ui.cli-monitor.fleet-close-tab": "关闭标签「{0}」",
+  "ui.cli-monitor.fleet-idle-select": "选择 {0}（进程 {1}）",
+  "ui.cli-monitor.fleet-close-idle-selected": "关闭所选（{0}）",
+  "ui.cli-monitor.fleet-close-idle-many-confirm": "关闭选中的 {0} 个空闲进程？它们在 {1} 之外开着、没有会话在跑；关闭后终端或 IDE 里的这些助手会退出。"
 }

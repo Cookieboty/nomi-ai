@@ -1,5 +1,5 @@
 import { brand } from '@nomi-ai/types';
-import { Icon, IconButton, t } from '@nomi-ai/ui';
+import { Button, Icon, IconButton, t } from '@nomi-ai/ui';
 import {
   AlertTriangle,
   CircleAlert,
@@ -127,7 +127,7 @@ interface MenuItem {
   testId?: string;
 }
 
-/** 「⋯」菜单：卡片里的次要操作（打开、归档、关闭标签） */
+/** 「⋯」菜单：卡片里的次要操作（打开、归档） */
 const CardMenu: React.FC<{ id: string; items: MenuItem[] }> = ({ id, items }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -252,13 +252,8 @@ export const AgentCard: React.FC<{ a: FleetAgent } & CardActions> = ({
       testId: `fleet-archive-${a.id}`,
     });
   }
-  if (!external && a.column === 'done' && a.tabId && onCloseTab) {
-    menu.push({
-      key: 'close',
-      label: t('ui.mascot-theme.close-tab-action'),
-      onSelect: () => onCloseTab(a),
-    });
-  }
+  // 关闭标签放在卡片右下角（不进「⋯」菜单）：做完了的、Nomi 管着的标签才有；外部会话只读
+  const closable = !external && a.column === 'done' && !!a.tabId && !!onCloseTab;
 
   return (
     <li
@@ -370,6 +365,17 @@ export const AgentCard: React.FC<{ a: FleetAgent } & CardActions> = ({
           {t('ui.cli-monitor.fleet-updated', fmtAgo(a.updatedAt))}
         </span>
         <CardUsage a={a} />
+        {closable && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onCloseTab!(a)}
+            aria-label={t('ui.cli-monitor.fleet-close-tab', agentTitle(a, chatName))}
+            data-testid={`fleet-close-tab-${a.id}`}
+          >
+            {t('ui.mascot-theme.close-tab-action')}
+          </Button>
+        )}
       </span>
     </li>
   );

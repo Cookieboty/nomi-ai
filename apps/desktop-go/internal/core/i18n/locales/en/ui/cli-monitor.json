@@ -280,5 +280,9 @@
   "ui.cli-monitor.fleet-close-idle-denied": "Couldn't close {0} (process {1}): no permission. It was probably started from a terminal running as administrator; quit it from that terminal.",
   "ui.cli-monitor.fleet-close-idle-gone": "{0} (process {1}) is no longer idle: it may have just exited or started a session. The list has been refreshed.",
   "ui.cli-monitor.fleet-close-idle-unverified": "Didn't close {0} (process {1}): the process list couldn't be read just now, so it couldn't be confirmed as the same idle process and nothing was touched. Try again in a moment.",
-  "ui.cli-monitor.fleet-close-idle-failed": "Couldn't close {0} (process {1})"
+  "ui.cli-monitor.fleet-close-idle-failed": "Couldn't close {0} (process {1})",
+  "ui.cli-monitor.fleet-close-tab": "Close the tab “{0}”",
+  "ui.cli-monitor.fleet-idle-select": "Select {0} (PID {1})",
+  "ui.cli-monitor.fleet-close-idle-selected": "Close selected ({0})",
+  "ui.cli-monitor.fleet-close-idle-many-confirm": "Close the {0} selected idle processes? They are open outside {1} with no session running; closing them quits those assistants in your terminal or IDE."
 }
