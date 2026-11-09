@@ -3,6 +3,7 @@ package agents
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -51,12 +52,12 @@ func TestPluginThirdPartyLaunch(t *testing.T) {
 				t.Fatalf("%s = %v", c.keyEnv, l.Env.Get(c.keyEnv))
 			}
 			for _, n := range c.linked {
-				if fi, err := os.Lstat(filepath.Join(dir, n)); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+				if fi, err := os.Lstat(filepath.Join(dir, n)); err != nil || !isLink(fi) {
 					t.Errorf("%s should be linked back to the user dir (%v)", n, err)
 				}
 			}
 			for _, n := range c.private {
-				if fi, err := os.Lstat(filepath.Join(dir, n)); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+				if fi, err := os.Lstat(filepath.Join(dir, n)); err == nil && isLink(fi) {
 					t.Errorf("%s must not be linked into a third-party session", n)
 				}
 			}
@@ -64,7 +65,8 @@ func TestPluginThirdPartyLaunch(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if fi, _ := os.Stat(filepath.Join(dir, c.config)); fi.Mode().Perm() != 0o600 {
+			// Windows 没有 Unix 权限位
+			if fi, _ := os.Stat(filepath.Join(dir, c.config)); runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 {
 				t.Errorf("%s mode = %v, want 0600", c.config, fi.Mode().Perm())
 			}
 			for _, w := range c.want {
@@ -78,3 +80,6 @@ func TestPluginThirdPartyLaunch(t *testing.T) {
 		})
 	}
 }
+
+// isLink：链回用户目录的条目（Windows 上目录用 junction，Go ≥ 1.23 报成 ModeIrregular）
+func isLink(fi os.FileInfo) bool { return fi.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 }

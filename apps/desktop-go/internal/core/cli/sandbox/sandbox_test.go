@@ -192,17 +192,17 @@ func TestProfileEnforced(t *testing.T) {
 
 // ~/.npmrc、~/.pypirc 照样拒读，但只是包管理器的例行读取：不弹授权请求；项目里的 .npmrc 与别的凭据照常问
 func TestRoutineReadIsQuiet(t *testing.T) {
-	home := "/Users/u"
-	if !RoutineRead(Denial{Rule: "read:cloud", Path: "/Users/u/.npmrc"}, home) {
+	home := filepath.FromSlash("/Users/u")
+	if !RoutineRead(Denial{Rule: "read:cloud", Path: filepath.Join(home, ".npmrc")}, home) {
 		t.Fatal("~/.npmrc should be quiet")
 	}
-	if !RoutineRead(Denial{Rule: "read:cloud", Path: "/Users/u/.pypirc"}, home) {
+	if !RoutineRead(Denial{Rule: "read:cloud", Path: filepath.Join(home, ".pypirc")}, home) {
 		t.Fatal("~/.pypirc should be quiet")
 	}
 	for _, d := range []Denial{
-		{Rule: "read:cloud", Path: "/Users/u/.aws/credentials"},
-		{Rule: "read:cloud", Path: "/Users/u/proj/.npmrc"},
-		{Rule: "write", Path: "/Users/u/.npmrc"},
+		{Rule: "read:cloud", Path: filepath.Join(home, ".aws/credentials")},
+		{Rule: "read:cloud", Path: filepath.Join(home, "proj/.npmrc")},
+		{Rule: "write", Path: filepath.Join(home, ".npmrc")},
 	} {
 		if RoutineRead(d, home) {
 			t.Errorf("%+v should still ask", d)
