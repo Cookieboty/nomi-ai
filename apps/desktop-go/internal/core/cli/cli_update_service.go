@@ -7,10 +7,12 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"math"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -50,7 +52,8 @@ func UpdateRecipes(kind, bin, method, scope string) []UpdateRecipe {
 		scope = "global"
 	}
 	var recipes []UpdateRecipe
-	if bin != "" && kind != "dsh" && kind != "gemini" && (method == "native" || method == "unknown" || kind == "grok") {
+	e, _ := builtin.Get(kind)
+	if bin != "" && (e.SelfUpdate == "always" || e.SelfUpdate == "native" && (method == "native" || method == "unknown")) {
 		recipes = append(recipes, UpdateRecipe{Kind: kind, Via: "self", Argv: []string{bin, "update"}})
 	}
 	argv := []string{npmCommand(), "install", "-g", NpmPkg[kind] + "@latest"}
@@ -62,9 +65,30 @@ func UpdateRecipes(kind, bin, method, scope string) []UpdateRecipe {
 
 var cmdSuffixRe = regexp.MustCompile(`(?i)\.cmd$`)
 
-var allowedPkgs = map[string]bool{
-	"@anthropic-ai/claude-code@latest": true, "@openai/codex@latest": true, "@deepseek-ai/dsh@latest": true,
-	"@xai-official/grok@latest": true, "@google/gemini-cli@latest": true,
+// allowedPkgs：只许更新内置 CLI 的 npm 包
+var allowedPkgs = func() map[string]bool {
+	m := map[string]bool{}
+	for _, id := range builtin.Ordered {
+		if p := builtin.NpmPackage(id); p != "" {
+			m[p+"@latest"] = true
+		}
+	}
+	return m
+}()
+
+// selfUpdating：能 `<bin> update` 自己更新的命令名
+func selfUpdating(cmd, base string) bool {
+	for _, id := range builtin.Ordered {
+		if e, _ := builtin.Get(id); e.SelfUpdate == "" {
+			continue
+		}
+		for _, b := range builtin.Binaries(id) {
+			if base == b || strings.HasSuffix(cmd, b) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // IsAllowedUpdateArgv = isAllowedUpdateArgv。
@@ -74,9 +98,7 @@ func IsAllowedUpdateArgv(argv []string) bool {
 	}
 	cmd, rest := argv[0], argv[1:]
 	base := util.JSLower(cmdSuffixRe.ReplaceAllString(nodepath.Lib(usage.Platform()).Basename(cmd), ""))
-	if (base == "claude" || base == "codex" || base == "grok" ||
-		strings.HasSuffix(cmd, "claude") || strings.HasSuffix(cmd, "codex") || strings.HasSuffix(cmd, "grok")) &&
-		len(rest) == 1 && rest[0] == "update" {
+	if selfUpdating(cmd, base) && len(rest) == 1 && rest[0] == "update" {
 		return true
 	}
 	envNpm := util.JSTrim(os.Getenv("NOMI_NPM_BIN"))
@@ -98,12 +120,12 @@ func IsAllowedUpdateArgv(argv []string) bool {
 
 // IsUpdatable = isUpdatable。
 func IsUpdatable(kind string) bool {
-	return kind == "claude" || kind == "codex" || kind == "dsh" || kind == "grok" || kind == "gemini"
+	return builtin.IsBuiltinCliID(kind)
 }
 
 // ToUpdatable = toUpdatable。
 func ToUpdatable(kind any) string {
-	if s, ok := kind.(string); ok && (s == "codex" || s == "dsh" || s == "grok" || s == "gemini") {
+	if s, ok := kind.(string); ok && builtin.IsBuiltinCliID(s) {
 		return s
 	}
 	return "claude"
@@ -229,8 +251,8 @@ func DefaultCliRunner(argv []string, onLine func(string), timeoutMs int) *jsrt.P
 	return p
 }
 
-var inspectKinds = []string{"claude", "codex", "dsh", "grok", "gemini", "cursor"}
-var latestKinds = []string{"claude", "codex", "dsh", "grok", "gemini"}
+var inspectKinds = append(slices.Clone(builtin.Ordered), "cursor")
+var latestKinds = builtin.Ordered
 
 const (
 	probeTTLMs  = 5 * 60_000
@@ -355,7 +377,7 @@ func (s *CliUpdateService) setPreferred(kind, bin string) {
 	}
 	PreferCliBin(kind, bin)
 	o := util.NewObj()
-	for _, k := range []string{"claude", "codex", "dsh", "grok", "gemini"} {
+	for _, k := range builtin.Ordered {
 		if p, ok := s.preferred[k]; ok {
 			o.Set(k, p)
 		}
@@ -393,7 +415,7 @@ func (s *CliUpdateService) Environment() *util.Obj {
 		major = util.ToNumber(strings.Split(nodeV, ".")[0])
 	}
 	reqs := []any{}
-	for _, k := range []string{"claude", "codex", "dsh", "grok", "gemini"} {
+	for _, k := range builtin.Ordered {
 		need := CliMinNodeMajor[k]
 		reqs = append(reqs, util.NewObj("kind", k, "minNode", float64(need), "ok", isFinite(major) && major >= float64(need)))
 	}

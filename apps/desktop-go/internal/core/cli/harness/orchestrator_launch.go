@@ -5,6 +5,7 @@ package harness
 
 import (
 	"errors"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -380,7 +381,7 @@ func (o *Orchestrator) prewarm(id string) {
 			}
 			return struct{}{}, nil
 		})
-	case (backend == "gemini" || backend == "external" || (backend == "grok" && o.usesGrokAcp())) && o.live.acp[id] == nil:
+	case (backend == "external" || builtin.UsesAcp(backend) && (backend != "grok" || o.usesGrokAcp())) && o.live.acp[id] == nil:
 		p := o.ensureAcpLive(tab, nil)
 		jsrt.Async(func() (struct{}, error) {
 			if _, err := jsrt.Await(p); err != nil {

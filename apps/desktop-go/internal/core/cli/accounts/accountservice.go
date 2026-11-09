@@ -1,6 +1,7 @@
 package accounts
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,10 +9,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/claude"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/codex"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/gemini"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/grok"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
@@ -31,11 +28,6 @@ const (
 	maxSessions     = 5000
 	logoutTimeoutMs = 20_000
 )
-
-var terminals = map[string]*clisdk.TerminalCapability{
-	"claude": claude.CreateMain().Terminal, "codex": codex.CreateMain().Terminal,
-	"grok": grok.CreateMain().Terminal, "gemini": gemini.CreateMain().Terminal,
-}
 
 // AccountError = AccountError（Code: not-found / in-use / local / unsupported / unknown-live）。
 type AccountError struct{ Code, Message string }
@@ -552,7 +544,10 @@ func (s *AccountService) view(a any) *util.Obj {
 }
 
 func (s *AccountService) terminalCommand(kind, dir string) string {
-	tc := terminals[kind]
+	var tc *clisdk.TerminalCapability
+	if builtin.WithAccounts(kind) {
+		tc = builtin.Impl(kind).Terminal
+	}
 	if tc == nil {
 		panic(typeErr("Cannot read properties of undefined (reading 'command')"))
 	}

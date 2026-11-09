@@ -4,6 +4,7 @@ package config
 
 import (
 	"encoding/json"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"math"
 	"sort"
 	"sync"
@@ -12,7 +13,7 @@ import (
 )
 
 // CLIENT_IDS.
-var ClientIDs = []string{"nomi", "claude", "codex", "gemini", "grok", "dsh"}
+var ClientIDs = append([]string{"nomi"}, builtin.Ordered...)
 
 // RuntimeKey is RuntimeKey.
 type RuntimeKey struct {

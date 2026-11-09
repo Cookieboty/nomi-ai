@@ -3,6 +3,7 @@ package usage
 // authmode.go：登录方式判定（不读取任何凭据内容；只看官方登录状态命令的结论与配置里「是否配了」）。
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -482,7 +483,8 @@ func (a *AuthModeDetector) home() string {
 	return Homedir()
 }
 
-func isAuthTool(id string) bool { return id == "claude" || id == "codex" || id == "grok" }
+// isAuthTool：有订阅额度、要分清官方登录 / API Key 的内置编程助手
+func isAuthTool(id string) bool { return builtin.WithQuota(id) }
 
 // Detect = detect（须持锁；Await）。
 func (a *AuthModeDetector) Detect(id string) string {

@@ -88,7 +88,7 @@ const (
 	gatewayScope           = "gateway"
 )
 
-var accountBackends = []string{"claude", "codex", "grok", "gemini"}
+var accountBackends = builtin.Where(builtin.WithAccounts)
 
 func isAccountBackend(b string) bool { return containsS(accountBackends, b) }
 
@@ -1008,7 +1008,7 @@ func (o *Orchestrator) MainPermissionMode() string { return str(o.main(), "permi
 func (o *Orchestrator) State() *util.Obj {
 	m := o.main()
 	bins := util.NewObj()
-	for _, b := range []string{"claude", "codex", "dsh", "grok", "gemini"} {
+	for _, b := range builtin.Ordered {
 		if p := PeekHarnessBin(b); p != "" {
 			bins.Set(b, p)
 		} else {

@@ -4,13 +4,11 @@ package harness
 
 import (
 	"errors"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"path/filepath"
 	"strings"
 
-	claudep "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/claude"
-	codexp "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/codex"
 	dshp "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/dsh"
-	geminip "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/gemini"
 	grokp "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/grok"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/drivers"
@@ -20,9 +18,12 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// execRules = EXEC_RULES（插件的 execRules）。
-var execRules = map[string]*clisdk.ExecRules{
-	"claude": claudep.Exec, "codex": codexp.Exec, "dsh": dshp.Exec, "gemini": geminip.Exec, "grok": grokp.Exec,
+// execRules：插件的 execRules（Session.Exec）
+func execRules(kind string) *clisdk.ExecRules {
+	if m := builtin.Impl(kind); m != nil && m.Session != nil {
+		return m.Session.Exec
+	}
+	return nil
 }
 
 // collectOpts = spawnCollect 的 opts。
@@ -150,7 +151,7 @@ func (o *Orchestrator) spawnCollect(tab *util.Obj, opts collectOpts) *jsrt.Promi
 		}
 		chatRoot := filepath.Join(filepath.Dir(o.d.Root), "chat")
 		imageAliases := LoadImageAliases(chatRoot)
-		rules := execRules[opts.kind]
+		rules := execRules(opts.kind)
 		base := opts.launch
 		if base == nil {
 			base = officialLaunch

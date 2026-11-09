@@ -49,7 +49,7 @@ export interface ChatMessage {
   /** 本轮 token 用量（上游返回时才有） */
   usage?: HarnessUsage;
   /** 用户用 `/cli` 指定这条需求交给哪个编程助手（docs/development/coding-agents.md） */
-  delegateTo?: 'claude' | 'codex' | 'grok' | 'gemini' | 'dsh';
+  delegateTo?: BuiltinCliId;
   /** 用户消息附带的图片：只保存缩略图（原图只随本轮发送，不进历史） */
   images?: Array<{
     thumb: string;

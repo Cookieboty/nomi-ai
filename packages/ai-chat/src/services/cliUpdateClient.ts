@@ -4,7 +4,7 @@ import { t } from '@nomi-ai/ui';
 import { api, hasTransport } from './api';
 
 export interface CliInstallInfo {
-  kind: 'claude' | 'codex' | 'dsh' | 'grok' | 'cursor';
+  kind: BuiltinCliId | 'cursor';
   path: string | null;
   version: string | null;
   latest: string | null;

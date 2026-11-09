@@ -44,6 +44,35 @@ Nomi 把 Claude Code、Codex、Gemini CLI、Grok、dsh 当作子进程驱动，�
 协议细节都在驱动里；每个 CLI 的差异（流式事件解析、历史转录、模型目录、斜杠布局）在它的插件里。编排器按清单的能力位判断，
 不按 CLI 名字分支（视图侧由 eslint 规则 `nomi/no-cli-literal` 拦下，白名单在 `scripts/eslint/cli-literal-allowlist.mjs`）。
 
+## 内置助手注册表
+
+内核里所有要按 CLI 区分的东西都从 `internal/cliplugins/builtin` 取，不在各处写死名单：
+
+| 要什么                                        | 从哪取                                                                                        |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 有哪些内置 CLI                                | `builtin.IDs`（按 id 排序，与 `ids.ts` 一致）、`builtin.Ordered`（界面与名单的顺序）          |
+| 插件能力（权限、账号、历史、斜杠命令、终端…） | `builtin.Impl(id)`（各插件的 `CreateMain()`，只建一次）                                       |
+| 显示名                                        | `builtin.DisplayName`（「Gemini」）、`builtin.FullName`（「Gemini CLI」：看板、用量、灵动岛） |
+| 清单能力位、传输、可执行文件、npm 包          | `builtin.Capability`、`builtin.UsesAcp`、`builtin.Binaries`、`builtin.NpmPackage`             |
+| 按能力筛的名单                                | `builtin.Where(builtin.WithAccounts / WithHistory / WithQuota / All)`                         |
+| 不在清单里的少数信息                          | `builtin.Entry`：会话记录解析、最低 Node 版本、自更新方式、官方厂商、ACP 启动参数、计划后续   |
+
+视图侧对应 `@nomi-ai/cli-catalog` 的 `BUILTIN_CLI_ORDER` 与 `cliCapability`。两个守卫测试拦下写死的名单（同一行出现 3 个及以上
+内置 id）：Go 侧 `internal/cliplugins/builtin/hardcoded_test.go`，视图侧 `packages/cli-catalog/tests/no-hardcoded-lists.test.ts`；
+确实只属于某几个 CLI 的实现（额度查询、用量日志解析、品牌图标）登记在测试里的白名单并写明原因。Go 与视图两份清单都和
+`internal/cliplugins/builtin/testdata/b7s2-plugins.json` 比（`manifest_parity_test.go`、`manifests-parity.test.ts`）。
+
+加一个内置助手（以 ACP 为例）：
+
+1. `packages/cli-catalog/src/<id>/`：`manifest.ts`（`transport: 'acp'`、能力位、权限档位映射）与 `renderer.ts`，跑 `gen:ids`；
+   在 `BUILTIN_CLI_ORDER` 末尾加上它。
+2. `apps/desktop-go/internal/cliplugins/<id>/`：`manifest.go`（与 TS 一致）与 `CreateMain()`（官方启动、权限、账号目录；
+   没有的能力留空）；在 `builtin.entries` 登记一条，`builtin.Ordered` 末尾加上它。
+3. 更新 `testdata/b7s2-plugins.json`，补中英文文案、品牌图标与文档。
+
+之后名单、显示名、检测、安装与更新、看板认进程、委派、ACP 启动都自动带上它；额度查询、用量日志、第三方模型（网关）
+要用时再在各自的地方补实现。
+
 ## 权限档位
 
 清单里的档位：`plan`、`manual`、`acceptEdits`、`auto`、`bypass`（`packages/cli-catalog/src/manifest.ts`），每个 CLI 把它们映射成

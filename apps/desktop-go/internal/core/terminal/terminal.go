@@ -4,6 +4,7 @@ package terminal
 
 import (
 	_ "embed"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -21,7 +22,7 @@ import (
 //go:embed nomi-runner.cjs
 var WindowsRunner string
 
-var Kinds = []string{"claude", "codex", "gemini", "grok", "dsh"}
+var Kinds = builtin.Ordered
 
 const (
 	tokenMark = "__NOMI_TOKEN__"

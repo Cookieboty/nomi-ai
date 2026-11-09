@@ -1,9 +1,10 @@
+import { type BuiltinCliId } from '@nomi-ai/cli-catalog';
 import { t } from '@nomi-ai/ui';
 
 import { api, hasTransport } from './api';
 
 /** 编程助手进度客户端：契约 `agents.*`（services/api） */
-export type AgentKind = 'codex' | 'claude' | 'dsh' | 'grok' | 'gemini';
+export type AgentKind = BuiltinCliId;
 export type AgentStatus = 'running' | 'waiting' | 'completed' | 'failed' | 'stalled' | 'idle';
 
 export interface AgentWatchSettings {

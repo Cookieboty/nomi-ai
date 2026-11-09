@@ -6,6 +6,7 @@
 package delegate
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"regexp"
 	"strings"
 
@@ -14,7 +15,7 @@ import (
 )
 
 // DelegateClis：可以委派的内置编程助手（外部 CLI 暂不支持委派）
-var DelegateClis = []string{"claude", "codex", "grok", "gemini", "dsh"}
+var DelegateClis = builtin.Ordered
 
 // DelegateKinds：任务类型（设置里按类型配默认编程助手）
 var DelegateKinds = []string{"coding", "prd", "review", "research"}
@@ -299,10 +300,13 @@ func jsString(v any) string {
 	return util.Stringify(v)
 }
 
-var aliases = map[string]string{
-	"claude": "claude", "claude-code": "claude", "claudecode": "claude", "cc": "claude",
-	"codex": "codex", "grok": "grok", "gemini": "gemini", "dsh": "dsh",
-}
+var aliases = func() map[string]string {
+	m := map[string]string{"claude-code": "claude", "claudecode": "claude", "cc": "claude"}
+	for _, id := range builtin.Ordered {
+		m[id] = id
+	}
+	return m
+}()
 
 var wsRun = util.JSRe(`\s+`)
 

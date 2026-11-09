@@ -13,6 +13,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"strings"
 	"sync"
 	"time"
@@ -26,16 +27,12 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// islandEndpointName：编程助手的显示名（品牌名，不翻译）
-var islandEndpointName = map[string]string{
-	"claude": "Claude Code", "codex": "Codex", "gemini": "Gemini CLI", "grok": "Grok", "dsh": "dsh", "nomi": "Nomi",
-}
-
+// islandBackendName：编程助手的显示名（品牌名，不翻译；内置的取注册表的完整名称）
 func islandBackendName(b string) string {
-	if n, ok := islandEndpointName[b]; ok {
+	if n := builtin.FullName(b); n != "" {
 		return n
 	}
-	if b == "" {
+	if b == "" || b == "nomi" {
 		return "Nomi"
 	}
 	return b

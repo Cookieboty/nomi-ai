@@ -1,3 +1,4 @@
+import { BUILTIN_CLI_ORDER } from '@nomi-ai/cli-catalog';
 /**
  * CLI 标签的来源（docs/development/gateway.md）：本机默认 / 官方账号 / 第三方（经网关）。
  * 侧栏信息卡的「新标签默认」（CliDefaultSource）、模型按钮和斜杠命令 /model、/status 共用这里的数据与切换逻辑。
@@ -20,7 +21,7 @@ import { providerDisplayName } from './providerClient';
 
 export type CliKind = Exclude<ClientId, 'nomi'>;
 
-export const CLI_KINDS: readonly CliKind[] = ['claude', 'codex', 'gemini', 'grok', 'dsh'];
+export const CLI_KINDS: readonly CliKind[] = BUILTIN_CLI_ORDER;
 
 export const isCliKind = (b: string): b is CliKind => (CLI_KINDS as readonly string[]).includes(b);
 

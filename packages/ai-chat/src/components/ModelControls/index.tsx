@@ -1,3 +1,4 @@
+import { BUILTIN_CLI_ORDER, cliCapability } from '@nomi-ai/cli-catalog';
 /**
  * 输入栏的「模型 · 思考深度」按钮（编程助手标签：Codex / Claude Code / Grok 等）。
  *
@@ -82,8 +83,10 @@ const SWITCH = 'switch:';
 /** 第三方模型名去掉厂商前缀（anthropic/claude-fable-5 → claude-fable-5）：左侧已有厂商筛选与分组标题 */
 const shortName = (s: string) => s.slice(s.lastIndexOf('/') + 1);
 
-/** 有官方账号的编程助手 */
-const ACCOUNT_KINDS: readonly AccountKind[] = ['claude', 'codex', 'grok', 'gemini'];
+/** 有官方账号的编程助手（清单 officialAccount） */
+const ACCOUNT_KINDS = BUILTIN_CLI_ORDER.filter((id): id is AccountKind =>
+  cliCapability(id, 'officialAccount'),
+);
 
 /**
  * 没有文档化思考深度控制的后端（Gemini ACP / dsh）：

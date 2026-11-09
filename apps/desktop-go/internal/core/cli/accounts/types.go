@@ -6,12 +6,13 @@
 package accounts
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
 // AccountKinds = ACCOUNT_KINDS.
-var AccountKinds = []string{"claude", "codex", "grok", "gemini"}
+var AccountKinds = builtin.Where(builtin.WithAccounts) // 插件有 Accounts 的
 
 func isKind(k string) bool {
 	for _, x := range AccountKinds {

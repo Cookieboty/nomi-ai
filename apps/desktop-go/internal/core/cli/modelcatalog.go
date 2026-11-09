@@ -1,19 +1,19 @@
 package cli
 
 import (
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/claude"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/codex"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/grok"
-	sh "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 )
 
-// modelArgsByBackend = MODEL_ARGS（dsh / gemini / external 没有 modelArgs）。
-var modelArgsByBackend = map[string]func(sh.ModelArgsIn) []string{
-	"claude": claude.ModelArgs, "codex": codex.ModelArgs, "grok": grok.ModelArgs,
+// modelArgsOf：启动时指定模型 / 思考深度的参数（插件 Launch.ModelArgs；dsh / gemini / external 没有）
+func modelArgsOf(backend string) func(clisdk.ModelArgsOpts) []string {
+	if m := builtin.Impl(backend); m != nil {
+		return m.Launch.ModelArgs
+	}
+	return nil
 }
 
-func SupportsModelOverride(backend string) bool { return modelArgsByBackend[backend] != nil }
+func SupportsModelOverride(backend string) bool { return modelArgsOf(backend) != nil }
 
 func IsAllowedModelID(backend, model string) bool {
 	return SupportsModelOverride(backend) && clisdk.IsValidModelID(model)
@@ -21,16 +21,14 @@ func IsAllowedModelID(backend, model string) bool {
 
 // OverrideArgs = overrideArgs（model / effort nil = null/undefined）。
 func OverrideArgs(backend string, model *string, effort any) []string {
-	f := modelArgsByBackend[backend]
+	f := modelArgsOf(backend)
 	if f == nil {
 		return []string{}
 	}
-	in := sh.ModelArgsIn{}
-	if model != nil {
-		in.Model = *model
-	}
+	in := clisdk.ModelArgsOpts{Model: model}
 	if clisdk.IsReasoningEffort(effort) {
-		in.Effort = effort.(string)
+		e := effort.(string)
+		in.Effort = &e
 	}
 	return f(in)
 }

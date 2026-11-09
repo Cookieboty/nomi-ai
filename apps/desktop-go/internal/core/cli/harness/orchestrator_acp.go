@@ -4,6 +4,7 @@ package harness
 
 import (
 	"errors"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
@@ -92,11 +93,8 @@ func withCause(msg string, cause error) error { return &causeError{msg, cause} }
 
 // acpDisplayName = acpDisplayName(backend, ext?)。
 func acpDisplayName(backend string, ext *util.Obj) string {
-	if backend == "grok" {
-		return "Grok"
-	}
-	if backend == "gemini" {
-		return "Gemini"
+	if n := builtin.DisplayName(backend); n != "" {
+		return n
 	}
 	if ext != nil {
 		if n, ok := ext.Get("displayName").(string); ok {
@@ -143,11 +141,8 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			return nil, err
 		}
 		backend := "gemini"
-		switch tab.Get("backend") {
-		case "grok":
-			backend = "grok"
-		case "external":
-			backend = "external"
+		if b := str(tab, "backend"); b == "external" || builtin.UsesAcp(b) {
+			backend = b
 		}
 		var ext *util.Obj
 		if backend == "external" {
@@ -165,23 +160,19 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			bin = jsStr(ext.Get("command"))
 			argv = clisdk.RenderExternalArgs(strsOf(ext.Get("args")), map[string]string{"cwd": str(tab, "cwd"), "home": o.home})
 		} else {
-			which := "gemini"
-			if backend == "grok" {
-				which = "grok"
-			}
-			found := ResolveHarnessBin(which)
+			found := ResolveHarnessBin(backend)
 			if found == "" {
-				if backend == "grok" {
+				switch backend {
+				case "grok":
 					throw(i18n.T("electron.common.grok-not-found-set-nomi-use-mock-cli"))
+				case "gemini":
+					throw(i18n.T("electron.common.gemini-cli-not-found-set-nomi-use-mock"))
 				}
-				throw(i18n.T("electron.common.gemini-cli-not-found-set-nomi-use-mock"))
+				throw(i18n.T("electron.common.cli-not-found-set-nomi-use-mock", builtin.FullName(backend)))
 			}
 			bin = found
-			if backend == "grok" {
-				argv = []string{"agent", "stdio"}
-			} else {
-				argv = []string{"--acp"}
-			}
+			e, _ := builtin.Get(backend)
+			argv = append([]string{}, e.AcpArgs...)
 		}
 		useNode := IsScript(bin)
 		o.checkCwd(str(tab, "cwd"))

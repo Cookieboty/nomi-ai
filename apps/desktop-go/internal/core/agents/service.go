@@ -5,6 +5,7 @@ package agents
 // fs.promises + await），期间事件循环照常运转。
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"math"
 	"os"
 	"path/filepath"
@@ -33,18 +34,20 @@ const (
 	AppName                  = "Nomi" // brand.appName
 )
 
-var label = map[AgentKind]string{"codex": "Codex", "claude": "Claude Code", "dsh": "dsh", "grok": "Grok", "gemini": "Gemini CLI"}
-
-var endpointLabel = map[string]string{"nomi": AppName, "claude": "Claude Code", "codex": "Codex", "dsh": "dsh", "grok": "Grok", "gemini": "Gemini"}
+// labelOf：编程助手的完整名称（「Gemini CLI」）
+func labelOf(k AgentKind) string { return builtin.FullName(string(k)) }
 
 func epLabel(b string) string {
-	if l, ok := endpointLabel[b]; ok {
+	if b == "nomi" {
+		return AppName
+	}
+	if l := builtin.DisplayName(b); l != "" {
 		return l
 	}
 	return "undefined"
 }
 
-var usageKinds = map[string]bool{"claude": true, "codex": true, "dsh": true, "grok": true, "gemini": true}
+func isUsageKind(k string) bool { return builtin.IsBuiltinCliID(k) }
 
 var rankOf = map[string]float64{"stalled": 0, "failed": 1, "running": 2, "waiting": 3, "completed": 4, "idle": 5}
 
@@ -392,7 +395,7 @@ func (s *Service) withUsage(v *util.Obj, tabs []*util.Obj) (out *util.Obj) {
 			session = id[len(source)+1:]
 		}
 	}
-	if source == "" || session == "" || !usageKinds[source] {
+	if source == "" || session == "" || !isUsageKind(source) {
 		return v
 	}
 	defer func() {
@@ -938,9 +941,9 @@ func (s *Service) tickOnce(refresh bool) (err error) {
 			title = strp(c.info.cwd)
 		}
 		if title == "" {
-			title = label[c.kind]
+			title = labelOf(c.kind)
 		}
-		next := &trackedT{id: c.key, kind: c.kind, label: label[c.kind], project: project, cwd: c.info.cwd, title: title,
+		next := &trackedT{id: c.key, kind: c.kind, label: labelOf(c.kind), project: project, cwd: c.info.cwd, title: title,
 			status: status, summary: c.info.detail, alive: isAlive, path: c.path, mtime: lastAt, updatedAt: now}
 		if prev != nil {
 			next.lastRemindStatus = prev.lastRemindStatus
@@ -1028,7 +1031,7 @@ func (s *Service) maybeRemind(prev, next *trackedT) {
 		st = "attention"
 	}
 	var q *CostQuery
-	if finished && usageKinds[next.kind] {
+	if finished && isUsageKind(string(next.kind)) {
 		if since, ok := s.runStart[next.id]; ok {
 			q = &CostQuery{Source: next.kind, Session: next.id[len(next.kind)+1:], Since: since}
 		}
@@ -1292,8 +1295,8 @@ func (s *Service) runningTasks() []runningTask {
 			}
 		}
 		title, _ := v.Get("title").(string)
-		lb, ok := label[kind]
-		if !ok {
+		lb := labelOf(kind)
+		if lb == "" {
 			lb = "undefined"
 		}
 		out = append(out, runningTask{kind, lb, title, sum})

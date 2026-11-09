@@ -1,15 +1,13 @@
 package accounts
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/claude"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/codex"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/gemini"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/grok"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/launch"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/charcontract"
@@ -18,12 +16,16 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-var accountCaps = map[string]*clisdk.AccountCapability{
-	"claude": claude.Accounts, "codex": codex.Accounts, "grok": grok.Accounts, "gemini": gemini.Accounts,
+// accountCap：插件的账号能力（没有的 nil）
+func accountCap(kind string) *clisdk.AccountCapability {
+	if m := builtin.Impl(kind); m != nil {
+		return m.Accounts
+	}
+	return nil
 }
 
 func capOf(kind string, field string) *clisdk.AccountCapability {
-	c := accountCaps[kind]
+	c := accountCap(kind)
 	if c == nil {
 		panic(typeErr("Cannot read properties of undefined (reading '" + field + "')"))
 	}
@@ -32,7 +34,7 @@ func capOf(kind string, field string) *clisdk.AccountCapability {
 
 // HomeEnv = HOME_ENV[kind] ("" for unknown kinds = undefined).
 func HomeEnv(kind string) string {
-	if c := accountCaps[kind]; c != nil {
+	if c := accountCap(kind); c != nil {
 		return c.HomeEnv
 	}
 	return ""
@@ -94,7 +96,7 @@ type HomeProblem = launch.LinkProblem
 
 // EnsureAccountHome = ensureAccountHome (errors = throws).
 func EnsureAccountHome(kind, accountDir, userDir, platform string) ([]HomeProblem, error) {
-	c := accountCaps[kind]
+	c := accountCap(kind)
 	if c == nil {
 		return nil, typeErr("Cannot read properties of undefined (reading 'shared')")
 	}

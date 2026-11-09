@@ -10,6 +10,7 @@ package delegate
 import (
 	"context"
 	"errors"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"log"
 	"math"
 	"math/rand/v2"
@@ -34,8 +35,13 @@ import (
 )
 
 // cliName：委派结果里的执行者名：编程助手，或派给 Nomi 的后台 Nomi
-var cliName = map[string]string{"claude": "Claude Code", "codex": "Codex", "grok": "Grok", "gemini": "Gemini", "dsh": "dsh",
-	"nomi": "后台的 Nomi"}
+var cliName = func() map[string]string {
+	m := map[string]string{"nomi": "后台的 Nomi"}
+	for _, id := range builtin.Ordered {
+		m[id] = builtin.DisplayName(id)
+	}
+	return m
+}()
 
 // PinTTL：/agent 钉住的有效期
 const PinTTL = 10 * 60_000

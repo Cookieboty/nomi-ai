@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"io"
 	"math"
 	"os"
@@ -22,11 +23,7 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/claude"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/codex"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/dsh"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/gemini"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/grok"
 	sh "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/agents"
@@ -36,14 +33,8 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// historyScan = HISTORY_SCAN（各 CLI 的历史文件扫描，插件给出）。
-var historyScan = map[string]*clisdk.HistoryCapability{
-	"claude": claude.History,
-	"codex":  codex.History,
-	"dsh":    dsh.History,
-	"gemini": gemini.History,
-	"grok":   grok.History,
-}
+// historyScan：各 CLI 的历史文件扫描（插件的 History）
+func historyScan(backend string) *clisdk.HistoryCapability { return builtin.Impl(backend).History }
 
 const (
 	HistoryPageSize       = 20
@@ -63,7 +54,7 @@ var (
 	zstdExtRe      = regexp.MustCompile(`\.zstd?$`)
 )
 
-var historyBackends = []string{"claude", "codex", "dsh", "gemini", "grok"}
+var historyBackends = builtin.Where(builtin.WithHistory)
 
 func isHistoryBackend(b string) bool {
 	for _, x := range historyBackends {
@@ -188,7 +179,7 @@ func (s *SessionHistoryService) candidates(backend string, force bool) []history
 		return s.listEnt[backend]
 	}
 	entries := []historyFile{}
-	for _, f := range historyScan[backend].Scan(s.historyRoot(backend)) {
+	for _, f := range historyScan(backend).Scan(s.historyRoot(backend)) {
 		entries = append(entries, historyFile{f.Path, f.Mtime, f.Size, f.DirID})
 	}
 	if backend == "codex" {

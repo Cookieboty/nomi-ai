@@ -42,6 +42,23 @@ export const BUILTIN_MANIFESTS: Readonly<Record<BuiltinCliId, CliManifest>> = {
   grok,
 };
 
+/**
+ * 界面与名单里的顺序（先来的在前，新加的接在后面）；BUILTIN_CLI_IDS 是按 id 排序的。
+ * 与 Go 内核的 builtin.Ordered 一致。
+ */
+export const BUILTIN_CLI_ORDER: readonly BuiltinCliId[] = [
+  'claude',
+  'codex',
+  'grok',
+  'gemini',
+  'dsh',
+];
+
+/** 清单 capabilities 里的布尔能力（officialAccount、thirdParty、usageQuota、terminalCommand……） */
+export function cliCapability(id: string, name: keyof CliManifest['capabilities']): boolean {
+  return isBuiltinCliId(id) && BUILTIN_MANIFESTS[id].capabilities[name] === true;
+}
+
 export const BUILTIN_RENDERER: Readonly<Record<BuiltinCliId, CliRendererInfo>> = {
   claude: claudeRenderer,
   codex: codexRenderer,
