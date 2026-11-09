@@ -130,9 +130,11 @@ export const StaticCanvas: React.FC<StaticCanvasProps> = ({
     let ready = false;
     let retries = 0;
     let retryTimer = 0;
+    let frame: number | null = null;
     const img = new Image();
     img.decoding = 'async';
     const draw = () => {
+      frame = null;
       window.clearTimeout(retryTimer);
       if (cancelled || !ready || !img.naturalWidth || !img.naturalHeight) return;
       // 还没布局（窗口刚建、还没显示）时尺寸是 0：等 ResizeObserver 在布局后再画，不按图片原尺寸画
@@ -162,6 +164,11 @@ export const StaticCanvas: React.FC<StaticCanvasProps> = ({
         retryTimer = window.setTimeout(draw, 50 * retries);
       }
     };
+    /** 同一帧里的多次重画请求（尺寸变化、窗口恢复、解码完成）合成一次（思路来自 #304） */
+    const scheduleDraw = () => {
+      if (cancelled || !ready || frame !== null) return;
+      frame = window.requestAnimationFrame(draw);
+    };
     img.onload = () => {
       if (cancelled) return;
       // 先解码再画：decoding=async 时 onload 早于解码完成
@@ -169,21 +176,35 @@ export const StaticCanvas: React.FC<StaticCanvasProps> = ({
       void decoded
         .catch(() => undefined)
         .then(() => {
+          if (cancelled) return;
           ready = true;
           retries = 0;
-          draw();
+          scheduleDraw();
         });
     };
     img.src = url;
     // 画布自己的尺寸变化（布局完成、显示开关重建、窗口缩放）都重画；没有 ResizeObserver 时退回窗口 resize
-    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => draw()) : null;
+    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(scheduleDraw) : null;
     ro?.observe(canvas);
-    window.addEventListener('resize', draw);
+    window.addEventListener('resize', scheduleDraw);
+    // 窗口从隐藏恢复：尺寸没变、ResizeObserver 不会触发，但 WebKit 可能已丢掉隐藏时的画面，重新画并重新检查空白
+    // （思路来自 #304）
+    const onShown = () => {
+      if (document.visibilityState !== 'visible') return;
+      retries = 0;
+      scheduleDraw();
+    };
+    document.addEventListener('visibilitychange', onShown);
+    window.addEventListener('pageshow', onShown);
     return () => {
       cancelled = true;
+      img.onload = null;
       window.clearTimeout(retryTimer);
+      if (frame !== null) window.cancelAnimationFrame(frame);
       ro?.disconnect();
-      window.removeEventListener('resize', draw);
+      window.removeEventListener('resize', scheduleDraw);
+      document.removeEventListener('visibilitychange', onShown);
+      window.removeEventListener('pageshow', onShown);
     };
   }, [resolvedSrc, blinkSrc, blink]);
 
