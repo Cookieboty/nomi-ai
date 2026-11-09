@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 /**
  * 静态立绘（#303）：macOS WebKit 上立绘是内嵌位图的 SVG，onload 时可能还没解码完，第一笔画出来是空的；
- * 画布还没布局（尺寸 0）时也不能按图片原尺寸画。要求：先解码再画、布局后再画、画空了自己重画。
+ * 画布还没布局（尺寸 0）时也不能按图片原尺寸画。要求：先解码再画、布局后再画、画空了自己重画；
+ * 同一帧的多次重画合成一次，窗口从隐藏恢复时也重画。
  */
 import { act, cleanup, render } from '@testing-library/react';
 import React from 'react';
@@ -89,6 +90,12 @@ const flush = async () => {
     await Promise.resolve();
   });
 };
+/** 重画排在下一帧：推进一帧 */
+const nextFrame = async () => {
+  await act(async () => {
+    vi.advanceTimersByTime(20);
+  });
+};
 
 describe('StaticCanvas (#303)', () => {
   it('waits for layout: nothing is drawn while the canvas is 0×0, then draws once it has a size', async () => {
@@ -99,6 +106,7 @@ describe('StaticCanvas (#303)', () => {
     expect(draws).toBe(0);
     size = { w: 140, h: 210 };
     act(() => roCallbacks.forEach((cb) => cb()));
+    await nextFrame();
     expect(draws).toBe(1);
   });
 
@@ -108,6 +116,7 @@ describe('StaticCanvas (#303)', () => {
     render(<StaticCanvas src="nomi.svg" />);
     FakeImage.last!.load();
     await flush();
+    await nextFrame();
     expect(draws).toBe(1);
     await act(async () => {
       vi.advanceTimersByTime(1000);
@@ -118,6 +127,62 @@ describe('StaticCanvas (#303)', () => {
       vi.advanceTimersByTime(5000);
     });
     expect(draws).toBe(3);
+  });
+
+  it('several redraw requests in one frame paint once', async () => {
+    size = { w: 140, h: 210 };
+    render(<StaticCanvas src="nomi.svg" />);
+    FakeImage.last!.load();
+    await flush();
+    act(() => {
+      roCallbacks.forEach((cb) => cb());
+      window.dispatchEvent(new Event('resize'));
+      roCallbacks.forEach((cb) => cb());
+    });
+    await nextFrame();
+    expect(draws).toBe(1);
+  });
+
+  it('repaints when the window is shown again (size unchanged, so no ResizeObserver)', async () => {
+    size = { w: 140, h: 210 };
+    render(<StaticCanvas src="nomi.svg" />);
+    FakeImage.last!.load();
+    await flush();
+    await nextFrame();
+    expect(draws).toBe(1);
+    // 隐藏时不重画
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await nextFrame();
+    expect(draws).toBe(1);
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await nextFrame();
+    expect(draws).toBe(2);
+    act(() => {
+      window.dispatchEvent(new Event('pageshow'));
+    });
+    await nextFrame();
+    expect(draws).toBe(3);
+  });
+
+  it('stops listening after unmount', async () => {
+    size = { w: 140, h: 210 };
+    const r = render(<StaticCanvas src="nomi.svg" />);
+    FakeImage.last!.load();
+    await flush();
+    await nextFrame();
+    r.unmount();
+    act(() => {
+      window.dispatchEvent(new Event('resize'));
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await nextFrame();
+    expect(draws).toBe(1);
   });
 
   it('painted() looks for any opaque pixel in the drawn area', () => {
