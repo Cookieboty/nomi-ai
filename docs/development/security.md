@@ -52,12 +52,16 @@
   Edge、Brave、Arc、Chromium、Vivaldi、Opera、Safari）、个人数据（邮件 / 信息 / 日历 / 通讯录 / 备忘录 / 照片，以及 shell 与 REPL 的历史）、密钥文件（主目录与项目里的 `.env*`（`.env.example` 等除外）、`*.key`、私钥 `.pem` …），
   外加用户的受保护文件夹与 Nomi 自己的数据目录（`prompt-images` 与 CLI 的官方账号目录除外）。钥匙串不拦：拒读钥匙串文件会让 CLI 的官方登录失效，
   条目由系统自己的访问控制保护。主目录下的 `~/.npmrc`、`~/.pypirc` 照样拒读，但只当包管理器的例行读取，不弹授权请求（`RoutineRead`）。
-- **写**只放行：项目目录（计划模式除外）、临时目录、`/dev`、CLI 自己的目录（清单 `host.homeDirs`：`~/.claude`、`~/.codex`、`~/.kimi-code`、`~/.minimax` …，加 `~/.claude.json*`）
-  与 `host.homeEnv` 指向的账号目录 / 第三方私有目录、
-  包管理器与构建缓存（`~/Library/Caches`、`~/.npm`、`go/pkg` …）、用户授权过的文件夹 / 文件；受保护文件夹与 Nomi 数据目录最后再拒一次。
-  可写位置里也再拒一次「改了会在沙箱外执行命令」的东西（`execConfigHome`，规则 `write:config`，不出授权请求）：`~/.claude/settings.json`、
-  `~/.claude/hooks`、`~/.codex/config.toml`、`~/.gemini/settings.json`、`~/.kimi-code/config.toml`、`~/.minimax/config.yaml`（清单 `host.execConfig`）、Gradle 的初始化脚本、`~/.bun/bin`、`~/.deno/bin`；
-  `~/.pyenv/shims` 不再默认可写。CLI 自己目录里的会话、日志、缓存照写。
+- **写**放行：项目目录（计划模式除外）、临时目录、`/dev`、CLI 自己的目录（清单 `host.homeDirs`：`~/.claude`、`~/.codex`、`~/.kimi-code`、`~/.minimax` …，加 `~/.claude.json*`）
+  与 `host.homeEnv` 指向的账号目录 / 第三方私有目录、包管理器与构建缓存（`~/Library/Caches`、`~/.npm`、`go/pkg` …）、
+  **工具状态**（主目录下的隐藏条目 `~/.*`、`~/.config`、`~/Library/Application Support`，`toolStateHome`：工具写日志、缓存、状态，
+  如钩子脚本写 `~/.ai-usage`，不再弹授权请求）、用户授权过的文件夹 / 文件。主目录下的普通文件夹（文稿、桌面、下载、项目以外的代码目录）写之前要授权。
+  放行之后再拒：没授权的凭据类别的文件夹与主目录这一层的凭据文件（`~/.ssh`、`~/.aws`、`~/.netrc` …，规则 `write`，照样弹授权请求）；
+  「改了会在沙箱外执行命令」的东西（规则 `write:config`，不出授权请求）：CLI 的钩子与配置（`execConfigHome` 与清单 `host.execConfig`：
+  `~/.claude/settings.json`、`~/.claude/hooks`、`~/.codex/config.toml`、`~/.gemini/settings.json`、`~/.kimi-code/config.toml`、`~/.minimax/config.yaml`）、
+  别的工具启动时执行的配置（`homeExecConfig`：`~/.config/git`、Vim / Neovim、tmux、Hammerspoon、yarn / bun / curl 配置、direnv、
+  Cursor / Windsurf / Claude 桌面版的 MCP 配置、VS Code / Cursor 的用户设置 …）、开机自启、PATH 里的可执行目录、shell 启动脚本与 `~/.gitconfig`；
+  受保护文件夹与 Nomi 数据目录最后再拒一次。
 - **本机的口子**：Unix socket 不受读写规则管，所以单独拒连（`network-outbound` 的 `remote unix-socket`）：ssh-agent
   （`/private/var/run/com.apple.launchd.*/Listeners`、`agent.sock`、`S.gpg-agent`）没授权 SSH 类别时拒连，同时从环境里去掉 `SSH_AUTH_SOCK`；
   Docker 的 `docker.sock`（Docker Desktop、Colima、OrbStack）没授权云账号类别时拒连。Apple Events（`appleevent-send`）一律拒：`osascript`

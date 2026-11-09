@@ -157,11 +157,29 @@ func TestProfileEnforced(t *testing.T) {
 	ro.CwdWritable = false
 	ro.Cwd = proj
 	realHome, _ := os.UserHomeDir()
-	probe := filepath.Join(realHome, ".nomi-sbx-probe-"+filepath.Base(tmp))
-	defer os.Remove(probe)
+	suffix := "nomi-sbx-probe-" + filepath.Base(tmp)
 	realSpec := Spec{Token: "t2", Home: realHome, Cwd: proj, CwdWritable: false}
-	if write(realSpec, probe) {
-		t.Error("home folder must not be writable")
+	// 主目录下的普通文件不行；隐藏的工具目录（如 ~/.ai-usage）可以；凭据、会执行的配置、开机自启不行。
+	// 探针都是新文件名，写成了就删掉
+	toolDir := filepath.Join(realHome, "."+suffix)
+	defer os.RemoveAll(toolDir)
+	for p, want := range map[string]bool{
+		filepath.Join(realHome, suffix):                            false,
+		filepath.Join(realHome, "Documents", suffix):               false,
+		filepath.Join(toolDir):                                     true,
+		filepath.Join(realHome, ".ssh", suffix):                    false,
+		filepath.Join(realHome, ".config", "git", suffix):          false,
+		filepath.Join(realHome, "Library", "LaunchAgents", suffix): false,
+		filepath.Join(realHome, ".local", "bin", suffix):           false,
+		filepath.Join(realHome, ".claude", "hooks", suffix):        false,
+	} {
+		got := write(realSpec, p)
+		if got {
+			_ = os.Remove(p)
+		}
+		if got != want {
+			t.Errorf("write %s = %v, want %v", strings.TrimPrefix(p, realHome), got, want)
+		}
 	}
 	if write(realSpec, filepath.Join(realHome, ".claude.json.nomi-probe")) == false {
 		t.Error("Claude's config file next to home must stay writable")

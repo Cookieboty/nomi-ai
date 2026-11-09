@@ -100,6 +100,21 @@ var execConfigHome = append(catalog.HostListAll("execConfig"),
 	".gradle/init.d", ".gradle/init.gradle", ".gradle/init.gradle.kts", ".bun/bin", ".deno/bin",
 )
 
+// toolStateHome：相对主目录、工具自己存状态的地方（隐藏目录 / 文件、~/.config、~/Library/Application Support）。
+// 默认可写：写这些不会让命令在沙箱外跑起来；会的那些（execConfigHome、homeExecConfig、永不授权的位置）随后再拒，
+// 凭据类别没授权时也再拒（写照样弹授权请求）
+var toolStateHome = []string{".config", "Library/Application Support"}
+
+// homeExecConfig：相对主目录、别的工具启动时会执行的配置（编辑器、终端复用、包管理器、AI 工具的 MCP / 钩子配置）。
+// 默认可写的工具目录里这些仍然不让写（规则 write:config，不弹授权）
+var homeExecConfig = []string{
+	".config/git", ".vimrc", ".vim", ".config/nvim", ".tmux.conf", ".config/tmux", ".hammerspoon",
+	".yarnrc", ".yarnrc.yml", ".bunfig.toml", ".curlrc", ".wgetrc", ".pythonrc", ".ipython/profile_default/startup",
+	".envrc", ".direnvrc", ".config/direnv", ".cursor/mcp.json", ".codeium/windsurf/mcp_config.json", ".config/opencode",
+	"Library/Application Support/Claude/claude_desktop_config.json",
+	"Library/Application Support/Code/User", "Library/Application Support/Cursor/User",
+}
+
 // 本机 Unix socket：拿到它们等于绕过拒读（ssh-agent 里的私钥、Docker 守护进程）。没授权对应类别时不让连
 var (
 	agentSockets  = []string{`^/private/(var/run|tmp)/com\.apple\.launchd\.[^/]+/Listeners$`, `/agent\.sock$`, `/S\.gpg-agent(\.ssh)?$`}
@@ -221,10 +236,42 @@ func Profile(s Spec) string {
 	for _, f := range s.WritableFiles {
 		w = append(w, literals(f)...)
 	}
+	// 工具状态：主目录下的隐藏条目、~/.config、~/Library/Application Support
+	for _, h := range variants(s.Home) {
+		w = append(w, regexFilter("^"+regexp.QuoteMeta(h)+`/\.`))
+	}
+	for _, d := range toolStateHome {
+		w = append(w, subpaths(filepath.Join(s.Home, d))...)
+	}
 	allow(&b, "file-write*", w)
+	// 没授权的凭据类别：写也拒（规则 write，照样弹授权请求）
+	var credW []string
+	for _, c := range Categories {
+		if s.Granted[c.ID] {
+			continue
+		}
+		for _, d := range c.Dirs {
+			credW = append(credW, subpaths(filepath.Join(s.Home, d))...)
+		}
+		for _, re := range c.Files {
+			// 只管主目录这一层的凭据文件（~/.netrc、~/.git-credentials、~/.env）；项目里的照常写
+			if rest, ok := strings.CutPrefix(re, "/"); ok {
+				for _, h := range variants(s.Home) {
+					credW = append(credW, regexFilter("^"+regexp.QuoteMeta(h)+"/"+rest))
+				}
+			}
+		}
+	}
+	b.WriteString(denyClause("file-write*", credW, ruleMsg(s.Token, "write")))
+	// 改了会在沙箱外执行命令的：CLI 的钩子与配置、别的工具的启动配置、开机自启、PATH 可执行目录、shell 配置
 	var execCfg []string
-	for _, d := range execConfigHome {
-		execCfg = append(execCfg, subpaths(filepath.Join(s.Home, d))...)
+	for _, list := range [][]string{execConfigHome, homeExecConfig, neverGrantHome} {
+		for _, d := range list {
+			execCfg = append(execCfg, subpaths(filepath.Join(s.Home, d))...)
+		}
+	}
+	for _, f := range neverGrantFiles {
+		execCfg = append(execCfg, literals(filepath.Join(s.Home, f))...)
 	}
 	b.WriteString(denyClause("file-write*", execCfg, ruleMsg(s.Token, "write:config")))
 	// ── 本机 socket 与 Apple Events ──
