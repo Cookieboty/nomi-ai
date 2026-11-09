@@ -32,15 +32,6 @@ func ResolveHarnessBin(backend string) string {
 	return cli.ResolveCliBinCached(backend)
 }
 
-// PeekHarnessBin = peekHarnessBin（"" = null）。
-func PeekHarnessBin(backend string) string {
-	if os.Getenv("NOMI_USE_MOCK_CLI") == "1" {
-		return ResolveHarnessBin(backend)
-	}
-	b, _ := cli.PeekCliBin(backend)
-	return b
-}
-
 func IsScript(bin string) bool {
 	return strings.HasSuffix(bin, ".mjs") || strings.HasSuffix(bin, ".js")
 }

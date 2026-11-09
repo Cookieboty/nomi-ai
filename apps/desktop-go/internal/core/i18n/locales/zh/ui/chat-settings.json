@@ -53,7 +53,7 @@
   "ui.chat-settings.auto-deny-in-s": "{0} 秒后自动拒绝",
   "ui.chat-settings.auto-edit-files": "自动改文件",
   "ui.chat-settings.auto-for-read-only-confirm-others": "只读自动，其它确认",
-  "ui.chat-settings.auto-shown-only-when-it-has-conversations-drag": "自动：有对话时才显示，没有对话就不占位置。拖动调整顺序，侧栏最多显示 5 个。",
+  "ui.chat-settings.endpoint-visibility-hint": "自动：本机装了或有对话就显示。拖动调整顺序。",
   "ui.chat-settings.back-to-chat": "返回对话",
   "ui.chat-settings.back-to-chat-esc": "返回对话 (Esc)",
   "ui.chat-settings.background": "后台",

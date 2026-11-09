@@ -767,7 +767,7 @@ export type TranslationKey =
   | 'ui.chat-settings.auto-deny-in-s'
   | 'ui.chat-settings.auto-edit-files'
   | 'ui.chat-settings.auto-for-read-only-confirm-others'
-  | 'ui.chat-settings.auto-shown-only-when-it-has-conversations-drag'
+  | 'ui.chat-settings.endpoint-visibility-hint'
   | 'ui.chat-settings.back-to-chat'
   | 'ui.chat-settings.back-to-chat-esc'
   | 'ui.chat-settings.background'

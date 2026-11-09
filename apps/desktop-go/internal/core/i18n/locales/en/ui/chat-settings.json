@@ -53,7 +53,7 @@
   "ui.chat-settings.auto-deny-in-s": "Auto-deny in {0}s",
   "ui.chat-settings.auto-edit-files": "Auto-edit files",
   "ui.chat-settings.auto-for-read-only-confirm-others": "Auto for read-only, confirm others",
-  "ui.chat-settings.auto-shown-only-when-it-has-conversations-drag": "Auto: shown only when it has conversations. Drag to reorder; the sidebar shows up to 5.",
+  "ui.chat-settings.endpoint-visibility-hint": "Auto: shown when installed or when it has conversations. Drag to reorder.",
   "ui.chat-settings.back-to-chat": "Back to chat",
   "ui.chat-settings.back-to-chat-esc": "Back to chat (Esc)",
   "ui.chat-settings.background": "Background",

@@ -19,6 +19,7 @@ import { useConversationListView } from '../../hooks/useConversationListView';
 import { MAX_RESULTS, useHistorySearchIndex } from '../../hooks/useHistorySearchIndex';
 import { useNewWorkspace } from '../../hooks/useNewWorkspace';
 import { orderEndpoints, visibleEndpoints } from '../../services/chatPrefs';
+import { cliUpdateClient } from '../../services/cliUpdateClient';
 import {
   CONVERSATIONS_CHANGED_EVENT,
   OPEN_CONVERSATION_EVENT,
@@ -177,12 +178,23 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   // loading 变化时也刷新：首个会话在第一条消息保存时才创建，发送结束后需要让它出现在列表里
   useEffect(refresh, [refresh, messageCount, isLoading]);
 
+  // 本机装了哪些 CLI：打开时取一次；在 Nomi 里装 / 更新完、或回到窗口时（可能刚在终端里装了）再取
   useEffect(() => {
     if (!harnessClient.available()) return;
-    void harnessClient
-      .state()
-      .then((s) => setBins(s.bins))
-      .catch(() => undefined);
+    const load = () =>
+      void harnessClient
+        .state()
+        .then((s) => setBins(s.bins))
+        .catch(() => undefined);
+    load();
+    const off = cliUpdateClient.onEvent((e) => {
+      if (e.phase === 'done') load();
+    });
+    window.addEventListener('focus', load);
+    return () => {
+      off();
+      window.removeEventListener('focus', load);
+    };
   }, [isDev]);
 
   useEffect(() => {
@@ -539,13 +551,17 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     return a;
   }, [counts, histBackends, historyItems]);
   const shownEndpoints = useMemo(() => {
-    const shown = visibleEndpoints(CONVERSATION_BACKENDS, endpointVisibility, endpointActivity);
+    const shown = visibleEndpoints(
+      CONVERSATION_BACKENDS,
+      endpointVisibility,
+      endpointActivity,
+      (b) => Boolean(bins[b]),
+    );
     // 正在看的端点（没被显式隐藏）始终保留，避免数据还没加载完时按钮跳动
     if (!shown.includes(endpointFilter) && endpointVisibility[endpointFilter] !== 'hide')
       return CONVERSATION_BACKENDS.filter((b) => b === endpointFilter || shown.includes(b));
     return shown;
-  }, [endpointVisibility, endpointActivity, endpointFilter]);
-  // 排列：Nomi 最前，其余按自定义顺序或对话数；一次最多显示 5 个，其余进「更多」
+  }, [endpointVisibility, endpointActivity, endpointFilter, bins]);
   // 导航栏够高：全部端点按顺序竖排（Nomi 最前，其余按自定义顺序或对话数）
   const railEndpoints = useMemo(
     () => orderEndpoints(shownEndpoints, endpointActivity, endpointOrder),
