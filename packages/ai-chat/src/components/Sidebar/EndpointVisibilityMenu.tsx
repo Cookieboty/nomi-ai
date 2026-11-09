@@ -88,9 +88,7 @@ export const EndpointVisibilityMenu: React.FC<{
           aria-label={t('ui.chat-settings.endpoints-shown-in-the-sidebar')}
           data-testid="endpoint-visibility-menu"
         >
-          <p className={styles.epVisHint}>
-            {t('ui.chat-settings.auto-shown-only-when-it-has-conversations-drag')}
-          </p>
+          <p className={styles.epVisHint}>{t('ui.chat-settings.endpoint-visibility-hint')}</p>
           {onReorder && (
             <div className={styles.epVisOrder}>
               <span>

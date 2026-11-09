@@ -17848,6 +17848,10 @@
           "number",
           "null"
          ]
+        },
+        "note": {
+         "type": "string",
+         "maxLength": 200
         }
        },
        "required": [
@@ -17890,6 +17894,10 @@
           "number",
           "null"
          ]
+        },
+        "note": {
+         "type": "string",
+         "maxLength": 200
         }
        },
        "required": [
@@ -36592,6 +36600,7 @@
   "TERMINAL_NOT_FOUND",
   "FLEET_CLOSE_DENIED",
   "FLEET_CLOSE_FAILED",
+  "FLEET_CLOSE_UNVERIFIED",
   "FLEET_NOT_PAUSABLE",
   "KB_DENIED",
   "KB_EMPTY",

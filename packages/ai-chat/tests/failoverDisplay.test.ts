@@ -5,7 +5,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { retryStatus } from '../src/hooks/useGatewayRetry';
-import { refreshNomiModel, servedModelLabel } from '../src/services/nomiModel';
+import {
+  gatewayStateSnapshot,
+  refLabel,
+  refreshNomiModel,
+  servedModelLabel,
+} from '../src/services/nomiModel';
 import { providerClient } from '../src/services/providerClient';
 import { chunkToUsage } from '../src/utils/chunkTrace';
 import { deriveStatus } from '../src/utils/convStatus';
@@ -54,6 +59,23 @@ describe('failover display', () => {
     // 认不出来（没有 / 或供应商已删）：退回选中的模型
     expect(servedModelLabel(undefined)).toBe('ProvA · m');
     expect(servedModelLabel('gone/m')).toBe('ProvA · m');
+  });
+
+  it('coding-agent messages name the gateway provider instead of its id', async () => {
+    installFakeApi((name: string) =>
+      name === 'gateway.state'
+        ? gateway
+        : name === 'providers.state'
+          ? { providers: [], envProviders: [], effectiveProviderId: 'nomi-gateway' }
+          : {},
+    );
+    refreshNomiModel();
+    await new Promise((r) => setTimeout(r, 0));
+    const s = gatewayStateSnapshot();
+    expect(refLabel(s, 'provb/m')).toBe('ProvB · Model M');
+    // 官方模型名、供应商已删的引用原样显示
+    expect(refLabel(s, 'grok-4.7')).toBe('grok-4.7');
+    expect(refLabel(s, 'gone/m')).toBe('gone/m');
   });
 
   it('usage chunks keep the served model', () => {

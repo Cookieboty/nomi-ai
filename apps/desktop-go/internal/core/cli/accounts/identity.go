@@ -206,6 +206,13 @@ func ReadIdentity(kind string, accountDir *string, d IdentityDeps) *util.Obj {
 		mode, ok := g(env)
 		return util.NewObj("loggedIn", ok && mode == "cached_token")
 	}
+	if c := accountCap(kind); c != nil && c.SignedIn != nil {
+		root := UserCliHome(kind, baseEnv, d.Home)
+		if hasDir {
+			root = *accountDir
+		}
+		return util.NewObj("loggedIn", c.SignedIn(root))
+	}
 	root := ""
 	if accountDir != nil {
 		root = *accountDir

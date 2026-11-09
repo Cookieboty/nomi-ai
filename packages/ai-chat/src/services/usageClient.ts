@@ -1,3 +1,4 @@
+import { byCli, cliFullName } from '@nomi-ai/cli-catalog';
 /**
  * 用量与计费客户端：应用契约 `usage.*`（主进程 usage/UsageService）。
  * 类型与内核 core/src/usage 的返回结构一一对应（渲染进程不引用主进程代码）。
@@ -262,18 +263,14 @@ export const usageClient = {
 /** 来源 → 展示名（Nomi 对话 / 各编程工具 / 其他） */
 export const USAGE_SOURCE_LABEL: Record<string, string> = {
   nomi: 'ui.usage-tools.nomi-chat',
-  claude: 'Claude Code',
-  codex: 'Codex',
-  dsh: 'dsh',
-  grok: 'Grok',
-  gemini: 'Gemini CLI',
   qwen: 'Qwen Code',
   opencode: 'OpenCode',
   copilot: 'GitHub Copilot CLI',
-  kimi: 'Kimi',
   aider: 'Aider',
   cline: 'Cline',
   continue: 'Continue',
   cursor: 'Cursor',
   other: 'ui.usage-tools.other-providers',
+  // 内置编程助手：完整名称
+  ...byCli(cliFullName),
 };

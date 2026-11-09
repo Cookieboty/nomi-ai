@@ -120,12 +120,19 @@ describe('Sidebar rows', () => {
 });
 
 describe('Sidebar 按端：显示哪些端点', () => {
-  it('visibleEndpoints：Nomi 总显示；显式显示 / 隐藏优先；没设置的为 0 时不显示', () => {
-    const all = ['nomi', 'claude', 'codex', 'dsh', 'grok', 'gemini'] as const;
+  it('visibleEndpoints：Nomi 总显示；显式显示 / 隐藏优先；没设置的装了或有对话才显示', () => {
+    const all = ['nomi', 'claude', 'codex', 'dsh', 'grok', 'gemini', 'kimi'] as const;
     expect(visibleEndpoints(all, {}, { claude: 2 })).toEqual(['nomi', 'claude']);
     expect(visibleEndpoints(all, { grok: 'show', claude: 'hide' }, { claude: 2 })).toEqual([
       'nomi',
       'grok',
+    ]);
+    // 刚装好、还没有对话的 CLI 也显示；显式隐藏的不显示
+    const installed = (b: string) => b === 'kimi' || b === 'dsh';
+    expect(visibleEndpoints(all, { dsh: 'hide' }, { claude: 2 }, installed)).toEqual([
+      'nomi',
+      'claude',
+      'kimi',
     ]);
   });
 

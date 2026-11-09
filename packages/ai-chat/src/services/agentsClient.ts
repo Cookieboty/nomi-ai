@@ -1,9 +1,10 @@
+import { type BuiltinCliId, byCli, cliFullName } from '@nomi-ai/cli-catalog';
 import { t } from '@nomi-ai/ui';
 
 import { api, hasTransport } from './api';
 
 /** 编程助手进度客户端：契约 `agents.*`（services/api） */
-export type AgentKind = 'codex' | 'claude' | 'dsh' | 'grok' | 'gemini';
+export type AgentKind = BuiltinCliId;
 export type AgentStatus = 'running' | 'waiting' | 'completed' | 'failed' | 'stalled' | 'idle';
 
 export interface AgentWatchSettings {
@@ -51,13 +52,7 @@ export interface AgentWatchState {
   lastRemindAt: number;
 }
 
-export const AGENT_LABEL: Record<AgentKind, string> = {
-  codex: 'Codex',
-  claude: 'Claude Code',
-  dsh: 'dsh',
-  grok: 'Grok',
-  gemini: 'Gemini CLI',
-};
+export const AGENT_LABEL: Record<AgentKind, string> = byCli(cliFullName);
 
 export const STATUS_LABEL: Record<AgentStatus, string> = {
   running: 'ui.chat-settings.in-progress',

@@ -53,3 +53,25 @@ type islandNopLog struct{}
 
 func (islandNopLog) Info(string, ...any) {}
 func (islandNopLog) Warn(string, ...any) {}
+
+// 同一个任务换了一次等待（p1 → p2、代次变了）就是另一条：岛上晚到的旧按钮查不到新等待的处理函数（#293）
+func TestIslandTaskItemIDTracksTheWait(t *testing.T) {
+	p1, p2 := "p1", "p2"
+	a := tasks.Task{ID: "tk_7", Gen: 4, Status: tasks.StatusWaitingUser, Wait: &tasks.Wait{Kind: "approval", RequestID: &p1}}
+	b := a
+	b.Wait = &tasks.Wait{Kind: "approval", RequestID: &p2}
+	c := a
+	c.Gen = 5
+	ids := map[string]bool{islandTaskItemID(a): true, islandTaskItemID(b): true, islandTaskItemID(c): true}
+	if len(ids) != 3 {
+		t.Fatalf("ids collide: %v", ids)
+	}
+	for id := range ids {
+		if tg, ref := islandNavOf(id); tg != "task" || ref != "tk_7" {
+			t.Errorf("%q → %s %s", id, tg, ref)
+		}
+	}
+	if islandTaskItemID(a) != islandTaskItemID(a) {
+		t.Fatal("the same wait must keep its id across refreshes")
+	}
+}

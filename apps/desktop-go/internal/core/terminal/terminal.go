@@ -4,6 +4,7 @@ package terminal
 
 import (
 	_ "embed"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -21,7 +22,8 @@ import (
 //go:embed nomi-runner.cjs
 var WindowsRunner string
 
-var Kinds = []string{"claude", "codex", "gemini", "grok", "dsh"}
+// Kinds：有 nomi-<cli> 命令的（清单 host.nomiCommand；经网关启动，所以也要能接第三方模型）
+var Kinds = builtin.Where(func(id string) bool { return builtin.NomiCommand(id) && builtin.WithThirdParty(id) })
 
 const (
 	tokenMark = "__NOMI_TOKEN__"

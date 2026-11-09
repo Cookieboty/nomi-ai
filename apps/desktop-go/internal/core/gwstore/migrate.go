@@ -2,6 +2,7 @@ package gwstore
 
 import (
 	"fmt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"math"
 	"os"
 	"path/filepath"
@@ -14,7 +15,7 @@ import (
 )
 
 // CLIKinds = CLI_KINDS
-var CLIKinds = []string{"claude", "codex", "dsh", "grok", "gemini"}
+var CLIKinds = builtin.Where(builtin.WithThirdParty)
 
 var nomiProtocolWire = map[string]string{"openai-chat": "chat", "openai-responses": "responses", "anthropic": "messages"}
 var cliFormatWire = map[string]string{

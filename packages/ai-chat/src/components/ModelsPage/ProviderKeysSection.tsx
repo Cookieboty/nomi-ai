@@ -1,7 +1,7 @@
 /**
  * 供应商编辑里的 Key 列表：每个 Key 一张两行的小卡片——
  * 第一行序号、名称、启用；第二行掩码值与状态标签，右侧设置 / 上移 / 下移 / 更换 / 删除。
- * 「设置」在卡片里展开这个 Key 的限定协议与限流（并发、每分钟）。
+ * 「设置」在卡片里展开这个 Key 的限定协议、限流（并发、每分钟）与备注；有备注时跟在掩码值后面（过长截断）。
  * 更换时新值输入框在这张卡片里；新增 Key 默认收起成一个按钮，点开再贴（一次可贴多个）。
  * 草稿与保存逻辑在 ProviderDetailDialog，这里只负责展示与回调。
  */
@@ -37,7 +37,12 @@ export interface KeyRowDraft {
   /** 并发上限 / 每分钟请求数（输入框文本，留空 = 不限） */
   maxConcurrency?: string;
   rpm?: string;
+  /** 备注（只给用户自己看） */
+  note?: string;
 }
+
+/** 备注的长度上限（与契约、内核一致） */
+const MAX_NOTE = 200;
 
 const maskNew = (v: string) => (v.length > 8 ? `${v.slice(0, 3)}…${v.slice(-4)}` : '…');
 
@@ -137,6 +142,15 @@ export const ProviderKeysSection: React.FC<{
                   <code className={styles.keyMasked}>
                     {isNew ? maskNew(k.value!) : view?.masked}
                   </code>
+                  {k.note?.trim() && (
+                    <span
+                      className={styles.keyNote}
+                      title={k.note.trim()}
+                      data-testid={`pd-key-note-text-${k.id}`}
+                    >
+                      {k.note.trim()}
+                    </span>
+                  )}
                   {isNew && <span className={styles.badgeSoft}>{t('ui.models.new')}</span>}
                   {replacing && (
                     <span className={styles.badgeSoft}>{t('ui.models.replacing')}</span>
@@ -234,8 +248,19 @@ export const ProviderKeysSection: React.FC<{
                       aria-label={t('ui.models.max-requests-per-minute', label)}
                       data-testid={`pd-key-rpm-${k.id}`}
                     />
+                    <Input
+                      size="sm"
+                      className={styles.keyNoteField}
+                      maxLength={MAX_NOTE}
+                      value={k.note ?? ''}
+                      onChange={(e) => onSet(i, { note: e.target.value })}
+                      placeholder={t('ui.models.key-note-placeholder')}
+                      aria-label={t('ui.models.key-note-of', label)}
+                      data-testid={`pd-key-note-${k.id}`}
+                    />
                   </div>
                 )}
+
                 {replacing && (
                   <div className={styles.keyReplace}>
                     <Input

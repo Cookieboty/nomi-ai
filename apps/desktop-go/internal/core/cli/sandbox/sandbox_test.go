@@ -157,11 +157,29 @@ func TestProfileEnforced(t *testing.T) {
 	ro.CwdWritable = false
 	ro.Cwd = proj
 	realHome, _ := os.UserHomeDir()
-	probe := filepath.Join(realHome, ".nomi-sbx-probe-"+filepath.Base(tmp))
-	defer os.Remove(probe)
+	suffix := "nomi-sbx-probe-" + filepath.Base(tmp)
 	realSpec := Spec{Token: "t2", Home: realHome, Cwd: proj, CwdWritable: false}
-	if write(realSpec, probe) {
-		t.Error("home folder must not be writable")
+	// 主目录下的普通文件不行；隐藏的工具目录（如 ~/.ai-usage）可以；凭据、会执行的配置、开机自启不行。
+	// 探针都是新文件名，写成了就删掉
+	toolDir := filepath.Join(realHome, "."+suffix)
+	defer os.RemoveAll(toolDir)
+	for p, want := range map[string]bool{
+		filepath.Join(realHome, suffix):                            false,
+		filepath.Join(realHome, "Documents", suffix):               false,
+		filepath.Join(toolDir):                                     true,
+		filepath.Join(realHome, ".ssh", suffix):                    false,
+		filepath.Join(realHome, ".config", "git", suffix):          false,
+		filepath.Join(realHome, "Library", "LaunchAgents", suffix): false,
+		filepath.Join(realHome, ".local", "bin", suffix):           false,
+		filepath.Join(realHome, ".claude", "hooks", suffix):        false,
+	} {
+		got := write(realSpec, p)
+		if got {
+			_ = os.Remove(p)
+		}
+		if got != want {
+			t.Errorf("write %s = %v, want %v", strings.TrimPrefix(p, realHome), got, want)
+		}
 	}
 	if write(realSpec, filepath.Join(realHome, ".claude.json.nomi-probe")) == false {
 		t.Error("Claude's config file next to home must stay writable")
@@ -169,5 +187,25 @@ func TestProfileEnforced(t *testing.T) {
 	_ = os.Remove(filepath.Join(realHome, ".claude.json.nomi-probe"))
 	if write(spec, filepath.Join(home, "finance", "new.txt")) {
 		t.Error("protected folder must not be writable even inside temp")
+	}
+}
+
+// ~/.npmrc、~/.pypirc 照样拒读，但只是包管理器的例行读取：不弹授权请求；项目里的 .npmrc 与别的凭据照常问
+func TestRoutineReadIsQuiet(t *testing.T) {
+	home := filepath.FromSlash("/Users/u")
+	if !RoutineRead(Denial{Rule: "read:cloud", Path: filepath.Join(home, ".npmrc")}, home) {
+		t.Fatal("~/.npmrc should be quiet")
+	}
+	if !RoutineRead(Denial{Rule: "read:cloud", Path: filepath.Join(home, ".pypirc")}, home) {
+		t.Fatal("~/.pypirc should be quiet")
+	}
+	for _, d := range []Denial{
+		{Rule: "read:cloud", Path: filepath.Join(home, ".aws/credentials")},
+		{Rule: "read:cloud", Path: filepath.Join(home, "proj/.npmrc")},
+		{Rule: "write", Path: filepath.Join(home, ".npmrc")},
+	} {
+		if RoutineRead(d, home) {
+			t.Errorf("%+v should still ask", d)
+		}
 	}
 }

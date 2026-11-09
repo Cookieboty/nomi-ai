@@ -598,6 +598,25 @@
   padding: 0 var(--cd-space-2) 0 var(--cd-space-3);
   font-size: var(--cd-font-size-sm);
 }
+.idleRow[data-selected] {
+  background: var(--cd-color-hover);
+}
+/* 多选：全选与「关闭所选」 */
+.idleBar {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-3);
+  min-height: var(--cd-control-h-sm);
+  padding: 0 var(--cd-space-2) 0 var(--cd-space-3);
+}
+.idleSelectAll {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+}
 .idleRow + .idleRow {
   border-top: 1px solid var(--cd-panel-border);
 }

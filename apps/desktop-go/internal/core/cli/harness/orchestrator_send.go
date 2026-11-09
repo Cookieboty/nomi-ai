@@ -5,6 +5,7 @@ package harness
 
 import (
 	"errors"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"os"
 	"strings"
 
@@ -18,9 +19,6 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
-
-// officialProvider = OFFICIAL_PROVIDER。
-var officialProvider = map[string]string{"claude": "anthropic", "codex": "openai", "grok": "xai", "gemini": "google", "dsh": "deepseek"}
 
 const (
 	burstMs        = 100
@@ -204,6 +202,11 @@ func (o *Orchestrator) runTurn(tab *util.Obj, backend, toCli string, abort *jsrt
 	case "gemini", "external":
 		p = o.runAcp(tab, toCli, abort.Signal, normalized)
 	default:
+		// 其余内置的 ACP 助手（清单 transport 为 acp）；剩下的是 codex
+		if builtin.UsesAcp(backend) {
+			p = o.runAcp(tab, toCli, abort.Signal, normalized)
+			break
+		}
 		p = o.runCodexTurn(tab, toCli, abort.Signal, staged, func(turn CodexTurnRef) {
 			o.noteCliTurn(id, userMessageID, util.NewObj("sessionId", turn.SessionID, "turnId", turn.TurnID))
 		})
@@ -421,7 +424,8 @@ func (o *Orchestrator) qualityBase(tab *util.Obj) *util.Obj {
 		}
 		return b
 	}
-	prov, ok := officialProvider[str(tab, "backend")]
+	prov := builtin.Vendor(str(tab, "backend"))
+	ok := prov != ""
 	if !ok {
 		prov = client
 	}
@@ -553,7 +557,7 @@ func (o *Orchestrator) finish(tab *util.Obj, ok bool, text string, errStr *strin
 		Error: errStr, Background: background, DurationMs: dur, Origin: o.turnOrigin[id]})
 	delete(o.turnOrigin, id)
 	b := str(tab, "backend")
-	if ok && tab.Get("permissionMode") == "plan" && (b == "codex" || b == "dsh" || b == "grok") && util.JSTrim(text) != "" {
+	if ok && tab.Get("permissionMode") == "plan" && builtin.PlanFollowUp(b) && util.JSTrim(text) != "" {
 		o.offerExecutePlan(tab)
 	}
 }

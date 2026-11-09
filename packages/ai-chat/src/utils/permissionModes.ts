@@ -1,3 +1,4 @@
+import { BUILTIN_MANIFESTS, byCli } from '@nomi-ai/cli-catalog';
 /**
  * 权限模式（docs/development/coding-agents.md）：编程助手，以及 Nomi 自己的工具
  * （主进程 desktop/consent.ts；Nomi 没有「完全放开」）。
@@ -20,14 +21,9 @@ export const PERMISSION_MODES: readonly PermissionMode[] = [
 
 type CliBackend = Exclude<HarnessBackend, 'nomi'>;
 
+/** 各端支持的档位：内置 CLI 取清单的 permissionModes */
 const SUPPORTED: Record<CliBackend, readonly PermissionMode[]> = {
-  claude: PERMISSION_MODES,
-  // Codex 走 app-server：有审批请求，可逐项确认
-  codex: ['plan', 'manual', 'acceptEdits', 'auto', 'bypass'],
-  dsh: ['plan', 'acceptEdits', 'bypass'],
-  // Grok 走 ACP（grok agent stdio）：有审批请求、没有「自动」
-  grok: ['plan', 'manual', 'acceptEdits', 'bypass'],
-  gemini: ['plan', 'manual', 'acceptEdits', 'bypass'],
+  ...byCli((id) => (BUILTIN_MANIFESTS[id].capabilities.permissionModes ?? []).map((m) => m.mode)),
   // 外部 CLI（L1）只有逐项确认：每次工具调用都经 ACP 权限请求由你批准
   external: ['manual'],
 };

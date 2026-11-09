@@ -125,19 +125,20 @@ export function setEndpointVisibility(backend: ConversationBackend, v: EndpointV
 
 /**
  * 侧栏「按端」实际显示的端点：Nomi 总是显示；显式「显示 / 隐藏」按设置；
- * 没有显式设置的端点，只有在有对话（含标签 / 磁盘历史）时才显示。
+ * 没有显式设置的端点，本机装了或有对话（含标签 / 磁盘历史）就显示。
  */
 export function visibleEndpoints(
   all: readonly ConversationBackend[],
   vis: EndpointVisibilityMap,
   activity: Partial<Record<ConversationBackend, number>>,
+  installed: (b: ConversationBackend) => boolean = () => false,
 ): ConversationBackend[] {
   return all.filter((b) => {
     if (b === 'nomi') return true;
     const v = vis[b];
     if (v === 'show') return true;
     if (v === 'hide') return false;
-    return (activity[b] ?? 0) > 0;
+    return installed(b) || (activity[b] ?? 0) > 0;
   });
 }
 

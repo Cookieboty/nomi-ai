@@ -331,6 +331,12 @@
   -webkit-mask-position: center;
   -webkit-mask-size: contain;
 }
+.cd-brand--inline {
+  /* 和文字排在一行：透明底、无描边，单色图标跟随文字颜色 */
+  background: transparent;
+  box-shadow: none;
+  color: currentColor;
+}
 .cd-brand--initials {
   background: var(--cd-color-accent-soft);
   color: var(--cd-color-accent-strong);

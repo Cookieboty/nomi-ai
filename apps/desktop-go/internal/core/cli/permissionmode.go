@@ -1,11 +1,7 @@
 package cli
 
 import (
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/claude"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/codex"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/dsh"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/gemini"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/grok"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	sh "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -19,9 +15,15 @@ var externalPermissions = &clisdk.PermissionCapability{
 	FromModeID: func(string) string { return "" },
 }
 
-var perms = map[string]*clisdk.PermissionCapability{
-	"claude": claude.Permissions, "codex": codex.Permissions, "dsh": dsh.Permissions,
-	"grok": grok.Permissions, "gemini": gemini.Permissions, "external": externalPermissions,
+// permOf：backend 的权限能力（内置的取插件的；外部插件只有「逐项确认」）
+func permOf(backend string) *clisdk.PermissionCapability {
+	if m := builtin.Impl(backend); m != nil && m.Permissions != nil {
+		return m.Permissions
+	}
+	if backend == "external" {
+		return externalPermissions
+	}
+	return nil
 }
 
 // PermissionModes = PERMISSION_MODES。
@@ -46,7 +48,7 @@ func SupportedModes(backend string) []string {
 	if backend == "nomi" {
 		return nomiModes
 	}
-	return perms[backend].Supported
+	return permOf(backend).Supported
 }
 
 // EffectiveMode = effectiveMode。
@@ -73,31 +75,31 @@ type PermissionLaunch struct {
 	Env  *util.Obj
 }
 
-func ClaudeModeName(mode string) string { return perms["claude"].ModeID(mode) }
+func ClaudeModeName(mode string) string { return permOf("claude").ModeID(mode) }
 
 // PermissionLaunchFor = permissionLaunch（codexNetwork nil = undefined）。
 func PermissionLaunchFor(backend, mode string, codexNetwork *bool) PermissionLaunch {
-	a, e := perms[backend].Launch(mode, codexNetwork)
+	a, e := permOf(backend).Launch(mode, codexNetwork)
 	return PermissionLaunch{Args: a, Env: e}
 }
 
-func GeminiModeID(mode string) string { return perms["gemini"].ModeID(mode) }
-func GrokModeID(mode string) string   { return perms["grok"].ModeID(mode) }
+func GeminiModeID(mode string) string { return permOf("gemini").ModeID(mode) }
+func GrokModeID(mode string) string   { return permOf("grok").ModeID(mode) }
 func AcpModeID(backend, mode string) string {
-	return perms[backend].ModeID(mode)
+	return permOf(backend).ModeID(mode)
 }
 
 // FromCliPermissionMode = fromCliPermissionMode（"" = null）。
 func FromCliPermissionMode(backend string, raw any) string {
 	s, ok := raw.(string)
-	if !ok || perms[backend].FromModeID == nil {
+	if !ok || permOf(backend).FromModeID == nil {
 		return ""
 	}
-	return perms[backend].FromModeID(s)
+	return permOf(backend).FromModeID(s)
 }
 
 // PlanPromptPrefix = planPromptPrefix（"" , false = null）。
 func PlanPromptPrefix(backend string) (string, bool) {
-	p := perms[backend].PlanPrefix
+	p := permOf(backend).PlanPrefix
 	return p, p != ""
 }

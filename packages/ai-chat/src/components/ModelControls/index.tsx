@@ -1,3 +1,4 @@
+import { BUILTIN_CLI_ORDER, cliCapability } from '@nomi-ai/cli-catalog';
 /**
  * 输入栏的「模型 · 思考深度」按钮（编程助手标签：Codex / Claude Code / Grok 等）。
  *
@@ -18,10 +19,12 @@
  * 不改写用户的全局 CLI 配置；每轮新进程的后端下一条消息即生效，Claude 长驻进程空闲时重启复用。
  */
 import {
+  BrandIcon,
   formatContext,
   Icon,
   IconButton,
   isImageModel,
+  modelBrandOf,
   ModelPicker,
   Select,
   t,
@@ -65,7 +68,7 @@ import {
 } from '../../services/harnessClient';
 import { longContextFor, type LongContextInfo } from '../../services/longContext';
 import { registerModelMenu } from '../../services/modelMenu';
-import { pickerProviders, useGatewayState } from '../../services/nomiModel';
+import { pickerProviders, providerBrand, useGatewayState } from '../../services/nomiModel';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
 import { effortLabel } from './effortLabel';
@@ -82,8 +85,10 @@ const SWITCH = 'switch:';
 /** 第三方模型名去掉厂商前缀（anthropic/claude-fable-5 → claude-fable-5）：左侧已有厂商筛选与分组标题 */
 const shortName = (s: string) => s.slice(s.lastIndexOf('/') + 1);
 
-/** 有官方账号的编程助手 */
-const ACCOUNT_KINDS: readonly AccountKind[] = ['claude', 'codex', 'grok', 'gemini'];
+/** 有官方账号的编程助手（清单 officialAccount） */
+const ACCOUNT_KINDS = BUILTIN_CLI_ORDER.filter((id): id is AccountKind =>
+  cliCapability(id, 'officialAccount'),
+);
 
 /**
  * 没有文档化思考深度控制的后端（Gemini ACP / dsh）：
@@ -367,6 +372,12 @@ const ModelChip: React.FC<{
   // 没有显式覆盖时也显示 CLI 的实际默认档位，让底部按钮直接反映当前设置。
   const chipEffort = effort ?? defaultEffort;
   const shortLabel = chipEffort ? `${modelLabel} · ${effortLabel(chipEffort)}` : modelLabel;
+  // 按钮上的图标：认得出模型厂商或供应商品牌就用它的图标，否则通用芯片图标
+  const gateway = useGatewayState();
+  const chipModelId = current ?? catalog.defaultModel?.id ?? null;
+  const chipBrand = chipModelId
+    ? modelBrandOf(chipModelId, providerBrand(gateway, providerOfRef(chipModelId)))
+    : undefined;
   /** 开 / 关长上下文；与模型默认相同时存 null（跟随默认），免得模型默认改了这里还钉着旧值 */
   const pickLong = (on: boolean) => {
     if (!long || on === long.on) return;
@@ -523,6 +534,7 @@ const ModelChip: React.FC<{
       const pickerList: PickerProvider[] = [...byPid].map(([pid, models]) => ({
         id: pid,
         name: named.get(pid)?.name ?? provider?.name ?? pid,
+        brand: providerBrand(gateway, pid),
         ...(named.get(pid)?.hint ? { hint: named.get(pid)!.hint } : {}),
         models,
       }));
@@ -545,6 +557,7 @@ const ModelChip: React.FC<{
     const others: PickerProvider[] = (switchProviders ?? []).map((p) => ({
       id: p.id,
       name: p.name,
+      brand: providerBrand(gateway, p.id),
       ...(p.id === defaultProviderId
         ? { hint: t('ui.models.default-provider-named', p.name) }
         : {}),
@@ -565,6 +578,7 @@ const ModelChip: React.FC<{
     officialTabs,
     switchProviders,
     defaultProviderId,
+    gateway,
   ]);
   const catalogRef = useMemo(() => new Map([...toCatalog].map(([v, id]) => [id, v])), [toCatalog]);
   const pickerValue = current ? (currentModel ? (catalogRef.get(current) ?? null) : CUSTOM) : null;
@@ -705,7 +719,11 @@ const ModelChip: React.FC<{
         data-testid="model-chip"
         onClick={toggle}
       >
-        <Icon icon={Cpu} size={14} />
+        {chipBrand ? (
+          <BrandIcon brand={chipBrand} name={modelLabel} size={16} inline />
+        ) : (
+          <Icon icon={Cpu} />
+        )}
         <span className={styles.label}>{shortLabel}</span>
         {long?.on && (
           <span className={styles.longBadge} data-testid="model-chip-long">
@@ -969,7 +987,7 @@ const LoadingChip: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
         )}
         data-testid="model-chip-loading"
       >
-        <Icon icon={Cpu} size={14} />
+        <Icon icon={Cpu} />
         <span className={styles.label}>{label}</span>
         <span className={styles.spin}>
           <Icon icon={RefreshCw} size={12} />

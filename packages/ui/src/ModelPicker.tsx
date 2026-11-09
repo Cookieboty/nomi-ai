@@ -9,8 +9,10 @@
  */
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
+import { BrandIcon } from './BrandIcon';
 import { t } from './i18n';
 import { ModelProviderTabs, modelVendorId, modelVendors, ModelVendorFilter } from './ModelBrowse';
+import { modelBrandOf } from './modelVendor';
 import { Select, type SelectOption, type SelectProps } from './Select';
 
 export interface PickerModel {
@@ -38,6 +40,8 @@ export interface PickerProvider {
   hint?: string;
   /** false：这个供应商的模型都是同一家（如编程助手自己的官方模型），不显示厂商筛选 */
   vendors?: boolean;
+  /** 供应商的品牌图标 id（预设 id）：模型认不出厂商时用它的图标 */
+  brand?: string;
   models: PickerModel[];
 }
 
@@ -140,12 +144,14 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
   onOpenChange: onOpenChangeProp,
   ...rest
 }) => {
-  const { options, display, meta } = useMemo(() => {
+  const { options, display, meta, brands } = useMemo(() => {
     const usable = (m: PickerModel) => purpose !== 'coding' || m.toolCalling !== false;
     const byRef = new Map<string, { p: PickerProvider; m: PickerModel }>();
     for (const p of providers)
       for (const m of p.models) if (usable(m)) byRef.set(`${p.id}/${m.id}`, { p, m });
     const display = new Map<string, string>();
+    /** ref → 品牌图标 id：只画在按钮上，列表行不带（左侧已有厂商筛选） */
+    const brands = new Map<string, string>();
     /** ref → 供应商 id、模型 id 与厂商 id（browse 筛选用） */
     const meta = new Map<string, { provider: string; model: string; vendor: string }>();
     const opts: SelectOption[] = [...extraOptions];
@@ -168,6 +174,8 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
         meta.set(ref, { provider: p.id, model: m.id, vendor: modelVendorId(m.id) });
         const caps = capabilities(m, purpose);
         const name = m.label ?? m.id;
+        const brand = modelBrandOf(m.id, p.brand);
+        if (brand) brands.set(ref, brand);
         opts.push({
           value: ref,
           group: p.name,
@@ -190,7 +198,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
       }
     }
     opts.push(...tailOptions);
-    return { options: opts, display, meta };
+    return { options: opts, display, meta, brands };
   }, [
     providers,
     recent,
@@ -336,6 +344,12 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
       onOpenChange={onOpenChange}
       // 特殊选项的 label 可以是翻译 key（与 Select 一致）
       renderValue={(o) => display.get(o.value) ?? t(o.label)}
+      valueIcon={(o) => {
+        const brand = brands.get(o.value);
+        return brand ? (
+          <BrandIcon brand={brand} name={display.get(o.value) ?? o.value} size={16} inline />
+        ) : null;
+      }}
       onChange={(e) => onChange(e.target.value)}
     />
   );

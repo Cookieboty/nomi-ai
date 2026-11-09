@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"math"
 	"os"
 	"path/filepath"
@@ -51,7 +52,7 @@ func ImageSupportFor(backend string) string {
 }
 
 func UnsupportedImageMessage(backend string) string {
-	name := map[string]string{"dsh": "dsh", "claude": "Claude Code", "codex": "Codex", "grok": "Grok", "gemini": "Gemini"}[backend]
+	name := builtin.DisplayName(backend)
 	if name == "" {
 		name = backend
 	}

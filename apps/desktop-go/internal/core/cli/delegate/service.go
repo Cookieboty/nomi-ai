@@ -10,6 +10,7 @@ package delegate
 import (
 	"context"
 	"errors"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"log"
 	"math"
 	"math/rand/v2"
@@ -34,8 +35,13 @@ import (
 )
 
 // cliName：委派结果里的执行者名：编程助手，或派给 Nomi 的后台 Nomi
-var cliName = map[string]string{"claude": "Claude Code", "codex": "Codex", "grok": "Grok", "gemini": "Gemini", "dsh": "dsh",
-	"nomi": "后台的 Nomi"}
+var cliName = func() map[string]string {
+	m := map[string]string{"nomi": "后台的 Nomi"}
+	for _, id := range builtin.Ordered {
+		m[id] = builtin.DisplayName(id)
+	}
+	return m
+}()
 
 // PinTTL：/agent 钉住的有效期
 const PinTTL = 10 * 60_000
@@ -150,6 +156,8 @@ type bgTask struct {
 	o   *util.Obj // 持久化形状（键序固定）
 	iso *IsolationHandle
 	ctx *execCtx
+	// lent：后台 Nomi 同步等它的结果，它在父任务的运行名额里跑（borrowSlot），不另算一个
+	lent bool
 }
 
 type execCtx struct {
@@ -178,6 +186,8 @@ type Service struct {
 	onFreed    atomic.Pointer[func()]
 	// waiters：排队等名额的同步委派 / 追问（先来先得）；放行时名额已经替它占好
 	waiters []chan struct{}
+	// lending：后台 Nomi 正借出自己名额的（同一个父任务同一时间只借给一个子委派；关闭 = 还回来了）
+	lending map[*desktop.BackgroundRun]chan struct{}
 	persist sync.Mutex
 	wg      sync.WaitGroup
 	// announceMu：任务结束的回报串行做（同一次结果只报一次）
@@ -394,7 +404,7 @@ func (s *Service) shared() int {
 func (s *Service) noteLoadLocked() {
 	n := s.reserved
 	for _, t := range s.tasks {
-		if t.status() == "running" {
+		if t.status() == "running" && !t.lent {
 			n++
 		}
 	}
@@ -1061,8 +1071,9 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 	if err := s.waitMemory(c.sig, desktop.BackgroundFrom(c.sig) != nil); err != nil {
 		return nil, err
 	}
-	// 同步委派：先占名额再往下走（准备隔离、等用户确认都要等）；名额满了排队等（#141、2.3）
-	release, err := s.reserveSlot(c.sig, !background)
+	// 同步委派：先占名额再往下走（准备隔离、等用户确认都要等）；名额满了排队等（#141、2.3）。
+	// 后台 Nomi 里的：父任务占着名额、停在这里等结果，子委派就在它的名额里跑（#294）
+	release, lent, err := s.slotFor(c.sig, !background)
 	if err != nil {
 		return nil, err
 	}
@@ -1194,7 +1205,7 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 	if c.ec.ConversationID != "" {
 		o.Set("conversationId", c.ec.ConversationID)
 	}
-	task := &bgTask{o: o, iso: iso, ctx: c}
+	task := &bgTask{o: o, iso: iso, ctx: c, lent: lent}
 	s.mu.Lock()
 	s.setTask(task)
 	s.persistTasks()
@@ -1214,8 +1225,10 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 			"filesVerified", false, "approvals", approvalsZero(),
 			"durationMs", s.d.Now()-t0, "isolationNote", publicIsolationNote(iso)), c), nil
 	}
-	// 任务已记为 running，由它自己计数：名额在这里还回去
-	release()
+	// 任务已记为 running，由它自己计数：名额在这里还回去（借来的跑完才还）
+	if !lent {
+		release()
+	}
 	return s.runChild(task, prompt, true, c.sig), nil
 }
 
@@ -1667,6 +1680,54 @@ func (s *Service) slotReleaser() func() {
 	}
 }
 
+// slotFor：同步委派 / 追问要的运行名额（sync = 调用方停在这里等结果）。后台 Nomi（持续任务）里的同步委派：
+// 借父任务自己的名额（lent = true），不去共享上限里排队——父任务占着名额、同步等子委派的结果，全部名额都被这样的
+// 父任务占满时谁也等不到（#294）。异步的不借：父任务不等它，它要自己占一个名额、算进上限；前台的照常 reserveSlot。
+func (s *Service) slotFor(sig context.Context, sync bool) (release func(), lent bool, err error) {
+	if run := desktop.BackgroundFrom(sig); run != nil && sync {
+		release, err = s.borrowSlot(sig, run)
+		return release, err == nil, err
+	}
+	release, err = s.reserveSlot(sig, sync)
+	return release, false, err
+}
+
+// borrowSlot：借后台执行 run 自己的名额。同一个父任务同时只借给一个子委派（真正在跑的不超过上限）；
+// 第二个等前一个还回来，这一轮被停时退出（cancelled）。返回的释放函数只生效一次。
+func (s *Service) borrowSlot(sig context.Context, run *desktop.BackgroundRun) (func(), error) {
+	var done <-chan struct{}
+	if sig != nil {
+		done = sig.Done()
+	}
+	for {
+		s.mu.Lock()
+		busy, ok := s.lending[run]
+		if !ok {
+			if s.lending == nil {
+				s.lending = map[*desktop.BackgroundRun]chan struct{}{}
+			}
+			ch := make(chan struct{})
+			s.lending[run] = ch
+			s.mu.Unlock()
+			var once sync.Once
+			return func() {
+				once.Do(func() {
+					s.mu.Lock()
+					delete(s.lending, run)
+					s.mu.Unlock()
+					close(ch)
+				})
+			}, nil
+		}
+		s.mu.Unlock()
+		select {
+		case <-busy:
+		case <-done:
+			return nil, derr("cancelled", "等前一个委派做完时这一轮被停止了")
+		}
+	}
+}
+
 // reserveSlot：占一个运行名额；满了就排队等（2.3：排队代替拒绝），Nomi 这一轮被停时退出排队（cancelled）。
 // wait=false（没有持续任务时的后台委派）：保持旧行为，满了直接拒绝（concurrency_limit）。返回的释放函数只生效一次。
 func (s *Service) reserveSlot(sig context.Context, wait bool) (func(), error) {
@@ -1737,7 +1798,7 @@ func (s *Service) followup(taskID, message string, c *execCtx, t0 float64) (*uti
 			"要接着改就重新委派（base_branch 填那个新分支）")
 	}
 	// 追问会让任务重新运行：与首次委派共用名额（#141）；满了排队等（2.3）。等用户确认期间也占着名额
-	release, err := s.reserveSlot(c.sig, true)
+	release, lent, err := s.slotFor(c.sig, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1762,12 +1823,15 @@ func (s *Service) followup(taskID, message string, c *execCtx, t0 float64) (*uti
 	task.o.Set("status", "running")
 	task.o.Set("result", util.Undefined)
 	task.ctx = c
+	task.lent = lent
 	task.o.Set("startedAt", t0)
 	s.noteLoadLocked()
 	s.persistTasks()
 	s.mu.Unlock()
-	// 记成 running 后由它自己计数，占的名额还回去（不重复计）
-	release()
+	// 记成 running 后由它自己计数，占的名额还回去（不重复计）；借来的跑完才还
+	if !lent {
+		release()
+	}
 	return s.runChild(task, message, true, c.sig), nil
 }
 

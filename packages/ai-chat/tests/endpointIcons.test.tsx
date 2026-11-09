@@ -20,6 +20,8 @@ describe('EndpointIcon', () => {
         dsh: 'dsh',
         grok: 'Grok',
         gemini: 'Gemini',
+        kimi: 'Kimi Code',
+        minimax: 'MiniMax Code',
       }[b];
       expect(icon.getAttribute('role')).toBe('img');
       expect(icon.getAttribute('aria-label')).toBe(name);

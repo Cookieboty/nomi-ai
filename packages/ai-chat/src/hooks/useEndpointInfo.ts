@@ -1,3 +1,4 @@
+import { cliConfigPath } from '@nomi-ai/cli-catalog';
 /**
  * 「按端」信息卡 / 详情抽屉的数据：安装 / 版本（cli-update）、登录方式与额度（usage quota）、
  * 今日 / 近 7 天用量与模型 / 供应商（usage endpoint）、CLI 默认的配置文件路径（只有路径）。
@@ -46,19 +47,12 @@ const isEndpointInfo = (u: unknown): u is UsageEndpointInfo => {
   );
 };
 
-/** CLI 默认的配置文件路径（只是路径字符串，用于展示；Nomi 不读取其中内容） */
-const CONFIG_PATHS: Partial<Record<ConversationBackend, { label: string; path: string }>> = {
-  claude: { label: 'settings.json', path: '~/.claude/settings.json' },
-  codex: { label: 'config.toml', path: '~/.codex/config.toml' },
-  grok: { label: 'config.toml', path: '~/.grok/config.toml' },
-  gemini: { label: 'settings.json', path: '~/.gemini/settings.json' },
-};
-
 export function configPathsOf(
   backend: ConversationBackend,
 ): Array<{ label: string; path: string }> {
-  const p = CONFIG_PATHS[backend];
-  return p ? [p] : [];
+  // CLI 默认的配置文件路径（清单 configPath；只是路径字符串，用于展示，Nomi 不读取其中内容）
+  const path = cliConfigPath(backend);
+  return path ? [{ label: path.slice(path.lastIndexOf('/') + 1), path }] : [];
 }
 
 export function useEndpointInfo(backend: ConversationBackend, enabled = true): EndpointInfo {

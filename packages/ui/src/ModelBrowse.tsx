@@ -121,7 +121,8 @@ export const ModelVendorFilter: React.FC<{
             <BrandIcon
               brand={v.brand}
               name={v.name}
-              size={20}
+              size={16}
+              inline
               fallbackIcon={v.id === OTHER_VENDOR ? Ellipsis : undefined}
             />
           )}

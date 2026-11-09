@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"math"
 	"os"
 	"path/filepath"
@@ -16,15 +17,23 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodeproc"
 )
 
-var envBin = map[string]string{
-	"claude": "NOMI_CLAUDE_BIN", "codex": "NOMI_CODEX_BIN", "dsh": "NOMI_DSH_BIN",
-	"grok": "NOMI_GROK_BIN", "gemini": "NOMI_GEMINI_BIN", "cursor": "NOMI_CURSOR_BIN",
-}
+// envBin：指定可执行文件路径的环境变量（NOMI_<ID>_BIN）；内置 CLI 之外还认 cursor（只用来检测）
+var envBin = func() map[string]string {
+	m := map[string]string{"cursor": "NOMI_CURSOR_BIN"}
+	for _, id := range builtin.Ordered {
+		m[id] = builtin.BinEnv(id)
+	}
+	return m
+}()
 
-var candidates = map[string][]string{
-	"claude": {"claude"}, "codex": {"codex"}, "dsh": {"dsh"}, "grok": {"grok"},
-	"gemini": {"gemini"}, "cursor": {"cursor-agent", "agent"},
-}
+// candidates：可执行文件名（内置 CLI 取清单 binary.names）
+var candidates = func() map[string][]string {
+	m := map[string][]string{"cursor": {"cursor-agent", "agent"}}
+	for _, id := range builtin.Ordered {
+		m[id] = builtin.Binaries(id)
+	}
+	return m
+}()
 
 // MockCliRoots：开发态 mock CLI 目录（仓库根目录 scripts/mock-cli，相对 cwd）。
 var MockCliRoots = func() []string {
@@ -695,13 +704,22 @@ func FetchNpmLatest(pkg string, timeoutMs int) string {
 }
 
 // NpmPkg = NPM_PKG。
-var NpmPkg = map[string]string{
-	"claude": "@anthropic-ai/claude-code", "codex": "@openai/codex", "dsh": "@deepseek-ai/dsh",
-	"grok": "@xai-official/grok", "gemini": "@google/gemini-cli",
-}
+var NpmPkg = func() map[string]string {
+	m := map[string]string{}
+	for _, id := range builtin.Ordered {
+		m[id] = builtin.NpmPackage(id)
+	}
+	return m
+}()
 
 // CliMinNodeMajor = CLI_MIN_NODE_MAJOR。
-var CliMinNodeMajor = map[string]int{"claude": 22, "codex": 16, "dsh": 24, "grok": 18, "gemini": 20}
+var CliMinNodeMajor = func() map[string]int {
+	m := map[string]int{}
+	for _, id := range builtin.Ordered {
+		m[id] = builtin.MinNode(id)
+	}
+	return m
+}()
 
 const DshMinNodeMajor = 24
 

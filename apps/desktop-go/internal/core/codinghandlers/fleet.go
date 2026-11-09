@@ -37,6 +37,9 @@ func RegisterFleet(r *contract.Router, get func() Fleet) {
 		if errors.Is(err, fleet.ErrCloseDenied) {
 			panic(&contract.Error{Code: "FLEET_CLOSE_DENIED", Message: err.Error()})
 		}
+		if errors.Is(err, fleet.ErrCloseUnverified) {
+			panic(&contract.Error{Code: "FLEET_CLOSE_UNVERIFIED", Message: "could not read the process table to confirm it is still idle"})
+		}
 		if errors.Is(err, fleet.ErrCloseFailed) {
 			panic(&contract.Error{Code: "FLEET_CLOSE_FAILED", Message: err.Error()})
 		}

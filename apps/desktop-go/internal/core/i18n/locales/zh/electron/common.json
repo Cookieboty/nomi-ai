@@ -67,6 +67,8 @@
   "electron.common.codex-could-not-start-the-app-server": "Codex 没能启动 app-server",
   "electron.common.codex-did-not-return-a-session": "Codex 没有返回会话",
   "electron.common.codex-error": "Codex 错误",
+  "electron.common.cli-needs-sign-in": "{0} 还没有登录：在「设置 → 编程助手」里登录 {0} 的官方账号后再试。",
+  "electron.common.cli-not-found-set-nomi-use-mock": "未找到 {0}（可设 NOMI_USE_MOCK_CLI=1）",
   "electron.common.codex-not-found-set-nomi-use-mock-cli": "未找到 Codex（可设 NOMI_USE_MOCK_CLI=1）",
   "electron.common.coding-assistant-output": "编程助手的输出",
   "electron.common.coding-task-s-in-progress": "{0} 个编程任务进行中",
@@ -141,8 +143,6 @@
   "electron.common.gemini-cli-couldn-t-start-an-acp-session": "Gemini CLI 没能启动 ACP 会话，可能版本过旧。请在「编程助手 → Gemini」里更新后再试。",
   "electron.common.gemini-cli-does-not-trust-the-current-folder": "Gemini CLI 不信任当前文件夹（{0}），已拒绝在这里运行。可以点下方「信任此文件夹」，或在终端里进入该文件夹运行一次 `gemini` 并选择信任，然后重试。",
   "electron.common.gemini-cli-not-found-set-nomi-use-mock": "未找到 Gemini CLI（可设 NOMI_USE_MOCK_CLI=1）",
-  "electron.common.gemini-did-not-confirm-the-permission-mode-change": "Gemini 没有确认权限模式切换（{0}），已停止当前会话，下一轮会按新模式重新开始",
-  "electron.common.gemini-did-not-confirm-the-permission-mode-this": "Gemini 没有确认权限模式（{0}），这条消息没有发送",
   "electron.common.gemini-did-not-respond-for-seconds-so-the": "Gemini 响应超时（{0} 秒没有响应），已取消这次请求。请重试，若反复出现请检查网络或重启该会话。",
   "electron.common.gemini-didn-t-return-a-session": "Gemini 没有返回会话",
   "electron.common.gemini-has-encrypted-credential-storage-turned-on-gemini": "Gemini 开启了加密凭据存储（GEMINI_FORCE_ENCRYPTED_FILE_STORAGE），它不区分账号目录，暂不支持多个账号",
@@ -154,8 +154,6 @@
   "electron.common.grant": "授权",
   "electron.common.grant-nomi-access-to-this-folder": "授权 Nomi 访问这个文件夹",
   "electron.common.grok-could-not-start-an-acp-session": "Grok 没能启动 ACP 会话",
-  "electron.common.grok-did-not-confirm-the-permission-mode-change": "Grok 没有确认权限模式切换（{0}），已停止当前会话，下一轮会按新模式重新开始",
-  "electron.common.grok-did-not-confirm-the-permission-mode-so": "Grok 没有确认权限模式（{0}），这条消息没有发送",
   "electron.common.grok-did-not-return-a-session": "Grok 没有返回会话",
   "electron.common.grok-did-not-switch-the": "Grok 没有切换{0}（{1}）",
   "electron.common.grok-error": "Grok 错误",
@@ -600,5 +598,8 @@
   "electron.common.sandbox-category-personal": "邮件、信息、日历、通讯录、备忘录与照片",
   "electron.common.sandbox-category-secret-files": "密钥文件（.env、私钥、证书）",
   "electron.common.sandbox-needs-permission": "沙箱挡下了「{0}」，等你授权",
-  "electron.common.auto-continue-stopped-no-progress": "（接着做的这一轮没有实际进展，先停在这里。要我继续就说「继续」。）"
+  "electron.common.auto-continue-stopped-no-progress": "（接着做的这一轮没有实际进展，先停在这里。要我继续就说「继续」。）",
+  "electron.common.cli-did-not-confirm-the-permission-mode-change": "{0} 没有确认权限模式切换（{1}），已停止当前会话，下一轮会按新模式重新开始",
+  "electron.common.cli-did-not-confirm-the-permission-mode-so": "{0} 没有确认权限模式（{1}），这条消息没有发送",
+  "electron.common.list-separator": "、"
 }

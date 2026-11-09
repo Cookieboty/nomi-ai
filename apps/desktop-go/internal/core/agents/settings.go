@@ -1,9 +1,18 @@
 package agents
 
-import "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
+import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
+)
 
-// Kinds = AgentKind 的固定顺序（settings.tools 键序）。
-var Kinds = []AgentKind{"codex", "claude", "dsh", "grok", "gemini"}
+// Kinds = AgentKind 的固定顺序（settings.tools 键序；内置编程助手）。
+var Kinds = func() []AgentKind {
+	out := []AgentKind{}
+	for _, id := range builtin.Ordered {
+		out = append(out, AgentKind(id))
+	}
+	return out
+}()
 
 // Settings：编程助手进度监测设置。
 type Settings struct {
@@ -17,7 +26,15 @@ type Settings struct {
 // DefaultAgentWatch：默认设置。
 func DefaultAgentWatch() Settings {
 	return Settings{Enabled: true, StallMs: 5 * 60_000, CooldownMs: 90_000,
-		Tools: map[AgentKind]bool{"codex": true, "claude": true, "dsh": true, "grok": true, "gemini": true}}
+		Tools: allTools()}
+}
+
+func allTools() map[AgentKind]bool {
+	m := map[AgentKind]bool{}
+	for _, k := range Kinds {
+		m[k] = true
+	}
+	return m
 }
 
 func (s Settings) toolsObj() *util.Obj {

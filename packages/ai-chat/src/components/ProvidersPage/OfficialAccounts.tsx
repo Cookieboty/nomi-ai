@@ -1,3 +1,4 @@
+import { byCli, cliName } from '@nomi-ai/cli-catalog';
 /**
  * 编程助手的官方账号（docs/development/coding-agents.md）：一个账号 = 一个 CLI 配置目录，
  * 登录由 CLI 自己完成，Nomi 不保存凭据。多个账号可以在不同标签里同时使用；「默认账号」给新标签
@@ -19,12 +20,7 @@ import ppStyles from '../ProviderPanel/index.module.css';
 
 import styles from './index.module.css';
 
-const NAME: Record<AccountKind, string> = {
-  claude: 'Claude Code',
-  codex: 'Codex',
-  grok: 'Grok',
-  gemini: 'Gemini',
-};
+const NAME: Record<AccountKind, string> = byCli(cliName);
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 

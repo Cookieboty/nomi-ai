@@ -130,6 +130,9 @@ func (o *Orchestrator) recoverFrozen() {
 	}
 }
 
+// pausedByMemory：内存守护冻结时传的 by（fleet.PausedByMemory）
+const pausedByMemory = "memory"
+
 // FreezeTab：冻结标签的进程树（pids 由调用方从进程表里展开，含根进程；父进程在前）。
 // 只冻结有活着的 CLI 进程的标签；已经冻结的不重复冻结。
 func (o *Orchestrator) FreezeTab(id string, pids []int, by string) bool {
@@ -137,6 +140,11 @@ func (o *Orchestrator) FreezeTab(id string, pids []int, by string) bool {
 		return false
 	}
 	if _, ok := o.frozen[id]; ok {
+		return false
+	}
+	// 内存守护不冻用户正看着的标签（窗口在前台、当前就是这个标签）：冻了也省不出多少，只会让正在等回复的这一轮卡住。
+	// fleet 选候选时已经排除（Deps.Foreground）；这里再守一次，防止选完到冻结之间用户切了过来
+	if by == pausedByMemory && id == o.ForegroundTab() {
 		return false
 	}
 	if o.frozen == nil {

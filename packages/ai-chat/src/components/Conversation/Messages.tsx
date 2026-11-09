@@ -14,6 +14,7 @@ import type { LucideIcon } from 'lucide-react';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 
 import { joinFileAttachments, splitFileAttachments } from '../../services/fileAttachments';
+import { refLabel, useGatewayState } from '../../services/nomiModel';
 import type { ConvMessage } from '../../types/conversation';
 import { layoutBody, planBody, planLength, sliceBody } from '../../utils/convSegments';
 import { formatFullTime, turnSummary } from '../../utils/convTime';
@@ -384,16 +385,7 @@ export const AssistantMessage = memo(function AssistantMessage({
       {slots?.after?.(message)}
       <div className={styles.meta}>
         {message.label && <span className={styles.label}>{message.label}</span>}
-        {message.model && (
-          <span
-            className={styles.model}
-            data-testid="conv-msg-model"
-            title={t('ui.cli-monitor.model', message.model)}
-            aria-label={t('ui.cli-monitor.model', message.model)}
-          >
-            {message.model}
-          </span>
-        )}
+        {message.model && <ModelTag model={message.model} />}
         {timeLabel && (
           <time dateTime={new Date(message.at).toISOString()} title={full}>
             {timeLabel}
@@ -418,3 +410,22 @@ export const AssistantMessage = memo(function AssistantMessage({
     </div>
   );
 });
+
+/**
+ * 消息用的模型：网关的 `供应商/模型` 显示成「供应商名 · 模型」（与 Nomi 的模型名同一个 refLabel）；
+ * 别的（官方模型名、Nomi 记下的显示名）原样显示
+ */
+const ModelTag: React.FC<{ model: string }> = ({ model }) => {
+  const gateway = useGatewayState();
+  const label = refLabel(gateway, model);
+  return (
+    <span
+      className={styles.model}
+      data-testid="conv-msg-model"
+      title={t('ui.cli-monitor.model', label)}
+      aria-label={t('ui.cli-monitor.model', label)}
+    >
+      {label}
+    </span>
+  );
+};

@@ -41,6 +41,7 @@ export const manifest: CliManifest = {
     subagents: false,
     slashCommands: true,
     resume: true,
+    history: true,
     fork: false,
     usageQuota: false,
     progressMonitor: true,
@@ -48,4 +49,15 @@ export const manifest: CliManifest = {
   },
   modelSwitch: 'inplace',
   clientSpec: { client: 'gemini' },
+  fullName: 'Gemini CLI',
+  configPath: '~/.gemini/settings.json',
+  host: {
+    minNode: 20,
+    vendor: 'google',
+    acpArgs: ['--acp'],
+    nomiCommand: true,
+    homeEnv: 'GEMINI_CLI_HOME',
+    homeDirs: ['.gemini'],
+    execConfig: ['.gemini/settings.json'],
+  },
 };

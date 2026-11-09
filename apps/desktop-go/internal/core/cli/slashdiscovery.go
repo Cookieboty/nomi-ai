@@ -4,6 +4,7 @@ package cli
 
 import (
 	"errors"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -15,9 +16,6 @@ import (
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/claude"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/codex"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/grok"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/charcontract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -632,15 +630,10 @@ func (c *slashCollector) plugins(dir, scope string) {
 }
 
 func slashOf(backend string) *clisdk.SlashDiscoveryCapability {
-	switch backend {
-	case "claude":
-		return claude.Slash
-	case "codex":
-		return codex.Slash
-	case "grok":
-		return grok.Slash
+	if m := builtin.Impl(backend); m != nil {
+		return m.Slash // dsh / gemini：无 slash
 	}
-	return nil // nomi / dsh / gemini：无 slash
+	return nil // nomi / 外部
 }
 
 func slashCollect(backend, cwd, home string) *slashCollector {

@@ -88,7 +88,7 @@ const (
 	gatewayScope           = "gateway"
 )
 
-var accountBackends = []string{"claude", "codex", "grok", "gemini"}
+var accountBackends = builtin.Where(builtin.WithAccounts)
 
 func isAccountBackend(b string) bool { return containsS(accountBackends, b) }
 
@@ -616,6 +616,14 @@ func (o *Orchestrator) showDirectoryPicker(defaultPath string) *string {
 	return r
 }
 
+// ForegroundTab：用户正看着的标签（应用窗口在前台时的当前标签）；窗口不在前台返回 ""
+func (o *Orchestrator) ForegroundTab() string {
+	if o.activeTabID != "" && o.appFocused() {
+		return o.activeTabID
+	}
+	return ""
+}
+
 func (o *Orchestrator) appFocused() (f bool) {
 	defer func() {
 		if recover() != nil {
@@ -1007,9 +1015,10 @@ func (o *Orchestrator) MainPermissionMode() string { return str(o.main(), "permi
 // State = state()。
 func (o *Orchestrator) State() *util.Obj {
 	m := o.main()
+	// bins 现查（命中走缓存；没找到的 10 秒后重查）：装完 CLI 后侧栏再取一次就能看到，不用重启
 	bins := util.NewObj()
-	for _, b := range []string{"claude", "codex", "dsh", "grok", "gemini"} {
-		if p := PeekHarnessBin(b); p != "" {
+	for _, b := range builtin.Ordered {
+		if p := ResolveHarnessBin(b); p != "" {
 			bins.Set(b, p)
 		} else {
 			bins.Set(b, nil)

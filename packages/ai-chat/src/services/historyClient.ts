@@ -1,17 +1,14 @@
-import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
+import { BUILTIN_CLI_IDS, cliCapability, type BuiltinCliId } from '@nomi-ai/cli-catalog';
 import { t } from '@nomi-ai/ui';
 
 import { api, hasTransport } from './api';
 import type { HarnessTabMeta } from './harnessClient';
 
 export type HistoryBackend = BuiltinCliId;
-export const HISTORY_BACKENDS: readonly HistoryBackend[] = [
-  'claude',
-  'codex',
-  'dsh',
-  'gemini',
-  'grok',
-];
+/** 能列出以前会话的编程助手（清单 capabilities.history） */
+export const HISTORY_BACKENDS: readonly HistoryBackend[] = BUILTIN_CLI_IDS.filter((id) =>
+  cliCapability(id, 'history'),
+);
 
 /** 列表 / 搜索索引每页条数（须与主进程 SessionHistoryService.HISTORY_PAGE_SIZE 一致） */
 export const HISTORY_PAGE_SIZE = 20;

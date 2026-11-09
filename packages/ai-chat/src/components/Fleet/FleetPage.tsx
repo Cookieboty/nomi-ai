@@ -1,8 +1,8 @@
 import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
 import { brand } from '@nomi-ai/types';
-import { Button, Icon, Select, Switch, t } from '@nomi-ai/ui';
+import { Button, Checkbox, Icon, Select, Switch, t } from '@nomi-ai/ui';
 import { Folder, Gauge, Search, SlidersHorizontal } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   dirName,
@@ -31,24 +31,45 @@ const backendName = (b: string) => (isBuiltinCliId(b) ? t(ENDPOINT_NAME[b]) : b)
 export interface IdleCloseError {
   pid: number;
   backend: string;
-  reason: 'denied' | 'gone' | 'failed';
+  reason: 'denied' | 'gone' | 'unverified' | 'failed';
   detail?: string;
 }
 
 const IDLE_ERROR_LABEL: Record<IdleCloseError['reason'], string> = {
   denied: 'ui.cli-monitor.fleet-close-idle-denied',
   gone: 'ui.cli-monitor.fleet-close-idle-gone',
+  unverified: 'ui.cli-monitor.fleet-close-idle-unverified',
   failed: 'ui.cli-monitor.fleet-close-idle-failed',
 };
 
 const IdleList: React.FC<{
   state: FleetState;
-  onCloseIdle?: (item: FleetIdleItem) => void;
-  error?: IdleCloseError | null;
-}> = ({ state, onCloseIdle, error }) => {
+  onCloseIdle?: (items: FleetIdleItem[]) => void;
+  errors?: IdleCloseError[];
+}> = ({ state, onCloseIdle, errors }) => {
   const items = state.externalIdle.items;
+  /** 多选：勾上的进程号；列表刷新后已经不在的自动去掉 */
+  const [picked, setPicked] = useState<ReadonlySet<number>>(() => new Set());
+  const selected = items.filter((it) => picked.has(it.pid));
+  const all = selected.length > 0 && selected.length === items.length;
+  const some = selected.length > 0 && !all;
+  const allBox = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (allBox.current) allBox.current.indeterminate = some;
+  }, [some]);
   if (!items.length) return null;
   const app = brand.appName;
+  const toggle = (pid: number) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(pid)) next.delete(pid);
+      else next.add(pid);
+      return next;
+    });
+  const closeSelected = () => {
+    onCloseIdle?.(selected);
+    setPicked(new Set());
+  };
   return (
     <section
       className={board.idle}
@@ -60,9 +81,45 @@ const IdleList: React.FC<{
         <span className={board.count}>{items.length}</span>
       </h3>
       <p className={board.hint}>{t('ui.cli-monitor.fleet-idle-hint', app)}</p>
+      {onCloseIdle && (
+        <div className={board.idleBar}>
+          <label className={board.idleSelectAll}>
+            <Checkbox
+              ref={allBox}
+              checked={all}
+              onChange={() => setPicked(all ? new Set() : new Set(items.map((it) => it.pid)))}
+              data-testid="fleet-idle-select-all"
+            />
+            {t('ui.providers-schedule.select-all')}
+          </label>
+          <span className={board.headSpacer} />
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={!selected.length}
+            onClick={closeSelected}
+            data-testid="fleet-close-idle-selected"
+          >
+            {t('ui.cli-monitor.fleet-close-idle-selected', selected.length)}
+          </Button>
+        </div>
+      )}
       <ul className={board.idleRows}>
         {items.map((it) => (
-          <li key={it.pid} className={board.idleRow} data-testid={`fleet-idle-${it.pid}`}>
+          <li
+            key={it.pid}
+            className={board.idleRow}
+            data-selected={picked.has(it.pid) || undefined}
+            data-testid={`fleet-idle-${it.pid}`}
+          >
+            {onCloseIdle && (
+              <Checkbox
+                checked={picked.has(it.pid)}
+                onChange={() => toggle(it.pid)}
+                aria-label={t('ui.cli-monitor.fleet-idle-select', backendName(it.backend), it.pid)}
+                data-testid={`fleet-idle-pick-${it.pid}`}
+              />
+            )}
             <EndpointIcon
               backend={isBuiltinCliId(it.backend) ? it.backend : 'external'}
               size={16}
@@ -85,7 +142,7 @@ const IdleList: React.FC<{
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => onCloseIdle(it)}
+                onClick={() => onCloseIdle([it])}
                 aria-label={t('ui.cli-monitor.fleet-close-idle', backendName(it.backend), it.pid)}
                 data-testid={`fleet-close-idle-${it.pid}`}
               >
@@ -95,12 +152,17 @@ const IdleList: React.FC<{
           </li>
         ))}
       </ul>
-      {error && (
-        <p className={board.idleError} role="alert" data-testid="fleet-close-idle-error">
+      {errors?.map((error) => (
+        <p
+          key={error.pid}
+          className={board.idleError}
+          role="alert"
+          data-testid="fleet-close-idle-error"
+        >
           {t(IDLE_ERROR_LABEL[error.reason], backendName(error.backend), error.pid)}
           {error.reason === 'failed' && error.detail ? `（${error.detail}）` : ''}
         </p>
-      )}
+      ))}
     </section>
   );
 };
@@ -241,9 +303,10 @@ export const FleetPage: React.FC<
     active: boolean;
     state: FleetState | null;
     onBack: () => void;
-    onCloseIdle?: (item: FleetIdleItem) => void;
-    /** 上一次关闭空闲进程没成功的原因（关掉了或换了一个再关时清掉） */
-    idleError?: IdleCloseError | null;
+    /** 关闭空闲进程：一个（行上的「关闭」）或勾选的几个（批量）；确认由调用方做 */
+    onCloseIdle?: (items: FleetIdleItem[]) => void;
+    /** 上一次关闭空闲进程没成功的（每个一条原因；再关时清掉） */
+    idleErrors?: IdleCloseError[];
     onSetAutoPause?: (on: boolean) => void;
     onSetPolicy?: (mode: FleetPolicyMode) => void;
   } & CardActions
@@ -252,7 +315,7 @@ export const FleetPage: React.FC<
   state,
   onBack,
   onCloseIdle,
-  idleError,
+  idleErrors,
   onSetAutoPause,
   onSetPolicy,
   ...actions
@@ -400,7 +463,7 @@ export const FleetPage: React.FC<
         {state && <PolicyBar state={state} onSetPolicy={onSetPolicy} />}
       </div>
 
-      {state && <IdleList state={state} onCloseIdle={onCloseIdle} error={idleError} />}
+      {state && <IdleList state={state} onCloseIdle={onCloseIdle} errors={idleErrors} />}
     </section>
   );
 };

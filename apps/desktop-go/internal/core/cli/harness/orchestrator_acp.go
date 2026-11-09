@@ -4,6 +4,8 @@ package harness
 
 import (
 	"errors"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
+	"regexp"
 	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
@@ -90,13 +92,13 @@ func (e *causeError) Unwrap() error { return e.cause }
 
 func withCause(msg string, cause error) error { return &causeError{msg, cause} }
 
+// acpAuthRequiredRe：ACP 建会话时 CLI 说还没登录（Kimi Code、MiniMax Code 都回 -32000 "Authentication required"）
+var acpAuthRequiredRe = regexp.MustCompile(`(?i)authentication required|auth_required|run .* login`)
+
 // acpDisplayName = acpDisplayName(backend, ext?)。
 func acpDisplayName(backend string, ext *util.Obj) string {
-	if backend == "grok" {
-		return "Grok"
-	}
-	if backend == "gemini" {
-		return "Gemini"
+	if n := builtin.DisplayName(backend); n != "" {
+		return n
 	}
 	if ext != nil {
 		if n, ok := ext.Get("displayName").(string); ok {
@@ -143,11 +145,8 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			return nil, err
 		}
 		backend := "gemini"
-		switch tab.Get("backend") {
-		case "grok":
-			backend = "grok"
-		case "external":
-			backend = "external"
+		if b := str(tab, "backend"); b == "external" || builtin.UsesAcp(b) {
+			backend = b
 		}
 		var ext *util.Obj
 		if backend == "external" {
@@ -165,23 +164,18 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			bin = jsStr(ext.Get("command"))
 			argv = clisdk.RenderExternalArgs(strsOf(ext.Get("args")), map[string]string{"cwd": str(tab, "cwd"), "home": o.home})
 		} else {
-			which := "gemini"
-			if backend == "grok" {
-				which = "grok"
-			}
-			found := ResolveHarnessBin(which)
+			found := ResolveHarnessBin(backend)
 			if found == "" {
-				if backend == "grok" {
+				switch backend {
+				case "grok":
 					throw(i18n.T("electron.common.grok-not-found-set-nomi-use-mock-cli"))
+				case "gemini":
+					throw(i18n.T("electron.common.gemini-cli-not-found-set-nomi-use-mock"))
 				}
-				throw(i18n.T("electron.common.gemini-cli-not-found-set-nomi-use-mock"))
+				throw(i18n.T("electron.common.cli-not-found-set-nomi-use-mock", builtin.FullName(backend)))
 			}
 			bin = found
-			if backend == "grok" {
-				argv = []string{"agent", "stdio"}
-			} else {
-				argv = []string{"--acp"}
-			}
+			argv = builtin.AcpArgs(backend)
 		}
 		useNode := IsScript(bin)
 		o.checkCwd(str(tab, "cwd"))
@@ -279,6 +273,10 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 					}
 				}
 			} else if err.Error() != "ACP agent returned no session" {
+				// 没登录（ACP 的 auth_required）：内置的告诉用户去哪里登录，别只给一句英文报错
+				if acpAuthRequiredRe.MatchString(err.Error()) && builtin.WithAccounts(backend) {
+					return struct{}{}, errors.New(i18n.T("electron.common.cli-needs-sign-in", name))
+				}
 				return struct{}{}, err
 			}
 			if sid == nil || *sid == "" {
@@ -315,10 +313,10 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			if want != "" && !adoptedHistoryMode && modeNow != want {
 				if _, e := jsrt.Await(driver.SetPermissionModeSignal(want, signal)); e != nil {
 					why := rpc.InnermostMessage(e.Error())
-					if backend == "grok" {
-						return struct{}{}, withCause(i18n.T("electron.common.grok-did-not-confirm-the-permission-mode-so", why), e)
+					if backend == "gemini" && gemini.IsUntrustedModeError(e.Error()) {
+						return struct{}{}, gemini.NewUntrustedError(str(tab, "cwd"), e)
 					}
-					return struct{}{}, withCause(i18n.T("electron.common.gemini-did-not-confirm-the-permission-mode-this", why), e)
+					return struct{}{}, withCause(i18n.T("electron.common.cli-did-not-confirm-the-permission-mode-so", name, why), e)
 				}
 			}
 			live.permissionMode = initMode
@@ -333,7 +331,8 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			if backend == "grok" && exited {
 				return nil, &acpUnavailableError{i18n.T("electron.common.grok-could-not-start-an-acp-session"), e}
 			}
-			if ext != nil && exited {
+			// 外部 CLI 与 Gemini 以外的内置 CLI：报它自己的名字和最后的错误输出（不套 Gemini 的「版本过旧」提示）
+			if exited && (ext != nil || backend != "gemini") {
 				tail := clisdk.SliceFrom(util.JSTrim(stderrTail), -300)
 				if tail == "" {
 					tail = i18n.T("electron.common.the-process-exited")

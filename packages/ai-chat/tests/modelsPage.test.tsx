@@ -681,6 +681,61 @@ describe('ModelsPage', () => {
     ]);
   });
 
+  it('keys: a note is edited in the key settings, shown on the card, saved only when changed', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      kimi({
+        keys: [
+          { id: 'k0', masked: 'sk-…0000', enabled: true, decryptable: true, note: '公司账号' },
+          { id: 'k1', masked: 'sk-…1111', enabled: true, decryptable: true },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    expect(within(dlg).getByTestId('pd-key-note-text-k0').textContent).toBe('公司账号');
+    expect(within(dlg).queryByTestId('pd-key-note-text-k1')).toBeNull();
+    fireEvent.click(within(dlg).getByTestId('pd-key-settings-k1'));
+    fireEvent.change(within(dlg).getByTestId('pd-key-note-k1'), {
+      target: { value: '  个人账号，月底到期 ' },
+    });
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    const keys = upserts(m)[0]!.keys!;
+    // 没改的不带 note；改了的去掉首尾空白
+    expect(keys[0]).not.toHaveProperty('note');
+    expect(keys[1]).toMatchObject({ id: 'k1', note: '个人账号，月底到期' });
+  });
+
+  it('keys: clearing a note sends an empty string; replacing a key keeps its note', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      kimi({
+        keys: [
+          { id: 'k0', masked: 'sk-…0000', enabled: true, decryptable: true, note: '旧账号' },
+          { id: 'k1', masked: 'sk-…1111', enabled: true, decryptable: true, note: '备用' },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    fireEvent.click(within(dlg).getByTestId('pd-key-settings-k0'));
+    fireEvent.change(within(dlg).getByTestId('pd-key-note-k0'), { target: { value: '' } });
+    fireEvent.click(within(dlg).getByTestId('pd-key-replace-k1'));
+    fireEvent.change(within(dlg).getByTestId('pd-key-replace-input-k1'), {
+      target: { value: 'sk-fresh-1111bbbb' },
+    });
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    const payload = upserts(m)[0]!;
+    expect(payload.keys).toEqual([expect.objectContaining({ id: 'k0', note: '' })]);
+    expect(payload.newKeys).toEqual([
+      expect.objectContaining({ value: 'sk-fresh-1111bbbb', position: 1, note: '备用' }),
+    ]);
+  });
+
   it('re-detect keeps edits made while it runs (#257)', async () => {
     let release!: (r: DetectResult) => void;
     const m = fakeMain({ detect: () => new Promise<DetectResult>((res) => (release = res)) });

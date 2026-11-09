@@ -4,6 +4,7 @@ package agents
 
 import (
 	"context"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"os"
 	"os/exec"
 	"regexp"
@@ -84,6 +85,54 @@ var rules = []struct {
 	}},
 }
 
+// genericRules：上面没有专门规则的内置编程助手：进程名是它的可执行文件名，或命令行里有它的 npm 包 / 可执行文件
+var genericRules = func() []struct {
+	kind AgentKind
+	test func(n, c string) bool
+} {
+	known := map[AgentKind]bool{}
+	for _, r := range rules {
+		known[r.kind] = true
+	}
+	out := []struct {
+		kind AgentKind
+		test func(n, c string) bool
+	}{}
+	for _, id := range builtin.Ordered {
+		if known[AgentKind(id)] {
+			continue
+		}
+		var name, cmd []*regexp.Regexp
+		for _, b := range builtin.Binaries(id) {
+			q := regexp.QuoteMeta(b)
+			name = append(name, ri(`^`+q+`(\.exe)?$`))
+			cmd = append(cmd, tok(q+`(\.exe)?`))
+		}
+		if p := builtin.NpmPackage(id); p != "" {
+			cmd = append(cmd, ri(strings.ReplaceAll(regexp.QuoteMeta(p), "/", `[\\/]`)))
+		}
+		out = append(out, struct {
+			kind AgentKind
+			test func(n, c string) bool
+		}{AgentKind(id), func(n, c string) bool {
+			for _, r := range name {
+				if r.MatchString(n) {
+					return true
+				}
+			}
+			for _, r := range cmd {
+				if r.MatchString(c) {
+					return true
+				}
+			}
+			return false
+		}})
+	}
+	return out
+}()
+
+var allRules = append(rules[:len(rules):len(rules)], genericRules...)
+
 // Classify：从进程列表里挑出编程助手（排除自身 selfPid）。
 func Classify(procs []RawProc, selfPid float64) []AgentProc {
 	out := []AgentProc{}
@@ -95,7 +144,7 @@ func Classify(procs []RawProc, selfPid float64) []AgentProc {
 		if reSelfTools.MatchString(n) {
 			continue
 		}
-		for _, r := range rules {
+		for _, r := range allRules {
 			if r.test(n, c) {
 				out = append(out, AgentProc{Pid: p.Pid, Kind: r.kind, Ppid: p.Ppid, RSS: p.RSS})
 				break

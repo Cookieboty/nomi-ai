@@ -30,9 +30,11 @@ type SessionInfo struct {
 	SessionID, ParentID, Cwd, Model, ReasoningEffort, Title string
 	// PermissionMode 可为已定义的空串（codex sandbox_policy: ""），故用指针：nil = undefined。
 	PermissionMode *string
-	Phase          LastPhase
-	Detail         string
-	LastAt         *float64
+	// SetupOnly：只有 CLI 自己建会话时塞的上下文（Gemini 的 <session_context>），没有用户说过的话：不算一个会话
+	SetupOnly bool
+	Phase     LastPhase
+	Detail    string
+	LastAt    *float64
 }
 
 func sp(s string) *string {
@@ -475,6 +477,11 @@ func ParseGrokSession(text, fallbackSessionID string) SessionInfo {
 	return info
 }
 
+// isGeminiSetup：Gemini 建会话时自己塞进去的第一条「用户」消息（<session_context> 环境说明），不是用户说的话
+func isGeminiSetup(m *util.Obj) bool {
+	return strings.HasPrefix(strings.TrimSpace(gemini.Text(m.Get("content"))), "<session_context>")
+}
+
 // ParseGeminiSession：解析 Gemini CLI 会话文件。
 func ParseGeminiSession(raw string) SessionInfo {
 	info := SessionInfo{Phase: "unknown"}
@@ -483,11 +490,12 @@ func ParseGeminiSession(raw string) SessionInfo {
 	msgs := j.Messages
 	var firstUser *util.Obj
 	for _, m := range msgs {
-		if m.Get("type") == "user" {
+		if m.Get("type") == "user" && !isGeminiSetup(m) {
 			firstUser = m
 			break
 		}
 	}
+	info.SetupOnly = firstUser == nil
 	info.Title = or(title(j.Summary), title(gemini.Text(get(firstUser, "content"))))
 	for _, m := range msgs {
 		thinking := m.Get("thinkingConfig")

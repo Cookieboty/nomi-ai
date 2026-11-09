@@ -29,6 +29,7 @@ export const manifest: CliManifest = {
     subagents: true,
     slashCommands: true,
     resume: true,
+    history: true,
     fork: false,
     usageQuota: true,
     progressMonitor: true,
@@ -37,4 +38,15 @@ export const manifest: CliManifest = {
   },
   modelSwitch: 'inplace',
   clientSpec: { client: 'codex' },
+  configPath: '~/.codex/config.toml',
+  host: {
+    minNode: 16,
+    selfUpdate: 'native',
+    vendor: 'openai',
+    planFollowUp: true,
+    nomiCommand: true,
+    homeEnv: 'CODEX_HOME',
+    homeDirs: ['.codex'],
+    execConfig: ['.codex/config.toml'],
+  },
 };

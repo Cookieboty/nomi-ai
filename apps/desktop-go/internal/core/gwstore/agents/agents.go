@@ -3,6 +3,8 @@ package agents
 
 import (
 	"fmt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"math"
 	"os"
 	"path/filepath"
@@ -448,7 +450,67 @@ func AgentLaunchFor(kind string, c *LaunchContext) (*AgentLaunch, error) {
 	case "dsh":
 		return dsh(c)
 	}
+	if m := builtin.Impl(kind); m != nil && m.Launch.ThirdParty != nil {
+		return pluginThirdParty(kind, m.Launch.ThirdParty, c)
+	}
 	return nil, fmt.Errorf("TypeError: AGENTS[kind] is not a function")
+}
+
+// pluginThirdParty：插件自己给出第三方启动（Launch.ThirdParty）：这里按它的说明建私有主目录、写文件
+func pluginThirdParty(kind string, f func(clisdk.ThirdPartyLaunchContext) clisdk.AgentLaunch, c *LaunchContext) (*AgentLaunch, error) {
+	model := c.Model
+	if c.Placeholder != nil && *c.Placeholder != "" {
+		model = *c.Placeholder
+	}
+	meta := c.meta(c.Model)
+	ctx, out := ctxOf(meta), maxOutOf(meta)
+	mm := &clisdk.ModelMeta{ContextWindow: &ctx, MaxOutput: &out}
+	if meta != nil {
+		mm.Images, mm.Reasoning = meta.Vision, meta.Reasoning
+	}
+	l := f(clisdk.ThirdPartyLaunchContext{
+		LaunchContext: clisdk.LaunchContext{Model: &model, RunDir: c.Dir},
+		GatewayURL:    c.URL, Token: c.Token, ModelMeta: mm,
+	})
+	if err := os.MkdirAll(c.Dir, 0o700); err != nil {
+		return nil, err
+	}
+	env := u.NewObj()
+	if l.Env != nil {
+		env = l.Env.Clone()
+	}
+	if ph := l.PrivateHome; ph != nil {
+		shared := ph.Shared
+		if shared == "" {
+			shared = accounts.UserCliHome(kind, nil, homeOr(c.Home))
+		}
+		if err := os.MkdirAll(shared, 0o700); err != nil {
+			return nil, err
+		}
+		problems, err := launch.EnsurePrivateHome(c.Dir, shared, ".*", ph.KeepPrivate, c.platform())
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range problems {
+			fmt.Fprintln(os.Stderr, "[gateway/agents] "+kind+" private home softlink problem", p.Entry+": "+p.Reason)
+		}
+		env.Set(ph.EnvVar, c.Dir)
+	}
+	for _, file := range l.Files {
+		p := file.Path
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(c.Dir, p)
+		}
+		mode := os.FileMode(0o600)
+		if file.Mode != nil {
+			mode = os.FileMode(*file.Mode)
+		}
+		if err := os.WriteFile(p, []byte(file.Content), mode); err != nil {
+			return nil, err
+		}
+	}
+	return &AgentLaunch{Env: env, Args: append([]string{}, l.Args...), Strip: append([]string{}, l.Strip...),
+		ModelInConfig: bp(c.Placeholder == nil || *c.Placeholder == "")}, nil
 }
 
 var leftoverRe = regexp.MustCompile(`^nomi-(?:gw|tab)-`)

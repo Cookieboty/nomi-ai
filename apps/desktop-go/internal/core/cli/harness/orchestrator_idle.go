@@ -3,6 +3,7 @@ package harness
 // orchestrator_idle.go：空闲回收、换账号 / 升级时重启长驻进程。
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
@@ -108,8 +109,8 @@ func (o *Orchestrator) RecycleBackend(kind string, only func(*util.Obj) bool) {
 		}
 		return o.sourceOf(tab) == "official" && (only == nil || only(tab))
 	}
-	switch kind {
-	case "gemini", "grok":
+	switch {
+	case builtin.UsesAcp(kind):
 		for _, id := range append([]string{}, o.live.acpOrder...) {
 			gl := o.live.acp[id]
 			if gl.backend != kind || !official(id) {
@@ -122,7 +123,7 @@ func (o *Orchestrator) RecycleBackend(kind string, only func(*util.Obj) bool) {
 			}
 		}
 		return
-	case "codex":
+	case kind == "codex":
 		for _, id := range append([]string{}, o.live.codexOrder...) {
 			cl := o.live.codex[id]
 			if !official(id) {
@@ -135,7 +136,7 @@ func (o *Orchestrator) RecycleBackend(kind string, only func(*util.Obj) bool) {
 			}
 		}
 		return
-	case "claude":
+	case kind == "claude":
 	default:
 		return
 	}
@@ -158,8 +159,8 @@ func (o *Orchestrator) RecycleBackend(kind string, only func(*util.Obj) bool) {
 // RestartForUpgrade = restartForUpgrade。
 func (o *Orchestrator) RestartForUpgrade(kind string) (restarted, deferred int) {
 	o.invalidateCatalog(kind)
-	switch kind {
-	case "gemini", "grok":
+	switch {
+	case builtin.UsesAcp(kind):
 		for _, id := range append([]string{}, o.live.acpOrder...) {
 			gl := o.live.acp[id]
 			if gl.backend != kind {
@@ -173,7 +174,7 @@ func (o *Orchestrator) RestartForUpgrade(kind string) (restarted, deferred int) 
 				restarted++
 			}
 		}
-	case "codex":
+	case kind == "codex":
 		for _, id := range append([]string{}, o.live.codexOrder...) {
 			if cl := o.live.codex[id]; cl.turn != nil {
 				cl.recycleAfterTurn = true
@@ -183,7 +184,7 @@ func (o *Orchestrator) RestartForUpgrade(kind string) (restarted, deferred int) 
 				restarted++
 			}
 		}
-	case "claude":
+	case kind == "claude":
 		for _, id := range append([]string{}, o.live.claudeOrder...) {
 			if l := o.live.claude[id]; l.turn != nil && !l.turn.settled {
 				l.recycleAfterTurn = true

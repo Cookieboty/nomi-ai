@@ -5,6 +5,7 @@ package usage
 // SessionUsage / RouteBegin 可在任意 goroutine 调用（设置走 smu 快照）。
 
 import (
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"math"
 	"os"
 	"path/filepath"
@@ -181,7 +182,8 @@ func (t ToolRefresh) ToObj() *util.Obj {
 	return o
 }
 
-var QuotaToolIDs = []string{"claude", "codex", "grok"}
+// QuotaToolIDs：能查订阅额度的内置编程助手（清单 usageQuota）
+var QuotaToolIDs = builtin.Where(builtin.WithQuota)
 
 type toolResult struct {
 	id string
@@ -280,11 +282,17 @@ func (e *SessionUsage) ToObj() *util.Obj {
 
 func newSessionUsage() *SessionUsage { return &SessionUsage{Tokens: num0()} }
 
-var sourceLabel = map[string]string{
-	"claude": "Claude Code", "codex": "Codex", "dsh": "dsh", "grok": "Grok", "gemini": "Gemini CLI",
-	"qwen": "Qwen Code", "opencode": "OpenCode", "copilot": "GitHub Copilot CLI", "kimi": "Kimi", "aider": "Aider",
-	"cline": "Cline", "continue": "Continue", "cursor": "Cursor", "other": "other",
-}
+// sourceLabel：用量来源的名称（内置编程助手取注册表的完整名称；其余是只读日志的工具）
+var sourceLabel = func() map[string]string {
+	m := map[string]string{
+		"qwen": "Qwen Code", "opencode": "OpenCode", "copilot": "GitHub Copilot CLI", "kimi": "Kimi", "aider": "Aider",
+		"cline": "Cline", "continue": "Continue", "cursor": "Cursor", "other": "other",
+	}
+	for _, id := range builtin.Ordered {
+		m[id] = builtin.FullName(id)
+	}
+	return m
+}()
 
 // AppName = brand.appName
 var AppName = "Nomi"
@@ -766,7 +774,7 @@ func truthy(p *string) bool { return p != nil && *p != "" }
 
 // ForgetAccountQuota = forgetAccountQuota(kind)
 func (s *UsageService) ForgetAccountQuota(kind string) {
-	if kind == "claude" || kind == "codex" || kind == "grok" {
+	if builtin.WithQuota(kind) {
 		s.auth.ForgetKnown(kind)
 	}
 	switch kind {
@@ -2327,7 +2335,7 @@ func RangeIDOf(v any) string {
 
 // QuotaToolOf = quotaToolOf；"" = undefined
 func QuotaToolOf(v any) string {
-	if x, ok := v.(string); ok && (x == "claude" || x == "codex" || x == "grok") {
+	if x, ok := v.(string); ok && builtin.WithQuota(x) {
 		return x
 	}
 	return ""
@@ -2335,7 +2343,7 @@ func QuotaToolOf(v any) string {
 
 // EndpointSourceOf = endpointSourceOf
 func EndpointSourceOf(v any) string {
-	if x, ok := v.(string); ok && (x == "claude" || x == "codex" || x == "dsh" || x == "grok" || x == "gemini") {
+	if x, ok := v.(string); ok && builtin.IsBuiltinCliID(x) {
 		return x
 	}
 	return "nomi"

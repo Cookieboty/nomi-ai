@@ -85,7 +85,7 @@ describe('ProvidersPage', () => {
     expect(r.getByTestId('cli-version-state-codex').textContent).not.toContain('检测中');
   });
 
-  it('分段标签「助手 / 监视与会话」；左栏是五个 CLI + 外部 CLI + 通用，旧的 Nomi 选中值落到第一个', async () => {
+  it('分段标签「助手 / 监视与会话」；左栏是所有内置 CLI + 外部 CLI + 通用，旧的 Nomi 选中值落到第一个', async () => {
     setup();
     localStorage.setItem('ai-chat:providerEndpoint', 'nomi');
     const r = render(<ProvidersPage onOpenModels={() => undefined} />);
@@ -97,6 +97,8 @@ describe('ProvidersPage', () => {
       'providers-endpoint-dsh',
       'providers-endpoint-grok',
       'providers-endpoint-gemini',
+      'providers-endpoint-kimi',
+      'providers-endpoint-minimax',
       'providers-endpoint-external',
       'providers-endpoint-general',
     ]);
@@ -111,7 +113,7 @@ describe('ProvidersPage', () => {
     await waitFor(() => expect(r.getByTestId('providers-section-codex')).toBeTruthy());
   });
 
-  it.each(['claude', 'codex', 'grok', 'gemini'] as const)(
+  it.each(['claude', 'codex', 'grok', 'gemini', 'kimi', 'minimax'] as const)(
     '%s：版本卡片 + 官方账号 + 去「模型」页的入口；没有第三方供应商列表和路由',
     async (kind) => {
       const calls = setup();

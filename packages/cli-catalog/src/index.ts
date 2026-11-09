@@ -15,7 +15,11 @@ import { renderer as geminiRenderer } from './gemini/renderer';
 import { BUILTIN_CLI_IDS, type BuiltinCliId } from './generated/ids';
 import { manifest as grok } from './grok/manifest';
 import { renderer as grokRenderer } from './grok/renderer';
+import { manifest as kimi } from './kimi/manifest';
+import { renderer as kimiRenderer } from './kimi/renderer';
 import type { CliManifest } from './manifest';
+import { manifest as minimax } from './minimax/manifest';
+import { renderer as minimaxRenderer } from './minimax/renderer';
 import type { CliRendererInfo } from './shared/renderer';
 
 export { BUILTIN_CLI_IDS, type BuiltinCliId };
@@ -40,7 +44,59 @@ export const BUILTIN_MANIFESTS: Readonly<Record<BuiltinCliId, CliManifest>> = {
   dsh,
   gemini,
   grok,
+  kimi,
+  minimax,
 };
+
+/**
+ * 界面与名单里的顺序（先来的在前，新加的接在后面）；BUILTIN_CLI_IDS 是按 id 排序的。
+ * 与 Go 内核的 builtin.Ordered 一致。
+ */
+export const BUILTIN_CLI_ORDER: readonly BuiltinCliId[] = [
+  'claude',
+  'codex',
+  'dsh',
+  'grok',
+  'gemini',
+  'kimi',
+  'minimax',
+];
+
+/** 显示名（「Gemini」）；不是内置的原样返回 */
+export function cliName(id: string): string {
+  return isBuiltinCliId(id) ? BUILTIN_MANIFESTS[id].displayName : id;
+}
+
+/** 完整名称（看板、用量、灵动岛：「Gemini CLI」；清单 fullName，缺省 = 显示名） */
+export function cliFullName(id: string): string {
+  return (isBuiltinCliId(id) && BUILTIN_MANIFESTS[id].fullName) || cliName(id);
+}
+
+/** 各 CLI 自己的配置文件路径（只用于展示）；没有的返回 undefined */
+export function cliConfigPath(id: string): string | undefined {
+  return isBuiltinCliId(id) ? BUILTIN_MANIFESTS[id].configPath : undefined;
+}
+
+/**
+ * Go 内核用的目录（生成到 apps/desktop-go/internal/cliplugins/catalog/catalog.json）：顺序与全部清单。
+ * 清单只在本包写一次，内核读这份生成的文件（`pnpm -F @nomi-ai/cli-catalog gen:go`）。
+ */
+export function goCatalog(): {
+  order: readonly BuiltinCliId[];
+  manifests: Record<string, CliManifest>;
+} {
+  return { order: BUILTIN_CLI_ORDER, manifests: { ...BUILTIN_MANIFESTS } };
+}
+
+/** 按内置 id 建一张表（顺序同 BUILTIN_CLI_ORDER） */
+export function byCli<T>(f: (id: BuiltinCliId) => T): Record<BuiltinCliId, T> {
+  return Object.fromEntries(BUILTIN_CLI_ORDER.map((id) => [id, f(id)])) as Record<BuiltinCliId, T>;
+}
+
+/** 清单 capabilities 里的布尔能力（officialAccount、thirdParty、usageQuota、terminalCommand……） */
+export function cliCapability(id: string, name: keyof CliManifest['capabilities']): boolean {
+  return isBuiltinCliId(id) && BUILTIN_MANIFESTS[id].capabilities[name] === true;
+}
 
 export const BUILTIN_RENDERER: Readonly<Record<BuiltinCliId, CliRendererInfo>> = {
   claude: claudeRenderer,
@@ -48,4 +104,6 @@ export const BUILTIN_RENDERER: Readonly<Record<BuiltinCliId, CliRendererInfo>> =
   dsh: dshRenderer,
   gemini: geminiRenderer,
   grok: grokRenderer,
+  kimi: kimiRenderer,
+  minimax: minimaxRenderer,
 };

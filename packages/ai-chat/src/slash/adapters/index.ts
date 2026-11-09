@@ -23,8 +23,9 @@ export function adapterFor(backend: ConversationBackend, input: AdapterInput): S
       return dshAdapter();
     case 'gemini':
       return geminiAdapter();
-    // 外部 CLI：没有内置命令，只有 CLI 自己通过 ACP available_commands_update 报告的
-    case 'external':
+    // 外部 CLI 与其余 ACP 助手（Kimi Code、MiniMax Code）：没有内置命令，只有 CLI 自己通过
+    // ACP available_commands_update 报告的
+    default:
       return [];
   }
 }

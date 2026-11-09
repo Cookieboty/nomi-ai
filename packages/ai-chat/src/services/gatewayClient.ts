@@ -97,6 +97,8 @@ export interface KeyView {
   /** 并发上限 / 每分钟请求数（不设 = 不限） */
   maxConcurrency?: number;
   rpm?: number;
+  /** 备注（只给用户自己看） */
+  note?: string;
 }
 
 export interface ProviderView {

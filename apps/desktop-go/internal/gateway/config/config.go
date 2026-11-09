@@ -4,6 +4,7 @@ package config
 
 import (
 	"encoding/json"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"math"
 	"sort"
 	"sync"
@@ -12,7 +13,8 @@ import (
 )
 
 // CLIENT_IDS.
-var ClientIDs = []string{"nomi", "claude", "codex", "gemini", "grok", "dsh"}
+// 内置编程助手里能接第三方模型（清单 thirdParty）的才是网关客户端
+var ClientIDs = append([]string{"nomi"}, builtin.Where(builtin.WithThirdParty)...)
 
 // RuntimeKey is RuntimeKey.
 type RuntimeKey struct {

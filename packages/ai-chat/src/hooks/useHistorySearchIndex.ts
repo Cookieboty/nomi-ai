@@ -1,3 +1,4 @@
+import { byCli } from '@nomi-ai/cli-catalog';
 /**
  * 侧栏搜索用的「磁盘历史会话索引」：搜索激活后先取第一页（20 条），
  * 之后由「搜索更早的历史」按钮逐页加载，每端最多索引最近 500 条（与后端硬上限一致）。
@@ -24,13 +25,8 @@ interface Slot {
   next: number | null;
   done: boolean;
 }
-const empty = (): Record<HistoryBackend, Slot> => ({
-  claude: { items: [], next: 0, done: false },
-  codex: { items: [], next: 0, done: false },
-  dsh: { items: [], next: 0, done: false },
-  gemini: { items: [], next: 0, done: false },
-  grok: { items: [], next: 0, done: false },
-});
+const empty = (): Record<HistoryBackend, Slot> =>
+  byCli(() => ({ items: [], next: 0, done: false }));
 
 export interface HistorySearchIndex {
   items: HistorySession[];

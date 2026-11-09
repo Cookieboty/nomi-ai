@@ -37,12 +37,54 @@ Nomi 把 Claude Code、Codex、Gemini CLI、Grok、dsh 当作子进程驱动，�
 | Gemini CLI  | `acp`                    | —      |
 | Grok        | `acp`                    | `exec` |
 | dsh         | `exec`                   | —      |
+| Kimi Code   | `acp`                    | —      |
+| MiniMax     | `acp`                    | —      |
 
 传输写在 `packages/cli-catalog/src/<cli>/manifest.ts` 的 `transport` / `fallbackTransport`。外部 ACP 插件只有声明式清单
 （`userData/cli-plugins/external/*.json`），不加载代码。
 
 协议细节都在驱动里；每个 CLI 的差异（流式事件解析、历史转录、模型目录、斜杠布局）在它的插件里。编排器按清单的能力位判断，
 不按 CLI 名字分支（视图侧由 eslint 规则 `nomi/no-cli-literal` 拦下，白名单在 `scripts/eslint/cli-literal-allowlist.mjs`）。
+
+## 内置助手注册表
+
+**数据只写一处**：每个内置 CLI 的声明式信息都在 `packages/cli-catalog/src/<id>/manifest.ts`——能力位、传输、可执行文件与
+npm 包、权限档位 → 原生模式、显示名与完整名称（`fullName`）、配置文件路径（`configPath`），以及内核运行它要知道的事
+（`host`：最低 Node 版本、自更新方式、官方厂商、ACP 启动参数、计划后续、有没有 `nomi-<id>` 命令）。界面与名单的顺序是
+`BUILTIN_CLI_ORDER`。Go 内核读由它生成的 `internal/cliplugins/catalog/catalog.json`（`pnpm -F @nomi-ai/cli-catalog gen:go`；
+`tests/go-catalog.test.ts` 检查是否最新），不再手写 Go 清单。
+
+**Go 只登记代码**：`internal/cliplugins/<id>/` 写主进程实现（`CreateMain()`：官方 / 第三方启动、账号目录、斜杠命令等），
+`builtin.entries` 登记它和会话记录解析。内核里要按 CLI 区分的东西都从 `internal/cliplugins/builtin` 取：
+
+| 要什么                                        | 从哪取                                                                                        |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 有哪些内置 CLI                                | `builtin.IDs`（按 id 排序）、`builtin.Ordered`（界面与名单的顺序）                            |
+| 插件能力（权限、账号、历史、斜杠命令、终端…） | `builtin.Impl(id)`（各插件的 `CreateMain()`，只建一次）                                       |
+| 显示名                                        | `builtin.DisplayName`（「Gemini」）、`builtin.FullName`（「Gemini CLI」：看板、用量、灵动岛） |
+| 清单能力位、传输、可执行文件、npm 包          | `builtin.Capability`、`builtin.UsesAcp`、`builtin.Binaries`、`builtin.NpmPackage`             |
+| 清单 `host` 段                                | `builtin.MinNode`、`SelfUpdate`、`Vendor`、`AcpArgs`、`PlanFollowUp`、`NomiCommand`           |
+| 按能力筛的名单                                | `builtin.Where(builtin.WithAccounts / WithHistory / WithQuota / WithThirdParty / All)`        |
+
+视图侧用 `@nomi-ai/cli-catalog` 的 `BUILTIN_CLI_ORDER`、`cliCapability`、`cliName`、`cliFullName`、`cliConfigPath`、`byCli`。
+ACP 助手的权限能力由清单推出（`shared.AcpPermissions`），不在 Go 里再写映射。两个守卫测试拦下写死的名单（同一行或分行写的
+3 个及以上内置 id）：Go 侧 `internal/cliplugins/builtin/hardcoded_test.go`，视图侧
+`packages/cli-catalog/tests/no-hardcoded-lists.test.ts`；确实只属于某几个 CLI 的实现（额度查询、用量日志解析、品牌图标、
+网关客户端条目）登记在测试里的白名单并写明原因。`builtin_test.go` 检查代码条目与清单一一对应、清单的 `history` 与实现一致。
+
+加一个内置助手（以 ACP 为例）：
+
+1. `packages/cli-catalog/src/<id>/`：`manifest.ts` 与 `renderer.ts`；`BUILTIN_CLI_ORDER` 末尾加上它；跑 `gen:ids` 与 `gen:go`。
+2. `apps/desktop-go/internal/cliplugins/<id>/`：`manifest.go`（两行：从 catalog 取）与 `CreateMain()`；在 `builtin.entries` 登记。
+3. 品牌图标（`packages/ui/src/brand/endpointGlyphs.ts` 与灵动岛页面里的同一份）、中英文文案与文档。
+
+之后名单、显示名、检测、安装与更新、看板认进程、委派、ACP 启动、设置页都自动带上它；额度查询、用量日志要用时再在各自的
+地方补实现。
+
+第三方模型：清单 `thirdParty: true`，插件实现 `Launch.ThirdParty`，返回私有主目录（`PrivateHome`：环境变量、不链的条目）
+与要写的配置文件（`Files`）；`gwstore/agents.AgentLaunchFor` 对没有专门实现的 CLI 调它，建私有主目录、写文件（0600）。
+网关里没有专门条目的用通用条目（`clients.GenericSpec`：宽松校验、不认识的模型名映射到主模型）。模型写在配置里，
+换模型时重启进程并用 `session/load` 续接。终端里的 `nomi-<cli>` 命令要启动脚本支持（清单 `host.nomiCommand`）。
 
 ## 权限档位
 

@@ -248,9 +248,13 @@ func (s *Service) candidates(st State, now time.Time) []Agent {
 		thawed[k] = v
 	}
 	s.mu.Unlock()
+	fg := ""
+	if s.d.Foreground != nil {
+		fg = s.d.Foreground()
+	}
 	out := []Agent{}
 	for _, a := range st.Agents {
-		if !a.Pausable || a.Scope != "managed" || a.TabID == "" {
+		if !a.Pausable || a.Scope != "managed" || a.TabID == "" || a.TabID == fg {
 			continue
 		}
 		if t, ok := thawed[a.ID]; ok && now.Sub(t) < RefreezeAfter {

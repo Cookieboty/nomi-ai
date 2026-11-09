@@ -939,7 +939,22 @@
   padding-left: calc(var(--cd-control-h-2xs) + var(--cd-space-2));
   font-size: var(--cd-font-size-xs);
 }
+/* Key 备注：设置里占满一行；平时跟在掩码值后面，空间不够时省略号截断（悬停看全文） */
+.keyNoteField {
+  grid-column: 1 / -1;
+}
+.keyNote {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .keyMasked {
+  /* 掩码值很短，不让它先被挤掉：空间不够时截断后面的备注 */
+  flex: none;
   min-width: 0;
   overflow: hidden;
   color: var(--cd-color-text-subtle);

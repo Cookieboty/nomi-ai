@@ -8,7 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/sandbox"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
@@ -133,7 +136,7 @@ func TestSandboxSpec(t *testing.T) {
 		env := util.NewObj("CLAUDE_CONFIG_DIR", filepath.Join(tmp, "acct"))
 		s := o.sandboxSpec(o.tab(id), proj, env)
 		if s == nil || !s.CwdWritable || !s.Granted["cloud"] || len(s.Protected) != 1 ||
-			len(s.WritableFiles) != 1 || len(s.Writable) != 1 || s.Writable[0] != filepath.Join(tmp, "acct") {
+			len(s.WritableFiles) != 1 || len(s.Writable) != 2 || s.Writable[1] != filepath.Join(tmp, "acct") {
 			t.Fatalf("spec = %+v", s)
 		}
 		if o.sbx.tokens[s.Token] != id {
@@ -526,5 +529,36 @@ func TestDropAgentEnv(t *testing.T) {
 	dropAgentEnv(&sandbox.Spec{Granted: map[string]bool{"ssh": true}}, env)
 	if env.Get("SSH_AUTH_SOCK") != "/x" {
 		t.Fatal("with the ssh category granted it stays")
+	}
+}
+
+// 第三方模型下标签的私有目录在 Nomi 数据目录里（dsh 的 --patch 文件、Kimi / MiniMax 的私有主目录）：沙箱要放行
+func TestSandboxAllowsTabAgentDir(t *testing.T) {
+	tmp := t.TempDir()
+	jsrt.Run(func() {
+		o := New(Deps{Root: filepath.Join(tmp, "h"), Home: "/Users/me", DefaultCwd: tmp, Logger: nopLogger{}, Ports: nopPorts{},
+			Sandbox: &SandboxDeps{Enabled: func() bool { return true }}})
+		defer o.Dispose()
+		tab := o.CreateTab(util.NewObj("backend", "dsh", "cwd", tmp, "activate", false))
+		id := util.Str(tab.Get("id"))
+		want := cli.GatewayAgentDir(filepath.Join(tmp, "gateway"), "dsh", id)
+		s := o.buildSandboxSpec(o.tab(id), tmp, util.NewObj())
+		if !slices.Contains(s.Writable, want) {
+			t.Fatalf("writable = %v, want %s", s.Writable, want)
+		}
+	})
+}
+
+// 沙箱说明放在第一条消息前面；标题与历史要能认出来去掉：开头与 clisdk.SandboxNoteStart 一致，中间不能有空行
+func TestSandboxNoteIsStrippable(t *testing.T) {
+	note := prompts.Text("cli-sandbox")
+	if !strings.HasPrefix(note, clisdk.SandboxNoteStart) || strings.Contains(strings.TrimSpace(note), "\n\n") {
+		t.Fatalf("cli-sandbox note must start with %q and be one paragraph", clisdk.SandboxNoteStart)
+	}
+	if got := clisdk.StripCarriedContext(note + "\n\n你好"); got != "你好" {
+		t.Fatalf("stripped = %q", got)
+	}
+	if got := clisdk.StripCarriedContext("你好"); got != "你好" {
+		t.Fatalf("plain text changed: %q", got)
 	}
 }

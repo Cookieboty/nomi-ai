@@ -11,5 +11,7 @@ export default createTsup({
     'dsh/manifest': 'src/dsh/manifest.ts',
     'gemini/manifest': 'src/gemini/manifest.ts',
     'grok/manifest': 'src/grok/manifest.ts',
+    'kimi/manifest': 'src/kimi/manifest.ts',
+    'minimax/manifest': 'src/minimax/manifest.ts',
   },
 });
