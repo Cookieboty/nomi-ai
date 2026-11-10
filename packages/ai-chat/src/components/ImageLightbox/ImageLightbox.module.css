@@ -46,6 +46,7 @@
   z-index: 1;
 }
 .stage {
+  overscroll-behavior: contain;
   position: absolute;
   inset: 0;
   display: flex;
