@@ -8,8 +8,8 @@
 </p>
 
 <p align="center">
-  把 Claude Code、Codex 等接到一处并行跑、一张看板一起管。模型只接一次，官方、国内、中转和本地都能用。<br>
-  本地优先，不强制云账号，也不改这些 CLI 的全局配置。桌面角色可选。
+  把 Claude Code、Codex 放到同一张看板上并行。模型只接一次，官方、国内、中转或本地都能用。不必绑定云账号，也不用改那些 CLI 的全局配置。<br>
+  桌面角色可选，不需要就关掉。
 </p>
 
 <p align="center">macOS · Windows · Linux　|　Go 内核，安装包约 25 MB　|　MIT</p>

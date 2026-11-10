@@ -8,8 +8,8 @@
 </p>
 
 <p align="center">
-  Run Claude Code, Codex and others in parallel, and manage them on one board. Connect a model once — official APIs, China-region, relays and local — and use it across those agents.<br>
-  Local-first: no required cloud account, and no edits to those CLIs' global config. The desktop character is optional.
+  Run Claude Code and Codex in parallel on one board. Connect a model once — official APIs, China-region, relays, or local. No Nomi cloud account. No edits to those CLIs' global config.<br>
+  The desktop character is optional. Turn it off if you don't want it.
 </p>
 
 <p align="center">macOS · Windows · Linux　|　Go + Wails core, ~25 MB installer　|　MIT</p>

@@ -6,8 +6,8 @@
 
 ## 中文
 
-Nomi·诺米：让每一种 AI 能力，都为你所用。把 Claude Code、Codex 等接到一处并行跑、一张看板一起管；模型只接一次，官方、国内、中转和本地都能用。
-本地优先的桌面 Agent 工作台（Go + Wails，`apps/desktop-go`），不强制云账号；Nomi 自己也是一个 agent，桌面角色可选。界面是 React（`packages/`）。
+Nomi·诺米：让每一种 AI 能力，都为你所用。把 Claude Code、Codex 放到同一张看板上并行。模型只接一次，官方、国内、中转或本地都能用。不必绑定云账号，也不用改那些 CLI 的全局配置。
+桌面应用（Go + Wails，`apps/desktop-go`）。Nomi 自己也是一个 agent，桌面角色可选。界面是 React（`packages/`）。
 
 ### 开始
 
@@ -74,8 +74,8 @@ Nomi·诺米：让每一种 AI 能力，都为你所用。把 Claude Code、Code
 
 ## English
 
-Nomi: One place. Every AI capability. Run Claude Code, Codex and others in parallel, and manage them on one board. Connect a model once — official APIs, China-region, relays and local — and use it across those agents.
-It is a local-first desktop agent workbench (Go on Wails, `apps/desktop-go`) with no required cloud account. Nomi is an agent itself, and the desktop character is optional. The UI is React (`packages/`). The pages below are written in Chinese.
+Nomi: One place. Every AI capability. Run Claude Code and Codex in parallel on one board. Connect a model once — official APIs, China-region, relays, or local. No Nomi cloud account. No edits to those CLIs' global config.
+Desktop app (Go on Wails, `apps/desktop-go`). Nomi is an agent too, and the desktop character is optional. The UI is React (`packages/`). The pages below are written in Chinese.
 
 ### Getting started
 
