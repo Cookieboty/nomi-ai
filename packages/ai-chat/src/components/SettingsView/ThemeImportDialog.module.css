@@ -1,0 +1,60 @@
+/* 导入主题包弹窗：拖放区 + 底部「下载模板 / 取消」 */
+.drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cd-space-1-5);
+  min-height: 160px;
+  padding: var(--cd-space-5);
+  border: 1px dashed var(--cd-color-border-strong);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-sunken);
+  text-align: center;
+  cursor: pointer;
+}
+.drop:hover {
+  background: var(--cd-color-hover);
+}
+.drop:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+}
+.drop[aria-disabled='true'] {
+  cursor: progress;
+}
+.dragging,
+.dragging:hover {
+  border-color: var(--cd-color-accent-strong);
+  background: var(--cd-color-accent-soft);
+}
+.dropIcon {
+  color: var(--cd-color-text-muted);
+}
+.dropTitle {
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  color: var(--cd-color-text);
+}
+.dropHint {
+  max-width: 360px;
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-xs);
+  color: var(--cd-color-text-muted);
+}
+.info,
+.error {
+  margin: var(--cd-space-3) 0 0;
+  font-size: var(--cd-font-size-xs);
+  overflow-wrap: anywhere;
+}
+.info {
+  color: var(--cd-color-text-muted);
+}
+.error {
+  color: var(--cd-color-danger);
+}
+/* 「下载模板」靠左，「取消」靠右 */
+.template {
+  margin-right: auto;
+}

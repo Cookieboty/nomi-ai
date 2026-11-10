@@ -261,6 +261,15 @@ func seedMessages(raw []any, now func() float64) []*util.Obj {
 
 // seedExtras = seedExtras（直接写进 dst）。
 func seedExtras(dst, m *util.Obj) {
+	if images, ok := m.Get("images").([]any); ok && len(images) > 0 {
+		if len(images) > clisdk.MaxMessageImages {
+			images = images[:clisdk.MaxMessageImages]
+		}
+		dst.Set("images", append([]any{}, images...))
+	}
+	if source, ok := m.Get("cliSourceId").(string); ok {
+		dst.Set("cliSourceId", source)
+	}
 	if tr, ok := m.Get("trace").([]any); ok && len(tr) > 0 {
 		if len(tr) > 300 {
 			tr = tr[:300]
@@ -422,6 +431,9 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 	} else {
 		seeded = []*util.Obj{}
 	}
+	if o.d.ImageStore != nil {
+		o.imageStoreFor(id).Messages(seeded, str(tab, "backend"))
+	}
 	o.messages[id] = seeded
 	if len(seeded) > 0 {
 		o.persistMessages(id)
@@ -487,6 +499,7 @@ func (o *Orchestrator) SyncOpenSessionTitle(backend, sessionID string, title any
 // OpenHistorySession = openHistorySession → {tab, reused}。
 func (o *Orchestrator) OpenHistorySession(h *util.Obj) *util.Obj {
 	if existing := o.findSessionTab(h.Get("backend"), h.Get("sessionId")); existing != nil {
+		o.restoreHistoryImages(str(existing, "id"), h.Get("messages"))
 		o.SetActiveTab(str(existing, "id"))
 		return util.NewObj("tab", existing.Clone(), "reused", true)
 	}
@@ -513,6 +526,9 @@ func (o *Orchestrator) SeedTabMessages(id string, messages []any) *util.Obj {
 		throw(i18n.T("electron.common.cannot-write-a-cli-transcript-on-the-main"))
 	}
 	seeded := seedMessages(messages, nowMs)
+	if o.d.ImageStore != nil {
+		o.imageStoreFor(id).Messages(seeded, str(tab, "backend"))
+	}
 	o.messages[id] = seeded
 	o.persistMessages(id)
 	if len(seeded) > 0 {
@@ -549,6 +565,7 @@ func (o *Orchestrator) CloseTab(id string) *util.Obj {
 	}
 	o.tabs.Delete(id)
 	delete(o.messages, id)
+	delete(o.migratedImgTabs, id)
 	delete(o.delegatedUnsent, id)
 	delete(o.stopBeforeStart, id)
 	delete(o.tabFileBytes, id)

@@ -34,18 +34,3 @@
   color: var(--cd-color-text-muted);
   font-size: var(--conv-meta, 13px);
 }
-.previewBody {
-  padding: 0;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.preview {
-  display: block;
-  max-width: 90vw;
-  max-height: 80vh;
-  width: auto;
-  height: auto;
-  object-fit: contain;
-}

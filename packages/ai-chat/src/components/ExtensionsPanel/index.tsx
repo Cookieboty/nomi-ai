@@ -46,6 +46,7 @@ import {
 import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './index.module.css';
+import { McpHeaderRows } from './McpHeaderRows';
 import { MigrateDialog } from './MigrateDialog';
 
 type Tab = 'mcp' | 'skills';
@@ -741,14 +742,10 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                   />
                 </label>
                 <p className={styles.hint}>{tr('ui.foundation.mcp-oauth-login-hint')}</p>
-                <label className={styles.field}>
-                  {tr('ui.foundation.headers-one-key-value-per-line-e-g')}
-                  <Textarea
-                    rows={2}
-                    value={draft.headers}
-                    onChange={(e) => setDraft({ ...draft, headers: e.target.value })}
-                  />
-                </label>
+                <McpHeaderRows
+                  value={draft.headers}
+                  onChange={(headers) => setDraft({ ...draft, headers })}
+                />
               </>
             )}
             {draftErr && (

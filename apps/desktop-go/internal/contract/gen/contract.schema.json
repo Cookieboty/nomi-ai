@@ -6584,6 +6584,71 @@
     "additionalProperties": {}
    }
   },
+  "cliAccount.networkGet": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "useShellProxy": {
+      "type": "boolean"
+     },
+     "shellProxy": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "useShellProxy",
+     "shellProxy"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "cliAccount.networkSet": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "useShellProxy": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "useShellProxy"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "useShellProxy": {
+      "type": "boolean"
+     },
+     "shellProxy": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "useShellProxy",
+     "shellProxy"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "cliAccount.openUrl": {
    "kind": "mutation",
    "dangerous": false,
@@ -18636,6 +18701,51 @@
     "additionalProperties": {}
    }
   },
+  "harness.gitSummary": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cwd": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "cwd"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "status": {
+      "type": "string"
+     },
+     "added": {
+      "type": "number"
+     },
+     "removed": {
+      "type": "number"
+     },
+     "error": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok",
+     "status",
+     "added",
+     "removed"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "harness.gitSyncStatus": {
    "kind": "query",
    "dangerous": false,
@@ -19057,6 +19167,344 @@
      "string",
      "null"
     ]
+   }
+  },
+  "harness.previewClose": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "url"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
+  "harness.previewExternal": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cwd": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string",
+      "maxLength": 8192
+     },
+     "allowOutside": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "cwd",
+     "path"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "code": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "kind": {
+      "type": "string"
+     },
+     "mime": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     },
+     "truncated": {
+      "type": "boolean"
+     },
+     "editable": {
+      "type": "boolean"
+     },
+     "revision": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "harness.previewListDirectory": {
+   "kind": "query",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string",
+      "maxLength": 8192
+     },
+     "path": {
+      "type": "string",
+      "maxLength": 8192
+     }
+    },
+    "required": [
+     "url",
+     "path"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "code": {
+      "type": "string"
+     },
+     "entries": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "path": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "file",
+          "dir"
+         ]
+        }
+       },
+       "required": [
+        "name",
+        "path",
+        "kind"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "truncated": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "harness.previewOpen": {
+   "kind": "query",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cwd": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string",
+      "maxLength": 8192
+     },
+     "allowOutside": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "cwd",
+     "path"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "code": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "kind": {
+      "type": "string"
+     },
+     "mime": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     },
+     "truncated": {
+      "type": "boolean"
+     },
+     "editable": {
+      "type": "boolean"
+     },
+     "revision": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "harness.previewSave": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string",
+      "maxLength": 8192
+     },
+     "revision": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64
+     },
+     "content": {
+      "type": "string",
+      "maxLength": 1500000
+     }
+    },
+    "required": [
+     "url",
+     "revision",
+     "content"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "code": {
+      "type": "string"
+     },
+     "revision": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "harness.previewWeb": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string",
+      "maxLength": 8192
+     }
+    },
+    "required": [
+     "url"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "code": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "kind": {
+      "type": "string"
+     },
+     "mime": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     },
+     "truncated": {
+      "type": "boolean"
+     },
+     "editable": {
+      "type": "boolean"
+     },
+     "revision": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": {}
    }
   },
   "harness.recentCwds": {
@@ -30322,6 +30770,682 @@
     "additionalProperties": {}
    }
   },
+  "theme.customDelete": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   }
+  },
+  "theme.customExport": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": [
+     "string",
+     "null"
+    ]
+   }
+  },
+  "theme.customImport": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+     {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "format": {
+        "type": "number"
+       },
+       "name": {
+        "type": "object",
+        "propertyNames": {
+         "type": "string"
+        },
+        "additionalProperties": {
+         "type": "string"
+        }
+       },
+       "author": {
+        "type": "string"
+       },
+       "base": {
+        "type": "string",
+        "enum": [
+         "light",
+         "dark"
+        ]
+       },
+       "seeds": {
+        "type": "object",
+        "propertyNames": {
+         "type": "string"
+        },
+        "additionalProperties": {
+         "type": "string"
+        }
+       },
+       "tokens": {
+        "type": "object",
+        "propertyNames": {
+         "type": "string"
+        },
+        "additionalProperties": {
+         "type": "string"
+        }
+       },
+       "variants": {
+        "type": "object",
+        "propertyNames": {
+         "type": "string"
+        },
+        "additionalProperties": {
+         "type": "object",
+         "properties": {
+          "seeds": {
+           "type": "object",
+           "propertyNames": {
+            "type": "string"
+           },
+           "additionalProperties": {
+            "type": "string"
+           }
+          },
+          "tokens": {
+           "type": "object",
+           "propertyNames": {
+            "type": "string"
+           },
+           "additionalProperties": {
+            "type": "string"
+           }
+          }
+         },
+         "required": [
+          "seeds"
+         ],
+         "additionalProperties": {}
+        }
+       },
+       "background": {
+        "type": "object",
+        "properties": {
+         "image": {
+          "type": "string"
+         },
+         "blur": {
+          "type": "number"
+         },
+         "opacity": {
+          "type": "number"
+         }
+        },
+        "required": [
+         "image",
+         "blur",
+         "opacity"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "required": [
+       "id",
+       "format",
+       "name",
+       "base",
+       "seeds"
+      ],
+      "additionalProperties": {}
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  },
+  "theme.customImportData": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "data": {}
+    },
+    "required": [
+     "data"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "format": {
+      "type": "number"
+     },
+     "name": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "author": {
+      "type": "string"
+     },
+     "base": {
+      "type": "string",
+      "enum": [
+       "light",
+       "dark"
+      ]
+     },
+     "seeds": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "tokens": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "variants": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "object",
+       "properties": {
+        "seeds": {
+         "type": "object",
+         "propertyNames": {
+          "type": "string"
+         },
+         "additionalProperties": {
+          "type": "string"
+         }
+        },
+        "tokens": {
+         "type": "object",
+         "propertyNames": {
+          "type": "string"
+         },
+         "additionalProperties": {
+          "type": "string"
+         }
+        }
+       },
+       "required": [
+        "seeds"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "background": {
+      "type": "object",
+      "properties": {
+       "image": {
+        "type": "string"
+       },
+       "blur": {
+        "type": "number"
+       },
+       "opacity": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "image",
+       "blur",
+       "opacity"
+      ],
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "id",
+     "format",
+     "name",
+     "base",
+     "seeds"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "theme.customList": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "format": {
+       "type": "number"
+      },
+      "name": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string"
+       },
+       "additionalProperties": {
+        "type": "string"
+       }
+      },
+      "author": {
+       "type": "string"
+      },
+      "base": {
+       "type": "string",
+       "enum": [
+        "light",
+        "dark"
+       ]
+      },
+      "seeds": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string"
+       },
+       "additionalProperties": {
+        "type": "string"
+       }
+      },
+      "tokens": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string"
+       },
+       "additionalProperties": {
+        "type": "string"
+       }
+      },
+      "variants": {
+       "type": "object",
+       "propertyNames": {
+        "type": "string"
+       },
+       "additionalProperties": {
+        "type": "object",
+        "properties": {
+         "seeds": {
+          "type": "object",
+          "propertyNames": {
+           "type": "string"
+          },
+          "additionalProperties": {
+           "type": "string"
+          }
+         },
+         "tokens": {
+          "type": "object",
+          "propertyNames": {
+           "type": "string"
+          },
+          "additionalProperties": {
+           "type": "string"
+          }
+         }
+        },
+        "required": [
+         "seeds"
+        ],
+        "additionalProperties": {}
+       }
+      },
+      "background": {
+       "type": "object",
+       "properties": {
+        "image": {
+         "type": "string"
+        },
+        "blur": {
+         "type": "number"
+        },
+        "opacity": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "image",
+        "blur",
+        "opacity"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "required": [
+      "id",
+      "format",
+      "name",
+      "base",
+      "seeds"
+     ],
+     "additionalProperties": {}
+    }
+   }
+  },
+  "theme.customPickBackground": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": [
+     "string",
+     "null"
+    ]
+   }
+  },
+  "theme.customSave": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "name": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "author": {
+      "type": "string"
+     },
+     "base": {
+      "type": "string"
+     },
+     "seeds": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "tokens": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "variants": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "object",
+       "properties": {
+        "seeds": {
+         "type": "object",
+         "propertyNames": {
+          "type": "string"
+         },
+         "additionalProperties": {
+          "type": "string"
+         }
+        },
+        "tokens": {
+         "type": "object",
+         "propertyNames": {
+          "type": "string"
+         },
+         "additionalProperties": {
+          "type": "string"
+         }
+        }
+       },
+       "required": [
+        "seeds"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "background": {
+      "type": "object",
+      "properties": {
+       "image": {
+        "type": "string"
+       },
+       "blur": {
+        "type": "number"
+       },
+       "opacity": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "image",
+       "blur",
+       "opacity"
+      ],
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "name",
+     "base",
+     "seeds"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "format": {
+      "type": "number"
+     },
+     "name": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "author": {
+      "type": "string"
+     },
+     "base": {
+      "type": "string",
+      "enum": [
+       "light",
+       "dark"
+      ]
+     },
+     "seeds": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "tokens": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "variants": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "object",
+       "properties": {
+        "seeds": {
+         "type": "object",
+         "propertyNames": {
+          "type": "string"
+         },
+         "additionalProperties": {
+          "type": "string"
+         }
+        },
+        "tokens": {
+         "type": "object",
+         "propertyNames": {
+          "type": "string"
+         },
+         "additionalProperties": {
+          "type": "string"
+         }
+        }
+       },
+       "required": [
+        "seeds"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "background": {
+      "type": "object",
+      "properties": {
+       "image": {
+        "type": "string"
+       },
+       "blur": {
+        "type": "number"
+       },
+       "opacity": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "image",
+       "blur",
+       "opacity"
+      ],
+      "additionalProperties": {}
+     }
+    },
+    "required": [
+     "id",
+     "format",
+     "name",
+     "base",
+     "seeds"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "theme.customTemplate": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": [
+     "string",
+     "null"
+    ]
+   }
+  },
   "theme.get": {
    "kind": "query",
    "dangerous": false,
@@ -30354,7 +31478,8 @@
        {
         "type": "string",
         "const": "image"
-       }
+       },
+       {}
       ]
      },
      "resolved": {
@@ -30367,6 +31492,122 @@
        "ink",
        "cream",
        "sunset"
+      ]
+     },
+     "custom": {
+      "anyOf": [
+       {
+        "type": "object",
+        "properties": {
+         "id": {
+          "type": "string"
+         },
+         "format": {
+          "type": "number"
+         },
+         "name": {
+          "type": "object",
+          "propertyNames": {
+           "type": "string"
+          },
+          "additionalProperties": {
+           "type": "string"
+          }
+         },
+         "author": {
+          "type": "string"
+         },
+         "base": {
+          "type": "string",
+          "enum": [
+           "light",
+           "dark"
+          ]
+         },
+         "seeds": {
+          "type": "object",
+          "propertyNames": {
+           "type": "string"
+          },
+          "additionalProperties": {
+           "type": "string"
+          }
+         },
+         "tokens": {
+          "type": "object",
+          "propertyNames": {
+           "type": "string"
+          },
+          "additionalProperties": {
+           "type": "string"
+          }
+         },
+         "variants": {
+          "type": "object",
+          "propertyNames": {
+           "type": "string"
+          },
+          "additionalProperties": {
+           "type": "object",
+           "properties": {
+            "seeds": {
+             "type": "object",
+             "propertyNames": {
+              "type": "string"
+             },
+             "additionalProperties": {
+              "type": "string"
+             }
+            },
+            "tokens": {
+             "type": "object",
+             "propertyNames": {
+              "type": "string"
+             },
+             "additionalProperties": {
+              "type": "string"
+             }
+            }
+           },
+           "required": [
+            "seeds"
+           ],
+           "additionalProperties": {}
+          }
+         },
+         "background": {
+          "type": "object",
+          "properties": {
+           "image": {
+            "type": "string"
+           },
+           "blur": {
+            "type": "number"
+           },
+           "opacity": {
+            "type": "number"
+           }
+          },
+          "required": [
+           "image",
+           "blur",
+           "opacity"
+          ],
+          "additionalProperties": {}
+         }
+        },
+        "required": [
+         "id",
+         "format",
+         "name",
+         "base",
+         "seeds"
+        ],
+        "additionalProperties": {}
+       },
+       {
+        "type": "null"
+       }
       ]
      }
     },
@@ -30418,7 +31659,8 @@
        {
         "type": "string",
         "const": "image"
-       }
+       },
+       {}
       ]
      },
      "resolved": {
@@ -30431,6 +31673,122 @@
        "ink",
        "cream",
        "sunset"
+      ]
+     },
+     "custom": {
+      "anyOf": [
+       {
+        "type": "object",
+        "properties": {
+         "id": {
+          "type": "string"
+         },
+         "format": {
+          "type": "number"
+         },
+         "name": {
+          "type": "object",
+          "propertyNames": {
+           "type": "string"
+          },
+          "additionalProperties": {
+           "type": "string"
+          }
+         },
+         "author": {
+          "type": "string"
+         },
+         "base": {
+          "type": "string",
+          "enum": [
+           "light",
+           "dark"
+          ]
+         },
+         "seeds": {
+          "type": "object",
+          "propertyNames": {
+           "type": "string"
+          },
+          "additionalProperties": {
+           "type": "string"
+          }
+         },
+         "tokens": {
+          "type": "object",
+          "propertyNames": {
+           "type": "string"
+          },
+          "additionalProperties": {
+           "type": "string"
+          }
+         },
+         "variants": {
+          "type": "object",
+          "propertyNames": {
+           "type": "string"
+          },
+          "additionalProperties": {
+           "type": "object",
+           "properties": {
+            "seeds": {
+             "type": "object",
+             "propertyNames": {
+              "type": "string"
+             },
+             "additionalProperties": {
+              "type": "string"
+             }
+            },
+            "tokens": {
+             "type": "object",
+             "propertyNames": {
+              "type": "string"
+             },
+             "additionalProperties": {
+              "type": "string"
+             }
+            }
+           },
+           "required": [
+            "seeds"
+           ],
+           "additionalProperties": {}
+          }
+         },
+         "background": {
+          "type": "object",
+          "properties": {
+           "image": {
+            "type": "string"
+           },
+           "blur": {
+            "type": "number"
+           },
+           "opacity": {
+            "type": "number"
+           }
+          },
+          "required": [
+           "image",
+           "blur",
+           "opacity"
+          ],
+          "additionalProperties": {}
+         }
+        },
+        "required": [
+         "id",
+         "format",
+         "name",
+         "base",
+         "seeds"
+        ],
+        "additionalProperties": {}
+       },
+       {
+        "type": "null"
+       }
       ]
      }
     },
@@ -36490,7 +37848,8 @@
       {
        "type": "string",
        "const": "image"
-      }
+      },
+      {}
      ]
     },
     "resolved": {
@@ -36503,6 +37862,122 @@
       "ink",
       "cream",
       "sunset"
+     ]
+    },
+    "custom": {
+     "anyOf": [
+      {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "format": {
+         "type": "number"
+        },
+        "name": {
+         "type": "object",
+         "propertyNames": {
+          "type": "string"
+         },
+         "additionalProperties": {
+          "type": "string"
+         }
+        },
+        "author": {
+         "type": "string"
+        },
+        "base": {
+         "type": "string",
+         "enum": [
+          "light",
+          "dark"
+         ]
+        },
+        "seeds": {
+         "type": "object",
+         "propertyNames": {
+          "type": "string"
+         },
+         "additionalProperties": {
+          "type": "string"
+         }
+        },
+        "tokens": {
+         "type": "object",
+         "propertyNames": {
+          "type": "string"
+         },
+         "additionalProperties": {
+          "type": "string"
+         }
+        },
+        "variants": {
+         "type": "object",
+         "propertyNames": {
+          "type": "string"
+         },
+         "additionalProperties": {
+          "type": "object",
+          "properties": {
+           "seeds": {
+            "type": "object",
+            "propertyNames": {
+             "type": "string"
+            },
+            "additionalProperties": {
+             "type": "string"
+            }
+           },
+           "tokens": {
+            "type": "object",
+            "propertyNames": {
+             "type": "string"
+            },
+            "additionalProperties": {
+             "type": "string"
+            }
+           }
+          },
+          "required": [
+           "seeds"
+          ],
+          "additionalProperties": {}
+         }
+        },
+        "background": {
+         "type": "object",
+         "properties": {
+          "image": {
+           "type": "string"
+          },
+          "blur": {
+           "type": "number"
+          },
+          "opacity": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "image",
+          "blur",
+          "opacity"
+         ],
+         "additionalProperties": {}
+        }
+       },
+       "required": [
+        "id",
+        "format",
+        "name",
+        "base",
+        "seeds"
+       ],
+       "additionalProperties": {}
+      },
+      {
+       "type": "null"
+      }
      ]
     }
    },

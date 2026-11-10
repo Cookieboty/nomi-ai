@@ -3,7 +3,7 @@
  * 「会话详情」：标题栏按钮开 / 收对话卡片右侧的一栏：项目、本会话变更、用到的智能体与任务；
  * 列表最多 5 个可展开；屏幕窄且展开了别的栏时自动收起
  */
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -50,10 +50,12 @@ const task = (id: string, over: Record<string, unknown> = {}) => ({
   ...over,
 });
 let tasks: unknown[] = [];
+let gitSummary: unknown = true;
 let small = false;
 
 beforeEach(() => {
   tasks = [];
+  gitSummary = true;
   small = false;
   window.matchMedia = ((q: string) => ({
     matches: small,
@@ -131,11 +133,13 @@ function setup() {
     if (ch === 'harness.tabs') return state;
     if (ch === 'harness.gitBranch') return { branch: 'release/2.3.3' };
     if (ch === 'tasks.list') return { tasks, legacy: [] };
+    if (ch === 'harness.gitSummary') return gitSummary;
     return true;
   });
-  installFakeApi(invoke);
+  fake = installFakeApi(invoke);
   return invoke;
 }
+let fake: ReturnType<typeof installFakeApi>;
 
 const Probe: React.FC = () => {
   const pane = useSubagentPane();
@@ -161,6 +165,9 @@ const mount = (cwd: string | null = '/w/app', msgs: ConvMessage[] = messages, ra
       <WorkspacePanesProvider>
         <SessionDetailsToggle railOpen={railOpen} />
         <SessionDetailsDock messages={msgs} cwd={cwd} />
+        <div data-testid="chat-col">
+          <SessionDetailsDock overlay messages={msgs} cwd={cwd} />
+        </div>
         <Probe />
       </WorkspacePanesProvider>
     </HarnessTabsProvider>,
@@ -235,6 +242,8 @@ describe('SessionDetailsToggle', () => {
     const panel = await screen.findByTestId('session-details');
     expect(btn.getAttribute('aria-pressed')).toBe('true');
     expect(panel.tagName).toBe('ASIDE');
+    // 平时那一栏在对话列外面（对话卡片右侧）
+    expect(screen.getByTestId('chat-col').contains(panel)).toBe(false);
     expect(panel.textContent).toContain('app');
     await waitFor(() =>
       expect(screen.getByTestId('session-details-branch').textContent).toBe('release/2.3.3'),
@@ -246,17 +255,42 @@ describe('SessionDetailsToggle', () => {
     expect(screen.queryByTestId('session-details')).toBeNull();
   });
 
-  it('stays open while opening the sub-task pane and the diff; outside clicks do not close it', async () => {
+  it('stays open for the sub-task pane on a wide window as a float over the chat; outside clicks do not close it', async () => {
     setup();
     mount();
     fireEvent.click(screen.getByTestId('session-details-toggle'));
     await waitFor(() => expect(screen.getAllByTestId('session-details-agent')).toHaveLength(2));
     fireEvent.click(screen.getAllByTestId('session-details-agent')[0]!.querySelector('button')!);
     expect(screen.getByTestId('probe').textContent).toBe('d1|-');
+    expect(screen.getByTestId('session-details').getAttribute('data-floating')).toBe('true');
+    fireEvent.pointerDown(document.body);
+    expect(screen.getByTestId('session-details').getAttribute('data-floating')).toBe('true');
+  });
+
+  it('opening the diff hides it; reopening floats it over the chat and an outside click puts it away', async () => {
+    setup();
+    mount();
+    const btn = screen.getByTestId('session-details-toggle');
+    fireEvent.click(btn);
+    await screen.findByTestId('session-details');
     fireEvent.click(screen.getByTestId('session-details-changes'));
-    expect(screen.getByTestId('probe').textContent).toBe('d1|wb');
-    fireEvent.mouseDown(document.body);
+    expect(screen.getByTestId('probe').textContent).toBe('-|wb');
+    // 展开 Diff：自动收起（宽屏也一样）
+    expect(screen.queryByTestId('session-details')).toBeNull();
+    expect(btn.getAttribute('data-auto-hidden')).toBe('true');
+    // 再点按钮：浮层放进对话列，盖在对话右上角（不落到中栏上）
+    fireEvent.click(btn);
+    expect(screen.getByTestId('session-details').getAttribute('data-floating')).toBe('true');
+    expect(screen.getByTestId('chat-col').contains(screen.getByTestId('session-details'))).toBe(
+      true,
+    );
+    // 点浮层里面不收回，点外面收回（还是自动收起，不改用户的开关）
+    fireEvent.pointerDown(screen.getByTestId('session-details'));
     expect(screen.getByTestId('session-details')).toBeTruthy();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByTestId('session-details')).toBeNull();
+    expect(btn.getAttribute('data-auto-hidden')).toBe('true');
+    expect(localStorage.getItem('nomi.sessionDetails.open')).toBe('1');
   });
 
   it('Escape closes it; the choice is remembered; an empty session shows nothing', async () => {
@@ -359,6 +393,43 @@ describe('session details lists', () => {
   });
 });
 
+describe('workspace changes', () => {
+  it('the changes row counts the git workspace from gitSummary, never the full diff', async () => {
+    gitSummary = { ok: true, status: ' M a.ts\n M b.ts\n?? c.ts\n', added: 7, removed: 2 };
+    const invoke = setup();
+    mount();
+    fireEvent.click(screen.getByTestId('session-details-toggle'));
+    await waitFor(
+      () => expect(screen.getByTestId('session-details-changes').textContent).toMatch(/3.*\+7.*-2/),
+      { timeout: 2000 },
+    );
+    expect(invoke.mock.calls.some(([ch]) => ch === 'harness.gitDiff')).toBe(false);
+  });
+});
+
+describe('live state', () => {
+  it('a delegated tab waiting for approval shows as waiting; its streaming text does not matter', async () => {
+    setup();
+    mount();
+    fireEvent.click(screen.getByTestId('session-details-toggle'));
+    await waitFor(() => expect(screen.getAllByTestId('session-details-agent')).toHaveLength(2));
+    const state = () =>
+      screen
+        .getAllByTestId('session-details-agent')[0]!
+        .querySelector('[data-state]')!
+        .getAttribute('data-state');
+    expect(state()).toBe('running');
+    await act(() => fake.emit('harness.events', [{ tabId: 'd1', type: 'text', text: '写代码…' }]));
+    expect(state()).toBe('running');
+    await act(() =>
+      fake.emit('harness.events', [
+        { tabId: 'd1', type: 'permission', id: 'p1', summary: 'npm install' },
+      ]),
+    );
+    await waitFor(() => expect(state()).toBe('waiting'));
+  });
+});
+
 describe('empty blocks', () => {
   it('a session without agents or tasks shows neither block', async () => {
     setup();
@@ -370,7 +441,12 @@ describe('empty blocks', () => {
     await screen.findByTestId('session-details');
     expect(screen.queryByTestId('session-details-agents')).toBeNull();
     expect(screen.queryByTestId('session-details-tasks')).toBeNull();
-    expect(screen.getByTestId('session-details-changes')).toBeTruthy();
+    // 没有改动：只是一行说明，不能点开空的 Diff
+    const row = screen.getByTestId('session-details-changes');
+    expect(row.tagName).toBe('DIV');
+    fireEvent.click(row);
+    expect(screen.getByTestId('probe').textContent).toBe('-|-');
+    expect(screen.getByTestId('session-details')).toBeTruthy();
   });
 });
 
@@ -387,7 +463,8 @@ describe('auto-hide on small screens', () => {
     expect(screen.getByTestId('session-details')).toBeTruthy();
     // 子任务面板展开：又自动收起
     fireEvent.click(screen.getByTestId('probe-open-pane'));
-    expect(screen.queryByTestId('session-details')).toBeNull();
+    // 收起时先放完淡出动画再卸载
+    await waitFor(() => expect(screen.queryByTestId('session-details')).toBeNull());
   });
 
   it('opening the sub-task pane hides it on a narrow window and closing brings it back', async () => {
@@ -397,16 +474,24 @@ describe('auto-hide on small screens', () => {
     mount();
     expect(await screen.findByTestId('session-details')).toBeTruthy();
     fireEvent.click(screen.getByTestId('probe-open-pane'));
-    expect(screen.queryByTestId('session-details')).toBeNull();
+    // 收起时先放完淡出动画再卸载
+    await waitFor(() => expect(screen.queryByTestId('session-details')).toBeNull());
     fireEvent.click(screen.getByTestId('probe-close-pane'));
     expect(screen.getByTestId('session-details')).toBeTruthy();
   });
 
-  it('wide windows keep it open next to the files panel', async () => {
+  it('wide windows keep it open with the files panel, floating over the chat instead of squeezing it', async () => {
     localStorage.setItem('nomi.sessionDetails.open', '1');
     setup();
     mount('/w/app', messages, true);
-    expect(await screen.findByTestId('session-details')).toBeTruthy();
+    const panel = await screen.findByTestId('session-details');
+    expect(panel.getAttribute('data-floating')).toBe('true');
+    expect(screen.getByTestId('chat-col').contains(panel)).toBe(true);
+    // 这种浮层是常驻的：点外面不收回；再点按钮才关
+    fireEvent.pointerDown(document.body);
+    expect(screen.getByTestId('session-details')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('session-details-toggle'));
+    expect(screen.queryByTestId('session-details')).toBeNull();
   });
 });
 
@@ -459,18 +544,44 @@ describe('会话详情：异步委派的状态与工作区改动', () => {
   });
 
   it('工作区改动按 git 统计（未跟踪的只计文件数）', () => {
-    expect(
-      summarizeGit({
-        ok: true,
-        status: ' M a.ts\n?? b.ts\n',
-        stat: '',
-        diff: '',
-        truncated: false,
-        numstat: { head: { 'a.ts': { added: 3, removed: 1 } }, staged: {}, unstaged: {} },
-      }),
-    ).toEqual({ files: 2, added: 3, removed: 1 });
-    expect(
-      summarizeGit({ ok: false, status: '', stat: '', diff: '', truncated: false }),
-    ).toBeNull();
+    expect(summarizeGit({ ok: true, status: ' M a.ts\n?? b.ts\n', added: 3, removed: 1 })).toEqual({
+      files: 2,
+      added: 3,
+      removed: 1,
+    });
+    expect(summarizeGit({ ok: false, status: '', added: 0, removed: 0 })).toBeNull();
+  });
+});
+
+describe('agent list cache', () => {
+  it('reuses earlier messages and still sees calls appended to a trace in place', () => {
+    const msg = {
+      id: 'x',
+      role: 'assistant',
+      content: '',
+      timestamp: 1,
+      trace: [
+        {
+          type: 'tool',
+          name: 'Task',
+          status: 'start',
+          id: 't1',
+          input: JSON.stringify({ subagent_type: 'explorer', description: '找' }),
+        },
+      ],
+    } as unknown as ConvMessage;
+    expect(collectSessionAgents([msg], [], {})).toHaveLength(1);
+    // 同一条消息的 trace 原地追加了一个子代理
+    (msg.trace as unknown[]).push({
+      type: 'tool',
+      name: 'Task',
+      status: 'start',
+      id: 't2',
+      input: JSON.stringify({ subagent_type: 'reviewer', description: '审' }),
+    });
+    expect(collectSessionAgents([msg], [], {}).map((a) => a.label)).toEqual([
+      'explorer',
+      'reviewer',
+    ]);
   });
 });

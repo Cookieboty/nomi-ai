@@ -56,6 +56,8 @@ func ImageRefs(value any, out []string, depth int, allowHTTPS bool) []string {
 			mediaType = s
 		} else if s, ok := obj.Get("mime_type").(string); ok {
 			mediaType = s
+		} else if s, ok := obj.Get("mimeType").(string); ok {
+			mediaType = s
 		} else if s, ok := source.Get("media_type").(string); ok && source != nil {
 			mediaType = s
 		}
@@ -98,6 +100,11 @@ func ImageRefs(value any, out []string, depth int, allowHTTPS bool) []string {
 // ImageMarkdown renders the image references in value as Markdown.
 func ImageMarkdown(value any, allowHTTPS bool) string {
 	refs := ImageRefs(value, nil, 0, allowHTTPS)
+	for _, raw := range MessageImages(value) {
+		if im := util.AsObj(raw); im != nil {
+			refs = append(refs, util.Str(im.Get("ref")))
+		}
+	}
 	seen := map[string]bool{}
 	parts := []string{}
 	for _, r := range refs {
@@ -105,7 +112,11 @@ func ImageMarkdown(value any, allowHTTPS bool) string {
 			continue
 		}
 		seen[r] = true
-		parts = append(parts, "![Generated image "+util.FormatNumber(float64(len(parts)+1))+"]("+r+")")
+		escaped := strings.NewReplacer("\\", "/", " ", "%20", "(", "%28", ")", "%29").Replace(r)
+		if strings.ContainsAny(escaped, "\r\n\x00") {
+			continue
+		}
+		parts = append(parts, "![Generated image "+util.FormatNumber(float64(len(parts)+1))+"]("+escaped+")")
 	}
 	return strings.Join(parts, "\n\n")
 }

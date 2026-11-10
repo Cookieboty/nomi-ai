@@ -1,7 +1,6 @@
 /** CLI 会话气泡插槽：用户附图缩略图网格 + lightbox（缩放 / 左右切图 / Esc） */
 import { t } from '@nomi-ai/ui';
-import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState } from 'react';
 
 import { hostAssetUrl } from '../../services/api';
 import type { HarnessTabMessage } from '../../services/harnessClient';
@@ -12,6 +11,7 @@ import {
   entriesFromLegacyTools,
   buildTimeline,
 } from '../../utils/toolTrace';
+import { ImageLightbox } from '../ImageLightbox/ImageLightbox';
 import { TurnEditSummaryCard } from '../SessionWorkspace/TurnEditSummaryCard';
 
 import styles from './index.module.css';
@@ -29,113 +29,86 @@ const UrlLightbox: React.FC<{
   onClose: () => void;
   onIndex: (i: number) => void;
 }> = ({ images, index, onClose, onIndex }) => {
-  const [zoom, setZoom] = useState(1);
   const im = images[index];
-  const src = im?.url ? hostAssetUrl(im.url) : (im?.thumb ?? '');
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      else if (e.key === 'ArrowLeft') onIndex((index - 1 + images.length) % images.length);
-      else if (e.key === 'ArrowRight') onIndex((index + 1) % images.length);
-      else if (e.key === '+' || e.key === '=') setZoom((z) => Math.min(4, z + 0.25));
-      else if (e.key === '-') setZoom((z) => Math.max(0.5, z - 0.25));
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [images.length, index, onClose, onIndex]);
-
-  return createPortal(
-    <div
-      className={styles.lightbox}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('ui.knowledge-local.view-image')}
+  const src = im?.url
+    ? hostAssetUrl(im.url)
+    : im?.thumb?.startsWith('chat-asset://')
+      ? hostAssetUrl(im.thumb)
+      : (im?.thumb ?? '');
+  return (
+    <ImageLightbox
+      src={src}
+      alt={t('ui.providers-schedule.image')}
+      index={index}
+      count={images.length}
+      onIndex={onIndex}
+      onClose={onClose}
       data-testid="cli-image-lightbox"
-      onClick={onClose}
+    />
+  );
+};
+
+type CliImage = NonNullable<HarnessTabMessage['images']>[number];
+
+const ImageThumbnail: React.FC<{ image: CliImage; onOpen: () => void }> = ({
+  image: im,
+  onOpen,
+}) => {
+  const [failed, setFailed] = useState(false);
+  const unavailable = im.unavailable || failed;
+  return (
+    <button
+      type="button"
+      className={styles.imageThumbBtn}
+      onClick={onOpen}
+      disabled={unavailable}
+      title={unavailable ? (im.path ?? im.name) : `${im.width}×${im.height}`}
+      aria-label={
+        unavailable
+          ? t('ui.session-workspace.image-attachment-unavailable')
+          : t('ui.knowledge-local.view-image')
+      }
     >
-      <img
-        src={src}
-        alt={t('ui.providers-schedule.image')}
-        className={styles.lightboxImg}
-        style={{ transform: `scale(${zoom})`, transition: 'transform 0.15s ease' }}
-        onClick={(e) => e.stopPropagation()}
-        onWheel={(e) => {
-          e.stopPropagation();
-          setZoom((z) => Math.min(4, Math.max(0.5, z + (e.deltaY < 0 ? 0.1 : -0.1))));
-        }}
-      />
-      <div className={styles.lightboxToolbar} onClick={(e) => e.stopPropagation()}>
-        {images.length > 1 ? (
-          <>
-            <button
-              type="button"
-              className={styles.lightboxBtn}
-              aria-label={t('ui.session-workspace.previous')}
-              data-testid="lightbox-prev"
-              onClick={() => onIndex((index - 1 + images.length) % images.length)}
-            >
-              ‹
-            </button>
-            <span style={{ color: '#fff', alignSelf: 'center', fontSize: 12 }}>
-              {index + 1}/{images.length}
-            </span>
-            <button
-              type="button"
-              className={styles.lightboxBtn}
-              aria-label={t('ui.session-workspace.next')}
-              data-testid="lightbox-next"
-              onClick={() => onIndex((index + 1) % images.length)}
-            >
-              ›
-            </button>
-          </>
-        ) : null}
-        <button
-          type="button"
-          className={styles.lightboxBtn}
-          aria-label={t('ui.usage-tools.zoom-out')}
-          onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
-        >
-          −
-        </button>
-        <button
-          type="button"
-          className={styles.lightboxBtn}
-          aria-label={t('ui.usage-tools.zoom-in')}
-          onClick={() => setZoom((z) => Math.min(4, z + 0.25))}
-        >
-          +
-        </button>
-      </div>
-    </div>,
-    document.body,
+      {unavailable ? (
+        <span className={styles.imageUnavailable} role="status">
+          {im.name || t('ui.providers-schedule.image')}
+          <span>{t('ui.session-workspace.image-attachment-unavailable')}</span>
+        </span>
+      ) : (
+        <img
+          src={im.thumb.startsWith('chat-asset://') ? hostAssetUrl(im.thumb) : im.thumb}
+          alt={im.name || t('ui.providers-schedule.image')}
+          className={styles.imageThumb}
+          loading="lazy"
+          onError={() => setFailed(true)}
+        />
+      )}
+    </button>
   );
 };
 
 const ImageRow: React.FC<{ images: NonNullable<HarnessTabMessage['images']> }> = ({ images }) => {
   const [pick, setPick] = useState<number | null>(null);
+  const available = images.filter((image) => !image.unavailable && (image.url || image.thumb));
   return (
     <>
       <div className={styles.imageRow} data-testid="message-images" data-count={images.length}>
         {images.map((im, i) => (
-          <button
-            key={i}
-            type="button"
-            className={styles.imageThumbBtn}
-            onClick={() => setPick(i)}
-            title={`${im.width}×${im.height}`}
-            aria-label={t('ui.knowledge-local.view-image')}
-          >
-            <img
-              src={im.thumb}
-              alt={t('ui.providers-schedule.image')}
-              className={styles.imageThumb}
-            />
-          </button>
+          <ImageThumbnail
+            key={`${i}:${im.url ?? im.thumb}`}
+            image={im}
+            onOpen={() => setPick(available.indexOf(im))}
+          />
         ))}
       </div>
-      {pick != null && (
-        <UrlLightbox images={images} index={pick} onClose={() => setPick(null)} onIndex={setPick} />
+      {pick != null && available[pick] && (
+        <UrlLightbox
+          key={pick}
+          images={available}
+          index={pick}
+          onClose={() => setPick(null)}
+          onIndex={setPick}
+        />
       )}
     </>
   );

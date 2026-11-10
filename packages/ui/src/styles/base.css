@@ -555,6 +555,50 @@
   }
 }
 
+/* ---------- 进出场动画（配合 usePresence：收起时元素带 data-closing，放完再卸载） ---------- */
+/* 弹出菜单：从上方淡入落下；收起反向 */
+.cd-motion-pop {
+  animation: cd-pop-in var(--cd-duration-fast) var(--cd-ease);
+}
+.cd-motion-pop[data-closing] {
+  animation: cd-pop-out 0.15s var(--cd-ease) forwards;
+  pointer-events: none;
+}
+@keyframes cd-pop-in {
+  from {
+    opacity: 0;
+    translate: 0 -8px;
+    scale: 0.98;
+  }
+}
+@keyframes cd-pop-out {
+  to {
+    opacity: 0;
+    translate: 0 -8px;
+    scale: 0.98;
+  }
+}
+/* 从右侧进入的浮层 / 抽屉：自右滑入并淡入；收起反向 */
+.cd-motion-slide-right {
+  animation: cd-slide-in-right var(--cd-duration-fast) var(--cd-ease);
+}
+.cd-motion-slide-right[data-closing] {
+  animation: cd-slide-out-right 0.15s var(--cd-ease) forwards;
+  pointer-events: none;
+}
+@keyframes cd-slide-in-right {
+  from {
+    opacity: 0;
+    translate: 16px 0;
+  }
+}
+@keyframes cd-slide-out-right {
+  to {
+    opacity: 0;
+    translate: 16px 0;
+  }
+}
+
 /* ---------- Toast ---------- */
 .cd-toast-stack {
   position: fixed;

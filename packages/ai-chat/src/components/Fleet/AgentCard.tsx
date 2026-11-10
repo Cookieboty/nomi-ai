@@ -38,6 +38,13 @@ const PAUSED_LABEL = {
   nomi: 'ui.cli-monitor.fleet-paused-nomi',
 } as const;
 
+/** 后台 Nomi 的暂停是任务暂停：这一轮还在跑时跑完才停；不随内存恢复自动继续 */
+function pausedLabel(a: FleetAgent, by: keyof typeof PAUSED_LABEL) {
+  if (a.kind !== 'nomi') return PAUSED_LABEL[by];
+  if (a.column === 'running') return 'ui.cli-monitor.fleet-paused-after-turn';
+  return by === 'nomi' ? 'ui.cli-monitor.fleet-paused-nomi-run' : PAUSED_LABEL[by];
+}
+
 const QUEUE_LABEL = {
   memory: 'ui.cli-monitor.fleet-held',
   cpu: 'ui.cli-monitor.fleet-held-cpu',
@@ -342,7 +349,7 @@ export const AgentCard: React.FC<{ a: FleetAgent } & CardActions> = ({
       {a.paused && (
         <span className={board.note} data-tone="warning" data-testid={`fleet-paused-${a.id}`}>
           <Icon icon={PauseCircle} size={12} />
-          {t(PAUSED_LABEL[a.paused.by])}
+          {t(pausedLabel(a, a.paused.by))}
         </span>
       )}
       {a.failed && (

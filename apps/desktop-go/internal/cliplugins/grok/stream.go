@@ -43,6 +43,11 @@ func ParseLine(line string) []Ev {
 	str := func(k string) string { return util.Str(j.Get(k)) }
 	typ := JSString(Coalesce(j.Get("type"), ""))
 	switch typ {
+	case "user", "user_message":
+		if ev := UserImageEvent(j.Get("content"), str("id")); ev != nil {
+			return []Ev{ev}
+		}
+		return nil
 	case "text":
 		data := or(str("data"), str("text"))
 		if image := sh.ImageMarkdown(data, false); image != "" {

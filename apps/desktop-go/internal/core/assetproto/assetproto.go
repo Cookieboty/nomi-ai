@@ -24,7 +24,8 @@ var packMime = map[string]string{
 	".md": "text/markdown; charset=utf-8",
 }
 
-var areas = map[string]bool{"images": true, "presets": true}
+// themes：自定义主题的背景图（userData/chat/themes，见 internal/core/theme）
+var areas = map[string]bool{"images": true, "presets": true, "themes": true}
 var sepRe = regexp.MustCompile(`[\\/]`)
 
 // extname：path.extname（以点开头的纯文件名无扩展名）

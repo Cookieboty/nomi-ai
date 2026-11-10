@@ -172,10 +172,11 @@ type ToolEnd struct {
 
 // Builder：把会话记录逐条拼成历史消息。
 type Builder struct {
-	Out       []Json
-	n         int
-	names     map[string]string
-	turnStart float64
+	Out             []Json
+	n               int
+	names           map[string]string
+	turnStart       float64
+	assistantImages map[Json][]string
 }
 
 func NewBuilder() *Builder { return &Builder{Out: []Json{}, names: map[string]string{}} }
@@ -186,13 +187,49 @@ func (b *Builder) id() string {
 	return s
 }
 
-func (b *Builder) User(text string, at float64) {
+func (b *Builder) User(text string, at float64, blocks ...any) {
 	content := util.JSTrim(clisdk.StripCarriedContext(text))
-	if content == "" || Injected(content) {
+	var raw any
+	if len(blocks) > 0 {
+		raw = blocks[0]
+	}
+	content, images := clisdk.RestoreUserImages(content, raw)
+	if (content == "" && len(images) == 0) || Injected(content) {
 		return
 	}
 	b.turnStart = at
-	b.Out = append(b.Out, o("id", b.id(), "role", "user", "content", util.UTF16Slice0(content, MaxText), "timestamp", at))
+	msg := o("id", b.id(), "role", "user", "content", util.UTF16Slice0(content, MaxText), "timestamp", at)
+	if len(images) > 0 {
+		msg.Set("images", images)
+	}
+	b.Out = append(b.Out, msg)
+}
+
+func (b *Builder) UserContent(content any, at float64) {
+	text, _ := Blocks(content)
+	b.User(text, at, content)
+}
+
+// AssistantImages keeps binary payloads outside the prose truncation budget.
+// The host materializes these Markdown references before seeding UI messages.
+func (b *Builder) AssistantImages(content any, at float64) {
+	markdown := ImageMarkdown(content, true)
+	if markdown == "" {
+		return
+	}
+	m := b.current(at)
+	if b.assistantImages == nil {
+		b.assistantImages = map[Json][]string{}
+	}
+	refs := b.assistantImages[m]
+	for _, ref := range refs {
+		if ref == markdown {
+			return
+		}
+	}
+	if len(refs) < clisdk.MaxMessageImages {
+		b.assistantImages[m] = append(refs, markdown)
+	}
 }
 
 func (b *Builder) current(at float64) Json {
@@ -293,6 +330,10 @@ func (b *Builder) ToolEnd(e ToolEnd) {
 func (b *Builder) Result() []Json {
 	userAt := 0.0
 	for _, m := range b.Out {
+		if refs := b.assistantImages[m]; len(refs) > 0 {
+			m.Set("content", TextWithImage(util.Str(m.Get("content")), strings.Join(refs, "\n\n")))
+			delete(b.assistantImages, m)
+		}
 		ts := m.Get("timestamp").(float64)
 		if m.Get("role") == "user" {
 			userAt = ts
@@ -405,6 +446,8 @@ func WalkAssistant(b *Builder, content any, at float64, usage Json) {
 		x := AsJ(c)
 		t := typeOf(x)
 		switch {
+		case t == "image" || t == "input_image" || t == "output_image" || t == "image_url" || t == "local_image":
+			b.AssistantImages(x, at)
 		case isText(t):
 			if s, ok := NStr(x.Get("text")); ok {
 				b.Assistant(s, nil, at, nil)

@@ -29,6 +29,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/local"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mousetrack"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/resourcepreview"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/services"
 	"io/fs"
 	"log"
@@ -113,6 +114,8 @@ func main() {
 	hostports.Stage("logger-ready")
 	// 读登录 shell 的 PATH（不阻塞启动；探测 CLI 的异步路径会等它），读完再记住 npm 全局 bin
 	// （自定义 prefix 且 shell 里没配 PATH 时也能找到已装的 CLI；稍后再跑，不和启动抢资源）
+	// 同时读终端里的代理变量，开关（默认开）打开时加给编程助手子进程（cli/shellproxy.go）
+	cli.ConfigureShellProxy(userData, nil)
 	go mergeLoginShellPath()
 	// 这里只复制 2.0.4 文件（不碰钥匙串）；密钥迁移在桌面角色窗口出来后后台跑（secretGate）
 	if res, err := migrate.RunFiles(userData); err != nil {
@@ -152,6 +155,26 @@ func main() {
 		IsDark: func() bool {
 			d, ok := sh.(interface{ IsDarkMode() bool })
 			return ok && d.IsDarkMode()
+		},
+		ThemeDialogs: shellhandlers.ThemeDialogs{
+			PickFile: func(title, filterName string, exts []string) (string, error) {
+				w, _ := sh.(*wailsshell.Wails)
+				if w == nil {
+					return "", nil
+				}
+				picked, err := w.PickFiles(title, []wailsshell.SaveFileFilter{{Name: filterName, Extensions: exts}})
+				if err != nil || len(picked) == 0 {
+					return "", err
+				}
+				return picked[0], nil
+			},
+			SaveFile: func(title, defaultName, filterName string, exts []string) (string, error) {
+				w, _ := sh.(*wailsshell.Wails)
+				if w == nil {
+					return "", nil
+				}
+				return w.SaveFile(title, defaultName, []wailsshell.SaveFileFilter{{Name: filterName, Extensions: exts}})
+			},
 		},
 	})
 	isl := island.New(filepath.Join(userData, "island.json"), mascothandlers.Platform())
@@ -626,8 +649,19 @@ func main() {
 	gatewayRequestsRef.Store(gatewayRequests)
 	defer gatewayRequests.Dispose()
 	projs := wireProjects(router, userData, desktopSvc.Broker)
+	previewResources := resourcepreview.New(userData)
+	previewResources.ProtectedPaths = desktopSvc.Broker.ProtectedPaths
+	previewResources.OpenExternal = ports.OpenExternal
+	previewResources.OpenFile = func(path string) error {
+		if message := ports.OpenPath(path); message != "" {
+			return errors.New(message)
+		}
+		return nil
+	}
+	defer previewResources.Shutdown()
 	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc, shellP.Quality,
 		desktopSvc.Broker.CheckCliWorkspace, desktopSvc.Broker.CliEnvAllow, sandboxDeps(desktopSvc.Broker), projs)
+	jsrt.Run(func() { harnessOrch.AttachPreview(previewResources) })
 	wireNomiBroker(desktopSvc.Broker, harnessOrch)
 	migrateToProjects(projs, bundle.Conversations, harnessOrch, taskRuntime(b8.Tasks))
 	watchSandboxPolicy(desktopSvc.Broker, harnessOrch)
@@ -754,7 +788,7 @@ func main() {
 	// 拖进对话窗口的文件：macOS / Linux 上网页拿不到 File，宿主发一次性临时地址（hostdrop）
 	drops := hostdrop.New()
 	// 视图资源的中间件链：应用窗口与（截图 / CI 用的）回环 HTTP 共用
-	viewsMW := devViewsMiddleware(viewPageMiddleware(assets, drops.Middleware(islandPageMiddleware(isl, builtinPackMiddleware(charSvc, assetproto.Middleware(map[string]func(http.ResponseWriter, string){
+	viewsMW := previewResources.Wrap(devViewsMiddleware(viewPageMiddleware(assets, drops.Middleware(islandPageMiddleware(isl, builtinPackMiddleware(charSvc, assetproto.Middleware(map[string]func(http.ResponseWriter, string){
 		// registerChatAssetProtocol：用户图片在 userData/chat，预设在应用资源
 		assetproto.ChatAssetScheme: func(w http.ResponseWriter, u string) {
 			assetproto.ServeChatAsset(w, filepath.Join(userData, "chat"), chatBgPresetFile(), u)
@@ -763,7 +797,7 @@ func main() {
 		assetproto.CharacterPackScheme: func(w http.ResponseWriter, u string) {
 			assetproto.ServeCharacterPackOrAssets(w, charSvc.Root(), assetsRoot, u)
 		},
-	}))))))
+	})))))))
 	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, Pages: pages, MascotSize: mascotCtl.WindowSize, MascotPos: mascotCtl.WindowPosition, OnWindow: onWindow,
 		// 退出：关窗之前等对话窗口排着的会话写入写完（最多 1.5 秒；最近没写过的立刻返回）
 		OnShutdown: func() {

@@ -33,13 +33,17 @@ import { requestOpenTask } from '../../services/tasksClient';
 import type { IPCClient } from '../../types/ipc';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { confirmDialog } from '../ConfirmDialog';
+import { lazyComponent } from '../lazyPanels';
 import { SideNavItem } from '../Sidebar/SideNavItem';
 
 import { agentTitle } from './AgentCard';
 import styles from './Fleet.module.css';
 import { FleetIndicator } from './FleetIndicator';
-import { FleetPage, type IdleCloseError } from './FleetPage';
+import type { IdleCloseError } from './FleetPage';
 import { useFleet } from './useFleet';
+
+/** 看板主体：首次打开时才加载（不进对话窗首屏 chunk；首屏空闲后会预取） */
+const FleetPage = lazyComponent(() => import('./FleetPage').then((m) => m.FleetPage));
 
 export const FleetNav: React.FC<{
   collapsed: boolean;

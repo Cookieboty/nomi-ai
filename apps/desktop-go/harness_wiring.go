@@ -180,7 +180,8 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 	})
 	o = jsrt.Call(func() *harness.Orchestrator {
 		return harness.New(harness.Deps{
-			Externals: externals{plugins}, Accounts: accPort,
+			ImageStore: &cli.MessageImageStore{ChatRoot: filepath.Join(userData, "chat"), DirOK: cliImageDirectoryAllowed},
+			Externals:  externals{plugins}, Accounts: accPort,
 			Gateway: gatewayPort(gw),
 			Quality: quality.CliSink{S: q},
 			Root:    filepath.Join(userData, "harness"), Logger: stdLogger{}, Home: home,
@@ -294,4 +295,12 @@ func watchSandboxPolicy(b *desktop.PermissionBroker, o *harness.Orchestrator) {
 			jsrt.Go(func() { o.SandboxPolicyChanged() })
 		}
 	})
+}
+
+// CLI transcript images use the same directory grants as chatAssets.localImage.
+func cliImageDirectoryAllowed(dir string) bool {
+	if check := mascothandlers.LocalImageDirOk.Load(); check != nil {
+		return (*check)(dir)
+	}
+	return false
 }

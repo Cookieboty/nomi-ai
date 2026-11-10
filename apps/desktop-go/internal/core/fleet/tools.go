@@ -135,9 +135,9 @@ func whyNotPausable(st State, id string) map[string]any {
 			return toolErr("read_only", "这是用户自己在终端 / IDE 里开的编程助手，只能看，不能暂停")
 		case a.Paused != nil:
 			return toolErr("already_paused", "已经在暂停中")
-		case a.Kind == "nomi":
-			return toolErr("not_pausable", "Nomi 的对话与后台运行跑在内核里，不能暂停；要停就用 delegate_stop")
-		case a.Column != ColRunning:
+		case a.Kind == "nomi" && a.TaskID == "":
+			return toolErr("not_pausable", "正在回答的 Nomi 对话不能暂停")
+		case a.Column != ColRunning && !(a.Kind == "nomi" && a.Column == ColTodo):
 			return toolErr("not_running", "没在跑（"+a.Column+"）")
 		case a.NeedsYou != "":
 			return toolErr("needs_user", "正在等用户处理（"+a.NeedsYou+"），先别暂停")
@@ -172,8 +172,10 @@ func (s *Service) Tools() []tools.Definition {
 		},
 		{
 			Name: "pause_agent",
-			Description: "暂停一个正在跑的编程助手（list_agents 里 pausable 的）：冻结它的进程，不占 CPU，内存由系统回收；" +
-				"之后用 resume_agent 继续，这一轮从暂停处接着跑；内存恢复正常后也会自动继续。" +
+			Description: "暂停一个正在跑的编程助手或后台 Nomi（list_agents 里 pausable 的）。编程助手：冻结它的进程，不占 CPU，" +
+				"内存由系统回收；之后用 resume_agent 继续，这一轮从暂停处接着跑；内存恢复正常后也会自动继续。" +
+				"后台 Nomi（kind 为 nomi 的后台运行）：停掉它的调度，正在跑的这一轮会跑完，之后不再开始新的一轮；" +
+				"不会自动继续，要用户或 resume_agent 继续。" +
 				"用在内存紧张、电脑卡、或用户要求先停一下的时候。用户在终端里自己开的（readOnly）不能暂停。",
 			Input:    schema(agentInputSchema),
 			Relevant: agentsRelevant,
@@ -192,10 +194,11 @@ func (s *Service) Tools() []tools.Definition {
 			},
 		},
 		{
-			Name:        "resume_agent",
-			Description: "继续一个暂停中的编程助手（list_agents 里 column 为 paused 的），这一轮从暂停处接着跑。内存还紧张时先别继续。",
-			Input:       schema(agentInputSchema),
-			Relevant:    agentsRelevant,
+			Name: "resume_agent",
+			Description: "继续一个暂停中的编程助手或后台 Nomi（list_agents 里 pausedBy 有值的）：编程助手这一轮从暂停处接着跑，" +
+				"后台 Nomi 恢复调度。内存还紧张时先别继续。",
+			Input:    schema(agentInputSchema),
+			Relevant: agentsRelevant,
 			Execute: func(_ context.Context, in any, _ tools.ExecContext) (any, error) {
 				id := idOf(in)
 				st, err := s.Resume(id)

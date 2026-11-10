@@ -89,7 +89,6 @@
   "ui.foundation.granted-folders": "授权文件夹",
   "ui.foundation.grants-permissions-and-the-activity-log-are-stored": "授权、权限、操作记录都只保存在本机。Nomi 只能访问你在这里授权的文件夹；删除一律进回收站，可撤销。",
   "ui.foundation.h": "{0} 小时",
-  "ui.foundation.headers-one-key-value-per-line-e-g": "请求头（每行 KEY=VALUE，如 Authorization=Bearer …）",
   "ui.foundation.help-me-organize-today-s-to-dos": "帮我整理今天的待办",
   "ui.foundation.help-me-write-some-code": "帮我写一段代码",
   "ui.foundation.hi-please-introduce-yourself": "你好，请介绍一下自己",
@@ -327,5 +326,10 @@
   "ui.foundation.sandbox-allow-write": "允许写入",
   "ui.foundation.sandbox-allow-remove": "不再允许",
   "ui.foundation.sandbox-allow-remove-aria": "不再允许 {0}",
-  "ui.foundation.sandbox-allow-project": "只在 {0}"
+  "ui.foundation.sandbox-allow-project": "只在 {0}",
+  "ui.foundation.mcp-header-add": "新增请求头",
+  "ui.foundation.mcp-header-key": "第 {0} 个请求头名称",
+  "ui.foundation.mcp-header-remove": "删除第 {0} 个请求头",
+  "ui.foundation.mcp-header-value": "第 {0} 个请求头值",
+  "ui.foundation.mcp-request-headers": "请求头（可选）"
 }

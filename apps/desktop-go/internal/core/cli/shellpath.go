@@ -53,9 +53,11 @@ func MergePath(cur, extra, delimiter string) string {
 }
 
 // LoginShellArgs = LOGIN_SHELL_ARGS。
-var LoginShellArgs = []string{"-ilc", `printf '%s' "` + pathStart + `${PATH}` + pathEnd + `"`}
+// 先打 PATH，再打 `env`（取代理变量，见 shellproxy.go）：env 那段失败也不影响 PATH。
+var LoginShellArgs = []string{"-ilc", `printf '%s' "` + pathStart + `${PATH}` + pathEnd + `"; ` +
+	`printf '%s' "` + envStart + `"; command env; printf '%s' "` + envEnd + `"`}
 
-// ShellPathRunner：执行登录 shell 并取出 PATH（"" = null）。
+// ShellPathRunner：执行登录 shell，返回原始输出（"" = 没取到）。
 type ShellPathRunner func(shell string, args []string) string
 
 func readLoginShellPath(shell string, args []string, timeoutMs int) string {
@@ -74,7 +76,7 @@ func readLoginShellPath(shell string, args []string, timeoutMs int) string {
 	if err != nil && len(out) == 0 {
 		return ""
 	}
-	return ParseShellPath(string(out))
+	return string(out)
 }
 
 var (
@@ -115,8 +117,10 @@ func LoadLoginShellPath(onMerged func(added []string), opts LoadLoginShellPathOp
 	p := jsrt.NewPromise[struct{}]()
 	shellReady = p
 	go func() {
-		value := ""
-		func() { defer func() { _ = recover() }(); value = run(shell, LoginShellArgs) }()
+		raw := ""
+		func() { defer func() { _ = recover() }(); raw = run(shell, LoginShellArgs) }()
+		value := ParseShellPath(raw)
+		SetShellProxy(ParseShellEnv(raw))
 		jsrt.Run(func() {
 			defer p.Resolve(struct{}{})
 			defer func() { _ = recover() }()

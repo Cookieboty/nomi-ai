@@ -2,12 +2,13 @@
  * 会话的 Transcript view 菜单：Normal / Thinking / Verbose。
  * 选择只作用于当前会话（sessionKey），由 useTranscriptView 持久化；不改变其它会话。
  */
-import { Icon, t, useLocale } from '@nomi-ai/ui';
+import { Icon, t, useLocale, usePresence } from '@nomi-ai/ui';
 import { Check, Eye } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useTranscriptView } from '../../hooks/useTranscriptView';
 import { TRANSCRIPT_VIEWS, type TranscriptView } from '../../services/transcriptView';
+import { titlebarMenuTop } from '../../utils/titlebarMenu';
 
 import styles from './index.module.css';
 import { TRANSCRIPT_VIEW_DESC_KEY, TRANSCRIPT_VIEW_LABEL_KEY } from './labels';
@@ -20,6 +21,8 @@ export const TranscriptViewButton: React.FC<{ sessionKey: string }> = ({ session
   useLocale();
   const { view, globalView, hasOverride, setView, followGlobal } = useTranscriptView(sessionKey);
   const [at, setAt] = useState<{ left: number; top: number } | null>(null);
+  // 菜单收起时先放完淡出动画再卸载
+  const atP = usePresence(at);
   const btn = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
 
@@ -29,7 +32,7 @@ export const TranscriptViewButton: React.FC<{ sessionKey: string }> = ({ session
     const r = btn.current?.getBoundingClientRect();
     if (!r) return;
     const left = Math.max(4, Math.min(r.right - MENU_WIDTH, window.innerWidth - MENU_WIDTH - 4));
-    const below = r.bottom + 4;
+    const below = titlebarMenuTop(r);
     const top =
       below + MENU_EST_HEIGHT > window.innerHeight
         ? Math.max(4, r.top - MENU_EST_HEIGHT - 4)
@@ -85,10 +88,14 @@ export const TranscriptViewButton: React.FC<{ sessionKey: string }> = ({ session
     e.preventDefault();
   };
 
-  const pick = (next: TranscriptView) => {
-    setView(next);
+  /** 选完关菜单。键盘操作（Enter / 空格，detail 为 0）才把焦点还给按钮；鼠标点选不留焦点框 */
+  const done = (e: React.MouseEvent) => {
     close();
-    btn.current?.focus();
+    if (e.detail === 0) btn.current?.focus();
+  };
+  const pick = (next: TranscriptView, e: React.MouseEvent) => {
+    setView(next);
+    done(e);
   };
 
   return (
@@ -97,7 +104,6 @@ export const TranscriptViewButton: React.FC<{ sessionKey: string }> = ({ session
         ref={btn}
         type="button"
         className="app-titlebar-btn"
-        title={t('ui.chat-settings.transcript-view')}
         aria-label={t('ui.chat-settings.transcript-view')}
         aria-haspopup="menu"
         aria-expanded={!!at}
@@ -107,13 +113,14 @@ export const TranscriptViewButton: React.FC<{ sessionKey: string }> = ({ session
       >
         <Icon icon={Eye} size={16} />
       </button>
-      {at && (
+      {atP.value && (
         <div
           ref={menu}
           role="menu"
           aria-label={t('ui.chat-settings.transcript-view')}
-          className={styles.menu}
-          style={{ left: at.left, top: at.top, width: MENU_WIDTH }}
+          className={`${styles.menu} cd-motion-pop`}
+          data-closing={atP.closing || undefined}
+          style={{ left: atP.value.left, top: atP.value.top, width: MENU_WIDTH }}
           data-testid="transcript-view-menu"
           onKeyDown={onMenuKey}
         >
@@ -126,7 +133,7 @@ export const TranscriptViewButton: React.FC<{ sessionKey: string }> = ({ session
               aria-checked={view === id}
               className={styles.item}
               data-testid={`transcript-view-${id}`}
-              onClick={() => pick(id)}
+              onClick={(e) => pick(id, e)}
             >
               <span className={styles.check} aria-hidden="true">
                 {view === id && <Icon icon={Check} size={14} />}
@@ -144,10 +151,9 @@ export const TranscriptViewButton: React.FC<{ sessionKey: string }> = ({ session
             aria-checked={!hasOverride}
             className={styles.item}
             data-testid="transcript-view-global"
-            onClick={() => {
+            onClick={(e) => {
               followGlobal();
-              close();
-              btn.current?.focus();
+              done(e);
             }}
           >
             <span className={styles.check} aria-hidden="true">

@@ -16,7 +16,11 @@
 
 import { createAppClient, installGoHostTransport, type AppClient } from '@nomi-ai/ai-sdk-client';
 import { setLeanValidation } from '@nomi-ai/contract';
-import { APP_HIGH_FREQUENCY_EVENTS, resolveHostAssetUrl } from '@nomi-ai/contract/app';
+import {
+  APP_HIGH_FREQUENCY_EVENTS,
+  APP_LARGE_RESULT_PROCEDURES,
+  resolveHostAssetUrl,
+} from '@nomi-ai/contract/app';
 
 import { installCodingBackends } from './hostBackends/coding';
 import { installKnowledgeBackends } from './hostBackends/knowledge';
@@ -26,8 +30,10 @@ import { installShellBackends } from './hostBackends/shell';
 
 export type { AppClient };
 
-// 生产构建：流式 chunk / 高频事件跳过逐帧的 schema 校验（开发与测试照常全量校验，见 contract 的 leanValidation）
-if (import.meta.env.PROD) setLeanValidation({ events: APP_HIGH_FREQUENCY_EVENTS });
+// 生产构建：流式 chunk / 高频事件 / 大结果跳过 schema 校验（开发与测试照常全量校验，见 contract 的 leanValidation）
+if (import.meta.env.PROD) {
+  setLeanValidation({ events: APP_HIGH_FREQUENCY_EVENTS, procedures: APP_LARGE_RESULT_PROCEDURES });
+}
 
 // 必须在 createAppClient() 之前
 const goHostTransport = installGoHostTransport('chat');

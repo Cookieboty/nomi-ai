@@ -13,6 +13,10 @@
  * - 标「微调」的令牌是规范值对比度不足、沿同一色相调亮 / 调深到刚好达标的值。
  */
 :root {
+  --cd-image-viewer-backdrop: rgba(0, 0, 0, 0.9);
+  --cd-image-viewer-control-bg: #292929;
+  --cd-image-viewer-hover: #404040;
+  --cd-image-viewer-text: #f5f5f5;
   /* radius */
   --cd-radius-xs: 4px;
   --cd-radius-sm: 6px;

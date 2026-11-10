@@ -33,10 +33,17 @@ func TestProfileClosesGaps(t *testing.T) {
 	run := func(s Spec, args ...string) bool {
 		return exec.Command(Exec, append([]string{"-p", Profile(s)}, args...)...).Run() == nil
 	}
-	for _, p := range []string{".npmrc", ".zsh_history", ".config/op/config"} {
+	for _, p := range []string{".zsh_history", ".config/op/config"} {
 		if run(spec, "/bin/cat", filepath.Join(home, p)) {
 			t.Errorf("read ~/%s must be denied", p)
 		}
+	}
+	// ~/.npmrc 放开读（镜像源配置），但不能写（script-shell / node-options 会在沙箱外执行）
+	if !run(spec, "/bin/cat", filepath.Join(home, ".npmrc")) {
+		t.Error("read ~/.npmrc should be allowed")
+	}
+	if run(spec, "/bin/sh", "-c", `echo "script-shell=/tmp/x" >> "$1"`, "sh", filepath.Join(home, ".npmrc")) {
+		t.Error("write ~/.npmrc must be denied")
 	}
 	write := func(s Spec, p string) bool {
 		_ = os.MkdirAll(filepath.Dir(p), 0o755)

@@ -427,6 +427,32 @@ describe('FleetPage', () => {
     expect(screen.getByTestId('fleet-parent-tab:p').textContent).toContain('写周报');
   });
 
+  it('pauses a background Nomi run as a task: after this turn, then until resumed (#317)', () => {
+    const withRuns = (patch: Partial<(typeof state.agents)[number]>) => ({
+      ...state,
+      agents: state.agents.map((a) => (a.id === 'run:t2' ? { ...a, ...patch } : a)),
+    });
+    const { unmount } = render(
+      <FleetPage
+        active
+        state={withRuns({ column: 'running', paused: { by: 'user', at: T0 } })}
+        onBack={() => undefined}
+      />,
+    );
+    expect(screen.getByTestId('fleet-paused-run:t2').textContent).toContain('这一轮跑完后暂停');
+    unmount();
+    render(
+      <FleetPage
+        active
+        state={withRuns({ column: 'paused', paused: { by: 'nomi', at: T0 } })}
+        onBack={() => undefined}
+      />,
+    );
+    const note = screen.getByTestId('fleet-paused-run:t2').textContent;
+    expect(note).toContain('点继续恢复');
+    expect(note).not.toContain('内存恢复后自动继续');
+  });
+
   it('says why queued work is waiting', () => {
     const queued = {
       ...state,

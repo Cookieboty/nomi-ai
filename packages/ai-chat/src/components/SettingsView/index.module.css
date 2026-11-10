@@ -389,6 +389,37 @@
   color: var(--cd-color-surface);
   box-shadow: 0 0 0 2px var(--cd-color-surface-raised);
 }
+/* 主题标题行 / 选中自定义主题那一行右侧的按钮 */
+.themeHeaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--cd-space-1-5);
+}
+/* 「跟随系统」开关：与同一行的按钮同高 */
+.followSystem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  height: var(--cd-control-h-sm);
+  padding: 0 var(--cd-space-2);
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.themeNotice {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  overflow-wrap: anywhere;
+}
+/* 自定义主题名前的小图标 */
+.themeNameIcon {
+  display: inline-block;
+  margin-right: var(--cd-space-1);
+  vertical-align: -1px;
+  color: var(--cd-color-text-muted);
+}
 .themeName {
   font-size: var(--cd-font-size-xs);
   font-weight: var(--cd-font-weight-medium);

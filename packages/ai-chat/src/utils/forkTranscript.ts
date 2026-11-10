@@ -8,6 +8,8 @@ import { t } from '@nomi-ai/ui';
 import type { ChatMessage } from '../types/chat';
 
 export interface CompactTranscriptOpts {
+  /** Same-backend focus-mode forks may preserve user image attachments. */
+  keepImages?: boolean;
   /** 最多保留的轮次（user+assistant 对），默认 40 */
   maxTurns?: number;
   /** 单条内容最大字符，默认 4000 */
@@ -27,7 +29,7 @@ export function compactTranscript(
     if (m.error) continue;
     const role = m.role === 'assistant' ? 'assistant' : 'user';
     let content = (m.content || '').trim();
-    if (!content) continue;
+    if (!content && !(opts.keepImages && m.images?.length)) continue;
     // 工具结果块常见前缀：压成短注
     if (/^\[tool[:\s]/i.test(content) || content.startsWith('```tool')) {
       content = t('ui.cli-monitor.tool-call-omitted');
@@ -39,6 +41,7 @@ export function compactTranscript(
       content,
       timestamp: m.timestamp,
       ...(m.modelId ? { modelId: m.modelId } : {}),
+      ...(opts.keepImages && m.images?.length ? { images: m.images } : {}),
     });
   }
   // 按轮裁剪：从尾部保留

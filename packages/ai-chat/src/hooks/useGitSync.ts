@@ -1,11 +1,12 @@
 /**
  * 右栏「改动」分支栏的 git 信息（docs/development/coding-agents.md）：与上游的差距、同一仓库的 worktree。
- * 换目录、这一轮跑完、窗口重新拿到焦点、nonce 变化时重读。ahead / behind 只按本地已知的远端分支算，要新的先「检查远端」。
+ * 换目录、这一轮跑完、窗口重新拿到焦点（至多每 5 秒）、nonce 变化时重读。ahead / behind 只按本地已知的远端分支算，要新的先「检查远端」。
  * 不是 git 仓库、主进程没有这个接口时返回 null。
  */
 import { useEffect, useState } from 'react';
 
 import { harnessClient, type GitSyncStatus, type GitWorktreeList } from '../services/harnessClient';
+import { onWindowFocus } from '../utils/focusRefresh';
 
 function useGitInfo<T>(
   load: (cwd: string) => Promise<T | null>,
@@ -23,10 +24,10 @@ function useGitInfo<T>(
         .then((value) => alive && setSt({ cwd, value }))
         .catch(() => alive && setSt({ cwd, value: null }));
     read();
-    window.addEventListener('focus', read);
+    const off = onWindowFocus(read);
     return () => {
       alive = false;
-      window.removeEventListener('focus', read);
+      off();
     };
   }, [load, cwd, running, nonce]);
   return cwd && st?.cwd === cwd ? st.value : null;

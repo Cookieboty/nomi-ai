@@ -32,6 +32,14 @@ describe('shell · 过程表', () => {
     expect(table).toEqual({
       'theme.get': 'query',
       'theme.set': 'mutation',
+      'theme.customList': 'query surfaces=chat',
+      'theme.customSave': 'mutation surfaces=chat',
+      'theme.customDelete': 'mutation surfaces=chat',
+      'theme.customImport': 'mutation surfaces=chat',
+      'theme.customExport': 'mutation surfaces=chat',
+      'theme.customPickBackground': 'mutation surfaces=chat',
+      'theme.customImportData': 'mutation surfaces=chat',
+      'theme.customTemplate': 'mutation surfaces=chat',
       'locale.get': 'query',
       'locale.set': 'mutation',
       'locale.dict': 'query',
@@ -270,6 +278,34 @@ describe('shell · schema', () => {
       S.UpdateState.safeParse({ ...base, releaseName: null, releaseNotes: null }).success,
     ).toBe(true);
     expect(S.UpdateState.safeParse({ ...base, status: 'paused' }).success).toBe(false);
+  });
+});
+
+describe('shell · 自定义主题', () => {
+  it('ThemePref 接受 custom:<id>，拒绝别的写法', () => {
+    expect(S.ThemePref.safeParse('custom:abc123').success).toBe(true);
+    expect(S.ThemePref.safeParse('custom:../x').success).toBe(false);
+    expect(S.ThemePref.safeParse('custom:').success).toBe(false);
+  });
+
+  it('ThemeState 带上自定义主题定义', () => {
+    const custom = {
+      id: 'abc123',
+      format: 1,
+      name: { zh: '深海' },
+      base: 'dark',
+      seeds: { accent: '#4fa3d9' },
+    };
+    expect(
+      S.ThemeState.safeParse({ pref: 'custom:abc123', resolved: 'dark', custom }).success,
+    ).toBe(true);
+    expect(
+      S.ThemeState.safeParse({
+        pref: 'custom:abc123',
+        resolved: 'dark',
+        custom: { ...custom, base: 'x' },
+      }).success,
+    ).toBe(false);
   });
 });
 

@@ -1,5 +1,5 @@
 import { byCli } from '@nomi-ai/cli-catalog';
-import { t, Icon, useLocale } from '@nomi-ai/ui';
+import { t, Icon, useLocale, usePresence } from '@nomi-ai/ui';
 import { MessagesSquare, SquarePen } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { List } from 'react-window';
@@ -107,6 +107,9 @@ interface SidebarProps {
 }
 
 /** 侧栏：全部 / 按端 + 端点徽标；点击按后端路由到主对话或 CLI 标签 */
+/** 会话菜单的位置；从「更多」按钮打开时带上按钮（再点它关掉菜单） */
+type MenuAt = { x: number; y: number; anchor?: HTMLElement };
+
 const SidebarImpl: React.FC<SidebarProps> = ({
   collapsed,
   onToggle,
@@ -150,11 +153,14 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const [current, setCurrent] = useState<string | undefined>();
   const [bins, setBins] = useState<Record<string, string | null>>({});
   const [newMenu, setNewMenu] = useState(false);
-  const [ctx, setCtx] = useState<{ id: string; x: number; y: number } | null>(null);
+  // anchor：从行内「更多」按钮打开时是那个按钮（再点它关掉菜单）；右键打开时没有
+  const [ctx, setCtx] = useState<(MenuAt & { id: string }) | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [histMenu, setHistMenu] = useState<{ h: HistorySession; x: number; y: number } | null>(
-    null,
-  );
+  const [histMenu, setHistMenu] = useState<(MenuAt & { h: HistorySession }) | null>(null);
+  // 菜单收起时先放完淡出动画再卸载
+  const newMenuP = usePresence(newMenu && !collapsed);
+  const ctxP = usePresence(ctx);
+  const histMenuP = usePresence(histMenu);
   const ws = useNewProject();
   const projects = useProjects();
   // 创建 / 编辑项目的弹窗：'new' = 新建
@@ -238,6 +244,8 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       : current;
   const rowActiveId = pageOpen ? undefined : highlightId;
   const float = useFloatingPanel(collapsed);
+  // 会话面板收起时先放完收回动画再卸载
+  const panelP = usePresence(!collapsed || float.floating);
   // 浮层里选了会话 / 新建了会话（高亮换了）：收起浮层
   const [floatFor, setFloatFor] = useState(highlightId);
   if (floatFor !== highlightId) {
@@ -488,10 +496,14 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const listPeek = useSessionPeek(400);
 
   /** 行内「更多」：与右键共用同一个 ConversationMenu，只是锚在按钮下方 */
-  const openMore = useCallback((id: string, a: DOMRect) => {
+  const openMore = useCallback((id: string, anchor: HTMLElement) => {
     setNewMenu(false);
     setHistMenu(null);
-    setCtx({ id, x: a.right - 184, y: a.bottom + 2 });
+    const a = anchor.getBoundingClientRect();
+    // 再点同一个「更多」按钮：关掉菜单
+    setCtx((cur) =>
+      cur?.anchor === anchor ? null : { id, x: a.right - 184, y: a.bottom + 2, anchor },
+    );
   }, []);
 
   const onCtx = useCallback((id: string, e: React.MouseEvent) => {
@@ -787,9 +799,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       >
         <Icon icon={SquarePen} />
       </button>
-      {newMenu && !collapsed && (
+      {newMenuP.value && (
         <AnchoredPopover anchor={newBtnRef.current} popRef={newPopRef}>
           <NewChatMenu
+            closing={newMenuP.closing}
             className={styles.newMenu}
             backends={CONVERSATION_BACKENDS}
             bins={bins}
@@ -925,11 +938,13 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         {footer}
       </div>
 
-      {(!collapsed || float.floating) && (
+      {panelP.value && (
         <div
           className={`${styles.panel} ${float.floating ? styles.panelFloating : ''}`}
           data-testid="sidebar-panel"
           data-floating={float.floating || undefined}
+          data-closing={panelP.closing || undefined}
+          aria-hidden={panelP.closing || undefined}
         >
           {/* 顶行（Codex 式）：模式菜单在左，搜索在右；新建与整理在「工作区」标题右侧 */}
           <div className={styles.top}>
@@ -1041,10 +1056,13 @@ const SidebarImpl: React.FC<SidebarProps> = ({
                 scanning={histScanning}
                 openingKey={openingKey}
                 onOpen={(h) => void openHistory(h)}
-                onMenu={(h, x, y) => {
+                onMenu={(h, x, y, anchor) => {
                   setNewMenu(false);
                   setCtx(null);
-                  setHistMenu({ h, x, y });
+                  // 再点同一个「更多」按钮：关掉菜单
+                  setHistMenu((cur) =>
+                    anchor && cur?.anchor === anchor ? null : { h, x, y, anchor },
+                  );
                 }}
                 onDelete={(h) => void deleteHistory(h)}
                 hasMore={histScopeSupported && history.hasMore(histScope)}
@@ -1072,11 +1090,16 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {ctx &&
+      {ctxP.value &&
         (() => {
+          const ctx = ctxP.value;
           const meta = list.find((x) => x.id === ctx.id);
           return (
             <ConversationMenu
+              // 换了一行右键：重新挂载，焦点回到新菜单的第一项
+              key={`${ctx.id}:${ctx.x}:${ctx.y}`}
+              closing={ctxP.closing}
+              anchor={ctx.anchor}
               x={ctx.x}
               y={ctx.y}
               isTab={Boolean(meta?.tabId)}
@@ -1154,14 +1177,16 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         />
       )}
 
-      {histMenu && (
+      {histMenuP.value && (
         <ConversationMenu
-          x={histMenu.x}
-          y={histMenu.y}
+          x={histMenuP.value.x}
+          y={histMenuP.value.y}
           isTab={false}
+          closing={histMenuP.closing}
+          anchor={histMenuP.value.anchor}
           onDismiss={() => setHistMenu(null)}
-          onOpen={() => void openHistory(histMenu.h)}
-          onDelete={() => void deleteHistory(histMenu.h)}
+          onOpen={() => void openHistory(histMenuP.value!.h)}
+          onDelete={() => void deleteHistory(histMenuP.value!.h)}
         />
       )}
     </aside>

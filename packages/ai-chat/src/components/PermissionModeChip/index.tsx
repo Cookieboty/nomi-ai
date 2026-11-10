@@ -6,7 +6,7 @@
  *   之后按钮标红，输入框上方显示提示条（BypassTip），可关掉提示或一键退出；
  * - 下拉底部可以把当前档设为新标签的默认档（「完全放开」不能设为默认）。
  */
-import { Icon, t } from '@nomi-ai/ui';
+import { Icon, t, usePresence } from '@nomi-ai/ui';
 import {
   Check,
   ChevronDown,
@@ -103,6 +103,8 @@ export const PermissionModeChip: React.FC<{
   defaultMode?: PermissionMode;
 }> = ({ tab, defaultMode }) => {
   const [open, setOpen] = useState(false);
+  // 收起时先放完淡出动画再卸载
+  const menuP = usePresence(open);
   /** 提示只显示在产生它的标签上（异步结果回来时用户可能已切到别的标签） */
   const [note, setNote] = useState<{ tabId: string; text: string } | null>(null);
   const [cliModes, setCliModes] = useState<PermissionMode[] | null>(null);
@@ -251,11 +253,12 @@ export const PermissionModeChip: React.FC<{
           {noteText}
         </span>
       )}
-      {open &&
+      {menuP.value &&
         createPortal(
           <div
             ref={menuRef}
-            className={styles.menu}
+            className={`${styles.menu} cd-motion-pop`}
+            data-closing={menuP.closing || undefined}
             style={pos}
             role="menu"
             aria-label={t('ui.chat-settings.permission-mode-label')}

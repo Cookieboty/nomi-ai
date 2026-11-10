@@ -1,7 +1,9 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
 import {
   clearTranscriptView,
+  cliTranscriptKey,
+  migrateTranscriptView,
   getTranscriptViewState,
   setGlobalTranscriptView,
   setTranscriptView,
@@ -39,4 +41,18 @@ export function useTranscriptView(sessionKey: string | null | undefined): {
 export function useGlobalTranscriptView(): [TranscriptView, (view: TranscriptView) => void] {
   const state = useSyncExternalStore(subscribe, getTranscriptViewState, getTranscriptViewState);
   return [state.global, setGlobalTranscriptView];
+}
+
+/**
+ * 编程助手标签拿到 CLI 会话 id 后：把先按标签 id 存的覆盖搬到稳定的会话键（cliTranscriptKey），
+ * 之后关掉标签、从历史重开也还在（#313）。覆盖只在当前标签上设，看当前标签就够。
+ */
+export function useMigrateCliTranscriptView(
+  tab: Parameters<typeof cliTranscriptKey>[0] | null | undefined,
+): void {
+  const id = tab?.id;
+  const key = tab ? cliTranscriptKey(tab) : null;
+  useEffect(() => {
+    if (id && key && key !== `tab:${id}`) migrateTranscriptView(`tab:${id}`, key);
+  }, [id, key]);
 }

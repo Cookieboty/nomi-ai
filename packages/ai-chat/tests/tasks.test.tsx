@@ -4,7 +4,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TasksNav, TasksPage } from '../src/components/Tasks';
+import { TasksNav } from '../src/components/Tasks';
+import { TasksPage } from '../src/components/Tasks/TasksPage';
 
 import { installFakeApi, resetFakeApi, type FakeApi } from './helpers/fakeApi';
 

@@ -6,9 +6,9 @@
  * - 任务：从这个会话建的持续任务与状态，点开到任务页。
  * 两个列表最多先显示 5 个，「更多」展开其余的。开关与自动收起见 ./context。
  */
-import { Icon, t, Tooltip } from '@nomi-ai/ui';
-import { Bot, ChevronUp, Ellipsis, GitBranch, LayoutDashboard, ListChecks } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import { Icon, t, Tooltip, usePresence } from '@nomi-ai/ui';
+import { Bot, ChevronUp, createLucideIcon, Ellipsis, GitBranch, ListChecks } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { selectIpcClient, useAiChatSelector } from '../../contexts/aiChatStore';
 import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
@@ -20,6 +20,7 @@ import { groupOf, requestOpenTask, statusLabel, type TaskGroup } from '../../ser
 import type { ConvMessage } from '../../types/conversation';
 import type { IPCClient } from '../../types/ipc';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import type { TabLive } from '../../utils/liveState';
 import {
   aggregateSessionChanges,
   projectNameFromCwd,
@@ -43,6 +44,14 @@ import { useDelegateResults } from './useDelegateResults';
 import { useWorkspaceChanges } from './useWorkspaceChanges';
 
 export { SessionDetailsProvider } from './context';
+
+/** 标题栏「会话详情」按钮的图标：左边两个小圆、右边两条线（一份清单的样子） */
+const SessionDetailsIcon = createLucideIcon('session-details', [
+  ['circle', { cx: '6', cy: '7.5', r: '2.5', key: 'sd1' }],
+  ['path', { d: 'M12 7.5h9', key: 'sd2' }],
+  ['circle', { cx: '6', cy: '16.5', r: '2.5', key: 'sd3' }],
+  ['path', { d: 'M12 16.5h9', key: 'sd4' }],
+]);
 
 const STATUS_KEY: Record<SessionAgentStatus, string> = {
   running: 'ui.knowledge-local.running',
@@ -171,11 +180,42 @@ interface Props {
   cwd: string | null;
 }
 
-const DetailsPanel: React.FC<Props & { onClose: () => void }> = ({ messages, cwd, onClose }) => {
+/** 「在等你批准」的占位实时状态：delegateView 只看 permissions 有没有 */
+const WAITING_LIVE = { permissions: [{}] } as unknown as TabLive;
+function waitingLive(key: string): Record<string, TabLive> {
+  const out: Record<string, TabLive> = {};
+  for (const id of key ? key.split('\n') : []) out[id] = WAITING_LIVE;
+  return out;
+}
+
+const DetailsPanel: React.FC<
+  Props & { onClose: () => void; floating?: boolean; dismissible?: boolean; closing?: boolean }
+> = ({ messages, cwd, onClose, floating, dismissible, closing }) => {
+  const ref = useRef<HTMLElement>(null);
+  // 自动收起后手动打开的浮层：点在浮层和标题栏按钮以外的地方就收回
+  useEffect(() => {
+    if (!dismissible) return;
+    const onDown = (e: PointerEvent) => {
+      const target = e.target as Node | null;
+      if (!target || ref.current?.contains(target)) return;
+      if ((target as Element).closest?.('[data-testid="session-details-toggle"]')) return;
+      onClose();
+    };
+    window.addEventListener('pointerdown', onDown, true);
+    return () => window.removeEventListener('pointerdown', onDown, true);
+  }, [dismissible, onClose]);
   const tabs = useHarnessTabs();
   const { isDev } = useChatMode();
   const tabId = isDev && tabs.isCliTab ? tabs.activeTab?.id : undefined;
-  const live = useHarnessLive((l) => l);
+  // 只订阅用到的切片（别的标签 / 本标签的流式输出不让这一栏重算）：当前标签的实时子代理，
+  // 以及哪些标签在等你批准（委派状态只看这一项，见 delegateView）
+  const liveAgents = useHarnessLive((l) => (tabId ? l[tabId]?.agents : undefined));
+  const waitingKey = useHarnessLive((l) =>
+    Object.keys(l)
+      .filter((id) => l[id]?.permissions?.length)
+      .sort()
+      .join('\n'),
+  );
   const pane = useSubagentPane();
   const { openWorkbench } = useChangesUi();
   const branch = useGitBranch(cwd);
@@ -193,11 +233,11 @@ const DetailsPanel: React.FC<Props & { onClose: () => void }> = ({ messages, cwd
       collectSessionAgents(
         messages,
         tabs.state?.tabs,
-        live,
-        tabId ? live[tabId]?.agents : {},
+        waitingLive(waitingKey),
+        liveAgents ?? {},
         results,
       ),
-    [messages, tabs.state?.tabs, live, tabId, results],
+    [messages, tabs.state?.tabs, waitingKey, liveAgents, results],
   );
   // 这个会话的持续任务：Nomi 对话用当前会话 id；编程助手标签用它在会话列表里的镜像项
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
@@ -213,10 +253,14 @@ const DetailsPanel: React.FC<Props & { onClose: () => void }> = ({ messages, cwd
 
   return (
     <aside
+      ref={ref}
       role="complementary"
       aria-label={t('ui.session-workspace.session-details')}
-      className={styles.panel}
+      className={`${styles.panel} ${floating ? styles.floating : ''} cd-motion-slide-right`}
       data-testid="session-details"
+      data-floating={floating || undefined}
+      data-closing={closing || undefined}
+      aria-hidden={closing || undefined}
       onKeyDown={(e) => {
         if (e.key !== 'Escape') return;
         e.stopPropagation();
@@ -234,17 +278,18 @@ const DetailsPanel: React.FC<Props & { onClose: () => void }> = ({ messages, cwd
           </span>
         )}
       </div>
-      {cwd && (
-        <button
-          type="button"
-          className={styles.row}
-          data-testid="session-details-changes"
-          title={changes.files > 0 ? t('ui.usage-tools.files', String(changes.files)) : undefined}
-          onClick={() => openWorkbench({})}
-        >
-          <ChangesIcon />
-          <span className={styles.rowLabel}>{t('ui.session-workspace.changed')}</span>
-          {changes.files > 0 ? (
+      {/* 有改动才能点开中栏 Diff；没有改动只是一行说明 */}
+      {cwd &&
+        (changes.files > 0 ? (
+          <button
+            type="button"
+            className={styles.row}
+            data-testid="session-details-changes"
+            title={t('ui.usage-tools.files', String(changes.files))}
+            onClick={() => openWorkbench({})}
+          >
+            <ChangesIcon />
+            <span className={styles.rowLabel}>{t('ui.session-workspace.changed')}</span>
             <span className={styles.stats}>
               <span className={styles.muted}>
                 {t('ui.usage-tools.files', String(changes.files))}
@@ -252,11 +297,14 @@ const DetailsPanel: React.FC<Props & { onClose: () => void }> = ({ messages, cwd
               <span className={styles.added}>+{changes.added.toLocaleString()}</span>
               <span className={styles.removed}>-{changes.removed.toLocaleString()}</span>
             </span>
-          ) : (
+          </button>
+        ) : (
+          <div className={styles.row} data-static data-testid="session-details-changes">
+            <ChangesIcon />
+            <span className={styles.rowLabel}>{t('ui.session-workspace.changed')}</span>
             <span className={styles.muted}>{t('ui.session-workspace.details-no-changes')}</span>
-          )}
-        </button>
-      )}
+          </div>
+        ))}
       <Section
         id="agents"
         title={t('ui.session-workspace.details-agents')}
@@ -335,19 +383,39 @@ export const SessionDetailsToggle: React.FC<{
         data-testid="session-details-toggle"
         onClick={v.toggle}
       >
-        <Icon icon={LayoutDashboard} size={16} />
+        <Icon icon={SessionDetailsIcon} size={16} />
       </button>
     </Tooltip>
   );
 };
 
-/** 对话卡片右侧的一栏：显示着且会话有消息时才有（空会话不占地方） */
-export const SessionDetailsDock: React.FC<Props> = (props) => {
+/**
+ * 对话卡片右侧的一栏：显示着且会话有消息时才有（空会话不占地方）。
+ * 放两处：平时那一栏放在对话卡片右侧（overlay 不传）；浮层（自动收起后再打开，或旁边开着文件栏 /
+ * 子任务栏）放进对话列里（overlay），盖在对话右上角，不挤压对话，也不落到中栏的 Diff / 文件预览上。
+ */
+export const SessionDetailsDock: React.FC<Props & { overlay?: boolean }> = ({
+  overlay = false,
+  ...props
+}) => {
   const v = useSessionDetails();
-  if (!v?.visible || !props.messages.length) return null;
-  const close = () => {
-    v.close();
+  const close = useCallback(() => {
+    // 浮层只收回（还是自动收起的状态）；平时的一栏是用户关掉
+    if (v?.dismissible) v.dismiss();
+    else v?.close();
     document.querySelector<HTMLElement>('[data-testid="session-details-toggle"]')?.focus();
-  };
-  return <DetailsPanel {...props} onClose={close} />;
+  }, [v]);
+  const show = !!v?.visible && props.messages.length > 0 && overlay === v.floating;
+  // 收起时先放完滑出动画再卸载（值用字符串，渲染间保持稳定）
+  const mode = usePresence(show ? (v!.dismissible ? 'dismissible' : 'shown') : null);
+  if (!mode.value) return null;
+  return (
+    <DetailsPanel
+      {...props}
+      onClose={close}
+      floating={overlay}
+      dismissible={mode.value === 'dismissible' && !mode.closing}
+      closing={mode.closing}
+    />
+  );
 };

@@ -113,7 +113,7 @@ func ParseTranscript(text string, fallbackAt float64) []sh.Json {
 		at := sh.When(m.Get("timestamp"), fallbackAt)
 		t := m.Get("type")
 		if t == "user" {
-			b.User(Text(m.Get("content")), at)
+			b.User(Text(m.Get("content")), at, m.Get("content"))
 			continue
 		}
 		if t != "gemini" && t != "model" {
@@ -165,6 +165,7 @@ func ParseTranscript(text string, fallbackAt float64) []sh.Json {
 			}
 		}
 		b.Assistant(Text(m.Get("content")), nil, at, usage)
+		b.AssistantImages(m.Get("content"), at)
 	}
 	return b.Result()
 }

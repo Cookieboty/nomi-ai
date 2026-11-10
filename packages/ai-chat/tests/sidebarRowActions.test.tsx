@@ -316,12 +316,25 @@ describe('sidebar row actions', () => {
     expect(within(menu).getByTestId('conversation-delete')).toBeTruthy();
     fireEvent.click(within(menu).getByTestId('fork-same'));
     expect(onForkRequest).toHaveBeenCalledWith('n2');
-    expect(r.queryByTestId('conversation-context-menu')).toBeNull();
+    // 收起时先放完淡出动画再卸载
+    await waitFor(() => expect(r.queryByTestId('conversation-context-menu')).toBeNull());
     // 右键得到同一份菜单
     fireEvent.contextMenu(r.container.querySelector('[data-conversation-id="c1"]')!);
     expect(
       within(r.getByTestId('conversation-context-menu')).getByTestId('conversation-close'),
     ).toBeTruthy();
+  });
+
+  it('clicking the same "more" button again closes the menu', async () => {
+    const r = mount();
+    await waitFor(() => r.getAllByTestId('history-item'));
+    const more = within(row(r, 'n2')).getByTestId('row-more');
+    fireEvent.click(more);
+    expect(r.getByTestId('conversation-context-menu')).toBeTruthy();
+    // 按下不先当作点外面关掉，点击由按钮自己切换
+    fireEvent.mouseDown(more);
+    fireEvent.click(more);
+    await waitFor(() => expect(r.queryByTestId('conversation-context-menu')).toBeNull());
   });
 
   it('disk history rows: no rename / fork; "more" opens in a tab or deletes', async () => {

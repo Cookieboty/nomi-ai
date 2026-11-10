@@ -250,6 +250,8 @@
   "ui.cli-monitor.fleet-gov-paused": "Memory is low: paused “{0}”; it resumes on its own once memory recovers",
   "ui.cli-monitor.fleet-gov-resumed": "Memory is back to normal: “{0}” resumed",
   "ui.cli-monitor.fleet-paused-nomi": "Paused by Nomi; resumes once memory recovers",
+  "ui.cli-monitor.fleet-paused-nomi-run": "Paused by Nomi; resume when you're ready",
+  "ui.cli-monitor.fleet-paused-after-turn": "Pauses after this turn",
   "ui.cli-monitor.fleet-held": "Memory is low: queued, starts on its own once it recovers",
   "ui.cli-monitor.fleet-dispatched-by": "Dispatched by “{0}”",
   "ui.cli-monitor.fleet-queue-slot": "Waiting for earlier tasks to finish",

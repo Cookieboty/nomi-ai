@@ -113,6 +113,15 @@ describe('标题栏的当前会话', () => {
     // 悬停看项目的全部文件夹（主文件夹标 ★）
     expect(title.getAttribute('title')).toBe('app\n★ /w/app\n  /w/api');
 
+    // 再点一次「…」按钮：关掉菜单（按下时不先当作点外面关掉、再被点开）
+    const more = r.getByTestId('titlebar-session-menu');
+    fireEvent.click(more);
+    expect(more.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.mouseDown(more);
+    fireEvent.click(more);
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+    await waitFor(() => expect(r.queryByTestId('conversation-context-menu')).toBeNull());
+
     fireEvent.click(r.getByTestId('titlebar-session-menu'));
     fireEvent.click(r.getByTestId('conversation-archive'));
     expect(setArchived).toHaveBeenCalledWith('n1', true);

@@ -4,7 +4,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AssetLibraryNav, AssetLibraryPage } from '../src/components/AssetLibrary';
+import { AssetLibraryNav } from '../src/components/AssetLibrary';
+import { AssetLibraryPage } from '../src/components/AssetLibrary/AssetLibraryPage';
 
 import { installFakeApi, resetFakeApi, type FakeApi } from './helpers/fakeApi';
 

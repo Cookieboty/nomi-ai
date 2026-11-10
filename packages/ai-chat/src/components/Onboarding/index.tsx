@@ -593,19 +593,3 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     </div>
   );
 };
-
-/** 挂在对话窗口根部：未完成引导时显示；设置里「重新打开」也走这里 */
-export const OnboardingHost: React.FC = () => {
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    void onboardingClient.get().then((s) => alive && setOpen(!s.done));
-    const off = onboardingClient.onShow(() => setOpen(true));
-    return () => {
-      alive = false;
-      off();
-    };
-  }, []);
-  if (!open) return null;
-  return <Onboarding onDone={() => setOpen(false)} />;
-};

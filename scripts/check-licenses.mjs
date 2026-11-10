@@ -14,6 +14,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { reviewedMetadataLicense } from './licenses/package-metadata.mjs';
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = new Set(process.argv.slice(2));
 const errors = [];
@@ -89,6 +91,8 @@ function checkDeps() {
       count += 1;
       if (spdxAllowed(license, DEP_ALLOW)) continue;
       if (isException(pkg.name)) continue;
+      const reviewed = reviewedMetadataLicense(pkg, license);
+      if (reviewed && spdxAllowed(reviewed, DEP_ALLOW)) continue;
       errors.push(
         `deps: ${pkg.name}@${(pkg.versions ?? []).join(',')} has licence "${license}" (not allow-listed)`,
       );

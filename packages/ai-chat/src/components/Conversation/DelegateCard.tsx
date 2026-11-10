@@ -5,7 +5,7 @@
  * - 审批：子任务的权限请求直接在卡片里答复（标签里也同时显示）；
  * - 子代理：每个一行，Claude 可以单独停止；
  * - 结束后：编程助手的汇报（做了什么、改动的文件、没做完的、需要用户决定的）；
- *   改动的文件 = 汇报 / git 核对的 + 子任务对话里编辑 / 写入工具改过的，点开在抽屉里预览（.md 先渲染）。
+ *   改动的文件 = 汇报 / git 核对的 + 子任务对话里编辑 / 写入工具改过的，点开共用右侧资源预览（.md 先渲染）。
  * 数据：工具调用 id → 标签（delegation.callId）→ 标签的实时状态；历史消息只有工具输出。
  */
 import { Button, Icon, Modal, ModalHostContext, t } from '@nomi-ai/ui';
@@ -13,6 +13,11 @@ import { ChevronDown, ChevronRight, ExternalLink, Square } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
+import {
+  ResourceContext,
+  useResourceContext,
+  type ResourceContextValue,
+} from '../../contexts/ResourceContext';
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import { api } from '../../services/api';
 import { delegateClient, type DelegateResult } from '../../services/delegateClient';
@@ -28,11 +33,11 @@ import { canStopSubagent } from '../../utils/cliCaps';
 import { fromHarnessMessage, tabLiveToConv } from '../../utils/convAdapters';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import type { LiveAgent, TabLive } from '../../utils/liveState';
+import { resourceTarget, resolveDocumentHref, workspaceFileHref } from '../../utils/resourceLinks';
 import { aggregateSessionChanges } from '../../utils/sessionChanges';
 import { parseInput, type FileDiff, type ToolCall } from '../../utils/toolTrace';
 import { workspaceRelPath } from '../../utils/workspacePath';
 import { EndpointIcon } from '../EndpointIcon';
-import { FilePreview, type PreviewFile } from '../SessionWorkspace/FilePreview';
 
 import { ApprovePlanCard } from './ApprovePlanCard';
 import { buildCliSlots } from './cliSlots';
@@ -333,53 +338,6 @@ function useTabMessages(
   return messages;
 }
 
-/** 在右侧抽屉里预览编程助手改过的文件 */
-const DelegateFilesDrawer: React.FC<{
-  files: DelegateFile[];
-  roots: string[];
-  active: string;
-  onActive: (key: string) => void;
-  onClose: () => void;
-}> = ({ files, roots, active, onActive, onClose }) => {
-  const preview = useMemo<PreviewFile[]>(
-    () =>
-      files.map((f) => ({
-        key: f.key,
-        path: f.path,
-        cwds: f.cwds,
-        ...(f.diff
-          ? { gitDiff: f.diff, added: f.diff.diff.added, removed: f.diff.diff.removed }
-          : {}),
-      })),
-    [files],
-  );
-  const host = useMemo(() => ({ mode: 'drawer' as const }), []);
-  const activePath = files.find((f) => f.key === active)?.path ?? '';
-  const name = activePath.split(/[/\\]/).pop() || activePath;
-  return (
-    <ModalHostContext.Provider value={host}>
-      <Modal
-        open
-        onClose={onClose}
-        size="lg"
-        title={name}
-        bodyClassName={styles.drawerBody}
-        data-testid="delegate-file-drawer"
-      >
-        <FilePreview
-          files={preview}
-          activeKey={active}
-          cwd={roots[0] ?? null}
-          onActiveKey={onActive}
-          onClose={onClose}
-          preferRender
-          className={styles.filePreview}
-        />
-      </Modal>
-    </ModalHostContext.Provider>
-  );
-};
-
 /** 结束后的汇报 */
 const Report: React.FC<{
   v: DelegateView;
@@ -598,6 +556,7 @@ const DelegateDrawer: React.FC<{
 
 const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
   const tabs = useHarnessTabs();
+  const resource = useResourceContext();
   const tabMeta = delegateTab(call, tabs.state?.tabs);
   // 只订阅自己这个标签的实时进度（别的标签每帧的输出不让这张卡片重渲染）
   const tl = useHarnessLive((l) => (tabMeta ? l[tabMeta.id] : undefined));
@@ -652,7 +611,9 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
   // （子任务标签目录，可能是 worktree → 主标签目录，跟着当前对话的工作区走）
   const mainCwd = tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID)?.cwd;
   // 不手写 useMemo：交给 React Compiler（卡片里的 v / tab 每次渲染新建，手写依赖保不住）
-  const roots = [...new Set([tab?.cwd, mainCwd].filter((x): x is string => !!x))];
+  // A vanished child tab provides no proven cwd: never reinterpret historical
+  // relative files in whichever main workspace happens to be active now.
+  const roots = tab?.cwd ? [...new Set([tab.cwd, mainCwd].filter((x): x is string => !!x))] : [];
   const childMessages = useTabMessages(tab?.id, tab?.updatedAt, running, !running && open);
   const backend = v.backend ?? 'claude';
   const childConv = (childMessages ?? []).map((m) => fromHarnessMessage(m, backend));
@@ -661,7 +622,36 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
       ? v.result.report.changedFiles
       : v.result?.changedFiles) ?? [];
   const files = delegateFiles(reported, childConv, roots);
-  const [fileOpen, setFileOpen] = useState<string | null>(null);
+  // Report Markdown, the fallback drawer and explicit file buttons share the
+  // child's identity. Only reuse the controller, not parent document metadata.
+  const childResource: ResourceContextValue | null = resource
+    ? {
+        scope: {
+          id: tab ? `cli:${tab.id}` : `delegate:${taskId ?? call.id}`,
+          cwd: tab?.cwd ?? null,
+          source: backend,
+          ...(roots.length > 1 ? { fallbackCwds: roots.slice(1) } : {}),
+        },
+        open: (href, scope, image) => {
+          const target = resourceTarget(href);
+          // Absolute identity also lets the existing preview safely relocate a
+          // known worktree file after cleanup. Preserve URL encoding and #L….
+          const resolved =
+            scope.cwd && target?.path && !target.web ? resolveDocumentHref(scope.cwd, href) : href;
+          resource.open(resolved, scope, image);
+        },
+      }
+    : null;
+  const openFile = (key: string) => {
+    const file = files.find((f) => f.key === key);
+    const cwd = file?.cwds[0] ?? roots[0];
+    if (!file || !cwd || !childResource) return;
+    childResource.open(workspaceFileHref(cwd, file.path), {
+      ...childResource.scope,
+      cwd,
+      fallbackCwds: file.cwds.slice(1),
+    });
+  };
   const stop = () => {
     if (!tab) return;
     setStopping(true);
@@ -674,115 +664,114 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
       ? api.tasks.decide({ id: tabTaskId, requestId, approve: allow })
       : harnessClient.replyPermission(tab!.id, requestId, allow);
   return (
-    <section
-      className={styles.card}
-      data-testid="delegate-card"
-      data-phase={v.phase}
-      aria-label={t('ui.session-workspace.subtask-for', name, v.goal)}
-    >
-      <div className={styles.head}>
-        <button
-          type="button"
-          className={styles.toggle}
-          aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
-        >
-          <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
-        </button>
-        {v.backend && <EndpointIcon backend={v.backend} size={16} decorative />}
-        <span className={styles.title} title={v.goal}>
-          <span className={styles.name}>{name}</span>
-          <span className={styles.goal}>{v.goal}</span>
-        </span>
-        <span className={styles.phase} data-phase={v.phase} aria-live="polite">
-          {phaseLabel(v.phase)}
-        </span>
-        {elapsed && <span className={styles.muted}>{elapsed}</span>}
-        {running && tab && (
+    <ResourceContext.Provider value={childResource}>
+      <section
+        className={styles.card}
+        data-testid="delegate-card"
+        data-phase={v.phase}
+        aria-label={t('ui.session-workspace.subtask-for', name, v.goal)}
+      >
+        <div className={styles.head}>
           <button
             type="button"
-            className={styles.iconBtn}
-            disabled={stopping}
-            aria-label={t('ui.session-workspace.stop-this-subtask')}
-            title={t('ui.session-workspace.stop-this-subtask-nomi-keeps-going')}
-            data-testid="delegate-stop"
-            onClick={stop}
+            className={styles.toggle}
+            aria-expanded={open}
+            onClick={() => setOpen((o) => !o)}
           >
-            <Icon icon={Square} size={12} />
+            <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
           </button>
-        )}
-        {tab && (
-          <button
-            type="button"
-            className={styles.iconBtn}
-            aria-label={t('ui.session-workspace.view-subtask')}
-            title={t('ui.session-workspace.view-the-subtask-s-conversation')}
-            data-testid="delegate-view"
-            onClick={() => (subagentPane ? subagentPane.openSubagent(tab.id) : setDrawer(true))}
-          >
-            <Icon icon={ExternalLink} size={13} />
-          </button>
-        )}
-      </div>
-      {step && (
-        <div className={styles.step} data-testid="delegate-step" title={step}>
-          {t('ui.session-workspace.now', step)}
-        </div>
-      )}
-      {open && (
-        <div className={styles.body}>
-          {tab && <TabSandboxRequests tabId={tab.id} />}
-          {tab &&
-            (v.live?.permissions ?? []).map((p) =>
-              p.kind === 'approve-plan' ? (
-                <ApprovePlanCard
-                  key={p.id}
-                  summary={p.summary}
-                  agent={p.agent}
-                  expiresAt={p.expiresAt}
-                  executePlan={p.toolName === 'execute_plan'}
-                  onChoice={(choice) =>
-                    void harnessClient.replyApprovePlan(tab.id, p.id, choice).catch(() => undefined)
-                  }
-                />
-              ) : (
-                <PermissionCard
-                  key={p.id}
-                  summary={p.summary}
-                  agent={p.agent}
-                  expiresAt={p.expiresAt}
-                  onReply={(allow) =>
-                    void Promise.resolve(reply(p.id, allow)).catch(() => undefined)
-                  }
-                />
-              ),
-            )}
-          <Agents v={v} />
-          {!running && (
-            <Report v={v} files={files} onOpenFile={roots.length ? setFileOpen : undefined} />
+          {v.backend && <EndpointIcon backend={v.backend} size={16} decorative />}
+          <span className={styles.title} title={v.goal}>
+            <span className={styles.name}>{name}</span>
+            <span className={styles.goal}>{v.goal}</span>
+          </span>
+          <span className={styles.phase} data-phase={v.phase} aria-live="polite">
+            {phaseLabel(v.phase)}
+          </span>
+          {elapsed && <span className={styles.muted}>{elapsed}</span>}
+          {running && tab && (
+            <button
+              type="button"
+              className={styles.iconBtn}
+              disabled={stopping}
+              aria-label={t('ui.session-workspace.stop-this-subtask')}
+              title={t('ui.session-workspace.stop-this-subtask-nomi-keeps-going')}
+              data-testid="delegate-stop"
+              onClick={stop}
+            >
+              <Icon icon={Square} size={12} />
+            </button>
+          )}
+          {tab && (
+            <button
+              type="button"
+              className={styles.iconBtn}
+              aria-label={t('ui.session-workspace.view-subtask')}
+              title={t('ui.session-workspace.view-the-subtask-s-conversation')}
+              data-testid="delegate-view"
+              onClick={() => (subagentPane ? subagentPane.openSubagent(tab.id) : setDrawer(true))}
+            >
+              <Icon icon={ExternalLink} size={13} />
+            </button>
           )}
         </div>
-      )}
-      {fileOpen && (
-        <DelegateFilesDrawer
-          files={files}
-          roots={roots}
-          active={fileOpen}
-          onActive={setFileOpen}
-          onClose={() => setFileOpen(null)}
-        />
-      )}
-      {drawer && (
-        <DelegateDrawer
-          v={v}
-          elapsed={elapsed}
-          running={running}
-          stopping={stopping}
-          onStop={stop}
-          onClose={() => setDrawer(false)}
-        />
-      )}
-    </section>
+        {step && (
+          <div className={styles.step} data-testid="delegate-step" title={step}>
+            {t('ui.session-workspace.now', step)}
+          </div>
+        )}
+        {open && (
+          <div className={styles.body}>
+            {tab && <TabSandboxRequests tabId={tab.id} />}
+            {tab &&
+              (v.live?.permissions ?? []).map((p) =>
+                p.kind === 'approve-plan' ? (
+                  <ApprovePlanCard
+                    key={p.id}
+                    summary={p.summary}
+                    agent={p.agent}
+                    expiresAt={p.expiresAt}
+                    executePlan={p.toolName === 'execute_plan'}
+                    onChoice={(choice) =>
+                      void harnessClient
+                        .replyApprovePlan(tab.id, p.id, choice)
+                        .catch(() => undefined)
+                    }
+                  />
+                ) : (
+                  <PermissionCard
+                    key={p.id}
+                    summary={p.summary}
+                    agent={p.agent}
+                    expiresAt={p.expiresAt}
+                    onReply={(allow) =>
+                      void Promise.resolve(reply(p.id, allow)).catch(() => undefined)
+                    }
+                  />
+                ),
+              )}
+            <Agents v={v} />
+            {!running && (
+              <Report
+                v={v}
+                files={files}
+                onOpenFile={childResource && roots.length ? openFile : undefined}
+              />
+            )}
+          </div>
+        )}
+        {drawer && (
+          <DelegateDrawer
+            v={v}
+            elapsed={elapsed}
+            running={running}
+            stopping={stopping}
+            onStop={stop}
+            onClose={() => setDrawer(false)}
+          />
+        )}
+      </section>
+    </ResourceContext.Provider>
   );
 };
 

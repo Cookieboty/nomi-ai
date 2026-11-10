@@ -555,6 +555,12 @@ func TestSandboxNoteIsStrippable(t *testing.T) {
 	if !strings.HasPrefix(note, clisdk.SandboxNoteStart) || strings.Contains(strings.TrimSpace(note), "\n\n") {
 		t.Fatalf("cli-sandbox note must start with %q and be one paragraph", clisdk.SandboxNoteStart)
 	}
+	// CLI 自己的技能能用；没有执行位的脚本（"Permission denied" / 126）不是沙箱拦的，不能就此停下
+	for _, want := range []string{"skills", "~/.agents", "exit code 126"} {
+		if !strings.Contains(note, want) {
+			t.Fatalf("cli-sandbox note should mention %q", want)
+		}
+	}
 	if got := clisdk.StripCarriedContext(note + "\n\n你好"); got != "你好" {
 		t.Fatalf("stripped = %q", got)
 	}

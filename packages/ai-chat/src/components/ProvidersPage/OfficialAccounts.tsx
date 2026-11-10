@@ -4,14 +4,25 @@ import { byCli, cliName } from '@nomi-ai/cli-catalog';
  * 登录由 CLI 自己完成，Nomi 不保存凭据。多个账号可以在不同标签里同时使用；「默认账号」给新标签
  * 与跟随默认的标签用。界面只拿得到身份（邮箱 / 套餐）。
  */
-import { Badge, Button, Icon, Modal, Notice, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
-import { Copy, ExternalLink, LogIn, UserRound } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  Icon,
+  Modal,
+  Notice,
+  SettingRow,
+  SettingsGroup,
+  Switch,
+  t,
+} from '@nomi-ai/ui';
+import { Copy, ExternalLink, LogIn, RotateCw, UserRound } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
   cliAccountClient,
   type AccountKind,
   type CliAccount,
+  type CliNetworkState,
   type LoginEvent,
 } from '../../services/cliAccountClient';
 import { confirmDialog, promptDialog } from '../ConfirmDialog';
@@ -24,12 +35,60 @@ const NAME: Record<AccountKind, string> = byCli(cliName);
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+/**
+ * 官方服务以 403 拒绝了登录（地区不受支持 / 代理没生效）：说清原因，按「沿用终端代理」的状态给出下一步。
+ * Nomi 从 Finder / Dock 启动时拿不到 ~/.zshrc 里的代理变量，见 apps/desktop-go/internal/core/cli/shellproxy.go。
+ */
+const BlockedNotice: React.FC<{
+  kind: AccountKind;
+  event: LoginEvent;
+  onRetry: (useShellProxy?: boolean) => void;
+}> = ({ kind, event, onRetry }) => {
+  const proxy = event.shellProxy;
+  let next: string;
+  if (proxy && event.useShellProxy) {
+    next = t('ui.chat-settings.login-blocked-proxy-used', proxy);
+  } else if (proxy) {
+    next = t('ui.chat-settings.login-blocked-proxy-off', proxy);
+  } else {
+    next = t('ui.chat-settings.login-blocked-no-proxy');
+  }
+  return (
+    <Notice tone="danger" data-testid="cli-account-login-error" data-hint="network-blocked">
+      <div className={styles.blocked}>
+        <strong>{t('ui.chat-settings.login-blocked-title', NAME[kind])}</strong>
+        <span>{t('ui.chat-settings.login-blocked-why')}</span>
+        <span data-testid="cli-account-login-blocked-next">{next}</span>
+        <div className={ppStyles.inline}>
+          {proxy && !event.useShellProxy ? (
+            <Button
+              size="sm"
+              variant="primary"
+              data-testid="cli-account-login-use-proxy"
+              onClick={() => onRetry(true)}
+            >
+              {t('ui.chat-settings.login-blocked-use-proxy-and-retry')}
+            </Button>
+          ) : (
+            <Button size="sm" data-testid="cli-account-login-retry" onClick={() => onRetry()}>
+              <Icon icon={RotateCw} size={13} />
+              {t('ui.mascot-theme.retry')}
+            </Button>
+          )}
+        </div>
+        {event.message && <code className={styles.blockedRaw}>{event.message}</code>}
+      </div>
+    </Notice>
+  );
+};
+
 /** 登录弹窗：显示官方登录页链接、设备码，Claude 还要粘贴授权码 */
 const LoginDialog: React.FC<{
   kind: AccountKind;
   event: LoginEvent;
   onClose: () => void;
-}> = ({ kind, event, onClose }) => {
+  onRetry: (useShellProxy?: boolean) => void;
+}> = ({ kind, event, onClose, onRetry }) => {
   const [code, setCode] = useState('');
   const [copied, setCopied] = useState(false);
   const busy = event.state === 'starting' || event.state === 'verifying';
@@ -121,7 +180,10 @@ const LoginDialog: React.FC<{
             )}
           </Notice>
         )}
-        {event.state === 'error' && (
+        {event.state === 'error' && event.hint === 'network-blocked' && (
+          <BlockedNotice kind={kind} event={event} onRetry={onRetry} />
+        )}
+        {event.state === 'error' && event.hint !== 'network-blocked' && (
           <Notice tone="danger" data-testid="cli-account-login-error">
             {event.message || t('ui.chat-settings.sign-in-failed')}
           </Notice>
@@ -139,6 +201,9 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
   const [login, setLogin] = useState<LoginEvent | null>(null);
   const [msg, setMsg] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [network, setNetwork] = useState<CliNetworkState | null>(null);
+  /** 上次登录用的账号（undefined = 新建账号），给「重试」用 */
+  const [loginAccount, setLoginAccount] = useState<string | undefined>(undefined);
 
   const reload = useCallback(
     () =>
@@ -159,6 +224,10 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
     void cliAccountClient
       .refresh(kind)
       .then((l) => alive && setAccounts(l))
+      .catch(() => undefined);
+    void cliAccountClient
+      .network()
+      .then((n) => alive && setNetwork(n))
       .catch(() => undefined);
     const off1 = cliAccountClient.onChanged(() => void reload());
     const off2 = cliAccountClient.onLogin((e) => {
@@ -189,11 +258,22 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
 
   const loginBusy =
     !!login && login.state !== 'done' && login.state !== 'error' && login.state !== 'cancelled';
-  const startLogin = (accountId?: string) =>
+  const startLogin = (accountId?: string) => {
+    setLoginAccount(accountId);
     void cliAccountClient
       .loginStart(kind, accountId)
       .then(setLogin)
       .catch((e) => setMsg({ tone: 'danger', text: errorText(e) }));
+  };
+  const setUseShellProxy = (on: boolean) =>
+    cliAccountClient
+      .setNetwork(on)
+      .then(setNetwork)
+      .catch((e) => setMsg({ tone: 'danger', text: errorText(e) }));
+  const retryLogin = async (useShellProxy?: boolean) => {
+    if (useShellProxy) await setUseShellProxy(true);
+    startLogin(loginAccount);
+  };
 
   return (
     <SettingsGroup
@@ -408,7 +488,35 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
           {t('ui.providers-schedule.no-official-accounts-yet')}
         </p>
       )}
-      {login && <LoginDialog kind={kind} event={login} onClose={() => setLogin(null)} />}
+      {network && (
+        <SettingRow
+          data-testid="cli-network-shell-proxy"
+          title={t('ui.chat-settings.use-the-terminal-s-proxy')}
+          description={
+            <>
+              {t('ui.chat-settings.use-the-terminal-s-proxy-desc')}{' '}
+              {network.shellProxy
+                ? t('ui.chat-settings.terminal-proxy-detected', network.shellProxy)
+                : t('ui.chat-settings.terminal-proxy-not-found')}
+            </>
+          }
+        >
+          <Switch
+            checked={network.useShellProxy}
+            onChange={(v) => void setUseShellProxy(v)}
+            label={t('ui.chat-settings.use-the-terminal-s-proxy')}
+            data-testid="cli-network-shell-proxy-switch"
+          />
+        </SettingRow>
+      )}
+      {login && (
+        <LoginDialog
+          kind={kind}
+          event={login}
+          onClose={() => setLogin(null)}
+          onRetry={(p) => void retryLogin(p)}
+        />
+      )}
     </SettingsGroup>
   );
 };

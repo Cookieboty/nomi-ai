@@ -79,7 +79,13 @@ const assetUrl = (file: string) => `chat-asset://images/${file}`;
 const isEndpoint = (s: string): s is ConversationBackend => s in ENDPOINT_NAME;
 /** 来源名：编程助手 / Nomi 用端点名；user = 用户在对话里发送的原图 */
 export const sourceName = (s: string) =>
-  s === 'user' ? t('ui.media.source-user') : isEndpoint(s) ? t(ENDPOINT_NAME[s]) : s;
+  s === 'assistant'
+    ? t('ui.media.source-assistant')
+    : s === 'user'
+      ? t('ui.media.source-user')
+      : isEndpoint(s)
+        ? t(ENDPOINT_NAME[s])
+        : s;
 
 export const SourceBadge: React.FC<{ source: string }> = ({ source }) => (
   <span className={styles.source} data-testid="asset-source">
@@ -247,6 +253,9 @@ const TagEditor: React.FC<{ tags: string[]; onChange?: (tags: string[]) => void 
 
 export interface ImageViewerProps {
   item: AssetItem;
+  imageSrc?: string;
+  managed?: boolean;
+  actionsDisabled?: boolean;
   onClose: () => void;
   /** 重新生成后换成新图；删除后 null；改了分类 / 标签后是改后的这张 */
   onChange?: (next: AssetItem | null) => void;
@@ -264,6 +273,9 @@ const RELATED = 4;
 
 export const ImageViewer: React.FC<ImageViewerProps> = ({
   item,
+  imageSrc,
+  managed = !!assetFileOf(item.url),
+  actionsDisabled = false,
   onClose,
   onChange,
   onCompose,
@@ -277,6 +289,25 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
   const [copied, setCopied] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
+  const fullscreenRequest = useRef<Promise<void> | null>(null);
+  const source = imageSrc ?? hostAssetUrl(item.url);
+  const exitForAction = async () => {
+    await fullscreenRequest.current?.catch(() => undefined);
+    try {
+      const doc = stageRef.current?.ownerDocument;
+      if (doc?.fullscreenElement) await doc.exitFullscreen();
+      return true;
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : String(error));
+      return false;
+    }
+  };
+  const fullscreen = () => {
+    const dialog = stageRef.current?.closest<HTMLElement>('[role="dialog"]');
+    const pending = dialog?.requestFullscreen?.();
+    fullscreenRequest.current = pending ?? null;
+    void pending?.catch(() => undefined);
+  };
   // 换了一张：清掉上一张的尺寸、错误与「已复制」（渲染时比对，不在 effect 里 setState）
   const [shownFile, setShownFile] = useState(item.file);
   if (shownFile !== item.file) {
@@ -292,7 +323,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
       ?.scrollIntoView?.({ block: 'nearest', inline: 'center' });
   }, [item.file]);
   const nomi = item.source === 'nomi';
-  const editable = !!onChange && !!items;
+  const editable = managed && !actionsDisabled && !!onChange && !!items;
   const w = item.width ?? loaded?.w;
   const h = item.height ?? loaded?.h;
   const res = resolutionLabel(w, h);
@@ -346,6 +377,11 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
       .catch(showErr);
   };
   const regenerate = async () => {
+    if (actionsDisabled || !(await exitForAction())) return;
+    if (!managed || item.source !== 'nomi' || !item.prompt) {
+      onCompose?.(t('ui.media.compose-regenerate', item.url));
+      return;
+    }
     // 会再调一次图片接口（按次计费）：先确认
     if (
       !(await confirmDialog({
@@ -369,6 +405,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
     }
   };
   const remove = async () => {
+    if (!managed || actionsDisabled || !(await exitForAction())) return;
     if (
       !(await confirmDialog({
         title: t('ui.media.delete-image-title'),
@@ -395,7 +432,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
     );
   };
   const copyImg = () =>
-    void copyImage(hostAssetUrl(item.url)).catch((e: unknown) =>
+    void copyImage(source).catch((e: unknown) =>
       setErr(t('ui.media.copy-image-failed', e instanceof Error ? e.message : String(e))),
     );
 
@@ -413,7 +450,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
         <div className={styles.stage} ref={stageRef}>
           <img
             className={styles.image}
-            src={hostAssetUrl(item.url)}
+            src={source}
             alt={item.prompt ?? ''}
             referrerPolicy="no-referrer"
             onLoad={(e) =>
@@ -432,7 +469,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
               className={styles.stageBtn}
               icon={<Icon icon={Maximize2} size={15} />}
               label={t('ui.media.fullscreen')}
-              onClick={() => void stageRef.current?.requestFullscreen?.().catch(() => undefined)}
+              onClick={fullscreen}
               data-testid="viewer-fullscreen"
             />
             <IconButton
@@ -444,30 +481,34 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
               data-testid="viewer-copy-image"
             />
             <MoreMenu
-              items={[
-                {
-                  key: 'download',
-                  label: t('ui.knowledge-local.download'),
-                  icon: Download,
-                  testId: 'viewer-download',
-                  run: () => void api.chatAssets.saveAs({ file: item.file }).catch(showErr),
-                },
-                {
-                  key: 'reveal',
-                  label: t('ui.providers-schedule.show-in-folder'),
-                  icon: FolderOpen,
-                  testId: 'asset-reveal',
-                  run: () => void api.chatAssets.reveal({ file: item.file }).catch(showErr),
-                },
-                {
-                  key: 'delete',
-                  label: t('ui.foundation.delete'),
-                  icon: Trash2,
-                  danger: true,
-                  testId: 'asset-delete',
-                  run: () => void remove(),
-                },
-              ]}
+              items={
+                managed
+                  ? [
+                      {
+                        key: 'download',
+                        label: t('ui.knowledge-local.download'),
+                        icon: Download,
+                        testId: 'viewer-download',
+                        run: () => void api.chatAssets.saveAs({ file: item.file }).catch(showErr),
+                      },
+                      {
+                        key: 'reveal',
+                        label: t('ui.providers-schedule.show-in-folder'),
+                        icon: FolderOpen,
+                        testId: 'asset-reveal',
+                        run: () => void api.chatAssets.reveal({ file: item.file }).catch(showErr),
+                      },
+                      {
+                        key: 'delete',
+                        label: t('ui.foundation.delete'),
+                        icon: Trash2,
+                        danger: true,
+                        testId: 'asset-delete',
+                        run: () => void remove(),
+                      },
+                    ]
+                  : []
+              }
             />
           </div>
           {onNavigate && prev && (
@@ -610,11 +651,15 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
                 <dd className={styles.mono}>{modelLabel}</dd>
               </>
             )}
-            <dt>
-              <Icon icon={Clock} size={14} />
-              {t('ui.media.created-at')}
-            </dt>
-            <dd>{fmtTime(item.createdAt)}</dd>
+            {item.createdAt > 0 && (
+              <>
+                <dt>
+                  <Icon icon={Clock} size={14} />
+                  {t('ui.media.created-at')}
+                </dt>
+                <dd>{fmtTime(item.createdAt)}</dd>
+              </>
+            )}
             {item.bytes > 0 && (
               <>
                 <dt>
@@ -687,10 +732,10 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
         )}
         {((nomi && item.prompt) || onCompose) && (
           <div className={styles.actions}>
-            {nomi && item.prompt && (
+            {((nomi && item.prompt) || onCompose) && (
               <Button
                 variant="primary"
-                disabled={busy}
+                disabled={busy || actionsDisabled}
                 onClick={() => void regenerate()}
                 data-testid="viewer-regenerate"
               >
@@ -702,6 +747,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
               <>
                 <Button
                   variant="secondary"
+                  disabled={actionsDisabled}
                   onClick={() => onCompose(t('ui.media.compose-edit', item.url))}
                   data-testid="viewer-edit"
                 >
@@ -710,6 +756,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
                 </Button>
                 <Button
                   variant="secondary"
+                  disabled={actionsDisabled}
                   onClick={() => onCompose(t('ui.media.compose-reference', item.url))}
                   data-testid="viewer-reference"
                 >
@@ -736,7 +783,7 @@ export function useAssetItem(url: string, open: boolean): AssetItem | null {
       file,
       url,
       source: file.split('-')[0] === 'gen' ? 'nomi' : file.split('-')[0]!,
-      createdAt: Date.now(),
+      createdAt: 0,
       bytes: 0,
     };
     void api.chatAssets

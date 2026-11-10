@@ -80,3 +80,51 @@ func TestTabProjectExtraDirs(t *testing.T) {
 		}
 	})
 }
+
+// #309：运行中改了项目文件夹，不丢：这一轮结束后（或下一轮发出前）按最新的项目同步
+func TestProjectChangedWhileRunningIsDeferred(t *testing.T) {
+	tmp := t.TempDir()
+	mk := func(n string) string {
+		p := filepath.Join(tmp, n)
+		if err := os.MkdirAll(p, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		r, _ := filepath.EvalSymlinks(p)
+		return r
+	}
+	a, b, c := mk("a"), mk("b"), mk("c")
+	roots := map[string][]string{"p1": {a}}
+	idle := 0.0
+	jsrt.Run(func() {
+		o := New(Deps{Root: filepath.Join(tmp, "h"), Home: tmp, DefaultCwd: a, Logger: nopLogger{}, Ports: nopPorts{},
+			IdleReclaimMs: &idle,
+			ProjectRoots: func(id string) (string, []string) {
+				r := roots[id]
+				if len(r) == 0 {
+					return "", nil
+				}
+				return r[0], r[1:]
+			},
+		})
+		defer o.Dispose()
+		id := util.Str(o.CreateTab(util.NewObj("backend", "claude", "projectId", "p1", "activate", false)).Get("id"))
+		o.tab(id).Set("status", "running")
+		roots["p1"] = []string{b}
+		o.ProjectChanged("p1")
+		if realDir(str(o.tab(id), "cwd")) != a {
+			t.Fatal("a running turn keeps its folder")
+		}
+		// 又改了一次：按最新的算
+		roots["p1"] = []string{c}
+		o.ProjectChanged("p1")
+		o.applyPendingProject(id) // 还在跑：不动
+		if realDir(str(o.tab(id), "cwd")) != a || !o.projectPending[id] {
+			t.Fatal("still running: stay pending")
+		}
+		o.tab(id).Set("status", "idle")
+		o.applyPendingProject(id)
+		if realDir(str(o.tab(id), "cwd")) != c || o.projectPending[id] {
+			t.Fatalf("next turn uses the latest project folder, cwd = %s", str(o.tab(id), "cwd"))
+		}
+	})
+}

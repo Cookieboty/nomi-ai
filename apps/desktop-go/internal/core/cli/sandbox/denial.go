@@ -190,9 +190,10 @@ func grantFolder(p, home string) string {
 	return start
 }
 
-// routineReads：相对主目录、包管理器每次启动都会读的配置（npm / pip 查源、查更新）。里面可能有发布令牌，所以照样拒读，
-// 但不弹授权请求：拒了之后 npm / pip 只当没有这个文件，CLI 照常运行；真要发布时用户在终端里做
-var routineReads = []string{".npmrc", ".pypirc"}
+// routineReads：相对主目录、包管理器每次启动都会读的配置（pip 查源、查更新）。里面可能有发布令牌，所以照样拒读，
+// 但不弹授权请求：拒了之后 pip 只当没有这个文件，CLI 照常运行；真要发布时用户在终端里做。
+// （~/.npmrc 已经放开读，不在这里）
+var routineReads = []string{".pypirc"}
 
 // RoutineRead：这条拒绝是不是包管理器的例行读取（静默拒绝，不问用户）
 func RoutineRead(d Denial, home string) bool {

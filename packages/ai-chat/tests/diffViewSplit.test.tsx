@@ -5,7 +5,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DiffView, pairSplitLines } from '../src/components/Conversation/DiffView';
-import { FilePreview } from '../src/components/SessionWorkspace/FilePreview';
+import { FileReview } from '../src/components/SessionWorkspace/FileReview';
 import type { DiffLine } from '../src/utils/lineDiff';
 import type { FileDiff } from '../src/utils/toolTrace';
 
@@ -93,38 +93,9 @@ describe('split diff', () => {
 describe('markdown file preview', () => {
   afterEach(() => cleanup());
 
-  it('opens .md in edit mode; 预览 renders the unsaved draft', async () => {
-    render(
-      <FilePreview
-        hideFileTabs
-        files={[{ key: 'd:README.md', path: 'README.md' }]}
-        activeKey="d:README.md"
-        cwd="/tmp/proj"
-        onActiveKey={() => undefined}
-        onClose={() => undefined}
-      />,
-    );
-    const editor = (await screen.findByTestId('preview-editor')) as HTMLTextAreaElement;
-    await waitFor(() => expect(editor.value).toContain('# Old title'));
-    fireEvent.change(editor, { target: { value: '# New title\n\nhello **world**\n' } });
-    fireEvent.click(screen.getByTestId('preview-mode-render'));
-    const body = await screen.findByTestId('preview-render-body');
-    // 对话的 Markdown 渲染把标题降一级（# → h2）
-    await waitFor(() => expect(body.querySelector('h2')?.textContent).toBe('New title'));
-    expect(body.querySelector('strong')?.textContent).toBe('world');
-    expect(body.textContent).toContain('未保存');
-    // 切回编辑仍是草稿
-    fireEvent.click(screen.getByTestId('preview-mode-file'));
-    await waitFor(() =>
-      expect((screen.getByTestId('preview-editor') as HTMLTextAreaElement).value).toContain(
-        '# New title',
-      ),
-    );
-  });
-
   it('other files have no 预览 tab but are editable', async () => {
     render(
-      <FilePreview
+      <FileReview
         hideFileTabs
         files={[{ key: 'd:a.ts', path: 'a.ts' }]}
         activeKey="d:a.ts"

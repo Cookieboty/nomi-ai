@@ -12,6 +12,7 @@ import {
 } from '../src/components/Conversation/DelegateCard';
 import { DelegateSettings } from '../src/components/ProvidersPage/DelegateSettings';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
+import { ResourceScopeProvider } from '../src/contexts/ResourceContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import {
   bindNextDelegateConversation,
@@ -383,11 +384,16 @@ describe('delegateFiles：短路径只是显示，文件身份带目录（#246�
 });
 
 describe('编程助手改过的文件：补齐并能预览', () => {
+  const openResource = vi.fn();
   const mount = (c: ToolCall) =>
     render(
-      <HarnessTabsProvider>
-        <DelegateCard call={c} />
-      </HarnessTabsProvider>,
+      <ResourceScopeProvider
+        value={{ scope: { id: 'nomi:parent', cwd: '/w' }, open: openResource }}
+      >
+        <HarnessTabsProvider>
+          <DelegateCard call={c} />
+        </HarnessTabsProvider>
+      </ResourceScopeProvider>,
     );
   const codexPatch = (path: string, diff: string) => ({
     type: 'tool',
@@ -398,7 +404,7 @@ describe('编程助手改过的文件：补齐并能预览', () => {
     at: 1,
   });
 
-  it('汇报里没列、git 也没核对到：从子任务对话的写入补上；点开在抽屉里先渲染 .md', async () => {
+  it('汇报里没列、git 也没核对到：从子任务对话的写入补上；点开接入子任务作用域的文件侧栏', async () => {
     const ipc = mockIpc([]);
     const d1 = tab({ id: 'd1', backend: 'codex', status: 'idle', cwd: '/w/.nomi-delegate/x' });
     ipc.invoke.mockImplementation(async (ch: string, i?: Record<string, unknown>) => {
@@ -437,14 +443,11 @@ describe('编程助手改过的文件：补齐并能预览', () => {
     const btn = await r.findByTestId('delegate-file');
     expect(btn.textContent).toBe('report.md');
     fireEvent.click(btn);
-    const drawer = await r.findByTestId('delegate-file-drawer');
-    const body = await within(drawer).findByTestId('preview-render-body');
-    // 渲染成标题，而不是原样的「# 标题」
-    await waitFor(() => expect(body.querySelector('h1, h2')?.textContent).toBe('标题'));
-    expect(ipc.invoke).toHaveBeenCalledWith('harness.workspaceRead', {
-      cwd: '/w',
-      path: 'report.md',
-    });
+    expect(openResource).toHaveBeenCalledWith(
+      '/w/report.md',
+      expect.objectContaining({ id: 'cli:d1', cwd: '/w' }),
+      undefined,
+    );
   });
 
   it('截断点落在代码块中间：补回开头的围栏，后面的正文不被当成代码', () => {

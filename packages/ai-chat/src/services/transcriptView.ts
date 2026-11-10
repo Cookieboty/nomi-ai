@@ -2,9 +2,9 @@
  * 会话记录详细程度（Transcript view）。
  *
  * 与 Claude Code Desktop 的 Transcript view 对齐：
- * - normal：工具调用折叠成摘要，隐藏思考；
- * - thinking：normal + 思考内容；
- * - verbose：显示每次工具调用、参数与输出，并展开思考。
+ * - normal（精简）：两段回复之间的工具调用按类型各合成一行（每段每类最多一行），不显示思考；
+ * - thinking（显示思考，初始默认）：工具调用同样按类型各一行，思考合并成一块单独显示；
+ * - verbose（详细）：每次工具调用单独一行，参数与输出、思考、子代理都默认展开。
  *
  * 设置分两层：
  * - 全局默认（设置 → 通用 → 外观）；新会话 / 没有单独设置的会话使用它；
@@ -17,7 +17,7 @@ export type TranscriptView = 'normal' | 'thinking' | 'verbose';
 
 export const TRANSCRIPT_VIEWS: readonly TranscriptView[] = ['normal', 'thinking', 'verbose'];
 
-export const DEFAULT_TRANSCRIPT_VIEW: TranscriptView = 'normal';
+export const DEFAULT_TRANSCRIPT_VIEW: TranscriptView = 'thinking';
 
 const STORAGE_KEY = 'nomi.transcriptView.v1';
 /** 只保留最近使用的会话覆盖数，避免长期使用后 localStorage 无限增长 */
@@ -63,7 +63,11 @@ let cache: { raw: string | null; state: TranscriptViewState } = {
   state: { global: DEFAULT_TRANSCRIPT_VIEW, sessions: {} },
 };
 
+/** localStorage 写不进去（无痕窗口等）时的内存副本：本次运行内仍然生效 */
+let memory: TranscriptViewState | null = null;
+
 export function getTranscriptViewState(): TranscriptViewState {
+  if (memory) return memory;
   let raw: string | null = null;
   try {
     if (typeof window !== 'undefined' && window.localStorage)
@@ -81,8 +85,10 @@ function writeState(state: TranscriptViewState): void {
   try {
     if (typeof window === 'undefined' || !window.localStorage) return;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    memory = null;
   } catch {
     /* 无痕窗口等：只在本次内存里生效 */
+    memory = state;
   }
   listeners.forEach((fn) => fn());
 }
@@ -138,6 +144,34 @@ export function clearTranscriptView(sessionKey: string | null | undefined): void
   writeState({ ...state, sessions });
 }
 
+/**
+ * 编程助手标签的会话键（#313）：有 CLI 会话 id 时按「后端（外部 CLI 带插件 id）+ 会话 id」，关掉标签再从历史
+ * 打开（新标签 id、同一个会话）仍找得到同一份设置；还没有会话 id（新标签还没发第一条）时先按标签 id，
+ * 拿到会话 id 后由 migrateTranscriptView 搬过去。分叉、新会话会得到新的会话 id，各自独立（跟随全局，不继承）。
+ */
+export function cliTranscriptKey(tab: {
+  id: string;
+  backend: string;
+  pluginId?: string;
+  cliSessionId: string | null;
+}): string {
+  if (!tab.cliSessionId) return `tab:${tab.id}`;
+  const ns = tab.backend === 'external' && tab.pluginId ? `external/${tab.pluginId}` : tab.backend;
+  return `cli:${ns}:${tab.cliSessionId}`;
+}
+
+/** 把 from 键上的覆盖搬到 to（to 已有自己的覆盖时以 to 为准）；from 上没有就什么都不做 */
+export function migrateTranscriptView(from: string, to: string): void {
+  if (from === to) return;
+  const state = getTranscriptViewState();
+  const view = state.sessions[from];
+  if (view === undefined) return;
+  const sessions = { ...state.sessions };
+  delete sessions[from];
+  if (sessions[to] === undefined) sessions[to] = view;
+  writeState({ ...state, sessions });
+}
+
 export function subscribeTranscriptView(fn: Listener): () => void {
   listeners.add(fn);
   return () => void listeners.delete(fn);
@@ -145,6 +179,7 @@ export function subscribeTranscriptView(fn: Listener): () => void {
 
 /** 单测：清掉全局默认与会话覆盖 */
 export function resetTranscriptViewsForTest(): void {
+  memory = null;
   try {
     if (typeof window !== 'undefined' && window.localStorage)
       window.localStorage.removeItem(STORAGE_KEY);

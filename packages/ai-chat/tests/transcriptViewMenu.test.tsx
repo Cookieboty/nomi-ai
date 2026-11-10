@@ -56,27 +56,52 @@ const mountConversation = (view: 'normal' | 'thinking' | 'verbose') =>
   );
 
 describe('Transcript view 的三种显示模式', () => {
-  it('Normal 不显示思考，工具调用折叠成组', () => {
+  it('精简：同类工具调用合成一行摘要，思考不单独显示', () => {
     const r = mountConversation('normal');
     expect(r.queryByTestId('tool-thinking')).toBeNull();
-    expect(r.getAllByTestId('tool-group')).toHaveLength(1);
+    const act = r.getByTestId('tool-activity');
+    expect(act.getAttribute('data-bucket')).toBe('explore');
+    expect(act.getAttribute('data-count')).toBe('2');
+    expect(act.getAttribute('data-open')).toBe('false');
   });
 
-  it('Thinking 显示思考（完成后折叠），工具仍分组', () => {
+  it('显示思考：思考单独显示（完成后折叠），工具照样合成一行', () => {
     const r = mountConversation('thinking');
     expect(r.getByTestId('tool-thinking').getAttribute('data-open')).toBe('false');
-    expect(r.getAllByTestId('tool-group')).toHaveLength(1);
+    expect(r.getByTestId('tool-activity').getAttribute('data-count')).toBe('2');
   });
 
   it('Verbose 展开思考、每次工具调用单独成行并默认展开', () => {
     const r = mountConversation('verbose');
     expect(r.getByTestId('tool-thinking').getAttribute('data-open')).toBe('true');
     expect(r.queryAllByTestId('tool-group')).toHaveLength(0);
+    expect(r.queryAllByTestId('tool-activity')).toHaveLength(0);
     const rows = r.getAllByTestId('tool-row');
     expect(rows).toHaveLength(2);
     for (const row of rows) expect(row.getAttribute('data-open')).toBe('true');
     expect(r.getByText('alpha')).toBeTruthy();
     expect(r.getByText('beta')).toBeTruthy();
+  });
+});
+
+describe('思考的一句话标题', () => {
+  it('折叠时显示这段思考的第一句', () => {
+    const r = mountConversation('thinking');
+    const think = r.getByTestId('tool-thinking');
+    expect(think.getAttribute('data-open')).toBe('false');
+    expect(r.getByTestId('tool-thinking-title').textContent).toBe('先看一下文件');
+  });
+});
+
+describe('Transcript view 菜单的焦点', () => {
+  it('鼠标点选后不把焦点还给按钮（不出现焦点框）；没有悬停提示', () => {
+    const r = render(<TranscriptViewButton sessionKey="tab:f" />);
+    const btn = r.getByTestId('titlebar-transcript-view');
+    expect(btn.getAttribute('title')).toBeNull();
+    fireEvent.click(btn);
+    fireEvent.click(screen.getByTestId('transcript-view-verbose'), { detail: 1 });
+    expect(document.activeElement).not.toBe(btn);
+    expect(getTranscriptView('tab:f')).toBe('verbose');
   });
 });
 
@@ -107,10 +132,11 @@ describe('Transcript view 菜单按会话生效', () => {
     r.rerender(<TranscriptViewButton sessionKey="tab:b" />);
     expect(r.getByTestId('titlebar-transcript-view').getAttribute('data-override')).toBeNull();
     fireEvent.click(r.getByTestId('titlebar-transcript-view'));
-    expect(screen.getByTestId('transcript-view-normal').getAttribute('aria-checked')).toBe('true');
+    // tab:b 没有单独设置：显示全局默认（初始「显示思考」）
     expect(screen.getByTestId('transcript-view-thinking').getAttribute('aria-checked')).toBe(
-      'false',
+      'true',
     );
+    expect(screen.getByTestId('transcript-view-normal').getAttribute('aria-checked')).toBe('false');
   });
 
   it('设置页只改全局默认；已有会话覆盖继续优先', () => {

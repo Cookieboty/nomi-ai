@@ -140,21 +140,6 @@ export function useAppCommands(opts: {
     },
     [ipcClient, isDev, tabs, onForkRequest],
   );
-  // ⌘⇧F：直接把当前会话分叉成新对话
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.isComposing) return;
-      if (!(isMac() ? e.metaKey : e.ctrlKey) || !e.shiftKey || e.altKey || e.code !== 'KeyF')
-        return;
-      const id = ipcClient.currentConversationId?.();
-      if (!id) return;
-      e.preventDefault();
-      void runForkSame(id);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [ipcClient, runForkSame]);
-
   const shortcutActions = useMemo<Partial<Record<ShortcutId, () => void>>>(
     () => ({
       palette: () => setPalette((v) => !v),
@@ -162,6 +147,16 @@ export function useAppCommands(opts: {
       searchChats: () => {
         expandSidebar();
         window.dispatchEvent(new Event(SEARCH_CHATS_EVENT));
+      },
+      forkChat: () => {
+        const store = ipcClient.conversationStore?.();
+        const id =
+          isDev && tabs.isCliTab
+            ? store
+                ?.list()
+                .find((item: { id: string; tabId?: string }) => item.tabId === tabs.activeTabId)?.id
+            : ipcClient.currentConversationId?.();
+        if (id) void runForkSame(id);
       },
       focusInput,
       settings: toggleSettings,
@@ -195,6 +190,8 @@ export function useAppCommands(opts: {
     }),
     [
       newChat,
+      ipcClient,
+      runForkSame,
       focusInput,
       tabs,
       isDev,

@@ -390,6 +390,11 @@ func (o *Orchestrator) onCodexEvents(tabID string, live *codexLiveSession, evs [
 	turn := live.turn
 	for _, raw := range evs {
 		ev := WithPermissionExpiry(clisdk.StampEvent(raw, nowMs()), o.PermissionTimeoutMs(tabID))
+		if ev.Get("type") == "user-message" {
+			o.receiveUserImages(tabID, ev)
+			continue
+		}
+		ev = o.normalizeImageEvent(tabID, ev)
 		if turn != nil {
 			if ev.Get("type") == "tool" && truthy(ev.Get("output")) {
 				MaterializeGeneratedImages(jsStr(ev.Get("output")), o.home, turn.chatRoot, turn.imageAliases)

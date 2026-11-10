@@ -315,7 +315,7 @@ func WithCliPath(base *util.Obj) *util.Obj {
 	}
 	out := base.Clone()
 	out.Set(key, strings.Join(all, delim))
-	return out
+	return WithShellProxy(out)
 }
 
 var (

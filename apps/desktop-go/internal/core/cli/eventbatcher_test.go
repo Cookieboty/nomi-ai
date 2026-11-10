@@ -49,3 +49,28 @@ func TestEventBatcher(t *testing.T) {
 		}
 	})
 }
+
+// 一个窗口里大量小段文字：照样合成一段（逐段追加，不每段复制整段），原事件不被改
+func TestEventBatcherManyDeltas(t *testing.T) {
+	var batches [][]*util.Obj
+	jsrt.Run(func() {
+		b := NewEventBatcher(func(bs []*util.Obj) { batches = append(batches, bs) }, 1000)
+		first := util.NewObj("type", "text-delta", "tabId", "a", "text", "0")
+		b.Push(first)
+		for i := 1; i < 5000; i++ {
+			b.Push(util.NewObj("type", "text-delta", "tabId", "a", "text", "x"))
+		}
+		b.Push(util.NewObj("type", "status", "tabId", "a"))
+		b.Push(util.NewObj("type", "text-delta", "tabId", "a", "text", "後"))
+		b.Flush()
+		if len(batches) != 1 || len(batches[0]) != 3 {
+			t.Fatalf("batches %v", len(batches))
+		}
+		if got := batches[0][0].Get("text").(string); len(got) != 5000 || got[0] != '0' {
+			t.Fatalf("merged len %d", len(got))
+		}
+		if batches[0][2].Get("text") != "後" || first.Get("text") != "0" {
+			t.Fatal("tail / original wrong")
+		}
+	})
+}

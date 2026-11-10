@@ -386,7 +386,7 @@ describe('Codex four-column changes layout', () => {
     expect(text).toMatch(/- c\.md\n/);
   });
 
-  it('no staged changes: one flat list without group headers', async () => {
+  it('no staged changes: the unstaged group still has its header and actions', async () => {
     vi.mocked(harnessClient.gitDiff).mockResolvedValue({
       ok: true,
       status: ' M a.ts',
@@ -403,7 +403,10 @@ describe('Codex four-column changes layout', () => {
     );
     await screen.findByTestId('git-group-unstaged');
     expect(screen.queryByTestId('git-group-staged')).toBeNull();
-    expect(screen.getByTestId('git-list').textContent).not.toMatch(/未暂存/);
+    // 只有未暂存时也显示「未暂存」组头（与 VS Code 一致），放弃全部 / 全部暂存都在组头上
+    expect(screen.getByTestId('git-group-unstaged').textContent).toMatch(/未暂存/);
+    expect(screen.getByTestId('git-group-unstaged-discard')).toBeTruthy();
+    expect(screen.getByTestId('git-group-unstaged-toggle')).toBeTruthy();
   });
 
   it('commit box sits below the list; 文件 view starts with folders collapsed', async () => {

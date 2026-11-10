@@ -1,0 +1,153 @@
+import { codeLanguages } from './codeLanguages';
+
+export { codeLanguages } from './codeLanguages';
+const supported = new Set(codeLanguages);
+const extensionLanguages: Record<string, string> = {
+  go: 'go',
+  js: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  jsx: 'jsx',
+  ts: 'typescript',
+  mts: 'typescript',
+  cts: 'typescript',
+  tsx: 'tsx',
+  py: 'python',
+  pyw: 'python',
+  pyi: 'python',
+  rb: 'ruby',
+  rs: 'rust',
+  c: 'c',
+  h: 'c',
+  cc: 'cpp',
+  cpp: 'cpp',
+  cxx: 'cpp',
+  hpp: 'cpp',
+  hh: 'cpp',
+  cs: 'csharp',
+  fs: 'fsharp',
+  fsx: 'fsharp',
+  java: 'java',
+  kt: 'kotlin',
+  kts: 'kotlin',
+  scala: 'scala',
+  swift: 'swift',
+  m: 'objectivec',
+  mm: 'objectivec',
+  php: 'php',
+  sh: 'bash',
+  bash: 'bash',
+  zsh: 'bash',
+  fish: 'bash',
+  ps1: 'powershell',
+  psm1: 'powershell',
+  bat: 'batch',
+  cmd: 'batch',
+  json: 'json',
+  jsonc: 'json5',
+  json5: 'json5',
+  yaml: 'yaml',
+  yml: 'yaml',
+  toml: 'toml',
+  ini: 'ini',
+  properties: 'properties',
+  xml: 'markup',
+  html: 'markup',
+  htm: 'markup',
+  svg: 'markup',
+  xhtml: 'markup',
+  css: 'css',
+  scss: 'scss',
+  sass: 'sass',
+  less: 'less',
+  vue: 'markup',
+  svelte: 'markup',
+  sql: 'sql',
+  gql: 'graphql',
+  graphql: 'graphql',
+  proto: 'protobuf',
+  lua: 'lua',
+  pl: 'perl',
+  pm: 'perl',
+  r: 'r',
+  dart: 'dart',
+  ex: 'elixir',
+  exs: 'elixir',
+  erl: 'erlang',
+  hs: 'haskell',
+  clj: 'clojure',
+  cljs: 'clojure',
+  lisp: 'lisp',
+  tex: 'latex',
+  cmake: 'cmake',
+  tf: 'hcl',
+  hcl: 'hcl',
+  diff: 'diff',
+  patch: 'diff',
+  md: 'markdown',
+  markdown: 'markdown',
+  mdx: 'markdown',
+};
+const filenames: Record<string, string> = {
+  dockerfile: 'docker',
+  containerfile: 'docker',
+  makefile: 'makefile',
+  gnumakefile: 'makefile',
+  'cmakelists.txt': 'cmake',
+  gemfile: 'ruby',
+  rakefile: 'ruby',
+  '.bashrc': 'bash',
+  '.bash_profile': 'bash',
+  '.zshrc': 'bash',
+  '.profile': 'bash',
+  '.gitconfig': 'ini',
+  '.npmrc': 'ini',
+  '.editorconfig': 'ini',
+};
+const names: Record<string, string> = {
+  text: 'ui.session-workspace.preview-syntax-text',
+  go: 'Go',
+  javascript: 'JavaScript',
+  typescript: 'TypeScript',
+  jsx: 'JSX',
+  tsx: 'TSX',
+  markup: 'HTML / XML',
+  json: 'JSON',
+  json5: 'JSON5 / JSONC',
+  yaml: 'YAML',
+  css: 'CSS',
+  scss: 'SCSS',
+  sass: 'Sass',
+  sql: 'SQL',
+  graphql: 'GraphQL',
+  bash: 'Shell / Bash',
+  c: 'C',
+  cpp: 'C++',
+  csharp: 'C#',
+  fsharp: 'F#',
+  objectivec: 'Objective-C',
+  powershell: 'PowerShell',
+  php: 'PHP',
+  docker: 'Dockerfile',
+  ini: 'INI',
+  toml: 'TOML',
+};
+export const syntaxName = (language: string) => names[language] ?? language;
+export function resolveCodeLanguage(path: string, content = ''): string {
+  const filename = path.replace(/\\/g, '/').split('/').pop()?.toLowerCase() ?? '';
+  const extension = filename.includes('.') ? (filename.split('.').pop() ?? '') : '';
+  let language =
+    filenames[filename] ??
+    extensionLanguages[extension] ??
+    (supported.has(extension) ? extension : undefined);
+  if (!language && /^dockerfile[.]/.test(filename)) language = 'docker';
+  if (!language && /^\.env(?:\.|$)/.test(filename)) language = 'bash';
+  if (!language) {
+    const first = content.split(/\r?\n/, 1)[0] ?? '';
+    if (/^#!.*\b(?:python[\d.]*|pypy[\d.]*)\b/.test(first)) language = 'python';
+    else if (/^#!.*\b(?:node|nodejs|deno|bun)\b/.test(first)) language = 'javascript';
+    else if (/^#!.*\b(?:bash|sh|zsh)\b/.test(first)) language = 'bash';
+    else if (/^#!.*\bruby\b/.test(first)) language = 'ruby';
+  }
+  return language && supported.has(language) ? language : 'text';
+}

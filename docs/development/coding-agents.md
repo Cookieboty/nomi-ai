@@ -28,6 +28,9 @@ Nomi 把 Claude Code、Codex、Gemini CLI、Grok、dsh 当作子进程驱动，�
 | `apps/desktop-go/internal/core/cli`（其余）    | CLI 探测与版本、安装 / 更新、历史会话、git 操作（变更面板）、斜杠命令发现、工作区文件                       |
 | `apps/desktop-go/internal/core/codinghandlers` | 编程助手相关的契约过程                                                                                      |
 
+标签的消息存在 `harness/tabs/<标签>.json`（最多 300 条，写盘有 200 ms 防抖）。内核内存里只留最近读过的 6 个标签
+（`MaxCachedTabMessages`），多出来的在当前同步操作结束后回收；在跑 / 排队的、还有没写盘的、当前标签不回收，再读时从文件加载。
+
 ## 会话传输
 
 | CLI         | 传输                     | 回退   |
@@ -102,7 +105,9 @@ ACP 助手的权限能力由清单推出（`shared.AcpPermissions`），不在 G
   项目改了（`Store.OnChange` → `Orchestrator.ProjectChanged`）：空闲标签断开常驻进程，下一轮按新的文件夹重启接着原会话；主文件夹换了的换工作目录、带上前文。
 - **右栏**：视图把项目的全部文件夹（工作目录在前）传给 `SessionChangesPanel` / 中栏 Diff / 全屏审查 / `@` 路径补全，每个文件夹照常调
   `harness.workspaceList` / `harness.gitDiff`（内核按项目文件夹认目录）。「改动」每个文件夹挂一个 `RepoGitSection`，按 `gitDiff` 返回的
-  `gitRoot` 去重；只有一个文件夹时布局与原来一样。
+  `gitRoot` 去重；只有一个文件夹时布局与原来一样。`gitDiff` 的 7 条 `git diff` 与 `rev-parse` 在内核里并行跑。
+  会话详情的「变更」只要规模，调 `harness.gitSummary`（`status` + `diff --numstat HEAD` 两条命令，不带 diff 原文），
+  同一目录的进行中请求共用。窗口重新拿到焦点时的重读（改动、分支、上游、worktree）都经 `utils/focusRefresh.ts`，至多每 5 秒一次。
 - **委派与任务**：`delegate_to_cli` / `delegate_to_nomi` 把项目带进新标签与任务（`ExecutorSpec.Project`），Nomi 后台任务经 `extra.projectId` 走同一条路。
 - **迁移**：`projects.json` 不存在时（2.3.8 首启）`migrateToProjects` 把会话元信息里的 `cwd` 与标签目录各建成单文件夹项目，会话改成引用 projectId 并去掉 `cwd`。
 

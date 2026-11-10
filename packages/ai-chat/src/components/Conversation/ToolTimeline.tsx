@@ -19,6 +19,7 @@ import {
   FileText,
   FolderOpen,
   Globe,
+  Layers,
   ListChecks,
   LoaderCircle,
   Search,
@@ -26,12 +27,23 @@ import {
   Wrench,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import React, { memo, useEffect, useId, useState } from 'react';
+import React, { memo, useEffect, useId, useMemo, useState } from 'react';
 
 import type { TranscriptView } from '../../services/transcriptView';
 import { thoughtLabel } from '../../utils/convTime';
 import type { LiveAgent } from '../../utils/liveState';
 import {
+  activeStep,
+  activityCalls,
+  shapeTimeline,
+  thinkingMs,
+  thoughtTitle,
+  type ActivityStep,
+  type ShapedItem,
+} from '../../utils/timelineShape';
+import {
+  bucketOf,
+  classifyTool,
   callDuration,
   commandOf,
   describeCall,
@@ -565,37 +577,61 @@ const ThinkingTimer: React.FC<{ startedAt?: number }> = ({ startedAt }) => {
   );
 };
 
+/**
+ * 思考那一行的标题：进行中是「思考中 · 3s」加正在想的那一句，文字带流动的灰度渐变；
+ * 结束后是「已思考 5 秒」加这段思考的第一句（折叠时不用点开就知道想了什么）
+ */
+const ThinkingLabel: React.FC<{
+  text: string;
+  running: boolean;
+  startedAt?: number;
+  ms?: number;
+}> = ({ text, running, startedAt, ms }) => {
+  const title = thoughtTitle(text, running ? 'last' : 'first');
+  return (
+    <span className={running ? styles.live : undefined} data-testid="tool-thinking-label">
+      <span className={styles.verb}>
+        {running ? (
+          <>
+            {t('ui.usage-tools.thinking')}
+            <ThinkingTimer startedAt={startedAt} />
+          </>
+        ) : (
+          thoughtLabel(ms)
+        )}
+      </span>
+      {title && (
+        <span className={styles.thinkTitle} title={title} data-testid="tool-thinking-title">
+          {title}
+        </span>
+      )}
+    </span>
+  );
+};
+
 const Thinking = memo(function Thinking({
   text,
   running,
   startedAt,
   endedAt,
+  collapsed,
 }: {
   text: string;
   running: boolean;
   startedAt?: number;
   endedAt?: number;
+  /** 收在活动摘要里（展开后的每步列表）：默认折叠 */
+  collapsed?: boolean;
 }) {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
-  // Normal 下不渲染思考（AssistantBody 已过滤）；Thinking 运行中展开、完成后折叠；Verbose 始终展开
-  const disclosure = useViewOpen((view) => running || view === 'verbose');
+  // 显示思考：运行中展开、完成后折叠；详细：始终展开；精简里收在活动摘要中，默认折叠
+  const disclosure = useViewOpen((view) => !collapsed && (running || view === 'verbose'));
   const ms = startedAt !== undefined && endedAt !== undefined ? endedAt - startedAt : undefined;
   return (
     <Disclosure
       icon={Brain}
-      label={
-        <span className={styles.verb}>
-          {running ? (
-            <>
-              {t('ui.usage-tools.thinking')}
-              <ThinkingTimer startedAt={startedAt} />
-            </>
-          ) : (
-            thoughtLabel(ms)
-          )}
-        </span>
-      }
+      label={<ThinkingLabel text={text} running={running} startedAt={startedAt} ms={ms} />}
       status={running ? 'running' : 'done'}
       open={disclosure.open}
       onOpenChange={disclosure.onOpenChange}
@@ -606,12 +642,130 @@ const Thinking = memo(function Thinking({
   );
 });
 
+/** 活动摘要：按出现顺序列出各类步骤（「已探索 3 个文件 · 已运行 2 条命令 · 已编辑 1 个文件」） */
+function activityTitle(calls: readonly ToolCall[]): { buckets: Bucket[]; title: string } {
+  const buckets: Bucket[] = [];
+  const by = new Map<Bucket, ToolCall[]>();
+  for (const c of calls) {
+    const b = bucketOf(classifyTool(c.name));
+    if (!by.has(b)) {
+      by.set(b, []);
+      buckets.push(b);
+    }
+    by.get(b)!.push(c);
+  }
+  return { buckets, title: buckets.map((b) => groupTitle(b, by.get(b)!)).join(' · ') };
+}
+
+const ActivityMeta: React.FC<{ calls: ToolCall[]; running: boolean }> = ({ calls, running }) => {
+  const s = groupStats(calls);
+  return (
+    <>
+      {running && calls.length > 1 && (
+        <span className={styles.subCount}>{t('ui.usage-tools.steps', calls.length)}</span>
+      )}
+      {(s.added > 0 || s.removed > 0) && (
+        <>
+          <span className={styles.add}>+{s.added}</span>
+          <span className={styles.del}>−{s.removed}</span>
+        </>
+      )}
+      {s.failed > 0 && (
+        <span className={styles.failedTag}>{t('ui.usage-tools.failed', s.failed)}</span>
+      )}
+    </>
+  );
+};
+
+/**
+ * 一批步骤合成的一行（normal / thinking）：进行中显示正在做的那一步，结束后是这一批的摘要；
+ * 展开是每一步一行，单步再点开看参数与输出
+ */
+const ActivityRow: React.FC<{ id: string; bucket?: Bucket; steps: ActivityStep[] }> = ({
+  id,
+  bucket,
+  steps,
+}) => {
+  // 语言切换时重渲染（#140）
+  useLocale();
+  const calls = activityCalls(steps);
+  const active = activeStep(steps);
+  const status: CallStatus = active
+    ? 'running'
+    : calls.some((c) => c.status === 'error')
+      ? 'error'
+      : 'done';
+  let icon: LucideIcon = Brain;
+  let label: React.ReactNode;
+  if (active?.type === 'call') {
+    icon = KIND_ICON[describeCall(active.call).kind];
+    // 进行中的那一步：流动的灰度渐变
+    label = (
+      <span className={styles.live}>
+        <CallLabel call={active.call} />
+      </span>
+    );
+  } else if (active) {
+    label = <ThinkingLabel text={active.text} running startedAt={active.startedAt} />;
+  } else if (!calls.length) {
+    const first = steps[0];
+    label = (
+      <ThinkingLabel
+        text={first?.type === 'thinking' ? first.text : ''}
+        running={false}
+        ms={thinkingMs(steps)}
+      />
+    );
+  } else {
+    const { buckets, title } = activityTitle(calls);
+    icon = buckets.length === 1 ? BUCKET_ICON[buckets[0]!] : Layers;
+    label = (
+      <span className={styles.verb} title={title}>
+        {title}
+      </span>
+    );
+  }
+  return (
+    <Disclosure
+      icon={icon}
+      label={label}
+      meta={<ActivityMeta calls={calls} running={!!active} />}
+      status={status}
+      duration={active ? undefined : (groupDuration(calls) ?? thinkingMs(steps))}
+      testId="tool-activity"
+      attrs={{
+        'data-count': String(steps.length),
+        'data-activity-id': id,
+        ...(bucket ? { 'data-bucket': bucket } : {}),
+      }}
+      variant="group"
+    >
+      <div className={styles.groupList}>
+        {steps.map((s) =>
+          s.type === 'call' ? (
+            <ToolCallRow key={s.call.id} call={s.call} />
+          ) : (
+            <Thinking
+              key={s.id}
+              text={s.text}
+              running={s.running}
+              startedAt={s.startedAt}
+              endedAt={s.endedAt}
+              collapsed
+            />
+          ),
+        )}
+      </div>
+    </Disclosure>
+  );
+};
+
 const DELEGATE_TOOL = 'delegate_to_cli';
 type SubagentItem = Extract<TimelineItem, { type: 'subagent' }>;
 
 /** 相邻的两个及以上委派合成一个任务组（组头汇总状态、全部停止）；单个仍是普通卡片 */
-function groupDelegates(items: TimelineItem[]): Array<TimelineItem | SubagentItem[]> {
-  const out: Array<TimelineItem | SubagentItem[]> = [];
+function groupDelegates(items: ShapedItem[]): Array<ShapedItem | SubagentItem[]> {
+  const out: Array<ShapedItem | SubagentItem[]> = [];
   let run: SubagentItem[] = [];
   const flush = () => {
     if (run.length > 1) out.push(run);
@@ -654,11 +808,14 @@ export const ToolTimeline = memo(function ToolTimeline({
 }) {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
+  const view = useTranscriptViewMode();
   const [showAll, setShowAll] = useState(false);
-  if (!items.length) return null;
+  // 精简 / 显示思考：两段正文之间的步骤合成一行摘要；详细：每步一行（utils/timelineShape.ts）
+  const shaped = useMemo(() => shapeTimeline(items, view), [items, view]);
+  if (!shaped.length) return null;
   const hidden =
-    !nested && !showAll && items.length > TIMELINE_WINDOW ? items.length - TIMELINE_WINDOW : 0;
-  const visible = hidden ? items.slice(hidden) : items;
+    !nested && !showAll && shaped.length > TIMELINE_WINDOW ? shaped.length - TIMELINE_WINDOW : 0;
+  const visible = hidden ? shaped.slice(hidden) : shaped;
   return (
     <div
       className={`${styles.timeline} ${nested ? styles.nested : ''}`}
@@ -691,6 +848,8 @@ export const ToolTimeline = memo(function ToolTimeline({
             );
           case 'call':
             return <ToolCallRow key={it.call.id} call={it.call} />;
+          case 'activity':
+            return <ActivityRow key={it.id} id={it.id} bucket={it.bucket} steps={it.steps} />;
           case 'interject':
             return <InterjectRow key={it.id} text={it.text} />;
           case 'group':

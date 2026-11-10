@@ -39,8 +39,7 @@ func NewProcTable(procs []RawProc) *ProcTable {
 
 // ReadProcTable：读本机进程表（nil = 读不到）。
 func ReadProcTable(platform string) *ProcTable {
-	at := time.Now()
-	procs := ReadProcesses(platform)
+	procs, at := readProcessesShared(platform)
 	if procs == nil {
 		return nil
 	}

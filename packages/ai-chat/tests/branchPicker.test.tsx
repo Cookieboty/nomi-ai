@@ -63,7 +63,8 @@ describe('BranchPicker', () => {
     );
     await waitFor(() => expect(onSwitched).toHaveBeenCalledWith('master'));
     expect(changed).toHaveBeenCalled();
-    expect(screen.queryByTestId('branch-picker-menu')).toBeNull();
+    // 收起时先放完淡出动画再卸载
+    await waitFor(() => expect(screen.queryByTestId('branch-picker-menu')).toBeNull());
     window.removeEventListener(GIT_BRANCH_CHANGED_EVENT, changed);
   });
 

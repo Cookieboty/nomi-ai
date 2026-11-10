@@ -19,13 +19,13 @@ Agent 看板列出「谁在干活」：正在回答的 Nomi 对话、Nomi 的后
 | ------------------------------------------------------------ | ---------- | ---------------------- |
 | Nomi 本体（内核与它跑的命令、本地模型）                      | —          | 不是卡片               |
 | 正在回答的 Nomi 对话                                         | `managed`  | 只观测                 |
-| Nomi 的后台运行（执行者为 `nomi` 的持续任务）                | `managed`  | 可暂停                 |
+| Nomi 的后台运行（执行者为 `nomi` 的持续任务）                | `managed`  | 可暂停（任务暂停）     |
 | 编排器里的 CLI 标签：对话委派、任务派出、工坊里直接用的      | `managed`  | 可暂停                 |
 | Nomi 进程树之外的编程助手会话（用户自己在终端 / IDE 里开的） | `external` | 只读，只发预警，不干扰 |
 
 判断依据是进程关系，不是委派标记：标签都在编排器里（工坊里用户自己开的、被用户接手的也算纳管）；外部 = 编程助手监视
 （`internal/core/agents`）从本机会话文件认出的会话，不含 Nomi 标签自己的会话：标签用过的会话 id 都记下来（`agents/owned.go`，存
-`owned-sessions.json`，30 天没再见到的丢掉），标签关掉、出错换了会话 id、重启之后，Nomi 派出去的会话也不会再以「终端 · 只读」出现。外部会话不出现在任何控制接口里，
+`owned-sessions.json`，30 天没再见到的丢掉；按最后见到算，一直在用的老 id 每小时写回一次盘），标签关掉、出错换了会话 id、重启之后，Nomi 派出去的会话也不会再以「终端 · 只读」出现。外部会话不出现在任何控制接口里，
 以后加暂停 / 停止 / 插话时只接受纳管 id。
 
 「正在回答的对话」来自对话路由（`airouter.Handlers.ActiveChats`）：带 `extra.conversationId` 的流（标题生成等辅助调用不带）；
@@ -50,7 +50,7 @@ Agent 看板列出「谁在干活」：正在回答的 Nomi 对话、Nomi 的后
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | 待进行 `todo`    | 排队的标签；排队、还没开标签的 CLI 任务；排队的 Nomi 后台运行                                                                   |
 | 进行中 `running` | 在跑的；等授权（`needsYou: permission`）、沙箱拦下（`sandbox`）的也在这列                                                       |
-| 暂停 `paused`    | 被冻结的 CLI 标签：内存守护自动暂停的（`paused.by: memory`）、用户手动暂停的（`user`）                                          |
+| 暂停 `paused`    | 被冻结的 CLI 标签：内存守护自动暂停的（`paused.by: memory`）、用户手动暂停的（`user`）、Nomi 暂停的（`nomi`）；暂停了的后台运行 |
 | 已完成 `done`    | 跑完的标签、后台运行与外部会话（外部会话等你回话 = 这一轮答完了，也算这里）；等验收的（`needsYou: accept`）、出错的（`failed`） |
 
 - 待进行的卡片写明为什么还没开始（`queueReason`）：`memory` 内存紧张被内存守护扣着、`retry` 上次失败等重试（`retryAt`）、
@@ -61,9 +61,14 @@ Agent 看板列出「谁在干活」：正在回答的 Nomi 对话、Nomi 的后
 
 ## 资源占用
 
-- 进程表（`internal/core/agents/proctable.go`）一次读出全部进程的父进程、常驻内存与累计 CPU 时间（macOS / Linux 用 `ps`，
-  Windows 用 `Win32_Process`）。单个 agent 的 CPU = 两次采样的累计时间差 ÷ 间隔（100 = 占满一个核，同活动监视器的「% CPU」列）；
+- 进程表（`internal/core/agents/proctable.go`）一次读出全部进程的父进程、常驻内存与累计 CPU 时间。macOS 直接调 libproc
+  与 `KERN_PROCARGS2`（`procnative_darwin.go`，约 4 ms，不起子进程），Windows 用 Toolhelp 快照加逐个进程的
+  `GetProcessTimes` / 内存 / `NtQueryInformationProcess` 命令行（`procnative_windows.go`）；读不到时退回 `ps` /
+  PowerShell `Win32_Process`。Linux 用 `ps`。单个 agent 的 CPU = 两次采样的累计时间差 ÷ 间隔（100 = 占满一个核，同活动监视器的「% CPU」列）；
   不用 ps 的 `%cpu`。
+- 进程列表 5 秒内共用一份（`agents.ProcessesShareTTL`）：看板与 Agent 进度监控各自定时读，不各起一次 ps / PowerShell。
+  进度监控（每 8 秒一轮）上次没找到任何编程助手进程时，进程表至多每 30 秒重读一次（`agents.IdleProcsMs`），
+  会话文件仍每轮扫描；所以在终端里新开的助手最多晚 30 秒被认出来。
 - 整机 CPU（`system.cpuPercent`，0–100，占全部核的比例，同活动监视器的「系统 + 用户」）读系统计数（`agents.SystemCPU`：
   macOS `host_statistics`、Linux `/proc/stat`、Windows `GetSystemTimes`）；读不到（如不带 cgo 的 macOS 构建）时退回各进程相加
   除以核数，会漏掉采样间隔里退出的进程与 `kernel_task`。
@@ -116,13 +121,13 @@ Agent 看板列出「谁在干活」：正在回答的 Nomi 对话、Nomi 的后
 `internal/core/fleet/governor.go`。每 5 秒读一次系统内存压力（`agents.SystemMemory`：macOS 用系统给的
 `kern.memorystatus_vm_pressure_level` 与 `kern.memorystatus_level`；Linux 用 `MemAvailable` 与 PSI；Windows 用
 `GlobalMemoryStatusEx`，可用 < 15% 告警、< 7% 危险），只动纳管的 CLI 标签，外部的从不碰。看板右上角的开关
-（`fleet.setAutoPause`，存在 `userData/fleet/settings.json`，默认开）关掉时不自动动手，并恢复内存守护暂停的标签。
+（`fleet.setAutoPause`，存在 `userData/fleet/settings.json`，默认开）关掉时不自动动手，并恢复内存守护暂停的标签；Nomi 暂停的不跟着恢复，照旧等内存正常后自动继续。
 
 | 压力                 | 动作                                                                                                                                                             |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 告警及以上           | 立刻回收空闲 ≥ 1 分钟的标签的 CLI 进程（`Orchestrator.ReclaimIdleNow`，与空闲回收同一套条件，会话留着，无损）；压力不退时每分钟一次                              |
 | 危险                 | 每 10 秒冻结一个正在跑的标签：Nomi 派出的（对话委派、任务）先于工坊里的，同类里内存大的先；刚恢复 2 分钟内的不冻；用户正看着的标签（窗口在前台时的当前标签）不冻 |
-| 回到正常并稳定 30 秒 | 每 20 秒恢复一个内存守护暂停的（最早暂停的先）；用户手动暂停的不自动恢复                                                                                         |
+| 回到正常并稳定 30 秒 | 每 20 秒恢复一个内存守护或 Nomi 暂停的（最早暂停的先）；用户手动暂停的不自动恢复                                                                                 |
 
 冻结 = SIGSTOP / `NtSuspendProcess`（`Orchestrator.FreezeTab`，进程树由看板从进程表展开，父进程在前）：不占 CPU，
 内存由系统按需压缩换出；恢复（`ThawTab`，子进程在前）后这一轮从原处接着跑，委派与持续任务察觉不到（持续任务的单次
@@ -130,12 +135,18 @@ Agent 看板列出「谁在干活」：正在回答的 Nomi 对话、Nomi 的后
 退出时（`Dispose`）恢复全部。卡片上可以手动「暂停 / 继续」（`fleet.pause` / `fleet.resume`）。看板头部下面一行显示
 内存守护最近一次动作（10 分钟内）。Nomi 对话与后台 agent 跑在内核进程里，不能冻结。
 
+后台运行的「暂停 / 继续」是任务暂停（`fleet.pause` / `fleet.resume` 对 `run:<taskId>` 转成任务的 `pause` / `resume` 命令，
+和任务看板同一个入口 `tasks.Service.Command`）：停掉调度，正在跑的这一轮跑完（卡片留在「进行中」，标「这一轮跑完后暂停」），
+之后进「已暂停」，不再开始新的一轮，直到用户或 `resume_agent` 继续；内存恢复正常也不自动继续，内存守护不碰它。
+在跑或排队、没在等用户的才能暂停；正在回答的对话只观测；连续失败后自动停掉的不算暂停，不上看板。谁暂停的
+（`user` / `nomi`）只记在看板服务内存里，重启后算用户的。
+
 ## Nomi 调度
 
 - 工具（`internal/core/fleet/tools.go`，注册进 Nomi 的工具表，说到 agent / 内存 / 卡 / 暂停 / 派出去的事时才提供）：
   `list_agents`（压力、可用比例、整机 CPU、Nomi 自己的占用与所有 agent，外部的标 `readOnly`）、`pause_agent` /
-  `resume_agent`（只对纳管的、可暂停的；外部的、内核里跑的、等用户处理的都拒绝并说明原因）。Nomi 暂停的
-  （`paused.by: nomi`）与内存守护暂停的一样，内存恢复正常后自动继续，不会被遗忘在暂停里。
+  `resume_agent`（只对纳管的、可暂停的；外部的、正在回答的对话、等用户处理的都拒绝并说明原因）。Nomi 暂停的编程助手
+  （`paused.by: nomi`）与内存守护暂停的一样，内存恢复正常后自动继续，不会被遗忘在暂停里；Nomi 暂停的后台运行等手动继续。
 - 内存紧张（critical）且自动处理开着时，内存守护扣着新的工作：任务运行时开始执行前问 `Admit`
   （`tasks.Runtime.SetAdmit`），编程助手与后台 Nomi 的任务留在队列里（看板「待进行」标 `queueReason: memory`），只发通知的照常；
   不再紧张时马上再排一次队（`OnRelease` → `Runtime.Tick`）。同步委派：后台 Nomi 里的等缓解，前台对话里的返回

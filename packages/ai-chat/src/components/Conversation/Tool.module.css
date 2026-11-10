@@ -83,6 +83,62 @@
 .head:hover .subCount {
   color: var(--cd-color-text);
 }
+/* 思考 / 进行中那一步的包裹：和 .label 一样横排，标题过长省略 */
+.label > span:only-child {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--cd-space-1-5);
+  min-width: 0;
+  overflow: hidden;
+}
+/* 思考的一句话标题（折叠时是第一句，进行中是正在想的那一句） */
+.thinkTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cd-color-text-subtle);
+}
+/* 进行中：文字上一道流动的灰度渐变（浅 → 亮 → 浅），只在运行时出现 */
+.live .verb,
+.live .target,
+.live .thinkTitle {
+  background: linear-gradient(
+    90deg,
+    var(--cd-color-text-subtle) 0%,
+    var(--cd-color-text-subtle) 35%,
+    var(--cd-color-text) 50%,
+    var(--cd-color-text-subtle) 65%,
+    var(--cd-color-text-subtle) 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: toolShimmer 2s linear infinite;
+}
+.head:hover .live .verb,
+.head:hover .live .target,
+.head:hover .live .thinkTitle {
+  color: transparent;
+}
+@keyframes toolShimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -150% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live .verb,
+  .live .target,
+  .live .thinkTitle {
+    animation: none;
+    background: none;
+    color: var(--cd-color-text-muted);
+  }
+}
 .target {
   min-width: 0;
   overflow: hidden;

@@ -100,18 +100,22 @@ describe('CliConversation 历史消息', () => {
     expect(md.querySelector('strong')?.textContent).toBe('没有');
     expect(md.querySelector('code')?.textContent).toBe('a.ts');
     expect(queryByText(/工具完成/)).toBeNull();
-    // 探索类调用折叠成一组：1 目录 + 2 搜索 + 1 文件
-    const group = container.querySelector('[data-testid="tool-group"][data-bucket="explore"]')!;
-    expect(group.textContent).toContain('已探索 1 个文件、2 次搜索、1 个目录');
-    expect(group.getAttribute('data-open')).toBe('false');
-    expect(group.querySelector('[data-testid="tool-row"]')).toBeNull();
+    // 这一段的调用按类型各一行（子代理单独成块）：探索 4 次并成一行，命令、编辑各只有一次
+    const act = container.querySelector('[data-testid="tool-activity"][data-bucket="explore"]')!;
+    expect(act.textContent).toContain('已探索 1 个文件、2 次搜索、1 个目录');
+    expect(act.getAttribute('data-open')).toBe('false');
+    expect(act.querySelector('[data-testid="tool-row"]')).toBeNull();
+    const timeline = container.querySelector('[data-testid="tool-timeline"]')!;
+    expect(timeline.querySelectorAll(':scope > [data-testid="tool-activity"]')).toHaveLength(1);
+    expect(timeline.querySelector(':scope > [data-kind="command"]')).not.toBeNull();
+    expect(timeline.querySelector(':scope > [data-kind="edit"]')?.textContent).toContain('+1−1');
   });
 
-  it('点击分组展开子行，再点单行看到参数与输出；耗时 400ms', () => {
+  it('点击一类的摘要展开这一类的每一步（一步一行），再点单行看到参数与输出；耗时 400ms', () => {
     const { container } = render(
       <CliConversation tab={tab()} messages={messages} onPermission={() => undefined} />,
     );
-    const group = container.querySelector<HTMLElement>('[data-testid="tool-group"]')!;
+    const group = container.querySelector<HTMLElement>('[data-testid="tool-activity"]')!;
     fireEvent.click(group.querySelector('button')!);
     expect(group.getAttribute('data-open')).toBe('true');
     const rows = group.querySelectorAll('[data-testid="tool-row"]');
@@ -193,7 +197,7 @@ describe('CliConversation 历史消息', () => {
     expect(container.querySelector('[data-kind="command"]')?.getAttribute('data-status')).toBe(
       'error',
     );
-    const legacy = container.querySelector('[data-testid="tool-group"]')!;
+    const legacy = container.querySelector('[data-testid="tool-activity"]')!;
     expect(legacy.getAttribute('data-count')).toBe('2');
     expect(legacy.getAttribute('data-status')).toBe('done');
   });

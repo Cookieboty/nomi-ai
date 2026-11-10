@@ -3,7 +3,7 @@
  * 可选「不使用项目」。受控组件：由调用方决定如何应用（Nomi 对话改会话的 projectId / 编程助手标签换项目 /
  * 新会话的初始项目）。
  */
-import { Icon, t, useLocale } from '@nomi-ai/ui';
+import { Icon, t, useLocale, usePresence } from '@nomi-ai/ui';
 import { Check, Folder, FolderX, Search, SquarePen } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -41,6 +41,8 @@ export const ProjectPicker: React.FC<{
   useLocale();
   const projects = useProjects();
   const [open, setOpen] = useState(false);
+  // 收起时先放完淡出动画再卸载
+  const menuP = usePresence(open);
   const [creating, setCreating] = useState(false);
   const [query, setQuery] = useState('');
   const ref = useRef<HTMLSpanElement>(null);
@@ -118,11 +120,12 @@ export const ProjectPicker: React.FC<{
         </span>
         {extra > 0 && <span className={styles.count}>+{extra}</span>}
       </button>
-      {open &&
+      {menuP.value &&
         createPortal(
           <div
             ref={menuRef}
-            className={styles.menu}
+            className={`${styles.menu} cd-motion-pop`}
+            data-closing={menuP.closing || undefined}
             style={pos}
             role="menu"
             data-testid={`${testId}-menu`}

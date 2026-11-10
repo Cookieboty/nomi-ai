@@ -68,4 +68,26 @@ describe('CLI image lightbox', () => {
       'data:image/jpeg;base64,ONLYTHUMB',
     );
   });
+  it('恢复的图片按附件顺序保留，换行不改变灯箱选中索引', () => {
+    const images = Array.from({ length: 11 }, (_, i) => ({
+      thumb: `data:image/png;base64,THUMB${i}`,
+      url: `chat-asset://images/user-${i}.png`,
+      width: 72,
+      height: 72,
+    }));
+    render(<>{buildCliSlots().before?.(userMsg(images))}</>);
+    const row = screen.getByTestId('message-images');
+    expect(row.getAttribute('data-count')).toBe('11');
+    expect(
+      Array.from(row.querySelectorAll('img')).map((image) => image.getAttribute('src')),
+    ).toEqual(images.map((image) => image.thumb));
+    fireEvent.click(row.querySelectorAll('button')[5]!);
+    expect(screen.getByTestId('cli-image-lightbox').querySelector('img')!.getAttribute('src')).toBe(
+      'resolved:chat-asset://images/user-5.png',
+    );
+    fireEvent.click(screen.getByTestId('image-lightbox-next'));
+    expect(screen.getByTestId('cli-image-lightbox').querySelector('img')!.getAttribute('src')).toBe(
+      'resolved:chat-asset://images/user-6.png',
+    );
+  });
 });

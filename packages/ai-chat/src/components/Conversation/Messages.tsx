@@ -31,8 +31,10 @@ import { ForkFromMessageContext } from './forkContext';
 import { ForkRight } from './forkIcon';
 import styles from './index.module.css';
 import { Markdown } from './Markdown';
+import { MessageResourceBoundary } from './MessageResourceBoundary';
 import { ToolTimeline } from './ToolTimeline';
 import { useTranscriptViewMode } from './transcriptViewContext';
+import { UserMessageLinks } from './UserMessageLinks';
 
 export interface ConvSlots {
   /** 正文之前（记忆标签 / 图片等来源特有内容） */
@@ -171,9 +173,9 @@ export const AssistantBody: React.FC<{
       : legacyTools?.length
         ? entriesFromLegacyTools(legacyTools)
         : [];
-    // Normal 与 Claude Code 一致：只显示正文和工具摘要，不显示思考
-    return transcriptView === 'normal' ? all.filter((e) => e.type !== 'thinking') : all;
-  }, [trace, legacyTools, live, transcriptView]);
+    // 精简模式下思考不单独显示：由时间线收进活动摘要（utils/timelineShape.ts），这里不过滤
+    return all;
+  }, [trace, legacyTools, live]);
   // 时间线只随轨迹重建；流式文字帧只重新切文字，各组 items 保持同一引用
   const layout = useMemo(() => layoutBody(entries), [entries]);
   const len = planLength(layout, text.length, breaks);
@@ -295,7 +297,7 @@ export const UserMessage = memo(function UserMessage({
           {files.length > 0 && <FileChipRow files={files} />}
           {bodyText && (
             <div className={styles.userBubble} title={full}>
-              {bodyText}
+              <UserMessageLinks text={bodyText} />
             </div>
           )}
           <div className={`${styles.actions} ${styles.actionsRight}`} role="toolbar">
@@ -365,69 +367,71 @@ export const AssistantMessage = memo(function AssistantMessage({
   const retry = canRetry && onRetry ? () => onRetry(message.id) : undefined;
   const forkFrom = useContext(ForkFromMessageContext);
   return (
-    <div className={styles.assistant} data-testid="msg-assistant" data-message-id={message.id}>
-      {message.origin === 'background' && (
-        <div className={styles.stopped} data-testid="background-followup-note">
-          <Icon icon={Layers} size={13} />
-          {t('ui.chat-settings.follow-up-after-a-background-task-finished')}
-        </div>
-      )}
-      {slots?.before?.(message)}
-      <AssistantBody
-        text={body ? '' : message.text}
-        trace={message.trace}
-        legacyTools={message.legacyTools}
-        breaks={body ? undefined : message.textBreaks}
-        endedAt={message.at}
-      />
-      {body}
-      {message.error && (
-        <ErrorCard
-          message={message.error}
-          onRetry={retry}
-          extra={slots?.errorActions?.(message, { retry })}
-        />
-      )}
-      {message.stopped && (
-        <div className={styles.stopped} data-testid="stopped-note">
-          <Icon icon={OctagonX} size={13} />
-          {t('ui.usage-tools.generation-stopped')}
-        </div>
-      )}
-      {slots?.after?.(message)}
-      <div className={styles.meta}>
-        {message.label && <span className={styles.label}>{message.label}</span>}
-        {message.model && <ModelTag model={message.model} />}
-        {timeLabel && (
-          <time dateTime={new Date(message.at).toISOString()} title={full}>
-            {timeLabel}
-          </time>
+    <MessageResourceBoundary id={message.id} origin={message.origin}>
+      <div className={styles.assistant} data-testid="msg-assistant" data-message-id={message.id}>
+        {message.origin === 'background' && (
+          <div className={styles.stopped} data-testid="background-followup-note">
+            <Icon icon={Layers} size={13} />
+            {t('ui.chat-settings.follow-up-after-a-background-task-finished')}
+          </div>
         )}
-        <TurnSummary message={message} />
-        <span className={styles.spacer} />
-        <div className={styles.actions} role="toolbar">
-          <span className={styles.fullTime}>{full}</span>
-          <CopyAction text={message.text || message.error || ''} />
-          {retry && !message.error && (
-            <ActionButton
-              icon={RefreshCw}
-              label={t('ui.usage-tools.regenerate')}
-              testId="msg-retry"
-              onClick={retry}
-            />
+        {slots?.before?.(message)}
+        <AssistantBody
+          text={body ? '' : message.text}
+          trace={message.trace}
+          legacyTools={message.legacyTools}
+          breaks={body ? undefined : message.textBreaks}
+          endedAt={message.at}
+        />
+        {body}
+        {message.error && (
+          <ErrorCard
+            message={message.error}
+            onRetry={retry}
+            extra={slots?.errorActions?.(message, { retry })}
+          />
+        )}
+        {message.stopped && (
+          <div className={styles.stopped} data-testid="stopped-note">
+            <Icon icon={OctagonX} size={13} />
+            {t('ui.usage-tools.generation-stopped')}
+          </div>
+        )}
+        {slots?.after?.(message)}
+        <div className={styles.meta}>
+          {message.label && <span className={styles.label}>{message.label}</span>}
+          {message.model && <ModelTag model={message.model} />}
+          {timeLabel && (
+            <time dateTime={new Date(message.at).toISOString()} title={full}>
+              {timeLabel}
+            </time>
           )}
-          {forkFrom && (
-            <ActionButton
-              icon={ForkRight}
-              label={t('ui.cli-monitor.fork-from-here')}
-              testId="msg-fork"
-              onClick={() => forkFrom(message.id)}
-            />
-          )}
-          {slots?.actions?.(message)}
+          <TurnSummary message={message} />
+          <span className={styles.spacer} />
+          <div className={styles.actions} role="toolbar">
+            <span className={styles.fullTime}>{full}</span>
+            <CopyAction text={message.text || message.error || ''} />
+            {retry && !message.error && (
+              <ActionButton
+                icon={RefreshCw}
+                label={t('ui.usage-tools.regenerate')}
+                testId="msg-retry"
+                onClick={retry}
+              />
+            )}
+            {forkFrom && (
+              <ActionButton
+                icon={ForkRight}
+                label={t('ui.cli-monitor.fork-from-here')}
+                testId="msg-fork"
+                onClick={() => forkFrom(message.id)}
+              />
+            )}
+            {slots?.actions?.(message)}
+          </div>
         </div>
       </div>
-    </div>
+    </MessageResourceBoundary>
   );
 });
 

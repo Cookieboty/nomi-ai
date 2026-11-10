@@ -3,7 +3,7 @@
  * 底部「创建并检出新分支…」。新会话输入框上方的工作区条与右栏「改动」顶部共用。
  * 有会被覆盖的未提交改动时 git 会拒绝切换（不丢改动），错误留在菜单里，可以改了再试。
  */
-import { Icon, t } from '@nomi-ai/ui';
+import { Icon, t, usePresence } from '@nomi-ai/ui';
 import { Check, GitBranch, Plus, Search } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -49,6 +49,8 @@ export const BranchPicker: React.FC<{
   onSwitched?: (branch: string) => void;
 }> = ({ cwd, branch, up = false, disabled, className, testId = 'branch-picker', onSwitched }) => {
   const [open, setOpen] = useState(false);
+  // 收起时先放完淡出动画再卸载
+  const menuP = usePresence(open);
   const [list, setList] = useState<GitBranchList | null>(null);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -141,11 +143,12 @@ export const BranchPicker: React.FC<{
         <Icon icon={GitBranch} size={14} />
         <span className={styles.name}>{label}</span>
       </button>
-      {open &&
+      {menuP.value &&
         createPortal(
           <div
             ref={menuRef}
-            className={styles.menu}
+            className={`${styles.menu} cd-motion-pop`}
+            data-closing={menuP.closing || undefined}
             style={pos}
             role="menu"
             aria-busy={busy}

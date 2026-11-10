@@ -355,8 +355,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 			Linux:            application.LinuxWindow{WindowIsTranslucent: true},
 			// CornerTypeSquare = 真正的无边框窗口（NSWindowStyleMaskBorderless）。Wails 默认的 frameless 仍是带标题栏样式的窗口
 			// （标题栏透明隐藏）：系统会把它挪到菜单栏下面、并给它圆角，刘海模式就从刘海上「掉」下来、和刘海断开
-			Mac: application.MacWindow{Backdrop: application.MacBackdropTransparent, WindowLevel: application.MacWindowLevelStatus,
-				DisableShadow: true, CornerType: application.MacWindowCornerTypeSquare},
+			Mac:     islandMacWindow(),
 			Windows: application.WindowsWindow{HiddenOnTaskbar: true, BackdropType: application.None, DisableFramelessWindowDecorations: true},
 			URL:     pageURL,
 		}
@@ -469,6 +468,10 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		}
 		if k == shell.Chat {
 			placeTrafficLights(win)
+		}
+		if k == shell.Mascot {
+			// mac：不是活动窗口时第一下点击也交给网页，按住角色直接就能拖
+			acceptFirstMouse(win)
 		}
 		w.notify(k, "created")
 	})

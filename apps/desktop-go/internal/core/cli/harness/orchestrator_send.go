@@ -41,6 +41,9 @@ func newMsgID() string { return clisdk.RandomUUID() }
 func (o *Orchestrator) SendTab(id, prompt string, images []any, userInitiated bool) *jsrt.Promise[*util.Obj] {
 	o.thawIfFrozen(id)
 	return jsrt.Async(func() (*util.Obj, error) {
+		o.requireTab(id)
+		// 上一轮运行时项目文件夹变了：这一轮发出前先按最新的项目同步（可能换工作目录、开新会话）
+		o.applyPendingProject(id)
 		tab := o.requireTab(id)
 		if tab.Get("backend") == "nomi" {
 			throw(i18n.T("electron.common.nomi-backend-is-active-use-the-built-in"))
@@ -553,6 +556,10 @@ func (o *Orchestrator) finish(tab *util.Obj, ok bool, text string, errStr *strin
 			}
 		}
 	}
+	// 运行中项目文件夹变了：这一轮结束后同步（放到下一拍，不在 CLI 进程自己的事件回调里断开它）
+	if o.projectPending[id] {
+		jsrt.SetTimeout(0, func() { o.applyPendingProject(id) })
+	}
 	o.events.Emit("tab-finished", TabFinished{TabID: id, Title: str(tab, "title"), Backend: str(tab, "backend"), Ok: ok, Text: text,
 		Error: errStr, Background: background, DurationMs: dur, Origin: o.turnOrigin[id]})
 	delete(o.turnOrigin, id)
@@ -652,6 +659,11 @@ var wsRunRe = util.JSRe(`\s+`)
 
 // emitEvent = emitEvent。
 func (o *Orchestrator) emitEvent(tabID string, ev *util.Obj) {
+	if ev.Get("type") == "user-message" {
+		o.receiveUserImages(tabID, ev)
+		return
+	}
+	ev = o.normalizeImageEvent(tabID, ev)
 	o.trackProgress(tabID, ev)
 	if ev.Get("type") == "permission-resolved" && ev.Get("reason") != "allowed" {
 		k := "denied"
