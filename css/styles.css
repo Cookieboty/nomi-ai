@@ -2737,6 +2737,8 @@ a.dl-alt:hover { color: var(--peach-soft); }
   border-color: rgba(251, 148, 102, 0.7) !important;
   box-shadow: 0 0 0 1px rgba(251, 148, 102, 0.35), 0 18px 48px rgba(217, 101, 53, 0.25) !important;
 }
+/* Chip hint under the macOS / Linux requirement line (js/main.js detectArch) */
+.dl-chip { margin: -0.5rem 0 0.8rem; font-size: 0.8rem; line-height: 1.45; opacity: 0.78; }
 .dl-yours {
   position: absolute; top: 14px; right: 14px;
   padding: 2px 9px; border-radius: var(--radius-pill);
