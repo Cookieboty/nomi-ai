@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -336,6 +337,12 @@ func readProcessesShared(platform string) ([]RawProc, time.Time) {
 }
 
 func readProcessesNow(platform string) []RawProc {
+	// 本机平台优先用系统接口直接读（macOS libproc、Windows Toolhelp），省掉每次起 ps / PowerShell；读不到再退回命令
+	if platform == runtime.GOOS || platform == "win32" && runtime.GOOS == "windows" {
+		if procs := readProcessesNative(); procs != nil {
+			return procs
+		}
+	}
 	if platform == "win32" {
 		so, err := runCmd(8*time.Second, "powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
 			"Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,WorkingSetSize,KernelModeTime,UserModeTime,Name,CommandLine | ConvertTo-Json -Compress")
