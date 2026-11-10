@@ -883,6 +883,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 编程助手可以同时安装 / 更新：装 Claude Code 时不再禁用 Codex 等其他助手的按钮。只有往同一位置执行的 `npm install -g` 会排队（并发会互相覆盖），排队时日志里会提示「等另一个 npm 安装完成后继续」。 (`@nomi-ai/ai-chat` patch)
 - 编程助手可以同时安装 / 更新：装 Claude Code 时不再禁用 Codex 等其他助手的按钮。只有往同一位置执行的 `npm install -g` 会排队（并发会互相覆盖），排队时日志里会提示「等另一个 npm 安装完成后继续」。 (`@nomi-ai/i18n` patch)
 - 编程助手回合结束时不再闪出两份同样的回答：定稿消息与清除流式进度在同一次提交里完成；侧栏只因时间戳变化的同步推迟到空闲时，不和回合结束的重渲染挤在一起。 (`@nomi-ai/ai-chat` patch)
+- 编程助手在沙箱里运行没有执行位的技能脚本（"Permission denied"）时，不再误以为被沙箱拦截而停下：沙箱说明写明 CLI 自己的技能目录可读可执行，遇到这种情况改用解释器运行。 (`@nomi-ai/desktop-go` patch)
 - 编程助手新标签默认设置改为“默认 / 官方 / 三方”三类：默认使用本机 CLI 配置，官方可指定 Nomi 管理的账号，三方可指定供应商。选择三方模型时会自动同步对应供应商；Diff 摘要悬浮时显示具体变更文件及增删行数。 (`@nomi-ai/ai-chat` patch)
 - 编程助手标签在「已开始、但这条消息还没发给 CLI」时点停止也能生效（#75）：Gemini 握手（初始化 / 建立或载入会话 / 设置权限模式）期间停止，会拆掉正在初始化的进程，握手随后完成也不会再把这条消息发出去，这一轮标为已停止；Claude Code 等权限模式确认时停止同样不再拉起新进程发送。紧接着的新一轮不受影响。 (`@nomi-ai/desktop-go` patch)
 - 编程助手标签状态做结构共享：主进程推送的标签内容未变时保持原引用、完全相同的推送不再触发重渲染；只关心当前标签的组件改用 useHarnessTabsCore，后台标签变化不再让整个对话窗口重渲染。 (`@nomi-ai/ai-chat` patch)

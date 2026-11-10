@@ -88,7 +88,9 @@
   `delegation.sandboxGrants`，`grantedFor` 当作已授权。只有内核自己的委派 / 任务路径能写 `delegation`：契约 `harness.tabCreate`
   只收视图能给的字段（backend、cwd、title、messages、permissionMode、pluginId），视图带来的 `delegation` 等内部字段一律丢掉。
 - 告诉编程助手它在沙箱里（`prompts/text/cli-sandbox.md`）：Claude 用 `--append-system-prompt`，别的 CLI 在 CLI 会话的第一条消息前带上（`withSandboxNote`）；
-  被拒时停下说明、结束这一轮，不要绕路。
+  被拒时停下说明、结束这一轮，不要绕路。说明里也写明 CLI 自己的配置目录（技能、提示词、插件）与 `~/.agents` 可读可执行；
+  运行脚本报 "Permission denied" / 退出码 126 是脚本没有执行位，不是沙箱（沙箱拒绝是 "Operation not permitted"），
+  改用解释器运行接着做，别当成沙箱拦截停下（`internal/core/cli/sandbox/skills_test.go` 守住各内置 CLI 的技能目录）。
 - 开关（`cliSandboxOff`，缺省开）、受保护文件夹、「始终允许」变了：`watchSandboxPolicy` → `SandboxPolicyChanged` 让常驻 CLI 按新配置重开。
 - 其他平台 `sandbox.Supported()` 为假，CLI 照旧运行（状态 `unsupported`，界面提示）；工作目录检查与环境变量清理照常。
 
