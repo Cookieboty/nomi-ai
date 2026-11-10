@@ -6,8 +6,8 @@
 
 ## 中文
 
-Nomi·诺米：让每一种 AI 能力，都为你所用。编程助手、模型、MCP 与技能接到一处，在 Agent 工作台里并行跑、一处看、一起管；
-Nomi 自己也是一个 agent，还可以作为桌面角色常驻桌面（可选）。桌面应用是 Go 内核 + Wails（`apps/desktop-go`），界面是 React（`packages/`）。
+Nomi·诺米：把 Claude Code、Codex 等接到一处并行跑、一张看板一起管；模型只接一次，官方、国内、中转和本地都能用。
+本地优先的桌面 Agent 工作台（Go + Wails，`apps/desktop-go`），不强制云账号；Nomi 自己也是一个 agent，桌面角色可选。界面是 React（`packages/`）。
 
 ### 开始
 
@@ -74,9 +74,9 @@ Nomi 自己也是一个 agent，还可以作为桌面角色常驻桌面（可选
 
 ## English
 
-Nomi: one place, every AI capability. Coding agents, models, MCP and skills come together in one agent workbench, where they run side
-by side and you watch and manage them together; Nomi is an agent itself and can also stay on your desktop as a character (optional).
-The desktop app is a Go core on Wails (`apps/desktop-go`); the UI is React (`packages/`). The pages below are written in Chinese.
+Nomi runs Claude Code, Codex and others in parallel on one board. Connect a model once — official APIs, China-region, relays and local —
+and use it across those agents. It is a local-first desktop agent workbench (Go on Wails, `apps/desktop-go`) with no required cloud account;
+Nomi is an agent itself, and the desktop character is optional. The UI is React (`packages/`). The pages below are written in Chinese.
 
 ### Getting started
 
