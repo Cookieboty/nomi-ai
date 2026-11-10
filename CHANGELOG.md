@@ -235,6 +235,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **chat:** 新建 Nomi 对话时，如果这个工作区已经有还没说话的空对话，就切过去（挪到最上面），不再堆一个新的空对话。/ Creating a Nomi chat reuses the workspace's existing empty chat (and moves it to the top) instead of piling up another empty one. (`@nomi-ai/ai-chat` patch)
 - **chat:** 新建对话不再复用还在后台生成首轮回复的对话（之前会把旧回复又带回「新」对话）；在设置的「已归档的对话」里永久删除对话时，先停止它正在进行的回复，和侧栏删除一致。/ New chat no longer reuses a chat whose first reply is still generating in the background (the old reply used to reappear in the "new" chat), and permanently deleting a chat from Settings → Archived chats now stops its in-progress reply first, like deleting from the sidebar. (`@nomi-ai/ai-chat` patch)
 - **chat:** 标题栏「…」和侧栏每行的「更多」按钮再点一次就关掉菜单，不再关了又马上打开。 (`@nomi-ai/desktop-go` patch)
+- **chat:** 编程助手会话的「会话详细程度」按 CLI 会话记住：关掉标签再从历史打开同一个会话，单独选的那一档还在（#313）。 (`@nomi-ai/desktop-go` patch)
 - **chat:** 编程助手会话的标题不再变成「You are running inside Nomi's sandbox…」，显示你自己发的第一句话。 (`@nomi-ai/desktop-go` patch)
 - **chat:** 编程助手用第三方供应商时，消息底部的模型显示供应商名（如「MAAS · kimi-k3」），与 Nomi 对话一致，不再显示内部 id（`provider/kimi-k3`）。 (`@nomi-ai/ai-chat` patch)
 - **chat:** 输入栏的「完全放开」档位按钮不再带红框和底色，和旁边的模型按钮一样，只用红色文字提示。 (`@nomi-ai/ai-chat` patch)

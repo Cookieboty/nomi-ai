@@ -52,10 +52,12 @@ import { useIslandOpenItem } from './hooks/useIslandOpenItem';
 import { useMainPages } from './hooks/useMainPages';
 import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSessionComposerDrafts } from './hooks/useSessionComposerDrafts';
+import { useMigrateCliTranscriptView } from './hooks/useTranscriptView';
 import { toHarnessImages } from './services/chatImages';
 import { smartTitleOnFirstSend } from './services/cliSmartTitle';
 import { watchNomiModel } from './services/nomiModel';
 import type { ImageAttachment } from './services/screenClient';
+import { cliTranscriptKey } from './services/transcriptView';
 import { reportedModel } from './slash/tokens';
 import { CHAT_COL_W_MAX, CHAT_COL_W_MIN } from './utils/chatColumnWidth';
 import { useCliImageSupport } from './utils/cliImageSupport';
@@ -89,10 +91,12 @@ const AiChatContent: React.FC = () => {
   const nomiSessionId = viewConvoId ?? ipcClient?.currentConversationId?.();
   const sessionKey =
     isDev && tabs.isCliTab && tabs.activeTab
-      ? `tab:${tabs.activeTab.id}`
+      ? cliTranscriptKey(tabs.activeTab)
       : nomiSessionId
         ? `nomi:${nomiSessionId}`
         : null;
+  // 编程助手标签拿到会话 id 后，把按标签存的 Transcript view 覆盖搬到会话键（关标签、从历史重开也在）
+  useMigrateCliTranscriptView(isDev && tabs.isCliTab ? tabs.activeTab : null);
   // ───── 统一会话视图的数据：Nomi 主对话与编程助手标签走同一个 ConversationView ─────
   const nomiMessages = useMemo(() => nomiConvMessages(settledNomi), [settledNomi]);
   const cliBackend = tabs.activeTab?.backend ?? 'claude';

@@ -144,6 +144,34 @@ export function clearTranscriptView(sessionKey: string | null | undefined): void
   writeState({ ...state, sessions });
 }
 
+/**
+ * 编程助手标签的会话键（#313）：有 CLI 会话 id 时按「后端（外部 CLI 带插件 id）+ 会话 id」，关掉标签再从历史
+ * 打开（新标签 id、同一个会话）仍找得到同一份设置；还没有会话 id（新标签还没发第一条）时先按标签 id，
+ * 拿到会话 id 后由 migrateTranscriptView 搬过去。分叉、新会话会得到新的会话 id，各自独立（跟随全局，不继承）。
+ */
+export function cliTranscriptKey(tab: {
+  id: string;
+  backend: string;
+  pluginId?: string;
+  cliSessionId: string | null;
+}): string {
+  if (!tab.cliSessionId) return `tab:${tab.id}`;
+  const ns = tab.backend === 'external' && tab.pluginId ? `external/${tab.pluginId}` : tab.backend;
+  return `cli:${ns}:${tab.cliSessionId}`;
+}
+
+/** 把 from 键上的覆盖搬到 to（to 已有自己的覆盖时以 to 为准）；from 上没有就什么都不做 */
+export function migrateTranscriptView(from: string, to: string): void {
+  if (from === to) return;
+  const state = getTranscriptViewState();
+  const view = state.sessions[from];
+  if (view === undefined) return;
+  const sessions = { ...state.sessions };
+  delete sessions[from];
+  if (sessions[to] === undefined) sessions[to] = view;
+  writeState({ ...state, sessions });
+}
+
 export function subscribeTranscriptView(fn: Listener): () => void {
   listeners.add(fn);
   return () => void listeners.delete(fn);
