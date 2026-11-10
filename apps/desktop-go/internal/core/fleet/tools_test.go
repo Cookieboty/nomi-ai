@@ -125,7 +125,7 @@ func TestHoldingAdmitAndRelease(t *testing.T) {
 func TestBuildQueueReasonAndParent(t *testing.T) {
 	in := baseInput()
 	retryAt := in.Now + 60_000
-	in.Tasks = append(in.Tasks, tasks.Task{ID: "t-retry", Title: "等重试", Status: tasks.StatusQueued,
+	in.Tasks = append(in.Tasks, tasks.Task{Enabled: true, ID: "t-retry", Title: "等重试", Status: tasks.StatusQueued,
 		Executor: tasks.ExecutorSpec{Kind: "nomi"}, Pending: &tasks.PendingRun{Cause: "retry", NotBefore: &retryAt}, UpdatedAt: in.Now})
 	in.Tabs = append(in.Tabs, Tab{ID: "child", Backend: "claude", Status: "running", HasSession: true, UpdatedAt: in.Now,
 		Delegated: true, TaskID: "t-child", ParentTaskID: "t-nomi"})

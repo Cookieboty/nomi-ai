@@ -52,6 +52,9 @@ type Deps struct {
 	Foreground func() string
 	// SystemCPU：整机 CPU 的累计计数（agents.SystemCPU）；「全速」档按它放行。nil = 不看 CPU
 	SystemCPU func() (busy, total float64, ok bool)
+	// TaskCommand：给任务发用户命令（tasks.Runtime.Command，GIL 外调用）；看板暂停 / 继续后台 Nomi 用 pause / resume。
+	// nil = 后台 Nomi 不能从看板暂停
+	TaskCommand func(id string, c tasks.Command) tasks.CmdResult
 	// ApplyPolicy：调度策略交给执行方（持续任务运行时、委派的上限）；SetPolicy 与装配后的 ApplyPolicy 调
 	ApplyPolicy func(Policy)
 	// SettingsPath：自动暂停开关与调度策略存在这里（JSON）；空 = 不存盘
@@ -94,13 +97,15 @@ type Service struct {
 	closed         bool
 	gov            govState
 	policy         string // 调度策略（policy.go）
+	// taskPausedBy：后台 Nomi 是谁从看板暂停的（任务 id → user / nomi）；任务本身只记停没停。只在内存里，重启后算用户的
+	taskPausedBy map[string]string
 }
 
 func New(d Deps) *Service {
 	if d.Now == nil {
 		d.Now = time.Now
 	}
-	s := &Service{d: d, archived: map[string]int64{}}
+	s := &Service{d: d, archived: map[string]int64{}, taskPausedBy: map[string]string{}}
 	f := loadSettings(d.SettingsPath)
 	s.gov.auto = f.AutoPause == nil || *f.AutoPause
 	s.policy = PolicyOf(f.Policy).Mode
@@ -213,8 +218,17 @@ func (s *Service) State() State {
 			}
 		}
 	}
+	s.mu.Lock()
+	pausedBy := map[string]string{}
+	for _, t := range tk {
+		if by, ok := s.taskPausedBy[t.ID]; ok && taskPaused(t) {
+			pausedBy[t.ID] = by
+		}
+	}
+	s.taskPausedBy = pausedBy // 继续了的、删掉的不留
+	s.mu.Unlock()
 	hold := s.HoldReason()
-	st := Build(Input{Now: now, SelfPid: float64(s.d.SelfPid), Tabs: tabs, Tasks: tk, Chats: chats, External: ext,
+	st := Build(Input{TaskControl: s.d.TaskCommand != nil, TaskPausedBy: pausedBy, Now: now, SelfPid: float64(s.d.SelfPid), Tabs: tabs, Tasks: tk, Chats: chats, External: ext,
 		ExtCwd: extCwd, ExtSession: extSess, Procs: cur, PrevProc: prev, Archived: arch, System: sys, TaskSummaries: sums, ConversationOwned: owned, Holding: hold != "", HoldReason: hold})
 	s.prune(st, now)
 	s.mu.Lock()

@@ -364,13 +364,29 @@ func (s *Service) thawOne(now time.Time) {
 // Pause：用户手动暂停一个纳管的、正在跑的 CLI 标签
 func (s *Service) Pause(id string) (State, error) { return s.PauseBy(id, PausedByUser) }
 
-// PauseBy：暂停一个纳管的、正在跑的 CLI 标签，记下是谁暂停的（user / nomi）
+// PauseBy：暂停一个纳管的、正在跑的 CLI 标签，记下是谁暂停的（user / nomi）。
+// 后台 Nomi 跑在内核进程里，不能冻结：改为暂停任务（这一轮跑完，之后不再调度，等手动继续，内存恢复也不自动继续）
 func (s *Service) PauseBy(id, by string) (State, error) {
 	s.fresh()
 	st := s.State()
 	for _, a := range st.Agents {
 		if a.ID != id {
 			continue
+		}
+		if a.Kind == "nomi" && a.TaskID != "" {
+			if !a.Pausable || s.d.TaskCommand == nil {
+				return st, ErrNotPausable
+			}
+			s.mu.Lock()
+			s.taskPausedBy[a.TaskID] = by // 先记下：任务一变就会推送看板，推送里要带上是谁暂停的
+			s.mu.Unlock()
+			if !s.d.TaskCommand(a.TaskID, tasks.Command{Type: "pause"}).OK {
+				s.mu.Lock()
+				delete(s.taskPausedBy, a.TaskID)
+				s.mu.Unlock()
+				return st, ErrNotPausable
+			}
+			return s.State(), nil
 		}
 		if !a.Pausable || s.d.Freeze == nil {
 			return st, ErrNotPausable
@@ -384,10 +400,19 @@ func (s *Service) PauseBy(id, by string) (State, error) {
 	return st, ErrNotPausable
 }
 
-// Resume：恢复一个暂停中的标签（不管谁暂停的）
+// Resume：恢复一个暂停中的标签（不管谁暂停的）；后台 Nomi 恢复任务的调度
 func (s *Service) Resume(id string) (State, error) {
 	st := s.State()
 	for _, a := range st.Agents {
+		if a.ID == id && a.Paused != nil && a.Kind == "nomi" && a.TaskID != "" {
+			if s.d.TaskCommand == nil || !s.d.TaskCommand(a.TaskID, tasks.Command{Type: "resume"}).OK {
+				return st, ErrNotPausable
+			}
+			s.mu.Lock()
+			delete(s.taskPausedBy, a.TaskID)
+			s.mu.Unlock()
+			return s.State(), nil
+		}
 		if a.ID == id && a.Paused != nil && a.TabID != "" && s.d.Thaw != nil && s.d.Thaw(a.TabID) {
 			s.mu.Lock()
 			s.gov.thawedAt[id] = s.d.Now()

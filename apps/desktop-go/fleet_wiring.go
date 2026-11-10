@@ -96,6 +96,17 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 			}
 			return ts.Runtime.List()
 		},
+		// 看板暂停 / 继续后台 Nomi：和任务看板走同一个入口
+		TaskCommand: func(id string, c tasks.Command) tasks.CmdResult {
+			if ts == nil {
+				return tasks.CmdResult{}
+			}
+			r, err := ts.Command(id, c)
+			if err != nil {
+				return tasks.CmdResult{}
+			}
+			return r
+		},
 		TaskSummary: func(id string) string {
 			if ts == nil {
 				return ""

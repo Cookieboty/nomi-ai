@@ -58,7 +58,8 @@ type Agent struct {
 	Cwd            string `json:"cwd,omitempty"`
 	Usage          *Usage `json:"usage,omitempty"`
 	UpdatedAt      int64  `json:"updatedAt"`
-	// Paused：暂停中（已暂停列）；Pausable：可以手动暂停（纳管、在跑、有活着的进程、没在等审批）
+	// Paused：暂停中（已暂停列）；Pausable：可以手动暂停（CLI 标签：纳管、在跑、有活着的进程、没在等审批；
+	// 后台 Nomi：在跑或排队、没在等用户。后台 Nomi 的暂停是任务暂停：这一轮跑完，之后不再调度，等手动继续）
 	Paused   *Paused `json:"paused,omitempty"`
 	Pausable bool    `json:"pausable,omitempty"`
 	// Summary：做完时的总结（标签最后一条回复、任务的结果摘要、外部会话的摘要），只给已完成的，截到 SummaryMax 个字
@@ -218,6 +219,9 @@ type Input struct {
 	TaskSummaries map[string]string
 	// ConversationOwned：已经交回来源对话处理的「等你验收」任务（对话里委派的、结果已回到对话）：放在已完成，不标要你处理
 	ConversationOwned map[string]bool
+	// TaskControl：能暂停 / 继续后台 Nomi（有任务命令入口）；TaskPausedBy：任务 id → 谁在看板上暂停的（没有 = 用户）
+	TaskControl  bool
+	TaskPausedBy map[string]string
 	// Holding：正扣着新的编程助手与后台 Nomi（排队的任务卡片标 QueueReason = memory / cpu）
 	Holding bool
 	// HoldReason：扣着的原因（memory 内存 / cpu 整机 CPU，「全速」档才看 CPU）；空 = memory
@@ -236,6 +240,12 @@ func tabOrigin(t Tab) string {
 }
 
 // taskColumn：任务状态 → 分列与需要处理；ok = false 表示不上看板（idle：没在干活）
+// taskPaused：执行者为 nomi 的持续任务被暂停了（停了调度、还没结束）。连续失败后自动停掉的不算，那是失败不是暂停
+func taskPaused(t tasks.Task) bool {
+	return t.Executor.Kind == "nomi" && !t.Enabled && !tasks.IsTerminal(t.Status) &&
+		t.ConsecutiveFailures < tasks.AutoPauseAfterFailures
+}
+
 func taskColumn(status string) (col, need string, failed, ok bool) {
 	switch status {
 	case tasks.StatusQueued:
@@ -414,6 +424,11 @@ func Build(in Input) State {
 
 	for _, t := range in.Tasks {
 		col, need, failed, ok := taskColumn(t.Status)
+		// 暂停了的后台 Nomi（任务停了调度）：空闲 / 排队的进「已暂停」；这一轮还在跑、等用户的留在原列，标着暂停
+		paused := taskPaused(t)
+		if paused && (!ok || col == ColTodo) {
+			col, need, failed, ok = ColPaused, "", false, true
+		}
 		if !ok {
 			continue
 		}
@@ -435,6 +450,15 @@ func Build(in Input) State {
 		}
 		a.Scope, a.Title, a.Column, a.NeedsYou, a.Failed = "managed", t.Title, col, need, failed
 		a.TaskID, a.ConversationID, a.UpdatedAt = t.ID, str(t.Origin.ConversationID), t.UpdatedAt
+		if paused {
+			by := in.TaskPausedBy[t.ID]
+			if by == "" {
+				by = PausedByUser
+			}
+			a.Paused = &Paused{By: by, At: t.UpdatedAt}
+		} else if a.Kind == "nomi" && in.TaskControl && t.Enabled && need == "" && (col == ColRunning || col == ColTodo) {
+			a.Pausable = true
+		}
 		if col == ColTodo {
 			switch {
 			case t.Pending != nil && t.Pending.NotBefore != nil && *t.Pending.NotBefore > in.Now:
