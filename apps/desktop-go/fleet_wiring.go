@@ -225,9 +225,11 @@ func fleetExternal(st *util.Obj) []fleet.ExtSession {
 			continue
 		}
 		str := func(k string) string { s, _ := v.Get(k).(string); return s }
-		at, _ := v.Get("updatedAt").(float64)
+		// mtime = 会话最后一次有动静（文件修改时间与会话里最后一条的时间取晚的）；updatedAt 是监视这次轮询的时间，
+		// 每轮都是「现在」，拿它当动静时间会让做完的外部会话一直显示「现在有动静」、2 小时后也不自动收起、归档了又冒出来
+		at, _ := v.Get("mtime").(float64)
 		if at == 0 {
-			at, _ = v.Get("mtime").(float64)
+			at, _ = v.Get("updatedAt").(float64)
 		}
 		e := fleet.ExtSession{ID: str("id"), Kind: str("kind"), Title: str("title"), Cwd: str("cwd"), Status: str("status"),
 			Summary: str("summary"), UpdatedAt: int64(at)}
