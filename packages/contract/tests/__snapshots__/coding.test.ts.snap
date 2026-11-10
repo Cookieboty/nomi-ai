@@ -77,6 +77,8 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
   "cliAccount.loginInput mutation",
   "cliAccount.loginCancel mutation",
   "cliAccount.openUrl mutation",
+  "cliAccount.networkGet query",
+  "cliAccount.networkSet mutation",
   "cliUpdate.inspect query",
   "cliUpdate.preview query",
   "cliUpdate.environment query",
