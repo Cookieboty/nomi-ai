@@ -33,6 +33,8 @@ async function open() {
   fireEvent.click(screen.getByTestId('fixture-open'));
   await screen.findByTestId('preview-markdown');
   fireEvent.keyDown(screen.getByTestId('resource-preview-splitter'), { key: 'End' });
+  // 文档全屏时对话默认收成右下角的按钮，点开才是输入框
+  fireEvent.click(await screen.findByTestId('preview-chat-pill'));
   await screen.findByTestId('preview-chat-header');
 }
 describe('preview focus chat window', () => {
@@ -311,10 +313,75 @@ describe('preview focus chat window', () => {
     fireEvent.keyDown(screen.getByTestId('preview-markdown'), { key: 'Escape' });
     expect(screen.getByTestId('chat-column').hasAttribute('data-preview-chat-open')).toBe(false);
     expect(screen.getByTestId('preview-chat-header')).toBeTruthy();
+    // 输入框 → 右下角按钮 → 退出全屏 → 关闭文档
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByTestId('preview-chat-header')).toBeNull();
+    expect(screen.getByTestId('preview-chat-pill')).toBeTruthy();
+    expect(screen.getByTestId('preview-markdown')).toBeTruthy();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByTestId('preview-chat-pill')).toBeNull();
     expect(screen.getByTestId('preview-markdown')).toBeTruthy();
     fireEvent.keyDown(window, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByTestId('resource-preview')).toBeNull());
+  });
+
+  it('starts as a bottom-right button; opening keeps the same composer', async () => {
+    render(<fixture.App />);
+    fireEvent.click(screen.getByTestId('fixture-open'));
+    await screen.findByTestId('preview-markdown');
+    fireEvent.keyDown(screen.getByTestId('resource-preview-splitter'), { key: 'End' });
+    const pill = await screen.findByTestId('preview-chat-pill');
+    const column = screen.getByTestId('chat-column');
+    expect(column.hasAttribute('data-preview-chat-min')).toBe(true);
+    expect(screen.queryByTestId('preview-chat-header')).toBeNull();
+    // 输入框还挂着（藏起来），草稿不丢
+    const input = screen.getByTestId('chat-input') as HTMLTextAreaElement;
+    fireEvent.click(pill);
+    expect(column.hasAttribute('data-preview-chat-min')).toBe(false);
+    await waitFor(() => expect(document.activeElement).toBe(input));
+    fireEvent.change(input, { target: { value: '草稿' } });
+    // 有草稿时点文档不收起；收成按钮后草稿还在
+    fireEvent.pointerDown(screen.getByTestId('preview-markdown'), { button: 0 });
+    expect(column.hasAttribute('data-preview-chat-min')).toBe(false);
+    fireEvent.click(screen.getByTestId('preview-chat-minimize'));
+    expect(column.hasAttribute('data-preview-chat-min')).toBe(true);
+    expect((screen.getByTestId('chat-input') as HTMLTextAreaElement).value).toBe('草稿');
+    // 空草稿时点文档收成按钮
+    fireEvent.click(screen.getByTestId('preview-chat-pill'));
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.pointerDown(screen.getByTestId('preview-markdown'), { button: 0 });
+    expect(column.hasAttribute('data-preview-chat-min')).toBe(true);
+  });
+
+  it('opens the selection menu after selecting text and asks in the opened chat', async () => {
+    render(<fixture.App />);
+    fireEvent.click(screen.getByTestId('fixture-open'));
+    const doc = await screen.findByTestId('preview-markdown');
+    fireEvent.keyDown(screen.getByTestId('resource-preview-splitter'), { key: 'End' });
+    await screen.findByTestId('preview-chat-pill');
+    const paragraph = doc.querySelector('p')!;
+    const range = document.createRange();
+    range.selectNodeContents(paragraph);
+    window.getSelection()!.removeAllRanges();
+    window.getSelection()!.addRange(range);
+    fireEvent.mouseUp(paragraph, { button: 0, clientX: 40, clientY: 40 });
+    const menu = await screen.findByTestId('preview-selection-menu');
+    // 选中弹出的菜单不抢焦点，继续打字就收起
+    expect(menu.contains(document.activeElement)).toBe(false);
+    fireEvent.click(screen.getByTestId('preview-selection-ask'));
+    await waitFor(() =>
+      expect(screen.getByTestId('chat-column').hasAttribute('data-preview-chat-min')).toBe(false),
+    );
+    // 引用作为链接出现在展开的输入框上方
+    await screen.findByRole('link', { name: /^design\.md:\d+-\d+$/ });
+  });
+
+  it('a click without a selection does not open the menu', async () => {
+    render(<fixture.App />);
+    fireEvent.click(screen.getByTestId('fixture-open'));
+    const doc = await screen.findByTestId('preview-markdown');
+    window.getSelection()!.removeAllRanges();
+    fireEvent.mouseUp(doc.querySelector('p')!, { button: 0, clientX: 10, clientY: 10 });
+    expect(screen.queryByTestId('preview-selection-menu')).toBeNull();
   });
 });

@@ -10,17 +10,36 @@ import React, {
 import type { ResourceScope } from '../../contexts/ResourceContext';
 import { startSplitDrag } from '../../utils/splitDrag';
 
-import { PREVIEW_CHAT_DISMISS } from './dismiss';
+import { PREVIEW_CHAT_DISMISS, PREVIEW_CHAT_OPEN } from './dismiss';
 
 import { PreviewChat } from './index';
 
-/** Positions the existing chat column; it never creates a second conversation/composer. */
+/** 输入框里没有草稿（点别处收成按钮时不丢用户写了一半的话） */
+const draftEmpty = (column: HTMLElement) =>
+  !column.querySelector<HTMLTextAreaElement>('.input-container textarea')?.value.trim();
+
+/**
+ * Positions the existing chat column; it never creates a second conversation/composer.
+ * 文档全屏时默认收成右下角的按钮（minimized），点按钮或选区菜单「问助手」展开；
+ * Esc 逐级收起：会话内容 → 输入框 → 按钮；点别处时，输入框是空的才收成按钮。
+ */
 export function usePreviewChatWindow(
   active: boolean,
   onSelected: (scope: ResourceScope) => void,
   workspaceCwd: string | null | undefined,
 ) {
   const [expanded, setExpanded] = useState(false);
+  const [minimized, setMinimized] = useState(true);
+  // 每次进入文档全屏都从按钮开始
+  const [wasActive, setWasActive] = useState(active);
+  if (wasActive !== active) {
+    setWasActive(active);
+    if (active) {
+      setMinimized(true);
+      setExpanded(false);
+    }
+  }
+  const [focusComposer, setFocusComposer] = useState(0);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const ref = useRef<HTMLDivElement>(null);
   const stop = useRef<(() => void) | undefined>(undefined);
@@ -30,10 +49,17 @@ export function usePreviewChatWindow(
     if (!active || !ref.current) return;
     const column = ref.current;
     const dismiss = (event: Event) => {
-      if (event.defaultPrevented || !expanded) return;
+      if (event.defaultPrevented || minimized) return;
       event.preventDefault();
-      setExpanded(false);
-      column.querySelector<HTMLButtonElement>('[data-testid="preview-chat-toggle"]')?.focus();
+      if (expanded) {
+        setExpanded(false);
+        column.querySelector<HTMLButtonElement>('[data-testid="preview-chat-toggle"]')?.focus();
+        return;
+      }
+      setMinimized(true);
+      requestAnimationFrame(() =>
+        column.querySelector<HTMLButtonElement>('[data-testid="preview-chat-pill"]')?.focus(),
+      );
     };
     const outside = (event: PointerEvent) => {
       if (
@@ -44,14 +70,28 @@ export function usePreviewChatWindow(
       )
         return;
       setExpanded(false);
+      if (draftEmpty(column)) setMinimized(true);
+    };
+    const open = () => {
+      setMinimized(false);
+      setFocusComposer((n) => n + 1);
     };
     column.addEventListener(PREVIEW_CHAT_DISMISS, dismiss);
     window.addEventListener('pointerdown', outside);
+    window.addEventListener(PREVIEW_CHAT_OPEN, open);
     return () => {
       column.removeEventListener(PREVIEW_CHAT_DISMISS, dismiss);
       window.removeEventListener('pointerdown', outside);
+      window.removeEventListener(PREVIEW_CHAT_OPEN, open);
     };
-  }, [active, expanded]);
+  }, [active, expanded, minimized]);
+  // 展开后把焦点放进输入框（选区菜单填进来的内容接着写）
+  useEffect(() => {
+    if (!focusComposer || minimized) return;
+    ref.current
+      ?.querySelector<HTMLTextAreaElement>('.input-container textarea')
+      ?.focus({ preventScroll: true });
+  }, [focusComposer, minimized]);
   useEffect(() => {
     if (!active) stop.current?.();
     return () => stop.current?.();
@@ -74,7 +114,7 @@ export function usePreviewChatWindow(
     observer.observe(host);
     observer.observe(column);
     return () => observer.disconnect();
-  }, [active, expanded]);
+  }, [active, expanded, minimized]);
   const onMoveKey = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     const delta = {
       ArrowLeft: [-16, 0],
@@ -97,6 +137,14 @@ export function usePreviewChatWindow(
     }));
   };
   const toggle = () => setExpanded((old) => !old);
+  const openFromPill = () => {
+    setMinimized(false);
+    setFocusComposer((n) => n + 1);
+  };
+  const minimize = () => {
+    setExpanded(false);
+    setMinimized(true);
+  };
   const onPointerDown = useCallback(
     (event: React.PointerEvent<HTMLButtonElement>) => {
       if (event.button !== 0) return;
@@ -136,7 +184,8 @@ export function usePreviewChatWindow(
   );
   return {
     ref,
-    expanded: active && expanded,
+    expanded: active && expanded && !minimized,
+    minimized: active && minimized,
     busy,
     events: {
       // React capture follows owned portals too (session/model/permission menus).
@@ -153,6 +202,9 @@ export function usePreviewChatWindow(
     header: active ? (
       <PreviewChat
         expanded={expanded}
+        minimized={minimized}
+        onOpen={openFromPill}
+        onMinimize={minimize}
         onToggle={toggle}
         onDrag={onPointerDown}
         onMoveKey={onMoveKey}

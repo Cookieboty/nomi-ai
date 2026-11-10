@@ -790,6 +790,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 整理「语音与屏幕」与「本机管理」： (`@nomi-ai/voice` patch, `@nomi-ai/ui` patch)
 - 整理「通用」设置页： (`@nomi-ai/ai-chat` patch)
 - 整理「隐私与权限」并补齐「日程与日历」： (`@nomi-ai/ai-chat` patch)
+- 文件专注模式下对话默认收成右下角的 Nomi 圆形按钮，不再遮挡文档；点按钮或选区菜单的「问助手」再展开。用鼠标选中文字就会弹出复制 / 问助手菜单（不抢焦点，继续打字就收起）。 (`@nomi-ai/ai-chat` patch)
 - 新增 / 更新「显示诺米」开关相关的英文文案（#55）。 (`@nomi-ai/ui` patch)
 - 新增 Gemini CLI 编程助手端点：通过 ACP 协议长驻对话（同一标签多轮复用一个进程），支持计划 / 手动 / 自动编辑 / 完全放行四种权限模式与界面审批、停止当前轮次、子代理识别；「编程助手」页可检测、安装与更新 Gemini CLI。 (`@nomi-ai/ai-chat` minor)
 - 新增 Gemini CLI 编程助手端点：通过 ACP 协议长驻对话（同一标签多轮复用一个进程），支持计划 / 手动 / 自动编辑 / 完全放行四种权限模式与界面审批、停止当前轮次、子代理识别；「编程助手」页可检测、安装与更新 Gemini CLI。 (`@nomi-ai/ui` minor)

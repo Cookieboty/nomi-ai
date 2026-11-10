@@ -384,6 +384,7 @@ export const ResourcePreview: React.FC<{
       aria-label={t('ui.session-workspace.preview-title')}
       className={`${styles.panel} ${expanded ? styles.expanded : ''}`}
       onContextMenu={selectionMenu.onContextMenu}
+      onMouseUp={selectionMenu.onMouseUp}
       data-testid="resource-preview"
       data-expanded={expanded}
     >

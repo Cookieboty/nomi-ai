@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 
 import { isImeComposing } from '../../utils/keyboard';
 import { basename, resolveDocumentPath, workspaceFileHref } from '../../utils/resourceLinks';
+import { openPreviewChat } from '../PreviewChat/dismiss';
 import { useChangesUi } from '../SessionWorkspace/ChangesUiContext';
 
 import { codeViewAt } from './codeViewModel';
@@ -18,6 +19,8 @@ interface Target extends PreviewSelection {
   range: Range | null;
   content: HTMLElement;
   path: string;
+  /** 选中文字时自动弹出（不抢焦点，按任意键就收起，接着打字不受影响）；false = 右键打开 */
+  passive: boolean;
 }
 
 function clearContentSelection(content: HTMLElement) {
@@ -72,32 +75,51 @@ export function usePreviewSelectionMenu({
     return () => window.removeEventListener('pointerdown', clear, true);
   }, [enabled, root]);
   if (target && (target.fileKey !== fileKey || target.source !== text)) setTarget(null);
-  const onContextMenu = (event: React.MouseEvent<HTMLElement>) => {
-    if (event.defaultPrevented || !enabled || !(event.target instanceof Element)) return;
-    const selected = previewSelection(event.currentTarget, event.target);
-    if (!selected) return;
-    event.preventDefault();
+  const open = (
+    root: HTMLElement,
+    targetEl: Element,
+    x: number,
+    y: number,
+    passive: boolean,
+  ): boolean => {
+    const selected = previewSelection(root, targetEl);
+    if (!selected) return false;
     const absolute = path ? resolveDocumentPath(cwd ?? '', path) : '';
     const selection = window.getSelection();
     const range =
       selection?.rangeCount &&
       !selection.isCollapsed &&
-      event.currentTarget.contains(selection.getRangeAt(0).commonAncestorContainer)
+      root.contains(selection.getRangeAt(0).commonAncestorContainer)
         ? selection.getRangeAt(0).cloneRange()
         : null;
     setTarget({
       ...selected,
       range,
-      content: event.target.closest<HTMLElement>('[data-preview-find-content]')!,
+      content: targetEl.closest<HTMLElement>('[data-preview-find-content]')!,
       source: text,
       fileKey,
       path: absolute,
-      x: event.clientX,
-      y: event.clientY,
+      x,
+      y,
+      passive,
     });
+    return true;
+  };
+  const onContextMenu = (event: React.MouseEvent<HTMLElement>) => {
+    if (event.defaultPrevented || !enabled || !(event.target instanceof Element)) return;
+    if (open(event.currentTarget, event.target, event.clientX, event.clientY, false))
+      event.preventDefault();
+  };
+  /** 用鼠标选中一段文字后弹出同一个菜单（复制 / 问助手）；只认真的选区，单击不弹 */
+  const onMouseUp = (event: React.MouseEvent<HTMLElement>) => {
+    if (!enabled || event.button !== 0 || !(event.target instanceof Element)) return;
+    if (event.target.closest('[data-preview-selection-menu]')) return;
+    if (!hasSelection(event.target)) return;
+    open(event.currentTarget, event.target, event.clientX, event.clientY + 12, true);
   };
   return {
     onContextMenu,
+    onMouseUp,
     menu:
       target?.fileKey === fileKey ? (
         <PreviewSelectionMenu
@@ -105,6 +127,8 @@ export function usePreviewSelectionMenu({
           onClose={close}
           canAsk={canAsk}
           onAsk={() => {
+            // 文档全屏时对话收成了按钮：先展开，再把引用填进输入框
+            openPreviewChat();
             const ref = `${basename(target.path)}:${target.start}-${target.end}`;
             const label = ref.replace(/[\\[\]]/g, '\\$&');
             fillComposer(
@@ -115,6 +139,23 @@ export function usePreviewSelectionMenu({
       ) : null,
   };
 }
+/** 鼠标松开时有没有选中文字（代码视图看 CodeMirror 的选区，编辑框看 selectionStart/End，其余看页面选区） */
+function hasSelection(target: Element): boolean {
+  const content = target.closest<HTMLElement>('[data-preview-find-content]');
+  if (!content) return false;
+  const code = codeViewAt(content);
+  if (code) return !code.state.selection.main.empty;
+  if (content instanceof HTMLTextAreaElement)
+    return content.selectionStart !== content.selectionEnd;
+  const selection = window.getSelection();
+  return (
+    !!selection &&
+    !selection.isCollapsed &&
+    !!selection.toString().trim() &&
+    content.contains(selection.getRangeAt(0).commonAncestorContainer)
+  );
+}
+
 function PreviewSelectionMenu({
   target,
   onClose,
@@ -155,13 +196,22 @@ function PreviewSelectionMenu({
     const box = menu.getBoundingClientRect();
     menu.style.left = `${Math.max(4, Math.min(target.x, window.innerWidth - box.width - 4))}px`;
     menu.style.top = `${Math.max(4, Math.min(target.y, window.innerHeight - box.height - 4))}px`;
-    menu.querySelector('button')?.focus({ preventScroll: true });
+    if (!target.passive) menu.querySelector('button')?.focus({ preventScroll: true });
   }, [target]);
   useEffect(() => {
     const outside = (event: PointerEvent) => {
       if (!root.current?.contains(event.target as Node)) close();
     };
     const key = (event: KeyboardEvent) => {
+      // 选中弹出的菜单不抢焦点：用户接着打字 / 移动光标就收起，不挡编辑
+      if (
+        target.passive &&
+        event.key !== 'Escape' &&
+        !root.current?.contains(event.target as Node)
+      ) {
+        onClose();
+        return;
+      }
       if (event.key !== 'Escape' || event.defaultPrevented || isImeComposing(event)) return;
       event.preventDefault();
       if (!event.repeat) dismiss();
@@ -181,7 +231,7 @@ function PreviewSelectionMenu({
       window.removeEventListener('blur', close);
       window.removeEventListener('scroll', scroll, true);
     };
-  }, [dismiss, close]);
+  }, [dismiss, close, onClose, target.passive]);
   const copy = async () => {
     clearSelection();
     try {

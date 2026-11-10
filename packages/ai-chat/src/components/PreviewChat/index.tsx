@@ -7,6 +7,7 @@ import {
   GitFork,
   Grip,
   MessagesSquare,
+  Minimize2,
   Search,
 } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
@@ -15,6 +16,7 @@ import { createPortal } from 'react-dom';
 import type { ResourceScope } from '../../contexts/ResourceContext';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { isImeComposing } from '../../utils/keyboard';
+import { NomiMark } from '../SettingsView/NomiMark';
 
 import { PREVIEW_CHAT_DISMISS } from './dismiss';
 import styles from './index.module.css';
@@ -24,6 +26,7 @@ type Sessions = ReturnType<typeof usePreviewChatSessions>;
 export function PreviewChatHeader({
   expanded,
   onToggle,
+  onMinimize,
   onDrag,
   onMoveKey,
   onExpand,
@@ -31,6 +34,7 @@ export function PreviewChatHeader({
 }: {
   expanded: boolean;
   onToggle: () => void;
+  onMinimize: () => void;
   onDrag: React.PointerEventHandler<HTMLButtonElement>;
   onMoveKey: React.KeyboardEventHandler<HTMLButtonElement>;
   onExpand: () => void;
@@ -139,6 +143,16 @@ export function PreviewChatHeader({
         <Icon icon={MessagesSquare} size={14} />
         <span>{sessions.title}</span>
         <Icon icon={ChevronDown} size={12} />
+      </button>
+      <button
+        type="button"
+        className={styles.icon}
+        data-testid="preview-chat-minimize"
+        onClick={onMinimize}
+        aria-label={t('ui.session-workspace.preview-chat-minimize')}
+        title={t('ui.session-workspace.preview-chat-minimize')}
+      >
+        <Icon icon={Minimize2} size={16} />
       </button>
       <button
         type="button"
@@ -255,13 +269,30 @@ export function PreviewChat(
     onSelected: (scope: ResourceScope) => void;
     onBusy: (busy: boolean) => void;
     workspaceCwd: string | null | undefined;
+    /** 收成右下角的按钮（输入框与会话照样挂着，只是藏起来） */
+    minimized: boolean;
+    onOpen: () => void;
   },
 ) {
-  const { onSelected, onBusy, workspaceCwd, ...header } = props;
+  const { onSelected, onBusy, workspaceCwd, minimized, onOpen, ...header } = props;
   const sessions = usePreviewChatSessions(true, onSelected, workspaceCwd);
   useEffect(() => {
     onBusy(sessions.busy);
   }, [sessions.busy, onBusy]);
   useEffect(() => () => onBusy(false), [onBusy]);
+  if (minimized)
+    return (
+      <button
+        type="button"
+        className={styles.pill}
+        data-preview-chat-pill
+        data-testid="preview-chat-pill"
+        onClick={onOpen}
+        aria-label={t('ui.chat-settings.chats')}
+        title={sessions.title || t('ui.chat-settings.chats')}
+      >
+        <NomiMark size={26} />
+      </button>
+    );
   return <PreviewChatHeader {...header} sessions={sessions} />;
 }

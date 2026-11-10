@@ -176,6 +176,7 @@ export function previewChatFixture(options?: { editable?: boolean }) {
             className="chat-column"
             data-testid="chat-column"
             data-preview-chat-open={chat.expanded || undefined}
+            data-preview-chat-min={chat.minimized || undefined}
             ref={chat.ref}
             style={chat.style}
             {...chat.events}

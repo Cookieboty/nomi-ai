@@ -793,6 +793,27 @@ html[data-chat-bg] .main-content--with-changes [data-testid='center-preview-pane
   box-shadow: var(--cd-shadow-lg);
   overflow: hidden;
 }
+/* 收成右下角的圆形按钮：对话与输入框照样挂着（不丢草稿、不断流），只露出按钮。
+   对话列是 inline-size 容器（container），宽度不能靠内容撑开，所以按钮尺寸写死、并关掉容器 */
+.main-content--resource-expanded > .chat-column[data-preview-chat-min] {
+  inset-inline-start: auto;
+  inset-inline-end: var(--cd-space-5);
+  inset-block-end: var(--cd-space-5);
+  transform: none;
+  container-type: normal;
+  width: 3.25rem !important;
+  height: 3.25rem;
+  border-color: var(--cd-color-border);
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-surface-raised);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.main-content--resource-expanded
+  > .chat-column[data-preview-chat-min]
+  > :not([data-preview-chat-pill]) {
+  display: none;
+}
 .main-content--resource-expanded > .chat-column[data-preview-chat-open] {
   height: min(70%, 48rem);
 }

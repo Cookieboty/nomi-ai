@@ -305,6 +305,7 @@ const AiChatContent: React.FC = () => {
                 className="chat-column"
                 ref={previewChat.ref}
                 data-preview-chat-open={previewChat.expanded || undefined}
+                data-preview-chat-min={previewChat.minimized || undefined}
                 {...previewChat.events}
                 data-testid="chat-column"
                 style={{
