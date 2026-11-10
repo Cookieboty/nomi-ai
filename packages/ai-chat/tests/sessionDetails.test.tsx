@@ -391,7 +391,12 @@ describe('empty blocks', () => {
     await screen.findByTestId('session-details');
     expect(screen.queryByTestId('session-details-agents')).toBeNull();
     expect(screen.queryByTestId('session-details-tasks')).toBeNull();
-    expect(screen.getByTestId('session-details-changes')).toBeTruthy();
+    // 没有改动：只是一行说明，不能点开空的 Diff
+    const row = screen.getByTestId('session-details-changes');
+    expect(row.tagName).toBe('DIV');
+    fireEvent.click(row);
+    expect(screen.getByTestId('probe').textContent).toBe('-|-');
+    expect(screen.getByTestId('session-details')).toBeTruthy();
   });
 });
 

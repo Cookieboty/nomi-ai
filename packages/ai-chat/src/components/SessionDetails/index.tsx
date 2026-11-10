@@ -262,17 +262,18 @@ const DetailsPanel: React.FC<Props & { onClose: () => void; floating?: boolean }
           </span>
         )}
       </div>
-      {cwd && (
-        <button
-          type="button"
-          className={styles.row}
-          data-testid="session-details-changes"
-          title={changes.files > 0 ? t('ui.usage-tools.files', String(changes.files)) : undefined}
-          onClick={() => openWorkbench({})}
-        >
-          <ChangesIcon />
-          <span className={styles.rowLabel}>{t('ui.session-workspace.changed')}</span>
-          {changes.files > 0 ? (
+      {/* 有改动才能点开中栏 Diff；没有改动只是一行说明 */}
+      {cwd &&
+        (changes.files > 0 ? (
+          <button
+            type="button"
+            className={styles.row}
+            data-testid="session-details-changes"
+            title={t('ui.usage-tools.files', String(changes.files))}
+            onClick={() => openWorkbench({})}
+          >
+            <ChangesIcon />
+            <span className={styles.rowLabel}>{t('ui.session-workspace.changed')}</span>
             <span className={styles.stats}>
               <span className={styles.muted}>
                 {t('ui.usage-tools.files', String(changes.files))}
@@ -280,11 +281,14 @@ const DetailsPanel: React.FC<Props & { onClose: () => void; floating?: boolean }
               <span className={styles.added}>+{changes.added.toLocaleString()}</span>
               <span className={styles.removed}>-{changes.removed.toLocaleString()}</span>
             </span>
-          ) : (
+          </button>
+        ) : (
+          <div className={styles.row} data-static data-testid="session-details-changes">
+            <ChangesIcon />
+            <span className={styles.rowLabel}>{t('ui.session-workspace.changed')}</span>
             <span className={styles.muted}>{t('ui.session-workspace.details-no-changes')}</span>
-          )}
-        </button>
-      )}
+          </div>
+        ))}
       <Section
         id="agents"
         title={t('ui.session-workspace.details-agents')}
