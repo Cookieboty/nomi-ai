@@ -2,6 +2,7 @@ import React from 'react';
 
 import { ConversationView } from '../src/components/Conversation';
 import { nomiSlots } from '../src/components/Conversation/nomiSlots';
+import type { TranscriptView } from '../src/services/transcriptView';
 import type { ChatMessage } from '../src/types/chat';
 import { splitNomiMessages } from '../src/utils/convAdapters';
 
@@ -10,10 +11,11 @@ export const NomiConversation: React.FC<{
   messages: ChatMessage[];
   running?: boolean;
   scopeId?: string;
+  transcriptView?: TranscriptView;
   onStop?: () => void;
   onRetry?: (id: string) => void;
   onEdit?: (id: string, text: string) => void;
-}> = ({ messages, running = false, scopeId = 'nomi', ...rest }) => {
+}> = ({ messages, running = false, scopeId = 'nomi', transcriptView = 'normal', ...rest }) => {
   const conv = splitNomiMessages(messages, running);
   return (
     <ConversationView
@@ -22,6 +24,7 @@ export const NomiConversation: React.FC<{
       live={conv.live}
       phase={running ? 'running' : 'idle'}
       slots={nomiSlots}
+      transcriptView={transcriptView}
       {...rest}
     />
   );

@@ -31,6 +31,7 @@ import { confirmDialog, promptDialog } from '../ConfirmDialog';
 import { ConversationMenu } from '../ConversationMenu';
 import { SessionDetailsToggle } from '../SessionDetails';
 import { FilesRailToggle } from '../SessionWorkspace';
+import { TranscriptViewButton } from '../TranscriptViewMenu';
 
 interface CurrentSession {
   /** 会话列表里的 id（CLI 标签是它的镜像项） */
@@ -195,14 +196,17 @@ export const SessionMenuButton: React.FC<{
 /** 标题栏右侧：会话菜单「…」+ 会话详情浮层 + 工具栏（改动 · 文件）开关（只在有工作区时） */
 export const SessionTools: React.FC<{
   onFork?: (id: string) => void;
+  /** 当前会话的键（tab:… / nomi:…）；为空时不显示 Transcript view */
+  sessionKey: string | null;
   /** 当前会话的消息（变更统计、用到的智能体） */
   messages: readonly ConvMessage[];
   rail: { open: boolean; cwd: string; onToggle: () => void } | null;
-}> = ({ onFork, messages, rail }) => {
+}> = ({ onFork, sessionKey, messages, rail }) => {
   const s = useCurrentSession();
   const count = useMemo(() => aggregateSessionChanges(messages).length, [messages]);
   return (
     <>
+      {s?.hasMessages && sessionKey && <TranscriptViewButton sessionKey={sessionKey} />}
       <SessionMenuButton onFork={onFork} />
       {s?.hasMessages && (
         <SessionDetailsToggle

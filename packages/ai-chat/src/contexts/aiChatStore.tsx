@@ -126,3 +126,5 @@ export const selectIpcClient = (s: AiChatState) => s.ipcClient;
 export const selectMessages = (s: AiChatState) => s.messages;
 export const selectMessageCount = (s: AiChatState) => s.messages.length;
 export const selectFirstMessageId = (s: AiChatState) => s.messages[0]?.id;
+/** 当前展示的 Nomi 会话 id；用于按会话保存界面偏好（如 Transcript view） */
+export const selectViewConvoId = (s: AiChatState) => s.viewConvoId;

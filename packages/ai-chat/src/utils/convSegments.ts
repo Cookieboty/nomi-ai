@@ -73,17 +73,20 @@ export function planLength(
   return Math.min(textLength, max);
 }
 
+export type BodyPlanOptions = { groupTools?: boolean };
+
 export function planBody(
   layout: BodyLayout,
   textLength: number,
   live = false,
   endAt?: number,
   breaks?: readonly number[],
+  opts: BodyPlanOptions = {},
 ): BodyPlan {
   const { tops, childrenOf } = layout;
   const cuts = breaks?.length ? breaks : [];
   if (!layout.positioned && !cuts.length)
-    return { flat: true, items: buildTimeline(layout.entries, live, endAt) };
+    return { flat: true, items: buildTimeline(layout.entries, live, endAt, opts) };
 
   const groups: { at: number; entries: TraceEntry[] }[] = [];
   let floor = 0;
@@ -123,7 +126,7 @@ export function planBody(
       const last = i === groups.length - 1;
       return {
         at: g.at,
-        items: buildTimeline(withChildren, live && last, live && last ? undefined : endAt),
+        items: buildTimeline(withChildren, live && last, live && last ? undefined : endAt, opts),
       };
     }),
   };
@@ -157,7 +160,8 @@ export function segmentBody(
   live = false,
   endAt?: number,
   breaks?: readonly number[],
+  opts: BodyPlanOptions = {},
 ): BodySegment[] {
   const layout = layoutBody(entries);
-  return sliceBody(text, planBody(layout, text.length, live, endAt, breaks));
+  return sliceBody(text, planBody(layout, text.length, live, endAt, breaks, opts));
 }

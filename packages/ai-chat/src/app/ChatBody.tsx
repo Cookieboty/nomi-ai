@@ -23,10 +23,12 @@ import {
 import { useHarnessLive, type HarnessTabsCore } from '../contexts/HarnessTabsContext';
 import { useLiveWithGatewayRetry } from '../hooks/useGatewayRetry';
 import { useNomiModelStatus } from '../hooks/useNomiModelStatus';
+import { useTranscriptView } from '../hooks/useTranscriptView';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { derivedSwitchTip } from '../services/modelSwitchTip';
 import { nomiModelLabel, useGatewayState } from '../services/nomiModel';
 import { QUICK_PROMPT_TEXT, recommend } from '../services/recommendations';
+import type { TranscriptView } from '../services/transcriptView';
 import type { SlashHook } from '../slash/useSlashCommands';
 import type { ConvMessage } from '../types/conversation';
 import { nomiLive, sameLive } from '../utils/convAdapters';
@@ -63,7 +65,8 @@ const CliBody: React.FC<{
   isDev: boolean;
   messages: ConvMessage[];
   slash: SlashHook;
-}> = ({ tabs, isDev, messages, slash }) => {
+  transcriptView: TranscriptView;
+}> = ({ tabs, isDev, messages, slash, transcriptView }) => {
   const tab = tabs.activeTab!;
   const tabId = tab.id;
   const cwd = tab.cwd;
@@ -95,6 +98,7 @@ const CliBody: React.FC<{
     <CliConversation
       scopeId={tabId}
       messages={messages}
+      transcriptView={transcriptView}
       phase={tab.status === 'running' ? 'running' : tab.status === 'queued' ? 'queued' : 'idle'}
       slots={slots}
       cards={slash.cards}
@@ -158,11 +162,14 @@ const NomiWelcome: React.FC<{ onOpenModels: () => void }> = ({ onOpenModels }) =
 export const ChatBody: React.FC<{
   tabs: HarnessTabsCore;
   isDev: boolean;
+  /** 当前会话的键（tab:… / nomi:…）；用于按会话保存 Transcript view */
+  sessionKey: string | null;
   cliMessages: ConvMessage[];
   nomiMessages: ConvMessage[];
   slash: SlashHook;
   onOpenModels: () => void;
-}> = ({ tabs, isDev, cliMessages, nomiMessages, slash, onOpenModels }) => {
+}> = ({ tabs, isDev, sessionKey, cliMessages, nomiMessages, slash, onOpenModels }) => {
+  const { view: transcriptView } = useTranscriptView(sessionKey);
   const { actions, store: chatStore } = useAiChatActions();
   const busyHere = useAiChatSelector(selectBusyHere);
   const firstMessageId = useAiChatSelector(selectFirstMessageId);
@@ -179,13 +186,22 @@ export const ChatBody: React.FC<{
     [actions],
   );
   if (isDev && tabs.isCliTab)
-    return <CliBody tabs={tabs} isDev={isDev} messages={cliMessages} slash={slash} />;
+    return (
+      <CliBody
+        tabs={tabs}
+        isDev={isDev}
+        messages={cliMessages}
+        slash={slash}
+        transcriptView={transcriptView}
+      />
+    );
   if (messageCount === 0 && slash.cards.length === 0)
     return <NomiWelcome onOpenModels={onOpenModels} />;
   return (
     <NomiConversation
       scopeId={`nomi:${firstMessageId ?? 'new'}`}
       messages={nomiMessages}
+      transcriptView={transcriptView}
       phase={busyHere ? 'running' : 'idle'}
       onRetry={onRetry}
       onEdit={onEdit}

@@ -148,7 +148,12 @@ describe('CliConversation 历史消息', () => {
 
   it('子代理是独立折叠块，展开后有提示词与结果；思考可折叠', () => {
     const { container } = render(
-      <CliConversation tab={tab()} messages={messages} onPermission={() => undefined} />,
+      <CliConversation
+        tab={tab()}
+        messages={messages}
+        transcriptView="thinking"
+        onPermission={() => undefined}
+      />,
     );
     const sub = container.querySelector<HTMLElement>('[data-testid="tool-subagent"]')!;
     expect(sub.textContent).toContain('子代理');
@@ -237,6 +242,7 @@ describe('CliConversation 分段', () => {
           { id: 'u2', role: 'user', content: '第二问', timestamp: 4 },
           { id: 'a2', role: 'assistant', content: '好的。', timestamp: 5 },
         ]}
+        transcriptView="thinking"
         onPermission={() => undefined}
       />,
     );

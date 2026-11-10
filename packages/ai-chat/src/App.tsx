@@ -38,6 +38,7 @@ import {
   selectBusyHere,
   selectIpcClient,
   selectIsLoading,
+  selectViewConvoId,
   shallowArrayEqual,
   useAiChatActions,
   useAiChatSelector,
@@ -81,6 +82,16 @@ const AiChatContent: React.FC = () => {
   const tabs = useHarnessTabsCore();
   const { isDev, setMode } = useChatMode();
   const harness = useHarnessState();
+  // 当前会话的键：CLI 标签用 tab:<id>，Nomi 对话用 nomi:<conversationId>；
+  // Transcript view 按这个键分开保存，切换会话互不影响。
+  const viewConvoId = useAiChatSelector(selectViewConvoId);
+  const nomiSessionId = viewConvoId ?? ipcClient?.currentConversationId?.();
+  const sessionKey =
+    isDev && tabs.isCliTab && tabs.activeTab
+      ? `tab:${tabs.activeTab.id}`
+      : nomiSessionId
+        ? `nomi:${nomiSessionId}`
+        : null;
   // ───── 统一会话视图的数据：Nomi 主对话与编程助手标签走同一个 ConversationView ─────
   const nomiMessages = useMemo(() => nomiConvMessages(settledNomi), [settledNomi]);
   const cliBackend = tabs.activeTab?.backend ?? 'claude';
@@ -216,6 +227,7 @@ const AiChatContent: React.FC = () => {
   const titleBar = hasAppTitleBar();
   const sessionTools = (
     <SessionTools
+      sessionKey={sessionKey}
       onFork={commands.onForkRequest}
       messages={rail.messages}
       rail={rail.cwd ? { open: rail.open, cwd: rail.cwd, onToggle: rail.toggle } : null}
@@ -287,6 +299,7 @@ const AiChatContent: React.FC = () => {
                   <ChatBody
                     tabs={tabs}
                     isDev={isDev}
+                    sessionKey={sessionKey}
                     cliMessages={cliConvMessages}
                     nomiMessages={nomiMessages}
                     slash={slash}
