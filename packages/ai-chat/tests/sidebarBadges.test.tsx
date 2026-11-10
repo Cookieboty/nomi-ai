@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { EXIT_MS } from '@nomi-ai/ui';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -34,7 +35,7 @@ afterEach(() => {
 });
 
 describe('Sidebar rows', () => {
-  it('the rail starts with 对话 (no logo; the title bar has the sidebar toggle); the panel has the mode menu', () => {
+  it('the rail starts with 对话 (no logo; the title bar has the sidebar toggle); the panel has the mode menu', async () => {
     const props = { onToggle: vi.fn(), onNewChat: () => undefined };
     const view = render(<Sidebar {...props} collapsed={false} />);
     expect(view.queryByTestId('sidebar-toggle')).toBeNull();
@@ -43,7 +44,8 @@ describe('Sidebar rows', () => {
     expect(view.getByTestId('nav-chats').getAttribute('aria-current')).toBe('page');
 
     view.rerender(<Sidebar {...props} collapsed />);
-    expect(view.queryByTestId('chat-mode-switch')).toBeNull();
+    // 收起时先放完收回动画再卸载
+    await waitFor(() => expect(view.queryByTestId('chat-mode-switch')).toBeNull());
     expect(view.getByTestId('nav-chats')).toBeTruthy();
   });
 
@@ -62,9 +64,13 @@ describe('Sidebar rows', () => {
     expect(view.getByTestId('sidebar-panel')).toBeTruthy();
     fireEvent.mouseLeave(view.getByTestId('chat-sidebar'));
     act(() => void vi.advanceTimersByTime(400));
+    // 收起时先放完收回动画再卸载
+    expect(view.getByTestId('sidebar-panel').hasAttribute('data-closing')).toBe(true);
+    act(() => void vi.advanceTimersByTime(EXIT_MS));
     expect(view.queryByTestId('sidebar-panel')).toBeNull();
     fireEvent.mouseEnter(view.getByTestId('nav-chats'));
     fireEvent.keyDown(window, { key: 'Escape' });
+    act(() => void vi.advanceTimersByTime(EXIT_MS));
     expect(view.queryByTestId('sidebar-panel')).toBeNull();
     vi.useRealTimers();
   });

@@ -23,6 +23,7 @@
 - 共享组件使用 `var(--cd-*)` 令牌和 `cd-` 类名前缀；业务专属样式使用 CSS Modules。禁止把颜色、间距、圆角和阴影散落为硬编码值。
 - 共享 CSS 按职责拆分，入口文件只负责 `@import`；基础组件、主题覆盖和复杂控件不得混在一个长文件里。
 - 每个可交互状态都要覆盖 hover、focus-visible、disabled 和 reduced-motion（适用时）。弹窗必须支持 Esc 关闭、焦点回收和屏幕阅读器标题。
+- 菜单、浮层、抽屉收起时不直接卸载：用 `@nomi-ai/ui` 的 `usePresence(value)` 先放完退出动画（返回上一次的值和 `closing`，元素加 `data-closing`），配合全局类 `cd-motion-pop`（菜单：淡入轻落）或 `cd-motion-slide-right`（右侧浮层：自右滑入淡入），收起反向；减少动态效果时立即卸载。传给 `usePresence` 的值在渲染间要稳定（state 里的对象、布尔或字符串，不要每次新建对象）。
 
 ## 多语言
 

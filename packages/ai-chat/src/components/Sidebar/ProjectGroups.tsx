@@ -1,4 +1,4 @@
-import { t, Icon, useLocale } from '@nomi-ai/ui';
+import { t, Icon, useLocale, usePresence } from '@nomi-ai/ui';
 import { Check, Ellipsis, Folder, FolderOpen, FolderTree, List, SquarePen } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 
@@ -265,6 +265,8 @@ export const OrganizeMenu: React.FC<{ grouped: boolean; onChange: (on: boolean) 
 }) => {
   useLocale();
   const [open, setOpen] = useState(false);
+  // 收起时先放完淡出动画再卸载
+  const menuP = usePresence(open);
   const ref = useRef<HTMLSpanElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement | null>(null);
@@ -315,10 +317,11 @@ export const OrganizeMenu: React.FC<{ grouped: boolean; onChange: (on: boolean) 
       >
         <Icon icon={Ellipsis} size={14} />
       </button>
-      {open && (
+      {menuP.value && (
         <AnchoredPopover anchor={btnRef.current} popRef={popRef}>
           <div
-            className={styles.orgMenu}
+            className={`${styles.orgMenu} cd-motion-pop`}
+            data-closing={menuP.closing || undefined}
             role="menu"
             aria-label={t('ui.cli-monitor.organize-sidebar')}
           >

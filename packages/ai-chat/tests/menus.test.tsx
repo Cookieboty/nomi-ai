@@ -345,7 +345,8 @@ describe('one conversation context menu', () => {
     fireEvent.keyDown(r.getByTestId('conversation-context-menu'), { key: 'ArrowDown' });
     expect(document.activeElement).toBe(r.getByTestId('conversation-pin'));
     fireEvent.keyDown(r.getByTestId('conversation-context-menu'), { key: 'Escape' });
-    expect(r.queryByTestId('conversation-context-menu')).toBeNull();
+    // 收起时先放完淡出动画再卸载
+    await waitFor(() => expect(r.queryByTestId('conversation-context-menu')).toBeNull());
   });
 });
 

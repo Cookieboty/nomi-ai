@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -54,21 +54,23 @@ describe('ChatModeSwitch', () => {
     expect(badge.title).toContain('运行中');
   });
 
-  it('switches to the workbench from the menu, closes it and clears the running badge', () => {
+  it('switches to the workbench from the menu, closes it and clears the running badge', async () => {
     render(<ChatModeSwitch />);
     fireEvent.click(screen.getByTestId('chat-mode-trigger'));
     fireEvent.click(screen.getByTestId('chat-mode-dev'));
-    expect(screen.queryByTestId('chat-mode-menu')).toBeNull();
+    // 收起时先放完淡出动画再卸载
+    await waitFor(() => expect(screen.queryByTestId('chat-mode-menu')).toBeNull());
     expect(screen.getByTestId('chat-mode-trigger').textContent).toContain('Nomi 工坊');
     expect(screen.queryByTestId('chat-mode-running-badge')).toBeNull();
   });
 
-  it('closes the menu with Escape and returns focus to the trigger', () => {
+  it('closes the menu with Escape and returns focus to the trigger', async () => {
     render(<ChatModeSwitch />);
     const trigger = screen.getByTestId('chat-mode-trigger');
     fireEvent.click(trigger);
     fireEvent.keyDown(screen.getByTestId('chat-mode-menu'), { key: 'Escape' });
-    expect(screen.queryByTestId('chat-mode-menu')).toBeNull();
+    // 收起时先放完淡出动画再卸载
+    await waitFor(() => expect(screen.queryByTestId('chat-mode-menu')).toBeNull());
     expect(document.activeElement).toBe(trigger);
   });
 });

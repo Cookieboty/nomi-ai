@@ -6,7 +6,7 @@
  * - 任务：从这个会话建的持续任务与状态，点开到任务页。
  * 两个列表最多先显示 5 个，「更多」展开其余的。开关与自动收起见 ./context。
  */
-import { Icon, t, Tooltip } from '@nomi-ai/ui';
+import { Icon, t, Tooltip, usePresence } from '@nomi-ai/ui';
 import { Bot, ChevronUp, createLucideIcon, Ellipsis, GitBranch, ListChecks } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -180,8 +180,8 @@ interface Props {
 }
 
 const DetailsPanel: React.FC<
-  Props & { onClose: () => void; floating?: boolean; dismissible?: boolean }
-> = ({ messages, cwd, onClose, floating, dismissible }) => {
+  Props & { onClose: () => void; floating?: boolean; dismissible?: boolean; closing?: boolean }
+> = ({ messages, cwd, onClose, floating, dismissible, closing }) => {
   const ref = useRef<HTMLElement>(null);
   // 自动收起后手动打开的浮层：点在浮层和标题栏按钮以外的地方就收回
   useEffect(() => {
@@ -239,9 +239,11 @@ const DetailsPanel: React.FC<
       ref={ref}
       role="complementary"
       aria-label={t('ui.session-workspace.session-details')}
-      className={floating ? `${styles.panel} ${styles.floating}` : styles.panel}
+      className={`${styles.panel} ${floating ? styles.floating : ''} cd-motion-slide-right`}
       data-testid="session-details"
       data-floating={floating || undefined}
+      data-closing={closing || undefined}
+      aria-hidden={closing || undefined}
       onKeyDown={(e) => {
         if (e.key !== 'Escape') return;
         e.stopPropagation();
@@ -386,8 +388,17 @@ export const SessionDetailsDock: React.FC<Props & { overlay?: boolean }> = ({
     else v?.close();
     document.querySelector<HTMLElement>('[data-testid="session-details-toggle"]')?.focus();
   }, [v]);
-  if (!v?.visible || !props.messages.length || overlay !== v.floating) return null;
+  const show = !!v?.visible && props.messages.length > 0 && overlay === v.floating;
+  // 收起时先放完滑出动画再卸载（值用字符串，渲染间保持稳定）
+  const mode = usePresence(show ? (v!.dismissible ? 'dismissible' : 'shown') : null);
+  if (!mode.value) return null;
   return (
-    <DetailsPanel {...props} onClose={close} floating={v.floating} dismissible={v.dismissible} />
+    <DetailsPanel
+      {...props}
+      onClose={close}
+      floating={overlay}
+      dismissible={mode.value === 'dismissible' && !mode.closing}
+      closing={mode.closing}
+    />
   );
 };

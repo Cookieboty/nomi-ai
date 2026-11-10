@@ -3,7 +3,7 @@
  * 助手模式隐藏 CLI 标签栏与 Mod+T；后台 CLI 仍运行，徽标显示运行中的数量。
  */
 import { brand } from '@nomi-ai/types';
-import { Icon, t, useLocale } from '@nomi-ai/ui';
+import { Icon, t, useLocale, usePresence } from '@nomi-ai/ui';
 import { Check, ChevronDown } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -27,6 +27,8 @@ export const ChatModeSwitch: React.FC = () => {
   const { mode, setMode } = useChatMode();
   const tabs = useHarnessTabs();
   const [open, setOpen] = useState(false);
+  // 收起时先放完淡出动画再卸载
+  const menuP = usePresence(open);
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -112,10 +114,11 @@ export const ChatModeSwitch: React.FC = () => {
           {runningCount}
         </span>
       )}
-      {open && (
+      {menuP.value && (
         <div
           ref={menuRef}
-          className={styles.menu}
+          className={`${styles.menu} cd-motion-pop`}
+          data-closing={menuP.closing || undefined}
           role="menu"
           aria-label={t('ui.cli-monitor.chat-mode')}
           onKeyDown={onMenuKey}

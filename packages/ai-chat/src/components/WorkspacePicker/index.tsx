@@ -2,7 +2,7 @@
  * 工作目录选择：显示当前目录（缩短 + tooltip 完整路径），下拉里是最近使用的目录 + 「选择文件夹…」原生选择器。
  * 受控组件：由调用方决定如何应用（更改正在运行的 CLI 会话 / 新建标签时的初始目录）。
  */
-import { t, Icon } from '@nomi-ai/ui';
+import { t, Icon, usePresence } from '@nomi-ai/ui';
 import { Check, Folder, FolderOpen, FolderX, Search } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -51,6 +51,8 @@ export const WorkspacePicker: React.FC<{
   searchable = false,
 }) => {
   const [open, setOpen] = useState(false);
+  // 收起时先放完淡出动画再卸载
+  const menuP = usePresence(open);
   const [query, setQuery] = useState('');
   const [recent, setRecent] = useState<string[]>([]);
   const ref = useRef<HTMLSpanElement>(null);
@@ -141,11 +143,12 @@ export const WorkspacePicker: React.FC<{
             t('ui.cli-monitor.choose-folder')}
         </span>
       </button>
-      {open &&
+      {menuP.value &&
         createPortal(
           <div
             ref={menuRef}
-            className={styles.menu}
+            className={`${styles.menu} cd-motion-pop`}
+            data-closing={menuP.closing || undefined}
             style={pos}
             role="menu"
             data-testid={`${testId}-menu`}

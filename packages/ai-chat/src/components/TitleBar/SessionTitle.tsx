@@ -3,7 +3,7 @@
  * - 左：工作区图标 + 会话名（新会话还没有消息时不显示）；
  * - 右：「…」会话菜单（重命名 / 分叉 / 归档 / 关闭标签 / 删除），与侧栏右键菜单同一个 ConversationMenu。
  */
-import { Icon, t, useLocale } from '@nomi-ai/ui';
+import { Icon, t, useLocale, usePresence } from '@nomi-ai/ui';
 import { Ellipsis, Folder } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -108,6 +108,8 @@ export const SessionMenuButton: React.FC<{
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
   const { actions } = useAiChatActions();
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
+  // 菜单收起时先放完淡出动画再卸载
+  const atP = usePresence(at);
   const btn = useRef<HTMLButtonElement>(null);
   if (!s?.hasMessages) return null;
   const store = ipc?.conversationStore?.() as ConversationStore | undefined;
@@ -176,10 +178,11 @@ export const SessionMenuButton: React.FC<{
       >
         <Icon icon={Ellipsis} size={16} />
       </button>
-      {at && (
+      {atP.value && (
         <ConversationMenu
-          x={at.x}
-          y={at.y}
+          x={atP.value.x}
+          y={atP.value.y}
+          closing={atP.closing}
           isTab={!!s.tabId}
           onDismiss={() => setAt(null)}
           onRename={() => void rename()}

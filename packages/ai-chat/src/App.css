@@ -216,6 +216,26 @@ html[data-chat-bg] .workspace-card {
   border-left: 1px solid var(--cd-panel-border);
   background: color-mix(in srgb, var(--cd-color-surface-raised, #1a1a1a) 92%, transparent);
 }
+/* 右栏展开自右滑入、收起滑出：负的右外边距让对话列跟着平滑变宽 / 变窄（卡片 overflow: hidden 裁掉露出的部分） */
+.files-rail {
+  animation: files-rail-in var(--cd-duration-fast) var(--cd-ease);
+}
+.files-rail[data-closing] {
+  animation: files-rail-out 0.15s var(--cd-ease) forwards;
+  pointer-events: none;
+}
+@keyframes files-rail-in {
+  from {
+    margin-right: calc(-1 * var(--files-rail-w, 260px));
+    opacity: 0;
+  }
+}
+@keyframes files-rail-out {
+  to {
+    margin-right: calc(-1 * var(--files-rail-w, 260px));
+    opacity: 0;
+  }
+}
 .files-rail > * {
   flex: 1;
   min-height: 0;

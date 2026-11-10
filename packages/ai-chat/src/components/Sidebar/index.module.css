@@ -73,6 +73,16 @@
     animation: panelIn 0.18s ease;
   }
 }
+.panel[data-closing] {
+  animation: panelOut 0.15s var(--cd-ease) forwards;
+  pointer-events: none;
+}
+@keyframes panelOut {
+  to {
+    margin-right: -260px;
+    clip-path: inset(0 100% 0 0);
+  }
+}
 @keyframes panelIn {
   from {
     margin-right: -260px;

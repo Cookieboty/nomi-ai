@@ -2,7 +2,7 @@
  * 会话的 Transcript view 菜单：Normal / Thinking / Verbose。
  * 选择只作用于当前会话（sessionKey），由 useTranscriptView 持久化；不改变其它会话。
  */
-import { Icon, t, useLocale } from '@nomi-ai/ui';
+import { Icon, t, useLocale, usePresence } from '@nomi-ai/ui';
 import { Check, Eye } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -20,6 +20,8 @@ export const TranscriptViewButton: React.FC<{ sessionKey: string }> = ({ session
   useLocale();
   const { view, globalView, hasOverride, setView, followGlobal } = useTranscriptView(sessionKey);
   const [at, setAt] = useState<{ left: number; top: number } | null>(null);
+  // 菜单收起时先放完淡出动画再卸载
+  const atP = usePresence(at);
   const btn = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
 
@@ -110,13 +112,14 @@ export const TranscriptViewButton: React.FC<{ sessionKey: string }> = ({ session
       >
         <Icon icon={Eye} size={16} />
       </button>
-      {at && (
+      {atP.value && (
         <div
           ref={menu}
           role="menu"
           aria-label={t('ui.chat-settings.transcript-view')}
-          className={styles.menu}
-          style={{ left: at.left, top: at.top, width: MENU_WIDTH }}
+          className={`${styles.menu} cd-motion-pop`}
+          data-closing={atP.closing || undefined}
+          style={{ left: atP.value.left, top: atP.value.top, width: MENU_WIDTH }}
           data-testid="transcript-view-menu"
           onKeyDown={onMenuKey}
         >

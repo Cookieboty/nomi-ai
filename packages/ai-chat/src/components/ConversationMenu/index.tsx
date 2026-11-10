@@ -30,6 +30,8 @@ export interface ConversationMenuProps {
   onArchive?: () => void;
   onDelete?: () => void;
   onDismiss: () => void;
+  /** 正在收起：放淡出动画（usePresence） */
+  closing?: boolean;
 }
 
 export const ConversationMenu: React.FC<ConversationMenuProps> = ({
@@ -47,12 +49,19 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
   onArchive,
   onDelete,
   onDismiss,
+  closing,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   const bindings = useShortcutBindings();
 
+  // 打开时把焦点给第一项（只在挂载时；父组件重渲染不再抢焦点）
   useEffect(() => {
     ref.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+  }, []);
+
+  useEffect(() => {
+    // 收起中（放淡出动画）：不再抢焦点、不再监听，焦点留给接下来的操作（如重命名输入框）
+    if (closing) return;
     const down = (e: MouseEvent) => {
       if (!ref.current?.contains(e.target as Node)) onDismiss();
     };
@@ -62,7 +71,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
       window.removeEventListener('mousedown', down);
       window.removeEventListener('blur', onDismiss);
     };
-  }, [onDismiss]);
+  }, [onDismiss, closing]);
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -95,7 +104,8 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
       ref={ref}
       role="menu"
       aria-label={t('ui.cli-monitor.conversation-actions')}
-      className={styles.menu}
+      className={`${styles.menu} cd-motion-pop`}
+      data-closing={closing || undefined}
       style={{ left, top }}
       data-testid="conversation-context-menu"
       onKeyDown={onKey}

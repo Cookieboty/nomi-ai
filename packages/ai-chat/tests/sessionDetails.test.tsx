@@ -422,7 +422,8 @@ describe('auto-hide on small screens', () => {
     expect(screen.getByTestId('session-details')).toBeTruthy();
     // 子任务面板展开：又自动收起
     fireEvent.click(screen.getByTestId('probe-open-pane'));
-    expect(screen.queryByTestId('session-details')).toBeNull();
+    // 收起时先放完淡出动画再卸载
+    await waitFor(() => expect(screen.queryByTestId('session-details')).toBeNull());
   });
 
   it('opening the sub-task pane hides it on a narrow window and closing brings it back', async () => {
@@ -432,7 +433,8 @@ describe('auto-hide on small screens', () => {
     mount();
     expect(await screen.findByTestId('session-details')).toBeTruthy();
     fireEvent.click(screen.getByTestId('probe-open-pane'));
-    expect(screen.queryByTestId('session-details')).toBeNull();
+    // 收起时先放完淡出动画再卸载
+    await waitFor(() => expect(screen.queryByTestId('session-details')).toBeNull());
     fireEvent.click(screen.getByTestId('probe-close-pane'));
     expect(screen.getByTestId('session-details')).toBeTruthy();
   });

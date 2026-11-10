@@ -26,6 +26,8 @@ export interface NewChatMenuProps {
   itemTestId?: (b: ConversationBackend) => string;
   workspaceTestId?: string;
   className?: string;
+  /** 正在收起：放淡出动画（usePresence） */
+  closing?: boolean;
 }
 
 export const NewChatMenu: React.FC<NewChatMenuProps> = ({
@@ -38,6 +40,7 @@ export const NewChatMenu: React.FC<NewChatMenuProps> = ({
   testId = 'new-chat-menu',
   itemTestId = (b) => `new-chat-${b}`,
   workspaceTestId = 'new-chat-project',
+  closing,
   className,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -65,7 +68,8 @@ export const NewChatMenu: React.FC<NewChatMenuProps> = ({
       ref={ref}
       role="menu"
       aria-label={t('ui.cli-monitor.new-conversation')}
-      className={`${styles.menu} ${className ?? ''}`}
+      className={`${styles.menu} ${className ?? ''} cd-motion-pop`}
+      data-closing={closing || undefined}
       data-testid={testId}
       onKeyDown={onKey}
     >

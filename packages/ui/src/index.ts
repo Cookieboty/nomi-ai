@@ -67,3 +67,4 @@ export { ErrorState, LoadingState } from './ErrorState';
 export type { ErrorStateProps } from './ErrorState';
 export { createLogger, isVerboseLogging, perfMark, setVerboseLogging } from './logger';
 export type { Logger } from './logger';
+export { usePresence, EXIT_MS } from './usePresence';

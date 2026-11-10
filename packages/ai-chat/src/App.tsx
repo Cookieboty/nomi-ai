@@ -1,6 +1,6 @@
 import type { ClientAIClient } from '@nomi-ai/ai-sdk-client';
 import * as AISdkReact from '@nomi-ai/ai-sdk-client/react';
-import { t } from '@nomi-ai/ui';
+import { t, usePresence } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 
 import { AppOverlays, useToast } from './app/AppOverlays';
@@ -172,6 +172,8 @@ const AiChatContent: React.FC = () => {
   const mainPages = useMainPages(() => panels.openSettings('knowledge', 'schedule'));
   const { openPage, leave: leavePage } = mainPages;
   const mainHidden = openPage !== null;
+  // 右栏收起时先放完滑出动画再卸载；切到整页时直接收
+  const filesRail = usePresence(rail.open && !!rail.cwd && !mainHidden);
   // 灵动岛上点「打开」/ 点某一条：跳到任务详情 / 编程助手标签 / 主对话
   useIslandOpenItem(mainPages.openTask, leavePage);
   const handleNewChat = useCallback(
@@ -373,8 +375,8 @@ const AiChatContent: React.FC = () => {
           {!mainHidden && <SessionDetailsDock messages={rail.messages} cwd={rail.cwd} />}
           {/* 整页（素材库 / 任务 / Agent 看板）：替换对话区（对话区只隐藏不卸载），侧栏保持 */}
           {mainPages.pages}
-          {rail.open && rail.cwd && !mainHidden ? (
-            <FilesRail rail={rail} split={split.filesRail} />
+          {filesRail.value && !mainHidden ? (
+            <FilesRail rail={rail} split={split.filesRail} closing={filesRail.closing} />
           ) : null}
         </div>
       </div>

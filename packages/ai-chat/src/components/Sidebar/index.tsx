@@ -1,5 +1,5 @@
 import { byCli } from '@nomi-ai/cli-catalog';
-import { t, Icon, useLocale } from '@nomi-ai/ui';
+import { t, Icon, useLocale, usePresence } from '@nomi-ai/ui';
 import { MessagesSquare, SquarePen } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { List } from 'react-window';
@@ -155,6 +155,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const [histMenu, setHistMenu] = useState<{ h: HistorySession; x: number; y: number } | null>(
     null,
   );
+  // 菜单收起时先放完淡出动画再卸载
+  const newMenuP = usePresence(newMenu && !collapsed);
+  const ctxP = usePresence(ctx);
+  const histMenuP = usePresence(histMenu);
   const ws = useNewProject();
   const projects = useProjects();
   // 创建 / 编辑项目的弹窗：'new' = 新建
@@ -238,6 +242,8 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       : current;
   const rowActiveId = pageOpen ? undefined : highlightId;
   const float = useFloatingPanel(collapsed);
+  // 会话面板收起时先放完收回动画再卸载
+  const panelP = usePresence(!collapsed || float.floating);
   // 浮层里选了会话 / 新建了会话（高亮换了）：收起浮层
   const [floatFor, setFloatFor] = useState(highlightId);
   if (floatFor !== highlightId) {
@@ -787,9 +793,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       >
         <Icon icon={SquarePen} />
       </button>
-      {newMenu && !collapsed && (
+      {newMenuP.value && (
         <AnchoredPopover anchor={newBtnRef.current} popRef={newPopRef}>
           <NewChatMenu
+            closing={newMenuP.closing}
             className={styles.newMenu}
             backends={CONVERSATION_BACKENDS}
             bins={bins}
@@ -925,11 +932,13 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         {footer}
       </div>
 
-      {(!collapsed || float.floating) && (
+      {panelP.value && (
         <div
           className={`${styles.panel} ${float.floating ? styles.panelFloating : ''}`}
           data-testid="sidebar-panel"
           data-floating={float.floating || undefined}
+          data-closing={panelP.closing || undefined}
+          aria-hidden={panelP.closing || undefined}
         >
           {/* 顶行（Codex 式）：模式菜单在左，搜索在右；新建与整理在「工作区」标题右侧 */}
           <div className={styles.top}>
@@ -1072,11 +1081,15 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {ctx &&
+      {ctxP.value &&
         (() => {
+          const ctx = ctxP.value;
           const meta = list.find((x) => x.id === ctx.id);
           return (
             <ConversationMenu
+              // 换了一行右键：重新挂载，焦点回到新菜单的第一项
+              key={`${ctx.id}:${ctx.x}:${ctx.y}`}
+              closing={ctxP.closing}
               x={ctx.x}
               y={ctx.y}
               isTab={Boolean(meta?.tabId)}
@@ -1154,14 +1167,15 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         />
       )}
 
-      {histMenu && (
+      {histMenuP.value && (
         <ConversationMenu
-          x={histMenu.x}
-          y={histMenu.y}
+          x={histMenuP.value.x}
+          y={histMenuP.value.y}
           isTab={false}
+          closing={histMenuP.closing}
           onDismiss={() => setHistMenu(null)}
-          onOpen={() => void openHistory(histMenu.h)}
-          onDelete={() => void deleteHistory(histMenu.h)}
+          onOpen={() => void openHistory(histMenuP.value!.h)}
+          onDelete={() => void deleteHistory(histMenuP.value!.h)}
         />
       )}
     </aside>

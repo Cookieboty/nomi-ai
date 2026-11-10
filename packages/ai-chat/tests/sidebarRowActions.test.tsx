@@ -316,7 +316,8 @@ describe('sidebar row actions', () => {
     expect(within(menu).getByTestId('conversation-delete')).toBeTruthy();
     fireEvent.click(within(menu).getByTestId('fork-same'));
     expect(onForkRequest).toHaveBeenCalledWith('n2');
-    expect(r.queryByTestId('conversation-context-menu')).toBeNull();
+    // 收起时先放完淡出动画再卸载
+    await waitFor(() => expect(r.queryByTestId('conversation-context-menu')).toBeNull());
     // 右键得到同一份菜单
     fireEvent.contextMenu(r.container.querySelector('[data-conversation-id="c1"]')!);
     expect(
