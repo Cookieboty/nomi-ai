@@ -21,7 +21,10 @@ if (flag('--profile') !== 'headless' || !args.includes('--json')) {
   process.exit(2);
 }
 
-if (delayMs > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
+// NOMI_MOCK_SLOW_PROMPT：设了就只有提问里带它的那一轮才等
+const slowMarker = process.env.NOMI_MOCK_SLOW_PROMPT;
+if (delayMs > 0 && (!slowMarker || args.join(' ').includes(slowMarker)))
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
 const emit = (obj) => process.stdout.write(`${JSON.stringify(obj)}\n`);
 const resumed = flag('--session-id');
 if (resumed === 'session-unknown') {

@@ -27,6 +27,7 @@ Agent 看板列出「谁在干活」：正在回答的 Nomi 对话、Nomi 的后
 （`internal/core/agents`）从本机会话文件认出的会话，不含 Nomi 标签自己的会话：标签用过的会话 id 都记下来（`agents/owned.go`，存
 `owned-sessions.json`，30 天没再见到的丢掉；按最后见到算，一直在用的老 id 每小时写回一次盘），标签关掉、出错换了会话 id、重启之后，Nomi 派出去的会话也不会再以「终端 · 只读」出现。外部会话不出现在任何控制接口里，
 以后加暂停 / 停止 / 插话时只接受纳管 id。
+Mock CLI 模式（`NOMI_USE_MOCK_CLI=1`，演示截图与 E2E）下 `OwnProcsOnly` 打开：Nomi 进程树之外的进程不上看板，本机真实在跑的编程助手与它们的目录不会进画面。
 
 「正在回答的对话」来自对话路由（`airouter.Handlers.ActiveChats`）：带 `extra.conversationId` 的流（标题生成等辅助调用不带）；
 标题由视图从会话列表里取。Nomi 只是开着不会出现在「进行中」。

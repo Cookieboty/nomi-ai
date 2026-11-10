@@ -322,6 +322,35 @@ export const SCENES = [
     },
   },
   {
+    name: 'seed-agent-sessions',
+    seed: true,
+    async run(h) {
+      // 看板上多几张编程助手卡片（Mock CLI）：Codex 做完；Claude Code 与 Gemini 的提问带「偶尔超时」，
+      // 一直停在进行中（run.mjs 的 NOMI_MOCK_SLOW_PROMPT）
+      await h.open();
+      await h.mode('工坊');
+      await h.newChat('Codex');
+      await h.send('把 README 里的安装步骤整理成表格', 6000);
+      await h.newChat('Claude Code');
+      await h.send('重构网关的重试逻辑，再查查集成测试为什么偶尔超时', 3000);
+      await h.newChat('Gemini');
+      await h.send('看一下 scheduler 的单测为什么偶尔超时', 3000);
+    },
+  },
+  {
+    name: 'agent-board',
+    title: 'Agent 看板',
+    async run(h) {
+      await h.open();
+      await h.page
+        .getByRole('button', { name: /^Agents/ })
+        .first()
+        .click();
+      await h.page.mouse.move(700, 900);
+      await h.wait(2000);
+    },
+  },
+  {
     name: 'tasks',
     title: '持续任务',
     async run(h) {

@@ -301,6 +301,11 @@ async function main() {
     NOMI_MOCK_STEP_MS: '120',
     NOMI_MOCK_CLAUDE_REPLY:
       '已把 registerHandler 改成接收可选的 id 参数，补上了 2 个单测，lint 也通过了。',
+    NOMI_MOCK_CODEX_REPLY: 'README 的安装步骤已整理成表格，按系统分成四行，链接都核对过了。',
+    // Agent 看板要有「进行中」的卡片：提问里带「偶尔超时」的那一轮一直不答完（只有 seed-agent-sessions 用）
+    NOMI_MOCK_SLOW_PROMPT: '偶尔超时',
+    NOMI_MOCK_FIRST_TOKEN_MS: '3600000',
+    NOMI_MOCK_DELAY_MS: '3600000',
   });
 
   const llm = await startMockLlm();

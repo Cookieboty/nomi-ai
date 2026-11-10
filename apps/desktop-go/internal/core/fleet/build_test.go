@@ -224,6 +224,20 @@ func TestBuildExternalSessions(t *testing.T) {
 	}
 }
 
+// OwnProcsOnly（Mock CLI 演示环境）：Nomi 进程树之外的编程助手进程不上看板，会话照常列出
+func TestBuildOwnProcsOnly(t *testing.T) {
+	in := baseInput()
+	in.OwnProcsOnly = true
+	st := Build(in)
+	if st.ExternalIdle.Processes != 0 || len(st.ExternalIdle.Items) != 0 {
+		t.Errorf("idle = %+v, want none", st.ExternalIdle)
+	}
+	m := byID(st)
+	if a, ok := m["ext:codex:s1"]; !ok || a.Usage != nil {
+		t.Errorf("external session still listed without a process: %+v", a)
+	}
+}
+
 func TestBuildArchiveAndAutoArchive(t *testing.T) {
 	in := baseInput()
 	in.Archived = map[string]int64{

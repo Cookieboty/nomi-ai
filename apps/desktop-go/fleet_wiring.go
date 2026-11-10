@@ -62,10 +62,12 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 				d.WakeSlots()
 			}
 		},
-		SelfPid:   os.Getpid(),
-		Cores:     runtime.NumCPU(),
-		TotalMem:  func() float64 { return float64(local.TotalMem()) },
-		ReadProcs: func() *agents.ProcTable { return agents.ReadProcTable(usage.Platform()) },
+		SelfPid: os.Getpid(),
+		// Mock CLI（演示 / 截图 / E2E）：只看 Nomi 自己的进程，本机真实在跑的编程助手不上看板
+		OwnProcsOnly: os.Getenv("NOMI_USE_MOCK_CLI") == "1",
+		Cores:        runtime.NumCPU(),
+		TotalMem:     func() float64 { return float64(local.TotalMem()) },
+		ReadProcs:    func() *agents.ProcTable { return agents.ReadProcTable(usage.Platform()) },
 		Tabs: func() []fleet.Tab {
 			if o == nil {
 				return nil
