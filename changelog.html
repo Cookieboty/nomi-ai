@@ -86,7 +86,7 @@
     "macOS",
     "Linux"
   ],
-  "softwareVersion": "2.3.8",
+  "softwareVersion": "2.3.9",
   "license": "https://opensource.org/license/mit",
   "codeRepository": "https://github.com/Cookieboty/nomi-ai",
   "downloadUrl": "https://withnomi.app/download.html",
@@ -157,6 +157,38 @@
           <nav class="cl-nav" data-cl-nav data-i18n-aria-label="cl.nav" aria-label="版本"></nav>
         </aside>
         <div class="changelog">
+        <article class="release" id="v239">
+          <header class="release-head">
+            <h2 data-i18n="cl.v239.title">v2.3.9 — 自定义主题、文件预览与编辑、按会话选详细程度</h2>
+            <time datetime="2026-11-10">2026-11-10</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v239.feat">新功能</h3>
+          <ul>
+            <li data-i18n="cl.v239.feat.1">设置 → 外观新增「我的主题」：填强调色、背景、表面、文字 4 个颜色就能新建主题，其余颜色自动推导并修正对比度；浅色、深色可以各配一套跟随系统，能加背景图，也能导入导出主题包</li>
+            <li data-i18n="cl.v239.feat.2">文件侧栏可以预览和编辑文档与源码，支持行号定位、目录和搜索；文件专注模式下对话收成右下角的 Nomi 按钮，选中文字可以直接「问助手」</li>
+            <li data-i18n="cl.v239.feat.3">会话详细程度：设置里选全局默认（精简 / 显示思考 / 详细），每个会话还可以在标题栏单独选；精简时同类工具调用合成一行（#310）</li>
+            <li data-i18n="cl.v239.feat.4">Agent 看板可以暂停 / 继续 Nomi 的后台运行：正在跑的这一轮跑完后停下，直到手动继续</li>
+            <li data-i18n="cl.v239.feat.5">编程助手登录被 403 拒绝时给出原因，可以一键沿用终端里的代理重试；从 Finder / Dock 启动时也会用上终端配置的代理</li>
+            <li data-i18n="cl.v239.feat.6">新版本下载好后，「重启更新」按钮显示在标题栏右侧；检查更新改为每 3 小时一次</li>
+            <li data-i18n="cl.v239.feat.7">菜单、会话详情和右栏展开收起有过渡动画（开了「减少动态效果」时不播放）</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v239.fix">修复</h3>
+          <ul>
+            <li data-i18n="cl.v239.fix.1">运行中改了项目的文件夹，这一轮结束后按新的文件夹同步，下一轮就在新目录里工作（#309）</li>
+            <li data-i18n="cl.v239.fix.2">分叉没有项目的会话时，副本不再被归进当前打开的对话的项目（#308）</li>
+            <li data-i18n="cl.v239.fix.3">关掉标签再从历史打开同一个编程助手会话，单独选的详细程度还在（#313）</li>
+            <li data-i18n="cl.v239.fix.4">Agent 看板：终端里开的会话做完后不再一直显示「现在有动静」，会按时收起；关掉「内存紧张时自动处理」不再提前恢复 Nomi 暂停的标签（#316）；一直用同一个会话的标签重启后不再被当成终端会话（#315）</li>
+            <li data-i18n-html="cl.v239.fix.5">沙箱里的编程助手可以读 <code>~/.npmrc</code>（npm 镜像源能用，nvm 不再报错），写入仍然拦截；技能脚本没有执行权限时改用解释器运行，不再误以为被沙箱拦下</li>
+            <li data-i18n="cl.v239.fix.6">macOS 上桌面角色不在前台时按住就能拖，不用先点一下；角色窗口从隐藏恢复时静态形象不再空白</li>
+            <li data-i18n="cl.v239.fix.7">文件预览遵守受保护文件夹设置；「…」和「更多」按钮再点一次就关掉菜单</li>
+          </ul>
+          <h3 class="release-group" data-i18n="cl.v239.change">变化</h3>
+          <ul>
+            <li data-i18n="cl.v239.change.1">更快更省：Agent 看板与进度监控共用进程列表，macOS 与 Windows 上读进程表不再起子进程，没有编程助手在跑时更少轮询；长会话和流式输出时少做很多重复计算</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.3.9" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
         <article class="release" id="v238">
           <header class="release-head">
             <h2 data-i18n="cl.v238.title">v2.3.8 — 项目可以包含多个文件夹，分叉合成一个弹窗</h2>
