@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AiChatContextProvider, useAiChat } from '../src/contexts/AiChatContext';
 import { selectBusyHere } from '../src/contexts/aiChatStore';
+import { bindNextDelegateConversation, setNextDelegate } from '../src/services/delegateClient';
 import { type SdkIPCClient } from '../src/services/IPCClient';
 import { nomiLive, settledNomiMessages } from '../src/utils/convAdapters';
 
@@ -551,5 +552,73 @@ describe('Nomi 流式回复 · 会话固定与停止生成', () => {
       apiMock.transport = false;
       apiMock.invoke = undefined;
     });
+  });
+});
+
+describe('/agent 钉住后的发送', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => {
+    cleanup();
+    setNextDelegate(null);
+    apiMock.transport = false;
+    apiMock.invoke = undefined;
+  });
+
+  it('直接派出编程助手，不把需求交给对话模型', async () => {
+    apiMock.transport = true;
+    const calls: Array<[string, unknown]> = [];
+    apiMock.invoke = (name, input) => {
+      calls.push([name, input]);
+      if (name === 'delegate.pin') return 'claude';
+      if (name === 'delegate.dispatch')
+        return { taskId: 'task_1', cli: 'claude', status: 'running', summary: 'started' };
+      if (name === 'delegate.clearPin') return true;
+      return undefined;
+    };
+    const f = fakeClient();
+    const ref = mount(f.client);
+    await flush();
+    const ipc = ref.api.state.ipcClient as SdkIPCClient;
+    const id = ipc.ensureConversationId();
+    bindNextDelegateConversation(id);
+    setNextDelegate('claude');
+    await act(async () => {
+      await ref.api.actions.sendStreamMessage('检查这个项目');
+    });
+    expect(f.seen.reqId).toBeUndefined();
+    const dispatch = calls.find(([n]) => n === 'delegate.dispatch')?.[1] as {
+      cli: string;
+      goal: string;
+      conversationId?: string;
+    };
+    expect(dispatch).toMatchObject({ cli: 'claude', goal: '检查这个项目', conversationId: id });
+    const assistant = ref.api.state.messages.find((m) => m.role === 'assistant');
+    expect(assistant?.content).toContain('已在后台开始');
+    expect(assistant?.error).toBeUndefined();
+    expect(ref.api.state.messages.find((m) => m.role === 'user')?.delegateTo).toBe('claude');
+  });
+
+  it('派不出去时留下错误，不当成已经交出', async () => {
+    apiMock.transport = true;
+    apiMock.invoke = (name) => {
+      if (name === 'delegate.pin') return 'claude';
+      if (name === 'delegate.dispatch') throw new Error('Claude Code 没有安装');
+      if (name === 'delegate.clearPin') return true;
+      return undefined;
+    };
+    const f = fakeClient();
+    const ref = mount(f.client);
+    await flush();
+    const ipc = ref.api.state.ipcClient as SdkIPCClient;
+    bindNextDelegateConversation(ipc.ensureConversationId());
+    setNextDelegate('claude');
+    await act(async () => {
+      await ref.api.actions.sendStreamMessage('检查这个项目');
+    });
+    expect(f.seen.reqId).toBeUndefined();
+    const assistant = ref.api.state.messages.find((m) => m.role === 'assistant');
+    expect(assistant?.content ?? '').toBe('');
+    expect(assistant?.error).toContain('没有派出去');
+    expect(ref.api.state.messages.find((m) => m.role === 'user')?.delegateTo).toBeUndefined();
   });
 });

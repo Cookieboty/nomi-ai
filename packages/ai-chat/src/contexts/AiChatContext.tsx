@@ -22,7 +22,6 @@ import {
   clearTurnPin,
   consumeNextDelegate,
   delegateClient,
-  delegateDirective,
   type DelegateResult,
 } from '../services/delegateClient';
 import { delegateResultMessage } from '../services/delegateMessage';
@@ -663,7 +662,6 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           content,
           timestamp: Date.now(),
           modelId: nomiModelLabel(),
-          ...(delegateTo ? { delegateTo } : {}),
           ...(images?.length
             ? {
                 images: images.map((i, k) => ({
@@ -676,6 +674,46 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               }
             : {}),
         };
+        // `/agent`：直接派出编程助手。不交给对话模型——模型不调工具时会像已经交出，其实什么都没开始。
+        if (delegateTo) {
+          if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
+          try {
+            await delegateClient.dispatch({
+              cli: delegateTo,
+              goal: content.slice(0, 4000),
+              ...(turn.convoId ? { conversationId: turn.convoId } : {}),
+              ...(turn.projectId ? { projectId: turn.projectId } : {}),
+              turnId: reqId,
+            });
+            userMessage.delegateTo = delegateTo;
+            const ack: ChatMessage = {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: t(
+                'ui.slash-commands.handed-off-started',
+                t(ENDPOINT_NAME[delegateTo]),
+                content,
+              ),
+              timestamp: Date.now(),
+            };
+            if (turn.isActive()) dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, ack] });
+            await turn.save(userMessage);
+            await turn.save(ack);
+          } catch (err) {
+            const failed: ChatMessage = {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: '',
+              error: t('ui.slash-commands.handoff-not-dispatched', errorMessage(err)),
+              timestamp: Date.now(),
+            };
+            if (turn.isActive())
+              dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, failed] });
+            await turn.save(userMessage);
+            await turn.save(failed);
+          }
+          return;
+        }
         let history = override?.history ?? s.messages;
         const hs = harnessClient.available() ? await harnessClient.state() : null;
         // Nomi 对话：这一轮的上下文快到模型输入预算的 95% 时，先把较早的对话压缩成摘要
@@ -816,7 +854,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           const linked = imageUrls.filter(Boolean);
           const sent = linked.length ? `${content}\n\n${imageLinksNote(linked)}` : content;
           await client.sendStreamMessage(
-            delegateTo ? `${delegateDirective(t(ENDPOINT_NAME[delegateTo]))}\n\n${sent}` : sent,
+            sent,
             (chunk: string) => {
               accumulated += chunk;
               if (speaker) {

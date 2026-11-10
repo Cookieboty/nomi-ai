@@ -188,6 +188,25 @@ func waitUntil(t *testing.T, ok func() bool) {
 	}
 }
 
+func TestDispatchStartsBackgroundTask(t *testing.T) {
+	ft := newFakeTasks()
+	e := newTaskEnv(t, util.NewObj(), ft)
+	r, err := e.svc.Dispatch("claude", "修复登录 bug", "conv_9", "", "turn_1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Get("taskId") != "task_1" || util.Str(r.Get("cli")) != "claude" {
+		t.Fatal(util.Stringify(r))
+	}
+	if len(ft.created) != 1 || ft.created[0].Goal != "修复登录 bug" || ft.created[0].ConversationID == nil || *ft.created[0].ConversationID != "conv_9" {
+		t.Fatalf("%+v", ft.created)
+	}
+	_, err = e.svc.Dispatch("gemini", "做点事", "c", "", "")
+	if err == nil || !strings.Contains(err.Error(), "没有安装") || len(ft.created) != 1 {
+		t.Fatal(err, len(ft.created))
+	}
+}
+
 func TestDelegateBackgroundBecomesTask(t *testing.T) {
 	ft := newFakeTasks()
 	e := newTaskEnv(t, util.NewObj(), ft)

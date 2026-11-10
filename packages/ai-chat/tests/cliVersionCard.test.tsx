@@ -187,6 +187,29 @@ describe('CliVersionCard', () => {
     expect(r.getByTestId('cli-version-result-claude').textContent).toContain('EACCES');
     expect(r.getByTestId('cli-version-log-claude').textContent).toContain('npm http fetch');
   });
+
+  it('mock CLI：已安装，但不提供更新到正式版', async () => {
+    setup({
+      'cliUpdate.inspect': () => [
+        info({
+          kind: 'claude',
+          path: '/repo/scripts/mock-cli/mock-claude.mjs',
+          version: '2.0.0-mock',
+          latest: null,
+          updateAvailable: false,
+          updateSupported: false,
+          installSupported: false,
+        }),
+      ],
+    });
+    const r = render(<CliVersionCard kind="claude" />);
+    await waitFor(() =>
+      expect(r.getByTestId('cli-version-state-claude').getAttribute('data-state')).toBe('unknown'),
+    );
+    expect(r.getByTestId('cli-version-installed-claude').textContent).toBe('2.0.0-mock');
+    expect(r.getByTestId('cli-version-state-claude').textContent).not.toContain('有新版本');
+    expect(r.queryByTestId('cli-version-action-claude')).toBeNull();
+  });
 });
 
 describe('CliVersionCard · task survives unmount (state lives in the main process)', () => {

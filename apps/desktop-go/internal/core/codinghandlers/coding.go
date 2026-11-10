@@ -40,6 +40,7 @@ type Delegate interface {
 	SetSettings(raw any) (*util.Obj, error)
 	Pin(name, turnID any) (string, error)
 	ClearPin(turnID any)
+	Dispatch(cli, goal, conversationID, projectID, turnID string) (*util.Obj, error)
 	StatusOf(taskID string) *util.Obj
 }
 
@@ -189,6 +190,11 @@ func RegisterCoding(r *contract.Router, s CodingServices) {
 	plain(r, "delegate.clearPin", func(a in) any {
 		dlg().ClearPin(a.any("turnId"))
 		return true
+	})
+	plain(r, "delegate.dispatch", func(a in) any {
+		v, err := dlg().Dispatch(a.str("cli"), a.str("goal"), a.str("conversationId"), a.str("projectId"), a.str("turnId"))
+		throwIf(err)
+		return v
 	})
 	plain(r, "delegate.status", func(a in) any { return dlg().StatusOf(a.str("taskId")) })
 

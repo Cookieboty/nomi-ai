@@ -5,6 +5,8 @@ import { BUILTIN_CLI_ORDER, type BuiltinCliId, byCli } from '@nomi-ai/cli-catalo
  * - `/agent`（旧名 `/cli`）：指定下一个需求交给哪个编程助手。渲染层按 conversationId 记在
  *   nextDelegatePins 里（输入框上方的 chip），发送时 consumeNextDelegate(turnId) 取出，
  *   经契约 `delegate.pin` 按 turnId 钉到主进程；钉住失败则中止发送。本轮结束 clearTurnPin。
+ *   带需求的 `/agent` 和钉住后的下一条消息都走 `delegate.dispatch`，直接开始后台任务，
+ *   不指望对话模型去调工具。
  */
 import { t } from '@nomi-ai/ui';
 
@@ -113,6 +115,14 @@ export const delegateClient = {
   pin: (cli: DelegateCli | null, turnId: string) =>
     call<DelegateCli | null>(() => api.delegate.pin({ cli, turnId })),
   clearPin: (turnId: string) => call<boolean>(() => api.delegate.clearPin({ turnId })),
+  /** `/agent 名字 需求`：直接派出，不经过对话模型 */
+  dispatch: (input: {
+    cli: DelegateCli;
+    goal: string;
+    conversationId?: string;
+    projectId?: string;
+    turnId?: string;
+  }) => call<DelegateResult>(() => api.delegate.dispatch(input)),
   /** 查后台委派状态（主进程 tasks；无则 null） */
   status: (taskId: string) => call<DelegateResult | null>(() => api.delegate.status({ taskId })),
   /** 后台委派完成时主进程广播 */

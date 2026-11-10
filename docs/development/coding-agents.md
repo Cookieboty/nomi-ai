@@ -137,6 +137,6 @@ ACP 助手的权限能力由清单推出（`shared.AcpPermissions`），不在 G
 
 ## 测试
 
-- 假 CLI 在 `scripts/mock-cli/mock-<cli>.mjs`（`NOMI_USE_MOCK_CLI=1` 时 `cli.MockCliBin` 从当前目录下的 `scripts/mock-cli` 找它代替真实 CLI）。
+- 假 CLI 在仓库根 `scripts/mock-cli/mock-<cli>.mjs`。`NOMI_USE_MOCK_CLI=1` 时 `cli.MockCliBin` 从当前目录往上找 `scripts/mock-cli`（`pnpm dev` 的工作目录是 `apps/desktop-go` 也能找到），用它代替真实 CLI。文件不在就当没安装。
 - 编排器、驱动、插件的单测都在各自包里（`go test ./internal/core/cli/... ./internal/clisdk/... ./internal/cliplugins/...`）。
   起子进程的用例按条件等（带说明的超时），不数轮询次数。

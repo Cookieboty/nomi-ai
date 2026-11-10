@@ -2008,6 +2008,22 @@ type DelegateClearPinInput struct {
 	TurnId string `json:"turnId"`
 }
 
+type DelegateDispatchInput struct {
+	Cli            string  `json:"cli"`
+	Goal           string  `json:"goal"`
+	ConversationId *string `json:"conversationId,omitempty"`
+	ProjectId      *string `json:"projectId,omitempty"`
+	TurnId         *string `json:"turnId,omitempty"`
+}
+
+type DelegateDispatchOutput struct {
+	TaskId   string `json:"taskId"`
+	Cli      string `json:"cli"`
+	Status   string `json:"status"`
+	Summary  string `json:"summary"`
+	FollowUp *bool  `json:"followUp,omitempty"`
+}
+
 type DelegatePinInput struct {
 	Cli    string `json:"cli"`
 	TurnId string `json:"turnId"`
@@ -11793,6 +11809,10 @@ type ConversationsStateOutputT = ConversationsStateOutput
 // DelegateClearPinInputT 是 delegate.clearPin 的入参
 type DelegateClearPinInputT = DelegateClearPinInput
 type DelegateClearPinOutputT = bool
+
+// DelegateDispatchInputT 是 delegate.dispatch 的入参
+type DelegateDispatchInputT = DelegateDispatchInput
+type DelegateDispatchOutputT = DelegateDispatchOutput
 
 // DelegatePinInputT 是 delegate.pin 的入参
 type DelegatePinInputT = DelegatePinInput

@@ -204,6 +204,7 @@
   "electron.common.message-not-found": "找不到这条消息，请刷新后重试",
   "electron.common.missing-description": "缺少 description",
   "electron.common.missing-description-one-sentence-on-when-to-use": "缺少 description（一句话说明何时使用这个技能）",
+  "electron.common.mock-coding-assistant-is-not-updated-from-nomi": "这是开发用的模拟编程助手，不会从这里更新成正式版本。",
   "electron.common.model": "模型",
   "electron.common.model-names-may-only-contain-letters-digits-and": "模型名只能包含字母、数字和 . - / :",
   "electron.common.model-settings": "模型设置…",

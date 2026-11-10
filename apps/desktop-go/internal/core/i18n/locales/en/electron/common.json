@@ -204,6 +204,7 @@
   "electron.common.message-not-found": "Message not found; refresh and try again",
   "electron.common.missing-description": "Missing description",
   "electron.common.missing-description-one-sentence-on-when-to-use": "Missing description (one sentence on when to use this skill)",
+  "electron.common.mock-coding-assistant-is-not-updated-from-nomi": "This is a development mock of a coding assistant and is not updated from here.",
   "electron.common.model": "model",
   "electron.common.model-names-may-only-contain-letters-digits-and": "Model names may only contain letters, digits and . - / :",
   "electron.common.model-settings": "Model settings…",

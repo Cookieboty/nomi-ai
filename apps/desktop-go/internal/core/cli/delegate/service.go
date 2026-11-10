@@ -615,6 +615,50 @@ func (s *Service) Pin(name any, turnID any) (string, error) {
 	return cli, nil
 }
 
+// Dispatch：/agent 名字 需求 直接派给编程助手（后台任务），不经过对话模型。
+// 指定的助手没安装、委派关着、用户拒绝或没有工作目录时返回错误，调用方必须告诉用户没有派出去。
+func (s *Service) Dispatch(requested, goal, conversationID, projectID, turnID string) (*util.Obj, error) {
+	goal = trim(goal)
+	if goal == "" {
+		return nil, derr("invalid_input", "没有写需求，没有派出去")
+	}
+	cli := ResolveDelegateCli(requested)
+	if cli == "" {
+		return nil, derr("unknown_cli", "不认识这个编程助手："+trim(requested))
+	}
+	if !contains(s.Installed(), cli) {
+		name := requested
+		if n := cliName[cli]; n != "" {
+			name = n
+		}
+		return nil, derr("cli_unavailable", name+" 没有安装")
+	}
+	raw := util.NewObj("cli", cli, "goal", goal, "done_when", "按用户的需求做完", "background", true)
+	res := s.execute(context.Background(), raw, tools.ExecContext{
+		ReqID:          trim(turnID),
+		ConversationID: trim(conversationID),
+		ProjectID:      trim(projectID),
+		UserText:       goal,
+	})
+	if res.Get("ok") != true {
+		code, msg := "dispatch_failed", "委派没有发出"
+		if e, ok := res.Get("error").(*util.Obj); ok {
+			if c := util.Str(e.Get("code")); c != "" {
+				code = c
+			}
+			if m := util.Str(e.Get("message")); m != "" {
+				msg = m
+			}
+		}
+		return nil, derr(code, msg)
+	}
+	data, _ := res.Get("data").(*util.Obj)
+	if data == nil {
+		return nil, derr("internal_error", "委派没有返回结果")
+	}
+	return data, nil
+}
+
 // ClearPin：本轮结束且未委派时清除
 func (s *Service) ClearPin(turnID any) {
 	if key := trim(jsStringOf(turnID)); key != "" {

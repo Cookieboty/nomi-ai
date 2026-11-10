@@ -608,6 +608,22 @@ const delegateProcedures = {
     input: z.object({ turnId: z.string() }),
     output: z.boolean(),
   },
+  /**
+   * `/agent 名字 需求` 直接派出编程助手（后台任务），不经过对话模型。
+   * 没安装、关了委派、用户拒绝或没有工作目录时失败，调用方要告诉用户没有派出去。
+   */
+  'delegate.dispatch': {
+    kind: 'mutation',
+    dangerous: true,
+    input: z.object({
+      cli: z.string().min(1),
+      goal: z.string().min(1).max(4000),
+      conversationId: z.string().optional(),
+      projectId: z.string().optional(),
+      turnId: z.string().optional(),
+    }),
+    output: DelegateResult,
+  },
   /** 后台委派任务的状态；没有时 null */
   'delegate.status': {
     kind: 'query',

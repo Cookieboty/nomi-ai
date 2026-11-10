@@ -249,6 +249,7 @@ export function useFleetHost(collapsed: boolean) {
       state={state}
       onOpenBoard={show}
       onOpenChange={setPopover}
+      boardOpen={open}
       chatName={chatName}
     />
   ) : null;

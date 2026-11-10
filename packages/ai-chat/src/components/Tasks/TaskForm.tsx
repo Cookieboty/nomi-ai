@@ -68,7 +68,7 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
 }) => {
   const [title, setTitle] = useState('');
   const [goal, setGoal] = useState('');
-  const [when, setWhen] = useState<When>('daily');
+  const [when, setWhen] = useState<When>('manual');
   const [at, setAt] = useState(() => localInput(Date.now() + 3600_000));
   const [minutes, setMinutes] = useState(60);
   const [who, setWho] = useState<Who>('nomi');

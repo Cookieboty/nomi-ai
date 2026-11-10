@@ -249,7 +249,7 @@ describe('任务页', () => {
       goal: '红了告诉我',
       executor: { kind: 'nomi', tools: ['read', 'web', 'shell'] },
       grant: { level: 3, paths: [], connections: [] },
-      trigger: { kind: 'schedule', repeat: { kind: 'daily' } },
+      trigger: { kind: 'manual' },
     });
   });
 

@@ -510,6 +510,19 @@ describe('FleetIndicator', () => {
     expect(onOpenBoard).toHaveBeenCalled();
     expect(screen.queryByTestId('fleet-popover')).toBeNull();
   });
+
+  it('已经在看板上时，浮层不再提供打开看板', () => {
+    render(
+      <FleetIndicator
+        state={state}
+        onOpenBoard={() => undefined}
+        onOpenChange={() => {}}
+        boardOpen
+      />,
+    );
+    fireEvent.click(screen.getByTestId('fleet-indicator'));
+    expect(screen.queryByTestId('fleet-popover-open-board')).toBeNull();
+  });
 });
 
 describe('FleetNav', () => {

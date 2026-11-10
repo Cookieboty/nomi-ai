@@ -146,7 +146,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--cd-space-1-5);
-  width: calc(var(--cd-space-8) * 7);
+  width: calc(var(--cd-space-8) * 10);
   max-width: 100%;
   height: var(--cd-control-h-sm);
   padding: 0 var(--cd-space-3);

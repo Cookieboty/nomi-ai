@@ -218,8 +218,9 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
           >
             {checking ? t('ui.cli-monitor.checking') : t('ui.mascot-theme.check-for-updates')}
           </Button>
-          {/* 第一次检测完成前不知道该装还是该更新：先不显示主操作 */}
-          {loaded && (
+          {/* 第一次检测完成前不知道该装还是该更新：先不显示主操作。
+              假 CLI（updateSupported = false）不提供「更新到正式版」，避免盖掉 mock。 */}
+          {loaded && info?.updateSupported !== false && (
             <Button
               size="sm"
               variant={state === 'missing' || state === 'outdated' ? 'primary' : 'secondary'}

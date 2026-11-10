@@ -8207,6 +8207,67 @@
     "type": "boolean"
    }
   },
+  "delegate.dispatch": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cli": {
+      "type": "string",
+      "minLength": 1
+     },
+     "goal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+     },
+     "conversationId": {
+      "type": "string"
+     },
+     "projectId": {
+      "type": "string"
+     },
+     "turnId": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "cli",
+     "goal"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "taskId": {
+      "type": "string"
+     },
+     "cli": {
+      "type": "string"
+     },
+     "status": {
+      "type": "string"
+     },
+     "summary": {
+      "type": "string"
+     },
+     "followUp": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "taskId",
+     "cli",
+     "status",
+     "summary"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "delegate.pin": {
    "kind": "mutation",
    "dangerous": false,

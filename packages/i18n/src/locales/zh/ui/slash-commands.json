@@ -57,6 +57,8 @@
   "ui.slash-commands.give-grok-a-standing-goal-grok-s-own": "给 Grok 一个持续目标（Grok 自己的命令，原样发送）",
   "ui.slash-commands.goal": "[目标]",
   "ui.slash-commands.hand-off-to-a-coding-assistant": "交给编程助手",
+  "ui.slash-commands.handed-off-started": "{0} 已在后台开始：{1}",
+  "ui.slash-commands.handoff-not-dispatched": "没有派出去：{0}",
   "ui.slash-commands.help": "帮助",
   "ui.slash-commands.in-out": "入 {0} / 出 {1}",
   "ui.slash-commands.interface": "界面",

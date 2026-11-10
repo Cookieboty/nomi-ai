@@ -290,7 +290,7 @@ async function main() {
     'XDG_DATA_HOME',
   ])
     delete process.env[k];
-  // Mock CLI：内核从工作目录下的 scripts/mock-cli 找（cli.MockCliRoots）。拷进临时目录：设置页会显示 CLI 路径，
+  // Mock CLI：内核从 cwd 往上找 scripts/mock-cli（cli.MockCliRoots）。拷进临时目录：设置页会显示 CLI 路径，
   // 不能是仓库所在的 /Users/<你>/…
   fs.cpSync(path.join(ROOT, 'scripts/mock-cli'), path.join(work, 'scripts', 'mock-cli'), {
     recursive: true,

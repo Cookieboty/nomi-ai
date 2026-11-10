@@ -46,6 +46,7 @@ describe('appContract · D3 coding', () => {
       .map(([n]) => n)
       .sort();
     expect(dangerous).toEqual([
+      'delegate.dispatch',
       'fleet.closeIdle',
       'fleet.pause',
       'fleet.resume',

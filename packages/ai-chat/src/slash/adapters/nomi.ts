@@ -17,7 +17,8 @@ const nameOf = (c: DelegateCli) => t(ENDPOINT_NAME[c]);
 
 /**
  * `/agent 名字 [需求]`：指定下一个需求交给哪个编程助手（docs/development/coding-agents.md）。
- * 带需求就立即发出；只有名字时在输入框上方挂一个「下一个需求交给 X」，下一条消息发出后自动取消。
+ * 带需求就立即发出（发送时直接派出，不经过对话模型）；只有名字时在输入框上方挂一个
+ * 「下一个需求交给 X」，下一条消息发出后自动取消。没安装或派不出去时只出提示，不当成已经交出。
  */
 async function runAgent(raw: string): Promise<SlashOutcome> {
   const card = (title: string, text: string, tone: 'info' | 'warn' = 'info', detail?: string) =>
@@ -106,19 +107,23 @@ export function nomiAdapter(input: AdapterInput): SlashCommand[] {
       },
     }),
   );
+  const [help, ...rest] = nativeCommands('nomi');
+  const agent = cmd({
+    name: 'agent',
+    // 旧名 /cli 仍可用，但不在面板和提示里出现
+    hiddenAliases: ['cli'],
+    label: t('ui.slash-commands.hand-off-to-a-coding-assistant'),
+    description: t('ui.slash-commands.pick-which-coding-assistant-handles-your-next-request'),
+    source: 'builtin',
+    kind: 'native',
+    hint: t('ui.slash-commands.name-request'),
+    run: (a) => runAgent(a),
+  });
+  // 紧挨 /help，空查询时不用滚过一整组内置命令才看得见
   return [
-    ...nativeCommands('nomi'),
-    cmd({
-      name: 'agent',
-      // 旧名 /cli 仍可用，但不在面板和提示里出现
-      hiddenAliases: ['cli'],
-      label: t('ui.slash-commands.hand-off-to-a-coding-assistant'),
-      description: t('ui.slash-commands.pick-which-coding-assistant-handles-your-next-request'),
-      source: 'builtin',
-      kind: 'native',
-      hint: t('ui.slash-commands.name-request'),
-      run: (a) => runAgent(a),
-    }),
+    ...(help ? [help] : []),
+    agent,
+    ...rest,
     cmd({
       name: 'compact',
       label: t('ui.slash-commands.compact-context'),

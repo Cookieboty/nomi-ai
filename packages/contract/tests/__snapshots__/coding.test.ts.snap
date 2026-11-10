@@ -98,6 +98,7 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
   "delegate.setSettings mutation",
   "delegate.pin mutation",
   "delegate.clearPin mutation",
+  "delegate.dispatch mutation dangerous",
   "delegate.status query",
   "agents.state query",
   "agents.scan mutation",
