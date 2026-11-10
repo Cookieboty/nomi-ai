@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  把 Claude Code、Codex 放到同一张看板上并行。模型只接一次，官方、国内、中转或本地都能用。不必绑定云账号，也不用改那些 CLI 的全局配置。<br>
+  把 Claude Code、Codex 放到同一张看板上并行。模型只接一次，官方、第三方或本地都能用。不必绑定云账号，也不用改那些 CLI 的全局配置。<br>
   桌面角色可选，不需要就关掉。
 </p>
 
@@ -42,7 +42,7 @@
 | 能力         | 在 Nomi 里                                                                                                                          |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
 | **编程助手** | Claude Code、Codex、Gemini CLI、Grok、dsh、Kimi Code、MiniMax Code，多个会话并行。终端或 IDE 里开着的会话在看板上只读；各 CLI 记下的历史可以在工坊里续接 |
-| **模型**     | 官方 API、国内、中转和本地模型，接一次，内置编程助手和 Nomi 都能用。另接的 ACP 助手不走这条网关                                     |
+| **模型**     | 官方、第三方或本地模型，接一次，内置编程助手和 Nomi 都能用。另接的 ACP 助手不走这条网关                                           |
 | **工具**     | MCP、技能、浏览器、文件与命令，图形化管理，调用有审计日志                                                                           |
 | **Nomi**     | 本身就是一个 agent：记忆、知识库、生图、提醒，还会把活派给编程助手                                                                  |
 
@@ -59,8 +59,8 @@
 
 ### 2. 模型只接一次
 
-只添加一次供应商（选预设或填地址，粘贴 Key）。来源可以是官方 API、国内、中转或本地。Claude Code、Codex、Gemini CLI、Grok、dsh、Kimi Code、MiniMax Code 和 Nomi 都能用它的模型，也可以全部换成本地模型。
-本机网关自动识别并互转 **Anthropic Messages / OpenAI Responses / OpenAI Chat Completions / Gemini generateContent**，流式、工具调用、推理、图片、上下文压缩都照常工作：在 Claude Code 里直接用 DeepSeek、GLM、Kimi、Qwen。断线会在同一把 Key 上重试；同一家反复失败后，换到也提供**同一个模型**的下一家。
+只添加一次供应商（选预设或填地址，粘贴 Key）。来源可以是官方、第三方或本地。Claude Code、Codex、Gemini CLI、Grok、dsh、Kimi Code、MiniMax Code 和 Nomi 都能用它的模型，也可以全部换成本地模型。
+本机网关自动识别并互转 **Anthropic Messages / OpenAI Responses / OpenAI Chat Completions / Gemini generateContent**，流式、工具调用、推理、图片、上下文压缩都照常工作，所以 Claude Code 里可以直接用第三方模型。断线会在同一把 Key 上重试；同一家反复失败后，换到也提供**同一个模型**的下一家。
 第三方只作用于 Nomi 启动的那个进程，不改 CLI 的全局配置，不碰官方登录。各 CLI 自己的官方登录仍然可用，而且不是必须的。Nomi 没有要注册的云账号。
 → [统一网关设计](docs/development/gateway.md) · [第三方供应商与模型](docs/features/providers.md)
 
@@ -107,7 +107,7 @@ flowchart LR
     GW["统一网关<br/>Messages ⇄ Responses ⇄ Chat ⇄ Gemini"]
   end
   CLI["Claude Code · Codex · Gemini CLI · Grok · dsh · Kimi Code · MiniMax Code"]
-  Up["OpenAI · Anthropic · DeepSeek · GLM · Kimi · Qwen<br/>· 中转 · Ollama / 本地模型"]
+  Up["OpenAI · Anthropic · DeepSeek · GLM · Kimi · Qwen<br/>· 第三方 · Ollama / 本地模型"]
   View -- "回环 WebSocket + 一次性令牌" --> Contract
   Contract --> Fleet & Agents & Tools & Mem
   Fleet -- "暂停 / 恢复" --> Agents
@@ -178,7 +178,7 @@ flowchart LR
 
 1. 打开 Nomi，完成首次引导（语言、主题）。不需要桌面角色，可以在它的工具栏「更多」里关掉。
 2. 新建一个 Claude Code / Codex 会话，选工作目录。可以用该 CLI 的官方登录，也可以先接模型再选「第三方」。左侧导航栏「Agents」打开看板。
-3. 「设置 → 模型与供应商」添加一次供应商与 API Key，或在「本机模型」下载一个本地模型。官方 API、国内、中转和本地都在这里，内置编程助手和 Nomi 都能选。
+3. 「设置 → 模型与供应商」添加一次供应商与 API Key，或在「本机模型」下载一个本地模型。官方、第三方或本地都在这里，内置编程助手和 Nomi 都能选。
 4. 把任务交给 Nomi：`Ctrl/⌘+N` 新对话，`Ctrl/⌘+K` 命令面板。写代码的活它可以再派给编程助手。
 
 更细的步骤见 [快速上手](docs/getting-started.md)。

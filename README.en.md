@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  Run Claude Code and Codex in parallel on one board. Connect a model once — official APIs, China-region, relays, or local. No Nomi cloud account. No edits to those CLIs' global config.<br>
+  Run Claude Code and Codex in parallel on one board. Connect a model once — official APIs, third-party, or local. No Nomi cloud account. No edits to those CLIs' global config.<br>
   The desktop character is optional. Turn it off if you don't want it.
 </p>
 
@@ -42,7 +42,7 @@
 | Capability        | In Nomi                                                                                                                                                          |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Coding agents** | Claude Code, Codex, Gemini CLI, Grok, dsh, Kimi Code and MiniMax Code, many sessions in parallel. Terminal or IDE sessions show on the board read-only; a CLI's own history can be resumed in the workshop |
-| **Models**        | Official APIs, China-region, relays and local models: connect one once, and the built-in coding agents and Nomi can use it. An extra ACP agent does not use this gateway |
+| **Models**        | Official APIs, third-party, or local models: connect one once, and the built-in coding agents and Nomi can use it. An extra ACP agent does not use this gateway |
 | **Tools**         | MCP, skills, browser, files and commands, managed in the UI with an audit log                                                                                    |
 | **Nomi**          | An agent itself: memory, knowledge base, images, reminders, and it hands jobs to coding agents                                                                   |
 
@@ -59,8 +59,8 @@ Coding-agent sessions open right in the workbench. The built-in set is Claude Co
 
 ### 2. Connect a model once
 
-Add a provider once (pick a preset or enter a URL, paste a key). The source can be an official API, a China-region provider, a relay or a local model. Claude Code, Codex, Gemini CLI, Grok, dsh, Kimi Code, MiniMax Code and Nomi can all use its models, or you can switch everything to local models.
-The local gateway detects and translates between **Anthropic Messages / OpenAI Responses / OpenAI Chat Completions / Gemini generateContent**. Streaming, tool calls, reasoning, images and context compaction keep working, so you can use DeepSeek, GLM, Kimi or Qwen right inside Claude Code. A dropped connection is retried on the same key; after repeated failures it moves to another provider that serves the **same model**.
+Add a provider once (pick a preset or enter a URL, paste a key). The source can be an official API, a third-party provider, or a local model. Claude Code, Codex, Gemini CLI, Grok, dsh, Kimi Code, MiniMax Code and Nomi can all use its models, or you can switch everything to local models.
+The local gateway detects and translates between **Anthropic Messages / OpenAI Responses / OpenAI Chat Completions / Gemini generateContent**. Streaming, tool calls, reasoning, images and context compaction keep working, so a third-party model works inside Claude Code. A dropped connection is retried on the same key; after repeated failures it moves to another provider that serves the **same model**.
 Third-party routing applies only to the process Nomi launches. It does not edit the CLI's global config or touch official sign-ins. Each CLI's own official sign-in still works, and it is optional. Nomi has no cloud account to register.
 → [Unified gateway design](docs/development/gateway.md) · [Providers and models](docs/features/providers.md)
 
@@ -107,7 +107,7 @@ flowchart LR
     GW["Unified gateway<br/>Messages ⇄ Responses ⇄ Chat ⇄ Gemini"]
   end
   CLI["Claude Code · Codex · Gemini CLI · Grok · dsh · Kimi Code · MiniMax Code"]
-  Up["OpenAI · Anthropic · DeepSeek · GLM · Kimi · Qwen<br/>· relays · Ollama / local models"]
+  Up["OpenAI · Anthropic · DeepSeek · GLM · Kimi · Qwen<br/>· third-party · Ollama / local models"]
   View -- "loopback WebSocket + one-time token" --> Contract
   Contract --> Fleet & Agents & Tools & Mem
   Fleet -- "pause / resume" --> Agents
@@ -178,7 +178,7 @@ Installed copies offer updates in-app.
 
 1. Open Nomi and finish onboarding (language, theme). Don't want the desktop character? Close it from its toolbar's "More" menu.
 2. Open a Claude Code or Codex session and pick a working folder. Sign in with that CLI's official account, or connect a model first and choose third-party. "Agents" in the left sidebar opens the board.
-3. In Settings → Models & providers, add a provider and API key once, or download a local model under Local models. Official APIs, China-region, relays and local models all live there, and the built-in coding agents and Nomi can all pick them.
+3. In Settings → Models & providers, add a provider and API key once, or download a local model under Local models. Official APIs, third-party, or local models all live there, and the built-in coding agents and Nomi can all pick them.
 4. Hand a task to Nomi: `Ctrl/⌘+N` for a new chat, `Ctrl/⌘+K` for the command palette. For coding, it can delegate to a coding agent.
 
 More detail in [Getting started](docs/getting-started.md).
