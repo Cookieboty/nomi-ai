@@ -6,7 +6,7 @@
 
 ## 中文
 
-Nomi·诺米：让每一种 AI 能力，都为你所用。编程助手、模型、MCP 与技能接到一处，在 Agent 工作台里并行跑、一处看、一起管；Nomi 自己也能聊天、记事、提醒，桌面角色可选，不需要就关掉。
+Nomi·诺米：让每一种 AI 能力，都为你所用。把 Claude Code、Codex 放到同一张看板上并行。模型只接一次，官方、第三方或本地都能用。不必绑定云账号，也不用改那些 CLI 的全局配置。桌面角色可选，不需要就关掉。
 
 ### 安装
 
@@ -42,7 +42,7 @@ macOS 安装包已签名但尚未公证：若提示「已损坏」，先把 Nomi
 
 ### 两种模式
 
-会话面板顶部的「Nomi 灵伴 ⌄」菜单可以切换 **灵伴**（聊天、知识问答、记忆与日常事务）与 **工坊**（Nomi 调度 AI 能力完成任务：Claude Code、Codex、Grok、Gemini、dsh 的编程助手标签，多模型、项目管理与代码修改）。工坊的三栏布局、改动审查与提交见 [编程助手](features/coding-agents.md)。
+会话面板顶部的「Nomi 灵伴 ⌄」菜单可以切换 **灵伴**（聊天、知识问答、记忆与日常事务）与 **工坊**（编程助手标签：Claude Code、Codex、Gemini CLI、Grok、dsh、Kimi Code、MiniMax Code，多模型、项目管理与代码修改）。工坊的三栏布局、改动审查与提交见 [编程助手](features/coding-agents.md)。
 
 ### 常用快捷键
 
@@ -64,7 +64,7 @@ macOS 安装包已签名但尚未公证：若提示「已损坏」，先把 Nomi
 
 ## English
 
-Nomi: one place, every AI capability. Coding agents, models, MCP and skills come together in one agent workbench, where they run side by side and you watch and manage them together; Nomi itself also chats, remembers and reminds you, and its desktop character is optional, so close it if you don't need it.
+Nomi: One place. Every AI capability. Run Claude Code and Codex in parallel on one board. Connect a model once — official APIs, third-party, or local. No Nomi cloud account. No edits to those CLIs' global config. The desktop character is optional. Turn it off if you don't want it.
 
 ### Install
 
@@ -100,7 +100,7 @@ Pick one:
 
 ### Two modes
 
-Next to the Nomi logo at the top of the sidebar you can switch between **Assistant** (chat with Nomi only) and **Workbench** (adds coding-agent tabs for Claude Code, Codex, Grok, Gemini and dsh). The workbench layout, change review and commits are described in [Coding agents](features/coding-agents.md).
+Next to the Nomi logo at the top of the sidebar you can switch between **Assistant** (chat with Nomi only) and **Workbench** (coding-agent tabs for Claude Code, Codex, Gemini CLI, Grok, dsh, Kimi Code and MiniMax Code). The workbench layout, change review and commits are described in [Coding agents](features/coding-agents.md).
 
 ### Common shortcuts
 
