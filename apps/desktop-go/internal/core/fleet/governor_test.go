@@ -211,6 +211,40 @@ func TestGovernorResumesNomiPausesWithAutoOff(t *testing.T) {
 	}
 }
 
+// 关掉自动处理只恢复内存守护暂停的：Nomi 暂停的在内存仍紧张时不跟着恢复，用户暂停的也不动（#316）
+func TestGovernorSwitchOffKeepsNomiAndUserPauses(t *testing.T) {
+	s, h := newGov(t, t.TempDir())
+	if _, err := s.PauseBy("tab:a", PausedByNomi); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Pause("tab:w"); err != nil {
+		t.Fatal(err)
+	}
+	h.pressure = agents.PressureCritical
+	h.step(s, 20*time.Second)
+	s.SetAutoPause(false)
+	if h.tab("a").Paused == nil || h.tab("a").Paused.By != PausedByNomi {
+		t.Fatal("turning auto handling off must not resume a tab Nomi paused while memory is still tight")
+	}
+	if h.tab("w").Paused == nil {
+		t.Fatal("turning auto handling off must not resume a user-paused tab")
+	}
+	for _, tb := range h.tabs {
+		if tb.Paused != nil && tb.Paused.By == PausedByMemory {
+			t.Fatalf("memory-paused tabs resume when auto handling is turned off: %+v", tb)
+		}
+	}
+	h.pressure = agents.PressureNormal
+	h.step(s, time.Second)
+	h.step(s, 40*time.Second)
+	if h.tab("a").Paused != nil {
+		t.Fatal("the Nomi pause still resumes once memory is normal")
+	}
+	if h.tab("w").Paused == nil {
+		t.Fatal("the user pause stays")
+	}
+}
+
 // 用户正看着的标签不被内存守护挑中：跳过它冻下一个；切走之后照常可以冻
 func TestGovernorSkipsForegroundTab(t *testing.T) {
 	s, h := newGov(t, t.TempDir())

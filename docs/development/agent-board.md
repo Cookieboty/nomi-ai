@@ -25,7 +25,7 @@ Agent 看板列出「谁在干活」：正在回答的 Nomi 对话、Nomi 的后
 
 判断依据是进程关系，不是委派标记：标签都在编排器里（工坊里用户自己开的、被用户接手的也算纳管）；外部 = 编程助手监视
 （`internal/core/agents`）从本机会话文件认出的会话，不含 Nomi 标签自己的会话：标签用过的会话 id 都记下来（`agents/owned.go`，存
-`owned-sessions.json`，30 天没再见到的丢掉），标签关掉、出错换了会话 id、重启之后，Nomi 派出去的会话也不会再以「终端 · 只读」出现。外部会话不出现在任何控制接口里，
+`owned-sessions.json`，30 天没再见到的丢掉；按最后见到算，一直在用的老 id 每小时写回一次盘），标签关掉、出错换了会话 id、重启之后，Nomi 派出去的会话也不会再以「终端 · 只读」出现。外部会话不出现在任何控制接口里，
 以后加暂停 / 停止 / 插话时只接受纳管 id。
 
 「正在回答的对话」来自对话路由（`airouter.Handlers.ActiveChats`）：带 `extra.conversationId` 的流（标题生成等辅助调用不带）；
@@ -121,13 +121,13 @@ Agent 看板列出「谁在干活」：正在回答的 Nomi 对话、Nomi 的后
 `internal/core/fleet/governor.go`。每 5 秒读一次系统内存压力（`agents.SystemMemory`：macOS 用系统给的
 `kern.memorystatus_vm_pressure_level` 与 `kern.memorystatus_level`；Linux 用 `MemAvailable` 与 PSI；Windows 用
 `GlobalMemoryStatusEx`，可用 < 15% 告警、< 7% 危险），只动纳管的 CLI 标签，外部的从不碰。看板右上角的开关
-（`fleet.setAutoPause`，存在 `userData/fleet/settings.json`，默认开）关掉时不自动动手，并恢复内存守护暂停的标签。
+（`fleet.setAutoPause`，存在 `userData/fleet/settings.json`，默认开）关掉时不自动动手，并恢复内存守护暂停的标签；Nomi 暂停的不跟着恢复，照旧等内存正常后自动继续。
 
 | 压力                 | 动作                                                                                                                                                             |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 告警及以上           | 立刻回收空闲 ≥ 1 分钟的标签的 CLI 进程（`Orchestrator.ReclaimIdleNow`，与空闲回收同一套条件，会话留着，无损）；压力不退时每分钟一次                              |
 | 危险                 | 每 10 秒冻结一个正在跑的标签：Nomi 派出的（对话委派、任务）先于工坊里的，同类里内存大的先；刚恢复 2 分钟内的不冻；用户正看着的标签（窗口在前台时的当前标签）不冻 |
-| 回到正常并稳定 30 秒 | 每 20 秒恢复一个内存守护暂停的（最早暂停的先）；用户手动暂停的不自动恢复                                                                                         |
+| 回到正常并稳定 30 秒 | 每 20 秒恢复一个内存守护或 Nomi 暂停的（最早暂停的先）；用户手动暂停的不自动恢复                                                                                 |
 
 冻结 = SIGSTOP / `NtSuspendProcess`（`Orchestrator.FreezeTab`，进程树由看板从进程表展开，父进程在前）：不占 CPU，
 内存由系统按需压缩换出；恢复（`ThawTab`，子进程在前）后这一轮从原处接着跑，委派与持续任务察觉不到（持续任务的单次

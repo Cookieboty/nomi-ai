@@ -247,6 +247,8 @@ type Service struct {
 	tabProgress       func(string) string
 	// owned：Nomi 标签用过的 CLI 会话（owned.go）
 	owned map[string]float64
+	// ownedSavedAt：owned 上次写盘的时间（启动时 0：第一次见到标签就把最后见到写回去）
+	ownedSavedAt float64
 }
 
 func nodePlatform() string {

@@ -16,6 +16,10 @@ import (
 
 const ownedKeepMs = 30 * 24 * 3600 * 1000
 
+// ownedFlushMs：老 id 一直在用时多久把「最后见到」写回盘一次。保留期从最后见到算，只在出现新 id 时写盘的话，
+// 一直用同一个会话的标签落盘时间停在首次登记，关掉标签重启后会被提前丢掉（#315）。按小时写，盘上最多落后一小时
+const ownedFlushMs = 3600 * 1000
+
 func (s *Service) ownedFile() string {
 	if s.d.Root == "" {
 		return ""
@@ -44,13 +48,13 @@ func (s *Service) loadOwned() {
 	}
 }
 
-// rememberOwned：记下标签当前的会话 id；有新的才写盘
+// rememberOwned：记下标签当前的会话 id；有新的立刻写盘，老的「最后见到」每 ownedFlushMs 写一次
 func (s *Service) rememberOwned(tabs []*util.Obj) {
 	if s.owned == nil {
 		s.owned = map[string]float64{}
 	}
 	now := s.now()
-	added := false
+	added, seen := false, false
 	for _, t := range tabs {
 		if !truthy(t.Get("cliSessionId")) {
 			continue
@@ -60,8 +64,9 @@ func (s *Service) rememberOwned(tabs []*util.Obj) {
 			added = true
 		}
 		s.owned[k] = now
+		seen = true
 	}
-	if !added {
+	if !added && !(seen && now-s.ownedSavedAt >= ownedFlushMs) {
 		return
 	}
 	for k, at := range s.owned {
@@ -70,8 +75,8 @@ func (s *Service) rememberOwned(tabs []*util.Obj) {
 		}
 	}
 	if p := s.ownedFile(); p != "" {
-		if b, err := json.Marshal(s.owned); err == nil {
-			_ = os.WriteFile(p, b, 0o666)
+		if b, err := json.Marshal(s.owned); err == nil && os.WriteFile(p, b, 0o666) == nil {
+			s.ownedSavedAt = now // 写失败不记，下一次观测再试
 		}
 	}
 }

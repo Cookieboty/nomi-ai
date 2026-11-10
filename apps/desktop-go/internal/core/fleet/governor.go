@@ -398,7 +398,8 @@ func (s *Service) Resume(id string) (State, error) {
 	return st, ErrNotPausable
 }
 
-// SetAutoPause：打开 / 关闭自动暂停（存盘）；关掉时恢复内存守护暂停的标签
+// SetAutoPause：打开 / 关闭自动暂停（存盘）；关掉时只恢复内存守护暂停的标签。
+// Nomi 暂停的不跟着开关走，照旧等内存恢复正常后自动继续（#316）；用户手动暂停的不动
 func (s *Service) SetAutoPause(on bool) State {
 	wasHolding := s.Holding()
 	s.mu.Lock()
@@ -410,7 +411,7 @@ func (s *Service) SetAutoPause(on bool) State {
 	s.saveSettings()
 	if !on && s.d.Tabs != nil && s.d.Thaw != nil {
 		for _, t := range s.d.Tabs() {
-			if t.Paused != nil && autoResumable(t.Paused.By) {
+			if t.Paused != nil && t.Paused.By == PausedByMemory {
 				s.d.Thaw(t.ID)
 			}
 		}
