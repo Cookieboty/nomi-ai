@@ -1,8 +1,5 @@
 ---
 '@nomi-ai/ai-chat': minor
-'@nomi-ai/ui': minor
-'@nomi-ai/contract': minor
-'@nomi-ai/i18n': minor
 '@nomi-ai/desktop-go': minor
 ---
 
