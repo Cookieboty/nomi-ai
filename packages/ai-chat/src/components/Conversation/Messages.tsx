@@ -171,9 +171,9 @@ export const AssistantBody: React.FC<{
       : legacyTools?.length
         ? entriesFromLegacyTools(legacyTools)
         : [];
-    // Normal 与 Claude Code 一致：只显示正文和工具摘要，不显示思考
-    return transcriptView === 'normal' ? all.filter((e) => e.type !== 'thinking') : all;
-  }, [trace, legacyTools, live, transcriptView]);
+    // 精简模式下思考不单独显示：由时间线收进活动摘要（utils/timelineShape.ts），这里不过滤
+    return all;
+  }, [trace, legacyTools, live]);
   // 时间线只随轨迹重建；流式文字帧只重新切文字，各组 items 保持同一引用
   const layout = useMemo(() => layoutBody(entries), [entries]);
   const len = planLength(layout, text.length, breaks);

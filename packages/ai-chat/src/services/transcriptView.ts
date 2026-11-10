@@ -2,9 +2,9 @@
  * 会话记录详细程度（Transcript view）。
  *
  * 与 Claude Code Desktop 的 Transcript view 对齐：
- * - normal：工具调用折叠成摘要，隐藏思考；
- * - thinking：normal + 思考内容；
- * - verbose：显示每次工具调用、参数与输出，并展开思考。
+ * - normal（精简）：两段回复之间的思考和工具调用合成一行摘要，展开是每一步一行；
+ * - thinking（显示思考，初始默认）：工具调用照样合成一行，思考合并成一块单独显示；
+ * - verbose（详细）：每次工具调用单独一行，参数与输出、思考、子代理都默认展开。
  *
  * 设置分两层：
  * - 全局默认（设置 → 通用 → 外观）；新会话 / 没有单独设置的会话使用它；
@@ -17,7 +17,7 @@ export type TranscriptView = 'normal' | 'thinking' | 'verbose';
 
 export const TRANSCRIPT_VIEWS: readonly TranscriptView[] = ['normal', 'thinking', 'verbose'];
 
-export const DEFAULT_TRANSCRIPT_VIEW: TranscriptView = 'normal';
+export const DEFAULT_TRANSCRIPT_VIEW: TranscriptView = 'thinking';
 
 const STORAGE_KEY = 'nomi.transcriptView.v1';
 /** 只保留最近使用的会话覆盖数，避免长期使用后 localStorage 无限增长 */
@@ -63,7 +63,11 @@ let cache: { raw: string | null; state: TranscriptViewState } = {
   state: { global: DEFAULT_TRANSCRIPT_VIEW, sessions: {} },
 };
 
+/** localStorage 写不进去（无痕窗口等）时的内存副本：本次运行内仍然生效 */
+let memory: TranscriptViewState | null = null;
+
 export function getTranscriptViewState(): TranscriptViewState {
+  if (memory) return memory;
   let raw: string | null = null;
   try {
     if (typeof window !== 'undefined' && window.localStorage)
@@ -81,8 +85,10 @@ function writeState(state: TranscriptViewState): void {
   try {
     if (typeof window === 'undefined' || !window.localStorage) return;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    memory = null;
   } catch {
     /* 无痕窗口等：只在本次内存里生效 */
+    memory = state;
   }
   listeners.forEach((fn) => fn());
 }
@@ -145,6 +151,7 @@ export function subscribeTranscriptView(fn: Listener): () => void {
 
 /** 单测：清掉全局默认与会话覆盖 */
 export function resetTranscriptViewsForTest(): void {
+  memory = null;
   try {
     if (typeof window !== 'undefined' && window.localStorage)
       window.localStorage.removeItem(STORAGE_KEY);

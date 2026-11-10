@@ -718,6 +718,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 对照 Codex Desktop：助手消息下「已编辑 N 个文件」摘要卡（路径 +/−、「再显示」、查看变更、确认后撤销本轮写入），以及三栏完整变更工作台（左来源汇总、中行级 Diff、右目录树），与 SessionChangesPanel / 预览打通。 (`@nomi-ai/ai-chat` minor)
 - 对照 Codex Desktop：助手消息下「已编辑 N 个文件」摘要卡（路径 +/−、「再显示」、查看变更、确认后撤销本轮写入），以及三栏完整变更工作台（左来源汇总、中行级 Diff、右目录树），与 SessionChangesPanel / 预览打通。 (`@nomi-ai/ui` patch)
 - 对照用户 Codex Desktop 真机截图重排 CLI 会话页为四栏：左会话 | 中对话+输入 | 中全高 Diff「变更」| 右「已更改的文件」。禁止 Diff 竖叠在对话/输入下；右栏默认只列变更文件；Composer 增加变更摘要 pill。上下文占用环悬停明细改为按行显示（估算 / 经验表 / 角色 token），默认环仍无百分比。 (`@nomi-ai/ai-chat` minor)
+- 对话与编程助手会话新增按会话生效的会话详细程度（#310）： (`@nomi-ai/desktop-go` patch)
 - 对话出错不再重复提示（#78）：这一轮失败时错误只显示在对话卡片里（含重试 / 复制），底部不再弹一条同样的「发生了未知错误」； (`@nomi-ai/ai-chat` patch)
 - 对话出错不再重复提示（#78）：这一轮失败时错误只显示在对话卡片里（含重试 / 复制），底部不再弹一条同样的「发生了未知错误」； (`@nomi-ai/desktop-go` patch)
 - 对话区右上角的工作目录、供应商下拉和设置按钮高度、字号统一。 (`@nomi-ai/ai-chat` patch)

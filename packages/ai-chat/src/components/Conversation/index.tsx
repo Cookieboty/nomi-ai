@@ -41,7 +41,7 @@ import {
 } from './Messages';
 import { PermissionCard } from './PermissionCard';
 import { StatusLine } from './StatusLine';
-import { TranscriptViewProvider } from './transcriptViewContext';
+import { TranscriptViewProvider, useTranscriptViewMode } from './transcriptViewContext';
 
 export type { ConvSlots } from './Messages';
 
@@ -324,7 +324,7 @@ export interface ConversationViewProps {
   onStopAgent?: (agentId: string) => void;
   /** 沙箱挡下、等授权的卡片（编程助手标签；一轮结束后也还在） */
   sandboxRequests?: React.ReactNode;
-  /** 当前会话的 Transcript view；由 ChatBody 按会话注入，默认 normal */
+  /** 当前会话的 Transcript view；由 ChatBody 按会话注入；不传则跟随外层会话 */
   transcriptView?: TranscriptView;
 }
 
@@ -652,8 +652,10 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
 export const ConversationView = React.memo(function ConversationView(props: ConversationViewProps) {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
+  // 没传（委派卡片、子代理面板里嵌的会话）：跟随外层会话的设置
+  const inherited = useTranscriptViewMode();
   return (
-    <TranscriptViewProvider value={props.transcriptView ?? 'normal'}>
+    <TranscriptViewProvider value={props.transcriptView ?? inherited}>
       <ConversationInner key={props.scopeId} {...props} />
     </TranscriptViewProvider>
   );

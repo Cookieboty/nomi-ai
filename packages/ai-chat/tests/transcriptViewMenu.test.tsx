@@ -56,22 +56,25 @@ const mountConversation = (view: 'normal' | 'thinking' | 'verbose') =>
   );
 
 describe('Transcript view 的三种显示模式', () => {
-  it('Normal 不显示思考，工具调用折叠成组', () => {
+  it('精简：思考和工具调用合成一行摘要，思考不单独显示', () => {
     const r = mountConversation('normal');
     expect(r.queryByTestId('tool-thinking')).toBeNull();
-    expect(r.getAllByTestId('tool-group')).toHaveLength(1);
+    const act = r.getByTestId('tool-activity');
+    expect(act.getAttribute('data-count')).toBe('3');
+    expect(act.getAttribute('data-open')).toBe('false');
   });
 
-  it('Thinking 显示思考（完成后折叠），工具仍分组', () => {
+  it('显示思考：思考单独显示（完成后折叠），工具照样合成一行', () => {
     const r = mountConversation('thinking');
     expect(r.getByTestId('tool-thinking').getAttribute('data-open')).toBe('false');
-    expect(r.getAllByTestId('tool-group')).toHaveLength(1);
+    expect(r.getByTestId('tool-activity').getAttribute('data-count')).toBe('2');
   });
 
   it('Verbose 展开思考、每次工具调用单独成行并默认展开', () => {
     const r = mountConversation('verbose');
     expect(r.getByTestId('tool-thinking').getAttribute('data-open')).toBe('true');
     expect(r.queryAllByTestId('tool-group')).toHaveLength(0);
+    expect(r.queryAllByTestId('tool-activity')).toHaveLength(0);
     const rows = r.getAllByTestId('tool-row');
     expect(rows).toHaveLength(2);
     for (const row of rows) expect(row.getAttribute('data-open')).toBe('true');
@@ -107,10 +110,11 @@ describe('Transcript view 菜单按会话生效', () => {
     r.rerender(<TranscriptViewButton sessionKey="tab:b" />);
     expect(r.getByTestId('titlebar-transcript-view').getAttribute('data-override')).toBeNull();
     fireEvent.click(r.getByTestId('titlebar-transcript-view'));
-    expect(screen.getByTestId('transcript-view-normal').getAttribute('aria-checked')).toBe('true');
+    // tab:b 没有单独设置：显示全局默认（初始「显示思考」）
     expect(screen.getByTestId('transcript-view-thinking').getAttribute('aria-checked')).toBe(
-      'false',
+      'true',
     );
+    expect(screen.getByTestId('transcript-view-normal').getAttribute('aria-checked')).toBe('false');
   });
 
   it('设置页只改全局默认；已有会话覆盖继续优先', () => {

@@ -14,9 +14,9 @@ import {
 beforeEach(() => resetTranscriptViewsForTest());
 
 describe('Transcript view 的全局默认与会话覆盖', () => {
-  it('新会话默认 Normal', () => {
-    expect(getGlobalTranscriptView()).toBe('normal');
-    expect(getTranscriptView('tab:a')).toBe('normal');
+  it('新会话默认显示思考（thinking）', () => {
+    expect(getGlobalTranscriptView()).toBe('thinking');
+    expect(getTranscriptView('tab:a')).toBe('thinking');
     expect(getSessionTranscriptView('tab:a')).toBeNull();
   });
 
@@ -53,8 +53,23 @@ describe('Transcript view 的全局默认与会话覆盖', () => {
       'nomi.transcriptView.v1',
       JSON.stringify({ global: 'bogus', sessions: { 'tab:a': 'bogus', 'tab:b': 'yes' } }),
     );
-    expect(getGlobalTranscriptView()).toBe('normal');
-    expect(getTranscriptView('tab:a')).toBe('normal');
+    expect(getGlobalTranscriptView()).toBe('thinking');
+    expect(getTranscriptView('tab:a')).toBe('thinking');
     expect(getSessionTranscriptView('tab:b')).toBeNull();
+  });
+
+  it('localStorage 写不进去时，本次运行内仍然生效', () => {
+    const orig = Storage.prototype.setItem;
+    Storage.prototype.setItem = () => {
+      throw new Error('quota');
+    };
+    try {
+      setTranscriptView('tab:a', 'verbose');
+      expect(getTranscriptView('tab:a')).toBe('verbose');
+      setGlobalTranscriptView('normal');
+      expect(getTranscriptView('tab:b')).toBe('normal');
+    } finally {
+      Storage.prototype.setItem = orig;
+    }
   });
 });
