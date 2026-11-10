@@ -3,7 +3,7 @@
  * 「会话详情」：标题栏按钮开 / 收对话卡片右侧的一栏：项目、本会话变更、用到的智能体与任务；
  * 列表最多 5 个可展开；屏幕窄且展开了别的栏时自动收起
  */
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -133,9 +133,10 @@ function setup() {
     if (ch === 'tasks.list') return { tasks, legacy: [] };
     return true;
   });
-  installFakeApi(invoke);
+  fake = installFakeApi(invoke);
   return invoke;
 }
+let fake: ReturnType<typeof installFakeApi>;
 
 const Probe: React.FC = () => {
   const pane = useSubagentPane();
@@ -386,6 +387,29 @@ describe('session details lists', () => {
     // 没有任务：整个「任务」区块不显示
     expect(screen.queryByTestId('session-details-tasks')).toBeNull();
     expect(screen.queryByTestId('session-details-tasks-more')).toBeNull();
+  });
+});
+
+describe('live state', () => {
+  it('a delegated tab waiting for approval shows as waiting; its streaming text does not matter', async () => {
+    setup();
+    mount();
+    fireEvent.click(screen.getByTestId('session-details-toggle'));
+    await waitFor(() => expect(screen.getAllByTestId('session-details-agent')).toHaveLength(2));
+    const state = () =>
+      screen
+        .getAllByTestId('session-details-agent')[0]!
+        .querySelector('[data-state]')!
+        .getAttribute('data-state');
+    expect(state()).toBe('running');
+    await act(() => fake.emit('harness.events', [{ tabId: 'd1', type: 'text', text: '写代码…' }]));
+    expect(state()).toBe('running');
+    await act(() =>
+      fake.emit('harness.events', [
+        { tabId: 'd1', type: 'permission', id: 'p1', summary: 'npm install' },
+      ]),
+    );
+    await waitFor(() => expect(state()).toBe('waiting'));
   });
 });
 

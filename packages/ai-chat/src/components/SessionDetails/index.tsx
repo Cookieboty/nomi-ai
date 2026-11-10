@@ -20,6 +20,7 @@ import { groupOf, requestOpenTask, statusLabel, type TaskGroup } from '../../ser
 import type { ConvMessage } from '../../types/conversation';
 import type { IPCClient } from '../../types/ipc';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import type { TabLive } from '../../utils/liveState';
 import {
   aggregateSessionChanges,
   projectNameFromCwd,
@@ -179,6 +180,14 @@ interface Props {
   cwd: string | null;
 }
 
+/** 「在等你批准」的占位实时状态：delegateView 只看 permissions 有没有 */
+const WAITING_LIVE = { permissions: [{}] } as unknown as TabLive;
+function waitingLive(key: string): Record<string, TabLive> {
+  const out: Record<string, TabLive> = {};
+  for (const id of key ? key.split('\n') : []) out[id] = WAITING_LIVE;
+  return out;
+}
+
 const DetailsPanel: React.FC<
   Props & { onClose: () => void; floating?: boolean; dismissible?: boolean; closing?: boolean }
 > = ({ messages, cwd, onClose, floating, dismissible, closing }) => {
@@ -198,7 +207,15 @@ const DetailsPanel: React.FC<
   const tabs = useHarnessTabs();
   const { isDev } = useChatMode();
   const tabId = isDev && tabs.isCliTab ? tabs.activeTab?.id : undefined;
-  const live = useHarnessLive((l) => l);
+  // 只订阅用到的切片（别的标签 / 本标签的流式输出不让这一栏重算）：当前标签的实时子代理，
+  // 以及哪些标签在等你批准（委派状态只看这一项，见 delegateView）
+  const liveAgents = useHarnessLive((l) => (tabId ? l[tabId]?.agents : undefined));
+  const waitingKey = useHarnessLive((l) =>
+    Object.keys(l)
+      .filter((id) => l[id]?.permissions?.length)
+      .sort()
+      .join('\n'),
+  );
   const pane = useSubagentPane();
   const { openWorkbench } = useChangesUi();
   const branch = useGitBranch(cwd);
@@ -216,11 +233,11 @@ const DetailsPanel: React.FC<
       collectSessionAgents(
         messages,
         tabs.state?.tabs,
-        live,
-        tabId ? live[tabId]?.agents : {},
+        waitingLive(waitingKey),
+        liveAgents ?? {},
         results,
       ),
-    [messages, tabs.state?.tabs, live, tabId, results],
+    [messages, tabs.state?.tabs, waitingKey, liveAgents, results],
   );
   // 这个会话的持续任务：Nomi 对话用当前会话 id；编程助手标签用它在会话列表里的镜像项
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
