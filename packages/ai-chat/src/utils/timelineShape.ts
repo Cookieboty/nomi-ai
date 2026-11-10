@@ -1,14 +1,15 @@
 /**
  * 按会话记录的详细程度（services/transcriptView.ts）整理一段时间线（两段正文之间的那些步骤）：
- * - normal：连续的思考与工具调用合成一条「活动」，界面上是一行摘要，展开是这一批的每一步；
- * - thinking：工具调用照样合成一条活动；这一段里的思考合并成一个思考块单独显示（不把工具打断，
- *   否则「想一下、调一次工具」交替时工具就聚合不起来了）。块各放在它第一次出现的位置；
- * - verbose：拆开分组，每次调用单独一行。
- * 子代理 / 委派卡片、用户中途插入的消息、生图结果（要直接看到图）始终单独显示，并把活动断开。
+ * - normal / thinking：这一段里的工具调用按类型（探索 / 命令 / 编辑 / 其它）各合成一行，同类调用不必相邻，
+ *   每段每类最多一行，按这一类第一次出现的顺序排；展开是这一类的每一步。只有一次调用的类不包一层。
+ *   - normal：思考不单独显示；这一段只有思考、没有调用时，合成一行「已思考 / 思考中」；
+ *   - thinking：这一段里的思考合并成一个思考块单独显示（放在第一次思考的位置，耗时只算思考）。
+ * - verbose：拆开分组，每次调用单独一行（按发生顺序）。
+ * 子代理 / 委派卡片、用户中途插入的消息、生图结果（要直接看到图）始终单独显示，并把这一段断开。
  */
 import type { TranscriptView } from '../services/transcriptView';
 
-import type { TimelineItem, ToolCall } from './toolTrace';
+import { bucketOf, classifyTool, type Bucket, type TimelineItem, type ToolCall } from './toolTrace';
 
 type ThinkingItem = Extract<TimelineItem, { type: 'thinking' }>;
 
@@ -17,8 +18,8 @@ export type ActivityStep = ThinkingItem | { type: 'call'; call: ToolCall };
 
 export type ShapedItem =
   | TimelineItem
-  /** 合成一行的一批步骤；id 取第一步，流式追加时保持不变（展开状态不丢） */
-  | { type: 'activity'; id: string; steps: ActivityStep[] };
+  /** 合成一行的一批步骤；id 取类型与第一步，流式追加时保持不变（展开状态不丢） */
+  | { type: 'activity'; id: string; bucket?: Bucket; steps: ActivityStep[] };
 
 const GENERATED_IMAGE = /chat-asset:\/\/images\//;
 
@@ -36,77 +37,86 @@ export function shapeTimeline(items: readonly TimelineItem[], view: TranscriptVi
     return out;
   }
   const out: ShapedItem[] = [];
-  let run: ActivityStep[] = [];
-  /** thinking：这一段里合并的思考块（已放进 out，后面的思考接着并进去） */
+  /** 这一段每类调用在 out 里的占位（段结束时填成一行） */
+  let slots = new Map<Bucket, { at: number; calls: ToolCall[] }>();
+  /** thinking：这一段合并的思考块；normal：这一段的思考（没有调用时合成一行） */
   let merged: ThinkingItem | null = null;
-  /** 已合并的思考累计用时（毫秒）：合并块的耗时只算思考，不算中间跑工具的时间 */
   let mergedMs = 0;
-  /** thinking：这一段的活动在 out 里的位置（先占位，段结束时填） */
-  let slot = -1;
+  let thoughts: ThinkingItem[] = [];
+  let thoughtAt = -1;
+
   const flush = () => {
-    if (view === 'thinking') {
-      merged = null;
-      if (slot >= 0) {
-        const steps = run;
-        out[slot] =
-          steps.length === 1 && steps[0]!.type === 'call'
-            ? steps[0]!
-            : {
-                type: 'activity',
-                id: `act-${steps[0]!.type === 'call' ? steps[0]!.call.id : steps[0]!.id}`,
-                steps,
-              };
+    for (const [bucket, { at, calls }] of slots)
+      out[at] =
+        calls.length === 1
+          ? { type: 'call', call: calls[0]! }
+          : {
+              type: 'activity',
+              id: `act-${bucket}-${calls[0]!.id}`,
+              bucket,
+              steps: calls.map((call) => ({ type: 'call', call })),
+            };
+    // normal：这一段只有思考没有调用，给一行「已思考 / 思考中」（不然进行中什么也看不到）
+    if (view === 'normal' && thoughts.length && !slots.size)
+      out[thoughtAt] = { type: 'activity', id: `act-${thoughts[0]!.id}`, steps: thoughts };
+    const hadThoughtSlot = view === 'normal' && thoughts.length > 0 && slots.size > 0;
+    if (hadThoughtSlot) out.splice(thoughtAt, 1);
+    slots = new Map();
+    merged = null;
+    mergedMs = 0;
+    thoughts = [];
+    thoughtAt = -1;
+  };
+
+  const addThinking = (it: ThinkingItem) => {
+    if (view === 'normal') {
+      if (!thoughts.length) {
+        thoughtAt = out.length;
+        out.push(it); // 占位：段结束时换成一行或去掉
       }
-      slot = -1;
-      run = [];
+      thoughts.push(it);
       return;
     }
-    if (!run.length) return;
-    // 只有一次调用：本来就是一行，不再包一层
-    if (run.length === 1 && run[0]!.type === 'call') out.push(run[0]!);
-    else
-      out.push({
-        type: 'activity',
-        id: `act-${run[0]!.type === 'call' ? run[0]!.call.id : run[0]!.id}`,
-        steps: run,
-      });
-    run = [];
-  };
-  for (const it of items) {
-    if (it.type === 'thinking') {
-      if (view === 'normal') run.push(it);
-      else if (!merged) {
-        merged = { ...it };
-        mergedMs = spanMs(it) ?? 0;
-        out.push(merged);
-      } else {
-        const m: ThinkingItem = merged;
-        m.text = `${m.text}\n\n${it.text}`;
-        m.running = it.running;
-        // 起点往前挪已合并的用时：结束后显示总思考时长，进行中计时接着累计
-        if (it.running) {
-          m.startedAt = it.startedAt !== undefined ? it.startedAt - mergedMs : undefined;
-          m.endedAt = undefined;
-        } else {
-          mergedMs += spanMs(it) ?? 0;
-          m.endedAt = it.endedAt;
-          m.startedAt = it.endedAt !== undefined ? it.endedAt - mergedMs : undefined;
-        }
-      }
-    } else if (it.type === 'call' || it.type === 'group') {
-      for (const call of it.type === 'call' ? [it.call] : it.calls) {
-        if (standsAlone(call)) {
-          flush();
-          out.push({ type: 'call', call });
-        } else {
-          if (view === 'thinking' && slot < 0) {
-            slot = out.length;
-            out.push({ type: 'call', call }); // 占位，flush 时换成活动
-          }
-          run.push({ type: 'call', call });
-        }
-      }
+    if (!merged) {
+      merged = { ...it };
+      mergedMs = spanMs(it) ?? 0;
+      out.push(merged);
+      return;
+    }
+    const m: ThinkingItem = merged;
+    m.text = `${m.text}\n\n${it.text}`;
+    m.running = it.running;
+    // 起点往前挪已合并的用时：结束后显示总思考时长，进行中计时接着累计
+    if (it.running) {
+      m.startedAt = it.startedAt !== undefined ? it.startedAt - mergedMs : undefined;
+      m.endedAt = undefined;
     } else {
+      mergedMs += spanMs(it) ?? 0;
+      m.endedAt = it.endedAt;
+      m.startedAt = it.endedAt !== undefined ? it.endedAt - mergedMs : undefined;
+    }
+  };
+
+  const addCall = (call: ToolCall) => {
+    if (standsAlone(call)) {
+      flush();
+      out.push({ type: 'call', call });
+      return;
+    }
+    const bucket = bucketOf(classifyTool(call.name));
+    const slot = slots.get(bucket);
+    if (slot) slot.calls.push(call);
+    else {
+      slots.set(bucket, { at: out.length, calls: [call] });
+      out.push({ type: 'call', call }); // 占位，flush 时换成这一类的一行
+    }
+  };
+
+  for (const it of items) {
+    if (it.type === 'thinking') addThinking(it);
+    else if (it.type === 'call') addCall(it.call);
+    else if (it.type === 'group') it.calls.forEach(addCall);
+    else {
       flush();
       out.push(it);
     }

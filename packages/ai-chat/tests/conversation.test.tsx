@@ -100,16 +100,18 @@ describe('CliConversation 历史消息', () => {
     expect(md.querySelector('strong')?.textContent).toBe('没有');
     expect(md.querySelector('code')?.textContent).toBe('a.ts');
     expect(queryByText(/工具完成/)).toBeNull();
-    // 两段正文之间的调用合成一行摘要（子代理单独成块）：按出现顺序列出探索 / 命令 / 编辑
-    const act = container.querySelector('[data-testid="tool-activity"]')!;
+    // 这一段的调用按类型各一行（子代理单独成块）：探索 4 次并成一行，命令、编辑各只有一次
+    const act = container.querySelector('[data-testid="tool-activity"][data-bucket="explore"]')!;
     expect(act.textContent).toContain('已探索 1 个文件、2 次搜索、1 个目录');
-    expect(act.textContent).toContain('已运行 1 条命令');
-    expect(act.textContent).toContain('+1−1');
     expect(act.getAttribute('data-open')).toBe('false');
     expect(act.querySelector('[data-testid="tool-row"]')).toBeNull();
+    const timeline = container.querySelector('[data-testid="tool-timeline"]')!;
+    expect(timeline.querySelectorAll(':scope > [data-testid="tool-activity"]')).toHaveLength(1);
+    expect(timeline.querySelector(':scope > [data-kind="command"]')).not.toBeNull();
+    expect(timeline.querySelector(':scope > [data-kind="edit"]')?.textContent).toContain('+1−1');
   });
 
-  it('点击摘要展开这一批的每一步（一步一行），再点单行看到参数与输出；耗时 400ms', () => {
+  it('点击一类的摘要展开这一类的每一步（一步一行），再点单行看到参数与输出；耗时 400ms', () => {
     const { container } = render(
       <CliConversation tab={tab()} messages={messages} onPermission={() => undefined} />,
     );
@@ -117,7 +119,7 @@ describe('CliConversation 历史消息', () => {
     fireEvent.click(group.querySelector('button')!);
     expect(group.getAttribute('data-open')).toBe('true');
     const rows = group.querySelectorAll('[data-testid="tool-row"]');
-    expect(rows).toHaveLength(6);
+    expect(rows).toHaveLength(4);
     const read = [...rows].find((r) => r.getAttribute('data-kind') === 'read')!;
     expect(read.textContent).toContain('读取');
     expect(read.textContent).toContain('src/a.ts');
@@ -130,8 +132,6 @@ describe('CliConversation 历史消息', () => {
     const { container } = render(
       <CliConversation tab={tab()} messages={messages} onPermission={() => undefined} />,
     );
-    const act = container.querySelector<HTMLElement>('[data-testid="tool-activity"]')!;
-    fireEvent.click(act.querySelector('button')!);
     const cmd = container.querySelector<HTMLElement>('[data-kind="command"]')!;
     expect(cmd.textContent).toContain('pnpm test');
     fireEvent.click(cmd.querySelector('button')!);
@@ -198,8 +198,8 @@ describe('CliConversation 历史消息', () => {
       'error',
     );
     const legacy = container.querySelector('[data-testid="tool-activity"]')!;
-    expect(legacy.getAttribute('data-count')).toBe('3');
-    expect(legacy.getAttribute('data-status')).toBe('error');
+    expect(legacy.getAttribute('data-count')).toBe('2');
+    expect(legacy.getAttribute('data-status')).toBe('done');
   });
 
   it('错误消息显示为告警块', () => {

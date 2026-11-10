@@ -659,7 +659,11 @@ const ActivityMeta: React.FC<{ calls: ToolCall[]; running: boolean }> = ({ calls
  * 一批步骤合成的一行（normal / thinking）：进行中显示正在做的那一步，结束后是这一批的摘要；
  * 展开是每一步一行，单步再点开看参数与输出
  */
-const ActivityRow: React.FC<{ id: string; steps: ActivityStep[] }> = ({ id, steps }) => {
+const ActivityRow: React.FC<{ id: string; bucket?: Bucket; steps: ActivityStep[] }> = ({
+  id,
+  bucket,
+  steps,
+}) => {
   // 语言切换时重渲染（#140）
   useLocale();
   const calls = activityCalls(steps);
@@ -700,7 +704,11 @@ const ActivityRow: React.FC<{ id: string; steps: ActivityStep[] }> = ({ id, step
       status={status}
       duration={active ? undefined : (groupDuration(calls) ?? thinkingMs(steps))}
       testId="tool-activity"
-      attrs={{ 'data-count': String(steps.length), 'data-activity-id': id }}
+      attrs={{
+        'data-count': String(steps.length),
+        'data-activity-id': id,
+        ...(bucket ? { 'data-bucket': bucket } : {}),
+      }}
       variant="group"
     >
       <div className={styles.groupList}>
@@ -812,7 +820,7 @@ export const ToolTimeline = memo(function ToolTimeline({
           case 'call':
             return <ToolCallRow key={it.call.id} call={it.call} />;
           case 'activity':
-            return <ActivityRow key={it.id} id={it.id} steps={it.steps} />;
+            return <ActivityRow key={it.id} id={it.id} bucket={it.bucket} steps={it.steps} />;
           case 'interject':
             return <InterjectRow key={it.id} text={it.text} />;
           case 'group':

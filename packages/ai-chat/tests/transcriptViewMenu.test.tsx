@@ -56,11 +56,12 @@ const mountConversation = (view: 'normal' | 'thinking' | 'verbose') =>
   );
 
 describe('Transcript view 的三种显示模式', () => {
-  it('精简：思考和工具调用合成一行摘要，思考不单独显示', () => {
+  it('精简：同类工具调用合成一行摘要，思考不单独显示', () => {
     const r = mountConversation('normal');
     expect(r.queryByTestId('tool-thinking')).toBeNull();
     const act = r.getByTestId('tool-activity');
-    expect(act.getAttribute('data-count')).toBe('3');
+    expect(act.getAttribute('data-bucket')).toBe('explore');
+    expect(act.getAttribute('data-count')).toBe('2');
     expect(act.getAttribute('data-open')).toBe('false');
   });
 
