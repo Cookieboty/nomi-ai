@@ -293,6 +293,10 @@ const AiChatContent: React.FC = () => {
               <div className="session-bar chat-session-bar">
                 <SessionControls />
               </div>
+              {/* 会话详情自动收起后再打开：浮在对话列右上角 */}
+              {!mainHidden && (
+                <SessionDetailsDock overlay messages={rail.messages} cwd={rail.cwd} />
+              )}
               <main className="chat-container">
                 {/* 每条回复末尾的「分叉」：从这条回复往前分叉，之后的消息不带 */}
                 <ForkFromMessageContext.Provider value={commands.forkFromMessage}>

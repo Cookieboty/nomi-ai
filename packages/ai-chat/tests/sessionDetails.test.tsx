@@ -161,6 +161,9 @@ const mount = (cwd: string | null = '/w/app', msgs: ConvMessage[] = messages, ra
       <WorkspacePanesProvider>
         <SessionDetailsToggle railOpen={railOpen} />
         <SessionDetailsDock messages={msgs} cwd={cwd} />
+        <div data-testid="chat-col">
+          <SessionDetailsDock overlay messages={msgs} cwd={cwd} />
+        </div>
         <Probe />
       </WorkspacePanesProvider>
     </HarnessTabsProvider>,
@@ -235,6 +238,8 @@ describe('SessionDetailsToggle', () => {
     const panel = await screen.findByTestId('session-details');
     expect(btn.getAttribute('aria-pressed')).toBe('true');
     expect(panel.tagName).toBe('ASIDE');
+    // 平时那一栏在对话列外面（对话卡片右侧）
+    expect(screen.getByTestId('chat-col').contains(panel)).toBe(false);
     expect(panel.textContent).toContain('app');
     await waitFor(() =>
       expect(screen.getByTestId('session-details-branch').textContent).toBe('release/2.3.3'),
@@ -268,9 +273,12 @@ describe('SessionDetailsToggle', () => {
     // 展开 Diff：自动收起（宽屏也一样）
     expect(screen.queryByTestId('session-details')).toBeNull();
     expect(btn.getAttribute('data-auto-hidden')).toBe('true');
-    // 再点按钮：浮层盖在对话上
+    // 再点按钮：浮层放进对话列，盖在对话右上角（不落到中栏上）
     fireEvent.click(btn);
     expect(screen.getByTestId('session-details').getAttribute('data-floating')).toBe('true');
+    expect(screen.getByTestId('chat-col').contains(screen.getByTestId('session-details'))).toBe(
+      true,
+    );
     // 点浮层里面不收回，点外面收回（还是自动收起，不改用户的开关）
     fireEvent.pointerDown(screen.getByTestId('session-details'));
     expect(screen.getByTestId('session-details')).toBeTruthy();

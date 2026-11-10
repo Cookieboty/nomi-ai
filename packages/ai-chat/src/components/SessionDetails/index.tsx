@@ -373,8 +373,15 @@ export const SessionDetailsToggle: React.FC<{
   );
 };
 
-/** 对话卡片右侧的一栏：显示着且会话有消息时才有（空会话不占地方） */
-export const SessionDetailsDock: React.FC<Props> = (props) => {
+/**
+ * 对话卡片右侧的一栏：显示着且会话有消息时才有（空会话不占地方）。
+ * 放两处：平时那一栏放在对话卡片右侧（overlay 不传）；自动收起后再打开的浮层放进对话列里（overlay），
+ * 盖在对话右上角，不落到中栏的 Diff / 文件预览上。
+ */
+export const SessionDetailsDock: React.FC<Props & { overlay?: boolean }> = ({
+  overlay = false,
+  ...props
+}) => {
   const v = useSessionDetails();
   const close = useCallback(() => {
     // 浮层只收回（还是自动收起的状态）；平时的一栏是用户关掉
@@ -382,6 +389,6 @@ export const SessionDetailsDock: React.FC<Props> = (props) => {
     else v?.close();
     document.querySelector<HTMLElement>('[data-testid="session-details-toggle"]')?.focus();
   }, [v]);
-  if (!v?.visible || !props.messages.length) return null;
+  if (!v?.visible || !props.messages.length || overlay !== v.floating) return null;
   return <DetailsPanel {...props} onClose={close} floating={v.floating} />;
 };
