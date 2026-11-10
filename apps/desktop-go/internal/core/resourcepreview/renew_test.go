@@ -93,8 +93,8 @@ func TestRenewRefusesExternalEditReplacementAndRevokedAccess(t *testing.T) {
 
 	t.Run("replaced inode", func(t *testing.T) {
 		s, path, opened := expiredEditable(t, original)
-		// Keep the original inode allocated so the replacement cannot reuse it.
-		held, err := os.Open(path)
+		// Keep the original file identity allocated so the replacement cannot reuse it.
+		held, err := pinFile(path)
 		if err != nil {
 			t.Fatal(err)
 		}
