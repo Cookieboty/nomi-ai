@@ -72,14 +72,13 @@ describe('themes', () => {
     applyTheme(DEFAULT_THEME);
     await setChatBackground({ imageUrl: CHAT_BG_PRESET_URL });
     const view = render(<ThemeSettings />);
-    // 默认一行 5 个，其余点「更多主题」展开
+    // 默认一行 5 个，其余点「更多主题」展开；「跟随系统」是标题行的开关，不占色卡
     expect(view.getAllByRole('radio')).toHaveLength(5);
-    expect(view.getByTestId('theme-more').textContent).toContain('4');
+    expect(view.getByTestId('theme-more').textContent).toContain('3');
     fireEvent.click(view.getByTestId('theme-more'));
-    expect(view.getAllByRole('radio')).toHaveLength(9);
-    expect(
-      (view.getByTestId('theme-system').firstElementChild as HTMLElement).style.backgroundImage,
-    ).toContain('linear-gradient');
+    expect(view.getAllByRole('radio')).toHaveLength(8);
+    expect(view.queryByTestId('theme-system')).toBeNull();
+    expect(view.getByTestId('theme-follow-system')).toBeTruthy();
     expect(view.queryByTestId('image-theme-settings')).toBeNull();
     fireEvent.click(view.getByTestId('theme-image'));
     await waitFor(() => expect(view.getByTestId('image-theme-settings')).toBeTruthy());
@@ -110,9 +109,14 @@ describe('themes', () => {
       expect(document.documentElement.getAttribute('data-theme')).toBe('cream');
       await waitFor(() => expect(set).toHaveBeenCalledWith({ pref: 'cream' }, expect.anything()));
       expect(r.getByTestId('theme-cream').getAttribute('aria-checked')).toBe('true');
-      fireEvent.click(r.getByTestId('theme-system'));
+      fireEvent.click(r.getByTestId('theme-follow-system'));
       await waitFor(() => expect(set).toHaveBeenCalledWith({ pref: 'system' }, expect.anything()));
       await waitFor(() => expect(currentTheme()).toEqual({ pref: 'system', resolved: 'cream' }));
+      // 关掉跟随系统：停在当前看到的那套
+      fireEvent.click(r.getByTestId('theme-follow-system'));
+      await waitFor(() =>
+        expect(set).toHaveBeenLastCalledWith({ pref: 'cream' }, expect.anything()),
+      );
       applyTheme('mist');
       expect(currentTheme().resolved).toBe('mist');
     } finally {
@@ -124,15 +128,29 @@ describe('themes', () => {
 });
 
 describe('主题排序', () => {
-  it('跟随系统在最前；当前主题不在第一行时挪到第二个，在第一行时不动', () => {
-    const ids = (pref: Parameters<typeof orderThemes>[0]) => orderThemes(pref).map((x) => x.id);
+  const custom = (id: string) => ({
+    id,
+    format: 1,
+    name: { zh: id },
+    base: 'light' as const,
+    seeds: {},
+  });
+  const ids = (pref: Parameters<typeof orderThemes>[0], customs = [custom('mine01')]) =>
+    orderThemes(pref, customs).map((x) => x.id);
+
+  it('我的主题在最前，不含跟随系统；当前主题在第一行时不动', () => {
     const base = ids('light');
-    expect(base[0]).toBe('system');
+    expect(base[0]).toBe('custom:mine01');
+    expect(base).not.toContain('system');
     expect(ids(base[2]!)).toEqual(base);
+  });
+
+  it('当前主题不在第一行时挪到第一行最后一个', () => {
+    const base = ids('light');
     const far = base[base.length - 1]!;
     const moved = ids(far);
-    expect(moved.slice(0, 2)).toEqual(['system', far]);
-    expect(moved.slice(0, THEMES_FIRST_ROW)).toContain(far);
+    expect(moved[0]).toBe('custom:mine01');
+    expect(moved[THEMES_FIRST_ROW - 1]).toBe(far);
     expect([...moved].sort()).toEqual([...base].sort());
   });
 });

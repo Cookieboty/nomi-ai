@@ -1,0 +1,206 @@
+/* 自定义主题编辑器（右侧抽屉，一栏）：基本颜色 → 样例与对比度（并排）→ 背景图 → 进阶 */
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-4);
+}
+.preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--cd-space-3);
+  align-items: start;
+}
+@media (max-width: 560px) {
+  .preview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-3);
+  min-width: 0;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+}
+.label {
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  color: var(--cd-color-text);
+}
+.hint {
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-xs);
+  color: var(--cd-color-text-muted);
+}
+.seedRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--cd-control-h-sm) 104px;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.seedLabel {
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text);
+}
+.picker {
+  width: var(--cd-control-h-sm);
+  height: var(--cd-control-h-sm);
+  padding: 0;
+  border: 1px solid var(--cd-color-border-strong);
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+.picker::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+.picker::-webkit-color-swatch {
+  border: none;
+  border-radius: var(--cd-radius-xs);
+}
+.picker:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
+.hex {
+  font-family: var(--cd-font-mono);
+}
+.sample {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface);
+}
+.sampleRow {
+  display: flex;
+  gap: var(--cd-space-2);
+}
+.sampleLink {
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-accent-strong);
+  text-decoration: underline;
+}
+.sampleMuted {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.contrast {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1-5);
+}
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.checks li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  font-size: var(--cd-font-size-xs);
+}
+.ok {
+  color: var(--cd-color-text-muted);
+}
+.ok svg {
+  color: var(--cd-color-success);
+}
+.low {
+  color: var(--cd-color-text);
+}
+.low svg {
+  color: var(--cd-color-warning);
+}
+.checkName {
+  min-width: 0;
+}
+.ratio {
+  font-variant-numeric: tabular-nums;
+}
+.lowNote {
+  grid-column: 2 / -1;
+  color: var(--cd-color-warning);
+}
+.error {
+  margin-top: var(--cd-space-3);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-danger);
+}
+/* 浅色、深色各一套 */
+.dualRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-3);
+}
+.dualText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+  min-width: 0;
+}
+/* 进阶：逐个覆盖颜色 */
+.tokenGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+  margin-top: var(--cd-space-3);
+}
+.tokenRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--cd-control-h-sm) 140px var(--cd-control-h-sm);
+  align-items: center;
+  gap: var(--cd-space-1-5);
+}
+.tokenName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+/* 背景图 */
+.bgRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.bgThumb {
+  width: 48px;
+  height: var(--cd-control-h-sm);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-sm);
+  background-size: cover;
+  background-position: center;
+}
+.sliderRow {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.sliderValue {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.errorInline {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-danger);
+}

@@ -16,6 +16,46 @@
 - 默认毛玻璃为 `0px`、蒙版不透明度为 `50%`；「恢复默认」恢复预设图片与这组参数，不会退出图片主题。
 - 图片主题使用石墨配色；委派卡片、任务与素材库面板同样使用透明表面。
 
+### 我的主题（自定义主题与主题包）
+
+可以自己配色，也可以导入别人分享的主题包。「主题」标题右侧依次是「跟随系统」开关、「新建主题」和「导入主题包」；自己的主题和内置主题在同一个色卡网格里，自己的排在最前（名字前有调色板图标）。
+
+- 「跟随系统」打开时在浅色与深色之间跟着系统切换；点任意一张色卡或关掉开关就固定下来（关掉时停在当前看到的那套）。
+- 「导入主题包」打开一个弹窗：把主题包拖进去，或点一下用系统选择框选文件；取消选择什么也不发生。拖入的文件不超过 12 MB，更大的请点选。弹窗里的「下载模板」保存一份带浅色、深色两套的模板（`nomi-theme-template.nomitheme.json`），改完直接导入。
+- 「新建主题」在右侧抽屉里打开，以当前主题的颜色为起点，填 4 个颜色：**强调色**、**背景**、**表面**（卡片、面板）、**文字**。也可以在「粘贴一组颜色」里一次贴入多个 `#rrggbb`，按这个顺序填入。
+- 其余颜色（悬停、选中、边框、次要文字、按钮按下等）自动推导。只有一套时，背景偏深按深色主题处理，窗口外观和提示色（成功、警告、错误）跟着深色走；偏浅按浅色处理。
+- 打开「浅色、深色各一套」后，浅色版、深色版分别配色，主题跟随系统外观在两套之间切换；另一套从默认的浅色 / 深色起步，沿用你的强调色。
+- 「进阶：逐个调整颜色」按分组列出可以覆盖的颜色，留空就用推导值；支持 `#rrggbb`、`rgb()`、`hsl()`、`oklch()`。
+- 「背景图」可以给主题加一张图（PNG、JPEG、WebP，不超过 15 MB；PNG、JPEG 长边超过 2560 像素会缩小），和图片主题一样调「毛玻璃」与「蒙版不透明度」，界面面板随之半透明。
+- 编辑时整个窗口实时预览正在编辑的那一套（含背景图），取消即还原；保存后切换到这个主题，所有窗口（含桌面角色的气泡）同步。
+- 对比度检查列出正文、次要文字、按钮文字和链接的对比度，低于 4.5:1 会标出来。按钮文字和链接看不清时会自动微调强调色；强调色本身在背景上不足 3:1 时也会调到刚好达标，用在开关、强调线等不放文字的地方。正文颜色不自动改。
+- 选中一个自定义主题后，色卡下方出现它的「编辑」「导出主题包」「删除」（编辑同样在抽屉里）。删除正在使用的主题会换回默认主题。最多保存 100 个。
+
+主题包没有背景图时是一个 JSON 文件（`.nomitheme.json`），有背景图时是一个 zip（`.nomitheme`，里面是 `theme.json` 和 `background.png` / `.jpg` / `.webp`）。`theme.json`：
+
+```json
+{
+  "format": 2,
+  "name": { "zh": "深海", "en": "Deep Sea" },
+  "author": "someone",
+  "base": "dark",
+  "seeds": { "accent": "#4fa3d9", "background": "#0f1a22", "surface": "#172632", "text": "#e6f0f5" },
+  "tokens": { "--cd-color-success": "#3fb47a" },
+  "variants": {
+    "light": { "seeds": { "accent": "#2f7fb8", "background": "#f4f7f9" } }
+  },
+  "background": { "image": "background.jpg", "blur": 0, "opacity": 0.5 }
+}
+```
+
+- `name` 可以是字符串，也可以按语言写 `zh` / `en`；`base` 为 `light` 或 `dark`。
+- `seeds` 可以只写其中几个，没写的取基底主题的颜色；取值为 `#rgb` 或 `#rrggbb`。
+- `tokens` 可选，直接覆盖推导结果，只接受 `packages/ui/src/themeTokens.ts` 列出的颜色令牌；取值只能是 hex、`rgb()`、`rgba()`、`hsl()`、`hsla()`、`oklch()`。
+- `variants` 可选，只能放与 `base` 相反的那一套（`seeds` / `tokens` 同上）；有它主题就跟随系统。
+- `background` 只在 zip 里有效，`image` 是包内图片的文件名；`blur` 为 0–40，`opacity` 为 0.05–1。
+- `format`：只用到 `name` / `base` / `seeds` / `tokens` 时导出为 `1`，用到 `variants` 或 `background` 时为 `2`；更早的版本不认 `2`，会拒绝导入。
+- `theme.json` 不超过 64 KB，图片不超过 15 MB。格式不对、出现未列出的令牌或其他写法（如 `url(...)`、`var(...)`）、zip 里有别的文件时整个包拒绝导入。
+
 ## 应用图标
 
 「外观」里的「应用图标」：**日落橙**（默认）、**奶油**、**墨色**。窗口、任务栏 / Dock 和托盘图标即时更新；安装包、可执行文件和 Finder / 开始菜单里的静态图标保持默认的墨色。macOS 菜单栏托盘始终是单色模板图标。图标素材见 [品牌规范](../BRAND.md)。
@@ -73,5 +113,5 @@
 
 ## 实现
 
-- 主题：`packages/ui/src/theme.ts`；快捷键：`packages/ai-chat/src/services/shortcuts.ts`；设置页：`packages/ai-chat/src/components/SettingsView`。
+- 主题：`packages/ui/src/theme.ts`，自定义主题的推导在 `packages/ui/src/customTheme.ts`，存储与主题包校验在 `apps/desktop-go/internal/core/theme`；快捷键：`packages/ai-chat/src/services/shortcuts.ts`；设置页：`packages/ai-chat/src/components/SettingsView`。
 - 应用图标切换：`apps/desktop-go/internal/core/appicon`。
