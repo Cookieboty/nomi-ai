@@ -556,7 +556,7 @@
 }
 
 /* ---------- 进出场动画（配合 usePresence：收起时元素带 data-closing，放完再卸载） ---------- */
-/* 弹出菜单：淡入并从上方轻落；收起反向 */
+/* 弹出菜单：从上方淡入落下；收起反向 */
 .cd-motion-pop {
   animation: cd-pop-in var(--cd-duration-fast) var(--cd-ease);
 }
@@ -567,14 +567,14 @@
 @keyframes cd-pop-in {
   from {
     opacity: 0;
-    translate: 0 -4px;
+    translate: 0 -8px;
     scale: 0.98;
   }
 }
 @keyframes cd-pop-out {
   to {
     opacity: 0;
-    translate: 0 -4px;
+    translate: 0 -8px;
     scale: 0.98;
   }
 }

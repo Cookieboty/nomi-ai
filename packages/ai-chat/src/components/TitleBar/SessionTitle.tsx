@@ -26,6 +26,7 @@ import { clearNomiAutoTitle } from '../../services/sessionTitle';
 import type { ConvMessage } from '../../types/conversation';
 import type { IPCClient } from '../../types/ipc';
 import { aggregateSessionChanges } from '../../utils/sessionChanges';
+import { titlebarMenuTop } from '../../utils/titlebarMenu';
 import chatHeaderStyles from '../ChatHeader/index.module.css';
 import { confirmDialog, promptDialog } from '../ConfirmDialog';
 import { ConversationMenu } from '../ConversationMenu';
@@ -173,7 +174,7 @@ export const SessionMenuButton: React.FC<{
         data-testid="titlebar-session-menu"
         onClick={() => {
           const r = btn.current?.getBoundingClientRect();
-          setAt(at || !r ? null : { x: r.right - 200, y: r.bottom + 4 });
+          setAt(at || !r ? null : { x: r.right - 200, y: titlebarMenuTop(r) });
         }}
       >
         <Icon icon={Ellipsis} size={16} />

@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useTranscriptView } from '../../hooks/useTranscriptView';
 import { TRANSCRIPT_VIEWS, type TranscriptView } from '../../services/transcriptView';
+import { titlebarMenuTop } from '../../utils/titlebarMenu';
 
 import styles from './index.module.css';
 import { TRANSCRIPT_VIEW_DESC_KEY, TRANSCRIPT_VIEW_LABEL_KEY } from './labels';
@@ -31,7 +32,7 @@ export const TranscriptViewButton: React.FC<{ sessionKey: string }> = ({ session
     const r = btn.current?.getBoundingClientRect();
     if (!r) return;
     const left = Math.max(4, Math.min(r.right - MENU_WIDTH, window.innerWidth - MENU_WIDTH - 4));
-    const below = r.bottom + 4;
+    const below = titlebarMenuTop(r);
     const top =
       below + MENU_EST_HEIGHT > window.innerHeight
         ? Math.max(4, r.top - MENU_EST_HEIGHT - 4)
