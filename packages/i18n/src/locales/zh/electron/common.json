@@ -603,5 +603,14 @@
   "electron.common.cli-did-not-confirm-the-permission-mode-so": "{0} 没有确认权限模式（{1}），这条消息没有发送",
   "electron.common.list-separator": "、",
   "electron.common.project-folder-denied": "「{0}」不能放进项目：{1}",
-  "electron.common.project-folder-nested": "「{0}」和「{1}」互相包含，同一个项目里的文件夹不能嵌套"
+  "electron.common.project-folder-nested": "「{0}」和「{1}」互相包含，同一个项目里的文件夹不能嵌套",
+  "electron.common.theme-pack": "主题包",
+  "electron.common.import-theme-pack": "导入主题包",
+  "electron.common.export-theme-pack": "导出主题包",
+  "electron.common.theme-pack-invalid": "这个文件不是有效的主题包",
+  "electron.common.theme-too-many": "最多保存 {0} 个自定义主题",
+  "electron.common.choose-theme-background": "选择主题背景图",
+  "electron.common.theme-image": "主题背景图",
+  "electron.common.theme-image-unsupported": "背景图只支持 PNG、JPEG、WebP，且不超过 {0} MB",
+  "electron.common.save-theme-template": "保存主题包模板"
 }

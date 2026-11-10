@@ -2,7 +2,7 @@
 # 列：状态(IMPL=已注册处理器 / STUB=procs.Install 补的 UNAVAILABLE 桩)  kind  过程名。
 # 规则：STUB 集合只减不增（shrink-only）；新增契约过程必须在 Go 端实现，禁止新增桩。
 # 更新：go test ./internal/procs/ -run TestCapabilityMatrix -update
-# 合计 454：已实现 454，桩 0。
+# 合计 462：已实现 462，桩 0。
 
 [agents] 已实现 3 / 桩 0
 IMPL	mutation	agents.scan
@@ -470,7 +470,15 @@ IMPL	mutation	tasks.runNow
 IMPL	mutation	tasks.setMode
 IMPL	mutation	tasks.update
 
-[theme] 已实现 2 / 桩 0
+[theme] 已实现 10 / 桩 0
+IMPL	mutation	theme.customDelete
+IMPL	mutation	theme.customExport
+IMPL	mutation	theme.customImport
+IMPL	mutation	theme.customImportData
+IMPL	query	theme.customList
+IMPL	mutation	theme.customPickBackground
+IMPL	mutation	theme.customSave
+IMPL	mutation	theme.customTemplate
 IMPL	query	theme.get
 IMPL	mutation	theme.set
 

@@ -36,6 +36,56 @@ export const shellProcedures = {
   // ---- theme（ThemeService）----
   'theme.get': { kind: 'query', input: v, output: S.ThemeState },
   'theme.set': { kind: 'mutation', input: S.ThemeSetInput, output: S.ThemeState },
+  // 自定义主题（设置 → 外观）：存储与主题包校验在内核
+  'theme.customList': { kind: 'query', input: v, output: z.array(S.CustomTheme), surfaces: CHAT },
+  'theme.customSave': {
+    kind: 'mutation',
+    input: S.CustomThemeSaveInput,
+    output: S.CustomTheme,
+    surfaces: CHAT,
+  },
+  /** 删的是正在用的主题时退回默认主题（推 theme.changed） */
+  'theme.customDelete': {
+    kind: 'mutation',
+    input: S.CustomThemeIdInput,
+    output: v,
+    surfaces: CHAT,
+  },
+  /** 内核弹出选择框读主题包并校验；取消 → null */
+  'theme.customImport': {
+    kind: 'mutation',
+    input: v,
+    output: S.CustomTheme.nullable(),
+    surfaces: CHAT,
+  },
+  /** 拖进导入框的主题包（视图读出的字节） */
+  'theme.customImportData': {
+    kind: 'mutation',
+    input: S.CustomThemeImportDataInput,
+    output: S.CustomTheme,
+    surfaces: CHAT,
+  },
+  /** 内核弹出保存框写出主题包模板；取消 → null，否则返回路径 */
+  'theme.customTemplate': {
+    kind: 'mutation',
+    input: v,
+    output: z.string().nullable(),
+    surfaces: CHAT,
+  },
+  /** 内核弹出选择框选背景图（暂存，保存主题时才归位）；取消 → null，否则返回图片地址 */
+  'theme.customPickBackground': {
+    kind: 'mutation',
+    input: v,
+    output: z.string().nullable(),
+    surfaces: CHAT,
+  },
+  /** 内核弹出保存框写出主题包（有背景图写 zip）；取消 → null，否则返回路径 */
+  'theme.customExport': {
+    kind: 'mutation',
+    input: S.CustomThemeIdInput,
+    output: z.string().nullable(),
+    surfaces: CHAT,
+  },
 
   // ---- locale（i18n/LocaleService）----
   'locale.get': { kind: 'query', input: v, output: S.LocaleState },

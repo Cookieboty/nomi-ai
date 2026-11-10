@@ -24,6 +24,8 @@ type Deps struct {
 	IsDark      func() bool
 	// LiveWindows：宿主存活窗口数（= host.liveWindows；onboarding.mascot 据此判断送达）
 	LiveWindows func() int
+	// ThemeDialogs：主题包导入 / 导出的系统对话框
+	ThemeDialogs ThemeDialogs
 }
 
 type Bundle struct {
@@ -91,6 +93,8 @@ func Install(d Deps) *Bundle {
 		}
 		return st, nil
 	})
+
+	installCustomThemes(r, b.Theme, d.ThemeDialogs)
 
 	r.Call("startup.get", func(context.Context, contract.Caller, json.RawMessage) (any, error) {
 		return b.Startup.Get(), nil

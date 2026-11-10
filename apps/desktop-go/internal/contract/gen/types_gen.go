@@ -9188,6 +9188,164 @@ type TasksUpdateOutput struct {
 	UpdatedAt float64                   `json:"updatedAt"`
 }
 
+type ThemeCustomDeleteInput struct {
+	Id string `json:"id"`
+}
+
+type ThemeCustomExportInput struct {
+	Id string `json:"id"`
+}
+
+// ThemeCustomImportOutputBase 枚举：light | dark
+type ThemeCustomImportOutputBase = string
+
+const (
+	ThemeCustomImportOutputBaseLight ThemeCustomImportOutputBase = "light"
+	ThemeCustomImportOutputBaseDark  ThemeCustomImportOutputBase = "dark"
+)
+
+type ThemeCustomImportOutputVariantsValue struct {
+	Seeds  map[string]string `json:"seeds"`
+	Tokens map[string]string `json:"tokens,omitempty"`
+}
+
+type ThemeCustomImportOutputBackground struct {
+	Image   string  `json:"image"`
+	Blur    float64 `json:"blur"`
+	Opacity float64 `json:"opacity"`
+}
+
+type ThemeCustomImportOutput struct {
+	Id         string                                          `json:"id"`
+	Format     float64                                         `json:"format"`
+	Name       map[string]string                               `json:"name"`
+	Author     *string                                         `json:"author,omitempty"`
+	Base       ThemeCustomImportOutputBase                     `json:"base"`
+	Seeds      map[string]string                               `json:"seeds"`
+	Tokens     map[string]string                               `json:"tokens,omitempty"`
+	Variants   map[string]ThemeCustomImportOutputVariantsValue `json:"variants,omitempty"`
+	Background *ThemeCustomImportOutputBackground              `json:"background,omitempty"`
+}
+
+type ThemeCustomImportDataInput struct {
+	Data any `json:"data"`
+}
+
+// ThemeCustomImportDataOutputBase 枚举：light | dark
+type ThemeCustomImportDataOutputBase = string
+
+const (
+	ThemeCustomImportDataOutputBaseLight ThemeCustomImportDataOutputBase = "light"
+	ThemeCustomImportDataOutputBaseDark  ThemeCustomImportDataOutputBase = "dark"
+)
+
+type ThemeCustomImportDataOutputVariantsValue struct {
+	Seeds  map[string]string `json:"seeds"`
+	Tokens map[string]string `json:"tokens,omitempty"`
+}
+
+type ThemeCustomImportDataOutputBackground struct {
+	Image   string  `json:"image"`
+	Blur    float64 `json:"blur"`
+	Opacity float64 `json:"opacity"`
+}
+
+type ThemeCustomImportDataOutput struct {
+	Id         string                                              `json:"id"`
+	Format     float64                                             `json:"format"`
+	Name       map[string]string                                   `json:"name"`
+	Author     *string                                             `json:"author,omitempty"`
+	Base       ThemeCustomImportDataOutputBase                     `json:"base"`
+	Seeds      map[string]string                                   `json:"seeds"`
+	Tokens     map[string]string                                   `json:"tokens,omitempty"`
+	Variants   map[string]ThemeCustomImportDataOutputVariantsValue `json:"variants,omitempty"`
+	Background *ThemeCustomImportDataOutputBackground              `json:"background,omitempty"`
+}
+
+// ThemeCustomListOutputItemBase 枚举：light | dark
+type ThemeCustomListOutputItemBase = string
+
+const (
+	ThemeCustomListOutputItemBaseLight ThemeCustomListOutputItemBase = "light"
+	ThemeCustomListOutputItemBaseDark  ThemeCustomListOutputItemBase = "dark"
+)
+
+type ThemeCustomListOutputItemVariantsValue struct {
+	Seeds  map[string]string `json:"seeds"`
+	Tokens map[string]string `json:"tokens,omitempty"`
+}
+
+type ThemeCustomListOutputItemBackground struct {
+	Image   string  `json:"image"`
+	Blur    float64 `json:"blur"`
+	Opacity float64 `json:"opacity"`
+}
+
+type ThemeCustomListOutputItem struct {
+	Id         string                                            `json:"id"`
+	Format     float64                                           `json:"format"`
+	Name       map[string]string                                 `json:"name"`
+	Author     *string                                           `json:"author,omitempty"`
+	Base       ThemeCustomListOutputItemBase                     `json:"base"`
+	Seeds      map[string]string                                 `json:"seeds"`
+	Tokens     map[string]string                                 `json:"tokens,omitempty"`
+	Variants   map[string]ThemeCustomListOutputItemVariantsValue `json:"variants,omitempty"`
+	Background *ThemeCustomListOutputItemBackground              `json:"background,omitempty"`
+}
+
+type ThemeCustomSaveInputVariantsValue struct {
+	Seeds  map[string]string `json:"seeds"`
+	Tokens map[string]string `json:"tokens,omitempty"`
+}
+
+type ThemeCustomSaveInputBackground struct {
+	Image   string  `json:"image"`
+	Blur    float64 `json:"blur"`
+	Opacity float64 `json:"opacity"`
+}
+
+type ThemeCustomSaveInput struct {
+	Id         *string                                      `json:"id,omitempty"`
+	Name       map[string]string                            `json:"name"`
+	Author     *string                                      `json:"author,omitempty"`
+	Base       string                                       `json:"base"`
+	Seeds      map[string]string                            `json:"seeds"`
+	Tokens     map[string]string                            `json:"tokens,omitempty"`
+	Variants   map[string]ThemeCustomSaveInputVariantsValue `json:"variants,omitempty"`
+	Background *ThemeCustomSaveInputBackground              `json:"background,omitempty"`
+}
+
+// ThemeCustomSaveOutputBase 枚举：light | dark
+type ThemeCustomSaveOutputBase = string
+
+const (
+	ThemeCustomSaveOutputBaseLight ThemeCustomSaveOutputBase = "light"
+	ThemeCustomSaveOutputBaseDark  ThemeCustomSaveOutputBase = "dark"
+)
+
+type ThemeCustomSaveOutputVariantsValue struct {
+	Seeds  map[string]string `json:"seeds"`
+	Tokens map[string]string `json:"tokens,omitempty"`
+}
+
+type ThemeCustomSaveOutputBackground struct {
+	Image   string  `json:"image"`
+	Blur    float64 `json:"blur"`
+	Opacity float64 `json:"opacity"`
+}
+
+type ThemeCustomSaveOutput struct {
+	Id         string                                        `json:"id"`
+	Format     float64                                       `json:"format"`
+	Name       map[string]string                             `json:"name"`
+	Author     *string                                       `json:"author,omitempty"`
+	Base       ThemeCustomSaveOutputBase                     `json:"base"`
+	Seeds      map[string]string                             `json:"seeds"`
+	Tokens     map[string]string                             `json:"tokens,omitempty"`
+	Variants   map[string]ThemeCustomSaveOutputVariantsValue `json:"variants,omitempty"`
+	Background *ThemeCustomSaveOutputBackground              `json:"background,omitempty"`
+}
+
 // ThemeGetOutputResolved 枚举：light | dark | mist | graphite | ink | cream | sunset
 type ThemeGetOutputResolved = string
 
@@ -9201,9 +9359,41 @@ const (
 	ThemeGetOutputResolvedSunset   ThemeGetOutputResolved = "sunset"
 )
 
+// ThemeGetOutputCustomBase 枚举：light | dark
+type ThemeGetOutputCustomBase = string
+
+const (
+	ThemeGetOutputCustomBaseLight ThemeGetOutputCustomBase = "light"
+	ThemeGetOutputCustomBaseDark  ThemeGetOutputCustomBase = "dark"
+)
+
+type ThemeGetOutputCustomVariantsValue struct {
+	Seeds  map[string]string `json:"seeds"`
+	Tokens map[string]string `json:"tokens,omitempty"`
+}
+
+type ThemeGetOutputCustomBackground struct {
+	Image   string  `json:"image"`
+	Blur    float64 `json:"blur"`
+	Opacity float64 `json:"opacity"`
+}
+
+type ThemeGetOutputCustom struct {
+	Id         string                                       `json:"id"`
+	Format     float64                                      `json:"format"`
+	Name       map[string]string                            `json:"name"`
+	Author     *string                                      `json:"author,omitempty"`
+	Base       ThemeGetOutputCustomBase                     `json:"base"`
+	Seeds      map[string]string                            `json:"seeds"`
+	Tokens     map[string]string                            `json:"tokens,omitempty"`
+	Variants   map[string]ThemeGetOutputCustomVariantsValue `json:"variants,omitempty"`
+	Background *ThemeGetOutputCustomBackground              `json:"background,omitempty"`
+}
+
 type ThemeGetOutput struct {
-	Pref     string                 `json:"pref"`
+	Pref     json.RawMessage        `json:"pref"`
 	Resolved ThemeGetOutputResolved `json:"resolved"`
+	Custom   *ThemeGetOutputCustom  `json:"custom,omitempty"`
 }
 
 type ThemeSetInput struct {
@@ -9223,9 +9413,41 @@ const (
 	ThemeSetOutputResolvedSunset   ThemeSetOutputResolved = "sunset"
 )
 
+// ThemeSetOutputCustomBase 枚举：light | dark
+type ThemeSetOutputCustomBase = string
+
+const (
+	ThemeSetOutputCustomBaseLight ThemeSetOutputCustomBase = "light"
+	ThemeSetOutputCustomBaseDark  ThemeSetOutputCustomBase = "dark"
+)
+
+type ThemeSetOutputCustomVariantsValue struct {
+	Seeds  map[string]string `json:"seeds"`
+	Tokens map[string]string `json:"tokens,omitempty"`
+}
+
+type ThemeSetOutputCustomBackground struct {
+	Image   string  `json:"image"`
+	Blur    float64 `json:"blur"`
+	Opacity float64 `json:"opacity"`
+}
+
+type ThemeSetOutputCustom struct {
+	Id         string                                       `json:"id"`
+	Format     float64                                      `json:"format"`
+	Name       map[string]string                            `json:"name"`
+	Author     *string                                      `json:"author,omitempty"`
+	Base       ThemeSetOutputCustomBase                     `json:"base"`
+	Seeds      map[string]string                            `json:"seeds"`
+	Tokens     map[string]string                            `json:"tokens,omitempty"`
+	Variants   map[string]ThemeSetOutputCustomVariantsValue `json:"variants,omitempty"`
+	Background *ThemeSetOutputCustomBackground              `json:"background,omitempty"`
+}
+
 type ThemeSetOutput struct {
-	Pref     string                 `json:"pref"`
+	Pref     json.RawMessage        `json:"pref"`
 	Resolved ThemeSetOutputResolved `json:"resolved"`
+	Custom   *ThemeSetOutputCustom  `json:"custom,omitempty"`
 }
 
 type TtsGetConfigOutput struct {
@@ -11066,9 +11288,41 @@ const (
 	EventThemeChangedResolvedSunset   EventThemeChangedResolved = "sunset"
 )
 
+// EventThemeChangedCustomBase 枚举：light | dark
+type EventThemeChangedCustomBase = string
+
+const (
+	EventThemeChangedCustomBaseLight EventThemeChangedCustomBase = "light"
+	EventThemeChangedCustomBaseDark  EventThemeChangedCustomBase = "dark"
+)
+
+type EventThemeChangedCustomVariantsValue struct {
+	Seeds  map[string]string `json:"seeds"`
+	Tokens map[string]string `json:"tokens,omitempty"`
+}
+
+type EventThemeChangedCustomBackground struct {
+	Image   string  `json:"image"`
+	Blur    float64 `json:"blur"`
+	Opacity float64 `json:"opacity"`
+}
+
+type EventThemeChangedCustom struct {
+	Id         string                                          `json:"id"`
+	Format     float64                                         `json:"format"`
+	Name       map[string]string                               `json:"name"`
+	Author     *string                                         `json:"author,omitempty"`
+	Base       EventThemeChangedCustomBase                     `json:"base"`
+	Seeds      map[string]string                               `json:"seeds"`
+	Tokens     map[string]string                               `json:"tokens,omitempty"`
+	Variants   map[string]EventThemeChangedCustomVariantsValue `json:"variants,omitempty"`
+	Background *EventThemeChangedCustomBackground              `json:"background,omitempty"`
+}
+
 type EventThemeChanged struct {
-	Pref     string                    `json:"pref"`
+	Pref     json.RawMessage           `json:"pref"`
 	Resolved EventThemeChangedResolved `json:"resolved"`
+	Custom   *EventThemeChangedCustom  `json:"custom,omitempty"`
 }
 
 // EventUpdatesChangedStatus 枚举：idle | checking | available | not-available | downloading | downloaded | error | unavailable
@@ -12698,6 +12952,38 @@ type TasksSetModeOutputT = *TasksSetModeOutput
 // TasksUpdateInputT 是 tasks.update 的入参
 type TasksUpdateInputT = TasksUpdateInput
 type TasksUpdateOutputT = TasksUpdateOutput
+
+// ThemeCustomDeleteInputT 是 theme.customDelete 的入参
+type ThemeCustomDeleteInputT = ThemeCustomDeleteInput
+type ThemeCustomDeleteOutputT = any
+
+// ThemeCustomExportInputT 是 theme.customExport 的入参
+type ThemeCustomExportInputT = ThemeCustomExportInput
+type ThemeCustomExportOutputT = string
+
+// ThemeCustomImportInputT 是 theme.customImport 的入参
+type ThemeCustomImportInputT = any
+type ThemeCustomImportOutputT = *ThemeCustomImportOutput
+
+// ThemeCustomImportDataInputT 是 theme.customImportData 的入参
+type ThemeCustomImportDataInputT = ThemeCustomImportDataInput
+type ThemeCustomImportDataOutputT = ThemeCustomImportDataOutput
+
+// ThemeCustomListInputT 是 theme.customList 的入参
+type ThemeCustomListInputT = any
+type ThemeCustomListOutputT = []ThemeCustomListOutputItem
+
+// ThemeCustomPickBackgroundInputT 是 theme.customPickBackground 的入参
+type ThemeCustomPickBackgroundInputT = any
+type ThemeCustomPickBackgroundOutputT = string
+
+// ThemeCustomSaveInputT 是 theme.customSave 的入参
+type ThemeCustomSaveInputT = ThemeCustomSaveInput
+type ThemeCustomSaveOutputT = ThemeCustomSaveOutput
+
+// ThemeCustomTemplateInputT 是 theme.customTemplate 的入参
+type ThemeCustomTemplateInputT = any
+type ThemeCustomTemplateOutputT = string
 
 // ThemeGetInputT 是 theme.get 的入参
 type ThemeGetInputT = any

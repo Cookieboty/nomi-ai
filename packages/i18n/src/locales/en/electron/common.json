@@ -603,5 +603,14 @@
   "electron.common.cli-did-not-confirm-the-permission-mode-so": "{0} did not confirm the permission mode ({1}), so this message was not sent",
   "electron.common.list-separator": ", ",
   "electron.common.project-folder-denied": "“{0}” can’t be added to a project: {1}",
-  "electron.common.project-folder-nested": "“{0}” and “{1}” contain one another; folders in a project can’t be nested"
+  "electron.common.project-folder-nested": "“{0}” and “{1}” contain one another; folders in a project can’t be nested",
+  "electron.common.theme-pack": "Theme pack",
+  "electron.common.import-theme-pack": "Import theme pack",
+  "electron.common.export-theme-pack": "Export theme pack",
+  "electron.common.theme-pack-invalid": "This file isn't a valid theme pack",
+  "electron.common.theme-too-many": "You can keep up to {0} custom themes",
+  "electron.common.choose-theme-background": "Choose a theme background image",
+  "electron.common.theme-image": "Theme background image",
+  "electron.common.theme-image-unsupported": "Background images must be PNG, JPEG or WebP, up to {0} MB",
+  "electron.common.save-theme-template": "Save theme pack template"
 }

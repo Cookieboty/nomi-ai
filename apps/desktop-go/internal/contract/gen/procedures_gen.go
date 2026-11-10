@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 454：mutation 318 / query 131 / stream 5
+// 合计 462：mutation 325 / query 132 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -405,6 +405,14 @@ var Procedures = []Procedure{
 	{Name: "tasks.runNow", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.setMode", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "tasks.update", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "theme.customDelete", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "theme.customExport", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "theme.customImport", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "theme.customImportData", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "theme.customList", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "theme.customPickBackground", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "theme.customSave", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "theme.customTemplate", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "theme.get", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "theme.set", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tts.getConfig", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},

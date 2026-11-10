@@ -156,6 +156,26 @@ func main() {
 			d, ok := sh.(interface{ IsDarkMode() bool })
 			return ok && d.IsDarkMode()
 		},
+		ThemeDialogs: shellhandlers.ThemeDialogs{
+			PickFile: func(title, filterName string, exts []string) (string, error) {
+				w, _ := sh.(*wailsshell.Wails)
+				if w == nil {
+					return "", nil
+				}
+				picked, err := w.PickFiles(title, []wailsshell.SaveFileFilter{{Name: filterName, Extensions: exts}})
+				if err != nil || len(picked) == 0 {
+					return "", err
+				}
+				return picked[0], nil
+			},
+			SaveFile: func(title, defaultName, filterName string, exts []string) (string, error) {
+				w, _ := sh.(*wailsshell.Wails)
+				if w == nil {
+					return "", nil
+				}
+				return w.SaveFile(title, defaultName, []wailsshell.SaveFileFilter{{Name: filterName, Extensions: exts}})
+			},
+		},
 	})
 	isl := island.New(filepath.Join(userData, "island.json"), mascothandlers.Platform())
 	isl.PrimaryDisplay = func() (island.Display, bool) {

@@ -9,7 +9,7 @@
 
 import { z } from 'zod';
 
-import { AvatarSemanticName } from '../schemas';
+import { AvatarSemanticName, Bytes } from '../schemas';
 
 type Shape = Record<string, z.ZodType>;
 
@@ -37,8 +37,60 @@ export const opaqueObject = z.custom<object>(
 // ---------------------------------------------------------------------------
 
 export const ThemeId = z.enum(['light', 'dark', 'mist', 'graphite', 'ink', 'cream', 'sunset']);
-export const ThemePref = z.union([ThemeId, z.literal('system'), z.literal('image')]);
-export const ThemeState = loose({ pref: ThemePref, resolved: ThemeId });
+/** 自定义主题的选择值：`custom:<id>` */
+export const CustomThemePref = z.custom<`custom:${string}`>(
+  (v) => typeof v === 'string' && /^custom:[a-z0-9]{1,32}$/.test(v),
+  { message: 'Expected custom:<id>' },
+);
+export const ThemePref = z.union([
+  ThemeId,
+  z.literal('system'),
+  z.literal('image'),
+  CustomThemePref,
+]);
+/**
+ * 自定义主题 / 主题包（packages/ui 的 CustomThemeDef）：基底 + 种子色 + 覆盖令牌。
+ * 令牌名与取值的白名单校验在 Go 内核（internal/core/theme），这里只约束形状。
+ */
+const ThemeVariant = loose({
+  seeds: z.record(z.string(), z.string()),
+  tokens: z.record(z.string(), z.string()).optional(),
+});
+/** 背景图（chat-asset://themes/…）与蒙版 */
+export const ThemeBackground = loose({ image: z.string(), blur: z.number(), opacity: z.number() });
+export const CustomTheme = loose({
+  id: z.string(),
+  format: z.number(),
+  name: z.record(z.string(), z.string()),
+  author: z.string().optional(),
+  base: z.enum(['light', 'dark']),
+  seeds: z.record(z.string(), z.string()),
+  tokens: z.record(z.string(), z.string()).optional(),
+  /** 另一套明暗（键与 base 相反）：有就跟随系统 */
+  variants: z.record(z.string(), ThemeVariant).optional(),
+  background: ThemeBackground.optional(),
+});
+export const ThemeState = loose({
+  pref: ThemePref,
+  resolved: ThemeId,
+  /** pref 是自定义主题时带上定义（各窗口据此推导令牌） */
+  custom: CustomTheme.nullish(),
+});
+/** 新建（不带 id）或更新（带 id） */
+export const CustomThemeSaveInput = z.object({
+  id: z.string().optional(),
+  name: z.record(z.string(), z.string()),
+  author: z.string().optional(),
+  base: z.string(),
+  seeds: z.record(z.string(), z.string()),
+  tokens: z.record(z.string(), z.string()).optional(),
+  variants: z.record(z.string(), ThemeVariant).optional(),
+  /** image 只能是这个主题现有的图，或 theme.customPickBackground 给的地址 */
+  background: ThemeBackground.optional(),
+});
+export const CustomThemeIdInput = z.object({ id: z.string() });
+/** 拖进导入框的主题包（JSON 或 zip 的原始字节）；内核与选文件导入同一套校验 */
+export const CustomThemeImportDataInput = z.object({ data: Bytes });
 /** 旧 id（如 `paper`）由主进程归一，所以这里只要求字符串 */
 export const ThemeSetInput = z.object({ pref: z.string() });
 
