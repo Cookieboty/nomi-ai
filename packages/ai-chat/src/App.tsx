@@ -23,6 +23,7 @@ import { MessageInput } from './components/MessageInput';
 import { onboardingClient } from './components/Onboarding/client';
 import { OnboardingHost } from './components/Onboarding/host';
 import { PendingDock } from './components/PendingDock';
+import { usePreviewChatWindow } from './components/PreviewChat/usePreviewChatWindow';
 import { ProviderLinkHost } from './components/ProviderLink';
 import { ReleaseNotesHost } from './components/ReleaseNotesModal';
 import { RestartUpdateButton } from './components/RestartUpdateButton';
@@ -45,11 +46,13 @@ import {
   useAiChatSelector,
 } from './contexts/aiChatStore';
 import { HarnessTabsProvider, useHarnessTabsCore } from './contexts/HarnessTabsContext';
+import { ResourceScopeProvider } from './contexts/ResourceContext';
 import { useChatMode } from './hooks/useChatMode';
 import { useComposerPending } from './hooks/useComposerPending';
 import { useHarnessState } from './hooks/useHarnessState';
 import { useIslandOpenItem } from './hooks/useIslandOpenItem';
 import { useMainPages } from './hooks/useMainPages';
+import { useResourcePreview } from './hooks/useResourcePreview';
 import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSessionComposerDrafts } from './hooks/useSessionComposerDrafts';
 import { useMigrateCliTranscriptView } from './hooks/useTranscriptView';
@@ -64,10 +67,6 @@ import { useCliImageSupport } from './utils/cliImageSupport';
 import { cliTabPlaceholder } from './utils/cliTabPlaceholder';
 import { fromHarnessMessage, nomiConvMessages, settledNomiMessages } from './utils/convAdapters';
 import './App.css';
-
-import { ResourceScopeProvider } from './contexts/ResourceContext';
-import { useResourcePreview } from './hooks/useResourcePreview';
-import { usePreviewChatWindow } from './components/PreviewChat/usePreviewChatWindow';
 
 const selectSettledNomi = (s: AiChatState) => settledNomiMessages(s.messages, selectBusyHere(s));
 
@@ -329,8 +328,8 @@ const AiChatContent: React.FC = () => {
                 <div className="session-bar chat-session-bar">
                   <SessionControls />
                 </div>
-                {/* 会话详情自动收起后再打开：浮在对话列右上角 */}
-                {!mainHidden && (
+                {/* 会话详情自动收起后再打开：浮在对话列右上角；文件专注模式下对话列是底部浮窗，不放 */}
+                {!mainHidden && !(resourcePreview.isOpen && resourcePreview.expanded) && (
                   <SessionDetailsDock overlay messages={rail.messages} cwd={rail.cwd} />
                 )}
                 <main className="chat-container">

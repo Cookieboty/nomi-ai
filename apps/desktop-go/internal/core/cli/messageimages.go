@@ -188,7 +188,10 @@ func (s MessageImageStore) Markdown(text, origin string) string {
 	})
 }
 
-func (s MessageImageStore) Messages(messages []*util.Obj, backend string) {
+// Messages normalizes images in place and reports whether any message changed,
+// so callers can skip rewriting an unchanged transcript to disk.
+func (s MessageImageStore) Messages(messages []*util.Obj, backend string) bool {
+	changed := false
 	for _, msg := range messages {
 		if msg == nil {
 			continue
@@ -199,17 +202,39 @@ func (s MessageImageStore) Messages(messages []*util.Obj, backend string) {
 				if len(refs) > 0 {
 					msg.Set("content", text)
 					msg.Set("images", refs)
+					changed = true
 				}
 			}
 		}
 
-		if refs, ok := msg.Get("images").([]any); ok {
+		if refs, ok := msg.Get("images").([]any); ok && imagesNeedNormalizing(refs) {
 			msg.Set("images", s.Images(refs, "user"))
+			changed = true
 		}
 		if msg.Get("role") == "assistant" {
-			msg.Set("content", s.Markdown(util.Str(msg.Get("content")), backend))
+			old := util.Str(msg.Get("content"))
+			if text := s.Markdown(old, backend); text != old {
+				msg.Set("content", text)
+				changed = true
+			}
 		}
 	}
+	return changed
+}
+
+// imagesNeedNormalizing: Images leaves already-normalized entries as they are, so only
+// raw references (a "ref" to import), empty slots or an over-long list change anything.
+func imagesNeedNormalizing(refs []any) bool {
+	if len(refs) > clisdk.MaxMessageImages {
+		return true
+	}
+	for _, raw := range refs {
+		ref := util.AsObj(raw)
+		if ref == nil || util.Str(ref.Get("ref")) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // Leave fenced/inline code samples untouched when persisting rendered images.

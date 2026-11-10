@@ -134,3 +134,22 @@ func TestImageMarkdownPreservesCodeAndResolvesRelativeImages(t *testing.T) {
 		t.Fatal("code changed or relative image unresolved")
 	}
 }
+
+// Re-reading an evicted tab re-runs Messages: an already normalized transcript must
+// report no change, otherwise every reload rewrites the whole message file.
+func TestImageStoreMessagesReportsChanges(t *testing.T) {
+	src := "data:image/png;base64," + base64.StdEncoding.EncodeToString(imageFixture(t))
+	store := MessageImageStore{ChatRoot: t.TempDir()}
+	user := util.NewObj("role", "user", "content", "look", "images", []any{clisdk.ImageReference(src, "a.png")})
+	assistant := util.NewObj("role", "assistant", "content", "![out]("+src+")")
+	if !store.Messages([]*util.Obj{user, assistant}, "codex") {
+		t.Fatal("raw images should be reported as a change")
+	}
+	before := util.Stringify(user) + util.Stringify(assistant)
+	if store.Messages([]*util.Obj{user, assistant, util.NewObj("role", "assistant", "content", "plain")}, "codex") {
+		t.Fatal("normalized messages should not be reported as changed")
+	}
+	if util.Stringify(user)+util.Stringify(assistant) != before {
+		t.Fatal("normalized messages were modified")
+	}
+}

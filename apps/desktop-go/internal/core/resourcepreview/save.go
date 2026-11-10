@@ -28,9 +28,12 @@ func (s *Service) Save(url, revision, content string) SaveResult {
 		return saveFail("invalid")
 	}
 	token := strings.TrimPrefix(url, Prefix)
+	// Only the capability table is locked; file IO (reads, fsync, rename) runs outside so
+	// autosave does not stall preview requests. Concurrent saves are settled by the
+	// on-disk revision check right before the rename.
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	cap, ok := s.items[token]
+	s.mu.Unlock()
 	if !ok || time.Since(cap.at) > ttl {
 		return saveFail("expired")
 	}
@@ -90,7 +93,13 @@ func (s *Service) Save(url, revision, content string) SaveResult {
 	if err != nil {
 		return saveFail("write")
 	}
-	cap.info, cap.revision, cap.at = updated, revisionOf(content), time.Now()
-	s.items[token] = cap
-	return SaveResult{OK: true, Revision: cap.revision}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	next := revisionOf(content)
+	// The file is written; record it unless the preview was closed meanwhile.
+	if latest, ok := s.items[token]; ok {
+		latest.info, latest.revision, latest.at = updated, next, time.Now()
+		s.items[token] = latest
+	}
+	return SaveResult{OK: true, Revision: next}
 }

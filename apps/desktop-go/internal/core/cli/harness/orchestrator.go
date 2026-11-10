@@ -974,8 +974,8 @@ func (o *Orchestrator) TabMessages(id string) []*util.Obj {
 	o.touchMessages(id)
 	if !o.migratedImgTabs[id] {
 		o.migrateStoredImageLinks(id, list)
-		if o.d.ImageStore != nil {
-			o.imageStoreFor(id).Messages(list, str(o.tab(id), "backend"))
+		// 被回收的标签再读时会重跑这里：没改动就不重写整份消息文件
+		if o.d.ImageStore != nil && o.imageStoreFor(id).Messages(list, str(o.tab(id), "backend")) {
 			o.persistMessages(id)
 		}
 		o.migratedImgTabs[id] = true
