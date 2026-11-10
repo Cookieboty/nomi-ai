@@ -18,11 +18,8 @@ func ParseTranscript(text string, fallbackAt float64) []sh.Json {
 			if e.Get("isMeta") == true {
 				continue
 			}
-			t, _ := sh.Blocks(msg.Get("content"))
 			sh.FeedBlocks(b, msg.Get("content"), at, "")
-			if t != "" {
-				b.User(t, at)
-			}
+			b.UserContent(msg.Get("content"), at)
 		case "assistant":
 			if e.Get("isApiErrorMessage") == true {
 				continue

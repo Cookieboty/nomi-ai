@@ -21,6 +21,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/ports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/resourcepreview"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
@@ -51,6 +52,7 @@ type QualitySink interface{ AddCli(record *util.Obj) }
 
 // Deps = HarnessOrchestrator 构造参数 d。可选数值用指针（nil = 缺省）。
 type Deps struct {
+	ImageStore             *cli.MessageImageStore
 	Root                   string
 	Logger                 Logger
 	Home                   string
@@ -252,6 +254,8 @@ type Orchestrator struct {
 	modelCatalogGen        map[string]float64
 	worktreeDirs           []string
 	appEvents              AppEvents
+
+	preview *resourcepreview.Service
 
 	live liveState // 各后端长驻会话（orchestrator_live*.go）
 }
@@ -968,6 +972,10 @@ func (o *Orchestrator) TabMessages(id string) []*util.Obj {
 	}
 	if !o.migratedImgTabs[id] {
 		o.migrateStoredImageLinks(id, list)
+		if o.d.ImageStore != nil {
+			o.imageStoreFor(id).Messages(list, str(o.tab(id), "backend"))
+			o.persistMessages(id)
+		}
 		o.migratedImgTabs[id] = true
 	}
 	return o.messages[id]
@@ -1002,6 +1010,11 @@ func (o *Orchestrator) migrateStoredImageLinks(id string, list []*util.Obj) {
 }
 
 func (o *Orchestrator) appendMessage(id string, msg *util.Obj) {
+	if o.d.ImageStore != nil {
+		if tab := o.tab(id); tab != nil {
+			o.imageStoreFor(id).Messages([]*util.Obj{msg}, str(tab, "backend"))
+		}
+	}
 	if t := o.tab(id); t != nil {
 		t.Set("updatedAt", msg.Get("timestamp"))
 	}

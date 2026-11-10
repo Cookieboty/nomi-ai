@@ -32,7 +32,6 @@ import {
   joinFileAttachments,
   type FileAttachment,
 } from '../../services/fileAttachments';
-import { kbClient } from '../../services/kbClient';
 import { memClient } from '../../services/memClient';
 import { nomiModelLabel, nomiModelMeta } from '../../services/nomiModel';
 import { schedClient } from '../../services/schedClient';
@@ -77,11 +76,15 @@ import type { SettingsSection } from '../SettingsView/sections';
 import { AgentPalette, ModelArgPalette, SlashPalette } from '../SlashPalette';
 import { VoiceButtons, VoiceSettingsModal, VoiceStatusRow, useChatVoice } from '../VoiceInput';
 
+import { ComposerReferenceLinks } from './ComposerReferenceLinks';
 import { ImageLightbox } from './ImageLightbox';
 import styles from './index.module.css';
 import { PlusMenu } from './PlusMenu';
 import type { MessageInputProps } from './types';
 import { useAutoHeight } from './useAutoHeight';
+import { useCompactComposerLayout } from './useCompactComposerLayout';
+import { useKnowledgeMode } from './useKnowledgeMode';
+import { useReferenceDraft } from './useReferenceDraft';
 
 const log = createLogger('message-input');
 
@@ -97,6 +100,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   placeholder = tr('ui.knowledge-local.type-a-message'),
   queue,
   disabled = false,
+  compact = false,
+  floating = false,
   onProvidersClick,
   onDesktopClick,
   onHubClick,
@@ -122,14 +127,16 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const activeDraftStore = draftStore ?? localDraftStore;
   const activeDraftKey = draftKey ?? SHARED_UNSENT;
   const {
-    text: message,
-    setText: setMessage,
+    text: rawDraft,
+    setText: setRawDraft,
     images,
     setImages,
     files,
     setFiles,
     clearActive,
   } = useComposerDraftBinding(activeDraftStore, activeDraftKey);
+  const linkedDraft = useReferenceDraft(rawDraft, setRawDraft);
+  const { text: message, setText: setMessage } = linkedDraft;
   const [menuOpen, setMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [slashIdx, setSlashIdx] = useState(0);
@@ -148,15 +155,30 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const [atIdx, setAtIdx] = useState(0);
   const [atClosed, setAtClosed] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const multiline = useCompactComposerLayout(textareaRef, message, compact && floating);
+  const newlineCaret = useRef<number | null>(null);
   // 列向 flex 里 flex:1 的基准高度是 0，行内 height 不生效，所以这里按内容写回，并封顶。
-  useAutoHeight(textareaRef, message, COMPOSER_MIN_HEIGHT_PX, COMPOSER_MAX_HEIGHT_PX);
+  useAutoHeight(
+    textareaRef,
+    message,
+    compact || floating ? 24 : COMPOSER_MIN_HEIGHT_PX,
+    COMPOSER_MAX_HEIGHT_PX,
+  );
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el || newlineCaret.current === null) return;
+    const caret = newlineCaret.current;
+    newlineCaret.current = null;
+    el.setSelectionRange(caret, caret);
+    if (caret === el.value.length) el.scrollTop = el.scrollHeight;
+  }, [message]);
   // 挂载时已有的请求视为处理过（切标签重挂载不再重复填入）
   const seenFill = useRef(fill?.nonce);
   const fillNonce = fill?.nonce;
   useEffect(() => {
     if (!fill || fill.nonce === seenFill.current) return;
     seenFill.current = fill.nonce;
-    setMessage((cur) => (cur.trim() ? `${cur.replace(/\s+$/, '')}\n\n${fill.text}` : fill.text));
+    linkedDraft.append(fill.text);
     requestAnimationFrame(() => {
       const el = textareaRef.current;
       if (!el) return;
@@ -174,36 +196,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   // 知识库问答模式（Ctrl/Cmd+Shift+K 切换），记住上次的选择
   // `/cli 名字`：下一个需求交给哪个编程助手（输入栏上的 chip，点 × 取消）
   const nextDelegate = useNextDelegate();
-  const [kbMode, setKbMode] = useState(() => {
-    try {
-      return localStorage.getItem('cd.chat.kbMode') === '1';
-    } catch {
-      return false;
-    }
-  });
-  const kbAvailable = kbClient.available();
-  const toggleKb = useCallback(() => {
-    setKbMode((v) => {
-      try {
-        localStorage.setItem('cd.chat.kbMode', v ? '0' : '1');
-      } catch {
-        /* ignore */
-      }
-      return !v;
-    });
-    requestAnimationFrame(() => textareaRef.current?.focus());
-  }, []);
-  useEffect(() => {
-    if (!kbAvailable) return;
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (matchShortcut(e, getBindings().kbAsk)) {
-        e.preventDefault();
-        toggleKb();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [kbAvailable, toggleKb]);
+  const { kbMode, kbAvailable, toggleKb } = useKnowledgeMode(textareaRef);
 
   // ───── 图片附件：粘贴 / 拖入（images/files 由 draft binding 持有）─────
   /** 点缩略图放大查看的那张 */
@@ -356,7 +349,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
 
   const handleSend = async (mode: PendingMode = 'steer') => {
     let trimmedMessage =
-      message.trim() ||
+      linkedDraft.serialized.trim() ||
       (images.length
         ? tr('ui.knowledge-local.please-take-a-look-at-this-image')
         : files.length
@@ -421,10 +414,22 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // 处理输入法组合状态
     if (isComposing || isImeComposing(e.nativeEvent)) return;
-    if (e.key === 'Home' || e.key === 'End') {
+
+    // macOS / Windows 统一 Alt+Enter 换行；先处理，避免补全菜单把它当成执行。
+    if (e.key === 'Enter' && e.altKey) {
+      e.preventDefault();
+      const el = e.currentTarget;
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      newlineCaret.current = start + 1;
+      setMessage(`${el.value.slice(0, start)}\n${el.value.slice(end)}`);
+      return;
+    }
+    // Shift+Enter 使用文本域原生换行（包括撤销），不要被补全菜单截走。
+    if (e.key === 'Enter' && e.shiftKey) return;
+    if ((e.key === 'Home' || e.key === 'End') && !e.altKey) {
       e.preventDefault();
       moveTextareaToLineBoundary(e.currentTarget, e.key, e.shiftKey, e.ctrlKey || e.metaKey);
-      syncCaret();
       return;
     }
 
@@ -547,7 +552,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       return;
     }
 
-    // Ctrl/Cmd + Enter：运行中排队到这一轮结束；空闲时照常发送
+    // Ctrl/⌘+Enter 发送；运行中排队到当前轮结束后再发。
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
       void handleSend('queue');
@@ -606,7 +611,9 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   // 仅在运行中（busy）才可能出现停止键：排队模式下输入为空才停止（有字时发送键是「排队」）。
   // 旧写法缺 busy 前置条件，导致 CLI 标签空闲时也显示停止键（点击 tabs.cancel 空操作）。
   const canStop =
-    !!stopFn && busy && (!queue || (!message.trim() && !images.length && !files.length));
+    !!stopFn &&
+    busy &&
+    (!queue || (!linkedDraft.serialized.trim() && !images.length && !files.length));
 
   // 语音：自动发送（对话空闲时）或填入输入框
   const busyRef = useRef(false);
@@ -926,12 +933,15 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       <div className={styles.voiceRow}>
         <VoiceStatusRow cv={cv} />
       </div>
-      <PermissionTip />
+      {!compact && <PermissionTip />}
       {viewing && images.some((x) => x.id === viewing.id) && (
         <ImageLightbox image={viewing} onClose={closeViewer} />
       )}
       {contextMessages?.length ? <ComposerChangesPill messages={contextMessages} /> : null}
-      <div className={`${styles.inputWrapper} ${dragOver ? styles.dragOver : ''}`}>
+      <div
+        className={`${styles.inputWrapper} ${compact ? styles.compact : ''} ${floating ? styles.floating : ''} ${multiline ? styles.multiline : ''} ${dragOver ? styles.dragOver : ''}`}
+        data-compact={compact || undefined}
+      >
         {slashOpen && (
           <SlashPalette
             groups={slashGroups}
@@ -1026,6 +1036,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
             </div>
           </div>
         )}
+        <ComposerReferenceLinks draft={linkedDraft} />
         <textarea
           ref={textareaRef}
           value={message}
@@ -1100,16 +1111,19 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
               </button>
             )}
             {/* Codex 式：左边是 + 与权限模式，模型放到右边、挨着语音与发送 */}
-            <div className={styles.modelStatus}>
-              <EndpointControls part="mode" />
-            </div>
+            {!compact && (
+              <div className={styles.modelStatus}>
+                <EndpointControls part="mode" />
+              </div>
+            )}
           </div>
           <div className={styles.composerRight} data-zone="right">
             <div className={styles.modelStatus} data-testid="composer-model">
               <EndpointControls part="model" />
             </div>
-            <VoiceButtons cv={cv} disabled={disabled} />
-            {contextMessages?.length ? (
+            {compact && <EndpointControls part="mode" />}
+            {!compact && <VoiceButtons cv={cv} disabled={disabled} />}
+            {!compact && contextMessages?.length ? (
               <ContextUsageBar messages={contextMessages} model={contextModel} />
             ) : null}
             {canStop ? (
@@ -1126,7 +1140,9 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
             ) : (
               <button
                 onClick={() => void handleSend()}
-                disabled={isDisabled || (!message.trim() && !images.length && !files.length)}
+                disabled={
+                  isDisabled || (!linkedDraft.serialized.trim() && !images.length && !files.length)
+                }
                 className={styles.sendButton}
                 title={
                   queue && busy

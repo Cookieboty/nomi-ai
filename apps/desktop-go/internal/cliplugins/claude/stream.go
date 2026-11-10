@@ -110,6 +110,12 @@ func ParseLine(line string, state *StreamState) []Ev {
 		if ev != nil && util.Truthy(ev.Get("content_block")) {
 			out = append(out, sh.ImageEvent(ev.Get("content_block"), true, false)...)
 		}
+	case typ == "user":
+		if j.Get("isMeta") != true {
+			if ev := UserImageEvent(util.AsObj(j.Get("message")).Get("content"), util.Str(j.Get("uuid"))); ev != nil {
+				out = append(out, ev)
+			}
+		}
 	case typ == "assistant":
 		msg, _ := j.Get("message").(*util.Obj)
 		if state != nil && parentID(j) == nil {

@@ -23,6 +23,7 @@ export type ShortcutId =
   | 'palette'
   | 'newChat'
   | 'searchChats'
+  | 'forkChat'
   | 'focusInput'
   | 'settings'
   | 'sidebar'
@@ -52,7 +53,12 @@ export const isMac = (): boolean =>
 export const SHORTCUT_DEFS: ShortcutDef[] = [
   { id: 'palette', label: 'ui.mascot-theme.command-palette', combo: 'Mod+K' },
   { id: 'newChat', label: 'ui.chat-settings.new-chat', combo: 'Mod+N' },
-  { id: 'searchChats', label: 'ui.cli-monitor.search-conversations', combo: 'Mod+F' },
+  { id: 'searchChats', label: 'ui.cli-monitor.search-conversations', combo: 'Mod+Shift+F' },
+  {
+    id: 'forkChat',
+    label: 'ui.cli-monitor.fork-the-current-conversation-into-a-new-one',
+    combo: 'Mod+Shift+T',
+  },
   { id: 'focusInput', label: 'ui.mascot-theme.focus-message-input', combo: 'Mod+L' },
   { id: 'settings', label: 'ui.chat-settings.open-settings', combo: 'Mod+,' },
   { id: 'sidebar', label: 'ui.chat-settings.collapse-expand-sidebar', combo: 'Mod+B' },
@@ -73,10 +79,10 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
 /** 不可改绑、仅展示的按键 */
 export const FIXED_SHORTCUTS: Array<[string, string]> = [
   ['/', 'ui.chat-settings.open-commands-in-the-input-box'],
-  ['Enter / Shift+Enter', 'ui.chat-settings.send-new-line'],
+  ['Enter / Alt+Enter / Shift+Enter', 'ui.chat-settings.send-new-line'],
   ['ui.chat-settings.when-input-is-empty', 'ui.chat-settings.recall-last-prompt'],
   ['ui.chat-settings.f2-hold', 'ui.chat-settings.talk'],
-  ['Mod+Shift+F', 'ui.cli-monitor.fork-the-current-conversation-into-a-new-one'],
+  ['Mod+F', 'ui.session-workspace.preview-find'],
   ['Esc', 'ui.mascot-theme.close-dialog-menu'],
   ['ui.cli-monitor.enter-in-menus', 'ui.cli-monitor.move-between-menu-items-confirm'],
   ['Mod+1…9', 'ui.cli-monitor.switch-to-tab-n-9-last-tab'],
@@ -84,6 +90,8 @@ export const FIXED_SHORTCUTS: Array<[string, string]> = [
 
 /** 系统 / 编辑常用组合：改绑到这些上会给出冲突提示 */
 export const RESERVED: Record<string, string> = {
+  'Mod+F': 'ui.session-workspace.preview-find',
+  'Alt+Enter': 'ui.chat-settings.send-new-line',
   'Mod+C': 'ui.knowledge-local.copy',
   'Mod+V': 'ui.mascot-theme.paste',
   'Mod+X': 'ui.mascot-theme.cut',
@@ -106,7 +114,11 @@ function loadOverrides(): Partial<Record<ShortcutId, string>> {
     const out: Partial<Record<ShortcutId, string>> = {};
     for (const d of SHORTCUT_DEFS) {
       const v = raw[d.id];
-      if (typeof v === 'string' && v) out[d.id] = normalizeCombo(v);
+      if (typeof v !== 'string' || !v) continue;
+      const combo = normalizeCombo(v);
+      // Migrate the former global-search binding; keep unrelated custom bindings.
+      if (d.id === 'searchChats' && combo === 'Mod+F') continue;
+      out[d.id] = combo;
     }
     return out;
   } catch {

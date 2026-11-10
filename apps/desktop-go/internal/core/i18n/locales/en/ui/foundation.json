@@ -89,7 +89,6 @@
   "ui.foundation.granted-folders": "Granted folders",
   "ui.foundation.grants-permissions-and-the-activity-log-are-stored": "Grants, permissions and the activity log are stored only on this device. Nomi can only access folders you grant here; deletions always go to the trash and can be undone.",
   "ui.foundation.h": "{0} h",
-  "ui.foundation.headers-one-key-value-per-line-e-g": "Headers (one KEY=VALUE per line, e.g. Authorization=Bearer …)",
   "ui.foundation.help-me-organize-today-s-to-dos": "Help me organize today's to-dos",
   "ui.foundation.help-me-write-some-code": "Help me write some code",
   "ui.foundation.hi-please-introduce-yourself": "Hi, please introduce yourself",
@@ -327,5 +326,10 @@
   "ui.foundation.sandbox-allow-write": "Writing allowed",
   "ui.foundation.sandbox-allow-remove": "Stop allowing",
   "ui.foundation.sandbox-allow-remove-aria": "Stop allowing {0}",
-  "ui.foundation.sandbox-allow-project": "Only in {0}"
+  "ui.foundation.sandbox-allow-project": "Only in {0}",
+  "ui.foundation.mcp-header-add": "Add header",
+  "ui.foundation.mcp-header-key": "Header {0} name",
+  "ui.foundation.mcp-header-remove": "Remove header {0}",
+  "ui.foundation.mcp-header-value": "Header {0} value",
+  "ui.foundation.mcp-request-headers": "Request headers (optional)"
 }

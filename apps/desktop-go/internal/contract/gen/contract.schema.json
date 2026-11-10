@@ -19059,6 +19059,344 @@
     ]
    }
   },
+  "harness.previewClose": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "url"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
+  "harness.previewExternal": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cwd": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string",
+      "maxLength": 8192
+     },
+     "allowOutside": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "cwd",
+     "path"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "code": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "kind": {
+      "type": "string"
+     },
+     "mime": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     },
+     "truncated": {
+      "type": "boolean"
+     },
+     "editable": {
+      "type": "boolean"
+     },
+     "revision": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "harness.previewListDirectory": {
+   "kind": "query",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string",
+      "maxLength": 8192
+     },
+     "path": {
+      "type": "string",
+      "maxLength": 8192
+     }
+    },
+    "required": [
+     "url",
+     "path"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "code": {
+      "type": "string"
+     },
+     "entries": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "path": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "file",
+          "dir"
+         ]
+        }
+       },
+       "required": [
+        "name",
+        "path",
+        "kind"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "truncated": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "harness.previewOpen": {
+   "kind": "query",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cwd": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string",
+      "maxLength": 8192
+     },
+     "allowOutside": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "cwd",
+     "path"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "code": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "kind": {
+      "type": "string"
+     },
+     "mime": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     },
+     "truncated": {
+      "type": "boolean"
+     },
+     "editable": {
+      "type": "boolean"
+     },
+     "revision": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "harness.previewSave": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string",
+      "maxLength": 8192
+     },
+     "revision": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64
+     },
+     "content": {
+      "type": "string",
+      "maxLength": 1500000
+     }
+    },
+    "required": [
+     "url",
+     "revision",
+     "content"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "code": {
+      "type": "string"
+     },
+     "revision": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "harness.previewWeb": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string",
+      "maxLength": 8192
+     }
+    },
+    "required": [
+     "url"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "code": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "kind": {
+      "type": "string"
+     },
+     "mime": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     },
+     "truncated": {
+      "type": "boolean"
+     },
+     "editable": {
+      "type": "boolean"
+     },
+     "revision": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "harness.recentCwds": {
    "kind": "query",
    "dangerous": false,

@@ -50,7 +50,7 @@ describe('conversation-only font size', () => {
       repoPath('packages/ai-chat/src/components/MessageInput/index.module.css'),
       'utf8',
     );
-    const rules = [...inputCss.matchAll(/\.messageTextarea\s*\{([^}]+)\}/g)];
+    const rules = [...inputCss.matchAll(/(?:^|\n)\.messageTextarea\s*\{([^}]+)\}/g)];
     expect(rules.at(-1)?.[1]).toContain('font-size: 14px');
     expect(inputCss).not.toContain('--composer-text');
     const conversationCss = readFileSync(

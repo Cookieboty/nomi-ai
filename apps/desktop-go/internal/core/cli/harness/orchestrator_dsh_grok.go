@@ -200,7 +200,13 @@ func (o *Orchestrator) spawnCollect(tab *util.Obj, opts collectOpts) *jsrt.Promi
 		}
 		driver := drivers.NewExecDriver(do)
 		take := func(rawEv *util.Obj, live bool) {
-			ev := rawEv
+			if rawEv.Get("type") == "user-message" {
+				if live {
+					o.receiveUserImages(id, rawEv)
+				}
+				return
+			}
+			ev := o.normalizeImageEvent(id, rawEv)
 			if ev.Get("type") == "tool" && truthy(ev.Get("output")) {
 				MaterializeGeneratedImages(jsStr(ev.Get("output")), o.home, chatRoot, imageAliases)
 				text = RewriteGeneratedImageLinks(text, imageAliases)

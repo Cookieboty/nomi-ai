@@ -541,6 +541,11 @@ func (o *Orchestrator) onClaudeLine(tabID string, live *claudeLiveSession, line 
 	dropAfter := false
 	for _, raw := range live.parseLine(line) {
 		ev := WithPermissionExpiry(clisdk.StampEvent(raw, nowMs()), o.PermissionTimeoutMs(tabID))
+		if ev.Get("type") == "user-message" {
+			o.receiveUserImages(tabID, ev)
+			continue
+		}
+		ev = o.normalizeImageEvent(tabID, ev)
 		if turn == nil && isTurnContent(ev) {
 			turn = o.startAutoTurn(tabID, live)
 		}

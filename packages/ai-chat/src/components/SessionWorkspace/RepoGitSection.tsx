@@ -37,7 +37,7 @@ import { editsElsewhere, samePath, worktreeLabel } from '../../utils/worktrees';
 import { BranchPicker } from '../BranchPicker';
 
 import { useChangesUi } from './ChangesUiContext';
-import { FilePreview, type PreviewFile } from './FilePreview';
+import { FileReview, type ReviewFile } from './FileReview';
 import { GitCommitBox, GitSyncButtons, useGitOps } from './GitCommitBox';
 import styles from './SessionWorkspace.module.css';
 import pane from './WorkspacePane.module.css';
@@ -405,7 +405,7 @@ export const RepoGitSection: React.FC<{
   if (report.state !== 'git' || show === 'none') return null;
 
   const mine = !!previewKey?.startsWith(keyPrefix);
-  const previewFiles: PreviewFile[] = gitItems.map(
+  const previewFiles: ReviewFile[] = gitItems.map(
     ({ entry: g, letter, diff: d, added, removed, key }) => {
       const gitDiff: ToolFileDiff | undefined = d
         ? { file: d.file, diff: parsePatch(d.body) }
@@ -648,7 +648,7 @@ export const RepoGitSection: React.FC<{
       )}
       {mine && previewSlot && previewFiles.some((f) => f.key === previewKey)
         ? createPortal(
-            <FilePreview
+            <FileReview
               hideFileTabs
               files={previewFiles}
               activeKey={previewKey!}

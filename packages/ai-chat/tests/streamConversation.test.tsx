@@ -100,6 +100,39 @@ describe('Nomi 流式回复 · 会话固定与停止生成', () => {
   beforeEach(() => localStorage.clear());
   afterEach(cleanup);
 
+  it('删除最后一个会话后首次发送仍显示等待、计时和停止状态', async () => {
+    const f = fakeClient();
+    const ref = mount(f.client);
+    await flush();
+    const ipc = ref.api.state.ipcClient as SdkIPCClient;
+    const oldId = ipc.conversationStore().ensureCurrent();
+    await act(async () => {
+      await ref.api.actions.loadChatHistory();
+    });
+    await act(async () => {
+      await ipc.deleteConversation(oldId);
+      await ref.api.actions.clearChatHistory();
+    });
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = ref.api.actions.sendStreamMessage('新会话问题');
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    });
+    try {
+      expect(ipc.currentConversationId()).not.toBe(oldId);
+      expect(selectBusyHere(ref.api.state)).toBe(true);
+      expect(ref.api.state.isLoading).toBe(true);
+      expect(ref.api.state.streaming).toBe(true);
+    } finally {
+      f.finish();
+      await act(async () => {
+        await pending;
+      });
+    }
+    expect(selectBusyHere(ref.api.state)).toBe(false);
+    expect(ipc.conversationStore().get(oldId)).toBeUndefined();
+  });
+
   it('回复中切到别的会话再切回：之前的消息还在，进行中的这一轮补回来，用时从这一轮的提问算起', async () => {
     const f = fakeClient();
     const ref = mount(f.client);

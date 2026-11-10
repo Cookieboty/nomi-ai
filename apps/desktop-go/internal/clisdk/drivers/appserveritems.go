@@ -102,8 +102,10 @@ func CodexExecItem(item Json) Json {
 		status = kv{k: "status"}
 	}
 	switch item.Get("type") {
+	case "userMessage":
+		return obj(val("type", "user_message"), id, f("content", src(item, "content")))
 	case "agentMessage":
-		return obj(val("type", "agent_message"), id, f("text", src(item, "text")))
+		return obj(val("type", "agent_message"), id, f("text", src(item, "text")), f("content", src(item, "content")))
 	case "reasoning":
 		var parts []string
 		for _, k := range []string{"summary", "content"} {

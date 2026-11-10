@@ -1006,7 +1006,10 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     dispatch({ type: 'SET_ERROR', payload: undefined });
     try {
       await stateRef.current.ipcClient.clearChatHistory();
-      dispatch({ type: 'CLEAR_MESSAGES' });
+      dispatch({
+        type: 'CLEAR_MESSAGES',
+        convoId: stateRef.current.ipcClient.currentConversationId?.(),
+      });
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
     }

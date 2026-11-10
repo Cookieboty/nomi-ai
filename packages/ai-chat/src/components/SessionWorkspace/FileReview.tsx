@@ -1,9 +1,9 @@
 /**
- * 多文件预览：Tab / 面包屑、切文件保留滚动与选区、←→ 切文件、
+ * 多文件改动审查：Tab / 面包屑、切文件保留滚动与选区、←→ 切文件、
  * 磁盘内容可编辑保存（cwd 沙箱）、可选丢弃本轮 diff。
  */
 import { t } from '@nomi-ai/ui';
-import { ChevronLeft, ChevronRight, Eye, FileCode2, RotateCcw, Save, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileCode2, RotateCcw, Save, X } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
@@ -13,16 +13,13 @@ import type { FileDiff } from '../../utils/toolTrace';
 import { undoErrorText, undoTurnChanges } from '../../utils/undoTurnChanges';
 import { workspaceRelPath } from '../../utils/workspacePath';
 import { DiffView } from '../Conversation/DiffView';
-import { Markdown } from '../Conversation/Markdown';
 
 import styles from './SessionWorkspace.module.css';
 
-/** diff；file = 编辑磁盘内容；render = Markdown 渲染预览（只对 .md） */
-export type PreviewMode = 'diff' | 'file' | 'render';
+/** 只负责 Diff 和编辑；只读文件浏览统一由 ResourcePreview 负责。 */
+export type ReviewMode = 'diff' | 'file';
 
-const isMarkdownPath = (p: string) => /\.(md|markdown|mdx)$/i.test(p);
-
-export interface PreviewFile {
+export interface ReviewFile {
   key: string;
   path: string;
   letter?: string;
@@ -47,8 +44,8 @@ interface FileViewState {
   dirty?: boolean;
 }
 
-export const FilePreview: React.FC<{
-  files: PreviewFile[];
+export const FileReview: React.FC<{
+  files: ReviewFile[];
   activeKey: string;
   cwd?: string | null;
   onActiveKey: (key: string) => void;
@@ -56,8 +53,6 @@ export const FilePreview: React.FC<{
   onSaved?: () => void;
   /** 旁边已有文件列表（右栏）时不再显示文件标签条 */
   hideFileTabs?: boolean;
-  /** .md 文件先显示渲染后的预览（看产物时用；工作台审改动仍先看 Diff / 编辑） */
-  preferRender?: boolean;
   /** 根节点额外的类（放进抽屉时撑满高度） */
   className?: string;
 }> = ({
@@ -68,7 +63,6 @@ export const FilePreview: React.FC<{
   onClose,
   onSaved,
   hideFileTabs = false,
-  preferRender = false,
   className,
 }) => {
   const [loading, setLoading] = useState(false);
@@ -78,7 +72,7 @@ export const FilePreview: React.FC<{
   const [saving, setSaving] = useState(false);
   /** 应用内确认「丢弃本轮变更」（取代 window.confirm） */
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  /** 每个文件的草稿 / 是否有未保存改动（渲染要用，所以放 state；滚动 / 选区不参与渲染，留在 viewState） */
+  /** 每个文件的草稿 / 是否有未保存改动（保存按钮要用，所以放 state；滚动 / 选区留在 viewState） */
   const [meta, setMeta] = useState<Record<string, { draft?: string; dirty?: boolean }>>({});
   const commitMeta = useCallback((key: string, draft: string | undefined, dirty: boolean) => {
     setMeta((m) =>
@@ -100,13 +94,8 @@ export const FilePreview: React.FC<{
   // 在渲染期就把模式 / 待确认丢弃重置好（而不是等 effect 之后再来一次渲染）：
   // 读盘 effect 只会看到最终的模式，切文件不会为旧模式多读一次盘
   const activeHasDiff = !!(active?.change?.diff || active?.gitDiff);
-  const initialMode: PreviewMode =
-    preferRender && active && isMarkdownPath(active.path)
-      ? 'render'
-      : activeHasDiff
-        ? 'diff'
-        : 'file';
-  const [mode, setMode] = useState<PreviewMode>(initialMode);
+  const initialMode: ReviewMode = activeHasDiff ? 'diff' : 'file';
+  const [mode, setMode] = useState<ReviewMode>(initialMode);
   const [modeKey, setModeKey] = useState(activeKey);
   if (modeKey !== activeKey) {
     setModeKey(activeKey);
@@ -234,7 +223,7 @@ export const FilePreview: React.FC<{
   useEffect(() => {
     // loadDisk 是「读盘 → 写 state」的数据同步，loading / 重置 state 在其开头同步设置是有意的
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (mode === 'file' || mode === 'render') void loadDisk();
+    if (mode === 'file') void loadDisk();
     else {
       requestAnimationFrame(() => {
         const el = bodyRef.current;
@@ -355,16 +344,13 @@ export const FilePreview: React.FC<{
   if (!active) return null;
 
   const hasDiff = !!(active.change?.diff || active.gitDiff);
-  const isMd = isMarkdownPath(active.path);
-  // 预览渲染未保存的草稿（切到预览前 persistView 已存下）
-  const renderText = meta[active.key]?.draft ?? disk;
   const dirty = !!meta[active.key]?.dirty;
 
   return (
     <div
       ref={rootRef}
       className={className ? `${styles.preview} ${className}` : styles.preview}
-      data-testid="file-preview"
+      data-testid="file-review"
       tabIndex={-1}
     >
       <header className={styles.previewHead}>
@@ -433,23 +419,6 @@ export const FilePreview: React.FC<{
               <FileCode2 size={12} />
               {t('ui.foundation.edit')}
             </button>
-            {isMd ? (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === 'render'}
-                data-active={mode === 'render' || undefined}
-                className={styles.modeTab}
-                onClick={() => {
-                  persistView();
-                  setMode('render');
-                }}
-                data-testid="preview-mode-render"
-              >
-                <Eye size={12} />
-                {t('ui.foundation.preview')}
-              </button>
-            ) : null}
           </div>
           {mode !== 'diff' && !binary && (
             <button
@@ -572,17 +541,6 @@ export const FilePreview: React.FC<{
               {t('ui.session-workspace.no-diff-switch-to-file-to-view-disk')}
             </p>
           )}
-        </div>
-      ) : mode === 'render' ? (
-        <div className={styles.previewBody} data-testid="preview-render-body">
-          {loading ? (
-            <p className={styles.empty}>{t('ui.session-workspace.reading')}</p>
-          ) : (
-            <Markdown text={renderText} className={styles.mdPreview} settled />
-          )}
-          {dirty ? (
-            <span className={styles.dirtyHint}>{t('ui.session-workspace.unsaved')}</span>
-          ) : null}
         </div>
       ) : (
         <div className={styles.previewBody} data-testid="preview-file-body">

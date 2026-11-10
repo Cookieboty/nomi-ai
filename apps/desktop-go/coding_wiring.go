@@ -228,6 +228,7 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 	}
 	history := jsrt.Call(func() *cli.SessionHistoryService {
 		return cli.NewSessionHistoryService(cli.SessionHistoryDeps{
+			ImageStore:     &cli.MessageImageStore{ChatRoot: filepath.Join(userData, "chat"), DirOK: cliImageDirectoryAllowed},
 			Logger:         historyLog{},
 			GatewaySession: gatewaySession,
 			Trash: func(p string) *jsrt.Promise[struct{}] {

@@ -5684,6 +5684,103 @@ type HarnessPickDirInput struct {
 	DefaultPath *string `json:"defaultPath,omitempty"`
 }
 
+type HarnessPreviewCloseInput struct {
+	Url string `json:"url"`
+}
+
+type HarnessPreviewExternalInput struct {
+	Cwd          string `json:"cwd"`
+	Path         string `json:"path"`
+	AllowOutside *bool  `json:"allowOutside,omitempty"`
+}
+
+type HarnessPreviewExternalOutput struct {
+	Ok        bool    `json:"ok"`
+	Code      *string `json:"code,omitempty"`
+	Path      *string `json:"path,omitempty"`
+	Kind      *string `json:"kind,omitempty"`
+	Mime      *string `json:"mime,omitempty"`
+	Url       *string `json:"url,omitempty"`
+	Content   *string `json:"content,omitempty"`
+	Truncated *bool   `json:"truncated,omitempty"`
+	Editable  *bool   `json:"editable,omitempty"`
+	Revision  *string `json:"revision,omitempty"`
+}
+
+type HarnessPreviewListDirectoryInput struct {
+	Url  string `json:"url"`
+	Path string `json:"path"`
+}
+
+// HarnessPreviewListDirectoryOutputEntriesItemKind 枚举：file | dir
+type HarnessPreviewListDirectoryOutputEntriesItemKind = string
+
+const (
+	HarnessPreviewListDirectoryOutputEntriesItemKindFile HarnessPreviewListDirectoryOutputEntriesItemKind = "file"
+	HarnessPreviewListDirectoryOutputEntriesItemKindDir  HarnessPreviewListDirectoryOutputEntriesItemKind = "dir"
+)
+
+type HarnessPreviewListDirectoryOutputEntriesItem struct {
+	Name string                                           `json:"name"`
+	Path string                                           `json:"path"`
+	Kind HarnessPreviewListDirectoryOutputEntriesItemKind `json:"kind"`
+}
+
+type HarnessPreviewListDirectoryOutput struct {
+	Ok        bool                                           `json:"ok"`
+	Code      *string                                        `json:"code,omitempty"`
+	Entries   []HarnessPreviewListDirectoryOutputEntriesItem `json:"entries,omitempty"`
+	Truncated *bool                                          `json:"truncated,omitempty"`
+}
+
+type HarnessPreviewOpenInput struct {
+	Cwd          string `json:"cwd"`
+	Path         string `json:"path"`
+	AllowOutside *bool  `json:"allowOutside,omitempty"`
+}
+
+type HarnessPreviewOpenOutput struct {
+	Ok        bool    `json:"ok"`
+	Code      *string `json:"code,omitempty"`
+	Path      *string `json:"path,omitempty"`
+	Kind      *string `json:"kind,omitempty"`
+	Mime      *string `json:"mime,omitempty"`
+	Url       *string `json:"url,omitempty"`
+	Content   *string `json:"content,omitempty"`
+	Truncated *bool   `json:"truncated,omitempty"`
+	Editable  *bool   `json:"editable,omitempty"`
+	Revision  *string `json:"revision,omitempty"`
+}
+
+type HarnessPreviewSaveInput struct {
+	Url      string `json:"url"`
+	Revision string `json:"revision"`
+	Content  string `json:"content"`
+}
+
+type HarnessPreviewSaveOutput struct {
+	Ok       bool    `json:"ok"`
+	Code     *string `json:"code,omitempty"`
+	Revision *string `json:"revision,omitempty"`
+}
+
+type HarnessPreviewWebInput struct {
+	Url string `json:"url"`
+}
+
+type HarnessPreviewWebOutput struct {
+	Ok        bool    `json:"ok"`
+	Code      *string `json:"code,omitempty"`
+	Path      *string `json:"path,omitempty"`
+	Kind      *string `json:"kind,omitempty"`
+	Mime      *string `json:"mime,omitempty"`
+	Url       *string `json:"url,omitempty"`
+	Content   *string `json:"content,omitempty"`
+	Truncated *bool   `json:"truncated,omitempty"`
+	Editable  *bool   `json:"editable,omitempty"`
+	Revision  *string `json:"revision,omitempty"`
+}
+
 // HarnessReplyApprovePlanInputChoice 枚举：acceptEdits | manual | deny
 type HarnessReplyApprovePlanInputChoice = string
 
@@ -11819,6 +11916,30 @@ type HarnessPermissionDefaultsOutputT = HarnessPermissionDefaultsOutput
 // HarnessPickDirInputT 是 harness.pickDir 的入参
 type HarnessPickDirInputT = HarnessPickDirInput
 type HarnessPickDirOutputT = string
+
+// HarnessPreviewCloseInputT 是 harness.previewClose 的入参
+type HarnessPreviewCloseInputT = HarnessPreviewCloseInput
+type HarnessPreviewCloseOutputT = bool
+
+// HarnessPreviewExternalInputT 是 harness.previewExternal 的入参
+type HarnessPreviewExternalInputT = HarnessPreviewExternalInput
+type HarnessPreviewExternalOutputT = HarnessPreviewExternalOutput
+
+// HarnessPreviewListDirectoryInputT 是 harness.previewListDirectory 的入参
+type HarnessPreviewListDirectoryInputT = HarnessPreviewListDirectoryInput
+type HarnessPreviewListDirectoryOutputT = HarnessPreviewListDirectoryOutput
+
+// HarnessPreviewOpenInputT 是 harness.previewOpen 的入参
+type HarnessPreviewOpenInputT = HarnessPreviewOpenInput
+type HarnessPreviewOpenOutputT = HarnessPreviewOpenOutput
+
+// HarnessPreviewSaveInputT 是 harness.previewSave 的入参
+type HarnessPreviewSaveInputT = HarnessPreviewSaveInput
+type HarnessPreviewSaveOutputT = HarnessPreviewSaveOutput
+
+// HarnessPreviewWebInputT 是 harness.previewWeb 的入参
+type HarnessPreviewWebInputT = HarnessPreviewWebInput
+type HarnessPreviewWebOutputT = HarnessPreviewWebOutput
 
 // HarnessRecentCwdsInputT 是 harness.recentCwds 的入参
 type HarnessRecentCwdsInputT = any

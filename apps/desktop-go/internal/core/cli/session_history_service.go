@@ -76,6 +76,7 @@ type HistoryOpenTabResult struct {
 
 // SessionHistoryDeps = SessionHistoryDeps（空串 / nil = undefined）。
 type SessionHistoryDeps struct {
+	ImageStore                *MessageImageStore
 	Home, DshHome, GeminiHome string
 	HasHome, HasDshHome       bool
 	Env                       *util.Obj
@@ -806,6 +807,11 @@ func (s *SessionHistoryService) transcript(backend, sessionID string) *util.Obj 
 				}
 			}()
 			msgs = ParseTranscript(backend, text, f.Mtime)
+			if s.d.ImageStore != nil {
+				store := *s.d.ImageStore
+				store.Cwd = util.Str(f.meta.Get("cwd"))
+				store.Messages(msgs, backend)
+			}
 		}()
 		if err == nil {
 			if len(msgs) == 0 {

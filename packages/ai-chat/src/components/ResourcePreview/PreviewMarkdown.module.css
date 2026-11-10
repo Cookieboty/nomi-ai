@@ -1,0 +1,219 @@
+.md {
+  font-size: var(--cd-font-size-md);
+  line-height: var(--cd-line-height-lg);
+  color: var(--cd-color-text);
+  overflow-wrap: anywhere;
+}
+.md > :first-child {
+  margin-top: 0;
+}
+.md > :last-child {
+  margin-bottom: 0;
+}
+.md p {
+  margin: 0 0 0.7em;
+}
+.md h1,
+.md h2,
+.md h3,
+.md h4,
+.md h5,
+.md h6 {
+  margin: 1.1em 0 0.45em;
+  line-height: 1.35;
+  font-weight: var(--cd-font-weight-bold);
+}
+.md h2 {
+  font-size: 1.25em;
+}
+.md h3 {
+  font-size: 1.12em;
+}
+.md h4,
+.md h5,
+.md h6 {
+  font-size: 1em;
+}
+.md ul,
+.md ol {
+  margin: 0 0 0.7em;
+  padding-left: 1.4em;
+}
+.md li {
+  margin: 0.2em 0;
+}
+.md li > p {
+  margin: 0;
+}
+.md li > ul,
+.md li > ol {
+  margin: 0.2em 0 0;
+}
+.task {
+  list-style: none;
+  margin-left: -1.2em;
+}
+.task input {
+  margin-right: 0.5em;
+  vertical-align: middle;
+}
+.md a {
+  cursor: pointer;
+  color: var(--cd-color-accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.md blockquote {
+  margin: 0 0 0.7em;
+  padding: 0 0 0 var(--cd-space-3);
+  border-left: 3px solid var(--cd-color-border-strong);
+  color: var(--cd-color-text-muted);
+}
+.md hr {
+  border: none;
+  border-top: 1px solid var(--cd-color-border);
+  margin: 1em 0;
+}
+.inlineCode {
+  font-family: var(--cd-font-mono);
+  font-size: 0.875em;
+  padding: 1px 5px;
+  border-radius: var(--cd-radius-xs);
+  background: var(--cd-color-bg-subtle);
+  border: 1px solid var(--cd-color-border);
+}
+.codeBlock {
+  margin: 0 0 0.8em;
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-bg-subtle);
+  overflow: hidden;
+}
+.codeHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px var(--cd-space-1-5) 3px 10px;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+  border-bottom: 1px solid var(--cd-color-border);
+}
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--cd-radius-xs);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease);
+}
+.copyBtn:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.copyBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent);
+}
+.codePre {
+  margin: 0;
+  background: transparent;
+  padding: 10px var(--cd-space-3);
+  max-height: none;
+  overflow: auto;
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-sm);
+  line-height: 1.55;
+  white-space: pre;
+}
+.tableWrap {
+  overflow-x: auto;
+  margin: 0 0 0.8em;
+}
+/* Native layout deferral keeps the complete DOM for selection, editing and find.
+   It applies to table wrappers, never to internal table rows/cells. */
+.md[data-preview-large-markdown] .tableWrap {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto calc(var(--preview-table-lines, 32) * var(--cd-line-height-lg));
+}
+.md[data-preview-large-markdown] .tableWrap[data-preview-revealed] {
+  content-visibility: visible;
+}
+.md table {
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+.md th,
+.md td {
+  padding: var(--cd-space-1) 10px;
+  border: 1px solid var(--cd-color-border);
+}
+.md th {
+  background: var(--cd-color-bg-subtle);
+  font-weight: var(--cd-font-weight-medium);
+}
+
+/* rehype-highlight 产出的 hljs-* class：映射到当前主题的 token 颜色，
+   不依赖具体明暗主题的硬编码色值。*/
+.codePre code:global(.hljs) {
+  display: block;
+  overflow-x: auto;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+.codePre :global(.hljs-comment),
+.codePre :global(.hljs-quote),
+.codePre :global(.hljs-meta) {
+  color: var(--cd-color-text-muted);
+  font-style: italic;
+}
+.codePre :global(.hljs-keyword),
+.codePre :global(.hljs-selector-tag),
+.codePre :global(.hljs-literal),
+.codePre :global(.hljs-section),
+.codePre :global(.hljs-link),
+.codePre :global(.hljs-doctag) {
+  color: var(--cd-color-accent-strong);
+  font-weight: var(--cd-font-weight-medium);
+}
+.codePre :global(.hljs-string),
+.codePre :global(.hljs-title),
+.codePre :global(.hljs-name),
+.codePre :global(.hljs-type),
+.codePre :global(.hljs-attribute),
+.codePre :global(.hljs-symbol),
+.codePre :global(.hljs-bullet),
+.codePre :global(.hljs-addition),
+.codePre :global(.hljs-variable),
+.codePre :global(.hljs-template-tag),
+.codePre :global(.hljs-template-variable) {
+  color: var(--cd-color-success);
+}
+.codePre :global(.hljs-number),
+.codePre :global(.hljs-regexp),
+.codePre :global(.hljs-built_in),
+.codePre :global(.hljs-class) :global(.hljs-title),
+.codePre :global(.hljs-params) {
+  color: var(--cd-color-warning);
+}
+.codePre :global(.hljs-deletion) {
+  color: var(--cd-color-danger);
+}
+.codePre :global(.hljs-emphasis) {
+  font-style: italic;
+}
+.codePre :global(.hljs-strong) {
+  font-weight: var(--cd-font-weight-bold);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copyBtn {
+    transition: none;
+  }
+}

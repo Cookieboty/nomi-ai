@@ -15,8 +15,8 @@
 
 ## 对话
 
-- 流式输出。左侧是会话列表（按项目分组，见 [个性化](personalization.md)），`Ctrl/⌘+B` 或标题栏旁的按钮收起 / 展开；收起后鼠标移到导航栏的「对话」上，会话面板以浮层弹出。新会话的输入框上方是「项目 · 分支」，项目可以搜索、切换、新建或不使用（多个文件夹的项目显示「名称 +N」，悬停看全部文件夹；分支是主文件夹的）；发出第一条消息后项目就定下来，不在顶栏显示。`Ctrl/⌘+F` 搜索对话。
-- `Enter` 发送，`Shift+Enter` 换行；输入框为空时按 `↑` 找回上一条提问；输入 `/` 打开 [斜杠命令](slash-commands.md)。
+- 流式输出。左侧是会话列表（按项目分组，见 [个性化](personalization.md)），`Ctrl/⌘+B` 或标题栏旁的按钮收起 / 展开；收起后鼠标移到导航栏的「对话」上，会话面板以浮层弹出。新会话的输入框上方是「项目 · 分支」，项目可以搜索、切换、新建或不使用（多个文件夹的项目显示「名称 +N」，悬停看全部文件夹；分支是主文件夹的）；发出第一条消息后项目就定下来，不在顶栏显示。`Ctrl/⌘+Shift+F` 搜索对话。
+- `Enter` 发送，`Alt/Option+Enter` 或 `Shift+Enter` 换行；输入框为空时按 `↑` 找回上一条提问；输入 `/` 打开 [斜杠命令](slash-commands.md)。
 - 输入栏一行（Codex 式，按钮都不带边框）：左边是「+」菜单和权限模式，右边是模型选择、语音和发送。「+」里是给这条消息加东西的：添加图片或文件（和拖入 / 粘贴一样）、引用文件或文件夹（插入 `@`，有工作区时）、交给编程助手（Nomi 对话，列出已安装的，选了之后输入框上方显示「交给 X」，与 `/agent` 相同）、知识库问答开关；编程助手标签里还有「插件 / 命令」。模型在模型按钮里换，设置在左侧导航栏最下面。
 - 每条回复下写着它用的模型；同一会话中途换了模型时，末尾会出现一行提示：新模型会接着之前的上下文继续。
 - 标题栏的 **Transcript view** 菜单可以按会话切换记录详细程度：**Normal** 把工具调用折叠成摘要、隐藏思考；**Thinking** 在 Normal 基础上显示思考；**Verbose** 展开每一次工具调用、参数与输出，并展开思考。Nomi 对话和编程助手标签都适用。单个会话的选择优先于「设置 → 通用 → 外观 → 会话详细程度」里的全局默认；菜单底部的「跟随全局设置」可以清掉这个会话的单独选择。
@@ -107,3 +107,15 @@ Nomi 可以把具体的开发、文档、审查、调研任务交给本机的编
 - 会话存储：内核 `apps/desktop-go/internal/core/convstore`（契约 `conversations.*`，处理函数 `internal/core/shellhandlers/conversations.go`）；视图 `packages/ai-chat/src/services/conversationStore.ts`（同步门面 + 消息缓存 + 有序写队列）、`conversationBoot.ts`（启动时取索引、迁移）、`conversationMigration.ts`（旧 localStorage 导入）、`components/BootScreen`（启动画面）；退出前等写入：`shellhandlers.ConversationWrites`（`main.go` 的 `OnShutdown`）。
 - 跨轮上下文：内核在一轮结束时发 `steps` 块（这一轮工具循环实际发出的消息，`internal/ai/runtime/aisdk/provider.go`），视图存进回复的 `steps`，下一轮原样带回（`services/history.ts`）；新召回的记忆存在用户消息的 `memory` 上、放在用户原话前面发，不进 system；压缩时合并到压缩消息上（`services/compaction.ts`）。
 - 内核：`apps/desktop-go/internal/aichat`（2.0.4 Electron 旧对话的抽取），图片生成 `internal/ai/runtime/igtools/image.go`，素材库 `internal/core/chatassets`，委派 `internal/core/cli/harness`。
+
+## 文件侧栏与专注阅读
+
+用户和助手消息中的裸网址、Markdown 超链接均可点击。网页使用默认浏览器打开；本地 Markdown、文本和代码链接进入独立文件侧栏，支持 `文件:30-40` 或 `文件#L30-L40` 的行号范围定位与高亮。代码围栏、行内代码和普通裸文件路径保持原样。
+
+侧栏支持多文件标签、目录与章节跳转、文件内查找，以及 Markdown 渲染与源码切换。可编辑的文件会自动保存；外部修改冲突或保存失败时保留草稿并提示。选中内容后可将文件名与行号范围加入输入框引用卡片，点击卡片回到文件，发送前也可移除。
+
+拖动分隔线调整侧栏宽度，展开后进入文件专注模式。原会话与输入框保留在可拖动浮窗中，草稿和后台回复继续保留；可选择同一工作区的会话，或创建继承来源设置的分支。文档来源与接收会话不一致时会提示，避免发错会话。
+
+`Ctrl/⌘+F` 查找当前文件，`Ctrl/⌘+Shift+F` 搜索会话，`Ctrl/⌘+Shift+T` 创建会话分支。Esc 优先关闭当前菜单或查找，再收起浮窗或退出预览。
+
+会话与文件的 Markdown 分别维护渲染行为，均支持 Mermaid 图表。图片使用独立查看器；HTML、PDF、Office、CSV、音视频文件交给系统默认应用，打开本地文件仍需通过内核的路径与授权检查。

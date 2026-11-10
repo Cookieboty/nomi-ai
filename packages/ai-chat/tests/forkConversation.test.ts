@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CONVERSATIONS_CHANGED_EVENT, ConversationStore } from '../src/services/conversationStore';
 import { forkCrossBackend, forkSameBackend } from '../src/services/forkConversation';
-import { harnessClient } from '../src/services/harnessClient';
+import { harnessClient, type HarnessTabMeta } from '../src/services/harnessClient';
 import type { ChatMessage } from '../src/types/chat';
 
 const msg = (id: string, role: ChatMessage['role'], content: string) =>
@@ -18,6 +18,13 @@ vi.mock('../src/services/harnessClient', () => {
       available: () => true,
       activateTab: vi.fn(async () => undefined),
       setBackend: vi.fn(async () => undefined),
+      tabs: vi.fn(async () => ({ tabs: [] as HarnessTabMeta[], activeTabId: 'main' })),
+      setTabSource: vi.fn(async () => undefined),
+      setTabAccount: vi.fn(async () => undefined),
+      setTabModel: vi.fn(async () => undefined),
+      setTabEffort: vi.fn(async () => undefined),
+      setTabLongContext: vi.fn(async () => undefined),
+      closeTab: vi.fn(async () => undefined),
       tabMessages: vi.fn(async (id: string) => tabs[id] ?? []),
       createTab: vi.fn(async (o: { backend: string; title?: string; messages?: unknown[] }) => {
         const id = `tab${++n}`;
@@ -41,6 +48,7 @@ vi.mock('../src/services/harnessClient', () => {
 describe('forkConversation', () => {
   let store: ConversationStore;
   beforeEach(() => {
+    vi.clearAllMocks();
     let n = 0;
     store = new ConversationStore({
       now: () => 1000 + ++n,
@@ -95,5 +103,88 @@ describe('forkConversation', () => {
     const meta = store.get(r.conversationId)!;
     expect(meta.tabId).toBe(r.tabId);
     expect(meta.backend).toBe('codex');
+  });
+  it('专注模式分叉保留纯图片消息、项目和官方账号模型设置，按消息截断', async () => {
+    const source: HarnessTabMeta = {
+      id: 'source',
+      title: '图片分析',
+      backend: 'codex',
+      projectId: 'project-a',
+      cwd: '/tmp/project-a',
+      cliSessionId: null,
+      status: 'idle',
+      unread: 0,
+      createdAt: 1,
+      updatedAt: 1,
+      source: 'official',
+      accountId: 'account-a',
+      modelOverride: 'model-a',
+      reasoningEffort: 'high',
+      longContext: { model: 'model-a', on: true },
+    };
+    vi.mocked(harnessClient.tabs).mockResolvedValue({ tabs: [source], activeTabId: source.id });
+    const image = { thumb: 'chat-asset://images/user-a.png', width: 32, height: 32 };
+    vi.mocked(harnessClient.tabMessages).mockResolvedValueOnce([
+      { id: '1', role: 'user', content: '', timestamp: 1, images: [image] },
+      { id: '2', role: 'assistant', content: '图中有一只猫', timestamp: 2 },
+      { id: '3', role: 'user', content: '不应带入的新消息', timestamp: 3 },
+    ]);
+    const src = store.upsertFromTab({
+      ...source,
+      cliSessionId: undefined,
+    });
+    await forkSameBackend(store, src.id, { inheritSettings: true, upto: '2' });
+    const request = vi.mocked(harnessClient.createTab).mock.calls.at(-1)![0];
+    expect(request.projectId).toBe('project-a');
+    expect(request.messages).toEqual([
+      expect.objectContaining({ id: '1', content: '', images: [image] }),
+      expect.objectContaining({ id: '2', content: '图中有一只猫' }),
+    ]);
+    const tabId = (await vi.mocked(harnessClient.createTab).mock.results.at(-1)!.value).id;
+    expect(harnessClient.setTabSource).toHaveBeenCalledWith(tabId, 'official', undefined);
+    expect(harnessClient.setTabAccount).toHaveBeenCalledWith(tabId, 'account-a');
+    expect(harnessClient.setTabModel).toHaveBeenCalledWith(tabId, 'model-a', {
+      expectSource: 'official',
+    });
+    expect(harnessClient.setTabEffort).toHaveBeenCalledWith(tabId, 'high');
+    expect(harnessClient.setTabLongContext).toHaveBeenCalledWith(tabId, true);
+  });
+
+  it('专注模式分叉继承第三方模型，设置失败时关闭新标签', async () => {
+    const source: HarnessTabMeta = {
+      id: 'third-party',
+      title: '第三方',
+      backend: 'claude',
+      projectId: 'project-b',
+      cwd: '/tmp/project-b',
+      cliSessionId: null,
+      status: 'idle',
+      unread: 0,
+      createdAt: 1,
+      updatedAt: 1,
+      source: 'thirdParty',
+      lastServedRef: 'provider/model',
+    };
+    vi.mocked(harnessClient.tabs).mockResolvedValue({ tabs: [source], activeTabId: source.id });
+    const src = store.upsertFromTab({
+      ...source,
+      cliSessionId: undefined,
+    });
+    store.switchTo(src.id);
+    vi.mocked(harnessClient.setTabSource).mockRejectedValueOnce(new Error('model unavailable'));
+    await expect(
+      forkSameBackend(store, src.id, { inheritSettings: true, projectId: 'override' }),
+    ).rejects.toThrow('model unavailable');
+    expect(harnessClient.createTab).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: 'override' }),
+    );
+    expect(harnessClient.setTabSource).toHaveBeenCalledWith(
+      expect.any(String),
+      'thirdParty',
+      'provider/model',
+    );
+    expect(harnessClient.closeTab).toHaveBeenCalledWith(expect.any(String));
+    expect(harnessClient.setTabAccount).not.toHaveBeenCalled();
+    expect(store.currentId()).toBe(src.id);
   });
 });

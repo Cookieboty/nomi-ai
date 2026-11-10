@@ -181,6 +181,12 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 	call("harness.tabRewind", func(a in) any { return await(h().RewindTab(a.str("id"), a.str("messageId"))) })
 	call("harness.pickDir", func(a in) any { return h().PickDirectory(a.str("defaultPath")) })
 	call("harness.recentCwds", func(in) any { return h().RecentCwds() })
+	call("harness.previewOpen", func(a in) any { return await(h().PreviewOpen(a.str("cwd"), a.str("path"), a.is("allowOutside"))) })
+	call("harness.previewListDirectory", func(a in) any { return await(h().PreviewListDirectory(a.str("url"), a.str("path"))) })
+	call("harness.previewSave", func(a in) any { return await(h().PreviewSave(a.str("url"), a.str("revision"), a.str("content"))) })
+	call("harness.previewWeb", func(a in) any { return await(h().PreviewWeb(a.str("url"))) })
+	call("harness.previewExternal", func(a in) any { return await(h().PreviewExternal(a.str("cwd"), a.str("path"), a.is("allowOutside"))) })
+	call("harness.previewClose", func(a in) any { return h().PreviewClose(a.str("url")) })
 	call("harness.tabMessages", func(a in) any { return h().TabMessages(a.str("id")) })
 	call("harness.tabSend", func(a in) any {
 		return await(h().SendTabReply(a.str("id"), a.str("prompt"), a.list("images")))

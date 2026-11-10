@@ -103,7 +103,84 @@ const projectProcedures = {
   'project.remove': { kind: 'mutation', input: byId, output: z.null() },
 } as const satisfies ProcedureMap;
 
+const PreviewResult = z.looseObject({
+  ok: z.boolean(),
+  code: z.string().optional(),
+  path: z.string().optional(),
+  kind: z.string().optional(),
+  mime: z.string().optional(),
+  url: z.string().optional(),
+  content: z.string().optional(),
+  truncated: z.boolean().optional(),
+  editable: z.boolean().optional(),
+  revision: z.string().optional(),
+});
+
 const harnessProcedures = {
+  'harness.previewOpen': {
+    kind: 'query',
+    dangerous: true,
+    surfaces: ['chat'],
+    input: z.object({
+      cwd: z.string(),
+      path: z.string().max(8192),
+      allowOutside: z.boolean().optional(),
+    }),
+    output: PreviewResult,
+  },
+  'harness.previewListDirectory': {
+    kind: 'query',
+    dangerous: true,
+    surfaces: ['chat'],
+    input: z.object({ url: z.string().max(8192), path: z.string().max(8192) }),
+    output: z.object({
+      ok: z.boolean(),
+      code: z.string().optional(),
+      entries: z
+        .array(z.object({ name: z.string(), path: z.string(), kind: z.enum(['file', 'dir']) }))
+        .optional(),
+      truncated: z.boolean().optional(),
+    }),
+  },
+  'harness.previewSave': {
+    kind: 'mutation',
+    dangerous: true,
+    surfaces: ['chat'],
+    input: z.object({
+      url: z.string().max(8192),
+      revision: z.string().length(64),
+      content: z.string().max(1500000),
+    }),
+    output: z.object({
+      ok: z.boolean(),
+      code: z.string().optional(),
+      revision: z.string().optional(),
+    }),
+  },
+  'harness.previewWeb': {
+    kind: 'query',
+    surfaces: ['chat'],
+    input: z.object({ url: z.string().max(8192) }),
+    output: PreviewResult,
+  },
+  'harness.previewExternal': {
+    kind: 'mutation',
+    dangerous: true,
+    surfaces: ['chat'],
+    input: z.object({
+      cwd: z.string(),
+      path: z.string().max(8192),
+      allowOutside: z.boolean().optional(),
+    }),
+    output: PreviewResult,
+  },
+  'harness.previewClose': {
+    kind: 'mutation',
+    surfaces: ['chat'],
+    input: z.object({ url: z.string() }),
+    output: z.boolean(),
+  },
+
   'harness.state': { kind: 'query', input: z.void(), output: HarnessState },
   'harness.setBackend': {
     kind: 'mutation',

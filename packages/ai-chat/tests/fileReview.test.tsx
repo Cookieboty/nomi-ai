@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { FilePreview, type PreviewFile } from '../src/components/SessionWorkspace/FilePreview';
+import { FileReview, type ReviewFile } from '../src/components/SessionWorkspace/FileReview';
 import { harnessClient } from '../src/services/harnessClient';
 import type { FileDiff } from '../src/utils/toolTrace';
 
@@ -29,7 +29,7 @@ const diff: FileDiff = {
   },
 };
 
-const file: PreviewFile = {
+const file: ReviewFile = {
   key: 'k1',
   path: 'src/a.ts',
   change: {
@@ -45,7 +45,7 @@ const file: PreviewFile = {
 
 const renderPreview = (onSaved = vi.fn()) =>
   render(
-    <FilePreview
+    <FileReview
       files={[file]}
       activeKey="k1"
       cwd="/w"
@@ -69,7 +69,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('FilePreview 编辑 / 保存', () => {
+describe('FileReview 编辑 / 保存', () => {
   it('切到编辑模式读盘，改动后保存写回整份内容', async () => {
     const onSaved = vi.fn();
     renderPreview(onSaved);
@@ -107,7 +107,7 @@ describe('FilePreview 编辑 / 保存', () => {
   });
 });
 
-describe('FilePreview 丢弃本轮变更', () => {
+describe('FileReview 丢弃本轮变更', () => {
   it('应用内确认（不调 window.confirm）：取消不写盘', () => {
     const confirm = vi.fn(() => true);
     vi.stubGlobal('confirm', confirm);

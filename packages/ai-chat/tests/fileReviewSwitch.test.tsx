@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { FilePreview, type PreviewFile } from '../src/components/SessionWorkspace/FilePreview';
+import { FileReview, type ReviewFile } from '../src/components/SessionWorkspace/FileReview';
 import { harnessClient } from '../src/services/harnessClient';
 import { shouldIgnoreEscape } from '../src/utils/keyboard';
 import type { FileDiff } from '../src/utils/toolTrace';
@@ -21,22 +21,22 @@ const diff: FileDiff = {
   file: 'a.md',
   diff: { added: 1, removed: 0, lines: [{ type: 'add', text: 'x', newNo: 1 }] },
 };
-const withDiff: PreviewFile = {
+const withDiff: ReviewFile = {
   key: 'a',
   path: 'a.md',
   gitDiff: diff,
 };
-const noDiff1: PreviewFile = { key: 'b', path: 'b.md' };
-const noDiff2: PreviewFile = { key: 'c', path: 'c.md' };
+const noDiff1: ReviewFile = { key: 'b', path: 'b.md' };
+const noDiff2: ReviewFile = { key: 'c', path: 'c.md' };
 
-const Harness: React.FC<{ files: PreviewFile[]; initial: string; onClose?: () => void }> = ({
+const Harness: React.FC<{ files: ReviewFile[]; initial: string; onClose?: () => void }> = ({
   files,
   initial,
   onClose = () => undefined,
 }) => {
   const [key, setKey] = React.useState(initial);
   return (
-    <FilePreview files={files} activeKey={key} cwd="/w" onActiveKey={setKey} onClose={onClose} />
+    <FileReview files={files} activeKey={key} cwd="/w" onActiveKey={setKey} onClose={onClose} />
   );
 };
 
@@ -48,12 +48,10 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('FilePreview 跨文件切换', () => {
-  it('从「预览」切到没有 diff 的另一个文件：每个文件只读一次盘（不为旧模式多读一次）', async () => {
+describe('FileReview 跨文件切换', () => {
+  it('从「编辑」切到没有 diff 的另一个文件：每个文件只读一次盘（不为旧模式多读一次）', async () => {
     render(<Harness files={[noDiff1, noDiff2]} initial="b" />);
     await waitFor(() => expect(harnessClient.workspaceRead).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByTestId('preview-mode-render'));
-    await waitFor(() => expect(harnessClient.workspaceRead).toHaveBeenCalledTimes(2));
     vi.mocked(harnessClient.workspaceRead).mockClear();
     fireEvent.click(screen.getByTestId('preview-next'));
     await waitFor(() => expect(harnessClient.workspaceRead).toHaveBeenCalledTimes(1));

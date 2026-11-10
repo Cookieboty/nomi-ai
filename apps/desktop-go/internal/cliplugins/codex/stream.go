@@ -131,6 +131,13 @@ func ParseLine(line string) []Ev {
 		id := StrOr(item.Get("id"))
 		done := typ == "item.completed"
 		switch {
+		case itemType == "user_message" || itemType == "userMessage":
+			if done {
+				if ev := UserImageEvent(item.Get("content"), util.Str(item.Get("id"))); ev != nil {
+					out = append(out, ev)
+				}
+			}
+			return out
 		case itemType == "agent_message" && (text != "" || item.Has("content")):
 			image := sh.ImageMarkdown(item.Get("content"), true)
 			if text != "" {
