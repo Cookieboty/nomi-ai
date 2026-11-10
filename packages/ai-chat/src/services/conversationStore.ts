@@ -680,7 +680,8 @@ export class ConversationStore {
       name,
       backend,
       tabId: opts.tabId,
-      ...(projectId ? { projectId } : {}),
+      // 源没有项目时显式传 null：create 的 undefined 表示「沿用当前会话的项目」，副本不该被归进去（#308）
+      ...(backend === 'nomi' ? { projectId: projectId ?? null } : {}),
       activate: true,
     });
     if (msgs.length) {

@@ -42,6 +42,24 @@ describe('Nomi conversation project (store)', () => {
     expect(store.fork(a.id).projectId).toBe('p_a2');
     expect(store.fork(a.id, { projectId: 'p_other' }).projectId).toBe('p_other');
   });
+
+  it('forking a conversation without a project keeps it without one, whatever is open (#308)', () => {
+    const store = new ConversationStore();
+    const b = store.create({ projectId: null });
+    const a = store.create({ projectId: 'p_a' });
+    store.switchTo(a.id);
+    const copy = store.fork(b.id, { messages: [] });
+    expect(copy.projectId).toBeUndefined();
+    expect(store.get(a.id)?.projectId).toBe('p_a');
+    // 源有项目：沿用源的，不是当前会话的
+    const c = store.create({ projectId: 'p_c' });
+    store.switchTo(a.id);
+    expect(store.fork(c.id, { messages: [] }).projectId).toBe('p_c');
+    // CLI 源分到 Nomi（源 meta 没有项目）也不落进当前会话的项目
+    const cli = store.create({ backend: 'codex', tabId: 't1', activate: false });
+    store.switchTo(a.id);
+    expect(store.fork(cli.id, { backend: 'nomi', messages: [] }).projectId).toBeUndefined();
+  });
 });
 
 describe('Nomi conversation project (send path)', () => {
