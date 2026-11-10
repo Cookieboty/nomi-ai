@@ -7,8 +7,8 @@
  * 两个列表最多先显示 5 个，「更多」展开其余的。开关与自动收起见 ./context。
  */
 import { Icon, t, Tooltip } from '@nomi-ai/ui';
-import { Bot, ChevronUp, Ellipsis, GitBranch, LayoutDashboard, ListChecks } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import { Bot, ChevronUp, createLucideIcon, Ellipsis, GitBranch, ListChecks } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { selectIpcClient, useAiChatSelector } from '../../contexts/aiChatStore';
 import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
@@ -43,6 +43,14 @@ import { useDelegateResults } from './useDelegateResults';
 import { useWorkspaceChanges } from './useWorkspaceChanges';
 
 export { SessionDetailsProvider } from './context';
+
+/** 标题栏「会话详情」按钮的图标：左边两个小圆、右边两条线（一份清单的样子） */
+const SessionDetailsIcon = createLucideIcon('session-details', [
+  ['circle', { cx: '6', cy: '7.5', r: '2.5', key: 'sd1' }],
+  ['path', { d: 'M12 7.5h9', key: 'sd2' }],
+  ['circle', { cx: '6', cy: '16.5', r: '2.5', key: 'sd3' }],
+  ['path', { d: 'M12 16.5h9', key: 'sd4' }],
+]);
 
 const STATUS_KEY: Record<SessionAgentStatus, string> = {
   running: 'ui.knowledge-local.running',
@@ -171,7 +179,25 @@ interface Props {
   cwd: string | null;
 }
 
-const DetailsPanel: React.FC<Props & { onClose: () => void }> = ({ messages, cwd, onClose }) => {
+const DetailsPanel: React.FC<Props & { onClose: () => void; floating?: boolean }> = ({
+  messages,
+  cwd,
+  onClose,
+  floating,
+}) => {
+  const ref = useRef<HTMLElement>(null);
+  // 浮层：点在浮层和标题栏按钮以外的地方就收回
+  useEffect(() => {
+    if (!floating) return;
+    const onDown = (e: PointerEvent) => {
+      const target = e.target as Node | null;
+      if (!target || ref.current?.contains(target)) return;
+      if ((target as Element).closest?.('[data-testid="session-details-toggle"]')) return;
+      onClose();
+    };
+    window.addEventListener('pointerdown', onDown, true);
+    return () => window.removeEventListener('pointerdown', onDown, true);
+  }, [floating, onClose]);
   const tabs = useHarnessTabs();
   const { isDev } = useChatMode();
   const tabId = isDev && tabs.isCliTab ? tabs.activeTab?.id : undefined;
@@ -213,10 +239,12 @@ const DetailsPanel: React.FC<Props & { onClose: () => void }> = ({ messages, cwd
 
   return (
     <aside
+      ref={ref}
       role="complementary"
       aria-label={t('ui.session-workspace.session-details')}
-      className={styles.panel}
+      className={floating ? `${styles.panel} ${styles.floating}` : styles.panel}
       data-testid="session-details"
+      data-floating={floating || undefined}
       onKeyDown={(e) => {
         if (e.key !== 'Escape') return;
         e.stopPropagation();
@@ -335,7 +363,7 @@ export const SessionDetailsToggle: React.FC<{
         data-testid="session-details-toggle"
         onClick={v.toggle}
       >
-        <Icon icon={LayoutDashboard} size={16} />
+        <Icon icon={SessionDetailsIcon} size={16} />
       </button>
     </Tooltip>
   );
@@ -344,10 +372,12 @@ export const SessionDetailsToggle: React.FC<{
 /** 对话卡片右侧的一栏：显示着且会话有消息时才有（空会话不占地方） */
 export const SessionDetailsDock: React.FC<Props> = (props) => {
   const v = useSessionDetails();
-  if (!v?.visible || !props.messages.length) return null;
-  const close = () => {
-    v.close();
+  const close = useCallback(() => {
+    // 浮层只收回（还是自动收起的状态）；平时的一栏是用户关掉
+    if (v?.floating) v.dismiss();
+    else v?.close();
     document.querySelector<HTMLElement>('[data-testid="session-details-toggle"]')?.focus();
-  };
-  return <DetailsPanel {...props} onClose={close} />;
+  }, [v]);
+  if (!v?.visible || !props.messages.length) return null;
+  return <DetailsPanel {...props} onClose={close} floating={v.floating} />;
 };

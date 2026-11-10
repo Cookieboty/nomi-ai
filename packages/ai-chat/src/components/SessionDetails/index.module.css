@@ -18,6 +18,16 @@
   color: var(--cd-color-text);
   font-size: var(--cd-font-size-sm);
 }
+/* 自动收起后手动再打开：浮在对话卡片右上角，盖住对话（不挤占它的宽度） */
+.floating {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 5;
+  width: 300px;
+  max-width: calc(100% - var(--cd-space-3) * 2);
+  margin: var(--cd-space-3);
+}
 /* 窗口很窄时变窄一点，给对话留地方 */
 @media (max-width: 900px) {
   .panel {

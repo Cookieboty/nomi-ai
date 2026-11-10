@@ -246,17 +246,38 @@ describe('SessionDetailsToggle', () => {
     expect(screen.queryByTestId('session-details')).toBeNull();
   });
 
-  it('stays open while opening the sub-task pane and the diff; outside clicks do not close it', async () => {
+  it('stays open for the sub-task pane on a wide window; outside clicks do not close the docked column', async () => {
     setup();
     mount();
     fireEvent.click(screen.getByTestId('session-details-toggle'));
     await waitFor(() => expect(screen.getAllByTestId('session-details-agent')).toHaveLength(2));
     fireEvent.click(screen.getAllByTestId('session-details-agent')[0]!.querySelector('button')!);
     expect(screen.getByTestId('probe').textContent).toBe('d1|-');
+    fireEvent.pointerDown(document.body);
+    expect(screen.getByTestId('session-details').getAttribute('data-floating')).toBeNull();
+  });
+
+  it('opening the diff hides it; reopening floats it over the chat and an outside click puts it away', async () => {
+    setup();
+    mount();
+    const btn = screen.getByTestId('session-details-toggle');
+    fireEvent.click(btn);
+    await screen.findByTestId('session-details');
     fireEvent.click(screen.getByTestId('session-details-changes'));
-    expect(screen.getByTestId('probe').textContent).toBe('d1|wb');
-    fireEvent.mouseDown(document.body);
+    expect(screen.getByTestId('probe').textContent).toBe('-|wb');
+    // 展开 Diff：自动收起（宽屏也一样）
+    expect(screen.queryByTestId('session-details')).toBeNull();
+    expect(btn.getAttribute('data-auto-hidden')).toBe('true');
+    // 再点按钮：浮层盖在对话上
+    fireEvent.click(btn);
+    expect(screen.getByTestId('session-details').getAttribute('data-floating')).toBe('true');
+    // 点浮层里面不收回，点外面收回（还是自动收起，不改用户的开关）
+    fireEvent.pointerDown(screen.getByTestId('session-details'));
     expect(screen.getByTestId('session-details')).toBeTruthy();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByTestId('session-details')).toBeNull();
+    expect(btn.getAttribute('data-auto-hidden')).toBe('true');
+    expect(localStorage.getItem('nomi.sessionDetails.open')).toBe('1');
   });
 
   it('Escape closes it; the choice is remembered; an empty session shows nothing', async () => {

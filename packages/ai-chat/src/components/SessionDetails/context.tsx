@@ -1,8 +1,10 @@
 /**
  * 会话详情这一栏的开关状态：
  * - 用户的选择（开 / 关）记在本机；
- * - 屏幕较窄（< 1440）且对话旁已经展开了别的栏（文件栏、中栏 Diff / 文件预览、子任务面板）时自动收起，
- *   给对话留地方；这时点标题栏按钮可以手动再打开，那几栏开关有变化后又按自动规则来。
+ * - 展开了文件预览或 Diff（中栏）时自动收起，不管屏幕多宽；屏幕较窄（< 1440）时，文件栏、子任务面板展开也收起，
+ *   给对话留地方；
+ * - 这时点标题栏按钮可以手动再打开：以浮层盖在对话上方（不挤占对话），点浮层外面或 Esc 收回；
+ *   那几栏开关有变化后又按自动规则来。
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
@@ -44,10 +46,14 @@ function useMedia(query: string): boolean {
 interface DetailsValue {
   /** 现在是否显示 */
   visible: boolean;
-  /** 用户开着，但因为屏幕窄、别的栏展开而自动收起了 */
+  /** 用户开着，但因为展开了 Diff / 文件预览（或屏幕窄、别的栏展开）而自动收起了 */
   autoHidden: boolean;
+  /** 自动收起后手动再打开：以浮层盖在对话上方 */
+  floating: boolean;
   toggle: () => void;
   close: () => void;
+  /** 收回浮层（回到自动收起，不改用户的开关选择） */
+  dismiss: () => void;
   /** 文件栏开关（App 的状态，经标题栏按钮报上来） */
   setRailOpen: (open: boolean) => void;
 }
@@ -61,7 +67,7 @@ export const SessionDetailsProvider: React.FC<{ children: React.ReactNode }> = (
   const { workbench, previewOpen } = useChangesUi();
   const subagentTab = useSubagentPane()?.tabId ?? null;
   const small = useMedia(SESSION_DETAILS_SMALL);
-  const crowded = small && (railOpen || !!workbench || previewOpen || !!subagentTab);
+  const crowded = !!workbench || previewOpen || (small && (railOpen || !!subagentTab));
   // 那几栏开关有变化（含子任务换了一个）：清掉手动打开，重新按自动规则（渲染期比对，不在 effect 里 setState）
   const layoutKey = `${small}|${railOpen}|${!!workbench}|${previewOpen}|${subagentTab ?? ''}`;
   const [prevKey, setPrevKey] = useState(layoutKey);
@@ -83,15 +89,26 @@ export const SessionDetailsProvider: React.FC<{ children: React.ReactNode }> = (
     setPref(false);
     setOverride(false);
   }, [setPref]);
+  const floating = visible && crowded;
+  const dismiss = useCallback(() => setOverride(false), []);
   const toggle = useCallback(() => {
+    if (floating) return dismiss();
     if (visible) return close();
     setPref(true);
     setOverride(crowded);
-  }, [visible, crowded, close, setPref]);
+  }, [floating, visible, crowded, close, dismiss, setPref]);
 
   const value = useMemo(
-    () => ({ visible, autoHidden: pref && !visible, toggle, close, setRailOpen }),
-    [visible, pref, toggle, close],
+    () => ({
+      visible,
+      autoHidden: pref && !visible,
+      floating,
+      toggle,
+      close,
+      dismiss,
+      setRailOpen,
+    }),
+    [visible, pref, floating, toggle, close, dismiss],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };
