@@ -22,6 +22,7 @@ import { useGitBranch } from '../../hooks/useGitBranch';
 import { useGitSync, useGitWorktrees } from '../../hooks/useGitSync';
 import { harnessClient, type GitDiffResult } from '../../services/harnessClient';
 import { buildCommitPrompt } from '../../utils/commitPrompt';
+import { onWindowFocus } from '../../utils/focusRefresh';
 import {
   isNotGitRepoError,
   parseGitStatus,
@@ -311,10 +312,8 @@ export const RepoGitSection: React.FC<{
     if (wasBusy.current && !busy) scheduleGit();
     wasBusy.current = busy;
   }, [busy, scheduleGit]);
-  useEffect(() => {
-    window.addEventListener('focus', scheduleGit);
-    return () => window.removeEventListener('focus', scheduleGit);
-  }, [scheduleGit]);
+  // 切回窗口：至多每 5 秒重读一次
+  useEffect(() => onWindowFocus(scheduleGit), [scheduleGit]);
 
   const gitFiles = useMemo(() => parseGitStatus(git?.status ?? ''), [git?.status]);
   const gitDiffs = useMemo(() => splitUnifiedDiff(git?.diff ?? ''), [git?.diff]);

@@ -45,6 +45,7 @@ import {
   GitBranchList,
   GitBranchResult,
   GitDiffResult,
+  GitSummaryResult,
   GitOpResult,
   GitSyncStatus,
   GitWorktreeList,
@@ -277,6 +278,7 @@ const harnessProcedures = {
 
   // 右栏「改动」（cli/gitOps.ts）：cwd 必须是已知工作区，主进程核对
   'harness.gitDiff': { kind: 'query', input: cwd, output: GitDiffResult },
+  'harness.gitSummary': { kind: 'query', input: cwd, output: GitSummaryResult },
   'harness.gitBranch': { kind: 'query', input: cwd, output: GitBranchResult.nullable() },
   /** 分支切换下拉：本地分支列表；不是 git 仓库时 null */
   'harness.gitBranches': { kind: 'query', input: cwd, output: GitBranchList.nullable() },

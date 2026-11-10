@@ -132,6 +132,15 @@ export const GitDiffResult = loose({
   gitRoot: z.string().optional(),
 });
 
+/** 只要改动规模（会话详情的「变更」）：status 原文（按行计文件数）与相对 HEAD 的增删行；不带整份 diff */
+export const GitSummaryResult = loose({
+  ok: z.boolean(),
+  status: z.string(),
+  added: z.number(),
+  removed: z.number(),
+  error: z.string().optional(),
+});
+
 export const GitBranchResult = loose({ branch: z.string().nullable() });
 
 /** 本地分支（按最近提交倒序，最多 200 个）；游离 HEAD 时 current 为 null、detached 是短提交号 */

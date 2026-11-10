@@ -1113,6 +1113,7 @@ func (o *Orchestrator) SlashExpandIn(backend, cwd, id, args any) *util.Obj {
 	return cli.ExpandSlash(asSlashBackend(backend), o.KnownDir(cwd), jsStr(id), clisdk.Slice0(jsStr(args), 4000), nodeHomedir())
 }
 func (o *Orchestrator) GitDiffIn(cwd any) *util.Obj       { return cli.GitDiff(o.KnownDir(cwd)) }
+func (o *Orchestrator) GitSummaryIn(cwd any) *util.Obj    { return cli.GitSummary(o.KnownDir(cwd)) }
 func (o *Orchestrator) GitBranchIn(cwd any) *util.Obj     { return cli.GitBranch(o.KnownDir(cwd)) }
 func (o *Orchestrator) GitSyncStatusIn(cwd any) *util.Obj { return cli.GitSyncStatus(o.KnownDir(cwd)) }
 func (o *Orchestrator) GitStageIn(cwd, paths any) *util.Obj {

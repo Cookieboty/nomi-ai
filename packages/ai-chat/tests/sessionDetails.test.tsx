@@ -50,10 +50,12 @@ const task = (id: string, over: Record<string, unknown> = {}) => ({
   ...over,
 });
 let tasks: unknown[] = [];
+let gitSummary: unknown = true;
 let small = false;
 
 beforeEach(() => {
   tasks = [];
+  gitSummary = true;
   small = false;
   window.matchMedia = ((q: string) => ({
     matches: small,
@@ -131,6 +133,7 @@ function setup() {
     if (ch === 'harness.tabs') return state;
     if (ch === 'harness.gitBranch') return { branch: 'release/2.3.3' };
     if (ch === 'tasks.list') return { tasks, legacy: [] };
+    if (ch === 'harness.gitSummary') return gitSummary;
     return true;
   });
   fake = installFakeApi(invoke);
@@ -390,6 +393,20 @@ describe('session details lists', () => {
   });
 });
 
+describe('workspace changes', () => {
+  it('the changes row counts the git workspace from gitSummary, never the full diff', async () => {
+    gitSummary = { ok: true, status: ' M a.ts\n M b.ts\n?? c.ts\n', added: 7, removed: 2 };
+    const invoke = setup();
+    mount();
+    fireEvent.click(screen.getByTestId('session-details-toggle'));
+    await waitFor(
+      () => expect(screen.getByTestId('session-details-changes').textContent).toMatch(/3.*\+7.*-2/),
+      { timeout: 2000 },
+    );
+    expect(invoke.mock.calls.some(([ch]) => ch === 'harness.gitDiff')).toBe(false);
+  });
+});
+
 describe('live state', () => {
   it('a delegated tab waiting for approval shows as waiting; its streaming text does not matter', async () => {
     setup();
@@ -527,18 +544,11 @@ describe('会话详情：异步委派的状态与工作区改动', () => {
   });
 
   it('工作区改动按 git 统计（未跟踪的只计文件数）', () => {
-    expect(
-      summarizeGit({
-        ok: true,
-        status: ' M a.ts\n?? b.ts\n',
-        stat: '',
-        diff: '',
-        truncated: false,
-        numstat: { head: { 'a.ts': { added: 3, removed: 1 } }, staged: {}, unstaged: {} },
-      }),
-    ).toEqual({ files: 2, added: 3, removed: 1 });
-    expect(
-      summarizeGit({ ok: false, status: '', stat: '', diff: '', truncated: false }),
-    ).toBeNull();
+    expect(summarizeGit({ ok: true, status: ' M a.ts\n?? b.ts\n', added: 3, removed: 1 })).toEqual({
+      files: 2,
+      added: 3,
+      removed: 1,
+    });
+    expect(summarizeGit({ ok: false, status: '', added: 0, removed: 0 })).toBeNull();
   });
 });

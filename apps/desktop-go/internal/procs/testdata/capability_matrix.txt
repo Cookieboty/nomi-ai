@@ -2,7 +2,7 @@
 # 列：状态(IMPL=已注册处理器 / STUB=procs.Install 补的 UNAVAILABLE 桩)  kind  过程名。
 # 规则：STUB 集合只减不增（shrink-only）；新增契约过程必须在 Go 端实现，禁止新增桩。
 # 更新：go test ./internal/procs/ -run TestCapabilityMatrix -update
-# 合计 447：已实现 447，桩 0。
+# 合计 448：已实现 448，桩 0。
 
 [agents] 已实现 3 / 桩 0
 IMPL	mutation	agents.scan
@@ -220,7 +220,7 @@ IMPL	mutation	gateway.terminalSet
 IMPL	query	gateway.terminalState
 IMPL	mutation	gateway.upsertProvider
 
-[harness] 已实现 58 / 桩 0
+[harness] 已实现 59 / 桩 0
 IMPL	mutation	harness.geminiTrustFolder
 IMPL	query	harness.gitBranch
 IMPL	query	harness.gitBranches
@@ -235,6 +235,7 @@ IMPL	mutation	harness.gitPull
 IMPL	mutation	harness.gitPush
 IMPL	mutation	harness.gitStage
 IMPL	mutation	harness.gitSuggestMessage
+IMPL	query	harness.gitSummary
 IMPL	query	harness.gitSyncStatus
 IMPL	mutation	harness.gitUnstage
 IMPL	mutation	harness.gitWorktrees

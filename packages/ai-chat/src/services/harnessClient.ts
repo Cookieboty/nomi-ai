@@ -344,6 +344,15 @@ export interface SlashExpansion {
   /** 模板里含 !`cmd` 动态注入：Nomi 不执行，原样保留并提示 */
   shellInjection: boolean;
 }
+/** 只要改动规模（会话详情）：status 原文与相对 HEAD 的增删行，不带整份 diff */
+export interface GitSummaryResult {
+  ok: boolean;
+  status: string;
+  added: number;
+  removed: number;
+  error?: string;
+}
+
 export interface GitDiffResult {
   ok: boolean;
   status: string;
@@ -485,6 +494,8 @@ export const harnessClient = {
   slashExpand: (backend: string, cwd: string, id: string, args: string) =>
     call<SlashExpansion | null>(() => api.harness.slashExpand({ backend, cwd, id, args })),
   gitDiff: (cwd: string) => call<GitDiffResult>(() => api.harness.gitDiff({ cwd })),
+  /** 只取文件数与增删行（两条 git 命令），不取整份 diff */
+  gitSummary: (cwd: string) => call<GitSummaryResult>(() => api.harness.gitSummary({ cwd })),
   /** 当前分支（只读，对话顶栏用）；不是 git 仓库时 null */
   gitBranch: (cwd: string) =>
     call<{ branch: string | null; detached?: string } | null>(() => api.harness.gitBranch({ cwd })),

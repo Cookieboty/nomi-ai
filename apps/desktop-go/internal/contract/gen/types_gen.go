@@ -5561,6 +5561,18 @@ type HarnessGitSuggestMessageOutput struct {
 	Code *string `json:"code,omitempty"`
 }
 
+type HarnessGitSummaryInput struct {
+	Cwd string `json:"cwd"`
+}
+
+type HarnessGitSummaryOutput struct {
+	Ok      bool    `json:"ok"`
+	Status  string  `json:"status"`
+	Added   float64 `json:"added"`
+	Removed float64 `json:"removed"`
+	Error   *string `json:"error,omitempty"`
+}
+
 type HarnessGitSyncStatusInput struct {
 	Cwd string `json:"cwd"`
 }
@@ -11813,6 +11825,10 @@ type HarnessGitStageOutputT = HarnessGitStageOutput
 // HarnessGitSuggestMessageInputT 是 harness.gitSuggestMessage 的入参
 type HarnessGitSuggestMessageInputT = HarnessGitSuggestMessageInput
 type HarnessGitSuggestMessageOutputT = HarnessGitSuggestMessageOutput
+
+// HarnessGitSummaryInputT 是 harness.gitSummary 的入参
+type HarnessGitSummaryInputT = HarnessGitSummaryInput
+type HarnessGitSummaryOutputT = HarnessGitSummaryOutput
 
 // HarnessGitSyncStatusInputT 是 harness.gitSyncStatus 的入参
 type HarnessGitSyncStatusInputT = HarnessGitSyncStatusInput

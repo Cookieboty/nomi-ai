@@ -18701,6 +18701,51 @@
     "additionalProperties": {}
    }
   },
+  "harness.gitSummary": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cwd": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "cwd"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "status": {
+      "type": "string"
+     },
+     "added": {
+      "type": "number"
+     },
+     "removed": {
+      "type": "number"
+     },
+     "error": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok",
+     "status",
+     "added",
+     "removed"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "harness.gitSyncStatus": {
    "kind": "query",
    "dangerous": false,

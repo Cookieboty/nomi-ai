@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
@@ -863,6 +864,25 @@ func gitOr(cwd string, args []string) string {
 	return s
 }
 
+// gitOrAll：几条只读 git 命令并行跑（只释放一次 JS 锁），各自失败时为 ""，顺序与 argsList 一致。
+func gitOrAll(cwd string, argsList [][]string) []string {
+	out := make([]string, len(argsList))
+	jsrt.Leave()
+	var wg sync.WaitGroup
+	for i, args := range argsList {
+		wg.Add(1)
+		go func(i int, args []string) {
+			defer wg.Done()
+			if r := gitExecWith(cwd, args, 8000, "", 32*1024*1024, GitEnv()); r.err == "" {
+				out[i] = r.Stdout
+			}
+		}(i, args)
+	}
+	wg.Wait()
+	jsrt.Enter()
+	return out
+}
+
 // GitBranch = gitBranch（nil = null）。
 func GitBranch(cwd string) *util.Obj {
 	if b := util.JSTrim(gitOr(cwd, []string{"symbolic-ref", "--short", "-q", "HEAD"})); b != "" {
@@ -882,10 +902,16 @@ func GitDiff(cwd string) *util.Obj {
 		return util.NewObj("ok", false, "status", "", "stat", "", "diff", "", "truncated", false, "error", strings.Split(err.Error(), "\n")[0])
 	}
 	status := util.JSTrimEnd(st)
-	d := func(extra ...string) string { return gitOr(cwd, append(append([]string{"diff"}, flags...), extra...)) }
-	stat := util.JSTrim(d("--stat", "HEAD"))
-	full, cached, work := d("HEAD"), d("--cached"), d()
-	nsHead, nsStaged, nsWork := d("--numstat", "-z", "HEAD"), d("--numstat", "-z", "--cached"), d("--numstat", "-z")
+	d := func(extra ...string) []string { return append(append([]string{"diff"}, flags...), extra...) }
+	// 7 条 diff 与仓库根并行跑：切回窗口时右栏 / 会话详情一起刷新，串行要等它们逐个跑完
+	r := gitOrAll(cwd, [][]string{
+		d("--stat", "HEAD"), d("HEAD"), d("--cached"), d(),
+		d("--numstat", "-z", "HEAD"), d("--numstat", "-z", "--cached"), d("--numstat", "-z"),
+		{"rev-parse", "--show-toplevel"},
+	})
+	stat := util.JSTrim(r[0])
+	full, cached, work := r[1], r[2], r[3]
+	nsHead, nsStaged, nsWork := r[4], r[5], r[6]
 	truncated := false
 	capd := func(s string) string {
 		if util.UTF16Len(s) > slashDiffMax {
@@ -898,8 +924,27 @@ func GitDiff(cwd string) *util.Obj {
 	out := util.NewObj("ok", true, "status", status, "stat", stat, "diff", f, "staged", c, "unstaged", w, "truncated", truncated,
 		"numstat", util.NewObj("head", ParseNumstat(nsHead), "staged", ParseNumstat(nsStaged), "unstaged", ParseNumstat(nsWork)))
 	// 仓库根：项目里两个文件夹在同一个仓库时，右栏按它合成一段
-	if root := util.JSTrim(gitOr(cwd, []string{"rev-parse", "--show-toplevel"})); root != "" {
+	if root := util.JSTrim(r[7]); root != "" {
 		out.Set("gitRoot", filepath.Clean(root))
 	}
 	return out
+}
+
+// GitSummary：只要「改了几个文件、增删多少行」（会话详情的「变更」一行）：status 与 numstat HEAD 两条命令，
+// 不取整份 diff。未跟踪的文件只计数（与 GitDiff 的 numstat.head 一致）。
+func GitSummary(cwd string) *util.Obj {
+	st, err := slashGit(cwd, []string{"status", "--short", "--untracked-files=normal"})
+	if err != nil {
+		return util.NewObj("ok", false, "status", "", "added", 0, "removed", 0, "error", strings.Split(err.Error(), "\n")[0])
+	}
+	added, removed := 0.0, 0.0
+	ns := ParseNumstat(gitOr(cwd, []string{"diff", "--no-ext-diff", "--no-textconv", "--no-color", "--numstat", "-z", "HEAD"}))
+	for _, k := range ns.Keys() {
+		if n, ok := ns.Get(k).(*util.Obj); ok {
+			a, _ := util.Num(n.Get("added"))
+			r, _ := util.Num(n.Get("removed"))
+			added, removed = added+a, removed+r
+		}
+	}
+	return util.NewObj("ok", true, "status", util.JSTrimEnd(st), "added", added, "removed", removed)
 }
