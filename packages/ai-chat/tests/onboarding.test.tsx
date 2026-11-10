@@ -4,13 +4,13 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { OnboardingHost } from '../src/components/Onboarding';
 import {
   OPEN_MODELS_EVENT,
   matchTemplate,
   mergePersona,
   personaBlockLines,
 } from '../src/components/Onboarding/client';
+import { OnboardingHost } from '../src/components/Onboarding/host';
 import { setCharacterNameForTest } from '../src/services/characterName';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
