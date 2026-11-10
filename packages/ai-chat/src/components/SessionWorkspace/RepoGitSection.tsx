@@ -13,7 +13,7 @@ import {
   LocateFixed,
   Minus,
   Plus,
-  RotateCcw,
+  Undo2,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -163,7 +163,7 @@ const GitRow: React.FC<{
         aria-label={`${t('ui.session-workspace.discard-changes')} ${entry.path}`}
         onClick={onDiscard}
       >
-        <RotateCcw size={12} />
+        <Undo2 size={12} />
       </button>
     ) : null}
     {onStage ? (
@@ -561,48 +561,46 @@ export const RepoGitSection: React.FC<{
                   ['unstaged', t('ui.session-workspace.unstaged'), unstagedRows],
                 ] as const
               ).map(([area, groupLabel, list]) =>
-                // 没有暂存内容时不分组，和普通列表一样
+                // 有文件的组都带组头（只有未暂存时也显示「未暂存」），一眼看出这些还没暂存
                 !list.length ? null : (
                   <div key={area} className={pane.gitGroup} data-testid={`git-group-${area}`}>
-                    {stagedRows.length ? (
-                      <div className={pane.gitGroupHead}>
-                        <span>{groupLabel}</span>
-                        <span className={styles.count}>{list.length}</span>
-                        <span className={styles.wbSpacer} />
-                        {area === 'unstaged' ? (
-                          <button
-                            type="button"
-                            className={styles.iconBtn}
-                            disabled={ops.op !== null}
-                            data-testid="git-group-unstaged-discard"
-                            title={t('ui.session-workspace.discard-all-unstaged-changes')}
-                            aria-label={t('ui.session-workspace.discard-all-unstaged-changes')}
-                            onClick={() => void ops.discard(stagePaths(list, area))}
-                          >
-                            <RotateCcw size={12} />
-                          </button>
-                        ) : null}
+                    <div className={pane.gitGroupHead}>
+                      <span>{groupLabel}</span>
+                      <span className={styles.count}>{list.length}</span>
+                      <span className={styles.wbSpacer} />
+                      {area === 'unstaged' ? (
                         <button
                           type="button"
                           className={styles.iconBtn}
                           disabled={ops.op !== null}
-                          data-testid={`git-group-${area}-toggle`}
-                          title={
-                            area === 'staged'
-                              ? t('ui.session-workspace.unstage-all')
-                              : t('ui.session-workspace.stage-all')
-                          }
-                          aria-label={
-                            area === 'staged'
-                              ? t('ui.session-workspace.unstage-all')
-                              : t('ui.session-workspace.stage-all')
-                          }
-                          onClick={() => void ops.stage(stagePaths(list, area), area !== 'staged')}
+                          data-testid="git-group-unstaged-discard"
+                          title={t('ui.session-workspace.discard-all-unstaged-changes')}
+                          aria-label={t('ui.session-workspace.discard-all-unstaged-changes')}
+                          onClick={() => void ops.discard(stagePaths(list, area))}
                         >
-                          {area === 'staged' ? <Minus size={12} /> : <Plus size={12} />}
+                          <Undo2 size={12} />
                         </button>
-                      </div>
-                    ) : null}
+                      ) : null}
+                      <button
+                        type="button"
+                        className={styles.iconBtn}
+                        disabled={ops.op !== null}
+                        data-testid={`git-group-${area}-toggle`}
+                        title={
+                          area === 'staged'
+                            ? t('ui.session-workspace.unstage-all')
+                            : t('ui.session-workspace.stage-all')
+                        }
+                        aria-label={
+                          area === 'staged'
+                            ? t('ui.session-workspace.unstage-all')
+                            : t('ui.session-workspace.stage-all')
+                        }
+                        onClick={() => void ops.stage(stagePaths(list, area), area !== 'staged')}
+                      >
+                        {area === 'staged' ? <Minus size={12} /> : <Plus size={12} />}
+                      </button>
+                    </div>
                     {list.map((r) => (
                       <GitRow
                         key={r.key}

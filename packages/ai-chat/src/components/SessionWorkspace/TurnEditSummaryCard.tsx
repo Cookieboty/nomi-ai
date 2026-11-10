@@ -1,6 +1,6 @@
 /** Codex 风格：助手消息下方「已编辑 N 个文件」摘要卡 */
 import { t } from '@nomi-ai/ui';
-import { ChevronDown, ChevronRight, Expand, ExternalLink, FileDiff, RotateCcw } from 'lucide-react';
+import { ChevronDown, ChevronRight, Expand, ExternalLink, FileDiff, Undo2 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
@@ -142,7 +142,7 @@ export const TurnEditSummaryCard: React.FC<{
             disabled={busy || !cwd || confirming}
             data-testid="turn-undo"
           >
-            <RotateCcw size={14} />
+            <Undo2 size={14} />
             {t('ui.mascot-theme.undo')}
           </button>
           <button

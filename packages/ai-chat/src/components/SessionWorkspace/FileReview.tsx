@@ -3,7 +3,7 @@
  * 磁盘内容可编辑保存（cwd 沙箱）、可选丢弃本轮 diff。
  */
 import { t } from '@nomi-ai/ui';
-import { ChevronLeft, ChevronRight, FileCode2, RotateCcw, Save, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileCode2, Undo2, Save, X } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
@@ -443,7 +443,7 @@ export const FileReview: React.FC<{
               aria-label={t('ui.session-workspace.discard-turn-changes')}
               data-testid="preview-discard"
             >
-              <RotateCcw size={14} />
+              <Undo2 size={14} />
             </button>
           )}
           <button
