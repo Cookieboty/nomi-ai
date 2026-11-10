@@ -48,6 +48,7 @@ import {
 import { ShortcutSettings } from './ShortcutSettings';
 import { StartupSettings } from './StartupSettings';
 import { ThemeSettings } from './ThemeSettings';
+import { TranscriptViewSettings } from './TranscriptViewSettings';
 import { VoiceSection } from './VoiceSection';
 
 export { SETTINGS_NAV_GROUPS, SETTINGS_SECTIONS, type SettingsSection, type SettingsTab };
@@ -152,6 +153,7 @@ export const SettingsView: React.FC<Props> = ({
                 >
                   <ThemeSettings />
                   <ConversationFontSizeSettings />
+                  <TranscriptViewSettings />
                   <AppIconSettings />
                 </SettingsGroup>
                 <StartupSettings

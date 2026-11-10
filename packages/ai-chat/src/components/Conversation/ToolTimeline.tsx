@@ -28,6 +28,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import React, { memo, useEffect, useId, useState } from 'react';
 
+import type { TranscriptView } from '../../services/transcriptView';
 import { thoughtLabel } from '../../utils/convTime';
 import type { LiveAgent } from '../../utils/liveState';
 import {
@@ -54,6 +55,7 @@ import { DiffView } from './DiffView';
 import { Markdown } from './Markdown';
 import { MarkdownImage } from './MarkdownImage';
 import styles from './Tool.module.css';
+import { useTranscriptViewMode } from './transcriptViewContext';
 
 const KIND_ICON: Record<ToolKind, LucideIcon> = {
   read: FileText,
@@ -74,6 +76,19 @@ const BUCKET_ICON: Record<Bucket, LucideIcon> = {
   edit: FileDiffIcon,
   other: Wrench,
 };
+
+/** 展开状态：默认值随 Transcript view 变化；用户手动切换后，在当前视图内保持 */
+function useViewOpen(defaultFor: (view: TranscriptView) => boolean): {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+} {
+  const view = useTranscriptViewMode();
+  const [manual, setManual] = useState<{ view: TranscriptView; open: boolean } | null>(null);
+  return {
+    open: manual?.view === view ? manual.open : defaultFor(view),
+    onOpenChange: (open) => setManual({ view, open }),
+  };
+}
 
 const StatusMark: React.FC<{ status: CallStatus }> = ({ status }) =>
   status === 'running' ? (
@@ -280,6 +295,8 @@ const ToolCallRowInner: React.FC<{ call: ToolCall }> = ({ call }) => {
   useLocale();
   const kind = describeCall(call).kind;
   const image = generatedImageOf(call);
+  // Verbose：默认展开每一行工具的参数与输出；Normal / Thinking 保持折叠
+  const disclosure = useViewOpen((view) => view === 'verbose');
   const row = (
     <Disclosure
       icon={KIND_ICON[kind]}
@@ -287,6 +304,8 @@ const ToolCallRowInner: React.FC<{ call: ToolCall }> = ({ call }) => {
       meta={kind === 'edit' || kind === 'write' ? <EditStats call={call} /> : undefined}
       status={call.status}
       duration={callDuration(call)}
+      open={disclosure.open}
+      onOpenChange={disclosure.onOpenChange}
       testId="tool-row"
       attrs={{ 'data-kind': kind, 'data-tool': call.name }}
     >
@@ -397,6 +416,7 @@ const ToolGroupInner: React.FC<{ bucket: Bucket; calls: ToolCall[]; id: string }
 }) => {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
+  const disclosure = useViewOpen((view) => view === 'verbose');
   const status: CallStatus = calls.some((c) => c.status === 'running')
     ? 'running'
     : calls.some((c) => c.status === 'error')
@@ -409,6 +429,8 @@ const ToolGroupInner: React.FC<{ bucket: Bucket; calls: ToolCall[]; id: string }
       meta={<GroupSummaryMeta bucket={bucket} calls={calls} />}
       status={status}
       duration={groupDuration(calls)}
+      open={disclosure.open}
+      onOpenChange={disclosure.onOpenChange}
       testId="tool-group"
       attrs={{ 'data-bucket': bucket, 'data-count': String(calls.length), 'data-group-id': id }}
       variant="group"
@@ -446,6 +468,8 @@ const Subagent: React.FC<{ call: ToolCall; children: TimelineItem[] }> = ({ call
   const prompt = typeof o?.prompt === 'string' ? o.prompt : undefined;
   const d = describeCall(call);
   const agent = useAgentForCall(call.id);
+  // Verbose：展开子代理任务、内部步骤与结果
+  const disclosure = useViewOpen((view) => view === 'verbose');
   // 后台子代理：派生它的调用立刻返回，但子代理本身还在跑，以子代理状态为准
   const status = agent ? AGENT_STATUS[agent.status] : call.status;
   const result = call.output || agent?.summary;
@@ -491,6 +515,8 @@ const Subagent: React.FC<{ call: ToolCall; children: TimelineItem[] }> = ({ call
       meta={meta}
       status={status}
       duration={callDuration(call)}
+      open={disclosure.open}
+      onOpenChange={disclosure.onOpenChange}
       testId="tool-subagent"
       attrs={{ 'data-tool': call.name }}
       variant="block"
@@ -552,9 +578,8 @@ const Thinking = memo(function Thinking({
 }) {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
-  // 流式时默认展开；结束后自动折叠。用户手动切换过就尊重用户
-  const [manual, setManual] = useState<boolean | undefined>(undefined);
-  const open = manual ?? running;
+  // Normal 下不渲染思考（AssistantBody 已过滤）；Thinking 运行中展开、完成后折叠；Verbose 始终展开
+  const disclosure = useViewOpen((view) => running || view === 'verbose');
   const ms = startedAt !== undefined && endedAt !== undefined ? endedAt - startedAt : undefined;
   return (
     <Disclosure
@@ -572,8 +597,8 @@ const Thinking = memo(function Thinking({
         </span>
       }
       status={running ? 'running' : 'done'}
-      open={open}
-      onOpenChange={setManual}
+      open={disclosure.open}
+      onOpenChange={disclosure.onOpenChange}
       testId="tool-thinking"
     >
       <div className={styles.thinkText}>{text}</div>

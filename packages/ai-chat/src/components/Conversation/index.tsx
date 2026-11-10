@@ -21,6 +21,7 @@ import {
   getConversationFontSize,
   subscribeConversationFontSize,
 } from '../../services/conversationFontSize';
+import type { TranscriptView } from '../../services/transcriptView';
 import type { SlashCard } from '../../slash/types';
 import type { ConvLive, ConvMessage, ConvPhase } from '../../types/conversation';
 import { deriveStatus } from '../../utils/convStatus';
@@ -40,6 +41,7 @@ import {
 } from './Messages';
 import { PermissionCard } from './PermissionCard';
 import { StatusLine } from './StatusLine';
+import { TranscriptViewProvider } from './transcriptViewContext';
 
 export type { ConvSlots } from './Messages';
 
@@ -322,6 +324,8 @@ export interface ConversationViewProps {
   onStopAgent?: (agentId: string) => void;
   /** 沙箱挡下、等授权的卡片（编程助手标签；一轮结束后也还在） */
   sandboxRequests?: React.ReactNode;
+  /** 当前会话的 Transcript view；由 ChatBody 按会话注入，默认 normal */
+  transcriptView?: TranscriptView;
 }
 
 const ConversationInner: React.FC<ConversationViewProps> = ({
@@ -648,5 +652,9 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
 export const ConversationView = React.memo(function ConversationView(props: ConversationViewProps) {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
-  return <ConversationInner key={props.scopeId} {...props} />;
+  return (
+    <TranscriptViewProvider value={props.transcriptView ?? 'normal'}>
+      <ConversationInner key={props.scopeId} {...props} />
+    </TranscriptViewProvider>
+  );
 });

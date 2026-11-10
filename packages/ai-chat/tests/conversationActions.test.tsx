@@ -44,7 +44,9 @@ describe('思考块：流式展开 + 计时，完成后折叠为「已思考 N �
       firstEventAt: 9000,
       trace: [{ type: 'thinking', text: '先想想', at: 8000 }],
     };
-    const { getByTestId, rerender } = render(view({ phase: 'running', live }));
+    const { getByTestId, rerender } = render(
+      view({ phase: 'running', live, transcriptView: 'thinking' }),
+    );
     const think = getByTestId('tool-thinking');
     expect(think.getAttribute('data-open')).toBe('true');
     expect(think.textContent).toContain('思考中');
@@ -65,6 +67,7 @@ describe('思考块：流式展开 + 计时，完成后折叠为「已思考 N �
             trace: [{ type: 'thinking', text: '先想想', at: 8000 }],
           }),
         ],
+        transcriptView: 'thinking',
       }),
     );
     const done = getByTestId('tool-thinking');
@@ -79,7 +82,7 @@ describe('思考块：流式展开 + 计时，完成后折叠为「已思考 N �
       firstEventAt: 1,
       trace: [{ type: 'thinking', text: 'x', at: Date.now() }],
     };
-    const { getByTestId } = render(view({ phase: 'running', live }));
+    const { getByTestId } = render(view({ phase: 'running', live, transcriptView: 'thinking' }));
     fireEvent.click(getByTestId('tool-thinking').querySelector('button')!);
     expect(getByTestId('tool-thinking').getAttribute('data-open')).toBe('false');
   });
@@ -280,6 +283,7 @@ describe('Nomi 对话走同一套视图', () => {
   it('Nomi 的工具调用（MCP / 搜索）与思考走同一个 trace 渲染，正文是 Markdown', () => {
     const { container, getByTestId } = render(
       <NomiConversation
+        transcriptView="thinking"
         messages={[
           chat({ id: 'u', role: 'user', content: '查一下' }),
           chat({

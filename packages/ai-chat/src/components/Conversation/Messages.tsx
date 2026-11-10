@@ -32,6 +32,7 @@ import { ForkRight } from './forkIcon';
 import styles from './index.module.css';
 import { Markdown } from './Markdown';
 import { ToolTimeline } from './ToolTimeline';
+import { useTranscriptViewMode } from './transcriptViewContext';
 
 export interface ConvSlots {
   /** 正文之前（记忆标签 / 图片等来源特有内容） */
@@ -162,19 +163,27 @@ export const AssistantBody: React.FC<{
   endedAt?: number;
   extra?: React.ReactNode;
 }> = ({ text, trace, legacyTools, breaks, live, streaming, endedAt, extra }) => {
+  const transcriptView = useTranscriptViewMode();
   const entries = useMemo(() => {
     // 已结束的一轮：旧消息里悬空的工具调用按已停止显示（不再一直转圈）
-    if (trace?.length)
-      return reduceTraceCached(live ? trace : settleTrace(trace, t('ui.chat-settings.stopped')));
-    if (legacyTools?.length) return entriesFromLegacyTools(legacyTools);
-    return [];
-  }, [trace, legacyTools, live]);
+    const all = trace?.length
+      ? reduceTraceCached(live ? trace : settleTrace(trace, t('ui.chat-settings.stopped')))
+      : legacyTools?.length
+        ? entriesFromLegacyTools(legacyTools)
+        : [];
+    // Normal 与 Claude Code 一致：只显示正文和工具摘要，不显示思考
+    return transcriptView === 'normal' ? all.filter((e) => e.type !== 'thinking') : all;
+  }, [trace, legacyTools, live, transcriptView]);
   // 时间线只随轨迹重建；流式文字帧只重新切文字，各组 items 保持同一引用
   const layout = useMemo(() => layoutBody(entries), [entries]);
   const len = planLength(layout, text.length, breaks);
   const plan = useMemo(
-    () => planBody(layout, len, !!live, endedAt, breaks),
-    [layout, len, live, endedAt, breaks],
+    () =>
+      planBody(layout, len, !!live, endedAt, breaks, {
+        // Verbose：每次工具调用单独成行，不再合并成组
+        groupTools: transcriptView !== 'verbose',
+      }),
+    [layout, len, live, endedAt, breaks, transcriptView],
   );
   const segments = useMemo(() => sliceBody(text, plan), [text, plan]);
   if (!segments.length && !extra) return null;

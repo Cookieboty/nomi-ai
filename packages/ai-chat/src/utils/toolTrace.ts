@@ -718,7 +718,10 @@ export function buildTimeline(
   live = false,
   /** 整轮结束时间（已结束的消息传入）：最后一段思考据此算出耗时 */
   endAt?: number,
+  /** groupTools=false：Verbose 视图，每次工具调用单独成行，不合并成组 */
+  opts: { groupTools?: boolean } = {},
 ): TimelineItem[] {
+  const groupTools = opts.groupTools !== false;
   const subagents = new Map<string, ToolCall>();
   for (const e of entries)
     if (e.type === 'tool' && classifyTool(e.call.name) === 'subagent')
@@ -777,6 +780,11 @@ export function buildTimeline(
           call: e.call,
           children: build(childrenOf.get(e.call.id) ?? [], isLive && e.call.status === 'running'),
         });
+        return;
+      }
+      if (!groupTools) {
+        flush();
+        items.push({ type: 'call', call: e.call });
         return;
       }
       const b = bucketOf(kind);
