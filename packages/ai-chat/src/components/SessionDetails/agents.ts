@@ -59,22 +59,70 @@ function callStatus(c: ToolCall): SessionAgentStatus {
   return c.status === 'error' ? 'error' : 'done';
 }
 
-function toolCalls(messages: readonly ConvMessage[]): ToolCall[] {
-  const out: ToolCall[] = [];
-  for (const m of messages) {
-    if (!m.trace?.length) continue;
-    for (const e of reduceTraceCached(m.trace)) if (e.type === 'tool') out.push(e.call);
+/** 一条消息里和智能体有关的工具调用（委派子任务、子代理），连同预先解析好的字段 */
+interface AgentCall {
+  call: ToolCall;
+  kind: 'delegate' | 'subagent';
+  /** 委派：最终结果还没到（输出是 running 占位）时的任务 id */
+  pendingTaskId?: string;
+  taskId?: string;
+  /** 子代理：类型与描述 */
+  type?: string;
+  target?: string;
+}
+
+/**
+ * 按消息缓存：流式输出时只有最新那条消息换了对象，前面的消息直接取缓存，
+ * 不再每帧把全部历史的工具调用重新折叠、解析 JSON。
+ */
+const agentCallCache = new WeakMap<
+  ConvMessage,
+  { trace: ConvMessage['trace']; len: number; calls: AgentCall[] }
+>();
+function agentCallsOf(m: ConvMessage): AgentCall[] {
+  // 同一条消息的 trace 可能被原地追加：数组和长度都没变才算命中（同 reduceTraceCached）
+  const hit = agentCallCache.get(m);
+  if (hit && hit.trace === m.trace && hit.len === (m.trace?.length ?? 0)) return hit.calls;
+  const out: AgentCall[] = [];
+  if (m.trace?.length) {
+    for (const e of reduceTraceCached(m.trace)) {
+      if (e.type !== 'tool') continue;
+      const call = e.call;
+      const name = baseToolName(call.name);
+      if (name === 'delegate_to_cli') {
+        const r = parseOutput(call.output).result;
+        out.push({
+          call,
+          kind: 'delegate',
+          taskId: r?.taskId,
+          pendingTaskId: r?.status === 'running' ? r.taskId : undefined,
+        });
+      } else if (name !== 'delegate_to_nomi' && classifyTool(call.name) === 'subagent') {
+        const input = parseInput(call.input);
+        out.push({
+          call,
+          kind: 'subagent',
+          type: typeof input?.subagent_type === 'string' ? input.subagent_type : undefined,
+          target: describeCall(call).target,
+        });
+      }
+    }
   }
+  agentCallCache.set(m, { trace: m.trace, len: m.trace?.length ?? 0, calls: out });
+  return out;
+}
+
+function agentCalls(messages: readonly ConvMessage[]): AgentCall[] {
+  const out: AgentCall[] = [];
+  for (const m of messages) out.push(...agentCallsOf(m));
   return out;
 }
 
 /** 工具输出还是 running 占位的异步委派：要去查 / 等最终结果的任务 id */
 export function pendingDelegateTaskIds(messages: readonly ConvMessage[]): string[] {
   const out: string[] = [];
-  for (const call of toolCalls(messages)) {
-    if (baseToolName(call.name) !== 'delegate_to_cli') continue;
-    const r = parseOutput(call.output).result;
-    if (r?.status === 'running' && r.taskId && !out.includes(r.taskId)) out.push(r.taskId);
+  for (const a of agentCalls(messages)) {
+    if (a.pendingTaskId && !out.includes(a.pendingTaskId)) out.push(a.pendingTaskId);
   }
   return out;
 }
@@ -95,13 +143,11 @@ export function collectSessionAgents(
   const seen = new Set<string>();
   const byCall = new Map<string, LiveAgent>();
   for (const a of Object.values(liveAgents ?? {})) if (a.callId) byCall.set(a.callId, a);
-  for (const call of toolCalls(messages)) {
+  for (const { call, kind, taskId, type, target } of agentCalls(messages)) {
     if (seen.has(call.id)) continue;
-    const name = baseToolName(call.name);
-    if (name === 'delegate_to_cli') {
+    if (kind === 'delegate') {
       seen.add(call.id);
       const tab = delegateTab(call, tabs);
-      const taskId = parseOutput(call.output).result?.taskId;
       const v = delegateView(
         withDelegateResult(call, taskId ? results?.[taskId] : undefined),
         tab,
@@ -117,16 +163,13 @@ export function collectSessionAgents(
       });
       continue;
     }
-    if (name === 'delegate_to_nomi' || classifyTool(call.name) !== 'subagent') continue;
     seen.add(call.id);
     const la = byCall.get(call.id);
-    const input = parseInput(call.input);
-    const type = typeof input?.subagent_type === 'string' ? input.subagent_type : undefined;
     agents.push({
       id: call.id,
       kind: 'subagent',
       label: la?.label || la?.agentType || type || '',
-      detail: describeCall(call).target,
+      detail: target,
       status: la ? LIVE_STATUS[la.status] : callStatus(call),
     });
   }

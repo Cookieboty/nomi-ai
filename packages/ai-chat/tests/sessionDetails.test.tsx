@@ -552,3 +552,36 @@ describe('会话详情：异步委派的状态与工作区改动', () => {
     expect(summarizeGit({ ok: false, status: '', added: 0, removed: 0 })).toBeNull();
   });
 });
+
+describe('agent list cache', () => {
+  it('reuses earlier messages and still sees calls appended to a trace in place', () => {
+    const msg = {
+      id: 'x',
+      role: 'assistant',
+      content: '',
+      timestamp: 1,
+      trace: [
+        {
+          type: 'tool',
+          name: 'Task',
+          status: 'start',
+          id: 't1',
+          input: JSON.stringify({ subagent_type: 'explorer', description: '找' }),
+        },
+      ],
+    } as unknown as ConvMessage;
+    expect(collectSessionAgents([msg], [], {})).toHaveLength(1);
+    // 同一条消息的 trace 原地追加了一个子代理
+    (msg.trace as unknown[]).push({
+      type: 'tool',
+      name: 'Task',
+      status: 'start',
+      id: 't2',
+      input: JSON.stringify({ subagent_type: 'reviewer', description: '审' }),
+    });
+    expect(collectSessionAgents([msg], [], {}).map((a) => a.label)).toEqual([
+      'explorer',
+      'reviewer',
+    ]);
+  });
+});
