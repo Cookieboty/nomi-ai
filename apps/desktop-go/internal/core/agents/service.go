@@ -758,7 +758,14 @@ func (s *Service) matchAlive(cands []candidate, procs []AgentProc, procSess map[
 	return res
 }
 
+// IdleProcsMs：上次没找到任何编程助手进程时，进程表至多这么久重读一次（平时随 pollMs 每轮读）。
+// 读进程表要起 ps / PowerShell，空闲时不必每 8 秒一次；会话文件的扫描仍按 pollMs。
+const IdleProcsMs = 30_000
+
 func (s *Service) refreshProcs() {
+	if s.procsAt != 0 && len(s.procs) == 0 && s.now()-s.procsAt < IdleProcsMs {
+		return
+	}
 	if s.d.Processes != nil {
 		s.procs = s.d.Processes()
 		s.procSess = ClaudePidSessions(s.home, s.procs)

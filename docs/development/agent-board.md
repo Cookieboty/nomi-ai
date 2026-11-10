@@ -64,6 +64,9 @@ Agent 看板列出「谁在干活」：正在回答的 Nomi 对话、Nomi 的后
 - 进程表（`internal/core/agents/proctable.go`）一次读出全部进程的父进程、常驻内存与累计 CPU 时间（macOS / Linux 用 `ps`，
   Windows 用 `Win32_Process`）。单个 agent 的 CPU = 两次采样的累计时间差 ÷ 间隔（100 = 占满一个核，同活动监视器的「% CPU」列）；
   不用 ps 的 `%cpu`。
+- 进程列表 5 秒内共用一份（`agents.ProcessesShareTTL`）：看板与 Agent 进度监控各自定时读，不各起一次 ps / PowerShell。
+  进度监控（每 8 秒一轮）上次没找到任何编程助手进程时，进程表至多每 30 秒重读一次（`agents.IdleProcsMs`），
+  会话文件仍每轮扫描；所以在终端里新开的助手最多晚 30 秒被认出来。
 - 整机 CPU（`system.cpuPercent`，0–100，占全部核的比例，同活动监视器的「系统 + 用户」）读系统计数（`agents.SystemCPU`：
   macOS `host_statistics`、Linux `/proc/stat`、Windows `GetSystemTimes`）；读不到（如不带 cgo 的 macOS 构建）时退回各进程相加
   除以核数，会漏掉采样间隔里退出的进程与 `kernel_task`。

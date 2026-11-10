@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -302,8 +303,39 @@ func jsNumber(s string) float64 {
 
 var nanv = func() float64 { z := 0.0; return z / z }()
 
-// ReadProcesses：本机全部进程（含父进程与常驻内存；nil = 读不到）。
+// ProcessesShareTTL：这段时间内的读取共用同一份进程列表（Agent 进度监控与 Agent 看板各自定时读，
+// 不各起一次 ps / PowerShell）；同时到达的调用等同一次读取。
+const ProcessesShareTTL = 5 * time.Second
+
+var procShare struct {
+	sync.Mutex
+	platform string
+	at       time.Time
+	procs    []RawProc
+}
+
+// ReadProcesses：本机全部进程（含父进程与常驻内存；nil = 读不到）。ProcessesShareTTL 内复用上一次的结果。
 func ReadProcesses(platform string) []RawProc {
+	procs, _ := readProcessesShared(platform)
+	return procs
+}
+
+// readProcessesShared：同 ReadProcesses，另返回这份列表的采样时间（算 CPU 用）。
+func readProcessesShared(platform string) ([]RawProc, time.Time) {
+	procShare.Lock()
+	defer procShare.Unlock()
+	if procShare.procs != nil && procShare.platform == platform && time.Since(procShare.at) < ProcessesShareTTL {
+		return procShare.procs, procShare.at
+	}
+	at := time.Now()
+	procs := readProcessesNow(platform)
+	if procs != nil {
+		procShare.platform, procShare.at, procShare.procs = platform, at, procs
+	}
+	return procs, at
+}
+
+func readProcessesNow(platform string) []RawProc {
 	if platform == "win32" {
 		so, err := runCmd(8*time.Second, "powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
 			"Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,WorkingSetSize,KernelModeTime,UserModeTime,Name,CommandLine | ConvertTo-Json -Compress")
