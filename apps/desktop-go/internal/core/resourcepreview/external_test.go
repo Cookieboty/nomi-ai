@@ -204,7 +204,12 @@ func TestCSVFileURIAndResolvedAliasStayExternal(t *testing.T) {
 	defer s.Shutdown()
 	var opened string
 	s.OpenFile = func(path string) error { opened = path; return nil }
-	uri := (&url.URL{Scheme: "file", Path: filepath.ToSlash(file)}).String()
+	// 文件 URI 的路径以 / 开头：Windows 上是 file:///C:/…（不加 / 时 C: 会被当成主机名）
+	slashed := filepath.ToSlash(file)
+	if !strings.HasPrefix(slashed, "/") {
+		slashed = "/" + slashed
+	}
+	uri := (&url.URL{Scheme: "file", Path: slashed}).String()
 	if r := s.External(dir, uri, "/nonexistent-home", false); !r.OK || opened != real {
 		t.Fatalf("CSV file URI not handled: %+v %q", r, opened)
 	}

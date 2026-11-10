@@ -54,9 +54,11 @@ type Service struct {
 	OpenFile       func(string) error
 	mu             sync.Mutex
 	items          map[string]capability
-	DenyRoots      []string
-	browser        *http.Server
-	browserOrigin  string
+	// saveLocks：按文件串行化保存（路径 → *sync.Mutex）。只锁同一个文件的保存，预览请求与别的文件不受影响
+	saveLocks     sync.Map
+	DenyRoots     []string
+	browser       *http.Server
+	browserOrigin string
 }
 
 func New(denyRoots ...string) *Service {

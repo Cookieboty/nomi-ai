@@ -3,6 +3,7 @@ package resourcepreview
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -25,8 +26,12 @@ func TestPreviewSaveAtomicRevisionAndPermissions(t *testing.T) {
 	}
 	b, _ := os.ReadFile(path)
 	st, _ := os.Stat(path)
-	if string(b) != text || st.Mode().Perm() != 0640 {
-		t.Fatal("content/permissions lost")
+	if string(b) != text {
+		t.Fatal("content lost")
+	}
+	// Windows 没有 Unix 权限位（只有只读与否），只在 Unix 上比较
+	if runtime.GOOS != "windows" && st.Mode().Perm() != 0640 {
+		t.Fatalf("permissions lost: %v", st.Mode().Perm())
 	}
 	if r := s.Save(r.URL, r.Revision, "stale"); r.Code != "conflict" {
 		t.Fatalf("stale %+v", r)

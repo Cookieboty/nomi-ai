@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -28,11 +29,22 @@ func (s *Service) Save(url, revision, content string) SaveResult {
 		return saveFail("invalid")
 	}
 	token := strings.TrimPrefix(url, Prefix)
-	// Only the capability table is locked; file IO (reads, fsync, rename) runs outside so
-	// autosave does not stall preview requests. Concurrent saves are settled by the
-	// on-disk revision check right before the rename.
+	// The capability table lock is never held across file IO (reads, fsync, rename), so
+	// autosave does not stall preview requests. Saves to the same file are serialized by a
+	// per-path lock: otherwise two saves can both pass the revision check before either
+	// renames (both "win" on macOS; on Windows the rename also hits the other save's open file).
 	s.mu.Lock()
 	cap, ok := s.items[token]
+	s.mu.Unlock()
+	if !ok || time.Since(cap.at) > ttl {
+		return saveFail("expired")
+	}
+	lock, _ := s.saveLocks.LoadOrStore(cap.path, &sync.Mutex{})
+	lock.(*sync.Mutex).Lock()
+	defer lock.(*sync.Mutex).Unlock()
+	// Re-read under the file lock: an earlier save may have moved the revision on.
+	s.mu.Lock()
+	cap, ok = s.items[token]
 	s.mu.Unlock()
 	if !ok || time.Since(cap.at) > ttl {
 		return saveFail("expired")
