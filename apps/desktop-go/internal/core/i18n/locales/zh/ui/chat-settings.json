@@ -538,5 +538,15 @@
   "ui.chat-settings.open-project-in-terminal": "在终端打开当前项目",
   "ui.chat-settings.open-terminal-no-project": "这个会话没有项目目录，先选一个工作区",
   "ui.chat-settings.open-terminal-not-found": "没找到可以打开的终端程序",
-  "ui.chat-settings.open-terminal-denied": "这个目录不能在终端里打开（{0}）"
+  "ui.chat-settings.open-terminal-denied": "这个目录不能在终端里打开（{0}）",
+  "ui.chat-settings.login-blocked-title": "{0} 的官方服务拒绝了这次登录请求（403）",
+  "ui.chat-settings.login-blocked-why": "这不是账号的问题：登录请求还没到账号这一步，就被官方服务按网络拦下了。常见原因是网络出口所在的地区不受支持，或者代理没有生效。",
+  "ui.chat-settings.login-blocked-proxy-used": "这次已经通过终端里配置的代理 {0} 发出，仍被拒绝。请把代理切换到受支持地区的节点后重试。",
+  "ui.chat-settings.login-blocked-proxy-off": "终端里配置了代理 {0}，但「沿用终端里的代理」已关闭，这次登录是直连发出的。",
+  "ui.chat-settings.login-blocked-no-proxy": "Nomi 没在终端配置（如 ~/.zshrc）里找到 https_proxy 等代理变量，这次登录是直连发出的。请打开代理软件的 TUN / 增强模式，或在终端配置里设置 https_proxy 后重启 Nomi 再试。",
+  "ui.chat-settings.login-blocked-use-proxy-and-retry": "沿用终端代理并重试",
+  "ui.chat-settings.use-the-terminal-s-proxy": "沿用终端里的代理",
+  "ui.chat-settings.use-the-terminal-s-proxy-desc": "所有编程助手登录和对话时，使用终端配置（如 ~/.zshrc）里的 https_proxy 等代理；本机地址不走代理，Nomi 自己的模型请求不受影响。",
+  "ui.chat-settings.terminal-proxy-detected": "检测到：{0}",
+  "ui.chat-settings.terminal-proxy-not-found": "终端里没有配置代理。"
 }

@@ -113,6 +113,8 @@ func main() {
 	hostports.Stage("logger-ready")
 	// 读登录 shell 的 PATH（不阻塞启动；探测 CLI 的异步路径会等它），读完再记住 npm 全局 bin
 	// （自定义 prefix 且 shell 里没配 PATH 时也能找到已装的 CLI；稍后再跑，不和启动抢资源）
+	// 同时读终端里的代理变量，开关（默认开）打开时加给编程助手子进程（cli/shellproxy.go）
+	cli.ConfigureShellProxy(userData, nil)
 	go mergeLoginShellPath()
 	// 这里只复制 2.0.4 文件（不碰钥匙串）；密钥迁移在桌面角色窗口出来后后台跑（secretGate）
 	if res, err := migrate.RunFiles(userData); err != nil {

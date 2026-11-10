@@ -248,6 +248,11 @@ export const CliAccount = loose({
 
 export const LoginEvent = loose({ id: z.string(), kind: z.string(), state: z.string() });
 
+export const CliNetworkState = loose({
+  useShellProxy: z.boolean(),
+  shellProxy: z.string().nullable(),
+});
+
 // ---------------------------------------------------------------------------
 // cliUpdate：CLI 安装 / 更新（cli/CliUpdateService.ts）
 // ---------------------------------------------------------------------------

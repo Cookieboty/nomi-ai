@@ -50,6 +50,18 @@ export interface LoginEvent {
   needsCode?: boolean;
   message?: string;
   account?: CliAccount;
+  /** network-blocked：官方服务以 403 拒绝了这个网络（地区不受支持 / 代理没生效） */
+  hint?: 'network-blocked';
+  /** 出错时「沿用终端代理」开关的值 */
+  useShellProxy?: boolean;
+  /** 终端里检测到的代理地址（已去掉账号密码） */
+  shellProxy?: string;
+}
+
+/** 编程助手是否沿用终端（如 ~/.zshrc）里的代理变量 */
+export interface CliNetworkState {
+  useShellProxy: boolean;
+  shellProxy: string | null;
 }
 
 /** 契约的账号错误码 → 原来的 kebab code（调用方按 `e.code === 'unknown-live'` 走控制流） */
@@ -100,6 +112,9 @@ export const cliAccountClient = {
   loginCancel: (id: string) => call<boolean>(() => api.cliAccount.loginCancel({ id })),
   /** 只能打开官方登录页（主进程校验） */
   openUrl: (url: string) => call<boolean>(() => api.cliAccount.openUrl({ url })),
+  network: () => call<CliNetworkState>(() => api.cliAccount.networkGet()),
+  setNetwork: (useShellProxy: boolean) =>
+    call<CliNetworkState>(() => api.cliAccount.networkSet({ useShellProxy })),
   onChanged: (fn: () => void) => on(() => api.on('cliAccount.changed', () => fn())),
   onLogin: (fn: (e: LoginEvent) => void) =>
     on(() => api.on('cliAccount.login', (p) => fn(p as unknown as LoginEvent))),

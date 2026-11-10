@@ -235,6 +235,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **chat:** 输入栏的「完全放开」档位按钮不再带红框和底色，和旁边的模型按钮一样，只用红色文字提示。 (`@nomi-ai/ai-chat` patch)
 - **chat:** 输入框里 Home / End 跳到当前行首尾，Shift 扩展选区，Ctrl / Command 跳到全文首尾；输入法组合时不拦截。/ In the composer, Home / End move to the start / end of the current line, Shift extends the selection and Ctrl / Command jumps to the start / end of the text; keys are left alone while an IME is composing. (`@nomi-ai/ai-chat` patch)
 - **cli-sdk:** Codex app-server 驱动在压缩完成后、没有新的占用上报就结束这一轮时，用量里写 `contextTokens: 0`（压缩后大小未知），不再合入压缩前的旧值。Node 与 Go 版一致（#217）。 (`@nomi-ai/desktop-go` patch)
+- **cli:** Codex 等编程助手登录报「device code request failed with status 403 Forbidden」——从 Finder / Dock 启动时 Nomi 拿不到终端配置（如 ~/.zshrc）里的 https_proxy，登录请求直连被官方服务按地区拒绝。现在读登录 shell 时一并读代理变量，加给编程助手的子进程（本机地址不走代理，网关不受影响），官方账号里新增「沿用终端里的代理」开关（默认打开）；登录被 403 拒绝时给出原因、检测到的代理和「沿用终端代理并重试」按钮。 (`@nomi-ai/contract` patch)
 - **cli:** Kimi Code 标签里的命令、搜索等工具调用会显示具体参数了（之前只显示「Bash」、参数是空的）：开始执行时才补上的参数不再被丢掉。 (`@nomi-ai/desktop-go` patch)
 - **cli:** Kimi Code、MiniMax Code 标签的输入栏有模型按钮了：官方账号下也能在里面换到第三方供应商、选模型；第三方标签选的模型重启后不再丢。 (`@nomi-ai/desktop-go` patch)
 - **cli:** MiniMax Code 用第三方供应商时能正常启动了（之前因为会话目录是链接过去的，MiniMax 拒绝启动）。 (`@nomi-ai/desktop-go` patch)

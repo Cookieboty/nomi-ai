@@ -538,5 +538,15 @@
   "ui.chat-settings.open-project-in-terminal": "Open project in terminal",
   "ui.chat-settings.open-terminal-no-project": "This conversation has no project folder; pick a workspace first",
   "ui.chat-settings.open-terminal-not-found": "No terminal app found to open",
-  "ui.chat-settings.open-terminal-denied": "This folder can't be opened in a terminal ({0})"
+  "ui.chat-settings.open-terminal-denied": "This folder can't be opened in a terminal ({0})",
+  "ui.chat-settings.login-blocked-title": "{0}'s official service refused this sign-in request (403)",
+  "ui.chat-settings.login-blocked-why": "This isn't about your account: the request was blocked based on your network before any account was involved. Usually the network's region isn't supported, or the proxy isn't in effect.",
+  "ui.chat-settings.login-blocked-proxy-used": "This attempt already went through the terminal's proxy {0} and was still refused. Switch the proxy to a node in a supported region and try again.",
+  "ui.chat-settings.login-blocked-proxy-off": "Your terminal has a proxy configured ({0}), but “Use the terminal's proxy” is off, so this sign-in went out directly.",
+  "ui.chat-settings.login-blocked-no-proxy": "Nomi didn't find https_proxy or similar variables in your terminal config (e.g. ~/.zshrc), so this sign-in went out directly. Turn on your proxy app's TUN / enhanced mode, or set https_proxy in your terminal config and restart Nomi, then try again.",
+  "ui.chat-settings.login-blocked-use-proxy-and-retry": "Use the terminal's proxy and retry",
+  "ui.chat-settings.use-the-terminal-s-proxy": "Use the terminal's proxy",
+  "ui.chat-settings.use-the-terminal-s-proxy-desc": "Coding assistants sign in and chat through the https_proxy (and similar) set in your terminal config, e.g. ~/.zshrc. Local addresses skip the proxy; Nomi's own model requests aren't affected.",
+  "ui.chat-settings.terminal-proxy-detected": "Detected: {0}",
+  "ui.chat-settings.terminal-proxy-not-found": "No proxy is configured in your terminal."
 }

@@ -60,6 +60,7 @@ import {
   HistoryOpenResult,
   HistoryPage,
   HistoryPageOptions,
+  CliNetworkState,
   LoginEvent,
   PermissionMode,
   Project,
@@ -460,6 +461,13 @@ const cliAccountProcedures = {
     kind: 'mutation',
     input: z.object({ url: z.string() }),
     output: z.boolean(),
+  },
+  /** 编程助手是否沿用终端（登录 shell）里的代理变量；shellProxy = 检测到的代理地址（已去掉账号密码） */
+  'cliAccount.networkGet': { kind: 'query', input: z.void(), output: CliNetworkState },
+  'cliAccount.networkSet': {
+    kind: 'mutation',
+    input: z.object({ useShellProxy: z.boolean() }),
+    output: CliNetworkState,
   },
 } as const satisfies ProcedureMap;
 

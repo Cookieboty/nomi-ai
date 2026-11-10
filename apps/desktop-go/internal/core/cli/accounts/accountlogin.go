@@ -318,9 +318,21 @@ func (l *AccountLogin) fail(s *loginSession, message string) {
 	}
 	s.finished = true
 	cli.KillProcessTree(clisdk.ProcChild{Child: s.child})
-	l.send(s, util.NewObj("state", "error", "message", message))
+	ev := util.NewObj("state", "error", "message", message)
+	if blockedRe.MatchString(StripTerminal(s.out)) || blockedRe.MatchString(message) {
+		// 官方服务拒绝了这个网络（地区不受支持 / 代理没生效）：界面给出明显的提示和代理开关
+		ev.Set("hint", "network-blocked")
+		ev.Set("useShellProxy", cli.UseShellProxy())
+		if p := cli.DetectedShellProxy(); p != "" {
+			ev.Set("shellProxy", p)
+		}
+	}
+	l.send(s, ev)
 	l.cleanup(s, true)
 }
+
+// blockedRe：登录请求被官方服务以 403 拒绝（Codex 设备码：device code request failed with status 403 Forbidden）
+var blockedRe = regexp.MustCompile(`(?i)status 403\b|403 Forbidden|unsupported_country`)
 
 func (l *AccountLogin) onExit(s *loginSession, code *int) {
 	if s.finished {

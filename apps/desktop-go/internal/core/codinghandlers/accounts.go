@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/accounts"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
@@ -128,4 +129,17 @@ func RegisterAccounts(r *contract.Router, s AccountServices) {
 		throwIf(err)
 		return ok
 	})
+	gil(r, "cliAccount.networkGet", func(in) any { return cliNetworkState() })
+	gil(r, "cliAccount.networkSet", func(a in) any {
+		throwIf(cli.SetUseShellProxy(a.any("useShellProxy") == true))
+		return cliNetworkState()
+	})
+}
+
+func cliNetworkState() *util.Obj {
+	var proxy any
+	if p := cli.DetectedShellProxy(); p != "" {
+		proxy = p
+	}
+	return util.NewObj("useShellProxy", cli.UseShellProxy(), "shellProxy", proxy)
 }

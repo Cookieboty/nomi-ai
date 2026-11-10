@@ -6584,6 +6584,71 @@
     "additionalProperties": {}
    }
   },
+  "cliAccount.networkGet": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "useShellProxy": {
+      "type": "boolean"
+     },
+     "shellProxy": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "useShellProxy",
+     "shellProxy"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "cliAccount.networkSet": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "useShellProxy": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "useShellProxy"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "useShellProxy": {
+      "type": "boolean"
+     },
+     "shellProxy": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "useShellProxy",
+     "shellProxy"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "cliAccount.openUrl": {
    "kind": "mutation",
    "dangerous": false,

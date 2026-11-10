@@ -1555,6 +1555,20 @@ type CliAccountLoginStartOutput struct {
 	State string `json:"state"`
 }
 
+type CliAccountNetworkGetOutput struct {
+	UseShellProxy bool   `json:"useShellProxy"`
+	ShellProxy    string `json:"shellProxy"`
+}
+
+type CliAccountNetworkSetInput struct {
+	UseShellProxy bool `json:"useShellProxy"`
+}
+
+type CliAccountNetworkSetOutput struct {
+	UseShellProxy bool   `json:"useShellProxy"`
+	ShellProxy    string `json:"shellProxy"`
+}
+
 type CliAccountOpenUrlInput struct {
 	Url string `json:"url"`
 }
@@ -11279,6 +11293,14 @@ type CliAccountLoginInputOutputT = bool
 // CliAccountLoginStartInputT 是 cliAccount.loginStart 的入参
 type CliAccountLoginStartInputT = CliAccountLoginStartInput
 type CliAccountLoginStartOutputT = CliAccountLoginStartOutput
+
+// CliAccountNetworkGetInputT 是 cliAccount.networkGet 的入参
+type CliAccountNetworkGetInputT = any
+type CliAccountNetworkGetOutputT = CliAccountNetworkGetOutput
+
+// CliAccountNetworkSetInputT 是 cliAccount.networkSet 的入参
+type CliAccountNetworkSetInputT = CliAccountNetworkSetInput
+type CliAccountNetworkSetOutputT = CliAccountNetworkSetOutput
 
 // CliAccountOpenUrlInputT 是 cliAccount.openUrl 的入参
 type CliAccountOpenUrlInputT = CliAccountOpenUrlInput

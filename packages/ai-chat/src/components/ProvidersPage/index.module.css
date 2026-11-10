@@ -256,6 +256,17 @@
   border: 1px solid var(--cd-panel-border);
   background: var(--cd-panel-surface-sunken);
 }
+.blocked {
+  display: grid;
+  gap: var(--cd-space-1-5);
+  line-height: 1.5;
+}
+.blockedRaw {
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  word-break: break-word;
+}
 .loginCode code {
   font-family: var(--cd-font-mono);
   font-size: 20px;
