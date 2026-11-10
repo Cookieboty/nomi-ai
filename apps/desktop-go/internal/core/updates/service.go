@@ -192,7 +192,7 @@ func (realClock) Every(ms int64, f func()) Timer {
 const (
 	DefaultLaunchDelay = 15_000
 	DefaultStallMs     = 90_000
-	DefaultInterval    = 6 * 60 * 60 * 1000
+	DefaultInterval    = 60 * 60 * 1000 // 每小时检查一次
 )
 
 type Options struct {

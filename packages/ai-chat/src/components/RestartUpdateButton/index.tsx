@@ -1,6 +1,6 @@
 /**
  * Restart-to-update control: visible only when an update is downloaded and ready to install.
- * Used next to the workbench Settings entry and in the settings nav footer.
+ * Used in the title bar (outside Settings) and in the settings nav footer.
  */
 import { Button, Icon, t, useLocale } from '@nomi-ai/ui';
 import { RefreshCw } from 'lucide-react';
@@ -15,7 +15,7 @@ export interface RestartUpdateButtonProps {
   /** Compact icon-only look (collapsed sidebar / collapsed settings nav). */
   collapsed?: boolean;
   /** Visual placement for styling hooks / tests. */
-  placement: 'sidebar' | 'settings-nav';
+  placement: 'titlebar' | 'settings-nav';
   className?: string;
 }
 
@@ -56,21 +56,20 @@ export const RestartUpdateButton: React.FC<RestartUpdateButtonProps> = ({
 
   if (!api || !ready) return null;
 
-  if (placement === 'sidebar') {
+  if (placement === 'titlebar') {
+    const version = state?.availableVersion;
     return (
       <button
         type="button"
-        className={[styles.sidebarBtn, collapsed ? '' : styles.sidebarExpanded, className]
-          .filter(Boolean)
-          .join(' ')}
+        className={[styles.titlebarBtn, 'cd-motion-pop', className].filter(Boolean).join(' ')}
         onClick={onClick}
         disabled={busy}
-        title={label}
+        title={version ? `${label} · v${version}` : label}
         aria-label={label}
-        data-testid="restart-update-sidebar"
+        data-testid="restart-update-titlebar"
       >
-        <Icon icon={RefreshCw} size={16} />
-        {!collapsed && <span>{label}</span>}
+        <Icon icon={RefreshCw} size={14} />
+        <span>{label}</span>
       </button>
     );
   }

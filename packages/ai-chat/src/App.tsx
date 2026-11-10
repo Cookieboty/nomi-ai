@@ -25,6 +25,7 @@ import { onboardingClient } from './components/Onboarding/client';
 import { PendingDock } from './components/PendingDock';
 import { ProviderLinkHost } from './components/ProviderLink';
 import { ReleaseNotesHost } from './components/ReleaseNotesModal';
+import { RestartUpdateButton } from './components/RestartUpdateButton';
 import { SessionDetailsDock } from './components/SessionDetails';
 import { useChangesUi } from './components/SessionWorkspace';
 import { Sidebar } from './components/Sidebar';
@@ -244,7 +245,15 @@ const AiChatContent: React.FC = () => {
         sidebarCollapsed={panels.sidebarCollapsed}
         onToggleSidebar={panels.toggleSidebar}
         title={<TitleBarTitle page={openPage} />}
-        trailing={titleBar && !mainHidden ? sessionTools : undefined}
+        trailing={
+          titleBar ? (
+            <>
+              {/* 更新已下载好：设置页外在标题栏提示「重启更新」（设置页里在导航底部） */}
+              {!panels.settings && <RestartUpdateButton placement="titlebar" />}
+              {!mainHidden && sessionTools}
+            </>
+          ) : undefined
+        }
         lead={titleBar ? mainPages.fleetIndicator : undefined}
       />
       {/* 会话树保活：打开设置时只隐藏（display:none）不卸载，避免关闭时整树冷重挂载导致卡顿、

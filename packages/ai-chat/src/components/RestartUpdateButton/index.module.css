@@ -1,11 +1,11 @@
-/* Match AppEntries control height; accent so it reads as an action, not a permanent nav item. */
-.sidebarBtn {
-  height: var(--cd-control-h-ms);
-  min-width: var(--cd-control-h-ms);
+/* 标题栏右侧（「会话详细程度」按钮左边）：与标题栏按钮同高，强调色，表示一个待做的动作 */
+.titlebarBtn {
+  height: var(--cd-control-h-sm);
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--cd-space-2);
+  gap: var(--cd-space-1);
+  padding: 0 var(--cd-space-2);
+  margin-right: var(--cd-space-1);
   border: none;
   border-radius: var(--cd-radius-md);
   background: var(--cd-color-accent-soft);
@@ -13,21 +13,18 @@
   font: inherit;
   font-size: var(--cd-font-size-sm);
   font-weight: var(--cd-font-weight-bold);
+  white-space: nowrap;
   cursor: pointer;
   flex-shrink: 0;
 }
-.sidebarExpanded {
-  padding: 0 var(--cd-space-2);
-}
-.sidebarBtn:hover:not(:disabled) {
+.titlebarBtn:hover:not(:disabled) {
   background: var(--cd-color-hover);
-  color: var(--cd-color-accent-strong);
 }
-.sidebarBtn:focus-visible {
+.titlebarBtn:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: -2px;
 }
-.sidebarBtn:disabled {
+.titlebarBtn:disabled {
   opacity: 0.6;
   cursor: default;
 }
