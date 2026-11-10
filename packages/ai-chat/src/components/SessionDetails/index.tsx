@@ -179,16 +179,13 @@ interface Props {
   cwd: string | null;
 }
 
-const DetailsPanel: React.FC<Props & { onClose: () => void; floating?: boolean }> = ({
-  messages,
-  cwd,
-  onClose,
-  floating,
-}) => {
+const DetailsPanel: React.FC<
+  Props & { onClose: () => void; floating?: boolean; dismissible?: boolean }
+> = ({ messages, cwd, onClose, floating, dismissible }) => {
   const ref = useRef<HTMLElement>(null);
-  // 浮层：点在浮层和标题栏按钮以外的地方就收回
+  // 自动收起后手动打开的浮层：点在浮层和标题栏按钮以外的地方就收回
   useEffect(() => {
-    if (!floating) return;
+    if (!dismissible) return;
     const onDown = (e: PointerEvent) => {
       const target = e.target as Node | null;
       if (!target || ref.current?.contains(target)) return;
@@ -197,7 +194,7 @@ const DetailsPanel: React.FC<Props & { onClose: () => void; floating?: boolean }
     };
     window.addEventListener('pointerdown', onDown, true);
     return () => window.removeEventListener('pointerdown', onDown, true);
-  }, [floating, onClose]);
+  }, [dismissible, onClose]);
   const tabs = useHarnessTabs();
   const { isDev } = useChatMode();
   const tabId = isDev && tabs.isCliTab ? tabs.activeTab?.id : undefined;
@@ -375,8 +372,8 @@ export const SessionDetailsToggle: React.FC<{
 
 /**
  * 对话卡片右侧的一栏：显示着且会话有消息时才有（空会话不占地方）。
- * 放两处：平时那一栏放在对话卡片右侧（overlay 不传）；自动收起后再打开的浮层放进对话列里（overlay），
- * 盖在对话右上角，不落到中栏的 Diff / 文件预览上。
+ * 放两处：平时那一栏放在对话卡片右侧（overlay 不传）；浮层（自动收起后再打开，或旁边开着文件栏 /
+ * 子任务栏）放进对话列里（overlay），盖在对话右上角，不挤压对话，也不落到中栏的 Diff / 文件预览上。
  */
 export const SessionDetailsDock: React.FC<Props & { overlay?: boolean }> = ({
   overlay = false,
@@ -385,10 +382,12 @@ export const SessionDetailsDock: React.FC<Props & { overlay?: boolean }> = ({
   const v = useSessionDetails();
   const close = useCallback(() => {
     // 浮层只收回（还是自动收起的状态）；平时的一栏是用户关掉
-    if (v?.floating) v.dismiss();
+    if (v?.dismissible) v.dismiss();
     else v?.close();
     document.querySelector<HTMLElement>('[data-testid="session-details-toggle"]')?.focus();
   }, [v]);
   if (!v?.visible || !props.messages.length || overlay !== v.floating) return null;
-  return <DetailsPanel {...props} onClose={close} floating={v.floating} />;
+  return (
+    <DetailsPanel {...props} onClose={close} floating={v.floating} dismissible={v.dismissible} />
+  );
 };

@@ -4,7 +4,8 @@
  * - 展开了文件预览或 Diff（中栏）时自动收起，不管屏幕多宽；屏幕较窄（< 1440）时，文件栏、子任务面板展开也收起，
  *   给对话留地方；
  * - 这时点标题栏按钮可以手动再打开：以浮层盖在对话上方（不挤占对话），点浮层外面或 Esc 收回；
- *   那几栏开关有变化后又按自动规则来。
+ *   那几栏开关有变化后又按自动规则来；
+ * - 宽屏下文件栏 / 子任务栏展开时不收起，但也改成浮层盖在对话右上角，不挤压对话。
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
@@ -48,8 +49,10 @@ interface DetailsValue {
   visible: boolean;
   /** 用户开着，但因为展开了 Diff / 文件预览（或屏幕窄、别的栏展开）而自动收起了 */
   autoHidden: boolean;
-  /** 自动收起后手动再打开：以浮层盖在对话上方 */
+  /** 以浮层盖在对话上方（自动收起后手动再打开，或旁边还开着文件栏 / 子任务栏） */
   floating: boolean;
+  /** 浮层是自动收起后手动打开的：点外面收回 */
+  dismissible: boolean;
   toggle: () => void;
   close: () => void;
   /** 收回浮层（回到自动收起，不改用户的开关选择） */
@@ -89,26 +92,28 @@ export const SessionDetailsProvider: React.FC<{ children: React.ReactNode }> = (
     setPref(false);
     setOverride(false);
   }, [setPref]);
-  const floating = visible && crowded;
+  const dismissible = visible && crowded;
+  const floating = visible && (crowded || railOpen || !!subagentTab);
   const dismiss = useCallback(() => setOverride(false), []);
   const toggle = useCallback(() => {
-    if (floating) return dismiss();
+    if (dismissible) return dismiss();
     if (visible) return close();
     setPref(true);
     setOverride(crowded);
-  }, [floating, visible, crowded, close, dismiss, setPref]);
+  }, [dismissible, visible, crowded, close, dismiss, setPref]);
 
   const value = useMemo(
     () => ({
       visible,
       autoHidden: pref && !visible,
       floating,
+      dismissible,
       toggle,
       close,
       dismiss,
       setRailOpen,
     }),
-    [visible, pref, floating, toggle, close, dismiss],
+    [visible, pref, floating, dismissible, toggle, close, dismiss],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };

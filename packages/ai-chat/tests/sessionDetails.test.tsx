@@ -251,15 +251,16 @@ describe('SessionDetailsToggle', () => {
     expect(screen.queryByTestId('session-details')).toBeNull();
   });
 
-  it('stays open for the sub-task pane on a wide window; outside clicks do not close the docked column', async () => {
+  it('stays open for the sub-task pane on a wide window as a float over the chat; outside clicks do not close it', async () => {
     setup();
     mount();
     fireEvent.click(screen.getByTestId('session-details-toggle'));
     await waitFor(() => expect(screen.getAllByTestId('session-details-agent')).toHaveLength(2));
     fireEvent.click(screen.getAllByTestId('session-details-agent')[0]!.querySelector('button')!);
     expect(screen.getByTestId('probe').textContent).toBe('d1|-');
+    expect(screen.getByTestId('session-details').getAttribute('data-floating')).toBe('true');
     fireEvent.pointerDown(document.body);
-    expect(screen.getByTestId('session-details').getAttribute('data-floating')).toBeNull();
+    expect(screen.getByTestId('session-details').getAttribute('data-floating')).toBe('true');
   });
 
   it('opening the diff hides it; reopening floats it over the chat and an outside click puts it away', async () => {
@@ -436,11 +437,18 @@ describe('auto-hide on small screens', () => {
     expect(screen.getByTestId('session-details')).toBeTruthy();
   });
 
-  it('wide windows keep it open next to the files panel', async () => {
+  it('wide windows keep it open with the files panel, floating over the chat instead of squeezing it', async () => {
     localStorage.setItem('nomi.sessionDetails.open', '1');
     setup();
     mount('/w/app', messages, true);
-    expect(await screen.findByTestId('session-details')).toBeTruthy();
+    const panel = await screen.findByTestId('session-details');
+    expect(panel.getAttribute('data-floating')).toBe('true');
+    expect(screen.getByTestId('chat-col').contains(panel)).toBe(true);
+    // 这种浮层是常驻的：点外面不收回；再点按钮才关
+    fireEvent.pointerDown(document.body);
+    expect(screen.getByTestId('session-details')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('session-details-toggle'));
+    expect(screen.queryByTestId('session-details')).toBeNull();
   });
 });
 
