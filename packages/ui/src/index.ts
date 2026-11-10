@@ -61,6 +61,8 @@ export type { BrandIconProps } from './BrandIcon';
 export { Skeleton, SkeletonList, Truncate } from './Skeleton';
 export type { SkeletonProps } from './Skeleton';
 export * from './theme';
+export * from './customTheme';
+export * from './themeTokens';
 export * from './i18n';
 export { useFocusTrap } from './useFocusTrap';
 export { ErrorState, LoadingState } from './ErrorState';
