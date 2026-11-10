@@ -107,6 +107,9 @@ interface SidebarProps {
 }
 
 /** 侧栏：全部 / 按端 + 端点徽标；点击按后端路由到主对话或 CLI 标签 */
+/** 会话菜单的位置；从「更多」按钮打开时带上按钮（再点它关掉菜单） */
+type MenuAt = { x: number; y: number; anchor?: HTMLElement };
+
 const SidebarImpl: React.FC<SidebarProps> = ({
   collapsed,
   onToggle,
@@ -151,16 +154,9 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const [bins, setBins] = useState<Record<string, string | null>>({});
   const [newMenu, setNewMenu] = useState(false);
   // anchor：从行内「更多」按钮打开时是那个按钮（再点它关掉菜单）；右键打开时没有
-  const [ctx, setCtx] = useState<{ id: string; x: number; y: number; anchor?: HTMLElement } | null>(
-    null,
-  );
+  const [ctx, setCtx] = useState<(MenuAt & { id: string }) | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [histMenu, setHistMenu] = useState<{
-    h: HistorySession;
-    x: number;
-    y: number;
-    anchor?: HTMLElement;
-  } | null>(null);
+  const [histMenu, setHistMenu] = useState<(MenuAt & { h: HistorySession }) | null>(null);
   // 菜单收起时先放完淡出动画再卸载
   const newMenuP = usePresence(newMenu && !collapsed);
   const ctxP = usePresence(ctx);
