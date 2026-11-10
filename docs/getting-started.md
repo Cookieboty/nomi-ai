@@ -6,7 +6,7 @@
 
 ## 中文
 
-Nomi·诺米：把 Claude Code、Codex 等接到一处并行跑、一张看板一起管；模型只接一次，官方、国内、中转和本地都能用。本地优先，不强制云账号，也不改这些 CLI 的全局配置。Nomi 自己也能接任务，桌面角色可选，不需要就关掉。
+Nomi·诺米：让每一种 AI 能力，都为你所用。把 Claude Code、Codex 等接到一处并行跑、一张看板一起管；模型只接一次，官方、国内、中转和本地都能用。本地优先，不强制云账号，也不改这些 CLI 的全局配置。Nomi 自己也能接任务，桌面角色可选，不需要就关掉。
 
 ### 安装
 
@@ -64,7 +64,7 @@ macOS 安装包已签名但尚未公证：若提示「已损坏」，先把 Nomi
 
 ## English
 
-Nomi runs Claude Code, Codex and others in parallel on one board. Connect a model once — official APIs, China-region, relays and local — and use it across those agents. Local-first, with no required cloud account and no edits to those CLIs' global config. Nomi can take tasks itself, and the desktop character is optional.
+Nomi: One place. Every AI capability. Run Claude Code, Codex and others in parallel, and manage them on one board. Connect a model once — official APIs, China-region, relays and local — and use it across those agents. Local-first, with no required cloud account and no edits to those CLIs' global config. Nomi can take tasks itself, and the desktop character is optional.
 
 ### Install
 

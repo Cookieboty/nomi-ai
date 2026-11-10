@@ -3,13 +3,13 @@
 <h1 align="center">Nomi·诺米</h1>
 
 <p align="center">
-  <b>把 Claude Code、Codex 等接到一处并行跑、一张看板一起管。</b><br>
-  模型只接一次，官方、国内、中转和本地都能用。
+  <b>让每一种 AI 能力，都为你所用</b><br>
+  One place. Every AI capability.
 </p>
 
 <p align="center">
-  本地优先的多 Agent 工作台：不强制云账号，也不改这些 CLI 的全局配置。<br>
-  桌面角色可选，不需要就关掉。
+  把 Claude Code、Codex 等接到一处并行跑、一张看板一起管。模型只接一次，官方、国内、中转和本地都能用。<br>
+  本地优先，不强制云账号，也不改这些 CLI 的全局配置。桌面角色可选。
 </p>
 
 <p align="center">macOS · Windows · Linux　|　Go 内核，安装包约 25 MB　|　MIT</p>

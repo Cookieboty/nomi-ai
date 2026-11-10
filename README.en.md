@@ -3,13 +3,13 @@
 <h1 align="center">Nomi</h1>
 
 <p align="center">
-  <b>Run Claude Code, Codex and others in parallel, and manage them on one board.</b><br>
-  Connect a model once — official APIs, China-region, relays and local — and use it across those agents.
+  <b>One place. Every AI capability.</b><br>
+  让每一种 AI 能力，都为你所用
 </p>
 
 <p align="center">
-  A local-first multi-agent workbench: no required cloud account, and no edits to those CLIs' global config.<br>
-  The desktop character is optional. Close it and the workbench stays.
+  Run Claude Code, Codex and others in parallel, and manage them on one board. Connect a model once — official APIs, China-region, relays and local — and use it across those agents.<br>
+  Local-first: no required cloud account, and no edits to those CLIs' global config. The desktop character is optional.
 </p>
 
 <p align="center">macOS · Windows · Linux　|　Go + Wails core, ~25 MB installer　|　MIT</p>
