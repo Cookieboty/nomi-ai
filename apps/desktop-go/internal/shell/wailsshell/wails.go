@@ -470,6 +470,10 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		if k == shell.Chat {
 			placeTrafficLights(win)
 		}
+		if k == shell.Mascot {
+			// mac：不是活动窗口时第一下点击也交给网页，按住角色直接就能拖
+			acceptFirstMouse(win)
+		}
 		w.notify(k, "created")
 	})
 	return win

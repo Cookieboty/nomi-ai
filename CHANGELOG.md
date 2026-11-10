@@ -344,6 +344,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **mascot:** Windows 拖拽卡顿——拖动路径改用 moveWindowTo，尺寸未漂移时不再每帧 setResizable；渲染进程合并 pointermove/mousemove 重复 IPC。 (`@nomi-ai/renderer` patch)
 - **mascot:** a failed VRM load or a 3D render error no longer sticks — choosing another valid model (VRM or sprite) clears the error UI / canvas fallback and mounts the new model. (`@nomi-ai/renderer` patch)
 - **mascot:** after zooming the mascot to a size whose character box ends on a half pixel (e.g. 121%), keeping her feet on the floor no longer rounds the window 1px below the work area (into the taskbar). Standing / landing positions snap the feet to a whole pixel at or just above the floor. (`@nomi-ai/desktop-go` patch)
+- **mascot:** macOS 上桌面角色窗口不是活动窗口时（在别的应用里、或对话窗口在前），按住角色直接就能拖，不用先点一下。 (`@nomi-ai/desktop-go` patch)
 - **mascot:** on macOS the desktop character and island windows no longer show a stale grey halo
 - **mascot:** switching back to a 3D model that failed to load earlier now tries to load it again instead of showing the old error, and the error view has a "Retry" button to reload the same model. (`@nomi-ai/renderer` patch)
 - **mascot:** the "blow kiss" action now actually pouts during the first phase (the second mouth track used to override it with the default mouth). (`@nomi-ai/renderer` patch)
