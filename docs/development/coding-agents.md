@@ -28,6 +28,9 @@ Nomi 把 Claude Code、Codex、Gemini CLI、Grok、dsh 当作子进程驱动，�
 | `apps/desktop-go/internal/core/cli`（其余）    | CLI 探测与版本、安装 / 更新、历史会话、git 操作（变更面板）、斜杠命令发现、工作区文件                       |
 | `apps/desktop-go/internal/core/codinghandlers` | 编程助手相关的契约过程                                                                                      |
 
+标签的消息存在 `harness/tabs/<标签>.json`（最多 300 条，写盘有 200 ms 防抖）。内核内存里只留最近读过的 6 个标签
+（`MaxCachedTabMessages`），多出来的在当前同步操作结束后回收；在跑 / 排队的、还有没写盘的、当前标签不回收，再读时从文件加载。
+
 ## 会话传输
 
 | CLI         | 传输                     | 回退   |

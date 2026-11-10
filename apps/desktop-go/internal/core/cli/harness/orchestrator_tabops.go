@@ -549,6 +549,7 @@ func (o *Orchestrator) CloseTab(id string) *util.Obj {
 	}
 	o.tabs.Delete(id)
 	delete(o.messages, id)
+	delete(o.migratedImgTabs, id)
 	delete(o.delegatedUnsent, id)
 	delete(o.stopBeforeStart, id)
 	delete(o.tabFileBytes, id)

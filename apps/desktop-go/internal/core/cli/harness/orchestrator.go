@@ -196,9 +196,12 @@ type Orchestrator struct {
 
 	tabs     *util.Obj // id → HarnessTabMeta（Map 插入序）
 	messages map[string][]*util.Obj
-	children *ordMap[clisdk.ChildLike]
-	progress map[string][2]string // kind, value
-	partial  map[string]*partialTurn
+	// msgLRU：messages 里各标签最近一次被读的先后（最近的在末尾）；msgEvictArmed：已排了一次回收
+	msgLRU        []string
+	msgEvictArmed bool
+	children      *ordMap[clisdk.ChildLike]
+	progress      map[string][2]string // kind, value
+	partial       map[string]*partialTurn
 
 	turnExits        map[string]bool
 	stopRequested    map[string]bool
@@ -857,7 +860,11 @@ func msgsAny(list []*util.Obj) []any {
 
 func (o *Orchestrator) persistMessages(id string) {
 	o.writer.Schedule(o.messagesPath(id), func() (string, error) {
-		list := o.messages[id]
+		list, ok := o.messages[id]
+		if !ok {
+			// 已被回收（内存里的就是写过盘的那份）：照文件原样写回，不能写成空列表
+			list = o.readMessagesFile(id)
+		}
 		if float64(o.tabFileBytes[id]) > clisdk.MaxTabFileBytes*0.9 {
 			clisdk.CompactOldTraces(msgsAsEv(list), clisdk.KeepFullTraceMessages)
 		}
@@ -957,22 +964,70 @@ func (o *Orchestrator) TabMessages(id string) []*util.Obj {
 	}
 	list, ok := o.messages[id]
 	if !ok {
-		list = []*util.Obj{}
-		if v, ok := readJSONFile(o.messagesPath(id)); ok {
-			if arr, ok := v.([]any); ok {
-				for _, x := range arr {
-					m, _ := x.(*util.Obj)
-					list = append(list, m)
-				}
-			}
-		}
+		list = o.readMessagesFile(id)
 		o.messages[id] = list
 	}
+	o.touchMessages(id)
 	if !o.migratedImgTabs[id] {
 		o.migrateStoredImageLinks(id, list)
 		o.migratedImgTabs[id] = true
 	}
 	return o.messages[id]
+}
+
+func (o *Orchestrator) readMessagesFile(id string) []*util.Obj {
+	list := []*util.Obj{}
+	if v, ok := readJSONFile(o.messagesPath(id)); ok {
+		if arr, ok := v.([]any); ok {
+			for _, x := range arr {
+				m, _ := x.(*util.Obj)
+				list = append(list, m)
+			}
+		}
+	}
+	return list
+}
+
+// MaxCachedTabMessages：内存里最多留几个标签的消息（每个最多 300 条、文件上限几 MB，内存里占的是它的数倍）。
+// 多出来的按最近读取先后回收：在跑 / 排队的、还有没写盘的、当前标签不回收；回收后再读从文件加载。
+const MaxCachedTabMessages = 6
+
+func (o *Orchestrator) touchMessages(id string) {
+	for i, k := range o.msgLRU {
+		if k == id {
+			o.msgLRU = append(o.msgLRU[:i], o.msgLRU[i+1:]...)
+			break
+		}
+	}
+	o.msgLRU = append(o.msgLRU, id)
+	// 超出上限就排一次回收（上次因为还在跑 / 没写盘没收掉的，下次读到时再试）
+	if len(o.messages) <= MaxCachedTabMessages || o.msgEvictArmed {
+		return
+	}
+	// 不在这里就地回收：调用方可能还拿着别的标签的列表、随后要写盘。等这一段同步操作做完再收
+	o.msgEvictArmed = true
+	jsrt.SetTimeout(0, o.evictTabMessages)
+}
+
+func (o *Orchestrator) evictTabMessages() {
+	o.msgEvictArmed = false
+	kept := o.msgLRU[:0:0]
+	for i, id := range o.msgLRU {
+		if _, ok := o.messages[id]; !ok {
+			continue
+		}
+		over := len(o.messages) > MaxCachedTabMessages
+		recent := i >= len(o.msgLRU)-MaxCachedTabMessages
+		t := o.tab(id)
+		if !over || recent || id == o.activeTabID || t == nil || o.busy(t) || o.writer.Has(o.messagesPath(id)) {
+			kept = append(kept, id)
+			continue
+		}
+		delete(o.messages, id)
+		// 再加载时重新检查旧图片链接
+		delete(o.migratedImgTabs, id)
+	}
+	o.msgLRU = kept
 }
 
 func (o *Orchestrator) migrateStoredImageLinks(id string, list []*util.Obj) {
