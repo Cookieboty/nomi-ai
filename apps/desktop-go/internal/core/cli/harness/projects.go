@@ -49,12 +49,13 @@ func inside(child, parent string) bool {
 }
 
 // SetTabProject：把标签换到另一个项目（工作目录换成它的主文件夹，像换目录一样开新会话；carry = 带上前文）。
-// projectId 为空 = 不用项目（目录不变）
+// projectId 为空 = 不用项目（目录不变；活着的 CLI 进程断开，下一轮不再带旧项目的其余文件夹）
 func (o *Orchestrator) SetTabProject(id, projectID string, carry bool) *util.Obj {
 	tab := o.requireTab(id)
 	if projectID == "" {
 		tab.Delete("projectId")
 		o.changed()
+		o.syncOrDefer(id)
 		return tab.Clone()
 	}
 	primary, _ := o.projectRoots(projectID)
@@ -65,26 +66,59 @@ func (o *Orchestrator) SetTabProject(id, projectID string, carry bool) *util.Obj
 	return o.SetTabCwd(id, primary, carry)
 }
 
-// ProjectChanged：项目的文件夹变了。用它的空闲标签断开活着的 CLI 进程，下一轮按新的文件夹重新启动（接着原会话）；
-// 主文件夹变了的，工作目录跟着换（开新会话、带上前文）
+// ProjectChanged：项目的文件夹变了（或项目被删了）。空闲标签马上同步；正在跑的标签记下，
+// 这一轮结束后（或下一轮发出前）再同步，下一轮按最新的文件夹工作（#309）
 func (o *Orchestrator) ProjectChanged(projectID string) {
-	primary, _ := o.projectRoots(projectID)
 	for _, k := range o.tabs.Keys() {
-		tab := o.tab(k)
-		if k == MainTabID || str(tab, "projectId") != projectID || tab.Get("status") == "running" {
+		if k == MainTabID || str(o.tab(k), "projectId") != projectID {
 			continue
 		}
-		if primary == "" {
-			continue
-		}
-		if tab.Get("delegation") == nil && winKey(str(tab, "cwd")) != winKey(primary) {
-			o.SetTabCwd(k, primary, true)
-			continue
-		}
-		o.teardownClaudeLive(k)
-		o.teardownCodexLive(k)
-		o.teardownAcpLive(k)
+		o.syncOrDefer(k)
 	}
+}
+
+func (o *Orchestrator) syncOrDefer(id string) {
+	if o.tab(id).Get("status") == "running" {
+		o.projectPending[id] = true
+		return
+	}
+	delete(o.projectPending, id)
+	o.syncTabProject(id)
+}
+
+// applyPendingProject：标签空闲了，补上运行期间记下的项目变化（多次变化按最新的项目算）
+func (o *Orchestrator) applyPendingProject(id string) {
+	if !o.projectPending[id] {
+		return
+	}
+	tab := o.tab(id)
+	if tab == nil {
+		delete(o.projectPending, id)
+		return
+	}
+	if tab.Get("status") == "running" {
+		return
+	}
+	delete(o.projectPending, id)
+	o.syncTabProject(id)
+}
+
+// syncTabProject：按项目此刻的文件夹同步一个空闲标签：主文件夹变了的，工作目录跟着换（开新会话、带上前文）；
+// 否则断开活着的 CLI 进程（--add-dir / 沙箱可写目录只在启动时给），下一轮按新的文件夹重新启动（接着原会话）。
+// 项目不在了（或标签不再用项目）也断开，不让旧进程留着旧文件夹的授权
+func (o *Orchestrator) syncTabProject(k string) {
+	tab := o.tab(k)
+	if tab == nil {
+		return
+	}
+	primary, _ := o.projectRoots(str(tab, "projectId"))
+	if primary != "" && tab.Get("delegation") == nil && winKey(str(tab, "cwd")) != winKey(primary) {
+		o.SetTabCwd(k, primary, true)
+		return
+	}
+	o.teardownClaudeLive(k)
+	o.teardownCodexLive(k)
+	o.teardownAcpLive(k)
 }
 
 // TabCwds：编程助手标签（不含主标签与委派开的）的工作目录，首启迁移建项目用

@@ -222,6 +222,8 @@ type Orchestrator struct {
 	tabBindings     map[string]*tabBinding
 	bgAgents        map[string]*orderedAgents
 	dormant         map[string]bool
+	// projectPending：运行中遇到项目文件夹变化的标签，空闲后再同步（projects.go）
+	projectPending map[string]bool
 
 	idleReclaimMs   float64
 	idleTimer       *jsrt.Timer
@@ -328,7 +330,7 @@ func New(d Deps) *Orchestrator {
 		sendAborts: map[string]*jsrt.AbortController{}, takeoverInFlight: map[string]*jsrt.Promise[struct{}]{},
 		pendingPerms: newOrdMap[map[string]*jsrt.Timer](), pendingPermOrder: map[string][]string{},
 		migratedImgTabs: map[string]bool{}, tabBindings: map[string]*tabBinding{}, bgAgents: map[string]*orderedAgents{},
-		dormant: map[string]bool{}, activeTabID: MainTabID, defaultPermMode: cli.DefaultPermissionMode,
+		dormant: map[string]bool{}, projectPending: map[string]bool{}, activeTabID: MainTabID, defaultPermMode: cli.DefaultPermissionMode,
 		autoApprove: true, lastSettings: util.NewObj(), codexNetwork: false, tabFileBytes: map[string]int{},
 		events: &emitter{}, modelCatalogs: map[string]catalogEntry{}, modelCatalogInflight: map[string]*jsrt.Promise[*util.Obj]{},
 		modelCatalogGen: map[string]float64{},
