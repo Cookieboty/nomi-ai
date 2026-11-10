@@ -6,34 +6,50 @@
 
 ## 中文
 
-Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴：住在桌面，懂你所想，帮你做到。桌面应用是 Go 内核 + Wails（`apps/desktop-go`），
-界面是 React（`packages/`）。
+Nomi·诺米：让每一种 AI 能力，都为你所用。编程助手、模型、MCP 与技能接到一处，在 Agent 工作台里并行跑、一处看、一起管；
+Nomi 自己也是一个 agent，还可以作为桌面角色常驻桌面（可选）。桌面应用是 Go 内核 + Wails（`apps/desktop-go`），界面是 React（`packages/`）。
 
 ### 开始
 
-- [快速上手](getting-started.md)：安装、首次引导、添加模型、常用快捷键
+- [快速上手](getting-started.md)：安装、首次引导、开编程助手会话、添加模型、常用快捷键
 
-### 功能
+### Agent 工作台
 
-| 模块                                          | 说明                                                                                    |
-| --------------------------------------------- | --------------------------------------------------------------------------------------- |
-| [桌面角色诺米](features/mascot.md)            | 动作、显示方式、工具栏、大小与互动设置                                                  |
-| [AI 对话](features/chat.md)                   | 灵伴与工坊、图片与文件、生成图片与素材库、命令面板、交给编程助手                        |
-| [斜杠命令](features/slash-commands.md)        | 输入 `/` 弹出命令，内置命令在界面里执行，其余转给 CLI                                   |
-| [编程助手](features/coding-agents.md)         | Claude Code / Codex / Gemini CLI / Grok / dsh：账号与第三方供应商、权限模式、工坊、会话 |
-| [编程助手监视](features/agent-monitor.md)     | 本机编程工具的进度提醒                                                                  |
-| [第三方供应商与模型](features/providers.md)   | 切换模型、添加 / 从网页添加供应商、按任务分配、多 Key 与回退                            |
-| [本地模型](features/local-models.md)          | 一键运行开源小模型、Ollama、离线模式                                                    |
-| [知识库](features/knowledge-base.md)          | 基于你的文件夹回答，并给出引用                                                          |
-| [长期记忆](features/memory.md)                | Nomi 记得什么、怎么想起、怎么管理                                                       |
-| [日程与任务](features/scheduling-calendar.md) | 提醒、定时任务、主动聊天、免打扰、持续任务、应用与账号                                  |
-| [MCP 与技能](features/mcp-skills.md)          | MCP 服务器、SKILL.md 技能、从其他工具导入                                               |
-| [自动化与桌面能力](features/automation.md)    | 文件、命令、提醒与剪贴板、代码沙箱、工具权限、操作记录                                  |
-| [语音](features/voice.md)                     | 语音输入、唤醒词、诺米的声音                                                            |
-| [灵动岛通知](features/dynamic-island.md)      | macOS 刘海处的通知                                                                      |
-| [个性化](features/personalization.md)         | 主题、应用图标、侧栏、快捷键、语言、无障碍                                              |
-| [自动更新](features/auto-update.md)           | 后台下载，确认后原地安装并重启                                                          |
-| [隐私与安全](features/privacy-security.md)    | 数据位置、仅本地模式、外发保护、权限确认、导出与清除                                    |
+| 模块                                       | 说明                                                                                    |
+| ------------------------------------------ | --------------------------------------------------------------------------------------- |
+| [编程助手](features/coding-agents.md)      | Claude Code / Codex / Gemini CLI / Grok / dsh：账号与第三方供应商、权限模式、工坊、会话 |
+| [Agent 看板](development/agent-board.md)   | 谁在干活、做到哪了、内存与 CPU；内存守护自动暂停 / 恢复                                 |
+| [编程助手监视](features/agent-monitor.md)  | 本机编程工具的进度提醒                                                                  |
+| [斜杠命令](features/slash-commands.md)     | 输入 `/` 弹出命令，内置命令在界面里执行，其余转给 CLI                                   |
+| [隐私与安全](features/privacy-security.md) | 数据位置、仅本地模式、外发保护、权限确认、导出与清除                                    |
+
+### 模型与工具
+
+| 模块                                        | 说明                                                         |
+| ------------------------------------------- | ------------------------------------------------------------ |
+| [第三方供应商与模型](features/providers.md) | 切换模型、添加 / 从网页添加供应商、按任务分配、多 Key 与回退 |
+| [本地模型](features/local-models.md)        | 一键运行开源小模型、Ollama、离线模式                         |
+| [MCP 与技能](features/mcp-skills.md)        | MCP 服务器、SKILL.md 技能、从其他工具导入                    |
+| [自动化与桌面能力](features/automation.md)  | 文件、命令、提醒与剪贴板、代码沙箱、工具权限、操作记录       |
+
+### Nomi
+
+| 模块                                          | 说明                                                             |
+| --------------------------------------------- | ---------------------------------------------------------------- |
+| [AI 对话](features/chat.md)                   | 灵伴与工坊、图片与文件、生成图片与素材库、命令面板、交给编程助手 |
+| [知识库](features/knowledge-base.md)          | 基于你的文件夹回答，并给出引用                                   |
+| [长期记忆](features/memory.md)                | Nomi 记得什么、怎么想起、怎么管理                                |
+| [日程与任务](features/scheduling-calendar.md) | 提醒、定时任务、主动聊天、免打扰、持续任务、应用与账号           |
+| [桌面角色诺米](features/mascot.md)            | 可选，可随时关掉：动作、显示方式、工具栏、大小与互动设置         |
+| [语音](features/voice.md)                     | 语音输入、唤醒词、诺米的声音                                     |
+| [灵动岛通知](features/dynamic-island.md)      | macOS 刘海处的通知                                               |
+
+### 应用
+
+| 模块                                  | 说明                                       |
+| ------------------------------------- | ------------------------------------------ |
+| [个性化](features/personalization.md) | 主题、应用图标、侧栏、快捷键、语言、无障碍 |
+| [自动更新](features/auto-update.md)   | 后台下载，确认后原地安装并重启             |
 
 ### 角色包与接入
 
@@ -58,34 +74,51 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴：住在桌面，懂你
 
 ## English
 
-Nomi is your desktop AI companion: it lives on your desktop, gets what you mean, and gets it done. The desktop app is a Go core on
-Wails (`apps/desktop-go`); the UI is React (`packages/`). The pages below are written in Chinese.
+Nomi: one place, every AI capability. Coding agents, models, MCP and skills come together in one agent workbench, where they run side
+by side and you watch and manage them together; Nomi is an agent itself and can also stay on your desktop as a character (optional).
+The desktop app is a Go core on Wails (`apps/desktop-go`); the UI is React (`packages/`). The pages below are written in Chinese.
 
 ### Getting started
 
-- [Getting started](getting-started.md): install, onboarding, add a model, shortcuts
+- [Getting started](getting-started.md): install, onboarding, open a coding-agent session, add a model, shortcuts
 
-### Features
+### Agent workbench
 
-| Module                                              | About                                                                                           |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| [Desktop character](features/mascot.md)             | Actions, display modes, toolbar, size and interaction settings                                  |
-| [AI chat](features/chat.md)                         | Assistant and workbench, images and files, image generation, command palette                    |
-| [Slash commands](features/slash-commands.md)        | `/` palette; built-ins run in the UI, the rest go to the CLI                                    |
-| [Coding agents](features/coding-agents.md)          | Claude Code / Codex / Gemini CLI / Grok / dsh: accounts, providers, permission modes, workbench |
-| [Coding-agent monitor](features/agent-monitor.md)   | Progress notices for local coding tools                                                         |
-| [Providers & models](features/providers.md)         | Switch models, add providers (also from web links), per-task models, multi-key                  |
-| [Local models](features/local-models.md)            | One-click small models, Ollama, offline mode                                                    |
-| [Knowledge base](features/knowledge-base.md)        | Answers from your folders, with citations                                                       |
-| [Long-term memory](features/memory.md)              | What Nomi remembers and how to manage it                                                        |
-| [Schedule & tasks](features/scheduling-calendar.md) | Reminders, jobs, proactive chat, DND, persistent tasks, apps & accounts                         |
-| [MCP & skills](features/mcp-skills.md)              | MCP servers, SKILL.md packs, importing from other tools                                         |
-| [Automation](features/automation.md)                | Files, commands, reminders, clipboard, code sandbox, tool permissions                           |
-| [Voice](features/voice.md)                          | Speech input, wake word, the character's voice                                                  |
-| [Dynamic Island](features/dynamic-island.md)        | Notch-style notices on macOS                                                                    |
-| [Personalization](features/personalization.md)      | Themes, app icons, sidebar, shortcuts, language, accessibility                                  |
-| [Auto-update](features/auto-update.md)              | Background download; installs in place and relaunches when you confirm                          |
-| [Privacy & security](features/privacy-security.md)  | Data location, local-only mode, outbound masking, prompts, export                               |
+| Module                                             | About                                                                                           |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| [Coding agents](features/coding-agents.md)         | Claude Code / Codex / Gemini CLI / Grok / dsh: accounts, providers, permission modes, workbench |
+| [Agent board](development/agent-board.md)          | Who is working, how far along, memory and CPU; the memory guard pauses and resumes              |
+| [Coding-agent monitor](features/agent-monitor.md)  | Progress notices for local coding tools                                                         |
+| [Slash commands](features/slash-commands.md)       | `/` palette; built-ins run in the UI, the rest go to the CLI                                    |
+| [Privacy & security](features/privacy-security.md) | Data location, local-only mode, outbound masking, prompts, export                               |
+
+### Models & tools
+
+| Module                                      | About                                                                          |
+| ------------------------------------------- | ------------------------------------------------------------------------------ |
+| [Providers & models](features/providers.md) | Switch models, add providers (also from web links), per-task models, multi-key |
+| [Local models](features/local-models.md)    | One-click small models, Ollama, offline mode                                   |
+| [MCP & skills](features/mcp-skills.md)      | MCP servers, SKILL.md packs, importing from other tools                        |
+| [Automation](features/automation.md)        | Files, commands, reminders, clipboard, code sandbox, tool permissions          |
+
+### Nomi
+
+| Module                                              | About                                                                        |
+| --------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [AI chat](features/chat.md)                         | Assistant and workbench, images and files, image generation, command palette |
+| [Knowledge base](features/knowledge-base.md)        | Answers from your folders, with citations                                    |
+| [Long-term memory](features/memory.md)              | What Nomi remembers and how to manage it                                     |
+| [Schedule & tasks](features/scheduling-calendar.md) | Reminders, jobs, proactive chat, DND, persistent tasks, apps & accounts      |
+| [Desktop character](features/mascot.md)             | Optional, close it any time: actions, display modes, toolbar, size, settings |
+| [Voice](features/voice.md)                          | Speech input, wake word, the character's voice                               |
+| [Dynamic Island](features/dynamic-island.md)        | Notch-style notices on macOS                                                 |
+
+### App
+
+| Module                                         | About                                                                  |
+| ---------------------------------------------- | ---------------------------------------------------------------------- |
+| [Personalization](features/personalization.md) | Themes, app icons, sidebar, shortcuts, language, accessibility         |
+| [Auto-update](features/auto-update.md)         | Background download; installs in place and relaunches when you confirm |
 
 ### Character packs & integrations
 

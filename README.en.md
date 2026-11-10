@@ -3,8 +3,13 @@
 <h1 align="center">Nomi</h1>
 
 <p align="center">
-  <b>An AI companion on your desktop: bring any model, let it do the work, and let it hand specialist jobs to specialist AIs.</b><br>
-  Models, coding agents, MCP and local tools in one place, coordinated by Nomi.
+  <b>One place. Every AI capability.</b><br>
+  让每一种 AI 能力，都为你所用
+</p>
+
+<p align="center">
+  Coding agents, models, MCP and skills in one place: run them side by side, watch them together and manage them from one agent workbench.<br>
+  Want some company? Bring Nomi onto your desktop.
 </p>
 
 <p align="center">macOS · Windows · Linux　|　Go + Wails core, ~25 MB installer　|　MIT</p>
@@ -28,64 +33,73 @@
 <p align="center"><a href="README.md">中文</a> · <b>English</b></p>
 
 <p align="center">
-  <img src="docs/screenshots/chat.webp" alt="Chatting with Nomi" width="44%">
-  <img src="docs/screenshots/workspace.webp" alt="Three-column coding workspace" width="54%">
+  <img src="docs/screenshots/agent-board.webp" alt="Agent board: who is working, how far along, and what they use" width="49%">
+  <img src="docs/screenshots/workspace.webp" alt="Three-column coding workspace" width="49%">
 </p>
+
+## Every AI capability, in one place
+
+| Capability        | In Nomi                                                                                                                |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Coding agents** | Claude Code, Codex, Gemini CLI, Grok and dsh, many sessions in parallel; sessions from a terminal or IDE carry on here |
+| **Models**        | Any provider, relay or local model: connect it once and every coding agent and Nomi can use it                         |
+| **Tools**         | MCP, skills, browser, files and commands, managed in the UI with an audit log                                          |
+| **Nomi**          | An agent itself: memory, knowledge base, images, reminders, and it hands jobs to coding agents                         |
+
+They all live in one **agent workbench**: who is working, how far along, how much they use and where they're stuck, at a glance.
 
 ## Why Nomi
 
-### 1. Connect a model once, every AI can use it
+### 1. Every working agent, in one place
 
-Add a provider once (pick a preset or enter a URL, paste a key) and Nomi itself plus Claude Code, Codex, Gemini CLI, Grok and dsh can all use any of its models, or switch everything to local models.
+The **agent board** puts everything at work together: Nomi's chats and background runs, dispatched and workbench coding agents, and sessions you started yourself in a terminal or IDE (read-only). Each card shows status, source folder, memory and CPU, and anything waiting on you comes first.
+When memory runs low it pauses the coding agents Nomi dispatched and resumes them where they stopped once it recovers; you can pause and resume by hand any time. A load indicator stays in the title bar.
+Coding-agent sessions open right in the workbench: five CLIs connect through four session drivers (ACP, stream-json, Codex app-server, exec), many sessions run in parallel, and the three-column workspace shows the diff and lets you commit or undo. The connection layer is a plugin system, so more agents can join.
+→ [Coding agents](docs/features/coding-agents.md) · [Agent board](docs/development/agent-board.md) · [Coding-agent integration](docs/development/coding-agents.md)
+
+### 2. Connect a model once, every AI can use it
+
+Add a provider once (pick a preset or enter a URL, paste a key) and Claude Code, Codex, Gemini CLI, Grok, dsh and Nomi can all use any of its models, or switch everything to local models.
 The local gateway detects and translates between **Anthropic Messages / OpenAI Responses / OpenAI Chat Completions / Gemini generateContent**; streaming, tool calls, reasoning, images and context compaction keep working, so you can use DeepSeek, GLM, Kimi or Qwen right inside Claude Code.
 Third-party routing applies only to the process Nomi launches; it never edits the CLI's global config or touches official sign-ins.
-Third-party providers can also put an "Add to Nomi" link on their own site: one-click import of the endpoint and key, or web authorization (OAuth + PKCE, so the key never appears in a link). Either way, nothing is saved until you confirm in Nomi.
-→ [Unified gateway design](docs/development/gateway.md) · [Third-party provider links](docs/integrations/provider-link.md)
+→ [Unified gateway design](docs/development/gateway.md) · [Providers and models](docs/features/providers.md)
 
-### 2. Nomi is an agent itself
+### 3. Let it run fully automatic, keep the boundaries
 
-It reads and writes files, runs commands, drives a browser, calls MCP servers and skills, remembers what you've told it (long-term memory), answers from your folders with clickable citations, and draws, edits images and sets reminders.
-Tools are offered on demand: small talk sends about 2K tokens of tool definitions, and more open up only when the chat needs them.
-→ [Docs](docs/README.md)
-
-### 3. Specialist jobs go to specialist AIs
-
-For coding, Nomi delegates to Claude Code, Codex and other coding agents; each sub-task opens in its own column beside the chat, where you can interject, stop it or have it run another turn, and every result comes back to the main chat. You can also open a coding-agent session directly: five CLIs connect through four session drivers (ACP, stream-json, Codex app-server, exec), many sessions run in parallel, and the three-column workspace shows the diff and lets you commit or undo; sessions started in a terminal or IDE carry on here too.
-The **agent board** puts everything at work in one place: Nomi's chats and background runs, dispatched and workbench coding agents, and sessions you started yourself in a terminal or IDE (read-only), each card showing memory and CPU. When memory runs low it pauses the coding agents Nomi dispatched and resumes them where they stopped once it recovers; Nomi schedules with the board too.
-Coding agents are the strongest kind of specialist today; the connection layer is a plugin system, so more can join.
-→ [Coding agents](docs/features/coding-agents.md) · [Coding-agent integration](docs/development/coding-agents.md) · [Agent board](docs/development/agent-board.md)
-
-### 4. Let it work, keep the boundaries
-
-Before a command runs, a helper model rates its risk: low risk runs, high risk asks you, and **once a turn has read external content (web pages, MCP results, skill files), medium-risk commands ask you too**, so a prompt injection can't use Nomi to run commands.
 On macOS coding agents run in a **system sandbox** (on by default): they can't read SSH and Git credentials, cloud credentials, browser data or `.env` files, and can only write to the project folder; when something is blocked you allow it for this session or "always" (this project only) right in the chat, and the agent carries on. The working folder must be a project folder, and agents don't inherit tokens or keys from your environment. With the sandbox on, coding agents can safely run fully automatic.
+Before a command runs, a helper model rates its risk: low risk runs, high risk asks you, and **once a turn has read external content (web pages, MCP results, skill files), medium-risk commands ask you too**, so a prompt injection can't use Nomi to run commands.
 Chats, memory and the knowledge base stay on your machine by default; secrets are hidden before anything reaches a third-party model; API keys live in the system keychain.
 → [Privacy and security](docs/features/privacy-security.md) · [Local protection for coding agents](docs/features/coding-agents.md#本机保护)
 
-### 5. Light: a Go core on the native WebView
+### 4. Nomi is an agent too
 
-A Go core on [Wails v3](https://v3.wails.io) with no bundled Chromium (there is no Electron build from 2.2.0 on). Compared with the Electron build of the same version, macOS, Apple silicon:
+It reads and writes files, runs commands, drives a browser, calls MCP servers and skills, remembers what you've told it (long-term memory), answers from your folders with clickable citations, and draws, edits images and sets reminders.
+For coding it delegates to coding agents: each sub-task opens in its own column beside the chat, where you can interject, stop it or have it run another turn, and every result comes back to the main chat. It schedules with the agent board too.
+Tools are offered on demand: small talk sends about 2K tokens of tool definitions, and more open up only when the chat needs them.
+→ [Chat](docs/features/chat.md) · [Memory](docs/features/memory.md) · [Knowledge base](docs/features/knowledge-base.md)
 
-|                                 | Go build    | Electron build |
-| ------------------------------- | ----------- | -------------- |
-| DMG                             | **24.5 MB** | 138.4 MB       |
-| Installed size                  | **49 MiB**  | 315 MiB        |
-| Memory 30 s after launch        | **177 MiB** | 284 MiB        |
-| Idle CPU (one core)             | **3.2%**    | 8.2%           |
-| Launch until the window appears | **0.55 s**  | 0.82 s         |
+### 5. Optional: Nomi on your desktop
 
-Sizes are measured from the v2.1.2 arm64 installers of both builds; memory, CPU and launch time come from a same-machine comparison of v2.0.5 and 2.0.4.
+Want some company? Let Nomi stay on your desktop in a small transparent window, with expressions, gestures and lip sync. Don't need it? Close it from its toolbar's "More" menu; the workbench works the same.
+With it on, plenty happens without opening the main window: it gives a thumbs-up when a task finishes and apologizes when one fails, so you don't have to watch the board; the first lines of a reply show in a bubble beside it; drop a file on it for a summary; talk to it by voice and hear replies read aloud; double-click to open the chat.
+→ [Desktop character](docs/features/mascot.md) · [Voice](docs/features/voice.md)
+
+### 6. Light: a Go core on the native WebView
+
+A Go core on [Wails v3](https://v3.wails.io) with no bundled Chromium. On macOS, Apple silicon, the DMG is about 24.5 MB and about 49 MiB installed.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
   subgraph View["View (React 19)"]
-    Chat["Chat (Companion / Workshop)"]
-    Mascot["Desktop character"]
+    Bench["Agent workbench<br/>board · three-column workspace"]
+    Chat["Nomi chat"]
+    Mascot["Desktop character (optional)"]
   end
   subgraph Core["Core (Go)"]
     Contract["Typed contract<br/>(surfaces / dangerous checks)"]
+    Fleet["Agent board · memory guard"]
     Agents["Coding-agent drivers<br/>ACP · stream-json · app-server · exec"]
     Tools["Tools: files · commands · browser · MCP · skills<br/>command risk review + external-content taint"]
     Mem["Memory · knowledge base · schedule · images"]
@@ -94,7 +108,8 @@ flowchart LR
   CLI["Claude Code · Codex · Gemini CLI · Grok · dsh"]
   Up["OpenAI · Anthropic · DeepSeek · GLM · Kimi · Qwen<br/>· relays · Ollama / local models"]
   View -- "loopback WebSocket + one-time token" --> Contract
-  Contract --> Agents & Tools & Mem
+  Contract --> Fleet & Agents & Tools & Mem
+  Fleet -- "pause / resume" --> Agents
   Agents --> CLI
   CLI -- "third-party requests" --> GW
   Tools -- "delegates subtasks" --> Agents
@@ -106,21 +121,32 @@ The view talks to the core through one typed contract instead of ad-hoc IPC chan
 
 ## Features at a glance
 
+**Agent workbench**
+
+- **Agent board**: see who is working, how far along, and how much memory and CPU each one uses; a memory guard pauses and resumes automatically, with a load indicator in the title bar
+- **Coding agents**: five CLIs, parallel sessions, a three-column workspace to review the diff, commit or undo; official accounts or third-party models; permission modes and a system sandbox
+- **Tasks**: ongoing and scheduled tasks, run by Nomi or a coding agent
+
+**Models and tools**
+
 - **Models**: presets for OpenAI, Anthropic, DeepSeek, Kimi, Zhipu, Qwen, Doubao, Ollama and more; automatic multi-key rotation; usage and cost recorded per upstream request
-- **Third-party provider links**: relays and model platforms add themselves to Nomi with `nomi://provider/import` (one-click import) or `nomi://provider/connect` (web authorization); Cherry Studio's import format also works. See [Third-party provider integration](#third-party-provider-integration) below
 - **Local models**: one-click open-source models (llama.cpp) or Ollama; run local-only, or let only local models read your files
-- **Images**: draw, edit and use reference images right in a Nomi chat, with an image model matched to the chat model's vendor; an asset library keeps every generated image
-- **Agent board**: see who is working and how much memory and CPU each one uses; a memory guard pauses and resumes coding agents automatically, with a load indicator in the title bar
+- **MCP and skills**: manage MCP servers and `SKILL.md` skills in the UI, import them from other tools; tool calls are audit-logged
+- **Third-party provider links**: relays and model platforms can offer an "Add to Nomi" link; see [Third-party provider integration](#third-party-provider-integration) below
+
+**Nomi**
+
+- **Chat**: reads and writes files, runs commands, drives a browser and delegates to coding agents; command palette and slash commands
 - **Knowledge base and memory**: ask questions over a folder with clickable citations; chats turn into exportable long-term memory
-- **MCP and skills**: manage MCP servers and `SKILL.md` skills in the UI; tool calls are audit-logged
-- **Voice and reminders**: local whisper.cpp or cloud speech input, read-aloud replies; reminders and scheduled tasks
-- **Desktop character**: Nomi lives on your desktop as 2D art or a Rive animation with expressions and lip sync; drop a file on it to get a summary; swap the character with a [character pack](docs/character-pack/README.md)
+- **Images**: draw, edit and use reference images, with an image model matched to the chat model's vendor; an asset library keeps them all
+- **Voice and reminders**: local whisper.cpp or cloud speech input, read-aloud replies; reminders and quiet hours
+- **Desktop character (optional)**: 2D art or a Rive animation with expressions and lip sync; its gestures tell you how tasks are going
 
 <table>
   <tr>
     <td align="center" width="33%"><img src="docs/screenshots/coding-agent.webp" alt="Coding agent chat"><br><sub>Coding agents</sub></td>
     <td align="center" width="33%"><img src="docs/screenshots/settings-providers.webp" alt="Providers and models"><br><sub>Providers and models</sub></td>
-    <td align="center" width="33%"><img src="docs/screenshots/mascot.webp" alt="Desktop character"><br><sub>Desktop character</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/mascot.webp" alt="Desktop character"><br><sub>Desktop character (optional)</sub></td>
   </tr>
 </table>
 
@@ -150,9 +176,9 @@ Installed copies offer updates in-app.
 ## Get started in 3 minutes
 
 1. Open Nomi and finish onboarding (language, theme, character).
-2. Add a provider and API key in Settings → Models & providers, or download a local model under Local models if you'd rather not use a key.
-3. Chat with Nomi: `Ctrl/⌘+N` for a new chat, `Ctrl/⌘+K` for the command palette.
-4. Use a coding agent: open a Claude Code / Codex session, pick a working folder, and use your official account or the third-party model from step 2.
+2. Open a Claude Code / Codex session, pick a working folder and sign in with your official account to start; "Agents" in the left sidebar opens the board.
+3. To switch models, add a provider and API key in Settings → Models & providers, or download a local model under Local models; coding agents and Nomi can all pick it.
+4. Chat with Nomi: `Ctrl/⌘+N` for a new chat, `Ctrl/⌘+K` for the command palette. Don't want the desktop character? Close it from its toolbar's "More" menu.
 
 More detail in [Getting started](docs/getting-started.md).
 
@@ -172,68 +198,12 @@ pnpm test         # unit tests for the views and shared packages
 
 ## Third-party provider integration
 
-Relays and model platforms can put an "Add to Nomi" button on their own site so users add them in one click. There are two ways; **both end in a confirmation dialog in Nomi, and nothing is saved until the user confirms**. Full spec: [docs/integrations/provider-link.md](docs/integrations/provider-link.md).
+Relays and model platforms can put an "Add to Nomi" button on their own site so users add them in one click:
 
-### Option A: direct import (a few lines of template)
+- `nomi://provider/import`: import the endpoint and key directly, with a few lines of template; Cherry Studio's import format also works.
+- `nomi://provider/connect`: web authorization (OAuth + PKCE), so the key never appears in a link.
 
-```
-nomi://provider/import?v=1&data=<base64url(UTF-8 JSON)>
-```
-
-```jsonc
-{
-  "name": "Example AI", // required, up to 64 characters
-  "homepage": "https://example.com", // optional, shown in the dialog
-  "urls": {
-    // at least one; the gateway's four protocols
-    "chat": "https://api.example.com/v1", // OpenAI Chat Completions
-    "responses": "https://api.example.com/v1", // OpenAI Responses
-    "messages": "https://api.example.com", // Anthropic Messages
-    "gemini": "https://api.example.com/gemini", // Gemini
-  },
-  "key": "sk-…", // required
-  "models": ["gpt-5", "claude-sonnet-5-5"], // optional, prefilled models
-}
-```
-
-- `data` is base64url (`+/` become `-_`, `=` padding optional); standard base64 also works.
-- Cherry Studio's flat shape `{ "name", "baseUrl", "apiKey", "type"? }` is accepted: `type` `anthropic` maps to `messages`, `gemini` to `gemini`, anything else to `chat`. Templates such as New API's chat links only need the scheme changed to `nomi://provider/import`.
-- The key travels in the link; use option B to avoid that.
-
-### Option B: web authorization (the key never enters a link)
-
-1. Link to `nomi://provider/connect?v=1&issuer=https://example.com` (`issuer` must be an https origin with no path); users can also enter your domain under Nomi's Settings → Models & providers → Authorize on web.
-2. Serve `https://example.com/.well-known/nomi-provider.json`:
-
-   ```jsonc
-   {
-     "version": 1,
-     "name": "Example AI",
-     "urls": { "chat": "https://api.example.com/v1", "messages": "https://api.example.com" },
-     "models": ["…"], // optional
-     "authorization_endpoint": "https://example.com/nomi/authorize",
-     "token_endpoint": "https://example.com/api/nomi/token",
-   }
-   ```
-
-   Both endpoints must be https on the `issuer` host or one of its subdomains.
-
-3. After the user confirms in Nomi, Nomi opens
-   `{authorization_endpoint}?response_type=code&client_id=nomi&redirect_uri=nomi://provider/callback&state=…&code_challenge=…&code_challenge_method=S256` in the browser.
-4. Once the user signs in and approves on your page, redirect to `nomi://provider/callback?code=…&state=…` (or `error=access_denied&state=…` if they decline).
-5. Nomi sends `POST application/x-www-form-urlencoded` to `token_endpoint`:
-   `grant_type=authorization_code&code=…&redirect_uri=nomi://provider/callback&client_id=nomi&code_verifier=…`,
-   and you return `{ "api_key": "sk-…", "name"?: "…", "urls"?: {…}, "models"?: […] }` (`key` / `access_token` also work; returned `urls` override the manifest's for the same protocol).
-6. The same confirmation dialog as option A appears; the provider is saved once the user confirms.
-
-### How Nomi handles links
-
-- **Always confirmed first**: the dialog shows the name, the source (option A: "web link, the originating site can't be verified"; option B: the issuer domain), each endpoint, the masked key and the model count. Option B also asks before opening the browser.
-- **Endpoints**: `https` only, no username or password, not this computer or the local network (add local services manually in Settings). Authorization and key-exchange requests don't follow redirects.
-- **Same endpoint means update**: if a third-party provider already has one of the endpoints (ignoring a trailing `/`), Nomi updates it instead of creating another: it adds the new key (skipping a key it already has) and any missing endpoints and models.
-- **Limits**: the whole link ≤ 16 KB; keys are 8–512 printable characters; up to 200 models; at most 5 links waiting for confirmation, each expiring after 10 minutes; each authorization `state` is valid for 10 minutes and can be used once.
-- **No traces**: logs record only the link type, never the link itself; the key stays in the core, the UI only sees it masked, and it's stored in the system keychain.
-- **Cold start**: a link clicked while Nomi isn't running is kept and shown once the chat window opens.
+**Both end in a confirmation dialog in Nomi, and nothing is saved until the user confirms.** Link format, authorization flow and handling rules: [Third-party provider links](docs/integrations/provider-link.md).
 
 ## Contact
 

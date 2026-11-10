@@ -6,7 +6,7 @@
 
 ## 中文
 
-Nomi·诺米 是住在你桌面上的 AI 伙伴：本地运行，能聊天、记住你说过的事、按时提醒，也能接管本机的编程助手。
+Nomi·诺米：让每一种 AI 能力，都为你所用。编程助手、模型、MCP 与技能接到一处，在 Agent 工作台里并行跑、一处看、一起管；Nomi 自己也能聊天、记事、提醒，桌面角色可选，不需要就关掉。
 
 ### 安装
 
@@ -64,7 +64,7 @@ macOS 安装包已签名但尚未公证：若提示「已损坏」，先把 Nomi
 
 ## English
 
-Nomi is an AI companion that lives on your desktop: it runs locally, chats, remembers, reminds you, and can drive the coding agents on your computer.
+Nomi: one place, every AI capability. Coding agents, models, MCP and skills come together in one agent workbench, where they run side by side and you watch and manage them together; Nomi itself also chats, remembers and reminds you, and its desktop character is optional, so close it if you don't need it.
 
 ### Install
 
