@@ -150,11 +150,17 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const [current, setCurrent] = useState<string | undefined>();
   const [bins, setBins] = useState<Record<string, string | null>>({});
   const [newMenu, setNewMenu] = useState(false);
-  const [ctx, setCtx] = useState<{ id: string; x: number; y: number } | null>(null);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [histMenu, setHistMenu] = useState<{ h: HistorySession; x: number; y: number } | null>(
+  // anchor：从行内「更多」按钮打开时是那个按钮（再点它关掉菜单）；右键打开时没有
+  const [ctx, setCtx] = useState<{ id: string; x: number; y: number; anchor?: HTMLElement } | null>(
     null,
   );
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [histMenu, setHistMenu] = useState<{
+    h: HistorySession;
+    x: number;
+    y: number;
+    anchor?: HTMLElement;
+  } | null>(null);
   // 菜单收起时先放完淡出动画再卸载
   const newMenuP = usePresence(newMenu && !collapsed);
   const ctxP = usePresence(ctx);
@@ -494,10 +500,14 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const listPeek = useSessionPeek(400);
 
   /** 行内「更多」：与右键共用同一个 ConversationMenu，只是锚在按钮下方 */
-  const openMore = useCallback((id: string, a: DOMRect) => {
+  const openMore = useCallback((id: string, anchor: HTMLElement) => {
     setNewMenu(false);
     setHistMenu(null);
-    setCtx({ id, x: a.right - 184, y: a.bottom + 2 });
+    const a = anchor.getBoundingClientRect();
+    // 再点同一个「更多」按钮：关掉菜单
+    setCtx((cur) =>
+      cur?.anchor === anchor ? null : { id, x: a.right - 184, y: a.bottom + 2, anchor },
+    );
   }, []);
 
   const onCtx = useCallback((id: string, e: React.MouseEvent) => {
@@ -1050,10 +1060,13 @@ const SidebarImpl: React.FC<SidebarProps> = ({
                 scanning={histScanning}
                 openingKey={openingKey}
                 onOpen={(h) => void openHistory(h)}
-                onMenu={(h, x, y) => {
+                onMenu={(h, x, y, anchor) => {
                   setNewMenu(false);
                   setCtx(null);
-                  setHistMenu({ h, x, y });
+                  // 再点同一个「更多」按钮：关掉菜单
+                  setHistMenu((cur) =>
+                    anchor && cur?.anchor === anchor ? null : { h, x, y, anchor },
+                  );
                 }}
                 onDelete={(h) => void deleteHistory(h)}
                 hasMore={histScopeSupported && history.hasMore(histScope)}
@@ -1090,6 +1103,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               // 换了一行右键：重新挂载，焦点回到新菜单的第一项
               key={`${ctx.id}:${ctx.x}:${ctx.y}`}
               closing={ctxP.closing}
+              anchor={ctx.anchor}
               x={ctx.x}
               y={ctx.y}
               isTab={Boolean(meta?.tabId)}
@@ -1173,6 +1187,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
           y={histMenuP.value.y}
           isTab={false}
           closing={histMenuP.closing}
+          anchor={histMenuP.value.anchor}
           onDismiss={() => setHistMenu(null)}
           onOpen={() => void openHistory(histMenuP.value!.h)}
           onDelete={() => void deleteHistory(histMenuP.value!.h)}

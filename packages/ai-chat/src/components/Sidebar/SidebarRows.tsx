@@ -41,7 +41,8 @@ export interface RowActionHandlers {
   pinned?: boolean;
   /** Nomi 对话：归档（可在设置里找回）；CLI 标签：关闭标签；本机历史：删除 */
   onDelete?: () => void;
-  onMore: (anchor: DOMRect) => void;
+  /** 「更多」按钮本身：菜单锚在它下方，再点它关掉菜单 */
+  onMore: (anchor: HTMLElement) => void;
 }
 
 /**
@@ -100,7 +101,7 @@ export const RowActions: React.FC<RowActionHandlers & { kind: 'conv' | 'tab' | '
         title={t('ui.cli-monitor.more-actions')}
         aria-label={t('ui.cli-monitor.more-actions')}
         aria-haspopup="menu"
-        onClick={(e) => onMore(e.currentTarget.getBoundingClientRect())}
+        onClick={(e) => onMore(e.currentTarget)}
         data-testid="row-more"
       >
         <MoreIcon />
@@ -121,7 +122,7 @@ const ThreadItemImpl: React.FC<{
   onPinToggle?: (id: string) => void;
   /** 行内的归档（Nomi 对话）/ 关闭（CLI 标签） */
   onDeleteRequest?: (id: string) => void;
-  onMore?: (id: string, anchor: DOMRect) => void;
+  onMore?: (id: string, anchor: HTMLElement) => void;
   /** 悬停 / 聚焦：el 为 null 时收起详情卡片 */
   onPeek?: (id: string, el: HTMLElement | null) => void;
   /**
@@ -256,7 +257,7 @@ export type VirtualProps = {
   onRename: (id: string, name: string | null) => void;
   onPinToggle: (id: string) => void;
   onDeleteRequest: (id: string) => void;
-  onMore: (id: string, anchor: DOMRect) => void;
+  onMore: (id: string, anchor: HTMLElement) => void;
   onPeek?: (id: string, el: HTMLElement | null) => void;
   showIcon?: boolean;
 };
@@ -310,7 +311,7 @@ export const HistoryRow: React.FC<{
   busy: boolean;
   onOpen: () => void;
   /** 在 (x, y) 打开这一行的菜单（右键或「更多」） */
-  onMenu: (x: number, y: number) => void;
+  onMenu: (x: number, y: number, anchor?: HTMLElement) => void;
   onDelete: () => void;
 }> = ({ h, busy, onOpen, onMenu, onDelete }) => {
   const tag = routeTag(h);
@@ -354,7 +355,10 @@ export const HistoryRow: React.FC<{
       <RowActions
         kind="hist"
         onDelete={onDelete}
-        onMore={(a) => onMenu(a.right - 184, a.bottom + 2)}
+        onMore={(a) => {
+          const r = a.getBoundingClientRect();
+          onMenu(r.right - 184, r.bottom + 2, a);
+        }}
       />
     </div>
   );

@@ -184,6 +184,7 @@ export const SessionMenuButton: React.FC<{
           x={atP.value.x}
           y={atP.value.y}
           closing={atP.closing}
+          anchor={btn}
           isTab={!!s.tabId}
           onDismiss={() => setAt(null)}
           onRename={() => void rename()}

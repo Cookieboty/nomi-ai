@@ -32,6 +32,8 @@ export interface ConversationMenuProps {
   onDismiss: () => void;
   /** 正在收起：放淡出动画（usePresence） */
   closing?: boolean;
+  /** 打开菜单的按钮：在它上面按下不算点外面（由按钮自己切换开关，避免先关又被点开） */
+  anchor?: React.RefObject<HTMLElement | null> | HTMLElement | null;
 }
 
 export const ConversationMenu: React.FC<ConversationMenuProps> = ({
@@ -50,6 +52,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
   onDelete,
   onDismiss,
   closing,
+  anchor,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   const bindings = useShortcutBindings();
@@ -63,7 +66,10 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
     // 收起中（放淡出动画）：不再抢焦点、不再监听，焦点留给接下来的操作（如重命名输入框）
     if (closing) return;
     const down = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onDismiss();
+      const target = e.target as Node;
+      const anchorEl = anchor && 'current' in anchor ? anchor.current : anchor;
+      if (ref.current?.contains(target) || anchorEl?.contains(target)) return;
+      onDismiss();
     };
     window.addEventListener('mousedown', down);
     window.addEventListener('blur', onDismiss);
@@ -71,7 +77,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
       window.removeEventListener('mousedown', down);
       window.removeEventListener('blur', onDismiss);
     };
-  }, [onDismiss, closing]);
+  }, [onDismiss, closing, anchor]);
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {

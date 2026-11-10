@@ -14,7 +14,7 @@ export const LocalHistorySection: React.FC<{
   scanning: boolean;
   openingKey: string | null | undefined;
   onOpen: (h: HistorySession) => void;
-  onMenu: (h: HistorySession, x: number, y: number) => void;
+  onMenu: (h: HistorySession, x: number, y: number, anchor?: HTMLElement) => void;
   onDelete: (h: HistorySession) => void;
   hasMore: boolean;
   loading: boolean;
@@ -71,7 +71,7 @@ export const LocalHistorySection: React.FC<{
             h={h}
             busy={openingKey === h.key}
             onOpen={() => onOpen(h)}
-            onMenu={(x, y) => onMenu(h, x, y)}
+            onMenu={(x, y, anchor) => onMenu(h, x, y, anchor)}
             onDelete={() => onDelete(h)}
           />
         ))}
