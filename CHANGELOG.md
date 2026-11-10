@@ -837,6 +837,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 模型选择器按供应商分标签、按厂商筛选：对话输入栏与编程助手标签的第三方模型按钮，弹层顶部按供应商分标签，可以直接换到别的供应商的模型（编程助手原地续接）；右侧按厂商（OpenAI、Anthropic、DeepSeek、Z.ai …）快速筛选，认不出的归到「其他厂商」。 (`@nomi-ai/ui` minor)
 - 模型页的应用层改动，与统一网关 changeset 配套。 (`@nomi-ai/ai-chat` minor)
 - 每条助手消息都显示它是哪个模型回答的（元信息里跟在端点名后面，例如「Grok · deepseek/deepseek-v4.1-flash」）：第三方供应商按这一轮发给网关的模型，官方账号按 CLI 上报的实际模型，没报时取所选模型或 CLI 的默认模型。会话中途换了模型、还没发送下一条消息时，对话末尾显示一条弱化提示：新模型会接着之前的上下文继续，可能影响它对这段会话的分析与判断；发送后或切回原模型时消失。 (`@nomi-ai/ai-chat` minor)
+- 沙箱里的编程助手可以读取 `~/.npmrc`：npm 能用上配置的镜像源，nvm 不再每开一个 shell 就报 `operation not permitted`；写入 `~/.npmrc` 仍然拦截。 (`@nomi-ai/desktop-go` patch)
 - 流式输出时工具时间线只在轨迹变化时重建，纯文本帧只做文本切片；同一份轨迹只归约一次，ToolTimeline 加 memo。 (`@nomi-ai/ai-chat` patch)
 - 灵动岛支持 `CD_ISLAND_SIMULATE_NOTCH=0` 强制按无刘海屏幕布局（便于在带刘海的 Mac 上调试胶囊形态）。 (`@nomi-ai/desktop-go` patch)
 - 用中文等输入法打字时，按回车确认候选词不再直接把消息发出去（macOS 上的 Go 版与 Safari 内核：输入法在回车之前就结束了组词，原来的判断漏掉了这一下）。消息编辑、会话搜索、提醒输入、提交说明里的回车同样修好。 (`@nomi-ai/ai-chat` patch)

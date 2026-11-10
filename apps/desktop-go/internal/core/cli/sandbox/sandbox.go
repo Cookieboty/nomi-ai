@@ -51,9 +51,10 @@ type Category struct {
 // 钥匙串条目由系统自己的访问控制保护。
 var Categories = []Category{
 	{ID: "ssh", Dirs: []string{".ssh", ".config/gh"}, Files: []string{`/\.git-credentials$`, `/\.netrc$`}},
-	// 包管理器的发布令牌（主目录下的 .npmrc / .pypirc，项目里的不拦）也算云账号凭据
+	// 包管理器的发布令牌（主目录下的 .pypirc，项目里的不拦）也算云账号凭据。~/.npmrc 放开读：里面常配镜像源，
+	// 拒读会让沙箱里的 npm 走默认源、nvm 每开一个 shell 都报错；写仍然拒（homeExecConfig）
 	{ID: "cloud", Dirs: []string{".aws", ".azure", ".config/gcloud", ".kube", ".docker", ".oci", ".terraform.d",
-		".npmrc", ".pypirc", ".gem/credentials"}},
+		".pypirc", ".gem/credentials"}},
 	{ID: "keys", Dirs: []string{".gnupg", ".password-store", ".config/op"}, Files: []string{`\.kdbx?$`}},
 	{ID: "browser", Dirs: []string{
 		"Library/Application Support/Google/Chrome", "Library/Application Support/Firefox",
@@ -109,7 +110,8 @@ var toolStateHome = []string{".config", "Library/Application Support"}
 // 默认可写的工具目录里这些仍然不让写（规则 write:config，不弹授权）
 var homeExecConfig = []string{
 	".config/git", ".vimrc", ".vim", ".config/nvim", ".tmux.conf", ".config/tmux", ".hammerspoon",
-	".yarnrc", ".yarnrc.yml", ".bunfig.toml", ".curlrc", ".wgetrc", ".pythonrc", ".ipython/profile_default/startup",
+	// ~/.npmrc 能读不能写：script-shell、node-options 等配置会让沙箱外的 npm 执行命令
+	".npmrc", ".yarnrc", ".yarnrc.yml", ".bunfig.toml", ".curlrc", ".wgetrc", ".pythonrc", ".ipython/profile_default/startup",
 	".envrc", ".direnvrc", ".config/direnv", ".cursor/mcp.json", ".codeium/windsurf/mcp_config.json", ".config/opencode",
 	"Library/Application Support/Claude/claude_desktop_config.json",
 	"Library/Application Support/Code/User", "Library/Application Support/Cursor/User",
