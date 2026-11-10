@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 462：mutation 325 / query 132 / stream 5
+// 合计 463：mutation 325 / query 133 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -223,6 +223,7 @@ var Procedures = []Procedure{
 	{Name: "harness.previewExternal", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "harness.previewListDirectory", Kind: "query", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "harness.previewOpen", Kind: "query", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "harness.previewRenew", Kind: "query", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "harness.previewSave", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "harness.previewWeb", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "harness.recentCwds", Kind: "query", Dangerous: false, Surfaces: nil},

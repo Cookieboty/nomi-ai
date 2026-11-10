@@ -15,6 +15,8 @@ export class PreviewEditSession {
   private baseline: string;
   private revision: string;
   private url: string;
+  /** Workspace and real path from the open that issued the edit grant. */
+  private origin?: { cwd: string; path: string };
   // A reopened view may have a new read capability while an earlier writer is still
   // in flight. Keep that writer alive until it is no longer needed by any view/draft.
   private attachments = new Set<string>();
@@ -53,6 +55,16 @@ export class PreviewEditSession {
   private update(patch: Partial<PreviewEditState>) {
     this.state = { ...this.state, ...patch };
     this.listeners.forEach((listener) => listener());
+  }
+  noteOrigin(cwd: string, path: string | undefined) {
+    if (path) this.origin = { cwd, path };
+  }
+  /** Drop the unsaved text and keep the last saved baseline. Close and switch can proceed. */
+  discardDraft() {
+    if (this.pending) return;
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = undefined;
+    this.update({ text: this.baseline, dirty: false, saving: false, error: undefined });
   }
   attach(result: PreviewResult) {
     this.attachments.add(result.url!);
@@ -95,36 +107,96 @@ export class PreviewEditSession {
     const content = this.state.text;
     const baseline = this.baseline;
     this.update({ saving: true, error: undefined });
-    this.pending = resourcePreviewClient
-      .save(this.url, this.revision, content)
-      .then(
-        (result) => {
-          if (!result.ok || !result.revision) {
-            this.update({ saving: false, error: result.code ?? 'write' });
-            return false;
-          }
-          const observed = this.reopened?.content;
-          const conflict = observed !== undefined && observed !== baseline && observed !== content;
-          this.baseline = content;
-          this.revision = result.revision;
-          this.update({
-            saving: false,
-            dirty: conflict || this.state.text !== content,
-            error: conflict ? 'conflict' : undefined,
-          });
-          return !conflict;
-        },
-        () => {
-          this.update({ saving: false, error: 'write' });
-          return false;
-        },
-      )
-      .finally(() => {
-        this.pending = undefined;
-        this.reopened = undefined;
-      });
+    this.pending = this.write(content, baseline).finally(() => {
+      this.pending = undefined;
+      this.reopened = undefined;
+    });
     return this.pending.then((ok) => (ok && this.state.dirty ? this.flush() : ok));
   };
+  private async write(content: string, baseline: string): Promise<boolean> {
+    let result;
+    try {
+      result = await resourcePreviewClient.save(this.url, this.revision, content);
+    } catch {
+      this.update({ saving: false, error: 'write' });
+      return false;
+    }
+    if (!result.ok && result.code === 'expired') {
+      const renewed = await this.renewGrant(baseline);
+      if (!renewed) return false;
+      try {
+        result = await resourcePreviewClient.save(this.url, this.revision, content);
+      } catch {
+        this.update({ saving: false, error: 'write' });
+        return false;
+      }
+    }
+    if (!result.ok || !result.revision) {
+      this.update({ saving: false, error: result.code ?? 'write' });
+      return false;
+    }
+    const observed = this.reopened?.content;
+    const conflict = observed !== undefined && observed !== baseline && observed !== content;
+    this.baseline = content;
+    this.revision = result.revision;
+    this.update({
+      saving: false,
+      dirty: conflict || this.state.text !== content,
+      error: conflict ? 'conflict' : undefined,
+    });
+    return !conflict;
+  }
+  private dropCapability(url?: string) {
+    if (!url || url === this.url || typeof resourcePreviewClient.close !== 'function') return;
+    void resourcePreviewClient.close(url).catch(() => undefined);
+  }
+  /** One recovery per save. A second expired response is not chased. */
+  private async renewGrant(baseline: string): Promise<boolean> {
+    const reject = (error: string, url?: string) => {
+      this.dropCapability(url);
+      this.update({ saving: false, error });
+      return false;
+    };
+    if (typeof resourcePreviewClient.renew === 'function') {
+      let renewed;
+      try {
+        renewed = await resourcePreviewClient.renew(this.url);
+      } catch {
+        return reject('write');
+      }
+      if (renewed.ok) return this.adoptGrant(renewed, baseline);
+      // The grant record is gone. Re-open the same path only then.
+      // conflict / denied already proved the file must not be overwritten.
+      if (renewed.code !== 'expired') return reject(renewed.code ?? 'expired', renewed.url);
+    }
+    const origin = this.origin;
+    if (!origin || typeof resourcePreviewClient.open !== 'function') return reject('expired');
+    let opened;
+    try {
+      opened = await resourcePreviewClient.open(origin.cwd, origin.path);
+    } catch {
+      return reject('write');
+    }
+    if (opened.path && opened.path !== origin.path) return reject('conflict', opened.url);
+    return this.adoptGrant(opened, baseline);
+  }
+  private adoptGrant(opened: PreviewResult, baseline: string): boolean {
+    const reject = (error: string) => {
+      this.dropCapability(opened.url);
+      this.update({ saving: false, error });
+      return false;
+    };
+    if (!opened.ok || !opened.editable || opened.truncated || !opened.url || !opened.revision) {
+      return reject(opened.code && opened.code !== 'ok' ? opened.code : 'expired');
+    }
+    if ((opened.content ?? '') !== baseline) return reject('conflict');
+    const previous = this.url;
+    this.url = opened.url;
+    this.revision = opened.revision;
+    this.capabilities.add(opened.url);
+    if (previous !== opened.url) this.dropCapability(previous);
+    return true;
+  }
 }
 const sessions = new Map<string, PreviewEditSession>();
 const EMPTY: PreviewEditState = { text: '', dirty: false, saving: false };

@@ -19397,6 +19397,66 @@
     "additionalProperties": {}
    }
   },
+  "harness.previewRenew": {
+   "kind": "query",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string",
+      "maxLength": 8192
+     }
+    },
+    "required": [
+     "url"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "code": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "kind": {
+      "type": "string"
+     },
+     "mime": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     },
+     "truncated": {
+      "type": "boolean"
+     },
+     "editable": {
+      "type": "boolean"
+     },
+     "revision": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "harness.previewSave": {
    "kind": "mutation",
    "dangerous": true,

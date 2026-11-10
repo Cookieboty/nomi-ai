@@ -144,6 +144,13 @@ const harnessProcedures = {
       truncated: z.boolean().optional(),
     }),
   },
+  'harness.previewRenew': {
+    kind: 'query',
+    dangerous: true,
+    surfaces: ['chat'],
+    input: z.object({ url: z.string().max(8192) }),
+    output: PreviewResult,
+  },
   'harness.previewSave': {
     kind: 'mutation',
     dangerous: true,

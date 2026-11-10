@@ -183,6 +183,7 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 	call("harness.recentCwds", func(in) any { return h().RecentCwds() })
 	call("harness.previewOpen", func(a in) any { return await(h().PreviewOpen(a.str("cwd"), a.str("path"), a.is("allowOutside"))) })
 	call("harness.previewListDirectory", func(a in) any { return await(h().PreviewListDirectory(a.str("url"), a.str("path"))) })
+	call("harness.previewRenew", func(a in) any { return await(h().PreviewRenew(a.str("url"))) })
 	call("harness.previewSave", func(a in) any { return await(h().PreviewSave(a.str("url"), a.str("revision"), a.str("content"))) })
 	call("harness.previewWeb", func(a in) any { return await(h().PreviewWeb(a.str("url"))) })
 	call("harness.previewExternal", func(a in) any { return await(h().PreviewExternal(a.str("cwd"), a.str("path"), a.is("allowOutside"))) })

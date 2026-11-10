@@ -997,7 +997,7 @@ func (o *Orchestrator) readMessagesFile(id string) []*util.Obj {
 }
 
 // MaxCachedTabMessages：内存里最多留几个标签的消息（每个最多 300 条、文件上限几 MB，内存里占的是它的数倍）。
-// 多出来的按最近读取先后回收：在跑 / 排队的、还有没写盘的、当前标签不回收；回收后再读从文件加载。
+// 多出来的按最近读取先后回收：在跑 / 排队的、还有没写完盘的（含正在写和写失败还留着的快照）、当前标签不回收；回收后再读从文件加载。
 const MaxCachedTabMessages = 6
 
 func (o *Orchestrator) touchMessages(id string) {
@@ -1027,7 +1027,8 @@ func (o *Orchestrator) evictTabMessages() {
 		over := len(o.messages) > MaxCachedTabMessages
 		recent := i >= len(o.msgLRU)-MaxCachedTabMessages
 		t := o.tab(id)
-		if !over || recent || id == o.activeTabID || t == nil || o.busy(t) || o.writer.Has(o.messagesPath(id)) {
+		// Has 只看还没开始写的队列。正在 rename 的快照不在里面，这时回收会让重读拿到旧文件。
+		if !over || recent || id == o.activeTabID || t == nil || o.busy(t) || o.writer.HasUncommitted(o.messagesPath(id)) {
 			kept = append(kept, id)
 			continue
 		}

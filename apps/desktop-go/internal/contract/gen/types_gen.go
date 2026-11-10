@@ -5778,6 +5778,23 @@ type HarnessPreviewOpenOutput struct {
 	Revision  *string `json:"revision,omitempty"`
 }
 
+type HarnessPreviewRenewInput struct {
+	Url string `json:"url"`
+}
+
+type HarnessPreviewRenewOutput struct {
+	Ok        bool    `json:"ok"`
+	Code      *string `json:"code,omitempty"`
+	Path      *string `json:"path,omitempty"`
+	Kind      *string `json:"kind,omitempty"`
+	Mime      *string `json:"mime,omitempty"`
+	Url       *string `json:"url,omitempty"`
+	Content   *string `json:"content,omitempty"`
+	Truncated *bool   `json:"truncated,omitempty"`
+	Editable  *bool   `json:"editable,omitempty"`
+	Revision  *string `json:"revision,omitempty"`
+}
+
 type HarnessPreviewSaveInput struct {
 	Url      string `json:"url"`
 	Revision string `json:"revision"`
@@ -12224,6 +12241,10 @@ type HarnessPreviewListDirectoryOutputT = HarnessPreviewListDirectoryOutput
 // HarnessPreviewOpenInputT 是 harness.previewOpen 的入参
 type HarnessPreviewOpenInputT = HarnessPreviewOpenInput
 type HarnessPreviewOpenOutputT = HarnessPreviewOpenOutput
+
+// HarnessPreviewRenewInputT 是 harness.previewRenew 的入参
+type HarnessPreviewRenewInputT = HarnessPreviewRenewInput
+type HarnessPreviewRenewOutputT = HarnessPreviewRenewOutput
 
 // HarnessPreviewSaveInputT 是 harness.previewSave 的入参
 type HarnessPreviewSaveInputT = HarnessPreviewSaveInput

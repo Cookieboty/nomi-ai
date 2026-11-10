@@ -59,12 +59,23 @@ type Service struct {
 	DenyRoots     []string
 	browser       *http.Server
 	browserOrigin string
+	// clock overrides time.Now for capability expiry. Tests set it; production leaves it nil.
+	clock func() time.Time
 }
 
 func New(denyRoots ...string) *Service {
 	return &Service{items: map[string]capability{}, DenyRoots: denyRoots}
 }
-func fail(code string) Result { return Result{Code: code} }
+
+func (s *Service) now() time.Time {
+	if s.clock != nil {
+		return s.clock()
+	}
+	return time.Now()
+}
+
+func (s *Service) stale(at time.Time) bool { return s.now().Sub(at) > ttl }
+func fail(code string) Result              { return Result{Code: code} }
 func platform() string {
 	if runtime.GOOS == "windows" {
 		return "win32"
@@ -240,7 +251,7 @@ func (s *Service) grant(p string, st os.FileInfo) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for k, v := range s.items {
-		if time.Since(v.at) > ttl {
+		if s.stale(v.at) {
 			delete(s.items, k)
 		}
 	}
@@ -255,7 +266,7 @@ func (s *Service) grant(p string, st os.FileInfo) (string, error) {
 		}
 		delete(s.items, oldest)
 	}
-	s.items[token] = capability{path: p, info: st, at: time.Now()}
+	s.items[token] = capability{path: p, info: st, at: s.now()}
 	return token, nil
 }
 func (s *Service) Close(raw string) {
@@ -276,7 +287,7 @@ func (s *Service) Middleware(next http.Handler) http.Handler {
 		token := strings.TrimPrefix(r.URL.Path, Prefix)
 		s.mu.Lock()
 		v, ok := s.items[token]
-		if ok && time.Since(v.at) > ttl {
+		if ok && s.stale(v.at) {
 			delete(s.items, token)
 			ok = false
 		}

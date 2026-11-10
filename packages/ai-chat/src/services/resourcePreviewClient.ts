@@ -36,6 +36,11 @@ export const resourcePreviewClient = {
     if (!hasTransport()) return { ok: false, code: 'unavailable' };
     return api.harness.previewSave({ url, revision, content });
   },
+  /** Re-check an expired edit grant and mint a new one when the file is unchanged. */
+  renew: async (url: string): Promise<PreviewResult> => {
+    if (!hasTransport()) return { ok: false, code: 'unavailable' };
+    return (await api.harness.previewRenew({ url })) as unknown as PreviewResult;
+  },
   open: async (cwd: string, path: string, allowOutside = false): Promise<PreviewResult> => {
     if (!hasTransport()) return { ok: false, code: 'unavailable' };
     return (await api.harness.previewOpen({ cwd, path, allowOutside })) as unknown as PreviewResult;

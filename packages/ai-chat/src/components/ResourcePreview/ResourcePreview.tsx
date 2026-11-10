@@ -229,6 +229,7 @@ export const ResourcePreview: React.FC<{
         return;
       }
       const edit = acquirePreviewEdit(resourceKey, result);
+      if (edit && result.path) edit.noteOrigin(resolvedCwd, result.path);
       acquired = !!edit;
       setLoaded({ key: resourceKey, result, cwd: resolvedCwd, edit });
     };
@@ -554,6 +555,23 @@ export const ResourcePreview: React.FC<{
                 {t('ui.session-workspace.preview-save-retry')}
               </button>
             )}
+            <button
+              type="button"
+              data-testid="preview-discard-draft"
+              onClick={() => {
+                if (!edit) return;
+                void confirmDialog({
+                  title: t('ui.session-workspace.preview-discard-draft-title'),
+                  message: t('ui.session-workspace.preview-discard-draft-message'),
+                  confirmLabel: t('ui.session-workspace.preview-discard-draft'),
+                  danger: true,
+                }).then((ok) => {
+                  if (ok) edit.discardDraft();
+                });
+              }}
+            >
+              {t('ui.session-workspace.preview-discard-draft')}
+            </button>
           </p>
         )}
         {originMismatch && (

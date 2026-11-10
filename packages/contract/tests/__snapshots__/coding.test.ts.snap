@@ -8,6 +8,7 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
   "project.remove mutation",
   "harness.previewOpen query [chat] dangerous",
   "harness.previewListDirectory query [chat] dangerous",
+  "harness.previewRenew query [chat] dangerous",
   "harness.previewSave mutation [chat] dangerous",
   "harness.previewWeb query [chat]",
   "harness.previewExternal mutation [chat] dangerous",

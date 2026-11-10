@@ -36,6 +36,11 @@ type FileWriter struct {
 	timer    *jsrt.Timer
 	chain    chan struct{}
 	seq      int
+	// commitHook runs on the write goroutine after the temp file is written and
+	// before the generation check and rename. A non-nil error fails that commit
+	// and keeps the inflight snapshot. Tests use it to pause or fail a commit;
+	// production leaves it nil.
+	commitHook func(file string) error
 }
 
 // NewFileWriter：delayMs <= 0 用 200。
@@ -90,11 +95,33 @@ func (w *FileWriter) Cancel(file string) {
 	w.gen[file]++
 }
 
+// Has reports a debounced write that Flush has not picked up yet.
+// A snapshot already handed to the async writer is not pending; use HasUncommitted.
 func (w *FileWriter) Has(file string) bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	_, ok := w.pending[file]
 	return ok
+}
+
+// HasUncommitted reports a debounced write or a snapshot that is not yet in the
+// real file. A failed commit stays here so the caller can keep its memory copy
+// and FlushSync can retry the same bytes.
+func (w *FileWriter) HasUncommitted(file string) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if _, ok := w.pending[file]; ok {
+		return true
+	}
+	_, ok := w.inflight[file]
+	return ok
+}
+
+// SetCommitHook installs a test hook for the next commits. Pass nil to remove it.
+func (w *FileWriter) SetCommitHook(fn func(file string) error) {
+	w.mu.Lock()
+	w.commitHook = fn
+	w.mu.Unlock()
 }
 
 func (w *FileWriter) HasPendingUnder(dir string) bool {
@@ -187,18 +214,37 @@ func (w *FileWriter) Flush() <-chan struct{} {
 			wg.Add(1)
 			go func(j job) {
 				defer wg.Done()
-				done := func() {
+				// Drop the inflight entry only after this generation lands. A failed
+				// commit keeps the snapshot: clearing it would look like a successful
+				// write and let a cache drop the only copy.
+				failed := false
+				defer func() {
+					if failed {
+						return
+					}
 					w.mu.Lock()
 					if cur, ok := w.inflight[j.file]; ok && cur.g == j.g {
 						delete(w.inflight, j.file)
 					}
 					w.mu.Unlock()
-				}
-				defer done()
-				if err := os.WriteFile(j.tmp, []byte(j.data), 0o666); err != nil {
+				}()
+				fail := func(err error) {
+					failed = true
 					_ = os.Remove(j.tmp)
 					jsrt.Go(func() { w.onError(j.file, err) })
+				}
+				if err := os.WriteFile(j.tmp, []byte(j.data), 0o666); err != nil {
+					fail(err)
 					return
+				}
+				w.mu.Lock()
+				hook := w.commitHook
+				w.mu.Unlock()
+				if hook != nil {
+					if err := hook(j.file); err != nil {
+						fail(err)
+						return
+					}
 				}
 				w.mu.Lock()
 				stale := w.gen[j.file] != j.g
@@ -211,7 +257,7 @@ func (w *FileWriter) Flush() <-chan struct{} {
 					_ = os.Remove(j.tmp)
 				}
 				if err != nil {
-					jsrt.Go(func() { w.onError(j.file, err) })
+					fail(err)
 				}
 			}(j)
 		}

@@ -15,7 +15,10 @@ export function MermaidLightbox({
 }) {
   useLocale();
   const src = useMemo(() => {
-    const image = new DOMParser().parseFromString(svg, 'image/svg+xml').querySelector('svg')!;
+    const image = new DOMParser().parseFromString(svg, 'image/svg+xml').querySelector('svg');
+    if (!image) {
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    }
     const [, , width, height] = (image.getAttribute('viewBox') ?? '')
       .trim()
       .split(/[\s,]+/)

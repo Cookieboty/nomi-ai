@@ -55,6 +55,7 @@ describe('appContract · D3 coding', () => {
       'harness.previewExternal',
       'harness.previewListDirectory',
       'harness.previewOpen',
+      'harness.previewRenew',
       'harness.previewSave',
       'harness.replyApprovePlan',
       'harness.replyPermission',
