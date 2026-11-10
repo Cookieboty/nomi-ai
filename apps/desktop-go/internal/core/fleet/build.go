@@ -200,12 +200,14 @@ type ExtSession struct {
 
 // Input：拼一份看板数据要的全部输入
 type Input struct {
-	Now      int64
-	SelfPid  float64
-	Tabs     []Tab
-	Tasks    []tasks.Task
-	Chats    []Chat
-	External []ExtSession
+	Now     int64
+	SelfPid float64
+	// OwnProcsOnly：不列 Nomi 进程树之外的编程助手进程（Mock CLI 演示 / 截图环境用，不把本机真实会话的目录带进画面）
+	OwnProcsOnly bool
+	Tabs         []Tab
+	Tasks        []tasks.Task
+	Chats        []Chat
+	External     []ExtSession
 	// ExtCwd：编程助手进程的工作目录（pid → 目录），把外部进程树对到会话上
 	ExtCwd map[float64]string
 	// ExtSession：登记了当前会话的编程助手进程（pid → 外部会话 id，如 Claude Code 的 ~/.claude/sessions/<pid>.json）。
@@ -518,7 +520,7 @@ func buildExternal(in Input) ([]Agent, Idle) {
 	trees := []*tree{}
 	if in.Procs != nil {
 		for _, tr := range agents.AgentTrees(in.Procs, in.SelfPid) {
-			if tr.InNomi {
+			if tr.InNomi || in.OwnProcsOnly {
 				continue
 			}
 			trees = append(trees, &tree{t: tr, key: tr.Root.Kind + "\x1f" + normDir(in.ExtCwd[tr.Root.Pid]), sess: treeSession(in.ExtSession, tr)})

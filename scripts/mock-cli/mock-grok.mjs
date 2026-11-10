@@ -342,7 +342,8 @@ if (fmt && fmt !== 'streaming-json' && fmt !== 'json') {
   process.exit(2);
 }
 
-if (delayMs > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
+if (delayMs > 0 && isSlow(args.join(' ')))
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
 const emit = (obj) => process.stdout.write(`${JSON.stringify(obj)}\n`);
 const resumed = flag('--resume') || flag('-r');
 if (resumed === 'session-unknown') {

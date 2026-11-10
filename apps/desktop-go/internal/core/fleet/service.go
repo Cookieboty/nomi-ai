@@ -20,13 +20,15 @@ const ChangeDebounce = 300 * time.Millisecond
 // Deps：服务的依赖。Tabs 要进 GIL 读编排器（由 wiring 包好），Tasks 不能在 GIL 里调
 // （任务运行时的持有者可能在等 GIL），两者都由服务在普通 goroutine 里调用。
 type Deps struct {
-	SelfPid   int
-	Cores     int
-	TotalMem  func() float64
-	Now       func() time.Time
-	ReadProcs func() *agents.ProcTable // nil 或返回 nil = 没有资源占用
-	Tabs      func() []Tab
-	Tasks     func() []tasks.Task
+	SelfPid int
+	// OwnProcsOnly：见 Input.OwnProcsOnly
+	OwnProcsOnly bool
+	Cores        int
+	TotalMem     func() float64
+	Now          func() time.Time
+	ReadProcs    func() *agents.ProcTable // nil 或返回 nil = 没有资源占用
+	Tabs         func() []Tab
+	Tasks        func() []tasks.Task
 	// Chats：正在回答的 Nomi 对话
 	Chats func() []Chat
 	// TaskSummary：任务最近一次运行的结果摘要（GIL 外调用；只对最近做完的任务调）
@@ -228,7 +230,7 @@ func (s *Service) State() State {
 	s.taskPausedBy = pausedBy // 继续了的、删掉的不留
 	s.mu.Unlock()
 	hold := s.HoldReason()
-	st := Build(Input{TaskControl: s.d.TaskCommand != nil, TaskPausedBy: pausedBy, Now: now, SelfPid: float64(s.d.SelfPid), Tabs: tabs, Tasks: tk, Chats: chats, External: ext,
+	st := Build(Input{OwnProcsOnly: s.d.OwnProcsOnly, TaskControl: s.d.TaskCommand != nil, TaskPausedBy: pausedBy, Now: now, SelfPid: float64(s.d.SelfPid), Tabs: tabs, Tasks: tk, Chats: chats, External: ext,
 		ExtCwd: extCwd, ExtSession: extSess, Procs: cur, PrevProc: prev, Archived: arch, System: sys, TaskSummaries: sums, ConversationOwned: owned, Holding: hold != "", HoldReason: hold})
 	s.prune(st, now)
 	s.mu.Lock()

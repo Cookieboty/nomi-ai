@@ -351,7 +351,8 @@ if (args[0] === 'login' && args.includes('--device-auth')) {
   const threadId = resumed || ownThread;
   logPrompt(args[args.length - 1]);
 
-  if (delayMs > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
+  if (delayMs > 0 && isSlow(args.join(' ')))
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
   function emit(obj) {
     process.stdout.write(`${JSON.stringify(obj)}\n`);
   }

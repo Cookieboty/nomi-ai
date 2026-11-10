@@ -508,6 +508,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **e2e:** first-run onboarding (add provider, test connection, first reply, not shown again) is covered end to end.
 - **e2e:** the CC0 test VRM is downloaded at test time instead of being committed.
 - **electron:** dispose CLI harnesses in HarnessTabs / SessionHistory tests so the long-lived mock Claude process no longer keeps jest from exiting.
+- **fleet:** in Mock CLI mode (`NOMI_USE_MOCK_CLI=1`, site screenshots and E2E) the agent board lists only Nomi's own processes, so real coding agents on the machine never show up in screenshots; the site screenshots gain an `agent-board` scene, and the mock CLIs honour `NOMI_MOCK_SLOW_PROMPT` on every delay path.
 - tests no longer write git worktrees or `.git/info/exclude` entries into this repo when TEMP points inside it; `run-bin` keeps the system temp unless `NOMI_WORKSPACE_TMP=1`. Fixes the Windows #115 path comparison, the macOS 1 MiB privacy perf check and a cold-start timeout in the Volcengine ASR test. (`@nomi-ai/desktop-go` patch)
 
 ### Build & release
