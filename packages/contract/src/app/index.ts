@@ -149,7 +149,19 @@ export const APP_HIGH_FREQUENCY_EVENTS = [
   'harness.events',
   'mascot.cursor',
   'mascot.body',
+  // 每轮结束推一整条消息（含这一轮全部工具调用）
+  'harness.tabMessage',
 ] as const satisfies readonly (keyof AppContract['events'])[];
+
+/**
+ * 结果很大的过程：轻校验时（生产）结果不过 schema。整段会话消息（含工具调用的输入输出，最多几 MB）、
+ * 整份 git diff、工作区文件树——切到长会话、打开改动面板时整份深度遍历一遍并复制一份，代价明显。
+ */
+export const APP_LARGE_RESULT_PROCEDURES = [
+  'harness.tabMessages',
+  'harness.gitDiff',
+  'harness.workspaceList',
+] as const satisfies readonly (keyof AppContract['procedures'])[];
 
 /** 视图里要换址的本应用协议（内核给的资源地址用的自定义协议） */
 export const HOST_ASSET_SCHEMES = ['chat-asset', 'character-pack'] as const;

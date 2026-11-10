@@ -76,6 +76,20 @@ describe('lean validation (production hot paths)', () => {
     expect(persona).not.toHaveBeenCalled();
   });
 
+  it('listed large-result procedures skip output checks; others are still checked', async () => {
+    const bad = [{ id: 1 }];
+    const transport: ClientTransport = {
+      ...fakeTransport([], null).transport,
+      call: async () => bad,
+    };
+    const api = createClient(testContract, transport, { handshake: 'off' });
+    await expect(api.sessions.list()).rejects.toMatchObject({ code: 'BAD_OUTPUT' });
+    setLeanValidation({ events: [], procedures: ['sessions.list'] });
+    // 原样交回（不复制、不去字段）
+    await expect(api.sessions.list()).resolves.toBe(bad);
+    await expect(api.sessions.slow({ ms: 0 })).rejects.toMatchObject({ code: 'BAD_OUTPUT' });
+  });
+
   it('frame client: chunk / event envelopes go through as-is, malformed frames are still dropped', async () => {
     let deliver: (f: unknown) => void = () => undefined;
     const warn = vi.fn();

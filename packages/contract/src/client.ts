@@ -196,6 +196,8 @@ export function createClient<C extends AnyContract>(
     if (opts?.signal?.aborted) throw abortedError();
     const out = await transport.call(name, payload, opts);
     if (!validateOutput || def.kind === 'stream') return out;
+    // 轻校验（生产）：列出的大结果过程不逐字段校验
+    if (leanValidation()?.procedures.has(name)) return out;
     return check(def.output, out, 'BAD_OUTPUT', `output of '${name}'`);
   };
 
