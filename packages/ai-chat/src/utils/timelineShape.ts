@@ -151,3 +151,25 @@ export function thinkingMs(steps: readonly ActivityStep[]): number | undefined {
       total = (total ?? 0) + Math.max(0, s.endedAt - s.startedAt);
   return total;
 }
+
+/** 列表符号 / 标题 / 引用前缀（「1. 」「- 」「## 」「> 」），以及行内的粗体、代码标记 */
+const LINE_PREFIX = /^(?:\s*(?:[#>*•-]+|\d+[.)])\s+)+/;
+const INLINE_MARK = /\*\*|__|`/g;
+/** 句末：中文句号 / 感叹号 / 问号，或英文的 . ! ? 后面跟空白或结尾 */
+const SENTENCE = /[^。！？!?]*?(?:[。！？]|[.!?](?=\s|$))|[^。！？!?]+$/g;
+
+/**
+ * 思考的一句话标题：折叠时显示在思考那一行上（first：第一句），进行中显示正在想的那一句（last：最后一句）。
+ * 去掉 Markdown 记号，超出 max 截断加省略号；没有文字时返回空串。
+ */
+export function thoughtTitle(text: string, which: 'first' | 'last' = 'first', max = 80): string {
+  const lines = text
+    .split('\n')
+    .map((l) => l.replace(LINE_PREFIX, '').replace(INLINE_MARK, '').trim())
+    .filter(Boolean);
+  const line = which === 'first' ? lines[0] : lines[lines.length - 1];
+  if (!line) return '';
+  const sentences = (line.match(SENTENCE) ?? [line]).map((s) => s.trim()).filter(Boolean);
+  const sentence = (which === 'first' ? sentences[0] : sentences[sentences.length - 1]) ?? line;
+  return sentence.length > max ? `${sentence.slice(0, max).trimEnd()}…` : sentence;
+}

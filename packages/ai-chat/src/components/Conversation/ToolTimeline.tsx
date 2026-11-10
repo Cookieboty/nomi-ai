@@ -37,6 +37,7 @@ import {
   activityCalls,
   shapeTimeline,
   thinkingMs,
+  thoughtTitle,
   type ActivityStep,
   type ShapedItem,
 } from '../../utils/timelineShape';
@@ -576,6 +577,38 @@ const ThinkingTimer: React.FC<{ startedAt?: number }> = ({ startedAt }) => {
   );
 };
 
+/**
+ * 思考那一行的标题：进行中是「思考中 · 3s」加正在想的那一句，文字带流动的灰度渐变；
+ * 结束后是「已思考 5 秒」加这段思考的第一句（折叠时不用点开就知道想了什么）
+ */
+const ThinkingLabel: React.FC<{
+  text: string;
+  running: boolean;
+  startedAt?: number;
+  ms?: number;
+}> = ({ text, running, startedAt, ms }) => {
+  const title = thoughtTitle(text, running ? 'last' : 'first');
+  return (
+    <span className={running ? styles.live : undefined} data-testid="tool-thinking-label">
+      <span className={styles.verb}>
+        {running ? (
+          <>
+            {t('ui.usage-tools.thinking')}
+            <ThinkingTimer startedAt={startedAt} />
+          </>
+        ) : (
+          thoughtLabel(ms)
+        )}
+      </span>
+      {title && (
+        <span className={styles.thinkTitle} title={title} data-testid="tool-thinking-title">
+          {title}
+        </span>
+      )}
+    </span>
+  );
+};
+
 const Thinking = memo(function Thinking({
   text,
   running,
@@ -598,18 +631,7 @@ const Thinking = memo(function Thinking({
   return (
     <Disclosure
       icon={Brain}
-      label={
-        <span className={styles.verb}>
-          {running ? (
-            <>
-              {t('ui.usage-tools.thinking')}
-              <ThinkingTimer startedAt={startedAt} />
-            </>
-          ) : (
-            thoughtLabel(ms)
-          )}
-        </span>
-      }
+      label={<ThinkingLabel text={text} running={running} startedAt={startedAt} ms={ms} />}
       status={running ? 'running' : 'done'}
       open={disclosure.open}
       onOpenChange={disclosure.onOpenChange}
@@ -677,16 +699,23 @@ const ActivityRow: React.FC<{ id: string; bucket?: Bucket; steps: ActivityStep[]
   let label: React.ReactNode;
   if (active?.type === 'call') {
     icon = KIND_ICON[describeCall(active.call).kind];
-    label = <CallLabel call={active.call} />;
-  } else if (active) {
+    // 进行中的那一步：流动的灰度渐变
     label = (
-      <span className={styles.verb}>
-        {t('ui.usage-tools.thinking')}
-        <ThinkingTimer startedAt={active.startedAt} />
+      <span className={styles.live}>
+        <CallLabel call={active.call} />
       </span>
     );
+  } else if (active) {
+    label = <ThinkingLabel text={active.text} running startedAt={active.startedAt} />;
   } else if (!calls.length) {
-    label = <span className={styles.verb}>{thoughtLabel(thinkingMs(steps))}</span>;
+    const first = steps[0];
+    label = (
+      <ThinkingLabel
+        text={first?.type === 'thinking' ? first.text : ''}
+        running={false}
+        ms={thinkingMs(steps)}
+      />
+    );
   } else {
     const { buckets, title } = activityTitle(calls);
     icon = buckets.length === 1 ? BUCKET_ICON[buckets[0]!] : Layers;

@@ -84,6 +84,27 @@ describe('Transcript view 的三种显示模式', () => {
   });
 });
 
+describe('思考的一句话标题', () => {
+  it('折叠时显示这段思考的第一句', () => {
+    const r = mountConversation('thinking');
+    const think = r.getByTestId('tool-thinking');
+    expect(think.getAttribute('data-open')).toBe('false');
+    expect(r.getByTestId('tool-thinking-title').textContent).toBe('先看一下文件');
+  });
+});
+
+describe('Transcript view 菜单的焦点', () => {
+  it('鼠标点选后不把焦点还给按钮（不出现焦点框）；没有悬停提示', () => {
+    const r = render(<TranscriptViewButton sessionKey="tab:f" />);
+    const btn = r.getByTestId('titlebar-transcript-view');
+    expect(btn.getAttribute('title')).toBeNull();
+    fireEvent.click(btn);
+    fireEvent.click(screen.getByTestId('transcript-view-verbose'), { detail: 1 });
+    expect(document.activeElement).not.toBe(btn);
+    expect(getTranscriptView('tab:f')).toBe('verbose');
+  });
+});
+
 describe('Transcript view 菜单按会话生效', () => {
   it('选择一个模式只写入当前会话；「跟随全局」可以清除覆盖', () => {
     setGlobalTranscriptView('thinking');

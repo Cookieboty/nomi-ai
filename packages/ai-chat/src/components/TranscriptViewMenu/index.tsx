@@ -85,10 +85,14 @@ export const TranscriptViewButton: React.FC<{ sessionKey: string }> = ({ session
     e.preventDefault();
   };
 
-  const pick = (next: TranscriptView) => {
-    setView(next);
+  /** 选完关菜单。键盘操作（Enter / 空格，detail 为 0）才把焦点还给按钮；鼠标点选不留焦点框 */
+  const done = (e: React.MouseEvent) => {
     close();
-    btn.current?.focus();
+    if (e.detail === 0) btn.current?.focus();
+  };
+  const pick = (next: TranscriptView, e: React.MouseEvent) => {
+    setView(next);
+    done(e);
   };
 
   return (
@@ -97,7 +101,6 @@ export const TranscriptViewButton: React.FC<{ sessionKey: string }> = ({ session
         ref={btn}
         type="button"
         className="app-titlebar-btn"
-        title={t('ui.chat-settings.transcript-view')}
         aria-label={t('ui.chat-settings.transcript-view')}
         aria-haspopup="menu"
         aria-expanded={!!at}
@@ -126,7 +129,7 @@ export const TranscriptViewButton: React.FC<{ sessionKey: string }> = ({ session
               aria-checked={view === id}
               className={styles.item}
               data-testid={`transcript-view-${id}`}
-              onClick={() => pick(id)}
+              onClick={(e) => pick(id, e)}
             >
               <span className={styles.check} aria-hidden="true">
                 {view === id && <Icon icon={Check} size={14} />}
@@ -144,10 +147,9 @@ export const TranscriptViewButton: React.FC<{ sessionKey: string }> = ({ session
             aria-checked={!hasOverride}
             className={styles.item}
             data-testid="transcript-view-global"
-            onClick={() => {
+            onClick={(e) => {
               followGlobal();
-              close();
-              btn.current?.focus();
+              done(e);
             }}
           >
             <span className={styles.check} aria-hidden="true">

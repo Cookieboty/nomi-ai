@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { shapeTimeline, type ShapedItem } from '../src/utils/timelineShape';
+import { shapeTimeline, thoughtTitle, type ShapedItem } from '../src/utils/timelineShape';
 import type { TimelineItem, ToolCall } from '../src/utils/toolTrace';
 
 const call = (id: string, name = 'read_file', output = 'ok'): ToolCall => ({
@@ -93,5 +93,26 @@ describe('shapeTimeline：每段每类最多一行', () => {
     );
     const th = out[0] as Extract<ShapedItem, { type: 'thinking' }>;
     expect(th.endedAt! - th.startedAt!).toBe(3000);
+  });
+});
+
+describe('thoughtTitle：思考的一句话标题', () => {
+  it('取第一句，去掉 Markdown 记号', () => {
+    expect(thoughtTitle('**Planning the fix**\n\nI will read a.ts first.')).toBe(
+      'Planning the fix',
+    );
+    expect(thoughtTitle('先看一下 rollout 的解析逻辑。然后再改测试。')).toBe(
+      '先看一下 rollout 的解析逻辑。',
+    );
+    expect(thoughtTitle('1. Check the parser. 2. Fix it')).toBe('Check the parser.');
+    expect(thoughtTitle('v1.2 版本有 3 个文件要改')).toBe('v1.2 版本有 3 个文件要改');
+  });
+
+  it('进行中取最后一句；太长截断；没有文字为空', () => {
+    expect(thoughtTitle('先看目录。\n接着跑测试，看看哪里挂了', 'last')).toBe(
+      '接着跑测试，看看哪里挂了',
+    );
+    expect(thoughtTitle('a'.repeat(100), 'first', 10)).toBe(`${'a'.repeat(10)}…`);
+    expect(thoughtTitle('  \n ')).toBe('');
   });
 });
