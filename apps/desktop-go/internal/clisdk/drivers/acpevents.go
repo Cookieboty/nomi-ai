@@ -101,9 +101,12 @@ type AcpMapper interface {
 }
 
 type acpMapper struct {
-	thought string
-	context Json
-	names   map[string]string
+	userText   string
+	userImages []any
+	userID     string
+	thought    string
+	context    Json
+	names      map[string]string
 	// inputs：进行中的工具调用最近一次带来的参数（rawInput / 标题 / 位置），做完时 update 里没有就用它。
 	// Kimi Code 先用第一段流式参数建 tool_call（只有工具名），开始执行时才用 tool_call_update 补上 rawInput，
 	// 做完的那条又只带结果；不记下来，命令就丢了
@@ -149,6 +152,29 @@ func compactTokensAfter(u Json) (float64, bool) {
 
 func (m *acpMapper) Update(u Json) []Ev {
 	kind := strQ(u.Get("sessionUpdate"))
+	if kind == "user_message_chunk" || kind == "user_message" {
+		if m.userID == "" {
+			m.userID = clisdk.RandomUUID()
+		}
+		content := u.Get("content")
+		if getp(content, "type") == "text" {
+			m.userText += strQ(getp(content, "text"))
+		}
+		m.userImages = append(m.userImages, clisdk.MessageImages(content)...)
+		if len(m.userImages) > clisdk.MaxMessageImages {
+			m.userImages = m.userImages[:clisdk.MaxMessageImages]
+		}
+		if len(m.userImages) > 0 {
+			return []Ev{O("type", "user-message", "text", m.userText, "images", m.userImages, "sourceId", m.userID)}
+		}
+		return nil
+	}
+	if kind == "agent_message_chunk" || kind == "agent_thought_chunk" {
+		m.userID = ""
+		m.userText = ""
+		m.userImages = nil
+	}
+
 	// Grok 自动压缩（x.ai 扩展通知）：started → 压缩中；completed → 清状态 + 压缩后的占用；
 	// failed / cancelled → 只清状态
 	if strings.HasPrefix(kind, "auto_compact_") {
@@ -206,6 +232,10 @@ func (m *acpMapper) Update(u Json) []Ev {
 			if t, ok := getp(c, "text").(string); ok && t != "" {
 				out = append(out, O("type", "text-delta", "text", t))
 			}
+		}
+
+		if images := clisdk.ImageReferenceMarkdown(clisdk.MessageImages(c)); images != "" {
+			out = append(out, O("type", "text-delta", "text", images+"\n\n"))
 		}
 		return out
 	}
@@ -271,6 +301,9 @@ func (m *acpMapper) Update(u Json) []Ev {
 				ev.Set("output", o)
 			}
 			out = append(out, ev)
+			if images := clisdk.ImageReferenceMarkdown(clisdk.MessageImages(u.Get("content"))); images != "" {
+				out = append(out, O("type", "text-delta", "text", images+"\n\n"))
+			}
 		} else {
 			out = append(out, O("type", "tool", "name", name, "status", "start", "detail", id, "input", input))
 		}

@@ -143,7 +143,16 @@ export interface HarnessTabMessage {
   role: 'user' | 'assistant';
   content: string;
   /** 用户附图缩略图 */
-  images?: Array<{ thumb: string; width: number; height: number; source?: string; url?: string }>;
+  images?: Array<{
+    thumb: string;
+    width: number;
+    height: number;
+    source?: string;
+    url?: string;
+    name?: string;
+    path?: string;
+    unavailable?: boolean;
+  }>;
   timestamp: number;
   error?: boolean;
   tools?: string[];

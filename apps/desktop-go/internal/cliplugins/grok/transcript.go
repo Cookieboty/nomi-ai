@@ -24,13 +24,12 @@ func ParseTranscript(text string, fallbackAt float64) []sh.Json {
 		body, tools := sh.Blocks(content)
 		switch kind {
 		case "user_message", "user_message_chunk", "user_prompt", "prompt":
-			if body != "" {
-				b.User(body, at)
-			}
+			b.User(body, at, content)
 		case "agent_thought_chunk":
 			b.Thinking(body, at)
 		case "agent_message", "agent_message_chunk", "assistant_message", "assistant_message_chunk":
 			b.Assistant(body, tools, at, nil)
+			b.AssistantImages(content, at)
 		case "tool_call", "tool_call_started":
 			var metaName any
 			if m, ok := sh.AsJ(u.Get("_meta")).Get("x.ai/tool").(*util.Obj); ok {

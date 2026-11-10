@@ -21,8 +21,7 @@ func ParseTranscript(text string, fallbackAt float64) []sh.Json {
 			if sh.AsJ(data.Get("source")).Get("kind") != "user" {
 				continue
 			}
-			t, _ := sh.Blocks(data.Get("content"))
-			b.User(t, at)
+			b.UserContent(data.Get("content"), at)
 		case typ == "assistant/message":
 			sh.WalkAssistant(b, sh.AsJ(data.Get("message")).Get("content"), at, sh.UsageOf(sh.AsJ(data.Get("usage"))))
 		case isStr && toolEndRe.MatchString(util.JSIText(typ)):

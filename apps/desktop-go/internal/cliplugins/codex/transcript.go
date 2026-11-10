@@ -42,9 +42,10 @@ func ParseTranscript(text string, fallbackAt float64) []sh.Json {
 		case "message":
 			t, _ := sh.Blocks(p.Get("content"))
 			if p.Get("role") == "user" {
-				b.User(t, at)
+				b.User(t, at, p.Get("content"))
 			} else if p.Get("role") == "assistant" {
 				b.Assistant(t, nil, at, nil)
+				b.AssistantImages(p.Get("content"), at)
 			}
 		case "reasoning":
 			summary, _ := p.Get("summary").([]any)

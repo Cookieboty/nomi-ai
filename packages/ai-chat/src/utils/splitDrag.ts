@@ -9,14 +9,17 @@ export function startSplitDrag(opts: {
   pointerId: number;
   onMove: (ev: PointerEvent) => void;
   onEnd: (cancelled: boolean) => void;
-}): void {
+}): () => void {
   const { el, pointerId, onMove, onEnd } = opts;
   try {
     el.setPointerCapture(pointerId);
   } catch {
     /* 合成事件 / 指针已失效：退回 window 监听 */
   }
+  let finished = false;
   const finish = (cancelled: boolean) => {
+    if (finished) return;
+    finished = true;
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onCancel);
@@ -32,4 +35,5 @@ export function startSplitDrag(opts: {
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
   window.addEventListener('pointercancel', onCancel);
+  return () => finish(true);
 }

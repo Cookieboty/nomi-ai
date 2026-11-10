@@ -655,22 +655,33 @@
   }
 }
 .imageRow {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-self: flex-end;
   width: max-content;
   max-width: min(320px, 100%);
-  justify-content: end;
-  gap: 6px;
-  margin: 4px 0 8px;
+  gap: var(--cd-space-1-5);
+  margin: var(--cd-space-1) 0 var(--cd-space-2);
+}
+/* 用户附图从右向左排列，最多五张一行；窄窗口按可用宽度提前换行。 */
+.user .imageRow {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+  width: 100%;
+  max-width: calc(var(--cd-control-h-md) * 10 + var(--cd-space-1-5) * 4);
+}
+.imageRow > .imageThumbBtn {
+  flex: 0 0 calc(var(--cd-control-h-md) * 2);
+  max-width: 100%;
 }
 .imageThumb {
   width: 100%;
-  height: 72px;
+  height: calc(var(--cd-control-h-md) * 2);
   object-fit: cover;
   display: block;
-  border-radius: 6px;
-  border: 1px solid var(--cd-color-border, #333);
+  border-radius: var(--cd-radius-sm);
+  border: 1px solid var(--cd-color-border);
 }
 .lightboxToolbar {
   position: absolute;

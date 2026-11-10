@@ -9,9 +9,11 @@ import { Bot, Expand, FolderTree, PanelRightClose, RefreshCw, Search } from 'luc
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import { useResourceContext } from '../../contexts/ResourceContext';
 import { harnessClient, type WorkspaceTreeNode } from '../../services/harnessClient';
 import type { ConvMessage } from '../../types/conversation';
 import { shouldIgnoreEscape } from '../../utils/keyboard';
+import { workspaceFileHref } from '../../utils/resourceLinks';
 import {
   aggregateSessionChanges,
   buildChangeFileTree,
@@ -26,7 +28,7 @@ import { rootOf, workspaceKey } from '../../utils/workspacePath';
 
 import { ChangeFileTree } from './ChangeFileTree';
 import { useChangesUi } from './ChangesUiContext';
-import { FilePreview, type PreviewFile } from './FilePreview';
+import { FileReview, type ReviewFile } from './FileReview';
 import { RepoGitSection, type RepoReport } from './RepoGitSection';
 import styles from './SessionWorkspace.module.css';
 import pane from './WorkspacePane.module.css';
@@ -79,6 +81,7 @@ export const SessionChangesPanel: React.FC<{
   const [reports, setReports] = useState<Record<string, RepoReport>>({});
   const prevCount = useRef(0);
   const panelRef = useRef<HTMLElement>(null);
+  const resource = useResourceContext();
   const { workbench, closeWorkbench, openDetail, openWorkbench, setPreviewOpen, previewSlot } =
     useChangesUi();
 
@@ -254,7 +257,7 @@ export const SessionChangesPanel: React.FC<{
   }, [workbench]); // eslint-disable-line react-hooks/exhaustive-deps -- focus on open only
 
   /** 本会话变更与磁盘文件的预览（git 的由各仓库段自己画） */
-  const previewFiles: PreviewFile[] = useMemo(() => {
+  const previewFiles: ReviewFile[] = useMemo(() => {
     const where = (p: string) => (multi ? { cwds: [rootOf(roots, p) ?? primary!] } : {});
     const fromChanges = changes.map((c) => ({
       key: `c:${c.file}`,
@@ -313,6 +316,14 @@ export const SessionChangesPanel: React.FC<{
 
   const pickFile = (file: string) => {
     setSelectedFile(file);
+    if (view === 'workspace') {
+      setPreviewKey(null);
+      closeWorkbench();
+      const root = rootOf(roots, file) ?? cwd;
+      if (root && resource)
+        resource.open(workspaceFileHref(root, file), { ...resource.scope, cwd: root });
+      return;
+    }
     const c = changeByFile.get(file);
     if (c) {
       setPreviewKey(`c:${file}`);
@@ -324,9 +335,11 @@ export const SessionChangesPanel: React.FC<{
       });
     } else {
       // 没改过的文件：在中栏看内容（与本会话 Diff 互斥）
-      setPreviewKey(`d:${file}`);
-      setOpenDiskPaths((prev) => (prev.includes(file) ? prev : [...prev, file]));
+      setPreviewKey(null);
       closeWorkbench();
+      const root = rootOf(roots, file) ?? cwd;
+      if (root && resource)
+        resource.open(workspaceFileHref(root, file), { ...resource.scope, cwd: root });
     }
   };
 
@@ -610,7 +623,7 @@ export const SessionChangesPanel: React.FC<{
       )}
       {previewing && !previewKey!.startsWith('g:') && previewSlot && portalFiles.length > 0
         ? createPortal(
-            <FilePreview
+            <FileReview
               hideFileTabs
               files={portalFiles}
               activeKey={previewKey!}

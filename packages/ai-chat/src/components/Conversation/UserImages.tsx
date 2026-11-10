@@ -3,13 +3,15 @@
  * 把带图片地址的一句话填进输入框，Nomi 收到后带着这张图调 image_generate。
  * 早期消息只有缩略图（没有 url）：放大看的是缩略图，不能引用。
  */
-import { Button, Icon, Modal, t, useLocale } from '@nomi-ai/ui';
-import { Copy, ImagePlus, PencilLine } from 'lucide-react';
+import { Button, Icon, t, useLocale } from '@nomi-ai/ui';
+import { Copy, Download, ImagePlus, PencilLine } from 'lucide-react';
 import React, { useState } from 'react';
 
-import { hostAssetUrl } from '../../services/api';
+import { api, hostAssetUrl } from '../../services/api';
 import type { ChatMessage } from '../../types/chat';
 import { copyImage } from '../../utils/copyImage';
+import { assetFileOf } from '../AssetLibrary/ImageViewer';
+import { ImageLightbox } from '../ImageLightbox/ImageLightbox';
 import { useChangesUi } from '../SessionWorkspace/ChangesUiContext';
 
 import styles from './UserImages.module.css';
@@ -21,12 +23,14 @@ const altOf = (im: Img) =>
 
 export const UserImages: React.FC<{ images: Img[] }> = ({ images }) => {
   useLocale();
-  const [open, setOpen] = useState<Img | null>(null);
+  const [index, setIndex] = useState<number | null>(null);
+  const open = index === null ? null : (images[index] ?? null);
   const [note, setNote] = useState('');
   const { fillComposer } = useChangesUi();
+  const file = open?.url ? assetFileOf(open.url) : null;
   const src = open ? (open.url ? hostAssetUrl(open.url) : open.thumb) : '';
   const close = () => {
-    setOpen(null);
+    setIndex(null);
     setNote('');
   };
   const compose = (key: 'ui.media.compose-edit' | 'ui.media.compose-reference') => {
@@ -43,7 +47,7 @@ export const UserImages: React.FC<{ images: Img[] }> = ({ images }) => {
             key={i}
             type="button"
             className={styles.thumbBtn}
-            onClick={() => setOpen(im)}
+            onClick={() => setIndex(i)}
             aria-label={t('ui.usage-tools.view-full-image')}
             title={`${im.width}×${im.height}`}
             data-testid="message-image"
@@ -52,16 +56,49 @@ export const UserImages: React.FC<{ images: Img[] }> = ({ images }) => {
           </button>
         ))}
       </div>
-      <Modal
-        open={!!open}
-        onClose={close}
-        size="lg"
-        bodyClassName={styles.previewBody}
-        data-testid="message-image-preview"
-      >
-        {open && (
-          <>
-            <img src={src} alt={altOf(open)} className={styles.preview} />
+      {open && (
+        <ImageLightbox
+          src={src}
+          alt={altOf(open)}
+          onClose={close}
+          index={index ?? 0}
+          count={images.length}
+          onIndex={(next) => {
+            setIndex(next);
+            setNote('');
+          }}
+          data-testid="message-image-preview"
+          actions={
+            open.url && (
+              <button
+                type="button"
+                title={t('ui.media.edit-this')}
+                aria-label={t('ui.media.edit-this')}
+                onClick={() => compose('ui.media.compose-edit')}
+                data-testid="image-lightbox-edit"
+              >
+                <Icon icon={PencilLine} size={16} />
+              </button>
+            )
+          }
+          download={
+            file ? (
+              <button
+                type="button"
+                aria-label={t('ui.knowledge-local.download')}
+                title={t('ui.knowledge-local.download')}
+                data-testid="image-lightbox-download"
+                onClick={() =>
+                  void api.chatAssets
+                    .saveAs({ file })
+                    .catch((error: unknown) => setNote(String(error)))
+                }
+              >
+                <Icon icon={Download} size={16} />
+              </button>
+            ) : undefined
+          }
+          details={
             <div className={styles.actions}>
               <Button
                 variant="secondary"
@@ -99,15 +136,15 @@ export const UserImages: React.FC<{ images: Img[] }> = ({ images }) => {
                   </Button>
                 </>
               )}
-              {note && (
-                <span className={styles.note} role="status">
-                  {note}
-                </span>
-              )}
             </div>
-          </>
-        )}
-      </Modal>
+          }
+        />
+      )}
+      {open && note && (
+        <span className={styles.note} role="status">
+          {note}
+        </span>
+      )}
     </>
   );
 };

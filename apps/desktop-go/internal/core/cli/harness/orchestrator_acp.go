@@ -384,6 +384,11 @@ func (o *Orchestrator) confirmAcpMode(tab *util.Obj, live *acpLiveSession) *jsrt
 func (o *Orchestrator) onAcpEvents(tabID string, live *acpLiveSession, evs []*util.Obj) {
 	for _, raw := range evs {
 		ev := WithPermissionExpiry(clisdk.StampEvent(raw, nowMs()), o.PermissionTimeoutMs(tabID))
+		if ev.Get("type") == "user-message" {
+			o.receiveUserImages(tabID, ev)
+			continue
+		}
+		ev = o.normalizeImageEvent(tabID, ev)
 		if turn := live.turn; turn != nil {
 			turn.text, turn.breaks, ev = cli.FoldAssistantEvent(turn.text, turn.breaks, ev)
 			if ev.Get("type") != "text-delta" {

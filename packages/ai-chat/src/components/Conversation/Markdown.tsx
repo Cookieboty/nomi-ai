@@ -2,7 +2,17 @@
  *  components 覆盖以维持代码块复制按钮、链接协议白名单、图片放大能力。 */
 import { Icon, t, useLocale } from '@nomi-ai/ui';
 import { Check, Copy } from 'lucide-react';
-import React, { memo, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import React, {
+  createContext,
+  lazy,
+  Suspense,
+  useContext,
+  memo,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -11,7 +21,9 @@ import { hasLangFence, hasOpenFence, splitMarkdownChunks } from '../../utils/mar
 import { streamRenderIntervalMs } from '../../utils/streamPolicy';
 
 import { CiteRef, remarkCiteRefs } from './citeRefs';
-import { sanitizeHref, urlTransform } from './Markdown.helpers';
+import { ConversationLink } from './ConversationLink';
+import { remarkDelegateReport } from './delegateReport';
+import { resourceUrlTransform } from './Markdown.helpers';
 import styles from './Markdown.module.css';
 import {
   isHighlighterReady,
@@ -20,6 +32,13 @@ import {
   subscribeHighlighter,
 } from './markdownHighlight';
 import { MarkdownImage } from './MarkdownImage';
+import { remarkSafeBreaks } from './remarkSafeBreaks';
+import { remarkStandardLinks } from './remarkStandardLinks';
+
+const LazyMermaid = lazy(() =>
+  import('./MermaidDiagram').then((m) => ({ default: m.MermaidDiagram })),
+);
+const DiagramAllowed = createContext(true);
 
 const CodeBlock: React.FC<{ lang: string; code: string; highlightedHtml?: string }> = ({
   lang,
@@ -27,6 +46,7 @@ const CodeBlock: React.FC<{ lang: string; code: string; highlightedHtml?: string
   highlightedHtml,
 }) => {
   const [copied, setCopied] = useState(false);
+  const diagramAllowed = useContext(DiagramAllowed);
   const copy = () => {
     void navigator.clipboard
       ?.writeText(code)
@@ -36,9 +56,22 @@ const CodeBlock: React.FC<{ lang: string; code: string; highlightedHtml?: string
       })
       .catch(() => undefined);
   };
+  if (lang.toLowerCase() === 'mermaid' && diagramAllowed) {
+    return (
+      <Suspense
+        fallback={
+          <pre className={styles.codePre}>
+            <code>{code}</code>
+          </pre>
+        }
+      >
+        <LazyMermaid code={code} />
+      </Suspense>
+    );
+  }
   return (
     <div className={styles.codeBlock} data-testid="md-code">
-      <div className={styles.codeHead}>
+      <div className={styles.codeHead} data-preview-find-ignore>
         <span>{lang || t('ui.usage-tools.code')}</span>
         <button
           type="button"
@@ -82,7 +115,7 @@ function langFromClassName(className?: string): string {
   return m?.[1] ?? '';
 }
 
-const components: Components = {
+export const markdownComponents: Components = {
   // 代码：行内直出；代码块（有 language-* class 或多行）走 CodeBlock
   code(props) {
     const { className, children, node, ...rest } = props as React.HTMLAttributes<HTMLElement> & {
@@ -121,14 +154,9 @@ const components: Components = {
     return <pre className={styles.codePre}>{children}</pre>;
   },
   a(props) {
-    const { href, children, ...rest } = props;
-    const safe = sanitizeHref(href ?? '');
-    if (!safe) return <>{children}</>;
-    return (
-      <a href={safe} target="_blank" rel="noreferrer noopener" {...rest}>
-        {children}
-      </a>
-    );
+    const { node, ...rest } = props;
+    void node;
+    return <ConversationLink {...rest} />;
   },
   img(props) {
     const { src, alt } = props as { src?: string; alt?: string };
@@ -141,7 +169,7 @@ const components: Components = {
       </div>
     );
   },
-  // 标题视觉降一级，与旧实现一致（避免正文里出现过大的 h1）
+  // Conversation-only heading density; file-preview headings are maintained separately.
   h1: (p) => <h2>{p.children}</h2>,
   h2: (p) => <h3>{p.children}</h3>,
   h3: (p) => <h4>{p.children}</h4>,
@@ -197,8 +225,14 @@ function serializeHljsChildren(nodes: React.ReactNode): string {
 }
 
 /** 一段（块边界之间）的渲染：文本不变就不重新解析 / 渲染；流式输出时只有最后一段在变 */
-const REMARK_PLUGINS = [remarkGfm];
-const REMARK_PLUGINS_CITE = [remarkGfm, remarkCiteRefs];
+const REMARK_PLUGINS = [remarkGfm, remarkSafeBreaks, remarkDelegateReport, remarkStandardLinks];
+const REMARK_PLUGINS_CITE = [
+  remarkGfm,
+  remarkSafeBreaks,
+  remarkDelegateReport,
+  remarkStandardLinks,
+  remarkCiteRefs,
+];
 const REHYPE_HIGHLIGHT = [rehypeHighlightShared];
 const REHYPE_NONE: never[] = [];
 
@@ -207,8 +241,8 @@ function renderChunk(text: string, highlight: boolean, cite = false): React.Reac
   return ReactMarkdown({
     remarkPlugins: cite ? REMARK_PLUGINS_CITE : REMARK_PLUGINS,
     rehypePlugins: highlight ? REHYPE_HIGHLIGHT : REHYPE_NONE,
-    urlTransform,
-    components,
+    urlTransform: resourceUrlTransform,
+    components: markdownComponents,
     skipHtml: true,
     children: text,
   });
@@ -323,20 +357,25 @@ export const Markdown: React.FC<{
   useEffect(() => {
     if (wantsHighlight && !ready) void loadHighlighter();
   }, [wantsHighlight, ready]);
-  const chunks = useMemo(() => splitMarkdownChunks(text), [text]);
+  const chunks = useMemo(
+    () => (/^ {0,3}\[(?:\\.|[^\]\n])+\]:[ \t]*\S/m.test(text) ? [text] : splitMarkdownChunks(text)),
+    [text],
+  );
   const lastOpen = streaming && hasOpenFence(chunks[chunks.length - 1] ?? '');
   return (
     <div className={`${styles.md} ${className ?? ''}`} data-testid="markdown">
       {chunks.map((c, i) => {
         const last = i === chunks.length - 1;
         return (
-          <MarkdownChunk
-            key={i}
-            text={c}
-            settled={settled || !last}
-            highlight={ready && !(last && lastOpen)}
-            cite={citations}
-          />
+          <DiagramAllowed.Provider key={i} value={!(last && lastOpen)}>
+            <MarkdownChunk
+              key={i}
+              text={c}
+              settled={settled || !last}
+              highlight={ready && !(last && lastOpen)}
+              cite={citations}
+            />
+          </DiagramAllowed.Provider>
         );
       })}
     </div>

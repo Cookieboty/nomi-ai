@@ -29,6 +29,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/local"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mousetrack"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/resourcepreview"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/services"
 	"io/fs"
 	"log"
@@ -628,8 +629,19 @@ func main() {
 	gatewayRequestsRef.Store(gatewayRequests)
 	defer gatewayRequests.Dispose()
 	projs := wireProjects(router, userData, desktopSvc.Broker)
+	previewResources := resourcepreview.New(userData)
+	previewResources.ProtectedPaths = desktopSvc.Broker.ProtectedPaths
+	previewResources.OpenExternal = ports.OpenExternal
+	previewResources.OpenFile = func(path string) error {
+		if message := ports.OpenPath(path); message != "" {
+			return errors.New(message)
+		}
+		return nil
+	}
+	defer previewResources.Shutdown()
 	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc, shellP.Quality,
 		desktopSvc.Broker.CheckCliWorkspace, desktopSvc.Broker.CliEnvAllow, sandboxDeps(desktopSvc.Broker), projs)
+	jsrt.Run(func() { harnessOrch.AttachPreview(previewResources) })
 	wireNomiBroker(desktopSvc.Broker, harnessOrch)
 	migrateToProjects(projs, bundle.Conversations, harnessOrch, taskRuntime(b8.Tasks))
 	watchSandboxPolicy(desktopSvc.Broker, harnessOrch)
@@ -756,7 +768,7 @@ func main() {
 	// 拖进对话窗口的文件：macOS / Linux 上网页拿不到 File，宿主发一次性临时地址（hostdrop）
 	drops := hostdrop.New()
 	// 视图资源的中间件链：应用窗口与（截图 / CI 用的）回环 HTTP 共用
-	viewsMW := devViewsMiddleware(viewPageMiddleware(assets, drops.Middleware(islandPageMiddleware(isl, builtinPackMiddleware(charSvc, assetproto.Middleware(map[string]func(http.ResponseWriter, string){
+	viewsMW := previewResources.Wrap(devViewsMiddleware(viewPageMiddleware(assets, drops.Middleware(islandPageMiddleware(isl, builtinPackMiddleware(charSvc, assetproto.Middleware(map[string]func(http.ResponseWriter, string){
 		// registerChatAssetProtocol：用户图片在 userData/chat，预设在应用资源
 		assetproto.ChatAssetScheme: func(w http.ResponseWriter, u string) {
 			assetproto.ServeChatAsset(w, filepath.Join(userData, "chat"), chatBgPresetFile(), u)
@@ -765,7 +777,7 @@ func main() {
 		assetproto.CharacterPackScheme: func(w http.ResponseWriter, u string) {
 			assetproto.ServeCharacterPackOrAssets(w, charSvc.Root(), assetsRoot, u)
 		},
-	}))))))
+	})))))))
 	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, Pages: pages, MascotSize: mascotCtl.WindowSize, MascotPos: mascotCtl.WindowPosition, OnWindow: onWindow,
 		// 退出：关窗之前等对话窗口排着的会话写入写完（最多 1.5 秒；最近没写过的立刻返回）
 		OnShutdown: func() {

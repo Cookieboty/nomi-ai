@@ -756,3 +756,67 @@ html[data-chat-bg] .main-content--with-changes [data-testid='center-preview-pane
   gap: 1px;
   margin-bottom: var(--cd-space-1);
 }
+
+/* Side preview reserves space; only expansion covers the body. Chat/stream stay mounted. */
+.main-content--resource-preview {
+  flex-direction: row;
+  min-width: 0;
+}
+.main-content--resource-preview > .chat-column {
+  width: calc(100% - var(--resource-preview-width)) !important;
+  flex: none !important;
+  max-width: none !important;
+  min-width: 0 !important;
+}
+.main-content--resource-preview > .center-changes-splitter,
+.main-content--resource-preview > [data-testid='center-changes-pane'],
+.main-content--resource-preview > [data-testid='center-preview-pane'] {
+  display: none;
+}
+/* The same conversation and composer become a movable window above the document. */
+.main-content--resource-expanded > .chat-column {
+  position: absolute;
+  inset-block-end: var(--cd-space-4);
+  inset-inline-start: 50%;
+  transform: translate(calc(-50% + var(--preview-chat-x, 0px)), var(--preview-chat-y, 0px));
+  width: min(40rem, calc(100% - var(--cd-space-8))) !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: auto;
+  max-height: calc(100% - var(--cd-space-8));
+  z-index: var(--cd-z-chat-input);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-xl);
+  background: var(--cd-chat-popover-bg);
+  backdrop-filter: blur(var(--cd-space-3));
+  -webkit-backdrop-filter: blur(var(--cd-space-3));
+  box-shadow: var(--cd-shadow-lg);
+  overflow: hidden;
+}
+.main-content--resource-expanded > .chat-column[data-preview-chat-open] {
+  height: min(70%, 48rem);
+}
+.main-content--resource-expanded .chat-column > [data-testid='chat-header'],
+.main-content--resource-expanded .chat-session-bar,
+.main-content--resource-expanded .chat-column:not([data-preview-chat-open]) > .chat-container {
+  display: none;
+}
+.main-content--resource-expanded .input-container {
+  flex: none;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.main-content--resource-expanded .input-container > [data-testid='new-chat-context'] {
+  display: none;
+}
+.main-content--resource-expanded .chat-container {
+  border-block-end: 1px solid var(--cd-panel-border);
+}
+.main-content--resource-expanded > [data-testid='resource-preview-splitter'] {
+  /* Keep the entire grab area inside the clipped main-content when snapped to 100%. */
+  inset-inline-start: 0;
+  transform: none;
+}

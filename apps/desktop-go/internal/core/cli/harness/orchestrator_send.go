@@ -659,6 +659,11 @@ var wsRunRe = util.JSRe(`\s+`)
 
 // emitEvent = emitEvent。
 func (o *Orchestrator) emitEvent(tabID string, ev *util.Obj) {
+	if ev.Get("type") == "user-message" {
+		o.receiveUserImages(tabID, ev)
+		return
+	}
+	ev = o.normalizeImageEvent(tabID, ev)
 	o.trackProgress(tabID, ev)
 	if ev.Get("type") == "permission-resolved" && ev.Get("reason") != "allowed" {
 		k := "denied"

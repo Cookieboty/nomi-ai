@@ -1,3 +1,5 @@
+import { resourceTarget } from '../../utils/resourceLinks';
+
 /** Markdown 渲染共用的协议白名单辅助函数。
  *  拆出来避免 MarkdownImage 与 Markdown 之间的循环依赖，并方便单测与其它组件复用。*/
 
@@ -25,4 +27,9 @@ export function urlTransform(url: string, _key: string, node: { tagName?: string
 export function isLocalImagePath(url: string | null | undefined): boolean {
   const h = (url ?? '').trim();
   return /^(\/|~\/|file:\/\/|[A-Za-z]:[\\/])/.test(h);
+}
+
+/** Conversation Markdown URL policy; file previews maintain their own policy. */
+export function resourceUrlTransform(url: string, key: string, node: { tagName?: string }): string {
+  return resourceTarget(url) || url.startsWith('#') ? url : urlTransform(url, key, node);
 }

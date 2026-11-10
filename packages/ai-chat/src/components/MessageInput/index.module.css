@@ -434,6 +434,80 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Compact preview input: capsule geometry, theme-driven appearance, unchanged draft/queue logic. */
+.inputWrapper.compact {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--cd-space-2);
+  border-radius: var(--cd-radius-full);
+  padding: var(--cd-space-2) var(--cd-space-3);
+  max-width: 65rem;
+  min-height: var(--cd-control-h-lg);
+}
+.compact .messageTextarea {
+  grid-row: 1;
+  grid-column: 2;
+  min-height: var(--cd-control-h-xs);
+  font-size: var(--cd-font-size-md);
+  line-height: var(--cd-line-height-lg);
+}
+.compact .composerBar,
+.compact .composerLeft {
+  display: contents;
+}
+.compact .composerLeft > :not(.moreWrap) {
+  display: none;
+}
+.compact .moreWrap {
+  grid-column: 1;
+  grid-row: 1;
+}
+.compact .composerRight {
+  grid-column: 3;
+  grid-row: 1;
+}
+.compact .attachRow,
+.compact .slashHint {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+/* The preview window is the composer's surface; avoid a second capsule inside it. */
+.inputWrapper.floating,
+.inputWrapper.floating:hover,
+.inputWrapper.floating:focus-within {
+  transition: none;
+  max-width: none;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+  padding: var(--cd-space-3) var(--cd-space-3) var(--cd-space-2);
+}
+.inputWrapper.floating.compact {
+  align-items: end;
+  padding-top: var(--cd-space-1);
+}
+.inputWrapper.floating.compact.multiline {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.compact.multiline .composerBar {
+  display: flex;
+}
+.compact.multiline .composerRight {
+  margin-inline-start: auto;
+}
+.floating.compact .composerRight .modelStatus {
+  max-width: 10rem;
+}
+.floating .messageTextarea {
+  min-height: var(--cd-control-h-xs);
+  font-size: var(--cd-font-size-md);
+}
 /* 「+」菜单里的说明文字（如委派未开启） */
 .menuNote {
   margin: 0;
@@ -442,4 +516,18 @@
   font-size: var(--cd-font-size-sm);
   color: var(--cd-color-text-subtle);
   line-height: 1.5;
+}
+
+.compact [data-composer-references] {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+.compact:has([data-composer-references]) .messageTextarea,
+.compact:has([data-composer-references]) .moreWrap,
+.compact:has([data-composer-references]) .composerRight {
+  grid-row: 2;
+}
+.compact:has([data-composer-references]) .attachRow,
+.compact:has([data-composer-references]) .slashHint {
+  grid-row: 3;
 }

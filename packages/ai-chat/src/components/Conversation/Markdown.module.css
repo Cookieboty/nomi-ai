@@ -1,6 +1,6 @@
 .md {
-  font-size: var(--conv-text, 14px);
-  line-height: var(--conv-leading, 22px);
+  font-size: var(--conv-text, var(--cd-font-size-md));
+  line-height: var(--conv-leading, var(--cd-line-height-md));
   color: var(--cd-color-text);
   overflow-wrap: anywhere;
 }

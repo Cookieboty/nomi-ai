@@ -18,6 +18,7 @@ import {
   harnessClient,
   type HarnessBackend,
   type HarnessTabMessage,
+  type ReasoningEffort,
 } from './harnessClient';
 
 export interface ForkResult {
@@ -41,6 +42,7 @@ async function loadSourceMessages(
       content: m.error ? '' : m.content,
       timestamp: m.timestamp,
       ...(m.error ? { error: m.content } : {}),
+      ...(m.images?.length ? { images: m.images } : {}),
     }));
     return { meta, messages };
   }
@@ -49,6 +51,8 @@ async function loadSourceMessages(
 }
 
 export interface ForkOptions {
+  /** Focus-mode branches keep source/model settings and image attachments. */
+  inheritSettings?: boolean;
   /** 副本放进哪个项目；不给 = 沿用源会话的 */
   projectId?: string;
   /** 从这条消息分叉：只带到它为止（消息末尾的「分叉」）；不给 = 带到最后 */
@@ -58,8 +62,12 @@ export interface ForkOptions {
 }
 
 /** 新会话里要显示 / 带入的消息：整理后再按轮数裁 */
-function forkedMessages(messages: ChatMessage[], turns?: number): ChatMessage[] {
-  return keepLastTurns(compactTranscript(messages), turns);
+function forkedMessages(
+  messages: ChatMessage[],
+  turns?: number,
+  keepImages = false,
+): ChatMessage[] {
+  return keepLastTurns(compactTranscript(messages, { keepImages }), turns);
 }
 
 function toTabMessages(messages: ChatMessage[]): HarnessTabMessage[] {
@@ -68,6 +76,7 @@ function toTabMessages(messages: ChatMessage[]): HarnessTabMessage[] {
     role: m.role === 'assistant' ? 'assistant' : 'user',
     content: m.content,
     timestamp: m.timestamp,
+    ...(m.images?.length ? { images: m.images } : {}),
   }));
 }
 
@@ -90,17 +99,49 @@ export async function forkSameBackend(
 ): Promise<ForkResult> {
   const { meta, messages } = await loadSourceMessages(store, sourceId);
   const title = t('ui.cli-monitor.copy', meta.name);
-  const kept = forkedMessages(cutAfter(messages, opts.upto), opts.turns);
+  const kept = forkedMessages(cutAfter(messages, opts.upto), opts.turns, opts.inheritSettings);
 
   if (isCliBackend(meta.backend)) {
     // 副本默认沿用源标签的项目
-    const projectId = opts.projectId ?? (await sourceProject(meta));
+    const source =
+      opts.inheritSettings && meta.tabId
+        ? (await harnessClient.tabs()).tabs.find((item) => item.id === meta.tabId)
+        : undefined;
+    if (opts.inheritSettings && !source)
+      throw new Error(t('ui.cli-monitor.conversation-not-found'));
+    const projectId = opts.projectId ?? source?.projectId ?? (await sourceProject(meta));
     const tab = await harnessClient.createTab({
       backend: meta.backend as Exclude<HarnessBackend, 'nomi'>,
       title,
       messages: toTabMessages(kept),
       ...(projectId ? { projectId } : {}),
+      ...(source?.pluginId ? { pluginId: source.pluginId } : {}),
     });
+    if (opts.inheritSettings && source && source.backend !== 'external') {
+      try {
+        const selectedSource = source.source ?? 'official';
+        const model = source.modelOverride ?? source.lastServedRef;
+        await harnessClient.setTabSource(
+          tab.id,
+          selectedSource,
+          selectedSource === 'thirdParty' ? model : undefined,
+        );
+        if (selectedSource === 'official') {
+          await harnessClient.setTabAccount(tab.id, source.accountId ?? null);
+          if (source.modelOverride)
+            await harnessClient.setTabModel(tab.id, source.modelOverride, {
+              expectSource: 'official',
+            });
+        }
+        if (source.reasoningEffort)
+          await harnessClient.setTabEffort(tab.id, source.reasoningEffort as ReasoningEffort);
+        if (source.longContext)
+          await harnessClient.setTabLongContext(tab.id, source.longContext.on);
+      } catch (error) {
+        await harnessClient.closeTab(tab.id).catch(() => undefined);
+        throw error;
+      }
+    }
     const created = store.upsertFromTab({
       id: tab.id,
       title: tab.title,

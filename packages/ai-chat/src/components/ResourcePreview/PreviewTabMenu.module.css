@@ -1,0 +1,43 @@
+.menu {
+  position: fixed;
+  z-index: var(--cd-z-modal);
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  max-width: calc(100vw - var(--cd-space-2));
+  max-height: calc(100vh - var(--cd-space-2));
+  overflow: auto;
+  padding: var(--cd-space-1-5);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-lg);
+  /* Floating menus must hide document text even when image-theme panels are translucent. */
+  background: var(--cd-chat-popover-bg);
+  backdrop-filter: blur(var(--cd-space-3));
+  -webkit-backdrop-filter: blur(var(--cd-space-3));
+  color: var(--cd-color-text);
+  box-shadow: var(--cd-shadow-popover);
+}
+.item {
+  min-height: var(--cd-control-h-ms);
+  flex-shrink: 0;
+  padding: var(--cd-space-1) var(--cd-space-2);
+  border: 0;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  text-align: start;
+  cursor: pointer;
+}
+.item:hover:not(:disabled) {
+  background: var(--cd-color-hover);
+}
+.item:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: calc(-1 * var(--cd-space-0-5));
+}
+.item:disabled {
+  color: var(--cd-color-text-subtle);
+  cursor: default;
+}

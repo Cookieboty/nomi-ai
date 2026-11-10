@@ -21,7 +21,7 @@ describe('appContract · D3 coding', () => {
     expect(Object.keys(codingEvents)).toMatchSnapshot();
   });
 
-  it('只用本域的命名空间；没有 surfaces（旧通道在 aiIPC 上，两个窗口都有）', () => {
+  it('预览过程仅允许 chat，旧过程保留原有 surfaces 与危险操作边界', () => {
     const ns = new Set([
       'project',
       'harness',
@@ -37,8 +37,9 @@ describe('appContract · D3 coding', () => {
       expect(ns.has(name.split('.')[0]!)).toBe(true);
       expect(name).not.toMatch(/-/);
     }
-    for (const d of Object.values(codingProcedures as Record<string, Def>)) {
-      expect(d.surfaces).toBeUndefined();
+    for (const [name, d] of Object.entries(codingProcedures as Record<string, Def>)) {
+      if (name.startsWith('harness.preview')) expect(d.surfaces).toEqual(['chat']);
+      else expect(d.surfaces).toBeUndefined();
     }
     const dangerous = Object.entries(codingProcedures as Record<string, Def>)
       .filter(([, d]) => d.dangerous)
@@ -51,6 +52,10 @@ describe('appContract · D3 coding', () => {
       'fleet.setAutoPause',
       'fleet.setPolicy',
       'harness.geminiTrustFolder',
+      'harness.previewExternal',
+      'harness.previewListDirectory',
+      'harness.previewOpen',
+      'harness.previewSave',
       'harness.replyApprovePlan',
       'harness.replyPermission',
       'harness.sandboxReply',
@@ -58,6 +63,43 @@ describe('appContract · D3 coding', () => {
       'project.create',
       'project.update',
     ]);
+  });
+
+  it('预览契约拒绝桌面角色窗口与不可信写入，保存必须带完整修订', async () => {
+    for (const caller of [
+      { surface: 'mascot' as const, trusted: true },
+      { surface: 'chat' as const, trusted: false },
+    ]) {
+      const { api, close } = createTestClient(
+        appContract,
+        {
+          'harness.previewOpen': () => ({ ok: true, content: 'private' }),
+          'harness.previewSave': () => ({ ok: true }),
+        },
+        { caller },
+      );
+      try {
+        await expect(
+          api.harness.previewOpen({ cwd: '/work', path: 'private.md' }),
+        ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+        await expect(
+          api.harness.previewSave({
+            url: '/__nomi/preview/token',
+            revision: 'a'.repeat(64),
+            content: 'edit',
+          }),
+        ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      } finally {
+        close();
+      }
+    }
+    expect(
+      codingProcedures['harness.previewSave'].input.safeParse({
+        url: '/__nomi/preview/token',
+        revision: 'stale',
+        content: 'edit',
+      }).success,
+    ).toBe(false);
   });
 
   it('schema：输入严格（具名对象），输出 loose（未知字段透传）', () => {

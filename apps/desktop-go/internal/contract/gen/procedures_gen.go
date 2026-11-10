@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 448：mutation 315 / query 128 / stream 5
+// 合计 454：mutation 318 / query 131 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -219,6 +219,12 @@ var Procedures = []Procedure{
 	{Name: "harness.openTerminal", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.permissionDefaults", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.pickDir", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "harness.previewClose", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "harness.previewExternal", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "harness.previewListDirectory", Kind: "query", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "harness.previewOpen", Kind: "query", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "harness.previewSave", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "harness.previewWeb", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "harness.recentCwds", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.replyApprovePlan", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "harness.replyPermission", Kind: "mutation", Dangerous: true, Surfaces: nil},

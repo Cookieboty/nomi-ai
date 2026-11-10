@@ -39,5 +39,8 @@
   "ui.media.see-more": "查看更多",
   "ui.media.remove-tag": "移除标签「{0}」",
   "ui.media.add-tag": "添加标签",
-  "ui.media.tag-placeholder": "新标签，回车添加"
+  "ui.media.tag-placeholder": "新标签，回车添加",
+  "ui.media.compose-regenerate": "重新生成与这张图片（{0}）对应的图片。",
+  "ui.media.fit-image": "适应窗口",
+  "ui.media.source-assistant": "AI 助手"
 }
