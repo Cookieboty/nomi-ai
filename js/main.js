@@ -199,7 +199,67 @@
     if (tag.textContent === "dl.yours") tag.textContent = fb;
     card.appendChild(tag);
   });
+  if (os === "mac" || os === "linux") detectArch(os);
 })();
+
+/* Which chip: Chromium reports the CPU architecture; Safari / Firefox only via the WebGL renderer name
+   ("Apple M2…" vs "Intel Iris…" / "AMD Radeon…" on Intel Macs; Safari often masks it as "Apple GPU",
+   which tells nothing). Mac: an Intel Mac gets the Intel build as the primary button; when unsure we
+   don't guess, the card says how to check. Linux: only x64 is built, so ARM machines are told up front. */
+function detectArch(os) {
+  var nav = window.navigator || {};
+  var fromGpu = function () {
+    try {
+      var gl = document.createElement("canvas").getContext("webgl");
+      var ext = gl && gl.getExtension("WEBGL_debug_renderer_info");
+      var r = String((gl && gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER)) || "");
+      if (/apple m\d|apple a\d/i.test(r)) return "arm";
+      if (/intel|amd|radeon|nvidia/i.test(r)) return "x86";
+    } catch (e) {}
+    return "";
+  };
+  var apply = function (arch) { os === "mac" ? applyMac(arch) : applyLinux(arch); };
+  var uad = nav.userAgentData;
+  if (uad && uad.getHighEntropyValues) {
+    uad.getHighEntropyValues(["architecture"]).then(function (v) {
+      apply(v && /arm/i.test(v.architecture) ? "arm" : v && /x86/i.test(v.architecture) ? "x86" : fromGpu());
+    }, function () { apply(fromGpu()); });
+  } else apply(fromGpu());
+}
+function chipNote(card, key, fb) {
+  if (!card || card.querySelector(".dl-chip")) return;
+  var p = document.createElement("p");
+  p.className = "dl-chip";
+  var text = fb;
+  try { if (window.NomiI18n && window.NomiI18n.t) text = window.NomiI18n.t(key); } catch (e) {}
+  p.textContent = text === key ? fb : text;
+  var req = card.querySelector(".req");
+  if (req) req.insertAdjacentElement("afterend", p); else card.appendChild(p);
+}
+function applyMac(arch) {
+  var en = document.documentElement.lang.indexOf("en") === 0;
+  var arm = document.getElementById("dl-mac-arm64"), x64 = document.getElementById("dl-mac-x64");
+  if (!arm || !x64) return;
+  var card = arm.closest("[data-os]");
+  if (arch === "x86") {
+    arm.className = "dl-alt";
+    x64.className = "btn btn-primary";
+    arm.parentNode.insertBefore(x64, arm);
+    chipNote(card, "dl.chip.intel", en ? "Detected an Intel Mac" : "已识别为 Intel 芯片的 Mac");
+  } else if (arch === "arm") {
+    chipNote(card, "dl.chip.arm", en ? "Detected Apple silicon" : "已识别为 Apple 芯片的 Mac");
+  } else {
+    chipNote(card, "dl.chip.unknown", en
+      ? "Not sure? Apple menu → About This Mac: \"Chip: Apple M…\" takes the Apple silicon build, \"Processor: Intel\" the Intel build."
+      : "不确定选哪个？苹果菜单 →「关于本机」：写着「芯片 Apple M…」选 Apple 芯片版，写着「处理器 Intel」选 Intel 芯片版。");
+  }
+}
+function applyLinux(arch) {
+  if (arch !== "arm") return;
+  var en = document.documentElement.lang.indexOf("en") === 0;
+  var a = document.getElementById("dl-linux");
+  chipNote(a && a.closest("[data-os]"), "dl.chip.linuxArm", en ? "Only an x64 build is available for now; ARM devices aren't supported yet." : "目前只提供 x64 版，ARM 设备暂不支持。");
+}
 
 /* Motion: header shadow, hero parallax, staggered reveal on scroll. Skipped entirely for reduced motion. */
 (function () {
