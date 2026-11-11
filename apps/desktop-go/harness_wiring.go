@@ -205,8 +205,12 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 		})
 	})
 	harnessOrch = o // coding_wiring.go（cliUpdate / history / delegate）共用同一编排器
-	// 工作目录落在已有项目里、还没归项目的标签（以前打开的历史会话、委派的 worktree 标签等）归进去
-	jsrt.Run(o.AdoptUnboundTabs)
+	// 工作目录落在已有项目里、还没归项目的标签（以前打开的历史会话、委派的 worktree 标签等）归进去；
+	// 顺带修掉以前拿沙箱说明当标题、或说过话还叫默认名的标签标题
+	jsrt.Run(func() {
+		o.AdoptUnboundTabs()
+		o.RepairTabTitles()
+	})
 	projs.OnChange(func(id string) { jsrt.Run(func() { o.ProjectChanged(id) }) })
 	codinghandlers.RegisterHarness(router, func() *harness.Orchestrator { return o })
 	codinghandlers.RegisterOpenTerminal(router, cwdCheck, terminal.OpenAt)

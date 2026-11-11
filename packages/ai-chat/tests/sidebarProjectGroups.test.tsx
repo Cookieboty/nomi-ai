@@ -203,13 +203,14 @@ describe('sidebar project groups', () => {
     const app = groups[0]!;
     expect(names(app)).toHaveLength(5);
     expect(names(groups[1]!)).toEqual([expect.stringContaining('api via claude')]);
-    // 分页：每点一次多 5 条，全部显示后变成「收起」
+    // 分页：按钮写还剩几条；每点一次多 5 条，全部显示后变成「收起」
+    expect(within(app).getByTestId('workspace-show-more').textContent).toBe('再显示 2 条');
     fireEvent.click(within(app).getByTestId('workspace-show-more'));
     expect(names(app)).toHaveLength(7);
     expect(within(app).getByTestId('workspace-show-more').textContent).toBe('收起');
     fireEvent.click(within(app).getByTestId('workspace-show-more'));
     expect(names(app)).toHaveLength(5);
-    // 没有项目的会话在「最近」里
+    // 没有项目的会话在「其他对话」里
     expect(names(r.getByTestId('workspace-recent'))).toEqual([
       expect.stringContaining('loose chat'),
     ]);

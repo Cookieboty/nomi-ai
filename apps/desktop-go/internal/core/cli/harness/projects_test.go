@@ -225,3 +225,37 @@ func TestAdoptUnboundTabs(t *testing.T) {
 		}
 	})
 }
+
+// 启动时修标题：沙箱说明当了标题的、说过话还叫默认名的按第一句提问起标题；空标签和改过名的不动
+func TestRepairTabTitles(t *testing.T) {
+	tmp := t.TempDir()
+	idle := 0.0
+	jsrt.Run(func() {
+		o := New(Deps{Root: filepath.Join(tmp, "h"), Home: tmp, DefaultCwd: tmp, Logger: nopLogger{}, Ports: nopPorts{},
+			IdleReclaimMs: &idle})
+		defer o.Dispose()
+		mk := func(title string, msgs ...string) string {
+			list := []any{}
+			for _, m := range msgs {
+				list = append(list, util.NewObj("role", "user", "content", m))
+			}
+			opts := util.NewObj("backend", "codex", "cwd", tmp, "activate", false, "messages", list)
+			if title != "" {
+				opts.Set("title", title)
+			}
+			return util.Str(o.CreateTab(opts).Get("id"))
+		}
+		leaked := mk("You are running inside Nomi's sandbox. Reading credentials a", "你好")
+		named := mk("", "注意，claude")
+		empty := mk("")
+		renamed := mk("我的会话", "随便问问")
+		bare := mk("You are running inside Nomi's sandbox. Reading credentials a")
+		before := str(o.tab(empty), "title")
+		o.RepairTabTitles()
+		for id, want := range map[string]string{leaked: "你好", named: "注意，claude", empty: before, renamed: "我的会话", bare: "Codex"} {
+			if got := str(o.tab(id), "title"); got != want {
+				t.Fatalf("%s: title %q, want %q", id, got, want)
+			}
+		}
+	})
+}

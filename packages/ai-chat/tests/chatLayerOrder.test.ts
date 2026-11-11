@@ -434,8 +434,12 @@ describe('侧栏悬浮蒙版：时间与进行中一并遮住', () => {
     expect(ruleBody(sidebar, '.rowActions')).toMatch(/z-index:\s*1/);
     expect(ruleBody(sidebar, '.rowActions')).toMatch(/min-width:\s*80px/);
     expect(ruleBody(sidebar, '.rowActions')).toContain('var(--cd-color-hover) 100%');
+    // 侧栏选中色比通用选中色浅一档（.sidebar 上的 --sb-selected-bg），蒙版跟着用它
+    expect(ruleBody(sidebar, '.sidebar')).toMatch(
+      /--sb-selected-bg:[^;]*var\(--cd-color-selected-bg\)/,
+    );
     expect(ruleBody(sidebar, '.row[data-active] .rowActions')).toContain(
-      'var(--cd-color-selected-bg) 100%',
+      'var(--sb-selected-bg) 100%',
     );
     expect(ruleBody(sidebar, '.row .thread')).toMatch(/z-index:\s*0/);
   });

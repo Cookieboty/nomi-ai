@@ -1538,7 +1538,7 @@ export type TranslationKey =
   | 'ui.cli-monitor.recent-chats'
   | 'ui.cli-monitor.expand-workspace'
   | 'ui.cli-monitor.collapse-workspace'
-  | 'ui.cli-monitor.show-more'
+  | 'ui.cli-monitor.show-n-more'
   | 'ui.cli-monitor.mode-assistant-desc'
   | 'ui.cli-monitor.mode-workbench-desc'
   | 'ui.cli-monitor.archive-chat'

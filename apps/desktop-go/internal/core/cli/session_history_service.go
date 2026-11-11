@@ -405,7 +405,11 @@ func (s *SessionHistoryService) inspect(backend string, f historyFile) *util.Obj
 		if sid == "" {
 			sid = shBaseExt(f.Path, ".jsonl")
 		}
-		title := info.Title
+		// 解析器给的标题也要清理：Nomi 发给 CLI 的第一条消息前面有沙箱说明 / 带入的前文，不能当标题
+		title := ""
+		if t := cleanTitle80(info.Title); t != nil {
+			title = *t
+		}
 		if title == "" && hasUserTypeRe.MatchString(head) {
 			title = i18n.T("electron.common.untitled-session")
 		}
@@ -473,7 +477,7 @@ func (s *SessionHistoryService) inspect(backend string, f historyFile) *util.Obj
 		for _, c := range []func() *string{
 			func() *string { return cleanTitle80(shRowStr(row, "name")) },
 			func() *string { return cleanTitle80(shRowStr(row, "title")) },
-			func() *string { return shSp(info.Title) },
+			func() *string { return cleanTitle80(info.Title) },
 			func() *string { return cleanTitle80(shRowStr(row, "first_user_message")) },
 		} {
 			if title = c(); title != nil {
@@ -563,7 +567,7 @@ func (s *SessionHistoryService) inspect(backend string, f historyFile) *util.Obj
 		if cwd == "" {
 			cwd = enc
 		}
-		title := shSp(info.Title)
+		title := cleanTitle80(info.Title)
 		if title == nil {
 			title = TitleFromMessages(ParseTranscript("grok", text, shNowMs()))
 		}

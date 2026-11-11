@@ -371,16 +371,12 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     return () => window.removeEventListener(OPEN_CONVERSATION_EVENT, on);
   }, [open]);
 
-  /**
-   * projectId：在指定项目里新建（项目行上的「新建」）；null = 不放进项目；
-   * 缺省用新建菜单里选的项目
-   */
+  /** projectId：指定项目（项目行上的「新建」）；null = 不放进项目；缺省用新建菜单里选的项目 */
   const createFor = async (backend: ConversationBackend, projectId?: string | null) => {
     setNewMenu(false);
     leaveRef.current?.();
     const pid = projectId === undefined ? (ws.chosen ?? null) : projectId;
-    // 菜单里选的项目只管这一次新建：用过就清掉，不带到下一次新建
-    ws.reset();
+    ws.reset(); // 菜单里选的项目只管这一次新建，不带到下一次
     try {
       if (backend === 'nomi') {
         if (tabs.available) await tabs.activate(MAIN_TAB_ID);
@@ -397,7 +393,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       await tabs.create(backend, pid ?? undefined);
       refresh();
     } catch (e) {
-      // 建不出来要让用户知道（以前静默失败，看起来像点了没反应）
       onNotice?.(t('ui.cli-monitor.new-chat-failed', e instanceof Error ? e.message : String(e)));
     }
   };
@@ -805,7 +800,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         aria-expanded={isDev && view === 'all' ? newMenu : undefined}
         data-testid="new-chat"
       >
-        <Icon icon={SquarePen} />
+        <Icon icon={SquarePen} size={14} />
       </button>
       {newMenuP.value && (
         <AnchoredPopover anchor={newBtnRef.current} popRef={newPopRef}>
@@ -833,11 +828,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       aria-label={t('ui.cli-monitor.project-create-title')}
       data-testid="new-project"
     >
-      <Icon icon={SquarePen} />
+      <Icon icon={SquarePen} size={14} />
     </button>
   );
-  // 「项目」标题右侧：整理侧栏「…」+ 新建项目（Codex 式）。按项目分组时侧栏标题上不再放通用的新建对话：
-  // 项目行上有「新建」，还有搜索窗口里的「新对话」与快捷键；合并成一张列表时新建在列表标题上。
+  // 「项目」标题右侧：整理「…」+ 新建项目；分组时不放通用新建（项目行上有，搜索窗口与快捷键也有）。
   // 不分组时（「对话」）：整理 + 新建对话
   const listOpen = !collapsedWorkspaces.includes(SECTION_WORKSPACES);
   const organize = <OrganizeMenu grouped={groupByWorkspace} onChange={setGroupByWorkspace} />;

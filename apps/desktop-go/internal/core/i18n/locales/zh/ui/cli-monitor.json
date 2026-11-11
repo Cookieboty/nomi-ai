@@ -186,7 +186,7 @@
   "ui.cli-monitor.recent-chats": "最近",
   "ui.cli-monitor.expand-workspace": "展开 {0}",
   "ui.cli-monitor.collapse-workspace": "收起 {0}",
-  "ui.cli-monitor.show-more": "展开显示",
+  "ui.cli-monitor.show-n-more": "再显示 {0} 条",
   "ui.cli-monitor.mode-assistant-desc": "聊天、知识库、记忆",
   "ui.cli-monitor.mode-workbench-desc": "派出编程助手，改项目",
   "ui.cli-monitor.archive-chat": "归档",

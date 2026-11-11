@@ -786,6 +786,54 @@ func exitedCause(e error) bool {
 }
 
 // armHeuristicTitle = armHeuristicTitle：首条启发式标题；仅默认生成名时改写并挂起 pending。
+// RepairTabTitles：启动时修一遍已有标签的标题。以前从本机历史打开的会话可能拿 Nomi 注入的沙箱说明 /
+// 带入的前文当了标题；还叫默认名（「Claude Code 11」）但已经说过话的标签也补上。都按第一句提问起标题
+// （与 armHeuristicTitle 一样截 30 字）；取不到时，坏标题退回默认名，默认名保持不动。空标签不动
+func (o *Orchestrator) RepairTabTitles() {
+	n := 0
+	for _, k := range o.tabs.Keys() {
+		tab := o.tab(k)
+		if k == MainTabID || tab == nil {
+			continue
+		}
+		backend := str(tab, "backend")
+		if backend == "nomi" {
+			continue
+		}
+		title := str(tab, "title")
+		head := clisdk.JSTrimStart(title)
+		leaked := strings.HasPrefix(head, clisdk.SandboxNoteStart) || strings.HasPrefix(head, "[Nomi]")
+		if !leaked && (backend == "external" || !isGeneratedTabTitle(title, backend)) {
+			continue
+		}
+		msgs := o.messages[k]
+		if msgs == nil {
+			msgs = o.readMessagesFile(k)
+		}
+		var next *string
+		for _, m := range msgs {
+			if m.Get("role") == "user" {
+				if c, _ := m.Get("content").(string); c != "" {
+					next = shared.CleanTitle(c, 30)
+				}
+				break
+			}
+		}
+		switch {
+		case next != nil && *next != title:
+			tab.Set("title", *next)
+		case next == nil && leaked:
+			tab.Set("title", backendTitle(backend))
+		default:
+			continue
+		}
+		n++
+	}
+	if n > 0 {
+		o.changed()
+	}
+}
+
 func (o *Orchestrator) armHeuristicTitle(tab *util.Obj, prompt string) {
 	backend := str(tab, "backend")
 	if backend == "nomi" || backend == "external" {

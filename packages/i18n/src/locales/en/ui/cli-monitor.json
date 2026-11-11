@@ -186,7 +186,7 @@
   "ui.cli-monitor.recent-chats": "Recent",
   "ui.cli-monitor.expand-workspace": "Expand {0}",
   "ui.cli-monitor.collapse-workspace": "Collapse {0}",
-  "ui.cli-monitor.show-more": "Show more",
+  "ui.cli-monitor.show-n-more": "Show {0} more",
   "ui.cli-monitor.mode-assistant-desc": "Chat, knowledge base, and memory",
   "ui.cli-monitor.mode-workbench-desc": "Dispatch a coding assistant and change the project",
   "ui.cli-monitor.archive-chat": "Archive",
