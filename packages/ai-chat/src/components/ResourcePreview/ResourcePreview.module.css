@@ -58,6 +58,26 @@
   z-index: var(--cd-z-chat-input);
   pointer-events: none;
 }
+/* 文件 Diff 标签的内容区：FileReview 自己有顶栏与滚动 */
+.diffBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+/* 两个类叠加：盖过 FileReview 自己 .preview 的高度上限与顶边框（样式表顺序不定） */
+.diffBody > .diffReview {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  border-top: 0;
+}
+/* Diff 标签选中时文件视图只隐藏（display:flex 会盖过 [hidden]） */
+.toolbar[hidden],
+.previewContent[hidden] {
+  display: none;
+}
 .previewContent {
   position: relative;
   display: flex;
@@ -89,7 +109,10 @@
   font-size: var(--cd-font-size-sm);
   color: var(--cd-color-text-muted);
 }
-.panel button:not([data-preview-picker-control]):not([role='combobox']):not(:global(.cd-btn)),
+.panel
+  button:not([data-preview-picker-control]):not([role='combobox']):not(:global(.cd-btn)):not(
+    [data-preview-diff] button
+  ),
 .toolbar a {
   display: inline-flex;
   align-items: center;
@@ -105,7 +128,7 @@
   cursor: pointer;
   flex-shrink: 0;
 }
-.panel button:not([role='combobox']):not(:global(.cd-btn)):hover,
+.panel button:not([role='combobox']):not(:global(.cd-btn)):not([data-preview-diff] button):hover,
 .toolbar a:hover {
   background: var(--cd-color-hover);
 }

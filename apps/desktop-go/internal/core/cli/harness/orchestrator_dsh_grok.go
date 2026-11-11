@@ -200,6 +200,12 @@ func (o *Orchestrator) spawnCollect(tab *util.Obj, opts collectOpts) *jsrt.Promi
 		}
 		driver := drivers.NewExecDriver(do)
 		take := func(rawEv *util.Obj, live bool) {
+			if o.tab(id) != tab {
+				return
+			}
+			if sid := str(rawEv, "sessionId"); sid != "" {
+				o.bindRunningSession(tab, sid)
+			}
 			if rawEv.Get("type") == "user-message" {
 				if live {
 					o.receiveUserImages(id, rawEv)

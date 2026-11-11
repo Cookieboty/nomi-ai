@@ -1,8 +1,12 @@
 import { Icon, t } from '@nomi-ai/ui';
-import { Expand, FileCode2, Minimize2, Pencil, X } from 'lucide-react';
+import { Expand, FileCode2, GitCompareArrows, Minimize2, Pencil, X } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import { type ResourceContextValue, type ResourceEntry } from '../../contexts/ResourceContext';
+import {
+  type DiffTabSpec,
+  type ResourceContextValue,
+  type ResourceEntry,
+} from '../../contexts/ResourceContext';
 import { hostAssetUrl } from '../../services/api';
 import { isExternalResource, openExternalResource } from '../../services/externalResource';
 import { resourcePreviewClient, type PreviewResult } from '../../services/resourcePreviewClient';
@@ -10,6 +14,7 @@ import { isImeComposing, shouldIgnoreEscape } from '../../utils/keyboard';
 import { basename, dirname, resourceTarget, workspaceFileHref } from '../../utils/resourceLinks';
 import { confirmDialog } from '../ConfirmDialog';
 import { dismissPreviewChat } from '../PreviewChat/dismiss';
+import { FileReview } from '../SessionWorkspace/FileReview';
 
 import { CodeDocument } from './CodeDocument';
 import { resolveCodeLanguage } from './codeSyntax';
@@ -36,7 +41,10 @@ import { useMarkdownEditHistory } from './useMarkdownEditHistory';
 
 export interface PreviewEntry extends ResourceEntry {
   navigation?: DocumentNavigation;
+  /** 文件的 Diff 标签（与同一文件的文件标签是两个标签） */
+  diff?: DiffTabSpec;
 }
+const noop = () => undefined;
 interface ViewState {
   source: boolean;
   scroll: number;
@@ -89,6 +97,8 @@ export const ResourcePreview: React.FC<{
   onOpen,
 }) => {
   const active = entries.find((e) => e.key === activeKey) ?? entries[entries.length - 1]!;
+  /** 当前是文件的 Diff 标签：内容区换成 Diff，文件视图的工具栏 / 内容只隐藏 */
+  const activeDiff = active.diff;
   const [loaded, setLoaded] = useState<{
     key: string;
     result: PreviewResult;
@@ -152,7 +162,10 @@ export const ResourcePreview: React.FC<{
     scope: resourceScope,
     image: resourceImage,
   } = active;
+  const resourceIsDiff = !!activeDiff;
   useEffect(() => {
+    // Diff 标签的内容由 FileReview 自己读，不走文件预览的读盘 / 授权
+    if (resourceIsDiff) return;
     let stale = false;
     let capability: string | undefined;
     let acquired = false;
@@ -247,7 +260,15 @@ export const ResourcePreview: React.FC<{
         else void resourcePreviewClient.close(capability).catch(() => undefined);
       }
     };
-  }, [resourceKey, resourceHref, resourceScope, resourceImage, onCloseEntry, onOpen]);
+  }, [
+    resourceKey,
+    resourceHref,
+    resourceScope,
+    resourceImage,
+    resourceIsDiff,
+    onCloseEntry,
+    onOpen,
+  ]);
   useEffect(() => {
     mounted.current = true;
     const previous = document.activeElement as HTMLElement | null;
@@ -388,8 +409,8 @@ export const ResourcePreview: React.FC<{
       role="region"
       aria-label={t('ui.session-workspace.preview-title')}
       className={`${styles.panel} ${expanded ? styles.expanded : ''}`}
-      onContextMenu={selectionMenu.onContextMenu}
-      onMouseUp={selectionMenu.onMouseUp}
+      onContextMenu={activeDiff ? undefined : selectionMenu.onContextMenu}
+      onMouseUp={activeDiff ? undefined : selectionMenu.onMouseUp}
       data-testid="resource-preview"
       data-expanded={expanded}
     >
@@ -429,8 +450,15 @@ export const ResourcePreview: React.FC<{
               }}
               onClick={() => guarded(() => onActive(entry.key))}
               title={entry.href}
+              aria-label={
+                entry.diff
+                  ? t('ui.session-workspace.diff-tab', basename(entry.diff.path))
+                  : undefined
+              }
+              data-preview-diff-tab={entry.diff ? '' : undefined}
             >
-              {basename(resourceTarget(entry.href)?.path ?? entry.href)}
+              {entry.diff && <Icon icon={GitCompareArrows} size={12} />}
+              {basename(entry.diff?.path ?? resourceTarget(entry.href)?.path ?? entry.href)}
             </button>
             <button
               type="button"
@@ -450,7 +478,26 @@ export const ResourcePreview: React.FC<{
           onCloseEntries={closeEntries}
         />
       )}
-      <header className={styles.toolbar} data-testid="resource-preview-header">
+      {activeDiff && (
+        <div className={styles.diffBody} data-preview-diff data-testid="preview-diff">
+          <FileReview
+            key={active.key}
+            hideFileTabs
+            className={styles.diffReview}
+            files={[activeDiff.file]}
+            activeKey={activeDiff.file.key}
+            cwd={activeDiff.cwd}
+            onActiveKey={noop}
+            onClose={() => closeEntries([active.key])}
+            onSaved={activeDiff.onSaved}
+          />
+        </div>
+      )}
+      <header
+        className={styles.toolbar}
+        data-testid="resource-preview-header"
+        hidden={!!activeDiff}
+      >
         <PreviewFilePicker
           key={active.key}
           url={result?.url}
@@ -524,12 +571,12 @@ export const ResourcePreview: React.FC<{
           </button>
         </div>
       </header>
-      <div className={styles.previewContent}>
+      <div className={styles.previewContent} hidden={!!activeDiff}>
         <PreviewFind
           root={root}
           fileKey={active.key}
           mode={
-            !result?.ok
+            activeDiff || !result?.ok
               ? 'unavailable'
               : isSource
                 ? view.source || result.kind === 'text'

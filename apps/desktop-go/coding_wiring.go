@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/trash"
 	"log"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -147,7 +147,7 @@ var _ delegate.Harness = delegateHarness{}
 // 注册 cli.registry/plugin*、cliUpdate.*、delegate.*、history.* 过程。
 // 账号（AccountService）提供 history 的 accountLabel / sessionAccount；网关提供 delegate 的 harnessGateway（defaults / models）
 // 与 history 的 gatewaySession = gateway.servedSession（gw 为 nil 时依赖为空，可选）；
-// history.delete 的 trash 用 internal/shell/trash。
+// history.delete permanently removes validated native session files after process exit.
 func wireCoding(router *contract.Router, userData string, plugins *cli.CliPluginHost, d *desktop.Service, gw *gwstore.Service, reg tools.Registry, taskSvc *tasks.Service) {
 	o, acc := harnessOrch, harnessAccounts
 	var updates *cli.CliUpdateService
@@ -231,8 +231,8 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 			ImageStore:     &cli.MessageImageStore{ChatRoot: filepath.Join(userData, "chat"), DirOK: cliImageDirectoryAllowed},
 			Logger:         historyLog{},
 			GatewaySession: gatewaySession,
-			Trash: func(p string) *jsrt.Promise[struct{}] {
-				return jsrt.Async(func() (struct{}, error) { return struct{}{}, trash.Item(p) })
+			RemovePath: func(p string) *jsrt.Promise[struct{}] {
+				return jsrt.Async(func() (struct{}, error) { return struct{}{}, os.RemoveAll(p) })
 			},
 			OpenKeys: func() map[string]bool {
 				m := map[string]bool{}
@@ -241,8 +241,11 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 				}
 				return m
 			},
-			OpenTitle: func(b, id, title string) { o.SyncOpenSessionTitle(b, id, title) },
-			Hidden:    o.IsDelegatedSession,
+			CloseSession: o.CloseHistorySession,
+			TabSession:   o.HistoryTabSession,
+			CloseTab:     o.CloseTabAndWait,
+			OpenTitle:    func(b, id, title string) { o.SyncOpenSessionTitle(b, id, title) },
+			Hidden:       o.IsDelegatedSession,
 			OpenTab: func(x *util.Obj) cli.HistoryOpenTabResult {
 				r := o.OpenHistorySession(x)
 				return cli.HistoryOpenTabResult{Tab: r.Get("tab"), Reused: r.Get("reused") == true}

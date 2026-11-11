@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,7 +8,7 @@ import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode, setGroupByWorkspace } from '../src/services/chatPrefs';
 import type { HistorySession } from '../src/services/historyClient';
 
-import { installFakeApi, resetFakeApi, untilIdle } from './helpers/fakeApi';
+import { installFakeApi, resetFakeApi, untilIdle, type FakeApi } from './helpers/fakeApi';
 
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
@@ -32,7 +32,7 @@ vi.mock('../src/contexts/AiChatContext', () => {
 
 const h = (backend: HistorySession['backend'], i: number, o: Partial<HistorySession> = {}) =>
   ({
-    key: `${backend}:${i}`,
+    key: `${backend}:${backend}-${i}`,
     backend,
     sessionId: `${backend}-${i}`,
     title: `${backend} 历史 ${i}`,
@@ -41,6 +41,8 @@ const h = (backend: HistorySession['backend'], i: number, o: Partial<HistorySess
     updatedAt: Date.now() - i * 60_000,
     ...o,
   }) as HistorySession;
+
+let fakeApi: FakeApi;
 
 function mockIpc(opts: { openResult?: unknown; codexItems?: HistorySession[] } = {}) {
   const calls: Array<[string, Record<string, unknown>]> = [];
@@ -69,7 +71,7 @@ function mockIpc(opts: { openResult?: unknown; codexItems?: HistorySession[] } =
     if (ch === 'history.open') return opts.openResult ?? { ok: true };
     return {};
   });
-  installFakeApi(invoke);
+  fakeApi = installFakeApi(invoke);
   return calls;
 }
 
@@ -138,6 +140,35 @@ describe('CLI history in the sidebar', () => {
     expect(r.getAllByTestId('history-session-item').some((x) => x.dataset.backend === 'dsh')).toBe(
       false,
     );
+  });
+
+  it('hides a running session immediately when its native identity arrives before the conversation mirror', async () => {
+    mockIpc();
+    const r = await mount();
+    expect(r.getAllByTestId('history-session-item')).toHaveLength(3);
+    await act(async () => {
+      fakeApi.publish('harness.tabsChanged', {
+        tabs: [
+          {
+            id: 'running-tab',
+            backend: 'claude',
+            cwd: '/work/app',
+            cliSessionId: 'claude-1',
+            status: 'running',
+            unread: 0,
+          },
+        ],
+        activeTabId: 'running-tab',
+        running: 1,
+        queued: 0,
+      });
+    });
+    await untilIdle();
+    expect(r.getAllByTestId('history-session-item').map((row) => row.dataset.sessionId)).toEqual([
+      'codex-2',
+      'claude-3',
+    ]);
+    expect(r.getByTestId('endpoint-filter-claude').title).toContain('1 条本机历史');
   });
 
   it('marks non-official routes on the row and lists client / route / account in the tooltip', async () => {

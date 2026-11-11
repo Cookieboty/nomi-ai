@@ -15,7 +15,12 @@ import {
   removePreviewTabs,
   type PreviewTabsState,
 } from '../components/ResourcePreview/previewTabs';
-import type { ResourceScope, ResourceImageInfo, ResourceEntry } from '../contexts/ResourceContext';
+import type {
+  DiffTabSpec,
+  ResourceScope,
+  ResourceImageInfo,
+  ResourceEntry,
+} from '../contexts/ResourceContext';
 import { isExternalResource, openExternalResource } from '../services/externalResource';
 import { resourceTarget, resolveDocumentPath } from '../utils/resourceLinks';
 
@@ -41,6 +46,18 @@ const LazyPreview = lazy(() =>
     default: m.ResourcePreview,
   })),
 );
+const diffEntryKey = (diff: DiffTabSpec) => `diff\u0000${diff.key}`;
+/** 已开着的 Diff 标签换成最新的改动；没开着原样返回（不触发重渲染） */
+function withDiff(state: PreviewTabsState, key: string, diff: DiffTabSpec): PreviewTabsState {
+  if (!state.entries.some((entry) => entry.key === key)) return state;
+  return {
+    ...state,
+    entries: state.entries.map((entry) =>
+      entry.key === key ? { ...entry, href: diff.path, diff: { ...diff } } : entry,
+    ),
+  };
+}
+
 /** A visual overlay only: never owns a conversation, stream, queue or task lifecycle. */
 export function useResourcePreview(scope: ResourceScope) {
   const [imageEntry, setImageEntry] = useState<ResourceEntry | null>(null);
@@ -112,6 +129,42 @@ export function useResourcePreview(scope: ResourceScope) {
     },
     [isOpen, resetLayout],
   );
+  const scopeId = scope.id;
+  const scopeCwd = scope.cwd;
+  const scopeSource = scope.source;
+  /** 文件的 Diff 是普通标签：和文件标签同一排、同一套关闭与右键菜单；同一文件的 Diff 与文件本身是两个标签 */
+  const openDiff = useCallback(
+    (diff: DiffTabSpec) => {
+      if (!isOpen) {
+        resetLayout();
+        setConnected(null);
+      }
+      const key = diffEntryKey(diff);
+      setTabs((old) =>
+        openPreviewTab(
+          withDiff(old, key, diff),
+          {
+            key,
+            href: diff.path,
+            scope: { id: scopeId, cwd: scopeCwd, source: scopeSource },
+            diff: { ...diff },
+          },
+          new Set(
+            getPreviewEdits(old.entries.map((entry) => entry.key))
+              .filter(
+                ({ session }) => session.state.dirty || session.state.saving || session.state.error,
+              )
+              .map(({ key: k }) => k),
+          ),
+        ),
+      );
+    },
+    [isOpen, resetLayout, scopeId, scopeCwd, scopeSource],
+  );
+  const updateDiff = useCallback(
+    (diff: DiffTabSpec) => setTabs((old) => withDiff(old, diffEntryKey(diff), diff)),
+    [],
+  );
   const closeEntries = useCallback((keys: string[]) => {
     setTabs((old) => removePreviewTabs(old, keys));
     setConnected((old) => (old && keys.includes(old.key) ? null : old));
@@ -141,12 +194,14 @@ export function useResourcePreview(scope: ResourceScope) {
       connected?.scope.id === scope.id &&
       (connected?.scope.cwd ?? null) === (scope.cwd ?? null)
     );
-  const scopeId = scope.id;
-  const scopeCwd = scope.cwd;
-  const scopeSource = scope.source;
   const value = useMemo(
-    () => ({ scope: { id: scopeId, cwd: scopeCwd, source: scopeSource }, open }),
-    [scopeId, scopeCwd, scopeSource, open],
+    () => ({
+      scope: { id: scopeId, cwd: scopeCwd, source: scopeSource },
+      open,
+      openDiff,
+      updateDiff,
+    }),
+    [scopeId, scopeCwd, scopeSource, open, openDiff, updateDiff],
   );
   return {
     value,

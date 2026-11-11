@@ -29,6 +29,7 @@ const updateMeta = vi.fn();
 const setArchived = vi.fn();
 const setPinned = vi.fn();
 const deleteConversation = vi.fn(async () => undefined);
+const abortConversation = vi.fn();
 const onForkRequest = vi.fn();
 
 // 返回稳定引用（与生产一致）；每次新对象会让 Sidebar 的 refresh effect 每次渲染都重跑。
@@ -60,7 +61,7 @@ vi.mock('../src/contexts/AiChatContext', () => {
             conversationStore: () => store,
           },
         },
-        actions: { loadChatHistory: async () => undefined },
+        actions: { loadChatHistory: async () => undefined, abortConversation },
       };
       return api;
     },
@@ -103,7 +104,7 @@ function mockIpc() {
       return { items: b === 'codex' ? [hist] : [], nextOffset: null, hasMore: false };
     }
     if (ch === 'history.open') return { ok: true };
-    if (ch === 'history.delete') return { ok: true, removed: 1 };
+    if (ch === 'history.delete' || ch === 'history.deleteTab') return { ok: true, removed: 1 };
     return {};
   });
   installFakeApi(invoke);
@@ -134,20 +135,6 @@ const mount = (collapsed = false, onToggle: () => void = () => undefined) =>
     ),
   );
 
-/** 自管 collapsed，便于测「折叠态重命名先展开」（#163） */
-function MountCollapsed() {
-  const [collapsed, setCollapsed] = React.useState(true);
-  return (
-    <HarnessTabsProvider>
-      <Sidebar
-        collapsed={collapsed}
-        onToggle={() => setCollapsed((c) => !c)}
-        onNewChat={() => undefined}
-        onForkRequest={onForkRequest}
-      />
-    </HarnessTabsProvider>
-  );
-}
 const row = (r: ReturnType<typeof mount>, id: string) =>
   r.container
     .querySelector(`[data-conversation-id="${id}"]`)!
@@ -160,6 +147,7 @@ beforeEach(() => {
   setArchived.mockClear();
   setPinned.mockClear();
   deleteConversation.mockClear();
+  abortConversation.mockClear();
   onForkRequest.mockClear();
   convs = [
     conv('n1', '周报', 'nomi', 1),
@@ -197,16 +185,16 @@ describe('sidebar row actions', () => {
     const w = within(row(r, 'n2'));
     for (const [id, label] of [
       ['row-pin', '置顶聊天'],
-      ['row-archive', '归档'],
+      ['row-delete', '永久删除'],
       ['row-more', '更多操作'],
     ] as const) {
       const b = w.getByTestId(id);
       expect(b.getAttribute('aria-label')).toBe(label);
       expect(b.getAttribute('title')).toBe(label);
     }
-    // 标签行：垃圾桶就是「关闭标签」
+    // CLI 标签与 Nomi 对话的垃圾桶统一为永久删除。
     expect(within(row(r, 'c1')).getByTestId('row-delete').getAttribute('aria-label')).toBe(
-      '关闭标签',
+      '永久删除',
     );
     // 不为每行常驻挂载菜单
     expect(r.queryByTestId('conversation-context-menu')).toBeNull();
@@ -251,25 +239,23 @@ describe('sidebar row actions', () => {
     expect(setPinned).toHaveBeenCalledWith('n2', false);
   });
 
-  it('archive icon archives a nomi conversation at once; permanent delete is in the menu and asks first', async () => {
+  it('recent Nomi deletion confirms before stopping its reply and permanently removing it', async () => {
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
-    fireEvent.click(within(row(r, 'n2')).getByTestId('row-archive'));
-    expect(setArchived).toHaveBeenCalledWith('n2', true);
-    expect(deleteConversation).not.toHaveBeenCalled();
-
-    fireEvent.click(within(row(r, 'n2')).getByTestId('row-more'));
-    expect(r.getByTestId('conversation-archive')).toBeTruthy();
-    fireEvent.click(r.getByTestId('conversation-delete'));
+    fireEvent.click(within(row(r, 'n2')).getByTestId('row-delete'));
     expect((await screen.findByTestId('confirm-dialog')).textContent).toContain('永久删除');
     fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
     await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
     expect(deleteConversation).not.toHaveBeenCalled();
-
-    fireEvent.click(within(row(r, 'n2')).getByTestId('row-more'));
-    fireEvent.click(r.getByTestId('conversation-delete'));
+    expect(abortConversation).not.toHaveBeenCalled();
+    fireEvent.click(within(row(r, 'n2')).getByTestId('row-delete'));
     fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
     await waitFor(() => expect(deleteConversation).toHaveBeenCalledWith('n2'));
+    expect(abortConversation).toHaveBeenCalledWith('n2');
+    expect(abortConversation.mock.invocationCallOrder[0]).toBeLessThan(
+      deleteConversation.mock.invocationCallOrder[0]!,
+    );
+    expect(setArchived).not.toHaveBeenCalled();
   });
 
   it('archived conversations are not listed in the sidebar', async () => {
@@ -280,32 +266,28 @@ describe('sidebar row actions', () => {
     expect(r.container.querySelector('[data-conversation-id="n2"]')).toBeTruthy();
   });
 
-  it('cli tab: trash closes the tab; a running tab keeps the close confirmation (in-app)', async () => {
-    tabStatus = 'running';
-    const r = mount();
-    await waitFor(() => r.getAllByTestId('history-item'));
-    await waitFor(() => expect(within(row(r, 'c1')).getByTestId('row-delete')).toBeTruthy());
-    fireEvent.click(within(row(r, 'c1')).getByTestId('row-delete'));
-    expect((await screen.findByTestId('confirm-dialog')).textContent).toContain(
-      '该标签仍在运行，关闭会中止它。确定关闭？',
-    );
-    fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
-    await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
-    expect(calls.some(([ch]) => ch === 'harness.tabClose')).toBe(false);
-    fireEvent.click(within(row(r, 'c1')).getByTestId('row-delete'));
-    fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
-    await waitFor(() =>
-      expect(calls.some(([ch, a]) => ch === 'harness.tabClose' && a.id === 't1')).toBe(true),
-    );
-  });
-
-  it('idle cli tab closes without asking', async () => {
-    const r = mount();
-    await waitFor(() => r.getAllByTestId('history-item'));
-    fireEvent.click(within(row(r, 'c1')).getByTestId('row-delete'));
-    await waitFor(() => expect(calls.some(([ch]) => ch === 'harness.tabClose')).toBe(true));
-    expect(screen.queryByTestId('confirm-dialog')).toBeNull();
-  });
+  it.each(['idle', 'running', 'queued'])(
+    'recent CLI deletion (%s) confirms and deletes native history rather than only closing',
+    async (status) => {
+      tabStatus = status;
+      const r = mount();
+      await waitFor(() => r.getAllByTestId('history-item'));
+      fireEvent.click(within(row(r, 'c1')).getByTestId('row-delete'));
+      expect((await screen.findByTestId('confirm-dialog')).textContent).toContain('永久删除');
+      expect(screen.getByTestId('confirm-dialog').textContent).toContain('终止');
+      fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
+      await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
+      expect(calls.some(([ch]) => ch === 'history.deleteTab')).toBe(false);
+      fireEvent.click(within(row(r, 'c1')).getByTestId('row-delete'));
+      fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
+      await waitFor(() =>
+        expect(calls.some(([ch, input]) => ch === 'history.deleteTab' && input.id === 't1')).toBe(
+          true,
+        ),
+      );
+      expect(calls.some(([ch]) => ch === 'harness.tabClose')).toBe(false);
+    },
+  );
 
   it('"more" opens the shared conversation menu on demand (same as right click)', async () => {
     const r = mount();
@@ -355,7 +337,7 @@ describe('sidebar row actions', () => {
     );
   });
 
-  it('deleting a disk history row asks in-app first, then trashes it and refreshes the list', async () => {
+  it('deleting a disk history row asks in-app first, then permanently deletes it and refreshes the list', async () => {
     const r = mount();
     const item = await waitFor(() => r.getByTestId('history-session-item'));
     const w = within(item.closest('[data-testid="history-session-row"]') as HTMLElement);

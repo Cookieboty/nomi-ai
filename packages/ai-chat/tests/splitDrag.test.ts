@@ -18,6 +18,15 @@ const setup = () => {
 const fire = (type: string) => window.dispatchEvent(new Event(type));
 
 describe('startSplitDrag', () => {
+  it('ignores another pointer ending while the captured pointer is dragging', () => {
+    const { onEnd } = setup();
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 2 }));
+    window.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 2 }));
+    expect(onEnd).not.toHaveBeenCalled();
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }));
+    expect(onEnd).toHaveBeenCalledWith(false);
+  });
+
   it('pointerup：正常结束，释放捕获，之后的移动不再响应', () => {
     const { captured, onMove, onEnd } = setup();
     expect(captured.has(1)).toBe(true);

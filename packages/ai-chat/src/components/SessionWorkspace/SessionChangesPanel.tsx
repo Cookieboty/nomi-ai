@@ -243,19 +243,6 @@ export const SessionChangesPanel: React.FC<{
   }, [previewing, setPreviewOpen]);
   useEffect(() => () => setPreviewOpen(false), [setPreviewOpen]);
 
-  /** 摘要卡「查看变更」→ 中栏 Diff + 右栏高亮文件 */
-  useEffect(() => {
-    if (!workbench) return;
-    setView('changes');
-    setFilter('');
-    const file = workbench.file ?? workbench.entries?.[0]?.file ?? changes[0]?.file ?? null;
-    if (file) {
-      setSelectedFile(file);
-      setPreviewKey(`c:${file}`);
-    }
-    panelRef.current?.focus({ preventScroll: true });
-  }, [workbench]); // eslint-disable-line react-hooks/exhaustive-deps -- focus on open only
-
   /** 本会话变更与磁盘文件的预览（git 的由各仓库段自己画） */
   const previewFiles: ReviewFile[] = useMemo(() => {
     const where = (p: string) => (multi ? { cwds: [rootOf(roots, p) ?? primary!] } : {});
@@ -273,6 +260,51 @@ export const SessionChangesPanel: React.FC<{
       .map((p) => ({ key: `d:${p}`, path: p, ...where(p) }));
     return [...fromChanges, ...extra];
   }, [changes, openDiskPaths, changeByFile, multi, rootsKey, primary]); // eslint-disable-line react-hooks/exhaustive-deps -- roots 由 rootsKey 决定
+
+  /** 本会话改动文件的 Diff 标签（和文件标签同一排；同一文件的文件标签是另一个） */
+  const diffTabOf = useCallback(
+    (f: ReviewFile) => ({
+      key: `session\u0000${cwd ?? ''}\u0000${f.path}`,
+      path: f.path,
+      file: f,
+      cwd,
+      onSaved: () => setNonce((n) => n + 1),
+    }),
+    [cwd],
+  );
+  const openDiff = resource?.openDiff;
+  const updateDiff = resource?.updateDiff;
+  /** 在预览区打开（或切到）这个改动文件的 Diff 标签；预览区不可用时返回 false */
+  const openChangeDiff = (file: string, entry?: ChangeEntry): boolean => {
+    if (!openDiff) return false;
+    const f =
+      previewFiles.find((x) => x.key === `c:${file}`) ??
+      (entry ? { key: `c:${file}`, path: file, change: entry } : undefined);
+    if (!f) return false;
+    openDiff(diffTabOf(f));
+    return true;
+  };
+  // 本会话改动更新后，已经开着的 Diff 标签换成最新的
+  useEffect(() => {
+    if (!updateDiff) return;
+    for (const f of previewFiles) if (f.change) updateDiff(diffTabOf(f));
+  }, [previewFiles, diffTabOf, updateDiff]);
+
+  /** 摘要卡「查看变更」→ 预览区打开那个文件的 Diff 标签 + 右栏高亮文件 */
+  useEffect(() => {
+    if (!workbench) return;
+    setView('changes');
+    setFilter('');
+    const file = workbench.file ?? workbench.entries?.[0]?.file ?? changes[0]?.file ?? null;
+    if (file) {
+      setSelectedFile(file);
+      setPreviewKey(`c:${file}`);
+      const entry = workbench.entries?.find((e) => e.file === file) ?? changeByFile.get(file);
+      // 已在预览区开了 Diff 标签：不再在对话旁另开一栏
+      if (openChangeDiff(file, entry)) closeWorkbench();
+    }
+    panelRef.current?.focus({ preventScroll: true });
+  }, [workbench]); // eslint-disable-line react-hooks/exhaustive-deps -- focus on open only
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -325,7 +357,11 @@ export const SessionChangesPanel: React.FC<{
       return;
     }
     const c = changeByFile.get(file);
-    if (c) {
+    if (c && openChangeDiff(file, c)) {
+      // 改动文件：预览区打开它的 Diff 标签（和文件标签同一排）
+      setPreviewKey(`c:${file}`);
+      closeWorkbench();
+    } else if (c) {
       setPreviewKey(`c:${file}`);
       openWorkbench({
         file,

@@ -3,7 +3,7 @@
  * - 看哪些文件夹：编程助手标签用标签的工作目录，Nomi 对话用项目的主文件夹；再加项目的其余文件夹
  *   （委派的 worktree 在主文件夹里面，主文件夹不重复列）。没有工作目录时不显示右栏；
  * - 右栏默认收起、不常驻：顶栏开关 / 右栏 × 切换，记住上次的选择；点摘要卡「查看变更」时收起着也展开；
- * - 中栏：本会话 Diff（workbench）、右栏的文件预览或子任务面板开着时出现。
+ * - 中栏：右栏的文件预览或子任务面板开着时出现；本会话 Diff 是预览区的一个标签，不占这一栏。
  */
 import { useCallback, useMemo, useState } from 'react';
 
@@ -58,7 +58,8 @@ export function useRail(opts: {
     ? tabs.activeTab?.status === 'running' || tabs.activeTab?.status === 'queued'
     : busyHere;
   const subagentOpen = !!useSubagentPane()?.tabId; // 子任务面板（独立的一栏，开着时占对话旁）
-  const centerOpen = (!!cwd && (!!workbench || previewOpen)) || subagentOpen;
+  // 本会话 Diff 不再单独占一栏：它是预览区的一个标签（见 App 的 useResourcePreview）
+  const centerOpen = (!!cwd && previewOpen) || subagentOpen;
   const open = !!cwd && railPref;
   const setOpen = useCallback((v: boolean) => {
     setRailPref(v);

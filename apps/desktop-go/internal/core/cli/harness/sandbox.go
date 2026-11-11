@@ -244,6 +244,9 @@ func (o *Orchestrator) buildSandboxSpec(tab *util.Obj, cwd string, env *util.Obj
 
 // spawnCLI：起一个标签的 CLI 会话进程；沙箱开着时包进去（并关掉 CLI 自己的沙箱）
 func (o *Orchestrator) spawnCLI(tab *util.Obj, command string, args []string, cwd string, env *util.Obj) clisdk.ChildLike {
+	if o.tab(str(tab, "id")) != tab {
+		throw(i18n.T("electron.common.tab-was-closed"))
+	}
 	spec := o.sandboxSpec(tab, cwd, env)
 	if spec != nil {
 		env = env.Clone()

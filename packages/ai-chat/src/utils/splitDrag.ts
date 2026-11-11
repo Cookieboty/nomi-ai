@@ -30,8 +30,14 @@ export function startSplitDrag(opts: {
     }
     onEnd(cancelled);
   };
-  const onUp = () => finish(false);
-  const onCancel = () => finish(true);
+  const matchesPointer = (ev: PointerEvent) =>
+    ev.pointerId === undefined || ev.pointerId === pointerId;
+  const onUp = (ev: PointerEvent) => {
+    if (matchesPointer(ev)) finish(false);
+  };
+  const onCancel = (ev: PointerEvent) => {
+    if (matchesPointer(ev)) finish(true);
+  };
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
   window.addEventListener('pointercancel', onCancel);

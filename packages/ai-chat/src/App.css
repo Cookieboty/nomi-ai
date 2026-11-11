@@ -16,13 +16,18 @@ body {
 
 .ai-chat-app {
   /*
-   * 四栏（侧栏 312 = 导航 52 + 会话 260 | 对话 | 中栏 Diff/预览 | 右栏文件）的最小宽度随窗口收缩。
+   * 四栏（侧栏 = 导航 52 + 会话面板 --sidebar-panel-w | 对话 | 中栏 Diff/预览 | 右栏文件）的最小宽度随窗口收缩。
    * 旧版写死 360 + 360 + 200，加侧栏恰好约 1240px；窗口再窄，右栏就被挤出屏外（body 是 overflow:hidden，看起来像「被切掉」）。
-   * 这里按「侧栏 312 + 对话卡片右外边距 8 与边框 2 + 分割线 / 边框约 16px 之后的剩余宽度」分配：对话 40% / 中栏 38% / 右栏 18%，
+   * 这里按「侧栏（52 + 会话面板）+ 对话卡片右外边距 8 与边框 2 + 分割线 / 边框约 16px 之后的剩余宽度」分配：对话 40% / 中栏 38% / 右栏 18%，
    * 各自有上限（宽屏沿用原来的 360 / 360 / 200）与下限；窗口最小 760px 时三栏之和仍不超过剩余宽度。
    * 数值与不溢出的约束由 tests/narrowWindowLayout.test.ts 校验。
    */
-  --cd-pane-avail: calc(100vw - 338px);
+  /*
+   * 会话面板宽度（#333 可拖动，200–420；侧栏把拖的值写到根元素的 --sidebar-panel-w-user，见 useSidebarResize）。
+   * 窗口窄时封顶到 max(260px, 100vw − 500px)：760px 窗口仍是 260，与原来的四栏布局一致，不挤掉右边各栏。
+   */
+  --sidebar-panel-w: min(var(--sidebar-panel-w-user, 260px), max(260px, calc(100vw - 500px)));
+  --cd-pane-avail: calc(100vw - 78px - var(--sidebar-panel-w));
   --cd-chat-col-min: clamp(172px, calc(var(--cd-pane-avail) * 0.4), 360px);
   --cd-center-pane-min: clamp(136px, calc(var(--cd-pane-avail) * 0.38), 360px);
   --cd-files-rail-min: clamp(90px, calc(var(--cd-pane-avail) * 0.18), 200px);

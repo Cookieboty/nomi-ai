@@ -292,5 +292,6 @@
   "ui.session-workspace.preview-tab-close-others": "关闭其他标签",
   "ui.session-workspace.preview-title": "资源预览",
   "ui.session-workspace.preview-truncated": "文件较大，当前只显示前 1.5 MB。下载可获取完整内容。",
-  "ui.session-workspace.preview-chat-minimize": "收起成按钮"
+  "ui.session-workspace.preview-chat-minimize": "收起成按钮",
+  "ui.session-workspace.diff-tab": "{0} 的改动"
 }

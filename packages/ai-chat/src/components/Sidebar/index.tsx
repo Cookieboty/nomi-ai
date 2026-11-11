@@ -32,7 +32,6 @@ import {
 } from '../../services/harnessClient';
 import {
   HISTORY_BACKENDS,
-  isHistoryBackend,
   type HistoryBackend,
   type HistorySession,
 } from '../../services/historyClient';
@@ -82,6 +81,7 @@ import type { Meta } from './types';
 import { useFloatingPanel } from './useFloatingPanel';
 import { useSessionActions } from './useSessionActions';
 import { useSidebarRename, useSidebarSearchShortcut } from './useSidebarRename';
+import { useSidebarResize } from './useSidebarResize';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -245,6 +245,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       : current;
   const rowActiveId = pageOpen ? undefined : highlightId;
   const float = useFloatingPanel(collapsed);
+  const resize = useSidebarResize(!collapsed);
   // 会话面板收起时先放完收回动画再卸载
   const panelP = usePresence(!collapsed || float.floating);
   // 浮层里选了会话 / 新建了会话（高亮换了）：收起浮层
@@ -253,7 +254,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     setFloatFor(highlightId);
     if (float.floating) float.hide();
   }
-
   // 普通模式：侧栏只列 Nomi 会话（CLI 标签仍在后台运行，切回开发模式即可看到）
   const navList = useMemo(() => {
     // 归档的对话不在侧栏显示（设置 → Nomi → 已归档的对话 里找回）
@@ -415,17 +415,9 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     const meta = list.find((x) => x.id === id);
     if (!meta || !ipc) return;
     if (meta.tabId) {
-      const st = tabById.get(meta.tabId)?.status;
-      if (
-        (st === 'running' || st === 'queued') &&
-        !(await confirmDialog({
-          message: t('ui.mascot-theme.this-tab-is-still-running-closing-it-will'),
-        }))
-      )
-        return;
-      await tabs.close(meta.tabId);
+      await deleteTab(meta);
     } else {
-      // 永久删除不能撤销：先确认，并提示可以改用归档
+      // 永久删除不能撤销，先确认，再中止属于这个会话的回复。
       const ok = await confirmDialog({
         message: t('ui.cli-monitor.delete-chat-permanently-confirm', t(meta.name)),
         confirmLabel: t('ui.cli-monitor.delete-permanently'),
@@ -442,6 +434,19 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       }
     }
     refresh();
+  };
+
+  const closeItem = async (meta: Meta) => {
+    if (!meta.tabId) return;
+    const status = tabById.get(meta.tabId)?.status;
+    if (
+      (status === 'running' || status === 'queued') &&
+      !(await confirmDialog({
+        message: t('ui.mascot-theme.this-tab-is-still-running-closing-it-will'),
+      }))
+    )
+      return;
+    await tabs.close(meta.tabId);
   };
 
   const commitRename = useCallback(
@@ -480,7 +485,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     latest.current = { list, current, tabs, isDev, removeItem, archiveItem };
   });
 
-  // 行内按钮：CLI 标签 = 关闭（可从历史重新打开，运行中先确认）；Nomi 对话 = 归档
+  // 行内垃圾桶统一永久删除；归档仍是菜单中明确标注的独立操作。
   const togglePin = useCallback(
     (id: string) => {
       const meta = latest.current.list.find((x) => x.id === id);
@@ -492,10 +497,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     [ipc, refresh],
   );
   const requestDelete = useCallback((id: string) => {
-    const { list, removeItem, archiveItem } = latest.current;
-    const meta = list.find((x) => x.id === id);
-    if (!meta) return;
-    void (meta.tabId ? removeItem : archiveItem)?.(id);
+    void latest.current.removeItem?.(id);
   }, []);
   const listPeek = useSessionPeek(400);
 
@@ -528,7 +530,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     deleteHistory,
     deleteTab,
   } = useSessionActions({
-    tabs,
     onNotice,
     refresh,
     refreshHistory: history.refresh,
@@ -869,7 +870,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       view,
     ],
   );
-
   return (
     <aside
       className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}
@@ -878,6 +878,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       onMouseEnter={float.floating ? float.cancelHide : undefined}
       onMouseLeave={collapsed ? float.scheduleHide : undefined}
     >
+      {resize.splitter}
       {/* 左侧固定导航：对话 · 任务 · 素材库；工作台模式下端点竖排挂在下面；底部是应用级入口 */}
       <div className={styles.rail} data-testid="app-rail">
         <nav className={styles.railNav} aria-label={t('ui.foundation.app-shortcuts')}>
@@ -931,7 +932,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         <span className={styles.railSpacer} />
         {footer}
       </div>
-
       {panelP.value && (
         <div
           className={`${styles.panel} ${float.floating ? styles.panelFloating : ''}`}
@@ -1102,16 +1102,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               onPin={meta ? () => togglePin(ctx.id) : undefined}
               pinned={Boolean(meta?.pinnedAt)}
               onFork={() => onForkRequest?.(ctx.id)}
-              onClose={meta?.tabId ? () => void removeItem(ctx.id) : undefined}
+              onClose={meta?.tabId ? () => void closeItem(meta) : undefined}
               onArchive={meta && !meta.tabId ? () => void archiveItem(ctx.id) : undefined}
-              // CLI 标签：删除 = 关标签 + 把 CLI 的会话记录移到废纸篓（外部 CLI 没有本机历史，只能关闭）
-              onDelete={
-                !meta?.tabId
-                  ? () => void removeItem(ctx.id)
-                  : isHistoryBackend(meta.backend)
-                    ? () => void deleteTab(meta)
-                    : undefined
-              }
+              // 最近列表与本机历史统一确认后永久删除。
+              onDelete={() => void removeItem(ctx.id)}
             />
           );
         })()}
@@ -1179,7 +1173,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
           onOpenAsset={onOpenAsset}
         />
       )}
-
       {histMenuP.value && (
         <ConversationMenu
           x={histMenuP.value.x}

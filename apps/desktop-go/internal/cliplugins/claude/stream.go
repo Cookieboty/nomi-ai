@@ -168,8 +168,9 @@ func ParseLine(line string, state *StreamState) []Ev {
 			out = append(out, WithOpt(WithOpt(O("type", "done", "text", sh.TextWithImage(text, image)), "sessionId", StrOr(j.Get("session_id"))), "usage", usage))
 		}
 	case typ == "system" && j.Get("subtype") == "init":
-		// 进程一启动就报会话 id：第一轮还没结束（甚至出错结束）也能续接
-		if sid := OptStr(j.Get("session_id")); sid != nil {
+		// 进程一启动就报会话 id：第一轮还没结束（甚至出错结束）也能续接。
+		// 子代理（带 parent_tool_use_id）的 init 是它自己的会话，不能顶掉主会话的 id
+		if sid := OptStr(j.Get("session_id")); sid != nil && parentID(j) == nil {
 			out = append(out, O("type", "session", "sessionId", *sid))
 		}
 	case typ == "system" && j.Get("subtype") == "api_retry":

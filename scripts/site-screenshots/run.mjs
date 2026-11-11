@@ -25,7 +25,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { buildGoApp, startGoApp } from './go-app.mjs';
+import { buildGoApp, freePort, startGoApp } from './go-app.mjs';
 import { startMockLlm } from './mock-llm.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -287,6 +287,12 @@ async function main() {
   fs.writeFileSync(
     path.join(harnessDir, 'recent-cwds.json'),
     JSON.stringify([defaultCwd, project]),
+  );
+  // 网关默认端口 18721：本机正开着 Nomi 时会被占，模型页顶上就是「模型网关没有启动」。换一个空闲端口
+  fs.mkdirSync(path.join(work, 'data', 'Nomi', 'gateway'), { recursive: true });
+  fs.writeFileSync(
+    path.join(work, 'data', 'Nomi', 'gateway', 'store.json'),
+    JSON.stringify({ version: 1, port: await freePort() }),
   );
   const images = await makeDemoImages(browser, path.join(home, 'Pictures'));
   isolatePath(home, realHome);

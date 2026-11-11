@@ -561,9 +561,29 @@ func (o *Orchestrator) CloseTab(id string) *util.Obj {
 		throw(i18n.T("electron.common.the-main-chat-tab-cannot-be-closed"))
 	}
 	tab := o.requireTab(id)
-	o.CancelTab(id)
+	// 看板冻结（SIGSTOP）的标签先恢复并清掉冻结记录：不再经 CancelTab，这里不做的话
+	// 关掉的标签会一直留在冻结列表（并写进磁盘），看板上显示一个已不存在的「已暂停」
+	o.thawIfFrozen(id)
+	finishClose := o.beginHistoryClose(tab)
+	defer finishClose()
+	// Closing a tab ends its process, rather than only interrupting a turn.
+	// Abort setup too: an awaited launch must not spawn after the tab is gone.
+	if send := o.sendAborts[id]; send != nil {
+		send.Abort()
+	}
 	delete(o.live.claudeStarting, id)
 	o.teardownClaudeLive(id)
+	if child := o.children.Get(id); child != nil {
+		killTree(child)
+		o.children.Delete(id)
+	}
+	for _, child := range o.tabProcs[id] {
+		if procAlive(child) {
+			killTree(child)
+		}
+	}
+	delete(o.tabProcs, id)
+	o.clearPermissionTimeouts(id)
 	o.forgetSandbox(id)
 	order := o.tabs.Keys()
 	idx := -1
