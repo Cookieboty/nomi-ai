@@ -16,13 +16,18 @@ body {
 
 .ai-chat-app {
   /*
-   * 四栏（侧栏 312 = 导航 52 + 会话 260 | 对话 | 中栏 Diff/预览 | 右栏文件）的最小宽度随窗口收缩。
+   * 四栏（侧栏 = 导航 52 + 会话面板 --sidebar-panel-w | 对话 | 中栏 Diff/预览 | 右栏文件）的最小宽度随窗口收缩。
    * 旧版写死 360 + 360 + 200，加侧栏恰好约 1240px；窗口再窄，右栏就被挤出屏外（body 是 overflow:hidden，看起来像「被切掉」）。
-   * 这里按「侧栏 312 + 对话卡片右外边距 8 与边框 2 + 分割线 / 边框约 16px 之后的剩余宽度」分配：对话 40% / 中栏 38% / 右栏 18%，
+   * 这里按「侧栏（52 + 会话面板）+ 对话卡片右外边距 8 与边框 2 + 分割线 / 边框约 16px 之后的剩余宽度」分配：对话 40% / 中栏 38% / 右栏 18%，
    * 各自有上限（宽屏沿用原来的 360 / 360 / 200）与下限；窗口最小 760px 时三栏之和仍不超过剩余宽度。
    * 数值与不溢出的约束由 tests/narrowWindowLayout.test.ts 校验。
    */
-  --cd-pane-avail: calc(100vw - 338px);
+  /*
+   * 会话面板宽度（#333 可拖动，220–360，App.tsx 把用户拖的值写进 --sidebar-panel-w-user）。
+   * 窗口窄时封顶到 max(260px, 100vw − 500px)：760px 窗口仍是 260，与原来的四栏布局一致，不挤掉右边各栏。
+   */
+  --sidebar-panel-w: min(var(--sidebar-panel-w-user, 260px), max(260px, calc(100vw - 500px)));
+  --cd-pane-avail: calc(100vw - 78px - var(--sidebar-panel-w));
   --cd-chat-col-min: clamp(172px, calc(var(--cd-pane-avail) * 0.4), 360px);
   --cd-center-pane-min: clamp(136px, calc(var(--cd-pane-avail) * 0.38), 360px);
   --cd-files-rail-min: clamp(90px, calc(var(--cd-pane-avail) * 0.18), 200px);
@@ -102,9 +107,37 @@ html[data-platform] .workspace-card {
   margin-top: 0;
 }
 /* 会话面板展开：面板（浅灰）+ 对话区（白）拼成同一张卡片，卡片左边框就是两者的分隔线 */
-[data-panel='open'] + .workspace-card {
+/* 中间隔着会话面板的拖动手柄（.sidebar-splitter），所以用 ~ 不用 + */
+[data-panel='open'] ~ .workspace-card {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
+}
+/*
+ * 会话面板 | 对话卡片的拖动手柄（#333）：6px 热区用负外边距抵掉，不占宽度、不挤动布局；
+ * 悬停 / 拖动（指针被捕获，:active 一直生效）时光标是左右调整、交界处亮一条 2px 强调色线，
+ * 盖在卡片左边框上；松手后按指针是否还在手柄上恢复 :hover 或原样。
+ */
+.sidebar-splitter {
+  flex: none;
+  width: 6px;
+  margin: var(--cd-space-2) -3px;
+  position: relative;
+  z-index: 4;
+  cursor: col-resize;
+  touch-action: none;
+}
+html[data-platform] .sidebar-splitter {
+  margin-top: 0;
+}
+.sidebar-splitter::after {
+  content: '';
+  position: absolute;
+  inset: 0 2px;
+  background: transparent;
+}
+.sidebar-splitter:hover::after,
+.sidebar-splitter:active::after {
+  background: var(--cd-color-accent-strong);
 }
 /* 自定义背景：卡片透明，让底图透出来（与原来对话区的处理一致） */
 html[data-chat-bg] .workspace-card {

@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import { AppOverlays, useToast } from './app/AppOverlays';
 import { ChatBody } from './app/ChatBody';
 import { FilesRail } from './app/FilesRail';
+import { SidebarSplitter } from './app/SidebarSplitter';
 import { useAppCommands } from './app/useAppCommands';
 import { useAppPanels } from './app/useAppPanels';
 import { useAppSlash } from './app/useAppSlash';
@@ -258,7 +259,10 @@ const AiChatContent: React.FC = () => {
 
   return (
     <ResourceScopeProvider value={resourcePreview.value}>
-      <div className="ai-chat-app">
+      <div
+        className="ai-chat-app"
+        style={{ ['--sidebar-panel-w-user' as string]: `${split.sidebar.width}px` }}
+      >
         <ChatBackgroundLayer />
         <AppTitleBar
           sidebarCollapsed={panels.sidebarCollapsed}
@@ -292,6 +296,7 @@ const AiChatContent: React.FC = () => {
             onOpenTask={mainPages.openTask}
             onOpenAsset={mainPages.openAsset}
           />
+          {!panels.sidebarCollapsed && <SidebarSplitter split={split.sidebar} />}
 
           {/* 对话区（对话 / 中栏 / 任务 / 素材库 / 右栏）是白色圆角卡片；会话面板展开时是它左边的灰色半张 */}
           <div className="workspace-card" data-testid="workspace-card">

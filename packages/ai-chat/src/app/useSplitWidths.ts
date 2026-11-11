@@ -1,5 +1,5 @@
 /**
- * 两条可拖动的分割线：对话列 | 中栏，对话区 | 右栏（改动 · 文件）。拖动时实时改宽度，松手记住，Esc 取消，双击复位。
+ * 三条可拖动的分割线：左侧会话面板 | 对话区，对话列 | 中栏，对话区 | 右栏（改动 · 文件）。拖动时实时改宽度，松手记住，Esc 取消，双击复位。
  */
 import type React from 'react';
 import { useState } from 'react';
@@ -18,6 +18,13 @@ import {
   persistChatColumnWidth,
   readChatColumnWidth,
 } from '../utils/chatColumnWidth';
+import {
+  persistSidebarWidth,
+  readSidebarWidth,
+  SIDEBAR_W_DEFAULT,
+  SIDEBAR_W_MAX,
+  SIDEBAR_W_MIN,
+} from '../utils/sidebarWidth';
 import { startSplitDrag } from '../utils/splitDrag';
 
 export interface SplitWidth {
@@ -74,7 +81,11 @@ function useSplit(opts: {
   return { width, onPointerDown, onDoubleClick };
 }
 
-export function useSplitWidths(): { filesRail: SplitWidth; chatColumn: SplitWidth } {
+export function useSplitWidths(): {
+  filesRail: SplitWidth;
+  chatColumn: SplitWidth;
+  sidebar: SplitWidth;
+} {
   const filesRail = useSplit({
     read: readFilesRailWidth,
     persist: persistRail,
@@ -90,5 +101,12 @@ export function useSplitWidths(): { filesRail: SplitWidth; chatColumn: SplitWidt
     max: CHAT_COL_W_MAX,
     def: CHAT_COL_W_DEFAULT,
   });
-  return { filesRail, chatColumn };
+  const sidebar = useSplit({
+    read: readSidebarWidth,
+    persist: persistSidebarWidth,
+    min: SIDEBAR_W_MIN,
+    max: SIDEBAR_W_MAX,
+    def: SIDEBAR_W_DEFAULT,
+  });
+  return { filesRail, chatColumn, sidebar };
 }

@@ -705,5 +705,6 @@
   "ui.chat-settings.theme-drop-too-large": "拖入的文件超过 {0} MB，请点击选择文件导入。",
   "ui.chat-settings.theme-download-template": "下载模板",
   "ui.chat-settings.theme-template-saved": "模板已保存到 {0}",
-  "ui.chat-settings.about-slogan": "让每一种 AI 能力，都为你所用。"
+  "ui.chat-settings.about-slogan": "让每一种 AI 能力，都为你所用。",
+  "ui.chat-settings.resize-sidebar": "拖动调整会话栏宽度；双击恢复默认"
 }
