@@ -545,6 +545,23 @@ func (o *Orchestrator) onClaudeLine(tabID string, live *claudeLiveSession, line 
 			o.receiveUserImages(tabID, ev)
 			continue
 		}
+		if ev.Get("type") == "session" {
+			if sid, _ := ev.Get("sessionId").(string); sid != "" {
+				if turn != nil {
+					turn.sessionID = sid
+				}
+				o.noteClaudeSession(tabID, live, sid)
+			}
+			continue
+		}
+		if ev.Get("type") == "error" {
+			if sid, _ := ev.Get("sessionId").(string); sid != "" {
+				if turn != nil {
+					turn.sessionID = sid
+				}
+				o.noteClaudeSession(tabID, live, sid)
+			}
+		}
 		ev = o.normalizeImageEvent(tabID, ev)
 		if turn == nil && isTurnContent(ev) {
 			turn = o.startAutoTurn(tabID, live)
@@ -648,6 +665,26 @@ func (o *Orchestrator) onClaudeLine(tabID string, live *claudeLiveSession, line 
 	if dropAfter {
 		o.dropRecycledClaude(tabID, live)
 	}
+}
+
+// noteClaudeSession：Claude 报了会话 id（启动时的 init、出错的结果）就记下，见 noteLiveSession
+func (o *Orchestrator) noteClaudeSession(tabID string, live *claudeLiveSession, sid string) {
+	o.noteLiveSession(tabID, "claude", live.cwd, sid)
+}
+
+// noteLiveSession：常驻 CLI 一拿到会话 id 就记到标签上，不等一轮成功结束——
+// 否则第一轮出错（API 报错、限流）后，下一轮（如沙箱授权后重开进程的「请继续」）不带续接参数，成了空的新会话。
+// 和 turnOk 一样只在后端与工作目录没变时记。
+func (o *Orchestrator) noteLiveSession(tabID, backend, cwd, sid string) {
+	tab := o.tab(tabID)
+	if tab == nil || sid == "" || str(tab, "backend") != backend || str(tab, "cwd") != cwd {
+		return
+	}
+	if tab.Get("cliSessionId") == sid {
+		return
+	}
+	o.bindCliSession(tab, sid)
+	o.changed()
 }
 
 // onClaudeMeta：回显与后台任务（返回 true = 这一行已处理完）。
