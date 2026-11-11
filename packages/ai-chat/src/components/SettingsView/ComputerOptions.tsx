@@ -215,7 +215,10 @@ export const ComputerOptions: React.FC<Props> = ({ part, state, update, reload }
         </form>
       </SettingsGroup>
 
-      {state.platform === 'darwin' && state.installed && state.sandboxSupported ? (
+      {/* 装的版本没有 sandbox 命令时不显示；但设置里还选着沙箱（换过版本）时照样显示，好改回「这台电脑」 */}
+      {state.platform === 'darwin' &&
+      state.installed &&
+      (state.sandboxSupported || state.sandbox) ? (
         <SettingsGroup
           title={t('ui.chat-settings.computer-sandbox')}
           description={t('ui.chat-settings.computer-sandbox-desc')}
