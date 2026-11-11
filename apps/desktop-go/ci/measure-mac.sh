@@ -19,6 +19,8 @@ shot() { screencapture -x "$OUT/$MODE-$1.png" 2>/dev/null || echo "screencapture
 # 官方角色的 .riv 是远程素材（不随构建发）：测 Rive 前把仓库里的文件按内核缓存格式放进 userData，不依赖外网
 seed_rive() { node "$(git rev-parse --show-toplevel)/scripts/character/seed-remote-cache.mjs" "$1" || echo "::warning::seed rive cache failed"; }
 seed_rive "$HOME/Library/Application Support/Nomi"
+# 新安装默认不显示桌面角色：测量沿用「启动即显示角色」的口径，与以前的数据可比
+printf '%s\n' '{"defaultView":"mascot","closeMain":"hide","showMascot":true}' > "$HOME/Library/Application Support/Nomi/startup.json"
 vm_stat | head -5 > "$OUT/$MODE-vmstat-before.txt"; sysctl hw.memsize >> "$OUT/$MODE-vmstat-before.txt"
 NOMI_POC_CTL=$CTL "$BIN" > "$OUT/app.log" 2>&1 &
 ROOT=$!; echo "root=$ROOT wait=${WAIT}s"

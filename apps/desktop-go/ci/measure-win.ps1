@@ -38,6 +38,10 @@ Get-CimInstance Win32_OperatingSystem | Select-Object TotalVisibleMemorySize, Fr
   node (Join-Path $repo 'scripts/character/seed-remote-cache.mjs') (Join-Path $env:APPDATA 'Nomi')
   if ($LASTEXITCODE -ne 0) { Write-Host '::warning::seed rive cache failed' }
 }
+# 新安装默认不显示桌面角色：测量沿用「启动即显示角色」的口径，与以前的数据可比
+$ud = Join-Path $env:APPDATA 'Nomi'
+New-Item -ItemType Directory -Force -Path $ud | Out-Null
+Set-Content -Path (Join-Path $ud 'startup.json') -Value '{"defaultView":"mascot","closeMain":"hide","showMascot":true}' -Encoding ascii
 $proc = Start-Process -FilePath $Bin -PassThru -RedirectStandardOutput "$Out\$Mode-app.log" -RedirectStandardError "$Out\$Mode-app.err.log"
 $script:root = $proc.Id; Write-Host "root=$($proc.Id) wait=${wait}s"
 Start-Sleep $wait; Shot cold

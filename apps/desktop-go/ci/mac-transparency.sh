@@ -4,6 +4,9 @@
 set -u
 BIN=$1; OUT=$2; mkdir -p "$OUT"
 CTL=127.0.0.1:47812
+# 新安装默认不显示桌面角色（见 internal/core/startup）：先写好启动方式，让角色窗口照常出现
+UD="$HOME/Library/Application Support/Nomi"; mkdir -p "$UD"
+printf '%s\n' '{"defaultView":"mascot","closeMain":"hide","showMascot":true}' > "$UD/startup.json"
 NOMI_POC_CTL=$CTL "$BIN" > "$OUT/transparency-app.log" 2>&1 &
 PID=$!
 sleep 25
