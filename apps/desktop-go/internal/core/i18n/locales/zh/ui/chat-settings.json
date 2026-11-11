@@ -706,5 +706,5 @@
   "ui.chat-settings.theme-download-template": "下载模板",
   "ui.chat-settings.theme-template-saved": "模板已保存到 {0}",
   "ui.chat-settings.about-slogan": "让每一种 AI 能力，都为你所用。",
-  "ui.chat-settings.resize-sidebar": "拖动调整会话栏宽度；双击恢复默认"
+  "ui.chat-settings.resize-sidebar": "调整侧栏宽度"
 }

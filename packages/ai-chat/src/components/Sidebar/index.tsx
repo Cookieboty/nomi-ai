@@ -81,6 +81,7 @@ import type { Meta } from './types';
 import { useFloatingPanel } from './useFloatingPanel';
 import { useSessionActions } from './useSessionActions';
 import { useSidebarRename, useSidebarSearchShortcut } from './useSidebarRename';
+import { useSidebarResize } from './useSidebarResize';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -244,6 +245,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       : current;
   const rowActiveId = pageOpen ? undefined : highlightId;
   const float = useFloatingPanel(collapsed);
+  const resize = useSidebarResize(!collapsed);
   // 会话面板收起时先放完收回动画再卸载
   const panelP = usePresence(!collapsed || float.floating);
   // 浮层里选了会话 / 新建了会话（高亮换了）：收起浮层
@@ -252,7 +254,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     setFloatFor(highlightId);
     if (float.floating) float.hide();
   }
-
   // 普通模式：侧栏只列 Nomi 会话（CLI 标签仍在后台运行，切回开发模式即可看到）
   const navList = useMemo(() => {
     // 归档的对话不在侧栏显示（设置 → Nomi → 已归档的对话 里找回）
@@ -869,7 +870,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       view,
     ],
   );
-
   return (
     <aside
       className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}
@@ -878,6 +878,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       onMouseEnter={float.floating ? float.cancelHide : undefined}
       onMouseLeave={collapsed ? float.scheduleHide : undefined}
     >
+      {resize.splitter}
       {/* 左侧固定导航：对话 · 任务 · 素材库；工作台模式下端点竖排挂在下面；底部是应用级入口 */}
       <div className={styles.rail} data-testid="app-rail">
         <nav className={styles.railNav} aria-label={t('ui.foundation.app-shortcuts')}>
@@ -931,7 +932,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         <span className={styles.railSpacer} />
         {footer}
       </div>
-
       {panelP.value && (
         <div
           className={`${styles.panel} ${float.floating ? styles.panelFloating : ''}`}
@@ -1173,7 +1173,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
           onOpenAsset={onOpenAsset}
         />
       )}
-
       {histMenuP.value && (
         <ConversationMenu
           x={histMenuP.value.x}

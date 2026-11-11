@@ -23,7 +23,7 @@ body {
    * 数值与不溢出的约束由 tests/narrowWindowLayout.test.ts 校验。
    */
   /*
-   * 会话面板宽度（#333 可拖动，220–360，App.tsx 把用户拖的值写进 --sidebar-panel-w-user）。
+   * 会话面板宽度（#333 可拖动，200–420；侧栏把拖的值写到根元素的 --sidebar-panel-w-user，见 useSidebarResize）。
    * 窗口窄时封顶到 max(260px, 100vw − 500px)：760px 窗口仍是 260，与原来的四栏布局一致，不挤掉右边各栏。
    */
   --sidebar-panel-w: min(var(--sidebar-panel-w-user, 260px), max(260px, calc(100vw - 500px)));
@@ -107,37 +107,9 @@ html[data-platform] .workspace-card {
   margin-top: 0;
 }
 /* 会话面板展开：面板（浅灰）+ 对话区（白）拼成同一张卡片，卡片左边框就是两者的分隔线 */
-/* 中间隔着会话面板的拖动手柄（.sidebar-splitter），所以用 ~ 不用 + */
-[data-panel='open'] ~ .workspace-card {
+[data-panel='open'] + .workspace-card {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
-}
-/*
- * 会话面板 | 对话卡片的拖动手柄（#333）：6px 热区用负外边距抵掉，不占宽度、不挤动布局；
- * 悬停 / 拖动（指针被捕获，:active 一直生效）时光标是左右调整、交界处亮一条 2px 强调色线，
- * 盖在卡片左边框上；松手后按指针是否还在手柄上恢复 :hover 或原样。
- */
-.sidebar-splitter {
-  flex: none;
-  width: 6px;
-  margin: var(--cd-space-2) -3px;
-  position: relative;
-  z-index: 4;
-  cursor: col-resize;
-  touch-action: none;
-}
-html[data-platform] .sidebar-splitter {
-  margin-top: 0;
-}
-.sidebar-splitter::after {
-  content: '';
-  position: absolute;
-  inset: 0 2px;
-  background: transparent;
-}
-.sidebar-splitter:hover::after,
-.sidebar-splitter:active::after {
-  background: var(--cd-color-accent-strong);
 }
 /* 自定义背景：卡片透明，让底图透出来（与原来对话区的处理一致） */
 html[data-chat-bg] .workspace-card {

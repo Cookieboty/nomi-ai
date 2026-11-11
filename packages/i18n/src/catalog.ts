@@ -824,6 +824,7 @@ export type TranslationKey =
   | 'ui.chat-settings.coding-agent-progress-only-reads-local-logs-status'
   | 'ui.chat-settings.coding-agent-watching-requires-the-desktop-app'
   | 'ui.chat-settings.collapse-expand-sidebar'
+  | 'ui.chat-settings.resize-sidebar'
   | 'ui.chat-settings.collapse-sidebar'
   | 'ui.chat-settings.collapse-sidebar-ctrl-b'
   | 'ui.chat-settings.compacting-earlier-messages'

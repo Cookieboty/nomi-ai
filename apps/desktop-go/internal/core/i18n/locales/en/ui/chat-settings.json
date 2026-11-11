@@ -706,5 +706,5 @@
   "ui.chat-settings.theme-download-template": "Download template",
   "ui.chat-settings.theme-template-saved": "Template saved to {0}",
   "ui.chat-settings.about-slogan": "Every AI capability, working for you.",
-  "ui.chat-settings.resize-sidebar": "Drag to resize the sidebar; double-click to reset"
+  "ui.chat-settings.resize-sidebar": "Resize sidebar"
 }

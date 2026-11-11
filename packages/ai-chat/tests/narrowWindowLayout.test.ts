@@ -1,14 +1,18 @@
 /**
  * 窗口窄于约 1240px 时四栏（侧栏 | 对话 | 中栏 | 右栏文件）不能横向溢出。
  * happy-dom 没有布局引擎，这里按 App.css 里声明的最小宽度公式算：每个窗口宽度下，
- * 侧栏（导航 52 + 会话面板，可拖 220–360，窄窗口封顶）+ 各栏最小宽度 + 分割线 / 边框，必须 ≤ 窗口宽度（对话窗最小宽度 760）。
+ * 侧栏（导航 52 + 会话面板，可拖 200–420，窄窗口封顶）+ 各栏最小宽度 + 分割线 / 边框，必须 ≤ 窗口宽度（对话窗最小宽度 760）。
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { SIDEBAR_W_DEFAULT, SIDEBAR_W_MAX, SIDEBAR_W_MIN } from '../src/utils/sidebarWidth';
+import {
+  SIDEBAR_WIDTH_DEFAULT,
+  SIDEBAR_WIDTH_MAX,
+  SIDEBAR_WIDTH_MIN,
+} from '../src/utils/sidebarWidth';
 
 const css = readFileSync(resolve(__dirname, '../src/App.css'), 'utf8');
 // 对话列在 App.tsx，右栏在 app/FilesRail.tsx
@@ -39,7 +43,7 @@ function panelOf(user: number, vw: number): number {
 }
 
 /** 只支持 App.css 里用到的 clamp(Apx, calc(var(--cd-pane-avail) * k), Bpx) */
-function minOf(name: string, vw: number, user = SIDEBAR_W_DEFAULT): number {
+function minOf(name: string, vw: number, user = SIDEBAR_WIDTH_DEFAULT): number {
   const fixed = /calc\(100vw - (\d+)px - var\(--sidebar-panel-w\)\)/.exec(decl('--cd-pane-avail'));
   if (!fixed) throw new Error('无法解析 --cd-pane-avail');
   const avail = vw - Number(fixed[1]) - panelOf(user, vw);
@@ -69,11 +73,11 @@ describe('窄窗口四栏不横向溢出', () => {
   it.each([760, 800, 900, 1000, 1100, 1200, 1240, 1300, 1440])(
     '窗口 %ipx：各栏最小宽度之和放得下',
     (w) => {
-      expect(total(w, SIDEBAR_W_DEFAULT)).toBeLessThanOrEqual(w);
+      expect(total(w, SIDEBAR_WIDTH_DEFAULT)).toBeLessThanOrEqual(w);
     },
   );
 
-  it.each([SIDEBAR_W_MIN, SIDEBAR_W_DEFAULT, SIDEBAR_W_MAX])(
+  it.each([SIDEBAR_WIDTH_MIN, SIDEBAR_WIDTH_DEFAULT, SIDEBAR_WIDTH_MAX])(
     '会话面板拖到 %ipx：最小窗口起整段区间都放得下',
     (user) => {
       for (let w = MIN_WINDOW; w <= 1600; w += 10) {
@@ -83,8 +87,8 @@ describe('窄窗口四栏不横向溢出', () => {
   );
 
   it('默认宽度下与原来的布局一致：最小窗口里会话面板仍是 260', () => {
-    expect(panelOf(SIDEBAR_W_MAX, MIN_WINDOW)).toBe(SIDEBAR_W_DEFAULT);
-    expect(panelOf(SIDEBAR_W_MAX, 1600)).toBe(SIDEBAR_W_MAX);
+    expect(panelOf(SIDEBAR_WIDTH_MAX, MIN_WINDOW)).toBe(SIDEBAR_WIDTH_DEFAULT);
+    expect(panelOf(SIDEBAR_WIDTH_MAX, 1600)).toBe(SIDEBAR_WIDTH_MAX);
   });
 
   it('各栏确实用这些变量，且右栏允许收缩、主区有自己的最小宽度', () => {
