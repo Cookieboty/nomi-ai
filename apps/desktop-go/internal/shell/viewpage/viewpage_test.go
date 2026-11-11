@@ -3,6 +3,7 @@ package viewpage
 import (
 	"net/http"
 	"net/http/httptest"
+	"os/exec"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -74,5 +75,43 @@ func TestHostScript(t *testing.T) {
 	if rec.Code != 200 || !strings.HasPrefix(rec.Header().Get("Content-Type"), "text/javascript") ||
 		!strings.Contains(rec.Body.String(), OpenExternalPrefix) {
 		t.Fatalf("host script not served: %d %q", rec.Code, rec.Header().Get("Content-Type"))
+	}
+}
+
+// 宿主脚本的点击处理在捕获阶段：视图自己打开的链接（data-resource-preview）不再转给宿主，
+// 否则对话里点一个网址会打开两次；普通跨源链接照常转给宿主，同源链接不管
+func TestHostScriptSkipsViewHandledLinks(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node not available")
+	}
+	harness := `
+const posted = [];
+let onClick;
+globalThis.location = { href: 'http://127.0.0.1:1234/chat/index.html', origin: 'http://127.0.0.1:1234' };
+globalThis.webkit = { messageHandlers: { external: { postMessage: (m) => posted.push(m) } } };
+globalThis.window = globalThis;
+globalThis.addEventListener = (type, fn, capture) => { if (type === 'click' && capture) onClick = fn; };
+` + hostScript + `
+const click = (href, attrs = {}) => {
+  const a = { getAttribute: () => href, hasAttribute: (n) => n in attrs };
+  const e = { target: { closest: () => a }, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+  onClick(e);
+  return e.defaultPrevented;
+};
+const r = {
+  handled: click('https://example.com/a', { 'data-resource-preview': 'true' }),
+  plain: click('https://example.com/b'),
+  same: click('/chat/other'),
+};
+console.log(JSON.stringify({ r, posted }));
+`
+	out, err := exec.Command(node, "-e", harness).CombinedOutput()
+	if err != nil {
+		t.Fatalf("node: %v\n%s", err, out)
+	}
+	want := `{"r":{"handled":false,"plain":true,"same":false},"posted":["` + OpenExternalPrefix + `https://example.com/b"]}`
+	if got := strings.TrimSpace(string(out)); got != want {
+		t.Fatalf("got  %s\nwant %s", got, want)
 	}
 }
