@@ -30,8 +30,10 @@ function isSlow(text) {
 const args = process.argv.slice(2);
 // 并发测试用：每轮模拟耗时（毫秒）
 const delayMs = Number(process.env.NOMI_MOCK_DELAY_MS || 0);
+/** NOMI_MOCK_SHOWCASE=1（官网截图）：模型名用公开名称，不出现 Mock；CI 与 E2E 不设它 */
+const SHOWCASE = process.env.NOMI_MOCK_SHOWCASE === '1';
 if (args.includes('--version') || args.includes('-v')) {
-  process.stdout.write('codex-cli 0.0.0-mock\n');
+  process.stdout.write(SHOWCASE ? 'codex-cli 0.46.0\n' : 'codex-cli 0.0.0-mock\n');
   process.exit(0);
 }
 // codex debug models：与真实 CLI 同形的模型目录 JSON（NOMI_MOCK_MODELS_FAIL=1 模拟失败）
@@ -45,16 +47,16 @@ if (args[0] === 'debug' && args[1] === 'models') {
     JSON.stringify({
       models: [
         {
-          slug: 'mock-pro',
-          display_name: 'Mock Pro',
+          slug: SHOWCASE ? 'gpt-5-codex' : 'mock-pro',
+          display_name: SHOWCASE ? 'GPT-5 Codex' : 'Mock Pro',
           visibility: 'list',
           priority: 2,
           default_reasoning_level: 'medium',
           supported_reasoning_levels: lv('low', 'medium', 'high', 'xhigh', 'max', 'ultra'),
         },
         {
-          slug: 'mock-mini',
-          display_name: 'Mock Mini',
+          slug: SHOWCASE ? 'gpt-5-mini' : 'mock-mini',
+          display_name: SHOWCASE ? 'GPT-5 mini' : 'Mock Mini',
           visibility: 'list',
           priority: 1,
           default_reasoning_level: 'low',
@@ -230,7 +232,11 @@ if (args[0] === 'app-server') {
         return;
       case 'thread/start':
         notify('thread/started', { thread: { id: own } });
-        return reply(j.id, { thread: { id: own }, model: 'mock-pro', reasoningEffort: 'medium' });
+        return reply(j.id, {
+          thread: { id: own },
+          model: SHOWCASE ? 'gpt-5-codex' : 'mock-pro',
+          reasoningEffort: 'medium',
+        });
       case 'thread/resume':
         if (p.threadId === 'thread-unknown')
           return send({
@@ -240,7 +246,7 @@ if (args[0] === 'app-server') {
         resumedThreads.add(p.threadId);
         return reply(j.id, {
           thread: { id: p.threadId },
-          model: 'mock-pro',
+          model: SHOWCASE ? 'gpt-5-codex' : 'mock-pro',
           reasoningEffort: 'medium',
         });
       case 'turn/start': {

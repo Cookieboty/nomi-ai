@@ -51,7 +51,11 @@ const delayMs = Number(process.env.NOMI_MOCK_DELAY_MS || 0);
 /** rich 场景里「被编辑文件」所在的根目录（默认 /repo；E2E 指到临时工作区以便和 git 状态对上） */
 const REPO = process.env.NOMI_MOCK_EDIT_ROOT || '/repo';
 if (args.includes('--version') || args.includes('-v')) {
-  process.stdout.write('2.0.0-mock (Claude Code Mock)\n');
+  process.stdout.write(
+    process.env.NOMI_MOCK_SHOWCASE === '1'
+      ? '2.0.30 (Claude Code)\n'
+      : '2.0.0-mock (Claude Code Mock)\n',
+  );
   process.exit(0);
 }
 if (args.includes('update')) {
@@ -105,7 +109,12 @@ if (args[0] === 'auth' && args[1] === 'login') {
 }
 
 const modelIdx = args.indexOf('--model');
-let currentModel = modelIdx >= 0 ? args[modelIdx + 1] : 'mock-claude';
+let currentModel =
+  modelIdx >= 0
+    ? args[modelIdx + 1]
+    : process.env.NOMI_MOCK_SHOWCASE === '1'
+      ? 'claude-opus'
+      : 'mock-claude';
 
 const resumeIdx = args.indexOf('--resume');
 const ownSession = process.env.NOMI_MOCK_SESSION || 'mock-claude-session-1';
@@ -119,9 +128,36 @@ function sleep() {
 
 /** 被 interrupt 的这一轮：之后的输出丢弃，直到下一轮开始 */
 let muted = false;
+/**
+ * NOMI_MOCK_SHOWCASE=1（官网截图）：模型名用公开名称、示例代码换成网关重试，不出现 Mock / registerHandler 这类演示残留。
+ * 只改显示的文字，事件结构不变；CI 与 E2E 不设它，行为不变
+ */
+const SHOWCASE = process.env.NOMI_MOCK_SHOWCASE === '1';
+const SHOWCASE_TEXT = [
+  ['src/cli/a.test.ts', 'src/gateway/retry.test.ts'],
+  ['src/cli/a.ts', 'src/gateway/retry.ts'],
+  ['src/cli/b.ts', 'src/gateway/client.ts'],
+  ['src/cli/new.ts', 'src/gateway/backoff.ts'],
+  ['src/ui/a.tsx', 'src/ui/StatusBar.tsx'],
+  ['a.test.ts', 'retry.test.ts'],
+  ['cli/\\nutils/', 'gateway/\\nutils/'],
+  ['registers handler', 'retries with backoff'],
+  ['const id = opts.id ?? 1;\\n  return id;', 'const tries = opts.tries ?? 3;\\n  return tries;'],
+  ['registerHandler(x)', 'retryWithBackoff(send)'],
+  ['registerHandler(y)', 'retryWithBackoff(stream)'],
+  ['registerHandler', 'retryWithBackoff'],
+  ['export const x = 1;\\nexport const y = 2;', 'export const backoffMs = (n) => 200 * 2 ** n;'],
+];
+function showcase(line) {
+  let s = line;
+  for (const [a, b] of SHOWCASE_TEXT) s = s.split(a).join(b);
+  return s;
+}
+
 function emit(obj) {
   if (muted && obj.type !== 'control_response') return;
-  process.stdout.write(`${JSON.stringify(obj)}\n`);
+  const line = JSON.stringify(obj);
+  process.stdout.write(`${SHOWCASE ? showcase(line) : line}\n`);
 }
 
 /** 测试用：记下这一轮实际收到的消息（验证换目录时带入的前文） */
@@ -322,7 +358,7 @@ async function runOnce(_prompt) {
     bgAgentTurn();
     return;
   }
-  sleep();
+  if (isSlow(_prompt)) sleep();
   // 固定回复，便于既有单测断言；续接「外会话」时带 session id
   let text =
     process.env.NOMI_MOCK_CLAUDE_REPLY ||
@@ -772,7 +808,7 @@ if (streamIn) {
           value,
           resolvedModel,
           displayName,
-          description: `${displayName} (mock)`,
+          description: SHOWCASE ? displayName : `${displayName} (mock)`,
           ...(levels ? { supportsEffort: true, supportedEffortLevels: levels } : {}),
         });
         emit({
@@ -783,9 +819,21 @@ if (streamIn) {
             response: {
               commands: [],
               models: [
-                m('default', 'claude-opus-mock', 'Default (recommended)'),
-                m('opus', 'claude-opus-mock', 'Opus Mock'),
-                m('sonnet', 'claude-sonnet-mock', 'Sonnet Mock'),
+                m(
+                  'default',
+                  SHOWCASE ? 'claude-opus' : 'claude-opus-mock',
+                  'Default (recommended)',
+                ),
+                m(
+                  'opus',
+                  SHOWCASE ? 'claude-opus' : 'claude-opus-mock',
+                  SHOWCASE ? 'Opus' : 'Opus Mock',
+                ),
+                m(
+                  'sonnet',
+                  SHOWCASE ? 'claude-sonnet' : 'claude-sonnet-mock',
+                  SHOWCASE ? 'Sonnet' : 'Sonnet Mock',
+                ),
                 m('claude-haiku-old', 'claude-haiku-old', 'Haiku Old', null),
                 m('claude-opus-old', 'claude-opus-old', 'Opus Old', [
                   'low',

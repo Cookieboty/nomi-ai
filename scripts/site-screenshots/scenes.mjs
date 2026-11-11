@@ -70,10 +70,10 @@ export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images =
         await box.waitFor({ timeout: 15_000 });
       await h.wait(800);
     },
-    /** 切模式：会话面板顶部的「Nomi 灵伴 ⌄ / Nomi 工坊 ⌄」菜单；name 是「灵伴」或「工坊」 */
+    /** 切模式：会话面板顶部的「对话 ⌄ / 工坊 ⌄」菜单；name 是「对话」或「工坊」 */
     async mode(name) {
       await page.getByRole('button', { name: /^对话模式/ }).click();
-      await page.getByRole('menuitemradio', { name: new RegExp(`Nomi ${name}`) }).click();
+      await page.getByRole('menuitemradio', { name: new RegExp(`^(Nomi )?${name}`) }).click();
       await h.wait(600);
     },
     async send(text, settleMs = 3500) {
@@ -84,9 +84,22 @@ export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images =
       await h.wait(settleMs);
     },
     async newChat(endpoint) {
-      // 页面上可能有不止一个「新对话」按钮：点第一个
-      await page.getByRole('button', { name: '新对话' }).first().click();
-      // 工坊「全部」里会弹出端点菜单（挂在 body 上，量好位置才显示）：等它出来再点；灵伴里直接新建、没有菜单
+      // 工坊：先在左侧端点栏选中这个编程助手，「新对话」就建在它下面（端点栏没有它时照旧点「新对话」）
+      const id = { 'Claude Code': 'claude', Codex: 'codex', Gemini: 'gemini' }[endpoint];
+      const rail = id && page.getByTestId(`endpoint-filter-${id}`);
+      if (rail && (await rail.isVisible().catch(() => false))) {
+        // 这个端还没有对话时，点端点图标本身就会新建一个空对话（放进当前选中的项目）：直接用它，不再多建一个
+        const hadChats = /个对话/.test((await rail.getAttribute('aria-label')) ?? '');
+        await rail.click();
+        await h.wait(900);
+        if (!hadChats) return;
+      }
+      // 有项目时用项目行上的「新对话」：会话归进项目（只按项目 id 归组，不看目录）
+      const inProject = page.getByTestId('workspace-new-chat').first();
+      if (id && (await inProject.isVisible().catch(() => false))) await inProject.click();
+      // 否则点页面上第一个「新对话」按钮
+      else await page.getByRole('button', { name: '新对话' }).first().click();
+      // 工坊「全部」里会弹出端点菜单（挂在 body 上，量好位置才显示）：等它出来再点；对话里直接新建、没有菜单
       const item = page.getByRole('menuitem', { name: endpoint });
       await item
         .waitFor({ state: 'visible', timeout: 2500 })
@@ -173,7 +186,7 @@ export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images =
       // 「添加第三方供应商」第一步是分组卡片（不是单选按钮）
       await page.getByTestId('models-preset-custom').click();
       await page.getByRole('textbox', { name: '地址' }).fill(llmBaseUrl);
-      await page.getByRole('textbox', { name: '名称（可选）' }).fill('演示 DeepSeek');
+      await page.getByRole('textbox', { name: '名称（可选）' }).fill('DeepSeek');
       await page.getByRole('textbox', { name: 'API Key' }).fill('sk-demo-0000000000000000a1f3');
       await page.getByRole('button', { name: '检测并保存' }).click();
       // 本机地址要先确认一次
@@ -248,7 +261,7 @@ export const SCENES = [
     seed: true,
     async run(h) {
       await h.open();
-      await h.mode('灵伴');
+      await h.mode('对话');
       await h.page.getByRole('button', { name: '任务', exact: true }).first().click();
       await h.wait(800);
       await h.createTask({
@@ -267,7 +280,7 @@ export const SCENES = [
     seed: true,
     async run(h) {
       await h.open();
-      await h.mode('灵伴');
+      await h.mode('对话');
       await h.send('帮我写一份本周周报');
       await h.newChat('Nomi');
       await h.dropImages();
@@ -276,10 +289,10 @@ export const SCENES = [
   },
   {
     name: 'chat',
-    title: '灵伴：对话',
+    title: '对话',
     async run(h) {
       await h.open();
-      await h.mode('灵伴');
+      await h.mode('对话');
       await h.newChat('Nomi');
       await h.send('帮我整理一下今天的待办吧');
     },
@@ -295,7 +308,7 @@ export const SCENES = [
         .click({ timeout: 2000 })
         .catch(() => {});
       await h.newChat('Claude Code');
-      await h.send('给 registerHandler 加一个可选的 id 参数，补上单测并跑一下 lint', 9000);
+      await h.send('给网关的 retryWithBackoff 加上可配置的重试次数，补上单测并跑一下 lint', 9000);
     },
   },
   {
@@ -322,10 +335,27 @@ export const SCENES = [
     },
   },
   {
+    name: 'seed-project',
+    seed: true,
+    async run(h) {
+      // 侧栏要有真实项目名（不是「还没有项目」）：用编程助手默认的工作目录建项目「nomi-ai」；
+      // 后面 seed-agent-sessions 从项目行上新建会话，会话就归进这个项目
+      await h.open();
+      await h.page.getByTestId('new-project').first().click();
+      const dlg = h.page.getByTestId('project-dialog');
+      await dlg.waitFor({ timeout: 10_000 });
+      await dlg.getByTestId('project-name').fill('nomi-ai');
+      await dlg.getByTestId('project-add-recent-toggle').click();
+      await dlg.getByTestId('project-add-recent').first().click();
+      await dlg.getByTestId('project-submit').click();
+      await h.wait(2000);
+    },
+  },
+  {
     name: 'seed-agent-sessions',
     seed: true,
     async run(h) {
-      // 看板上多几张编程助手卡片（Mock CLI）：Codex 做完；Claude Code 与 Gemini 的提问带「偶尔超时」，
+      // 看板上多几张编程助手卡片（Mock CLI）：Codex 做完；其余提问带「偶尔超时」，
       // 一直停在进行中（run.mjs 的 NOMI_MOCK_SLOW_PROMPT）
       await h.open();
       await h.mode('工坊');
@@ -335,6 +365,29 @@ export const SCENES = [
       await h.send('重构网关的重试逻辑，再查查集成测试为什么偶尔超时', 3000);
       await h.newChat('Gemini');
       await h.send('看一下 scheduler 的单测为什么偶尔超时', 3000);
+      // 官网英雄图要 Claude Code 与 Codex 同时在跑：再开一个一直进行中的 Codex
+      await h.newChat('Codex');
+      await h.send('给文件同步加上断点续传，再查查大文件上传为什么偶尔超时', 3000);
+      // 端点栏回到「全部」，后面的场景看到的是完整列表
+      await h.page
+        .getByTestId('list-view-all')
+        .click({ timeout: 2000 })
+        .catch(() => {});
+    },
+  },
+  {
+    // 官网 / README / OG 的英雄图：16:9，看板上 Claude Code 与 Codex 同时在跑、一张已完成，项目 nomi-ai
+    name: 'agent-board-hero',
+    title: 'Agent 看板（英雄图）',
+    viewport: { width: 1600, height: 900 },
+    async run(h) {
+      await h.open();
+      await h.page
+        .getByRole('button', { name: /^Agents/ })
+        .first()
+        .click();
+      await h.page.mouse.move(800, 880);
+      await h.wait(2500);
     },
   },
   {
@@ -355,7 +408,7 @@ export const SCENES = [
     title: '持续任务',
     async run(h) {
       await h.open();
-      await h.mode('灵伴');
+      await h.mode('对话');
       await h.page.getByRole('button', { name: '任务', exact: true }).first().click();
       await h.wait(1200);
     },
@@ -365,7 +418,7 @@ export const SCENES = [
     title: '素材库',
     async run(h) {
       await h.open();
-      await h.mode('灵伴');
+      await h.mode('对话');
       await h.page.getByRole('button', { name: '素材库', exact: true }).first().click();
       await h.wait(1500);
     },
@@ -385,7 +438,7 @@ export const SCENES = [
       await h.open();
       await h.settings('模型与供应商');
       // 点供应商这一行打开编辑（行尾的「⋯」已去掉，换成启用开关）
-      await h.page.getByRole('button', { name: /^演示 DeepSeek/ }).click();
+      await h.page.getByRole('button', { name: /^DeepSeek/ }).click();
       await h.wait(1000);
     },
   },
@@ -412,7 +465,7 @@ export const SCENES = [
     async run(h) {
       await h.open();
       await h.settings('Nomi');
-      await h.tab('委派');
+      await h.tab('权限与委派');
     },
   },
   {
