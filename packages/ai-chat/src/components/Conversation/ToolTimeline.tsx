@@ -27,7 +27,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import React, { memo, useEffect, useId, useMemo, useState } from 'react';
+import React, { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import type { TranscriptView } from '../../services/transcriptView';
 import { thoughtLabel } from '../../utils/convTime';
@@ -578,16 +578,19 @@ const ThinkingTimer: React.FC<{ startedAt?: number }> = ({ startedAt }) => {
 };
 
 /**
- * 思考那一行的标题：进行中是「思考中 · 3s」加正在想的那一句，文字带流动的灰度渐变；
- * 结束后是「已思考 5 秒」加这段思考的第一句（折叠时不用点开就知道想了什么）
+ * 思考那一行的标题：进行中是「思考中 · 3s」，结束后是「已思考 5 秒」，文字带流动的灰度渐变。
+ * 收起时后面跟一句（进行中是正在想的那一句，结束后是第一句），不用点开就知道想了什么；
+ * 展开时正文就在下面，标题不再跟一句、也不跟着刷新，免得两处同时在变让人困惑
  */
 const ThinkingLabel: React.FC<{
   text: string;
   running: boolean;
   startedAt?: number;
   ms?: number;
-}> = ({ text, running, startedAt, ms }) => {
-  const title = thoughtTitle(text, running ? 'last' : 'first');
+  /** 展开着：不显示那一句 */
+  open?: boolean;
+}> = ({ text, running, startedAt, ms, open }) => {
+  const title = open ? '' : thoughtTitle(text, running ? 'last' : 'first');
   return (
     <span className={running ? styles.live : undefined} data-testid="tool-thinking-label">
       <span className={styles.verb}>
@@ -631,16 +634,53 @@ const Thinking = memo(function Thinking({
   return (
     <Disclosure
       icon={Brain}
-      label={<ThinkingLabel text={text} running={running} startedAt={startedAt} ms={ms} />}
+      label={
+        <ThinkingLabel
+          text={text}
+          running={running}
+          startedAt={startedAt}
+          ms={ms}
+          open={disclosure.open}
+        />
+      }
       status={running ? 'running' : 'done'}
       open={disclosure.open}
       onOpenChange={disclosure.onOpenChange}
       testId="tool-thinking"
     >
-      <div className={styles.thinkText}>{text}</div>
+      <ThinkText text={text} running={running} />
     </Disclosure>
   );
 });
+
+/** 跟随到底的容差：离底部这么近就算「在底部」 */
+const STICK_PX = 24;
+
+/**
+ * 思考的正文（限高可滚动）：思考进行中、而且没往上翻时，新内容追加后自动滚到最新一行；
+ * 往上翻就不再跟随，翻回底部后恢复
+ */
+export const ThinkText: React.FC<{ text: string; running: boolean }> = ({ text, running }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const stick = useRef(true);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el && running && stick.current) el.scrollTop = el.scrollHeight;
+  }, [text, running]);
+  return (
+    <div
+      ref={ref}
+      className={styles.thinkText}
+      data-testid="tool-thinking-text"
+      onScroll={(e) => {
+        const el = e.currentTarget;
+        stick.current = el.scrollHeight - el.scrollTop - el.clientHeight <= STICK_PX;
+      }}
+    >
+      {text}
+    </div>
+  );
+};
 
 /** 活动摘要：按出现顺序列出各类步骤（「已探索 3 个文件 · 已运行 2 条命令 · 已编辑 1 个文件」） */
 function activityTitle(calls: readonly ToolCall[]): { buckets: Bucket[]; title: string } {

@@ -91,6 +91,16 @@ describe('思考的一句话标题', () => {
     expect(think.getAttribute('data-open')).toBe('false');
     expect(r.getByTestId('tool-thinking-title').textContent).toBe('先看一下文件');
   });
+
+  it('展开时标题不带那一句（正文就在下面），收起后再显示', () => {
+    const r = mountConversation('thinking');
+    const think = r.getByTestId('tool-thinking');
+    fireEvent.click(think.querySelector('button')!);
+    expect(think.getAttribute('data-open')).toBe('true');
+    expect(r.queryByTestId('tool-thinking-title')).toBeNull();
+    fireEvent.click(think.querySelector('button')!);
+    expect(r.getByTestId('tool-thinking-title').textContent).toBe('先看一下文件');
+  });
 });
 
 describe('Transcript view 菜单的焦点', () => {
