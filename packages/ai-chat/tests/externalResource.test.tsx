@@ -141,7 +141,8 @@ describe('external browser instead of embedded websites', () => {
     });
     render(<Probe />);
     fireEvent.click(screen.getByRole('button', { name: 'markdown', exact: true }));
-    const document = await screen.findByTestId('preview-markdown');
+    // 预览组件是懒加载的：本文件第一次打开预览要等它加载，慢的 CI 机器上会超过默认的 1 秒
+    const document = await screen.findByTestId('preview-markdown', {}, { timeout: 5000 });
     const draft = screen.getByTestId('draft') as HTMLTextAreaElement;
     fireEvent.change(draft, { target: { value: 'unsent draft' } });
     fireEvent.click(screen.getByRole('button', { name: 'csv', exact: true }));
