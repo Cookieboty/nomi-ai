@@ -13,13 +13,14 @@ import {
   Plug,
   ReceiptText,
   Shield,
-  Sparkles,
   SquareTerminal,
   Timer,
   Wallet,
   Waypoints,
   type LucideIcon,
 } from 'lucide-react';
+
+import { FEATURE_ICONS } from '../AppIcons';
 
 import type { SettingsSection } from './sections';
 
@@ -41,7 +42,7 @@ export const SECTION_HELP: Record<
       desc: 'ui.chat-settings.nomi-permissions-help',
     },
     {
-      icon: Sparkles,
+      icon: FEATURE_ICONS.delegate,
       title: 'ui.chat-settings.handoff',
       desc: 'ui.chat-settings.nomi-handoff-help',
     },
@@ -117,7 +118,7 @@ export const SECTION_HELP: Record<
       desc: 'ui.chat-settings.spending-alert-thresholds-and-usage-record-options',
     },
     {
-      icon: Gauge,
+      icon: FEATURE_ICONS.compare,
       title: 'ui.model-quality.compare',
       desc: 'ui.model-quality.multi-level-table-how-the-same-model-differs',
     },
@@ -144,7 +145,7 @@ export const SECTION_HELP: Record<
       desc: 'ui.chat-settings.add-folders-they-are-searched-and-cited',
     },
     {
-      icon: Sparkles,
+      icon: FEATURE_ICONS.memory,
       title: 'ui.knowledge-local.long-term-memory',
       desc: 'ui.chat-settings.preferences-and-facts-remembered-from-chats-view-and',
     },
@@ -156,12 +157,12 @@ export const SECTION_HELP: Record<
   ],
   ext: [
     {
-      icon: Plug,
+      icon: FEATURE_ICONS.ext,
       title: 'ui.foundation.mcp-servers-label',
       desc: 'ui.chat-settings.connect-tool-servers-via-local-commands-or-remote',
     },
     {
-      icon: Layers,
+      icon: FEATURE_ICONS.skills,
       title: 'ui.foundation.skills-label',
       desc: 'ui.chat-settings.manage-skill-packs-the-assistant-can-use',
     },

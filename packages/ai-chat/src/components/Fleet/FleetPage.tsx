@@ -1,7 +1,7 @@
 import { isBuiltinCliId, type BuiltinCliId } from '@nomi-ai/cli-catalog';
 import { brand } from '@nomi-ai/types';
 import { Button, Checkbox, EmptyState, Icon, Select, Switch, t } from '@nomi-ai/ui';
-import { Folder, Gauge, Search, SlidersHorizontal, SquareTerminal } from 'lucide-react';
+import { Folder, Search, SlidersHorizontal, SquareTerminal } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -18,6 +18,7 @@ import {
   type FleetState,
 } from '../../services/fleetClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import { FEATURE_ICONS } from '../AppIcons';
 import { DispatchCli } from '../DispatchCli';
 import { EndpointIcon } from '../EndpointIcon';
 
@@ -380,7 +381,7 @@ export const FleetPage: React.FC<
     >
       <header className={board.head}>
         <span className={board.headIcon} aria-hidden>
-          <Icon icon={Gauge} size={20} />
+          <Icon icon={FEATURE_ICONS.agents} size={20} />
         </span>
         <div className={board.headText}>
           <h2 className={board.title1}>{t('ui.cli-monitor.fleet-board')}</h2>

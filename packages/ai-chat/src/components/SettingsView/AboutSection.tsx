@@ -12,9 +12,9 @@ import {
   Globe,
   RefreshCw,
   Settings2,
-  Sparkles,
   Star,
   X,
+  Newspaper,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import React, { useState } from 'react';
@@ -183,7 +183,7 @@ export const AboutSection: React.FC = () => {
             data-testid="updates-open-release-notes"
             onClick={() => openReleaseNotes()}
           >
-            <Icon icon={Sparkles} size={14} />
+            <Icon icon={Newspaper} size={14} />
             {t('ui.chat-settings.about-recent-updates')}
           </Button>
           <LinkButton

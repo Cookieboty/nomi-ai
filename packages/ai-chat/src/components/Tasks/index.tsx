@@ -10,13 +10,14 @@
  * 数据来自契约 tasks.*；内核在任务变化时推 tasks.changed。
  */
 import { t } from '@nomi-ai/ui';
-import { ListChecks } from 'lucide-react';
+import {} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { selectFirstMessageId, useAiChatSelector } from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { groupOf, OPEN_TASK_EVENT, tasksAvailable } from '../../services/tasksClient';
 import { OPEN_TASKS_PAGE_EVENT } from '../../services/workbenchNav';
+import { FEATURE_ICONS } from '../AppIcons';
 import { lazyComponent } from '../lazyPanels';
 import { SideNavItem } from '../Sidebar/SideNavItem';
 
@@ -43,7 +44,7 @@ export const TasksNav: React.FC<{
       : t('ui.providers-schedule.tasks');
   return (
     <SideNavItem
-      icon={ListChecks}
+      icon={FEATURE_ICONS.tasks}
       label={t('ui.providers-schedule.tasks')}
       title={label}
       collapsed={collapsed}

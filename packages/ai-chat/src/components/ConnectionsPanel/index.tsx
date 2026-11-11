@@ -10,7 +10,7 @@
  */
 import { Badge, Button, Icon, Input, Modal, t } from '@nomi-ai/ui';
 import {
-  Blocks,
+  Puzzle,
   BookOpen,
   GitMerge,
   GitPullRequest,
@@ -397,7 +397,7 @@ const APPS: AppCard[] = [
   },
   {
     id: 'mcp',
-    icon: Blocks,
+    icon: Puzzle,
     name: 'ui.providers-schedule.connection-app-mcp-name',
     desc: 'ui.providers-schedule.connection-app-mcp',
   },

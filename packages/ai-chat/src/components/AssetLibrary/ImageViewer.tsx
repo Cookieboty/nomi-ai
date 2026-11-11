@@ -27,7 +27,6 @@ import {
   Ratio,
   RefreshCw,
   Ruler,
-  Sparkles,
   Tag,
   Trash2,
   User,
@@ -40,6 +39,7 @@ import { gatewayClient, gatewayClientAvailable } from '../../services/gatewayCli
 import type { ConversationBackend } from '../../types/chat';
 import { copyImage } from '../../utils/copyImage';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import { FEATURE_ICONS } from '../AppIcons';
 import { confirmDialog } from '../ConfirmDialog';
 import { EndpointIcon } from '../EndpointIcon';
 
@@ -459,7 +459,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
           />
           {res && (
             <span className={styles.resBadge} data-testid="viewer-resolution">
-              <Icon icon={Sparkles} size={13} />
+              <Icon icon={Ruler} size={13} />
               {res}
             </span>
           )}
@@ -645,7 +645,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
             {item.model && (
               <>
                 <dt>
-                  <Icon icon={Sparkles} size={14} />
+                  <Icon icon={FEATURE_ICONS.model} size={14} />
                   {t('ui.foundation.model')}
                 </dt>
                 <dd className={styles.mono}>{modelLabel}</dd>

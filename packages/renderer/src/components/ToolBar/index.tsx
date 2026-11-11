@@ -4,7 +4,6 @@ import { createLogger, t as tr, tName } from '@nomi-ai/ui';
 import { Switch, Tooltip } from '@nomi-ai/ui';
 import {
   AudioLines,
-  CalendarCheck,
   ChevronDown,
   ChevronRight,
   Ellipsis,
@@ -21,6 +20,7 @@ import {
   ZoomIn,
   ZoomOut,
   type LucideIcon,
+  ListChecks,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
@@ -606,7 +606,7 @@ export const ToolBar: React.FC = () => {
       case 'voice-input':
         return Mic;
       case 'task-board':
-        return CalendarCheck;
+        return ListChecks;
       case 'motion':
         return Hand;
       case 'voice-settings':

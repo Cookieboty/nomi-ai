@@ -8,7 +8,7 @@ import { isBuiltinCliId, type BuiltinCliId } from '@nomi-ai/cli-catalog';
 import { isContractError } from '@nomi-ai/contract';
 import { brand } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
-import { Gauge } from 'lucide-react';
+import {} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -33,6 +33,7 @@ import { requestOpenTask } from '../../services/tasksClient';
 import { OPEN_FLEET_EVENT } from '../../services/workbenchNav';
 import type { IPCClient } from '../../types/ipc';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import { FEATURE_ICONS } from '../AppIcons';
 import { confirmDialog } from '../ConfirmDialog';
 import { lazyComponent } from '../lazyPanels';
 import { SideNavItem } from '../Sidebar/SideNavItem';
@@ -65,7 +66,7 @@ export const FleetNav: React.FC<{
       : `${base} · ${t(level === 'critical' ? 'ui.cli-monitor.fleet-load-critical' : 'ui.cli-monitor.fleet-load-warn')}`;
   return (
     <SideNavItem
-      icon={Gauge}
+      icon={FEATURE_ICONS.agents}
       label={t('ui.cli-monitor.fleet')}
       title={title}
       collapsed={collapsed}
