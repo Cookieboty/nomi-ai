@@ -23,6 +23,9 @@ type RegisterOptions struct {
 	OnStop func()
 	// Shortcut：紧急停止快捷键：注册上的（"" = 没有）与失败原因
 	Shortcut func() (accel, err string)
+	// AutoApprove / SetAutoApprove：桌面操作是否「始终允许」（desktop 的工具权限）
+	AutoApprove    func() bool
+	SetAutoApprove func(bool)
 }
 
 // Register：契约 media 域 computer.* 过程（设置 → Computer Use），并把「谁在操作桌面」推给对话窗口
@@ -57,10 +60,20 @@ func Register(r *contract.Router, s *Service, o RegisterOptions) {
 		if err := json.Unmarshal(in, &p); err != nil {
 			return nil, err
 		}
+		var auto struct {
+			AutoApprove *bool `json:"autoApprove"`
+		}
+		_ = json.Unmarshal(in, &auto)
+		if auto.AutoApprove != nil && o.SetAutoApprove != nil {
+			o.SetAutoApprove(*auto.AutoApprove)
+		}
 		if _, err := s.UpdateSettings(p); err != nil {
 			return nil, err
 		}
 		return s.State(ctx, false, o), nil
+	})
+	r.Call("computer.active", func(context.Context, contract.Caller, json.RawMessage) (any, error) {
+		return map[string]any{"active": s.Active()}, nil
 	})
 	r.Call("computer.stop", func(context.Context, contract.Caller, json.RawMessage) (any, error) {
 		s.StopAll()
@@ -87,12 +100,12 @@ func Register(r *contract.Router, s *Service, o RegisterOptions) {
 func (s *Service) State(ctx context.Context, refresh bool, o RegisterOptions) map[string]any {
 	v := s.Versions(ctx, refresh)
 	perms := map[string]string{}
-	sandboxes := []SandboxInfo{}
+	sandboxes, sandboxSupported := []SandboxInfo{}, false
 	permApp := s.PermissionApp()
 	if v.Installed {
 		perms = s.Permissions(ctx)
 		if runtime.GOOS == "darwin" {
-			sandboxes = s.Sandboxes(ctx)
+			sandboxes, sandboxSupported = s.Sandboxes(ctx)
 		}
 	}
 	vm := []VisionOption{}
@@ -114,8 +127,8 @@ func (s *Service) State(ctx context.Context, refresh bool, o RegisterOptions) ma
 		"unsupported": v.Unsupported, "npmAvailable": v.NpmAvailable, "installing": v.Installing,
 		"permissions": perms, "permissionApp": permApp, "wayland": s.Wayland(), "cliEnabled": st.CliEnabled,
 		"active": s.Active(), "visionModel": st.VisionModel, "visionModels": vm, "blockedApps": blocked,
-		"redact": st.Redact, "sandbox": st.Sandbox, "sandboxes": sandboxes,
+		"redact": st.Redact, "sandbox": st.Sandbox, "sandboxes": sandboxes, "sandboxSupported": sandboxSupported,
 		"stopShortcut": st.StopShortcut, "stopShortcutActive": accel, "stopShortcutError": accelErr,
-		"defaultStopShortcut": DefaultStopShortcut,
+		"defaultStopShortcut": DefaultStopShortcut, "autoApprove": o.AutoApprove != nil && o.AutoApprove(),
 	}
 }

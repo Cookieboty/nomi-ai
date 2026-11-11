@@ -52,6 +52,9 @@ var sensitiveCombos = map[string]bool{
 	"cmd+return": true, "ctrl+return": true, "meta+return": true, "cmd+enter": true, "ctrl+enter": true, "meta+enter": true,
 	"cmd+delete": true, "meta+delete": true, "cmd+backspace": true, "meta+backspace": true, "shift+delete": true,
 	"cmd+shift+delete": true, "meta+shift+delete": true, "cmd+q": true, "meta+q": true, "alt+f4": true,
+	// 退出 / 关闭窗口（Linux、Windows 用 Ctrl；macOS 的 ⌘W）
+	"ctrl+q": true, "ctrl+w": true, "ctrl+shift+w": true, "cmd+w": true, "meta+w": true, "cmd+shift+w": true,
+	"ctrl+f4": true,
 }
 
 // NormalizeCombo：与 agent-desktop 一致（小写、去空格），并把别名统一成 cmd / ctrl / alt
@@ -88,6 +91,10 @@ func SensitiveAction(kind string, ref *RefInfo, app, combo string) string {
 		if ref != nil && sensitiveName.MatchString(ref.Name) {
 			return "「" + ref.Name + "」可能是付款、发送、删除或提交这类不可撤回的操作"
 		}
+		// 只有图标、没有名字的按钮：看不出点了会做什么（发送按钮常常就是这样），按敏感动作每次确认
+		if kind == "click" && ref != nil && strings.TrimSpace(ref.Name) == "" && clickableRole(ref.Role) {
+			return "这个" + ref.Role + "没有名字，看不出点了会做什么（可能是发送、删除这类操作）"
+		}
 	case "press":
 		n := NormalizeCombo(combo)
 		if sensitiveCombos[n] {
@@ -105,4 +112,10 @@ func SensitiveAction(kind string, ref *RefInfo, app, combo string) string {
 func secretRole(role string) bool {
 	r := strings.ToLower(role)
 	return strings.Contains(r, "secure") || strings.Contains(r, "password")
+}
+
+// clickableRole：会触发动作的元素（按钮、链接、菜单项）
+func clickableRole(role string) bool {
+	r := strings.ToLower(role)
+	return strings.Contains(r, "button") || strings.Contains(r, "link") || strings.Contains(r, "menuitem")
 }

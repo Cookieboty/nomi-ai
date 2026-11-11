@@ -66,6 +66,7 @@ exports[`media 契约 > 过程名 / kind / surfaces / dangerous 1`] = `
   "computer.install mutation chat|settings dangerous",
   "computer.openGuide mutation chat|settings",
   "computer.updateSettings mutation chat|settings dangerous",
+  "computer.active query chat|settings",
   "computer.stop mutation chat|settings",
   "computer.sandboxAction mutation chat|settings",
   "nav.openVoiceSettings mutation mascot",

@@ -431,16 +431,11 @@ func (s *Service) actOnce(ctx context.Context, a Action) (json.RawMessage, error
 	case "click":
 		return s.call(ctx, 0, "", "click", a.Ref)
 	case "type":
-		if s.Settings().Sandbox != "" {
-			return s.call(ctx, 0, "", "type", a.Ref, a.Text)
-		}
+		// 文字一律走 stdin，不进进程参数（隔离模式下 sandbox exec 若不转发 stdin，输入会失败而不是把文字摆在参数里）
 		return s.call(ctx, 0, a.Text, "type", a.Ref, "--stdin")
 	case "set_value":
 		if a.Text == "" {
 			return s.call(ctx, 0, "", "clear", a.Ref)
-		}
-		if s.Settings().Sandbox != "" {
-			return s.call(ctx, 0, "", "set-value", a.Ref, a.Text)
 		}
 		return s.call(ctx, 0, a.Text, "set-value", a.Ref, "--stdin")
 	case "scroll":
@@ -628,6 +623,38 @@ func (s *Service) WindowBounds(ctx context.Context, app string) (Bounds, error) 
 		return Bounds{}, errf("WINDOW_NOT_FOUND", "「%s」没有可见的窗口", app)
 	}
 	return best, nil
+}
+
+// AppsAt：屏幕坐标落在哪些应用的可见窗口上（窗口叠放次序拿不到：凡是盖住这一点的都算）
+func (s *Service) AppsAt(ctx context.Context, x, y int) ([]string, error) {
+	data, err := s.call(ctx, 0, "", "list-windows")
+	if err != nil {
+		return nil, err
+	}
+	var ws []struct {
+		App       string `json:"app_name"`
+		Bounds    Bounds `json:"bounds"`
+		Visible   *bool  `json:"visible"`
+		Minimized bool   `json:"minimized"`
+	}
+	if json.Unmarshal(data, &ws) != nil {
+		return nil, errf("bad_output", "list-windows 输出无法解析")
+	}
+	seen := map[string]bool{}
+	out := []string{}
+	px, py := float64(x), float64(y)
+	for _, w := range ws {
+		if w.Minimized || (w.Visible != nil && !*w.Visible) {
+			continue
+		}
+		b := w.Bounds
+		if px < b.X || py < b.Y || px >= b.X+b.Width || py >= b.Y+b.Height || seen[w.App] {
+			continue
+		}
+		seen[w.App] = true
+		out = append(out, w.App)
+	}
+	return out, nil
 }
 
 // ClickXY：按屏幕坐标点击（物理输入，--headed；同一时间只允许一个）

@@ -1707,6 +1707,10 @@ type CliUpdateRunOutput struct {
 	Version string `json:"version"`
 }
 
+type ComputerActiveOutput struct {
+	Active []string `json:"active"`
+}
+
 // ComputerInstallInputScope 枚举：global | user
 type ComputerInstallInputScope = string
 
@@ -1781,6 +1785,7 @@ type ComputerStateOutput struct {
 	PermissionApp       string                                `json:"permissionApp"`
 	Wayland             bool                                  `json:"wayland"`
 	CliEnabled          bool                                  `json:"cliEnabled"`
+	AutoApprove         bool                                  `json:"autoApprove"`
 	Active              []string                              `json:"active"`
 	VisionModel         string                                `json:"visionModel"`
 	VisionModels        []ComputerStateOutputVisionModelsItem `json:"visionModels"`
@@ -1788,6 +1793,7 @@ type ComputerStateOutput struct {
 	Redact              bool                                  `json:"redact"`
 	Sandbox             string                                `json:"sandbox"`
 	Sandboxes           []ComputerStateOutputSandboxesItem    `json:"sandboxes"`
+	SandboxSupported    bool                                  `json:"sandboxSupported"`
 	StopShortcut        string                                `json:"stopShortcut"`
 	StopShortcutActive  string                                `json:"stopShortcutActive"`
 	StopShortcutError   string                                `json:"stopShortcutError"`
@@ -1801,6 +1807,7 @@ type ComputerUpdateSettingsInput struct {
 	Redact       *bool    `json:"redact,omitempty"`
 	Sandbox      *string  `json:"sandbox,omitempty"`
 	StopShortcut *string  `json:"stopShortcut,omitempty"`
+	AutoApprove  *bool    `json:"autoApprove,omitempty"`
 }
 
 type ComputerUpdateSettingsOutputVisionModelsItem struct {
@@ -1830,6 +1837,7 @@ type ComputerUpdateSettingsOutput struct {
 	PermissionApp       string                                         `json:"permissionApp"`
 	Wayland             bool                                           `json:"wayland"`
 	CliEnabled          bool                                           `json:"cliEnabled"`
+	AutoApprove         bool                                           `json:"autoApprove"`
 	Active              []string                                       `json:"active"`
 	VisionModel         string                                         `json:"visionModel"`
 	VisionModels        []ComputerUpdateSettingsOutputVisionModelsItem `json:"visionModels"`
@@ -1837,6 +1845,7 @@ type ComputerUpdateSettingsOutput struct {
 	Redact              bool                                           `json:"redact"`
 	Sandbox             string                                         `json:"sandbox"`
 	Sandboxes           []ComputerUpdateSettingsOutputSandboxesItem    `json:"sandboxes"`
+	SandboxSupported    bool                                           `json:"sandboxSupported"`
 	StopShortcut        string                                         `json:"stopShortcut"`
 	StopShortcutActive  string                                         `json:"stopShortcutActive"`
 	StopShortcutError   string                                         `json:"stopShortcutError"`
@@ -11889,6 +11898,10 @@ type CliUpdatePreviewOutputT = CliUpdatePreviewOutput
 // CliUpdateRunInputT 是 cliUpdate.run 的入参
 type CliUpdateRunInputT = CliUpdateRunInput
 type CliUpdateRunOutputT = CliUpdateRunOutput
+
+// ComputerActiveInputT 是 computer.active 的入参
+type ComputerActiveInputT = any
+type ComputerActiveOutputT = ComputerActiveOutput
 
 // ComputerInstallInputT 是 computer.install 的入参
 type ComputerInstallInputT = ComputerInstallInput

@@ -90,9 +90,6 @@ func wireIslandPending(isl *island.Service, src islandPendingSources) func() {
 	if src.desktop != nil {
 		src.desktop.OnConfirmChange(h.schedule)
 	}
-	if computerSvc != nil {
-		computerSvc.OnActivity(h.schedule)
-	}
 	go func() {
 		t := time.NewTicker(5 * time.Second)
 		defer t.Stop()
@@ -205,24 +202,7 @@ func (h *islandPendingHub) collect() ([]island.Pending, map[string]map[string]fu
 	h.collectTabs(add)
 	h.collectTasks(add)
 	h.collectConfirms(add)
-	h.collectComputer(add)
 	return out, acts
-}
-
-// collectComputer：正在操作桌面（Nomi / 编程助手）：一条「正在操作桌面 · 停止」（紧急停止）。
-// 岛始终在最上层：被操作的应用在前台时也点得到
-func (h *islandPendingHub) collectComputer(add func(island.Pending, map[string]func() error)) {
-	if computerSvc == nil {
-		return
-	}
-	active := computerSvc.Active()
-	if len(active) == 0 {
-		return
-	}
-	add(island.Pending{ID: "computer\x1factive", Kind: "computer", Endpoint: "nomi",
-		Title: i18n.T("ui.chat-settings.computer-active-title"), Body: strings.Join(active, " · "),
-		Actions: []island.Action{{ID: "stop", Label: i18n.T("ui.foundation.stop"), Danger: true}}},
-		map[string]func() error{"stop": func() error { stopComputer(); return nil }})
 }
 
 // collectTabs：编程助手标签的权限请求与沙箱拦截

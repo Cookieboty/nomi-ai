@@ -2,11 +2,11 @@ package harness
 
 // 编程助手的桌面操作（Computer Use）MCP：Nomi 以 stdio MCP 服务器的形式注入（core/computer/mcpserve），
 // 编程助手启动 `<Nomi 可执行文件> --computer-mcp <token 文件>`。token 文件在 <Root>/computer-mcp 里，
-// 系统沙箱单独放行读取（sandbox.go）。没装 agent-desktop、或用户没打开「允许编程助手使用」时不注入。
+// 系统沙箱只放行读这个标签自己的那一个文件（sandbox.go）：别的标签（如计划模式只读的）读不到它的 token。
+// 没装 agent-desktop、或用户关了「允许编程助手使用」时不注入。
 
 import (
 	"encoding/json"
-	"path/filepath"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -15,11 +15,12 @@ import (
 // ComputerMcpDir：<Root> 下放 token 文件的目录名
 const ComputerMcpDir = "computer-mcp"
 
-// McpLaunch：一个 stdio MCP 服务器
+// McpLaunch：一个 stdio MCP 服务器；File 是它要读的 token 文件（沙箱单独放行）
 type McpLaunch struct {
 	Name    string
 	Command string
 	Args    []string
+	File    string
 }
 
 // computerMcp：这个标签要注入的桌面操作 MCP（nil = 不注入）。计划模式只给读界面的工具
@@ -35,7 +36,13 @@ func (o *Orchestrator) computerMcp(tab *util.Obj) *McpLaunch {
 	return o.d.ComputerMcp(str(tab, "id"), label, str(tab, "permissionMode") == "plan")
 }
 
-func (o *Orchestrator) computerMcpDir() string { return filepath.Join(o.d.Root, ComputerMcpDir) }
+// computerMcpFiles：这个标签的沙箱要放行读取的 token 文件（没有注入时为空）
+func (o *Orchestrator) computerMcpFiles(tab *util.Obj) []string {
+	if m := o.computerMcp(tab); m != nil && m.File != "" {
+		return []string{m.File}
+	}
+	return nil
+}
 
 // claudeComputerArgs：--mcp-config 加上这个服务器，并预先放行它的工具（确认在 Nomi 里做，不让 Claude Code 再问一遍）
 func (o *Orchestrator) claudeComputerArgs(tab *util.Obj) []string {

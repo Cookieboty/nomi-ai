@@ -385,7 +385,17 @@ export const mediaProcedures = {
     surfaces: ['chat', 'settings'],
     dangerous: true,
   },
-  /** 紧急停止：取消所有正在执行 / 等确认的桌面操作（Nomi 与编程助手），之后几秒内的新调用被拒绝 */
+  /** 正在操作桌面的发起方（对话窗口的停止条打开时读一次，之后跟 `computer.activity` 事件） */
+  'computer.active': {
+    kind: 'query',
+    input: z.void(),
+    output: z.object({ active: z.array(z.string()) }),
+    surfaces: ['chat', 'settings'],
+  },
+  /**
+   * 紧急停止：取消正在执行 / 等确认的桌面操作，中止正在操作桌面的那几轮（Nomi 对话、编程助手标签），
+   * 这几轮之后的桌面操作一律拒绝，直到用户发下一条消息
+   */
   'computer.stop': {
     kind: 'mutation',
     input: z.void(),

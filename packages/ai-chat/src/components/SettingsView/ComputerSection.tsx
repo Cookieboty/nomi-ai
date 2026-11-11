@@ -41,6 +41,7 @@ export interface ComputerState {
   permissionApp: string;
   wayland: boolean;
   cliEnabled: boolean;
+  autoApprove: boolean;
   active: string[];
   visionModel: string;
   visionModels: Array<{ ref: string; label: string; provider: string }>;
@@ -48,6 +49,7 @@ export interface ComputerState {
   redact: boolean;
   sandbox: string;
   sandboxes: Array<{ name: string; state: string }>;
+  sandboxSupported: boolean;
   stopShortcut: string;
   stopShortcutActive: string;
   stopShortcutError: string;
@@ -57,7 +59,13 @@ export interface ComputerState {
 export type ComputerSettingsPatch = Partial<
   Pick<
     ComputerState,
-    'cliEnabled' | 'visionModel' | 'blockedApps' | 'redact' | 'sandbox' | 'stopShortcut'
+    | 'cliEnabled'
+    | 'autoApprove'
+    | 'visionModel'
+    | 'blockedApps'
+    | 'redact'
+    | 'sandbox'
+    | 'stopShortcut'
   >
 >;
 

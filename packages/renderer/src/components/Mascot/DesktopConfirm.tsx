@@ -42,6 +42,8 @@ const DANGER: Record<
 const REMEMBER_GROUP: Record<NonNullable<DesktopConfirmRequest['rememberGroup']>, string> = {
   files: 'ui.chat-settings.dont-ask-files-in-conversation',
   delegate: 'ui.chat-settings.dont-ask-delegate-in-conversation',
+  // 桌面操作：勾「记住」= 始终允许（以后所有对话都自动执行）
+  computer: 'ui.chat-settings.always-allow-computer',
   tool: 'ui.chat-settings.dont-ask-tool-in-conversation',
 };
 

@@ -218,6 +218,13 @@ func TestSensitiveAction(t *testing.T) {
 		{"press", nil, "Notes", "enter", true},
 		{"press", nil, "Notes", "cmd+s", false},
 		{"press", nil, "Notes", "command+q", true},
+		{"press", nil, "gedit", "Ctrl+Q", true},
+		{"press", nil, "Notepad", "ctrl+w", true},
+		{"press", nil, "Notes", "cmd+w", true},
+		// 只有图标的按钮：没有名字，看不出会做什么
+		{"click", &RefInfo{App: "Slack", Role: "button", Name: ""}, "", "", true},
+		{"click", &RefInfo{App: "Notes", Role: "textfield", Name: ""}, "", "", false},
+		{"type", &RefInfo{App: "Notes", Role: "textfield", Name: ""}, "", "", false},
 	}
 	for _, c := range cases {
 		if got := SensitiveAction(c.kind, c.ref, c.app, c.combo) != ""; got != c.want {

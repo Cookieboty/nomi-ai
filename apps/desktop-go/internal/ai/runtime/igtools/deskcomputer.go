@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/aifacade"
@@ -29,8 +30,9 @@ type ComputerUse interface {
 	Wait(ctx context.Context, o computer.WaitOpts) (json.RawMessage, error)
 	Screenshot(ctx context.Context, app string) (computer.Shot, error)
 	ClickXY(ctx context.Context, x, y int) (json.RawMessage, error)
+	AppsAt(ctx context.Context, x, y int) ([]string, error)
 	Blocked(name, bundleID string) string
-	Stopped() bool
+	StoppedFor(ctx context.Context) bool
 	Locate(ctx context.Context, app, target string, ask computer.AskVision) (computer.LocateResult, error)
 }
 
@@ -184,8 +186,8 @@ func (k *deskKit) computerTools() []tools.Definition {
 		if desktop.BackgroundFrom(ctx) != nil {
 			return toolErr("unavailable", "后台任务里不能操作桌面应用")
 		}
-		if cu.Stopped() {
-			return toolErr("stopped", "用户按了紧急停止：不要再操作桌面，停下来等用户的新指示")
+		if cu.StoppedFor(ctx) {
+			return toolErr("stopped", "用户按了紧急停止：这一轮不要再操作桌面，停下来等用户的新指示")
 		}
 		return nil
 	}
@@ -398,8 +400,9 @@ func (k *deskKit) computerTools() []tools.Definition {
 				return nil, "", cuErr(err)
 			}
 			out := u.NewObj("ok", true)
+			// 等到的文字 / 元素来自应用界面：标成不可信数据
 			if d := rawObj(r); d != nil {
-				out.Set("result", d)
+				out.Set("result", WrapScreen(str0(i, "app"), u.Stringify(d)))
 			}
 			return out, "", nil
 		}),
@@ -473,7 +476,21 @@ func (k *deskKit) computerTools() []tools.Definition {
 				return nil, "", err
 			}
 			x, y := num0(i, "x"), num0(i, "y")
-			sum := fmt.Sprintf("移动真实鼠标，点击屏幕坐标 (%d, %d)？\n原因：%s", x, y, str0(i, "reason"))
+			// 先看这一点落在谁的窗口上：密码 / 支付类应用、Nomi 自己（如确认卡片）的窗口不点
+			apps, err := cu.AppsAt(ctx, x, y)
+			if err != nil {
+				return nil, "", toolErr("unavailable", "无法确认坐标落在哪个应用上，不点击："+err.Error())
+			}
+			for _, a := range apps {
+				if r := cu.Blocked(a, ""); r != "" {
+					return nil, "", toolErr("blocked_app", "坐标落在「"+a+"」的窗口上："+r)
+				}
+			}
+			where := ""
+			if len(apps) > 0 {
+				where = "（在「" + strings.Join(apps, "」「") + "」的窗口上）"
+			}
+			sum := fmt.Sprintf("移动真实鼠标，点击屏幕坐标 (%d, %d)%s？\n原因：%s", x, y, where, str0(i, "reason"))
 			dec, err := k.confirm(ctx, "computer_click_xy", sum, i, nil, &struct{ Dialog bool }{true}, desktop.Workspace{})
 			if err != nil {
 				return nil, "", err

@@ -25,6 +25,7 @@ const base = {
   permissionApp: '',
   wayland: false,
   cliEnabled: false,
+  autoApprove: false,
   active: [] as string[],
   visionModel: '',
   visionModels: [] as Array<{ ref: string; label: string; provider: string }>,
@@ -32,6 +33,7 @@ const base = {
   redact: false,
   sandbox: '',
   sandboxes: [] as Array<{ name: string; state: string }>,
+  sandboxSupported: false,
   stopShortcut: '',
   stopShortcutActive: 'CmdOrCtrl+Shift+.',
   stopShortcutError: '',
@@ -115,6 +117,12 @@ describe('设置 → Computer Use', () => {
     );
     await waitFor(() =>
       expect(fake.calls).toContainEqual(['computer.updateSettings', { cliEnabled: true }]),
+    );
+    fireEvent.click(
+      r.getByTestId('computer-auto-approve').querySelector('[role="switch"], input')!,
+    );
+    await waitFor(() =>
+      expect(fake.calls).toContainEqual(['computer.updateSettings', { autoApprove: true }]),
     );
     fireEvent.click(r.getByTestId('settings-computer-page-tab-privacy'));
     fireEvent.click(r.getByTestId('computer-redact').querySelector('[role="switch"], input')!);

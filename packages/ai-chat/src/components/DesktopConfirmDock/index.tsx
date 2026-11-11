@@ -26,7 +26,7 @@ const DANGER: Record<
 const REMEMBER_GROUP: Record<NonNullable<DesktopConfirmRequest['rememberGroup']>, string> = {
   files: 'ui.chat-settings.dont-ask-files-in-conversation',
   delegate: 'ui.chat-settings.dont-ask-delegate-in-conversation',
-  computer: 'ui.chat-settings.dont-ask-computer-in-conversation',
+  computer: 'ui.chat-settings.always-allow-computer',
   tool: 'ui.chat-settings.dont-ask-tool-in-conversation',
 };
 
@@ -252,6 +252,11 @@ const ToolCard: React.FC<{ req: DesktopConfirmRequest }> = ({ req }) => {
           size="sm"
           variant={req.danger === 'destructive' ? 'danger' : 'primary'}
           disabled={!canAllow}
+          title={
+            req.rememberGroup === 'computer'
+              ? t('ui.chat-settings.dont-ask-computer-in-conversation')
+              : undefined
+          }
           onClick={() => answer(req.id, true, false)}
           data-testid="desktop-confirm-allow"
         >

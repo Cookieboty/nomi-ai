@@ -547,6 +547,11 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	} else {
 		tainted := b.IsTainted(i.Signal)
 		b.mu.Lock()
+		// 用户把桌面操作设成了「始终允许」：读界面带来的「读过外部内容」不再让每个动作重新确认
+		// （敏感动作在工具层强制弹窗，不受影响）
+		if group == "computer" && b.computerAlwaysLocked() {
+			tainted = false
+		}
 		raw := b.policyRaw(i.Tool)
 		d = Decide(ConsentInput{Danger: i.Danger, Policy: SanitizePolicy(i.Danger, raw), ExplicitPolicy: raw != nil, SessionAllowed: b.sessionAllowed[i.Tool], Tainted: tainted, Mode: mode})
 		b.mu.Unlock()
@@ -613,7 +618,19 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 		}
 		b.mu.Unlock()
 	}
-	if decision == "allowed" && remember && req.Rememberable {
+	// 桌面操作：点「允许」就把这个对话里后面的桌面操作也放行（一个任务要点很多下，逐个确认太烦）；
+	// 「始终允许」= 以后所有对话都不再问
+	if decision == "allowed" && group == "computer" && grantable {
+		b.mu.Lock()
+		if b.convGrants[conv] == nil {
+			b.convGrants[conv] = map[string]bool{}
+		}
+		b.convGrants[conv][group] = true
+		b.mu.Unlock()
+		if remember {
+			b.SetComputerAlways(true)
+		}
+	} else if decision == "allowed" && remember && req.Rememberable {
 		if req.RememberRule != "" {
 			b.AddCommandRule(req.RememberRule)
 		} else if req.RememberGroup != "" {
@@ -908,6 +925,26 @@ func (b *PermissionBroker) ask(req ConfirmRequest, signal context.Context) (stri
 	return decision, remember, req
 }
 
+// CancelPendingWhere：撤掉还在等的确认（按拒绝处理），返回撤掉的个数（桌面操作紧急停止）
+func (b *PermissionBroker) CancelPendingWhere(match func(ConfirmRequest) bool) int {
+	b.mu.Lock()
+	var hit []*pendingConfirm
+	for id, p := range b.pending {
+		if match(p.req) {
+			hit = append(hit, p)
+			delete(b.pending, id)
+		}
+	}
+	b.mu.Unlock()
+	for _, p := range hit {
+		if b.UI != nil {
+			b.UI.Cancel(p.req.ID)
+		}
+		p.done <- [2]any{"denied", false}
+	}
+	return len(hit)
+}
+
 func (b *PermissionBroker) takePending(id string) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -1039,6 +1076,51 @@ func (b *PermissionBroker) ResetAll() {
 	b.sessionAllowed = map[string]bool{}
 	b.convGrants = map[string]map[string]bool{}
 	b.convRulesSuspended = map[string]float64{}
+	b.saveLocked()
+	b.mu.Unlock()
+	b.notify()
+}
+
+// computerAlwaysTools：「始终允许桌面操作」改的工具（按坐标点击是物理输入，不在内：每次都问）
+func computerAlwaysTools() []string {
+	out := []string{}
+	for _, k := range ToolDangerKeys {
+		if ToolGroup(k) == "computer" && ToolDanger[k] != "destructive" {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
+// computerAlwaysLocked：桌面操作是不是都设成了「始终允许」（调用方持锁）
+func (b *PermissionBroker) computerAlwaysLocked() bool {
+	for _, k := range computerAlwaysTools() {
+		v, ok := b.settings.Policies.Get(k)
+		if !ok || string(v) != `"always"` {
+			return false
+		}
+	}
+	return true
+}
+
+// ComputerAlways：桌面操作是否「始终允许」（设置页的开关）
+func (b *PermissionBroker) ComputerAlways() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.computerAlwaysLocked()
+}
+
+// SetComputerAlways：桌面操作都设成「始终允许」/ 恢复默认（每次运行第一次询问）
+func (b *PermissionBroker) SetComputerAlways(on bool) {
+	b.mu.Lock()
+	for _, k := range computerAlwaysTools() {
+		if on {
+			b.settings.Policies.Set(k, "always")
+		} else {
+			b.settings.Policies.Delete(k)
+		}
+		delete(b.sessionAllowed, k)
+	}
 	b.saveLocked()
 	b.mu.Unlock()
 	b.notify()

@@ -106,6 +106,17 @@ export const ComputerOptions: React.FC<Props> = ({ part, state, update, reload }
           />
         </SettingRow>
         <SettingRow
+          data-testid="computer-auto-approve"
+          title={t('ui.chat-settings.computer-auto-approve')}
+          description={t('ui.chat-settings.computer-auto-approve-desc')}
+        >
+          <Switch
+            checked={state.autoApprove}
+            onChange={(on) => void update({ autoApprove: on })}
+            aria-label={t('ui.chat-settings.computer-auto-approve')}
+          />
+        </SettingRow>
+        <SettingRow
           data-testid="computer-cli-enabled"
           title={t('ui.chat-settings.computer-cli-enabled')}
           description={t('ui.chat-settings.computer-cli-enabled-desc')}
@@ -204,7 +215,7 @@ export const ComputerOptions: React.FC<Props> = ({ part, state, update, reload }
         </form>
       </SettingsGroup>
 
-      {state.platform === 'darwin' && state.installed ? (
+      {state.platform === 'darwin' && state.installed && state.sandboxSupported ? (
         <SettingsGroup
           title={t('ui.chat-settings.computer-sandbox')}
           description={t('ui.chat-settings.computer-sandbox-desc')}

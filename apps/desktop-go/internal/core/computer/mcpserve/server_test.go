@@ -187,20 +187,52 @@ func TestBridgeServerGone(t *testing.T) {
 	}
 }
 
-func TestStopAllCancelsAndRenews(t *testing.T) {
+func TestStopAllBlocksUntilResume(t *testing.T) {
 	s, _ := testServer(t)
-	_, _ = s.Launch("tab1", "Codex", false)
+	file, _ := s.Launch("tab1", "Codex", false)
+	_, _ = s.Launch("idle", "Codex", false)
+	url, tok := readCfg(t, file)
+	call := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"computer_snapshot","arguments":{}}}`
+	post(t, url, tok, call, nil) // 最近在操作
 	s.mu.Lock()
 	old := s.tabs["tab1"].ctx
 	s.mu.Unlock()
-	s.StopAll()
-	if old.Err() == nil {
-		t.Fatal("old context should be cancelled")
+	if got := s.StopAll(); len(got) != 1 || got[0] != "tab1" {
+		t.Fatalf("only the recently active tab is stopped: %v", got)
+	}
+	if old.Err() == nil || !s.Stopped("tab1") || s.Stopped("idle") {
+		t.Fatal("stopped state")
+	}
+	_, m := post(t, url, tok, call, nil)
+	if r := m["result"].(map[string]any); r["isError"] != true || !strings.Contains(u.Stringify(r), "stopped") {
+		t.Fatalf("calls after stop must be refused: %v", m)
+	}
+	s.Resume("tab1")
+	_, m = post(t, url, tok, call, nil)
+	if r := m["result"].(map[string]any); r["isError"] != false {
+		t.Fatalf("resumed: %v", m)
 	}
 	s.mu.Lock()
 	cur := s.tabs["tab1"].ctx
 	s.mu.Unlock()
 	if cur.Err() != nil || tools.ConversationFrom(cur) != "cli-tab:tab1" {
-		t.Fatal("tab should get a fresh context with the same conversation")
+		t.Fatal("resume gives a fresh context with the same conversation")
+	}
+}
+
+func TestRevokeExcept(t *testing.T) {
+	s, _ := testServer(t)
+	f1, _ := s.Launch("a", "Codex", false)
+	f2, _ := s.Launch("b", "Codex", false)
+	s.RevokeExcept(map[string]bool{"a": true})
+	if _, err := os.Stat(f1); err != nil {
+		t.Fatal("alive tab keeps its token")
+	}
+	if _, err := os.Stat(f2); !os.IsNotExist(err) {
+		t.Fatal("closed tab's token file is removed")
+	}
+	url, tok := readCfg(t, f1)
+	if c, _ := post(t, url, tok, `{"jsonrpc":"2.0","id":1,"method":"ping"}`, nil); c != 200 {
+		t.Fatal(c)
 	}
 }

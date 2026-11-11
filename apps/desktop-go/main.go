@@ -470,6 +470,7 @@ func main() {
 			return prep.PrepareChat(options, method, signal)
 		}})
 	chatHandlers.Register(router)
+	computerChats = chatHandlers
 	defer chatHandlers.Dispose()
 	// AIClient 门面：ai.sessions / tools / memory / asr / tts / avatar（32 个过程）。
 	aiFacade = aifacade.New(aifacade.Options{Now: nowMs, Tools: toolRegistry, Profile: userProfile, Avatar: true,
@@ -671,6 +672,7 @@ func main() {
 		desktopSvc.Broker.CheckCliWorkspace, desktopSvc.Broker.CliEnvAllow, sandboxDeps(desktopSvc.Broker), projs)
 	jsrt.Run(func() { harnessOrch.AttachPreview(previewResources) })
 	wireNomiBroker(desktopSvc.Broker, harnessOrch)
+	wireComputerHarness(harnessOrch)
 	migrateToProjects(projs, userData, bundle.Conversations, harnessOrch, taskRuntime(b8.Tasks))
 	watchSandboxPolicy(desktopSvc.Broker, harnessOrch)
 	taskCliFinished.attach(harnessOrch)

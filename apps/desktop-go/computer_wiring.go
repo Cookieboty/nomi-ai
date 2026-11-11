@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/airouter"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/igtools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
@@ -21,7 +22,9 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell"
 )
 
@@ -96,14 +99,72 @@ func computerVision() (computer.AskVision, *desktop.Provider, string, bool) {
 	return ask, &desktop.Provider{ID: r.Receiver.ID, Name: r.Receiver.Name, Local: r.Receiver.Local}, label, true
 }
 
-// stopComputer：紧急停止（设置页 / 对话窗口顶部 / 灵动岛）
+// 紧急停止要停的：Nomi 正在操作桌面的那几轮（airouter 按对话中止）、确认卡（desktop broker）
+var (
+	computerChats  *airouter.Handlers
+	computerBroker *desktop.PermissionBroker
+)
+
+// stopComputer：紧急停止（对话窗口的停止条 / 设置页 / 快捷键）：
+//   - 取消正在执行的 agent-desktop 命令；正在操作桌面的那一轮之后的调用都拒绝，直到用户发下一条消息；
+//   - 中止 Nomi 那几轮对话；编程助手：中止标签当前的一轮，它的 MCP 会话一直拒绝到标签开始下一轮；
+//   - 撤掉还在等的桌面操作确认卡
 func stopComputer() {
 	if computerSvc != nil {
-		computerSvc.StopAll()
+		rep := computerSvc.StopAll()
+		if computerChats != nil {
+			for _, conv := range rep.Conversations {
+				computerChats.AbortConversation(conv)
+			}
+		}
 	}
 	if computerMcpSrv != nil {
-		computerMcpSrv.StopAll()
+		if tabs := computerMcpSrv.StopAll(); len(tabs) > 0 && harnessOrch != nil {
+			o := harnessOrch
+			jsrt.Run(func() {
+				for _, id := range tabs {
+					o.CancelTab(id)
+				}
+			})
+		}
 	}
+	if computerBroker != nil {
+		computerBroker.CancelPendingWhere(func(r desktop.ConfirmRequest) bool { return strings.HasPrefix(r.Tool, "computer_") })
+	}
+}
+
+// wireComputerHarness：编程助手标签的 MCP 会话跟着标签走：标签关了作废 token；
+// 被紧急停止的标签开始下一轮（用户发了新消息，状态从不在跑变成在跑）时解除停止
+func wireComputerHarness(o *harness.Orchestrator) {
+	if o == nil || computerMcpSrv == nil {
+		return
+	}
+	srv := computerMcpSrv
+	prev := map[string]string{}
+	jsrt.Run(func() {
+		o.Events().On("tabs", func(any) {
+			arr, _ := o.ListTabs().Get("tabs").([]any)
+			alive := map[string]bool{}
+			for _, x := range arr {
+				t, _ := x.(*util.Obj)
+				if t == nil {
+					continue
+				}
+				id, status := util.JSString(t.Get("id")), util.Str(t.Get("status"))
+				alive[id] = true
+				if status == "running" && prev[id] != "running" && srv.Stopped(id) {
+					srv.Resume(id)
+				}
+				prev[id] = status
+			}
+			for id := range prev {
+				if !alive[id] {
+					delete(prev, id)
+				}
+			}
+			srv.RevokeExcept(alive)
+		})
+	})
 }
 
 // runComputerBridge：`<Nomi> --computer-mcp <token 文件>`：编程助手拉起的 stdio MCP 桥接，不起界面
@@ -147,9 +208,12 @@ func wireComputer(router *contract.Router, userData string, d *desktop.Service) 
 		},
 		Installed: func(prefix string) { cli.RememberCliDir(cli.NpmPrefixBinDir(prefix, "")) },
 	})
+	computerBroker = d.Broker
 	computer.Register(router, svc, computer.RegisterOptions{
-		VisionModels: computerVisionModels,
-		Shortcut:     computerHotkeyStatus,
+		VisionModels:   computerVisionModels,
+		Shortcut:       computerHotkeyStatus,
+		AutoApprove:    d.Broker.ComputerAlways,
+		SetAutoApprove: d.Broker.SetComputerAlways,
 		OnStop: func() {
 			if computerMcpSrv != nil {
 				computerMcpSrv.StopAll()
@@ -191,7 +255,7 @@ func computerMcpLaunch(tabID, label string, readOnly bool) *harness.McpLaunch {
 		log.Printf("[computer] mcp launch: %v", err)
 		return nil
 	}
-	return &harness.McpLaunch{Name: mcpserve.ServerName, Command: exe, Args: []string{mcpserve.BridgeFlag, file}}
+	return &harness.McpLaunch{Name: mcpserve.ServerName, Command: exe, Args: []string{mcpserve.BridgeFlag, file}, File: file}
 }
 
 // runWithCliPath：带登录 shell PATH 执行命令，返回合并输出与退出码

@@ -167,6 +167,24 @@ func (h *Handlers) Abort(reqID string) {
 	h.o.Chat.Abort(reqID)
 }
 
+// AbortConversation：中止这个对话正在进行的流（桌面操作紧急停止：停下正在操作桌面的那一轮）
+func (h *Handlers) AbortConversation(conv string) {
+	if conv == "" {
+		return
+	}
+	h.mu.Lock()
+	var ids []string
+	for id, a := range h.aborts {
+		if a.conv == conv {
+			ids = append(ids, id)
+		}
+	}
+	h.mu.Unlock()
+	for _, id := range ids {
+		h.Abort(id)
+	}
+}
+
 // Dispose：中止进行中的 chat 流
 func (h *Handlers) Dispose() {
 	h.mu.Lock()

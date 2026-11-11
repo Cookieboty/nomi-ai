@@ -42,16 +42,17 @@ func clean(list []SandboxInfo) []SandboxInfo {
 	return out
 }
 
-// Sandboxes：本机的沙箱（没装 agent-desktop / 平台不支持时为空）
-func (s *Service) Sandboxes(ctx context.Context) []SandboxInfo {
+// Sandboxes：本机的沙箱；supported = 装的 agent-desktop 有 sandbox 命令（较早的版本没有，如 1.2.0）
+func (s *Service) Sandboxes(ctx context.Context) (list []SandboxInfo, supported bool) {
 	if s.Bin() == "" {
-		return []SandboxInfo{}
+		return []SandboxInfo{}, false
 	}
 	data, err := s.callHost(ctx, 15*time.Second, "sandbox", "list")
 	if err != nil {
-		return []SandboxInfo{}
+		// 没有这个子命令：INVALID_ARGS（unrecognized subcommand）；其它错误（平台不支持等）也按不能用
+		return []SandboxInfo{}, false
 	}
-	return parseSandboxes(data)
+	return parseSandboxes(data), true
 }
 
 // SandboxAction：start / stop 一个沙箱

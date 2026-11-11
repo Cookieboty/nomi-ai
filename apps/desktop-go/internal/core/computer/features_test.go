@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 )
 
 func TestSettingsSanitizeAndPersist(t *testing.T) {
@@ -47,12 +49,12 @@ func TestSandboxRoutesDesktopCommandsOnly(t *testing.T) {
 	if got := strings.Join(f.calls[0].args, " "); got != "sandbox exec vm1 -- snapshot -i --compact --app Notes" {
 		t.Fatal(got)
 	}
-	// 沙箱里不确定 stdin 能透传：文字作参数
+	// 隔离模式下文字也走 stdin，不进进程参数
 	if _, err := s.Act(context.Background(), Action{Kind: "type", Ref: "@sx:e1", Text: "hi"}); err != nil {
 		t.Fatal(err)
 	}
 	last := f.calls[len(f.calls)-1]
-	if strings.Join(last.args, " ") != "sandbox exec vm1 -- type @sx:e1 hi" || last.stdin != "" {
+	if strings.Join(last.args, " ") != "sandbox exec vm1 -- type @sx:e1 --stdin" || last.stdin != "hi" {
 		t.Fatalf("%+v", last)
 	}
 	// 版本、沙箱管理在这台电脑上执行
@@ -75,7 +77,7 @@ func TestRedactInputs(t *testing.T) {
 	}
 }
 
-func TestStopAllCancelsAndHolds(t *testing.T) {
+func TestStopAllStopsThatTurnUntilNextMessage(t *testing.T) {
 	started := make(chan struct{})
 	s := New(Options{Resolve: func() string { return "/usr/bin/true" }, Getenv: func(string) string { return "" },
 		Exec: func(ctx context.Context, _ string, args []string, _ string) ([]byte, error) {
@@ -88,16 +90,22 @@ func TestStopAllCancelsAndHolds(t *testing.T) {
 		}})
 	activity := make(chan []string, 8)
 	s.OnActivity(func() { activity <- s.Active() })
+	turn, cancel := context.WithCancel(tools.WithConversation(context.Background(), "conv-1"))
+	defer cancel()
+	turn = WithActor(turn, "Nomi")
 	done := make(chan error, 1)
 	go func() {
-		_, err := s.Wait(WithActor(context.Background(), "Codex"), WaitOpts{Text: "x", App: "Notes", TimeoutMs: 60_000})
+		_, err := s.Wait(turn, WaitOpts{Text: "x", App: "Notes", TimeoutMs: 60_000})
 		done <- err
 	}()
 	<-started
-	if a := <-activity; strings.Join(a, ",") != "Codex" {
+	if a := <-activity; strings.Join(a, ",") != "Nomi" {
 		t.Fatalf("active %v", a)
 	}
-	s.StopAll()
+	rep := s.StopAll()
+	if strings.Join(rep.Conversations, ",") != "conv-1" {
+		t.Fatalf("report %+v", rep)
+	}
 	select {
 	case err := <-done:
 		if CodeOf(err) != "stopped" {
@@ -106,11 +114,18 @@ func TestStopAllCancelsAndHolds(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("stop did not cancel the in-flight call")
 	}
-	if _, err := s.ListApps(context.Background()); CodeOf(err) != "stopped" {
-		t.Fatalf("new calls right after stop: %v", err)
+	// 同一轮之后的调用一直拒绝（不是只停 10 秒）
+	if _, err := s.ListApps(turn); CodeOf(err) != "stopped" || !s.StoppedFor(turn) {
+		t.Fatalf("same turn after stop: %v", err)
 	}
-	if len(s.Active()) != 0 {
-		t.Fatal("active should be cleared")
+	// 用户发了新消息 = 新的一轮：可以继续
+	next, cancel2 := context.WithCancel(context.Background())
+	defer cancel2()
+	if _, err := s.ListApps(next); err != nil || s.StoppedFor(next) {
+		t.Fatalf("new turn: %v", err)
+	}
+	if len(s.Active()) != 1 {
+		t.Fatalf("active %v", s.Active())
 	}
 }
 

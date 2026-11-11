@@ -162,12 +162,12 @@ func TestCommandRulesSuspendedPerConversation(t *testing.T) {
 	}
 }
 
-// 桌面操作：一次「这个对话里不再询问」覆盖这个对话里的所有 computer_*（读界面、点击、输入…）；
+// 桌面操作：一次「允许」覆盖这个对话里的所有 computer_*（读界面、点击、输入…）；
 // 敏感动作（强制弹窗）照样问，别的对话照样问
 func TestConversationGrantComputer(t *testing.T) {
 	b, ui, _ := reviewBroker(t, nil)
 	a := convCtx(t, "c1")
-	answerRemember(b, ui, 1, true, true)
+	answerRemember(b, ui, 1, true, false)
 	if d := b.Authorize(AuthorizeInput{Tool: "computer_snapshot", Danger: "read", Summary: "读", Signal: a}); d != "allowed" {
 		t.Fatal(d)
 	}
@@ -197,4 +197,87 @@ func TestConversationGrantComputer(t *testing.T) {
 	if d := b.Authorize(AuthorizeInput{Tool: "computer_snapshot", Danger: "read", Summary: "读", Signal: convCtx(t, "c2")}); d != "allowed" {
 		t.Fatal(d)
 	}
+}
+
+// 桌面操作：点「允许」（不勾记住）也把这个对话里后面的桌面操作放行
+func TestComputerAllowCoversConversation(t *testing.T) {
+	b, ui, _ := reviewBroker(t, nil)
+	a := convCtx(t, "c1")
+	answerRemember(b, ui, 1, true, false)
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_snapshot", Danger: "read", Summary: "读", Signal: a}); d != "allowed" {
+		t.Fatal(d)
+	}
+	b.MarkRead(a)
+	for _, tool := range []string{"computer_click", "computer_type", "computer_scroll"} {
+		if d := b.Authorize(AuthorizeInput{Tool: tool, Danger: "write", Summary: "做", Signal: a}); d != "auto" {
+			t.Fatalf("%s: %s", tool, d)
+		}
+	}
+	if len(ui.seen) != 1 {
+		t.Fatalf("asked %d times", len(ui.seen))
+	}
+	if b.ComputerAlways() {
+		t.Fatal("plain allow must not become always")
+	}
+}
+
+// 「始终允许」：以后所有对话的桌面操作都不再问，读过界面也不再问；敏感动作与坐标点击照样问；能关掉
+func TestComputerAlwaysAllow(t *testing.T) {
+	b, ui, _ := reviewBroker(t, nil)
+	answerRemember(b, ui, 1, true, true)
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_click", Danger: "write", Summary: "点", Signal: convCtx(t, "c1")}); d != "allowed" {
+		t.Fatal(d)
+	}
+	if !b.ComputerAlways() {
+		t.Fatal("always allow should persist")
+	}
+	other := convCtx(t, "c2")
+	b.MarkRead(other)
+	for _, tool := range []string{"computer_snapshot", "computer_click", "computer_press", "computer_locate"} {
+		danger := ToolDanger[tool]
+		if d := b.Authorize(AuthorizeInput{Tool: tool, Danger: danger, Summary: "做", Signal: other}); d != "auto" {
+			t.Fatalf("%s: %s", tool, d)
+		}
+	}
+	answerRemember(b, ui, 2, true, false)
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_click", Danger: "write", Summary: "付款", Signal: other,
+		Force: &struct{ Dialog bool }{true}}); d != "allowed" {
+		t.Fatal(d)
+	}
+	answerRemember(b, ui, 3, true, false)
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_click_xy", Danger: "destructive", Summary: "坐标", Signal: other,
+		Force: &struct{ Dialog bool }{true}}); d != "allowed" {
+		t.Fatal(d)
+	}
+	b.SetComputerAlways(false)
+	if b.ComputerAlways() {
+		t.Fatal("should turn off")
+	}
+}
+
+// 紧急停止：撤掉还在等的桌面操作确认（按拒绝处理），别的确认不动
+func TestCancelPendingWhere(t *testing.T) {
+	b, ui, _ := reviewBroker(t, nil)
+	a := convCtx(t, "c1")
+	got := make(chan Decision, 1)
+	go func() {
+		got <- b.Authorize(AuthorizeInput{Tool: "computer_click", Danger: "write", Summary: "点", Signal: a})
+	}()
+	other := make(chan Decision, 1)
+	go func() { other <- authorizeWrite(b, convCtx(t, "c2")) }()
+	for i := 0; i < 400 && len(b.PendingRequests()) < 2; i++ {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if n := b.CancelPendingWhere(func(r ConfirmRequest) bool { return r.Tool == "computer_click" }); n != 1 {
+		t.Fatalf("cancelled %d", n)
+	}
+	if d := <-got; d != "denied" {
+		t.Fatal(d)
+	}
+	if len(b.PendingRequests()) != 1 || b.PendingRequests()[0].Tool != "fs_write_text" {
+		t.Fatalf("%+v", b.PendingRequests())
+	}
+	b.Answer(b.PendingRequests()[0].ID, false, false)
+	<-other
+	_ = ui
 }

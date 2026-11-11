@@ -474,6 +474,8 @@ export const ComputerState = z.looseObject({
   wayland: z.boolean(),
   /** 允许编程助手经 Nomi 的 MCP 使用桌面操作 */
   cliEnabled: z.boolean(),
+  /** 桌面操作自动执行（工具权限都是「始终允许」；敏感动作与坐标点击仍会问） */
+  autoApprove: z.boolean(),
   /** 正在操作桌面的发起方（Nomi / 编程助手名） */
   active: z.array(z.string()),
   /** 视觉兜底用的模型（<供应商 id>/<模型 id>，"" = 不用） */
@@ -490,6 +492,8 @@ export const ComputerState = z.looseObject({
   sandbox: z.string(),
   /** 本机的 agent-desktop 沙箱（macOS 虚拟机，Apple Silicon） */
   sandboxes: z.array(z.looseObject({ name: z.string(), state: z.string() })),
+  /** 装的 agent-desktop 有没有 sandbox 命令（较早的版本没有）；没有时不显示隔离模式 */
+  sandboxSupported: z.boolean(),
   /** 紧急停止快捷键的设置（"" = 默认，"off" = 关闭） */
   stopShortcut: z.string(),
   /** 实际注册上的系统级快捷键（"" = 没有） */
@@ -507,6 +511,7 @@ export const ComputerSettingsPatch = z.object({
   redact: z.boolean().optional(),
   sandbox: z.string().max(63).optional(),
   stopShortcut: z.string().max(60).optional(),
+  autoApprove: z.boolean().optional(),
 });
 
 export const ComputerInstallResult = z.looseObject({

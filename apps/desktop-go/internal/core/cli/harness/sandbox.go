@@ -207,8 +207,8 @@ func (o *Orchestrator) buildSandboxSpec(tab *util.Obj, cwd string, env *util.Obj
 	spec := &sandbox.Spec{
 		Token: token, Home: o.home, Cwd: cwd, CwdWritable: str(tab, "permissionMode") != "plan",
 		NomiData: filepath.Dir(o.d.Root),
-		// computer-mcp：桌面操作 MCP 的 token 文件（编程助手拉起的桥接进程要读）
-		ReadAllow: []string{filepath.Join(o.d.Root, "prompt-images"), o.computerMcpDir()},
+		// 桌面操作 MCP：只放行这个标签自己的 token 文件（编程助手拉起的桥接进程要读）
+		ReadAllow: append([]string{filepath.Join(o.d.Root, "prompt-images")}, o.computerMcpFiles(tab)...),
 		Granted:   map[string]bool{},
 	}
 	if o.d.Sandbox != nil && o.d.Sandbox.Protected != nil {

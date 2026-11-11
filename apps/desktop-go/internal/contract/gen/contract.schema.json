@@ -7198,6 +7198,33 @@
     "additionalProperties": {}
    }
   },
+  "computer.active": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat",
+    "settings"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "active": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "active"
+    ],
+    "additionalProperties": false
+   }
+  },
   "computer.install": {
    "kind": "mutation",
    "dangerous": true,
@@ -7392,6 +7419,9 @@
      "cliEnabled": {
       "type": "boolean"
      },
+     "autoApprove": {
+      "type": "boolean"
+     },
      "active": {
       "type": "array",
       "items": {
@@ -7455,6 +7485,9 @@
        "additionalProperties": {}
       }
      },
+     "sandboxSupported": {
+      "type": "boolean"
+     },
      "stopShortcut": {
       "type": "string"
      },
@@ -7484,6 +7517,7 @@
      "permissionApp",
      "wayland",
      "cliEnabled",
+     "autoApprove",
      "active",
      "visionModel",
      "visionModels",
@@ -7491,6 +7525,7 @@
      "redact",
      "sandbox",
      "sandboxes",
+     "sandboxSupported",
      "stopShortcut",
      "stopShortcutActive",
      "stopShortcutError",
@@ -7550,6 +7585,9 @@
      "stopShortcut": {
       "type": "string",
       "maxLength": 60
+     },
+     "autoApprove": {
+      "type": "boolean"
      }
     }
    },
@@ -7606,6 +7644,9 @@
       "type": "boolean"
      },
      "cliEnabled": {
+      "type": "boolean"
+     },
+     "autoApprove": {
       "type": "boolean"
      },
      "active": {
@@ -7671,6 +7712,9 @@
        "additionalProperties": {}
       }
      },
+     "sandboxSupported": {
+      "type": "boolean"
+     },
      "stopShortcut": {
       "type": "string"
      },
@@ -7700,6 +7744,7 @@
      "permissionApp",
      "wayland",
      "cliEnabled",
+     "autoApprove",
      "active",
      "visionModel",
      "visionModels",
@@ -7707,6 +7752,7 @@
      "redact",
      "sandbox",
      "sandboxes",
+     "sandboxSupported",
      "stopShortcut",
      "stopShortcutActive",
      "stopShortcutError",

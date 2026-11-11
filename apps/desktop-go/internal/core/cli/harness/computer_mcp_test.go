@@ -12,7 +12,8 @@ func TestComputerMcpInjection(t *testing.T) {
 	var got []string
 	o := &Orchestrator{d: Deps{Root: "/ud/harness", ComputerMcp: func(tabID, label string, readOnly bool) *McpLaunch {
 		got = append(got, tabID+"|"+label+"|"+map[bool]string{true: "ro", false: "rw"}[readOnly])
-		return &McpLaunch{Name: "nomi-computer", Command: `/Apps/Nomi "x".app/nomi`, Args: []string{"--computer-mcp", "/ud/harness/computer-mcp/a.json"}}
+		return &McpLaunch{Name: "nomi-computer", Command: `/Apps/Nomi "x".app/nomi`, Args: []string{"--computer-mcp", "/ud/harness/computer-mcp/a.json"},
+			File: "/ud/harness/computer-mcp/a.json"}
 	}}}
 	tab := util.NewObj("id", "t1", "backend", "claude", "permissionMode", "plan")
 
@@ -43,12 +44,14 @@ func TestComputerMcpInjection(t *testing.T) {
 	if s := o.acpComputerServers(tab); len(s) != 1 || util.Stringify(s[0]) == "" {
 		t.Fatalf("acp servers %v", s)
 	}
-	if o.computerMcpDir() != "/ud/harness/computer-mcp" {
-		t.Fatal(o.computerMcpDir())
+	// 沙箱只放行这个标签自己的 token 文件，不是整个目录
+	if f := o.computerMcpFiles(tab); len(f) != 1 || f[0] != "/ud/harness/computer-mcp/a.json" {
+		t.Fatal(f)
 	}
 
 	off := &Orchestrator{d: Deps{}}
-	if off.claudeComputerArgs(tab) != nil || off.codexComputerArgs(tab) != nil || off.acpComputerServers(tab) != nil {
+	if off.claudeComputerArgs(tab) != nil || off.codexComputerArgs(tab) != nil || off.acpComputerServers(tab) != nil ||
+		off.computerMcpFiles(tab) != nil {
 		t.Fatal("no injection without ComputerMcp")
 	}
 }

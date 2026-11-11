@@ -4,8 +4,9 @@
 // 每个编程助手标签一个 token。编程助手按 stdio MCP 启动 `<Nomi 可执行文件> --computer-mcp <token 文件>`（Bridge），
 // 由它把 stdio 转发到这个端点。token 只在文件里（0600，不进命令行参数、不进编程助手的配置）。
 //
-// 工具执行用这个标签自己的 context：确认卡片标明是哪个编程助手，「这个对话里不再询问」按标签记，
-// 读过界面（外部内容）之后同一标签里的操作再确认。确认、审计、黑名单与 Nomi 自己调用时完全相同。
+// 工具执行用这个标签自己的 context：确认卡片标明是哪个编程助手，「允许」「始终允许」按标签算一个对话
+// （点过「允许」后这个标签里的桌面操作自动执行；敏感动作与坐标点击仍每次确认）。确认、审计、黑名单与
+// Nomi 自己调用时完全相同。紧急停止后这个标签的会话一直拒绝，直到标签开始下一轮（Resume）；标签关了就作废 token。
 package mcpserve
 
 import (
@@ -53,6 +54,11 @@ type session struct {
 	file                string
 	ctx                 context.Context
 	cancel              context.CancelFunc
+	// lastCall：最近一次工具调用（紧急停止只停最近在操作的标签）；inflight：正在执行的调用数
+	lastCall time.Time
+	inflight int
+	// stopped：被紧急停止，直到 Resume
+	stopped bool
 }
 
 // Server：回环 MCP 端点
@@ -171,13 +177,52 @@ func (s *Server) freshCtx(x *session) {
 	x.ctx, x.cancel = ctx, cancel
 }
 
-// StopAll：紧急停止：取消所有标签正在执行 / 等确认的调用（token 照旧有效）
-func (s *Server) StopAll() {
+// stopRecent：最近这么久内调用过工具的标签算「在操作」
+const stopRecent = 20 * time.Second
+
+// StopAll：紧急停止：最近在操作桌面的标签取消正在执行 / 等确认的调用，之后一直拒绝，直到 Resume。
+// 返回停下的标签（装配层中止它们当前的一轮）
+func (s *Server) StopAll() []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, x := range s.tabs {
+	var out []string
+	for id, x := range s.tabs {
+		if x.inflight == 0 && time.Since(x.lastCall) > stopRecent {
+			continue
+		}
 		x.cancel()
+		x.stopped = true
+		out = append(out, id)
+	}
+	return out
+}
+
+// Stopped：这个标签是不是被紧急停止了
+func (s *Server) Stopped(tabID string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	x := s.tabs[tabID]
+	return x != nil && x.stopped
+}
+
+// Resume：标签开始了新的一轮（用户发了新消息）：解除紧急停止
+func (s *Server) Resume(tabID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if x := s.tabs[tabID]; x != nil && x.stopped {
+		x.stopped = false
 		s.freshCtx(x)
+	}
+}
+
+// RevokeExcept：作废已经不存在的标签的 token（标签关了）
+func (s *Server) RevokeExcept(alive map[string]bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id := range s.tabs {
+		if !alive[id] {
+			s.revokeLocked(id)
+		}
 	}
 }
 
@@ -350,9 +395,21 @@ func (s *Server) handle(sess *session, req rpcReq) (any, *rpcErr) {
 			return nil, &rpcErr{-32602, "invalid arguments"}
 		}
 		s.mu.Lock()
-		ctx := sess.ctx
+		ctx, stopped := sess.ctx, sess.stopped
+		if !stopped {
+			sess.inflight++
+			sess.lastCall = time.Now()
+		}
 		s.mu.Unlock()
+		if stopped {
+			return toolResult(u.NewObj("ok", false, "error", u.NewObj("code", "stopped",
+				"message", "用户按了紧急停止：这一轮不要再操作桌面，停下来等用户的新指示")), true), nil
+		}
 		out, err := def.Execute(ctx, in, tools.ExecContext{ToolCallID: "mcp-" + randHex(6)})
+		s.mu.Lock()
+		sess.inflight--
+		sess.lastCall = time.Now()
+		s.mu.Unlock()
 		if err != nil {
 			return toolResult(u.NewObj("ok", false, "error", u.NewObj("code", "internal_error", "message", err.Error())), true), nil
 		}

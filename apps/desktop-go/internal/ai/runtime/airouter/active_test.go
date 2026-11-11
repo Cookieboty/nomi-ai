@@ -3,6 +3,8 @@ package airouter
 import (
 	"testing"
 	"time"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/sdk/facade"
 )
 
 func TestActiveChats(t *testing.T) {
@@ -21,5 +23,22 @@ func TestActiveChats(t *testing.T) {
 	if conversationOf(map[string]any{"extra": map[string]any{"conversationId": "c9"}}) != "c9" ||
 		conversationOf(map[string]any{"messages": []any{}}) != "" {
 		t.Fatal("conversationOf")
+	}
+}
+
+// 紧急停止：只中止这个对话的流，别的对话不动
+func TestAbortConversation(t *testing.T) {
+	h := &Handlers{o: Options{Chat: &facade.Chat{}}, aborts: map[string]*aborter{
+		"r1": {ch: make(chan struct{}), conv: "c1"},
+		"r2": {ch: make(chan struct{}), conv: "c1"},
+		"r3": {ch: make(chan struct{}), conv: "c2"},
+	}}
+	h.AbortConversation("c1")
+	if !h.aborts["r1"].aborted() || !h.aborts["r2"].aborted() || h.aborts["r3"].aborted() {
+		t.Fatal("only c1's streams are aborted")
+	}
+	h.AbortConversation("") // 没有对话 id：什么都不做
+	if h.aborts["r3"].aborted() {
+		t.Fatal("empty conversation must not abort anything")
 	}
 }
