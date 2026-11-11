@@ -2,7 +2,7 @@
 // The Chinese pages are both input and output: everything this script injects sits between
 // <!-- seo:start --> and <!-- seo:end --> (or is rebuilt from scratch, like the language toggle),
 // so running it again gives the same files. `--check` fails when any output is out of date;
-// `--icons` also regenerates favicon.ico / favicon-96.png (macOS only, needs sips).
+// `--icons` also regenerates favicon.ico from favicon-96.png (macOS only, needs sips).
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -11,11 +11,11 @@ import vm from "node:vm";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const origin = "https://withnomi.app";
-const pages = ["index", "features", "download", "docs", "privacy", "changelog"];
+const pages = ["index", "download", "docs", "changelog", "privacy"];
 const langs = ["zh", "en"];
 const hreflang = { zh: "zh-CN", en: "en" };
 const ogLocale = { zh: "zh_CN", en: "en_US" };
-const ogImage = { url: `${origin}/assets/brand/nomi-brand-avatar.jpg`, width: 800, height: 800 };
+const ogImage = { url: `${origin}/assets/brand/og-image.png`, width: 1200, height: 630 };
 const checkOnly = process.argv.includes("--check");
 
 const context = { document: { readyState: "loading", addEventListener() {} }, window: {} };
@@ -99,7 +99,7 @@ function seoBlock(page, lang) {
   <meta property="og:image:alt" content="Nomi·诺米" />
   <meta property="og:image:width" content="${ogImage.width}" />
   <meta property="og:image:height" content="${ogImage.height}" />
-  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="${escape(title)}" />
   <meta name="twitter:description" content="${escape(description)}" />
   <meta name="twitter:image" content="${ogImage.url}" />
@@ -192,8 +192,8 @@ if (!existsSync(sitemapPath) || readFileSync(sitemapPath, "utf8") !== sitemap) {
 }
 
 if (!checkOnly && process.argv.includes("--icons")) {
-  execFileSync("sips", ["-s", "format", "ico", "-z", "48", "48", "assets/brand/nomi-brand-avatar-440.webp", "--out", "assets/brand/favicon.ico"], { cwd: root, stdio: "ignore" });
-  execFileSync("sips", ["-s", "format", "png", "-z", "96", "96", "assets/brand/nomi-brand-avatar-440.webp", "--out", "assets/brand/favicon-96.png"], { cwd: root, stdio: "ignore" });
+  // favicon-96.png is the brand mark (nomi-mark.svg) rendered at 96 px; the .ico is made from it.
+  execFileSync("sips", ["-s", "format", "ico", "-z", "48", "48", "assets/brand/favicon-96.png", "--out", "assets/brand/favicon.ico"], { cwd: root, stdio: "ignore" });
 }
 
 if (checkOnly && changed.length) {

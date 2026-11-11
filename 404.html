@@ -1,26 +1,51 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="robots" content="noindex,follow" />
-  <meta name="theme-color" content="#FFF8F1" />
-  <title>页面未找到 — Nomi·诺米</title>
-  <link rel="icon" href="/assets/brand/favicon.ico" sizes="48x48" />
+  <title>404 — Nomi·诺米</title>
+  <meta name="description" content="本地优先的 Agent 工作台。把 Claude Code、Codex 放到同一张看板上并行，模型只接一次，官方、第三方或本地都能用。Windows、macOS、Linux。" />
+  <meta name="theme-color" content="#FCEFE1" />
   <link rel="icon" href="/assets/brand/nomi-mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/css/styles.css?v=20261109s" />
+  <link rel="stylesheet" href="/css/site.css?v=20261111" />
 </head>
 <body>
-  <main class="section">
-    <div class="container" style="text-align:center;padding:96px 0">
-      <a class="logo" href="/" aria-label="Nomi·诺米 首页" style="justify-content:center">
-        <img class="mark" src="/assets/brand/nomi-mark.svg" alt="" width="48" height="48" />
-        <span class="logo-text">Nomi·诺米</span>
-      </a>
-      <h1>页面未找到 / Page not found</h1>
-      <p class="lead">这个页面可能已移动或不存在。<br />This page may have moved or no longer exists.</p>
-      <a class="btn btn-primary btn-lg" href="/">返回首页 / Back home</a>
+  <a class="skip" href="#main" data-i18n="s.skip">跳到正文</a>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/index.html"><img src="/assets/brand/nomi-mark.svg" alt="" width="28" height="28"><span data-i18n="s.brand">Nomi·诺米</span></a>
+      <nav class="nav" id="site-nav" aria-label="主导航" data-i18n-aria-label="nav.main">
+        <a href="/docs.html" data-i18n="nav.docs">文档</a>
+        <a href="/changelog.html" data-i18n="nav.changelog">更新日志</a>
+        <a href="https://github.com/Cookieboty/nomi-ai">GitHub</a>
+        <div class="lang-toggle" role="group" aria-label="语言" data-i18n-aria-label="nav.lang">
+          <a class="lang-btn is-active" data-lang="zh" href="/index.html">中</a>
+        </div>
+      </nav>
+      <a class="btn btn-primary btn-sm header-cta" href="/download.html"><span data-i18n="nav.cta">下载 Nomi</span></a>
+      <button class="nav-toggle" type="button" aria-controls="site-nav" aria-expanded="false" aria-label="打开菜单" data-i18n-aria-label="nav.openMenu"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     </div>
+  </header>
+  <main id="main">
+    <section class="page-head"><div class="wrap"><h1>这个页面不在了 · This page is gone</h1><p class="lead"><a href="/">回到首页</a> · <a href="/en/">Back to home</a></p></div></section>
   </main>
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="footer-row">
+        <span data-i18n="s.brand">Nomi·诺米</span>
+        <nav aria-label="主导航" data-i18n-aria-label="nav.main">
+          <a href="/docs.html" data-i18n="nav.docs">文档</a>
+          <a href="/changelog.html" data-i18n="nav.changelog">更新日志</a>
+          <a href="/download.html" data-i18n="nav.download">下载</a>
+          <a href="https://github.com/Cookieboty/nomi-ai">GitHub</a>
+          <a href="/privacy.html" data-i18n="nav.privacy">隐私</a>
+          <a href="https://github.com/Cookieboty/nomi-ai/blob/main/LICENSE" data-i18n="s.footer.license">MIT 许可</a>
+          <a href="https://github.com/Cookieboty/nomi-ai/issues" data-i18n="s.footer.contact">联系作者</a>
+        </nav>
+      </div>
+      <p class="footer-line" data-i18n="s.footer.line">让每一种 AI 能力，都为你所用。本地运行。模型只接一次。</p>
+    </div>
+  </footer>
+  <script src="/js/site.js?v=20261111" defer></script>
 </body>
 </html>
