@@ -6,6 +6,7 @@ import { t } from '@nomi-ai/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { PaletteCommand } from '../components/CommandPalette';
+import { DISPATCH_CLIS } from '../components/DispatchCli';
 import type { ForkPick } from '../components/ForkMenu';
 import { SETTINGS_SECTIONS } from '../components/SettingsView/sections';
 import type { AiChatActions } from '../contexts/AiChatContext';
@@ -24,6 +25,7 @@ import {
   useShortcutBindings,
   type ShortcutId,
 } from '../services/shortcuts';
+import { requestOpenFleet, requestOpenTasksPage } from '../services/workbenchNav';
 import type { ConversationBackend } from '../types/chat';
 import type { IPCClient } from '../types/ipc';
 
@@ -245,6 +247,35 @@ export function useAppCommands(opts: {
 
   const paletteCommands = useMemo<PaletteCommand[]>(
     () => [
+      {
+        id: 'dispatch-cli',
+        label: 'ui.foundation.palette-dispatch',
+        group: 'ui.foundation.action',
+        run: () => {
+          setMode('dev');
+          const backend = DISPATCH_CLIS[0];
+          if (!tabs.available || !backend) return;
+          void tabs.create(backend).catch(() => undefined);
+        },
+      },
+      {
+        id: 'add-provider',
+        label: 'ui.foundation.palette-add-provider',
+        group: 'ui.foundation.action',
+        run: () => openSettings('models'),
+      },
+      {
+        id: 'open-board',
+        label: 'ui.cli-monitor.fleet-open-board',
+        group: 'ui.foundation.action',
+        run: () => requestOpenFleet(),
+      },
+      {
+        id: 'new-task',
+        label: 'ui.providers-schedule.new-task',
+        group: 'ui.foundation.action',
+        run: () => requestOpenTasksPage(true),
+      },
       ...SHORTCUT_DEFS.filter((d) => d.id !== 'palette' && shortcutActions[d.id]).map((d) => ({
         id: d.id,
         label: d.label,
@@ -259,7 +290,7 @@ export function useAppCommands(opts: {
         run: () => openSettings(sec.id),
       })),
     ],
-    [bindings, shortcutActions, openSettings],
+    [bindings, shortcutActions, openSettings, setMode, tabs],
   );
 
   return {

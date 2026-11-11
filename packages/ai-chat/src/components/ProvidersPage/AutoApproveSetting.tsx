@@ -4,7 +4,7 @@
  * Nomi 自己的权限（工作区文件操作免确认、命令自动审核）在设置 →「Nomi」→ 权限，与这里分开。
  * 「允许 Codex 联网」（默认关）：沙箱里的命令能不能直接联网；关着时 Codex 要联网会先发审批。
  */
-import { SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';
+import { SettingRow, Switch, t } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
 
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
@@ -72,7 +72,8 @@ export const AutoApproveSetting: React.FC = () => {
   };
 
   return (
-    <SettingsGroup title={t('ui.chat-settings.permissions')}>
+    <details className={styles.fold} data-testid="auto-approve-fold">
+      <summary className={styles.foldSummary}>{t('ui.chat-settings.permissions')}</summary>
       <SettingRow
         title={t('ui.chat-settings.auto-approve-everything')}
         description={t('ui.chat-settings.auto-approve-coding-description')}
@@ -96,6 +97,6 @@ export const AutoApproveSetting: React.FC = () => {
         />
       </SettingRow>
       {err && <p className={styles.sub}>{err}</p>}
-    </SettingsGroup>
+    </details>
   );
 };

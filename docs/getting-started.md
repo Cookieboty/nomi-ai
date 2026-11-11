@@ -26,7 +26,7 @@ macOS 安装包已签名但尚未公证：若提示「已损坏」，先把 Nomi
 
 ### 首次引导
 
-第一次启动会打开对话窗口并进入 4 步引导：**欢迎（界面语言、主题、启动方式）→ 关于你（称呼、职业、兴趣）→ 接入一个 AI 模型 → 隐私说明**。每一步都可以跳过；之后可在「设置 → 通用 → 新手引导 → 重新打开」再走一遍，会带出上次填的称呼、职业和兴趣。
+第一次启动会打开工作台尺寸的对话窗口，引导盖住整个窗口。四步是：**语言和主题 → 接一个模型 → 打开看板 → 桌面角色（默认关闭）**。右上角可以跳过；跳过或完成后会打开看板，空看板上的主按钮是派出 Claude Code 或 Codex。之后可在「设置 → 通用 → 新手引导 → 重新打开」再走一遍。
 
 - **接入模型**：先选第三方供应商（预设或自定义地址），填 Key 后检测并保存；保存好之前模型列表是灰的，之后点一个模型就设为 Nomi 对话用的模型。没接模型就完成引导时，最后一页提示「还差一步：接上模型」，可一键跳到「设置 → 模型与供应商」。
 - **职业与兴趣**用来推荐：侧栏的「开始使用」会推荐编程助手（如开发者推荐 Claude Code 与 Codex，其他职业至少推荐 Codex）和功能（知识库、日程提醒、语音、导入 MCP 与技能），欢迎页的示例问题也会随之调整。
@@ -42,7 +42,7 @@ macOS 安装包已签名但尚未公证：若提示「已损坏」，先把 Nomi
 
 ### 两种模式
 
-会话面板顶部的「Nomi 灵伴 ⌄」菜单可以切换 **灵伴**（聊天、知识问答、记忆与日常事务）与 **工坊**（Nomi 调度 AI 能力完成任务：Claude Code、Codex、Grok、Gemini、dsh 的编程助手标签，多模型、项目管理与代码修改）。工坊的三栏布局、改动审查与提交见 [编程助手](features/coding-agents.md)。
+会话面板顶部的菜单可以切换 **对话**（聊天、知识库、记忆）与 **工坊**（派出 Claude Code、Codex 等编程助手，改项目、看 Diff）。工坊的三栏布局、改动审查与提交见 [编程助手](features/coding-agents.md)。看板上的终端或 IDE 会话是只读的。
 
 ### 常用快捷键
 
@@ -84,7 +84,7 @@ The macOS build is signed but not notarized. If macOS says Nomi “is damaged”
 
 ### First-run onboarding
 
-On first launch the chat window opens a 4-step guide: **welcome (language, theme, startup mode) → about you (name, occupation, interests) → connect an AI model → privacy**. Every step is skippable; rerun it later from Settings → General → Getting started guide → Reopen (your saved name, occupation and interests are prefilled).
+On first launch the workbench-sized chat window opens with the guide covering the whole window. The four steps are **language and theme → connect a model → open the board → desktop character (off by default)**. Skip from the corner; skipping or finishing opens the board, whose primary action is to dispatch Claude Code or Codex. Rerun it later from Settings → General → Getting started guide → Reopen.
 
 - **Connect a model**: pick a third-party provider (a preset or a custom address), enter the key and check & save; the model list stays greyed out until then, and the model you click becomes Nomi's chat model. If you finish without a model, the last page says “One step left: connect a model” and can jump to Settings → Models & providers.
 - **Occupation and interests** drive the recommendations: the sidebar's Get started card suggests coding agents (Claude Code and Codex for developers, at least Codex for everyone else) and features (knowledge base, reminders, voice, importing MCP and skills), and the welcome screen's example questions change to match.

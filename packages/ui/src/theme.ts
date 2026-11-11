@@ -46,7 +46,7 @@ export const THEMES: ThemeInfo[] = [
   },
   {
     id: 'sunset',
-    name: 'ui.mascot-theme.sunset-orange-brand',
+    name: 'ui.mascot-theme.sunset-orange-default',
     desc: 'ui.mascot-theme.warm-cream-with-sunset-orange-the-signature-theme',
     swatch: ['#fff8f1', '#ffffff', '#3f332d', '#c45425'],
   },
@@ -58,13 +58,13 @@ export const THEMES: ThemeInfo[] = [
   },
   {
     id: 'graphite',
-    name: 'ui.mascot-theme.graphite',
+    name: 'ui.chat-settings.graphite',
     desc: 'ui.mascot-theme.neutral-charcoal-with-indigo-a-technical-dark-theme',
     swatch: ['#13161b', '#20252d', '#f0f2f6', '#7887f5'],
   },
   {
     id: 'cream',
-    name: 'ui.mascot-theme.cream',
+    name: 'ui.mascot-theme.cream-short',
     desc: 'ui.mascot-theme.cream-white-with-soft-peach-the-lightest-theme',
     swatch: ['#fffcf6', '#ffffff', '#403126', '#ab653e'],
   },

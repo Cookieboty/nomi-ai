@@ -241,7 +241,7 @@ export const ProvidersPage: React.FC<{
                 t('ui.chat-settings.general'),
                 envBad
                   ? { label: t('ui.providers-schedule.runtime-needs-attention'), tone: 'warn' }
-                  : { label: t('ui.providers-schedule.runtime-and-permissions'), tone: 'plain' },
+                  : { label: t('ui.cli-monitor.runtime-environment'), tone: 'plain' },
               )}
             </div>
             <div

@@ -12,6 +12,7 @@ import { GeminiTrustAction } from '../components/Conversation/GeminiTrustAction'
 import type { ConvSlots } from '../components/Conversation/Messages';
 import { nomiSlots } from '../components/Conversation/nomiSlots';
 import { nomiTraceSlots, traceActions } from '../components/Conversation/TraceAction';
+import { DispatchCli, type DispatchBackend } from '../components/DispatchCli';
 import type { AiChatState } from '../contexts/AiChatContext';
 import {
   selectBusyHere,
@@ -21,6 +22,7 @@ import {
   useAiChatSelector,
 } from '../contexts/aiChatStore';
 import { useHarnessLive, type HarnessTabsCore } from '../contexts/HarnessTabsContext';
+import { useChatMode } from '../hooks/useChatMode';
 import { useLiveWithGatewayRetry } from '../hooks/useGatewayRetry';
 import { useNomiModelStatus } from '../hooks/useNomiModelStatus';
 import { useTranscriptView } from '../hooks/useTranscriptView';
@@ -111,7 +113,10 @@ const CliBody: React.FC<{
 };
 
 /** Nomi 主对话还没有消息：欢迎屏。还没有模型时快捷问题换成「添加模型」/「选择模型」，免得一点就报错 */
-const NomiWelcome: React.FC<{ onOpenModels: () => void }> = ({ onOpenModels }) => {
+const NomiWelcome: React.FC<{
+  onOpenModels: () => void;
+  onDispatch: (backend: DispatchBackend) => void;
+}> = ({ onOpenModels, onDispatch }) => {
   const { actions } = useAiChatActions();
   const modelStatus = useNomiModelStatus();
   // 示例问题按新手引导里选的职业与兴趣推荐
@@ -120,6 +125,7 @@ const NomiWelcome: React.FC<{ onOpenModels: () => void }> = ({ onOpenModels }) =
     <div className="welcome-screen" data-testid="welcome-screen">
       <div className="welcome-content">
         <h2 className="welcome-title">{t('ui.foundation.what-would-you-like-to-do-today')}</h2>
+        <DispatchCli onDispatch={onDispatch} />
         {modelStatus === 'none' || modelStatus === 'unassigned' ? (
           <div
             className="welcome-setup"
@@ -170,6 +176,15 @@ export const ChatBody: React.FC<{
   onOpenModels: () => void;
 }> = ({ tabs, isDev, sessionKey, cliMessages, nomiMessages, slash, onOpenModels }) => {
   const { view: transcriptView } = useTranscriptView(sessionKey);
+  const { setMode } = useChatMode();
+  const dispatch = useCallback(
+    (backend: DispatchBackend) => {
+      if (!isDev) setMode('dev');
+      if (!tabs.available) return;
+      void tabs.create(backend).catch(() => undefined);
+    },
+    [isDev, setMode, tabs],
+  );
   const { actions, store: chatStore } = useAiChatActions();
   const busyHere = useAiChatSelector(selectBusyHere);
   const firstMessageId = useAiChatSelector(selectFirstMessageId);
@@ -196,7 +211,7 @@ export const ChatBody: React.FC<{
       />
     );
   if (messageCount === 0 && slash.cards.length === 0)
-    return <NomiWelcome onOpenModels={onOpenModels} />;
+    return <NomiWelcome onOpenModels={onOpenModels} onDispatch={dispatch} />;
   return (
     <NomiConversation
       scopeId={`nomi:${firstMessageId ?? 'new'}`}

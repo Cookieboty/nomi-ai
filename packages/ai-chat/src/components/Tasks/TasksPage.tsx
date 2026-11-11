@@ -55,7 +55,9 @@ export const TasksPage: React.FC<{
   onOpenSchedule?: () => void;
   /** 从搜索打开某个任务：打开后选中它（nonce 变了就再选一次） */
   focus?: { id: string; nonce: number } | null;
-}> = ({ active, onBack, onOpenSchedule, focus }) => {
+  /** 命令面板「新建任务」：nonce 变了就再打开一次表单 */
+  createNonce?: number;
+}> = ({ active, onBack, onOpenSchedule, focus, createNonce = 0 }) => {
   const { data } = useTasks(active);
   const [selected, setSelected] = useState<string | null>(null);
   const [focusSeen, setFocusSeen] = useState(focus?.nonce);
@@ -64,6 +66,11 @@ export const TasksPage: React.FC<{
     setSelected(focus.id);
   }
   const [creating, setCreating] = useState(false);
+  const [createSeen, setCreateSeen] = useState(createNonce);
+  if (createNonce !== createSeen) {
+    setCreateSeen(createNonce);
+    if (createNonce > 0) setCreating(true);
+  }
   const [layout, setLayout] = useState(loadView);
   const [category, setCategory] = useState<TaskCategory | 'all'>('all');
   const [query, setQuery] = useState('');
@@ -126,18 +133,20 @@ export const TasksPage: React.FC<{
           <p className={styles.hint}>{t('ui.providers-schedule.tasks-hint')}</p>
         </div>
         <span className={styles.spacer} />
-        <label className={styles.search}>
-          <Icon icon={Search} size={14} />
-          <input
-            className={styles.searchInput}
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('ui.providers-schedule.task-search')}
-            aria-label={t('ui.providers-schedule.task-search')}
-            data-testid="tasks-search"
-          />
-        </label>
+        {allTasks.length > 0 && (
+          <label className={styles.search}>
+            <Icon icon={Search} size={14} />
+            <input
+              className={styles.searchInput}
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t('ui.providers-schedule.task-search')}
+              aria-label={t('ui.providers-schedule.task-search')}
+              data-testid="tasks-search"
+            />
+          </label>
+        )}
         <Button
           size="sm"
           variant="primary"
@@ -166,57 +175,63 @@ export const TasksPage: React.FC<{
           onChange={(view) => changeLayout({ view })}
           aria-label={t('ui.model-quality.view')}
         />
-        <div
-          className={styles.chips}
-          role="group"
-          aria-label={t('ui.providers-schedule.task-stage-filter')}
-        >
-          {(['all', ...STAGES] as const).map((k) => (
-            <button
-              key={k}
-              type="button"
-              className={styles.chip}
-              aria-pressed={stage === k}
-              onClick={() => setStage(k)}
-              data-testid={`tasks-stage-${k}`}
+        {allTasks.length > 0 && (
+          <>
+            <div
+              className={styles.chips}
+              role="group"
+              aria-label={t('ui.providers-schedule.task-stage-filter')}
             >
-              {k === 'all' ? t('ui.providers-schedule.all') : t(STAGE_LABEL[k])}
-              <span className={styles.chipCount}>
-                {k === 'all' ? tasks.length : (stageCounts.get(k) ?? 0)}
-              </span>
-            </button>
-          ))}
-        </div>
-        {layout.view === 'board' && (
-          <Select
-            size="sm"
-            variant="ghost"
-            className={styles.filter}
-            value={layout.group}
-            onChange={(e) => changeLayout({ group: e.target.value as BoardGroup })}
-            aria-label={t('ui.providers-schedule.task-board-group')}
-            options={[
-              { value: 'stage', label: t('ui.providers-schedule.task-board-by-stage') },
-              { value: 'priority', label: t('ui.providers-schedule.task-board-by-priority') },
-            ]}
-            data-testid="tasks-board-group"
-          />
+              {(['all', ...STAGES] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  className={styles.chip}
+                  aria-pressed={stage === k}
+                  onClick={() => setStage(k)}
+                  data-testid={`tasks-stage-${k}`}
+                >
+                  {k === 'all' ? t('ui.providers-schedule.all') : t(STAGE_LABEL[k])}
+                  <span className={styles.chipCount}>
+                    {k === 'all' ? tasks.length : (stageCounts.get(k) ?? 0)}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {layout.view === 'board' && (
+              <Select
+                size="sm"
+                variant="ghost"
+                className={styles.filter}
+                value={layout.group}
+                onChange={(e) => changeLayout({ group: e.target.value as BoardGroup })}
+                aria-label={t('ui.providers-schedule.task-board-group')}
+                options={[
+                  { value: 'stage', label: t('ui.providers-schedule.task-board-by-stage') },
+                  { value: 'priority', label: t('ui.providers-schedule.task-board-by-priority') },
+                ]}
+                data-testid="tasks-board-group"
+              />
+            )}
+            <Select
+              size="sm"
+              variant="ghost"
+              className={styles.filter}
+              value={category}
+              onChange={(e) => setCategory(e.target.value as TaskCategory | 'all')}
+              aria-label={t('ui.providers-schedule.task-category')}
+              options={[
+                { value: 'all', label: t('ui.providers-schedule.task-category-all') },
+                ...CATEGORIES.map((c) => ({ value: c, label: t(CATEGORY_LABEL[c]) })),
+              ]}
+              data-testid="tasks-category"
+            />
+            <span className={styles.spacer} />
+            <span className={styles.count}>
+              {t('ui.providers-schedule.task-count', tasks.length)}
+            </span>
+          </>
         )}
-        <Select
-          size="sm"
-          variant="ghost"
-          className={styles.filter}
-          value={category}
-          onChange={(e) => setCategory(e.target.value as TaskCategory | 'all')}
-          aria-label={t('ui.providers-schedule.task-category')}
-          options={[
-            { value: 'all', label: t('ui.providers-schedule.task-category-all') },
-            ...CATEGORIES.map((c) => ({ value: c, label: t(CATEGORY_LABEL[c]) })),
-          ]}
-          data-testid="tasks-category"
-        />
-        <span className={styles.spacer} />
-        <span className={styles.count}>{t('ui.providers-schedule.task-count', tasks.length)}</span>
       </div>
       <div className={styles.body}>
         {layout.view === 'board' && data && !allTasks.length && (

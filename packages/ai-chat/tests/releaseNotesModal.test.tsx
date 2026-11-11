@@ -160,4 +160,32 @@ describe('localizeReleaseNotes', () => {
     expect(en).toContain('- Installed builds register the `nomi://` link handler');
     expect(en).not.toMatch(/修复|安装版/);
   });
+
+  it('keeps a Chinese section and an English section when the notes use ## English', () => {
+    const notes = `# Nomi·诺米 2.3.10
+
+工作台的第一眼改干净了。
+
+- 模式改为对话与工坊。
+
+## 细节
+
+- 空看板只留一个主按钮。
+
+## English
+
+The workbench's first look is cleaner.
+
+- Modes are now Chat and Workshop.
+`;
+    const zh = localizeReleaseNotes(notes, 'zh-CN');
+    expect(zh).toContain('工作台的第一眼改干净了。');
+    expect(zh).toContain('## 细节');
+    expect(zh).not.toContain('Workshop');
+    expect(zh).not.toMatch(/^# /m);
+    const en = localizeReleaseNotes(notes, 'en');
+    expect(en).toContain("The workbench's first look is cleaner.");
+    expect(en).not.toContain('工作台');
+    expect(en).not.toContain('## English');
+  });
 });

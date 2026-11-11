@@ -62,7 +62,7 @@
   }
   .picker {
     position: static;
-    grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
   }
   .pickSep {
     display: none;
@@ -114,9 +114,8 @@
 .pickName {
   font-size: var(--cd-font-size-sm);
   font-weight: var(--cd-font-weight-medium);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .pickOn .pickName {
   color: var(--cd-color-selected-text);
@@ -127,9 +126,7 @@
   gap: var(--cd-space-1);
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
 }
 .pickStatus::before {
   content: '';
@@ -198,6 +195,21 @@
   padding: var(--cd-space-2) 0;
   font-size: var(--cd-font-size-sm);
   color: var(--cd-color-text-muted);
+}
+
+.fold {
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-settings-card-bg);
+  padding: var(--cd-space-3) var(--cd-space-4);
+}
+.foldSummary {
+  cursor: pointer;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+}
+.fold[open] .foldSummary {
+  margin-bottom: var(--cd-space-3);
 }
 
 .cmd {

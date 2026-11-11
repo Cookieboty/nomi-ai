@@ -5,7 +5,7 @@
 import { api, hasTransport } from './api';
 
 export type StartupView = 'mascot' | 'main';
-export const DEFAULT_STARTUP_VIEW: StartupView = 'mascot';
+export const DEFAULT_STARTUP_VIEW: StartupView = 'main';
 /** 关闭主界面时：hide（默认，桌面角色与托盘继续运行）/ quit（完全退出 Nomi） */
 export type CloseMainAction = 'hide' | 'quit';
 export const DEFAULT_CLOSE_MAIN: CloseMainAction = 'hide';
@@ -37,7 +37,7 @@ const pickClose = (r: unknown): CloseMainAction | null => {
 
 export const startupClient = {
   available: () => hasTransport(),
-  /** 读取失败 / 值异常时回落到默认（桌面角色） */
+  /** 读取失败 / 值异常时回落到默认（工作台） */
   async get(): Promise<StartupView> {
     const r = await read();
     return pick(r) ?? DEFAULT_STARTUP_VIEW;

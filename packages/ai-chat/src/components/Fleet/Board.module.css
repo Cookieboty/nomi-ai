@@ -196,6 +196,9 @@
   font-size: var(--cd-font-size-sm);
   text-align: center;
 }
+.emptyState {
+  padding: var(--cd-space-8) 0;
+}
 
 .card {
   min-width: 0;

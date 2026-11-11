@@ -13,13 +13,6 @@ const SHORT = { zh: 'Nomi', en: 'Nomi' };
 const CASES: Array<
   [key: string, name: 'full' | 'short', zh: string, en: string, pronoun?: [zh: string, en: string]]
 > = [
-  ['ui.mascot-theme.welcome-title', 'full', '你好，我是 Nomi·诺米', "Hi, I'm Nomi"],
-  [
-    'ui.mascot-theme.hi-i-m-nomi-your-ai-companion-who',
-    'full',
-    '你好，我是 Nomi·诺米，住在你桌面上的 AI 伙伴。花一分钟认识一下吧！',
-    'Hi, I’m Nomi — your AI companion who lives on your desktop. Let’s get to know each other in a minute!',
-  ],
   ['electron.common.nomi-motions', 'short', 'Nomi 动作', 'Nomi motions'],
   [
     'ui.chat-settings.nomi-is-hidden-show-it-to-adjust-its',
@@ -42,13 +35,6 @@ const CASES: Array<
   ],
   ['ui.mascot-theme.desktop-nomi', 'short', '桌面 Nomi', 'Desktop Nomi'],
   [
-    'ui.mascot-theme.nomi-appears-on-your-desktop-first-click-her',
-    'short',
-    '桌面上先出现 Nomi，点她的「AI 对话」进入主界面（默认）',
-    'Nomi appears on your desktop first; click her “AI chat” to open the main window (default)',
-    ['她', 'her'],
-  ],
-  [
     'ui.mascot-theme.nomi-is-closed-show-on-startup-has-been',
     'short',
     'Nomi 已关闭，启动后默认显示已改为「软件主界面」。',
@@ -69,22 +55,15 @@ const CASES: Array<
   [
     'ui.mascot-theme.open-the-main-window-right-after-launch-nomi',
     'short',
-    '启动后直接打开主界面；Nomi 仍在桌面待命，定时任务和提醒照常播报。',
-    'Open the main window right after launch; Nomi stays on your desktop and scheduled tasks and reminders are still announced.',
+    '启动后直接打开工作台（默认）。桌面角色可以另外打开。',
+    'Open the workbench right after launch (default). The desktop character can be turned on separately.',
   ],
-  [
-    'ui.mascot-theme.open-the-main-window-right-away-nomi-waits',
-    'short',
-    '直接打开软件主界面，Nomi 在桌面待命',
-    'Open the main window right away; Nomi waits on your desktop',
-  ],
-  ['ui.mascot-theme.open-with-nomi', 'short', '以 Nomi 方式打开', 'Open with Nomi'],
   ['ui.mascot-theme.show-nomi', 'short', '显示 Nomi', 'Show Nomi'],
   [
     'ui.mascot-theme.startup-mascot-first',
     'short',
-    '桌面上先出现 Nomi，需要时点她的「AI 对话」进入主界面（默认）。',
-    'Nomi appears on your desktop first; click her “AI chat” to open the main window when needed (default).',
+    '桌面上先出现 Nomi，需要时点她的「AI 对话」进入主界面。',
+    'Nomi appears on your desktop first; click her “AI chat” to open the main window when needed.',
     ['她', 'her'],
   ],
   [
@@ -138,7 +117,7 @@ describe('character-name copy with the official pack (docs/BRAND.md)', () => {
   it('a pack without a pronoun reads as 它 / it', () => {
     applyLocale('zh-CN');
     expect(tName('ui.mascot-theme.startup-mascot-first', '小纸', '它')).toBe(
-      '桌面上先出现小纸，需要时点它的「AI 对话」进入主界面（默认）。',
+      '桌面上先出现小纸，需要时点它的「AI 对话」进入主界面。',
     );
     applyLocale('en');
     expect(tName('ui.chat-settings.nomi-is-hidden-show-it-to-adjust-its', 'Pip', 'it')).toBe(
@@ -158,7 +137,7 @@ describe('character-name copy with the official pack (docs/BRAND.md)', () => {
     applyLocale('zh-CN');
     expect(tName('ui.mascot-theme.show-nomi', '小纸')).toBe('显示小纸');
     expect(tName('ui.usage-tools.nomi-size', '小纸')).toBe('小纸大小');
-    expect(tName('ui.mascot-theme.welcome-title', '小纸')).toBe('你好，我是小纸');
+    expect(tName('ui.mascot-theme.onb-startup-character', '小纸')).toBe('打开小纸');
   });
 
   it('no rendered zh string shows a bare 诺米', () => {

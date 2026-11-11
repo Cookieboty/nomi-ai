@@ -139,7 +139,7 @@ describe('ProvidersPage', () => {
     await waitFor(() => r.getByTestId('providers-section-claude'));
     expect(r.queryByTestId('cli-runtime-environment')).toBeNull();
     expect(r.queryByTestId('providers-runtime-warning')).toBeNull();
-    expect(r.getByTestId('providers-endpoint-status-general').textContent).toBe('运行环境与权限');
+    expect(r.getByTestId('providers-endpoint-status-general').textContent).toBe('运行环境');
     fireEvent.click(r.getByTestId('providers-endpoint-general'));
     await waitFor(() => r.getByTestId('cli-runtime-environment'));
     expect(r.queryByTestId('providers-section-claude')).toBeNull();
