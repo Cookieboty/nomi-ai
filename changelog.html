@@ -105,8 +105,8 @@
   <meta name="theme-color" content="#FFFBF6" />
   <link rel="icon" href="assets/brand/favicon.ico" sizes="48x48" />
   <link rel="icon" href="assets/brand/nomi-mark.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="assets/brand/favicon-96.png" />
-  <link rel="stylesheet" href="css/site.css?v=20261111b" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png" />
+  <link rel="stylesheet" href="css/site.css?v=20261111c" />
 </head>
 <body>
   <a class="skip" href="#main" data-i18n="s.skip">跳到正文</a>
@@ -114,6 +114,7 @@
     <div class="wrap header-row">
       <a class="brand" href="index.html"><img src="assets/brand/nomi-mark.svg" alt="" width="28" height="28"><span data-i18n="s.brand">Nomi·诺米</span></a>
       <nav class="nav" id="site-nav" aria-label="主导航" data-i18n-aria-label="nav.main">
+        <a class="nav-cta" href="download.html" data-i18n="nav.cta">下载 Nomi</a>
         <a href="index.html" data-i18n="nav.home">首页</a>
         <a href="docs.html" data-i18n="nav.docs">文档</a>
         <a href="changelog.html" aria-current="page" data-i18n="nav.changelog">更新日志</a>
@@ -137,7 +138,7 @@
       <div class="wrap log">
         <article class="log-entry" id="v2-3-10">
           <p class="log-meta"><a href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.3.10">v2.3.10</a><time datetime="2026-11-11">2026-11-11</time></p>
-          <div><h2 data-i18n="s.cl.0.h">Nomi 和编程助手可以直接操作你电脑上的应用了。</h2><ul><li data-i18n="s.cl.0.p0">在「设置 → Computer Use」装好执行器，Nomi 就能读界面、点按钮、填表、按快捷键。</li><li data-i18n="s.cl.0.p1">点一次「允许」，这个对话里后面的桌面操作自动执行；付款、发送、删除仍每次确认。</li><li data-i18n="s.cl.0.p2">Claude Code、Codex 改完代码可以自己打开应用点一遍；随时可以一键停止。</li><li data-i18n="s.cl.0.p3">引导缩成三步，装好编程助手就进看板。</li></ul><h3 data-i18n="s.cl.fixes">修复</h3><ul><li data-i18n="s.cl.0.f0">跑命令可以「本会话始终执行」。</li><li data-i18n="s.cl.0.f1">文件 Diff 按语言高亮。</li><li data-i18n="s.cl.0.f2">编程助手第一轮出错后，下一轮接着原来的会话。</li></ul></div>
+          <div><h2 data-i18n="s.cl.0.h">Nomi 和编程助手可以直接操作你电脑上的应用了。</h2><ul><li data-i18n="s.cl.0.p0">在「设置 → Computer Use」装好执行器（Vercel Labs 开源的 agent-desktop，Apache-2.0）并授权，Nomi 就能读界面、点按钮、填表、按快捷键。</li><li data-i18n="s.cl.0.p1">点一次「允许」，这个对话里后面的桌面操作自动执行；付款、发送、删除仍每次确认。</li><li data-i18n="s.cl.0.p2">Claude Code、Codex 改完代码可以自己打开应用点一遍；随时可以一键停止。</li><li data-i18n="s.cl.0.p3">引导缩成三步，装好编程助手就进看板。</li></ul><h3 data-i18n="s.cl.fixes">修复</h3><ul><li data-i18n="s.cl.0.f0">跑命令可以「本会话始终执行」。</li><li data-i18n="s.cl.0.f1">文件 Diff 按语言高亮。</li><li data-i18n="s.cl.0.f2">编程助手第一轮出错后，下一轮接着原来的会话。</li><li data-i18n="s.cl.0.f3">去掉任务的预算拦截，自动续跑不再中途停下。</li></ul></div>
         </article>
         <article class="log-entry" id="v2-3-9">
           <p class="log-meta"><a href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.3.9">v2.3.9</a><time datetime="2026-11-10">2026-11-10</time></p>

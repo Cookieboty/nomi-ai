@@ -149,7 +149,7 @@ function build(source, page, lang) {
   html = html.replace(/<meta name="description"[^>]*>/, () => `<meta name="description" content="${escape(meta(page, lang).description)}" />`);
   html = html.replace(/[ \t]*<meta name="theme-color"/, (tag) => `${seoBlock(page, lang)}${tag}`);
   html = html.replace(/([ \t]*)<link rel="icon" href="assets\/brand\/nomi-mark\.svg" type="image\/svg\+xml" \/>/, (line, indent) =>
-    `${indent}<link rel="icon" href="assets/brand/favicon.ico" sizes="48x48" />\n${line}\n${indent}<link rel="apple-touch-icon" href="assets/brand/favicon-96.png" />`);
+    `${indent}<link rel="icon" href="assets/brand/favicon.ico" sizes="48x48" />\n${line}\n${indent}<link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png" />`);
   html = languageLinks(html, page, lang);
   if (lang === "en") html = html.replace(/(["'( ])(assets\/|css\/|js\/)/g, "$1../$2");
   return html;
@@ -227,7 +227,7 @@ for (const lang of langs) {
 ${seoHead({ lang, title, description, urls, crumbs })}  <meta name="theme-color" content="#FFFBF6" />
   <link rel="icon" href="${assetPrefix}assets/brand/favicon.ico" sizes="48x48" />
   <link rel="icon" href="${assetPrefix}assets/brand/nomi-mark.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="${assetPrefix}assets/brand/favicon-96.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="${assetPrefix}assets/brand/apple-touch-icon.png" />
   <link rel="stylesheet" href="${assetPrefix}css/site.css?v=${assetVersion}" />
 </head>
 <body class="docs-page">

@@ -98,8 +98,8 @@
   <meta name="theme-color" content="#FFFBF6" />
   <link rel="icon" href="../assets/brand/favicon.ico" sizes="48x48" />
   <link rel="icon" href="../assets/brand/nomi-mark.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="../assets/brand/favicon-96.png" />
-  <link rel="stylesheet" href="../css/site.css?v=20261111b" />
+  <link rel="apple-touch-icon" sizes="180x180" href="../assets/brand/apple-touch-icon.png" />
+  <link rel="stylesheet" href="../css/site.css?v=20261111c" />
 </head>
 <body>
   <a class="skip" href="#main" data-i18n="s.skip">Skip to content</a>
@@ -107,6 +107,7 @@
     <div class="wrap header-row">
       <a class="brand" href="index.html"><img src="../assets/brand/nomi-mark.svg" alt="" width="28" height="28"><span data-i18n="s.brand">Nomi</span></a>
       <nav class="nav" id="site-nav" aria-label="Main" data-i18n-aria-label="nav.main">
+        <a class="nav-cta" href="download.html" data-i18n="nav.cta">Download Nomi</a>
         <a href="index.html" aria-current="page" data-i18n="nav.home">Home</a>
         <a href="docs.html" data-i18n="nav.docs">Docs</a>
         <a href="changelog.html" data-i18n="nav.changelog">Changelog</a>
@@ -132,9 +133,9 @@
           <a class="btn btn-primary" href="download.html" data-download-primary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg><span data-download-label data-i18n="nav.cta">Download Nomi</span></a>
           <a class="btn btn-ghost" href="https://github.com/Cookieboty/nomi-ai"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.56 9.56 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg><span>GitHub</span></a>
         </div>
-        <p class="platforms"><span data-i18n="s.hero.platforms">Windows, macOS, and Linux. About 25 MB.</span> <a href="download.html" data-i18n="s.hero.other">Other systems and versions</a></p>
+        <p class="platforms"><span data-i18n="s.hero.platforms">Windows, macOS, and Linux. About 22–29 MB.</span> <a class="nowrap" href="download.html" data-i18n="s.hero.other">Other systems and versions</a></p>
         <figure class="shot" style="margin-left:0;margin-right:0">
-          <img src="../assets/screenshots/agent-board-hero.webp?v=20261111" srcset="../assets/screenshots/agent-board-hero-640.webp?v=20261111 640w, ../assets/screenshots/agent-board-hero.webp?v=20261111 1280w, ../assets/screenshots/agent-board-hero-2x.webp?v=20261111 2560w" sizes="(max-width: 1240px) 100vw, 1160px" width="1600" height="900" fetchpriority="high" decoding="async" alt="The Agent board: Claude Code and Codex running in parallel in the nomi-ai project, with another card done" data-i18n-alt="s.hero.alt">
+          <img src="../assets/screenshots/agent-board-hero.webp?v=20261111c" srcset="../assets/screenshots/agent-board-hero-640.webp?v=20261111c 640w, ../assets/screenshots/agent-board-hero.webp?v=20261111c 1280w, ../assets/screenshots/agent-board-hero-2x.webp?v=20261111c 2560w" sizes="(max-width: 1240px) 100vw, 1160px" width="1600" height="900" fetchpriority="high" decoding="async" alt="The Agent board: Claude Code and Codex running in parallel in the nomi-ai project, with another card done" data-i18n-alt="s.hero.alt">
         </figure>
       </div>
     </section>
@@ -143,9 +144,9 @@
       <div class="wrap">
         <div class="section-head"><h2 class="h2" id="pillars-title" data-i18n="s.pillars.title">The agents you already use, in one place.</h2></div>
         <div class="cards">
-          <article class="card"><div class="card-body"><h3 data-i18n="s.p1.title">One board for all of them.</h3><p data-i18n="s.p1.desc">See who is running, how far, and what is done.</p></div><div class="card-crop"><img style="transform:scale(2.3);transform-origin:40% 26%" src="../assets/screenshots/agent-board.webp?v=20261111" srcset="../assets/screenshots/agent-board-640.webp?v=20261111 640w, ../assets/screenshots/agent-board.webp?v=20261111 1280w, ../assets/screenshots/agent-board-2x.webp?v=20261111 2560w" sizes="(max-width: 1240px) 100vw, 1160px" width="1280" height="944" loading="lazy" decoding="async" alt="Board cards with status, folder, CPU and memory" data-i18n-alt="s.p1.alt"></div></article>
-          <article class="card"><div class="card-body"><h3 data-i18n="s.p2.title">Connect models once.</h3><p data-i18n="s.p2.desc">It applies only to processes Nomi starts — official, third-party, or local.</p></div><div class="card-crop"><img style="transform:scale(2.1);transform-origin:38% 60%" src="../assets/screenshots/models-gateway.webp?v=20261111" srcset="../assets/screenshots/models-gateway-640.webp?v=20261111 640w, ../assets/screenshots/models-gateway.webp?v=20261111 1280w, ../assets/screenshots/models-gateway-2x.webp?v=20261111 2560w" sizes="(max-width: 1240px) 100vw, 1160px" width="1280" height="944" loading="lazy" decoding="async" alt="Models and providers used by coding agents and Nomi" data-i18n-alt="s.p2.alt"></div></article>
-          <article class="card"><div class="card-body"><h3 data-i18n="s.p3.title">Let them run, with limits you set.</h3><p data-i18n="s.p3.desc">Risks stay visible. Work stays on your machine.</p></div><div class="card-crop"><img style="transform:scale(2.1);transform-origin:47% 92%" src="../assets/screenshots/permission-modes.webp?v=20261111" srcset="../assets/screenshots/permission-modes-640.webp?v=20261111 640w, ../assets/screenshots/permission-modes.webp?v=20261111 1280w, ../assets/screenshots/permission-modes-2x.webp?v=20261111 2560w" sizes="(max-width: 1240px) 100vw, 1160px" width="1280" height="944" loading="lazy" decoding="async" alt="Permission modes: whether each step asks you first" data-i18n-alt="s.p3.alt"></div></article>
+          <article class="card"><div class="card-body"><h3 data-i18n="s.p1.title">One board for all of them.</h3><p data-i18n="s.p1.desc">See who is running, how far, and what is done.</p></div><div class="card-crop"><img style="transform:scale(2.3);transform-origin:40% 26%" src="../assets/screenshots/agent-board.webp?v=20261111c" srcset="../assets/screenshots/agent-board-640.webp?v=20261111c 640w, ../assets/screenshots/agent-board.webp?v=20261111c 1280w, ../assets/screenshots/agent-board-2x.webp?v=20261111c 2560w" sizes="(max-width: 1240px) 100vw, 1160px" width="1280" height="944" loading="lazy" decoding="async" alt="Board cards with status, folder, CPU and memory" data-i18n-alt="s.p1.alt"></div></article>
+          <article class="card"><div class="card-body"><h3 data-i18n="s.p2.title">Connect models once.</h3><p data-i18n="s.p2.desc">It applies only to processes Nomi starts — official, third-party, or local.</p></div><div class="card-crop"><img style="transform:scale(2.1);transform-origin:38% 60%" src="../assets/screenshots/models-gateway.webp?v=20261111c" srcset="../assets/screenshots/models-gateway-640.webp?v=20261111c 640w, ../assets/screenshots/models-gateway.webp?v=20261111c 1280w, ../assets/screenshots/models-gateway-2x.webp?v=20261111c 2560w" sizes="(max-width: 1240px) 100vw, 1160px" width="1280" height="944" loading="lazy" decoding="async" alt="Models and providers used by coding agents and Nomi" data-i18n-alt="s.p2.alt"></div></article>
+          <article class="card"><div class="card-body"><h3 data-i18n="s.p3.title">Let them run, with limits you set.</h3><p data-i18n="s.p3.desc">Risks stay visible. Work stays on your machine.</p></div><div class="card-crop"><img style="transform:scale(2.1);transform-origin:47% 92%" src="../assets/screenshots/permission-modes.webp?v=20261111c" srcset="../assets/screenshots/permission-modes-640.webp?v=20261111c 640w, ../assets/screenshots/permission-modes.webp?v=20261111c 1280w, ../assets/screenshots/permission-modes-2x.webp?v=20261111c 2560w" sizes="(max-width: 1240px) 100vw, 1160px" width="1280" height="944" loading="lazy" decoding="async" alt="Permission modes: whether each step asks you first" data-i18n-alt="s.p3.alt"></div></article>
         </div>
       </div>
     </section>
@@ -154,11 +155,11 @@
       <div class="wrap">
         <div class="surface">
           <div><h2 class="h2" id="board-title" data-i18n="s.board.title">The board: see who is working.</h2><p class="lead" data-i18n="s.board.desc">Nomi’s chats, background runs and the coding agents it dispatches all sit on this board, with status, folder and resource use. Sessions open in a terminal or IDE show up too, read-only.</p></div>
-          <figure class="shot" style="margin:0"><a class="zoom" href="../assets/screenshots/agent-board-2x.webp?v=20261111" aria-label="Open full size" data-i18n-aria-label="s.zoom"><img src="../assets/screenshots/agent-board.webp?v=20261111" srcset="../assets/screenshots/agent-board-640.webp?v=20261111 640w, ../assets/screenshots/agent-board.webp?v=20261111 1280w, ../assets/screenshots/agent-board-2x.webp?v=20261111 2560w" sizes="(max-width: 1240px) 100vw, 1160px" width="1280" height="944" loading="lazy" decoding="async" alt="The full Agent board" data-i18n-alt="s.board.alt"></a></figure>
+          <figure class="shot" style="margin:0"><a class="zoom" href="../assets/screenshots/agent-board-2x.webp?v=20261111c" aria-label="Open full size" data-i18n-aria-label="s.zoom"><img src="../assets/screenshots/agent-board.webp?v=20261111c" srcset="../assets/screenshots/agent-board-640.webp?v=20261111c 640w, ../assets/screenshots/agent-board.webp?v=20261111c 1280w, ../assets/screenshots/agent-board-2x.webp?v=20261111c 2560w" sizes="(max-width: 1240px) 100vw, 1160px" width="1280" height="944" loading="lazy" decoding="async" alt="The full Agent board" data-i18n-alt="s.board.alt"></a></figure>
         </div>
         <div class="surface surface--flip">
-          <div><h2 class="h2" data-i18n="s.shop.title">The workshop: several coding agents, side by side.</h2><p class="lead" data-i18n="s.shop.desc">Chat, changes and files in one window. Review the diff before you commit; a project can hold several folders.</p></div>
-          <figure class="shot" style="margin:0"><a class="zoom" href="../assets/screenshots/workspace-2x.webp?v=20261111" aria-label="Open full size" data-i18n-aria-label="s.zoom"><img src="../assets/screenshots/workspace.webp?v=20261111" srcset="../assets/screenshots/workspace-640.webp?v=20261111 640w, ../assets/screenshots/workspace.webp?v=20261111 1280w, ../assets/screenshots/workspace-2x.webp?v=20261111 2560w" sizes="(max-width: 1240px) 100vw, 1160px" width="1280" height="944" loading="lazy" decoding="async" alt="The workshop: chat, changes and files" data-i18n-alt="s.shop.alt"></a></figure>
+          <div><h2 class="h2" data-i18n="s.shop.title">The workshop: several coding agents, side by side.</h2><p class="lead" data-i18n="s.shop.desc">Chat, changes and files in one window. Review the diff before you commit; after changing code, a coding agent can open the app and click through it with Computer Use.</p></div>
+          <figure class="shot" style="margin:0"><a class="zoom" href="../assets/screenshots/workspace-2x.webp?v=20261111c" aria-label="Open full size" data-i18n-aria-label="s.zoom"><img src="../assets/screenshots/workspace.webp?v=20261111c" srcset="../assets/screenshots/workspace-640.webp?v=20261111c 640w, ../assets/screenshots/workspace.webp?v=20261111c 1280w, ../assets/screenshots/workspace-2x.webp?v=20261111c 2560w" sizes="(max-width: 1240px) 100vw, 1160px" width="1280" height="944" loading="lazy" decoding="async" alt="The workshop: chat, changes and files" data-i18n-alt="s.shop.alt"></a></figure>
         </div>
       </div>
     </section>
@@ -180,22 +181,16 @@
         <div class="mascot">
           <div class="mascot-copy">
             <span class="eyebrow" data-i18n="s.mascot.eyebrow">Desktop character · optional</span>
-            <h2 class="h2" id="mascot-title" data-i18n="s.mascot.title">She sits in a corner of your desktop and keeps an eye on progress.</h2>
-            <p class="lead" data-i18n="s.mascot.lead">A small transparent window that stays on top. Only the character takes clicks; everywhere else your mouse goes straight through. Turn it off if you don't need it — the board and chat work the same.</p>
-            <ul class="mascot-points">
-              <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><strong data-i18n="s.mascot.p1.h">Task status on her face</strong><span data-i18n="s.mascot.p1.d">A thumbs-up when a task is done, an apology when it fails, chin in hand while thinking, typing while tools run.</span></div></li>
-              <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4 4v-4h0A2 2 0 0 1 4 14z"/></svg><div><strong data-i18n="s.mascot.p2.h">Replies in a bubble first</strong><span data-i18n="s.mascot.p2.d">The first sentence or two of each reply shows next to her. Click to open the full chat.</span></div></li>
-              <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg><div><strong data-i18n="s.mascot.p3.h">Drop a file on her</strong><span data-i18n="s.mascot.p3.d">Drag a file onto her: a one-line summary in the bubble, the full summary in the chat.</span></div></li>
-              <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 7.5a8 8 0 1 0 11.4 0"/></svg><div><strong data-i18n="s.mascot.p4.h">Close it any time</strong><span data-i18n="s.mascot.p4.d">Once closed, notices come through the Dynamic Island or system notifications. Turn her back on in Settings.</span></div></li>
-            </ul>
+            <h2 class="h2" id="mascot-title" data-i18n="s.mascot.title">The desktop character is optional. Turn it off if you don't need it.</h2>
+            <p class="lead" data-i18n="s.mascot.lead">The board works the same. When it's on, it sits in a corner of your desktop and shows task progress with expressions and bubbles. It's off by default on a fresh install; switch it in Settings any time.</p>
             <a class="text-link" href="docs/mascot.html" data-i18n="s.mascot.more">About the desktop character →</a>
           </div>
-          <div class="mascot-stage" aria-hidden="true">
-            <div class="mascot-window">
+          <div class="mascot-stage">
+            <div class="mascot-window" aria-hidden="true">
               <span class="dot"></span><span class="dot"></span><span class="dot"></span>
             </div>
-            <img src="../assets/screenshots/mascot-bubble.webp?v=20261111" srcset="../assets/screenshots/mascot-bubble-640.webp?v=20261111 640w, ../assets/screenshots/mascot-bubble.webp?v=20261111 1280w" sizes="(max-width: 900px) 80vw, 440px" width="1280" height="1377" loading="lazy" decoding="async" alt="">
-            <div class="mascot-dock"></div>
+            <img src="../assets/screenshots/mascot-bubble.webp?v=20261111" srcset="../assets/screenshots/mascot-bubble-640.webp?v=20261111 640w, ../assets/screenshots/mascot-bubble.webp?v=20261111 1280w" sizes="(max-width: 900px) 80vw, 440px" width="1280" height="1377" loading="lazy" decoding="async" alt="The optional desktop character in a corner, with a task-progress bubble beside it" data-i18n-alt="s.mascot.alt">
+            <div class="mascot-dock" aria-hidden="true"></div>
           </div>
         </div>
       </div>
@@ -203,7 +198,7 @@
 
     <section class="section" id="download" aria-labelledby="dl-title">
       <div class="wrap">
-        <div class="section-head"><h2 class="h2" id="dl-title" data-i18n="s.dl.title">Download Nomi</h2><p class="lead" data-i18n="s.dl.band">Runs locally. About 25 MB.</p></div>
+        <div class="section-head"><h2 class="h2" id="dl-title" data-i18n="s.dl.title">Download Nomi</h2><p class="lead" data-i18n="s.dl.band">Runs locally. About 22–29 MB.</p></div>
         <div class="dl" data-os-grid>
           <div class="dl-card" data-os="win">
             <h3><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5l7.5-1v7H3zm8.5-1.15L21 3v8.5h-9.5zM3 12.5h7.5v7L3 18.5zm8.5 0H21V21l-9.5-1.35z"/></svg><span>Windows</span><span class="tag" data-i18n="s.dl.recommended">Recommended</span></h3>

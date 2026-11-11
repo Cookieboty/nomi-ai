@@ -11,7 +11,7 @@
   --surface: #ffffff;
   --ink: #2b231b;
   --ink-2: rgba(43, 35, 27, 0.72);
-  --ink-3: rgba(43, 35, 27, 0.52);
+  --ink-3: rgba(43, 35, 27, 0.66);
   --line: rgba(43, 35, 27, 0.08);
   --line-2: rgba(43, 35, 27, 0.14);
   --orange: #fb9466;
@@ -194,6 +194,10 @@ p {
   text-decoration: none;
   transition: color 0.15s ease, background-color 0.15s ease;
 }
+/* 窄屏页头放不下「下载 Nomi」时，它出现在菜单最上面 */
+.nav .nav-cta {
+  display: none;
+}
 .nav a:hover {
   color: var(--ink);
   background: rgba(43, 35, 27, 0.05);
@@ -291,6 +295,17 @@ p {
   .header-cta {
     display: none;
   }
+  .nav .nav-cta {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--ink);
+    font-weight: 600;
+    text-align: center;
+    background: var(--orange);
+  }
+  .nav .nav-cta:hover {
+    background: var(--orange-hover);
+  }
 }
 
 /* ---------- 区块 ---------- */
@@ -363,6 +378,9 @@ p {
 }
 .platforms a {
   color: var(--ink-2);
+}
+.nowrap {
+  white-space: nowrap;
 }
 .shot {
   margin-top: 56px;
@@ -517,44 +535,6 @@ p {
 .mascot-copy .eyebrow {
   background: var(--surface);
 }
-.mascot-points {
-  display: grid;
-  gap: 20px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: 36px 0 0;
-  padding: 0;
-  list-style: none;
-}
-.mascot-points li {
-  display: flex;
-  gap: 12px;
-}
-.mascot-points svg {
-  flex: none;
-  width: 36px;
-  height: 36px;
-  padding: 8px;
-  border-radius: 10px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.mascot-points strong {
-  display: block;
-  font-size: 15px;
-  line-height: 1.4;
-}
-.mascot-points span {
-  display: block;
-  margin-top: 4px;
-  color: var(--ink-2);
-  font-size: 14px;
-  line-height: 1.55;
-}
 .text-link {
   display: inline-block;
   margin-top: 32px;
@@ -631,11 +611,6 @@ p {
   .mascot-stage img {
     margin-right: auto;
     width: min(80%, 320px);
-  }
-}
-@media (max-width: 560px) {
-  .mascot-points {
-    grid-template-columns: 1fr;
   }
 }
 
