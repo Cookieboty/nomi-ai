@@ -45,7 +45,7 @@ const conv = (id: string, name: string, backend: string, age: number, extra = {}
   ...extra,
 });
 let convs: ReturnType<typeof conv>[] = [];
-const tabStatus = 'idle';
+let tabStatus = 'idle';
 const updateMeta = vi.fn();
 const deleteConversation = vi.fn(async () => undefined);
 const onNewChat = vi.fn();
@@ -165,6 +165,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   failCreate = false;
+  tabStatus = 'idle';
   cleanup();
   localStorage.clear();
   resetFakeApi();
@@ -322,6 +323,18 @@ describe('sidebar project groups', () => {
       (g) => g.dataset.project === 'p_empty',
     )!;
     expect(within(empty).getByTestId('workspace-toggle').textContent).toBe('empty');
+  });
+
+  it('进行中的会话只看行首状态点：行尾不写「进行中」，状态文字只给读屏', async () => {
+    tabStatus = 'running';
+    mockIpc();
+    const r = mount();
+    const api = (await r.findAllByTestId('workspace-group')).find(
+      (g) => g.dataset.project === 'p_api',
+    )!;
+    const live = await within(api).findByTestId('thread-live');
+    expect(live.textContent).toBe('进行中');
+    expect(live.className).toMatch(/srOnly/);
   });
 
   it('「项目」标题上的按钮打开「创建项目」，不开对话；项目上的「…」打开「编辑项目」', async () => {

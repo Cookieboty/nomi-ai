@@ -218,12 +218,13 @@ const ThreadItemImpl: React.FC<{
         <span className={styles.threadName}>
           {c.name ? t(c.name) : t('ui.chat-settings.new-chat')}
         </span>
-        {/* 不显示时间（悬停卡片里有）；进行中 / 排队时显示状态文字，一眼看出哪个任务在跑 */}
-        {live === 'running' || live === 'queued' ? (
-          <span className={styles.threadLive} data-live={live} data-testid="thread-live">
+        {/* 不显示时间（悬停卡片里有）；进行中 / 排队只看行首的状态点，不再重复写字，文字只给读屏 */}
+        {(live === 'running' || live === 'queued') && (
+          <span className={styles.srOnly} data-live={live} data-testid="thread-live">
             {live === 'running' ? t('ui.chat-settings.in-progress') : t('ui.mascot-theme.queued')}
           </span>
-        ) : endpointMark ? (
+        )}
+        {endpointMark ? (
           <span className={styles.threadEp} data-testid="thread-endpoint" aria-hidden>
             <EndpointIcon backend={c.backend} size={12} decorative />
           </span>

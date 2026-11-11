@@ -458,16 +458,6 @@
   white-space: nowrap;
   margin-left: auto;
 }
-.threadLive {
-  font-size: var(--cd-font-size-sm);
-  font-weight: var(--cd-font-weight-medium);
-  color: var(--cd-color-accent-strong);
-  white-space: nowrap;
-  margin-left: auto;
-}
-.threadLive[data-live='queued'] {
-  color: var(--cd-color-warning);
-}
 .histTitle {
   display: flex;
   align-items: center;
@@ -621,18 +611,14 @@
 .row[data-active][data-confirming] .rowActions {
   background: var(--sb-selected-bg);
 }
-.row .threadTime,
-.row .threadLive {
+.row .threadTime {
   justify-self: end;
 }
 .row:hover .threadTime,
-.row:hover .threadLive,
 .row:focus-within .threadTime,
-.row:focus-within .threadLive,
-.row[data-confirming] .threadTime,
-.row[data-confirming] .threadLive {
+.row[data-confirming] .threadTime {
   opacity: 0;
-  /* 与蒙版同时藏字：避免强调色「进行中」在 opacity 过渡帧透过图标描边 */
+  /* 与蒙版同时藏字：避免时间在 opacity 过渡帧透过图标描边 */
   visibility: hidden;
 }
 @media (hover: none) {
@@ -640,8 +626,7 @@
     opacity: 1;
     pointer-events: auto;
   }
-  .threadTime,
-  .threadLive {
+  .threadTime {
     opacity: 0;
     visibility: hidden;
   }
@@ -682,8 +667,7 @@
 }
 @media (prefers-reduced-motion: no-preference) {
   .rowActions,
-  .threadTime,
-  .threadLive {
+  .threadTime {
     transition: opacity 0.12s ease;
   }
 }
