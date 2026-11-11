@@ -115,19 +115,8 @@
 .step {
   width: min(var(--onb-col), 100%);
   margin: 0 auto;
+  /* 弹窗不加打开动画（scripts/__tests__/popupMotion.test.ts）：换步时直接显示 */
   padding: var(--cd-space-8) var(--cd-space-5) var(--cd-space-6);
-  animation: onb-in var(--cd-duration-fast, 0.18s) var(--cd-ease, ease-out);
-}
-@keyframes onb-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .step {
-    animation: none;
-  }
 }
 .title {
   margin: 0;
