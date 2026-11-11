@@ -468,15 +468,6 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
             : ''}
           {task.grant.revokedAt ? ` · ${t('ui.providers-schedule.task-grant-revoked')}` : ''}
         </dd>
-        <dt>{t('ui.providers-schedule.task-budget')}</dt>
-        <dd>
-          {t(
-            'ui.providers-schedule.task-budget-value',
-            Math.round((task.budget.maxTokensPerAttempt ?? 0) / 1000),
-            Math.round((task.budget.maxDurationMsPerAttempt ?? 0) / 60000),
-            task.budget.maxCostUsdPerDay ?? 0,
-          )}
-        </dd>
       </dl>
 
       <div className={styles.actionRow}>

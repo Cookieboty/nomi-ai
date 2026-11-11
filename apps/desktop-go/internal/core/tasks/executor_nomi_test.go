@@ -142,30 +142,20 @@ func TestNomiExecutorCancelWhileWaiting(t *testing.T) {
 	}
 }
 
-func TestNomiExecutorBudgetPauseRelaunch(t *testing.T) {
-	limit := int64(1000)
+// 用量很大也不暂停：不按 token 拦截任务，一直做到完
+func TestNomiExecutorLargeUsageKeepsRunning(t *testing.T) {
 	h := newNomiHarness(t, func(ctx context.Context, n int, _ *nomiHarness, emit func(blm.ChatChunk)) error {
-		if n == 0 {
-			emit(blm.ChatChunk{Type: "delta", Content: "先查了三个文件。"})
-			emit(blm.ChatChunk{Type: "usage", Usage: &blm.ChatUsage{PromptTokens: 900, CompletionTokens: 200}})
-			<-ctx.Done()
-			return ctx.Err()
-		}
+		emit(blm.ChatChunk{Type: "usage", Usage: &blm.ChatUsage{PromptTokens: 50_000_000, CompletionTokens: 200_000}})
 		emit(blm.ChatChunk{Type: "delta", Content: "全部完成"})
 		return nil
 	})
-	id := nomiTask(h, []string{"read"}, 1, &BudgetInput{MaxTokensPerAttempt: &limit})
+	id := nomiTask(h, []string{"read"}, 1, nil)
 	h.rt.Command(id, Command{Type: "runNow"})
-	waitFor(t, func() bool { return status(h, id) == StatusWaitingUser })
-	if w := h.rt.Get(id).Task.Wait; w.Kind != "budget" {
-		t.Fatal(w.Kind)
-	}
-	h.rt.Command(id, Command{Type: "decide", Approve: true})
 	waitFor(t, func() bool { return status(h, id) == StatusDone })
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if len(h.sys) != 2 || !strings.Contains(h.sys[1], "先查了三个文件") {
-		t.Fatalf("%d %v", len(h.sys), h.sys)
+	if len(h.sys) != 1 {
+		t.Fatalf("%d runs, want 1", len(h.sys))
 	}
 }
 
@@ -188,41 +178,6 @@ func TestBuildPromptEvents(t *testing.T) {
 	}
 	if EventsSection(nil) != "" || strings.Contains(BuildPrompt(ctx, "", 0, nil)[0].Content, "<events>") {
 		t.Fatal("empty events should add nothing")
-	}
-}
-
-// #235：预算批准时旧流还没退出，随后取消：旧流退出后不再重开
-func TestNomiExecutorCancelAfterQueuedRelaunch(t *testing.T) {
-	limit := int64(1000)
-	release := make(chan struct{})
-	exited := make(chan struct{})
-	h := newNomiHarness(t, func(ctx context.Context, n int, _ *nomiHarness, emit func(blm.ChatChunk)) error {
-		if n == 0 {
-			emit(blm.ChatChunk{Type: "delta", Content: "做了一半"})
-			emit(blm.ChatChunk{Type: "usage", Usage: &blm.ChatUsage{PromptTokens: 900, CompletionTokens: 200}})
-			<-ctx.Done()
-			<-release
-			close(exited)
-			return ctx.Err()
-		}
-		emit(blm.ChatChunk{Type: "delta", Content: "不该重开"})
-		return nil
-	})
-	id := nomiTask(h, []string{"read"}, 1, &BudgetInput{MaxTokensPerAttempt: &limit})
-	h.rt.Command(id, Command{Type: "runNow"})
-	waitFor(t, func() bool { return status(h, id) == StatusWaitingUser })
-	h.rt.Command(id, Command{Type: "decide", Approve: true})
-	h.rt.Command(id, Command{Type: "cancel"})
-	close(release)
-	<-exited
-	time.Sleep(30 * time.Millisecond)
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if len(h.sys) != 1 {
-		t.Fatalf("relaunched after cancel: %d calls", len(h.sys))
-	}
-	if s := h.rt.Get(id).Task.Status; s != StatusCancelled {
-		t.Fatal(s)
 	}
 }
 

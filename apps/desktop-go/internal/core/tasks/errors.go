@@ -9,7 +9,6 @@ var errorRetryable = map[string]bool{
 	"executor_failed":     false,
 	"config_changed":      false,
 	"grant_denied":        false,
-	"budget_denied":       false,
 	"reconcile_abandoned": false,
 	"prepare_failed":      false,
 }

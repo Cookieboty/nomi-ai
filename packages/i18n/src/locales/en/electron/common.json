@@ -582,7 +582,6 @@
   "electron.common.you-re-away-from-the-computer": "You're away from the computer",
   "electron.common.you-were-just-chatting": "You were just chatting",
   "electron.common.auto-continue-stopped-rounds": "(I kept going for {0} more rounds and stopped here. Say \"continue\" if you want me to go on.)",
-  "electron.common.auto-continue-stopped-budget": "(I kept going for {0} more rounds; this run has used a lot of tokens, so I stopped here. Say \"continue\" to go on.)",
   "electron.common.auto-continue-stopped-denied": "(You declined a step, so I stopped here instead of continuing automatically.)",
   "electron.common.protected-by-you": "a folder you protected ({0})",
   "electron.common.protected-path-too-broad": "The root or home folder can't be a protected folder",

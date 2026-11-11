@@ -2,7 +2,7 @@ package tasks
 
 // nomi 执行者：无界面跑一轮 Nomi 的 agent 循环（docs/features/scheduling-calendar.md）。
 // 每次执行一个 goroutine；工具审批经 broker 的后台模式（WithBackground 挂在 ctx 上），需要人时阻塞在通道上
-// 等 Resume 送来的回答。预算暂停会取消这一轮，批准继续后带着进展重开。
+// 等 Resume 送来的回答。
 //
 // 对话里派给 Nomi 的（toolset: conversation）：工具用对话的工具集（去掉 ConversationExcluded），
 // 在发起对话的工作区里做；工具调用期间（生图、同步等编程助手）自己发心跳，不被看守判成崩溃。
@@ -179,16 +179,11 @@ func defaultEvery(ms int64, fn func()) func() {
 }
 
 type nomiRun struct {
-	cancel   context.CancelFunc
-	gen      int
-	ctx      AttemptContext
-	progress string
-	paused   bool
-	active   bool // 这一轮的 goroutine 还没退出
-	relaunch bool // 预算批准时上一轮还没退出：退出后再重开
-	stopped  bool // 已取消 / 撤销：不再重开
-	seq      int
-	waiting  map[string]chan bool
+	cancel  context.CancelFunc
+	gen     int
+	ctx     AttemptContext
+	seq     int
+	waiting map[string]chan bool
 }
 
 type nomiExecutor struct {
@@ -313,7 +308,6 @@ func (e *nomiExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
 func (e *nomiExecutor) Start(ctx AttemptContext) {
 	e.mu.Lock()
 	if old := e.runs[ctx.Task.ID]; old != nil {
-		old.stopped, old.relaunch = true, false
 		old.cancel()
 	}
 	run := &nomiRun{gen: ctx.Attempt.Gen, ctx: ctx, waiting: map[string]chan bool{}}
@@ -325,7 +319,6 @@ func (e *nomiExecutor) Start(ctx AttemptContext) {
 func (e *nomiExecutor) launchLocked(run *nomiRun) {
 	base, cancel := context.WithCancel(context.Background())
 	run.cancel = cancel
-	run.active = true
 	t, a, rep := run.ctx.Task, run.ctx.Attempt, run.ctx.Report
 	var registered []string
 	if e.d.ToolNames != nil {
@@ -381,11 +374,10 @@ func (e *nomiExecutor) launchLocked(run *nomiRun) {
 			e.d.LiveGrant(ctx, live, elevated, extra)
 		}
 	}
-	progress := run.progress
-	go e.consume(ctx, run, tools, progress)
+	go e.consume(ctx, run, tools)
 }
 
-func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string, progress string) {
+func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string) {
 	t, a, rep := run.ctx.Task, run.ctx.Attempt, run.ctx.Report
 	var text strings.Builder
 	// 这一轮产出的图片 / 写过的文件：做完时记进结果，回到来源对话
@@ -415,7 +407,7 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 			rep.Heartbeat()
 		}
 	})
-	err := e.d.AgentStream(ctx, BuildPrompt(run.ctx, progress, e.d.Now(), events), tools,
+	err := e.d.AgentStream(ctx, BuildPrompt(run.ctx, "", e.d.Now(), events), tools,
 		extra, func(c blm.ChatChunk) {
 			if ctx.Err() != nil {
 				return
@@ -485,16 +477,7 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 		err = streamErr
 	}
 	e.mu.Lock()
-	run.active = false
 	if ctx.Err() != nil {
-		if run.paused || run.relaunch {
-			run.progress = strings.TrimSpace(run.progress + "\n" + text.String())
-		}
-		// 旧流退出时再核对：已取消 / 撤销或已被新一轮替换的，不把待恢复变成新的执行（#235）
-		if run.relaunch && !run.stopped && e.runs[t.ID] == run {
-			run.relaunch = false
-			e.launchLocked(run)
-		}
 		e.mu.Unlock()
 		return
 	}
@@ -542,14 +525,6 @@ func (e *nomiExecutor) Resume(taskID string, gen int, answer Answer) {
 			return
 		}
 	}
-	if run.paused && answer.Approve {
-		run.paused = false
-		if run.active {
-			run.relaunch = true
-		} else {
-			e.launchLocked(run)
-		}
-	}
 }
 
 func (e *nomiExecutor) Stop(taskID string, gen int, reason string) {
@@ -559,12 +534,7 @@ func (e *nomiExecutor) Stop(taskID string, gen int, reason string) {
 	if run == nil || run.gen != gen {
 		return
 	}
-	if reason == "pause" {
-		run.paused = true
-	} else {
-		delete(e.runs, taskID)
-		run.stopped, run.paused, run.relaunch = true, false, false
-	}
+	delete(e.runs, taskID)
 	for id, ch := range run.waiting {
 		ch <- false
 		delete(run.waiting, id)

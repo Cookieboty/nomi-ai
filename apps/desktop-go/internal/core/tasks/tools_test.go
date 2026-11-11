@@ -85,19 +85,6 @@ func TestTaskProposeDeniedAndGuards(t *testing.T) {
 	}
 }
 
-func TestSpentToday(t *testing.T) {
-	now := time.Date(2026, 11, 2, 10, 0, 0, 0, time.Local).UnixMilli()
-	c1, c2 := 0.4, 0.3
-	atts := []Attempt{
-		{StartedAt: now - 3600_000, Usage: Usage{CostUsd: &c1}},
-		{StartedAt: now - 30*3600_000, Usage: Usage{CostUsd: &c2}},
-		{StartedAt: now - 60_000},
-	}
-	if v := SpentToday(atts, now); v != 0.4 {
-		t.Fatal(v)
-	}
-}
-
 func TestTaskProposeCli(t *testing.T) {
 	s, defs, cards := toolsHarness(t, "allowed")
 	base := `"title":"修 bug","goal":"修 #12","when":{"kind":"manual"},"executor":"cli"`

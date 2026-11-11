@@ -28,12 +28,7 @@ const (
 )
 
 func DefaultBudget() Budget {
-	return Budget{
-		MaxTokensPerAttempt:     ptr(int64(200_000)),
-		MaxDurationMsPerAttempt: ptr(int64(30 * 60_000)),
-		MaxCostUsdPerDay:        ptr(1.0),
-		MaxRetries:              DefaultMaxRetries,
-	}
+	return Budget{MaxRetries: DefaultMaxRetries}
 }
 
 type UsageDelta struct {
@@ -102,19 +97,17 @@ type StoreLike interface {
 }
 
 type RuntimeDeps struct {
-	Store     StoreLike
-	Executors map[string]Executor
-	Now       func() int64
-	SetTimer  func(fn func(), ms int64) (cancel func())
-	NewID     func(prefix string) string
-	Log       Logger
-	Deliver   func(t Task, what string, a *Attempt)
-	OnChange  func(t Task)
-	// DailyBudgetExceeded：每日费用预算是否已用完；在持有者里调用，直接给出执行记录（不要回调 Runtime）
-	DailyBudgetExceeded func(t Task, attempts []Attempt, now int64) bool
-	MaxConcurrent       int
-	HeartbeatTimeoutMs  int64
-	MaxStartsPerHour    int
+	Store              StoreLike
+	Executors          map[string]Executor
+	Now                func() int64
+	SetTimer           func(fn func(), ms int64) (cancel func())
+	NewID              func(prefix string) string
+	Log                Logger
+	Deliver            func(t Task, what string, a *Attempt)
+	OnChange           func(t Task)
+	MaxConcurrent      int
+	HeartbeatTimeoutMs int64
+	MaxStartsPerHour   int
 }
 
 // SetAdmit：开始执行前再问一次能不能开始（Agent 看板的内存守护：内存紧张时编程助手与后台 Nomi 的任务先排着）。
@@ -125,14 +118,9 @@ func (r *Runtime) SetAdmit(fn func(t Task) bool) {
 	r.ownerMu.Unlock()
 }
 
-// BudgetInput：创建时的预算覆盖，缺省字段取默认值（maxRetries 可以显式给 0）
+// BudgetInput：创建时的重试次数覆盖，缺省取默认值（maxRetries 可以显式给 0）
 type BudgetInput struct {
-	MaxTokensPerAttempt     *int64   `json:"maxTokensPerAttempt,omitempty"`
-	MaxDurationMsPerAttempt *int64   `json:"maxDurationMsPerAttempt,omitempty"`
-	MaxCostUsdPerDay        *float64 `json:"maxCostUsdPerDay,omitempty"`
-	MaxRetries              *int     `json:"maxRetries,omitempty"`
-	// NoCostPerDay：不设每日费用上限（maxCostUsdPerDay 置空，覆盖默认值）
-	NoCostPerDay bool `json:"-"`
+	MaxRetries *int `json:"maxRetries,omitempty"`
 }
 
 type CreateInput struct {
@@ -430,18 +418,6 @@ func (r *Runtime) CreateChecked(in CreateInput) (Task, error) {
 		}
 		b := DefaultBudget()
 		if in.Budget != nil {
-			if in.Budget.MaxTokensPerAttempt != nil {
-				b.MaxTokensPerAttempt = in.Budget.MaxTokensPerAttempt
-			}
-			if in.Budget.MaxDurationMsPerAttempt != nil {
-				b.MaxDurationMsPerAttempt = in.Budget.MaxDurationMsPerAttempt
-			}
-			if in.Budget.MaxCostUsdPerDay != nil {
-				b.MaxCostUsdPerDay = in.Budget.MaxCostUsdPerDay
-			}
-			if in.Budget.NoCostPerDay {
-				b.MaxCostUsdPerDay = nil
-			}
 			if in.Budget.MaxRetries != nil {
 				b.MaxRetries = *in.Budget.MaxRetries
 			}
@@ -579,15 +555,6 @@ func (r *Runtime) Patch(id string, p Patch) *Task {
 		keys := []string{}
 		if p.Budget != nil {
 			keys = append(keys, "budget")
-			if p.Budget.MaxTokensPerAttempt != nil {
-				t.Budget.MaxTokensPerAttempt = p.Budget.MaxTokensPerAttempt
-			}
-			if p.Budget.MaxDurationMsPerAttempt != nil {
-				t.Budget.MaxDurationMsPerAttempt = p.Budget.MaxDurationMsPerAttempt
-			}
-			if p.Budget.MaxCostUsdPerDay != nil {
-				t.Budget.MaxCostUsdPerDay = p.Budget.MaxCostUsdPerDay
-			}
 			if p.Budget.MaxRetries != nil {
 				t.Budget.MaxRetries = *p.Budget.MaxRetries
 			}
@@ -658,14 +625,10 @@ func (r *Runtime) FireEvent(id, eventKey string) CmdResult {
 }
 
 func (r *Runtime) trigger(id, cause, eventKey string) CmdResult {
-	task := r.recs[id].Task
 	at := r.d.Now()
 	ev := Event{Type: "trigger", At: at, Cause: cause}
 	if eventKey != "" {
 		ev.EventKey = ptr(eventKey)
-	}
-	if r.d.DailyBudgetExceeded != nil && r.d.DailyBudgetExceeded(task, r.recs[id].Attempts, at) {
-		ev.BudgetExceeded = true
 	}
 	return r.dispatch(id, ev)
 }
@@ -1039,15 +1002,6 @@ func (r *Runtime) addUsage(id string, gen int, d UsageDelta) {
 	if r.save(Record{Task: rec.Task, Attempts: attempts}) != nil {
 		return
 	}
-	task := r.recs[id].Task
-	limit := task.Budget.MaxTokensPerAttempt
-	if limit != nil && task.Status == StatusRunning && nu.InputTokens+nu.OutputTokens > *limit {
-		if ex := r.executor(task); ex != nil {
-			ex.Stop(id, gen, "pause")
-		}
-		r.dispatch(id, Event{Type: "needs_user", At: r.d.Now(), Gen: ptr(gen),
-			Wait: &EventWait{Kind: "budget", Detail: ptr(fmt.Sprintf("tokens>%d", *limit))}})
-	}
 }
 
 // ---------- 名额与计时 ----------
@@ -1127,14 +1081,6 @@ func (r *Runtime) watch(now int64) {
 			continue
 		}
 		task := rec.Task
-		if m := task.Budget.MaxDurationMsPerAttempt; m != nil && now-a.StartedAt > *m {
-			if ex := r.executor(task); ex != nil {
-				ex.Stop(id, task.Gen, "timeout")
-			}
-			r.dispatch(id, Event{Type: "failed", At: now, Gen: ptr(task.Gen),
-				Error: &TaskError{Code: "timed_out", Message: fmt.Sprintf(">%dms", *m)}})
-			continue
-		}
 		beat, ok := r.beats[id]
 		if !ok {
 			beat = a.StartedAt

@@ -19,12 +19,7 @@ const base = {
   trigger: { kind: 'manual' },
   executor: { kind: 'nomi', tools: ['read'] },
   grant: { version: 1, level: 1, paths: [], connections: [], grantedAt: T0 },
-  budget: {
-    maxTokensPerAttempt: 200000,
-    maxDurationMsPerAttempt: 1800000,
-    maxCostUsdPerDay: 1,
-    maxRetries: 3,
-  },
+  budget: { maxRetries: 3 },
   acceptance: 'auto',
   enabled: true,
   gen: 1,
