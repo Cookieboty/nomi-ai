@@ -236,3 +236,30 @@ func TestRevokeExcept(t *testing.T) {
 		t.Fatal(c)
 	}
 }
+
+// 只读按标签此刻的权限模式实时判断：切到计划模式后写操作立刻不可用，token 不换
+func TestReadOnlyFollowsMode(t *testing.T) {
+	mode := "default"
+	s := New(Options{Dir: t.TempDir() + "/mcp", Tools: []tools.Definition{
+		{Name: "computer_snapshot", Execute: func(context.Context, any, tools.ExecContext) (any, error) { return u.NewObj("ok", true), nil }},
+		{Name: "computer_click", Execute: func(context.Context, any, tools.ExecContext) (any, error) { return u.NewObj("ok", true), nil }},
+	}, ReadOnly: func(string) bool { return mode == "plan" }})
+	if err := s.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.Close)
+	file, _ := s.Launch("tab1", "Codex", false)
+	url, tok := readCfg(t, file)
+	click := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"computer_click","arguments":{}}}`
+	if _, m := post(t, url, tok, click, nil); m["error"] != nil {
+		t.Fatalf("default mode can click: %v", m)
+	}
+	mode = "plan"
+	if _, m := post(t, url, tok, click, nil); m["error"] == nil {
+		t.Fatalf("plan mode must refuse writes right away: %v", m)
+	}
+	// 重新 Launch（换模式后进程没重启也可能再次注入）：token 不变
+	if again, _ := s.Launch("tab1", "Codex", true); again != file {
+		t.Fatal("token file must not rotate on a mode change")
+	}
+}

@@ -82,3 +82,12 @@ func (o *Orchestrator) acpComputerServers(tab *util.Obj) []any {
 	}
 	return []any{util.NewObj("name", m.Name, "command", m.Command, "args", args, "env", []any{})}
 }
+
+// PermissionModeOf：标签此刻的权限模式（没有这个标签时 ""）；在 jsrt 里调用
+func (o *Orchestrator) PermissionModeOf(id string) string {
+	t := o.tab(id)
+	if t == nil {
+		return ""
+	}
+	return str(t, "permissionMode")
+}

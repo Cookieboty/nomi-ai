@@ -175,12 +175,21 @@ func (s *Service) saveLocked() error {
 	return os.Rename(tmp, s.settingsPath)
 }
 
-// userBlocked：用户另外禁止的应用
+// userBlocked：用户另外禁止的应用。名字按包含匹配、不分大小写（填「Slack」也拦「Slack Helper」，
+// 填「微信」拦「微信」「微信输入法」）；bundle id 按整段或前缀匹配（填「com.tencent.」拦这家的所有应用）
 func (s *Service) userBlocked(name, bundleID string) string {
-	n, b := strings.ToLower(strings.TrimSpace(name)), strings.ToLower(bundleID)
+	n := strings.ToLower(strings.Join(strings.Fields(name), " "))
+	b := strings.ToLower(strings.TrimSpace(bundleID))
 	for _, a := range s.Settings().BlockedApps {
-		x := strings.ToLower(a)
-		if x == n || (b != "" && x == b) {
+		x := strings.ToLower(strings.Join(strings.Fields(a), " "))
+		if x == "" {
+			continue
+		}
+		hit := n != "" && strings.Contains(n, x)
+		if !hit && b != "" {
+			hit = b == x || (strings.HasSuffix(x, ".") && strings.HasPrefix(b, x)) || strings.HasPrefix(b, x+".")
+		}
+		if hit {
 			return "「" + name + "」在你设置的禁止操作列表里"
 		}
 	}

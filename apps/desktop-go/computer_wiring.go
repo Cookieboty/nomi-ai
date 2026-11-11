@@ -229,6 +229,14 @@ func wireComputer(router *contract.Router, userData string, d *desktop.Service) 
 			return igtools.WithConfirmHook(ctx, func(waiting bool) { computerWaitingAdd(tabID, waiting) })
 		},
 		Version: hostports.AppVersion,
+		// 计划模式（只读）按标签此刻的权限模式判断：长驻的 Codex / ACP 进程切了模式也跟着变
+		ReadOnly: func(tabID string) bool {
+			o := harnessOrch
+			if o == nil {
+				return false
+			}
+			return jsrt.Call(func() bool { return o.PermissionModeOf(tabID) == "plan" })
+		},
 	})
 	if err := srv.Start(); err != nil {
 		log.Printf("[computer] mcp endpoint: %v", err)

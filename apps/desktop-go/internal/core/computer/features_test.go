@@ -34,6 +34,15 @@ func TestSettingsSanitizeAndPersist(t *testing.T) {
 	if again.Blocked("slack", "") == "" || again.Blocked("Notes", "") != "" {
 		t.Fatal("user block list")
 	}
+	// 名字按包含匹配；bundle id 整段或前缀
+	if again.Blocked("Slack Helper", "") == "" || again.Blocked("WeChat Input", "") == "" {
+		t.Fatal("name contains")
+	}
+	bundle := []string{"com.tencent."}
+	st, _ = again.UpdateSettings(SettingsPatch{BlockedApps: &bundle})
+	if again.Blocked("QQ", "com.tencent.qq") == "" || again.Blocked("Foo", "com.tencentx.foo") != "" {
+		t.Fatalf("bundle prefix %+v", st)
+	}
 }
 
 func TestSandboxRoutesDesktopCommandsOnly(t *testing.T) {

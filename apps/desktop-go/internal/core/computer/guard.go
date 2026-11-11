@@ -44,8 +44,13 @@ var sensitiveName = regexp.MustCompile(`(?i)` + strings.Join([]string{
 	`delete`, `remove`, `erase`, `empty trash`, `uninstall`, `sign out`, `log out`, `reset`, `format (disk|drive)`,
 }, "|"))
 
-// settingsApp：系统设置类应用里的改动一律确认
-var settingsApp = regexp.MustCompile(`(?i)^(system settings|system preferences|系统设置|系统偏好设置|settings|设置|control panel|控制面板)$`)
+// settingsApp：系统设置类应用里的改动一律确认（macOS / Windows / GNOME / KDE / Xfce / Cinnamon / MATE 等，
+// 进程名与显示名都认）
+var settingsApp = regexp.MustCompile(`(?i)^(system settings|system preferences|系统设置|系统偏好设置|settings|设置|` +
+	`control panel|控制面板|systemsettings\d*|windows settings|windows 设置|` +
+	`gnome-control-center|org\.gnome\.settings|unity-control-center|budgie-control-center|cinnamon-settings|` +
+	`xfce4-settings-manager|mate-control-center|lxqt-config|deepin-control-center|kde system settings|` +
+	`control center|控制中心)$`)
 
 // sensitiveCombos：发送（cmd/ctrl+return）、删除（cmd+backspace / shift+delete）、退出 / 关闭
 var sensitiveCombos = map[string]bool{
