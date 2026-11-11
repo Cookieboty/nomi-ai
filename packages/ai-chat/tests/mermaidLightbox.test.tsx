@@ -40,8 +40,9 @@ describe.each([
     renderDiagram.mockResolvedValue(svg);
     const view = render(markdown);
     const canvas = await screen.findByTestId('mermaid-canvas');
-    fireEvent.click(within(canvas).getByRole('img'));
-    const dialog = screen.getByRole('dialog');
+    // 图在渲染完成后才带上 img 角色，大图弹窗也是懒加载的：都要等，不能同步取（Windows CI 上偶发失败）
+    fireEvent.click(await within(canvas).findByRole('img'));
+    const dialog = await screen.findByRole('dialog');
     expect(dialog.parentElement).toBe(document.body);
     expect(view.container.contains(dialog)).toBe(false);
     const image = within(dialog).getByRole('img') as HTMLImageElement;
