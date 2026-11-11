@@ -14,6 +14,10 @@ export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images =
     /** 重新打开对话窗口（内核状态保留） */
     async open() {
       await page.goto(chatPageUrl);
+      // 隔离环境没有 CLI 用量记录，侧栏底部的用量卡只会写「今日暂无用量」：官网图里不放空状态，也不造假用量
+      await page.addStyleTag({
+        content: '[data-testid="endpoint-info-card"]{display:none!important}',
+      });
       // 视图会恢复上次停留的页面（设置 / 任务 / 素材库），先回到对话：
       // 设置页有「返回对话」；任务 / 素材库用左侧导航栏的「对话」
       const back = page.getByRole('button', { name: '返回对话' });
@@ -298,6 +302,23 @@ export const SCENES = [
     },
   },
   {
+    name: 'seed-project',
+    seed: true,
+    async run(h) {
+      // 侧栏要有真实项目名（不是「还没有项目」）：用编程助手默认的工作目录建项目「nomi-ai」；
+      // 后面 seed-agent-sessions 从项目行上新建会话，会话就归进这个项目
+      await h.open();
+      await h.page.getByTestId('new-project').first().click();
+      const dlg = h.page.getByTestId('project-dialog');
+      await dlg.waitFor({ timeout: 10_000 });
+      await dlg.getByTestId('project-name').fill('nomi-ai');
+      await dlg.getByTestId('project-add-recent-toggle').click();
+      await dlg.getByTestId('project-add-recent').first().click();
+      await dlg.getByTestId('project-submit').click();
+      await h.wait(2000);
+    },
+  },
+  {
     name: 'coding-agent',
     title: '工坊：编程助手会话',
     async run(h) {
@@ -317,6 +338,10 @@ export const SCENES = [
     async run(h) {
       await h.open();
       await h.openSession();
+      // 讲「边界你定」的图不拿「完全放开」当代表：先切到「自动改文件」，再打开菜单
+      await h.page.getByRole('button', { name: /权限模式/ }).click();
+      await h.page.getByRole('menuitemradio', { name: /^自动改文件/ }).click();
+      await h.wait(800);
       await h.page.getByRole('button', { name: /权限模式/ }).click();
       await h.wait(700);
     },
@@ -332,23 +357,6 @@ export const SCENES = [
       await h.page.mouse.move(700, 900);
       await h.page.evaluate(() => document.activeElement?.blur?.());
       await h.wait(1200);
-    },
-  },
-  {
-    name: 'seed-project',
-    seed: true,
-    async run(h) {
-      // 侧栏要有真实项目名（不是「还没有项目」）：用编程助手默认的工作目录建项目「nomi-ai」；
-      // 后面 seed-agent-sessions 从项目行上新建会话，会话就归进这个项目
-      await h.open();
-      await h.page.getByTestId('new-project').first().click();
-      const dlg = h.page.getByTestId('project-dialog');
-      await dlg.waitFor({ timeout: 10_000 });
-      await dlg.getByTestId('project-name').fill('nomi-ai');
-      await dlg.getByTestId('project-add-recent-toggle').click();
-      await dlg.getByTestId('project-add-recent').first().click();
-      await dlg.getByTestId('project-submit').click();
-      await h.wait(2000);
     },
   },
   {
@@ -428,7 +436,22 @@ export const SCENES = [
     title: '模型与供应商',
     async run(h) {
       await h.open();
+      // 顶栏标题取当前页：先到看板，免得留着上一段对话的标题
+      await h.page
+        .getByRole('button', { name: /^Agents/ })
+        .first()
+        .click();
       await h.settings('模型与供应商');
+      // 分配里 Claude Code、Codex 都选上演示供应商的模型，不留「未设置」
+      for (const kind of ['claude', 'codex']) {
+        await h.page.getByTestId(`cli-main-${kind}`).click();
+        await h.page
+          .getByRole('option', { name: /deepseek/i })
+          .first()
+          .click();
+        await h.wait(600);
+      }
+      await h.page.mouse.move(700, 900);
     },
   },
   {
