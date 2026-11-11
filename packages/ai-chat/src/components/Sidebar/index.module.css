@@ -48,7 +48,7 @@
  */
 .panel {
   flex: none;
-  width: 260px;
+  width: var(--sidebar-panel-width, 260px);
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -81,13 +81,13 @@
 }
 @keyframes panelOut {
   to {
-    margin-right: -260px;
+    margin-right: calc(-1 * var(--sidebar-panel-width, 260px));
     clip-path: inset(0 100% 0 0);
   }
 }
 @keyframes panelIn {
   from {
-    margin-right: -260px;
+    margin-right: calc(-1 * var(--sidebar-panel-width, 260px));
     clip-path: inset(0 100% 0 0);
   }
   to {
@@ -1074,4 +1074,36 @@
 .row:hover .threadEp,
 .row:focus-within .threadEp {
   visibility: hidden;
+}
+
+/* Overlay the existing card border; the hit area never adds layout width. */
+.resizeHandle {
+  position: absolute;
+  inset-block: var(--cd-space-2);
+  right: -3px;
+  width: 6px;
+  z-index: 4;
+  cursor: col-resize;
+  touch-action: none;
+  --wails-draggable: no-drag;
+}
+:global(html[data-platform]) .resizeHandle {
+  top: 0;
+}
+.resizeHandle::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: 3px;
+  width: 1px;
+  background: transparent;
+  pointer-events: none;
+}
+.resizeHandle:hover::after,
+.resizeHandle.resizing::after {
+  background: var(--cd-color-accent-strong);
+}
+.resizeHandle:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
 }
