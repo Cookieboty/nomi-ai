@@ -31,7 +31,7 @@ export const GROUPS = [
     zh: "模型与工具",
     en: "Models & tools",
     pages: [
-      { slug: "providers", src: "features/providers.md", zh: ["第三方供应商与模型", "切换模型、添加供应商、按任务分配、多 Key 与回退"], en: ["Providers & models", "Switch models, add providers, per-task models, multiple keys and fallback"] },
+      { slug: "providers", src: "features/providers.md", zh: ["第三方供应商与模型", "给对话和各编程助手分配模型，多 Key，失败不换模型"], en: ["Providers & models", "Assign models to chat and each coding agent, multiple keys, no model switch on failure"] },
       { slug: "local-models", src: "features/local-models.md", zh: ["本地模型", "一键运行开源小模型、Ollama、离线模式"], en: ["Local models", "One-click small models, Ollama, offline mode"] },
       { slug: "mcp-skills", src: "features/mcp-skills.md", zh: ["MCP 与技能", "MCP 服务器、SKILL.md 技能、从其他工具导入"], en: ["MCP & skills", "MCP servers, SKILL.md packs, importing from other tools"] },
       { slug: "automation", src: "features/automation.md", zh: ["自动化与桌面能力", "文件、命令、提醒与剪贴板、代码沙箱、工具权限、操作记录"], en: ["Automation", "Files, commands, reminders, clipboard, code sandbox, tool permissions"] },

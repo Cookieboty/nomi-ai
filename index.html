@@ -98,8 +98,8 @@
   <meta name="theme-color" content="#FFFBF6" />
   <link rel="icon" href="assets/brand/favicon.ico" sizes="48x48" />
   <link rel="icon" href="assets/brand/nomi-mark.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="assets/brand/favicon-96.png" />
-  <link rel="stylesheet" href="css/site.css?v=20261111b" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png" />
+  <link rel="stylesheet" href="css/site.css?v=20261111c" />
 </head>
 <body>
   <a class="skip" href="#main" data-i18n="s.skip">跳到正文</a>
@@ -107,6 +107,7 @@
     <div class="wrap header-row">
       <a class="brand" href="index.html"><img src="assets/brand/nomi-mark.svg" alt="" width="28" height="28"><span data-i18n="s.brand">Nomi·诺米</span></a>
       <nav class="nav" id="site-nav" aria-label="主导航" data-i18n-aria-label="nav.main">
+        <a class="nav-cta" href="download.html" data-i18n="nav.cta">下载 Nomi</a>
         <a href="index.html" aria-current="page" data-i18n="nav.home">首页</a>
         <a href="docs.html" data-i18n="nav.docs">文档</a>
         <a href="changelog.html" data-i18n="nav.changelog">更新日志</a>
@@ -132,7 +133,7 @@
           <a class="btn btn-primary" href="download.html" data-download-primary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg><span data-download-label data-i18n="nav.cta">下载 Nomi</span></a>
           <a class="btn btn-ghost" href="https://github.com/Cookieboty/nomi-ai"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.56 9.56 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg><span>GitHub</span></a>
         </div>
-        <p class="platforms"><span data-i18n="s.hero.platforms">Windows、macOS、Linux。安装包约 25 MB。</span> <a href="download.html" data-i18n="s.hero.other">其他系统与版本</a></p>
+        <p class="platforms"><span data-i18n="s.hero.platforms">Windows、macOS、Linux。安装包约 22–29 MB。</span> <a class="nowrap" href="download.html" data-i18n="s.hero.other">其他系统与版本</a></p>
         <figure class="shot" style="margin-left:0;margin-right:0">
           <img src="assets/screenshots/agent-board-hero.webp?v=20261111" srcset="assets/screenshots/agent-board-hero-640.webp?v=20261111 640w, assets/screenshots/agent-board-hero.webp?v=20261111 1280w, assets/screenshots/agent-board-hero-2x.webp?v=20261111 2560w" sizes="(max-width: 1240px) 100vw, 1160px" width="1600" height="900" fetchpriority="high" decoding="async" alt="Agent 看板：项目 nomi-ai 里 Claude Code 与 Codex 正在并行，另一张卡片已完成" data-i18n-alt="s.hero.alt">
         </figure>
@@ -157,7 +158,7 @@
           <figure class="shot" style="margin:0"><a class="zoom" href="assets/screenshots/agent-board-2x.webp?v=20261111" aria-label="点开看大图" data-i18n-aria-label="s.zoom"><img src="assets/screenshots/agent-board.webp?v=20261111" srcset="assets/screenshots/agent-board-640.webp?v=20261111 640w, assets/screenshots/agent-board.webp?v=20261111 1280w, assets/screenshots/agent-board-2x.webp?v=20261111 2560w" sizes="(max-width: 1240px) 100vw, 1160px" width="1280" height="944" loading="lazy" decoding="async" alt="Agent 看板全图" data-i18n-alt="s.board.alt"></a></figure>
         </div>
         <div class="surface surface--flip">
-          <div><h2 class="h2" data-i18n="s.shop.title">工坊：多个编程助手，并行开工。</h2><p class="lead" data-i18n="s.shop.desc">对话、改动和文件在同一个窗口里。看完 Diff 再提交，项目可以放多个文件夹。</p></div>
+          <div><h2 class="h2" data-i18n="s.shop.title">工坊：多个编程助手，并行开工。</h2><p class="lead" data-i18n="s.shop.desc">对话、改动和文件在同一个窗口里。看完 Diff 再提交；改完代码，编程助手还能经 Computer Use 打开应用点一遍。</p></div>
           <figure class="shot" style="margin:0"><a class="zoom" href="assets/screenshots/workspace-2x.webp?v=20261111" aria-label="点开看大图" data-i18n-aria-label="s.zoom"><img src="assets/screenshots/workspace.webp?v=20261111" srcset="assets/screenshots/workspace-640.webp?v=20261111 640w, assets/screenshots/workspace.webp?v=20261111 1280w, assets/screenshots/workspace-2x.webp?v=20261111 2560w" sizes="(max-width: 1240px) 100vw, 1160px" width="1280" height="944" loading="lazy" decoding="async" alt="工坊：对话、改动与文件三栏" data-i18n-alt="s.shop.alt"></a></figure>
         </div>
       </div>
@@ -180,22 +181,16 @@
         <div class="mascot">
           <div class="mascot-copy">
             <span class="eyebrow" data-i18n="s.mascot.eyebrow">桌面角色 · 可选</span>
-            <h2 class="h2" id="mascot-title" data-i18n="s.mascot.title">她在桌面一角，替你盯着进度。</h2>
-            <p class="lead" data-i18n="s.mascot.lead">一个透明、置顶的小窗口，只有角色本身能点，其余地方鼠标直接穿过去。不需要就关掉，看板和对话照常用。</p>
-            <ul class="mascot-points">
-              <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><strong data-i18n="s.mascot.p1.h">任务状态写在脸上</strong><span data-i18n="s.mascot.p1.d">完成会点赞，失败会道歉，思考时托腮，工具运行时打字。</span></div></li>
-              <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4 4v-4h0A2 2 0 0 1 4 14z"/></svg><div><strong data-i18n="s.mascot.p2.h">回复先在气泡里看</strong><span data-i18n="s.mascot.p2.d">AI 回复的前一两句显示在她身边，点一下打开完整对话。</span></div></li>
-              <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg><div><strong data-i18n="s.mascot.p3.h">文件拖给她就行</strong><span data-i18n="s.mascot.p3.d">把文件拖到她身上，一句话总结在气泡里，完整摘要写进对话。</span></div></li>
-              <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 7.5a8 8 0 1 0 11.4 0"/></svg><div><strong data-i18n="s.mascot.p4.h">随时关掉</strong><span data-i18n="s.mascot.p4.d">关掉后提醒改由灵动岛或系统通知送达，设置里可以再打开。</span></div></li>
-            </ul>
+            <h2 class="h2" id="mascot-title" data-i18n="s.mascot.title">桌面角色可选，不需要就关掉。</h2>
+            <p class="lead" data-i18n="s.mascot.lead">看板照常用。打开时，它待在桌面一角，用表情和气泡报告任务进度；新装默认关闭，设置里随时开关。</p>
             <a class="text-link" href="docs/mascot.html" data-i18n="s.mascot.more">了解桌面角色 →</a>
           </div>
-          <div class="mascot-stage" aria-hidden="true">
-            <div class="mascot-window">
+          <div class="mascot-stage">
+            <div class="mascot-window" aria-hidden="true">
               <span class="dot"></span><span class="dot"></span><span class="dot"></span>
             </div>
-            <img src="assets/screenshots/mascot-bubble.webp?v=20261111" srcset="assets/screenshots/mascot-bubble-640.webp?v=20261111 640w, assets/screenshots/mascot-bubble.webp?v=20261111 1280w" sizes="(max-width: 900px) 80vw, 440px" width="1280" height="1377" loading="lazy" decoding="async" alt="">
-            <div class="mascot-dock"></div>
+            <img src="assets/screenshots/mascot-bubble.webp?v=20261111" srcset="assets/screenshots/mascot-bubble-640.webp?v=20261111 640w, assets/screenshots/mascot-bubble.webp?v=20261111 1280w" sizes="(max-width: 900px) 80vw, 440px" width="1280" height="1377" loading="lazy" decoding="async" alt="可关的桌面角色站在角落，旁边是任务进度气泡" data-i18n-alt="s.mascot.alt">
+            <div class="mascot-dock" aria-hidden="true"></div>
           </div>
         </div>
       </div>
@@ -203,7 +198,7 @@
 
     <section class="section" id="download" aria-labelledby="dl-title">
       <div class="wrap">
-        <div class="section-head"><h2 class="h2" id="dl-title" data-i18n="s.dl.title">下载 Nomi</h2><p class="lead" data-i18n="s.dl.band">本地运行，安装包约 25 MB。</p></div>
+        <div class="section-head"><h2 class="h2" id="dl-title" data-i18n="s.dl.title">下载 Nomi</h2><p class="lead" data-i18n="s.dl.band">本地运行，安装包约 22–29 MB。</p></div>
         <div class="dl" data-os-grid>
           <div class="dl-card" data-os="win">
             <h3><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5l7.5-1v7H3zm8.5-1.15L21 3v8.5h-9.5zM3 12.5h7.5v7L3 18.5zm8.5 0H21V21l-9.5-1.35z"/></svg><span>Windows</span><span class="tag" data-i18n="s.dl.recommended">推荐</span></h3>
