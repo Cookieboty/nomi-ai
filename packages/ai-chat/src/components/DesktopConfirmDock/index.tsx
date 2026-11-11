@@ -65,8 +65,10 @@ const ReviewNote: React.FC<{ review: NonNullable<DesktopConfirmRequest['review']
 /** 必须看过详情的确认：卡片出现 1 秒后才能点确认（防误触） */
 const ARM_MS = 1000;
 
-const answer = (id: string, allow: boolean, remember = false, pick = false) =>
-  void api.desktop.confirmAnswer({ id, allow, remember, pick }).catch(() => undefined);
+const answer = (id: string, allow: boolean, remember = false, pick = false, session = false) =>
+  void api.desktop
+    .confirmAnswer({ id, allow, remember, pick, ...(session ? { session } : {}) })
+    .catch(() => undefined);
 
 /** 待答复的确认请求：挂载时补拉（窗口刚打开时请求已经发出），之后跟事件走 */
 function useDesktopConfirms(): DesktopConfirmRequest[] {
@@ -228,6 +230,21 @@ const ToolCard: React.FC<{ req: DesktopConfirmRequest }> = ({ req }) => {
         >
           {detail ? t('ui.model-quality.hide-details') : t('ui.chat-settings.view-details')}
         </Button>
+        {req.sessionCommand && (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={!canAllow}
+            title={t('ui.chat-settings.session-command-always-tip').replace(
+              '{0}',
+              req.sessionCommand,
+            )}
+            onClick={() => answer(req.id, true, false, false, true)}
+            data-testid="desktop-confirm-session"
+          >
+            {t('ui.chat-settings.session-command-always')}
+          </Button>
+        )}
         {req.rememberable && (
           <Button
             size="sm"

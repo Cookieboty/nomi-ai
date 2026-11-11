@@ -55,6 +55,8 @@ type ConfirmRequest struct {
 	RememberRule string `json:"rememberRule,omitempty"`
 	// RememberGroup：勾「记住」= 这个对话里这类操作不再问（files 改文件 / delegate 委派与追问 / computer 桌面操作 / tool 这个工具）
 	RememberGroup string `json:"rememberGroup,omitempty"`
+	// SessionCommand：跑命令的确认：可以「本会话始终执行」的那条命令（这个对话里同一条命令、同一工作目录不再问）
+	SessionCommand string `json:"sessionCommand,omitempty"`
 }
 
 // ScopeDecision：allowed | pick | denied | timeout（pick = 用户要自己另选文件夹）
@@ -75,7 +77,7 @@ const taintFallbackMs = 120_000
 
 type pendingConfirm struct {
 	req  ConfirmRequest
-	done chan [2]any // decision, remember
+	done chan [2]any // decision, remember（true / false；"session" = 本会话始终执行这条命令）
 }
 
 type PermissionBroker struct {
@@ -94,6 +96,8 @@ type PermissionBroker struct {
 	taintUntil float64
 	// convGrants：对话里勾过「这个对话里不再询问」的操作类别（对话 id → ToolGroup），只在内存里，重启清空
 	convGrants map[string]map[string]bool
+	// convCommands：对话 → 「本会话始终执行」过的命令（命令 + 工作目录）
+	convCommands map[string]map[string]bool
 	// rulesSuspendedUntil：读过外部内容后写过文件 → 命令白名单暂停到这个时间（用户亲手确认一次命令就清零）。
 	// 按对话记（convRulesSuspended）；没有对话的（桌面角色窗口等）记在 rulesSuspendedUntil
 	rulesSuspendedUntil float64
@@ -125,7 +129,7 @@ type BrokerOpts struct {
 }
 
 func NewPermissionBroker(file string, envBase GuardEnv, opts BrokerOpts) *PermissionBroker {
-	b := &PermissionBroker{file: file, envBase: envBase, nowFn: opts.Now, sessionAllowed: map[string]bool{}, taint: map[<-chan struct{}]bool{}, convGrants: map[string]map[string]bool{},
+	b := &PermissionBroker{file: file, envBase: envBase, nowFn: opts.Now, sessionAllowed: map[string]bool{}, taint: map[<-chan struct{}]bool{}, convGrants: map[string]map[string]bool{}, convCommands: map[string]map[string]bool{},
 		convRulesSuspended: map[string]float64{}, pending: map[string]*pendingConfirm{}}
 	if b.nowFn == nil {
 		b.nowFn = nowMs
@@ -527,6 +531,10 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	if mode == "plan" && i.Danger != "read" {
 		return "blocked"
 	}
+	// 本会话始终执行：这个对话里点过的同一条命令、同一工作目录直接执行（「逐项确认」模式下不认）
+	if conv := tools.ConversationFrom(i.Signal); conv != "" && mode != "manual" && b.convCommandAllowed(conv, i) {
+		return "auto"
+	}
 	// 命令白名单：用户记过的命令前缀直接执行（跳过 workspace_run 的强制确认）。以下情况不认，照常审核 / 确认：
 	// 这一轮读过外部内容、白名单因污染暂停中、「逐项确认」模式、用户给这个工具显式设了「每次询问」
 	if rule := b.commandRuleFor(i); rule != "" && b.commandRulesApply(i, mode) {
@@ -607,7 +615,18 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 		p := u16slice(*i.Preview, 0, ConfirmPreviewCap)
 		req.Preview = &p
 	}
-	decision, remember, req := b.ask(req, i.Signal)
+	// 跑命令：这个对话里可以「本会话始终执行」这一条（读凭据、发布这类永远问人的命令不提供）
+	if ReviewedTools[i.Tool] && conv != "" && mode != "manual" {
+		if cmd, _, ok := parseCommandArgs(i.Args); ok {
+			if cls := ClassifyCommand(cmd); cls != "credential" && cls != "never" && cls != "external" {
+				req.SessionCommand = cmd
+			}
+		}
+	}
+	decision, remember, session, req := b.ask(req, i.Signal)
+	if decision == "allowed" && session && req.SessionCommand != "" {
+		b.allowConvCommand(conv, i)
+	}
 	// 用户亲手放行了一条命令：污染导致的白名单暂停到此为止
 	if decision == "allowed" && ReviewedTools[i.Tool] {
 		b.mu.Lock()
@@ -856,7 +875,7 @@ func (b *PermissionBroker) RequestScope(suggested, mode, reason string, signal c
 		p := u16slice(reason, 0, 200)
 		req.Preview = &p
 	}
-	d, _, _ := b.ask(req, signal)
+	d, _, _, _ := b.ask(req, signal)
 	switch d {
 	case "allowed":
 		if real == "" {
@@ -882,10 +901,10 @@ func (b *PermissionBroker) scopeCandidate(p string) string {
 }
 
 // ask：发出确认请求并等答复（超时 / 发起方取消都会收起界面上的请求）；返回 decision、remember 与发出的请求
-func (b *PermissionBroker) ask(req ConfirmRequest, signal context.Context) (string, bool, ConfirmRequest) {
+func (b *PermissionBroker) ask(req ConfirmRequest, signal context.Context) (string, bool, bool, ConfirmRequest) {
 	// 发起方在登记之前就取消了（例如停止发生在 RequestScope 的目录校验期间）：不发卡片，直接拒绝（#203）
 	if signal != nil && signal.Err() != nil {
-		return "denied", false, req
+		return "denied", false, false, req
 	}
 	req.ID = randomUUID()
 	req.ExpiresAt = b.nowFn() + float64(b.timeout.Milliseconds())
@@ -901,17 +920,17 @@ func (b *PermissionBroker) ask(req ConfirmRequest, signal context.Context) (stri
 	timer := time.NewTimer(b.timeout)
 	defer timer.Stop()
 	var decision Decision
-	remember := false
+	var mark any = false
 	select {
 	case r := <-pc.done:
-		decision, remember = r[0].(string), r[1].(bool)
+		decision, mark = r[0].(string), r[1]
 	case <-timer.C:
 		if b.takePending(req.ID) {
 			b.UI.Cancel(req.ID)
 			decision = "timeout"
 		} else {
 			r := <-pc.done
-			decision, remember = r[0].(string), r[1].(bool)
+			decision, mark = r[0].(string), r[1]
 		}
 	case <-abort:
 		if b.takePending(req.ID) {
@@ -919,10 +938,10 @@ func (b *PermissionBroker) ask(req ConfirmRequest, signal context.Context) (stri
 			decision = "denied"
 		} else {
 			r := <-pc.done
-			decision, remember = r[0].(string), r[1].(bool)
+			decision, mark = r[0].(string), r[1]
 		}
 	}
-	return decision, remember, req
+	return decision, mark == true, mark == "session", req
 }
 
 // CancelPendingWhere：撤掉还在等的确认（按拒绝处理），返回撤掉的个数（桌面操作紧急停止）
@@ -962,6 +981,11 @@ func (b *PermissionBroker) Answer(id string, allow, remember bool) bool {
 
 // AnswerPick：pick 只对请求文件夹有效（用户要自己另选一个文件夹）
 func (b *PermissionBroker) AnswerPick(id string, allow, remember, pick bool) bool {
+	return b.AnswerFull(id, allow, remember, pick, false)
+}
+
+// AnswerFull：session = 「本会话始终执行」这条命令（只对带 SessionCommand 的确认有效）
+func (b *PermissionBroker) AnswerFull(id string, allow, remember, pick, session bool) bool {
 	b.mu.Lock()
 	p, ok := b.pending[id]
 	if ok {
@@ -977,7 +1001,11 @@ func (b *PermissionBroker) AnswerPick(id string, allow, remember, pick bool) boo
 	} else if allow {
 		d = "allowed"
 	}
-	p.done <- [2]any{d, remember && p.req.Rememberable}
+	var mark any = remember && p.req.Rememberable
+	if session && allow && p.req.SessionCommand != "" {
+		mark = "session"
+	}
+	p.done <- [2]any{d, mark}
 	return true
 }
 
@@ -1075,6 +1103,7 @@ func (b *PermissionBroker) ResetAll() {
 	b.sessionScopes = nil
 	b.sessionAllowed = map[string]bool{}
 	b.convGrants = map[string]map[string]bool{}
+	b.convCommands = map[string]map[string]bool{}
 	b.convRulesSuspended = map[string]float64{}
 	b.saveLocked()
 	b.mu.Unlock()
@@ -1124,4 +1153,35 @@ func (b *PermissionBroker) SetComputerAlways(on bool) {
 	b.saveLocked()
 	b.mu.Unlock()
 	b.notify()
+}
+
+func convCommandKey(cmd, cwd string) string {
+	return strings.Join(strings.Fields(cmd), " ") + "\x00" + cwd
+}
+
+// convCommandAllowed：这个对话里「本会话始终执行」过这条命令（同一工作目录）
+func (b *PermissionBroker) convCommandAllowed(conv string, i AuthorizeInput) bool {
+	if !ReviewedTools[i.Tool] {
+		return false
+	}
+	cmd, cwd, ok := parseCommandArgs(i.Args)
+	if !ok {
+		return false
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.convCommands[conv][convCommandKey(cmd, cwd)]
+}
+
+func (b *PermissionBroker) allowConvCommand(conv string, i AuthorizeInput) {
+	cmd, cwd, ok := parseCommandArgs(i.Args)
+	if !ok || conv == "" {
+		return
+	}
+	b.mu.Lock()
+	if b.convCommands[conv] == nil {
+		b.convCommands[conv] = map[string]bool{}
+	}
+	b.convCommands[conv][convCommandKey(cmd, cwd)] = true
+	b.mu.Unlock()
 }

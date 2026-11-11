@@ -77,6 +77,26 @@ describe('DesktopConfirmDock', () => {
     ]);
   });
 
+  it('跑命令的确认：「本会话始终执行」只对这条命令、经契约带 session 答复', async () => {
+    pending = [req({ tool: 'workspace_run', danger: 'destructive', sessionCommand: 'pbpaste' })];
+    await mount();
+    const btn = screen.getByTestId('desktop-confirm-session');
+    expect(btn.getAttribute('title')).toContain('pbpaste');
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await act(() => vi.advanceTimersByTimeAsync(1100));
+    fireEvent.click(btn);
+    await act(() => fake.settle());
+    expect(fake.inputs('desktop.confirmAnswer')).toEqual([
+      { id: 'c1', allow: true, remember: false, pick: false, session: true },
+    ]);
+  });
+
+  it('没有 sessionCommand 时不显示「本会话始终执行」', async () => {
+    pending = [req()];
+    await mount();
+    expect(screen.queryByTestId('desktop-confirm-session')).toBeNull();
+  });
+
   it('不能记住的请求没有「始终允许」', async () => {
     pending = [req({ rememberable: false })];
     await mount();

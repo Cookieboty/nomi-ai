@@ -2224,6 +2224,7 @@ type DesktopConfirmAnswerInput struct {
 	Allow    bool   `json:"allow"`
 	Remember bool   `json:"remember"`
 	Pick     *bool  `json:"pick,omitempty"`
+	Session  *bool  `json:"session,omitempty"`
 }
 
 // DesktopGrantInputMode 枚举：read | read-write
@@ -2321,22 +2322,23 @@ const (
 )
 
 type DesktopProtectFolderOutputStatePendingItem struct {
-	Id            string                                                   `json:"id"`
-	Tool          string                                                   `json:"tool"`
-	Danger        string                                                   `json:"danger"`
-	Summary       string                                                   `json:"summary"`
-	ArgsJson      string                                                   `json:"argsJson"`
-	Preview       *string                                                  `json:"preview,omitempty"`
-	Dialog        bool                                                     `json:"dialog"`
-	Rememberable  bool                                                     `json:"rememberable"`
-	Reason        string                                                   `json:"reason"`
-	ExpiresAt     float64                                                  `json:"expiresAt"`
-	Kind          *string                                                  `json:"kind,omitempty"`
-	ScopePath     *string                                                  `json:"scopePath,omitempty"`
-	ScopeMode     *DesktopProtectFolderOutputStatePendingItemScopeMode     `json:"scopeMode,omitempty"`
-	Review        *DesktopProtectFolderOutputStatePendingItemReview        `json:"review,omitempty"`
-	RememberRule  *string                                                  `json:"rememberRule,omitempty"`
-	RememberGroup *DesktopProtectFolderOutputStatePendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Id             string                                                   `json:"id"`
+	Tool           string                                                   `json:"tool"`
+	Danger         string                                                   `json:"danger"`
+	Summary        string                                                   `json:"summary"`
+	ArgsJson       string                                                   `json:"argsJson"`
+	Preview        *string                                                  `json:"preview,omitempty"`
+	Dialog         bool                                                     `json:"dialog"`
+	Rememberable   bool                                                     `json:"rememberable"`
+	Reason         string                                                   `json:"reason"`
+	ExpiresAt      float64                                                  `json:"expiresAt"`
+	Kind           *string                                                  `json:"kind,omitempty"`
+	ScopePath      *string                                                  `json:"scopePath,omitempty"`
+	ScopeMode      *DesktopProtectFolderOutputStatePendingItemScopeMode     `json:"scopeMode,omitempty"`
+	Review         *DesktopProtectFolderOutputStatePendingItemReview        `json:"review,omitempty"`
+	RememberRule   *string                                                  `json:"rememberRule,omitempty"`
+	SessionCommand *string                                                  `json:"sessionCommand,omitempty"`
+	RememberGroup  *DesktopProtectFolderOutputStatePendingItemRememberGroup `json:"rememberGroup,omitempty"`
 }
 
 type DesktopProtectFolderOutputState struct {
@@ -2541,22 +2543,23 @@ const (
 )
 
 type DesktopRemoveCliSandboxAllowOutputPendingItem struct {
-	Id            string                                                      `json:"id"`
-	Tool          string                                                      `json:"tool"`
-	Danger        string                                                      `json:"danger"`
-	Summary       string                                                      `json:"summary"`
-	ArgsJson      string                                                      `json:"argsJson"`
-	Preview       *string                                                     `json:"preview,omitempty"`
-	Dialog        bool                                                        `json:"dialog"`
-	Rememberable  bool                                                        `json:"rememberable"`
-	Reason        string                                                      `json:"reason"`
-	ExpiresAt     float64                                                     `json:"expiresAt"`
-	Kind          *string                                                     `json:"kind,omitempty"`
-	ScopePath     *string                                                     `json:"scopePath,omitempty"`
-	ScopeMode     *DesktopRemoveCliSandboxAllowOutputPendingItemScopeMode     `json:"scopeMode,omitempty"`
-	Review        *DesktopRemoveCliSandboxAllowOutputPendingItemReview        `json:"review,omitempty"`
-	RememberRule  *string                                                     `json:"rememberRule,omitempty"`
-	RememberGroup *DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Id             string                                                      `json:"id"`
+	Tool           string                                                      `json:"tool"`
+	Danger         string                                                      `json:"danger"`
+	Summary        string                                                      `json:"summary"`
+	ArgsJson       string                                                      `json:"argsJson"`
+	Preview        *string                                                     `json:"preview,omitempty"`
+	Dialog         bool                                                        `json:"dialog"`
+	Rememberable   bool                                                        `json:"rememberable"`
+	Reason         string                                                      `json:"reason"`
+	ExpiresAt      float64                                                     `json:"expiresAt"`
+	Kind           *string                                                     `json:"kind,omitempty"`
+	ScopePath      *string                                                     `json:"scopePath,omitempty"`
+	ScopeMode      *DesktopRemoveCliSandboxAllowOutputPendingItemScopeMode     `json:"scopeMode,omitempty"`
+	Review         *DesktopRemoveCliSandboxAllowOutputPendingItemReview        `json:"review,omitempty"`
+	RememberRule   *string                                                     `json:"rememberRule,omitempty"`
+	SessionCommand *string                                                     `json:"sessionCommand,omitempty"`
+	RememberGroup  *DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
 }
 
 type DesktopRemoveCliSandboxAllowOutput struct {
@@ -2644,22 +2647,23 @@ const (
 )
 
 type DesktopRemoveCommandRuleOutputPendingItem struct {
-	Id            string                                                  `json:"id"`
-	Tool          string                                                  `json:"tool"`
-	Danger        string                                                  `json:"danger"`
-	Summary       string                                                  `json:"summary"`
-	ArgsJson      string                                                  `json:"argsJson"`
-	Preview       *string                                                 `json:"preview,omitempty"`
-	Dialog        bool                                                    `json:"dialog"`
-	Rememberable  bool                                                    `json:"rememberable"`
-	Reason        string                                                  `json:"reason"`
-	ExpiresAt     float64                                                 `json:"expiresAt"`
-	Kind          *string                                                 `json:"kind,omitempty"`
-	ScopePath     *string                                                 `json:"scopePath,omitempty"`
-	ScopeMode     *DesktopRemoveCommandRuleOutputPendingItemScopeMode     `json:"scopeMode,omitempty"`
-	Review        *DesktopRemoveCommandRuleOutputPendingItemReview        `json:"review,omitempty"`
-	RememberRule  *string                                                 `json:"rememberRule,omitempty"`
-	RememberGroup *DesktopRemoveCommandRuleOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Id             string                                                  `json:"id"`
+	Tool           string                                                  `json:"tool"`
+	Danger         string                                                  `json:"danger"`
+	Summary        string                                                  `json:"summary"`
+	ArgsJson       string                                                  `json:"argsJson"`
+	Preview        *string                                                 `json:"preview,omitempty"`
+	Dialog         bool                                                    `json:"dialog"`
+	Rememberable   bool                                                    `json:"rememberable"`
+	Reason         string                                                  `json:"reason"`
+	ExpiresAt      float64                                                 `json:"expiresAt"`
+	Kind           *string                                                 `json:"kind,omitempty"`
+	ScopePath      *string                                                 `json:"scopePath,omitempty"`
+	ScopeMode      *DesktopRemoveCommandRuleOutputPendingItemScopeMode     `json:"scopeMode,omitempty"`
+	Review         *DesktopRemoveCommandRuleOutputPendingItemReview        `json:"review,omitempty"`
+	RememberRule   *string                                                 `json:"rememberRule,omitempty"`
+	SessionCommand *string                                                 `json:"sessionCommand,omitempty"`
+	RememberGroup  *DesktopRemoveCommandRuleOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
 }
 
 type DesktopRemoveCommandRuleOutput struct {
@@ -2751,22 +2755,23 @@ const (
 )
 
 type DesktopSetCliEnvAllowOutputPendingItem struct {
-	Id            string                                               `json:"id"`
-	Tool          string                                               `json:"tool"`
-	Danger        string                                               `json:"danger"`
-	Summary       string                                               `json:"summary"`
-	ArgsJson      string                                               `json:"argsJson"`
-	Preview       *string                                              `json:"preview,omitempty"`
-	Dialog        bool                                                 `json:"dialog"`
-	Rememberable  bool                                                 `json:"rememberable"`
-	Reason        string                                               `json:"reason"`
-	ExpiresAt     float64                                              `json:"expiresAt"`
-	Kind          *string                                              `json:"kind,omitempty"`
-	ScopePath     *string                                              `json:"scopePath,omitempty"`
-	ScopeMode     *DesktopSetCliEnvAllowOutputPendingItemScopeMode     `json:"scopeMode,omitempty"`
-	Review        *DesktopSetCliEnvAllowOutputPendingItemReview        `json:"review,omitempty"`
-	RememberRule  *string                                              `json:"rememberRule,omitempty"`
-	RememberGroup *DesktopSetCliEnvAllowOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Id             string                                               `json:"id"`
+	Tool           string                                               `json:"tool"`
+	Danger         string                                               `json:"danger"`
+	Summary        string                                               `json:"summary"`
+	ArgsJson       string                                               `json:"argsJson"`
+	Preview        *string                                              `json:"preview,omitempty"`
+	Dialog         bool                                                 `json:"dialog"`
+	Rememberable   bool                                                 `json:"rememberable"`
+	Reason         string                                               `json:"reason"`
+	ExpiresAt      float64                                              `json:"expiresAt"`
+	Kind           *string                                              `json:"kind,omitempty"`
+	ScopePath      *string                                              `json:"scopePath,omitempty"`
+	ScopeMode      *DesktopSetCliEnvAllowOutputPendingItemScopeMode     `json:"scopeMode,omitempty"`
+	Review         *DesktopSetCliEnvAllowOutputPendingItemReview        `json:"review,omitempty"`
+	RememberRule   *string                                              `json:"rememberRule,omitempty"`
+	SessionCommand *string                                              `json:"sessionCommand,omitempty"`
+	RememberGroup  *DesktopSetCliEnvAllowOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
 }
 
 type DesktopSetCliEnvAllowOutput struct {
@@ -2854,22 +2859,23 @@ const (
 )
 
 type DesktopSetCliSandboxOutputPendingItem struct {
-	Id            string                                              `json:"id"`
-	Tool          string                                              `json:"tool"`
-	Danger        string                                              `json:"danger"`
-	Summary       string                                              `json:"summary"`
-	ArgsJson      string                                              `json:"argsJson"`
-	Preview       *string                                             `json:"preview,omitempty"`
-	Dialog        bool                                                `json:"dialog"`
-	Rememberable  bool                                                `json:"rememberable"`
-	Reason        string                                              `json:"reason"`
-	ExpiresAt     float64                                             `json:"expiresAt"`
-	Kind          *string                                             `json:"kind,omitempty"`
-	ScopePath     *string                                             `json:"scopePath,omitempty"`
-	ScopeMode     *DesktopSetCliSandboxOutputPendingItemScopeMode     `json:"scopeMode,omitempty"`
-	Review        *DesktopSetCliSandboxOutputPendingItemReview        `json:"review,omitempty"`
-	RememberRule  *string                                             `json:"rememberRule,omitempty"`
-	RememberGroup *DesktopSetCliSandboxOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Id             string                                              `json:"id"`
+	Tool           string                                              `json:"tool"`
+	Danger         string                                              `json:"danger"`
+	Summary        string                                              `json:"summary"`
+	ArgsJson       string                                              `json:"argsJson"`
+	Preview        *string                                             `json:"preview,omitempty"`
+	Dialog         bool                                                `json:"dialog"`
+	Rememberable   bool                                                `json:"rememberable"`
+	Reason         string                                              `json:"reason"`
+	ExpiresAt      float64                                             `json:"expiresAt"`
+	Kind           *string                                             `json:"kind,omitempty"`
+	ScopePath      *string                                             `json:"scopePath,omitempty"`
+	ScopeMode      *DesktopSetCliSandboxOutputPendingItemScopeMode     `json:"scopeMode,omitempty"`
+	Review         *DesktopSetCliSandboxOutputPendingItemReview        `json:"review,omitempty"`
+	RememberRule   *string                                             `json:"rememberRule,omitempty"`
+	SessionCommand *string                                             `json:"sessionCommand,omitempty"`
+	RememberGroup  *DesktopSetCliSandboxOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
 }
 
 type DesktopSetCliSandboxOutput struct {
@@ -2962,22 +2968,23 @@ const (
 )
 
 type DesktopStateOutputPendingItem struct {
-	Id            string                                      `json:"id"`
-	Tool          string                                      `json:"tool"`
-	Danger        string                                      `json:"danger"`
-	Summary       string                                      `json:"summary"`
-	ArgsJson      string                                      `json:"argsJson"`
-	Preview       *string                                     `json:"preview,omitempty"`
-	Dialog        bool                                        `json:"dialog"`
-	Rememberable  bool                                        `json:"rememberable"`
-	Reason        string                                      `json:"reason"`
-	ExpiresAt     float64                                     `json:"expiresAt"`
-	Kind          *string                                     `json:"kind,omitempty"`
-	ScopePath     *string                                     `json:"scopePath,omitempty"`
-	ScopeMode     *DesktopStateOutputPendingItemScopeMode     `json:"scopeMode,omitempty"`
-	Review        *DesktopStateOutputPendingItemReview        `json:"review,omitempty"`
-	RememberRule  *string                                     `json:"rememberRule,omitempty"`
-	RememberGroup *DesktopStateOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Id             string                                      `json:"id"`
+	Tool           string                                      `json:"tool"`
+	Danger         string                                      `json:"danger"`
+	Summary        string                                      `json:"summary"`
+	ArgsJson       string                                      `json:"argsJson"`
+	Preview        *string                                     `json:"preview,omitempty"`
+	Dialog         bool                                        `json:"dialog"`
+	Rememberable   bool                                        `json:"rememberable"`
+	Reason         string                                      `json:"reason"`
+	ExpiresAt      float64                                     `json:"expiresAt"`
+	Kind           *string                                     `json:"kind,omitempty"`
+	ScopePath      *string                                     `json:"scopePath,omitempty"`
+	ScopeMode      *DesktopStateOutputPendingItemScopeMode     `json:"scopeMode,omitempty"`
+	Review         *DesktopStateOutputPendingItemReview        `json:"review,omitempty"`
+	RememberRule   *string                                     `json:"rememberRule,omitempty"`
+	SessionCommand *string                                     `json:"sessionCommand,omitempty"`
+	RememberGroup  *DesktopStateOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
 }
 
 type DesktopStateOutput struct {
@@ -3085,22 +3092,23 @@ const (
 )
 
 type DesktopUnprotectPathOutputPendingItem struct {
-	Id            string                                              `json:"id"`
-	Tool          string                                              `json:"tool"`
-	Danger        string                                              `json:"danger"`
-	Summary       string                                              `json:"summary"`
-	ArgsJson      string                                              `json:"argsJson"`
-	Preview       *string                                             `json:"preview,omitempty"`
-	Dialog        bool                                                `json:"dialog"`
-	Rememberable  bool                                                `json:"rememberable"`
-	Reason        string                                              `json:"reason"`
-	ExpiresAt     float64                                             `json:"expiresAt"`
-	Kind          *string                                             `json:"kind,omitempty"`
-	ScopePath     *string                                             `json:"scopePath,omitempty"`
-	ScopeMode     *DesktopUnprotectPathOutputPendingItemScopeMode     `json:"scopeMode,omitempty"`
-	Review        *DesktopUnprotectPathOutputPendingItemReview        `json:"review,omitempty"`
-	RememberRule  *string                                             `json:"rememberRule,omitempty"`
-	RememberGroup *DesktopUnprotectPathOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Id             string                                              `json:"id"`
+	Tool           string                                              `json:"tool"`
+	Danger         string                                              `json:"danger"`
+	Summary        string                                              `json:"summary"`
+	ArgsJson       string                                              `json:"argsJson"`
+	Preview        *string                                             `json:"preview,omitempty"`
+	Dialog         bool                                                `json:"dialog"`
+	Rememberable   bool                                                `json:"rememberable"`
+	Reason         string                                              `json:"reason"`
+	ExpiresAt      float64                                             `json:"expiresAt"`
+	Kind           *string                                             `json:"kind,omitempty"`
+	ScopePath      *string                                             `json:"scopePath,omitempty"`
+	ScopeMode      *DesktopUnprotectPathOutputPendingItemScopeMode     `json:"scopeMode,omitempty"`
+	Review         *DesktopUnprotectPathOutputPendingItemReview        `json:"review,omitempty"`
+	RememberRule   *string                                             `json:"rememberRule,omitempty"`
+	SessionCommand *string                                             `json:"sessionCommand,omitempty"`
+	RememberGroup  *DesktopUnprotectPathOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
 }
 
 type DesktopUnprotectPathOutput struct {
@@ -10794,22 +10802,23 @@ const (
 )
 
 type EventDesktopChangedPendingItem struct {
-	Id            string                                       `json:"id"`
-	Tool          string                                       `json:"tool"`
-	Danger        string                                       `json:"danger"`
-	Summary       string                                       `json:"summary"`
-	ArgsJson      string                                       `json:"argsJson"`
-	Preview       *string                                      `json:"preview,omitempty"`
-	Dialog        bool                                         `json:"dialog"`
-	Rememberable  bool                                         `json:"rememberable"`
-	Reason        string                                       `json:"reason"`
-	ExpiresAt     float64                                      `json:"expiresAt"`
-	Kind          *string                                      `json:"kind,omitempty"`
-	ScopePath     *string                                      `json:"scopePath,omitempty"`
-	ScopeMode     *EventDesktopChangedPendingItemScopeMode     `json:"scopeMode,omitempty"`
-	Review        *EventDesktopChangedPendingItemReview        `json:"review,omitempty"`
-	RememberRule  *string                                      `json:"rememberRule,omitempty"`
-	RememberGroup *EventDesktopChangedPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Id             string                                       `json:"id"`
+	Tool           string                                       `json:"tool"`
+	Danger         string                                       `json:"danger"`
+	Summary        string                                       `json:"summary"`
+	ArgsJson       string                                       `json:"argsJson"`
+	Preview        *string                                      `json:"preview,omitempty"`
+	Dialog         bool                                         `json:"dialog"`
+	Rememberable   bool                                         `json:"rememberable"`
+	Reason         string                                       `json:"reason"`
+	ExpiresAt      float64                                      `json:"expiresAt"`
+	Kind           *string                                      `json:"kind,omitempty"`
+	ScopePath      *string                                      `json:"scopePath,omitempty"`
+	ScopeMode      *EventDesktopChangedPendingItemScopeMode     `json:"scopeMode,omitempty"`
+	Review         *EventDesktopChangedPendingItemReview        `json:"review,omitempty"`
+	RememberRule   *string                                      `json:"rememberRule,omitempty"`
+	SessionCommand *string                                      `json:"sessionCommand,omitempty"`
+	RememberGroup  *EventDesktopChangedPendingItemRememberGroup `json:"rememberGroup,omitempty"`
 }
 
 type EventDesktopChanged struct {
@@ -10861,22 +10870,23 @@ const (
 )
 
 type EventDesktopConfirmRequest struct {
-	Id            string                                   `json:"id"`
-	Tool          string                                   `json:"tool"`
-	Danger        string                                   `json:"danger"`
-	Summary       string                                   `json:"summary"`
-	ArgsJson      string                                   `json:"argsJson"`
-	Preview       *string                                  `json:"preview,omitempty"`
-	Dialog        bool                                     `json:"dialog"`
-	Rememberable  bool                                     `json:"rememberable"`
-	Reason        string                                   `json:"reason"`
-	ExpiresAt     float64                                  `json:"expiresAt"`
-	Kind          *string                                  `json:"kind,omitempty"`
-	ScopePath     *string                                  `json:"scopePath,omitempty"`
-	ScopeMode     *EventDesktopConfirmRequestScopeMode     `json:"scopeMode,omitempty"`
-	Review        *EventDesktopConfirmRequestReview        `json:"review,omitempty"`
-	RememberRule  *string                                  `json:"rememberRule,omitempty"`
-	RememberGroup *EventDesktopConfirmRequestRememberGroup `json:"rememberGroup,omitempty"`
+	Id             string                                   `json:"id"`
+	Tool           string                                   `json:"tool"`
+	Danger         string                                   `json:"danger"`
+	Summary        string                                   `json:"summary"`
+	ArgsJson       string                                   `json:"argsJson"`
+	Preview        *string                                  `json:"preview,omitempty"`
+	Dialog         bool                                     `json:"dialog"`
+	Rememberable   bool                                     `json:"rememberable"`
+	Reason         string                                   `json:"reason"`
+	ExpiresAt      float64                                  `json:"expiresAt"`
+	Kind           *string                                  `json:"kind,omitempty"`
+	ScopePath      *string                                  `json:"scopePath,omitempty"`
+	ScopeMode      *EventDesktopConfirmRequestScopeMode     `json:"scopeMode,omitempty"`
+	Review         *EventDesktopConfirmRequestReview        `json:"review,omitempty"`
+	RememberRule   *string                                  `json:"rememberRule,omitempty"`
+	SessionCommand *string                                  `json:"sessionCommand,omitempty"`
+	RememberGroup  *EventDesktopConfirmRequestRememberGroup `json:"rememberGroup,omitempty"`
 }
 
 type EventDesktopP2Changed struct {

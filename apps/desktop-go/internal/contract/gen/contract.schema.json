@@ -9101,6 +9101,9 @@
      },
      "pick": {
       "type": "boolean"
+     },
+     "session": {
+      "type": "boolean"
      }
     },
     "required": [
@@ -9528,6 +9531,9 @@
              "additionalProperties": {}
             },
             "rememberRule": {
+             "type": "string"
+            },
+            "sessionCommand": {
              "type": "string"
             },
             "rememberGroup": {
@@ -10410,6 +10416,9 @@
         "rememberRule": {
          "type": "string"
         },
+        "sessionCommand": {
+         "type": "string"
+        },
         "rememberGroup": {
          "type": "string",
          "enum": [
@@ -10736,6 +10745,9 @@
          "additionalProperties": {}
         },
         "rememberRule": {
+         "type": "string"
+        },
+        "sessionCommand": {
          "type": "string"
         },
         "rememberGroup": {
@@ -11114,6 +11126,9 @@
         "rememberRule": {
          "type": "string"
         },
+        "sessionCommand": {
+         "type": "string"
+        },
         "rememberGroup": {
          "type": "string",
          "enum": [
@@ -11440,6 +11455,9 @@
          "additionalProperties": {}
         },
         "rememberRule": {
+         "type": "string"
+        },
+        "sessionCommand": {
          "type": "string"
         },
         "rememberGroup": {
@@ -11805,6 +11823,9 @@
          "additionalProperties": {}
         },
         "rememberRule": {
+         "type": "string"
+        },
+        "sessionCommand": {
          "type": "string"
         },
         "rememberGroup": {
@@ -12240,6 +12261,9 @@
          "additionalProperties": {}
         },
         "rememberRule": {
+         "type": "string"
+        },
+        "sessionCommand": {
          "type": "string"
         },
         "rememberGroup": {
@@ -36745,6 +36769,9 @@
        "rememberRule": {
         "type": "string"
        },
+       "sessionCommand": {
+        "type": "string"
+       },
        "rememberGroup": {
         "type": "string",
         "enum": [
@@ -36865,6 +36892,9 @@
      "additionalProperties": {}
     },
     "rememberRule": {
+     "type": "string"
+    },
+    "sessionCommand": {
      "type": "string"
     },
     "rememberGroup": {

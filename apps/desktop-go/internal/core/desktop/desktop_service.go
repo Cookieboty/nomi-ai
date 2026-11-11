@@ -957,11 +957,16 @@ func (s *Service) ReminderAction(surface string, id, action, minutes any) {
 
 // AnswerConfirm：确认答复，来自对话窗口（契约按界面放行）或桌面角色窗口
 func (s *Service) AnswerConfirm(surface string, id, allow, remember, pick any) {
+	s.AnswerConfirmFull(surface, id, allow, remember, pick, false)
+}
+
+// AnswerConfirmFull：session = 「本会话始终执行」这条命令
+func (s *Service) AnswerConfirmFull(surface string, id, allow, remember, pick, session any) {
 	if surface != "chat" && !s.IsMascotSender(surface) {
 		log.Printf("忽略来自非 Nomi 窗口的确认答复")
 		return
 	}
-	if sid, ok := id.(string); ok && s.Broker.AnswerPick(sid, allow == true, remember == true, pick == true) {
+	if sid, ok := id.(string); ok && s.Broker.AnswerFull(sid, allow == true, remember == true, pick == true, session == true) {
 		s.cancelConfirm(sid)
 	}
 	s.rehideMascotIfIdle()

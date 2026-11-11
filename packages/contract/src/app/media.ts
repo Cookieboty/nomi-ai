@@ -312,6 +312,8 @@ export const mediaProcedures = {
       allow: z.boolean(),
       remember: z.boolean(),
       pick: z.boolean().optional(),
+      /** 本会话始终执行这条命令（只对带 sessionCommand 的确认有效） */
+      session: z.boolean().optional(),
     }),
     output: z.void(),
     surfaces: ['mascot', 'chat'],

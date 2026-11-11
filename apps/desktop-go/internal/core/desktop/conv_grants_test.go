@@ -281,3 +281,56 @@ func TestCancelPendingWhere(t *testing.T) {
 	<-other
 	_ = ui
 }
+
+// 「本会话始终执行」：这个对话里同一条命令、同一工作目录不再问；换命令、换目录、换对话、「逐项确认」照样问
+func TestSessionCommand(t *testing.T) {
+	b, ui, _ := reviewBroker(t, nil)
+	run := func(ctx context.Context, cmd, cwd string) Decision {
+		return b.Authorize(AuthorizeInput{Tool: "workspace_run", Danger: "destructive", Summary: "跑",
+			Args: json.RawMessage(`{"command":"` + cmd + `","cwd":"` + cwd + `"}`), Signal: ctx, Force: &struct{ Dialog bool }{true}})
+	}
+	answerSession := func(n int) {
+		go func() {
+			for i := 0; i < 400; i++ {
+				ui.mu.Lock()
+				ready := len(ui.seen) >= n
+				ui.mu.Unlock()
+				if ready {
+					b.AnswerFull(ui.last().ID, true, false, false, true)
+					return
+				}
+				time.Sleep(5 * time.Millisecond)
+			}
+		}()
+	}
+	a := convCtx(t, "c1")
+	answerSession(1)
+	if d := run(a, "pbpaste", "/w"); d != "allowed" {
+		t.Fatal(d)
+	}
+	if r := ui.last(); r.SessionCommand != "pbpaste" {
+		t.Fatalf("card should offer the command: %+v", r)
+	}
+	if d := run(convCtx(t, "c1"), "pbpaste", "/w"); d != "auto" {
+		t.Fatalf("same command, same conversation: %s", d)
+	}
+	n := len(ui.seen)
+	answerRemember(b, ui, n+1, false, false)
+	if d := run(a, "pbpaste", "/other"); d != "denied" {
+		t.Fatalf("another working directory still asks: %s", d)
+	}
+	answerRemember(b, ui, n+2, false, false)
+	if d := run(a, "pbcopy", "/w"); d != "denied" {
+		t.Fatalf("another command still asks: %s", d)
+	}
+	answerRemember(b, ui, n+3, false, false)
+	if d := run(convCtx(t, "c2"), "pbpaste", "/w"); d != "denied" {
+		t.Fatalf("another conversation still asks: %s", d)
+	}
+	// 发布 / 对外命令不提供「本会话始终执行」
+	answerRemember(b, ui, n+4, false, false)
+	run(a, "git push", "/w")
+	if ui.last().SessionCommand != "" {
+		t.Fatal("external commands must not offer session allow")
+	}
+}

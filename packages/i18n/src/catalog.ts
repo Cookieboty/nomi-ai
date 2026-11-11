@@ -868,6 +868,8 @@ export type TranslationKey =
   | 'ui.chat-settings.dont-ask-delegate-in-conversation'
   | 'ui.chat-settings.dont-ask-computer-in-conversation'
   | 'ui.chat-settings.always-allow-computer'
+  | 'ui.chat-settings.session-command-always'
+  | 'ui.chat-settings.session-command-always-tip'
   | 'ui.chat-settings.dont-ask-tool-in-conversation'
   | 'ui.chat-settings.don-t-bring-the-context'
   | 'ui.chat-settings.done'

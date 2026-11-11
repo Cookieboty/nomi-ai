@@ -76,7 +76,7 @@ func Register(r *contract.Router, s *Service) {
 		return s.SnoozeReminder(field(in, "id"), field(in, "minutes"))
 	})
 	call("desktop.confirmAnswer", func(c contract.Caller, in json.RawMessage) any {
-		s.AnswerConfirm(c.Surface, field(in, "id"), field(in, "allow"), field(in, "remember"), field(in, "pick"))
+		s.AnswerConfirmFull(c.Surface, field(in, "id"), field(in, "allow"), field(in, "remember"), field(in, "pick"), field(in, "session"))
 		return nil
 	})
 	call("desktop.reminderAction", func(c contract.Caller, in json.RawMessage) any {
