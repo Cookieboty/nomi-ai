@@ -113,19 +113,56 @@ func TestRootsSkipsMissingExtra(t *testing.T) {
 	}
 }
 
-func TestSeedOnce(t *testing.T) {
+func TestSeedIdempotent(t *testing.T) {
 	s, dir, _ := newStore(t)
 	a, b := mk(t, dir, "a"), mk(t, dir, "b")
-	m, err := s.Seed([]string{a, b, a, filepath.Join(dir, "gone"), ""})
+	gone := filepath.Join(dir, "gone")
+	m, err := s.Seed([]string{a, b, a, gone, ""})
 	if err != nil || len(m) != 2 || m[a] == "" || m[a] == m[b] || len(s.List()) != 2 {
 		t.Fatalf("seed %v %v", m, err)
 	}
-	if m2, _ := s.Seed([]string{a}); m2 != nil {
-		t.Fatal("seed should only run once")
+	// 重跑复用同主文件夹的项目；之前不能用的目录回来了就补建
+	mk(t, dir, "gone")
+	m2, err := s.Seed([]string{a, gone})
+	if err != nil || m2[a] != m[a] || m2[gone] == "" || len(s.List()) != 3 {
+		t.Fatalf("reseed %v %v", m2, err)
 	}
 	// 没有旧目录也落盘（之后不再迁移）
 	s3, _, _ := newStore(t)
 	if _, err := s3.Seed(nil); err != nil || !s3.Existed() {
 		t.Fatal("empty seed should still mark migrated")
+	}
+}
+
+// FindContaining：目录在哪个项目里；几个项目都包含时取最具体的；不在任何项目里返回 false
+func TestFindContaining(t *testing.T) {
+	s, dir, _ := newStore(t)
+	outer, inner, docs := mk(t, dir, "ai"), mk(t, dir, "ai", "app"), mk(t, dir, "docs")
+	a, err := s.Create("", outer, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := s.Create("", inner, []string{docs})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		dir  string
+		want string
+	}{
+		{filepath.Join(outer, "x"), a.ID},
+		{filepath.Join(inner, "src"), b.ID},
+		{inner, b.ID},
+		{filepath.Join(docs, "y"), b.ID},
+	} {
+		if p, ok := s.FindContaining(c.dir); !ok || p.ID != c.want {
+			t.Fatalf("%s: %q %v, want %q", c.dir, p.ID, ok, c.want)
+		}
+	}
+	if _, ok := s.FindContaining(mk(t, dir, "other")); ok {
+		t.Fatal("outside every project")
+	}
+	if _, ok := s.FindContaining(""); ok {
+		t.Fatal("empty dir")
 	}
 }

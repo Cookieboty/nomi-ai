@@ -441,12 +441,12 @@ func (h *islandPendingHub) collectConfirms(add func(island.Pending, map[string]f
 			item.Title = i18n.T("ui.mascot-theme.island-scope-title")
 			item.Body = r.ScopePath
 		}
-		answer := func(allow bool) func() error {
+		answer := func(allow, remember bool) func() error {
 			return func() error {
 				if !d.Broker.HasPending(id) {
 					return errIslandRejected
 				}
-				d.AnswerConfirm("chat", id, allow, false, false)
+				d.AnswerConfirm("chat", id, allow, remember, false)
 				return nil
 			}
 		}
@@ -462,7 +462,12 @@ func (h *islandPendingHub) collectConfirms(add func(island.Pending, map[string]f
 				allow.Primary, allow.Danger = false, true
 			}
 			item.Actions = []island.Action{allow, deny}
-			fns["allow"], fns["deny"] = answer(true), answer(false)
+			fns["allow"], fns["deny"] = answer(true, false), answer(false, false)
+			// 能记住的（这个对话里的这类操作 / 命令前缀 / 这次运行里这个工具）：多一个「始终允许」，排在「拒绝」前面
+			if r.Rememberable {
+				item.Actions = []island.Action{allow, {ID: "always", Label: i18n.T("ui.chat-settings.sandbox-allow-always")}, deny}
+				fns["always"] = answer(true, true)
+			}
 		}
 		add(item, fns)
 	}

@@ -35,10 +35,38 @@ var candidates = func() map[string][]string {
 	return m
 }()
 
-// MockCliRoots：开发态 mock CLI 目录（仓库根目录 scripts/mock-cli，相对 cwd）。
-var MockCliRoots = func() []string {
-	cwd, _ := os.Getwd()
-	return []string{filepath.Join(cwd, "scripts/mock-cli")}
+// MockCliRoots：开发态 mock CLI 目录。pnpm dev 的工作目录是 apps/desktop-go，
+// 仓库里的假 CLI 在仓库根 scripts/mock-cli，所以从 cwd 一路向上找。
+func MockCliRoots() []string {
+	cwd, err := os.Getwd()
+	if err != nil || cwd == "" {
+		return nil
+	}
+	var out []string
+	dir := cwd
+	for i := 0; i < 8; i++ {
+		out = append(out, filepath.Join(dir, "scripts", "mock-cli"))
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return out
+}
+
+// IsMockCliBin：路径是仓库里的假 CLI（mock-<kind>.mjs）。不要拿正式安装包覆盖它。
+func IsMockCliBin(bin string) bool {
+	base := strings.ToLower(filepath.Base(bin))
+	return strings.HasPrefix(base, "mock-") && (strings.HasSuffix(base, ".mjs") || strings.HasSuffix(base, ".js"))
+}
+
+// MockCliUpdate：这一份是假 CLI（文件名或版本带 -mock）。检测页不提供更新。
+func MockCliUpdate(bin, version string) bool {
+	if IsMockCliBin(bin) {
+		return true
+	}
+	return strings.HasSuffix(strings.TrimSpace(version), "-mock")
 }
 
 // MockCliBin = mockCliBin（"" = null）。

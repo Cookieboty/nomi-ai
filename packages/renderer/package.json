@@ -6,6 +6,7 @@
     "dev": "node ../../scripts/run-bin.mjs vite",
     "build": "node ../../scripts/run-bin.mjs tsc && node ../../scripts/run-bin.mjs vite build",
     "clean": "node ../../scripts/run-bin.mjs rimraf dist",
+    "typecheck": "node ../../scripts/run-bin.mjs tsc --noEmit",
     "test": "node ../../scripts/run-bin.mjs vitest run --passWithNoTests",
     "lint": "eslint ."
   },

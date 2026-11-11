@@ -266,7 +266,9 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			if s, ok := tab.Get("cliSessionId").(string); ok {
 				resume = &s
 			}
-			r, err := jsrt.Await(driver.Start(clisdk.StartOptions{Cwd: str(tab, "cwd"), ResumeID: resume, Signal: signal, AdditionalDirectories: o.extraDirs(tab)}))
+			startCwd := str(tab, "cwd")
+			r, err := jsrt.Await(driver.Start(clisdk.StartOptions{Cwd: startCwd, ResumeID: resume, Signal: signal, AdditionalDirectories: o.extraDirs(tab),
+				McpServers: o.acpComputerServers(tab)}))
 			if err == nil {
 				if s, ok := r.Get("sessionId").(string); ok {
 					sid = &s
@@ -295,6 +297,7 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 				return struct{}{}, errors.New(i18n.T("electron.common.didn-t-return-a-session", name))
 			}
 			live.sessionID = sid
+			o.noteLiveSession(id, backend, startCwd, *sid)
 			initMode := str(tab, "permissionMode")
 			adoptedHistoryMode := false
 			if tab.Get("permissionModeSource") == "history-cli" {

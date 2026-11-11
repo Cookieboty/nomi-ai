@@ -12,7 +12,7 @@ Nomi·诺米 的对话窗口可以当作本机编程助手的界面：消息、�
 
 「设置 → 编程助手 → 助手」左侧列出各编程助手和它的状态（未安装 / 有新版本 / 版本号）：
 
-- 每个编程助手有「版本」卡片：检查更新、一键安装、更新到最新版。安装和更新用本机的 Node.js 与 npm。
+- 每个编程助手有「版本」卡片：检查更新、一键安装、更新到最新版。安装和更新用本机的 Node.js 与 npm。点了直接执行，卡片里实时显示日志；成功后日志自动收起，版本号更新；失败时保留日志和原因。只有前置检查没通过（Node.js 太旧、npm 全局目录没有写入权限等）时才弹框说明，没有写入权限时可以改装到用户目录，Nomi 不会用 sudo。
 - 「通用」里检查运行环境（没有 Node.js、版本过低、找不到 npm 时会提示，并给出下载链接），以及「全部自动」开关（见下文）。
 
 ## 官方账号与第三方供应商
@@ -108,6 +108,7 @@ MiniMax Code 只有计划 / 逐项确认）。需要确认时，对话里出现�
 - 清单（能力位、权限档位、安装方式）：`packages/cli-catalog/src/<cli>/manifest.ts`。
 - 内核：会话编排 `apps/desktop-go/internal/core/cli/harness`，Git 操作 `internal/core/cli/gitops.go`，安装与更新 `internal/core/cli/cli_update_service.go`，官方账号 `internal/core/cli/accounts`；会话驱动 `internal/clisdk`，各 CLI 插件 `internal/cliplugins/<cli>`。
 - 视图：`packages/ai-chat/src/components/SessionWorkspace`、`ProvidersPage`。
+- 操作本机应用：装了 agent-desktop 后（「设置 → Computer Use → 允许编程助手使用」，默认打开），Claude Code、Codex 和 ACP 编程助手会话带上 Nomi 的 `nomi-computer` MCP 服务器，见 [自动化与桌面能力](automation.md#桌面操作computer-use)。
 
 ### 图片消息恢复
 

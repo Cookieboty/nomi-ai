@@ -40,6 +40,7 @@ type Delegate interface {
 	SetSettings(raw any) (*util.Obj, error)
 	Pin(name, turnID any) (string, error)
 	ClearPin(turnID any)
+	Dispatch(sig context.Context, in delegate.DispatchInput) (*util.Obj, error)
 	StatusOf(taskID string) *util.Obj
 }
 
@@ -107,7 +108,12 @@ func gil(r *contract.Router, name string, f func(a in) any) {
 // plain：不进 GIL 直接调用（DelegateService 是 goroutine + 锁实现；
 // 它回调编排器时自己 jsrt.Call，若在 GIL 帧里调用会自锁）。panic(JSThrow) = 抛错。
 func plain(r *contract.Router, name string, f func(a in) any) {
-	r.Call(name, func(_ context.Context, _ contract.Caller, raw json.RawMessage) (v any, err error) {
+	plainCtx(r, name, func(_ context.Context, a in) any { return f(a) })
+}
+
+// plainCtx：同 plain，另外把这次调用的 ctx 交给处理函数（视图中止请求时它会被取消）。
+func plainCtx(r *contract.Router, name string, f func(ctx context.Context, a in) any) {
+	r.Call(name, func(ctx context.Context, _ contract.Caller, raw json.RawMessage) (v any, err error) {
 		defer func() {
 			if x := recover(); x != nil {
 				switch e := x.(type) {
@@ -120,7 +126,7 @@ func plain(r *contract.Router, name string, f func(a in) any) {
 				}
 			}
 		}()
-		return f(parse(raw)), nil
+		return f(ctx, parse(raw)), nil
 	})
 }
 
@@ -189,6 +195,14 @@ func RegisterCoding(r *contract.Router, s CodingServices) {
 	plain(r, "delegate.clearPin", func(a in) any {
 		dlg().ClearPin(a.any("turnId"))
 		return true
+	})
+	plainCtx(r, "delegate.dispatch", func(ctx context.Context, a in) any {
+		v, err := dlg().Dispatch(ctx, delegate.DispatchInput{
+			Cli: a.str("cli"), Goal: a.str("goal"), Context: a.str("context"),
+			ConversationID: a.str("conversationId"), ProjectID: a.str("projectId"), TurnID: a.str("turnId"),
+		})
+		throwIf(err)
+		return v
 	})
 	plain(r, "delegate.status", func(a in) any { return dlg().StatusOf(a.str("taskId")) })
 

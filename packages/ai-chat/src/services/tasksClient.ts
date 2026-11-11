@@ -39,7 +39,7 @@ export type ExecutorSpec =
   | { kind: 'cli'; cli: string; model?: string; cwd: string; isolation: 'worktree' | 'shared' };
 
 export interface Wait {
-  kind: 'approval' | 'input' | 'budget' | 'grant' | 'taken_over' | 'config';
+  kind: 'approval' | 'input' | 'grant' | 'taken_over' | 'config';
   requestId?: string;
   detail?: string;
   resumeTo: string;
@@ -72,9 +72,6 @@ export interface Task {
   executor: ExecutorSpec;
   grant: TaskGrant;
   budget: {
-    maxTokensPerAttempt?: number;
-    maxDurationMsPerAttempt?: number;
-    maxCostUsdPerDay?: number;
     maxRetries: number;
   };
   acceptance: 'auto' | 'user';
@@ -269,8 +266,6 @@ export function statusLabel(task: Task): string {
           return t('ui.providers-schedule.task-waiting-approval');
         case 'input':
           return t('ui.providers-schedule.task-waiting-input');
-        case 'budget':
-          return t('ui.providers-schedule.task-waiting-budget');
         case 'grant':
           return t('ui.providers-schedule.task-waiting-grant');
         case 'taken_over':

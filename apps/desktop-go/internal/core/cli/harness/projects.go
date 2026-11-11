@@ -42,6 +42,20 @@ func (o *Orchestrator) extraDirs(tab *util.Obj) []string {
 	return out
 }
 
+// withinAny：dir 是 roots 之一或在其中某个里面（按 realpath 比）
+func withinAny(dir string, roots []string) bool {
+	real := realDir(dir)
+	for _, r := range roots {
+		if r == "" {
+			continue
+		}
+		if winKey(real) == winKey(r) || inside(real, r) {
+			return true
+		}
+	}
+	return false
+}
+
 // inside：child 在 parent 里（不含相等）
 func inside(child, parent string) bool {
 	rel, err := filepath.Rel(parent, child)
@@ -54,6 +68,8 @@ func (o *Orchestrator) SetTabProject(id, projectID string, carry bool) *util.Obj
 	tab := o.requireTab(id)
 	if projectID == "" {
 		tab.Delete("projectId")
+		// 用户选了「不使用项目」：之后不再按工作目录自动归回项目（AdoptUnboundTabs）
+		tab.Set(projectOptOutKey, true)
 		o.changed()
 		o.syncOrDefer(id)
 		return tab.Clone()
@@ -63,12 +79,15 @@ func (o *Orchestrator) SetTabProject(id, projectID string, carry bool) *util.Obj
 		throw(i18n.T("electron.common.invalid-working-directory"))
 	}
 	tab.Set("projectId", projectID)
+	tab.Delete(projectOptOutKey)
 	return o.SetTabCwd(id, primary, carry)
 }
 
 // ProjectChanged：项目的文件夹变了（或项目被删了）。空闲标签马上同步；正在跑的标签记下，
 // 这一轮结束后（或下一轮发出前）再同步，下一轮按最新的文件夹工作（#309）
 func (o *Orchestrator) ProjectChanged(projectID string) {
+	// 新建 / 改了项目：工作目录落在里面、还没归项目的标签先归进来（再按下面同步）
+	o.AdoptUnboundTabs()
 	for _, k := range o.tabs.Keys() {
 		if k == MainTabID || str(o.tab(k), "projectId") != projectID {
 			continue
@@ -103,7 +122,8 @@ func (o *Orchestrator) applyPendingProject(id string) {
 	o.syncTabProject(id)
 }
 
-// syncTabProject：按项目此刻的文件夹同步一个空闲标签：主文件夹变了的，工作目录跟着换（开新会话、带上前文）；
+// syncTabProject：按项目此刻的文件夹同步一个空闲标签：工作目录已经不在项目的任何文件夹里了（主文件夹换了），
+// 工作目录跟着换到新的主文件夹（开新会话、带上前文）；还在里面的（主文件夹本身、子目录、其余文件夹）不动。
 // 否则断开活着的 CLI 进程（--add-dir / 沙箱可写目录只在启动时给），下一轮按新的文件夹重新启动（接着原会话）。
 // 项目不在了（或标签不再用项目）也断开，不让旧进程留着旧文件夹的授权
 func (o *Orchestrator) syncTabProject(k string) {
@@ -111,8 +131,8 @@ func (o *Orchestrator) syncTabProject(k string) {
 	if tab == nil {
 		return
 	}
-	primary, _ := o.projectRoots(str(tab, "projectId"))
-	if primary != "" && tab.Get("delegation") == nil && winKey(str(tab, "cwd")) != winKey(primary) {
+	primary, extra := o.projectRoots(str(tab, "projectId"))
+	if primary != "" && tab.Get("delegation") == nil && !withinAny(str(tab, "cwd"), append([]string{primary}, extra...)) {
 		o.SetTabCwd(k, primary, true)
 		return
 	}
@@ -126,7 +146,7 @@ func (o *Orchestrator) TabCwds() []string {
 	out := []string{}
 	for _, k := range o.tabs.Keys() {
 		tab := o.tab(k)
-		if k == MainTabID || tab.Get("delegation") != nil || str(tab, "projectId") != "" {
+		if k == MainTabID || tab.Get("delegation") != nil || str(tab, "projectId") != "" || truthy(tab.Get(projectOptOutKey)) {
 			continue
 		}
 		if c := str(tab, "cwd"); c != "" {
@@ -136,12 +156,44 @@ func (o *Orchestrator) TabCwds() []string {
 	return out
 }
 
-// AdoptProjects：首启迁移：按 目录 → 项目 id 给还没有项目的标签补上 projectId
+// projectOptOutKey：标签上的标记——用户明确选了「不使用项目」，不再自动归项目
+const projectOptOutKey = "projectOptOut"
+
+// AdoptUnboundTabs：还没归项目的标签，工作目录落在某个已有项目里（嵌套取最具体的）就归进去。
+// 启动时与项目新建 / 修改时跑：以前打开的历史会话、委派开的 worktree 标签、项目建得比标签晚的都能补上。
+// 用户明确不要项目的（projectOptOut）不动；项目主文件夹此刻不能用时不归
+func (o *Orchestrator) AdoptUnboundTabs() {
+	if o.d.ProjectFor == nil {
+		return
+	}
+	n := 0
+	for _, k := range o.tabs.Keys() {
+		tab := o.tab(k)
+		if k == MainTabID || tab == nil || str(tab, "projectId") != "" || truthy(tab.Get(projectOptOutKey)) {
+			continue
+		}
+		cwd := str(tab, "cwd")
+		if cwd == "" {
+			continue
+		}
+		if pid := o.d.ProjectFor(cwd); pid != "" {
+			if primary, _ := o.projectRoots(pid); primary != "" {
+				tab.Set("projectId", pid)
+				n++
+			}
+		}
+	}
+	if n > 0 {
+		o.changed()
+	}
+}
+
+// AdoptProjects：迁移：按 目录 → 项目 id 给还没有项目的标签补上 projectId（用户选了不使用项目的不动）
 func (o *Orchestrator) AdoptProjects(byDir map[string]string) {
 	n := 0
 	for _, k := range o.tabs.Keys() {
 		tab := o.tab(k)
-		if k == MainTabID || tab.Get("delegation") != nil || str(tab, "projectId") != "" {
+		if k == MainTabID || tab.Get("delegation") != nil || str(tab, "projectId") != "" || truthy(tab.Get(projectOptOutKey)) {
 			continue
 		}
 		if id := byDir[str(tab, "cwd")]; id != "" {

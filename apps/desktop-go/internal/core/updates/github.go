@@ -323,6 +323,11 @@ func (g *GitHubUpdater) QuitAndInstall(_ bool, runAfter bool) error {
 			start = startMacSwap
 		}
 		err = start(p, bundle, runAfter)
+		// zip 已经解压进暂存目录，替换脚本不再读它。Windows 安装器和还要交给系统打开的
+		// dmg / deb 不能在这里删：安装器可能还拿着这个文件。下次启动再按版本清。
+		if err == nil {
+			_ = os.Remove(p)
+		}
 	} else {
 		err = installerCommand(p, runAfter)
 	}
@@ -358,6 +363,10 @@ func installerCommand(p string, runAfter bool) error {
 		}
 		if err := os.Rename(tmp, cur); err != nil {
 			return err
+		}
+		// 下载的那份是副本，正在用的是 cur。删掉缓存里的安装包，不动 AppImage 本身。
+		if p != cur {
+			_ = os.Remove(p)
 		}
 		if runAfter {
 			return exec.Command(cur).Start()

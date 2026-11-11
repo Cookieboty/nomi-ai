@@ -103,7 +103,16 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 	defs = append(defs, igtools.CompanionTools(lazyAvatar{fac}, true, mascotShown)...)
 	if d != nil {
 		broker := d.Broker
-		defs = append(defs, igtools.DesktopTools(igtools.DeskDepsFor(d, func() []string { return desktopShellEnv(broker) }))...)
+		deps := igtools.DeskDepsFor(d, func() []string { return desktopShellEnv(broker) })
+		if computerSvc != nil {
+			deps.Computer = computerSvc
+			deps.ComputerVision = computerVision
+		}
+		defs = append(defs, igtools.DesktopTools(deps)...)
+		// 编程助手经 MCP 用的是同一组定义（确认、审计、黑名单相同）
+		if computerSvc != nil && computerMcpSrv != nil {
+			computerMcpSrv.SetTools(igtools.ComputerTools(deps))
+		}
 	}
 	defs = append(defs, igtools.KBTools(kbHost{kb: kb, d: d})...)
 	defs = append(defs, igtools.MemTools(memHost{m: mem})...)

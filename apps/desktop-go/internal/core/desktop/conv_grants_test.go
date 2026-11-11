@@ -161,3 +161,176 @@ func TestCommandRulesSuspendedPerConversation(t *testing.T) {
 		t.Fatalf("other conversation keeps its allowlist, got %s", d)
 	}
 }
+
+// 桌面操作：一次「允许」覆盖这个对话里的所有 computer_*（读界面、点击、输入…）；
+// 敏感动作（强制弹窗）照样问，别的对话照样问
+func TestConversationGrantComputer(t *testing.T) {
+	b, ui, _ := reviewBroker(t, nil)
+	a := convCtx(t, "c1")
+	answerRemember(b, ui, 1, true, false)
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_snapshot", Danger: "read", Summary: "读", Signal: a}); d != "allowed" {
+		t.Fatal(d)
+	}
+	if r := ui.last(); !r.Rememberable || r.RememberGroup != "computer" {
+		t.Fatalf("%+v", r)
+	}
+	b.MarkRead(a) // 读过界面：本轮算读过外部内容
+	for _, tool := range []string{"computer_click", "computer_type", "computer_press"} {
+		if d := b.Authorize(AuthorizeInput{Tool: tool, Danger: "write", Summary: "做", Signal: a}); d != "auto" {
+			t.Fatalf("%s: %s", tool, d)
+		}
+	}
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_screenshot", Danger: "read", Summary: "截", Signal: a}); d != "auto" {
+		t.Fatal(d)
+	}
+	if len(ui.seen) != 1 {
+		t.Fatalf("asked %d times", len(ui.seen))
+	}
+	// 付款 / 发送 / 删除这类（工具层强制弹窗）照样问
+	answerRemember(b, ui, 2, true, false)
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_click", Danger: "write", Summary: "付款", Signal: a,
+		Force: &struct{ Dialog bool }{true}}); d != "allowed" {
+		t.Fatal(d)
+	}
+	// 别的对话照样问
+	answerRemember(b, ui, 3, true, false)
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_snapshot", Danger: "read", Summary: "读", Signal: convCtx(t, "c2")}); d != "allowed" {
+		t.Fatal(d)
+	}
+}
+
+// 桌面操作：点「允许」（不勾记住）也把这个对话里后面的桌面操作放行
+func TestComputerAllowCoversConversation(t *testing.T) {
+	b, ui, _ := reviewBroker(t, nil)
+	a := convCtx(t, "c1")
+	answerRemember(b, ui, 1, true, false)
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_snapshot", Danger: "read", Summary: "读", Signal: a}); d != "allowed" {
+		t.Fatal(d)
+	}
+	b.MarkRead(a)
+	for _, tool := range []string{"computer_click", "computer_type", "computer_scroll"} {
+		if d := b.Authorize(AuthorizeInput{Tool: tool, Danger: "write", Summary: "做", Signal: a}); d != "auto" {
+			t.Fatalf("%s: %s", tool, d)
+		}
+	}
+	if len(ui.seen) != 1 {
+		t.Fatalf("asked %d times", len(ui.seen))
+	}
+	if b.ComputerAlways() {
+		t.Fatal("plain allow must not become always")
+	}
+}
+
+// 「始终允许」：以后所有对话的桌面操作都不再问，读过界面也不再问；敏感动作与坐标点击照样问；能关掉
+func TestComputerAlwaysAllow(t *testing.T) {
+	b, ui, _ := reviewBroker(t, nil)
+	answerRemember(b, ui, 1, true, true)
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_click", Danger: "write", Summary: "点", Signal: convCtx(t, "c1")}); d != "allowed" {
+		t.Fatal(d)
+	}
+	if !b.ComputerAlways() {
+		t.Fatal("always allow should persist")
+	}
+	other := convCtx(t, "c2")
+	b.MarkRead(other)
+	for _, tool := range []string{"computer_snapshot", "computer_click", "computer_press", "computer_locate"} {
+		danger := ToolDanger[tool]
+		if d := b.Authorize(AuthorizeInput{Tool: tool, Danger: danger, Summary: "做", Signal: other}); d != "auto" {
+			t.Fatalf("%s: %s", tool, d)
+		}
+	}
+	answerRemember(b, ui, 2, true, false)
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_click", Danger: "write", Summary: "付款", Signal: other,
+		Force: &struct{ Dialog bool }{true}}); d != "allowed" {
+		t.Fatal(d)
+	}
+	answerRemember(b, ui, 3, true, false)
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_click_xy", Danger: "destructive", Summary: "坐标", Signal: other,
+		Force: &struct{ Dialog bool }{true}}); d != "allowed" {
+		t.Fatal(d)
+	}
+	b.SetComputerAlways(false)
+	if b.ComputerAlways() {
+		t.Fatal("should turn off")
+	}
+}
+
+// 紧急停止：撤掉还在等的桌面操作确认（按拒绝处理），别的确认不动
+func TestCancelPendingWhere(t *testing.T) {
+	b, ui, _ := reviewBroker(t, nil)
+	a := convCtx(t, "c1")
+	got := make(chan Decision, 1)
+	go func() {
+		got <- b.Authorize(AuthorizeInput{Tool: "computer_click", Danger: "write", Summary: "点", Signal: a})
+	}()
+	other := make(chan Decision, 1)
+	go func() { other <- authorizeWrite(b, convCtx(t, "c2")) }()
+	for i := 0; i < 400 && len(b.PendingRequests()) < 2; i++ {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if n := b.CancelPendingWhere(func(r ConfirmRequest) bool { return r.Tool == "computer_click" }); n != 1 {
+		t.Fatalf("cancelled %d", n)
+	}
+	if d := <-got; d != "denied" {
+		t.Fatal(d)
+	}
+	if len(b.PendingRequests()) != 1 || b.PendingRequests()[0].Tool != "fs_write_text" {
+		t.Fatalf("%+v", b.PendingRequests())
+	}
+	b.Answer(b.PendingRequests()[0].ID, false, false)
+	<-other
+	_ = ui
+}
+
+// 「本会话始终执行」：这个对话里同一条命令、同一工作目录不再问；换命令、换目录、换对话、「逐项确认」照样问
+func TestSessionCommand(t *testing.T) {
+	b, ui, _ := reviewBroker(t, nil)
+	run := func(ctx context.Context, cmd, cwd string) Decision {
+		return b.Authorize(AuthorizeInput{Tool: "workspace_run", Danger: "destructive", Summary: "跑",
+			Args: json.RawMessage(`{"command":"` + cmd + `","cwd":"` + cwd + `"}`), Signal: ctx, Force: &struct{ Dialog bool }{true}})
+	}
+	answerSession := func(n int) {
+		go func() {
+			for i := 0; i < 400; i++ {
+				ui.mu.Lock()
+				ready := len(ui.seen) >= n
+				ui.mu.Unlock()
+				if ready {
+					b.AnswerFull(ui.last().ID, true, false, false, true)
+					return
+				}
+				time.Sleep(5 * time.Millisecond)
+			}
+		}()
+	}
+	a := convCtx(t, "c1")
+	answerSession(1)
+	if d := run(a, "pbpaste", "/w"); d != "allowed" {
+		t.Fatal(d)
+	}
+	if r := ui.last(); r.SessionCommand != "pbpaste" {
+		t.Fatalf("card should offer the command: %+v", r)
+	}
+	if d := run(convCtx(t, "c1"), "pbpaste", "/w"); d != "auto" {
+		t.Fatalf("same command, same conversation: %s", d)
+	}
+	n := len(ui.seen)
+	answerRemember(b, ui, n+1, false, false)
+	if d := run(a, "pbpaste", "/other"); d != "denied" {
+		t.Fatalf("another working directory still asks: %s", d)
+	}
+	answerRemember(b, ui, n+2, false, false)
+	if d := run(a, "pbcopy", "/w"); d != "denied" {
+		t.Fatalf("another command still asks: %s", d)
+	}
+	answerRemember(b, ui, n+3, false, false)
+	if d := run(convCtx(t, "c2"), "pbpaste", "/w"); d != "denied" {
+		t.Fatalf("another conversation still asks: %s", d)
+	}
+	// 发布 / 对外命令不提供「本会话始终执行」
+	answerRemember(b, ui, n+4, false, false)
+	run(a, "git push", "/w")
+	if ui.last().SessionCommand != "" {
+		t.Fatal("external commands must not offer session allow")
+	}
+}

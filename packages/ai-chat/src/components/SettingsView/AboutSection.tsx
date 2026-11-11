@@ -12,9 +12,9 @@ import {
   Globe,
   RefreshCw,
   Settings2,
-  Sparkles,
   Star,
   X,
+  Newspaper,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import React, { useState } from 'react';
@@ -101,6 +101,7 @@ export const AboutSection: React.FC = () => {
           <NomiMark className={styles.mark} size={48} />
           <div className={styles.headText}>
             <h2 className={styles.name}>{brand.appName}</h2>
+            <p className={styles.slogan}>{t('ui.chat-settings.about-slogan')}</p>
             <p className={styles.version}>
               {t('ui.chat-settings.about-version', '')}
               <strong data-testid="updates-current-version">{s?.currentVersion ?? '—'}</strong>
@@ -182,7 +183,7 @@ export const AboutSection: React.FC = () => {
             data-testid="updates-open-release-notes"
             onClick={() => openReleaseNotes()}
           >
-            <Icon icon={Sparkles} size={14} />
+            <Icon icon={Newspaper} size={14} />
             {t('ui.chat-settings.about-recent-updates')}
           </Button>
           <LinkButton

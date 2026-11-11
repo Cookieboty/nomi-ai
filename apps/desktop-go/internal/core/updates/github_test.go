@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -142,5 +143,57 @@ func TestGitHubUpdaterInPlaceSwap(t *testing.T) {
 		if fmt.Sprint(swapped) != "[Nomi-2.2.0-arm64-mac.zip /Applications/Nomi.app true]" || !quit {
 			t.Fatalf("swap %v quit %v", swapped, quit)
 		}
+		if _, err := os.Stat(filepath.Join(dir, "Nomi-2.2.0-arm64-mac.zip")); !os.IsNotExist(err) {
+			t.Fatal("zip still in the update cache after a successful swap")
+		}
+	}
+}
+
+func TestQuitAndInstallKeepsZipWhenSwapFails(t *testing.T) {
+	dir := t.TempDir()
+	zip := filepath.Join(dir, "Nomi-2.2.0-arm64-mac.zip")
+	if err := os.WriteFile(zip, []byte("zip"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	g := &GitHubUpdater{CacheDir: dir, downloaded: "unused"}
+	g.mu.Lock()
+	g.downloaded = zip
+	g.swapBundle = "/Applications/Nomi.app"
+	g.mu.Unlock()
+	g.startSwap = func(string, string, bool) error { return fmt.Errorf("verify failed") }
+	if err := g.QuitAndInstall(false, true); err == nil {
+		t.Fatal("want swap error")
+	}
+	if _, err := os.Stat(zip); err != nil {
+		t.Fatal("failed swap must keep the zip", err)
+	}
+}
+
+func TestAppImageReplaceRemovesCachedCopy(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("AppImage replace only runs on Linux")
+	}
+	dir := t.TempDir()
+	cur := filepath.Join(dir, "Nomi.AppImage")
+	if err := os.WriteFile(cur, []byte("old"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cache := filepath.Join(dir, "cache")
+	if err := os.MkdirAll(cache, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	pkg := filepath.Join(cache, "Nomi-2.3.10.AppImage")
+	if err := os.WriteFile(pkg, []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("APPIMAGE", cur)
+	if err := installerCommand(pkg, false); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(cur); err != nil || string(b) != "new" {
+		t.Fatalf("installed app %q %v", b, err)
+	}
+	if _, err := os.Stat(pkg); !os.IsNotExist(err) {
+		t.Fatal("cached AppImage copy should be removed after replace")
 	}
 }

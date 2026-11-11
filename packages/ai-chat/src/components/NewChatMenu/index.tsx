@@ -19,8 +19,8 @@ export interface NewChatMenuProps {
   /** 把「未探测」也当作未安装（侧栏用） */
   strictBins?: boolean;
   lastBackend?: ConversationBackend | null;
-  /** 新会话的项目（没选 = 不指定） */
-  project: { chosen: string | undefined; set: (projectId: string) => void };
+  /** 新会话的项目（没选 = 不指定）；不传时不显示项目选择（如侧栏「最近」：新会话不在任何项目里） */
+  project?: { chosen: string | undefined; set: (projectId: string) => void };
   onPick: (b: ConversationBackend) => void;
   testId?: string;
   itemTestId?: (b: ConversationBackend) => string;
@@ -96,9 +96,11 @@ export const NewChatMenu: React.FC<NewChatMenuProps> = ({
           </span>
         </button>
       ))}
-      <div className={styles.ws}>
-        <ProjectPicker value={project.chosen} onChange={project.set} testId={workspaceTestId} />
-      </div>
+      {project && (
+        <div className={styles.ws}>
+          <ProjectPicker value={project.chosen} onChange={project.set} testId={workspaceTestId} />
+        </div>
+      )}
     </div>
   );
 };

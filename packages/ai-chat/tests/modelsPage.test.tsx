@@ -1608,12 +1608,8 @@ describe('ModelsPage', () => {
       // 装了的和主进程没报告的（gemini、dsh）照常显示选择器
       expect(screen.queryByTestId('cli-install-claude')).toBeNull();
       expect(screen.getByTestId('cli-main-gemini')).toBeTruthy();
+      // 前置检查通过：点了直接装，不弹确认框
       fireEvent.click(btn);
-      expect((await screen.findByTestId('cli-version-command')).textContent).toBe(
-        'npm install -g grok-cli',
-      );
-      expect(m.calls.some(([c]) => c === 'cliUpdate.run')).toBe(false);
-      fireEvent.click(screen.getByTestId('cli-version-confirm'));
       await waitFor(() =>
         expect(m.calls.find(([c]) => c === 'cliUpdate.run')?.[1]).toEqual({
           kind: 'grok',

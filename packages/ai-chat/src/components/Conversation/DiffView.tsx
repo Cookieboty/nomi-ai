@@ -1,15 +1,31 @@
 /**
  * 文件编辑的 diff 视图：文件名 + 增删统计 + 行着色；未改行折叠（Codex 风格）。
  * 独立面板（split="auto"）够宽时左右并排：左旧右新，删除 / 新增成对对齐。
+ * 按文件扩展名做语法高亮（与对话代码块同一个按需加载的高亮器），加载完成前先显示纯文本。
  */
 import { t } from '@nomi-ai/ui';
 import { Columns2, Rows2 } from 'lucide-react';
-import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 
 import type { DiffLine } from '../../utils/lineDiff';
 import type { FileDiff } from '../../utils/toolTrace';
 import { workspaceRelPath } from '../../utils/workspacePath';
 
+import { diffLanguage, highlightDiffLines } from './diffHighlight';
+import {
+  type HastNode,
+  isHighlighterReady,
+  loadHighlighter,
+  subscribeHighlighter,
+} from './markdownHighlight';
 import styles from './Tool.module.css';
 
 const MAX_LINES = 400;
@@ -130,6 +146,34 @@ function useWidth(ref: React.RefObject<HTMLElement | null>, enabled: boolean): n
   return w;
 }
 
+/** 逐行高亮结果（按 DiffLine 对象查）；没有时按纯文本显示 */
+const TokensContext = createContext<Map<DiffLine, HastNode[]> | null>(null);
+
+/** 只渲染高亮器产出的 <span class="hljs-*"> 与文本，不用 innerHTML */
+function renderTokens(nodes: readonly HastNode[]): React.ReactNode[] {
+  return nodes.map((n, i) => {
+    if (n.type === 'text') return n.value ?? '';
+    const cls = n.properties?.className;
+    const className = Array.isArray(cls)
+      ? cls.filter((c) => /^hljs-[\w-]+$/.test(String(c))).join(' ')
+      : undefined;
+    return (
+      <span key={i} className={className || undefined}>
+        {renderTokens(n.children ?? [])}
+      </span>
+    );
+  });
+}
+
+const LineText: React.FC<{ l: DiffLine }> = ({ l }) => {
+  const tokens = useContext(TokensContext)?.get(l);
+  return (
+    <span className={styles.diffText}>
+      {tokens && tokens.length ? renderTokens(tokens) : l.text || ' '}
+    </span>
+  );
+};
+
 const UnifiedLine: React.FC<{ l: DiffLine }> = ({ l }) => (
   <div className={styles.diffLine} data-type={l.type} role="row">
     <span className={styles.diffNo} aria-hidden>
@@ -141,7 +185,7 @@ const UnifiedLine: React.FC<{ l: DiffLine }> = ({ l }) => (
     <span className={styles.diffSign} aria-hidden>
       {SIGN[l.type]}
     </span>
-    <span className={styles.diffText}>{l.text || ' '}</span>
+    <LineText l={l} />
   </div>
 );
 
@@ -154,7 +198,7 @@ const SplitSide: React.FC<{ l?: DiffLine; side: 'old' | 'new' }> = ({ l, side })
       <span className={styles.diffSign} aria-hidden>
         {SIGN[l.type]}
       </span>
-      <span className={styles.diffText}>{l.text || ' '}</span>
+      <LineText l={l} />
     </div>
   ) : (
     <div className={styles.splitSide} data-empty role="cell" />
@@ -196,6 +240,20 @@ export const DiffView: React.FC<{
   const wide = split === 'auto' && width >= SPLIT_MIN_WIDTH;
   const sideBySide = wide && pref === 'auto';
 
+  const language = diffLanguage(diff.file);
+  const highlighterReady = useSyncExternalStore(
+    subscribeHighlighter,
+    isHighlighterReady,
+    () => false,
+  );
+  useEffect(() => {
+    if (language && shown.length && !highlighterReady) void loadHighlighter();
+  }, [language, shown.length, highlighterReady]);
+  const tokens = useMemo(
+    () => (highlighterReady ? highlightDiffLines(diff.file, shown) : null),
+    [highlighterReady, diff.file, shown],
+  );
+
   const togglePref = () => setLayoutPref(pref === 'auto' ? 'unified' : 'auto');
 
   // 按折叠块切段：段内是连续的行，并排时整段配对
@@ -224,94 +282,96 @@ export const DiffView: React.FC<{
     sideBySide ? <SplitLines lines={ls} /> : ls.map((l, i) => <UnifiedLine key={i} l={l} />);
 
   return (
-    <div
-      ref={rootRef}
-      className={styles.diff}
-      data-fill={fill || undefined}
-      data-layout={sideBySide ? 'split' : 'unified'}
-      data-testid="tool-diff"
-    >
-      <div className={styles.diffHead}>
-        <span className={styles.diffFile} title={diff.file}>
-          {diff.file ? workspaceRelPath(cwd, diff.file) : t('ui.usage-tools.unnamed-file')}
-        </span>
-        {diff.changeKind && <span className={styles.diffKind}>{diff.changeKind}</span>}
-        {!diff.summaryOnly && (
-          <span className={styles.diffStat}>
-            <span className={styles.add}>+{added}</span>
-            <span className={styles.del}>−{removed}</span>
+    <TokensContext.Provider value={tokens}>
+      <div
+        ref={rootRef}
+        className={styles.diff}
+        data-fill={fill || undefined}
+        data-layout={sideBySide ? 'split' : 'unified'}
+        data-testid="tool-diff"
+      >
+        <div className={styles.diffHead}>
+          <span className={styles.diffFile} title={diff.file}>
+            {diff.file ? workspaceRelPath(cwd, diff.file) : t('ui.usage-tools.unnamed-file')}
           </span>
-        )}
-        {wide && shown.length > 0 ? (
-          <button
-            type="button"
-            className={styles.diffLayoutBtn}
-            data-testid="diff-layout-toggle"
-            aria-pressed={sideBySide}
-            title={
-              sideBySide
-                ? t('ui.session-workspace.switch-to-unified-view')
-                : t('ui.session-workspace.switch-to-side-by-side-view')
-            }
-            aria-label={
-              sideBySide
-                ? t('ui.session-workspace.switch-to-unified-view')
-                : t('ui.session-workspace.switch-to-side-by-side-view')
-            }
-            onClick={togglePref}
-          >
-            {sideBySide ? <Rows2 size={14} /> : <Columns2 size={14} />}
-          </button>
-        ) : null}
-      </div>
-      {shown.length > 0 && (
-        <div className={styles.diffBody} role="table" aria-label={t('ui.usage-tools.file-diff')}>
-          {segments.map((s) => {
-            if (s.kind === 'lines') {
-              return <React.Fragment key={s.key}>{renderLines(s.lines)}</React.Fragment>;
-            }
-            if (s.kind !== 'fold') return null;
-            if (open[s.key] && s.lines.length) {
-              return (
-                <React.Fragment key={s.key}>
-                  {renderLines(s.lines)}
-                  <button
-                    type="button"
-                    className={styles.diffFold}
-                    data-testid="diff-fold"
-                    onClick={() => setOpen((o) => ({ ...o, [s.key]: false }))}
-                  >
-                    {t('ui.usage-tools.collapse-unmodified-lines')}
-                  </button>
-                </React.Fragment>
-              );
-            }
-            const label =
-              s.count > 0
-                ? t('ui.usage-tools.unmodified-lines', s.count)
-                : t('ui.usage-tools.unmodified-lines-folded');
-            return (
-              <button
-                key={s.key}
-                type="button"
-                className={styles.diffFold}
-                data-testid="diff-fold"
-                data-count={s.count || undefined}
-                onClick={() => {
-                  if (s.lines.length) setOpen((o) => ({ ...o, [s.key]: true }));
-                }}
-              >
-                {label}
-              </button>
-            );
-          })}
-          {lines.length > MAX_LINES && (
-            <div className={styles.diffMore}>
-              {t('ui.usage-tools.more-lines-not-shown', lines.length - MAX_LINES)}
-            </div>
+          {diff.changeKind && <span className={styles.diffKind}>{diff.changeKind}</span>}
+          {!diff.summaryOnly && (
+            <span className={styles.diffStat}>
+              <span className={styles.add}>+{added}</span>
+              <span className={styles.del}>−{removed}</span>
+            </span>
           )}
+          {wide && shown.length > 0 ? (
+            <button
+              type="button"
+              className={styles.diffLayoutBtn}
+              data-testid="diff-layout-toggle"
+              aria-pressed={sideBySide}
+              title={
+                sideBySide
+                  ? t('ui.session-workspace.switch-to-unified-view')
+                  : t('ui.session-workspace.switch-to-side-by-side-view')
+              }
+              aria-label={
+                sideBySide
+                  ? t('ui.session-workspace.switch-to-unified-view')
+                  : t('ui.session-workspace.switch-to-side-by-side-view')
+              }
+              onClick={togglePref}
+            >
+              {sideBySide ? <Rows2 size={14} /> : <Columns2 size={14} />}
+            </button>
+          ) : null}
         </div>
-      )}
-    </div>
+        {shown.length > 0 && (
+          <div className={styles.diffBody} role="table" aria-label={t('ui.usage-tools.file-diff')}>
+            {segments.map((s) => {
+              if (s.kind === 'lines') {
+                return <React.Fragment key={s.key}>{renderLines(s.lines)}</React.Fragment>;
+              }
+              if (s.kind !== 'fold') return null;
+              if (open[s.key] && s.lines.length) {
+                return (
+                  <React.Fragment key={s.key}>
+                    {renderLines(s.lines)}
+                    <button
+                      type="button"
+                      className={styles.diffFold}
+                      data-testid="diff-fold"
+                      onClick={() => setOpen((o) => ({ ...o, [s.key]: false }))}
+                    >
+                      {t('ui.usage-tools.collapse-unmodified-lines')}
+                    </button>
+                  </React.Fragment>
+                );
+              }
+              const label =
+                s.count > 0
+                  ? t('ui.usage-tools.unmodified-lines', s.count)
+                  : t('ui.usage-tools.unmodified-lines-folded');
+              return (
+                <button
+                  key={s.key}
+                  type="button"
+                  className={styles.diffFold}
+                  data-testid="diff-fold"
+                  data-count={s.count || undefined}
+                  onClick={() => {
+                    if (s.lines.length) setOpen((o) => ({ ...o, [s.key]: true }));
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+            {lines.length > MAX_LINES && (
+              <div className={styles.diffMore}>
+                {t('ui.usage-tools.more-lines-not-shown', lines.length - MAX_LINES)}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </TokensContext.Provider>
   );
 };

@@ -49,7 +49,7 @@
 }
 .menu {
   position: fixed;
-  z-index: 1000;
+  z-index: var(--cd-z-modal-top);
   min-width: 260px;
   max-width: 420px;
   padding: var(--cd-space-1-5);

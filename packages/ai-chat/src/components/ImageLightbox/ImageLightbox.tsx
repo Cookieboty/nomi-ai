@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { isEditableTarget } from '../../utils/keyboard';
 
 import styles from './ImageLightbox.module.css';
+import { useImageViewport } from './useImageViewport';
 
 export interface ImageLightboxProps {
   src: string;
@@ -46,22 +47,11 @@ export function ImageLightbox({
     close.current = onClose;
   }, [onClose]);
   useFocusTrap(root, true, () => close.current());
-  const [zoom, setZoom] = useState(1);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [info, setInfo] = useState(false);
   const [failed, setFailed] = useState(false);
-  const drag = useRef<{ id: number; x: number; y: number; startX: number; startY: number } | null>(
-    null,
+  const { stage, zoom, offset, changeZoom, reset, imageEvents } = useImageViewport(
+    !pending && !error && !failed,
   );
-  const changeZoom = (next: number) => {
-    const value = Math.max(0.25, Math.min(4, next));
-    setZoom(value);
-    if (value <= 1) setOffset({ x: 0, y: 0 });
-  };
-  const reset = () => {
-    setZoom(1);
-    setOffset({ x: 0, y: 0 });
-  };
   const pick = (next: number) => {
     if (next < 0 || next >= count || !onIndex) return;
     reset();
@@ -134,6 +124,7 @@ export function ImageLightbox({
           </button>
         </div>
         <div
+          ref={stage}
           className={styles.stage}
           data-testid="image-lightbox-stage"
           onClick={(event) => {
@@ -152,43 +143,14 @@ export function ImageLightbox({
               draggable={false}
               referrerPolicy="no-referrer"
               className={styles.image}
-              data-zoomed={zoom > 1 || undefined}
+              data-zoomed={zoom > 1 || offset.x !== 0 || offset.y !== 0 || undefined}
               style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})` }}
               onLoad={onLoad}
               onError={(event) => {
                 setFailed(true);
                 onError?.(event);
               }}
-              onDoubleClick={reset}
-              onPointerDown={(event) => {
-                if (zoom <= 1 || event.button !== 0) return;
-                event.preventDefault();
-                drag.current = {
-                  id: event.pointerId,
-                  x: event.clientX,
-                  y: event.clientY,
-                  startX: offset.x,
-                  startY: offset.y,
-                };
-                event.currentTarget.setPointerCapture?.(event.pointerId);
-              }}
-              onPointerMove={(event) => {
-                const current = drag.current;
-                if (!current || current.id !== event.pointerId) return;
-                setOffset({
-                  x: current.startX + event.clientX - current.x,
-                  y: current.startY + event.clientY - current.y,
-                });
-              }}
-              onPointerUp={() => {
-                drag.current = null;
-              }}
-              onPointerCancel={() => {
-                drag.current = null;
-              }}
-              onLostPointerCapture={() => {
-                drag.current = null;
-              }}
+              {...imageEvents}
             />
           )}
         </div>
@@ -219,7 +181,7 @@ export function ImageLightbox({
         <div className={styles.zoom} data-testid="image-lightbox-zoom">
           <button
             type="button"
-            disabled={zoom <= 0.25 || pending || !!error}
+            disabled={zoom <= 0.25 || pending || !!error || failed}
             onClick={() => changeZoom(zoom - 0.25)}
             aria-label={t('ui.usage-tools.zoom-out')}
           >
@@ -235,7 +197,7 @@ export function ImageLightbox({
           </button>
           <button
             type="button"
-            disabled={zoom >= 4 || pending || !!error}
+            disabled={zoom >= 4 || pending || !!error || failed}
             onClick={() => changeZoom(zoom + 0.25)}
             aria-label={t('ui.usage-tools.zoom-in')}
           >

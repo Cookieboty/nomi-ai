@@ -422,20 +422,23 @@ describe('全局背景层', () => {
   });
 });
 
-describe('侧栏悬浮蒙版：时间与进行中一并遮住', () => {
-  it('hover/focus 时 threadLive 与 threadTime 同隐，rowActions 在 meta 之上并带实心蒙版', () => {
+describe('侧栏悬浮蒙版：时间被遮住', () => {
+  it('hover/focus 时 threadTime 隐藏，rowActions 在 meta 之上并带实心蒙版；行尾不再写「进行中」', () => {
     const sidebar = read('src/components/Sidebar/index.module.css');
-    // 「进行中」与时间走同一套隐藏，避免只淡时间、强调色状态字仍叠在图标上
-    expect(sidebar).toMatch(/\.row:hover \.threadTime,\s*\n\.row:hover \.threadLive,/);
-    expect(sidebar).toMatch(/\.row:focus-within \.threadLive,/);
     expect(sidebar).toMatch(
-      /\.row:hover \.threadTime,[\s\S]*?\.row\[data-confirming\] \.threadLive \{[\s\S]*?opacity:\s*0;[\s\S]*?visibility:\s*hidden;/,
+      /\.row:hover \.threadTime,[\s\S]*?\.row\[data-confirming\] \.threadTime \{[\s\S]*?opacity:\s*0;[\s\S]*?visibility:\s*hidden;/,
     );
+    // 进行中 / 排队只看行首状态点，状态文字只给读屏（.srOnly），没有 .threadLive 样式了
+    expect(sidebar).not.toContain('.threadLive');
     expect(ruleBody(sidebar, '.rowActions')).toMatch(/z-index:\s*1/);
     expect(ruleBody(sidebar, '.rowActions')).toMatch(/min-width:\s*80px/);
     expect(ruleBody(sidebar, '.rowActions')).toContain('var(--cd-color-hover) 100%');
+    // 侧栏选中色比通用选中色浅一档（.sidebar 上的 --sb-selected-bg），蒙版跟着用它
+    expect(ruleBody(sidebar, '.sidebar')).toMatch(
+      /--sb-selected-bg:[^;]*var\(--cd-color-selected-bg\)/,
+    );
     expect(ruleBody(sidebar, '.row[data-active] .rowActions')).toContain(
-      'var(--cd-color-selected-bg) 100%',
+      'var(--sb-selected-bg) 100%',
     );
     expect(ruleBody(sidebar, '.row .thread')).toMatch(/z-index:\s*0/);
   });

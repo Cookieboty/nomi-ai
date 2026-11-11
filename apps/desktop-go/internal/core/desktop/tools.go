@@ -9,12 +9,14 @@ import (
 
 // 工具危险等级表与可复用的纯函数。工具定义本体在 internal/ai/runtime/igtools。
 
-// ToolDangerKeys 保持 TOOL_DANGER 的插入顺序（基础 → P2 → P3 → WORKSPACE）
+// ToolDangerKeys 保持 TOOL_DANGER 的插入顺序（基础 → P2 → P3 → WORKSPACE → COMPUTER）
 var ToolDangerKeys = []string{
 	"desktop_permissions", "desktop_request_scope", "fs_list", "fs_stat", "fs_search", "fs_read_text", "fs_summarize", "fs_write_text", "fs_edit", "fs_mkdir", "fs_move", "fs_copy", "fs_trash", "undo_last",
 	"reminder_create", "reminder_list", "reminder_cancel", "reminder_snooze", "clipboard_read", "clipboard_write",
 	"browser_open", "browser_read", "browser_click", "browser_type", "browser_close", "code_run",
 	"workspace_run",
+	"computer_status", "computer_list_apps", "computer_snapshot", "computer_click", "computer_type", "computer_set_value",
+	"computer_press", "computer_scroll", "computer_wait", "computer_screenshot", "computer_locate", "computer_click_xy",
 }
 
 var ToolDanger = map[string]Danger{
@@ -24,6 +26,11 @@ var ToolDanger = map[string]Danger{
 	"clipboard_read": "read", "clipboard_write": "write",
 	"browser_open": "write", "browser_read": "read", "browser_click": "write", "browser_type": "write", "browser_close": "read", "code_run": "destructive",
 	"workspace_run": "destructive",
+	// computer_*：读界面算 read（首次使用确认），操作应用算 write，坐标点击是物理输入算 destructive（每次弹窗）
+	"computer_status": "read", "computer_list_apps": "read", "computer_snapshot": "read", "computer_wait": "read", "computer_screenshot": "read",
+	"computer_locate": "read",
+	"computer_click":  "write", "computer_type": "write", "computer_set_value": "write", "computer_press": "write", "computer_scroll": "write",
+	"computer_click_xy": "destructive",
 }
 
 const (

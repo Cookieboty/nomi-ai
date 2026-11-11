@@ -46,6 +46,11 @@ describe('/agent 解析', () => {
     expect(names).not.toContain('agent');
     const all = searchCommands(r, 'ag').flatMap((g) => g.items.map((i) => i.command.name));
     expect(all).toContain('agent');
+    const builtin = searchCommands(r, '')
+      .find((g) => g.source === 'builtin')!
+      .items.map((i) => i.command.name);
+    expect(builtin[0]).toBe('help');
+    expect(builtin[1]).toBe('agent');
   });
 
   it('/agent 与 /cli 执行效果一致', async () => {
@@ -78,6 +83,7 @@ describe('/agent 补全', () => {
     expect(ids).toHaveLength(DELEGATE_CLIS.length);
     expect(filterAgents(['codex'], 'CO').map((o) => o.id)).toEqual(['codex']);
     expect(filterAgents(['codex'], 'claude c').map((o) => o.id)).toEqual(['claude']);
+    expect(filterAgents(['codex'], '').find((o) => o.id === 'claude')?.installed).toBe(false);
     expect(filterAgents([], 'cl')[0]).toMatchObject({ id: 'claude', installed: false });
     expect(filterAgents([], 'zz')).toEqual([]);
   });

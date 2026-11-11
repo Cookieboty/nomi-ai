@@ -194,7 +194,6 @@ describe('GettingStarted（侧栏「开始使用」清单）', () => {
     expect(r.getByTestId('getting-started-tips').textContent).toContain('为你推荐');
 
     fireEvent.click(r.getByTestId('getting-started-install-claude'));
-    fireEvent.click(await waitFor(() => r.getByTestId('cli-version-confirm')));
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('cliUpdate.run', { kind: 'claude', scope: 'global' }),
     );
@@ -202,7 +201,6 @@ describe('GettingStarted（侧栏「开始使用」清单）', () => {
     expect(r.getByTestId('getting-started-install-claude')).toHaveProperty('disabled', true);
     expect(r.getByTestId('getting-started-install-codex')).toHaveProperty('disabled', false);
     fireEvent.click(r.getByTestId('getting-started-install-codex'));
-    fireEvent.click(await waitFor(() => r.getByTestId('cli-version-confirm')));
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('cliUpdate.run', { kind: 'codex', scope: 'global' }),
     );

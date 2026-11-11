@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import React from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { resetConfirmDialogForTest } from '../src/components/ConfirmDialog';
 import {
   getPreviewEdits,
   releasePreviewEdit,
@@ -19,7 +20,12 @@ vi.mock('../src/services/harnessClient', () => ({
   harnessClient: { workspaceList: vi.fn(async () => ({ ok: true, entries: [] })) },
 }));
 vi.mock('../src/services/resourcePreviewClient', () => ({
-  resourcePreviewClient: { open: vi.fn(), close: vi.fn(async () => undefined), save: vi.fn() },
+  resourcePreviewClient: {
+    open: vi.fn(),
+    close: vi.fn(async () => undefined),
+    save: vi.fn(),
+    renew: vi.fn(),
+  },
 }));
 // These tests exercise autosave, so warm the lazy module before timing interactions.
 beforeAll(async () => {
@@ -33,6 +39,7 @@ beforeEach(() => {
   sequence = 0;
 });
 afterEach(async () => {
+  resetConfirmDialogForTest();
   cleanup();
   vi.mocked(resourcePreviewClient.save).mockResolvedValue({ ok: true, revision: 'cleanup' });
   for (const [key, url] of retained) await releasePreviewEdit(key, url);
@@ -229,5 +236,79 @@ describe('preview tab capacity', () => {
     expect(clean.entries.map((e) => e.key)).toContain('0');
     expect(clean.entries.map((e) => e.key)).not.toContain('1');
     expect(clean.entries.map((e) => e.key)).not.toContain('2');
+  });
+});
+
+describe('expired preview grant', () => {
+  function grant(path: string, url: string) {
+    return {
+      ok: true,
+      kind: 'text' as const,
+      editable: true,
+      path,
+      content: path,
+      revision: 'r0',
+      url,
+    };
+  }
+  async function editFirstFile() {
+    vi.mocked(resourcePreviewClient.open).mockImplementation(async (_cwd, path) =>
+      grant(path!, `/__nomi/preview/${run}-${path}`),
+    );
+    render(<Probe />);
+    await open(0);
+    await open(1);
+    fireEvent.click(screen.getByRole('tab', { name: '0.txt' }));
+    await waitFor(() =>
+      expect(sourceValue(screen.getByTestId('resource-preview-source'))).toBe('/work/0.txt'),
+    );
+  }
+
+  it('saves with a new grant and then switching tabs is allowed', async () => {
+    await editFirstFile();
+    vi.mocked(resourcePreviewClient.renew).mockResolvedValue(
+      grant('/work/0.txt', '/__nomi/preview/fresh-0'),
+    );
+    vi.mocked(resourcePreviewClient.save).mockImplementation(async (url) =>
+      String(url).includes('fresh') ? { ok: true, revision: 'r1' } : { ok: false, code: 'expired' },
+    );
+    change('kept draft');
+    await waitFor(() =>
+      expect(resourcePreviewClient.save).toHaveBeenCalledWith(
+        '/__nomi/preview/fresh-0',
+        'r0',
+        'kept draft',
+      ),
+    );
+    expect(resourcePreviewClient.renew).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('tab', { name: '1.txt' }));
+    await waitFor(() =>
+      expect(sourceValue(screen.getByTestId('resource-preview-source'))).toBe('/work/1.txt'),
+    );
+  });
+
+  it('blocks switch and close on conflict, then discard lets the tab close', async () => {
+    await editFirstFile();
+    vi.mocked(resourcePreviewClient.renew).mockResolvedValue({ ok: false, code: 'conflict' });
+    vi.mocked(resourcePreviewClient.save).mockResolvedValue({ ok: false, code: 'expired' });
+    change('kept draft');
+    await waitFor(() => expect(screen.getByTestId('preview-save-error')).toBeTruthy());
+    expect(resourcePreviewClient.save).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: /重试保存|Retry saving/ })).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: '1.txt' }));
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: '0.txt' }).getAttribute('aria-selected')).toBe('true'),
+    );
+    expect(sourceValue(screen.getByTestId('resource-preview-source'))).toBe('kept draft');
+    fireEvent.click(screen.getByRole('button', { name: /关闭（Esc）|Close \(Esc\)/ }));
+    expect(screen.getByTestId('resource-preview')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('preview-discard-draft'));
+    fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
+    await waitFor(() =>
+      expect(sourceValue(screen.getByTestId('resource-preview-source'))).toBe('/work/0.txt'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /关闭（Esc）|Close \(Esc\)/ }));
+    await waitFor(() => expect(screen.queryByTestId('resource-preview')).toBeNull());
+    expect(resourcePreviewClient.save).toHaveBeenCalledTimes(1);
   });
 });

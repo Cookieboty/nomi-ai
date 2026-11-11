@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 )
@@ -38,7 +37,7 @@ func (s *Service) ListDirectory(url, input string) DirectoryResult {
 	s.mu.Lock()
 	cap, ok := s.items[token]
 	s.mu.Unlock()
-	if !ok || time.Since(cap.at) > ttl {
+	if !ok || s.stale(cap.at) {
 		return fail("expired")
 	}
 	path, err := filepath.EvalSymlinks(filepath.Clean(input))
@@ -106,7 +105,7 @@ func (s *Service) ListDirectory(url, input string) DirectoryResult {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cap, ok = s.items[token]
-	if !ok || time.Since(cap.at) > ttl {
+	if !ok || s.stale(cap.at) {
 		return fail("expired")
 	}
 	if cap.browseDirs == nil {

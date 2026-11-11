@@ -14,6 +14,7 @@ import { useRail } from './app/useRail';
 import { useSplitWidths } from './app/useSplitWidths';
 import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundLayer';
 import { ChatHeader } from './components/ChatHeader';
+import { ComputerActivityBar } from './components/ComputerActivityBar';
 import { ForkFromMessageContext } from './components/Conversation/forkContext';
 import { DesktopConfirmDock } from './components/DesktopConfirmDock';
 import { NewChatContext, SessionControls } from './components/EndpointControls';
@@ -349,6 +350,8 @@ const AiChatContent: React.FC = () => {
                 </main>
 
                 <footer className="input-container" ref={resourcePreview.composerRef}>
+                  {/* 正在操作桌面（Nomi / 编程助手）：紧急停止 */}
+                  <ComputerActivityBar />
                   {/* Nomi 桌面工具的授权卡片：对话窗口开着时确认请求只发到这里 */}
                   <DesktopConfirmDock />
                   <PendingDock

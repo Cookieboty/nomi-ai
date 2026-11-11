@@ -14,7 +14,6 @@ import {
   FilePen,
   Hand,
   ShieldAlert,
-  Sparkles,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -37,6 +36,7 @@ import {
   type CyclePermissionDetail,
   type PermissionMode,
 } from '../../utils/permissionModes';
+import { FEATURE_ICONS } from '../AppIcons';
 
 import styles from './index.module.css';
 
@@ -44,7 +44,7 @@ const ICON: Record<PermissionMode, LucideIcon> = {
   plan: ClipboardList,
   manual: Hand,
   acceptEdits: FilePen,
-  auto: Sparkles,
+  auto: FEATURE_ICONS.autoMode,
   bypass: ShieldAlert,
 };
 

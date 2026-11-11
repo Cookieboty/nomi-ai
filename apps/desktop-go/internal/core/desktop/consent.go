@@ -21,6 +21,15 @@ var ToolDefaultPolicy = map[string]Policy{
 	"browser_read":   "ask",
 	"browser_click":  "ask",
 	"browser_type":   "ask",
+	// 界面内容常含隐私：每次运行第一次读取 / 截图要确认；操作应用每次运行第一次确认
+	"computer_snapshot":   "session",
+	"computer_screenshot": "session",
+	"computer_locate":     "session",
+	"computer_click":      "session",
+	"computer_type":       "session",
+	"computer_set_value":  "session",
+	"computer_press":      "session",
+	"computer_scroll":     "session",
 }
 
 // SanitizePolicy：p 是 JSON 值（string 或其它）

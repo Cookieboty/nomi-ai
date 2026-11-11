@@ -132,7 +132,7 @@ func (o *Orchestrator) ensureCodexLive(tab *util.Obj, signal *jsrt.AbortSignal) 
 		}
 		useNode := IsScript(bin)
 		o.checkCwd(str(tab, "cwd"))
-		argv := append([]string{"app-server"}, launch.args...)
+		argv := append(append([]string{"app-server"}, launch.args...), o.codexComputerArgs(tab)...)
 		cmd, args := bin, argv
 		if useNode {
 			cmd, args = nodeExecPath(), append([]string{bin}, argv...)
@@ -552,6 +552,7 @@ func (o *Orchestrator) runCodex(tab *util.Obj, prompt string, staged []cli.Norma
 			roots, _ := json.Marshal(extra)
 			sandbox = append(sandbox, "-c", "sandbox_workspace_write.writable_roots="+string(roots))
 		}
+		sandbox = append(append([]string{}, sandbox...), o.codexComputerArgs(tab)...)
 		launch := o.launchFor(tab)
 		ov := o.effectiveOverrides(tab)
 		modelArgs := append(append([]string{}, launch.args...), cli.OverrideArgs("codex", ov.model, ptrAny(ov.effort))...)

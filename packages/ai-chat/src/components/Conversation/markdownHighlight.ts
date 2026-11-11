@@ -10,7 +10,7 @@
  */
 import type { createLowlight } from 'lowlight';
 
-interface HastNode {
+export interface HastNode {
   type: string;
   value?: string;
   tagName?: string;
@@ -67,6 +67,17 @@ function languageOf(node: HastNode): string | false | undefined {
 function textOf(node: HastNode): string {
   if (node.type === 'text') return node.value ?? '';
   return node.children ? node.children.map(textOf).join('') : '';
+}
+
+/** 高亮器已加载且认识这个语言（含别名，如 ts / py） */
+export function canHighlight(language: string): boolean {
+  return !!lowlight && !!language && lowlight.registered(language);
+}
+
+/** 按语言高亮一段纯文本（diff 等非 Markdown 场景用）；高亮器未加载或语言未注册时返回 undefined */
+export function highlightCode(language: string, text: string): HastNode[] | undefined {
+  if (!lowlight || !language || !lowlight.registered(language)) return;
+  return lowlight.highlight(language, text, { prefix: 'hljs-' }).children as unknown as HastNode[];
 }
 
 function highlightPre(pre: HastNode, lowlight: Lowlight): void {

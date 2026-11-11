@@ -62,7 +62,7 @@ func (s *Service) serveBrowser(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	v, ok := s.items[parts[0]]
 	s.mu.Unlock()
-	if !ok || v.info == nil || time.Since(v.at) > ttl {
+	if !ok || v.info == nil || s.stale(v.at) {
 		http.NotFound(w, r)
 		return
 	}

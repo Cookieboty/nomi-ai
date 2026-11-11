@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Sidebar } from '../src/components/Sidebar';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
-import { setChatMode } from '../src/services/chatPrefs';
+import { setChatMode, setGroupByWorkspace } from '../src/services/chatPrefs';
 import { HISTORY_MAX_ITEMS, type HistorySession } from '../src/services/historyClient';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
@@ -174,6 +174,8 @@ afterEach(() => {
 
 describe('sidebar search', () => {
   it('top row: logo + Nomi, search icon and a new-chat icon; no full-width new-chat button', async () => {
+    // 新建按钮在合并列表的标题上（按项目分组时侧栏标题上没有新建，项目行上有）
+    setGroupByWorkspace(false);
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     expect(r.getAllByText('Nomi').length).toBeGreaterThan(0);
@@ -406,6 +408,8 @@ describe('normal mode: Nomi only', () => {
   beforeEach(() => setChatMode('normal'));
 
   it('hides the all/by-endpoint switch, CLI sessions and the history group; new chat is direct', async () => {
+    // 新建按钮在合并列表的标题上（按项目分组时侧栏标题上没有新建，项目行上有）
+    setGroupByWorkspace(false);
     localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
     const onNewChat = vi.fn();
     const r = mount(onNewChat);

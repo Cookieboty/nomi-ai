@@ -32,6 +32,11 @@
   font-weight: var(--cd-font-weight-bold);
   color: var(--cd-color-text);
 }
+.slogan {
+  margin: var(--cd-space-1) 0 0;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+}
 .version {
   margin: var(--cd-space-1) 0 0;
   font-size: var(--cd-font-size-sm);

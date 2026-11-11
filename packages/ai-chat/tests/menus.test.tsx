@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetConfirmDialogForTest } from '../src/components/ConfirmDialog';
 import { Sidebar } from '../src/components/Sidebar';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
-import { setChatMode } from '../src/services/chatPrefs';
+import { setChatMode, setGroupByWorkspace } from '../src/services/chatPrefs';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
 import { __setProjectsForTest } from '../src/services/projects';
 
@@ -223,6 +223,8 @@ describe('one conversation context menu', () => {
   });
 
   it('新建 Nomi 会话等待创建完成，不会把当前 CLI 条目改写成 Nomi', async () => {
+    // 新建按钮（含选项目的菜单）在合并列表的标题上；按项目分组时侧栏标题上没有新建
+    setGroupByWorkspace(false);
     mockIpc();
     currentId = 'a';
     let release!: () => void;
@@ -264,6 +266,8 @@ describe('one conversation context menu', () => {
   });
 
   it('新建 Nomi 对话带上新建菜单里选的项目；没选时不放进项目', async () => {
+    // 新建按钮（含选项目的菜单）在合并列表的标题上；按项目分组时侧栏标题上没有新建
+    setGroupByWorkspace(false);
     __setProjectsForTest([
       { id: 'p_one', name: 'one', primary: '/proj/one', folders: [], createdAt: 1, updatedAt: 1 },
     ]);
@@ -352,6 +356,8 @@ describe('one conversation context menu', () => {
 
 describe('one "new" menu', () => {
   it('the sidebar new menu lists every endpoint (names, 未安装)', async () => {
+    // 新建按钮（含选项目的菜单）在合并列表的标题上；按项目分组时侧栏标题上没有新建
+    setGroupByWorkspace(false);
     mockIpc();
     const r = render(
       <HarnessTabsProvider>

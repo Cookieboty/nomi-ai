@@ -167,6 +167,8 @@ export const ResourcePreview: React.FC<{
       let result: PreviewResult;
       let resolvedCwd = resourceScope.cwd ?? '';
       let resolvedPath = target?.path;
+      // 用户确认过才放行的工作区外文件：续期重开时也要带上，否则保存不回去
+      let allowOutside = false;
       if (!target) result = { ok: false, code: 'invalid' };
       else if (!target.path && !target.web)
         result = { ok: true, kind: 'image', url: hostAssetUrl(resourceHref), path: resourceHref };
@@ -196,8 +198,10 @@ export const ResourcePreview: React.FC<{
             ),
             confirmLabel: t('ui.session-workspace.preview-authorize-file'),
           });
-          if (approved && !stale)
+          if (approved && !stale) {
+            allowOutside = true;
             result = await resourcePreviewClient.open(resolvedCwd, resolvedPath!, true);
+          }
         }
       }
       if (
@@ -229,6 +233,7 @@ export const ResourcePreview: React.FC<{
         return;
       }
       const edit = acquirePreviewEdit(resourceKey, result);
+      if (edit && result.path) edit.noteOrigin(resolvedCwd, result.path, allowOutside);
       acquired = !!edit;
       setLoaded({ key: resourceKey, result, cwd: resolvedCwd, edit });
     };
@@ -554,6 +559,23 @@ export const ResourcePreview: React.FC<{
                 {t('ui.session-workspace.preview-save-retry')}
               </button>
             )}
+            <button
+              type="button"
+              data-testid="preview-discard-draft"
+              onClick={() => {
+                if (!edit) return;
+                void confirmDialog({
+                  title: t('ui.session-workspace.preview-discard-draft-title'),
+                  message: t('ui.session-workspace.preview-discard-draft-message'),
+                  confirmLabel: t('ui.session-workspace.preview-discard-draft'),
+                  danger: true,
+                }).then((ok) => {
+                  if (ok) edit.discardDraft();
+                });
+              }}
+            >
+              {t('ui.session-workspace.preview-discard-draft')}
+            </button>
           </p>
         )}
         {originMismatch && (

@@ -7198,6 +7198,569 @@
     "additionalProperties": {}
    }
   },
+  "computer.active": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat",
+    "settings"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "active": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "active"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "computer.install": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat",
+    "settings"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "scope": {
+      "type": "string",
+      "enum": [
+       "global",
+       "user"
+      ]
+     }
+    }
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "version": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "log": {
+      "type": "string"
+     },
+     "needsUserScope": {
+      "type": "boolean"
+     },
+     "userPrefix": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok",
+     "version",
+     "path",
+     "log",
+     "needsUserScope"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "computer.openGuide": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat",
+    "settings"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "guide": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "guide"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "computer.sandboxAction": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat",
+    "settings"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 63
+     },
+     "action": {
+      "type": "string",
+      "enum": [
+       "start",
+       "stop"
+      ]
+     }
+    },
+    "required": [
+     "name",
+     "action"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "message": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok",
+     "message"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "computer.state": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat",
+    "settings"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "refresh": {
+      "type": "boolean"
+     }
+    }
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "platform": {
+      "type": "string"
+     },
+     "installed": {
+      "type": "boolean"
+     },
+     "path": {
+      "type": "string"
+     },
+     "version": {
+      "type": "string"
+     },
+     "latest": {
+      "type": "string"
+     },
+     "updateAvailable": {
+      "type": "boolean"
+     },
+     "newerMajor": {
+      "type": "string"
+     },
+     "supportedMajor": {
+      "type": "number"
+     },
+     "unsupported": {
+      "type": "boolean"
+     },
+     "npmAvailable": {
+      "type": "boolean"
+     },
+     "installing": {
+      "type": "boolean"
+     },
+     "permissions": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "permissionApp": {
+      "type": "string"
+     },
+     "wayland": {
+      "type": "boolean"
+     },
+     "cliEnabled": {
+      "type": "boolean"
+     },
+     "autoApprove": {
+      "type": "boolean"
+     },
+     "active": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "visionModel": {
+      "type": "string"
+     },
+     "visionModels": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "ref": {
+         "type": "string"
+        },
+        "label": {
+         "type": "string"
+        },
+        "provider": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "ref",
+        "label",
+        "provider"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "blockedApps": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "redact": {
+      "type": "boolean"
+     },
+     "sandbox": {
+      "type": "string"
+     },
+     "sandboxes": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "state": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "name",
+        "state"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "sandboxSupported": {
+      "type": "boolean"
+     },
+     "stopShortcut": {
+      "type": "string"
+     },
+     "stopShortcutActive": {
+      "type": "string"
+     },
+     "stopShortcutError": {
+      "type": "string"
+     },
+     "defaultStopShortcut": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "platform",
+     "installed",
+     "path",
+     "version",
+     "latest",
+     "updateAvailable",
+     "newerMajor",
+     "supportedMajor",
+     "unsupported",
+     "npmAvailable",
+     "installing",
+     "permissions",
+     "permissionApp",
+     "wayland",
+     "cliEnabled",
+     "autoApprove",
+     "active",
+     "visionModel",
+     "visionModels",
+     "blockedApps",
+     "redact",
+     "sandbox",
+     "sandboxes",
+     "sandboxSupported",
+     "stopShortcut",
+     "stopShortcutActive",
+     "stopShortcutError",
+     "defaultStopShortcut"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "computer.stop": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat",
+    "settings"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
+  "computer.updateSettings": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat",
+    "settings"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cliEnabled": {
+      "type": "boolean"
+     },
+     "visionModel": {
+      "type": "string",
+      "maxLength": 300
+     },
+     "blockedApps": {
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+       "type": "string",
+       "maxLength": 200
+      }
+     },
+     "redact": {
+      "type": "boolean"
+     },
+     "sandbox": {
+      "type": "string",
+      "maxLength": 63
+     },
+     "stopShortcut": {
+      "type": "string",
+      "maxLength": 60
+     },
+     "autoApprove": {
+      "type": "boolean"
+     }
+    }
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "platform": {
+      "type": "string"
+     },
+     "installed": {
+      "type": "boolean"
+     },
+     "path": {
+      "type": "string"
+     },
+     "version": {
+      "type": "string"
+     },
+     "latest": {
+      "type": "string"
+     },
+     "updateAvailable": {
+      "type": "boolean"
+     },
+     "newerMajor": {
+      "type": "string"
+     },
+     "supportedMajor": {
+      "type": "number"
+     },
+     "unsupported": {
+      "type": "boolean"
+     },
+     "npmAvailable": {
+      "type": "boolean"
+     },
+     "installing": {
+      "type": "boolean"
+     },
+     "permissions": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "permissionApp": {
+      "type": "string"
+     },
+     "wayland": {
+      "type": "boolean"
+     },
+     "cliEnabled": {
+      "type": "boolean"
+     },
+     "autoApprove": {
+      "type": "boolean"
+     },
+     "active": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "visionModel": {
+      "type": "string"
+     },
+     "visionModels": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "ref": {
+         "type": "string"
+        },
+        "label": {
+         "type": "string"
+        },
+        "provider": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "ref",
+        "label",
+        "provider"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "blockedApps": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "redact": {
+      "type": "boolean"
+     },
+     "sandbox": {
+      "type": "string"
+     },
+     "sandboxes": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "state": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "name",
+        "state"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "sandboxSupported": {
+      "type": "boolean"
+     },
+     "stopShortcut": {
+      "type": "string"
+     },
+     "stopShortcutActive": {
+      "type": "string"
+     },
+     "stopShortcutError": {
+      "type": "string"
+     },
+     "defaultStopShortcut": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "platform",
+     "installed",
+     "path",
+     "version",
+     "latest",
+     "updateAvailable",
+     "newerMajor",
+     "supportedMajor",
+     "unsupported",
+     "npmAvailable",
+     "installing",
+     "permissions",
+     "permissionApp",
+     "wayland",
+     "cliEnabled",
+     "autoApprove",
+     "active",
+     "visionModel",
+     "visionModels",
+     "blockedApps",
+     "redact",
+     "sandbox",
+     "sandboxes",
+     "sandboxSupported",
+     "stopShortcut",
+     "stopShortcutActive",
+     "stopShortcutError",
+     "defaultStopShortcut"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "connections.addGithub": {
    "kind": "mutation",
    "dangerous": true,
@@ -8207,6 +8770,71 @@
     "type": "boolean"
    }
   },
+  "delegate.dispatch": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cli": {
+      "type": "string",
+      "minLength": 1
+     },
+     "goal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+     },
+     "context": {
+      "type": "string",
+      "maxLength": 8000
+     },
+     "conversationId": {
+      "type": "string"
+     },
+     "projectId": {
+      "type": "string"
+     },
+     "turnId": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "cli",
+     "goal"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "taskId": {
+      "type": "string"
+     },
+     "cli": {
+      "type": "string"
+     },
+     "status": {
+      "type": "string"
+     },
+     "summary": {
+      "type": "string"
+     },
+     "followUp": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "taskId",
+     "cli",
+     "status",
+     "summary"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "delegate.pin": {
    "kind": "mutation",
    "dangerous": false,
@@ -8472,6 +9100,9 @@
       "type": "boolean"
      },
      "pick": {
+      "type": "boolean"
+     },
+     "session": {
       "type": "boolean"
      }
     },
@@ -8902,11 +9533,15 @@
             "rememberRule": {
              "type": "string"
             },
+            "sessionCommand": {
+             "type": "string"
+            },
             "rememberGroup": {
              "type": "string",
              "enum": [
               "files",
               "delegate",
+              "computer",
               "tool"
              ]
             }
@@ -9781,11 +10416,15 @@
         "rememberRule": {
          "type": "string"
         },
+        "sessionCommand": {
+         "type": "string"
+        },
         "rememberGroup": {
          "type": "string",
          "enum": [
           "files",
           "delegate",
+          "computer",
           "tool"
          ]
         }
@@ -10108,11 +10747,15 @@
         "rememberRule": {
          "type": "string"
         },
+        "sessionCommand": {
+         "type": "string"
+        },
         "rememberGroup": {
          "type": "string",
          "enum": [
           "files",
           "delegate",
+          "computer",
           "tool"
          ]
         }
@@ -10483,11 +11126,15 @@
         "rememberRule": {
          "type": "string"
         },
+        "sessionCommand": {
+         "type": "string"
+        },
         "rememberGroup": {
          "type": "string",
          "enum": [
           "files",
           "delegate",
+          "computer",
           "tool"
          ]
         }
@@ -10810,11 +11457,15 @@
         "rememberRule": {
          "type": "string"
         },
+        "sessionCommand": {
+         "type": "string"
+        },
         "rememberGroup": {
          "type": "string",
          "enum": [
           "files",
           "delegate",
+          "computer",
           "tool"
          ]
         }
@@ -11174,11 +11825,15 @@
         "rememberRule": {
          "type": "string"
         },
+        "sessionCommand": {
+         "type": "string"
+        },
         "rememberGroup": {
          "type": "string",
          "enum": [
           "files",
           "delegate",
+          "computer",
           "tool"
          ]
         }
@@ -11608,11 +12263,15 @@
         "rememberRule": {
          "type": "string"
         },
+        "sessionCommand": {
+         "type": "string"
+        },
         "rememberGroup": {
          "type": "string",
          "enum": [
           "files",
           "delegate",
+          "computer",
           "tool"
          ]
         }
@@ -19354,6 +20013,66 @@
     "required": [
      "cwd",
      "path"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "code": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string"
+     },
+     "kind": {
+      "type": "string"
+     },
+     "mime": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string"
+     },
+     "content": {
+      "type": "string"
+     },
+     "truncated": {
+      "type": "boolean"
+     },
+     "editable": {
+      "type": "boolean"
+     },
+     "revision": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "harness.previewRenew": {
+   "kind": "query",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string",
+      "maxLength": 8192
+     }
+    },
+    "required": [
+     "url"
     ]
    },
    "output": {
@@ -29155,20 +29874,6 @@
      "budget": {
       "type": "object",
       "properties": {
-       "maxTokensPerAttempt": {
-        "type": "integer",
-        "exclusiveMinimum": 0,
-        "maximum": 9007199254740991
-       },
-       "maxDurationMsPerAttempt": {
-        "type": "integer",
-        "exclusiveMinimum": 0,
-        "maximum": 9007199254740991
-       },
-       "maxCostUsdPerDay": {
-        "type": "number",
-        "minimum": 0
-       },
        "maxRetries": {
         "type": "integer",
         "minimum": 0,
@@ -30617,20 +31322,6 @@
      "budget": {
       "type": "object",
       "properties": {
-       "maxTokensPerAttempt": {
-        "type": "integer",
-        "exclusiveMinimum": 0,
-        "maximum": 9007199254740991
-       },
-       "maxDurationMsPerAttempt": {
-        "type": "integer",
-        "exclusiveMinimum": 0,
-        "maximum": 9007199254740991
-       },
-       "maxCostUsdPerDay": {
-        "type": "number",
-        "minimum": 0
-       },
        "maxRetries": {
         "type": "integer",
         "minimum": 0,
@@ -35681,6 +36372,28 @@
    ],
    "additionalProperties": {}
   },
+  "computer.activity": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "active": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   },
+   "required": [
+    "active"
+   ],
+   "additionalProperties": false
+  },
+  "computer.changed": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {},
+   "additionalProperties": false
+  },
   "connections.changed": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "null"
@@ -36056,11 +36769,15 @@
        "rememberRule": {
         "type": "string"
        },
+       "sessionCommand": {
+        "type": "string"
+       },
        "rememberGroup": {
         "type": "string",
         "enum": [
          "files",
          "delegate",
+         "computer",
          "tool"
         ]
        }
@@ -36177,11 +36894,15 @@
     "rememberRule": {
      "type": "string"
     },
+    "sessionCommand": {
+     "type": "string"
+    },
     "rememberGroup": {
      "type": "string",
      "enum": [
       "files",
       "delegate",
+      "computer",
       "tool"
      ]
     }

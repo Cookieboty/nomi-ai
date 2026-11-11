@@ -1,6 +1,7 @@
 import {
   Activity,
   AppWindow,
+  Ban,
   BarChart3,
   BookOpen,
   Boxes,
@@ -13,13 +14,15 @@ import {
   Plug,
   ReceiptText,
   Shield,
-  Sparkles,
+  ShieldCheck,
   SquareTerminal,
   Timer,
   Wallet,
   Waypoints,
   type LucideIcon,
 } from 'lucide-react';
+
+import { FEATURE_ICONS } from '../AppIcons';
 
 import type { SettingsSection } from './sections';
 
@@ -41,7 +44,7 @@ export const SECTION_HELP: Record<
       desc: 'ui.chat-settings.nomi-permissions-help',
     },
     {
-      icon: Sparkles,
+      icon: FEATURE_ICONS.delegate,
       title: 'ui.chat-settings.handoff',
       desc: 'ui.chat-settings.nomi-handoff-help',
     },
@@ -71,6 +74,33 @@ export const SECTION_HELP: Record<
       icon: Cpu,
       title: 'ui.knowledge-local.local-models',
       desc: 'ui.knowledge-local.built-in-llama-cpp-local-models-plus-optional',
+    },
+  ],
+  computer: [
+    {
+      icon: Download,
+      title: 'ui.chat-settings.computer-executor',
+      desc: 'ui.chat-settings.computer-help-executor',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'ui.chat-settings.computer-help-confirm',
+      desc: 'ui.chat-settings.computer-safety-confirm',
+    },
+    {
+      icon: Ban,
+      title: 'ui.chat-settings.computer-blocked-apps',
+      desc: 'ui.chat-settings.computer-safety-blocked',
+    },
+    {
+      icon: Shield,
+      title: 'ui.chat-settings.computer-help-data',
+      desc: 'ui.chat-settings.computer-safety-privacy',
+    },
+    {
+      icon: SquareTerminal,
+      title: 'ui.providers-schedule.coding-agents',
+      desc: 'ui.chat-settings.computer-help-cli',
     },
   ],
   coding: [
@@ -117,7 +147,7 @@ export const SECTION_HELP: Record<
       desc: 'ui.chat-settings.spending-alert-thresholds-and-usage-record-options',
     },
     {
-      icon: Gauge,
+      icon: FEATURE_ICONS.compare,
       title: 'ui.model-quality.compare',
       desc: 'ui.model-quality.multi-level-table-how-the-same-model-differs',
     },
@@ -144,7 +174,7 @@ export const SECTION_HELP: Record<
       desc: 'ui.chat-settings.add-folders-they-are-searched-and-cited',
     },
     {
-      icon: Sparkles,
+      icon: FEATURE_ICONS.memory,
       title: 'ui.knowledge-local.long-term-memory',
       desc: 'ui.chat-settings.preferences-and-facts-remembered-from-chats-view-and',
     },
@@ -156,12 +186,12 @@ export const SECTION_HELP: Record<
   ],
   ext: [
     {
-      icon: Plug,
+      icon: FEATURE_ICONS.ext,
       title: 'ui.foundation.mcp-servers-label',
       desc: 'ui.chat-settings.connect-tool-servers-via-local-commands-or-remote',
     },
     {
-      icon: Layers,
+      icon: FEATURE_ICONS.skills,
       title: 'ui.foundation.skills-label',
       desc: 'ui.chat-settings.manage-skill-packs-the-assistant-can-use',
     },

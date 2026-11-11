@@ -83,10 +83,8 @@ export const TaskGrantInput = z.object({
   expiresAt: z.number().optional(),
 });
 
+/** 只剩重试次数：任务不按 token / 时长 / 费用拦截 */
 export const TaskBudgetInput = z.object({
-  maxTokensPerAttempt: z.number().int().positive().optional(),
-  maxDurationMsPerAttempt: z.number().int().positive().optional(),
-  maxCostUsdPerDay: z.number().nonnegative().optional(),
   maxRetries: z.number().int().min(0).max(10).optional(),
 });
 

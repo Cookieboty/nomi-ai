@@ -40,7 +40,7 @@ describe('Sidebar rows', () => {
     const view = render(<Sidebar {...props} collapsed={false} />);
     expect(view.queryByTestId('sidebar-toggle')).toBeNull();
     expect(view.queryByTestId('sidebar-brand-mark')).toBeNull();
-    expect(view.getByTestId('chat-mode-trigger').textContent).toContain('Nomi');
+    expect(view.getByTestId('chat-mode-trigger').textContent).toContain('工坊');
     expect(view.getByTestId('nav-chats').getAttribute('aria-current')).toBe('page');
 
     view.rerender(<Sidebar {...props} collapsed />);

@@ -50,13 +50,13 @@ export const ProviderSetup: React.FC<{ onOpenModels: () => void }> = ({ onOpenMo
   return (
     <>
       <section
-        className={styles.section}
+        className={styles.subStep}
         data-testid="onb-provider-section"
         data-state={configured ? 'configured' : 'form'}
       >
-        <div className={styles.sectionHead}>
-          <span className={styles.sectionNo}>1</span>
-          <span className={styles.subLabel}>{t('ui.mascot-theme.onb-choose-provider')}</span>
+        <div className={styles.subStepHead}>
+          <span className={styles.subStepNo}>1</span>
+          <span className={styles.subStepTitle}>{t('ui.mascot-theme.onb-choose-provider')}</span>
         </div>
         {configured ? (
           <div className={styles.configured}>
@@ -92,14 +92,14 @@ export const ProviderSetup: React.FC<{ onOpenModels: () => void }> = ({ onOpenMo
       </section>
 
       <section
-        className={`${styles.section} ${provider ? '' : styles.sectionOff}`}
+        className={`${styles.subStep} ${provider ? '' : styles.subStepOff}`}
         data-testid="onb-model-section"
         aria-disabled={!provider}
         data-state={!provider ? 'disabled' : current ? 'ready' : 'choose'}
       >
-        <div className={styles.sectionHead}>
-          <span className={styles.sectionNo}>2</span>
-          <span className={styles.subLabel}>{t('ui.mascot-theme.onb-choose-model')}</span>
+        <div className={styles.subStepHead}>
+          <span className={styles.subStepNo}>2</span>
+          <span className={styles.subStepTitle}>{t('ui.mascot-theme.onb-choose-model')}</span>
         </div>
         {!provider ? (
           <p className={styles.note}>{t('ui.mascot-theme.onb-provider-first')}</p>
@@ -113,7 +113,7 @@ export const ProviderSetup: React.FC<{ onOpenModels: () => void }> = ({ onOpenMo
                   type="button"
                   role="radio"
                   aria-checked={current === ref}
-                  className={`${styles.chip} ${current === ref ? styles.optionOn : ''}`}
+                  className={`${styles.chip} ${current === ref ? styles.chipOn : ''}`}
                   data-testid={`onb-model-${m.id}`}
                   onClick={() => assign(ref)}
                 >

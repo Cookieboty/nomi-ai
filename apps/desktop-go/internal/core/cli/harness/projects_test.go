@@ -58,11 +58,17 @@ func TestTabProjectExtraDirs(t *testing.T) {
 		if s := o.buildSandboxSpec(o.tab(id), app, util.NewObj()); slices.Contains(s.Writable, api) {
 			t.Fatal("plan mode keeps the other folders read-only too")
 		}
-		// 主文件夹改了：空闲标签换到新的主文件夹
+		// 主文件夹改了，但工作目录还是项目里的文件夹：不动（不白开一个新会话）
 		roots["p1"] = []string{api, app}
 		o.ProjectChanged("p1")
+		if realDir(str(o.tab(id), "cwd")) != app {
+			t.Fatalf("cwd still inside the project moved to %s", str(o.tab(id), "cwd"))
+		}
+		// 工作目录被移出项目：换到新的主文件夹
+		roots["p1"] = []string{api}
+		o.ProjectChanged("p1")
 		if realDir(str(o.tab(id), "cwd")) != api {
-			t.Fatalf("cwd after primary change = %s", str(o.tab(id), "cwd"))
+			t.Fatalf("cwd after leaving the project = %s", str(o.tab(id), "cwd"))
 		}
 		// 项目里的目录算已知目录（右栏 git / 文件浏览）
 		if o.KnownDir(docs) == "" {
@@ -125,6 +131,131 @@ func TestProjectChangedWhileRunningIsDeferred(t *testing.T) {
 		o.applyPendingProject(id)
 		if realDir(str(o.tab(id), "cwd")) != c || o.projectPending[id] {
 			t.Fatalf("next turn uses the latest project folder, cwd = %s", str(o.tab(id), "cwd"))
+		}
+	})
+}
+
+// 从本机历史打开的会话：工作目录在某个项目里就归进那个项目；项目主文件夹不能用时不归，会话照样打开
+func TestOpenHistorySessionAdoptsProject(t *testing.T) {
+	tmp := t.TempDir()
+	app := filepath.Join(tmp, "app")
+	if err := os.MkdirAll(filepath.Join(app, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	app, _ = filepath.EvalSymlinks(app)
+	other := t.TempDir()
+	roots := map[string]string{"p1": app}
+	idle := 0.0
+	jsrt.Run(func() {
+		o := New(Deps{Root: filepath.Join(tmp, "h"), Home: tmp, DefaultCwd: app, Logger: nopLogger{}, Ports: nopPorts{},
+			IdleReclaimMs: &idle,
+			ProjectRoots:  func(id string) (string, []string) { return roots[id], nil },
+			ProjectFor: func(dir string) string {
+				if dir == app || inside(dir, app) {
+					return "p1"
+				}
+				return ""
+			},
+		})
+		defer o.Dispose()
+		open := func(session, cwd string) *util.Obj {
+			r := o.OpenHistorySession(util.NewObj("backend", "codex", "sessionId", session, "cwd", cwd, "title", "t", "messages", []any{}))
+			return r.Get("tab").(*util.Obj)
+		}
+		in := open("s1", filepath.Join(app, "src"))
+		if in.Get("projectId") != "p1" || realDir(util.Str(in.Get("cwd"))) != filepath.Join(app, "src") {
+			t.Fatalf("inside project: %v", util.Stringify(in))
+		}
+		if out := open("s2", other); out.Get("projectId") != nil {
+			t.Fatalf("outside project: %v", util.Stringify(out))
+		}
+		delete(roots, "p1")
+		if gone := open("s3", app); gone.Get("projectId") != nil {
+			t.Fatalf("unavailable project: %v", util.Stringify(gone))
+		}
+	})
+}
+
+// 已有的、没归项目的标签：启动时 / 项目建好后，工作目录在项目里就补上；用户选了「不使用项目」的不动
+func TestAdoptUnboundTabs(t *testing.T) {
+	tmp := t.TempDir()
+	app := filepath.Join(tmp, "app")
+	if err := os.MkdirAll(filepath.Join(app, ".nomi-delegate", "w1"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	app, _ = filepath.EvalSymlinks(app)
+	worktree := filepath.Join(app, ".nomi-delegate", "w1")
+	roots := map[string]string{}
+	idle := 0.0
+	jsrt.Run(func() {
+		o := New(Deps{Root: filepath.Join(tmp, "h"), Home: tmp, DefaultCwd: tmp, Logger: nopLogger{}, Ports: nopPorts{},
+			IdleReclaimMs: &idle,
+			ProjectRoots:  func(id string) (string, []string) { return roots[id], nil },
+			ProjectFor: func(dir string) string {
+				if roots["p1"] != "" && (dir == app || inside(realDir(dir), app)) {
+					return "p1"
+				}
+				return ""
+			},
+		})
+		defer o.Dispose()
+		// 项目还没建：标签不归项目
+		a := util.Str(o.CreateTab(util.NewObj("backend", "codex", "cwd", app, "activate", false)).Get("id"))
+		w := util.Str(o.CreateTab(util.NewObj("backend", "codex", "cwd", worktree, "activate", false)).Get("id"))
+		opt := util.Str(o.CreateTab(util.NewObj("backend", "codex", "cwd", app, "activate", false)).Get("id"))
+		o.SetTabProject(opt, "", false)
+		if o.tab(a).Get("projectId") != nil {
+			t.Fatal("no project yet")
+		}
+		// 项目建好：已有标签补上；工作目录不动；「不使用项目」的不动
+		roots["p1"] = app
+		o.ProjectChanged("p1")
+		if o.tab(a).Get("projectId") != "p1" || o.tab(w).Get("projectId") != "p1" {
+			t.Fatalf("adopt: %v / %v", o.tab(a).Get("projectId"), o.tab(w).Get("projectId"))
+		}
+		if realDir(str(o.tab(w), "cwd")) != realDir(worktree) {
+			t.Fatalf("worktree cwd moved to %s", str(o.tab(w), "cwd"))
+		}
+		if o.tab(opt).Get("projectId") != nil {
+			t.Fatal("opted out tab was adopted")
+		}
+		// 新建的标签直接归项目
+		if n := o.CreateTab(util.NewObj("backend", "codex", "cwd", worktree, "activate", false)); n.Get("projectId") != "p1" {
+			t.Fatalf("new tab: %v", util.Stringify(n))
+		}
+	})
+}
+
+// 启动时修标题：沙箱说明当了标题的、说过话还叫默认名的按第一句提问起标题；空标签和改过名的不动
+func TestRepairTabTitles(t *testing.T) {
+	tmp := t.TempDir()
+	idle := 0.0
+	jsrt.Run(func() {
+		o := New(Deps{Root: filepath.Join(tmp, "h"), Home: tmp, DefaultCwd: tmp, Logger: nopLogger{}, Ports: nopPorts{},
+			IdleReclaimMs: &idle})
+		defer o.Dispose()
+		mk := func(title string, msgs ...string) string {
+			list := []any{}
+			for _, m := range msgs {
+				list = append(list, util.NewObj("role", "user", "content", m))
+			}
+			opts := util.NewObj("backend", "codex", "cwd", tmp, "activate", false, "messages", list)
+			if title != "" {
+				opts.Set("title", title)
+			}
+			return util.Str(o.CreateTab(opts).Get("id"))
+		}
+		leaked := mk("You are running inside Nomi's sandbox. Reading credentials a", "你好")
+		named := mk("", "注意，claude")
+		empty := mk("")
+		renamed := mk("我的会话", "随便问问")
+		bare := mk("You are running inside Nomi's sandbox. Reading credentials a")
+		before := str(o.tab(empty), "title")
+		o.RepairTabTitles()
+		for id, want := range map[string]string{leaked: "你好", named: "注意，claude", empty: before, renamed: "我的会话", bare: "Codex"} {
+			if got := str(o.tab(id), "title"); got != want {
+				t.Fatalf("%s: title %q, want %q", id, got, want)
+			}
 		}
 	})
 }

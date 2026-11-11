@@ -45,6 +45,16 @@ func (o *Orchestrator) PreviewExternal(cwd, path string, allowOutside bool) *jsr
 	return ioAsync(func() resourcepreview.Result { return s.External(root, path, home, allowOutside) })
 }
 
+func (o *Orchestrator) PreviewRenew(url string) *jsrt.Promise[resourcepreview.Result] {
+	s := o.preview
+	return ioAsync(func() resourcepreview.Result {
+		if s == nil {
+			return resourcepreview.Result{Code: "unavailable"}
+		}
+		return s.Renew(url)
+	})
+}
+
 func (o *Orchestrator) PreviewSave(url, revision, content string) *jsrt.Promise[resourcepreview.SaveResult] {
 	s := o.preview
 	return ioAsync(func() resourcepreview.SaveResult {

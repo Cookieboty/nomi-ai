@@ -59,6 +59,7 @@ import { sameMetaList } from './listEquality';
 import { LocalHistorySection } from './LocalHistorySection';
 import { useProjectGrouping, projectBackend } from './projectGrouping';
 import {
+  NewProjectButton,
   OrganizeMenu,
   PinnedSection,
   ProjectGroups,
@@ -371,27 +372,30 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     return () => window.removeEventListener(OPEN_CONVERSATION_EVENT, on);
   }, [open]);
 
-  /**
-   * projectId：在指定项目里新建（项目行上的「新建」）；null = 不放进项目（「最近」上的新建）；
-   * 缺省用新建菜单里选的项目
-   */
+  /** projectId：指定项目（项目行上的「新建」）；null = 不放进项目；缺省用新建菜单里选的项目 */
   const createFor = async (backend: ConversationBackend, projectId?: string | null) => {
     setNewMenu(false);
     leaveRef.current?.();
     const pid = projectId === undefined ? (ws.chosen ?? null) : projectId;
-    if (backend === 'nomi') {
-      if (tabs.available) await tabs.activate(MAIN_TAB_ID);
-      if (harnessClient.available()) await harnessClient.setBackend('nomi').catch(() => undefined);
-      // 新建是异步操作。必须等它创建并切换到新的 Nomi 会话后再刷新侧栏，
-      // 否则 ensureCurrent() 可能读到旧的 CLI 镜像项并把它改写成 Nomi。
-      await onNewChat({ projectId: pid });
+    ws.reset(); // 菜单里选的项目只管这一次新建，不带到下一次
+    try {
+      if (backend === 'nomi') {
+        if (tabs.available) await tabs.activate(MAIN_TAB_ID);
+        if (harnessClient.available())
+          await harnessClient.setBackend('nomi').catch(() => undefined);
+        // 新建是异步操作。必须等它创建并切换到新的 Nomi 会话后再刷新侧栏，
+        // 否则 ensureCurrent() 可能读到旧的 CLI 镜像项并把它改写成 Nomi。
+        await onNewChat({ projectId: pid });
+        refresh();
+        return;
+      }
+      if (!isDev) setMode('dev');
+      if (!tabs.available) return;
+      await tabs.create(backend, pid ?? undefined);
       refresh();
-      return;
+    } catch (e) {
+      onNotice?.(t('ui.cli-monitor.new-chat-failed', e instanceof Error ? e.message : String(e)));
     }
-    if (!isDev) setMode('dev');
-    if (!tabs.available) return;
-    await tabs.create(backend, pid ?? undefined);
-    refresh();
   };
 
   const handleNewClick = () => {
@@ -797,7 +801,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         aria-expanded={isDev && view === 'all' ? newMenu : undefined}
         data-testid="new-chat"
       >
-        <Icon icon={SquarePen} />
+        <Icon icon={SquarePen} size={14} />
       </button>
       {newMenuP.value && (
         <AnchoredPopover anchor={newBtnRef.current} popRef={newPopRef}>
@@ -815,20 +819,9 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     </div>
   );
 
-  // 新建项目（不开对话）：打开「创建项目」弹窗
-  const newProjectBtn = (
-    <button
-      type="button"
-      className={styles.headBtn}
-      onClick={() => setProjectDialog('new')}
-      title={t('ui.cli-monitor.project-create-title')}
-      aria-label={t('ui.cli-monitor.project-create-title')}
-      data-testid="new-project"
-    >
-      <Icon icon={SquarePen} />
-    </button>
-  );
-  // 「项目」标题右侧：整理侧栏「…」+ 新建项目（Codex 式）；新建对话在「最近」标题右侧。
+  // 新建项目（「+」）：打开「创建项目」弹窗，建好后在这个项目里开一个会话（onSaved）
+  const newProjectBtn = <NewProjectButton onClick={() => setProjectDialog('new')} />;
+  // 「项目」标题右侧：整理「…」+ 新建项目（「+」）+ 新对话（笔形，不放进任何项目）。
   // 不分组时（「对话」）：整理 + 新建对话
   const listOpen = !collapsedWorkspaces.includes(SECTION_WORKSPACES);
   const organize = <OrganizeMenu grouped={groupByWorkspace} onChange={setGroupByWorkspace} />;
@@ -836,6 +829,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     <>
       {organize}
       {newProjectBtn}
+      {newBtn}
     </>
   ) : (
     <>
@@ -1003,7 +997,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
                 activeId={rowActiveId}
                 rows={rowProps}
                 headerActions={listActions}
-                recentActions={newBtn}
+                hideEmpty={isDev && view === 'by-endpoint'}
               />
             )}
             {!wsGroups.grouped && (
@@ -1145,6 +1139,15 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         <ProjectDialog
           project={projectDialog === 'new' ? undefined : projectDialog}
           onClose={() => setProjectDialog(null)}
+          onSaved={
+            projectDialog === 'new'
+              ? (p) =>
+                  void createFor(
+                    isNormal ? 'nomi' : view === 'by-endpoint' ? endpointFilter : 'nomi',
+                    p.id,
+                  )
+              : undefined
+          }
         />
       )}
       {searchOpen && (

@@ -46,19 +46,21 @@ export const TerminalCommandsCard: React.FC = () => {
   const enabled = st?.enabled ?? false;
 
   return (
-    <section className={styles.card} data-testid="terminal-commands-card">
-      <div className={styles.head}>
+    <details className={styles.card} data-testid="terminal-commands-card">
+      <summary className={styles.head}>
         <h3 className={styles.title}>
           <Icon icon={SquareTerminal} size={16} />
           {t('ui.models.terminal-commands')}
         </h3>
-        <Switch
-          checked={enabled}
-          disabled={!st || busy}
-          onChange={(on) => void apply({ enabled: on })}
-          aria-label={t('ui.models.terminal-commands')}
-        />
-      </div>
+        <span onClick={(e) => e.preventDefault()} onKeyDown={(e) => e.stopPropagation()}>
+          <Switch
+            checked={enabled}
+            disabled={!st || busy}
+            onChange={(on) => void apply({ enabled: on })}
+            aria-label={t('ui.models.terminal-commands')}
+          />
+        </span>
+      </summary>
       <p className={styles.desc}>{t('ui.models.use-third-party-models-in-a-terminal-with')}</p>
       {st && enabled && (
         <>
@@ -158,7 +160,7 @@ export const TerminalCommandsCard: React.FC = () => {
           ))}
         </ul>
       </Modal>
-    </section>
+    </details>
   );
 };
 

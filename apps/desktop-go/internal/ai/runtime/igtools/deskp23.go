@@ -46,12 +46,12 @@ func (t p23tool) def(name string, input z, body func(ctx context.Context, i *u.O
 	return deskDef(name, deskDescs[name], func(ctx context.Context, raw any, ec tools.ExecContext) (any, error) {
 		v, iss, ok := aifacade.Parse(input, raw)
 		if !ok {
-			return t.k.run(name, raw, func() (any, string, error) {
+			return t.k.runAs(sourceOf(ctx), name, raw, func() (any, string, error) {
 				return nil, "", toolErr(t.code, strings.Join(aifacade.IssueMessages(iss), "; "))
 			}), nil
 		}
 		i, _ := v.(*u.Obj)
-		return t.k.run(name, i, func() (any, string, error) { return body(ctx, i, ec) }), nil
+		return t.k.runAs(sourceOf(ctx), name, i, func() (any, string, error) { return body(ctx, i, ec) }), nil
 	})
 }
 

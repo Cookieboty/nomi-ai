@@ -9,7 +9,8 @@
  *      NOMI_MOCK_GEMINI_SET_MODE=error | error:<modeId> (session/set_mode fails, always / only for that mode),
  *      NOMI_MOCK_GEMINI_SET_MODE_DELAY_MS (delay before answering session/set_mode; the answer is logged as
  *      "set_mode/answered" so tests can check ordering against session/prompt),
- *      NOMI_MOCK_GEMINI_INIT_DELAY_MS (delay before answering initialize).
+ *      NOMI_MOCK_GEMINI_INIT_DELAY_MS (delay before answering initialize),
+ *      NOMI_MOCK_GEMINI_FAIL=1 (session/prompt fails like an upstream API error).
  */
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
@@ -280,7 +281,9 @@ process.stdin.on('data', (c) => {
         break;
       }
       case 'session/prompt':
-        void prompt(m.id, m.params);
+        if (process.env.NOMI_MOCK_GEMINI_FAIL === '1')
+          send({ id: m.id, error: { code: -32603, message: 'Mock: API Error 400' } });
+        else void prompt(m.id, m.params);
         break;
       case 'session/cancel':
         cancelled.add(m.params.sessionId);

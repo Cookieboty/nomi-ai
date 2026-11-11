@@ -20,11 +20,12 @@ Nomi 的安装包（`apps/desktop-go`，Go 内核 + Wails v3）由
 
 发一版：
 
-1. 改版本号（根目录 `package.json` 的 `version`，打包与 tag 校验都读它），写 `docs/releases/vX.Y.Z.md`。
+1. 改版本号（根目录 `package.json` 的 `version`，打包与 tag 校验都读它），按
+   [发版说明模板](development/release-notes.md) 写 `docs/releases/vX.Y.Z.md`。
    这份文件是更新说明的唯一来源：它是 GitHub Release 正文，也由 `update-manifest.py --notes` 写进该版本的
    `latest-go.json`（`releaseNotes`）。应用内「更新日志」弹层经 `updates.releaseNotes` 按版本号取
    `releases/download/vX.Y.Z/latest-go.json` 并缓存，界面里不内置任何版本的文案，发版不用改代码。
-   每行写成「中文 / English」，弹层按界面语言取一半；只写给用户看的内容。
+   新说明先写中文短句，再用 `## English` 另开英文。2.3.9 及更早的说明仍是每行「中文 / English」，弹层两种都认。只写给用户看的内容。
 2. 在 `main` 上等 `desktop-go` 与 `CI` 都绿（tag 上不再重跑测试，直接打包发布）。
 
    发版分支（`release/X.Y.Z` → PR → `main`）怎么少等一轮：

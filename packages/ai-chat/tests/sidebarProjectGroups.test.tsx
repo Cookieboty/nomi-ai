@@ -10,7 +10,10 @@ import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import {
   getCollapsedWorkspaces,
   setChatMode,
+  setConversationListView,
+  setEndpointFilter,
   setGroupByWorkspace,
+  setWorkspaceCollapsed,
 } from '../src/services/chatPrefs';
 import type { HistorySession } from '../src/services/historyClient';
 import { __setProjectsForTest, type Project } from '../src/services/projects';
@@ -42,7 +45,7 @@ const conv = (id: string, name: string, backend: string, age: number, extra = {}
   ...extra,
 });
 let convs: ReturnType<typeof conv>[] = [];
-const tabStatus = 'idle';
+let tabStatus = 'idle';
 const updateMeta = vi.fn();
 const deleteConversation = vi.fn(async () => undefined);
 const onNewChat = vi.fn();
@@ -97,11 +100,14 @@ type Input = {
   options?: { offset?: number; limit?: number };
 };
 let calls: Array<[string, Input]> = [];
+/** 让 harness.tabCreate 失败（新建失败的提示） */
+let failCreate = false;
 
 function mockIpc() {
   calls = [];
   const invoke = vi.fn(async (ch: string, input?: Input) => {
     calls.push([ch, input ?? {}]);
+    if (ch === 'harness.tabCreate' && failCreate) throw new Error('disk full');
     if (ch === 'harness.tabs')
       return {
         tabs: [
@@ -158,6 +164,8 @@ beforeEach(() => {
   __setProjectsForTest(PROJECTS);
 });
 afterEach(() => {
+  failCreate = false;
+  tabStatus = 'idle';
   cleanup();
   localStorage.clear();
   resetFakeApi();
@@ -196,13 +204,14 @@ describe('sidebar project groups', () => {
     const app = groups[0]!;
     expect(names(app)).toHaveLength(5);
     expect(names(groups[1]!)).toEqual([expect.stringContaining('api via claude')]);
-    // 分页：每点一次多 5 条，全部显示后变成「收起」
+    // 分页：按钮写还剩几条；每点一次多 5 条，全部显示后变成「收起」
+    expect(within(app).getByTestId('workspace-show-more').textContent).toBe('再显示 2 条');
     fireEvent.click(within(app).getByTestId('workspace-show-more'));
     expect(names(app)).toHaveLength(7);
     expect(within(app).getByTestId('workspace-show-more').textContent).toBe('收起');
     fireEvent.click(within(app).getByTestId('workspace-show-more'));
     expect(names(app)).toHaveLength(5);
-    // 没有项目的会话在「最近」里
+    // 没有项目的会话在「其他对话」里
     expect(names(r.getByTestId('workspace-recent'))).toEqual([
       expect.stringContaining('loose chat'),
     ]);
@@ -260,15 +269,90 @@ describe('sidebar project groups', () => {
     await waitFor(() => expect(again.getAllByTestId('workspace-group').length).toBeGreaterThan(0));
   });
 
-  it('项目上的「新建」在该项目里新建；「最近」上的新建不放进项目', async () => {
+  it('项目上的「新建」在该项目里新建；「其他对话」标题上没有新建（与别处的新建重复）', async () => {
     setChatMode('normal');
     const r = mount();
     const app = (await r.findAllByTestId('workspace-group'))[0]!;
     fireEvent.click(within(app).getByTestId('workspace-new-chat'));
     await waitFor(() => expect(onNewChat).toHaveBeenCalledWith({ projectId: 'p_app' }));
-    onNewChat.mockClear();
-    fireEvent.click(within(r.getByTestId('workspace-recent')).getByTestId('new-chat'));
+    const other = r.getByTestId('workspace-recent');
+    expect(within(other).queryByTestId('new-chat')).toBeNull();
+    expect(other.textContent).toContain('其他对话');
+  });
+
+  it('新建失败时提示原因，不再静默', async () => {
+    setConversationListView('all');
+    failCreate = true;
+    mockIpc();
+    const onNotice = vi.fn();
+    const r = render(
+      <HarnessTabsProvider>
+        <Sidebar
+          collapsed={false}
+          onToggle={() => undefined}
+          onNewChat={onNewChat}
+          onNotice={onNotice}
+        />
+      </HarnessTabsProvider>,
+    );
+    // api 项目里最近的会话是 Claude Code 的：项目上的「新建」开 Claude Code 标签，这里让它失败
+    const groups = await r.findAllByTestId('workspace-group');
+    const api = groups.find((g) => g.dataset.project === 'p_api')!;
+    fireEvent.click(within(api).getByTestId('workspace-new-chat'));
+    await waitFor(() =>
+      expect(onNotice).toHaveBeenCalledWith(expect.stringContaining('disk full')),
+    );
+  });
+
+  it('只看一个端时不列这个端没有会话的项目；折叠的项目只写当前端的数，0 不写', async () => {
+    setConversationListView('by-endpoint');
+    setEndpointFilter('nomi');
+    setWorkspaceCollapsed('p_app', true);
+    const r = mount();
+    await waitFor(() =>
+      expect(r.getAllByTestId('workspace-group').map((g) => g.dataset.project)).toEqual(['p_app']),
+    );
+    const app = r.getAllByTestId('workspace-group')[0]!;
+    expect(within(app).getByTestId('workspace-toggle').textContent).toBe('app7');
+
+    cleanup();
+    setConversationListView('all');
+    setWorkspaceCollapsed('p_empty', true);
+    const all = mount();
+    const empty = (await all.findAllByTestId('workspace-group')).find(
+      (g) => g.dataset.project === 'p_empty',
+    )!;
+    expect(within(empty).getByTestId('workspace-toggle').textContent).toBe('empty');
+  });
+
+  it('进行中的会话只看行首状态点：行尾不写「进行中」，状态文字只给读屏', async () => {
+    tabStatus = 'running';
+    mockIpc();
+    const r = mount();
+    const api = (await r.findAllByTestId('workspace-group')).find(
+      (g) => g.dataset.project === 'p_api',
+    )!;
+    const live = await within(api).findByTestId('thread-live');
+    expect(live.textContent).toBe('进行中');
+    expect(live.className).toMatch(/srOnly/);
+  });
+
+  it('「项目」标题：「+」是新建项目，笔形是新对话且不放进任何项目', async () => {
+    setChatMode('normal');
+    const r = mount();
+    const plus = await r.findByTestId('new-project');
+    expect(plus.getAttribute('aria-label')).toBe('创建项目');
+    fireEvent.click(r.getByTestId('new-chat'));
     await waitFor(() => expect(onNewChat).toHaveBeenCalledWith({ projectId: null }));
+  });
+
+  it('没有「其他对话」时整个分区不显示', async () => {
+    convs = convs.filter((c) => (c as { projectId?: string }).projectId);
+    mockIpc();
+    const r = mount();
+    await r.findAllByTestId('workspace-group');
+    expect(r.queryByTestId('workspace-recent')).toBeNull();
+    expect(r.queryByTestId('recent-section-toggle')).toBeNull();
   });
 
   it('「项目」标题上的按钮打开「创建项目」，不开对话；项目上的「…」打开「编辑项目」', async () => {

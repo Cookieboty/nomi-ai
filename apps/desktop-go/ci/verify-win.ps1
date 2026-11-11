@@ -48,6 +48,8 @@ $sig = Get-AuthenticodeSignature $Setup; W "- Authenticode：$($sig.Status)"
 # CI 里启动应用前关掉自动检查更新：否则每次验收都会读 Release 的 latest-go.json，算进下载量（userData = %APPDATA%\Nomi）
 $ud = "$env:APPDATA\Nomi"; New-Item -ItemType Directory -Force $ud | Out-Null
 Set-Content -Encoding ascii (Join-Path $ud 'update-settings.json') '{"version":1,"autoCheck":false}'
+# 新装默认不显示桌面角色：这里打开它，验收的是角色窗口能正常出来
+Set-Content -Encoding ascii (Join-Path $ud 'startup.json') '{"defaultView":"mascot","closeMain":"hide","showMascot":true}'
 # 安装器把每一步的耗时写在 %TEMP%\nomi-install.log（installer.nsi 的 StepLog）
 function InstallLog($title) {
   $f = Join-Path $env:TEMP "nomi-install.log"

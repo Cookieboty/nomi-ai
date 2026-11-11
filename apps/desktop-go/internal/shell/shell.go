@@ -23,6 +23,13 @@ type Shell interface {
 	Quit()
 }
 
+// GlobalShortcuts：系统级快捷键（别的应用在前台时也生效；外壳实现了才有）。
+// accel 用 Wails 的写法（如 "CmdOrCtrl+Shift+."）；回调在自己的 goroutine 里跑
+type GlobalShortcuts interface {
+	RegisterGlobalShortcut(accel string, fn func()) error
+	UnregisterGlobalShortcut(accel string) error
+}
+
 // Rect 是屏幕坐标（逻辑像素）
 type Rect struct{ X, Y, Width, Height int }
 

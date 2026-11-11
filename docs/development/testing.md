@@ -27,7 +27,7 @@
 - 测试里通往仓库其它位置的路径用 `internal/repotest` 的 `RepoPath`（往上找 `pnpm-workspace.yaml`），不数 `..`；
   环境缺失（tzdata、node 等）用 `repotest.SkipOrFail`：本地跳过，CI（`CI=true`）里失败。
 - 假模型在 `internal/mockllm`；编程助手的假 CLI 在仓库根目录 `scripts/mock-cli`（`NOMI_USE_MOCK_CLI=1` 时
-  `cli.MockCliBin` 用它们代替真实 CLI）。
+  `cli.MockCliBin` 从当前目录往上找到它们，用来代替真实 CLI）。
 - 等子进程 / 异步落盘里发生的事要按条件等（带说明的超时），不要数固定次数的轮询或断言墙钟耗时。
 - CI 用 `apps/desktop-go/ci/go-test.sh`：先 `go vet`，再 `go test -race`；失败的包重跑一次，第二次通过记为不稳定
   （`::warning::` + job summary），两次都失败才算失败。

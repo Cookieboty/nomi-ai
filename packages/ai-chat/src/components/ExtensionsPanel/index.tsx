@@ -16,16 +16,7 @@ import {
   Tabs,
   Textarea,
 } from '@nomi-ai/ui';
-import {
-  Blocks,
-  BookOpen,
-  ChevronDown,
-  ChevronRight,
-  FolderOpen,
-  Pencil,
-  Plus,
-  Trash2,
-} from 'lucide-react';
+import { Puzzle, ChevronDown, ChevronRight, FolderOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -43,6 +34,7 @@ import {
   type SkillInfo,
   type Trust,
 } from '../../services/extClient';
+import { FEATURE_ICONS } from '../AppIcons';
 import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './index.module.css';
@@ -296,7 +288,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
               {servers.length === 0 && list.env.length === 0 ? (
                 <>
                   <EmptyState
-                    icon={Blocks}
+                    icon={Puzzle}
                     title={tr('ui.foundation.no-mcp-servers-yet')}
                     description={tr('ui.foundation.start-from-the-popular-servers-below-or-add')}
                   />
@@ -545,7 +537,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
               </div>
               {skills.length === 0 ? (
                 <EmptyState
-                  icon={BookOpen}
+                  icon={FEATURE_ICONS.skills}
                   title={tr('ui.foundation.no-skills-yet')}
                   description={tr('ui.foundation.create-one-or-import-a-folder-containing-skill')}
                 />

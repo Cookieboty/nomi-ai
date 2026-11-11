@@ -9,6 +9,8 @@
   /* 导航栏里端点菜单向右弹出，盖在对话区上面 */
   z-index: 3;
   min-height: 0;
+  /* 侧栏选中行：比通用选中色浅一档（仍比悬停深），不抢过标题文字 */
+  --sb-selected-bg: color-mix(in srgb, var(--cd-color-selected-bg) 55%, var(--cd-color-hover));
 }
 .collapsed {
   width: 52px;
@@ -356,7 +358,7 @@
   justify-content: center;
   border: none;
   background: transparent;
-  color: var(--cd-color-text-muted);
+  color: var(--cd-color-text-subtle);
   border-radius: var(--cd-radius-md);
   cursor: pointer;
 }
@@ -414,7 +416,7 @@
   font-size: var(--cd-font-size-md);
 }
 .threadActive {
-  background: var(--cd-color-selected-bg);
+  background: var(--sb-selected-bg);
   color: var(--cd-color-text);
 }
 .dot {
@@ -455,16 +457,6 @@
   color: var(--cd-color-text-subtle);
   white-space: nowrap;
   margin-left: auto;
-}
-.threadLive {
-  font-size: var(--cd-font-size-sm);
-  font-weight: var(--cd-font-weight-medium);
-  color: var(--cd-color-accent-strong);
-  white-space: nowrap;
-  margin-left: auto;
-}
-.threadLive[data-live='queued'] {
-  color: var(--cd-color-warning);
 }
 .histTitle {
   display: flex;
@@ -563,9 +555,12 @@
   background: var(--cd-color-hover);
 }
 .row[data-active] {
-  /* Codex 式：选中只用浅色圆角底，不加左侧强调条 */
-  background: var(--cd-color-selected-bg);
+  /* Codex 式：选中只用浅色圆角底，不加左侧强调条；标题加一档字重 */
+  background: var(--sb-selected-bg);
   color: var(--cd-color-text);
+}
+.row[data-active] .threadName {
+  font-weight: var(--cd-font-weight-medium);
 }
 .rowActions {
   position: absolute;
@@ -596,8 +591,8 @@
   background: linear-gradient(
     to right,
     transparent 0,
-    var(--cd-color-selected-bg) 10px,
-    var(--cd-color-selected-bg) 100%
+    var(--sb-selected-bg) 10px,
+    var(--sb-selected-bg) 100%
   );
 }
 .row:hover .rowActions,
@@ -614,20 +609,16 @@
   background: var(--cd-color-hover);
 }
 .row[data-active][data-confirming] .rowActions {
-  background: var(--cd-color-selected-bg);
+  background: var(--sb-selected-bg);
 }
-.row .threadTime,
-.row .threadLive {
+.row .threadTime {
   justify-self: end;
 }
 .row:hover .threadTime,
-.row:hover .threadLive,
 .row:focus-within .threadTime,
-.row:focus-within .threadLive,
-.row[data-confirming] .threadTime,
-.row[data-confirming] .threadLive {
+.row[data-confirming] .threadTime {
   opacity: 0;
-  /* 与蒙版同时藏字：避免强调色「进行中」在 opacity 过渡帧透过图标描边 */
+  /* 与蒙版同时藏字：避免时间在 opacity 过渡帧透过图标描边 */
   visibility: hidden;
 }
 @media (hover: none) {
@@ -635,8 +626,7 @@
     opacity: 1;
     pointer-events: auto;
   }
-  .threadTime,
-  .threadLive {
+  .threadTime {
     opacity: 0;
     visibility: hidden;
   }
@@ -677,8 +667,7 @@
 }
 @media (prefers-reduced-motion: no-preference) {
   .rowActions,
-  .threadTime,
-  .threadLive {
+  .threadTime {
     transition: opacity 0.12s ease;
   }
 }
@@ -805,117 +794,6 @@
   white-space: nowrap;
 }
 
-/* ───── 按工作区分组 ───── */
-.wsGroup {
-  /* 组与组之间留一段空白，靠留白分组，不画线 */
-  margin-bottom: var(--cd-space-3);
-}
-.wsEmpty {
-  padding: var(--cd-space-1) var(--cd-space-3);
-  color: var(--cd-color-text-subtle);
-  font-size: var(--cd-font-size-sm);
-}
-.wsGroup[data-missing] .wsLabel {
-  color: var(--cd-color-danger-text);
-}
-.wsHead {
-  position: relative;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  border-radius: var(--cd-radius-md);
-}
-.wsHead:hover,
-.wsHead:focus-within {
-  background: var(--cd-color-hover);
-}
-.wsToggle {
-  flex: 1;
-  min-width: 0;
-  /* 与会话行同高、同内边距：文件夹图标对齐行首，名称对齐下面会话的标题 */
-  height: var(--cd-control-h-ms);
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-2);
-  padding: 0 10px;
-  border: 0;
-  background: transparent;
-  color: var(--cd-color-text);
-  font: inherit;
-  font-size: var(--cd-font-size-md);
-  text-align: left;
-  border-radius: var(--cd-radius-md);
-  cursor: pointer;
-}
-.wsToggle:hover {
-  color: var(--cd-color-text);
-}
-.wsToggle:focus-visible,
-.wsNew:focus-visible,
-.wsMore:focus-visible {
-  outline: 2px solid var(--cd-color-accent-strong);
-  outline-offset: -2px;
-}
-.wsLabel {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* 「新建」只在悬停 / 键盘焦点时出现，免得每个文件夹都多一个图标 */
-.wsNew {
-  flex: none;
-  width: var(--cd-control-h-xs);
-  height: var(--cd-control-h-xs);
-  margin-right: var(--cd-space-1);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  background: transparent;
-  color: var(--cd-color-text-muted);
-  border-radius: var(--cd-radius-sm);
-  cursor: pointer;
-  opacity: 0;
-}
-.wsHead:hover .wsNew,
-.wsHead:focus-within .wsNew {
-  opacity: 1;
-}
-.wsNew:hover {
-  background: var(--cd-color-hover);
-  color: var(--cd-color-text);
-}
-.wsItems {
-  /* 缩进 = 文件夹图标 16 + 间距：会话标题与文件夹名左对齐 */
-  padding-left: calc(16px + var(--cd-space-2));
-}
-.wsMore {
-  display: block;
-  width: 100%;
-  min-height: var(--cd-control-h-ms);
-  margin: 0;
-  padding: 0 10px;
-  border: 0;
-  background: transparent;
-  color: var(--cd-color-text-subtle);
-  font: inherit;
-  font-size: var(--cd-font-size-md);
-  text-align: left;
-  border-radius: var(--cd-radius-md);
-  cursor: pointer;
-}
-.wsMore:hover {
-  color: var(--cd-color-text);
-}
-.wsRecent {
-  margin-top: var(--cd-space-2);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .wsNew {
-    transition: opacity 0.12s ease;
-  }
-}
 .epRail .epChip {
   width: var(--cd-control-h-ms);
   height: var(--cd-control-h-ms);
@@ -984,7 +862,9 @@
   background: transparent;
   color: var(--cd-color-text-subtle);
   font: inherit;
-  font-size: var(--cd-font-size-sm);
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-medium);
+  letter-spacing: 0.02em;
   cursor: pointer;
 }
 .secToggle:hover {

@@ -39,12 +39,12 @@
 
 ## What the workbench holds
 
-| Capability        | In Nomi                                                                                                                                                          |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Capability        | In Nomi                                                                                                                                                                                                    |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Coding agents** | Claude Code, Codex, Gemini CLI, Grok, dsh, Kimi Code and MiniMax Code, many sessions in parallel. Terminal or IDE sessions show on the board read-only; a CLI's own history can be resumed in the workshop |
-| **Models**        | Official APIs, third-party, or local models: connect one once, and the built-in coding agents and Nomi can use it. An extra ACP agent does not use this gateway |
-| **Tools**         | MCP, skills, browser, files and commands, managed in the UI with an audit log                                                                                    |
-| **Nomi**          | An agent itself: memory, knowledge base, images, reminders, and it hands jobs to coding agents                                                                   |
+| **Models**        | Official APIs, third-party, or local models: connect one once, and the built-in coding agents and Nomi can use it. An extra ACP agent does not use this gateway                                            |
+| **Tools**         | MCP, skills, browser, files and commands, managed in the UI with an audit log                                                                                                                              |
+| **Nomi**          | An agent itself: memory, knowledge base, images, reminders, and it hands jobs to coding agents                                                                                                             |
 
 They all live in one **agent workbench**: who is working, how far along, how much they use and where they're stuck, at a glance.
 
@@ -176,10 +176,10 @@ Installed copies offer updates in-app.
 
 ## Get started in 3 minutes
 
-1. Open Nomi and finish onboarding (language, theme). Don't want the desktop character? Close it from its toolbar's "More" menu.
+1. Open Nomi and finish onboarding (language and look, AI, personal). The desktop character is off by default.
 2. Open a Claude Code or Codex session and pick a working folder. Sign in with that CLI's official account, or connect a model first and choose third-party. "Agents" in the left sidebar opens the board.
 3. In Settings → Models & providers, add a provider and API key once, or download a local model under Local models. Official APIs, third-party, or local models all live there, and the built-in coding agents and Nomi can all pick them.
-4. Hand a task to Nomi: `Ctrl/⌘+N` for a new chat, `Ctrl/⌘+K` for the command palette. For coding, it can delegate to a coding agent.
+4. Hand a task to Nomi: `Ctrl/⌘+N` for a new chat, `Ctrl/⌘+K` for the command palette (dispatch a coding agent, add a provider, open the board, new task). For coding, it can delegate to a coding agent.
 
 More detail in [Getting started](docs/getting-started.md).
 

@@ -224,7 +224,7 @@
   "ui.foundation.weekday-button": "{0}",
   "ui.foundation.weekdays": "Weekdays",
   "ui.foundation.weekly": "Weekly…",
-  "ui.foundation.what-would-you-like-to-do-today": "What would you like to do today?",
+  "ui.foundation.what-would-you-like-to-do-today": "Start with one thing",
   "ui.foundation.when-indexing-and-searching": "When indexing and searching",
   "ui.foundation.when-on-only-local-models-e-g-ollama": "When on, only local models (e.g. Ollama at localhost) can read / summarize file contents; file tools called by cloud models are refused.",
   "ui.foundation.when-searching": "When searching",
@@ -238,7 +238,7 @@
   "ui.foundation.getting-started-go-add": "Add one",
   "ui.foundation.getting-started-import-mcp-and-skills": "Import MCP servers and skills",
   "ui.foundation.getting-started-install-a-coding-agent": "Install a coding agent",
-  "ui.foundation.getting-started-install-a-coding-agent-desc": "In Workshop, Nomi drives Claude Code, Codex and others to write code.",
+  "ui.foundation.getting-started-install-a-coding-agent-desc": "Dispatch Claude Code or Codex from the workshop.",
   "ui.foundation.getting-started-installing": "Installing…",
   "ui.foundation.getting-started-open-a-coding-session": "Open a coding session",
   "ui.foundation.getting-started-open-a-coding-session-desc": "Pick a project folder and let a coding agent get to work.",
@@ -246,7 +246,7 @@
   "ui.foundation.getting-started-start-your-first-chat": "Start your first chat",
   "ui.foundation.getting-started-start-your-first-chat-desc": "Ask Nomi something in the box below.",
   "ui.foundation.getting-started-to-do": "To do",
-  "ui.foundation.nomi-has-no-model-yet-add-one-to-start": "Nomi has no model yet. Add one to start chatting.",
+  "ui.foundation.nomi-has-no-model-yet-add-one-to-start": "Dispatch a coding assistant before connecting a model. Add a model when you want to chat with Nomi.",
   "ui.foundation.pick-one-of-your-models-for-nomi-chat": "You already have models. Pick one for Nomi chat to start.",
   "ui.foundation.getting-started-recommended-for-you": "Recommended for you",
   "ui.foundation.getting-started-recommended-clis-desc": "Picked for your occupation and interests. You can install them at the same time.",
@@ -331,5 +331,7 @@
   "ui.foundation.mcp-header-key": "Header {0} name",
   "ui.foundation.mcp-header-remove": "Remove header {0}",
   "ui.foundation.mcp-header-value": "Header {0} value",
-  "ui.foundation.mcp-request-headers": "Request headers (optional)"
+  "ui.foundation.mcp-request-headers": "Request headers (optional)",
+  "ui.foundation.palette-add-provider": "Add a provider",
+  "ui.foundation.palette-dispatch": "Dispatch a coding assistant"
 }

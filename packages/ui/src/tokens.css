@@ -1,6 +1,6 @@
 /*
  * Nomi design tokens（色彩依据「Nomi 视觉色彩系统规范 v1.0」）。
- * 五套主题：日落橙 sunset（默认，也是 :root 基础值）、奶油 cream、冷雾 mist 为浅色；
+ * 主题：浅色 light 是新安装默认（:root 基础值）。日落橙 sunset 是品牌主题，不是第二个默认。奶油 cream、冷雾 mist 为浅色；
  * 暖墨 ink、石墨 graphite 为深色。主题只改颜色令牌，不改尺寸、布局、字体与交互。
  * 「跟随系统」解析为 graphite（深）/ cream（浅）。
  * 规范语义 → 令牌：bg-canvas → bg，bg-sidebar → bg-subtle，bg-surface(-raised/-muted) → surface(-raised/-sunken)，

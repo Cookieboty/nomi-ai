@@ -489,25 +489,30 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
         </p>
       )}
       {network && (
-        <SettingRow
-          data-testid="cli-network-shell-proxy"
-          title={t('ui.chat-settings.use-the-terminal-s-proxy')}
-          description={
-            <>
-              {t('ui.chat-settings.use-the-terminal-s-proxy-desc')}{' '}
-              {network.shellProxy
-                ? t('ui.chat-settings.terminal-proxy-detected', network.shellProxy)
-                : t('ui.chat-settings.terminal-proxy-not-found')}
-            </>
-          }
-        >
-          <Switch
-            checked={network.useShellProxy}
-            onChange={(v) => void setUseShellProxy(v)}
-            label={t('ui.chat-settings.use-the-terminal-s-proxy')}
-            data-testid="cli-network-shell-proxy-switch"
-          />
-        </SettingRow>
+        <details className={styles.fold} data-testid="cli-network-shell-proxy-fold">
+          <summary className={styles.foldSummary}>
+            {t('ui.chat-settings.use-the-terminal-s-proxy')}
+          </summary>
+          <SettingRow
+            data-testid="cli-network-shell-proxy"
+            title={t('ui.chat-settings.use-the-terminal-s-proxy')}
+            description={
+              <>
+                {t('ui.chat-settings.use-the-terminal-s-proxy-desc')}{' '}
+                {network.shellProxy
+                  ? t('ui.chat-settings.terminal-proxy-detected', network.shellProxy)
+                  : t('ui.chat-settings.terminal-proxy-not-found')}
+              </>
+            }
+          >
+            <Switch
+              checked={network.useShellProxy}
+              onChange={(v) => void setUseShellProxy(v)}
+              label={t('ui.chat-settings.use-the-terminal-s-proxy')}
+              data-testid="cli-network-shell-proxy-switch"
+            />
+          </SettingRow>
+        </details>
       )}
       {login && (
         <LoginDialog

@@ -161,10 +161,16 @@ func ParseLine(line string, state *StreamState) []Ev {
 					msg = T("electron.common.claude-error")
 				}
 			}
-			out = append(out, O("type", "error", "message", msg))
+			// 出错的一轮也带上会话 id：续接靠它（否则下一轮成了新会话）
+			out = append(out, WithOpt(O("type", "error", "message", msg), "sessionId", OptStr(j.Get("session_id"))))
 		} else {
 			image := sh.ImageMarkdown(j.Get("result"), true)
 			out = append(out, WithOpt(WithOpt(O("type", "done", "text", sh.TextWithImage(text, image)), "sessionId", StrOr(j.Get("session_id"))), "usage", usage))
+		}
+	case typ == "system" && j.Get("subtype") == "init":
+		// 进程一启动就报会话 id：第一轮还没结束（甚至出错结束）也能续接
+		if sid := OptStr(j.Get("session_id")); sid != nil {
+			out = append(out, O("type", "session", "sessionId", *sid))
 		}
 	case typ == "system" && j.Get("subtype") == "api_retry":
 		out = append(out, WithOpt(O("type", "status", "kind", "retry"),

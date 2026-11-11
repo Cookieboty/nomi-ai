@@ -22,8 +22,10 @@ export const FleetIndicator: React.FC<{
   onOpenBoard: () => void;
   /** 浮层开关（开着时宿主加快刷新） */
   onOpenChange: (open: boolean) => void;
+  /** 已经在看板上：浮层不再提供「打开 Agent 看板」 */
+  boardOpen?: boolean;
   chatName?: (conversationId: string) => string;
-}> = ({ state, onOpenBoard, onOpenChange, chatName }) => {
+}> = ({ state, onOpenBoard, onOpenChange, boardOpen, chatName }) => {
   const [open, setOpen] = useState(false);
   const btn = useRef<HTMLButtonElement>(null);
   const pop = useRef<HTMLDivElement>(null);
@@ -117,17 +119,19 @@ export const FleetIndicator: React.FC<{
             ) : (
               <p className={styles.empty}>{t('ui.cli-monitor.fleet-none-running')}</p>
             )}
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setOpenBoth(false);
-                onOpenBoard();
-              }}
-              data-testid="fleet-popover-open-board"
-            >
-              {t('ui.cli-monitor.fleet-open-board')}
-            </Button>
+            {!boardOpen && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setOpenBoth(false);
+                  onOpenBoard();
+                }}
+                data-testid="fleet-popover-open-board"
+              >
+                {t('ui.cli-monitor.fleet-open-board')}
+              </Button>
+            )}
           </div>,
           document.body,
         )}

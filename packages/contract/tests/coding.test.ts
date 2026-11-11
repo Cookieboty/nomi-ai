@@ -46,6 +46,7 @@ describe('appContract · D3 coding', () => {
       .map(([n]) => n)
       .sort();
     expect(dangerous).toEqual([
+      'delegate.dispatch',
       'fleet.closeIdle',
       'fleet.pause',
       'fleet.resume',
@@ -55,6 +56,7 @@ describe('appContract · D3 coding', () => {
       'harness.previewExternal',
       'harness.previewListDirectory',
       'harness.previewOpen',
+      'harness.previewRenew',
       'harness.previewSave',
       'harness.replyApprovePlan',
       'harness.replyPermission',

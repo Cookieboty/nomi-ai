@@ -1,0 +1,118 @@
+/* 侧栏「按项目」分组（ProjectGroups.tsx）：项目文件夹行、会话缩进、「再显示 N 条」、「其他对话」分区 */
+.wsGroup {
+  /* 组与组之间留一段空白，靠留白分组，不画线 */
+  margin-bottom: var(--cd-space-3);
+}
+.wsEmpty {
+  padding: var(--cd-space-1) var(--cd-space-3);
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-sm);
+}
+.wsGroup[data-missing] .wsLabel {
+  color: var(--cd-color-danger-text);
+}
+.wsHead {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border-radius: var(--cd-radius-md);
+}
+.wsHead:hover,
+.wsHead:focus-within {
+  background: var(--cd-color-hover);
+}
+.wsToggle {
+  flex: 1;
+  min-width: 0;
+  /* 与会话行同高、同内边距：文件夹图标对齐行首，名称对齐下面会话的标题 */
+  height: var(--cd-control-h-ms);
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-md);
+  font-weight: var(--cd-font-weight-medium);
+  text-align: left;
+  border-radius: var(--cd-radius-md);
+  cursor: pointer;
+}
+.wsToggle > svg {
+  flex: none;
+  color: var(--cd-color-text-subtle);
+}
+.wsToggle:hover {
+  color: var(--cd-color-text);
+}
+.wsToggle:focus-visible,
+.wsNew:focus-visible,
+.wsMore:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
+.wsLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 「新建」只在悬停 / 键盘焦点时出现，免得每个文件夹都多一个图标 */
+.wsNew {
+  flex: none;
+  width: var(--cd-control-h-xs);
+  height: var(--cd-control-h-xs);
+  margin-right: var(--cd-space-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  border-radius: var(--cd-radius-sm);
+  cursor: pointer;
+  opacity: 0;
+}
+.wsHead:hover .wsNew,
+.wsHead:focus-within .wsNew {
+  opacity: 1;
+}
+.wsNew:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.wsItems {
+  /* 缩进 = 文件夹图标 16 + 间距：会话标题与文件夹名左对齐 */
+  padding-left: calc(16px + var(--cd-space-2));
+}
+.wsMore {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  height: var(--cd-control-h-xs);
+  margin: var(--cd-space-0-5) 0 0;
+  /* 与上面会话标题左对齐（行内边距 10） */
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--cd-color-text-subtle);
+  font: inherit;
+  font-size: var(--cd-font-size-xs);
+  text-align: left;
+  border-radius: var(--cd-radius-sm);
+  cursor: pointer;
+}
+.wsMore:hover {
+  color: var(--cd-color-text);
+}
+.wsRecent {
+  margin-top: var(--cd-space-2);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .wsNew {
+    transition: opacity 0.12s ease;
+  }
+}

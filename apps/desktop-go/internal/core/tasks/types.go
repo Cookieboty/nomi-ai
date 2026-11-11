@@ -106,11 +106,10 @@ type Grant struct {
 	RevokedAt *int64   `json:"revokedAt,omitempty"`
 }
 
+// Budget：只剩重试次数。不按 token / 时长 / 费用拦截任务（旧数据里的这些字段读入时忽略）；
+// 卡住的执行靠心跳超时发现。
 type Budget struct {
-	MaxTokensPerAttempt     *int64   `json:"maxTokensPerAttempt,omitempty"`
-	MaxDurationMsPerAttempt *int64   `json:"maxDurationMsPerAttempt,omitempty"`
-	MaxCostUsdPerDay        *float64 `json:"maxCostUsdPerDay,omitempty"`
-	MaxRetries              int      `json:"maxRetries"`
+	MaxRetries int `json:"maxRetries"`
 }
 
 // Wait：任务停在 waiting_user 的原因

@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 462：mutation 325 / query 132 / stream 5
+// 合计 471：mutation 331 / query 135 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -95,6 +95,13 @@ var Procedures = []Procedure{
 	{Name: "cliUpdate.job", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "cliUpdate.preview", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "cliUpdate.run", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "computer.active", Kind: "query", Dangerous: false, Surfaces: []string{"chat", "settings"}},
+	{Name: "computer.install", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat", "settings"}},
+	{Name: "computer.openGuide", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat", "settings"}},
+	{Name: "computer.sandboxAction", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat", "settings"}},
+	{Name: "computer.state", Kind: "query", Dangerous: false, Surfaces: []string{"chat", "settings"}},
+	{Name: "computer.stop", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat", "settings"}},
+	{Name: "computer.updateSettings", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat", "settings"}},
 	{Name: "connections.addGithub", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "connections.check", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "connections.detect", Kind: "query", Dangerous: false, Surfaces: nil},
@@ -111,6 +118,7 @@ var Procedures = []Procedure{
 	{Name: "conversations.setPointers", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "conversations.state", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "delegate.clearPin", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "delegate.dispatch", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "delegate.pin", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "delegate.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "delegate.settings", Kind: "query", Dangerous: false, Surfaces: nil},
@@ -223,6 +231,7 @@ var Procedures = []Procedure{
 	{Name: "harness.previewExternal", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "harness.previewListDirectory", Kind: "query", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "harness.previewOpen", Kind: "query", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "harness.previewRenew", Kind: "query", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "harness.previewSave", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "harness.previewWeb", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "harness.recentCwds", Kind: "query", Dangerous: false, Surfaces: nil},
@@ -503,6 +512,8 @@ var Events = []string{
 	"cliAccount.changed",
 	"cliAccount.login",
 	"cliUpdate.event",
+	"computer.activity",
+	"computer.changed",
 	"connections.changed",
 	"conversations.changed",
 	"delegate.completed",

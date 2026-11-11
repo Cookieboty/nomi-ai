@@ -675,6 +675,12 @@ func (s *CliUpdateService) inspectInner(refresh bool) ([]*util.Obj, error) {
 		sup := IsUpdatable(r.kind)
 		ls, _ := lv.(string)
 		avail := sup && r.version != "" && ls != "" && IsNewer(ls, r.version)
+		// 假 CLI（2.0.0-mock）比正式版号旧，但不能拿 npm 安装盖掉它
+		if MockCliUpdate(r.bin, r.version) {
+			sup = false
+			avail = false
+			lv = nil
+		}
 		out = append(out, util.NewObj("kind", r.kind, "runtimeWarning", dshProblemObj(r.runtimeWarning),
 			"path", nz(r.bin), "version", nz(r.version), "latest", lv, "installMethod", method,
 			"updateAvailable", avail, "updateSupported", sup, "installSupported", sup))
@@ -920,6 +926,9 @@ func (s *CliUpdateService) inNpmQueue(scope string, onWait func(), fn func() (Cl
 }
 
 func (s *CliUpdateService) runJob(kind, scope string) *util.Obj {
+	if bin := ResolveCliBinAsync(kind); bin != "" && MockCliUpdate(bin, ReadVersionAsync(bin)) {
+		return cuResult(false, i18n.T("electron.common.mock-coding-assistant-is-not-updated-from-nomi"), "")
+	}
 	planned := s.plan(kind, scope)
 	if len(planned.blocks) > 0 {
 		return cuResult(false, strings.Join(planned.blocks, "\n"), "")

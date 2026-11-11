@@ -2,7 +2,7 @@
  * 「通用」页顶部的速览卡：版本 / 主题 / 语言三格。版本跳到「关于」，其余滚到本页对应设置。
  */
 import { getLocalePref, Icon, t, useLocale, type LocalePref } from '@nomi-ai/ui';
-import { Globe, Palette, Sparkles } from 'lucide-react';
+import { Globe, Palette, Tag } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
@@ -142,7 +142,7 @@ export const GeneralHero: React.FC<{ onOpenAbout: () => void }> = ({ onOpenAbout
     >
       <div className={styles.strip}>
         <Cell
-          icon={Sparkles}
+          icon={Tag}
           label={t('ui.foundation.version')}
           value={ver.value}
           sub={ver.sub}

@@ -4,7 +4,6 @@
  * 侧栏 overflow: hidden 会裁掉 CSS 提示，这里用原生 title。
  */
 import { Icon, t, useLocale } from '@nomi-ai/ui';
-import { Blocks, LibraryBig, Settings, type LucideIcon } from 'lucide-react';
 import React from 'react';
 
 import { extClient } from '../../services/extClient';
@@ -12,6 +11,7 @@ import { kbClient } from '../../services/kbClient';
 import { memClient } from '../../services/memClient';
 import { schedClient } from '../../services/schedClient';
 import { formatCombo, useShortcutBindings } from '../../services/shortcuts';
+import { FEATURE_ICONS, type LucideIcon } from '../AppIcons';
 
 import styles from './index.module.css';
 
@@ -42,7 +42,7 @@ export const AppEntries: React.FC<AppEntriesProps> = (p) => {
   const panels: Entry[] = [
     {
       id: 'open-hub-panel',
-      icon: LibraryBig,
+      icon: FEATURE_ICONS.hub,
       tip: t('ui.chat-settings.knowledge-memory-schedule'),
       key: formatCombo(bindings.hub),
       on: p.onHub,
@@ -50,7 +50,7 @@ export const AppEntries: React.FC<AppEntriesProps> = (p) => {
     },
     {
       id: 'open-ext-panel',
-      icon: Blocks,
+      icon: FEATURE_ICONS.ext,
       tip: t('ui.foundation.extensions-mcp'),
       key: formatCombo(bindings.ext),
       on: p.onExt,
@@ -87,7 +87,7 @@ export const AppEntries: React.FC<AppEntriesProps> = (p) => {
         aria-label={settingsTip}
         data-testid="open-settings"
       >
-        <Icon icon={Settings} size={16} />
+        <Icon icon={FEATURE_ICONS.settings} size={16} />
         {!p.collapsed && <span>{settingsTip}</span>}
       </button>
     </nav>

@@ -4,7 +4,7 @@
 // 真实的视图（ai-chat / renderer）连着真实的 Go 内核（go-app.mjs：构建并启动 apps/desktop-go，视图经回环 HTTP
 // 在 Playwright 的 Chromium 里打开），数据全是演示数据：
 //   - 隔离的 HOME（临时目录）：读不到本机 ~/.claude、~/.codex 的会话历史与用量，截图里不会出现私人内容；
-//   - 模拟模型（mock-llm.mjs，OpenAI 兼容）当「演示 DeepSeek」供应商；
+//   - 模拟模型（mock-llm.mjs，OpenAI 兼容）当「DeepSeek」供应商（名字只是显示，请求都到本机的模拟模型）；
 //   - 编程助手用仓库里的 Mock CLI（NOMI_USE_MOCK_CLI=1），不调用真实的 Claude Code / Codex；
 //   - 每张截图前做隐私检查：页面文字里出现本机用户名或真实 HOME 路径就中止。
 //
@@ -53,9 +53,9 @@ function parseArgs(argv) {
 
 /** 演示项目：编程助手会话的工作目录，一个干净的小 git 仓库 */
 function makeDemoProject(home) {
-  const dir = path.join(home, 'projects', 'my-app');
+  const dir = path.join(home, 'projects', 'nomi-ai');
   fs.mkdirSync(path.join(dir, 'src', 'cli'), { recursive: true });
-  fs.writeFileSync(path.join(dir, 'package.json'), '{ "name": "my-app", "version": "1.0.0" }\n');
+  fs.writeFileSync(path.join(dir, 'package.json'), '{ "name": "nomi-ai", "version": "1.0.0" }\n');
   fs.writeFileSync(
     path.join(dir, 'src', 'cli', 'a.ts'),
     'export function registerHandler(name: string) {\n  return name;\n}\n',
@@ -278,6 +278,16 @@ async function main() {
   fs.mkdirSync(home, { recursive: true });
   const project = makeDemoProject(home);
   const docsDir = makeDemoDocs(home);
+  // 「创建项目」的「最近」列表：内核启动时从 userData/harness/recent-cwds.json 读。
+  // 第一项是编程助手会话默认的工作目录（~/Documents/nomi）：seed-project 选它建项目，已有会话自动归进去
+  const defaultCwd = path.join(home, 'Documents', 'nomi');
+  fs.mkdirSync(defaultCwd, { recursive: true });
+  const harnessDir = path.join(work, 'data', 'Nomi', 'harness');
+  fs.mkdirSync(harnessDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(harnessDir, 'recent-cwds.json'),
+    JSON.stringify([defaultCwd, project]),
+  );
   const images = await makeDemoImages(browser, path.join(home, 'Pictures'));
   isolatePath(home, realHome);
   process.env.HOME = home;
@@ -290,17 +300,19 @@ async function main() {
     'XDG_DATA_HOME',
   ])
     delete process.env[k];
-  // Mock CLI：内核从工作目录下的 scripts/mock-cli 找（cli.MockCliRoots）。拷进临时目录：设置页会显示 CLI 路径，
+  // Mock CLI：内核从 cwd 往上找 scripts/mock-cli（cli.MockCliRoots）。拷进临时目录：设置页会显示 CLI 路径，
   // 不能是仓库所在的 /Users/<你>/…
   fs.cpSync(path.join(ROOT, 'scripts/mock-cli'), path.join(work, 'scripts', 'mock-cli'), {
     recursive: true,
   });
   Object.assign(process.env, {
     NOMI_USE_MOCK_CLI: '1',
+    // 官网图：Mock CLI 显示公开的模型名与版本、示例代码换成网关重试（不出现 Mock / registerHandler 这类残留）
+    NOMI_MOCK_SHOWCASE: '1',
     NOMI_MOCK_TOOLS: 'rich',
     NOMI_MOCK_STEP_MS: '120',
     NOMI_MOCK_CLAUDE_REPLY:
-      '已把 registerHandler 改成接收可选的 id 参数，补上了 2 个单测，lint 也通过了。',
+      '已给 retryWithBackoff 加上可配置的重试次数，补上了 2 个单测，lint 也通过了。',
     NOMI_MOCK_CODEX_REPLY: 'README 的安装步骤已整理成表格，按系统分成四行，链接都核对过了。',
     // Agent 看板要有「进行中」的卡片：提问里带「偶尔超时」的那一轮一直不答完（只有 seed-agent-sessions 用）
     NOMI_MOCK_SLOW_PROMPT: '偶尔超时',
@@ -362,17 +374,20 @@ async function main() {
             process.stdout.write('ok\n');
             continue;
           }
+          // 场景自己的画幅（如官网英雄图 16:9）：拍完换回默认
+          if (scene.viewport) await page.setViewportSize(scene.viewport);
           await scene.run(h);
           if (scene.seed) {
             process.stdout.write('seeded\n');
             continue;
           }
-          await page.mouse.move(2, VIEWPORT.height - 2);
+          await page.mouse.move(2, (scene.viewport ?? VIEWPORT).height - 2);
           await page.waitForTimeout(400);
           await guard(page, scene.name);
           const png = path.join(args.out, `${scene.name}.png`);
           await page.screenshot({ path: png, ...(scene.shot ?? {}) });
           await exportWebp(browser, png, args.out, scene.name);
+          if (scene.viewport) await page.setViewportSize(VIEWPORT);
           process.stdout.write('ok\n');
         } catch (e) {
           failures.push(scene.name);
@@ -384,6 +399,7 @@ async function main() {
               path.join(args.out, `_failed-${scene.name}.png`),
               scene.name,
             );
+          if (scene.viewport) await page.setViewportSize(VIEWPORT).catch(() => {});
           await h.open().catch(() => {});
         }
       }

@@ -308,6 +308,13 @@ func (s *Service) Start() {
 	s.started = true
 	s.mu.Unlock()
 	s.updater.Configure(true, false, false, prefixLog{s.log})
+	// 装好并重新打开之后，缓存里上一版的安装包已经没用了。还没装的更新版本留着。
+	// 开发态不碰缓存：和安装版共用同一个目录，避免把用户还没装的包清掉。
+	if s.packaged {
+		if sweeper, ok := s.updater.(interface{ SweepObsoleteInstallers() }); ok {
+			sweeper.SweepObsoleteInstallers()
+		}
+	}
 	s.updater.On(UpdaterEvents{
 		CheckingForUpdate: func() { s.patch(func(st *State) { st.Status = "checking" }) },
 		UpdateAvailable: func(i UpdateInfo) {

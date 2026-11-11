@@ -1,22 +1,34 @@
 import { t, Icon, useLocale, usePresence } from '@nomi-ai/ui';
-import { Check, Ellipsis, Folder, FolderOpen, FolderTree, List, SquarePen } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Ellipsis,
+  Folder,
+  FolderOpen,
+  FolderTree,
+  List,
+  Plus,
+  SquarePen,
+} from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 
 import { AnchoredPopover } from './AnchoredPopover';
 import styles from './index.module.css';
 import type { ProjectGroup } from './projectGrouping';
+import ws from './ProjectGroups.module.css';
 import { SectionHeader } from './SectionHeader';
 import { ThreadItem, type VirtualProps } from './SidebarRows';
 import type { Meta } from './types';
 
-/** 「项目」「最近」整个分区收起时记在折叠记录里的键（与项目 id 不会重名） */
+/** 「项目」「其他对话」整个分区收起时记在折叠记录里的键（与项目 id 不会重名） */
 export const SECTION_WORKSPACES = '\u0000section:workspaces';
 export const SECTION_RECENT = '\u0000section:recent';
 export const SECTION_PINNED = '\u0000section:pinned';
 
 /** 每个项目默认显示的会话数，其余点「展开显示」才出现 */
 export const WORKSPACE_PREVIEW = 5;
-/** 「最近」（没有项目的会话）默认显示的条数 */
+/** 「其他对话」（没有项目的会话）默认显示的条数 */
 export const RECENT_PREVIEW = 20;
 
 const Rows: React.FC<{ items: readonly Meta[]; activeId?: string; rows: VirtualProps }> = ({
@@ -48,7 +60,10 @@ const Rows: React.FC<{ items: readonly Meta[]; activeId?: string; rows: VirtualP
 /** 每点一次「展开显示」多显示这么多条（分页加载）；全部显示后变成「收起」 */
 export const PAGE_STEP = 5;
 
-/** 「展开显示 / 收起」：shown 小于 total 时再加一页，否则收回到 base */
+/**
+ * 「再显示 N 条 / 收起」：shown 小于 total 时再加一页，否则收回到 base。
+ * 小号浅色、带箭头，和会话行区分开（不像一条叫「展开显示」的会话）。
+ */
 const MoreToggle: React.FC<{
   shown: number;
   total: number;
@@ -60,12 +75,17 @@ const MoreToggle: React.FC<{
   return (
     <button
       type="button"
-      className={styles.wsMore}
+      className={ws.wsMore}
       aria-expanded={all}
       onClick={all ? onLess : onMore}
       data-testid={testId}
     >
-      {all ? t('ui.knowledge-local.collapse') : t('ui.cli-monitor.show-more')}
+      <span>
+        {all
+          ? t('ui.knowledge-local.collapse')
+          : t('ui.cli-monitor.show-n-more', Math.min(PAGE_STEP, total - shown))}
+      </span>
+      <Icon icon={all ? ChevronUp : ChevronDown} size={12} />
     </button>
   );
 };
@@ -95,7 +115,7 @@ export const PinnedSection: React.FC<{
 }> = ({ items, open, onToggle, activeId, rows }) => {
   useLocale();
   return (
-    <div className={styles.wsRecent} data-testid="pinned-section">
+    <div className={ws.wsRecent} data-testid="pinned-section">
       <SectionHeader
         label={t('ui.knowledge-local.pin-action')}
         open={open}
@@ -108,8 +128,9 @@ export const PinnedSection: React.FC<{
 };
 
 /**
- * 侧栏「按项目」：每个项目一个可折叠的文件夹（没有会话的项目也在），默认显示最近 5 条，其余自己展开；
- * 项目行上的「…」编辑项目，「新建」在该项目里开新会话。没有项目的会话列在下面的「最近」里。
+ * 侧栏「按项目」：每个项目一个可折叠的文件夹（没有会话的项目也在；「按端」看时只列这个端有会话的项目），
+ * 默认显示最近 5 条，其余自己展开；项目行上的「…」编辑项目，「新建」在该项目里开新会话。
+ * 没有项目的会话列在下面的「其他对话」里。
  */
 export const ProjectGroups: React.FC<{
   groups: readonly ProjectGroup[];
@@ -123,8 +144,8 @@ export const ProjectGroups: React.FC<{
   rows: VirtualProps;
   /** 「项目」标题右侧：整理「…」+ 新建项目 */
   headerActions?: React.ReactNode;
-  /** 「最近」标题右侧：新建对话（不在项目里） */
-  recentActions?: React.ReactNode;
+  /** 只看一个端时：这个端在项目里一个会话都没有的项目不列出来 */
+  hideEmpty?: boolean;
 }> = ({
   groups,
   rest,
@@ -135,7 +156,7 @@ export const ProjectGroups: React.FC<{
   activeId,
   rows,
   headerActions,
-  recentActions,
+  hideEmpty,
 }) => {
   useLocale();
   // 「展开显示」每次多显示一页，只在本次打开期间记住；折叠状态才持久化
@@ -143,6 +164,7 @@ export const ProjectGroups: React.FC<{
   const restKey = '\u0000recent';
   const restCount = paging.countOf(restKey, RECENT_PREVIEW);
 
+  const shownGroups = hideEmpty ? groups.filter((g) => g.items.length > 0) : groups;
   const wsOpen = !collapsed.includes(SECTION_WORKSPACES);
   const recentOpen = !collapsed.includes(SECTION_RECENT);
   return (
@@ -154,13 +176,13 @@ export const ProjectGroups: React.FC<{
         testId="workspace-section-toggle"
         actions={headerActions}
       />
-      {wsOpen && groups.length === 0 && (
-        <div className={styles.wsEmpty} data-testid="projects-empty">
+      {wsOpen && shownGroups.length === 0 && (
+        <div className={ws.wsEmpty} data-testid="projects-empty">
           {t('ui.cli-monitor.project-none-yet')}
         </div>
       )}
       {wsOpen &&
-        groups.map((g) => {
+        shownGroups.map((g) => {
           const isCollapsed = collapsed.includes(g.key);
           const count = paging.countOf(g.key, WORKSPACE_PREVIEW);
           const shown = g.items.slice(0, count);
@@ -173,17 +195,17 @@ export const ProjectGroups: React.FC<{
           return (
             <div
               key={g.key}
-              className={styles.wsGroup}
+              className={ws.wsGroup}
               role="group"
               aria-label={name}
               data-testid="workspace-group"
               data-project={g.key}
               data-missing={g.project.missing?.length ? true : undefined}
             >
-              <div className={styles.wsHead}>
+              <div className={ws.wsHead}>
                 <button
                   type="button"
-                  className={styles.wsToggle}
+                  className={ws.wsToggle}
                   aria-expanded={!isCollapsed}
                   aria-label={toggleLabel}
                   title={g.title}
@@ -191,12 +213,14 @@ export const ProjectGroups: React.FC<{
                   data-testid="workspace-toggle"
                 >
                   <Icon icon={isCollapsed ? Folder : FolderOpen} size={16} />
-                  <span className={styles.wsLabel}>{name}</span>
-                  {isCollapsed && <span className={styles.listCount}>{g.items.length}</span>}
+                  <span className={ws.wsLabel}>{name}</span>
+                  {isCollapsed && g.items.length > 0 && (
+                    <span className={styles.listCount}>{g.items.length}</span>
+                  )}
                 </button>
                 <button
                   type="button"
-                  className={styles.wsNew}
+                  className={ws.wsNew}
                   title={editLabel}
                   aria-label={editLabel}
                   onClick={() => onEdit(g)}
@@ -206,7 +230,7 @@ export const ProjectGroups: React.FC<{
                 </button>
                 <button
                   type="button"
-                  className={styles.wsNew}
+                  className={ws.wsNew}
                   title={newLabel}
                   aria-label={newLabel}
                   onClick={() => onNewIn(g)}
@@ -216,7 +240,7 @@ export const ProjectGroups: React.FC<{
                 </button>
               </div>
               {!isCollapsed && (
-                <div className={styles.wsItems}>
+                <div className={ws.wsItems}>
                   <Rows items={shown} activeId={activeId} rows={rows} />
                   {g.items.length > WORKSPACE_PREVIEW && (
                     <MoreToggle
@@ -232,15 +256,14 @@ export const ProjectGroups: React.FC<{
             </div>
           );
         })}
-      {/* 「最近」一直在：标题右侧是不在项目里的「新建对话」 */}
-      {
-        <div className={styles.wsRecent} data-testid="workspace-recent">
+      {/* 「其他对话」：不在任何项目里的会话；一个都没有时整个分区不显示 */}
+      {rest.length > 0 && (
+        <div className={ws.wsRecent} data-testid="workspace-recent">
           <SectionHeader
-            label={t('ui.cli-monitor.recent-chats')}
+            label={t('ui.cli-monitor.other-chats')}
             open={recentOpen}
             onToggle={() => onToggleCollapsed(SECTION_RECENT, recentOpen)}
             testId="recent-section-toggle"
-            actions={recentActions}
           />
           {recentOpen && <Rows items={rest.slice(0, restCount)} activeId={activeId} rows={rows} />}
           {recentOpen && rest.length > RECENT_PREVIEW && (
@@ -253,7 +276,7 @@ export const ProjectGroups: React.FC<{
             />
           )}
         </div>
-      }
+      )}
     </>
   );
 };
@@ -334,3 +357,17 @@ export const OrganizeMenu: React.FC<{ grouped: boolean; onChange: (on: boolean) 
     </span>
   );
 };
+
+/** 「项目」标题右侧的「+」：新建项目（打开「创建项目」；建好后由侧栏在项目里开一个会话） */
+export const NewProjectButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+  <button
+    type="button"
+    className={styles.headBtn}
+    onClick={onClick}
+    title={t('ui.cli-monitor.project-create-title')}
+    aria-label={t('ui.cli-monitor.project-create-title')}
+    data-testid="new-project"
+  >
+    <Icon icon={Plus} size={14} />
+  </button>
+);

@@ -13,7 +13,6 @@ type Event struct {
 	At                  int64              `json:"at"`
 	Cause               string             `json:"cause,omitempty"`
 	EventKey            *string            `json:"eventKey,omitempty"`
-	BudgetExceeded      bool               `json:"budgetExceeded,omitempty"`
 	AttemptID           string             `json:"attemptId,omitempty"`
 	Snapshot            *ExecutionSnapshot `json:"snapshot,omitempty"`
 	Gen                 *int               `json:"gen,omitempty"`
@@ -218,14 +217,6 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 		}
 		pending := PendingRun{Cause: ev.Cause, EventKey: ev.EventKey}
 		t.RetryCount = 0
-		if ev.BudgetExceeded {
-			fx = append(fx, deliver("need_user", nil))
-			t.Status = StatusWaitingUser
-			t.Wait = &Wait{Kind: "budget", ResumeTo: "queued"}
-			t.Pending = &pending
-			t.UpdatedAt = at
-			return ok(t, attempt, fx)
-		}
 		return ok(enqueue(t, at, pending, &fx), attempt, fx)
 
 	case "slot_acquired":
@@ -387,15 +378,9 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 			}
 			return ok(enqueue(t, at, PendingRun{Cause: "resume", Note: ev.Input}, &fx), attempt, fx)
 		}
-		budgetDenied := w.Kind == "budget" && !ev.Approve
-		denyErr := TaskError{Code: "budget_denied", Message: "budget_denied"}
 		if w.ResumeTo == "running" {
 			if !isActive(attempt) {
 				return reject(task, attempt, "illegal")
-			}
-			if budgetDenied {
-				a := stopActive(&task, attempt, at, "budget", &fx, &denyErr)
-				return ok(giveUp(t, at, denyErr, &fx, false), a, fx)
 			}
 			fx = append(fx,
 				Effect{Kind: "acquire_slot", Gen: ptr(task.Gen), Reserved: true},
@@ -406,16 +391,11 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 			a.Status = "running"
 			return ok(t, a, fx)
 		}
-		if budgetDenied {
-			return ok(giveUp(t, at, denyErr, &fx, false), attempt, fx)
-		}
 		prev := PendingRun{Cause: "resume"}
 		if task.Pending != nil {
 			prev = *task.Pending
 		}
-		if w.Kind != "budget" {
-			prev.Answer = &Answer{RequestID: w.RequestID, Approve: ev.Approve, Input: ev.Input}
-		}
+		prev.Answer = &Answer{RequestID: w.RequestID, Approve: ev.Approve, Input: ev.Input}
 		return ok(enqueue(t, at, prev, &fx), attempt, fx)
 
 	case "accept":
@@ -497,6 +477,25 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 		return ok(enqueue(t, at, PendingRun{Cause: "resume", Note: ptr("reconciled:" + ev.Outcome)}, &fx), attempt, fx)
 
 	case "restarted":
+		// 旧版本留下的「预算用完」等待：预算拦截已经去掉，不再等人，接着排队做
+		if task.Status == StatusWaitingUser && task.Wait != nil && task.Wait.Kind == "budget" {
+			a := attempt
+			if isActive(attempt) {
+				a = copyAttempt(attempt)
+				a.Status, a.EndedAt = "interrupted", ptr(at)
+				t.Gen = task.Gen + 1
+				if ev.UnconfirmedExternal {
+					fx = append(fx, deliver("reconcile", ptr(attempt.ID)))
+					t.Status, t.Wait, t.UpdatedAt = StatusNeedsReconcile, nil, at
+					return ok(t, a, fx)
+				}
+			}
+			prev := PendingRun{Cause: "resume"}
+			if task.Pending != nil {
+				prev = *task.Pending
+			}
+			return ok(enqueue(t, at, prev, &fx), a, fx)
+		}
 		running := task.Status == StatusRunning && isActive(attempt)
 		waiting := task.Status == StatusWaitingUser && task.Wait != nil && task.Wait.ResumeTo == "running" && isActive(attempt)
 		if running || waiting {

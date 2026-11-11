@@ -26,13 +26,15 @@ const hostTag = `<script src="` + HostScriptPath + `"></script>`
 
 // hostScript：视图侧的外链处理：Wails 的 WebView 不会把 target=_blank / window.open 交给系统浏览器
 // （mac 没有 createWebView 委托，点了没反应；Windows 会在应用内弹窗），也不拦跨文档跳转。这里把跨源链接的点击
-// 与 window.open 都转给宿主（宿主只放行 http / https），同源链接照常
+// 与 window.open 都转给宿主（宿主只放行 http / https），同源链接照常。
+// 监听在捕获阶段，比视图自己的 onClick 早，看不到视图的 preventDefault：视图自己负责打开的链接
+// （对话与文档预览里带 data-resource-preview 的，经内核打开）这里跳过，否则同一个网址会打开两次
 const hostScript = `(() => {
   const post = (m) => { try { (window.webkit && webkit.messageHandlers.external || window.chrome && chrome.webview).postMessage(m); } catch (e) {} };
   const external = (href) => { try { const u = new URL(href, location.href); return u.origin !== location.origin ? u.href : null; } catch (e) { return null; } };
   addEventListener('click', (e) => {
     const a = e.target && e.target.closest && e.target.closest('a[href]');
-    if (!a || e.defaultPrevented) return;
+    if (!a || e.defaultPrevented || a.hasAttribute('data-resource-preview')) return;
     const url = external(a.getAttribute('href'));
     if (!url) return;
     e.preventDefault();

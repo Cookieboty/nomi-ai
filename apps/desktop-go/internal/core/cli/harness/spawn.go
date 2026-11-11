@@ -3,7 +3,6 @@ package harness
 import (
 	"errors"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
@@ -13,21 +12,12 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// mockDir = mockDir()：候选用 cli.MockCliRoots（前两项 __dirname bundle 目录由宿主接线 prepend）。
-func mockDir() string {
-	roots := cli.MockCliRoots()
-	for _, c := range roots {
-		if usage.ExistsSync(filepath.Join(c, "mock-claude.mjs")) {
-			return c
-		}
-	}
-	return roots[0]
-}
-
 // ResolveHarnessBin = resolveHarnessBin（"" = null）。
+// NOMI_USE_MOCK_CLI=1 时只认真实存在的假 CLI。文件不在就当没安装，
+// 不要编一个不存在的路径（否则委派会把所有助手当成已安装）。
 func ResolveHarnessBin(backend string) string {
 	if os.Getenv("NOMI_USE_MOCK_CLI") == "1" {
-		return filepath.Join(mockDir(), "mock-"+backend+".mjs")
+		return cli.MockCliBin(backend)
 	}
 	return cli.ResolveCliBinCached(backend)
 }

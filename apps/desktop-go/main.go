@@ -89,6 +89,10 @@ func main() {
 		parse.WorkerMain()
 		return
 	}
+	// 编程助手拉起的桌面操作 MCP 桥接（--computer-mcp）：只转发 stdio，不起界面
+	if runComputerBridge() {
+		return
+	}
 	useMemoryKeyringForTests()
 	if exe, err := os.Executable(); err == nil {
 		parse.EnableWorker(exe)
@@ -279,6 +283,8 @@ func main() {
 	// = Application desktopWindows（桌面角色窗口、对话窗口、临时召回、灵动岛）；外壳建好后才有窗口
 	desktopSvc.AttachWindows(desktopWindows(&sh, bundle.Startup, isl))
 	desktop.Register(router, desktopSvc)
+	closeComputer := wireComputer(router, userData, desktopSvc)
+	defer closeComputer()
 	desktopSvc.StartReminders()
 	// 知识库 / 记忆 / 定时 / 本地模型 / 导出 / 扩展；Desktop 与桌面工具共用同一个 DesktopService。
 	// complete()：知识库 / 记忆 / 日程的 AI 补全，延迟绑定 ChatFacade（AI runtime 未就绪 → electron.common.ai-service-not-ready）
@@ -403,6 +409,7 @@ func main() {
 	// MCP 工具在异步 connect 后才注册，排在这些之后
 	// Nomi 生图（对话的 image_generate 与素材库的「重新生成」共用一套依赖）
 	imgDeps := imageToolDeps(gatewaySvc, filepath.Join(userData, "chat", "images"), chatAssetsLib)
+	computerGW = gatewaySvc
 	chatAssetsLib.SetGenerate(func(req chatassets.GenerateReq) (string, error) {
 		r, err := imgDeps.GenerateAsset(context.Background(), igtools.GenerateReq{Prompt: req.Prompt, Aspect: req.Aspect,
 			ModelRef: req.ModelRef, EditFrom: req.EditFrom, References: req.References})
@@ -463,6 +470,7 @@ func main() {
 			return prep.PrepareChat(options, method, signal)
 		}})
 	chatHandlers.Register(router)
+	computerChats = chatHandlers
 	defer chatHandlers.Dispose()
 	// AIClient 门面：ai.sessions / tools / memory / asr / tts / avatar（32 个过程）。
 	aiFacade = aifacade.New(aifacade.Options{Now: nowMs, Tools: toolRegistry, Profile: userProfile, Avatar: true,
@@ -651,6 +659,7 @@ func main() {
 	projs := wireProjects(router, userData, desktopSvc.Broker)
 	previewResources := resourcepreview.New(userData)
 	previewResources.ProtectedPaths = desktopSvc.Broker.ProtectedPaths
+	previewResources.ProjectRoots = projectRootsOf(projs)
 	previewResources.OpenExternal = ports.OpenExternal
 	previewResources.OpenFile = func(path string) error {
 		if message := ports.OpenPath(path); message != "" {
@@ -663,7 +672,8 @@ func main() {
 		desktopSvc.Broker.CheckCliWorkspace, desktopSvc.Broker.CliEnvAllow, sandboxDeps(desktopSvc.Broker), projs)
 	jsrt.Run(func() { harnessOrch.AttachPreview(previewResources) })
 	wireNomiBroker(desktopSvc.Broker, harnessOrch)
-	migrateToProjects(projs, bundle.Conversations, harnessOrch, taskRuntime(b8.Tasks))
+	wireComputerHarness(harnessOrch)
+	migrateToProjects(projs, userData, bundle.Conversations, harnessOrch, taskRuntime(b8.Tasks))
 	watchSandboxPolicy(desktopSvc.Broker, harnessOrch)
 	taskCliFinished.attach(harnessOrch)
 	// 委派 / 任务直接改同一仓库：按文件、按优先级裁决；启动时清理没人认领的委派 worktree
@@ -1033,6 +1043,8 @@ func main() {
 			}).Run(nil)
 		}
 	}
+	// 紧急停止的系统级快捷键（在 Run 之前注册的，启动时由外壳绑定）
+	wireComputerHotkey(sh)
 	hostports.Stage("app-run")
 	if err := sh.Run(); err != nil {
 		log.Fatal(err)

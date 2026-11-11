@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 	"unicode/utf8"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
@@ -36,7 +35,7 @@ func (s *Service) Save(url, revision, content string) SaveResult {
 	s.mu.Lock()
 	cap, ok := s.items[token]
 	s.mu.Unlock()
-	if !ok || time.Since(cap.at) > ttl {
+	if !ok || s.stale(cap.at) {
 		return saveFail("expired")
 	}
 	lock, _ := s.saveLocks.LoadOrStore(cap.path, &sync.Mutex{})
@@ -46,7 +45,7 @@ func (s *Service) Save(url, revision, content string) SaveResult {
 	s.mu.Lock()
 	cap, ok = s.items[token]
 	s.mu.Unlock()
-	if !ok || time.Since(cap.at) > ttl {
+	if !ok || s.stale(cap.at) {
 		return saveFail("expired")
 	}
 	if cap.editRoot == "" || cap.revision == "" {
@@ -110,7 +109,7 @@ func (s *Service) Save(url, revision, content string) SaveResult {
 	next := revisionOf(content)
 	// The file is written; record it unless the preview was closed meanwhile.
 	if latest, ok := s.items[token]; ok {
-		latest.info, latest.revision, latest.at = updated, next, time.Now()
+		latest.info, latest.revision, latest.at = updated, next, s.now()
 		s.items[token] = latest
 	}
 	return SaveResult{OK: true, Revision: next}

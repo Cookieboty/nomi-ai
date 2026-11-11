@@ -42,7 +42,7 @@
 }
 .menu {
   position: fixed;
-  z-index: 1000;
+  z-index: var(--cd-z-modal-top);
   width: 320px;
   max-width: calc(100vw - 16px);
   padding: var(--cd-space-1-5);

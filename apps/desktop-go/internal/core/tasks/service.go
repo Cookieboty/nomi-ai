@@ -182,9 +182,6 @@ func NewService(d ServiceDeps) *Service {
 		NewID:     newID,
 		Log:       d.Log,
 		Deliver:   s.deliver,
-		DailyBudgetExceeded: func(t Task, attempts []Attempt, now int64) bool {
-			return t.Budget.MaxCostUsdPerDay != nil && SpentToday(attempts, now) >= *t.Budget.MaxCostUsdPerDay
-		},
 		OnChange: func(t Task) {
 			s.emitChanged(t.ID)
 			// 在运行时的持有者里：不能同步回到 FireEvent，排队给 hub
@@ -331,12 +328,6 @@ type DelegatedInput struct {
 	Priority string
 }
 
-// 派给 Nomi 的委派：每次执行的 token 与时长上限
-const (
-	DelegatedNomiMaxTokens = 2_000_000
-	DelegatedNomiMaxMs     = 2 * 60 * 60_000
-)
-
 func priorityOf(p string) *string {
 	if slices.Contains(TaskPriorities, p) {
 		return ptr(p)
@@ -366,12 +357,9 @@ func (s *Service) CreateDelegated(i DelegatedInput) (Task, error) {
 		category = "coding"
 	}
 	via := "delegate"
-	// 派给 Nomi 的：一次可能生一组图、等编程助手做完，放宽时长与 token；不在对话外另设费用闸门
 	budget := &BudgetInput{MaxRetries: ptr(1)}
 	acceptance := "user"
 	if nomi {
-		budget = &BudgetInput{MaxRetries: ptr(1), MaxTokensPerAttempt: ptr(int64(DelegatedNomiMaxTokens)),
-			MaxDurationMsPerAttempt: ptr(int64(DelegatedNomiMaxMs)), NoCostPerDay: true}
 		// 派给 Nomi 的没有 worktree 要回填：做完结果直接回对话
 		acceptance = "auto"
 	}
@@ -571,19 +559,6 @@ func (s *Service) ApplyWorktree(id string, apply func(iso CliIsolation, files []
 	_ = s.Store.Append(id, JournalEntry{T: "note", At: s.d.Now(), AttemptID: a.ID,
 		Msg: fmt.Sprintf("applied:%d conflicted:%d denied:%d branch:%s", len(r.Applied), len(r.Conflicted), len(r.Denied), r.Branch)})
 	return &r
-}
-
-// SpentToday：今天（本机时区）各次执行的已知费用合计；费用未知的不计入
-func SpentToday(attempts []Attempt, now int64) float64 {
-	d := time.UnixMilli(now)
-	start := time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, time.Local).UnixMilli()
-	sum := 0.0
-	for _, a := range attempts {
-		if a.StartedAt >= start && a.Usage.CostUsd != nil {
-			sum += *a.Usage.CostUsd
-		}
-	}
-	return sum
 }
 
 func (s *Service) deliver(t Task, what string, a *Attempt) {

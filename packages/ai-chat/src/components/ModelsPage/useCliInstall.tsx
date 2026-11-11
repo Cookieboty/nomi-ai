@@ -1,6 +1,7 @@
 /**
  * 「模型」页 CLI 行的安装状态与「安装」：复用「编程助手」页版本卡片的 cliUpdateClient
- * （inspect 判断是否安装、preview 给出确切命令、run 执行）和同一个确认框 CliPlanDialog，不另写安装命令。
+ * （inspect 判断是否安装、preview 做前置检查、run 执行），不另写安装命令。
+ * 前置检查通过就直接安装；有阻塞原因（Node 太旧、没有写权限等）才弹 CliPlanDialog 说明。
  */
 import { ModalHostContext, t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -19,6 +20,8 @@ import { CliPlanDialog } from '../ProvidersPage/CliPlanDialog';
 export interface CliInstallState {
   /** 主进程明确报告没装（没有返回这个端点时不算没装） */
   missing: (kind: CliKind) => boolean;
+  /** 主进程明确报告已装（有路径） */
+  installed: (kind: CliKind) => boolean;
   /** 本机是否装了任一编程助手（还没查到结果时为 null） */
   anyInstalled: boolean | null;
   /** 该端点正在安装 / 更新（不同端点可以同时进行） */
@@ -27,7 +30,11 @@ export interface CliInstallState {
   dialog: React.ReactNode;
 }
 
-export function useCliInstall(onError: (message: string) => void): CliInstallState {
+/** layer：确认框所在层；新手引导盖住整个窗口，要用 'top' 才看得见 */
+export function useCliInstall(
+  onError: (message: string) => void,
+  opts?: { layer?: 'default' | 'top' },
+): CliInstallState {
   const [infos, setInfos] = useState<CliInstallInfo[] | null>(null);
   const [plan, setPlan] = useState<CliInstallPlan | null>(null);
   const [busy, setBusy] = useState<ReadonlySet<CliUpdatableKind>>(() => new Set());
@@ -65,16 +72,19 @@ export function useCliInstall(onError: (message: string) => void): CliInstallSta
     });
   }, [load, mark]);
 
-  const openPlan = (kind: CliUpdatableKind, scope: CliInstallScope = 'global') =>
+  const start = (kind: CliUpdatableKind, scope: CliInstallScope = 'global') =>
     cliUpdateClient
       .preview(kind, scope)
-      .then(setPlan)
+      .then((next) => {
+        if (next.blockers.length) setPlan(next);
+        else {
+          setPlan(null);
+          run(next.kind, next.scope);
+        }
+      })
       .catch((e: Error) => onError(e.message));
 
-  const confirm = () => {
-    if (!plan || plan.blockers.length) return;
-    const { kind, scope } = plan;
-    setPlan(null);
+  const run = (kind: CliUpdatableKind, scope: CliInstallScope) => {
     mark(kind, true);
     cliUpdateClient
       .run(kind, scope)
@@ -98,9 +108,10 @@ export function useCliInstall(onError: (message: string) => void): CliInstallSta
       const info = infos?.find((i) => (i.kind as string) === kind);
       return Boolean(info && !info.path);
     },
+    installed: (kind) => Boolean(infos?.find((i) => (i.kind as string) === kind)?.path),
     anyInstalled: infos && infos.some((i) => !!i.path),
     busy: (kind) => busy.has(kind as CliUpdatableKind),
-    install: (kind) => void openPlan(kind),
+    install: (kind) => void start(kind),
     dialog: (
       // 设置页以内嵌方式渲染面板；确认框要浮在页面上方
       <ModalHostContext.Provider value={null}>
@@ -109,8 +120,9 @@ export function useCliInstall(onError: (message: string) => void): CliInstallSta
           name={name}
           testKind={plan?.kind ?? 'none'}
           onClose={() => setPlan(null)}
-          onConfirm={confirm}
-          onUserScope={() => plan && void openPlan(plan.kind, 'user')}
+          onConfirm={() => plan && !plan.blockers.length && run(plan.kind, plan.scope)}
+          onUserScope={() => plan && void start(plan.kind, 'user')}
+          layer={opts?.layer}
         />
       </ModalHostContext.Provider>
     ),

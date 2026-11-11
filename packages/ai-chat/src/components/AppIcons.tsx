@@ -11,7 +11,6 @@ import {
   Bug,
   AudioLines,
   Bell,
-  Blocks,
   Link2,
   BookOpen,
   Bot,
@@ -20,7 +19,7 @@ import {
   Coins,
   Cpu,
   Info,
-  LibraryBig,
+  Puzzle,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
@@ -31,6 +30,12 @@ import {
   Paperclip,
   AtSign,
   Forward,
+  MonitorCog,
+  MousePointerClick,
+  ListChecks,
+  GraduationCap,
+  Zap,
+  Scale,
 } from 'lucide-react';
 import React from 'react';
 
@@ -62,10 +67,12 @@ export const SETTINGS_ICONS = {
   usage: Coins,
   /** 知识与记忆：大脑 */
   knowledge: Brain,
-  /** 扩展 / MCP：积木模块 */
-  ext: Blocks,
+  /** 扩展 / MCP：拼图块（插件的通用隐喻） */
+  ext: Puzzle,
   /** 应用与账号（GitHub 等账号、本机应用）：链接 */
   connections: Link2,
+  /** Computer Use（操作本机应用）：鼠标点击 */
+  computer: MousePointerClick,
   /** 隐私与权限：盾牌 */
   privacy: ShieldCheck,
   /** 关于：版本、更新与项目信息 */
@@ -77,12 +84,14 @@ export const SETTINGS_ICONS = {
 /** 输入框「更多」菜单等功能入口 */
 export const FEATURE_ICONS = {
   kb: BookOpen,
-  model: Bot,
+  /** 供应商与模型：与设置「模型与供应商」同一个 */
+  model: SETTINGS_ICONS.models,
   settings: Settings,
   voice: AudioLines,
-  /** 知识 · 记忆 · 日程 快速视图 */
-  hub: LibraryBig,
-  ext: Blocks,
+  /** 知识 · 记忆 · 日程 快速视图：大脑（与设置「知识与记忆」一致） */
+  hub: Brain,
+  /** 扩展 / MCP：与设置分区同一个图标 */
+  ext: SETTINGS_ICONS.ext,
   /** 编程助手自己的命令 / Skills / 插件 / MCP / 子代理（只读） */
   cliPlugins: SquareTerminal,
   /** 「+」：添加图片或文件 */
@@ -91,9 +100,22 @@ export const FEATURE_ICONS = {
   mention: AtSign,
   /** 「+」：下一条交给编程助手 */
   delegate: Forward,
-  desktop: ShieldCheck,
+  /** 桌面能力（让 Nomi 操作电脑）：屏幕 + 齿轮，不和「隐私」的盾牌混用 */
+  desktop: MonitorCog,
   local: Cpu,
   notify: Bell,
+  /** Agents 看板：派出去的编程助手 */
+  agents: Bot,
+  /** 任务（对话窗口侧栏、桌面角色工具栏的任务看板） */
+  tasks: ListChecks,
+  /** 长期记忆 */
+  memory: Brain,
+  /** 技能（SKILL.md）：学会的本事 */
+  skills: GraduationCap,
+  /** 权限「自动」模式 */
+  autoMode: Zap,
+  /** 模型对比 */
+  compare: Scale,
 } as const;
 
 export type { LucideIcon, LucideProps };

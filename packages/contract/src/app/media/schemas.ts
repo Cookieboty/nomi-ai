@@ -294,8 +294,10 @@ export const DesktopConfirmRequest = z.looseObject({
     .optional(),
   /** 命令能记进白名单时的前缀（如 `pnpm test`）：勾「记住」= 以后这类命令不再问 */
   rememberRule: z.string().optional(),
+  /** 跑命令的确认：可以「本会话始终执行」的那条命令（这个对话里同一条命令、同一工作目录不再问） */
+  sessionCommand: z.string().optional(),
   /** 勾「记住」= 这个对话里这类操作不再问：files 改文件 / delegate 委派与追问 / tool 这个工具 */
-  rememberGroup: z.enum(['files', 'delegate', 'tool']).optional(),
+  rememberGroup: z.enum(['files', 'delegate', 'computer', 'tool']).optional(),
 });
 
 export const DesktopState = z.looseObject({
@@ -445,3 +447,81 @@ export const ChatNavEvent = z.enum([
   'nav.scheduleRequested',
   'nav.voiceSettingsRequested',
 ]);
+
+// ---------------------------------------------------------------------------
+// computer：Computer Use（桌面操作，执行器 agent-desktop；Go 内核 internal/core/computer）
+// ---------------------------------------------------------------------------
+
+/** Computer Use 页的状态：agent-desktop 装没装、版本与更新、系统权限、编程助手开关 */
+export const ComputerState = z.looseObject({
+  platform: z.string(),
+  installed: z.boolean(),
+  path: z.string(),
+  version: z.string(),
+  /** 适配的大版本里 npm 上最新的版本（查不到时 ""） */
+  latest: z.string(),
+  updateAvailable: z.boolean(),
+  /** npm 上有更新的大版本，Nomi 还没适配（只提示，不装） */
+  newerMajor: z.string(),
+  supportedMajor: z.number(),
+  /** 本机装的是没适配的大版本 */
+  unsupported: z.boolean(),
+  npmAvailable: z.boolean(),
+  installing: z.boolean(),
+  /** 系统权限：accessibility / screen_recording → granted | denied | not_required | unknown */
+  permissions: z.record(z.string(), z.string()),
+  /** macOS：要在「隐私与安全性」里授权的应用（权限算在启动 agent-desktop 的应用头上：Nomi，开发时是终端）；"" = 不知道 */
+  permissionApp: z.string(),
+  /** Linux Wayland：只支持读界面与按编号操作 */
+  wayland: z.boolean(),
+  /** 允许编程助手经 Nomi 的 MCP 使用桌面操作 */
+  cliEnabled: z.boolean(),
+  /** 桌面操作自动执行（工具权限都是「始终允许」；敏感动作与坐标点击仍会问） */
+  autoApprove: z.boolean(),
+  /** 正在操作桌面的发起方（Nomi / 编程助手名） */
+  active: z.array(z.string()),
+  /** 视觉兜底用的模型（<供应商 id>/<模型 id>，"" = 不用） */
+  visionModel: z.string(),
+  /** 能看图的模型（启用的供应商里标了 vision 的） */
+  visionModels: z.array(
+    z.looseObject({ ref: z.string(), label: z.string(), provider: z.string() }),
+  ),
+  /** 用户另外禁止操作的应用（内置黑名单之外） */
+  blockedApps: z.array(z.string()),
+  /** 读界面时隐去输入框里的内容 */
+  redact: z.boolean(),
+  /** 隔离模式用的沙箱名（"" = 直接操作这台电脑） */
+  sandbox: z.string(),
+  /** 本机的 agent-desktop 沙箱（macOS 虚拟机，Apple Silicon） */
+  sandboxes: z.array(z.looseObject({ name: z.string(), state: z.string() })),
+  /** 装的 agent-desktop 有没有 sandbox 命令（较早的版本没有）；没有时不显示隔离模式 */
+  sandboxSupported: z.boolean(),
+  /** 紧急停止快捷键的设置（"" = 默认，"off" = 关闭） */
+  stopShortcut: z.string(),
+  /** 实际注册上的系统级快捷键（"" = 没有） */
+  stopShortcutActive: z.string(),
+  /** 快捷键注册失败的原因（被别的应用占用等） */
+  stopShortcutError: z.string(),
+  defaultStopShortcut: z.string(),
+});
+
+/** Computer Use 设置的补丁（不传的项不改） */
+export const ComputerSettingsPatch = z.object({
+  cliEnabled: z.boolean().optional(),
+  visionModel: z.string().max(300).optional(),
+  blockedApps: z.array(z.string().max(200)).max(100).optional(),
+  redact: z.boolean().optional(),
+  sandbox: z.string().max(63).optional(),
+  stopShortcut: z.string().max(60).optional(),
+  autoApprove: z.boolean().optional(),
+});
+
+export const ComputerInstallResult = z.looseObject({
+  ok: z.boolean(),
+  version: z.string(),
+  path: z.string(),
+  log: z.string(),
+  /** npm 全局目录不可写：可以改装到用户目录（userPrefix） */
+  needsUserScope: z.boolean(),
+  userPrefix: z.string().optional(),
+});

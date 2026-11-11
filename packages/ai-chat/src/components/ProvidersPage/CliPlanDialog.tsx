@@ -1,6 +1,6 @@
 /**
- * 安装 / 更新编程助手前的确认框：展示确切命令与前置检查（Node / npm / 写权限）；
- * 有阻塞原因时不能确认；没有写权限时可改用用户目录安装。
+ * 安装 / 更新编程助手时前置检查没通过才弹出（通过时直接执行，不二次确认）：
+ * 展示确切命令与检查结果（Node / npm / 写权限）；没有写权限时可改用用户目录安装。
  * 「编程助手」页的版本卡片和「模型」页的 CLI 行共用（命令由主进程 cliUpdateClient.preview 给出）。
  */
 import { Button, Icon, Modal, Notice, t } from '@nomi-ai/ui';
@@ -20,9 +20,12 @@ export const CliPlanDialog: React.FC<{
   onClose: () => void;
   onConfirm: () => void;
   onUserScope: () => void;
-}> = ({ plan, name, testKind, onClose, onConfirm, onUserScope }) => (
+  /** top：从新手引导这类整页浮层里打开时，盖在浮层上面 */
+  layer?: 'default' | 'top';
+}> = ({ plan, name, testKind, onClose, onConfirm, onUserScope, layer }) => (
   <Modal
     open={Boolean(plan)}
+    layer={layer}
     onClose={onClose}
     title={
       plan?.mode === 'install'

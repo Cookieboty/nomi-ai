@@ -1,0 +1,58 @@
+/* 每张卡片占一行 */
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-4);
+}
+/* 安装路径：一行显示，过长用省略号（悬停看全路径） */
+.path {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.buttons {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--cd-space-2);
+}
+.hint {
+  margin: 0;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+}
+.log {
+  margin: var(--cd-space-2) 0 0;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-2) 0;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  padding-left: var(--cd-space-2);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-md);
+  font-size: var(--cd-font-size-sm);
+}
+.addRow {
+  display: flex;
+  gap: var(--cd-space-2);
+  padding-bottom: var(--cd-space-2);
+}

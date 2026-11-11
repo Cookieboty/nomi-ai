@@ -4,7 +4,6 @@ import { createLogger, t as tr, tName } from '@nomi-ai/ui';
 import { Switch, Tooltip } from '@nomi-ai/ui';
 import {
   AudioLines,
-  CalendarCheck,
   ChevronDown,
   ChevronRight,
   Ellipsis,
@@ -21,6 +20,7 @@ import {
   ZoomIn,
   ZoomOut,
   type LucideIcon,
+  ListChecks,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
@@ -53,7 +53,7 @@ import { setCache } from '@/utils/cache';
 const log = createLogger('toolbar');
 
 /**
- * 桌面角色工具栏（设计稿「Nomi 桌面 AI 伙伴」）。
+ * 桌面角色工具栏。角色关掉时不出现。
  * - 竖向胶囊：AI 对话（主按钮，橙色）/ 语音交互 / 任务看板 / 角色互动 / 声音设置 / 更多；
  *   四种样式（深色胶囊默认、浅色胶囊、毛玻璃、极简），Lucide（ISC）统一图标。
  * - 提示：深色两行（标题 + 说明，文本里用换行分隔，第一行加粗）。
@@ -606,7 +606,7 @@ export const ToolBar: React.FC = () => {
       case 'voice-input':
         return Mic;
       case 'task-board':
-        return CalendarCheck;
+        return ListChecks;
       case 'motion':
         return Hand;
       case 'voice-settings':
