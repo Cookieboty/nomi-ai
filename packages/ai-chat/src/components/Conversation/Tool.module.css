@@ -374,6 +374,51 @@
   flex: 1;
   padding-right: 10px;
 }
+/* 语法高亮：hljs-* 映射到主题令牌，与对话代码块同一套配色 */
+.diffText :global(.hljs-comment),
+.diffText :global(.hljs-quote),
+.diffText :global(.hljs-meta) {
+  color: var(--cd-color-text-muted);
+  font-style: italic;
+}
+.diffText :global(.hljs-keyword),
+.diffText :global(.hljs-selector-tag),
+.diffText :global(.hljs-literal),
+.diffText :global(.hljs-section),
+.diffText :global(.hljs-link),
+.diffText :global(.hljs-doctag) {
+  color: var(--cd-color-accent-strong);
+  font-weight: var(--cd-font-weight-medium);
+}
+.diffText :global(.hljs-string),
+.diffText :global(.hljs-title),
+.diffText :global(.hljs-name),
+.diffText :global(.hljs-type),
+.diffText :global(.hljs-attribute),
+.diffText :global(.hljs-symbol),
+.diffText :global(.hljs-bullet),
+.diffText :global(.hljs-addition),
+.diffText :global(.hljs-variable),
+.diffText :global(.hljs-template-tag),
+.diffText :global(.hljs-template-variable) {
+  color: var(--cd-color-success);
+}
+.diffText :global(.hljs-number),
+.diffText :global(.hljs-regexp),
+.diffText :global(.hljs-built_in),
+.diffText :global(.hljs-class) :global(.hljs-title),
+.diffText :global(.hljs-params) {
+  color: var(--cd-color-warning);
+}
+.diffText :global(.hljs-deletion) {
+  color: var(--cd-color-danger);
+}
+.diffText :global(.hljs-emphasis) {
+  font-style: italic;
+}
+.diffText :global(.hljs-strong) {
+  font-weight: var(--cd-font-weight-bold);
+}
 .diffLine[data-type='add'] {
   background: color-mix(in srgb, var(--cd-color-success) 16%, transparent);
 }
