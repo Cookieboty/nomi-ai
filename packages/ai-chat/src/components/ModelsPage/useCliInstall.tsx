@@ -19,6 +19,8 @@ import { CliPlanDialog } from '../ProvidersPage/CliPlanDialog';
 export interface CliInstallState {
   /** 主进程明确报告没装（没有返回这个端点时不算没装） */
   missing: (kind: CliKind) => boolean;
+  /** 主进程明确报告已装（有路径） */
+  installed: (kind: CliKind) => boolean;
   /** 本机是否装了任一编程助手（还没查到结果时为 null） */
   anyInstalled: boolean | null;
   /** 该端点正在安装 / 更新（不同端点可以同时进行） */
@@ -27,7 +29,11 @@ export interface CliInstallState {
   dialog: React.ReactNode;
 }
 
-export function useCliInstall(onError: (message: string) => void): CliInstallState {
+/** layer：确认框所在层；新手引导盖住整个窗口，要用 'top' 才看得见 */
+export function useCliInstall(
+  onError: (message: string) => void,
+  opts?: { layer?: 'default' | 'top' },
+): CliInstallState {
   const [infos, setInfos] = useState<CliInstallInfo[] | null>(null);
   const [plan, setPlan] = useState<CliInstallPlan | null>(null);
   const [busy, setBusy] = useState<ReadonlySet<CliUpdatableKind>>(() => new Set());
@@ -98,6 +104,7 @@ export function useCliInstall(onError: (message: string) => void): CliInstallSta
       const info = infos?.find((i) => (i.kind as string) === kind);
       return Boolean(info && !info.path);
     },
+    installed: (kind) => Boolean(infos?.find((i) => (i.kind as string) === kind)?.path),
     anyInstalled: infos && infos.some((i) => !!i.path),
     busy: (kind) => busy.has(kind as CliUpdatableKind),
     install: (kind) => void openPlan(kind),
@@ -111,6 +118,7 @@ export function useCliInstall(onError: (message: string) => void): CliInstallSta
           onClose={() => setPlan(null)}
           onConfirm={confirm}
           onUserScope={() => plan && void openPlan(plan.kind, 'user')}
+          layer={opts?.layer}
         />
       </ModalHostContext.Provider>
     ),

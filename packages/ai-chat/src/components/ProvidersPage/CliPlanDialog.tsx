@@ -20,9 +20,12 @@ export const CliPlanDialog: React.FC<{
   onClose: () => void;
   onConfirm: () => void;
   onUserScope: () => void;
-}> = ({ plan, name, testKind, onClose, onConfirm, onUserScope }) => (
+  /** top：从新手引导这类整页浮层里打开时，盖在浮层上面 */
+  layer?: 'default' | 'top';
+}> = ({ plan, name, testKind, onClose, onConfirm, onUserScope, layer }) => (
   <Modal
     open={Boolean(plan)}
+    layer={layer}
     onClose={onClose}
     title={
       plan?.mode === 'install'

@@ -175,7 +175,7 @@ Installed copies offer updates in-app.
 
 ## Get started in 3 minutes
 
-1. Open Nomi and finish onboarding (language, theme, character).
+1. Open Nomi and finish onboarding (language and look, AI, personal). The desktop character is off by default.
 2. Open a Claude Code / Codex session, pick a working folder and sign in with your official account to start; "Agents" in the left sidebar opens the board.
 3. To switch models, add a provider and API key in Settings → Models & providers, or download a local model under Local models; coding agents and Nomi can all pick it.
 4. Chat with Nomi: `Ctrl/⌘+N` for a new chat, `Ctrl/⌘+K` for the command palette. Don't want the desktop character? Close it from its toolbar's "More" menu.
