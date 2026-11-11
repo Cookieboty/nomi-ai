@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/convstore"
@@ -80,6 +81,9 @@ func TestMigrateKeepsUnavailableWorkspace(t *testing.T) {
 
 // 建完项目后写对话索引失败：下次启动接着迁（不因为 projects.json 已存在就跳过）
 func TestMigrateResumesAfterPartialFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("靠只读目录让写入失败；Windows 上目录的只读属性不拦写文件")
+	}
 	userData, work := t.TempDir(), t.TempDir()
 	conv := convstore.New(userData)
 	putConv(t, conv, map[string]any{"id": "a", "cwd": work})

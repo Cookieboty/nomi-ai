@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -77,7 +78,8 @@ func TestTokenFileAndAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fi, _ := os.Stat(file); fi.Mode().Perm() != 0o600 {
+	// Windows 没有 POSIX 权限位（os.Stat 总是 0666），只在其他系统上查
+	if fi, _ := os.Stat(file); runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 {
 		t.Fatalf("token file mode %v", fi.Mode().Perm())
 	}
 	again, _ := s.Launch("tab1", "Claude Code", false)
