@@ -1561,7 +1561,21 @@
       "cl.v100.i5": "桌面伙伴：Nomi 拥有 41 个命名动作，并锁定品牌形象；任务结果、思考、工具调用与文件拖入会触发合适的动作，并尊重“减少动态效果”设置。",
       "cl.v100.i6": "效率：Cmd/Ctrl+K 命令面板，新建对话、聚焦输入框、设置等快捷键均可在设置中查看与重新绑定。",
       "cl.v100.i7": "体验与可访问性：对话框焦点管理、统一的空 / 错误 / 加载状态（含重试）、首次使用引导、设置页与侧边面板按需加载。",
-      "cl.v100.i8": "安全：CSP 同样作用于打包后的 file:// 页面，私有地址检查更严格，TTS 下载防 DNS 重绑定，加固 IPC、本地 CLI 路由、浏览器与 MCP 连接。"
+      "cl.v100.i8": "安全：CSP 同样作用于打包后的 file:// 页面，私有地址检查更严格，TTS 下载防 DNS 重绑定，加固 IPC、本地 CLI 路由、浏览器与 MCP 连接。",
+      "s.mascot.eyebrow": "桌面角色 · 可选",
+      "s.mascot.title": "她在桌面一角，替你盯着进度。",
+      "s.mascot.lead": "一个透明、置顶的小窗口，只有角色本身能点，其余地方鼠标直接穿过去。不需要就关掉，看板和对话照常用。",
+      "s.mascot.p1.h": "任务状态写在脸上",
+      "s.mascot.p1.d": "完成会点赞，失败会道歉，思考时托腮，工具运行时打字。",
+      "s.mascot.p2.h": "回复先在气泡里看",
+      "s.mascot.p2.d": "AI 回复的前一两句显示在她身边，点一下打开完整对话。",
+      "s.mascot.p3.h": "文件拖给她就行",
+      "s.mascot.p3.d": "把文件拖到她身上，一句话总结在气泡里，完整摘要写进对话。",
+      "s.mascot.p4.h": "随时关掉",
+      "s.mascot.p4.d": "关掉后提醒改由灵动岛或系统通知送达，设置里可以再打开。",
+      "s.mascot.more": "了解桌面角色 →",
+      "meta.docs.title": "文档 — Nomi·诺米",
+      "meta.docs.desc": "Nomi·诺米使用文档：安装与首次引导、编程助手、模型与网关、隐私与安全、桌面角色、角色包与开发者指南。"
     },
 
     en: {
@@ -3118,7 +3132,21 @@
       "cl.v100.i5": "Desktop companion: Nomi has 41 named actions on a brand-locked rig; task results, thinking, tool use and file drops trigger fitting actions, and reduced-motion is respected.",
       "cl.v100.i6": "Productivity: a Cmd/Ctrl+K command palette; shortcuts for new chat, focus input and settings, all listed in Settings and rebindable.",
       "cl.v100.i7": "Polish and accessibility: dialog focus handling, unified empty / error / loading states with retry, first-run onboarding, and route-split settings and side panels.",
-      "cl.v100.i8": "Security: CSP also applies to packaged file:// pages, stricter private-address checks, DNS-rebinding mitigation for TTS downloads, and hardened IPC, local CLI route, browser and MCP connections."
+      "cl.v100.i8": "Security: CSP also applies to packaged file:// pages, stricter private-address checks, DNS-rebinding mitigation for TTS downloads, and hardened IPC, local CLI route, browser and MCP connections.",
+      "s.mascot.eyebrow": "Desktop character · optional",
+      "s.mascot.title": "She sits in a corner of your desktop and keeps an eye on progress.",
+      "s.mascot.lead": "A small transparent window that stays on top. Only the character takes clicks; everywhere else your mouse goes straight through. Turn it off if you don't need it — the board and chat work the same.",
+      "s.mascot.p1.h": "Task status on her face",
+      "s.mascot.p1.d": "A thumbs-up when a task is done, an apology when it fails, chin in hand while thinking, typing while tools run.",
+      "s.mascot.p2.h": "Replies in a bubble first",
+      "s.mascot.p2.d": "The first sentence or two of each reply shows next to her. Click to open the full chat.",
+      "s.mascot.p3.h": "Drop a file on her",
+      "s.mascot.p3.d": "Drag a file onto her: a one-line summary in the bubble, the full summary in the chat.",
+      "s.mascot.p4.h": "Close it any time",
+      "s.mascot.p4.d": "Once closed, notices come through the Dynamic Island or system notifications. Turn her back on in Settings.",
+      "s.mascot.more": "About the desktop character →",
+      "meta.docs.title": "Docs — Nomi",
+      "meta.docs.desc": "Nomi documentation: install and onboarding, coding agents, models and the gateway, privacy and security, the desktop character, character packs and developer guides."
     }
   };
 
