@@ -552,9 +552,26 @@ func (o *Orchestrator) CloseTab(id string) *util.Obj {
 		throw(i18n.T("electron.common.the-main-chat-tab-cannot-be-closed"))
 	}
 	tab := o.requireTab(id)
-	o.CancelTab(id)
+	finishClose := o.beginHistoryClose(tab)
+	defer finishClose()
+	// Closing a tab ends its process, rather than only interrupting a turn.
+	// Abort setup too: an awaited launch must not spawn after the tab is gone.
+	if send := o.sendAborts[id]; send != nil {
+		send.Abort()
+	}
 	delete(o.live.claudeStarting, id)
 	o.teardownClaudeLive(id)
+	if child := o.children.Get(id); child != nil {
+		killTree(child)
+		o.children.Delete(id)
+	}
+	for _, child := range o.tabProcs[id] {
+		if procAlive(child) {
+			killTree(child)
+		}
+	}
+	delete(o.tabProcs, id)
+	o.clearPermissionTimeouts(id)
 	o.forgetSandbox(id)
 	order := o.tabs.Keys()
 	idx := -1

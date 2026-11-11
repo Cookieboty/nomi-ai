@@ -294,7 +294,11 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 				}
 				return struct{}{}, errors.New(i18n.T("electron.common.didn-t-return-a-session", name))
 			}
+			if signal.Aborted() || o.tab(id) != tab || o.live.acp[id] != live {
+				return struct{}{}, errors.New(i18n.T("electron.common.aborted"))
+			}
 			live.sessionID = sid
+			o.bindRunningSession(tab, *sid)
 			initMode := str(tab, "permissionMode")
 			adoptedHistoryMode := false
 			if tab.Get("permissionModeSource") == "history-cli" {

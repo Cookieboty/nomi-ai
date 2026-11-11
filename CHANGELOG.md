@@ -244,6 +244,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **chat:** 编程助手用第三方供应商时，消息底部的模型显示供应商名（如「MAAS · kimi-k3」），与 Nomi 对话一致，不再显示内部 id（`provider/kimi-k3`）。 (`@nomi-ai/ai-chat` patch)
 - **chat:** 输入栏的「完全放开」档位按钮不再带红框和底色，和旁边的模型按钮一样，只用红色文字提示。 (`@nomi-ai/ai-chat` patch)
 - **chat:** 输入框里 Home / End 跳到当前行首尾，Shift 扩展选区，Ctrl / Command 跳到全文首尾；输入法组合时不拦截。/ In the composer, Home / End move to the start / end of the current line, Shift extends the selection and Ctrl / Command jumps to the start / end of the text; keys are left alone while an IME is composing. (`@nomi-ai/ai-chat` patch)
+- **chat:** 首轮运行时及时同步 CLI 原生会话标识，避免正在运行的会话重复出现在本机历史；删除会话时先终止对应进程并等待退出，再永久删除历史记录，防止后台继续运行或重新生成无标题会话。 重复删除或超时重试仍等待进程真正退出；确认删除后按标签读取最新会话标识，避免确认期间会话初始化导致漏删。 普通关闭标签也保留进程退出等待；确认期间标签已关闭时仍能删除对应历史，无法定位的会话明确报错。 最近列表的垃圾桶与本机历史统一二次确认后永久删除，普通对话先中止回复，CLI 会话先终止并等待进程退出，不再仅关闭标签或归档；删除不进入废纸篓。 (`@nomi-ai/desktop-go` patch, `@nomi-ai/ai-chat` patch, `@nomi-ai/contract` patch)
 - **cli-sdk:** Codex app-server 驱动在压缩完成后、没有新的占用上报就结束这一轮时，用量里写 `contextTokens: 0`（压缩后大小未知），不再合入压缩前的旧值。Node 与 Go 版一致（#217）。 (`@nomi-ai/desktop-go` patch)
 - **cli:** Codex 等编程助手登录报「device code request failed with status 403 Forbidden」——从 Finder / Dock 启动时 Nomi 拿不到终端配置（如 ~/.zshrc）里的 https_proxy，登录请求直连被官方服务按地区拒绝。现在读登录 shell 时一并读代理变量，加给编程助手的子进程（本机地址不走代理，网关不受影响），官方账号里新增「沿用终端里的代理」开关（默认打开）；登录被 403 拒绝时给出原因、检测到的代理和「沿用终端代理并重试」按钮。 (`@nomi-ai/contract` patch)
 - **cli:** Kimi Code 标签里的命令、搜索等工具调用会显示具体参数了（之前只显示「Bash」、参数是空的）：开始执行时才补上的参数不再被丢掉。 (`@nomi-ai/desktop-go` patch)
@@ -358,6 +359,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **mascot:** a failed VRM load or a 3D render error no longer sticks — choosing another valid model (VRM or sprite) clears the error UI / canvas fallback and mounts the new model. (`@nomi-ai/renderer` patch)
 - **mascot:** after zooming the mascot to a size whose character box ends on a half pixel (e.g. 121%), keeping her feet on the floor no longer rounds the window 1px below the work area (into the taskbar). Standing / landing positions snap the feet to a whole pixel at or just above the floor. (`@nomi-ai/desktop-go` patch)
 - **mascot:** macOS 上桌面角色窗口不是活动窗口时（在别的应用里、或对话窗口在前），按住角色直接就能拖，不用先点一下。 (`@nomi-ai/desktop-go` patch)
+- **mascot:** macOS 桌面角色改用非激活浮动面板，明确配置跨桌面与全屏辅助行为，避免显示或重建角色时抢占对话窗口的主窗口身份和键盘焦点；保留关闭置顶后的窗口层级设置。 (`@nomi-ai/desktop-go` patch)
 - **mascot:** on macOS the desktop character and island windows no longer show a stale grey halo
 - **mascot:** switching back to a 3D model that failed to load earlier now tries to load it again instead of showing the old error, and the error view has a "Retry" button to reload the same model. (`@nomi-ai/renderer` patch)
 - **mascot:** the "blow kiss" action now actually pouts during the first phase (the second mouth track used to override it with the default mouth). (`@nomi-ai/renderer` patch)
@@ -413,6 +415,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **slash:** `/plugins` (and `/skills`, `/mcp`) in a Nomi conversation shows Nomi's own Skills and MCP servers again instead of the "dsh has no public directory" message (#143). (`@nomi-ai/ai-chat` patch)
 - **tasks:** 两个同类后台任务同时准备时，不会再同时领到同一个空闲的编程助手标签：后领的一方发现标签已被领走就改为新建，不再覆盖前一个任务的归属、也不会因「上一轮仍在运行」失败（#269）。/ Two background tasks of the same kind preparing at once no longer both take the same idle coding-assistant tab: the later one sees it was already taken and opens a new tab instead of overwriting the first task's ownership or failing with "previous turn still running" (#269). (`@nomi-ai/desktop-go` patch)
 - **tasks:** 事件触发的任务在重试、续跑或退回修改后，仍按读过外部内容来审批写入和命令（#250）。 (`@nomi-ai/desktop-go` patch)
+- **tasks:** 删除已完成、失败、取消或过期的普通任务与委托任务后广播任务变更，让列表、看板与任务计数即时刷新，无需切换菜单。 (`@nomi-ai/desktop-go` patch)
 - **tasks:** 委派用的 worktree 里，编程助手自己提交了、还没有分支指着的改动，落地或启动清理时先留在新分支 `nomi/…` 上再拆；留不住时保留 worktree 并报错，不再因为工作区干净就当作没有成果删掉（#267）。/ Commits a coding assistant made in a delegation worktree that no branch points to are now kept on a new `nomi/…` branch before the worktree is landed or swept at startup; if that fails the worktree is kept and the error reported, instead of treating a clean status as no work and deleting it (#267). (`@nomi-ai/desktop-go` patch)
 - **tasks:** 委派的编程助手报错、任务失败后，自动删除它的 worktree（已接管的除外），不再越积越多。 (`@nomi-ai/desktop-go` patch)
 - **tasks:** 打开还没运行过的任务的详情时报「Invalid output of 'tasks.get'」：执行记录为空时内核返回了 null，现在返回空列表。/ Opening a task that has never run no longer fails with "Invalid output of 'tasks.get'": an empty run history is returned as an empty list instead of null. (`@nomi-ai/desktop-go` patch)

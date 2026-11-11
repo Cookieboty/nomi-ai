@@ -526,6 +526,22 @@ func (o *Orchestrator) requestClaudeControl(live *claudeLiveSession, request *ut
 }
 
 func (o *Orchestrator) onClaudeLine(tabID string, live *claudeLiveSession, line string, liveEmit bool) {
+	if o.live.claude[tabID] != live || o.tab(tabID) == nil {
+		return
+	}
+	// Claude reports the native ID in system/init, before the first result.
+	if strings.Contains(line, `"init"`) && strings.Contains(line, `"session_id"`) {
+		if value, err := util.ParseString(line); err == nil {
+			meta := util.AsObj(value)
+			if meta != nil && meta.Get("type") == "system" && meta.Get("subtype") == "init" && !truthy(meta.Get("parent_tool_use_id")) {
+				sid := str(meta, "session_id")
+				o.bindRunningSession(o.tab(tabID), sid)
+				if live.turn != nil && sid != "" {
+					live.turn.sessionID = sid
+				}
+			}
+		}
+	}
 	live.lastActivityAt = nowMs()
 	if o.onClaudeMeta(tabID, live, line) {
 		return

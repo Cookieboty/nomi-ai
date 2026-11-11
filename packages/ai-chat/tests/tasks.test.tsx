@@ -72,6 +72,7 @@ const legacy = [
 
 let fake: FakeApi;
 beforeEach(() => {
+  localStorage.removeItem('nomi.tasks.view');
   fake = installFakeApi({
     'tasks.list': () => ({ tasks, legacy }),
     'tasks.get': ({ id }: { id: string }) => ({
@@ -231,6 +232,60 @@ describe('任务页', () => {
     await act(() => fake.settle());
     expect(fake.calls).toContainEqual(['tasks.revoke', { id: 'task_b' }]);
   });
+
+  it.each(
+    (['list', 'board'] as const).flatMap((view) =>
+      [false, true].flatMap((delegated) =>
+        ['done', 'failed', 'cancelled', 'expired'].map((status) => ({ view, delegated, status })),
+      ),
+    ),
+  )(
+    '删除 $view 中的任务（委托=$delegated，状态=$status）后立即刷新列表和计数',
+    async ({ view, delegated, status }) => {
+      const task = {
+        ...base,
+        id: 'task_remove',
+        title: '待删除任务',
+        status,
+        origin: delegated
+          ? { createdBy: 'nomi', createdAt: T0, via: 'delegate', conversationId: 'conv_origin' }
+          : base.origin,
+      };
+      let listed = [task];
+      fake = installFakeApi({
+        'tasks.list': () => ({ tasks: listed, legacy: [] }),
+        'tasks.get': () => ({ task, attempts: [] }),
+        'tasks.journal': () => [],
+        'tasks.remove': ({ id }: { id: string }) => {
+          listed = listed.filter((item) => item.id !== id);
+          fake.publish('tasks.changed', { id });
+          return true;
+        },
+      });
+      localStorage.setItem('nomi.tasks.view', JSON.stringify({ view, group: 'stage' }));
+      window.confirm = vi.fn(() => true);
+      await open();
+      const list = screen.getByTestId('tasks-list');
+      const card =
+        view === 'list'
+          ? list.querySelector('[data-testid="task-task_remove"]')
+          : screen
+              .getByTestId('tasks-board')
+              .querySelector('[data-testid="board-card-task_remove"]');
+      expect(card).toBeTruthy();
+      fireEvent.click(card!);
+      await act(() => fake.settle());
+      expect(screen.getByTestId('tasks-stage-all').textContent).toContain('1');
+      fireEvent.click(screen.getByTestId('task-remove'));
+      await waitFor(() => expect(fake.calls).toContainEqual(['tasks.remove', { id: task.id }]));
+      await waitFor(() => {
+        expect(screen.queryAllByTestId('task-task_remove')).toHaveLength(0);
+        expect(screen.queryByTestId('board-card-task_remove')).toBeNull();
+      });
+      expect(screen.getByTestId('tasks-stage-all').textContent).toContain('0');
+      expect(screen.queryByTestId('task-detail')).toBeNull();
+    },
+  );
 
   it('新建：过授权卡片后创建，能力等级由所选能力推出', async () => {
     await open();

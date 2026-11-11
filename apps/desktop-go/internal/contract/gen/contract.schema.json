@@ -22464,6 +22464,36 @@
     "additionalProperties": {}
    }
   },
+  "history.deleteTab": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "history.index": {
    "kind": "query",
    "dangerous": false,

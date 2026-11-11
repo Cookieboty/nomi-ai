@@ -49,6 +49,7 @@ type History interface {
 	Index(backend string, o cli.HistoryPageOpts) *jsrt.Promise[*util.Obj]
 	Open(backend, sessionID string) *jsrt.Promise[*util.Obj]
 	Remove(backend, sessionID string) *jsrt.Promise[*util.Obj]
+	RemoveTab(id string) *jsrt.Promise[*util.Obj]
 }
 
 var (
@@ -196,5 +197,6 @@ func RegisterCoding(r *contract.Router, s CodingServices) {
 	gil(r, "history.list", func(a in) any { return await(history().List(a.str("backend"), pageOpts(a.any("options")))) })
 	gil(r, "history.index", func(a in) any { return await(history().Index(a.str("backend"), pageOpts(a.any("options")))) })
 	gil(r, "history.open", func(a in) any { return await(history().Open(a.str("backend"), a.str("sessionId"))) })
+	gil(r, "history.deleteTab", func(a in) any { return await(history().RemoveTab(a.str("id"))) })
 	gil(r, "history.delete", func(a in) any { return await(history().Remove(a.str("backend"), a.str("sessionId"))) })
 }

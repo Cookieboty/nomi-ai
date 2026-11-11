@@ -112,6 +112,7 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
   "history.index query",
   "history.open mutation",
   "history.delete mutation",
+  "history.deleteTab mutation dangerous",
 ]
 `;
 

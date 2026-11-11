@@ -521,6 +521,9 @@ func (s *Service) Remove(id string) bool {
 	ok := s.Runtime.Remove(id)
 	if ok {
 		s.Events.Remove(id)
+		// Removal has no state transition: notify after runtime and event cleanup,
+		// outside their locks so observers can immediately reload the list.
+		s.emitChanged(id)
 	}
 	return ok
 }

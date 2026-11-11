@@ -141,3 +141,73 @@ func TestGetNewTaskHasEmptyAttemptsArray(t *testing.T) {
 		t.Fatalf("attempts must be an empty array: %s", b)
 	}
 }
+
+// All task kinds share removal. Every terminal status must notify both the
+// contract event subscribers and in-process observers after removal is visible.
+func TestServiceRemovePublishesChangeAfterDeletion(t *testing.T) {
+	for _, delegated := range []bool{false, true} {
+		for _, status := range TerminalStatuses {
+			name := status
+			if delegated {
+				name = "delegated/" + name
+			} else {
+				name = "manual/" + name
+			}
+			t.Run(name, func(t *testing.T) {
+				events := make(chan string, 10)
+				s := NewService(ServiceDeps{
+					Root: t.TempDir(), Log: &nopLog{},
+					SetTimer: func(func(), int64) func() { return func() {} },
+					Emit: func(event string, payload any) {
+						if event == "tasks.changed" {
+							events <- payload.(map[string]string)["id"]
+						}
+					},
+				})
+				task := Task{ID: "task_remove", Title: "remove", Goal: "g", Status: status,
+					SchemaVersion: SchemaVersion, Trigger: Trigger{Kind: "manual"},
+					Executor: ExecutorSpec{Kind: "nomi"}, Grant: Grant{Version: 1}, Budget: DefaultBudget()}
+				if delegated {
+					task.Origin = Origin{CreatedBy: "nomi", Via: ptr("delegate")}
+				}
+				if _, err := s.Store.Save(Record{Task: task, Attempts: []Attempt{}}); err != nil {
+					t.Fatal(err)
+				}
+				s.Start()
+				defer s.Stop()
+				s.reconciling.Wait()
+				for len(events) > 0 {
+					<-events
+				}
+				observed := false
+				off := s.OnChange(func(id string) {
+					observed = true
+					if id != task.ID || s.Get(id) != nil || len(s.List().Tasks) != 0 {
+						t.Error("removal event must expose an already updated task list")
+					}
+				})
+				defer off()
+				if !s.Remove(task.ID) {
+					t.Fatal("terminal task was not removed")
+				}
+				select {
+				case id := <-events:
+					if id != task.ID {
+						t.Fatalf("wrong task in change event: %s", id)
+					}
+				default:
+					t.Error("successful removal did not publish tasks.changed")
+				}
+				if !observed {
+					t.Error("in-process task subscribers were not notified")
+				}
+				if s.Remove(task.ID) {
+					t.Error("missing task must not be removed twice")
+				}
+				if len(events) != 0 {
+					t.Error("failed removal must not publish a change")
+				}
+			})
+		}
+	}
+}

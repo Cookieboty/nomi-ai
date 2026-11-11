@@ -315,6 +315,9 @@ func (o *Orchestrator) runCodexLive(tab *util.Obj, prompt string, signal *jsrt.A
 		if signal.Aborted() {
 			return nil, errors.New(i18n.T("electron.common.aborted"))
 		}
+		if live.threadID != nil {
+			o.bindRunningSession(tab, *live.threadID)
+		}
 		text := prompt
 		if tab.Get("permissionMode") == "plan" {
 			p, _ := cli.PlanPromptPrefix("codex")

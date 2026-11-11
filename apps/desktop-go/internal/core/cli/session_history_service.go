@@ -2,7 +2,7 @@ package cli
 
 // SessionHistoryService：
 // 编程助手历史会话（读本机磁盘）：Claude / Codex / dsh / Gemini / Grok 的会话文件扫描、
-// 增量解析、分页、读转录、打开（交给标签层续接）、删除（移到废纸篓）。
+// 增量解析、分页、读转录、打开（交给标签层续接）、删除（永久移除）。
 
 import (
 	"bytes"
@@ -82,6 +82,11 @@ type SessionHistoryDeps struct {
 	Env                       *util.Obj
 	Logger                    interface{ Warn(m string, d ...any) }
 	OpenKeys                  func() map[string]bool
+	// CloseSession stops matching tabs and waits for their CLI processes to exit before deleting files.
+	CloseSession func(backend, sessionID string) *jsrt.Promise[struct{}]
+	// TabSession reads the current native identity; CloseTab handles tabs without native history.
+	TabSession func(id string) *util.Obj
+	CloseTab   func(id string) *jsrt.Promise[struct{}]
 	// Hidden：Nomi 委派用过的会话（只在 Nomi 里看，不进历史）；可空
 	Hidden    func(backend, sessionID string) bool
 	OpenTitle func(backend, sessionID, title string)
@@ -91,7 +96,7 @@ type SessionHistoryDeps struct {
 	GatewaySession func(backend, sessionID string) bool
 	AccountLabel   func(backend, accountID string) string
 	SessionAccount func(backend, sessionID string) *HistoryAccount
-	Trash          func(p string) *jsrt.Promise[struct{}]
+	RemovePath     func(p string) *jsrt.Promise[struct{}]
 	CodexThreads   func(file string) *jsrt.Promise[[]*util.Obj]
 }
 
@@ -940,14 +945,42 @@ func (s *SessionHistoryService) Remove(backend, sessionID string) *jsrt.Promise[
 	})
 }
 
+// RemoveTab resolves the identity in the kernel, rather than trusting the sidebar's
+// snapshot from before the confirmation dialog. Resolution and shutdown start in one GIL frame.
+func (s *SessionHistoryService) RemoveTab(id string) *jsrt.Promise[*util.Obj] {
+	return jsrt.Async(func() (*util.Obj, error) {
+		if s.d.TabSession == nil || s.d.CloseTab == nil {
+			return util.NewObj("ok", false, "error", i18n.T("electron.common.deleting-history-sessions-is-not-supported-here")), nil
+		}
+		tab := s.d.TabSession(id)
+		if tab == nil {
+			return util.NewObj("ok", false, "error", i18n.T("electron.common.session-not-found-it-may-have-been-deleted")), nil
+		}
+		backend, _ := tab.Get("backend").(string)
+		sessionID, _ := tab.Get("sessionId").(string)
+		if sessionID != "" && isHistoryBackend(backend) {
+			return jsrt.Await(s.Remove(backend, sessionID))
+		}
+		if _, err := jsrt.Await(s.d.CloseTab(id)); err != nil {
+			return util.NewObj("ok", false, "error", err.Error()), nil
+		}
+		return util.NewObj("ok", true, "removed", 0), nil
+	})
+}
+
 func (s *SessionHistoryService) remove(backend, sessionID string) (*util.Obj, error) {
 	if !isHistoryBackend(backend) {
 		return nil, errors.New(i18n.T("electron.common.unknown-backend"))
 	}
-	if s.d.Trash == nil {
+	if s.d.RemovePath == nil {
 		return nil, errors.New(i18n.T("electron.common.deleting-history-sessions-is-not-supported-here"))
 	}
 	key := backend + ":" + sessionID
+	if s.d.CloseSession != nil {
+		if _, err := jsrt.Await(s.d.CloseSession(backend, sessionID)); err != nil {
+			return nil, err
+		}
+	}
 	if s.d.OpenKeys != nil && s.d.OpenKeys()[key] {
 		return util.NewObj("ok", false, "error", i18n.T("electron.common.this-session-is-open-in-a-tab-close")), nil
 	}
@@ -977,7 +1010,7 @@ func (s *SessionHistoryService) remove(backend, sessionID string) (*util.Obj, er
 			}
 			continue
 		}
-		if _, err := jsrt.Await(s.d.Trash(p)); err != nil {
+		if _, err := jsrt.Await(s.d.RemovePath(p)); err != nil {
 			return nil, err
 		}
 		removed++

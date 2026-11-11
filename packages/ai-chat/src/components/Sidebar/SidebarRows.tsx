@@ -1,5 +1,5 @@
 import { t, Icon, useLocale } from '@nomi-ai/ui';
-import { Archive, Ellipsis, Pin, PinOff, Trash2 } from 'lucide-react';
+import { Ellipsis, Pin, PinOff, Trash2 } from 'lucide-react';
 import React from 'react';
 import { type RowComponentProps } from 'react-window';
 
@@ -32,7 +32,6 @@ export function liveOf(tab: HarnessTabMeta | undefined): string {
 const PinIcon = () => <Icon icon={Pin} size={14} />;
 const UnpinIcon = () => <Icon icon={PinOff} size={14} />;
 const TrashIcon = () => <Icon icon={Trash2} size={14} />;
-const ArchiveIcon = () => <Icon icon={Archive} size={14} />;
 const MoreIcon = () => <Icon icon={Ellipsis} size={14} />;
 
 export interface RowActionHandlers {
@@ -46,23 +45,17 @@ export interface RowActionHandlers {
 }
 
 /**
- * 行尾三个图标按钮：置顶 / 归档（CLI 标签是关闭，本机历史是删除）/ 更多。悬浮、行内键盘焦点时显示；
- * 永久删除在「更多」里（与右键菜单共用 ConversationMenu），行内不常驻挂载菜单。
+ * 行尾三个图标按钮：置顶 / 永久删除 / 更多。悬浮、行内键盘焦点时显示；
+ * 行内与菜单中的删除使用同一个确认流程。
  */
 export const RowActions: React.FC<RowActionHandlers & { kind: 'conv' | 'tab' | 'hist' }> = ({
-  kind,
   onPin,
   pinned,
   onDelete,
   onMore,
 }) => {
   const pinLabel = pinned ? t('ui.knowledge-local.unpin') : t('ui.cli-monitor.pin-chat');
-  const delLabel =
-    kind === 'tab'
-      ? t('ui.mascot-theme.close-tab-action')
-      : kind === 'conv'
-        ? t('ui.cli-monitor.archive-chat')
-        : t('ui.cli-monitor.delete-chat');
+  const delLabel = t('ui.cli-monitor.delete-permanently');
   return (
     <div
       className={styles.rowActions}
@@ -86,13 +79,13 @@ export const RowActions: React.FC<RowActionHandlers & { kind: 'conv' | 'tab' | '
       {onDelete && (
         <button
           type="button"
-          className={`${styles.rowBtn} ${kind === 'conv' ? '' : styles.rowBtnDanger}`}
+          className={`${styles.rowBtn} ${styles.rowBtnDanger}`}
           title={delLabel}
           aria-label={delLabel}
           onClick={onDelete}
-          data-testid={kind === 'conv' ? 'row-archive' : 'row-delete'}
+          data-testid="row-delete"
         >
-          {kind === 'conv' ? <ArchiveIcon /> : <TrashIcon />}
+          <TrashIcon />
         </button>
       )}
       <button

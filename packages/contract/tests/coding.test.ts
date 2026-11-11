@@ -60,6 +60,7 @@ describe('appContract · D3 coding', () => {
       'harness.replyPermission',
       'harness.sandboxReply',
       'harness.tabPermissionMode',
+      'history.deleteTab',
       'project.create',
       'project.update',
     ]);

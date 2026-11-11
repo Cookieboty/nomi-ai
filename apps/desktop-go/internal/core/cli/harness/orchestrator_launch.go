@@ -232,6 +232,16 @@ func (o *Orchestrator) SessionModel(backend, sessionID string) (string, bool) {
 	return o.sessionModels.Get(backend, sessionID)
 }
 
+// bindRunningSession publishes the native identity as soon as the CLI creates it.
+// Late callbacks from a closed/replaced tab cannot bind or resurrect a session.
+func (o *Orchestrator) bindRunningSession(tab *util.Obj, sessionID string) {
+	if sessionID == "" || o.tab(str(tab, "id")) != tab || str(tab, "cliSessionId") == sessionID {
+		return
+	}
+	o.bindCliSession(tab, sessionID)
+	o.changed()
+}
+
 // bindCliSession = bindCliSession。
 func (o *Orchestrator) bindCliSession(tab *util.Obj, sessionID string) {
 	changed := tab.Get("cliSessionId") != sessionID
