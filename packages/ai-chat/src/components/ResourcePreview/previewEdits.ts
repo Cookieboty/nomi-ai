@@ -15,8 +15,8 @@ export class PreviewEditSession {
   private baseline: string;
   private revision: string;
   private url: string;
-  /** Workspace and real path from the open that issued the edit grant. */
-  private origin?: { cwd: string; path: string };
+  /** Workspace, real path and outside-workspace approval from the open that issued the edit grant. */
+  private origin?: { cwd: string; path: string; allowOutside: boolean };
   // A reopened view may have a new read capability while an earlier writer is still
   // in flight. Keep that writer alive until it is no longer needed by any view/draft.
   private attachments = new Set<string>();
@@ -56,8 +56,8 @@ export class PreviewEditSession {
     this.state = { ...this.state, ...patch };
     this.listeners.forEach((listener) => listener());
   }
-  noteOrigin(cwd: string, path: string | undefined) {
-    if (path) this.origin = { cwd, path };
+  noteOrigin(cwd: string, path: string | undefined, allowOutside = false) {
+    if (path) this.origin = { cwd, path, allowOutside };
   }
   /** Drop the unsaved text and keep the last saved baseline. Close and switch can proceed. */
   discardDraft() {
@@ -173,7 +173,7 @@ export class PreviewEditSession {
     if (!origin || typeof resourcePreviewClient.open !== 'function') return reject('expired');
     let opened;
     try {
-      opened = await resourcePreviewClient.open(origin.cwd, origin.path);
+      opened = await resourcePreviewClient.open(origin.cwd, origin.path, origin.allowOutside);
     } catch {
       return reject('write');
     }

@@ -21,6 +21,7 @@ import {
   bindNextDelegateConversation,
   clearTurnPin,
   consumeNextDelegate,
+  DELEGATE_GOAL_MAX,
   delegateClient,
   type DelegateResult,
 } from '../services/delegateClient';
@@ -677,14 +678,33 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         // `/agent`：直接派出编程助手。不交给对话模型——模型不调工具时会像已经交出，其实什么都没开始。
         if (delegateTo) {
           if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
+          maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
+          // 等确认时可以停止：停止键中止这次调用，内核里的确认随之取消
+          activeStream.current.set(convoKey(turn.convoId), {
+            reqId,
+            convoId: turn.convoId,
+            controller,
+          });
+          owned = true;
+          dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
+          // 附图的地址作为背景交给编程助手（它读不到对话里的缩略图）
+          const linked = imageUrls.filter(Boolean);
           try {
-            await delegateClient.dispatch({
-              cli: delegateTo,
-              goal: content.slice(0, 4000),
-              ...(turn.convoId ? { conversationId: turn.convoId } : {}),
-              ...(turn.projectId ? { projectId: turn.projectId } : {}),
-              turnId: reqId,
-            });
+            if (content.length > DELEGATE_GOAL_MAX)
+              throw new Error(
+                t('ui.slash-commands.handoff-request-too-long', String(DELEGATE_GOAL_MAX)),
+              );
+            await delegateClient.dispatch(
+              {
+                cli: delegateTo,
+                goal: content,
+                ...(linked.length ? { context: imageLinksNote(linked).slice(0, 8000) } : {}),
+                ...(turn.convoId ? { conversationId: turn.convoId } : {}),
+                ...(turn.projectId ? { projectId: turn.projectId } : {}),
+                turnId: reqId,
+              },
+              controller.signal,
+            );
             userMessage.delegateTo = delegateTo;
             const ack: ChatMessage = {
               id: (Date.now() + 1).toString(),
@@ -704,7 +724,10 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               id: (Date.now() + 1).toString(),
               role: 'assistant',
               content: '',
-              error: t('ui.slash-commands.handoff-not-dispatched', errorMessage(err)),
+              error: t(
+                'ui.slash-commands.handoff-not-dispatched',
+                controller.signal.aborted ? t('ui.chat-settings.stopped') : errorMessage(err),
+              ),
               timestamp: Date.now(),
             };
             if (turn.isActive())

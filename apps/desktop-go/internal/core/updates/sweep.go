@@ -66,14 +66,24 @@ func trimInstallerSuffix(s string) string {
 // SweepObsoleteInstallers 删掉 dir 里已经不需要的更新安装包。
 // 版本不比 current 新的（含刚装好的这一版）删掉；还没装的更新版本留着，下次不用重下。
 // 没下完的 .part 一律删掉：下次下载会重新建文件。其它文件、子目录、符号链接不动。
+// keep 里的文件（正在运行的程序，如直接从缓存目录打开的 AppImage）不删。
 // dir 不存在时什么都不做。
-func SweepObsoleteInstallers(dir, current string) []string {
+func SweepObsoleteInstallers(dir, current string, keep ...string) []string {
 	if dir == "" || current == "" {
 		return nil
 	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil
+	}
+	var kept []os.FileInfo
+	for _, k := range keep {
+		if k == "" {
+			continue
+		}
+		if info, err := os.Stat(k); err == nil {
+			kept = append(kept, info)
+		}
 	}
 	var removed []string
 	for _, e := range entries {
@@ -90,7 +100,7 @@ func SweepObsoleteInstallers(dir, current string) []string {
 			continue
 		}
 		info, err := os.Lstat(p)
-		if err != nil || !info.Mode().IsRegular() {
+		if err != nil || !info.Mode().IsRegular() || sameAsAny(info, kept) {
 			continue
 		}
 		if err := os.Remove(p); err != nil {
@@ -99,6 +109,25 @@ func SweepObsoleteInstallers(dir, current string) []string {
 		removed = append(removed, name)
 	}
 	return removed
+}
+
+func sameAsAny(info os.FileInfo, kept []os.FileInfo) bool {
+	for _, k := range kept {
+		if os.SameFile(info, k) {
+			return true
+		}
+	}
+	return false
+}
+
+// runningFiles：正在运行的程序文件。AppImage 运行时 os.Executable 是挂载里的 exe，
+// 真正的包在 $APPIMAGE。
+func runningFiles() []string {
+	out := []string{os.Getenv("APPIMAGE")}
+	if exe, err := os.Executable(); err == nil {
+		out = append(out, exe)
+	}
+	return out
 }
 
 func pathInside(dir, p string) bool {
@@ -119,7 +148,7 @@ func (g *GitHubUpdater) SweepObsoleteInstallers() {
 	if g.Version != nil {
 		ver = g.Version()
 	}
-	removed := SweepObsoleteInstallers(g.cacheDir(), ver)
+	removed := SweepObsoleteInstallers(g.cacheDir(), ver, runningFiles()...)
 	if len(removed) == 0 || g.log == nil {
 		return
 	}

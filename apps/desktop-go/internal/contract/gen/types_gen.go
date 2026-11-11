@@ -2011,6 +2011,7 @@ type DelegateClearPinInput struct {
 type DelegateDispatchInput struct {
 	Cli            string  `json:"cli"`
 	Goal           string  `json:"goal"`
+	Context        *string `json:"context,omitempty"`
 	ConversationId *string `json:"conversationId,omitempty"`
 	ProjectId      *string `json:"projectId,omitempty"`
 	TurnId         *string `json:"turnId,omitempty"`

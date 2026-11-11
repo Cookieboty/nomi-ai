@@ -93,3 +93,22 @@ func TestSweepKeepsPendingWhenCurrentIsOlder(t *testing.T) {
 		t.Fatal("installed version's deb should go")
 	}
 }
+
+// 直接从缓存目录打开的 AppImage 正在运行：版本等于当前版本也不能删。
+func TestSweepKeepsRunningFile(t *testing.T) {
+	dir := t.TempDir()
+	running := filepath.Join(dir, "Nomi-2.3.10.AppImage")
+	old := filepath.Join(dir, "Nomi-2.3.9.AppImage")
+	for _, p := range []string{running, old} {
+		if err := os.WriteFile(p, []byte("x"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	removed := SweepObsoleteInstallers(dir, "2.3.10", "", running)
+	if len(removed) != 1 || removed[0] != "Nomi-2.3.9.AppImage" {
+		t.Fatalf("removed %v", removed)
+	}
+	if _, err := os.Stat(running); err != nil {
+		t.Fatalf("running AppImage removed: %v", err)
+	}
+}

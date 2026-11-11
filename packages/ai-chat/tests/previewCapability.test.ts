@@ -97,7 +97,7 @@ describe('expired preview capability', () => {
     const edit = session();
     edit.change('# Draft');
     expect(await edit.flush()).toBe(false);
-    expect(resourcePreviewClient.open).toHaveBeenCalledWith('/work', '/work/note.md');
+    expect(resourcePreviewClient.open).toHaveBeenCalledWith('/work', '/work/note.md', false);
     expect(resourcePreviewClient.close).toHaveBeenCalledWith(renewed.url);
     expect(resourcePreviewClient.save).toHaveBeenCalledTimes(1);
     expect(edit.state).toMatchObject({ error: 'conflict', text: '# Draft', dirty: true });
@@ -131,6 +131,22 @@ describe('expired preview capability', () => {
       '# Draft',
     );
     expect(edit.state.dirty).toBe(false);
+  });
+
+  it('reopens an approved outside-workspace file with the same approval', async () => {
+    vi.mocked(resourcePreviewClient.save)
+      .mockResolvedValueOnce({ ok: false, code: 'expired' })
+      .mockResolvedValueOnce({ ok: true, revision: 'b'.repeat(64) });
+    vi.mocked(resourcePreviewClient.renew).mockResolvedValue({ ok: false, code: 'expired' });
+    vi.mocked(resourcePreviewClient.open).mockResolvedValue({
+      ...renewed,
+      path: '/elsewhere/note.md',
+    });
+    const edit = new PreviewEditSession({ ...original, path: '/elsewhere/note.md' });
+    edit.noteOrigin('/work', '/elsewhere/note.md', true);
+    edit.change('# Draft');
+    expect(await edit.flush()).toBe(true);
+    expect(resourcePreviewClient.open).toHaveBeenCalledWith('/work', '/elsewhere/note.md', true);
   });
 
   it('keeps keystrokes typed during recovery on the new grant', async () => {

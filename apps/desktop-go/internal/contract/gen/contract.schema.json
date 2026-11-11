@@ -8224,6 +8224,10 @@
       "minLength": 1,
       "maxLength": 4000
      },
+     "context": {
+      "type": "string",
+      "maxLength": 8000
+     },
      "conversationId": {
       "type": "string"
      },

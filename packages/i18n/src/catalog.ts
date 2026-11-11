@@ -3725,6 +3725,7 @@ export type TranslationKey =
   | 'ui.slash-commands.hand-off-to-a-coding-assistant'
   | 'ui.slash-commands.handed-off-started'
   | 'ui.slash-commands.handoff-not-dispatched'
+  | 'ui.slash-commands.handoff-request-too-long'
   | 'ui.slash-commands.help'
   | 'ui.slash-commands.in-out'
   | 'ui.slash-commands.interface'
