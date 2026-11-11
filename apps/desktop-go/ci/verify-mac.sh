@@ -26,6 +26,8 @@ for k in CFBundleIdentifier CFBundleName CFBundleURLTypes LSApplicationCategoryT
 done
 # CI 里启动应用前关掉自动检查更新：否则每次验收都会读 Release 的 latest-go.json，算进下载量
 mkdir -p "$HOME/Library/Application Support/Nomi" && echo '{"version":1,"autoCheck":false}' > "$HOME/Library/Application Support/Nomi/update-settings.json"
+# 新装默认不显示桌面角色：这里打开它，验收的是角色窗口（透明窗口）能正常出来
+printf '%s\n' '{"defaultView":"mascot","closeMain":"hide","showMascot":true}' > "$HOME/Library/Application Support/Nomi/startup.json"
 # 启动（open = Finder 双击同路径）→ 桌面角色窗口 330x355
 
 open -a "$APP"; sleep 30

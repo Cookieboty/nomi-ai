@@ -19,6 +19,8 @@ mascot() { # $1=label $2=pid —— xvfb 里只有本应用：找 ~330x355 的�
 }
 # CI 里启动应用前关掉自动检查更新：否则每次验收都会读 Release 的 latest-go.json，算进下载量（deb 与 AppImage 共用 ~/.config/Nomi）
 mkdir -p "$HOME/.config/Nomi" && echo '{"version":1,"autoCheck":false}' > "$HOME/.config/Nomi/update-settings.json"
+# 新装默认不显示桌面角色：这里打开它，验收的是角色窗口能正常出来
+printf '%s\n' '{"defaultView":"mascot","closeMain":"hide","showMascot":true}' > "$HOME/.config/Nomi/startup.json"
 # deb
 { echo '```'; dpkg-deb -I "$DEB" | grep -E 'Package|Version|Depends|Installed-Size'; echo '```'; } >> "$R"
 sudo apt-get install -y "$(readlink -f "$DEB")" > "$OUT/apt-install.log" 2>&1 || { echo "- deb 安装失败" >> "$R"; ok=0; }
