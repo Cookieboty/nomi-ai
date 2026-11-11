@@ -337,6 +337,24 @@ describe('sidebar project groups', () => {
     expect(live.className).toMatch(/srOnly/);
   });
 
+  it('「项目」标题：「+」是新建项目，笔形是新对话且不放进任何项目', async () => {
+    setChatMode('normal');
+    const r = mount();
+    const plus = await r.findByTestId('new-project');
+    expect(plus.getAttribute('aria-label')).toBe('创建项目');
+    fireEvent.click(r.getByTestId('new-chat'));
+    await waitFor(() => expect(onNewChat).toHaveBeenCalledWith({ projectId: null }));
+  });
+
+  it('没有「其他对话」时整个分区不显示', async () => {
+    convs = convs.filter((c) => (c as { projectId?: string }).projectId);
+    mockIpc();
+    const r = mount();
+    await r.findAllByTestId('workspace-group');
+    expect(r.queryByTestId('workspace-recent')).toBeNull();
+    expect(r.queryByTestId('recent-section-toggle')).toBeNull();
+  });
+
   it('「项目」标题上的按钮打开「创建项目」，不开对话；项目上的「…」打开「编辑项目」', async () => {
     const r = mount();
     fireEvent.click(await r.findByTestId('new-project'));

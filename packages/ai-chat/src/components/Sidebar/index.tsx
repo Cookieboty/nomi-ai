@@ -59,6 +59,7 @@ import { sameMetaList } from './listEquality';
 import { LocalHistorySection } from './LocalHistorySection';
 import { useProjectGrouping, projectBackend } from './projectGrouping';
 import {
+  NewProjectButton,
   OrganizeMenu,
   PinnedSection,
   ProjectGroups,
@@ -818,20 +819,9 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     </div>
   );
 
-  // 新建项目（不开对话）：打开「创建项目」弹窗
-  const newProjectBtn = (
-    <button
-      type="button"
-      className={styles.headBtn}
-      onClick={() => setProjectDialog('new')}
-      title={t('ui.cli-monitor.project-create-title')}
-      aria-label={t('ui.cli-monitor.project-create-title')}
-      data-testid="new-project"
-    >
-      <Icon icon={SquarePen} size={14} />
-    </button>
-  );
-  // 「项目」标题右侧：整理「…」+ 新建项目；分组时不放通用新建（项目行上有，搜索窗口与快捷键也有）。
+  // 新建项目（「+」）：打开「创建项目」弹窗，建好后在这个项目里开一个会话（onSaved）
+  const newProjectBtn = <NewProjectButton onClick={() => setProjectDialog('new')} />;
+  // 「项目」标题右侧：整理「…」+ 新建项目（「+」）+ 新对话（笔形，不放进任何项目）。
   // 不分组时（「对话」）：整理 + 新建对话
   const listOpen = !collapsedWorkspaces.includes(SECTION_WORKSPACES);
   const organize = <OrganizeMenu grouped={groupByWorkspace} onChange={setGroupByWorkspace} />;
@@ -839,6 +829,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     <>
       {organize}
       {newProjectBtn}
+      {newBtn}
     </>
   ) : (
     <>
@@ -1148,6 +1139,15 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         <ProjectDialog
           project={projectDialog === 'new' ? undefined : projectDialog}
           onClose={() => setProjectDialog(null)}
+          onSaved={
+            projectDialog === 'new'
+              ? (p) =>
+                  void createFor(
+                    isNormal ? 'nomi' : view === 'by-endpoint' ? endpointFilter : 'nomi',
+                    p.id,
+                  )
+              : undefined
+          }
         />
       )}
       {searchOpen && (

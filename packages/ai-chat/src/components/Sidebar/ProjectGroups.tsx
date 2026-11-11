@@ -8,6 +8,7 @@ import {
   FolderOpen,
   FolderTree,
   List,
+  Plus,
   SquarePen,
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
@@ -255,8 +256,8 @@ export const ProjectGroups: React.FC<{
             </div>
           );
         })}
-      {/* 「其他对话」一直在：不在任何项目里的会话 */}
-      {
+      {/* 「其他对话」：不在任何项目里的会话；一个都没有时整个分区不显示 */}
+      {rest.length > 0 && (
         <div className={ws.wsRecent} data-testid="workspace-recent">
           <SectionHeader
             label={t('ui.cli-monitor.other-chats')}
@@ -275,7 +276,7 @@ export const ProjectGroups: React.FC<{
             />
           )}
         </div>
-      }
+      )}
     </>
   );
 };
@@ -356,3 +357,17 @@ export const OrganizeMenu: React.FC<{ grouped: boolean; onChange: (on: boolean) 
     </span>
   );
 };
+
+/** 「项目」标题右侧的「+」：新建项目（打开「创建项目」；建好后由侧栏在项目里开一个会话） */
+export const NewProjectButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+  <button
+    type="button"
+    className={styles.headBtn}
+    onClick={onClick}
+    title={t('ui.cli-monitor.project-create-title')}
+    aria-label={t('ui.cli-monitor.project-create-title')}
+    data-testid="new-project"
+  >
+    <Icon icon={Plus} size={14} />
+  </button>
+);
