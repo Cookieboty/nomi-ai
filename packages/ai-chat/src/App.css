@@ -433,13 +433,14 @@ html[data-chat-bg] .workspace-card {
   color: var(--cd-color-text);
   background: none;
   -webkit-text-fill-color: currentColor;
-  margin-bottom: 18px;
+  margin: 0 0 var(--cd-space-5);
 }
 .welcome-subtitle {
-  margin-top: 18px;
+  margin: var(--cd-space-5) 0 0;
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-subtle);
 }
+/* 快捷问题：同高（ms）的胶囊，一行居中排开，放不下再换行 */
 .quick-actions {
   display: flex;
   flex-wrap: wrap;
@@ -447,10 +448,14 @@ html[data-chat-bg] .workspace-card {
   gap: var(--cd-space-2);
 }
 .quick-action-btn {
-  padding: var(--cd-space-1-5) 14px;
+  display: inline-flex;
+  align-items: center;
+  height: var(--cd-control-h-ms);
+  padding: 0 var(--cd-space-4);
   border-radius: var(--cd-radius-full);
   font-size: var(--cd-font-size-sm);
-  background: transparent;
+  font-weight: var(--cd-font-weight-regular);
+  background: var(--cd-color-surface);
   border: 1px solid var(--cd-color-border);
   color: var(--cd-color-text-muted);
   box-shadow: none;
@@ -460,7 +465,12 @@ html[data-chat-bg] .workspace-card {
   transform: none;
   color: var(--cd-color-text);
   background: var(--cd-color-hover);
+  border-color: var(--cd-color-border-strong);
   box-shadow: none;
+}
+.quick-action-btn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
 }
 .input-container {
   background: transparent;
