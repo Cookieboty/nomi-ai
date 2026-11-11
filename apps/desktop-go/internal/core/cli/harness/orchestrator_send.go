@@ -234,6 +234,9 @@ func evs(v any) []*util.Obj {
 }
 
 func (o *Orchestrator) turnOk(id string, tab, current *util.Obj, backend, runCwd string, result *util.Obj, servedRef, stored *string, modelOf func([]*util.Obj, *util.Obj) any, quality *util.Obj, startedAt float64) *util.Obj {
+	if o.tab(id) != current {
+		return result
+	}
 	if sid, _ := result.Get("sessionId").(string); sid != "" && str(current, "backend") == backend && str(current, "cwd") == runCwd {
 		o.bindCliSession(current, sid)
 	}
@@ -659,6 +662,9 @@ var wsRunRe = util.JSRe(`\s+`)
 
 // emitEvent = emitEvent。
 func (o *Orchestrator) emitEvent(tabID string, ev *util.Obj) {
+	if o.tab(tabID) == nil {
+		return
+	}
 	if ev.Get("type") == "user-message" {
 		o.receiveUserImages(tabID, ev)
 		return

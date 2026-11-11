@@ -708,8 +708,15 @@ const historyProcedures = {
   /** 搜索用的紧凑索引（主进程增量解析，分块返回） */
   'history.index': { kind: 'query', input: historyPage, output: HistoryPage },
   'history.open': { kind: 'mutation', input: historySession, output: HistoryOpenResult },
-  /** 把 CLI 的会话记录移到系统废纸篓；会话还开在标签里时拒绝 */
+  /** 终止对应会话进程并等待退出，再永久删除 CLI 的会话记录 */
   'history.delete': { kind: 'mutation', input: historySession, output: HistoryDeleteResult },
+  /** 按标签当前的原生会话标识终止进程并删除记录 */
+  'history.deleteTab': {
+    kind: 'mutation',
+    input: byId,
+    output: HistoryDeleteResult,
+    dangerous: true,
+  },
 } as const satisfies ProcedureMap;
 
 export const codingProcedures = {

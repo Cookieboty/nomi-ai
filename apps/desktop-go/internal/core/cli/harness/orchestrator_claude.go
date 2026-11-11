@@ -527,6 +527,10 @@ func (o *Orchestrator) requestClaudeControl(live *claudeLiveSession, request *ut
 }
 
 func (o *Orchestrator) onClaudeLine(tabID string, live *claudeLiveSession, line string, liveEmit bool) {
+	if o.live.claude[tabID] != live || o.tab(tabID) == nil {
+		return
+	}
+	// 会话 id 在下面 parseLine 的 session / error 事件里记（noteClaudeSession），不在这里再解析一遍 init
 	live.lastActivityAt = nowMs()
 	if o.onClaudeMeta(tabID, live, line) {
 		return

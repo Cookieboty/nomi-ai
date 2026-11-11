@@ -7081,6 +7081,14 @@ type HistoryDeleteOutput struct {
 	Ok bool `json:"ok"`
 }
 
+type HistoryDeleteTabInput struct {
+	Id string `json:"id"`
+}
+
+type HistoryDeleteTabOutput struct {
+	Ok bool `json:"ok"`
+}
+
 type HistoryIndexInputOptions struct {
 	Offset *float64 `json:"offset,omitempty"`
 	Limit  *float64 `json:"limit,omitempty"`
@@ -12616,6 +12624,10 @@ type HarnessWorkspaceWriteOutputT = HarnessWorkspaceWriteOutput
 // HistoryDeleteInputT 是 history.delete 的入参
 type HistoryDeleteInputT = HistoryDeleteInput
 type HistoryDeleteOutputT = HistoryDeleteOutput
+
+// HistoryDeleteTabInputT 是 history.deleteTab 的入参
+type HistoryDeleteTabInputT = HistoryDeleteTabInput
+type HistoryDeleteTabOutputT = HistoryDeleteTabOutput
 
 // HistoryIndexInputT 是 history.index 的入参
 type HistoryIndexInputT = HistoryIndexInput

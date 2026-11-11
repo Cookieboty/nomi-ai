@@ -73,6 +73,8 @@ async function call<T>(run: () => Promise<unknown>): Promise<T> {
 }
 
 export const historyClient = {
+  /** 确认后由内核读取标签的最新会话标识，终止进程并删除记录 */
+  deleteTab: (id: string) => call<HistoryDeleteResult>(() => api.history.deleteTab({ id })),
   available: () => hasTransport(),
   list: (backend: HistoryBackend, o: { offset?: number; limit?: number; force?: boolean } = {}) =>
     call<HistoryPage>(() => api.history.list({ backend, options: o })),
@@ -81,7 +83,7 @@ export const historyClient = {
     call<HistoryPage>(() => api.history.index({ backend, options: o })),
   open: (backend: HistoryBackend, sessionId: string) =>
     call<HistoryOpenResult>(() => api.history.open({ backend, sessionId })),
-  /** 把 CLI 的会话记录移到系统废纸篓；会话还开在标签里时主进程拒绝，调用方先关标签 */
+  /** 内核先关闭对应标签并等待 CLI 进程退出，再永久删除会话记录 */
   delete: (backend: HistoryBackend, sessionId: string) =>
     call<HistoryDeleteResult>(() => api.history.delete({ backend, sessionId })),
 };

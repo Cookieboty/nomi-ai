@@ -32,7 +32,6 @@ import {
 } from '../../services/harnessClient';
 import {
   HISTORY_BACKENDS,
-  isHistoryBackend,
   type HistoryBackend,
   type HistorySession,
 } from '../../services/historyClient';
@@ -415,17 +414,9 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     const meta = list.find((x) => x.id === id);
     if (!meta || !ipc) return;
     if (meta.tabId) {
-      const st = tabById.get(meta.tabId)?.status;
-      if (
-        (st === 'running' || st === 'queued') &&
-        !(await confirmDialog({
-          message: t('ui.mascot-theme.this-tab-is-still-running-closing-it-will'),
-        }))
-      )
-        return;
-      await tabs.close(meta.tabId);
+      await deleteTab(meta);
     } else {
-      // 永久删除不能撤销：先确认，并提示可以改用归档
+      // 永久删除不能撤销，先确认，再中止属于这个会话的回复。
       const ok = await confirmDialog({
         message: t('ui.cli-monitor.delete-chat-permanently-confirm', t(meta.name)),
         confirmLabel: t('ui.cli-monitor.delete-permanently'),
@@ -442,6 +433,19 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       }
     }
     refresh();
+  };
+
+  const closeItem = async (meta: Meta) => {
+    if (!meta.tabId) return;
+    const status = tabById.get(meta.tabId)?.status;
+    if (
+      (status === 'running' || status === 'queued') &&
+      !(await confirmDialog({
+        message: t('ui.mascot-theme.this-tab-is-still-running-closing-it-will'),
+      }))
+    )
+      return;
+    await tabs.close(meta.tabId);
   };
 
   const commitRename = useCallback(
@@ -480,7 +484,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     latest.current = { list, current, tabs, isDev, removeItem, archiveItem };
   });
 
-  // 行内按钮：CLI 标签 = 关闭（可从历史重新打开，运行中先确认）；Nomi 对话 = 归档
+  // 行内垃圾桶统一永久删除；归档仍是菜单中明确标注的独立操作。
   const togglePin = useCallback(
     (id: string) => {
       const meta = latest.current.list.find((x) => x.id === id);
@@ -492,10 +496,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     [ipc, refresh],
   );
   const requestDelete = useCallback((id: string) => {
-    const { list, removeItem, archiveItem } = latest.current;
-    const meta = list.find((x) => x.id === id);
-    if (!meta) return;
-    void (meta.tabId ? removeItem : archiveItem)?.(id);
+    void latest.current.removeItem?.(id);
   }, []);
   const listPeek = useSessionPeek(400);
 
@@ -528,7 +529,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     deleteHistory,
     deleteTab,
   } = useSessionActions({
-    tabs,
     onNotice,
     refresh,
     refreshHistory: history.refresh,
@@ -1102,16 +1102,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               onPin={meta ? () => togglePin(ctx.id) : undefined}
               pinned={Boolean(meta?.pinnedAt)}
               onFork={() => onForkRequest?.(ctx.id)}
-              onClose={meta?.tabId ? () => void removeItem(ctx.id) : undefined}
+              onClose={meta?.tabId ? () => void closeItem(meta) : undefined}
               onArchive={meta && !meta.tabId ? () => void archiveItem(ctx.id) : undefined}
-              // CLI 标签：删除 = 关标签 + 把 CLI 的会话记录移到废纸篓（外部 CLI 没有本机历史，只能关闭）
-              onDelete={
-                !meta?.tabId
-                  ? () => void removeItem(ctx.id)
-                  : isHistoryBackend(meta.backend)
-                    ? () => void deleteTab(meta)
-                    : undefined
-              }
+              // 最近列表与本机历史统一确认后永久删除。
+              onDelete={() => void removeItem(ctx.id)}
             />
           );
         })()}

@@ -331,7 +331,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 			// mac/Windows 需要各自显式声明透明。Mac 上 WKWebView 只能用私有键 drawsBackground 关底色，
 			// Wails v3.0.0 只在 -tags private_mac_apis 下编进去（否则是空实现 → 白底），见 macflags_darwin.go。
 			// 关掉系统窗口投影：macOS 按不透明像素生成投影，气泡 / 工具栏挪动后投影不重算，会留下一圈错位的灰边
-			Mac:     application.MacWindow{Backdrop: application.MacBackdropTransparent, DisableShadow: true},
+			Mac:     mascotMacWindow(true),
 			Windows: application.WindowsWindow{HiddenOnTaskbar: true, BackdropType: application.None, DisableFramelessWindowDecorations: true},
 			URL:     pageURL,
 			// 拖文件到角色身上 → 总结（renderer useFileDropSummarize 给画布加 data-file-drop-target）
@@ -402,6 +402,9 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 	w.mu.Lock()
 	if on, ok := w.aot[k]; ok {
 		opts.AlwaysOnTop = on
+		if k == shell.Mascot {
+			opts.Mac = mascotMacWindow(on)
+		}
 	}
 	w.mu.Unlock()
 	if at != nil {

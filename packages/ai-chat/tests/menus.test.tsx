@@ -95,6 +95,7 @@ function mockIpc() {
     if (ch === 'harness.tabRename') return tab({ title: '新名字' });
     if (ch === 'harness.tabClose') return tabsState;
     if (ch === 'history.list') return { items: [], nextOffset: null, hasMore: false };
+    if (ch === 'history.deleteTab') return { ok: true, removed: 1 };
     return {};
   });
   installFakeApi(invoke);
@@ -156,7 +157,7 @@ describe('one conversation context menu', () => {
       expect(r.getByTestId(id)).toBeTruthy();
   });
 
-  it('deleting a CLI conversation confirms in-app, closes the tab, then trashes the CLI session record', async () => {
+  it('deleting a CLI conversation confirms permanent deletion and delegates shutdown and record removal to the kernel', async () => {
     const invoke = mockIpc();
     list[0]!.cliSessionId = 'sess-1';
     const r = mountSidebar();
@@ -167,20 +168,20 @@ describe('one conversation context menu', () => {
     // 应用内确认框（不是 window.confirm）；取消：什么都不动
     const dialog = await screen.findByTestId('confirm-dialog');
     expect(dialog.textContent).toContain('修复登录');
+    expect(dialog.textContent).toContain('永久删除');
+    expect(dialog.textContent).toContain('无法恢复');
     fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
     await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
     expect(chans()).not.toContain('harness.tabClose');
-    expect(chans()).not.toContain('history.delete');
+    expect(chans()).not.toContain('history.deleteTab');
 
     fireEvent.contextMenu(r.getAllByTestId('history-item')[0]!);
     fireEvent.click(r.getByTestId('conversation-delete'));
     fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
-    await waitFor(() => expect(chans()).toContain('history.delete'));
-    const closeAt = chans().indexOf('harness.tabClose');
-    const delAt = chans().indexOf('history.delete');
-    expect(closeAt).toBeGreaterThanOrEqual(0);
-    expect(closeAt).toBeLessThan(delAt);
-    expect(invoke.mock.calls[delAt]!.slice(1)).toEqual([{ backend: 'codex', sessionId: 'sess-1' }]);
+    await waitFor(() => expect(chans()).toContain('history.deleteTab'));
+    expect(chans()).not.toContain('harness.tabClose');
+    const delAt = chans().indexOf('history.deleteTab');
+    expect(invoke.mock.calls[delAt]!.slice(1)).toEqual([{ id: 't1' }]);
     expect(deleteConversation).not.toHaveBeenCalled();
   });
 
@@ -278,6 +279,7 @@ describe('one conversation context menu', () => {
         return { backend: 'nomi', cwd: '/w', bins: { claude: '/c', codex: '/x', dsh: null } };
       if (ch === 'harness.recentCwds') return ['/proj/one'];
       if (ch === 'history.list') return { items: [], nextOffset: null, hasMore: false };
+      if (ch === 'history.deleteTab') return { ok: true, removed: 1 };
       return {};
     });
     const onNewChat = vi.fn(async () => undefined);
