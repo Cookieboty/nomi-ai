@@ -235,5 +235,6 @@ export const SideColumn: React.FC<{
   useSubagentPane()?.tabId ? (
     <SubagentPane />
   ) : (
-    <CenterChangesHost messages={messages} cwd={cwd} roots={roots} />
+    // 本会话 Diff 在预览区的标签里（App 的 useResourcePreview），这一栏只给右栏的文件预览留挂载点
+    <CenterChangesHost messages={messages} cwd={cwd} roots={roots} mode="slot" />
   );

@@ -18,6 +18,7 @@ import {
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import { useResourceContext } from '../../contexts/ResourceContext';
 import { useGitBranch } from '../../hooks/useGitBranch';
 import { useGitSync, useGitWorktrees } from '../../hooks/useGitSync';
 import { harnessClient, type GitDiffResult } from '../../services/harnessClient';
@@ -240,6 +241,7 @@ export const RepoGitSection: React.FC<{
   onReport,
 }) => {
   const { closeWorkbench, previewSlot, fillComposer } = useChangesUi();
+  const resource = useResourceContext();
   const [git, setGit] = useState<GitDiffResult | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   /** 手动刷新 / 切分支后连同分支一起重读 */
@@ -401,17 +403,37 @@ export const RepoGitSection: React.FC<{
   }, [git, gitDiffs, gitFiles.length, sessionInGit]);
   useEffect(() => onReport(cwd, report), [cwd, report, onReport]);
 
+  const previewFiles: ReviewFile[] = useMemo(
+    () =>
+      gitItems.map(({ entry: g, letter, diff: d, added, removed, key }) => {
+        const gitDiff: ToolFileDiff | undefined = d
+          ? { file: d.file, diff: parsePatch(d.body) }
+          : undefined;
+        return { key, path: g.path, letter, added, removed, gitDiff };
+      }),
+    [gitItems],
+  );
+  /** 文件 Diff 标签（暂存 / 未暂存各一个；同一文件的文件标签是另一个） */
+  const diffTabOf = useCallback(
+    (f: ReviewFile) => ({
+      key: `git\u0000${gitCwd}\u0000${f.key}`,
+      path: f.path,
+      file: f,
+      cwd: gitCwd,
+      onSaved: () => void refreshGit(),
+    }),
+    [gitCwd, refreshGit],
+  );
+  // git 刷新后，已经开着的 Diff 标签换成最新的改动
+  const updateDiff = resource?.updateDiff;
+  useEffect(() => {
+    if (!updateDiff) return;
+    for (const f of previewFiles) updateDiff(diffTabOf(f));
+  }, [previewFiles, diffTabOf, updateDiff]);
+
   if (report.state !== 'git' || show === 'none') return null;
 
   const mine = !!previewKey?.startsWith(keyPrefix);
-  const previewFiles: ReviewFile[] = gitItems.map(
-    ({ entry: g, letter, diff: d, added, removed, key }) => {
-      const gitDiff: ToolFileDiff | undefined = d
-        ? { file: d.file, diff: parsePatch(d.body) }
-        : undefined;
-      return { key, path: g.path, letter, added, removed, gitDiff };
-    },
-  );
 
   /** 「提交」与「让助手提交」针对的文件：有过滤 / 只看本会话时是过滤后的 */
   const pickedRows = onlySession || q ? gitRows : gitItems;
@@ -448,10 +470,17 @@ export const RepoGitSection: React.FC<{
     setSelectedFile(null);
     setOnlySession(false);
   };
+  /** 点改动文件：在预览区打开（或切到）它的 Diff 标签，和文件标签同一排 */
   const pickGit = (item: GitItem) => {
     setSelectedFile(item.entry.path);
-    setPreviewKey(item.key);
     closeWorkbench();
+    const f = previewFiles.find((x) => x.key === item.key);
+    if (f && resource?.openDiff) {
+      setPreviewKey(null);
+      resource.openDiff(diffTabOf(f));
+    } else {
+      setPreviewKey(item.key);
+    }
   };
   const selectedRel = selectedFile ? relOf(gitCwd, selectedFile) : null;
 

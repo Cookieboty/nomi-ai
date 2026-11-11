@@ -3,6 +3,7 @@
  * - workbench：本会话「变更」Diff，多文件块、顶栏 +/−
  * - 否则右栏在预览未提交 / 磁盘文件时，这里只给出挂载点，FilePreview 由右栏 portal 进来
  * 全屏审查仍走 ChangesWorkbenchHost（openDetail）。
+ * 应用里每个文件的 Diff 是预览区的一个标签，中栏只给右栏预览留挂载点（mode="slot"）。
  */
 import { t } from '@nomi-ai/ui';
 import { X } from 'lucide-react';
@@ -28,9 +29,15 @@ export const CenterChangesHost: React.FC<{
   cwd?: string | null;
   /** 项目的全部文件夹：Diff 按各自的文件夹显示相对路径 */
   roots?: readonly string[] | null;
-}> = ({ messages, cwd, roots }) => {
+  /**
+   * all：有 Diff 显示 Diff，否则给预览挂载点；slot：只给右栏的文件预览留挂载点，不显示 Diff。
+   */
+  mode?: 'all' | 'slot';
+}> = ({ messages, cwd, roots, mode = 'all' }) => {
   const cwdOf = (file: string) => (roots?.length ? (rootOf(roots, file) ?? cwd) : cwd);
-  const { workbench, closeWorkbench, previewOpen, setPreviewSlot } = useChangesUi();
+  const changesUi = useChangesUi();
+  const { closeWorkbench, previewOpen, setPreviewSlot } = changesUi;
+  const workbench = mode === 'slot' ? null : changesUi.workbench;
   const [scopeAll, setScopeAll] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
 

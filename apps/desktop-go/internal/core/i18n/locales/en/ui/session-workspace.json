@@ -292,5 +292,6 @@
   "ui.session-workspace.preview-tab-close-others": "Close other tabs",
   "ui.session-workspace.preview-title": "Resource preview",
   "ui.session-workspace.preview-truncated": "Large file: only the first 1.5 MB is displayed. Download for the complete content.",
-  "ui.session-workspace.preview-chat-minimize": "Minimize to a button"
+  "ui.session-workspace.preview-chat-minimize": "Minimize to a button",
+  "ui.session-workspace.diff-tab": "Changes in {0}"
 }
