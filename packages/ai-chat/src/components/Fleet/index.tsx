@@ -4,7 +4,7 @@
  * - 标题栏右侧的负载指示，点开小浮层看正在跑的，再进完整看板。
  * 两个入口共用一份数据（useFleet）：看板或浮层开着时 3 秒刷新占用，平时 15 秒，窗口隐藏时不刷新。
  */
-import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
+import { isBuiltinCliId, type BuiltinCliId } from '@nomi-ai/cli-catalog';
 import { isContractError } from '@nomi-ai/contract';
 import { brand } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
@@ -30,6 +30,7 @@ import {
 } from '../../services/fleetClient';
 import { harnessClient } from '../../services/harnessClient';
 import { requestOpenTask } from '../../services/tasksClient';
+import { OPEN_FLEET_EVENT } from '../../services/workbenchNav';
 import type { IPCClient } from '../../types/ipc';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { confirmDialog } from '../ConfirmDialog';
@@ -101,10 +102,16 @@ export function useFleetHost(collapsed: boolean) {
     setMounted(true);
   }, []);
   const close = useCallback(() => setOpen(false), []);
+  useEffect(() => {
+    const on = () => show();
+    window.addEventListener(OPEN_FLEET_EVENT, on);
+    return () => window.removeEventListener(OPEN_FLEET_EVENT, on);
+  }, [show]);
 
   // 切到别的会话 / 标签时回到对话（与任务页一致）
   const first = useAiChatSelector(selectFirstMessageId);
-  const tabId = useHarnessTabs().state?.activeTabId;
+  const tabs = useHarnessTabs();
+  const tabId = tabs.state?.activeTabId;
   const last = useRef({ first, tabId });
   useEffect(() => {
     if (last.current.first !== first || last.current.tabId !== tabId) setOpen(false);
@@ -161,6 +168,15 @@ export function useFleetHost(collapsed: boolean) {
         .then(apply)
         .catch(() => reload()),
     [apply, reload],
+  );
+  const dispatchCli = useCallback(
+    (backend: BuiltinCliId) => {
+      setMode('dev');
+      setOpen(false);
+      if (!tabs.available) return;
+      void tabs.create(backend).catch(() => undefined);
+    },
+    [setMode, tabs],
   );
   const setPolicy = useCallback(
     (mode: FleetPolicyMode) =>
@@ -272,6 +288,7 @@ export function useFleetHost(collapsed: boolean) {
         onResume={resume}
         onSetAutoPause={setAutoPause}
         onSetPolicy={setPolicy}
+        onDispatch={dispatchCli}
       />
     </div>
   ) : null;

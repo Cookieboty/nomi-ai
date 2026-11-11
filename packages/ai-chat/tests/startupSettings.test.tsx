@@ -51,14 +51,14 @@ afterEach(() => {
 });
 
 describe('startupClient', () => {
-  it('falls back to the mascot default for missing / invalid payloads', async () => {
+  it('falls back to the workbench default for missing / invalid payloads', async () => {
     stored = { defaultView: 'console' };
-    expect(await startupClient.get()).toBe('mascot');
+    expect(await startupClient.get()).toBe('main');
     stored = null;
-    expect(await startupClient.get()).toBe('mascot');
+    expect(await startupClient.get()).toBe('main');
     resetFakeApi();
     expect(startupClient.available()).toBe(false);
-    expect(await startupClient.get()).toBe('mascot');
+    expect(await startupClient.get()).toBe('main');
     expect(await startupClient.set('main')).toBeNull();
   });
 });

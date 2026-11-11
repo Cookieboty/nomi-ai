@@ -13,7 +13,7 @@ var Views = []string{"mascot", "main"}
 var CloseActions = []string{"hide", "quit"}
 
 const (
-	DefaultView      = "mascot"
+	DefaultView      = "main"
 	DefaultCloseMain = "hide"
 )
 
@@ -30,7 +30,7 @@ type Service struct {
 }
 
 func New(file string, emit func(State)) *Service {
-	s := &Service{file: file, state: State{DefaultView: DefaultView, CloseMain: DefaultCloseMain, ShowMascot: true}, emit: emit}
+	s := &Service{file: file, state: State{DefaultView: DefaultView, CloseMain: DefaultCloseMain, ShowMascot: false}, emit: emit}
 	if raw, err := os.ReadFile(file); err == nil {
 		var rawS struct {
 			DefaultView any `json:"defaultView"`

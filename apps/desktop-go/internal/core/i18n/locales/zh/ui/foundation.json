@@ -224,7 +224,7 @@
   "ui.foundation.weekday-button": "周{0}",
   "ui.foundation.weekdays": "工作日",
   "ui.foundation.weekly": "每周…",
-  "ui.foundation.what-would-you-like-to-do-today": "今天想做点什么？",
+  "ui.foundation.what-would-you-like-to-do-today": "先做一件事",
   "ui.foundation.when-indexing-and-searching": "建立索引和检索时",
   "ui.foundation.when-on-only-local-models-e-g-ollama": "开启后，只有本机模型（如 Ollama，地址为 localhost）才能读取 / 总结文件内容；云端模型调用文件工具会被拒绝。",
   "ui.foundation.when-searching": "检索时",
@@ -238,7 +238,7 @@
   "ui.foundation.getting-started-go-add": "去添加",
   "ui.foundation.getting-started-import-mcp-and-skills": "导入 MCP 与技能",
   "ui.foundation.getting-started-install-a-coding-agent": "安装编程助手",
-  "ui.foundation.getting-started-install-a-coding-agent-desc": "在工坊里让 Nomi 调度 Claude Code、Codex 等写代码。",
+  "ui.foundation.getting-started-install-a-coding-agent-desc": "在工坊里派出 Claude Code 或 Codex。",
   "ui.foundation.getting-started-installing": "安装中…",
   "ui.foundation.getting-started-open-a-coding-session": "开一个编程会话",
   "ui.foundation.getting-started-open-a-coding-session-desc": "选好项目目录，让编程助手开始干活。",
@@ -246,7 +246,7 @@
   "ui.foundation.getting-started-start-your-first-chat": "开始第一个对话",
   "ui.foundation.getting-started-start-your-first-chat-desc": "在下方输入框里问 Nomi 点什么。",
   "ui.foundation.getting-started-to-do": "待完成",
-  "ui.foundation.nomi-has-no-model-yet-add-one-to-start": "Nomi 还没有可用的模型，先添加一个就能开始聊。",
+  "ui.foundation.nomi-has-no-model-yet-add-one-to-start": "还没接模型也可以先派出编程助手。要和 Nomi 对话，再添加一个模型。",
   "ui.foundation.pick-one-of-your-models-for-nomi-chat": "已经添加了模型，选一个给 Nomi 对话用就能开始聊。",
   "ui.foundation.getting-started-recommended-for-you": "为你推荐",
   "ui.foundation.getting-started-recommended-clis-desc": "根据你的职业与兴趣推荐，可以同时安装。",
@@ -331,5 +331,7 @@
   "ui.foundation.mcp-header-key": "第 {0} 个请求头名称",
   "ui.foundation.mcp-header-remove": "删除第 {0} 个请求头",
   "ui.foundation.mcp-header-value": "第 {0} 个请求头值",
-  "ui.foundation.mcp-request-headers": "请求头（可选）"
+  "ui.foundation.mcp-request-headers": "请求头（可选）",
+  "ui.foundation.palette-add-provider": "添加供应商",
+  "ui.foundation.palette-dispatch": "派出编程助手"
 }

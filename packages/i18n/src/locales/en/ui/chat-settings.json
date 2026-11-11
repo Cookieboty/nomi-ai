@@ -47,7 +47,7 @@
   "ui.chat-settings.asks-you-before-changing-files-or-running-commands": "Asks you before changing files or running commands",
   "ui.chat-settings.asks-you-every-time-before-writing-files-or": "Asks you every time before writing files or making other changes",
   "ui.chat-settings.authorization-code": "Authorization code",
-  "ui.chat-settings.auto-approve-coding-description": "When on, new coding agent tabs and the agents Nomi hands work to start in Full access; turn it off to start new tabs in the default mode and be asked again. Nomi's own permissions are in Settings → Nomi.",
+  "ui.chat-settings.auto-approve-coding-description": "When on, new coding assistants start with full access. When off, each action asks you. Nomi’s own permissions are under Nomi.",
   "ui.chat-settings.auto-approve-confirm-body": "New coding agent tabs and the agents Nomi hands work to will run with full access, editing files and running commands without asking. Only use this with folders you trust.",
   "ui.chat-settings.auto-approve-everything": "Auto-approve everything (full access)",
   "ui.chat-settings.auto-deny-in-s": "Auto-deny in {0}s",
@@ -496,7 +496,7 @@
   "ui.chat-settings.write-clipboard": "Write clipboard",
   "ui.chat-settings.write-me-a-briefing-for-today-start-with": "Write me a briefing for today: start with a greeting, then list today's reminders and plans, then give one or two thoughtful tips based on what you know about me. Keep it short, under 100 words, in English.",
   "ui.chat-settings.write-text-file": "Write text file",
-  "ui.chat-settings.your-desktop-ai-assistant": "Your desktop AI assistant",
+  "ui.chat-settings.your-desktop-ai-assistant": "Local-first Agent workbench",
   "ui.chat-settings.your-next-message-will-be-sent-to-the": "Your next message will be sent to the new session together with the previous {0} messages",
   "ui.chat-settings.your-own-secrets": "Your own secrets",
   "ui.chat-settings.always-allow-command-prefix": "Don't ask again for commands starting with:",
@@ -513,7 +513,7 @@
   "ui.chat-settings.unarchive": "Unarchive",
   "ui.chat-settings.archived-at": "Archived {0}",
   "ui.chat-settings.codex-network": "Let Codex use the network",
-  "ui.chat-settings.codex-network-description": "Off by default: commands in Codex's sandbox can't reach the network and Codex asks you first when it needs to. When on, sandboxed commands can go online directly (Full access isn't limited by this).",
+  "ui.chat-settings.codex-network-description": "Off by default. Codex asks before it uses the network. When on, sandboxed commands can go online.",
   "ui.chat-settings.sandbox-category-ssh": "SSH and Git credentials (~/.ssh, ssh-agent, GitHub CLI token)",
   "ui.chat-settings.sandbox-category-cloud": "Cloud credentials (AWS, GCP, Azure, Kubernetes, Docker, npm / PyPI publish tokens)",
   "ui.chat-settings.sandbox-category-keys": "Keys and password stores (GPG, pass, KeePass, 1Password CLI)",
@@ -546,7 +546,7 @@
   "ui.chat-settings.login-blocked-no-proxy": "Nomi didn't find https_proxy or similar variables in your terminal config (e.g. ~/.zshrc), so this sign-in went out directly. Turn on your proxy app's TUN / enhanced mode, or set https_proxy in your terminal config and restart Nomi, then try again.",
   "ui.chat-settings.login-blocked-use-proxy-and-retry": "Use the terminal's proxy and retry",
   "ui.chat-settings.use-the-terminal-s-proxy": "Use the terminal's proxy",
-  "ui.chat-settings.use-the-terminal-s-proxy-desc": "Coding assistants sign in and chat through the https_proxy (and similar) set in your terminal config, e.g. ~/.zshrc. Local addresses skip the proxy; Nomi's own model requests aren't affected.",
+  "ui.chat-settings.use-the-terminal-s-proxy-desc": "Sign-in and chat use the https_proxy from your terminal. Local addresses and Nomi’s own model requests skip it.",
   "ui.chat-settings.terminal-proxy-detected": "Detected: {0}",
   "ui.chat-settings.terminal-proxy-not-found": "No proxy is configured in your terminal.",
   "ui.chat-settings.my-themes": "My themes",
@@ -613,5 +613,6 @@
   "ui.chat-settings.theme-importing": "Importing…",
   "ui.chat-settings.theme-drop-too-large": "Dropped files are limited to {0} MB. Click to choose the file instead.",
   "ui.chat-settings.theme-download-template": "Download template",
-  "ui.chat-settings.theme-template-saved": "Template saved to {0}"
+  "ui.chat-settings.theme-template-saved": "Template saved to {0}",
+  "ui.chat-settings.about-slogan": "Every AI capability, working for you."
 }

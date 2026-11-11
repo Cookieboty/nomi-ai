@@ -1,8 +1,8 @@
 /**
- * 首次启动引导：欢迎与语言 → 外观与启动 → 关于你（称呼、职业与兴趣）→ 接上模型 → 隐私与完成。
+ * 首次启动引导：语言与主题 → 接上模型 → 打开看板 → 桌面角色（默认可关，并记下称呼与兴趣）。
  * 职业与兴趣存在主进程，侧栏「开始使用」与欢迎页据此推荐任务（services/recommendations）。
- * 每一步都能「跳过这一步」，右上角「跳过引导」直接结束；完成后可在「设置 → 通用」重新打开。
- * 桌面角色在引导中打招呼、回应每一步的选择；还没接上模型时，最后一步与她的台词都会提醒「还差一步」。
+ * 右上角「跳过引导」直接结束；完成后可在「设置 → 通用」重新打开。
+ * 引导盖住整个窗口，不露出还没准备好的主界面。桌面角色只有在这一步被打开时才说话。
  */
 import {
   USER_INTERESTS,
@@ -26,20 +26,15 @@ import {
   type ThemePref,
   Icon,
 } from '@nomi-ai/ui';
-import { CheckCircle2, Cloud, FolderLock, KeyRound, Lock, PlugZap } from 'lucide-react';
+import { CheckCircle2, Cloud, KeyRound, Lock, PlugZap } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useNomiModelStatus } from '../../hooks/useNomiModelStatus';
-import {
-  characterFullName,
-  characterName,
-  characterPronoun,
-  useCharacterName,
-} from '../../services/characterName';
+import { characterName, useCharacterName } from '../../services/characterName';
 import { startupClient, type StartupView } from '../../services/startupClient';
+import { requestOpenFleet } from '../../services/workbenchNav';
 import { ChatBackgroundSettings } from '../SettingsView/ChatBackgroundSettings';
 
-import { BUILTIN_ONBOARDING_ART, resolveOnboardingArt } from './artUrls';
 import {
   OPEN_MODELS_EVENT,
   matchTemplate,
@@ -50,28 +45,27 @@ import {
 import styles from './index.module.css';
 import { ProviderSetup } from './ProviderSetup';
 
-const STEPS = ['welcome', 'profile', 'provider', 'privacy'] as const;
+const STEPS = ['welcome', 'provider', 'board', 'character'] as const;
 type Step = (typeof STEPS)[number];
 
 const STEP_TITLE: Record<Step, () => string> = {
-  welcome: () => tName('ui.mascot-theme.welcome-title', characterFullName()),
-  profile: () => t('ui.mascot-theme.about-you'),
+  welcome: () => t('ui.mascot-theme.onb-welcome-title'),
   provider: () => t('ui.mascot-theme.connect-an-ai-model'),
-  privacy: () => t('ui.mascot-theme.your-data-stays-on-this-computer'),
+  board: () => t('ui.mascot-theme.onb-board-title'),
+  character: () => t('ui.mascot-theme.onb-character-title'),
 };
-/** 桌面角色在每一步说的话（最后一步视模型状态而定，见 lineFor） */
+const STEP_INTRO: Record<Step, () => string> = {
+  welcome: () => t('ui.mascot-theme.onb-welcome-intro'),
+  provider: () => t('ui.mascot-theme.onb-provider-intro'),
+  board: () => t('ui.mascot-theme.onb-board-intro'),
+  character: () => t('ui.mascot-theme.onb-character-intro'),
+};
+/** 桌面角色被打开时，每一步说的一句。关着时不说。 */
 const STEP_LINE: Record<Step, () => string> = {
-  welcome: () => tName('ui.mascot-theme.hi-i-m-nomi-your-ai-companion-who', characterFullName()),
-  profile: () => t('ui.mascot-theme.tell-me-what-you-do-and-i-ll-suggest'),
-  provider: () => t('ui.mascot-theme.connect-an-ai-model-and-i-can-help'),
-  privacy: () => t('ui.mascot-theme.rest-assured-our-conversations-and-memories-stay-on'),
-};
-/** 带插画的步骤：插画 + 一句介绍（窗口很矮时插画隐藏） */
-const STEP_ART_META: Record<Step, { intro?: () => string }> = {
-  welcome: { intro: () => t('ui.mascot-theme.intro-welcome') },
-  profile: { intro: () => t('ui.mascot-theme.intro-profile') },
-  provider: { intro: () => t('ui.mascot-theme.intro-provider') },
-  privacy: {},
+  welcome: () => t('ui.mascot-theme.onb-line-welcome'),
+  provider: () => t('ui.mascot-theme.onb-line-provider'),
+  board: () => t('ui.mascot-theme.onb-line-board'),
+  character: () => t('ui.mascot-theme.onb-line-character'),
 };
 
 const LANGS: { id: LocalePref; label: () => string }[] = [
@@ -83,20 +77,14 @@ const LANGS: { id: LocalePref; label: () => string }[] = [
 
 const STARTUPS: { id: StartupView; label: () => string; hint: () => string }[] = [
   {
-    id: 'mascot',
-    label: () => tName('ui.mascot-theme.open-with-nomi', characterName()),
-    hint: () =>
-      tName(
-        'ui.mascot-theme.nomi-appears-on-your-desktop-first-click-her',
-        characterName(),
-        characterPronoun('possessive'),
-      ),
+    id: 'main',
+    label: () => t('ui.mascot-theme.onb-startup-workbench'),
+    hint: () => t('ui.mascot-theme.onb-startup-workbench-hint'),
   },
   {
-    id: 'main',
-    label: () => t('ui.mascot-theme.open-with-the-console-main-window'),
-    hint: () =>
-      tName('ui.mascot-theme.open-the-main-window-right-away-nomi-waits', characterName()),
+    id: 'mascot',
+    label: () => tName('ui.mascot-theme.onb-startup-character', characterName()),
+    hint: () => tName('ui.mascot-theme.onb-startup-character-hint', characterName()),
   },
 ];
 
@@ -141,18 +129,6 @@ const INTEREST_LABEL: Record<UserInterest, () => string> = {
 
 export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ onDone }) => {
   useLocale();
-  // 等角色包 overlay 解析完再出插画，避免先闪一下内置插画再换成角色包的
-  const [stepArt, setStepArt] = useState<Record<Step, string> | null>(null);
-  useEffect(() => {
-    let alive = true;
-    void resolveOnboardingArt().then((art) => {
-      if (alive) setStepArt(art);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
   const [i, setI] = useState(0);
   // 引导是阻断式对话框：焦点留在卡片内（Esc 不关闭，需点「跳过引导」）
   const cardRef = useRef<HTMLDivElement>(null);
@@ -167,8 +143,8 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   const [name, setName] = useState('');
   const [role, setRole] = useState<UserRole | null>(null);
   const [interests, setInterests] = useState<UserInterest[]>([]);
-  // 启动方式：默认桌面角色（保持历史行为）；点选即写入设置，跳过 / 不选则不改
-  const [startup, setStartup] = useState<StartupView>('mascot');
+  // 启动方式：默认打开工作台，桌面角色关着。点选即写入设置。
+  const [startup, setStartup] = useState<StartupView>('main');
   /** 「关于我」里引导那一段中认不出的行（手改的、换语言前写的）：重写时原样保留 */
   const keepLines = useRef<string[]>([]);
   const loaded = useRef<Promise<void> | null>(null);
@@ -197,16 +173,16 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     });
     loaded.current = Promise.all([profile, persona]).then(() => undefined);
   }, []);
-  // 每进入一步，桌面角色说一句；最后一步还没接上模型时提醒「还差一步」
-  const line =
-    step === 'privacy' && !modelReady ? t('ui.mascot-theme.one-step-left-line') : STEP_LINE[step]();
+  // 桌面角色开着时，每进入一步说一句。关着时不说话。
+  const line = STEP_LINE[step]();
   useEffect(() => {
+    if (startup !== 'mascot') return;
     onboardingClient.mascot({
       type: 'say',
       text: line,
       gesture: step === 'welcome' ? 'wave' : undefined,
     });
-  }, [step, line]);
+  }, [step, line, startup]);
 
   /** 称呼、职业与兴趣一起写进「关于我」里引导的那一段；返回是否写了内容 */
   const writePersona = useCallback(async (): Promise<boolean> => {
@@ -232,33 +208,39 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     const profile: UserProfile = { role, interests };
     await onboardingClient.setProfile(profile);
     if (!(await writePersona())) return;
+    if (startup !== 'mascot') return;
     onboardingClient.mascot({
       type: 'say',
       text: name.trim()
         ? t('ui.mascot-theme.got-it-that-s-what-i-ll-call', name.trim().slice(0, 40))
         : t('ui.mascot-theme.noted'),
     });
-  }, [name, role, interests, writePersona]);
+  }, [name, role, interests, writePersona, startup]);
 
   const finish = useCallback(
-    async (skipped: boolean) => {
+    async (skipped: boolean, opts?: { board?: boolean }) => {
       await onboardingClient.complete(skipped);
-      onboardingClient.mascot({
-        type: 'say',
-        text: skipped
-          ? t('ui.mascot-theme.you-can-reopen-this-guide-from-settings-anytime')
-          : modelReady
-            ? t('ui.mascot-theme.all-set-i-m-here-to-help-turn')
-            : t('ui.mascot-theme.one-step-left-line'),
-        gesture: skipped || !modelReady ? undefined : 'cheer',
-      });
+      if (startup === 'mascot') {
+        onboardingClient.mascot({
+          type: 'say',
+          text: skipped
+            ? t('ui.mascot-theme.you-can-reopen-this-guide-from-settings-anytime')
+            : modelReady
+              ? t('ui.mascot-theme.onb-line-done')
+              : t('ui.mascot-theme.onb-line-need-model'),
+          gesture: skipped || !modelReady ? undefined : 'cheer',
+        });
+      }
       onDone(skipped);
+      if (opts?.board !== false) requestOpenFleet();
     },
-    [onDone, modelReady],
+    [onDone, modelReady, startup],
   );
   /** 去设置里接模型：结束引导（算完成）再打开「设置 → 模型与供应商」 */
   const openModels = () => {
-    void finish(false).then(() => window.dispatchEvent(new CustomEvent(OPEN_MODELS_EVENT)));
+    void finish(false, { board: false }).then(() =>
+      window.dispatchEvent(new CustomEvent(OPEN_MODELS_EVENT)),
+    );
   };
 
   // 保存（写 persona / 职业与兴趣）期间不能再前进 / 后退 / 跳过，否则会连跳两步或丢掉正在写的内容
@@ -269,7 +251,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     savingRef.current = true;
     setSaving(true);
     try {
-      if (step === 'profile') await saveProfile();
+      if (step === 'character') await saveProfile();
       if (i === STEPS.length - 1) return await finish(false);
       setI(i + 1);
     } finally {
@@ -286,10 +268,10 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   const body = (() => {
     switch (step) {
       case 'welcome': {
-        // 默认的日落橙与跟随系统排在前面；全部做成小卡片，一屏内能看到启动方式
+        // 浅色（新安装默认）排在前面，不把日落橙标成另一套默认
         const themes = [
-          ...THEMES.filter((x) => x.id === 'sunset' || x.id === 'system'),
-          ...THEMES.filter((x) => x.id !== 'sunset' && x.id !== 'system'),
+          ...THEMES.filter((x) => x.id === 'light' || x.id === 'dark' || x.id === 'sunset'),
+          ...THEMES.filter((x) => x.id !== 'light' && x.id !== 'dark' && x.id !== 'sunset'),
         ];
         const card = (x: (typeof THEMES)[number]) => (
           <button
@@ -354,9 +336,46 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
               {themes.map(card)}
             </div>
             {theme === 'image' && <ChatBackgroundSettings />}
-
+          </>
+        );
+      }
+      case 'provider':
+        return <ProviderSetup onOpenModels={openModels} />;
+      case 'board':
+        return (
+          <>
+            <p className={styles.note}>{t('ui.mascot-theme.onb-board-note')}</p>
+            {modelReady ? (
+              <div className={`${styles.callout} ${styles.calloutOk}`} data-testid="onb-all-set">
+                <Icon icon={CheckCircle2} />
+                <div>
+                  <div className={styles.calloutTitle}>{t('ui.mascot-theme.all-set-title')}</div>
+                  <div className={styles.note}>{t('ui.mascot-theme.all-set-hint')}</div>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.callout} data-testid="onb-one-step-left">
+                <Icon icon={PlugZap} />
+                <div className={styles.grow}>
+                  <div className={styles.calloutTitle}>{t('ui.mascot-theme.one-step-left')}</div>
+                  <div className={styles.note}>{t('ui.mascot-theme.one-step-left-hint')}</div>
+                </div>
+                <button
+                  type="button"
+                  className={styles.secondary}
+                  data-testid="onb-go-models"
+                  onClick={openModels}
+                >
+                  {t('ui.mascot-theme.go-connect-model')}
+                </button>
+              </div>
+            )}
+          </>
+        );
+      case 'character':
+        return (
+          <>
             <div className={styles.subLabel}>{t('ui.mascot-theme.startup-mode')}</div>
-
             <div
               className={`${styles.options} ${styles.optionsPair}`}
               role="radiogroup"
@@ -373,7 +392,11 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                   onClick={() => {
                     const prev = startup;
                     setStartup(x.id);
-                    void startupClient.set(x.id).then((saved) => setStartup(saved ?? prev));
+                    void startupClient.set(x.id).then(async (saved) => {
+                      const view = saved ?? prev;
+                      setStartup(view);
+                      if (view === 'main') await startupClient.setShowMascot(false);
+                    });
                   }}
                 >
                   <span className={styles.optionTitle}>{x.label()}</span>
@@ -381,15 +404,6 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                 </button>
               ))}
             </div>
-            <p className={styles.note}>
-              {t('ui.mascot-theme.you-can-change-this-any-time-in-settings')}
-            </p>
-          </>
-        );
-      }
-      case 'profile':
-        return (
-          <>
             <label className={styles.field}>
               <span className={styles.subLabel}>{t('ui.mascot-theme.name')}</span>
               <input
@@ -453,38 +467,6 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
             <p className={styles.note}>
               {t('ui.mascot-theme.i-ll-suggest-coding-agents-example-questions')}
             </p>
-          </>
-        );
-      case 'provider':
-        return <ProviderSetup onOpenModels={openModels} />;
-      case 'privacy':
-        return (
-          <>
-            {modelReady ? (
-              <div className={`${styles.callout} ${styles.calloutOk}`} data-testid="onb-all-set">
-                <Icon icon={CheckCircle2} />
-                <div>
-                  <div className={styles.calloutTitle}>{t('ui.mascot-theme.all-set-title')}</div>
-                  <div className={styles.note}>{t('ui.mascot-theme.all-set-hint')}</div>
-                </div>
-              </div>
-            ) : (
-              <div className={styles.callout} data-testid="onb-one-step-left">
-                <Icon icon={PlugZap} />
-                <div className={styles.grow}>
-                  <div className={styles.calloutTitle}>{t('ui.mascot-theme.one-step-left')}</div>
-                  <div className={styles.note}>{t('ui.mascot-theme.one-step-left-hint')}</div>
-                </div>
-                <button
-                  type="button"
-                  className={styles.secondary}
-                  data-testid="onb-go-models"
-                  onClick={openModels}
-                >
-                  {t('ui.mascot-theme.go-connect-model')}
-                </button>
-              </div>
-            )}
             <ul className={styles.privacy}>
               <li>
                 <Icon icon={Lock} />
@@ -496,11 +478,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
               </li>
               <li>
                 <Icon icon={Cloud} />
-                {t('ui.mascot-theme.only-the-model-provider-you-choose-receives-your')}
-              </li>
-              <li>
-                <Icon icon={FolderLock} />
-                {t('ui.mascot-theme.she-can-t-see-your-files-unless-you')}
+                {t('ui.mascot-theme.onb-models-official')}
               </li>
             </ul>
           </>
@@ -509,25 +487,15 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   })();
 
   const last = i === STEPS.length - 1;
-  const artSrc = stepArt ? (stepArt[step] ?? BUILTIN_ONBOARDING_ART[step]) : null;
-  const artIntro = STEP_ART_META[step]?.intro;
   return (
     <div className={styles.overlay} data-testid="onboarding" data-step={step}>
       <div
         ref={cardRef}
-        className={`${styles.card} ${styles.cardArt}`}
+        className={styles.card}
         role="dialog"
         aria-modal="true"
         aria-labelledby="onb-title"
       >
-        {/* 插画铺满整张卡片做背景，人物靠右完整显示；没有插画的步骤用欢迎图的淡化版 */}
-        <div
-          className={styles.bg}
-          style={artSrc ? { backgroundImage: `url(${artSrc})` } : undefined}
-          aria-hidden
-          data-testid="onb-art"
-          data-art={step}
-        />
         <header className={styles.head}>
           <div
             className={styles.dots}
@@ -554,7 +522,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           <h1 id="onb-title" className={styles.title}>
             {STEP_TITLE[step]()}
           </h1>
-          {artIntro && <p className={styles.intro}>{artIntro()}</p>}
+          <p className={styles.intro}>{STEP_INTRO[step]()}</p>
           <div className={styles.body}>{body}</div>
         </div>
         <footer className={styles.foot}>

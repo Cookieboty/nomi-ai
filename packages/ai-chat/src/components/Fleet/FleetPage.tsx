@@ -1,7 +1,7 @@
-import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
+import { isBuiltinCliId, type BuiltinCliId } from '@nomi-ai/cli-catalog';
 import { brand } from '@nomi-ai/types';
-import { Button, Checkbox, Icon, Select, Switch, t } from '@nomi-ai/ui';
-import { Folder, Gauge, Search, SlidersHorizontal } from 'lucide-react';
+import { Button, Checkbox, EmptyState, Icon, Select, Switch, t } from '@nomi-ai/ui';
+import { Folder, Gauge, Search, SlidersHorizontal, SquareTerminal } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -18,6 +18,7 @@ import {
   type FleetState,
 } from '../../services/fleetClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import { DispatchCli } from '../DispatchCli';
 import { EndpointIcon } from '../EndpointIcon';
 
 import { AgentCard, agentTitle, type CardActions } from './AgentCard';
@@ -309,6 +310,8 @@ export const FleetPage: React.FC<
     idleErrors?: IdleCloseError[];
     onSetAutoPause?: (on: boolean) => void;
     onSetPolicy?: (mode: FleetPolicyMode) => void;
+    /** 还没有会话时的主操作：在工坊里派出一个编程助手 */
+    onDispatch?: (backend: BuiltinCliId) => void;
   } & CardActions
 > = ({
   active,
@@ -318,6 +321,7 @@ export const FleetPage: React.FC<
   idleErrors,
   onSetAutoPause,
   onSetPolicy,
+  onDispatch,
   ...actions
 }) => {
   const [filter, setFilter] = useState<Filter>('all');
@@ -385,7 +389,7 @@ export const FleetPage: React.FC<
           </p>
         </div>
         <span className={board.headSpacer} />
-        {state && onSetAutoPause && (
+        {state && onSetAutoPause && agents.length > 0 && (
           <span className={board.autoPause}>
             <Switch
               checked={state.governor.autoPause}
@@ -395,58 +399,73 @@ export const FleetPage: React.FC<
             />
           </span>
         )}
-        <SystemStats state={state} />
+        {agents.length > 0 && <SystemStats state={state} />}
       </header>
 
       {state && <GovernorNotice state={state} titleOf={titleOf} />}
 
       <div className={board.panel}>
-        <div className={board.toolbar}>
-          <div className={board.chips} role="group" aria-label={t('ui.cli-monitor.fleet-filters')}>
-            {(['all', ...FLEET_COLUMNS.map((c) => c.key)] as Filter[]).map((k) => (
-              <button
-                key={k}
-                type="button"
-                className={board.chip}
-                aria-pressed={filter === k}
-                onClick={() => setFilter(k)}
-                data-testid={`fleet-filter-${k}`}
-              >
-                {k === 'all'
-                  ? t('ui.providers-schedule.all')
-                  : t(FLEET_COLUMNS.find((c) => c.key === k)!.label)}
-                <span className={board.chipCount}>{counts[k]}</span>
-              </button>
-            ))}
-          </div>
-          <span className={board.headSpacer} />
-          <label className={board.search}>
-            <Icon icon={Search} size={14} />
-            <input
-              className={board.searchInput}
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t('ui.cli-monitor.fleet-search')}
-              aria-label={t('ui.cli-monitor.fleet-search')}
-              data-testid="fleet-search"
+        {agents.length > 0 && (
+          <div className={board.toolbar}>
+            <div
+              className={board.chips}
+              role="group"
+              aria-label={t('ui.cli-monitor.fleet-filters')}
+            >
+              {(['all', ...FLEET_COLUMNS.map((c) => c.key)] as Filter[]).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  className={board.chip}
+                  aria-pressed={filter === k}
+                  onClick={() => setFilter(k)}
+                  data-testid={`fleet-filter-${k}`}
+                >
+                  {k === 'all'
+                    ? t('ui.providers-schedule.all')
+                    : t(FLEET_COLUMNS.find((c) => c.key === k)!.label)}
+                  <span className={board.chipCount}>{counts[k]}</span>
+                </button>
+              ))}
+            </div>
+            <span className={board.headSpacer} />
+            <label className={board.search}>
+              <Icon icon={Search} size={14} />
+              <input
+                className={board.searchInput}
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t('ui.cli-monitor.fleet-search')}
+                aria-label={t('ui.cli-monitor.fleet-search')}
+                data-testid="fleet-search"
+              />
+            </label>
+            <Select
+              size="sm"
+              className={board.typeSelect}
+              value={backend}
+              onChange={(e) => setBackend(e.target.value)}
+              aria-label={t('ui.providers-schedule.task-category-all')}
+              options={[
+                { value: 'all', label: t('ui.providers-schedule.task-category-all') },
+                ...backends.map((b) => ({ value: b, label: t(ENDPOINT_NAME[b]) })),
+              ]}
+              data-testid="fleet-type"
             />
-          </label>
-          <Select
-            size="sm"
-            className={board.typeSelect}
-            value={backend}
-            onChange={(e) => setBackend(e.target.value)}
-            aria-label={t('ui.providers-schedule.task-category-all')}
-            options={[
-              { value: 'all', label: t('ui.providers-schedule.task-category-all') },
-              ...backends.map((b) => ({ value: b, label: t(ENDPOINT_NAME[b]) })),
-            ]}
-            data-testid="fleet-type"
-          />
-        </div>
+          </div>
+        )}
 
-        {!state ? null : visible.length ? (
+        {!state ? null : !agents.length ? (
+          <EmptyState
+            className={board.emptyState}
+            icon={SquareTerminal}
+            title={t('ui.cli-monitor.fleet-dispatch')}
+            description={t('ui.cli-monitor.fleet-dispatch-hint')}
+            action={onDispatch ? <DispatchCli onDispatch={onDispatch} /> : undefined}
+            data-testid="fleet-empty"
+          />
+        ) : visible.length ? (
           <ul className={board.grid} data-testid="fleet-grid">
             {visible.map((a) => (
               <AgentCard key={a.id} a={a} {...actions} parentTitle={titleOf} />
@@ -454,13 +473,11 @@ export const FleetPage: React.FC<
           </ul>
         ) : (
           <p className={board.empty} data-testid="fleet-empty">
-            {!agents.length
-              ? t('ui.cli-monitor.fleet-none-running')
-              : t('ui.cli-monitor.fleet-filter-empty')}
+            {t('ui.cli-monitor.fleet-filter-empty')}
           </p>
         )}
 
-        {state && <PolicyBar state={state} onSetPolicy={onSetPolicy} />}
+        {state && agents.length > 0 && <PolicyBar state={state} onSetPolicy={onSetPolicy} />}
       </div>
 
       {state && <IdleList state={state} onCloseIdle={onCloseIdle} errors={idleErrors} />}

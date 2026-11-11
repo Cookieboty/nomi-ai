@@ -1,6 +1,9 @@
 /**
  * 更新说明来自发布本身（docs/releases/vX.Y.Z.md → 该版本的 latest-go.json），内核按版本取（updates.releaseNotes），
- * 界面不再内置任何版本的文案。说明是中英双语：标题与条目每行都是「中文 / English」，按界面语言取一半。
+ * 界面不再内置任何版本的文案。
+ *
+ * 新说明（docs/development/release-notes.md）：先写中文，用二级标题 `## English` 另开英文。
+ * 旧说明仍是每行「中文 / English」，按界面语言取一半。
  */
 export const RELEASE_HISTORY_URL = 'https://github.com/Cookieboty/nomi-ai/releases';
 
@@ -19,15 +22,43 @@ export function splitBilingual(text: string): { zh: string; en: string } | null 
   return null;
 }
 
-/** 按界面语言保留双语说明的一半；去掉一级标题（弹层自己有标题），表格原样保留 */
+const ENGLISH_HEADING = /^##\s+English\s*$/;
+
+/** 按界面语言保留说明的一半；去掉一级标题（弹层自己有标题），表格原样保留 */
 export function localizeReleaseNotes(markdown: string, locale: string): string {
+  const text = markdown.replace(/\r\n/g, '\n');
+  const lines = text.split('\n');
+  const splitAt = lines.findIndex((line) => ENGLISH_HEADING.test(line.trim()));
+  if (splitAt >= 0) {
+    const zh = locale === 'zh-CN';
+    const part = (zh ? lines.slice(0, splitAt) : lines.slice(splitAt + 1)).join('\n');
+    return dropTopTitle(part).trim();
+  }
+  return localizeBilingualLines(text, locale);
+}
+
+function dropTopTitle(markdown: string): string {
+  const lines = markdown.replace(/\r\n/g, '\n').split('\n');
+  let seen = false;
+  const out: string[] = [];
+  for (const line of lines) {
+    if (!seen && line.trim()) {
+      seen = true;
+      if (/^#\s/.test(line)) continue;
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
+function localizeBilingualLines(markdown: string, locale: string): string {
   const zh = locale === 'zh-CN';
   const out: string[] = [];
   let seenContent = false;
   for (const line of markdown.replace(/\r\n/g, '\n').split('\n')) {
     if (!seenContent && line.trim()) {
       seenContent = true;
-      if (/^#\s/.test(line)) continue;
+      if (/^#\s/.test(line) && !/^##/.test(line)) continue;
     }
     if (line.trimStart().startsWith('|')) {
       out.push(line);

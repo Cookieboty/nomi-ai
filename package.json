@@ -1,7 +1,7 @@
 {
   "name": "nomi",
   "version": "2.3.10",
-  "description": "Nomi·诺米：本地运行的桌面 AI 伙伴（Go 内核 + Wails v3）",
+  "description": "Nomi·诺米：本地优先的 Agent 工作台，统一模型网关（Go 内核 + Wails v3）",
   "private": true,
   "type": "module",
   "scripts": {

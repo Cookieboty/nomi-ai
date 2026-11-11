@@ -8,8 +8,8 @@
 </p>
 
 <p align="center">
-  Coding agents, models, MCP and skills in one place: run them side by side, watch them together and manage them from one agent workbench.<br>
-  Want some company? Bring Nomi onto your desktop.
+  Put Claude Code and Codex on one board and run them side by side. Connect a model once: official, third-party, or local.<br>
+  The desktop character is optional. Turn it off if you do not want it.
 </p>
 
 <p align="center">macOS · Windows · Linux　|　Go + Wails core, ~25 MB installer　|　MIT</p>
@@ -39,12 +39,12 @@
 
 ## Every AI capability, in one place
 
-| Capability        | In Nomi                                                                                                                |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| **Coding agents** | Claude Code, Codex, Gemini CLI, Grok and dsh, many sessions in parallel; sessions from a terminal or IDE carry on here |
-| **Models**        | Any provider, relay or local model: connect it once and every coding agent and Nomi can use it                         |
-| **Tools**         | MCP, skills, browser, files and commands, managed in the UI with an audit log                                          |
-| **Nomi**          | An agent itself: memory, knowledge base, images, reminders, and it hands jobs to coding agents                         |
+| Capability        | In Nomi                                                                                                                                             |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Coding agents** | Claude Code, Codex, Gemini CLI, Grok and dsh, many sessions in parallel. Sessions already open in a terminal or IDE show up on the board, read-only |
+| **Models**        | Any provider, relay or local model: connect it once and every coding agent and Nomi can use it                                                      |
+| **Tools**         | MCP, skills, browser, files and commands, managed in the UI with an audit log                                                                       |
+| **Nomi**          | An agent itself: memory, knowledge base, images, reminders, and it hands jobs to coding agents                                                      |
 
 They all live in one **agent workbench**: who is working, how far along, how much they use and where they're stuck, at a glance.
 
@@ -80,7 +80,7 @@ Tools are offered on demand: small talk sends about 2K tokens of tool definition
 
 ### 5. Optional: Nomi on your desktop
 
-Want some company? Let Nomi stay on your desktop in a small transparent window, with expressions, gestures and lip sync. Don't need it? Close it from its toolbar's "More" menu; the workbench works the same.
+The desktop character is optional. Turn it on and a small transparent window stays on the desktop, with expressions, gestures and lip sync. Leave it off and the workbench works the same. When it is off, it does not speak.
 With it on, plenty happens without opening the main window: it gives a thumbs-up when a task finishes and apologizes when one fails, so you don't have to watch the board; the first lines of a reply show in a bubble beside it; drop a file on it for a summary; talk to it by voice and hear replies read aloud; double-click to open the chat.
 → [Desktop character](docs/features/mascot.md) · [Voice](docs/features/voice.md)
 

@@ -44,7 +44,7 @@ describe('ChatModeSwitch', () => {
 
   it('defaults to Nomi Assistant and shows running badge when CLI tabs are busy', () => {
     render(<ChatModeSwitch />);
-    expect(screen.getByTestId('chat-mode-trigger').textContent).toContain('Nomi 灵伴');
+    expect(screen.getByTestId('chat-mode-trigger').textContent).toContain('对话');
     fireEvent.click(screen.getByTestId('chat-mode-trigger'));
     expect(screen.getByTestId('chat-mode-normal').getAttribute('aria-checked')).toBe('true');
     expect(screen.getByTestId('chat-mode-dev').getAttribute('aria-checked')).toBe('false');
@@ -60,7 +60,7 @@ describe('ChatModeSwitch', () => {
     fireEvent.click(screen.getByTestId('chat-mode-dev'));
     // 收起时先放完淡出动画再卸载
     await waitFor(() => expect(screen.queryByTestId('chat-mode-menu')).toBeNull());
-    expect(screen.getByTestId('chat-mode-trigger').textContent).toContain('Nomi 工坊');
+    expect(screen.getByTestId('chat-mode-trigger').textContent).toContain('工坊');
     expect(screen.queryByTestId('chat-mode-running-badge')).toBeNull();
   });
 

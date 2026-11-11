@@ -1,8 +1,7 @@
 /**
- * 侧栏顶部的模式菜单：「Nomi 助手 ⌄」/「Nomi 工作台 ⌄」（内部值 normal / dev）。
- * 助手模式隐藏 CLI 标签栏与 Mod+T；后台 CLI 仍运行，徽标显示运行中的数量。
+ * 侧栏顶部的模式菜单：「对话 ⌄」/「工坊 ⌄」（内部值 normal / dev）。
+ * 对话模式隐藏 CLI 标签栏与 Mod+T；后台 CLI 仍运行，徽标显示运行中的数量。
  */
-import { brand } from '@nomi-ai/types';
 import { Icon, t, useLocale, usePresence } from '@nomi-ai/ui';
 import { Check, ChevronDown } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -14,11 +13,9 @@ import { MAIN_TAB_ID, isNomiDelegated } from '../../services/harnessClient';
 
 import styles from './index.module.css';
 
-/** 模式名：产品名 + 助手 / 工作台 */
+/** 模式名：对话 / 工坊。不带产品名前缀，窄侧栏也不会截成半个字。 */
 export const modeName = (mode: ChatMode): string =>
-  mode === 'normal'
-    ? t('ui.cli-monitor.mode-assistant', brand.appName)
-    : t('ui.cli-monitor.mode-workbench', brand.appName);
+  mode === 'normal' ? t('ui.chat-settings.chats') : t('ui.cli-monitor.fleet-origin-workbench');
 
 const MODES: readonly ChatMode[] = ['normal', 'dev'];
 

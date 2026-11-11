@@ -5,10 +5,8 @@
   z-index: calc(var(--cd-z-modal) + 10);
   display: grid;
   place-items: center;
-  padding: calc(24px + var(--cd-titlebar-h, 0px)) var(--cd-space-6) var(--cd-space-6);
-  background:
-    radial-gradient(1200px 600px at 20% -10%, rgba(var(--cd-accent-rgb), 0.16), transparent 60%),
-    var(--cd-color-overlay);
+  padding: var(--cd-space-6);
+  background: var(--cd-color-bg);
 }
 .card {
   --onb-wash: #fcefe1;
@@ -82,10 +80,11 @@
   margin-bottom: var(--cd-space-1-5);
 }
 .title {
-  margin: 0 0 18px;
+  margin: 0 0 var(--cd-space-2);
   font-size: var(--cd-font-size-2xl);
   font-weight: var(--cd-font-weight-bold);
   letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
 }
 .body {
   display: flex;

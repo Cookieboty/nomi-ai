@@ -11,7 +11,7 @@ func TestDefaultsAndSet(t *testing.T) {
 	f := filepath.Join(t.TempDir(), "startup.json")
 	s := startup.New(f, nil)
 	st := s.Get()
-	if st.DefaultView != "mascot" || !st.ShowMascot || st.CloseMain != "hide" {
+	if st.DefaultView != "main" || st.ShowMascot || st.CloseMain != "hide" {
 		t.Fatalf("%+v", st)
 	}
 	st, err := s.Set(map[string]any{"defaultView": "main", "showMascot": false})

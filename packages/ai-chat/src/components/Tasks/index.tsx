@@ -16,6 +16,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { selectFirstMessageId, useAiChatSelector } from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { groupOf, OPEN_TASK_EVENT, tasksAvailable } from '../../services/tasksClient';
+import { OPEN_TASKS_PAGE_EVENT } from '../../services/workbenchNav';
 import { lazyComponent } from '../lazyPanels';
 import { SideNavItem } from '../Sidebar/SideNavItem';
 
@@ -67,6 +68,7 @@ export function useTasksHost(collapsed: boolean, onOpenSchedule?: () => void) {
   }, []);
   const close = useCallback(() => setOpen(false), []);
   const [focus, setFocus] = useState<{ id: string; nonce: number } | null>(null);
+  const [createNonce, setCreateNonce] = useState(0);
   /** 搜索里点了任务：打开任务页并选中它 */
   const openTask = useCallback((id: string) => {
     setFocus((f) => ({ id, nonce: (f?.nonce ?? 0) + 1 }));
@@ -79,7 +81,17 @@ export function useTasksHost(collapsed: boolean, onOpenSchedule?: () => void) {
       if (typeof id === 'string' && id) openTask(id);
     };
     window.addEventListener(OPEN_TASK_EVENT, on);
-    return () => window.removeEventListener(OPEN_TASK_EVENT, on);
+    const onPage = (e: Event) => {
+      const create = (e as CustomEvent<{ create?: boolean }>).detail?.create;
+      setOpen(true);
+      setMounted(true);
+      if (create) setCreateNonce((n) => n + 1);
+    };
+    window.addEventListener(OPEN_TASKS_PAGE_EVENT, onPage);
+    return () => {
+      window.removeEventListener(OPEN_TASK_EVENT, on);
+      window.removeEventListener(OPEN_TASKS_PAGE_EVENT, onPage);
+    };
   }, [openTask]);
   const first = useAiChatSelector(selectFirstMessageId);
   const tabId = useHarnessTabs().state?.activeTabId;
@@ -110,6 +122,7 @@ export function useTasksHost(collapsed: boolean, onOpenSchedule?: () => void) {
         active={open}
         onBack={close}
         focus={focus}
+        createNonce={createNonce}
         onOpenSchedule={
           onOpenSchedule
             ? () => {

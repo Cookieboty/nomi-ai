@@ -47,7 +47,7 @@
   "ui.chat-settings.asks-you-before-changing-files-or-running-commands": "改文件、运行命令前都先问你",
   "ui.chat-settings.asks-you-every-time-before-writing-files-or": "写文件等修改操作，每次都先问你",
   "ui.chat-settings.authorization-code": "授权码",
-  "ui.chat-settings.auto-approve-coding-description": "开着时：新的编程助手标签和 Nomi 委派的编程助手默认「完全放开」；关掉后新标签用默认档位、逐项询问。Nomi 自己的权限在设置 →「Nomi」。",
+  "ui.chat-settings.auto-approve-coding-description": "开着时，新的编程助手默认完全放开。关掉后逐项询问。Nomi 自己的权限在「Nomi」。",
   "ui.chat-settings.auto-approve-confirm-body": "新的编程助手标签和 Nomi 委派的编程助手会以最高权限运行，改文件、跑命令都不再问你。只在你信任的文件夹里这样用。",
   "ui.chat-settings.auto-approve-everything": "全部自动（最高权限）",
   "ui.chat-settings.auto-deny-in-s": "{0} 秒后自动拒绝",
@@ -496,7 +496,7 @@
   "ui.chat-settings.write-clipboard": "写入剪贴板",
   "ui.chat-settings.write-me-a-briefing-for-today-start-with": "请为我写一份今天的简报：先一句问候，然后列出今天的提醒和安排，再根据你对我的了解给一两条贴心的小建议。简洁，不超过 150 字，用中文。",
   "ui.chat-settings.write-text-file": "写入文本文件",
-  "ui.chat-settings.your-desktop-ai-assistant": "你的桌面 AI 助手",
+  "ui.chat-settings.your-desktop-ai-assistant": "本地优先的 Agent 工作台",
   "ui.chat-settings.your-next-message-will-be-sent-to-the": "下一条消息会连同之前的 {0} 条对话一起发给新会话",
   "ui.chat-settings.your-own-secrets": "你登记的密钥",
   "ui.chat-settings.always-allow-command-prefix": "以后不再询问以此开头的命令：",
@@ -513,7 +513,7 @@
   "ui.chat-settings.unarchive": "取消归档",
   "ui.chat-settings.archived-at": "归档于 {0}",
   "ui.chat-settings.codex-network": "允许 Codex 联网",
-  "ui.chat-settings.codex-network-description": "默认关闭：Codex 的沙箱里命令不能联网，需要联网时会先问你。打开后沙箱里的命令可以直接联网（「完全放开」档位不受这项限制）。",
+  "ui.chat-settings.codex-network-description": "默认关闭。Codex 要联网时先问你。打开后，沙箱里的命令可以直接联网。",
   "ui.chat-settings.sandbox-category-ssh": "SSH 与 Git 凭据（~/.ssh、ssh-agent、GitHub CLI 令牌）",
   "ui.chat-settings.sandbox-category-cloud": "云账号凭据（AWS、GCP、Azure、Kubernetes、Docker，npm / PyPI 发布令牌）",
   "ui.chat-settings.sandbox-category-keys": "密钥与密码库（GPG、pass、KeePass、1Password CLI）",
@@ -546,7 +546,7 @@
   "ui.chat-settings.login-blocked-no-proxy": "Nomi 没在终端配置（如 ~/.zshrc）里找到 https_proxy 等代理变量，这次登录是直连发出的。请打开代理软件的 TUN / 增强模式，或在终端配置里设置 https_proxy 后重启 Nomi 再试。",
   "ui.chat-settings.login-blocked-use-proxy-and-retry": "沿用终端代理并重试",
   "ui.chat-settings.use-the-terminal-s-proxy": "沿用终端里的代理",
-  "ui.chat-settings.use-the-terminal-s-proxy-desc": "所有编程助手登录和对话时，使用终端配置（如 ~/.zshrc）里的 https_proxy 等代理；本机地址不走代理，Nomi 自己的模型请求不受影响。",
+  "ui.chat-settings.use-the-terminal-s-proxy-desc": "登录和对话走终端里的 https_proxy。本机地址和 Nomi 自己的模型请求不走代理。",
   "ui.chat-settings.terminal-proxy-detected": "检测到：{0}",
   "ui.chat-settings.terminal-proxy-not-found": "终端里没有配置代理。",
   "ui.chat-settings.my-themes": "我的主题",
@@ -613,5 +613,6 @@
   "ui.chat-settings.theme-importing": "正在导入…",
   "ui.chat-settings.theme-drop-too-large": "拖入的文件超过 {0} MB，请点击选择文件导入。",
   "ui.chat-settings.theme-download-template": "下载模板",
-  "ui.chat-settings.theme-template-saved": "模板已保存到 {0}"
+  "ui.chat-settings.theme-template-saved": "模板已保存到 {0}",
+  "ui.chat-settings.about-slogan": "让每一种 AI 能力，都为你所用。"
 }

@@ -3,7 +3,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--cd-space-1-5);
-  min-width: 0;
+  flex: none;
   height: var(--cd-control-h-md);
 }
 .trigger {
@@ -32,8 +32,6 @@
   outline-offset: -2px;
 }
 .name {
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .chevron {
