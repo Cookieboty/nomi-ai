@@ -249,7 +249,9 @@ func fleetTab(t *util.Obj, pids func(string) []int, perms func(string) int) flee
 	num := func(o *util.Obj, k string) int64 { v, _ := o.Get(k).(float64); return int64(v) }
 	id := str(t, "id")
 	ft := fleet.Tab{ID: id, Title: str(t, "title"), Backend: str(t, "backend"), Cwd: str(t, "cwd"), Status: str(t, "status"),
-		HasSession: str(t, "cliSessionId") != "", UpdatedAt: num(t, "updatedAt"), Pids: pids(id), PendingPerms: perms(id)}
+		HasSession: str(t, "cliSessionId") != "", UpdatedAt: num(t, "updatedAt"), Pids: pids(id),
+		// 经 MCP 的桌面操作在等确认也算「等你处理」
+		PendingPerms: perms(id) + computerWaitingOf(id)}
 	if sp, ok := t.Get("sandboxPending").([]any); ok {
 		ft.SandboxPending = len(sp)
 	}

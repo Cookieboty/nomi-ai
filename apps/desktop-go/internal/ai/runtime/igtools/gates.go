@@ -28,8 +28,10 @@ var (
 	// 改动文件：写、改、新建、删、移动……（只读的查看 / 搜索 / 分析不需要写工具）
 	gateWrite = regexp.MustCompile(`改|写入|写到|写个|写一|写成|重写|补上|加上|新建|创建|建一个|生成|删|移动|移到|挪|重命名|改名|复制|拷贝|保存|存到|存成|整理|归档|清理|修复|修一|实现|重构|替换|提交|edit|write|create|delete|remove|move|rename|copy|save|fix|implement|refactor|replace|commit`)
 	// 要做一阵子、适合派给后台的 Nomi 的事
-	gateLong  = regexp.MustCompile(`后台|慢慢|不急|做好叫我|做完叫我|做好了告诉|ppt|幻灯|演示文稿|报告|长文|文档|调研|研究|批量|一批|一组|多张|几张|系列|background`)
-	gateImage = regexp.MustCompile(`图|画|照片|相片|海报|头像|壁纸|插画|配图|封面|logo|表情包|生成|chat-asset:|image|picture|photo|draw|paint|illustrat|poster|avatar|wallpaper`)
+	gateLong = regexp.MustCompile(`后台|慢慢|不急|做好叫我|做完叫我|做好了告诉|ppt|幻灯|演示文稿|报告|长文|文档|调研|研究|批量|一批|一组|多张|几张|系列|background`)
+	// 操作本机应用（Computer Use）：点按钮、填表、在某个应用里做事
+	gateComputer = regexp.MustCompile(`点击|点一下|点开|帮我点|按钮|菜单|窗口|界面|应用里|软件里|操作.{0,6}(应用|软件|电脑|界面)|打开.{0,8}(应用|软件|app)|屏幕|截屏|截图|finder|访达|备忘录|系统设置|计算器|日历|邮件|微信|飞书|钉钉|computer use|电脑操作|桌面操作|click|button|menu|window|screen|app\b|application`)
+	gateImage    = regexp.MustCompile(`图|画|照片|相片|海报|头像|壁纸|插画|配图|封面|logo|表情包|生成|chat-asset:|image|picture|photo|draw|paint|illustrat|poster|avatar|wallpaper`)
 )
 
 func said(re *regexp.Regexp) func(tools.Turn) bool {
@@ -103,6 +105,11 @@ var toolGates = map[string]func(tools.Turn) bool{
 	"fs_edit": writes, "fs_mkdir": writes, "fs_copy": writes,
 	"fs_move": writes, "fs_trash": writes,
 	"task_propose": tasks, "task_recall": tasks,
+	"computer_status": said(gateComputer), "computer_list_apps": said(gateComputer), "computer_snapshot": said(gateComputer),
+	"computer_click": said(gateComputer), "computer_type": said(gateComputer), "computer_set_value": said(gateComputer),
+	"computer_press": said(gateComputer), "computer_scroll": said(gateComputer), "computer_wait": said(gateComputer),
+	"computer_screenshot": said(gateComputer), "computer_click_xy": said(gateComputer),
+	"computer_locate": said(gateComputer),
 }
 
 // WithGate：给工具挂上 Relevant（applyToolGates；工具自己写了 Relevant 的不覆盖）

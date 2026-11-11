@@ -90,6 +90,9 @@ func wireIslandPending(isl *island.Service, src islandPendingSources) func() {
 	if src.desktop != nil {
 		src.desktop.OnConfirmChange(h.schedule)
 	}
+	if computerSvc != nil {
+		computerSvc.OnActivity(h.schedule)
+	}
 	go func() {
 		t := time.NewTicker(5 * time.Second)
 		defer t.Stop()
@@ -202,7 +205,24 @@ func (h *islandPendingHub) collect() ([]island.Pending, map[string]map[string]fu
 	h.collectTabs(add)
 	h.collectTasks(add)
 	h.collectConfirms(add)
+	h.collectComputer(add)
 	return out, acts
+}
+
+// collectComputer：正在操作桌面（Nomi / 编程助手）：一条「正在操作桌面 · 停止」（紧急停止）。
+// 岛始终在最上层：被操作的应用在前台时也点得到
+func (h *islandPendingHub) collectComputer(add func(island.Pending, map[string]func() error)) {
+	if computerSvc == nil {
+		return
+	}
+	active := computerSvc.Active()
+	if len(active) == 0 {
+		return
+	}
+	add(island.Pending{ID: "computer\x1factive", Kind: "computer", Endpoint: "nomi",
+		Title: i18n.T("ui.chat-settings.computer-active-title"), Body: strings.Join(active, " · "),
+		Actions: []island.Action{{ID: "stop", Label: i18n.T("ui.foundation.stop"), Danger: true}}},
+		map[string]func() error{"stop": func() error { stopComputer(); return nil }})
 }
 
 // collectTabs：编程助手标签的权限请求与沙箱拦截
@@ -441,12 +461,12 @@ func (h *islandPendingHub) collectConfirms(add func(island.Pending, map[string]f
 			item.Title = i18n.T("ui.mascot-theme.island-scope-title")
 			item.Body = r.ScopePath
 		}
-		answer := func(allow bool) func() error {
+		answer := func(allow, remember bool) func() error {
 			return func() error {
 				if !d.Broker.HasPending(id) {
 					return errIslandRejected
 				}
-				d.AnswerConfirm("chat", id, allow, false, false)
+				d.AnswerConfirm("chat", id, allow, remember, false)
 				return nil
 			}
 		}
@@ -462,7 +482,12 @@ func (h *islandPendingHub) collectConfirms(add func(island.Pending, map[string]f
 				allow.Primary, allow.Danger = false, true
 			}
 			item.Actions = []island.Action{allow, deny}
-			fns["allow"], fns["deny"] = answer(true), answer(false)
+			fns["allow"], fns["deny"] = answer(true, false), answer(false, false)
+			// 能记住的（这个对话里的这类操作 / 命令前缀 / 这次运行里这个工具）：多一个「始终允许」，排在「拒绝」前面
+			if r.Rememberable {
+				item.Actions = []island.Action{allow, {ID: "always", Label: i18n.T("ui.chat-settings.sandbox-allow-always")}, deny}
+				fns["always"] = answer(true, true)
+			}
 		}
 		add(item, fns)
 	}

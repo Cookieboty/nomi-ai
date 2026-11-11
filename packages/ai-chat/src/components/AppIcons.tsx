@@ -31,6 +31,7 @@ import {
   AtSign,
   Forward,
   MonitorCog,
+  MousePointerClick,
   ListChecks,
   GraduationCap,
   Zap,
@@ -70,6 +71,8 @@ export const SETTINGS_ICONS = {
   ext: Puzzle,
   /** 应用与账号（GitHub 等账号、本机应用）：链接 */
   connections: Link2,
+  /** Computer Use（操作本机应用）：鼠标点击 */
+  computer: MousePointerClick,
   /** 隐私与权限：盾牌 */
   privacy: ShieldCheck,
   /** 关于：版本、更新与项目信息 */

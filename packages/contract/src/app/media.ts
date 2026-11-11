@@ -2,7 +2,7 @@
  * D1 · 语音 / 朗读 / 桌面能力 / 屏幕（docs/development/architecture.md）。
  *
  * 本文件只属于 D1：过程、事件、业务错误码都在这里声明，`app/index.ts` 负责汇总。
- * 命名空间：voice、tts、desktop、screen、nav（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
+ * 命名空间：voice、tts、desktop、screen、computer、nav（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
  *
  * 旧面（迁入后由收尾批次删除）：
  * - `ai:voice:*`（voice/VoiceService.ts；视图 packages/voice/src/bridge.ts）
@@ -32,6 +32,9 @@ import type { EventMap, ProcedureMap, Surface } from '../contract';
 
 import {
   ChatNavEvent,
+  ComputerInstallResult,
+  ComputerSettingsPatch,
+  ComputerState,
   DesktopAuditEntry,
   DesktopBubble,
   DesktopConfirmRequest,
@@ -348,6 +351,54 @@ export const mediaProcedures = {
   // ── 屏幕 / 图片 ────────────────────────────────────────────────────────
   /** 发送图片前：云端告知 / 仅本地模式 */
   'screen.checkSend': { kind: 'mutation', input: z.void(), output: SendCheck },
+  // ── Computer Use（设置 → Computer Use；执行器 agent-desktop）──
+  /** 状态；refresh = 「检查更新」（重新查 npm 上的最新版本，否则用 6 小时内的缓存） */
+  'computer.state': {
+    kind: 'query',
+    input: z.object({ refresh: z.boolean().optional() }),
+    output: ComputerState,
+    surfaces: ['chat', 'settings'],
+  },
+  /** 安装 / 更新 agent-desktop（npm，只装适配的大版本）；scope = user 装到用户目录 */
+  'computer.install': {
+    kind: 'mutation',
+    input: z.object({ scope: z.enum(['global', 'user']).optional() }),
+    output: ComputerInstallResult,
+    surfaces: ['chat', 'settings'],
+    dangerous: true,
+  },
+  /** macOS：打开系统设置里辅助功能的授权引导；其它平台返回 not_supported */
+  'computer.openGuide': {
+    kind: 'mutation',
+    input: z.void(),
+    output: z.object({ guide: z.string() }),
+    surfaces: ['chat', 'settings'],
+  },
+  /**
+   * 改设置：编程助手开关（之后启动的编程助手会话生效）、视觉兜底模型、另外禁止的应用、读界面时打码、隔离模式的沙箱。
+   * 返回最新状态
+   */
+  'computer.updateSettings': {
+    kind: 'mutation',
+    input: ComputerSettingsPatch,
+    output: ComputerState,
+    surfaces: ['chat', 'settings'],
+    dangerous: true,
+  },
+  /** 紧急停止：取消所有正在执行 / 等确认的桌面操作（Nomi 与编程助手），之后几秒内的新调用被拒绝 */
+  'computer.stop': {
+    kind: 'mutation',
+    input: z.void(),
+    output: z.boolean(),
+    surfaces: ['chat', 'settings'],
+  },
+  /** 启动 / 停止一个隔离沙箱（agent-desktop sandbox start / stop） */
+  'computer.sandboxAction': {
+    kind: 'mutation',
+    input: z.object({ name: z.string().max(63), action: z.enum(['start', 'stop']) }),
+    output: z.object({ ok: z.boolean(), message: z.string() }),
+    surfaces: ['chat', 'settings'],
+  },
 
   // ── 导航 ──────────────────────────────────────────────────────────────
   /** 桌面角色「TTS 语音配置」/ 语音错误「去设置」：打开对话窗口的「设置 → 语音与屏幕 → 语音」 */
@@ -381,6 +432,10 @@ export const mediaEvents = {
   'voice.mascotSettingsChanged': MascotVoiceSettings,
   'desktop.changed': DesktopState,
   'desktop.p2Changed': z.looseObject({ kind: z.string() }),
+  /** 正在操作桌面的发起方变了（对话窗口顶部的「正在操作桌面 · 停止」） */
+  'computer.activity': z.object({ active: z.array(z.string()) }),
+  /** Computer Use 页要重新读状态（后台查到了 agent-desktop 的新版本等） */
+  'computer.changed': z.object({}),
   /** 拖文件总结完成：对话窗口显示全文 */
   'desktop.summary': DesktopSummaryEvent,
   /** 工具调用确认请求 / 取消（id）：对话窗口开着时发给对话窗口，否则发给桌面角色；气泡 / 提醒到点只给桌面角色 */
@@ -406,6 +461,8 @@ export const mediaEventSurfaces = {
   'desktop.bubble': ['mascot'],
   'desktop.reminder': ['mascot'],
   'desktop.summary': ['chat', 'settings'],
+  'computer.activity': ['chat', 'settings'],
+  'computer.changed': ['chat', 'settings'],
   'nav.desktopPanelRequested': ['chat', 'settings'],
   'nav.scheduleRequested': ['chat', 'settings'],
   'nav.voiceSettingsRequested': ['chat', 'settings'],

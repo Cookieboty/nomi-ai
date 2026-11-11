@@ -265,7 +265,7 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.getByTestId('settings-help')).toBeTruthy();
   });
 
-  it('菜单有 10 个分区：Nomi 紧跟通用，关于在最后', () => {
+  it('菜单有 11 个分区：Nomi 紧跟通用，关于在最后', () => {
     const r = render(<Harness onClose={() => undefined} />);
     const ids = r
       .getAllByTestId(/^settings-nav-/)
@@ -276,6 +276,7 @@ describe('SettingsView 合并后的标签页分区', () => {
       'models',
       'usage',
       'coding',
+      'computer',
       'knowledge',
       'ext',
       'connections',

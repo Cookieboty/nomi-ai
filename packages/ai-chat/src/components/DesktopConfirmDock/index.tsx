@@ -5,7 +5,7 @@
  * 请求文件夹：授权模型建议的文件夹（内核已校验）/ 另选（系统选择框）/ 拒绝。120 秒未答复由内核自动拒绝。
  */
 import type { DesktopConfirmRequest } from '@nomi-ai/types';
-import { Badge, Button, Checkbox, Icon, t } from '@nomi-ai/ui';
+import { Badge, Button, Icon, t } from '@nomi-ai/ui';
 import { FolderLock, ShieldAlert, Sparkles } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
@@ -26,6 +26,7 @@ const DANGER: Record<
 const REMEMBER_GROUP: Record<NonNullable<DesktopConfirmRequest['rememberGroup']>, string> = {
   files: 'ui.chat-settings.dont-ask-files-in-conversation',
   delegate: 'ui.chat-settings.dont-ask-delegate-in-conversation',
+  computer: 'ui.chat-settings.dont-ask-computer-in-conversation',
   tool: 'ui.chat-settings.dont-ask-tool-in-conversation',
 };
 
@@ -173,7 +174,6 @@ const ToolCard: React.FC<{ req: DesktopConfirmRequest }> = ({ req }) => {
   // 必须看过详情的（破坏性 / 云端首次发送）：详情默认展开，出现 1 秒后才能点确认
   const [detail, setDetail] = useState(req.dialog);
   const [armed, setArmed] = useState(!req.dialog);
-  const [remember, setRemember] = useState(false);
   useEffect(() => {
     if (armed) return;
     const id = window.setTimeout(() => setArmed(true), ARM_MS);
@@ -181,6 +181,12 @@ const ToolCard: React.FC<{ req: DesktopConfirmRequest }> = ({ req }) => {
   }, [armed]);
   const d = DANGER[req.danger];
   const canAllow = armed;
+  // 「始终允许」管多大范围（命令前缀 / 这个对话里的这类操作 / 这次运行里这个工具）：悬停提示里写明
+  const alwaysScope = req.rememberRule
+    ? `${t('ui.chat-settings.always-allow-command-prefix')} ${req.rememberRule}`
+    : req.rememberGroup
+      ? t(REMEMBER_GROUP[req.rememberGroup])
+      : t('ui.chat-settings.don-t-ask-again-for-this-tool-this');
   return (
     <div
       className={styles.card}
@@ -210,25 +216,6 @@ const ToolCard: React.FC<{ req: DesktopConfirmRequest }> = ({ req }) => {
           <pre className={styles.pre}>{req.argsJson}</pre>
         </div>
       )}
-      {req.rememberable && (
-        <label className={styles.remember}>
-          <Checkbox
-            checked={remember}
-            onChange={(e) => setRemember(e.target.checked)}
-            data-testid="desktop-confirm-remember"
-          />
-          {req.rememberRule ? (
-            <span>
-              {t('ui.chat-settings.always-allow-command-prefix')}{' '}
-              <code className={styles.tool}>{req.rememberRule}</code>
-            </span>
-          ) : req.rememberGroup ? (
-            t(REMEMBER_GROUP[req.rememberGroup])
-          ) : (
-            t('ui.chat-settings.don-t-ask-again-for-this-tool-this')
-          )}
-        </label>
-      )}
       {/* 「详情」在左；拒绝 / 允许靠右，主操作在最右（与系统对话框一致） */}
       <div className={styles.actions}>
         <Button
@@ -241,6 +228,18 @@ const ToolCard: React.FC<{ req: DesktopConfirmRequest }> = ({ req }) => {
         >
           {detail ? t('ui.model-quality.hide-details') : t('ui.chat-settings.view-details')}
         </Button>
+        {req.rememberable && (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={!canAllow}
+            title={alwaysScope}
+            onClick={() => answer(req.id, true, true)}
+            data-testid="desktop-confirm-always"
+          >
+            {t('ui.chat-settings.sandbox-allow-always')}
+          </Button>
+        )}
         <Button
           size="sm"
           variant="ghost"
@@ -253,7 +252,7 @@ const ToolCard: React.FC<{ req: DesktopConfirmRequest }> = ({ req }) => {
           size="sm"
           variant={req.danger === 'destructive' ? 'danger' : 'primary'}
           disabled={!canAllow}
-          onClick={() => answer(req.id, true, remember)}
+          onClick={() => answer(req.id, true, false)}
           data-testid="desktop-confirm-allow"
         >
           {req.danger === 'destructive'

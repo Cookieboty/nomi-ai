@@ -24,6 +24,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/aifacade"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/computer"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/jsjson"
 	dparse "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop/parse"
@@ -111,6 +112,11 @@ type DeskDeps struct {
 	// workspace_run（nil 不注册）
 	Shell *WorkspaceShell
 
+	// computer_*（nil 不注册；本机没有 agent-desktop 时工具不可用）
+	Computer ComputerUse
+	// ComputerVision：computer_locate 用的视觉模型：提问函数、接收方（外发检查）、显示名；没设置时 ok = false
+	ComputerVision func() (ask computer.AskVision, receiver *desktop.Provider, label string, ok bool)
+
 	Platform string // process.platform
 }
 
@@ -168,7 +174,10 @@ func rawArgs(v any) json.RawMessage {
 type body func() (data any, decision string, err error)
 
 // run = run(tool, args, signal, body)
-func (k *deskKit) run(tool string, args any, b body) *u.Obj {
+func (k *deskKit) run(tool string, args any, b body) *u.Obj { return k.runAs("agent", tool, args, b) }
+
+// runAs：同 run，审计里记下发起方（agent = Nomi；cli:<名字> = 经 MCP 调用的编程助手）
+func (k *deskKit) runAs(source, tool string, args any, b body) *u.Obj {
 	t0 := time.Now()
 	data, decision, err := func() (d any, dec string, e error) {
 		defer func() {
@@ -187,7 +196,7 @@ func (k *deskKit) run(tool string, args any, b body) *u.Obj {
 		if decision == "" {
 			decision = "auto"
 		}
-		k.d.Audit.Append(desktop.AuditEntry{Tool: tool, Decision: decision, Result: "ok", Ms: &ms, Source: "agent"}, rawArgs(args))
+		k.d.Audit.Append(desktop.AuditEntry{Tool: tool, Decision: decision, Result: "ok", Ms: &ms, Source: source}, rawArgs(args))
 		return okData(data)
 	}
 	code := "internal_error"
@@ -202,7 +211,7 @@ func (k *deskKit) run(tool string, args any, b body) *u.Obj {
 	case "timeout_denied":
 		dec = "timeout"
 	}
-	k.d.Audit.Append(desktop.AuditEntry{Tool: tool, Decision: dec, Result: code, Ms: &ms, Source: "agent"}, rawArgs(args))
+	k.d.Audit.Append(desktop.AuditEntry{Tool: tool, Decision: dec, Result: code, Ms: &ms, Source: source}, rawArgs(args))
 	return fail(code, err.Error())
 }
 
@@ -252,6 +261,14 @@ func (k *deskKit) confirmFor(ctx context.Context, tool, summary string, args any
 	danger, ok := desktop.ToolDanger[tool]
 	if !ok {
 		danger = "write"
+	}
+	if r := requesterOf(ctx); r != "" {
+		summary = "「" + r + "」请求：" + summary
+	}
+	// 等用户确认期间告诉调用方（编程助手标签在看板上显示「等你处理」）
+	if h := confirmHookOf(ctx); h != nil {
+		h(true)
+		defer h(false)
 	}
 	req := desktop.AuthorizeInput{Tool: tool, Danger: danger, Summary: summary, Args: rawArgs(args), Preview: preview, Signal: sig(ctx), Force: force, UserText: userText}
 	var d string
@@ -469,6 +486,9 @@ func DesktopTools(d DeskDeps) []tools.Definition {
 	}
 	if d.Shell != nil {
 		out = append(out, k.workspaceTools()...)
+	}
+	if d.Computer != nil {
+		out = append(out, k.computerTools()...)
 	}
 	return out
 }

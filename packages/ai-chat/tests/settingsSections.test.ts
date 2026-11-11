@@ -3,13 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { SECTION_TABS, SETTINGS_SECTIONS, tabOf } from '../src/components/SettingsView/sections';
 
 describe('设置分区：合并后的菜单', () => {
-  it('10 个分区；Nomi 自己的设置单独一个分区，紧跟通用', () => {
+  it('11 个分区；Nomi 自己的设置单独一个分区，紧跟通用', () => {
     expect(SETTINGS_SECTIONS.map((s) => s.id)).toEqual([
       'general',
       'nomi',
       'models',
       'usage',
       'coding',
+      'computer',
       'knowledge',
       'ext',
       'connections',
@@ -24,6 +25,7 @@ describe('设置分区：合并后的菜单', () => {
       'ui.chat-settings.models-and-providers',
       'ui.chat-settings.usage-and-analytics',
       'ui.providers-schedule.coding-agents',
+      'ui.chat-settings.computer-section',
       'ui.chat-settings.knowledge-memory',
       'ui.foundation.extensions-mcp',
       'ui.providers-schedule.connections',

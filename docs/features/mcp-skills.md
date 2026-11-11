@@ -4,7 +4,7 @@
 
 ## MCP 服务器
 
-- 在界面里添加本地命令（stdio）或远程 HTTP / SSE 服务器；内置 filesystem、memory、sequential-thinking 三个官方参考服务器预设（首次连接时通过 `npx` 获取，不随应用分发）。
+- 在界面里添加本地命令（stdio）或远程 HTTP / SSE 服务器；内置 filesystem、memory、sequential-thinking 三个官方参考服务器，以及操作网页用的 Playwright（微软官方，按页面的无障碍树操作，不需要视觉模型）和 Chrome DevTools（Chrome 官方，调试与控制 Chrome）预设。预设首次连接时通过 `npx` 获取，不随应用分发，需要本机有 Node.js。
 - 「导入 JSON」可以粘贴通用的 `{ "mcpServers": { … } }` 一次导入多个；导入后默认不连接，检查无误再开启。
 - 连接后列出每个工具，并标注只读 / 破坏性。
 - **远程服务器授权**：需要登录的 HTTP / SSE 服务器连接时显示「需要授权」，点「授权并连接」会在浏览器里完成 OAuth 登录（自动发现授权服务器、PKCE；服务器不支持动态注册时，可以在服务器设置里填客户端 ID）。授权会自动续期，可以随时取消或「清除授权」。手动填了 `Authorization` 请求头的服务器不走浏览器授权。修改服务器的地址、请求头或客户端 ID 后旧授权会被清除，需要重新授权。

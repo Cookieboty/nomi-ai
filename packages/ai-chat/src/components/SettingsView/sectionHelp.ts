@@ -1,6 +1,7 @@
 import {
   Activity,
   AppWindow,
+  Ban,
   BarChart3,
   BookOpen,
   Boxes,
@@ -13,6 +14,7 @@ import {
   Plug,
   ReceiptText,
   Shield,
+  ShieldCheck,
   SquareTerminal,
   Timer,
   Wallet,
@@ -72,6 +74,33 @@ export const SECTION_HELP: Record<
       icon: Cpu,
       title: 'ui.knowledge-local.local-models',
       desc: 'ui.knowledge-local.built-in-llama-cpp-local-models-plus-optional',
+    },
+  ],
+  computer: [
+    {
+      icon: Download,
+      title: 'ui.chat-settings.computer-executor',
+      desc: 'ui.chat-settings.computer-help-executor',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'ui.chat-settings.computer-help-confirm',
+      desc: 'ui.chat-settings.computer-safety-confirm',
+    },
+    {
+      icon: Ban,
+      title: 'ui.chat-settings.computer-blocked-apps',
+      desc: 'ui.chat-settings.computer-safety-blocked',
+    },
+    {
+      icon: Shield,
+      title: 'ui.chat-settings.computer-help-data',
+      desc: 'ui.chat-settings.computer-safety-privacy',
+    },
+    {
+      icon: SquareTerminal,
+      title: 'ui.providers-schedule.coding-agents',
+      desc: 'ui.chat-settings.computer-help-cli',
     },
   ],
   coding: [

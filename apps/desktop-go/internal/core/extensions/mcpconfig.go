@@ -373,6 +373,11 @@ var McpPresets = []McpPreset{
 		PresetServer{Transport: "stdio", Command: "npx", Args: []string{"-y", "@modelcontextprotocol/server-memory"}}, "", "MIT"},
 	{"sequential-thinking", "electron.common.sequential-thinking", "electron.common.helps-the-model-break-down-complex-problems-official",
 		PresetServer{Transport: "stdio", Command: "npx", Args: []string{"-y", "@modelcontextprotocol/server-sequential-thinking"}}, "", "MIT"},
+	// 网页操作（Computer Use 的浏览器层）：读无障碍树，不需要视觉模型；工具调用走 MCP 的信任级别与确认
+	{"playwright", "electron.common.playwright-browser", "electron.common.playwright-browser-desc",
+		PresetServer{Transport: "stdio", Command: "npx", Args: []string{"-y", "@playwright/mcp@latest"}}, "", "Apache-2.0"},
+	{"chrome-devtools", "electron.common.chrome-devtools", "electron.common.chrome-devtools-desc",
+		PresetServer{Transport: "stdio", Command: "npx", Args: []string{"-y", "chrome-devtools-mcp@latest"}}, "", "Apache-2.0"},
 	{"remote", "electron.common.remote-http-server", "electron.common.connect-to-a-streamable-http-sse-mcp-server",
 		PresetServer{Transport: "http", URL: "https://"}, "", "—"},
 }

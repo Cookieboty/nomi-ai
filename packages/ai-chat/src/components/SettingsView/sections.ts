@@ -8,6 +8,8 @@ export type SettingsSection =
   | 'nomi'
   | 'models'
   | 'coding'
+  /** Computer Use：让 Nomi 和编程助手操作本机应用（执行器 agent-desktop） */
+  | 'computer'
   | 'usage'
   | 'knowledge'
   | 'ext'
@@ -64,6 +66,12 @@ export const SETTINGS_SECTIONS: Array<{
     intro: 'ui.providers-schedule.manage-versions-and-official-accounts-for-claude-code',
   },
   {
+    id: 'computer',
+    icon: SETTINGS_ICONS.computer,
+    label: 'ui.chat-settings.computer-section',
+    intro: 'ui.chat-settings.computer-section-intro',
+  },
+  {
     id: 'knowledge',
     icon: SETTINGS_ICONS.knowledge,
     label: 'ui.chat-settings.knowledge-memory',
@@ -111,7 +119,7 @@ export const SETTINGS_SECTIONS: Array<{
  */
 export const SETTINGS_NAV_GROUPS: SettingsSection[][] = [
   ['general', 'nomi'],
-  ['models', 'usage', 'coding'],
+  ['models', 'usage', 'coding', 'computer'],
   ['knowledge', 'ext', 'connections', 'privacy'],
   DEV ? ['about', 'debug'] : ['about'],
 ];
@@ -146,6 +154,11 @@ export const SECTION_TABS = {
     { id: 'memory', label: 'ui.knowledge-local.long-term-memory' },
     { id: 'schedule', label: 'ui.chat-settings.schedule' },
   ],
+  computer: [
+    // 安装、权限、紧急停止、编程助手、视觉兜底放一页；打码、禁止的应用、隔离模式放一页；安全说明在右侧「配置说明」
+    { id: 'setup', label: 'ui.chat-settings.computer-tab-setup' },
+    { id: 'privacy', label: 'ui.chat-settings.computer-tab-privacy' },
+  ],
   privacy: [
     { id: 'data', label: 'ui.chat-settings.privacy-data' },
     // 外发保护：发给模型 / 第三方供应商之前的处理（数据流向），与「数据存在本机」分开
@@ -161,9 +174,11 @@ export type ModelsTab = TabsOf<'models'>;
 export type UsageTab = TabsOf<'usage'>;
 export type KnowledgeTab = TabsOf<'knowledge'>;
 export type PrivacyTab = TabsOf<'privacy'>;
+export type ComputerTab = TabsOf<'computer'>;
 
 /** 深链接可指定的标签（属于上面有标签页的分区之一）。 */
-export type SettingsTab = GeneralTab | NomiTab | ModelsTab | UsageTab | KnowledgeTab | PrivacyTab;
+export type SettingsTab =
+  GeneralTab | NomiTab | ModelsTab | UsageTab | KnowledgeTab | PrivacyTab | ComputerTab;
 
 /** 某分区下 `tab` 是否是它自己的标签（用于忽略错配的深链接标签）。 */
 export function tabOf<S extends keyof typeof SECTION_TABS>(

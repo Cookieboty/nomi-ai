@@ -85,6 +85,9 @@ type Deps struct {
 	// ProjectFor：dir 所在项目的 id（嵌套时取最具体的）；不在任何项目里返回 ""。
 	// 从本机历史打开的会话按工作目录归进项目
 	ProjectFor func(dir string) string
+	// ComputerMcp：编程助手可用的桌面操作 MCP（computer_mcp.go）；nil 或返回 nil = 不注入。
+	// label 是编程助手名（确认卡片上显示），readOnly = 计划模式（只给读界面的工具）
+	ComputerMcp func(tabID, label string, readOnly bool) *McpLaunch
 }
 
 const (

@@ -23,6 +23,7 @@ import { RestartUpdateButton } from '../RestartUpdateButton';
 
 import { AboutSection } from './AboutSection';
 import { AppIconSettings } from './AppIconSettings';
+import { ComputerSection } from './ComputerSection';
 import { ConversationFontSizeSettings } from './ConversationFontSizeSettings';
 import { GeneralHero } from './GeneralHero';
 import styles from './index.module.css';
@@ -254,6 +255,8 @@ export const SettingsView: React.FC<Props> = ({
         return <KnowledgeSection tab={tabOf('knowledge')} onTab={(x) => setTab('knowledge', x)} />;
       case 'ext':
         return <ExtensionsPanel isVisible onClose={noop} />;
+      case 'computer':
+        return <ComputerSection tab={tabOf('computer')} onTab={(x) => setTab('computer', x)} />;
       case 'connections':
         return <ConnectionsPanel onOpenExtensions={() => go('ext')} />;
       case 'privacy':

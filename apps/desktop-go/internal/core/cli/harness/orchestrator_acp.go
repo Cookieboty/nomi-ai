@@ -267,7 +267,8 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 				resume = &s
 			}
 			startCwd := str(tab, "cwd")
-			r, err := jsrt.Await(driver.Start(clisdk.StartOptions{Cwd: startCwd, ResumeID: resume, Signal: signal, AdditionalDirectories: o.extraDirs(tab)}))
+			r, err := jsrt.Await(driver.Start(clisdk.StartOptions{Cwd: startCwd, ResumeID: resume, Signal: signal, AdditionalDirectories: o.extraDirs(tab),
+				McpServers: o.acpComputerServers(tab)}))
 			if err == nil {
 				if s, ok := r.Get("sessionId").(string); ok {
 					sid = &s

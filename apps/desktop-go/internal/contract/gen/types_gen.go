@@ -1707,6 +1707,142 @@ type CliUpdateRunOutput struct {
 	Version string `json:"version"`
 }
 
+// ComputerInstallInputScope 枚举：global | user
+type ComputerInstallInputScope = string
+
+const (
+	ComputerInstallInputScopeGlobal ComputerInstallInputScope = "global"
+	ComputerInstallInputScopeUser   ComputerInstallInputScope = "user"
+)
+
+type ComputerInstallInput struct {
+	Scope *ComputerInstallInputScope `json:"scope,omitempty"`
+}
+
+type ComputerInstallOutput struct {
+	Ok             bool    `json:"ok"`
+	Version        string  `json:"version"`
+	Path           string  `json:"path"`
+	Log            string  `json:"log"`
+	NeedsUserScope bool    `json:"needsUserScope"`
+	UserPrefix     *string `json:"userPrefix,omitempty"`
+}
+
+type ComputerOpenGuideOutput struct {
+	Guide string `json:"guide"`
+}
+
+// ComputerSandboxActionInputAction 枚举：start | stop
+type ComputerSandboxActionInputAction = string
+
+const (
+	ComputerSandboxActionInputActionStart ComputerSandboxActionInputAction = "start"
+	ComputerSandboxActionInputActionStop  ComputerSandboxActionInputAction = "stop"
+)
+
+type ComputerSandboxActionInput struct {
+	Name   string                           `json:"name"`
+	Action ComputerSandboxActionInputAction `json:"action"`
+}
+
+type ComputerSandboxActionOutput struct {
+	Ok      bool   `json:"ok"`
+	Message string `json:"message"`
+}
+
+type ComputerStateInput struct {
+	Refresh *bool `json:"refresh,omitempty"`
+}
+
+type ComputerStateOutputVisionModelsItem struct {
+	Ref      string `json:"ref"`
+	Label    string `json:"label"`
+	Provider string `json:"provider"`
+}
+
+type ComputerStateOutputSandboxesItem struct {
+	Name  string `json:"name"`
+	State string `json:"state"`
+}
+
+type ComputerStateOutput struct {
+	Platform            string                                `json:"platform"`
+	Installed           bool                                  `json:"installed"`
+	Path                string                                `json:"path"`
+	Version             string                                `json:"version"`
+	Latest              string                                `json:"latest"`
+	UpdateAvailable     bool                                  `json:"updateAvailable"`
+	NewerMajor          string                                `json:"newerMajor"`
+	SupportedMajor      float64                               `json:"supportedMajor"`
+	Unsupported         bool                                  `json:"unsupported"`
+	NpmAvailable        bool                                  `json:"npmAvailable"`
+	Installing          bool                                  `json:"installing"`
+	Permissions         map[string]string                     `json:"permissions"`
+	PermissionApp       string                                `json:"permissionApp"`
+	Wayland             bool                                  `json:"wayland"`
+	CliEnabled          bool                                  `json:"cliEnabled"`
+	Active              []string                              `json:"active"`
+	VisionModel         string                                `json:"visionModel"`
+	VisionModels        []ComputerStateOutputVisionModelsItem `json:"visionModels"`
+	BlockedApps         []string                              `json:"blockedApps"`
+	Redact              bool                                  `json:"redact"`
+	Sandbox             string                                `json:"sandbox"`
+	Sandboxes           []ComputerStateOutputSandboxesItem    `json:"sandboxes"`
+	StopShortcut        string                                `json:"stopShortcut"`
+	StopShortcutActive  string                                `json:"stopShortcutActive"`
+	StopShortcutError   string                                `json:"stopShortcutError"`
+	DefaultStopShortcut string                                `json:"defaultStopShortcut"`
+}
+
+type ComputerUpdateSettingsInput struct {
+	CliEnabled   *bool    `json:"cliEnabled,omitempty"`
+	VisionModel  *string  `json:"visionModel,omitempty"`
+	BlockedApps  []string `json:"blockedApps,omitempty"`
+	Redact       *bool    `json:"redact,omitempty"`
+	Sandbox      *string  `json:"sandbox,omitempty"`
+	StopShortcut *string  `json:"stopShortcut,omitempty"`
+}
+
+type ComputerUpdateSettingsOutputVisionModelsItem struct {
+	Ref      string `json:"ref"`
+	Label    string `json:"label"`
+	Provider string `json:"provider"`
+}
+
+type ComputerUpdateSettingsOutputSandboxesItem struct {
+	Name  string `json:"name"`
+	State string `json:"state"`
+}
+
+type ComputerUpdateSettingsOutput struct {
+	Platform            string                                         `json:"platform"`
+	Installed           bool                                           `json:"installed"`
+	Path                string                                         `json:"path"`
+	Version             string                                         `json:"version"`
+	Latest              string                                         `json:"latest"`
+	UpdateAvailable     bool                                           `json:"updateAvailable"`
+	NewerMajor          string                                         `json:"newerMajor"`
+	SupportedMajor      float64                                        `json:"supportedMajor"`
+	Unsupported         bool                                           `json:"unsupported"`
+	NpmAvailable        bool                                           `json:"npmAvailable"`
+	Installing          bool                                           `json:"installing"`
+	Permissions         map[string]string                              `json:"permissions"`
+	PermissionApp       string                                         `json:"permissionApp"`
+	Wayland             bool                                           `json:"wayland"`
+	CliEnabled          bool                                           `json:"cliEnabled"`
+	Active              []string                                       `json:"active"`
+	VisionModel         string                                         `json:"visionModel"`
+	VisionModels        []ComputerUpdateSettingsOutputVisionModelsItem `json:"visionModels"`
+	BlockedApps         []string                                       `json:"blockedApps"`
+	Redact              bool                                           `json:"redact"`
+	Sandbox             string                                         `json:"sandbox"`
+	Sandboxes           []ComputerUpdateSettingsOutputSandboxesItem    `json:"sandboxes"`
+	StopShortcut        string                                         `json:"stopShortcut"`
+	StopShortcutActive  string                                         `json:"stopShortcutActive"`
+	StopShortcutError   string                                         `json:"stopShortcutError"`
+	DefaultStopShortcut string                                         `json:"defaultStopShortcut"`
+}
+
 // ConnectionsAddGithubOutputAuthKind 枚举：cli-login | keychain
 type ConnectionsAddGithubOutputAuthKind = string
 
@@ -2165,12 +2301,13 @@ type DesktopProtectFolderOutputStatePendingItemReview struct {
 	Rationale *string                                              `json:"rationale,omitempty"`
 }
 
-// DesktopProtectFolderOutputStatePendingItemRememberGroup 枚举：files | delegate | tool
+// DesktopProtectFolderOutputStatePendingItemRememberGroup 枚举：files | delegate | computer | tool
 type DesktopProtectFolderOutputStatePendingItemRememberGroup = string
 
 const (
 	DesktopProtectFolderOutputStatePendingItemRememberGroupFiles    DesktopProtectFolderOutputStatePendingItemRememberGroup = "files"
 	DesktopProtectFolderOutputStatePendingItemRememberGroupDelegate DesktopProtectFolderOutputStatePendingItemRememberGroup = "delegate"
+	DesktopProtectFolderOutputStatePendingItemRememberGroupComputer DesktopProtectFolderOutputStatePendingItemRememberGroup = "computer"
 	DesktopProtectFolderOutputStatePendingItemRememberGroupTool     DesktopProtectFolderOutputStatePendingItemRememberGroup = "tool"
 )
 
@@ -2384,12 +2521,13 @@ type DesktopRemoveCliSandboxAllowOutputPendingItemReview struct {
 	Rationale *string                                                 `json:"rationale,omitempty"`
 }
 
-// DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroup 枚举：files | delegate | tool
+// DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroup 枚举：files | delegate | computer | tool
 type DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroup = string
 
 const (
 	DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroupFiles    DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroup = "files"
 	DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroupDelegate DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroup = "delegate"
+	DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroupComputer DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroup = "computer"
 	DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroupTool     DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroup = "tool"
 )
 
@@ -2486,12 +2624,13 @@ type DesktopRemoveCommandRuleOutputPendingItemReview struct {
 	Rationale *string                                             `json:"rationale,omitempty"`
 }
 
-// DesktopRemoveCommandRuleOutputPendingItemRememberGroup 枚举：files | delegate | tool
+// DesktopRemoveCommandRuleOutputPendingItemRememberGroup 枚举：files | delegate | computer | tool
 type DesktopRemoveCommandRuleOutputPendingItemRememberGroup = string
 
 const (
 	DesktopRemoveCommandRuleOutputPendingItemRememberGroupFiles    DesktopRemoveCommandRuleOutputPendingItemRememberGroup = "files"
 	DesktopRemoveCommandRuleOutputPendingItemRememberGroupDelegate DesktopRemoveCommandRuleOutputPendingItemRememberGroup = "delegate"
+	DesktopRemoveCommandRuleOutputPendingItemRememberGroupComputer DesktopRemoveCommandRuleOutputPendingItemRememberGroup = "computer"
 	DesktopRemoveCommandRuleOutputPendingItemRememberGroupTool     DesktopRemoveCommandRuleOutputPendingItemRememberGroup = "tool"
 )
 
@@ -2592,12 +2731,13 @@ type DesktopSetCliEnvAllowOutputPendingItemReview struct {
 	Rationale *string                                          `json:"rationale,omitempty"`
 }
 
-// DesktopSetCliEnvAllowOutputPendingItemRememberGroup 枚举：files | delegate | tool
+// DesktopSetCliEnvAllowOutputPendingItemRememberGroup 枚举：files | delegate | computer | tool
 type DesktopSetCliEnvAllowOutputPendingItemRememberGroup = string
 
 const (
 	DesktopSetCliEnvAllowOutputPendingItemRememberGroupFiles    DesktopSetCliEnvAllowOutputPendingItemRememberGroup = "files"
 	DesktopSetCliEnvAllowOutputPendingItemRememberGroupDelegate DesktopSetCliEnvAllowOutputPendingItemRememberGroup = "delegate"
+	DesktopSetCliEnvAllowOutputPendingItemRememberGroupComputer DesktopSetCliEnvAllowOutputPendingItemRememberGroup = "computer"
 	DesktopSetCliEnvAllowOutputPendingItemRememberGroupTool     DesktopSetCliEnvAllowOutputPendingItemRememberGroup = "tool"
 )
 
@@ -2694,12 +2834,13 @@ type DesktopSetCliSandboxOutputPendingItemReview struct {
 	Rationale *string                                         `json:"rationale,omitempty"`
 }
 
-// DesktopSetCliSandboxOutputPendingItemRememberGroup 枚举：files | delegate | tool
+// DesktopSetCliSandboxOutputPendingItemRememberGroup 枚举：files | delegate | computer | tool
 type DesktopSetCliSandboxOutputPendingItemRememberGroup = string
 
 const (
 	DesktopSetCliSandboxOutputPendingItemRememberGroupFiles    DesktopSetCliSandboxOutputPendingItemRememberGroup = "files"
 	DesktopSetCliSandboxOutputPendingItemRememberGroupDelegate DesktopSetCliSandboxOutputPendingItemRememberGroup = "delegate"
+	DesktopSetCliSandboxOutputPendingItemRememberGroupComputer DesktopSetCliSandboxOutputPendingItemRememberGroup = "computer"
 	DesktopSetCliSandboxOutputPendingItemRememberGroupTool     DesktopSetCliSandboxOutputPendingItemRememberGroup = "tool"
 )
 
@@ -2801,12 +2942,13 @@ type DesktopStateOutputPendingItemReview struct {
 	Rationale *string                                 `json:"rationale,omitempty"`
 }
 
-// DesktopStateOutputPendingItemRememberGroup 枚举：files | delegate | tool
+// DesktopStateOutputPendingItemRememberGroup 枚举：files | delegate | computer | tool
 type DesktopStateOutputPendingItemRememberGroup = string
 
 const (
 	DesktopStateOutputPendingItemRememberGroupFiles    DesktopStateOutputPendingItemRememberGroup = "files"
 	DesktopStateOutputPendingItemRememberGroupDelegate DesktopStateOutputPendingItemRememberGroup = "delegate"
+	DesktopStateOutputPendingItemRememberGroupComputer DesktopStateOutputPendingItemRememberGroup = "computer"
 	DesktopStateOutputPendingItemRememberGroupTool     DesktopStateOutputPendingItemRememberGroup = "tool"
 )
 
@@ -2923,12 +3065,13 @@ type DesktopUnprotectPathOutputPendingItemReview struct {
 	Rationale *string                                         `json:"rationale,omitempty"`
 }
 
-// DesktopUnprotectPathOutputPendingItemRememberGroup 枚举：files | delegate | tool
+// DesktopUnprotectPathOutputPendingItemRememberGroup 枚举：files | delegate | computer | tool
 type DesktopUnprotectPathOutputPendingItemRememberGroup = string
 
 const (
 	DesktopUnprotectPathOutputPendingItemRememberGroupFiles    DesktopUnprotectPathOutputPendingItemRememberGroup = "files"
 	DesktopUnprotectPathOutputPendingItemRememberGroupDelegate DesktopUnprotectPathOutputPendingItemRememberGroup = "delegate"
+	DesktopUnprotectPathOutputPendingItemRememberGroupComputer DesktopUnprotectPathOutputPendingItemRememberGroup = "computer"
 	DesktopUnprotectPathOutputPendingItemRememberGroupTool     DesktopUnprotectPathOutputPendingItemRememberGroup = "tool"
 )
 
@@ -10552,6 +10695,10 @@ type EventCliUpdateEvent struct {
 	Phase string `json:"phase"`
 }
 
+type EventComputerActivity struct {
+	Active []string `json:"active"`
+}
+
 type EventConversationsChanged struct {
 	Source *string  `json:"source,omitempty"`
 	Ids    []string `json:"ids"`
@@ -10627,12 +10774,13 @@ type EventDesktopChangedPendingItemReview struct {
 	Rationale *string                                  `json:"rationale,omitempty"`
 }
 
-// EventDesktopChangedPendingItemRememberGroup 枚举：files | delegate | tool
+// EventDesktopChangedPendingItemRememberGroup 枚举：files | delegate | computer | tool
 type EventDesktopChangedPendingItemRememberGroup = string
 
 const (
 	EventDesktopChangedPendingItemRememberGroupFiles    EventDesktopChangedPendingItemRememberGroup = "files"
 	EventDesktopChangedPendingItemRememberGroupDelegate EventDesktopChangedPendingItemRememberGroup = "delegate"
+	EventDesktopChangedPendingItemRememberGroupComputer EventDesktopChangedPendingItemRememberGroup = "computer"
 	EventDesktopChangedPendingItemRememberGroupTool     EventDesktopChangedPendingItemRememberGroup = "tool"
 )
 
@@ -10693,12 +10841,13 @@ type EventDesktopConfirmRequestReview struct {
 	Rationale *string                              `json:"rationale,omitempty"`
 }
 
-// EventDesktopConfirmRequestRememberGroup 枚举：files | delegate | tool
+// EventDesktopConfirmRequestRememberGroup 枚举：files | delegate | computer | tool
 type EventDesktopConfirmRequestRememberGroup = string
 
 const (
 	EventDesktopConfirmRequestRememberGroupFiles    EventDesktopConfirmRequestRememberGroup = "files"
 	EventDesktopConfirmRequestRememberGroupDelegate EventDesktopConfirmRequestRememberGroup = "delegate"
+	EventDesktopConfirmRequestRememberGroupComputer EventDesktopConfirmRequestRememberGroup = "computer"
 	EventDesktopConfirmRequestRememberGroupTool     EventDesktopConfirmRequestRememberGroup = "tool"
 )
 
@@ -11740,6 +11889,30 @@ type CliUpdatePreviewOutputT = CliUpdatePreviewOutput
 // CliUpdateRunInputT 是 cliUpdate.run 的入参
 type CliUpdateRunInputT = CliUpdateRunInput
 type CliUpdateRunOutputT = CliUpdateRunOutput
+
+// ComputerInstallInputT 是 computer.install 的入参
+type ComputerInstallInputT = ComputerInstallInput
+type ComputerInstallOutputT = ComputerInstallOutput
+
+// ComputerOpenGuideInputT 是 computer.openGuide 的入参
+type ComputerOpenGuideInputT = any
+type ComputerOpenGuideOutputT = ComputerOpenGuideOutput
+
+// ComputerSandboxActionInputT 是 computer.sandboxAction 的入参
+type ComputerSandboxActionInputT = ComputerSandboxActionInput
+type ComputerSandboxActionOutputT = ComputerSandboxActionOutput
+
+// ComputerStateInputT 是 computer.state 的入参
+type ComputerStateInputT = ComputerStateInput
+type ComputerStateOutputT = ComputerStateOutput
+
+// ComputerStopInputT 是 computer.stop 的入参
+type ComputerStopInputT = any
+type ComputerStopOutputT = bool
+
+// ComputerUpdateSettingsInputT 是 computer.updateSettings 的入参
+type ComputerUpdateSettingsInputT = ComputerUpdateSettingsInput
+type ComputerUpdateSettingsOutputT = ComputerUpdateSettingsOutput
 
 // ConnectionsAddGithubInputT 是 connections.addGithub 的入参
 type ConnectionsAddGithubInputT = json.RawMessage
@@ -13298,6 +13471,8 @@ type EventCliRegistryChangedT = EventCliRegistryChanged
 type EventCliAccountChangedT = any
 type EventCliAccountLoginT = EventCliAccountLogin
 type EventCliUpdateEventT = EventCliUpdateEvent
+type EventComputerActivityT = EventComputerActivity
+type EventComputerChangedT = map[string]any
 type EventConnectionsChangedT = any
 type EventConversationsChangedT = EventConversationsChanged
 type EventDelegateCompletedT = EventDelegateCompleted

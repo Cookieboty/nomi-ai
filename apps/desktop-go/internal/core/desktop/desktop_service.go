@@ -283,6 +283,9 @@ func (s *Service) sendConfirm(req ConfirmRequest) {
 }
 
 // Say 在桌面角色气泡里说一句
+// Root：桌面能力的数据目录（<userData>/desktop）
+func (s *Service) Root() string { return s.root }
+
 func (s *Service) Say(text string) { s.toMascot("desktop.bubble", map[string]string{"text": text}) }
 
 // sayWith = say(text, opts)：{ text, ...opts }。

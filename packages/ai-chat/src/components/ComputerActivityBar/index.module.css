@@ -1,0 +1,22 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  /* 与消息列、输入框、授权卡片同宽居中（都按 --cd-chat-content-w） */
+  width: 100%;
+  max-width: var(--cd-chat-content-w);
+  box-sizing: border-box;
+  margin: 0 auto var(--cd-space-2);
+  padding: var(--cd-space-1-5) var(--cd-space-3);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-settings-card-bg);
+  font-size: var(--cd-font-size-sm);
+}
+.text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

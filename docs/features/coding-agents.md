@@ -108,6 +108,7 @@ MiniMax Code 只有计划 / 逐项确认）。需要确认时，对话里出现�
 - 清单（能力位、权限档位、安装方式）：`packages/cli-catalog/src/<cli>/manifest.ts`。
 - 内核：会话编排 `apps/desktop-go/internal/core/cli/harness`，Git 操作 `internal/core/cli/gitops.go`，安装与更新 `internal/core/cli/cli_update_service.go`，官方账号 `internal/core/cli/accounts`；会话驱动 `internal/clisdk`，各 CLI 插件 `internal/cliplugins/<cli>`。
 - 视图：`packages/ai-chat/src/components/SessionWorkspace`、`ProvidersPage`。
+- 操作本机应用：装了 agent-desktop 后（「设置 → Computer Use → 允许编程助手使用」，默认打开），Claude Code、Codex 和 ACP 编程助手会话带上 Nomi 的 `nomi-computer` MCP 服务器，见 [自动化与桌面能力](automation.md#桌面操作computer-use)。
 
 ### 图片消息恢复
 

@@ -121,7 +121,7 @@ export interface DesktopConfirmRequest {
   /** 命令能记进白名单时的前缀（如 `pnpm test`）：勾「记住」= 以后这类命令不再问 */
   rememberRule?: string;
   /** 勾「记住」= 这个对话里这类操作不再问：files 改文件 / delegate 委派与追问 / tool 这个工具 */
-  rememberGroup?: 'files' | 'delegate' | 'tool';
+  rememberGroup?: 'files' | 'delegate' | 'computer' | 'tool';
 }
 
 /**

@@ -228,6 +228,18 @@ export const TOOL_LABELS: Record<string, string> = {
   browser_type: 'ui.chat-settings.sandbox-browser-type-text',
   browser_close: 'ui.chat-settings.sandbox-browser-close',
   code_run: 'ui.chat-settings.run-code-in-sandbox',
+  computer_status: 'ui.chat-settings.computer-status',
+  computer_list_apps: 'ui.chat-settings.computer-list-apps',
+  computer_snapshot: 'ui.chat-settings.computer-snapshot',
+  computer_click: 'ui.chat-settings.computer-click',
+  computer_type: 'ui.chat-settings.computer-type',
+  computer_set_value: 'ui.chat-settings.computer-set-value',
+  computer_press: 'ui.chat-settings.computer-press',
+  computer_scroll: 'ui.chat-settings.computer-scroll',
+  computer_wait: 'ui.chat-settings.computer-wait',
+  computer_screenshot: 'ui.chat-settings.computer-screenshot',
+  computer_locate: 'ui.chat-settings.computer-locate',
+  computer_click_xy: 'ui.chat-settings.computer-click-xy',
 };
 
 export const DANGER_LABELS: Record<Danger, string> = {

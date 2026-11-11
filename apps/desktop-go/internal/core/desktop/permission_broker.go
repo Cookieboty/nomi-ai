@@ -53,7 +53,7 @@ type ConfirmRequest struct {
 	Review *ConfirmReview `json:"review,omitempty"`
 	// RememberRule：命令能记进白名单时的前缀（卡片上「以后 xxx 不再问」）；Rememberable 同时为 true
 	RememberRule string `json:"rememberRule,omitempty"`
-	// RememberGroup：勾「记住」= 这个对话里这类操作不再问（files 改文件 / delegate 委派与追问 / tool 这个工具）
+	// RememberGroup：勾「记住」= 这个对话里这类操作不再问（files 改文件 / delegate 委派与追问 / computer 桌面操作 / tool 这个工具）
 	RememberGroup string `json:"rememberGroup,omitempty"`
 }
 
@@ -536,9 +536,11 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	if i.Approved && i.Force == nil && mode != "manual" && !b.asksAlways(i) {
 		return "auto"
 	}
-	// 能不能按对话记住：普通的修改操作（不含删除等破坏性操作、强制确认的、「逐项确认」、每次都询问的工具）
-	grantable := conv != "" && i.Danger == "write" && i.Force == nil && mode != "manual" && !b.asksAlways(i)
+	// 能不能按对话记住：普通的修改操作（不含删除等破坏性操作、强制确认的、「逐项确认」、每次都询问的工具）；
+	// 桌面操作（computer_*）的读界面也算：一次同意，这个对话里的桌面操作都不再问（敏感动作、坐标点击仍每次问）
 	group := ToolGroup(i.Tool)
+	grantable := conv != "" && (i.Danger == "write" || (group == "computer" && i.Danger == "read")) &&
+		i.Force == nil && mode != "manual" && !b.asksAlways(i)
 	var d ConsentDecision
 	if i.Force != nil {
 		d = ConsentDecision{Confirm: true, Dialog: i.Force.Dialog, Reason: "policy"}
@@ -669,11 +671,13 @@ func ToolGroup(tool string) string {
 		return "files"
 	case strings.HasPrefix(tool, "delegate_"):
 		return "delegate"
+	case strings.HasPrefix(tool, "computer_"):
+		return "computer"
 	}
 	return "tool:" + tool
 }
 
-// publicGroup：卡片上显示用的类别（files / delegate / tool）
+// publicGroup：卡片上显示用的类别（files / delegate / computer / tool）
 func publicGroup(g string) string {
 	if strings.HasPrefix(g, "tool:") {
 		return "tool"

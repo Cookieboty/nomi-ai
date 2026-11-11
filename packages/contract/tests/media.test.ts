@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { appContract, mediaEvents, mediaProcedures } from '../src/app';
 import { createTestClient } from '../src/testing';
 
-const NAMESPACES = ['voice', 'tts', 'desktop', 'screen', 'nav'];
+const NAMESPACES = ['voice', 'tts', 'desktop', 'screen', 'computer', 'nav'];
 
 type Def = { kind: string; surfaces?: readonly string[]; dangerous?: boolean };
 
@@ -38,6 +38,9 @@ describe('media 契约', () => {
         .map(([n]) => n)
         .sort(),
     ).toEqual([
+      // 运行 npm 安装 / 让编程助手能操作桌面
+      'computer.install',
+      'computer.updateSettings',
       'desktop.confirmAnswer',
       'desktop.grant',
       'desktop.resetAll',

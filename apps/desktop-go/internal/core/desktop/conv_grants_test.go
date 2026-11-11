@@ -161,3 +161,40 @@ func TestCommandRulesSuspendedPerConversation(t *testing.T) {
 		t.Fatalf("other conversation keeps its allowlist, got %s", d)
 	}
 }
+
+// 桌面操作：一次「这个对话里不再询问」覆盖这个对话里的所有 computer_*（读界面、点击、输入…）；
+// 敏感动作（强制弹窗）照样问，别的对话照样问
+func TestConversationGrantComputer(t *testing.T) {
+	b, ui, _ := reviewBroker(t, nil)
+	a := convCtx(t, "c1")
+	answerRemember(b, ui, 1, true, true)
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_snapshot", Danger: "read", Summary: "读", Signal: a}); d != "allowed" {
+		t.Fatal(d)
+	}
+	if r := ui.last(); !r.Rememberable || r.RememberGroup != "computer" {
+		t.Fatalf("%+v", r)
+	}
+	b.MarkRead(a) // 读过界面：本轮算读过外部内容
+	for _, tool := range []string{"computer_click", "computer_type", "computer_press"} {
+		if d := b.Authorize(AuthorizeInput{Tool: tool, Danger: "write", Summary: "做", Signal: a}); d != "auto" {
+			t.Fatalf("%s: %s", tool, d)
+		}
+	}
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_screenshot", Danger: "read", Summary: "截", Signal: a}); d != "auto" {
+		t.Fatal(d)
+	}
+	if len(ui.seen) != 1 {
+		t.Fatalf("asked %d times", len(ui.seen))
+	}
+	// 付款 / 发送 / 删除这类（工具层强制弹窗）照样问
+	answerRemember(b, ui, 2, true, false)
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_click", Danger: "write", Summary: "付款", Signal: a,
+		Force: &struct{ Dialog bool }{true}}); d != "allowed" {
+		t.Fatal(d)
+	}
+	// 别的对话照样问
+	answerRemember(b, ui, 3, true, false)
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_snapshot", Danger: "read", Summary: "读", Signal: convCtx(t, "c2")}); d != "allowed" {
+		t.Fatal(d)
+	}
+}

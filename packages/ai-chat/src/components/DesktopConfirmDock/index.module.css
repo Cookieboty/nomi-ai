@@ -92,13 +92,6 @@
   white-space: pre-wrap;
   word-break: break-all;
 }
-.remember {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-2);
-  font-size: var(--cd-font-size-sm);
-  color: var(--cd-color-text-muted);
-}
 .actions {
   display: flex;
   flex-wrap: wrap;

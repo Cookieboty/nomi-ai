@@ -197,7 +197,8 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 				r := projs.Roots(id)
 				return r.Primary, r.Extra
 			},
-			InProject: projs.Contains,
+			InProject:   projs.Contains,
+			ComputerMcp: computerMcpLaunch,
 			ProjectFor: func(dir string) string {
 				p, _ := projs.FindContaining(dir)
 				return p.ID
