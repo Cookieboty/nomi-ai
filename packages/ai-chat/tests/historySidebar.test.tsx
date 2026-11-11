@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Sidebar } from '../src/components/Sidebar';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
-import { setChatMode } from '../src/services/chatPrefs';
+import { setChatMode, setGroupByWorkspace } from '../src/services/chatPrefs';
 import type { HistorySession } from '../src/services/historyClient';
 
 import { installFakeApi, resetFakeApi, untilIdle } from './helpers/fakeApi';
@@ -223,6 +223,8 @@ describe('CLI history in the sidebar', () => {
   });
 
   it('一行筛选：从「全部」直接点端点图标即切到该端；悬停提示带对话数与本机历史数', async () => {
+    // 新建按钮在合并列表的标题上（按项目分组时侧栏标题上没有新建，项目行上有）
+    setGroupByWorkspace(false);
     mockIpc();
     const r = await mount();
     await untilIdle();

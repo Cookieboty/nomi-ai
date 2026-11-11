@@ -1,6 +1,6 @@
 /**
  * 侧栏分区标题（Codex 式）：灰色小字 + 后面的「>」，点一下收起 / 展开整个分区，展开时箭头转向下。
- * 「工作区」「最近」「本机历史」共用。
+ * 「项目」「其他对话」「本机历史」共用。
  */
 import { Icon } from '@nomi-ai/ui';
 import { ChevronRight } from 'lucide-react';

@@ -253,6 +253,35 @@ func (s *Store) Contains(dir string) bool {
 	return false
 }
 
+// FindContaining：dir 所在的项目（在它的某个文件夹里，含文件夹本身）。几个项目都包含时取文件夹最深的那个，
+// 例如项目 A 是 ~/ai、项目 B 是 ~/ai/app，~/ai/app/src 归 B。按存下的路径与 realpath 都比。
+func (s *Store) FindContaining(dir string) (Project, bool) {
+	if dir == "" {
+		return Project{}, false
+	}
+	real, _ := s.check(dir)
+	s.mu.Lock()
+	list := slices.Clone(s.list)
+	s.mu.Unlock()
+	var best Project
+	bestLen := -1
+	for _, p := range list {
+		for _, f := range append([]string{p.Primary}, p.Folders...) {
+			cands := []string{f}
+			if fr, reason := s.check(f); reason == "" && fr != f {
+				cands = append(cands, fr)
+			}
+			for _, c := range cands {
+				hit := s.d.Inside(dir, c) || (real != "" && s.d.Inside(real, c))
+				if hit && len(c) > bestLen {
+					best, bestLen = p, len(c)
+				}
+			}
+		}
+	}
+	return best, bestLen >= 0
+}
+
 // FindByPrimary：主文件夹是 dir 的项目（迁移、「选择文件夹…」快捷建项目时复用）
 func (s *Store) FindByPrimary(dir string) (Project, bool) {
 	real, _ := s.check(dir)

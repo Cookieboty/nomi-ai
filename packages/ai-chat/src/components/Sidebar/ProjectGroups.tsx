@@ -9,14 +9,14 @@ import { SectionHeader } from './SectionHeader';
 import { ThreadItem, type VirtualProps } from './SidebarRows';
 import type { Meta } from './types';
 
-/** 「项目」「最近」整个分区收起时记在折叠记录里的键（与项目 id 不会重名） */
+/** 「项目」「其他对话」整个分区收起时记在折叠记录里的键（与项目 id 不会重名） */
 export const SECTION_WORKSPACES = '\u0000section:workspaces';
 export const SECTION_RECENT = '\u0000section:recent';
 export const SECTION_PINNED = '\u0000section:pinned';
 
 /** 每个项目默认显示的会话数，其余点「展开显示」才出现 */
 export const WORKSPACE_PREVIEW = 5;
-/** 「最近」（没有项目的会话）默认显示的条数 */
+/** 「其他对话」（没有项目的会话）默认显示的条数 */
 export const RECENT_PREVIEW = 20;
 
 const Rows: React.FC<{ items: readonly Meta[]; activeId?: string; rows: VirtualProps }> = ({
@@ -108,8 +108,9 @@ export const PinnedSection: React.FC<{
 };
 
 /**
- * 侧栏「按项目」：每个项目一个可折叠的文件夹（没有会话的项目也在），默认显示最近 5 条，其余自己展开；
- * 项目行上的「…」编辑项目，「新建」在该项目里开新会话。没有项目的会话列在下面的「最近」里。
+ * 侧栏「按项目」：每个项目一个可折叠的文件夹（没有会话的项目也在；「按端」看时只列这个端有会话的项目），
+ * 默认显示最近 5 条，其余自己展开；项目行上的「…」编辑项目，「新建」在该项目里开新会话。
+ * 没有项目的会话列在下面的「其他对话」里。
  */
 export const ProjectGroups: React.FC<{
   groups: readonly ProjectGroup[];
@@ -123,8 +124,8 @@ export const ProjectGroups: React.FC<{
   rows: VirtualProps;
   /** 「项目」标题右侧：整理「…」+ 新建项目 */
   headerActions?: React.ReactNode;
-  /** 「最近」标题右侧：新建对话（不在项目里） */
-  recentActions?: React.ReactNode;
+  /** 只看一个端时：这个端在项目里一个会话都没有的项目不列出来 */
+  hideEmpty?: boolean;
 }> = ({
   groups,
   rest,
@@ -135,7 +136,7 @@ export const ProjectGroups: React.FC<{
   activeId,
   rows,
   headerActions,
-  recentActions,
+  hideEmpty,
 }) => {
   useLocale();
   // 「展开显示」每次多显示一页，只在本次打开期间记住；折叠状态才持久化
@@ -143,6 +144,7 @@ export const ProjectGroups: React.FC<{
   const restKey = '\u0000recent';
   const restCount = paging.countOf(restKey, RECENT_PREVIEW);
 
+  const shownGroups = hideEmpty ? groups.filter((g) => g.items.length > 0) : groups;
   const wsOpen = !collapsed.includes(SECTION_WORKSPACES);
   const recentOpen = !collapsed.includes(SECTION_RECENT);
   return (
@@ -154,13 +156,13 @@ export const ProjectGroups: React.FC<{
         testId="workspace-section-toggle"
         actions={headerActions}
       />
-      {wsOpen && groups.length === 0 && (
+      {wsOpen && shownGroups.length === 0 && (
         <div className={styles.wsEmpty} data-testid="projects-empty">
           {t('ui.cli-monitor.project-none-yet')}
         </div>
       )}
       {wsOpen &&
-        groups.map((g) => {
+        shownGroups.map((g) => {
           const isCollapsed = collapsed.includes(g.key);
           const count = paging.countOf(g.key, WORKSPACE_PREVIEW);
           const shown = g.items.slice(0, count);
@@ -192,7 +194,9 @@ export const ProjectGroups: React.FC<{
                 >
                   <Icon icon={isCollapsed ? Folder : FolderOpen} size={16} />
                   <span className={styles.wsLabel}>{name}</span>
-                  {isCollapsed && <span className={styles.listCount}>{g.items.length}</span>}
+                  {isCollapsed && g.items.length > 0 && (
+                    <span className={styles.listCount}>{g.items.length}</span>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -232,15 +236,14 @@ export const ProjectGroups: React.FC<{
             </div>
           );
         })}
-      {/* 「最近」一直在：标题右侧是不在项目里的「新建对话」 */}
+      {/* 「其他对话」一直在：不在任何项目里的会话 */}
       {
         <div className={styles.wsRecent} data-testid="workspace-recent">
           <SectionHeader
-            label={t('ui.cli-monitor.recent-chats')}
+            label={t('ui.cli-monitor.other-chats')}
             open={recentOpen}
             onToggle={() => onToggleCollapsed(SECTION_RECENT, recentOpen)}
             testId="recent-section-toggle"
-            actions={recentActions}
           />
           {recentOpen && <Rows items={rest.slice(0, restCount)} activeId={activeId} rows={rows} />}
           {recentOpen && rest.length > RECENT_PREVIEW && (

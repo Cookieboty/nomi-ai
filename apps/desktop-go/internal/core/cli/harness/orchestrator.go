@@ -82,6 +82,9 @@ type Deps struct {
 	ProjectRoots func(id string) (primary string, extra []string)
 	// InProject：dir 是否在用户某个项目的某个文件夹里（右栏 git / 文件浏览认的目录）
 	InProject func(dir string) bool
+	// ProjectFor：dir 所在项目的 id（嵌套时取最具体的）；不在任何项目里返回 ""。
+	// 从本机历史打开的会话按工作目录归进项目
+	ProjectFor func(dir string) string
 }
 
 const (

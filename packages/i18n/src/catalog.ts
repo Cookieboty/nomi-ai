@@ -1663,6 +1663,8 @@ export type TranslationKey =
   | 'ui.cli-monitor.fleet-dispatch'
   | 'ui.cli-monitor.fleet-dispatch-hint'
   | 'ui.cli-monitor.fleet-dispatch-one'
+  | 'ui.cli-monitor.new-chat-failed'
+  | 'ui.cli-monitor.other-chats'
   | 'ui.devtools.call-id'
   | 'ui.devtools.click-a-row-to-see-details'
   | 'ui.devtools.content-truncated'

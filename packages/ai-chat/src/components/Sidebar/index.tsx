@@ -372,26 +372,34 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   }, [open]);
 
   /**
-   * projectId：在指定项目里新建（项目行上的「新建」）；null = 不放进项目（「最近」上的新建）；
+   * projectId：在指定项目里新建（项目行上的「新建」）；null = 不放进项目；
    * 缺省用新建菜单里选的项目
    */
   const createFor = async (backend: ConversationBackend, projectId?: string | null) => {
     setNewMenu(false);
     leaveRef.current?.();
     const pid = projectId === undefined ? (ws.chosen ?? null) : projectId;
-    if (backend === 'nomi') {
-      if (tabs.available) await tabs.activate(MAIN_TAB_ID);
-      if (harnessClient.available()) await harnessClient.setBackend('nomi').catch(() => undefined);
-      // 新建是异步操作。必须等它创建并切换到新的 Nomi 会话后再刷新侧栏，
-      // 否则 ensureCurrent() 可能读到旧的 CLI 镜像项并把它改写成 Nomi。
-      await onNewChat({ projectId: pid });
+    // 菜单里选的项目只管这一次新建：用过就清掉，不带到下一次新建
+    ws.reset();
+    try {
+      if (backend === 'nomi') {
+        if (tabs.available) await tabs.activate(MAIN_TAB_ID);
+        if (harnessClient.available())
+          await harnessClient.setBackend('nomi').catch(() => undefined);
+        // 新建是异步操作。必须等它创建并切换到新的 Nomi 会话后再刷新侧栏，
+        // 否则 ensureCurrent() 可能读到旧的 CLI 镜像项并把它改写成 Nomi。
+        await onNewChat({ projectId: pid });
+        refresh();
+        return;
+      }
+      if (!isDev) setMode('dev');
+      if (!tabs.available) return;
+      await tabs.create(backend, pid ?? undefined);
       refresh();
-      return;
+    } catch (e) {
+      // 建不出来要让用户知道（以前静默失败，看起来像点了没反应）
+      onNotice?.(t('ui.cli-monitor.new-chat-failed', e instanceof Error ? e.message : String(e)));
     }
-    if (!isDev) setMode('dev');
-    if (!tabs.available) return;
-    await tabs.create(backend, pid ?? undefined);
-    refresh();
   };
 
   const handleNewClick = () => {
@@ -828,7 +836,8 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       <Icon icon={SquarePen} />
     </button>
   );
-  // 「项目」标题右侧：整理侧栏「…」+ 新建项目（Codex 式）；新建对话在「最近」标题右侧。
+  // 「项目」标题右侧：整理侧栏「…」+ 新建项目（Codex 式）。按项目分组时侧栏标题上不再放通用的新建对话：
+  // 项目行上有「新建」，还有搜索窗口里的「新对话」与快捷键；合并成一张列表时新建在列表标题上。
   // 不分组时（「对话」）：整理 + 新建对话
   const listOpen = !collapsedWorkspaces.includes(SECTION_WORKSPACES);
   const organize = <OrganizeMenu grouped={groupByWorkspace} onChange={setGroupByWorkspace} />;
@@ -1003,7 +1012,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
                 activeId={rowActiveId}
                 rows={rowProps}
                 headerActions={listActions}
-                recentActions={newBtn}
+                hideEmpty={isDev && view === 'by-endpoint'}
               />
             )}
             {!wsGroups.grouped && (

@@ -328,6 +328,15 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 	default:
 		cwd = o.EnsureDefaultDir(str(o.tab(o.activeTabID), "cwd"))
 	}
+	// 没指定项目：工作目录在某个已有项目里就直接归进去（本机历史打开的会话、委派开的 worktree 标签等），
+	// 不然侧栏里落到「其他对话」，启动时也带不上项目的其余文件夹。项目主文件夹此刻不能用时不归
+	if projectID == "" && o.d.ProjectFor != nil {
+		if pid := o.d.ProjectFor(cwd); pid != "" {
+			if primary, _ := o.projectRoots(pid); primary != "" {
+				projectID = pid
+			}
+		}
+	}
 	now := nowMs()
 	sameKind := 0
 	for _, k := range o.tabs.Keys() {

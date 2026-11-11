@@ -198,9 +198,15 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 				return r.Primary, r.Extra
 			},
 			InProject: projs.Contains,
+			ProjectFor: func(dir string) string {
+				p, _ := projs.FindContaining(dir)
+				return p.ID
+			},
 		})
 	})
 	harnessOrch = o // coding_wiring.go（cliUpdate / history / delegate）共用同一编排器
+	// 工作目录落在已有项目里、还没归项目的标签（以前打开的历史会话、委派的 worktree 标签等）归进去
+	jsrt.Run(o.AdoptUnboundTabs)
 	projs.OnChange(func(id string) { jsrt.Run(func() { o.ProjectChanged(id) }) })
 	codinghandlers.RegisterHarness(router, func() *harness.Orchestrator { return o })
 	codinghandlers.RegisterOpenTerminal(router, cwdCheck, terminal.OpenAt)
