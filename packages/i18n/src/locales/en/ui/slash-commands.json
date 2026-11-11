@@ -59,6 +59,7 @@
   "ui.slash-commands.hand-off-to-a-coding-assistant": "Hand off to a coding assistant",
   "ui.slash-commands.handed-off-started": "{0} started in the background: {1}",
   "ui.slash-commands.handoff-not-dispatched": "Nothing was dispatched: {0}",
+  "ui.slash-commands.handoff-request-too-long": "The request is longer than {0} characters. Shorten it and send again",
   "ui.slash-commands.help": "Help",
   "ui.slash-commands.in-out": "in {0} / out {1}",
   "ui.slash-commands.interface": "Interface",

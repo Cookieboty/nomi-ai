@@ -8224,6 +8224,10 @@
       "minLength": 1,
       "maxLength": 4000
      },
+     "context": {
+      "type": "string",
+      "maxLength": 8000
+     },
      "conversationId": {
       "type": "string"
      },
@@ -29276,20 +29280,6 @@
      "budget": {
       "type": "object",
       "properties": {
-       "maxTokensPerAttempt": {
-        "type": "integer",
-        "exclusiveMinimum": 0,
-        "maximum": 9007199254740991
-       },
-       "maxDurationMsPerAttempt": {
-        "type": "integer",
-        "exclusiveMinimum": 0,
-        "maximum": 9007199254740991
-       },
-       "maxCostUsdPerDay": {
-        "type": "number",
-        "minimum": 0
-       },
        "maxRetries": {
         "type": "integer",
         "minimum": 0,
@@ -30738,20 +30728,6 @@
      "budget": {
       "type": "object",
       "properties": {
-       "maxTokensPerAttempt": {
-        "type": "integer",
-        "exclusiveMinimum": 0,
-        "maximum": 9007199254740991
-       },
-       "maxDurationMsPerAttempt": {
-        "type": "integer",
-        "exclusiveMinimum": 0,
-        "maximum": 9007199254740991
-       },
-       "maxCostUsdPerDay": {
-        "type": "number",
-        "minimum": 0
-       },
        "maxRetries": {
         "type": "integer",
         "minimum": 0,

@@ -122,21 +122,19 @@ func TestProviderAutoContinueStopsAfterDenial(t *testing.T) {
 	}
 }
 
-// 累计 token 超过上限：不再自动续跑
-func TestProviderAutoContinueStopsOverTokenBudget(t *testing.T) {
+// 累计用量很大也照样自动续跑：不按用量拦截，长任务要能自己做完
+func TestProviderAutoContinueIgnoresUsage(t *testing.T) {
 	s, err := mockllm.StartScripted(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	old := MaxAutoContinueTokens
-	MaxAutoContinueTokens = 0
-	defer func() { MaxAutoContinueTokens = old }()
-	usage := `{"id":"c1","choices":[],"usage":{"prompt_tokens":10,"completion_tokens":1,"total_tokens":11}}`
+	usage := `{"id":"c1","choices":[],"usage":{"prompt_tokens":50000000,"completion_tokens":1,"total_tokens":50000001}}`
 	step := toolCallStep("c1")
 	step.SSE = sse(`{"id":"c1","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"c1","type":"function","function":{"name":"look","arguments":"{}"}}]}}]}`,
 		`{"id":"c1","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}`, usage)
-	s.Set([]mockllm.Step{step, toolCallStep("c2")})
+	s.Set([]mockllm.Step{step, {OK: "1", SSE: sse(`{"id":"d","choices":[{"index":0,"delta":{"content":"done"}}]}`,
+		`{"id":"d","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}`)}})
 	steps := 1
 	p, err := NewProvider(Options{ID: "test", BaseURL: "http://" + s.HostPort, APIKey: "k", DefaultModel: "m", MaxSteps: &steps}, nil)
 	if err != nil {
@@ -145,12 +143,17 @@ func TestProviderAutoContinueStopsOverTokenBudget(t *testing.T) {
 	defs := []tools.Definition{{Name: "look", Description: "look", Execute: func(context.Context, any, tools.ExecContext) (any, error) {
 		return "seen", nil
 	}}}
+	text := ""
 	if err := p.WithTools(defs).Stream(context.Background(), &blm.ChatRequest{ReqID: "r", Messages: []blm.ChatMessage{{Role: "user", Content: "hi"}}},
-		func(blm.ChatChunk) {}); err != nil {
+		func(c blm.ChatChunk) {
+			if c.Type == "delta" {
+				text += c.Content
+			}
+		}); err != nil {
 		t.Fatal(err)
 	}
-	if len(s.Seen()) != 1 {
-		t.Fatalf("requests %d, want 1 (stopped by token budget)", len(s.Seen()))
+	if len(s.Seen()) != 2 || text != "done" {
+		t.Fatalf("requests %d text %q, want the second round to run", len(s.Seen()), text)
 	}
 }
 

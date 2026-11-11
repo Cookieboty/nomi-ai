@@ -473,12 +473,8 @@ const MaxSteerRounds = 3
 
 // MaxAutoRounds：一轮的工具步数用完、模型还要接着调工具时，自动再续几轮（每轮 StepCount 步）。
 // 复杂任务（读代码 → 改 → 跑测试 → 再改）常要上百步，不让用户反复说「继续」；
-// 上限只是兜底（防止原地打转），用户随时可以停止，后台任务另有预算。
+// 上限只是兜底（防止原地打转），用户随时可以停止。不按用量拦截：长任务要能自己做完。
 var MaxAutoRounds = 20
-
-// MaxAutoContinueTokens：自动续跑的累计 token 上限（输入 + 输出，所有轮次合计）。每一步都重发整段历史，
-// 不设上限时前台一次长任务能烧掉上千万 token；超了就停下，告诉用户说「继续」接着做。后台任务另有按次预算。
-var MaxAutoContinueTokens = 3_000_000
 
 // deniedTool：工具结果 / 错误是「用户拒绝 / 权限模式不允许」——这时不自动续跑，免得模型换个方式反复弹确认
 func deniedTool(s string) bool {
@@ -493,8 +489,6 @@ func autoStoppedNotice(reason string, rounds int) string {
 	switch reason {
 	case "denied":
 		return "\n\n" + i18n.T("electron.common.auto-continue-stopped-denied")
-	case "tokens":
-		return "\n\n" + i18n.T("electron.common.auto-continue-stopped-budget", rounds)
 	case "no-progress":
 		return "\n\n" + i18n.T("electron.common.auto-continue-stopped-no-progress")
 	}
@@ -923,8 +917,6 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 			switch {
 			case denied:
 				auto, stopReason = false, "denied"
-			case total != nil && total.PromptTokens+total.CompletionTokens > float64(MaxAutoContinueTokens):
-				auto, stopReason = false, "tokens"
 			case autoRounds >= MaxAutoRounds:
 				stopReason = "rounds"
 			case !progress:

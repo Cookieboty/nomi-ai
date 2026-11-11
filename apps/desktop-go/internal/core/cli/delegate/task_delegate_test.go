@@ -191,7 +191,7 @@ func waitUntil(t *testing.T, ok func() bool) {
 func TestDispatchStartsBackgroundTask(t *testing.T) {
 	ft := newFakeTasks()
 	e := newTaskEnv(t, util.NewObj(), ft)
-	r, err := e.svc.Dispatch("claude", "修复登录 bug", "conv_9", "", "turn_1")
+	r, err := e.svc.Dispatch(context.Background(), DispatchInput{Cli: "claude", Goal: "修复登录 bug", Context: "附图：nomi-asset://a.png", ConversationID: "conv_9", TurnID: "turn_1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +201,11 @@ func TestDispatchStartsBackgroundTask(t *testing.T) {
 	if len(ft.created) != 1 || ft.created[0].Goal != "修复登录 bug" || ft.created[0].ConversationID == nil || *ft.created[0].ConversationID != "conv_9" {
 		t.Fatalf("%+v", ft.created)
 	}
-	_, err = e.svc.Dispatch("gemini", "做点事", "c", "", "")
+	// 消息附的图片地址作为背景带给编程助手
+	if b := ft.created[0].Executor.Brief; b == nil || b.Context == nil || *b.Context != "附图：nomi-asset://a.png" {
+		t.Fatalf("%+v", ft.created[0].Executor)
+	}
+	_, err = e.svc.Dispatch(context.Background(), DispatchInput{Cli: "gemini", Goal: "做点事", ConversationID: "c"})
 	if err == nil || !strings.Contains(err.Error(), "没有安装") || len(ft.created) != 1 {
 		t.Fatal(err, len(ft.created))
 	}

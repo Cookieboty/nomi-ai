@@ -2011,6 +2011,7 @@ type DelegateClearPinInput struct {
 type DelegateDispatchInput struct {
 	Cli            string  `json:"cli"`
 	Goal           string  `json:"goal"`
+	Context        *string `json:"context,omitempty"`
 	ConversationId *string `json:"conversationId,omitempty"`
 	ProjectId      *string `json:"projectId,omitempty"`
 	TurnId         *string `json:"turnId,omitempty"`
@@ -8687,10 +8688,7 @@ type TasksCreateInputGrant struct {
 }
 
 type TasksCreateInputBudget struct {
-	MaxTokensPerAttempt     *int64   `json:"maxTokensPerAttempt,omitempty"`
-	MaxDurationMsPerAttempt *int64   `json:"maxDurationMsPerAttempt,omitempty"`
-	MaxCostUsdPerDay        *float64 `json:"maxCostUsdPerDay,omitempty"`
-	MaxRetries              *int64   `json:"maxRetries,omitempty"`
+	MaxRetries *int64 `json:"maxRetries,omitempty"`
 }
 
 // TasksCreateInputAcceptance 枚举：auto | user
@@ -9142,10 +9140,7 @@ type TasksSetModeOutput struct {
 }
 
 type TasksUpdateInputBudget struct {
-	MaxTokensPerAttempt     *int64   `json:"maxTokensPerAttempt,omitempty"`
-	MaxDurationMsPerAttempt *int64   `json:"maxDurationMsPerAttempt,omitempty"`
-	MaxCostUsdPerDay        *float64 `json:"maxCostUsdPerDay,omitempty"`
-	MaxRetries              *int64   `json:"maxRetries,omitempty"`
+	MaxRetries *int64 `json:"maxRetries,omitempty"`
 }
 
 // TasksUpdateInputPriority 枚举：urgent | high | medium | low

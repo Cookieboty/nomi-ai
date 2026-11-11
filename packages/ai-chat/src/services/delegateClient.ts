@@ -106,6 +106,9 @@ async function call<T>(run: () => Promise<unknown>): Promise<T> {
   }
 }
 
+/** 委派需求的长度上限（与契约 `delegate.dispatch` 和 delegate_to_cli 的 goal 一致） */
+export const DELEGATE_GOAL_MAX = 4000;
+
 export const delegateClient = {
   available: () => hasTransport(),
   settings: () => call<DelegateSettingsView>(() => api.delegate.settings()),
@@ -115,14 +118,21 @@ export const delegateClient = {
   pin: (cli: DelegateCli | null, turnId: string) =>
     call<DelegateCli | null>(() => api.delegate.pin({ cli, turnId })),
   clearPin: (turnId: string) => call<boolean>(() => api.delegate.clearPin({ turnId })),
-  /** `/agent 名字 需求`：直接派出，不经过对话模型 */
-  dispatch: (input: {
-    cli: DelegateCli;
-    goal: string;
-    conversationId?: string;
-    projectId?: string;
-    turnId?: string;
-  }) => call<DelegateResult>(() => api.delegate.dispatch(input)),
+  /**
+   * `/agent 名字 需求`：直接派出，不经过对话模型。`context` 是需求之外的背景（附图地址等）；
+   * `signal` 中止时内核取消还在等的确认。
+   */
+  dispatch: (
+    input: {
+      cli: DelegateCli;
+      goal: string;
+      context?: string;
+      conversationId?: string;
+      projectId?: string;
+      turnId?: string;
+    },
+    signal?: AbortSignal,
+  ) => call<DelegateResult>(() => api.delegate.dispatch(input, signal ? { signal } : undefined)),
   /** 查后台委派状态（主进程 tasks；无则 null） */
   status: (taskId: string) => call<DelegateResult | null>(() => api.delegate.status({ taskId })),
   /** 后台委派完成时主进程广播 */

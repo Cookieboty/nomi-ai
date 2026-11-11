@@ -319,7 +319,6 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
         ),
       ),
       t('ui.providers-schedule.task-card-expiry', days),
-      t('ui.providers-schedule.task-card-budget'),
     ].join('\n');
     const ok = await confirmDialog({
       title: t('ui.providers-schedule.task-card-title'),

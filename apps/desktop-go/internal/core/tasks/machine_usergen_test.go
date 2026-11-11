@@ -25,3 +25,25 @@ func TestUserDecisionsHonourGen(t *testing.T) {
 		}
 	}
 }
+
+// 旧版本停在「预算用完」的任务：升级重启后不再等人，接着排队；进行中的那次执行记为中断
+func TestRestartReleasesLegacyBudgetWait(t *testing.T) {
+	for _, c := range []struct {
+		name     string
+		resumeTo string
+		attempt  *Attempt
+	}{
+		{"before start", "queued", nil},
+		{"mid attempt", "running", &Attempt{ID: "a1", Gen: 2, Status: "waiting_user"}},
+	} {
+		task := Task{ID: "t1", Status: StatusWaitingUser, Gen: 2, Enabled: true,
+			Wait: &Wait{Kind: "budget", ResumeTo: c.resumeTo}, Pending: &PendingRun{Cause: "schedule"}}
+		r := Transition(task, c.attempt, Event{Type: "restarted", At: 10})
+		if !r.OK || r.Task.Status != StatusQueued || r.Task.Wait != nil || r.Task.Pending == nil || r.Task.Pending.Cause != "schedule" {
+			t.Fatalf("%s: %+v", c.name, r)
+		}
+		if c.attempt != nil && (r.Attempt == nil || r.Attempt.Status != "interrupted" || r.Task.Gen != 3) {
+			t.Fatalf("%s: attempt %+v gen %d", c.name, r.Attempt, r.Task.Gen)
+		}
+	}
+}

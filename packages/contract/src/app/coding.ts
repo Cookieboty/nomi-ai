@@ -618,6 +618,8 @@ const delegateProcedures = {
     input: z.object({
       cli: z.string().min(1),
       goal: z.string().min(1).max(4000),
+      /** 需求之外的背景（如消息附图的地址），交给编程助手 */
+      context: z.string().max(8000).optional(),
       conversationId: z.string().optional(),
       projectId: z.string().optional(),
       turnId: z.string().optional(),
