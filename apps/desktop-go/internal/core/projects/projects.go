@@ -449,18 +449,13 @@ func (s *Store) Remove(id string) error {
 	return nil
 }
 
-// Seed：首启迁移——把以前的单目录工作区各建成一个单文件夹项目（已有同主文件夹的复用、不能用的跳过）。
-// 返回 原路径 → 项目 id。只在 projects.json 还不存在时有效；之后调用返回 nil。
+// Seed：迁移——把以前的单目录工作区各建成一个单文件夹项目（已有同主文件夹的复用、此刻不能用的跳过）。
+// 返回 原路径 → 项目 id（跳过的不在里面）。可以重复调用：中途失败、目录后来又能用时，迁移会再跑
 func (s *Store) Seed(dirs []string) (map[string]string, error) {
-	s.mu.Lock()
-	if s.existed {
-		s.mu.Unlock()
-		return nil, nil
-	}
-	s.mu.Unlock()
 	out := map[string]string{}
 	now := s.d.Now()
 	s.mu.Lock()
+	old := slices.Clone(s.list)
 	for _, d := range dirs {
 		d = strings.TrimSpace(d)
 		if d == "" {
@@ -487,10 +482,20 @@ func (s *Store) Seed(dirs []string) (map[string]string, error) {
 		}
 		out[d] = found
 	}
-	err := s.saveLocked()
+	var err error
+	added := len(s.list) != len(old)
+	if added || !s.existed {
+		err = s.saveLocked()
+	}
+	if err != nil {
+		s.list = old
+	}
 	s.mu.Unlock()
 	if err != nil {
 		return nil, err
+	}
+	if !added {
+		return out, nil
 	}
 	s.emit()
 	return out, nil

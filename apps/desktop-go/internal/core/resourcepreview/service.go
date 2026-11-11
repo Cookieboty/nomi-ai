@@ -50,10 +50,13 @@ type capability struct {
 }
 type Service struct {
 	ProtectedPaths func() []string
-	OpenExternal   func(string) error
-	OpenFile       func(string) error
-	mu             sync.Mutex
-	items          map[string]capability
+	// ProjectRoots：path 所在项目此刻可用的文件夹（realpath，已经过项目文件夹的校验）。
+	// 项目的文件夹都是用户加过的工作区：链接跳到同项目的附加文件夹或别的项目文件夹时不再要求逐个文件授权，并且可以编辑
+	ProjectRoots func(path string) []string
+	OpenExternal func(string) error
+	OpenFile     func(string) error
+	mu           sync.Mutex
+	items        map[string]capability
 	// saveLocks：按文件串行化保存（路径 → *sync.Mutex）。只锁同一个文件的保存，预览请求与别的文件不受影响
 	saveLocks     sync.Map
 	DenyRoots     []string
@@ -72,6 +75,21 @@ func (s *Service) now() time.Time {
 		return s.clock()
 	}
 	return time.Now()
+}
+
+// projectRootOf：real 所在项目里包含它的最深的文件夹（重新按工作区规则校验）；不在任何项目里返回 ""
+func (s *Service) projectRootOf(real, home string) string {
+	if s.ProjectRoots == nil {
+		return ""
+	}
+	best := ""
+	for _, r := range s.ProjectRoots(real) {
+		check := desktop.CheckWorkspaceRoot(r, desktop.WorkspaceEnv{Home: home, Platform: platform(), DenyRoots: s.DenyRoots})
+		if check.OK && desktop.IsInside(real, check.Real, platform()) && len(check.Real) > len(best) {
+			best = check.Real
+		}
+	}
+	return best
 }
 
 func (s *Service) stale(at time.Time) bool { return s.now().Sub(at) > ttl }
@@ -118,9 +136,15 @@ func (s *Service) Open(cwd, input, home string, allowOutside bool) Result {
 		return fail("denied")
 	}
 	inside := false
+	editRoot := cwd
 	if cwd != "" {
 		check := desktop.CheckWorkspaceRoot(cwd, desktop.WorkspaceEnv{Home: home, Platform: platform(), DenyRoots: s.DenyRoots})
 		inside = check.OK && desktop.IsInside(real, check.Real, platform())
+	}
+	if !inside {
+		if r := s.projectRootOf(real, home); r != "" {
+			inside, editRoot = true, r
+		}
 	}
 	if !inside && !allowOutside {
 		return Result{Code: "authorization", Path: real}
@@ -175,7 +199,7 @@ func (s *Service) Open(cwd, input, home string, allowOutside bool) Result {
 		result.Revision = fmt.Sprintf("%x", sha256.Sum256([]byte(result.Content)))
 		s.mu.Lock()
 		cap := s.items[token]
-		cap.editRoot, cap.home, cap.revision = cwd, home, result.Revision
+		cap.editRoot, cap.home, cap.revision = editRoot, home, result.Revision
 		s.items[token] = cap
 		s.mu.Unlock()
 	}

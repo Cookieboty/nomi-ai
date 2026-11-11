@@ -109,7 +109,12 @@ ACP 助手的权限能力由清单推出（`shared.AcpPermissions`），不在 G
   会话详情的「变更」只要规模，调 `harness.gitSummary`（`status` + `diff --numstat HEAD` 两条命令，不带 diff 原文），
   同一目录的进行中请求共用。窗口重新拿到焦点时的重读（改动、分支、上游、worktree）都经 `utils/focusRefresh.ts`，至多每 5 秒一次。
 - **委派与任务**：`delegate_to_cli` / `delegate_to_nomi` 把项目带进新标签与任务（`ExecutorSpec.Project`），Nomi 后台任务经 `extra.projectId` 走同一条路。
-- **迁移**：`projects.json` 不存在时（2.3.8 首启）`migrateToProjects` 把会话元信息里的 `cwd` 与标签目录各建成单文件夹项目，会话改成引用 projectId 并去掉 `cwd`。
+- **文件预览**：会话里的文件链接经 `harness.previewOpen` 打开。文件不在会话工作目录里、但在某个项目的文件夹里（同项目的其余文件夹、别的项目）时，
+  内核按 `resourcepreview.Service.ProjectRoots` 取那个项目此刻可用的文件夹，选包含它的最深的一个当可编辑根，不再要求逐个文件授权；
+  不在任何项目里的仍要用户确认，确认后只读。
+- **迁移**：`migrateToProjects` 把会话元信息里的 `cwd`、标签与后台任务的目录各建成单文件夹项目，会话改成引用 projectId。
+  `projects.json` 不存在或 `userData/projects-migration.pending` 还在（上次中途失败）时整套跑，每一步都可以重复做，全部成功才删标记。
+  只有迁上项目的对话才去掉 `cwd`；目录此刻不能用（外接盘没挂、网络目录离线）的保留 `cwd`，之后每次启动再试。
 
 ## 权限档位
 

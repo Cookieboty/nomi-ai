@@ -146,7 +146,7 @@ func (o *Orchestrator) TabCwds() []string {
 	out := []string{}
 	for _, k := range o.tabs.Keys() {
 		tab := o.tab(k)
-		if k == MainTabID || tab.Get("delegation") != nil || str(tab, "projectId") != "" {
+		if k == MainTabID || tab.Get("delegation") != nil || str(tab, "projectId") != "" || truthy(tab.Get(projectOptOutKey)) {
 			continue
 		}
 		if c := str(tab, "cwd"); c != "" {
@@ -188,12 +188,12 @@ func (o *Orchestrator) AdoptUnboundTabs() {
 	}
 }
 
-// AdoptProjects：首启迁移：按 目录 → 项目 id 给还没有项目的标签补上 projectId
+// AdoptProjects：迁移：按 目录 → 项目 id 给还没有项目的标签补上 projectId（用户选了不使用项目的不动）
 func (o *Orchestrator) AdoptProjects(byDir map[string]string) {
 	n := 0
 	for _, k := range o.tabs.Keys() {
 		tab := o.tab(k)
-		if k == MainTabID || tab.Get("delegation") != nil || str(tab, "projectId") != "" {
+		if k == MainTabID || tab.Get("delegation") != nil || str(tab, "projectId") != "" || truthy(tab.Get(projectOptOutKey)) {
 			continue
 		}
 		if id := byDir[str(tab, "cwd")]; id != "" {

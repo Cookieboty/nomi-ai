@@ -113,15 +113,19 @@ func TestRootsSkipsMissingExtra(t *testing.T) {
 	}
 }
 
-func TestSeedOnce(t *testing.T) {
+func TestSeedIdempotent(t *testing.T) {
 	s, dir, _ := newStore(t)
 	a, b := mk(t, dir, "a"), mk(t, dir, "b")
-	m, err := s.Seed([]string{a, b, a, filepath.Join(dir, "gone"), ""})
+	gone := filepath.Join(dir, "gone")
+	m, err := s.Seed([]string{a, b, a, gone, ""})
 	if err != nil || len(m) != 2 || m[a] == "" || m[a] == m[b] || len(s.List()) != 2 {
 		t.Fatalf("seed %v %v", m, err)
 	}
-	if m2, _ := s.Seed([]string{a}); m2 != nil {
-		t.Fatal("seed should only run once")
+	// 重跑复用同主文件夹的项目；之前不能用的目录回来了就补建
+	mk(t, dir, "gone")
+	m2, err := s.Seed([]string{a, gone})
+	if err != nil || m2[a] != m[a] || m2[gone] == "" || len(s.List()) != 3 {
+		t.Fatalf("reseed %v %v", m2, err)
 	}
 	// 没有旧目录也落盘（之后不再迁移）
 	s3, _, _ := newStore(t)

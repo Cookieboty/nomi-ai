@@ -17,9 +17,11 @@ func (r *Runtime) ProjectCwds() []string {
 	return out
 }
 
-// AdoptProjects：按 目录 → 项目 id 给这些任务补上 Executor.Project（落盘）
-func (r *Runtime) AdoptProjects(byDir map[string]string) int {
+// AdoptProjects：按 目录 → 项目 id 给这些任务补上 Executor.Project（落盘）。返回补上的个数与第一个落盘错误
+// （有错误时迁移不算完成，下次启动重试）
+func (r *Runtime) AdoptProjects(byDir map[string]string) (int, error) {
 	n := 0
+	var first error
 	r.own(func() {
 		for _, rec := range r.recs {
 			t := rec.Task
@@ -32,10 +34,14 @@ func (r *Runtime) AdoptProjects(byDir map[string]string) int {
 				continue
 			}
 			t.Executor.Project = &id
-			if r.save(Record{Task: t, Attempts: rec.Attempts}) == nil {
-				n++
+			if err := r.save(Record{Task: t, Attempts: rec.Attempts}); err != nil {
+				if first == nil {
+					first = err
+				}
+				continue
 			}
+			n++
 		}
 	})
-	return n
+	return n, first
 }

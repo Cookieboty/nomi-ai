@@ -18,7 +18,7 @@ func TestAdoptProjects(t *testing.T) {
 	if got := h.rt.ProjectCwds(); len(got) != 1 || got[0] != "/work/deck" {
 		t.Fatalf("cwds = %v", got)
 	}
-	if n := h.rt.AdoptProjects(map[string]string{"/work/deck": "p_new"}); n != 1 {
+	if n, err := h.rt.AdoptProjects(map[string]string{"/work/deck": "p_new"}); n != 1 || err != nil {
 		t.Fatalf("adopted %d", n)
 	}
 	if p := h.rt.Get(id).Task.Executor.Project; p == nil || *p != "p_new" {
