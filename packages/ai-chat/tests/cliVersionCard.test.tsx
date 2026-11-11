@@ -67,7 +67,7 @@ describe('versionState', () => {
 });
 
 describe('CliVersionCard', () => {
-  it('not installed: shows 未安装 + one-click install, confirm dialog shows the exact command', async () => {
+  it('not installed: one click installs right away; a successful run clears the log and result', async () => {
     const { calls } = setup({
       'cliUpdate.inspect': () => [info({})],
       'cliUpdate.preview': () => plan(),
@@ -80,19 +80,14 @@ describe('CliVersionCard', () => {
     expect(r.getByTestId('cli-version-action-dsh').textContent).toBe('一键安装');
     expect(r.getByTestId('cli-version-latest-dsh').textContent).toBe('0.2.0-rc.2');
 
-    // 点击只出确认框，不执行
+    // 前置检查通过：不弹确认框，直接执行
     fireEvent.click(r.getByTestId('cli-version-action-dsh'));
-    await waitFor(() => r.getByTestId('cli-version-command'));
-    expect(r.getByTestId('cli-version-command').textContent).toBe(
-      'npm install -g @deepseek-ai/dsh@latest',
-    );
-    expect(calls.some(([c]) => c === 'cliUpdate.run')).toBe(false);
-    expect(r.getByTestId('cli-version-req-node').getAttribute('data-ok')).toBe('1');
-
-    fireEvent.click(r.getByTestId('cli-version-confirm'));
-    await waitFor(() => r.getByTestId('cli-version-result-dsh'));
-    expect(r.getByTestId('cli-version-result-dsh').getAttribute('data-ok')).toBe('1');
-    expect(calls.filter(([c]) => c === 'cliUpdate.run')).toHaveLength(1);
+    await waitFor(() => expect(calls.filter(([c]) => c === 'cliUpdate.run')).toHaveLength(1));
+    expect(r.queryByTestId('cli-version-command')).toBeNull();
+    // 成功：日志和结果自动收起，主进程那份也清掉
+    await waitFor(() => expect(calls.some(([c]) => c === 'cliUpdate.dismiss')).toBe(true));
+    expect(r.queryByTestId('cli-version-result-dsh')).toBeNull();
+    expect(r.queryByTestId('cli-version-log-dsh')).toBeNull();
     expect(calls.find(([c]) => c === 'cliUpdate.run')![1]).toEqual({
       kind: 'dsh',
       scope: 'global',
@@ -144,12 +139,11 @@ describe('CliVersionCard', () => {
     fireEvent.click(r.getByTestId('cli-version-action-codex'));
     await waitFor(() => r.getByTestId('cli-version-user-scope'));
     expect(r.container.ownerDocument.body.textContent).not.toMatch(/sudo npm/);
+    expect(calls.some(([c]) => c === 'cliUpdate.run')).toBe(false);
+    // 选了用户目录：那边检查通过，直接装、关掉说明框
     fireEvent.click(r.getByTestId('cli-version-user-scope'));
-    await waitFor(() =>
-      expect(r.getByTestId('cli-version-command').textContent).toContain('--prefix'),
-    );
-    fireEvent.click(r.getByTestId('cli-version-confirm'));
-    await waitFor(() => r.getByTestId('cli-version-result-codex'));
+    await waitFor(() => expect(calls.some(([c]) => c === 'cliUpdate.run')).toBe(true));
+    await waitFor(() => expect(r.queryByTestId('cli-version-user-scope')).toBeNull());
     expect(calls.find(([c]) => c === 'cliUpdate.run')![1]).toEqual({
       kind: 'codex',
       scope: 'user',
@@ -180,8 +174,7 @@ describe('CliVersionCard', () => {
     expect(r.getByTestId('cli-version-action-claude').textContent).toBe('更新到 2.1.300');
     expect(r.getByTestId('cli-version-installed-claude').textContent).toBe('2.1.0');
     fireEvent.click(r.getByTestId('cli-version-action-claude'));
-    await waitFor(() => r.getByTestId('cli-version-confirm'));
-    fireEvent.click(r.getByTestId('cli-version-confirm'));
+    // 失败：日志和原因留着，等用户关闭
     await waitFor(() => r.getByTestId('cli-version-result-claude'));
     expect(r.getByTestId('cli-version-result-claude').getAttribute('data-ok')).toBe('0');
     expect(r.getByTestId('cli-version-result-claude').textContent).toContain('EACCES');
@@ -224,7 +217,7 @@ describe('CliVersionCard · task survives unmount (state lives in the main proce
     startedAt: 1,
   };
 
-  it('mount → start → unmount → re-mount still shows the running log; finishing shows the result; dismiss clears it', async () => {
+  it('mount → start → unmount → re-mount still shows the running log; success clears it', async () => {
     let job: unknown = null;
     const { calls, emit } = setup({
       'cliUpdate.inspect': () => [
@@ -245,10 +238,8 @@ describe('CliVersionCard · task survives unmount (state lives in the main proce
         false,
       ),
     );
-    fireEvent.click(first.getByTestId('cli-version-action-codex'));
-    await waitFor(() => first.getByTestId('cli-version-confirm'));
     job = running; // 主进程已开始任务
-    fireEvent.click(first.getByTestId('cli-version-confirm'));
+    fireEvent.click(first.getByTestId('cli-version-action-codex'));
     await waitFor(() => first.getByTestId('cli-version-log-codex'));
     first.unmount(); // 用户切到别的页面
 
@@ -278,16 +269,14 @@ describe('CliVersionCard · task survives unmount (state lives in the main proce
       result: { ok: true, log: '', version: '1.1.0', path: '/x/codex' },
     };
     emit({ kind: 'codex', mode: 'update', phase: 'done', version: '1.1.0' });
-    await waitFor(() =>
-      expect(again.getByTestId('cli-version-result-codex').getAttribute('data-ok')).toBe('1'),
-    );
-    // 再离开再回来，结果仍在，直到用户关闭
+    // 成功：日志与结果自动收起，主进程那份也清掉
+    await waitFor(() => expect(again.queryByTestId('cli-version-log-codex')).toBeNull());
+    expect(again.queryByTestId('cli-version-result-codex')).toBeNull();
+    expect(calls.some(([c]) => c === 'cliUpdate.dismiss')).toBe(true);
     again.unmount();
     const third = render(<CliVersionCard kind="codex" />);
-    await waitFor(() => third.getByTestId('cli-version-result-codex'));
-    fireEvent.click(third.getByTestId('cli-version-dismiss-codex'));
-    await waitFor(() => expect(third.queryByTestId('cli-version-result-codex')).toBeNull());
-    expect(calls.some(([c]) => c === 'cliUpdate.dismiss')).toBe(true);
+    await waitFor(() => third.getByTestId('cli-version-action-codex'));
+    expect(third.queryByTestId('cli-version-result-codex')).toBeNull();
   });
 
   it('another endpoint running does not block this card (installs run in parallel)', async () => {
@@ -324,8 +313,6 @@ describe('CliVersionCard · task survives unmount (state lives in the main proce
     const r = render(<CliVersionCard kind="claude" />);
     await waitFor(() => r.getByTestId('cli-version-action-claude'));
     fireEvent.click(r.getByTestId('cli-version-action-claude'));
-    await waitFor(() => r.getByTestId('cli-version-confirm'));
-    fireEvent.click(r.getByTestId('cli-version-confirm'));
     await waitFor(() =>
       expect(r.getByTestId('cli-version-installed-claude').textContent).toBe('2.1.300'),
     );

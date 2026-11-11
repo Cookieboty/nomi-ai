@@ -1,9 +1,9 @@
 import { byCli, cliName } from '@nomi-ai/cli-catalog';
 /**
  * 端点页的「版本」分组：已装版本 / 最新版本 / 检查更新 / 一键更新；未安装时一键安装。
- * 执行前一定弹出确认框，展示确切命令与前置检查（Node / npm / 写权限）；
- * 没有写权限时不会偷偷提权，只提供「改装到用户目录」或自行在终端处理。
- * 进度与日志来自主进程按行推送的事件；失败原因原样展示。
+ * 点按钮先做前置检查（Node / npm / 写权限）：都通过就直接执行，不再二次确认；
+ * 有阻塞原因时才弹框说明，没有写权限时不会偷偷提权，只提供「改装到用户目录」或自行在终端处理。
+ * 进度与日志来自主进程按行推送的事件；成功后日志自动收起，失败原因原样保留。
  */
 import { Badge, type BadgeTone, Button, Notice, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -79,11 +79,22 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
   );
 
   // 任务状态在主进程：挂载时先取快照（运行中 / 最近一次结果），再订阅增量
-  const applyJob = useCallback((j: CliJob | null) => {
-    setRunning(j?.status === 'running');
-    setLines(j ? j.lines : []);
-    setResult(j?.status === 'running' ? null : (j?.result ?? null));
-  }, []);
+  const applyJob = useCallback(
+    (j: CliJob | null) => {
+      // 成功结束：版本徽标已经说明结果，日志与结果一起收起（主进程那份也清掉）
+      if (j && j.status !== 'running' && j.result?.ok) {
+        setRunning(false);
+        setLines([]);
+        setResult(null);
+        void cliUpdateClient.dismiss(kind).catch(() => undefined);
+        return;
+      }
+      setRunning(j?.status === 'running');
+      setLines(j ? j.lines : []);
+      setResult(j?.status === 'running' ? null : (j?.result ?? null));
+    },
+    [kind],
+  );
 
   useEffect(() => {
     // 挂载 / kind 变化时初次拉取 + 订阅主进程事件：属于外部数据同步，豁免 set-state-in-effect
@@ -99,7 +110,7 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
       } else if (e.phase === 'log') {
         setLines((l) => [...l.slice(-399), e.line]);
       } else {
-        // done / error：结果已由主进程保存，取快照并刷新版本（confirm 不再重复刷新）
+        // done / error：结果已由主进程保存，取快照并刷新版本（run 里不再重复刷新）
         void cliUpdateClient.job(kind).then((j) => {
           if (!alive) return;
           applyJob(j);
@@ -127,20 +138,26 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
   const state = versionState(info);
   const name = NAME[kind];
 
-  const openPlan = async (scope: CliInstallScope = 'global') => {
+  /** 前置检查通过就直接执行；有阻塞原因才弹框说明 */
+  const start = async (scope: CliInstallScope = 'global') => {
     setError('');
     setResult(null);
+    let next: CliInstallPlan;
     try {
-      setPlan(await cliUpdateClient.preview(kind, scope));
+      next = await cliUpdateClient.preview(kind, scope);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      return;
     }
+    if (next.blockers.length) {
+      setPlan(next);
+      return;
+    }
+    setPlan(null);
+    await run(next.scope);
   };
 
-  const confirm = async () => {
-    if (!plan || plan.blockers.length) return;
-    const scope = plan.scope;
-    setPlan(null);
+  const run = async (scope: CliInstallScope) => {
     setRunning(true);
     setResult(null);
     setLines([]);
@@ -148,8 +165,12 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
       // 任务由主进程持有：这里的 Promise 即使因页面卸载而无人等待，任务也照常运行；
       // 结束时由事件取快照、刷新版本（不在此重复 load(true)，避免一轮多余的 npm view）。
       const r = await cliUpdateClient.run(kind, scope);
-      setResult(r);
       setRunning(false);
+      if (r.ok) {
+        setLines([]);
+        setResult(null);
+        void cliUpdateClient.dismiss(kind).catch(() => undefined);
+      } else setResult(r);
     } catch (e) {
       setResult({ ok: false, log: e instanceof Error ? e.message : String(e), version: null });
       setRunning(false);
@@ -226,7 +247,7 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
               variant={state === 'missing' || state === 'outdated' ? 'primary' : 'secondary'}
               disabled={checking || running || !info}
               data-testid={`cli-version-action-${kind}`}
-              onClick={() => void openPlan()}
+              onClick={() => void start()}
             >
               {running ? t('ui.cli-monitor.working') : actionLabel}
             </Button>
@@ -304,8 +325,8 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
         name={name}
         testKind={kind}
         onClose={() => setPlan(null)}
-        onConfirm={() => void confirm()}
-        onUserScope={() => void openPlan('user')}
+        onConfirm={() => plan && void run(plan.scope)}
+        onUserScope={() => void start('user')}
       />
     </SettingsGroup>
   );

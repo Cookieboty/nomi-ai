@@ -130,6 +130,7 @@ beforeEach(() => {
         blockers: [],
         requirements: [],
       };
+    if (ch === 'cliUpdate.run') return new Promise(() => undefined);
     if (ch === 'gateway.detect')
       return {
         wires: { chat: { wire: 'chat', url: 'https://api.deepseek.com', ok: true } },
@@ -226,17 +227,18 @@ describe('first-launch onboarding', () => {
     expect(fleetOpened).toBe(1);
   });
 
-  it('no coding assistant installed: install opens the plan dialog; finishing stays in chat', async () => {
+  it('no coding assistant installed: install runs right away; finishing stays in chat', async () => {
     installedClis = [];
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
     await skipTo('ai', 1);
     fireEvent.click(await screen.findByTestId('onb-agent-claude-install'));
-    // 用编程助手页同一个确认框：看得到确切命令，确认后才装
-    expect((await screen.findByTestId('cli-version-command')).textContent).toBe('npm i -g x');
+    // 前置检查通过就直接装，不再弹确认框
+    await waitFor(() =>
+      expect(calls).toContainEqual(['cliUpdate.run', { kind: 'claude', scope: 'global' }]),
+    );
     expect(calls).toContainEqual(['cliUpdate.preview', { kind: 'claude', scope: 'global' }]);
-    fireEvent.click(screen.getByTestId('cli-version-cancel'));
-    await waitFor(() => expect(screen.queryByTestId('cli-version-command')).toBeNull());
+    expect(screen.queryByTestId('cli-version-command')).toBeNull();
     fireEvent.click(screen.getByTestId('onboarding-skip-all'));
     await waitFor(() => expect(screen.queryByTestId('onboarding')).toBeNull());
     expect(fleetOpened).toBe(0);
