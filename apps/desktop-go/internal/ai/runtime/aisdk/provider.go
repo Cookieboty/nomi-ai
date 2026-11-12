@@ -2,6 +2,7 @@ package aisdk
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"math"
@@ -476,12 +477,56 @@ const MaxSteerRounds = 3
 // 上限只是兜底（防止原地打转），用户随时可以停止。不按用量拦截：长任务要能自己做完。
 var MaxAutoRounds = 20
 
-// deniedTool：工具结果 / 错误是「用户拒绝 / 权限模式不允许」——这时不自动续跑，免得模型换个方式反复弹确认
+// deniedCode：这一段文字本身就是拒绝码（纯错误码、或 "user_denied: 用户拒绝…" 这种错误消息的开头）。
+// 只看开头，不搜全文：源码、i18n 、错误码列表里提到这两个词的地方太多了。
+func deniedCode(s string) bool {
+	head := u.JSTrim(s)
+	if i := strings.IndexAny(head, ": \t\r\n"); i >= 0 {
+		head = head[:i]
+	}
+	return head == "user_denied" || head == "mode_blocked"
+}
+
+// deniedTool：工具结果 / 错误是「用户拒绝 / 权限模式不允许」——这时不自动续跑，免得模型换个方式反复弹确认。
+//
+// 只认结构化的拒绝，不做裸子串匹配：以前是 strings.Contains(s, "user_denied")，于是
+// 读一段源码 / i18n 文案 / 委派的错误码清单（DelegateErrorCodes 里就有这两个词）、
+// 或查询一个被拒绝过的委派状态，输出里只要出现这个词就被当成「用户拒绝」，
+// 于是模型明明没被拒绝也停下并附上「有一步被你拒绝了」，而且只要再读到含这个词的内容就再命中一次。
+// 现在：工具错误对象带 Code 的走 toolErrorCodeDenied（传进来的就是纯错误码）；
+// 工具输出是 JSON 时，只在 ok:false 的 error.code 为拒绝码时才算。
 func deniedTool(s string) bool {
 	if s == "" {
 		return false
 	}
-	return strings.Contains(s, "user_denied") || strings.Contains(s, "mode_blocked")
+	if deniedCode(s) {
+		return true
+	}
+	t := u.JSTrim(s)
+	if !strings.HasPrefix(t, "{") {
+		return false
+	}
+	var v any
+	if json.Unmarshal([]byte(t), &v) != nil {
+		return false
+	}
+	m, ok := v.(map[string]any)
+	if !ok {
+		return false
+	}
+	// 工具失败的结构：{ ok: false, error: { code, message } }；ok 缺失时也看 error
+	if okVal, has := m["ok"]; has && okVal != false {
+		return false
+	}
+	if e, ok := m["error"].(map[string]any); ok {
+		if c, ok := e["code"].(string); ok && deniedCode(c) {
+			return true
+		}
+	}
+	if c, ok := m["code"].(string); ok && deniedCode(c) {
+		return true
+	}
+	return false
 }
 
 // autoStoppedNotice：自动续跑到上限 / 被拒绝后停下时补在回复末尾的一句（不是静默结束）
