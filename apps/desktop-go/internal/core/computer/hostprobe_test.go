@@ -17,7 +17,11 @@ func TestHostProbeCoalescesBursts(t *testing.T) {
 	s := New(Options{
 		Resolve: func() string { return "/bin/agent-desktop" },
 		Exec: func(ctx context.Context, _ string, args []string, _ string) ([]byte, error) {
-			n.Add(1)
+			// macOS 的 State 还会对每个调用跑 sandbox list。这里只数版本和权限，
+			// 那两次才是 hostProbe 要合并的。
+			if args[0] == "version" || args[0] == "permissions" {
+				n.Add(1)
+			}
 			if args[0] == "version" {
 				once.Do(func() { close(started) })
 				select {
