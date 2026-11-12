@@ -162,7 +162,7 @@ const NomiWelcome: React.FC<{ onOpenModels: () => void }> = ({ onOpenModels }) =
 export const ChatBody: React.FC<{
   tabs: HarnessTabsCore;
   isDev: boolean;
-  /** 当前会话的键（tab:… / nomi:…）；用于按会话保存 Transcript view */
+  /** 当前会话的键（tab:… / nomi:…）；隔离滚动状态并按会话保存 Transcript view */
   sessionKey: string | null;
   cliMessages: ConvMessage[];
   nomiMessages: ConvMessage[];
@@ -199,7 +199,7 @@ export const ChatBody: React.FC<{
     return <NomiWelcome onOpenModels={onOpenModels} />;
   return (
     <NomiConversation
-      scopeId={`nomi:${firstMessageId ?? 'new'}`}
+      scopeId={sessionKey ?? `nomi:${firstMessageId ?? 'new'}`}
       messages={nomiMessages}
       transcriptView={transcriptView}
       phase={busyHere ? 'running' : 'idle'}

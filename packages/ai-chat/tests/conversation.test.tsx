@@ -485,6 +485,29 @@ describe('CliConversation 自动滚动（贴底才跟，上滑不抢）', () => 
     else delete (proto as unknown as Record<string, unknown>).clientHeight;
   });
 
+  it('切换 CLI 标签后立即贴底，历史异步加载后继续贴底', () => {
+    Object.defineProperty(proto, 'scrollHeight', { configurable: true, get: () => 1000 });
+    Object.defineProperty(proto, 'clientHeight', { configurable: true, get: () => 400 });
+    const scrollTo = vi.spyOn(HTMLElement.prototype, 'scrollTo');
+    try {
+      const view = (id: string, history: HarnessTabMessage[]) => (
+        <CliConversation tab={tab({ id })} messages={history} />
+      );
+      const r = render(view('tab-a', messages));
+      const first = r.getByTestId('conv-scroll');
+      first.scrollTop = 100;
+      fireEvent.scroll(first);
+      r.rerender(view('tab-b', []));
+      expect(r.getByTestId('conv-scroll').scrollTop).toBe(1000);
+      r.rerender(view('tab-b', messages));
+      expect(r.getByTestId('conv-scroll').scrollTop).toBe(1000);
+      expect(r.queryByTestId('conv-jump-bottom')).toBeNull();
+      expect(scrollTo).toHaveBeenCalledWith({ top: 1000, behavior: 'instant' });
+    } finally {
+      scrollTo.mockRestore();
+    }
+  });
+
   it('流式增长时贴底跟随；上滑后不再强制；出现「回到底部」，点击后恢复', () => {
     Object.defineProperty(proto, 'scrollHeight', { configurable: true, get: () => 1000 });
     Object.defineProperty(proto, 'clientHeight', { configurable: true, get: () => 400 });
