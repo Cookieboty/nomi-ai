@@ -482,6 +482,7 @@ export const ResourcePreview: React.FC<{
         <div className={styles.diffBody} data-preview-diff data-testid="preview-diff">
           <FileReview
             key={active.key}
+            previewEditKey={active.key}
             hideFileTabs
             className={styles.diffReview}
             files={[activeDiff.file]}

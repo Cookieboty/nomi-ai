@@ -1,11 +1,20 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  discardPreviewEdit,
+  getPreviewEdits,
+} from '../src/components/ResourcePreview/previewEdits';
 import { FileReview, type ReviewFile } from '../src/components/SessionWorkspace/FileReview';
 import { harnessClient } from '../src/services/harnessClient';
+import { resourcePreviewClient } from '../src/services/resourcePreviewClient';
 import type { FileDiff } from '../src/utils/toolTrace';
+
+vi.mock('../src/services/resourcePreviewClient', () => ({
+  resourcePreviewClient: { open: vi.fn(), close: vi.fn(async () => undefined), save: vi.fn() },
+}));
 
 vi.mock('../src/services/harnessClient', () => ({
   harnessClient: {
@@ -143,5 +152,82 @@ describe('FileReview 丢弃本轮变更', () => {
     const err = await screen.findByTestId('preview-error');
     expect(err.textContent).toContain('无法安全撤销');
     expect(harnessClient.workspaceWrite).not.toHaveBeenCalled();
+  });
+});
+
+describe('embedded discard-turn draft ownership', () => {
+  it.each([false, true])('preserves newer typing after remount: %s', async (remount) => {
+    const key = `discard-turn-${remount}`;
+    let sequence = 0;
+    let diskContent = 'head\nnew\ntail\n';
+    vi.mocked(harnessClient.workspaceWrite).mockImplementation(async (_cwd, _path, content) => {
+      diskContent = content;
+      return { ok: true };
+    });
+    let finish!: (value: Awaited<ReturnType<typeof harnessClient.workspaceRead>>) => void;
+    vi.mocked(resourcePreviewClient.open).mockImplementation(async () => ({
+      ok: true,
+      editable: true,
+      kind: 'text',
+      content: diskContent,
+      path: '/w/src/a.ts',
+      revision: 'initial',
+      url: `/__nomi/preview/undo-${remount}-${++sequence}`,
+    }));
+    const saved = vi.fn();
+    const mount = () =>
+      render(
+        <FileReview
+          files={[file]}
+          activeKey="k1"
+          cwd="/w"
+          previewEditKey={key}
+          onActiveKey={() => undefined}
+          onClose={() => undefined}
+          onSaved={saved}
+        />,
+      );
+    const first = mount();
+    fireEvent.click(screen.getByTestId('preview-mode-file'));
+    let editor = (await screen.findByTestId('preview-editor')) as HTMLTextAreaElement;
+    fireEvent.change(editor, { target: { value: 'draft A' } });
+    vi.mocked(harnessClient.workspaceRead).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    fireEvent.click(screen.getByTestId('preview-discard'));
+    fireEvent.click(screen.getByTestId('preview-discard-ok'));
+    await waitFor(() => expect(harnessClient.workspaceRead).toHaveBeenCalled());
+    if (remount) {
+      first.unmount();
+      mount();
+      fireEvent.click(screen.getByTestId('preview-mode-file'));
+      editor = (await screen.findByTestId('preview-editor')) as HTMLTextAreaElement;
+      expect(editor.value).toBe('draft A');
+      fireEvent.change(editor, { target: { value: 'draft B' } });
+    }
+    await act(async () => finish({ ok: true, content: 'head\nnew\ntail\n' }));
+    await waitFor(() => expect(saved).toHaveBeenCalledTimes(1));
+    expect(harnessClient.workspaceWrite).toHaveBeenCalledWith(
+      '/w',
+      'src/a.ts',
+      'head\nold\ntail\n',
+    );
+    if (remount) {
+      expect(getPreviewEdits([key])[0]?.session.state).toMatchObject({
+        text: 'draft B',
+        dirty: true,
+      });
+      expect(editor.value).toBe('draft B');
+    } else {
+      await waitFor(() => expect(getPreviewEdits([key])[0]?.session.state.dirty).toBe(false));
+      expect((screen.getByTestId('preview-editor') as HTMLTextAreaElement).value).not.toBe(
+        'draft A',
+      );
+    }
+    cleanup();
+    await discardPreviewEdit(key);
   });
 });

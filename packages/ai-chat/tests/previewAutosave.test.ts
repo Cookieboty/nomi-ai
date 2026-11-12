@@ -5,6 +5,7 @@ import {
   acquirePreviewEdit,
   releasePreviewEdit,
   getPreviewEdits,
+  flushPreviewEdits,
 } from '../src/components/ResourcePreview/previewEdits';
 import { resourcePreviewClient } from '../src/services/resourcePreviewClient';
 
@@ -14,6 +15,60 @@ vi.mock('../src/services/resourcePreviewClient', () => ({
 afterEach(() => {
   vi.useRealTimers();
   vi.clearAllMocks();
+});
+
+describe('manual Diff editor sessions', () => {
+  it('retains a detached draft without debounce or an implicit save, then closes it safely', async () => {
+    vi.useFakeTimers();
+    vi.mocked(resourcePreviewClient.save).mockResolvedValue({ ok: true, revision: 'saved' });
+    const key = 'manual-diff';
+    const session = acquirePreviewEdit(key, original, false)!;
+    const onSaved = vi.fn();
+    session.noteOnSaved(onSaved);
+    session.change('unsaved Diff draft');
+    await vi.advanceTimersByTimeAsync(1000);
+    await releasePreviewEdit(key, original.url);
+    expect(resourcePreviewClient.save).not.toHaveBeenCalled();
+    expect(resourcePreviewClient.close).not.toHaveBeenCalled();
+    expect(getPreviewEdits([key])[0]?.session).toBe(session);
+
+    expect(await flushPreviewEdits([key])).toBeUndefined();
+    expect(resourcePreviewClient.save).toHaveBeenCalledWith(
+      original.url,
+      original.revision,
+      'unsaved Diff draft',
+    );
+    expect(onSaved).toHaveBeenCalledOnce();
+    expect(getPreviewEdits([key])).toEqual([]);
+    expect(resourcePreviewClient.close).toHaveBeenCalledWith(original.url);
+  });
+
+  it('keeps later typing and the writer alive when a manual save detaches in flight', async () => {
+    const key = 'manual-pending';
+    let finish!: (result: { ok: boolean; revision: string }) => void;
+    vi.mocked(resourcePreviewClient.save)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValue({ ok: true, revision: 'second' });
+    const session = acquirePreviewEdit(key, original, false)!;
+    session.change('first draft');
+    const saved = session.flush();
+    session.change('newer draft');
+    const released = releasePreviewEdit(key, original.url);
+    finish({ ok: true, revision: 'first' });
+    await Promise.all([saved, released]);
+    expect(resourcePreviewClient.save).toHaveBeenLastCalledWith(
+      original.url,
+      'first',
+      'newer draft',
+    );
+    expect(session.state).toMatchObject({ text: 'newer draft', dirty: false });
+    expect(getPreviewEdits([key])).toEqual([]);
+  });
 });
 const original = {
   ok: true,

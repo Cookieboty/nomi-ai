@@ -25,7 +25,14 @@ export class PreviewEditSession {
   private timer?: ReturnType<typeof setTimeout>;
   private pending?: Promise<boolean>;
   private listeners = new Set<() => void>();
-  constructor(result: PreviewResult) {
+  /** Diff editors save explicitly, but share close / conflict protection with file previews. */
+  readonly autoSave: boolean;
+  private onSaved?: () => void;
+  noteOnSaved(callback?: () => void) {
+    this.onSaved = callback;
+  }
+  constructor(result: PreviewResult, autoSave = true) {
+    this.autoSave = autoSave;
     this.baseline = result.content ?? '';
     this.state = { text: this.baseline, dirty: false, saving: false };
     this.revision = result.revision!;
@@ -91,7 +98,7 @@ export class PreviewEditSession {
   change = (text: string) => {
     this.update({ text, dirty: text !== this.baseline });
     if (this.timer) clearTimeout(this.timer);
-    if (this.state.error) return;
+    if (!this.autoSave || this.state.error) return;
     this.timer = setTimeout(() => {
       this.timer = undefined;
       void this.flush();
@@ -144,7 +151,12 @@ export class PreviewEditSession {
       dirty: conflict || this.state.text !== content,
       error: conflict ? 'conflict' : undefined,
     });
+    this.onSaved?.();
     return !conflict;
+  }
+  /** Detaching a manual editor must not save its draft, but must let an existing save settle. */
+  settleOnRelease() {
+    return this.autoSave || this.pending ? this.flush() : Promise.resolve(true);
   }
   private dropCapability(url?: string) {
     if (!url || url === this.url || typeof resourcePreviewClient.close !== 'function') return;
@@ -204,6 +216,7 @@ const none = () => () => undefined;
 export function acquirePreviewEdit(
   key: string,
   result: PreviewResult,
+  autoSave = true,
 ): PreviewEditSession | undefined {
   if (!result.editable || !result.url || !result.revision || result.truncated) return;
   const session = sessions.get(key);
@@ -211,7 +224,7 @@ export function acquirePreviewEdit(
     session.attach(result);
     return session;
   }
-  const created = new PreviewEditSession(result);
+  const created = new PreviewEditSession(result, autoSave);
   sessions.set(key, created);
   return created;
 }
@@ -222,7 +235,10 @@ export async function releasePreviewEdit(key: string, url: string) {
     return;
   }
   session.detach(url);
-  await session.flush();
+  await session.settleOnRelease();
+  await retirePreviewEdit(key, session);
+}
+async function retirePreviewEdit(key: string, session: PreviewEditSession) {
   // Retain failed drafts AND a writer borrowed by a reopened view. Retire the map
   // entry before awaiting close, so a new acquire cannot attach to a closing token.
   if (session.disposable && sessions.get(key) === session) sessions.delete(key);
@@ -231,6 +247,13 @@ export async function releasePreviewEdit(key: string, url: string) {
       .unusedCapabilities()
       .map((unused) => resourcePreviewClient.close(unused).catch(() => undefined)),
   );
+}
+/** A retained Diff draft may be discarded while only its read-only Diff is mounted. */
+export async function discardPreviewEdit(key: string, expected?: PreviewEditSession) {
+  const session = sessions.get(key);
+  if (!session || (expected && session !== expected)) return;
+  session.discardDraft();
+  await retirePreviewEdit(key, session);
 }
 /** Includes inactive drafts retained after an unsuccessful save on a previous tab. */
 export function getPreviewEdits(keys: readonly string[]) {
@@ -243,7 +266,11 @@ export function getPreviewEdits(keys: readonly string[]) {
 export async function flushPreviewEdits(keys: readonly string[]): Promise<string | undefined> {
   do {
     const results = await Promise.all(
-      getPreviewEdits(keys).map(async ({ key, session }) => ({ key, ok: await session.flush() })),
+      getPreviewEdits(keys).map(async ({ key, session }) => {
+        const ok = await session.flush();
+        await retirePreviewEdit(key, session);
+        return { key, ok };
+      }),
     );
     const failed = results.find((result) => !result.ok);
     if (failed) return failed.key;

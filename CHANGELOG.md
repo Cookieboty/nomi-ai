@@ -674,6 +674,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 修复 CI 红灯（#64）：诺米缩放后，主进程丢弃渲染进程按缩放前窗口尺寸量出的旧包围盒，脚底锚点不再短暂跳回旧位置；输入栏变窄时权限模式按钮跟着收缩、极窄时只留图标，不再压住语音按钮。测试：知识库撤权单测在 Windows 8.3 短路径下按 native realpath 比较；E26 先切到「订阅额度」分区并关闭主动刷新（不依赖本机装没装官方 CLI）；E27 异步卡片统一放宽等待；E23 放大后拖拽等窗口真正跟上再判定。 (`@nomi-ai/renderer` patch, `@nomi-ai/types` patch, `@nomi-ai/ai-chat` patch)
 - 修复 Claude Code 第三方会话读取用户级路由和令牌配置，导致请求绕过 Nomi 网关并返回 401 的问题。第三方 Claude 现在使用隔离的配置目录，同时共享无凭据的会话历史与技能目录。修复 Responses 上游只发送完整工具参数时参数丢失的问题，并阻止直连 CLI 的 Agent 工具把子任务误切到 `.claude/worktrees`。 (`@nomi-ai/desktop-go` patch)
 - 修复 Codex 分叉会话用量可能重复统计（#86）：判断开头的父会话重放段时，正文等非用量行也参与行间距判断，不再因为只看用量行而把重放误判为真实请求。 (`@nomi-ai/desktop-go` patch)
+- 修复 Diff「编辑」中的未保存草稿在切换预览标签后丢失：按标签保留草稿，关闭和标签数量上限也保护未保存内容。保存使用文件版本校验，失败或磁盘内容冲突时保留草稿并支持重试、复制或确认丢弃。 (`@nomi-ai/ai-chat` patch)
 - 修复 Gemini CLI 0.65.0 下第三方供应商不生效：0.65.0 只加载属于 root 的系统级设置文件，也不再接受 gateway 认证方式，Nomi 写的认证设置被跳过，会话启动失败或回落到 Google 登录。现在启动时用 `GEMINI_CLI_AUTH_OVERRIDE` 按进程指定 API Key 认证，仍不改 `~/.gemini`。 (`@nomi-ai/desktop-go` patch)
 - 修复 Gemini 的版本检查：之前保存的「最新版本」缓存里没有 Gemini 时会立即重新获取，不再要等 6 小时；更新 Gemini 只用 npm，不再尝试不存在的 `gemini update`；版本卡片拿不到数据时显示「无法检测」而不是「已安装」；本机 Gemini CLI 过旧、不支持 ACP 时提示先更新。 (`@nomi-ai/ai-chat` patch)
 - 修复 Nomi 停止按钮有时停不下来（#92）：中止请求时通知实际在跑这条请求的 provider 实例，不再只按当前路由查找；网关 provider 被其他角色或配置的请求替换后，原请求也能中止。 (`@nomi-ai/desktop-go` patch)
