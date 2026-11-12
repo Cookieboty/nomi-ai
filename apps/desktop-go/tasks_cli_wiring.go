@@ -118,7 +118,7 @@ func (h taskCliHarness) SendTab(id, prompt string) (tasks.CliSendResult, error) 
 	if o == nil {
 		return tasks.CliSendResult{}, errors.New("harness not ready")
 	}
-	p, err := gilErr(func() *jsrt.Promise[*util.Obj] { return o.SendTab(id, prompt, nil, false) })
+	p, err := gilErr(func() *jsrt.Promise[*util.Obj] { return o.SendTaskTab(id, prompt) })
 	if err != nil {
 		return tasks.CliSendResult{}, err
 	}
@@ -147,7 +147,7 @@ func (h taskCliHarness) ReplyPermission(tabID, requestID string, allow bool) boo
 	if o == nil {
 		return false
 	}
-	return jsrt.Call(func() bool { return o.ReplyPermission(tabID, requestID, allow, "", "") })
+	return jsrt.Call(func() bool { return o.ReplyTaskPermission(tabID, requestID, allow) })
 }
 
 func (h taskCliHarness) OnEvent(fn func(tasks.CliTabEvent)) func() {
@@ -155,8 +155,17 @@ func (h taskCliHarness) OnEvent(fn func(tasks.CliTabEvent)) func() {
 	if o == nil {
 		return func() {}
 	}
-	return jsrt.Call(func() func() {
-		return o.Events().OnOff("event", func(v any) {
+	// Keep event order without holding the GIL while invoking task code. Draining
+	// before returning from off ensures permission-resolved precedes Completed.
+	tail := make(chan struct{})
+	close(tail)
+	off := jsrt.Call(func() func() {
+		enqueue := func(e tasks.CliTabEvent) {
+			prev, next := tail, make(chan struct{})
+			tail = next
+			go func() { <-prev; defer close(next); fn(e) }()
+		}
+		offEvent := o.Events().OnOff("event", func(v any) {
 			x, _ := v.(*util.Obj)
 			if x == nil {
 				return
@@ -165,11 +174,32 @@ func (h taskCliHarness) OnEvent(fn func(tasks.CliTabEvent)) func() {
 			if ev == nil {
 				return
 			}
-			e := tasks.CliTabEvent{TabID: util.Str(x.Get("tabId")), Type: util.Str(ev.Get("type")),
-				ID: util.Str(ev.Get("id")), Summary: util.Str(ev.Get("summary")), Kind: util.Str(ev.Get("kind"))}
-			go fn(e)
+			enqueue(tasks.CliTabEvent{TabID: util.Str(x.Get("tabId")), Type: util.Str(ev.Get("type")),
+				ID: util.Str(ev.Get("id")), Summary: util.Str(ev.Get("summary")), Kind: util.Str(ev.Get("kind")), Reason: util.Str(ev.Get("reason"))})
 		})
+		offUsage := o.Events().OnOff("task-usage", func(v any) {
+			x, _ := v.(*util.Obj)
+			if x == nil {
+				return
+			}
+			delta := tasks.UsageDelta{}
+			known := false
+			delta.CostKnown = &known
+			if u, _ := x.Get("usage").(*util.Obj); u != nil {
+				delta.InputTokens, delta.OutputTokens = num(u.Get("inputTokens")), num(u.Get("outputTokens"))
+				if cost, ok := u.Get("costUsd").(float64); ok {
+					delta.CostUsd = &cost
+					known = true
+				}
+			}
+			enqueue(tasks.CliTabEvent{TabID: util.Str(x.Get("tabId")), Usage: &delta})
+		})
+		return func() { offEvent(); offUsage() }
 	})
+	return func() {
+		done := jsrt.Call(func() chan struct{} { off(); return tail })
+		<-done
+	}
 }
 
 func (taskCliHarness) IsStopped(err error) bool {

@@ -202,6 +202,9 @@ type tabBinding struct {
 type Orchestrator struct {
 	d Deps
 
+	// taskSends keeps task-owned plan approvals attached to their original execution.
+	taskSends map[string]*taskSend
+
 	tabs     *util.Obj // id → HarnessTabMeta（Map 插入序）
 	messages map[string][]*util.Obj
 	// msgLRU：messages 里各标签最近一次被读的先后（最近的在末尾）；msgEvictArmed：已排了一次回收

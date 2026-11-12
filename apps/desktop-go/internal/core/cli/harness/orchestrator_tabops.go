@@ -556,6 +556,7 @@ func (o *Orchestrator) SeedTabMessages(id string, messages []any) *util.Obj {
 
 // CloseTab = closeTab。
 func (o *Orchestrator) CloseTab(id string) *util.Obj {
+	o.stopTaskSend(id)
 	o.thawIfFrozen(id)
 	if id == MainTabID {
 		throw(i18n.T("electron.common.the-main-chat-tab-cannot-be-closed"))

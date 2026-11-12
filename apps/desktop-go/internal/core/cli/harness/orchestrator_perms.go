@@ -61,6 +61,14 @@ func (o *Orchestrator) ReplyPermission(tabID, requestID string, allow bool, reas
 		}
 	}
 	if IsExecutePlanID(requestID) {
+		// A late click after cancellation or completion must not start an untracked turn.
+		if o.pendingPerms.Get(tabID)[requestID] == nil {
+			return false
+		}
+		task := o.taskSends[tabID]
+		if task != nil && (task.stopped || task.planID != requestID || task.plan == nil || task.plan.Settled()) {
+			return false
+		}
 		o.clearOnePermissionTimeout(tabID, requestID)
 		choice := approvePlan
 		if choice == "" {
@@ -83,6 +91,10 @@ func (o *Orchestrator) ReplyPermission(tabID, requestID string, allow bool, reas
 				mode = "acceptEdits"
 			}
 			o.tryWarn("harness execute-plan mode switch failed", func() { o.SetTabPermissionMode(tabID, mode, PermOpts{}) })
+			if task != nil {
+				task.plan.Resolve(true)
+				return true
+			}
 			p := o.SendTab(tabID, i18n.T(ExecutePlanFollowUp), nil, false)
 			jsrt.Async(func() (struct{}, error) {
 				if _, err := jsrt.Await(p); err != nil {
@@ -94,6 +106,9 @@ func (o *Orchestrator) ReplyPermission(tabID, requestID string, allow bool, reas
 			o.countDelegatedApproval(tabID, "timedOut")
 		} else if !allow {
 			o.countDelegatedApproval(tabID, "denied")
+		}
+		if task != nil {
+			task.plan.Resolve(false)
 		}
 		return true
 	}
@@ -306,7 +321,7 @@ func (o *Orchestrator) performTakeover(id string) *jsrt.Promise[struct{}] {
 			return struct{}{}, nil
 		}
 		o.markTakenOver(id)
-		if s := tab.Get("status"); s == "running" || s == "queued" {
+		if s := tab.Get("status"); s == "running" || s == "queued" || o.taskSends[id] != nil {
 			if !o.CancelTab(id) {
 				throw(i18n.T("electron.common.cannot-take-over-the-previous-turn-is-still"))
 			}

@@ -79,6 +79,7 @@ function mockIpc(tabs: HarnessTabMeta[], settings?: Record<string, unknown>) {
   const pins = new Map<string, unknown>();
   const invoke = vi.fn(async (ch: string, i?: Record<string, unknown>) => {
     if (ch === 'harness.tabs') return state;
+    if (ch === 'harness.tabMessages') return [];
     if (ch === 'delegate.settings')
       return (
         settings ?? { enabled: true, defaults: {}, installed: ['claude', 'codex'], pinned: null }
@@ -456,5 +457,59 @@ describe('编程助手改过的文件：补齐并能预览', () => {
     );
     expect(balanceCutFence('…正文\n```ts\nx\n```')).toBe('…正文\n```ts\nx\n```');
     expect(balanceCutFence('没截断\n```')).toBe('没截断\n```');
+  });
+});
+
+describe('delegate approval lifecycle', () => {
+  it('keeps a pending permission after a transient reply error and allows retry', async () => {
+    const ipc = mockIpc([tab()]);
+    const r = render(
+      <HarnessTabsProvider>
+        <DelegateCard call={call()} />
+      </HarnessTabsProvider>,
+    );
+    await waitFor(() => expect(r.getByTestId('delegate-card').dataset.phase).toBe('running'));
+    await ipc.emit([
+      { tabId: 'd1', type: 'permission', id: 'p-transient', summary: 'npm install' },
+    ]);
+    await waitFor(() => expect(r.queryByTestId('conv-permission-allow')).toBeTruthy());
+    ipc.invoke.mockRejectedValueOnce(new Error('connection temporarily unavailable'));
+    fireEvent.click(r.getByTestId('conv-permission-allow'));
+    await waitFor(() => expect(r.queryByRole('alert')).toBeTruthy());
+    expect(r.getByTestId('delegate-card').dataset.phase).toBe('waiting');
+    fireEvent.click(r.getByTestId('conv-permission-allow'));
+    await waitFor(() => expect(r.queryByRole('alert')).toBeNull());
+    await ipc.emit([
+      { tabId: 'd1', type: 'permission-resolved', id: 'p-transient', reason: 'allowed' },
+    ]);
+    await waitFor(() => expect(r.queryByTestId('conv-permission-allow')).toBeNull());
+  });
+
+  it('keeps execute-plan approval emitted after a successful plan turn', async () => {
+    const ipc = mockIpc([tab({ status: 'idle' })]);
+    const r = render(
+      <HarnessTabsProvider>
+        <DelegateCard call={call({ status: 'done', output: done({}) })} />
+      </HarnessTabsProvider>,
+    );
+    await waitFor(() => expect(r.getByTestId('delegate-card').dataset.phase).toBe('done'));
+    await ipc.emit([
+      {
+        tabId: 'd1',
+        type: 'permission',
+        id: 'execute-plan:d1:123',
+        kind: 'approve-plan',
+        toolName: 'execute_plan',
+        summary: 'execute this plan',
+      },
+    ]);
+    await waitFor(() => expect(r.queryByTestId('conv-approve-plan-card')).toBeTruthy());
+    fireEvent.click(r.getByTestId('conv-approve-plan-accept-edits'));
+    await waitFor(() =>
+      expect(ipc.invoke).toHaveBeenCalledWith(
+        'harness.replyApprovePlan',
+        expect.objectContaining({ choice: 'acceptEdits' }),
+      ),
+    );
   });
 });

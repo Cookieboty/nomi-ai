@@ -11,8 +11,8 @@ import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore 
 
 import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { SubagentPaneProvider, useSubagentPane } from '../../contexts/SubagentPaneContext';
-import { api } from '../../services/api';
 import { harnessClient, type HarnessTabMessage } from '../../services/harnessClient';
+import { replyPermissionRequest } from '../../services/permissionReply';
 import { fromHarnessMessage, tabLiveToConv } from '../../utils/convAdapters';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { shouldIgnoreEscape } from '../../utils/keyboard';
@@ -90,17 +90,17 @@ const SubagentPaneBody: React.FC<{
     return () => window.removeEventListener('keydown', onKey);
   }, [close]);
 
+  const taskId = tab?.delegation?.taskId;
   const onPermission = useCallback(
     (id: string, allow: boolean, opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' }) => {
-      // 后台委派是持续任务：审批经任务回应
-      const taskId = tab?.delegation?.taskId;
-      const done =
-        taskId && !opts?.approvePlan
-          ? api.tasks.decide({ id: taskId, requestId: id, approve: allow })
-          : harnessClient.replyPermission(tabId, id, allow, opts);
-      void Promise.resolve(done).catch(() => undefined);
+      if (!tabId) return;
+      // 后台委派是持续任务：先经任务回应；任务已结束时退回直接回标签（否则按钮成死键）
+      void replyPermissionRequest(tabId, id, allow, {
+        ...(opts?.approvePlan ? { approvePlan: opts.approvePlan } : {}),
+        ...(taskId ? { taskId } : {}),
+      }).catch(() => false);
     },
-    [tabId, tab?.delegation?.taskId],
+    [tabId, taskId],
   );
 
   const sandboxRequests = useMemo(() => <TabSandboxRequests tabId={tabId} />, [tabId]);

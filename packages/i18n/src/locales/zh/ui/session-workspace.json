@@ -1,4 +1,5 @@
 {
+  "ui.session-workspace.permission-reply-failed": "审批回复未能发送，请重试。",
   "ui.session-workspace.after-committing-run-a-plain-git-push-use": "提交完成后执行普通的 git push（没有上游分支时用 -u origin <当前分支>），不要 force-push。",
   "ui.session-workspace.approval-requests-denied-timed-out": "审批 {0} 次，拒绝 {1} 次，超时 {2} 次",
   "ui.session-workspace.ask-assistant-to-commit": "让助手提交",

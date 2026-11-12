@@ -21,6 +21,8 @@ type CliTabEvent struct {
 	ID      string
 	Summary string
 	Kind    string
+	Reason  string
+	Usage   *UsageDelta
 }
 
 // CliCreateTab：新建后台标签的参数
@@ -54,7 +56,8 @@ type CliSendResult struct {
 	CostUsd      *float64
 }
 
-// CliHarness：编排器的子集；SendTab 阻塞到这一轮结束
+// CliHarness：编排器的子集；SendTab 阻塞到计划审批及后续执行结束。
+// OnEvent 按顺序调用，取消订阅须等待已接收事件处理完成。
 type CliHarness interface {
 	Bins() map[string]bool
 	CreateTab(o CliCreateTab) (string, error)
@@ -429,11 +432,27 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 	delete(e.preparing, t.ID)
 	e.runs[t.ID] = run
 	e.mu.Unlock()
+	usageReported := false
 	off := h.OnEvent(func(ev CliTabEvent) {
 		if ev.TabID != tabID {
 			return
 		}
+		if ev.Usage != nil {
+			usageReported = true
+			rep.Usage(*ev.Usage)
+			return
+		}
 		rep.Heartbeat()
+		if ev.Type == "permission-resolved" {
+			e.mu.Lock()
+			pending := run.pending[ev.ID]
+			delete(run.pending, ev.ID)
+			e.mu.Unlock()
+			if pending && ev.Reason != "cancelled" {
+				rep.PermissionResolved(ev.ID, ev.Reason == "allowed")
+			}
+			return
+		}
 		if ev.Type != "permission" || ev.ID == "" {
 			return
 		}
@@ -476,8 +495,13 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 	if err != nil {
 		if h.IsStopped(err) {
 			// 用户在标签里接手：交给用户；我们自己停的（取消 / 撤销 / 超时）不再回报
-			if !stopped && h.TakenOver(tabID) {
-				rep.TakenOver()
+			if !stopped {
+				if h.TakenOver(tabID) {
+					rep.TakenOver()
+				} else {
+					// A user stopped or closed the CLI tab directly. No approval remains to resume.
+					rep.Failed(TaskError{Code: "executor_failed", Message: err.Error()})
+				}
 			}
 			return
 		}
@@ -490,7 +514,9 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 	} else {
 		u.CostKnown = ptr(false)
 	}
-	rep.Usage(u)
+	if !usageReported {
+		rep.Usage(u)
+	}
 	parsed := e.d.ParseReport(r.Text)
 	workCwd := *ex.Cwd
 	if iso != nil {
@@ -549,13 +575,12 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 func (e *cliExecutor) Resume(taskID string, gen int, answer Answer) {
 	e.mu.Lock()
 	run := e.runs[taskID]
-	if run == nil || run.gen != gen || answer.RequestID == nil || !run.pending[*answer.RequestID] {
+	if run == nil || run.stopped || run.gen != gen || answer.RequestID == nil || !run.pending[*answer.RequestID] {
 		e.mu.Unlock()
 		return
 	}
 	delete(run.pending, *answer.RequestID)
 	e.mu.Unlock()
-	// 标签里的审批还在等（7 天内）：直接回答；已经过期的，按崩溃处理（重试会新开一轮带上回答）
 	if !e.d.Harness.ReplyPermission(run.tabID, *answer.RequestID, answer.Approve) {
 		run.ctx.Report.Failed(TaskError{Code: "executor_crashed", Message: "permission_expired"})
 	}

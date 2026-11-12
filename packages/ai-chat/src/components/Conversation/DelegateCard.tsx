@@ -28,6 +28,7 @@ import {
   type HarnessTabMessage,
   type HarnessTabMeta,
 } from '../../services/harnessClient';
+import { replyPermissionRequest } from '../../services/permissionReply';
 import type { ConvMessage } from '../../types/conversation';
 import { canStopSubagent } from '../../utils/cliCaps';
 import { fromHarnessMessage, tabLiveToConv } from '../../utils/convAdapters';
@@ -475,18 +476,17 @@ const DelegateDrawer: React.FC<{
   const live = useMemo(() => tabLiveToConv(v.live), [v.live]);
   const cwd = v.tab?.cwd ?? null;
   const slots = useMemo(() => buildCliSlots({ cwd }), [cwd]);
+  const drawerTaskId = v.tab?.delegation?.taskId;
   const onPermission = useCallback(
     (id: string, allow: boolean, opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' }) => {
       if (!tabId) return;
-      // 后台委派是持续任务：审批经任务回应
-      const taskId = v.tab?.delegation?.taskId;
-      const done =
-        taskId && !opts?.approvePlan
-          ? api.tasks.decide({ id: taskId, requestId: id, approve: allow })
-          : harnessClient.replyPermission(tabId, id, allow, opts);
-      void Promise.resolve(done).catch(() => undefined);
+      // 后台委派是持续任务：先经任务回应；任务已结束 / 请求已失效时退回直接回标签
+      void replyPermissionRequest(tabId, id, allow, {
+        ...(opts?.approvePlan ? { approvePlan: opts.approvePlan } : {}),
+        ...(drawerTaskId ? { taskId: drawerTaskId } : {}),
+      }).catch(() => false);
     },
-    [tabId, v.tab?.delegation?.taskId],
+    [tabId, drawerTaskId],
   );
   const name = v.backend ? t(ENDPOINT_NAME[v.backend]) : t('ui.providers-schedule.coding-agents');
   const host = useMemo(
@@ -589,6 +589,9 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
   const v = delegateView(callForView, tabMeta, tl);
   const [open, setOpen] = useState(true);
   const [drawer, setDrawer] = useState(false);
+  /** 已失效（任务结束 / 请求不在等待里）的审批：不再显示卡片，否则按钮点了永远没反应 */
+  const [dead, setDead] = useState<string[]>([]);
+  const [replyError, setReplyError] = useState(false);
   // 有子任务面板（主窗口）就在对话旁打开、可以接着对话；没有时退回抽屉
   const subagentPane = useSubagentPane();
   const [stopping, setStopping] = useState(false);
@@ -657,11 +660,29 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
     const done = tabTaskId ? api.tasks.cancel({ id: tabTaskId }) : harnessClient.cancelTab(tab.id);
     void Promise.resolve(done).catch(() => setStopping(false));
   };
-  /** 审批：任务标签经任务回应（任务停在「等你批准」，回应要对上它的请求），普通委派直接回标签 */
-  const reply = (requestId: string, allow: boolean) =>
-    tabTaskId
-      ? api.tasks.decide({ id: tabTaskId, requestId, approve: allow })
-      : harnessClient.replyPermission(tab!.id, requestId, allow);
+  /**
+   * 审批：任务标签先经任务回应（内核的任务收件箱要对上请求），失败退回直接回标签；
+   * 内核明确返回失效才收起卡片；通信失败保留入口，允许重试。
+   */
+  const reply = async (
+    requestId: string,
+    allow: boolean,
+    approvePlan?: 'acceptEdits' | 'manual' | 'deny',
+  ) => {
+    if (!tab) return false;
+    setReplyError(false);
+    try {
+      const ok = await replyPermissionRequest(tab.id, requestId, allow, {
+        ...(approvePlan ? { approvePlan } : {}),
+        ...(tabTaskId ? { taskId: tabTaskId } : {}),
+      });
+      if (!ok) setDead((d) => (d.includes(requestId) ? d : [...d, requestId]));
+      return ok;
+    } catch {
+      setReplyError(true);
+      return false;
+    }
+  };
   return (
     <ResourceContext.Provider value={childResource}>
       <section
@@ -721,32 +742,35 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
           <div className={styles.body}>
             {tab && <TabSandboxRequests tabId={tab.id} />}
             {tab &&
-              (v.live?.permissions ?? []).map((p) =>
-                p.kind === 'approve-plan' ? (
-                  <ApprovePlanCard
-                    key={p.id}
-                    summary={p.summary}
-                    agent={p.agent}
-                    expiresAt={p.expiresAt}
-                    executePlan={p.toolName === 'execute_plan'}
-                    onChoice={(choice) =>
-                      void harnessClient
-                        .replyApprovePlan(tab.id, p.id, choice)
-                        .catch(() => undefined)
-                    }
-                  />
-                ) : (
-                  <PermissionCard
-                    key={p.id}
-                    summary={p.summary}
-                    agent={p.agent}
-                    expiresAt={p.expiresAt}
-                    onReply={(allow) =>
-                      void Promise.resolve(reply(p.id, allow)).catch(() => undefined)
-                    }
-                  />
-                ),
-              )}
+              // 计划轮次完成后仍可能有执行计划审批；取消的委派不再接受审批。
+              v.phase !== 'cancelled' &&
+              (v.live?.permissions ?? [])
+                .filter((p) => !dead.includes(p.id))
+                .map((p) =>
+                  p.kind === 'approve-plan' ? (
+                    <ApprovePlanCard
+                      key={p.id}
+                      summary={p.summary}
+                      agent={p.agent}
+                      expiresAt={p.expiresAt}
+                      executePlan={p.toolName === 'execute_plan'}
+                      onChoice={(choice) => void reply(p.id, choice !== 'deny', choice)}
+                    />
+                  ) : (
+                    <PermissionCard
+                      key={p.id}
+                      summary={p.summary}
+                      agent={p.agent}
+                      expiresAt={p.expiresAt}
+                      onReply={(allow) => void reply(p.id, allow)}
+                    />
+                  ),
+                )}
+            {replyError && (
+              <div className={styles.errorText} role="alert">
+                {t('ui.session-workspace.permission-reply-failed')}
+              </div>
+            )}
             <Agents v={v} />
             {!running && (
               <Report
