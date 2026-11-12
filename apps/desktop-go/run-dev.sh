@@ -20,17 +20,17 @@ fi
 
 case "$(uname -s)" in
 Darwin)
-  TAGS=private_mac_apis # 不加则桌面角色窗口不透明（WKWebView drawsBackground）
+  TAGS=nomi_dev,private_mac_apis # 不加则桌面角色窗口不透明（WKWebView drawsBackground）
   # 与 packaging/package.sh 同为 11.0，否则链接时满屏 "built for newer macOS" 警告
   export MACOSX_DEPLOYMENT_TARGET=11.0
   export CGO_CFLAGS="-mmacosx-version-min=11.0" CGO_LDFLAGS="-mmacosx-version-min=11.0"
   ;;
-Linux) TAGS=gtk3 ;;              # 需要 GTK3 + webkit2gtk-4.1
+Linux) TAGS=nomi_dev,gtk3 ;;              # 需要 GTK3 + webkit2gtk-4.1
 *) echo "不支持的系统：$(uname -s)，Windows 请用 run-dev.cmd" >&2; exit 1 ;;
 esac
 
 echo "== go build ($TAGS)"
-CGO_ENABLED=1 go build -tags "$TAGS" -o build/bin/nomi .
+CGO_ENABLED=1 go build -tags "$TAGS" -o build/bin/nomi-dev .
 
 echo "== run"
-exec ./build/bin/nomi "$@"
+exec ./build/bin/nomi-dev "$@"

@@ -31,6 +31,7 @@ func putLocalStorage(t *testing.T, electron string, kv map[string]string) {
 }
 
 func chatFixture(t *testing.T) (electron, goRoot string) {
+	requireProductionMigration(t)
 	security.UseMockKeyring()
 	appData := t.TempDir()
 	t.Setenv("NOMI_APP_DATA", appData)

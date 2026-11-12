@@ -35,6 +35,7 @@ func (c *countingSS) Decrypt(b []byte) (string, bool) {
 const pkPlain = "privacy-key-204"
 
 func fixture204(t *testing.T) (goRoot string) {
+	requireProductionMigration(t)
 	t.Helper()
 	security.UseMockKeyring()
 	appData := t.TempDir()

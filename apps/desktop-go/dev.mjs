@@ -86,7 +86,9 @@ for (const v of views) {
 }
 
 // Go 程序（与 run-dev.sh 相同的平台标签）
-const tags = { darwin: 'private_mac_apis', linux: 'gtk3' }[process.platform];
+const tags = ['nomi_dev', { darwin: 'private_mac_apis', linux: 'gtk3' }[process.platform]]
+  .filter(Boolean)
+  .join(',');
 const goEnv = { CGO_ENABLED: '1' };
 if (process.platform === 'darwin') {
   Object.assign(goEnv, {
@@ -96,8 +98,8 @@ if (process.platform === 'darwin') {
   });
 }
 const exe = process.platform === 'win32' ? '.exe' : '';
-const bin = path.join(here, 'build/bin', `nomi${exe}`);
-const nextBin = path.join(here, 'build/bin', `nomi.next${exe}`);
+const bin = path.join(here, 'build/bin', `nomi-dev${exe}`);
+const nextBin = path.join(here, 'build/bin', `nomi-dev.next${exe}`);
 
 /** 异步编译（编译期间视图服务器照常响应）；返回是否成功 */
 function goBuild(out) {

@@ -10,14 +10,16 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 )
 
 var Variants = []string{"ink", "cream", "sunset"}
 
 const Default = "sunset"
 
-// AppUserModelID 与安装包的 appId 一致（packaging/windows/installer.nsi）
-const AppUserModelID = "com.cookieboty.nomi"
+// AppUserModelID：正式版与安装包一致，开发构建使用独立的任务栏分组。
+const AppUserModelID = hostports.AppID
 
 // Sanitize = sanitizeVariant（只认精确的三个字符串）
 func Sanitize(v any) string {

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	goruntime "runtime"
 	"strings"
 	"sync"
@@ -22,8 +23,8 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell/viewpage"
 )
 
-// AppID 与安装包的 appId 一致，单实例锁 / 打包元数据共用
-const AppID = "com.cookieboty.nomi"
+// AppID：正式版与安装包一致，开发构建使用独立标识。
+const AppID = hostports.AppID
 
 type Config struct {
 	Assets fs.FS
@@ -97,7 +98,7 @@ func New(cfg Config) *Wails {
 		releases: map[*application.WebviewWindow]func(){},
 		notes:    newNotifier()}
 	w.app = application.New(application.Options{
-		Name:     "Nomi",
+		Name:     hostports.GoProductName,
 		Services: w.notes.services(),
 		// 退出时在关窗之前跑（等对话窗口排着的会话写入写完，见 main.go）
 		OnShutdown: cfg.OnShutdown,
@@ -128,8 +129,8 @@ func New(cfg Config) *Wails {
 		},
 		// 普通应用（Dock 图标、⌘Tab）
 		Mac:     application.MacOptions{ActivationPolicy: application.ActivationPolicyRegular, ApplicationShouldTerminateAfterLastWindowClosed: false},
-		Linux:   application.LinuxOptions{DisableQuitOnLastWindowClosed: true, ProgramName: "nomi"},
-		Windows: application.WindowsOptions{DisableQuitOnLastWindowClosed: true},
+		Linux:   application.LinuxOptions{DisableQuitOnLastWindowClosed: true, ProgramName: hostports.ProgramName},
+		Windows: windowsOptions(),
 		// 单实例：第二次启动把已有实例带到前台；
 		// 带着 nomi:// 链接（Win/Linux 经 argv 传入）的交给 OnURL（白名单在内核）
 		SingleInstance: &application.SingleInstanceOptions{
@@ -323,7 +324,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 	case shell.Mascot:
 		// 2.0.5 默认缩放 0.5：420×450 的一半 + 透明边距（60, 130）→ 330×355
 		opts = application.WebviewWindowOptions{
-			Name: "mascot", Title: "Nomi", Width: 330, Height: 355,
+			Name: "mascot", Title: hostports.GoProductName, Width: 330, Height: 355,
 			Frameless: true, AlwaysOnTop: true, DisableResize: true,
 			BackgroundType:   application.BackgroundTypeTransparent,
 			BackgroundColour: application.RGBA{},
@@ -374,7 +375,7 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		// = buildAiChatWindow：默认 1120×820（小屏收缩）、最小 760×560；上次的位置大小在原生窗口出来后恢复（placeChat）
 		// mac = titleBarOptions('darwin')：隐藏原生标题栏，红绿灯叠在 ai-chat 自绘的 38px 标题栏左侧
 		// （Wails 的 HiddenInset 预设会加工具栏把标题区撑到约 52px，且不能设 trafficLightPosition）
-		opts = application.WebviewWindowOptions{Name: "chat", Title: "Nomi", Width: 1120, Height: 820,
+		opts = application.WebviewWindowOptions{Name: "chat", Title: hostports.GoProductName, Width: 1120, Height: 820,
 			MinWidth: shell.ChatMinSize.Width, MinHeight: shell.ChatMinSize.Height, URL: pageURL,
 			// 拖入文件取本机路径（ai-chat 给 body 加 data-file-drop-target）
 			EnableFileDrop: w.cfg.OnFilesDropped != nil,
@@ -866,4 +867,13 @@ func singleInstanceID() string {
 		return AppID + ".ctl"
 	}
 	return AppID
+}
+
+// 正式版保留 Wails 的默认目录；开发版 WebView2 缓存落在自己的数据目录下。
+func windowsOptions() application.WindowsOptions {
+	opts := application.WindowsOptions{DisableQuitOnLastWindowClosed: true}
+	if hostports.Development {
+		opts.WebviewUserDataPath = filepath.Join(hostports.DefaultPaths().UserData(), "webview")
+	}
+	return opts
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodepath"
 )
 
@@ -182,7 +183,7 @@ func EnsureDelegateExclude(gitRoot string) {
 	if os.MkdirAll(pth.Dirname(exclude), 0o777) != nil {
 		return
 	}
-	const marker = ".nomi-delegate/"
+	const marker = hostports.DelegateWorktreeDir + "/"
 	cur := ""
 	if b, err := os.ReadFile(exclude); err == nil {
 		cur = string(b)
@@ -261,7 +262,7 @@ func PrepareIsolation(sourceCwd, taskKey, baseBranch string) (*IsolationHandle, 
 		return inPlace(sourceCwd, root, base), nil
 	}
 	id := safeID(taskKey)
-	wt := pth.Join(pth.Resolve(sourceCwd), ".nomi-delegate", id)
+	wt := pth.Join(pth.Resolve(sourceCwd), hostports.DelegateWorktreeDir, id)
 	EnsureDelegateExclude(root)
 	if err := os.MkdirAll(pth.Dirname(wt), 0o777); err != nil {
 		return nil, err
@@ -562,7 +563,7 @@ func LandWorktree(h *IsolationHandle, changed []string, title string, mayWrite f
 
 // IsDelegateWorktree：路径是委派开的 worktree（<目录>/.nomi-delegate/<id>）
 func IsDelegateWorktree(p string) bool {
-	return pth.Basename(pth.Dirname(p)) == ".nomi-delegate"
+	return pth.Basename(pth.Dirname(p)) == hostports.DelegateWorktreeDir
 }
 
 // SweepOrphanWorktrees：启动时清理没人认领的委派 worktree：keep(路径) 为真的留着（还在用的任务、用户接手的标签）；
