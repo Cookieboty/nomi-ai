@@ -10,6 +10,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   cliUpdateClient,
+  inspectGeneration,
+  isInspectUpdated,
+  whenInspectUpdated,
   type CliInstallInfo,
   type CliInstallPlan,
   type CliInstallScope,
@@ -65,9 +68,17 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
       const quiet = !refreshLatest && cachedInfo(kind) !== null;
       if (!quiet) setChecking(true);
       setError('');
+      const epoch = inspectGeneration();
       try {
         const rows = await cliUpdateClient.inspect(refreshLatest);
-        setInfo(Array.isArray(rows) ? (rows.find((r) => r.kind === kind) ?? null) : null);
+        const list = cliUpdateClient.cached() ?? rows;
+        setInfo(Array.isArray(list) ? (list.find((r) => r.kind === kind) ?? null) : null);
+        // 首次检测不等 npm；「检查更新」等到后台 latest 推上来（或超时）再结束「检查中…」
+        if (refreshLatest && inspectGeneration() === epoch) {
+          await whenInspectUpdated(epoch);
+          const next = cliUpdateClient.cached();
+          if (next) setInfo(next.find((r) => r.kind === kind) ?? null);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -102,6 +113,11 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
     void load(false);
     let alive = true;
     const off = cliUpdateClient.onEvent((e) => {
+      if (isInspectUpdated(e)) {
+        const list = e.rows ?? cliUpdateClient.cached();
+        if (list) setInfo(list.find((r) => r.kind === kind) ?? null);
+        return;
+      }
       if (e.kind !== kind) return;
       if (e.phase === 'start') {
         setRunning(true);

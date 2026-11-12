@@ -14,6 +14,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
@@ -257,7 +259,24 @@ var latestKinds = builtin.Ordered
 const (
 	probeTTLMs  = 5 * 60_000
 	latestTTLMs = 6 * 60 * 60_000
+	// inspectTimeout：整次 inspect 的上限。只覆盖本地探测（登录 shell PATH 最多 4.5s，
+	// --version 8s + SIGKILL 宽限 3s），再留一点余量；首次展示不再等 npm view（12s）。
+	// 探测卡在无超时的路径（挂死的网络盘、Kill 后 Wait 不返回）时，到点也要把结果交回 UI。
+	defaultInspectTimeout = 20 * time.Second
 )
+
+// 下面三个可在测试里替换（避免真实找二进制 / 问 npm）。
+// resolveInspectBin / readInspectVersion 在 probeLocal 里放到后台执行，钩子不能再调 jsrt.Await。
+var (
+	inspectTimeout     = defaultInspectTimeout
+	fetchNpmLatest     = FetchNpmLatest
+	resolveInspectBin  = inspectResolveBin
+	readInspectVersion = ReadVersion
+)
+
+func inspectResolveBin(kind string) string {
+	return cacheBin(kind, ResolveCliBin(kind))
+}
 
 type localProbe struct {
 	kind, bin, version string
@@ -301,25 +320,30 @@ type CliUpdateOptions struct {
 }
 
 type probedEntry struct {
-	at   float64
-	rows *jsrt.Promise[[]localProbe]
+	at       float64
+	rows     *jsrt.Promise[[]localProbe]
+	followed bool
 }
 
 // CliUpdateService = CliUpdateService。
 type CliUpdateService struct {
-	d             CliUpdateOptions
-	cache         any // JSON.parse 的结果（不校验形状）
-	probed        *probedEntry
-	latestRefresh *jsrt.Promise[struct{}]
-	cachePath     string
-	preferredPath string // 用户目录安装成功的 CLI → 可执行文件（重启后仍优先用它，见 PreferCliBin）
-	preferred     map[string]string
-	jobs          map[string]*cliJob
-	inflight      map[string]*jsrt.Promise[*util.Obj]
-	inflightOrder []string
-	npmQueue      map[string]*jsrt.Promise[struct{}]
-	probe         CliProbe
-	runner        CliRunner
+	d               CliUpdateOptions
+	cache           any // JSON.parse 的结果（不校验形状）
+	probed          *probedEntry
+	latestRefresh   *jsrt.Promise[struct{}]
+	lastLocal       []localProbe
+	lastRows        []*util.Obj
+	lastRowsSnap    atomic.Value // []*util.Obj；超时回调不持 GIL 也能读到上次结果
+	inspectTimedOut atomic.Bool
+	cachePath       string
+	preferredPath   string // 用户目录安装成功的 CLI → 可执行文件（重启后仍优先用它，见 PreferCliBin）
+	preferred       map[string]string
+	jobs            map[string]*cliJob
+	inflight        map[string]*jsrt.Promise[*util.Obj]
+	inflightOrder   []string
+	npmQueue        map[string]*jsrt.Promise[struct{}]
+	probe           CliProbe
+	runner          CliRunner
 }
 
 // cuNow = Date.now()（测试可替换）。
@@ -515,7 +539,7 @@ func (s *CliUpdateService) refreshLatest() *jsrt.Promise[struct{}] {
 		for i, k := range latestKinds {
 			pkg := NpmPkg[k]
 			pr := jsrt.NewPromise[string]()
-			go func() { pr.Resolve(FetchNpmLatest(pkg, 0)) }()
+			go func() { pr.Resolve(fetchNpmLatest(pkg, 0)) }()
 			vals[i] = pr
 		}
 		got := make([]string, len(vals))
@@ -545,11 +569,22 @@ func (s *CliUpdateService) refreshLatest() *jsrt.Promise[struct{}] {
 		_ = s.save() // cache 写失败不影响探测结果
 		return struct{}{}, nil
 	})
+	started := time.Now()
 	out := jsrt.Async(func() (struct{}, error) {
-		if _, err := jsrt.Await(p); err != nil && s.d.Logger != nil {
+		_, err := jsrt.Await(p)
+		if err != nil && s.d.Logger != nil {
 			s.d.Logger.Warn("cli-update latest check failed", err)
 		}
+		if s.d.Logger != nil {
+			s.d.Logger.Info("cli-update latest refresh", time.Since(started).String())
+		}
 		s.latestRefresh = nil
+		// 首次 inspect 已把本地结果交出去；latest 写进缓存后再推一次，界面补上「最新版本」。
+		if s.lastLocal != nil {
+			if rows, berr := s.rowsFromLocal(s.lastLocal); berr == nil {
+				s.emitInspectUpdated(rows)
+			}
+		}
 		return struct{}{}, nil
 	})
 	if !out.Settled() {
@@ -559,14 +594,17 @@ func (s *CliUpdateService) refreshLatest() *jsrt.Promise[struct{}] {
 }
 
 // probeLocal：每个 CLI 起一个进程（并发）。
+// 先在 jsrt 线程等 login shell PATH，再把找二进制 / --version 放到后台，
+// 避免挂死的 ExistsSync 或 Wait 占住 GIL，让 inspect 总超时无法结束。
 func (s *CliUpdateService) probeLocal() *jsrt.Promise[[]localProbe] {
+	WaitForShellPath(0)
 	ps := make([]*jsrt.Promise[localProbe], len(inspectKinds))
 	for i, kind := range inspectKinds {
 		ps[i] = jsrt.Async(func() (localProbe, error) {
-			bin := ResolveCliBinAsync(kind)
+			bin := offThread(func() string { return resolveInspectBin(kind) })
 			version := ""
 			if bin != "" {
-				version = ReadVersionAsync(bin)
+				version = offThread(func() string { return readInspectVersion(bin) })
 			}
 			var warn *DshProblem
 			if kind == "dsh" && bin != "" && !jsScriptRe.MatchString(bin) {
@@ -601,69 +639,32 @@ func dshProblemObj(p *DshProblem) any {
 	return util.NewObj("nodeVersion", nv, "required", float64(p.Required))
 }
 
-// Inspect = inspect(refreshLatest)：已装版本 + 最新版本。
-func (s *CliUpdateService) Inspect(refresh bool) *jsrt.Promise[[]*util.Obj] {
-	return jsrt.Async(func() ([]*util.Obj, error) {
-		rows, err := s.inspectInner(refresh)
-		if err == nil {
-			return rows, nil
-		}
-		if s.d.Logger != nil {
-			s.d.Logger.Warn("cli-update inspect failed", err)
-		}
-		out := make([]*util.Obj, 0, len(inspectKinds))
-		for _, kind := range inspectKinds {
-			out = append(out, util.NewObj("kind", kind, "path", nil, "version", nil, "latest", nil,
-				"installMethod", "unknown", "updateAvailable", false,
-				"updateSupported", IsUpdatable(kind), "installSupported", IsUpdatable(kind)))
-		}
-		return out, nil
-	})
+// emptyInspectRows：探测失败 / 超时时的占位（全部视为未安装，避免 UI 一直停在「检测中」）。
+func emptyInspectRows() []*util.Obj {
+	out := make([]*util.Obj, 0, len(inspectKinds))
+	for _, kind := range inspectKinds {
+		out = append(out, util.NewObj("kind", kind, "path", nil, "version", nil, "latest", nil,
+			"installMethod", "unknown", "updateAvailable", false,
+			"updateSupported", IsUpdatable(kind), "installSupported", IsUpdatable(kind)))
+	}
+	return out
 }
 
-func (s *CliUpdateService) inspectInner(refresh bool) ([]*util.Obj, error) {
-	latest, err := s.cacheLatest()
+func objsToAny(rows []*util.Obj) []any {
+	out := make([]any, len(rows))
+	for i, r := range rows {
+		out[i] = r
+	}
+	return out
+}
+
+func (s *CliUpdateService) rowsFromLocal(local []localProbe) ([]*util.Obj, error) {
+	lt, err := s.cacheLatest()
 	if err != nil {
 		return nil, err
-	}
-	missing := false
-	for _, k := range latestKinds {
-		if !latest.Has(k) {
-			missing = true
-			break
-		}
-	}
-	var latestTask *jsrt.Promise[struct{}]
-	if refresh || missing {
-		latestTask = s.refreshLatest()
-	} else {
-		checked, _, _ := jsGet(s.cache, "checkedAt")
-		if cuNow()-cuNumber(checked) > latestTTLMs {
-			s.refreshLatest()
-		}
-	}
-	probed := s.probed
-	if refresh || probed == nil || cuNow()-probed.at > probeTTLMs {
-		entry := &probedEntry{at: cuNow(), rows: s.probeLocal()}
-		probed = entry
-		s.probed = entry
-	}
-	local, err := jsrt.Await(probed.rows)
-	if err != nil {
-		if s.probed == probed {
-			s.probed = nil
-		}
-		return nil, err
-	}
-	if latestTask != nil {
-		_, _ = jsrt.Await(latestTask)
 	}
 	out := make([]*util.Obj, 0, len(local))
 	for _, r := range local {
-		lt, err := s.cacheLatest()
-		if err != nil {
-			return nil, err
-		}
 		var lv any
 		if v := lt.Get(r.kind); v != nil {
 			lv = v
@@ -684,6 +685,142 @@ func (s *CliUpdateService) inspectInner(refresh bool) ([]*util.Obj, error) {
 		out = append(out, util.NewObj("kind", r.kind, "runtimeWarning", dshProblemObj(r.runtimeWarning),
 			"path", nz(r.bin), "version", nz(r.version), "latest", lv, "installMethod", method,
 			"updateAvailable", avail, "updateSupported", sup, "installSupported", sup))
+	}
+	return out, nil
+}
+
+func (s *CliUpdateService) setLastRows(rows []*util.Obj) {
+	s.lastRows = rows
+	if len(rows) > 0 {
+		s.lastRowsSnap.Store(rows)
+	}
+}
+
+func (s *CliUpdateService) emitInspectUpdated(rows []*util.Obj) {
+	s.setLastRows(rows)
+	s.broadcast(util.NewObj("kind", "inspect", "phase", "updated", "rows", objsToAny(rows)))
+}
+
+func (s *CliUpdateService) followProbe(entry *probedEntry) {
+	if entry == nil || entry.followed {
+		return
+	}
+	entry.followed = true
+	jsrt.Go(func() {
+		local, err := jsrt.Await(entry.rows)
+		if err != nil {
+			if s.probed == entry {
+				s.probed = nil
+			}
+			return
+		}
+		s.lastLocal = local
+		rows, berr := s.rowsFromLocal(local)
+		if berr != nil {
+			return
+		}
+		s.setLastRows(rows)
+		if s.inspectTimedOut.Load() {
+			s.emitInspectUpdated(rows)
+		}
+	})
+}
+
+func (s *CliUpdateService) inspectFallback() []*util.Obj {
+	if v, ok := s.lastRowsSnap.Load().([]*util.Obj); ok && len(v) > 0 {
+		return v
+	}
+	return emptyInspectRows()
+}
+
+// Inspect = inspect(refresh)：先返回本机探测（已安装 / 未安装、路径、版本）；
+// 缓存里已有 latest 就带上。缓存是冷的或调用方要求刷新时，在后台问 npm，完成后发
+// cliUpdate.event {kind:inspect, phase:updated}。整次调用有总超时，避免 UI 一直「检测中」。
+func (s *CliUpdateService) Inspect(refresh bool) *jsrt.Promise[[]*util.Obj] {
+	return jsrt.Async(func() ([]*util.Obj, error) {
+		s.inspectTimedOut.Store(false)
+		outcome := jsrt.NewPromise[[]*util.Obj]()
+		var done sync.Once
+		// 用 Go timer，不依赖 jsrt 事件循环：先武装再开工。
+		// 即使某次探测卡住 GIL，Resolve 也不需要持锁，前端的总超时仍是兜底。
+		timer := time.AfterFunc(inspectTimeout, func() {
+			done.Do(func() {
+				s.inspectTimedOut.Store(true)
+				if s.d.Logger != nil {
+					s.d.Logger.Warn("cli-update inspect timed out", inspectTimeout.String())
+				}
+				outcome.Resolve(s.inspectFallback())
+			})
+		})
+		jsrt.Go(func() {
+			rows, err := s.inspectInner(refresh)
+			if !timer.Stop() {
+				return
+			}
+			done.Do(func() {
+				if err != nil {
+					if s.d.Logger != nil {
+						s.d.Logger.Warn("cli-update inspect failed", err)
+					}
+					outcome.Resolve(emptyInspectRows())
+					return
+				}
+				outcome.Resolve(rows)
+			})
+		})
+		rows, err := jsrt.Await(outcome)
+		if err != nil {
+			return s.inspectFallback(), nil
+		}
+		return rows, nil
+	})
+}
+
+func (s *CliUpdateService) inspectInner(refresh bool) ([]*util.Obj, error) {
+	started := time.Now()
+	latest, err := s.cacheLatest()
+	if err != nil {
+		return nil, err
+	}
+	missing := false
+	for _, k := range latestKinds {
+		if !latest.Has(k) {
+			missing = true
+			break
+		}
+	}
+	checked, _, _ := jsGet(s.cache, "checkedAt")
+	stale := cuNow()-cuNumber(checked) > latestTTLMs
+	// 冷缓存、过期或用户点「检查更新」：后台刷新 latest，不堵住本次返回。
+	if refresh || missing || stale {
+		s.refreshLatest()
+	}
+	probed := s.probed
+	if refresh || probed == nil || cuNow()-probed.at > probeTTLMs {
+		entry := &probedEntry{at: cuNow(), rows: s.probeLocal()}
+		probed = entry
+		s.probed = entry
+	}
+	s.followProbe(probed)
+	probeStarted := time.Now()
+	local, err := jsrt.Await(probed.rows)
+	if err != nil {
+		if s.probed == probed {
+			s.probed = nil
+		}
+		return nil, err
+	}
+	probeMs := time.Since(probeStarted)
+	s.lastLocal = local
+	out, err := s.rowsFromLocal(local)
+	if err != nil {
+		return nil, err
+	}
+	s.setLastRows(out)
+	if s.d.Logger != nil {
+		s.d.Logger.Info("cli-update inspect", fmt.Sprintf("total=%s probe=%s refreshLatest=%v cachedLatest=%v",
+			time.Since(started).Round(time.Millisecond), probeMs.Round(time.Millisecond),
+			refresh || missing || stale, !missing))
 	}
 	return out, nil
 }

@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import type { CliKind } from '../../services/cliSource';
 import {
   cliUpdateClient,
+  isInspectUpdated,
   type CliInstallInfo,
   type CliInstallPlan,
   type CliInstallScope,
@@ -53,7 +54,7 @@ export function useCliInstall(
     cliUpdateClient
       .inspect(false)
       .then((rows) => setInfos(Array.isArray(rows) ? rows : []))
-      .catch(() => undefined);
+      .catch(() => setInfos([]));
   }, []);
 
   useEffect(() => {
@@ -64,6 +65,11 @@ export function useCliInstall(
       .then((kinds) => setBusy(new Set(kinds)))
       .catch(() => undefined);
     return cliUpdateClient.onEvent((e) => {
+      if (isInspectUpdated(e)) {
+        if (Array.isArray(e.rows)) setInfos(e.rows);
+        else load();
+        return;
+      }
       if (e.phase === 'start') mark(e.kind, true);
       else if (e.phase === 'done' || e.phase === 'error') {
         mark(e.kind, false);

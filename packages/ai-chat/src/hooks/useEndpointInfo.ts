@@ -6,7 +6,13 @@ import { cliConfigPath } from '@nomi-ai/cli-catalog';
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { cliUpdateClient, type CliInstallInfo } from '../services/cliUpdateClient';
+import {
+  cliUpdateClient,
+  inspectGeneration,
+  isInspectUpdated,
+  whenInspectUpdated,
+  type CliInstallInfo,
+} from '../services/cliUpdateClient';
 import {
   usageClient,
   type UsageEndpointInfo,
@@ -123,11 +129,27 @@ export function useEndpointInfo(backend: ConversationBackend, enabled = true): E
     }
   }, [backend, loadUsage, q]);
 
+  useEffect(() => {
+    if (!enabled || !cliUpdateClient.available()) return;
+    return cliUpdateClient.onEvent((e) => {
+      if (!isInspectUpdated(e) || !alive.current) return;
+      const rows = e.rows ?? cliUpdateClient.cached();
+      if (rows) setCli(rows);
+    });
+  }, [enabled]);
+
   const checkUpdate = useCallback(async () => {
     setCheckingUpdate(true);
+    setError(null);
+    const epoch = inspectGeneration();
     try {
       const r = await cliUpdateClient.inspect(true);
-      if (alive.current) setCli(Array.isArray(r) ? r : null);
+      if (alive.current) setCli(cliUpdateClient.cached() ?? (Array.isArray(r) ? r : null));
+      if (alive.current && inspectGeneration() === epoch) {
+        await whenInspectUpdated(epoch);
+        const next = cliUpdateClient.cached();
+        if (alive.current && next) setCli(next);
+      }
     } catch (e) {
       if (alive.current) setError(e instanceof Error ? e.message : String(e));
     } finally {
