@@ -65,7 +65,8 @@ export const TasksPage: React.FC<{
     setFocusSeen(focus.nonce);
     setSelected(focus.id);
   }
-  const [creating, setCreating] = useState(false);
+  // 首次挂载也要消费新建请求；加载期间已离开任务页则不再弹出表单。
+  const [creating, setCreating] = useState(active && createNonce > 0);
   const [createSeen, setCreateSeen] = useState(createNonce);
   if (createNonce !== createSeen) {
     setCreateSeen(createNonce);
