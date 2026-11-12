@@ -30,6 +30,7 @@ import { CliEndpointSection } from './CliEndpointSection';
 import { ExternalClis } from './ExternalClis';
 import styles from './index.module.css';
 import { envHasProblem, RuntimeEnvironment, useCliEnvironment } from './RuntimeEnvironment';
+import { ShellProxySetting } from './ShellProxySetting';
 
 /** 左栏助手的顺序：与对话区端点顺序一致，去掉 Nomi（Nomi 的模型在「模型」页） */
 const CLIS = CONVERSATION_BACKENDS.filter((b): b is CliKind => b !== 'nomi');
@@ -161,6 +162,7 @@ export const ProvidersPage: React.FC<{
         <div className={styles.section} data-testid="providers-section-general">
           <RuntimeEnvironment {...runtime} />
           <AutoApproveSetting />
+          <ShellProxySetting />
         </div>
       );
     if (!cliOk)
