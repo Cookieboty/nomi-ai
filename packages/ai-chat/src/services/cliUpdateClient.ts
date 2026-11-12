@@ -1,5 +1,5 @@
 import { isBuiltinCliId, type BuiltinCliId } from '@nomi-ai/cli-catalog';
-import { t } from '@nomi-ai/ui';
+import { createLogger, t } from '@nomi-ai/ui';
 
 import { api, hasTransport } from './api';
 
@@ -81,6 +81,8 @@ export type CliUpdateEvent =
   | { kind: CliUpdatableKind; mode: 'install' | 'update'; phase: 'error'; message: string }
   | CliInspectUpdatedEvent;
 
+const log = createLogger('cli-inspect');
+
 export const isInspectUpdated = (e: CliUpdateEvent): e is CliInspectUpdatedEvent =>
   e.kind === 'inspect' && e.phase === 'updated';
 
@@ -132,28 +134,63 @@ export const inspectGeneration = (): number => inspectEpoch;
 export function whenInspectUpdated(since: number, timeoutMs = INSPECT_TIMEOUT_MS): Promise<void> {
   if (inspectEpoch !== since) return Promise.resolve();
   return new Promise((resolve) => {
-    const finish = (): void => {
+    const finish = (reason: 'updated' | 'timeout'): void => {
       clearTimeout(timer);
       updatedWaiters.delete(onUpdate);
+      // TEMP(cli-inspect): 定位用，后续可随时移除
+      if (reason === 'timeout') log.warn('whenInspectUpdated timed out', { since, timeoutMs });
+      else log.info('whenInspectUpdated resolved', { since });
       resolve();
     };
-    const timer = setTimeout(finish, timeoutMs);
+    const timer = setTimeout(() => finish('timeout'), timeoutMs);
     const onUpdate = (epoch: number): void => {
-      if (epoch !== since) finish();
+      if (epoch !== since) finish('updated');
     };
     updatedWaiters.add(onUpdate);
   });
 }
 
+function inspectCount(rows: CliInstallInfo[]): { rows: number; installed: number } {
+  return { rows: rows.length, installed: rows.filter((r) => !!r.path).length };
+}
+
 function inspect(refresh = false): Promise<CliInstallInfo[]> {
-  if (!refresh && inspecting) return inspecting;
+  if (!refresh && inspecting) {
+    // TEMP(cli-inspect): 定位用，后续可随时移除
+    log.info('inspect reuse in-flight', { refresh });
+    return inspecting;
+  }
+  // TEMP(cli-inspect): 定位用，后续可随时移除
+  log.info('inspect start', { refresh, hasCache: lastInspect != null });
+  const started = Date.now();
   const p = withTimeout(
     call<CliInstallInfo[]>(() => api.cliUpdate.inspect({ refresh })),
     INSPECT_TIMEOUT_MS,
   ).then(
-    (rows) => applyInspectRows(Array.isArray(rows) ? rows : []),
+    (rows) => {
+      const list = applyInspectRows(Array.isArray(rows) ? rows : []);
+      // TEMP(cli-inspect): 定位用，后续可随时移除
+      log.info('inspect resolved', { refresh, ...inspectCount(list), ms: Date.now() - started });
+      return list;
+    },
     (err: unknown) => {
-      if (lastInspect) return lastInspect;
+      const timedOut = err instanceof Error && /timed out/.test(err.message);
+      const error = err instanceof Error ? err.message : String(err);
+      const ms = Date.now() - started;
+      if (lastInspect) {
+        // TEMP(cli-inspect): 定位用，后续可随时移除
+        log.warn(
+          timedOut ? 'inspect timed out; using last cache' : 'inspect failed; using last cache',
+          {
+            refresh,
+            error,
+            ms,
+          },
+        );
+        return lastInspect;
+      }
+      // TEMP(cli-inspect): 定位用，后续可随时移除
+      log.warn(timedOut ? 'inspect timed out' : 'inspect rejected', { refresh, error, ms });
       throw err instanceof Error ? err : new Error(String(err));
     },
   );
@@ -203,7 +240,11 @@ export const cliUpdateClient = {
     hasTransport()
       ? api.on('cliUpdate.event', (p) => {
           const e = p as unknown as CliUpdateEvent;
-          if (isInspectUpdated(e) && Array.isArray(e.rows)) applyInspectRows(e.rows);
+          if (isInspectUpdated(e) && Array.isArray(e.rows)) {
+            // TEMP(cli-inspect): 定位用，后续可随时移除
+            log.info('inspect updated event', inspectCount(e.rows));
+            applyInspectRows(e.rows);
+          }
           fn(e);
         })
       : () => undefined,

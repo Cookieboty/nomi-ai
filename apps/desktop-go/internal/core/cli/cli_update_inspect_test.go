@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -20,6 +22,32 @@ func (e *inspectEvents) Publish(_ string, payload any) {
 		e.payloads = append(e.payloads, o)
 		e.mu.Unlock()
 	}
+}
+
+type inspectLog struct {
+	mu   sync.Mutex
+	info []string
+	warn []string
+}
+
+func (l *inspectLog) Info(m string, d any) {
+	l.mu.Lock()
+	l.info = append(l.info, m+" "+fmt.Sprint(d))
+	l.mu.Unlock()
+}
+
+func (l *inspectLog) Warn(m string, d any) {
+	l.mu.Lock()
+	l.warn = append(l.warn, m+" "+fmt.Sprint(d))
+	l.mu.Unlock()
+}
+
+func (l *inspectLog) warns() []string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	out := make([]string, len(l.warn))
+	copy(out, l.warn)
+	return out
 }
 
 func (e *inspectEvents) all() []*util.Obj {
@@ -183,7 +211,8 @@ func TestInspectTimesOutInsteadOfHanging(t *testing.T) {
 	resolveInspectBin = func(string) string { <-block; return "" }
 	inspectTimeout = 80 * time.Millisecond
 	t.Cleanup(func() { close(block) })
-	s, err := NewCliUpdateService(CliUpdateOptions{Root: t.TempDir()})
+	lg := &inspectLog{}
+	s, err := NewCliUpdateService(CliUpdateOptions{Root: t.TempDir(), Logger: lg})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,5 +227,15 @@ func TestInspectTimesOutInsteadOfHanging(t *testing.T) {
 	}
 	if rowByKind(t, rows, "claude").Get("path") != nil {
 		t.Fatalf("fallback rows should have null path")
+	}
+	found := false
+	for _, w := range lg.warns() {
+		if strings.Contains(w, "cli-update inspect timed out") && strings.Contains(w, "fallback=empty") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected timeout log with empty fallback, got %q", lg.warns())
 	}
 }
