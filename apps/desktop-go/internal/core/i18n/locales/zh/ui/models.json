@@ -48,7 +48,7 @@
   "ui.models.detect-again": "重新检测",
   "ui.models.detecting-apis": "正在检测可用的协议…",
   "ui.models.disable-shown": "全部停用",
-  "ui.models.dsh-built-in-config": "dsh 自带配置",
+  "ui.models.cli-own-config": "{0} 自己的配置",
   "ui.models.edit": "编辑「{0}」",
   "ui.models.enable-long-context": "开启长上下文（{0}）",
   "ui.models.enable-shown": "全部启用",

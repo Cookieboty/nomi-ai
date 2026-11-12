@@ -113,7 +113,7 @@ describe('ProvidersPage', () => {
     await waitFor(() => expect(r.getByTestId('providers-section-codex')).toBeTruthy());
   });
 
-  it.each(['claude', 'codex', 'grok', 'gemini', 'kimi', 'minimax'] as const)(
+  it.each(['claude', 'codex', 'grok', 'kimi', 'minimax'] as const)(
     '%s：版本卡片 + 官方账号 + 去「模型」页的入口；没有第三方供应商列表和路由',
     async (kind) => {
       const calls = setup();
@@ -169,14 +169,17 @@ describe('ProvidersPage', () => {
     await waitFor(() => r.getByTestId('cli-runtime-notice'));
   });
 
-  it('dsh：没有官方账号，只有版本卡片和去「模型」页的入口', async () => {
-    setup();
-    localStorage.setItem('ai-chat:providerEndpoint', 'dsh');
-    const r = render(<ProvidersPage onOpenModels={() => undefined} />);
-    await waitFor(() => expect(r.getByTestId('providers-section-dsh')).toBeTruthy());
-    expect(r.queryByTestId('cli-accounts-dsh')).toBeNull();
-    expect(r.getByTestId('cli-open-models')).toBeTruthy();
-  });
+  it.each(['dsh', 'gemini'] as const)(
+    '%s：没有官方账号，只有版本卡片和去「模型」页的入口',
+    async (kind) => {
+      setup();
+      localStorage.setItem('ai-chat:providerEndpoint', kind);
+      const r = render(<ProvidersPage onOpenModels={() => undefined} />);
+      await waitFor(() => expect(r.getByTestId(`providers-section-${kind}`)).toBeTruthy());
+      expect(r.queryByTestId(`cli-accounts-${kind}`)).toBeNull();
+      expect(r.getByTestId('cli-open-models')).toBeTruthy();
+    },
+  );
 
   it('「监视与会话」：活跃会话超过 20 条时分页', async () => {
     const sessions = Array.from({ length: 25 }, (_, i) => ({

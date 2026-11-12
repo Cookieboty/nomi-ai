@@ -237,7 +237,49 @@ func (s *AccountService) store() *storeT {
 	}
 	s.data = st
 	s.migrateVault()
+	s.dropRetiredKinds()
 	return st
+}
+
+// retiredKinds：不再支持官方账号的 CLI（Gemini：Google 不再让 Gemini CLI 用个人 Google 账号登录）。
+// 旧版本留下的账号记录、默认账号和 Nomi 账号目录里的登录凭据在读取时删掉；终端里 ~/.gemini 的登录不动
+var retiredKinds = map[string]bool{"gemini": true}
+
+func (s *AccountService) dropRetiredKinds() {
+	st := s.data
+	kept := make([]any, 0, len(st.accounts))
+	dropped := map[string]bool{}
+	homes := filepath.Join(s.d.Root, "homes")
+	for _, a := range st.accounts {
+		kind := jsStr(prop(a, "kind"))
+		if !retiredKinds[kind] || isKind(kind) {
+			kept = append(kept, a)
+			continue
+		}
+		dropped[kind] = true
+		// 只删 Nomi 自己的账号目录（userData/cli-accounts/homes/<kind>/…）
+		if dir := dirOf(a); hasDir(dir) {
+			if rel, err := filepath.Rel(homes, *dir); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
+				_ = nodefs.RmForce(*dir)
+			}
+		}
+	}
+	if len(dropped) == 0 {
+		return
+	}
+	st.accounts = kept
+	for kind := range dropped {
+		st.deleteDefault(kind)
+		_ = nodefs.RmForce(filepath.Join(homes, kind))
+	}
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.warn("drop retired accounts: save failed", r)
+			}
+		}()
+		s.save()
+	}()
 }
 
 func (st *storeT) json() string {

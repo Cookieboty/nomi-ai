@@ -277,7 +277,6 @@
   "electron.common.only-unfired-reminders-can-be-changed": "Only reminders that haven't fired can be changed",
   "electron.common.only-when-the-user-explicitly-asks-to-remember": "Only when the user explicitly asks to “remember…”, write one fact about the user to local long-term memory. Never record passwords, keys or other secrets.",
   "electron.common.open-ai-chat": "Open AI chat",
-  "electron.common.opened-the-google-sign-in-page-in-your": "Opened the Google sign-in page in your browser. Finish authorizing there (valid for 5 minutes).",
   "electron.common.opening-history-sessions-is-not-supported-here": "Opening history sessions is not supported here",
   "electron.common.outside-active-hours": "Outside active hours ({0}–{1})",
   "electron.common.path-contains-invalid-characters": "Path contains invalid characters",
@@ -365,7 +364,6 @@
   "electron.common.session-s-are-still-using-this-cli-windows": "{0} session(s) are still using this CLI. Windows can’t replace a running program, so wait for them to finish before updating.",
   "electron.common.shake-head": "Shake head",
   "electron.common.shy": "Shy",
-  "electron.common.sign-in-didn-t-finish": "Sign-in didn't finish",
   "electron.common.sign-in-didn-t-finish-exit-code": "Sign-in didn't finish (exit code {0})",
   "electron.common.sign-in-finished-but-the-cli-still-reports": "Sign-in finished, but the CLI still reports that it’s signed out",
   "electron.common.sign-in-timed-out-try-again": "Sign-in timed out; try again",
@@ -616,5 +614,6 @@
   "electron.common.choose-theme-background": "Choose a theme background image",
   "electron.common.theme-image": "Theme background image",
   "electron.common.theme-image-unsupported": "Background images must be PNG, JPEG or WebP, up to {0} MB",
-  "electron.common.save-theme-template": "Save theme pack template"
+  "electron.common.save-theme-template": "Save theme pack template",
+  "electron.common.gemini-needs-auth": "Gemini has no usable authentication: Google no longer lets Gemini CLI sign in with a personal Google account. Configure an API key (or Vertex AI / an enterprise license) in ~/.gemini, or pick a third-party model for Gemini on the Models page."
 }
