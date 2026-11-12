@@ -68,7 +68,8 @@ describe('Preview file and heading navigation', () => {
   it('loads only the real file, then scrolls to a heading; new chapter requests do not reload or reset edited DOM', async () => {
     render(<Shell />);
     fireEvent.click(screen.getByRole('link', { name: 'guide' }));
-    const preview = await screen.findByTestId('preview-markdown');
+    // 首次打开包含预览面板的懒加载；等待实际文档出现后再验证导航。
+    const preview = await screen.findByTestId('preview-markdown', {}, { timeout: 5000 });
     expect(resourcePreviewClient.open).toHaveBeenCalledWith('/work', '/work/guide.md');
     expect(preview.scrollTop).toBe(600);
     const paragraph = screen.getByText('Editable paragraph');

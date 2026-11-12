@@ -62,7 +62,7 @@ describe('输入框里的 /model 补全', () => {
   it('↑↓ 选择、点击选用；Esc 关闭列表', async () => {
     const { r, ta } = setup();
     fireEvent.change(ta, { target: { value: '/model ' } });
-    await waitFor(() => expect(r.getByTestId('slash-model-menu')).toBeTruthy());
+    await waitFor(() => expect(r.getByTestId('slash-model-opus')).toBeTruthy());
     fireEvent.keyDown(ta, { key: 'ArrowDown' });
     fireEvent.keyDown(ta, { key: 'Enter' });
     expect(ta.value).toBe('/model fable');
