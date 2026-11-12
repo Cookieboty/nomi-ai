@@ -25,6 +25,7 @@
   "ui.devtools.process-io-n": "子进程收发 {0}",
   "ui.devtools.raw-events": "原始事件",
   "ui.devtools.request-and-response": "请求与响应",
+  "ui.devtools.returned-model": "返回的模型",
   "ui.devtools.thinking": "思考过程",
   "ui.devtools.tokens": "Token",
   "ui.devtools.total-time": "总耗时",

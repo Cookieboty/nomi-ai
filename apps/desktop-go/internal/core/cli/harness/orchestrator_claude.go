@@ -795,6 +795,7 @@ func (o *Orchestrator) finishAutoTurn(tabID string, live *claudeLiveSession, err
 	msg := util.NewObj("id", clisdk.RandomUUID(), "role", "assistant", "content", content, "timestamp", now,
 		"durationMs", nowMs()-auto.startedAt, "origin", "background")
 	withModel(msg, o.turnModelResolver(tab)(auto.events, usage))
+	noteResponseModel(msg, tabID, auto.startedAt)
 	if errStr != nil && *errStr != "" {
 		msg.Set("error", true)
 	}

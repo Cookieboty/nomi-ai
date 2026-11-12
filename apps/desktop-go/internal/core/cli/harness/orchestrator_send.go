@@ -290,6 +290,7 @@ func (o *Orchestrator) turnOk(id string, tab, current *util.Obj, backend, runCwd
 	durationMs := nowMs() - startedAt
 	msg := util.NewObj("id", newMsgID(), "role", "assistant", "content", result.Get("text"), "timestamp", nowMs(), "durationMs", durationMs)
 	withModel(msg, modelOf(events, use))
+	noteResponseModel(msg, id, startedAt)
 	if use != nil {
 		msg.Set("usage", use)
 	}
@@ -347,6 +348,7 @@ func (o *Orchestrator) turnFailed(id string, current *util.Obj, e error, modelOf
 			current.Set("status", "idle")
 			msg := util.NewObj("id", newMsgID(), "role", "assistant", "content", partText, "timestamp", nowMs(), "durationMs", durationMs, "stopped", true)
 			withModel(msg, model)
+			noteResponseModel(msg, id, startedAt)
 			if len(trace) > 0 {
 				msg.Set("trace", trace)
 			}
@@ -378,6 +380,7 @@ func (o *Orchestrator) turnFailed(id string, current *util.Obj, e error, modelOf
 			}
 			msg := util.NewObj("id", newMsgID(), "role", "assistant", "content", content, "timestamp", nowMs(), "error", true, "durationMs", durationMs)
 			withModel(msg, model)
+			noteResponseModel(msg, id, startedAt)
 			if partCtx != nil {
 				msg.Set("usage", partCtx)
 			}

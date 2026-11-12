@@ -87,6 +87,8 @@ export const HarnessTabMessage = loose({
   role: z.string(),
   content: z.string(),
   timestamp: z.number(),
+  /** 上游实际返回的模型（和请求的不是同一个时才有） */
+  responseModel: z.string().optional(),
 });
 
 export const HarnessImageInput = loose({

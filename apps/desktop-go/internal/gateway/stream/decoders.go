@@ -57,9 +57,11 @@ func jsStringOr(v any, d string) string {
 type baseDecoder struct {
 	started, done, sawTool, thinking bool
 	pendingReason                    string
-	usage                            events.StreamUsage
-	seed                             string
-	handle                           func(e sse.Event, out *[]ev)
+	// seenModel is the last non-empty model from the upstream stream.
+	seenModel string
+	usage     events.StreamUsage
+	seed      string
+	handle    func(e sse.Event, out *[]ev)
 	// beforeFinish is the subclass part of an overridden finish (after start).
 	beforeFinish func(out *[]ev)
 }
@@ -82,10 +84,20 @@ func (d *baseDecoder) think(out *[]ev, text string, id *string) {
 }
 
 func (d *baseDecoder) start(out *[]ev, id, model *string) {
+	// A later chunk can be the first one that names the model (or can correct
+	// it). Emit another start so the usage tap keeps the latest name. The
+	// encoders ignore a start after the first, except Gemini which adopts it.
 	if d.started {
+		if model != nil && *model != "" && *model != d.seenModel {
+			d.seenModel = *model
+			*out = append(*out, ev{Type: events.Start, Model: model})
+		}
 		return
 	}
 	d.started = true
+	if model != nil && *model != "" {
+		d.seenModel = *model
+	}
 	us := d.usage
 	*out = append(*out, ev{Type: events.Start, ID: id, Model: model, Usage: &us})
 }
@@ -456,10 +468,12 @@ func (d *responsesDecoder) handleEv(e sse.Event, out *[]ev) {
 	case "response.completed":
 		r := u.AsObj(j.Get("response"))
 		d.readUsage(r)
+		d.start(out, strPtrIf(r.Get("id")), strPtrIf(r.Get("model")))
 		d.finish(out, "")
 	case "response.incomplete":
 		r := u.AsObj(j.Get("response"))
 		d.readUsage(r)
+		d.start(out, strPtrIf(r.Get("id")), strPtrIf(r.Get("model")))
 		reason := ""
 		if u.AsObj(r.Get("incomplete_details")).Get("reason") == "max_output_tokens" {
 			reason = "max_tokens"

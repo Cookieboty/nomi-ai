@@ -130,7 +130,13 @@ export const ChatChunk = z.discriminatedUnion('type', [
     content: z.string(),
     phase: z.enum(['start', 'end']).optional(),
   }),
-  z.looseObject({ type: z.literal('usage'), usage: ChatUsage, model: z.string().optional() }),
+  z.looseObject({
+    type: z.literal('usage'),
+    usage: ChatUsage,
+    model: z.string().optional(),
+    /** 上游响应里的模型名（和请求的不是同一个时才有） */
+    responseModel: z.string().optional(),
+  }),
   /** 这一轮工具循环的消息（只在有工具调用时发）：存进助手消息的 steps，下一轮原样带回 */
   z.looseObject({ type: z.literal('steps'), steps: z.string() }),
   z.looseObject({ type: z.literal('done'), finishReason: FinishReason }),

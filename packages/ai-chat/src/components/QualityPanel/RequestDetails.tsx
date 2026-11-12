@@ -242,6 +242,14 @@ const Row: React.FC<{ r: QualityRequestItem }> = ({ r }) => {
                   </dd>
                 </>
               )}
+              {r.responseModel && (
+                <>
+                  <dt>{t('ui.devtools.returned-model')}</dt>
+                  <dd className={styles.mono} data-testid="quality-request-response-model">
+                    {r.responseModel}
+                  </dd>
+                </>
+              )}
               {r.resolved && (
                 <>
                   <dt>{t('ui.model-quality.how-model-was-chosen')}</dt>

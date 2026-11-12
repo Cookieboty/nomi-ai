@@ -895,6 +895,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
             content: accumulated,
             error: errorMessage(err),
             durationMs: Date.now() - startedAt,
+            ...(usage?.responseModel ? { responseModel: usage.responseModel } : {}),
             ...(trace.length ? { trace: [...trace] } : {}),
           };
           if (turn.isActive())
@@ -915,6 +916,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           ...aiMessage,
           // 故障转移后实际回答的可能是另一家：按网关报回的写
           ...(usage?.model ? { modelId: servedModelLabel(usage.model) } : {}),
+          ...(usage?.responseModel ? { responseModel: usage.responseModel } : {}),
           content: accumulated,
           durationMs: Date.now() - startedAt,
           ...(trace.length ? { trace: [...trace] } : {}),

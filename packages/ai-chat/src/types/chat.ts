@@ -9,6 +9,11 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   modelId?: string;
+  /**
+   * 上游响应里的模型名，和这一轮请求的不是同一个时才有（中继换成了别的模型）。
+   * 原始字符串，页脚原样显示，说明在提示里。
+   */
+  responseModel?: string;
   error?: string;
   /** 知识库问答：本条回答引用的来源（[n] 对应 n） */
   sources?: Array<{

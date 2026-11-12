@@ -77,6 +77,8 @@ type Part struct {
 	Usage        Usage
 	TotalUsage   Usage
 	Headers      map[string]string
+	// ResponseModel：这一步响应里的模型名（上游 message.model / model / modelVersion）
+	ResponseModel string
 	// ResponseMessages：finish 时 = (await result.response).messages（这一轮各步的回复消息，含最后一步）
 	ResponseMessages []*u.Obj
 	// StepLimit：finish 时 = 步数用完才停（最后一步的工具都执行完了，模型还没看到结果），可以接着跑

@@ -885,6 +885,9 @@
        },
        "model": {
         "type": "string"
+       },
+       "responseModel": {
+        "type": "string"
        }
       },
       "required": [
@@ -1251,6 +1254,9 @@
         "additionalProperties": false
        },
        "model": {
+        "type": "string"
+       },
+       "responseModel": {
         "type": "string"
        }
       },
@@ -1896,6 +1902,9 @@
         "additionalProperties": false
        },
        "model": {
+        "type": "string"
+       },
+       "responseModel": {
         "type": "string"
        }
       },
@@ -21695,6 +21704,9 @@
         },
         "timestamp": {
          "type": "number"
+        },
+        "responseModel": {
+         "type": "string"
         }
        },
        "required": [
@@ -22088,6 +22100,9 @@
       },
       "timestamp": {
        "type": "number"
+      },
+      "responseModel": {
+       "type": "string"
       }
      },
      "required": [
@@ -22636,6 +22651,9 @@
       },
       "timestamp": {
        "type": "number"
+      },
+      "responseModel": {
+       "type": "string"
       }
      },
      "required": [
@@ -22675,6 +22693,9 @@
         },
         "timestamp": {
          "type": "number"
+        },
+        "responseModel": {
+         "type": "string"
         }
        },
        "required": [
@@ -37782,6 +37803,9 @@
       },
       "timestamp": {
        "type": "number"
+      },
+      "responseModel": {
+       "type": "string"
       }
      },
      "required": [

@@ -287,6 +287,9 @@ func seedExtras(dst, m *util.Obj) {
 		dst.Set("stopped", true)
 	}
 	withModel(dst, m.Get("model"))
+	if s, ok := m.Get("responseModel").(string); ok && util.JSTrim(s) != "" {
+		dst.Set("responseModel", clisdk.Slice0(util.JSTrim(s), 200))
+	}
 }
 
 // CreateTab = createTab(opts)；opts nil = {}。

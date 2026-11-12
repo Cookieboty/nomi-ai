@@ -11,6 +11,8 @@ export interface StreamUsage {
   redacted?: number;
   /** 实际回答的模型（统一网关报回的 `供应商/模型`；故障转移后与选中的不同） */
   model?: string;
+  /** 上游响应里的模型名（和请求的不是同一个时才有） */
+  responseModel?: string;
   /** contextTokens 的分项（内核按实际请求拆、按真实用量校准） */
   breakdown?: ContextBreakdown;
 }
@@ -81,6 +83,8 @@ export function chunkToUsage(c: Chunk): StreamUsage | null {
   if (red !== undefined && red > 0) out.redacted = Math.trunc(red);
   const model = str(c.model);
   if (model) out.model = model;
+  const responseModel = str(c.responseModel);
+  if (responseModel) out.responseModel = responseModel;
   const bd = u.breakdown as Record<string, unknown> | undefined;
   if (bd && typeof bd === 'object') {
     const keys = [

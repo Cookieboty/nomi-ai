@@ -16,6 +16,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/providers/protocol"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/modelid"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -375,6 +376,25 @@ func jsNumber(s string) float64 {
 		return math.NaN()
 	}
 	return f
+}
+
+// returnedModel is the upstream response's model when it is not the one we
+// asked for. The gateway registry (keyed by req id) wins; the model on the
+// response body is the fallback for a provider that is not the local gateway.
+func returnedModel(reqID, asked string, served *string, body string) string {
+	resp := strings.TrimSpace(body)
+	var req []string
+	if modelid.ValidID(reqID) {
+		if s, ok := modelid.Latest(modelid.TurnKey(reqID)); ok && s.Response != "" {
+			resp = s.Response
+			req = append(req, s.Requested...)
+		}
+	}
+	req = append(req, asked)
+	if served != nil {
+		req = append(req, *served)
+	}
+	return modelid.Mismatch(req, resp)
 }
 
 func (p *Provider) servedModel(h map[string]string) *string {
@@ -810,6 +830,9 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 	}
 	c, done := p.bindAbort(ctx, r)
 	defer done()
+	if modelid.ValidID(r.ReqID) {
+		c = modelid.WithTurn(c, r.ReqID)
+	}
 	tp := p.params(r, ts, hasTools)
 	// 有工具循环才能中途插入：每一步开始前把收到的插入消息放到当时的位置，之后每一步都带着
 	if hasTools {
@@ -824,6 +847,7 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 	}
 	messages := tp.Messages
 	var served *string
+	var bodyModel string
 	// 每一步都是一次网关请求，都会带上整段历史：取各步的最大值
 	redacted := 0
 	// 最后一步的用量 = 当前上下文（finish 的 totalUsage 是各步累加）
@@ -887,6 +911,9 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 		StreamText(c, &rp, func(part Part) {
 			switch part.Type {
 			case "finish-step":
+				if part.ResponseModel != "" {
+					bodyModel = part.ResponseModel
+				}
 				if s := p.servedModel(part.Headers); s != nil {
 					served = s
 				}
@@ -1008,7 +1035,11 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 				if served != nil {
 					model = *served
 				}
-				emit(llm.ChatChunk{Type: "usage", Usage: withRedacted(uu, redacted), Model: &model})
+				chunk := llm.ChatChunk{Type: "usage", Usage: withRedacted(uu, redacted), Model: &model}
+				if raw := returnedModel(r.ReqID, model, served, bodyModel); raw != "" {
+					chunk.ResponseModel = &raw
+				}
+				emit(chunk)
 			}
 			// 下一轮原样带上
 			if hasTools && c.Err() == nil {

@@ -29,6 +29,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/config"
 	gerr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/errors"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/intent"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/modelid"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/models"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/models/rules/request"
 	gwnet "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
@@ -338,6 +339,7 @@ type responded struct {
 	outcome        string
 	errorKind      string
 	cancelPhase    string
+	responseModel  string
 	firstContentAt *float64
 	firstTextAt    *float64
 	lastContentAt  *float64
@@ -1479,7 +1481,12 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 				panic(p)
 			}
 		}()
-		out = g.respond(res, ingress, c, up, body, wantsStream, abortCtx, abort, &notes, trace, stage, resolveAs, restorer)
+		turnID := modelid.TurnOf(req.Header.Get(modelid.TurnHeader))
+		tabID := ""
+		if binding != nil {
+			tabID = binding.TabID
+		}
+		out = g.respond(res, ingress, c, up, body, wantsStream, abortCtx, abort, &notes, trace, stage, resolveAs, restorer, turnID, tabID, requested)
 	}()
 	if restorer != nil {
 		if _, ok := tag.Get("redactions").([]any); ok {
@@ -1532,6 +1539,9 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 	attemptsDetail = append(attemptsDetail, qaObj(qa))
 	e := u.NewObj("wire", c.Wire, "provider", c.Provider.ID, "keyId", c.Key.ID, "model", c.PublicModel, "upstreamModel", c.UpstreamModel,
 		"status", float64(up.Status), "usage", usageObj(usage))
+	if out.responseModel != "" {
+		e.Set("responseModel", out.responseModel)
+	}
 	if firstContentMs != nil {
 		e.Set("firstByteMs", *firstContentMs)
 	}
@@ -1778,7 +1788,33 @@ func (g *GatewayServer) attempt(cfg *config.GatewayConfig, client string, req *h
 
 // respond writes the 2xx upstream response back in the ingress protocol.
 func (g *GatewayServer) respond(res *gwRes, ingress *upstream.Ingress, c *cand.Candidate, up *Resp, body any, wantsStream bool,
-	abortCtx context.Context, abort context.CancelFunc, notes *[]string, trace *RequestTrace, stage *providers.Stage, client string, restorer *privacy.Restorer) responded {
+	abortCtx context.Context, abort context.CancelFunc, notes *[]string, trace *RequestTrace, stage *providers.Stage, client string, restorer *privacy.Restorer,
+	turnID, tabID, requested string) responded {
+	// responseModel is the name the upstream put on this response. Published as
+	// soon as it is known so the turn that is still reading the body can see it.
+	var responseModel string
+	publish := func(model string) {
+		model = modelid.Clip(model, 200)
+		if model == "" {
+			return
+		}
+		responseModel = model
+		reqNames := []string{c.PublicModel, c.UpstreamModel, requested}
+		if ingress != nil && ingress.Model != nil {
+			reqNames = append(reqNames, *ingress.Model)
+		}
+		sample := modelid.Sample{Response: model, Requested: reqNames, At: int64(NowMs())}
+		if turnID != "" {
+			modelid.Note(modelid.TurnKey(turnID), sample)
+		}
+		if tabID != "" {
+			modelid.Note(modelid.TabKey(tabID), sample)
+		}
+	}
+	stamp := func(r responded) responded {
+		r.responseModel = responseModel
+		return r
+	}
 	if !res.sent() {
 		res.setHeader(ServedModelHeader, c.PublicModel)
 	}
@@ -1859,10 +1895,12 @@ func (g *GatewayServer) respond(res *gwRes, ingress *upstream.Ingress, c *cand.C
 			}
 			arm()
 			if res.destroyed() {
-				return timing(responded{usage: tap.Usage, outcome: "client-cancel", cancelPhase: "during", streamed: true})
+				publish(tap.Model)
+				return stamp(timing(responded{usage: tap.Usage, outcome: "client-cancel", cancelPhase: "during", streamed: true}))
 			}
 			text := dec.Decode(chunk)
 			tap.Push(text)
+			publish(tap.Model)
 			if stage == nil && trace != nil {
 				trace.Response(up.Status, text)
 			}
@@ -1893,6 +1931,7 @@ func (g *GatewayServer) respond(res *gwRes, ingress *upstream.Ingress, c *cand.C
 			}
 			tap.Push(rest)
 			tap.FlushResidual()
+			publish(tap.Model)
 			if bridge.Stopped() {
 				outcome = "repetition-stop"
 			} else if tap.Error != nil {
@@ -1951,7 +1990,7 @@ func (g *GatewayServer) respond(res *gwRes, ingress *upstream.Ingress, c *cand.C
 		if outcome == "client-cancel" {
 			r.cancelPhase = "during"
 		}
-		return timing(r)
+		return stamp(timing(r))
 	}
 	bodyMs := upstream.ResolveFirstByteTimeoutMs(false, upstream.CandidateIsReasoning(c), g.hooks.TimeoutHooks)
 	var bodyTimedOut atomic.Bool
@@ -2006,6 +2045,7 @@ func (g *GatewayServer) respond(res *gwRes, ingress *upstream.Ingress, c *cand.C
 		case float64, bool:
 		default:
 			usage = UsageOfJSON(c.Wire, parsed)
+			publish(ResponseModelOf(c.Wire, parsed))
 		}
 	}
 	pm := BridgeMode("convert")
@@ -2036,7 +2076,7 @@ func (g *GatewayServer) respond(res *gwRes, ingress *upstream.Ingress, c *cand.C
 			sendJSON(res, out.Status, out.JSON)
 		}
 	}
-	return responded{usage: usage, outcome: "ok", streamed: false, firstContentAt: fp(bodyAt), lastContentAt: fp(bodyAt), firstTextAt: fp(bodyAt)}
+	return stamp(responded{usage: usage, outcome: "ok", streamed: false, firstContentAt: fp(bodyAt), lastContentAt: fp(bodyAt), firstTextAt: fp(bodyAt)})
 }
 
 // countTokens: forward when both sides are Messages, else estimate.

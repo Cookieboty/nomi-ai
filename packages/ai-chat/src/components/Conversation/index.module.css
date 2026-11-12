@@ -234,13 +234,26 @@
 .label {
   color: var(--cd-color-text-muted);
 }
-/* 产生这条消息的模型：跟在端点名后面，弱一档，过长截断（完整名在 title） */
+/* 产生这条消息的模型：跟在端点名后面，弱一档，过长截断。上游换了模型时接「→ 实际名称」 */
 .model {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--cd-space-1);
+  min-width: 0;
+  max-width: 100%;
+  color: var(--cd-color-text-subtle);
+}
+.modelName,
+.actualModel {
   min-width: 0;
   max-width: 32ch;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--cd-color-text-subtle);
+}
+.actualModel:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+  border-radius: var(--cd-radius-xs);
 }
 .label + .model::before {
   content: '·';

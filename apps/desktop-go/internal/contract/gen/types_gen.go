@@ -6509,10 +6509,11 @@ type HarnessTabContextOutput struct {
 }
 
 type HarnessTabCreateInputMessagesItem struct {
-	Id        string  `json:"id"`
-	Role      string  `json:"role"`
-	Content   string  `json:"content"`
-	Timestamp float64 `json:"timestamp"`
+	Id            string  `json:"id"`
+	Role          string  `json:"role"`
+	Content       string  `json:"content"`
+	Timestamp     float64 `json:"timestamp"`
+	ResponseModel *string `json:"responseModel,omitempty"`
 }
 
 type HarnessTabCreateInput struct {
@@ -6665,10 +6666,11 @@ type HarnessTabMessagesInput struct {
 }
 
 type HarnessTabMessagesOutputItem struct {
-	Id        string  `json:"id"`
-	Role      string  `json:"role"`
-	Content   string  `json:"content"`
-	Timestamp float64 `json:"timestamp"`
+	Id            string  `json:"id"`
+	Role          string  `json:"role"`
+	Content       string  `json:"content"`
+	Timestamp     float64 `json:"timestamp"`
+	ResponseModel *string `json:"responseModel,omitempty"`
 }
 
 // HarnessTabModelInputExpectSource 枚举：official | thirdParty
@@ -6882,17 +6884,19 @@ type HarnessTabRewindInput struct {
 }
 
 type HarnessTabRewindOutputItem struct {
-	Id        string  `json:"id"`
-	Role      string  `json:"role"`
-	Content   string  `json:"content"`
-	Timestamp float64 `json:"timestamp"`
+	Id            string  `json:"id"`
+	Role          string  `json:"role"`
+	Content       string  `json:"content"`
+	Timestamp     float64 `json:"timestamp"`
+	ResponseModel *string `json:"responseModel,omitempty"`
 }
 
 type HarnessTabSeedInputMessagesItem struct {
-	Id        string  `json:"id"`
-	Role      string  `json:"role"`
-	Content   string  `json:"content"`
-	Timestamp float64 `json:"timestamp"`
+	Id            string  `json:"id"`
+	Role          string  `json:"role"`
+	Content       string  `json:"content"`
+	Timestamp     float64 `json:"timestamp"`
+	ResponseModel *string `json:"responseModel,omitempty"`
 }
 
 type HarnessTabSeedInput struct {
@@ -11240,10 +11244,11 @@ type EventHarnessEventsItem struct {
 }
 
 type EventHarnessTabMessageMessage struct {
-	Id        string  `json:"id"`
-	Role      string  `json:"role"`
-	Content   string  `json:"content"`
-	Timestamp float64 `json:"timestamp"`
+	Id            string  `json:"id"`
+	Role          string  `json:"role"`
+	Content       string  `json:"content"`
+	Timestamp     float64 `json:"timestamp"`
+	ResponseModel *string `json:"responseModel,omitempty"`
 }
 
 type EventHarnessTabMessage struct {

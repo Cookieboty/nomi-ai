@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/modelid"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -52,6 +53,9 @@ func PostJSON(ctx context.Context, a PostJSONArgs) (*Response, string, error) {
 	}
 	if _, ok := req.Header["User-Agent"]; !ok {
 		req.Header["User-Agent"] = []string{""}
+	}
+	if id := modelid.TurnFrom(ctx); id != "" {
+		req.Header.Set(modelid.TurnHeader, id)
 	}
 	client := a.Client
 	if client == nil {
