@@ -214,11 +214,8 @@ func wireComputer(router *contract.Router, userData string, d *desktop.Service) 
 		Shortcut:       computerHotkeyStatus,
 		AutoApprove:    d.Broker.ComputerAlways,
 		SetAutoApprove: d.Broker.SetComputerAlways,
-		OnStop: func() {
-			if computerMcpSrv != nil {
-				computerMcpSrv.StopAll()
-			}
-		},
+		// 停止条 / 设置页的按钮和快捷键走同一个完整流程
+		Stop: stopComputer,
 	})
 	computerSvc = svc
 
