@@ -61,7 +61,7 @@ describe('SettingsView 导航收起（跟随对话侧栏）', () => {
     expect(r.getByTestId('settings-nav').getAttribute('data-collapsed')).toBe('true');
     const models = r.getByTestId('settings-nav-models');
     expect(models.getAttribute('aria-label')).toBe('模型与供应商');
-    expect(models.getAttribute('title')).toBe('模型与供应商');
+    expect(models.getAttribute('title')).toBeNull();
     fireEvent.click(models);
     expect(onSection).toHaveBeenCalledWith('models');
     cleanup();

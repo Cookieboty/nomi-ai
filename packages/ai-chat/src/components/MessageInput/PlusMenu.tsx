@@ -69,7 +69,6 @@ export const PlusMenu: React.FC<{
         }}
         aria-haspopup="menu"
         aria-expanded={open}
-        title={tr('ui.knowledge-local.composer-add-tip')}
         aria-label={tr('ui.knowledge-local.more')}
         data-testid="composer-more"
       >
@@ -97,7 +96,6 @@ export const PlusMenu: React.FC<{
                 data-testid={c.testId}
                 aria-pressed={c.active}
                 aria-haspopup={c.submenu ? 'menu' : undefined}
-                title={tr(c.label)}
               >
                 <span className={styles.menuIcon}>{c.icon}</span>
                 <span className={styles.menuLabel}>{tr(c.label)}</span>

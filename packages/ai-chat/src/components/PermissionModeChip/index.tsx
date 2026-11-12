@@ -239,7 +239,6 @@ export const PermissionModeChip: React.FC<{
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('ui.chat-settings.permission-mode', modeLabel(mode))}
-        title={t('ui.chat-settings.shift-tab-to-switch', modeHint(mode, backend))}
         data-testid="permission-mode-chip"
         data-mode={mode}
         onClick={() => setOpen((o) => !o)}
@@ -364,7 +363,6 @@ export const BypassTip: React.FC<{ tab: HarnessTabMeta; exitMode: PermissionMode
         type="button"
         className={styles.tipClose}
         aria-label={t('ui.mascot-theme.dismiss')}
-        title={t('ui.mascot-theme.dismiss')}
         data-testid="permission-bypass-tip-close"
         onClick={() => setDismissed((d) => new Set(d).add(tab.id))}
       >

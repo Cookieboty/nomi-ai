@@ -243,7 +243,6 @@ export const Heatmap: React.FC<{
                 selected === d.date ? styles.heatSel : ''
               }`}
               aria-label={`${d.date} ${fmt(val(d), metric)}`}
-              title={[d.date, fmt(val(d), metric), t('ui.usage-tools.call-s', d.calls)].join(' · ')}
               aria-pressed={selected === d.date}
               data-testid="usage-heat-cell"
               data-date={d.date}

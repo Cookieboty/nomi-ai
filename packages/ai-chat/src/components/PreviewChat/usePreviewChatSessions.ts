@@ -33,7 +33,7 @@ export function usePreviewChatSessions(
   const count = useAiChatSelector(selectMessageCount);
   const { actions } = useAiChatActions();
   const tabs = useHarnessTabs();
-  const { isDev, setMode } = useChatMode();
+  const { isDev } = useChatMode();
   const [list, setList] = useState<ConversationMeta[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -117,7 +117,6 @@ export function usePreviewChatSessions(
         ipc,
         tabs,
         loadHistory: actions.loadChatHistory,
-        enableDev: () => setMode('dev'),
       });
       const tab = meta.tabId ? tabById.get(meta.tabId) : undefined;
       onSelected({
@@ -133,7 +132,6 @@ export function usePreviewChatSessions(
       if (!store || !source) throw new Error(t('ui.cli-monitor.conversation-not-found'));
       const result = await forkSameBackend(store, source, { inheritSettings: true });
       if (result.tabId) {
-        setMode('dev');
         await tabs.activate(result.tabId);
       } else {
         if (tabs.available) await tabs.activate(MAIN_TAB_ID);

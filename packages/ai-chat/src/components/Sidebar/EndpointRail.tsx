@@ -42,7 +42,6 @@ export const EndpointRail: React.FC<{
         className={styles.epChip}
         aria-pressed={p.allActive}
         aria-label={allLabel}
-        title={allLabel}
         data-testid="list-view-all"
         onClick={p.onAll}
       >
@@ -60,7 +59,6 @@ export const EndpointRail: React.FC<{
             disabled={p.isDisabled(b)}
             data-testid={`endpoint-filter-${b}`}
             onClick={() => p.onPick(b)}
-            title={tip}
           >
             <EndpointIcon backend={b} size={16} decorative />
           </button>

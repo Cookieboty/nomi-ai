@@ -121,11 +121,6 @@ const BackgroundAgentRow: React.FC<{
           className={styles.bgStop}
           data-testid="conv-background-stop"
           disabled={!agent.stoppable || stopping}
-          title={
-            agent.stoppable
-              ? t('ui.chat-settings.stop-this-subagent')
-              : t('ui.chat-settings.this-coding-agent-can-t-stop-a-single')
-          }
           aria-label={t(
             'ui.chat-settings.stop-subagent',
             agent.label || t('ui.usage-tools.subagent'),
@@ -593,7 +588,6 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
                     type="button"
                     className={styles.action}
                     aria-label={t('ui.usage-tools.remove-from-queue')}
-                    title={t('ui.usage-tools.remove-from-queue')}
                     data-testid="conv-queued-remove"
                     onClick={() => onRemoveQueued(i)}
                   >
@@ -633,7 +627,6 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
             className={styles.jump}
             data-testid="conv-jump-bottom"
             aria-label={t('ui.usage-tools.jump-to-latest')}
-            title={t('ui.usage-tools.jump-to-latest')}
             onClick={() => {
               followRef.current = true;
               setAway(false);

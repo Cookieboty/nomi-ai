@@ -8,9 +8,7 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/gemini"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/harness"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
@@ -162,11 +160,6 @@ func (l *AccountLogin) Start(kind string, accountID *string) *jsrt.Promise[*util
 		args := LoginArgs(kind)
 		script := harness.IsScript(bin)
 		extra := util.NewObj()
-		if kind == "gemini" && hasDir(target.Dir) {
-			for _, kv := range gemini.GeminiLoginEnv(*target.Dir) {
-				extra.Set(kv[0], kv[1])
-			}
-		}
 		if script {
 			extra.Set("ELECTRON_RUN_AS_NODE", "1")
 		}
@@ -193,9 +186,6 @@ func (l *AccountLogin) Start(kind string, accountID *string) *jsrt.Promise[*util
 			if n := len16(s.out); n > 64*1024 {
 				s.out = slice16(s.out, n-64*1024, n)
 			}
-			if s.kind == "gemini" {
-				return
-			}
 			p := ParseLoginOutput(s.out)
 			if s.last.Get("state") == "verifying" {
 				return
@@ -208,62 +198,12 @@ func (l *AccountLogin) Start(kind string, accountID *string) *jsrt.Promise[*util
 				l.send(s, e)
 			}
 		}
-		if kind == "gemini" {
-			l.driveGemini(s)
-		} else {
-			child.OnStdout(onData)
-		}
+		child.OnStdout(onData)
 		child.OnStderr(onData)
 		child.OnError(func(e error) { l.fail(s, errMessage(e)) })
 		child.OnClose(func(code *int, _ string) { l.onExit(s, code) })
 		l.d.Emit(s.last)
 		return s.last, nil
-	})
-}
-
-func (l *AccountLogin) driveGemini(s *loginSession) {
-	conn := gemini.NewAcpConnection(clisdk.ProcChild{Child: s.child}, rpc.Handlers{
-		OnNotification: func(string, rpc.Json) {},
-		OnRequest: func(method string, _ rpc.Json) *jsrt.Promise[any] {
-			return jsrt.Rejected[any](jsThrow("Error", "unsupported client method "+method))
-		},
-	})
-	jsrt.Async(func() (struct{}, error) {
-		defer func() {
-			if !s.child.Killed() && s.child.ExitCode() == nil {
-				cli.KillProcessTree(clisdk.ProcChild{Child: s.child})
-			}
-		}()
-		run := func() error {
-			init := util.NewObj("protocolVersion", float64(1), "clientCapabilities",
-				util.NewObj("fs", util.NewObj("readTextFile", false, "writeTextFile", false)))
-			if _, err := jsrt.Await(conn.Request("initialize", init, rpc.RequestOptions{})); err != nil {
-				return err
-			}
-			if s.finished {
-				return nil
-			}
-			l.send(s, util.NewObj("state", "waiting", "message", t("electron.common.opened-the-google-sign-in-page-in-your")))
-			to := 6 * 60_000
-			if _, err := jsrt.Await(conn.Request("authenticate", util.NewObj("methodId", "oauth-personal"), rpc.RequestOptions{TimeoutMs: &to})); err != nil {
-				return err
-			}
-			if s.finished {
-				return nil
-			}
-			l.send(s, util.NewObj("state", "verifying"))
-			l.collect(s)
-			return nil
-		}
-		var err error
-		func() {
-			defer catchJS(&err)
-			err = run()
-		}()
-		if err != nil {
-			l.fail(s, errMessage(err))
-		}
-		return struct{}{}, nil
 	})
 }
 
@@ -336,12 +276,6 @@ var blockedRe = regexp.MustCompile(`(?i)status 403\b|403 Forbidden|unsupported_c
 
 func (l *AccountLogin) onExit(s *loginSession, code *int) {
 	if s.finished {
-		return
-	}
-	if s.kind == "gemini" {
-		if s.last.Get("state") != "verifying" {
-			l.fail(s, orStr(l.tail(s), t("electron.common.sign-in-didn-t-finish")))
-		}
 		return
 	}
 	if code == nil || *code != 0 {

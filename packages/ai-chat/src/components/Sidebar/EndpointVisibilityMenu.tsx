@@ -73,7 +73,6 @@ export const EndpointVisibilityMenu: React.FC<{
         type="button"
         className={styles.epChip}
         aria-label={t('ui.chat-settings.choose-which-endpoints-show-in-the-sidebar')}
-        title={t('ui.chat-settings.choose-which-endpoints-show-in-the-sidebar')}
         aria-haspopup="dialog"
         aria-expanded={open}
         data-testid="endpoint-visibility"
@@ -143,7 +142,6 @@ export const EndpointVisibilityMenu: React.FC<{
                     type="button"
                     className={styles.epVisGrip}
                     aria-label={t('ui.chat-settings.position-alt-to-reorder', name, i + 1)}
-                    title={t('ui.chat-settings.drag-to-reorder')}
                     data-testid={`endpoint-order-grip-${b}`}
                     onKeyDown={(e) => {
                       if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;

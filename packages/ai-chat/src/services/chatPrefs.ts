@@ -1,5 +1,6 @@
 /**
- * 对话 UI 偏好：普通/开发模式、侧栏「全部|按端」、新对话是否用模型起标题。
+ * 对话 UI 偏好：界面形态（normal = 没装编程助手，dev = 装了；由 services/cliPresence 写入，用户不手动切换）、
+ * 侧栏「全部|按端」、新对话是否用模型起标题。
  * 持久化在 localStorage（与 ConversationStore 同层）；桌面端无需主进程同步。
  */
 export type ChatMode = 'normal' | 'dev';

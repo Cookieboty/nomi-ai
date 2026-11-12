@@ -42,7 +42,6 @@ import { CONVERSATION_BACKENDS, type ConversationBackend } from '../../types/cha
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { rankItems } from '../../utils/fuzzy';
 import { isImeComposing } from '../../utils/keyboard';
-import { ChatModeSwitch } from '../ChatModeSwitch';
 import { confirmDialog } from '../ConfirmDialog';
 import { ConversationMenu } from '../ConversationMenu';
 import { EndpointInfoCard } from '../EndpointInfo';
@@ -132,7 +131,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const messageCount = useAiChatSelector(selectMessageCount);
   const isLoading = useAiChatSelector(selectIsLoading);
   const tabs = useHarnessTabs();
-  const { isDev, isNormal, setMode } = useChatMode();
+  const { isDev, isNormal } = useChatMode();
   const {
     view: storedView,
     setView,
@@ -330,14 +329,13 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     async (id: string) => {
       leaveRef.current?.();
       if (!ipc) return;
-      const { list, current, tabs, isDev } = latest.current;
+      const { list, current, tabs } = latest.current;
       const meta =
         list.find((x) => x.id === id) ?? (await ipc.listConversations()).find((x) => x.id === id);
       if (!meta) return;
       setCtx(null);
 
       if (meta.backend !== 'nomi' && meta.tabId) {
-        if (!isDev) setMode('dev');
         const activated = tabs.activate(meta.tabId);
         await ipc.switchConversation(id).catch(() => undefined);
         await activated;
@@ -360,7 +358,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       await Promise.all(pending);
       refresh();
     },
-    [ipc, setMode, refresh, actions],
+    [ipc, refresh, actions],
   );
   // 别处请求打开会话（Agent 看板里正在回答的 Nomi 对话）
   useEffect(() => {
@@ -389,7 +387,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         refresh();
         return;
       }
-      if (!isDev) setMode('dev');
       if (!tabs.available) return;
       await tabs.create(backend, pid ?? undefined);
       refresh();
@@ -779,12 +776,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   }, [activeIdx, searching, shown.length]);
 
   const canSearchMore = isDev && searchIndex.hasMore;
-  // 「按端」时新建跟随当前筛选的端，提示里写明
-  const newLabel =
-    isDev && view === 'by-endpoint'
-      ? t('ui.cli-monitor.new-named-conversation', ENDPOINT_FULL[endpointFilter]())
-      : t('ui.chat-settings.new-chat');
-  const newTip = [newLabel, formatCombo(bindings.newChat)].join(' ');
+  const newLabel = t('ui.cli-monitor.new-conversation');
   const searchTip = [
     t('ui.cli-monitor.search-conversations'),
     formatCombo(bindings.searchChats),
@@ -794,15 +786,16 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     <div className={styles.newWrap} ref={menuRef}>
       <button
         ref={newBtnRef}
-        className={collapsed ? styles.iconBtn : styles.headBtn}
+        type="button"
+        className={styles.newChatBtn}
         onClick={handleNewClick}
-        title={newTip}
-        aria-label={t('ui.chat-settings.new-chat')}
+        aria-label={newLabel}
         aria-haspopup={isDev && view === 'all' ? 'menu' : undefined}
         aria-expanded={isDev && view === 'all' ? newMenu : undefined}
         data-testid="new-chat"
       >
-        <Icon icon={SquarePen} size={14} />
+        <Icon icon={SquarePen} size={16} />
+        <span className={styles.newChatLabel}>{newLabel}</span>
       </button>
       {newMenuP.value && (
         <AnchoredPopover anchor={newBtnRef.current} popRef={newPopRef}>
@@ -822,21 +815,17 @@ const SidebarImpl: React.FC<SidebarProps> = ({
 
   // 新建项目（「+」）：打开「创建项目」弹窗，建好后在这个项目里开一个会话（onSaved）
   const newProjectBtn = <NewProjectButton onClick={() => setProjectDialog('new')} />;
-  // 「项目」标题右侧：整理「…」+ 新建项目（「+」）+ 新对话（笔形，不放进任何项目）。
-  // 不分组时（「对话」）：整理 + 新建对话
+  // 「项目」标题右侧：整理「…」+ 新建项目（「+」），悬停标题时才显示；不分组时（「对话」）只有整理。
+  // 新对话在顶行（不放进任何项目）
   const listOpen = !collapsedWorkspaces.includes(SECTION_WORKSPACES);
   const organize = <OrganizeMenu grouped={groupByWorkspace} onChange={setGroupByWorkspace} />;
   const listActions = wsGroups.grouped ? (
     <>
       {organize}
       {newProjectBtn}
-      {newBtn}
     </>
   ) : (
-    <>
-      {organize}
-      {newBtn}
-    </>
+    organize
   );
 
   // react-window 按浅比较 rowProps 决定是否重渲染行：对象本身也要稳定
@@ -940,15 +929,13 @@ const SidebarImpl: React.FC<SidebarProps> = ({
           data-closing={panelP.closing || undefined}
           aria-hidden={panelP.closing || undefined}
         >
-          {/* 顶行（Codex 式）：模式菜单在左，搜索在右；新建与整理在「工作区」标题右侧 */}
+          {/* 顶行：新对话在左，搜索在右；整理与新建项目在「项目」标题右侧 */}
           <div className={styles.top}>
-            <ChatModeSwitch />
-            <span className={styles.spacer} />
+            {newBtn}
             <button
               type="button"
               className={styles.headBtn}
               onClick={() => setSearchOpen(true)}
-              title={searchTip}
               aria-label={t('ui.cli-monitor.search-conversations')}
               data-testid="sidebar-search-toggle"
             >

@@ -167,7 +167,6 @@ export const SessionMenuButton: React.FC<{
         ref={btn}
         type="button"
         className="app-titlebar-btn"
-        title={t('ui.cli-monitor.more-actions')}
         aria-label={t('ui.cli-monitor.more-actions')}
         aria-haspopup="menu"
         aria-expanded={!!at}
@@ -203,7 +202,7 @@ export const SessionTools: React.FC<{
   onFork?: (id: string) => void;
   /** 当前会话的键（tab:… / nomi:…）；为空时不显示 Transcript view */
   sessionKey: string | null;
-  /** 当前会话的消息（变更统计、用到的智能体） */
+  /** 当前会话的消息（变更统计、用到的 Agents） */
   messages: readonly ConvMessage[];
   rail: { open: boolean; cwd: string; onToggle: () => void } | null;
 }> = ({ onFork, sessionKey, messages, rail }) => {

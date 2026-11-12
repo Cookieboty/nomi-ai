@@ -50,7 +50,6 @@ export const PendingDock = memo(function PendingDock({
               type="button"
               className={styles.action}
               aria-label={t('ui.session-workspace.withdraw-and-edit')}
-              title={t('ui.session-workspace.withdraw-and-edit')}
               data-testid="pending-withdraw"
               onClick={() => onWithdraw(item)}
             >
@@ -60,7 +59,6 @@ export const PendingDock = memo(function PendingDock({
               type="button"
               className={styles.action}
               aria-label={t('ui.foundation.delete')}
-              title={t('ui.foundation.delete')}
               data-testid="pending-remove"
               onClick={() => onRemove(item.id)}
             >

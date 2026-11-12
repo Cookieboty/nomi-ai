@@ -677,8 +677,10 @@ describe('ModelControls（会话的供应商分组）', () => {
       const tabs = within(menu).getAllByRole('tab');
       expect(tabs.map((x) => x.textContent)).toEqual(['OldCo', 'NewCo']);
       // 组的说明放在标签的悬停提示里
-      expect(tabs[0]!.getAttribute('title')).toBe('本会话原来的供应商 · OldCo');
-      expect(tabs[1]!.getAttribute('title')).toBe('默认供应商 · NewCo');
+      expect(tabs[0]!.querySelector('span')?.getAttribute('title')).toBe(
+        '本会话原来的供应商 · OldCo',
+      );
+      expect(tabs[1]!.querySelector('span')?.getAttribute('title')).toBe('默认供应商 · NewCo');
       expect(tabs[0]!.getAttribute('aria-selected')).toBe('true');
       expect(within(menu).getByTestId('model-old/glm-a')).toBeTruthy();
       expect(within(menu).getByTestId('model-old/glm-b').getAttribute('aria-selected')).toBe(

@@ -113,12 +113,7 @@ func claudeSessionPids(dir string, alive func(float64) bool) []float64 {
 	return out
 }
 
-func privateDir(kind, dir string) string {
-	if kind == "gemini" {
-		return filepath.Join(dir, ".gemini")
-	}
-	return dir
-}
+func privateDir(_, dir string) string { return dir }
 
 // LiveProcesses = liveProcesses（持 jsrt 锁调用）。
 func LiveProcesses(kind, dir string, d LiveDeps) LiveCheck {

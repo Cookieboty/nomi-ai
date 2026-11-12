@@ -36,9 +36,7 @@ describe('memo 边界随语言更新', () => {
     applyLocale('zh-CN');
     const noop = () => undefined;
     const Footer = React.memo(function Footer() {
-      return (
-        <AppEntries collapsed={false} onHub={noop} onExt={noop} onLocal={noop} onSettings={noop} />
-      );
+      return <AppEntries collapsed={false} onSettings={noop} />;
     });
     render(<Footer />);
     expect(screen.getByTestId('open-settings').textContent).toContain('设置');

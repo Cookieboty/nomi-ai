@@ -89,7 +89,6 @@ export const CiteRef: React.FC<{ n: number }> = ({ n }) => {
       type="button"
       className={styles.cite}
       onClick={() => ctx.onPick(s)}
-      title={t(s.title)}
       aria-label={t('ui.knowledge-local.source-numbered', n, t(s.title))}
       data-testid="kb-cite"
     >

@@ -213,20 +213,7 @@ func ReadIdentity(kind string, accountDir *string, d IdentityDeps) *util.Obj {
 		}
 		return util.NewObj("loggedIn", c.SignedIn(root))
 	}
-	root := ""
-	if accountDir != nil {
-		root = *accountDir
-	} else {
-		root = UserCliHome("gemini", baseEnv, d.Home)
-	}
-	accts := readJSONObj(filepath.Join(root, ".gemini", "google_accounts.json"))
-	email := strTrim(accts.Get("active"))
-	out := util.NewObj("loggedIn", usage.ExistsSync(filepath.Join(root, ".gemini", "oauth_creds.json")))
-	if email != "" {
-		out.Set("email", email)
-		out.Set("key", lower(email))
-	}
-	return out
+	return util.NewObj("loggedIn", false)
 }
 
 // CodexIdentity = codexIdentity.

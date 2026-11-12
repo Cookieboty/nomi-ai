@@ -88,7 +88,6 @@ export const Popover: React.FC<PopoverProps> = ({
         aria-expanded={open}
         aria-controls={open ? id : undefined}
         aria-label={iconOnly ? String(ariaLabel ?? label) : ariaLabel}
-        title={iconOnly ? String(ariaLabel ?? label) : undefined}
         onClick={() => setOpen(!open)}
         data-testid={testId}
       >

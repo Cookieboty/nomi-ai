@@ -52,7 +52,6 @@ export const LocalHistorySection: React.FC<{
               className={styles.headBtn}
               onClick={onRefresh}
               disabled={loading}
-              title={t('ui.cli-monitor.refresh-history')}
               aria-label={t('ui.cli-monitor.refresh-history')}
               data-testid="cli-history-refresh"
             >

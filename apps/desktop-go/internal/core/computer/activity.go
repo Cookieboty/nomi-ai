@@ -50,6 +50,8 @@ type activity struct {
 	last    map[string]time.Time
 	// turns：activeFor 内调用过的 context（一轮对话 / 一个编程助手会话）→ 最后一次调用的时间与对话 id
 	turns map[<-chan struct{}]turnInfo
+	// pending：正在走 computer_* 工具（含等用户确认、还没开始执行命令）的那几轮 → 进行中的工具数与对话 id
+	pending map[<-chan struct{}]pendingTurn
 	// blocked：紧急停止时停下的 context → 停下的时间
 	blocked   map[<-chan struct{}]time.Time
 	listeners []func()
@@ -61,6 +63,14 @@ type activity struct {
 type runningCall struct {
 	actor  string
 	cancel context.CancelFunc
+	// done / conv：这条命令所在的那一轮（紧急停止时无论跑了多久都要封禁这一轮）
+	done <-chan struct{}
+	conv string
+}
+
+type pendingTurn struct {
+	n    int
+	conv string
 }
 
 type turnInfo struct {
@@ -70,7 +80,41 @@ type turnInfo struct {
 
 func newActivity() *activity {
 	return &activity{running: map[int64]runningCall{}, last: map[string]time.Time{},
-		turns: map[<-chan struct{}]turnInfo{}, blocked: map[<-chan struct{}]time.Time{}}
+		turns: map[<-chan struct{}]turnInfo{}, pending: map[<-chan struct{}]pendingTurn{},
+		blocked: map[<-chan struct{}]time.Time{}}
+}
+
+// Enter：一次 computer_* 工具调用开始（确认之前就登记）：紧急停止时这一轮哪怕还停在确认卡、
+// 还没执行任何命令，也会被封禁并中止。返回结束函数
+func (s *Service) Enter(ctx context.Context) func() {
+	done := ctx.Done()
+	if done == nil {
+		return func() {}
+	}
+	a := s.act
+	a.mu.Lock()
+	p := a.pending[done]
+	p.n++
+	if c := tools.ConversationFrom(ctx); c != "" {
+		p.conv = c
+	}
+	a.pending[done] = p
+	a.mu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			a.mu.Lock()
+			if p, ok := a.pending[done]; ok {
+				if p.n <= 1 {
+					delete(a.pending, done)
+				} else {
+					p.n--
+					a.pending[done] = p
+				}
+			}
+			a.mu.Unlock()
+		})
+	}
 }
 
 // StopReport：紧急停止停下了哪些对话（装配层中止这几轮）
@@ -104,13 +148,14 @@ func (s *Service) begin(ctx context.Context, cancel context.CancelFunc) (func(),
 		a.mu.Unlock()
 		return nil, errStopped()
 	}
+	conv := tools.ConversationFrom(ctx)
 	if done != nil {
-		a.turns[done] = turnInfo{at: time.Now(), conv: tools.ConversationFrom(ctx)}
+		a.turns[done] = turnInfo{at: time.Now(), conv: conv}
 	}
 	a.seq++
 	id := a.seq
 	_, was := a.last[actor]
-	a.running[id] = runningCall{actor: actor, cancel: cancel}
+	a.running[id] = runningCall{actor: actor, cancel: cancel, done: done, conv: conv}
 	a.last[actor] = time.Now()
 	a.mu.Unlock()
 	if !was {
@@ -141,11 +186,16 @@ func (s *Service) expire() bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	busy := map[string]bool{}
+	runningTurns := map[<-chan struct{}]bool{}
 	for _, r := range a.running {
 		busy[r.actor] = true
+		if r.done != nil {
+			runningTurns[r.done] = true
+		}
 	}
 	for done, t := range a.turns {
-		if time.Since(t.at) > activeFor {
+		// 还有命令在跑的那一轮不过期（computer_wait 最长 60 秒，比 activeFor 长）
+		if !runningTurns[done] && time.Since(t.at) > activeFor {
 			delete(a.turns, done)
 		}
 	}
@@ -173,7 +223,7 @@ func (s *Service) Active() []string {
 	return out
 }
 
-// StopAll：紧急停止：取消正在执行的命令，activeFor 内操作过桌面的那几轮之后的调用都拒绝
+// StopAll：紧急停止：取消正在执行的命令；正在执行命令的那几轮、activeFor 内操作过桌面的那几轮，之后的调用都拒绝
 func (s *Service) StopAll() StopReport {
 	a := s.act
 	now := time.Now()
@@ -185,6 +235,22 @@ func (s *Service) StopAll() StopReport {
 			if t.conv != "" {
 				convs[t.conv] = true
 			}
+		}
+	}
+	// 正在走 computer_* 工具（含停在确认卡上）的那几轮
+	for done, p := range a.pending {
+		a.blocked[done] = now
+		if p.conv != "" {
+			convs[p.conv] = true
+		}
+	}
+	// 正在执行的命令所在的那一轮：不管开始了多久都封禁
+	for _, r := range a.running {
+		if r.done != nil {
+			a.blocked[r.done] = now
+		}
+		if r.conv != "" {
+			convs[r.conv] = true
 		}
 	}
 	a.turns = map[<-chan struct{}]turnInfo{}

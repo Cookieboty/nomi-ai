@@ -34,7 +34,9 @@ export const manifest: CliManifest = {
   transport: 'acp',
   ingress: 'gemini',
   capabilities: {
-    officialAccount: true,
+    // 没有 Nomi 管理的官方账号：Google 已不再让 Gemini CLI 用个人 Google 账号登录（Code Assist for individuals）。
+    // 「官方」来源就是本机 ~/.gemini 里用户自己的配置（API Key / Vertex / 企业版授权），另可走第三方
+    officialAccount: false,
     thirdParty: true,
     images: 'native',
     permissionModes: GEMINI_MODES.map((mode) => ({ mode, modeId: geminiModeId(mode) })),

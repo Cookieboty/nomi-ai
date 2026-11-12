@@ -148,7 +148,6 @@ export const ChangesWorkbenchHost: React.FC<{
             type="button"
             className={pane.iconBtn}
             aria-label={t('ui.providers-schedule.close')}
-            title={t('ui.session-workspace.close-esc')}
             data-testid="wb-close"
             onClick={closeWorkbench}
           >

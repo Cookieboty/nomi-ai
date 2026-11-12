@@ -33,24 +33,28 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   );
 });
 
-export interface IconButtonProps extends Omit<ButtonProps, 'children' | 'block'> {
-  /** 无障碍名称；同时作为 title（悬停提示），除非显式传 title */
+export interface IconButtonProps extends Omit<ButtonProps, 'children' | 'block' | 'title'> {
+  /**
+   * 无障碍名称：图标按钮的可访问名只走 aria-label，不写原生 title 悬停提示
+   * （见 docs/development/frontend-standards.md「无障碍与提示」）
+   */
   label: string;
   icon: React.ReactNode;
 }
 
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
-  { label, icon, variant = 'ghost', size = 'md', className, title, type = 'button', ...rest },
+  { label, icon, variant = 'ghost', size = 'md', className, type = 'button', ...rest },
   ref,
 ) {
+  // 兼容对象展开传来的旧属性，运行时也不把 title 传进 DOM。
+  const { title: _title, ...buttonProps } = rest as ButtonProps;
   return (
     <button
       ref={ref}
       type={type}
       aria-label={label}
-      title={title ?? label}
       className={cx(classes(variant, size), 'cd-icon-btn', className)}
-      {...rest}
+      {...buttonProps}
     >
       {icon}
     </button>

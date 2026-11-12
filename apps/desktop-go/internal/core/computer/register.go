@@ -19,8 +19,9 @@ type VisionOption struct {
 type RegisterOptions struct {
 	// VisionModels：能看图的模型（网关）；nil = 空列表
 	VisionModels func() []VisionOption
-	// OnStop：紧急停止时另外要停的（编程助手的 MCP 会话）
-	OnStop func()
+	// Stop：完整的紧急停止（与快捷键同一个流程：停命令、中止那几轮对话、编程助手的 MCP 会话、撤确认卡）；
+	// nil = 只停这台服务里的命令
+	Stop func()
 	// Shortcut：紧急停止快捷键：注册上的（"" = 没有）与失败原因
 	Shortcut func() (accel, err string)
 	// AutoApprove / SetAutoApprove：桌面操作是否「始终允许」（desktop 的工具权限）
@@ -76,9 +77,10 @@ func Register(r *contract.Router, s *Service, o RegisterOptions) {
 		return map[string]any{"active": s.Active()}, nil
 	})
 	r.Call("computer.stop", func(context.Context, contract.Caller, json.RawMessage) (any, error) {
-		s.StopAll()
-		if o.OnStop != nil {
-			o.OnStop()
+		if o.Stop != nil {
+			o.Stop()
+		} else {
+			s.StopAll()
 		}
 		return true, nil
 	})

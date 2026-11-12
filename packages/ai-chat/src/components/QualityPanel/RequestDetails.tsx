@@ -74,13 +74,7 @@ const Timeline: React.FC<{ r: QualityRecord }> = ({ r }) => {
     .filter(Boolean)
     .join(' · ');
   return (
-    <span
-      className={styles.timeline}
-      role="img"
-      aria-label={desc}
-      title={desc}
-      data-testid="quality-timeline"
-    >
+    <span className={styles.timeline} role="img" aria-label={desc} data-testid="quality-timeline">
       {segs.map((s, i) => (
         <i
           key={i}

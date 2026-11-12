@@ -27,7 +27,6 @@ export const SourceList: React.FC<{ sources: KbSource[]; onPick: (s: KbSource) =
         type="button"
         className={styles.sourceChip}
         onClick={() => onPick(s)}
-        title={s.path}
         data-testid="kb-source-chip"
       >
         <span className={styles.sourceNum}>{s.n}</span>

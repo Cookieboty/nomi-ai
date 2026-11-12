@@ -112,10 +112,10 @@ export function useAppPanels() {
     });
     return { ext: mk('ext'), desktop: mk('nomi', 'tools') };
   }, [openSettings]);
-  // 侧栏底部的应用级入口
+  // 侧栏底部的应用级入口（只有设置；知识 · 记忆、扩展 / MCP 从输入栏菜单、快捷键打开）
   const sidebarFooter = useMemo(
-    () => <AppEntries collapsed onHub={openHub} onExt={openExt} onSettings={openGeneralSettings} />,
-    [openHub, openExt, openGeneralSettings],
+    () => <AppEntries collapsed onSettings={openGeneralSettings} />,
+    [openGeneralSettings],
   );
 
   return {

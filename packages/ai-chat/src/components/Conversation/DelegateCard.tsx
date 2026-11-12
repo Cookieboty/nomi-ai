@@ -402,7 +402,6 @@ const Report: React.FC<{
                   <button
                     type="button"
                     className={styles.fileBtn}
-                    title={t('ui.session-workspace.preview-file', f.path)}
                     data-testid="delegate-file"
                     onClick={() => onOpenFile(f.key)}
                   >
@@ -695,7 +694,6 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
               className={styles.iconBtn}
               disabled={stopping}
               aria-label={t('ui.session-workspace.stop-this-subtask')}
-              title={t('ui.session-workspace.stop-this-subtask-nomi-keeps-going')}
               data-testid="delegate-stop"
               onClick={stop}
             >
@@ -707,7 +705,6 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
               type="button"
               className={styles.iconBtn}
               aria-label={t('ui.session-workspace.view-subtask')}
-              title={t('ui.session-workspace.view-the-subtask-s-conversation')}
               data-testid="delegate-view"
               onClick={() => (subagentPane ? subagentPane.openSubagent(tab.id) : setDrawer(true))}
             >

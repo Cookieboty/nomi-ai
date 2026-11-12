@@ -143,7 +143,6 @@ export const ContextUsageBar: React.FC<{
         type="button"
         className={styles.contextRingBtn}
         aria-label={`${t('ui.foundation.context-usage')} ${pct}% · ${tip}`}
-        title={undefined}
         data-testid="context-usage-toggle"
       >
         <svg

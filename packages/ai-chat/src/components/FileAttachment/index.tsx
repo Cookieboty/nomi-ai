@@ -38,7 +38,6 @@ export const FileChip: React.FC<{ file: FileAttachment; onRemove?: () => void }>
       <button
         type="button"
         className={styles.chipOpen}
-        title={file.path || file.name}
         aria-label={t('ui.knowledge-local.view-file', file.name)}
         onClick={() => setOpen(true)}
       >

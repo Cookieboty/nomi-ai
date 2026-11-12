@@ -179,7 +179,7 @@ describe('sidebar row actions', () => {
     );
   });
 
-  it('every conversation row carries pin / archive / more icon buttons with tooltips + aria-labels', async () => {
+  it('every conversation row carries pin / archive / more icon buttons with aria-labels and no native titles', async () => {
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     const w = within(row(r, 'n2'));
@@ -190,7 +190,7 @@ describe('sidebar row actions', () => {
     ] as const) {
       const b = w.getByTestId(id);
       expect(b.getAttribute('aria-label')).toBe(label);
-      expect(b.getAttribute('title')).toBe(label);
+      expect(b.getAttribute('title')).toBeNull();
     }
     // CLI 标签与 Nomi 对话的垃圾桶统一为永久删除。
     expect(within(row(r, 'c1')).getByTestId('row-delete').getAttribute('aria-label')).toBe(

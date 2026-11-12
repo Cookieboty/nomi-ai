@@ -13,7 +13,7 @@ const installed = new WeakMap<Document, () => void>();
  *
  * 做法：鼠标悬停（或键盘聚焦）到带 title 的元素时，先把 title 暂时摘下（系统提示就不会出现），
  * 停留一会儿后在元素旁显示 .cd-floating-tip；离开时把 title 原样放回。
- * 这样组件里照常写 title（以及 Button 的 label），不用逐个改成包装组件。
+ * 截断文本可保留 title，不用逐个改成包装组件；图标按钮用 aria-label，不写 title。
  * 摘下期间若元素只靠 title 取得无障碍名称，临时补上 aria-label，否则用 aria-describedby 关联提示。
  *
  * 返回卸载函数；重复调用只装一次。

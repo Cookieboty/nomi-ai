@@ -137,7 +137,6 @@ const DocList: React.FC<{ sourceId: string; onMsg: (m: string) => void }> = ({
               <button
                 type="button"
                 className={styles.docBtn}
-                title={d.error ? `${d.path}\n${d.error}` : d.path}
                 onClick={() =>
                   void kbClient
                     .open(d.id)
