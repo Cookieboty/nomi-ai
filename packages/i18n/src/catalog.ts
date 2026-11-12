@@ -3844,6 +3844,7 @@ export type TranslationKey =
   | 'ui.session-workspace.preview-title'
   | 'ui.session-workspace.preview-truncated'
   | 'ui.session-workspace.preview-chat-minimize'
+  | 'ui.session-workspace.preview-diff-draft-close-message'
   | 'ui.slash-commands.account-login-subscription'
   | 'ui.slash-commands.already-using'
   | 'ui.slash-commands.always-approve'

@@ -293,5 +293,6 @@
   "ui.session-workspace.preview-title": "资源预览",
   "ui.session-workspace.preview-truncated": "文件较大，当前只显示前 1.5 MB。下载可获取完整内容。",
   "ui.session-workspace.preview-chat-minimize": "收起成按钮",
-  "ui.session-workspace.diff-tab": "{0} 的改动"
+  "ui.session-workspace.diff-tab": "{0} 的改动",
+  "ui.session-workspace.preview-diff-draft-close-message": "Diff 里有没保存的编辑。关闭会丢掉这些改动；需要的话先回到那个标签保存。"
 }

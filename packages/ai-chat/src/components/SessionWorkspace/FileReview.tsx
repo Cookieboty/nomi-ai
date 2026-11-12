@@ -14,10 +14,17 @@ import { undoErrorText, undoTurnChanges } from '../../utils/undoTurnChanges';
 import { workspaceRelPath } from '../../utils/workspacePath';
 import { DiffView } from '../Conversation/DiffView';
 
+import {
+  rememberReviewMode,
+  reviewDraftStore,
+  type FileViewState,
+  type ReviewDraftStore,
+  type ReviewMode,
+} from './reviewDrafts';
 import styles from './SessionWorkspace.module.css';
 
 /** 只负责 Diff 和编辑；只读文件浏览统一由 ResourcePreview 负责。 */
-export type ReviewMode = 'diff' | 'file';
+export type { ReviewMode };
 
 export interface ReviewFile {
   key: string;
@@ -36,14 +43,6 @@ export interface ReviewFile {
   cwds?: string[];
 }
 
-interface FileViewState {
-  scrollTop: number;
-  selStart: number;
-  selEnd: number;
-  draft?: string;
-  dirty?: boolean;
-}
-
 export const FileReview: React.FC<{
   files: ReviewFile[];
   activeKey: string;
@@ -55,6 +54,11 @@ export const FileReview: React.FC<{
   hideFileTabs?: boolean;
   /** 根节点额外的类（放进抽屉时撑满高度） */
   className?: string;
+  /**
+   * 草稿与视图状态存到组件之外（预览区的 Diff 标签 key）：切走标签卸载后再切回来能接着编辑，
+   * 见 reviewDrafts.ts。不给 = 只在组件里
+   */
+  draftKey?: string;
 }> = ({
   files,
   activeKey,
@@ -64,7 +68,11 @@ export const FileReview: React.FC<{
   onSaved,
   hideFileTabs = false,
   className,
+  draftKey,
 }) => {
+  const [store] = useState<ReviewDraftStore>(() =>
+    draftKey ? reviewDraftStore(draftKey) : { views: new Map() },
+  );
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [disk, setDisk] = useState<string>('');
@@ -73,14 +81,18 @@ export const FileReview: React.FC<{
   /** 应用内确认「丢弃本轮变更」（取代 window.confirm） */
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   /** 每个文件的草稿 / 是否有未保存改动（保存按钮要用，所以放 state；滚动 / 选区留在 viewState） */
-  const [meta, setMeta] = useState<Record<string, { draft?: string; dirty?: boolean }>>({});
+  const [meta, setMeta] = useState<Record<string, { draft?: string; dirty?: boolean }>>(() => {
+    const m: Record<string, { draft?: string; dirty?: boolean }> = {};
+    for (const [k, v] of store.views) if (v.dirty) m[k] = { draft: v.draft, dirty: true };
+    return m;
+  });
   const commitMeta = useCallback((key: string, draft: string | undefined, dirty: boolean) => {
     setMeta((m) =>
       m[key]?.draft === draft && !!m[key]?.dirty === dirty ? m : { ...m, [key]: { draft, dirty } },
     );
   }, []);
   const rootRef = useRef<HTMLDivElement>(null);
-  const viewState = useRef<Map<string, FileViewState>>(new Map());
+  const viewState = useRef<Map<string, FileViewState>>(store.views);
   const bodyRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const idx = Math.max(
@@ -95,7 +107,11 @@ export const FileReview: React.FC<{
   // 读盘 effect 只会看到最终的模式，切文件不会为旧模式多读一次盘
   const activeHasDiff = !!(active?.change?.diff || active?.gitDiff);
   const initialMode: ReviewMode = activeHasDiff ? 'diff' : 'file';
-  const [mode, setMode] = useState<ReviewMode>(initialMode);
+  // 从外部草稿恢复时回到上次的模式（切走时正在编辑就还在编辑）
+  const [mode, setMode] = useState<ReviewMode>(() => store.mode ?? initialMode);
+  useEffect(() => {
+    if (draftKey) rememberReviewMode(draftKey, mode);
+  }, [draftKey, mode]);
   const [modeKey, setModeKey] = useState(activeKey);
   if (modeKey !== activeKey) {
     setModeKey(activeKey);
@@ -414,7 +430,6 @@ export const FileReview: React.FC<{
                 setMode('file');
               }}
               data-testid="preview-mode-file"
-              title={t('ui.session-workspace.edit-the-file-saving-writes-it-back-to')}
             >
               <FileCode2 size={12} />
               {t('ui.foundation.edit')}
@@ -426,7 +441,6 @@ export const FileReview: React.FC<{
               className={styles.iconBtn}
               onClick={() => void save()}
               disabled={saving || !saveRoot}
-              title={t('ui.session-workspace.save-to-workspace')}
               aria-label={t('ui.session-workspace.save-to-workspace')}
               data-testid="preview-save"
             >
@@ -439,7 +453,6 @@ export const FileReview: React.FC<{
               className={styles.iconBtn}
               onClick={askDiscard}
               disabled={saving || !cwd || confirmDiscard}
-              title={t('ui.session-workspace.discard-turn-changes')}
               aria-label={t('ui.session-workspace.discard-turn-changes')}
               data-testid="preview-discard"
             >
@@ -468,7 +481,6 @@ export const FileReview: React.FC<{
               aria-selected={f.key === active.key}
               data-active={f.key === active.key || undefined}
               className={styles.fileTab}
-              title={f.path}
               onClick={() => {
                 persistView();
                 onActiveKey(f.key);

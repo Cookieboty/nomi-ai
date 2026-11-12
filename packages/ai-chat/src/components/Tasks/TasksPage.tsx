@@ -60,13 +60,14 @@ export const TasksPage: React.FC<{
 }> = ({ active, onBack, onOpenSchedule, focus, createNonce = 0 }) => {
   const { data } = useTasks(active);
   const [selected, setSelected] = useState<string | null>(null);
-  const [focusSeen, setFocusSeen] = useState(focus?.nonce);
+  // 已处理到的 nonce 从 0 / 无开始：任务页第一次挂载时带着的请求（首次从搜索打开、首次「新建任务」）也要处理
+  const [focusSeen, setFocusSeen] = useState<number | undefined>(undefined);
   if (focus && focus.nonce !== focusSeen) {
     setFocusSeen(focus.nonce);
     setSelected(focus.id);
   }
   const [creating, setCreating] = useState(false);
-  const [createSeen, setCreateSeen] = useState(createNonce);
+  const [createSeen, setCreateSeen] = useState(0);
   if (createNonce !== createSeen) {
     setCreateSeen(createNonce);
     if (createNonce > 0) setCreating(true);
