@@ -29,7 +29,7 @@ export const EffortSlider: React.FC<{
   // 第 i 档在「轨道宽 - 滑块宽」区间里的偏移（两端各留半个滑块）
   const at = (i: number, plus = 0) => `calc((100% - ${THUMB}px) * ${i / last} + ${plus}px)`;
 
-  const levelAt = (clientX: number): ReasoningEffort => {
+  const levelAt = (clientX: number): string => {
     const r = trackRef.current?.getBoundingClientRect();
     if (!r || r.width <= THUMB) return levels[Math.max(idx, 0)];
     const ratio = (clientX - r.left - THUMB / 2) / (r.width - THUMB);

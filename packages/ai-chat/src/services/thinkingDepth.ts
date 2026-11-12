@@ -8,6 +8,12 @@ export interface ThinkingProfile {
   default: string;
 }
 
+/**
+ * 不提供给用户选的档位：off / none 是「不思考」，产品上不要这一档。
+ * 网关仍会按模型能力给出它，这里直接滤掉。
+ */
+const HIDDEN_LEVELS = new Set(['off', 'none']);
+
 /** 网关状态里这个模型的思考深度；不支持或少于两档时没有选择器。 */
 export function thinkingProfileOf(
   state: GatewayState | null,
@@ -20,7 +26,9 @@ export function thinkingProfileOf(
     ?.models.find((m) => m.id === parts.model);
   const th = model?.effective?.thinking;
   if (!th || !Array.isArray(th.levels)) return null;
-  const levels = th.levels.filter((x): x is string => typeof x === 'string' && x.length > 0);
+  const levels = th.levels
+    .filter((x): x is string => typeof x === 'string' && x.length > 0)
+    .filter((x) => !HIDDEN_LEVELS.has(x.toLowerCase()));
   if (levels.length < 2) return null;
   const fallback = levels[1] ?? levels[0];
   const def = typeof th.default === 'string' && levels.includes(th.default) ? th.default : fallback;
