@@ -76,19 +76,20 @@ export const ModelProviderTabs: React.FC<{
         role="tab"
         aria-selected={value === p.id}
         className={cx('cd-model-picker__tab', value === p.id && 'is-active')}
-        title={p.hint}
         onMouseDown={keepFocus}
         onClick={() => onChange(p.id)}
         data-testid={`model-picker-tab-${p.id}`}
       >
-        <span className="cd-truncate">{p.name}</span>
+        <span className="cd-truncate" title={p.hint}>
+          {p.name}
+        </span>
       </button>
     ))}
   </div>
 );
 
 /**
- * 左侧厂商筛选栏，只显示图标（名字在悬停提示与 aria-label 里）；
+ * 左侧厂商筛选栏，只显示图标（名字在 aria-label 里）；
  * value null = 全部厂商，再点一次已选的厂商也回到全部
  */
 export const ModelVendorFilter: React.FC<{
@@ -109,7 +110,6 @@ export const ModelVendorFilter: React.FC<{
           type="button"
           aria-pressed={on}
           aria-label={v.name}
-          title={v.name}
           className={cx('cd-model-picker__vendor', on && 'is-active')}
           onMouseDown={keepFocus}
           onClick={() => onChange(on ? null : v.id)}

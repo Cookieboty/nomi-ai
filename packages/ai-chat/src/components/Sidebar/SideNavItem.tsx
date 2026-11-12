@@ -12,7 +12,7 @@ import styles from './SideNavItem.module.css';
 export const SideNavItem: React.FC<{
   icon: LucideIcon;
   label: string;
-  /** 读屏与悬停提示；默认同 label */
+  /** 读屏无障碍名；默认同 label（图标按钮不加原生 title） */
   title?: string;
   collapsed: boolean;
   active: boolean;
@@ -28,7 +28,6 @@ export const SideNavItem: React.FC<{
     data-collapsed={collapsed || undefined}
     aria-current={active ? 'page' : undefined}
     aria-label={title ?? label}
-    title={title ?? label}
     onClick={onOpen}
     data-testid={testId}
   >

@@ -25,6 +25,13 @@
 - 每个可交互状态都要覆盖 hover、focus-visible、disabled 和 reduced-motion（适用时）。弹窗必须支持 Esc 关闭、焦点回收和屏幕阅读器标题。
 - 菜单、浮层、抽屉收起时不直接卸载：用 `@nomi-ai/ui` 的 `usePresence(value)` 先放完退出动画（返回上一次的值和 `closing`，元素加 `data-closing`），配合全局类 `cd-motion-pop`（菜单：淡入轻落）或 `cd-motion-slide-right`（右侧浮层：自右滑入淡入），收起反向；减少动态效果时立即卸载。传给 `usePresence` 的值在渲染间要稳定（state 里的对象、布尔或字符串，不要每次新建对象）。
 
+## 无障碍与提示
+
+- 图标按钮一律不加原生 `title`，包括收起后只剩图标的按钮。使用 `aria-label` 提供明确的可访问名称；共享 `IconButton` 用 `label` 提供名称，不接受 `title` prop。
+- 需要解释时优先写可见文案或就地展开；需要悬浮说明时用 `@nomi-ai/ui` 的 `Tooltip` / `FloatingTip`，并处理键盘聚焦与 Esc 关闭。快捷键不能只通过悬停提示传达。
+- 截断文本的全文提示可保留 `title`（如文件名、路径、模型 id、时间戳），由 `installTitleTooltips()` 接管为自绘气泡。`Modal` / `SettingRow` / `EmptyState` 等组件用于可见标题的 `title` prop 不受影响。
+- 静态图标有独立含义时用 `role="img"` + `aria-label`；已有等价文字时用 `aria-hidden` 避免重复。
+
 ## 多语言
 
 - 面向用户的文案使用 `project.module.message` 稳定 key，调用 `t()` / `tr()`；日志、模型提示词、协议字段和解析数据按 i18n 检查配置登记例外。
@@ -44,11 +51,11 @@
 1. 依赖方向和公共组件边界是否清晰？
 2. 文件和组件是否在行数预算内，例外是否有理由？
 3. 是否存在重复交互、重复样式或未提取的稳定模式？
-4. loading、empty、error、disabled、keyboard、focus 和 reduced-motion 状态是否完整？
+4. loading、empty、error、disabled、keyboard、focus 和 reduced-motion 状态是否完整？图标按钮是否只用 `aria-label` 命名、没有原生 `title`？
 5. 文案是否进入正确的语言块，插值和英文翻译是否同步？
 6. 副作用是否可取消、可清理，是否会被旧请求结果覆盖？
 7. 是否补充了行为测试并完成受影响包验证？
 
 ## 自动检查与例外
 
-运行 `pnpm check:frontend` 检查前端源文件行数预算。当前登记的唯一例外是 `packages/avatar-runtime/src/layeredRig.ts`：它是 Canvas2D 动画与绘制的紧耦合引擎，拆分会改变渲染时序；后续只有在引入明确的动画/绘制模块边界时再拆解。所有其他超过 1,200 行的文件都必须拆分。
+运行 `pnpm check:frontend` 检查前端源文件行数预算；`pnpm lint` 里的仓库规则 `nomi/no-icon-title` 拦住图标按钮上的原生 `title`（见「无障碍与提示」）。当前登记的唯一例外是 `packages/avatar-runtime/src/layeredRig.ts`：它是 Canvas2D 动画与绘制的紧耦合引擎，拆分会改变渲染时序；后续只有在引入明确的动画/绘制模块边界时再拆解。所有其他超过 1,200 行的文件都必须拆分。

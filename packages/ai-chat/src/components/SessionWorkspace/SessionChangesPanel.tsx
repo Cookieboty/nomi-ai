@@ -426,7 +426,6 @@ export const SessionChangesPanel: React.FC<{
           aria-pressed={onlySession}
           data-active={onlySession || undefined}
           data-testid="changes-only-session"
-          title={t('ui.session-workspace.only-files-the-assistant-edited-in-this-session')}
           onClick={() => setOnlySession((v) => !v)}
         >
           <Bot size={12} />
@@ -505,11 +504,6 @@ export const SessionChangesPanel: React.FC<{
             className={pane.segBtn}
             data-active={changesActive || undefined}
             data-testid="rail-tab-changes"
-            title={
-              source === 'git'
-                ? t('ui.session-workspace.uncommitted-changes-in-the-workspace-vs-head-incl')
-                : t('ui.session-workspace.files-the-assistant-changed-in-this-session')
-            }
             onClick={() => setView('changes')}
           >
             {t('ui.session-workspace.changes')}
@@ -526,7 +520,6 @@ export const SessionChangesPanel: React.FC<{
             className={pane.segBtn}
             data-active={workspaceActive || undefined}
             data-testid="rail-tab-workspace"
-            title={multi ? roots.join('\n') : cwd ? `${project} · ${cwd}` : undefined}
             onClick={openWorkspace}
           >
             {t('ui.knowledge-local.files')}
@@ -553,7 +546,6 @@ export const SessionChangesPanel: React.FC<{
             }}
             disabled={refreshing}
             aria-label={t('ui.knowledge-local.refresh')}
-            title={t('ui.knowledge-local.refresh')}
             data-testid={workspaceActive ? 'files-rail-refresh' : 'git-refresh'}
           >
             <RefreshCw size={14} className={refreshing ? styles.spin : undefined} />
@@ -564,7 +556,6 @@ export const SessionChangesPanel: React.FC<{
             type="button"
             className={styles.iconBtn}
             data-testid="rail-open-fullscreen"
-            title={t('ui.session-workspace.full-screen-review')}
             aria-label={t('ui.session-workspace.full-screen-review')}
             onClick={openFullscreen}
           >
@@ -576,7 +567,6 @@ export const SessionChangesPanel: React.FC<{
             type="button"
             className={styles.iconBtn}
             aria-label={t('ui.session-workspace.hide-changes-panel')}
-            title={t('ui.session-workspace.hide-changes-panel')}
             data-testid="files-rail-close"
             onClick={onClose}
           >

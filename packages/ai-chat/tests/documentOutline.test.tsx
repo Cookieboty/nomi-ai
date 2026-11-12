@@ -46,7 +46,8 @@ describe('Reversible, resizable document outline', () => {
   it('uses collapse/expand icons, not a close X; keeps the rail available and restores width', () => {
     const pane = setup();
     expect(screen.getByTestId('preview-outline-toggle').textContent).not.toContain('×');
-    expect(screen.getByRole('button', { name: label }).getAttribute('title')).toBe(label);
+    expect(screen.getByRole('button', { name: label }).textContent).toBe(label);
+    expect(screen.getByRole('button', { name: label }).getAttribute('title')).toBeNull();
     fireEvent.keyDown(screen.getByTestId('preview-outline-splitter'), { key: 'ArrowRight' });
     expect(pane.style.width).toBe('288px');
     fireEvent.click(screen.getByTestId('preview-outline-toggle'));

@@ -58,7 +58,7 @@ describe('助手消息上的模型', () => {
     });
   });
 
-  it('元信息里显示模型，完整名在 title', () => {
+  it('元信息里显示模型，无障碍名保留完整模型名', () => {
     const { getByTestId } = render(
       <ConversationView
         scopeId="s"
@@ -68,7 +68,8 @@ describe('助手消息上的模型', () => {
     );
     const el = getByTestId('conv-msg-model');
     expect(el.textContent).toBe('amux/openai/gpt-6.1-sol');
-    expect(el.getAttribute('title')).toContain('amux/openai/gpt-6.1-sol');
+    expect(el.getAttribute('title')).toBeNull();
+    expect(el.getAttribute('aria-label')).toContain('amux/openai/gpt-6.1-sol');
   });
 });
 

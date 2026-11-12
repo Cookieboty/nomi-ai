@@ -28,7 +28,6 @@ export const ComposerChangesPill: React.FC<{
         type="button"
         className={styles.composerChangesPill}
         data-testid="composer-changes-pill"
-        title={t('ui.session-workspace.view-changes')}
         onClick={() =>
           openWorkbench({
             entries: changes,

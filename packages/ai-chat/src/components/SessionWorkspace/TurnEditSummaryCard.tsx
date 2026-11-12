@@ -150,7 +150,6 @@ export const TurnEditSummaryCard: React.FC<{
             className={styles.turnFullscreen}
             onClick={openFullscreen}
             data-testid="turn-open-fullscreen"
-            title={t('ui.session-workspace.full-screen-review')}
           >
             <Expand size={14} />
             {t('ui.session-workspace.full-screen-review')}

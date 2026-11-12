@@ -239,7 +239,6 @@ const TagEditor: React.FC<{ tags: string[]; onChange?: (tags: string[]) => void 
               type="button"
               className={styles.tagAdd}
               aria-label={t('ui.media.add-tag')}
-              title={t('ui.media.add-tag')}
               onClick={() => setAdding(true)}
               data-testid="viewer-tag-add"
             >

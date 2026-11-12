@@ -16,7 +16,6 @@ export function ComposerReferenceLinks({ draft }: { draft: ReturnType<typeof use
         <span className={styles.reference} key={reference.href}>
           <a
             href={reference.href}
-            title={reference.href}
             onClick={(event) => {
               event.preventDefault();
               context?.open(reference.href, context.scope);

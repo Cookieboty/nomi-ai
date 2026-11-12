@@ -293,9 +293,6 @@ const NameCell: React.FC<{
             type="button"
             className={styles.copyBtn}
             aria-label={t('ui.model-quality.copy-model-name', s.key)}
-            title={
-              copied ? t('ui.usage-tools.copied') : t('ui.model-quality.copy-model-name-action')
-            }
             onClick={() => {
               void navigator.clipboard
                 ?.writeText(s.key)
@@ -806,7 +803,6 @@ export const CompareTable: React.FC<{
                             type="button"
                             className={styles.cellBtn}
                             onClick={() => drill(r, c)}
-                            title={t('ui.model-quality.view-these-requests')}
                             data-testid={`quality-drill-${c.id}`}
                           >
                             {text}

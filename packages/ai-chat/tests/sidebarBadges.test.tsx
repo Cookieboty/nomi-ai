@@ -113,7 +113,7 @@ describe('Sidebar rows', () => {
     expect(r.queryByTestId('thread-endpoint')).toBeNull();
   });
 
-  it('endpoint filter chips are icon-only; name lives in the label / tooltip', async () => {
+  it('endpoint filter chips are icon-only; name lives in the accessible label', async () => {
     localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
     const r = render(
       <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
@@ -122,7 +122,10 @@ describe('Sidebar rows', () => {
     expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-label')).toContain(
       'Claude Code',
     );
-    expect(r.getByTestId('endpoint-filter-claude').title).toContain('Claude Code');
+    expect(r.getByTestId('endpoint-filter-claude').getAttribute('title')).toBeNull();
+    expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-label')).toContain(
+      'Claude Code',
+    );
     expect(
       r.getByTestId('endpoint-filter-claude').querySelector('[data-testid="endpoint-icon-claude"]'),
     ).toBeTruthy();

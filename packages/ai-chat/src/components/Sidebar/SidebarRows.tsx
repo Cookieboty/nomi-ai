@@ -67,7 +67,6 @@ export const RowActions: React.FC<RowActionHandlers & { kind: 'conv' | 'tab' | '
         <button
           type="button"
           className={styles.rowBtn}
-          title={pinLabel}
           aria-label={pinLabel}
           aria-pressed={pinned}
           onClick={onPin}
@@ -80,7 +79,6 @@ export const RowActions: React.FC<RowActionHandlers & { kind: 'conv' | 'tab' | '
         <button
           type="button"
           className={`${styles.rowBtn} ${styles.rowBtnDanger}`}
-          title={delLabel}
           aria-label={delLabel}
           onClick={onDelete}
           data-testid="row-delete"
@@ -91,7 +89,6 @@ export const RowActions: React.FC<RowActionHandlers & { kind: 'conv' | 'tab' | '
       <button
         type="button"
         className={styles.rowBtn}
-        title={t('ui.cli-monitor.more-actions')}
         aria-label={t('ui.cli-monitor.more-actions')}
         aria-haspopup="menu"
         onClick={(e) => onMore(e.currentTarget)}
@@ -194,14 +191,6 @@ const ThreadItemImpl: React.FC<{
           onPeek?.(c.id, null);
           onCtx(c.id, e);
         }}
-        // 有详情卡片时不再叠一个系统提示
-        title={
-          onPeek
-            ? undefined
-            : tab?.dormant
-              ? t('ui.cli-monitor.named-dormant', t(c.name))
-              : t(c.name)
-        }
         data-layout={layout}
         data-testid="history-item"
         data-backend={c.backend}
@@ -319,14 +308,6 @@ export const HistoryRow: React.FC<{
         data-session-id={h.sessionId}
         data-cwd-missing={h.cwdMissing || undefined}
         aria-busy={busy}
-        title={[
-          h.title,
-          h.cwd,
-          ...historyOrigin(h),
-          h.cwdMissing ? t('ui.cli-monitor.the-original-directory-no-longer-exists') : '',
-        ]
-          .filter(Boolean)
-          .join('\n')}
         onClick={onOpen}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -337,7 +318,19 @@ export const HistoryRow: React.FC<{
         <EndpointIcon backend={h.backend} size={14} />
         {/* 标签放在标题格里：行是 4 列网格，多一个子元素会把时间挤到第二行 */}
         <span className={styles.histTitle}>
-          <span className={styles.threadName}>{h.title}</span>
+          <span
+            className={styles.threadName}
+            title={[
+              h.title,
+              h.cwd,
+              ...(h.cwdMissing ? [t('ui.cli-monitor.project-folder-missing')] : []),
+              ...historyOrigin(h),
+            ]
+              .filter(Boolean)
+              .join('\n')}
+          >
+            {h.title}
+          </span>
           {tag && (
             <span className={styles.histTag} aria-label={tag} data-testid="history-route-tag">
               {routeInitial(h)}

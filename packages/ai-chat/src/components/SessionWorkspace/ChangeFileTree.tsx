@@ -119,7 +119,6 @@ export const ChangeFileTree: React.FC<{
                 type="button"
                 className={styles.iconBtn}
                 data-testid="change-locate"
-                title="locate"
                 aria-label="locate"
                 onClick={() => onLocate(id, messageIdByFile?.[id] ?? e.messageId)}
               >

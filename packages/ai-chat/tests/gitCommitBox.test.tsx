@@ -204,7 +204,8 @@ describe('分支栏同步', () => {
     h.gitFetch.mockResolvedValue({ ok: false, code: 'auth', output: 'could not read Username' });
     mount();
     await screen.findByTestId('rail-git-unpublished');
-    expect(screen.getByTestId('rail-git-publish').title).toContain('origin');
+    expect(screen.getByTestId('rail-git-publish').getAttribute('title')).toBeNull();
+    expect(screen.getByTestId('rail-git-publish').getAttribute('aria-label')).toContain('origin');
     fireEvent.click(screen.getByTestId('rail-git-fetch'));
     const notice = await screen.findByTestId('git-notice');
     expect(notice.textContent).toContain('终端');

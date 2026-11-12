@@ -73,11 +73,19 @@ describe('@nomi-ai/ui', () => {
     expect(b.getAttribute('type')).toBe('button');
   });
 
-  it('IconButton: label becomes aria-label and title', () => {
+  it('IconButton: label becomes the accessible name, never a native title', () => {
     render(<IconButton label="设置" icon={<Icon icon={Settings} />} />);
     const b = screen.getByRole('button', { name: '设置' });
-    expect(b.getAttribute('title')).toBe('设置');
+    expect(b.getAttribute('title')).toBeNull();
     expect(b.className).toContain('cd-icon-btn');
+  });
+
+  it('IconButton: ignores a title inherited through spread props', () => {
+    const legacyProps = { title: '旧的悬停提示', disabled: true };
+    render(<IconButton {...legacyProps} label="设置" icon={<Icon icon={Settings} />} />);
+    const b = screen.getByRole('button', { name: '设置' });
+    expect(b.getAttribute('title')).toBeNull();
+    expect(b.hasAttribute('disabled')).toBe(true);
   });
 
   it('Select renders options and stays a native select', () => {

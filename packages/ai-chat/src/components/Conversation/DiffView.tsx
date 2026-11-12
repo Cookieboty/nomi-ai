@@ -307,11 +307,6 @@ export const DiffView: React.FC<{
               className={styles.diffLayoutBtn}
               data-testid="diff-layout-toggle"
               aria-pressed={sideBySide}
-              title={
-                sideBySide
-                  ? t('ui.session-workspace.switch-to-unified-view')
-                  : t('ui.session-workspace.switch-to-side-by-side-view')
-              }
               aria-label={
                 sideBySide
                   ? t('ui.session-workspace.switch-to-unified-view')

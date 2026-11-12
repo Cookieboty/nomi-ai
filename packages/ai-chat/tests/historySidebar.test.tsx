@@ -135,7 +135,7 @@ describe('CLI history in the sidebar', () => {
     expect(rows[0]!.querySelector('[data-testid="endpoint-icon-claude"]')).toBeTruthy();
     // 目录已不存在 → 置灰并带提示
     expect(rows[1]!.getAttribute('data-cwd-missing')).toBe('true');
-    expect(rows[1]!.getAttribute('title')).toContain('原目录已不存在');
+    expect(rows[1]!.querySelector('[title]')?.getAttribute('title')).toContain('文件夹不在了');
     // dsh 未安装 → 不扫描
     expect(r.getAllByTestId('history-session-item').some((x) => x.dataset.backend === 'dsh')).toBe(
       false,
@@ -168,7 +168,9 @@ describe('CLI history in the sidebar', () => {
       'codex-2',
       'claude-3',
     ]);
-    expect(r.getByTestId('endpoint-filter-claude').title).toContain('1 条本机历史');
+    expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-label')).toContain(
+      '1 条本机历史',
+    );
   });
 
   it('marks non-official routes on the row and lists client / route / account in the tooltip', async () => {
@@ -188,15 +190,23 @@ describe('CLI history in the sidebar', () => {
     const tag = (id: string) => row(id).querySelector('[data-testid="history-route-tag"]')!;
     expect(tag('codex-2').textContent).toBe('N');
     expect(tag('codex-2').getAttribute('aria-label')).toBe('第三方');
-    expect(row('codex-2').title).toContain('客户端：Desktop');
-    expect(row('codex-2').title).toContain('线路：第三方（Nomi 网关）');
-    expect(row('codex-2').title).toContain('账号：me@example.com');
+    expect(row('codex-2').querySelector('[title]')?.getAttribute('title')).toContain(
+      '客户端：Desktop',
+    );
+    expect(row('codex-2').querySelector('[title]')?.getAttribute('title')).toContain(
+      '线路：第三方（Nomi 网关）',
+    );
+    expect(row('codex-2').querySelector('[title]')?.getAttribute('title')).toContain(
+      '账号：me@example.com',
+    );
     expect(tag('codex-4').textContent).toBe('P');
     expect(tag('codex-4').getAttribute('aria-label')).toBe('packycode');
-    expect(row('codex-4').title).toContain('线路：其他第三方（packycode）');
+    expect(row('codex-4').querySelector('[title]')?.getAttribute('title')).toContain(
+      '线路：其他第三方（packycode）',
+    );
     // 官方会话不加行内标签，只在提示里写线路
     expect(row('codex-5').querySelector('[data-testid="history-route-tag"]')).toBeNull();
-    expect(row('codex-5').title).toContain('线路：官方');
+    expect(row('codex-5').querySelector('[title]')?.getAttribute('title')).toContain('线路：官方');
   });
 
   it('normal mode does not show or scan history', async () => {
@@ -253,7 +263,7 @@ describe('CLI history in the sidebar', () => {
     expect(r.getByTestId('endpoint-info-card')).toBeTruthy();
   });
 
-  it('一行筛选：从「全部」直接点端点图标即切到该端；悬停提示带对话数与本机历史数', async () => {
+  it('一行筛选：从「全部」直接点端点图标即切到该端；无障碍名带对话数与本机历史数', async () => {
     // 新建按钮在合并列表的标题上（按项目分组时侧栏标题上没有新建，项目行上有）
     setGroupByWorkspace(false);
     mockIpc();
@@ -261,8 +271,11 @@ describe('CLI history in the sidebar', () => {
     await untilIdle();
     expect(r.getAllByTestId('history-session-item')).toHaveLength(3);
     expect(r.getByTestId('list-view-all').getAttribute('aria-pressed')).toBe('true');
+    expect(r.getByTestId('new-chat').textContent).toBe('新建会话');
     expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-pressed')).toBe('false');
-    expect(r.getByTestId('endpoint-filter-claude').title).toBe('Claude Code · 2 条本机历史');
+    expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-label')).toBe(
+      'Claude Code · 2 条本机历史',
+    );
 
     fireEvent.click(r.getByTestId('endpoint-filter-claude'));
     expect(r.getByTestId('list-view-all').getAttribute('aria-pressed')).toBe('false');

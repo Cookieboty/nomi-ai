@@ -288,7 +288,6 @@ export const SystemCardView: React.FC<{
             type="button"
             className={styles.close}
             aria-label={t('ui.providers-schedule.close')}
-            title={t('ui.providers-schedule.close')}
             data-testid="slash-card-dismiss"
             onClick={() => onDismiss(card.id)}
           >

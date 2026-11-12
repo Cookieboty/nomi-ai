@@ -119,7 +119,6 @@
   "ui.models.no-tier": "No tier",
   "ui.models.no-tool-calling": "No tool calling",
   "ui.models.nomi-ai": "Nomi AI",
-  "ui.models.nomi-more-uses": "Tool calls, summaries, image generation",
   "ui.models.nomi-will-add-the-command-folder-to-your": "Nomi will add the command folder to your user PATH. Turning this off removes only the folder Nomi added, preserving existing entries and other environment variables.",
   "ui.models.nomi-will-append-a-marked-block-to-the": "Nomi will append a marked block to the end of the files below that adds the command folder to PATH. The block is removed when you turn this off; nothing else is changed.",
   "ui.models.not-on-path-yet-run-the-commands-by": "Not on PATH yet. Run the commands by full path, or add the folder to PATH.",

@@ -58,7 +58,7 @@ describe('RestartUpdateButton', () => {
     await waitFor(() => expect(screen.queryByTestId('restart-update-titlebar')).toBeNull());
   });
 
-  it('title bar: shows the label with the version in its tooltip; click installs', async () => {
+  it('title bar: names itself with the version (no native title); click installs', async () => {
     const install = mockUpdates({
       ...base,
       status: 'downloaded',
@@ -67,7 +67,8 @@ describe('RestartUpdateButton', () => {
     render(<RestartUpdateButton placement="titlebar" />);
     const btn = await screen.findByTestId('restart-update-titlebar');
     expect(btn.textContent).toContain('重启更新');
-    expect(btn.getAttribute('title')).toBe('重启更新 · v2.0.5');
+    expect(btn.getAttribute('title')).toBeNull();
+    expect(btn.getAttribute('aria-label')).toBe('重启更新 · v2.0.5');
     fireEvent.click(btn);
     await waitFor(() => expect(install).toHaveBeenCalledTimes(1));
   });

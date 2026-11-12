@@ -119,7 +119,6 @@
   "ui.models.no-tier": "不分档",
   "ui.models.no-tool-calling": "不支持工具调用",
   "ui.models.nomi-ai": "Nomi AI",
-  "ui.models.nomi-more-uses": "工具调用、摘要、图片生成",
   "ui.models.nomi-will-add-the-command-folder-to-your": "Nomi 会把命令所在目录加入当前用户的 PATH；关闭开关时只移除 Nomi 添加的目录。已有目录和其他环境变量保持不变。",
   "ui.models.nomi-will-append-a-marked-block-to-the": "Nomi 会在下面的文件末尾加一段带标记的内容，把命令所在目录加进 PATH；关闭开关时删除这一段，不改其他内容。",
   "ui.models.not-on-path-yet-run-the-commands-by": "还没有加入 PATH，可以用完整路径运行，或者加入 PATH。",

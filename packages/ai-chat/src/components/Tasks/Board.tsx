@@ -191,7 +191,8 @@ const Card: React.FC<{
         data-testid={`board-card-${task.id}`}
       >
         <span className={styles.cardHead}>
-          <span className={styles.tile} title={t(CATEGORY_LABEL[category])}>
+          {/* 图标只是装饰：同一张卡片下面已经写着分类名，读屏不再重复一遍 */}
+          <span className={styles.tile} aria-hidden>
             <Icon icon={CATEGORY_ICON[category]} size={14} />
           </span>
           <span className={styles.cardTitle}>{task.title}</span>
@@ -222,7 +223,6 @@ const Card: React.FC<{
           className={styles.action}
           icon={<Icon icon={action.icon} size={14} />}
           label={`${action.label} · ${task.title}`}
-          title={action.label}
           onClick={() => {
             void action.run().catch((e: unknown) => log.warn('quick action failed', e));
           }}

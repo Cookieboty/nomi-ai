@@ -219,11 +219,6 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
               ? t('ui.usage-tools.expand-endpoint-card')
               : t('ui.usage-tools.collapse-endpoint-card')
           }
-          title={
-            collapsed
-              ? t('ui.usage-tools.expand-endpoint-card')
-              : t('ui.usage-tools.collapse-endpoint-card')
-          }
           onClick={toggleCollapsed}
         >
           {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
@@ -238,7 +233,6 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
             }}
             disabled={info.busy}
             aria-label={t('ui.usage-tools.refresh', name)}
-            title={t('ui.usage-tools.refresh-only-quota-and-usage-other-endpoints-are', name)}
             data-testid="endpoint-card-refresh"
           >
             <RefreshGlyph busy={info.busy} />

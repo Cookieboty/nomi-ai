@@ -1,5 +1,5 @@
 /**
- * 选项目：显示当前项目名（多个文件夹时带「+N」，悬停看全部文件夹）；菜单里可以搜索、切换、新建项目，
+ * 选项目：显示当前项目名（多个文件夹时带「+N」，项目名上悬停看全部文件夹）；菜单里可以搜索、切换、新建项目，
  * 可选「不使用项目」。受控组件：由调用方决定如何应用（Nomi 对话改会话的 projectId / 编程助手标签换项目 /
  * 新会话的初始项目）。
  */
@@ -107,7 +107,6 @@ export const ProjectPicker: React.FC<{
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('ui.cli-monitor.project-current', label)}
-        title={current ? projectTitle(current) : t('ui.cli-monitor.project-choose')}
         data-testid={`${testId}-button`}
         onClick={() => {
           setQuery('');
@@ -115,7 +114,11 @@ export const ProjectPicker: React.FC<{
         }}
       >
         <Icon icon={Folder} size={14} />
-        <span className={styles.path} data-testid={`${testId}-name`}>
+        <span
+          className={styles.path}
+          title={current ? projectTitle(current) : undefined}
+          data-testid={`${testId}-name`}
+        >
           {label}
         </span>
         {extra > 0 && <span className={styles.count}>+{extra}</span>}
@@ -155,7 +158,6 @@ export const ProjectPicker: React.FC<{
                 role="menuitemradio"
                 aria-checked={p.id === value}
                 className={styles.item}
-                title={projectTitle(p)}
                 data-testid="project-picker-item"
                 onClick={() => apply(p.id)}
               >

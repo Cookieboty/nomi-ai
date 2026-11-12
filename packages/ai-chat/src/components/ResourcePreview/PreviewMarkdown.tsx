@@ -61,7 +61,6 @@ const CodeBlock: React.FC<{
           className={styles.copyBtn}
           onClick={copy}
           aria-label={t('ui.usage-tools.copy-code')}
-          title={t('ui.usage-tools.copy-code')}
         >
           <Icon icon={copied ? Check : Copy} size={13} />
         </button>

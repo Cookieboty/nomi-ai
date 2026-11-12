@@ -208,7 +208,6 @@ export const ProjectGroups: React.FC<{
                   className={ws.wsToggle}
                   aria-expanded={!isCollapsed}
                   aria-label={toggleLabel}
-                  title={g.title}
                   onClick={() => onToggleCollapsed(g.key, !isCollapsed)}
                   data-testid="workspace-toggle"
                 >
@@ -221,7 +220,6 @@ export const ProjectGroups: React.FC<{
                 <button
                   type="button"
                   className={ws.wsNew}
-                  title={editLabel}
                   aria-label={editLabel}
                   onClick={() => onEdit(g)}
                   data-testid="project-edit"
@@ -231,7 +229,6 @@ export const ProjectGroups: React.FC<{
                 <button
                   type="button"
                   className={ws.wsNew}
-                  title={newLabel}
                   aria-label={newLabel}
                   onClick={() => onNewIn(g)}
                   data-testid="workspace-new-chat"
@@ -333,7 +330,6 @@ export const OrganizeMenu: React.FC<{ grouped: boolean; onChange: (on: boolean) 
         className={styles.headBtn}
         aria-haspopup="menu"
         aria-expanded={open}
-        title={t('ui.cli-monitor.organize-sidebar')}
         aria-label={t('ui.cli-monitor.organize-sidebar')}
         onClick={() => setOpen((v) => !v)}
         data-testid="organize-sidebar"
@@ -364,7 +360,6 @@ export const NewProjectButton: React.FC<{ onClick: () => void }> = ({ onClick })
     type="button"
     className={styles.headBtn}
     onClick={onClick}
-    title={t('ui.cli-monitor.project-create-title')}
     aria-label={t('ui.cli-monitor.project-create-title')}
     data-testid="new-project"
   >

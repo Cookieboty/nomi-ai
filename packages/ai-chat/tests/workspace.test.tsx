@@ -96,13 +96,14 @@ describe('shortenPath', () => {
 });
 
 describe('WorkspacePicker', () => {
-  it('shows the short path with the full path as tooltip; recent + native picker', async () => {
+  it('shows the short path with the full path as accessible name; recent + native picker', async () => {
     const invoke = mockIpc(state());
     const onChange = vi.fn();
     const r = render(<WorkspacePicker value="/Users/me/code/app" onChange={onChange} />);
     const btn = r.getByTestId('workspace-picker-button');
     expect(r.getByTestId('workspace-picker-path').textContent).toBe('~/code/app');
-    expect(btn.getAttribute('title')).toContain('/Users/me/code/app');
+    expect(btn.getAttribute('title')).toBeNull();
+    expect(btn.getAttribute('aria-label')).toContain('/Users/me/code/app');
     fireEvent.click(btn);
     await waitFor(() => expect(r.getAllByTestId('workspace-recent-item')).toHaveLength(2));
     fireEvent.click(r.getAllByTestId('workspace-recent-item')[0]!);
@@ -140,7 +141,8 @@ describe('EndpointControls project for new chats', () => {
     await waitFor(() => r.getByTestId('cli-project'));
     expect(r.getByTestId('cli-project-name').textContent).toBe('two');
     expect(r.getByTestId('cli-project-button').textContent).toContain('+1');
-    expect(r.getByTestId('cli-project-button').getAttribute('title')).toContain('/recent/shared');
+    expect(r.getByTestId('cli-project-button').getAttribute('title')).toBeNull();
+    expect(r.getByTestId('cli-project-name').getAttribute('title')).toContain('/recent/shared');
   });
 
   it('shows the Nomi conversation project (not the CLI one) on the Nomi main tab', async () => {

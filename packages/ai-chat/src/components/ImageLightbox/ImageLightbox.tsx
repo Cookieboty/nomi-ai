@@ -91,7 +91,6 @@ export function ImageLightbox({
               type="button"
               aria-expanded={info}
               aria-label={t('ui.media.details')}
-              title={t('ui.media.details')}
               onClick={() => setInfo(!info)}
               data-testid="image-lightbox-info"
             >
@@ -106,7 +105,6 @@ export function ImageLightbox({
                 target="_blank"
                 rel="noreferrer noopener"
                 aria-label={t('ui.knowledge-local.download')}
-                title={t('ui.knowledge-local.download')}
                 data-testid="image-lightbox-download"
               >
                 <Icon icon={Download} size={16} />
@@ -117,7 +115,6 @@ export function ImageLightbox({
             onClick={onClose}
             data-autofocus
             aria-label={t('ui.providers-schedule.close')}
-            title={t('ui.providers-schedule.close')}
             data-testid="image-lightbox-close"
           >
             <Icon icon={X} size={16} />
@@ -187,12 +184,7 @@ export function ImageLightbox({
           >
             <Icon icon={Minus} size={16} />
           </button>
-          <button
-            type="button"
-            onClick={reset}
-            title={t('ui.media.fit-image')}
-            data-testid="image-lightbox-reset"
-          >
+          <button type="button" onClick={reset} data-testid="image-lightbox-reset">
             {Math.round(zoom * 100)}%
           </button>
           <button
