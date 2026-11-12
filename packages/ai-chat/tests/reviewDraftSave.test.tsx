@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { t } from '@nomi-ai/ui';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -255,3 +256,20 @@ it('releases the busy UI when save completes after switching to Diff', async () 
     expect((screen.getByTestId('preview-discard') as HTMLButtonElement).disabled).toBe(false),
   );
 });
+it.each([
+  ['authorization', 'ui.session-workspace.path-outside-workspace-write-denied'],
+  ['denied', 'ui.voice-mascot.couldn-t-save'],
+] as const)(
+  'shows the correct save error for %s without dropping the draft',
+  async (code, message) => {
+    vi.mocked(resourcePreviewClient.open).mockResolvedValue({ ok: false, code });
+    mount();
+    fireEvent.change(await editor(), { target: { value: 'draft' } });
+    fireEvent.click(screen.getByTestId('preview-save'));
+    expect((await screen.findByTestId('preview-error')).textContent).toBe(t(message));
+    expect(resourcePreviewClient.save).not.toHaveBeenCalled();
+    expect(harnessClient.workspaceWrite).not.toHaveBeenCalled();
+    expect(reviewDraftStore('save-test').views.get('a')?.draft).toBe('draft');
+    expect(reviewDraftStore('save-test').views.get('a')?.dirty).toBe(true);
+  },
+);

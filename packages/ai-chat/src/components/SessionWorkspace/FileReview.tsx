@@ -324,7 +324,9 @@ export const FileReview: React.FC<{
         t(
           error === 'conflict'
             ? 'ui.session-workspace.preview-save-conflict'
-            : 'ui.voice-mascot.couldn-t-save',
+            : error === 'authorization'
+              ? 'ui.session-workspace.path-outside-workspace-write-denied'
+              : 'ui.voice-mascot.couldn-t-save',
         ),
       );
       return;
