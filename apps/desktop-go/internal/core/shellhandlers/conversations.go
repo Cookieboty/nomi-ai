@@ -11,6 +11,9 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/convstore"
 )
 
+// OnConversationDeleted：会话删掉时收起还挂着的提问、中止这一轮（main 里接上）
+var OnConversationDeleted func(id string)
+
 // ConversationWrites 记会话写入的进行情况：退出前（宿主的 OnShutdown）用 WaitIdle 等对话窗口排着的
 // 写入写完。视图的写队列一次发一个、前一个回来后立刻发下一个，所以「没有进行中的、且安静了 quiet」
 // 就说明队列空了。
@@ -175,6 +178,9 @@ func InstallConversations(r *contract.Router, s *convstore.Store) *ConversationW
 		}
 		if err := s.Delete(in.ID); err != nil {
 			return nil, fail(err)
+		}
+		if OnConversationDeleted != nil {
+			OnConversationDeleted(in.ID)
 		}
 		emit(in.Source, true, in.ID)
 		return nil, nil

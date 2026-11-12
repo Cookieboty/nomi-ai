@@ -79,6 +79,9 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 				for _, x := range arr {
 					if t, ok := x.(*util.Obj); ok {
 						ft := fleetTab(t, o.TabPids, o.PendingPermissions)
+						if askBroker != nil && askBroker.WaitingTabs()[ft.ID] {
+							ft.PendingQuestions = 1
+						}
 						if f, ok := frozen[ft.ID]; ok {
 							ft.Paused = &fleet.Paused{By: f.By, At: f.At.UnixMilli()}
 						}
@@ -129,9 +132,14 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 			if chats == nil {
 				return nil
 			}
+			waiting := map[string]bool{}
+			if askBroker != nil {
+				waiting = askBroker.WaitingConversations()
+			}
 			out := []fleet.Chat{}
 			for _, c := range chats.ActiveChats() {
-				out = append(out, fleet.Chat{ConversationID: c.ConversationID, StartedAt: c.StartedAt.UnixMilli()})
+				out = append(out, fleet.Chat{ConversationID: c.ConversationID, StartedAt: c.StartedAt.UnixMilli(),
+					WaitingUser: waiting[c.ConversationID]})
 			}
 			return out
 		},

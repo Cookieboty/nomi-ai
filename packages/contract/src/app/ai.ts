@@ -43,6 +43,61 @@ import {
 
 const id = z.object({ id: z.string() });
 
+const UserQuestionOption = z.object({
+  id: z.string().min(1).max(8),
+  label: z.string().min(1).max(200),
+  description: z.string().max(300).optional(),
+});
+
+const UserQuestionItem = z.object({
+  id: z.string().min(1).max(16),
+  prompt: z.string().min(1).max(500),
+  header: z.string().max(40).optional(),
+  multi: z.boolean(),
+  options: z.array(UserQuestionOption).max(6),
+});
+
+/** 一张还在等回答的问题卡 */
+const UserQuestionRequest = z.object({
+  id: z.string().min(1).max(80),
+  source: z.enum(['nomi', 'claude']),
+  conversationId: z.string().max(128).optional(),
+  tabId: z.string().max(128).optional(),
+  questions: z.array(UserQuestionItem).min(1).max(4),
+  /** 到点未答按跳过处理（毫秒时间戳） */
+  expiresAt: z.number(),
+});
+
+const UserQuestionAnswerInput = z.object({
+  id: z.string().min(1).max(80),
+  action: z.enum(['answer', 'skip']),
+  answers: z
+    .array(
+      z.object({
+        questionId: z.string().min(1).max(16),
+        selected: z.array(z.string().min(1).max(8)).max(6),
+        custom: z.string().max(2000).optional(),
+      }),
+    )
+    .max(4)
+    .optional(),
+  details: z.string().max(4000).optional(),
+});
+
+/**
+ * 问题卡事件。出现时带完整问题；收起时 `{ id, closed: true }`。
+ * 不用 default / transform，生产构建的轻校验跳过时形状不变。
+ */
+const UserQuestionEvent = z.object({
+  id: z.string(),
+  closed: z.boolean().optional(),
+  source: z.enum(['nomi', 'claude']).optional(),
+  conversationId: z.string().optional(),
+  tabId: z.string().optional(),
+  questions: z.array(UserQuestionItem).max(4).optional(),
+  expiresAt: z.number().optional(),
+});
+
 export const aiProcedures = {
   // chat
   'ai.chat.sendMessage': { kind: 'mutation', input: ChatOptions, output: ChatResponse },
@@ -60,6 +115,21 @@ export const aiProcedures = {
   'ai.chat.regenerate': { kind: 'stream', input: ChatOptions, chunk: ChatChunk },
   /** 工具循环（AI SDK withTools）：对话窗口用它让模型调用桌面 / 桌面角色工具 */
   'ai.chat.agentStream': { kind: 'stream', input: ChatOptions, chunk: ChatChunk },
+
+  /** 当前还在等用户回答的问题（窗口刚打开时补拉；之后跟 ai.userQuestion 事件走） */
+  'ai.userQuestion.pending': {
+    kind: 'query',
+    input: z.void(),
+    output: z.array(UserQuestionRequest),
+    surfaces: ['chat'],
+  },
+  /** 回答或跳过一张问题卡。模型改不了答复。 */
+  'ai.userQuestion.answer': {
+    kind: 'mutation',
+    input: UserQuestionAnswerInput,
+    output: z.object({ ok: z.boolean() }),
+    surfaces: ['chat'],
+  },
 
   // sessions
   'ai.sessions.list': { kind: 'query', input: z.void(), output: z.array(StoredSession) },
@@ -161,6 +231,7 @@ export type AiProcedureName = keyof typeof aiProcedures;
 /** 门面路径：与 `AIClient` 的属性一致（memory 子域带前缀） */
 export type AiFacadePath =
   | 'chat'
+  | 'userQuestion'
   | 'sessions'
   | 'tools'
   | 'memory.userProfile'
@@ -196,6 +267,8 @@ export const AI_METHODS: readonly AiMethodSpec[] = Object.freeze([
   m('chat', 'steer', ['reqId', 'text']),
   m('chat', 'regenerate', 'value'),
   m('chat', 'agentStream', 'value'),
+  m('userQuestion', 'pending', []),
+  m('userQuestion', 'answer', 'value'),
   m('sessions', 'list', []),
   m('sessions', 'get', ['id']),
   m('sessions', 'create', 'value'),
@@ -306,6 +379,13 @@ export const aiEvents = {
     gestures: z.array(z.string()),
     at: z.number(),
   }),
+  /** 问题卡出现，或收起（closed: true 只带 id）。只发给对话窗口。 */
+  'ai.userQuestion': UserQuestionEvent,
+} as const;
+
+/** 问题卡只给对话窗口（桌面角色不订阅） */
+export const aiEventSurfaces = {
+  'ai.userQuestion': ['chat'],
 } as const;
 
 export type AiContractEvent = keyof typeof aiEvents;
@@ -325,6 +405,7 @@ export const AI_EVENTS = Object.freeze({
   'avatar:touched': 'ai.avatar.touched',
   'avatar:clicked': 'ai.avatar.clicked',
   'avatar:scene': 'ai.avatar.scene',
+  'user-question': 'ai.userQuestion',
 } as const satisfies Record<string, AiContractEvent>);
 
 export type AiClientEventName = keyof typeof AI_EVENTS;

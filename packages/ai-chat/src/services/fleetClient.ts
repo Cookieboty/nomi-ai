@@ -51,6 +51,8 @@ export const NEEDS_YOU_LABEL: Record<NonNullable<FleetAgent['needsYou']>, string
   permission: 'ui.cli-monitor.fleet-needs-permission',
   sandbox: 'ui.cli-monitor.fleet-needs-sandbox',
   accept: 'ui.providers-schedule.task-awaiting-accept',
+  // 和灵动岛调试文案同一句「等你处理」（词典不允许同一项目里两段相同的中文）
+  question: 'ui.mascot-theme.island-debug-pending',
 };
 
 /** 端点图标用的后端：内核报来的插件 / 未知后端按「外部插件」画 */

@@ -34,6 +34,7 @@ import { Sidebar } from './components/Sidebar';
 import { SideColumn, WorkspacePanesProvider } from './components/SubagentPane';
 import { AppTitleBar, hasAppTitleBar } from './components/TitleBar';
 import { SessionTools, TitleBarTitle } from './components/TitleBar/SessionTitle';
+import { UserQuestionDock } from './components/UserQuestionCard/dock';
 import { AiChatContextProvider } from './contexts/AiChatContext';
 import type { AiChatState } from './contexts/AiChatContext';
 import {
@@ -196,7 +197,9 @@ const AiChatContent: React.FC = () => {
   // 右栏收起时先放完滑出动画再卸载；切到整页时直接收
   const filesRail = usePresence(rail.open && !!rail.cwd && !mainHidden);
   // 灵动岛上点「打开」/ 点某一条：跳到任务详情 / 编程助手标签 / 主对话
-  useIslandOpenItem(mainPages.openTask, leavePage);
+  useIslandOpenItem(mainPages.openTask, leavePage, (id) => {
+    void ipcClient?.switchConversation(id);
+  });
   const handleNewChat = useCallback(
     (opts?: { projectId?: string | null }) => {
       leavePage();
@@ -356,6 +359,10 @@ const AiChatContent: React.FC = () => {
                   <ComputerActivityBar />
                   {/* Nomi 桌面工具的授权卡片：对话窗口开着时确认请求只发到这里 */}
                   <DesktopConfirmDock />
+                  <UserQuestionDock
+                    conversationId={tabs.isCliTab ? undefined : nomiSessionId}
+                    tabId={tabs.isCliTab ? tabs.activeTab?.id : undefined}
+                  />
                   <PendingDock
                     items={pending.items}
                     onWithdraw={pending.onWithdraw}

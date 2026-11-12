@@ -386,7 +386,7 @@ export const FleetOrigin = z.enum([
 ]);
 
 /** 需要用户处理：permission 等授权 / sandbox 沙箱拦下 / accept 等验收 */
-export const FleetNeedsYou = z.enum(['permission', 'sandbox', 'accept']);
+export const FleetNeedsYou = z.enum(['permission', 'sandbox', 'accept', 'question']);
 
 /** 进程树的资源占用（整棵树：编程助手连同它起的子进程）；cpuPercent 100 = 占满一个核，第一次采样为 0 */
 export const FleetUsage = loose({

@@ -110,6 +110,10 @@ var (
 //   - 中止 Nomi 那几轮对话；编程助手：中止标签当前的一轮，它的 MCP 会话一直拒绝到标签开始下一轮；
 //   - 撤掉还在等的桌面操作确认卡
 func stopComputer() {
+	// 紧急停止也收起还在等的问题卡（Nomi 那一轮随对话中止；编程助手的提问在这里拒绝掉）
+	if askBroker != nil {
+		askBroker.CancelAll()
+	}
 	if computerSvc != nil {
 		rep := computerSvc.StopAll()
 		if computerChats != nil {

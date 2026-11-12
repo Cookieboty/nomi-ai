@@ -177,6 +177,49 @@ func (o *Orchestrator) replyPermission(tabID, requestID string, allow bool) bool
 	return o.ReplyPermission(tabID, requestID, allow, "", "")
 }
 
+// ReplyClaudeQuestion：回答 Claude Code 的 AskUserQuestion。allow 时把带 answers 的 input 写回去；
+// 否则拒绝。调用方已在 jsrt 上。
+func (o *Orchestrator) ReplyClaudeQuestion(tabID, requestID string, allow bool, updated *util.Obj, reason string) bool {
+	var stdin interface {
+		Writable() bool
+		Write(string) bool
+	}
+	if c := o.children.Get(tabID); c != nil {
+		stdin = c.Stdin()
+	} else if l := o.live.claude[tabID]; l != nil && l.child != nil {
+		stdin = l.child.Stdin()
+	}
+	if stdin == nil || requestID == "" || !stdin.Writable() {
+		return false
+	}
+	var resp *util.Obj
+	if allow {
+		resp = util.NewObj("behavior", "allow")
+		if updated != nil {
+			resp.Set("updatedInput", updated)
+		}
+	} else {
+		msg := i18n.T("electron.common.the-user-didn-t-allow-this-call")
+		if reason == "timeout" {
+			msg = i18n.T("electron.common.timed-out")
+		}
+		resp = util.NewObj("behavior", "deny", "message", msg)
+	}
+	payload := util.NewObj("type", "control_response", "response",
+		util.NewObj("subtype", "success", "request_id", requestID, "response", resp))
+	ok := true
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				o.d.Logger.Warn("harness question reply failed", r)
+				ok = false
+			}
+		}()
+		stdin.Write(util.Stringify(payload) + "\n")
+	}()
+	return ok
+}
+
 // ReplyApprovePlan = replyApprovePlan。
 func (o *Orchestrator) ReplyApprovePlan(tabID, requestID, choice string) bool {
 	if choice == "deny" {
@@ -380,6 +423,9 @@ func (o *Orchestrator) clearOnePermissionTimeout(tabID, requestID string) {
 
 // clearPermissionTimeouts = clearPermissionTimeouts。
 func (o *Orchestrator) clearPermissionTimeouts(tabID string) {
+	if o.OnQuestionsCleared != nil {
+		o.OnQuestionsCleared(tabID)
+	}
 	m := o.pendingPerms.Get(tabID)
 	if m == nil {
 		return

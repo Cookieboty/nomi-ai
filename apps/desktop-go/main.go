@@ -423,6 +423,7 @@ func main() {
 			ModelRef: req.ModelRef, EditFrom: req.EditFrom, References: req.References})
 		return r.File, err
 	})
+	wireAskUser(router)
 	registerIgTools(toolRegistry, userProfile, &aiFacade, b8.KB, b8.Mem, b8.Ext, desktopSvc,
 		imgDeps, b8.Tasks, b8.Conns)
 	mcpLog := mcpLogger{}
@@ -479,7 +480,18 @@ func main() {
 		}})
 	chatHandlers.Register(router)
 	computerChats = chatHandlers
+	shellhandlers.OnConversationDeleted = func(id string) {
+		chatHandlers.AbortConversation(id)
+		if askBroker != nil {
+			askBroker.CancelConversation(id)
+		}
+	}
 	defer chatHandlers.Dispose()
+	defer func() {
+		if askBroker != nil {
+			askBroker.CancelAll()
+		}
+	}()
 	// AIClient 门面：ai.sessions / tools / memory / asr / tts / avatar（32 个过程）。
 	aiFacade = aifacade.New(aifacade.Options{Now: nowMs, Tools: toolRegistry, Profile: userProfile, Avatar: true,
 		AvatarHost: func(cue *util.Obj) { router.Emit("avatar.event", cue) }, Emit: router.Emit})

@@ -74,6 +74,28 @@ func parentID(j *util.Obj) *string { return OptStr(j.Get("parent_tool_use_id")) 
 
 var reToolSep = regexp.MustCompile(`[_\s-]`)
 
+func isAskUserTool(name string) bool {
+	return util.JSLower(reToolSep.ReplaceAllString(name, "")) == "askuserquestion"
+}
+
+func claudeHasQuestions(in *util.Obj) bool {
+	qs, _ := in.Get("questions").([]any)
+	return len(qs) > 0
+}
+
+func claudeQuestionSummary(in *util.Obj, tool string) string {
+	qs, _ := in.Get("questions").([]any)
+	if len(qs) == 0 {
+		return tool
+	}
+	if o := util.AsObj(qs[0]); o != nil {
+		if q := strings.TrimSpace(util.Str(o.Get("question"))); q != "" {
+			return Slice0(q, 120)
+		}
+	}
+	return tool
+}
+
 // ParseLine：解析一行 stream-json 输出。
 func ParseLine(line string, state *StreamState) []Ev {
 	trimmed := JSTrim(line)
@@ -217,6 +239,18 @@ func ParseLine(line string, state *StreamState) []Ev {
 		req := util.AsObj(Coalesce(j.Get("request"), util.NewObj()))
 		if reqID != "" && req.Get("subtype") == "can_use_tool" {
 			tool := JSString(Coalesce(req.Get("tool_name"), "tool"))
+			// AskUserQuestion 走问题卡，不走允许 / 拒绝。没有 questions 时仍当普通权限，避免这一轮挂住。
+			if isAskUserTool(tool) {
+				if in, ok := req.Get("input").(*util.Obj); ok && claudeHasQuestions(in) {
+					ev := O("type", "question", "id", reqID, "toolName", tool, "input", in,
+						"summary", claudeQuestionSummary(in, tool))
+					if s := OptStr(req.Get("tool_use_id")); s != nil {
+						ev.Set("toolUseId", *s)
+					}
+					out = append(out, ev)
+					break
+				}
+			}
 			detail := ""
 			switch in := req.Get("input").(type) {
 			case *util.Obj:

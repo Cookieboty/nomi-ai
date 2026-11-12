@@ -1,0 +1,212 @@
+/* 问题卡：贴在输入栏上方，和输入框同宽。出现时不播放动画。 */
+.dock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  width: 100%;
+  max-width: var(--cd-chat-content-w);
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 0 0 var(--cd-space-2);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-3);
+  border-radius: var(--cd-radius-lg);
+  border: 1px solid var(--cd-color-border-strong);
+  background: var(--cd-color-surface);
+  box-shadow: var(--cd-shadow-sm);
+  outline: none;
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-width: 0;
+  color: var(--cd-color-text-muted);
+}
+
+.title {
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-text);
+}
+
+.pager {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  margin-left: auto;
+}
+
+.page,
+.timer {
+  font-size: var(--cd-font-size-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--cd-color-text-subtle);
+}
+
+.timer {
+  flex-shrink: 0;
+}
+
+.header {
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-medium);
+  color: var(--cd-color-text-subtle);
+}
+
+.prompt {
+  margin: 0;
+  font-size: var(--cd-font-size-md);
+  line-height: var(--cd-line-height-md);
+  color: var(--cd-color-text);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  color: var(--cd-color-text-muted);
+}
+
+.multi {
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+}
+
+.option,
+.optionOn {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cd-space-2);
+  width: 100%;
+  min-height: var(--cd-control-h-ms);
+  margin: 0;
+  padding: var(--cd-space-1) var(--cd-space-2);
+  border-radius: var(--cd-radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--cd-color-text);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.option:hover {
+  background: var(--cd-color-hover);
+}
+
+.optionOn {
+  background: var(--cd-color-accent-soft);
+  border-color: var(--cd-color-accent);
+}
+
+.letter {
+  flex-shrink: 0;
+  width: var(--cd-control-h-xs);
+  height: var(--cd-control-h-xs);
+  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-color-surface-sunken);
+  border: 1px solid var(--cd-color-border);
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-text-muted);
+}
+
+.optionOn .letter {
+  color: var(--cd-color-accent-strong);
+  border-color: var(--cd-color-accent);
+}
+
+.optionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.optionLabel {
+  font-size: var(--cd-font-size-sm);
+  line-height: var(--cd-line-height-sm);
+}
+
+.optionDesc {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+}
+
+.custom {
+  flex: 1;
+  min-width: 0;
+  height: var(--cd-control-h-xs);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+}
+
+.custom::placeholder {
+  color: var(--cd-color-text-subtle);
+}
+
+.custom:focus {
+  outline: none;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+
+.kbd {
+  margin-left: var(--cd-space-2);
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+}
+
+.details {
+  width: 100%;
+  box-sizing: border-box;
+  height: var(--cd-control-h-ms);
+  padding: 0 var(--cd-space-3);
+  border-radius: var(--cd-radius-lg);
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface);
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+}
+
+.details::placeholder {
+  color: var(--cd-color-text-subtle);
+}
+
+.details:focus {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}

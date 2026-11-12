@@ -11,7 +11,7 @@
 
 import { defineContract } from '../contract';
 
-import { aiEvents, aiProcedures } from './ai';
+import { aiEventSurfaces, aiEvents, aiProcedures } from './ai';
 import { codingErrors, codingEvents, codingEventSurfaces, codingProcedures } from './coding';
 import { knowledgeErrors, knowledgeEvents, knowledgeProcedures } from './knowledge';
 import { mascotErrors, mascotEvents, mascotEventSurfaces, mascotProcedures } from './mascot';
@@ -92,6 +92,7 @@ export const appContract = defineContract({
     ...mascotEvents,
   },
   eventSurfaces: {
+    ...aiEventSurfaces,
     ...mediaEventSurfaces,
     ...shellEventSurfaces,
     ...codingEventSurfaces,
