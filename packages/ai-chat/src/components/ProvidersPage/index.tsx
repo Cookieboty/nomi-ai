@@ -18,7 +18,11 @@ import React, { useEffect, useState } from 'react';
 
 import { useProviderEndpoint } from '../../hooks/useProviderEndpoint';
 import { isCliKind, type CliKind } from '../../services/cliSource';
-import { cliUpdateClient, type CliInstallInfo } from '../../services/cliUpdateClient';
+import {
+  cliUpdateClient,
+  isInspectUpdated,
+  type CliInstallInfo,
+} from '../../services/cliUpdateClient';
 import { harnessClient } from '../../services/harnessClient';
 import { CONVERSATION_BACKENDS } from '../../types/chat';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
@@ -74,6 +78,11 @@ export const ProvidersPage: React.FC<{
     void refresh();
     // 装 / 更新结束后主进程会重新探测：选择条上的状态跟着刷新
     const off = cliUpdateClient.onEvent((e) => {
+      if (isInspectUpdated(e)) {
+        if (Array.isArray(e.rows)) setInfos(e.rows);
+        else void refresh();
+        return;
+      }
       if (e.phase === 'done' || e.phase === 'error') void refresh();
     });
     return () => {

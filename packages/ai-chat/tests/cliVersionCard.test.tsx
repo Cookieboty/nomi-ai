@@ -336,4 +336,40 @@ describe('CliVersionCard · task survives unmount (state lives in the main proce
       expect(r.getByTestId('cli-version-result-dsh').textContent).toContain('EACCES'),
     );
   });
+
+  it('leaves 检测中 as soon as local inspect returns, without waiting for latest', async () => {
+    const { emit } = setup({
+      'cliUpdate.inspect': () => [
+        info({
+          kind: 'claude',
+          path: '/usr/bin/claude',
+          version: '2.1.0',
+          latest: null,
+          updateAvailable: false,
+        }),
+      ],
+    });
+    const r = render(<CliVersionCard kind="claude" />);
+    await waitFor(() =>
+      expect(r.getByTestId('cli-version-state-claude').textContent).not.toContain('检测中'),
+    );
+    expect(r.getByTestId('cli-version-installed-claude').textContent).toBe('2.1.0');
+    expect(r.getByTestId('cli-version-state-claude').textContent).toBe('已安装');
+    emit({
+      kind: 'inspect',
+      phase: 'updated',
+      rows: [
+        info({
+          kind: 'claude',
+          path: '/usr/bin/claude',
+          version: '2.1.0',
+          latest: '2.1.300',
+          updateAvailable: true,
+        }),
+      ],
+    });
+    await waitFor(() =>
+      expect(r.getByTestId('cli-version-state-claude').getAttribute('data-state')).toBe('outdated'),
+    );
+  });
 });
