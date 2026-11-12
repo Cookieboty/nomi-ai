@@ -11,6 +11,12 @@
   min-height: 0;
   /* 侧栏选中行：比通用选中色浅一档（仍比悬停深），不抢过标题文字 */
   --sb-selected-bg: color-mix(in srgb, var(--cd-color-selected-bg) 55%, var(--cd-color-hover));
+  /*
+   * 列表滚动条槽宽：.threads 用 scrollbar-gutter: stable 常留这条槽
+   * （实际宽度见 packages/ui/src/styles/theme.css 的 ::-webkit-scrollbar: 10px），
+   * 顶行右侧按钮按这条槽让位，才能和列表里的按钮对齐。
+   */
+  --sb-gutter: 10px;
 }
 .collapsed {
   width: 52px;
@@ -121,7 +127,12 @@
   align-items: center;
   gap: var(--cd-space-2);
   height: 44px;
-  padding: 0 var(--cd-space-0-5);
+  /*
+   * 左不留内边距：笔图标（10）与下面项目行的文件夹图标、会话标题（34）落在同一条竖线上；
+   * 右侧让出滚动条槽 + 行尾操作的 4px：搜索按钮与「项目」行的「…」「+」、会话行尾的图标同一条竖线
+   * （见 .threads 的 scrollbar-gutter 与 .rowActions 的 right: 4px）。
+   */
+  padding: 0 calc(var(--sb-gutter) + var(--cd-space-1)) 0 0;
 }
 .brand {
   font-size: var(--cd-font-size-xl);
