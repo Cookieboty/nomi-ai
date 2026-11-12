@@ -1756,6 +1756,7 @@ type ComputerSandboxActionOutput struct {
 
 type ComputerStateInput struct {
 	Refresh *bool `json:"refresh,omitempty"`
+	Fresh   *bool `json:"fresh,omitempty"`
 }
 
 type ComputerStateOutputVisionModelsItem struct {

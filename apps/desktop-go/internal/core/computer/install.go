@@ -186,10 +186,18 @@ type VersionInfo struct {
 // Versions：本机版本 + npm 上的最新版本（refresh = 「检查更新」）
 func (s *Service) Versions(ctx context.Context, refresh bool) VersionInfo {
 	bin := s.Bin()
-	v := VersionInfo{Installed: bin != "", Path: bin, SupportedMajor: SupportedMajor}
+	ver := ""
 	if bin != "" {
-		v.Version = s.InstalledVersion(ctx)
-		if major, _, _, ok := parseVer(v.Version); ok && major != SupportedMajor {
+		ver = s.InstalledVersion(ctx)
+	}
+	return s.versionInfo(ctx, refresh, bin, ver)
+}
+
+// versionInfo：在已经读到的本机版本上补 npm 的最新版本。设置页走 hostProbe，避免每次状态都再启一次进程。
+func (s *Service) versionInfo(ctx context.Context, refresh bool, bin, ver string) VersionInfo {
+	v := VersionInfo{Installed: bin != "", Path: bin, Version: ver, SupportedMajor: SupportedMajor}
+	if ver != "" {
+		if major, _, _, ok := parseVer(ver); ok && major != SupportedMajor {
 			v.Unsupported = true
 		}
 	}
@@ -309,11 +317,12 @@ func (s *Service) Install(ctx context.Context, scope string) (InstallResult, err
 	return r, nil
 }
 
-// ResetBin：忘掉缓存的路径，下次重新找（装好 / 卸载后）
+// ResetBin：忘掉缓存的路径，下次重新找（装好 / 卸载后）。版本缓存一起丢掉。
 func (s *Service) ResetBin() {
 	s.binMu.Lock()
 	s.bin, s.binAt = "", time.Time{}
 	s.binMu.Unlock()
+	s.invalidateHostProbe()
 }
 
 // OpenGuide：macOS 打开辅助功能授权引导；其它平台返回 not_supported

@@ -476,7 +476,7 @@ export const ComputerState = z.looseObject({
   wayland: z.boolean(),
   /** 允许编程助手经 Nomi 的 MCP 使用桌面操作 */
   cliEnabled: z.boolean(),
-  /** 桌面操作自动执行（工具权限都是「始终允许」；敏感动作与坐标点击仍会问） */
+  /** 桌面操作自动执行（工具权限都是「始终允许」，包括敏感动作和坐标点击） */
   autoApprove: z.boolean(),
   /** 正在操作桌面的发起方（Nomi / 编程助手名） */
   active: z.array(z.string()),

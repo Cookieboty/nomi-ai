@@ -58,15 +58,22 @@ type Service struct {
 	shotsDir string
 	getenv   func(string) string
 
-	binMu   sync.Mutex
-	bin     string
-	binAt   time.Time
-	headed  sync.Mutex
-	mu      sync.Mutex
-	refs    map[string]RefInfo
-	snaps   []string // snapshot id，旧 → 新
-	snapApp map[string]string
-	apps    appsCache
+	binMu  sync.Mutex
+	bin    string
+	binAt  time.Time
+	headed sync.Mutex
+
+	// 设置页读版本 / 权限：短缓存 + 单飞，避免 Windows 上控制台抢焦点造成的紧循环
+	hostMu       sync.Mutex
+	hostGen      uint64
+	hostRes      hostProbeResult
+	hostFly      *hostProbeFlight
+	hostProbeTTL time.Duration
+	mu           sync.Mutex
+	refs         map[string]RefInfo
+	snaps        []string // snapshot id，旧 → 新
+	snapApp      map[string]string
+	apps         appsCache
 
 	inst *installer
 	act  *activity
@@ -115,9 +122,16 @@ func (s *Service) Bin() string {
 // Available：本机能不能用（工具的 Available）
 func (s *Service) Available() bool { return s.Bin() != "" }
 
-// Wayland：Linux Wayland 会话下全局截图和输入注入受限，只支持无障碍树
+// Wayland：Linux Wayland 会话下全局截图和输入注入受限，只支持无障碍树。
+// 与 Wails 一致：XDG_SESSION_TYPE=wayland，或设置了 WAYLAND_DISPLAY（有的会话不写 XDG_SESSION_TYPE）。
 func (s *Service) Wayland() bool {
-	return runtime.GOOS == "linux" && strings.EqualFold(s.getenv("XDG_SESSION_TYPE"), "wayland")
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	if strings.EqualFold(strings.TrimSpace(s.getenv("XDG_SESSION_TYPE")), "wayland") {
+		return true
+	}
+	return strings.TrimSpace(s.getenv("WAYLAND_DISPLAY")) != ""
 }
 
 // Blocked：这个应用能不能碰

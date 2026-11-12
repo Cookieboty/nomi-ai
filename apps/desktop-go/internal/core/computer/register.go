@@ -34,9 +34,10 @@ func Register(r *contract.Router, s *Service, o RegisterOptions) {
 	r.Call("computer.state", func(ctx context.Context, _ contract.Caller, in json.RawMessage) (any, error) {
 		var p struct {
 			Refresh bool `json:"refresh"`
+			Fresh   bool `json:"fresh"`
 		}
 		_ = json.Unmarshal(in, &p)
-		return s.State(ctx, p.Refresh, o), nil
+		return s.State(ctx, p.Refresh, p.Fresh, o), nil
 	})
 	r.Call("computer.install", func(ctx context.Context, _ contract.Caller, in json.RawMessage) (any, error) {
 		var p struct {
@@ -71,7 +72,7 @@ func Register(r *contract.Router, s *Service, o RegisterOptions) {
 		if _, err := s.UpdateSettings(p); err != nil {
 			return nil, err
 		}
-		return s.State(ctx, false, o), nil
+		return s.State(ctx, false, false, o), nil
 	})
 	r.Call("computer.active", func(context.Context, contract.Caller, json.RawMessage) (any, error) {
 		return map[string]any{"active": s.Active()}, nil
@@ -98,17 +99,20 @@ func Register(r *contract.Router, s *Service, o RegisterOptions) {
 	s.OnStateChange(func() { r.Emit("computer.changed", map[string]any{}) })
 }
 
-// State：Computer Use 页的状态
-func (s *Service) State(ctx context.Context, refresh bool, o RegisterOptions) map[string]any {
-	v := s.Versions(ctx, refresh)
+// State：Computer Use 页的状态。refresh 重新查 npm；fresh 重新读本机版本和系统权限
+// （否则几秒内复用上一次的结果，避免页面被焦点事件反复拉起 agent-desktop）。
+func (s *Service) State(ctx context.Context, refresh, fresh bool, o RegisterOptions) map[string]any {
+	bin := s.Bin()
+	ver := ""
 	perms := map[string]string{}
+	if bin != "" {
+		ver, perms = s.hostProbe(ctx, bin, refresh || fresh)
+	}
+	v := s.versionInfo(ctx, refresh, bin, ver)
 	sandboxes, sandboxSupported := []SandboxInfo{}, false
 	permApp := s.PermissionApp()
-	if v.Installed {
-		perms = s.Permissions(ctx)
-		if runtime.GOOS == "darwin" {
-			sandboxes, sandboxSupported = s.Sandboxes(ctx)
-		}
+	if v.Installed && runtime.GOOS == "darwin" {
+		sandboxes, sandboxSupported = s.Sandboxes(ctx)
 	}
 	vm := []VisionOption{}
 	if o.VisionModels != nil {

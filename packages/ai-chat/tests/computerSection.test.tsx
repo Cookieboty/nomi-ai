@@ -154,6 +154,26 @@ describe('设置 → Computer Use', () => {
     );
   });
 
+  it('焦点风暴只再读一次状态；重新检查权限会绕过缓存', async () => {
+    const fake = installFakeApi({
+      'computer.state': () => ({
+        ...base,
+        installed: true,
+        version: '1.2.0',
+        permissions: { accessibility: 'granted', screen_recording: 'not_required' },
+      }),
+    });
+    const r = render(<ComputerSection />);
+    await r.findByTestId('computer-status');
+    const n = () => fake.calls.filter(([name]) => name === 'computer.state').length;
+    const before = n();
+    for (let i = 0; i < 20; i++) window.dispatchEvent(new Event('focus'));
+    expect(n()).toBe(before);
+    await waitFor(() => expect(n()).toBe(before + 1));
+    fireEvent.click(r.getByTestId('computer-perm-recheck'));
+    await waitFor(() => expect(fake.calls).toContainEqual(['computer.state', { fresh: true }]));
+  });
+
   it('有人在操作桌面时显示停止按钮，点了调用 computer.stop', async () => {
     const fake = installFakeApi({
       'computer.state': () => ({

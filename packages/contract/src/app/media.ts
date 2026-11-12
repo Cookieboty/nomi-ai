@@ -354,10 +354,11 @@ export const mediaProcedures = {
   /** 发送图片前：云端告知 / 仅本地模式 */
   'screen.checkSend': { kind: 'mutation', input: z.void(), output: SendCheck },
   // ── Computer Use（设置 → Computer Use；执行器 agent-desktop）──
-  /** 状态；refresh = 「检查更新」（重新查 npm 上的最新版本，否则用 6 小时内的缓存） */
+  /** 状态；refresh = 「检查更新」（重新查 npm 上的最新版本，否则用 6 小时内的缓存）。
+   * fresh = 重新读本机 agent-desktop 的版本和系统权限（否则几秒内复用，避免设置页被焦点事件反复拉起进程） */
   'computer.state': {
     kind: 'query',
-    input: z.object({ refresh: z.boolean().optional() }),
+    input: z.object({ refresh: z.boolean().optional(), fresh: z.boolean().optional() }),
     output: ComputerState,
     surfaces: ['chat', 'settings'],
   },

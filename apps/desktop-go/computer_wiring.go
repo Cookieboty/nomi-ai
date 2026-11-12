@@ -266,6 +266,8 @@ func computerMcpLaunch(tabID, label string, readOnly bool) *harness.McpLaunch {
 // runWithCliPath：带登录 shell PATH 执行命令，返回合并输出与退出码
 func runWithCliPath(ctx context.Context, argv []string) (string, int, error) {
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	// npm.cmd / 安装命令同样不弹控制台（Computer Use 页打开时会在后台 npm view）
+	computer.HideConsole(cmd)
 	cmd.Env = usage.EnvSlice(cli.WithCliPath(nil))
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out

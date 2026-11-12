@@ -155,6 +155,22 @@ func TestComputerSnapshotThenSensitiveClick(t *testing.T) {
 	}
 }
 
+func TestComputerAlwaysDoesNotBypassBlocklist(t *testing.T) {
+	e := newCuEnv(t)
+	e.svc.Broker.SetComputerAlways(true)
+	if o := e.call(t, "computer_snapshot", `{"app":"1Password"}`); errCode(o) != "blocked_app" {
+		t.Fatalf("snapshot: %v", o)
+	}
+	if o := e.call(t, "computer_click_xy", `{"x":950,"y":950,"reason":"x"}`); errCode(o) != "blocked_app" {
+		t.Fatalf("click_xy: %v", o)
+	}
+	for _, c := range e.calls {
+		if strings.Contains(c, "mouse-click") || strings.HasPrefix(c, "snapshot") {
+			t.Fatalf("blocked app reached agent-desktop: %v", e.calls)
+		}
+	}
+}
+
 func TestComputerUnknownRefAndBlockedApp(t *testing.T) {
 	e := newCuEnv(t)
 	if o := e.call(t, "computer_click", `{"ref":"@zz:e9"}`); errCode(o) != "unknown_ref" {
