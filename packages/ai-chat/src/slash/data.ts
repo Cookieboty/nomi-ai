@@ -29,7 +29,7 @@ export async function loadSlashData(
 ): Promise<SlashData> {
   const cli = backend !== 'nomi';
   const accountKind = cli && hasOfficialAccount(backend) ? backend : null;
-  const [clis, usage, quotas, accounts, tabs, nomiProviders, gateway] = await Promise.all([
+  const [clis, usage, quotas, accounts, tabs, nomiProviders, gateway, nomiCtx] = await Promise.all([
     cli && cliUpdateClient.available()
       ? soft(() => cliUpdateClient.inspect(false))
       : Promise.resolve(null),
@@ -41,6 +41,9 @@ export async function loadSlashData(
       : Promise.resolve(null),
     !cli ? soft(() => providerClient.state()) : Promise.resolve(null),
     gatewayClientAvailable() ? soft(() => gatewayClient.state()) : Promise.resolve(null),
+    !cli && gatewayClientAvailable()
+      ? soft(() => gatewayClient.nomiContext('chat'))
+      : Promise.resolve(null),
   ]);
   return {
     cli: Array.isArray(clis) ? (clis.find((c) => c.kind === backend) ?? null) : null,
@@ -53,5 +56,6 @@ export async function loadSlashData(
       tabs && Array.isArray(tabs.tabs) ? (tabs.tabs.find((x) => x.id === tabId) ?? null) : null,
     nomiProviders: nomiProviders && Array.isArray(nomiProviders.providers) ? nomiProviders : null,
     nomiGateway: gateway && Array.isArray(gateway.providers) ? gateway : null,
+    nomiWindow: nomiCtx && nomiCtx.window > 0 ? nomiCtx.window : null,
   };
 }

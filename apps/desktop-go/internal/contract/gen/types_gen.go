@@ -5461,6 +5461,7 @@ type GatewaySetAssignmentInput struct {
 type GatewaySetOptionsInput struct {
 	StrictParams        *bool    `json:"strictParams,omitempty"`
 	MaxRequestBodyBytes *float64 `json:"maxRequestBodyBytes,omitempty"`
+	ContextTier         *float64 `json:"contextTier,omitempty"`
 	PrivacyMode         *bool    `json:"privacyMode,omitempty"`
 	PrivacyStrict       *bool    `json:"privacyStrict,omitempty"`
 	PrivacyLocal        *bool    `json:"privacyLocal,omitempty"`

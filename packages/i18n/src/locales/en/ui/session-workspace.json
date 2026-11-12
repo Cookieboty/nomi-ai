@@ -160,7 +160,7 @@
   "ui.session-workspace.undo-commit": "Undo commit",
   "ui.session-workspace.undo-discard": "Undo discard",
   "ui.session-workspace.undo-this-turn-s-writes-to-these-files": "Undo this turn's writes to these files? Workspace only — restore from diff or safe git checkout.",
-  "ui.session-workspace.unknown-model-assuming-a-128k-window": "Unknown model; assuming a 128K window",
+  "ui.session-workspace.unknown-model-assuming-a-128k-window": "Unknown model; assuming a 256K window",
   "ui.session-workspace.unsaved": "Unsaved",
   "ui.session-workspace.unstage": "Unstage",
   "ui.session-workspace.unstage-all": "Unstage all",

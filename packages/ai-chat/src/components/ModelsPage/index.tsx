@@ -2,7 +2,7 @@
  * 设置 →「模型」页（docs/development/gateway.md）：第三方供应商与模型分配，数据来自网关（ai:gateway:*）。
  * - 分配：Nomi 对话（main；tools / summary / image 收在「更多用途」里）；各编程助手的第三方模型（标签选「第三方」时用）；
  *   「新会话默认用」在「编程助手」页各助手的详情里；
- * - 「显示协议」「严格模式」「请求体上限」都在页底的「高级」里（排查问题时才用）；
+ * - 「显示协议」「上下文档位」「严格模式」「请求体上限」都在页底的「高级」里；
  * - 官方账号不在这里：仍在「编程助手」页原位置（安装、账号也在那里）。
  */
 import {
@@ -12,6 +12,7 @@ import {
   IconButton,
   Input,
   Modal,
+  Select,
   ModalHostContext,
   ModelPicker,
   Switch,
@@ -428,6 +429,28 @@ export const ModelsPage: React.FC = () => {
               />
               <span>{t('ui.models.show-apis')}</span>
             </label>
+            <label className={styles.inlineField}>
+              <span>{t('ui.models.context-tier')}</span>
+              <Select
+                size="sm"
+                disabled={!state}
+                value={String(state?.contextTier ?? 0)}
+                options={[
+                  { value: '0', label: t('ui.models.context-tier-model') },
+                  { value: '262144', label: t('ui.models.context-tier-256k') },
+                  { value: '200000', label: t('ui.models.context-tier-200k') },
+                  { value: '128000', label: t('ui.models.context-tier-128k') },
+                ]}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (!Number.isFinite(n)) return;
+                  run(gatewayClient.setOptions({ contextTier: n }));
+                }}
+                aria-label={t('ui.models.context-tier')}
+                data-testid="models-context-tier"
+              />
+            </label>
+            <p className={styles.sub}>{t('ui.models.context-tier-hint')}</p>
             <label className={styles.inlineSwitch}>
               <Switch
                 checked={state?.strictParams === true}

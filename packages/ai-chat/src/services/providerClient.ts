@@ -36,6 +36,8 @@ export interface ProviderPreset {
   modelMeta?: Array<{
     id: string;
     ctx?: number;
+    /** 标准窗口。预设里的 ctx 是完整窗口，不单独覆盖这一档 */
+    ctxStandard?: number;
     maxOutput?: number;
     reasoning?: boolean;
     vision?: boolean;

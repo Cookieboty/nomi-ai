@@ -21,6 +21,10 @@ var efforts = []string{"minimal", "low", "medium", "high", "xhigh", "max"}
 
 const minStandard = 128_000
 
+// GenericStandard：窗口大于它、又没有自己的标准档（成本分档）时，默认按这个标准窗口用。
+// 长上下文默认关。与 gwstore.DefaultCtx、编程助手注入的默认窗口是同一个数（256 Ki token）。
+const GenericStandard = 262_144
+
 func obj(v any) *u.Obj {
 	o, _ := v.(*u.Obj)
 	return o
@@ -137,6 +141,15 @@ func reasoningOf(m *u.Obj) *u.Obj {
 	return r
 }
 
+// windowLimit：与目录生效值同一口径，有 input 用 input，否则用 context。
+func windowLimit(m *u.Obj) (float64, bool) {
+	limit := obj(m.Get("limit"))
+	if v, ok := posInt(get(limit, "input")); ok {
+		return v, true
+	}
+	return posInt(get(limit, "context"))
+}
+
 func standardOf(m *u.Obj) (float64, bool) {
 	var sizes []float64
 	for _, t := range arr(get(obj(m.Get("cost")), "tiers")) {
@@ -151,20 +164,19 @@ func standardOf(m *u.Obj) (float64, bool) {
 			sizes = append(sizes, n)
 		}
 	}
-	if len(sizes) == 0 {
-		return 0, false
+	max, hasMax := windowLimit(m)
+	if len(sizes) > 0 {
+		size := sizes[0]
+		for _, s := range sizes {
+			size = math.Max(size, s)
+		}
+		// 成本分档里的标准窗口优先于通用 256K（Claude 200K、GPT 272K 等）
+		if hasMax && size < max {
+			return size, true
+		}
 	}
-	size := sizes[0]
-	for _, s := range sizes {
-		size = math.Max(size, s)
-	}
-	limit := obj(m.Get("limit"))
-	max, ok := posInt(get(limit, "input"))
-	if !ok {
-		max, ok = posInt(get(limit, "context"))
-	}
-	if ok && size < max {
-		return size, true
+	if hasMax && max > GenericStandard {
+		return GenericStandard, true
 	}
 	return 0, false
 }

@@ -17,6 +17,26 @@ const (
 	NomiMaxMessages = 1000
 )
 
+// 用户上下文档位（设置里的硬上限）。0 = 不额外封顶，按模型标准窗口 / 长上下文。
+const (
+	ContextTier128k = 128_000
+	ContextTier200k = 200_000
+	ContextTier256k = DefaultCtx
+)
+
+// AllowedContextTier：设置里可选的档位。0 表示「跟模型」（不额外封顶）。
+func AllowedContextTier(n float64) bool {
+	return n == ContextTier128k || n == ContextTier200k || n == ContextTier256k
+}
+
+// ApplyContextTier：有效窗口 = min(模型生效窗口, 用户档位)。档位无效或为 0 时不封顶。
+func ApplyContextTier(window, tier float64) float64 {
+	if AllowedContextTier(tier) && tier > 0 && tier < window {
+		return tier
+	}
+	return window
+}
+
 // NomiContextBudget = nomiContextBudget({ ctx, maxOutput })：window / outputReserve / budget / compactAt
 func NomiContextBudget(ctx, maxOutput float64) (window, outputReserve, budget, compactAt float64) {
 	window = math.Max(1, math.Floor(ctx))
@@ -29,6 +49,18 @@ func NomiContextBudget(ctx, maxOutput float64) (window, outputReserve, budget, c
 	return window, outputReserve, budget, math.Floor(budget * CompactRatio)
 }
 
+// ContextTier：用户设的上下文档位；0 = 不额外封顶。
+func (s *Service) ContextTier() float64 {
+	if s == nil || s.Store == nil {
+		return 0
+	}
+	f, _ := s.Store.View().Snapshot().Get("contextTier").(float64)
+	if !AllowedContextTier(f) {
+		return 0
+	}
+	return f
+}
+
 // NomiContext = GatewayService.nomiContext(role)：没配模型时 nil
 func (s *Service) NomiContext(role string) *u.Obj {
 	picked := s.nomiPick(role)
@@ -39,6 +71,7 @@ func (s *Service) NomiContext(role string) *u.Obj {
 	if m := s.ModelMetaOf(picked.PublicModel, nil); m != nil {
 		ctx, maxOut, src = m.Ctx, m.MaxOutput, m.Source
 	}
+	ctx = ApplyContextTier(ctx, s.ContextTier())
 	w, r, b, c := NomiContextBudget(ctx, maxOut)
 	return u.NewObj("model", picked.PublicModel, "window", w, "outputReserve", r, "budget", b, "compactAt", c, "source", src)
 }

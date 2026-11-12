@@ -258,6 +258,9 @@ func (s *Service) state() *u.Obj {
 			"allow", allow,
 		),
 	)
+	if f, ok := data.Get("contextTier").(float64); ok && AllowedContextTier(f) {
+		out.Set("contextTier", f)
+	}
 	if u.Truthy(data.Get("migratedFrom")) {
 		out.Set("migratedFrom", data.Get("migratedFrom"))
 	}
@@ -697,6 +700,15 @@ func (s *Service) SetOptions(patch *u.Obj) (*u.Obj, error) {
 	if f, ok := patch.Get("maxRequestBodyBytes").(float64); ok {
 		data.Set("maxRequestBodyBytes", float64(config.ClampMaxRequestBodyBytes(&f)))
 		changed = true
+	}
+	if f, ok := patch.Get("contextTier").(float64); ok {
+		if f == 0 {
+			data.Delete("contextTier")
+			changed = true
+		} else if AllowedContextTier(f) {
+			data.Set("contextTier", f)
+			changed = true
+		}
 	}
 	if b, ok := patch.Get("privacyMode").(bool); ok {
 		if b {

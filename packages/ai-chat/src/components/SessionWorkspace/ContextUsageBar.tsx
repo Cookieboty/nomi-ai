@@ -33,15 +33,19 @@ const C = 2 * Math.PI * R;
 
 /**
  * Nomi 对话实际路由到的模型的上下文窗口；网关状态变化（换模型、改模型元数据）时重新取。
- * 网关也不认识这个模型（source = default）或取不到时为 null，交给经验表 / 默认值。
+ * 取不到时为 null。source = default 也用网关的 256K，不再改走按名字猜的表。
  */
-function useNomiContextWindow(enabled: boolean, gateway: GatewayState | null): number | null {
-  const [win, setWin] = useState<number | null>(null);
+function useNomiContextWindow(
+  enabled: boolean,
+  gateway: GatewayState | null,
+): { size: number; source: string } | null {
+  const [win, setWin] = useState<{ size: number; source: string } | null>(null);
   useEffect(() => {
     if (!enabled) return;
     let alive = true;
     void gatewayClient.nomiContext('chat').then((r) => {
-      if (alive) setWin(r && r.window > 0 && r.source !== 'default' ? r.window : null);
+      if (alive)
+        setWin(r && r.window > 0 ? { size: r.window, source: r.source ?? 'default' } : null);
     });
     return () => {
       alive = false;
@@ -71,7 +75,11 @@ export const ContextUsageBar: React.FC<{
     // 显示下一次启动会注入的窗口，而不是上一个模型的
     if (injected && !(reported && reportedMatchesInjected(reported, injected)))
       return { size: injected, source: 'reported' as const };
-    if (nomiWin && !reported) return { size: nomiWin, source: 'reported' as const };
+    if (nomiWin && !reported)
+      return {
+        size: nomiWin.size,
+        source: nomiWin.source === 'default' ? ('default' as const) : ('reported' as const),
+      };
     return contextWindowFor(model ?? undefined, reported);
   }, [model, messages, injected, nomiWin]);
   const est = useMemo(

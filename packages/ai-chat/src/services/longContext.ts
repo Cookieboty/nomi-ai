@@ -72,13 +72,16 @@ export function injectedWindowFor(
 ): number | null {
   if (tabSourceOf(tab) !== 'thirdParty' || !gateway) return null;
   const long = longContextFor(tab, gateway);
-  if (long) return long.on ? long.full : long.standard;
+  const cap = gateway.contextTier;
+  const apply = (n: number) => (cap && cap > 0 && cap < n ? cap : n);
+  if (long) return apply(long.on ? long.full : long.standard);
   const ref = thirdPartyRefOf(tab, tab.backend, gateway);
   const r = ref ? splitRef(ref) : null;
   const m = r
     ? gateway.providers.find((p) => p.id === r.provider)?.models.find((x) => x.id === r.model)
     : undefined;
-  return m?.effective?.ctx ?? null;
+  const ctx = m?.effective?.ctx;
+  return ctx == null ? null : apply(ctx);
 }
 
 /**

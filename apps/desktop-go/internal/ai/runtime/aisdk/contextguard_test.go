@@ -214,6 +214,32 @@ func TestContextGuardElidesEarlierTurns(t *testing.T) {
 	}
 }
 
+// 有效预算很大时，60% 仍很高；绝对上限让旧工具结果更早缩短，截断点规则不变
+func TestContextGuardAbsoluteHistoryCap(t *testing.T) {
+	big := strings.Repeat("z", 4000)
+	user := func(s string) *u.Obj { return u.NewObj("role", "user", "content", s) }
+	var msgs []*u.Obj
+	for i := 0; i < 4; i++ {
+		msgs = append(msgs, user("q"), toolMsg("t"+string(rune('a'+i)), big))
+	}
+	msgs = append(msgs, user("now"))
+	key := "conv-abs"
+	saveConvState(key, convState{lastPrompt: 50_000})
+	g := newContextGuard(1_000_000, key)
+	if out := g.prepare(msgs); toolText(out[1]) != big {
+		t.Fatal("elided below the absolute cap")
+	}
+	saveConvState(key, convState{lastPrompt: 70_000})
+	g = newContextGuard(1_000_000, key)
+	out := g.prepare(msgs)
+	if toolText(out[1]) == big || toolText(out[5]) != big {
+		t.Fatal("absolute cap did not keep the recent turns")
+	}
+	if g.historyLimit() != historyAbsTokens {
+		t.Fatalf("limit %v", g.historyLimit())
+	}
+}
+
 // 缩短工具结果之后仍然快满：这一轮较早的步骤换成摘要，最近几步保留原样，工具调用与结果仍成对
 func TestContextGuardSummarizesTurn(t *testing.T) {
 	big := strings.Repeat("w", 3000)

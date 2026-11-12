@@ -178,6 +178,8 @@ export interface SlashData {
   cliTab: HarnessTabMeta | null;
   /** 统一网关的状态：Nomi 对话的模型分配、CLI 第三方模型 */
   nomiGateway: GatewayState | null;
+  /** Nomi 对话的有效窗口（gateway.nomiContext）；CLI 不用 */
+  nomiWindow?: number | null;
   /** 旧存储（网关里还没分配时的保底，如只有环境变量供应商） */
   nomiProviders: ProviderState | null;
 }

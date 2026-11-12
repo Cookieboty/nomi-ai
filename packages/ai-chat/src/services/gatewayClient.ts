@@ -197,6 +197,8 @@ export interface GatewayState {
   port: number;
   /** 严格模式（默认关）：模型不支持的参数直接报错，而不是丢弃并记录 */
   strictParams?: boolean;
+  /** 上下文档位。缺省 / 0 = 跟模型；128000 / 200000 / 262144 是硬上限 */
+  contextTier?: number;
   /** 入站请求体上限（字节）；默认 32 MiB */
   maxRequestBodyBytes?: number;
   /** 隐私模式（默认开）：发往云端第三方供应商前把密钥换成占位符；旧主进程没有这个字段 */
@@ -391,6 +393,7 @@ export const gatewayClient = {
   setOptions: (patch: {
     strictParams?: boolean;
     maxRequestBodyBytes?: number;
+    contextTier?: number;
     privacyMode?: boolean;
     privacyStrict?: boolean;
     privacyLocal?: boolean;

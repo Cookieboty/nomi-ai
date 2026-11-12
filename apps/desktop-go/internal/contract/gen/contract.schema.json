@@ -18193,6 +18193,9 @@
      "maxRequestBodyBytes": {
       "type": "number"
      },
+     "contextTier": {
+      "type": "number"
+     },
      "privacyMode": {
       "type": "boolean"
      },
