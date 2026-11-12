@@ -741,6 +741,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 修复非流式（尤其 deepseek-v4-pro 等思考模型）约 30s 被客户端 Abort：首字节超时对流式 / 非流式 / reasoning 分开，默认 30s / 5min / 10min，可用 NOMI_GATEWAY_* 环境变量覆盖；ChatFacade 注明主对话应优先流式。 (`@nomi-ai/desktop-go` patch)
 - 修复项目经符号链接路径打开（含 macOS 的 /var 临时目录）时，委派任务被误判为不在 git 仓库内、失去 worktree 隔离并退回共享目录的问题。 (`@nomi-ai/desktop-go` patch)
 - 修复预览区 Diff 标签里「编辑」的未保存内容在切换标签后丢失（#338）：草稿按标签保留，切回来接着编辑；关闭有草稿的 Diff 标签要先确认，超过标签上限时也不会被挤掉。修复首次从命令面板「新建任务」只打开任务列表、不弹出创建表单（#339），首次从搜索打开某个任务也会直接选中它。 (`@nomi-ai/ai-chat` patch)
+- 修复首次新建任务时在页面加载完成前返回聊天，任务弹窗仍会出现的问题；已离开的新建请求不再重放，返回任务页后仍可正常发起新的新建请求。 (`@nomi-ai/ai-chat` patch)
 - 内嵌弹窗（.cd-modal--inline）在纵向 flex 宿主里撑满剩余高度，支持顶部固定、内容滚动。 (`@nomi-ai/ui` patch)
 - 切到「完全放开」后的放行对 Claude Code、Codex、Gemini、Grok 都生效：这一轮里还在等的确认会被放行，之后 CLI 仍来问（如 Codex 本轮还按旧审批策略）也直接放行，不再弹卡片和通知。 (`@nomi-ai/desktop-go` patch)
 - 切换会话与流式输出时侧栏不再整列重渲染：侧栏与行回调保持稳定引用，会话列表内容未变时跳过刷新，清除错误时同值不产生新状态。 (`@nomi-ai/ai-chat` patch)

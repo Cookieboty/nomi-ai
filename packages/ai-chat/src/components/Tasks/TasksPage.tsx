@@ -70,7 +70,7 @@ export const TasksPage: React.FC<{
   const [createSeen, setCreateSeen] = useState(0);
   if (createNonce !== createSeen) {
     setCreateSeen(createNonce);
-    if (createNonce > 0) setCreating(true);
+    if (active && createNonce > 0) setCreating(true);
   }
   const [layout, setLayout] = useState(loadView);
   const [category, setCategory] = useState<TaskCategory | 'all'>('all');
