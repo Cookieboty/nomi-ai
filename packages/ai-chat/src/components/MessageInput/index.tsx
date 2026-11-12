@@ -140,7 +140,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [slashIdx, setSlashIdx] = useState(0);
-  const [isComposing, setIsComposing] = useState(false);
+  const composingRef = useRef(false);
   const [agentIdx, setAgentIdx] = useState(0);
   /** `/model ` 补全：候选（null = 还在读）、高亮项、按 Esc 关掉时的输入 */
   const [modelOpts, setModelOpts] = useState<ModelArgOption[] | null>(null);
@@ -413,7 +413,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // 处理输入法组合状态
-    if (isComposing || isImeComposing(e.nativeEvent)) return;
+    if (composingRef.current || isImeComposing(e.nativeEvent)) return;
 
     // macOS / Windows 统一 Alt+Enter 换行；先处理，避免补全菜单把它当成执行。
     if (e.key === 'Enter' && e.altKey) {
@@ -574,12 +574,18 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     }
   };
 
-  const handleCompositionStart = () => {
-    setIsComposing(true);
+  const handleCompositionStart = (e: React.CompositionEvent<HTMLTextAreaElement>) => {
+    // 不 setState：组词开始时重渲染会把受控 value 写回输入框，WebView2 会丢掉组词。
+    composingRef.current = true;
+    e.currentTarget.dataset.composing = '1';
   };
 
-  const handleCompositionEnd = () => {
-    setIsComposing(false);
+  const handleCompositionEnd = (e: React.CompositionEvent<HTMLTextAreaElement>) => {
+    composingRef.current = false;
+    delete e.currentTarget.dataset.composing;
+    const el = e.currentTarget;
+    setMessage(el.value);
+    setCaret(el.selectionStart ?? el.value.length);
   };
 
   const syncCaret = () => {
@@ -588,6 +594,9 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    // 组词中途不把文本写进 React：受控 value 一更新，布局测量就会改输入框高度，
+    // WebView2 把候选条甩到窗口左上角，组词文字也不再显示。compositionend 再提交。
+    if (composingRef.current || (e.nativeEvent as InputEvent).isComposing) return;
     setMessage(e.target.value);
     setCaret(e.target.selectionStart ?? e.target.value.length);
     setSlashIdx(0);

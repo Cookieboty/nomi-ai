@@ -5,6 +5,7 @@ import { type RowComponentProps } from 'react-window';
 
 import type { HarnessTabMeta } from '../../services/harnessClient';
 import type { HistorySession } from '../../services/historyClient';
+import { isImeComposing } from '../../utils/keyboard';
 import { EndpointIcon } from '../EndpointIcon';
 
 import { historyOrigin, routeInitial, routeTag } from './historyRoute';
@@ -176,7 +177,8 @@ const ThreadItemImpl: React.FC<{
           onBlur={(e) => onRename?.(c.id, e.currentTarget.value.trim() || null)}
           onKeyDown={(e) => {
             e.stopPropagation();
-            if (e.key === 'Enter') onRename?.(c.id, e.currentTarget.value.trim() || null);
+            if (e.key === 'Enter' && !isImeComposing(e.nativeEvent))
+              onRename?.(c.id, e.currentTarget.value.trim() || null);
             if (e.key === 'Escape') onRename?.(c.id, null);
           }}
         />

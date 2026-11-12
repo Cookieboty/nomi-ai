@@ -38,6 +38,7 @@ import {
   type Wire,
 } from '../../services/gatewayClient';
 import { providerDisplayName } from '../../services/providerClient';
+import { isImeComposing } from '../../utils/keyboard';
 import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './index.module.css';
@@ -618,7 +619,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                   onChange={(e) => setBase(e.target.value)}
                   onBlur={() => void detectBase()}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === 'Enter' && !isImeComposing(e.nativeEvent)) {
                       e.preventDefault();
                       void detectBase();
                     }

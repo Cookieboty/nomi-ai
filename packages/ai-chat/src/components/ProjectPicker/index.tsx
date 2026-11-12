@@ -9,6 +9,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { projectRoots, projectTitle, useProjects } from '../../services/projects';
+import { isImeComposing } from '../../utils/keyboard';
 import { ProjectDialog } from '../ProjectDialog';
 
 import styles from './index.module.css';
@@ -144,7 +145,8 @@ export const ProjectPicker: React.FC<{
                 data-testid={`${testId}-search`}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && shown[0]) apply(shown[0].id);
+                  if (e.key === 'Enter' && !isImeComposing(e.nativeEvent) && shown[0])
+                    apply(shown[0].id);
                 }}
               />
             </label>

@@ -8,6 +8,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { harnessClient } from '../../services/harnessClient';
+import { isImeComposing } from '../../utils/keyboard';
 import { shortenPath } from '../../utils/workspacePath';
 
 import styles from './index.module.css';
@@ -160,7 +161,8 @@ export const WorkspacePicker: React.FC<{
                   data-testid={`${testId}-search`}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && shown[0]) apply(shown[0]);
+                    if (e.key === 'Enter' && !isImeComposing(e.nativeEvent) && shown[0])
+                      apply(shown[0]);
                   }}
                 />
               </label>

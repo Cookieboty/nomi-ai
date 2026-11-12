@@ -29,6 +29,7 @@ import {
   type MemFact,
   type MemState,
 } from '../../services/memClient';
+import { isImeComposing } from '../../utils/keyboard';
 
 import styles from './index.module.css';
 
@@ -150,7 +151,8 @@ const EpisodeCard = memo(function EpisodeCard({
         <div
           className={styles.stack}
           onKeyDown={(ev) => {
-            if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') void save();
+            if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter' && !isImeComposing(ev.nativeEvent))
+              void save();
             if (ev.key === 'Escape') {
               ev.stopPropagation();
               setEdit(false);
@@ -233,7 +235,7 @@ const FactRow = memo(function FactRow({ f, onMsg }: { f: MemFact; onMsg: (m: str
             maxLength={200}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') save();
+              if (e.key === 'Enter' && !isImeComposing(e.nativeEvent)) save();
               if (e.key === 'Escape') {
                 e.stopPropagation();
                 setEdit(false);
@@ -542,7 +544,9 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     value={newFact}
                     maxLength={200}
                     onChange={(e) => setNewFact(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && void addFact()}
+                    onKeyDown={(e) =>
+                      e.key === 'Enter' && !isImeComposing(e.nativeEvent) && void addFact()
+                    }
                     data-testid="mem-new-fact"
                   />
                   <Button

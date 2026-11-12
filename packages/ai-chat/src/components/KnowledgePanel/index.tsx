@@ -32,6 +32,7 @@ import {
   type KbState,
 } from '../../services/kbClient';
 import { providerDisplayName } from '../../services/providerClient';
+import { isImeComposing } from '../../utils/keyboard';
 
 import styles from './index.module.css';
 
@@ -224,7 +225,7 @@ const ModelSection: React.FC<{
           value={model}
           onChange={(e) => setModel(e.target.value)}
           onBlur={() => model !== ref.model && save({ model })}
-          onKeyDown={(e) => e.key === 'Enter' && save({ model })}
+          onKeyDown={(e) => e.key === 'Enter' && !isImeComposing(e.nativeEvent) && save({ model })}
           data-testid={`kb-${kind}-model`}
         />
         <Button
@@ -645,7 +646,9 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                     placeholder={tr('ui.knowledge-local.enter-a-question-or-keywords-to-see-which')}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && void runSearch()}
+                    onKeyDown={(e) =>
+                      e.key === 'Enter' && !isImeComposing(e.nativeEvent) && void runSearch()
+                    }
                     data-testid="kb-search-input"
                   />
                   <Button

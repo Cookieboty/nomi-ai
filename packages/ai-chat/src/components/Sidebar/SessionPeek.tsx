@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom';
 import type { HarnessTabMeta } from '../../services/harnessClient';
 import { sessionPlace } from '../../services/projects';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import { isImeComposing } from '../../utils/keyboard';
 import { EndpointIcon } from '../EndpointIcon';
 
 import rail from './SessionPeek.module.css';
@@ -140,6 +141,7 @@ export const SessionPeek: React.FC<{
             onBlur={(e) => commit(e.currentTarget.value)}
             onKeyDown={(e) => {
               e.stopPropagation();
+              if (isImeComposing(e.nativeEvent)) return;
               if (e.key === 'Enter') commit(e.currentTarget.value);
               if (e.key === 'Escape') {
                 setEditing(false);

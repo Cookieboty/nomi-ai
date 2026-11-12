@@ -8,6 +8,7 @@ import { ChevronRight, Loader2, Plus, RefreshCw } from 'lucide-react';
 import React, { memo, useMemo, useState } from 'react';
 
 import type { GatewayModel } from '../../services/gatewayClient';
+import { isImeComposing } from '../../utils/keyboard';
 
 import styles from './index.module.css';
 import { metaSourceLabel } from './ModelDetailPanel';
@@ -246,7 +247,7 @@ export const ProviderModelsPanel: React.FC<{
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              if (e.key === 'Enter' && !isImeComposing(e.nativeEvent)) {
                 e.preventDefault();
                 add();
               }

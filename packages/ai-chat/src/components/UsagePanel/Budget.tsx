@@ -12,6 +12,7 @@ import {
   type UsageSettings,
   type UsageState,
 } from '../../services/usageClient';
+import { isImeComposing } from '../../utils/keyboard';
 import { AppIcon } from '../AppIcons';
 import { confirmDialog } from '../ConfirmDialog';
 
@@ -118,7 +119,7 @@ export const Budget: React.FC<Props> = ({ state, onSettings, onCleared }) => {
           onChange={(e) => setVals((v) => ({ ...v, [k]: e.target.value }))}
           onBlur={() => commit(k)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') commit(k);
+            if (e.key === 'Enter' && !isImeComposing(e.nativeEvent)) commit(k);
           }}
         />
       </span>

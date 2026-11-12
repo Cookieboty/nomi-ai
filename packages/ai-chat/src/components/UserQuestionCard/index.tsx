@@ -6,6 +6,8 @@ import { Button, Icon, IconButton, t } from '@nomi-ai/ui';
 import { ChevronDown, ChevronUp, MessageCircleQuestion } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 
+import { isImeComposing } from '../../utils/keyboard';
+
 import styles from './index.module.css';
 
 export interface UserQuestionOption {
@@ -148,7 +150,7 @@ export const UserQuestionCard: React.FC<{
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.isComposing || e.key === 'Process') return;
+      if (isImeComposing(e) || e.key === 'Process') return;
       const root = rootRef.current;
       if (!root) return;
       const target = e.target as HTMLElement | null;
@@ -287,6 +289,18 @@ export const UserQuestionCard: React.FC<{
               placeholder={t('ui.chat-settings.question-type-own')}
               value={pick.custom}
               onFocus={() => setCursor(options.length)}
+              onCompositionStart={(e) => {
+                e.currentTarget.dataset.composing = '1';
+              }}
+              onCompositionEnd={(e) => {
+                delete e.currentTarget.dataset.composing;
+                const custom = e.currentTarget.value;
+                if (!question.multi && custom) {
+                  setPick(question.id, { selected: [], custom });
+                } else {
+                  setPick(question.id, { selected: pick.selected, custom });
+                }
+              }}
               onChange={(e) => {
                 const custom = e.target.value;
                 if (!question.multi && custom) {
@@ -321,6 +335,13 @@ export const UserQuestionCard: React.FC<{
         placeholder={t('ui.chat-settings.question-details-placeholder')}
         aria-label={t('ui.chat-settings.question-details-placeholder')}
         value={details}
+        onCompositionStart={(e) => {
+          e.currentTarget.dataset.composing = '1';
+        }}
+        onCompositionEnd={(e) => {
+          delete e.currentTarget.dataset.composing;
+          setDetails(e.currentTarget.value);
+        }}
         onChange={(e) => setDetails(e.target.value)}
       />
     </div>

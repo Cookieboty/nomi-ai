@@ -7,14 +7,17 @@
  */
 import { Button, Icon, Modal, t, useLocale } from '@nomi-ai/ui';
 import { ChevronDown, Folder, FolderOpen, Plus, Star, X } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { harnessClient } from '../../services/harnessClient';
 import { projectRoots, projectsClient, type Project } from '../../services/projects';
+import { isImeComposing } from '../../utils/keyboard';
 import { workspaceKey } from '../../utils/workspacePath';
 import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './index.module.css';
+import { placeAddFolderMenu } from './placeMenu';
 
 export const baseName = (p: string) =>
   p
@@ -33,6 +36,9 @@ const AddFolderMenu: React.FC<{
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<React.CSSProperties | null>(null);
   useEffect(() => {
     if (!open) return;
     let alive = true;
@@ -41,7 +47,9 @@ const AddFolderMenu: React.FC<{
       .then((l) => alive && setRecent(l))
       .catch(() => undefined);
     const onDown = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      const node = e.target as Node;
+      if (ref.current?.contains(node) || menuRef.current?.contains(node)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
@@ -60,49 +68,86 @@ const AddFolderMenu: React.FC<{
 
   const taken = new Set(exclude.map(workspaceKey));
   const shown = recent.filter((p) => !taken.has(workspaceKey(p)));
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = (scrollIntoView: boolean) => {
+      const anchor = triggerRef.current;
+      if (!anchor) return;
+      // 只在打开时把按钮滚进可视区。滚动过程中再滚会跟用户抢位置。
+      if (scrollIntoView) anchor.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      setBox(
+        placeAddFolderMenu(anchor.getBoundingClientRect(), {
+          width: window.innerWidth,
+          height: window.innerHeight,
+        }),
+      );
+    };
+    place(true);
+    const follow = () => place(false);
+    window.addEventListener('resize', follow);
+    const scroller = triggerRef.current?.closest('.cd-modal__body');
+    scroller?.addEventListener('scroll', follow);
+    return () => {
+      window.removeEventListener('resize', follow);
+      scroller?.removeEventListener('scroll', follow);
+    };
+  }, [open, shown.length]);
   const browse = async () => {
     setOpen(false);
     const picked = await harnessClient.pickDir().catch(() => null);
     if (picked) onAdd(picked);
   };
 
-  const menu = open && (
-    <div className={styles.menu} role="menu" data-testid="project-add-menu">
-      {shown.length > 0 && <div className={styles.menuGroup}>{t('ui.cli-monitor.recent')}</div>}
-      {shown.map((p) => (
+  const menu =
+    open &&
+    createPortal(
+      <div
+        ref={menuRef}
+        className={styles.menu}
+        role="menu"
+        data-testid="project-add-menu"
+        data-placement={box?.bottom != null ? 'above' : 'below'}
+        style={box ?? { position: 'fixed', visibility: 'hidden' }}
+      >
+        <div className={styles.menuScroll}>
+          {shown.length > 0 && <div className={styles.menuGroup}>{t('ui.cli-monitor.recent')}</div>}
+          {shown.map((p) => (
+            <button
+              key={p}
+              type="button"
+              role="menuitem"
+              className={styles.menuItem}
+              data-testid="project-add-recent"
+              onClick={() => {
+                setOpen(false);
+                onAdd(p);
+              }}
+            >
+              <Icon icon={Folder} size={14} />
+              <span className={styles.menuName}>{baseName(p)}</span>
+              <span className={styles.menuPath}>{p}</span>
+            </button>
+          ))}
+        </div>
         <button
-          key={p}
           type="button"
           role="menuitem"
-          className={styles.menuItem}
-          data-testid="project-add-recent"
-          onClick={() => {
-            setOpen(false);
-            onAdd(p);
-          }}
+          className={`${styles.menuItem} ${styles.menuPin}`}
+          data-testid="project-add-browse"
+          onClick={() => void browse()}
         >
-          <Icon icon={Folder} size={14} />
-          <span className={styles.menuName}>{baseName(p)}</span>
-          <span className={styles.menuPath}>{p}</span>
+          <Icon icon={FolderOpen} size={14} />
+          <span className={styles.menuName}>{t('ui.cli-monitor.choose-folder-ellipsis')}</span>
         </button>
-      ))}
-      <button
-        type="button"
-        role="menuitem"
-        className={styles.menuItem}
-        data-testid="project-add-browse"
-        onClick={() => void browse()}
-      >
-        <Icon icon={FolderOpen} size={14} />
-        <span className={styles.menuName}>{t('ui.cli-monitor.choose-folder-ellipsis')}</span>
-      </button>
-    </div>
-  );
+      </div>,
+      document.body,
+    );
 
   if (variant === 'row') {
     return (
       <div className={styles.addRowWrap} ref={ref}>
         <button
+          ref={triggerRef}
           type="button"
           className={styles.addRow}
           aria-haspopup="menu"
@@ -120,6 +165,7 @@ const AddFolderMenu: React.FC<{
   return (
     <div className={styles.empty} ref={ref}>
       <button
+        ref={triggerRef}
         type="button"
         className={styles.emptyLabel}
         aria-haspopup="menu"
@@ -256,6 +302,9 @@ export const ProjectDialog: React.FC<ProjectDialogProps> = ({ project, onClose, 
             aria-label={t('ui.cli-monitor.project-name')}
             autoFocus
             onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && isImeComposing(e.nativeEvent)) e.preventDefault();
+            }}
             data-testid="project-name"
           />
         </label>
@@ -265,53 +314,55 @@ export const ProjectDialog: React.FC<ProjectDialogProps> = ({ project, onClose, 
             <AddFolderMenu exclude={folders} onAdd={add} variant="empty" />
           ) : (
             <>
-              {folders.map((p, i) => {
-                const bad = missing.has(workspaceKey(p));
-                return (
-                  <div
-                    key={p}
-                    className={styles.row}
-                    data-testid="project-folder"
-                    data-primary={i === 0 || undefined}
-                    data-missing={bad || undefined}
-                  >
-                    <Icon icon={Folder} size={16} />
-                    <span className={styles.rowName} title={p}>
-                      {baseName(p)}
-                    </span>
-                    <span className={styles.rowPath} title={p}>
-                      {bad ? t('ui.cli-monitor.project-folder-missing') : p}
-                    </span>
-                    {i === 0 ? (
-                      <span
-                        className={styles.primaryTag}
-                        title={t('ui.cli-monitor.project-primary-hint')}
-                      >
-                        {t('ui.cli-monitor.project-primary')}
+              <div className={styles.folderList}>
+                {folders.map((p, i) => {
+                  const bad = missing.has(workspaceKey(p));
+                  return (
+                    <div
+                      key={p}
+                      className={styles.row}
+                      data-testid="project-folder"
+                      data-primary={i === 0 || undefined}
+                      data-missing={bad || undefined}
+                    >
+                      <Icon icon={Folder} size={16} />
+                      <span className={styles.rowName} title={p}>
+                        {baseName(p)}
                       </span>
-                    ) : (
+                      <span className={styles.rowPath} title={p}>
+                        {bad ? t('ui.cli-monitor.project-folder-missing') : p}
+                      </span>
+                      {i === 0 ? (
+                        <span
+                          className={styles.primaryTag}
+                          title={t('ui.cli-monitor.project-primary-hint')}
+                        >
+                          {t('ui.cli-monitor.project-primary')}
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className={styles.rowBtn}
+                          aria-label={t('ui.cli-monitor.project-set-primary')}
+                          onClick={() => makePrimary(p)}
+                          data-testid="project-set-primary"
+                        >
+                          <Icon icon={Star} size={14} />
+                        </button>
+                      )}
                       <button
                         type="button"
                         className={styles.rowBtn}
-                        aria-label={t('ui.cli-monitor.project-set-primary')}
-                        onClick={() => makePrimary(p)}
-                        data-testid="project-set-primary"
+                        aria-label={t('ui.providers-schedule.task-folders-remove', baseName(p))}
+                        onClick={() => remove(p)}
+                        data-testid="project-remove-folder"
                       >
-                        <Icon icon={Star} size={14} />
+                        <Icon icon={X} size={14} />
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      className={styles.rowBtn}
-                      aria-label={t('ui.providers-schedule.task-folders-remove', baseName(p))}
-                      onClick={() => remove(p)}
-                      data-testid="project-remove-folder"
-                    >
-                      <Icon icon={X} size={14} />
-                    </button>
-                  </div>
-                );
-              })}
+                    </div>
+                  );
+                })}
+              </div>
               <AddFolderMenu exclude={folders} onAdd={add} variant="row" />
             </>
           )}

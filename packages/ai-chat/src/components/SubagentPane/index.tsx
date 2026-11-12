@@ -15,7 +15,7 @@ import { harnessClient, type HarnessTabMessage } from '../../services/harnessCli
 import { replyPermissionRequest } from '../../services/permissionReply';
 import { fromHarnessMessage, tabLiveToConv } from '../../utils/convAdapters';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
-import { shouldIgnoreEscape } from '../../utils/keyboard';
+import { isImeComposing, shouldIgnoreEscape } from '../../utils/keyboard';
 import { buildCliSlots } from '../Conversation/cliSlots';
 import { ConversationView } from '../Conversation/index';
 import { TabSandboxRequests } from '../Conversation/SandboxRequests';
@@ -185,7 +185,7 @@ const SubagentPaneBody: React.FC<{
           onCompositionStart={() => setComposing(true)}
           onCompositionEnd={() => setComposing(false)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey && !composing && !e.nativeEvent.isComposing) {
+            if (e.key === 'Enter' && !e.shiftKey && !composing && !isImeComposing(e.nativeEvent)) {
               e.preventDefault();
               void submit();
             }
