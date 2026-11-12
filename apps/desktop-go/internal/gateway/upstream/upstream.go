@@ -242,7 +242,7 @@ func Body(ingress string, c *cand.Candidate, body any, opts BodyOpts) (any, erro
 		} else {
 			out = spread(body).Set("model", c.UpstreamModel)
 		}
-		bound := intent.WithBindingEffort(in, opts.BindingEffort)
+		bound := intent.ApplyUserLevel(in, opts.BindingEffort)
 		var efforts []string
 		if xs, ok := at(m, "reasoning", "efforts").([]any); ok {
 			for _, x := range xs {
@@ -272,7 +272,7 @@ func Body(ingress string, c *cand.Candidate, body any, opts BodyOpts) (any, erro
 			EncodeOptions: request.EncodeOptions{ReasoningPassback: passback},
 			UpstreamModel: &um,
 		})
-		if eff := intent.WithBindingEffort(in, opts.BindingEffort); shouldRenderReasoning(eff, c) {
+		if eff := intent.ApplyUserLevel(in, opts.BindingEffort); shouldRenderReasoning(eff, c) {
 			out = mreq.RenderReasoning(c.Wire, out, eff, m, opts.Notes).Body
 		}
 	}

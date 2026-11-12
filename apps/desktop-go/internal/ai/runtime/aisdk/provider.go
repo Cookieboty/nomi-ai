@@ -15,10 +15,15 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
+	aimodel "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/providers/protocol"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/modelid"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/models"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
+
+// gatewayProviderID 与 providers.GatewayProviderID 相同。这里不引用 providers，避免和路由层循环依赖。
+const gatewayProviderID = "nomi-gateway"
 
 // Provider：AiSdkLlmProvider
 type Provider struct {
@@ -280,6 +285,14 @@ func finishOf(raw string) string {
 		return "error"
 	}
 	return "stop"
+}
+
+func requestEffort(r *llm.ChatRequest) string {
+	if r == nil || r.Extra == nil {
+		return ""
+	}
+	s, _ := r.Extra["reasoningEffort"].(string)
+	return s
 }
 
 // ThinkingOptions：thinkingOptions
@@ -770,11 +783,28 @@ func (p *Provider) params(r *llm.ChatRequest, ts []Tool, hasTools bool) *TextPar
 	if p.protocol() != "anthropic" {
 		msgs = DropHistoryReasoning(msgs)
 	}
+	modelID := p.resolveModel(r)
+	think := p.thinkingOptions()
+	level := models.ResolveRequestLevel(modelID, requestEffort(r))
+	if level != "" {
+		// 这一轮的档位覆盖供应商上的总开关，避免再写死 medium / 2048。
+		think = nil
+	}
 	tp := &TextParams{
-		Model: p.modelFactory(p.resolveModel(r)), Instructions: instr, Messages: msgs,
+		Model: p.modelFactory(modelID), Instructions: instr, Messages: msgs,
 		Temperature: r.Temperature, TopP: r.TopP, MaxOutputTokens: r.MaxTokens,
-		ProviderOptions: p.cacheOptions(p.thinkingOptions(), r), MaxRetries: p.opts.MaxRetries,
+		ProviderOptions: p.cacheOptions(think, r), MaxRetries: p.opts.MaxRetries,
 		CacheBreakpoints: p.protocol() == "anthropic",
+	}
+	if level != "" {
+		if p.ID == gatewayProviderID {
+			// 本机网关按模型能力改写成上游参数。请求体里不带推理字段，避免不支持的模型 400。
+			tp.Headers = []aimodel.Header{aimodel.H(models.ReasoningEffortHeader, level)}
+		} else {
+			direct := models.DirectOptions(p.protocol(), p.ID, modelID, level)
+			tp.ProviderOptions = p.cacheOptions(direct, r)
+			tp.Reasoning = models.CallReasoning(p.protocol(), level)
+		}
 	}
 	if hasTools {
 		tp.Tools, tp.HasTools = ts, true

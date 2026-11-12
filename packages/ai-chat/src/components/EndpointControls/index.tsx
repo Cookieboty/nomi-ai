@@ -23,6 +23,7 @@ import { useProject } from '../../services/projects';
 import { BranchPicker } from '../BranchPicker';
 import { ModelControls } from '../ModelControls';
 import { NomiModelSwitch } from '../NomiModelSwitch';
+import { NomiThinking } from '../NomiThinking';
 import { BypassTip, PermissionModeChip, type PermissionTab } from '../PermissionModeChip';
 import { ProjectPicker } from '../ProjectPicker';
 
@@ -63,7 +64,12 @@ export const EndpointControls: React.FC<{ part?: 'mode' | 'model' }> = ({ part }
   const mode = part !== 'model';
   return (
     <>
-      {model && !cli && gatewayClientAvailable() && <NomiModelSwitch />}
+      {model && !cli && gatewayClientAvailable() && (
+        <>
+          <NomiModelSwitch />
+          <NomiThinking />
+        </>
+      )}
       {mode && nomiTab && <PermissionModeChip tab={nomiTab} />}
       {model && cli && modeTab && <ModelControls key={`model-${modeTab.backend}`} tab={modeTab} />}
       {mode && cli && modeTab && (

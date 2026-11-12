@@ -792,6 +792,19 @@ func nodeHeaderObj(req *http.Request) *u.Obj {
 	return o
 }
 
+// requestEffort：标签绑定上的档位优先（编程助手）；没有时用 Nomi 对话带来的头。
+// 头只在本机网关读取，上游请求不会带上它。
+func requestEffort(binding *route.TabBinding, header string) *string {
+	if binding != nil && binding.Effort != nil && strings.TrimSpace(*binding.Effort) != "" {
+		return binding.Effort
+	}
+	h := strings.TrimSpace(header)
+	if h == "" {
+		return nil
+	}
+	return &h
+}
+
 func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.GatewayConfig, client string, ingress *upstream.Ingress, binding *route.TabBinding) {
 	startedAt := NowMs()
 	tag := u.NewObj()
@@ -1182,10 +1195,7 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 			errs = append(errs, c.Provider.Name+"·"+kn+": "+last.message)
 			continue
 		}
-		var effort *string
-		if binding != nil {
-			effort = binding.Effort
-		}
+		effort := requestEffort(binding, req.Header.Get(models.ReasoningEffortHeader))
 		last = g.attempt(cfg, resolveAs, req, ingress, c, sendBody, wantsStream, abortCtx, trace, effort)
 		if last.kind == "response" && wantsStream && isSseResponse(last.res) {
 			got := *last

@@ -521,6 +521,8 @@
   "ui.chat-settings.theme": "Theme",
   "ui.chat-settings.theme-layout-app-icon-and-chat-background-applied": "Theme, layout and app icon — applied instantly.",
   "ui.chat-settings.thinking": "Thinking…",
+  "ui.chat-settings.thinking-off": "Off",
+  "ui.chat-settings.thinking-on": "On",
   "ui.chat-settings.this-coding-agent-doesn-t-expose-a-subagent": "This coding agent doesn't expose a subagent's internal steps; only the task it was given and its final result are shown.",
   "ui.chat-settings.this-model-has-no-reasoning-effort": "This model has no reasoning effort",
   "ui.chat-settings.to-switch-in-the-input-box": "to switch in the input box",

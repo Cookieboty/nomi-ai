@@ -781,8 +781,8 @@ const ModelChip: React.FC<{
                   <EffortSlider
                     levels={levels}
                     value={shown}
-                    onPreview={setPreview}
-                    onCommit={pickEffort}
+                    onPreview={(e) => setPreview(e as ReasoningEffort | null)}
+                    onCommit={(e) => pickEffort(e as ReasoningEffort)}
                   />
                 </>
               ) : (

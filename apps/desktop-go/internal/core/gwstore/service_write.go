@@ -116,6 +116,9 @@ func (s *Service) withEffective(m *u.Obj, r ResolvedModelMeta) *u.Obj {
 		eff.Set("vision", *r.Vision)
 	}
 	eff.Set("source", r.Source).Set("maxOutputSource", r.MaxOutputSource)
+	if th := models.ProfileOf(idOf(m), m).Obj(); th != nil {
+		eff.Set("thinking", th)
+	}
 	if r.LongContext != nil {
 		lc := u.NewObj("standard", r.LongContext.Standard, "full", r.LongContext.Full, "on", r.LongContext.On)
 		if s.rt.d.LongContextPrice != nil {

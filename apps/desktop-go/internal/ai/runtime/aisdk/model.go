@@ -106,6 +106,10 @@ type TextParams struct {
 	RetryOverflow func(err error, sent []*u.Obj) []*u.Obj
 	// CacheBreakpoints：Anthropic 协议：每次请求在系统提示和最后一条消息上打缓存断点（不打不缓存）
 	CacheBreakpoints bool
+	// Headers：这一轮额外的请求头（Nomi 思考深度）。生成请求还会带上 user-agent。
+	Headers []llm.Header
+	// Reasoning：直接打到 Anthropic / Responses 时的思考档位（"" = 不设置）
+	Reasoning string
 }
 
 func (p *TextParams) maxSteps() int {
@@ -134,8 +138,18 @@ func (p *TextParams) callOptions(prompt []any, stream bool) llm.CallOptions {
 	for _, t := range p.Tools {
 		o.Tools = append(o.Tools, llm.Tool{Type: "function", Name: t.Name, Description: t.Description, InputSchema: t.InputSchema})
 	}
+	if p.Reasoning != "" {
+		o.Reasoning = p.Reasoning
+	}
+	var hs []llm.Header
 	if !stream {
-		o.Headers = []llm.Header{llm.H("user-agent", sdkUserAgent)}
+		hs = append(hs, llm.H("user-agent", sdkUserAgent))
+	}
+	if len(p.Headers) > 0 {
+		hs = append(hs, p.Headers...)
+	}
+	if len(hs) > 0 {
+		o.Headers = hs
 	}
 	return o
 }

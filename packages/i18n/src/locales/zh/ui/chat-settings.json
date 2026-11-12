@@ -521,6 +521,8 @@
   "ui.chat-settings.theme": "主题",
   "ui.chat-settings.theme-layout-app-icon-and-chat-background-applied": "主题、界面模式与应用图标，即时生效。",
   "ui.chat-settings.thinking": "正在思考中…",
+  "ui.chat-settings.thinking-off": "不思考",
+  "ui.chat-settings.thinking-on": "思考开",
   "ui.chat-settings.this-coding-agent-doesn-t-expose-a-subagent": "该编程助手不提供子代理的内部步骤，这里只显示交给它的任务和最终结果。",
   "ui.chat-settings.this-model-has-no-reasoning-effort": "当前模型无思考深度",
   "ui.chat-settings.to-switch-in-the-input-box": "在输入框里切换",

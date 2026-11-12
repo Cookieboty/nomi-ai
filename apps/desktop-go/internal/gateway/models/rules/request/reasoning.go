@@ -138,7 +138,7 @@ func RenderReasoning(wire string, body any, in *intent.Intent, m *u.Obj, notes *
 	efforts := effortsOf(m)
 	known := len(efforts) > 0
 	mode := in.Mode
-	if control == "none" {
+	if control == "none" || (control == "" && wire != "gemini") {
 		push(notes, "推理：请求 "+describe(in)+" → 模型不支持调节思考，不发推理参数")
 		return Rendered{Body: body, Losses: []string{"reasoning-control"}}
 	}
@@ -192,6 +192,11 @@ func RenderReasoning(wire string, body any, in *intent.Intent, m *u.Obj, notes *
 			o.Set("enable_thinking", true)
 			o.Set("thinking_budget", budget)
 			sent = "thinking_budget=" + fmtNum(budget)
+		} else if control == "budget" && mode == "disabled" {
+			// Qwen 等：关掉思考要显式 enable_thinking=false，只是不带 thinking_budget 仍可能按模型默认开着。
+			o.Delete("thinking_budget")
+			o.Set("enable_thinking", false)
+			sent = "enable_thinking=false"
 		} else if mode != "disabled" {
 			effort := openaiEffort(fit(effortOf(in, maxTokens)), known)
 			o.Set("reasoning_effort", effort)
@@ -250,7 +255,8 @@ func RenderReasoning(wire string, body any, in *intent.Intent, m *u.Obj, notes *
 			}
 			levelModel = gemini3.Test(u.JSString(mv))
 		}
-		include := in.IncludeThoughts != nil && *in.IncludeThoughts
+		// 没显式关掉时把思考内容要回来，对话里的「已思考」才有字。
+		include := in.IncludeThoughts == nil || *in.IncludeThoughts
 		if mode == "disabled" {
 			gc.Set("thinkingConfig", u.NewObj("thinkingBudget", 0.0))
 			sent = "thinkingBudget=0"

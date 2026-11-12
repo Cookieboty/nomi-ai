@@ -57,6 +57,15 @@ export interface GatewayModel {
     vision?: boolean;
     source: MetaSource;
     maxOutputSource: MetaSource;
+    /**
+     * 这个模型可调的思考深度。没有（或少于两档）时输入栏不显示选择器，请求也不带推理参数。
+     * default 是 levels 的第二档。
+     */
+    thinking?: {
+      control: string;
+      levels: string[];
+      default: string;
+    };
     /** 可开长上下文：标准窗口 / 最大输入 / 模型默认是否开启 / 超过标准窗口后的单价（USD 每百万 token） */
     longContext?: {
       standard: number;

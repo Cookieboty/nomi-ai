@@ -1262,6 +1262,8 @@ export type TranslationKey =
   | 'ui.chat-settings.theme'
   | 'ui.chat-settings.theme-layout-app-icon-and-chat-background-applied'
   | 'ui.chat-settings.thinking'
+  | 'ui.chat-settings.thinking-off'
+  | 'ui.chat-settings.thinking-on'
   | 'ui.chat-settings.this-coding-agent-doesn-t-expose-a-subagent'
   | 'ui.chat-settings.this-model-has-no-reasoning-effort'
   | 'ui.chat-settings.to-switch-in-the-input-box'

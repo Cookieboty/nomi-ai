@@ -794,6 +794,9 @@
       },
       "tools": {
         "calling": true
+      },
+      "reasoning": {
+        "control": "none"
       }
     },
     "deepseek-chat-v3.1": {
@@ -3369,8 +3372,8 @@
         "calling": true
       },
       "reasoning": {
-        "control": "toggle",
-        "canDisable": true
+        "control": "effort",
+        "efforts": ["low", "medium", "high"]
       }
     },
     "grok-4.20-0309-non-reasoning": {

@@ -14,6 +14,7 @@ import { chunkToTrace, chunkToUsage } from '../utils/chunkTrace';
 import { api, hasTransport } from './api';
 import { createConversationStore } from './conversationBoot';
 import { buildProviderMessages, type ProviderMessage } from './history';
+import { currentNomiThinking } from './thinkingDepth';
 import { upstreamErrorText } from './upstreamErrorText';
 
 const log = createLogger('IPC');
@@ -217,11 +218,12 @@ export class SdkIPCClient implements IPCClient {
       if (fixed?.id && !this.store.get(fixed.id))
         throw new Error(t('ui.chat-settings.conversation-deleted-message-not-sent'));
       // Nomi 对话的项目：内核按它实时取文件夹（文件工具限在里面，命令与委派的编程助手从主文件夹启动）
-      const projectId = fixed
-        ? fixed.projectId
-        : conversationId
-          ? this.store.get(conversationId)?.projectId
-          : undefined;
+      const meta = conversationId ? this.store.get(conversationId) : undefined;
+      const projectId = fixed ? fixed.projectId : meta?.projectId;
+      // 思考深度按这一轮所属的会话取（准备期间用户可能已切走），模型不支持时不带这个字段
+      const reasoningEffort = conversationId
+        ? currentNomiThinking(meta?.reasoningEffort)
+        : undefined;
       const opts = {
         messages: await this.buildMessages(
           message,
@@ -232,7 +234,13 @@ export class SdkIPCClient implements IPCClient {
         ),
         ...(reqId ? { reqId } : {}),
         ...(conversationId
-          ? { extra: { conversationId, ...(projectId ? { projectId } : {}) } }
+          ? {
+              extra: {
+                conversationId,
+                ...(projectId ? { projectId } : {}),
+                ...(reasoningEffort ? { reasoningEffort } : {}),
+              },
+            }
           : {}),
       };
       if (signal?.aborted) return;

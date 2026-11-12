@@ -91,6 +91,11 @@ export interface ChatSession {
   modelId?: string;
   /** 该会话归属的后端；缺省迁移为 nomi */
   backend: ConversationBackend;
+  /**
+   * Nomi 对话的思考深度（这个模型档位列表里的一档）。缺省用该模型的第二档。
+   * 模型不支持时选择器不出现，请求也不带这个字段。
+   */
+  reasoningEffort?: string;
   /** CLI 标签 id：有值时消息在 harness，侧栏只存元信息 */
   tabId?: string;
   /** CLI 原生会话 id：用于与本机历史按 backend + sessionId 去重 */
