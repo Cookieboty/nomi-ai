@@ -41,23 +41,28 @@ type appTurn struct {
 
 // AppServerDriver：Codex app-server 会话驱动。
 type AppServerDriver struct {
-	Conn      *rpc.Connection
-	o         AppServerDriverOptions
-	hub       *clisdk.EventHub
-	perms     map[string]*jsrt.Promise[Json]
-	permOrder []string
-	turn      *appTurn
-	exited    bool
-	ThreadID  *string
-	Totals    *CodexTokenTotals
-	Context   Json // nil = null
+	Conn          *rpc.Connection
+	o             AppServerDriverOptions
+	hub           *clisdk.EventHub
+	perms         map[string]*jsrt.Promise[Json]
+	permOrder     []string
+	questions     map[string]*jsrt.Promise[Json]
+	questionOrder []string
+	turn          *appTurn
+	exited        bool
+	ThreadID      *string
+	Totals        *CodexTokenTotals
+	Context       Json // nil = null
 	// 压缩完成后还没收到新占用：旧 contextTokens 已作废。结束这一轮时在 usage 里写 contextTokens = 0，
 	// 落盘的消息就带着「压缩后大小未知」的边界，视图不会回扫到压缩前的值（#217）
 	contextStale bool
 }
 
 func NewAppServerDriver(o AppServerDriverOptions) *AppServerDriver {
-	d := &AppServerDriver{o: o, hub: clisdk.NewEventHub(), perms: map[string]*jsrt.Promise[Json]{}}
+	d := &AppServerDriver{
+		o: o, hub: clisdk.NewEventHub(),
+		perms: map[string]*jsrt.Promise[Json]{}, questions: map[string]*jsrt.Promise[Json]{},
+	}
 	d.Conn = rpc.NewConnection(o.Child, rpc.Handlers{OnNotification: d.onNotification, OnRequest: d.onRequest}, o.RPC)
 	o.Child.OnClose(func(code *int, _ string) {
 		d.exited = true
@@ -290,10 +295,74 @@ func (d *AppServerDriver) finish(turn *appTurn, done any) {
 
 var rejectRe = regexp.MustCompile(`^reject|^decline|^deny`)
 
+// errQuestionCancelled：用户取消、停止这一轮或进程退出时，request_user_input 没有「取消」结果体，
+// 用 JSON-RPC 错误告诉 Codex 这次提问被取消了（空 answers 会让模型当成没选、继续往下做）。
+var errQuestionCancelled = errors.New("cancelled")
+
 func (d *AppServerDriver) onRequest(method string, params Json) *jsrt.Promise[any] {
+	switch method {
+	case "item/tool/requestUserInput":
+		return d.beginQuestion(method, params)
+	case "mcpServer/elicitation/request":
+		mode, approval := codexElicitationKind(params)
+		switch {
+		case approval:
+			return d.beginPermission(method, params, true)
+		case mode == "form" || mode == "openai/form":
+			return d.beginQuestion(method, params)
+		default:
+			// URL 和认不出的模式：不挂起这一轮。没有打开外部链接的界面，按取消回。
+			return jsrt.Resolved[any](O("action", "cancel", "content", nil))
+		}
+	}
 	if !appApprovals[method] {
 		return jsrt.Rejected[any](errors.New("unsupported client method " + method))
 	}
+	return d.beginPermission(method, params, false)
+}
+
+// codexElicitationKind：请求体在 params.request 上。工具审批（codex_approval_kind）走允许 / 拒绝。
+func codexElicitationKind(params Json) (mode string, approval bool) {
+	body := params
+	if req, ok := params.Get("request").(*util.Obj); ok && req != nil &&
+		(req.Has("mode") || req.Has("requestedSchema") || req.Has("message")) {
+		body = req
+	}
+	mode, _ = body.Get("mode").(string)
+	meta, _ := body.Get("_meta").(*util.Obj)
+	if meta == nil {
+		meta, _ = body.Get("meta").(*util.Obj)
+	}
+	if meta != nil && meta.Get("codex_approval_kind") == "mcp_tool_call" {
+		approval = true
+	}
+	return mode, approval
+}
+
+func (d *AppServerDriver) beginQuestion(method string, params Json) *jsrt.Promise[any] {
+	id := strOr(d.o.PermissionIDPrefix, "codex-perm-") + pick(d.o.NewID)()
+	ap := jsrt.NewPromise[Json]()
+	d.questions[id] = ap
+	d.questionOrder = append(d.questionOrder, id)
+	e := O("kind", "question", "id", id, "method", method, "params", params)
+	if d.turn != nil {
+		e.Set("turnId", d.turn.localID)
+	}
+	d.hub.Emit(e)
+	return jsrt.Async(func() (any, error) {
+		answer, err := jsrt.Await(ap)
+		d.deleteQuestion(id)
+		if err != nil {
+			return nil, err
+		}
+		if answer == nil {
+			answer = O()
+		}
+		return answer, nil
+	})
+}
+
+func (d *AppServerDriver) beginPermission(method string, params Json, elicitation bool) *jsrt.Promise[any] {
 	id := strOr(d.o.PermissionIDPrefix, "codex-perm-") + pick(d.o.NewID)()
 	ap := jsrt.NewPromise[Json]()
 	d.perms[id] = ap
@@ -306,25 +375,39 @@ func (d *AppServerDriver) onRequest(method string, params Json) *jsrt.Promise[an
 	return jsrt.Async(func() (any, error) {
 		answer, _ := jsrt.Await(ap)
 		d.deletePerm(id)
-		var decision string
-		if answer.Has("optionId") {
-			if rejectRe.MatchString(util.JSString(answer.Get("optionId"))) {
-				decision = "decline"
-			} else {
-				decision = "accept"
-			}
-		} else {
-			switch answer.Get("decision") {
+		decision := permissionDecision(answer)
+		if elicitation {
+			action := "decline"
+			switch decision {
+			case "accept":
+				action = "accept"
 			case "cancel":
-				decision = "cancel"
-			case "allow":
-				decision = "accept"
-			default:
-				decision = "decline"
+				action = "cancel"
 			}
+			return O("action", action, "content", nil), nil
 		}
 		return O("decision", decision), nil
 	})
+}
+
+func permissionDecision(answer Json) string {
+	if answer == nil {
+		return "decline"
+	}
+	if answer.Has("optionId") {
+		if rejectRe.MatchString(util.JSString(answer.Get("optionId"))) {
+			return "decline"
+		}
+		return "accept"
+	}
+	switch answer.Get("decision") {
+	case "cancel":
+		return "cancel"
+	case "allow":
+		return "accept"
+	default:
+		return "decline"
+	}
 }
 
 func (d *AppServerDriver) deletePerm(id string) {
@@ -348,12 +431,50 @@ func (d *AppServerDriver) RespondPermission(id string, answer Json) bool {
 
 func (d *AppServerDriver) HasPermission(id string) bool { return d.perms[id] != nil }
 
+func (d *AppServerDriver) deleteQuestion(id string) {
+	delete(d.questions, id)
+	for i, x := range d.questionOrder {
+		if x == id {
+			d.questionOrder = append(d.questionOrder[:i:i], d.questionOrder[i+1:]...)
+			return
+		}
+	}
+}
+
+// RespondQuestion：把问题卡的协议结果写回。cancel 为真时以错误结束（request_user_input 的取消）。
+func (d *AppServerDriver) RespondQuestion(id string, body Json, cancel bool) bool {
+	p := d.questions[id]
+	if p == nil {
+		return false
+	}
+	d.deleteQuestion(id)
+	if cancel {
+		p.Reject(errQuestionCancelled)
+		return true
+	}
+	if body == nil {
+		body = O()
+	}
+	p.Resolve(body)
+	return true
+}
+
+func (d *AppServerDriver) cancelQuestions() {
+	for _, id := range append([]string{}, d.questionOrder...) {
+		if p := d.questions[id]; p != nil {
+			d.deleteQuestion(id)
+			p.Reject(errQuestionCancelled)
+		}
+	}
+}
+
 func (d *AppServerDriver) cancelPermissions() {
 	for _, id := range append([]string{}, d.permOrder...) {
 		if p := d.perms[id]; p != nil {
 			p.Resolve(O("decision", "cancel"))
 		}
 	}
+	d.cancelQuestions()
 }
 
 func threadIDOf(r any) (string, bool) {

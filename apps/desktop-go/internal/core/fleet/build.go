@@ -29,7 +29,7 @@ const (
 	NeedPermission = "permission"
 	NeedSandbox    = "sandbox"
 	NeedAccept     = "accept"
-	// NeedQuestion：有结构化问题在等用户回答（Nomi 的 ask_user / Claude AskUserQuestion）
+	// NeedQuestion：有结构化问题在等用户回答（Nomi 的 ask_user / Claude / Codex / ACP）
 	NeedQuestion = "question"
 )
 

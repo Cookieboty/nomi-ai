@@ -219,7 +219,7 @@ func (h *islandPendingHub) collect() ([]island.Pending, map[string]map[string]fu
 	return out, acts
 }
 
-// collectQuestions：Nomi / Claude 还在等用户回答的问题。岛上只给「打开」，选项在对话里答。
+// collectQuestions：Nomi / Claude / Codex / ACP 还在等用户回答的问题。岛上只给「打开」，选项在对话里答。
 func (h *islandPendingHub) collectQuestions(add func(island.Pending, map[string]func() error)) {
 	if askBroker == nil {
 		return

@@ -177,6 +177,24 @@ func (o *Orchestrator) replyPermission(tabID, requestID string, allow bool) bool
 	return o.ReplyPermission(tabID, requestID, allow, "", "")
 }
 
+// ReplyLiveQuestion：把问题卡的结果写回 Codex / ACP 正在等的那次请求。调用方已在 jsrt 上。
+// cancel 为真时 Codex 的 request_user_input 以错误结束；elicitation 的取消写在 body 里，cancel 为假。
+func (o *Orchestrator) ReplyLiveQuestion(tabID, requestID string, body *util.Obj, cancel bool) bool {
+	if cl := o.live.codex[tabID]; cl != nil {
+		if f := cl.questions[requestID]; f != nil {
+			f(body, cancel)
+			return true
+		}
+	}
+	if gl := o.live.acp[tabID]; gl != nil {
+		if f := gl.questions[requestID]; f != nil {
+			f(body, cancel)
+			return true
+		}
+	}
+	return false
+}
+
 // ReplyClaudeQuestion：回答 Claude Code 的 AskUserQuestion。allow 时把带 answers 的 input 写回去；
 // 否则拒绝。调用方已在 jsrt 上。
 func (o *Orchestrator) ReplyClaudeQuestion(tabID, requestID string, allow bool, updated *util.Obj, reason string) bool {

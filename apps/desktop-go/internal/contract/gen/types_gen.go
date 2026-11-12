@@ -1124,12 +1124,14 @@ type AiUserQuestionAnswerOutput struct {
 	Ok bool `json:"ok"`
 }
 
-// AiUserQuestionPendingOutputItemSource 枚举：nomi | claude
+// AiUserQuestionPendingOutputItemSource 枚举：nomi | claude | codex | acp
 type AiUserQuestionPendingOutputItemSource = string
 
 const (
 	AiUserQuestionPendingOutputItemSourceNomi   AiUserQuestionPendingOutputItemSource = "nomi"
 	AiUserQuestionPendingOutputItemSourceClaude AiUserQuestionPendingOutputItemSource = "claude"
+	AiUserQuestionPendingOutputItemSourceCodex  AiUserQuestionPendingOutputItemSource = "codex"
+	AiUserQuestionPendingOutputItemSourceAcp    AiUserQuestionPendingOutputItemSource = "acp"
 )
 
 type AiUserQuestionPendingOutputItemQuestionsItemOptionsItem struct {
@@ -10739,12 +10741,14 @@ type EventAiUserProfileChanged struct {
 	Profile any `json:"profile,omitempty"`
 }
 
-// EventAiUserQuestionSource 枚举：nomi | claude
+// EventAiUserQuestionSource 枚举：nomi | claude | codex | acp
 type EventAiUserQuestionSource = string
 
 const (
 	EventAiUserQuestionSourceNomi   EventAiUserQuestionSource = "nomi"
 	EventAiUserQuestionSourceClaude EventAiUserQuestionSource = "claude"
+	EventAiUserQuestionSourceCodex  EventAiUserQuestionSource = "codex"
+	EventAiUserQuestionSourceAcp    EventAiUserQuestionSource = "acp"
 )
 
 type EventAiUserQuestionQuestionsItemOptionsItem struct {

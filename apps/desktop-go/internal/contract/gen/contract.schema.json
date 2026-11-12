@@ -5052,7 +5052,9 @@
        "type": "string",
        "enum": [
         "nomi",
-        "claude"
+        "claude",
+        "codex",
+        "acp"
        ]
       },
       "conversationId": {
@@ -36380,7 +36382,9 @@
      "type": "string",
      "enum": [
       "nomi",
-      "claude"
+      "claude",
+      "codex",
+      "acp"
      ]
     },
     "conversationId": {

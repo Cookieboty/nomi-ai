@@ -1,8 +1,11 @@
-// Package askuser：对话里的人在环路（HITL）。Nomi 的 ask_user 与 Claude Code 的
-// AskUserQuestion 都在这里等用户回答；视图用同一张问题卡答复。
+// Package askuser：对话里的人在环路（HITL）。Nomi 的 ask_user、Claude Code 的
+// AskUserQuestion、Codex app-server 的 request_user_input / 表单 elicitation、ACP 的
+// elicitation/create 都在这里等用户回答；视图用同一张问题卡答复。
 //
-// Codex app-server 与 ACP 目前只有命令 / 文件 / session/request_permission 这类允许或拒绝，
-// 没有结构化提问；MCP elicitation/create 也还没有处理函数。这两条不进这张卡。
+// 命令、文件和 session/request_permission 仍走允许 / 拒绝，不进这张卡。
+// Codex 的 exec 回退没有来回通道，问不了。Nomi 自己连上的 MCP（internal/ai/mcp）
+// 也不走这里：那条连接没有对话或标签可把卡挂上去，广告 elicitation 能力会让服务器
+// 开始提问却无处显示。
 package askuser
 
 import (
@@ -26,6 +29,8 @@ const (
 
 	SourceNomi   = "nomi"
 	SourceClaude = "claude"
+	SourceCodex  = "codex"
+	SourceAcp    = "acp"
 )
 
 // Option：一个选项。ID 是 a、b、c…，界面按这个画字母。

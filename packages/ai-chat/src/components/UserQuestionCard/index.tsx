@@ -24,7 +24,7 @@ export interface UserQuestion {
 
 export interface UserQuestionRequest {
   id: string;
-  source: 'nomi' | 'claude';
+  source: 'nomi' | 'claude' | 'codex' | 'acp';
   conversationId?: string;
   tabId?: string;
   questions: UserQuestion[];

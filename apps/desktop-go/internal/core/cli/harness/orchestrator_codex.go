@@ -56,6 +56,7 @@ type codexLiveSession struct {
 	turn             *codexTurn
 	perms            map[string]func(*bool)
 	permOrder        []string
+	questions        map[string]func(*util.Obj, bool)
 	lastActivityAt   float64
 	ready            *jsrt.Promise[struct{}]
 	recycleAfterTurn bool
@@ -79,6 +80,14 @@ func (l *codexLiveSession) cancelPerms() {
 		}
 	}
 }
+
+func (l *codexLiveSession) setQuestion(id string, f func(*util.Obj, bool)) {
+	if l.questions == nil {
+		l.questions = map[string]func(*util.Obj, bool){}
+	}
+	l.questions[id] = f
+}
+func (l *codexLiveSession) delQuestion(id string) { delete(l.questions, id) }
 
 // CodexTurnRef = runCodexTurn 的 onTurn 回调参数。
 type CodexTurnRef struct{ SessionID, TurnID string }
@@ -166,12 +175,29 @@ func (o *Orchestrator) ensureCodexLive(tab *util.Obj, signal *jsrt.AbortSignal) 
 		})
 		live := &codexLiveSession{
 			child: child, driver: driver, cwd: str(tab, "cwd"), launchSig: spawnLaunch.sig, sandboxed: sandboxed,
-			perms: map[string]func(*bool){}, lastActivityAt: nowMs(), ready: jsrt.Resolved(struct{}{}),
+			perms: map[string]func(*bool){}, questions: map[string]func(*util.Obj, bool){},
+			lastActivityAt: nowMs(), ready: jsrt.Resolved(struct{}{}),
 		}
 		driver.On(func(e clisdk.SessionEvent) {
 			live.lastActivityAt = nowMs()
 			if e.Get("kind") == "harness" && truthy(e.Get("turnId")) && live.turn != nil {
 				o.onCodexEvents(id, live, []*util.Obj{util.AsObj(e.Get("event"))})
+			}
+			if e.Get("kind") == "question" {
+				pid := jsStr(e.Get("id"))
+				live.setQuestion(pid, func(body *util.Obj, cancel bool) {
+					live.delQuestion(pid)
+					driver.RespondQuestion(pid, body, cancel)
+				})
+				if o.QuestionHook != nil {
+					o.QuestionHook(id, util.NewObj("type", "question", "protocol", "codex",
+						"id", pid, "method", e.Get("method"), "params", e.Get("params")))
+					return
+				}
+				if f := live.questions[pid]; f != nil {
+					f(nil, true)
+				}
+				return
 			}
 			if e.Get("kind") != "permission" {
 				return
@@ -501,6 +527,10 @@ func (o *Orchestrator) finishCodexTurn(tabID string, live *codexLiveSession, tur
 
 // interruptCodexTurn：turn/interrupt；宽限期内没结束才拆进程兜底。
 func (o *Orchestrator) interruptCodexTurn(id string, live *codexLiveSession, turn *codexTurn) {
+	// 先把还挂着的提问按取消写回，再打断这一轮（空 answers 会让模型当成没选、继续做）
+	if o.OnQuestionsCleared != nil {
+		o.OnQuestionsCleared(id)
+	}
 	live.cancelPerms()
 	fallback := func() {
 		if o.live.codex[id] == live && live.turn == turn && !turn.settled {

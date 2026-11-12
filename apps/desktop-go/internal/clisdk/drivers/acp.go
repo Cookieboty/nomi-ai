@@ -100,6 +100,8 @@ type AcpDriver struct {
 	turn              *acpTurn
 	perms             map[string]*pendingPerm
 	permOrder         []string
+	questions         map[string]*jsrt.Promise[Json]
+	questionOrder     []string
 	sid               *string
 	exited            bool
 	ModeID            *string
@@ -107,7 +109,10 @@ type AcpDriver struct {
 }
 
 func NewAcpDriver(o AcpDriverOptions) *AcpDriver {
-	d := &AcpDriver{o: o, hub: clisdk.NewEventHub(), perms: map[string]*pendingPerm{}, AgentCapabilities: O()}
+	d := &AcpDriver{
+		o: o, hub: clisdk.NewEventHub(), perms: map[string]*pendingPerm{},
+		questions: map[string]*jsrt.Promise[Json]{}, AgentCapabilities: O(),
+	}
 	d.Conn = rpc.NewConnection(o.Child, rpc.Handlers{
 		OnNotification: d.onNotification,
 		OnRequest:      d.onRequest,
@@ -171,6 +176,14 @@ func (d *AcpDriver) onNotification(method string, params Json) {
 }
 
 func (d *AcpDriver) onRequest(method string, params Json) *jsrt.Promise[any] {
+	if method == "elicitation/create" {
+		mode, _ := params.Get("mode").(string)
+		if mode != "form" {
+			// 只广告了 form。URL 和别的模式按协议拒绝，不挂住这一轮，也不当作用户点了取消。
+			return jsrt.Rejected[any](errors.New("unsupported elicitation mode"))
+		}
+		return d.beginQuestion(method, params)
+	}
 	if method != "session/request_permission" {
 		return jsrt.Rejected[any](errors.New("unsupported client method " + method))
 	}
@@ -236,26 +249,97 @@ func (d *AcpDriver) RespondPermission(id string, answer Json) bool {
 
 func (d *AcpDriver) HasPermission(id string) bool { return d.perms[id] != nil }
 
+func (d *AcpDriver) beginQuestion(method string, params Json) *jsrt.Promise[any] {
+	id := strOr(d.o.PermissionIDPrefix, "acp-perm-") + pick(d.o.NewID)()
+	ap := jsrt.NewPromise[Json]()
+	d.questions[id] = ap
+	d.questionOrder = append(d.questionOrder, id)
+	e := O("kind", "question", "id", id, "method", method, "params", params)
+	if d.turn != nil {
+		e.Set("turnId", d.turn.id)
+	}
+	d.hub.Emit(e)
+	return jsrt.Async(func() (any, error) {
+		answer, err := jsrt.Await(ap)
+		d.deleteQuestion(id)
+		if err != nil {
+			return nil, err
+		}
+		if answer == nil {
+			answer = O()
+		}
+		return answer, nil
+	})
+}
+
+func (d *AcpDriver) deleteQuestion(id string) {
+	delete(d.questions, id)
+	for i, x := range d.questionOrder {
+		if x == id {
+			d.questionOrder = append(d.questionOrder[:i:i], d.questionOrder[i+1:]...)
+			return
+		}
+	}
+}
+
+// RespondQuestion：把问题卡的协议结果写回 elicitation/create。
+func (d *AcpDriver) RespondQuestion(id string, body Json, cancel bool) bool {
+	p := d.questions[id]
+	if p == nil {
+		return false
+	}
+	d.deleteQuestion(id)
+	if cancel {
+		p.Reject(errQuestionCancelled)
+		return true
+	}
+	if body == nil {
+		body = O()
+	}
+	p.Resolve(body)
+	return true
+}
+
+func (d *AcpDriver) cancelQuestions() {
+	for _, id := range append([]string{}, d.questionOrder...) {
+		if p := d.questions[id]; p != nil {
+			d.deleteQuestion(id)
+			p.Reject(errQuestionCancelled)
+		}
+	}
+}
+
 func (d *AcpDriver) cancelPermissions() {
 	for _, id := range append([]string{}, d.permOrder...) {
 		if p := d.perms[id]; p != nil {
 			p.p.Resolve(O("decision", "cancel"))
 		}
 	}
+	d.cancelQuestions()
 }
 
 func sigOpts(s *jsrt.AbortSignal) rpc.RequestOptions {
 	return rpc.RequestOptions{Signal: s}
 }
 
+// acpClientCaps：会话握手广告 form elicitation（问题卡）。没广告的模式（URL）代理不该发。
+// 调用方已经给了非空的 elicitation 对象时保留，不覆盖。
+func acpClientCaps(caps Json) Json {
+	if caps == nil {
+		caps = O("fs", O("readTextFile", false, "writeTextFile", false))
+	}
+	if elic, ok := caps.Get("elicitation").(*util.Obj); ok && elic != nil {
+		return caps
+	}
+	next := caps.Clone()
+	next.Set("elicitation", O("form", O()))
+	return next
+}
+
 func (d *AcpDriver) Start(o clisdk.StartOptions) *jsrt.Promise[StartResult] {
 	return jsrt.Async(func() (StartResult, error) {
 		opts := sigOpts(o.Signal)
-		caps := d.o.ClientCapabilities
-		if caps == nil {
-			caps = O("fs", O("readTextFile", false, "writeTextFile", false))
-		}
-		initV, err := jsrt.Await(d.Conn.Request("initialize", O("protocolVersion", float64(1), "clientCapabilities", caps), opts))
+		initV, err := jsrt.Await(d.Conn.Request("initialize", O("protocolVersion", float64(1), "clientCapabilities", acpClientCaps(d.o.ClientCapabilities)), opts))
 		if err != nil {
 			return nil, err
 		}

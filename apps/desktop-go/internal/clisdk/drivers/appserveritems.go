@@ -182,6 +182,20 @@ func CodexApprovalSummary(method string, params Json) string {
 		}
 		return c("bash")
 	}
+	if method == "mcpServer/elicitation/request" {
+		body := params
+		if req, ok := params.Get("request").(*util.Obj); ok && req != nil {
+			body = req
+		}
+		msg, _ := body.Get("message").(string)
+		if msg == "" {
+			msg, _ = params.Get("serverName").(string)
+		}
+		if msg == "" {
+			msg = "MCP"
+		}
+		return c(msg)
+	}
 	why, _ := params.Get("reason").(string)
 	root, _ := params.Get("grantRoot").(string)
 	second := why

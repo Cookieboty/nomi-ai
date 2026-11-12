@@ -101,6 +101,32 @@ describe('UserQuestionCard', () => {
     expect(opts[1]).toBeTruthy();
   });
 
+  it('uses the same card for Codex and ACP questions', () => {
+    const onSubmit = vi.fn();
+    const codex = request();
+    codex.source = 'codex';
+    codex.tabId = 'tab-codex';
+    codex.questions = [codex.questions[0]!];
+    const view = render(<UserQuestionCard request={codex} onSubmit={onSubmit} />);
+    fireEvent.click(view.getAllByTestId('user-question-option')[0]!);
+    fireEvent.click(view.getByTestId('user-question-continue'));
+    expect(onSubmit).toHaveBeenCalledWith({
+      action: 'answer',
+      answers: [{ questionId: 'q1', selected: ['a'] }],
+    });
+    view.unmount();
+
+    onSubmit.mockClear();
+    const acp = request();
+    acp.source = 'acp';
+    acp.id = 'q_acp';
+    acp.tabId = 'tab-acp';
+    const acpView = render(<UserQuestionCard request={acp} onSubmit={onSubmit} />);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onSubmit).toHaveBeenCalledWith({ action: 'skip' });
+    acpView.unmount();
+  });
+
   it('does not animate the card open', () => {
     const css = viewCss();
     expect(css).not.toMatch(/(^|[;\s])animation\s*:/);

@@ -60,7 +60,7 @@ const UserQuestionItem = z.object({
 /** 一张还在等回答的问题卡 */
 const UserQuestionRequest = z.object({
   id: z.string().min(1).max(80),
-  source: z.enum(['nomi', 'claude']),
+  source: z.enum(['nomi', 'claude', 'codex', 'acp']),
   conversationId: z.string().max(128).optional(),
   tabId: z.string().max(128).optional(),
   questions: z.array(UserQuestionItem).min(1).max(4),
@@ -91,7 +91,7 @@ const UserQuestionAnswerInput = z.object({
 const UserQuestionEvent = z.object({
   id: z.string(),
   closed: z.boolean().optional(),
-  source: z.enum(['nomi', 'claude']).optional(),
+  source: z.enum(['nomi', 'claude', 'codex', 'acp']).optional(),
   conversationId: z.string().optional(),
   tabId: z.string().optional(),
   questions: z.array(UserQuestionItem).max(4).optional(),
