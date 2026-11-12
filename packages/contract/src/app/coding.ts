@@ -127,6 +127,7 @@ const harnessProcedures = {
       cwd: z.string(),
       path: z.string().max(8192),
       allowOutside: z.boolean().optional(),
+      source: z.boolean().optional(),
     }),
     output: PreviewResult,
   },
