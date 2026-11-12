@@ -1,7 +1,6 @@
 ---
 '@nomi-ai/desktop-go': patch
 '@nomi-ai/ai-chat': patch
-'@nomi-ai/i18n': patch
 ---
 
 feat(chat): choose a thinking depth for each model
