@@ -149,7 +149,6 @@ export const SessionPeek: React.FC<{
           <button
             type="button"
             className={`${rail.peekTitle} ${rail.peekTitleBtn}`}
-            title={t('ui.cli-monitor.click-to-rename')}
             onClick={() => setEditing(true)}
             data-testid="session-peek-title"
           >
@@ -158,7 +157,7 @@ export const SessionPeek: React.FC<{
         ) : (
           <span className={rail.peekTitle}>{name}</span>
         )}
-        <span className={rail.peekIcon} title={t(ENDPOINT_NAME[c.backend])}>
+        <span className={rail.peekIcon} role="img" aria-label={t(ENDPOINT_NAME[c.backend])}>
           <EndpointIcon backend={c.backend} size={14} decorative />
         </span>
         <span className={rail.peekTime}>{rel(c.updatedAt)}</span>

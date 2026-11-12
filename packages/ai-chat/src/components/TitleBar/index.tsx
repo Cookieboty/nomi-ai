@@ -135,7 +135,6 @@ export const AppTitleBar: React.FC<{
         type="button"
         className="app-titlebar-toggle"
         onClick={onToggleSidebar}
-        title={labels.title}
         aria-label={labels.label}
         aria-pressed={!sidebarCollapsed}
         data-testid="titlebar-sidebar-toggle"

@@ -21,7 +21,7 @@ export const ENDPOINT_FULL: Record<ConversationBackend, () => string> = {
   external: () => t('ui.providers-schedule.external-cli'),
 };
 
-/** CSS 变量友好的 data-ep 值，样式见 Sidebar / ChatModeSwitch */
+/** CSS 变量友好的 data-ep 值，样式见 Sidebar */
 export const ENDPOINT_CSS: Record<ConversationBackend, string> = {
   nomi: 'nomi',
   ...byCli((id) => id),

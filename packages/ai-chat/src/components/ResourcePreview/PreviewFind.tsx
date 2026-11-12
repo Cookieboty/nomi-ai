@@ -319,7 +319,6 @@ export function PreviewFind({
           disabled={!matches.length}
           onClick={() => move(-1)}
           aria-label={t('ui.session-workspace.preview-find-previous')}
-          title={t('ui.session-workspace.preview-find-previous')}
         >
           <Icon icon={ArrowUp} size={16} />
         </button>
@@ -328,7 +327,6 @@ export function PreviewFind({
           disabled={!matches.length}
           onClick={() => move(1)}
           aria-label={t('ui.session-workspace.preview-find-next')}
-          title={t('ui.session-workspace.preview-find-next')}
         >
           <Icon icon={ArrowDown} size={16} />
         </button>
@@ -336,7 +334,6 @@ export function PreviewFind({
           type="button"
           onClick={close}
           aria-label={t('ui.session-workspace.preview-find-close')}
-          title={t('ui.session-workspace.preview-find-close')}
         >
           <Icon icon={X} size={16} />
         </button>

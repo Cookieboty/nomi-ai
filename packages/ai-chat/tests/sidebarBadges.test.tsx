@@ -35,17 +35,21 @@ afterEach(() => {
 });
 
 describe('Sidebar rows', () => {
-  it('the rail starts with 对话 (no logo; the title bar has the sidebar toggle); the panel has the mode menu', async () => {
+  it('the rail starts with 对话 (no logo); the panel top row is 新建会话 on the left and search on the right, no mode menu', async () => {
     const props = { onToggle: vi.fn(), onNewChat: () => undefined };
     const view = render(<Sidebar {...props} collapsed={false} />);
     expect(view.queryByTestId('sidebar-toggle')).toBeNull();
     expect(view.queryByTestId('sidebar-brand-mark')).toBeNull();
-    expect(view.getByTestId('chat-mode-trigger').textContent).toContain('工坊');
+    expect(view.queryByTestId('chat-mode-trigger')).toBeNull();
+    const top = view.getByTestId('new-chat').parentElement!.parentElement!;
+    const buttons = Array.from(top.querySelectorAll('button'));
+    expect(buttons[0]!.textContent).toBe('新建会话');
+    expect(buttons[buttons.length - 1]!.getAttribute('data-testid')).toBe('sidebar-search-toggle');
     expect(view.getByTestId('nav-chats').getAttribute('aria-current')).toBe('page');
 
     view.rerender(<Sidebar {...props} collapsed />);
     // 收起时先放完收回动画再卸载
-    await waitFor(() => expect(view.queryByTestId('chat-mode-switch')).toBeNull());
+    await waitFor(() => expect(view.queryByTestId('sidebar-panel')).toBeNull());
     expect(view.getByTestId('nav-chats')).toBeTruthy();
   });
 
@@ -109,7 +113,7 @@ describe('Sidebar rows', () => {
     expect(r.queryByTestId('thread-endpoint')).toBeNull();
   });
 
-  it('endpoint filter chips are icon-only; name lives in the label / tooltip', async () => {
+  it('endpoint filter chips are icon-only; name lives in the accessible label', async () => {
     localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
     const r = render(
       <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
@@ -118,7 +122,10 @@ describe('Sidebar rows', () => {
     expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-label')).toContain(
       'Claude Code',
     );
-    expect(r.getByTestId('endpoint-filter-claude').title).toContain('Claude Code');
+    expect(r.getByTestId('endpoint-filter-claude').getAttribute('title')).toBeNull();
+    expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-label')).toContain(
+      'Claude Code',
+    );
     expect(
       r.getByTestId('endpoint-filter-claude').querySelector('[data-testid="endpoint-icon-claude"]'),
     ).toBeTruthy();

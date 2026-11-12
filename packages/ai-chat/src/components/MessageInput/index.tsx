@@ -1084,7 +1084,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
                 type="button"
                 className={styles.chip}
                 onClick={toggleKb}
-                title={tr('ui.knowledge-local.knowledge-base-q-a-is-on-click-to')}
                 data-testid="kb-mode-chip"
               >
                 <Icon icon={BookOpen} size={14} />
@@ -1096,10 +1095,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
                 type="button"
                 className={styles.chip}
                 onClick={() => setNextDelegate(null)}
-                title={tr(
-                  'ui.session-workspace.your-next-request-goes-to-click-to-cancel',
-                  tr(ENDPOINT_NAME[nextDelegate]),
-                )}
                 aria-label={tr(
                   'ui.session-workspace.cancel-next-request-goes-to',
                   tr(ENDPOINT_NAME[nextDelegate]),
@@ -1131,7 +1126,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
                 type="button"
                 onClick={stopFn}
                 className={styles.sendButton}
-                title={tr('ui.usage-tools.stop-generating')}
                 aria-label={tr('ui.usage-tools.stop-generating')}
                 data-testid="stop-button"
               >
@@ -1144,11 +1138,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
                   isDisabled || (!linkedDraft.serialized.trim() && !images.length && !files.length)
                 }
                 className={styles.sendButton}
-                title={
-                  queue && busy
-                    ? tr('ui.usage-tools.add-to-pending-enter')
-                    : tr('ui.knowledge-local.send-message-enter')
-                }
                 aria-label={
                   queue && busy ? tr('ui.usage-tools.queue') : tr('ui.knowledge-local.send')
                 }

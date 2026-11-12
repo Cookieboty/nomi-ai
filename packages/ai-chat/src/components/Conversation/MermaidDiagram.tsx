@@ -68,7 +68,6 @@ export function MermaidDiagram({ code }: { code: string }) {
               type="button"
               onClick={() => setPreview({ key, open: true })}
               aria-label={t('ui.usage-tools.view-full-image')}
-              title={t('ui.usage-tools.view-full-image')}
             >
               <Icon icon={Maximize2} size={16} />
             </button>

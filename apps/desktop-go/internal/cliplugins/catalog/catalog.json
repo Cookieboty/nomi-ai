@@ -208,7 +208,7 @@
       "transport": "acp",
       "ingress": "gemini",
       "capabilities": {
-        "officialAccount": true,
+        "officialAccount": false,
         "thirdParty": true,
         "images": "native",
         "permissionModes": [

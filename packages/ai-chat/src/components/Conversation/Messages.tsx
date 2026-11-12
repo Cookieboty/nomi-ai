@@ -60,7 +60,6 @@ export const ActionButton: React.FC<{
     className={styles.action}
     onClick={onClick}
     aria-label={label}
-    title={label}
     data-testid={testId}
   >
     <Icon icon={icon} size={13} />
@@ -446,7 +445,6 @@ const ModelTag: React.FC<{ model: string }> = ({ model }) => {
     <span
       className={styles.model}
       data-testid="conv-msg-model"
-      title={t('ui.cli-monitor.model', label)}
       aria-label={t('ui.cli-monitor.model', label)}
     >
       {label}

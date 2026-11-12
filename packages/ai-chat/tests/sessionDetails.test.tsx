@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * 「会话详情」：标题栏按钮开 / 收对话卡片右侧的一栏：项目、本会话变更、用到的智能体与任务；
+ * 「会话详情」：标题栏按钮开 / 收对话卡片右侧的一栏：项目、本会话变更、用到的 Agents 与任务；
  * 列表最多 5 个可展开；屏幕窄且展开了别的栏时自动收起
  */
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -335,7 +335,7 @@ describe('session details lists', () => {
       ...Array.from({ length: 6 }, (_, i) => task(`t${i + 1}`)),
       task('t9', { status: 'running' }),
       task('x1', { origin: { conversationId: 'other', createdBy: 'nomi', createdAt: 0 } }),
-      // 后台派给编程助手的：在「智能体」里，不在任务里
+      // 后台派给编程助手的：在「Agents」里，不在任务里
       task('d1', {
         origin: { conversationId: 'n1', createdBy: 'nomi', createdAt: 0, via: 'delegate' },
         executor: { kind: 'cli', cli: 'claude', cwd: '/w', isolation: 'shared' },

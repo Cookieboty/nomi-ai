@@ -125,7 +125,6 @@ const GitRow: React.FC<{
       {session ? (
         <span
           className={pane.sessionMark}
-          title={t('ui.session-workspace.edited-by-the-assistant-in-this-session')}
           aria-label={t('ui.session-workspace.edited-by-the-assistant-in-this-session')}
           data-testid="git-row-session"
         >
@@ -147,7 +146,6 @@ const GitRow: React.FC<{
         type="button"
         className={styles.iconBtn}
         data-testid="change-locate"
-        title={t('ui.session-workspace.show-in-conversation')}
         aria-label={t('ui.session-workspace.show-in-conversation')}
         onClick={() => locateChangeMessage(session.messageId)}
       >
@@ -160,7 +158,6 @@ const GitRow: React.FC<{
         className={`${styles.iconBtn} ${pane.stageBtn}`}
         data-testid="git-row-discard"
         disabled={stageDisabled}
-        title={t('ui.session-workspace.discard-changes')}
         aria-label={`${t('ui.session-workspace.discard-changes')} ${entry.path}`}
         onClick={onDiscard}
       >
@@ -173,9 +170,6 @@ const GitRow: React.FC<{
         className={`${styles.iconBtn} ${pane.stageBtn}`}
         data-testid={area === 'staged' ? 'git-row-unstage' : 'git-row-stage'}
         disabled={stageDisabled}
-        title={
-          area === 'staged' ? t('ui.session-workspace.unstage') : t('ui.session-workspace.stage')
-        }
         aria-label={`${
           area === 'staged' ? t('ui.session-workspace.unstage') : t('ui.session-workspace.stage')
         } ${entry.path}`}
@@ -489,7 +483,6 @@ export const RepoGitSection: React.FC<{
       type="button"
       className={pane.repoHead}
       aria-expanded={!collapsed}
-      title={cwd}
       data-testid="repo-section-toggle"
       onClick={() => setCollapsed((v) => !v)}
     >
@@ -603,7 +596,6 @@ export const RepoGitSection: React.FC<{
                           className={styles.iconBtn}
                           disabled={ops.op !== null}
                           data-testid="git-group-unstaged-discard"
-                          title={t('ui.session-workspace.discard-all-unstaged-changes')}
                           aria-label={t('ui.session-workspace.discard-all-unstaged-changes')}
                           onClick={() => void ops.discard(stagePaths(list, area))}
                         >
@@ -615,11 +607,6 @@ export const RepoGitSection: React.FC<{
                         className={styles.iconBtn}
                         disabled={ops.op !== null}
                         data-testid={`git-group-${area}-toggle`}
-                        title={
-                          area === 'staged'
-                            ? t('ui.session-workspace.unstage-all')
-                            : t('ui.session-workspace.stage-all')
-                        }
                         aria-label={
                           area === 'staged'
                             ? t('ui.session-workspace.unstage-all')

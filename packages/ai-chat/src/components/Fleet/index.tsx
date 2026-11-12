@@ -17,7 +17,6 @@ import {
   useAiChatSelector,
 } from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
-import { useChatMode } from '../../hooks/useChatMode';
 import { requestOpenConversation, type ConversationStore } from '../../services/conversationStore';
 import {
   fleetApi,
@@ -86,7 +85,6 @@ export function useFleetHost(collapsed: boolean) {
   const [popover, setPopover] = useState(false);
   const { state, apply, reload } = useFleet(open || popover);
   const sum = summarize(state);
-  const { setMode } = useChatMode();
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
   /** Nomi 对话的名称（会话列表里的名字是文案 key 或用户起的名字） */
   const chatName = useCallback(
@@ -119,16 +117,12 @@ export function useFleetHost(collapsed: boolean) {
     last.current = { first, tabId };
   }, [first, tabId]);
 
-  const openTab = useCallback(
-    (id: string) => {
-      setMode('dev');
-      void harnessClient
-        .activateTab(id)
-        .then(() => setOpen(false))
-        .catch(() => undefined);
-    },
-    [setMode],
-  );
+  const openTab = useCallback((id: string) => {
+    void harnessClient
+      .activateTab(id)
+      .then(() => setOpen(false))
+      .catch(() => undefined);
+  }, []);
   const openTask = useCallback((id: string) => {
     setOpen(false);
     requestOpenTask(id);
@@ -172,12 +166,11 @@ export function useFleetHost(collapsed: boolean) {
   );
   const dispatchCli = useCallback(
     (backend: BuiltinCliId) => {
-      setMode('dev');
       setOpen(false);
       if (!tabs.available) return;
       void tabs.create(backend).catch(() => undefined);
     },
-    [setMode, tabs],
+    [tabs],
   );
   const setPolicy = useCallback(
     (mode: FleetPolicyMode) =>

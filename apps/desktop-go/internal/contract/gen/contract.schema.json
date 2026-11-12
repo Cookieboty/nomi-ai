@@ -20008,6 +20008,9 @@
      },
      "allowOutside": {
       "type": "boolean"
+     },
+     "source": {
+      "type": "boolean"
      }
     },
     "required": [

@@ -127,11 +127,6 @@ export const WorkspacePicker: React.FC<{
           'ui.cli-monitor.workspace',
           value || emptyLabel || t('ui.cli-monitor.not-set'),
         )}
-        title={
-          value
-            ? [t('ui.cli-monitor.workspace-label'), value].join('\n')
-            : t('ui.cli-monitor.choose-workspace')
-        }
         data-testid={`${testId}-button`}
         onClick={toggle}
       >
@@ -181,7 +176,6 @@ export const WorkspacePicker: React.FC<{
                   role="menuitemradio"
                   aria-checked={p === value}
                   className={styles.item}
-                  title={p}
                   data-testid="workspace-recent-item"
                   onClick={() => apply(p)}
                 >
@@ -200,7 +194,6 @@ export const WorkspacePicker: React.FC<{
                   role="menuitemradio"
                   aria-checked={p === value}
                   className={styles.item}
-                  title={p}
                   data-testid="workspace-recent-item"
                   onClick={() => apply(p)}
                 >

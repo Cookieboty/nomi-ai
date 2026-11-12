@@ -73,7 +73,7 @@ export type MascotEvent =
   | { kind: 'voice:wake' }
   /** 用户点了停止生成 */
   | { kind: 'stopped-by-user' }
-  /** 智能体在等用户确认一个操作 */
+  /** Agent 在等用户确认一个操作 */
   | { kind: 'confirm-required' }
   /** 一轮任务完成 / 全部完成 / 失败 */
   | { kind: 'task:done'; all?: boolean }

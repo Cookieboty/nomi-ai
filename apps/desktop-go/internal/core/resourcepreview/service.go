@@ -102,7 +102,7 @@ func platform() string {
 }
 
 // Open never grants a directory. Outside a known workspace, the UI must request explicit file consent.
-func (s *Service) Open(cwd, input, home string, allowOutside bool) Result {
+func (s *Service) Open(cwd, input, home string, allowOutside bool, source ...bool) Result {
 	p := strings.TrimSpace(input)
 	if strings.ContainsRune(p, 0) || p == "" {
 		return fail("invalid")
@@ -164,6 +164,11 @@ func (s *Service) Open(cwd, input, home string, allowOutside bool) Result {
 		return fail("changed")
 	}
 	kind := kindOf(real)
+	// Diff editors request source text explicitly. Default HTML/image previews
+	// remain unchanged; source still passes UTF-8, size and workspace checks.
+	if len(source) > 0 && source[0] {
+		kind = "text"
+	}
 	result := Result{OK: true, Path: real, Kind: kind, MIME: mime.TypeByExtension(strings.ToLower(filepath.Ext(real)))}
 	if result.MIME == "" {
 		result.MIME = "application/octet-stream"

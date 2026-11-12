@@ -260,7 +260,6 @@ export const GitSyncButtons: React.FC<{ sync: GitSyncStatus | null; ops: GitOps 
           disabled={busy}
           data-busy={ops.op === 'fetch' || undefined}
           data-testid="rail-git-fetch"
-          title={t('ui.session-workspace.check-the-remote-for-new-commits')}
           aria-label={t('ui.session-workspace.check-the-remote-for-new-commits')}
           onClick={() => void ops.fetchRemote()}
         >
@@ -274,7 +273,6 @@ export const GitSyncButtons: React.FC<{ sync: GitSyncStatus | null; ops: GitOps 
           disabled={busy}
           data-busy={ops.op === 'pull' || undefined}
           data-testid="rail-git-pull"
-          title={t('ui.session-workspace.pull-n-commits-fast-forward-only', String(sync.behind))}
           aria-label={t(
             'ui.session-workspace.pull-n-commits-fast-forward-only',
             String(sync.behind),
@@ -293,7 +291,6 @@ export const GitSyncButtons: React.FC<{ sync: GitSyncStatus | null; ops: GitOps 
             disabled={busy}
             data-busy={ops.op === 'push' || undefined}
             data-testid="rail-git-push"
-            title={t('ui.session-workspace.push-n-commits-to', String(sync.ahead), sync.upstream)}
             aria-label={t(
               'ui.session-workspace.push-n-commits-to',
               String(sync.ahead),
@@ -312,7 +309,6 @@ export const GitSyncButtons: React.FC<{ sync: GitSyncStatus | null; ops: GitOps 
           disabled={busy}
           data-busy={ops.op === 'push' || undefined}
           data-testid="rail-git-publish"
-          title={t('ui.session-workspace.publish-branch-to', sync.pushRemote)}
           aria-label={t('ui.session-workspace.publish-branch-to', sync.pushRemote)}
           onClick={() => void ops.push(sync)}
         >
@@ -343,11 +339,6 @@ const NoticeLine: React.FC<{ ops: GitOps }> = ({ ops }) => {
             className={pane.link}
             disabled={ops.op !== null}
             data-testid="git-undo-commit"
-            title={
-              n.undo.kind === 'commit'
-                ? t('ui.session-workspace.undo-this-commit-changes-go-back-to-staged')
-                : t('ui.session-workspace.put-the-discarded-changes-back')
-            }
             onClick={() => void ops.undo()}
           >
             <Undo2 size={12} />
@@ -360,7 +351,6 @@ const NoticeLine: React.FC<{ ops: GitOps }> = ({ ops }) => {
           type="button"
           className={pane.link}
           aria-label={t('ui.mascot-theme.dismiss')}
-          title={t('ui.mascot-theme.dismiss')}
           onClick={ops.dismiss}
         >
           ×
@@ -432,16 +422,12 @@ export const GitCommitBox: React.FC<{
               disabled={busy || count === 0}
               data-busy={ops.op === 'suggest' || undefined}
               data-testid="rail-commit-suggest"
-              title={t('ui.session-workspace.write-a-commit-message-with-the-helper-model')}
               aria-label={t('ui.session-workspace.write-a-commit-message-with-the-helper-model')}
               onClick={() => void ops.suggest(stagedCount > 0 ? undefined : paths)}
             >
               <Sparkles size={13} className={ops.op === 'suggest' ? pane.pulse : undefined} />
             </button>
-            <label
-              className={pane.commitCheck}
-              title={t('ui.session-workspace.commit-then-git-push-never-force-push')}
-            >
+            <label className={pane.commitCheck}>
               <Checkbox
                 checked={ops.pushAfter && canPush}
                 disabled={!canPush || busy}

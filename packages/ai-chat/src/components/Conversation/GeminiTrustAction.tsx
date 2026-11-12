@@ -63,7 +63,6 @@ export const GeminiTrustAction: React.FC<{
         className={`${styles.errorBtn} ${styles.primaryBtn}`}
         onClick={() => void onClick()}
         disabled={state.kind === 'busy'}
-        title={trust.folder}
         data-testid="gemini-trust-folder"
       >
         <Icon icon={ShieldCheck} size={13} />

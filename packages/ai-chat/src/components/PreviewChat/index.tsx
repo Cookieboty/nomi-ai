@@ -134,7 +134,6 @@ export function PreviewChatHeader({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('ui.session-workspace.preview-chat-select')}
-        title={sessions.title}
         onClick={() => {
           setQuery('');
           setOpen(!open);
@@ -150,7 +149,6 @@ export function PreviewChatHeader({
         data-testid="preview-chat-minimize"
         onClick={onMinimize}
         aria-label={t('ui.session-workspace.preview-chat-minimize')}
-        title={t('ui.session-workspace.preview-chat-minimize')}
       >
         <Icon icon={Minimize2} size={16} />
       </button>
@@ -160,7 +158,6 @@ export function PreviewChatHeader({
         onPointerDown={onDrag}
         data-testid="preview-chat-drag"
         aria-label={t('ui.session-workspace.preview-chat-move')}
-        title={t('ui.session-workspace.preview-chat-move')}
         onKeyDown={onMoveKey}
       >
         <Icon icon={Grip} size={16} />
@@ -289,7 +286,6 @@ export function PreviewChat(
         data-testid="preview-chat-pill"
         onClick={onOpen}
         aria-label={t('ui.chat-settings.chats')}
-        title={sessions.title || t('ui.chat-settings.chats')}
       >
         <NomiMark size={26} />
       </button>

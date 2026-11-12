@@ -98,7 +98,6 @@ export function PreviewFilePicker({
             type="button"
             disabled={cyclic}
             role="treeitem"
-            title={node.path}
             aria-expanded={folder ? showChildren : undefined}
             aria-selected={!folder && node.path.replace(/\\/g, '/') === current}
             aria-level={depth + 1}
@@ -194,7 +193,6 @@ export function PreviewFilePicker({
           ref={breadcrumb}
           className={styles.path}
           aria-label={t('ui.session-workspace.file-path')}
-          title={path}
         >
           {crumbs.map((crumb, index) => {
             const file = index === crumbs.length - 1;
@@ -206,7 +204,6 @@ export function PreviewFilePicker({
                   type="button"
                   disabled={!url}
                   className={`${styles.crumb} ${file ? styles.filename : styles.directory}`}
-                  title={crumb.path}
                   aria-current={file ? 'page' : undefined}
                   aria-haspopup="dialog"
                   aria-expanded={open && activeCrumb === index}

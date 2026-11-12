@@ -5940,6 +5940,7 @@ type HarnessPreviewOpenInput struct {
 	Cwd          string `json:"cwd"`
 	Path         string `json:"path"`
 	AllowOutside *bool  `json:"allowOutside,omitempty"`
+	Source       *bool  `json:"source,omitempty"`
 }
 
 type HarnessPreviewOpenOutput struct {

@@ -296,8 +296,8 @@ export const SettingsView: React.FC<Props> = ({
           className={styles.back}
           onClick={onClose}
           data-testid="settings-back"
-          title={t('ui.chat-settings.back-to-chat-esc')}
-          aria-label={collapsed ? t('ui.chat-settings.back-to-chat') : undefined}
+          // 收起时只剩箭头图标：无障碍名带上 Esc 快捷键（图标按钮不写原生 title）
+          aria-label={collapsed ? t('ui.chat-settings.back-to-chat-esc') : undefined}
         >
           <Icon icon={ChevronLeft} />
           <span className={styles.navLabel}>{t('ui.chat-settings.back-to-chat')}</span>
@@ -314,7 +314,6 @@ export const SettingsView: React.FC<Props> = ({
                   aria-current={s.id === section ? 'page' : undefined}
                   onClick={() => onSection(s.id)}
                   data-testid={`settings-nav-${s.id}`}
-                  title={collapsed ? t(s.label) : undefined}
                   aria-label={collapsed ? t(s.label) : undefined}
                 >
                   <span className={styles.navIcon}>

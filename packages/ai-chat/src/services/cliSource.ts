@@ -6,7 +6,7 @@ import { BUILTIN_CLI_ORDER } from '@nomi-ai/cli-catalog';
 import { t, type SelectOption } from '@nomi-ai/ui';
 
 import { confirmDialog } from '../components/ConfirmDialog';
-import { hasOfficialAccount } from '../utils/cliCaps';
+import { hasOfficialAccount, ownConfigLabel } from '../utils/cliCaps';
 
 import type { CliAccount } from './cliAccountClient';
 import type { ClientId, GatewayState } from './gatewayClient';
@@ -226,7 +226,7 @@ export function defaultSourceSwitch(
           id: 'official',
           label: hasOfficialAccount(kind)
             ? t('ui.models.switch-to-official')
-            : t('ui.models.dsh-built-in-config'),
+            : ownConfigLabel(kind),
         },
       ],
     };
@@ -288,6 +288,8 @@ export function newTabSelectValue(client: NewTabCtx['client'], kind: CliKind): s
     const p = providerOfRef(main);
     if (p) return `${PROVIDER_PREFIX}${p}`;
   }
+  // 没有官方账号的（dsh、Gemini）只有「默认」一项；旧版本存下的 Gemini 账号也按默认显示
+  if (!hasOfficialAccount(kind)) return NEWTAB_DEFAULT;
   const accountId = client?.newTabAccountId ?? null;
   if (!accountId) return NEWTAB_FOLLOW;
   if (accountId === localAccountValue(kind)) return NEWTAB_DEFAULT;
@@ -302,7 +304,7 @@ export function newTabOptions({ kind, client, gateway, accounts }: NewTabCtx): S
   options.push({
     value: NEWTAB_DEFAULT,
     group: t('ui.providers-schedule.default'),
-    label: official ? t('ui.models.this-computer-s-sign-in') : t('ui.models.dsh-built-in-config'),
+    label: official ? t('ui.models.this-computer-s-sign-in') : ownConfigLabel(kind),
     // 标签已写明「本机登录 / 自带配置」，说明只补一句不经 Nomi（太长会撑宽下拉菜单）
     description: t('ui.models.without-nomi'),
   });

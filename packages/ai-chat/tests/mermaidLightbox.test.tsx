@@ -70,7 +70,10 @@ describe.each([
     renderDiagram.mockResolvedValue(svg);
     render(<Diagram code="flowchart LR\nA --> B" />);
     const canvas = await screen.findByTestId('mermaid-canvas');
-    const button = screen.getByTitle(fullImage);
+    const button = screen
+      .getAllByRole('button', { name: fullImage })
+      .find((element) => element.tagName === 'BUTTON')!;
+    expect(button.getAttribute('title')).toBeNull();
     button.focus();
     fireEvent.click(button);
     expect(screen.getByRole('dialog')).toBeTruthy();

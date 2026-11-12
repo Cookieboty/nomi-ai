@@ -15,6 +15,7 @@ import {
   removePreviewTabs,
   type PreviewTabsState,
 } from '../components/ResourcePreview/previewTabs';
+import { dirtyReviewDrafts } from '../components/SessionWorkspace/reviewDrafts';
 import type {
   DiffTabSpec,
   ResourceScope,
@@ -26,6 +27,17 @@ import { resourceTarget, resolveDocumentPath } from '../utils/resourceLinks';
 
 import styles from './ResourcePreviewHost.module.css';
 import { useResourcePreviewLayout } from './useResourcePreviewLayout';
+
+/** 超过标签上限时不能淘汰的：有草稿 / 在保存 / 保存失败的文件标签，有没保存编辑的 Diff 标签 */
+function protectedPreviewKeys(entries: readonly { key: string }[]): Set<string> {
+  const keys = entries.map((entry) => entry.key);
+  return new Set([
+    ...getPreviewEdits(keys)
+      .filter(({ session }) => session.state.dirty || session.state.saving || session.state.error)
+      .map(({ key }) => key),
+    ...dirtyReviewDrafts(keys),
+  ]);
+}
 
 const LazyImage = lazy(() =>
   import('../components/ImageLightbox/ResourceImageModal').then((m) => ({
@@ -117,13 +129,7 @@ export function useResourcePreview(scope: ResourceScope) {
         openPreviewTab(
           old,
           { key, href, scope: { ...origin }, image: image ? { ...image } : undefined, navigation },
-          new Set(
-            getPreviewEdits(old.entries.map((entry) => entry.key))
-              .filter(
-                ({ session }) => session.state.dirty || session.state.saving || session.state.error,
-              )
-              .map(({ key }) => key),
-          ),
+          protectedPreviewKeys(old.entries),
         ),
       );
     },
@@ -149,13 +155,7 @@ export function useResourcePreview(scope: ResourceScope) {
             scope: { id: scopeId, cwd: scopeCwd, source: scopeSource },
             diff: { ...diff },
           },
-          new Set(
-            getPreviewEdits(old.entries.map((entry) => entry.key))
-              .filter(
-                ({ session }) => session.state.dirty || session.state.saving || session.state.error,
-              )
-              .map(({ key: k }) => k),
-          ),
+          protectedPreviewKeys(old.entries),
         ),
       );
     },

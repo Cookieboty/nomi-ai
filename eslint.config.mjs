@@ -93,6 +93,16 @@ export default tseslint.config(
     },
   },
 
+  // 图标按钮一律不加原生 title（docs/development/frontend-standards.md「无障碍与提示」）：
+  // 可访问名只用 aria-label；要解释就写进可见文案或用 Tooltip / FloatingTip 自绘。
+  // 文本截断后用 title 展示全文的非交互元素（文件名、路径、模型 id）不受影响。
+  {
+    files: ['packages/*/src/**/*.tsx'],
+    ignores: ['**/*.{test,spec}.{ts,tsx}', '**/tests/**'],
+    plugins: { nomi: nomiPlugin },
+    rules: { 'nomi/no-icon-title': 'error' },
+  },
+
   // 视图不依赖 electron（内核在 Go 版里，视图只经契约访问）
   {
     files: [

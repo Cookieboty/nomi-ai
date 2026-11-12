@@ -75,7 +75,6 @@ const AddFolderMenu: React.FC<{
           type="button"
           role="menuitem"
           className={styles.menuItem}
-          title={p}
           data-testid="project-add-recent"
           onClick={() => {
             setOpen(false);
@@ -294,7 +293,6 @@ export const ProjectDialog: React.FC<ProjectDialogProps> = ({ project, onClose, 
                       <button
                         type="button"
                         className={styles.rowBtn}
-                        title={t('ui.cli-monitor.project-set-primary')}
                         aria-label={t('ui.cli-monitor.project-set-primary')}
                         onClick={() => makePrimary(p)}
                         data-testid="project-set-primary"
@@ -305,7 +303,6 @@ export const ProjectDialog: React.FC<ProjectDialogProps> = ({ project, onClose, 
                     <button
                       type="button"
                       className={styles.rowBtn}
-                      title={t('ui.providers-schedule.task-folders-remove', baseName(p))}
                       aria-label={t('ui.providers-schedule.task-folders-remove', baseName(p))}
                       onClick={() => remove(p)}
                       data-testid="project-remove-folder"

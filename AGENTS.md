@@ -48,7 +48,7 @@ pnpm changeset           # 用户可见的改动加 changeset；pnpm changelog:c
 - **许可**：只引入开源许可（MIT / Apache-2.0 / BSD / ISC / CC0 / CC-BY 等）的依赖与素材，新素材登记到 `assets-licenses.json` / `CREDITS.md`。
 - **日志**：视图里不用 `console.log`，用 `@nomi-ai/ui` 的 `createLogger`；Go 内核用 `internal/core/services` 的 logger。
 - **安全**：视图经页面地址片段里的回环 WebSocket + 一次性 token 连 Go 内核（`installGoHostTransport` / `resolveHostTransport`），传输只在每个视图包的 `services/api.ts` 里选；视图对内核的调用都经 `@nomi-ai/contract`（过程在 `contract/src/app/<域>.ts`，Go 处理函数在 `internal/core/<域>handlers`），由契约判定 `surfaces` / `dangerous` / 事件的 `eventSurfaces`；外部请求走网关的网络守卫，私有文件、命令参数转义、API Key 加密存储都在 Go 内核里，不在视图里做。视图只带项目 id（Nomi 对话 `extra.projectId`、标签 `projectId`），项目的文件夹由内核（`core/projects`）实时取并再校验（拒绝过宽的根与黑名单目录），不认就按没有处理。
-- **界面**：CSS Modules + `var(--cd-*)` 令牌；面板懒加载；无障碍（aria-label、`Esc` 关闭、焦点管理、减少动态效果）。
+- **界面**：CSS Modules + `var(--cd-*)` 令牌；面板懒加载；无障碍（aria-label、`Esc` 关闭、焦点管理、减少动态效果）。**图标按钮一律不加原生 `title`**：可访问名只用 `aria-label`，要解释就写可见文案或用 `Tooltip` / `FloatingTip`；原生 `title` 只留给截断文本看全文（eslint `nomi/no-icon-title` 会拦，见 [前端工程规范](docs/development/frontend-standards.md)）。
 - **弹窗**：不用系统弹窗（`window.confirm` / `alert` / `prompt`，eslint 会拦）；确认与输入用 `packages/ai-chat/src/components/ConfirmDialog` 的 `confirmDialog` / `promptDialog`，macOS / Windows 样式一致、文案跟界面语言。
 - **样式一致性**：同一行的控件用同一个高度令牌（`--cd-control-h-*`：2xs 20 / xs 24 / sm 28 / ms 32 / md 36 / lg 40；对话区右上角 sm，输入栏工具行与对话头部 ms），同一行同一种形状与字号；尺寸 / 外观通过组件的 `size` / `variant` 改（如 `Select variant="ghost" | "chip"`），不在外部用 `:global(.cd-*)` 覆盖共享组件；hover 用 `--cd-color-hover`，键盘焦点用 `2px solid var(--cd-color-accent-strong)` 描边；字号、颜色、圆角、间距只用令牌（`pnpm check:frontend` 会拦下未定义的 `--cd-*`）。
 - **提交**：Conventional Commits（commitlint，标题与正文每行 ≤ 100 字符）；pre-commit 跑 lint-staged。

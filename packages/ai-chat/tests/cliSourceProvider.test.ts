@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   codingProviders,
   newTabPatch,
+  newTabOptions,
   newTabSelectValue,
   providerEntryRef,
   scopeCatalogToProvider,
@@ -151,5 +152,20 @@ describe('第三方供应商（输入框左下角只切供应商，模型在模�
     expect(newTabSelectValue({ models: {}, newTabAccountId: 'local-claude' }, 'claude')).toBe(
       'default',
     );
+  });
+
+  it('Gemini 没有官方账号：只有「默认」（本机配置）与第三方，旧版本存下的账号也按默认显示', () => {
+    expect(newTabSelectValue({ models: {}, newTabAccountId: 'acct-old' }, 'gemini')).toBe(
+      'default',
+    );
+    expect(newTabSelectValue({ models: {}, newTabAccountId: null }, 'gemini')).toBe('default');
+    const options = newTabOptions({
+      kind: 'gemini',
+      client: undefined,
+      gateway: null,
+      accounts: [],
+    });
+    expect(options.map((o) => o.value)).toEqual(['default']);
+    expect(options[0]!.label).toBe('Gemini 自己的配置');
   });
 });

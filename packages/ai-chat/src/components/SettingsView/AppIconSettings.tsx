@@ -60,7 +60,6 @@ export const AppIconSettings: React.FC = () => {
             role="radio"
             aria-checked={s.variant === v}
             aria-label={t(LABEL[v])}
-            title={t(LABEL[v])}
             data-variant={v}
             className={`${styles.iconOpt} ${s.variant === v ? styles.iconOptOn : ''}`}
             onClick={() => pick(v)}

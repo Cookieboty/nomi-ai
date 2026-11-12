@@ -83,7 +83,7 @@ const EpisodeCard = memo(function EpisodeCard({
       title={
         <span className={styles.row}>
           {e.pinned && (
-            <span title={tr('ui.knowledge-local.pinned-state')}>
+            <span role="img" aria-label={tr('ui.knowledge-local.pinned-state')}>
               <Icon icon={Pin} size={14} />
             </span>
           )}

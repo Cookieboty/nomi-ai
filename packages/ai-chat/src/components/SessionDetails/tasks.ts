@@ -1,6 +1,6 @@
 /**
  * 会话详情里的「任务」：从这个会话建的持续任务（origin.conversationId）。
- * 后台派给编程助手的（origin.via = delegate 且执行者是编程助手）已经在「智能体」里作为子任务列出，这里不重复；
+ * 后台派给编程助手的（origin.via = delegate 且执行者是编程助手）已经在「Agents」里作为子任务列出，这里不重复；
  * 派给后台 Nomi 的（delegate_to_nomi，执行者是 Nomi）是任务，列在这里。
  * 排序：要你处理的、进行中的在前，其余按最近更新。
  */

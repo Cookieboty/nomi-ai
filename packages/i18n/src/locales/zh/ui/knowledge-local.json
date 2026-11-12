@@ -107,7 +107,6 @@
   "ui.knowledge-local.introduce-yourself-in-your-own-words-what-to": "用你自己的话介绍自己：称呼、工作、习惯、希望助手怎样回答。每次对话都会参考（保存在 persona.md，可用任何编辑器修改）。",
   "ui.knowledge-local.is-ready": "{0} 已就绪",
   "ui.knowledge-local.items": "{0} 条",
-  "ui.knowledge-local.knowledge-base-q-a-is-on-click-to": "知识库问答已开启，点击关闭",
   "ui.knowledge-local.knowledge-base-q-a-off": "知识库问答：关",
   "ui.knowledge-local.knowledge-base-q-a-on": "知识库问答：开",
   "ui.knowledge-local.larger-models-are-more-accurate-but-use-more": "模型越大越准，也越占空间和时间；下载后点选即可切换。",
@@ -198,7 +197,6 @@
   "ui.knowledge-local.search-test": "检索测试",
   "ui.knowledge-local.send": "发送",
   "ui.knowledge-local.send-automatically-after-recognition": "识别后自动发送",
-  "ui.knowledge-local.send-message-enter": "发送消息 (Enter)",
   "ui.knowledge-local.settings-export": "设置与导出",
   "ui.knowledge-local.settings-no-keys": "设置（不含密钥）",
   "ui.knowledge-local.shortcut": "快捷键：",
@@ -260,6 +258,5 @@
   "ui.knowledge-local.your-data-stays-on-this-device": "数据都在本机",
   "ui.knowledge-local.add-images-or-files": "添加图片或文件…",
   "ui.knowledge-local.reference-a-file-or-folder": "引用文件或文件夹",
-  "ui.knowledge-local.composer-add-tip": "添加图片或文件、引用文件、交给编程助手、知识库问答",
   "ui.knowledge-local.set-up-voice-input": "设置语音输入…"
 }

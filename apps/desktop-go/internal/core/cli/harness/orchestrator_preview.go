@@ -6,7 +6,7 @@ import (
 )
 
 func (o *Orchestrator) AttachPreview(s *resourcepreview.Service) { o.preview = s }
-func (o *Orchestrator) PreviewOpen(cwd, path string, allowOutside bool) *jsrt.Promise[resourcepreview.Result] {
+func (o *Orchestrator) PreviewOpen(cwd, path string, allowOutside bool, source ...bool) *jsrt.Promise[resourcepreview.Result] {
 	if o.preview == nil {
 		return jsrt.Resolved(resourcepreview.Result{Code: "unavailable"})
 	}
@@ -15,7 +15,7 @@ func (o *Orchestrator) PreviewOpen(cwd, path string, allowOutside bool) *jsrt.Pr
 		root = o.KnownDir(cwd)
 	}
 	home, s := o.home, o.preview
-	return ioAsync(func() resourcepreview.Result { return s.Open(root, path, home, allowOutside) })
+	return ioAsync(func() resourcepreview.Result { return s.Open(root, path, home, allowOutside, source...) })
 }
 func (o *Orchestrator) PreviewClose(url string) bool {
 	if o.preview != nil {

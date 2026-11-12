@@ -20,6 +20,20 @@ type fake struct {
 	retry  string
 }
 
+// find：第一条某命令的完整参数（跳过查应用身份的 list-apps / list-windows；隔离模式下带 sandbox exec 前缀）
+func (f *fake) find(cmd string) string {
+	for _, c := range f.calls {
+		a := c.args
+		if len(a) > 4 && a[0] == "sandbox" && a[1] == "exec" {
+			a = a[4:]
+		}
+		if len(a) > 0 && a[0] == cmd {
+			return strings.Join(c.args, " ")
+		}
+	}
+	return ""
+}
+
 func env(cmd string, data any) []byte {
 	b, _ := json.Marshal(map[string]any{"version": "2.6", "ok": true, "command": cmd, "data": data})
 	return b
@@ -87,7 +101,7 @@ func TestSnapshotOutlineAndRefs(t *testing.T) {
 	if !ok || info.App != "Notes" || info.Name != "Send" || info.Role != "button" {
 		t.Fatalf("ref info %+v %v", info, ok)
 	}
-	if got := f.calls[0].args; strings.Join(got, " ") != "snapshot -i --compact --app Notes" {
+	if got := f.find("snapshot"); got != "snapshot -i --compact --app Notes" {
 		t.Fatalf("args %v", got)
 	}
 }
@@ -160,7 +174,7 @@ func TestPressAlwaysTargetsApp(t *testing.T) {
 	if _, err := s.Press(context.Background(), "Notes", "cmd+s"); err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.Join(f.calls[0].args, " "); got != "press cmd+s --app Notes" {
+	if got := f.find("press"); got != "press cmd+s --app Notes" {
 		t.Fatal(got)
 	}
 }

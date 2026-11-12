@@ -23,7 +23,6 @@ export const SectionHeader: React.FC<{
       type="button"
       className={styles.secToggle}
       aria-expanded={open}
-      title={title ?? label}
       onClick={onToggle}
       data-testid={testId}
     >

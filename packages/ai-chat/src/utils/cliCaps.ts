@@ -2,7 +2,13 @@
  * 编程助手的能力位（来自内置插件清单，P9.4）：界面按能力决定显示什么，不按 CLI 名字判断。
  * 只读纯数据（@nomi-ai/cli-catalog），不经 IPC。
  */
-import { BUILTIN_RENDERER, isBuiltinCliId, type CliRendererInfo } from '@nomi-ai/cli-catalog';
+import {
+  BUILTIN_RENDERER,
+  cliName,
+  isBuiltinCliId,
+  type CliRendererInfo,
+} from '@nomi-ai/cli-catalog';
+import { t } from '@nomi-ai/ui';
 
 import type { AccountKind } from '../services/cliAccountClient';
 
@@ -15,6 +21,11 @@ export function hasOfficialAccount<T extends string>(
   backend: T | null | undefined,
 ): backend is Extract<T, AccountKind> {
   return cliInfo(backend)?.capabilities.officialAccount === true;
+}
+
+/** 没有官方账号的 CLI 的「官方」来源：它自己的配置（dsh 自带配置、Gemini 本机 ~/.gemini 里的配置） */
+export function ownConfigLabel(backend: string): string {
+  return t('ui.models.cli-own-config', cliName(backend));
 }
 
 /** CLI 本身能不能收图（不看模型）；Nomi 自己与未知后端按能收处理 */

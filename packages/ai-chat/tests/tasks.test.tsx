@@ -283,6 +283,27 @@ describe('任务页', () => {
     },
   );
 
+  it('首次挂载就带着的「新建任务」/ 打开某个任务请求也会处理（#339）；没有请求不弹表单', async () => {
+    const onBack = vi.fn();
+    const { rerender } = render(<TasksPage active onBack={onBack} createNonce={1} />);
+    await act(() => fake.settle());
+    expect(screen.getByTestId('task-form-title')).toBeTruthy();
+    // 关掉表单后普通重渲染不会再打开；nonce 变了才再打开
+    fireEvent.keyDown(window, { key: 'Escape' });
+    rerender(<TasksPage active onBack={onBack} createNonce={1} />);
+    expect(screen.queryByTestId('task-form-title')).toBeNull();
+    rerender(<TasksPage active onBack={onBack} createNonce={2} />);
+    expect(screen.getByTestId('task-form-title')).toBeTruthy();
+    cleanup();
+    render(<TasksPage active onBack={onBack} createNonce={0} />);
+    await act(() => fake.settle());
+    expect(screen.queryByTestId('task-form-title')).toBeNull();
+    cleanup();
+    render(<TasksPage active onBack={onBack} focus={{ id: 'task_b', nonce: 1 }} />);
+    await act(() => fake.settle());
+    expect(screen.getByTestId('task-detail').getAttribute('aria-label')).toBe('在跑的');
+  });
+
   it('新建：过授权卡片后创建，能力等级由所选能力推出', async () => {
     await open();
     fireEvent.click(screen.getByTestId('tasks-new'));

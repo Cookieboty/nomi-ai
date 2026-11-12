@@ -32,7 +32,13 @@ type ComputerUse interface {
 	ClickXY(ctx context.Context, x, y int) (json.RawMessage, error)
 	AppsAt(ctx context.Context, x, y int) ([]string, error)
 	Blocked(name, bundleID string) string
+	// CheckApp / CheckRef / CheckScreen：按应用身份（名字 + bundle id）检查禁用规则；整屏截图检查屏幕上的窗口
+	CheckApp(ctx context.Context, name string) error
+	CheckRef(ctx context.Context, info computer.RefInfo) error
+	CheckScreen(ctx context.Context) error
 	StoppedFor(ctx context.Context) bool
+	// Enter：工具调用开始（确认之前）登记这一轮，紧急停止时一并封禁；返回结束函数
+	Enter(ctx context.Context) func()
 	Locate(ctx context.Context, app, target string, ask computer.AskVision) (computer.LocateResult, error)
 }
 
@@ -218,13 +224,13 @@ func (k *deskKit) computerTools() []tools.Definition {
 			out.Set("afterTruncated", true)
 		}
 	}
-	refInfo := func(ref string) (computer.RefInfo, error) {
+	refInfo := func(ctx context.Context, ref string) (computer.RefInfo, error) {
 		info, ok := cu.Ref(ref)
 		if !ok {
 			return info, toolErr("unknown_ref", "不认识 ref "+ref+"：先调用 computer_snapshot，用它返回的 ref")
 		}
-		if r := cu.Blocked(info.App, ""); r != "" {
-			return info, toolErr("blocked_app", r)
+		if err := cu.CheckRef(ctx, info); err != nil {
+			return info, cuErr(err)
 		}
 		return info, nil
 	}
@@ -239,7 +245,7 @@ func (k *deskKit) computerTools() []tools.Definition {
 		if err := fg(ctx); err != nil {
 			return nil, "", err
 		}
-		info, err := refInfo(a.Ref)
+		info, err := refInfo(ctx, a.Ref)
 		if err != nil {
 			return nil, "", err
 		}
@@ -302,7 +308,7 @@ func (k *deskKit) computerTools() []tools.Definition {
 			}
 			app, root := str0(i, "app"), str0(i, "root")
 			if root != "" {
-				info, err := refInfo(root)
+				info, err := refInfo(ctx, root)
 				if err != nil {
 					return nil, "", err
 				}
@@ -311,8 +317,8 @@ func (k *deskKit) computerTools() []tools.Definition {
 			if app == "" {
 				return nil, "", toolErr("invalid_args", "需要 app（应用名，来自 computer_list_apps）或 root")
 			}
-			if r := cu.Blocked(app, ""); r != "" {
-				return nil, "", toolErr("blocked_app", r)
+			if err := cu.CheckApp(ctx, app); err != nil {
+				return nil, "", cuErr(err)
 			}
 			if err := screenSend(ctx, ec); err != nil {
 				return nil, "", err
@@ -367,8 +373,8 @@ func (k *deskKit) computerTools() []tools.Definition {
 				return nil, "", err
 			}
 			app, keys := str0(i, "app"), str0(i, "keys")
-			if r := cu.Blocked(app, ""); r != "" {
-				return nil, "", toolErr("blocked_app", r)
+			if err := cu.CheckApp(ctx, app); err != nil {
+				return nil, "", cuErr(err)
 			}
 			reason := computer.SensitiveAction("press", nil, app, keys)
 			sum := "在「" + app + "」里按 " + keys + "？"
@@ -413,10 +419,13 @@ func (k *deskKit) computerTools() []tools.Definition {
 			app := str0(i, "app")
 			what := "整个屏幕"
 			if app != "" {
-				if r := cu.Blocked(app, ""); r != "" {
-					return nil, "", toolErr("blocked_app", r)
+				if err := cu.CheckApp(ctx, app); err != nil {
+					return nil, "", cuErr(err)
 				}
 				what = "「" + app + "」的窗口"
+			} else if err := cu.CheckScreen(ctx); err != nil {
+				// 整个屏幕：屏幕上有禁用应用的可见窗口就不截
+				return nil, "", cuErr(err)
 			}
 			dec, err := k.confirm(ctx, "computer_screenshot", "截取"+what+"（只保存在本机）？", i, nil, nil, desktop.Workspace{})
 			if err != nil {
@@ -440,10 +449,13 @@ func (k *deskKit) computerTools() []tools.Definition {
 			app, target := str0(i, "app"), str0(i, "target")
 			what := "整个屏幕"
 			if app != "" {
-				if r := cu.Blocked(app, ""); r != "" {
-					return nil, "", toolErr("blocked_app", r)
+				if err := cu.CheckApp(ctx, app); err != nil {
+					return nil, "", cuErr(err)
 				}
 				what = "「" + app + "」的窗口"
+			} else if err := cu.CheckScreen(ctx); err != nil {
+				// 整个屏幕：屏幕上有禁用应用的可见窗口就不截
+				return nil, "", cuErr(err)
 			}
 			// 截图会发给视觉模型：按它的接收方检查（开了「仅本地」时云端视觉模型不行）
 			if err := k.checkSend(ctx, []*desktop.Provider{recv}); err != nil {
@@ -482,8 +494,11 @@ func (k *deskKit) computerTools() []tools.Definition {
 				return nil, "", toolErr("unavailable", "无法确认坐标落在哪个应用上，不点击："+err.Error())
 			}
 			for _, a := range apps {
-				if r := cu.Blocked(a, ""); r != "" {
-					return nil, "", toolErr("blocked_app", "坐标落在「"+a+"」的窗口上："+r)
+				if err := cu.CheckApp(ctx, a); err != nil {
+					if computer.CodeOf(err) == "blocked_app" {
+						return nil, "", toolErr("blocked_app", "坐标落在「"+a+"」的窗口上："+err.Error())
+					}
+					return nil, "", cuErr(err)
 				}
 			}
 			where := ""
@@ -507,6 +522,14 @@ func (k *deskKit) computerTools() []tools.Definition {
 		}),
 	}
 	for j := range defs {
+		if defs[j].Name != "computer_status" {
+			exec := defs[j].Execute
+			defs[j].Execute = func(ctx context.Context, in any, ec tools.ExecContext) (any, error) {
+				leave := cu.Enter(ctx)
+				defer leave()
+				return exec(ctx, in, ec)
+			}
+		}
 		defs[j].Available = cu.Available
 		if defs[j].Name == "computer_locate" {
 			defs[j].Available = func() bool {
