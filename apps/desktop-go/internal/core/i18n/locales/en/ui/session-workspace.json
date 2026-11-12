@@ -209,7 +209,6 @@
   "ui.session-workspace.hide-session-details": "Hide session details",
   "ui.session-workspace.details-no-workspace": "No workspace selected",
   "ui.session-workspace.details-no-changes": "No changes yet",
-  "ui.session-workspace.details-agents": "Agents",
   "ui.session-workspace.details-agents-count": "{0} · {1} active",
   "ui.session-workspace.details-show-more": "Show {0} more",
   "ui.session-workspace.session-details-auto-hidden": "Session details hid itself because the window is narrow; click to show",

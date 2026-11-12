@@ -1,8 +1,8 @@
 /**
- * 会话详情里的「智能体」：本会话用到的其他智能体与状态（纯函数，便于单测）。
+ * 会话详情里的「Agents」：本会话用到的其他 Agents 与状态（纯函数，便于单测）。
  * - 子任务：Nomi 派给编程助手的（delegate_to_cli → 标签 delegation.callId），点开在子任务面板里看；
  * - 子代理：编程助手 / Nomi 自己派生的（Task / Agent 等），状态以实时状态为准。
- * 派给后台 Nomi 的（delegate_to_nomi）是一个持续任务，列在「任务」里，不算智能体。
+ * 派给后台 Nomi 的（delegate_to_nomi）是一个持续任务，列在「任务」里，不算 Agents。
  */
 import type { DelegateResult } from '../../services/delegateClient';
 import type { HarnessBackend, HarnessTabMeta } from '../../services/harnessClient';
@@ -59,7 +59,7 @@ function callStatus(c: ToolCall): SessionAgentStatus {
   return c.status === 'error' ? 'error' : 'done';
 }
 
-/** 一条消息里和智能体有关的工具调用（委派子任务、子代理），连同预先解析好的字段 */
+/** 一条消息里和 Agents 有关的工具调用（委派子任务、子代理），连同预先解析好的字段 */
 interface AgentCall {
   call: ToolCall;
   kind: 'delegate' | 'subagent';

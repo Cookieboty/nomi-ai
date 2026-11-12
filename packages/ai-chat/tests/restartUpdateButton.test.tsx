@@ -83,9 +83,7 @@ describe('RestartUpdateButton', () => {
 describe('AppEntries + restart update', () => {
   it('the sidebar entries no longer carry it (it lives in the title bar)', async () => {
     mockUpdates({ ...base, status: 'downloaded', availableVersion: '2.0.5' });
-    const r = render(
-      <AppEntries collapsed={false} onHub={vi.fn()} onExt={vi.fn()} onSettings={vi.fn()} />,
-    );
+    const r = render(<AppEntries collapsed={false} onSettings={vi.fn()} />);
     expect(r.getByTestId('open-settings')).toBeTruthy();
     await new Promise((res) => setTimeout(res, 0));
     expect(r.queryByTestId('restart-update-titlebar')).toBeNull();

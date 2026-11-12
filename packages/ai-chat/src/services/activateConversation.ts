@@ -15,12 +15,10 @@ export async function activateConversation(
       activate: (id: string) => Promise<void>;
     };
     loadHistory: () => Promise<void>;
-    enableDev: () => void;
   },
 ): Promise<void> {
-  const { ipc, tabs, loadHistory, enableDev } = deps;
+  const { ipc, tabs, loadHistory } = deps;
   if (meta.backend !== 'nomi' && meta.tabId) {
-    enableDev();
     const activated = tabs.activate(meta.tabId);
     await ipc.switchConversation(meta.id).catch(() => undefined);
     await activated;

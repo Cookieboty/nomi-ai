@@ -267,7 +267,8 @@ describe('CLI history in the sidebar', () => {
     fireEvent.click(r.getByTestId('endpoint-filter-claude'));
     expect(r.getByTestId('list-view-all').getAttribute('aria-pressed')).toBe('false');
     expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-pressed')).toBe('true');
-    expect(r.getByTestId('new-chat').title).toContain('新建 Claude Code 对话');
+    expect(r.getByTestId('new-chat').textContent).toBe('新建会话');
+    expect(r.getByTestId('new-chat').getAttribute('aria-label')).toBe('新建会话');
     await untilIdle();
     expect(
       r.getAllByTestId('history-session-item').every((x) => x.dataset.backend === 'claude'),

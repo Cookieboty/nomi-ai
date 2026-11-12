@@ -11,7 +11,6 @@ import type { ForkPick } from '../components/ForkMenu';
 import { SETTINGS_SECTIONS } from '../components/SettingsView/sections';
 import type { AiChatActions } from '../contexts/AiChatContext';
 import type { HarnessTabsCore } from '../contexts/HarnessTabsContext';
-import type { ChatMode } from '../services/chatPrefs';
 import { notifyConversationsChanged } from '../services/conversationStore';
 import { forkCrossBackend, forkSameBackend } from '../services/forkConversation';
 import { openProjectTerminal } from '../services/openProjectTerminal';
@@ -46,13 +45,12 @@ export function useAppCommands(opts: {
   ipcClient: IPCClient;
   tabs: HarnessTabsCore;
   isDev: boolean;
-  setMode: (m: ChatMode) => void;
   panels: AppPanels;
   setToast: (msg: string) => void;
   /** 「在终端打开当前项目」用的目录 */
   cwd: string | null;
 }) {
-  const { actions, ipcClient, tabs, isDev, setMode, panels, setToast, cwd } = opts;
+  const { actions, ipcClient, tabs, isDev, panels, setToast, cwd } = opts;
   const { setSettings, openSettings, toggleSettings, toggleSidebar, expandSidebar } = panels;
   const { toggleHub, toggleExt, openLocal } = panels;
   const bindings = useShortcutBindings();
@@ -90,7 +88,6 @@ export function useAppCommands(opts: {
         const r = target
           ? await forkCrossBackend(store, id, target, pick)
           : await forkSameBackend(store, id, pick);
-        if (r.backend !== 'nomi') setMode('dev');
         if (r.tabId) await tabs.activate(r.tabId);
         else {
           if (tabs.available) await tabs.activate('main');
@@ -102,7 +99,7 @@ export function useAppCommands(opts: {
         setToast(e instanceof Error ? e.message : String(e));
       }
     },
-    [ipcClient, setMode, tabs, actions, setToast],
+    [ipcClient, tabs, actions, setToast],
   );
   const runForkSame = useCallback((id: string) => runFork(id, null, {}), [runFork]);
   /** 分叉弹窗选好：同一个端 = 新会话，否则分叉到那个端 */
@@ -252,7 +249,6 @@ export function useAppCommands(opts: {
         label: 'ui.foundation.palette-dispatch',
         group: 'ui.foundation.action',
         run: () => {
-          setMode('dev');
           const backend = DISPATCH_CLIS[0];
           if (!tabs.available || !backend) return;
           void tabs.create(backend).catch(() => undefined);
@@ -290,7 +286,7 @@ export function useAppCommands(opts: {
         run: () => openSettings(sec.id),
       })),
     ],
-    [bindings, shortcutActions, openSettings, setMode, tabs],
+    [bindings, shortcutActions, openSettings, tabs],
   );
 
   return {
