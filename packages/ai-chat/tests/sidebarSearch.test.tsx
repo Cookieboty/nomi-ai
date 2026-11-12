@@ -173,8 +173,7 @@ afterEach(() => {
 });
 
 describe('sidebar search', () => {
-  it('top row: logo + Nomi, search icon and a new-chat icon; no full-width new-chat button', async () => {
-    // 新建按钮在合并列表的标题上（按项目分组时侧栏标题上没有新建，项目行上有）
+  it('top row: 新建会话 button (icon + text) on the left, search icon on the right', async () => {
     setGroupByWorkspace(false);
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
@@ -182,9 +181,9 @@ describe('sidebar search', () => {
     expect(r.getAllByTestId('endpoint-icon-nomi').length).toBeGreaterThan(0);
     expect(r.getByTestId('sidebar-search-toggle').getAttribute('aria-label')).toBe('搜索对话');
     const nb = r.getByTestId('new-chat');
-    expect(nb.getAttribute('aria-label')).toBe('新对话');
-    expect(nb.getAttribute('title')).toContain('新对话');
-    expect(nb.textContent).toBe(''); // 只有图标，没有整行文字
+    expect(nb.getAttribute('aria-label')).toBe('新建会话');
+    expect(nb.hasAttribute('title')).toBe(false); // 不加悬停提示
+    expect(nb.textContent).toBe('新建会话'); // 图标 + 文字
   });
 
   it('settles after mount instead of refreshing the list in a loop', async () => {

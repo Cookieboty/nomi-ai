@@ -335,7 +335,6 @@
   "ui.providers-schedule.tasks-hint": "交代一次，Nomi 一直记着：按时间推进，需要你的时候来找你。",
   "ui.providers-schedule.tasks-nav-needs-you": "任务：{0} 件需要你处理",
   "ui.providers-schedule.tasks-nav-running": "任务：{0} 个运行中",
-  "ui.providers-schedule.tasks-open-schedule": "在日程里查看和编辑",
   "ui.providers-schedule.terminal-command": "终端命令",
   "ui.providers-schedule.test": "测试",
   "ui.providers-schedule.the-command-can-t-contain-placeholders": "命令里不能用占位符",

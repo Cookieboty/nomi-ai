@@ -15,10 +15,10 @@ func TestOrderedCoversAll(t *testing.T) {
 	}
 }
 
-// 由插件能力推出来的名单（前五个与原来写死的一致；Kimi / MiniMax 只有官方账号）
+// 由插件能力推出来的名单（Gemini 没有官方账号：Google 不再让 Gemini CLI 用个人账号登录）
 func TestDerivedLists(t *testing.T) {
 	for name, c := range map[string]struct{ got, want []string }{
-		"accounts": {Where(WithAccounts), []string{"claude", "codex", "grok", "gemini", "kimi", "minimax"}},
+		"accounts": {Where(WithAccounts), []string{"claude", "codex", "grok", "kimi", "minimax"}},
 		"history":  {Where(WithHistory), []string{"claude", "codex", "dsh", "grok", "gemini"}},
 		"quota":    {Where(WithQuota), []string{"claude", "codex", "grok"}},
 	} {

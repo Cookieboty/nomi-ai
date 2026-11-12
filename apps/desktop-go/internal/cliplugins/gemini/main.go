@@ -34,18 +34,6 @@ var Permissions = &clisdk.PermissionCapability{
 	FromModeID: sh.FromModeID(Modes, ""),
 }
 
-var Accounts = &clisdk.AccountCapability{
-	HomeEnv: HomeEnv,
-	Strip: []string{"GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GEMINI_BASE_URL", "GOOGLE_GENAI_USE_VERTEXAI",
-		"GOOGLE_APPLICATION_CREDENTIALS", "GEMINI_CLI_HOME", "GEMINI_FORCE_ENCRYPTED_FILE_STORAGE", "GEMINI_FORCE_ENCRYPTED_FILE"},
-	Shared: []clisdk.SharedEntry{
-		{Name: ".gemini/tmp", Dir: true, CreateIfMissing: true}, {Name: ".gemini/settings.json"}, {Name: ".gemini/GEMINI.md"},
-		{Name: ".gemini/commands", Dir: true}, {Name: ".gemini/extensions", Dir: true}, {Name: ".gemini/trustedFolders.json"},
-		{Name: ".gemini/projects.json"},
-	},
-	LoginArgs: []string{"--acp"},
-}
-
 var sessRe = regexp.MustCompile(`^session-.*\.jsonl?$`)
 
 var History = &clisdk.HistoryCapability{
@@ -69,12 +57,14 @@ var History = &clisdk.HistoryCapability{
 	Resume: func(id string) *util.Obj { return sh.Resume([]string{"--resume", id}, true) },
 }
 
+// OfficialLaunch：本机配置（~/.gemini 里用户自己配的 API Key / Vertex / 企业版授权）。
+// 没有 Nomi 管理的官方账号：Google 已不再让 Gemini CLI 用个人 Google 账号登录（Code Assist for individuals）
 func OfficialLaunch(ctx clisdk.LaunchContext) clisdk.AgentLaunch {
 	args := []string{}
 	if sh.Has(ctx.Model) {
 		args = []string{"-m", *ctx.Model}
 	}
-	return clisdk.AgentLaunch{Env: sh.HomeEnvObj(ctx.AccountDir, HomeEnv), Args: args, Strip: sh.StripFor(Accounts.Strip, ctx.AccountDir, HomeEnv)}
+	return clisdk.AgentLaunch{Env: util.NewObj(), Args: args, Strip: []string{}}
 }
 
 var Exec = sh.UsageDone
@@ -84,7 +74,6 @@ func CreateMain() *clisdk.CliMainImpl {
 		Session:     &clisdk.SessionCustomization{Exec: Exec},
 		Launch:      clisdk.LaunchCapability{Official: OfficialLaunch},
 		Permissions: Permissions,
-		Accounts:    Accounts,
 		History:     History,
 		Progress:    &clisdk.ProgressCapability{WatchRoots: sh.Roots1(UserHome, ".gemini", "tmp")},
 		Terminal:    sh.ResumeTerminal("gemini", "--resume"),

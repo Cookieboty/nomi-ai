@@ -741,7 +741,6 @@ export const ToolBar: React.FC = () => {
         id={`companion-tool-${toolId}`}
         data-testid={`tool-${toolId}`}
         aria-pressed={pressed(toolId)}
-        title={label}
         onClick={() => {
           setMenuOpen(false);
           handler();
@@ -943,7 +942,6 @@ export const ToolBar: React.FC = () => {
                         type="button"
                         className={styles.miniBtn}
                         aria-label={tr('ui.usage-tools.zoom-out')}
-                        title={tr('ui.usage-tools.zoom-out')}
                         data-testid="toolbar-zoom-out"
                         disabled={size.scale <= size.min + 1e-6}
                         onClick={() => scaleStore.step(-1)}
@@ -957,7 +955,6 @@ export const ToolBar: React.FC = () => {
                         type="button"
                         className={styles.miniBtn}
                         aria-label={tr('ui.usage-tools.zoom-in')}
-                        title={tr('ui.usage-tools.zoom-in')}
                         data-testid="toolbar-zoom-in"
                         disabled={size.scale >= size.max - 1e-6}
                         onClick={() => scaleStore.step(1)}
@@ -968,7 +965,6 @@ export const ToolBar: React.FC = () => {
                         type="button"
                         className={styles.miniBtn}
                         aria-label={tr('ui.usage-tools.reset-size')}
-                        title={tr('ui.usage-tools.reset-size')}
                         data-testid="toolbar-zoom-reset"
                         disabled={Math.abs(size.scale - size.default) < 1e-6}
                         onClick={() => scaleStore.reset()}
@@ -992,7 +988,6 @@ export const ToolBar: React.FC = () => {
                         role="radio"
                         aria-checked={prefs.style === st.id}
                         aria-label={tr(st.label)}
-                        title={tr(st.label)}
                         data-testid={`toolbar-style-${st.id}`}
                         className={styles.swatch}
                         data-swatch={st.id}

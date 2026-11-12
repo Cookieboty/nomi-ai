@@ -2,7 +2,7 @@
  * 「会话详情」：标题栏里文件栏开关前面的按钮，开 / 收对话卡片右侧的一栏（不盖住对话，对话区相应变窄）：
  * - 项目：工作区名（悬停看路径）、当前分支；
  * - 变更：本会话改过的文件数与增删行，点开中栏 Diff；
- * - 智能体：本会话用到的子任务 / 子代理与状态，子任务点开在子任务面板里接着看；
+ * - Agents：本会话用到的子任务 / 子代理与状态，子任务点开在子任务面板里接着看；
  * - 任务：从这个会话建的持续任务与状态，点开到任务页。
  * 两个列表最多先显示 5 个，「更多」展开其余的。开关与自动收起见 ./context。
  */
@@ -124,7 +124,6 @@ function Section<T>({
             type="button"
             className={styles.moreBtn}
             aria-label={moreLabel}
-            title={moreLabel}
             aria-expanded={all}
             data-testid={`session-details-${id}-more`}
             onClick={() => setAll((v) => !v)}
@@ -162,7 +161,7 @@ const AgentRow: React.FC<{ agent: SessionAgent; onOpen?: () => void }> = ({ agen
   return (
     <li data-testid="session-details-agent">
       {onOpen ? (
-        <button type="button" className={styles.row} title={a.detail} onClick={onOpen}>
+        <button type="button" className={styles.row} onClick={onOpen}>
           {body}
         </button>
       ) : (
@@ -285,7 +284,6 @@ const DetailsPanel: React.FC<
             type="button"
             className={styles.row}
             data-testid="session-details-changes"
-            title={t('ui.usage-tools.files', String(changes.files))}
             onClick={() => openWorkbench({})}
           >
             <ChangesIcon />
@@ -307,7 +305,7 @@ const DetailsPanel: React.FC<
         ))}
       <Section
         id="agents"
-        title={t('ui.session-workspace.details-agents')}
+        title={t('ui.cli-monitor.fleet')}
         count={t(
           'ui.session-workspace.details-agents-count',
           String(agents.length),
@@ -333,12 +331,7 @@ const DetailsPanel: React.FC<
         items={tasks}
         render={(task) => (
           <li key={task.id} data-testid="session-details-task">
-            <button
-              type="button"
-              className={styles.row}
-              title={task.goal}
-              onClick={() => requestOpenTask(task.id)}
-            >
+            <button type="button" className={styles.row} onClick={() => requestOpenTask(task.id)}>
               <Icon icon={ListChecks} size={16} />
               <span className={styles.itemText}>
                 <span className={styles.itemName}>{task.title}</span>

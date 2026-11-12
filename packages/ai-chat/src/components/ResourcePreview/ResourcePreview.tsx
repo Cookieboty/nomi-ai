@@ -15,6 +15,7 @@ import { basename, dirname, resourceTarget, workspaceFileHref } from '../../util
 import { confirmDialog } from '../ConfirmDialog';
 import { dismissPreviewChat } from '../PreviewChat/dismiss';
 import { FileReview } from '../SessionWorkspace/FileReview';
+import { dirtyReviewDrafts, dropReviewDrafts } from '../SessionWorkspace/reviewDrafts';
 
 import { CodeDocument } from './CodeDocument';
 import { resolveCodeLanguage } from './codeSyntax';
@@ -358,6 +359,31 @@ export const ResourcePreview: React.FC<{
   };
   const closeEntries = (keys: string[]) => {
     if (closing.current || !keys.length) return;
+    // Diff 标签里没保存的编辑：问一次，放弃才关；不放弃就切到那个标签
+    const diffDrafts = dirtyReviewDrafts(keys);
+    if (diffDrafts.length) {
+      closing.current = true;
+      void confirmDialog({
+        title: t('ui.session-workspace.preview-discard-draft-title'),
+        message: t('ui.session-workspace.preview-diff-draft-close-message'),
+        confirmLabel: t('ui.session-workspace.preview-discard-draft'),
+        danger: true,
+      })
+        .then((ok) => {
+          closing.current = false;
+          if (!mounted.current) return;
+          if (!ok) {
+            onActive(diffDrafts[0]!);
+            return;
+          }
+          dropReviewDrafts(diffDrafts);
+          closeEntries(keys);
+        })
+        .catch(() => {
+          closing.current = false;
+        });
+      return;
+    }
     const drafts = getPreviewEdits(keys);
     const remove = () => {
       const focus = document.activeElement;
@@ -365,6 +391,7 @@ export const ResourcePreview: React.FC<{
         root.current?.querySelectorAll<HTMLElement>('[data-preview-tab-key]') ?? [],
       ).some((tab) => keys.includes(tab.dataset.previewTabKey!) && tab.contains(focus));
       onCloseEntries(keys);
+      dropReviewDrafts(keys);
       if (focusClosedTab) root.current?.focus({ preventScroll: true });
     };
     if (!drafts.length) {
@@ -449,7 +476,6 @@ export const ResourcePreview: React.FC<{
                 });
               }}
               onClick={() => guarded(() => onActive(entry.key))}
-              title={entry.href}
               aria-label={
                 entry.diff
                   ? t('ui.session-workspace.diff-tab', basename(entry.diff.path))
@@ -482,6 +508,7 @@ export const ResourcePreview: React.FC<{
         <div className={styles.diffBody} data-preview-diff data-testid="preview-diff">
           <FileReview
             key={active.key}
+            draftKey={active.key}
             hideFileTabs
             className={styles.diffReview}
             files={[activeDiff.file]}

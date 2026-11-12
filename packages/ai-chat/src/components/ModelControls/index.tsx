@@ -715,7 +715,6 @@ const ModelChip: React.FC<{
             ? t('ui.chat-settings.model', provider.name, shortLabel)
             : t('ui.chat-settings.model-and-reasoning-effort', shortLabel)
         }
-        title={t('ui.chat-settings.takes-effect-from-the-next-message-current-tab')}
         data-testid="model-chip"
         onClick={toggle}
       >

@@ -322,7 +322,6 @@ export const ModelsPage: React.FC = () => {
                 className={styles.expand}
                 aria-expanded={openCli === 'nomi'}
                 label={`${t('ui.models.nomi-ai')} · ${t('ui.voice-mascot.more')}`}
-                title={t('ui.models.nomi-more-uses')}
                 data-testid="nomi-more"
                 onClick={() => setOpenCli((x) => (x === 'nomi' ? null : 'nomi'))}
                 icon={<Icon icon={openCli === 'nomi' ? ChevronDown : ChevronRight} size={14} />}
@@ -603,13 +602,12 @@ const CliRow: React.FC<{
           <EndpointIcon backend={kind} size={16} decorative />
           {name}
         </span>
-        {/* 只放箭头：名字长时不挤；「各档模型 / 更多」作为提示与无障碍名 */}
+        {/* 只放箭头：名字长时不挤；「各档模型 / 更多」只作为无障碍名（图标按钮不加原生 title） */}
         <IconButton
           size="sm"
           className={styles.expand}
           aria-expanded={open}
           label={`${t(name)} · ${claude ? t('ui.models.per-tier-models') : t('ui.voice-mascot.more')}`}
-          title={claude ? t('ui.models.per-tier-models') : t('ui.voice-mascot.more')}
           data-testid={claude ? 'cli-tiers-toggle' : `cli-more-${kind}`}
           onClick={onToggle}
           icon={<Icon icon={open ? ChevronDown : ChevronRight} size={14} />}
@@ -752,7 +750,6 @@ const ProviderRow: React.FC<{
               type="button"
               className={styles.providerGrip}
               aria-label={t('ui.chat-settings.position-alt-to-reorder', name, order.index + 1)}
-              title={t('ui.chat-settings.drag-to-reorder')}
               data-testid={`provider-grip-${p.id}`}
               onKeyDown={(e) => {
                 if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
@@ -778,7 +775,7 @@ const ProviderRow: React.FC<{
             <BrandIcon brand={p.presetId ?? p.id} name={p.name} size={20} />
             <span className={styles.providerLabel}>{name}</span>
             {warning && (
-              <span className={styles.warnDot} title={warning} aria-label={warning}>
+              <span className={styles.warnDot} role="img" aria-label={warning}>
                 <Icon icon={AlertCircle} size={14} />
               </span>
             )}

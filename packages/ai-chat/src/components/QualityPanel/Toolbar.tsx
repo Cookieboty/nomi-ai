@@ -313,7 +313,6 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
             type="button"
             className={styles.iconChip}
             aria-label={t('ui.knowledge-local.refresh')}
-            title={t('ui.knowledge-local.refresh')}
             onClick={p.onRefresh}
             data-testid="quality-refresh"
           >
@@ -323,11 +322,6 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
             type="button"
             className={styles.iconChip}
             aria-label={t('ui.usage-tools.export-csv')}
-            title={
-              p.onExport
-                ? t('ui.usage-tools.export-csv')
-                : t('ui.model-quality.this-view-can-t-be-exported')
-            }
             onClick={p.onExport}
             disabled={!p.onExport}
             data-testid="quality-export"

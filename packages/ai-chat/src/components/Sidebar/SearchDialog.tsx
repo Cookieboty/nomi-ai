@@ -155,7 +155,6 @@ export const SearchDialog: React.FC<{
           <button
             type="button"
             className={styles.searchClear}
-            title={p.query ? t('ui.cli-monitor.clear-search') : t('ui.cli-monitor.close-search')}
             aria-label={
               p.query ? t('ui.cli-monitor.clear-search') : t('ui.cli-monitor.close-search')
             }
@@ -238,7 +237,6 @@ export const SearchDialog: React.FC<{
                       data-kind="conv"
                       data-backend={c.backend}
                       data-conversation-id={c.id}
-                      title={[item.title, item.cwd].filter(Boolean).join('\n')}
                       onMouseMove={() => p.onActive(i)}
                       onClick={() => p.onOpenConv(c.id)}
                       onContextMenu={(e) => p.onCtx(c.id, e)}
@@ -273,7 +271,6 @@ export const SearchDialog: React.FC<{
                     data-session-id={h.sessionId}
                     data-cwd-missing={h.cwdMissing || undefined}
                     aria-busy={p.openingKey === h.key}
-                    title={[h.title, h.cwd].filter(Boolean).join('\n')}
                     onMouseMove={() => p.onActive(i)}
                     onClick={() => p.onOpenHist(h)}
                   >
@@ -326,7 +323,6 @@ export const SearchDialog: React.FC<{
                   className={`${styles.thread} ${styles.resultRow}`}
                   data-layout="icon"
                   data-testid="search-task"
-                  title={[item.title, item.goal].filter(Boolean).join('\n')}
                   onClick={() => {
                     p.onClose();
                     p.onOpenTask?.(item.id);
@@ -356,7 +352,6 @@ export const SearchDialog: React.FC<{
                       type="button"
                       className={styles.searchAssetTile}
                       data-testid="search-asset"
-                      title={assetTitle(item)}
                       onClick={() => {
                         p.onClose();
                         p.onOpenAsset?.(item.file);
@@ -380,7 +375,6 @@ export const SearchDialog: React.FC<{
                     className={`${styles.thread} ${styles.resultRow}`}
                     data-layout="thumb"
                     data-testid="search-asset"
-                    title={assetTitle(item)}
                     onClick={() => {
                       p.onClose();
                       p.onOpenAsset?.(item.file);

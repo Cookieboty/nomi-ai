@@ -58,6 +58,7 @@ import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSessionComposerDrafts } from './hooks/useSessionComposerDrafts';
 import { useMigrateCliTranscriptView } from './hooks/useTranscriptView';
 import { toHarnessImages } from './services/chatImages';
+import { watchCliPresence } from './services/cliPresence';
 import { smartTitleOnFirstSend } from './services/cliSmartTitle';
 import { watchNomiModel } from './services/nomiModel';
 import type { ImageAttachment } from './services/screenClient';
@@ -87,7 +88,7 @@ const AiChatContent: React.FC = () => {
   const settledNomi = useAiChatSelector(selectSettledNomi, shallowArrayEqual);
   // 不订阅完整标签列表：后台标签的状态 / 未读广播不让整个 App 重渲染
   const tabs = useHarnessTabsCore();
-  const { isDev, setMode } = useChatMode();
+  const { isDev } = useChatMode();
   const harness = useHarnessState();
   // 当前会话的键：CLI 标签用 tab:<id>，Nomi 对话用 nomi:<conversationId>；
   // Transcript view 按这个键分开保存，切换会话互不影响。
@@ -154,7 +155,9 @@ const AiChatContent: React.FC = () => {
     return () => onboardingClient.mascot({ type: 'reply', phase: 'settled' });
   }, [isLoading]);
   useEffect(() => watchNomiModel(), []);
-  // 切到普通模式时若正停在 CLI 标签，回到主对话（后台标签继续跑）
+  // 装了编程助手才显示编程助手相关界面（没有「对话 / 工坊」切换）
+  useEffect(() => watchCliPresence(), []);
+  // 没有编程助手（如被卸载）时若正停在 CLI 标签，回到主对话（后台标签继续跑）
   useEffect(() => {
     if (!isDev && tabs.isCliTab) void tabs.activate('main');
   }, [isDev, tabs.isCliTab, tabs]);
@@ -181,7 +184,6 @@ const AiChatContent: React.FC = () => {
     ipcClient,
     tabs,
     isDev,
-    setMode,
     panels,
     setToast,
     cwd: rail.cwd,

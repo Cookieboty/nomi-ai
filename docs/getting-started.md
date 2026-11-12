@@ -44,7 +44,7 @@ macOS 安装包已签名但尚未公证：若提示「已损坏」，先把 Nomi
 
 ### 两种模式
 
-会话面板顶部的菜单可以切换 **对话**（聊天、知识库、记忆）与 **工坊**（派出 Claude Code、Codex、Gemini CLI、Grok、dsh、Kimi Code、MiniMax Code 等编程助手，改项目、看 Diff）。工坊的三栏布局、改动审查与提交见 [编程助手](features/coding-agents.md)。看板上的终端或 IDE 会话是只读的。
+本机装了编程助手（Claude Code、Codex、Gemini CLI、Grok、dsh、Kimi Code、MiniMax Code 等）时，界面里会一直显示编程助手相关的功能（派出编程助手、改项目、看 Diff）；没装就只有和 Nomi 的对话。编程助手的三栏布局、改动审查与提交见 [编程助手](features/coding-agents.md)。看板上的终端或 IDE 会话是只读的。
 
 ### 常用快捷键
 

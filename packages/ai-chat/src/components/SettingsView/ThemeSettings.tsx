@@ -259,7 +259,7 @@ export const ThemeSettings: React.FC = () => {
     <div className={styles.themeBlock} data-testid="theme-settings" id="settings-theme">
       <SettingRow title={tr('ui.chat-settings.theme')} description={description}>
         <div className={styles.themeHeaderActions}>
-          <label className={styles.followSystem} title={tr(SYSTEM.desc)}>
+          <label className={styles.followSystem}>
             <Switch
               checked={following}
               onChange={setFollowing}
@@ -419,7 +419,6 @@ const ThemeCard: React.FC<{
       type="button"
       role="radio"
       aria-checked={on}
-      title={title}
       className={`${styles.theme} ${on ? styles.themeOn : ''}`}
       onClick={onPick}
       data-testid={item.kind === 'custom' ? `theme-custom-${item.def.id}` : `theme-${item.id}`}

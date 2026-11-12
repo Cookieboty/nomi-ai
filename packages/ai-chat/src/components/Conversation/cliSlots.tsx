@@ -62,7 +62,6 @@ const ImageThumbnail: React.FC<{ image: CliImage; onOpen: () => void }> = ({
       className={styles.imageThumbBtn}
       onClick={onOpen}
       disabled={unavailable}
-      title={unavailable ? (im.path ?? im.name) : `${im.width}×${im.height}`}
       aria-label={
         unavailable
           ? t('ui.session-workspace.image-attachment-unavailable')

@@ -277,7 +277,6 @@
   "electron.common.only-unfired-reminders-can-be-changed": "只能修改尚未触发的提醒",
   "electron.common.only-when-the-user-explicitly-asks-to-remember": "仅当用户明确要求“记住…”时，把一条关于用户的事实写入本地长期记忆。不要记录密码、密钥等敏感信息。",
   "electron.common.open-ai-chat": "打开 AI 对话",
-  "electron.common.opened-the-google-sign-in-page-in-your": "已在浏览器里打开 Google 登录页，请在那里完成授权（5 分钟内有效）。",
   "electron.common.opening-history-sessions-is-not-supported-here": "当前环境不支持打开历史会话",
   "electron.common.outside-active-hours": "不在活跃时段（{0}–{1}）",
   "electron.common.path-contains-invalid-characters": "路径包含非法字符",
@@ -365,7 +364,6 @@
   "electron.common.session-s-are-still-using-this-cli-windows": "还有 {0} 个会话正在使用这个 CLI。Windows 上运行中的程序不能被替换，请等它们结束后再更新。",
   "electron.common.shake-head": "摇头",
   "electron.common.shy": "害羞",
-  "electron.common.sign-in-didn-t-finish": "登录没有完成",
   "electron.common.sign-in-didn-t-finish-exit-code": "登录没有完成（退出码 {0}）",
   "electron.common.sign-in-finished-but-the-cli-still-reports": "登录完成了，但 CLI 仍显示未登录",
   "electron.common.sign-in-timed-out-try-again": "登录超时，请重试",
@@ -616,5 +614,6 @@
   "electron.common.choose-theme-background": "选择主题背景图",
   "electron.common.theme-image": "主题背景图",
   "electron.common.theme-image-unsupported": "背景图只支持 PNG、JPEG、WebP，且不超过 {0} MB",
-  "electron.common.save-theme-template": "保存主题包模板"
+  "electron.common.save-theme-template": "保存主题包模板",
+  "electron.common.gemini-needs-auth": "Gemini 没有可用的认证：Google 已不再让 Gemini CLI 用个人 Google 账号登录。请在 ~/.gemini 里配置 API Key（或 Vertex AI、企业版授权），或在「模型」页给 Gemini 选一个第三方模型。"
 }

@@ -107,7 +107,6 @@
   "ui.knowledge-local.introduce-yourself-in-your-own-words-what-to": "Introduce yourself in your own words: what to call you, your work, habits, how you'd like answers. Used in every conversation (saved in persona.md, editable in any editor).",
   "ui.knowledge-local.is-ready": "{0} is ready",
   "ui.knowledge-local.items": "{0} items",
-  "ui.knowledge-local.knowledge-base-q-a-is-on-click-to": "Knowledge base Q&A is on, click to turn off",
   "ui.knowledge-local.knowledge-base-q-a-off": "Knowledge base Q&A: off",
   "ui.knowledge-local.knowledge-base-q-a-on": "Knowledge base Q&A: on",
   "ui.knowledge-local.larger-models-are-more-accurate-but-use-more": "Larger models are more accurate but use more space and time; click a downloaded model to switch.",
@@ -198,7 +197,6 @@
   "ui.knowledge-local.search-test": "Search test",
   "ui.knowledge-local.send": "Send",
   "ui.knowledge-local.send-automatically-after-recognition": "Send automatically after recognition",
-  "ui.knowledge-local.send-message-enter": "Send message (Enter)",
   "ui.knowledge-local.settings-export": "Settings & export",
   "ui.knowledge-local.settings-no-keys": "Settings (no keys)",
   "ui.knowledge-local.shortcut": "Shortcut: ",
@@ -260,6 +258,5 @@
   "ui.knowledge-local.your-data-stays-on-this-device": "Your data stays on this device",
   "ui.knowledge-local.add-images-or-files": "Add images or files…",
   "ui.knowledge-local.reference-a-file-or-folder": "Reference a file or folder",
-  "ui.knowledge-local.composer-add-tip": "Add images or files, reference a file, hand off to a coding agent, knowledge-base Q&A",
   "ui.knowledge-local.set-up-voice-input": "Set up voice input…"
 }

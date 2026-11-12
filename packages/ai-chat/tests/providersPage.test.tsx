@@ -35,6 +35,8 @@ function setup() {
     calls.push([ch, input]);
     if (ch === 'agents.state' || ch === 'agents.scan') return AGENTS;
     if (ch === 'cliAccount.list') return [];
+    if (ch === 'cliAccount.networkGet' || ch === 'cliAccount.networkSet')
+      return { useShellProxy: ch === 'cliAccount.networkSet', shellProxy: 'http://127.0.0.1:7890' };
     if (ch === 'cliUpdate.inspect')
       return [
         { kind: 'claude', path: '/usr/bin/claude', version: '2.1.0' },
@@ -113,7 +115,7 @@ describe('ProvidersPage', () => {
     await waitFor(() => expect(r.getByTestId('providers-section-codex')).toBeTruthy());
   });
 
-  it.each(['claude', 'codex', 'grok', 'gemini', 'kimi', 'minimax'] as const)(
+  it.each(['claude', 'codex', 'grok', 'kimi', 'minimax'] as const)(
     '%s：版本卡片 + 官方账号 + 去「模型」页的入口；没有第三方供应商列表和路由',
     async (kind) => {
       const calls = setup();
@@ -169,13 +171,29 @@ describe('ProvidersPage', () => {
     await waitFor(() => r.getByTestId('cli-runtime-notice'));
   });
 
-  it('dsh：没有官方账号，只有版本卡片和去「模型」页的入口', async () => {
-    setup();
-    localStorage.setItem('ai-chat:providerEndpoint', 'dsh');
+  it.each(['dsh', 'gemini'] as const)(
+    '%s：没有官方账号，只有版本卡片和去「模型」页的入口',
+    async (kind) => {
+      setup();
+      localStorage.setItem('ai-chat:providerEndpoint', kind);
+      const r = render(<ProvidersPage onOpenModels={() => undefined} />);
+      await waitFor(() => expect(r.getByTestId(`providers-section-${kind}`)).toBeTruthy());
+      expect(r.queryByTestId(`cli-accounts-${kind}`)).toBeNull();
+      expect(r.getByTestId('cli-open-models')).toBeTruthy();
+    },
+  );
+
+  it('「沿用终端里的代理」只在「通用」里，各编程助手的官方账号里不再各放一份', async () => {
+    const calls = setup();
+    localStorage.setItem('ai-chat:providerEndpoint', 'claude');
     const r = render(<ProvidersPage onOpenModels={() => undefined} />);
-    await waitFor(() => expect(r.getByTestId('providers-section-dsh')).toBeTruthy());
-    expect(r.queryByTestId('cli-accounts-dsh')).toBeNull();
-    expect(r.getByTestId('cli-open-models')).toBeTruthy();
+    await waitFor(() => r.getByTestId('cli-accounts-claude'));
+    expect(r.queryByTestId('cli-network-shell-proxy')).toBeNull();
+    fireEvent.click(r.getByTestId('providers-endpoint-general'));
+    const sw = await waitFor(() => r.getByTestId('cli-network-shell-proxy-switch'));
+    expect(r.getByTestId('cli-network-shell-proxy').textContent).toContain('http://127.0.0.1:7890');
+    fireEvent.click(sw);
+    await waitFor(() => expect(calls.some(([ch]) => ch === 'cliAccount.networkSet')).toBe(true));
   });
 
   it('「监视与会话」：活跃会话超过 20 条时分页', async () => {

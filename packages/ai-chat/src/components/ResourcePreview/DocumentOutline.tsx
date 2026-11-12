@@ -104,7 +104,6 @@ export function DocumentOutline({
             <button
               key={heading.id}
               type="button"
-              title={heading.text}
               data-active={active === heading.id || undefined}
               aria-current={active === heading.id ? 'location' : undefined}
               style={{

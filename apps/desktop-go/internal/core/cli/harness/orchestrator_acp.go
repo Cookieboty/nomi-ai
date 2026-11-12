@@ -285,6 +285,10 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 				if acpAuthRequiredRe.MatchString(err.Error()) && builtin.WithAccounts(backend) {
 					return struct{}{}, errors.New(i18n.T("electron.common.cli-needs-sign-in", name))
 				}
+				// Gemini 没有官方账号（Google 不再让 Gemini CLI 用个人账号登录）：指给能用的路
+				if acpAuthRequiredRe.MatchString(err.Error()) && backend == "gemini" {
+					return struct{}{}, errors.New(i18n.T("electron.common.gemini-needs-auth"))
+				}
 				return struct{}{}, err
 			}
 			if sid == nil || *sid == "" {

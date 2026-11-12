@@ -97,7 +97,6 @@ const TaskCard: React.FC<{ task: Task; selected: boolean; onSelect: () => void }
             className={styles.above}
             icon={<Icon icon={action.icon} size={14} />}
             label={`${action.label} · ${task.title}`}
-            title={action.label}
             onClick={() => {
               void action.run().catch((e: unknown) => log.warn('quick action failed', e));
             }}
@@ -141,7 +140,6 @@ const LegacyCard: React.FC<{ item: LegacyItem; onOpen?: () => void }> = ({ item:
       type="button"
       className={styles.open}
       aria-label={x.title}
-      title={t('ui.providers-schedule.tasks-open-schedule')}
       onClick={onOpen}
       data-testid={`legacy-${x.id}`}
     />

@@ -55,7 +55,7 @@ func TestSandboxRoutesDesktopCommandsOnly(t *testing.T) {
 	if _, err := s.Snapshot(context.Background(), SnapshotOpts{App: "Notes"}); err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.Join(f.calls[0].args, " "); got != "sandbox exec vm1 -- snapshot -i --compact --app Notes" {
+	if got := f.find("snapshot"); got != "sandbox exec vm1 -- snapshot -i --compact --app Notes" {
 		t.Fatal(got)
 	}
 	// 隔离模式下文字也走 stdin，不进进程参数
@@ -162,8 +162,11 @@ func TestLocateScreenCoordinates(t *testing.T) {
 	b64 := base64.StdEncoding.EncodeToString(buf.Bytes())
 	s := New(Options{Resolve: func() string { return "/usr/bin/true" }, Getenv: func(string) string { return "" }, ShotsDir: t.TempDir(),
 		Exec: func(_ context.Context, _ string, args []string, _ string) ([]byte, error) {
-			d, _ := json.Marshal(map[string]any{"version": "2.6", "ok": true, "command": args[0],
-				"data": map[string]any{"data": b64, "width": 3200, "height": 2000, "scale_factor": 2}})
+			var data any = map[string]any{"data": b64, "width": 3200, "height": 2000, "scale_factor": 2}
+			if args[0] == "list-windows" {
+				data = []any{}
+			}
+			d, _ := json.Marshal(map[string]any{"version": "2.6", "ok": true, "command": args[0], "data": data})
 			return d, nil
 		}})
 	var gotW, gotH int
@@ -191,5 +194,71 @@ func TestCliEnabledDefaultsOn(t *testing.T) {
 	_, _ = New(Options{SettingsPath: p}).UpdateSettings(SettingsPatch{CliEnabled: &off})
 	if New(Options{SettingsPath: p}).Settings().CliEnabled {
 		t.Fatal("an explicit off must be kept")
+	}
+}
+
+// 跑了超过 activeFor 的命令（computer_wait 最长 60 秒）：紧急停止仍要封禁那一轮
+func TestStopAllBlocksLongRunningTurn(t *testing.T) {
+	started := make(chan struct{})
+	s := New(Options{Resolve: func() string { return "/usr/bin/true" }, Getenv: func(string) string { return "" },
+		Exec: func(ctx context.Context, _ string, args []string, _ string) ([]byte, error) {
+			if args[0] == "wait" {
+				close(started)
+				<-ctx.Done()
+				return nil, ctx.Err()
+			}
+			return []byte(`{"version":"2.6","ok":true,"command":"x","data":{}}`), nil
+		}})
+	turn, cancel := context.WithCancel(tools.WithConversation(context.Background(), "conv-long"))
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, err := s.Wait(turn, WaitOpts{Text: "x", App: "Notes", TimeoutMs: 60_000})
+		done <- err
+	}()
+	<-started
+	// 模拟命令已经跑了 30 秒：这一轮最后一次登记早于 activeFor
+	s.act.mu.Lock()
+	for k, ti := range s.act.turns {
+		ti.at = time.Now().Add(-30 * time.Second)
+		s.act.turns[k] = ti
+	}
+	s.act.mu.Unlock()
+	s.expire() // 清理先跑一次：正在执行的那一轮不能被清掉
+	rep := s.StopAll()
+	if strings.Join(rep.Conversations, ",") != "conv-long" {
+		t.Fatalf("report %+v", rep)
+	}
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("stop did not cancel the in-flight call")
+	}
+	if _, err := s.ListApps(turn); CodeOf(err) != "stopped" || !s.StoppedFor(turn) {
+		t.Fatalf("same turn after stop: %v", err)
+	}
+}
+
+// 停在确认卡上（还没执行命令）的那一轮：紧急停止也要封禁、报给装配层中止
+func TestStopAllBlocksTurnWaitingForConfirm(t *testing.T) {
+	s := New(Options{Resolve: func() string { return "/usr/bin/true" }, Getenv: func(string) string { return "" },
+		Exec: func(context.Context, string, []string, string) ([]byte, error) {
+			return []byte(`{"version":"2.6","ok":true,"command":"x","data":{}}`), nil
+		}})
+	turn, cancel := context.WithCancel(tools.WithConversation(context.Background(), "conv-confirm"))
+	defer cancel()
+	leave := s.Enter(turn)
+	rep := s.StopAll()
+	leave()
+	if strings.Join(rep.Conversations, ",") != "conv-confirm" {
+		t.Fatalf("report %+v", rep)
+	}
+	// 用户之后才点「允许」：执行命令时仍被拒绝
+	if _, err := s.Press(turn, "Notes", "cmd+n"); CodeOf(err) != "stopped" {
+		t.Fatalf("after stop: %v", err)
+	}
+	// 结束后不留登记：再停一次不会再报这一轮
+	if rep := s.StopAll(); len(rep.Conversations) != 0 {
+		t.Fatalf("stale pending %+v", rep)
 	}
 }

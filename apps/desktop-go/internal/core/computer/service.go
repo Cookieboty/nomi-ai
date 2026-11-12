@@ -25,7 +25,9 @@ const (
 
 // RefInfo：一个 ref 来自哪个应用 / 窗口的哪次 snapshot，元素是什么（安全判定与 STALE_REF 重定位用）
 type RefInfo struct {
-	App        string
+	App string
+	// BundleID：读界面时这个应用的 bundle id（之后的动作核对身份没变）
+	BundleID   string
 	WindowID   string
 	SnapshotID string
 	Role       string
@@ -64,6 +66,7 @@ type Service struct {
 	refs    map[string]RefInfo
 	snaps   []string // snapshot id，旧 → 新
 	snapApp map[string]string
+	apps    appsCache
 
 	inst *installer
 	act  *activity
@@ -238,8 +241,8 @@ func (s *Service) Snapshot(ctx context.Context, o SnapshotOpts) (Snapshot, error
 	if app == "" {
 		return Snapshot{}, errf("INVALID_ARGS", "需要 app（应用名，来自 computer_list_apps）")
 	}
-	if r := s.Blocked(app, ""); r != "" {
-		return Snapshot{}, errf("blocked_app", "%s", r)
+	if err := s.CheckApp(ctx, app); err != nil {
+		return Snapshot{}, err
 	}
 	args := []string{"snapshot", "-i", "--compact"}
 	if o.Root != "" {
@@ -271,9 +274,10 @@ func (s *Service) Snapshot(ctx context.Context, o SnapshotOpts) (Snapshot, error
 	if d.App == "" {
 		d.App = app
 	}
-	// agent-desktop 按名字模糊匹配应用：实际拿到的应用也要过一遍黑名单
-	if r := s.Blocked(d.App, ""); r != "" {
-		return Snapshot{}, errf("blocked_app", "%s", r)
+	// agent-desktop 按名字模糊匹配应用：实际拿到的应用也要过一遍黑名单（名字 + bundle id）
+	bundle, err := s.identify(ctx, d.App)
+	if err != nil {
+		return Snapshot{}, err
 	}
 	win := o.WindowID
 	if len(d.Window) > 0 {
@@ -290,7 +294,7 @@ func (s *Service) Snapshot(ctx context.Context, o SnapshotOpts) (Snapshot, error
 	redact := s.Settings().Redact
 	if d.Tree != nil {
 		walk(*d.Tree, 0, &b, redact, func(n node) {
-			refs[n.Ref] = RefInfo{App: d.App, WindowID: win, SnapshotID: d.SnapshotID, Role: n.Role, Name: n.Name}
+			refs[n.Ref] = RefInfo{App: d.App, BundleID: bundle, WindowID: win, SnapshotID: d.SnapshotID, Role: n.Role, Name: n.Name}
 		})
 	}
 	snap.Outline = b.String()
@@ -405,8 +409,8 @@ func (s *Service) Act(ctx context.Context, a Action) (ActResult, error) {
 	if !ok {
 		return ActResult{}, unknownRef(a.Ref)
 	}
-	if r := s.Blocked(info.App, ""); r != "" {
-		return ActResult{}, errf("blocked_app", "%s", r)
+	if err := s.CheckRef(ctx, info); err != nil {
+		return ActResult{}, err
 	}
 	data, err := s.actOnce(ctx, a)
 	if CodeOf(err) != "STALE_REF" || ctx.Err() != nil {
@@ -478,8 +482,8 @@ func (s *Service) relocate(ctx context.Context, info RefInfo) (string, error) {
 
 // Press：向指定应用发送组合键（总是带 --app，不往当前焦点窗口里乱发）
 func (s *Service) Press(ctx context.Context, app, combo string) (json.RawMessage, error) {
-	if r := s.Blocked(app, ""); r != "" {
-		return nil, errf("blocked_app", "%s", r)
+	if err := s.CheckApp(ctx, app); err != nil {
+		return nil, err
 	}
 	return s.call(ctx, 0, "", "press", combo, "--app", app)
 }
@@ -503,8 +507,8 @@ func (s *Service) Wait(ctx context.Context, o WaitOpts) (json.RawMessage, error)
 		if !ok {
 			return nil, unknownRef(o.Ref)
 		}
-		if r := s.Blocked(info.App, ""); r != "" {
-			return nil, errf("blocked_app", "%s", r)
+		if err := s.CheckRef(ctx, info); err != nil {
+			return nil, err
 		}
 		p := o.Predicate
 		if p == "" {
@@ -515,8 +519,8 @@ func (s *Service) Wait(ctx context.Context, o WaitOpts) (json.RawMessage, error)
 		if o.App == "" {
 			return nil, errf("INVALID_ARGS", "等文字或窗口时需要 app")
 		}
-		if r := s.Blocked(o.App, ""); r != "" {
-			return nil, errf("blocked_app", "%s", r)
+		if err := s.CheckApp(ctx, o.App); err != nil {
+			return nil, err
 		}
 		if o.Text != "" {
 			args = []string{"wait", "--text", o.Text, "--app", o.App}
@@ -547,10 +551,13 @@ func (s *Service) Screenshot(ctx context.Context, app string) (Shot, error) {
 	if s.Wayland() && s.Settings().Sandbox == "" {
 		return Shot{}, errf("PLATFORM_NOT_SUPPORTED", "Wayland 会话不支持截图")
 	}
+	// 指定应用：按身份（名字 + bundle id）检查；整个屏幕：屏幕上有禁用应用的可见窗口就不截
 	if app != "" {
-		if r := s.Blocked(app, ""); r != "" {
-			return Shot{}, errf("blocked_app", "%s", r)
+		if err := s.CheckApp(ctx, app); err != nil {
+			return Shot{}, err
 		}
+	} else if err := s.CheckScreen(ctx); err != nil {
+		return Shot{}, err
 	}
 	if s.shotsDir == "" {
 		return Shot{}, errf("unavailable", "没有截图保存目录")

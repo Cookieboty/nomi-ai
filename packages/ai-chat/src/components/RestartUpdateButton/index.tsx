@@ -64,8 +64,8 @@ export const RestartUpdateButton: React.FC<RestartUpdateButtonProps> = ({
         className={[styles.titlebarBtn, 'cd-motion-pop', className].filter(Boolean).join(' ')}
         onClick={onClick}
         disabled={busy}
-        title={version ? `${label} · v${version}` : label}
-        aria-label={label}
+        // 版本号进无障碍名，不用原生 title（图标按钮不加悬停提示，见 docs/development/frontend-standards.md）
+        aria-label={version ? `${label} · v${version}` : label}
         data-testid="restart-update-titlebar"
       >
         <Icon icon={RefreshCw} size={14} />
@@ -89,7 +89,6 @@ export const RestartUpdateButton: React.FC<RestartUpdateButtonProps> = ({
         onClick={onClick}
         data-testid="restart-update-settings"
         aria-label={label}
-        title={label}
         className={styles.navBtn}
       >
         <Icon icon={RefreshCw} size={14} />

@@ -59,7 +59,8 @@ describe('shared absolute-path picker', () => {
     ]);
     expect(resourcePreviewClient.listDirectory).not.toHaveBeenCalled();
     const users = screen.getByRole('button', { name: 'Users', exact: true });
-    expect(users.title).toBe('/Users');
+    expect(users.textContent).toBe('Users');
+    expect(users.getAttribute('title')).toBeNull();
     fireEvent.click(users);
     await waitFor(() =>
       expect(resourcePreviewClient.listDirectory).toHaveBeenCalledWith(url, '/Users'),
@@ -173,7 +174,9 @@ describe('shared absolute-path picker', () => {
         onOpen={onOpen}
       />,
     );
-    expect(screen.getByRole('button', { name: 'C:', exact: true }).title).toBe('C:');
+    expect(
+      screen.getByRole('button', { name: 'C:', exact: true }).getAttribute('title'),
+    ).toBeNull();
     fireEvent.click(screen.getByTestId('preview-file-picker'));
     fireEvent.click(await screen.findByRole('treeitem', { name: 'a#b%.md' }));
     expect(onOpen).toHaveBeenCalledWith('C:/work/docs/a%23b%25.md', scope);

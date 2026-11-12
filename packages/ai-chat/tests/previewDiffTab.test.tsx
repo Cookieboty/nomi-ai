@@ -3,10 +3,15 @@
  * 文件的 Diff 是预览区的普通标签：每个改动文件一个，和文件标签同一排；
  * 同一文件的 Diff 与文件本身是两个标签；切到文件时 Diff 标签留着。
  */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { confirmDialog } from '../src/components/ConfirmDialog';
+import {
+  dirtyReviewDrafts,
+  dropReviewDrafts,
+} from '../src/components/SessionWorkspace/reviewDrafts';
 import type { DiffTabSpec } from '../src/contexts/ResourceContext';
 import { useResourcePreview } from '../src/hooks/useResourcePreview';
 import { resourcePreviewClient } from '../src/services/resourcePreviewClient';
@@ -19,6 +24,7 @@ vi.mock('../src/services/harnessClient', () => ({
     workspaceRead: vi.fn(async () => ({ ok: true, content: '' })),
   },
 }));
+vi.mock('../src/components/ConfirmDialog', () => ({ confirmDialog: vi.fn(async () => false) }));
 vi.mock('../src/services/resourcePreviewClient', () => ({
   resourcePreviewClient: {
     open: vi.fn(async (_cwd: string, path: string) => ({
@@ -39,6 +45,8 @@ beforeAll(async () => {
 afterEach(() => {
   cleanup();
   vi.mocked(resourcePreviewClient.open).mockClear();
+  vi.mocked(confirmDialog).mockClear();
+  dropReviewDrafts([tabKey('src/a.ts'), tabKey('src/b.ts')]);
 });
 
 const patch = (file: string, line: string) => ({
@@ -51,6 +59,9 @@ const diffOf = (path: string, line = 'new line'): DiffTabSpec => ({
   cwd: '/work',
   file: { key: `u:${path}`, path, added: 1, removed: 1, gitDiff: patch(path, line) },
 });
+
+/** 预览区 Diff 标签的 key（useResourcePreview 的 diffEntryKey） */
+const tabKey = (path: string) => `diff\u0000${diffOf(path).key}`;
 
 function Probe() {
   const preview = useResourcePreview({ id: 'diff-tabs', cwd: '/work' });
@@ -123,5 +134,44 @@ describe('文件 Diff 标签', () => {
     expect(tabNames()).toEqual(['a.ts 的改动']);
     fireEvent.click(screen.getByText('refresh a'));
     expect(await screen.findByText('newer line')).toBeTruthy();
+  });
+
+  it('Diff 里编辑的草稿：切到别的 Diff / 文件标签再回来还在；关掉要先确认（#338）', async () => {
+    render(<Probe />);
+    fireEvent.click(screen.getByText('diff a'));
+    await screen.findByTestId('preview-diff');
+    fireEvent.click(screen.getByText('diff b'));
+    fireEvent.click(screen.getByRole('tab', { name: 'a.ts 的改动' }));
+    fireEvent.click(await screen.findByTestId('preview-mode-file'));
+    const editor = (await screen.findByTestId('preview-editor')) as HTMLTextAreaElement;
+    fireEvent.change(editor, { target: { value: 'draft A' } });
+    expect(dirtyReviewDrafts([tabKey('src/a.ts')])).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'b.ts 的改动' }));
+    expect(screen.queryByTestId('preview-editor')).toBeNull();
+    fireEvent.click(screen.getByText('file a'));
+    await screen.findByTestId('resource-preview-source');
+    fireEvent.click(screen.getByRole('tab', { name: 'a.ts 的改动' }));
+    // 回到编辑模式，草稿接着在（不是重新读盘的内容）
+    await waitFor(() =>
+      expect((screen.getByTestId('preview-editor') as HTMLTextAreaElement).value).toBe('draft A'),
+    );
+    // b 的 Diff 没有被串写
+    expect(dirtyReviewDrafts([tabKey('src/b.ts')])).toEqual([]);
+
+    // 关掉：不放弃就留着并切回它；放弃才关
+    const closeA = () =>
+      fireEvent.click(
+        screen
+          .getByRole('tab', { name: 'a.ts 的改动' })
+          .parentElement!.querySelectorAll('button')[1]!,
+      );
+    closeA();
+    await waitFor(() => expect(confirmDialog).toHaveBeenCalledTimes(1));
+    expect(tabNames()).toContain('a.ts 的改动');
+    vi.mocked(confirmDialog).mockResolvedValueOnce(true);
+    closeA();
+    await waitFor(() => expect(tabNames()).not.toContain('a.ts 的改动'));
+    expect(dirtyReviewDrafts([tabKey('src/a.ts')])).toEqual([]);
   });
 });

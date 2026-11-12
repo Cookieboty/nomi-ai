@@ -41,6 +41,5 @@
   "ui.media.add-tag": "Add tag",
   "ui.media.tag-placeholder": "New tag, press Enter",
   "ui.media.compose-regenerate": "Regenerate an image based on this image ({0}).",
-  "ui.media.fit-image": "Fit to window",
   "ui.media.source-assistant": "AI assistant"
 }

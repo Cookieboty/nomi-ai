@@ -49,7 +49,6 @@ export const UserImages: React.FC<{ images: Img[] }> = ({ images }) => {
             className={styles.thumbBtn}
             onClick={() => setIndex(i)}
             aria-label={t('ui.usage-tools.view-full-image')}
-            title={`${im.width}×${im.height}`}
             data-testid="message-image"
           >
             <img src={im.thumb} alt={altOf(im)} className={styles.thumb} />
@@ -72,7 +71,6 @@ export const UserImages: React.FC<{ images: Img[] }> = ({ images }) => {
             open.url && (
               <button
                 type="button"
-                title={t('ui.media.edit-this')}
                 aria-label={t('ui.media.edit-this')}
                 onClick={() => compose('ui.media.compose-edit')}
                 data-testid="image-lightbox-edit"
@@ -86,7 +84,6 @@ export const UserImages: React.FC<{ images: Img[] }> = ({ images }) => {
               <button
                 type="button"
                 aria-label={t('ui.knowledge-local.download')}
-                title={t('ui.knowledge-local.download')}
                 data-testid="image-lightbox-download"
                 onClick={() =>
                   void api.chatAssets

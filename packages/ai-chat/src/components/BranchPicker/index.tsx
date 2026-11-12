@@ -132,7 +132,6 @@ export const BranchPicker: React.FC<{
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('ui.session-workspace.switch-branch', label)}
-        title={t('ui.session-workspace.current-branch', label)}
         data-testid={`${testId}-button`}
         onClick={() => {
           setQuery('');
@@ -182,7 +181,6 @@ export const BranchPicker: React.FC<{
                   aria-checked={b === current}
                   className={styles.item}
                   disabled={busy}
-                  title={b}
                   data-testid="branch-item"
                   onClick={() => void checkout(b, false)}
                 >
