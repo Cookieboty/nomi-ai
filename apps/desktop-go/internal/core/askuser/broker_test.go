@@ -3,21 +3,43 @@ package askuser
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-func testBroker(t *testing.T, timeout time.Duration) (*Broker, *[]Event) {
+// eventLog records Emit callbacks. Ask runs on another goroutine and can still
+// be inside Emit when the test answers or cancels, which emits again.
+type eventLog struct {
+	mu  sync.Mutex
+	got []Event
+}
+
+func (l *eventLog) add(ev Event) {
+	l.mu.Lock()
+	l.got = append(l.got, ev)
+	l.mu.Unlock()
+}
+
+func (l *eventLog) snapshot() []Event {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	out := make([]Event, len(l.got))
+	copy(out, l.got)
+	return out
+}
+
+func testBroker(t *testing.T, timeout time.Duration) (*Broker, *eventLog) {
 	t.Helper()
-	var got []Event
+	log := &eventLog{}
 	b := New(Options{
 		Now:     func() int64 { return 1_000 },
 		Timeout: timeout,
-		Emit:    func(ev Event) { got = append(got, ev) },
+		Emit:    log.add,
 	})
-	return b, &got
+	return b, log
 }
 
 func oneQ() []Question {
@@ -60,7 +82,7 @@ func TestAskAnswerAndSkip(t *testing.T) {
 		t.Fatal("still pending")
 	}
 	closed := false
-	for _, ev := range *events {
+	for _, ev := range events.snapshot() {
 		if ev.Closed && ev.ID == pending[0].ID {
 			closed = true
 		}
