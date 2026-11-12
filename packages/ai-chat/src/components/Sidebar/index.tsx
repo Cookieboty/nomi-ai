@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { List } from 'react-window';
 
 import {
+  selectBusyConvos,
   selectIpcClient,
   selectIsLoading,
   selectMessageCount,
@@ -130,6 +131,12 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const ipc = useAiChatSelector(selectIpcClient);
   const messageCount = useAiChatSelector(selectMessageCount);
   const isLoading = useAiChatSelector(selectIsLoading);
+  // Nomi 对话没有 CLI 标签，行首的状态点只能从「正在回复的会话」里取（与编程助手的 running 一致）
+  const busyConvos = useAiChatSelector(selectBusyConvos);
+  const runningIds = useMemo(
+    () => new Set((busyConvos ?? []).filter((id) => id !== '')),
+    [busyConvos],
+  );
   const tabs = useHarnessTabs();
   const { isDev, isNormal } = useChatMode();
   const {
@@ -834,6 +841,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       items: unpinned,
       current: highlightId,
       tabById,
+      runningIds,
       open,
       onCtx,
       renamingId,
@@ -848,6 +856,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       visible,
       highlightId,
       tabById,
+      runningIds,
       open,
       onCtx,
       renamingId,
@@ -1006,6 +1015,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
                   c={c}
                   active={c.id === rowActiveId}
                   tab={c.tabId ? tabById.get(c.tabId) : undefined}
+                  running={c.tabId ? undefined : runningIds.has(c.id)}
                   onOpen={open}
                   onCtx={onCtx}
                   renaming={renamingId === c.id}
@@ -1107,6 +1117,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
             <SessionPeek
               c={c}
               tab={tab}
+              running={c.tabId ? undefined : runningIds.has(c.id)}
               top={top}
               left={left}
               onRename={commitRename}

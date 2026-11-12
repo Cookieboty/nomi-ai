@@ -116,6 +116,11 @@ export const selectIsLoading = (s: AiChatState) => s.isLoading;
  */
 export const selectBusyHere = (s: AiChatState) =>
   hereIn(s.busyConvos, s.viewConvoId) ?? s.isLoading;
+/**
+ * 正在回复的会话 id 列表（侧栏点「运行中」用：CLI 标签有 status，Nomi 对话只能看这个）。
+ * 引用稳定，状态没变时不触发订阅者重渲染。
+ */
+export const selectBusyConvos = (s: AiChatState) => s.busyConvos;
 /** 有任意会话在流式生成 */
 export const selectStreaming = (s: AiChatState) => s.streaming;
 /** 当前展示的会话正在流式生成（可以停止）：别的会话在回复时，这里的停止键不出现 */

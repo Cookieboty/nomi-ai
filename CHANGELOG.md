@@ -789,6 +789,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 对话区右上角的工作目录、供应商下拉和设置按钮高度、字号统一。 (`@nomi-ai/ai-chat` patch)
 - 对话区排版：输入框与消息列同宽；工作台模式下对话标签并入顶栏（对话列窄时换到第二行）；工作目录与账号移到输入框下方；对话列窄时消息元信息整段换行。 (`@nomi-ai/ai-chat` patch)
 - 对话区的供应商按钮只列当前编程助手的官方账号（#69）：从 Codex 标签切到 dsh / Claude 等标签后，上一个后端的账号不再残留在下拉里，也不能借过时的选项切换另一个 CLI 的全局登录；切换账号时同时带上所属后端，主进程核对不一致就拒绝。 (`@nomi-ai/ai-chat` patch)
+- 对话标题在消息发出后提前生成，不再等待整轮回复完成；侧栏及会话预览显示内置对话的运行状态，执行过程中插入的用户消息以右侧气泡展示。 (`@nomi-ai/ai-chat` patch)
 - 对话模式改名：「普通 / 开发」改为「助手 / 工作台」（英文 Assistant / Workbench），提示文案同步更新；功能不变。 (`@nomi-ai/ai-chat` patch)
 - 对话模式改名：「普通 / 开发」改为「助手 / 工作台」（英文 Assistant / Workbench），提示文案同步更新；功能不变。 (`@nomi-ai/ui` patch)
 - 对话窗口可以拖入 / 粘贴任意文件，拖到对话区任意位置都能放下：图片仍作图片附件；其他文件显示为文件卡片，点开可预览内容。 (`@nomi-ai/ai-chat` patch)

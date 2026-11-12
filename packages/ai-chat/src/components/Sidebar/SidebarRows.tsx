@@ -19,6 +19,14 @@ export const rel = (ts: number) => {
   return t('ui.chat-settings.d-ago', Math.floor(d / 86_400_000));
 };
 
+/**
+ * 会话行的状态：CLI 标签看标签自己的状态；Nomi 对话没有标签，
+ * 由调用方传 running（该会话在 AiChat 的 busyConvos 里）才显示「进行中」。
+ */
+export function rowLive(tab: HarnessTabMeta | undefined, running?: boolean): string {
+  return liveOf(tab) || (running ? 'running' : '');
+}
+
 export function liveOf(tab: HarnessTabMeta | undefined): string {
   if (!tab) return '';
   if (tab.status === 'running' || tab.status === 'queued' || tab.status === 'error')
@@ -104,6 +112,8 @@ const ThreadItemImpl: React.FC<{
   c: Meta;
   active: boolean;
   tab?: HarnessTabMeta;
+  /** Nomi 对话正在回复（没有标签，状态从 AiChat 的 busyConvos 来） */
+  running?: boolean;
   onOpen: (id: string) => void;
   onCtx: (id: string, e: React.MouseEvent) => void;
   renaming?: boolean;
@@ -125,6 +135,7 @@ const ThreadItemImpl: React.FC<{
   c,
   active,
   tab,
+  running,
   onOpen,
   onCtx,
   renaming,
@@ -139,7 +150,7 @@ const ThreadItemImpl: React.FC<{
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
   const cls = `${styles.thread} ${active ? styles.threadActive : ''}`;
-  const live = liveOf(tab);
+  const live = rowLive(tab, running);
   const layout = 'plain';
   const endpointMark = showIcon && c.backend !== 'nomi';
   // 状态点不占列：压在行首内边距里，只有运行 / 新结果 / 出错时才看得见
@@ -234,6 +245,8 @@ export type VirtualProps = {
   items: Meta[];
   current?: string;
   tabById: Map<string, HarnessTabMeta>;
+  /** 正在回复的 Nomi 会话 id（Nomi 对话没有标签，状态只能从这里取） */
+  runningIds?: ReadonlySet<string>;
   open: (id: string) => void;
   onCtx: (id: string, e: React.MouseEvent) => void;
   renamingId: string | null;
@@ -252,6 +265,7 @@ export const VirtualRow = ({
   items,
   current,
   tabById,
+  runningIds,
   open,
   onCtx,
   renamingId,
@@ -270,6 +284,7 @@ export const VirtualRow = ({
         c={c}
         active={c.id === current}
         tab={c.tabId ? tabById.get(c.tabId) : undefined}
+        running={c.tabId ? undefined : runningIds?.has(c.id)}
         onOpen={open}
         onCtx={onCtx}
         renaming={renamingId === c.id}
