@@ -56,6 +56,7 @@ import { PendingDock } from '../PendingDock';
 import { SessionDetailsProvider } from '../SessionDetails';
 import { CenterChangesHost, ChangesUiProvider } from '../SessionWorkspace';
 import type { SettingsSection } from '../SettingsView/sections';
+import { SideChatPane } from '../SideChat';
 import { UserQuestionDock } from '../UserQuestionCard/dock';
 
 import {
@@ -823,6 +824,8 @@ const PaneBody: React.FC<{
       />
     );
   }
+  if (target.kind === 'side-chat')
+    return <SideChatPane key={target.chatId} chatId={target.chatId} slot={slot} />;
   return <NomiTaskChat key={target.taskId} taskId={target.taskId} onClose={onClose} slot={slot} />;
 };
 

@@ -1,212 +1,182 @@
 /**
- * 侧边聊天面板（对话旁标签区里的「侧边聊天」标签，见 docs/design/side-tabs-workspace.md）：
- * 临时聊天，只问 Nomi（只读、不委派编程助手），内容不保存。数据在 services/sideChat（按会话各一份）。
+ * 侧边聊天面板：标签区里的一个标签（和子任务同一套：状态点、悬停卡片、拖动排序、拆分、铺满、弹出窗口）。
+ * 只问 Nomi（只读、不委派编程助手），内容不保存。对话区和输入栏用主对话同一套组件：
+ * ConversationView（工具步骤、重新生成、编辑重发）+ MessageInput（引用胶囊、图片 / 文件附件、排队、停止），
+ * 模型 / 思考深度是主对话同一个选择器（NomiModelSwitch 的 binding，记在这个侧边聊天上）。
+ * 数据在 services/sideChat（按聊天 id）。设计见 docs/design/side-tabs-workspace.md。
  */
-import { Icon, t, useLocale } from '@nomi-ai/ui';
-import { ArrowUp, Loader2, MessageCirclePlus, Quote, Square, X } from 'lucide-react';
-import React, { useEffect, useMemo, useRef } from 'react';
+import { Button, Icon, t } from '@nomi-ai/ui';
+import { MessageCirclePlus, Square } from 'lucide-react';
+import React, { useEffect, useMemo } from 'react';
 
-import { gatewayClientAvailable } from '../../services/gatewayClient';
-import { nomiMainRef, nomiModelChoices, refLabel, useGatewayState } from '../../services/nomiModel';
+import { useSubagentPane } from '../../contexts/SubagentPaneContext';
+import { nomiMainRef, splitRef, useGatewayState } from '../../services/nomiModel';
+import { likelyVision } from '../../services/screenClient';
 import {
-  removeSideChatQuote,
+  editSideChat,
+  imagesOf,
+  markSideChatComposer,
+  regenerateSideChat,
+  removeSideChatQueued,
   sendSideChat,
-  setSideChatDraft,
+  setSideChatEffort,
   setSideChatModel,
+  sideChatDraftKey,
+  sideChatDrafts,
+  sideChatName,
   stopSideChat,
   useSideChat,
 } from '../../services/sideChat';
-import { isImeComposing } from '../../utils/keyboard';
-import { quoteExcerpt, type SelectionQuote } from '../../utils/selectionQuote';
-import { Markdown } from '../Conversation/Markdown';
+import type { ConvMessage } from '../../types/conversation';
+import { ConversationView } from '../Conversation/index';
+import type { ConvSlots } from '../Conversation/Messages';
+import { UserImages } from '../Conversation/UserImages';
+import { MessageInput } from '../MessageInput';
+import { NomiModelSwitch } from '../NomiModelSwitch';
+import paneStyles from '../SubagentPane/SubagentPane.module.css';
 
 import styles from './SideChat.module.css';
 
-const QuoteChips: React.FC<{
-  quotes: readonly SelectionQuote[];
-  onRemove?: (index: number) => void;
-}> = ({ quotes, onRemove }) => (
-  <div className={styles.quotes}>
-    {quotes.map((q, i) => (
-      <span
-        key={`${i}-${q.source}`}
-        className={styles.quote}
-        data-testid="side-chat-quote"
-        title={q.source ? `${q.source}\n${q.text}` : q.text}
-      >
-        <Icon icon={Quote} size={12} />
-        <span className={styles.quoteText}>{quoteExcerpt(q.text)}</span>
-        {onRemove && (
-          <button
-            type="button"
-            aria-label={t('ui.session-workspace.preview-remove-reference', quoteExcerpt(q.text))}
-            onClick={() => onRemove(i)}
-          >
-            <Icon icon={X} size={12} />
-          </button>
-        )}
-      </span>
-    ))}
-  </div>
-);
+export interface SideChatSlot {
+  tabKey: string;
+  active: boolean;
+}
 
-/** 只列 Nomi 的模型（统一网关里启用的对话模型）；不列编程助手 */
-const ModelPicker: React.FC<{ scope: string; value: string | null }> = ({ scope, value }) => {
-  const state = useGatewayState();
-  const choices = useMemo(() => nomiModelChoices(state), [state]);
-  if (!gatewayClientAvailable() || !state || !choices.length) return null;
-  const main = nomiMainRef(state);
-  return (
-    <select
-      className={styles.model}
-      data-testid="side-chat-model"
-      aria-label={t('ui.session-workspace.side-chat-model')}
-      value={value ?? ''}
-      onChange={(e) => setSideChatModel(scope, e.target.value || null)}
-    >
-      <option value="">
-        {t('ui.session-workspace.side-chat-model-default', main ? refLabel(state, main) : '—')}
-      </option>
-      {choices.map((c) => (
-        <option key={c.ref} value={c.ref}>
-          {c.label}
-        </option>
-      ))}
-    </select>
-  );
+const slots: ConvSlots = {
+  before: (m: ConvMessage) => {
+    const images = m.role === 'user' ? imagesOf(m) : [];
+    return images.length ? <UserImages images={images} /> : null;
+  },
 };
 
-export const SideChat: React.FC<{
-  scope: string;
-  hidden?: boolean;
-  projectId?: string | null;
-}> = ({ scope, hidden, projectId }) => {
-  useLocale();
-  const chat = useSideChat(scope);
-  const input = useRef<HTMLTextAreaElement>(null);
-  const list = useRef<HTMLDivElement>(null);
-  const quoteCount = chat.quotes.length;
-  // 带着引用进来 / 切到这个标签：焦点给输入框
+/** 这个侧边聊天现在用的模型能不能看图（模型元数据写明了就以它为准，否则按名字猜） */
+function useVision(model: string | null): boolean {
+  const state = useGatewayState();
+  const ref = model ?? nomiMainRef(state);
+  const parts = ref ? splitRef(ref) : null;
+  const meta = parts
+    ? state?.providers
+        .find((p) => p.id === parts.provider)
+        ?.models.find((m) => m.id === parts.model)
+    : undefined;
+  const vision = meta?.effective?.vision ?? meta?.vision;
+  return vision ?? likelyVision(parts?.model);
+}
+
+export const SideChatPane: React.FC<{
+  chatId: string;
+  slot: SideChatSlot;
+  cwd?: string | null;
+}> = ({ chatId, slot, cwd }) => {
+  const chat = useSideChat(chatId);
+  const report = useSubagentPane()?.reportMeta;
+  const name = sideChatName(chat);
+  const running = !!chat?.running;
   useEffect(() => {
-    if (!hidden) input.current?.focus({ preventScroll: true });
-  }, [hidden, quoteCount]);
-  const runningText = chat.running?.text;
-  const count = chat.messages.length;
-  useEffect(() => {
-    const el = list.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [count, runningText]);
-  const send = () => void sendSideChat(scope, { projectId });
-  const canSend = !chat.running && (!!chat.draft.trim() || quoteCount > 0);
-  const empty = !count && !chat.running;
+    if (name) report?.(slot.tabKey, { name, state: running ? 'running' : 'idle' });
+  }, [report, slot.tabKey, name, running]);
+  useEffect(() => () => report?.(slot.tabKey, null), [report, slot.tabKey]);
+  useEffect(() => markSideChatComposer(chatId), [chatId]);
+  const vision = useVision(chat?.model ?? null);
+  const binding = useMemo(
+    () =>
+      chat
+        ? {
+            model: chat.model,
+            effort: chat.effort,
+            onModel: (ref: string) => setSideChatModel(chatId, ref),
+            onEffort: (level: string | undefined) => setSideChatEffort(chatId, level),
+            menuKey: sideChatDraftKey(chatId),
+            testPrefix: 'side-chat',
+          }
+        : null,
+    [chat, chatId],
+  );
+  if (!chat || !binding) return null;
+  const empty = !chat.messages.length && !chat.running;
   return (
     <section
-      className={styles.root}
-      hidden={hidden}
+      className={paneStyles.pane}
+      hidden={!slot.active}
       data-testid="side-chat"
-      aria-label={t('ui.session-workspace.side-chat-title')}
+      data-side-tab={slot.tabKey}
+      data-selection-label={name}
+      aria-label={name}
     >
-      <div ref={list} className={styles.list} data-testid="side-chat-messages">
+      <header className={paneStyles.head}>
+        <Icon icon={MessageCirclePlus} size={14} />
+        <span className={paneStyles.title}>{name}</span>
+        <span
+          className={paneStyles.status}
+          data-testid="side-chat-status"
+          data-state={running ? 'running' : 'idle'}
+        >
+          {running ? t('ui.knowledge-local.running') : t('ui.mascot-theme.idle')}
+        </span>
+        <span className={paneStyles.spacer} />
+        {running && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => stopSideChat(chatId)}
+            data-testid="side-chat-stop"
+          >
+            <Icon icon={Square} size={12} />
+            {t('ui.foundation.stop')}
+          </Button>
+        )}
+      </header>
+      <p className={paneStyles.hint}>{t('ui.session-workspace.side-chat-only-nomi')}</p>
+      <div className={paneStyles.conv}>
         {empty ? (
-          <div className={styles.empty}>
-            <Icon icon={MessageCirclePlus} size={28} />
-            <strong>{t('ui.session-workspace.side-chat-title')}</strong>
+          <div className={styles.empty} data-testid="side-chat-empty" data-selection-scope="">
+            <strong>{name}</strong>
             <p>{t('ui.session-workspace.side-chat-empty')}</p>
-            <p className={styles.hint}>{t('ui.session-workspace.side-chat-only-nomi')}</p>
           </div>
         ) : (
-          <div
-            data-selection-scope=""
-            data-selection-label={t('ui.session-workspace.side-chat-title')}
-          >
-            {chat.messages.map((m) =>
-              m.role === 'user' ? (
-                <div key={m.id} className={styles.user} data-testid="side-chat-user">
-                  {m.quotes?.length ? <QuoteChips quotes={m.quotes} /> : null}
-                  {m.text && <div className={styles.bubble}>{m.text}</div>}
-                </div>
-              ) : (
-                <div
-                  key={m.id}
-                  className={styles.assistant}
-                  data-testid="side-chat-assistant"
-                  data-message-id={m.id}
-                >
-                  {m.text && <Markdown text={m.text} settled />}
-                  {m.error && (
-                    <p className={styles.error} role="alert">
-                      {t('ui.session-workspace.side-chat-failed', m.error)}
-                    </p>
-                  )}
-                </div>
-              ),
-            )}
-            {chat.running && (
-              <div className={styles.assistant} data-testid="side-chat-running">
-                {chat.running.text ? (
-                  <Markdown text={chat.running.text} streaming />
-                ) : (
-                  <span className={styles.thinking}>
-                    <Icon icon={Loader2} size={14} className={styles.spin} />
-                    {chat.running.tool
-                      ? t('ui.session-workspace.side-chat-reading', chat.running.tool)
-                      : t('ui.session-workspace.agent-card-running')}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
+          <ConversationView
+            scopeId={`side-chat:${chatId}`}
+            messages={chat.messages}
+            live={chat.running?.live ?? null}
+            phase={running ? 'running' : 'idle'}
+            queued={chat.queued}
+            onRemoveQueued={(i) => removeSideChatQueued(chatId, i)}
+            onRetry={(id) => void regenerateSideChat(chatId, id)}
+            onEdit={(id, text) => void editSideChat(chatId, id, text)}
+            slots={slots}
+          />
         )}
       </div>
-      <div className={styles.composer} data-testid="side-chat-composer">
-        {quoteCount > 0 && (
-          <div className={styles.quoteBar}>
-            <span className={styles.quoteCount} data-testid="side-chat-quote-count">
-              {t('ui.session-workspace.side-chat-quotes', String(quoteCount))}
-            </span>
-            <QuoteChips quotes={chat.quotes} onRemove={(i) => removeSideChatQuote(scope, i)} />
-          </div>
-        )}
-        <textarea
-          ref={input}
-          className={styles.input}
-          data-testid="side-chat-input"
-          rows={2}
-          value={chat.draft}
+      <footer className={paneStyles.composer}>
+        <MessageInput
+          onSend={(text, images) =>
+            void sendSideChat(
+              chatId,
+              text,
+              images?.map((i) => ({
+                mime: i.mime,
+                data: i.data,
+                thumb: i.thumb,
+                width: i.width,
+                height: i.height,
+              })),
+            )
+          }
+          busyOverride={running}
+          imageCapability={vision ? 'full' : 'none'}
           placeholder={t('ui.session-workspace.side-chat-placeholder')}
-          onChange={(e) => setSideChatDraft(scope, e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key !== 'Enter' || e.shiftKey || isImeComposing(e.nativeEvent)) return;
-            e.preventDefault();
-            if (canSend) send();
+          queue={{
+            onQueue: (text) => void sendSideChat(chatId, text),
+            onStop: () => stopSideChat(chatId),
           }}
+          fill={chat.fill}
+          cwd={cwd}
+          draftStore={sideChatDrafts}
+          draftKey={sideChatDraftKey(chatId)}
+          delegate={false}
+          modelControl={<NomiModelSwitch binding={binding} />}
         />
-        <div className={styles.footer}>
-          <ModelPicker scope={scope} value={chat.model} />
-          {chat.running ? (
-            <button
-              type="button"
-              className={styles.send}
-              data-testid="side-chat-stop"
-              aria-label={t('ui.foundation.stop')}
-              onClick={() => stopSideChat(scope)}
-            >
-              <Icon icon={Square} size={14} />
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={styles.send}
-              data-testid="side-chat-send"
-              aria-label={t('ui.knowledge-local.send')}
-              disabled={!canSend}
-              onClick={send}
-            >
-              <Icon icon={ArrowUp} size={16} />
-            </button>
-          )}
-        </div>
-      </div>
+      </footer>
     </section>
   );
 };

@@ -2,9 +2,10 @@
  * 标签区的标签栏（参考浏览器 / Codex 的分栏标签）：图标 + 名字 + 状态点 + ×；末尾是「+」、拆分、弹出、铺满 / 还原。
  * - 拖动标签排序（主会话标签固定在最前）；键盘：焦点在标签上时 Ctrl+Shift+PageUp/PageDown 或 Alt+Shift+←/→；
  * - 拖出窗口松手 = 弹到独立窗口；拖到「拆分」按钮上 = 向右拆分；
- * - 子任务标签右键（或 Shift+F10）：在新窗口打开 / 向右拆分 / 关闭；侧边聊天标签：向右拆分 / 关闭；
+ * - 子任务标签（包括侧边聊天）右键（或 Shift+F10）：在新窗口打开 / 向右拆分 / 关闭；
  *   文件标签右键是预览区自己的菜单；
- * - 鼠标停在不在看的子任务标签上：悬停卡片（AgentHoverCard）。
+ * - 鼠标停在不在看的子任务标签上：悬停卡片（AgentHoverCard）；
+ * - 「+」：本会话的 Agents（会话详情）/ 新侧边聊天 / 浏览文件。
  */
 import { Icon, IconButton, t } from '@nomi-ai/ui';
 import {
@@ -47,7 +48,7 @@ const TabIcon: React.FC<{
   entry?: PreviewEntry;
 }> = ({ item, backendOf, entry }) => {
   if (item.kind === 'main') return <Icon icon={MessageSquare} size={14} />;
-  if (item.kind === 'chat') return <Icon icon={MessageCirclePlus} size={14} />;
+  if (item.target?.kind === 'side-chat') return <Icon icon={MessageCirclePlus} size={14} />;
   if (item.kind === 'file')
     return <Icon icon={entry?.diff ? GitCompareArrows : FileText} size={14} />;
   const backend = item.target ? backendOf(item.target) : null;
@@ -59,6 +60,7 @@ const TabIcon: React.FC<{
 const fallbackName = (target: SubagentTarget | undefined, backend: string | null) => {
   if (target?.kind === 'harness' && backend && backend in ENDPOINT_NAME)
     return t(ENDPOINT_NAME[backend as keyof typeof ENDPOINT_NAME]);
+  if (target?.kind === 'side-chat') return t('ui.session-workspace.side-chat-title');
   return t('ui.usage-tools.subagent');
 };
 
@@ -104,7 +106,7 @@ export const SideTabStrip: React.FC<{
   const harness = useHarnessTabs();
   const backendOf = useCallback(
     (target: SubagentTarget): string | null => {
-      if (target.kind === 'nomi-task') return 'nomi';
+      if (target.kind === 'nomi-task' || target.kind === 'side-chat') return 'nomi';
       if (target.kind === 'harness')
         return harness.state?.tabs.find((x) => x.id === target.tabId)?.backend ?? null;
       return null;
@@ -149,7 +151,6 @@ export const SideTabStrip: React.FC<{
   }, [drag]);
   const label = (item: SideTabItem): string => {
     if (item.kind === 'main') return t('ui.session-workspace.side-tab-main');
-    if (item.kind === 'chat') return t('ui.session-workspace.side-chat-title');
     if (item.kind === 'file') {
       const entry = model.entryOf(item);
       return entry ? fileLabel(entry) : '';
@@ -238,7 +239,7 @@ export const SideTabStrip: React.FC<{
                         trigger,
                       });
                     }
-                  : item.kind === 'agent' || item.kind === 'chat'
+                  : item.kind === 'agent'
                     ? (event) => {
                         event.preventDefault();
                         setTabMenu({ item, x: event.clientX, y: event.clientY });
@@ -280,11 +281,7 @@ export const SideTabStrip: React.FC<{
                     } else if ((pg && e.key === 'PageDown') || (arrow && e.key === 'ArrowRight')) {
                       e.preventDefault();
                       moveBy(item, 1);
-                    } else if (
-                      (item.kind === 'agent' || item.kind === 'chat') &&
-                      e.shiftKey &&
-                      e.key === 'F10'
-                    ) {
+                    } else if (item.kind === 'agent' && e.shiftKey && e.key === 'F10') {
                       e.preventDefault();
                       const box = e.currentTarget.getBoundingClientRect();
                       setTabMenu({ item, x: box.left, y: box.bottom });
@@ -376,7 +373,7 @@ export const SideTabStrip: React.FC<{
           </button>
         </div>
       )}
-      {(onBrowseFiles || onShowAgents) && (
+      {(onBrowseFiles || onShowAgents || model.newSideChat) && (
         <div className={styles.addWrap} ref={menuRef}>
           <IconButton
             size="sm"
@@ -400,6 +397,20 @@ export const SideTabStrip: React.FC<{
                 >
                   <Icon icon={Bot} size={14} />
                   {t('ui.session-workspace.side-tab-agents')}
+                </button>
+              )}
+              {model.newSideChat && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="side-tab-new-chat"
+                  onClick={() => {
+                    setMenu(false);
+                    model.newSideChat?.();
+                  }}
+                >
+                  <Icon icon={MessageCirclePlus} size={14} />
+                  {t('ui.session-workspace.side-chat-new')}
                 </button>
               )}
               {onBrowseFiles && (

@@ -1,5 +1,5 @@
 /**
- * 子任务悬停卡片：鼠标停在子任务上（标签栏的子任务标签、对话里的委派卡片 / 子代理行、会话详情的列表）
+ * 子任务悬停卡片：鼠标停在子任务上（标签栏的子任务 / 侧边聊天标签、对话里的委派卡片 / 子代理行、会话详情的列表）
  * 约 300ms 后浮出一张小卡片：名字 + 状态、最近发给它的一句（右侧气泡）、它最近的输出（最多四行），
  * 内容跟着实时更新；点卡片打开 / 切到这个子任务的标签。移到卡片上不收起，移开 / Esc 收起；拖动标签时不出。
  * 内容只在卡片开着时订阅（./preview.ts 取摘录）。
@@ -23,6 +23,7 @@ import {
   useHarnessTabMessages,
   useHarnessTabs,
 } from '../../contexts/HarnessTabsContext';
+import { sideChatName, useSideChat } from '../../services/sideChat';
 import { tasksApi, type TaskTraceView } from '../../services/tasksClient';
 import type { ConvMessage } from '../../types/conversation';
 import { fromHarnessMessage } from '../../utils/convAdapters';
@@ -248,12 +249,31 @@ const NestedBody: React.FC<{
   );
 };
 
+/** 侧边聊天：内容就在这个窗口的内存里 */
+const SideChatBody: React.FC<{ chatId: string }> = ({ chatId }) => {
+  const chat = useSideChat(chatId);
+  const ex = lastExchange(chat?.messages ?? EMPTY, chat?.running?.live.text);
+  const last = chat?.messages[chat.messages.length - 1];
+  return (
+    <CardView
+      backend="nomi"
+      preview={{
+        name: sideChatName(chat) || t('ui.session-workspace.side-chat-title'),
+        state: chat?.running ? 'running' : last?.error ? 'failed' : 'idle',
+        lastUser: ex.lastUser,
+        lastOutput: ex.lastOutput,
+      }}
+    />
+  );
+};
+
 const CardBody: React.FC<{ target: SubagentTarget; columnMessages: readonly ConvMessage[] }> = ({
   target,
   columnMessages,
 }) => {
   if (target.kind === 'harness') return <HarnessBody tabId={target.tabId} />;
   if (target.kind === 'nomi-task') return <NomiTaskBody taskId={target.taskId} />;
+  if (target.kind === 'side-chat') return <SideChatBody chatId={target.chatId} />;
   return (
     <NestedBody
       callId={target.callId}

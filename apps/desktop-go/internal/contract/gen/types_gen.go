@@ -1568,6 +1568,15 @@ type ChatWindowDockTabInput struct {
 	Id string `json:"id"`
 }
 
+type ChatWindowHandoffPutInput struct {
+	Id   string `json:"id"`
+	Data string `json:"data"`
+}
+
+type ChatWindowHandoffTakeInput struct {
+	Id string `json:"id"`
+}
+
 type CliRegistryOutputPluginsItem struct {
 	Id          string   `json:"id"`
 	DisplayName string   `json:"displayName"`
@@ -12150,6 +12159,14 @@ type ChatWindowDetachedTabsOutputT = []string
 // ChatWindowDockTabInputT 是 chatWindow.dockTab 的入参
 type ChatWindowDockTabInputT = ChatWindowDockTabInput
 type ChatWindowDockTabOutputT = bool
+
+// ChatWindowHandoffPutInputT 是 chatWindow.handoffPut 的入参
+type ChatWindowHandoffPutInputT = ChatWindowHandoffPutInput
+type ChatWindowHandoffPutOutputT = bool
+
+// ChatWindowHandoffTakeInputT 是 chatWindow.handoffTake 的入参
+type ChatWindowHandoffTakeInputT = ChatWindowHandoffTakeInput
+type ChatWindowHandoffTakeOutputT = string
 
 // CliRegistryInputT 是 cli.registry 的入参
 type CliRegistryInputT = any

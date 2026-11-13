@@ -78,9 +78,3 @@ export function quoteKey(markdown: string): string {
   for (let i = 0; i < markdown.length; i++) h = (Math.imul(h, 31) + markdown.charCodeAt(i)) | 0;
   return `quote:${(h >>> 0).toString(36)}:${markdown.length}`;
 }
-
-/** 侧边聊天发出去的用户消息：引用块在前，问题在后 */
-export function composeWithQuotes(quotes: readonly SelectionQuote[], text: string): string {
-  const blocks = quotes.map(quoteMarkdown);
-  return [...blocks, text.trim()].filter(Boolean).join('\n\n');
-}

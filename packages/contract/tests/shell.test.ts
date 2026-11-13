@@ -132,6 +132,8 @@ describe('shell · 过程表', () => {
       'chatWindow.detachTab': 'mutation surfaces=chat',
       'chatWindow.detachedTabs': 'query surfaces=chat',
       'chatWindow.dockTab': 'mutation surfaces=chat',
+      'chatWindow.handoffPut': 'mutation surfaces=chat',
+      'chatWindow.handoffTake': 'mutation surfaces=chat',
     });
   });
 

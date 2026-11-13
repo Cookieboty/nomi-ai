@@ -3,7 +3,8 @@
  * - 点「查看」开一个子任务标签（已开着就切过去），可以同时开好几个，切走的只隐藏、状态都在；
  * - 双击任意标签铺满整个对话区，主会话变成第一个标签（不能关）；再双击 / Esc / 右上角按钮回到分栏；
  * - 文件预览（预览区的文件 / Diff 标签）也在这一排，双击一样铺满；
- * - 标签可以拖动排序；拖出窗口 / 右键「在新窗口打开」弹到独立窗口；铺满时可以「向右拆分」（左主会话、右标签）。
+ * - 标签可以拖动排序；拖出窗口 / 右键「在新窗口打开」弹到独立窗口；铺满时可以「向右拆分」（左主会话、右标签）；
+ * - 侧边聊天（只问 Nomi 的临时聊天）也是这里的子任务标签，可以开好几个（「+」→ 新侧边聊天）。
  * 状态在 SubagentPaneContext（按会话各记一份），文件标签来自 App 的 useResourcePreview。
  * 设计见 docs/design/side-tabs-workspace.md。
  */
@@ -14,8 +15,14 @@ import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import type { EmbeddedPreviewProps } from '../../hooks/useResourcePreview';
 import { detachedWindows } from '../../services/detachedWindows';
 import { isMac } from '../../services/shortcuts';
+import { exportSideChat, forgetSideChat, sideChatState } from '../../services/sideChat';
 import type { ConvMessage } from '../../types/conversation';
-import { canDetachTarget, parseDetachedId, type DetachSpec } from '../../utils/detachedTabs';
+import {
+  canDetachTarget,
+  detachedId,
+  parseDetachedId,
+  type DetachSpec,
+} from '../../utils/detachedTabs';
 import { isImeComposing, shouldIgnoreEscape } from '../../utils/keyboard';
 import {
   cycleTabKey,
@@ -26,13 +33,11 @@ import {
   MAIN_SIDE_TAB,
   SPLIT_RATIO_MAX,
   SPLIT_RATIO_MIN,
-  SIDE_CHAT_TAB,
   sideTabItems,
   type SideTabItem,
 } from '../../utils/sideTabs';
 import type { PreviewEntry, PreviewTabsControl } from '../ResourcePreview/ResourcePreview';
 import { CenterChangesHost } from '../SessionWorkspace';
-import { SideChat } from '../SideChat';
 import { SubagentPane, type SubagentPaneActions } from '../SubagentPane';
 
 import styles from './SideWorkspace.module.css';
@@ -75,8 +80,7 @@ export function useSideWorkspace(files: SideFiles) {
   const split = !!tabs && isSplit(tabs, hasFiles);
   const splitRatio = tabs?.splitRatio ?? 0.5;
   const active = pane?.active ?? null;
-  const open = !!tabs && (tabs.agents.length > 0 || hasFiles || !!tabs.sideChat);
-  const sideChat = !!tabs?.sideChat;
+  const open = !!tabs && (tabs.agents.length > 0 || hasFiles);
   /** 标签栏上高亮的那个：文件时是预览区当前的文件 */
   const stripActive =
     active === FILES_SIDE_TAB ? (files.activeKey ? fileTabKey(files.activeKey) : null) : active;
@@ -141,6 +145,9 @@ export function useSideWorkspace(files: SideFiles) {
   const canDetach = useCallback(
     (item: SideTabItem) => {
       if (!detachedWindows.available()) return false;
+      if (item.target?.kind === 'side-chat')
+        // 侧边聊天的内容在这个窗口的内存里：正在回答时不交接
+        return !sideChatState(item.target.chatId)?.running;
       if (item.kind === 'agent') return !!item.target && canDetachTarget(item.target);
       if (item.kind === 'file') return !!entryOf(item) && !entryOf(item)!.diff;
       return false;
@@ -167,6 +174,21 @@ export function useSideWorkspace(files: SideFiles) {
           title,
         };
       if (!spec) return;
+      const target = item.target;
+      if (target?.kind === 'side-chat') {
+        // 内容先交给宿主（新窗口取走）；弹出成功后这一侧不再持有
+        const data = exportSideChat(target.chatId);
+        if (!data) return;
+        const id = detachedId(scope, item.key);
+        void detachedWindows
+          .put(id, data)
+          .then((ok) => (ok ? detachedWindows.detach(spec!) : false))
+          .then((ok) => {
+            if (ok) forgetSideChat(target.chatId);
+            else void detachedWindows.take(id);
+          });
+        return;
+      }
       void detachedWindows.detach(spec).then((ok) => {
         if (ok && item.kind === 'file' && item.entryKey) control.current?.close([item.entryKey]);
       });
@@ -215,8 +237,8 @@ export function useSideWorkspace(files: SideFiles) {
     canDetach,
     detach,
     entryOf,
-    sideChat,
     scope,
+    newSideChat: pane ? () => void pane.openSideChat({ fresh: true }) : undefined,
   };
 }
 
@@ -282,19 +304,7 @@ export const SideWorkspace: React.FC<{
   showStrip: boolean;
   onBrowseFiles?: () => void;
   onShowAgents?: () => void;
-  /** 侧边聊天带的项目（当前会话所属的项目） */
-  projectId?: string | null;
-}> = ({
-  model,
-  messages,
-  cwd,
-  roots,
-  actions,
-  showStrip,
-  onBrowseFiles,
-  onShowAgents,
-  projectId,
-}) => {
+}> = ({ model, messages, cwd, roots, actions, showStrip, onBrowseFiles, onShowAgents }) => {
   if (!model.open)
     return <CenterChangesHost messages={messages} cwd={cwd} roots={roots} mode="slot" />;
   const filesActive = model.active === FILES_SIDE_TAB;
@@ -308,7 +318,7 @@ export const SideWorkspace: React.FC<{
           ? 'main'
           : filesActive
             ? 'files'
-            : model.active === SIDE_CHAT_TAB
+            : model.active?.startsWith('side-chat:')
               ? 'chat'
               : 'agent'
       }
@@ -323,13 +333,6 @@ export const SideWorkspace: React.FC<{
       )}
       <div className={styles.body}>
         <SubagentPane columnMessages={messages} actions={actions} tabbed />
-        {model.sideChat && (
-          <SideChat
-            scope={model.scope}
-            hidden={model.active !== SIDE_CHAT_TAB}
-            projectId={projectId}
-          />
-        )}
         {model.files.render({
           inactive: !filesActive,
           expanded: model.maximized,

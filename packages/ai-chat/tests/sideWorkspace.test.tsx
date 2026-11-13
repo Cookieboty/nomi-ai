@@ -15,7 +15,12 @@ import { useSubagentPane, WorkspacePanesProvider } from '../src/components/Subag
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import type { EmbeddedPreviewProps } from '../src/hooks/useResourcePreview';
 import type { HarnessTabsState } from '../src/services/harnessClient';
-import { addSideChatQuote, sideChatState } from '../src/services/sideChat';
+import {
+  sideChatDraftKey,
+  sideChatDrafts,
+  sideChatsIn,
+  sideChatState,
+} from '../src/services/sideChat';
 import { MAIN_SIDE_TAB } from '../src/utils/sideTabs';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
@@ -59,9 +64,11 @@ const TASKS: Record<string, { title: string; status: string }> = {
   k2: { title: '查日志', status: 'done' },
 };
 
-function setup() {
+function setup(extra?: (name: string, input: unknown) => unknown) {
   const tabs: HarnessTabsState = { tabs: [], activeTabId: 'main', running: 0, queued: 0 };
   return installFakeApi((name, input) => {
+    const hit = extra?.(name, input);
+    if (hit !== undefined) return hit;
     if (name === 'harness.tabs') return tabs;
     if (name === 'tasks.get') {
       const id = (input as { id: string }).id;
@@ -393,31 +400,86 @@ describe('side tabs workspace', () => {
     expect(screen.queryByTestId('agent-hover-card')).toBeNull();
   });
 
-  it('side chat opens as its own tab, maximizes like others, and is discarded on close', async () => {
-    setup();
+  it('side chats: several tabs, selection adds to the focused one, hover card, pop out and back', async () => {
+    const handoff = new Map<string, string>();
+    const fake = setup((name, input) => {
+      if (name === 'chatWindow.handoffPut') {
+        const i = input as { id: string; data: string };
+        handoff.set(i.id, i.data);
+        return true;
+      }
+      if (name === 'chatWindow.handoffTake') {
+        const id = (input as { id: string }).id;
+        const v = handoff.get(id) ?? null;
+        handoff.delete(id);
+        return v;
+      }
+      return undefined;
+    });
     mount(['k1']);
     await waitFor(() => expect(tabKeys()).toHaveLength(1));
+    let first = '';
     act(() => {
-      addSideChatQuote('', { text: '选中的', source: '主会话' });
-      opener!.openSideChat();
+      first = opener!.openSideChat({ quote: { text: '选中的', source: '主会话' } })!;
     });
-    expect(tabKeys()).toEqual(['nomi-task:k1', 'side-chat']);
-    expect(tabByKey('side-chat').textContent).toContain('侧边聊天');
+    const k1 = `side-chat:${first}`;
+    expect(tabKeys()).toEqual(['nomi-task:k1', k1]);
+    expect(tabByKey(k1).textContent).toContain('侧边聊天 1');
     expect(screen.getByTestId('side-chat').hidden).toBe(false);
     expect(paneFor('nomi-task:k1').hidden).toBe(true);
-    expect(screen.getAllByTestId('side-chat-quote')).toHaveLength(1);
-    // 再开一次：还是同一个标签，引用累加
+    expect(sideChatDrafts.read(sideChatDraftKey(first)).text).toContain('选中的');
+    // 当前是侧边聊天：「在侧边聊天中提问」加到它上面
     act(() => {
-      addSideChatQuote('', { text: '另一段', source: '主会话' });
-      opener!.openSideChat();
+      opener!.openSideChat({ quote: { text: '另一段', source: '主会话' } });
     });
-    expect(tabKeys()).toEqual(['nomi-task:k1', 'side-chat']);
-    expect(screen.getAllByTestId('side-chat-quote')).toHaveLength(2);
-    fireEvent.doubleClick(tabButton('side-chat'));
+    expect(tabKeys()).toEqual(['nomi-task:k1', k1]);
+    // 「+ → 新侧边聊天」总是新开一个
+    fireEvent.click(screen.getByTestId('side-tab-add'));
+    fireEvent.click(screen.getByTestId('side-tab-new-chat'));
+    const second = sideChatsIn('')[1]!.id;
+    const k2 = `side-chat:${second}`;
+    expect(tabKeys()).toEqual(['nomi-task:k1', k1, k2]);
+    expect(tabByKey(k2).textContent).toContain('侧边聊天 2');
+    expect(tabButton(k2).getAttribute('aria-selected')).toBe('true');
+    // 当前不是侧边聊天：提问时新开一个
+    fireEvent.click(tabButton('nomi-task:k1'));
+    act(() => {
+      opener!.openSideChat({ quote: { text: '第三段', source: '主会话' } });
+    });
+    expect(tabKeys()).toHaveLength(4);
+    // 悬停卡片（和子任务同一套）
+    const wrap = tabButton(k1).parentElement!;
+    fireEvent.pointerOver(wrap, { pointerType: 'mouse', buttons: 0 });
+    fireEvent.pointerEnter(wrap, { pointerType: 'mouse', buttons: 0 });
+    const card = await screen.findByTestId('agent-hover-card', undefined, { timeout: 2000 });
+    expect(card.textContent).toContain('侧边聊天 1');
+    expect(screen.getByTestId('agent-card-state').dataset.state).toBe('idle');
+    fireEvent.pointerLeave(wrap, { pointerType: 'mouse', buttons: 0 });
+
+    // 弹到独立窗口：内容经宿主内存交过去，这里不再留一份
+    fireEvent.contextMenu(tabByKey(k1));
+    fireEvent.click(screen.getByTestId('side-tab-detach'));
+    await waitFor(() => expect(fake.inputs('chatWindow.detachTab')).toHaveLength(1));
+    const input = fake.inputs('chatWindow.detachTab')[0] as { id: string; spec: string };
+    expect(JSON.parse(input.spec)).toMatchObject({
+      kind: 'agent',
+      target: { kind: 'side-chat', chatId: first },
+    });
+    expect(JSON.parse(handoff.get(input.id)!).chat.id).toBe(first);
+    expect(sideChatState(first)).toBeUndefined();
+    await fake.emit('chatWindow.detachedChanged', [input.id]);
+    await waitFor(() => expect(tabKeys()).not.toContain(k1));
+    // 窗口关掉：取回内容，标签回来
+    await fake.emit('chatWindow.detachedChanged', []);
+    await waitFor(() => expect(tabKeys()).toContain(k1));
+    expect(sideChatState(first)?.seq).toBe(1);
+    expect(handoff.has(input.id)).toBe(false);
+
+    // 铺满、关掉（内容丢掉）
+    fireEvent.doubleClick(tabButton(k2));
     expect(screen.getByTestId('main-content').dataset.sideMax).toBe('true');
-    expect(tabKeys()).toEqual([MAIN_SIDE_TAB, 'nomi-task:k1', 'side-chat']);
-    fireEvent.click(tabByKey('side-chat').querySelector('[data-testid="side-tab-close"]')!);
-    expect(tabKeys()).toEqual([MAIN_SIDE_TAB, 'nomi-task:k1']);
-    expect(sideChatState('').quotes).toEqual([]);
+    fireEvent.click(tabByKey(k2).querySelector('[data-testid="side-tab-close"]')!);
+    expect(tabKeys()).not.toContain(k2);
+    expect(sideChatState(second)).toBeUndefined();
   });
 });

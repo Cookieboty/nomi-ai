@@ -1,5 +1,6 @@
 // Package tabwindows：对话旁标签区的标签弹到独立窗口（chatWindow.detachTab / detachedTabs / dockTab，
-// 见 docs/design/side-tabs-workspace.md）。
+// 见 docs/design/side-tabs-workspace.md）。只在界面内存里的标签（侧边聊天）弹出 / 放回时，
+// 内容经 chatWindow.handoffPut / handoffTake 在宿主内存里交接（不落盘）。
 //
 // 这里只管「哪些标签开着独立窗口」与事件；原生窗口由外壳（wailsshell.OpenDetached）建。
 // 新窗口加载同一个对话页面（/chat/index.html?detached=<spec>），拿自己的 chat 面 token，
@@ -31,6 +32,9 @@ const (
 	maxTitle = 200
 	// maxWindows：同时开着的弹出窗口上限（每个都是一个 WebView，防止误操作开出一堆）
 	maxWindows = 12
+	// 交接快照（侧边聊天这类只在界面内存里的标签）：单份上限与总份数上限（超过时丢最早放进来的）
+	maxHandoff      = 8 << 20
+	maxHandoffCount = 24
 )
 
 // Opener 是外壳提供的原生窗口操作（wailsshell 实现；测试里用假的）
@@ -49,11 +53,14 @@ type Manager struct {
 	open   map[string]bool
 	opener func() Opener
 	emit   func(event string, data any)
+	// handoff：等另一个窗口取走的快照（只在内存里）；order 是放进来的先后
+	handoff map[string]string
+	order   []string
 }
 
 // New：opener 用函数取（外壳在契约注册之后才建）；返回 nil 时 detachTab 报 UNAVAILABLE。emit 推给 chat 面
 func New(opener func() Opener, emit func(event string, data any)) *Manager {
-	return &Manager{open: map[string]bool{}, opener: opener, emit: emit}
+	return &Manager{open: map[string]bool{}, opener: opener, emit: emit, handoff: map[string]string{}}
 }
 
 // DetachInput = 契约 DetachTabInput
@@ -178,7 +185,53 @@ func (m *Manager) changed() {
 	}
 }
 
-// Register 注册 chatWindow.* 三个过程
+// Put：放一份交接快照（同一个 id 覆盖旧的）；不解析内容，只查是 JSON
+func (m *Manager) Put(id, data string) error {
+	if id == "" || len(id) > maxID {
+		return bad("id")
+	}
+	if len(data) > maxHandoff {
+		return bad("data too long")
+	}
+	if !json.Valid([]byte(data)) {
+		return bad("data must be JSON")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.handoff[id]; ok {
+		m.dropOrder(id)
+	}
+	m.handoff[id] = data
+	m.order = append(m.order, id)
+	for len(m.order) > maxHandoffCount {
+		delete(m.handoff, m.order[0])
+		m.order = m.order[1:]
+	}
+	return nil
+}
+
+// Take：取走一份快照（取一次就删）；没有时 ok = false
+func (m *Manager) Take(id string) (string, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	data, ok := m.handoff[id]
+	if ok {
+		delete(m.handoff, id)
+		m.dropOrder(id)
+	}
+	return data, ok
+}
+
+func (m *Manager) dropOrder(id string) {
+	for i, x := range m.order {
+		if x == id {
+			m.order = append(m.order[:i], m.order[i+1:]...)
+			return
+		}
+	}
+}
+
+// Register 注册 chatWindow.* 过程
 func Register(r *contract.Router, m *Manager) {
 	r.Call("chatWindow.detachTab", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		var in DetachInput
@@ -198,5 +251,30 @@ func Register(r *contract.Router, m *Manager) {
 			return nil, bad(err.Error())
 		}
 		return m.Dock(in.ID), nil
+	})
+	r.Call("chatWindow.handoffPut", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+		var in struct {
+			ID   string `json:"id"`
+			Data string `json:"data"`
+		}
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, bad(err.Error())
+		}
+		if err := m.Put(in.ID, in.Data); err != nil {
+			return nil, err
+		}
+		return true, nil
+	})
+	r.Call("chatWindow.handoffTake", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+		var in struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, bad(err.Error())
+		}
+		if data, ok := m.Take(in.ID); ok {
+			return data, nil
+		}
+		return nil, nil
 	})
 }

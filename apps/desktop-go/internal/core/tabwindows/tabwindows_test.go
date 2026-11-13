@@ -1,8 +1,10 @@
 package tabwindows
 
 import (
+	"fmt"
 	"net/url"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 
@@ -189,9 +191,43 @@ func TestRegister(t *testing.T) {
 	m, _, _ := setup()
 	Register(r, m)
 	reg := r.Registered()
-	for _, n := range []string{"chatWindow.detachTab", "chatWindow.detachedTabs", "chatWindow.dockTab"} {
+	for _, n := range []string{"chatWindow.detachTab", "chatWindow.detachedTabs", "chatWindow.dockTab", "chatWindow.handoffPut", "chatWindow.handoffTake"} {
 		if _, ok := reg[n]; !ok {
 			t.Errorf("missing %s", n)
 		}
+	}
+}
+
+// 交接快照：取一次就删；同一个 id 覆盖；坏数据 / 超长拒绝；超过份数丢最早的
+func TestHandoff(t *testing.T) {
+	m := New(func() Opener { return nil }, nil)
+	if err := m.Put("a", `{"v":1}`); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Put("a", `{"v":2}`); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := m.Take("a"); !ok || got != `{"v":2}` {
+		t.Fatalf("take = %q %v", got, ok)
+	}
+	if _, ok := m.Take("a"); ok {
+		t.Fatal("second take should be empty")
+	}
+	if m.Put("", `{}`) == nil || m.Put("b", "nope") == nil {
+		t.Fatal("bad input accepted")
+	}
+	if m.Put("b", `"`+strings.Repeat("x", maxHandoff)+`"`) == nil {
+		t.Fatal("oversize accepted")
+	}
+	for i := 0; i < maxHandoffCount+3; i++ {
+		if err := m.Put(fmt.Sprintf("k%d", i), `{}`); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, ok := m.Take("k0"); ok {
+		t.Fatal("oldest should be dropped")
+	}
+	if _, ok := m.Take(fmt.Sprintf("k%d", maxHandoffCount+2)); !ok {
+		t.Fatal("newest kept")
 	}
 }

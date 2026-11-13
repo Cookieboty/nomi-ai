@@ -5,6 +5,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DetachedApp } from '../src/detached/DetachedApp';
 import type { HarnessTabsState } from '../src/services/harnessClient';
+import {
+  createSideChat,
+  exportSideChat,
+  forgetSideChat,
+  setSideChatModel,
+  sideChatState,
+} from '../src/services/sideChat';
 import type { DetachSpec } from '../src/utils/detachedTabs';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
@@ -16,9 +23,11 @@ afterEach(() => {
   resetFakeApi();
 });
 
-function setup() {
+function setup(extra?: (name: string, input: unknown) => unknown) {
   const tabs: HarnessTabsState = { tabs: [], activeTabId: 'main', running: 0, queued: 0 };
   return installFakeApi((name, input) => {
+    const hit = extra?.(name, input);
+    if (hit !== undefined) return hit;
     if (name === 'harness.tabs') return tabs;
     if (name === 'tasks.get')
       return {
@@ -61,5 +70,61 @@ describe('detached tab window', () => {
     await waitFor(() =>
       expect(fake.inputs('chatWindow.dockTab')).toEqual([{ id: '["nomi:c1","nomi-task:k1"]' }]),
     );
+  });
+
+  it('a popped-out side chat takes its content from the host, hands it back, and docks', async () => {
+    const id = createSideChat('nomi:c1');
+    setSideChatModel(id, 'p/m');
+    const raw = exportSideChat(id)!;
+    forgetSideChat(id);
+    const key = JSON.stringify(['nomi:c1', `side-chat:${id}`]);
+    const store = new Map([[key, raw]]);
+    const fake = setup((name, input) => {
+      if (name === 'chatWindow.handoffTake') {
+        const k = (input as { id: string }).id;
+        const v = store.get(k) ?? null;
+        store.delete(k);
+        return v;
+      }
+      if (name === 'chatWindow.handoffPut') {
+        const i = input as { id: string; data: string };
+        store.set(i.id, i.data);
+        return true;
+      }
+      return undefined;
+    });
+    const spec: DetachSpec = {
+      v: 1,
+      kind: 'agent',
+      scope: 'nomi:c1',
+      target: { kind: 'side-chat', chatId: id },
+      title: '侧边聊天 1',
+    };
+    render(<DetachedApp spec={spec} />);
+    const pane = await screen.findByTestId('side-chat');
+    expect(pane.hidden).toBe(false);
+    expect(sideChatState(id)?.model).toBe('p/m');
+    // 取到之后马上交回一份（窗口刷新 / 关掉后主窗口还能取回）
+    await waitFor(() => expect(store.has(key)).toBe(true));
+    fireEvent.click(screen.getByTestId('detached-dock'));
+    await waitFor(() => expect(fake.inputs('chatWindow.dockTab')).toEqual([{ id: key }]));
+    expect(JSON.parse(store.get(key)!).chat.id).toBe(id);
+  });
+
+  it('shows the closed state when there is nothing to take', async () => {
+    setup((name) => (name === 'chatWindow.handoffTake' ? null : undefined));
+    render(
+      <DetachedApp
+        spec={{
+          v: 1,
+          kind: 'agent',
+          scope: 's',
+          target: { kind: 'side-chat', chatId: 'gone' },
+          title: '侧边聊天 1',
+        }}
+      />,
+    );
+    await waitFor(() => expect(screen.queryByTestId('side-chat')).toBeNull());
+    await screen.findByTestId('detached-gone');
   });
 });

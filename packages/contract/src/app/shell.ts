@@ -455,6 +455,22 @@ export const shellProcedures = {
     output: z.boolean(),
     surfaces: CHAT,
   },
+  /**
+   * 交接一个只在界面内存里的标签（侧边聊天）的内容：弹出 / 放回 / 关窗口时，当前持有它的窗口把快照放在宿主内存里，
+   * 另一个窗口取走（取一次就删）。宿主不解析、不落盘，关掉应用就没了。
+   */
+  'chatWindow.handoffPut': {
+    kind: 'mutation',
+    input: S.HandoffPutInput,
+    output: z.boolean(),
+    surfaces: CHAT,
+  },
+  'chatWindow.handoffTake': {
+    kind: 'mutation',
+    input: z.object({ id: z.string().min(1).max(2048) }),
+    output: z.string().nullable(),
+    surfaces: CHAT,
+  },
 } as const satisfies ProcedureMap;
 
 export const shellEvents = {

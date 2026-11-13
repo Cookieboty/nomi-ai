@@ -730,3 +730,11 @@ export const DetachTabInput = z.object({
   spec: z.string().min(2).max(16384),
 });
 export const DetachTabResult = z.object({ ok: z.boolean(), focused: z.boolean() });
+/** chatWindow.handoffPut：id 同 detachTab；data = 视图自己的快照（不透明 JSON，最多 8 MB） */
+export const HandoffPutInput = z.object({
+  id: z.string().min(1).max(2048),
+  data: z
+    .string()
+    .min(2)
+    .max(8 * 1024 * 1024),
+});

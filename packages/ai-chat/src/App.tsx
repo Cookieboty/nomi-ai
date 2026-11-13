@@ -134,6 +134,11 @@ const AiChatContent: React.FC = () => {
   useEffect(() => {
     setPaneScope?.(sessionKey);
   }, [setPaneScope, sessionKey]);
+  // 侧边聊天带上当前会话所属的项目（只读）
+  const setPaneProject = pane?.setProjectId;
+  useEffect(() => {
+    setPaneProject?.(rail.projectId ?? null);
+  }, [setPaneProject, rail.projectId]);
   const activatePane = pane?.activate;
   const resourcePreview = useResourcePreview(
     {
@@ -509,7 +514,6 @@ const AiChatContent: React.FC = () => {
                       showStrip={!sideMax}
                       onBrowseFiles={browseFiles}
                       onShowAgents={showAgents}
-                      projectId={rail.projectId}
                     />
                   </>
                 ) : null}

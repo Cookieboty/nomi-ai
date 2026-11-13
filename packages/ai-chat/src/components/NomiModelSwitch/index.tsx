@@ -5,6 +5,9 @@
  *
  * 界面与编程助手标签共用 ModelEffortChip（components/ModelControls/ModelEffortChip），这里只负责
  * 「读哪份数据、改往哪写」。NOMI_PROVIDER 环境变量锁定时网关的分配不生效：只显示一个不可点的胶囊。
+ *
+ * 侧边聊天（binding）：同一个按钮和浮层（模型 / 第三方模型 / 思考深度），只是模型与档位记在那个侧边聊天上，
+ * 不改 Nomi 对话的模型分配，也不写会话 meta（docs/design/side-tabs-workspace.md）。
  */
 import { modelBrandOf, t } from '@nomi-ai/ui';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -62,7 +65,19 @@ function useStoredEffort(): {
   return { stored: meta?.reasoningEffort, save };
 }
 
-export const NomiModelSwitch: React.FC = () => {
+/** 侧边聊天：模型 / 档位绑在它自己身上 */
+export interface NomiModelBinding {
+  /** `供应商/模型`；null = 跟 Nomi 对话同一个 */
+  model: string | null;
+  onModel: (ref: string) => void;
+  effort: string | undefined;
+  onEffort: (level: string | undefined) => void;
+  /** 浮层键（斜杠命令打开用），测试 id 前缀 */
+  menuKey: string;
+  testPrefix: string;
+}
+
+export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ binding }) => {
   const state = useGatewayState();
   const providers = useMemo(() => pickerProviders(state?.providers ?? []), [state]);
   // NOMI_PROVIDER 环境变量锁定时，网关的分配不生效
@@ -82,15 +97,19 @@ export const NomiModelSwitch: React.FC = () => {
     return providerClient.onChanged(apply);
   }, []);
 
-  const { stored, save } = useStoredEffort();
+  const conversationEffort = useStoredEffort();
+  const { stored, save } = binding
+    ? { stored: binding.effort, save: binding.onEffort }
+    : conversationEffort;
   /**
    * 浮层里刚选的模型 + 选之前网关里的值：setNomiModel 写完要等网关广播，
    * 这段时间按钮与档位页先按它显示；网关一变（写回生效 / 别处换了模型）就不再用它。
    */
   const [pick, setPick] = useState<{ ref: string; base: string | null } | null>(null);
 
-  const current = override ? null : nomiMainRef(state);
-  const activeRef = pick && current === pick.base ? pick.ref : current;
+  const mainRef = override ? null : nomiMainRef(state);
+  const current = binding && !override ? (binding.model ?? mainRef) : mainRef;
+  const activeRef = !binding && pick && current === pick.base ? pick.ref : current;
   const profile = useMemo(() => thinkingProfileOf(state, activeRef), [state, activeRef]);
   const level = resolveThinkingLevel(stored, profile);
   const usable = !override && providers.length > 0;
@@ -108,8 +127,11 @@ export const NomiModelSwitch: React.FC = () => {
   const brand = parts ? modelBrandOf(parts.model, providerBrand(state, parts.provider)) : undefined;
 
   const pickModel = (ref: string): 'effort' | 'close' => {
-    setPick({ ref, base: current });
-    if (ref !== current) void setNomiModel(ref).catch(() => undefined);
+    if (binding) binding.onModel(ref);
+    else {
+      setPick({ ref, base: current });
+      if (ref !== current) void setNomiModel(ref).catch(() => undefined);
+    }
     return thinkingProfileOf(state, ref) ? 'effort' : 'close';
   };
 
@@ -123,7 +145,7 @@ export const NomiModelSwitch: React.FC = () => {
     menuLabel: t('ui.chat-settings.model-and-reasoning-effort-label'),
     initialView: 'effort',
     menuCommandView: 'model',
-    menuKey: NOMI_MODEL_MENU,
+    menuKey: binding?.menuKey ?? NOMI_MODEL_MENU,
     effort: {
       supported: !!profile,
       levels: profile?.levels ?? [],
@@ -143,7 +165,7 @@ export const NomiModelSwitch: React.FC = () => {
       value: activeRef,
       showBack: true,
       wide: true,
-      optionTestId: (ref) => `nomi-model-${ref}`,
+      optionTestId: (ref) => `${binding?.testPrefix ?? 'nomi'}-model-${ref}`,
       onPick: pickModel,
     },
     provider: thirdPartyProviderSource(providers, activeRef, pickModel),
@@ -153,9 +175,9 @@ export const NomiModelSwitch: React.FC = () => {
 
   return (
     <ModelEffortChip
-      prefix="nomi-model"
-      effortPrefix="nomi-effort"
-      wrapTestId="nomi-model-switch"
+      prefix={`${binding?.testPrefix ?? 'nomi'}-model`}
+      effortPrefix={`${binding?.testPrefix ?? 'nomi'}-effort`}
+      wrapTestId={`${binding?.testPrefix ?? 'nomi'}-model-switch`}
       source={source}
       onOpenChange={(open) => {
         if (!open) setPick(null);

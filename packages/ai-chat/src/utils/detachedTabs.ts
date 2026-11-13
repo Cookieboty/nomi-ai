@@ -2,7 +2,8 @@
  * 标签区的标签弹到独立窗口（docs/design/side-tabs-workspace.md「弹出到新窗口」）：纯函数，便于单测。
  * - id：宿主记的身份 = [会话键, 标签键]（同一会话的同一个标签只开一个窗口，再弹一次是把它提到最前）；
  * - spec：新窗口要画什么，放在页面地址的 ?detached= 里（宿主原样转交，不解析）。
- *   子任务：会话键 + 子任务（harness / nested / nomi-task）；文件：链接 + 来源会话的范围（cwd 等）。
+ *   子任务：会话键 + 子任务（harness / nested / nomi-task / side-chat）；文件：链接 + 来源会话的范围（cwd 等）。
+ *   侧边聊天的内容不在 spec 里：经宿主内存交接（chatWindow.handoffPut / handoffTake，id 同窗口 id）。
  */
 import type { ResourceScope } from '../contexts/ResourceContext';
 
@@ -85,6 +86,8 @@ export function parseDetachSpec(search: string): DetachSpec | null {
       target = { kind: 'harness', tabId: t.tabId };
     else if (t.kind === 'nomi-task' && typeof t.taskId === 'string' && t.taskId)
       target = { kind: 'nomi-task', taskId: t.taskId };
+    else if (t.kind === 'side-chat' && typeof t.chatId === 'string' && t.chatId)
+      target = { kind: 'side-chat', chatId: t.chatId };
     else if (
       t.kind === 'nested' &&
       typeof t.callId === 'string' &&

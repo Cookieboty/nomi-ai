@@ -7,7 +7,6 @@ import {
 } from '../src/components/MessageInput/useReferenceDraft';
 import { sideChatRequestMessages } from '../src/services/sideChat';
 import {
-  composeWithQuotes,
   normalizeQuoteText,
   QUOTE_MAX_CHARS,
   quoteExcerpt,
@@ -15,16 +14,15 @@ import {
   readQuoteBlock,
 } from '../src/utils/selectionQuote';
 import {
-  closeSideChat,
   EMPTY_SIDE_TABS,
   isMaximized,
+  isSideChatKey,
   openAgent,
-  openSideChat,
   parseSideTabs,
   resolveActive,
-  SIDE_CHAT_TAB,
   sideTabItems,
   toggleMaximized,
+  withoutSideChats,
 } from '../src/utils/sideTabs';
 
 describe('selection quotes', () => {
@@ -42,13 +40,6 @@ describe('selection quotes', () => {
     expect(quoteExcerpt('  一段   很长很长的选中文字，用来看胶囊上的短标签会不会截断  ')).toBe(
       '一段 很长很长的选中文字，用来看胶囊上的短标签会…',
     );
-  });
-
-  it('composes the side chat message with quotes first', () => {
-    expect(composeWithQuotes([{ text: 'a', source: 's' }], ' 为什么？ ')).toBe(
-      '> [!quote] s\n> a\n\n为什么？',
-    );
-    expect(composeWithQuotes([], 'hi')).toBe('hi');
   });
 });
 
@@ -97,45 +88,65 @@ describe('composer quote chips (添加到对话)', () => {
 
 describe('side chat tab state', () => {
   const agent = { kind: 'nomi-task', taskId: 'k1' } as const;
-  it('opens as a tab after agents and files, and is the active tab', () => {
-    const s = openSideChat(openAgent(EMPTY_SIDE_TABS, agent));
-    expect(resolveActive(s, true)).toBe(SIDE_CHAT_TAB);
-    expect(sideTabItems(s, ['f1']).map((i) => i.kind)).toEqual(['agent', 'file', 'chat']);
-    // 只有侧边聊天时也能铺满（双击）
-    const only = toggleMaximized(openSideChat(EMPTY_SIDE_TABS), SIDE_CHAT_TAB);
+  const chat = (chatId: string) => ({ kind: 'side-chat', chatId }) as const;
+  it('several side chats are ordinary agent tabs (keys, order, maximize)', () => {
+    let s = openAgent(EMPTY_SIDE_TABS, agent);
+    s = openAgent(s, chat('a'));
+    s = openAgent(s, chat('b'));
+    expect(resolveActive(s, true)).toBe('side-chat:b');
+    expect(sideTabItems(s, ['f1']).map((i) => i.key)).toEqual([
+      'nomi-task:k1',
+      'side-chat:a',
+      'side-chat:b',
+      'file:f1',
+    ]);
+    expect(isSideChatKey('side-chat:a')).toBe(true);
+    expect(isSideChatKey('nomi-task:k1')).toBe(false);
+    const only = toggleMaximized(openAgent(EMPTY_SIDE_TABS, chat('a')), 'side-chat:a');
     expect(isMaximized(only, false)).toBe(true);
-    expect(sideTabItems(only, []).map((i) => i.key)).toEqual(['main', SIDE_CHAT_TAB]);
+    // 再开同一个只是切过去
+    expect(openAgent(s, chat('a')).agents).toHaveLength(3);
   });
 
-  it('closing goes back to the last agent; the tab is never restored from storage', () => {
-    const s = openSideChat(openAgent(EMPTY_SIDE_TABS, agent));
-    const closed = closeSideChat(s);
-    expect(closed.sideChat).toBe(false);
-    expect(resolveActive(closed, false)).toBe('nomi-task:k1');
-    const stored = parseSideTabs(JSON.parse(JSON.stringify(s)))!;
-    expect(stored.sideChat).toBeUndefined();
-    expect(resolveActive(stored, false)).toBe('nomi-task:k1');
+  it('side chats are never written to storage (content is memory only)', () => {
+    let s = openAgent(EMPTY_SIDE_TABS, agent);
+    s = openAgent(s, chat('a'));
+    s = { ...s, order: ['side-chat:a', 'nomi-task:k1'] };
+    const kept = withoutSideChats(s);
+    expect(kept.agents).toEqual([agent]);
+    expect(kept.order).toEqual(['nomi-task:k1']);
+    expect(kept.active).toBeNull();
+    expect(resolveActive(kept, false)).toBe('nomi-task:k1');
+    // 读回来时也不认侧边聊天
+    expect(parseSideTabs(JSON.parse(JSON.stringify(s)))!.agents).toEqual([agent]);
+    expect(withoutSideChats(kept)).toBe(kept);
   });
 });
 
 describe('side chat request', () => {
-  it('sends Nomi system prompt, earlier turns (with their quotes) and the new question', () => {
+  it('sends Nomi system prompt, earlier turns (images as a note) and the new question with images', () => {
+    const img = { mime: 'image/png', thumb: 'data:t', width: 1, height: 1 };
     const msgs = sideChatRequestMessages(
       'You are Nomi',
       [
-        { id: 'u1', role: 'user', text: '这是什么', quotes: [{ text: 'A', source: 's' }] },
+        { id: 'u1', role: 'user', text: '这是什么', raw: { images: [img] } },
         { id: 'a1', role: 'assistant', text: '是 A' },
         { id: 'a2', role: 'assistant', text: '', error: 'boom' },
       ],
-      '再说说',
-      [{ text: 'B', source: 't' }],
+      { id: 'u2', role: 'user', text: '再说说', raw: { images: [{ ...img, data: 'AAA' }] } },
     );
-    expect(msgs).toEqual([
-      { role: 'system', content: 'You are Nomi' },
-      { role: 'user', content: '> [!quote] s\n> A\n\n这是什么' },
-      { role: 'assistant', content: '是 A' },
-      { role: 'user', content: '> [!quote] t\n> B\n\n再说说' },
-    ]);
+    expect(msgs[0]).toEqual({ role: 'system', content: 'You are Nomi' });
+    expect(msgs[1]!.role).toBe('user');
+    expect(msgs[1]!.content.endsWith('这是什么')).toBe(true);
+    expect(msgs[1]!.content.length).toBeGreaterThan('这是什么'.length);
+    expect(msgs[1]).not.toHaveProperty('images');
+    expect(msgs[2]).toEqual({ role: 'assistant', content: '是 A' });
+    expect(msgs[3]).toEqual({
+      role: 'user',
+      content: '再说说',
+      images: [{ mime: 'image/png', data: 'AAA' }],
+    });
+    expect(msgs).toHaveLength(4);
   });
 });
 

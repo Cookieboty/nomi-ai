@@ -5,18 +5,19 @@
  * - 铺满时主会话是第一个标签，不能关；没有任何子任务 / 文件标签时自动回到分栏；
  * - 标签可以拖动排序（order，主会话标签固定在最前）；铺满时可以「向右拆分」：左主会话、右当前标签；
  * - 弹出到独立窗口的标签（detached）由宿主记着，只在这一侧隐藏，窗口关掉后回到标签栏；
- * - 侧边聊天（'side-chat'）：每个会话最多一个临时聊天标签，不落盘（关掉应用就没了）。
+ * - 侧边聊天（SubagentTarget kind 'side-chat'）：和子任务一样是一个标签，可以开好几个；内容只在内存里，
+ *   重开应用后不恢复（写本地存储时去掉）。
  * 语义见 docs/design/side-tabs-workspace.md。
  */
 
 export type SubagentTarget =
   | { kind: 'harness'; tabId: string }
   | { kind: 'nested'; callId: string; parentTabId: string | null }
-  | { kind: 'nomi-task'; taskId: string };
+  | { kind: 'nomi-task'; taskId: string }
+  | { kind: 'side-chat'; chatId: string };
 
 export const MAIN_SIDE_TAB = 'main';
 export const FILES_SIDE_TAB = 'files';
-export const SIDE_CHAT_TAB = 'side-chat';
 
 export interface SideTabsState {
   /** 开着的子任务（按打开顺序） */
@@ -33,8 +34,6 @@ export interface SideTabsState {
   split: boolean;
   /** 拆分时主会话占的宽度比例（0.2–0.8） */
   splitRatio: number;
-  /** 开着侧边聊天标签（临时，不落盘） */
-  sideChat?: boolean;
 }
 
 export const SPLIT_RATIO_MIN = 0.2;
@@ -60,8 +59,12 @@ export function agentKey(target: SubagentTarget): string {
       return `nested:${target.callId}`;
     case 'nomi-task':
       return `nomi-task:${target.taskId}`;
+    case 'side-chat':
+      return `side-chat:${target.chatId}`;
   }
 }
+
+export const isSideChatKey = (key: string | null | undefined) => !!key?.startsWith('side-chat:');
 
 /** 打开（或切到已开着的）子任务标签 */
 export function openAgent(state: SideTabsState, target: SubagentTarget): SideTabsState {
@@ -77,20 +80,6 @@ export function openAgent(state: SideTabsState, target: SubagentTarget): SideTab
   };
 }
 
-/** 打开（或切到）侧边聊天标签 */
-export function openSideChat(state: SideTabsState): SideTabsState {
-  return { ...state, sideChat: true, active: SIDE_CHAT_TAB, mainActive: false };
-}
-
-/** 关掉侧边聊天标签（聊天内容由调用方丢掉） */
-export function closeSideChat(state: SideTabsState): SideTabsState {
-  if (!state.sideChat) return state;
-  const order = state.order.filter((k) => k !== SIDE_CHAT_TAB);
-  if (state.active !== SIDE_CHAT_TAB) return { ...state, sideChat: false, order };
-  const last = state.agents[state.agents.length - 1];
-  return { ...state, sideChat: false, order, active: last ? agentKey(last) : null };
-}
-
 /** 切换标签：'main' 只在铺满时有意义 */
 export function activateTab(state: SideTabsState, key: string): SideTabsState {
   // 拆分时主会话一直在左边：点它只是把焦点给它，右边不变
@@ -104,7 +93,6 @@ export function activateTab(state: SideTabsState, key: string): SideTabsState {
  * 都没有时交给 resolveActive（有文件就看文件）。
  */
 export function closeAgent(state: SideTabsState, key: string): SideTabsState {
-  if (key === SIDE_CHAT_TAB) return closeSideChat(state);
   const index = state.agents.findIndex((a) => agentKey(a) === key);
   if (index < 0) return state;
   const agents = state.agents.filter((_, i) => i !== index);
@@ -130,7 +118,7 @@ export function pruneAgents(
 
 /** 标签区里有没有东西（子任务或文件） */
 export function hasSideTabs(state: SideTabsState, hasFiles: boolean): boolean {
-  return state.agents.length > 0 || hasFiles || !!state.sideChat;
+  return state.agents.length > 0 || hasFiles;
 }
 
 /** 实际显示的当前标签：铺满且切到主会话时是 'main'；记下的那个不在了就退回最后一个子任务 → 文件 → null */
@@ -138,11 +126,9 @@ export function resolveActive(state: SideTabsState, hasFiles: boolean): string |
   const { active } = state;
   if (state.mainActive && !state.split && isMaximized(state, hasFiles)) return MAIN_SIDE_TAB;
   if (active === FILES_SIDE_TAB && hasFiles) return FILES_SIDE_TAB;
-  if (active === SIDE_CHAT_TAB && state.sideChat) return SIDE_CHAT_TAB;
   if (active && state.agents.some((a) => agentKey(a) === active)) return active;
   const last = state.agents[state.agents.length - 1];
   if (last) return agentKey(last);
-  if (state.sideChat) return SIDE_CHAT_TAB;
   return hasFiles ? FILES_SIDE_TAB : null;
 }
 
@@ -191,7 +177,7 @@ export function setSplitRatio(state: SideTabsState, ratio: number): SideTabsStat
 
 export interface SideTabItem {
   key: string;
-  kind: 'main' | 'agent' | 'file' | 'chat';
+  kind: 'main' | 'agent' | 'file';
   closable: boolean;
   /** 文件标签：预览区里的条目键 */
   entryKey?: string;
@@ -212,7 +198,6 @@ export function sideTabItems(
     rest.push({ key: agentKey(target), kind: 'agent', closable: true, target });
   for (const entryKey of fileKeys)
     rest.push({ key: fileTabKey(entryKey), kind: 'file', closable: true, entryKey });
-  if (state.sideChat) rest.push({ key: SIDE_CHAT_TAB, kind: 'chat', closable: true });
   const shown = hidden?.size ? rest.filter((i) => !hidden.has(i.key)) : rest;
   const rank = new Map(state.order.map((k, i) => [k, i]));
   const sorted = shown
@@ -298,6 +283,17 @@ export function parseSideTabs(v: unknown): SideTabsState | null {
   };
 }
 
+/** 去掉侧边聊天（落盘用） */
+export function withoutSideChats(state: SideTabsState): SideTabsState {
+  if (!state.agents.some((a) => a.kind === 'side-chat')) return state;
+  return {
+    ...state,
+    agents: state.agents.filter((a) => a.kind !== 'side-chat'),
+    order: state.order.filter((k) => !isSideChatKey(k)),
+    active: isSideChatKey(state.active) ? null : state.active,
+  };
+}
+
 const STORE_KEY = 'nomi.sideTabs.v1';
 /** 只记最近这么多个会话 */
 export const SIDE_TABS_KEEP = 40;
@@ -316,12 +312,15 @@ export function readSideTabsStore(): Record<string, SideTabsState> {
   }
 }
 
-/** 写回本地存储：空的不记；超过上限时丢掉最早的（对象键按插入顺序，最近改的放最后） */
+/**
+ * 写回本地存储：空的不记；超过上限时丢掉最早的（对象键按插入顺序，最近改的放最后）。
+ * 侧边聊天不记（内容只在内存里，重开应用后没有可恢复的）。
+ */
 export function writeSideTabsStore(all: Record<string, SideTabsState>): void {
   try {
-    const entries = Object.entries(all).filter(
-      ([scope, s]) => !!scope && (s.agents.length > 0 || s.maximized),
-    );
+    const entries = Object.entries(all)
+      .map(([scope, s]): [string, SideTabsState] => [scope, withoutSideChats(s)])
+      .filter(([scope, s]) => !!scope && (s.agents.length > 0 || s.maximized));
     localStorage.setItem(
       STORE_KEY,
       JSON.stringify(Object.fromEntries(entries.slice(-SIDE_TABS_KEEP))),

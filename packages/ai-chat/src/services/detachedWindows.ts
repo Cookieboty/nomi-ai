@@ -40,6 +40,26 @@ export const detachedWindows = {
     if (!hasTransport()) return Promise.resolve(false);
     return api.chatWindow.dockTab({ id: detachedId(scope, key) }).catch(() => false);
   },
+  /** 只在界面内存里的标签（侧边聊天）：把快照放到宿主内存里，等另一个窗口取走 */
+  async put(id: string, data: string): Promise<boolean> {
+    if (!hasTransport()) return false;
+    try {
+      return !!(await api.chatWindow.handoffPut({ id, data }));
+    } catch (error) {
+      log.warn('交接内容失败', error);
+      return false;
+    }
+  },
+  /** 取走交接的快照（没有时 null） */
+  async take(id: string): Promise<string | null> {
+    if (!hasTransport()) return null;
+    try {
+      return (await api.chatWindow.handoffTake({ id })) ?? null;
+    } catch (error) {
+      log.warn('取交接内容失败', error);
+      return null;
+    }
+  },
   /** 主窗口：「放回主窗口」后切到那个标签 */
   onDocked(fn: (id: string) => void): () => void {
     if (!hasTransport()) return () => undefined;

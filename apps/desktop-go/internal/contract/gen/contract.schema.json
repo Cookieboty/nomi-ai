@@ -6496,6 +6496,65 @@
     "type": "boolean"
    }
   },
+  "chatWindow.handoffPut": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+     },
+     "data": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 8388608
+     }
+    },
+    "required": [
+     "id",
+     "data"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
+  "chatWindow.handoffTake": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": [
+     "string",
+     "null"
+    ]
+   }
+  },
   "cli.registry": {
    "kind": "query",
    "dangerous": false,

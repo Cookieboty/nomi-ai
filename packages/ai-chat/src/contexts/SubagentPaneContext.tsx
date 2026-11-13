@@ -3,28 +3,43 @@
  * 子任务有三种会话，都走同一套面板：
  * - harness：委派出去的编程助手标签（完整输入栏，按标签 id 绑定）；
  * - nested：进程内子代理（Task / spawn_agent），步骤来自父转录；
- * - nomi-task：delegate_to_nomi 的后台 Nomi 任务。
+ * - nomi-task：delegate_to_nomi 的后台 Nomi 任务；
+ * - side-chat：侧边聊天（只问 Nomi 的临时聊天，内容在 services/sideChat 的内存里）。
  * 可以同时开好几个子任务标签；每个会话（主列的会话键）各记一份开着的标签、当前标签、是否铺满。
  * 文件标签来自预览区（App 的 useResourcePreview），这里只记「当前看的是文件」。
  */
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import { detachedWindows, useDetachedIds } from '../services/detachedWindows';
-import { discardSideChat } from '../services/sideChat';
-import { detachedKeysFor } from '../utils/detachedTabs';
+import {
+  addSideChatQuote,
+  createSideChat,
+  discardSideChat,
+  importSideChat,
+  sideChatState,
+} from '../services/sideChat';
+import { detachedKeysFor, parseDetachedId } from '../utils/detachedTabs';
+import type { SelectionQuote } from '../utils/selectionQuote';
 import {
   activateTab,
   agentKey,
   closeAgent,
   EMPTY_SIDE_TABS,
+  isSideChatKey,
   moveTab,
   openAgent,
-  openSideChat as openSideChatTab,
   pruneAgents,
   readSideTabsStore,
   resolveActive,
   setSplitRatio,
-  SIDE_CHAT_TAB,
   toggleMaximized,
   toggleSplit,
   writeSideTabsStore,
@@ -83,8 +98,15 @@ interface SubagentPaneValue {
   /** 铺满时向右拆分 / 取消拆分（key = 放到右边的标签） */
   toggleSplit: (key?: string) => void;
   setSplitRatio: (ratio: number) => void;
-  /** 开（或切到）这个会话的侧边聊天标签 */
-  openSideChat: () => void;
+  /**
+   * 侧边聊天：fresh = 新开一个（「+ 新侧边聊天」）；否则当前标签是侧边聊天时加到它上面，不是时新开。
+   * quote：带到输入栏上的选区。返回聊天 id。
+   */
+  openSideChat: (opts?: { fresh?: boolean; quote?: SelectionQuote }) => string;
+  /** 打开某个已有的侧边聊天标签（会话详情的列表、弹出窗口用） */
+  openSideChatTab: (chatId: string) => void;
+  /** 当前会话所属的项目（侧边聊天带上它，App 同步进来） */
+  setProjectId: (projectId: string | null) => void;
 }
 
 const Ctx = createContext<SubagentPaneValue | null>(null);
@@ -92,6 +114,7 @@ const Ctx = createContext<SubagentPaneValue | null>(null);
 export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const harnessTabs = useHarnessTabs();
   const [scope, setScopeState] = useState('');
+  const [projectId, setProjectId] = useState<string | null>(null);
   // 每个会话一份；只有真实会话（scope 非空）写本地存储，重开应用后恢复
   const [byScope, setByScope] = useState<Record<string, SideTabsState>>(readSideTabsStore);
   const [meta, setMeta] = useState<Record<string, SideTabMeta>>({});
@@ -181,15 +204,55 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // 关掉侧边聊天标签：聊天内容一并丢掉（它本来就是临时的）
   const closeTab = useCallback(
     (key: string) => {
-      if (key === SIDE_CHAT_TAB) discardSideChat(scope);
+      if (isSideChatKey(key)) discardSideChat(key.slice('side-chat:'.length));
       update((s) => closeAgent(s, key));
     },
-    [update, scope],
+    [update],
   );
   const closeSubagent = useCallback(() => {
     if (active) closeTab(active);
   }, [closeTab, active]);
-  const openSideChat = useCallback(() => update(openSideChatTab), [update]);
+  const openSideChatTab = useCallback(
+    (chatId: string) => open({ kind: 'side-chat', chatId }),
+    [open],
+  );
+  const openSideChat = useCallback(
+    (opts: { fresh?: boolean; quote?: SelectionQuote } = {}) => {
+      const current = isSideChatKey(active) ? active!.slice('side-chat:'.length) : null;
+      if (!opts.fresh && current && sideChatState(current)) {
+        if (opts.quote) addSideChatQuote(current, opts.quote);
+        update((s) => activateTab(s, active!));
+        return current;
+      }
+      const id = createSideChat(scope, { projectId, quote: opts.quote });
+      open({ kind: 'side-chat', chatId: id });
+      return id;
+    },
+    [active, update, open, scope, projectId],
+  );
+  // 弹出去的侧边聊天回来了（窗口关掉 / 放回）：收下那个窗口交接的内容；没有内容（窗口里关掉了）就关标签。
+  // 按宿主的整份 id 列表比较（切换会话不算「回来」）
+  const prevIds = useRef(detachedIds);
+  useEffect(() => {
+    const before = prevIds.current;
+    prevIds.current = detachedIds;
+    if (before === detachedIds) return;
+    const now = new Set(detachedIds);
+    for (const id of before) {
+      const p = now.has(id) ? null : parseDetachedId(id);
+      if (!p || !isSideChatKey(p.key)) continue;
+      const chatId = p.key.slice('side-chat:'.length);
+      void detachedWindows.take(id).then((data) => {
+        if (importSideChat(data) || sideChatState(chatId)) return;
+        setByScope((all) => {
+          const cur = all[p.scope];
+          if (!cur) return all;
+          const next = closeAgent(cur, p.key);
+          return next === cur ? all : { ...all, [p.scope]: next };
+        });
+      });
+    }
+  }, [detachedIds]);
   const activate = useCallback((key: string) => update((s) => activateTab(s, key)), [update]);
   const toggle = useCallback((key?: string) => update((s) => toggleMaximized(s, key)), [update]);
   const restore = useCallback(
@@ -237,9 +300,12 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
       toggleSplit: split,
       setSplitRatio: ratio,
       openSideChat,
+      openSideChatTab,
+      setProjectId,
     }),
     [
       openSideChat,
+      openSideChatTab,
       scope,
       detached,
       move,
