@@ -997,7 +997,7 @@ func main() {
 		bundle.OnLocaleChange = append(bundle.OnLocaleChange, rt.RebuildTray)
 		personaSvc.OnChange(func(persona.Persona) { rt.RebuildTray() })
 	}
-	isl.SetHost(islandHost(sh, desktopSvc))
+	isl.SetHost(islandHost(sh, desktopSvc, isl))
 
 	if ctl != "" {
 		go http.ListenAndServe(ctl, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1303,12 +1303,21 @@ type shellNotifier interface {
 }
 
 // islandHost = IslandService 的窗口操作：显示 / 隐藏 / 释放岛窗口，点击打开对话，免打扰来自日程
-func islandHost(sh shell.Shell, desktopSvc *desktop.Service) island.Host {
+func islandHost(sh shell.Shell, desktopSvc *desktop.Service, isl *island.Service) island.Host {
 	execJS, _ := sh.(interface {
 		ExecJS(shell.WindowKind, string)
 	})
 	hider, _ := sh.(interface{ Hide(shell.WindowKind) })
+	updateLayout := func() {
+		if execJS != nil {
+			if g, ok := isl.Layout(); ok {
+				b, _ := json.Marshal(g)
+				execJS.ExecJS(shell.Island, "window.__island && window.__island.setLayout("+string(b)+")")
+			}
+		}
+	}
 	return island.Host{
+		UpdateLayout: func(_ island.Geometry) { updateLayout() },
 		// = ensureWindow（await loadURL）+ prepare / showInactive / play（页面的 show 两步合一）：
 		// 新建的窗口等页面加载完再填内容，否则调用落空、岛一直是空的
 		Present: func(n island.Notice) error {
@@ -1319,7 +1328,10 @@ func islandHost(sh shell.Shell, desktopSvc *desktop.Service) island.Host {
 				return errors.New("no ExecJS")
 			}
 			b, _ := json.Marshal(n)
-			run := func() { execJS.ExecJS(shell.Island, "window.__island && window.__island.show("+string(b)+")") }
+			run := func() {
+				updateLayout()
+				execJS.ExecJS(shell.Island, "window.__island && window.__island.show("+string(b)+")")
+			}
 			if after := loader.ShowOnceLoaded(shell.Island); after != nil {
 				after(run)
 			} else {
@@ -1341,6 +1353,7 @@ func islandHost(sh shell.Shell, desktopSvc *desktop.Service) island.Host {
 			b, _ := json.Marshal(list)
 			lb, _ := json.Marshal(l)
 			run := func() {
+				updateLayout()
 				execJS.ExecJS(shell.Island, "window.__island && window.__island.setPending("+string(b)+","+string(lb)+")")
 			}
 			if len(list) == 0 {

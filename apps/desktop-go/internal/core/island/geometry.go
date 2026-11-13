@@ -51,6 +51,7 @@ var (
 // Geometry：灵动岛几何（字段顺序固定，便于逐字比对 JSON）
 type Geometry struct {
 	Mode          string  `json:"mode"`
+	Preset        string  `json:"preset"`
 	X             float64 `json:"x"`
 	Y             float64 `json:"y"`
 	Width         float64 `json:"width"`
@@ -96,13 +97,23 @@ func IslandWindowRect(g Geometry, height float64) WinRect {
 }
 
 // IslandGeometry = islandGeometry(platform, d, pref)
-func IslandGeometry(platform string, d Display, pref string) Geometry {
+func IslandGeometry(platform string, d Display, pref string, sizes ...string) Geometry {
+	preset := "large"
+	width, row := float64(IslandWidth), float64(IslandRowDefault)
+	if len(sizes) > 0 {
+		switch sizes[0] {
+		case "medium":
+			preset, width, row = "medium", 360, 46
+		case "small":
+			preset, width, row = "small", 300, 38
+		}
+	}
 	menuBar := 37.0
 	if !simulate() {
 		menuBar = math.Max(0, d.WorkArea.Y-d.Bounds.Y)
 	}
 	notch := pref == "auto" && HasNotch(platform, d)
-	g := Geometry{Mode: "pill", MenuBarHeight: menuBar, Width: math.Min(IslandWidth, d.Bounds.Width-32)}
+	g := Geometry{Mode: "pill", Preset: preset, MenuBarHeight: menuBar, Width: math.Min(width, d.Bounds.Width-32)}
 	g.X = jsRound(d.Bounds.X + float64((d.Bounds.Width-g.Width)/2))
 	if notch {
 		g.Mode, g.Inset, g.Pad, g.RowMin = "notch", menuBar, NotchPad, NotchRowMin
@@ -114,7 +125,8 @@ func IslandGeometry(platform string, d Display, pref string) Geometry {
 		g.Collapsed = Size{160, 36}
 		g.Margin = ShadowMargin
 	}
-	g.Height = IslandHeight(g, IslandRowDefault)
+	g.RowMin = row
+	g.Height = IslandHeight(g, row)
 	return g
 }
 
@@ -130,7 +142,7 @@ func ContentHeight(g Geometry, h float64) float64 {
 func IslandHTML(g Geometry) string {
 	n := util.FormatNumber
 	return strings.NewReplacer(
-		"⟦mode⟧", g.Mode, "⟦width⟧", n(g.Width), "⟦cw⟧", n(g.Collapsed.Width), "⟦ch⟧", n(g.Collapsed.Height),
+		"⟦preset⟧", g.Preset, "⟦mode⟧", g.Mode, "⟦width⟧", n(g.Width), "⟦cw⟧", n(g.Collapsed.Width), "⟦ch⟧", n(g.Collapsed.Height),
 		"⟦inset⟧", n(g.Inset), "⟦padT⟧", n(g.Pad.Top), "⟦padB⟧", n(g.Pad.Bottom), "⟦mx⟧", n(g.Margin.X),
 		"⟦listMax⟧", n(ListMax), "⟦listRows⟧", n(ListRows),
 	).Replace(islandPage)

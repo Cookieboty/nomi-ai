@@ -178,6 +178,27 @@ describe('mascot 契约', () => {
     ).toBe(false);
   });
 
+  it('island size accepts three presets, defaults legacy responses to large, and preserves patches', () => {
+    const p = appContract.procedures;
+    const settings = {
+      enabled: true,
+      style: 'auto',
+      kinds: { message: true, agent: true, reminder: true, approval: true },
+    };
+    expect(p['island.set'].output.parse(settings).size).toBe('large');
+    expect(
+      p['island.get'].output.parse({ ...settings, mode: 'pill', platform: 'darwin' }).size,
+    ).toBe('large');
+    for (const size of ['large', 'medium', 'small']) {
+      expect(p['island.set'].input.parse({ size })).toEqual({ size });
+      expect(p['island.set'].output.parse({ ...settings, size }).size).toBe(size);
+    }
+    expect(p['island.set'].input.parse({ enabled: false })).toEqual({ enabled: false });
+    for (const size of ['', 'tiny', 30, null]) {
+      expect(p['island.set'].input.safeParse({ size }).success).toBe(false);
+    }
+  });
+
   it('round-trip：具名入参、严格序列化、业务错误码、事件', async () => {
     const calls: unknown[] = [];
     const { api, router, close } = createTestClient(

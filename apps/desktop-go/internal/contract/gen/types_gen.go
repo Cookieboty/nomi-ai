@@ -7254,6 +7254,15 @@ const (
 	IslandGetOutputStylePill IslandGetOutputStyle = "pill"
 )
 
+// IslandGetOutputSize 枚举：large | medium | small
+type IslandGetOutputSize = string
+
+const (
+	IslandGetOutputSizeLarge  IslandGetOutputSize = "large"
+	IslandGetOutputSizeMedium IslandGetOutputSize = "medium"
+	IslandGetOutputSizeSmall  IslandGetOutputSize = "small"
+)
+
 type IslandGetOutputKinds struct {
 	Message  bool `json:"message"`
 	Agent    bool `json:"agent"`
@@ -7272,6 +7281,7 @@ const (
 type IslandGetOutput struct {
 	Enabled  bool                 `json:"enabled"`
 	Style    IslandGetOutputStyle `json:"style"`
+	Size     IslandGetOutputSize  `json:"size"`
 	Kinds    IslandGetOutputKinds `json:"kinds"`
 	Mode     IslandGetOutputMode  `json:"mode"`
 	Platform string               `json:"platform"`
@@ -7285,6 +7295,15 @@ const (
 	IslandSetInputStylePill IslandSetInputStyle = "pill"
 )
 
+// IslandSetInputSize 枚举：large | medium | small
+type IslandSetInputSize = string
+
+const (
+	IslandSetInputSizeLarge  IslandSetInputSize = "large"
+	IslandSetInputSizeMedium IslandSetInputSize = "medium"
+	IslandSetInputSizeSmall  IslandSetInputSize = "small"
+)
+
 type IslandSetInputKinds struct {
 	Message  *bool `json:"message,omitempty"`
 	Agent    *bool `json:"agent,omitempty"`
@@ -7295,6 +7314,7 @@ type IslandSetInputKinds struct {
 type IslandSetInput struct {
 	Enabled *bool                `json:"enabled,omitempty"`
 	Style   *IslandSetInputStyle `json:"style,omitempty"`
+	Size    *IslandSetInputSize  `json:"size,omitempty"`
 	Kinds   *IslandSetInputKinds `json:"kinds,omitempty"`
 }
 
@@ -7304,6 +7324,15 @@ type IslandSetOutputStyle = string
 const (
 	IslandSetOutputStyleAuto IslandSetOutputStyle = "auto"
 	IslandSetOutputStylePill IslandSetOutputStyle = "pill"
+)
+
+// IslandSetOutputSize 枚举：large | medium | small
+type IslandSetOutputSize = string
+
+const (
+	IslandSetOutputSizeLarge  IslandSetOutputSize = "large"
+	IslandSetOutputSizeMedium IslandSetOutputSize = "medium"
+	IslandSetOutputSizeSmall  IslandSetOutputSize = "small"
 )
 
 type IslandSetOutputKinds struct {
@@ -7316,6 +7345,7 @@ type IslandSetOutputKinds struct {
 type IslandSetOutput struct {
 	Enabled bool                 `json:"enabled"`
 	Style   IslandSetOutputStyle `json:"style"`
+	Size    IslandSetOutputSize  `json:"size"`
 	Kinds   IslandSetOutputKinds `json:"kinds"`
 }
 

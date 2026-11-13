@@ -16,6 +16,8 @@ type Notice struct {
 
 // Host：岛窗口的宿主能力
 type Host struct {
+	// UpdateLayout changes geometry in place without clearing notices, pending actions or timers.
+	UpdateLayout func(Geometry)
 	// Present 确保岛窗口在（几何变了就重建）、填入通知并播放展开（= ensureWindow + prepare / showInactive / play）
 	Present func(n Notice) error
 	// Hide 收起后隐藏窗口（页面 'hidden:' 信号）
