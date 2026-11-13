@@ -136,8 +136,10 @@ Codex 的 exec 回退没有来回通道。Nomi 自己连上的 MCP 不广告 eli
 
 ## 子任务（Nomi 委派的标签）
 
-- 子任务面板（`packages/ai-chat/src/components/SubagentPane`，状态在 `contexts/SubagentPaneContext`，与变更 / 文件查看区独立）：
+- 子任务会话（`packages/ai-chat/src/components/SubagentPane` 的返回条，状态在 `contexts/SubagentPaneContext`）：
+  点「查看」把这个委派标签激活成当前标签，主对话列走编程助手标签同一条 `CliConversation` + `MessageInput`。
   运行中发送走 `harness.tabSteer`（不支持时排队到这一轮结束），空闲时 `harness.tabSend`，停止 `harness.tabCancel`。
+  返回条切回来源标签。设计见 [docs/design/subagent-chat-parity.md](../design/subagent-chat-parity.md)。
 - 接手：只有委派正在跑时用户发消息才算接手（打断 Nomi 的这一轮，`delegation.takenOver`）；空闲时发消息就是接着对话，不标接手。
 - 回报：`TabFinished.Origin` 记这一轮是谁发起的（`user` / `sandbox` / 程序）。用户自己发的、沙箱授权后续跑的轮次，
   `coding_wiring.go` 交给 `delegate.ReportFollowUp`，经 `delegate.completed`（`followUp: true`）回到来源对话；委派自己的轮次由 `finalize` 回报。

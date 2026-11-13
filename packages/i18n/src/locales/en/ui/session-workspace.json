@@ -191,7 +191,6 @@
   "ui.session-workspace.subagent-followup-done": "{0} finished the follow-up in the sub-task: {1}",
   "ui.session-workspace.subagent-followup-failed": "{0} hit an error in the sub-task follow-up: {1}",
   "ui.session-workspace.subagent-pane-title": "{0} sub-task",
-  "ui.session-workspace.subagent-input-placeholder": "Keep talking to {0}… (Enter to send, Shift+Enter for a new line)",
   "ui.session-workspace.subagent-hint-idle": "Continues this sub-task; the result comes back to the main chat.",
   "ui.session-workspace.subagent-hint-running": "Running: sending interjects (or waits for this turn if it can't); Stop interrupts it.",
   "ui.session-workspace.session-details": "Session details",

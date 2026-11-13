@@ -255,16 +255,20 @@ describe('SessionDetailsToggle', () => {
     expect(screen.queryByTestId('session-details')).toBeNull();
   });
 
-  it('stays open for the sub-task pane on a wide window as a float over the chat; outside clicks do not close it', async () => {
+  it('stays docked when a sub-task opens in the main column; outside clicks do not close it', async () => {
     setup();
     mount();
     fireEvent.click(screen.getByTestId('session-details-toggle'));
     await waitFor(() => expect(screen.getAllByTestId('session-details-agent')).toHaveLength(2));
     fireEvent.click(screen.getAllByTestId('session-details-agent')[0]!.querySelector('button')!);
     expect(screen.getByTestId('probe').textContent).toBe('d1|-');
-    expect(screen.getByTestId('session-details').getAttribute('data-floating')).toBe('true');
+    // 子任务占主对话列，不再挤出一栏，详情保持贴在对话旁边
+    expect(screen.getByTestId('session-details').hasAttribute('data-floating')).toBe(false);
+    expect(screen.getByTestId('chat-col').contains(screen.getByTestId('session-details'))).toBe(
+      false,
+    );
     fireEvent.pointerDown(document.body);
-    expect(screen.getByTestId('session-details').getAttribute('data-floating')).toBe('true');
+    expect(screen.getByTestId('session-details')).toBeTruthy();
   });
 
   it('opening the diff hides it; reopening floats it over the chat and an outside click puts it away', async () => {
@@ -461,21 +465,19 @@ describe('auto-hide on small screens', () => {
     expect(btn.getAttribute('data-auto-hidden')).toBe('true');
     fireEvent.click(btn);
     expect(screen.getByTestId('session-details')).toBeTruthy();
-    // 子任务面板展开：又自动收起
+    // 子任务在主对话列，不占侧栏，不会把已经手动打开的详情再收起
     fireEvent.click(screen.getByTestId('probe-open-pane'));
-    // 收起时先放完淡出动画再卸载
-    await waitFor(() => expect(screen.queryByTestId('session-details')).toBeNull());
+    expect(screen.getByTestId('session-details')).toBeTruthy();
   });
 
-  it('opening the sub-task pane hides it on a narrow window and closing brings it back', async () => {
+  it('opening a sub-task on a narrow window does not hide session details', async () => {
     small = true;
     localStorage.setItem('nomi.sessionDetails.open', '1');
     setup();
     mount();
     expect(await screen.findByTestId('session-details')).toBeTruthy();
     fireEvent.click(screen.getByTestId('probe-open-pane'));
-    // 收起时先放完淡出动画再卸载
-    await waitFor(() => expect(screen.queryByTestId('session-details')).toBeNull());
+    expect(screen.getByTestId('session-details')).toBeTruthy();
     fireEvent.click(screen.getByTestId('probe-close-pane'));
     expect(screen.getByTestId('session-details')).toBeTruthy();
   });

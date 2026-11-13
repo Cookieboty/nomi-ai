@@ -3737,7 +3737,6 @@ export type TranslationKey =
   | 'ui.session-workspace.subagent-followup-done'
   | 'ui.session-workspace.subagent-followup-failed'
   | 'ui.session-workspace.subagent-pane-title'
-  | 'ui.session-workspace.subagent-input-placeholder'
   | 'ui.session-workspace.subagent-hint-idle'
   | 'ui.session-workspace.subagent-hint-running'
   | 'ui.session-workspace.session-details'
