@@ -326,6 +326,8 @@ type DelegatedInput struct {
 	Category string
 	// Priority：urgent | high | medium | low；空 = 不设
 	Priority string
+	// Acceptance：auto（缺省，做完直接收下）/ user（等你验收）；派给 Nomi 的总是 auto
+	Acceptance string
 }
 
 func priorityOf(p string) *string {
@@ -336,10 +338,10 @@ func priorityOf(p string) *string {
 }
 
 // CreateDelegated：对话里 delegate_to_cli 后台派出的任务（docs/features/scheduling-calendar.md）：用户已在对话里确认过这次委派；
-// 编程助手默认直接在工作目录里改（指定了别的分支做基线时在 worktree 里），做完进验收；瞬时错误重试一次；创建后立即排队。
+// 编程助手默认直接在工作目录里改（指定了别的分支做基线时在 worktree 里），做完自动收下结果（Acceptance 可传 user 改成等你验收）；
+// 瞬时错误重试一次；创建后立即排队。
 // 派给 Nomi 的（executor: nomi）：放宽时长与 token、不设每日费用上限，自动验收（结果直接回对话）。
 func (s *Service) CreateDelegated(i DelegatedInput) (Task, error) {
-	nomi := i.Executor.Kind == "nomi"
 	clis := []string{}
 	if i.Executor.Kind == "cli" {
 		cli := ""
@@ -358,10 +360,10 @@ func (s *Service) CreateDelegated(i DelegatedInput) (Task, error) {
 	}
 	via := "delegate"
 	budget := &BudgetInput{MaxRetries: ptr(1)}
-	acceptance := "user"
-	if nomi {
-		// 派给 Nomi 的没有 worktree 要回填：做完结果直接回对话
-		acceptance = "auto"
+	// 委派出去的任务做完自动收下（结果直接回对话 / 卡片上给「查看改动」）；要人工验收的在入参里明确传 user
+	acceptance := "auto"
+	if i.Acceptance == "user" {
+		acceptance = "user"
 	}
 	task, err := s.Runtime.CreateChecked(CreateInput{Title: i.Title, Goal: i.Goal,
 		Origin:     Origin{ConversationID: i.ConversationID, CreatedBy: "nomi", CreatedAt: s.d.Now(), Via: &via},

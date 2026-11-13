@@ -325,6 +325,26 @@ describe('任务页', () => {
     });
   });
 
+  it('新建：验收默认自动收下；选等我验收、勾按风险自动判断都带进创建入参', async () => {
+    await open();
+    fireEvent.click(screen.getByTestId('tasks-new'));
+    fireEvent.change(screen.getByTestId('task-form-title'), { target: { value: '看 CI' } });
+    fireEvent.change(screen.getByTestId('task-form-goal'), { target: { value: '红了告诉我' } });
+    // L1 / L2 不显示按风险自动判断（只有跑命令时才有意义）
+    expect(screen.queryByTestId('task-form-auto-judge')).toBeNull();
+    fireEvent.click(screen.getByTestId('task-form-tool-shell'));
+    fireEvent.click(screen.getByTestId('task-form-auto-judge'));
+    fireEvent.change(screen.getByTestId('task-form-acceptance'), { target: { value: 'user' } });
+    window.confirm = vi.fn(() => true);
+    fireEvent.click(screen.getByTestId('task-form-submit'));
+    await waitFor(() => expect(fake.calls.some(([n]) => n === 'tasks.create')).toBe(true));
+    const [, input] = fake.calls.find(([n]) => n === 'tasks.create')!;
+    expect(input).toMatchObject({
+      acceptance: 'user',
+      grant: { level: 3, autoJudge: true },
+    });
+  });
+
   it('新建：勾 MCP 工具；非只读工具是对外动作，等级 L4，授权按工具逐个列出', async () => {
     await open();
     fireEvent.click(screen.getByTestId('tasks-new'));
