@@ -583,7 +583,7 @@
   "ui.chat-settings.weekly-on": "每周{0}",
   "ui.chat-settings.what-the-provider-receives": "供应商收到的",
   "ui.chat-settings.what-to-do-when-a-key-is-found": "找到之后怎么处理",
-  "ui.chat-settings.when-a-coding-assistant-finishes-needs-confirmation-or": "编程助手完成、需要确认或出错时",
+  "ui.chat-settings.when-a-coding-assistant-finishes-needs-confirmation-or": "编程助手完成、需要确认或出错时提示一次，中途不播报进度",
   "ui.chat-settings.when-input-is-empty": "↑（输入框为空时）",
   "ui.chat-settings.when-off-nomi-won-t-hand-off-subtasks": "关闭后 Nomi 不会派出子任务，/agent 也不可用。",
   "ui.chat-settings.when-off-system-notifications-are-used-while-nomi": "关闭后，{0}不在桌面时改用系统通知。",

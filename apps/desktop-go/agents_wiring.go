@@ -36,7 +36,7 @@ func wireAgents(router *contract.Router, userData string, d *desktop.Service) fu
 			}),
 			Notify: func(n agents.Notice) {
 				d.Notify(desktop.DesktopNotice{Kind: n.Kind, Title: n.Title, Text: n.Text, Body: n.Body, Status: n.Status,
-					Endpoint: n.Endpoint, Passive: n.Passive, Bubble: n.Bubble})
+					Endpoint: n.Endpoint, Session: n.Session, Passive: n.Passive, Bubble: n.Bubble})
 			},
 			IsQuiet:  func() bool { return d.NotifyPolicy != nil && d.NotifyPolicy.Quiet() },
 			UsageOf:  agentsUsageOf,
@@ -80,7 +80,6 @@ func wireAgents(router *contract.Router, userData string, d *desktop.Service) fu
 							Summary: str("summary"), Background: e.Get("background") == true})
 					})
 				},
-				Progress: o.ProgressHint,
 			})
 		}
 		if s.Settings().Enabled {

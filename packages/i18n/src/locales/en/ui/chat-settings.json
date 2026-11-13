@@ -583,7 +583,7 @@
   "ui.chat-settings.weekly-on": "Weekly on {0}",
   "ui.chat-settings.what-the-provider-receives": "What the provider receives",
   "ui.chat-settings.what-to-do-when-a-key-is-found": "What to do when a key is found",
-  "ui.chat-settings.when-a-coding-assistant-finishes-needs-confirmation-or": "When a coding assistant finishes, needs confirmation or hits an error",
+  "ui.chat-settings.when-a-coding-assistant-finishes-needs-confirmation-or": "Once when a coding assistant finishes, needs confirmation or hits an error; no progress updates in between",
   "ui.chat-settings.when-input-is-empty": "↑ (when input is empty)",
   "ui.chat-settings.when-off-nomi-won-t-hand-off-subtasks": "When off, Nomi won’t hand off subtasks and /agent is unavailable.",
   "ui.chat-settings.when-off-system-notifications-are-used-while-nomi": "When off, system notifications are used while {0} is closed.",
