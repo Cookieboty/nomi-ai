@@ -426,6 +426,7 @@
   "electron.common.task-event-github-item": "{0} {1} #{2} has updates: {3}",
   "electron.common.task-event-github-run": "{0} CI \"{1}\" ({2}) finished: {3}",
   "electron.common.task-event-kb-updated": "Knowledge base updated",
+  "electron.common.task-follow-up-images-only": "(see the attached images)",
   "electron.common.task-event-mcp-changed": "The result of {0} changed",
   "electron.common.task-event-mcp-item": "New item from {0}: {1}",
   "electron.common.task-event-page-changed": "Page changed: {0}",

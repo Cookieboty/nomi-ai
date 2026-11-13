@@ -322,10 +322,20 @@ export const knowledgeProcedures = {
     input: z.object({ id: z.string(), text: z.string().min(1).max(8000) }),
     output: z.boolean(),
   },
-  /** 子任务侧栏里追问：上一次执行结束后带着这句话把同一件事再跑一次（结果照常写回来源对话）。只支持 Nomi 执行者 */
+  /**
+   * 子任务侧栏里追问：上一次执行结束后带着这句话把同一件事再跑一次（结果照常写回来源对话）。只支持 Nomi 执行者。
+   * 可以只带图片（text 为空）；图片最多 8 张，base64（可带 data: 前缀）
+   */
   'tasks.followUp': {
     kind: 'mutation',
-    input: z.object({ id: z.string(), text: z.string().min(1).max(8000) }),
+    input: z.object({
+      id: z.string(),
+      text: z.string().max(8000),
+      images: z
+        .array(z.object({ mime: z.string(), data: z.string() }))
+        .max(8)
+        .optional(),
+    }),
     output: TaskCmdResult,
   },
   /** 用户在表单或授权卡片上确认后创建 */

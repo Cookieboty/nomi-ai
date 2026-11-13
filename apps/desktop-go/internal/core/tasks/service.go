@@ -4,9 +4,13 @@ package tasks
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -329,19 +333,88 @@ func (s *Service) Steer(id, text string) bool {
 	return ok && st.Steer(id, text)
 }
 
-// FollowUp 是契约 tasks.followUp：上一次执行结束后，带着用户的追问把同一件事再跑一次（新的一次执行，
+// FollowUpImage：追问带的一张图片（base64，可带 data: 前缀）
+type FollowUpImage struct {
+	Mime string `json:"mime"`
+	Data string `json:"data"`
+}
+
+// MaxFollowUpImages：一次追问最多带几张图
+const MaxFollowUpImages = 8
+
+// FollowUp 是契约 tasks.followUp：上一次执行结束后，带着用户的追问（和图片）把同一件事再跑一次（新的一次执行，
 // 结果照常写回来源对话）。只支持 Nomi 执行者；正在跑时返回 busy。
-func (s *Service) FollowUp(id, text string) CmdResult {
+func (s *Service) FollowUp(id, text string, images ...FollowUpImage) CmdResult {
 	body := strings.TrimSpace(text)
 	rec := s.Get(id)
 	if rec == nil {
 		return CmdResult{Reason: "not_found"}
 	}
-	if rec.Task.Executor.Kind != "nomi" || body == "" {
+	if rec.Task.Executor.Kind != "nomi" || (body == "" && len(images) == 0) {
 		return CmdResult{Reason: "illegal"}
 	}
-	return s.Runtime.Command(id, Command{Type: "follow_up", Feedback: body})
+	if body == "" {
+		body = "(see the attached images)"
+		if s.d.T != nil {
+			body = s.d.T("electron.common.task-follow-up-images-only")
+		}
+	}
+	files, err := s.saveFollowUpImages(id, images)
+	if err != nil {
+		if s.d.Log != nil {
+			s.d.Log.Warn("tasks follow-up images", err.Error())
+		}
+		return CmdResult{Reason: "illegal"}
+	}
+	res := s.Runtime.Command(id, Command{Type: "follow_up", Feedback: body, Images: files})
+	if !res.OK {
+		for _, f := range files {
+			_ = os.Remove(f)
+		}
+	}
+	return res
 }
+
+var imageExt = map[string]string{"image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif", "image/webp": ".webp"}
+
+// saveFollowUpImages：追问的图片写进 <Root>/attachments/<任务 id>/（执行开始时读回来交给模型）。
+func (s *Service) saveFollowUpImages(id string, images []FollowUpImage) ([]string, error) {
+	if len(images) == 0 {
+		return nil, nil
+	}
+	if len(images) > MaxFollowUpImages {
+		images = images[:MaxFollowUpImages]
+	}
+	dir := filepath.Join(s.d.Root, "attachments", safeName(id))
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, err
+	}
+	out := []string{}
+	for _, im := range images {
+		ext, ok := imageExt[strings.ToLower(im.Mime)]
+		if !ok {
+			return nil, fmt.Errorf("unsupported image type %q", im.Mime)
+		}
+		data := im.Data
+		if i := strings.Index(data, ";base64,"); strings.HasPrefix(data, "data:") && i > 0 {
+			data = data[i+len(";base64,"):]
+		}
+		raw, err := base64.StdEncoding.DecodeString(data)
+		if err != nil || len(raw) == 0 {
+			return nil, errors.New("bad image data")
+		}
+		p := filepath.Join(dir, fmt.Sprintf("%d-%d%s", s.d.Now(), len(out), ext))
+		if err := os.WriteFile(p, raw, 0o600); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, nil
+}
+
+var unsafeName = regexp.MustCompile(`[^\w-]`)
+
+func safeName(id string) string { return unsafeName.ReplaceAllString(id, "_") }
 
 // CreateRequest 对应契约 tasks.create 的入参
 type CreateRequest struct {

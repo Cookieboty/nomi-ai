@@ -151,6 +151,8 @@ type AttemptCause struct {
 	EventKey *string `json:"eventKey,omitempty"`
 	Note     *string `json:"note,omitempty"`
 	Answer   *Answer `json:"answer,omitempty"`
+	// Images：追问带的图片（存在 <Root>/attachments/<任务 id>/ 下的文件路径）
+	Images []string `json:"images,omitempty"`
 }
 
 // FromExternalEvent = fromExternalEvent：这次执行带着事件的外部内容——事件触发的，以及接着它
@@ -203,6 +205,8 @@ type PendingRun struct {
 	Note      *string `json:"note,omitempty"`
 	Answer    *Answer `json:"answer,omitempty"`
 	NotBefore *int64  `json:"notBefore,omitempty"`
+	// Images：追问带的图片文件
+	Images []string `json:"images,omitempty"`
 }
 
 type Origin struct {

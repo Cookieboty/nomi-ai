@@ -3,6 +3,7 @@ package tasks
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -208,5 +209,25 @@ func TestMachineFollowUpOnlyAfterTheRunEnded(t *testing.T) {
 	tk.Status, tk.Enabled = StatusDone, false
 	if r := Transition(tk, nil, Event{Type: "follow_up", Feedback: "x"}); r.OK || r.Reason != "paused" {
 		t.Fatalf("%+v", r)
+	}
+}
+
+// 追问带的图片：状态机带进这次执行，执行时作为图片交给模型
+func TestFollowUpImagesReachTheModel(t *testing.T) {
+	tk := Task{ID: "t", Status: StatusDone, Enabled: true}
+	r := Transition(tk, nil, Event{Type: "follow_up", Feedback: "看图", Images: []string{"/a.png"}, At: 5})
+	if !r.OK || r.Task.Pending == nil || len(r.Task.Pending.Images) != 1 {
+		t.Fatalf("%+v", r)
+	}
+	dir := t.TempDir()
+	p := dir + "/1-0.jpg"
+	if err := os.WriteFile(p, []byte{0xff, 0xd8, 0xff}, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ctx := AttemptContext{Task: Task{Goal: "g"}, Attempt: Attempt{Cause: AttemptCause{Kind: "followup", Note: ptr("看图"), Images: []string{p, dir + "/missing.png"}}}}
+	msgs := BuildPrompt(ctx, "", 0, nil)
+	im := msgs[len(msgs)-1].Images
+	if len(im) != 1 || im[0].Mime != "image/jpeg" || im[0].Data != "/9j/" {
+		t.Fatalf("%+v", im)
 	}
 }

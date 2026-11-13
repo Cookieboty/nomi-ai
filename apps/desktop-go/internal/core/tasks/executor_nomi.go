@@ -9,8 +9,11 @@ package tasks
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -313,7 +316,33 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 	if cause.Kind == "followup" && ctx.Previous != nil && ctx.Previous.Result != nil {
 		d["Previous"] = shortN(ctx.Previous.Result.Summary, 4000)
 	}
-	return []blm.ChatMessage{{Role: "system", Content: prompts.Render("task-run", d)}, {Role: "user", Content: t.Goal}}
+	return []blm.ChatMessage{{Role: "system", Content: prompts.Render("task-run", d)},
+		{Role: "user", Content: t.Goal, Images: followUpImages(cause)}}
+}
+
+// followUpImages：追问带的图片（读不回来的跳过）
+func followUpImages(c AttemptCause) []blm.ChatImage {
+	if c.Kind != "followup" || len(c.Images) == 0 {
+		return nil
+	}
+	out := []blm.ChatImage{}
+	for _, p := range c.Images {
+		raw, err := os.ReadFile(p)
+		if err != nil || len(raw) == 0 {
+			continue
+		}
+		mime := "image/png"
+		for m, ext := range imageExt {
+			if strings.EqualFold(filepath.Ext(p), ext) {
+				mime = m
+			}
+		}
+		out = append(out, blm.ChatImage{Mime: mime, Data: base64.StdEncoding.EncodeToString(raw)})
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func (e *nomiExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {

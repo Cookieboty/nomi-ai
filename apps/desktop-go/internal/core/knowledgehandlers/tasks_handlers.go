@@ -137,13 +137,14 @@ func taskHandlers(sv Services) map[string]H {
 		}),
 		"tasks.followUp": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
 			var in struct {
-				ID   string `json:"id"`
-				Text string `json:"text"`
+				ID     string                `json:"id"`
+				Text   string                `json:"text"`
+				Images []tasks.FollowUpImage `json:"images"`
 			}
 			if err := decode(raw, &in); err != nil {
 				return nil, err
 			}
-			return s.FollowUp(in.ID, in.Text), nil
+			return s.FollowUp(in.ID, in.Text, in.Images...), nil
 		}),
 		"tasks.reconcile": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
 			var in struct {

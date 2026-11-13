@@ -23,6 +23,7 @@ type Event struct {
 	Approve             bool               `json:"approve,omitempty"`
 	Input               *string            `json:"input,omitempty"`
 	Feedback            string             `json:"feedback,omitempty"`
+	Images              []string           `json:"images,omitempty"`
 	Outcome             string             `json:"outcome,omitempty"`
 	UnconfirmedExternal bool               `json:"unconfirmedExternal,omitempty"`
 	Grant               *Grant             `json:"grant,omitempty"`
@@ -252,7 +253,7 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 			ID:        ev.AttemptID,
 			TaskID:    task.ID,
 			Gen:       gen,
-			Cause:     AttemptCause{Kind: p.Cause, EventKey: eventKey, Note: p.Note, Answer: p.Answer},
+			Cause:     AttemptCause{Kind: p.Cause, EventKey: eventKey, Note: p.Note, Answer: p.Answer, Images: p.Images},
 			Snapshot:  snap,
 			Status:    "running",
 			StartedAt: at,
@@ -441,7 +442,7 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 			return reject(task, attempt, "grant")
 		}
 		t.RetryCount, t.LastError = 0, nil
-		return ok(enqueue(t, at, PendingRun{Cause: "followup", Note: ptr(ev.Feedback)}, &fx), attempt, fx)
+		return ok(enqueue(t, at, PendingRun{Cause: "followup", Note: ptr(ev.Feedback), Images: ev.Images}, &fx), attempt, fx)
 
 	case "cancel":
 		if IsTerminal(task.Status) {
