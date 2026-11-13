@@ -79,8 +79,8 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   const [category, setCategory] = useState<TaskCategory | 'auto'>('auto');
   // 做完怎么算收下：auto = 直接收下（结果回对话 / 卡片上给「查看改动」）；user = 等你验收
   const [acceptance, setAcceptance] = useState<'auto' | 'user'>('auto');
-  // 按风险自动判断（默认关，L3 及以上才生效）：命令交给命令审核，放行就直接跑，只有高风险才问人
-  const [autoJudge, setAutoJudge] = useState(false);
+  // 按风险自动判断（默认开，L3 及以上才生效）：命令交给命令审核，放行就直接跑，只有高风险才问人
+  const [autoJudge, setAutoJudge] = useState(true);
   const [repoText, setRepoText] = useState('');
   // Nomi 读写文件的授权文件夹（grant.paths）：后台任务只能碰这些文件夹（#231）
   const [folders, setFolders] = useState<string[]>([]);
@@ -369,7 +369,7 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
             ...mcpGrants,
           ],
           ...(who === 'cli' && sandboxPick.length ? { sandbox: sandboxPick } : {}),
-          ...(autoJudge && level >= 3 ? { autoJudge: true } : {}),
+          ...(level >= 3 && !autoJudge ? { autoJudge: false } : {}),
           expiresAt: Date.now() + days * 86_400_000,
         },
         acceptance,
@@ -719,7 +719,7 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
                   {t('ui.providers-schedule.task-auto-judge')}
                 </label>
               )}
-              {level >= 3 && autoJudge && (
+              {level >= 3 && (
                 <p className={styles.hint}>{t('ui.providers-schedule.task-auto-judge-hint')}</p>
               )}
             </section>

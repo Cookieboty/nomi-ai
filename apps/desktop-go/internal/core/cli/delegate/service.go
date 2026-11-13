@@ -1348,10 +1348,10 @@ func (s *Service) overridesFor(cli string, in, settings *util.Obj) (*util.Obj, e
 }
 
 // delegateAsTask：后台委派 = 持续任务（2.2）：用户在对话里确认这次委派，就等于给了这个任务的授权
-// （L3，路径 = 工作目录，编程助手 = 这一个）。命令按 Nomi 的权限：没开「全部自动」时每条都问人（任务收件箱）。
+// （L3，路径 = 工作目录，编程助手 = 这一个）。命令按风险自动判断：审核放行就直接跑，
+// 只有凭据 / 破坏性 / 高风险 / 放了外网权限的才问人（任务收件箱）。
 func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, cli, sourceCwd string, ws desktop.Workspace, turnID string, settings *util.Obj) (*util.Obj, error) {
 	b := s.d.Desktop
-	h := s.d.Harness
 	goal := util.Str(in.Get("goal"))
 	brief := DelegateBrief{Goal: goal, Context: optStr(in, "context"), DoneWhen: optStr(in, "done_when"), OutOfScope: optStr(in, "out_of_scope")}
 	preview := BuildDelegatePrompt(brief)
@@ -1378,8 +1378,6 @@ func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, cli, sour
 	if err != nil {
 		return nil, err
 	}
-	nomiMode := b.PermissionMode()
-	fullAuto := h.AutoApproveEnabled() && nomiMode != "plan" && nomiMode != "manual"
 	cliV, cwdV, isoV := cli, sourceCwd, "worktree"
 	ex := tasks.ExecutorSpec{Kind: "cli", Cli: &cliV, Cwd: &cwdV, Isolation: &isoV,
 		Brief: &tasks.Brief{DoneWhen: brief.DoneWhen}}
@@ -1408,10 +1406,8 @@ func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, cli, sour
 		v := brief.OutOfScope
 		ex.Brief.OutOfScope = &v
 	}
-	if !fullAuto {
-		yes := true
-		ex.AskCommands = &yes
-	}
+	// 授权到 L3 就按风险自动判断（命令交给命令审核，放行直接跑；凭据 / 破坏性 / 高风险仍问人），
+	// 不再因为前台没开「全部自动」就每条命令都问人
 	if c.ec.ToolCallID != "" {
 		v := c.ec.ToolCallID
 		ex.CallID = &v
@@ -1441,7 +1437,7 @@ func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, cli, sour
 			"filesVerified", false, "approvals", approvalsZero(), "durationMs", 0.0)
 	}
 	result.Set("summary", util.Str(result.Get("summary"))+"。已作为持续任务派出（任务页可看进度）：同时运行的任务满了会排队；"+
-		"做完后等用户在任务页验收；完成后会在对话里通知。"+
+		"做完自动收下并把改动落到工作区，完成后会在对话里通知。"+
 		"可用 delegate_status 查询、delegate_stop 停止。")
 	result.Set("durationMs", s.d.Now()-t0)
 	return s.resultForModel(result, c), nil

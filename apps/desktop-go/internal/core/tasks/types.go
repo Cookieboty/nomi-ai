@@ -99,9 +99,10 @@ type Grant struct {
 	Paths       []string          `json:"paths"`
 	Connections []ConnectionGrant `json:"connections"`
 	Clis        *[]string         `json:"clis,omitempty"`
-	// AutoJudge：按风险自动判断（用户在授权里主动开，默认关；L3 及以上才生效）：命令交给命令审核判定，
-	// 放行就直接跑，只有高风险（破坏性、凭据 / 永不放行类、审核不放行、事件触发读过外部内容）才问人
-	AutoJudge bool `json:"autoJudge,omitempty"`
+	// AutoJudge：按风险自动判断（缺省就开，L3 及以上生效）：命令交给命令审核判定，放行就直接跑，
+	// 只有高风险（破坏性、凭据 / 永不放行类、审核不放行、事件触发读过外部内容）才问人；
+	// 用户在授权卡片上取消勾选时显式写 false = 每条命令都问我（旧数据没有这个字段，按开处理）
+	AutoJudge *bool `json:"autoJudge,omitempty"`
 	// Sandbox：编程助手沙箱里预先允许的类别（ssh / cloud / …），跑的时候不用再问
 	Sandbox   []string `json:"sandbox,omitempty"`
 	GrantedAt int64    `json:"grantedAt"`

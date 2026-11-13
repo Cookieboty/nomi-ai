@@ -185,7 +185,7 @@
   "ui.providers-schedule.task-attempt-interrupted": "被中断",
   "ui.providers-schedule.task-attempt-rejected": "被退回",
   "ui.providers-schedule.task-auto-judge": "按风险自动判断（L3 及以上）",
-  "ui.providers-schedule.task-auto-judge-hint": "命令先交给命令审核，放行就直接跑；高风险、凭据、破坏性和读了外部内容的操作仍会问你。",
+  "ui.providers-schedule.task-auto-judge-hint": "命令先交给命令审核，放行就直接跑；高风险、凭据、破坏性和读了外部内容的操作仍会问你。取消勾选 = 每条命令都问你。",
   "ui.providers-schedule.task-awaiting-accept": "等你验收",
   "ui.providers-schedule.task-board-by-priority": "按重要程度",
   "ui.providers-schedule.task-board-by-stage": "按进度",

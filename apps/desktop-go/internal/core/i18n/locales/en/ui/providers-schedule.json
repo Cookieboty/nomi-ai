@@ -185,7 +185,7 @@
   "ui.providers-schedule.task-attempt-interrupted": "Interrupted",
   "ui.providers-schedule.task-attempt-rejected": "Sent back",
   "ui.providers-schedule.task-auto-judge": "Judge by risk (L3 and up)",
-  "ui.providers-schedule.task-auto-judge-hint": "Commands go to command review first and run once cleared; high-risk actions, credentials, destructive steps and anything that read outside content still ask you.",
+  "ui.providers-schedule.task-auto-judge-hint": "Commands go to command review first and run once cleared; high-risk actions, credentials, destructive steps and anything that read outside content still ask you. Uncheck to ask about every command.",
   "ui.providers-schedule.task-awaiting-accept": "Waiting for your review",
   "ui.providers-schedule.task-board-by-priority": "By priority",
   "ui.providers-schedule.task-board-by-stage": "By progress",

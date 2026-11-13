@@ -244,8 +244,10 @@ func DecidePermission(t Task, kind, summary string, tainted, relaxed bool) strin
 	return "allow"
 }
 
-// autoJudge：任务授权里开了「按风险自动判断」且到了跑命令的等级
-func autoJudge(t Task) bool { return t.Grant.AutoJudge && t.Grant.Level >= 3 }
+// autoJudge：到了跑命令的等级就按风险自动判断（缺省开，用户在授权里显式关掉才逐条问人）
+func autoJudge(t Task) bool {
+	return t.Grant.Level >= 3 && (t.Grant.AutoJudge == nil || *t.Grant.AutoJudge)
+}
 
 // autoAll：前台「全部自动」开着（没有这个开关时为关）
 func (e *cliExecutor) autoAll() bool { return e.d.AutoAll != nil && e.d.AutoAll() }

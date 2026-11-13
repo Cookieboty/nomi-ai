@@ -514,6 +514,8 @@ func main() {
 		},
 		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []tasks.ConnectionGrant, tainted, trusted bool, external connections.ExternalJournal) context.Context {
 			run := &desktop.BackgroundRun{Level: level, Ask: ask, Tainted: tainted, Trusted: trusted, External: external,
+				// 授权到跑命令的等级就按风险自动判断（高风险的仍问人），不用用户再逐条批准
+				AutoJudge: level >= 3,
 				// 前台「全部自动」对后台任务生效（凭据 / 破坏性 / 高风险命令 / 事件触发读过外部内容仍问人）
 				AutoAll: func() bool { return desktopSvc.Broker.AutoApprove() }}
 			for _, g := range conns {
@@ -542,7 +544,8 @@ func main() {
 				if extra != nil {
 					cs = extra(cs)
 				}
-				out := desktop.LiveGrant{Level: g.Level, Paths: g.Paths, AutoJudge: g.AutoJudge}
+				// 没写 autoJudge 的（旧数据 / 默认授权）按开：L3 及以上按风险自动判断
+				out := desktop.LiveGrant{Level: g.Level, Paths: g.Paths, AutoJudge: g.AutoJudge == nil || *g.AutoJudge}
 				for _, c := range cs {
 					out.Connections = append(out.Connections, desktop.ConnGrant{ConnectionID: c.ConnectionID, Capabilities: c.Capabilities, Resources: c.Resources})
 				}

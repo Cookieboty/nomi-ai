@@ -227,14 +227,14 @@ func TestDelegateBackgroundBecomesTask(t *testing.T) {
 	ex := c.Executor
 	if c.Goal != "修复登录 bug" || *c.ConversationID != "conv_1" || c.Level != 3 || len(c.Paths) != 1 || c.Paths[0] != e.dir ||
 		ex.Kind != "cli" || *ex.Cli != "claude" || *ex.Cwd != e.dir || *ex.Isolation != "worktree" ||
-		ex.AskCommands == nil || !*ex.AskCommands || ex.Brief.DoneWhen != "npm test 通过" ||
+		ex.AskCommands != nil || ex.Brief.DoneWhen != "npm test 通过" ||
 		*ex.Brief.Context != "在 src/login" || *ex.Brief.OutOfScope != "别动 CI" {
 		t.Fatalf("%+v %+v", c, ex)
 	}
 	if a := e.log.desktop; !strings.Contains(util.Stringify(a), `"authorize"`) || !strings.Contains(util.Stringify(a), `"delegate_to_cli"`) {
 		t.Fatal(util.Stringify(a))
 	}
-	// 全部自动：命令按审核放行
+	// 命令一律交给命令审核按风险判断，不再因为前台权限模式留下「每条都问人」
 	ft2 := newFakeTasks()
 	newTaskEnv(t, util.NewObj("autoApprove", true), ft2).call(nil, "delegate_to_cli", delegateRaw("background", true), tools.ExecContext{})
 	if ft2.created[0].Executor.AskCommands != nil {
