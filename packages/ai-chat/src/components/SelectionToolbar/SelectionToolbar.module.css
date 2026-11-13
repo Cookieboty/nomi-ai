@@ -1,0 +1,27 @@
+.toolbar {
+  position: fixed;
+  z-index: var(--cd-z-tooltip);
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-popover);
+}
+.toolbar button {
+  padding: var(--cd-space-1-5) var(--cd-space-3);
+  border: 0;
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.toolbar button + button {
+  border-left: 1px solid var(--cd-color-border);
+}
+.toolbar button:hover,
+.toolbar button:focus-visible {
+  background: var(--cd-color-hover);
+}

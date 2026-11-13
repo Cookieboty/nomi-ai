@@ -38,6 +38,7 @@ import { resourceTarget, resolveDocumentHref, workspaceFileHref } from '../../ut
 import { aggregateSessionChanges } from '../../utils/sessionChanges';
 import { parseInput, type FileDiff, type ToolCall } from '../../utils/toolTrace';
 import { workspaceRelPath } from '../../utils/workspacePath';
+import { AgentHoverCard } from '../AgentHoverCard';
 import { EndpointIcon } from '../EndpointIcon';
 
 import { ApprovePlanCard } from './ApprovePlanCard';
@@ -701,10 +702,15 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
             <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
           </button>
           {v.backend && <EndpointIcon backend={v.backend} size={16} decorative />}
-          <span className={styles.title} title={v.goal}>
+          <AgentHoverCard
+            target={tab ? { kind: 'harness', tabId: tab.id } : null}
+            onOpen={tab && subagentPane ? () => subagentPane.openSubagent(tab.id) : undefined}
+            fallback={{ lastUser: v.goal }}
+            className={styles.title}
+          >
             <span className={styles.name}>{name}</span>
             <span className={styles.goal}>{v.goal}</span>
-          </span>
+          </AgentHoverCard>
           <span className={styles.phase} data-phase={v.phase} aria-live="polite">
             {phaseLabel(v.phase)}
           </span>

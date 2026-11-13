@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -305,7 +306,7 @@ func TestConcurrentFollowUpImageFilesArePrivateAndUnique(t *testing.T) {
 		info, err := os.Stat(p)
 		if err != nil {
 			t.Error(err)
-		} else if info.Mode().Perm() != 0600 {
+		} else if runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
 			t.Errorf("attachment mode %v, want 0600", info.Mode())
 		}
 	}

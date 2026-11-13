@@ -722,3 +722,19 @@ export const ConversationsChanged = loose({
   /** 索引（列表 / 当前会话）变了 */
   index: z.boolean(),
 });
+
+/** chatWindow.detachTab：id = 视图定的标签身份（会话 + 标签键），title = 窗口标题，spec = 新窗口要打开什么（不透明 JSON） */
+export const DetachTabInput = z.object({
+  id: z.string().min(1).max(2048),
+  title: z.string().max(200),
+  spec: z.string().min(2).max(16384),
+});
+export const DetachTabResult = z.object({ ok: z.boolean(), focused: z.boolean() });
+/** chatWindow.handoffPut：id 同 detachTab；data = 视图自己的快照（不透明 JSON，最多 8 MB） */
+export const HandoffPutInput = z.object({
+  id: z.string().min(1).max(2048),
+  data: z
+    .string()
+    .min(2)
+    .max(8 * 1024 * 1024),
+});

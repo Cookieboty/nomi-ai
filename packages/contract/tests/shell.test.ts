@@ -129,6 +129,11 @@ describe('shell · 过程表', () => {
       'conversations.setPointers': 'mutation surfaces=chat',
       'conversations.import': 'mutation surfaces=chat',
       'conversations.markMigrated': 'mutation surfaces=chat',
+      'chatWindow.detachTab': 'mutation surfaces=chat',
+      'chatWindow.detachedTabs': 'query surfaces=chat',
+      'chatWindow.dockTab': 'mutation surfaces=chat',
+      'chatWindow.handoffPut': 'mutation surfaces=chat',
+      'chatWindow.handoffTake': 'mutation surfaces=chat',
     });
   });
 
@@ -148,6 +153,8 @@ describe('shell · 过程表', () => {
       'quality.changed',
       'updates.changed',
       'conversations.changed',
+      'chatWindow.detachedChanged',
+      'chatWindow.tabDocked',
     ]);
   });
 
@@ -167,6 +174,7 @@ describe('shell · 过程表', () => {
       'appIcon',
       'migration',
       'conversations',
+      'chatWindow',
     ]);
     for (const name of [...Object.keys(shellProcedures), ...Object.keys(shellEvents)]) {
       expect(ns.has(name.split('.')[0]!)).toBe(true);

@@ -7,7 +7,15 @@
  * 两个列表最多先显示 5 个，「更多」展开其余的。开关与自动收起见 ./context。
  */
 import { Icon, t, Tooltip, usePresence } from '@nomi-ai/ui';
-import { Bot, ChevronUp, createLucideIcon, Ellipsis, GitBranch, ListChecks } from 'lucide-react';
+import {
+  Bot,
+  ChevronUp,
+  createLucideIcon,
+  Ellipsis,
+  GitBranch,
+  ListChecks,
+  MessageCirclePlus,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { selectIpcClient, useAiChatSelector } from '../../contexts/aiChatStore';
@@ -16,6 +24,7 @@ import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { useGitBranch } from '../../hooks/useGitBranch';
 import type { ConversationStore } from '../../services/conversationStore';
+import { sideChatName, useSideChatsIn } from '../../services/sideChat';
 import { groupOf, requestOpenTask, statusLabel, type TaskGroup } from '../../services/tasksClient';
 import type { ConvMessage } from '../../types/conversation';
 import type { IPCClient } from '../../types/ipc';
@@ -26,6 +35,8 @@ import {
   projectNameFromCwd,
   summarizeChanges,
 } from '../../utils/sessionChanges';
+import type { SubagentTarget } from '../../utils/sideTabs';
+import { AgentHoverCard } from '../AgentHoverCard';
 import { EndpointIcon } from '../EndpointIcon';
 import { useChangesUi } from '../SessionWorkspace/ChangesUiContext';
 import { useTasks } from '../Tasks';
@@ -33,6 +44,7 @@ import { useTasks } from '../Tasks';
 import {
   collectSessionAgents,
   countRunning,
+  sideChatAgents,
   pendingDelegateTaskIds,
   type SessionAgent,
   type SessionAgentStatus,
@@ -43,7 +55,7 @@ import { countActiveTasks, sessionTasks } from './tasks';
 import { useDelegateResults } from './useDelegateResults';
 import { useWorkspaceChanges } from './useWorkspaceChanges';
 
-export { SessionDetailsProvider } from './context';
+export { SessionDetailsProvider, useSessionDetails } from './context';
 
 /** 标题栏「会话详情」按钮的图标：左边两个小圆、右边两条线（一份清单的样子） */
 const SessionDetailsIcon = createLucideIcon('session-details', [
@@ -59,6 +71,7 @@ const STATUS_KEY: Record<SessionAgentStatus, string> = {
   done: 'ui.foundation.done',
   error: 'ui.chat-settings.error',
   stopped: 'ui.chat-settings.stopped',
+  idle: 'ui.mascot-theme.idle',
 };
 
 const TASK_STATE: Record<TaskGroup, string> = {
@@ -137,14 +150,22 @@ function Section<T>({
   );
 }
 
-const AgentRow: React.FC<{ agent: SessionAgent; onOpen?: () => void }> = ({ agent: a, onOpen }) => {
+const AgentRow: React.FC<{
+  agent: SessionAgent;
+  onOpen?: () => void;
+  /** 悬停卡片看哪个子任务；columnMessages：主会话里的进程内子代理从主列消息里取 */
+  target?: SubagentTarget | null;
+  columnMessages?: readonly ConvMessage[];
+}> = ({ agent: a, onOpen, target, columnMessages }) => {
   const name =
     a.kind === 'delegate' && a.backend
       ? t(ENDPOINT_NAME[a.backend] ?? a.backend)
       : a.label || t('ui.usage-tools.subagent');
   const body = (
     <>
-      {a.kind === 'delegate' && a.backend ? (
+      {a.kind === 'side-chat' ? (
+        <Icon icon={MessageCirclePlus} size={16} />
+      ) : a.kind === 'delegate' && a.backend ? (
         <EndpointIcon backend={a.backend} size={16} decorative />
       ) : (
         <Icon icon={Bot} size={16} />
@@ -160,15 +181,24 @@ const AgentRow: React.FC<{ agent: SessionAgent; onOpen?: () => void }> = ({ agen
   );
   return (
     <li data-testid="session-details-agent">
-      {onOpen ? (
-        <button type="button" className={styles.row} onClick={onOpen}>
-          {body}
-        </button>
-      ) : (
-        <div className={styles.row} data-static title={a.detail}>
-          {body}
-        </div>
-      )}
+      <AgentHoverCard
+        as="div"
+        className={styles.hoverRow}
+        target={target}
+        onOpen={onOpen}
+        columnMessages={columnMessages}
+        fallback={{ lastUser: a.detail }}
+      >
+        {onOpen ? (
+          <button type="button" className={styles.row} onClick={onOpen}>
+            {body}
+          </button>
+        ) : (
+          <div className={styles.row} data-static title={a.detail}>
+            {body}
+          </div>
+        )}
+      </AgentHoverCard>
     </li>
   );
 };
@@ -228,16 +258,26 @@ const DetailsPanel: React.FC<
   const changes = gitChanges ?? sessionChanges;
   const pending = useMemo(() => pendingDelegateTaskIds(messages), [messages]);
   const results = useDelegateResults(pending);
+  const sideChats = useSideChatsIn(pane?.scope ?? '');
   const agents = useMemo(
-    () =>
-      collectSessionAgents(
+    () => [
+      ...collectSessionAgents(
         messages,
         tabs.state?.tabs,
         waitingLive(waitingKey),
         liveAgents ?? {},
         results,
       ),
-    [messages, tabs.state?.tabs, waitingKey, liveAgents, results],
+      ...sideChatAgents(
+        sideChats.map((c) => ({
+          id: c.id,
+          name: sideChatName(c),
+          running: !!c.running,
+          messages: c.messages,
+        })),
+      ),
+    ],
+    [messages, tabs.state?.tabs, waitingKey, liveAgents, results, sideChats],
   );
   // 这个会话的持续任务：Nomi 对话用当前会话 id；编程助手标签用它在会话列表里的镜像项
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
@@ -317,11 +357,21 @@ const DetailsPanel: React.FC<
           <AgentRow
             key={a.id}
             agent={a}
+            target={
+              a.chatId
+                ? { kind: 'side-chat', chatId: a.chatId }
+                : a.tabId
+                  ? { kind: 'harness', tabId: a.tabId }
+                  : { kind: 'nested', callId: a.id, parentTabId }
+            }
+            columnMessages={messages}
             onOpen={
               pane
-                ? a.tabId
-                  ? () => pane.openSubagent(a.tabId!)
-                  : () => pane.openNested(a.id, parentTabId)
+                ? a.chatId
+                  ? () => pane.openSideChatTab(a.chatId!)
+                  : a.tabId
+                    ? () => pane.openSubagent(a.tabId!)
+                    : () => pane.openNested(a.id, parentTabId)
                 : undefined
             }
           />
@@ -338,28 +388,39 @@ const DetailsPanel: React.FC<
         items={tasks}
         render={(task) => (
           <li key={task.id} data-testid="session-details-task">
-            <button
-              type="button"
-              className={styles.row}
-              onClick={() => {
-                if (pane && task.origin?.via === 'delegate' && task.executor.kind === 'nomi') {
-                  pane.openNomiTask(task.id);
-                  return;
-                }
-                requestOpenTask(task.id);
-              }}
+            <AgentHoverCard
+              as="div"
+              className={styles.hoverRow}
+              target={
+                task.origin?.via === 'delegate' && task.executor.kind === 'nomi'
+                  ? { kind: 'nomi-task', taskId: task.id }
+                  : null
+              }
+              onOpen={pane ? () => pane.openNomiTask(task.id) : undefined}
             >
-              <Icon icon={ListChecks} size={16} />
-              <span className={styles.itemText}>
-                <span className={styles.itemName}>{task.title}</span>
-                {task.goal && task.goal !== task.title && (
-                  <span className={styles.itemDetail}>{task.goal}</span>
-                )}
-              </span>
-              <span className={styles.itemStatus} data-state={TASK_STATE[groupOf(task)]}>
-                {statusLabel(task)}
-              </span>
-            </button>
+              <button
+                type="button"
+                className={styles.row}
+                onClick={() => {
+                  if (pane && task.origin?.via === 'delegate' && task.executor.kind === 'nomi') {
+                    pane.openNomiTask(task.id);
+                    return;
+                  }
+                  requestOpenTask(task.id);
+                }}
+              >
+                <Icon icon={ListChecks} size={16} />
+                <span className={styles.itemText}>
+                  <span className={styles.itemName}>{task.title}</span>
+                  {task.goal && task.goal !== task.title && (
+                    <span className={styles.itemDetail}>{task.goal}</span>
+                  )}
+                </span>
+                <span className={styles.itemStatus} data-state={TASK_STATE[groupOf(task)]}>
+                  {statusLabel(task)}
+                </span>
+              </button>
+            </AgentHoverCard>
           </li>
         )}
       />

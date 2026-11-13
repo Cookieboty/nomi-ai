@@ -2,6 +2,7 @@ import { t, useLocale } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import { useSelectionActions } from '../../contexts/SelectionActionsContext';
 import { isImeComposing } from '../../utils/keyboard';
 import { basename, resolveDocumentPath, workspaceFileHref } from '../../utils/resourceLinks';
 import { openPreviewChat } from '../PreviewChat/dismiss';
@@ -57,6 +58,8 @@ export function usePreviewSelectionMenu({
 }) {
   const [target, setTarget] = useState<Target | null>(null);
   const { fillComposer } = useChangesUi();
+  // 主窗口里：「添加到对话」/「在侧边聊天中提问」（与对话里选中文字的工具条同一组动作）
+  const actions = useSelectionActions();
   const close = useCallback(() => setTarget(null), []);
   useEffect(() => {
     if (!enabled) return;
@@ -126,6 +129,15 @@ export function usePreviewSelectionMenu({
           target={target}
           onClose={close}
           canAsk={canAsk}
+          sideChat={
+            actions
+              ? () => {
+                  const ref = `${basename(target.path)}:${target.start}-${target.end}`;
+                  actions.askInSideChat({ text: target.text, source: ref });
+                }
+              : undefined
+          }
+          addLabel={actions ? t('ui.session-workspace.selection-add-to-chat') : undefined}
           onAsk={() => {
             // 文档全屏时对话收成了按钮：先展开，再把引用填进输入框
             openPreviewChat();
@@ -161,11 +173,16 @@ function PreviewSelectionMenu({
   onClose,
   onAsk,
   canAsk,
+  sideChat,
+  addLabel,
 }: {
   target: Target;
   onClose: () => void;
   onAsk: () => void;
   canAsk: boolean;
+  /** 在侧边聊天中提问（主窗口里才有） */
+  sideChat?: () => void;
+  addLabel?: string;
 }) {
   useLocale();
   const root = useRef<HTMLDivElement>(null);
@@ -286,8 +303,23 @@ function PreviewSelectionMenu({
           onAsk();
         }}
       >
-        {t('ui.session-workspace.preview-ask-selection')}
+        {addLabel ?? t('ui.session-workspace.preview-ask-selection')}
       </button>
+      {sideChat && (
+        <button
+          type="button"
+          role="menuitem"
+          className={styles.item}
+          data-testid="preview-selection-side-chat"
+          disabled={!target.text.trim()}
+          onClick={() => {
+            close();
+            sideChat();
+          }}
+        >
+          {t('ui.session-workspace.selection-ask-side-chat')}
+        </button>
+      )}
       {failed && <p role="alert">{t('ui.session-workspace.preview-copy-selection-failed')}</p>}
     </div>,
     document.body,

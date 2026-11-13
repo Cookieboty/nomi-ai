@@ -1,0 +1,222 @@
+/* 对话旁的标签区：上面一排标签（子任务 + 文件），下面是当前标签的内容（全高） */
+.workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: var(--cd-center-pane-min);
+  min-height: 0;
+  height: 100%;
+  background: var(--cd-color-surface);
+  border-left: 1px solid var(--cd-color-border);
+}
+
+.body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* 面板在这里不再自己画左边框（整栏已经有） */
+.body > section {
+  flex: 1 1 0;
+  min-height: 0;
+  border-left: none;
+}
+
+.strip {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  flex-shrink: 0;
+  min-height: var(--cd-control-h-lg);
+  padding: 0 var(--cd-space-2);
+  border-bottom: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface);
+  --wails-draggable: no-drag;
+  -webkit-app-region: no-drag;
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  /* 标签多了不挤成只剩图标：保留一段名字，放不下时整排横向滚动 */
+  flex: 0 1 auto;
+  min-width: 6.5rem;
+  max-width: 14rem;
+  height: var(--cd-control-h-sm);
+  border-radius: var(--cd-radius-md);
+  color: var(--cd-color-text-muted);
+}
+.tab:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.tab[data-active] {
+  background: var(--cd-color-active);
+  color: var(--cd-color-text);
+}
+
+.tabMain {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--cd-space-2);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+  user-select: none;
+}
+.tab[data-kind='main'] .tabMain {
+  padding-inline-end: var(--cd-space-3);
+}
+
+.tabLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cd-color-accent-strong);
+  animation: sideTabPulse 1.4s ease-in-out infinite;
+}
+.dot[data-state='waiting'] {
+  background: var(--cd-color-warning);
+  animation: none;
+}
+@keyframes sideTabPulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot {
+    animation: none;
+  }
+}
+
+.close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-inline-end: var(--cd-space-1);
+  padding: 0;
+  border: 0;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0;
+}
+.tab:hover .close,
+.tab[data-active] .close,
+.close:focus-visible {
+  opacity: 1;
+}
+.close:hover {
+  background: var(--cd-color-hover);
+}
+
+.addWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.menu {
+  position: absolute;
+  inset-block-start: calc(100% + var(--cd-space-1));
+  inset-inline-end: 0;
+  z-index: var(--cd-z-chat-input);
+  display: flex;
+  flex-direction: column;
+  min-width: 11rem;
+  padding: var(--cd-space-1);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-chat-popover-bg);
+  box-shadow: var(--cd-shadow-md);
+}
+.menu button {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  height: var(--cd-control-h-sm);
+  padding: 0 var(--cd-space-2);
+  border: 0;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  text-align: start;
+  cursor: pointer;
+}
+.menu button:hover,
+.menu button:focus-visible {
+  background: var(--cd-color-hover);
+}
+
+/* 悬停卡片的触发区：撑满标签按钮那一块 */
+.hoverWrap {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+}
+
+/* 拖动排序：被拖的半透明，落点画一条竖线 */
+.tab[data-dragging] {
+  opacity: 0.5;
+}
+.tab[data-drop='before'] {
+  box-shadow: inset 2px 0 0 var(--cd-color-accent-strong);
+}
+.tab[data-drop='after'] {
+  box-shadow: inset -2px 0 0 var(--cd-color-accent-strong);
+}
+
+/* 右键菜单：跟着鼠标 */
+.menuFixed {
+  position: fixed;
+  inset: auto;
+  z-index: var(--cd-z-tooltip);
+}
+
+/* 拖到「拆分」按钮上：高亮 */
+.dropTarget {
+  display: inline-flex;
+  flex-shrink: 0;
+  border-radius: var(--cd-radius-md);
+}
+.dropTarget[data-hot] {
+  box-shadow: 0 0 0 2px var(--cd-color-accent-strong);
+}
