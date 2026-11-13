@@ -112,12 +112,12 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   const [mcpPick, setMcpPick] = useState<Record<string, string[]>>({});
   const installed = CLIS.filter((b) => !!bins[b]);
   useEffect(() => {
-    if (!desktopClient.available()) {
-      setSandboxSupported(false);
-      return;
-    }
+    if (!desktopClient.available()) return;
     let off = () => {};
-    void desktopClient.state().then((st) => setSandboxSupported(st.cliSandboxSupported !== false));
+    void desktopClient.state().then(
+      (st) => setSandboxSupported(st.cliSandboxSupported !== false),
+      () => undefined,
+    );
     off = desktopClient.onChanged((st) => setSandboxSupported(st.cliSandboxSupported !== false));
     return () => off();
   }, []);
