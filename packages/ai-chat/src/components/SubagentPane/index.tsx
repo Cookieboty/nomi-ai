@@ -211,6 +211,7 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void }> = ({ t
     <section
       className={styles.pane}
       data-testid="subagent-pane"
+      data-question-scope="subagent"
       aria-label={t('ui.session-workspace.subagent-pane-title', name)}
     >
       <PaneHead
@@ -515,7 +516,12 @@ const NestedChat: React.FC<{
   };
   usePaneEscape(true, onClose);
   return (
-    <section className={styles.pane} data-testid="subagent-pane" aria-label={name}>
+    <section
+      className={styles.pane}
+      data-testid="subagent-pane"
+      data-question-scope="subagent"
+      aria-label={name}
+    >
       <PaneHead
         name={name}
         state={running ? 'running' : 'idle'}
@@ -690,6 +696,7 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void }> = ({ taskI
     <section
       className={styles.pane}
       data-testid="subagent-pane"
+      data-question-scope="subagent"
       aria-label={t('ui.session-workspace.subagent-pane-title', name)}
     >
       <PaneHead

@@ -140,3 +140,51 @@ function viewCss(): string {
     'utf8',
   );
 }
+
+describe('UserQuestionCard keyboard ownership', () => {
+  const one = (): UserQuestionRequest => ({ ...request(), questions: [request().questions[0]!] });
+
+  it('ignores global Enter / Escape while the card is hidden (#358)', () => {
+    const onSubmit = vi.fn();
+    const view = render(
+      <div style={{ display: 'none' }}>
+        <UserQuestionCard request={request()} onSubmit={onSubmit} />
+      </div>,
+    );
+    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(document.body, { key: 'Enter' });
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(view.getByTestId('user-question-page').textContent).toMatch(/1/);
+  });
+
+  it('leaves keys in the side pane to the side pane card (#358)', () => {
+    const main = vi.fn();
+    const side = vi.fn();
+    const view = render(
+      <div>
+        <UserQuestionCard request={{ ...one(), id: 'main' }} onSubmit={main} />
+        <input data-testid="main-composer" />
+        <section data-question-scope="subagent">
+          <UserQuestionCard request={{ ...one(), id: 'side' }} onSubmit={side} />
+          <input data-testid="side-composer" />
+        </section>
+      </div>,
+    );
+    fireEvent.keyDown(view.getByTestId('side-composer'), { key: 'Escape' });
+    expect(side).toHaveBeenCalledWith({ action: 'skip' });
+    expect(main).not.toHaveBeenCalled();
+    side.mockClear();
+    fireEvent.keyDown(view.getByTestId('main-composer'), { key: 'Escape' });
+    expect(main).toHaveBeenCalledWith({ action: 'skip' });
+    expect(side).not.toHaveBeenCalled();
+  });
+
+  it('does not submit twice while busy and shows the error (#361)', () => {
+    const onSubmit = vi.fn();
+    const view = render(<UserQuestionCard request={one()} onSubmit={onSubmit} busy error="oops" />);
+    fireEvent.keyDown(window, { key: 'Enter' });
+    fireEvent.click(view.getByTestId('user-question-continue'));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(view.getByTestId('user-question-error').textContent).toBe('oops');
+  });
+});

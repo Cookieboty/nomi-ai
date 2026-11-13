@@ -210,3 +210,9 @@
   outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: 1px;
 }
+
+.error {
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-danger);
+}
