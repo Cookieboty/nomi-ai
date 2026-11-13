@@ -454,6 +454,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **reminders:** when the mascot is hidden and the Dynamic Island can't show a reminder, Nomi no longer sends a system notification if you have turned system notifications off. The reminder is recorded in the audit log as not shown. (`@nomi-ai/desktop-go` patch)
 - **renderer:** 桌面工具的确认气泡出现时，台词气泡先让开，两个气泡不再叠在头部旁边同一处。 (`@nomi-ai/renderer` patch)
 - **sandbox:** 开着沙箱时，用第三方供应商的 dsh 标签能正常启动了（之前读不到 Nomi 为它写的配置，启动就退出「dsh 退出码 1」）。各编程助手第三方模式下的私有目录都在沙箱里放行。 (`@nomi-ai/desktop-go` patch)
+- **sandbox:** 授权沙箱路径后，只有挡下它的那一轮还在跑时才在这一轮结束后补发一次「已允许，请继续」；新会话里 CLI 启动时被挡（如读钥匙串）、轮次已结束或被停掉后才授权，都不再替你发消息。 (`@nomi-ai/desktop-go` patch)
 - **sandbox:** 沙箱不再为工具写日志、缓存弹授权请求：主目录下的隐藏目录、`~/.config`、`~/Library/Application Support` 默认可写（比如钩子脚本写 `~/.ai-usage`）。凭据目录写之前照样要授权；shell 配置、开机自启、PATH 里的可执行目录、CLI 与编辑器的钩子和 MCP 配置照样不让改，也不再弹请求。 (`@nomi-ai/desktop-go` patch)
 - **sandbox:** 沙箱不再反复拦 Kimi Code 与 MiniMax Code：它们自己的目录（`~/.kimi-code`、`~/.minimax`）与账号 / 第三方供应商的私有目录照写，选了第三方供应商的标签能读到 Nomi 写好的配置，不会再提示没登录。 (`@nomi-ai/desktop-go` patch)
 - **sandbox:** 编程助手启动时例行读取 `~/.npmrc`、`~/.pypirc`（npm / pip 查源、查更新）不再弹沙箱授权请求：照样不让读（里面可能有发布令牌），只是不再打扰你。 (`@nomi-ai/desktop-go` patch)

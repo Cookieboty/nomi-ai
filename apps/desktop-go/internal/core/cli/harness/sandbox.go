@@ -91,6 +91,9 @@ type sbxPending struct {
 	op   string
 	path string
 	at   float64
+	// turn：被挡下时正在跑的那一轮（tabSandbox.turn）；0 = 不是在用户这一轮里挡下的
+	// （CLI 启动时自己读钥匙串、后台进程、轮次已经结束后迟到的违规），授权后不发「请继续」
+	turn int
 }
 
 type tabSandbox struct {
@@ -99,8 +102,11 @@ type tabSandbox struct {
 	granted   map[string]bool
 	dismissed map[string]bool
 	pending   []*sbxPending
-	// followUp：授权时这个标签正在跑，等这一轮结束后发「已允许，请继续」
+	// followUp：授权时被挡的那一轮还在跑，等这一轮结束后发「已允许，请继续」
 	followUp string
+	// turn：这个标签第几轮（每次 SendTab 开跑 +1）；running：这一轮还没结束
+	turn    int
+	running bool
 }
 
 type sbxState struct {
@@ -374,7 +380,11 @@ func (o *Orchestrator) onSandboxDeny(d sandbox.Denial) {
 	if len(d.Rule) >= 5 && d.Rule[:5] == "write" {
 		op = "write"
 	}
-	t.pending = append(t.pending, &sbxPending{id: "sbx-" + strconv.Itoa(o.sbx.seq), req: req, op: op, path: d.Path, at: nowMs()})
+	turn := 0
+	if t.running {
+		turn = t.turn
+	}
+	t.pending = append(t.pending, &sbxPending{id: "sbx-" + strconv.Itoa(o.sbx.seq), req: req, op: op, path: d.Path, at: nowMs(), turn: turn})
 	o.d.Logger.Info("cli sandbox blocked", util.NewObj("tab", id, "rule", d.Rule, "op", d.Op, "proc", d.Proc))
 	o.changed()
 	// 没人看着时（别的标签 / 窗口没在前台 / 委派与任务的标签）走「等权限」的通知：桌面角色气泡与系统通知
@@ -437,7 +447,7 @@ func (o *Orchestrator) SandboxReply(tabID, requestID, choice string) bool {
 			t.granted[key] = true
 		}
 		o.recycleTab(tabID)
-		o.continueAfterGrant(tabID, hit.req)
+		o.continueAfterGrant(tabID, hit)
 	default:
 		return false
 	}
@@ -507,18 +517,23 @@ func grantLabel(r sandbox.Request) string {
 	return r.Value
 }
 
-// continueAfterGrant：授权后接着做——空闲就直接发「已允许，请继续」，在跑就等这一轮结束
-func (o *Orchestrator) continueAfterGrant(id string, r sandbox.Request) {
-	msg := i18n.T("electron.common.sandbox-granted-continue", grantLabel(r))
-	tab := o.tab(id)
-	if tab == nil {
+// continueAfterGrant：授权后接着做。只有挡下它的那一轮还在跑时，才在这一轮结束后补发一次
+// 「已允许，请继续」。那一轮已经结束、被停掉，或者根本不是在用户这一轮里挡下的（新会话里 CLI
+// 启动时自己读钥匙串、后台进程、迟到的违规），只放开沙箱，不替用户发消息
+func (o *Orchestrator) continueAfterGrant(id string, p *sbxPending) {
+	t := o.sbx.tabs[id]
+	if t == nil || o.tab(id) == nil || p.turn == 0 || !t.running || p.turn != t.turn {
 		return
 	}
-	if s := str(tab, "status"); s == "running" || s == "queued" {
-		o.sbxTab(id).followUp = msg
-		return
-	}
-	o.sendFollowUp(id, msg)
+	t.followUp = i18n.T("electron.common.sandbox-granted-continue", grantLabel(p.req))
+}
+
+// beginTurnSandbox：SendTab 开跑一轮。上一轮没发出去的「请继续」作废
+func (o *Orchestrator) beginTurnSandbox(id string) {
+	t := o.sbxTab(id)
+	t.turn++
+	t.running = true
+	t.followUp = ""
 }
 
 func (o *Orchestrator) sendFollowUp(id, msg string) {
@@ -535,14 +550,18 @@ func (o *Orchestrator) sendFollowUp(id, msg string) {
 	})
 }
 
-// afterTurnSandbox：一轮结束（SendTab 收尾）时补发授权后的「请继续」
-func (o *Orchestrator) afterTurnSandbox(id string) {
+// afterTurnSandbox：一轮结束（SendTab 收尾）时补发授权后的「请继续」；这一轮是被停掉的就不发
+func (o *Orchestrator) afterTurnSandbox(id string, stopped bool) {
 	t := o.sbx.tabs[id]
-	if t == nil || t.followUp == "" {
+	if t == nil {
 		return
 	}
+	t.running = false
 	msg := t.followUp
 	t.followUp = ""
+	if msg == "" || stopped {
+		return
+	}
 	jsrt.Go(func() {
 		if o.disposed || o.tab(id) == nil {
 			return
