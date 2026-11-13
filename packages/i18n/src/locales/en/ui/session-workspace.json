@@ -304,5 +304,13 @@
   "ui.session-workspace.side-tab-restore": "Restore split view (Esc)",
   "ui.session-workspace.side-tab-add": "Open…",
   "ui.session-workspace.side-tab-agents": "Agents in this chat",
-  "ui.session-workspace.side-tab-browse-files": "Browse files"
+  "ui.session-workspace.side-tab-browse-files": "Browse files",
+  "ui.session-workspace.side-tab-detach": "Open in new window",
+  "ui.session-workspace.side-tab-split": "Split right",
+  "ui.session-workspace.side-tab-unsplit": "Unsplit",
+  "ui.session-workspace.side-tab-dock": "Move back to main window",
+  "ui.session-workspace.side-split-handle": "Drag to resize the main chat and the tab on the right (double-click to reset)",
+  "ui.session-workspace.side-tab-detached-missing": "This sub-agent is no longer available (its tab was closed).",
+  "ui.session-workspace.agent-card-running": "Working",
+  "ui.session-workspace.agent-card-open": "Click to open"
 }

@@ -1553,6 +1553,21 @@ type ChatBgSetOutput struct {
 	Opacity  float64 `json:"opacity"`
 }
 
+type ChatWindowDetachTabInput struct {
+	Id    string `json:"id"`
+	Title string `json:"title"`
+	Spec  string `json:"spec"`
+}
+
+type ChatWindowDetachTabOutput struct {
+	Ok      bool `json:"ok"`
+	Focused bool `json:"focused"`
+}
+
+type ChatWindowDockTabInput struct {
+	Id string `json:"id"`
+}
+
 type CliRegistryOutputPluginsItem struct {
 	Id          string   `json:"id"`
 	DisplayName string   `json:"displayName"`
@@ -10934,6 +10949,10 @@ type EventChatBgChanged struct {
 	Opacity  float64 `json:"opacity"`
 }
 
+type EventChatWindowTabDocked struct {
+	Id string `json:"id"`
+}
+
 type EventCliRegistryChangedPluginsItem struct {
 	Id          string   `json:"id"`
 	DisplayName string   `json:"displayName"`
@@ -12117,6 +12136,18 @@ type ChatBgResetOutputT = ChatBgResetOutput
 // ChatBgSetInputT 是 chatBg.set 的入参
 type ChatBgSetInputT = ChatBgSetInput
 type ChatBgSetOutputT = ChatBgSetOutput
+
+// ChatWindowDetachTabInputT 是 chatWindow.detachTab 的入参
+type ChatWindowDetachTabInputT = ChatWindowDetachTabInput
+type ChatWindowDetachTabOutputT = ChatWindowDetachTabOutput
+
+// ChatWindowDetachedTabsInputT 是 chatWindow.detachedTabs 的入参
+type ChatWindowDetachedTabsInputT = any
+type ChatWindowDetachedTabsOutputT = []string
+
+// ChatWindowDockTabInputT 是 chatWindow.dockTab 的入参
+type ChatWindowDockTabInputT = ChatWindowDockTabInput
+type ChatWindowDockTabOutputT = bool
 
 // CliRegistryInputT 是 cli.registry 的入参
 type CliRegistryInputT = any
@@ -13796,6 +13827,8 @@ type EventAvatarEventT = json.RawMessage
 type EventCharacterAssetsChangedT = EventCharacterAssetsChanged
 type EventChatAssetsChangedT = any
 type EventChatBgChangedT = EventChatBgChanged
+type EventChatWindowDetachedChangedT = []string
+type EventChatWindowTabDockedT = EventChatWindowTabDocked
 type EventCliRegistryChangedT = EventCliRegistryChanged
 type EventCliAccountChangedT = any
 type EventCliAccountLoginT = EventCliAccountLogin

@@ -72,6 +72,8 @@ function setup() {
     }
     if (name === 'tasks.trace') return { attemptId: null, lines: [], attempts: [] };
     if (name === 'shortcuts.list' || name === 'ai.userQuestion.pending') return [];
+    if (name === 'chatWindow.detachedTabs') return [];
+    if (name === 'chatWindow.detachTab') return { ok: true, focused: false };
     return true;
   });
 }
@@ -112,9 +114,13 @@ const Shell: React.FC<{ entries?: PreviewEntry[] }> = ({ entries = [] }) => {
   };
   const side = useSideWorkspace(files);
   useSideWorkspaceKeys(side);
-  const mainShown = !side.maximized || side.active === MAIN_SIDE_TAB;
+  const mainShown = !side.maximized || side.split || side.active === MAIN_SIDE_TAB;
   return (
-    <div data-side-max={side.maximized ? 'true' : undefined} data-testid="main-content">
+    <div
+      data-side-max={side.maximized ? 'true' : undefined}
+      data-side-split={side.split ? 'true' : undefined}
+      data-testid="main-content"
+    >
       {side.maximized && <SideTabStrip model={side} />}
       <div data-testid="chat-column" hidden={!mainShown}>
         <textarea data-testid="main-input" />
@@ -274,5 +280,115 @@ describe('side tabs workspace', () => {
     )!;
     fireEvent.keyDown(k1Input, { key: 'w', ctrlKey: true, metaKey: true });
     expect(tabKeys()).toEqual(['nomi-task:k2']);
+  });
+
+  it('reorders tabs from the keyboard (Ctrl+Shift+PageUp / Alt+Shift+→)', async () => {
+    setup();
+    mount(['k1', 'k2']);
+    await waitFor(() => expect(tabKeys()).toHaveLength(2));
+    fireEvent.keyDown(tabButton('nomi-task:k2'), { key: 'PageUp', ctrlKey: true, shiftKey: true });
+    expect(tabKeys()).toEqual(['nomi-task:k2', 'nomi-task:k1']);
+    fireEvent.keyDown(tabButton('nomi-task:k2'), {
+      key: 'ArrowRight',
+      altKey: true,
+      shiftKey: true,
+    });
+    expect(tabKeys()).toEqual(['nomi-task:k1', 'nomi-task:k2']);
+    // 铺满时主会话标签不能挪，也挪不到它前面
+    fireEvent.doubleClick(tabButton('nomi-task:k1'));
+    fireEvent.keyDown(tabButton('nomi-task:k1'), { key: 'PageUp', ctrlKey: true, shiftKey: true });
+    expect(tabKeys()).toEqual([MAIN_SIDE_TAB, 'nomi-task:k1', 'nomi-task:k2']);
+  });
+
+  it('drag and drop reorders tabs', async () => {
+    setup();
+    mount(['k1', 'k2']);
+    await waitFor(() => expect(tabKeys()).toHaveLength(2));
+    const data = new Map<string, string>();
+    const dataTransfer = {
+      setData: (k: string, v: string) => data.set(k, v),
+      getData: (k: string) => data.get(k) ?? '',
+      effectAllowed: 'move',
+      dropEffect: 'move',
+    };
+    fireEvent.dragStart(tabByKey('nomi-task:k2'), { dataTransfer });
+    fireEvent.dragOver(tabByKey('nomi-task:k1'), { dataTransfer, clientX: 0 });
+    fireEvent.drop(tabByKey('nomi-task:k1'), { dataTransfer, clientX: 0 });
+    expect(tabKeys()).toEqual(['nomi-task:k2', 'nomi-task:k1']);
+  });
+
+  it('split right shows the main chat and the tab side by side; unsplit stays maximized', async () => {
+    setup();
+    mount(['k1', 'k2']);
+    await waitFor(() => expect(tabKeys()).toHaveLength(2));
+    fireEvent.contextMenu(tabByKey('nomi-task:k1'));
+    fireEvent.click(screen.getByTestId('side-tab-split'));
+    const main = screen.getByTestId('main-content');
+    expect(main.dataset.sideMax).toBe('true');
+    expect(main.dataset.sideSplit).toBe('true');
+    expect(screen.getByTestId('chat-column').hidden).toBe(false);
+    expect(paneFor('nomi-task:k1').hidden).toBe(false);
+    // 点主会话：右边不变
+    fireEvent.click(tabButton(MAIN_SIDE_TAB));
+    expect(paneFor('nomi-task:k1').hidden).toBe(false);
+    // 换右边
+    fireEvent.click(tabButton('nomi-task:k2'));
+    expect(paneFor('nomi-task:k2').hidden).toBe(false);
+    expect(screen.getByTestId('chat-column').hidden).toBe(false);
+    fireEvent.click(screen.getByTestId('side-tab-split-toggle'));
+    expect(main.dataset.sideSplit).toBeUndefined();
+    expect(main.dataset.sideMax).toBe('true');
+    // 拆分时 Esc = 回到分栏
+    fireEvent.click(screen.getByTestId('side-tab-split-toggle'));
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(main.dataset.sideMax).toBeUndefined();
+    expect(main.dataset.sideSplit).toBeUndefined();
+  });
+
+  it('pops a tab out into its own window, hides it here until the window closes', async () => {
+    const fake = setup();
+    mount(['k1', 'k2']);
+    await waitFor(() => expect(tabKeys()).toHaveLength(2));
+    fireEvent.contextMenu(tabByKey('nomi-task:k1'));
+    fireEvent.click(screen.getByTestId('side-tab-detach'));
+    await waitFor(() => expect(fake.inputs('chatWindow.detachTab')).toHaveLength(1));
+    const input = fake.inputs('chatWindow.detachTab')[0] as { id: string; spec: string };
+    expect(JSON.parse(input.id)).toEqual(['', 'nomi-task:k1']);
+    expect(JSON.parse(input.spec)).toMatchObject({
+      v: 1,
+      kind: 'agent',
+      target: { kind: 'nomi-task', taskId: 'k1' },
+    });
+    await fake.emit('chatWindow.detachedChanged', [input.id]);
+    await waitFor(() => expect(tabKeys()).toEqual(['nomi-task:k2']));
+    // 再点「查看」：把那个窗口提到最前，不在这里再开一份
+    act(() => opener!.openNomiTask('k1'));
+    expect(tabKeys()).toEqual(['nomi-task:k2']);
+    await waitFor(() => expect(fake.inputs('chatWindow.detachTab')).toHaveLength(2));
+    // 窗口里点「放回主窗口」：宿主先发 tabDocked 再发列表
+    await fake.emit('chatWindow.tabDocked', { id: input.id });
+    await fake.emit('chatWindow.detachedChanged', []);
+    await waitFor(() => expect(tabKeys()).toEqual(['nomi-task:k1', 'nomi-task:k2']));
+    expect(tabButton('nomi-task:k1').getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('hovering an agent tab shows a live card; clicking it opens that tab', async () => {
+    setup();
+    mount(['k1', 'k2']);
+    await waitFor(() => expect(tabKeys()).toHaveLength(2));
+    const wrap = tabButton('nomi-task:k1').parentElement!;
+    fireEvent.pointerOver(wrap, { pointerType: 'mouse', buttons: 0 });
+    fireEvent.pointerEnter(wrap, { pointerType: 'mouse', buttons: 0 });
+    const card = await screen.findByTestId('agent-hover-card', undefined, { timeout: 2000 });
+    await waitFor(() => expect(card.textContent).toContain('整理周报'));
+    expect(screen.getByTestId('agent-card-state').dataset.state).toBe('running');
+    expect(screen.getByTestId('agent-card-user').textContent).toContain('整理周报的目标');
+    fireEvent.click(card);
+    expect(tabButton('nomi-task:k1').getAttribute('aria-selected')).toBe('true');
+    expect(screen.queryByTestId('agent-hover-card')).toBeNull();
+    // 正在看的标签不出卡片
+    fireEvent.pointerEnter(wrap, { pointerType: 'mouse', buttons: 0 });
+    await new Promise((r) => setTimeout(r, 400));
+    expect(screen.queryByTestId('agent-hover-card')).toBeNull();
   });
 });

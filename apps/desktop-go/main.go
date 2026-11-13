@@ -63,6 +63,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/startup"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tabwindows"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tray"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/voice"
@@ -773,6 +774,13 @@ func main() {
 		screen: func() island.Screen { return islandScreenOf(sh) }})()
 	wireScreenAndPending(router, userData, rootLog, desktopSvc)
 	defer disposeHarness()
+	// 对话标签弹到独立窗口（chatWindow.*）：外壳在后面才建，按需取
+	tabwindows.Register(router, tabwindows.New(func() tabwindows.Opener {
+		if o, ok := sh.(tabwindows.Opener); ok {
+			return o
+		}
+		return nil
+	}, func(event string, data any) { router.EmitTo(event, data, "chat") }))
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
 	ctl := os.Getenv("NOMI_POC_CTL")

@@ -183,3 +183,40 @@
 .menu button:focus-visible {
   background: var(--cd-color-hover);
 }
+
+/* 悬停卡片的触发区：撑满标签按钮那一块 */
+.hoverWrap {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+}
+
+/* 拖动排序：被拖的半透明，落点画一条竖线 */
+.tab[data-dragging] {
+  opacity: 0.5;
+}
+.tab[data-drop='before'] {
+  box-shadow: inset 2px 0 0 var(--cd-color-accent-strong);
+}
+.tab[data-drop='after'] {
+  box-shadow: inset -2px 0 0 var(--cd-color-accent-strong);
+}
+
+/* 右键菜单：跟着鼠标 */
+.menuFixed {
+  position: fixed;
+  inset: auto;
+  z-index: var(--cd-z-tooltip);
+}
+
+/* 拖到「拆分」按钮上：高亮 */
+.dropTarget {
+  display: inline-flex;
+  flex-shrink: 0;
+  border-radius: var(--cd-radius-md);
+}
+.dropTarget[data-hot] {
+  box-shadow: 0 0 0 2px var(--cd-color-accent-strong);
+}

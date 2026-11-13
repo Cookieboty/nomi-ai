@@ -883,3 +883,45 @@ html[data-chat-bg] .main-content--with-changes [data-testid='center-preview-pane
 .main-content--side-max[data-side-main] > [data-testid='side-workspace'] {
   display: none;
 }
+
+/* 铺满 + 向右拆分：标签栏在上，下面 主会话 | 分割线 | 当前标签（比例存在 --side-split） */
+.main-content--side-split {
+  display: grid;
+  grid-template-columns: minmax(0, var(--side-split, 50%)) auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.main-content--side-split > [data-testid='side-tab-strip'] {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+.main-content--side-split > .chat-column {
+  grid-column: 1;
+  grid-row: 2;
+  width: auto;
+  min-width: 0;
+}
+.main-content--side-split > .side-split-splitter {
+  grid-column: 2;
+  grid-row: 2;
+}
+.main-content--side-split > [data-testid='side-workspace'] {
+  grid-column: 3;
+  grid-row: 2;
+  min-width: 0;
+  border-left: none;
+}
+.side-split-splitter {
+  width: 5px;
+  cursor: col-resize;
+  background: var(--cd-color-border);
+  background-clip: content-box;
+  padding: 0 2px;
+  touch-action: none;
+}
+.side-split-splitter:hover,
+.side-split-splitter:focus-visible {
+  padding: 0 1px;
+  background: var(--cd-color-accent-strong);
+  background-clip: content-box;
+  outline: none;
+}

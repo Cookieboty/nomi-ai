@@ -199,3 +199,9 @@
 .itemStatus[data-state='error'] {
   color: var(--cd-color-danger);
 }
+
+/* 悬停卡片的触发区：整行 */
+.hoverRow {
+  display: block;
+  min-width: 0;
+}

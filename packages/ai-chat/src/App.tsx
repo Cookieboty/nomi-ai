@@ -32,6 +32,7 @@ import { SessionDetailsDock, useSessionDetails } from './components/SessionDetai
 import { useChangesUi } from './components/SessionWorkspace';
 import { Sidebar } from './components/Sidebar';
 import {
+  SideSplitHandle,
   SideTabStrip,
   SideWorkspace,
   useSideWorkspace,
@@ -307,7 +308,9 @@ const AiChatContent: React.FC = () => {
   // 对话旁那一栏：子任务 / 文件标签，或右栏的未提交文件预览（挂载点）
   const centerOpen = rail.centerOpen || resourcePreview.isOpen;
   const sideMax = centerOpen && side.maximized;
-  const mainShown = !sideMax || side.active === MAIN_SIDE_TAB;
+  // 铺满时向右拆分：左主会话、右当前标签，中间分割线
+  const sideSplit = sideMax && side.split;
+  const mainShown = !sideMax || sideSplit || side.active === MAIN_SIDE_TAB;
   const railCwd = rail.cwd;
   const railOpen = rail.open;
   const railToggle = rail.toggle;
@@ -363,15 +366,25 @@ const AiChatContent: React.FC = () => {
           <div className="workspace-card" data-testid="workspace-card">
             {/* 主内容：无查看区时对话全宽；有本会话 Diff 或右栏文件预览时 chat-column | 中栏 横排全高 */}
             <div
-              className={`main-content${centerOpen ? ' main-content--with-changes' : ''}${sideMax ? ' main-content--side-max' : ''}`}
+              className={`main-content${centerOpen ? ' main-content--with-changes' : ''}${sideMax ? ' main-content--side-max' : ''}${sideSplit ? ' main-content--side-split' : ''}`}
               data-with-changes={centerOpen ? 'true' : undefined}
               data-side-max={sideMax ? 'true' : undefined}
-              data-side-main={sideMax && mainShown ? 'true' : undefined}
+              data-side-main={sideMax && !sideSplit && mainShown ? 'true' : undefined}
+              style={
+                sideSplit
+                  ? ({ '--side-split': `${side.splitRatio * 100}%` } as React.CSSProperties)
+                  : undefined
+              }
               hidden={mainHidden}
             >
               {/* 铺满时标签栏在整个对话区顶上，主会话是第一个标签（不能关） */}
               {sideMax && (
-                <SideTabStrip model={side} onBrowseFiles={browseFiles} onShowAgents={showAgents} />
+                <SideTabStrip
+                  model={side}
+                  columnMessages={rail.messages}
+                  onBrowseFiles={browseFiles}
+                  onShowAgents={showAgents}
+                />
               )}
               <div
                 className="chat-column"
@@ -462,6 +475,9 @@ const AiChatContent: React.FC = () => {
                 </footer>
               </div>
 
+              {sideSplit && (
+                <SideSplitHandle ratio={side.splitRatio} onRatio={side.setSplitRatio} />
+              )}
               {resourcePreview.overlays}
               {centerOpen ? (
                 <>

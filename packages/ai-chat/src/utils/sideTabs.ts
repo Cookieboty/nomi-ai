@@ -2,7 +2,9 @@
  * 对话旁的标签区（子任务 + 文件预览共用一块）：纯函数，便于单测。
  * - 每个会话一份：开着的子任务标签、当前标签、是否铺满（全屏）；
  * - 当前标签：'main'（铺满时的主会话标签）| 'files'（文件预览，具体哪个文件由预览区自己记）| 子任务的键；
- * - 铺满时主会话是第一个标签，不能关；没有任何子任务 / 文件标签时自动回到分栏。
+ * - 铺满时主会话是第一个标签，不能关；没有任何子任务 / 文件标签时自动回到分栏；
+ * - 标签可以拖动排序（order，主会话标签固定在最前）；铺满时可以「向右拆分」：左主会话、右当前标签；
+ * - 弹出到独立窗口的标签（detached）由宿主记着，只在这一侧隐藏，窗口关掉后回到标签栏。
  * 语义见 docs/design/side-tabs-workspace.md。
  */
 
@@ -23,13 +25,26 @@ export interface SideTabsState {
   maximized: boolean;
   /** 铺满时切到了主会话标签（回到分栏时右侧仍是 active） */
   mainActive: boolean;
+  /** 拖动排过的标签顺序（子任务键 / 文件标签键）；不在里面的按打开顺序排在后面 */
+  order: string[];
+  /** 铺满时左右拆分：左边主会话，右边当前标签 */
+  split: boolean;
+  /** 拆分时主会话占的宽度比例（0.2–0.8） */
+  splitRatio: number;
 }
+
+export const SPLIT_RATIO_MIN = 0.2;
+export const SPLIT_RATIO_MAX = 0.8;
+const ORDER_KEEP = 80;
 
 export const EMPTY_SIDE_TABS: SideTabsState = {
   agents: [],
   active: null,
   maximized: false,
   mainActive: false,
+  order: [],
+  split: false,
+  splitRatio: 0.5,
 };
 
 /** 子任务在标签区里的键（同一个子任务只开一个标签） */
@@ -60,7 +75,9 @@ export function openAgent(state: SideTabsState, target: SubagentTarget): SideTab
 
 /** 切换标签：'main' 只在铺满时有意义 */
 export function activateTab(state: SideTabsState, key: string): SideTabsState {
-  if (key === MAIN_SIDE_TAB) return state.maximized ? { ...state, mainActive: true } : state;
+  // 拆分时主会话一直在左边：点它只是把焦点给它，右边不变
+  if (key === MAIN_SIDE_TAB)
+    return state.maximized && !state.split ? { ...state, mainActive: true } : state;
   return { ...state, active: key, mainActive: false };
 }
 
@@ -72,9 +89,10 @@ export function closeAgent(state: SideTabsState, key: string): SideTabsState {
   const index = state.agents.findIndex((a) => agentKey(a) === key);
   if (index < 0) return state;
   const agents = state.agents.filter((_, i) => i !== index);
-  if (state.active !== key) return { ...state, agents };
+  const order = state.order.includes(key) ? state.order.filter((k) => k !== key) : state.order;
+  if (state.active !== key) return { ...state, agents, order };
   const next = agents[index] ?? agents[index - 1];
-  return { ...state, agents, active: next ? agentKey(next) : null };
+  return { ...state, agents, order, active: next ? agentKey(next) : null };
 }
 
 /** 只留下还在的子任务（委派标签被关掉、来源标签没了） */
@@ -99,7 +117,7 @@ export function hasSideTabs(state: SideTabsState, hasFiles: boolean): boolean {
 /** 实际显示的当前标签：铺满且切到主会话时是 'main'；记下的那个不在了就退回最后一个子任务 → 文件 → null */
 export function resolveActive(state: SideTabsState, hasFiles: boolean): string | null {
   const { active } = state;
-  if (state.mainActive && isMaximized(state, hasFiles)) return MAIN_SIDE_TAB;
+  if (state.mainActive && !state.split && isMaximized(state, hasFiles)) return MAIN_SIDE_TAB;
   if (active === FILES_SIDE_TAB && hasFiles) return FILES_SIDE_TAB;
   if (active && state.agents.some((a) => agentKey(a) === active)) return active;
   const last = state.agents[state.agents.length - 1];
@@ -117,13 +135,37 @@ export function isMaximized(state: SideTabsState, hasFiles: boolean): boolean {
  * 右侧仍是之前看的那个子任务 / 文件（主会话标签只在铺满时存在）。
  */
 export function toggleMaximized(state: SideTabsState, key?: string): SideTabsState {
-  if (state.maximized) return { ...state, maximized: false, mainActive: false };
+  // 拆分时双击右边的标签只是换右边看的内容；双击主会话 / 按还原才回到分栏
+  if (state.maximized && state.split && key && key !== MAIN_SIDE_TAB)
+    return { ...state, active: key, mainActive: false };
+  if (state.maximized) return { ...state, maximized: false, mainActive: false, split: false };
   return {
     ...state,
     maximized: true,
     mainActive: false,
     active: key && key !== MAIN_SIDE_TAB ? key : state.active,
   };
+}
+
+/** 拆分只在铺满时成立 */
+export function isSplit(state: SideTabsState, hasFiles: boolean): boolean {
+  return state.split && isMaximized(state, hasFiles);
+}
+
+/**
+ * 向右拆分 / 取消拆分。没铺满时先铺满再拆分（右边是 key 或当前标签）；
+ * 取消拆分后仍是铺满，停在右边那个标签。
+ */
+export function toggleSplit(state: SideTabsState, key?: string): SideTabsState {
+  const active = key && key !== MAIN_SIDE_TAB ? key : state.active;
+  if (state.maximized && state.split) return { ...state, split: false, mainActive: false };
+  return { ...state, maximized: true, split: true, mainActive: false, active };
+}
+
+export function setSplitRatio(state: SideTabsState, ratio: number): SideTabsState {
+  if (!Number.isFinite(ratio)) return state;
+  const next = Math.min(SPLIT_RATIO_MAX, Math.max(SPLIT_RATIO_MIN, ratio));
+  return next === state.splitRatio ? state : { ...state, splitRatio: next };
 }
 
 export interface SideTabItem {
@@ -135,16 +177,54 @@ export interface SideTabItem {
   target?: SubagentTarget;
 }
 
-/** 标签栏的顺序：铺满时主会话第一个（不能关），然后是子任务，最后是文件 */
-export function sideTabItems(state: SideTabsState, fileKeys: readonly string[]): SideTabItem[] {
-  const items: SideTabItem[] = [];
-  if (isMaximized(state, fileKeys.length > 0))
-    items.push({ key: MAIN_SIDE_TAB, kind: 'main', closable: false });
+/**
+ * 标签栏的顺序：铺满时主会话第一个（不能关，不参与排序），其余按拖过的顺序；没排过的按打开顺序
+ * （子任务在前，文件在后）。hidden：弹到独立窗口的标签（不在这一侧显示）。
+ */
+export function sideTabItems(
+  state: SideTabsState,
+  fileKeys: readonly string[],
+  hidden?: ReadonlySet<string>,
+): SideTabItem[] {
+  const rest: SideTabItem[] = [];
   for (const target of state.agents)
-    items.push({ key: agentKey(target), kind: 'agent', closable: true, target });
+    rest.push({ key: agentKey(target), kind: 'agent', closable: true, target });
   for (const entryKey of fileKeys)
-    items.push({ key: fileTabKey(entryKey), kind: 'file', closable: true, entryKey });
-  return items;
+    rest.push({ key: fileTabKey(entryKey), kind: 'file', closable: true, entryKey });
+  const shown = hidden?.size ? rest.filter((i) => !hidden.has(i.key)) : rest;
+  const rank = new Map(state.order.map((k, i) => [k, i]));
+  const sorted = shown
+    .map((item, i) => ({ item, r: rank.get(item.key) ?? state.order.length + i }))
+    .sort((a, b) => a.r - b.r)
+    .map((x) => x.item);
+  return isMaximized(state, fileKeys.length > 0)
+    ? [{ key: MAIN_SIDE_TAB, kind: 'main', closable: false }, ...sorted]
+    : sorted;
+}
+
+/**
+ * 拖动排序：把 key 挪到 toIndex（按现在标签栏里的下标算，主会话标签不能挪，也不能挪到它前面）。
+ * 键盘：toIndex = 当前下标 ± 1。
+ */
+export function moveTab(
+  state: SideTabsState,
+  items: readonly SideTabItem[],
+  key: string,
+  toIndex: number,
+): SideTabsState {
+  if (key === MAIN_SIDE_TAB) return state;
+  const pinned = items[0]?.kind === 'main' ? 1 : 0;
+  const keys = items.slice(pinned).map((i) => i.key);
+  const from = keys.indexOf(key);
+  if (from < 0) return state;
+  const to = Math.min(keys.length - 1, Math.max(0, toIndex - pinned));
+  if (to === from) return state;
+  keys.splice(from, 1);
+  keys.splice(to, 0, key);
+  // 不在这一侧显示的（弹出去的）保留原来的相对位置
+  const shown = new Set(keys);
+  const order = [...keys, ...state.order.filter((k) => !shown.has(k))].slice(0, ORDER_KEEP);
+  return { ...state, order };
 }
 
 export const fileTabKey = (entryKey: string) => `file:${entryKey}`;
@@ -181,7 +261,19 @@ export function parseSideTabs(v: unknown): SideTabsState | null {
   const o = v as Record<string, unknown>;
   const agents = Array.isArray(o.agents) ? o.agents.filter(isTarget) : [];
   const active = typeof o.active === 'string' ? o.active : null;
-  return { agents, active, maximized: o.maximized === true, mainActive: o.mainActive === true };
+  const order = Array.isArray(o.order)
+    ? o.order.filter((k): k is string => typeof k === 'string').slice(0, ORDER_KEEP)
+    : [];
+  const ratio = typeof o.splitRatio === 'number' ? o.splitRatio : 0.5;
+  return {
+    agents,
+    active,
+    maximized: o.maximized === true,
+    mainActive: o.mainActive === true,
+    order,
+    split: o.split === true,
+    splitRatio: Math.min(SPLIT_RATIO_MAX, Math.max(SPLIT_RATIO_MIN, ratio)),
+  };
 }
 
 const STORE_KEY = 'nomi.sideTabs.v1';
@@ -215,4 +307,23 @@ export function writeSideTabsStore(all: Record<string, SideTabsState>): void {
   } catch {
     /* 无痕窗口等：只在本次有效 */
   }
+}
+
+/**
+ * 拖到 over 标签上（after = 落在它的右半边）时，被拖的标签最后的下标（交给 moveTab）。
+ * 落回原处时返回原下标（moveTab 不改）。
+ */
+export function dropIndex(
+  items: readonly SideTabItem[],
+  fromKey: string,
+  overKey: string,
+  after: boolean,
+): number {
+  const keys = items.map((i) => i.key);
+  const from = keys.indexOf(fromKey);
+  const over = keys.indexOf(overKey);
+  if (from < 0 || over < 0) return Math.max(0, from);
+  let to = over + (after ? 1 : 0);
+  if (from < to) to -= 1;
+  return to;
 }

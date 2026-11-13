@@ -853,14 +853,16 @@ export const SubagentPane: React.FC<{
   columnMessages: readonly ConvMessage[];
   actions?: SubagentPaneActions;
   tabbed?: boolean;
-}> = ({ columnMessages, actions, tabbed = false }) => {
+  /** 独立窗口里（弹出的标签）：整窗只有它，Esc 不关、没有关闭按钮（关窗口即可） */
+  standalone?: boolean;
+}> = ({ columnMessages, actions, tabbed = false, standalone = false }) => {
   const pane = useSubagentPane();
   const value = useMemo(() => actions ?? {}, [actions]);
   if (!pane?.targets.length) return null;
-  const maximized = pane.tabs.maximized;
+  const maximized = pane.tabs.maximized || standalone;
   return (
     <ActionsCtx.Provider value={value}>
-      <TabbedCtx.Provider value={tabbed}>
+      <TabbedCtx.Provider value={tabbed || standalone}>
         {pane.targets.map((target) => {
           const key = agentKey(target);
           return (

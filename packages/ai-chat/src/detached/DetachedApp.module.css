@@ -1,0 +1,59 @@
+/* 弹出窗口：上面一条可拖动的标题栏（mac 左边让开红绿灯，Windows / Linux 右边是自绘的窗口按钮），下面整窗是那个标签 */
+.app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--cd-color-surface);
+  color: var(--cd-color-text);
+}
+
+.bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  flex-shrink: 0;
+  height: 38px;
+  padding: 0 calc(140px + var(--cd-space-2)) 0 var(--cd-space-3);
+  border-bottom: 1px solid var(--cd-color-border);
+  --wails-draggable: drag;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+:global(html[data-platform='darwin']) .bar {
+  padding: 0 var(--cd-space-3) 0 78px;
+}
+.bar button {
+  --wails-draggable: no-drag;
+  -webkit-app-region: no-drag;
+}
+
+.title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--cd-font-size-sm);
+  font-weight: 600;
+}
+
+.body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+.body > section,
+.body > aside {
+  flex: 1 1 0;
+  min-height: 0;
+  border-left: none;
+}
+
+.empty {
+  margin: auto;
+  color: var(--cd-color-text-muted);
+}

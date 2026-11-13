@@ -22,13 +22,14 @@ export function sidebarToggleLabels(collapsed: boolean): { title: string; label:
 }
 
 /** Go 宿主页面里的 Wails 运行时（/wails/runtime.js 设到 window.wails）：只用到当前窗口的这几个方法 */
-interface WailsWindow {
+export interface WailsWindow {
   Minimise(): Promise<void>;
   ToggleMaximise(): Promise<void>;
   IsMaximised(): Promise<boolean>;
   Close(): Promise<void>;
+  SetTitle?(title: string): Promise<void>;
 }
-const wailsWindow = (): WailsWindow | null =>
+export const wailsWindow = (): WailsWindow | null =>
   (window as unknown as { wails?: { Window?: WailsWindow } }).wails?.Window ?? null;
 
 /** Windows / Linux 的 Go 宿主：对话窗口无边框，双击标题栏空白处最大化 / 还原（同系统标题栏） */
@@ -43,7 +44,7 @@ const onTitleBarDoubleClick = (e: React.MouseEvent) => {
  * 无边框窗口由这里自绘，占 Electron 给 overlay 留的右侧位置。mac 用红绿灯，样式里隐藏。
  * 关闭走 Wails 的 Window.Close → 宿主的 WindowClosing（与点系统关闭按钮相同：按 closeMain 隐藏或退出）。
  */
-const WindowControls: React.FC = () => {
+export const WindowControls: React.FC = () => {
   const [maximized, setMaximized] = useState(false);
   useEffect(() => {
     const sync = () =>

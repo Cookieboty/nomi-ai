@@ -5,18 +5,23 @@ import {
   agentKey,
   closeAgent,
   cycleTabKey,
+  dropIndex,
   EMPTY_SIDE_TABS,
   FILES_SIDE_TAB,
   fileTabKey,
   isMaximized,
+  isSplit,
   MAIN_SIDE_TAB,
+  moveTab,
   openAgent,
   parseSideTabs,
   pruneAgents,
   readSideTabsStore,
   resolveActive,
+  setSplitRatio,
   sideTabItems,
   toggleMaximized,
+  toggleSplit,
   writeSideTabsStore,
   type SideTabsState,
   type SubagentTarget,
@@ -137,6 +142,122 @@ describe('side tabs: persistence', () => {
     expect(readSideTabsStore()).toEqual({});
     expect(
       parseSideTabs({ agents: [{ kind: 'harness' }, a, { kind: 'x' }], active: 3, maximized: 1 }),
-    ).toEqual({ agents: [a], active: null, maximized: false, mainActive: false });
+    ).toEqual({
+      agents: [a],
+      active: null,
+      maximized: false,
+      mainActive: false,
+      order: [],
+      split: false,
+      splitRatio: 0.5,
+    });
+    expect(
+      parseSideTabs({ agents: [a], order: ['x', 3], split: true, splitRatio: 9 }),
+    ).toMatchObject({ order: ['x'], split: true, splitRatio: 0.8 });
+  });
+});
+
+describe('side tabs: reorder', () => {
+  const keys = (s: SideTabsState, files: string[] = [], hidden?: Set<string>) =>
+    sideTabItems(s, files, hidden).map((i) => i.key);
+
+  it('drags a tab to a new position and keeps the order', () => {
+    const s = withAll();
+    const items = sideTabItems(s, ['f1']);
+    // c 拖到 a 前面
+    const moved = moveTab(s, items, agentKey(c), dropIndex(items, agentKey(c), agentKey(a), false));
+    expect(keys(moved, ['f1'])).toEqual([agentKey(c), agentKey(a), agentKey(b), fileTabKey('f1')]);
+    // 文件拖到最前
+    const items2 = sideTabItems(moved, ['f1']);
+    const moved2 = moveTab(moved, items2, fileTabKey('f1'), 0);
+    expect(keys(moved2, ['f1'])[0]).toBe(fileTabKey('f1'));
+    // 新开的标签排在后面
+    const d: SubagentTarget = { kind: 'harness', tabId: 't9' };
+    expect(keys(openAgent(moved2, d), ['f1']).at(-1)).toBe(agentKey(d));
+  });
+
+  it('the main tab stays pinned first while maximized', () => {
+    const s = toggleMaximized(withAll(), agentKey(a));
+    const items = sideTabItems(s, []);
+    expect(items[0]!.key).toBe(MAIN_SIDE_TAB);
+    expect(moveTab(s, items, MAIN_SIDE_TAB, 3)).toBe(s);
+    // 拖到主会话前面 = 排在第一个子任务的位置
+    const moved = moveTab(
+      s,
+      items,
+      agentKey(c),
+      dropIndex(items, agentKey(c), MAIN_SIDE_TAB, false),
+    );
+    expect(keys(moved)).toEqual([MAIN_SIDE_TAB, agentKey(c), agentKey(a), agentKey(b)]);
+  });
+
+  it('keyboard: one step left / right, clamped at the ends', () => {
+    const s = withAll();
+    const items = sideTabItems(s, []);
+    expect(keys(moveTab(s, items, agentKey(b), 0))).toEqual([
+      agentKey(b),
+      agentKey(a),
+      agentKey(c),
+    ]);
+    expect(moveTab(s, items, agentKey(a), -1)).toBe(s);
+    expect(keys(moveTab(s, items, agentKey(c), 99))).toEqual(keys(s));
+  });
+
+  it('closing a tab drops it from the order; drop on itself is a no-op', () => {
+    const s = withAll();
+    const items = sideTabItems(s, []);
+    const moved = moveTab(s, items, agentKey(c), 0);
+    expect(closeAgent(moved, agentKey(c)).order).not.toContain(agentKey(c));
+    expect(dropIndex(items, agentKey(b), agentKey(b), true)).toBe(1);
+    expect(moveTab(s, items, agentKey(b), dropIndex(items, agentKey(b), agentKey(b), true))).toBe(
+      s,
+    );
+  });
+
+  it('hidden (detached) tabs are left out of the strip but keep their place', () => {
+    const s = withAll();
+    expect(keys(s, ['f1'], new Set([agentKey(b), fileTabKey('f1')]))).toEqual([
+      agentKey(a),
+      agentKey(c),
+    ]);
+    const items = sideTabItems(s, [], new Set([agentKey(b)]));
+    const moved = moveTab(s, items, agentKey(c), 0);
+    expect(moved.order).toEqual([agentKey(c), agentKey(a)]);
+    expect(keys(moved)).toEqual([agentKey(c), agentKey(a), agentKey(b)]);
+  });
+});
+
+describe('side tabs: split', () => {
+  it('split right maximizes, keeps main on the left and the chosen tab on the right', () => {
+    const s = toggleSplit(withAll(), agentKey(a));
+    expect(s.maximized && s.split).toBe(true);
+    expect(isSplit(s, false)).toBe(true);
+    expect(resolveActive(s, false)).toBe(agentKey(a));
+    // 点主会话不换右边
+    expect(resolveActive(activateTab(s, MAIN_SIDE_TAB), false)).toBe(agentKey(a));
+    // 双击右边别的标签：只换右边，仍拆分
+    const other = toggleMaximized(s, agentKey(b));
+    expect(other.split && other.maximized).toBe(true);
+    expect(resolveActive(other, false)).toBe(agentKey(b));
+  });
+
+  it('unsplit stays maximized; restore exits split; no tabs = no split', () => {
+    const s = toggleSplit(withAll(), agentKey(a));
+    const un = toggleSplit(s);
+    expect(un.split).toBe(false);
+    expect(un.maximized).toBe(true);
+    const restored = toggleMaximized(s, MAIN_SIDE_TAB);
+    expect(restored.maximized || restored.split).toBe(false);
+    expect(isSplit({ ...EMPTY_SIDE_TABS, split: true, maximized: true }, false)).toBe(false);
+  });
+
+  it('ratio is clamped and persisted', () => {
+    const s = toggleSplit(withAll(), agentKey(a));
+    expect(setSplitRatio(s, 0.05).splitRatio).toBe(0.2);
+    expect(setSplitRatio(s, 0.95).splitRatio).toBe(0.8);
+    expect(setSplitRatio(s, Number.NaN)).toBe(s);
+    const r = setSplitRatio(s, 0.35);
+    writeSideTabsStore({ 'nomi:c': r });
+    expect(readSideTabsStore()['nomi:c']).toMatchObject({ split: true, splitRatio: 0.35 });
   });
 });

@@ -26,6 +26,8 @@ import {
   projectNameFromCwd,
   summarizeChanges,
 } from '../../utils/sessionChanges';
+import type { SubagentTarget } from '../../utils/sideTabs';
+import { AgentHoverCard } from '../AgentHoverCard';
 import { EndpointIcon } from '../EndpointIcon';
 import { useChangesUi } from '../SessionWorkspace/ChangesUiContext';
 import { useTasks } from '../Tasks';
@@ -137,7 +139,13 @@ function Section<T>({
   );
 }
 
-const AgentRow: React.FC<{ agent: SessionAgent; onOpen?: () => void }> = ({ agent: a, onOpen }) => {
+const AgentRow: React.FC<{
+  agent: SessionAgent;
+  onOpen?: () => void;
+  /** 悬停卡片看哪个子任务；columnMessages：主会话里的进程内子代理从主列消息里取 */
+  target?: SubagentTarget | null;
+  columnMessages?: readonly ConvMessage[];
+}> = ({ agent: a, onOpen, target, columnMessages }) => {
   const name =
     a.kind === 'delegate' && a.backend
       ? t(ENDPOINT_NAME[a.backend] ?? a.backend)
@@ -160,15 +168,24 @@ const AgentRow: React.FC<{ agent: SessionAgent; onOpen?: () => void }> = ({ agen
   );
   return (
     <li data-testid="session-details-agent">
-      {onOpen ? (
-        <button type="button" className={styles.row} onClick={onOpen}>
-          {body}
-        </button>
-      ) : (
-        <div className={styles.row} data-static title={a.detail}>
-          {body}
-        </div>
-      )}
+      <AgentHoverCard
+        as="div"
+        className={styles.hoverRow}
+        target={target}
+        onOpen={onOpen}
+        columnMessages={columnMessages}
+        fallback={{ lastUser: a.detail }}
+      >
+        {onOpen ? (
+          <button type="button" className={styles.row} onClick={onOpen}>
+            {body}
+          </button>
+        ) : (
+          <div className={styles.row} data-static title={a.detail}>
+            {body}
+          </div>
+        )}
+      </AgentHoverCard>
     </li>
   );
 };
@@ -317,6 +334,12 @@ const DetailsPanel: React.FC<
           <AgentRow
             key={a.id}
             agent={a}
+            target={
+              a.tabId
+                ? { kind: 'harness', tabId: a.tabId }
+                : { kind: 'nested', callId: a.id, parentTabId }
+            }
+            columnMessages={messages}
             onOpen={
               pane
                 ? a.tabId
@@ -338,28 +361,39 @@ const DetailsPanel: React.FC<
         items={tasks}
         render={(task) => (
           <li key={task.id} data-testid="session-details-task">
-            <button
-              type="button"
-              className={styles.row}
-              onClick={() => {
-                if (pane && task.origin?.via === 'delegate' && task.executor.kind === 'nomi') {
-                  pane.openNomiTask(task.id);
-                  return;
-                }
-                requestOpenTask(task.id);
-              }}
+            <AgentHoverCard
+              as="div"
+              className={styles.hoverRow}
+              target={
+                task.origin?.via === 'delegate' && task.executor.kind === 'nomi'
+                  ? { kind: 'nomi-task', taskId: task.id }
+                  : null
+              }
+              onOpen={pane ? () => pane.openNomiTask(task.id) : undefined}
             >
-              <Icon icon={ListChecks} size={16} />
-              <span className={styles.itemText}>
-                <span className={styles.itemName}>{task.title}</span>
-                {task.goal && task.goal !== task.title && (
-                  <span className={styles.itemDetail}>{task.goal}</span>
-                )}
-              </span>
-              <span className={styles.itemStatus} data-state={TASK_STATE[groupOf(task)]}>
-                {statusLabel(task)}
-              </span>
-            </button>
+              <button
+                type="button"
+                className={styles.row}
+                onClick={() => {
+                  if (pane && task.origin?.via === 'delegate' && task.executor.kind === 'nomi') {
+                    pane.openNomiTask(task.id);
+                    return;
+                  }
+                  requestOpenTask(task.id);
+                }}
+              >
+                <Icon icon={ListChecks} size={16} />
+                <span className={styles.itemText}>
+                  <span className={styles.itemName}>{task.title}</span>
+                  {task.goal && task.goal !== task.title && (
+                    <span className={styles.itemDetail}>{task.goal}</span>
+                  )}
+                </span>
+                <span className={styles.itemStatus} data-state={TASK_STATE[groupOf(task)]}>
+                  {statusLabel(task)}
+                </span>
+              </button>
+            </AgentHoverCard>
           </li>
         )}
       />

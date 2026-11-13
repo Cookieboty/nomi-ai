@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 475：mutation 333 / query 137 / stream 5
+// 合计 478：mutation 335 / query 138 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -75,6 +75,9 @@ var Procedures = []Procedure{
 	{Name: "chatBg.pickImage", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatBg.reset", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatBg.set", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "chatWindow.detachTab", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "chatWindow.detachedTabs", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "chatWindow.dockTab", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "cli.registry", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "cliAccount.list", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "cliAccount.loginCancel", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -513,6 +516,8 @@ var Events = []string{
 	"character.assetsChanged",
 	"chatAssets.changed",
 	"chatBg.changed",
+	"chatWindow.detachedChanged",
+	"chatWindow.tabDocked",
 	"cli.registryChanged",
 	"cliAccount.changed",
 	"cliAccount.login",

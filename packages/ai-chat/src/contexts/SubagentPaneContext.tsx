@@ -9,17 +9,23 @@
  */
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
+import { detachedWindows, useDetachedIds } from '../services/detachedWindows';
+import { detachedKeysFor } from '../utils/detachedTabs';
 import {
   activateTab,
   agentKey,
   closeAgent,
   EMPTY_SIDE_TABS,
+  moveTab,
   openAgent,
   pruneAgents,
   readSideTabsStore,
   resolveActive,
+  setSplitRatio,
   toggleMaximized,
+  toggleSplit,
   writeSideTabsStore,
+  type SideTabItem,
   type SideTabsState,
   type SubagentTarget,
 } from '../utils/sideTabs';
@@ -65,6 +71,15 @@ interface SubagentPaneValue {
   setScope: (scope: string | null) => void;
   meta: Readonly<Record<string, SideTabMeta>>;
   reportMeta: (key: string, meta: SideTabMeta | null) => void;
+  /** 当前会话键（'' = 没有会话 / 弹出窗口里，不落盘） */
+  scope: string;
+  /** 这个会话里弹到独立窗口的标签键（这一侧不显示，窗口关掉后回来） */
+  detached: ReadonlySet<string>;
+  /** 拖动 / 键盘排序（items = 现在标签栏里的标签） */
+  moveTab: (items: readonly SideTabItem[], key: string, toIndex: number) => void;
+  /** 铺满时向右拆分 / 取消拆分（key = 放到右边的标签） */
+  toggleSplit: (key?: string) => void;
+  setSplitRatio: (ratio: number) => void;
 }
 
 const Ctx = createContext<SubagentPaneValue | null>(null);
@@ -90,7 +105,16 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
           : true;
   }, [liveTabs]);
   const raw = byScope[scope] ?? EMPTY_SIDE_TABS;
-  const tabs = useMemo(() => (alive ? pruneAgents(raw, alive) : raw), [raw, alive]);
+  const detachedIds = useDetachedIds();
+  const detached = useMemo(() => detachedKeysFor(detachedIds, scope), [detachedIds, scope]);
+  // 显示用：去掉没了的和弹出去的（弹出去的仍记在本地存储里，窗口关掉后回到标签栏）
+  const tabs = useMemo(
+    () =>
+      alive || detached.size
+        ? pruneAgents(raw, (a) => (!alive || alive(a)) && !detached.has(agentKey(a)))
+        : raw,
+    [raw, alive, detached],
+  );
   const active = resolveActive(tabs, filesOpen);
 
   const update = useCallback(
@@ -115,24 +139,40 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
     [tabs.agents, active],
   );
   const tabId = shownTarget?.kind === 'harness' ? shownTarget.tabId : null;
+  // 已经弹到独立窗口的：把那个窗口提到最前，不在这一侧再开一份
+  const open = useCallback(
+    (target: SubagentTarget) => {
+      const key = agentKey(target);
+      if (detached.has(key)) detachedWindows.focus(scope, key);
+      else update((s) => openAgent(s, target));
+    },
+    [update, detached, scope],
+  );
   const openSubagent = useCallback(
     (id: string) => {
-      if (id) update((s) => openAgent(s, { kind: 'harness', tabId: id }));
+      if (id) open({ kind: 'harness', tabId: id });
     },
-    [update],
+    [open],
   );
   const openNested = useCallback(
     (callId: string, parentTabId: string | null) => {
-      if (callId) update((s) => openAgent(s, { kind: 'nested', callId, parentTabId }));
+      if (callId) open({ kind: 'nested', callId, parentTabId });
     },
-    [update],
+    [open],
   );
   const openNomiTask = useCallback(
     (taskId: string) => {
-      if (taskId) update((s) => openAgent(s, { kind: 'nomi-task', taskId }));
+      if (taskId) open({ kind: 'nomi-task', taskId });
     },
+    [open],
+  );
+  const move = useCallback(
+    (items: readonly SideTabItem[], key: string, toIndex: number) =>
+      update((s) => moveTab(s, items, key, toIndex)),
     [update],
   );
+  const split = useCallback((key?: string) => update((s) => toggleSplit(s, key)), [update]);
+  const ratio = useCallback((r: number) => update((s) => setSplitRatio(s, r)), [update]);
   const closeTab = useCallback((key: string) => update((s) => closeAgent(s, key)), [update]);
   const closeSubagent = useCallback(
     () => update((s) => (active ? closeAgent(s, active) : s)),
@@ -179,8 +219,18 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setScope,
       meta,
       reportMeta,
+      scope,
+      detached,
+      moveTab: move,
+      toggleSplit: split,
+      setSplitRatio: ratio,
     }),
     [
+      scope,
+      detached,
+      move,
+      split,
+      ratio,
       shownTarget,
       tabs,
       active,

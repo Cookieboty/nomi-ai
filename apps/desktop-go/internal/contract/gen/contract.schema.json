@@ -6405,6 +6405,97 @@
     "additionalProperties": {}
    }
   },
+  "chatWindow.detachTab": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+     },
+     "title": {
+      "type": "string",
+      "maxLength": 200
+     },
+     "spec": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 16384
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "spec"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "focused": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "ok",
+     "focused"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "chatWindow.detachedTabs": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   }
+  },
+  "chatWindow.dockTab": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
   "cli.registry": {
    "kind": "query",
    "dangerous": false,
@@ -36848,6 +36939,26 @@
     "opacity"
    ],
    "additionalProperties": {}
+  },
+  "chatWindow.detachedChanged": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  },
+  "chatWindow.tabDocked": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id"
+   ],
+   "additionalProperties": false
   },
   "cli.registryChanged": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
