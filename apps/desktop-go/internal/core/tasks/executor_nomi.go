@@ -86,6 +86,7 @@ var ConversationExcluded = []string{
 	"desktop_request_scope",
 	"avatar_emotion",
 	"avatar_gesture",
+	"ask_user",
 }
 
 // ToolHeartbeatMs：工具调用进行中时的心跳间隔（看守超时默认 5 分钟）

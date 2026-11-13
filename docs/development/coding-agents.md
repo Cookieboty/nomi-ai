@@ -122,6 +122,12 @@ ACP 助手的权限能力由清单推出（`shared.AcpPermissions`），不在 G
 自己的启动参数或会话模式（ACP 的 `session/set_mode`）。需要确认的工具调用进编排器的权限队列（`permissionqueue.go`），
 视图里回答；回答可以是多选项（允许一次 / 本会话 / 拒绝）。
 
+结构化提问不进权限队列，走 `internal/core/askuser` 的问题卡（对话输入栏上方，10 分钟超时）：Claude Code 的
+`AskUserQuestion`、Codex app-server 的 `item/tool/requestUserInput`、Codex 的表单式 `mcpServer/elicitation/request`，
+以及 ACP 的 `elicitation/create`（握手时广告 `elicitation.form`）。回答、跳过、取消、超时按各协议的结果写回。
+Codex 把 MCP 工具审批包成 elicitation 时（`codex_approval_kind: mcp_tool_call`）仍走允许 / 拒绝；URL elicitation 直接取消。
+Codex 的 exec 回退没有来回通道。Nomi 自己连上的 MCP 不广告 elicitation，也不进这张卡。
+
 ## 来源与标签令牌
 
 - **官方**：CLI 用它自己的登录态（可以在 Nomi 里管理多个官方账号，见 `accounts/`）。

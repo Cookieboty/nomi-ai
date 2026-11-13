@@ -32,6 +32,8 @@ export interface ConvMessage {
   label?: string;
   /** 产生这条助手消息的模型（元信息里跟在端点名后面，弱化显示） */
   model?: string;
+  /** 上游实际返回的模型（和 model 不是同一个时才有） */
+  responseModel?: string;
   /** 原始消息（来源特有的扩展内容由 slots 渲染） */
   raw?: unknown;
 }

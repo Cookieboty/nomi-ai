@@ -654,6 +654,8 @@ func (c *Client) onRequestMessage(req Message) {
 	case "ping":
 		reply = u.NewObj("jsonrpc", "2.0", "id", id, "result", u.NewObj())
 	case "elicitation/create":
+		// Nomi 自己连上的 MCP 不进问题卡：这条连接没有对话 / 标签可挂卡，广告 elicitation
+		// 能力会让服务器开始提问却无处显示。编程助手里的 elicitation 走 Codex / ACP 会话。
 		reply = u.NewObj("jsonrpc", "2.0", "id", id, "error", u.NewObj("code", float64(-32601), "message", "No elicitation handler registered on client"))
 	default:
 		reply = u.NewObj("jsonrpc", "2.0", "id", id, "error", u.NewObj("code", float64(-32601), "message", "Unsupported request method: "+method))

@@ -830,12 +830,14 @@ export const TIMELINE_WINDOW = 60;
  * 按 items 引用 memo：流式纯文字帧里 convSegments 保持各组 items 不变，这里整块跳过，
  * 不再每帧跑 groupDelegates 和逐行 sameCall。
  */
-/** 用户在这一轮中途插入的消息（Enter 插入，下一步已交给模型） */
+/** 用户在这一轮中途插入的消息（Enter 插入，下一步已交给模型）：靠右显示，和助手的步骤区分开 */
 const InterjectRow: React.FC<{ text: string }> = ({ text }) => (
-  <div className={styles.interject} data-testid="trace-interject">
-    <Icon icon={CornerDownRight} size={13} className={styles.interjectIcon} />
-    <span className={styles.interjectLabel}>{t('ui.session-workspace.you-added')}</span>
-    <span className={styles.interjectText}>{text}</span>
+  <div className={styles.interjectWrap} data-testid="trace-interject">
+    <div className={styles.interject}>
+      <Icon icon={CornerDownRight} size={13} className={styles.interjectIcon} />
+      <span className={styles.interjectLabel}>{t('ui.session-workspace.you-added')}</span>
+      <span className={styles.interjectText}>{text}</span>
+    </div>
   </div>
 );
 

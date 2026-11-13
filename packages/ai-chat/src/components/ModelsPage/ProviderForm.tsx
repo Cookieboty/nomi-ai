@@ -22,6 +22,7 @@ import {
   providerClientAvailable,
   type ProviderPreset,
 } from '../../services/providerClient';
+import { isImeComposing } from '../../utils/keyboard';
 import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './ProviderForm.module.css';
@@ -247,7 +248,9 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
                 value={key}
                 autoComplete="off"
                 onChange={(e) => setKey(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && canSave && void save()}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' && !isImeComposing(e.nativeEvent) && canSave && void save()
+                }
               />
             </FormField>
           ) : (
@@ -261,7 +264,9 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
               data-testid={`${idPrefix}-provider-test-model`}
               value={testModel}
               onChange={(e) => setTestModel(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && canSave && void save()}
+              onKeyDown={(e) =>
+                e.key === 'Enter' && !isImeComposing(e.nativeEvent) && canSave && void save()
+              }
             />
           </FormField>
         </div>

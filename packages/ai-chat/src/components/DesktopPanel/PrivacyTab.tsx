@@ -9,6 +9,7 @@ import { Plus, ShieldCheck } from 'lucide-react';
 import React, { useState } from 'react';
 
 import { desktopClient, type DesktopState } from '../../services/desktopClient';
+import { isImeComposing } from '../../utils/keyboard';
 import { confirmDialog } from '../ConfirmDialog';
 import { sandboxItemLabel } from '../Conversation/SandboxRequests';
 
@@ -223,7 +224,7 @@ export const PrivacyTab: React.FC<Props> = ({ state, onMessage }) => {
             placeholder={tr('ui.foundation.env-name-placeholder')}
             aria-label={tr('ui.foundation.env-name-placeholder')}
             onChange={(e) => setEnvName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && void addEnv()}
+            onKeyDown={(e) => e.key === 'Enter' && !isImeComposing(e.nativeEvent) && void addEnv()}
             data-testid="desktop-env-allow-input"
           />
           <Button

@@ -131,6 +131,8 @@ type ChatChunk struct {
 	Error         *string
 	Usage         *ChatUsage
 	Model         *string
+	// ResponseModel：上游响应里的模型名（和请求的不是同一个时才有）
+	ResponseModel *string
 	FinishReason  string
 	// Steps：steps 块：这一轮工具循环的消息（ChatMessage.Steps 的 JSON）
 	Steps string
@@ -157,6 +159,7 @@ func (c ChatChunk) Obj() *u.Obj {
 	case "usage":
 		o.Set("usage", c.Usage.Obj())
 		setStr(o, "model", c.Model)
+		setStr(o, "responseModel", c.ResponseModel)
 	case "steps":
 		o.Set("steps", c.Steps)
 	case "done":

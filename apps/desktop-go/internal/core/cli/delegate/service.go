@@ -1207,6 +1207,11 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 	opts.Set("delegation", del)
 	if m := ov.Get("model"); m != nil {
 		opts.Set("modelOverride", m)
+	} else if m := s.preselectedModel(cli); m != "" {
+		// 没点名模型 / 档位也没配模型时，沿用用户在这个编程助手上预选的模型。
+		// 不传的话标签会落到 CLI 自己的默认模型（Claude 的默认不是用户选的 Opus/等等），
+		// 用户看起来就是「派出去的 agent 没按我选的模型跑」（第三方供应商以前靠网关默认德回，官方登录没这条后路）
+		opts.Set("modelOverride", m)
 	}
 	if e, ok := ov.Get("reasoningEffort").(string); ok {
 		opts.Set("reasoningEffort", e)
@@ -1293,6 +1298,26 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 	return s.runChild(task, prompt, true, c.sig), nil
 }
 
+// preselectedModel：用户在设置 → 模型（侧栏「新标签默认」）里给这个编程助手预选的模型。
+// 只补官方登录这一档：官方模型 id 要显式带给标签，不然标签落到 CLI 自己的默认模型
+// （Claude 默认不是用户选的 Opus 之类），看起来就是「派出去的 agent 没按我选的模型跑」。
+// 第三方供应商的模型是网关 ref（带 /），标签自己会按来源解出来（effectiveOverrides 有回退），这里不插手。
+func (s *Service) preselectedModel(cli string) string {
+	if s.d.Gateway == nil {
+		return ""
+	}
+	d := s.d.Gateway.Defaults(cli)
+	if d == nil || util.Str(d.Get("source")) == "thirdParty" {
+		return ""
+	}
+	m := trim(util.Str(d.Get("model")))
+	// 带 / 的是供应商 ref（可能是从第三方切回官方时留下的），不能当官方模型 id 传给 CLI
+	if m == "" || strings.Contains(m, "/") || !clisdk.IsValidModelID(m) {
+		return ""
+	}
+	return m
+}
+
 // overridesFor：模型 / 思考深度 / 档位：解析并校验（第三方模型必须在网关目录）
 func (s *Service) overridesFor(cli string, in, settings *util.Obj) (*util.Obj, error) {
 	ov := ResolveDelegateOverrides(OverridesInput{Model: in.Get("model"), ReasoningEffort: in.Get("reasoning_effort"), Profile: in.Get("profile"), Settings: settings})
@@ -1366,6 +1391,10 @@ func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, cli, sour
 		ex.BaseBranch = &base
 	}
 	if m := util.Str(ov.Get("model")); m != "" {
+		ex.Model = &m
+	} else if m := s.preselectedModel(cli); m != "" {
+		// 没点名模型 / 档位也没配模型：沿用用户在这个编程助手上预选的模型。
+		// 不传的话任务标签落到 CLI 自己的默认模型，用户看起来就是「我预选了，派出去却不是它」
 		ex.Model = &m
 	}
 	if e, ok := ov.Get("reasoningEffort").(string); ok && e != "" {

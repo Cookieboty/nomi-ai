@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom';
 
 import { GIT_BRANCH_CHANGED_EVENT } from '../../services/gitEvents';
 import { harnessClient, type GitBranchList, type GitOpCode } from '../../services/harnessClient';
+import { isImeComposing } from '../../utils/keyboard';
 import { promptDialog } from '../ConfirmDialog';
 import { gitErrorText } from '../SessionWorkspace/GitCommitBox';
 
@@ -164,7 +165,8 @@ export const BranchPicker: React.FC<{
                 data-testid={`${testId}-search`}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && shown[0]) void checkout(shown[0], false);
+                  if (e.key === 'Enter' && !isImeComposing(e.nativeEvent) && shown[0])
+                    void checkout(shown[0], false);
                 }}
               />
             </label>

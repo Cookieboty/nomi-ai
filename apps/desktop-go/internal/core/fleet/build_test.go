@@ -607,3 +607,22 @@ func TestBuildConversationOwnedAccept(t *testing.T) {
 		t.Errorf("not owned: need %q", a.NeedsYou)
 	}
 }
+
+func TestBuildWaitingForQuestion(t *testing.T) {
+	now := time.Now().UnixMilli()
+	st := Build(Input{
+		Now:   now,
+		Chats: []Chat{{ConversationID: "c1", StartedAt: now, WaitingUser: true}},
+		Tabs: []Tab{{
+			ID: "t1", Title: "问一下", Backend: "claude", Status: "running", HasSession: true,
+			UpdatedAt: now, Pids: []int{1}, PendingQuestions: 1,
+		}},
+	})
+	m := byID(st)
+	if a := m["chat:c1"]; a.NeedsYou != NeedQuestion || a.Column != ColRunning {
+		t.Fatalf("chat = %+v", a)
+	}
+	if a := m["tab:t1"]; a.NeedsYou != NeedQuestion || a.Column != ColRunning || a.Pausable {
+		t.Fatalf("tab = %+v", a)
+	}
+}

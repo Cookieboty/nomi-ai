@@ -1,6 +1,7 @@
 package upstream
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/cand"
@@ -84,5 +85,47 @@ func TestContext1mBeta(t *testing.T) {
 	}
 	if r := route.RectifierForBeta(400, text, nil, false); r != nil {
 		t.Fatalf("no beta sent, should not rectify: %+v", r)
+	}
+}
+
+func thinkingBody(model string) *u.Obj {
+	return u.NewObj(
+		"model", model,
+		"max_tokens", 128.0,
+		"messages", []any{u.NewObj("role", "user", "content", "hi")},
+		"thinking", u.NewObj("type", "enabled", "budget_tokens", 1024.0),
+	)
+}
+
+func hasThinking(body any) bool {
+	s := u.Stringify(body)
+	return strings.Contains(s, "enable_thinking") || strings.Contains(s, `"thinking"`) || strings.Contains(s, "reasoning_effort") || strings.Contains(s, "thinking_budget")
+}
+
+// Claude Code 默认带的 thinking.budget_tokens 是 client-default：跨协议转到非 Claude 上游时不打开思考。
+func TestClientDefaultThinkingNotApplied(t *testing.T) {
+	ds := relay(config.RuntimeModel{ID: "deepseek-chat", Enabled: true})
+	out, err := Body("messages", candOf(ds, "deepseek-chat", "chat"), thinkingBody("deepseek/deepseek-chat"), BodyOpts{Client: "claude", Stream: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasThinking(out) {
+		t.Fatalf("client-default thinking reached deepseek: %s", u.Stringify(out))
+	}
+	effort := "high"
+	on, err := Body("messages", candOf(ds, "deepseek-chat", "chat"), thinkingBody("deepseek/deepseek-chat"), BodyOpts{Client: "claude", Stream: true, BindingEffort: &effort})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasThinking(on) {
+		t.Fatalf("binding effort should still enable thinking: %s", u.Stringify(on))
+	}
+	cl := relay(config.RuntimeModel{ID: "claude-sonnet", Enabled: true, Like: sp("claude-sonnet-4.6")})
+	kept, err := Body("messages", candOf(cl, "claude-sonnet", "chat"), thinkingBody("claude-sonnet"), BodyOpts{Client: "claude", Stream: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasThinking(kept) {
+		t.Fatalf("claude upstream should keep client-default thinking: %s", u.Stringify(kept))
 	}
 }

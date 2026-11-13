@@ -27,7 +27,7 @@ if not "%SKIP_FRONTEND%"=="1" (
 
 echo == go build
 set CGO_ENABLED=1
-go build -o build\bin\nomi.exe . || exit /b 1
+go build -tags nomi_dev -o build\bin\nomi-dev.exe . || exit /b 1
 
 echo == run
-build\bin\nomi.exe %*
+build\bin\nomi-dev.exe %*

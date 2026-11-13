@@ -5,13 +5,26 @@ import (
 	"strings"
 )
 
-// 安全判定（纯函数）：哪些应用不能碰、哪些动作执行前必须让用户逐次确认。
+// 安全判定（纯函数）：哪些应用不能碰、哪些动作在用户还没授权时要先确认。
+// 对话里点过「允许」或开了「始终允许」之后，敏感动作也不再问（授权在 permission broker）；
+// 这里的黑名单是硬拒绝，授权覆盖不了。
 
-// blockedApps：密码管理器、钥匙串、银行 / 支付类应用，默认一律拒绝（读界面也不行：里面就是隐私）
+// nb：ASCII 词边界（Go 的 \b 在名称首尾同样适用）。短词用它，避免 keeper / bank / wallet 命中 Timekeeper 这类名字。
+const nb = `(?:^|[^a-z0-9])`
+
+// ne：词在这里结束（后面是非字母数字或字符串结尾）
+const ne = `(?:[^a-z0-9]|$)`
+
+// blockedApps：密码管理器、钥匙串、银行 / 支付类应用，默认一律拒绝（读界面也不行：里面就是隐私）。
+// 产品名前缀（keepass → KeePassXC）只要求词首边界；keeper / bank / wallet 要求整词，避免 Timekeeper、Timebank。
 var blockedApps = regexp.MustCompile(`(?i)` + strings.Join([]string{
-	`1password`, `bitwarden`, `keepass`, `lastpass`, `dashlane`, `enpass`, `proton ?pass`, `nordpass`, `roboform`, `keeper`,
-	`keychain`, `钥匙串`, `^passwords?$`, `^密码$`, `credential manager`, `凭据管理器`, `seahorse`, `kwallet`,
-	`bank`, `银行`, `alipay`, `支付宝`, `paypal`, `wallet`, `钱包`, `云闪付`, `银联`, `证券`, `brokerage`,
+	nb + `1password`, nb + `bitwarden` + ne, nb + `keepass`, nb + `lastpass` + ne, nb + `dashlane` + ne,
+	nb + `enpass` + ne, nb + `proton ?pass` + ne, nb + `nordpass` + ne, nb + `roboform` + ne, nb + `keeper` + ne,
+	nb + `keychain` + ne, `钥匙串`, `^passwords?$`, `^密码$`, nb + `credential manager` + ne, `凭据管理器`,
+	nb + `seahorse` + ne, nb + `kwallet`,
+	nb + `bank(?:s|ing)?` + ne, nb + `mbank` + ne, nb + `monobank` + ne,
+	`银行`, nb + `alipay` + ne, `支付宝`, nb + `paypal` + ne, nb + `wallets?` + ne, `钱包`, `云闪付`, `银联`, `证券`,
+	nb + `brokerage` + ne,
 }, "|"))
 
 // blockedBundles：bundle id 前缀（名字可能被本地化）
@@ -48,8 +61,8 @@ var sensitiveName = regexp.MustCompile(`(?i)` + strings.Join([]string{
 // 进程名与显示名都认）
 var settingsApp = regexp.MustCompile(`(?i)^(system settings|system preferences|系统设置|系统偏好设置|settings|设置|` +
 	`control panel|控制面板|systemsettings\d*|windows settings|windows 设置|` +
-	`gnome-control-center|org\.gnome\.settings|unity-control-center|budgie-control-center|cinnamon-settings|` +
-	`xfce4-settings-manager|mate-control-center|lxqt-config|deepin-control-center|kde system settings|` +
+	`gnome-control-center|gnome settings|gnome control center|org\.gnome\.settings|unity-control-center|budgie-control-center|cinnamon-settings|` +
+	`xfce4-settings-manager|mate-control-center|lxqt-config|deepin-control-center|kde system settings|kde settings|plasma settings|` +
 	`control center|控制中心)$`)
 
 // sensitiveCombos：发送（cmd/ctrl+return）、删除（cmd+backspace / shift+delete）、退出 / 关闭
@@ -83,7 +96,8 @@ func NormalizeCombo(c string) string {
 	return strings.Join(parts, "+")
 }
 
-// SensitiveAction：需要逐次确认时返回原因（"" = 普通动作，按工具的权限策略走）
+// SensitiveAction：敏感动作的原因（"" = 普通动作）。
+// 还没授权时工具层据此弹窗（卡片上写明原因）；这个对话点过「允许」或开了「始终允许」之后不再问。
 func SensitiveAction(kind string, ref *RefInfo, app, combo string) string {
 	if ref != nil && app == "" {
 		app = ref.App
@@ -96,7 +110,7 @@ func SensitiveAction(kind string, ref *RefInfo, app, combo string) string {
 		if ref != nil && sensitiveName.MatchString(ref.Name) {
 			return "「" + ref.Name + "」可能是付款、发送、删除或提交这类不可撤回的操作"
 		}
-		// 只有图标、没有名字的按钮：看不出点了会做什么（发送按钮常常就是这样），按敏感动作每次确认
+		// 只有图标、没有名字的按钮：看不出点了会做什么（发送按钮常常就是这样），标成敏感动作
 		if kind == "click" && ref != nil && strings.TrimSpace(ref.Name) == "" && clickableRole(ref.Role) {
 			return "这个" + ref.Role + "没有名字，看不出点了会做什么（可能是发送、删除这类操作）"
 		}

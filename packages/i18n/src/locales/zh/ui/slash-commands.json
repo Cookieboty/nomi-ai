@@ -148,7 +148,7 @@
   "ui.slash-commands.the-total-comes-from-the-real-usage-returned": "总量取自最近一次请求返回的真实用量；各类占比是按文字估算的。",
   "ui.slash-commands.the-window-size-comes-from-a-built-in": "窗口大小来自内置的常见模型对照表，可能与实际不符。",
   "ui.slash-commands.the-window-size-is-unknown-and-was-widened": "窗口大小未知，已按当前用量放宽，实际窗口可能更小。",
-  "ui.slash-commands.the-window-size-of-the-current-model-is": "无法识别当前模型的窗口大小，暂按 128K 估算。",
+  "ui.slash-commands.the-window-size-of-the-current-model-is": "无法识别当前模型的窗口大小，暂按 256K 估算。",
   "ui.slash-commands.there-is-no-command-named-it-was-blocked": "没有叫 /{0} 的命令，已拦下，没有发给模型。",
   "ui.slash-commands.this-command-contains-dynamic-commands-nomi-does-not": "这个命令里有 !`…` 动态命令。Nomi 不会运行嵌入的 shell 命令，已原样保留。",
   "ui.slash-commands.this-endpoint": "当前端",

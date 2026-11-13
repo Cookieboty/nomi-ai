@@ -12,6 +12,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/settings"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/migrate"
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -26,7 +27,15 @@ func write(t *testing.T, path, body string) {
 	}
 }
 
+func requireProductionMigration(t *testing.T) {
+	t.Helper()
+	if hostports.Development {
+		t.Skip("development builds do not import production data")
+	}
+}
+
 func TestMigrateElectronFixture(t *testing.T) {
+	requireProductionMigration(t)
 	security.UseMockKeyring()
 	appData := t.TempDir()
 	electron := filepath.Join(appData, "@nomi-ai/electron")

@@ -41,9 +41,19 @@ export const resourcePreviewClient = {
     if (!hasTransport()) return { ok: false, code: 'unavailable' };
     return (await api.harness.previewRenew({ url })) as unknown as PreviewResult;
   },
-  open: async (cwd: string, path: string, allowOutside = false): Promise<PreviewResult> => {
+  open: async (
+    cwd: string,
+    path: string,
+    allowOutside = false,
+    source = false,
+  ): Promise<PreviewResult> => {
     if (!hasTransport()) return { ok: false, code: 'unavailable' };
-    return (await api.harness.previewOpen({ cwd, path, allowOutside })) as unknown as PreviewResult;
+    return (await api.harness.previewOpen({
+      cwd,
+      path,
+      allowOutside,
+      ...(source ? { source: true } : {}),
+    })) as unknown as PreviewResult;
   },
   web: async (url: string): Promise<PreviewResult> => {
     if (!hasTransport()) return { ok: false, code: 'unavailable' };

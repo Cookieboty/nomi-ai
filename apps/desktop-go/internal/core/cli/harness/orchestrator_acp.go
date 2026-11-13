@@ -42,6 +42,7 @@ type acpLiveSession struct {
 	turn             *acpTurn
 	perms            map[string]func(allow *bool)
 	permOrder        []string
+	questions        map[string]func(*util.Obj, bool)
 	lastActivityAt   float64
 	ready            *jsrt.Promise[struct{}]
 	modeChange       *modeChange
@@ -68,6 +69,14 @@ func (l *acpLiveSession) cancelPerms() {
 		}
 	}
 }
+
+func (l *acpLiveSession) setQuestion(id string, f func(*util.Obj, bool)) {
+	if l.questions == nil {
+		l.questions = map[string]func(*util.Obj, bool){}
+	}
+	l.questions[id] = f
+}
+func (l *acpLiveSession) delQuestion(id string) { delete(l.questions, id) }
 
 // grokSteerMethod = GROK_STEER_METHOD：Grok 的 ACP 扩展，一轮进行中插入用户消息（参数 {sessionId, text}，实测 1.0.70）。
 const grokSteerMethod = "_x.ai/interject"
@@ -214,13 +223,30 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 		})
 		live := &acpLiveSession{
 			backend: backend, launchSig: spawnLaunch.sig, child: child, driver: driver, cwd: str(tab, "cwd"),
-			permissionMode: str(tab, "permissionMode"), perms: map[string]func(*bool){}, lastActivityAt: nowMs(),
+			permissionMode: str(tab, "permissionMode"), perms: map[string]func(*bool){},
+			questions: map[string]func(*util.Obj, bool){}, lastActivityAt: nowMs(),
 			ready: jsrt.Resolved(struct{}{}),
 		}
 		driver.On(func(e clisdk.SessionEvent) {
 			live.lastActivityAt = nowMs()
 			if e.Get("kind") == "harness" && truthy(e.Get("turnId")) && live.turn != nil {
 				o.onAcpEvents(id, live, []*util.Obj{util.AsObj(e.Get("event"))})
+			}
+			if e.Get("kind") == "question" {
+				pid := jsStr(e.Get("id"))
+				live.setQuestion(pid, func(body *util.Obj, cancel bool) {
+					live.delQuestion(pid)
+					driver.RespondQuestion(pid, body, cancel)
+				})
+				if o.QuestionHook != nil {
+					o.QuestionHook(id, util.NewObj("type", "question", "protocol", "acp",
+						"id", pid, "method", e.Get("method"), "params", e.Get("params")))
+					return
+				}
+				if f := live.questions[pid]; f != nil {
+					f(nil, true)
+				}
+				return
 			}
 			if e.Get("kind") != "permission" {
 				return
@@ -634,6 +660,15 @@ func (o *Orchestrator) syncAcpOverrides(tab *util.Obj, live *acpLiveSession) *js
 }
 
 func (o *Orchestrator) cancelAcpTurn(live *acpLiveSession) {
+	// Interrupt 会把还没答的提问直接拒绝掉；先按协议写回取消，卡片也收起来
+	if o.OnQuestionsCleared != nil {
+		for id, gl := range o.live.acp {
+			if gl == live {
+				o.OnQuestionsCleared(id)
+				break
+			}
+		}
+	}
 	live.driver.Interrupt()
 	live.cancelPerms()
 }

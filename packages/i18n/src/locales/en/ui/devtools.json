@@ -25,6 +25,7 @@
   "ui.devtools.process-io-n": "Process I/O {0}",
   "ui.devtools.raw-events": "Raw events",
   "ui.devtools.request-and-response": "Request and response",
+  "ui.devtools.returned-model": "Returned model",
   "ui.devtools.thinking": "Thinking",
   "ui.devtools.tokens": "Tokens",
   "ui.devtools.total-time": "Total time",

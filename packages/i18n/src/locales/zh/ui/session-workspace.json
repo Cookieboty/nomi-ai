@@ -1,4 +1,5 @@
 {
+  "ui.session-workspace.permission-reply-failed": "审批回复未能发送，请重试。",
   "ui.session-workspace.after-committing-run-a-plain-git-push-use": "提交完成后执行普通的 git push（没有上游分支时用 -u origin <当前分支>），不要 force-push。",
   "ui.session-workspace.approval-requests-denied-timed-out": "审批 {0} 次，拒绝 {1} 次，超时 {2} 次",
   "ui.session-workspace.ask-assistant-to-commit": "让助手提交",
@@ -159,7 +160,7 @@
   "ui.session-workspace.undo-commit": "撤销提交",
   "ui.session-workspace.undo-discard": "撤销放弃",
   "ui.session-workspace.undo-this-turn-s-writes-to-these-files": "撤销本轮对这些文件的写入？仅限工作区内，写回旧内容或安全 git checkout。",
-  "ui.session-workspace.unknown-model-assuming-a-128k-window": "未识别模型，窗口按 128K 计",
+  "ui.session-workspace.unknown-model-assuming-a-128k-window": "未识别模型，窗口按 256K 计",
   "ui.session-workspace.unsaved": "未保存",
   "ui.session-workspace.unstage": "取消暂存",
   "ui.session-workspace.unstage-all": "全部取消暂存",

@@ -112,6 +112,7 @@
       {
         "id": "deepseek-v4-pro",
         "ctx": 1000000,
+        "ctxStandard": 262144,
         "maxOutput": 393216,
         "reasoning": true,
         "vision": false,
@@ -120,6 +121,7 @@
       {
         "id": "deepseek-flash",
         "ctx": 1000000,
+        "ctxStandard": 262144,
         "maxOutput": 393216,
         "reasoning": true,
         "vision": true,
@@ -159,6 +161,7 @@
       {
         "id": "kimi-k3",
         "ctx": 1000000,
+        "ctxStandard": 262144,
         "maxOutput": 1048576,
         "reasoning": true,
         "vision": true,
@@ -219,6 +222,7 @@
       {
         "id": "glm-5.3",
         "ctx": 1000000,
+        "ctxStandard": 262144,
         "maxOutput": 131072,
         "reasoning": true,
         "vision": false,
@@ -227,6 +231,7 @@
       {
         "id": "glm-5.3-flash",
         "ctx": 1000000,
+        "ctxStandard": 262144,
         "maxOutput": 131072,
         "reasoning": true,
         "vision": true,
@@ -235,6 +240,7 @@
       {
         "id": "glm-5.2",
         "ctx": 1000000,
+        "ctxStandard": 262144,
         "maxOutput": 131072,
         "reasoning": true,
         "vision": false,
@@ -286,6 +292,7 @@
       {
         "id": "qwen3.8-max",
         "ctx": 1000000,
+        "ctxStandard": 262144,
         "maxOutput": 131072,
         "reasoning": true,
         "vision": true,
@@ -294,6 +301,7 @@
       {
         "id": "qwen3.8-flash",
         "ctx": 1000000,
+        "ctxStandard": 262144,
         "maxOutput": 131072,
         "reasoning": true,
         "vision": true,
@@ -302,6 +310,7 @@
       {
         "id": "qwen3.7-plus",
         "ctx": 1000000,
+        "ctxStandard": 262144,
         "maxOutput": 65536,
         "reasoning": true,
         "vision": true,
@@ -340,6 +349,7 @@
       {
         "id": "glm-5.3",
         "ctx": 1000000,
+        "ctxStandard": 262144,
         "maxOutput": 131072,
         "reasoning": true,
         "vision": false,
@@ -348,6 +358,7 @@
       {
         "id": "glm-5.3-flash",
         "ctx": 1000000,
+        "ctxStandard": 262144,
         "maxOutput": 131072,
         "reasoning": true,
         "vision": true,
@@ -391,6 +402,7 @@
       {
         "id": "qwen3.7-plus",
         "ctx": 1000000,
+        "ctxStandard": 262144,
         "maxOutput": 65536,
         "reasoning": true,
         "vision": true,
@@ -442,6 +454,7 @@
       {
         "id": "MiniMax-M3",
         "ctx": 1000000,
+        "ctxStandard": 262144,
         "maxOutput": 524288,
         "reasoning": true,
         "vision": true,
@@ -450,6 +463,7 @@
       {
         "id": "MiniMax-M3.1-Flash",
         "ctx": 1000000,
+        "ctxStandard": 262144,
         "maxOutput": 524288,
         "reasoning": true,
         "vision": true,

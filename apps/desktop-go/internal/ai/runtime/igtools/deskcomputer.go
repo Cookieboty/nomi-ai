@@ -1,8 +1,10 @@
 package igtools
 
 // computer_*：桌面级 Computer Use。经 agent-desktop 读系统无障碍树、按 ref 操作原生应用（headless：
-// 不动真实鼠标、不抢焦点）；坐标点击是物理输入，单独授权。确认 / 审计走 deskKit.confirm + run，
+// 不动真实鼠标、不抢焦点）；坐标点击是物理输入。还没授权时敏感动作和坐标点击会弹窗，
+// 这个对话点过「允许」或开了「始终允许」之后不再问。确认 / 审计走 deskKit.confirm + run，
 // 界面内容交给模型前做数据外发检查并标记本轮读过外部内容。后台任务里不提供。
+// 黑名单应用在执行前拒绝，紧急停止会封住这一轮，两者都不看授权。
 
 import (
 	"context"
@@ -177,7 +179,7 @@ func rawObj(r json.RawMessage) any {
 	return v
 }
 
-// sensitiveConfirm：敏感动作（付款 / 发送 / 删除 / 系统设置）每次都弹确认对话框，不认会话放行
+// sensitive：敏感动作带上强制弹窗标记。还没授权时会问；对话授权或「始终允许」在 broker 里放行，不再问。
 func sensitive(reason string) *struct{ Dialog bool } {
 	if reason == "" {
 		return nil
@@ -240,7 +242,7 @@ func (k *deskKit) computerTools() []tools.Definition {
 		}
 		return info.Role
 	}
-	// act：ref 上的动作：确认（敏感动作强制弹窗）→ 执行（STALE_REF 自动重定位一次）
+	// act：ref 上的动作：确认（未授权的敏感动作弹窗）→ 执行（STALE_REF 自动重定位一次）
 	act := func(ctx context.Context, ec tools.ExecContext, tool string, i *u.Obj, a computer.Action, summary func(info computer.RefInfo) string, preview *string) (any, string, error) {
 		if err := fg(ctx); err != nil {
 			return nil, "", err

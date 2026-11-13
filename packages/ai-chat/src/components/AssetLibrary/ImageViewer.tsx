@@ -39,6 +39,7 @@ import { gatewayClient, gatewayClientAvailable } from '../../services/gatewayCli
 import type { ConversationBackend } from '../../types/chat';
 import { copyImage } from '../../utils/copyImage';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import { isImeComposing } from '../../utils/keyboard';
 import { FEATURE_ICONS } from '../AppIcons';
 import { confirmDialog } from '../ConfirmDialog';
 import { EndpointIcon } from '../EndpointIcon';
@@ -224,7 +225,7 @@ const TagEditor: React.FC<{ tags: string[]; onChange?: (tags: string[]) => void 
             onChange={(e) => setText(e.target.value)}
             onBlur={commit}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') commit();
+              if (e.key === 'Enter' && !isImeComposing(e.nativeEvent)) commit();
               if (e.key === 'Escape') {
                 e.stopPropagation();
                 setText('');

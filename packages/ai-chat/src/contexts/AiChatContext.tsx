@@ -14,7 +14,6 @@ import React, {
 } from 'react';
 
 import { importChatImages } from '../services/chatImages';
-import { getSmartTitle } from '../services/chatPrefs';
 import { injectedMemoryIds, isCompaction } from '../services/compaction';
 import { notifyConversationsChanged } from '../services/conversationStore';
 import {
@@ -28,7 +27,6 @@ import {
 import { delegateResultMessage } from '../services/delegateMessage';
 import { desktopClient } from '../services/desktopClient';
 import { extClient } from '../services/extClient';
-import { splitFileAttachments } from '../services/fileAttachments';
 import {
   harnessClient,
   MAIN_TAB_ID,
@@ -40,15 +38,10 @@ import { createIPCClient } from '../services/IPCClient';
 import { kbClient } from '../services/kbClient';
 import { ingestConversation, memoryContext } from '../services/memClient';
 import { nomiModelLabel, servedModelLabel } from '../services/nomiModel';
+import { maybeStartNomiSmartTitle } from '../services/nomiSmartTitle';
 import { startReplySpeech, stopReplySpeech, type ReplySpeaker } from '../services/replySpeech';
 import { schedClient } from '../services/schedClient';
 import { screenClient, type ImageAttachment } from '../services/screenClient';
-import {
-  applyNomiSmartTitle,
-  armNomiAutoTitle,
-  generateSmartTitle,
-  isDefaultChatName,
-} from '../services/sessionTitle';
 import { type ChatMessage, type ChatConfig } from '../types/chat';
 import { type IPCClient } from '../types/ipc';
 import { ENDPOINT_NAME } from '../utils/endpointBadge';
@@ -295,32 +288,6 @@ export function openTurn(client: IPCClient): ConversationTurn {
   };
 }
 
-/** 首条用户消息落盘前：若仍是默认名则后台用当前 chat 模型生成标题（失败保留启发式）。 */
-function maybeStartNomiSmartTitle(
-  client: IPCClient,
-  convoId: string | undefined,
-  content: string,
-): void {
-  // 设置里关掉了：用第一句话作标题（conversationStore 落盘时起），不再额外请求模型
-  if (!convoId || !client.completeChatText || !getSmartTitle()) return;
-  const store = client.conversationStore?.();
-  const meta = store?.get(convoId);
-  const text = splitFileAttachments(content).text.trim();
-  if (!text || !meta || !isDefaultChatName(meta.name)) return;
-  armNomiAutoTitle(convoId);
-  const complete = client.completeChatText.bind(client);
-  void generateSmartTitle(text, (messages) => complete(messages)).then((title) => {
-    const store = client.conversationStore?.();
-    applyNomiSmartTitle(convoId, title, {
-      get: (id) => store?.get(id),
-      updateMeta: (id, patch) => {
-        store?.updateMeta(id, patch);
-      },
-      notify: notifyConversationsChanged,
-    });
-  });
-}
-
 /** 按 id 覆盖，不存在则追加（顺序保持：新的追加在末尾） */
 function upsertById(list: ChatMessage[], items: readonly ChatMessage[]): ChatMessage[] {
   let out = list;
@@ -547,6 +514,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           }
         }
 
+        // 标题与回复并行：不等请求回来（名字仍是默认名时才会真的请求模型）
+        maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
         const mem = await memoryContext(content, injectedMemoryIds(history));
         if (mem.text.trim()) userMessage.memory = { text: mem.text, ids: mem.ids };
         const response = await s.ipcClient.sendMessage(content, history, undefined, mem.text);
@@ -561,7 +530,6 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         };
         if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
 
-        maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
         await turn.save(userMessage);
         await turn.save(aiMessage);
         if (turn.exists()) maybeIngest([...history, userMessage, aiMessage], turn.convoId);
@@ -594,6 +562,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           .slice(-6)
           .map((m) => ({ role: m.role, content: m.content }));
         dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
+        // 标题与检索并行（名字仍是默认名时才会真的请求模型）
+        maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
         const r = await kbClient.ask(content, history);
         const aiMessage: ChatMessage = {
           id: (Date.now() + 1).toString(),
@@ -605,7 +575,6 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           kb: true,
         };
         if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
-        maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
         await turn.save(userMessage);
         await turn.save(aiMessage);
       } catch (error) {
@@ -789,6 +758,9 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           }
         }
 
+        // 标题不等这一轮结束：用户消息已确定，和回复并行生成（长任务不再一直显示「新对话」）
+        maybeStartNomiSmartTitle(client, turn.convoId, userMessage.content);
+
         // 新召回的记忆跟着本轮用户消息走（存进消息、之后每轮原样带），已在上下文里的不再召回；
         // 技能目录每轮不变，留在 system
         const [mem, skills] = await Promise.all([
@@ -923,6 +895,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
             content: accumulated,
             error: errorMessage(err),
             durationMs: Date.now() - startedAt,
+            ...(usage?.responseModel ? { responseModel: usage.responseModel } : {}),
             ...(trace.length ? { trace: [...trace] } : {}),
           };
           if (turn.isActive())
@@ -943,6 +916,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           ...aiMessage,
           // 故障转移后实际回答的可能是另一家：按网关报回的写
           ...(usage?.model ? { modelId: servedModelLabel(usage.model) } : {}),
+          ...(usage?.responseModel ? { responseModel: usage.responseModel } : {}),
           content: accumulated,
           durationMs: Date.now() - startedAt,
           ...(trace.length ? { trace: [...trace] } : {}),

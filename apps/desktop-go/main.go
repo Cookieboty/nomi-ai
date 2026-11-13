@@ -2,7 +2,8 @@
 // 说明见 README.md 与 docs/development/architecture.md。
 //
 //	NOMI_POC_CTL=127.0.0.1:PORT：测量 / CI 用的控制口（/ctl?op=show-chat|close-chat|hide-mascot|show-mascot|island-test|renderer&v=svg|rive|quit）。
-//	NOMI_USER_DATA / NOMI_APP_DATA：覆盖 userData / appData 根（测试与迁移用）。
+//	NOMI_USER_DATA / NOMI_APP_DATA：覆盖正式版 userData / appData 根（测试与迁移用）。
+//	NOMI_DEV_USER_DATA / NOMI_DEV_APP_DATA：nomi_dev 构建专用覆盖，不继承正式版路径。
 //	NOMI_DEV_VIEWS：开发态视图改由 Vite 开发服务器提供（pnpm dev:go 设置，见 internal/shell/devviews）。
 //	NOMI_PPROF=127.0.0.1:PORT：在回环地址提供 /debug/pprof/（排查内存 / CPU，见 pprof.go）。
 package main
@@ -97,7 +98,8 @@ func main() {
 	if exe, err := os.Executable(); err == nil {
 		parse.EnableWorker(exe)
 	}
-	paths := hostports.Paths{UserDataDir: os.Getenv("NOMI_USER_DATA")}
+	isolateDevelopmentCLIEnvironment()
+	paths := hostports.DefaultPaths()
 	userData := paths.UserData()
 	if err := os.MkdirAll(userData, 0o700); err != nil {
 		log.Fatal(err)
@@ -357,8 +359,14 @@ func main() {
 	// GatewayStore：userData/gateway/store.json（格式 / 迁移 / 归档见 gwstore）
 	gatewaySvc = gwstore.NewServiceForUserData(userData, gwstore.NewCipher(providerBox), nil)
 	gatewaySvc.Store.SetPresetDeps(gwstore.FindPresetDeps())
+	// 开发版用系统分配的端口，避免占用正式版网关（默认 18721）。
+	var gatewayPort *int
+	if hostports.Development {
+		port := 0
+		gatewayPort = &port
+	}
 	gatewaySvc.AttachRuntime(gwstore.RuntimeDeps{
-		Root: filepath.Join(userData, "gateway"), Lazy: true, Env: processEnv(),
+		Root: filepath.Join(userData, "gateway"), Port: gatewayPort, Lazy: true, Env: processEnv(),
 		RouteListening: func() bool { return false },
 		Broadcast:      func(ev string, p any) { router.Emit(ev, p) },
 		EnvProviders:   func() []gwstore.EnvProvider { return shellhandlers.GatewayEnvProviders(processEnv()) },
@@ -415,6 +423,7 @@ func main() {
 			ModelRef: req.ModelRef, EditFrom: req.EditFrom, References: req.References})
 		return r.File, err
 	})
+	wireAskUser(router)
 	registerIgTools(toolRegistry, userProfile, &aiFacade, b8.KB, b8.Mem, b8.Ext, desktopSvc,
 		imgDeps, b8.Tasks, b8.Conns)
 	mcpLog := mcpLogger{}
@@ -471,7 +480,18 @@ func main() {
 		}})
 	chatHandlers.Register(router)
 	computerChats = chatHandlers
+	shellhandlers.OnConversationDeleted = func(id string) {
+		chatHandlers.AbortConversation(id)
+		if askBroker != nil {
+			askBroker.CancelConversation(id)
+		}
+	}
 	defer chatHandlers.Dispose()
+	defer func() {
+		if askBroker != nil {
+			askBroker.CancelAll()
+		}
+	}()
 	// AIClient 门面：ai.sessions / tools / memory / asr / tts / avatar（32 个过程）。
 	aiFacade = aifacade.New(aifacade.Options{Now: nowMs, Tools: toolRegistry, Profile: userProfile, Avatar: true,
 		AvatarHost: func(cue *util.Obj) { router.Emit("avatar.event", cue) }, Emit: router.Emit})

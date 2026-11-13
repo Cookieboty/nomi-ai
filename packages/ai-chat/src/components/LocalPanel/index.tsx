@@ -35,6 +35,7 @@ import {
   type OllamaModel,
   type Progress,
 } from '../../services/localClient';
+import { isImeComposing } from '../../utils/keyboard';
 import { confirmDialog } from '../ConfirmDialog';
 
 import styles from './index.module.css';
@@ -459,7 +460,7 @@ export const LocalPanel: React.FC<{
             placeholder={t('ui.knowledge-local.model-name-e-g-qwen3-0-6b')}
             onChange={(e) => setPullName(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && pullName.trim())
+              if (e.key === 'Enter' && !isImeComposing(e.nativeEvent) && pullName.trim())
                 void run('pull', () => localClient.ollamaPull(pullName.trim()), loadOllama);
             }}
             data-testid="ollama-name"

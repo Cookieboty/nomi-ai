@@ -21,6 +21,24 @@ func TestNomiContextBudget(t *testing.T) {
 	}
 }
 
+func TestApplyContextTier(t *testing.T) {
+	if got := ApplyContextTier(1_000_000, 0); got != 1_000_000 {
+		t.Fatalf("no cap: %v", got)
+	}
+	if got := ApplyContextTier(1_000_000, ContextTier256k); got != ContextTier256k {
+		t.Fatalf("256k cap: %v", got)
+	}
+	if got := ApplyContextTier(163_840, ContextTier256k); got != 163_840 {
+		t.Fatalf("smaller than cap: %v", got)
+	}
+	if got := ApplyContextTier(200_000, ContextTier128k); got != ContextTier128k {
+		t.Fatalf("128k cap: %v", got)
+	}
+	if AllowedContextTier(1) || !AllowedContextTier(ContextTier200k) {
+		t.Fatal("allowed tiers")
+	}
+}
+
 func TestApplyNomiContext(t *testing.T) {
 	info := u.NewObj("budget", float64(168_000))
 	var roles []string

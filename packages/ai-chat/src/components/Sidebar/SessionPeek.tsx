@@ -12,10 +12,11 @@ import { createPortal } from 'react-dom';
 import type { HarnessTabMeta } from '../../services/harnessClient';
 import { sessionPlace } from '../../services/projects';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import { isImeComposing } from '../../utils/keyboard';
 import { EndpointIcon } from '../EndpointIcon';
 
 import rail from './SessionPeek.module.css';
-import { liveOf, rel } from './SidebarRows';
+import { rel, rowLive } from './SidebarRows';
 import type { Meta } from './types';
 
 /** 状态点对应的文字；没有特别状态时不显示 */
@@ -30,8 +31,8 @@ const LIVE_LABEL: Record<string, string> = {
 
 export const sessionName = (c: Meta) => (c.name ? t(c.name) : t('ui.chat-settings.new-chat'));
 
-export const sessionStatus = (tab: HarnessTabMeta | undefined): string => {
-  const key = LIVE_LABEL[liveOf(tab)];
+export const sessionStatus = (tab: HarnessTabMeta | undefined, running?: boolean): string => {
+  const key = LIVE_LABEL[rowLive(tab, running)];
   return key ? t(key) : '';
 };
 
@@ -95,6 +96,8 @@ export function useSessionPeek(delay: number) {
 export const SessionPeek: React.FC<{
   c: Meta;
   tab: HarnessTabMeta | undefined;
+  /** Nomi 对话正在回复（没有标签，状态从 AiChat 的 busyConvos 来） */
+  running?: boolean;
   top: number;
   left: number;
   testId?: string;
@@ -102,10 +105,10 @@ export const SessionPeek: React.FC<{
   onRename?: (id: string, name: string | null) => void;
   onHold?: () => void;
   onRelease?: () => void;
-}> = ({ c, tab, top, left, testId = 'session-peek', onRename, onHold, onRelease }) => {
+}> = ({ c, tab, running, top, left, testId = 'session-peek', onRename, onHold, onRelease }) => {
   useLocale();
   const [editing, setEditing] = useState(false);
-  const status = sessionStatus(tab);
+  const status = sessionStatus(tab, running);
   const place = sessionPlace(c, tab);
   const name = sessionName(c);
   const commit = (v: string | null) => {
@@ -138,6 +141,7 @@ export const SessionPeek: React.FC<{
             onBlur={(e) => commit(e.currentTarget.value)}
             onKeyDown={(e) => {
               e.stopPropagation();
+              if (isImeComposing(e.nativeEvent)) return;
               if (e.key === 'Enter') commit(e.currentTarget.value);
               if (e.key === 'Escape') {
                 setEditing(false);

@@ -4,6 +4,7 @@ import (
 	"math"
 	"regexp"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/modelid"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/server"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
@@ -279,6 +280,18 @@ func FromGateway(e *u.Obj, id string, cost CostFn) *u.Obj {
 	}
 	if hasUp {
 		rec.Set("upstreamModel", upstream)
+	}
+	if raw, ok := str(get(e, "responseModel"), 200); ok {
+		asked := []string{}
+		if hasModel {
+			asked = append(asked, model)
+		}
+		if hasUp {
+			asked = append(asked, upstream)
+		}
+		if m := modelid.Mismatch(asked, raw); m != "" {
+			rec.Set("responseModel", m)
+		}
 	}
 	famSrc := model
 	if hasUp {

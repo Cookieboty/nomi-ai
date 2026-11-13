@@ -111,33 +111,63 @@ export const ComputerSection: React.FC<{
   const [result, setResult] = useState<InstallResult | null>(null);
   const [checkedNow, setCheckedNow] = useState(false);
 
-  const load = useCallback(async (refresh: boolean) => {
+  const load = useCallback(async (refresh: boolean, fresh = false) => {
     if (!hasTransport()) return;
-    const s = (await api.computer.state({ refresh })) as ComputerState;
+    const input: { refresh?: boolean; fresh?: boolean } = {};
+    if (refresh) input.refresh = true;
+    if (fresh) input.fresh = true;
+    const s = (await api.computer.state(input)) as ComputerState;
     setState(s);
   }, []);
 
   useEffect(() => {
     if (!hasTransport()) return undefined;
     let alive = true;
-    void api.computer.state({}).then((s) => {
-      if (alive) setState(s as ComputerState);
-    });
-    // 从系统设置授权回来：重新读权限（下一次 agent-desktop 调用就能看到新的授权）
+    let focusTimer = 0;
+    let inflight = false;
+    let again = false;
+    // 读状态。不带 fresh：几秒内内核复用上一次的 agent-desktop 结果。
+    const pull = () => {
+      if (!alive) return;
+      if (inflight) {
+        again = true;
+        return;
+      }
+      inflight = true;
+      void api.computer
+        .state({})
+        .then((s) => {
+          if (alive) setState(s as ComputerState);
+        })
+        .finally(() => {
+          inflight = false;
+          if (again && alive) {
+            again = false;
+            pull();
+          }
+        });
+    };
+    pull();
+    // 从系统设置授权回来会重新聚焦。控制台窗口抢焦点时会连着触发，合并成一次，
+    // 避免反复拉起 agent-desktop（再叠一层内核缓存）。
     const onFocus = () => {
-      void api.computer.state({}).then((s) => {
-        if (alive) setState(s as ComputerState);
-      });
+      window.clearTimeout(focusTimer);
+      focusTimer = window.setTimeout(() => {
+        if (alive) pull();
+      }, 500);
     };
     window.addEventListener('focus', onFocus);
-    // 后台查到新版本等：重新读一次（打开页面时不等网络）
-    const offChanged = api.on('computer.changed', () => onFocus());
+    // 后台查到新版本等：重新读一次（打开页面时不等网络；版本缓存仍在，不会再启进程）
+    const offChanged = api.on('computer.changed', () => {
+      if (alive) pull();
+    });
     // 谁在操作桌面：「停止」按钮跟着出现 / 消失
     const off = api.on('computer.activity', (e) => {
       if (alive) setState((s) => (s ? { ...s, active: e.active } : s));
     });
     return () => {
       alive = false;
+      window.clearTimeout(focusTimer);
       off();
       offChanged();
       window.removeEventListener('focus', onFocus);
@@ -180,7 +210,7 @@ export const ComputerSection: React.FC<{
   const recheck = async () => {
     setRechecking(true);
     try {
-      await load(false);
+      await load(false, true);
     } finally {
       setRechecking(false);
     }
@@ -188,7 +218,7 @@ export const ComputerSection: React.FC<{
 
   const openGuide = async () => {
     await api.computer.openGuide();
-    window.setTimeout(() => void load(false), 1500);
+    window.setTimeout(() => void load(false, true), 1500);
   };
 
   if (!hasTransport()) {

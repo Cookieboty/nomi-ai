@@ -5,11 +5,23 @@ import { byCli, cliName } from '@nomi-ai/cli-catalog';
  * 有阻塞原因时才弹框说明，没有写权限时不会偷偷提权，只提供「改装到用户目录」或自行在终端处理。
  * 进度与日志来自主进程按行推送的事件；成功后日志自动收起，失败原因原样保留。
  */
-import { Badge, type BadgeTone, Button, Notice, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
+import {
+  Badge,
+  type BadgeTone,
+  Button,
+  createLogger,
+  Notice,
+  SettingRow,
+  SettingsGroup,
+  t,
+} from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   cliUpdateClient,
+  inspectGeneration,
+  isInspectUpdated,
+  whenInspectUpdated,
   type CliInstallInfo,
   type CliInstallPlan,
   type CliInstallScope,
@@ -23,6 +35,7 @@ import { CliPlanDialog } from './CliPlanDialog';
 import styles from './index.module.css';
 
 const NAME: Record<CliUpdatableKind, string> = byCli(cliName);
+const log = createLogger('cli-inspect');
 
 export type VersionState = 'missing' | 'outdated' | 'current' | 'unknown';
 
@@ -63,14 +76,42 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
     async (refreshLatest: boolean) => {
       // 后台静默校验（已有结果）不占用按钮；显式「检查更新」才显示「检查中…」
       const quiet = !refreshLatest && cachedInfo(kind) !== null;
+      // TEMP(cli-inspect): 定位用，后续可随时移除
+      log.info('CliVersionCard inspect start', { kind, refreshLatest, quiet });
       if (!quiet) setChecking(true);
       setError('');
+      const epoch = inspectGeneration();
       try {
         const rows = await cliUpdateClient.inspect(refreshLatest);
-        setInfo(Array.isArray(rows) ? (rows.find((r) => r.kind === kind) ?? null) : null);
+        const list = cliUpdateClient.cached() ?? rows;
+        const row = Array.isArray(list) ? (list.find((r) => r.kind === kind) ?? null) : null;
+        setInfo(row);
+        // TEMP(cli-inspect): 定位用，后续可随时移除
+        log.info('CliVersionCard inspect received', {
+          kind,
+          rows: Array.isArray(list) ? list.length : 0,
+          path: row?.path ?? null,
+          version: row?.version ?? null,
+          latest: row?.latest ?? null,
+        });
+        // 首次检测不等 npm；「检查更新」等到后台 latest 推上来（或超时）再结束「检查中…」
+        if (refreshLatest && inspectGeneration() === epoch) {
+          // TEMP(cli-inspect): 定位用，后续可随时移除
+          log.info('CliVersionCard waiting for updated event', { kind, epoch });
+          await whenInspectUpdated(epoch);
+          const next = cliUpdateClient.cached();
+          if (next) setInfo(next.find((r) => r.kind === kind) ?? null);
+        }
       } catch (e) {
+        // TEMP(cli-inspect): 定位用，后续可随时移除
+        log.warn('CliVersionCard inspect failed', {
+          kind,
+          error: e instanceof Error ? e.message : String(e),
+        });
         setError(e instanceof Error ? e.message : String(e));
       } finally {
+        // TEMP(cli-inspect): 定位用，后续可随时移除
+        log.info('CliVersionCard inspect finally; cleared spinner', { kind, refreshLatest, quiet });
         setChecking(false);
         setLoaded(true);
       }
@@ -102,6 +143,11 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
     void load(false);
     let alive = true;
     const off = cliUpdateClient.onEvent((e) => {
+      if (isInspectUpdated(e)) {
+        const list = e.rows ?? cliUpdateClient.cached();
+        if (list) setInfo(list.find((r) => r.kind === kind) ?? null);
+        return;
+      }
       if (e.kind !== kind) return;
       if (e.phase === 'start') {
         setRunning(true);

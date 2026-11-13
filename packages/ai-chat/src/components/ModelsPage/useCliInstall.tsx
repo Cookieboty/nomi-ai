@@ -3,12 +3,13 @@
  * （inspect 判断是否安装、preview 做前置检查、run 执行），不另写安装命令。
  * 前置检查通过就直接安装；有阻塞原因（Node 太旧、没有写权限等）才弹 CliPlanDialog 说明。
  */
-import { ModalHostContext, t } from '@nomi-ai/ui';
+import { createLogger, ModalHostContext, t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import type { CliKind } from '../../services/cliSource';
 import {
   cliUpdateClient,
+  isInspectUpdated,
   type CliInstallInfo,
   type CliInstallPlan,
   type CliInstallScope,
@@ -16,6 +17,8 @@ import {
 } from '../../services/cliUpdateClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { CliPlanDialog } from '../ProvidersPage/CliPlanDialog';
+
+const log = createLogger('cli-inspect');
 
 export interface CliInstallState {
   /** 主进程明确报告没装（没有返回这个端点时不算没装） */
@@ -50,10 +53,26 @@ export function useCliInstall(
 
   const load = useCallback(() => {
     if (!cliUpdateClient.available()) return;
+    // TEMP(cli-inspect): 定位用，后续可随时移除
+    log.info('useCliInstall inspect start');
     cliUpdateClient
       .inspect(false)
-      .then((rows) => setInfos(Array.isArray(rows) ? rows : []))
-      .catch(() => undefined);
+      .then((rows) => {
+        const list = Array.isArray(rows) ? rows : [];
+        // TEMP(cli-inspect): 定位用，后续可随时移除
+        log.info('useCliInstall inspect success', {
+          rows: list.length,
+          installed: list.filter((r) => !!r.path).length,
+        });
+        setInfos(list);
+      })
+      .catch((err: unknown) => {
+        // TEMP(cli-inspect): 定位用，后续可随时移除
+        log.warn('useCliInstall inspect failed; infos=[]', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        setInfos([]);
+      });
   }, []);
 
   useEffect(() => {
@@ -64,6 +83,11 @@ export function useCliInstall(
       .then((kinds) => setBusy(new Set(kinds)))
       .catch(() => undefined);
     return cliUpdateClient.onEvent((e) => {
+      if (isInspectUpdated(e)) {
+        if (Array.isArray(e.rows)) setInfos(e.rows);
+        else load();
+        return;
+      }
       if (e.phase === 'start') mark(e.kind, true);
       else if (e.phase === 'done' || e.phase === 'error') {
         mark(e.kind, false);

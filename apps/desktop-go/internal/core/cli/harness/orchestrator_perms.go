@@ -61,6 +61,14 @@ func (o *Orchestrator) ReplyPermission(tabID, requestID string, allow bool, reas
 		}
 	}
 	if IsExecutePlanID(requestID) {
+		// A late click after cancellation or completion must not start an untracked turn.
+		if o.pendingPerms.Get(tabID)[requestID] == nil {
+			return false
+		}
+		task := o.taskSends[tabID]
+		if task != nil && (task.stopped || task.planID != requestID || task.plan == nil || task.plan.Settled()) {
+			return false
+		}
 		o.clearOnePermissionTimeout(tabID, requestID)
 		choice := approvePlan
 		if choice == "" {
@@ -83,6 +91,10 @@ func (o *Orchestrator) ReplyPermission(tabID, requestID string, allow bool, reas
 				mode = "acceptEdits"
 			}
 			o.tryWarn("harness execute-plan mode switch failed", func() { o.SetTabPermissionMode(tabID, mode, PermOpts{}) })
+			if task != nil {
+				task.plan.Resolve(true)
+				return true
+			}
 			p := o.SendTab(tabID, i18n.T(ExecutePlanFollowUp), nil, false)
 			jsrt.Async(func() (struct{}, error) {
 				if _, err := jsrt.Await(p); err != nil {
@@ -94,6 +106,9 @@ func (o *Orchestrator) ReplyPermission(tabID, requestID string, allow bool, reas
 			o.countDelegatedApproval(tabID, "timedOut")
 		} else if !allow {
 			o.countDelegatedApproval(tabID, "denied")
+		}
+		if task != nil {
+			task.plan.Resolve(false)
 		}
 		return true
 	}
@@ -160,6 +175,67 @@ func (o *Orchestrator) ReplyPermission(tabID, requestID string, allow bool, reas
 // replyPermission：内部调用（reason 缺省）。
 func (o *Orchestrator) replyPermission(tabID, requestID string, allow bool) bool {
 	return o.ReplyPermission(tabID, requestID, allow, "", "")
+}
+
+// ReplyLiveQuestion：把问题卡的结果写回 Codex / ACP 正在等的那次请求。调用方已在 jsrt 上。
+// cancel 为真时 Codex 的 request_user_input 以错误结束；elicitation 的取消写在 body 里，cancel 为假。
+func (o *Orchestrator) ReplyLiveQuestion(tabID, requestID string, body *util.Obj, cancel bool) bool {
+	if cl := o.live.codex[tabID]; cl != nil {
+		if f := cl.questions[requestID]; f != nil {
+			f(body, cancel)
+			return true
+		}
+	}
+	if gl := o.live.acp[tabID]; gl != nil {
+		if f := gl.questions[requestID]; f != nil {
+			f(body, cancel)
+			return true
+		}
+	}
+	return false
+}
+
+// ReplyClaudeQuestion：回答 Claude Code 的 AskUserQuestion。allow 时把带 answers 的 input 写回去；
+// 否则拒绝。调用方已在 jsrt 上。
+func (o *Orchestrator) ReplyClaudeQuestion(tabID, requestID string, allow bool, updated *util.Obj, reason string) bool {
+	var stdin interface {
+		Writable() bool
+		Write(string) bool
+	}
+	if c := o.children.Get(tabID); c != nil {
+		stdin = c.Stdin()
+	} else if l := o.live.claude[tabID]; l != nil && l.child != nil {
+		stdin = l.child.Stdin()
+	}
+	if stdin == nil || requestID == "" || !stdin.Writable() {
+		return false
+	}
+	var resp *util.Obj
+	if allow {
+		resp = util.NewObj("behavior", "allow")
+		if updated != nil {
+			resp.Set("updatedInput", updated)
+		}
+	} else {
+		msg := i18n.T("electron.common.the-user-didn-t-allow-this-call")
+		if reason == "timeout" {
+			msg = i18n.T("electron.common.timed-out")
+		}
+		resp = util.NewObj("behavior", "deny", "message", msg)
+	}
+	payload := util.NewObj("type", "control_response", "response",
+		util.NewObj("subtype", "success", "request_id", requestID, "response", resp))
+	ok := true
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				o.d.Logger.Warn("harness question reply failed", r)
+				ok = false
+			}
+		}()
+		stdin.Write(util.Stringify(payload) + "\n")
+	}()
+	return ok
 }
 
 // ReplyApprovePlan = replyApprovePlan。
@@ -306,7 +382,7 @@ func (o *Orchestrator) performTakeover(id string) *jsrt.Promise[struct{}] {
 			return struct{}{}, nil
 		}
 		o.markTakenOver(id)
-		if s := tab.Get("status"); s == "running" || s == "queued" {
+		if s := tab.Get("status"); s == "running" || s == "queued" || o.taskSends[id] != nil {
 			if !o.CancelTab(id) {
 				throw(i18n.T("electron.common.cannot-take-over-the-previous-turn-is-still"))
 			}
@@ -365,6 +441,9 @@ func (o *Orchestrator) clearOnePermissionTimeout(tabID, requestID string) {
 
 // clearPermissionTimeouts = clearPermissionTimeouts。
 func (o *Orchestrator) clearPermissionTimeouts(tabID string) {
+	if o.OnQuestionsCleared != nil {
+		o.OnQuestionsCleared(tabID)
+	}
 	m := o.pendingPerms.Get(tabID)
 	if m == nil {
 		return

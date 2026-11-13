@@ -2,9 +2,7 @@
 import { t } from '@nomi-ai/ui';
 import React, { useRef } from 'react';
 
-import type { ReasoningEffort } from '../../services/harnessClient';
-
-import { effortLabel } from './effortLabel';
+import { thinkingLevelLabel } from './effortLabel';
 import styles from './index.module.css';
 
 /** 滑块直径（与 CSS 的 .slider --thumb 一致） */
@@ -17,11 +15,13 @@ const THUMB = 18;
  * 拖动中只预览，松手才提交，避免每移一格就重启一次 Claude 长驻进程。
  */
 export const EffortSlider: React.FC<{
-  levels: ReasoningEffort[];
-  value: ReasoningEffort | null;
-  onPreview: (e: ReasoningEffort | null) => void;
-  onCommit: (e: ReasoningEffort) => void;
-}> = ({ levels, value, onPreview, onCommit }) => {
+  levels: readonly string[];
+  value: string | null;
+  onPreview: (e: string | null) => void;
+  onCommit: (e: string) => void;
+  /** 档位显示名。缺省用思考深度的文案（与编程助手的滑杆相同） */
+  labelFor?: (id: string) => string;
+}> = ({ levels, value, onPreview, onCommit, labelFor = thinkingLevelLabel }) => {
   const trackRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const idx = value ? levels.indexOf(value) : -1;
@@ -29,7 +29,7 @@ export const EffortSlider: React.FC<{
   // 第 i 档在「轨道宽 - 滑块宽」区间里的偏移（两端各留半个滑块）
   const at = (i: number, plus = 0) => `calc((100% - ${THUMB}px) * ${i / last} + ${plus}px)`;
 
-  const levelAt = (clientX: number): ReasoningEffort => {
+  const levelAt = (clientX: number): string => {
     const r = trackRef.current?.getBoundingClientRect();
     if (!r || r.width <= THUMB) return levels[Math.max(idx, 0)];
     const ratio = (clientX - r.left - THUMB / 2) / (r.width - THUMB);
@@ -52,7 +52,7 @@ export const EffortSlider: React.FC<{
         aria-valuemin={0}
         aria-valuemax={levels.length - 1}
         aria-valuenow={idx < 0 ? undefined : idx}
-        aria-valuetext={value ? effortLabel(value) : t('ui.providers-schedule.default')}
+        aria-valuetext={value ? labelFor(value) : t('ui.providers-schedule.default')}
         data-testid="effort-slider"
         onKeyDown={(e) => {
           if (e.key === 'ArrowRight' || e.key === 'ArrowUp') step(idx < 0 ? 0 : idx + 1);
@@ -103,7 +103,7 @@ export const EffortSlider: React.FC<{
               if (l !== value) onCommit(l);
             }}
           >
-            {effortLabel(l)}
+            {labelFor(l)}
           </span>
         ))}
       </div>

@@ -204,15 +204,16 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 		}
 		steps++
 		var (
-			content      []*stepContent
-			active       = map[string]*stepContent{}
-			calls        []parsedCall
-			outcomes     []toolOutcome
-			terminal     bool
-			outputChunk  bool
-			finishReason = "other"
-			stepUsage    Usage
-			sawFinish    bool
+			content       []*stepContent
+			active        = map[string]*stepContent{}
+			calls         []parsedCall
+			outcomes      []toolOutcome
+			terminal      bool
+			outputChunk   bool
+			finishReason  = "other"
+			stepUsage     Usage
+			sawFinish     bool
+			responseModel string
 		)
 	read:
 		for {
@@ -228,6 +229,12 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 				break read
 			}
 			switch chunk.Type {
+			case "response-metadata":
+				if chunk.Meta != nil && chunk.Meta.ModelID != nil {
+					if s := strings.TrimSpace(*chunk.Meta.ModelID); s != "" {
+						responseModel = s
+					}
+				}
 			case "text-start", "reasoning-start":
 				kind := strings.TrimSuffix(chunk.Type, "-start")
 				c := &stepContent{kind: kind, text: &strings.Builder{}}
@@ -329,7 +336,7 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 			return
 		}
 		total = addUsage(total, stepUsage)
-		emit(Part{Type: "finish-step", FinishReason: finishReason, Usage: stepUsage, Headers: resp.ResponseHeaders})
+		emit(Part{Type: "finish-step", FinishReason: finishReason, Usage: stepUsage, Headers: resp.ResponseHeaders, ResponseModel: responseModel})
 		client := 0
 		for _, c := range calls {
 			if c.ProviderExecuted != true {

@@ -158,13 +158,14 @@ type beatReporter struct {
 	completed chan AttemptResult
 }
 
-func (r *beatReporter) Heartbeat()                { r.beats.Add(1) }
-func (r *beatReporter) Usage(UsageDelta)          {}
-func (r *beatReporter) NeedsUser(EventWait)       {}
-func (r *beatReporter) Completed(a AttemptResult) { r.completed <- a }
-func (r *beatReporter) Failed(TaskError)          {}
-func (r *beatReporter) TakenOver()                {}
-func (r *beatReporter) Carrier(Carrier)           {}
+func (r *beatReporter) Heartbeat()                      { r.beats.Add(1) }
+func (r *beatReporter) Usage(UsageDelta)                {}
+func (r *beatReporter) PermissionResolved(string, bool) {}
+func (r *beatReporter) NeedsUser(EventWait)             {}
+func (r *beatReporter) Completed(a AttemptResult)       { r.completed <- a }
+func (r *beatReporter) Failed(TaskError)                {}
+func (r *beatReporter) TakenOver()                      {}
+func (r *beatReporter) Carrier(Carrier)                 {}
 
 func TestNomiConversationHeartbeatDuringToolCall(t *testing.T) {
 	var tickMu sync.Mutex

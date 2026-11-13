@@ -57,6 +57,15 @@ export interface GatewayModel {
     vision?: boolean;
     source: MetaSource;
     maxOutputSource: MetaSource;
+    /**
+     * 这个模型可调的思考深度。没有（或少于两档）时输入栏不显示选择器，请求也不带推理参数。
+     * default 是 levels 的第二档。
+     */
+    thinking?: {
+      control: string;
+      levels: string[];
+      default: string;
+    };
     /** 可开长上下文：标准窗口 / 最大输入 / 模型默认是否开启 / 超过标准窗口后的单价（USD 每百万 token） */
     longContext?: {
       standard: number;
@@ -197,6 +206,8 @@ export interface GatewayState {
   port: number;
   /** 严格模式（默认关）：模型不支持的参数直接报错，而不是丢弃并记录 */
   strictParams?: boolean;
+  /** 上下文档位。缺省 / 0 = 跟模型；128000 / 200000 / 262144 是硬上限 */
+  contextTier?: number;
   /** 入站请求体上限（字节）；默认 32 MiB */
   maxRequestBodyBytes?: number;
   /** 隐私模式（默认开）：发往云端第三方供应商前把密钥换成占位符；旧主进程没有这个字段 */
@@ -391,6 +402,7 @@ export const gatewayClient = {
   setOptions: (patch: {
     strictParams?: boolean;
     maxRequestBodyBytes?: number;
+    contextTier?: number;
     privacyMode?: boolean;
     privacyStrict?: boolean;
     privacyLocal?: boolean;

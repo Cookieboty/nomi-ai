@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/askuser"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/harness"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
@@ -58,8 +59,12 @@ type islandPendingHub struct {
 }
 
 // wireIslandPending：接上来源与灵动岛；返回释放函数
+// islandHub：问题卡出现时让灵动岛重读（askuser_wiring.go）
+var islandHub *islandPendingHub
+
 func wireIslandPending(isl *island.Service, src islandPendingSources) func() {
 	h := &islandPendingHub{isl: isl, src: src, actions: map[string]map[string]func() error{}, stopTick: make(chan struct{})}
+	islandHub = h
 	isl.SetResolver(h.act)
 	isl.SetOpener(h.openItem)
 	var offs []func()
@@ -146,6 +151,14 @@ func islandNavOf(id string) (target, ref string) {
 		if len(parts) > 1 {
 			return "tab", parts[1]
 		}
+	case "ask":
+		if len(parts) >= 3 && parts[1] == "tab" {
+			return "tab", parts[2]
+		}
+		if len(parts) >= 3 && parts[1] == "nomi" {
+			return "nomi", parts[2]
+		}
+		return "nomi", ""
 	case "task":
 		if len(parts) > 1 {
 			return "task", parts[1]
@@ -202,7 +215,54 @@ func (h *islandPendingHub) collect() ([]island.Pending, map[string]map[string]fu
 	h.collectTabs(add)
 	h.collectTasks(add)
 	h.collectConfirms(add)
+	h.collectQuestions(add)
 	return out, acts
+}
+
+// collectQuestions：Nomi / Claude / Codex / ACP 还在等用户回答的问题。岛上只给「打开」，选项在对话里答。
+func (h *islandPendingHub) collectQuestions(add func(island.Pending, map[string]func() error)) {
+	if askBroker == nil {
+		return
+	}
+	names := map[string]string{}
+	if o := h.src.orch; o != nil {
+		jsrt.Call(func() struct{} {
+			arr, _ := o.ListTabs().Get("tabs").([]any)
+			for _, x := range arr {
+				t, _ := x.(*util.Obj)
+				if t == nil {
+					continue
+				}
+				names[util.Str(t.Get("id"))] = util.Str(t.Get("backend"))
+			}
+			return struct{}{}
+		})
+	}
+	for _, item := range askBroker.Items() {
+		name := "Nomi"
+		if item.TabID != "" {
+			name = islandBackendName(names[item.TabID])
+		}
+		body := ""
+		if len(item.Questions) > 0 {
+			body = item.Questions[0].Prompt
+		}
+		id := askItemID(item.Event)
+		add(island.Pending{
+			ID: id, Kind: "question", Title: i18n.T("ui.mascot-theme.island-question-title", name),
+			Body: body, At: item.At, Actions: []island.Action{islandOpen()},
+		}, map[string]func() error{"open": nil})
+	}
+}
+
+func askItemID(ev askuser.Event) string {
+	if ev.TabID != "" {
+		return "ask\x1ftab\x1f" + ev.TabID + "\x1f" + ev.ID
+	}
+	if ev.ConversationID != "" {
+		return "ask\x1fnomi\x1f" + ev.ConversationID + "\x1f" + ev.ID
+	}
+	return "ask\x1fnomi\x1f" + ev.ID
 }
 
 // collectTabs：编程助手标签的权限请求与沙箱拦截

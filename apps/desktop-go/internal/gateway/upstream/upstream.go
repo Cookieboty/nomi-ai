@@ -94,8 +94,40 @@ func WantsContext1m(c *cand.Candidate) bool {
 			}
 		}
 	}
-	claude := strings.HasPrefix(strings.ToLower(fam), "claude") || strings.HasPrefix(models.BareModelID(name), "claude")
-	return claude && window > standardClaudeWindow
+	return claudeModel(fam, name) && window > standardClaudeWindow
+}
+
+// claudeModel：上游是 Claude 系列（族名或模型名）。跨协议时 client-default 的思考只留给它们。
+func claudeModel(family, name string) bool {
+	return strings.HasPrefix(strings.ToLower(family), "claude") || strings.HasPrefix(models.BareModelID(name), "claude")
+}
+
+func upstreamIsClaude(c *cand.Candidate) bool {
+	fam, name := "", c.UpstreamModel
+	if c.Model != nil {
+		fam, _ = c.Model.Get("family").(string)
+	}
+	for i := range c.Provider.Models {
+		m := &c.Provider.Models[i]
+		if c.Provider.ID+"/"+m.ID == c.PublicModel && m.Like != nil && *m.Like != "" {
+			name = *m.Like
+			break
+		}
+	}
+	return claudeModel(fam, name)
+}
+
+// shouldRenderReasoning：跨协议时，Claude Code 总会带的 thinking.budget_tokens 被标成
+// client-default。那不是用户要开思考。非 Claude 上游不据此 RenderReasoning。
+// 用户或标签明确设了档位（source 变成 binding / explicit）仍照常写。
+func shouldRenderReasoning(eff *intent.Intent, c *cand.Candidate) bool {
+	if eff == nil {
+		return false
+	}
+	if eff.Source == "client-default" && !upstreamIsClaude(c) {
+		return false
+	}
+	return true
 }
 
 // Headers is upstreamHeaders: an ordered name → value object (JS key order).
@@ -210,7 +242,7 @@ func Body(ingress string, c *cand.Candidate, body any, opts BodyOpts) (any, erro
 		} else {
 			out = spread(body).Set("model", c.UpstreamModel)
 		}
-		bound := intent.WithBindingEffort(in, opts.BindingEffort)
+		bound := intent.ApplyUserLevel(in, opts.BindingEffort)
 		var efforts []string
 		if xs, ok := at(m, "reasoning", "efforts").([]any); ok {
 			for _, x := range xs {
@@ -240,7 +272,7 @@ func Body(ingress string, c *cand.Candidate, body any, opts BodyOpts) (any, erro
 			EncodeOptions: request.EncodeOptions{ReasoningPassback: passback},
 			UpstreamModel: &um,
 		})
-		if eff := intent.WithBindingEffort(in, opts.BindingEffort); eff != nil {
+		if eff := intent.ApplyUserLevel(in, opts.BindingEffort); shouldRenderReasoning(eff, c) {
 			out = mreq.RenderReasoning(c.Wire, out, eff, m, opts.Notes).Body
 		}
 	}

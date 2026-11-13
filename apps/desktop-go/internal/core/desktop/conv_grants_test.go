@@ -162,8 +162,8 @@ func TestCommandRulesSuspendedPerConversation(t *testing.T) {
 	}
 }
 
-// 桌面操作：一次「允许」覆盖这个对话里的所有 computer_*（读界面、点击、输入…）；
-// 敏感动作（强制弹窗）照样问，别的对话照样问
+// 桌面操作：一次「允许」覆盖这个对话里的所有 computer_*（读界面、点击、输入、敏感动作、坐标点击）；
+// 别的对话照样问。还没授权时，敏感动作的第一次仍然弹窗。
 func TestConversationGrantComputer(t *testing.T) {
 	b, ui, _ := reviewBroker(t, nil)
 	a := convCtx(t, "c1")
@@ -183,18 +183,34 @@ func TestConversationGrantComputer(t *testing.T) {
 	if d := b.Authorize(AuthorizeInput{Tool: "computer_screenshot", Danger: "read", Summary: "截", Signal: a}); d != "auto" {
 		t.Fatal(d)
 	}
+	// 付款 / 发送 / 删除、坐标点击：这个对话已经允许过，不再问
+	for _, in := range []AuthorizeInput{
+		{Tool: "computer_click", Danger: "write", Summary: "付款", Signal: a, Force: &struct{ Dialog bool }{true}},
+		{Tool: "computer_click_xy", Danger: "destructive", Summary: "坐标", Signal: a, Force: &struct{ Dialog bool }{true}},
+	} {
+		if d := b.Authorize(in); d != "auto" {
+			t.Fatalf("%s: %s", in.Tool, d)
+		}
+	}
 	if len(ui.seen) != 1 {
 		t.Fatalf("asked %d times", len(ui.seen))
 	}
-	// 付款 / 发送 / 删除这类（工具层强制弹窗）照样问
+	// 别的对话还没授权：第一次（含敏感动作）仍问，允许之后这个对话也不再问
+	c2 := convCtx(t, "c2")
 	answerRemember(b, ui, 2, true, false)
-	if d := b.Authorize(AuthorizeInput{Tool: "computer_click", Danger: "write", Summary: "付款", Signal: a,
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_click", Danger: "write", Summary: "付款", Signal: c2,
 		Force: &struct{ Dialog bool }{true}}); d != "allowed" {
 		t.Fatal(d)
 	}
-	// 别的对话照样问
+	if r := ui.last(); !r.Dialog || !r.Rememberable || r.RememberGroup != "computer" {
+		t.Fatalf("first sensitive prompt: %+v", r)
+	}
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_press", Danger: "write", Summary: "回车", Signal: c2,
+		Force: &struct{ Dialog bool }{true}}); d != "auto" {
+		t.Fatal(d)
+	}
 	answerRemember(b, ui, 3, true, false)
-	if d := b.Authorize(AuthorizeInput{Tool: "computer_snapshot", Danger: "read", Summary: "读", Signal: convCtx(t, "c2")}); d != "allowed" {
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_snapshot", Danger: "read", Summary: "读", Signal: convCtx(t, "c3")}); d != "allowed" {
 		t.Fatal(d)
 	}
 }
@@ -221,7 +237,7 @@ func TestComputerAllowCoversConversation(t *testing.T) {
 	}
 }
 
-// 「始终允许」：以后所有对话的桌面操作都不再问，读过界面也不再问；敏感动作与坐标点击照样问；能关掉
+// 「始终允许」：以后所有对话的桌面操作都不再问，读过界面也不再问；敏感动作和坐标点击同样不再问；能关掉
 func TestComputerAlwaysAllow(t *testing.T) {
 	b, ui, _ := reviewBroker(t, nil)
 	answerRemember(b, ui, 1, true, true)
@@ -239,19 +255,26 @@ func TestComputerAlwaysAllow(t *testing.T) {
 			t.Fatalf("%s: %s", tool, d)
 		}
 	}
-	answerRemember(b, ui, 2, true, false)
 	if d := b.Authorize(AuthorizeInput{Tool: "computer_click", Danger: "write", Summary: "付款", Signal: other,
-		Force: &struct{ Dialog bool }{true}}); d != "allowed" {
+		Force: &struct{ Dialog bool }{true}}); d != "auto" {
 		t.Fatal(d)
 	}
-	answerRemember(b, ui, 3, true, false)
 	if d := b.Authorize(AuthorizeInput{Tool: "computer_click_xy", Danger: "destructive", Summary: "坐标", Signal: other,
-		Force: &struct{ Dialog bool }{true}}); d != "allowed" {
+		Force: &struct{ Dialog bool }{true}}); d != "auto" {
 		t.Fatal(d)
+	}
+	if len(ui.seen) != 1 {
+		t.Fatalf("always allow still asked: %d", len(ui.seen))
 	}
 	b.SetComputerAlways(false)
 	if b.ComputerAlways() {
 		t.Fatal("should turn off")
+	}
+	// 关掉之后，没有对话授权的会话重新要问（c1 点允许时已经记下了这个对话的授权，所以用 c2）
+	answerRemember(b, ui, 2, true, false)
+	if d := b.Authorize(AuthorizeInput{Tool: "computer_click_xy", Danger: "destructive", Summary: "坐标", Signal: other,
+		Force: &struct{ Dialog bool }{true}}); d != "allowed" {
+		t.Fatal(d)
 	}
 }
 

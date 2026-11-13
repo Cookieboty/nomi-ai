@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 472：mutation 332 / query 135 / stream 5
+// 合计 474：mutation 333 / query 136 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -56,6 +56,8 @@ var Procedures = []Procedure{
 	{Name: "ai.tts.stop", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "ai.tts.stream", Kind: "stream", Dangerous: false, Surfaces: nil},
 	{Name: "ai.tts.synth", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "ai.userQuestion.answer", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "ai.userQuestion.pending", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "appIcon.get", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "appIcon.set", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "character.assets", Kind: "query", Dangerous: false, Surfaces: nil},
@@ -505,6 +507,7 @@ var Events = []string{
 	"ai.tts.chunk",
 	"ai.tts.end",
 	"ai.userProfile.changed",
+	"ai.userQuestion",
 	"avatar.event",
 	"character.assetsChanged",
 	"chatAssets.changed",

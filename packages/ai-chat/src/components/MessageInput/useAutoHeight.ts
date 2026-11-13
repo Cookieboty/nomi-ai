@@ -5,6 +5,28 @@
  */
 import { useLayoutEffect, type RefObject } from 'react';
 
+/**
+ * 按内容写回高度。组词中（data-composing）不能把高度打成 0：WebView2 会把
+ * 输入法候选条的光标矩形算到窗口左上角，组词文字也不再画出来。
+ */
+export function fitTextarea(el: HTMLTextAreaElement, min: number, max: number): void {
+  el.style.maxHeight = `${max}px`;
+  // 空着就是一行：不量占位文字（窄宽度下它会折成好几行把框撑高）
+  if (!el.value) {
+    el.style.height = `${min}px`;
+    return;
+  }
+  const next = Math.min(Math.max(el.scrollHeight, min), max);
+  if (el.dataset.composing === '1') {
+    const current = Number.parseFloat(el.style.height);
+    if (!Number.isFinite(current) || next > current) el.style.height = `${next}px`;
+    return;
+  }
+  // flex 子项的 scrollHeight 等于当前高度，先收到 0 才能量出内容高度。组词时不做这一步。
+  el.style.height = '0px';
+  el.style.height = `${Math.min(Math.max(el.scrollHeight, min), max)}px`;
+}
+
 export function useAutoHeight(
   ref: RefObject<HTMLTextAreaElement | null>,
   value: string,
@@ -15,14 +37,7 @@ export function useAutoHeight(
     const el = ref.current;
     if (!el) return;
     const fit = () => {
-      el.style.maxHeight = `${max}px`;
-      // 空着就是一行：不量占位文字（窄宽度下它会折成好几行把框撑高）
-      if (!el.value) {
-        el.style.height = `${min}px`;
-        return;
-      }
-      el.style.height = '0px';
-      el.style.height = `${Math.min(Math.max(el.scrollHeight, min), max)}px`;
+      fitTextarea(el, min, max);
     };
     fit();
     if (typeof ResizeObserver === 'undefined') return;

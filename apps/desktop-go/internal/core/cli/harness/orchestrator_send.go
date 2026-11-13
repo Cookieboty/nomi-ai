@@ -68,7 +68,7 @@ func (o *Orchestrator) SendTab(id, prompt string, images []any, userInitiated bo
 		}
 		// 委派标签：在跑时用户发消息 = 接手（打断 Nomi 的这一轮）；空闲时就是接着对话，不算接手，结果照样回到来源对话
 		if d, _ := tab.Get("delegation").(*util.Obj); userInitiated && d != nil && d.Get("by") == "nomi" && !truthy(d.Get("takenOver")) &&
-			(tab.Get("status") == "running" || tab.Get("status") == "queued") {
+			(tab.Get("status") == "running" || tab.Get("status") == "queued" || o.taskSends[id] != nil) {
 			if _, err := jsrt.Await(o.takeOverDelegatedTab(id)); err != nil {
 				return nil, err
 			}
@@ -115,6 +115,11 @@ func (o *Orchestrator) SendTab(id, prompt string, images []any, userInitiated bo
 		if !o.tabs.Has(id) {
 			o.release()
 			throw(i18n.T("electron.common.tab-was-closed"))
+		}
+		// Cancellation can arrive at the await above, before sendAborts is installed.
+		if task := o.taskSends[id]; task != nil && task.stopped {
+			o.release()
+			return nil, &StoppedError{Msg: "task stopped"}
 		}
 		current.Set("status", "running")
 		if o.turnOrigin == nil {
@@ -285,6 +290,7 @@ func (o *Orchestrator) turnOk(id string, tab, current *util.Obj, backend, runCwd
 	durationMs := nowMs() - startedAt
 	msg := util.NewObj("id", newMsgID(), "role", "assistant", "content", result.Get("text"), "timestamp", nowMs(), "durationMs", durationMs)
 	withModel(msg, modelOf(events, use))
+	noteResponseModel(msg, id, startedAt)
 	if use != nil {
 		msg.Set("usage", use)
 	}
@@ -305,6 +311,11 @@ func (o *Orchestrator) turnOk(id string, tab, current *util.Obj, backend, runCwd
 	delete(o.turnExits, id)
 	m, _ := modelOf(events, use).(string)
 	o.recordQuality(id, quality, startedAt, outcome, "", use, m)
+	// Account for each finished round before offering a plan approval, including
+	// when the next round is cancelled or fails.
+	if o.taskSends[id] != nil {
+		o.events.Emit("task-usage", util.NewObj("tabId", id, "usage", use))
+	}
 	o.finish(current, true, str(result, "text"), nil)
 	out := result.Clone()
 	out.Set("trace", trace)
@@ -337,6 +348,7 @@ func (o *Orchestrator) turnFailed(id string, current *util.Obj, e error, modelOf
 			current.Set("status", "idle")
 			msg := util.NewObj("id", newMsgID(), "role", "assistant", "content", partText, "timestamp", nowMs(), "durationMs", durationMs, "stopped", true)
 			withModel(msg, model)
+			noteResponseModel(msg, id, startedAt)
 			if len(trace) > 0 {
 				msg.Set("trace", trace)
 			}
@@ -368,6 +380,7 @@ func (o *Orchestrator) turnFailed(id string, current *util.Obj, e error, modelOf
 			}
 			msg := util.NewObj("id", newMsgID(), "role", "assistant", "content", content, "timestamp", nowMs(), "error", true, "durationMs", durationMs)
 			withModel(msg, model)
+			noteResponseModel(msg, id, startedAt)
 			if partCtx != nil {
 				msg.Set("usage", partCtx)
 			}
@@ -577,6 +590,10 @@ func (o *Orchestrator) offerExecutePlan(tab *util.Obj) {
 	id := str(tab, "id")
 	timeoutMs := o.PermissionTimeoutMs(id)
 	ev := ExecutePlanEvent(id+":"+util.JSString(nowMs()), i18n.T("electron.common.execute-this-plan-switch-to-auto-edit-and"), timeoutMs)
+	if run := o.taskSends[id]; run != nil {
+		run.planID = str(ev, "id")
+		run.plan = jsrt.NewPromise[bool]()
+	}
 	o.armPermissionTimeout(id, str(ev, "id"))
 	o.emitEvent(id, ev)
 	o.events.Emit("permission-needed", util.NewObj("tabId", id, "title", tab.Get("title"), "backend", tab.Get("backend"),

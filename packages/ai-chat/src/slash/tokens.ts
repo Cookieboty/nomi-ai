@@ -28,7 +28,8 @@ export function estimateTokens(text: string): number {
 
 /**
  * 常见模型的上下文窗口（公开资料里的标称值，作经验表使用）。
- * 命中不了时回退 128K 并标注「默认值」。用户可以在卡片里看到来源。
+ * 命中不了时回退 256K（与内核 DefaultCtx 相同）并标注「默认值」。
+ * Nomi 对话和已解析的第三方模型优先用网关的有效窗口，不走这张表。
  */
 const WINDOWS: Array<[RegExp, number]> = [
   // Opus 5.x：Claude Code 上报 modelUsage.contextWindow = 1M（2026-10 实测 claude-opus-5-5）
@@ -38,7 +39,6 @@ const WINDOWS: Array<[RegExp, number]> = [
   [/grok-4|grok-code|grok-3/i, 256_000],
   [/kimi/i, 256_000],
   [/qwen/i, 128_000],
-  [/deepseek/i, 128_000],
   [/gpt-4o|gpt-4/i, 128_000],
 ];
 
@@ -51,7 +51,7 @@ export function contextWindowFor(
 ): { size: number; source: ContextWindowSource } {
   if (reported && reported > 0) return { size: reported, source: 'reported' };
   if (model) for (const [re, size] of WINDOWS) if (re.test(model)) return { size, source: 'table' };
-  return { size: 128_000, source: 'default' };
+  return { size: 262_144, source: 'default' };
 }
 
 const WINDOW_TIERS = [128_000, 200_000, 256_000, 400_000, 1_000_000];

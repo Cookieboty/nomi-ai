@@ -73,8 +73,14 @@ type envelope struct {
 // 所以 err 只在 stdout 解析不出 envelope 时才有意义。
 type ExecFn func(ctx context.Context, bin string, args []string, stdin string) ([]byte, error)
 
+// HideConsole：Windows 上启动这次命令时不建控制台窗口。
+// agent-desktop 和 npm 的全局安装是 .cmd 垫片，直接 CreateProcess 会弹出 cmd 窗口
+// （默认终端是 Windows Terminal 时只设 HideWindow 也不够，要 CREATE_NO_WINDOW）。
+func HideConsole(cmd *exec.Cmd) { hideWindow(cmd) }
+
 func defaultExec(ctx context.Context, bin string, args []string, stdin string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, bin, args...)
+	HideConsole(cmd)
 	if stdin != "" {
 		cmd.Stdin = strings.NewReader(stdin)
 	}

@@ -587,14 +587,23 @@
   color: var(--cd-color-selected-text);
 }
 
-/* 用户在这一轮中途插入的消息 */
-.interject {
+/* 用户在这一轮中途插入的消息：靠右、像一条小的用户气泡，一眼能看出是自己插进去的话 */
+.interjectWrap {
   display: flex;
+  justify-content: flex-end;
+  padding: var(--cd-space-0-5) 0;
+}
+.interject {
+  display: inline-flex;
   align-items: baseline;
   gap: var(--cd-space-1-5);
-  padding: var(--cd-space-1) 0;
+  max-width: min(640px, 86%);
+  padding: var(--cd-space-1-5) var(--cd-space-3);
+  border-radius: var(--cd-radius-lg) var(--cd-radius-lg) var(--cd-radius-xs) var(--cd-radius-lg);
+  background: var(--cd-chat-user-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cd-color-accent) 28%, transparent);
   font-size: var(--cd-font-size-sm);
-  color: var(--cd-color-text-muted);
+  color: var(--cd-color-text);
 }
 .interjectIcon {
   flex: none;
@@ -603,11 +612,16 @@
 }
 .interjectLabel {
   flex: none;
-  color: var(--cd-color-text-subtle);
+  align-self: center;
+  padding: 0 var(--cd-space-1);
+  border-radius: var(--cd-radius-xs);
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent-strong);
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-bold);
 }
 .interjectText {
   min-width: 0;
-  color: var(--cd-color-text);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

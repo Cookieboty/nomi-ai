@@ -4,6 +4,7 @@ package delegate
 
 import (
 	"fmt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -54,7 +55,7 @@ func failed(t *testing.T, r *util.Obj) {
 
 func worktrees(t *testing.T, repo string) []string {
 	t.Helper()
-	ws, _ := filepath.Glob(filepath.Join(repo, ".nomi-delegate", "*"))
+	ws, _ := filepath.Glob(filepath.Join(repo, hostports.DelegateWorktreeDir, "*"))
 	return ws
 }
 
@@ -110,7 +111,7 @@ func TestDelegateDefaultsToInPlace(t *testing.T) {
 	if b, _ := os.ReadFile(filepath.Join(e.dir, "a.txt")); string(b) != "new" {
 		t.Fatalf("change should land in the working dir directly: %q (%s)", b, util.Stringify(r))
 	}
-	if _, err := os.Stat(filepath.Join(e.dir, ".nomi-delegate")); err == nil {
+	if _, err := os.Stat(filepath.Join(e.dir, hostports.DelegateWorktreeDir)); err == nil {
 		t.Fatal("no worktree without a base branch")
 	}
 }
@@ -257,4 +258,40 @@ func TestSweepOrphanWorktrees(t *testing.T) {
 		t.Fatalf("dirty orphan should be committed to a branch first: %v", bs)
 	}
 	ReleaseIsolation(kept, nil)
+}
+
+// 生产与开发共用项目仓库时，清理只能处理本构建创建的委派目录。
+func TestSweepPreservesOtherProfileWorktrees(t *testing.T) {
+	dir := t.TempDir()
+	gitRepo(t, dir, map[string]string{"README.md": "x"})
+	otherBranch(t, dir)
+	own, err := PrepareIsolation(dir, "own", "other")
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreignName := ".nomi-dev-delegate"
+	if hostports.Development {
+		foreignName = ".nomi-delegate"
+	}
+	foreign := filepath.Join(dir, foreignName, "active")
+	if out, err := exec.Command("git", "-C", dir, "worktree", "add", "--detach", foreign, "other").CombinedOutput(); err != nil {
+		t.Fatalf("foreign worktree: %s %v", out, err)
+	}
+	if err := os.WriteFile(filepath.Join(foreign, "active.txt"), []byte("in-progress"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if IsDelegateWorktree(foreign) || !IsDelegateWorktree(own.WorktreePath) {
+		t.Fatal("wrong profile ownership")
+	}
+	ownPath := realPath(own.WorktreePath)
+	removed := SweepOrphanWorktrees([]string{dir}, nil, nil)
+	if len(removed) != 1 || removed[0] != ownPath {
+		t.Fatalf("removed = %v", removed)
+	}
+	if raw, err := os.ReadFile(filepath.Join(foreign, "active.txt")); err != nil || string(raw) != "in-progress" {
+		t.Fatalf("foreign task changed: %s %v", raw, err)
+	}
+	if bs := branches(t, dir); len(bs) != 0 {
+		t.Fatalf("foreign work was committed: %v", bs)
+	}
 }

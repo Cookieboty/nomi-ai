@@ -26,14 +26,15 @@ describe('tokens', () => {
     expect(contextWindowFor('gpt-5-codex').size).toBe(400_000);
     // Claude Code 对 claude-opus-5-5 上报的窗口是 1M
     expect(contextWindowFor('claude-opus-5-5').size).toBe(1_000_000);
-    expect(contextWindowFor('some-unknown-model')).toEqual({ size: 128_000, source: 'default' });
+    expect(contextWindowFor('some-unknown-model')).toEqual({ size: 262_144, source: 'default' });
     expect(contextWindowFor(undefined).source).toBe('default');
   });
   it('经验表 / 默认窗口比用量小时放宽到下一档；CLI 上报的窗口原样保留', () => {
     const dflt = contextWindowFor('some-unknown-model');
     expect(fitContextWindow(dflt, 100_000)).toEqual(dflt);
-    expect(fitContextWindow(dflt, 150_000)).toEqual({
-      size: 200_000,
+    expect(fitContextWindow(dflt, 150_000)).toEqual(dflt);
+    expect(fitContextWindow(dflt, 300_000)).toEqual({
+      size: 400_000,
       source: 'default',
       widened: true,
     });

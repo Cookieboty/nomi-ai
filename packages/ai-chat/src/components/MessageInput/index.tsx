@@ -83,8 +83,10 @@ import { PlusMenu } from './PlusMenu';
 import type { MessageInputProps } from './types';
 import { useAutoHeight } from './useAutoHeight';
 import { useCompactComposerLayout } from './useCompactComposerLayout';
+import { useComposing } from './useComposing';
 import { useKnowledgeMode } from './useKnowledgeMode';
 import { useReferenceDraft } from './useReferenceDraft';
+import { useUncontrolledValue } from './useUncontrolledValue';
 
 const log = createLogger('message-input');
 
@@ -140,7 +142,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [slashIdx, setSlashIdx] = useState(0);
-  const [isComposing, setIsComposing] = useState(false);
   const [agentIdx, setAgentIdx] = useState(0);
   /** `/model ` 补全：候选（null = 还在读）、高亮项、按 Esc 关掉时的输入 */
   const [modelOpts, setModelOpts] = useState<ModelArgOption[] | null>(null);
@@ -156,6 +157,24 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const [atClosed, setAtClosed] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const multiline = useCompactComposerLayout(textareaRef, message, compact && floating);
+
+  // 组字状态（IME）：组字期间不写文本、不量高度；漏 compositionend 时能自愈。
+  // 这两个 hook 必须排在下面的光标恢复 effect 之前：先写 DOM，再摆光标。
+  const {
+    composingRef,
+    clearComposing,
+    markComposing,
+    onCompositionStart,
+    onCompositionEnd,
+    isCompositionEvent,
+    isComposing,
+  } = useComposing(textareaRef, (el) => {
+    setMessage(el.value);
+    setCaret(el.selectionStart ?? el.value.length);
+  });
+
+  // 输入框是非受控的：DOM 自己持有文本，React 只在外部改值且不在组字时写回。
+  useUncontrolledValue(textareaRef, message, isComposing, clearComposing);
   const newlineCaret = useRef<number | null>(null);
   // 列向 flex 里 flex:1 的基准高度是 0，行内 height 不生效，所以这里按内容写回，并封顶。
   useAutoHeight(
@@ -412,8 +431,9 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // 处理输入法组合状态
-    if (isComposing || isImeComposing(e.nativeEvent)) return;
+    // 处理输入法组合状态。ref 万一因丢了 compositionend 而卡住，下一次正常输入
+    // 或失焦时会被 clearComposing 清掉，不会一直哑着。
+    if (composingRef.current || isImeComposing(e.nativeEvent)) return;
 
     // macOS / Windows 统一 Alt+Enter 换行；先处理，避免补全菜单把它当成执行。
     if (e.key === 'Enter' && e.altKey) {
@@ -574,20 +594,20 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     }
   };
 
-  const handleCompositionStart = () => {
-    setIsComposing(true);
-  };
-
-  const handleCompositionEnd = () => {
-    setIsComposing(false);
-  };
-
   const syncCaret = () => {
     const el = textareaRef.current;
     if (el != null) setCaret(el.selectionStart);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    // 组字中途不把文本写进 React：一写就会覆盖半截的组字内容，高度测量也会把候选条带走。
+    if (isCompositionEvent(e.nativeEvent as InputEvent)) {
+      // 漏了 compositionstart 就在这里补标记，自动高度才不会在半路重排
+      if (!composingRef.current) markComposing(e.target);
+      return;
+    }
+    // 确认不是组字：标记还挂着（漏了 compositionend）就顺手清掉，输入框不会一直哑着。
+    clearComposing(e.target);
     setMessage(e.target.value);
     setCaret(e.target.selectionStart ?? e.target.value.length);
     setSlashIdx(0);
@@ -1039,14 +1059,16 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
         <ComposerReferenceLinks draft={linkedDraft} />
         <textarea
           ref={textareaRef}
-          value={message}
+          // 非受控：见上方同步 effect。受控 value 在组字期间回写会吞掉刚打的字。
+          defaultValue={message}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onSelect={syncCaret}
           onKeyUp={syncCaret}
           onClick={syncCaret}
-          onCompositionStart={handleCompositionStart}
-          onCompositionEnd={handleCompositionEnd}
+          onCompositionStart={onCompositionStart}
+          onCompositionEnd={onCompositionEnd}
+          onBlur={(e) => clearComposing(e.currentTarget)}
           onPaste={(e) => {
             if (takeFiles(Array.from(e.clipboardData.files))) e.preventDefault();
           }}

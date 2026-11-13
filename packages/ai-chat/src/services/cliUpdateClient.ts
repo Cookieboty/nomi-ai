@@ -1,5 +1,5 @@
 import { isBuiltinCliId, type BuiltinCliId } from '@nomi-ai/cli-catalog';
-import { t } from '@nomi-ai/ui';
+import { createLogger, t } from '@nomi-ai/ui';
 
 import { api, hasTransport } from './api';
 
@@ -67,11 +67,27 @@ export interface CliJob {
   result?: CliRunResult;
 }
 
+/** 本地探测已返回后，后台 npm latest（或迟到的探测）写好了再推一次 */
+export type CliInspectUpdatedEvent = {
+  kind: 'inspect';
+  phase: 'updated';
+  rows?: CliInstallInfo[];
+};
+
 export type CliUpdateEvent =
   | { kind: CliUpdatableKind; mode: 'install' | 'update'; phase: 'start'; argv: string[] }
   | { kind: CliUpdatableKind; mode: 'install' | 'update'; phase: 'log'; line: string }
   | { kind: CliUpdatableKind; mode: 'install' | 'update'; phase: 'done'; version: string | null }
-  | { kind: CliUpdatableKind; mode: 'install' | 'update'; phase: 'error'; message: string };
+  | { kind: CliUpdatableKind; mode: 'install' | 'update'; phase: 'error'; message: string }
+  | CliInspectUpdatedEvent;
+
+const log = createLogger('cli-inspect');
+
+export const isInspectUpdated = (e: CliUpdateEvent): e is CliInspectUpdatedEvent =>
+  e.kind === 'inspect' && e.phase === 'updated';
+
+/** 与主进程 inspect 总超时一致：高于本地探测上限，但首次展示不再把 npm 12s 算进去 */
+export const INSPECT_TIMEOUT_MS = 20_000;
 
 /** 没有契约传输（浏览器预览 / 测试）时调用失败；契约错误换成普通 Error（只保留文案，与原 IPC 一致） */
 async function call<T>(run: () => Promise<unknown>): Promise<T> {
@@ -87,15 +103,99 @@ async function call<T>(run: () => Promise<unknown>): Promise<T> {
 /**
  * 渲染进程侧的 inspect 共享：选择条和版本分组同时挂载时只发一次；记住上次结果，
  * 切换助手 / 重新打开页面时先显示它，再在后台静默校验（主进程另有探测缓存）。
+ * 整次调用有总超时：主进程或 IPC 卡住时也不能让「检测中」一直转。
  */
 let lastInspect: CliInstallInfo[] | null = null;
 let inspecting: Promise<CliInstallInfo[]> | null = null;
-function inspect(refresh = false): Promise<CliInstallInfo[]> {
-  if (!refresh && inspecting) return inspecting;
-  const p = call<CliInstallInfo[]>(() => api.cliUpdate.inspect({ refresh })).then((rows) => {
-    if (Array.isArray(rows)) lastInspect = rows;
-    return rows;
+let inspectEpoch = 0;
+const updatedWaiters = new Set<(epoch: number) => void>();
+
+function applyInspectRows(rows: CliInstallInfo[], updated = false): CliInstallInfo[] {
+  lastInspect = rows;
+  if (updated) {
+    inspectEpoch += 1;
+    for (const fn of [...updatedWaiters]) fn(inspectEpoch);
+  }
+  return rows;
+}
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('cliUpdate.inspect timed out')), ms);
   });
+  return Promise.race([p, timeout]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  });
+}
+
+/** 后台更新的代数；本地 inspect 响应不能冒充 npm latest 已完成。 */
+export const inspectGeneration = (): number => inspectEpoch;
+
+/** 等到比 since 更新的一次结果，或超时（超时也结束，不一直挂着） */
+export function whenInspectUpdated(since: number, timeoutMs = INSPECT_TIMEOUT_MS): Promise<void> {
+  if (inspectEpoch !== since) return Promise.resolve();
+  return new Promise((resolve) => {
+    const finish = (reason: 'updated' | 'timeout'): void => {
+      clearTimeout(timer);
+      updatedWaiters.delete(onUpdate);
+      // TEMP(cli-inspect): 定位用，后续可随时移除
+      if (reason === 'timeout') log.warn('whenInspectUpdated timed out', { since, timeoutMs });
+      else log.info('whenInspectUpdated resolved', { since });
+      resolve();
+    };
+    const timer = setTimeout(() => finish('timeout'), timeoutMs);
+    const onUpdate = (epoch: number): void => {
+      if (epoch !== since) finish('updated');
+    };
+    updatedWaiters.add(onUpdate);
+  });
+}
+
+function inspectCount(rows: CliInstallInfo[]): { rows: number; installed: number } {
+  return { rows: rows.length, installed: rows.filter((r) => !!r.path).length };
+}
+
+function inspect(refresh = false): Promise<CliInstallInfo[]> {
+  if (!refresh && inspecting) {
+    // TEMP(cli-inspect): 定位用，后续可随时移除
+    log.info('inspect reuse in-flight', { refresh });
+    return inspecting;
+  }
+  // TEMP(cli-inspect): 定位用，后续可随时移除
+  log.info('inspect start', { refresh, hasCache: lastInspect != null });
+  const started = Date.now();
+  const p = withTimeout(
+    call<CliInstallInfo[]>(() => api.cliUpdate.inspect({ refresh })),
+    INSPECT_TIMEOUT_MS,
+  ).then(
+    (rows) => {
+      const list = applyInspectRows(Array.isArray(rows) ? rows : []);
+      // TEMP(cli-inspect): 定位用，后续可随时移除
+      log.info('inspect resolved', { refresh, ...inspectCount(list), ms: Date.now() - started });
+      return list;
+    },
+    (err: unknown) => {
+      const timedOut = err instanceof Error && /timed out/.test(err.message);
+      const error = err instanceof Error ? err.message : String(err);
+      const ms = Date.now() - started;
+      if (lastInspect) {
+        // TEMP(cli-inspect): 定位用，后续可随时移除
+        log.warn(
+          timedOut ? 'inspect timed out; using last cache' : 'inspect failed; using last cache',
+          {
+            refresh,
+            error,
+            ms,
+          },
+        );
+        return lastInspect;
+      }
+      // TEMP(cli-inspect): 定位用，后续可随时移除
+      log.warn(timedOut ? 'inspect timed out' : 'inspect rejected', { refresh, error, ms });
+      throw err instanceof Error ? err : new Error(String(err));
+    },
+  );
   if (!refresh) {
     inspecting = p;
     void p
@@ -117,6 +217,8 @@ export const cliUpdateClient = {
     lastInspect = null;
     inspecting = null;
   },
+  inspectGeneration,
+  whenInspectUpdated,
   preview: (kind: CliUpdatableKind, scope: CliInstallScope = 'global') =>
     call<CliInstallPlan>(() => api.cliUpdate.preview({ kind, scope })),
   run: (kind: CliUpdatableKind, scope: CliInstallScope = 'global') =>
@@ -138,6 +240,14 @@ export const cliUpdateClient = {
   environment: () => call<CliEnvironment>(() => api.cliUpdate.environment()),
   onEvent: (fn: (e: CliUpdateEvent) => void) =>
     hasTransport()
-      ? api.on('cliUpdate.event', (p) => fn(p as unknown as CliUpdateEvent))
+      ? api.on('cliUpdate.event', (p) => {
+          const e = p as unknown as CliUpdateEvent;
+          if (isInspectUpdated(e) && Array.isArray(e.rows)) {
+            // TEMP(cli-inspect): 定位用，后续可随时移除
+            log.info('inspect updated event', inspectCount(e.rows));
+            applyInspectRows(e.rows, true);
+          }
+          fn(e);
+        })
       : () => undefined,
 };

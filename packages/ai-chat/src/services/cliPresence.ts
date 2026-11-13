@@ -7,7 +7,7 @@
 import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
 
 import { setChatMode } from './chatPrefs';
-import { cliUpdateClient, type CliInstallInfo } from './cliUpdateClient';
+import { cliUpdateClient, isInspectUpdated, type CliInstallInfo } from './cliUpdateClient';
 
 /** 窗口重新聚焦时最多这么久查一次 */
 const FOCUS_RECHECK_MS = 60_000;
@@ -17,7 +17,8 @@ export const anyCliInstalled = (rows: readonly CliInstallInfo[]): boolean =>
 
 async function check(): Promise<void> {
   try {
-    setChatMode(anyCliInstalled(await cliUpdateClient.inspect(false)) ? 'dev' : 'normal');
+    const rows = cliUpdateClient.cached() ?? (await cliUpdateClient.inspect(false));
+    setChatMode(anyCliInstalled(rows) ? 'dev' : 'normal');
   } catch {
     /* 查不到就保持上次的结果 */
   }
@@ -29,6 +30,10 @@ export function watchCliPresence(): () => void {
   void check();
   let last = Date.now();
   const offEvent = cliUpdateClient.onEvent((e) => {
+    if (isInspectUpdated(e)) {
+      void check();
+      return;
+    }
     if (e.phase !== 'done') return;
     cliUpdateClient.resetCache();
     void check();

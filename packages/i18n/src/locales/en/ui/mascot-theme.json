@@ -225,6 +225,7 @@
   "ui.mascot-theme.island-open": "Open",
   "ui.mascot-theme.island-perm-title": "{0} is asking for permission",
   "ui.mascot-theme.island-plan-title": "{0} has a plan for you to approve",
+  "ui.mascot-theme.island-question-title": "{0} is waiting for your answer",
   "ui.mascot-theme.island-sandbox-title": "The sandbox stopped {0}",
   "ui.mascot-theme.island-give-up": "Give up",
   "ui.mascot-theme.island-accept": "Accept",

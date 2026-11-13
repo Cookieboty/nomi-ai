@@ -1,4 +1,5 @@
 {
+  "ui.session-workspace.permission-reply-failed": "Could not send the approval response. Please try again.",
   "ui.session-workspace.after-committing-run-a-plain-git-push-use": "After committing, run a plain git push (use -u origin <current branch> if there is no upstream). Do not force-push.",
   "ui.session-workspace.approval-requests-denied-timed-out": "{0} approval requests, {1} denied, {2} timed out",
   "ui.session-workspace.ask-assistant-to-commit": "Ask assistant to commit",
@@ -159,7 +160,7 @@
   "ui.session-workspace.undo-commit": "Undo commit",
   "ui.session-workspace.undo-discard": "Undo discard",
   "ui.session-workspace.undo-this-turn-s-writes-to-these-files": "Undo this turn's writes to these files? Workspace only — restore from diff or safe git checkout.",
-  "ui.session-workspace.unknown-model-assuming-a-128k-window": "Unknown model; assuming a 128K window",
+  "ui.session-workspace.unknown-model-assuming-a-128k-window": "Unknown model; assuming a 256K window",
   "ui.session-workspace.unsaved": "Unsaved",
   "ui.session-workspace.unstage": "Unstage",
   "ui.session-workspace.unstage-all": "Unstage all",

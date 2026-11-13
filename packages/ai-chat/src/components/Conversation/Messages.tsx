@@ -1,5 +1,5 @@
 /** 会话里的消息：用户气泡、助手消息（时间线 + 正文 + 元信息）、错误卡片、消息操作 */
-import { Icon, t, useLocale } from '@nomi-ai/ui';
+import { Icon, t, Tooltip, useLocale } from '@nomi-ai/ui';
 import {
   Check,
   CircleAlert,
@@ -399,7 +399,9 @@ export const AssistantMessage = memo(function AssistantMessage({
         {slots?.after?.(message)}
         <div className={styles.meta}>
           {message.label && <span className={styles.label}>{message.label}</span>}
-          {message.model && <ModelTag model={message.model} />}
+          {message.model && (
+            <ModelTag model={message.model} responseModel={message.responseModel} />
+          )}
           {timeLabel && (
             <time dateTime={new Date(message.at).toISOString()} title={full}>
               {timeLabel}
@@ -436,18 +438,37 @@ export const AssistantMessage = memo(function AssistantMessage({
 
 /**
  * 消息用的模型：网关的 `供应商/模型` 显示成「供应商名 · 模型」（与 Nomi 的模型名同一个 refLabel）；
- * 别的（官方模型名、Nomi 记下的显示名）原样显示
+ * 别的（官方模型名、Nomi 记下的显示名）原样显示。上游返回了另一个模型时，在后面加上
+ * 「→ 实际名称」，悬停说明里保留原始字符串。
  */
-const ModelTag: React.FC<{ model: string }> = ({ model }) => {
+const ModelTag: React.FC<{ model: string; responseModel?: string }> = ({
+  model,
+  responseModel,
+}) => {
   const gateway = useGatewayState();
   const label = refLabel(gateway, model);
+  const actual = responseModel?.trim();
   return (
     <span
       className={styles.model}
       data-testid="conv-msg-model"
-      aria-label={t('ui.cli-monitor.model', label)}
+      aria-label={
+        actual
+          ? t('ui.cli-monitor.model-returned', label, actual)
+          : t('ui.cli-monitor.model', label)
+      }
     >
-      {label}
+      <span className={styles.modelName}>{label}</span>
+      {actual && (
+        <Tooltip
+          placement="top"
+          content={t('ui.cli-monitor.provider-returned-a-different-model', actual)}
+        >
+          <span className={styles.actualModel} data-testid="conv-msg-actual-model">
+            → {actual}
+          </span>
+        </Tooltip>
+      )}
     </span>
   );
 };

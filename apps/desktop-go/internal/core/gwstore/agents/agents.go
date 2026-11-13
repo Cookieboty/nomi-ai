@@ -2,6 +2,7 @@
 package agents
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
@@ -14,13 +15,17 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/launch"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/accounts"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/models"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// DefaultCtx / DefaultMaxOutput = modelMeta DEFAULT_CTX / DEFAULT_MAX_OUTPUT
+// DefaultCtx / DefaultMaxOutput = modelMeta DEFAULT_CTX / DEFAULT_MAX_OUTPUT。
+// DefaultCtx 与 models.GenericStandard 同为 256 Ki token。
+// CliMaxOutput：写进 CLI 的输出上限，与 Nomi 上下文预算里的输出预留一致，不用目录里的最大输出。
 const (
-	DefaultCtx       = 128_000
+	DefaultCtx       = models.GenericStandard
 	DefaultMaxOutput = 32_000
+	CliMaxOutput     = 32_000
 )
 
 // ModelMeta = ModelMeta（nil 指针 = 字段缺失）
@@ -109,10 +114,14 @@ func ctxOf(m *ModelMeta) float64 {
 }
 
 func maxOutOf(m *ModelMeta) float64 {
+	v := float64(DefaultMaxOutput)
 	if m != nil && m.MaxOutput != nil {
-		return *m.MaxOutput
+		v = *m.MaxOutput
 	}
-	return DefaultMaxOutput
+	if v > CliMaxOutput {
+		return CliMaxOutput
+	}
+	return v
 }
 
 func modelStr(o *u.Obj, k string) (string, bool) {
@@ -321,13 +330,42 @@ func codex(c *LaunchContext) (*AgentLaunch, error) {
 
 func bp(b bool) *bool { return &b }
 
+// geminiSettings：Gemini CLI 没有单独的上下文环境变量。系统设置里的
+// contextManagement.historyWindow.maxTokens 是文档里的绝对压缩上限（默认 150000）。
+// 写成有效窗口，避免它按模型注册表里的 1M 等到很晚才压缩。已知 Gemini 模型名仍可能按
+// 注册表 tokenLimit × compressionThreshold 再压一次；这个文件是能传过去的绝对上限。
+func geminiSettings(dir string, window float64) (string, error) {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	body, err := json.Marshal(map[string]any{
+		"contextManagement": map[string]any{
+			"historyWindow": map[string]any{"maxTokens": window},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+	file := filepath.Join(dir, "gemini-system-settings.json")
+	if err := os.WriteFile(file, append(body, '\n'), 0o600); err != nil {
+		return "", err
+	}
+	return file, nil
+}
+
 func gemini(c *LaunchContext) (*AgentLaunch, error) {
+	window := ctxOf(c.meta(c.Model))
+	settings, err := geminiSettings(c.Dir, window)
+	if err != nil {
+		return nil, err
+	}
 	return &AgentLaunch{
 		Env: u.NewObj(
 			"GEMINI_CLI_AUTH_OVERRIDE", "gemini-api-key",
 			"GOOGLE_GEMINI_BASE_URL", c.URL,
 			"GEMINI_API_KEY", c.Token,
 			"GEMINI_MODEL", c.Model,
+			"GEMINI_CLI_SYSTEM_SETTINGS_PATH", settings,
 		),
 		Args: []string{}, Strip: STRIP["gemini"], ModelInConfig: bp(true),
 	}, nil

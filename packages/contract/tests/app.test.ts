@@ -31,7 +31,7 @@ const procedures = Object.fromEntries(
 const aiEventNames = Object.keys(appContract.events).filter((n) => n.startsWith('ai.'));
 
 describe('appContract · 过程表', () => {
-  it('快照：38 个 AI 门面过程的 kind / dangerous', () => {
+  it('快照：40 个 AI 门面过程的 kind / dangerous', () => {
     const table = Object.entries(procedures).map(
       ([name, def]) => `${name}:${def.kind}${def.dangerous ? ':dangerous' : ''}`,
     );
@@ -42,6 +42,8 @@ describe('appContract · 过程表', () => {
       'ai.chat.steer:mutation',
       'ai.chat.regenerate:stream',
       'ai.chat.agentStream:stream',
+      'ai.userQuestion.pending:query',
+      'ai.userQuestion.answer:mutation',
       'ai.sessions.list:query',
       'ai.sessions.get:query',
       'ai.sessions.create:mutation',
@@ -75,8 +77,8 @@ describe('appContract · 过程表', () => {
       'ai.avatar.speaking:mutation',
       'ai.avatar.report:mutation',
     ]);
-    expect(Object.keys(aiProcedures)).toHaveLength(38);
-    expect(Object.keys(procedures)).toHaveLength(38);
+    expect(Object.keys(aiProcedures)).toHaveLength(40);
+    expect(Object.keys(procedures)).toHaveLength(40);
     // C3：ai.avatar.* 改成语义过程（不留旧名）→ major
     expect(appContract.version).toEqual({ major: 3, minor: 0 });
   });
@@ -129,7 +131,7 @@ describe('appContract · 过程表', () => {
 });
 
 describe('appContract · 事件', () => {
-  it('AI_EVENTS 覆盖 AIClient 的 13 个业务事件，且都声明在契约里', () => {
+  it('AI_EVENTS 覆盖 AIClient 的业务事件，且都声明在契约里', () => {
     expect(Object.keys(AI_EVENTS).sort()).toEqual(
       [
         'message:delta',
@@ -145,6 +147,7 @@ describe('appContract · 事件', () => {
         'avatar:touched',
         'avatar:clicked',
         'avatar:scene',
+        'user-question',
       ].sort(),
     );
     expect(Object.values(AI_EVENTS).sort()).toEqual(aiEventNames.sort());

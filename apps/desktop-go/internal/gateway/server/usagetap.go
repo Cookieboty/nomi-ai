@@ -8,9 +8,11 @@ import (
 
 // UsageTap is UsageTap.
 type UsageTap struct {
-	parser         sse.Parser
-	dec            events.Decoder
-	Usage          events.StreamUsage
+	parser sse.Parser
+	dec    events.Decoder
+	Usage  events.StreamUsage
+	// Model is the model name on the upstream response (last non-empty).
+	Model          string
 	Error          *string
 	ErrorType      *string
 	FirstContentAt *float64
@@ -44,6 +46,9 @@ func (t *UsageTap) take(evs []events.NormEvent) {
 		switch e.Type {
 		case "start", "finish", "usage":
 			t.Usage = events.MergeUsage(t.Usage, e.Usage)
+			if e.Type == "start" && e.Model != nil && *e.Model != "" {
+				t.Model = *e.Model
+			}
 		case "error":
 			if t.Error == nil {
 				m := e.Message
@@ -99,4 +104,16 @@ func UsageOfJSON(wire string, body any) events.StreamUsage {
 		}
 	}
 	return us
+}
+
+// ResponseModelOf is the model field on a non-streaming upstream body
+// (chat/responses/messages `model`, Gemini `modelVersion`). Empty if absent.
+func ResponseModelOf(wire string, body any) string {
+	model := ""
+	for _, e := range stream.JsonToEvents(wire, body, "") {
+		if e.Type == "start" && e.Model != nil && *e.Model != "" {
+			model = *e.Model
+		}
+	}
+	return model
 }

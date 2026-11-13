@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 /**
  * 上下文环 · Nomi 对话：窗口取内核按路由到的模型算的预算（gateway.nomiContext），
- * 与自动压缩同一份；网关模型名（openai/gpt-6-astra）经验表认不出，不能再落到 128K。
+ * 与自动压缩同一份；网关模型名（openai/gpt-6-astra）经验表认不出，用网关窗口，不用 128K 经验表。
  */
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
@@ -71,13 +71,15 @@ describe('上下文环 · Nomi 对话的窗口', () => {
     expect(r.getByTestId('context-usage-detail').textContent).not.toContain('未识别模型');
   });
 
-  it('网关也不认识这个模型（默认值）：退回经验表 / 128K 并标注', async () => {
-    const { invoke, r } = setup({ window: 128_000, source: 'default' });
+  it('网关也不认识这个模型：用网关的默认窗口并标注', async () => {
+    const { invoke, r } = setup({ window: 262_144, source: 'default' });
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('gateway.nomiContext', { role: 'chat' }),
     );
     await act(async () => {});
     fireEvent.mouseEnter(r.getByTestId('context-usage-bar'));
-    expect(r.getByTestId('context-usage-detail').textContent).toContain('未识别模型');
+    const text = r.getByTestId('context-usage-detail').textContent ?? '';
+    expect(text).toContain('/ 262K');
+    expect(text).toContain('未识别模型');
   });
 });

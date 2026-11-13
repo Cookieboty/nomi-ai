@@ -34,6 +34,9 @@ const (
 const (
 	HistoryRatio     = 0.6
 	historyKeepTurns = 3
+	// historyAbsTokens：旧工具结果开始缩短的绝对上限。比例作用在有效预算上，
+	// 大窗口时 60% 仍然很晚；超过这个绝对 token 数也缩短。截断点仍按轮次后移，前缀只在挪点时断一次。
+	historyAbsTokens = 65_536
 )
 
 type convState struct {
@@ -354,13 +357,22 @@ func newContextGuard(budget float64, key string) *contextGuard {
 	return g
 }
 
+// historyLimit：min(有效预算的 HistoryRatio, 绝对上限)。预算已经是有效窗口减去输出预留。
+func (g *contextGuard) historyLimit() float64 {
+	limit := g.budget * HistoryRatio
+	if historyAbsTokens > 0 && historyAbsTokens < limit {
+		return historyAbsTokens
+	}
+	return limit
+}
+
 // history：第一步时决定这一轮的截断点（之后各步不变）
 func (g *contextGuard) history(step []*u.Obj) {
 	g.cutAt = cutIndex(step, g.conv.cut)
 	if g.cutAt < 0 {
 		g.conv.cut = "" // 截断点被压缩掉了：重新开始
 	}
-	if g.conv.lastPrompt >= g.budget*HistoryRatio {
+	if g.conv.lastPrompt >= g.historyLimit() {
 		if c := newCut(step); c != "" && c != g.conv.cut {
 			if i := cutIndex(step, c); i > g.cutAt {
 				g.conv.cut, g.cutAt = c, i

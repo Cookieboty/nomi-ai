@@ -20,6 +20,7 @@ import { ArrowDown, ArrowUp, KeyRound, Plus, SlidersHorizontal, Trash2 } from 'l
 import React, { useState } from 'react';
 
 import { WIRE_LABEL, type ProviderView, type Wire } from '../../services/gatewayClient';
+import { isImeComposing } from '../../utils/keyboard';
 
 import styles from './index.module.css';
 
@@ -273,7 +274,11 @@ export const ProviderKeysSection: React.FC<{
                       onChange={(e) => onSet(i, { replace: e.target.value })}
                       onKeyDown={(e) => {
                         // 回车 = 换上这个新值并保存，不用再去点「保存」
-                        if (e.key === 'Enter' && k.replace?.trim()) {
+                        if (
+                          e.key === 'Enter' &&
+                          !isImeComposing(e.nativeEvent) &&
+                          k.replace?.trim()
+                        ) {
                           e.preventDefault();
                           onCommit();
                         }

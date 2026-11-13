@@ -452,6 +452,7 @@ func (o *Orchestrator) SteerTab(id, text string) *jsrt.Promise[bool] {
 
 // CancelTab = cancelTab。
 func (o *Orchestrator) CancelTab(id string) bool {
+	taskStopped := o.stopTaskSend(id)
 	o.thawIfFrozen(id)
 	if o.delegatedUnsent[id] && o.tabs.Has(id) {
 		o.stopBeforeStart[id] = true
@@ -492,7 +493,7 @@ func (o *Orchestrator) CancelTab(id string) bool {
 			return true
 		}
 		delete(o.stopRequested, id)
-		return false
+		return taskStopped
 	}
 	o.stopRequested[id] = true
 	o.teardownClaudeLive(id)
@@ -506,6 +507,9 @@ func (o *Orchestrator) CancelTab(id string) bool {
 
 // Dispose = dispose。
 func (o *Orchestrator) Dispose() {
+	for id := range o.taskSends {
+		o.stopTaskSend(id)
+	}
 	o.thawAll()
 	o.disposed = true
 	o.disposeSandbox()

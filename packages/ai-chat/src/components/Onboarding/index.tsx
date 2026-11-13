@@ -42,6 +42,7 @@ import { useNomiModelStatus } from '../../hooks/useNomiModelStatus';
 import { characterName, useCharacterName } from '../../services/characterName';
 import { startupClient, type StartupView } from '../../services/startupClient';
 import { requestOpenFleet } from '../../services/workbenchNav';
+import { isImeComposing } from '../../utils/keyboard';
 import { DISPATCH_CLIS } from '../DispatchCli';
 import { EndpointIcon } from '../EndpointIcon';
 import { useCliInstall } from '../ModelsPage/useCliInstall';
@@ -492,7 +493,9 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                   touch();
                   setName(e.target.value);
                 }}
-                onKeyDown={(e) => e.key === 'Enter' && void next()}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' && !isImeComposing(e.nativeEvent) && void next()
+                }
               />
             </Group>
             <Group title={t('ui.mascot-theme.occupation')} id="onb-role-label">

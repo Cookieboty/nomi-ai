@@ -1099,6 +1099,64 @@ type AiTtsSynthOutput struct {
 	DurationMs *float64 `json:"durationMs,omitempty"`
 }
 
+// AiUserQuestionAnswerInputAction 枚举：answer | skip
+type AiUserQuestionAnswerInputAction = string
+
+const (
+	AiUserQuestionAnswerInputActionAnswer AiUserQuestionAnswerInputAction = "answer"
+	AiUserQuestionAnswerInputActionSkip   AiUserQuestionAnswerInputAction = "skip"
+)
+
+type AiUserQuestionAnswerInputAnswersItem struct {
+	QuestionId string   `json:"questionId"`
+	Selected   []string `json:"selected"`
+	Custom     *string  `json:"custom,omitempty"`
+}
+
+type AiUserQuestionAnswerInput struct {
+	Id      string                                 `json:"id"`
+	Action  AiUserQuestionAnswerInputAction        `json:"action"`
+	Answers []AiUserQuestionAnswerInputAnswersItem `json:"answers,omitempty"`
+	Details *string                                `json:"details,omitempty"`
+}
+
+type AiUserQuestionAnswerOutput struct {
+	Ok bool `json:"ok"`
+}
+
+// AiUserQuestionPendingOutputItemSource 枚举：nomi | claude | codex | acp
+type AiUserQuestionPendingOutputItemSource = string
+
+const (
+	AiUserQuestionPendingOutputItemSourceNomi   AiUserQuestionPendingOutputItemSource = "nomi"
+	AiUserQuestionPendingOutputItemSourceClaude AiUserQuestionPendingOutputItemSource = "claude"
+	AiUserQuestionPendingOutputItemSourceCodex  AiUserQuestionPendingOutputItemSource = "codex"
+	AiUserQuestionPendingOutputItemSourceAcp    AiUserQuestionPendingOutputItemSource = "acp"
+)
+
+type AiUserQuestionPendingOutputItemQuestionsItemOptionsItem struct {
+	Id          string  `json:"id"`
+	Label       string  `json:"label"`
+	Description *string `json:"description,omitempty"`
+}
+
+type AiUserQuestionPendingOutputItemQuestionsItem struct {
+	Id      string                                                    `json:"id"`
+	Prompt  string                                                    `json:"prompt"`
+	Header  *string                                                   `json:"header,omitempty"`
+	Multi   bool                                                      `json:"multi"`
+	Options []AiUserQuestionPendingOutputItemQuestionsItemOptionsItem `json:"options"`
+}
+
+type AiUserQuestionPendingOutputItem struct {
+	Id             string                                         `json:"id"`
+	Source         AiUserQuestionPendingOutputItemSource          `json:"source"`
+	ConversationId *string                                        `json:"conversationId,omitempty"`
+	TabId          *string                                        `json:"tabId,omitempty"`
+	Questions      []AiUserQuestionPendingOutputItemQuestionsItem `json:"questions"`
+	ExpiresAt      float64                                        `json:"expiresAt"`
+}
+
 // AppIconGetOutputVariant 枚举：ink | cream | sunset
 type AppIconGetOutputVariant = string
 
@@ -1756,6 +1814,7 @@ type ComputerSandboxActionOutput struct {
 
 type ComputerStateInput struct {
 	Refresh *bool `json:"refresh,omitempty"`
+	Fresh   *bool `json:"fresh,omitempty"`
 }
 
 type ComputerStateOutputVisionModelsItem struct {
@@ -3683,13 +3742,14 @@ const (
 	FleetArchiveOutputAgentsItemColumnDone    FleetArchiveOutputAgentsItemColumn = "done"
 )
 
-// FleetArchiveOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept
+// FleetArchiveOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept | question
 type FleetArchiveOutputAgentsItemNeedsYou = string
 
 const (
 	FleetArchiveOutputAgentsItemNeedsYouPermission FleetArchiveOutputAgentsItemNeedsYou = "permission"
 	FleetArchiveOutputAgentsItemNeedsYouSandbox    FleetArchiveOutputAgentsItemNeedsYou = "sandbox"
 	FleetArchiveOutputAgentsItemNeedsYouAccept     FleetArchiveOutputAgentsItemNeedsYou = "accept"
+	FleetArchiveOutputAgentsItemNeedsYouQuestion   FleetArchiveOutputAgentsItemNeedsYou = "question"
 )
 
 type FleetArchiveOutputAgentsItemUsage struct {
@@ -3892,13 +3952,14 @@ const (
 	FleetCloseIdleOutputAgentsItemColumnDone    FleetCloseIdleOutputAgentsItemColumn = "done"
 )
 
-// FleetCloseIdleOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept
+// FleetCloseIdleOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept | question
 type FleetCloseIdleOutputAgentsItemNeedsYou = string
 
 const (
 	FleetCloseIdleOutputAgentsItemNeedsYouPermission FleetCloseIdleOutputAgentsItemNeedsYou = "permission"
 	FleetCloseIdleOutputAgentsItemNeedsYouSandbox    FleetCloseIdleOutputAgentsItemNeedsYou = "sandbox"
 	FleetCloseIdleOutputAgentsItemNeedsYouAccept     FleetCloseIdleOutputAgentsItemNeedsYou = "accept"
+	FleetCloseIdleOutputAgentsItemNeedsYouQuestion   FleetCloseIdleOutputAgentsItemNeedsYou = "question"
 )
 
 type FleetCloseIdleOutputAgentsItemUsage struct {
@@ -4100,13 +4161,14 @@ const (
 	FleetPauseOutputAgentsItemColumnDone    FleetPauseOutputAgentsItemColumn = "done"
 )
 
-// FleetPauseOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept
+// FleetPauseOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept | question
 type FleetPauseOutputAgentsItemNeedsYou = string
 
 const (
 	FleetPauseOutputAgentsItemNeedsYouPermission FleetPauseOutputAgentsItemNeedsYou = "permission"
 	FleetPauseOutputAgentsItemNeedsYouSandbox    FleetPauseOutputAgentsItemNeedsYou = "sandbox"
 	FleetPauseOutputAgentsItemNeedsYouAccept     FleetPauseOutputAgentsItemNeedsYou = "accept"
+	FleetPauseOutputAgentsItemNeedsYouQuestion   FleetPauseOutputAgentsItemNeedsYou = "question"
 )
 
 type FleetPauseOutputAgentsItemUsage struct {
@@ -4308,13 +4370,14 @@ const (
 	FleetResumeOutputAgentsItemColumnDone    FleetResumeOutputAgentsItemColumn = "done"
 )
 
-// FleetResumeOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept
+// FleetResumeOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept | question
 type FleetResumeOutputAgentsItemNeedsYou = string
 
 const (
 	FleetResumeOutputAgentsItemNeedsYouPermission FleetResumeOutputAgentsItemNeedsYou = "permission"
 	FleetResumeOutputAgentsItemNeedsYouSandbox    FleetResumeOutputAgentsItemNeedsYou = "sandbox"
 	FleetResumeOutputAgentsItemNeedsYouAccept     FleetResumeOutputAgentsItemNeedsYou = "accept"
+	FleetResumeOutputAgentsItemNeedsYouQuestion   FleetResumeOutputAgentsItemNeedsYou = "question"
 )
 
 type FleetResumeOutputAgentsItemUsage struct {
@@ -4516,13 +4579,14 @@ const (
 	FleetSetAutoPauseOutputAgentsItemColumnDone    FleetSetAutoPauseOutputAgentsItemColumn = "done"
 )
 
-// FleetSetAutoPauseOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept
+// FleetSetAutoPauseOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept | question
 type FleetSetAutoPauseOutputAgentsItemNeedsYou = string
 
 const (
 	FleetSetAutoPauseOutputAgentsItemNeedsYouPermission FleetSetAutoPauseOutputAgentsItemNeedsYou = "permission"
 	FleetSetAutoPauseOutputAgentsItemNeedsYouSandbox    FleetSetAutoPauseOutputAgentsItemNeedsYou = "sandbox"
 	FleetSetAutoPauseOutputAgentsItemNeedsYouAccept     FleetSetAutoPauseOutputAgentsItemNeedsYou = "accept"
+	FleetSetAutoPauseOutputAgentsItemNeedsYouQuestion   FleetSetAutoPauseOutputAgentsItemNeedsYou = "question"
 )
 
 type FleetSetAutoPauseOutputAgentsItemUsage struct {
@@ -4733,13 +4797,14 @@ const (
 	FleetSetPolicyOutputAgentsItemColumnDone    FleetSetPolicyOutputAgentsItemColumn = "done"
 )
 
-// FleetSetPolicyOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept
+// FleetSetPolicyOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept | question
 type FleetSetPolicyOutputAgentsItemNeedsYou = string
 
 const (
 	FleetSetPolicyOutputAgentsItemNeedsYouPermission FleetSetPolicyOutputAgentsItemNeedsYou = "permission"
 	FleetSetPolicyOutputAgentsItemNeedsYouSandbox    FleetSetPolicyOutputAgentsItemNeedsYou = "sandbox"
 	FleetSetPolicyOutputAgentsItemNeedsYouAccept     FleetSetPolicyOutputAgentsItemNeedsYou = "accept"
+	FleetSetPolicyOutputAgentsItemNeedsYouQuestion   FleetSetPolicyOutputAgentsItemNeedsYou = "question"
 )
 
 type FleetSetPolicyOutputAgentsItemUsage struct {
@@ -4937,13 +5002,14 @@ const (
 	FleetStateOutputAgentsItemColumnDone    FleetStateOutputAgentsItemColumn = "done"
 )
 
-// FleetStateOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept
+// FleetStateOutputAgentsItemNeedsYou 枚举：permission | sandbox | accept | question
 type FleetStateOutputAgentsItemNeedsYou = string
 
 const (
 	FleetStateOutputAgentsItemNeedsYouPermission FleetStateOutputAgentsItemNeedsYou = "permission"
 	FleetStateOutputAgentsItemNeedsYouSandbox    FleetStateOutputAgentsItemNeedsYou = "sandbox"
 	FleetStateOutputAgentsItemNeedsYouAccept     FleetStateOutputAgentsItemNeedsYou = "accept"
+	FleetStateOutputAgentsItemNeedsYouQuestion   FleetStateOutputAgentsItemNeedsYou = "question"
 )
 
 type FleetStateOutputAgentsItemUsage struct {
@@ -5397,6 +5463,7 @@ type GatewaySetAssignmentInput struct {
 type GatewaySetOptionsInput struct {
 	StrictParams        *bool    `json:"strictParams,omitempty"`
 	MaxRequestBodyBytes *float64 `json:"maxRequestBodyBytes,omitempty"`
+	ContextTier         *float64 `json:"contextTier,omitempty"`
 	PrivacyMode         *bool    `json:"privacyMode,omitempty"`
 	PrivacyStrict       *bool    `json:"privacyStrict,omitempty"`
 	PrivacyLocal        *bool    `json:"privacyLocal,omitempty"`
@@ -5940,6 +6007,7 @@ type HarnessPreviewOpenInput struct {
 	Cwd          string `json:"cwd"`
 	Path         string `json:"path"`
 	AllowOutside *bool  `json:"allowOutside,omitempty"`
+	Source       *bool  `json:"source,omitempty"`
 }
 
 type HarnessPreviewOpenOutput struct {
@@ -6443,10 +6511,11 @@ type HarnessTabContextOutput struct {
 }
 
 type HarnessTabCreateInputMessagesItem struct {
-	Id        string  `json:"id"`
-	Role      string  `json:"role"`
-	Content   string  `json:"content"`
-	Timestamp float64 `json:"timestamp"`
+	Id            string  `json:"id"`
+	Role          string  `json:"role"`
+	Content       string  `json:"content"`
+	Timestamp     float64 `json:"timestamp"`
+	ResponseModel *string `json:"responseModel,omitempty"`
 }
 
 type HarnessTabCreateInput struct {
@@ -6599,10 +6668,11 @@ type HarnessTabMessagesInput struct {
 }
 
 type HarnessTabMessagesOutputItem struct {
-	Id        string  `json:"id"`
-	Role      string  `json:"role"`
-	Content   string  `json:"content"`
-	Timestamp float64 `json:"timestamp"`
+	Id            string  `json:"id"`
+	Role          string  `json:"role"`
+	Content       string  `json:"content"`
+	Timestamp     float64 `json:"timestamp"`
+	ResponseModel *string `json:"responseModel,omitempty"`
 }
 
 // HarnessTabModelInputExpectSource 枚举：official | thirdParty
@@ -6816,17 +6886,19 @@ type HarnessTabRewindInput struct {
 }
 
 type HarnessTabRewindOutputItem struct {
-	Id        string  `json:"id"`
-	Role      string  `json:"role"`
-	Content   string  `json:"content"`
-	Timestamp float64 `json:"timestamp"`
+	Id            string  `json:"id"`
+	Role          string  `json:"role"`
+	Content       string  `json:"content"`
+	Timestamp     float64 `json:"timestamp"`
+	ResponseModel *string `json:"responseModel,omitempty"`
 }
 
 type HarnessTabSeedInputMessagesItem struct {
-	Id        string  `json:"id"`
-	Role      string  `json:"role"`
-	Content   string  `json:"content"`
-	Timestamp float64 `json:"timestamp"`
+	Id            string  `json:"id"`
+	Role          string  `json:"role"`
+	Content       string  `json:"content"`
+	Timestamp     float64 `json:"timestamp"`
+	ResponseModel *string `json:"responseModel,omitempty"`
 }
 
 type HarnessTabSeedInput struct {
@@ -10669,6 +10741,40 @@ type EventAiUserProfileChanged struct {
 	Profile any `json:"profile,omitempty"`
 }
 
+// EventAiUserQuestionSource 枚举：nomi | claude | codex | acp
+type EventAiUserQuestionSource = string
+
+const (
+	EventAiUserQuestionSourceNomi   EventAiUserQuestionSource = "nomi"
+	EventAiUserQuestionSourceClaude EventAiUserQuestionSource = "claude"
+	EventAiUserQuestionSourceCodex  EventAiUserQuestionSource = "codex"
+	EventAiUserQuestionSourceAcp    EventAiUserQuestionSource = "acp"
+)
+
+type EventAiUserQuestionQuestionsItemOptionsItem struct {
+	Id          string  `json:"id"`
+	Label       string  `json:"label"`
+	Description *string `json:"description,omitempty"`
+}
+
+type EventAiUserQuestionQuestionsItem struct {
+	Id      string                                        `json:"id"`
+	Prompt  string                                        `json:"prompt"`
+	Header  *string                                       `json:"header,omitempty"`
+	Multi   bool                                          `json:"multi"`
+	Options []EventAiUserQuestionQuestionsItemOptionsItem `json:"options"`
+}
+
+type EventAiUserQuestion struct {
+	Id             string                             `json:"id"`
+	Closed         *bool                              `json:"closed,omitempty"`
+	Source         *EventAiUserQuestionSource         `json:"source,omitempty"`
+	ConversationId *string                            `json:"conversationId,omitempty"`
+	TabId          *string                            `json:"tabId,omitempty"`
+	Questions      []EventAiUserQuestionQuestionsItem `json:"questions,omitempty"`
+	ExpiresAt      *float64                           `json:"expiresAt,omitempty"`
+}
+
 // EventCharacterAssetsChangedStatus 枚举：idle | checking | downloading | ready | error
 type EventCharacterAssetsChangedStatus = string
 
@@ -10953,13 +11059,14 @@ const (
 	EventFleetChangedAgentsItemColumnDone    EventFleetChangedAgentsItemColumn = "done"
 )
 
-// EventFleetChangedAgentsItemNeedsYou 枚举：permission | sandbox | accept
+// EventFleetChangedAgentsItemNeedsYou 枚举：permission | sandbox | accept | question
 type EventFleetChangedAgentsItemNeedsYou = string
 
 const (
 	EventFleetChangedAgentsItemNeedsYouPermission EventFleetChangedAgentsItemNeedsYou = "permission"
 	EventFleetChangedAgentsItemNeedsYouSandbox    EventFleetChangedAgentsItemNeedsYou = "sandbox"
 	EventFleetChangedAgentsItemNeedsYouAccept     EventFleetChangedAgentsItemNeedsYou = "accept"
+	EventFleetChangedAgentsItemNeedsYouQuestion   EventFleetChangedAgentsItemNeedsYou = "question"
 )
 
 type EventFleetChangedAgentsItemUsage struct {
@@ -11141,10 +11248,11 @@ type EventHarnessEventsItem struct {
 }
 
 type EventHarnessTabMessageMessage struct {
-	Id        string  `json:"id"`
-	Role      string  `json:"role"`
-	Content   string  `json:"content"`
-	Timestamp float64 `json:"timestamp"`
+	Id            string  `json:"id"`
+	Role          string  `json:"role"`
+	Content       string  `json:"content"`
+	Timestamp     float64 `json:"timestamp"`
+	ResponseModel *string `json:"responseModel,omitempty"`
 }
 
 type EventHarnessTabMessage struct {
@@ -11760,6 +11868,14 @@ type AiTtsStreamChunkT = AiTtsStreamChunk
 // AiTtsSynthInputT 是 ai.tts.synth 的入参
 type AiTtsSynthInputT = AiTtsSynthInput
 type AiTtsSynthOutputT = AiTtsSynthOutput
+
+// AiUserQuestionAnswerInputT 是 ai.userQuestion.answer 的入参
+type AiUserQuestionAnswerInputT = AiUserQuestionAnswerInput
+type AiUserQuestionAnswerOutputT = AiUserQuestionAnswerOutput
+
+// AiUserQuestionPendingInputT 是 ai.userQuestion.pending 的入参
+type AiUserQuestionPendingInputT = any
+type AiUserQuestionPendingOutputT = []AiUserQuestionPendingOutputItem
 
 // AppIconGetInputT 是 appIcon.get 的入参
 type AppIconGetInputT = any
@@ -13498,6 +13614,7 @@ type EventAiToolExecutedT = EventAiToolExecuted
 type EventAiTtsChunkT = EventAiTtsChunk
 type EventAiTtsEndT = EventAiTtsEnd
 type EventAiUserProfileChangedT = EventAiUserProfileChanged
+type EventAiUserQuestionT = EventAiUserQuestion
 type EventAvatarEventT = json.RawMessage
 type EventCharacterAssetsChangedT = EventCharacterAssetsChanged
 type EventChatAssetsChangedT = any

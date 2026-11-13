@@ -10,9 +10,11 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// DefaultCtx = DEFAULT_CTX；DefaultMaxOutput = DEFAULT_MAX_OUTPUT
+// DefaultCtx = DEFAULT_CTX：认不出的模型按 256 Ki token，不按 128K。
+// 模型真实窗口更小的用真实窗口；已有标准档（Claude 200K、GPT 272K 等）保持原档。
+// 与 models.GenericStandard 是同一个数。
 const (
-	DefaultCtx       = 128_000
+	DefaultCtx       = models.GenericStandard
 	DefaultMaxOutput = 32_000
 )
 
@@ -155,7 +157,9 @@ func ResolveModelMeta(stored *u.Obj, id string, preset *u.Obj, longContextOpt *b
 	}
 	ctx, maxOutput := pick("ctx"), pick("maxOutput")
 	reasoning, vision, toolCalling := pick("reasoning"), pick("vision"), pick("toolCalling")
-	// 标准窗口：用户声明的优先；否则来自内置目录，但用户手填了上下文、又没声明标准窗口时不分标准 / 长
+	// 标准窗口：用户声明的优先；否则目录里的分档（含同步目录补上的通用 256K）；
+	// 再否则预设上写的 ctxStandard。用户手填了上下文、又没声明标准窗口时不分标准 / 长。
+	// 窗口仍大于 256K 且到这里还没有标准档：补通用 256K，长上下文默认关。
 	userStandard, _ := objGet(stored, "ctxStandard").(float64)
 	if !(userStandard > 0) {
 		userStandard = 0
@@ -163,6 +167,16 @@ func ResolveModelMeta(stored *u.Obj, id string, preset *u.Obj, longContextOpt *b
 	standard := userStandard
 	if standard == 0 && ctx != nil && ctx.src != "user" {
 		standard, _ = objGet(models.CatalogEntry(lookup), "limits", "standard").(float64)
+	}
+	if standard == 0 && ctx != nil && ctx.src != "user" && preset != nil {
+		if n, ok := preset.Get("ctxStandard").(float64); ok && n > 0 {
+			standard = n
+		}
+	}
+	if standard == 0 && ctx != nil && ctx.src != "user" {
+		if full, ok := ctx.v.(float64); ok && full > DefaultCtx {
+			standard = DefaultCtx
+		}
 	}
 	var long *LongContext
 	if ctx != nil && standard != 0 {

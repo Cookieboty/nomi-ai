@@ -17,6 +17,7 @@ import { DiffView } from '../Conversation/DiffView';
 import {
   rememberReviewMode,
   reviewDraftStore,
+  saveReviewDraft,
   type FileViewState,
   type ReviewDraftStore,
   type ReviewMode,
@@ -73,6 +74,14 @@ export const FileReview: React.FC<{
   const [store] = useState<ReviewDraftStore>(() =>
     draftKey ? reviewDraftStore(draftKey) : { views: new Map() },
   );
+  const [, refreshDrafts] = useState(0);
+  useEffect(() => {
+    const notify = () => refreshDrafts((version) => version + 1);
+    (store.listeners ??= new Set()).add(notify);
+    return () => {
+      store.listeners?.delete(notify);
+    };
+  }, [store]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [disk, setDisk] = useState<string>('');
@@ -136,7 +145,7 @@ export const FileReview: React.FC<{
       prev.selStart = taRef.current.selectionStart;
       prev.selEnd = taRef.current.selectionEnd;
       prev.draft = taRef.current.value;
-      prev.dirty = taRef.current.value !== disk;
+      prev.dirty = taRef.current.value !== (prev.baseline ?? disk);
       commitMeta(active.key, prev.draft, prev.dirty);
     } else if (bodyRef.current) {
       prev.scrollTop = bodyRef.current.scrollTop;
@@ -162,7 +171,7 @@ export const FileReview: React.FC<{
     pendingRestore.current = null;
     // 提交时才取草稿：读盘返回到编辑框重新渲染之间用户已经输入的内容不能被盖掉
     const st = viewState.current.get(p.key);
-    ta.value = st?.dirty && st.draft != null ? st.draft : p.disk;
+    ta.value = st?.dirty && st.draft != null ? st.draft : (st?.baseline ?? p.disk);
     if (st) {
       ta.scrollTop = st.scrollTop;
       try {
@@ -178,7 +187,9 @@ export const FileReview: React.FC<{
   const rootsKey = (active?.cwds?.length ? active.cwds : cwd ? [cwd] : []).join('\0');
   /** 当前文件实际读到的目录（保存写回同一处） */
   const [readRoot, setReadRoot] = useState<string | null>(null);
+  const generation = useRef(0);
   const loadDisk = useCallback(async () => {
+    const request = ++generation.current;
     const roots = rootsKey ? rootsKey.split('\0') : [];
     if (!roots.length || !activeFileKey || !activePath) {
       setDisk('');
@@ -189,6 +200,7 @@ export const FileReview: React.FC<{
     }
     setLoading(true);
     setErr(null);
+    const savedVersion = viewState.current.get(activeFileKey)?.savedVersion ?? 0;
     try {
       let r: Awaited<ReturnType<typeof harnessClient.workspaceRead>> | null = null;
       let root = roots[0]!;
@@ -205,6 +217,17 @@ export const FileReview: React.FC<{
         }
         root = dir;
         if (r.ok || (r.code !== 'not-found' && r.code !== 'outside')) break;
+      }
+      if (request !== generation.current) return;
+      const saved = viewState.current.get(activeFileKey);
+      if ((saved?.savedVersion ?? 0) !== savedVersion) {
+        // A save completed while this read was pending (possibly in another mount).
+        // Its result predates the saved baseline and must not replace it.
+        setReadRoot(saved?.root ?? null);
+        setBinary(false);
+        setDisk(saved?.baseline ?? '');
+        pendingRestore.current = { key: activeFileKey, disk: saved?.baseline ?? '' };
+        return;
       }
       if (!r) throw thrown ?? new Error(t('ui.slash-commands.failed-to-read'));
       setReadRoot(r.ok ? root : null);
@@ -226,13 +249,20 @@ export const FileReview: React.FC<{
         return;
       }
       setBinary(false);
-      setDisk(r.content ?? '');
+      const st = viewState.current.get(activeFileKey) ?? { scrollTop: 0, selStart: 0, selEnd: 0 };
+      if (!st.dirty && !st.saving) {
+        st.baseline = r.content ?? '';
+        st.root = root;
+        st.path = workspaceRelPath(root, activePath);
+      }
+      viewState.current.set(activeFileKey, st);
+      setDisk(st.baseline ?? r.content ?? '');
       // 读取期间编辑框被卸载：等它重新渲染出来再写回草稿与滚动 / 选区（见下方 layout effect）
       pendingRestore.current = { key: activeFileKey, disk: r.content ?? '' };
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+      if (request === generation.current) setErr(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
+      if (request === generation.current) setLoading(false);
     }
   }, [activeFileKey, activePath, rootsKey]);
 
@@ -247,6 +277,11 @@ export const FileReview: React.FC<{
         if (el && st) el.scrollTop = st.scrollTop;
       });
     }
+    // This counter invalidates asynchronous work; it is not a DOM ref.
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      generation.current++;
+    };
   }, [activeFileKey, mode, loadDisk]);
 
   useEffect(() => {
@@ -280,40 +315,36 @@ export const FileReview: React.FC<{
 
   const saveRoot = active?.cwds?.length ? readRoot : cwd;
   const save = async () => {
-    if (!saveRoot || !active || binary) return;
-    const content = taRef.current?.value ?? viewState.current.get(active.key)?.draft ?? disk;
-    setSaving(true);
-    setErr(null);
-    try {
-      const r = await harnessClient.workspaceWrite(
-        saveRoot,
-        workspaceRelPath(saveRoot, active.path),
-        content,
-      );
-      if (!r.ok) {
-        setErr(
-          r.code === 'outside'
-            ? t('ui.session-workspace.path-outside-workspace-write-denied')
-            : r.error || t('ui.voice-mascot.couldn-t-save'),
-        );
-        return;
-      }
-      setDisk(content);
-      const st = viewState.current.get(active.key) ?? {
-        scrollTop: 0,
-        selStart: 0,
-        selEnd: 0,
-      };
-      st.dirty = false;
-      st.draft = content;
-      viewState.current.set(active.key, st);
-      commitMeta(active.key, content, false);
-      onSaved?.();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSaving(false);
+    if (!saveRoot || !active || binary || loading) return;
+    const st = viewState.current.get(active.key);
+    if (!st || st.saving) return;
+    if (st.root !== saveRoot || st.path !== workspaceRelPath(saveRoot, active.path)) {
+      setErr(t('ui.session-workspace.preview-save-conflict'));
+      return;
     }
+    persistView();
+    const request = generation.current;
+    setErr(null);
+    const error = await saveReviewDraft(store, st);
+    // Git/diff refresh belongs to the saved file even after this view changes.
+    if (!error) onSaved?.();
+    // Always update the original stored draft, but never paint its result over
+    // another file or a newly mounted preview.
+    if (request !== generation.current) return;
+    commitMeta(active.key, st.draft, !!st.dirty);
+    if (error) {
+      setErr(
+        t(
+          error === 'conflict'
+            ? 'ui.session-workspace.preview-save-conflict'
+            : error === 'authorization'
+              ? 'ui.session-workspace.path-outside-workspace-write-denied'
+              : 'ui.voice-mascot.couldn-t-save',
+        ),
+      );
+      return;
+    }
+    setDisk(st.baseline ?? '');
   };
 
   const askDiscard = () => {
@@ -360,7 +391,8 @@ export const FileReview: React.FC<{
   if (!active) return null;
 
   const hasDiff = !!(active.change?.diff || active.gitDiff);
-  const dirty = !!meta[active.key]?.dirty;
+  const dirty = !!(store.views.get(active.key)?.dirty ?? meta[active.key]?.dirty);
+  const busy = saving || !!store.views.get(active.key)?.saving;
 
   return (
     <div
@@ -440,7 +472,7 @@ export const FileReview: React.FC<{
               type="button"
               className={styles.iconBtn}
               onClick={() => void save()}
-              disabled={saving || !saveRoot}
+              disabled={busy || loading || !saveRoot}
               aria-label={t('ui.session-workspace.save-to-workspace')}
               data-testid="preview-save"
             >
@@ -452,7 +484,7 @@ export const FileReview: React.FC<{
               type="button"
               className={styles.iconBtn}
               onClick={askDiscard}
-              disabled={saving || !cwd || confirmDiscard}
+              disabled={busy || !cwd || confirmDiscard}
               aria-label={t('ui.session-workspace.discard-turn-changes')}
               data-testid="preview-discard"
             >
@@ -577,7 +609,7 @@ export const FileReview: React.FC<{
                   selEnd: 0,
                 };
                 st.draft = e.target.value;
-                st.dirty = e.target.value !== disk;
+                st.dirty = e.target.value !== (st.baseline ?? disk);
                 viewState.current.set(active.key, st);
                 commitMeta(active.key, st.draft, !!st.dirty);
               }}

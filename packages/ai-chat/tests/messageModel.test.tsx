@@ -59,7 +59,7 @@ describe('助手消息上的模型', () => {
   });
 
   it('元信息里显示模型，无障碍名保留完整模型名', () => {
-    const { getByTestId } = render(
+    const { getByTestId, queryByTestId } = render(
       <ConversationView
         scopeId="s"
         messages={[assistant({ label: 'Grok', model: 'amux/openai/gpt-6.1-sol' })]}
@@ -67,9 +67,36 @@ describe('助手消息上的模型', () => {
       />,
     );
     const el = getByTestId('conv-msg-model');
-    expect(el.textContent).toBe('amux/openai/gpt-6.1-sol');
+    expect(el.textContent?.replace(/\s+/g, '')).toBe('amux/openai/gpt-6.1-sol');
     expect(el.getAttribute('title')).toBeNull();
     expect(el.getAttribute('aria-label')).toContain('amux/openai/gpt-6.1-sol');
+    expect(queryByTestId('conv-msg-actual-model')).toBeNull();
+  });
+
+  it('上游返回了另一个模型时，页脚在请求的模型后面标出实际名称', () => {
+    const { getByTestId, getByRole } = render(
+      <ConversationView
+        scopeId="s"
+        messages={[
+          assistant({
+            label: 'Claude Code',
+            model: 'maas/Aerith-fable-5',
+            responseModel: 'claude-fable-5',
+          }),
+        ]}
+        phase="idle"
+      />,
+    );
+    const el = getByTestId('conv-msg-model');
+    expect(el.textContent).toContain('maas/Aerith-fable-5');
+    expect(el.textContent).toContain('→');
+    expect(el.textContent).toContain('claude-fable-5');
+    expect(el.getAttribute('title')).toBeNull();
+    expect(el.getAttribute('aria-label')).toContain('claude-fable-5');
+    const actual = getByTestId('conv-msg-actual-model');
+    expect(actual.textContent).toContain('claude-fable-5');
+    expect(actual.getAttribute('title')).toBeNull();
+    expect(getByRole('tooltip').textContent).toContain('claude-fable-5');
   });
 });
 

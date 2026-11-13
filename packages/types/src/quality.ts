@@ -88,6 +88,8 @@ export interface QualityRecord {
   model?: string;
   /** 上游真实模型名 */
   upstreamModel?: string;
+  /** 上游响应里返回的模型名（和请求的不是同一个时才有） */
+  responseModel?: string;
   /** 归一后的模型族（跨供应商对比用） */
   modelFamily?: string;
   ingress?: string;

@@ -26,7 +26,8 @@ var ToolDanger = map[string]Danger{
 	"clipboard_read": "read", "clipboard_write": "write",
 	"browser_open": "write", "browser_read": "read", "browser_click": "write", "browser_type": "write", "browser_close": "read", "code_run": "destructive",
 	"workspace_run": "destructive",
-	// computer_*：读界面算 read（首次使用确认），操作应用算 write，坐标点击是物理输入算 destructive（每次弹窗）
+	// computer_*：读界面算 read（首次使用确认），操作应用算 write，坐标点击是物理输入算 destructive。
+	// 对话里点过允许或开了始终允许之后，敏感动作和坐标点击也不再问（见 PermissionBroker.Authorize）。
 	"computer_status": "read", "computer_list_apps": "read", "computer_snapshot": "read", "computer_wait": "read", "computer_screenshot": "read",
 	"computer_locate": "read",
 	"computer_click":  "write", "computer_type": "write", "computer_set_value": "write", "computer_press": "write", "computer_scroll": "write",

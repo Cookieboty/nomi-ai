@@ -164,6 +164,8 @@ export interface HarnessTabMessage {
   usage?: HarnessUsage;
   /** 产生这条助手消息的模型（主进程在一轮结束时记下；旧消息没有） */
   model?: string;
+  /** 上游实际返回的模型（和请求的不是同一个时才有） */
+  responseModel?: string;
   stopped?: true;
   /** CLI 自发的一轮（后台子代理完成后主代理的跟进） */
   origin?: 'background';
@@ -186,6 +188,8 @@ export interface HarnessUsage {
   contextWindow?: number;
   /** CLI 实际使用的主模型（标签没指定模型时据此查窗口经验表） */
   model?: string;
+  /** 上游响应里的模型名（和请求的不是同一个时才有） */
+  responseModel?: string;
   /** 仅 Nomi 对话：隐私模式在这一轮发给第三方供应商的内容里隐藏了几个密钥（含历史消息里的） */
   redacted?: number;
   /**

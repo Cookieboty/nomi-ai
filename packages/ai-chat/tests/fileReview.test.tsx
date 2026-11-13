@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FileReview, type ReviewFile } from '../src/components/SessionWorkspace/FileReview';
 import { harnessClient } from '../src/services/harnessClient';
+import { resourcePreviewClient } from '../src/services/resourcePreviewClient';
 import type { FileDiff } from '../src/utils/toolTrace';
 
 vi.mock('../src/services/harnessClient', () => ({
@@ -14,6 +15,10 @@ vi.mock('../src/services/harnessClient', () => ({
     workspaceDelete: vi.fn(),
     workspaceGitCheckout: vi.fn(),
   },
+}));
+
+vi.mock('../src/services/resourcePreviewClient', () => ({
+  resourcePreviewClient: { open: vi.fn(), save: vi.fn(), close: vi.fn() },
 }));
 
 const diff: FileDiff = {
@@ -61,6 +66,15 @@ beforeEach(() => {
     content: 'head\nnew\ntail\n',
   });
   vi.mocked(harnessClient.workspaceWrite).mockResolvedValue({ ok: true });
+  vi.mocked(resourcePreviewClient.open).mockResolvedValue({
+    ok: true,
+    editable: true,
+    content: 'head\nnew\ntail\n',
+    url: 'cap',
+    revision: 'r1',
+  });
+  vi.mocked(resourcePreviewClient.save).mockResolvedValue({ ok: true, revision: 'r2' });
+  vi.mocked(resourcePreviewClient.close).mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -79,9 +93,9 @@ describe('FileReview 编辑 / 保存', () => {
     fireEvent.change(ta, { target: { value: 'head\nnew\ntail\n// saved\n' } });
     fireEvent.click(screen.getByTestId('preview-save'));
     await waitFor(() =>
-      expect(harnessClient.workspaceWrite).toHaveBeenCalledWith(
-        '/w',
-        'src/a.ts',
+      expect(resourcePreviewClient.save).toHaveBeenCalledWith(
+        'cap',
+        'r1',
         'head\nnew\ntail\n// saved\n',
       ),
     );
@@ -89,10 +103,9 @@ describe('FileReview 编辑 / 保存', () => {
   });
 
   it('保存失败：显示错误，不当作已保存', async () => {
-    vi.mocked(harnessClient.workspaceWrite).mockResolvedValue({
+    vi.mocked(resourcePreviewClient.save).mockResolvedValue({
       ok: false,
-      code: 'outside',
-      error: 'x',
+      code: 'denied',
     });
     const onSaved = vi.fn();
     renderPreview(onSaved);
@@ -102,7 +115,7 @@ describe('FileReview 编辑 / 保存', () => {
     fireEvent.change(ta, { target: { value: 'x' } });
     fireEvent.click(screen.getByTestId('preview-save'));
     const err = await screen.findByTestId('preview-error');
-    expect(err.textContent).toContain('工作区');
+    expect(err.textContent).toBeTruthy();
     expect(onSaved).not.toHaveBeenCalled();
   });
 });

@@ -63,6 +63,7 @@ export const EndpointControls: React.FC<{ part?: 'mode' | 'model' }> = ({ part }
   const mode = part !== 'model';
   return (
     <>
+      {/* Nomi 对话与编程助手标签用同一个「模型 · 思考深度」按钮（ModelEffortChip + 各自的适配器） */}
       {model && !cli && gatewayClientAvailable() && <NomiModelSwitch />}
       {mode && nomiTab && <PermissionModeChip tab={nomiTab} />}
       {model && cli && modeTab && <ModelControls key={`model-${modeTab.backend}`} tab={modeTab} />}

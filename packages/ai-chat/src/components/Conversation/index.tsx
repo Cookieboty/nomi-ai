@@ -401,7 +401,8 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     const el = scrollRef.current;
     if (!el) return;
     const h = el.scrollHeight;
-    el.scrollTop = h;
+    // 切换会话和贴底跟随均立即定位，不继承外部 CSS 的平滑滚动。
+    el.scrollTo({ top: h, behavior: 'instant' });
     lastTopRef.current = el.scrollTop;
     overflowedRef.current = h > el.clientHeight;
   }, []);

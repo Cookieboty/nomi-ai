@@ -29,6 +29,8 @@ const (
 	NeedPermission = "permission"
 	NeedSandbox    = "sandbox"
 	NeedAccept     = "accept"
+	// NeedQuestion：有结构化问题在等用户回答（Nomi 的 ask_user / Claude / Codex / ACP）
+	NeedQuestion = "question"
 )
 
 // AutoArchiveMs：已完成的多久没动静就不再显示（看板不保留历史）
@@ -58,7 +60,7 @@ type Agent struct {
 	Cwd            string `json:"cwd,omitempty"`
 	Usage          *Usage `json:"usage,omitempty"`
 	UpdatedAt      int64  `json:"updatedAt"`
-	// Paused：暂停中（已暂停列）；Pausable：可以手动暂停（CLI 标签：纳管、在跑、有活着的进程、没在等审批；
+	// Paused：暂停中（已暂停列）；Pausable：可以手动暂停（CLI 标签：纳管、在跑、有活着的进程、没在等审批或提问；
 	// 后台 Nomi：在跑或排队、没在等用户。后台 Nomi 的暂停是任务暂停：这一轮跑完，之后不再调度，等手动继续）
 	Paused   *Paused `json:"paused,omitempty"`
 	Pausable bool    `json:"pausable,omitempty"`
@@ -177,9 +179,11 @@ type Tab struct {
 	CallID, TaskID string
 	Pids           []int
 	PendingPerms   int
-	SandboxPending int
-	Paused         *Paused // 冻结中
-	Summary        string  // 最后一条回复（只在没在跑时取）
+	// PendingQuestions：有结构化问题在等用户（优先于普通权限，看板标「等你处理」）
+	PendingQuestions int
+	SandboxPending   int
+	Paused           *Paused // 冻结中
+	Summary          string  // 最后一条回复（只在没在跑时取）
 	// ParentTaskID：后台 Nomi 运行里派出的：那次运行的任务 id（调度树）
 	ParentTaskID string
 }
@@ -188,6 +192,8 @@ type Tab struct {
 type Chat struct {
 	ConversationID string
 	StartedAt      int64
+	// WaitingUser：这一轮停在 ask_user，等用户回答
+	WaitingUser bool
 }
 
 // ExtSession：编程助手监视（agents）认出的、Nomi 之外的会话（不含 Nomi 标签自己的会话）
@@ -352,8 +358,12 @@ func Build(in Input) State {
 	tabTask := map[string]bool{}
 
 	for _, c := range in.Chats {
-		managed = append(managed, Agent{ID: "chat:" + c.ConversationID, Kind: "nomi", Backend: "nomi", Scope: "managed",
-			Origin: "chat", Column: ColRunning, ConversationID: c.ConversationID, UpdatedAt: c.StartedAt})
+		a := Agent{ID: "chat:" + c.ConversationID, Kind: "nomi", Backend: "nomi", Scope: "managed",
+			Origin: "chat", Column: ColRunning, ConversationID: c.ConversationID, UpdatedAt: c.StartedAt}
+		if c.WaitingUser {
+			a.NeedsYou = NeedQuestion
+		}
+		managed = append(managed, a)
 	}
 
 	for _, t := range in.Tabs {
@@ -393,12 +403,14 @@ func Build(in Input) State {
 			}
 		}
 		switch {
+		case t.PendingQuestions > 0:
+			need = NeedQuestion
 		case t.PendingPerms > 0:
 			need = NeedPermission
 		case t.SandboxPending > 0:
 			need = NeedSandbox
 		}
-		if need == NeedPermission || need == NeedSandbox {
+		if need == NeedPermission || need == NeedSandbox || need == NeedQuestion {
 			col = ColRunning
 		}
 		if t.Paused != nil {

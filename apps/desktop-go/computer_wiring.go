@@ -110,6 +110,10 @@ var (
 //   - 中止 Nomi 那几轮对话；编程助手：中止标签当前的一轮，它的 MCP 会话一直拒绝到标签开始下一轮；
 //   - 撤掉还在等的桌面操作确认卡
 func stopComputer() {
+	// 紧急停止也收起还在等的问题卡（Nomi 那一轮随对话中止；编程助手的提问在这里拒绝掉）
+	if askBroker != nil {
+		askBroker.CancelAll()
+	}
 	if computerSvc != nil {
 		rep := computerSvc.StopAll()
 		if computerChats != nil {
@@ -266,6 +270,8 @@ func computerMcpLaunch(tabID, label string, readOnly bool) *harness.McpLaunch {
 // runWithCliPath：带登录 shell PATH 执行命令，返回合并输出与退出码
 func runWithCliPath(ctx context.Context, argv []string) (string, int, error) {
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	// npm.cmd / 安装命令同样不弹控制台（Computer Use 页打开时会在后台 npm view）
+	computer.HideConsole(cmd)
 	cmd.Env = usage.EnvSlice(cli.WithCliPath(nil))
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out

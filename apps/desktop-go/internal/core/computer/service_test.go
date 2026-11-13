@@ -3,6 +3,7 @@ package computer
 import (
 	"context"
 	"encoding/json"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -227,6 +228,9 @@ func TestSensitiveAction(t *testing.T) {
 		{"click", ref("Finder", "Delete Immediately…"), "", "", true},
 		{"click", ref("Notes", "New Note"), "", "", false},
 		{"click", ref("System Settings", "Wi-Fi"), "", "", true},
+		{"click", ref("GNOME Settings", "Wi-Fi"), "", "", true},
+		{"click", ref("KDE Settings", "Display"), "", "", true},
+		{"click", ref("Settings", "Privacy"), "", "", true},
 		{"click", ref("gnome-control-center", "Wi-Fi"), "", "", true},
 		{"click", ref("systemsettings", "Display"), "", "", true},
 		{"click", ref("org.gnome.Settings", "Privacy"), "", "", true},
@@ -251,17 +255,48 @@ func TestSensitiveAction(t *testing.T) {
 }
 
 func TestBlockedApp(t *testing.T) {
-	for _, n := range []string{"Bitwarden", "Passwords", "密码", "Alipay", "PayPal"} {
+	for _, n := range []string{
+		"Bitwarden", "Passwords", "密码", "Alipay", "PayPal",
+		"1Password", "1Password 7", "KeePassXC", "KeePass", "Keeper", "Keeper Password Manager",
+		"Bank", "Bank of America", "Banking", "mBank", "Monobank",
+		"Apple Wallet", "Trust Wallet", "KWallet", "KWalletManager", "Keychain Access", "钥匙串",
+	} {
 		if BlockedApp(n, "", nil) == "" {
 			t.Errorf("%s should be blocked", n)
 		}
 	}
-	for _, n := range []string{"Notes", "Finder", "Safari", "Keynote", "Visual Studio Code"} {
+	for _, n := range []string{"Notes", "Finder", "Safari", "Keynote", "Visual Studio Code", "Timekeeper", "Bookkeeper", "Timebank", "Storybank"} {
 		if r := BlockedApp(n, "", nil); r != "" {
 			t.Errorf("%s should not be blocked: %s", n, r)
 		}
 	}
 	if BlockedApp("Whatever", "com.agilebits.onepassword7", nil) == "" {
 		t.Error("bundle id should block")
+	}
+}
+
+func TestWaylandDisplay(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("wayland session is linux-only")
+	}
+	env := map[string]string{}
+	s := New(Options{Getenv: func(k string) string { return env[k] }})
+	cases := []struct {
+		sess, disp string
+		want       bool
+	}{
+		{"", "", false},
+		{"wayland", "", true},
+		{"Wayland", "", true},
+		{"x11", "", false},
+		{"", "wayland-0", true},
+		{"tty", "wayland-1", true},
+		{"x11", "wayland-0", true},
+	}
+	for _, c := range cases {
+		env["XDG_SESSION_TYPE"], env["WAYLAND_DISPLAY"] = c.sess, c.disp
+		if got := s.Wayland(); got != c.want {
+			t.Errorf("session=%q display=%q: got %v want %v", c.sess, c.disp, got, c.want)
+		}
 	}
 }

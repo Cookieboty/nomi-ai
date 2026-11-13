@@ -18,6 +18,7 @@ func fakeB64(p string) string { return base64.StdEncoding.EncodeToString(securit
 // 2.0.4 用户（只有 ai-providers.json v2 + cli-providers，尚无 gateway/store.json）：
 // Electron 迁移 → GatewayStore 迁移 → 重启 → 密钥仍能解、令牌稳定、文件不再变化。
 func TestProviders204MigrationAndRestart(t *testing.T) {
+	requireProductionMigration(t)
 	security.UseMockKeyring()
 	appData := t.TempDir()
 	electron := filepath.Join(appData, "@nomi-ai/electron")

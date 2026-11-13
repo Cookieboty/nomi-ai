@@ -10,6 +10,7 @@ import { desktopClient } from '../services/desktopClient';
 export function useIslandOpenItem(
   openTask: ((id: string) => void) | undefined,
   leavePage: () => void,
+  openConversation?: (id: string) => void,
 ): void {
   const tabs = useHarnessTabsCore();
   useEffect(
@@ -22,10 +23,12 @@ export function useIslandOpenItem(
         leavePage();
         if (target === 'tab' && tabs.available) {
           void tabs.activate(id);
-        } else if (tabs.isCliTab) {
-          void tabs.activate('main');
+          return;
         }
+        if (tabs.isCliTab) void tabs.activate('main');
+        // 问题卡把对话 id 放在 nomi 的 id 上：切到那个会话。确认卡的 id 是空的，留在当前对话。
+        if (target === 'nomi' && id) openConversation?.(id);
       }),
-    [openTask, leavePage, tabs],
+    [openTask, leavePage, openConversation, tabs],
   );
 }

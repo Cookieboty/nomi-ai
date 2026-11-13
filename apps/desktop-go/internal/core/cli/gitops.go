@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/charcontract"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -199,7 +200,7 @@ var (
 	reNothing  = regexp.MustCompile(`(?i)nothing to commit|no changes added to commit|nothing added to commit`)
 	reSha      = regexp.MustCompile(`(?i)^[0-9a-f]{40}([0-9a-f]{24})?$`)
 	reCRLF     = regexp.MustCompile(`\r\n?`)
-	reDelegate = regexp.MustCompile(`[\\/]\.nomi-delegate[\\/][^\\/]+$`)
+	reDelegate = regexp.MustCompile(`[\\/]` + regexp.QuoteMeta(hostports.DelegateWorktreeDir) + `[\\/][^\\/]+$`)
 	reGitdir   = util.JSRe(`(?m)^gitdir:\s*(.+?)\s*$`)
 )
 

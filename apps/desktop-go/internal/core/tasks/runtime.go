@@ -43,6 +43,7 @@ type Reporter interface {
 	Heartbeat()
 	Usage(d UsageDelta)
 	NeedsUser(w EventWait)
+	PermissionResolved(requestID string, approve bool)
 	Completed(r AttemptResult)
 	Failed(e TaskError)
 	TakenOver()
@@ -926,6 +927,12 @@ func (p *reporter) Heartbeat() {
 func (p *reporter) Usage(d UsageDelta) { p.r.ownOrQueue(func() { p.r.addUsage(p.id, p.gen, d) }) }
 func (p *reporter) NeedsUser(w EventWait) {
 	p.post(Event{Type: "needs_user", At: p.r.d.Now(), Gen: ptr(p.gen), Wait: &w})
+}
+
+// A reply made directly in a CLI pane must also release the task's waiting state.
+// The executor removes its pending request first, so decide does not send it again.
+func (p *reporter) PermissionResolved(requestID string, approve bool) {
+	p.post(Event{Type: "decide", At: p.r.d.Now(), Gen: ptr(p.gen), RequestID: ptr(requestID), Approve: approve})
 }
 func (p *reporter) Completed(res AttemptResult) {
 	p.post(Event{Type: "completed", At: p.r.d.Now(), Gen: ptr(p.gen), Result: &res})

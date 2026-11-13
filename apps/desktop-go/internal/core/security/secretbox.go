@@ -11,9 +11,11 @@ import (
 	"sync"
 
 	"github.com/zalando/go-keyring"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 )
 
-const keyringService = "Nomi"
+const keyringService = hostports.GoProductName
 
 // SecretBoxUnavailableError 对齐 SecretStorageUnavailableError
 type SecretBoxUnavailableError struct{ Msg string }

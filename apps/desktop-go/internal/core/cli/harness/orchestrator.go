@@ -202,6 +202,9 @@ type tabBinding struct {
 type Orchestrator struct {
 	d Deps
 
+	// taskSends keeps task-owned plan approvals attached to their original execution.
+	taskSends map[string]*taskSend
+
 	tabs     *util.Obj // id → HarnessTabMeta（Map 插入序）
 	messages map[string][]*util.Obj
 	// msgLRU：messages 里各标签最近一次被读的先后（最近的在末尾）；msgEvictArmed：已排了一次回收
@@ -223,6 +226,11 @@ type Orchestrator struct {
 	eventBatcher      *cli.EventBatcher
 	pendingPerms      *ordMap[map[string]*jsrt.Timer]
 	pendingPermOrder  map[string][]string
+	// QuestionHook：Claude Code 的 AskUserQuestion（type=question）。设了就不要再当普通权限发出去。
+	QuestionHook func(tabID string, ev *util.Obj)
+	// OnQuestionsCleared：标签的权限计时清掉或这一轮被打断时，取消还在等的问题卡。
+	// 调用方已在 jsrt 上；实现应同步写回子进程，不要再 jsrt.Call。
+	OnQuestionsCleared func(tabID string)
 	// permDetail：还在等的权限请求的详情（pending_perms.go，灵动岛列出用）
 	permDetail map[string]PendingPerm
 	// tabProcs：标签起过的 CLI 进程（Agent 看板据此从进程表里找到它的进程树）

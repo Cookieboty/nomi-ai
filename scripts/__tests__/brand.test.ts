@@ -13,11 +13,15 @@ const read = (rel: string): string => readFileSync(join(root, rel), 'utf8');
 describe('product brand', () => {
   it('Go shell, Windows AppUserModelID and installers use brand.appId', () => {
     const id = brand.appId.replace(/\./g, '\\.');
+    // 正式版身份在 hostports（!nomi_dev）；外壳和任务栏分组引用它，开发构建换成另一套。
+    expect(read('apps/desktop-go/internal/hostports/profile_default.go')).toMatch(
+      new RegExp(`AppID\\s+=\\s+"${id}"`),
+    );
     expect(read('apps/desktop-go/internal/shell/wailsshell/wails.go')).toMatch(
-      new RegExp(`const AppID = "${id}"`),
+      /const AppID = hostports\.AppID/,
     );
     expect(read('apps/desktop-go/internal/core/appicon/appicon.go')).toMatch(
-      new RegExp(`const AppUserModelID = "${id}"`),
+      /const AppUserModelID = hostports\.AppID/,
     );
     expect(read('apps/desktop-go/packaging/windows/installer.nsi')).toMatch(
       new RegExp(`!define APP_ID "${id}"`),

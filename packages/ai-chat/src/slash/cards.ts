@@ -122,7 +122,11 @@ function cliSourceLine(ctx: SlashContext, data: SlashData): CardRow {
 
 export function contextCard(ctx: SlashContext, data: SlashData): SlashCardInput {
   const m = currentModel(ctx, data);
-  const baseWin = contextWindowFor(m.model, reportedContextWindow(ctx.messages));
+  const reported = reportedContextWindow(ctx.messages);
+  const baseWin =
+    data.nomiWindow && data.nomiWindow > 0 && !reported
+      ? { size: data.nomiWindow, source: 'reported' as const }
+      : contextWindowFor(m.model, reported);
   const est = estimateContext(ctx.messages, {
     user: t('ui.slash-commands.your-messages'),
     assistant: t('ui.slash-commands.assistant-replies'),

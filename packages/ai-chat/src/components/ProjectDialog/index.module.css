@@ -45,8 +45,15 @@
 
 .box {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: min(360px, 50vh);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-lg);
+}
+.folderList {
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* 空：居中的「在此电脑上添加文件夹 ▾」+「添加」 */
@@ -174,26 +181,28 @@
   outline-offset: -2px;
 }
 
-/* 最近用过的目录 */
+/* 最近用过的目录：挂到 body，位置由 placeAddFolderMenu 算（翻到上方 / 贴边） */
 .menu {
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  z-index: 2;
-  width: min(420px, 100%);
-  max-height: 260px;
-  margin-top: var(--cd-space-1);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
   padding: var(--cd-space-1-5);
-  overflow-y: auto;
+  overflow: hidden;
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-lg);
   background: var(--cd-color-surface-raised);
   box-shadow: var(--cd-shadow-popover);
-  transform: translateX(-50%);
 }
-.addRowWrap .menu {
-  left: 0;
-  transform: none;
+.menuScroll {
+  min-height: 0;
+  overflow-y: auto;
+}
+.menuPin {
+  flex: none;
+}
+.menuScroll:not(:empty) + .menuPin {
+  margin-top: var(--cd-space-1);
+  border-top: 1px solid var(--cd-color-border-subtle);
 }
 .menuGroup {
   padding: var(--cd-space-1) var(--cd-space-2);

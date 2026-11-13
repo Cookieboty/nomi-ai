@@ -102,6 +102,26 @@ func BudgetToEffort(budget, maxTokens float64) string {
 	return "xhigh"
 }
 
+// ApplyUserLevel 把用户选的思考深度叠到请求意图上。
+// off / none 关掉；on 只打开（没有档位的开关模型）；其余档位走 WithBindingEffort。
+// 已经带了显式推理参数的请求（source explicit）保持不变。
+func ApplyUserLevel(in *Intent, level *string) *Intent {
+	if level == nil {
+		return in
+	}
+	s := str(*level)
+	if s == "" || (in != nil && in.Source == "explicit") {
+		return in
+	}
+	switch s {
+	case "off", "none", "disabled":
+		return &Intent{Mode: "disabled", Source: "binding"}
+	case "on", "enabled":
+		return &Intent{Mode: "enabled", Source: "binding"}
+	}
+	return WithBindingEffort(in, &s)
+}
+
 // WithBindingEffort is withBindingEffort (effort nil = undefined).
 func WithBindingEffort(in *Intent, effort *string) *Intent {
 	var e string

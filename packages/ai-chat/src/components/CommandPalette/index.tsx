@@ -1,6 +1,8 @@
 import { Modal, t } from '@nomi-ai/ui';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
+import { isImeComposing } from '../../utils/keyboard';
+
 import styles from './index.module.css';
 
 export interface PaletteCommand {
@@ -77,7 +79,7 @@ export const CommandPalette: React.FC<{
           } else if (e.key === 'ArrowUp') {
             e.preventDefault();
             setSel((s) => Math.max(0, s - 1));
-          } else if (e.key === 'Enter') {
+          } else if (e.key === 'Enter' && !isImeComposing(e.nativeEvent)) {
             e.preventDefault();
             run(items[sel]);
           }

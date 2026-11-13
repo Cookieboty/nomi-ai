@@ -544,19 +544,19 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	if i.Approved && i.Force == nil && mode != "manual" && !b.asksAlways(i) {
 		return "auto"
 	}
-	// 能不能按对话记住：普通的修改操作（不含删除等破坏性操作、强制确认的、「逐项确认」、每次都询问的工具）；
-	// 桌面操作（computer_*）的读界面也算：一次同意，这个对话里的桌面操作都不再问（敏感动作、坐标点击仍每次问）
+	// 能不能按对话记住。桌面操作：点「允许」覆盖这个对话里之后的全部操作，包括敏感动作和坐标点击
+	// （这是用户的明确选择）；「记住」= 以后所有对话都自动执行。还没授权时，第一次（含敏感动作）仍会问。
+	// 「逐项确认」和这个工具被设成「每次都询问」时不记。密码管理器等黑名单在工具层直接拒绝，不看这里的授权。
 	group := ToolGroup(i.Tool)
-	grantable := conv != "" && (i.Danger == "write" || (group == "computer" && i.Danger == "read")) &&
-		i.Force == nil && mode != "manual" && !b.asksAlways(i)
+	grantable := conv != "" && mode != "manual" && !b.asksAlways(i) &&
+		(group == "computer" || (i.Danger == "write" && i.Force == nil))
 	var d ConsentDecision
 	if i.Force != nil {
 		d = ConsentDecision{Confirm: true, Dialog: i.Force.Dialog, Reason: "policy"}
 	} else {
 		tainted := b.IsTainted(i.Signal)
 		b.mu.Lock()
-		// 用户把桌面操作设成了「始终允许」：读界面带来的「读过外部内容」不再让每个动作重新确认
-		// （敏感动作在工具层强制弹窗，不受影响）
+		// 始终允许：读过界面不再让每个动作重新确认（敏感动作也含在下面的放行里）
 		if group == "computer" && b.computerAlwaysLocked() {
 			tainted = false
 		}
@@ -566,6 +566,10 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	}
 	if d.Blocked {
 		return "blocked"
+	}
+	// 开了「始终允许」：敏感动作和坐标点击也不再问（坐标点击不在按工具记的策略表里，这里单独放行）
+	if group == "computer" && mode != "manual" && !b.asksAlways(i) && b.ComputerAlways() {
+		return "auto"
 	}
 	if !d.Confirm {
 		return "auto"
@@ -637,7 +641,7 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 		}
 		b.mu.Unlock()
 	}
-	// 桌面操作：点「允许」就把这个对话里后面的桌面操作也放行（一个任务要点很多下，逐个确认太烦）；
+	// 桌面操作：点「允许」就把这个对话里后面的桌面操作也放行，敏感动作和坐标点击同样不再问；
 	// 「始终允许」= 以后所有对话都不再问
 	if decision == "allowed" && group == "computer" && grantable {
 		b.mu.Lock()
@@ -1110,7 +1114,8 @@ func (b *PermissionBroker) ResetAll() {
 	b.notify()
 }
 
-// computerAlwaysTools：「始终允许桌面操作」改的工具（按坐标点击是物理输入，不在内：每次都问）
+// computerAlwaysTools：「始终允许」写入的工具策略。坐标点击是 destructive，不进这张表
+// （破坏性工具的默认策略不能改成始终允许）；对话授权和这个开关仍然覆盖它，见 Authorize。
 func computerAlwaysTools() []string {
 	out := []string{}
 	for _, k := range ToolDangerKeys {

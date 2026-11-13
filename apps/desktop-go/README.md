@@ -103,17 +103,35 @@ mac 原地替换 Nomi.app 并重新打开（`-mac.zip`，校验签名与 Team ID
 | Windows | `%APPDATA%\Nomi`                                 |
 | Linux   | `$XDG_CONFIG_HOME/Nomi`（默认 `~/.config/Nomi`） |
 
-与旧 Electron 版的目录（`@nomi-ai/electron`）分开。首次启动时把旧版的数据**复制**过来（不改、不删原目录）；
+开发入口（`pnpm dev`、`run-dev.sh`、`run-dev.cmd`）使用 `nomi_dev` 构建标签，生成 `nomi-dev`。
+开发版数据保存在上表同级的 **`Nomi Dev`** 目录，例如 macOS 的
+`~/Library/Application Support/Nomi Dev`。配置、会话、记忆、知识库、日志、编程助手的应用内配置等
+均随此目录隔离；首次启动从空白数据开始，不自动复制正式版或旧 Electron 数据。
+开发数据会跨重启保留，模型和 API Key 需要在开发版单独配置。
+
+开发版还使用独立的单实例标识、钥匙串命名空间及 Windows WebView2 数据目录，网关端口由系统分配，
+Linux WebView 存储也通过独立的程序名隔离。委派 worktree 使用项目内的 `.nomi-dev-delegate/`，
+与正式版的 `.nomi-delegate/` 分开，启动清理只处理本环境的委派目录。
+可以与正式版同时运行。开发版仅接受 `NOMI_DEV_USER_DATA` / `NOMI_DEV_APP_DATA` 路径覆盖，
+忽略继承来的 `NOMI_USER_DATA` / `NOMI_APP_DATA`，因此从正式版启动开发命令也不会自动复用其数据。
+如果继承的 `CODEX_HOME`、`CLAUDE_CONFIG_DIR` 等指向正式版托管目录，开发启动会将其改到
+开发数据目录内的 `cli-inherited/<助手 id>`，并清除该助手继承的生产路由凭据，不会复制生产账号数据。
+自定义开发路径时请使用单独目录；显式选取的项目工作区、系统安装的 CLI 及其自身账号仍属于用户共享环境。
+直接执行 `go run .` 不会启用隔离；手动开发构建需加 `-tags nomi_dev`（macOS 再加 `private_mac_apis`）。
+打包脚本不启用此标签，正式版的目录、身份及迁移行为保持原样。
+
+正式版与旧 Electron 版的目录（`@nomi-ai/electron`）分开。首次启动时把旧版的数据**复制**过来（不改、不删原目录）；
 已保存的 API Key 在第一个窗口出来后从旧版的 safeStorage 迁到系统钥匙串。
 
 ## 环境变量
 
-| 变量                                     | 作用                                                                    |
-| ---------------------------------------- | ----------------------------------------------------------------------- |
-| `NOMI_USER_DATA` / `NOMI_APP_DATA`       | 覆盖 userData / 应用数据根目录（测试与迁移用）                          |
-| `NOMI_RESOURCES` / `NOMI_CHARACTER_PACK` | 覆盖只读资源目录 / 内置角色包目录（打包后默认取安装目录里的）           |
-| `NOMI_DEV_VIEWS`                         | 视图改由 Vite 开发服务器提供（`pnpm dev` 自动设置）                     |
-| `NOMI_POC_CTL`                           | 测量 / CI 用的本机控制口（`/ctl?op=show-chat` 等，见 `main.go` 文件头） |
-| `WEBKIT_DISABLE_DMABUF_RENDERER`         | Linux 默认设为 `1`（省内存）；显式设置时以设置值为准                    |
+| 变量                                       | 作用                                                                    |
+| ------------------------------------------ | ----------------------------------------------------------------------- |
+| `NOMI_USER_DATA` / `NOMI_APP_DATA`         | 覆盖 userData / 应用数据根目录（测试与迁移用）                          |
+| `NOMI_RESOURCES` / `NOMI_CHARACTER_PACK`   | 覆盖只读资源目录 / 内置角色包目录（打包后默认取安装目录里的）           |
+| `NOMI_DEV_USER_DATA` / `NOMI_DEV_APP_DATA` | 仅开发构建使用的数据目录覆盖；不要指向正式版目录                        |
+| `NOMI_DEV_VIEWS`                           | 视图改由 Vite 开发服务器提供（`pnpm dev` 自动设置）                     |
+| `NOMI_POC_CTL`                             | 测量 / CI 用的本机控制口（`/ctl?op=show-chat` 等，见 `main.go` 文件头） |
+| `WEBKIT_DISABLE_DMABUF_RENDERER`           | Linux 默认设为 `1`（省内存）；显式设置时以设置值为准                    |
 
 编程助手、网关等模块另有 `NOMI_*` 变量（如 `NOMI_CLAUDE_BIN`、`NOMI_GATEWAY_*`、`NOMI_USE_MOCK_CLI`）。

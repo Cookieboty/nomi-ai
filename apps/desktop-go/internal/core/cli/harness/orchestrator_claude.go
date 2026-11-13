@@ -584,6 +584,15 @@ func (o *Orchestrator) onClaudeLine(tabID string, live *claudeLiveSession, line 
 				turn.sessionID = ev.Get("sessionId")
 			}
 		}
+		if ev.Get("type") == "question" {
+			if o.QuestionHook != nil {
+				o.QuestionHook(tabID, ev)
+				continue
+			}
+			// 没接问题卡时退回允许 / 拒绝，避免控制请求一直挂着
+			ev.Set("type", "permission")
+			ev.Delete("input")
+		}
 		if ev.Get("type") == "permission" {
 			ev = MarkApprovePlanIfExit(ev)
 		}
@@ -786,6 +795,7 @@ func (o *Orchestrator) finishAutoTurn(tabID string, live *claudeLiveSession, err
 	msg := util.NewObj("id", clisdk.RandomUUID(), "role", "assistant", "content", content, "timestamp", now,
 		"durationMs", nowMs()-auto.startedAt, "origin", "background")
 	withModel(msg, o.turnModelResolver(tab)(auto.events, usage))
+	noteResponseModel(msg, tabID, auto.startedAt)
 	if errStr != nil && *errStr != "" {
 		msg.Set("error", true)
 	}
@@ -823,6 +833,10 @@ func (o *Orchestrator) finishAutoTurn(tabID string, live *claudeLiveSession, err
 
 // interruptClaudeTurn：打断进行中的一轮。
 func (o *Orchestrator) interruptClaudeTurn(id string, live *claudeLiveSession, turn *claudeTurnWaiter) {
+	// 先拒绝还挂着的提问，Claude 才读得进随后的 interrupt
+	if o.OnQuestionsCleared != nil {
+		o.OnQuestionsCleared(id)
+	}
 	fallback := func() {
 		if o.live.claude[id] == live && live.turn == turn && !turn.settled {
 			o.teardownClaudeLive(id)

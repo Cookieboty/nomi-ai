@@ -287,6 +287,9 @@ func seedExtras(dst, m *util.Obj) {
 		dst.Set("stopped", true)
 	}
 	withModel(dst, m.Get("model"))
+	if s, ok := m.Get("responseModel").(string); ok && util.JSTrim(s) != "" {
+		dst.Set("responseModel", clisdk.Slice0(util.JSTrim(s), 200))
+	}
 }
 
 // CreateTab = createTab(opts)；opts nil = {}。
@@ -556,6 +559,7 @@ func (o *Orchestrator) SeedTabMessages(id string, messages []any) *util.Obj {
 
 // CloseTab = closeTab。
 func (o *Orchestrator) CloseTab(id string) *util.Obj {
+	o.stopTaskSend(id)
 	o.thawIfFrozen(id)
 	if id == MainTabID {
 		throw(i18n.T("electron.common.the-main-chat-tab-cannot-be-closed"))

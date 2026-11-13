@@ -1321,6 +1321,26 @@ describe('ModelsPage', () => {
     );
   });
 
+  it('context tier defaults to the model window and saves a hard cap', async () => {
+    const m = fakeMain({
+      extra: {
+        'gateway.setOptions': (patch) => {
+          const p = patch as { contextTier?: number };
+          if (typeof p.contextTier === 'number') m.state.contextTier = p.contextTier || undefined;
+          return structuredClone(m.state);
+        },
+      },
+    });
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('models-advanced-toggle'));
+    const sel = await screen.findByTestId('models-context-tier');
+    expect((sel as HTMLSelectElement).value).toBe('0');
+    fireEvent.change(sel, { target: { value: '262144' } });
+    await waitFor(() =>
+      expect(m.calls).toContainEqual(['gateway.setOptions', { contextTier: 262144 }]),
+    );
+  });
+
   it('advanced disclosure exposes request body limit and saves via set-options', async () => {
     const m = fakeMain({
       extra: {

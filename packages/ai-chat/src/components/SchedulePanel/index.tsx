@@ -29,6 +29,7 @@ import {
   type SchedTask,
   type TaskResult,
 } from '../../services/schedClient';
+import { isImeComposing } from '../../utils/keyboard';
 
 import styles from './index.module.css';
 import { RemindersTab } from './RemindersTab';
@@ -93,7 +94,8 @@ const TaskEditor: React.FC<{
       className={styles.editor}
       data-testid="task-editor"
       onKeyDown={(e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') void save();
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !isImeComposing(e.nativeEvent))
+          void save();
         if (e.key === 'Escape') {
           e.stopPropagation();
           onDone();

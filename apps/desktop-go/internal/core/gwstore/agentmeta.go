@@ -110,7 +110,8 @@ func (s *Service) AgentMeta(ref string, longContext *bool) *agents.ModelMeta {
 			label = l
 		}
 	}
-	out := &agents.ModelMeta{Label: &label, Ctx: &meta.Ctx, MaxOutput: &meta.MaxOutput, Reasoning: meta.Reasoning, Vision: meta.Vision}
+	ctx := ApplyContextTier(meta.Ctx, s.ContextTier())
+	out := &agents.ModelMeta{Label: &label, Ctx: &ctx, MaxOutput: &meta.MaxOutput, Reasoning: meta.Reasoning, Vision: meta.Vision}
 	if p != nil {
 		if n, ok := p.Get("name").(string); ok {
 			out.Provider = &n

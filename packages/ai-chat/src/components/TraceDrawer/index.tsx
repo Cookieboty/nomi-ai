@@ -151,6 +151,7 @@ const RequestDetail: React.FC<{ req: QualityRequestItem }> = ({ req }) => {
       <dl className={styles.facts}>
         <Fact label={t('ui.foundation.model')} value={req.display ?? req.model} />
         <Fact label={t('ui.devtools.upstream-model')} value={req.upstreamModel} />
+        <Fact label={t('ui.devtools.returned-model')} value={req.responseModel} />
         <Fact
           label={t('ui.providers-schedule.provider')}
           value={req.providerName ?? req.provider}
