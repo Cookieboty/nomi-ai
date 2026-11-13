@@ -331,7 +331,6 @@
   "electron.common.realtime-tts-reachable": "实时朗读可用",
   "electron.common.realtime-tts-unreachable": "实时朗读暂时连不上（可能没联网，或服务有变化），先只显示文字。",
   "electron.common.reasoning-effort": "思考深度",
-  "electron.common.reasoning-effort-can-t-be-set-here-for": "第三方供应商的模型不能在这里调思考深度",
   "electron.common.recognition-model-not-downloaded-yet": "还没有下载识别模型",
   "electron.common.recognition-service-returned": "识别服务返回 {0}：{1}",
   "electron.common.recognition-service-unavailable": "识别服务不可用",

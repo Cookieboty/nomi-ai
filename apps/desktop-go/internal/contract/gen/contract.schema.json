@@ -6943,6 +6943,9 @@
      },
      "force": {
       "type": "boolean"
+     },
+     "stopExternal": {
+      "type": "boolean"
      }
     },
     "required": [
@@ -39270,6 +39273,7 @@
   "ACCOUNT_LOCAL",
   "ACCOUNT_UNSUPPORTED",
   "ACCOUNT_UNKNOWN_LIVE",
+  "ACCOUNT_EXTERNAL_BUSY",
   "PROJECT_NOT_FOUND",
   "PROJECT_FOLDER_DENIED",
   "FLEET_NOT_IDLE",

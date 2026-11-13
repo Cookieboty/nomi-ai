@@ -150,6 +150,46 @@ describe('OfficialAccounts', () => {
     expect(ipc.invoke).toHaveBeenCalledWith('cliAccount.remove', { id: 'b', force: true });
   });
 
+  it('删除时 Nomi 之外还有 CLI 进程在用（external-busy）：说明进程号，确认后让 Nomi 结束它们再删除；不确认就不动', async () => {
+    const calls: unknown[][] = [];
+    mockIpc({
+      'cliAccount.remove': ({ id, force, stopExternal }) => {
+        calls.push([id, force, stopExternal]);
+        if (stopExternal === true) return undefined;
+        throw new ContractError(
+          'ACCOUNT_EXTERNAL_BUSY',
+          '还有 2 个 Nomi 之外的 CLI 进程在用这个账号（进程号 26348, 26351），请先在终端里退出它们',
+        );
+      },
+    });
+    const messages: string[] = [];
+    (window as unknown as { confirm: (m: string) => boolean }).confirm = (m: string) => {
+      messages.push(String(m));
+      return true;
+    };
+    const r = render(<OfficialAccounts kind="codex" />);
+    await waitFor(() => expect(r.getAllByTestId('cli-account-remove')).toHaveLength(2));
+    await act(async () => fireEvent.click(r.getAllByTestId('cli-account-remove')[0]!));
+    await waitFor(() =>
+      expect(calls).toEqual([
+        ['b', false, undefined],
+        ['b', false, true],
+      ]),
+    );
+    expect(messages[1]).toContain('26348, 26351');
+    expect(messages[1]).toContain('结束这些进程');
+
+    cleanup();
+    calls.length = 0;
+    let n = 0;
+    (window as unknown as { confirm: () => boolean }).confirm = () => n++ === 0;
+    const r2 = render(<OfficialAccounts kind="codex" />);
+    await waitFor(() => expect(r2.getAllByTestId('cli-account-remove')).toHaveLength(2));
+    await act(async () => fireEvent.click(r2.getAllByTestId('cli-account-remove')[0]!));
+    await waitFor(() => expect(r2.getByTestId('cli-accounts-msg')).toBeTruthy());
+    expect(calls).toEqual([['b', false, undefined]]);
+  });
+
   it('删除：第二次确认取消、或者是别的错误（在用）都不强制删除', async () => {
     const calls: unknown[][] = [];
     mockIpc({

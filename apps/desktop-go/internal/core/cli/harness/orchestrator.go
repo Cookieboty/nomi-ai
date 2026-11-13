@@ -195,6 +195,7 @@ type bgAgent struct {
 type tabBinding struct {
 	generation    float64
 	model         string
+	effort        string // 绑定上登记的思考深度（"" = 没有）
 	modelInConfig *bool
 }
 

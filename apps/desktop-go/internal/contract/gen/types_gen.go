@@ -1647,8 +1647,9 @@ type CliAccountRefreshOutputItem struct {
 }
 
 type CliAccountRemoveInput struct {
-	Id    string `json:"id"`
-	Force *bool  `json:"force,omitempty"`
+	Id           string `json:"id"`
+	Force        *bool  `json:"force,omitempty"`
+	StopExternal *bool  `json:"stopExternal,omitempty"`
 }
 
 type CliAccountRenameInput struct {

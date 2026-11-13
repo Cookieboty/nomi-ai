@@ -331,7 +331,6 @@
   "electron.common.realtime-tts-reachable": "Read-aloud is working",
   "electron.common.realtime-tts-unreachable": "Read-aloud can't connect right now (maybe no network, or the service changed); text only for now.",
   "electron.common.reasoning-effort": "reasoning effort",
-  "electron.common.reasoning-effort-can-t-be-set-here-for": "Reasoning effort can't be set here for third-party provider models",
   "electron.common.recognition-model-not-downloaded-yet": "Recognition model not downloaded yet",
   "electron.common.recognition-service-returned": "Recognition service returned {0}: {1}",
   "electron.common.recognition-service-unavailable": "Recognition service unavailable",

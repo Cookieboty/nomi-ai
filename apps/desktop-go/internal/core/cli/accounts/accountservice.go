@@ -29,12 +29,16 @@ const (
 	logoutTimeoutMs = 20_000
 )
 
-// AccountError = AccountError（Code: not-found / in-use / local / unsupported / unknown-live）。
-type AccountError struct{ Code, Message string }
+// AccountError = AccountError（Code: not-found / in-use / local / unsupported / unknown-live / external-busy）。
+// external-busy：有 Nomi 之外的 CLI 进程在用这个账号目录（Pids），界面可以让用户选择结束它们再删除。
+type AccountError struct {
+	Code, Message string
+	Pids          []float64
+}
 
 func (e *AccountError) Error() string { return e.Message }
 
-func accountErr(code, msg string) *AccountError { return &AccountError{code, msg} }
+func accountErr(code, msg string) *AccountError { return &AccountError{Code: code, Message: msg} }
 
 // LocalAccountID = localAccountId.
 func LocalAccountID(kind string) string { return "local-" + kind }
@@ -56,6 +60,17 @@ type ServiceDeps struct {
 	OnChanged     func()
 	Logout        func(kind string, env *util.Obj) error
 	LiveProcesses func(kind, dir string) (LiveCheck, error)
+	// Procs：本机进程表（判断进程是不是 Nomi 自己拉起的、会话文件里的 pid 还是不是这个 CLI）；nil = 不看
+	Procs func() []ProcRow
+	// KillPid：删除时用户选择「结束这些进程」才用（nodeproc.KillPid）
+	KillPid func(pid int, signal string) error
+	// Sleep：等被结束的进程退出（测试注入；nil = time.Sleep，锁外睡）
+	Sleep func(ms int)
+}
+
+// RemoveOpts：Force = 读不到是否有进程在用时也删除；StopExternal = 先结束 Nomi 之外还在用这个账号的 CLI 进程再删除
+type RemoveOpts struct {
+	Force, StopExternal bool
 }
 
 type storeT struct {
@@ -915,24 +930,20 @@ func (s *AccountService) Rename(id string, label any) (v *util.Obj, err error) {
 
 // Remove = remove(id, { force }).
 func (s *AccountService) Remove(id string, force bool) *jsrt.Promise[struct{}] {
+	return s.RemoveWith(id, RemoveOpts{Force: force})
+}
+
+// RemoveWith = remove(id, opts)。
+func (s *AccountService) RemoveWith(id string, o RemoveOpts) *jsrt.Promise[struct{}] {
 	return jsrt.Async(func() (v struct{}, err error) {
 		defer catchJS(&err)
-		s.remove(id, force)
+		s.remove(id, o)
 		return struct{}{}, nil
 	})
 }
 
-func (s *AccountService) remove(id string, force bool) {
-	a := s.find(id)
-	kind := kindOf(a)
-	dir := dirOf(a)
-	if !hasDir(dir) {
-		panic(accountErr("local", t("electron.common.this-computer-s-sign-in-is-the-cli")))
-	}
-	busy := s.inUse(kind, prop(a, "id"))
-	if f, ok := busy.(float64); ok && f > 0 {
-		panic(accountErr("in-use", t("electron.common.tab-s-still-use-this-account-close-them", jsStr(busy))))
-	}
+// liveCheck：这个账号目录还有没有 Nomi 之外的 CLI 进程在用（读不到 = unknown）
+func (s *AccountService) liveCheck(kind, dir string) LiveCheck {
 	live := LiveCheck{State: "unknown"}
 	func() {
 		var lerr error
@@ -943,26 +954,95 @@ func (s *AccountService) remove(id string, force bool) {
 		}()
 		defer catchJS(&lerr)
 		if s.d.LiveProcesses != nil {
-			l, e := s.d.LiveProcesses(kind, *dir)
+			l, e := s.d.LiveProcesses(kind, dir)
 			if e != nil {
 				lerr = e
 				return
 			}
 			live = l
 		} else {
-			live = LiveProcesses(kind, *dir, LiveDeps{Platform: s.d.Platform})
+			live = LiveProcesses(kind, dir, LiveDeps{Platform: s.d.Platform, Procs: s.d.Procs})
 		}
 	}()
+	return live
+}
+
+func externalBusyErr(live LiveCheck) *AccountError {
+	ps := make([]string, 0, 5)
+	for i, p := range live.Pids {
+		if i >= 5 {
+			break
+		}
+		ps = append(ps, jsStr(p))
+	}
+	e := accountErr("external-busy", t("electron.common.cli-process-es-outside-nomi-still-use-this", jsStr(float64(len(live.Pids))), strings.Join(ps, ", ")))
+	e.Pids = append([]float64(nil), live.Pids...)
+	return e
+}
+
+// stopExternal：用户确认后结束这些进程（先 SIGTERM，等一会儿还在再 SIGKILL），返回结束后的检查结果。
+// 只动刚才认出来的那几个 pid，并且发信号前再核对一次它们仍在用这个账号目录。
+func (s *AccountService) stopExternal(kind, dir string, live LiveCheck) LiveCheck {
+	if s.d.KillPid == nil {
+		return live
+	}
+	sleep := s.d.Sleep
+	if sleep == nil {
+		sleep = func(ms int) {
+			jsrt.Sleep(time.Duration(ms) * time.Millisecond)
+		}
+	}
+	targets := map[float64]bool{}
+	for _, p := range live.Pids {
+		targets[p] = true
+	}
+	for _, sig := range []string{"SIGTERM", "SIGKILL"} {
+		for p := range targets {
+			if err := s.d.KillPid(int(p), sig); err != nil {
+				s.warn("account remove: stop external cli failed", util.NewObj("pid", p, "signal", sig, "e", errString(err)))
+			}
+		}
+		for i := 0; i < 15; i++ {
+			sleep(200)
+			live = s.liveCheck(kind, dir)
+			if live.State != "busy" {
+				return live
+			}
+			still := map[float64]bool{}
+			for _, p := range live.Pids {
+				if targets[p] {
+					still[p] = true
+				}
+			}
+			if len(still) == 0 {
+				// 剩下的是新出现的进程：不替用户结束没确认过的
+				return live
+			}
+			targets = still
+		}
+	}
+	return live
+}
+
+func (s *AccountService) remove(id string, o RemoveOpts) {
+	force := o.Force
+	a := s.find(id)
+	kind := kindOf(a)
+	dir := dirOf(a)
+	if !hasDir(dir) {
+		panic(accountErr("local", t("electron.common.this-computer-s-sign-in-is-the-cli")))
+	}
+	busy := s.inUse(kind, prop(a, "id"))
+	if f, ok := busy.(float64); ok && f > 0 {
+		panic(accountErr("in-use", t("electron.common.tab-s-still-use-this-account-close-them", jsStr(busy))))
+	}
+	live := s.liveCheck(kind, *dir)
+	if live.State == "busy" && o.StopExternal {
+		live = s.stopExternal(kind, *dir, live)
+	}
 	switch {
 	case live.State == "busy":
-		ps := make([]string, 0, 5)
-		for i, p := range live.Pids {
-			if i >= 5 {
-				break
-			}
-			ps = append(ps, jsStr(p))
-		}
-		panic(accountErr("in-use", t("electron.common.cli-process-es-outside-nomi-still-use-this", jsStr(float64(len(live.Pids))), strings.Join(ps, ", "))))
+		panic(externalBusyErr(live))
 	case live.State == "unknown" && !force:
 		panic(accountErr("unknown-live", t("electron.common.could-not-confirm-whether-a-cli-is-still")))
 	case live.State == "unknown":

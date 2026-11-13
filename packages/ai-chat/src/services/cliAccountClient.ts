@@ -72,6 +72,7 @@ const ACCOUNT_CODES: Record<string, string> = {
   ACCOUNT_LOCAL: 'local',
   ACCOUNT_UNSUPPORTED: 'unsupported',
   ACCOUNT_UNKNOWN_LIVE: 'unknown-live',
+  ACCOUNT_EXTERNAL_BUSY: 'external-busy',
 };
 
 async function call<T>(run: () => Promise<unknown>): Promise<T> {
@@ -103,8 +104,15 @@ export const cliAccountClient = {
     call<CliAccount>(() => api.cliAccount.setDefault({ kind, id })),
   rename: (id: string, label: string) =>
     call<CliAccount>(() => api.cliAccount.rename({ id, label })),
-  remove: (id: string, opts?: { force?: boolean }) =>
-    call<void>(() => api.cliAccount.remove({ id, force: opts?.force === true })),
+  /** stopExternal：先结束 Nomi 之外还在用这个账号的 CLI 进程（external-busy 时用户确认过）再删除 */
+  remove: (id: string, opts?: { force?: boolean; stopExternal?: boolean }) =>
+    call<void>(() =>
+      api.cliAccount.remove({
+        id,
+        force: opts?.force === true,
+        ...(opts?.stopExternal ? { stopExternal: true } : {}),
+      }),
+    ),
   /** accountId 为空：新建账号并登录；否则在这个账号的目录里（重新）登录 */
   loginStart: (kind: AccountKind, accountId?: string) =>
     call<LoginEvent>(() => api.cliAccount.loginStart({ kind, accountId })),

@@ -12,6 +12,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/agents"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/accounts"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/harness"
@@ -23,9 +24,11 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/projects"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/quality"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/terminal"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodeproc"
 )
 
 // harnessPorts：HarnessPorts（dialogs.pickDirectory / windows.anyFocused）
@@ -142,6 +145,10 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 				return n
 			},
 			OnChanged: func() { acc.BroadcastChanged() },
+			// 删除账号时认「Nomi 之外的进程」：去掉 Nomi 自己拉起的（登录、额度读取、标签），以及会话文件残留后被复用的 pid
+			Procs: accountProcs,
+			// 用户确认「结束这些进程再删除」时才用
+			KillPid: nodeproc.KillPid,
 		})
 		if err != nil {
 			log.Printf("[desktop-go] AccountService: %v", err)
@@ -315,4 +322,17 @@ func cliImageDirectoryAllowed(dir string) bool {
 		return (*check)(dir)
 	}
 	return false
+}
+
+// accountProcs：本机进程表（编程助手监视同一份读取，短时间内复用）→ 账号服务的进程行；读不到 = nil
+func accountProcs() []accounts.ProcRow {
+	raw := agents.ReadProcesses(usage.Platform())
+	if raw == nil {
+		return nil
+	}
+	out := make([]accounts.ProcRow, 0, len(raw))
+	for _, p := range raw {
+		out = append(out, accounts.ProcRow{Pid: p.Pid, Ppid: p.Ppid, Name: p.Name, Cmd: p.Cmd})
+	}
+	return out
 }
