@@ -30118,6 +30118,9 @@
          "type": "string"
         }
        },
+       "autoJudge": {
+        "type": "boolean"
+       },
        "expiresAt": {
         "type": "number"
        }
@@ -30617,6 +30620,9 @@
         "items": {
          "type": "string"
         }
+       },
+       "autoJudge": {
+        "type": "boolean"
        },
        "expiresAt": {
         "type": "number"

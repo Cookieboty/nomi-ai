@@ -160,7 +160,12 @@ type NomiDeps struct {
 	ToolNames func() []string
 	// Every：周期定时器（测试注入）；返回取消函数
 	Every func(ms int64, fn func()) func()
+	// ApprovalTimeout：无人值守时等批准的上限，超时按拒绝处理并把任务标成 approval_timeout；0 = 用默认值
+	ApprovalTimeout time.Duration
 }
+
+// DefaultApprovalTimeout：后台任务等人批准的默认上限（无人值守不永久卡在「等你批准」）
+const DefaultApprovalTimeout = 10 * time.Minute
 
 func defaultEvery(ms int64, fn func()) func() {
 	t := time.NewTicker(time.Duration(ms) * time.Millisecond)
@@ -199,6 +204,9 @@ func NewNomiExecutor(d NomiDeps) Executor {
 	}
 	if d.Every == nil {
 		d.Every = defaultEvery
+	}
+	if d.ApprovalTimeout <= 0 {
+		d.ApprovalTimeout = DefaultApprovalTimeout
 	}
 	return &nomiExecutor{d: d, runs: map[string]*nomiRun{}}
 }
@@ -336,10 +344,23 @@ func (e *nomiExecutor) launchLocked(run *nomiRun) {
 		e.mu.Unlock()
 		d := shortN(tool+"："+summary+"\n"+detail, 800)
 		rep.NeedsUser(EventWait{Kind: "approval", RequestID: &reqID, Detail: &d})
+		timer := time.NewTimer(e.d.ApprovalTimeout)
+		defer timer.Stop()
 		select {
 		case ok := <-ch:
 			return ok
 		case <-base.Done():
+			return false
+		case <-timer.C:
+			// 超时按拒绝处理：任务标成「因需批准而中断」，并停掉这次执行，不永久等人
+			e.mu.Lock()
+			_, still := run.waiting[reqID]
+			delete(run.waiting, reqID)
+			e.mu.Unlock()
+			if still {
+				rep.Failed(TaskError{Code: "approval_timeout", Message: shortN(tool+"："+summary, 200)})
+				cancel()
+			}
 			return false
 		}
 	}

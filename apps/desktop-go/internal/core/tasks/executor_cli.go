@@ -89,8 +89,11 @@ type CliReport struct {
 	NeedsUser    string
 }
 
+// CliDeps：编程助手执行者的依赖（编排器、worktree、git、委派提示词与汇报格式，见 main 里的装配）
 type CliDeps struct {
 	Harness CliHarness
+	// AutoAll：读前台的「全部自动」（nil = 关）：开着时后台标签用 auto 档、跑命令不再逐项问人
+	AutoAll func() bool
 	// PrepareIsolation：baseBranch 是别的分支时开 worktree，否则直接在 sourceCwd 里改（in-place / shared-cwd）
 	PrepareIsolation func(sourceCwd, key, baseBranch string) (CliIsolation, error)
 	// ReleaseIsolation：拆掉 worktree：准备好但没用上（准备期间被取消），或任务结束后；可为空
@@ -212,7 +215,9 @@ func SandboxGrants(t Task) []string {
 // DecidePermission：allow 直接放行；ask 停下来等人；deny 授权外，直接拒绝。
 // 计划审批一律问人；读凭据 / 合并发布永远问人；对外动作要 L4 + GitHub 对外能力；跑命令要 L3
 // （事件触发的任务读过外部内容、或委派时 Nomi 没开「全部自动」：问人）。
-func DecidePermission(t Task, kind, summary string, tainted bool) string {
+// relaxed = 任务开了「按风险自动判断」或前台「全部自动」：委派时留下的「跑命令一律问人」不再拦，
+// 凭据 / 永不放行类、对外动作、读过外部内容照旧问人。
+func DecidePermission(t Task, kind, summary string, tainted, relaxed bool) string {
 	if kind == "approve-plan" {
 		return "ask"
 	}
@@ -230,7 +235,7 @@ func DecidePermission(t Task, kind, summary string, tainted bool) string {
 	if level < 3 {
 		return "deny"
 	}
-	if t.Executor.Kind == "cli" && t.Executor.AskCommands != nil && *t.Executor.AskCommands {
+	if !relaxed && t.Executor.Kind == "cli" && t.Executor.AskCommands != nil && *t.Executor.AskCommands {
 		return "ask"
 	}
 	if tainted {
@@ -238,6 +243,15 @@ func DecidePermission(t Task, kind, summary string, tainted bool) string {
 	}
 	return "allow"
 }
+
+// autoJudge：任务授权里开了「按风险自动判断」且到了跑命令的等级
+func autoJudge(t Task) bool { return t.Grant.AutoJudge && t.Grant.Level >= 3 }
+
+// autoAll：前台「全部自动」开着（没有这个开关时为关）
+func (e *cliExecutor) autoAll() bool { return e.d.AutoAll != nil && e.d.AutoAll() }
+
+// relaxed：自动判断 / 全部自动：命令不再逐项问人（破坏性、凭据、对外、事件触发仍问）
+func (e *cliExecutor) relaxed(t Task) bool { return autoJudge(t) || e.autoAll() }
 
 func (e *cliExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
 	ex := t.Executor
@@ -362,9 +376,14 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 			return
 		}
 		iso = &got
+		// 权限档：L2 起可以改文件；开了「按风险自动判断」或前台「全部自动」且到了 L3 时用 auto
+		// （等价 codex 的 full-auto：改动与命令都直接跑，后端不支持时降级到 acceptEdits）
 		mode := "plan"
 		if t.Grant.Level >= 2 {
 			mode = "acceptEdits"
+		}
+		if t.Grant.Level >= 3 && e.relaxed(t) {
+			mode = "auto"
 		}
 		model := ""
 		if ex.Model != nil {
@@ -456,7 +475,7 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 		if ev.Type != "permission" || ev.ID == "" {
 			return
 		}
-		switch DecidePermission(t, ev.Kind, ev.Summary, tainted) {
+		switch DecidePermission(t, ev.Kind, ev.Summary, tainted, e.relaxed(t)) {
 		case "allow":
 			h.ReplyPermission(tabID, ev.ID, true)
 		case "deny":

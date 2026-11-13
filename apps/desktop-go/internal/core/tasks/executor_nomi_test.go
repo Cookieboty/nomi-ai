@@ -24,6 +24,11 @@ type nomiHarness struct {
 
 // script：第 n 次 AgentStream 调用执行的脚本
 func newNomiHarness(t *testing.T, script func(ctx context.Context, n int, h *nomiHarness, emit func(blm.ChatChunk)) error) *nomiHarness {
+	return newNomiHarnessTimeout(t, 0, script)
+}
+
+// newNomiHarnessTimeout：同上，等批准有上限（0 = 默认值）
+func newNomiHarnessTimeout(t *testing.T, timeout time.Duration, script func(ctx context.Context, n int, h *nomiHarness, emit func(blm.ChatChunk)) error) *nomiHarness {
 	h := &nomiHarness{}
 	calls := 0
 	exec := NewNomiExecutor(NomiDeps{
@@ -42,8 +47,9 @@ func newNomiHarness(t *testing.T, script func(ctx context.Context, n int, h *nom
 			h.mu.Unlock()
 			return ctx
 		},
-		Ready:  func() bool { return true },
-		CostOf: func(_ string, in, out int64) (float64, bool) { return float64(in+out) / 1e6, true },
+		Ready:           func() bool { return true },
+		CostOf:          func(_ string, in, out int64) (float64, bool) { return float64(in+out) / 1e6, true },
+		ApprovalTimeout: timeout,
 	})
 	var ids int
 	var idMu sync.Mutex
@@ -139,6 +145,25 @@ func TestNomiExecutorCancelWhileWaiting(t *testing.T) {
 	time.Sleep(20 * time.Millisecond)
 	if status(h, id) != StatusCancelled {
 		t.Fatal(status(h, id))
+	}
+}
+
+// 等批准超时：按拒绝处理，任务因需批准而中断（approval_timeout），不永久卡在「等你批准」
+func TestNomiExecutorApprovalTimeout(t *testing.T) {
+	got := make(chan bool, 1)
+	h := newNomiHarnessTimeout(t, 20*time.Millisecond, func(ctx context.Context, _ int, h *nomiHarness, _ func(blm.ChatChunk)) error {
+		got <- h.ask()("workspace_run", "npm test", "medium")
+		<-ctx.Done()
+		return ctx.Err()
+	})
+	id := nomiTask(h, []string{"shell"}, 3, nil)
+	h.rt.Command(id, Command{Type: "runNow"})
+	if <-got {
+		t.Fatal("超时后仍算批准")
+	}
+	waitFor(t, func() bool { return status(h, id) == StatusFailed })
+	if e := h.rt.Get(id).Task.LastError; e == nil || e.Code != "approval_timeout" || !strings.Contains(e.Message, "npm test") {
+		t.Fatalf("%+v", e)
 	}
 }
 

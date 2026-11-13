@@ -513,7 +513,9 @@ func main() {
 			return chatFacade.AgentStream(ctx, o, emit)
 		},
 		WithBackground: func(ctx context.Context, level int, ask func(tool, summary, detail string) bool, conns []tasks.ConnectionGrant, tainted, trusted bool, external connections.ExternalJournal) context.Context {
-			run := &desktop.BackgroundRun{Level: level, Ask: ask, Tainted: tainted, Trusted: trusted, External: external}
+			run := &desktop.BackgroundRun{Level: level, Ask: ask, Tainted: tainted, Trusted: trusted, External: external,
+				// 前台「全部自动」对后台任务生效（凭据 / 破坏性 / 高风险命令 / 事件触发读过外部内容仍问人）
+				AutoAll: func() bool { return desktopSvc.Broker.AutoApprove() }}
 			for _, g := range conns {
 				run.Connections = append(run.Connections, desktop.ConnGrant{ConnectionID: g.ConnectionID, Capabilities: g.Capabilities, Resources: g.Resources})
 			}
@@ -540,7 +542,7 @@ func main() {
 				if extra != nil {
 					cs = extra(cs)
 				}
-				out := desktop.LiveGrant{Level: g.Level, Paths: g.Paths}
+				out := desktop.LiveGrant{Level: g.Level, Paths: g.Paths, AutoJudge: g.AutoJudge}
 				for _, c := range cs {
 					out.Connections = append(out.Connections, desktop.ConnGrant{ConnectionID: c.ConnectionID, Capabilities: c.Capabilities, Resources: c.Resources})
 				}

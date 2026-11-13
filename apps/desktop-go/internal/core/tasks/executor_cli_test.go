@@ -148,32 +148,48 @@ func TestDecidePermission(t *testing.T) {
 		kind    string
 		summary string
 		tainted bool
+		relaxed bool
 		want    string
 	}{
-		{4, "approve-plan", "", false, "ask"},
-		{4, "", "Bash: gh auth token", false, "ask"},
-		{4, "", "Bash: gh pr merge 1", false, "ask"},
-		{3, "", "Bash: git push origin x", false, "ask"},
-		{4, "", "Bash: git push origin x", false, "ask"},
-		{2, "", "Bash: npm test", false, "deny"},
-		{3, "", "Bash: npm test", false, "allow"},
-		{3, "", "Bash: npm test", true, "ask"},
+		{4, "approve-plan", "", false, false, "ask"},
+		{4, "", "Bash: gh auth token", false, false, "ask"},
+		{4, "", "Bash: gh pr merge 1", false, false, "ask"},
+		{3, "", "Bash: git push origin x", false, false, "ask"},
+		{4, "", "Bash: git push origin x", false, false, "ask"},
+		{2, "", "Bash: npm test", false, false, "deny"},
+		{3, "", "Bash: npm test", false, false, "allow"},
+		{3, "", "Bash: npm test", true, false, "ask"},
+		// 按风险自动判断 / 全部自动：依然问人
+		{3, "", "Bash: npm test", true, true, "ask"},
+		{4, "", "Bash: gh auth token", false, true, "ask"},
+		{3, "", "Bash: git push origin x", false, true, "ask"},
+		{2, "", "Bash: npm test", false, true, "deny"},
 	}
 	for _, c := range cases {
-		if got := DecidePermission(Task{Grant: Grant{Level: c.level}}, c.kind, c.summary, c.tainted); got != c.want {
+		if got := DecidePermission(Task{Grant: Grant{Level: c.level}}, c.kind, c.summary, c.tainted, c.relaxed); got != c.want {
 			t.Errorf("%+v → %s", c, got)
 		}
 	}
 	gh4 := Task{Grant: Grant{Level: 4, Connections: []ConnectionGrant{
 		{ConnectionID: "c", Capabilities: []string{"github.pr.create"}, Resources: []string{"o/r"}}}}}
-	if DecidePermission(gh4, "", "Bash: git push origin x", false) != "allow" {
+	if DecidePermission(gh4, "", "Bash: git push origin x", false, false) != "allow" {
 		t.Fatal("L4 + github 对外能力应放行")
 	}
-	// 委派时 Nomi 没开「全部自动」：命令都问人
+	// 委派时 Nomi 没开「全部自动」：命令都问人；开了按风险自动判断（L3 及以上）时不再拦
 	yes := true
 	ask3 := Task{Grant: Grant{Level: 3}, Executor: ExecutorSpec{Kind: "cli", AskCommands: &yes}}
-	if DecidePermission(ask3, "", "Bash: npm test", false) != "ask" {
+	if DecidePermission(ask3, "", "Bash: npm test", false, false) != "ask" {
 		t.Fatal("askCommands")
+	}
+	if DecidePermission(ask3, "", "Bash: npm test", false, true) != "allow" {
+		t.Fatal("自动判断时应放行")
+	}
+	// 按风险自动判断只到 L3 才生效
+	if autoJudge(Task{Grant: Grant{Level: 2, AutoJudge: true}}) {
+		t.Fatal("L2 不生效")
+	}
+	if !autoJudge(Task{Grant: Grant{Level: 3, AutoJudge: true}}) {
+		t.Fatal("L3 生效")
 	}
 	if ClassifySummary("Bash: gh release create v1") != "never" || ClassifySummary("Edit: src/a.ts") != "" {
 		t.Fatal("classify")
