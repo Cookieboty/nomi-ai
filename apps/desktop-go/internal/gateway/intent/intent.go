@@ -103,14 +103,20 @@ func BudgetToEffort(budget, maxTokens float64) string {
 }
 
 // ApplyUserLevel 把用户选的思考深度叠到请求意图上。
-// off / none 关掉；on 只打开（没有档位的开关模型）；其余档位走 WithBindingEffort。
-// 已经带了显式推理参数的请求（source explicit）保持不变。
+// off / none 关掉；on 只打开（没有档位的开关模型）；其余档位按模型能力写成上游参数。
+//
+// 用户在输入栏选的档位（Nomi 对话的请求头、编程助手第三方标签的绑定）优先于客户端自己带的推理参数：
+// Codex 每个请求都带 reasoning.effort、Claude Code 会带 output_config.effort，不覆盖的话用户选的档位
+// 对编程助手永远不生效。只有客户端明确关掉思考（标题生成之类的辅助请求）时保持关闭，不替它打开。
 func ApplyUserLevel(in *Intent, level *string) *Intent {
 	if level == nil {
 		return in
 	}
 	s := str(*level)
-	if s == "" || (in != nil && in.Source == "explicit") {
+	if s == "" {
+		return in
+	}
+	if in != nil && in.Source == "explicit" && in.Mode == "disabled" {
 		return in
 	}
 	switch s {
@@ -119,7 +125,18 @@ func ApplyUserLevel(in *Intent, level *string) *Intent {
 	case "on", "enabled":
 		return &Intent{Mode: "enabled", Source: "binding"}
 	}
-	return WithBindingEffort(in, &s)
+	e := AsEffort(s)
+	if e == "" {
+		return in
+	}
+	out := &Intent{Mode: "enabled", Effort: e, Source: "binding"}
+	if in != nil && in.Mode == "adaptive" {
+		out.Mode = "adaptive"
+	}
+	if in != nil && in.IncludeThoughts != nil {
+		out.IncludeThoughts = u.Ptr(*in.IncludeThoughts)
+	}
+	return out
 }
 
 // WithBindingEffort is withBindingEffort (effort nil = undefined).

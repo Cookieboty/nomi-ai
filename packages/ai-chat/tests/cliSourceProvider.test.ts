@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   codingProviders,
+  defaultSourceSwitch,
   newTabPatch,
   newTabOptions,
   newTabSelectValue,
@@ -119,7 +120,7 @@ describe('第三方供应商（输入框左下角只切供应商，模型在模�
     });
   });
 
-  it('newTabPatch：默认使用本机配置，官方可指定账号；选择模型后来源值跟随供应商', () => {
+  it('newTabPatch：没有「本机登录」——官方是跟随默认或指定账号，旧版本存下的 local-<kind> 按跟随默认显示', () => {
     const client = { models: { main: 'amux/gpt-x' }, newTabSource: 'thirdParty' as const };
     const ctx = {
       kind: 'claude' as const,
@@ -130,18 +131,19 @@ describe('第三方供应商（输入框左下角只切供应商，模型在模�
           id: 'account-1',
           kind: 'claude' as const,
           label: '工作账号',
-          local: false,
           loggedIn: true,
           identity: { key: 'work@example.com', email: 'work@example.com' },
-          active: false,
+          active: true,
           inUse: 0,
           createdAt: 0,
         },
       ],
     };
-    expect(newTabPatch('default', ctx)).toEqual({
+    // 旧的「默认（本机登录）」值不再有效
+    expect(newTabPatch('default', ctx)).toBeNull();
+    expect(newTabPatch('follow', ctx)).toEqual({
       newTabSource: 'official',
-      newTabAccountId: 'local-claude',
+      newTabAccountId: null,
       models: { main: null },
     });
     expect(newTabPatch('account:account-1', ctx)).toEqual({
@@ -150,22 +152,61 @@ describe('第三方供应商（输入框左下角只切供应商，模型在模�
       models: { main: null },
     });
     expect(newTabSelectValue({ models: {}, newTabAccountId: 'local-claude' }, 'claude')).toBe(
-      'default',
+      'follow',
+    );
+    const options = newTabOptions(ctx);
+    expect(options.map((o) => o.value)).toEqual([
+      'follow',
+      'account:account-1',
+      'provider:amux',
+      'provider:deep',
+    ]);
+    expect(options[0]!.description).toBe('工作账号');
+    expect(options.some((o) => /本机/.test(String(o.label)))).toBe(false);
+    // 一个官方账号都没有：「跟随默认账号」写明还没有账号
+    expect(newTabOptions({ ...ctx, accounts: [] })[0]!.description).toBe('还没有官方账号');
+  });
+  it('Gemini / dsh 没有官方账号能力：只有第三方供应商，没有「自己的配置 / 本机登录」', () => {
+    expect(newTabSelectValue({ models: {}, newTabAccountId: 'acct-old' }, 'gemini')).toBe('');
+    expect(newTabSelectValue({ models: {}, newTabAccountId: null }, 'dsh')).toBe('');
+    const none = newTabOptions({ kind: 'gemini', client: undefined, gateway, accounts: [] });
+    expect(none.map((o) => o.value)).toEqual(['', 'provider:amux', 'provider:deep']);
+    expect(none[0]!.disabled).toBe(true);
+    expect(none[0]!.label).toBe('选一个第三方供应商');
+    expect(none.some((o) => /自己的配置|本机/.test(String(o.label)))).toBe(false);
+    // 分配了第三方模型：下拉停在那个供应商（不管旧的 newTabSource）
+    const client = { models: { main: 'deep/ds-v4' }, newTabSource: 'official' as const };
+    expect(newTabSelectValue(client, 'gemini')).toBe('provider:deep');
+    expect(
+      newTabOptions({ kind: 'gemini', client, gateway, accounts: [] }).map((o) => o.value),
+    ).toEqual(['provider:amux', 'provider:deep']);
+    expect(newTabPatch('follow', { kind: 'gemini', client, gateway, accounts: [] })).toBeNull();
+    expect(newTabPatch('provider:amux', { kind: 'gemini', client, gateway, accounts: [] })).toEqual(
+      {
+        newTabSource: 'thirdParty',
+        newTabAccountId: null,
+        models: { main: 'amux/gpt-x' },
+      },
     );
   });
-
-  it('Gemini 没有官方账号：只有「默认」（本机配置）与第三方，旧版本存下的账号也按默认显示', () => {
-    expect(newTabSelectValue({ models: {}, newTabAccountId: 'acct-old' }, 'gemini')).toBe(
-      'default',
+  it('defaultSourceSwitch：dsh / Gemini 不会被引回「官方 / 自己的配置」', () => {
+    const gw = {
+      ...gateway,
+      clients: { ...gateway.clients, gemini: { models: { main: 'deep/ds-v4' } } },
+    } as unknown as GatewayState;
+    expect(defaultSourceSwitch({ backend: 'gemini', source: 'thirdParty' }, gw)).toBeNull();
+    // 旧标签还停在官方来源：只给第三方一组
+    expect(defaultSourceSwitch({ backend: 'gemini', source: 'official' }, gw)?.target).toBe(
+      'thirdParty',
     );
-    expect(newTabSelectValue({ models: {}, newTabAccountId: null }, 'gemini')).toBe('default');
-    const options = newTabOptions({
-      kind: 'gemini',
-      client: undefined,
-      gateway: null,
-      accounts: [],
-    });
-    expect(options.map((o) => o.value)).toEqual(['default']);
-    expect(options[0]!.label).toBe('Gemini 自己的配置');
+    // 没分配模型：也不给「官方」
+    expect(defaultSourceSwitch({ backend: 'dsh', source: 'thirdParty' }, gw)).toBeNull();
+    const claude = {
+      ...gateway,
+      clients: { claude: { models: {}, newTabSource: 'official' } },
+    } as unknown as GatewayState;
+    const sw = defaultSourceSwitch({ backend: 'claude', source: 'thirdParty' }, claude);
+    expect(sw?.target).toBe('official');
+    expect(sw?.items[0]!.label).toBe('切换到官方账号');
   });
 });

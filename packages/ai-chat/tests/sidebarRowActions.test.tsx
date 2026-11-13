@@ -223,7 +223,7 @@ describe('sidebar row actions', () => {
     expect(screen.queryByTestId('session-peek-rename-input')).toBeNull();
   });
 
-  it('置顶按钮：置顶 / 取消置顶；置顶的会话在最上面的「置顶」里', async () => {
+  it('置顶按钮：置顶 / 取消置顶；置顶的会话排在所在列表最前，没有单独的「置顶」分组', async () => {
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     fireEvent.click(within(row(r, 'n2')).getByTestId('row-pin'));
@@ -231,8 +231,9 @@ describe('sidebar row actions', () => {
     cleanup();
     convs = convs.map((c) => (c.id === 'n2' ? { ...c, pinnedAt: now } : c));
     const again = mount();
-    const pinned = await again.findByTestId('pinned-section');
-    expect(pinned.querySelector('[data-conversation-id="n2"]')).toBeTruthy();
+    await waitFor(() => again.getAllByTestId('history-item'));
+    expect(again.queryByTestId('pinned-section')).toBeNull();
+    expect(row(again, 'n2').getAttribute('data-pinned')).toBe('true');
     const btn = within(row(again, 'n2')).getByTestId('row-pin');
     expect(btn.getAttribute('aria-label')).toBe('取消置顶');
     fireEvent.click(btn);

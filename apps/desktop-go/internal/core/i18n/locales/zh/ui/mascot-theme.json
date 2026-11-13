@@ -112,7 +112,7 @@
   "ui.mascot-theme.not-installed": "未安装",
   "ui.mascot-theme.notch-display-detected-notifications-expand-out-of-the": "检测到刘海屏：通知会从刘海里展开，点一下打开对话。",
   "ui.mascot-theme.noted": "记住啦～",
-  "ui.mascot-theme.nothing-pops-up-during-quiet-hours-schedule": "免打扰时段（日程 → 免打扰）内不会弹出。macOS 专注模式没有公开接口，无法自动感知。",
+  "ui.mascot-theme.nothing-pops-up-during-quiet-hours-schedule": "免打扰时段（日程 → 免打扰）内不会弹出。Nomi 工作台在屏幕上时只弹等你处理的事和报警，你正在看的会话什么都不弹。macOS 专注模式没有公开接口，无法自动感知。",
   "ui.mascot-theme.notifications-island": "通知 / 灵动岛",
   "ui.mascot-theme.occupation": "职业",
   "ui.mascot-theme.occupation-line": "- 我的职业：{0}",

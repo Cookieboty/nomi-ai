@@ -16,7 +16,7 @@ const loose = z.looseObject;
 // harness（cli/harness/Orchestrator.ts、cli/types.ts）
 // ---------------------------------------------------------------------------
 
-/** 'nomi' | 内置 CLI id | 'external'；插件 id 会增加，按字符串收 */
+/** 'nomi' | 内置 CLI id；插件 id 会增加，按字符串收 */
 export const HarnessBackend = z.string();
 export const TabSource = z.enum(['official', 'thirdParty']);
 export const PermissionMode = z.string();
@@ -215,11 +215,8 @@ export const GeminiTrustResult = loose({
 export const ApprovePlanChoice = z.enum(['acceptEdits', 'manual', 'deny']);
 
 // ---------------------------------------------------------------------------
-// cli：插件注册表与外部插件（cli/CliPluginHost.ts）
+// cli：内置编程助手的插件注册表（cli/CliPluginHost.ts）
 // ---------------------------------------------------------------------------
-
-/** 外部插件清单（cli-sdk ExternalCliSpec）；主进程自己校验，校验失败按 `{ ok: false, errors }` 返回 */
-export const ExternalCliSpec = loose({});
 
 export const CliRegistryEntry = loose({
   id: z.string(),
@@ -232,16 +229,6 @@ export const CliRegistryEntry = loose({
 
 export const CliRegistrySnapshot = loose({ plugins: z.array(CliRegistryEntry) });
 
-export const CliPluginAddResult = z.union([
-  loose({ ok: z.literal(true), entry: CliRegistryEntry }),
-  loose({ ok: z.literal(false), errors: z.array(z.string()) }),
-]);
-
-export const ExternalTestResult = z.union([
-  loose({ ok: z.literal(true) }),
-  loose({ ok: z.literal(false), errors: z.array(z.string()) }),
-]);
-
 // ---------------------------------------------------------------------------
 // cliAccount：官方账号与登录（cli/accounts/AccountService.ts、AccountLogin.ts）
 // ---------------------------------------------------------------------------
@@ -251,7 +238,6 @@ export const CliAccount = loose({
   kind: z.string(),
   label: z.string(),
   active: z.boolean(),
-  local: z.boolean(),
   loggedIn: z.boolean(),
   inUse: z.number(),
   createdAt: z.number(),
@@ -401,7 +387,7 @@ export const FleetAgent = loose({
   /** 'chat:<对话 id>' | 'tab:<标签 id>' | 'run:<任务 id>' | 'ext:<外部会话 id>' */
   id: z.string(),
   kind: z.enum(['nomi', 'cli']),
-  /** nomi | claude | codex | gemini | dsh | grok | external（插件）… */
+  /** nomi | claude | codex | gemini | dsh | grok … */
   backend: z.string(),
   scope: FleetScope,
   origin: FleetOrigin,

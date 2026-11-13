@@ -13,6 +13,11 @@ import (
 
 // StopAgent = stopAgent：单独停止一个后台子代理（Claude stop_task）；其它 CLI 返回 false。
 func (o *Orchestrator) StopAgent(tabID, agentID string) bool {
+	// Codex 子线程（包括用户直接对它说话后它接着跑的那一轮）：打断它自己的这一轮
+	if cl := o.live.codex[tabID]; cl != nil && cl.driver.ChildRunning(agentID) {
+		cl.driver.InterruptThread(agentID)
+		return true
+	}
 	live := o.live.claude[tabID]
 	m := o.bgAgents[tabID]
 	if live == nil || m == nil {

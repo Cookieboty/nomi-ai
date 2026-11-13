@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { HarnessLiveEvent } from '../src/services/harnessClient';
-import { applyLiveEvents, MAX_LIVE_TRACE } from '../src/utils/liveState';
+import { applyDetachedEvents, applyLiveEvents, MAX_LIVE_TRACE } from '../src/utils/liveState';
 
 const tool = (i: number, status: 'start' | 'done' = 'start'): HarnessLiveEvent => ({
   tabId: 't',
@@ -173,5 +173,40 @@ describe('applyLiveEvents', () => {
       usage: { toolUses: 1, tokens: 9 },
       endedAt: 20,
     });
+  });
+});
+
+describe('subagent text deltas', () => {
+  const ev = (e: Record<string, unknown>) => ({ tabId: 't', ...e }) as HarnessLiveEvent;
+
+  it('streams a subagent reply by item and drops it once the full text arrives', () => {
+    let live = applyLiveEvents(undefined, [
+      ev({ type: 'agent-text-delta', text: 'hel', parentId: 'c1', itemId: 'i1' }),
+      ev({ type: 'agent-text-delta', text: 'lo', parentId: 'c1', itemId: 'i1' }),
+    ]);
+    expect(live.agentDeltas).toEqual({ i1: { parentId: 'c1', text: 'hello' } });
+    expect(live.text).toBe('');
+    live = applyLiveEvents(live, [
+      ev({ type: 'agent-text', text: 'hello', parentId: 'c1', itemId: 'i1' }),
+    ]);
+    expect(live.agentDeltas).toBeUndefined();
+    expect(live.trace?.[0]).toMatchObject({ type: 'agent-text', text: 'hello' });
+  });
+
+  it('off-turn events keep only agent state and deltas (the trace lives in the stored message)', () => {
+    let d = applyDetachedEvents(undefined, [
+      ev({ type: 'agent', op: 'start', id: 'th1', callId: 'c1', status: 'running' }),
+      ev({ type: 'agent-text-delta', text: 'hi', parentId: 'c1', itemId: 'i1' }),
+      ev({ type: 'tool', name: 'Read', status: 'start', id: 'r1', parentId: 'c1' }),
+    ]);
+    expect(d.trace).toBeUndefined();
+    expect(d.agents?.th1?.status).toBe('running');
+    d = applyDetachedEvents(d, [
+      ev({ type: 'agent-text', text: 'hi', parentId: 'c1', itemId: 'i1' }),
+      ev({ type: 'agent', op: 'end', id: 'th1', status: 'completed' }),
+    ]);
+    expect(d.agentDeltas).toBeUndefined();
+    expect(d.trace).toBeUndefined();
+    expect(d.agents?.th1?.status).toBe('completed');
   });
 });

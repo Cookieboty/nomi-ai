@@ -442,3 +442,15 @@ describe('停止后收尾悬空的工具调用', () => {
     expect(settleTrace(clean, '已停止')).toBe(clean);
   });
 });
+
+describe('subagent-only events stay out of the main timeline', () => {
+  it('skips subagent text, thinking and direct messages', () => {
+    const entries = reduceTrace([
+      { type: 'thinking', text: 'main', at: 1 },
+      { type: 'thinking', text: 'child', parentId: 'c1', at: 2 },
+      { type: 'agent-text', text: 'child says', parentId: 'c1' },
+      { type: 'agent-input', text: 'user to child', parentId: 'c1' },
+    ] as HarnessTraceEvent[]);
+    expect(entries.map((e) => (e.type === 'thinking' ? e.text : e.type))).toEqual(['main']);
+  });
+});

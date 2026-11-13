@@ -4,7 +4,7 @@ import "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 
 // 各后端长驻会话的分工：
 //   orchestrator_claude.go    Claude Code
-//   orchestrator_acp.go       Gemini / Grok / 外部插件（ACP）
+//   orchestrator_acp.go       Gemini / Grok / 其余内置 ACP 助手
 //   orchestrator_codex.go     Codex
 //   orchestrator_dsh_grok.go  dsh / grok / spawnCollect
 // sendTab / cancelTab / dispose / 回收只经下列方法签名调用；

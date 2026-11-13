@@ -7,7 +7,7 @@ import type { PermissionMode } from '../utils/permissionModes';
 import { api, hasTransport } from './api';
 import { clearModelSwitch, noteModelSwitch } from './modelSwitchTip';
 
-export type HarnessBackend = 'nomi' | BuiltinCliId | 'external';
+export type HarnessBackend = 'nomi' | BuiltinCliId;
 
 export interface HarnessState {
   backend: HarnessBackend;
@@ -59,11 +59,6 @@ export interface HarnessTabMeta {
   /** 由 Nomi 委派开的标签 */
   delegation?: HarnessDelegation;
   backend: HarnessBackend;
-  /**
-   * backend 为 'external' 时：用哪个外部插件（「设置 → 编程助手 → 添加 CLI」里的 id）。
-   * 插件被删除后标签保留，发消息时报错。
-   */
-  pluginId?: string;
   /** 工作目录：项目的主文件夹（委派开的 worktree 标签是 worktree） */
   cwd: string;
   /** 标签所在的项目 */
@@ -103,6 +98,11 @@ export interface HarnessTabMeta {
   background?: number;
   /** 仍在运行的后台子代理；stoppable = 可以单独停止（Claude） */
   backgroundAgents?: Array<{ id: string; label?: string; startedAt: number; stoppable: boolean }>;
+  /**
+   * 接着某个子代理自己的会话往下说的标签（子任务侧栏里直接对一个已结束的 Claude Code 子代理说话时开的）：
+   * 来源标签 + 派出它的调用 + 子代理 id
+   */
+  subagentOf?: { tabId: string; callId?: string; agentId?: string };
 }
 
 export interface HarnessTabsState {
@@ -199,6 +199,18 @@ export interface HarnessUsage {
   breakdown?: ContextBreakdown;
 }
 
+/** 消息里的附图缩略图 */
+export type HarnessMessageImage = NonNullable<HarnessTabMessage['images']>[number];
+
+/** harness.messageAgent 的结果 */
+export interface MessageAgentResult {
+  ok: boolean;
+  via?: 'steer' | 'start' | 'fork' | 'resume' | string;
+  reason?: 'busy' | 'running' | 'unsupported' | 'not_found' | 'empty' | 'error' | string;
+  message?: string;
+  tabId?: string;
+}
+
 /** 工具调用 / 思考事件（主进程 stampEvent 带 at 时间戳；detail 为调用 id，codex 为命令行） */
 export type HarnessTraceEvent =
   | {
@@ -214,15 +226,46 @@ export type HarnessTraceEvent =
       /** 事件发生时助手正文的字符下标 */
       textAt?: number;
     }
-  | { type: 'thinking'; text: string; at?: number; textAt?: number }
+  /** 思考；parentId = 子代理的思考（主时间线不画，子任务侧栏里显示） */
+  | { type: 'thinking'; text: string; parentId?: string; at?: number; textAt?: number }
   /** 一轮进行中用户插入的消息（已交给 CLI / Nomi，下一步取走），按 textAt 显示在回复中间 */
-  | { type: 'interject'; text: string; at?: number; textAt?: number };
+  | { type: 'interject'; text: string; at?: number; textAt?: number }
+  /** 子代理（Task / Agent）自己说的话，parentId 是派生它的调用；主时间线不画，子任务侧栏里是它的正文 */
+  | {
+      type: 'agent-text';
+      text: string;
+      parentId: string;
+      /** 正文条目 id（有逐字增量的 CLI 才有）：到了完整正文就丢掉这一条的增量 */
+      itemId?: string;
+      at?: number;
+      textAt?: number;
+    }
+  /** 用户在子任务侧栏里直接对子代理说的话（不经主代理）；子代理的会话里是一条用户消息 */
+  | {
+      type: 'agent-input';
+      text: string;
+      parentId: string;
+      images?: HarnessMessageImage[];
+      at?: number;
+      textAt?: number;
+    };
+
+/** 子代理正文的逐字增量（只实时推送，不落盘；完整正文到了就换成 agent-text） */
+export interface AgentTextDelta {
+  type: 'agent-text-delta';
+  text: string;
+  parentId: string;
+  itemId: string;
+}
 
 export type HarnessLiveEvent =
   | { tabId: string; type: 'text-delta' | 'text'; text: string }
   | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'tool' }>)
   | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'thinking' }>)
   | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'interject' }>)
+  | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'agent-text' }>)
+  | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'agent-input' }>)
+  | ({ tabId: string } & AgentTextDelta)
   | {
       tabId: string;
       type: 'status';
@@ -591,8 +634,6 @@ export const harnessClient = {
     projectId?: string;
     title?: string;
     messages?: HarnessTabMessage[];
-    /** backend = 'external' 时：外部插件 id（「添加 CLI」） */
-    pluginId?: string;
   }) => call<HarnessTabMeta>(() => api.harness.tabCreate(o as never)),
   seedTabMessages: (id: string, messages: HarnessTabMessage[]) =>
     call<HarnessTabMeta>(() => api.harness.tabSeed({ id, messages: messages as never })),
@@ -683,6 +724,22 @@ export const harnessClient = {
   stopAgent: (tabId: string, agentId: string) =>
     call<boolean>(() => api.harness.stopAgent({ id: tabId, agentId })),
   /**
+   * 子任务侧栏里直接对一个 CLI 子代理说话（不经主代理）。reason：busy（在跑，等它这一步结束再发）/
+   * running（还在跑，结束后才能接着它的会话说）/ unsupported（这个 CLI 没有直接通道，改由主代理转达）/
+   * not_found / empty / error。tabId：接着这个子代理自己会话的关联标签。
+   */
+  messageAgent: (input: {
+    id: string;
+    callId?: string;
+    agentId?: string;
+    text: string;
+    images?: HarnessImageInput[];
+    mode?: 'steer' | 'queue';
+  }) =>
+    call<MessageAgentResult>(() =>
+      api.harness.messageAgent({ ...input, images: input.images as never }),
+    ),
+  /**
    * 用户确认后，把这条错误消息记录的文件夹（只此一个）加入 Gemini 的受信任文件夹列表。
    * 文件夹由主进程按消息查出，界面不传路径。
    */
@@ -708,10 +765,13 @@ export const harnessClient = {
     call<boolean>(() => api.harness.replyApprovePlan({ tabId, requestId, choice })),
   onTabs: (fn: (s: HarnessTabsState) => void) =>
     on(() => api.on('harness.tabsChanged', (p) => fn(p as unknown as HarnessTabsState))),
-  onTabMessage: (fn: (e: { tabId: string; message: HarnessTabMessage }) => void) =>
+  /** updated：已有的一条消息更新了（子代理在来源标签空闲时接着跑，轨迹追加进派出它的那条消息） */
+  onTabMessage: (
+    fn: (e: { tabId: string; message: HarnessTabMessage; updated?: boolean }) => void,
+  ) =>
     on(() =>
       api.on('harness.tabMessage', (p) =>
-        fn(p as unknown as { tabId: string; message: HarnessTabMessage }),
+        fn(p as unknown as { tabId: string; message: HarnessTabMessage; updated?: boolean }),
       ),
     ),
 };

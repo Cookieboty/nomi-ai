@@ -315,7 +315,7 @@ const EndpointDrawer: React.FC<{
           </div>
         }
       >
-        {/* 这个编程助手以后新开的会话默认用本机登录、官方账号还是第三方供应商（当前会话在输入框左下角换） */}
+        {/* 这个编程助手以后新开的会话默认用哪个官方账号还是第三方供应商（当前会话在输入框左下角换） */}
         {isCliKind(backend) && installed !== false && (
           <section className={styles.panel} data-testid="endpoint-drawer-default-source">
             <CliDefaultSource backend={backend} />

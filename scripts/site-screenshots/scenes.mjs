@@ -475,7 +475,7 @@ export const SCENES = [
     },
   },
   {
-    name: 'external-cli',
+    name: 'coding-settings',
     title: '编程助手设置',
     async run(h) {
       await h.open();

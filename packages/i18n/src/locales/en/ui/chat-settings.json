@@ -583,7 +583,7 @@
   "ui.chat-settings.weekly-on": "Weekly on {0}",
   "ui.chat-settings.what-the-provider-receives": "What the provider receives",
   "ui.chat-settings.what-to-do-when-a-key-is-found": "What to do when a key is found",
-  "ui.chat-settings.when-a-coding-assistant-finishes-needs-confirmation-or": "When a coding assistant finishes, needs confirmation or hits an error",
+  "ui.chat-settings.when-a-coding-assistant-finishes-needs-confirmation-or": "Once when a coding assistant finishes, needs confirmation or hits an error; no progress updates in between",
   "ui.chat-settings.when-input-is-empty": "↑ (when input is empty)",
   "ui.chat-settings.when-off-nomi-won-t-hand-off-subtasks": "When off, Nomi won’t hand off subtasks and /agent is unavailable.",
   "ui.chat-settings.when-off-system-notifications-are-used-while-nomi": "When off, system notifications are used while {0} is closed.",
@@ -714,5 +714,7 @@
   "ui.chat-settings.theme-download-template": "Download template",
   "ui.chat-settings.theme-template-saved": "Template saved to {0}",
   "ui.chat-settings.about-slogan": "Every AI capability, working for you.",
-  "ui.chat-settings.resize-sidebar": "Resize sidebar"
+  "ui.chat-settings.resize-sidebar": "Resize sidebar",
+  "ui.chat-settings.stop-these-cli-processes-and-remove-the-account": "{0}\n\nOr let Nomi stop these processes now and then remove “{1}”. Whatever they are doing will be interrupted.",
+  "ui.chat-settings.stop-processes-and-remove": "Stop processes and remove"
 }

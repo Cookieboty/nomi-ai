@@ -196,4 +196,6 @@ type IslandNotice struct {
 	DurationMs *int   `json:"durationMs,omitempty"`
 	Endpoint   string `json:"endpoint,omitempty"`
 	Status     string `json:"status,omitempty"` // done | failed | attention | running
+	// Session：通知所属的会话（标签 id，主对话 "main"；不属于会话为 ""），决定显示与否用（island.ShouldShow）
+	Session string `json:"-"`
 }

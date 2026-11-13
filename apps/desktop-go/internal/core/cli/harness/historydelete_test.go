@@ -17,6 +17,7 @@ func TestRunningSessionIdentityAndDeletion(t *testing.T) {
 		t.Run(backend, func(t *testing.T) {
 			o := titleTestOrch(t)
 			defer jsrt.Run(o.Dispose)
+			withThirdPartyGateway(o, backend)
 			t.Setenv("NOMI_MOCK_HOLD_PROMPT", "hold-session")
 			t.Setenv("NOMI_MOCK_FIRST_TOKEN_MS", "10000")
 			var id, other string

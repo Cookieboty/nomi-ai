@@ -43,8 +43,12 @@ Nomi 把 Claude Code、Codex、Gemini CLI、Grok、dsh 当作子进程驱动，�
 | Kimi Code   | `acp`                    | —      |
 | MiniMax     | `acp`                    | —      |
 
-传输写在 `packages/cli-catalog/src/<cli>/manifest.ts` 的 `transport` / `fallbackTransport`。外部 ACP 插件只有声明式清单
-（`userData/cli-plugins/external/*.json`），不加载代码。
+传输写在 `packages/cli-catalog/src/<cli>/manifest.ts` 的 `transport` / `fallbackTransport`。
+
+不再支持用户添加的「外部 CLI」（设置里的入口、`cli.pluginAdd / pluginRemove / pluginTest` 与 `backend: 'external'` 标签都已移除）。
+旧版本留下的数据启动时处理：`userData/cli-plugins/external/` 里的清单删掉；`backend: 'external'` 的标签不再恢复（连同它的消息与续接文件）；
+侧栏里绑着这些标签的会话随标签关掉一起移除；视图里存的「外部 CLI」选中项回到第一个助手，其余残留的 `backend: 'external'`
+记录按非法后端回退成 Nomi。
 
 协议细节都在驱动里；每个 CLI 的差异（流式事件解析、历史转录、模型目录、斜杠布局）在它的插件里。编排器按清单的能力位判断，
 不按 CLI 名字分支（视图侧由 eslint 规则 `nomi/no-cli-literal` 拦下，白名单在 `scripts/eslint/cli-literal-allowlist.mjs`）。
@@ -130,14 +134,16 @@ Codex 的 exec 回退没有来回通道。Nomi 自己连上的 MCP 不广告 eli
 
 ## 来源与标签令牌
 
-- **官方**：CLI 用它自己的登录态（可以在 Nomi 里管理多个官方账号，见 `accounts/`）。
+- **官方**：CLI 用 Nomi 管理的官方账号（每个账号一个独立的配置目录，登录由 CLI 自己完成，见 `accounts/`）。不再有「本机登录」：内置编程助手不用这台电脑上 CLI 默认目录里的登录；没有官方账号能力的（dsh、Gemini）只有第三方来源。旧版本存下的 `local-<kind>` 记录在读取时删掉，指向它的标签和「新会话默认用」改为跟随默认官方账号。
 - **第三方**：CLI 指向本机统一网关。启动前编排器签一个 `nomi-tab-` 令牌并登记绑定（标签、代次、模型、思考深度），收到确认才启动；
   换模型、换第三方供应商时重新登记，下一轮生效。
 
 ## 子任务（Nomi 委派的标签）
 
-- 子任务面板（`packages/ai-chat/src/components/SubagentPane`，状态在 `contexts/SubagentPaneContext`，与变更 / 文件查看区独立）：
-  运行中发送走 `harness.tabSteer`（不支持时排队到这一轮结束），空闲时 `harness.tabSend`，停止 `harness.tabCancel`。
+- 子任务侧栏（`packages/ai-chat/src/components/SubagentPane`，状态在 `contexts/SubagentPaneContext`）：
+  主列留在来源对话。委派标签用 `CliConversation` + `MessageInput`，按标签 id 调 `sendToTab` / `replyPermissionFor` / `cancelRun`，不 `activate`。
+  进程内子代理看父转录里 `parentId` 指到它的步骤；`delegate_to_nomi` 看 `tasks.trace`。
+  设计见 [docs/design/subagent-chat-parity.md](../design/subagent-chat-parity.md)。
 - 接手：只有委派正在跑时用户发消息才算接手（打断 Nomi 的这一轮，`delegation.takenOver`）；空闲时发消息就是接着对话，不标接手。
 - 回报：`TabFinished.Origin` 记这一轮是谁发起的（`user` / `sandbox` / 程序）。用户自己发的、沙箱授权后续跑的轮次，
   `coding_wiring.go` 交给 `delegate.ReportFollowUp`，经 `delegate.completed`（`followUp: true`）回到来源对话；委派自己的轮次由 `finalize` 回报。

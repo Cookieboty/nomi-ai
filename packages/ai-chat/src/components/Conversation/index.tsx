@@ -31,6 +31,7 @@ import { SystemCardView } from '../SystemCards';
 
 import { AgentsByCallContext, agentsByCall } from './agentContext';
 import { ApprovePlanCard } from './ApprovePlanCard';
+import { ConvHostContext } from './convHost';
 import styles from './index.module.css';
 import {
   AssistantBody,
@@ -648,9 +649,14 @@ export const ConversationView = React.memo(function ConversationView(props: Conv
   useLocale();
   // 没传（委派卡片、子代理面板里嵌的会话）：跟随外层会话的设置
   const inherited = useTranscriptViewMode();
+  // 没有冒号的 scope 是编程助手标签 id。子代理「查看」用它当父转录。
+  const parentTabId =
+    typeof props.scopeId === 'string' && !props.scopeId.includes(':') ? props.scopeId : null;
   return (
-    <TranscriptViewProvider value={props.transcriptView ?? inherited}>
-      <ConversationInner key={props.scopeId} {...props} />
-    </TranscriptViewProvider>
+    <ConvHostContext.Provider value={parentTabId}>
+      <TranscriptViewProvider value={props.transcriptView ?? inherited}>
+        <ConversationInner key={props.scopeId} {...props} />
+      </TranscriptViewProvider>
+    </ConvHostContext.Provider>
   );
 });

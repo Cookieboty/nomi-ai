@@ -18,7 +18,7 @@ import { useGitBranch } from '../../hooks/useGitBranch';
 import { useHarnessState } from '../../hooks/useHarnessState';
 import { useNomiProject } from '../../hooks/useNomiProject';
 import { gatewayClientAvailable } from '../../services/gatewayClient';
-import { MAIN_TAB_ID, harnessClient } from '../../services/harnessClient';
+import { MAIN_TAB_ID, harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
 import { useProject } from '../../services/projects';
 import { BranchPicker } from '../BranchPicker';
 import { ModelControls } from '../ModelControls';
@@ -43,8 +43,15 @@ function useEndpoint() {
  * 输入栏：模型 + 权限模式（Nomi 的模型走统一网关，与编程助手的模型按钮同位置）。
  * part：Codex 式布局里权限模式在左（mode）、模型在右（model）；不传则两个都画。
  */
-export const EndpointControls: React.FC<{ part?: 'mode' | 'model' }> = ({ part }) => {
-  const { tabs, harness, cli, tab } = useEndpoint();
+export const EndpointControls: React.FC<{
+  part?: 'mode' | 'model';
+  /** 绑到这个标签，而不是当前标签。侧栏里的委派会话用它。 */
+  tab?: HarnessTabMeta | null;
+}> = ({ part, tab: forced }) => {
+  const endpoint = useEndpoint();
+  const { tabs, harness } = endpoint;
+  const tab = forced === undefined ? endpoint.tab : forced;
+  const cli = forced ? (forced.backend !== 'nomi' ? forced.backend : null) : endpoint.cli;
   // 主对话标签切到 CLI 后端时也有权限模式（主进程里它同样是一个标签）
   const modeTab = tab ?? tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID) ?? null;
   // Nomi 对话（主标签）：权限模式作用在 Nomi 自己的工具上；主标签不在标签列表里，用 harness 状态
@@ -75,8 +82,11 @@ export const EndpointControls: React.FC<{ part?: 'mode' | 'model' }> = ({ part }
 };
 
 /** 输入框上方：「完全放开」提示条（只在 CLI 标签处于完全放开时出现） */
-export const PermissionTip: React.FC = () => {
-  const { tabs, cli, tab } = useEndpoint();
+export const PermissionTip: React.FC<{ tab?: HarnessTabMeta | null }> = ({ tab: forced }) => {
+  const endpoint = useEndpoint();
+  const { tabs } = endpoint;
+  const tab = forced === undefined ? endpoint.tab : forced;
+  const cli = forced ? (forced.backend !== 'nomi' ? forced.backend : null) : endpoint.cli;
   const modeTab = tab ?? tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID) ?? null;
   if (!cli || !modeTab) return null;
   // 「全部自动」开着时完全放开就是默认档：不再每个标签都弹提示（权限按钮仍标红）

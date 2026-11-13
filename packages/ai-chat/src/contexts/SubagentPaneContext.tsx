@@ -1,59 +1,58 @@
 /**
- * 子任务面板（Nomi 委派出去的编程助手标签）：在对话旁边打开，不弹窗。
- * 与「变更 / 文件」查看区独立：各自的状态，子任务面板开着时占对话旁的那一栏，关掉后回到原来的查看区。
- * 草稿与待发消息按标签放在这里（subagentQueue），切换 / 关掉面板不会串到别的标签，也不会丢。
+ * 子任务侧栏：主列留在来源对话，旁边打开另一份会话。
+ * 三种会话都走同一块面板：
+ * - harness：委派出去的编程助手标签（完整输入栏，按标签 id 绑定）；
+ * - nested：进程内子代理（Task / spawn_agent），步骤来自父转录；
+ * - nomi-task：delegate_to_nomi 的后台 Nomi 任务。
  */
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useLayoutEffect,
-  useMemo,
-  useState,
-} from 'react';
-
-import { harnessClient } from '../services/harnessClient';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { useHarnessTabs } from './HarnessTabsContext';
-import { createSubagentQueue, type SubagentQueue } from './subagentQueue';
+
+export type SubagentTarget =
+  | { kind: 'harness'; tabId: string }
+  | { kind: 'nested'; callId: string; parentTabId: string | null }
+  | { kind: 'nomi-task'; taskId: string };
 
 interface SubagentPaneValue {
-  /** 打开着的子任务标签 id；null = 没开 */
+  /** 正在侧栏里看的会话；null = 没开 */
+  target: SubagentTarget | null;
+  /** harness 会话的标签 id（其它种类为 null）。会话详情的探针和旧调用用这个。 */
   tabId: string | null;
   openSubagent: (tabId: string) => void;
+  openNested: (callId: string, parentTabId: string | null) => void;
+  openNomiTask: (taskId: string) => void;
   closeSubagent: () => void;
-  /** 各子任务标签的草稿与待发消息 */
-  queue: SubagentQueue;
 }
 
 const Ctx = createContext<SubagentPaneValue | null>(null);
 
-/** sendTab 出错后：最后一条用户消息就是这条、且是这次发出之后写进去的，说明内核已接收 */
-async function acceptedByTab(tabId: string, text: string, since: number): Promise<boolean> {
-  const messages = await harnessClient.tabMessages(tabId);
-  const last = [...messages].reverse().find((m) => m.role === 'user');
-  return !!last && last.content.trim() === text && last.timestamp >= since;
-}
-
 export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [tabId, setTabId] = useState<string | null>(null);
-  const [queue] = useState(() =>
-    createSubagentQueue({
-      send: (id, text) => harnessClient.sendTab(id, text),
-      steer: (id, text) => harnessClient.steerTab(id, text),
-      accepted: acceptedByTab,
-    }),
-  );
-  const tabsState = useHarnessTabs().state;
-  // 提交后、用户能操作前同步标签状态：插话 / 排队按最新状态判断
-  useLayoutEffect(() => {
-    if (tabsState) queue.sync(tabsState.tabs);
-  }, [queue, tabsState]);
-  const openSubagent = useCallback((id: string) => setTabId(id), []);
-  const closeSubagent = useCallback(() => setTabId(null), []);
+  const tabs = useHarnessTabs();
+  const [target, setTarget] = useState<SubagentTarget | null>(null);
+  const tabId = target?.kind === 'harness' ? target.tabId : null;
+  const openSubagent = useCallback((id: string) => {
+    if (id) setTarget({ kind: 'harness', tabId: id });
+  }, []);
+  const openNested = useCallback((callId: string, parentTabId: string | null) => {
+    if (callId) setTarget({ kind: 'nested', callId, parentTabId });
+  }, []);
+  const openNomiTask = useCallback((taskId: string) => {
+    if (taskId) setTarget({ kind: 'nomi-task', taskId });
+  }, []);
+  const closeSubagent = useCallback(() => setTarget(null), []);
+
+  // 委派标签被关掉：侧栏跟着关。不切换主列的当前标签。
+  useEffect(() => {
+    if (target?.kind !== 'harness' || !tabs.state) return;
+    // 标签列表来自内核：标签没了就关掉侧栏
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 同步外部标签列表
+    if (!tabs.state.tabs.some((tab) => tab.id === target.tabId)) setTarget(null);
+  }, [target, tabs.state]);
+
   const value = useMemo(
-    () => ({ tabId, openSubagent, closeSubagent, queue }),
-    [tabId, openSubagent, closeSubagent, queue],
+    () => ({ target, tabId, openSubagent, openNested, openNomiTask, closeSubagent }),
+    [target, tabId, openSubagent, openNested, openNomiTask, closeSubagent],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };

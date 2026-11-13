@@ -49,6 +49,8 @@ type Notice struct {
 	Title string `json:"title"`
 	Body  string `json:"body,omitempty"`
 	Text  string `json:"text"`
+	// Status：done | failed | attention | ""（灵动岛按它分类，见 island.Classify）
+	Status string `json:"status,omitempty"`
 }
 
 // Reminder：desktop.reminders.today() 的条目（只用到这两个字段）

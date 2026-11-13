@@ -115,9 +115,8 @@ export async function forkSameBackend(
       title,
       messages: toTabMessages(kept),
       ...(projectId ? { projectId } : {}),
-      ...(source?.pluginId ? { pluginId: source.pluginId } : {}),
     });
-    if (opts.inheritSettings && source && source.backend !== 'external') {
+    if (opts.inheritSettings && source) {
       try {
         const selectedSource = source.source ?? 'official';
         const model = source.modelOverride ?? source.lastServedRef;

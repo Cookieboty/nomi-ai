@@ -1,5 +1,6 @@
 /** 发文框的属性（从 index.tsx 拆出，控制单文件行数） */
 import type { createComposerDraftStore } from '../../services/composerDrafts';
+import type { HarnessTabMeta } from '../../services/harnessClient';
 import type { ImageAttachment } from '../../services/screenClient';
 import type { SlashBridge } from '../../slash/types';
 import type { ConvMessage } from '../../types/conversation';
@@ -64,4 +65,9 @@ export interface MessageInputProps {
   draftStore?: ReturnType<typeof createComposerDraftStore>;
   /** 当前激活草稿桶；勿用 React key 整棵重挂本组件 */
   draftKey?: string;
+  /**
+   * 模型 / 权限绑到这个标签，而不是当前标签。
+   * 侧栏里的委派会话和主列同时开着时用它。
+   */
+  endpointTab?: HarnessTabMeta | null;
 }

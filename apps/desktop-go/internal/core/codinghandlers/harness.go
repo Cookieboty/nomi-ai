@@ -52,7 +52,7 @@ func (a in) list(k string) []any {
 // viewTabFields：视图建标签能给的字段（契约 harness.tabCreate 声明的）。delegation（委派与沙箱预授权）、source、
 // accountId、cliSessionId、modelOverride 等只由内核自己的委派 / 任务路径设置：视图带来的一律丢掉，
 // 否则建标签时塞一个 delegation.sandboxGrants 就能绕过 harness.sandboxReply 的确认拿到凭据的读权限
-var viewTabFields = []string{"backend", "projectId", "title", "messages", "permissionMode", "pluginId"}
+var viewTabFields = []string{"backend", "projectId", "title", "messages", "permissionMode"}
 
 func viewTabOptions(o *util.Obj) *util.Obj {
 	out := util.NewObj()
@@ -197,6 +197,9 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 	call("harness.tabCancel", func(a in) any { return h().CancelTab(a.str("id")) })
 	call("harness.tabSteer", func(a in) any { return await(h().SteerTab(a.str("id"), a.str("text"))) })
 	call("harness.stopAgent", func(a in) any { return h().StopAgent(a.str("id"), a.str("agentId")) })
+	call("harness.messageAgent", func(a in) any {
+		return await(h().MessageAgent(a.str("id"), a.str("callId"), a.str("agentId"), a.str("text"), a.list("images"), a.str("mode")))
+	})
 	call("harness.tabContext", func(a in) any { return await(h().TabContext(a.str("id"))) })
 
 	// ── 斜杠命令 / 改动 / 工作区文件 ──

@@ -15,6 +15,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/gemini"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/ports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -305,11 +306,6 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 		throw(i18n.T("electron.common.new-tabs-can-only-use-a-coding-agent"))
 	}
 	backend := backendV.(string)
-	var ext *util.Obj
-	if backend == "external" {
-		pid, _ := opts.Get("pluginId").(string)
-		ext = o.externalSpecOf(pid)
-	}
 	// 项目：工作目录默认是它的主文件夹（委派的 worktree 标签会另给 cwd）
 	projectID, _ := opts.Get("projectId").(string)
 	projectPrimary := ""
@@ -344,14 +340,11 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 	sameKind := 0
 	for _, k := range o.tabs.Keys() {
 		x := o.tab(k)
-		if str(x, "backend") == backend && (ext == nil || x.Get("pluginId") == ext.Get("id")) {
+		if str(x, "backend") == backend {
 			sameKind++
 		}
 	}
 	baseTitle := backendTitle(backend)
-	if ext != nil {
-		baseTitle = jsStr(ext.Get("displayName"))
-	}
 	title := ""
 	if s, ok := opts.Get("title").(string); ok {
 		title = clisdk.Slice0(util.JSTrim(s), 60)
@@ -371,9 +364,6 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 	}
 	effMode, _ := cli.EffectiveMode(backend, mode)
 	tab := util.NewObj("id", clisdk.RandomUUID(), "title", title, "backend", backend)
-	if ext != nil {
-		tab.Set("pluginId", ext.Get("id"))
-	}
 	if projectID != "" {
 		tab.Set("projectId", projectID)
 	}
@@ -406,6 +396,16 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 		}
 		d.Set("approvals", util.NewObj("asked", 0.0, "denied", 0.0, "timedOut", 0.0))
 		tab.Set("delegation", d)
+	}
+	// subagentOf：接着某个子代理自己的会话往下说的标签（orchestrator_subagent.go），子任务侧栏按它找回来
+	if so, _ := opts.Get("subagentOf").(*util.Obj); so != nil && truthy(so.Get("tabId")) {
+		x := util.NewObj("tabId", jsStr(so.Get("tabId")))
+		for _, k := range []string{"callId", "agentId"} {
+			if v, ok := so.Get(k).(string); ok && v != "" {
+				x.Set(k, clisdk.Slice0(v, 200))
+			}
+		}
+		tab.Set("subagentOf", x)
 	}
 	want, _ := opts.Get("source").(string)
 	tab.Set("source", o.defaultSource(backend, want))
@@ -691,9 +691,6 @@ func (o *Orchestrator) SetTabBackend(id string, backendV any) *util.Obj {
 	if backend == "nomi" && id != MainTabID {
 		throw(i18n.T("electron.common.new-tabs-can-only-use-a-coding-agent"))
 	}
-	if backend == "external" || tab.Get("backend") == "external" {
-		throw(i18n.T("electron.common.an-external-cli-tab-can-t-switch-to"))
-	}
 	if s := tab.Get("status"); s == "running" || s == "queued" {
 		throw(i18n.T("electron.common.previous-turn-still-running"))
 	}
@@ -745,20 +742,70 @@ func (o *Orchestrator) SetTabBackend(id string, backendV any) *util.Obj {
 }
 
 // defaultSource = defaultSource(backend, want?)；want "" = undefined。
+// 没有官方账号能力的内置编程助手（dsh、Gemini）只有第三方来源；有官方账号能力、但一个 Nomi 账号都还没有时，
+// 分配了第三方模型就用第三方（否则仍是官方来源，启动时提示添加官方账号或换第三方模型）。
 func (o *Orchestrator) defaultSource(backend, want string) string {
 	g := o.d.Gateway
 	if g == nil || !isBuiltin(backend) {
 		return "official"
+	}
+	if !isAccountBackend(backend) {
+		return "thirdParty"
 	}
 	d := g.Defaults(backend)
 	source := want
 	if source == "" {
 		source = d.Source
 	}
-	if source == "thirdParty" && ((d.Model != nil && *d.Model != "") || want != "") {
+	hasModel := d.Model != nil && *d.Model != ""
+	if source == "thirdParty" && (hasModel || want != "") {
+		return "thirdParty"
+	}
+	if want == "" && hasModel && !o.hasOfficialAccount(backend) {
 		return "thirdParty"
 	}
 	return "official"
+}
+
+// hasOfficialAccount：这个编程助手有没有 Nomi 管理的官方账号（账号服务不可用时按有处理，不改来源）
+func (o *Orchestrator) hasOfficialAccount(backend string) bool {
+	p, ok := o.d.Accounts.(ports.AccountPresence)
+	if !ok || o.d.Accounts == nil {
+		return true
+	}
+	has := true
+	func() {
+		defer func() { _ = recover() }()
+		has = p.HasAccount(backend)
+	}()
+	return has
+}
+
+// migrateLocalSignIn：旧版本的「本机登录」——标签上的 local-<kind> 账号去掉（跟随默认官方账号）；
+// 没有官方账号能力的内置编程助手（dsh、Gemini）原来的官方来源就是本机登录，改成第三方来源。返回是否改动。
+func (o *Orchestrator) migrateLocalSignIn(tab *util.Obj) bool {
+	changed := false
+	if a, _ := tab.Get("accountId").(string); strings.HasPrefix(a, "local-") {
+		tab.Delete("accountId")
+		changed = true
+	}
+	b := str(tab, "backend")
+	if isBuiltin(b) && !isAccountBackend(b) && tab.Get("source") != "thirdParty" {
+		tab.Set("source", "thirdParty")
+		tab.Set("modelOverride", nil)
+		tab.Set("reasoningEffort", nil)
+		tab.Delete("modelByScope")
+		if truthy(tab.Get("cliSessionId")) {
+			// 官方会话里的推理内容不能续到第三方接口：换新会话，带上原来的对话作前文
+			tab.Set("cliSessionId", nil)
+			if id := str(tab, "id"); id != MainTabID {
+				o.setCarried(tab, o.readMessagesFile(id), str(tab, "cwd"))
+			}
+		}
+		tab.Set("modelScope", anyOf(o.scopeOf(tab)))
+		changed = true
+	}
+	return changed
 }
 
 // defaultAccountId：nil = null。
@@ -780,8 +827,8 @@ func (o *Orchestrator) SetTabSource(id string, source any, model *string) *util.
 	if source != "official" && source != "thirdParty" {
 		throw(i18n.T("electron.common.unknown-source"))
 	}
-	if source == "thirdParty" && backend == "external" {
-		throw(i18n.T("electron.common.an-external-cli-only-uses-its-own-sign"))
+	if source == "official" && isBuiltin(backend) && !isAccountBackend(backend) {
+		throw(i18n.T("electron.common.only-third-party-models", builtin.DisplayName(backend)))
 	}
 	if source == "thirdParty" && o.d.Gateway == nil {
 		throw(i18n.T("electron.common.the-model-gateway-is-unavailable"))
@@ -995,7 +1042,7 @@ func (o *Orchestrator) switchAcpMode(id string, gl *acpLiveSession, mode string)
 			return struct{}{}, gemini.NewUntrustedError(str(o.tab(id), "cwd"), err)
 		}
 		return struct{}{}, fmt.Errorf("%s", i18n.T("electron.common.cli-did-not-confirm-the-permission-mode-change",
-			acpDisplayName(gl.backend, nil), why))
+			acpDisplayName(gl.backend), why))
 	})
 	gl.modeChange = change
 }
@@ -1096,6 +1143,14 @@ func (o *Orchestrator) gatewayCatalog(backend string) *util.Obj {
 	if g != nil {
 		for _, m := range g.Models() {
 			x := util.NewObj("id", m.Ref, "label", m.Provider+" / "+m.Label, "reasoning", false, "efforts", []any{})
+			// 思考深度：网关按模型能力给的档位（与 Nomi 对话同一份；off 不给选），由网关写进请求
+			if th := o.thirdPartyThinking(m.Ref); th != nil {
+				lv := make([]any, len(th.Levels))
+				for i, l := range th.Levels {
+					lv[i] = l
+				}
+				x.Set("reasoning", true).Set("efforts", lv).Set("defaultEffort", th.Default)
+			}
 			if m.Vision != nil {
 				x.Set("vision", *m.Vision)
 			}
@@ -1239,7 +1294,12 @@ func (o *Orchestrator) SetTabModel(id, model, expectSource string) *util.Obj {
 		tab.Set("modelOverride", name)
 		tab.Set("modelScope", anyOf(scope))
 		if scope != nil {
-			tab.Set("reasoningEffort", nil)
+			// 第三方：选过的档位换了模型还在新模型的档位里就留着（与 Nomi 对话一致），否则回到新模型的默认档
+			if e, _ := tab.Get("reasoningEffort").(string); e != "" && o.thirdPartyAllows(name, e) {
+				tab.Set("reasoningEffort", e)
+			} else {
+				tab.Set("reasoningEffort", nil)
+			}
 		} else if e := clisdk.SanitizeEffort(o.cachedCatalog(backend), &name, tab.Get("reasoningEffort")); e != "" {
 			tab.Set("reasoningEffort", e)
 		} else {
@@ -1262,6 +1322,7 @@ func (o *Orchestrator) SetTabReasoningEffort(id string, effort any) *util.Obj {
 			o.rememberSettings(tab)
 			o.changed()
 			o.recycleLiveForOverride(tab)
+			o.pushTabEffort(tab)
 		}
 		return tab.Clone()
 	}
@@ -1269,7 +1330,26 @@ func (o *Orchestrator) SetTabReasoningEffort(id string, effort any) *util.Obj {
 		throw(i18n.T("electron.common.this-coding-assistant-doesn-t-support-switching-models"))
 	}
 	if o.adoptScope(tab) != nil {
-		throw(i18n.T("electron.common.reasoning-effort-can-t-be-set-here-for"))
+		// 第三方模型：档位按网关的模型能力（与 Nomi 对话同一份），登记在标签绑定上，由网关写进请求
+		e, _ := effort.(string)
+		model := o.effectiveOverrides(tab).model
+		if model == nil || *model == "" {
+			throw(i18n.T("electron.common.this-tab-has-no-third-party-model-yet"))
+		}
+		th := o.thirdPartyThinking(*model)
+		if th == nil {
+			throw(i18n.T("electron.common.this-model-doesn-t-support-reasoning-effort"))
+		}
+		if !o.thirdPartyAllows(*model, e) {
+			throw(i18n.T("electron.common.this-model-doesn-t-support-that-reasoning-effort"))
+		}
+		if tab.Get("reasoningEffort") != e {
+			tab.Set("reasoningEffort", e)
+			o.rememberSettings(tab)
+			o.changed()
+			o.pushTabEffort(tab)
+		}
+		return tab.Clone()
 	}
 	if !clisdk.IsReasoningEffort(effort) {
 		throw(i18n.T("electron.common.unknown-reasoning-effort"))
@@ -1406,11 +1486,8 @@ func (o *Orchestrator) adoptScope(tab *util.Obj) *string {
 	next, _ := stash.Get(key(scope)).(*util.Obj)
 	stash.Delete(key(scope))
 	tab.Set("modelOverride", next.Get("model"))
-	if scope != nil {
-		tab.Set("reasoningEffort", nil)
-	} else {
-		tab.Set("reasoningEffort", next.Get("effort"))
-	}
+	// 各来源的档位各自存放：回到哪个来源就恢复它自己的（第三方的档位发请求前还会按模型能力再收一次）
+	tab.Set("reasoningEffort", next.Get("effort"))
 	tab.Set("modelScope", anyOf(scope))
 	if stash.Len() > 0 {
 		tab.Set("modelByScope", stash)
@@ -1467,10 +1544,89 @@ func (o *Orchestrator) effectiveOverrides(tab *util.Obj) overrides {
 				own = m
 			}
 		}
-		return overrides{model: own}
+		var stored *string
+		if eqStrP(ms, scope) {
+			stored = strP(tab, "reasoningEffort")
+		}
+		return overrides{model: own, bindEffort: o.thirdPartyLevel(own, stored)}
 	}
 	if ms != nil {
 		return overrides{}
 	}
 	return overrides{model: trimOrNil(tab.Get("modelOverride")), effort: strP(tab, "reasoningEffort")}
+}
+
+// thirdPartyThinking：网关里这个第三方模型可调的思考深度（与 Nomi 对话同一份能力表）；nil = 不能调。
+// 「不思考」（off / none）和 Nomi 对话一样不给用户选，这里一并去掉；剩下少于两档也当作不能调。
+func (o *Orchestrator) thirdPartyThinking(ref string) *ports.GatewayThinking {
+	if o.d.Gateway == nil || ref == "" {
+		return nil
+	}
+	for _, m := range o.d.Gateway.Models() {
+		if m.Ref != ref || m.Thinking == nil {
+			continue
+		}
+		levels := make([]string, 0, len(m.Thinking.Levels))
+		for _, l := range m.Thinking.Levels {
+			if l != "off" && l != "none" {
+				levels = append(levels, l)
+			}
+		}
+		if len(levels) < 2 {
+			return nil
+		}
+		def := m.Thinking.Default
+		if !containsString(levels, def) {
+			def = levels[1]
+		}
+		return &ports.GatewayThinking{Levels: levels, Default: def}
+	}
+	return nil
+}
+
+// thirdPartyAllows：这个档位在第三方模型的可选档位里
+func (o *Orchestrator) thirdPartyAllows(ref, level string) bool {
+	th := o.thirdPartyThinking(ref)
+	return th != nil && level != "" && containsString(th.Levels, level)
+}
+
+// thirdPartyLevel：第三方标签这一轮发出的档位 = 选过且还有效的档位，否则模型的默认档；模型不能调 = nil。
+// 与 Nomi 对话的 resolveThinkingLevel 同一规则：界面上显示哪一档，请求就带哪一档。
+func (o *Orchestrator) thirdPartyLevel(model, stored *string) *string {
+	if model == nil || *model == "" {
+		return nil
+	}
+	th := o.thirdPartyThinking(*model)
+	if th == nil {
+		return nil
+	}
+	if stored != nil && containsString(th.Levels, *stored) {
+		v := *stored
+		return &v
+	}
+	v := th.Default
+	return &v
+}
+
+// pushTabEffort：第三方标签改了档位，立刻更新网关里的标签绑定（下一个请求就生效，不重启 CLI）
+func (o *Orchestrator) pushTabEffort(tab *util.Obj) {
+	if !o.needsTabBinding(tab) || o.tabBindings[str(tab, "id")] == nil {
+		return
+	}
+	p := o.syncTabBinding(tab)
+	jsrt.Async(func() (struct{}, error) {
+		if _, err := jsrt.Await(p); err != nil {
+			o.d.Logger.Warn("harness tab effort sync failed", err)
+		}
+		return struct{}{}, nil
+	})
+}
+
+func containsString(xs []string, s string) bool {
+	for _, x := range xs {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }

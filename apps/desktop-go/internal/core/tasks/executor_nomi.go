@@ -9,8 +9,11 @@ package tasks
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -22,6 +25,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codingcli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
 // ToolClassTools：工具类 → Nomi 工具名
@@ -160,6 +164,10 @@ type NomiDeps struct {
 	ToolNames func() []string
 	// Every：周期定时器（测试注入）；返回取消函数
 	Every func(ms int64, fn func()) func()
+	// Steer：把一条用户消息插进正在跑的工具循环（client.chat.Steer，按 reqId）；可为空 = 不支持插话
+	Steer func(reqID, text string) bool
+	// Live：这次执行的实时事件（正文增量、思考、工具开始 / 结束、插话），子任务侧栏按它实时刷新；可为空
+	Live func(taskID, attemptID string, ev map[string]any)
 }
 
 func defaultEvery(ms int64, fn func()) func() {
@@ -185,6 +193,25 @@ type nomiRun struct {
 	ctx     AttemptContext
 	seq     int
 	waiting map[string]chan bool
+	// reqID：这次执行的流式请求 id（插话按它找到工具循环）
+	reqID string
+	// live：正在写的正文与进行中的工具（侧栏中途打开时用 tasks.trace 拿到同一份快照）
+	live liveBuf
+}
+
+// liveBuf：一次执行的实时快照。字段由 nomiExecutor.mu 保护。
+type liveBuf struct {
+	text      strings.Builder
+	reasoning strings.Builder
+	tools     []liveTool
+}
+
+type liveTool struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Input  string `json:"input,omitempty"`
+	At     int64  `json:"at"`
+	TextAt int    `json:"textAt"`
 }
 
 type nomiExecutor struct {
@@ -260,6 +287,8 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 		"AnswerInput":  "",
 		"Resume":       cause.Kind == "resume" || cause.Kind == "retry",
 		"Rework":       cause.Kind == "rework" && cause.Note != nil,
+		"FollowUp":     cause.Kind == "followup" && cause.Note != nil,
+		"Previous":     "",
 		"Progress":     "",
 		"Events":       EventsSection(events),
 		"HasCli":       codingcli.Available(),
@@ -283,7 +312,37 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 	if progress != "" {
 		d["Progress"] = shortN(progress, 4000)
 	}
-	return []blm.ChatMessage{{Role: "system", Content: prompts.Render("task-run", d)}, {Role: "user", Content: t.Goal}}
+	// 追问：带上上一次执行的结论，模型在它的基础上接着做
+	if cause.Kind == "followup" && ctx.Previous != nil && ctx.Previous.Result != nil {
+		d["Previous"] = shortN(ctx.Previous.Result.Summary, 4000)
+	}
+	return []blm.ChatMessage{{Role: "system", Content: prompts.Render("task-run", d)},
+		{Role: "user", Content: t.Goal, Images: followUpImages(cause)}}
+}
+
+// followUpImages：追问带的图片（读不回来的跳过）
+func followUpImages(c AttemptCause) []blm.ChatImage {
+	if c.Kind != "followup" || len(c.Images) == 0 {
+		return nil
+	}
+	out := []blm.ChatImage{}
+	for _, p := range c.Images {
+		raw, err := os.ReadFile(p)
+		if err != nil || len(raw) == 0 {
+			continue
+		}
+		mime := "image/png"
+		for m, ext := range imageExt {
+			if strings.EqualFold(filepath.Ext(p), ext) {
+				mime = m
+			}
+		}
+		out = append(out, blm.ChatImage{Mime: mime, Data: base64.StdEncoding.EncodeToString(raw)})
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func (e *nomiExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
@@ -311,7 +370,7 @@ func (e *nomiExecutor) Start(ctx AttemptContext) {
 	if old := e.runs[ctx.Task.ID]; old != nil {
 		old.cancel()
 	}
-	run := &nomiRun{gen: ctx.Attempt.Gen, ctx: ctx, waiting: map[string]chan bool{}}
+	run := &nomiRun{gen: ctx.Attempt.Gen, ctx: ctx, waiting: map[string]chan bool{}, reqID: "task-" + ctx.Attempt.ID}
 	e.runs[ctx.Task.ID] = run
 	e.launchLocked(run)
 	e.mu.Unlock()
@@ -390,7 +449,7 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 	if e.d.EventsFor != nil {
 		events = e.d.EventsFor(t.ID, a.Cause.EventKey)
 	}
-	extra := map[string]any{"taskId": t.ID, "attemptId": a.ID}
+	extra := map[string]any{"taskId": t.ID, "attemptId": a.ID, "reqId": run.reqID}
 	if t.Origin.ConversationID != nil && *t.Origin.ConversationID != "" {
 		extra["conversationId"] = *t.Origin.ConversationID
 	}
@@ -408,6 +467,11 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 			rep.Heartbeat()
 		}
 	})
+	live := func(ev map[string]any) {
+		if e.d.Live != nil {
+			e.d.Live(t.ID, a.ID, ev)
+		}
+	}
 	err := e.d.AgentStream(ctx, BuildPrompt(run.ctx, "", e.d.Now(), events), tools,
 		extra, func(c blm.ChatChunk) {
 			if ctx.Err() != nil {
@@ -416,21 +480,58 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 			switch c.Type {
 			case "delta":
 				text.WriteString(c.Content)
+				e.mu.Lock()
+				run.live.text.WriteString(c.Content)
+				e.mu.Unlock()
+				live(map[string]any{"type": "delta", "text": c.Content})
 				rep.Heartbeat()
 			case "reasoning":
+				if c.Content != "" {
+					e.mu.Lock()
+					run.live.reasoning.WriteString(c.Content)
+					e.mu.Unlock()
+					live(map[string]any{"type": "reasoning", "text": c.Content})
+				}
 				rep.Heartbeat()
 			case "tool_call.delta":
 				if c.ID != nil && *c.ID != "" {
 					pmu.Lock()
+					fresh := !pending[*c.ID]
 					pending[*c.ID] = true
 					pmu.Unlock()
+					if fresh {
+						tool := liveTool{ID: *c.ID, At: e.d.Now()}
+						if c.Name != nil {
+							tool.Name = *c.Name
+						}
+						if c.ArgumentsJSON != nil {
+							tool.Input = shortN(*c.ArgumentsJSON, 2000)
+						}
+						e.mu.Lock()
+						tool.TextAt = util.UTF16Len(run.live.text.String())
+						run.live.tools = append(run.live.tools, tool)
+						e.mu.Unlock()
+						live(map[string]any{"type": "tool", "status": "start", "id": tool.ID, "name": tool.Name,
+							"input": tool.Input, "at": tool.At, "textAt": tool.TextAt})
+					}
 				}
 				rep.Heartbeat()
 			case "tool_call.result":
+				var started *liveTool
 				if c.ID != nil {
 					pmu.Lock()
 					delete(pending, *c.ID)
 					pmu.Unlock()
+					e.mu.Lock()
+					for i, lt := range run.live.tools {
+						if lt.ID == *c.ID {
+							cp := lt
+							started = &cp
+							run.live.tools = append(run.live.tools[:i:i], run.live.tools[i+1:]...)
+							break
+						}
+					}
+					e.mu.Unlock()
 				}
 				if c.Name != nil && c.Error == nil && c.Output != nil {
 					pmu.Lock()
@@ -438,18 +539,36 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 					pmu.Unlock()
 				}
 				rep.Heartbeat()
+				line := map[string]any{"at": e.d.Now()}
+				if c.Name != nil {
+					line["tool"] = *c.Name
+				}
+				if c.ID != nil {
+					line["id"] = *c.ID
+				}
+				if started != nil {
+					line["startedAt"] = started.At
+					line["textAt"] = started.TextAt
+					if started.Input != "" {
+						line["input"] = shortN(started.Input, 400)
+					}
+				}
+				if c.Error != nil {
+					line["error"] = shortN(*c.Error, 400)
+				} else if c.Output != nil {
+					line["output"] = shortN(*c.Output, 400)
+				}
 				if e.d.Trace != nil {
-					line := map[string]any{"at": e.d.Now()}
-					if c.Name != nil {
-						line["tool"] = *c.Name
-					}
-					if c.Error != nil {
-						line["error"] = shortN(*c.Error, 400)
-					} else if c.Output != nil {
-						line["output"] = shortN(*c.Output, 400)
-					}
 					e.d.Trace(t.ID, a.ID, line)
 				}
+				ev := map[string]any{"type": "tool", "status": "done"}
+				if c.Error != nil {
+					ev["status"] = "error"
+				}
+				for k, v := range line {
+					ev[k] = v
+				}
+				live(ev)
 			case "usage":
 				if c.Model != nil {
 					model = *c.Model
@@ -487,6 +606,7 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 	}
 	e.mu.Unlock()
 	if err != nil {
+		live(map[string]any{"type": "done", "error": shortN(err.Error(), 400)})
 		rep.Failed(ClassifyError(err.Error()))
 		return
 	}
@@ -502,6 +622,7 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 	if e.d.Trace != nil {
 		e.d.Trace(t.ID, a.ID, map[string]any{"at": e.d.Now(), "done": shortN(summary, 2000)})
 	}
+	live(map[string]any{"type": "done"})
 	rep.Completed(AttemptResult{Summary: summary, Artifacts: produced})
 }
 
@@ -541,4 +662,51 @@ func (e *nomiExecutor) Stop(taskID string, gen int, reason string) {
 		delete(run.waiting, id)
 	}
 	run.cancel()
+}
+
+// Steer：用户在子任务侧栏里插话。交给这次执行的工具循环，下一步并进上下文（和主对话的插话同一条路）；
+// 没在跑、或这一步已经不收插入消息（最后一步在写结论）时 false，由调用方改成做完后的追问。
+func (e *nomiExecutor) Steer(taskID, text string) bool {
+	body := strings.TrimSpace(text)
+	if body == "" || e.d.Steer == nil {
+		return false
+	}
+	e.mu.Lock()
+	run := e.runs[taskID]
+	var reqID, attemptID string
+	textAt := 0
+	if run != nil {
+		reqID, attemptID = run.reqID, run.ctx.Attempt.ID
+		textAt = util.UTF16Len(run.live.text.String())
+	}
+	e.mu.Unlock()
+	if run == nil || !e.d.Steer(reqID, body) {
+		return false
+	}
+	line := map[string]any{"at": e.d.Now(), "user": shortN(body, 2000), "textAt": textAt}
+	if e.d.Trace != nil {
+		e.d.Trace(taskID, attemptID, line)
+	}
+	if e.d.Live != nil {
+		e.d.Live(taskID, attemptID, map[string]any{"type": "interject", "text": line["user"], "at": line["at"], "textAt": textAt})
+	}
+	return true
+}
+
+// LiveView：正在跑的这次执行写到一半的正文、思考与进行中的工具；没在跑时 nil
+func (e *nomiExecutor) LiveView(taskID string) map[string]any {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	run := e.runs[taskID]
+	if run == nil {
+		return nil
+	}
+	tools := make([]liveTool, len(run.live.tools))
+	copy(tools, run.live.tools)
+	return map[string]any{
+		"attemptId": run.ctx.Attempt.ID,
+		"text":      run.live.text.String(),
+		"reasoning": shortN(run.live.reasoning.String(), 8000),
+		"tools":     tools,
+	}
 }

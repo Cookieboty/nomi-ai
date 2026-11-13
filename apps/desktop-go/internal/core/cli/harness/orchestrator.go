@@ -60,7 +60,6 @@ type Deps struct {
 	LegacyDefaultCwd       string
 	Gateway                ports.HarnessGateway
 	Accounts               ports.HarnessOfficialAccounts
-	Externals              ports.HarnessExternalPlugins
 	Quality                QualitySink
 	Ports                  Ports
 	IdleReclaimMs          *float64
@@ -115,7 +114,7 @@ func containsS(xs []string, s string) bool {
 }
 
 // backends = BACKENDS。
-var backends = append(append([]string{"nomi"}, builtin.IDs...), "external")
+var backends = append([]string{"nomi"}, builtin.IDs...)
 
 func isBackend(v any) bool {
 	s, ok := v.(string)
@@ -127,8 +126,6 @@ func backendTitle(b string) string {
 	switch b {
 	case "nomi":
 		return brandAppName
-	case "external":
-		return "CLI"
 	}
 	if m := builtin.Manifest(b); m != nil {
 		if s, ok := m.Get("displayName").(string); ok {
@@ -195,6 +192,7 @@ type bgAgent struct {
 type tabBinding struct {
 	generation    float64
 	model         string
+	effort        string // 绑定上登记的思考深度（"" = 没有）
 	modelInConfig *bool
 }
 
@@ -224,6 +222,7 @@ type Orchestrator struct {
 	// delegatedSessions：Nomi 委派用过的编程助手会话（backend:sessionId）：不出现在编程助手的历史里（orchestrator_delegated.go）
 	delegatedSessions map[string]bool
 	eventBatcher      *cli.EventBatcher
+	childStage        map[string]string // 直接发给 Codex 子代理的图片暂存目录（标签 + 线程 → 目录），子代理这一轮结束时清掉
 	pendingPerms      *ordMap[map[string]*jsrt.Timer]
 	pendingPermOrder  map[string][]string
 	// QuestionHook：Claude Code 的 AskUserQuestion（type=question）。设了就不要再当普通权限发出去。
@@ -359,6 +358,7 @@ func New(d Deps) *Orchestrator {
 		modelCatalogGen: map[string]float64{},
 	}
 	o.live.init()
+	o.childStage = map[string]string{}
 	o.eventBatcher = cli.NewEventBatcher(func(batch []*util.Obj) { o.broadcast("harness.events", batch) }, 0)
 	o.idleReclaimMs = cli.ResolveIdleReclaimMs(d.IdleReclaimMs, envPtr("NOMI_HARNESS_IDLE_MS"))
 	o.home = d.Home
@@ -749,10 +749,13 @@ func (o *Orchestrator) load() {
 					continue
 				}
 				be := tab.Get("backend")
-				if !isBackend(be) || be == "nomi" {
+				if be == "external" {
+					// 旧版本的「外部 CLI」标签：已不再支持，关掉（删掉它的消息与续接文件）
+					o.dropLegacyExternalTab(id)
+					migrated = true
 					continue
 				}
-				if _, ok := tab.Get("pluginId").(string); be == "external" && !ok {
+				if !isBackend(be) || be == "nomi" {
 					continue
 				}
 				restored := tab.Clone()
@@ -785,9 +788,24 @@ func (o *Orchestrator) load() {
 		}
 	}
 	o.main().Set("permissionMode", o.restoredMode(str(o.main(), "backend"), mainMode))
+	// 旧版本的「本机登录」：标签改为跟随默认官方账号，dsh / Gemini 改为第三方来源
+	for _, k := range o.tabs.Keys() {
+		if o.migrateLocalSignIn(o.tab(k)) {
+			migrated = true
+		}
+	}
 	if migrated || migrateAuto {
 		o.persist()
 	}
+}
+
+// dropLegacyExternalTab：旧版本「外部 CLI」标签留下的消息与续接文件（标签本身不再恢复）。
+func (o *Orchestrator) dropLegacyExternalTab(id string) {
+	if id == "" || id == MainTabID {
+		return
+	}
+	_ = os.RemoveAll(o.messagesPath(id))
+	_ = os.RemoveAll(o.carryPath(id))
 }
 
 // jsNumberOr0 = Number(x) || 0。
@@ -1301,7 +1319,7 @@ func reportedModel(events []*util.Obj) string {
 
 func isTurnContent(ev *util.Obj) bool {
 	switch ev.Get("type") {
-	case "text-delta", "text", "tool", "thinking", "permission", "agent":
+	case "text-delta", "text", "tool", "thinking", "permission", "agent", "agent-text", "agent-input":
 		return true
 	}
 	return false

@@ -4,9 +4,13 @@ package tasks
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -280,6 +284,137 @@ func (s *Service) Journal(id string) []JournalEntry {
 	}
 	return s.Store.Journal(id)
 }
+
+// TraceView 是契约 tasks.trace：每次执行的运行轨迹（按时间先后），外加正在跑的那次写到一半的正文与工具。
+// attemptId / lines 仍是最近一次执行的（旧调用方只看它）。没有任务或还没有执行时都为空。
+func (s *Service) TraceView(id string) map[string]any {
+	rec := s.Get(id)
+	if rec == nil || len(rec.Attempts) == 0 {
+		return map[string]any{"attemptId": nil, "lines": []map[string]any{}, "attempts": []map[string]any{}, "live": nil}
+	}
+	attempts := make([]map[string]any, 0, len(rec.Attempts))
+	var last []map[string]any
+	for _, a := range rec.Attempts {
+		lines := s.Store.Trace(id, a.ID)
+		if lines == nil {
+			lines = []map[string]any{}
+		}
+		last = lines
+		item := map[string]any{"attemptId": a.ID, "cause": a.Cause.Kind, "status": a.Status, "startedAt": a.StartedAt, "lines": lines}
+		if a.Cause.Note != nil {
+			item["note"] = *a.Cause.Note
+		}
+		if a.EndedAt != nil {
+			item["endedAt"] = *a.EndedAt
+		}
+		attempts = append(attempts, item)
+	}
+	var live any
+	if lv, ok := s.exec[rec.Task.Executor.Kind].(interface {
+		LiveView(taskID string) map[string]any
+	}); ok {
+		if v := lv.LiveView(id); v != nil {
+			live = v
+		}
+	}
+	return map[string]any{"attemptId": rec.Attempts[len(rec.Attempts)-1].ID, "lines": last, "attempts": attempts, "live": live}
+}
+
+// Steer 是契约 tasks.steer：后台任务正在跑时，把用户在子任务侧栏里说的话插进这次执行（下一步并进上下文）。
+// 不在跑、执行者不支持、或这一步已经不收插入消息时 false，界面改成排队，做完后按追问再跑。
+func (s *Service) Steer(id, text string) bool {
+	rec := s.Get(id)
+	if rec == nil || rec.Task.Status != StatusRunning || strings.TrimSpace(text) == "" {
+		return false
+	}
+	st, ok := s.exec[rec.Task.Executor.Kind].(interface {
+		Steer(taskID, text string) bool
+	})
+	return ok && st.Steer(id, text)
+}
+
+// FollowUpImage：追问带的一张图片（base64，可带 data: 前缀）
+type FollowUpImage struct {
+	Mime string `json:"mime"`
+	Data string `json:"data"`
+}
+
+// MaxFollowUpImages：一次追问最多带几张图
+const MaxFollowUpImages = 8
+
+// FollowUp 是契约 tasks.followUp：上一次执行结束后，带着用户的追问（和图片）把同一件事再跑一次（新的一次执行，
+// 结果照常写回来源对话）。只支持 Nomi 执行者；正在跑时返回 busy。
+func (s *Service) FollowUp(id, text string, images ...FollowUpImage) CmdResult {
+	body := strings.TrimSpace(text)
+	rec := s.Get(id)
+	if rec == nil {
+		return CmdResult{Reason: "not_found"}
+	}
+	if rec.Task.Executor.Kind != "nomi" || (body == "" && len(images) == 0) {
+		return CmdResult{Reason: "illegal"}
+	}
+	if body == "" {
+		body = "(see the attached images)"
+		if s.d.T != nil {
+			body = s.d.T("electron.common.task-follow-up-images-only")
+		}
+	}
+	files, err := s.saveFollowUpImages(id, images)
+	if err != nil {
+		if s.d.Log != nil {
+			s.d.Log.Warn("tasks follow-up images", err.Error())
+		}
+		return CmdResult{Reason: "illegal"}
+	}
+	res := s.Runtime.Command(id, Command{Type: "follow_up", Feedback: body, Images: files})
+	if !res.OK {
+		for _, f := range files {
+			_ = os.Remove(f)
+		}
+	}
+	return res
+}
+
+var imageExt = map[string]string{"image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif", "image/webp": ".webp"}
+
+// saveFollowUpImages：追问的图片写进 <Root>/attachments/<任务 id>/（执行开始时读回来交给模型）。
+func (s *Service) saveFollowUpImages(id string, images []FollowUpImage) ([]string, error) {
+	if len(images) == 0 {
+		return nil, nil
+	}
+	if len(images) > MaxFollowUpImages {
+		images = images[:MaxFollowUpImages]
+	}
+	dir := filepath.Join(s.d.Root, "attachments", safeName(id))
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, err
+	}
+	out := []string{}
+	for _, im := range images {
+		ext, ok := imageExt[strings.ToLower(im.Mime)]
+		if !ok {
+			return nil, fmt.Errorf("unsupported image type %q", im.Mime)
+		}
+		data := im.Data
+		if i := strings.Index(data, ";base64,"); strings.HasPrefix(data, "data:") && i > 0 {
+			data = data[i+len(";base64,"):]
+		}
+		raw, err := base64.StdEncoding.DecodeString(data)
+		if err != nil || len(raw) == 0 {
+			return nil, errors.New("bad image data")
+		}
+		p := filepath.Join(dir, fmt.Sprintf("%d-%d%s", s.d.Now(), len(out), ext))
+		if err := os.WriteFile(p, raw, 0o600); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, nil
+}
+
+var unsafeName = regexp.MustCompile(`[^\w-]`)
+
+func safeName(id string) string { return unsafeName.ReplaceAllString(id, "_") }
 
 // CreateRequest 对应契约 tasks.create 的入参
 type CreateRequest struct {

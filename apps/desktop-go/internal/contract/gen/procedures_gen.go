@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 474：mutation 333 / query 136 / stream 5
+// 合计 475：mutation 333 / query 137 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -75,9 +75,6 @@ var Procedures = []Procedure{
 	{Name: "chatBg.pickImage", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatBg.reset", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatBg.set", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
-	{Name: "cli.pluginAdd", Kind: "mutation", Dangerous: false, Surfaces: nil},
-	{Name: "cli.pluginRemove", Kind: "mutation", Dangerous: false, Surfaces: nil},
-	{Name: "cli.pluginTest", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "cli.registry", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "cliAccount.list", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "cliAccount.loginCancel", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -225,6 +222,7 @@ var Procedures = []Procedure{
 	{Name: "harness.gitSyncStatus", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.gitUnstage", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.gitWorktrees", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "harness.messageAgent", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.modelCatalog", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.openTerminal", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.permissionDefaults", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -402,6 +400,7 @@ var Procedures = []Procedure{
 	{Name: "tasks.create", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "tasks.decide", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "tasks.events", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.followUp", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.get", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.grant", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "tasks.inbox", Kind: "query", Dangerous: false, Surfaces: nil},
@@ -416,6 +415,8 @@ var Procedures = []Procedure{
 	{Name: "tasks.revoke", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.runNow", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.setMode", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "tasks.steer", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.trace", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.update", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "theme.customDelete", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "theme.customExport", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
@@ -568,6 +569,7 @@ var Events = []string{
 	"sched.result",
 	"startup.changed",
 	"tasks.changed",
+	"tasks.live",
 	"theme.changed",
 	"updates.changed",
 	"usage.changed",
@@ -582,4 +584,4 @@ var Events = []string{
 }
 
 // Errors 是契约声明的业务错误码
-var Errors = []string{"UNAVAILABLE", "PROVIDER_LINK_FAILED", "CONVERSATION_NOT_FOUND", "ACCOUNT_NOT_FOUND", "ACCOUNT_IN_USE", "ACCOUNT_LOCAL", "ACCOUNT_UNSUPPORTED", "ACCOUNT_UNKNOWN_LIVE", "PROJECT_NOT_FOUND", "PROJECT_FOLDER_DENIED", "FLEET_NOT_IDLE", "TERMINAL_CWD_DENIED", "TERMINAL_NOT_FOUND", "FLEET_CLOSE_DENIED", "FLEET_CLOSE_FAILED", "FLEET_CLOSE_UNVERIFIED", "FLEET_NOT_PAUSABLE", "KB_DENIED", "KB_EMPTY", "KB_LOCAL_ONLY", "KB_USER_DENIED", "KB_OCR_MISSING", "MEM_BAD_SUMMARY", "MEM_SUMMARIZE_FAILED", "MEM_NOT_FOUND", "MEM_EMPTY", "SCHED_INVALID", "SCHED_NOT_FOUND", "SCHED_BUSY", "SCHED_EMPTY", "TASKS_NOT_FOUND", "TASKS_BAD_TRIGGER", "TASKS_BAD_GRANT", "CONNECTIONS_NOT_FOUND", "CONNECTIONS_NEEDS_LOGIN", "CONNECTIONS_UNAVAILABLE", "CONNECTIONS_BAD_PARAMS", "CONNECTIONS_FAILED", "CONNECTIONS_DUPLICATE", "CHAT_BG_TOO_LARGE", "CHAT_BG_UNSUPPORTED", "ASSET_NOT_FOUND"}
+var Errors = []string{"UNAVAILABLE", "PROVIDER_LINK_FAILED", "CONVERSATION_NOT_FOUND", "ACCOUNT_NOT_FOUND", "ACCOUNT_IN_USE", "ACCOUNT_UNSUPPORTED", "ACCOUNT_UNKNOWN_LIVE", "ACCOUNT_EXTERNAL_BUSY", "PROJECT_NOT_FOUND", "PROJECT_FOLDER_DENIED", "FLEET_NOT_IDLE", "TERMINAL_CWD_DENIED", "TERMINAL_NOT_FOUND", "FLEET_CLOSE_DENIED", "FLEET_CLOSE_FAILED", "FLEET_CLOSE_UNVERIFIED", "FLEET_NOT_PAUSABLE", "KB_DENIED", "KB_EMPTY", "KB_LOCAL_ONLY", "KB_USER_DENIED", "KB_OCR_MISSING", "MEM_BAD_SUMMARY", "MEM_SUMMARIZE_FAILED", "MEM_NOT_FOUND", "MEM_EMPTY", "SCHED_INVALID", "SCHED_NOT_FOUND", "SCHED_BUSY", "SCHED_EMPTY", "TASKS_NOT_FOUND", "TASKS_BAD_TRIGGER", "TASKS_BAD_GRANT", "CONNECTIONS_NOT_FOUND", "CONNECTIONS_NEEDS_LOGIN", "CONNECTIONS_UNAVAILABLE", "CONNECTIONS_BAD_PARAMS", "CONNECTIONS_FAILED", "CONNECTIONS_DUPLICATE", "CHAT_BG_TOO_LARGE", "CHAT_BG_UNSUPPORTED", "ASSET_NOT_FOUND"}

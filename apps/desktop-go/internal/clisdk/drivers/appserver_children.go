@@ -1,0 +1,315 @@
+package drivers
+
+// app-server 子代理线程（spawn_agent 派出的线程）：
+//   - 事件：app-server 把新建的线程（包括子代理线程）自动挂到所有已初始化的连接上，子线程的通知带着
+//     自己的 threadId 到达。这里按子线程转成带 parentId 的事件（正文增量、完整正文、工具步骤、开始 / 结束），
+//     parentId 是派出它的 spawn_agent 调用 id（还不知道时用线程 id），子任务侧栏按它归到这个子代理下面。
+//   - 直接对话：SendToThread 对子线程本身发 turn/steer（它在跑）或 turn/start（它空闲；线程已卸载时先
+//     thread/resume）。multi-agent v2 的子代理不收外部输入（app-server 返回
+//     "direct app-server input is not allowed for multi-agent v2 sub-agents"），这时 thread/fork 出它的
+//     一份副本（带着它的全部上下文），之后对这个子代理说的话都发给副本。
+
+import (
+	"errors"
+	"strings"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
+)
+
+// appChild：一个子代理线程的状态。
+type appChild struct {
+	callID  string
+	label   string
+	turnID  *string
+	running bool
+	// text：正在流式输出的正文（itemId → 已收到的增量）
+	text map[string]string
+}
+
+// ErrDirectInputRejected：子代理不收外部直接输入（multi-agent v2），并且 fork 也失败了。
+var ErrDirectInputRejected = errors.New("direct input rejected")
+
+const directInputRejected = "direct app-server input is not allowed"
+
+func (d *AppServerDriver) child(threadID string) *appChild {
+	if d.children == nil {
+		d.children = map[string]*appChild{}
+	}
+	c := d.children[threadID]
+	if c == nil {
+		c = &appChild{text: map[string]string{}}
+		d.children[threadID] = c
+	}
+	return c
+}
+
+// NoteChild：登记一个子代理线程（threadID）和派出它的调用（callID，可空）。重复登记只补上缺的调用 id。
+func (d *AppServerDriver) NoteChild(threadID, callID string) {
+	if threadID == "" || (d.ThreadID != nil && threadID == *d.ThreadID) {
+		return
+	}
+	c := d.child(threadID)
+	if c.callID == "" {
+		c.callID = callID
+	}
+}
+
+// ChildRunning：这个子代理线程正有一轮在跑。
+func (d *AppServerDriver) ChildRunning(threadID string) bool {
+	c := d.children[d.forkOf(threadID)]
+	return c != nil && c.running
+}
+
+// IsChild：threadID 是已登记的子代理线程。
+func (d *AppServerDriver) IsChild(threadID string) bool { return d.children[threadID] != nil }
+
+func (d *AppServerDriver) forkOf(threadID string) string {
+	if f := d.forks[threadID]; f != "" {
+		return f
+	}
+	return threadID
+}
+
+// SetFork：之前 fork 过的子代理（进程重启后从标签上恢复）：之后发给 threadID 的话改发给 fork。
+func (d *AppServerDriver) SetFork(threadID, fork string) {
+	if threadID == "" || fork == "" {
+		return
+	}
+	if d.forks == nil {
+		d.forks = map[string]string{}
+	}
+	d.forks[threadID] = fork
+	src := d.child(threadID)
+	c := d.child(fork)
+	if c.callID == "" {
+		c.callID = src.callID
+		if c.callID == "" {
+			c.callID = threadID
+		}
+	}
+}
+
+func (d *AppServerDriver) childKey(threadID string, c *appChild) string {
+	if c.callID != "" {
+		return c.callID
+	}
+	return threadID
+}
+
+func (d *AppServerDriver) emitChild(threadID string, ev Json) {
+	d.hub.Emit(O("kind", "harness", "event", ev, "child", threadID))
+}
+
+// noteSpawn：主线程（或子线程）的 spawn_agent 调用：它派出的线程登记成子代理，归到这次调用下面。
+func (d *AppServerDriver) noteSpawn(item Json) {
+	if item == nil || item.Get("type") != "collabAgentToolCall" {
+		return
+	}
+	callID, _ := item.Get("id").(string)
+	if ids, ok := item.Get("receiverThreadIds").([]any); ok {
+		for _, x := range ids {
+			if s, ok := x.(string); ok {
+				d.NoteChild(s, callID)
+			}
+		}
+	}
+}
+
+// onThreadStarted：新线程的父线程是主线程或已知的子线程 → 它是子代理。
+func (d *AppServerDriver) onThreadStarted(params Json) {
+	th, _ := params.Get("thread").(*util.Obj)
+	if th == nil {
+		return
+	}
+	id, _ := th.Get("id").(string)
+	parent, _ := th.Get("parentThreadId").(string)
+	if id == "" || parent == "" {
+		return
+	}
+	if (d.ThreadID == nil || parent != *d.ThreadID) && d.children[parent] == nil {
+		return
+	}
+	d.NoteChild(id, "")
+	c := d.children[id]
+	if c != nil && c.label == "" {
+		if s, ok := th.Get("agentNickname").(string); ok && s != "" {
+			c.label = s
+		} else if s, ok := th.Get("agentRole").(string); ok && s != "" {
+			c.label = s
+		}
+	}
+}
+
+// onChildNotification：子代理线程的通知 → 带 parentId 的事件（不进主线程这一轮的正文）。
+func (d *AppServerDriver) onChildNotification(threadID string, c *appChild, method string, params Json) {
+	key := d.childKey(threadID, c)
+	switch method {
+	case "turn/started":
+		if id, ok := getp(params.Get("turn"), "id").(string); ok {
+			c.turnID = &id
+		}
+		c.running = true
+		ev := O("type", "agent", "op", "start", "id", threadID, "status", "running")
+		if c.callID != "" {
+			ev.Set("callId", c.callID)
+		}
+		if c.label != "" {
+			ev.Set("label", c.label)
+		}
+		d.emitChild(threadID, ev)
+	case "item/agentMessage/delta":
+		item, _ := params.Get("itemId").(string)
+		delta, _ := params.Get("delta").(string)
+		if delta == "" {
+			return
+		}
+		c.text[item] += delta
+		d.emitChild(threadID, O("type", "agent-text-delta", "text", delta, "parentId", key, "itemId", item))
+	case "item/started", "item/completed":
+		item, _ := params.Get("item").(*util.Obj)
+		if item == nil {
+			return
+		}
+		if method == "item/completed" {
+			d.noteSpawn(item)
+		}
+		itemID, _ := item.Get("id").(string)
+		if item.Get("type") == "agentMessage" {
+			if method != "item/completed" {
+				return
+			}
+			text, _ := item.Get("text").(string)
+			if text == "" {
+				text = c.text[itemID]
+			}
+			delete(c.text, itemID)
+			if strings.TrimSpace(text) != "" {
+				d.emitChild(threadID, O("type", "agent-text", "text", text, "parentId", key, "itemId", itemID))
+			}
+			return
+		}
+		if item.Get("type") == "userMessage" || item.Get("type") == "contextCompaction" || d.o.MapItem == nil {
+			return
+		}
+		phase := "completed"
+		if method == "item/started" {
+			phase = "started"
+		}
+		for _, ev := range d.o.MapItem(phase, item) {
+			switch ev.Get("type") {
+			case "text", "text-delta", "done", "user-message", "context", "status":
+				continue
+			case "agent":
+				// 子代理再派出的子代理：照常是 agent 事件（按它自己的调用 id 归位）
+				d.emitChild(threadID, ev)
+				continue
+			}
+			x := ev.Clone()
+			if !util.Truthy(x.Get("parentId")) {
+				x.Set("parentId", key)
+			}
+			d.emitChild(threadID, x)
+		}
+	case "turn/completed":
+		turn := params.Get("turn")
+		if c.turnID != nil {
+			if s, ok := getp(turn, "id").(string); ok && s != *c.turnID {
+				return
+			}
+		}
+		c.running = false
+		c.turnID = nil
+		status := "completed"
+		switch getp(turn, "status") {
+		case "failed":
+			status = "failed"
+		case "interrupted":
+			status = "stopped"
+		}
+		ev := O("type", "agent", "op", "end", "id", threadID, "status", status)
+		if c.callID != "" {
+			ev.Set("callId", c.callID)
+		}
+		d.emitChild(threadID, ev)
+	}
+}
+
+// SendToThread：直接对子代理线程说话。在跑（且 steer 为真）→ turn/steer 进它这一轮；空闲 → turn/start
+// 在它的线程上开新一轮（线程已卸载时先 thread/resume）。返回 "steer" / "start" / "fork"；
+// 在跑但 steer 为假或插不进去时返回 "busy"（调用方排队，等这一轮结束再发）。
+func (d *AppServerDriver) SendToThread(threadID string, input []any, params Json, steer bool) *jsrt.Promise[string] {
+	return jsrt.Async(func() (string, error) {
+		if d.Closed() {
+			return "", errors.New("app-server process exited")
+		}
+		target := d.forkOf(threadID)
+		c := d.child(target)
+		if c.running {
+			if !steer || c.turnID == nil {
+				return "busy", nil
+			}
+			_, err := jsrt.Await(d.Conn.Request("turn/steer", O("threadId", target, "expectedTurnId", *c.turnID, "input", input), rpc.RequestOptions{}))
+			if err != nil {
+				return "busy", nil
+			}
+			return "steer", nil
+		}
+		start := func(tid string) error {
+			p := O("threadId", tid, "input", input)
+			if params != nil {
+				p.Assign(params)
+			}
+			r, err := jsrt.Await(d.Conn.Request("turn/start", p, rpc.RequestOptions{}))
+			if err != nil {
+				return err
+			}
+			cc := d.child(tid)
+			if s, ok := getp(getp(r, "turn"), "id").(string); ok && s != "" {
+				cc.turnID = &s
+			}
+			cc.running = true
+			return nil
+		}
+		err := start(target)
+		if err != nil && strings.Contains(err.Error(), "thread not found") {
+			if _, e := jsrt.Await(d.Conn.Request("thread/resume", O("threadId", target), rpc.RequestOptions{})); e == nil {
+				err = start(target)
+			}
+		}
+		if err == nil {
+			return "start", nil
+		}
+		if !strings.Contains(err.Error(), directInputRejected) {
+			return "", errors.New(rpc.InnermostMessage(err.Error()))
+		}
+		// multi-agent v2：子代理只听它的主代理。fork 出一份带着它全部上下文的普通线程，直接和副本说话
+		r, e := jsrt.Await(d.Conn.Request("thread/fork", O("threadId", target), rpc.RequestOptions{}))
+		if e != nil {
+			return "", ErrDirectInputRejected
+		}
+		fork, _ := threadIDOf(r)
+		if fork == "" {
+			return "", ErrDirectInputRejected
+		}
+		d.SetFork(threadID, fork)
+		if err := start(fork); err != nil {
+			return "", errors.New(rpc.InnermostMessage(err.Error()))
+		}
+		return "fork", nil
+	})
+}
+
+// InterruptThread：打断子代理线程正在跑的这一轮（不等应答）。
+func (d *AppServerDriver) InterruptThread(threadID string) {
+	target := d.forkOf(threadID)
+	c := d.children[target]
+	if c == nil || !c.running || c.turnID == nil || d.Closed() {
+		return
+	}
+	d.Conn.Request("turn/interrupt", O("threadId", target, "turnId", *c.turnID), rpc.RequestOptions{})
+}
+
+// ForkOf：threadID 被 fork 过时返回副本线程 id。
+func (d *AppServerDriver) ForkOf(threadID string) string { return d.forks[threadID] }

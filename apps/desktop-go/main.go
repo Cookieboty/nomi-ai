@@ -501,6 +501,17 @@ func main() {
 		AgentStream: func(ctx context.Context, msgs []blm.ChatMessage, toolNames []string, extra map[string]any, emit func(blm.ChatChunk)) error {
 			role := "agent-tools"
 			o := &facade.ChatStreamOptions{Role: &role, Messages: msgs, Signal: ctx.Done(), Tools: toolNames, Quiet: true, Extra: extra}
+			// reqId 不是给工具的上下文：拿出来当这次请求的 id，侧栏插话（Steer）按它找到工具循环
+			if id, ok := extra["reqId"].(string); ok && id != "" {
+				o.ReqID = &id
+				rest := make(map[string]any, len(extra))
+				for k, v := range extra {
+					if k != "reqId" {
+						rest[k] = v
+					}
+				}
+				o.Extra = rest
+			}
 			// 上下文预算按路由到的模型的窗口算（同对话的 PrepareChat）：裁历史，也让工具循环按真实用量守护上下文
 			if gatewaySvc != nil {
 				if info := gatewaySvc.NomiContext(role); info != nil {
@@ -575,6 +586,11 @@ func main() {
 		},
 		EventsFor:       b8.Tasks.EventBatch,
 		ExternalJournal: b8.Tasks.ExternalJournal,
+		// 子任务侧栏：插话进正在跑的工具循环；实时事件（正文增量、工具步骤）推给界面
+		Steer: chatFacade.Steer,
+		Live: func(taskID, attemptID string, ev map[string]any) {
+			router.Emit("tasks.live", map[string]any{"id": taskID, "attemptId": attemptID, "event": ev})
+		},
 		// 派给 Nomi 的执行用对话的工具集
 		ToolNames: func() []string {
 			defs := toolRegistry.List()
@@ -753,7 +769,8 @@ func main() {
 	defer wireAgents(router, userData, desktopSvc)()
 	defer wireFleet(router, userData, b8.Tasks, chatHandlers, toolRegistry)()
 	defer wireIslandPending(isl, islandPendingSources{orch: harnessOrch, tasks: b8.Tasks, desktop: desktopSvc,
-		open: func(target, id string) { islandOpenItem(sh, router, target, id) }})()
+		open:   func(target, id string) { islandOpenItem(sh, router, target, id) },
+		screen: func() island.Screen { return islandScreenOf(sh) }})()
 	wireScreenAndPending(router, userData, rootLog, desktopSvc)
 	defer disposeHarness()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
@@ -1385,19 +1402,10 @@ func desktopWindows(shp *shell.Shell, st *startup.Service, isl *island.Service) 
 		ShowInactive: func() { sh().Show(shell.Mascot) },
 		OpenChat:     func() { sh().Show(shell.Chat) },
 		// 工作台（对话窗口）在屏幕上（可见、没最小化）：确认请求只发给它
-		ChatOpen: func() bool {
-			if sh() == nil {
-				return false
-			}
-			if g, ok := sh().(interface {
-				Shown(shell.WindowKind) (bool, bool)
-			}); ok {
-				v, min := g.Shown(shell.Chat)
-				return v && !min
-			}
-			return sh().Visible(shell.Chat)
-		},
-		MascotHidden: func() bool { return !st.Get().ShowMascot },
+		ChatOpen: func() bool { return chatOnScreen(sh()) },
+		// 工作台在屏幕上时只弹要你处理的与报警；你正看着的会话什么都不弹（island.ShouldShow）
+		NoticeAllowed: func(n desktop.IslandNotice) bool { return islandNoticeAllowed(sh(), n) },
+		MascotHidden:  func() bool { return !st.Get().ShowMascot },
 		SummonMascot: func() {
 			if sh().Visible(shell.Mascot) {
 				sh().Show(shell.Mascot)

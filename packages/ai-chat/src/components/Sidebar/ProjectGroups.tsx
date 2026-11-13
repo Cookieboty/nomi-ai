@@ -24,7 +24,6 @@ import type { Meta } from './types';
 /** 「项目」「其他对话」整个分区收起时记在折叠记录里的键（与项目 id 不会重名） */
 export const SECTION_WORKSPACES = '\u0000section:workspaces';
 export const SECTION_RECENT = '\u0000section:recent';
-export const SECTION_PINNED = '\u0000section:pinned';
 
 /** 每个项目默认显示的会话数，其余点「展开显示」才出现 */
 export const WORKSPACE_PREVIEW = 5;
@@ -105,28 +104,6 @@ function usePaging() {
     });
   return { countOf, more, less };
 }
-
-/** 最上面的「置顶」：置顶的会话不进项目分组，按置顶先后排 */
-export const PinnedSection: React.FC<{
-  items: readonly Meta[];
-  open: boolean;
-  onToggle: (open: boolean) => void;
-  activeId: string | undefined;
-  rows: VirtualProps;
-}> = ({ items, open, onToggle, activeId, rows }) => {
-  useLocale();
-  return (
-    <div className={ws.wsRecent} data-testid="pinned-section">
-      <SectionHeader
-        label={t('ui.knowledge-local.pin-action')}
-        open={open}
-        onToggle={() => onToggle(open)}
-        testId="pinned-section-toggle"
-      />
-      {open && <Rows items={items} activeId={activeId} rows={rows} />}
-    </div>
-  );
-};
 
 /**
  * 侧栏「按项目」：每个项目一个可折叠的文件夹（没有会话的项目也在；「按端」看时只列这个端有会话的项目），

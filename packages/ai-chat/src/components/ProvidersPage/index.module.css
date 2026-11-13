@@ -24,7 +24,7 @@
 }
 
 /*
- * 左右两栏：左栏固定的列表（内置助手 / 外部 CLI / 通用），右栏是选中那一项。
+ * 左右两栏：左栏固定的列表（内置助手 / 通用），右栏是选中那一项。
  * 左栏在滚动区里吸顶；窄窗口（容器宽度不足）时左栏收成顶部一排。
  */
 .body {
@@ -292,29 +292,6 @@
 .planUserScope {
   display: grid;
   gap: var(--cd-space-1-5);
-}
-
-/* 外部 CLI */
-.extTitle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cd-space-1-5);
-}
-.extCmd {
-  display: block;
-  font-family: var(--cd-font-mono);
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-muted);
-  overflow-wrap: anywhere;
-}
-.extWarn {
-  display: block;
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-warning);
-}
-.extForm {
-  display: grid;
-  gap: var(--cd-space-3);
 }
 
 /* Nomi →「委派」：分组之间留间距；宽屏（容器 ≥ 760px）时两组设置并排 */
