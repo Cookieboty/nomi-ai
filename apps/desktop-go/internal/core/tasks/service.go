@@ -281,18 +281,66 @@ func (s *Service) Journal(id string) []JournalEntry {
 	return s.Store.Journal(id)
 }
 
-// TraceView 是契约 tasks.trace：最近一次执行的运行轨迹。没有任务或还没有执行时 lines 为空。
+// TraceView 是契约 tasks.trace：每次执行的运行轨迹（按时间先后），外加正在跑的那次写到一半的正文与工具。
+// attemptId / lines 仍是最近一次执行的（旧调用方只看它）。没有任务或还没有执行时都为空。
 func (s *Service) TraceView(id string) map[string]any {
 	rec := s.Get(id)
 	if rec == nil || len(rec.Attempts) == 0 {
-		return map[string]any{"attemptId": nil, "lines": []map[string]any{}}
+		return map[string]any{"attemptId": nil, "lines": []map[string]any{}, "attempts": []map[string]any{}, "live": nil}
 	}
-	attempt := rec.Attempts[len(rec.Attempts)-1]
-	lines := s.Store.Trace(id, attempt.ID)
-	if lines == nil {
-		lines = []map[string]any{}
+	attempts := make([]map[string]any, 0, len(rec.Attempts))
+	var last []map[string]any
+	for _, a := range rec.Attempts {
+		lines := s.Store.Trace(id, a.ID)
+		if lines == nil {
+			lines = []map[string]any{}
+		}
+		last = lines
+		item := map[string]any{"attemptId": a.ID, "cause": a.Cause.Kind, "status": a.Status, "startedAt": a.StartedAt, "lines": lines}
+		if a.Cause.Note != nil {
+			item["note"] = *a.Cause.Note
+		}
+		if a.EndedAt != nil {
+			item["endedAt"] = *a.EndedAt
+		}
+		attempts = append(attempts, item)
 	}
-	return map[string]any{"attemptId": attempt.ID, "lines": lines}
+	var live any
+	if lv, ok := s.exec[rec.Task.Executor.Kind].(interface {
+		LiveView(taskID string) map[string]any
+	}); ok {
+		if v := lv.LiveView(id); v != nil {
+			live = v
+		}
+	}
+	return map[string]any{"attemptId": rec.Attempts[len(rec.Attempts)-1].ID, "lines": last, "attempts": attempts, "live": live}
+}
+
+// Steer 是契约 tasks.steer：后台 Nomi 正在跑时，把用户在子任务侧栏里说的话插进这次执行（下一步并进上下文）。
+// 不在跑、执行者不支持、或这一步已经不收插入消息时 false，界面改成排队，做完后按追问再跑。
+func (s *Service) Steer(id, text string) bool {
+	rec := s.Get(id)
+	if rec == nil || rec.Task.Status != StatusRunning || strings.TrimSpace(text) == "" {
+		return false
+	}
+	st, ok := s.exec[rec.Task.Executor.Kind].(interface {
+		Steer(taskID, text string) bool
+	})
+	return ok && st.Steer(id, text)
+}
+
+// FollowUp 是契约 tasks.followUp：上一次执行结束后，带着用户的追问把同一件事再跑一次（新的一次执行，
+// 结果照常写回来源对话）。只支持 Nomi 执行者；正在跑时返回 busy。
+func (s *Service) FollowUp(id, text string) CmdResult {
+	body := strings.TrimSpace(text)
+	rec := s.Get(id)
+	if rec == nil {
+		return CmdResult{Reason: "not_found"}
+	}
+	if rec.Task.Executor.Kind != "nomi" || body == "" {
+		return CmdResult{Reason: "illegal"}
+	}
+	return s.Runtime.Command(id, Command{Type: "follow_up", Feedback: body})
 }
 
 // CreateRequest 对应契约 tasks.create 的入参

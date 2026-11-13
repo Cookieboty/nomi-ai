@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 475：mutation 333 / query 137 / stream 5
+// 合计 477：mutation 335 / query 137 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -402,6 +402,7 @@ var Procedures = []Procedure{
 	{Name: "tasks.create", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "tasks.decide", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "tasks.events", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.followUp", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.get", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.grant", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "tasks.inbox", Kind: "query", Dangerous: false, Surfaces: nil},
@@ -416,6 +417,7 @@ var Procedures = []Procedure{
 	{Name: "tasks.revoke", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.runNow", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.setMode", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "tasks.steer", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.trace", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.update", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "theme.customDelete", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
@@ -569,6 +571,7 @@ var Events = []string{
 	"sched.result",
 	"startup.changed",
 	"tasks.changed",
+	"tasks.live",
 	"theme.changed",
 	"updates.changed",
 	"usage.changed",
