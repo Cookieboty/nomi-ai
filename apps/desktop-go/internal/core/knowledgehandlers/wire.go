@@ -154,7 +154,8 @@ func Wire(d WireDeps) *Bundle {
 	b.Local = local.New(local.Deps{Root: ud("local"), Desktop: asLocalDesktop(d.Desktop), Gateway: d.Gateway, Events: ev})
 	b.Tasks = tasks.NewService(tasks.ServiceDeps{Root: ud("tasks"), Log: deps.StdLogger{Prefix: "[tasks]"}, Emit: d.Router.Emit, T: d.T,
 		Notify: func(title, text string) {
-			d.Desktop.Notify(deps.Notice{Kind: "reminder", Title: title, Text: text, Body: text})
+			// 提醒与持续任务的产出是你要求的通知：按「报警」类处理，工作台在屏幕上时也弹（island.ShouldShow）
+			d.Desktop.Notify(deps.Notice{Kind: "reminder", Status: "attention", Title: title, Text: text, Body: text})
 		},
 		LegacyReminders: d.LegacyReminders,
 		QuietUntil: func() *int64 {

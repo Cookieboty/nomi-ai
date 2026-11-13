@@ -97,6 +97,8 @@ type Service struct {
 	opener func(id string)
 	// dismissed：用户按 Esc / 点关闭时在列表里的条目：这些不再弹出，来了新的才连同它们一起再显示
 	dismissed map[string]bool
+	// screen：工作台此刻的状态（SetScreen；policy.go）
+	screen func() Screen
 	// PrimaryDisplay 主屏几何；nil 或 ok=false 时 mode=pill
 	PrimaryDisplay func() (Display, bool)
 }

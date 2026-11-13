@@ -8,7 +8,8 @@ package main
 //     要写字的（补充信息、退回意见）与重新授权只给「打开」；
 //   - Nomi 自己的工具确认（桌面、命令、MCP、委派交接）：desktop AnswerConfirm；强制弹窗的只给「打开」。
 // 任务派出的标签上的权限请求同时是任务的「等批准」：只列一次，走任务（否则任务一直卡在等你）；批准计划除外。
-// 刷新：标签事件、任务变化、确认请求出现 / 收起时合并刷新一次；另外每 5 秒兜底（超时自动拒绝等没有事件的情况）。
+// 刷新：标签事件、任务变化、确认请求出现 / 收起时合并刷新一次；另外每 5 秒兜底（超时自动拒绝等没有事件的情况，
+// 也跟上窗口切到前台 / 后台：你正看着的会话里的条目不上岛，离开后再上）。
 
 import (
 	"errors"
@@ -46,6 +47,8 @@ type islandPendingSources struct {
 	desktop *desktop.Service
 	// open：「打开」= 打开对话窗口并跳到这一条（target：task / tab / nomi，见 islandNavOf）
 	open func(target, id string)
+	// screen：工作台此刻的状态（你正看着的会话里的条目不上岛）
+	screen func() island.Screen
 }
 
 type islandPendingHub struct {
@@ -67,6 +70,10 @@ func wireIslandPending(isl *island.Service, src islandPendingSources) func() {
 	islandHub = h
 	isl.SetResolver(h.act)
 	isl.SetOpener(h.openItem)
+	trackIslandActiveTab(src.orch)
+	if src.screen != nil {
+		isl.SetScreen(src.screen)
+	}
 	var offs []func()
 	if src.orch != nil {
 		o := src.orch
@@ -128,6 +135,9 @@ func (h *islandPendingHub) schedule() {
 
 func (h *islandPendingHub) refresh() {
 	list, acts := h.collect()
+	for i := range list {
+		list[i].Session = islandSessionOf(list[i].ID)
+	}
 	h.mu.Lock()
 	h.actions = acts
 	h.mu.Unlock()
@@ -165,6 +175,18 @@ func islandNavOf(id string) (target, ref string) {
 		}
 	}
 	return "nomi", ""
+}
+
+// islandSessionOf：条目在哪个会话里能处理（你正看着那个会话时它不上岛，见 island.ShouldShow）。
+// 编程助手的请求在它的标签里；Nomi 的确认、提问在主对话；持续任务不属于某个会话
+func islandSessionOf(id string) string {
+	switch target, ref := islandNavOf(id); target {
+	case "tab":
+		return ref
+	case "nomi":
+		return island.MainSession
+	}
+	return ""
 }
 
 // act：岛上点了按钮（island.Service.Act → resolver）

@@ -49,6 +49,9 @@ type Windows struct {
 	// ChatOpen：对话窗口在屏幕上（确认请求只发给它，不打扰桌面角色）
 	ChatOpen func() bool
 	Island   func(n IslandNotice) bool
+	// NoticeAllowed：这条通知此刻该不该弹（灵动岛与退回的系统通知共用；按工作台是否在屏幕上、
+	// 你是否正看着它所属的会话判断，见 island.ShouldShow）。nil = 都允许
+	NoticeAllowed func(n IslandNotice) bool
 }
 
 // Ports：用到的宿主端口
@@ -70,7 +73,9 @@ type NotifyPolicy interface {
 // DesktopNotice：桌面通知
 type DesktopNotice struct {
 	Kind, Title, Text, Body, Status, Endpoint string
-	Passive                                   bool
+	// Session：通知所属的会话（标签 id；主对话 "main"；不属于会话为 ""）
+	Session string
+	Passive bool
 	// Bubble = n.bubble（DesktopBubble 去掉 text：kind / voice …，按键序并入气泡负载）；nil = 无。
 	Bubble *util.Obj
 }
@@ -311,6 +316,11 @@ func (s *Service) Notify(n DesktopNotice) string {
 	if body == "" {
 		body = n.Text
 	}
+	in := IslandNotice{Kind: n.Kind, Title: n.Title, Body: body, Status: n.Status, Endpoint: n.Endpoint, Session: n.Session}
+	// 工作台在屏幕上 / 你就在这个会话里：普通通知不弹，也不退回成系统通知
+	if s.windows != nil && s.windows.NoticeAllowed != nil && !s.windows.NoticeAllowed(in) {
+		return "none"
+	}
 	if s.windows != nil && s.windows.Island != nil {
 		ok := func() (ok bool) {
 			defer func() {
@@ -319,7 +329,7 @@ func (s *Service) Notify(n DesktopNotice) string {
 					ok = false
 				}
 			}()
-			return s.windows.Island(IslandNotice{Kind: n.Kind, Title: n.Title, Body: body, Status: n.Status, Endpoint: n.Endpoint})
+			return s.windows.Island(in)
 		}()
 		if ok {
 			return "island"
