@@ -43,7 +43,7 @@ import { countActiveTasks, sessionTasks } from './tasks';
 import { useDelegateResults } from './useDelegateResults';
 import { useWorkspaceChanges } from './useWorkspaceChanges';
 
-export { SessionDetailsProvider } from './context';
+export { SessionDetailsProvider, useSessionDetails } from './context';
 
 /** 标题栏「会话详情」按钮的图标：左边两个小圆、右边两条线（一份清单的样子） */
 const SessionDetailsIcon = createLucideIcon('session-details', [

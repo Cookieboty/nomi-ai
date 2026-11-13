@@ -46,6 +46,16 @@ export interface PreviewEntry extends ResourceEntry {
   diff?: DiffTabSpec;
 }
 const noop = () => undefined;
+
+/**
+ * 标签栏由外面画时（对话旁的标签区，见 SideWorkspace），外面经这个句柄切换 / 关闭文件标签：
+ * 走和自己标签栏同一套（先存草稿、Diff 草稿要确认、右键菜单）。
+ */
+export interface PreviewTabsControl {
+  activate: (key: string) => void;
+  close: (keys: string[]) => void;
+  openMenu: (target: PreviewTabMenuTarget) => void;
+}
 interface ViewState {
   source: boolean;
   scroll: number;
@@ -85,6 +95,11 @@ export const ResourcePreview: React.FC<{
   onCloseEntries: (keys: string[]) => void;
   onExpanded: (expanded: boolean) => void;
   onOpen: ResourceContextValue['open'];
+  /** 标签栏由外面画（对话旁的标签区）：这里不画自己的文件标签 */
+  hideTabs?: boolean;
+  /** 不是当前标签（隐藏着挂载）：不接管 Esc、不抢焦点 */
+  inactive?: boolean;
+  controlRef?: React.MutableRefObject<PreviewTabsControl | null>;
 }> = ({
   entries,
   activeKey,
@@ -96,6 +111,9 @@ export const ResourcePreview: React.FC<{
   onCloseEntries,
   onExpanded,
   onOpen,
+  hideTabs = false,
+  inactive = false,
+  controlRef,
 }) => {
   const active = entries.find((e) => e.key === activeKey) ?? entries[entries.length - 1]!;
   /** 当前是文件的 Diff 标签：内容区换成 Diff，文件视图的工具栏 / 内容只隐藏 */
@@ -137,13 +155,15 @@ export const ResourcePreview: React.FC<{
   );
   const located = useRef(new Set<string>());
   const [menu, setMenu] = useState<PreviewTabMenuTarget | null>(null);
+  /** 外面的标签栏右键：打开同一个关闭菜单 */
+  const openMenuRef = useRef(setMenu);
   const menuRef = useRef(menu);
   const closeAll = useRef<() => void>(() => undefined);
   const closing = useRef(false);
-  const focusLayout = useRef({ expanded, onExpanded });
+  const focusLayout = useRef({ expanded, onExpanded, inactive });
   useLayoutEffect(() => {
-    focusLayout.current = { expanded, onExpanded };
-  }, [expanded, onExpanded]);
+    focusLayout.current = { expanded, onExpanded, inactive };
+  }, [expanded, onExpanded, inactive]);
   const mounted = useRef(false);
   const dismissMenu = useCallback((restoreFocus = false) => {
     if (restoreFocus) menuRef.current?.trigger.focus({ preventScroll: true });
@@ -273,9 +293,10 @@ export const ResourcePreview: React.FC<{
   useEffect(() => {
     mounted.current = true;
     const previous = document.activeElement as HTMLElement | null;
-    root.current?.focus({ preventScroll: true });
+    if (!focusLayout.current.inactive) root.current?.focus({ preventScroll: true });
     const key = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented || isImeComposing(e)) return;
+      if (focusLayout.current.inactive) return;
       const owns = (target: EventTarget | null) =>
         !!(
           target instanceof Element &&
@@ -411,7 +432,19 @@ export const ResourcePreview: React.FC<{
   };
   useLayoutEffect(() => {
     closeAll.current = () => closeEntries(entries.map((entry) => entry.key));
+    if (controlRef)
+      controlRef.current = {
+        activate: (key) => guarded(() => onActive(key)),
+        close: closeEntries,
+        openMenu: (target) => openMenuRef.current(target),
+      };
   });
+  useEffect(
+    () => () => {
+      if (controlRef) controlRef.current = null;
+    },
+    [controlRef],
+  );
   const isSource = result && ['text', 'markdown'].includes(result.kind ?? '');
   const context: ResourceContextValue = {
     scope:
@@ -435,16 +468,18 @@ export const ResourcePreview: React.FC<{
       tabIndex={-1}
       role="region"
       aria-label={t('ui.session-workspace.preview-title')}
-      className={`${styles.panel} ${expanded ? styles.expanded : ''}`}
+      className={`${styles.panel} ${expanded ? styles.expanded : ''} ${hideTabs ? styles.embedded : ''}`}
       onContextMenu={activeDiff ? undefined : selectionMenu.onContextMenu}
       onMouseUp={activeDiff ? undefined : selectionMenu.onMouseUp}
       data-testid="resource-preview"
       data-expanded={expanded}
+      hidden={inactive}
     >
       <div
         className={styles.tabs}
         role="tablist"
         aria-label={t('ui.session-workspace.preview-files')}
+        hidden={hideTabs}
       >
         {entries.map((entry) => (
           <div

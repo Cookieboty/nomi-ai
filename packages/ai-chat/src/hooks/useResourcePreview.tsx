@@ -15,6 +15,7 @@ import {
   removePreviewTabs,
   type PreviewTabsState,
 } from '../components/ResourcePreview/previewTabs';
+import type { PreviewTabsControl } from '../components/ResourcePreview/ResourcePreview';
 import { dirtyReviewDrafts } from '../components/SessionWorkspace/reviewDrafts';
 import type {
   DiffTabSpec,
@@ -70,8 +71,23 @@ function withDiff(state: PreviewTabsState, key: string, diff: DiffTabSpec): Prev
   };
 }
 
-/** A visual overlay only: never owns a conversation, stream, queue or task lifecycle. */
-export function useResourcePreview(scope: ResourceScope) {
+/** 对话旁的标签区里怎么画预览（标签栏在外面，见 SideWorkspace） */
+export interface EmbeddedPreviewProps {
+  inactive: boolean;
+  expanded: boolean;
+  onExpanded: (expanded: boolean) => void;
+  controlRef: React.MutableRefObject<PreviewTabsControl | null>;
+}
+
+/**
+ * A visual overlay only: never owns a conversation, stream, queue or task lifecycle.
+ * onShow：真的开了 / 切到一个文件标签时通知（标签区据此切到文件）。
+ */
+export function useResourcePreview(scope: ResourceScope, opts?: { onShow?: () => void }) {
+  const onShowRef = useRef(opts?.onShow);
+  useLayoutEffect(() => {
+    onShowRef.current = opts?.onShow;
+  });
   const [imageEntry, setImageEntry] = useState<ResourceEntry | null>(null);
   const [{ entries, activeKey }, setTabs] = useState<PreviewTabsState>({
     entries: [],
@@ -132,6 +148,7 @@ export function useResourcePreview(scope: ResourceScope) {
           protectedPreviewKeys(old.entries),
         ),
       );
+      onShowRef.current?.();
     },
     [isOpen, resetLayout],
   );
@@ -158,6 +175,7 @@ export function useResourcePreview(scope: ResourceScope) {
           protectedPreviewKeys(old.entries),
         ),
       );
+      onShowRef.current?.();
     },
     [isOpen, resetLayout, scopeId, scopeCwd, scopeSource],
   );
@@ -203,9 +221,57 @@ export function useResourcePreview(scope: ResourceScope) {
     }),
     [scopeId, scopeCwd, scopeSource, open, openDiff, updateDiff],
   );
+  const overlays = (
+    <>
+      {imageEntry && (
+        <Suspense fallback={null}>
+          <LazyImage
+            key={imageEntry.key}
+            entry={imageEntry}
+            mismatch={imageEntry.scope.id !== scope.id || imageEntry.scope.cwd !== scope.cwd}
+            onClose={() => setImageEntry(null)}
+          />
+        </Suspense>
+      )}
+      {externalError && (
+        <div className={styles.externalError} role="alert">
+          <span>{t('ui.session-workspace.preview-external-error')}</span>
+          <button type="button" onClick={() => setExternalError(false)}>
+            {t('ui.providers-schedule.close')}
+          </button>
+        </div>
+      )}
+    </>
+  );
+  /** 标签区里的预览：标签栏在外面，铺满由标签区管 */
+  const renderEmbedded = (p: EmbeddedPreviewProps) =>
+    isOpen ? (
+      <Suspense fallback={null}>
+        <LazyPreview
+          entries={entries}
+          activeKey={activeKey}
+          expanded={p.expanded}
+          originMismatch={mismatch}
+          conversationConnected={mismatch && !sendMismatch}
+          onActive={setActiveKey}
+          onCloseEntry={closeEntry}
+          onCloseEntries={closeEntries}
+          onExpanded={p.onExpanded}
+          onOpen={open}
+          hideTabs
+          inactive={p.inactive}
+          controlRef={p.controlRef}
+        />
+      </Suspense>
+    ) : null;
   return {
     value,
     isOpen,
+    entries,
+    activeKey: active?.key ?? '',
+    setActiveKey,
+    overlays,
+    renderEmbedded,
     mismatch,
     sendMismatch,
     connectConversation,

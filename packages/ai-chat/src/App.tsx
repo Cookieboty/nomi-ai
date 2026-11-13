@@ -24,15 +24,21 @@ import { MessageInput } from './components/MessageInput';
 import { onboardingClient } from './components/Onboarding/client';
 import { OnboardingHost } from './components/Onboarding/host';
 import { PendingDock } from './components/PendingDock';
-import { usePreviewChatWindow } from './components/PreviewChat/usePreviewChatWindow';
+import { PREVIEW_CHAT_OPEN } from './components/PreviewChat/dismiss';
 import { ProviderLinkHost } from './components/ProviderLink';
 import { ReleaseNotesHost } from './components/ReleaseNotesModal';
 import { RestartUpdateButton } from './components/RestartUpdateButton';
-import { SessionDetailsDock } from './components/SessionDetails';
+import { SessionDetailsDock, useSessionDetails } from './components/SessionDetails';
 import { useChangesUi } from './components/SessionWorkspace';
 import { Sidebar } from './components/Sidebar';
 import {
-  SideColumn,
+  SideTabStrip,
+  SideWorkspace,
+  useSideWorkspace,
+  useSideWorkspaceKeys,
+} from './components/SideWorkspace';
+import {
+  useSubagentPane,
   WorkspacePanesProvider,
   type SubagentPaneActions,
 } from './components/SubagentPane';
@@ -62,6 +68,7 @@ import { useResourcePreview } from './hooks/useResourcePreview';
 import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSessionComposerDrafts } from './hooks/useSessionComposerDrafts';
 import { useMigrateCliTranscriptView } from './hooks/useTranscriptView';
+import { useWindowEvent } from './hooks/useWindowEvent';
 import { toHarnessImages } from './services/chatImages';
 import { watchCliPresence } from './services/cliPresence';
 import { smartTitleOnFirstSend } from './services/cliSmartTitle';
@@ -73,6 +80,7 @@ import { CHAT_COL_W_MAX, CHAT_COL_W_MIN } from './utils/chatColumnWidth';
 import { useCliImageSupport } from './utils/cliImageSupport';
 import { cliTabPlaceholder } from './utils/cliTabPlaceholder';
 import { fromHarnessMessage, nomiConvMessages, settledNomiMessages } from './utils/convAdapters';
+import { FILES_SIDE_TAB, MAIN_SIDE_TAB } from './utils/sideTabs';
 import './App.css';
 
 const selectSettledNomi = (s: AiChatState) => settledNomiMessages(s.messages, selectBusyHere(s));
@@ -116,16 +124,33 @@ const AiChatContent: React.FC = () => {
   );
   const { liveContext, cliContextMessages } = useCliContext(tabs, cliConvMessages);
   const rail = useRail({ tabs, isDev, harness, busyHere, cliConvMessages, nomiMessages });
-  const resourcePreview = useResourcePreview({
-    id: isDev && tabs.isCliTab ? `cli:${tabs.activeTabId}` : `nomi:${nomiSessionId ?? ''}`,
-    cwd: rail.cwd,
-    source: isDev && tabs.isCliTab ? tabs.activeTab?.backend : 'nomi',
-  });
-  const previewChat = usePreviewChatWindow(
-    resourcePreview.isOpen && resourcePreview.expanded,
-    resourcePreview.connectConversation,
-    resourcePreview.workspaceCwd,
+  // 对话旁的标签区（子任务 + 文件）：按主列的会话各记一份
+  const pane = useSubagentPane();
+  const setPaneScope = pane?.setScope;
+  useEffect(() => {
+    setPaneScope?.(sessionKey);
+  }, [setPaneScope, sessionKey]);
+  const activatePane = pane?.activate;
+  const resourcePreview = useResourcePreview(
+    {
+      id: isDev && tabs.isCliTab ? `cli:${tabs.activeTabId}` : `nomi:${nomiSessionId ?? ''}`,
+      cwd: rail.cwd,
+      source: isDev && tabs.isCliTab ? tabs.activeTab?.backend : 'nomi',
+    },
+    // 开了 / 切到一个文件：标签区切到文件
+    { onShow: () => activatePane?.(FILES_SIDE_TAB) },
   );
+  const side = useSideWorkspace({
+    entries: resourcePreview.entries,
+    activeKey: resourcePreview.activeKey,
+    render: resourcePreview.renderEmbedded,
+  });
+  useSideWorkspaceKeys(side);
+  // 选区菜单「问助手」往输入框里填引用：铺满时先切到主会话标签
+  useWindowEvent(PREVIEW_CHAT_OPEN, () => {
+    if (side.maximized) activatePane?.(MAIN_SIDE_TAB);
+  });
+  const details = useSessionDetails();
   const panels = useAppPanels();
   // 子任务侧栏里的设置 / 插件 / 模型等按钮：打开主窗口的同一组面板
   const { openPlugins, openProviders, onInputSettings, openDesktop, openHub, openExt, openLocal } =
@@ -279,7 +304,23 @@ const AiChatContent: React.FC = () => {
       rail={rail.cwd ? { open: rail.open, cwd: rail.cwd, onToggle: rail.toggle } : null}
     />
   );
-  const { centerOpen } = rail;
+  // 对话旁那一栏：子任务 / 文件标签，或右栏的未提交文件预览（挂载点）
+  const centerOpen = rail.centerOpen || resourcePreview.isOpen;
+  const sideMax = centerOpen && side.maximized;
+  const mainShown = !sideMax || side.active === MAIN_SIDE_TAB;
+  const railCwd = rail.cwd;
+  const railOpen = rail.open;
+  const railToggle = rail.toggle;
+  const browseFiles = railCwd
+    ? () => {
+        if (!railOpen) railToggle();
+      }
+    : undefined;
+  const showAgents = details
+    ? () => {
+        if (!details.visible) details.toggle();
+      }
+    : undefined;
 
   return (
     <ResourceScopeProvider value={resourcePreview.value}>
@@ -322,21 +363,22 @@ const AiChatContent: React.FC = () => {
           <div className="workspace-card" data-testid="workspace-card">
             {/* 主内容：无查看区时对话全宽；有本会话 Diff 或右栏文件预览时 chat-column | 中栏 横排全高 */}
             <div
-              className={`${centerOpen ? 'main-content main-content--with-changes' : 'main-content'} ${resourcePreview.className}`}
-              style={resourcePreview.style}
+              className={`main-content${centerOpen ? ' main-content--with-changes' : ''}${sideMax ? ' main-content--side-max' : ''}`}
               data-with-changes={centerOpen ? 'true' : undefined}
+              data-side-max={sideMax ? 'true' : undefined}
+              data-side-main={sideMax && mainShown ? 'true' : undefined}
               hidden={mainHidden}
             >
+              {/* 铺满时标签栏在整个对话区顶上，主会话是第一个标签（不能关） */}
+              {sideMax && (
+                <SideTabStrip model={side} onBrowseFiles={browseFiles} onShowAgents={showAgents} />
+              )}
               <div
                 className="chat-column"
-                ref={previewChat.ref}
-                data-preview-chat-open={previewChat.expanded || undefined}
-                data-preview-chat-min={previewChat.minimized || undefined}
-                {...previewChat.events}
                 data-testid="chat-column"
+                hidden={!mainShown}
                 style={{
-                  ...previewChat.style,
-                  ...(centerOpen
+                  ...(centerOpen && !sideMax
                     ? {
                         width: split.chatColumn.width,
                         // 窗口窄时最小宽度随窗口收缩（App.css 的 --cd-chat-col-min），宽屏仍是 CHAT_COL_W_MIN
@@ -349,14 +391,13 @@ const AiChatContent: React.FC = () => {
                 }}
               >
                 {/* 桌面应用里会话名与工具在标题栏（与对话卡片对齐）；浏览器里没有标题栏，留一行顶栏 */}
-                {previewChat.header}
                 {!titleBar && <ChatHeader trailing={sessionTools} />}
                 {/* 待带入的新会话前文属于当前对话状态，放在对话区顶部，避免和输入工具混在一起。 */}
                 <div className="session-bar chat-session-bar">
                   <SessionControls />
                 </div>
-                {/* 会话详情自动收起后再打开：浮在对话列右上角；文件专注模式下对话列是底部浮窗，不放 */}
-                {!mainHidden && !(resourcePreview.isOpen && resourcePreview.expanded) && (
+                {/* 会话详情自动收起后再打开：浮在对话列右上角 */}
+                {!mainHidden && (
                   <SessionDetailsDock overlay messages={rail.messages} cwd={rail.cwd} />
                 )}
                 <main className="chat-container">
@@ -392,9 +433,7 @@ const AiChatContent: React.FC = () => {
                   <NewChatContext />
                   <MessageInput
                     {...inputModeProps}
-                    floating={resourcePreview.isOpen && resourcePreview.expanded}
-                    compact={resourcePreview.isOpen && resourcePreview.expanded}
-                    disabled={resourcePreview.sendMismatch || previewChat.busy}
+                    disabled={resourcePreview.sendMismatch}
                     cwd={rail.cwd ?? undefined}
                     roots={rail.roots}
                     delegate={slashBackend === 'nomi'}
@@ -423,10 +462,11 @@ const AiChatContent: React.FC = () => {
                 </footer>
               </div>
 
-              {resourcePreview.panel}
+              {resourcePreview.overlays}
               {centerOpen ? (
                 <>
                   <div
+                    hidden={sideMax}
                     className="center-changes-splitter"
                     data-testid="center-changes-splitter"
                     role="separator"
@@ -438,11 +478,15 @@ const AiChatContent: React.FC = () => {
                     onDoubleClick={split.chatColumn.onDoubleClick}
                     title={t('ui.session-workspace.drag-to-resize-chat-and-diff-double-click')}
                   />
-                  <SideColumn
+                  <SideWorkspace
+                    model={side}
                     messages={rail.messages}
                     cwd={rail.cwd}
                     roots={rail.roots}
                     actions={paneActions}
+                    showStrip={!sideMax}
+                    onBrowseFiles={browseFiles}
+                    onShowAgents={showAgents}
                   />
                 </>
               ) : null}

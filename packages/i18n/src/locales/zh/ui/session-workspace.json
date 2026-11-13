@@ -296,5 +296,13 @@
   "ui.session-workspace.preview-truncated": "文件较大，当前只显示前 1.5 MB。下载可获取完整内容。",
   "ui.session-workspace.preview-chat-minimize": "收起成按钮",
   "ui.session-workspace.diff-tab": "{0} 的改动",
-  "ui.session-workspace.preview-diff-draft-close-message": "Diff 里有没保存的编辑。关闭会丢掉这些改动；需要的话先回到那个标签保存。"
+  "ui.session-workspace.preview-diff-draft-close-message": "Diff 里有没保存的编辑。关闭会丢掉这些改动；需要的话先回到那个标签保存。",
+  "ui.session-workspace.side-tabs-label": "子任务与文件",
+  "ui.session-workspace.side-tab-main": "主会话",
+  "ui.session-workspace.side-tab-close": "关闭 {0}",
+  "ui.session-workspace.side-tab-maximize": "铺满（双击标签也可以）",
+  "ui.session-workspace.side-tab-restore": "回到分栏（Esc）",
+  "ui.session-workspace.side-tab-add": "打开…",
+  "ui.session-workspace.side-tab-agents": "本会话的 Agents",
+  "ui.session-workspace.side-tab-browse-files": "浏览文件"
 }

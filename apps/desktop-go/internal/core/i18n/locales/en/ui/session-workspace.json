@@ -296,5 +296,13 @@
   "ui.session-workspace.preview-truncated": "Large file: only the first 1.5 MB is displayed. Download for the complete content.",
   "ui.session-workspace.preview-chat-minimize": "Minimize to a button",
   "ui.session-workspace.diff-tab": "Changes in {0}",
-  "ui.session-workspace.preview-diff-draft-close-message": "A Diff tab has unsaved edits. Closing discards them; go back to that tab and save first if you need them."
+  "ui.session-workspace.preview-diff-draft-close-message": "A Diff tab has unsaved edits. Closing discards them; go back to that tab and save first if you need them.",
+  "ui.session-workspace.side-tabs-label": "Sub-tasks and files",
+  "ui.session-workspace.side-tab-main": "Main chat",
+  "ui.session-workspace.side-tab-close": "Close {0}",
+  "ui.session-workspace.side-tab-maximize": "Maximize (or double-click a tab)",
+  "ui.session-workspace.side-tab-restore": "Restore split view (Esc)",
+  "ui.session-workspace.side-tab-add": "Open…",
+  "ui.session-workspace.side-tab-agents": "Agents in this chat",
+  "ui.session-workspace.side-tab-browse-files": "Browse files"
 }

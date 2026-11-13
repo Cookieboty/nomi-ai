@@ -57,7 +57,8 @@ export function useRail(opts: {
   const busy = tabs.isCliTab
     ? tabs.activeTab?.status === 'running' || tabs.activeTab?.status === 'queued'
     : busyHere;
-  const subagentOpen = !!useSubagentPane()?.target; // 子任务侧栏（独立的一栏，开着时占对话旁）
+  // 开着子任务标签（标签区，开着时占对话旁；文件标签由 App 按预览区另算）
+  const subagentOpen = (useSubagentPane()?.targets.length ?? 0) > 0;
   // 本会话 Diff 不再单独占一栏：它是预览区的一个标签（见 App 的 useResourcePreview）
   const centerOpen = (!!cwd && previewOpen) || subagentOpen;
   const open = !!cwd && railPref;
