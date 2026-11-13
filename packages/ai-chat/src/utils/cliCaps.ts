@@ -2,13 +2,7 @@
  * 编程助手的能力位（来自内置插件清单，P9.4）：界面按能力决定显示什么，不按 CLI 名字判断。
  * 只读纯数据（@nomi-ai/cli-catalog），不经 IPC。
  */
-import {
-  BUILTIN_RENDERER,
-  cliName,
-  isBuiltinCliId,
-  type CliRendererInfo,
-} from '@nomi-ai/cli-catalog';
-import { t } from '@nomi-ai/ui';
+import { BUILTIN_RENDERER, isBuiltinCliId, type CliRendererInfo } from '@nomi-ai/cli-catalog';
 
 import type { AccountKind } from '../services/cliAccountClient';
 
@@ -16,16 +10,19 @@ export function cliInfo(backend: string | null | undefined): CliRendererInfo | n
   return backend && isBuiltinCliId(backend) ? BUILTIN_RENDERER[backend] : null;
 }
 
-/** 有官方账号（登录 / 订阅额度 / 「官方账号」来源）；没有的 CLI 只用自带配置或第三方 */
+/** 有官方账号（登录 / 订阅额度 / 「官方账号」来源）；没有的内置 CLI 只用第三方 */
 export function hasOfficialAccount<T extends string>(
   backend: T | null | undefined,
 ): backend is Extract<T, AccountKind> {
   return cliInfo(backend)?.capabilities.officialAccount === true;
 }
 
-/** 没有官方账号的 CLI 的「官方」来源：它自己的配置（dsh 自带配置、Gemini 本机 ~/.gemini 里的配置） */
-export function ownConfigLabel(backend: string): string {
-  return t('ui.models.cli-own-config', cliName(backend));
+/**
+ * 只能用第三方模型的内置编程助手（没有官方账号能力的 dsh、Gemini）：不再有「用 CLI 自己的登录 / 配置」这一来源。
+ * 编程助手只用 Nomi 管理的官方账号或经网关的第三方模型。
+ */
+export function thirdPartyOnly(backend: string | null | undefined): boolean {
+  return !!backend && isBuiltinCliId(backend) && !hasOfficialAccount(backend);
 }
 
 /** CLI 本身能不能收图（不看模型）；Nomi 自己与未知后端按能收处理 */

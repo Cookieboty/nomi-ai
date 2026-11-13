@@ -1,6 +1,6 @@
 /**
  * 编程助手的供应商（docs/development/gateway.md）：侧栏底部信息卡里的「新标签默认」
- * （CliDefaultSource）——这个编程助手以后新开的标签默认用什么：默认（本机登录）/ 官方账号（可指定账号）/ 第三方供应商。
+ * （CliDefaultSource）——这个编程助手以后新开的标签默认用什么：官方账号（跟随默认或指定账号）/ 第三方供应商。
  * 已有会话单独换供应商用 `/model`（services/cliSource 的 switchTabSource，主进程执行切换规则）；
  * 模型在输入栏的模型按钮里换（第三方时按供应商分标签，也能直接换到别的供应商）。
  */
@@ -21,7 +21,7 @@ import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import styles from './index.module.css';
 
 /**
- * 侧栏底部编程助手信息卡里的「新标签默认」：这个编程助手以后新开的标签默认用本机登录 / 哪个官方账号 / 哪个第三方供应商
+ * 侧栏底部编程助手信息卡里的「新标签默认」：这个编程助手以后新开的标签默认用哪个官方账号 / 哪个第三方供应商
  * （网关 clients[kind]，与「模型」页同一份设置）。只影响新标签，已有会话不变。
  */
 export const CliDefaultSource: React.FC<{ backend: CliKind }> = ({ backend }) => {

@@ -139,8 +139,6 @@ describe('appContract · D3 coding', () => {
     };
     expect(p['harness.tabRename'].output.parse(tab)).toEqual(tab);
     expect(p['harness.tabRename'].output.safeParse({ ...tab, unread: '0' }).success).toBe(false);
-    expect(p['cli.pluginAdd'].output.safeParse({ ok: false, errors: ['bad'] }).success).toBe(true);
-    expect(p['cli.pluginAdd'].output.safeParse({ ok: true }).success).toBe(false);
     expect(codingEvents['cliAccount.changed'].safeParse(null).success).toBe(true);
     expect(codingEvents['cliAccount.changed'].safeParse({}).success).toBe(false);
     expect(

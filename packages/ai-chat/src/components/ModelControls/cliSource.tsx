@@ -4,7 +4,9 @@
  *
  * 标签来源是第三方（docs/development/gateway.md）时，同一个按钮列**所有第三方供应商**的模型
  * （主进程 ai:harness:model-catalog 带 source: 'thirdParty'，id 是 `供应商/模型`）：顶部按供应商分标签、
- * 左侧按厂商快速筛选，第三方之间换供应商原地续接；直接打开模型列表、没有思考深度。
+ * 左侧按厂商快速筛选，第三方之间换供应商原地续接。思考深度与 Nomi 对话完全同一套
+ * （services/thinkingDepth：网关按模型能力给档位、不给选「不思考」、没选过落在第二档），
+ * 选的档位登记在网关的标签绑定上，由网关写进这个 CLI 发出的请求。
  * 「默认模型」= 这个 CLI 在「模型」页分配的模型（属于当前供应商时）。
  */
 import { BUILTIN_CLI_ORDER, cliCapability } from '@nomi-ai/cli-catalog';
@@ -46,9 +48,10 @@ import {
 } from '../../services/harnessClient';
 import type { LongContextInfo } from '../../services/longContext';
 import { providerBrand, useGatewayState } from '../../services/nomiModel';
+import { resolveThinkingLevel, thinkingProfileOf } from '../../services/thinkingDepth';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
-import { effortLabel } from './effortLabel';
+import { effortLabel, thinkingLevelLabel } from './effortLabel';
 import menuStyles from './index.module.css';
 import type { EffortPageSource, ModelEffortSource, ModelPageSource } from './ModelEffortChip';
 
@@ -213,8 +216,8 @@ export function useCliModelEffortSource({
   const tabbed = !!providerTabs && providerTabs.length > 1;
   // 分了供应商标签就不再按组列标题（组的说明放到标签的悬停提示里）
   const grouped = !tabbed && !!groups && groups.length > 1;
-  // 第三方来源的目录：直接是模型列表，没有思考深度页
   const thirdParty = tabSourceOf(tab) === 'thirdParty';
+  const gateway = useGatewayState();
   const provider = useMemo(
     () =>
       catalog.provider ??
@@ -227,22 +230,40 @@ export function useCliModelEffortSource({
   );
   // 档位所依据的模型：选了模型用它；没选用 CLI 告诉我们的默认模型
   const info = current ? currentModel : catalog.defaultModel;
+  // 第三方来源：档位来自网关的模型能力（与 Nomi 对话同一个 thinkingProfileOf），不看 CLI 自己的目录
+  const thirdPartyRef = thirdParty ? (current ?? catalog.defaultModel?.id ?? null) : null;
+  const thirdPartyProfile = useMemo(
+    () => (thirdPartyRef ? thinkingProfileOf(gateway, thirdPartyRef) : null),
+    [gateway, thirdPartyRef],
+  );
   // Gemini / dsh：没有文档化的思考深度控制，整后端禁用；其余看 CLI 是否声明该模型支持
-  const backendBlocksEffort = NO_REASONING_BACKENDS.has(tab.backend);
-  const noReasoning = backendBlocksEffort || (!!info && !info.reasoning);
-  // 档位全部来自 CLI：模型自己的 > 目录并集（自定义的未知模型 / 默认模型未知）
+  // （第三方来源不经 CLI 的参数，由网关写进请求，后端本身有没有档位参数无关）
+  const backendBlocksEffort = !thirdParty && NO_REASONING_BACKENDS.has(tab.backend);
+  const noReasoning = thirdParty
+    ? !thirdPartyProfile
+    : backendBlocksEffort || (!!info && !info.reasoning);
+  // 官方：档位全部来自 CLI：模型自己的 > 目录并集（自定义的未知模型 / 默认模型未知）
   const levels: ReasoningEffort[] = noReasoning
     ? []
-    : info?.efforts.length
-      ? info.efforts
-      : catalogEfforts(catalog);
+    : thirdParty
+      ? (thirdPartyProfile!.levels as ReasoningEffort[])
+      : info?.efforts.length
+        ? info.efforts
+        : catalogEfforts(catalog);
   const reasoningSupported = levels.length > 0;
+  const storedEffort = (tab.reasoningEffort ?? null) as ReasoningEffort | null;
   const effort = reasoningSupported
-    ? ((tab.reasoningEffort ?? null) as ReasoningEffort | null)
+    ? thirdParty
+      ? storedEffort && levels.includes(storedEffort)
+        ? storedEffort
+        : null
+      : storedEffort
     : null;
-  // null 表示沿用 CLI 默认，界面仍应把 CLI 返回的默认档位显示在对应位置。
-  const defaultEffort =
-    reasoningSupported && info?.defaultEffort && levels.includes(info.defaultEffort)
+  // null 表示沿用默认，界面仍应把默认档位显示在对应位置（第三方：模型的第二档，和 Nomi 对话一样，
+  // 也是网关实际发出的那一档）。
+  const defaultEffort = thirdParty
+    ? ((resolveThinkingLevel(undefined, thirdPartyProfile) ?? null) as ReasoningEffort | null)
+    : reasoningSupported && info?.defaultEffort && levels.includes(info.defaultEffort)
       ? info.defaultEffort
       : null;
 
@@ -263,9 +284,10 @@ export function useCliModelEffortSource({
     : (defaultLabel ?? t('ui.providers-schedule.default-model'));
   // 没有显式覆盖时也显示 CLI 的实际默认档位，让底部按钮直接反映当前设置。
   const chipEffort = effort ?? defaultEffort;
-  const shortLabel = chipEffort ? `${modelLabel} · ${effortLabel(chipEffort)}` : modelLabel;
+  const shortLabel = chipEffort
+    ? `${modelLabel} · ${thirdParty ? thinkingLevelLabel(chipEffort) : effortLabel(chipEffort)}`
+    : modelLabel;
   // 按钮上的图标：认得出模型厂商或供应商品牌就用它的图标，否则通用芯片图标
-  const gateway = useGatewayState();
   const chipModelId = current ?? catalog.defaultModel?.id ?? null;
   const chipBrand = chipModelId
     ? modelBrandOf(chipModelId, providerBrand(gateway, providerOfRef(chipModelId)))
@@ -283,7 +305,7 @@ export function useCliModelEffortSource({
     ? (pinnedAccount?.label ?? t('ui.models.removed-account'))
     : t(
         'ui.models.follow-default',
-        defaultAccount?.label ?? t('ui.models.this-computer-s-sign-in'),
+        defaultAccount?.label ?? t('ui.models.no-official-account-yet'),
       );
 
   // 第三方标签可切到官方账号时，也读账号列表：「切换到官方账号」后面写上默认账号
@@ -497,7 +519,30 @@ export function useCliModelEffortSource({
     void run(() => harnessClient.setTabLongContext(tab.id, on === long.modelDefault ? null : on));
   };
 
+  /** 第三方模型选完：能调思考深度就回到档位页接着调（与 Nomi 对话的「一次选完」一致），否则收起浮层 */
+  const afterThirdPartyPick = (ref: string | null): 'effort' | 'close' =>
+    ref && thinkingProfileOf(gateway, ref) ? 'effort' : 'close';
+
   const onPick = (v: string): 'effort' | 'close' => {
+    if (thirdParty) {
+      if (v === '') {
+        pickModel('');
+        return afterThirdPartyPick(catalog.defaultModel?.id ?? null);
+      }
+      if (v === CUSTOM) {
+        pickModel(current ?? '');
+        return afterThirdPartyPick(current);
+      }
+      if (v.startsWith(SWITCH)) {
+        const item = switchItems[Number(v.slice(SWITCH.length))];
+        if (item) pickSource(item);
+        return 'close';
+      }
+      const id = toCatalog.get(v);
+      if (id === undefined) return 'close';
+      pickModel(id);
+      return afterThirdPartyPick(id);
+    }
     if (v === '') pickModel('');
     else if (v === CUSTOM) pickModel(current ?? '');
     else if (v.startsWith(SWITCH)) {
@@ -559,7 +604,7 @@ export function useCliModelEffortSource({
     value: chipEffort,
     explicit: !!effort,
     defaultUnknownNote:
-      !effort && !defaultEffort
+      !thirdParty && !effort && !defaultEffort
         ? t('ui.chat-settings.effort-default-set-by-cli', backendName || tab.backend)
         : null,
     unavailableHint: backendBlocksEffort
@@ -572,6 +617,9 @@ export function useCliModelEffortSource({
     onRestore: () => pickEffort(null),
   };
 
+  /** 只有模型页（第三方模型不能调思考深度时）；否则和 Nomi 对话一样是「模型 · 思考深度」 */
+  const modelOnly = provider && !(thirdParty && reasoningSupported) ? provider : null;
+
   const modelPage: ModelPageSource = {
     providers: pickerList,
     value: pickerValue,
@@ -580,7 +628,8 @@ export function useCliModelEffortSource({
     notice: pickerNotice,
     headerEnd: hasProvider || officialTabs ? refreshButton : undefined,
     backEnd: !officialTabs ? refreshButton : undefined,
-    showBack: !hasProvider,
+    // 第三方模型能调思考深度时和 Nomi 对话一样有「‹ 模型」返回行（回到档位页）
+    showBack: !hasProvider || (thirdParty && reasoningSupported),
     footer: long ? <LongContextRow long={long} onPick={pickLong} /> : null,
     focusProvider: thirdParty ? (providerOfRef(catalog.defaultModel?.id) ?? undefined) : OWN_TAB,
     purpose: 'coding',
@@ -593,15 +642,16 @@ export function useCliModelEffortSource({
     label: shortLabel,
     muted: !current && !chipEffort,
     brand: chipBrand,
-    ariaLabel: provider
-      ? t('ui.chat-settings.model', provider.name, shortLabel)
+    ariaLabel: modelOnly
+      ? t('ui.chat-settings.model', modelOnly.name, shortLabel)
       : t('ui.chat-settings.model-and-reasoning-effort', shortLabel),
-    menuLabel: provider
+    menuLabel: modelOnly
       ? t('ui.foundation.model')
       : t('ui.chat-settings.model-and-reasoning-effort-label'),
     note,
     longBadge: !!long?.on,
-    initialView: provider ? 'model' : 'effort',
+    // 第三方：能调档位时和 Nomi 对话一样先停在档位页；不能调直接列模型
+    initialView: modelOnly ? 'model' : 'effort',
     menuCommandView: 'model',
     menuKey: tab.id,
     effort: effortPage,
@@ -617,7 +667,7 @@ export function useCliModelEffortSource({
             {
               value: '',
               label: t('ui.models.follow-the-default-account'),
-              description: defaultAccount?.label ?? t('ui.models.this-computer-s-sign-in'),
+              description: defaultAccount?.label ?? t('ui.models.no-official-account-yet'),
               testId: 'account-default',
             },
             ...accounts.map((a) => ({

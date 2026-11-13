@@ -1,12 +1,11 @@
 package harness
 
-// Gemini / Grok / 外部插件（ACP）长驻会话。
+// Gemini / Grok / 其余内置 ACP 助手的长驻会话。
 
 import (
 	"errors"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"regexp"
-	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
@@ -14,9 +13,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/gemini"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/ports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
@@ -32,7 +29,7 @@ type acpTurn struct {
 // acpLiveSession = AcpLiveSession。
 type acpLiveSession struct {
 	launchSig        string
-	backend          string // gemini | grok | external
+	backend          string // gemini | grok | 其余内置 ACP 助手
 	model, effort    *string
 	child            *gatedChild
 	driver           *drivers.AcpDriver
@@ -104,15 +101,10 @@ func withCause(msg string, cause error) error { return &causeError{msg, cause} }
 // acpAuthRequiredRe：ACP 建会话时 CLI 说还没登录（Kimi Code、MiniMax Code 都回 -32000 "Authentication required"）
 var acpAuthRequiredRe = regexp.MustCompile(`(?i)authentication required|auth_required|run .* login`)
 
-// acpDisplayName = acpDisplayName(backend, ext?)。
-func acpDisplayName(backend string, ext *util.Obj) string {
+// acpDisplayName：内置助手的显示名（没有时统称 CLI）。
+func acpDisplayName(backend string) string {
 	if n := builtin.DisplayName(backend); n != "" {
 		return n
-	}
-	if ext != nil {
-		if n, ok := ext.Get("displayName").(string); ok {
-			return n
-		}
 	}
 	return "CLI"
 }
@@ -154,25 +146,13 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			return nil, err
 		}
 		backend := "gemini"
-		if b := str(tab, "backend"); b == "external" || builtin.UsesAcp(b) {
+		if b := str(tab, "backend"); builtin.UsesAcp(b) {
 			backend = b
 		}
-		var ext *util.Obj
-		if backend == "external" {
-			pid, _ := tab.Get("pluginId").(string)
-			ext = o.externalSpecOf(pid)
-		}
-		name := acpDisplayName(backend, ext)
+		name := acpDisplayName(backend)
 		var bin string
 		var argv []string
-		if ext != nil {
-			missing := clisdk.MissingExternalEnv(ext, envMap(usage.ProcessEnv()))
-			if len(missing) > 0 {
-				throw(i18n.T("electron.common.needs-the-environment-variables-set-them-in-the", ext.Get("displayName"), strings.Join(missing, ", ")))
-			}
-			bin = jsStr(ext.Get("command"))
-			argv = clisdk.RenderExternalArgs(strsOf(ext.Get("args")), map[string]string{"cwd": str(tab, "cwd"), "home": o.home})
-		} else {
+		{
 			found := ResolveHarnessBin(backend)
 			if found == "" {
 				switch backend {
@@ -300,12 +280,6 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 					sid = &s
 				}
 				modeNow = r.Get("currentModeId")
-				if ext != nil {
-					if h, ok := o.d.Externals.(ports.ExternalHandshaker); ok {
-						caps := util.AsObj(r.Get("capabilities"))
-						h.Handshake(jsStr(ext.Get("id")), caps != nil && caps.Get("images") == true, caps != nil && caps.Get("loadSession") == true)
-					}
-				}
 			} else if err.Error() != "ACP agent returned no session" {
 				// 没登录（ACP 的 auth_required）：内置的告诉用户去哪里登录，别只给一句英文报错
 				if acpAuthRequiredRe.MatchString(err.Error()) && builtin.WithAccounts(backend) {
@@ -373,8 +347,8 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			if backend == "grok" && exited {
 				return nil, &acpUnavailableError{i18n.T("electron.common.grok-could-not-start-an-acp-session"), e}
 			}
-			// 外部 CLI 与 Gemini 以外的内置 CLI：报它自己的名字和最后的错误输出（不套 Gemini 的「版本过旧」提示）
-			if exited && (ext != nil || backend != "gemini") {
+			// Gemini 以外的内置 CLI：报它自己的名字和最后的错误输出（不套 Gemini 的「版本过旧」提示）
+			if exited && backend != "gemini" {
 				tail := clisdk.SliceFrom(util.JSTrim(stderrTail), -300)
 				if tail == "" {
 					tail = i18n.T("electron.common.the-process-exited")
@@ -443,7 +417,7 @@ func (o *Orchestrator) onAcpEvents(tabID string, live *acpLiveSession, evs []*ut
 			tab := o.tab(tabID)
 			pev := ev
 			notify := func() {
-				title := any(acpDisplayName(live.backend, nil))
+				title := any(acpDisplayName(live.backend))
 				if tab != nil && tab.Get("title") != nil {
 					title = tab.Get("title")
 				}

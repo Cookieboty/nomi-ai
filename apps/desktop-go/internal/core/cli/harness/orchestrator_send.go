@@ -207,7 +207,7 @@ func (o *Orchestrator) runTurn(tab *util.Obj, backend, toCli string, abort *jsrt
 		p = o.runDsh(tab, toCli)
 	case "grok":
 		p = o.runGrokTurn(tab, toCli, abort.Signal, normalized)
-	case "gemini", "external":
+	case "gemini":
 		p = o.runAcp(tab, toCli, abort.Signal, normalized)
 	default:
 		// 其余内置的 ACP 助手（清单 transport 为 acp）；剩下的是 codex
@@ -429,9 +429,6 @@ func (o *Orchestrator) isAutoOnly(id string) bool {
 // qualityBase = qualityBase（QualityBase 对象）。
 func (o *Orchestrator) qualityBase(tab *util.Obj) *util.Obj {
 	client := str(tab, "backend")
-	if client == "external" && truthy(tab.Get("pluginId")) {
-		client = str(tab, "pluginId")
-	}
 	if o.sourceOf(tab) == "thirdParty" {
 		ref := ""
 		if m := o.effectiveOverrides(tab).model; m != nil {
@@ -826,7 +823,7 @@ func (o *Orchestrator) RepairTabTitles() {
 		title := str(tab, "title")
 		head := clisdk.JSTrimStart(title)
 		leaked := strings.HasPrefix(head, clisdk.SandboxNoteStart) || strings.HasPrefix(head, "[Nomi]")
-		if !leaked && (backend == "external" || !isGeneratedTabTitle(title, backend)) {
+		if !leaked && !isGeneratedTabTitle(title, backend) {
 			continue
 		}
 		msgs := o.messages[k]
@@ -859,7 +856,7 @@ func (o *Orchestrator) RepairTabTitles() {
 
 func (o *Orchestrator) armHeuristicTitle(tab *util.Obj, prompt string) {
 	backend := str(tab, "backend")
-	if backend == "nomi" || backend == "external" {
+	if backend == "nomi" {
 		return
 	}
 	id := str(tab, "id")

@@ -88,7 +88,7 @@
   不允许（本会话不再问）。允许后 `recycleTab` 重开这个标签的 CLI（在跑就等这一轮结束，续接会话），并发一条「已允许，请继续」。
 - 任务预授权：任务授权的 `grant.sandbox`（类别 id），有 GitHub 对外能力时自动加 `ssh`（`tasks.SandboxGrants`）；建标签时写进
   `delegation.sandboxGrants`，`grantedFor` 当作已授权。只有内核自己的委派 / 任务路径能写 `delegation`：契约 `harness.tabCreate`
-  只收视图能给的字段（backend、cwd、title、messages、permissionMode、pluginId），视图带来的 `delegation` 等内部字段一律丢掉。
+  只收视图能给的字段（backend、cwd、title、messages、permissionMode），视图带来的 `delegation` 等内部字段一律丢掉。
 - 告诉编程助手它在沙箱里（`prompts/text/cli-sandbox.md`）：Claude 用 `--append-system-prompt`，别的 CLI 在 CLI 会话的第一条消息前带上（`withSandboxNote`）；
   被拒时停下说明、结束这一轮，不要绕路。说明里也写明 CLI 自己的配置目录（技能、提示词、插件）与 `~/.agents` 可读可执行；
   运行脚本报 "Permission denied" / 退出码 126 是脚本没有执行位，不是沙箱（沙箱拒绝是 "Operation not permitted"），

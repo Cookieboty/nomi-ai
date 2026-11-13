@@ -45,7 +45,7 @@ export interface CliCapabilities {
   terminalCommand?: boolean;
   /**
    * 一轮进行中能插入用户消息（不打断这一轮）：Claude 中途写 stdin、Codex turn/steer、
-   * Grok `_x.ai/interject`。不能的（Gemini、dsh、外部 CLI）运行中发送一律排队到这一轮结束。
+   * Grok `_x.ai/interject`。不能的（Gemini、dsh）运行中发送一律排队到这一轮结束。
    */
   steer?: boolean;
 }

@@ -59,9 +59,30 @@ func (h harnessGateway) Models() []ports.GatewayModel {
 		if v, ok := m.Get("vision").(bool); ok {
 			gm.Vision = &v
 		}
+		gm.Thinking = thinkingOf(m.Get("thinking"))
 		out = append(out, gm)
 	}
 	return out
+}
+
+// thinkingOf：CliModels 里的 thinking（models.Profile.Obj：{control, levels, default}）→ 端口形状
+func thinkingOf(v any) *ports.GatewayThinking {
+	th, _ := v.(*util.Obj)
+	if th == nil {
+		return nil
+	}
+	arr, _ := th.Get("levels").([]any)
+	levels := make([]string, 0, len(arr))
+	for _, x := range arr {
+		if s, ok := x.(string); ok && s != "" {
+			levels = append(levels, s)
+		}
+	}
+	if len(levels) < 2 {
+		return nil
+	}
+	def, _ := th.Get("default").(string)
+	return &ports.GatewayThinking{Levels: levels, Default: def}
 }
 
 func (h harnessGateway) ReleaseAgent(kind, tabID string) { h.g.ReleaseAgent(kind, tabID) }
@@ -90,7 +111,7 @@ func (h harnessGateway) ReleaseTab(kind, tabID string, generation *float64) {
 	h.g.ReleaseTab(kind, tabID, g)
 }
 
-// updateTab：models = {...store.clients[kind]?.models, main: model}，effort 有值才带
+// updateTab：models = {...store.clients[kind]?.models, main: model}；effort 为空时清掉绑定上的档位
 func (h harnessGateway) UpdateTab(kind, tabID, model string, effort *string) *jsrt.Promise[bool] {
 	return jsrt.Async(func() (bool, error) {
 		mo := util.NewObj()
@@ -109,6 +130,9 @@ func (h harnessGateway) UpdateTab(kind, tabID, model string, effort *string) *js
 		in := gwstore.TabUpdateInput{Client: kind, TabID: tabID, Models: &cm}
 		if effort != nil && *effort != "" {
 			in.Effort = *effort
+		} else {
+			// 没有档位（模型不支持 / 回到默认）：清掉旧绑定上的档位，不让上一档残留
+			in.ClearEffort = true
 		}
 		return h.g.Tabs().Update(in)
 	})

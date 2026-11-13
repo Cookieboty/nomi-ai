@@ -72,7 +72,7 @@ flowchart LR
 ```
 
 - **插件**：`internal/clisdk` 定义契约（清单、能力接口、会话驱动、多选项权限回答）与四种会话驱动；`internal/cliplugins` 是五个内置插件。
-  外部 ACP 插件只有声明式清单（`userData/cli-plugins/external/*.json`），不加载代码；视图要的清单与界面信息在 `@nomi-ai/cli-catalog`。
+  只有内置插件（不再支持用户添加的「外部 CLI」）；视图要的清单与界面信息在 `@nomi-ai/cli-catalog`。
 - **编排**：`internal/core/cli/harness` 管标签、持久化、来源（官方 / 第三方）、官方账号目录、回收与升级重启；协议细节都在驱动里，
   每个 CLI 的解析（流式、历史转录、模型目录、斜杠布局）在插件里。
 - **网关分层**：请求方向经供应商适配器（`providers/`）和模型适配器（`models/`：目录、族规则、请求规则、错误修正器）；响应方向经

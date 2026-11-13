@@ -714,5 +714,7 @@
   "ui.chat-settings.theme-download-template": "下载模板",
   "ui.chat-settings.theme-template-saved": "模板已保存到 {0}",
   "ui.chat-settings.about-slogan": "让每一种 AI 能力，都为你所用。",
-  "ui.chat-settings.resize-sidebar": "调整侧栏宽度"
+  "ui.chat-settings.resize-sidebar": "调整侧栏宽度",
+  "ui.chat-settings.stop-these-cli-processes-and-remove-the-account": "{0}\n\n也可以让 Nomi 现在结束这些进程，再删除「{1}」。它们正在进行的会话会被中断。",
+  "ui.chat-settings.stop-processes-and-remove": "结束进程并删除"
 }

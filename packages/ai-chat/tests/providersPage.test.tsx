@@ -87,7 +87,7 @@ describe('ProvidersPage', () => {
     expect(r.getByTestId('cli-version-state-codex').textContent).not.toContain('检测中');
   });
 
-  it('分段标签「助手 / 监视与会话」；左栏是所有内置 CLI + 外部 CLI + 通用，旧的 Nomi 选中值落到第一个', async () => {
+  it('分段标签「助手 / 监视与会话」；左栏是所有内置 CLI + 通用，旧的 Nomi 选中值落到第一个', async () => {
     setup();
     localStorage.setItem('ai-chat:providerEndpoint', 'nomi');
     const r = render(<ProvidersPage onOpenModels={() => undefined} />);
@@ -101,7 +101,6 @@ describe('ProvidersPage', () => {
       'providers-endpoint-gemini',
       'providers-endpoint-kimi',
       'providers-endpoint-minimax',
-      'providers-endpoint-external',
       'providers-endpoint-general',
     ]);
     await waitFor(() => expect(r.getByTestId('providers-section-claude')).toBeTruthy());
@@ -147,7 +146,16 @@ describe('ProvidersPage', () => {
     expect(r.queryByTestId('providers-section-claude')).toBeNull();
     // 上下键在左栏里切换
     fireEvent.keyDown(r.getByTestId('providers-endpoint-tabs'), { key: 'ArrowUp' });
-    await waitFor(() => r.getByTestId('external-clis'));
+    await waitFor(() => r.getByTestId('providers-section-minimax'));
+  });
+
+  it('不再有「外部 CLI」：旧版本存下的选中值落到第一个助手', async () => {
+    setup();
+    localStorage.setItem('ai-chat:providerEndpoint', 'external');
+    const r = render(<ProvidersPage onOpenModels={() => undefined} />);
+    expect(r.queryByTestId('providers-endpoint-external')).toBeNull();
+    await waitFor(() => expect(r.getByTestId('providers-section-claude')).toBeTruthy());
+    expect(r.queryByTestId('external-clis')).toBeNull();
   });
 
   it('运行环境有问题：「通用」亮警示，助手详情顶部提示，点一下去「通用」', async () => {

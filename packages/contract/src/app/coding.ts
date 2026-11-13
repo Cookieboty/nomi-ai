@@ -32,15 +32,12 @@ import {
   CliInstallPlan,
   CliInstallScope,
   CliJob,
-  CliPluginAddResult,
   CliRegistrySnapshot,
   CliRunResult,
   CliUpdateEvent,
   DelegateResult,
   DelegateSettings,
   DelegateSettingsView,
-  ExternalCliSpec,
-  ExternalTestResult,
   GeminiTrustResult,
   GitBranchList,
   GitBranchResult,
@@ -212,8 +209,6 @@ const harnessProcedures = {
       title: z.string().optional(),
       messages: z.array(HarnessTabMessage).optional(),
       permissionMode: PermissionMode.optional(),
-      /** backend = 'external' 时：外部插件 id */
-      pluginId: z.string().optional(),
     }),
     output: HarnessTabMeta,
   },
@@ -487,19 +482,6 @@ const harnessProcedures = {
 
 const cliProcedures = {
   'cli.registry': { kind: 'query', input: z.void(), output: CliRegistrySnapshot },
-  /** 外部插件（用户添加的说 ACP 的 CLI）：清单不合格时 `{ ok: false, errors }` */
-  'cli.pluginAdd': {
-    kind: 'mutation',
-    input: z.object({ spec: ExternalCliSpec }),
-    output: CliPluginAddResult,
-  },
-  'cli.pluginRemove': { kind: 'mutation', input: byId, output: z.boolean() },
-  /** 试运行（在临时目录里握手），不保存 */
-  'cli.pluginTest': {
-    kind: 'mutation',
-    input: z.object({ spec: ExternalCliSpec }),
-    output: ExternalTestResult,
-  },
 } as const satisfies ProcedureMap;
 
 const cliAccountProcedures = {
@@ -525,10 +507,17 @@ const cliAccountProcedures = {
     input: z.object({ id: z.string(), label: z.string() }),
     output: CliAccount,
   },
-  /** force：有标签在用时也删除（界面先确认） */
+  /**
+   * force：读不到是否还有 CLI 进程在用时也删除（界面先确认）；
+   * stopExternal：先结束 Nomi 之外还在用这个账号的 CLI 进程（ACCOUNT_EXTERNAL_BUSY 时界面让用户确认）再删除
+   */
   'cliAccount.remove': {
     kind: 'mutation',
-    input: z.object({ id: z.string(), force: z.boolean().optional() }),
+    input: z.object({
+      id: z.string(),
+      force: z.boolean().optional(),
+      stopExternal: z.boolean().optional(),
+    }),
     output: z.void(),
   },
   /** accountId 为空：新建账号并登录；否则在这个账号的目录里（重新）登录 */
@@ -771,14 +760,16 @@ export const codingEventSurfaces = {
 
 /**
  * 业务错误码（UPPER_SNAKE_CASE，不得与其他域重名）；处理函数用 `ctx.fail(code, message)` 抛出。
- * 账号操作（AccountError 的 kebab code）：not-found / in-use / local / unsupported / unknown-live。
+ * 账号操作（AccountError 的 kebab code）：not-found / in-use / unsupported / unknown-live / external-busy。
+ * 没有「本机登录」这一项：编程助手只用 Nomi 管理的官方账号或第三方模型。
  */
 export const codingErrors = [
   'ACCOUNT_NOT_FOUND',
   'ACCOUNT_IN_USE',
-  'ACCOUNT_LOCAL',
   'ACCOUNT_UNSUPPORTED',
   'ACCOUNT_UNKNOWN_LIVE',
+  /** cliAccount.remove：Nomi 之外还有 CLI 进程在用这个账号目录（data.pids）；可以带 stopExternal 结束它们再删除 */
+  'ACCOUNT_EXTERNAL_BUSY',
   /** project.*：项目不存在 */
   'PROJECT_NOT_FOUND',
   /** project.create / update：某个文件夹不能当项目目录（message 里是哪个、为什么） */
