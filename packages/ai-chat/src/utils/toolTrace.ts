@@ -114,6 +114,8 @@ function foldTrace(
 
   for (let n = from; n < events.length; n++) {
     const ev = events[n]!;
+    // 子代理的正文只在子任务侧栏里显示（SubagentPane/project.ts）
+    if (ev.type === 'agent-text') continue;
     if (ev.type === 'thinking') {
       const last = entries[entries.length - 1];
       if (last?.type === 'thinking' && last.textAt === ev.textAt) {

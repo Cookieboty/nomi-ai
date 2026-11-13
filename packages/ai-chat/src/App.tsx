@@ -31,7 +31,11 @@ import { RestartUpdateButton } from './components/RestartUpdateButton';
 import { SessionDetailsDock } from './components/SessionDetails';
 import { useChangesUi } from './components/SessionWorkspace';
 import { Sidebar } from './components/Sidebar';
-import { SideColumn, WorkspacePanesProvider } from './components/SubagentPane';
+import {
+  SideColumn,
+  WorkspacePanesProvider,
+  type SubagentPaneActions,
+} from './components/SubagentPane';
 import { AppTitleBar, hasAppTitleBar } from './components/TitleBar';
 import { SessionTools, TitleBarTitle } from './components/TitleBar/SessionTitle';
 import { UserQuestionDock } from './components/UserQuestionCard/dock';
@@ -123,6 +127,22 @@ const AiChatContent: React.FC = () => {
     resourcePreview.workspaceCwd,
   );
   const panels = useAppPanels();
+  // 子任务侧栏里的设置 / 插件 / 模型等按钮：打开主窗口的同一组面板
+  const { openPlugins, openProviders, onInputSettings, openDesktop, openHub, openExt, openLocal } =
+    panels;
+  const paneActions = useMemo<SubagentPaneActions>(
+    () => ({
+      openPlugins,
+      openProviders,
+      openSettings: onInputSettings,
+      openCodingSettings: (backend) => onInputSettings('coding', backend),
+      openDesktop,
+      openHub,
+      openExt,
+      openLocal,
+    }),
+    [openPlugins, openProviders, onInputSettings, openDesktop, openHub, openExt, openLocal],
+  );
   const [toast, setToast] = useToast();
   // 不论从哪个入口回到主标签（顶栏 / 快捷键 / 侧栏 / 分叉后），都把当前会话恢复成 Nomi 会话
   useRestoreNomiOnMain(
@@ -418,7 +438,12 @@ const AiChatContent: React.FC = () => {
                     onDoubleClick={split.chatColumn.onDoubleClick}
                     title={t('ui.session-workspace.drag-to-resize-chat-and-diff-double-click')}
                   />
-                  <SideColumn messages={rail.messages} cwd={rail.cwd} roots={rail.roots} />
+                  <SideColumn
+                    messages={rail.messages}
+                    cwd={rail.cwd}
+                    roots={rail.roots}
+                    actions={paneActions}
+                  />
                 </>
               ) : null}
             </div>

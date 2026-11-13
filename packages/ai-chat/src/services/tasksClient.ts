@@ -153,16 +153,79 @@ export const OPEN_TASK_EVENT = 'nomi:open-task';
 export const requestOpenTask = (id: string) =>
   window.dispatchEvent(new CustomEvent<string>(OPEN_TASK_EVENT, { detail: id }));
 
+/** tasks.trace 的一行：工具结果、插话（user）或收尾文字（done） */
+export interface TaskTraceLine {
+  at?: number;
+  tool?: string;
+  id?: string;
+  input?: string;
+  output?: string;
+  error?: string;
+  startedAt?: number;
+  textAt?: number;
+  user?: string;
+  done?: string;
+}
+
+export interface TaskTraceAttempt {
+  attemptId: string;
+  cause: string;
+  note?: string;
+  status: string;
+  startedAt: number;
+  endedAt?: number;
+  lines: TaskTraceLine[];
+}
+
+export interface TaskLiveView {
+  attemptId: string;
+  text: string;
+  reasoning?: string;
+  tools: Array<{ id: string; name: string; input?: string; at: number; textAt: number }>;
+}
+
+export interface TaskTraceView {
+  attemptId: string | null;
+  lines: TaskTraceLine[];
+  attempts?: TaskTraceAttempt[];
+  live?: TaskLiveView | null;
+}
+
+export interface TaskLiveEvent {
+  type: 'delta' | 'reasoning' | 'tool' | 'interject' | 'done';
+  text?: string;
+  id?: string;
+  name?: string;
+  tool?: string;
+  status?: 'start' | 'done' | 'error';
+  input?: string;
+  output?: string;
+  error?: string;
+  at?: number;
+  startedAt?: number;
+  textAt?: number;
+}
+
+export interface TaskLivePayload {
+  id: string;
+  attemptId: string;
+  event: TaskLiveEvent;
+}
+
 export const tasksApi = {
   list: async () => (await api.tasks.list()) as unknown as { tasks: Task[]; legacy: LegacyItem[] },
   get: async (id: string) =>
     (await api.tasks.get({ id })) as unknown as { task: Task; attempts: Attempt[] } | null,
   journal: async (id: string) => (await api.tasks.journal({ id })) as unknown as JournalEntry[],
-  trace: async (id: string) =>
-    (await api.tasks.trace({ id })) as {
-      attemptId: string | null;
-      lines: Array<{ at?: number; tool?: string; output?: string; error?: string; done?: string }>;
-    },
+  trace: async (id: string) => (await api.tasks.trace({ id })) as TaskTraceView,
+  /** 后台 Nomi 正在跑时插话（下一步并进上下文）；不在跑 / 这一步不收时 false */
+  steer: async (id: string, text: string) => (await api.tasks.steer({ id, text })) === true,
+  /** 上一次执行结束后带着这句话再跑一次（结果照常写回来源对话） */
+  followUp: async (id: string, text: string) =>
+    (await api.tasks.followUp({ id, text })) as { ok: boolean; reason?: string },
+  /** 正在跑的这次执行的实时事件 */
+  onLive: (fn: (payload: TaskLivePayload) => void) =>
+    api.on('tasks.live', (p) => fn(p as TaskLivePayload)),
   cancel: (id: string) => api.tasks.cancel({ id }),
   onChange: (fn: () => void) => api.on('tasks.changed', fn),
   /** 看板卡片上的快捷操作（结果随 tasks.changed 刷新） */

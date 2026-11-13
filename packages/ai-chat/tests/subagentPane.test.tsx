@@ -181,13 +181,17 @@ describe('nested and nomi-task projections', () => {
   });
 
   it('turns a Nomi task trace into a goal plus tool steps', () => {
-    const conv = nomiTaskMessages('画五张', [
-      { at: 2, tool: 'image_generate', output: 'ok' },
-      { at: 3, done: '画好了' },
-    ]);
+    const conv = nomiTaskMessages('画五张', {
+      attemptId: 'a1',
+      lines: [
+        { at: 2, tool: 'image_generate', output: 'ok' },
+        { at: 3, done: '画好了' },
+      ],
+    });
     expect(conv[0]?.text).toBe('画五张');
     expect(conv[1]?.text).toBe('画好了');
-    expect(conv[1]?.trace?.[0]).toMatchObject({ name: 'image_generate', status: 'done' });
+    expect(conv[1]?.trace?.[0]).toMatchObject({ name: 'image_generate', status: 'start' });
+    expect(conv[1]?.trace?.[1]).toMatchObject({ name: 'image_generate', status: 'done' });
   });
 });
 

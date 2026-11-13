@@ -216,13 +216,16 @@ export type HarnessTraceEvent =
     }
   | { type: 'thinking'; text: string; at?: number; textAt?: number }
   /** 一轮进行中用户插入的消息（已交给 CLI / Nomi，下一步取走），按 textAt 显示在回复中间 */
-  | { type: 'interject'; text: string; at?: number; textAt?: number };
+  | { type: 'interject'; text: string; at?: number; textAt?: number }
+  /** 子代理（Task / Agent）自己说的话，parentId 是派生它的调用；主时间线不画，子任务侧栏里是它的正文 */
+  | { type: 'agent-text'; text: string; parentId: string; at?: number; textAt?: number };
 
 export type HarnessLiveEvent =
   | { tabId: string; type: 'text-delta' | 'text'; text: string }
   | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'tool' }>)
   | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'thinking' }>)
   | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'interject' }>)
+  | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'agent-text' }>)
   | {
       tabId: string;
       type: 'status';

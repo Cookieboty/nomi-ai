@@ -1,7 +1,9 @@
 /**
  * 子任务侧栏：主列留在来源对话，这里用同一套会话视图看子任务。
  * harness 标签（委派的编程助手）走 CliConversation + MessageInput，模型、权限、队列、提问都按标签 id 绑定。
- * 进程内子代理和后台 Nomi 没有独立输入通道，步骤仍用 ConversationView，能停止的给停止，不能追问的说明原因。
+ * 进程内子代理（Task / spawn_agent）和后台 Nomi（delegate_to_nomi）也用 ConversationView + MessageInput：
+ * 步骤与正文实时更新；输入栏和主列一样能发送、插话、排队、停止（语义见 docs/design/subagent-chat-parity.md）。
+ * 设置 / 插件 / 模型等按钮打开主窗口的面板（SubagentPaneActions，由 App 传入）。
  */
 import { Button, Icon, IconButton, t } from '@nomi-ai/ui';
 import { Square, X } from 'lucide-react';
@@ -26,15 +28,16 @@ import {
   sessionHasCommittedUserContent,
 } from '../../services/composerDrafts';
 import { harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
-import { tasksApi } from '../../services/tasksClient';
+import { tasksApi, type TaskTraceView } from '../../services/tasksClient';
 import { cliTranscriptKey } from '../../services/transcriptView';
 import { useSlashCommands } from '../../slash/useSlashCommands';
-import type { ConvMessage } from '../../types/conversation';
+import type { ConvLive, ConvMessage } from '../../types/conversation';
 import { useCliImageSupport } from '../../utils/cliImageSupport';
 import { cliTabPlaceholder } from '../../utils/cliTabPlaceholder';
 import { fromHarnessMessage } from '../../utils/convAdapters';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { shouldIgnoreEscape } from '../../utils/keyboard';
+import { mergePending, newPendingId, type PendingSend } from '../../utils/pendingSends';
 import { CliConversation } from '../Conversation/CliConversation';
 import { buildCliSlots } from '../Conversation/cliSlots';
 import { ConversationView } from '../Conversation/index';
@@ -42,12 +45,52 @@ import { MessageInput } from '../MessageInput';
 import { PendingDock } from '../PendingDock';
 import { SessionDetailsProvider } from '../SessionDetails';
 import { CenterChangesHost, ChangesUiProvider } from '../SessionWorkspace';
+import type { SettingsSection } from '../SettingsView/sections';
 import { UserQuestionDock } from '../UserQuestionCard/dock';
 
-import { nestedMessages, nomiTaskMessages, type TaskTraceLine } from './project';
+import {
+  applyTaskLiveEvent,
+  liveFromView,
+  nestedMessages,
+  nomiTaskMessages,
+  type NomiTaskLive,
+} from './project';
 import styles from './SubagentPane.module.css';
 
 export { useSubagentPane };
+
+/**
+ * 主窗口的面板入口：侧栏里的设置 / 插件 / 模型 / 扩展等按钮和斜杠命令打开的就是主窗口这一份
+ * （和主列输入栏是同一组回调）。不传时这些按钮不显示。
+ */
+export interface SubagentPaneActions {
+  openPlugins?: () => void;
+  openProviders?: () => void;
+  /** 打开统一设置页（输入栏的设置按钮） */
+  openSettings?: (section?: SettingsSection, endpoint?: string) => void;
+  /** 打开某个编程助手的设置（斜杠命令 /config 之类） */
+  openCodingSettings?: (backend: string) => void;
+  openDesktop?: () => void;
+  openHub?: () => void;
+  openExt?: () => void;
+  openLocal?: () => void;
+}
+
+const ActionsCtx = React.createContext<SubagentPaneActions>({});
+const usePaneActions = () => React.useContext(ActionsCtx);
+
+/** 输入栏上的主窗口面板按钮：和主列同一组 */
+function panelButtons(a: SubagentPaneActions, withPlugins: boolean) {
+  return {
+    onPluginsClick: withPlugins ? a.openPlugins : undefined,
+    onProvidersClick: a.openProviders,
+    onSettingsClick: a.openSettings,
+    onDesktopClick: a.openDesktop,
+    onHubClick: a.openHub,
+    onExtClick: a.openExt,
+    onLocalClick: a.openLocal,
+  };
+}
 
 const usePaneEscape = (open: boolean, close: () => void) => {
   React.useEffect(() => {
@@ -105,6 +148,7 @@ const PaneHead: React.FC<{
 /** 委派的编程助手：和主列同一个 CliConversation / MessageInput，只是绑在这个标签上 */
 const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void }> = ({ tab, onClose }) => {
   const core = useHarnessTabsCore();
+  const actions = usePaneActions();
   const raw = useHarnessTabMessages(tab.id);
   const backend = tab.backend;
   const messages = useMemo(() => raw.map((m) => fromHarnessMessage(m, backend)), [raw, backend]);
@@ -139,10 +183,14 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void }> = ({ t
           )
         : false,
     tabExists: core.hasTab,
+    // 子任务没有「新会话」：/new 在这里不开新标签，免得主列被切走
     newSession: () => undefined,
-    onOpenPlugins: () => undefined,
-    onOpenProviders: () => undefined,
-    onOpenSettings: () => undefined,
+    onOpenPlugins: () => actions.openPlugins?.(),
+    onOpenProviders: () => actions.openProviders?.(),
+    onOpenSettings: () => {
+      if (actions.openCodingSettings) actions.openCodingSettings(tab.backend);
+      else actions.openSettings?.('coding');
+    },
   });
   const name = t(ENDPOINT_NAME[tab.backend] ?? tab.backend);
   usePaneEscape(true, onClose);
@@ -222,11 +270,33 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void }> = ({ t
             ),
           })}
           delegate={false}
+          {...panelButtons(actions, true)}
         />
       </footer>
     </section>
   );
 };
+
+/**
+ * 给进程内子代理的话：经来源标签交给主代理，由它转给这个子代理（还在跑就转过去，结束了就在它的结果上接着做）。
+ * 各家 CLI 给子代理发消息的工具不同（Codex 的 send_input、Claude Code 的 SendMessage …），提示里统一说法，由主代理自己选。
+ */
+export function nestedEnvelope(name: string, agentId: string, text: string): string {
+  return t('ui.session-workspace.subagent-envelope', name, agentId, text);
+}
+
+/** 这次调用在实时轨迹里开始了还没结束 */
+function callOpen(
+  trace: readonly { type: string; id?: string; detail?: string; status?: string }[] | undefined,
+  callId: string,
+) {
+  let open = false;
+  for (const e of trace ?? []) {
+    if (e.type !== 'tool' || (e.id ?? e.detail) !== callId) continue;
+    open = e.status === 'start';
+  }
+  return open;
+}
 
 const NestedChat: React.FC<{
   callId: string;
@@ -234,6 +304,8 @@ const NestedChat: React.FC<{
   columnMessages: readonly ConvMessage[];
   onClose: () => void;
 }> = ({ callId, parentTabId, columnMessages, onClose }) => {
+  const core = useHarnessTabsCore();
+  const actions = usePaneActions();
   const tabs = useHarnessTabs();
   const parent = parentTabId ? tabs.state?.tabs.find((t) => t.id === parentTabId) : undefined;
   const raw = useHarnessTabMessages(parentTabId);
@@ -249,9 +321,46 @@ const NestedChat: React.FC<{
   const agent = Object.values(live?.agents ?? {}).find(
     (a) => a.callId === callId || a.id === callId,
   );
-  const running = agent?.status === 'running';
-  usePaneEscape(true, onClose);
+  const open = callOpen(live?.trace, callId);
+  const running = agent ? agent.status === 'running' : open;
+  const parentBusy = parent?.status === 'running' || parent?.status === 'queued';
+  const images = useCliImageSupport(parent);
+  const [draftStore] = useState(createComposerDraftStore);
+  const [fill, setFill] = useState<{ text: string; nonce: number } | null>(null);
+  // 从这里发出、还在来源标签待发列表里的消息：信封 → 用户原话（列表里只显示原话）
+  const [sentHere, setSentHere] = useState<Readonly<Record<string, string>>>({});
   const name = agent?.label || agent?.agentType || t('ui.usage-tools.subagent');
+  const pending = useMemo(
+    () =>
+      (parentTabId ? (core.queues[parentTabId] ?? []) : []).flatMap((item) => {
+        const own = sentHere[item.text];
+        return own === undefined ? [] : [{ ...item, text: own }];
+      }),
+    [core.queues, parentTabId, sentHere],
+  );
+  const send = (
+    text: string,
+    mode?: 'steer' | 'queue',
+    imgs?: Parameters<typeof toHarnessImages>[0],
+  ) => {
+    if (!parentTabId) return;
+    const body = nestedEnvelope(name, agent?.id ?? callId, text);
+    setSentHere((cur) => ({ ...cur, [body]: text }));
+    void (async () => {
+      const harnessImages = imgs?.length ? await toHarnessImages(imgs) : undefined;
+      await core.sendToTab(parentTabId, body, undefined, harnessImages, mode);
+    })();
+  };
+  const stop = () => {
+    if (!parentTabId) return;
+    void (async () => {
+      // 后台子代理单独停；前台子代理是来源这一轮的一部分，停它就是停这一轮
+      if (agent && (await harnessClient.stopAgent(parentTabId, agent.id).catch(() => false)))
+        return;
+      if (open) await core.cancelRun(parentTabId);
+    })();
+  };
+  usePaneEscape(true, onClose);
   return (
     <section className={styles.pane} data-testid="subagent-pane" aria-label={name}>
       <PaneHead
@@ -259,13 +368,13 @@ const NestedChat: React.FC<{
         state={running ? 'running' : 'idle'}
         goal={agent?.progress}
         onClose={onClose}
-        onStop={
-          parentTabId && agent
-            ? () => void harnessClient.stopAgent(parentTabId, agent.id).catch(() => undefined)
-            : undefined
-        }
+        onStop={parentTabId && (agent || open) ? stop : undefined}
       />
-      <p className={styles.hint}>{t('ui.session-workspace.subagent-nested-hint')}</p>
+      <p className={styles.hint}>
+        {parentTabId
+          ? t('ui.session-workspace.subagent-nested-hint')
+          : t('ui.session-workspace.subagent-nested-readonly')}
+      </p>
       <div className={styles.conv}>
         <ConversationView
           scopeId={`nested:${callId}`}
@@ -274,17 +383,67 @@ const NestedChat: React.FC<{
           phase={running ? 'running' : 'idle'}
         />
       </div>
+      {parentTabId && parent ? (
+        <footer className={styles.composer}>
+          <PendingDock
+            items={pending}
+            onRemove={(id) => core.removePendingFrom(parentTabId, id)}
+            onWithdraw={(item) => {
+              core.removePendingFrom(parentTabId, item.id);
+              setFill((prev) => ({ text: item.text, nonce: (prev?.nonce ?? 0) + 1 }));
+            }}
+          />
+          <MessageInput
+            onSend={(text, imgs) => send(text, undefined, imgs)}
+            busyOverride={parentBusy}
+            imageCapability={images.capability}
+            imageUnsupportedReason={images.reason}
+            placeholder={t('ui.session-workspace.subagent-nested-placeholder', name)}
+            queue={{
+              onQueue: (text, opts) => send(text, opts?.mode),
+              onStop: stop,
+              pending: pending.length,
+              onFlush: () => void core.flushPendingFor(parentTabId),
+            }}
+            cwd={parent.cwd}
+            fill={fill}
+            draftStore={draftStore}
+            draftKey={draftKey({
+              kind: 'tab',
+              id: `nested:${callId}`,
+              hasCommittedUserContent: true,
+            })}
+            delegate={false}
+            {...panelButtons(actions, true)}
+          />
+        </footer>
+      ) : null}
     </section>
   );
 };
 
+const TASK_ACTIVE = new Set(['running', 'queued', 'waiting_user']);
+
+/**
+ * 后台 Nomi（delegate_to_nomi）：会话来自 tasks.trace（每次执行一轮），正在跑的这次由 tasks.live 实时推送。
+ * 输入栏：空闲时发送 = 追问（tasks.followUp，带着这句话在上次结果上再跑一次）；运行中 Enter = 插话
+ * （tasks.steer，下一步并进上下文，不收时转为排队），Ctrl/⌘+Enter = 排队，这次跑完后合成一条追问发出；
+ * 停止 = 取消这次执行。
+ */
 const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void }> = ({ taskId, onClose }) => {
+  const actions = usePaneActions();
   const [goal, setGoal] = React.useState('');
   const [title, setTitle] = React.useState('');
-  const [running, setRunning] = React.useState(false);
-  const [lines, setLines] = React.useState<TaskTraceLine[]>([]);
+  const [status, setStatus] = React.useState('');
+  const [view, setView] = React.useState<TaskTraceView | null>(null);
+  const [live, setLive] = React.useState<NomiTaskLive | null>(null);
+  const [pending, setPending] = React.useState<PendingSend[]>([]);
+  const [draftStore] = useState(createComposerDraftStore);
+  const [fill, setFill] = useState<{ text: string; nonce: number } | null>(null);
+  const running = TASK_ACTIVE.has(status);
   React.useEffect(() => {
     let alive = true;
+    let timer: number | undefined;
     const load = () => {
       void tasksApi
         .get(taskId)
@@ -292,27 +451,69 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void }> = ({ taskI
           if (!alive || !rec) return;
           setGoal(rec.task.goal);
           setTitle(rec.task.title);
-          const status = rec.task.status;
-          setRunning(status === 'running' || status === 'queued' || status === 'waiting_user');
+          setStatus(rec.task.status);
         })
         .catch(() => undefined);
       void tasksApi
         .trace(taskId)
-        .then((view) => {
-          if (alive) setLines(view.lines);
+        .then((v) => {
+          if (!alive) return;
+          setView(v);
+          // 快照是这次执行的完整状态：替换掉之前累积的增量
+          setLive(liveFromView(v));
         })
         .catch(() => undefined);
     };
+    // 状态变化 / 一步做完时重新对一次快照（合并同一时刻的多次通知）
+    const schedule = () => {
+      if (timer !== undefined) return;
+      timer = window.setTimeout(() => {
+        timer = undefined;
+        load();
+      }, 120);
+    };
     load();
-    const off = tasksApi.onChange(load);
-    const timer = window.setInterval(load, 1500);
+    const offChange = tasksApi.onChange(schedule);
+    const offLive = tasksApi.onLive((p) => {
+      if (p.id !== taskId) return;
+      setLive((prev) => applyTaskLiveEvent(prev, p.attemptId, p.event));
+      if (p.event.type === 'done' || (p.event.type === 'tool' && p.event.status !== 'start'))
+        schedule();
+    });
     return () => {
       alive = false;
-      off();
-      window.clearInterval(timer);
+      offChange();
+      offLive();
+      if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [taskId]);
-  const messages = useMemo(() => nomiTaskMessages(goal, lines), [goal, lines]);
+  // 这次跑完：排队的消息合成一条追问发出（和主列「这一轮结束后发送」一样）
+  React.useEffect(() => {
+    if (running || !status || pending.length === 0) return;
+    const text = mergePending(pending);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 待发列表随任务状态出队
+    setPending([]);
+    void tasksApi.followUp(taskId, text).catch(() => undefined);
+  }, [running, status, pending, taskId]);
+  const messages = useMemo(
+    () => nomiTaskMessages(goal, view ?? { attemptId: null, lines: [] }, live?.attemptId),
+    [goal, view, live?.attemptId],
+  );
+  const convLive = useMemo<ConvLive | null>(
+    () =>
+      live
+        ? {
+            text: live.text,
+            trace: live.trace,
+            startedAt: live.startedAt,
+            ...(live.text || live.trace.length ? { firstEventAt: live.startedAt } : {}),
+          }
+        : null,
+    [live],
+  );
+  const enqueue = (text: string) =>
+    setPending((cur) => [...cur, { id: newPendingId(), text, mode: 'queue' }]);
+  const stop = () => void tasksApi.cancel(taskId).catch(() => undefined);
   usePaneEscape(true, onClose);
   const name = title || t('ui.usage-tools.subagent');
   return (
@@ -323,20 +524,76 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void }> = ({ taskI
     >
       <PaneHead
         name={name}
-        state={running ? 'running' : 'idle'}
+        state={status === 'waiting_user' ? 'waiting' : running ? 'running' : 'idle'}
         goal={goal}
         onClose={onClose}
-        onStop={running ? () => void tasksApi.cancel(taskId).catch(() => undefined) : undefined}
+        onStop={running ? stop : undefined}
       />
-      <p className={styles.hint}>{t('ui.session-workspace.subagent-nomi-hint')}</p>
+      <p className={styles.hint}>
+        {running
+          ? t('ui.session-workspace.subagent-nomi-hint-running')
+          : t('ui.session-workspace.subagent-nomi-hint')}
+      </p>
       <div className={styles.conv}>
         <ConversationView
           scopeId={`nomi-task:${taskId}`}
           messages={messages}
-          live={null}
+          live={convLive}
           phase={running ? 'running' : 'idle'}
         />
       </div>
+      <footer className={styles.composer}>
+        <PendingDock
+          items={pending}
+          onRemove={(id) => setPending((cur) => cur.filter((i) => i.id !== id))}
+          onWithdraw={(item) => {
+            setPending((cur) => cur.filter((i) => i.id !== item.id));
+            setFill((prev) => ({ text: item.text, nonce: (prev?.nonce ?? 0) + 1 }));
+          }}
+        />
+        <MessageInput
+          onSend={(text) => {
+            void tasksApi
+              .followUp(taskId, text)
+              .then((r) => {
+                // 刚好又跑起来了（busy）：排进待发列表，这次跑完再发
+                if (!r.ok && r.reason === 'busy') enqueue(text);
+              })
+              .catch(() => undefined);
+          }}
+          busyOverride={running}
+          imageCapability="none"
+          imageUnsupportedReason={t('ui.session-workspace.subagent-nomi-no-images')}
+          placeholder={t('ui.session-workspace.subagent-nomi-placeholder')}
+          queue={{
+            onQueue: (text, opts) => {
+              if (opts?.mode === 'queue') {
+                enqueue(text);
+                return;
+              }
+              // 插话：交给正在跑的工具循环；这一步不收（在写结论）就排队，跑完后追问
+              void tasksApi
+                .steer(taskId, text)
+                .then((ok) => {
+                  if (!ok) enqueue(text);
+                })
+                .catch(() => enqueue(text));
+            },
+            onStop: stop,
+            pending: pending.length,
+            onFlush: stop,
+          }}
+          fill={fill}
+          draftStore={draftStore}
+          draftKey={draftKey({
+            kind: 'tab',
+            id: `nomi-task:${taskId}`,
+            hasCommittedUserContent: true,
+          })}
+          delegate={false}
+          {...panelButtons(actions, false)}
+        />
+      </footer>
     </section>
   );
 };
@@ -366,13 +623,17 @@ const PaneBody: React.FC<{
   return <NomiTaskChat key={target.taskId} taskId={target.taskId} onClose={onClose} />;
 };
 
-export const SubagentPane: React.FC<{ columnMessages: readonly ConvMessage[] }> = ({
-  columnMessages,
-}) => {
+export const SubagentPane: React.FC<{
+  columnMessages: readonly ConvMessage[];
+  actions?: SubagentPaneActions;
+}> = ({ columnMessages, actions }) => {
   const pane = useSubagentPane();
+  const value = useMemo(() => actions ?? {}, [actions]);
   if (!pane?.target) return null;
   return (
-    <PaneBody target={pane.target} columnMessages={columnMessages} onClose={pane.closeSubagent} />
+    <ActionsCtx.Provider value={value}>
+      <PaneBody target={pane.target} columnMessages={columnMessages} onClose={pane.closeSubagent} />
+    </ActionsCtx.Provider>
   );
 };
 
@@ -390,9 +651,11 @@ export const SideColumn: React.FC<{
   messages: readonly ConvMessage[];
   cwd?: string | null;
   roots?: readonly string[] | null;
-}> = ({ messages, cwd, roots }) =>
+  /** 主窗口的面板入口（设置 / 插件 / 模型 …），子任务侧栏里的按钮打开它们 */
+  actions?: SubagentPaneActions;
+}> = ({ messages, cwd, roots, actions }) =>
   useSubagentPane()?.target ? (
-    <SubagentPane columnMessages={messages} />
+    <SubagentPane columnMessages={messages} actions={actions} />
   ) : (
     <CenterChangesHost messages={messages} cwd={cwd} roots={roots} mode="slot" />
   );

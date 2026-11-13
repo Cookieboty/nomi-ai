@@ -115,6 +115,8 @@ function splitMessage(m: ConvMessage): Record<'user' | 'assistant' | 'tools' | '
   for (const ev of m.trace ?? []) {
     if (ev.type === 'thinking') r.thinking += estimateTokens(ev.text);
     else if (ev.type === 'interject') r.user += estimateTokens(ev.text);
+    // 子代理的正文：算在工具（它是一次子代理调用的产出）
+    else if (ev.type === 'agent-text') r.tools += estimateTokens(ev.text);
     else if (ev.status === 'start')
       r.tools += estimateTokens(`${ev.name} ${ev.input ?? ev.detail ?? ''}`);
     else r.tools += estimateTokens(ev.output ?? '');
