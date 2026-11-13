@@ -218,7 +218,7 @@ export const tasksApi = {
     (await api.tasks.get({ id })) as unknown as { task: Task; attempts: Attempt[] } | null,
   journal: async (id: string) => (await api.tasks.journal({ id })) as unknown as JournalEntry[],
   trace: async (id: string) => (await api.tasks.trace({ id })) as TaskTraceView,
-  /** 后台 Nomi 正在跑时插话（下一步并进上下文）；不在跑 / 这一步不收时 false */
+  /** 后台任务正在跑时插话（下一步并进上下文）；不在跑 / 这一步不收时 false */
   steer: async (id: string, text: string) => (await api.tasks.steer({ id, text })) === true,
   /** 上一次执行结束后带着这句话再跑一次（结果照常写回来源对话） */
   followUp: async (id: string, text: string) =>

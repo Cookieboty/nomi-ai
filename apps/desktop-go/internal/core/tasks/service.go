@@ -316,7 +316,7 @@ func (s *Service) TraceView(id string) map[string]any {
 	return map[string]any{"attemptId": rec.Attempts[len(rec.Attempts)-1].ID, "lines": last, "attempts": attempts, "live": live}
 }
 
-// Steer 是契约 tasks.steer：后台 Nomi 正在跑时，把用户在子任务侧栏里说的话插进这次执行（下一步并进上下文）。
+// Steer 是契约 tasks.steer：后台任务正在跑时，把用户在子任务侧栏里说的话插进这次执行（下一步并进上下文）。
 // 不在跑、执行者不支持、或这一步已经不收插入消息时 false，界面改成排队，做完后按追问再跑。
 func (s *Service) Steer(id, text string) bool {
 	rec := s.Get(id)

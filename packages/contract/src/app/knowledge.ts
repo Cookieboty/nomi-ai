@@ -314,7 +314,7 @@ export const knowledgeProcedures = {
     }),
   },
   /**
-   * 子任务侧栏里插话：后台 Nomi 正在跑时把这句话交给这次执行，下一步并进上下文（和主对话的插话一样）。
+   * 子任务侧栏里插话：后台任务正在跑时把这句话交给这次执行，下一步并进上下文（和主对话的插话一样）。
    * 没在跑、或这一步已经不收插入消息时 false，界面改成排队，做完后用 `tasks.followUp` 追问。
    */
   'tasks.steer': {
@@ -564,7 +564,7 @@ export const knowledgeEvents = {
   'sched.proactive': z.looseObject({ text: z.string(), at: z.number() }),
   /** 任务或它的执行变了 */
   'tasks.changed': z.object({ id: z.string() }),
-  /** 后台 Nomi 正在跑的这次执行的实时事件（正文增量、思考、工具开始 / 结束、插话、结束），子任务侧栏用 */
+  /** 后台任务正在跑的这次执行的实时事件（正文增量、思考、工具开始 / 结束、插话、结束），子任务侧栏用 */
   'tasks.live': z.object({ id: z.string(), attemptId: z.string(), event: TaskLiveEvent }),
   'connections.changed': z.null(),
   'local.changed': z.null(),
