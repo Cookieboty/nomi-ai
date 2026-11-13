@@ -646,6 +646,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - `Modal` 挂到 `document.body`（对话里点开大图时不再被输入栏挡住），抽屉头部支持额外按钮（`ModalHost.actions`）；见 asset-library。 (`@nomi-ai/ui` patch)
 - `ai.chat.*` 的 `usage` 新增 `breakdown`（系统提示、工具定义、记忆、用户、助手、工具、思考，加起来等于 `contextTokens`）。 (`@nomi-ai/contract` minor)
 - `ai.chat.*`：消息新增 `context`（用户消息注入的背景）与 `steps`（上一轮工具循环的原样记录），流式块新增 `steps`；`mem.context` 新增入参 `exclude` 与返回 `ids`。 (`@nomi-ai/contract` minor)
+- `tasks.trace` 读出后台 Nomi 最近一次执行的工具步骤，供子任务侧栏使用。补上进程内子代理和后台 Nomi 在侧栏里的说明文案，并去掉不再使用的子任务输入框占位。 / `tasks.trace` returns the latest background-Nomi attempt's tool steps for the sub-task side panel. Add the side-panel notes for in-process subagents and background Nomi, and drop the unused sub-task composer placeholder. (`@nomi-ai/contract` patch, `@nomi-ai/i18n` patch)
 - dsh 上游报错（例如第三方供应商的密钥、模型名或接口格式不对）时，对话里显示 dsh 给出的原因，不再只显示「（无文本输出）」。 (`@nomi-ai/desktop-go` patch)
 - token 数一律抹零显示，不再四舍五入：模型标签、上下文提示、会话列表与用量面板里 1,050,000 显示为 1M 而不是 1.1M，999,999 显示为 999K 而不是 1M。 (`@nomi-ai/ai-chat` patch)
 - token 数一律抹零显示，不再四舍五入：模型标签、上下文提示、会话列表与用量面板里 1,050,000 显示为 1M 而不是 1.1M，999,999 显示为 999K 而不是 1M。 (`@nomi-ai/ui` patch)

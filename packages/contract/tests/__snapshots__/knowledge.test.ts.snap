@@ -49,6 +49,7 @@ exports[`knowledge 契约 > 过程名 / kind / surfaces / dangerous 1`] = `
   "tasks.get query *",
   "tasks.inbox query *",
   "tasks.journal query *",
+  "tasks.trace query *",
   "tasks.create mutation * dangerous",
   "tasks.update mutation *",
   "tasks.grant mutation * dangerous",
