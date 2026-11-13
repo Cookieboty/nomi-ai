@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 471：mutation 330 / query 136 / stream 5
+// 合计 475：mutation 333 / query 137 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -222,6 +222,7 @@ var Procedures = []Procedure{
 	{Name: "harness.gitSyncStatus", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.gitUnstage", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.gitWorktrees", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "harness.messageAgent", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.modelCatalog", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.openTerminal", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.permissionDefaults", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -399,6 +400,7 @@ var Procedures = []Procedure{
 	{Name: "tasks.create", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "tasks.decide", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "tasks.events", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.followUp", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.get", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.grant", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "tasks.inbox", Kind: "query", Dangerous: false, Surfaces: nil},
@@ -413,6 +415,8 @@ var Procedures = []Procedure{
 	{Name: "tasks.revoke", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.runNow", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.setMode", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "tasks.steer", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.trace", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.update", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "theme.customDelete", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "theme.customExport", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
@@ -565,6 +569,7 @@ var Events = []string{
 	"sched.result",
 	"startup.changed",
 	"tasks.changed",
+	"tasks.live",
 	"theme.changed",
 	"updates.changed",
 	"usage.changed",

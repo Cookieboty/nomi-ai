@@ -222,6 +222,7 @@ type Orchestrator struct {
 	// delegatedSessions：Nomi 委派用过的编程助手会话（backend:sessionId）：不出现在编程助手的历史里（orchestrator_delegated.go）
 	delegatedSessions map[string]bool
 	eventBatcher      *cli.EventBatcher
+	childStage        map[string]string // 直接发给 Codex 子代理的图片暂存目录（标签 + 线程 → 目录），子代理这一轮结束时清掉
 	pendingPerms      *ordMap[map[string]*jsrt.Timer]
 	pendingPermOrder  map[string][]string
 	// QuestionHook：Claude Code 的 AskUserQuestion（type=question）。设了就不要再当普通权限发出去。
@@ -357,6 +358,7 @@ func New(d Deps) *Orchestrator {
 		modelCatalogGen: map[string]float64{},
 	}
 	o.live.init()
+	o.childStage = map[string]string{}
 	o.eventBatcher = cli.NewEventBatcher(func(batch []*util.Obj) { o.broadcast("harness.events", batch) }, 0)
 	o.idleReclaimMs = cli.ResolveIdleReclaimMs(d.IdleReclaimMs, envPtr("NOMI_HARNESS_IDLE_MS"))
 	o.home = d.Home
@@ -1317,7 +1319,7 @@ func reportedModel(events []*util.Obj) string {
 
 func isTurnContent(ev *util.Obj) bool {
 	switch ev.Get("type") {
-	case "text-delta", "text", "tool", "thinking", "permission", "agent":
+	case "text-delta", "text", "tool", "thinking", "permission", "agent", "agent-text", "agent-input":
 		return true
 	}
 	return false

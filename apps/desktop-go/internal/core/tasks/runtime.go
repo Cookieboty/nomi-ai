@@ -145,8 +145,10 @@ type Command struct {
 	Approve   bool    `json:"approve,omitempty"`
 	Input     *string `json:"input,omitempty"`
 	Feedback  string  `json:"feedback,omitempty"`
-	Outcome   string  `json:"outcome,omitempty"`
-	Grant     *Grant  `json:"grant,omitempty"`
+	// Images：follow_up 带的图片文件
+	Images  []string `json:"images,omitempty"`
+	Outcome string   `json:"outcome,omitempty"`
+	Grant   *Grant   `json:"grant,omitempty"`
 }
 
 type CmdResult struct {
@@ -485,7 +487,7 @@ func (r *Runtime) Command(id string, c Command) CmdResult {
 			res = r.dispatch(id, Event{Type: "grant_updated", At: at, Grant: &g})
 		default:
 			res = r.dispatch(id, Event{Type: c.Type, At: at, Gen: c.Gen, RequestID: c.RequestID,
-				Approve: c.Approve, Input: c.Input, Feedback: c.Feedback, Outcome: c.Outcome})
+				Approve: c.Approve, Input: c.Input, Feedback: c.Feedback, Images: c.Images, Outcome: c.Outcome})
 		}
 	})
 	return res

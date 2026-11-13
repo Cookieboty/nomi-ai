@@ -419,6 +419,7 @@
   "electron.common.task-event-github-item": "{0} 的 {1} #{2} 有新动态：{3}",
   "electron.common.task-event-github-run": "{0} 的 CI「{1}」（{2}）跑完：{3}",
   "electron.common.task-event-kb-updated": "知识库有更新",
+  "electron.common.task-follow-up-images-only": "（见附图）",
   "electron.common.task-event-mcp-changed": "{0} 的结果有变化",
   "electron.common.task-event-mcp-item": "{0} 有新条目：{1}",
   "electron.common.task-event-page-changed": "网页有变化：{0}",

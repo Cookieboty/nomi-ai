@@ -13,10 +13,10 @@ const (
 // IsTraceEvent reports whether ev belongs in a turn's trace.
 func IsTraceEvent(ev Ev) bool {
 	t := ev.Get("type")
-	return t == "tool" || t == "thinking" || t == "interject"
+	return t == "tool" || t == "thinking" || t == "interject" || t == "agent-text" || t == "agent-input"
 }
 
-// StampEvent：tool / thinking / interject 打主进程时间戳。
+// StampEvent：tool / thinking / interject / agent-text 打主进程时间戳。
 func StampEvent(ev Ev, now float64) Ev {
 	if IsTraceEvent(ev) && !ev.Has("at") {
 		ev.Set("at", now)
@@ -33,6 +33,13 @@ func BuildTrace(events []Ev) []Ev {
 		}
 		if len(out) > 0 {
 			prev := out[len(out)-1]
+			// 同一个子代理连续说的话合成一段
+			if ev.Get("type") == "agent-text" && prev.Get("type") == "agent-text" && jsEq(prev.Get("parentId"), ev.Get("parentId")) {
+				c := prev.Clone()
+				c.Set("text", Slice0(util.JSString(prev.Get("text"))+"\n\n"+util.JSString(ev.Get("text")), 8000))
+				out[len(out)-1] = c
+				continue
+			}
 			if ev.Get("type") == "thinking" && prev.Get("type") == "thinking" && jsEq(prev.Get("textAt"), ev.Get("textAt")) {
 				c := prev.Clone()
 				c.Set("text", Slice0(util.JSString(prev.Get("text"))+util.JSString(ev.Get("text")), 8000))

@@ -42,6 +42,7 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
   "harness.tabCancel mutation",
   "harness.tabSteer mutation",
   "harness.stopAgent mutation",
+  "harness.messageAgent mutation",
   "harness.tabContext query",
   "harness.slashDiscover query",
   "harness.slashExpand query",

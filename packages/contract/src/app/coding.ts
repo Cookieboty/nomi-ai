@@ -341,6 +341,31 @@ const harnessProcedures = {
     input: z.object({ id: z.string(), agentId: z.string() }),
     output: z.boolean(),
   },
+  /**
+   * 子任务侧栏里直接对一个 CLI 子代理说话（不经主代理转述）。callId = 派出它的调用；agentId = 子代理自己的
+   * 会话 / 线程 id（Codex 子线程 id、Claude Code 的 agentId）。mode = steer（默认，在跑时插进它这一轮）/
+   * queue（在跑时不插，返回 busy）。
+   * 结果：ok + via（steer / start / fork / resume）、tabId（Claude：接着它自己会话的关联标签）；
+   * 不行时 reason：busy / running / unsupported / not_found / empty / error（message）。
+   */
+  'harness.messageAgent': {
+    kind: 'mutation',
+    input: z.object({
+      id: z.string(),
+      callId: z.string().optional(),
+      agentId: z.string().optional(),
+      text: z.string(),
+      images: z.array(HarnessImageInput).optional(),
+      mode: z.enum(['steer', 'queue']).optional(),
+    }),
+    output: z.looseObject({
+      ok: z.boolean(),
+      via: z.string().optional(),
+      reason: z.string().optional(),
+      message: z.string().optional(),
+      tabId: z.string().optional(),
+    }),
+  },
   /** Claude 标签：从 CLI 自己的会话记录读当前上下文；没有时 null */
   'harness.tabContext': { kind: 'query', input: byId, output: TabContext.nullable() },
 

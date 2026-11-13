@@ -2,7 +2,7 @@
 # 列：状态(IMPL=已注册处理器 / STUB=procs.Install 补的 UNAVAILABLE 桩)  kind  过程名。
 # 规则：STUB 集合只减不增（shrink-only）；新增契约过程必须在 Go 端实现，禁止新增桩。
 # 更新：go test ./internal/procs/ -run TestCapabilityMatrix -update
-# 合计 471：已实现 471，桩 0。
+# 合计 475：已实现 475，桩 0。
 
 [agents] 已实现 3 / 桩 0
 IMPL	mutation	agents.scan
@@ -229,7 +229,7 @@ IMPL	mutation	gateway.terminalSet
 IMPL	query	gateway.terminalState
 IMPL	mutation	gateway.upsertProvider
 
-[harness] 已实现 66 / 桩 0
+[harness] 已实现 67 / 桩 0
 IMPL	mutation	harness.geminiTrustFolder
 IMPL	query	harness.gitBranch
 IMPL	query	harness.gitBranches
@@ -248,6 +248,7 @@ IMPL	query	harness.gitSummary
 IMPL	query	harness.gitSyncStatus
 IMPL	mutation	harness.gitUnstage
 IMPL	mutation	harness.gitWorktrees
+IMPL	mutation	harness.messageAgent
 IMPL	query	harness.modelCatalog
 IMPL	mutation	harness.openTerminal
 IMPL	mutation	harness.permissionDefaults
@@ -457,7 +458,7 @@ IMPL	mutation	screen.checkSend
 IMPL	query	startup.get
 IMPL	mutation	startup.set
 
-[tasks] 已实现 22 / 桩 0
+[tasks] 已实现 25 / 桩 0
 IMPL	mutation	tasks.accept
 IMPL	mutation	tasks.applyWorktree
 IMPL	mutation	tasks.cancel
@@ -465,6 +466,7 @@ IMPL	mutation	tasks.clearObserved
 IMPL	mutation	tasks.create
 IMPL	mutation	tasks.decide
 IMPL	query	tasks.events
+IMPL	mutation	tasks.followUp
 IMPL	query	tasks.get
 IMPL	mutation	tasks.grant
 IMPL	query	tasks.inbox
@@ -479,6 +481,8 @@ IMPL	mutation	tasks.resume
 IMPL	mutation	tasks.revoke
 IMPL	mutation	tasks.runNow
 IMPL	mutation	tasks.setMode
+IMPL	mutation	tasks.steer
+IMPL	query	tasks.trace
 IMPL	mutation	tasks.update
 
 [theme] 已实现 10 / 桩 0

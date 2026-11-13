@@ -397,6 +397,16 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 		d.Set("approvals", util.NewObj("asked", 0.0, "denied", 0.0, "timedOut", 0.0))
 		tab.Set("delegation", d)
 	}
+	// subagentOf：接着某个子代理自己的会话往下说的标签（orchestrator_subagent.go），子任务侧栏按它找回来
+	if so, _ := opts.Get("subagentOf").(*util.Obj); so != nil && truthy(so.Get("tabId")) {
+		x := util.NewObj("tabId", jsStr(so.Get("tabId")))
+		for _, k := range []string{"callId", "agentId"} {
+			if v, ok := so.Get(k).(string); ok && v != "" {
+				x.Set(k, clisdk.Slice0(v, 200))
+			}
+		}
+		tab.Set("subagentOf", x)
+	}
 	want, _ := opts.Get("source").(string)
 	tab.Set("source", o.defaultSource(backend, want))
 	if tab.Get("source") == "official" && isAccountBackend(backend) {

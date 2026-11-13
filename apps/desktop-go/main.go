@@ -501,6 +501,17 @@ func main() {
 		AgentStream: func(ctx context.Context, msgs []blm.ChatMessage, toolNames []string, extra map[string]any, emit func(blm.ChatChunk)) error {
 			role := "agent-tools"
 			o := &facade.ChatStreamOptions{Role: &role, Messages: msgs, Signal: ctx.Done(), Tools: toolNames, Quiet: true, Extra: extra}
+			// reqId 不是给工具的上下文：拿出来当这次请求的 id，侧栏插话（Steer）按它找到工具循环
+			if id, ok := extra["reqId"].(string); ok && id != "" {
+				o.ReqID = &id
+				rest := make(map[string]any, len(extra))
+				for k, v := range extra {
+					if k != "reqId" {
+						rest[k] = v
+					}
+				}
+				o.Extra = rest
+			}
 			// 上下文预算按路由到的模型的窗口算（同对话的 PrepareChat）：裁历史，也让工具循环按真实用量守护上下文
 			if gatewaySvc != nil {
 				if info := gatewaySvc.NomiContext(role); info != nil {
@@ -575,6 +586,11 @@ func main() {
 		},
 		EventsFor:       b8.Tasks.EventBatch,
 		ExternalJournal: b8.Tasks.ExternalJournal,
+		// 子任务侧栏：插话进正在跑的工具循环；实时事件（正文增量、工具步骤）推给界面
+		Steer: chatFacade.Steer,
+		Live: func(taskID, attemptID string, ev map[string]any) {
+			router.Emit("tasks.live", map[string]any{"id": taskID, "attemptId": attemptID, "event": ev})
+		},
 		// 派给 Nomi 的执行用对话的工具集
 		ToolNames: func() []string {
 			defs := toolRegistry.List()

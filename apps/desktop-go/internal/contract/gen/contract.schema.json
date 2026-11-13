@@ -19578,6 +19578,99 @@
     ]
    }
   },
+  "harness.messageAgent": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "callId": {
+      "type": "string"
+     },
+     "agentId": {
+      "type": "string"
+     },
+     "text": {
+      "type": "string"
+     },
+     "images": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "mime": {
+         "type": "string"
+        },
+        "data": {
+         "type": "string"
+        },
+        "width": {
+         "type": "number"
+        },
+        "height": {
+         "type": "number"
+        },
+        "thumb": {
+         "type": "string"
+        },
+        "source": {
+         "type": "string"
+        },
+        "url": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "mime",
+        "data"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "steer",
+       "queue"
+      ]
+     }
+    },
+    "required": [
+     "id",
+     "text"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "via": {
+      "type": "string"
+     },
+     "reason": {
+      "type": "string"
+     },
+     "message": {
+      "type": "string"
+     },
+     "tabId": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "harness.modelCatalog": {
    "kind": "query",
    "dangerous": false,
@@ -30191,6 +30284,63 @@
     "additionalProperties": false
    }
   },
+  "tasks.followUp": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "text": {
+      "type": "string",
+      "maxLength": 8000
+     },
+     "images": {
+      "maxItems": 8,
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "mime": {
+         "type": "string"
+        },
+        "data": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "mime",
+        "data"
+       ]
+      }
+     }
+    },
+    "required": [
+     "id",
+     "text"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
   "tasks.get": {
    "kind": "query",
    "dangerous": false,
@@ -31220,6 +31370,236 @@
       "type": "null"
      }
     ]
+   }
+  },
+  "tasks.steer": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8000
+     }
+    },
+    "required": [
+     "id",
+     "text"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
+  "tasks.trace": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "attemptId": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "lines": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "at": {
+         "type": "number"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "id": {
+         "type": "string"
+        },
+        "input": {
+         "type": "string"
+        },
+        "output": {
+         "type": "string"
+        },
+        "error": {
+         "type": "string"
+        },
+        "startedAt": {
+         "type": "number"
+        },
+        "textAt": {
+         "type": "number"
+        },
+        "user": {
+         "type": "string"
+        },
+        "done": {
+         "type": "string"
+        }
+       },
+       "additionalProperties": {}
+      }
+     },
+     "attempts": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "attemptId": {
+         "type": "string"
+        },
+        "cause": {
+         "type": "string"
+        },
+        "note": {
+         "type": "string"
+        },
+        "status": {
+         "type": "string"
+        },
+        "startedAt": {
+         "type": "number"
+        },
+        "endedAt": {
+         "type": "number"
+        },
+        "lines": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "at": {
+            "type": "number"
+           },
+           "tool": {
+            "type": "string"
+           },
+           "id": {
+            "type": "string"
+           },
+           "input": {
+            "type": "string"
+           },
+           "output": {
+            "type": "string"
+           },
+           "error": {
+            "type": "string"
+           },
+           "startedAt": {
+            "type": "number"
+           },
+           "textAt": {
+            "type": "number"
+           },
+           "user": {
+            "type": "string"
+           },
+           "done": {
+            "type": "string"
+           }
+          },
+          "additionalProperties": {}
+         }
+        }
+       },
+       "required": [
+        "attemptId",
+        "cause",
+        "status",
+        "startedAt",
+        "lines"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "live": {
+      "anyOf": [
+       {
+        "type": "object",
+        "properties": {
+         "attemptId": {
+          "type": "string"
+         },
+         "text": {
+          "type": "string"
+         },
+         "reasoning": {
+          "type": "string"
+         },
+         "tools": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "id": {
+             "type": "string"
+            },
+            "name": {
+             "type": "string"
+            },
+            "input": {
+             "type": "string"
+            },
+            "at": {
+             "type": "number"
+            },
+            "textAt": {
+             "type": "number"
+            }
+           },
+           "required": [
+            "id",
+            "name",
+            "at",
+            "textAt"
+           ],
+           "additionalProperties": {}
+          }
+         }
+        },
+        "required": [
+         "attemptId",
+         "text",
+         "tools"
+        ],
+        "additionalProperties": {}
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "attemptId",
+     "lines"
+    ],
+    "additionalProperties": false
    }
   },
   "tasks.update": {
@@ -38707,6 +39087,81 @@
    },
    "required": [
     "id"
+   ],
+   "additionalProperties": false
+  },
+  "tasks.live": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "attemptId": {
+     "type": "string"
+    },
+    "event": {
+     "type": "object",
+     "properties": {
+      "type": {
+       "type": "string",
+       "enum": [
+        "delta",
+        "reasoning",
+        "tool",
+        "interject",
+        "done"
+       ]
+      },
+      "text": {
+       "type": "string"
+      },
+      "id": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      },
+      "tool": {
+       "type": "string"
+      },
+      "status": {
+       "type": "string",
+       "enum": [
+        "start",
+        "done",
+        "error"
+       ]
+      },
+      "input": {
+       "type": "string"
+      },
+      "output": {
+       "type": "string"
+      },
+      "error": {
+       "type": "string"
+      },
+      "at": {
+       "type": "number"
+      },
+      "startedAt": {
+       "type": "number"
+      },
+      "textAt": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": {}
+    }
+   },
+   "required": [
+    "id",
+    "attemptId",
+    "event"
    ],
    "additionalProperties": false
   },

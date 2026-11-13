@@ -56,6 +56,9 @@ type AppServerDriver struct {
 	// 压缩完成后还没收到新占用：旧 contextTokens 已作废。结束这一轮时在 usage 里写 contextTokens = 0，
 	// 落盘的消息就带着「压缩后大小未知」的边界，视图不会回扫到压缩前的值（#217）
 	contextStale bool
+	// children：子代理线程（appserver_children.go）；forks：不收直接输入的子代理 → 它的 fork
+	children map[string]*appChild
+	forks    map[string]string
 }
 
 func NewAppServerDriver(o AppServerDriverOptions) *AppServerDriver {
@@ -145,7 +148,23 @@ func (d *AppServerDriver) onNotification(method string, params Json) {
 		}
 		return
 	}
+	if method == "thread/started" {
+		d.onThreadStarted(params)
+		return
+	}
+	// 子代理线程的通知：不管主线程这一轮在不在跑都转出去（直接对子代理说话时主线程是空闲的）
+	if tid, ok := params.Get("threadId").(string); ok && params.Has("threadId") && !d.threadEq(params) {
+		if c := d.children[tid]; c != nil {
+			d.onChildNotification(tid, c, method, params)
+		}
+		return
+	}
 	turn := d.turn
+	if method == "item/completed" {
+		if item, ok := params.Get("item").(*util.Obj); ok {
+			d.noteSpawn(item)
+		}
+	}
 	if turn == nil || (params.Has("threadId") && !d.threadEq(params)) {
 		return
 	}

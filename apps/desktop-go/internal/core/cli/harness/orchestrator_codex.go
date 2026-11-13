@@ -180,6 +180,10 @@ func (o *Orchestrator) ensureCodexLive(tab *util.Obj, signal *jsrt.AbortSignal) 
 		}
 		driver.On(func(e clisdk.SessionEvent) {
 			live.lastActivityAt = nowMs()
+			if e.Get("kind") == "harness" && truthy(e.Get("child")) {
+				o.onCodexChildEvent(id, live, util.AsObj(e.Get("event")))
+				return
+			}
 			if e.Get("kind") == "harness" && truthy(e.Get("turnId")) && live.turn != nil {
 				o.onCodexEvents(id, live, []*util.Obj{util.AsObj(e.Get("event"))})
 			}
