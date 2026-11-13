@@ -62,6 +62,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/providerlink"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/sidechat"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/startup"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tabwindows"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
@@ -457,6 +458,8 @@ func main() {
 		}))
 	chatHandlers := airouter.New(airouter.Options{Chat: chatFacade, Logger: deps.StdLogger{Prefix: "[ai-runtime]"},
 		PrepareChat: func(options map[string]any, method string, signal <-chan struct{}) error {
+			// 侧边聊天：只用 Nomi 的模型与只读工具、不挂会话（internal/core/sidechat）
+			side := sidechat.Apply(options)
 			// 上下文预算：按路由到的模型的窗口算（gwstore nomicontext），不再用固定的 8K
 			if gatewaySvc != nil {
 				gwstore.ApplyNomiContext(options, method, gatewaySvc.NomiContext)
@@ -470,7 +473,7 @@ func main() {
 				if extra, ok := options["extra"].(map[string]any); ok {
 					conv, _ = extra["conversationId"].(string)
 				}
-				if method == "agentStream" && options["role"] == "chat" && b8.Tasks != nil &&
+				if !side && method == "agentStream" && options["role"] == "chat" && b8.Tasks != nil &&
 					tools.Sticky(conv, "dispatch-hint", igtools.DispatchRelevantFor(options["messages"])) {
 					_, err := delegate.ApplyDispatchHint(options)
 					return err

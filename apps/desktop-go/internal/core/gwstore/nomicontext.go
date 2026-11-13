@@ -4,6 +4,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/sidechat"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -78,7 +79,7 @@ func (s *Service) NomiContext(role string) *u.Obj {
 
 // ChatRoleOf = chatRoleOf(role, method)
 func ChatRoleOf(role any, method string) string {
-	if r, ok := role.(string); ok && (r == "chat" || r == "agent-tools" || r == "summary") {
+	if r, ok := role.(string); ok && sidechat.KnownRole(r) {
 		return r
 	}
 	if strings.HasPrefix(method, "agent") {

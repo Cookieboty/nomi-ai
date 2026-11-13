@@ -26,11 +26,13 @@ import {
   MAIN_SIDE_TAB,
   SPLIT_RATIO_MAX,
   SPLIT_RATIO_MIN,
+  SIDE_CHAT_TAB,
   sideTabItems,
   type SideTabItem,
 } from '../../utils/sideTabs';
 import type { PreviewEntry, PreviewTabsControl } from '../ResourcePreview/ResourcePreview';
 import { CenterChangesHost } from '../SessionWorkspace';
+import { SideChat } from '../SideChat';
 import { SubagentPane, type SubagentPaneActions } from '../SubagentPane';
 
 import styles from './SideWorkspace.module.css';
@@ -73,7 +75,8 @@ export function useSideWorkspace(files: SideFiles) {
   const split = !!tabs && isSplit(tabs, hasFiles);
   const splitRatio = tabs?.splitRatio ?? 0.5;
   const active = pane?.active ?? null;
-  const open = !!tabs && (tabs.agents.length > 0 || hasFiles);
+  const open = !!tabs && (tabs.agents.length > 0 || hasFiles || !!tabs.sideChat);
+  const sideChat = !!tabs?.sideChat;
   /** 标签栏上高亮的那个：文件时是预览区当前的文件 */
   const stripActive =
     active === FILES_SIDE_TAB ? (files.activeKey ? fileTabKey(files.activeKey) : null) : active;
@@ -212,6 +215,8 @@ export function useSideWorkspace(files: SideFiles) {
     canDetach,
     detach,
     entryOf,
+    sideChat,
+    scope,
   };
 }
 
@@ -277,7 +282,19 @@ export const SideWorkspace: React.FC<{
   showStrip: boolean;
   onBrowseFiles?: () => void;
   onShowAgents?: () => void;
-}> = ({ model, messages, cwd, roots, actions, showStrip, onBrowseFiles, onShowAgents }) => {
+  /** 侧边聊天带的项目（当前会话所属的项目） */
+  projectId?: string | null;
+}> = ({
+  model,
+  messages,
+  cwd,
+  roots,
+  actions,
+  showStrip,
+  onBrowseFiles,
+  onShowAgents,
+  projectId,
+}) => {
   if (!model.open)
     return <CenterChangesHost messages={messages} cwd={cwd} roots={roots} mode="slot" />;
   const filesActive = model.active === FILES_SIDE_TAB;
@@ -286,7 +303,15 @@ export const SideWorkspace: React.FC<{
       className={styles.workspace}
       data-testid="side-workspace"
       data-side-workspace=""
-      data-active-kind={model.active === MAIN_SIDE_TAB ? 'main' : filesActive ? 'files' : 'agent'}
+      data-active-kind={
+        model.active === MAIN_SIDE_TAB
+          ? 'main'
+          : filesActive
+            ? 'files'
+            : model.active === SIDE_CHAT_TAB
+              ? 'chat'
+              : 'agent'
+      }
     >
       {showStrip && (
         <SideTabStrip
@@ -298,6 +323,13 @@ export const SideWorkspace: React.FC<{
       )}
       <div className={styles.body}>
         <SubagentPane columnMessages={messages} actions={actions} tabbed />
+        {model.sideChat && (
+          <SideChat
+            scope={model.scope}
+            hidden={model.active !== SIDE_CHAT_TAB}
+            projectId={projectId}
+          />
+        )}
         {model.files.render({
           inactive: !filesActive,
           expanded: model.maximized,

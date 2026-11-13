@@ -312,5 +312,18 @@
   "ui.session-workspace.side-split-handle": "Drag to resize the main chat and the tab on the right (double-click to reset)",
   "ui.session-workspace.side-tab-detached-missing": "This sub-agent is no longer available (its tab was closed).",
   "ui.session-workspace.agent-card-running": "Working",
-  "ui.session-workspace.agent-card-open": "Click to open"
+  "ui.session-workspace.agent-card-open": "Click to open",
+  "ui.session-workspace.side-chat-title": "Side chat",
+  "ui.session-workspace.side-chat-empty": "Side chat is temporary and disappears when you close the app.",
+  "ui.session-workspace.side-chat-only-nomi": "Only Nomi answers here (read-only, never handed to a coding assistant).",
+  "ui.session-workspace.side-chat-placeholder": "Ask Nomi…",
+  "ui.session-workspace.side-chat-quotes": "{0} selected text snippet(s)",
+  "ui.session-workspace.side-chat-model": "Nomi model for side chat",
+  "ui.session-workspace.side-chat-model-default": "Same as Nomi ({0})",
+  "ui.session-workspace.side-chat-reading": "Looking at: {0}",
+  "ui.session-workspace.side-chat-failed": "No answer: {0}",
+  "ui.session-workspace.selection-add-to-chat": "Add to chat",
+  "ui.session-workspace.selection-ask-side-chat": "Ask in side chat",
+  "ui.session-workspace.selection-actions": "Actions for selected text",
+  "ui.session-workspace.selection-source-user": "your message"
 }

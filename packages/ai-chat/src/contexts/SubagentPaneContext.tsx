@@ -10,6 +10,7 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 import { detachedWindows, useDetachedIds } from '../services/detachedWindows';
+import { discardSideChat } from '../services/sideChat';
 import { detachedKeysFor } from '../utils/detachedTabs';
 import {
   activateTab,
@@ -18,10 +19,12 @@ import {
   EMPTY_SIDE_TABS,
   moveTab,
   openAgent,
+  openSideChat as openSideChatTab,
   pruneAgents,
   readSideTabsStore,
   resolveActive,
   setSplitRatio,
+  SIDE_CHAT_TAB,
   toggleMaximized,
   toggleSplit,
   writeSideTabsStore,
@@ -80,6 +83,8 @@ interface SubagentPaneValue {
   /** 铺满时向右拆分 / 取消拆分（key = 放到右边的标签） */
   toggleSplit: (key?: string) => void;
   setSplitRatio: (ratio: number) => void;
+  /** 开（或切到）这个会话的侧边聊天标签 */
+  openSideChat: () => void;
 }
 
 const Ctx = createContext<SubagentPaneValue | null>(null);
@@ -173,11 +178,18 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
   );
   const split = useCallback((key?: string) => update((s) => toggleSplit(s, key)), [update]);
   const ratio = useCallback((r: number) => update((s) => setSplitRatio(s, r)), [update]);
-  const closeTab = useCallback((key: string) => update((s) => closeAgent(s, key)), [update]);
-  const closeSubagent = useCallback(
-    () => update((s) => (active ? closeAgent(s, active) : s)),
-    [update, active],
+  // 关掉侧边聊天标签：聊天内容一并丢掉（它本来就是临时的）
+  const closeTab = useCallback(
+    (key: string) => {
+      if (key === SIDE_CHAT_TAB) discardSideChat(scope);
+      update((s) => closeAgent(s, key));
+    },
+    [update, scope],
   );
+  const closeSubagent = useCallback(() => {
+    if (active) closeTab(active);
+  }, [closeTab, active]);
+  const openSideChat = useCallback(() => update(openSideChatTab), [update]);
   const activate = useCallback((key: string) => update((s) => activateTab(s, key)), [update]);
   const toggle = useCallback((key?: string) => update((s) => toggleMaximized(s, key)), [update]);
   const restore = useCallback(
@@ -224,8 +236,10 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
       moveTab: move,
       toggleSplit: split,
       setSplitRatio: ratio,
+      openSideChat,
     }),
     [
+      openSideChat,
       scope,
       detached,
       move,

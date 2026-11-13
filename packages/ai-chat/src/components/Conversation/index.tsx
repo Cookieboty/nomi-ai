@@ -482,6 +482,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
       <div
         className={styles.root}
         data-testid="conversation"
+        data-selection-scope=""
         data-status={phase}
         style={
           { '--conv-text': `${fontSize}px`, '--conv-leading': `${fontSize + 8}px` } as CSSProperties

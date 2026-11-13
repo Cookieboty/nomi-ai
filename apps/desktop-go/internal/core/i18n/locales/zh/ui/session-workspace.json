@@ -312,5 +312,18 @@
   "ui.session-workspace.side-split-handle": "拖动调整主会话和右边标签的宽度（双击回到一半）",
   "ui.session-workspace.side-tab-detached-missing": "这个子任务已经不在了（它的标签已关闭）。",
   "ui.session-workspace.agent-card-running": "处理中",
-  "ui.session-workspace.agent-card-open": "点击打开"
+  "ui.session-workspace.agent-card-open": "点击打开",
+  "ui.session-workspace.side-chat-title": "侧边聊天",
+  "ui.session-workspace.side-chat-empty": "侧边聊天是临时聊天，关闭应用后会消失。",
+  "ui.session-workspace.side-chat-only-nomi": "只由 Nomi 回答（只读，不会交给编程助手）。",
+  "ui.session-workspace.side-chat-placeholder": "向 Nomi 提问…",
+  "ui.session-workspace.side-chat-quotes": "{0} 个已选文本片段",
+  "ui.session-workspace.side-chat-model": "侧边聊天用的 Nomi 模型",
+  "ui.session-workspace.side-chat-model-default": "跟随 Nomi（{0}）",
+  "ui.session-workspace.side-chat-reading": "正在查看：{0}",
+  "ui.session-workspace.side-chat-failed": "没有得到回答：{0}",
+  "ui.session-workspace.selection-add-to-chat": "添加到对话",
+  "ui.session-workspace.selection-ask-side-chat": "在侧边聊天中提问",
+  "ui.session-workspace.selection-actions": "选中文字的操作",
+  "ui.session-workspace.selection-source-user": "你说的"
 }

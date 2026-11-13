@@ -244,6 +244,7 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
       data-testid="subagent-pane"
       data-side-tab={slot.tabKey}
       data-question-scope="subagent"
+      data-selection-label={name}
       aria-label={t('ui.session-workspace.subagent-pane-title', name)}
     >
       <PaneHead
@@ -556,6 +557,7 @@ const NestedChat: React.FC<{
       data-testid="subagent-pane"
       data-side-tab={slot.tabKey}
       data-question-scope="subagent"
+      data-selection-label={name}
       aria-label={name}
     >
       <PaneHead
@@ -741,6 +743,7 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSl
       data-testid="subagent-pane"
       data-side-tab={slot.tabKey}
       data-question-scope="subagent"
+      data-selection-label={name}
       aria-label={t('ui.session-workspace.subagent-pane-title', name)}
     >
       <PaneHead

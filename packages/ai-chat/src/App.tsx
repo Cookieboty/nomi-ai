@@ -11,6 +11,7 @@ import { useAppPanels } from './app/useAppPanels';
 import { useAppSlash } from './app/useAppSlash';
 import { useCliContext } from './app/useCliContext';
 import { useRail } from './app/useRail';
+import { useSelectionActions } from './app/useSelectionActions';
 import { useSplitWidths } from './app/useSplitWidths';
 import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundLayer';
 import { ChatHeader } from './components/ChatHeader';
@@ -28,6 +29,7 @@ import { PREVIEW_CHAT_OPEN } from './components/PreviewChat/dismiss';
 import { ProviderLinkHost } from './components/ProviderLink';
 import { ReleaseNotesHost } from './components/ReleaseNotesModal';
 import { RestartUpdateButton } from './components/RestartUpdateButton';
+import { SelectionToolbar } from './components/SelectionToolbar';
 import { SessionDetailsDock, useSessionDetails } from './components/SessionDetails';
 import { useChangesUi } from './components/SessionWorkspace';
 import { Sidebar } from './components/Sidebar';
@@ -60,6 +62,7 @@ import {
 } from './contexts/aiChatStore';
 import { HarnessTabsProvider, useHarnessTabsCore } from './contexts/HarnessTabsContext';
 import { ResourceScopeProvider } from './contexts/ResourceContext';
+import { SelectionActionsContext } from './contexts/SelectionActionsContext';
 import { useChatMode } from './hooks/useChatMode';
 import { useComposerPending } from './hooks/useComposerPending';
 import { useHarnessState } from './hooks/useHarnessState';
@@ -147,6 +150,7 @@ const AiChatContent: React.FC = () => {
     render: resourcePreview.renderEmbedded,
   });
   useSideWorkspaceKeys(side);
+  const selectionActions = useSelectionActions(side);
   // 选区菜单「问助手」往输入框里填引用：铺满时先切到主会话标签
   useWindowEvent(PREVIEW_CHAT_OPEN, () => {
     if (side.maximized) activatePane?.(MAIN_SIDE_TAB);
@@ -326,206 +330,210 @@ const AiChatContent: React.FC = () => {
     : undefined;
 
   return (
-    <ResourceScopeProvider value={resourcePreview.value}>
-      <div className="ai-chat-app">
-        <ChatBackgroundLayer />
-        <AppTitleBar
-          sidebarCollapsed={panels.sidebarCollapsed}
-          onToggleSidebar={panels.toggleSidebar}
-          title={<TitleBarTitle page={openPage} />}
-          trailing={
-            titleBar ? (
-              <>
-                {/* 更新已下载好：设置页外在标题栏提示「重启更新」（设置页里在导航底部） */}
-                {!panels.settings && <RestartUpdateButton placement="titlebar" />}
-                {!mainHidden && sessionTools}
-              </>
-            ) : undefined
-          }
-          lead={titleBar ? mainPages.fleetIndicator : undefined}
-        />
-        {/* 会话树保活：打开设置时只隐藏（display:none）不卸载，避免关闭时整树冷重挂载导致卡顿、
-          草稿/滚动位置丢失与 IPC 订阅重建 */}
-        <div className={panels.settings ? 'chat-keepalive-hidden' : 'chat-keepalive'}>
-          <Sidebar
-            collapsed={panels.sidebarCollapsed}
-            onToggle={panels.toggleSidebar}
-            onNewChat={handleNewChat}
-            onForkRequest={commands.onForkRequest}
-            onNotice={setToast}
-            onOpenSettings={panels.openSettings}
-            footer={panels.sidebarFooter}
-            pageOpen={mainHidden}
-            onLeavePage={leavePage}
-            topNav={mainPages.topNav}
-            onOpenTask={mainPages.openTask}
-            onOpenAsset={mainPages.openAsset}
-          />
-
-          {/* 对话区（对话 / 中栏 / 任务 / 素材库 / 右栏）是白色圆角卡片；会话面板展开时是它左边的灰色半张 */}
-          <div className="workspace-card" data-testid="workspace-card">
-            {/* 主内容：无查看区时对话全宽；有本会话 Diff 或右栏文件预览时 chat-column | 中栏 横排全高 */}
-            <div
-              className={`main-content${centerOpen ? ' main-content--with-changes' : ''}${sideMax ? ' main-content--side-max' : ''}${sideSplit ? ' main-content--side-split' : ''}`}
-              data-with-changes={centerOpen ? 'true' : undefined}
-              data-side-max={sideMax ? 'true' : undefined}
-              data-side-main={sideMax && !sideSplit && mainShown ? 'true' : undefined}
-              style={
-                sideSplit
-                  ? ({ '--side-split': `${side.splitRatio * 100}%` } as React.CSSProperties)
-                  : undefined
-              }
-              hidden={mainHidden}
-            >
-              {/* 铺满时标签栏在整个对话区顶上，主会话是第一个标签（不能关） */}
-              {sideMax && (
-                <SideTabStrip
-                  model={side}
-                  columnMessages={rail.messages}
-                  onBrowseFiles={browseFiles}
-                  onShowAgents={showAgents}
-                />
-              )}
-              <div
-                className="chat-column"
-                data-testid="chat-column"
-                hidden={!mainShown}
-                style={{
-                  ...(centerOpen && !sideMax
-                    ? {
-                        width: split.chatColumn.width,
-                        // 窗口窄时最小宽度随窗口收缩（App.css 的 --cd-chat-col-min），宽屏仍是 CHAT_COL_W_MIN
-                        minWidth: 'var(--cd-chat-col-min)',
-                        maxWidth: CHAT_COL_W_MAX,
-                        // 窗口不够时先压对话列（到最小宽度），不把中栏挤没
-                        flexShrink: 1,
-                      }
-                    : {}),
-                }}
-              >
-                {/* 桌面应用里会话名与工具在标题栏（与对话卡片对齐）；浏览器里没有标题栏，留一行顶栏 */}
-                {!titleBar && <ChatHeader trailing={sessionTools} />}
-                {/* 待带入的新会话前文属于当前对话状态，放在对话区顶部，避免和输入工具混在一起。 */}
-                <div className="session-bar chat-session-bar">
-                  <SessionControls />
-                </div>
-                {/* 会话详情自动收起后再打开：浮在对话列右上角 */}
-                {!mainHidden && (
-                  <SessionDetailsDock overlay messages={rail.messages} cwd={rail.cwd} />
-                )}
-                <main className="chat-container">
-                  {/* 每条回复末尾的「分叉」：从这条回复往前分叉，之后的消息不带 */}
-                  <ForkFromMessageContext.Provider value={commands.forkFromMessage}>
-                    <ChatBody
-                      tabs={tabs}
-                      isDev={isDev}
-                      sessionKey={sessionKey}
-                      cliMessages={cliConvMessages}
-                      nomiMessages={nomiMessages}
-                      slash={slash}
-                      onOpenModels={panels.openProviders}
-                    />
-                  </ForkFromMessageContext.Provider>
-                </main>
-
-                <footer className="input-container" ref={resourcePreview.composerRef}>
-                  {/* 正在操作桌面（Nomi / 编程助手）：紧急停止 */}
-                  <ComputerActivityBar />
-                  {/* Nomi 桌面工具的授权卡片：对话窗口开着时确认请求只发到这里 */}
-                  <DesktopConfirmDock />
-                  <UserQuestionDock
-                    conversationId={tabs.isCliTab ? undefined : nomiSessionId}
-                    tabId={tabs.isCliTab ? tabs.activeTab?.id : undefined}
-                  />
-                  <PendingDock
-                    items={pending.items}
-                    onWithdraw={pending.onWithdraw}
-                    onRemove={pending.onRemove}
-                  />
-                  {/* 新会话：输入框上方的项目 · 分支，可以自由切换 */}
-                  <NewChatContext />
-                  <MessageInput
-                    {...inputModeProps}
-                    disabled={resourcePreview.sendMismatch}
-                    cwd={rail.cwd ?? undefined}
-                    roots={rail.roots}
-                    delegate={slashBackend === 'nomi'}
-                    contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
-                    contextModel={
-                      tabs.isCliTab
-                        ? (tabs.activeTab?.modelOverride ??
-                          liveContext?.model ??
-                          reportedModel(cliConvMessages) ??
-                          tabs.activeTab?.backend)
-                        : undefined
-                    }
-                    slash={slash.bridge}
-                    fill={composerFill}
-                    draftStore={drafts.draftStore}
-                    draftKey={drafts.draftKey}
-                    // 只在编程助手标签里：Nomi 自己的 Skills / MCP 在「扩展」里管理
-                    onPluginsClick={slashBackend !== 'nomi' ? panels.openPlugins : undefined}
-                    onProvidersClick={panels.openProviders}
-                    onSettingsClick={panels.onInputSettings}
-                    onDesktopClick={panels.openDesktop}
-                    onHubClick={panels.openHub}
-                    onExtClick={panels.openExt}
-                    onLocalClick={panels.openLocal}
-                  />
-                </footer>
-              </div>
-
-              {sideSplit && (
-                <SideSplitHandle ratio={side.splitRatio} onRatio={side.setSplitRatio} />
-              )}
-              {resourcePreview.overlays}
-              {centerOpen ? (
+    <SelectionActionsContext.Provider value={selectionActions}>
+      <ResourceScopeProvider value={resourcePreview.value}>
+        <SelectionToolbar />
+        <div className="ai-chat-app">
+          <ChatBackgroundLayer />
+          <AppTitleBar
+            sidebarCollapsed={panels.sidebarCollapsed}
+            onToggleSidebar={panels.toggleSidebar}
+            title={<TitleBarTitle page={openPage} />}
+            trailing={
+              titleBar ? (
                 <>
-                  <div
-                    hidden={sideMax}
-                    className="center-changes-splitter"
-                    data-testid="center-changes-splitter"
-                    role="separator"
-                    aria-orientation="vertical"
-                    aria-valuenow={split.chatColumn.width}
-                    aria-valuemin={CHAT_COL_W_MIN}
-                    aria-valuemax={CHAT_COL_W_MAX}
-                    onPointerDown={split.chatColumn.onPointerDown}
-                    onDoubleClick={split.chatColumn.onDoubleClick}
-                    title={t('ui.session-workspace.drag-to-resize-chat-and-diff-double-click')}
-                  />
-                  <SideWorkspace
+                  {/* 更新已下载好：设置页外在标题栏提示「重启更新」（设置页里在导航底部） */}
+                  {!panels.settings && <RestartUpdateButton placement="titlebar" />}
+                  {!mainHidden && sessionTools}
+                </>
+              ) : undefined
+            }
+            lead={titleBar ? mainPages.fleetIndicator : undefined}
+          />
+          {/* 会话树保活：打开设置时只隐藏（display:none）不卸载，避免关闭时整树冷重挂载导致卡顿、
+          草稿/滚动位置丢失与 IPC 订阅重建 */}
+          <div className={panels.settings ? 'chat-keepalive-hidden' : 'chat-keepalive'}>
+            <Sidebar
+              collapsed={panels.sidebarCollapsed}
+              onToggle={panels.toggleSidebar}
+              onNewChat={handleNewChat}
+              onForkRequest={commands.onForkRequest}
+              onNotice={setToast}
+              onOpenSettings={panels.openSettings}
+              footer={panels.sidebarFooter}
+              pageOpen={mainHidden}
+              onLeavePage={leavePage}
+              topNav={mainPages.topNav}
+              onOpenTask={mainPages.openTask}
+              onOpenAsset={mainPages.openAsset}
+            />
+
+            {/* 对话区（对话 / 中栏 / 任务 / 素材库 / 右栏）是白色圆角卡片；会话面板展开时是它左边的灰色半张 */}
+            <div className="workspace-card" data-testid="workspace-card">
+              {/* 主内容：无查看区时对话全宽；有本会话 Diff 或右栏文件预览时 chat-column | 中栏 横排全高 */}
+              <div
+                className={`main-content${centerOpen ? ' main-content--with-changes' : ''}${sideMax ? ' main-content--side-max' : ''}${sideSplit ? ' main-content--side-split' : ''}`}
+                data-with-changes={centerOpen ? 'true' : undefined}
+                data-side-max={sideMax ? 'true' : undefined}
+                data-side-main={sideMax && !sideSplit && mainShown ? 'true' : undefined}
+                style={
+                  sideSplit
+                    ? ({ '--side-split': `${side.splitRatio * 100}%` } as React.CSSProperties)
+                    : undefined
+                }
+                hidden={mainHidden}
+              >
+                {/* 铺满时标签栏在整个对话区顶上，主会话是第一个标签（不能关） */}
+                {sideMax && (
+                  <SideTabStrip
                     model={side}
-                    messages={rail.messages}
-                    cwd={rail.cwd}
-                    roots={rail.roots}
-                    actions={paneActions}
-                    showStrip={!sideMax}
+                    columnMessages={rail.messages}
                     onBrowseFiles={browseFiles}
                     onShowAgents={showAgents}
                   />
-                </>
+                )}
+                <div
+                  className="chat-column"
+                  data-testid="chat-column"
+                  hidden={!mainShown}
+                  style={{
+                    ...(centerOpen && !sideMax
+                      ? {
+                          width: split.chatColumn.width,
+                          // 窗口窄时最小宽度随窗口收缩（App.css 的 --cd-chat-col-min），宽屏仍是 CHAT_COL_W_MIN
+                          minWidth: 'var(--cd-chat-col-min)',
+                          maxWidth: CHAT_COL_W_MAX,
+                          // 窗口不够时先压对话列（到最小宽度），不把中栏挤没
+                          flexShrink: 1,
+                        }
+                      : {}),
+                  }}
+                >
+                  {/* 桌面应用里会话名与工具在标题栏（与对话卡片对齐）；浏览器里没有标题栏，留一行顶栏 */}
+                  {!titleBar && <ChatHeader trailing={sessionTools} />}
+                  {/* 待带入的新会话前文属于当前对话状态，放在对话区顶部，避免和输入工具混在一起。 */}
+                  <div className="session-bar chat-session-bar">
+                    <SessionControls />
+                  </div>
+                  {/* 会话详情自动收起后再打开：浮在对话列右上角 */}
+                  {!mainHidden && (
+                    <SessionDetailsDock overlay messages={rail.messages} cwd={rail.cwd} />
+                  )}
+                  <main className="chat-container">
+                    {/* 每条回复末尾的「分叉」：从这条回复往前分叉，之后的消息不带 */}
+                    <ForkFromMessageContext.Provider value={commands.forkFromMessage}>
+                      <ChatBody
+                        tabs={tabs}
+                        isDev={isDev}
+                        sessionKey={sessionKey}
+                        cliMessages={cliConvMessages}
+                        nomiMessages={nomiMessages}
+                        slash={slash}
+                        onOpenModels={panels.openProviders}
+                      />
+                    </ForkFromMessageContext.Provider>
+                  </main>
+
+                  <footer className="input-container" ref={resourcePreview.composerRef}>
+                    {/* 正在操作桌面（Nomi / 编程助手）：紧急停止 */}
+                    <ComputerActivityBar />
+                    {/* Nomi 桌面工具的授权卡片：对话窗口开着时确认请求只发到这里 */}
+                    <DesktopConfirmDock />
+                    <UserQuestionDock
+                      conversationId={tabs.isCliTab ? undefined : nomiSessionId}
+                      tabId={tabs.isCliTab ? tabs.activeTab?.id : undefined}
+                    />
+                    <PendingDock
+                      items={pending.items}
+                      onWithdraw={pending.onWithdraw}
+                      onRemove={pending.onRemove}
+                    />
+                    {/* 新会话：输入框上方的项目 · 分支，可以自由切换 */}
+                    <NewChatContext />
+                    <MessageInput
+                      {...inputModeProps}
+                      disabled={resourcePreview.sendMismatch}
+                      cwd={rail.cwd ?? undefined}
+                      roots={rail.roots}
+                      delegate={slashBackend === 'nomi'}
+                      contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
+                      contextModel={
+                        tabs.isCliTab
+                          ? (tabs.activeTab?.modelOverride ??
+                            liveContext?.model ??
+                            reportedModel(cliConvMessages) ??
+                            tabs.activeTab?.backend)
+                          : undefined
+                      }
+                      slash={slash.bridge}
+                      fill={composerFill}
+                      draftStore={drafts.draftStore}
+                      draftKey={drafts.draftKey}
+                      // 只在编程助手标签里：Nomi 自己的 Skills / MCP 在「扩展」里管理
+                      onPluginsClick={slashBackend !== 'nomi' ? panels.openPlugins : undefined}
+                      onProvidersClick={panels.openProviders}
+                      onSettingsClick={panels.onInputSettings}
+                      onDesktopClick={panels.openDesktop}
+                      onHubClick={panels.openHub}
+                      onExtClick={panels.openExt}
+                      onLocalClick={panels.openLocal}
+                    />
+                  </footer>
+                </div>
+
+                {sideSplit && (
+                  <SideSplitHandle ratio={side.splitRatio} onRatio={side.setSplitRatio} />
+                )}
+                {resourcePreview.overlays}
+                {centerOpen ? (
+                  <>
+                    <div
+                      hidden={sideMax}
+                      className="center-changes-splitter"
+                      data-testid="center-changes-splitter"
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-valuenow={split.chatColumn.width}
+                      aria-valuemin={CHAT_COL_W_MIN}
+                      aria-valuemax={CHAT_COL_W_MAX}
+                      onPointerDown={split.chatColumn.onPointerDown}
+                      onDoubleClick={split.chatColumn.onDoubleClick}
+                      title={t('ui.session-workspace.drag-to-resize-chat-and-diff-double-click')}
+                    />
+                    <SideWorkspace
+                      model={side}
+                      messages={rail.messages}
+                      cwd={rail.cwd}
+                      roots={rail.roots}
+                      actions={paneActions}
+                      showStrip={!sideMax}
+                      onBrowseFiles={browseFiles}
+                      onShowAgents={showAgents}
+                      projectId={rail.projectId}
+                    />
+                  </>
+                ) : null}
+              </div>
+              {!mainHidden && <SessionDetailsDock messages={rail.messages} cwd={rail.cwd} />}
+              {/* 整页（素材库 / 任务 / Agent 看板）：替换对话区（对话区只隐藏不卸载），侧栏保持 */}
+              {mainPages.pages}
+              {filesRail.value && !mainHidden ? (
+                <FilesRail rail={rail} split={split.filesRail} closing={filesRail.closing} />
               ) : null}
             </div>
-            {!mainHidden && <SessionDetailsDock messages={rail.messages} cwd={rail.cwd} />}
-            {/* 整页（素材库 / 任务 / Agent 看板）：替换对话区（对话区只隐藏不卸载），侧栏保持 */}
-            {mainPages.pages}
-            {filesRail.value && !mainHidden ? (
-              <FilesRail rail={rail} split={split.filesRail} closing={filesRail.closing} />
-            ) : null}
           </div>
-        </div>
 
-        <AppOverlays
-          panels={panels}
-          commands={commands}
-          slash={slash}
-          slashBackend={slashBackend}
-          slashCwd={slashCwd}
-          toast={toast}
-        />
-      </div>
-    </ResourceScopeProvider>
+          <AppOverlays
+            panels={panels}
+            commands={commands}
+            slash={slash}
+            slashBackend={slashBackend}
+            slashCwd={slashCwd}
+            toast={toast}
+          />
+        </div>
+      </ResourceScopeProvider>
+    </SelectionActionsContext.Provider>
   );
 };
 

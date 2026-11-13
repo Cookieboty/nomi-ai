@@ -44,7 +44,8 @@ export function useRail(opts: {
   const [railPref, setRailPref] = useState(readFilesRailOpen);
   const cliTab = isDev && tabs.isCliTab;
   const nomiOnMain = !tabs.isCliTab && harness?.backend === 'nomi' && harnessClient.available();
-  const nomiProject = useProject(useNomiProject().projectId);
+  const nomiProjectId = useNomiProject().projectId;
+  const nomiProject = useProject(nomiProjectId);
   const cliProject = useProject(cliTab ? tabs.activeTab?.projectId : undefined);
   const cwd = cliTab
     ? (tabs.activeTab?.cwd ?? null)
@@ -74,7 +75,10 @@ export function useRail(opts: {
     setPrevWorkbench(workbench);
     if (workbench && cwd && !railPref) setOpen(true);
   }
-  return { cwd, roots, messages, busy, centerOpen, open, toggle, close };
+  /** 当前会话所属的项目（侧边聊天按它带项目上下文） */
+  const projectId =
+    (cliTab ? tabs.activeTab?.projectId : nomiOnMain ? nomiProjectId : undefined) ?? null;
+  return { cwd, roots, messages, busy, centerOpen, open, toggle, close, projectId };
 }
 
 export type RailState = ReturnType<typeof useRail>;

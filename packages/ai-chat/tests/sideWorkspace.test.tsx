@@ -15,6 +15,7 @@ import { useSubagentPane, WorkspacePanesProvider } from '../src/components/Subag
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import type { EmbeddedPreviewProps } from '../src/hooks/useResourcePreview';
 import type { HarnessTabsState } from '../src/services/harnessClient';
+import { addSideChatQuote, sideChatState } from '../src/services/sideChat';
 import { MAIN_SIDE_TAB } from '../src/utils/sideTabs';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
@@ -390,5 +391,33 @@ describe('side tabs workspace', () => {
     fireEvent.pointerEnter(wrap, { pointerType: 'mouse', buttons: 0 });
     await new Promise((r) => setTimeout(r, 400));
     expect(screen.queryByTestId('agent-hover-card')).toBeNull();
+  });
+
+  it('side chat opens as its own tab, maximizes like others, and is discarded on close', async () => {
+    setup();
+    mount(['k1']);
+    await waitFor(() => expect(tabKeys()).toHaveLength(1));
+    act(() => {
+      addSideChatQuote('', { text: '选中的', source: '主会话' });
+      opener!.openSideChat();
+    });
+    expect(tabKeys()).toEqual(['nomi-task:k1', 'side-chat']);
+    expect(tabByKey('side-chat').textContent).toContain('侧边聊天');
+    expect(screen.getByTestId('side-chat').hidden).toBe(false);
+    expect(paneFor('nomi-task:k1').hidden).toBe(true);
+    expect(screen.getAllByTestId('side-chat-quote')).toHaveLength(1);
+    // 再开一次：还是同一个标签，引用累加
+    act(() => {
+      addSideChatQuote('', { text: '另一段', source: '主会话' });
+      opener!.openSideChat();
+    });
+    expect(tabKeys()).toEqual(['nomi-task:k1', 'side-chat']);
+    expect(screen.getAllByTestId('side-chat-quote')).toHaveLength(2);
+    fireEvent.doubleClick(tabButton('side-chat'));
+    expect(screen.getByTestId('main-content').dataset.sideMax).toBe('true');
+    expect(tabKeys()).toEqual([MAIN_SIDE_TAB, 'nomi-task:k1', 'side-chat']);
+    fireEvent.click(tabByKey('side-chat').querySelector('[data-testid="side-tab-close"]')!);
+    expect(tabKeys()).toEqual([MAIN_SIDE_TAB, 'nomi-task:k1']);
+    expect(sideChatState('').quotes).toEqual([]);
   });
 });
