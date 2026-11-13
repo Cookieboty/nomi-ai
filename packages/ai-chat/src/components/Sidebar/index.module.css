@@ -1127,8 +1127,21 @@
   filter: grayscale(1);
   opacity: 0.5;
 }
+.threadTail {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: end;
+}
+.threadPin {
+  display: inline-flex;
+  color: var(--cd-color-text-muted);
+  opacity: 0.6;
+}
 .row:hover .threadEp,
-.row:focus-within .threadEp {
+.row:focus-within .threadEp,
+.row:hover .threadPin,
+.row:focus-within .threadPin {
   visibility: hidden;
 }
 

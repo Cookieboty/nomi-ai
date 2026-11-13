@@ -56,15 +56,8 @@ import { EndpointRail } from './EndpointRail';
 import styles from './index.module.css';
 import { sameMetaList } from './listEquality';
 import { LocalHistorySection } from './LocalHistorySection';
-import { useProjectGrouping, projectBackend } from './projectGrouping';
-import {
-  NewProjectButton,
-  OrganizeMenu,
-  PinnedSection,
-  ProjectGroups,
-  SECTION_PINNED,
-  SECTION_WORKSPACES,
-} from './ProjectGroups';
+import { useProjectGrouping, projectBackend, pinnedFirst } from './projectGrouping';
+import { NewProjectButton, OrganizeMenu, ProjectGroups, SECTION_WORKSPACES } from './ProjectGroups';
 import { SearchDialog } from './SearchDialog';
 import {
   firstUserMessageCache,
@@ -307,13 +300,9 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     return navList;
   }, [navList, view, endpointFilter]);
 
-  // 置顶的会话单独放在最上面的「置顶」里（按置顶先后），其余照常分组 / 平铺
-  const { pinned, unpinned } = useMemo(() => {
-    const p = visible.filter((c) => c.pinnedAt);
-    p.sort((a, b) => (b.pinnedAt ?? 0) - (a.pinnedAt ?? 0));
-    return { pinned: p, unpinned: p.length ? visible.filter((c) => !c.pinnedAt) : visible };
-  }, [visible]);
-  const wsGroups = useProjectGrouping(unpinned, projects, tabById, groupByWorkspace);
+  // 置顶不单独成组：置顶的会话排在所在项目（或「其他对话」、平铺列表）的最前面
+  const ordered = useMemo(() => pinnedFirst(visible), [visible]);
+  const wsGroups = useProjectGrouping(ordered, projects, tabById, groupByWorkspace);
 
   // 行回调读最新的 list / current / tabs（经 ref），回调本身保持稳定：
   // 否则每次渲染换引用，ThreadItem 的 React.memo 全部失效
@@ -838,7 +827,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   // react-window 按浅比较 rowProps 决定是否重渲染行：对象本身也要稳定
   const rowProps = useMemo(
     () => ({
-      items: unpinned,
+      items: ordered,
       current: highlightId,
       tabById,
       runningIds,
@@ -853,7 +842,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       showIcon: isDev && view === 'all',
     }),
     [
-      visible,
+      ordered,
       highlightId,
       tabById,
       runningIds,
@@ -971,15 +960,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
                 {t('ui.chat-settings.no-past-conversations')}
               </div>
             )}
-            {pinned.length > 0 && (
-              <PinnedSection
-                items={pinned}
-                open={!collapsedWorkspaces.includes(SECTION_PINNED)}
-                onToggle={(open) => setWorkspaceCollapsed(SECTION_PINNED, open)}
-                activeId={rowActiveId}
-                rows={rowProps}
-              />
-            )}
             {wsGroups.grouped && (
               <ProjectGroups
                 groups={wsGroups.groups}
@@ -1007,9 +987,9 @@ const SidebarImpl: React.FC<SidebarProps> = ({
             )}
             {!wsGroups.grouped &&
               listOpen &&
-              unpinned.length > 0 &&
-              unpinned.length <= 100 &&
-              unpinned.map((c) => (
+              ordered.length > 0 &&
+              ordered.length <= 100 &&
+              ordered.map((c) => (
                 <ThreadItem
                   key={c.id}
                   c={c}
@@ -1027,13 +1007,13 @@ const SidebarImpl: React.FC<SidebarProps> = ({
                   showIcon={isDev && view === 'all'}
                 />
               ))}
-            {!wsGroups.grouped && listOpen && unpinned.length > 100 && (
+            {!wsGroups.grouped && listOpen && ordered.length > 100 && (
               <div
                 style={{ height: '100%', minHeight: 320 }}
                 data-testid="conversation-list-virtual"
               >
                 <List
-                  rowCount={unpinned.length}
+                  rowCount={ordered.length}
                   rowHeight={34}
                   rowComponent={VirtualRow}
                   rowProps={rowProps}
