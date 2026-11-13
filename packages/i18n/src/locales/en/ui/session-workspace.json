@@ -303,7 +303,6 @@
   "ui.session-workspace.side-tab-maximize": "Maximize (or double-click a tab)",
   "ui.session-workspace.side-tab-restore": "Restore split view (Esc)",
   "ui.session-workspace.side-tab-add": "Open…",
-  "ui.session-workspace.side-tab-agents": "Agents in this chat",
   "ui.session-workspace.side-tab-browse-files": "Browse files",
   "ui.session-workspace.side-tab-detach": "Open in new window",
   "ui.session-workspace.side-tab-split": "Split right",

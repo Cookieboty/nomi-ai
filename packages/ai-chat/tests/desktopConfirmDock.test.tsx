@@ -175,6 +175,9 @@ describe('DesktopConfirmDock', () => {
     expect(note.getAttribute('data-risk')).toBe('high');
     expect(note.textContent).toContain('高风险');
     expect(note.textContent).toContain('会删掉整个 build 目录');
+    expect(screen.getByTestId('desktop-confirm-review-notice').textContent).toContain(
+      '命令全文会发送给审核模型',
+    );
   });
 
   it('命令能记进白名单：「始终允许」的提示写明前缀，点了照常经契约答复', async () => {

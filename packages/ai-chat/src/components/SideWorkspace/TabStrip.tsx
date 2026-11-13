@@ -5,7 +5,7 @@
  * - 子任务标签（包括侧边聊天）右键（或 Shift+F10）：在新窗口打开 / 向右拆分 / 关闭；
  *   文件标签右键是预览区自己的菜单；
  * - 鼠标停在不在看的子任务标签上：悬停卡片（AgentHoverCard）；
- * - 「+」：本会话的 Agents（会话详情）/ 新侧边聊天 / 浏览文件。
+ * - 「+」：新侧边聊天 / 浏览文件。
  */
 import { Icon, IconButton, t } from '@nomi-ai/ui';
 import {
@@ -101,8 +101,7 @@ export const SideTabStrip: React.FC<{
   /** 主列消息（主会话里进程内子代理的悬停卡片用） */
   columnMessages?: readonly ConvMessage[];
   onBrowseFiles?: () => void;
-  onShowAgents?: () => void;
-}> = ({ model, columnMessages, onBrowseFiles, onShowAgents }) => {
+}> = ({ model, columnMessages, onBrowseFiles }) => {
   const harness = useHarnessTabs();
   const backendOf = useCallback(
     (target: SubagentTarget): string | null => {
@@ -373,7 +372,7 @@ export const SideTabStrip: React.FC<{
           </button>
         </div>
       )}
-      {(onBrowseFiles || onShowAgents || model.newSideChat) && (
+      {(onBrowseFiles || model.newSideChat) && (
         <div className={styles.addWrap} ref={menuRef}>
           <IconButton
             size="sm"
@@ -386,19 +385,6 @@ export const SideTabStrip: React.FC<{
           />
           {menu && (
             <div className={styles.menu} role="menu">
-              {onShowAgents && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setMenu(false);
-                    onShowAgents();
-                  }}
-                >
-                  <Icon icon={Bot} size={14} />
-                  {t('ui.session-workspace.side-tab-agents')}
-                </button>
-              )}
               {model.newSideChat && (
                 <button
                   type="button"

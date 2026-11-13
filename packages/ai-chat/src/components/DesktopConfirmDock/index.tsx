@@ -58,6 +58,9 @@ const ReviewNote: React.FC<{ review: NonNullable<DesktopConfirmRequest['review']
       <span className={styles.reviewLabel}>{t('ui.chat-settings.ai-review')}</span>
       <Badge tone={r.tone}>{t(r.label)}</Badge>
       {review.rationale && <span className={styles.reviewText}>{review.rationale}</span>}
+      <span className={styles.reviewNotice} data-testid="desktop-confirm-review-notice">
+        {t('ui.chat-settings.command-review-sends-command')}
+      </span>
     </div>
   );
 };

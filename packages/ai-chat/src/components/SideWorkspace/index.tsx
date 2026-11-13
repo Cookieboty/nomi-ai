@@ -303,8 +303,7 @@ export const SideWorkspace: React.FC<{
   actions?: SubagentPaneActions;
   showStrip: boolean;
   onBrowseFiles?: () => void;
-  onShowAgents?: () => void;
-}> = ({ model, messages, cwd, roots, actions, showStrip, onBrowseFiles, onShowAgents }) => {
+}> = ({ model, messages, cwd, roots, actions, showStrip, onBrowseFiles }) => {
   if (!model.open)
     return <CenterChangesHost messages={messages} cwd={cwd} roots={roots} mode="slot" />;
   const filesActive = model.active === FILES_SIDE_TAB;
@@ -324,12 +323,7 @@ export const SideWorkspace: React.FC<{
       }
     >
       {showStrip && (
-        <SideTabStrip
-          model={model}
-          columnMessages={messages}
-          onBrowseFiles={onBrowseFiles}
-          onShowAgents={onShowAgents}
-        />
+        <SideTabStrip model={model} columnMessages={messages} onBrowseFiles={onBrowseFiles} />
       )}
       <div className={styles.body}>
         <SubagentPane columnMessages={messages} actions={actions} tabbed />

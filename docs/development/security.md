@@ -20,7 +20,7 @@
 | `protected_paths.go`                 | 用户的受保护文件夹（存 realpath）与放行给编程助手的环境变量；`CheckCliWorkspace` 给编程助手标签的工作目录用同一套规则                                                                                                                                                           |
 | `permission_broker.go`、`consent.go` | 授权作用域、工具策略、确认请求、云端外发同意；何时需要用户确认                                                                                                                                                                                                                  |
 | `command_class.go`                   | 命令的确定性分类（读凭据、不可逆操作、对外副作用）                                                                                                                                                                                                                              |
-| `command_review.go`                  | `workspace_run` 的命令先交辅助模型判风险：低风险放行，拿不准 / 高风险交给人确认（卡片带等级与理由）；不替用户拒绝                                                                                                                                                               |
+| `command_review.go`                  | `workspace_run` 的命令先交辅助模型判风险：低风险放行，拿不准 / 高风险交给人确认（卡片带等级与理由）；不替用户拒绝。发给审核模型前会打码密钥 / 令牌和本机主目录；审核卡片与设置里写明会发送命令全文。                                                                            |
 | `command_rules.go`                   | 命令白名单：白名单式，只收 `ruleSubcommands` 列出的「程序 + 子命令」与 `ruleProgramsAlone` 里的检查工具，危险参数（`unsafeRuleArgs`）与 `command_class.go` 的分类永不进；读过外部内容的一轮、污染后写过文件（暂停到用户亲手确认一次命令）、`manual` 模式、显式 `ask` 策略都不认 |
 | `outbound_guard.go`                  | 发给云端模型前，按设置挡下或替换附件正文与编程助手输出                                                                                                                                                                                                                          |
 | `audit_log.go`                       | 桌面工具调用审计（`desktop-YYYY-MM.jsonl`，参数脱敏）                                                                                                                                                                                                                           |
@@ -95,6 +95,7 @@
   改用解释器运行接着做，别当成沙箱拦截停下（`internal/core/cli/sandbox/skills_test.go` 守住各内置 CLI 的技能目录）。
 - 开关（`cliSandboxOff`，缺省开）、受保护文件夹、「始终允许」变了：`watchSandboxPolicy` → `SandboxPolicyChanged` 让常驻 CLI 按新配置重开。
 - 其他平台 `sandbox.Supported()` 为假，CLI 照旧运行（状态 `unsupported`，界面提示）；工作目录检查与环境变量清理照常。
+  **没有系统沙箱时，L3 任务不会切到 auto**：编程助手权限档停在 `acceptEdits`（可自动改文件，命令仍要确认），「按风险自动判断」和前台「全部自动」也不会自动放行命令，保持逐条确认。不要在 Windows / Linux 上静默沿用 macOS 的自动执行。
 
 ## 代码执行沙箱
 

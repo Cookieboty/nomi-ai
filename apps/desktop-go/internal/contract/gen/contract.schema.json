@@ -19730,8 +19730,10 @@
   },
   "harness.messageAgent": {
    "kind": "mutation",
-   "dangerous": false,
-   "surfaces": [],
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
    "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",

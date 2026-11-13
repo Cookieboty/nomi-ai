@@ -328,12 +328,6 @@ const AiChatContent: React.FC = () => {
         if (!railOpen) railToggle();
       }
     : undefined;
-  const showAgents = details
-    ? () => {
-        if (!details.visible) details.toggle();
-      }
-    : undefined;
-
   return (
     <SelectionActionsContext.Provider value={selectionActions}>
       <ResourceScopeProvider value={resourcePreview.value}>
@@ -394,7 +388,6 @@ const AiChatContent: React.FC = () => {
                     model={side}
                     columnMessages={rail.messages}
                     onBrowseFiles={browseFiles}
-                    onShowAgents={showAgents}
                   />
                 )}
                 <div
@@ -513,7 +506,6 @@ const AiChatContent: React.FC = () => {
                       actions={paneActions}
                       showStrip={!sideMax}
                       onBrowseFiles={browseFiles}
-                      onShowAgents={showAgents}
                     />
                   </>
                 ) : null}
