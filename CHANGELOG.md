@@ -486,6 +486,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **tasks:** 委派的编程助手报错、任务失败后，自动删除它的 worktree（已接管的除外），不再越积越多。 (`@nomi-ai/desktop-go` patch)
 - **tasks:** 打开还没运行过的任务的详情时报「Invalid output of 'tasks.get'」：执行记录为空时内核返回了 null，现在返回空列表。/ Opening a task that has never run no longer fails with "Invalid output of 'tasks.get'": an empty run history is returned as an empty list instead of null. (`@nomi-ai/desktop-go` patch)
 - **tasks:** 新建任务的表单改为左右两栏并可限定允许访问的文件夹，后台任务的文件工具只在这些文件夹里，收窄授权立即生效；Nomi 任务固定用预设模型；准备 worktree 时取消 / 撤销会生效；重试与续跑保留触发它的事件；事件轮询有上限；Go 版任务快照保存失败时直接失败。 (`@nomi-ai/desktop-go` patch)
+- **thinking:** 自定义模型（按 like / efforts 配置思考能力）在 Nomi 对话里选的思考档位不再被丢掉，改由本机网关按保存的模型能力写进上游请求。 (`@nomi-ai/desktop-go` patch)
 - **tray:** after switching between two recent models with the same display name (for example the same model under two providers), clicking a tray entry selects the model it shows again instead of the one the menu had before (#212). (`@nomi-ai/desktop-go` patch)
 - **tts:** a stale TTS request that fails late no longer stops or revokes the sentence that is currently playing; each sentence owns its audio / url / audio graph, and a cancel during `AudioContext.resume()` no longer attaches the envelope or plays. (`@nomi-ai/renderer` patch)
 - **tts:** the TTS settings page logic moved from an inline `<script>` (blocked by the production CSP, so the form never loaded in installed builds) into a module loaded by `main.ts`; the strict CSP is unchanged. (`@nomi-ai/renderer` patch)

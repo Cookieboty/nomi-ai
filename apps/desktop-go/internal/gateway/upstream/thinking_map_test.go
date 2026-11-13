@@ -128,3 +128,21 @@ func TestBindingEffortOverridesClientExplicit(t *testing.T) {
 		t.Fatalf("explicitly disabled helper request must stay off: %s", s)
 	}
 }
+
+// 自定义模型的 like / efforts 由网关按真实模型对象把 Nomi 带来的档位写进上游参数（#362）
+func TestCustomModelLevelFromStoredProfile(t *testing.T) {
+	like := "gpt-5"
+	got := mapLevel(t, "my-model", "chat", "high", config.RuntimeModel{Like: &like})
+	if !strings.Contains(got, `"reasoning_effort":"high"`) {
+		t.Fatalf("like=gpt-5: %s", got)
+	}
+	got = mapLevel(t, "my-model", "chat", "medium", config.RuntimeModel{Efforts: []string{"low", "medium", "high"}})
+	if !strings.Contains(got, `"reasoning_effort":"medium"`) {
+		t.Fatalf("efforts: %s", got)
+	}
+	no := false
+	got = mapLevel(t, "my-model", "chat", "high", config.RuntimeModel{Like: &like, Reasoning: &no})
+	if strings.Contains(got, `"reasoning_effort"`) {
+		t.Fatalf("reasoning=false must not send a level: %s", got)
+	}
+}

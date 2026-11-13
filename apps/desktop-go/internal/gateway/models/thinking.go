@@ -87,6 +87,21 @@ func ResolveRequestLevel(modelID, requested string) string {
 	return p.Default
 }
 
+// GatewayRequestLevel 是 Nomi 对话发给本机网关的档位：只认得出的档位名就原样转交，
+// 不在这里用目录（无用户覆盖）的能力否决。自定义模型的 like / efforts 只有网关拿得到，
+// 由网关按真实模型对象收成可用的一档；reasoning=false、不支持思考的模型也在网关那边不转发。
+// 空字符串（调用方没选）或认不出的值返回空，不发头。
+func GatewayRequestLevel(requested string) string {
+	requested = strings.ToLower(strings.TrimSpace(requested))
+	if _, ok := levelRank[requested]; !ok {
+		return ""
+	}
+	if requested == "none" {
+		return "off"
+	}
+	return requested
+}
+
 // CallReasoning 是直接打到 Anthropic / Responses 时 CallOptions.Reasoning 的值。
 // Chat Completions 走 DirectOptions，这里返回空，避免兼容层再写一份 reasoning_effort。
 func CallReasoning(protocol, level string) string {
