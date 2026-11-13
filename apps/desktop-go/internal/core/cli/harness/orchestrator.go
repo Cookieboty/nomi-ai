@@ -1301,7 +1301,7 @@ func reportedModel(events []*util.Obj) string {
 
 func isTurnContent(ev *util.Obj) bool {
 	switch ev.Get("type") {
-	case "text-delta", "text", "tool", "thinking", "permission", "agent":
+	case "text-delta", "text", "tool", "thinking", "permission", "agent", "agent-text":
 		return true
 	}
 	return false

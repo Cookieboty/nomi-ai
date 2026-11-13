@@ -149,9 +149,15 @@ func ParseLine(line string, state *StreamState) []Ev {
 			}
 		}
 		if text := extractText(msg.Get("content")); text != "" {
-			out = append(out, O("type", "text", "text", text))
-			if state != nil {
-				state.TextSeen = true
+			if p := parentID(j); p != nil {
+				// 子代理（Task / Agent）自己说的话：挂在派生它的调用下面，子任务侧栏里实时显示；
+				// 不并进主回复的正文
+				out = append(out, O("type", "agent-text", "text", text, "parentId", *p))
+			} else {
+				out = append(out, O("type", "text", "text", text))
+				if state != nil {
+					state.TextSeen = true
+				}
 			}
 		}
 		out = append(out, sh.ImageEvent(msg.Get("content"), true, false)...)
