@@ -1,7 +1,7 @@
 // cli_update_service.go：CliUpdateService（CLI 版本检测、安装与白名单更新）。
 //
 // 安装 / 更新只执行固定 argv 的白名单命令；Windows 的 npm.cmd 例外地经 shell 执行，参数同样来自白名单。
-// 所有方法持 jsrt 锁调用；耗时操作返回 Promise。
+// 除 Inspect / 本机探测在普通 goroutine 里跑（不占 GIL）外，其余方法持 jsrt 锁调用；耗时操作返回 Promise。
 package cli
 
 import (
@@ -341,6 +341,7 @@ type CliUpdateService struct {
 	lastRows        []*util.Obj
 	lastRowsSnap    atomic.Value // []*util.Obj；超时回调不持 GIL 也能读到上次结果
 	inspectTimedOut atomic.Bool
+	mu              sync.Mutex // cache / probed / lastLocal / lastRows / latestRefresh（Inspect 不占 GIL）
 	cachePath       string
 	preferredPath   string // 用户目录安装成功的 CLI → 可执行文件（重启后仍优先用它，见 PreferCliBin）
 	preferred       map[string]string
@@ -477,6 +478,8 @@ func (s *CliUpdateService) Environment() *util.Obj {
 }
 
 func (s *CliUpdateService) load() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	b, err := os.ReadFile(s.cachePath)
 	if err != nil {
 		s.cache = emptyCuCache()
@@ -491,6 +494,12 @@ func (s *CliUpdateService) load() {
 }
 
 func (s *CliUpdateService) save() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.saveLocked()
+}
+
+func (s *CliUpdateService) saveLocked() error {
 	return os.WriteFile(s.cachePath, []byte(util.StringifyIndent(s.cache, "  ")), 0o666)
 }
 
@@ -512,6 +521,8 @@ func jsGet(v any, key string) (any, bool, error) {
 
 // cacheLatest = this.cache.latest，以及 `k in latest` 是否可用（非对象抛 TypeError）。
 func (s *CliUpdateService) cacheLatest() (*util.Obj, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	l, _, err := jsGet(s.cache, "latest")
 	if err != nil {
 		return nil, err
@@ -561,11 +572,15 @@ func nz(s string) any {
 
 // refreshLatest：并发调用共用一次。
 func (s *CliUpdateService) refreshLatest() *jsrt.Promise[struct{}] {
+	s.mu.Lock()
 	if s.latestRefresh != nil {
+		cur := s.latestRefresh
+		s.mu.Unlock()
 		// TEMP(cli-inspect): 定位用，后续可随时移除
 		s.logInspect(false, "cli-update latest refresh", "reuse in-flight")
-		return s.latestRefresh
+		return cur
 	}
+	s.mu.Unlock()
 	// TEMP(cli-inspect): 定位用，后续可随时移除
 	s.logInspect(false, "cli-update latest refresh start", nil)
 	p := jsrt.Async(func() (struct{}, error) {
@@ -599,8 +614,10 @@ func (s *CliUpdateService) refreshLatest() *jsrt.Promise[struct{}] {
 			}
 		}
 		latest.Set("cursor", nil)
+		s.mu.Lock()
 		s.cache = util.NewObj("checkedAt", cuNow(), "latest", latest)
-		_ = s.save() // cache 写失败不影响探测结果
+		_ = s.saveLocked() // cache 写失败不影响探测结果
+		s.mu.Unlock()
 		return struct{}{}, nil
 	})
 	started := time.Now()
@@ -612,10 +629,13 @@ func (s *CliUpdateService) refreshLatest() *jsrt.Promise[struct{}] {
 		}
 		// TEMP(cli-inspect): 定位用，后续可随时移除
 		s.logInspect(false, "cli-update latest refresh", time.Since(started).Round(time.Millisecond).String())
+		s.mu.Lock()
 		s.latestRefresh = nil
+		local := s.lastLocal
+		s.mu.Unlock()
 		// 首次 inspect 已把本地结果交出去；latest 写进缓存后再推一次，界面补上「最新版本」。
-		if s.lastLocal != nil {
-			if rows, berr := s.rowsFromLocal(s.lastLocal); berr == nil {
+		if local != nil {
+			if rows, berr := s.rowsFromLocal(local); berr == nil {
 				// TEMP(cli-inspect): 定位用，后续可随时移除
 				s.logInspect(false, "cli-update inspect event", "kind=inspect phase=updated")
 				s.emitInspectUpdated(rows)
@@ -627,66 +647,71 @@ func (s *CliUpdateService) refreshLatest() *jsrt.Promise[struct{}] {
 		return struct{}{}, nil
 	})
 	if !out.Settled() {
+		s.mu.Lock()
 		s.latestRefresh = out
+		s.mu.Unlock()
 	}
 	return out
 }
 
 // probeLocal：每个 CLI 起一个进程（并发）。
-// 先在 jsrt 线程等 login shell PATH，再把找二进制 / --version 放到后台，
-// 避免挂死的 ExistsSync 或 Wait 占住 GIL，让 inspect 总超时无法结束。
+// 整段探测不占 GIL：等 login shell PATH、找二进制、--version 都在普通 goroutine 里跑，
+// 这样启动阶段即使有人占着 jsrt 锁，inspect 也能在超时前返回。
 func (s *CliUpdateService) probeLocal() *jsrt.Promise[[]localProbe] {
-	// TEMP(cli-inspect): 定位用，后续可随时移除
-	s.logInspect(false, "cli-update probe path-wait start", nil)
-	pathWaitStarted := time.Now()
-	WaitForShellPath(0)
-	// TEMP(cli-inspect): 定位用，后续可随时移除
-	s.logInspect(false, "cli-update probe path-wait done", time.Since(pathWaitStarted).Round(time.Millisecond).String())
-	ps := make([]*jsrt.Promise[localProbe], len(inspectKinds))
-	for i, kind := range inspectKinds {
-		ps[i] = jsrt.Async(func() (localProbe, error) {
-			resolveStarted := time.Now()
-			bin := offThread(func() string { return s.resolveBin(kind) })
-			resolveMs := time.Since(resolveStarted)
-			version := ""
-			var versionMs time.Duration
-			if bin != "" {
-				versionStarted := time.Now()
-				version = offThread(func() string { return s.readVersion(bin) })
-				versionMs = time.Since(versionStarted)
-			}
-			var warn *DshProblem
-			if kind == "dsh" && bin != "" && !jsScriptRe.MatchString(bin) {
-				warn = DshRuntimeProblemAsync()
-			}
-			pathLabel := "missing"
-			if bin != "" {
-				pathLabel = bin
-			}
-			detail := fmt.Sprintf("kind=%s installed=%v path=%s resolve=%s", kind, bin != "", pathLabel, resolveMs.Round(time.Millisecond))
-			if bin != "" {
-				if version != "" {
-					detail += fmt.Sprintf(" version=%s versionMs=%s", version, versionMs.Round(time.Millisecond))
-				} else {
-					detail += fmt.Sprintf(" version-error=unreadable versionMs=%s", versionMs.Round(time.Millisecond))
+	p := jsrt.NewPromise[[]localProbe]()
+	go func() {
+		// TEMP(cli-inspect): 定位用，后续可随时移除
+		s.logInspect(false, "cli-update probe path-wait start", nil)
+		pathWaitStarted := time.Now()
+		WaitForShellPathOffThread(0)
+		// TEMP(cli-inspect): 定位用，后续可随时移除
+		s.logInspect(false, "cli-update probe path-wait done", time.Since(pathWaitStarted).Round(time.Millisecond).String())
+		out := make([]localProbe, len(inspectKinds))
+		var wg sync.WaitGroup
+		wg.Add(len(inspectKinds))
+		for i, kind := range inspectKinds {
+			i, kind := i, kind
+			go func() {
+				defer wg.Done()
+				resolveStarted := time.Now()
+				bin := s.resolveBin(kind)
+				resolveMs := time.Since(resolveStarted)
+				version := ""
+				var versionMs time.Duration
+				if bin != "" {
+					versionStarted := time.Now()
+					version = s.readVersion(bin)
+					versionMs = time.Since(versionStarted)
 				}
-			}
-			// TEMP(cli-inspect): 定位用，后续可随时移除
-			s.logInspect(false, "cli-update probe", detail)
-			return localProbe{kind: kind, bin: bin, version: version, runtimeWarning: warn}, nil
-		})
-	}
-	return jsrt.Async(func() ([]localProbe, error) {
-		out := make([]localProbe, len(ps))
-		for i, p := range ps {
-			v, err := jsrt.Await(p)
-			if err != nil {
-				return nil, err
-			}
-			out[i] = v
+				var warn *DshProblem
+				if kind == "dsh" && bin != "" && !jsScriptRe.MatchString(bin) {
+					if v := ReadPathNodeVersion(); v != "" {
+						warn = DshRuntimeProblem(&v)
+					} else {
+						warn = DshRuntimeProblem(nil)
+					}
+				}
+				pathLabel := "missing"
+				if bin != "" {
+					pathLabel = bin
+				}
+				detail := fmt.Sprintf("kind=%s installed=%v path=%s resolve=%s", kind, bin != "", pathLabel, resolveMs.Round(time.Millisecond))
+				if bin != "" {
+					if version != "" {
+						detail += fmt.Sprintf(" version=%s versionMs=%s", version, versionMs.Round(time.Millisecond))
+					} else {
+						detail += fmt.Sprintf(" version-error=unreadable versionMs=%s", versionMs.Round(time.Millisecond))
+					}
+				}
+				// TEMP(cli-inspect): 定位用，后续可随时移除
+				s.logInspect(false, "cli-update probe", detail)
+				out[i] = localProbe{kind: kind, bin: bin, version: version, runtimeWarning: warn}
+			}()
 		}
-		return out, nil
-	})
+		wg.Wait()
+		p.Resolve(out)
+	}()
+	return p
 }
 
 var jsScriptRe = regexp.MustCompile(`\.(mjs|js)$`)
@@ -753,7 +778,9 @@ func (s *CliUpdateService) rowsFromLocal(local []localProbe) ([]*util.Obj, error
 }
 
 func (s *CliUpdateService) setLastRows(rows []*util.Obj) {
+	s.mu.Lock()
 	s.lastRows = rows
+	s.mu.Unlock()
 	if len(rows) > 0 {
 		s.lastRowsSnap.Store(rows)
 	}
@@ -769,17 +796,21 @@ func (s *CliUpdateService) followProbe(entry *probedEntry) {
 		return
 	}
 	entry.followed = true
-	jsrt.Go(func() {
-		local, err := jsrt.Await(entry.rows)
+	go func() {
+		local, err := jsrt.Block(entry.rows)
 		if err != nil {
+			s.mu.Lock()
 			if s.probed == entry {
 				s.probed = nil
 			}
+			s.mu.Unlock()
 			// TEMP(cli-inspect): 定位用，后续可随时移除
 			s.logInspect(true, "cli-update inspect follow failed", err)
 			return
 		}
+		s.mu.Lock()
 		s.lastLocal = local
+		s.mu.Unlock()
 		rows, berr := s.rowsFromLocal(local)
 		if berr != nil {
 			// TEMP(cli-inspect): 定位用，后续可随时移除
@@ -793,7 +824,7 @@ func (s *CliUpdateService) followProbe(entry *probedEntry) {
 			s.logInspect(false, "cli-update inspect late result", fmt.Sprintf("rows=%d installed=%d missing=%d", len(local), ok, miss))
 			s.emitInspectUpdated(rows)
 		}
-	})
+	}()
 }
 
 func (s *CliUpdateService) inspectFallback() []*util.Obj {
@@ -807,51 +838,45 @@ func (s *CliUpdateService) inspectFallback() []*util.Obj {
 // 缓存里已有 latest 就带上。缓存是冷的或调用方要求刷新时，在后台问 npm，完成后发
 // cliUpdate.event {kind:inspect, phase:updated}。整次调用有总超时，避免 UI 一直「检测中」。
 func (s *CliUpdateService) Inspect(refresh bool) *jsrt.Promise[[]*util.Obj] {
-	return jsrt.Async(func() ([]*util.Obj, error) {
-		// TEMP(cli-inspect): 定位用，后续可随时移除
-		s.logInspect(false, "cli-update inspect start", fmt.Sprintf("refreshLatest=%v", refresh))
-		s.inspectTimedOut.Store(false)
-		outcome := jsrt.NewPromise[[]*util.Obj]()
-		var done sync.Once
-		// 用 Go timer，不依赖 jsrt 事件循环：先武装再开工。
-		// 即使某次探测卡住 GIL，Resolve 也不需要持锁，前端的总超时仍是兜底。
-		timer := time.AfterFunc(s.inspectLimit, func() {
-			done.Do(func() {
-				s.inspectTimedOut.Store(true)
-				fallback := "empty"
-				n := 0
-				if v, ok := s.lastRowsSnap.Load().([]*util.Obj); ok && len(v) > 0 {
-					fallback = "lastRows"
-					n = len(v)
-				}
-				// TEMP(cli-inspect): 定位用，后续可随时移除
-				s.logInspect(true, "cli-update inspect timed out", fmt.Sprintf("timeout=%s fallback=%s rows=%d", s.inspectLimit, fallback, n))
-				outcome.Resolve(s.inspectFallback())
-			})
+	// 探测在普通 goroutine 里跑，返回的 Promise 也不再经 Await 回等 GIL。
+	// 这样「inspect start 已打出、但 inspectInner 拿不到锁」的 20s 空超时不会再发生；
+	// IPC 用 jsrt.Block 等结果即可，不必占着 jsrt 锁。
+	// TEMP(cli-inspect): 定位用，后续可随时移除
+	s.logInspect(false, "cli-update inspect start", fmt.Sprintf("refreshLatest=%v", refresh))
+	s.inspectTimedOut.Store(false)
+	outcome := jsrt.NewPromise[[]*util.Obj]()
+	var done sync.Once
+	// 用 Go timer，不依赖 jsrt 事件循环：先武装再开工。
+	timer := time.AfterFunc(s.inspectLimit, func() {
+		done.Do(func() {
+			s.inspectTimedOut.Store(true)
+			fallback := "empty"
+			n := 0
+			if v, ok := s.lastRowsSnap.Load().([]*util.Obj); ok && len(v) > 0 {
+				fallback = "lastRows"
+				n = len(v)
+			}
+			// TEMP(cli-inspect): 定位用，后续可随时移除
+			s.logInspect(true, "cli-update inspect timed out", fmt.Sprintf("timeout=%s fallback=%s rows=%d", s.inspectLimit, fallback, n))
+			outcome.Resolve(s.inspectFallback())
 		})
-		jsrt.Go(func() {
-			rows, err := s.inspectInner(refresh)
-			if !timer.Stop() {
+	})
+	go func() {
+		rows, err := s.inspectInner(refresh)
+		if !timer.Stop() {
+			return
+		}
+		done.Do(func() {
+			if err != nil {
+				// TEMP(cli-inspect): 定位用，后续可随时移除
+				s.logInspect(true, "cli-update inspect failed", err)
+				outcome.Resolve(emptyInspectRows())
 				return
 			}
-			done.Do(func() {
-				if err != nil {
-					// TEMP(cli-inspect): 定位用，后续可随时移除
-					s.logInspect(true, "cli-update inspect failed", err)
-					outcome.Resolve(emptyInspectRows())
-					return
-				}
-				outcome.Resolve(rows)
-			})
+			outcome.Resolve(rows)
 		})
-		rows, err := jsrt.Await(outcome)
-		if err != nil {
-			// TEMP(cli-inspect): 定位用，后续可随时移除
-			s.logInspect(true, "cli-update inspect outcome failed", err)
-			return s.inspectFallback(), nil
-		}
-		return rows, nil
-	})
+	}()
+	return outcome
 }
 
 func (s *CliUpdateService) inspectInner(refresh bool) ([]*util.Obj, error) {
@@ -867,6 +892,7 @@ func (s *CliUpdateService) inspectInner(refresh bool) ([]*util.Obj, error) {
 			break
 		}
 	}
+	s.mu.Lock()
 	checked, _, _ := jsGet(s.cache, "checkedAt")
 	stale := cuNow()-cuNumber(checked) > latestTTLMs
 	cacheState := "warm"
@@ -877,29 +903,39 @@ func (s *CliUpdateService) inspectInner(refresh bool) ([]*util.Obj, error) {
 	}
 	willRefresh := refresh || missing || stale
 	willProbe := refresh || s.probed == nil || cuNow()-s.probed.at > probeTTLMs
+	s.mu.Unlock()
 	// TEMP(cli-inspect): 定位用，后续可随时移除
 	s.logInspect(false, "cli-update inspect plan", fmt.Sprintf("refreshLatest=%v cache=%s willRefresh=%v willProbe=%v", refresh, cacheState, willRefresh, willProbe))
 	// 冷缓存、过期或用户点「检查更新」：后台刷新 latest，不堵住本次返回。
+	// refreshLatest 仍要进 jsrt（写 cache）；探测本身不再等这把锁。
 	if willRefresh {
-		s.refreshLatest()
+		jsrt.Go(func() { s.refreshLatest() })
 	}
+	s.mu.Lock()
 	probed := s.probed
+	s.mu.Unlock()
 	if willProbe {
 		entry := &probedEntry{at: cuNow(), rows: s.probeLocal()}
+		s.mu.Lock()
 		probed = entry
 		s.probed = entry
+		s.mu.Unlock()
 	}
 	s.followProbe(probed)
 	probeStarted := time.Now()
-	local, err := jsrt.Await(probed.rows)
+	local, err := jsrt.Block(probed.rows)
 	if err != nil {
+		s.mu.Lock()
 		if s.probed == probed {
 			s.probed = nil
 		}
+		s.mu.Unlock()
 		return nil, err
 	}
 	probeMs := time.Since(probeStarted)
+	s.mu.Lock()
 	s.lastLocal = local
+	s.mu.Unlock()
 	out, err := s.rowsFromLocal(local)
 	if err != nil {
 		return nil, err
@@ -1063,7 +1099,9 @@ func cuResult(ok bool, log, version string) *util.Obj {
 }
 
 func (s *CliUpdateService) finishJob(kind string, r *util.Obj) {
+	s.mu.Lock()
 	s.probed = nil
+	s.mu.Unlock()
 	j := s.jobs[kind]
 	if j == nil || j.status != "running" {
 		return
