@@ -1,6 +1,7 @@
 package askuser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -148,5 +149,45 @@ func TestElicitationFormRoundTrip(t *testing.T) {
 	yes := ElicitationResult(flag, Result{Action: ActionAnswer, Answers: []Answer{{QuestionID: "q1", Selected: []string{"a"}}}})
 	if util.Stringify(yes) != `{"action":"accept","content":{"ok":true}}` {
 		t.Fatal(util.Stringify(yes))
+	}
+}
+
+// enum 原值（首尾空白、超长）必须原样回传，只有显示标签被修整（#359）
+func TestElicitationEnumKeepsRawValues(t *testing.T) {
+	long := strings.Repeat("x", maxLabel+50)
+	params := util.NewObj("mode", "form", "message", "Pick", "requestedSchema", util.NewObj(
+		"type", "object", "properties", util.NewObj(
+			"mode", util.NewObj("type", "string", "enum", []any{" padded ", long}),
+			"tags", util.NewObj("type", "array", "items", util.NewObj("type", "string", "enum", []any{"  a", long})),
+		),
+	))
+	form, ok := QuestionsFromElicitation(params)
+	if !ok || len(form.Questions) != 2 {
+		t.Fatalf("form %+v ok=%v", form.Questions, ok)
+	}
+	byName := map[string]int{}
+	for i, f := range form.fields {
+		byName[f.name] = i
+	}
+	mq := form.Questions[byName["mode"]]
+	if mq.Options[0].Label != "padded" || len([]rune(mq.Options[1].Label)) > maxLabel {
+		t.Fatalf("labels = %+v", mq.Options)
+	}
+	res := Result{Action: ActionAnswer, Answers: []Answer{
+		{QuestionID: mq.ID, Selected: []string{"a"}},
+		{QuestionID: form.Questions[byName["tags"]].ID, Selected: []string{"a", "b"}},
+	}}
+	content, _ := ElicitationResult(form, res).Get("content").(*util.Obj)
+	if content == nil || content.Get("mode") != " padded " {
+		t.Fatalf("mode = %q", util.Stringify(content))
+	}
+	tags, _ := content.Get("tags").([]any)
+	if len(tags) != 2 || tags[0] != "  a" || tags[1] != long {
+		t.Fatalf("tags = %v", tags)
+	}
+	res.Answers[0].Selected = []string{"b"}
+	content, _ = ElicitationResult(form, res).Get("content").(*util.Obj)
+	if content.Get("mode") != long {
+		t.Fatal("long enum value was clipped")
 	}
 }

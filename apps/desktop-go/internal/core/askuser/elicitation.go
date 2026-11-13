@@ -250,9 +250,9 @@ func stringChoices(prop *util.Obj) (values []string, opts []Option, status int) 
 			if len(values) >= maxOptions {
 				break
 			}
-			s = clip(strings.TrimSpace(s), maxLabel)
+			// 协议值原样保留（含首尾空白、超长），只裁剪显示标签，答复才属于原 enum
 			values = append(values, s)
-			opts = append(opts, Option{ID: letter(len(opts)), Label: s})
+			opts = append(opts, Option{ID: letter(len(opts)), Label: clip(strings.TrimSpace(s), maxLabel)})
 		}
 		return values, opts, fieldOK
 	}
@@ -280,9 +280,9 @@ func arrayChoices(items any) (values []string, opts []Option, status int) {
 			if len(values) >= maxOptions {
 				break
 			}
-			s = clip(strings.TrimSpace(s), maxLabel)
+			// 协议值原样保留（含首尾空白、超长），只裁剪显示标签，答复才属于原 enum
 			values = append(values, s)
-			opts = append(opts, Option{ID: letter(len(opts)), Label: s})
+			opts = append(opts, Option{ID: letter(len(opts)), Label: clip(strings.TrimSpace(s), maxLabel)})
 		}
 		return values, opts, fieldOK
 	}

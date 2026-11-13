@@ -420,6 +420,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **mascot:** the toolbar and speech bubble move to the other side of the character again when the
 - **mascot:** when the mascot is resized and clamped to the bottom of the screen, the window no longer ends up 1px below the work area under fractional display scaling (125% / 150% / 175% on Windows). The clamp now accounts for the display scale factor and the OS's DIP ⇄ physical pixel rounding. (`@nomi-ai/desktop-go` patch)
 - **mascot:** 拖拽 Nomi 时每个指针采样立即移窗，去掉 16.7ms 节流（Windows 定时器精度下会隔帧卡顿，120Hz 屏也受影响）；Windows 拖拽改读系统光标，避免渲染进程 screenX 滞后导致来回抖。 (`@nomi-ai/desktop-go` patch)
+- **mcp:** MCP 表单提问的选项值原样回传：带首尾空格或超过 200 字的 enum 成员不再被修剪、截断，答复仍属于原枚举；只有显示文字会被整理。 (`@nomi-ai/desktop-go` patch)
 - **media:** 素材库记下完整的生图提示词（与 image_generate 的 4000 字上限一致），重新生成发原文全文（#225）。 (`@nomi-ai/desktop-go` patch)
 - **memory:** automatic conversation summaries keep updating once a conversation reaches the 1000-message storage limit, and are refreshed when the latest reply is regenerated or edited (same message count). Each summary now remembers a fingerprint of the messages it covered instead of relying on the message count alone. (`@nomi-ai/desktop-go` patch)
 - **memory:** automatic conversation summaries no longer stop updating once a chat passes 80 messages. New-content detection now uses the real message count (only the summarizer's context is limited to the latest 80), and conversations whose history shrank are re-summarized. (`@nomi-ai/ai-chat` patch)
