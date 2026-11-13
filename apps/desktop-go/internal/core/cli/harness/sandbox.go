@@ -2,7 +2,7 @@ package harness
 
 // sandbox.go：编程助手的系统级沙箱（internal/core/cli/sandbox）接到标签上：
 // 起 CLI 时包进沙箱（关掉 CLI 自己的沙箱，Seatbelt 不能嵌套）、违规日志 → 标签上的授权请求、
-// 用户授权（本会话 / 始终）后重启这个标签的 CLI 并接着做。见 docs/development/security.md「编程助手」。
+// 用户授权（本会话 / 始终）后让这个标签的 CLI 在下次启动时应用新权限，不自动发送消息。见 docs/development/security.md「编程助手」。
 
 import (
 	"crypto/rand"
@@ -99,8 +99,6 @@ type tabSandbox struct {
 	granted   map[string]bool
 	dismissed map[string]bool
 	pending   []*sbxPending
-	// followUp：授权时这个标签正在跑，等这一轮结束后发「已允许，请继续」
-	followUp string
 }
 
 type sbxState struct {
@@ -437,7 +435,6 @@ func (o *Orchestrator) SandboxReply(tabID, requestID, choice string) bool {
 			t.granted[key] = true
 		}
 		o.recycleTab(tabID)
-		o.continueAfterGrant(tabID, hit.req)
 	default:
 		return false
 	}
@@ -505,50 +502,6 @@ func grantLabel(r sandbox.Request) string {
 		return i18n.T(k)
 	}
 	return r.Value
-}
-
-// continueAfterGrant：授权后接着做——空闲就直接发「已允许，请继续」，在跑就等这一轮结束
-func (o *Orchestrator) continueAfterGrant(id string, r sandbox.Request) {
-	msg := i18n.T("electron.common.sandbox-granted-continue", grantLabel(r))
-	tab := o.tab(id)
-	if tab == nil {
-		return
-	}
-	if s := str(tab, "status"); s == "running" || s == "queued" {
-		o.sbxTab(id).followUp = msg
-		return
-	}
-	o.sendFollowUp(id, msg)
-}
-
-func (o *Orchestrator) sendFollowUp(id, msg string) {
-	if o.nextOrigin == nil {
-		o.nextOrigin = map[string]string{}
-	}
-	o.nextOrigin[id] = "sandbox"
-	p := o.SendTab(id, msg, nil, false)
-	jsrt.Async(func() (struct{}, error) {
-		if _, err := jsrt.Await(p); err != nil {
-			o.d.Logger.Warn("harness sandbox follow-up failed", err)
-		}
-		return struct{}{}, nil
-	})
-}
-
-// afterTurnSandbox：一轮结束（SendTab 收尾）时补发授权后的「请继续」
-func (o *Orchestrator) afterTurnSandbox(id string) {
-	t := o.sbx.tabs[id]
-	if t == nil || t.followUp == "" {
-		return
-	}
-	msg := t.followUp
-	t.followUp = ""
-	jsrt.Go(func() {
-		if o.disposed || o.tab(id) == nil {
-			return
-		}
-		o.sendFollowUp(id, msg)
-	})
 }
 
 // forgetSandbox：关标签时清掉它的授权与启动标记

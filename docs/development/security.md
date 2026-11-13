@@ -85,7 +85,7 @@
 - 授权请求挂在标签状态的 `sandboxPending` 上（不落盘，同一项只挂一次），编程助手标签、委派卡片与任务详情都显示。`harness.sandboxReply` 回答：
   本会话允许（标签内存里）、始终允许（桌面设置 `cliSandboxAllow`：每一条都带 `project` = 工作目录所在 git 根的真实路径，只在这个项目里生效，
   按真实路径比对，符号链接的工作目录借不到别的项目的授权；加载与新增时都校验：类别存在、绝对路径、文件夹不太宽、不在永不授权的位置）、
-  不允许（本会话不再问）。允许后 `recycleTab` 重开这个标签的 CLI（在跑就等这一轮结束，续接会话），并发一条「已允许，请继续」。
+  不允许（本会话不再问）。允许后 `recycleTab` 淘汰这个标签的旧 CLI（在跑就等这一轮结束），下次由用户发送消息时按新权限启动并续接会话。授权只改变权限，不代替用户发送「请继续」或自动开启下一轮；用户停止后也不会因授权而续跑。
 - 任务预授权：任务授权的 `grant.sandbox`（类别 id），有 GitHub 对外能力时自动加 `ssh`（`tasks.SandboxGrants`）；建标签时写进
   `delegation.sandboxGrants`，`grantedFor` 当作已授权。只有内核自己的委派 / 任务路径能写 `delegation`：契约 `harness.tabCreate`
   只收视图能给的字段（backend、cwd、title、messages、permissionMode），视图带来的 `delegation` 等内部字段一律丢掉。

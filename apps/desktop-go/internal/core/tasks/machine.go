@@ -249,11 +249,27 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 		if eventKey == nil && attempt != nil && (p.Cause == "retry" || p.Cause == "resume" || p.Cause == "rework" || p.Cause == "followup") {
 			eventKey = attempt.Cause.EventKey
 		}
+		cause := AttemptCause{Kind: p.Cause, EventKey: eventKey, Note: p.Note, Answer: p.Answer, Images: p.Images}
+		if p.Cause == "followup" && p.Note != nil {
+			cause.FollowUp = &FollowUpContext{Text: *p.Note}
+			if attempt != nil && attempt.Result != nil {
+				cause.FollowUp.PreviousSummary = shortN(attempt.Result.Summary, 4000)
+			}
+		} else if attempt != nil && (p.Cause == "retry" || p.Cause == "resume") {
+			cause.FollowUp = attempt.Cause.FollowUp
+			// 兼容升级前已在跑的追问；新的追问会在首次执行时保存 PreviousSummary。
+			if cause.FollowUp == nil && attempt.Cause.Kind == "followup" && attempt.Cause.Note != nil {
+				cause.FollowUp = &FollowUpContext{Text: *attempt.Cause.Note}
+			}
+			if cause.FollowUp != nil {
+				cause.Images = slices.Clone(attempt.Cause.Images)
+			}
+		}
 		next := &Attempt{
 			ID:        ev.AttemptID,
 			TaskID:    task.ID,
 			Gen:       gen,
-			Cause:     AttemptCause{Kind: p.Cause, EventKey: eventKey, Note: p.Note, Answer: p.Answer, Images: p.Images},
+			Cause:     cause,
 			Snapshot:  snap,
 			Status:    "running",
 			StartedAt: at,

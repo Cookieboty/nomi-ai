@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { ContractError } from '@nomi-ai/contract';
+import { ModalHostContext } from '@nomi-ai/ui';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -231,6 +232,146 @@ describe('OfficialAccounts', () => {
     await waitFor(() =>
       expect(r.getByTestId('cli-account-duplicate').textContent).toContain('本机登录'),
     );
+  });
+
+  it.each(['codex', 'grok'] as const)(
+    '%s：设置页内嵌模式下登录仍打开弹窗，Esc 取消登录',
+    async (kind) => {
+      const ipc = mockIpc({
+        'cliAccount.loginStart': () => ({ id: 'L1', kind, state: 'starting' }),
+      });
+      const r = render(
+        <ModalHostContext.Provider value={{ mode: 'inline' }}>
+          <OfficialAccounts kind={kind} />
+        </ModalHostContext.Provider>,
+      );
+      await act(async () => fireEvent.click(r.getByTestId('cli-accounts-add')));
+      const dialog = r.getByRole('dialog');
+      expect(dialog.getAttribute('data-testid')).toBe('cli-account-login');
+      expect(dialog.getAttribute('aria-modal')).toBe('true');
+      expect(r.getByTestId('cli-account-login-overlay').parentElement).toBe(document.body);
+      await act(async () => fireEvent.keyDown(document, { key: 'Escape' }));
+      expect(ipc.invoke).toHaveBeenCalledWith('cliAccount.loginCancel', { id: 'L1' });
+      expect(r.queryByRole('dialog')).toBeNull();
+    },
+  );
+
+  it.each(['codex', 'grok'] as const)(
+    '%s：拿到设备码后自动打开浏览器一次，重复事件不会再打开',
+    async (kind) => {
+      const ipc = mockIpc({
+        'cliAccount.loginStart': () => ({ id: 'L1', kind, state: 'starting' }),
+      });
+      const r = render(<OfficialAccounts kind={kind} />);
+      await act(async () => fireEvent.click(r.getByTestId('cli-accounts-add')));
+      const waiting = {
+        id: 'L1',
+        kind,
+        state: 'waiting',
+        url:
+          kind === 'codex'
+            ? 'https://auth.openai.com/codex/device'
+            : 'https://accounts.x.ai/oauth2/device?user_code=ABCD-12345',
+        code: 'ABCD-12345',
+        needsCode: false,
+      };
+      await act(() => ipc.emit('cliAccount.login', waiting));
+      await act(() => ipc.emit('cliAccount.login', waiting));
+      expect(ipc.invoke.mock.calls.filter(([ch]) => ch === 'cliAccount.openUrl')).toEqual([
+        ['cliAccount.openUrl', { url: waiting.url }],
+      ]);
+    },
+  );
+
+  it('同一个账号重试登录时仍自动打开新的登录页', async () => {
+    const ipc = mockIpc({
+      'cliAccount.loginStart': () => ({ id: 'c', kind: 'codex', state: 'starting' }),
+    });
+    const r = render(<OfficialAccounts kind="codex" />);
+    await waitFor(() => r.getByTestId('cli-account-login'));
+    await act(async () => fireEvent.click(r.getByTestId('cli-account-login')));
+    const waiting = {
+      id: 'c',
+      kind: 'codex',
+      state: 'waiting',
+      url: 'https://auth.openai.com/codex/device',
+      code: 'TEST-CODE1',
+    };
+    await act(() => ipc.emit('cliAccount.login', waiting));
+    await act(() =>
+      ipc.emit('cliAccount.login', {
+        id: 'c',
+        kind: 'codex',
+        state: 'error',
+        hint: 'network-blocked',
+      }),
+    );
+    await act(async () => fireEvent.click(r.getByTestId('cli-account-login-retry')));
+    await act(() => ipc.emit('cliAccount.login', { ...waiting, code: 'TEST-CODE2' }));
+    expect(ipc.invoke.mock.calls.filter(([ch]) => ch === 'cliAccount.openUrl')).toHaveLength(2);
+  });
+
+  it('关闭后到达的取消和等待事件不会重新打开空弹窗', async () => {
+    const ipc = mockIpc();
+    const r = render(<OfficialAccounts kind="codex" />);
+    await act(async () => fireEvent.click(r.getByTestId('cli-accounts-add')));
+    await act(async () => fireEvent.keyDown(document, { key: 'Escape' }));
+    await act(() => ipc.emit('cliAccount.login', { id: 'L1', kind: 'codex', state: 'cancelled' }));
+    await act(() => ipc.emit('cliAccount.login', { id: 'L1', kind: 'codex', state: 'waiting' }));
+    expect(r.queryByRole('dialog')).toBeNull();
+  });
+
+  it('再次登录还在启动时，旧会话的取消事件不影响新的登录', async () => {
+    let calls = 0;
+    let resolveStart!: (event: unknown) => void;
+    const ipc = mockIpc({
+      'cliAccount.loginStart': () =>
+        ++calls === 1
+          ? { id: 'L1', kind: 'codex', state: 'starting' }
+          : new Promise((resolve) => {
+              resolveStart = resolve;
+            }),
+    });
+    const r = render(<OfficialAccounts kind="codex" />);
+    await act(async () => fireEvent.click(r.getByTestId('cli-accounts-add')));
+    await act(async () => fireEvent.keyDown(document, { key: 'Escape' }));
+    await act(async () => fireEvent.click(r.getByTestId('cli-accounts-add')));
+    await act(() => ipc.emit('cliAccount.login', { id: 'L1', kind: 'codex', state: 'cancelled' }));
+    await act(async () => resolveStart({ id: 'L2', kind: 'codex', state: 'starting' }));
+    expect(r.getByRole('dialog')).toBeTruthy();
+    expect(ipc.invoke).not.toHaveBeenCalledWith('cliAccount.loginCancel', { id: 'L2' });
+  });
+
+  it('没有主动登录时，不为全局的登录事件弹窗', async () => {
+    const ipc = mockIpc();
+    const r = render(<OfficialAccounts kind="codex" />);
+    await act(() =>
+      ipc.emit('cliAccount.login', { id: 'other', kind: 'codex', state: 'cancelled' }),
+    );
+    expect(r.queryByRole('dialog')).toBeNull();
+  });
+
+  it('登录启动响应晚于设备码事件时，不退回启动状态', async () => {
+    let resolveStart!: (event: unknown) => void;
+    const ipc = mockIpc({
+      'cliAccount.loginStart': () =>
+        new Promise((resolve) => {
+          resolveStart = resolve;
+        }),
+    });
+    const r = render(<OfficialAccounts kind="codex" />);
+    await act(async () => fireEvent.click(r.getByTestId('cli-accounts-add')));
+    await act(() =>
+      ipc.emit('cliAccount.login', {
+        id: 'L1',
+        kind: 'codex',
+        state: 'waiting',
+        url: 'https://auth.openai.com/codex/device',
+        code: 'ABCD-12345',
+      }),
+    );
+    await act(async () => resolveStart({ id: 'L1', kind: 'codex', state: 'starting' }));
+    expect(r.getByTestId('cli-account-code').textContent).toBe('ABCD-12345');
   });
 
   it('设备码登录：弹窗显示一次性码与打开登录页；完成后提示', async () => {

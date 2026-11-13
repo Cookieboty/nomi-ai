@@ -138,6 +138,10 @@ Codex 的 exec 回退没有来回通道。Nomi 自己连上的 MCP 不广告 eli
 - **第三方**：CLI 指向本机统一网关。启动前编排器签一个 `nomi-tab-` 令牌并登记绑定（标签、代次、模型、思考深度），收到确认才启动；
   换模型、换第三方供应商时重新登记，下一轮生效。
 
+官方账号登录：Codex 使用设备码，界面拿到登录链接和设备码后只自动打开浏览器一次；Grok 使用
+`grok login --oauth` 的浏览器回调流程，由 CLI 打开浏览器。登录弹窗不继承设置页的内嵌模式，
+只响应本页主动发起且尚未关闭的登录；关闭后的迟到事件不会再弹窗，启动响应也不会覆盖先到达的登录进度。
+
 ## 子任务（Nomi 委派的标签）
 
 - 子任务侧栏（`packages/ai-chat/src/components/SubagentPane`，状态在 `contexts/SubagentPaneContext`）：

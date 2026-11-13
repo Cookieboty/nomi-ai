@@ -96,7 +96,12 @@ func externalOnly(kind string, pids []float64, fromSessions bool, d LiveDeps) []
 	out := []float64{}
 	for _, p := range pids {
 		r, ok := procs[p]
-		if !ok || nomiOwned(p, procs, self) {
+		if !ok {
+			// 进程表可能来自缓存；缺少 PID 不能推翻会话存活 / lsof 的占用证据。
+			out = append(out, p)
+			continue
+		}
+		if nomiOwned(p, procs, self) {
 			continue
 		}
 		if fromSessions && !looksLikeCli(kind, r) {

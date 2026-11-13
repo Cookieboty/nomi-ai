@@ -776,9 +776,9 @@ func (r *Runtime) apply(id string, ev Event) CmdResult {
 	if before.Status != saved.Status && retiredStatus(saved.Status) {
 		if ret, ok := r.executor(saved).(Retirer); ok {
 			// 自动收下的完成（acceptance != user）也算验收通过：worktree 里的改动要落地，不能直接拆掉。
-			// 重复任务每次跑完回到 idle，改动不落地（下一次还会接着做）
+			// 重复任务回到 idle 时也会释放载体：本轮成果同样必须先落地。
 			accepted := ev.Type == "accept" ||
-				(ev.Type == "completed" && saved.Acceptance != "user" && !IsRecurring(&saved))
+				(ev.Type == "completed" && saved.Acceptance != "user")
 			ret.Retire(saved, attempts, accepted)
 		}
 	}

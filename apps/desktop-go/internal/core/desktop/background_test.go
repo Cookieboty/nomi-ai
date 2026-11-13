@@ -17,7 +17,7 @@ func TestBackgroundAuthorize(t *testing.T) {
 	mk := func(level int) context.Context {
 		ctx, cancel := context.WithCancel(context.Background())
 		t.Cleanup(cancel)
-		return WithBackground(ctx, &BackgroundRun{Level: level, Ask: func(tool, _, _ string) bool {
+		return WithBackground(ctx, &BackgroundRun{Level: level, AutoJudge: true, Ask: func(tool, _, _ string) bool {
 			asked = append(asked, tool)
 			return answer
 		}})
@@ -191,7 +191,7 @@ func TestBackgroundExternalCommandNeedsGithubCapability(t *testing.T) {
 	reg := func(level int, caps ...string) context.Context {
 		ctx, cancel := context.WithCancel(context.Background())
 		t.Cleanup(cancel)
-		run := &BackgroundRun{Level: level, Ask: func(_, _, detail string) bool {
+		run := &BackgroundRun{Level: level, AutoJudge: true, Ask: func(_, _, detail string) bool {
 			asked = append(asked, strings.SplitN(detail, " ", 2)[0])
 			return false
 		}}

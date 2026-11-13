@@ -390,6 +390,14 @@ func (s *Service) saveFollowUpImages(id string, images []FollowUpImage) ([]strin
 		return nil, err
 	}
 	out := []string{}
+	complete := false
+	defer func() {
+		if !complete {
+			for _, p := range out {
+				_ = os.Remove(p)
+			}
+		}
+	}()
 	for _, im := range images {
 		ext, ok := imageExt[strings.ToLower(im.Mime)]
 		if !ok {
@@ -403,12 +411,22 @@ func (s *Service) saveFollowUpImages(id string, images []FollowUpImage) ([]strin
 		if err != nil || len(raw) == 0 {
 			return nil, errors.New("bad image data")
 		}
-		p := filepath.Join(dir, fmt.Sprintf("%d-%d%s", s.d.Now(), len(out), ext))
-		if err := os.WriteFile(p, raw, 0o600); err != nil {
+		// O_EXCL + 随机文件名：并发 / 同毫秒的追问互不覆盖，拒绝清理只删自己的附件。
+		f, err := os.CreateTemp(dir, "followup-*"+ext)
+		if err != nil {
 			return nil, err
 		}
-		out = append(out, p)
+		out = append(out, f.Name())
+		_, writeErr := f.Write(raw)
+		closeErr := f.Close()
+		if writeErr != nil {
+			return nil, writeErr
+		}
+		if closeErr != nil {
+			return nil, closeErr
+		}
 	}
+	complete = true
 	return out, nil
 }
 

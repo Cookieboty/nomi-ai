@@ -222,6 +222,11 @@ func DecidePermission(t Task, kind, summary string, tainted, relaxed bool) strin
 		return "ask"
 	}
 	level := t.Grant.Level
+	// 显式关闭自动判断就逐条问人，不依赖委派时留下的 AskCommands。
+	// relaxed 仍允许前台「全部自动」覆盖；未设置的新旧任务保持原来的默认策略。
+	if level >= 3 && !relaxed && t.Grant.AutoJudge != nil && !*t.Grant.AutoJudge {
+		return "ask"
+	}
 	switch ClassifySummary(summary) {
 	case "credential", "never":
 		return "ask"

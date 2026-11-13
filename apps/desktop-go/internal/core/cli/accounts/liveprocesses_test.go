@@ -49,7 +49,7 @@ func TestClaudeLiveIgnoresNomiChildrenAndStaleSessionFiles(t *testing.T) {
 	for _, p := range []int{26348, 5555, 7777, 4242} {
 		writeSession(t, dir, p)
 	}
-	alive := func(float64) bool { return true }
+	alive := func(pid float64) bool { return pid != 7777 }
 	d := LiveDeps{Alive: alive, Procs: procs, Self: self}
 	got := jsrt.Call(func() LiveCheck { return LiveProcesses("claude", dir, d) })
 	if got.State != "busy" || len(got.Pids) != 1 || got.Pids[0] != 4242 {
@@ -171,5 +171,78 @@ func TestRemoveStopDoesNotKillProcessesThatAppearedLater(t *testing.T) {
 		if sg[:4] == "9999" {
 			t.Fatalf("killed a process the user never confirmed: %v", signals)
 		}
+	}
+}
+
+// 进程表会缓存 5 秒：刚启动的 CLI 可能尚未入表，但会话文件 / lsof 已证明它仍占用账号。
+func TestLiveProcessesKeepsPidsMissingFromCachedProcessTable(t *testing.T) {
+	for _, kind := range []string{"claude", "codex"} {
+		t.Run(kind, func(t *testing.T) {
+			dir := t.TempDir()
+			writeSession(t, dir, 4242)
+			d := LiveDeps{
+				Platform: "darwin", Self: self,
+				Alive:     func(float64) bool { return true },
+				OpenFiles: func(string) ([]float64, error) { return []float64{4242, 26351}, nil },
+				Procs: func() []ProcRow {
+					// 已知 Nomi 子进程仍须过滤，不能因此丢掉未入缓存的外部进程。
+					return []ProcRow{{Pid: self, Ppid: 1, Name: "Nomi"}, {Pid: 26351, Ppid: self, Name: "codex"}}
+				},
+			}
+			got := jsrt.Call(func() LiveCheck { return LiveProcesses(kind, dir, d) })
+			if got.State != "busy" || len(got.Pids) != 1 || got.Pids[0] != 4242 {
+				t.Fatalf("live CLI missing from cached table: got %+v, want busy [4242]", got)
+			}
+		})
+	}
+}
+
+func TestRemovePreservesAccountUsedByPidMissingFromCachedProcessTable(t *testing.T) {
+	for _, kind := range []string{"claude", "codex"} {
+		t.Run(kind, func(t *testing.T) {
+			root, home := t.TempDir(), t.TempDir()
+			s, err := NewAccountService(ServiceDeps{
+				Root: root, Home: home, Platform: "linux", Env: util.NewObj("HOME", home),
+				LiveProcesses: func(kind, dir string) (LiveCheck, error) {
+					return LiveProcesses(kind, dir, LiveDeps{
+						Platform: "darwin", Self: self,
+						Alive:     func(float64) bool { return true },
+						OpenFiles: func(string) ([]float64, error) { return []float64{4242}, nil },
+						Procs:     func() []ProcRow { return []ProcRow{{Pid: self, Ppid: 1, Name: "Nomi"}} },
+					}), nil
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var id, dir string
+			jsrt.Run(func() {
+				a, err := s.Create(kind, "Test")
+				if err != nil {
+					t.Fatal(err)
+				}
+				id = a.Get("id").(string)
+				dir = *dirOf(s.find(id))
+			})
+			writeSession(t, dir, 4242)
+			credential := filepath.Join(dir, ".credentials.json")
+			contents := `{"oauth":"test-only"}`
+			if err := os.WriteFile(credential, []byte(contents), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			for _, force := range []bool{false, true} {
+				_, err := jsrt.Block(jsrt.Call(func() *jsrt.Promise[struct{}] { return s.Remove(id, force) }))
+				var ae *AccountError
+				if !errors.As(err, &ae) || ae.Code != "external-busy" || len(ae.Pids) != 1 || ae.Pids[0] != 4242 {
+					t.Fatalf("remove(force=%v): err=%v, want external-busy [4242]", force, err)
+				}
+				if b, err := os.ReadFile(credential); err != nil || string(b) != contents {
+					t.Fatalf("remove(force=%v) changed credentials: contents=%q err=%v", force, b, err)
+				}
+				if list := jsrt.Call(func() []any { return s.list(kind) }); len(list) != 1 || prop(list[0], "id") != id {
+					t.Fatalf("remove(force=%v) changed account records: %v", force, list)
+				}
+			}
+		})
 	}
 }

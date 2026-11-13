@@ -6,7 +6,7 @@
  * 界面与编程助手标签共用 ModelEffortChip（components/ModelControls/ModelEffortChip），这里只负责
  * 「读哪份数据、改往哪写」。NOMI_PROVIDER 环境变量锁定时网关的分配不生效：只显示一个不可点的胶囊。
  */
-import { t } from '@nomi-ai/ui';
+import { modelBrandOf, t } from '@nomi-ai/ui';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { selectIpcClient, useAiChatSelector } from '../../contexts/aiChatStore';
@@ -26,16 +26,15 @@ import {
   useGatewayState,
 } from '../../services/nomiModel';
 import {
-  effectiveProviderLabel,
   providerClient,
   providerClientAvailable,
-  providerDisplayName,
   type ProviderState,
 } from '../../services/providerClient';
 import { resolveThinkingLevel, thinkingProfileOf } from '../../services/thinkingDepth';
 import type { IPCClient } from '../../types/ipc';
 import { thinkingLevelLabel } from '../ModelControls/effortLabel';
 import { ModelEffortChip, type ModelEffortSource } from '../ModelControls/ModelEffortChip';
+import { thirdPartyProviderSource } from '../ModelControls/providerSource';
 
 /** 会话上存着的思考档位（与消息一起保存，切换会话后各自独立） */
 function useStoredEffort(): {
@@ -68,13 +67,13 @@ export const NomiModelSwitch: React.FC = () => {
   const providers = useMemo(() => pickerProviders(state?.providers ?? []), [state]);
   // NOMI_PROVIDER 环境变量锁定时，网关的分配不生效
   const [override, setOverride] = useState<string | null>(null);
-  // 网关里还没分配时，对话由旧存储路由（如环境变量供应商）：显示它，不显示「未配置」
-  const [legacyLabel, setLegacyLabel] = useState<string | undefined>();
+  // 网关里还没分配时，对话由旧存储路由（如环境变量供应商）：仍只显示实际模型名
+  const [legacyModel, setLegacyModel] = useState<string | undefined>();
   useEffect(() => {
     if (!providerClientAvailable()) return;
     const apply = (s: ProviderState) => {
       setOverride(s.overrideId ?? null);
-      setLegacyLabel(effectiveProviderLabel());
+      setLegacyModel(s.effectiveModel || undefined);
     };
     providerClient
       .state()
@@ -100,15 +99,19 @@ export const NomiModelSwitch: React.FC = () => {
 
   const parts = activeRef ? splitRef(activeRef) : null;
   const provider = parts ? state.providers.find((p) => p.id === parts.provider) : undefined;
-  const providerName = provider ? providerDisplayName(provider.name) : parts?.provider;
   const modelName = parts
     ? (provider?.models.find((m) => m.id === parts.model)?.label ?? parts.model)
     : '';
-  const modelLabel = parts
-    ? `${providerName} / ${modelName}`
-    : (legacyLabel ?? t('ui.models.choose-a-model'));
+  const modelLabel = parts ? modelName : (legacyModel ?? t('ui.models.choose-a-model'));
   const chipLabel = level ? `${modelLabel} · ${thinkingLevelLabel(level)}` : modelLabel;
-  const brand = parts ? providerBrand(state, parts.provider) : undefined;
+  // 与 CLI 一致：优先模型厂商图标，认不出再回退到供应商品牌 / 通用芯片图标。
+  const brand = parts ? modelBrandOf(parts.model, providerBrand(state, parts.provider)) : undefined;
+
+  const pickModel = (ref: string): 'effort' | 'close' => {
+    setPick({ ref, base: current });
+    if (ref !== current) void setNomiModel(ref).catch(() => undefined);
+    return thinkingProfileOf(state, ref) ? 'effort' : 'close';
+  };
 
   const source: ModelEffortSource = {
     label: chipLabel,
@@ -141,13 +144,9 @@ export const NomiModelSwitch: React.FC = () => {
       showBack: true,
       wide: true,
       optionTestId: (ref) => `nomi-model-${ref}`,
-      onPick: (ref) => {
-        setPick({ ref, base: current });
-        if (ref !== current) void setNomiModel(ref).catch(() => undefined);
-        // 支持思考深度的模型接着调档位（Codex 的「一次选完」）；不支持时直接收起浮层
-        return thinkingProfileOf(state, ref) ? 'effort' : 'close';
-      },
+      onPick: pickModel,
     },
+    provider: thirdPartyProviderSource(providers, activeRef, pickModel),
     modelLabel,
     modelRowAria: t('ui.chat-settings.switch-model', modelLabel),
   };
@@ -166,7 +165,7 @@ export const NomiModelSwitch: React.FC = () => {
           ? null
           : {
               label: override
-                ? (legacyLabel ?? t('ui.providers-schedule.not-configured'))
+                ? (legacyModel ?? t('ui.providers-schedule.not-configured'))
                 : t('ui.providers-schedule.not-configured'),
               ariaLabel: override
                 ? t('ui.providers-schedule.locked-by-nomi-provider')

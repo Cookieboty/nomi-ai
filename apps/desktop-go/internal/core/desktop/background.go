@@ -78,6 +78,8 @@ func (r *BackgroundRun) autoJudge() bool {
 	return false
 }
 
+func (r *BackgroundRun) autoAll() bool { return r.AutoAll != nil && r.AutoAll() }
+
 // CurrentConnections：经连接的工具按任务当前授权收窄
 func (r *BackgroundRun) CurrentConnections() []ConnGrant { return r.conns() }
 
@@ -215,8 +217,8 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 	// 确定性分类在审核之前（command_class.go）：读凭据、合并发布等永远问人；对外命令要 L4，
 	// 且授权里给了 GitHub 的对外能力（github.comment / github.pr.create）
 	cmdText, _, _ := parseCommandArgs(i.Args)
-	// hard：确定性分类命中永远问人的类；highRisk：审核判为 high / critical（「全部自动」也不放行这两类）
-	hard, highRisk := false, false
+	// 「全部自动」也必须拿到有效的低 / 中风险结论；缺失、失败与未知风险都交给人。
+	hard, reviewedSafe := false, false
 	cls := ""
 	if command {
 		cls = ClassifyCommand(cmdText)
@@ -224,18 +226,18 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 	if cls == "credential" || cls == "never" || (cls == "external" && (run.level() < externalLevel || !run.hasGithubExternal())) {
 		detail = "[" + cls + "] " + detail
 		hard = true
-	} else if command && b.commandRuleFor(i) != "" && !run.Tainted && !b.IsTainted(i.Signal) {
+	} else if command && (run.autoJudge() || run.autoAll()) && b.commandRuleFor(i) != "" && !run.Tainted && !b.IsTainted(i.Signal) {
 		// 命令白名单：与前台一致，读过外部内容时不认
 		return "auto"
 	} else if command {
-		if cmd, cwd, ok := b.reviewableBackground(i, run.autoJudge() && run.level() >= commandLevel); ok {
+		if cmd, cwd, ok := b.reviewableBackground(i, (run.autoJudge() || run.autoAll()) && run.level() >= commandLevel); ok {
 			review := b.review(i, cmd, cwd)
-			// 与前台一致：审核放行就直接跑（workspace_run 总带 Force，审核结果优先）
-			if review != nil && review.Outcome == "allow" && !run.Tainted {
-				return "auto"
-			}
 			if review != nil {
-				highRisk = review.Risk == "high" || review.Risk == "critical"
+				reviewedSafe = review.Risk == "low" || review.Risk == "medium"
+				// 任务关掉自动判断时，全局审核只能补充风险说明，不能替用户批准。
+				if reviewedSafe && review.Outcome == "allow" && (run.autoJudge() || run.autoAll()) && !run.Tainted {
+					return "auto"
+				}
 				d := string(review.Risk)
 				if review.Rationale != "" {
 					d += ": " + review.Rationale
@@ -256,8 +258,8 @@ func (b *PermissionBroker) authorizeBackground(run *BackgroundRun, i AuthorizeIn
 	}
 	// 前台「全部自动」对后台任务生效：只放行写入与（审核没判高风险的）命令；
 	// 凭据 / 永不放行类、破坏性动作、事件触发读过外部内容后的操作仍问人
-	if run.AutoAll != nil && run.AutoAll() && !hard && !highRisk && !run.Tainted && !b.IsTainted(i.Signal) &&
-		(command || i.Danger == "write") {
+	if run.autoAll() && !hard && !run.Tainted && !b.IsTainted(i.Signal) &&
+		((command && reviewedSafe) || (!command && i.Danger == "write")) {
 		return "auto"
 	}
 	ok := run.Ask(i.Tool, i.Summary, detail)
@@ -302,7 +304,7 @@ func (b *PermissionBroker) WithinTaskPaths(ctx context.Context, real string) boo
 }
 
 // reviewableBackground：后台不看前台的「计划」档，其余条件同 reviewable；
-// autoJudge（任务开了按风险自动判断）时不看「命令自动审核」开关，只要有审核器就审
+// autoJudge（任务开了按风险自动判断或前台开了全部自动）时不看「命令自动审核」开关，只要有审核器就审
 func (b *PermissionBroker) reviewableBackground(i AuthorizeInput, autoJudge bool) (cmd, cwd string, ok bool) {
 	if !ReviewedTools[i.Tool] || b.Reviewer == nil {
 		return "", "", false

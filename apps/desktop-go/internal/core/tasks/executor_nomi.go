@@ -320,8 +320,11 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 	if progress != "" {
 		d["Progress"] = shortN(progress, 4000)
 	}
-	// 追问：带上上一次执行的结论，模型在它的基础上接着做
-	if cause.Kind == "followup" && ctx.Previous != nil && ctx.Previous.Result != nil {
+	// 追问的重试也带上原始输入和追问前的结论，不改成只看原始任务目标。
+	if follow := cause.FollowUp; follow != nil {
+		d["FollowUp"], d["Note"], d["HasNote"] = true, follow.Text, true
+		d["Previous"] = shortN(follow.PreviousSummary, 4000)
+	} else if cause.Kind == "followup" && ctx.Previous != nil && ctx.Previous.Result != nil {
 		d["Previous"] = shortN(ctx.Previous.Result.Summary, 4000)
 	}
 	return []blm.ChatMessage{{Role: "system", Content: prompts.Render("task-run", d)},
@@ -330,7 +333,7 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 
 // followUpImages：追问带的图片（读不回来的跳过）
 func followUpImages(c AttemptCause) []blm.ChatImage {
-	if c.Kind != "followup" || len(c.Images) == 0 {
+	if (c.Kind != "followup" && c.FollowUp == nil) || len(c.Images) == 0 {
 		return nil
 	}
 	out := []blm.ChatImage{}

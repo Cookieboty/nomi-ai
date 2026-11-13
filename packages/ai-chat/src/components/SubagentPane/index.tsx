@@ -16,6 +16,7 @@ import {
   useHarnessTabs,
   useHarnessTabsCore,
 } from '../../contexts/HarnessTabsContext';
+import { SubagentOutboxProvider, useSubagentOutbox } from '../../contexts/SubagentOutboxContext';
 import {
   SubagentPaneProvider,
   useSubagentPane,
@@ -40,19 +41,15 @@ import { useSlashCommands } from '../../slash/useSlashCommands';
 import type { ConvLive, ConvMessage } from '../../types/conversation';
 import { useCliImageSupport } from '../../utils/cliImageSupport';
 import { cliTabPlaceholder } from '../../utils/cliTabPlaceholder';
-import { fromHarnessMessage } from '../../utils/convAdapters';
+import { fromHarnessMessage, tabLiveToConv } from '../../utils/convAdapters';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { shouldIgnoreEscape } from '../../utils/keyboard';
 import type { LiveAgent } from '../../utils/liveState';
-import {
-  mergePending,
-  newPendingId,
-  type PendingMode,
-  type PendingSend,
-} from '../../utils/pendingSends';
+import { type PendingMode, type PendingSend } from '../../utils/pendingSends';
 import { CliConversation } from '../Conversation/CliConversation';
 import { buildCliSlots } from '../Conversation/cliSlots';
 import { ConversationView } from '../Conversation/index';
+import { TabSandboxRequests } from '../Conversation/SandboxRequests';
 import { MessageInput } from '../MessageInput';
 import { PendingDock } from '../PendingDock';
 import { SessionDetailsProvider } from '../SessionDetails';
@@ -117,6 +114,17 @@ const usePaneEscape = (open: boolean, close: () => void) => {
     return () => window.removeEventListener('keydown', onKey);
   }, [open, close]);
 };
+
+/** 失败的消息仍在待发箱中（含附件）；只在用户点重试后再投递，避免错误重试循环。 */
+const OutboxFailure: React.FC<{ error: string | null; retry: () => void }> = ({ error, retry }) =>
+  error ? (
+    <div className={styles.hint} role="alert" data-testid="subagent-send-error">
+      {t('ui.chat-settings.failed-to-send-message', error)}
+      <Button size="sm" variant="ghost" onClick={retry} data-testid="subagent-send-retry">
+        {t('ui.mascot-theme.retry')}
+      </Button>
+    </div>
+  ) : null;
 
 const PaneHead: React.FC<{
   name: string;
@@ -314,11 +322,6 @@ function callOpen(
 
 type PaneImages = Parameters<typeof toHarnessImages>[0];
 
-/** 侧栏里等着直接发给子代理的一条（它这一步结束后发） */
-interface DirectPending extends PendingSend {
-  images?: HarnessImageInput[];
-}
-
 const EMPTY_AGENTS: Readonly<Record<string, LiveAgent>> = {};
 
 /**
@@ -375,19 +378,8 @@ const NestedChat: React.FC<{
     return [...own, ...forkRaw.map((m) => fromHarnessMessage(m, forkTab.backend))];
   }, [parentMessages, callId, live?.trace, agentIds, deltas, forkTab, forkRaw]);
   const forkRunning = forkTab?.status === 'running' || forkTab?.status === 'queued';
-  const convLive = useMemo<ConvLive | null>(
-    () =>
-      forkRunning && forkLive
-        ? {
-            text: forkLive.text,
-            trace: forkLive.trace,
-            textBreaks: forkLive.textBreaks,
-            startedAt: forkLive.startedAt,
-            firstEventAt: forkLive.firstEventAt,
-          }
-        : null,
-    [forkRunning, forkLive],
-  );
+  const convLive = useMemo(() => tabLiveToConv(forkLive), [forkLive]);
+  const waiting = !!(forkLive?.permissions?.length || forkTab?.sandboxPending?.length);
   const open = callOpen(live?.trace, callId);
   const agentRunning = agent ? agent.status === 'running' : open;
   const running = agentRunning || forkRunning;
@@ -398,13 +390,21 @@ const NestedChat: React.FC<{
   // relay：这个 CLI 没有直接通道，改经主代理转达；notice：最近一次直接发送的结果提示
   const [relay, setRelay] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  // 侧栏里排着、等子代理这一步结束再直接发的；waitParent：要等来源这一轮也结束（Claude Code 只能在那之后接着说）
-  const [queued, setQueued] = useState<DirectPending[]>([]);
-  const [waitParent, setWaitParent] = useState(false);
-  const flushing = React.useRef(false);
+  const name = agent?.label || agent?.agentType || t('ui.usage-tools.subagent');
+  const outbox = useSubagentOutbox(
+    parentTabId
+      ? {
+          kind: 'nested',
+          parentTabId,
+          callId,
+          agentId: agentIds[0] ?? agent?.id,
+          name,
+        }
+      : null,
+  );
+  const queued = outbox.items;
   // 经主代理转达、还在来源标签待发列表里的消息：信封 → 用户原话（列表里只显示原话）
   const [sentHere, setSentHere] = useState<Readonly<Record<string, string>>>({});
-  const name = agent?.label || agent?.agentType || t('ui.usage-tools.subagent');
   const relayed = useMemo(
     () =>
       (parentTabId ? (core.queues[parentTabId] ?? []) : []).flatMap((item) => {
@@ -424,8 +424,7 @@ const NestedChat: React.FC<{
     setSentHere((cur) => ({ ...cur, [body]: text }));
     void core.sendToTab(parentTabId, body, undefined, images, mode);
   };
-  const enqueue = (text: string, images?: HarnessImageInput[]) =>
-    setQueued((cur) => [...cur, { id: newPendingId(), text, mode: 'queue', images }]);
+  const enqueue = outbox.enqueue;
   const deliver = async (text: string, mode?: PendingMode, images?: HarnessImageInput[]) => {
     if (!parentTabId) return;
     if (relay) {
@@ -457,7 +456,6 @@ const NestedChat: React.FC<{
     switch (r.reason) {
       case 'busy':
       case 'running':
-        if (r.reason === 'running') setWaitParent(true);
         enqueue(text, images);
         setNotice(t('ui.session-workspace.subagent-direct-queued'));
         return;
@@ -481,23 +479,8 @@ const NestedChat: React.FC<{
       await deliver(text, mode, harnessImages);
     })();
   };
-  // 子代理这一步结束（需要时连同来源这一轮）：排着的合成一条直接发给它
-  React.useEffect(() => {
-    if (!queued.length || running || flushing.current || (waitParent && parentBusy)) return;
-    const items = queued;
-    const text = mergePending(items);
-    const imgs = items.flatMap((i) => i.images ?? []);
-    flushing.current = true;
-    setQueued([]);
-    setWaitParent(false);
-    void deliver(text, undefined, imgs.length ? imgs : undefined).finally(() => {
-      flushing.current = false;
-    });
-    // deliver 每次渲染都是新的；只在排队 / 运行状态变化时触发
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queued, running, waitParent, parentBusy]);
   const removePending = (id: string) => {
-    if (queued.some((i) => i.id === id)) setQueued((cur) => cur.filter((i) => i.id !== id));
+    if (queued.some((i) => i.id === id)) outbox.remove(id);
     else if (forkTab && forkQueue.some((i) => i.id === id)) core.removePendingFrom(forkTab.id, id);
     else if (parentTabId) core.removePendingFrom(parentTabId, id);
   };
@@ -524,7 +507,7 @@ const NestedChat: React.FC<{
     >
       <PaneHead
         name={name}
-        state={running ? 'running' : 'idle'}
+        state={waiting ? 'waiting' : running ? 'running' : 'idle'}
         goal={agent?.progress}
         onClose={onClose}
         onStop={parentTabId && (agent || open || forkRunning) ? stop : undefined}
@@ -545,6 +528,12 @@ const NestedChat: React.FC<{
         <ConversationView
           scopeId={`nested:${callId}`}
           messages={messages}
+          onPermission={
+            forkTab
+              ? (id, allow, opts) => void core.replyPermissionFor(forkTab.id, id, allow, opts)
+              : undefined
+          }
+          sandboxRequests={forkTab ? <TabSandboxRequests tabId={forkTab.id} /> : undefined}
           live={convLive}
           phase={running ? 'running' : 'idle'}
         />
@@ -552,6 +541,7 @@ const NestedChat: React.FC<{
       {parentTabId && parent ? (
         <footer className={styles.composer}>
           {forkTab && <UserQuestionDock tabId={forkTab.id} />}
+          <OutboxFailure error={outbox.error} retry={outbox.retry} />
           <PendingDock
             items={pending}
             onRemove={removePending}
@@ -610,9 +600,8 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void }> = ({ taskI
   const [status, setStatus] = React.useState('');
   const [view, setView] = React.useState<TaskTraceView | null>(null);
   const [live, setLive] = React.useState<NomiTaskLive | null>(null);
-  const [pending, setPending] = React.useState<
-    Array<PendingSend & { images?: Array<{ mime: string; data: string }> }>
-  >([]);
+  const outbox = useSubagentOutbox({ kind: 'nomi-task', taskId });
+  const pending = outbox.items;
   const [draftStore] = useState(createComposerDraftStore);
   const [fill, setFill] = useState<{ text: string; nonce: number } | null>(null);
   const running = TASK_ACTIVE.has(status);
@@ -662,15 +651,6 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void }> = ({ taskI
       if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [taskId]);
-  // 这次跑完：排队的消息合成一条追问发出（和主列「这一轮结束后发送」一样）
-  React.useEffect(() => {
-    if (running || !status || pending.length === 0) return;
-    const text = mergePending(pending);
-    const images = pending.flatMap((p) => p.images ?? []).slice(0, 8);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 待发列表随任务状态出队
-    setPending([]);
-    void tasksApi.followUp(taskId, text, images).catch(() => undefined);
-  }, [running, status, pending, taskId]);
   const messages = useMemo(
     () => nomiTaskMessages(goal, view ?? { attemptId: null, lines: [] }, live?.attemptId),
     [goal, view, live?.attemptId],
@@ -687,8 +667,7 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void }> = ({ taskI
         : null,
     [live],
   );
-  const enqueue = (text: string, images?: Array<{ mime: string; data: string }>) =>
-    setPending((cur) => [...cur, { id: newPendingId(), text, mode: 'queue', images }]);
+  const enqueue = outbox.enqueue;
   const stop = () => void tasksApi.cancel(taskId).catch(() => undefined);
   usePaneEscape(true, onClose);
   const name = title || t('ui.usage-tools.subagent');
@@ -720,11 +699,12 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void }> = ({ taskI
         />
       </div>
       <footer className={styles.composer}>
+        <OutboxFailure error={outbox.error} retry={outbox.retry} />
         <PendingDock
           items={pending}
-          onRemove={(id) => setPending((cur) => cur.filter((i) => i.id !== id))}
+          onRemove={outbox.remove}
           onWithdraw={(item) => {
-            setPending((cur) => cur.filter((i) => i.id !== item.id));
+            outbox.remove(item.id);
             setFill((prev) => ({ text: item.text, nonce: (prev?.nonce ?? 0) + 1 }));
           }}
         />
@@ -734,9 +714,7 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void }> = ({ taskI
               const images = imgs?.length
                 ? (await toHarnessImages(imgs)).map((i) => ({ mime: i.mime, data: i.data }))
                 : undefined;
-              const r = await tasksApi.followUp(taskId, text, images).catch(() => null);
-              // 刚好又跑起来了（busy）：排进待发列表，这次跑完再发
-              if (r && !r.ok && r.reason === 'busy') enqueue(text, images);
+              enqueue(text, images);
             })();
           }}
           busyOverride={running}
@@ -817,7 +795,9 @@ export const SubagentPane: React.FC<{
 export const WorkspacePanesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <ChangesUiProvider>
     <SubagentPaneProvider>
-      <SessionDetailsProvider>{children}</SessionDetailsProvider>
+      <SubagentOutboxProvider>
+        <SessionDetailsProvider>{children}</SessionDetailsProvider>
+      </SubagentOutboxProvider>
     </SubagentPaneProvider>
   </ChangesUiProvider>
 );

@@ -203,8 +203,9 @@ func ReadIdentity(kind string, accountDir *string, d IdentityDeps) *util.Obj {
 				return usage.ReadGrokAuthStatus(usage.GrokAuthReaderDeps{Env: func() *util.Obj { return e }})
 			}
 		}
-		mode, ok := g(env)
-		return util.NewObj("loggedIn", ok && mode == "cached_token")
+		status, ok := g(env)
+		// 读取器返回 initialize 响应 JSON；认证方式由统一解析器判定，不直接比较原文。
+		return util.NewObj("loggedIn", ok && usage.ParseGrokAuthStatus(status) == usage.AuthSubscription)
 	}
 	if c := accountCap(kind); c != nil && c.SignedIn != nil {
 		root := UserCliHome(kind, baseEnv, d.Home)

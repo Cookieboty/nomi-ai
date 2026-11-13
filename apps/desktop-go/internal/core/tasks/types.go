@@ -157,6 +157,14 @@ type AttemptCause struct {
 	Answer   *Answer `json:"answer,omitempty"`
 	// Images：追问带的图片（存在 <Root>/attachments/<任务 id>/ 下的文件路径）
 	Images []string `json:"images,omitempty"`
+	// FollowUp：追问的原始输入与追问之前的结论；重试 / 恢复时沿用，不被错误码覆盖。
+	FollowUp *FollowUpContext `json:"followUp,omitempty"`
+}
+
+// FollowUpContext 与执行记录一起持久化；Cause.Kind 仍区分 followup / retry / resume。
+type FollowUpContext struct {
+	Text            string `json:"text"`
+	PreviousSummary string `json:"previousSummary,omitempty"`
 }
 
 // FromExternalEvent = fromExternalEvent：这次执行带着事件的外部内容——事件触发的，以及接着它

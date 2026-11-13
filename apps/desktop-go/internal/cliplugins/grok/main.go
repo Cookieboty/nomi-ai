@@ -42,7 +42,8 @@ var Accounts = &clisdk.AccountCapability{
 		{Name: "sessions", Dir: true, CreateIfMissing: true}, {Name: "config.toml"}, {Name: "installed-plugins", Dir: true},
 		{Name: "memory-v2", Dir: true}, {Name: "bin", Dir: true}, {Name: "bundled", Dir: true},
 	},
-	LoginArgs:  []string{"login", "--device-auth"},
+	// 桌面环境使用官方浏览器回调登录，不强制走设备码审批页。
+	LoginArgs:  []string{"login", "--oauth"},
 	LogoutArgs: []string{"logout"},
 }
 

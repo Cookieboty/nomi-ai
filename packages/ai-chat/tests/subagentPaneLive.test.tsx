@@ -445,3 +445,165 @@ describe('in-process subagent in the side panel', () => {
     expect(text).toContain('hi');
   });
 });
+
+const TaskPaneControls: React.FC = () => {
+  const pane = useSubagentPane();
+  return (
+    <>
+      <button data-testid="reopen-task" onClick={() => pane?.openNomiTask('t9')}>
+        reopen
+      </button>
+      <button data-testid="switch-task" onClick={() => pane?.openNomiTask('t10')}>
+        switch
+      </button>
+    </>
+  );
+};
+
+function mutableTask(followUp: () => unknown = () => ({ ok: true })) {
+  let status = 'running';
+  const fake = installFakeApi((name) => {
+    if (name === 'harness.tabs') return { tabs: [], activeTabId: 'main', running: 0, queued: 0 };
+    if (name === 'tasks.get') return task(status);
+    if (name === 'tasks.trace') return trace();
+    if (name === 'tasks.followUp') return followUp();
+    if (name === 'shortcuts.list' || name === 'ai.userQuestion.pending') return [];
+    return true;
+  });
+  const rendered = render(
+    <HarnessTabsProvider>
+      <WorkspacePanesProvider>
+        <OpenTask />
+        <TaskPaneControls />
+        <SubagentPane columnMessages={[]} />
+      </WorkspacePanesProvider>
+    </HarnessTabsProvider>,
+  );
+  return {
+    ...fake,
+    ...rendered,
+    setStatus: (next: string) => {
+      status = next;
+    },
+  };
+}
+
+const queueTaskMessage = async (text: string) => {
+  await screen.findByTestId('subagent-stop');
+  fireEvent.change(screen.getByTestId('chat-input'), { target: { value: text } });
+  fireEvent.keyDown(screen.getByTestId('chat-input'), { key: 'Enter', ctrlKey: true });
+  await waitFor(() => expect(screen.getByTestId('pending-dock').textContent).toContain(text));
+};
+
+describe('durable subagent delivery', () => {
+  it('keeps pending messages when closing and reopening the pane', async () => {
+    mutableTask();
+    await queueTaskMessage('keep this queued');
+    fireEvent.click(screen.getByTestId('subagent-close'));
+    await waitFor(() => expect(screen.queryByTestId('subagent-pane')).toBeNull());
+    fireEvent.click(screen.getByTestId('reopen-task'));
+    await screen.findByTestId('subagent-pane');
+    expect(screen.getByTestId('pending-dock').textContent).toContain('keep this queued');
+  });
+
+  it('delivers after completion even when the pane stays closed', async () => {
+    const fake = mutableTask();
+    await queueTaskMessage('deliver without the pane');
+    fireEvent.click(screen.getByTestId('subagent-close'));
+    fake.setStatus('done');
+    await fake.emit('tasks.changed', {});
+    await waitFor(() =>
+      expect(fake.inputs('tasks.followUp')).toEqual([
+        { id: 't9', text: 'deliver without the pane' },
+      ]),
+    );
+    expect(screen.queryByTestId('subagent-pane')).toBeNull();
+  });
+
+  it('does not move queued messages to another task when switching panes', async () => {
+    const fake = mutableTask();
+    await queueTaskMessage('belongs to t9');
+    fireEvent.click(screen.getByTestId('switch-task'));
+    await waitFor(() => expect(screen.queryByTestId('pending-dock')).toBeNull());
+    fake.setStatus('done');
+    await fake.emit('tasks.changed', {});
+    await waitFor(() =>
+      expect(fake.inputs('tasks.followUp')).toEqual([{ id: 't9', text: 'belongs to t9' }]),
+    );
+  });
+
+  it.each(['rejected', 'transport'])(
+    'keeps a failed %s follow-up and retries only on request',
+    async (failure) => {
+      let allowed = false;
+      const fake = mutableTask(() => {
+        if (allowed) return { ok: true };
+        if (failure === 'transport') throw new Error('connection lost');
+        return { ok: false, reason: 'expired' };
+      });
+      fake.setStatus('done');
+      await waitFor(() => expect(screen.getByTestId('subagent-status').dataset.state).toBe('idle'));
+      fireEvent.change(screen.getByTestId('chat-input'), {
+        target: { value: 'retry this message' },
+      });
+      fireEvent.click(screen.getByTestId('send-button'));
+      await screen.findByTestId('subagent-send-error');
+      expect(screen.getByTestId('pending-dock').textContent).toContain('retry this message');
+      expect(fake.inputs('tasks.followUp')).toHaveLength(1);
+      allowed = true;
+      fireEvent.click(screen.getByTestId('subagent-send-retry'));
+      await waitFor(() => expect(screen.queryByTestId('pending-dock')).toBeNull());
+      expect(fake.inputs('tasks.followUp')).toEqual([
+        { id: 't9', text: 'retry this message' },
+        { id: 't9', text: 'retry this message' },
+      ]);
+    },
+  );
+
+  it('keeps automatic dequeue failures available instead of clearing the queue', async () => {
+    const fake = mutableTask(() => ({ ok: false, reason: 'expired' }));
+    await queueTaskMessage('do not drop a rejected queue');
+    fake.setStatus('done');
+    await fake.emit('tasks.changed', {});
+    await screen.findByTestId('subagent-send-error');
+    expect(screen.getByTestId('pending-dock').textContent).toContain(
+      'do not drop a rejected queue',
+    );
+    expect(fake.inputs('tasks.followUp')).toHaveLength(1);
+  });
+
+  it('shows and answers approval requests from the resumed Claude child tab', async () => {
+    const fork = parentTab({
+      id: 'f1',
+      status: 'running',
+      subagentOf: { tabId: 'p1', callId: 'c1', agentId: 'a1b2c3' },
+    });
+    const fake = renderNested(() => ({ ok: true }), [parentTab(), fork]);
+    await screen.findByTestId('subagent-pane');
+    await fake.emit('harness.events', [
+      { tabId: 'f1', type: 'permission', id: 'approve-child', summary: 'npm install' },
+    ]);
+    fireEvent.click(await screen.findByTestId('conv-permission-allow'));
+    await waitFor(() =>
+      expect(fake.inputs('harness.replyPermission')).toContainEqual({
+        tabId: 'f1',
+        requestId: 'approve-child',
+        allow: true,
+      }),
+    );
+  });
+
+  it('shows sandbox requests from a resumed Claude child tab', async () => {
+    const fork = parentTab({
+      id: 'f1',
+      status: 'idle',
+      subagentOf: { tabId: 'p1', callId: 'c1', agentId: 'a1b2c3' },
+      sandboxPending: [
+        { id: 'sandbox-child', kind: 'category', value: 'ssh', path: '/home/.ssh', at: 1 },
+      ],
+    });
+    renderNested(() => ({ ok: true }), [parentTab(), fork]);
+    expect(await screen.findByTestId('conv-sandbox-card')).toBeTruthy();
+    expect(screen.getByTestId('subagent-status').dataset.state).toBe('waiting');
+  });
+});
