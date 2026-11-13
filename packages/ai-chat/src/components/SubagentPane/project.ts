@@ -26,54 +26,132 @@ function promptOf(input: string | undefined): string {
   return '';
 }
 
-/** 父转录里某一次子代理调用：用户消息是任务说明，助手消息带它的内部步骤与它自己说的话 */
+/** 子任务侧栏里这个子代理的额外信息：它自己的 id（Codex 子线程 / Claude Code agentId）和逐字增量 */
+export interface NestedExtra {
+  /** 子代理自己的 id：事件的 parentId 可能是它（Codex 子线程派出前还不知道调用 id 时） */
+  agentIds?: readonly string[];
+  /** 正在逐字输出的正文（liveState.agentDeltas） */
+  deltas?: Readonly<Record<string, { parentId: string; text: string }>>;
+}
+
+/**
+ * 父转录里某一次子代理调用 → 子代理的会话：第一条用户消息是任务说明；子代理自己说的话、思考和内部步骤
+ * 是助手消息；用户在侧栏里直接对它说的话（agent-input）各开一轮（用户消息 + 它接下来的回复）。
+ */
 export function nestedMessages(
   messages: readonly ConvMessage[],
   callId: string,
   liveTrace?: readonly HarnessTraceEvent[],
+  extra?: NestedExtra,
 ): ConvMessage[] {
+  const ids = new Set([callId, ...(extra?.agentIds ?? [])]);
   let prompt = '';
   let output = '';
   let at = 0;
-  // 子代理自己的正文（agent-text）按先后拼起来；子步骤的 textAt 改成在这段正文里的位置
-  let text = '';
-  const child: HarnessTraceEvent[] = [];
+  interface Turn {
+    text: string;
+    trace: HarnessTraceEvent[];
+    at: number;
+    user?: string;
+  }
+  // turns[0] 是派出时的那一轮；之后每条 agent-input 开新的一轮
+  const turns: Turn[] = [{ text: '', trace: [], at: 0 }];
+  const cur = () => turns[turns.length - 1]!;
+  const mine = (parentId: string | undefined) => !!parentId && ids.has(parentId);
   const take = (events: readonly HarnessTraceEvent[] | undefined) => {
     if (!events) return;
     for (const e of events) {
-      if (e.type === 'agent-text') {
-        if (e.parentId !== callId || !e.text.trim()) continue;
-        text = text ? `${text}\n\n${e.text}` : e.text;
-        continue;
-      }
-      if (e.type !== 'tool') continue;
-      const id = e.id ?? e.detail;
-      if (e.parentId === callId) child.push({ ...e, textAt: text.length });
-      else if (!e.parentId && id === callId) {
-        if (e.input) prompt = promptOf(e.input) || prompt;
-        if (e.output) output = e.output;
-        if (e.at) at = e.at;
+      switch (e.type) {
+        case 'agent-text': {
+          if (!mine(e.parentId) || !e.text.trim()) continue;
+          const turn = cur();
+          turn.text = turn.text ? `${turn.text}\n\n${e.text}` : e.text;
+          if (e.at) turn.at = e.at;
+          continue;
+        }
+        case 'agent-input':
+          if (!mine(e.parentId)) continue;
+          turns.push({ text: '', trace: [], at: e.at ?? 0, user: e.text });
+          continue;
+        case 'thinking':
+          if (!mine(e.parentId) || !e.text.trim()) continue;
+          cur().trace.push({ type: 'thinking', text: e.text, at: e.at, textAt: cur().text.length });
+          continue;
+        case 'tool': {
+          const id = e.id ?? e.detail;
+          if (mine(e.parentId)) cur().trace.push({ ...e, textAt: cur().text.length });
+          else if (!e.parentId && id === callId) {
+            if (e.input) prompt = promptOf(e.input) || prompt;
+            if (e.output) output = e.output;
+            if (e.at) at = e.at;
+          }
+          continue;
+        }
+        default:
+          continue;
       }
     }
   };
   for (const m of messages) take(m.trace);
   take(liveTrace);
-  if (!prompt && !output && !text && child.length === 0) return [];
-  const user: ConvMessage = {
-    id: `nested-${callId}-user`,
-    role: 'user',
-    text: prompt,
-    at: at || 1,
+  // 还在逐字输出的正文接在最后一轮后面
+  for (const d of Object.values(extra?.deltas ?? {})) {
+    if (!mine(d.parentId) || !d.text) continue;
+    const turn = cur();
+    turn.text = turn.text ? `${turn.text}\n\n${d.text}` : d.text;
+  }
+  const first = turns[0]!;
+  if (!prompt && !output && turns.length === 1 && !first.text && first.trace.length === 0)
+    return [];
+  const out: ConvMessage[] = [];
+  if (prompt) out.push({ id: `nested-${callId}-user`, role: 'user', text: prompt, at: at || 1 });
+  // 子代理说过话就用它的正文；没有（CLI 不报子代理正文）时用调用的结果
+  const firstText = first.text || output;
+  if (firstText || first.trace.length || turns.length === 1)
+    out.push({
+      id: `nested-${callId}`,
+      role: 'assistant',
+      text: firstText,
+      at: at || first.at || 1,
+      ...(first.trace.length ? { trace: first.trace } : {}),
+    });
+  turns.slice(1).forEach((turn, i) => {
+    const when = turn.at || at || 1;
+    out.push({ id: `nested-${callId}-in-${i}`, role: 'user', text: turn.user ?? '', at: when });
+    if (turn.text || turn.trace.length)
+      out.push({
+        id: `nested-${callId}-re-${i}`,
+        role: 'assistant',
+        text: turn.text,
+        at: when,
+        ...(turn.trace.length ? { trace: turn.trace } : {}),
+      });
+  });
+  return out;
+}
+
+/** 这次子代理调用的子代理 id：调用输入里的 agents（Codex spawn_agent）或结果里的 agentId（Claude Code） */
+export function agentIdsOfCall(
+  messages: readonly ConvMessage[],
+  callId: string,
+  liveTrace?: readonly HarnessTraceEvent[],
+): string[] {
+  const out: string[] = [];
+  const add = (id: unknown) => {
+    if (typeof id === 'string' && id && !out.includes(id)) out.push(id);
   };
-  const assistant: ConvMessage = {
-    id: `nested-${callId}`,
-    role: 'assistant',
-    // 子代理说过话就用它的正文；没有（CLI 不报子代理正文）时用调用的结果
-    text: text || output,
-    at: at || 1,
-    ...(child.length ? { trace: child } : {}),
+  const scan = (events: readonly HarnessTraceEvent[] | undefined) => {
+    for (const e of events ?? []) {
+      if (e.type !== 'tool' || e.parentId || (e.id ?? e.detail) !== callId) continue;
+      const agents = parseInput(e.input)?.agents;
+      if (Array.isArray(agents)) agents.forEach(add);
+      const m = e.output ? /\bagentId:\s*([\w-]+)/.exec(e.output) : null;
+      if (m) add(m[1]);
+    }
   };
-  return prompt ? [user, assistant] : [assistant];
+  for (const m of messages) scan(m.trace);
+  scan(liveTrace);
+  return out;
 }
 
 /** 轨迹行 → 时间线事件：工具（开始 + 结束）、插话 */

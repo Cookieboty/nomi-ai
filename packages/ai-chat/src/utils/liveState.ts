@@ -43,6 +43,11 @@ export interface TabLive {
    * window：CLI 上报的模型窗口（Codex / Gemini）。
    */
   context?: { tokens: number | null; model?: string; window?: number };
+  /**
+   * 子代理正在逐字输出的正文（按正文条目 id；只有给出增量的 CLI 才有）。完整正文（agent-text）到了就删掉，
+   * 子任务侧栏把它接在这个子代理已有正文后面
+   */
+  agentDeltas?: Record<string, { parentId: string; text: string }>;
 }
 
 /** 一个子代理的实时状态（start / progress / end 折叠而来） */
@@ -100,10 +105,25 @@ export function applyLiveEvents(
         touch();
         break;
       }
+      case 'agent-text-delta': {
+        const cur = next.agentDeltas?.[e.itemId];
+        next.agentDeltas = {
+          ...next.agentDeltas,
+          [e.itemId]: { parentId: e.parentId, text: (cur?.text ?? '') + e.text },
+        };
+        touch();
+        break;
+      }
       case 'tool':
       case 'thinking':
       case 'interject':
+      case 'agent-input':
       case 'agent-text': {
+        if (e.type === 'agent-text' && e.itemId && next.agentDeltas?.[e.itemId]) {
+          const { [e.itemId]: _done, ...rest } = next.agentDeltas;
+          if (Object.keys(rest).length) next.agentDeltas = rest;
+          else delete next.agentDeltas;
+        }
         const { tabId: _id, ...rest } = e;
         const stamped = rest.textAt === undefined ? { ...rest, textAt: next.text.length } : rest;
         const ev = stamped.at === undefined ? { ...stamped, at: now } : stamped;
@@ -191,6 +211,26 @@ export function applyLiveEvents(
     let trace = next.trace ? next.trace.concat(added) : added;
     if (trace.length > MAX_LIVE_TRACE) trace = trace.slice(trace.length - MAX_LIVE_TRACE);
     next.trace = trace;
+  }
+  return next;
+}
+
+/**
+ * 来源标签空闲时的子代理事件（主进程标了 detached）：只留子代理状态和逐字增量；轨迹事件已经写进
+ * 派出它的那条消息（随 harness.tabMessage 更新），这里不再重复。完整正文到了就丢掉对应的增量。
+ */
+export function applyDetachedEvents(
+  prev: TabLive | undefined,
+  events: readonly HarnessLiveEvent[],
+  now = Date.now(),
+): TabLive {
+  const keep = events.filter((e) => e.type === 'agent' || e.type === 'agent-text-delta');
+  const next = applyLiveEvents(prev, keep, now);
+  for (const e of events) {
+    if (e.type !== 'agent-text' || !e.itemId || !next.agentDeltas?.[e.itemId]) continue;
+    const { [e.itemId]: _done, ...rest } = next.agentDeltas;
+    if (Object.keys(rest).length) next.agentDeltas = rest;
+    else delete next.agentDeltas;
   }
   return next;
 }

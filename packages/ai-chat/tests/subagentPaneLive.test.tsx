@@ -10,6 +10,7 @@ import {
   WorkspacePanesProvider,
 } from '../src/components/SubagentPane';
 import {
+  agentIdsOfCall,
   applyTaskLiveEvent,
   liveFromView,
   nestedMessages,
@@ -244,6 +245,74 @@ describe('live projections', () => {
   });
 });
 
+describe('direct conversation with a subagent', () => {
+  const base: ConvMessage[] = [
+    {
+      id: 'm1',
+      role: 'assistant',
+      text: '',
+      at: 1,
+      trace: [
+        {
+          type: 'tool',
+          name: 'spawn_agent',
+          status: 'done',
+          id: 'c1',
+          input: '{"prompt":"查","agents":["th9"]}',
+        },
+        { type: 'agent-text', text: '先看了 README', parentId: 'th9' },
+        { type: 'thinking', text: '主代理的思考' },
+        { type: 'thinking', text: '子代理的思考', parentId: 'c1' },
+        { type: 'agent-input', text: '再看看 docs', parentId: 'c1', at: 5 },
+        { type: 'tool', name: 'Read', status: 'start', id: 'r2', parentId: 'c1', at: 6 },
+        { type: 'agent-text', text: 'docs 也看完了', parentId: 'c1', at: 7 },
+      ],
+    },
+  ];
+
+  it('turns each direct message into its own round, keyed by call or agent id', () => {
+    const conv = nestedMessages(base, 'c1', undefined, { agentIds: ['th9'] });
+    expect(conv.map((m) => [m.role, m.text])).toEqual([
+      ['user', '查'],
+      ['assistant', '先看了 README'],
+      ['user', '再看看 docs'],
+      ['assistant', 'docs 也看完了'],
+    ]);
+    expect(conv[1]?.trace?.map((e) => e.type)).toEqual(['thinking']);
+    expect(conv[3]?.trace?.[0]).toMatchObject({ name: 'Read' });
+  });
+
+  it('appends text still streaming in to the last round', () => {
+    const conv = nestedMessages(base, 'c1', undefined, {
+      agentIds: ['th9'],
+      deltas: { i1: { parentId: 'c1', text: '还在写' }, i2: { parentId: 'other', text: 'x' } },
+    });
+    expect(conv[conv.length - 1]?.text).toBe('docs 也看完了\n\n还在写');
+  });
+
+  it('finds the subagent ids of a call', () => {
+    expect(agentIdsOfCall(base, 'c1')).toEqual(['th9']);
+    const claude: ConvMessage[] = [
+      {
+        id: 'm',
+        role: 'assistant',
+        text: '',
+        at: 1,
+        trace: [
+          {
+            type: 'tool',
+            name: 'Task',
+            status: 'done',
+            id: 'c2',
+            output: 'ok\nagentId: a77 (internal)',
+          },
+        ],
+      },
+    ];
+    expect(agentIdsOfCall(claude, 'c2')).toEqual(['a77']);
+  });
+});
+
 const parentTab = (over: Partial<HarnessTabMeta> = {}): HarnessTabMeta => ({
   id: 'p1',
   title: 'Claude',
@@ -268,59 +337,106 @@ const OpenNested: React.FC = () => {
   return null;
 };
 
+const parentMessages = () => [
+  {
+    id: 'm1',
+    role: 'assistant',
+    content: '派了一个子代理',
+    timestamp: 1,
+    trace: [
+      {
+        type: 'tool',
+        name: 'Task',
+        status: 'done',
+        id: 'c1',
+        input: '{"prompt":"查调用方"}',
+        output: '查完了\nagentId: a1b2c3 (internal ID)',
+      },
+      { type: 'agent-text', text: '我在查 auth.ts', parentId: 'c1' },
+    ],
+  },
+];
+
+function renderNested(messageAgent: (input: unknown) => unknown, tabs = [parentTab()]) {
+  const state: HarnessTabsState = { tabs, activeTabId: 'main', running: 0, queued: 0 };
+  const fake = installFakeApi((name, input) => {
+    if (name === 'harness.tabs') return state;
+    if (name === 'harness.tabMessages')
+      return (input as { id: string }).id === 'p1' ? parentMessages() : [];
+    if (name === 'harness.tabSend') return { text: 'ok', sessionId: null };
+    if (name === 'harness.messageAgent') return messageAgent(input);
+    if (name === 'harness.modelCatalog')
+      return { backend: 'claude', defaultModel: null, models: [] };
+    if (name === 'shortcuts.list' || name === 'ai.userQuestion.pending') return [];
+    return true;
+  });
+  render(
+    <HarnessTabsProvider>
+      <WorkspacePanesProvider>
+        <OpenNested />
+        <SubagentPane columnMessages={[]} />
+      </WorkspacePanesProvider>
+    </HarnessTabsProvider>,
+  );
+  return fake;
+}
+
+const typeAndSend = (text: string) => {
+  fireEvent.change(screen.getByTestId('chat-input'), { target: { value: text } });
+  fireEvent.click(screen.getByTestId('send-button'));
+};
+
 describe('in-process subagent in the side panel', () => {
-  it('sends through the source tab, addressed to that subagent', async () => {
-    const state: HarnessTabsState = {
-      tabs: [parentTab()],
-      activeTabId: 'main',
-      running: 0,
-      queued: 0,
-    };
-    const fake = installFakeApi((name) => {
-      if (name === 'harness.tabs') return state;
-      if (name === 'harness.tabMessages')
-        return [
-          {
-            id: 'm1',
-            role: 'assistant',
-            content: '派了一个子代理',
-            timestamp: 1,
-            trace: [
-              {
-                type: 'tool',
-                name: 'Task',
-                status: 'done',
-                id: 'c1',
-                input: '{"prompt":"查调用方"}',
-                output: '查完了',
-              },
-              { type: 'agent-text', text: '我在查 auth.ts', parentId: 'c1' },
-            ],
-          },
-        ];
-      if (name === 'harness.tabSend') return { text: 'ok', sessionId: null };
-      if (name === 'harness.modelCatalog')
-        return { backend: 'claude', defaultModel: null, models: [] };
-      if (name === 'shortcuts.list' || name === 'ai.userQuestion.pending') return [];
-      return true;
-    });
-    render(
-      <HarnessTabsProvider>
-        <WorkspacePanesProvider>
-          <OpenNested />
-          <SubagentPane columnMessages={[]} />
-        </WorkspacePanesProvider>
-      </HarnessTabsProvider>,
-    );
+  it('sends straight to the subagent itself, with its own id', async () => {
+    const fake = renderNested(() => ({ ok: true, via: 'start' }));
     const pane = await screen.findByTestId('subagent-pane');
     await waitFor(() => expect(pane.textContent).toContain('我在查 auth.ts'));
-    fireEvent.change(screen.getByTestId('chat-input'), { target: { value: '也看看 session.ts' } });
-    fireEvent.click(screen.getByTestId('send-button'));
+    typeAndSend('也看看 session.ts');
+    await waitFor(() => expect(fake.inputs('harness.messageAgent').length).toBe(1));
+    expect(fake.inputs('harness.messageAgent')[0]).toMatchObject({
+      id: 'p1',
+      callId: 'c1',
+      agentId: 'a1b2c3',
+      text: '也看看 session.ts',
+      mode: 'steer',
+    });
+    expect(fake.inputs('harness.tabSend')).toHaveLength(0);
+  });
+
+  it('falls back to the main agent when the CLI has no direct channel', async () => {
+    const fake = renderNested(() => ({ ok: false, reason: 'unsupported' }));
+    const pane = await screen.findByTestId('subagent-pane');
+    await waitFor(() => expect(pane.textContent).toContain('我在查 auth.ts'));
+    typeAndSend('也看看 session.ts');
     await waitFor(() => expect(fake.inputs('harness.tabSend').length).toBe(1));
     const sent = fake.inputs('harness.tabSend')[0] as { id: string; prompt: string };
     expect(sent.id).toBe('p1');
     expect(sent.prompt).toContain('也看看 session.ts');
-    expect(sent.prompt).toContain('c1');
+    expect(sent.prompt).toContain('a1b2c3');
+    expect(screen.getByTestId('subagent-notice')).toBeTruthy();
+  });
+
+  it('keeps the message queued while the subagent is still running', async () => {
+    renderNested(() => ({ ok: false, reason: 'running' }));
+    const pane = await screen.findByTestId('subagent-pane');
+    await waitFor(() => expect(pane.textContent).toContain('我在查 auth.ts'));
+    typeAndSend('跑完再看 session.ts');
+    await waitFor(() => expect(screen.getByTestId('subagent-notice')).toBeTruthy());
+    expect(pane.textContent).toContain('跑完再看 session.ts');
+  });
+
+  it('shows the linked session that continues the subagent', async () => {
+    const fork = parentTab({
+      id: 'f1',
+      subagentOf: { tabId: 'p1', callId: 'c1', agentId: 'a1b2c3' },
+    });
+    const fake = renderNested(() => ({ ok: true }), [parentTab(), fork]);
+    const pane = await screen.findByTestId('subagent-pane');
+    await waitFor(() => expect(pane.textContent).toContain('我在查 auth.ts'));
+    typeAndSend('接着改');
+    await waitFor(() => expect(fake.inputs('harness.tabSend').length).toBe(1));
+    expect((fake.inputs('harness.tabSend')[0] as { id: string }).id).toBe('f1');
+    expect(fake.inputs('harness.messageAgent')).toHaveLength(0);
   });
 
   it('addresses the message to that subagent', () => {

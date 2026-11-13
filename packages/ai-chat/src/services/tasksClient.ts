@@ -221,8 +221,12 @@ export const tasksApi = {
   /** 后台任务正在跑时插话（下一步并进上下文）；不在跑 / 这一步不收时 false */
   steer: async (id: string, text: string) => (await api.tasks.steer({ id, text })) === true,
   /** 上一次执行结束后带着这句话再跑一次（结果照常写回来源对话） */
-  followUp: async (id: string, text: string) =>
-    (await api.tasks.followUp({ id, text })) as { ok: boolean; reason?: string },
+  /** 追问；images：base64 图片（最多 8 张），可以只带图片 */
+  followUp: async (id: string, text: string, images?: Array<{ mime: string; data: string }>) =>
+    (await api.tasks.followUp({ id, text, ...(images?.length ? { images } : {}) })) as {
+      ok: boolean;
+      reason?: string;
+    },
   /** 正在跑的这次执行的实时事件 */
   onLive: (fn: (payload: TaskLivePayload) => void) =>
     api.on('tasks.live', (p) => fn(p as TaskLivePayload)),

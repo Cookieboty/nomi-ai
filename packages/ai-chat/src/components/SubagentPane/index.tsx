@@ -10,6 +10,7 @@ import { Square, X } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 
 import {
+  useHarnessDetached,
   useHarnessLive,
   useHarnessTabMessages,
   useHarnessTabs,
@@ -27,7 +28,12 @@ import {
   draftKey,
   sessionHasCommittedUserContent,
 } from '../../services/composerDrafts';
-import { harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
+import {
+  harnessClient,
+  type HarnessImageInput,
+  type HarnessTabMeta,
+  type MessageAgentResult,
+} from '../../services/harnessClient';
 import { tasksApi, type TaskTraceView } from '../../services/tasksClient';
 import { cliTranscriptKey } from '../../services/transcriptView';
 import { useSlashCommands } from '../../slash/useSlashCommands';
@@ -37,7 +43,13 @@ import { cliTabPlaceholder } from '../../utils/cliTabPlaceholder';
 import { fromHarnessMessage } from '../../utils/convAdapters';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { shouldIgnoreEscape } from '../../utils/keyboard';
-import { mergePending, newPendingId, type PendingSend } from '../../utils/pendingSends';
+import type { LiveAgent } from '../../utils/liveState';
+import {
+  mergePending,
+  newPendingId,
+  type PendingMode,
+  type PendingSend,
+} from '../../utils/pendingSends';
 import { CliConversation } from '../Conversation/CliConversation';
 import { buildCliSlots } from '../Conversation/cliSlots';
 import { ConversationView } from '../Conversation/index';
@@ -49,6 +61,7 @@ import type { SettingsSection } from '../SettingsView/sections';
 import { UserQuestionDock } from '../UserQuestionCard/dock';
 
 import {
+  agentIdsOfCall,
   applyTaskLiveEvent,
   liveFromView,
   nestedMessages,
@@ -278,8 +291,8 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void }> = ({ t
 };
 
 /**
- * 给进程内子代理的话：经来源标签交给主代理，由它转给这个子代理（还在跑就转过去，结束了就在它的结果上接着做）。
- * 各家 CLI 给子代理发消息的工具不同（Codex 的 send_input、Claude Code 的 SendMessage …），提示里统一说法，由主代理自己选。
+ * 不能直接对子代理说话的 CLI（没有可寻址的子代理）：经来源标签交给主代理，由它转给这个子代理
+ * （还在跑就转过去，结束了就在它的结果上接着做）。提示里统一说法，由主代理自己选工具。
  */
 export function nestedEnvelope(name: string, agentId: string, text: string): string {
   return t('ui.session-workspace.subagent-envelope', name, agentId, text);
@@ -298,6 +311,20 @@ function callOpen(
   return open;
 }
 
+type PaneImages = Parameters<typeof toHarnessImages>[0];
+
+/** 侧栏里等着直接发给子代理的一条（它这一步结束后发） */
+interface DirectPending extends PendingSend {
+  images?: HarnessImageInput[];
+}
+
+const EMPTY_AGENTS: Readonly<Record<string, LiveAgent>> = {};
+
+/**
+ * 进程内子代理（Task / spawn_agent）。输入栏里的话直接交给这个子代理本身（harness.messageAgent），不经主代理：
+ * Codex 在它自己的线程上插话 / 开新一轮；Claude Code 在它结束后接着它自己的会话（关联标签）往下说。
+ * 它还在跑、这一步不收时先排在侧栏里，结束后再发；CLI 没有直接通道时改经主代理转达（信封）。
+ */
 const NestedChat: React.FC<{
   callId: string;
   parentTabId: string | null;
@@ -314,23 +341,70 @@ const NestedChat: React.FC<{
     [parent, raw, columnMessages],
   );
   const live = useHarnessLive((map) => (parentTabId ? map[parentTabId] : undefined));
-  const messages = useMemo(
-    () => nestedMessages(parentMessages, callId, live?.trace),
-    [parentMessages, callId, live?.trace],
+  const detached = useHarnessDetached((map) => (parentTabId ? map[parentTabId] : undefined));
+  const liveAgents = live?.agents ?? EMPTY_AGENTS;
+  const offAgents = detached?.agents ?? EMPTY_AGENTS;
+  const agent = useMemo(() => {
+    const match = (a: LiveAgent) => a.callId === callId || a.id === callId;
+    return Object.values(offAgents).find(match) ?? Object.values(liveAgents).find(match);
+  }, [liveAgents, offAgents, callId]);
+  const agentIds = useMemo(() => {
+    const ids = agentIdsOfCall(parentMessages, callId, live?.trace);
+    if (agent && agent.id !== callId && !ids.includes(agent.id)) ids.unshift(agent.id);
+    return ids;
+  }, [parentMessages, callId, live?.trace, agent]);
+  // 接着这个子代理自己会话的关联标签（Claude Code 子代理结束后直接对它说话时开的）
+  const forkTab = parentTabId
+    ? tabs.state?.tabs.find(
+        (x) =>
+          x.subagentOf?.tabId === parentTabId &&
+          (x.subagentOf.callId === callId ||
+            (!!x.subagentOf.agentId && agentIds.includes(x.subagentOf.agentId))),
+      )
+    : undefined;
+  const forkRaw = useHarnessTabMessages(forkTab?.id ?? null);
+  const forkLive = useHarnessLive((map) => (forkTab ? map[forkTab.id] : undefined));
+  const deltas = useMemo(
+    () => ({ ...detached?.agentDeltas, ...live?.agentDeltas }),
+    [detached?.agentDeltas, live?.agentDeltas],
   );
-  const agent = Object.values(live?.agents ?? {}).find(
-    (a) => a.callId === callId || a.id === callId,
+  const messages = useMemo(() => {
+    const own = nestedMessages(parentMessages, callId, live?.trace, { agentIds, deltas });
+    if (!forkTab) return own;
+    return [...own, ...forkRaw.map((m) => fromHarnessMessage(m, forkTab.backend))];
+  }, [parentMessages, callId, live?.trace, agentIds, deltas, forkTab, forkRaw]);
+  const forkRunning = forkTab?.status === 'running' || forkTab?.status === 'queued';
+  const convLive = useMemo<ConvLive | null>(
+    () =>
+      forkRunning && forkLive
+        ? {
+            text: forkLive.text,
+            trace: forkLive.trace,
+            textBreaks: forkLive.textBreaks,
+            startedAt: forkLive.startedAt,
+            firstEventAt: forkLive.firstEventAt,
+          }
+        : null,
+    [forkRunning, forkLive],
   );
   const open = callOpen(live?.trace, callId);
-  const running = agent ? agent.status === 'running' : open;
+  const agentRunning = agent ? agent.status === 'running' : open;
+  const running = agentRunning || forkRunning;
   const parentBusy = parent?.status === 'running' || parent?.status === 'queued';
-  const images = useCliImageSupport(parent);
+  const images = useCliImageSupport(forkTab ?? parent);
   const [draftStore] = useState(createComposerDraftStore);
   const [fill, setFill] = useState<{ text: string; nonce: number } | null>(null);
-  // 从这里发出、还在来源标签待发列表里的消息：信封 → 用户原话（列表里只显示原话）
+  // relay：这个 CLI 没有直接通道，改经主代理转达；notice：最近一次直接发送的结果提示
+  const [relay, setRelay] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  // 侧栏里排着、等子代理这一步结束再直接发的；waitParent：要等来源这一轮也结束（Claude Code 只能在那之后接着说）
+  const [queued, setQueued] = useState<DirectPending[]>([]);
+  const [waitParent, setWaitParent] = useState(false);
+  const flushing = React.useRef(false);
+  // 经主代理转达、还在来源标签待发列表里的消息：信封 → 用户原话（列表里只显示原话）
   const [sentHere, setSentHere] = useState<Readonly<Record<string, string>>>({});
   const name = agent?.label || agent?.agentType || t('ui.usage-tools.subagent');
-  const pending = useMemo(
+  const relayed = useMemo(
     () =>
       (parentTabId ? (core.queues[parentTabId] ?? []) : []).flatMap((item) => {
         const own = sentHere[item.text];
@@ -338,23 +412,102 @@ const NestedChat: React.FC<{
       }),
     [core.queues, parentTabId, sentHere],
   );
-  const send = (
-    text: string,
-    mode?: 'steer' | 'queue',
-    imgs?: Parameters<typeof toHarnessImages>[0],
-  ) => {
+  const forkQueue = forkTab ? (core.queues[forkTab.id] ?? EMPTY_PENDING) : EMPTY_PENDING;
+  const pending = useMemo(
+    () => [...queued, ...forkQueue, ...relayed],
+    [queued, forkQueue, relayed],
+  );
+  const relaySend = (text: string, mode?: PendingMode, images?: HarnessImageInput[]) => {
     if (!parentTabId) return;
-    const body = nestedEnvelope(name, agent?.id ?? callId, text);
+    const body = nestedEnvelope(name, agentIds[0] ?? agent?.id ?? callId, text);
     setSentHere((cur) => ({ ...cur, [body]: text }));
+    void core.sendToTab(parentTabId, body, undefined, images, mode);
+  };
+  const enqueue = (text: string, images?: HarnessImageInput[]) =>
+    setQueued((cur) => [...cur, { id: newPendingId(), text, mode: 'queue', images }]);
+  const deliver = async (text: string, mode?: PendingMode, images?: HarnessImageInput[]) => {
+    if (!parentTabId) return;
+    if (relay) {
+      relaySend(text, mode, images);
+      return;
+    }
+    if (forkTab) {
+      await core.sendToTab(forkTab.id, text, undefined, images, mode);
+      return;
+    }
+    const r: MessageAgentResult = await harnessClient
+      .messageAgent({
+        id: parentTabId,
+        callId,
+        ...(agentIds[0] ? { agentId: agentIds[0] } : {}),
+        text,
+        ...(images?.length ? { images } : {}),
+        mode: mode === 'queue' ? 'queue' : 'steer',
+      })
+      .catch((e: unknown) => ({ ok: false, reason: 'error', message: String(e) }));
+    if (r.ok) {
+      setNotice(
+        r.via === 'fork' || r.via === 'resume'
+          ? t('ui.session-workspace.subagent-direct-resumed')
+          : null,
+      );
+      return;
+    }
+    switch (r.reason) {
+      case 'busy':
+      case 'running':
+        if (r.reason === 'running') setWaitParent(true);
+        enqueue(text, images);
+        setNotice(t('ui.session-workspace.subagent-direct-queued'));
+        return;
+      case 'unsupported':
+        setRelay(true);
+        setNotice(t('ui.session-workspace.subagent-direct-unsupported'));
+        relaySend(text, mode, images);
+        return;
+      case 'not_found':
+        setNotice(t('ui.session-workspace.subagent-direct-not-found'));
+        setFill((prev) => ({ text, nonce: (prev?.nonce ?? 0) + 1 }));
+        return;
+      default:
+        setNotice(t('ui.session-workspace.subagent-direct-failed', r.message ?? r.reason ?? ''));
+        setFill((prev) => ({ text, nonce: (prev?.nonce ?? 0) + 1 }));
+    }
+  };
+  const send = (text: string, mode?: PendingMode, imgs?: PaneImages) => {
     void (async () => {
       const harnessImages = imgs?.length ? await toHarnessImages(imgs) : undefined;
-      await core.sendToTab(parentTabId, body, undefined, harnessImages, mode);
+      await deliver(text, mode, harnessImages);
     })();
+  };
+  // 子代理这一步结束（需要时连同来源这一轮）：排着的合成一条直接发给它
+  React.useEffect(() => {
+    if (!queued.length || running || flushing.current || (waitParent && parentBusy)) return;
+    const items = queued;
+    const text = mergePending(items);
+    const imgs = items.flatMap((i) => i.images ?? []);
+    flushing.current = true;
+    setQueued([]);
+    setWaitParent(false);
+    void deliver(text, undefined, imgs.length ? imgs : undefined).finally(() => {
+      flushing.current = false;
+    });
+    // deliver 每次渲染都是新的；只在排队 / 运行状态变化时触发
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queued, running, waitParent, parentBusy]);
+  const removePending = (id: string) => {
+    if (queued.some((i) => i.id === id)) setQueued((cur) => cur.filter((i) => i.id !== id));
+    else if (forkTab && forkQueue.some((i) => i.id === id)) core.removePendingFrom(forkTab.id, id);
+    else if (parentTabId) core.removePendingFrom(parentTabId, id);
   };
   const stop = () => {
     if (!parentTabId) return;
     void (async () => {
-      // 后台子代理单独停；前台子代理是来源这一轮的一部分，停它就是停这一轮
+      if (forkTab && forkRunning) {
+        await core.cancelRun(forkTab.id);
+        return;
+      }
+      // 子代理单独停（后台子代理、直接对话后它接着跑的那一轮）；前台子代理是来源这一轮的一部分，停它就是停这一轮
       if (agent && (await harnessClient.stopAgent(parentTabId, agent.id).catch(() => false)))
         return;
       if (open) await core.cancelRun(parentTabId);
@@ -368,34 +521,42 @@ const NestedChat: React.FC<{
         state={running ? 'running' : 'idle'}
         goal={agent?.progress}
         onClose={onClose}
-        onStop={parentTabId && (agent || open) ? stop : undefined}
+        onStop={parentTabId && (agent || open || forkRunning) ? stop : undefined}
       />
-      <p className={styles.hint}>
-        {parentTabId
-          ? t('ui.session-workspace.subagent-nested-hint')
-          : t('ui.session-workspace.subagent-nested-readonly')}
+      <p className={styles.hint} data-testid="subagent-hint">
+        {!parentTabId
+          ? t('ui.session-workspace.subagent-nested-readonly')
+          : relay
+            ? t('ui.session-workspace.subagent-nested-hint')
+            : t('ui.session-workspace.subagent-direct-hint')}
       </p>
+      {notice && (
+        <p className={styles.hint} data-testid="subagent-notice" role="status">
+          {notice}
+        </p>
+      )}
       <div className={styles.conv}>
         <ConversationView
           scopeId={`nested:${callId}`}
           messages={messages}
-          live={null}
+          live={convLive}
           phase={running ? 'running' : 'idle'}
         />
       </div>
       {parentTabId && parent ? (
         <footer className={styles.composer}>
+          {forkTab && <UserQuestionDock tabId={forkTab.id} />}
           <PendingDock
             items={pending}
-            onRemove={(id) => core.removePendingFrom(parentTabId, id)}
+            onRemove={removePending}
             onWithdraw={(item) => {
-              core.removePendingFrom(parentTabId, item.id);
+              removePending(item.id);
               setFill((prev) => ({ text: item.text, nonce: (prev?.nonce ?? 0) + 1 }));
             }}
           />
           <MessageInput
             onSend={(text, imgs) => send(text, undefined, imgs)}
-            busyOverride={parentBusy}
+            busyOverride={running || (relay && parentBusy)}
             imageCapability={images.capability}
             imageUnsupportedReason={images.reason}
             placeholder={t('ui.session-workspace.subagent-nested-placeholder', name)}
@@ -403,7 +564,11 @@ const NestedChat: React.FC<{
               onQueue: (text, opts) => send(text, opts?.mode),
               onStop: stop,
               pending: pending.length,
-              onFlush: () => void core.flushPendingFor(parentTabId),
+              onFlush: () => {
+                if (relay) void core.flushPendingFor(parentTabId);
+                else if (forkTab) void core.flushPendingFor(forkTab.id);
+                else stop();
+              },
             }}
             cwd={parent.cwd}
             fill={fill}
@@ -422,6 +587,8 @@ const NestedChat: React.FC<{
   );
 };
 
+const EMPTY_PENDING: PendingSend[] = [];
+
 const TASK_ACTIVE = new Set(['running', 'queued', 'waiting_user']);
 
 /**
@@ -437,7 +604,9 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void }> = ({ taskI
   const [status, setStatus] = React.useState('');
   const [view, setView] = React.useState<TaskTraceView | null>(null);
   const [live, setLive] = React.useState<NomiTaskLive | null>(null);
-  const [pending, setPending] = React.useState<PendingSend[]>([]);
+  const [pending, setPending] = React.useState<
+    Array<PendingSend & { images?: Array<{ mime: string; data: string }> }>
+  >([]);
   const [draftStore] = useState(createComposerDraftStore);
   const [fill, setFill] = useState<{ text: string; nonce: number } | null>(null);
   const running = TASK_ACTIVE.has(status);
@@ -491,9 +660,10 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void }> = ({ taskI
   React.useEffect(() => {
     if (running || !status || pending.length === 0) return;
     const text = mergePending(pending);
+    const images = pending.flatMap((p) => p.images ?? []).slice(0, 8);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 待发列表随任务状态出队
     setPending([]);
-    void tasksApi.followUp(taskId, text).catch(() => undefined);
+    void tasksApi.followUp(taskId, text, images).catch(() => undefined);
   }, [running, status, pending, taskId]);
   const messages = useMemo(
     () => nomiTaskMessages(goal, view ?? { attemptId: null, lines: [] }, live?.attemptId),
@@ -511,8 +681,8 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void }> = ({ taskI
         : null,
     [live],
   );
-  const enqueue = (text: string) =>
-    setPending((cur) => [...cur, { id: newPendingId(), text, mode: 'queue' }]);
+  const enqueue = (text: string, images?: Array<{ mime: string; data: string }>) =>
+    setPending((cur) => [...cur, { id: newPendingId(), text, mode: 'queue', images }]);
   const stop = () => void tasksApi.cancel(taskId).catch(() => undefined);
   usePaneEscape(true, onClose);
   const name = title || t('ui.usage-tools.subagent');
@@ -552,18 +722,17 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void }> = ({ taskI
           }}
         />
         <MessageInput
-          onSend={(text) => {
-            void tasksApi
-              .followUp(taskId, text)
-              .then((r) => {
-                // 刚好又跑起来了（busy）：排进待发列表，这次跑完再发
-                if (!r.ok && r.reason === 'busy') enqueue(text);
-              })
-              .catch(() => undefined);
+          onSend={(text, imgs) => {
+            void (async () => {
+              const images = imgs?.length
+                ? (await toHarnessImages(imgs)).map((i) => ({ mime: i.mime, data: i.data }))
+                : undefined;
+              const r = await tasksApi.followUp(taskId, text, images).catch(() => null);
+              // 刚好又跑起来了（busy）：排进待发列表，这次跑完再发
+              if (r && !r.ok && r.reason === 'busy') enqueue(text, images);
+            })();
           }}
           busyOverride={running}
-          imageCapability="none"
-          imageUnsupportedReason={t('ui.session-workspace.subagent-nomi-no-images')}
           placeholder={t('ui.session-workspace.subagent-nomi-placeholder')}
           queue={{
             onQueue: (text, opts) => {

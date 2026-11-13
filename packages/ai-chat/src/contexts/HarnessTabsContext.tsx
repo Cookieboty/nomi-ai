@@ -29,7 +29,12 @@ import {
 } from '../services/harnessClient';
 import { replyPermissionRequest } from '../services/permissionReply';
 import { canSteer } from '../utils/cliCaps';
-import { applyLiveEvents, type LiveStatus, type TabLive } from '../utils/liveState';
+import {
+  applyDetachedEvents,
+  applyLiveEvents,
+  type LiveStatus,
+  type TabLive,
+} from '../utils/liveState';
 import {
   hasRunningTool,
   mergePending,
@@ -157,6 +162,11 @@ function createLiveStore(): LiveStore {
 
 const EMPTY_LIVE_STORE = createLiveStore();
 const LiveCtx = createContext<LiveStore>(EMPTY_LIVE_STORE);
+/**
+ * 来源标签空闲时子代理的实时状态（用户在子任务侧栏里直接对它说话后它接着跑）：状态和逐字增量。
+ * 和上面的实时进度分开放：标签空闲 / 一轮定稿时不清它
+ */
+const DetachedCtx = createContext<LiveStore>(createLiveStore());
 
 interface CacheStore {
   get(): Record<string, HarnessTabMessage[]>;
@@ -221,6 +231,11 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   useLayoutEffect(() => {
     liveStore.set(live);
   }, [liveStore, live]);
+  const [detached, setDetached] = useState<LiveMap>({});
+  const [detachedStore] = useState(createLiveStore);
+  useLayoutEffect(() => {
+    detachedStore.set(detached);
+  }, [detachedStore, detached]);
   const [queues, setQueues] = useState<Record<string, PendingSend[]>>({});
   const queuesRef = useRef(queues);
   /** 更新待发列表并同步 ref（交付判断读最新值，不等渲染） */
@@ -294,7 +309,19 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
         return next ?? cur;
       });
     });
-    const off2 = harnessClient.onTabMessage(({ tabId, message }) => {
+    const off2 = harnessClient.onTabMessage(({ tabId, message, updated }) => {
+      if (updated) {
+        // 已有消息更新（来源标签空闲时子代理接着跑，轨迹追加进派出它的那条消息）：按 id 替换，不动实时进度
+        setCache((cur) => {
+          const list = cur[tabId];
+          const i = list ? list.findIndex((m) => m.id === message.id) : -1;
+          if (!list || i < 0) return cur;
+          const next = list.slice();
+          next[i] = message;
+          return { ...cur, [tabId]: next };
+        });
+        return;
+      }
       // 回合的定稿助手消息：和清掉实时进度放在同一次提交里。主进程先发消息、下一个 microtask
       // 才发「已空闲」的标签状态，分开提交的话中间那一帧同一段回答会渲染两份（定稿 + 流式）。
       // 后台自动回合的消息不清：用户回合可能还在进行，实时进度属于它。
@@ -326,16 +353,25 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       if (!pending.length) return;
       const batch = pending.splice(0, pending.length);
       const byTab = new Map<string, HarnessLiveEvent[]>();
+      const offTurn = new Map<string, HarnessLiveEvent[]>();
       for (const e of batch) {
-        const list = byTab.get(e.tabId);
+        const into = (e as { detached?: boolean }).detached ? offTurn : byTab;
+        const list = into.get(e.tabId);
         if (list) list.push(e);
-        else byTab.set(e.tabId, [e]);
+        else into.set(e.tabId, [e]);
       }
-      setLive((cur) => {
-        const next = { ...cur };
-        for (const [tabId, evs] of byTab) next[tabId] = applyLiveEvents(cur[tabId], evs);
-        return next;
-      });
+      if (byTab.size)
+        setLive((cur) => {
+          const next = { ...cur };
+          for (const [tabId, evs] of byTab) next[tabId] = applyLiveEvents(cur[tabId], evs);
+          return next;
+        });
+      if (offTurn.size)
+        setDetached((cur) => {
+          const next = { ...cur };
+          for (const [tabId, evs] of offTurn) next[tabId] = applyDetachedEvents(cur[tabId], evs);
+          return next;
+        });
     };
     flushPending = flush;
     const enqueue = (e: HarnessLiveEvent) => {
@@ -350,7 +386,8 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       if (!e || typeof e.tabId !== 'string') return;
       enqueue(e);
       // 工具开始：这个标签等着的插入消息现在交出去（CLI 在这个工具的结果处取走）
-      if (e.type === 'tool' && e.status === 'start') void deliverRef.current(e.tabId);
+      if (e.type === 'tool' && e.status === 'start' && !(e as { detached?: boolean }).detached)
+        void deliverRef.current(e.tabId);
     };
     const off3 = harnessClient.onEvents((batch) => batch.forEach(handleRaw));
     const off4 = harnessClient.onEvent(handleRaw);
@@ -744,9 +781,11 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     <Ctx.Provider value={value}>
       <CoreCtx.Provider value={core}>
         <LiveCtx.Provider value={liveStore}>
-          <CacheCtx.Provider value={cacheStore}>
-            <PinCtx.Provider value={tabCacheApi}>{children}</PinCtx.Provider>
-          </CacheCtx.Provider>
+          <DetachedCtx.Provider value={detachedStore}>
+            <CacheCtx.Provider value={cacheStore}>
+              <PinCtx.Provider value={tabCacheApi}>{children}</PinCtx.Provider>
+            </CacheCtx.Provider>
+          </DetachedCtx.Provider>
         </LiveCtx.Provider>
       </CoreCtx.Provider>
     </Ctx.Provider>
@@ -799,6 +838,13 @@ export function useHarnessTabsCore(): HarnessTabsCore {
  */
 export function useHarnessLive<T>(selector: (live: LiveMap) => T): T {
   const store = useContext(LiveCtx);
+  const get = () => selector(store.get());
+  return useSyncExternalStore(store.subscribe, get, get);
+}
+
+/** 来源标签空闲时子代理的实时状态（见 DetachedCtx）；用法同 useHarnessLive */
+export function useHarnessDetached<T>(selector: (live: LiveMap) => T): T {
+  const store = useContext(DetachedCtx);
   const get = () => selector(store.get());
   return useSyncExternalStore(store.subscribe, get, get);
 }
