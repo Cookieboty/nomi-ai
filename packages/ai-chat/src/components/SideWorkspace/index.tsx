@@ -227,6 +227,16 @@ export const SideTabStrip: React.FC<{
     item.entryKey ? model.files.entries.find((e) => e.key === item.entryKey) : undefined;
   const [menu, setMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+  // 当前标签被挤到可见范围外（标签多、这一栏窄）时滚过去
+  const current = model.stripActive;
+  useEffect(() => {
+    if (!current) return;
+    const el = Array.from(
+      stripRef.current?.querySelectorAll<HTMLElement>('[data-side-tab-key]') ?? [],
+    ).find((x) => x.dataset.sideTabKey === current);
+    el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [current]);
   useEffect(() => {
     if (!menu) return;
     const down = (e: PointerEvent) => {
@@ -257,6 +267,7 @@ export const SideTabStrip: React.FC<{
   return (
     <div className={styles.strip} data-testid="side-tab-strip">
       <div
+        ref={stripRef}
         className={styles.tabs}
         role="tablist"
         aria-label={t('ui.session-workspace.side-tabs-label')}

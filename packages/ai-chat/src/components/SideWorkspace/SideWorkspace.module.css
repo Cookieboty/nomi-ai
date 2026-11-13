@@ -54,8 +54,9 @@
 .tab {
   display: flex;
   align-items: center;
+  /* 标签多了不挤成只剩图标：保留一段名字，放不下时整排横向滚动 */
   flex: 0 1 auto;
-  min-width: 0;
+  min-width: 6.5rem;
   max-width: 14rem;
   height: var(--cd-control-h-sm);
   border-radius: var(--cd-radius-md);

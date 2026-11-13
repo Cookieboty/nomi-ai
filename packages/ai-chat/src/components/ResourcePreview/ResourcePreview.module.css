@@ -42,6 +42,10 @@
   -webkit-backdrop-filter: none;
   z-index: auto;
 }
+/* 挂载时把焦点放在预览区（Esc / 查找归它），容器本身不画焦点框 */
+.panel.embedded:focus {
+  outline: none;
+}
 .panel[hidden],
 .tabs[hidden] {
   display: none;
