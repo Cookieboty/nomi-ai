@@ -507,8 +507,6 @@
   "electron.common.this-api-key-doesn-t-have-the-selected": "这个 API Key 还没有开通所选的「流式语音识别 2.0」资源（小时版 / 并发版），请在火山引擎控制台确认",
   "electron.common.this-coding-assistant-doesn-t-support-switching-models": "这个编程助手不支持切换模型",
   "electron.common.this-coding-assistant-has-no-official-accounts": "这个编程助手没有官方账号",
-  "electron.common.this-computer-s-sign-in": "本机登录",
-  "electron.common.this-computer-s-sign-in-is-the-cli": "「本机登录」是这台电脑上 CLI 自己的登录，不能在这里删除",
   "electron.common.this-file-is-no-longer-within-the-granted": "这个文件已不在授权范围内",
   "electron.common.this-file-is-protected-i-can-t-read": "这个文件受保护，我不能读哦。",
   "electron.common.this-folder-can-t-be-added-to-the": "这个文件夹不能加入知识库：{0}",
@@ -614,5 +612,7 @@
   "electron.common.theme-image": "主题背景图",
   "electron.common.theme-image-unsupported": "背景图只支持 PNG、JPEG、WebP，且不超过 {0} MB",
   "electron.common.save-theme-template": "保存主题包模板",
-  "electron.common.gemini-needs-auth": "Gemini 没有可用的认证：Google 已不再让 Gemini CLI 用个人 Google 账号登录。请在 ~/.gemini 里配置 API Key（或 Vertex AI、企业版授权），或在「模型」页给 Gemini 选一个第三方模型。"
+  "electron.common.gemini-needs-auth": "Gemini 没有可用的认证：Google 已不再让 Gemini CLI 用个人 Google 账号登录。请在 ~/.gemini 里配置 API Key（或 Vertex AI、企业版授权），或在「模型」页给 Gemini 选一个第三方模型。",
+  "electron.common.no-official-account-yet": "还没有 {0} 官方账号：在设置 →「助手」→ {0} 里添加一个，或在模型按钮里给这个标签换成第三方模型",
+  "electron.common.only-third-party-models": "{0} 只能使用第三方模型：在模型按钮里选一个，或先在「模型」页给它分配"
 }

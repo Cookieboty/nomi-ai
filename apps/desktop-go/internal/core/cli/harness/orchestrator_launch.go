@@ -276,7 +276,15 @@ func (o *Orchestrator) bindCliSession(tab *util.Obj, sessionID string) {
 }
 
 // officialLaunchFor = officialLaunch(backend, accountId)（方法名避开同名变量 OFFICIAL_LAUNCH）。
+// 内置编程助手不再用这台电脑上 CLI 自己的登录：有官方账号的用 Nomi 管理的账号目录，
+// 没有官方账号的（dsh、Gemini）只能经网关用第三方模型。外部 CLI 不经 Nomi 的账号和网关，照旧自己管登录。
 func (o *Orchestrator) officialLaunchFor(backend string, accountID *string) *tabLaunch {
+	if isBuiltin(backend) && !isAccountBackend(backend) {
+		if o.d.Gateway == nil {
+			throw(i18n.T("electron.common.the-model-gateway-isn-t-running-so-third"))
+		}
+		throw(i18n.T("electron.common.only-third-party-models", builtin.DisplayName(backend)))
+	}
 	if o.d.Accounts == nil || !isAccountBackend(backend) {
 		return officialLaunch
 	}

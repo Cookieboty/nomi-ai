@@ -251,7 +251,6 @@ export const CliAccount = loose({
   kind: z.string(),
   label: z.string(),
   active: z.boolean(),
-  local: z.boolean(),
   loggedIn: z.boolean(),
   inUse: z.number(),
   createdAt: z.number(),

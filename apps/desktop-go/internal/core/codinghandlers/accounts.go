@@ -43,7 +43,7 @@ type AccountServices struct {
 var accountCodes = map[string]string{
 	"not-found":    "ACCOUNT_NOT_FOUND",
 	"in-use":       "ACCOUNT_IN_USE",
-	"local":        "ACCOUNT_LOCAL",
+	"no-account":   "ACCOUNT_NOT_FOUND",
 	"unsupported":  "ACCOUNT_UNSUPPORTED",
 	"unknown-live": "ACCOUNT_UNKNOWN_LIVE",
 	// Nomi 之外还有 CLI 进程在用这个账号目录：data.pids 是它们的进程号，界面可以让用户选择结束它们再删除

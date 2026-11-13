@@ -16,7 +16,7 @@ import type { BackendModelCatalog, TabSource } from '../services/harnessClient';
 import { nomiMainRef, nomiModelChoices, splitRef } from '../services/nomiModel';
 import { providerDisplayName } from '../services/providerClient';
 import { cacheHitRate, formatHitRate } from '../utils/cacheHit';
-import { hasOfficialAccount, ownConfigLabel } from '../utils/cliCaps';
+import { hasOfficialAccount, ownConfigLabel, thirdPartyOnly } from '../utils/cliCaps';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
 import { rankItems } from '../utils/fuzzy';
 
@@ -111,6 +111,8 @@ function cliSourceLine(ctx: SlashContext, data: SlashData): CardRow {
       ? { label, value: t('ui.models.third-party', refSlashLabel(data.nomiGateway, ref)) }
       : { label, value: t('ui.models.third-party-no-model-set'), tone: 'warn' };
   }
+  if (thirdPartyOnly(ctx.backend))
+    return { label, value: t('ui.models.third-party-no-model-set'), tone: 'warn' };
   if (!hasOfficialAccount(ctx.backend)) return { label, value: ownConfigLabel(ctx.backend) };
   const a = data.cliAccount;
   return a
@@ -314,7 +316,14 @@ const cancelled = (ok: boolean) => {
   if (!ok) throw new Error(t('ui.models.switch-cancelled'));
 };
 
-/** CLI 标签的「官方」一项：改用官方账号（第三方 → 官方且已有对话时会先确认） */
+/**
+ * CLI 标签的「官方」一项：改用官方账号（第三方 → 官方且已有对话时会先确认）。
+ * 只能用第三方模型的编程助手（dsh、Gemini）没有这一项。
+ */
+function officialChoices(ctx: SlashContext, data: SlashData, source: TabSource): ModelChoice[] {
+  return thirdPartyOnly(ctx.backend) ? [] : [officialChoice(ctx, data, source)];
+}
+
 function officialChoice(ctx: SlashContext, data: SlashData, source: TabSource): ModelChoice {
   const a = data.cliAccount;
   const label = !hasOfficialAccount(ctx.backend)
@@ -497,7 +506,7 @@ export async function modelArgOptions(
   }));
   const others =
     tm.source === 'thirdParty'
-      ? [officialChoice(ctx, data, tm.source)]
+      ? officialChoices(ctx, data, tm.source)
       : thirdPartyChoices(ctx, data, tm.source);
   return [
     ...own,
@@ -514,7 +523,7 @@ export async function modelCard(
   let choices: ModelChoice[];
   if (ctx.backend !== 'nomi') {
     const tm = await ctx.actions.tabModels();
-    const official = officialChoice(ctx, data, tm.source);
+    const official = officialChoices(ctx, data, tm.source);
     const third = thirdPartyChoices(ctx, data, tm.source);
     const session =
       tm.source === 'thirdParty'
@@ -527,11 +536,11 @@ export async function modelCard(
         tm.current ?? session,
         args,
         tm.source,
-        tm.source === 'thirdParty' ? [official] : third,
+        tm.source === 'thirdParty' ? official : third,
         !!session,
       );
-    // 不能按标签切模型的 CLI（如 Gemini / dsh 官方）：只列来源
-    choices = [official, ...third];
+    // 不能按标签切模型的 CLI：只列来源
+    choices = [...official, ...third];
   } else choices = nomiChoices(ctx, data);
   const note =
     ctx.backend === 'nomi'

@@ -305,7 +305,7 @@ export function useCliModelEffortSource({
     ? (pinnedAccount?.label ?? t('ui.models.removed-account'))
     : t(
         'ui.models.follow-default',
-        defaultAccount?.label ?? t('ui.models.this-computer-s-sign-in'),
+        defaultAccount?.label ?? t('ui.models.no-official-account-yet'),
       );
 
   // 第三方标签可切到官方账号时，也读账号列表：「切换到官方账号」后面写上默认账号
@@ -667,7 +667,7 @@ export function useCliModelEffortSource({
             {
               value: '',
               label: t('ui.models.follow-the-default-account'),
-              description: defaultAccount?.label ?? t('ui.models.this-computer-s-sign-in'),
+              description: defaultAccount?.label ?? t('ui.models.no-official-account-yet'),
               testId: 'account-default',
             },
             ...accounts.map((a) => ({

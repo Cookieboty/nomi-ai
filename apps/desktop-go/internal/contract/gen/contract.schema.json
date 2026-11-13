@@ -6669,9 +6669,6 @@
       "active": {
        "type": "boolean"
       },
-      "local": {
-       "type": "boolean"
-      },
       "loggedIn": {
        "type": "boolean"
       },
@@ -6687,7 +6684,6 @@
       "kind",
       "label",
       "active",
-      "local",
       "loggedIn",
       "inUse",
       "createdAt"
@@ -6903,9 +6899,6 @@
       "active": {
        "type": "boolean"
       },
-      "local": {
-       "type": "boolean"
-      },
       "loggedIn": {
        "type": "boolean"
       },
@@ -6921,7 +6914,6 @@
       "kind",
       "label",
       "active",
-      "local",
       "loggedIn",
       "inUse",
       "createdAt"
@@ -6992,9 +6984,6 @@
      "active": {
       "type": "boolean"
      },
-     "local": {
-      "type": "boolean"
-     },
      "loggedIn": {
       "type": "boolean"
      },
@@ -7010,7 +6999,6 @@
      "kind",
      "label",
      "active",
-     "local",
      "loggedIn",
      "inUse",
      "createdAt"
@@ -7054,9 +7042,6 @@
      "active": {
       "type": "boolean"
      },
-     "local": {
-      "type": "boolean"
-     },
      "loggedIn": {
       "type": "boolean"
      },
@@ -7072,7 +7057,6 @@
      "kind",
      "label",
      "active",
-     "local",
      "loggedIn",
      "inUse",
      "createdAt"
@@ -39270,7 +39254,6 @@
   "CONVERSATION_NOT_FOUND",
   "ACCOUNT_NOT_FOUND",
   "ACCOUNT_IN_USE",
-  "ACCOUNT_LOCAL",
   "ACCOUNT_UNSUPPORTED",
   "ACCOUNT_UNKNOWN_LIVE",
   "ACCOUNT_EXTERNAL_BUSY",

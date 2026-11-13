@@ -786,6 +786,12 @@ func (o *Orchestrator) load() {
 		}
 	}
 	o.main().Set("permissionMode", o.restoredMode(str(o.main(), "backend"), mainMode))
+	// 旧版本的「本机登录」：标签改为跟随默认官方账号，dsh / Gemini 改为第三方来源
+	for _, k := range o.tabs.Keys() {
+		if o.migrateLocalSignIn(o.tab(k)) {
+			migrated = true
+		}
+	}
 	if migrated || migrateAuto {
 		o.persist()
 	}

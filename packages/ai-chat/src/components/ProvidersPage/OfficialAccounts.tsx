@@ -317,7 +317,6 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
                   {t('ui.providers-schedule.default')}
                 </Badge>
               )}
-              {a.local && <Badge tone="neutral">{t('ui.foundation.local')}</Badge>}
               {a.needsLogin ? (
                 <Badge tone="warning" data-testid="cli-account-needs-login">
                   {t('ui.providers-schedule.sign-in-again')}
@@ -334,10 +333,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
           }
           description={
             <>
-              {[a.identity?.email, a.identity?.org].filter(Boolean).join(' · ') ||
-                (a.local
-                  ? t('ui.providers-schedule.s-own-sign-in-on-this-computer', NAME[kind])
-                  : undefined)}
+              {[a.identity?.email, a.identity?.org].filter(Boolean).join(' · ') || undefined}
               {a.duplicateOf && (
                 <Notice tone="warning" data-testid="cli-account-duplicate">
                   {t(
@@ -421,66 +417,64 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
           >
             {t('ui.cli-monitor.rename')}
           </Button>
-          {!a.local && (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={!!busy}
-              data-testid="cli-account-remove"
-              onClick={async () => {
-                if (
-                  !(await confirmDialog({
-                    message: t(
-                      'ui.providers-schedule.remove-the-account-will-be-signed-out-in',
-                      a.label,
-                      NAME[kind],
-                    ),
-                    danger: true,
-                  }))
-                )
-                  return;
-                void run(`d:${a.id}`, async () => {
-                  try {
-                    await cliAccountClient.remove(a.id);
-                  } catch (e) {
-                    // Nomi 之外还有 CLI 进程在用这个账号：说明是哪些进程，用户确认后由 Nomi 结束它们再删除
-                    if (
-                      (e as { code?: unknown }).code === 'external-busy' &&
-                      (await confirmDialog({
-                        message: t(
-                          'ui.chat-settings.stop-these-cli-processes-and-remove-the-account',
-                          (e as Error).message,
-                          a.label,
-                        ),
-                        confirmLabel: t('ui.chat-settings.stop-processes-and-remove'),
-                        danger: true,
-                      }))
-                    ) {
-                      await cliAccountClient.remove(a.id, { stopExternal: true });
-                      return;
-                    }
-                    // 按错误码判断（文案随语言变）：无法确认外部 CLI 是否在用 → 让用户再确认一次后强制删除
-                    if (
-                      (e as { code?: unknown }).code === 'unknown-live' &&
-                      (await confirmDialog({
-                        message: t(
-                          'ui.chat-settings.nomi-could-not-confirm-whether-a-cli-is',
-                          a.label,
-                        ),
-                        danger: true,
-                      }))
-                    ) {
-                      await cliAccountClient.remove(a.id, { force: true });
-                      return;
-                    }
-                    throw e;
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={!!busy}
+            data-testid="cli-account-remove"
+            onClick={async () => {
+              if (
+                !(await confirmDialog({
+                  message: t(
+                    'ui.providers-schedule.remove-the-account-will-be-signed-out-in',
+                    a.label,
+                    NAME[kind],
+                  ),
+                  danger: true,
+                }))
+              )
+                return;
+              void run(`d:${a.id}`, async () => {
+                try {
+                  await cliAccountClient.remove(a.id);
+                } catch (e) {
+                  // Nomi 之外还有 CLI 进程在用这个账号：说明是哪些进程，用户确认后由 Nomi 结束它们再删除
+                  if (
+                    (e as { code?: unknown }).code === 'external-busy' &&
+                    (await confirmDialog({
+                      message: t(
+                        'ui.chat-settings.stop-these-cli-processes-and-remove-the-account',
+                        (e as Error).message,
+                        a.label,
+                      ),
+                      confirmLabel: t('ui.chat-settings.stop-processes-and-remove'),
+                      danger: true,
+                    }))
+                  ) {
+                    await cliAccountClient.remove(a.id, { stopExternal: true });
+                    return;
                   }
-                });
-              }}
-            >
-              {t('ui.foundation.delete')}
-            </Button>
-          )}
+                  // 按错误码判断（文案随语言变）：无法确认外部 CLI 是否在用 → 让用户再确认一次后强制删除
+                  if (
+                    (e as { code?: unknown }).code === 'unknown-live' &&
+                    (await confirmDialog({
+                      message: t(
+                        'ui.chat-settings.nomi-could-not-confirm-whether-a-cli-is',
+                        a.label,
+                      ),
+                      danger: true,
+                    }))
+                  ) {
+                    await cliAccountClient.remove(a.id, { force: true });
+                    return;
+                  }
+                  throw e;
+                }
+              });
+            }}
+          >
+            {t('ui.foundation.delete')}
+          </Button>
         </SettingRow>
       ))}
       {accounts.length === 0 && (

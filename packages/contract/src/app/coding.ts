@@ -778,12 +778,12 @@ export const codingEventSurfaces = {
 
 /**
  * 业务错误码（UPPER_SNAKE_CASE，不得与其他域重名）；处理函数用 `ctx.fail(code, message)` 抛出。
- * 账号操作（AccountError 的 kebab code）：not-found / in-use / local / unsupported / unknown-live / external-busy。
+ * 账号操作（AccountError 的 kebab code）：not-found / in-use / unsupported / unknown-live / external-busy。
+ * 没有「本机登录」这一项：编程助手只用 Nomi 管理的官方账号或第三方模型。
  */
 export const codingErrors = [
   'ACCOUNT_NOT_FOUND',
   'ACCOUNT_IN_USE',
-  'ACCOUNT_LOCAL',
   'ACCOUNT_UNSUPPORTED',
   'ACCOUNT_UNKNOWN_LIVE',
   /** cliAccount.remove：Nomi 之外还有 CLI 进程在用这个账号目录（data.pids）；可以带 stopExternal 结束它们再删除 */

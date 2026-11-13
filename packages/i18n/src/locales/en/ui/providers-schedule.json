@@ -153,7 +153,6 @@
   "ui.providers-schedule.running": "Running…",
   "ui.providers-schedule.runtime-needs-attention": "Runtime needs attention",
   "ui.providers-schedule.runtime-problem-notice": "Node.js or npm on this computer has a problem, so installing or updating coding assistants may fail.",
-  "ui.providers-schedule.s-own-sign-in-on-this-computer": "{0}’s own sign-in on this computer",
   "ui.providers-schedule.saved-next-run": "Saved. Next run: {0}",
   "ui.providers-schedule.scan-now": "Scan now",
   "ui.providers-schedule.schedule-proactive-reminders": "Schedule & proactive reminders",

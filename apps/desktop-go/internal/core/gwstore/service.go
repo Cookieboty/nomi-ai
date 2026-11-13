@@ -3,6 +3,7 @@ package gwstore
 import (
 	"log"
 	"path/filepath"
+	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/config"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -93,6 +94,11 @@ func (s *Service) normalizeCliAssignments() bool {
 		main := ""
 		if m, ok := asObj(c.Get("models")).Get("main").(string); ok {
 			main = u.JSTrim(m)
+		}
+		// 旧版本的「本机登录」（local-<kind>）：改为跟随默认官方账号
+		if acc, ok := c.Get("newTabAccountId").(string); ok && strings.HasPrefix(acc, "local-") {
+			c.Set("newTabAccountId", u.Undefined)
+			changed = true
 		}
 		src := c.Get("newTabSource")
 		if main != "" && src != "thirdParty" {

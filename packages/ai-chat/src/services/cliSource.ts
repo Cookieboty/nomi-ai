@@ -1,12 +1,13 @@
-import { BUILTIN_CLI_ORDER } from '@nomi-ai/cli-catalog';
+import { BUILTIN_CLI_ORDER, cliName } from '@nomi-ai/cli-catalog';
 /**
- * CLI 标签的来源（docs/development/gateway.md）：本机默认 / 官方账号 / 第三方（经网关）。
+ * CLI 标签的来源（docs/development/gateway.md）：Nomi 管理的官方账号 / 第三方（经网关）。
+ * 不再有「本机登录」：内置编程助手不用这台电脑上 CLI 自己的登录；没有官方账号能力的（dsh、Gemini）只有第三方。
  * 侧栏信息卡的「新标签默认」（CliDefaultSource）、模型按钮和斜杠命令 /model、/status 共用这里的数据与切换逻辑。
  */
 import { t, type SelectOption } from '@nomi-ai/ui';
 
 import { confirmDialog } from '../components/ConfirmDialog';
-import { hasOfficialAccount, ownConfigLabel } from '../utils/cliCaps';
+import { hasOfficialAccount, thirdPartyOnly } from '../utils/cliCaps';
 
 import type { CliAccount } from './cliAccountClient';
 import type { ClientId, GatewayState } from './gatewayClient';
@@ -212,23 +213,19 @@ export function defaultSourceSwitch(
   if (!client) return null;
   const main = client.models.main ?? null;
   const choices = codingModelChoices(s);
+  const hasMain = choices.some((m) => m.ref === main);
+  // 只能用第三方模型的（dsh、Gemini）：默认来源永远是第三方
   const target: TabSource =
-    client.newTabSource === 'thirdParty' && choices.some((m) => m.ref === main)
+    thirdPartyOnly(kind) || (client.newTabSource === 'thirdParty' && hasMain)
       ? 'thirdParty'
       : 'official';
   if (target === tabSourceOf(tab)) return null;
+  if (target === 'thirdParty' && !hasMain) return null;
   if (target === 'official')
     return {
       target,
       title: t('ui.models.default-official'),
-      items: [
-        {
-          id: 'official',
-          label: hasOfficialAccount(kind)
-            ? t('ui.models.switch-to-official')
-            : ownConfigLabel(kind),
-        },
-      ],
+      items: [{ id: 'official', label: t('ui.models.switch-to-official') }],
     };
   const pid = providerOfRef(main)!;
   return {
@@ -263,13 +260,13 @@ export function thirdPartyRefOf(
   return isCliKind(kind) ? (s?.clients[kind]?.models.main ?? null) : null;
 }
 
-/* ------------------- 「新标签默认用」：默认 / 官方账号 / 第三方 ------------------- */
+/* ------------------- 「新标签默认用」：官方账号 / 第三方 ------------------- */
 
-/** 本机 CLI 自己的登录目录（不使用 Nomi 管理的配置），主进程 AccountService 的 local-<kind> 哨兵 */
-export const localAccountValue = (kind: CliKind) => `local-${kind}`;
+/** 旧版本的「本机登录」哨兵（主进程 AccountService 的 local-<kind>）：现在按「跟随默认账号」处理 */
+const isLegacyLocalAccount = (id: string | null | undefined) => !!id && id.startsWith('local-');
 
-/** 下拉值：default=本机登录；follow=跟随默认账号；account:<id>=指定官方账号；provider:<id>=第三方供应商 */
-const NEWTAB_DEFAULT = 'default';
+/** 下拉值：follow=跟随默认账号；account:<id>=指定官方账号；provider:<id>=第三方供应商；''=还没选（只能用第三方的助手） */
+const NEWTAB_NONE = '';
 const NEWTAB_FOLLOW = 'follow';
 const ACCOUNT_PREFIX = 'account:';
 const PROVIDER_PREFIX = 'provider:';
@@ -288,36 +285,31 @@ export function newTabSelectValue(client: NewTabCtx['client'], kind: CliKind): s
     const p = providerOfRef(main);
     if (p) return `${PROVIDER_PREFIX}${p}`;
   }
-  // 没有官方账号的（dsh、Gemini）只有「默认」一项；旧版本存下的 Gemini 账号也按默认显示
-  if (!hasOfficialAccount(kind)) return NEWTAB_DEFAULT;
+  // 没有官方账号能力的（dsh、Gemini）只用第三方：还没分配模型时下拉显示「选一个第三方供应商」
+  if (!hasOfficialAccount(kind)) {
+    const p = providerOfRef(main);
+    return p ? `${PROVIDER_PREFIX}${p}` : NEWTAB_NONE;
+  }
   const accountId = client?.newTabAccountId ?? null;
-  if (!accountId) return NEWTAB_FOLLOW;
-  if (accountId === localAccountValue(kind)) return NEWTAB_DEFAULT;
+  if (!accountId || isLegacyLocalAccount(accountId)) return NEWTAB_FOLLOW;
   return `${ACCOUNT_PREFIX}${accountId}`;
 }
 
-/** 「新标签默认用」三级分组下拉的选项：默认（本机登录）/ 官方账号（可指定账号）/ 第三方（供应商） */
+/** 「新标签默认用」分组下拉的选项：官方账号（跟随默认 / 指定账号）/ 第三方（供应商） */
 export function newTabOptions({ kind, client, gateway, accounts }: NewTabCtx): SelectOption[] {
   const options: SelectOption[] = [];
   const official = hasOfficialAccount(kind);
 
-  options.push({
-    value: NEWTAB_DEFAULT,
-    group: t('ui.providers-schedule.default'),
-    label: official ? t('ui.models.this-computer-s-sign-in') : ownConfigLabel(kind),
-    // 标签已写明「本机登录 / 自带配置」，说明只补一句不经 Nomi（太长会撑宽下拉菜单）
-    description: t('ui.models.without-nomi'),
-  });
-
   if (official) {
+    const def = accounts.find((a) => a.active);
     options.push({
       value: NEWTAB_FOLLOW,
       group: t('ui.chat-settings.official-accounts'),
       label: t('ui.models.follow-the-default-account'),
+      description: def?.label ?? t('ui.models.no-official-account-yet'),
     });
     const seen = new Set<string>();
     for (const a of accounts) {
-      if (a.local) continue;
       seen.add(a.id);
       options.push({
         value: `${ACCOUNT_PREFIX}${a.id}`,
@@ -331,7 +323,7 @@ export function newTabOptions({ kind, client, gateway, accounts }: NewTabCtx): S
     }
     // 已指定的账号后来被删掉：补一个禁用项，避免下拉显示空白
     const accountId = client?.newTabAccountId ?? null;
-    if (accountId && accountId !== localAccountValue(kind) && !seen.has(accountId)) {
+    if (accountId && !isLegacyLocalAccount(accountId) && !seen.has(accountId)) {
       options.push({
         value: `${ACCOUNT_PREFIX}${accountId}`,
         group: t('ui.chat-settings.official-accounts'),
@@ -340,6 +332,13 @@ export function newTabOptions({ kind, client, gateway, accounts }: NewTabCtx): S
         description: t('ui.models.removed-account'),
       });
     }
+  } else if (newTabSelectValue(client, kind) === NEWTAB_NONE) {
+    options.push({
+      value: NEWTAB_NONE,
+      label: t('ui.models.pick-a-third-party-provider'),
+      description: t('ui.models.only-third-party-models', cliName(kind)),
+      disabled: true,
+    });
   }
 
   const providers = codingProviders(gateway);
@@ -356,7 +355,7 @@ export function newTabOptions({ kind, client, gateway, accounts }: NewTabCtx): S
   const main = client?.models.main ?? null;
   const currentProvider = providerOfRef(main);
   if (
-    (client?.newTabSource ?? 'official') === 'thirdParty' &&
+    ((client?.newTabSource ?? 'official') === 'thirdParty' || !official) &&
     currentProvider &&
     !present.has(currentProvider)
   ) {
@@ -379,27 +378,20 @@ export interface NewTabPatch {
   models?: { main: string | null };
 }
 
-/** 下拉值 → setAssignment 的 patch；无法应用（如供应商已无可用模型）时返回 null */
+/** 下拉值 → setAssignment 的 patch；无法应用（如供应商已无可用模型、还没选）时返回 null */
 export function newTabPatch(
   value: string,
   { kind, client, gateway }: NewTabCtx,
 ): NewTabPatch | null {
   const main = client?.models.main ?? null;
-  if (value === NEWTAB_DEFAULT) {
-    return {
-      newTabSource: 'official',
-      newTabAccountId: localAccountValue(kind),
-      ...(main ? { models: { main: null } } : {}),
-    };
-  }
-  if (value === NEWTAB_FOLLOW) {
+  if (value === NEWTAB_FOLLOW && hasOfficialAccount(kind)) {
     return {
       newTabSource: 'official',
       newTabAccountId: null,
       ...(main ? { models: { main: null } } : {}),
     };
   }
-  if (value.startsWith(ACCOUNT_PREFIX)) {
+  if (value.startsWith(ACCOUNT_PREFIX) && hasOfficialAccount(kind)) {
     return {
       newTabSource: 'official',
       newTabAccountId: value.slice(ACCOUNT_PREFIX.length),

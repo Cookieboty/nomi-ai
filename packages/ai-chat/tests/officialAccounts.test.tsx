@@ -22,7 +22,6 @@ const acct = (o: Record<string, unknown>) => ({
   kind: 'codex',
   identity: null,
   active: false,
-  local: false,
   loggedIn: true,
   inUse: 0,
   createdAt: 1,
@@ -32,16 +31,16 @@ const acct = (o: Record<string, unknown>) => ({
 type Handler = (i: any) => unknown;
 
 function mockIpc(over: Record<string, Handler> = {}) {
+  // 只有 Nomi 管理的官方账号（没有「本机登录」这一行）
   let accounts = [
-    acct({
-      id: 'local-codex',
-      label: '本机登录',
-      local: true,
-      active: true,
-      identity: { key: 'kl', email: 'me@x.com', plan: 'plus' },
-    }),
     acct({ id: 'b', label: 'b@x.com', identity: { key: 'kb', email: 'b@x.com' }, inUse: 2 }),
     acct({ id: 'c', label: '工作', loggedIn: false, needsLogin: true }),
+    acct({
+      id: 'a',
+      label: '个人',
+      active: true,
+      identity: { key: 'ka', email: 'me@x.com', plan: 'plus' },
+    }),
   ];
   const handlers: Record<string, Handler> = {
     'cliAccount.list': () => accounts,
@@ -66,7 +65,7 @@ function mockIpc(over: Record<string, Handler> = {}) {
 }
 
 describe('OfficialAccounts', () => {
-  it('列出账号：默认 / 本机 / 套餐 / 在用标签数 / 需要重新登录；打开时用 CLI 状态命令刷新身份', async () => {
+  it('列出账号：默认 / 套餐 / 在用标签数 / 需要重新登录；没有「本机登录」；打开时用 CLI 状态命令刷新身份', async () => {
     const ipc = mockIpc();
     const r = render(<OfficialAccounts kind="codex" />);
     await waitFor(() => expect(r.getAllByTestId('cli-account-card')).toHaveLength(3));
@@ -75,8 +74,10 @@ describe('OfficialAccounts', () => {
     expect(r.getByText('plus')).toBeTruthy();
     expect(r.getByText('2 个标签在用')).toBeTruthy();
     expect(r.getByTestId('cli-account-needs-login')).toBeTruthy();
-    // 本机登录不能删
-    expect(r.getAllByTestId('cli-account-remove')).toHaveLength(2);
+    // 每个账号都是 Nomi 管理的目录，都能删；没有「本机登录」那一行
+    expect(r.getAllByTestId('cli-account-remove')).toHaveLength(3);
+    expect(r.queryByText('本机登录')).toBeNull();
+    expect(r.queryByText('本机')).toBeNull();
   });
 
   it('设为默认：调用 set-default，成功提示；失败时显示主进程给的原因', async () => {
@@ -117,7 +118,7 @@ describe('OfficialAccounts', () => {
     const confirm = vi.fn(() => true);
     (window as unknown as { confirm: typeof confirm }).confirm = confirm;
     const r = render(<OfficialAccounts kind="codex" />);
-    await waitFor(() => expect(r.getAllByTestId('cli-account-remove')).toHaveLength(2));
+    await waitFor(() => expect(r.getAllByTestId('cli-account-remove')).toHaveLength(3));
     await act(async () => fireEvent.click(r.getAllByTestId('cli-account-remove')[0]!));
     expect(String((confirm.mock.calls[0] as unknown[])[0])).toContain('登出');
     expect(ipc.invoke).toHaveBeenCalledWith('cliAccount.remove', { id: 'b', force: false });
@@ -138,7 +139,7 @@ describe('OfficialAccounts', () => {
     const confirm = vi.fn(() => true);
     (window as unknown as { confirm: typeof confirm }).confirm = confirm;
     const r = render(<OfficialAccounts kind="codex" />);
-    await waitFor(() => expect(r.getAllByTestId('cli-account-remove')).toHaveLength(2));
+    await waitFor(() => expect(r.getAllByTestId('cli-account-remove')).toHaveLength(3));
     await act(async () => fireEvent.click(r.getAllByTestId('cli-account-remove')[0]!));
     await waitFor(() =>
       expect(calls).toEqual([
@@ -168,7 +169,7 @@ describe('OfficialAccounts', () => {
       return true;
     };
     const r = render(<OfficialAccounts kind="codex" />);
-    await waitFor(() => expect(r.getAllByTestId('cli-account-remove')).toHaveLength(2));
+    await waitFor(() => expect(r.getAllByTestId('cli-account-remove')).toHaveLength(3));
     await act(async () => fireEvent.click(r.getAllByTestId('cli-account-remove')[0]!));
     await waitFor(() =>
       expect(calls).toEqual([
@@ -184,7 +185,7 @@ describe('OfficialAccounts', () => {
     let n = 0;
     (window as unknown as { confirm: () => boolean }).confirm = () => n++ === 0;
     const r2 = render(<OfficialAccounts kind="codex" />);
-    await waitFor(() => expect(r2.getAllByTestId('cli-account-remove')).toHaveLength(2));
+    await waitFor(() => expect(r2.getAllByTestId('cli-account-remove')).toHaveLength(3));
     await act(async () => fireEvent.click(r2.getAllByTestId('cli-account-remove')[0]!));
     await waitFor(() => expect(r2.getByTestId('cli-accounts-msg')).toBeTruthy());
     expect(calls).toEqual([['b', false, undefined]]);
@@ -201,7 +202,7 @@ describe('OfficialAccounts', () => {
     let n = 0;
     (window as unknown as { confirm: () => boolean }).confirm = () => n++ === 0;
     const r = render(<OfficialAccounts kind="codex" />);
-    await waitFor(() => expect(r.getAllByTestId('cli-account-remove')).toHaveLength(2));
+    await waitFor(() => expect(r.getAllByTestId('cli-account-remove')).toHaveLength(3));
     await act(async () => fireEvent.click(r.getAllByTestId('cli-account-remove')[0]!));
     await waitFor(() => expect(calls).toEqual([['b', false]]));
 
@@ -215,7 +216,7 @@ describe('OfficialAccounts', () => {
     });
     (window as unknown as { confirm: () => boolean }).confirm = () => true;
     const r2 = render(<OfficialAccounts kind="codex" />);
-    await waitFor(() => expect(r2.getAllByTestId('cli-account-remove')).toHaveLength(2));
+    await waitFor(() => expect(r2.getAllByTestId('cli-account-remove')).toHaveLength(3));
     await act(async () => fireEvent.click(r2.getAllByTestId('cli-account-remove')[0]!));
     await waitFor(() => expect(r2.getByTestId('cli-accounts-msg')).toBeTruthy());
     expect(calls).toEqual([['b', false]]);

@@ -197,7 +197,6 @@
   "ui.models.third-party-no-model-set": "Third-party · no model set",
   "ui.models.third-party-providers": "Third-party providers",
   "ui.models.third-party-reasoning-can-t-be-sent-to": "This tab and its conversation stay as they are. Third-party reasoning can't be sent to the official API, so the CLI continues in a fresh session that carries the conversation so far. Continue?",
-  "ui.models.this-computer-s-sign-in": "This computer’s sign-in",
   "ui.models.this-name-looks-like-a-key-the-name": "This name looks like a key. The name is only a label; it doesn't change the key used for requests.",
   "ui.models.this-provider-comes-from-environment-variables-and-is": "This provider comes from environment variables and is read-only. To change it, edit the environment variables and restart Nomi.",
   "ui.models.this-tab-uses-a-third-party-model-through": "This tab uses a third-party model (through the Nomi gateway).",
@@ -213,7 +212,6 @@
   "ui.models.vision": "Vision",
   "ui.models.when-on-parameters-the-model-doesn-t-support": "When on, parameters the model doesn't support (such as reasoning effort or temperature) cause an error; when off, the gateway removes or adjusts them and notes it in Recent requests",
   "ui.models.wires-count": "{0} APIs",
-  "ui.models.without-nomi": "Without Nomi",
   "ui.models.this-chat-s-provider": "This chat's provider · {0}",
   "ui.models.default-provider-named": "Default provider · {0}",
   "ui.models.default-official": "Default · Official account",
@@ -228,5 +226,8 @@
   "ui.models.image-auto": "Auto (match the chat model)",
   "ui.models.image-auto-hint": "When none is set, Nomi picks an image model from the same family as its chat model (gpt → gpt-image, gemini → Gemini image); if there isn't one, it tries gpt, then gemini image models",
   "ui.models.key-note-placeholder": "Note (optional, only you see it: which account, balance, expiry…)",
-  "ui.models.key-note-of": "Note for {0}"
+  "ui.models.key-note-of": "Note for {0}",
+  "ui.models.no-official-account-yet": "No official account yet",
+  "ui.models.pick-a-third-party-provider": "Pick a third-party provider",
+  "ui.models.only-third-party-models": "{0} only uses third-party models"
 }

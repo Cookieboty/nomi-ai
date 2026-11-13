@@ -29,7 +29,8 @@ const (
 	logoutTimeoutMs = 20_000
 )
 
-// AccountError = AccountError（Code: not-found / in-use / local / unsupported / unknown-live / external-busy）。
+// AccountError = AccountError（Code: not-found / in-use / no-account / unsupported / unknown-live / external-busy）。
+// no-account：这个编程助手还没有 Nomi 管理的官方账号（不再退回这台电脑上 CLI 自己的登录）。
 // external-busy：有 Nomi 之外的 CLI 进程在用这个账号目录（Pids），界面可以让用户选择结束它们再删除。
 type AccountError struct {
 	Code, Message string
@@ -40,8 +41,11 @@ func (e *AccountError) Error() string { return e.Message }
 
 func accountErr(code, msg string) *AccountError { return &AccountError{Code: code, Message: msg} }
 
-// LocalAccountID = localAccountId.
-func LocalAccountID(kind string) string { return "local-" + kind }
+// 旧版本有一条「本机登录」记录（id local-<kind>，没有账号目录，用这台电脑上 CLI 自己的登录）。
+// 现在只有 Nomi 管理的官方账号和第三方模型：读取时删掉这类记录，指向它的默认 / 标签按没有指定处理。
+
+// IsLegacyLocalID：id 是旧版本的「本机登录」哨兵（local-<kind>；官方账号的 id 是 uuid，不会撞上）
+func IsLegacyLocalID(id string) bool { return strings.HasPrefix(id, "local-") }
 
 // ServiceDeps = AccountService 的构造参数（nil / 零值 = 未注入）。
 type ServiceDeps struct {
@@ -235,25 +239,47 @@ func (s *AccountService) store() *storeT {
 			}
 		}
 	}
-	for _, kind := range AccountKinds {
-		id := LocalAccountID(kind)
-		found := false
-		for _, a := range st.accounts {
-			if prop(a, "id") == id {
-				found = true
-				break
-			}
-		}
-		if !found {
-			rec := util.NewObj("id", id, "kind", kind, "label", t("electron.common.this-computer-s-sign-in"),
-				"dir", nil, "identity", nil, "loggedIn", false, "createdAt", s.now())
-			st.accounts = append([]any{rec}, st.accounts...)
-		}
-	}
 	s.data = st
+	s.dropLocalRecords()
 	s.migrateVault()
 	s.dropRetiredKinds()
 	return st
+}
+
+// dropLocalRecords：删掉旧版本的「本机登录」记录（没有 Nomi 账号目录的记录），以及指向它的默认账号。
+// 只改 Nomi 的账号清单，不碰 ~/.claude、~/.codex 这些 CLI 自己的目录。
+func (s *AccountService) dropLocalRecords() {
+	st := s.data
+	kept := make([]any, 0, len(st.accounts))
+	dropped := map[string]bool{}
+	for _, a := range st.accounts {
+		o, ok := a.(*util.Obj)
+		if !ok || o == nil {
+			kept = append(kept, a) // 格式不对的记录照旧留着（其余读取路径按原样报错）
+			continue
+		}
+		id, _ := o.Get("id").(string)
+		dir := o.Get("dir")
+		if !IsLegacyLocalID(id) && !nullish(dir) && dir != "" {
+			kept = append(kept, a)
+			continue
+		}
+		dropped[id] = true
+	}
+	changed := len(kept) != len(st.accounts)
+	st.accounts = kept
+	for _, kind := range AccountKinds {
+		if d, ok := st.getDefault(kind).(string); ok && (dropped[d] || IsLegacyLocalID(d)) {
+			st.deleteDefault(kind)
+			changed = true
+		}
+	}
+	if !changed || !usage.ExistsSync(s.file()) {
+		return
+	}
+	if err := utils.WritePrivateFileAtomicNode(s.file(), []byte(st.json())); err != nil {
+		s.warn("drop local sign-in records: save failed", errString(err))
+	}
 }
 
 // retiredKinds：不再支持官方账号的 CLI（Gemini：Google 不再让 Gemini CLI 用个人 Google 账号登录）。
@@ -510,6 +536,7 @@ func (s *AccountService) find(id string) any {
 	panic(accountErr("not-found", t("electron.common.account-not-found")))
 }
 
+// defaultID：设过且还在的默认账号 > 第一个已登录的账号 > 第一个账号；一个都没有 = ""（没有官方账号）。
 func (s *AccountService) defaultID(kind string) string {
 	st := s.store()
 	id := st.getDefault(kind)
@@ -520,7 +547,30 @@ func (s *AccountService) defaultID(kind string) string {
 			}
 		}
 	}
-	return LocalAccountID(kind)
+	first := ""
+	for _, a := range st.accounts {
+		if prop(a, "kind") != kind {
+			continue
+		}
+		aid, _ := prop(a, "id").(string)
+		if truthy(prop(a, "loggedIn")) {
+			return aid
+		}
+		if first == "" {
+			first = aid
+		}
+	}
+	return first
+}
+
+// HasAccount：这个编程助手有没有 Nomi 管理的官方账号
+func (s *AccountService) HasAccount(kind string) (ok bool) {
+	defer func() {
+		if recover() != nil {
+			ok = false
+		}
+	}()
+	return s.defaultID(kind) != ""
 }
 
 // DefaultID = defaultId.
@@ -580,7 +630,6 @@ func (s *AccountService) view(a any) *util.Obj {
 	v := util.NewObj("id", prop(a, "id"), "kind", prop(a, "kind"), "label", prop(a, "label"),
 		"identity", prop(a, "identity"),
 		"active", s.defaultID(kind) == prop(a, "id"),
-		"local", prop(a, "dir") == nil,
 		"loggedIn", prop(a, "loggedIn"))
 	if truthy(prop(a, "needsLogin")) {
 		v.Set("needsLogin", true)
@@ -761,6 +810,9 @@ func (s *AccountService) IdentityKey(kind string, accountID *string) (k any, err
 		want = *accountID
 	} else {
 		want = s.defaultID(kind)
+	}
+	if want == "" {
+		return nil, nil
 	}
 	for _, a := range s.store().accounts {
 		if prop(a, "id") == want {
@@ -1030,7 +1082,7 @@ func (s *AccountService) remove(id string, o RemoveOpts) {
 	kind := kindOf(a)
 	dir := dirOf(a)
 	if !hasDir(dir) {
-		panic(accountErr("local", t("electron.common.this-computer-s-sign-in-is-the-cli")))
+		panic(accountErr("not-found", t("electron.common.account-not-found")))
 	}
 	busy := s.inUse(kind, prop(a, "id"))
 	if f, ok := busy.(float64); ok && f > 0 {
@@ -1130,8 +1182,14 @@ func (s *AccountService) OfficialLaunch(kind string, accountID *string) (out Off
 	if id == "" {
 		id = s.defaultID(kind)
 	}
+	if id == "" {
+		panic(noAccountErr(kind))
+	}
 	a := s.find(id)
 	dir := dirOf(a)
+	if !hasDir(dir) {
+		panic(noAccountErr(kind))
+	}
 	problems := []HomeProblem{}
 	if hasDir(dir) {
 		problems = s.ensureHome(kind, *dir)
@@ -1151,6 +1209,15 @@ func (s *AccountService) OfficialLaunch(kind string, accountID *string) (out Off
 		}
 	}
 	return OfficialLaunch{Dir: dir, Env: env, Strip: strip, Args: OfficialAccountArgs(kind, dir), Sig: "official:" + jsStr(prop(a, "id")), Problems: problems}, nil
+}
+
+// noAccountErr：没有官方账号时启动官方来源的标签（不再退回 CLI 自己的登录）
+func noAccountErr(kind string) *AccountError {
+	name := builtin.DisplayName(kind)
+	if name == "" {
+		name = kind
+	}
+	return accountErr("no-account", t("electron.common.no-official-account-yet", name))
 }
 
 // Resolve = resolve(kind, accountId).
@@ -1186,6 +1253,11 @@ func (h HarnessAdapter) Launch(kind ports.AccountBackend, accountID *string) por
 		panic(jsrt.JSThrow{Name: "Error", Message: err.Error()})
 	}
 	return ports.AccountLaunch{Env: l.Env, Strip: l.Strip, Args: l.Args, Sig: l.Sig}
+}
+
+// HasAccount = ports.AccountPresence。
+func (h HarnessAdapter) HasAccount(kind ports.AccountBackend) bool {
+	return h.S.HasAccount(string(kind))
 }
 
 func (h HarnessAdapter) NoteSession(kind ports.AccountBackend, sessionID string, accountID *string) {

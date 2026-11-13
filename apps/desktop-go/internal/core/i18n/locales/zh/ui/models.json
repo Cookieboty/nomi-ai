@@ -197,7 +197,6 @@
   "ui.models.third-party-no-model-set": "第三方 · 未设置模型",
   "ui.models.third-party-providers": "第三方供应商",
   "ui.models.third-party-reasoning-can-t-be-sent-to": "这个标签和里面的对话都会保留。第三方模型的推理内容不能发给官方接口，CLI 会换一个会话，带上现在的对话接着聊。继续吗？",
-  "ui.models.this-computer-s-sign-in": "本机登录",
   "ui.models.this-name-looks-like-a-key-the-name": "名称看起来像一个 Key。名称只是备注，不会改变请求用的 Key。",
   "ui.models.this-provider-comes-from-environment-variables-and-is": "这个供应商来自环境变量，只能查看；要修改请改环境变量后重启 Nomi。",
   "ui.models.this-tab-uses-a-third-party-model-through": "这个标签用第三方模型（经 Nomi 网关）。",
@@ -213,7 +212,6 @@
   "ui.models.vision": "视觉",
   "ui.models.when-on-parameters-the-model-doesn-t-support": "开着时，模型不支持的参数（如思考档位、温度）直接报错；关着时网关去掉或调整这些参数并在「最近请求」里注明",
   "ui.models.wires-count": "{0} 种协议",
-  "ui.models.without-nomi": "不经 Nomi",
   "ui.models.this-chat-s-provider": "本会话原来的供应商 · {0}",
   "ui.models.default-provider-named": "默认供应商 · {0}",
   "ui.models.default-official": "默认 · 官方账号",
@@ -228,5 +226,8 @@
   "ui.models.image-auto": "自动（按对话模型匹配）",
   "ui.models.image-auto-hint": "没指定时按 Nomi 对话的模型挑同一家的图片模型（gpt → gpt-image，gemini → Gemini 生图）；没有同家的就依次用 gpt、gemini 的图片模型",
   "ui.models.key-note-placeholder": "备注（可选，只有你能看到：哪个账号、余额、到期时间…）",
-  "ui.models.key-note-of": "{0} 的备注"
+  "ui.models.key-note-of": "{0} 的备注",
+  "ui.models.no-official-account-yet": "还没有官方账号",
+  "ui.models.pick-a-third-party-provider": "选一个第三方供应商",
+  "ui.models.only-third-party-models": "{0} 只用第三方模型"
 }

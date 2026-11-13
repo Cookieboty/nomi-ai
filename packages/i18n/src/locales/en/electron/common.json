@@ -507,8 +507,6 @@
   "electron.common.this-api-key-doesn-t-have-the-selected": "This API key doesn't have the selected Streaming ASR 2.0 plan (hourly / concurrent) activated. Check the Volcengine console",
   "electron.common.this-coding-assistant-doesn-t-support-switching-models": "This coding assistant doesn't support switching models",
   "electron.common.this-coding-assistant-has-no-official-accounts": "This coding assistant has no official accounts",
-  "electron.common.this-computer-s-sign-in": "This computer’s sign-in",
-  "electron.common.this-computer-s-sign-in-is-the-cli": "“This computer’s sign-in” is the CLI’s own sign-in on this computer and can’t be removed here",
   "electron.common.this-file-is-no-longer-within-the-granted": "This file is no longer within the granted scope",
   "electron.common.this-file-is-protected-i-can-t-read": "This file is protected; I can't read it.",
   "electron.common.this-folder-can-t-be-added-to-the": "This folder can't be added to the knowledge base: {0}",
@@ -614,5 +612,7 @@
   "electron.common.theme-image": "Theme background image",
   "electron.common.theme-image-unsupported": "Background images must be PNG, JPEG or WebP, up to {0} MB",
   "electron.common.save-theme-template": "Save theme pack template",
-  "electron.common.gemini-needs-auth": "Gemini has no usable authentication: Google no longer lets Gemini CLI sign in with a personal Google account. Configure an API key (or Vertex AI / an enterprise license) in ~/.gemini, or pick a third-party model for Gemini on the Models page."
+  "electron.common.gemini-needs-auth": "Gemini has no usable authentication: Google no longer lets Gemini CLI sign in with a personal Google account. Configure an API key (or Vertex AI / an enterprise license) in ~/.gemini, or pick a third-party model for Gemini on the Models page.",
+  "electron.common.no-official-account-yet": "No {0} official account yet. Add one in Settings → Assistants → {0}, or switch this tab to a third-party model from the model button",
+  "electron.common.only-third-party-models": "{0} only runs on third-party models. Pick one from the model button, or assign one on the Models page first"
 }

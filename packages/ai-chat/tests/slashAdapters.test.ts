@@ -463,7 +463,7 @@ describe('/model', () => {
     ]);
     expect(c.items.filter((i) => i.active).map((i) => i.label)).toEqual(['官方']);
   });
-  it('第三方标签（不能按标签切模型）：当前模型是分配的默认模型；dsh 的官方一项是「dsh 自己的配置」', async () => {
+  it('第三方标签（不能按标签切模型）：当前模型是分配的默认模型；dsh 只能用第三方，没有「自己的配置」一项', async () => {
     const gw = gateway();
     gw.clients.dsh = { models: { main: 'a/gpt-5-mini' } };
     const { ctx, commands, actions } = makeCtx('dsh', {
@@ -474,7 +474,7 @@ describe('/model', () => {
     if (!r.handled) throw new Error('not handled');
     const c = cardOf(r);
     if (c.kind !== 'list') throw new Error('list');
-    expect(c.items[0]!.label).toBe('dsh 自己的配置');
+    expect(c.items.some((i) => /自己的配置|本机|官方/.test(String(i.label)))).toBe(false);
     expect(c.items.filter((i) => i.active).map((i) => i.label)).toEqual([
       '第三方 · OpenAI / gpt-5-mini',
     ]);

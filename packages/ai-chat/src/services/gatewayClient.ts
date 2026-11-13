@@ -197,7 +197,7 @@ export interface GatewayState {
       {
         models: ClientModels;
         newTabSource?: 'official' | 'thirdParty';
-        /** 官方来源时新标签用的账号 id；`local-<cli>` = 本机登录；缺省 = 跟随默认账号 */
+        /** 官方来源时新标签用的账号 id；缺省 = 跟随默认账号（旧版本的 `local-<cli>` 也按跟随默认） */
         newTabAccountId?: string | null;
       }
     >

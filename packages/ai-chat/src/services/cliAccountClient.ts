@@ -23,8 +23,6 @@ export interface CliAccount {
   identity: AccountIdentity | null;
   /** 默认账号 */
   active: boolean;
-  /** 「本机登录」：这台电脑上 CLI 自己的目录 */
-  local: boolean;
   loggedIn: boolean;
   /** 从旧版本迁移来、需要重新登录 */
   needsLogin?: boolean;
@@ -69,7 +67,6 @@ export interface CliNetworkState {
 const ACCOUNT_CODES: Record<string, string> = {
   ACCOUNT_NOT_FOUND: 'not-found',
   ACCOUNT_IN_USE: 'in-use',
-  ACCOUNT_LOCAL: 'local',
   ACCOUNT_UNSUPPORTED: 'unsupported',
   ACCOUNT_UNKNOWN_LIVE: 'unknown-live',
   ACCOUNT_EXTERNAL_BUSY: 'external-busy',

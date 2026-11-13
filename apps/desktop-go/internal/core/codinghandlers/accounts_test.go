@@ -48,7 +48,7 @@ type fakeLogin struct{ cancelled *[]string }
 func (fakeLogin) Start(string, *string) *jsrt.Promise[*util.Obj] {
 	return jsrt.Async(func() (*util.Obj, error) { return nil, nil })
 }
-func (fakeLogin) Input(string, any) bool       { return true }
+func (fakeLogin) Input(string, any) bool { return true }
 func (l fakeLogin) Cancel(id string) bool {
 	if l.cancelled != nil {
 		*l.cancelled = append(*l.cancelled, id)

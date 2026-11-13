@@ -746,20 +746,70 @@ func (o *Orchestrator) SetTabBackend(id string, backendV any) *util.Obj {
 }
 
 // defaultSource = defaultSource(backend, want?)；want "" = undefined。
+// 没有官方账号能力的内置编程助手（dsh、Gemini）只有第三方来源；有官方账号能力、但一个 Nomi 账号都还没有时，
+// 分配了第三方模型就用第三方（否则仍是官方来源，启动时提示添加官方账号或换第三方模型）。
 func (o *Orchestrator) defaultSource(backend, want string) string {
 	g := o.d.Gateway
 	if g == nil || !isBuiltin(backend) {
 		return "official"
+	}
+	if !isAccountBackend(backend) {
+		return "thirdParty"
 	}
 	d := g.Defaults(backend)
 	source := want
 	if source == "" {
 		source = d.Source
 	}
-	if source == "thirdParty" && ((d.Model != nil && *d.Model != "") || want != "") {
+	hasModel := d.Model != nil && *d.Model != ""
+	if source == "thirdParty" && (hasModel || want != "") {
+		return "thirdParty"
+	}
+	if want == "" && hasModel && !o.hasOfficialAccount(backend) {
 		return "thirdParty"
 	}
 	return "official"
+}
+
+// hasOfficialAccount：这个编程助手有没有 Nomi 管理的官方账号（账号服务不可用时按有处理，不改来源）
+func (o *Orchestrator) hasOfficialAccount(backend string) bool {
+	p, ok := o.d.Accounts.(ports.AccountPresence)
+	if !ok || o.d.Accounts == nil {
+		return true
+	}
+	has := true
+	func() {
+		defer func() { _ = recover() }()
+		has = p.HasAccount(backend)
+	}()
+	return has
+}
+
+// migrateLocalSignIn：旧版本的「本机登录」——标签上的 local-<kind> 账号去掉（跟随默认官方账号）；
+// 没有官方账号能力的内置编程助手（dsh、Gemini）原来的官方来源就是本机登录，改成第三方来源。返回是否改动。
+func (o *Orchestrator) migrateLocalSignIn(tab *util.Obj) bool {
+	changed := false
+	if a, _ := tab.Get("accountId").(string); strings.HasPrefix(a, "local-") {
+		tab.Delete("accountId")
+		changed = true
+	}
+	b := str(tab, "backend")
+	if isBuiltin(b) && !isAccountBackend(b) && tab.Get("source") != "thirdParty" {
+		tab.Set("source", "thirdParty")
+		tab.Set("modelOverride", nil)
+		tab.Set("reasoningEffort", nil)
+		tab.Delete("modelByScope")
+		if truthy(tab.Get("cliSessionId")) {
+			// 官方会话里的推理内容不能续到第三方接口：换新会话，带上原来的对话作前文
+			tab.Set("cliSessionId", nil)
+			if id := str(tab, "id"); id != MainTabID {
+				o.setCarried(tab, o.readMessagesFile(id), str(tab, "cwd"))
+			}
+		}
+		tab.Set("modelScope", anyOf(o.scopeOf(tab)))
+		changed = true
+	}
+	return changed
 }
 
 // defaultAccountId：nil = null。
@@ -783,6 +833,9 @@ func (o *Orchestrator) SetTabSource(id string, source any, model *string) *util.
 	}
 	if source == "thirdParty" && backend == "external" {
 		throw(i18n.T("electron.common.an-external-cli-only-uses-its-own-sign"))
+	}
+	if source == "official" && isBuiltin(backend) && !isAccountBackend(backend) {
+		throw(i18n.T("electron.common.only-third-party-models", builtin.DisplayName(backend)))
 	}
 	if source == "thirdParty" && o.d.Gateway == nil {
 		throw(i18n.T("electron.common.the-model-gateway-is-unavailable"))

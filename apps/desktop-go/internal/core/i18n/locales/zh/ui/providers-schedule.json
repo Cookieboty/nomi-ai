@@ -153,7 +153,6 @@
   "ui.providers-schedule.running": "运行中…",
   "ui.providers-schedule.runtime-needs-attention": "运行环境需要处理",
   "ui.providers-schedule.runtime-problem-notice": "本机的 Node.js 或 npm 有问题，安装和更新编程助手可能会失败。",
-  "ui.providers-schedule.s-own-sign-in-on-this-computer": "这台电脑上 {0} 自己的登录",
   "ui.providers-schedule.saved-next-run": "已保存，下次运行：{0}",
   "ui.providers-schedule.scan-now": "立即扫描",
   "ui.providers-schedule.schedule-proactive-reminders": "日程与主动提醒",

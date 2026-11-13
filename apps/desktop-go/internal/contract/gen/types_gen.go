@@ -1587,7 +1587,6 @@ type CliAccountListOutputItem struct {
 	Kind      string  `json:"kind"`
 	Label     string  `json:"label"`
 	Active    bool    `json:"active"`
-	Local     bool    `json:"local"`
 	LoggedIn  bool    `json:"loggedIn"`
 	InUse     float64 `json:"inUse"`
 	CreatedAt float64 `json:"createdAt"`
@@ -1640,7 +1639,6 @@ type CliAccountRefreshOutputItem struct {
 	Kind      string  `json:"kind"`
 	Label     string  `json:"label"`
 	Active    bool    `json:"active"`
-	Local     bool    `json:"local"`
 	LoggedIn  bool    `json:"loggedIn"`
 	InUse     float64 `json:"inUse"`
 	CreatedAt float64 `json:"createdAt"`
@@ -1662,7 +1660,6 @@ type CliAccountRenameOutput struct {
 	Kind      string  `json:"kind"`
 	Label     string  `json:"label"`
 	Active    bool    `json:"active"`
-	Local     bool    `json:"local"`
 	LoggedIn  bool    `json:"loggedIn"`
 	InUse     float64 `json:"inUse"`
 	CreatedAt float64 `json:"createdAt"`
@@ -1678,7 +1675,6 @@ type CliAccountSetDefaultOutput struct {
 	Kind      string  `json:"kind"`
 	Label     string  `json:"label"`
 	Active    bool    `json:"active"`
-	Local     bool    `json:"local"`
 	LoggedIn  bool    `json:"loggedIn"`
 	InUse     float64 `json:"inUse"`
 	CreatedAt float64 `json:"createdAt"`
