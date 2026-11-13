@@ -427,10 +427,8 @@ func (r *Runtime) CreateChecked(in CreateInput) (Task, error) {
 		}
 		acc := in.Acceptance
 		if acc == "" {
+			// 做完自动收下（编程助手任务也一样：能自动判断的不再让人逐条点确认）
 			acc = "auto"
-			if in.Executor.Kind == "cli" {
-				acc = "user"
-			}
 		}
 		t := Task{ID: r.d.NewID("task"), Title: in.Title, Goal: in.Goal, Origin: in.Origin, Trigger: in.Trigger,
 			Executor: in.Executor, Grant: g, Budget: b, Acceptance: acc, Status: StatusIdle, Enabled: true,
@@ -777,7 +775,11 @@ func (r *Runtime) apply(id string, ev Event) CmdResult {
 	}
 	if before.Status != saved.Status && retiredStatus(saved.Status) {
 		if ret, ok := r.executor(saved).(Retirer); ok {
-			ret.Retire(saved, attempts, ev.Type == "accept")
+			// 自动收下的完成（acceptance != user）也算验收通过：worktree 里的改动要落地，不能直接拆掉。
+			// 重复任务回到 idle 时也会释放载体：本轮成果同样必须先落地。
+			accepted := ev.Type == "accept" ||
+				(ev.Type == "completed" && saved.Acceptance != "user")
+			ret.Retire(saved, attempts, accepted)
 		}
 	}
 	r.changed(saved)

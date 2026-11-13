@@ -106,3 +106,213 @@ func TestAppServerChildThreads(t *testing.T) {
 		}
 	})
 }
+
+// 应答与生命周期通知可在同一次 stdout 回调内处理，Await 的续体只能在整批处理后执行。
+func TestAppServerChildFastCompletion(t *testing.T) {
+	for _, status := range []string{"completed", "failed", "interrupted"} {
+		for _, replyFirst := range []bool{true, false} {
+			t.Run(status+"/replyFirst="+util.JSString(replyFirst), func(t *testing.T) {
+				jsrt.Run(func() {
+					child := newFakeChild()
+					d := NewAppServerDriver(AppServerDriverOptions{Child: child})
+					defer d.Close()
+					d.NoteChild("c1", "call1")
+					starts := 0
+					child.onLine = func(msg *util.Obj) {
+						if msg.Get("method") != "turn/start" {
+							return
+						}
+						starts++
+						reply := func() { child.send(O("id", msg.Get("id"), "result", O("turn", O("id", "ct1")))) }
+						if replyFirst {
+							reply()
+						}
+						child.send(O("method", "turn/started", "params", O("threadId", "c1", "turn", O("id", "ct1"))))
+						child.send(O("method", "turn/completed", "params", O("threadId", "c1", "turn", O("id", "ct1", "status", status))))
+						if !replyFirst {
+							reply()
+						}
+					}
+					for i := 0; i < 2; i++ {
+						via, err := jsrt.Await(d.SendToThread("c1", []any{}, nil, false))
+						if err != nil || via != "start" {
+							t.Fatalf("send %d: via=%q err=%v", i, via, err)
+						}
+						if d.ChildRunning("c1") {
+							t.Fatal("completed child was marked running by the start response")
+						}
+					}
+					if starts != 2 {
+						t.Fatalf("starts=%d, want 2", starts)
+					}
+				})
+			})
+		}
+	}
+}
+
+func TestAppServerChildStartResponsePreservesNewerTurn(t *testing.T) {
+	jsrt.Run(func() {
+		child := newFakeChild()
+		d := NewAppServerDriver(AppServerDriverOptions{Child: child})
+		defer d.Close()
+		d.NoteChild("c1", "call1")
+		child.onLine = func(msg *util.Obj) {
+			switch msg.Get("method") {
+			case "turn/start":
+				child.send(O("method", "turn/started", "params", O("threadId", "c1", "turn", O("id", "ct1"))))
+				child.send(O("method", "turn/completed", "params", O("threadId", "c1", "turn", O("id", "ct1", "status", "completed"))))
+				child.send(O("method", "turn/started", "params", O("threadId", "c1", "turn", O("id", "ct2"))))
+				child.send(O("id", msg.Get("id"), "result", O("turn", O("id", "ct1"))))
+			case "turn/steer":
+				if util.AsObj(msg.Get("params")).Get("expectedTurnId") != "ct2" {
+					t.Fatal("late start response overwrote the newer turn id")
+				}
+				child.send(O("id", msg.Get("id"), "result", O()))
+			}
+		}
+		if via, err := jsrt.Await(d.SendToThread("c1", []any{}, nil, false)); err != nil || via != "start" {
+			t.Fatal(via, err)
+		}
+		if via, err := jsrt.Await(d.SendToThread("c1", []any{}, nil, true)); err != nil || via != "steer" {
+			t.Fatal(via, err)
+		}
+	})
+}
+
+// 在 turn/start 应答前也必须占住线程；原 id 与 fork id 指向同一目标时不能重复启动。
+func TestAppServerChildConcurrentStarts(t *testing.T) {
+	for _, forked := range []bool{false, true} {
+		t.Run("forked="+util.JSString(forked), func(t *testing.T) {
+			jsrt.Run(func() {
+				child := newFakeChild()
+				d := NewAppServerDriver(AppServerDriverOptions{Child: child})
+				defer d.Close()
+				d.NoteChild("c1", "call1")
+				target := "c1"
+				if forked {
+					d.SetFork("c1", "f1")
+					target = "f1"
+				}
+				first := d.SendToThread("c1", []any{}, nil, false)
+				for _, id := range []string{"c1", target} {
+					second := d.SendToThread(id, []any{}, nil, true)
+					if !second.Settled() {
+						t.Fatal("concurrent send must return busy without another RPC")
+					}
+					if via, err := jsrt.Await(second); err != nil || via != "busy" {
+						t.Fatalf("concurrent send to %s: via=%q err=%v", id, via, err)
+					}
+				}
+				if len(child.messages()) != 1 {
+					t.Fatalf("duplicate start requests: %v", child.written)
+				}
+				// 请求失败也要释放占用，允许重试。
+				child.send(O("id", child.find("turn/start").Get("id"), "error", O("code", -32600.0, "message", "start failed")))
+				if _, err := jsrt.Await(first); err == nil {
+					t.Fatal("expected start error")
+				}
+				child.onLine = func(msg *util.Obj) {
+					child.send(O("id", msg.Get("id"), "result", O("turn", O("id", "ct2"))))
+				}
+				if via, err := jsrt.Await(d.SendToThread("c1", []any{}, nil, false)); err != nil || via != "start" {
+					t.Fatalf("retry: via=%q err=%v", via, err)
+				}
+			})
+		})
+	}
+}
+
+// 输入占用覆盖整条恢复链，而不只是 turn/start：防止并发恢复 / fork 和恢复中的回收。
+func TestAppServerChildPendingRecovery(t *testing.T) {
+	for _, recovery := range []string{"resume", "fork"} {
+		t.Run(recovery, func(t *testing.T) {
+			jsrt.Run(func() {
+				child := newFakeChild()
+				d := NewAppServerDriver(AppServerDriverOptions{Child: child})
+				defer d.Close()
+				d.NoteChild("c1", "call1")
+				reached := jsrt.NewPromise[struct{}]()
+				var held *util.Obj
+				starts := 0
+				child.onLine = func(msg *util.Obj) {
+					switch msg.Get("method") {
+					case "turn/start":
+						starts++
+						if starts == 1 {
+							why := "thread not found"
+							if recovery == "fork" {
+								why = directInputRejected
+							}
+							child.send(O("id", msg.Get("id"), "error", O("code", -32600.0, "message", why)))
+						} else {
+							child.send(O("id", msg.Get("id"), "result", O("turn", O("id", "ct1"))))
+						}
+					case "thread/" + recovery:
+						held = msg
+						reached.Resolve(struct{}{})
+					}
+				}
+				first := d.SendToThread("c1", []any{}, nil, false)
+				if _, err := jsrt.Await(reached); err != nil {
+					t.Fatal(err)
+				}
+				if !d.HasActiveChildren() {
+					t.Fatal("pending recovery must prevent idle reclaim")
+				}
+				second := d.SendToThread("c1", []any{}, nil, true)
+				if !second.Settled() {
+					t.Fatal("concurrent recovery must return busy immediately")
+				}
+				if via, err := jsrt.Await(second); err != nil || via != "busy" {
+					t.Fatal(via, err)
+				}
+				if len(child.messages()) != 2 {
+					t.Fatalf("duplicate recovery requests: %v", child.written)
+				}
+				target, want := "c1", "start"
+				if recovery == "fork" {
+					target, want = "f1", "fork"
+				}
+				child.send(O("id", held.Get("id"), "result", O("thread", O("id", target))))
+				if via, err := jsrt.Await(first); err != nil || via != want {
+					t.Fatal(via, err)
+				}
+				if !d.HasActiveChildren() {
+					t.Fatal("accepted turn must still prevent reclaim after request finishes")
+				}
+				child.send(O("method", "turn/completed", "params", O("threadId", target, "turn", O("id", "ct1", "status", "completed"))))
+				if d.HasActiveChildren() {
+					t.Fatal("completed recovery retained an input reservation")
+				}
+			})
+		})
+	}
+}
+
+// resume 等待期间父代理也可能自行唤醒子线程，不能在应答后重复 start。
+func TestAppServerChildStartsWhileResuming(t *testing.T) {
+	jsrt.Run(func() {
+		child := newFakeChild()
+		d := NewAppServerDriver(AppServerDriverOptions{Child: child})
+		defer d.Close()
+		d.NoteChild("c1", "call1")
+		starts := 0
+		child.onLine = func(msg *util.Obj) {
+			switch msg.Get("method") {
+			case "turn/start":
+				starts++
+				child.send(O("id", msg.Get("id"), "error", O("code", -32600.0, "message", "thread not found")))
+			case "thread/resume":
+				child.send(O("method", "turn/started", "params", O("threadId", "c1", "turn", O("id", "external-turn"))))
+				child.send(O("id", msg.Get("id"), "result", O("thread", O("id", "c1"))))
+			}
+		}
+		if via, err := jsrt.Await(d.SendToThread("c1", []any{}, nil, false)); err != nil || via != "busy" {
+			t.Fatal(via, err)
+		}
+		if starts != 1 || !d.ChildRunning("c1") {
+			t.Fatalf("must preserve external turn without a second start: starts=%d running=%v", starts, d.ChildRunning("c1"))
+		}
+	})
+}

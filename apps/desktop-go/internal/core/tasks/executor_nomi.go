@@ -164,11 +164,16 @@ type NomiDeps struct {
 	ToolNames func() []string
 	// Every：周期定时器（测试注入）；返回取消函数
 	Every func(ms int64, fn func()) func()
+	// ApprovalTimeout：无人值守时等批准的上限，超时按拒绝处理并把任务标成 approval_timeout；0 = 用默认值
+	ApprovalTimeout time.Duration
 	// Steer：把一条用户消息插进正在跑的工具循环（client.chat.Steer，按 reqId）；可为空 = 不支持插话
 	Steer func(reqID, text string) bool
 	// Live：这次执行的实时事件（正文增量、思考、工具开始 / 结束、插话），子任务侧栏按它实时刷新；可为空
 	Live func(taskID, attemptID string, ev map[string]any)
 }
+
+// DefaultApprovalTimeout：后台任务等人批准的默认上限（无人值守不永久卡在「等你批准」）
+const DefaultApprovalTimeout = 10 * time.Minute
 
 func defaultEvery(ms int64, fn func()) func() {
 	t := time.NewTicker(time.Duration(ms) * time.Millisecond)
@@ -226,6 +231,9 @@ func NewNomiExecutor(d NomiDeps) Executor {
 	}
 	if d.Every == nil {
 		d.Every = defaultEvery
+	}
+	if d.ApprovalTimeout <= 0 {
+		d.ApprovalTimeout = DefaultApprovalTimeout
 	}
 	return &nomiExecutor{d: d, runs: map[string]*nomiRun{}}
 }
@@ -312,8 +320,11 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 	if progress != "" {
 		d["Progress"] = shortN(progress, 4000)
 	}
-	// 追问：带上上一次执行的结论，模型在它的基础上接着做
-	if cause.Kind == "followup" && ctx.Previous != nil && ctx.Previous.Result != nil {
+	// 追问的重试也带上原始输入和追问前的结论，不改成只看原始任务目标。
+	if follow := cause.FollowUp; follow != nil {
+		d["FollowUp"], d["Note"], d["HasNote"] = true, follow.Text, true
+		d["Previous"] = shortN(follow.PreviousSummary, 4000)
+	} else if cause.Kind == "followup" && ctx.Previous != nil && ctx.Previous.Result != nil {
 		d["Previous"] = shortN(ctx.Previous.Result.Summary, 4000)
 	}
 	return []blm.ChatMessage{{Role: "system", Content: prompts.Render("task-run", d)},
@@ -322,7 +333,7 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 
 // followUpImages：追问带的图片（读不回来的跳过）
 func followUpImages(c AttemptCause) []blm.ChatImage {
-	if c.Kind != "followup" || len(c.Images) == 0 {
+	if (c.Kind != "followup" && c.FollowUp == nil) || len(c.Images) == 0 {
 		return nil
 	}
 	out := []blm.ChatImage{}
@@ -395,10 +406,23 @@ func (e *nomiExecutor) launchLocked(run *nomiRun) {
 		e.mu.Unlock()
 		d := shortN(tool+"："+summary+"\n"+detail, 800)
 		rep.NeedsUser(EventWait{Kind: "approval", RequestID: &reqID, Detail: &d})
+		timer := time.NewTimer(e.d.ApprovalTimeout)
+		defer timer.Stop()
 		select {
 		case ok := <-ch:
 			return ok
 		case <-base.Done():
+			return false
+		case <-timer.C:
+			// 超时按拒绝处理：任务标成「因需批准而中断」，并停掉这次执行，不永久等人
+			e.mu.Lock()
+			_, still := run.waiting[reqID]
+			delete(run.waiting, reqID)
+			e.mu.Unlock()
+			if still {
+				rep.Failed(TaskError{Code: "approval_timeout", Message: shortN(tool+"："+summary, 200)})
+				cancel()
+			}
 			return false
 		}
 	}

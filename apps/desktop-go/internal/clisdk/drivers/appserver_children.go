@@ -24,6 +24,10 @@ type appChild struct {
 	label   string
 	turnID  *string
 	running bool
+	// sending 占住一次直接输入的整个 RPC 链（包括 resume / fork），Await 期间不允许重入。
+	sending bool
+	// turnVersion：生命周期通知是最终状态来源；迟到的 start 应答不能覆盖它们。
+	turnVersion uint64
 	// text：正在流式输出的正文（itemId → 已收到的增量）
 	text map[string]string
 }
@@ -60,6 +64,17 @@ func (d *AppServerDriver) NoteChild(threadID, callID string) {
 func (d *AppServerDriver) ChildRunning(threadID string) bool {
 	c := d.children[d.forkOf(threadID)]
 	return c != nil && c.running
+}
+
+// HasActiveChildren：正在运行或直接输入尚未应答的子线程。遍历所有线程而非仅 fork 目标：
+// 原子代理与它的副本可能同时工作。调用方与通知处理一样须持 jsrt 锁。
+func (d *AppServerDriver) HasActiveChildren() bool {
+	for _, c := range d.children {
+		if c.running || c.sending {
+			return true
+		}
+	}
+	return false
 }
 
 // IsChild：threadID 是已登记的子代理线程。
@@ -147,6 +162,7 @@ func (d *AppServerDriver) onChildNotification(threadID string, c *appChild, meth
 	key := d.childKey(threadID, c)
 	switch method {
 	case "turn/started":
+		c.turnVersion++
 		if id, ok := getp(params.Get("turn"), "id").(string); ok {
 			c.turnID = &id
 		}
@@ -219,6 +235,7 @@ func (d *AppServerDriver) onChildNotification(threadID string, c *appChild, meth
 				return
 			}
 		}
+		c.turnVersion++
 		c.running = false
 		c.turnID = nil
 		status := "completed"
@@ -245,7 +262,31 @@ func (d *AppServerDriver) SendToThread(threadID string, input []any, params Json
 			return "", errors.New("app-server process exited")
 		}
 		target := d.forkOf(threadID)
+		// 先占住原 id 与实际目标：两个别名不能在 turn/start 应答前各开一轮，
+		// fork / resume 等待期间也不能重复 fork 或被空闲回收。
+		reserved := []*appChild{}
+		reserve := func(c *appChild) bool {
+			for _, held := range reserved {
+				if held == c {
+					return true
+				}
+			}
+			if c.sending {
+				return false
+			}
+			c.sending = true
+			reserved = append(reserved, c)
+			return true
+		}
+		defer func() {
+			for _, c := range reserved {
+				c.sending = false
+			}
+		}()
 		c := d.child(target)
+		if !reserve(d.child(threadID)) || !reserve(c) {
+			return "busy", nil
+		}
 		if c.running {
 			if !steer || c.turnID == nil {
 				return "busy", nil
@@ -256,7 +297,13 @@ func (d *AppServerDriver) SendToThread(threadID string, input []any, params Json
 			}
 			return "steer", nil
 		}
+		startBusy := errors.New("child thread busy")
 		start := func(tid string) error {
+			cc := d.child(tid)
+			if !reserve(cc) || cc.running {
+				return startBusy
+			}
+			version := cc.turnVersion
 			p := O("threadId", tid, "input", input)
 			if params != nil {
 				p.Assign(params)
@@ -265,11 +312,14 @@ func (d *AppServerDriver) SendToThread(threadID string, input []any, params Json
 			if err != nil {
 				return err
 			}
-			cc := d.child(tid)
-			if s, ok := getp(getp(r, "turn"), "id").(string); ok && s != "" {
-				cc.turnID = &s
+			// stdout 一批里可能已处理 started → completed，甚至又 started 下一轮。
+			// 只在没有更新通知时用应答补状态，不能把结束的轮次复活或覆盖新轮次。
+			if cc.turnVersion == version {
+				if s, ok := getp(getp(r, "turn"), "id").(string); ok && s != "" {
+					cc.turnID = &s
+				}
+				cc.running = true
 			}
-			cc.running = true
 			return nil
 		}
 		err := start(target)
@@ -277,6 +327,9 @@ func (d *AppServerDriver) SendToThread(threadID string, input []any, params Json
 			if _, e := jsrt.Await(d.Conn.Request("thread/resume", O("threadId", target), rpc.RequestOptions{})); e == nil {
 				err = start(target)
 			}
+		}
+		if errors.Is(err, startBusy) {
+			return "busy", nil
 		}
 		if err == nil {
 			return "start", nil
@@ -295,6 +348,9 @@ func (d *AppServerDriver) SendToThread(threadID string, input []any, params Json
 		}
 		d.SetFork(threadID, fork)
 		if err := start(fork); err != nil {
+			if errors.Is(err, startBusy) {
+				return "busy", nil
+			}
 			return "", errors.New(rpc.InnermostMessage(err.Error()))
 		}
 		return "fork", nil

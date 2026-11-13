@@ -291,3 +291,59 @@ func TestInspectProgressesWhileGILHeld(t *testing.T) {
 		t.Fatalf("expected plan log while GIL held, info=%q warn=%q", lg.infos(), lg.warns())
 	}
 }
+
+// 完成更新会清空探测缓存；在计划与后续处理之间完成更新，不能让 inspect 读到 nil。
+type inspectPlanLogger struct {
+	once   sync.Once
+	onPlan func()
+}
+
+func (l *inspectPlanLogger) Info(msg string, _ any) {
+	if msg == "cli-update inspect plan" {
+		l.once.Do(l.onPlan)
+	}
+}
+func (*inspectPlanLogger) Warn(string, any) {}
+
+func TestInspectKeepsProbeSnapshotWhenUpdateFinishes(t *testing.T) {
+	stubInspectBins(t, map[string]string{"codex": "/usr/bin/codex"}, map[string]string{"/usr/bin/codex": "2.0.0"})
+	logger := &inspectPlanLogger{}
+	s, err := NewCliUpdateService(CliUpdateOptions{Root: t.TempDir(), Logger: logger})
+	if err != nil {
+		t.Fatal(err)
+	}
+	latest := util.NewObj()
+	for _, kind := range latestKinds {
+		latest.Set(kind, "2.0.0")
+	}
+	s.cache = util.NewObj("checkedAt", cuNow(), "latest", latest)
+	s.probed = &probedEntry{at: cuNow(), rows: jsrt.Resolved([]localProbe{{kind: "codex", bin: "/usr/bin/codex", version: "1.0.0"}})}
+	s.jobs["codex"] = &cliJob{kind: "codex", status: "running"}
+	logger.onPlan = func() {
+		// 精确重现 finishJob 与后台 inspect 交错，不靠 sleep 或调度概率。
+		jsrt.Run(func() { s.finishJob("codex", cuResult(true, "", "2.0.0")) })
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("inspect panicked after update invalidated its probe: %v", r)
+		}
+	}()
+	rows, err := s.inspectInner(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := rowByKind(t, rows, "codex").Get("version"); got != "1.0.0" {
+		t.Fatalf("in-flight inspect version = %v, want its cached snapshot 1.0.0", got)
+	}
+	s.mu.Lock()
+	invalidated := s.probed == nil
+	s.mu.Unlock()
+	if !invalidated {
+		t.Fatal("in-flight inspect restored the cache invalidated by finishJob")
+	}
+	// 当前调用可以交付原快照，但下一次调用必须重探测，不能继续使用更新前的版本。
+	rows = runInspect(t, s, false)
+	if got := rowByKind(t, rows, "codex").Get("version"); got != "2.0.0" {
+		t.Fatalf("next inspect version = %v, want fresh probe 2.0.0", got)
+	}
+}

@@ -17,7 +17,7 @@ func TestBackgroundAuthorize(t *testing.T) {
 	mk := func(level int) context.Context {
 		ctx, cancel := context.WithCancel(context.Background())
 		t.Cleanup(cancel)
-		return WithBackground(ctx, &BackgroundRun{Level: level, Ask: func(tool, _, _ string) bool {
+		return WithBackground(ctx, &BackgroundRun{Level: level, AutoJudge: true, Ask: func(tool, _, _ string) bool {
 			asked = append(asked, tool)
 			return answer
 		}})
@@ -191,7 +191,7 @@ func TestBackgroundExternalCommandNeedsGithubCapability(t *testing.T) {
 	reg := func(level int, caps ...string) context.Context {
 		ctx, cancel := context.WithCancel(context.Background())
 		t.Cleanup(cancel)
-		run := &BackgroundRun{Level: level, Ask: func(_, _, detail string) bool {
+		run := &BackgroundRun{Level: level, AutoJudge: true, Ask: func(_, _, detail string) bool {
 			asked = append(asked, strings.SplitN(detail, " ", 2)[0])
 			return false
 		}}
@@ -222,6 +222,146 @@ func TestBackgroundExternalCommandNeedsGithubCapability(t *testing.T) {
 	want := []string{"[external]", "[external]", "[external]"}
 	if strings.Join(asked, ",") != strings.Join(want, ",") {
 		t.Fatalf("asked %v", asked)
+	}
+}
+
+// runCmdText：后台跑一条命令（workspace_run 总带 Force）
+func runCmdText(b *PermissionBroker, sig context.Context, command string) Decision {
+	args, _ := json.Marshal(map[string]any{"cwd": "/w", "command": command})
+	return b.Authorize(AuthorizeInput{Tool: "workspace_run", Danger: "destructive", Summary: "s", Args: json.RawMessage(args),
+		Force: &struct{ Dialog bool }{true}, UserText: "跑一下", Signal: sig})
+}
+
+// 按风险自动判断（任务授权里用户开的，默认关）：命令交给命令审核，放行就直接跑；
+// 审核不放行、高风险、凭据 / 永不放行类、事件触发读过外部内容仍问人（docs/features/scheduling-calendar.md）
+func TestBackgroundAutoJudge(t *testing.T) {
+	asked := []string{}
+	mk := func(ctx context.Context) context.Context {
+		c, cancel := context.WithCancel(ctx)
+		t.Cleanup(cancel)
+		return c
+	}
+	run := func(b *PermissionBroker, level int, autoJudge bool, tainted bool, command string) Decision {
+		ctx := mk(context.Background())
+		return runCmdText(b, WithBackground(ctx, &BackgroundRun{Level: level, AutoJudge: autoJudge, Tainted: tainted,
+			Ask: func(tool, _, _ string) bool { asked = append(asked, tool); return true }}), command)
+	}
+	// 审核放行：开了就直接跑，没开（这里关掉「命令自动审核」）就交给人
+	b, _, inputs := reviewBroker(t, &CommandReview{Risk: "low", Outcome: "allow"})
+	b.AIReview = func() bool { return false }
+	if d := run(b, 3, false, false, "pnpm test"); d != "allowed" || len(*inputs) != 0 {
+		t.Fatalf("关着也审了：%s %d", d, len(*inputs))
+	}
+	if d := run(b, 3, true, false, "pnpm test"); d != "auto" || len(*inputs) != 1 {
+		t.Fatalf("自动判断没走审核：%s %d", d, len(*inputs))
+	}
+	// 审核说交给人：先问
+	b2, _, _ := reviewBroker(t, &CommandReview{Risk: "medium", Outcome: "ask"})
+	if d := run(b2, 3, true, false, "pnpm test"); d != "allowed" {
+		t.Fatal(d)
+	}
+	// 高风险：问
+	b3, _, _ := reviewBroker(t, &CommandReview{Risk: "high", Outcome: "ask"})
+	if d := run(b3, 3, true, false, "pnpm test"); d != "allowed" {
+		t.Fatal(d)
+	}
+	// 凭据 / 永不放行类：审核放行也问
+	b4, _, _ := reviewBroker(t, &CommandReview{Risk: "low", Outcome: "allow"})
+	if d := run(b4, 3, true, false, "git credential fill"); d != "allowed" {
+		t.Fatal(d)
+	}
+	if d := run(b4, 3, true, false, "git push --force"); d != "allowed" {
+		t.Fatal(d)
+	}
+	// 事件触发读过外部内容：审核放行也问
+	b5, _, _ := reviewBroker(t, &CommandReview{Risk: "low", Outcome: "allow"})
+	if d := run(b5, 3, true, true, "pnpm test"); d != "allowed" {
+		t.Fatal(d)
+	}
+	// L2（没跑命令的授权）：命令本来就拒绝，自动判断不抬等级
+	if d := run(b5, 2, true, false, "pnpm test"); d != "denied" {
+		t.Fatal(d)
+	}
+	if len(asked) != 6 {
+		t.Fatalf("asked %v", asked)
+	}
+}
+
+// 撤销 / 换代后按风险自动判断立即失效；任务当前授权里没开也不认登记时的快照
+func TestBackgroundAutoJudgeFollowsLiveGrant(t *testing.T) {
+	b, _, _ := reviewBroker(t, &CommandReview{Risk: "low", Outcome: "allow"})
+	b.AIReview = func() bool { return false }
+	asked := 0
+	cur, ok := LiveGrant{Level: 3, AutoJudge: false}, true
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ctx = WithBackground(ctx, &BackgroundRun{Level: 3, AutoJudge: true, Ask: func(string, string, string) bool {
+		asked++
+		return true
+	}, Live: func() (LiveGrant, bool) { return cur, ok }})
+	if d := runCmdText(b, ctx, "pnpm test"); d != "allowed" {
+		t.Fatalf("登记时开着、当前关着，却直接跑了：%s", d)
+	}
+	cur.AutoJudge = true
+	if d := runCmdText(b, ctx, "pnpm test"); d != "auto" {
+		t.Fatal(d)
+	}
+	ok = false
+	if d := runCmdText(b, ctx, "pnpm test"); d != "denied" {
+		t.Fatalf("撤销后仍放行：%s", d)
+	}
+	if asked != 1 {
+		t.Fatalf("asked %d", asked)
+	}
+}
+
+// 前台的「全部自动」对后台任务生效：写入与审核没判高风险的命令不再逐项问人；
+// 凭据 / 永不放行类、高风险命令、破坏性动作、读过外部内容后的操作仍问人
+func TestBackgroundAutoAll(t *testing.T) {
+	asked := []string{}
+	autoAll := true
+	mk := func(b *PermissionBroker, level int, tainted bool) context.Context {
+		c, cancel := context.WithCancel(context.Background())
+		t.Cleanup(cancel)
+		return WithBackground(c, &BackgroundRun{Level: level, Tainted: tainted, Ask: func(tool, _, _ string) bool {
+			asked = append(asked, tool)
+			return true
+		}, AutoAll: func() bool { return autoAll }})
+	}
+	// 审核说交给人（风险不算高）：全部自动直接跑
+	b, _, _ := reviewBroker(t, &CommandReview{Risk: "medium", Outcome: "ask"})
+	ctx := mk(b, 3, false)
+	if d := runCmdText(b, ctx, "pnpm test"); d != "auto" {
+		t.Fatal(d)
+	}
+	// 写入：策略本来是每次问（ask），全部自动放过
+	b.SetPolicy("fs_write_text", "write", "ask")
+	write := b.Authorize(AuthorizeInput{Tool: "fs_write_text", Danger: "write", Summary: "s", Signal: ctx})
+	if write != "auto" {
+		t.Fatal(write)
+	}
+	// 破坏性动作、凭据 / 永不放行类、高风险命令、读过外部内容：仍问人
+	if d := b.Authorize(AuthorizeInput{Tool: "fs_trash", Danger: "destructive", Summary: "s", Signal: ctx}); d != "allowed" {
+		t.Fatal(d)
+	}
+	if d := runCmdText(b, ctx, "git credential fill"); d != "allowed" {
+		t.Fatal(d)
+	}
+	bHigh, _, _ := reviewBroker(t, &CommandReview{Risk: "high", Outcome: "ask"})
+	if d := runCmdText(bHigh, mk(bHigh, 3, false), "pnpm test"); d != "allowed" {
+		t.Fatal(d)
+	}
+	bTaint, _, _ := reviewBroker(t, &CommandReview{Risk: "low", Outcome: "allow"})
+	if d := runCmdText(bTaint, mk(bTaint, 3, true), "pnpm test"); d != "allowed" {
+		t.Fatal(d)
+	}
+	if len(asked) != 4 {
+		t.Fatalf("asked %v", asked)
+	}
+	// 关掉以后仍然逐项问
+	autoAll = false
+	if d := runCmdText(b, ctx, "pnpm test"); d != "allowed" {
+		t.Fatal(d)
 	}
 }
 

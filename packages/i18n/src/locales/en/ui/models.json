@@ -178,6 +178,7 @@
   "ui.models.summaries": "Summaries",
   "ui.models.switch-cancelled": "Switch cancelled",
   "ui.models.switch-official-account": "Switch official account: {0}",
+  "ui.models.switch-third-party-provider": "Switch third-party provider: {0}",
   "ui.models.switching-restarts-this-tab-s-assistant": "Takes effect from the next message by restarting this tab's assistant; the conversation is kept",
   "ui.models.sync-now": "Sync now",
   "ui.models.sync-on-startup": "Sync on startup (when last checked over 12 hours ago)",

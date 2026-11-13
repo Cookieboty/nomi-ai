@@ -77,6 +77,10 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   const [priority, setPriority] = useState<TaskPriority | 'none'>('none');
   // 不选 = 按执行者 / 触发器推断
   const [category, setCategory] = useState<TaskCategory | 'auto'>('auto');
+  // 做完怎么算收下：auto = 直接收下（结果回对话 / 卡片上给「查看改动」）；user = 等你验收
+  const [acceptance, setAcceptance] = useState<'auto' | 'user'>('auto');
+  // 按风险自动判断（默认开，L3 及以上才生效）：命令交给命令审核，放行就直接跑，只有高风险才问人
+  const [autoJudge, setAutoJudge] = useState(true);
   const [repoText, setRepoText] = useState('');
   // Nomi 读写文件的授权文件夹（grant.paths）：后台任务只能碰这些文件夹（#231）
   const [folders, setFolders] = useState<string[]>([]);
@@ -285,6 +289,13 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
             : t('ui.chat-settings.nomi-section'),
       ),
       t('ui.providers-schedule.task-card-level', t(LEVEL_LABEL[level])),
+      ...(level >= 3 && autoJudge ? [t('ui.providers-schedule.task-card-auto-judge')] : []),
+      t(
+        'ui.providers-schedule.task-card-acceptance',
+        acceptance === 'auto'
+          ? t('ui.providers-schedule.task-acceptance-auto')
+          : t('ui.providers-schedule.task-acceptance-user'),
+      ),
       ...(who === 'nomi' && usesFiles
         ? [
             folders.length
@@ -358,8 +369,10 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
             ...mcpGrants,
           ],
           ...(who === 'cli' && sandboxPick.length ? { sandbox: sandboxPick } : {}),
+          ...(level >= 3 && !autoJudge ? { autoJudge: false } : {}),
           expiresAt: Date.now() + days * 86_400_000,
         },
+        acceptance,
         ...(priority !== 'none' ? { priority } : {}),
         ...(category !== 'auto' ? { category } : {}),
       })) as { id: string };
@@ -684,6 +697,31 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
                   data-testid="task-form-category"
                 />
               </label>
+              <label className={styles.field}>
+                <span>{t('ui.providers-schedule.task-acceptance')}</span>
+                <Select
+                  value={acceptance}
+                  onChange={(e) => setAcceptance(e.target.value as 'auto' | 'user')}
+                  options={[
+                    { value: 'auto', label: t('ui.providers-schedule.task-acceptance-auto') },
+                    { value: 'user', label: t('ui.providers-schedule.task-acceptance-user') },
+                  ]}
+                  data-testid="task-form-acceptance"
+                />
+              </label>
+              {level >= 3 && (
+                <label className={styles.check}>
+                  <Checkbox
+                    checked={autoJudge}
+                    onChange={(e) => setAutoJudge(e.target.checked)}
+                    data-testid="task-form-auto-judge"
+                  />
+                  {t('ui.providers-schedule.task-auto-judge')}
+                </label>
+              )}
+              {level >= 3 && (
+                <p className={styles.hint}>{t('ui.providers-schedule.task-auto-judge-hint')}</p>
+              )}
             </section>
           </div>
           <div className={styles.col}>

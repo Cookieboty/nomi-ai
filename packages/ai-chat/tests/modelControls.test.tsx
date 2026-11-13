@@ -324,7 +324,7 @@ describe('ModelControls', () => {
       backend: 'codex',
       source: 'thirdParty',
     });
-    expect(chip.textContent).toContain('DeepSeek / v4');
+    expect(chip.textContent).toBe('v4');
     fireEvent.click(chip);
     const menu = await r.findByTestId('model-menu');
     // 只有模型页：没有「‹ 模型」返回
@@ -771,7 +771,7 @@ describe('ModelControls（会话的供应商分组）', () => {
       const tab = { ...baseTab, source: 'thirdParty' as const, lastServedRef: 'old/glm-b' };
       const { r, invoke } = await open(tab);
       const chip = await r.findByTestId('model-chip');
-      expect(chip.textContent).toContain('OldCo / glm-b');
+      expect(chip.textContent).toBe('glm-b');
       fireEvent.click(chip);
       const menu = await r.findByTestId('model-menu');
       const tabs = within(menu).getAllByRole('tab');

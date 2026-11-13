@@ -188,7 +188,8 @@ describe('EndpointControls', () => {
       </HarnessTabsProvider>,
     );
     await waitFor(() => expect(r.getByTestId('nomi-model-switch')).toBeTruthy());
-    expect(r.getByTestId('nomi-model-switch').textContent).toContain('Amux / gpt-x');
+    expect(r.getByTestId('nomi-model-switch').textContent).toContain('gpt-x');
+    expect(r.getByTestId('nomi-model-switch').textContent).not.toContain('Amux');
     expect(r.queryByTestId('cli-source-menu')).toBeNull();
   });
 });

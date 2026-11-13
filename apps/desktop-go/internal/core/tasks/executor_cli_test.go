@@ -138,8 +138,9 @@ func newCliHarness(t *testing.T, bins map[string]bool) (*Runtime, *fakeCli) {
 
 func cliTask(rt *Runtime, level int) string {
 	return rt.Create(CreateInput{Title: "修 bug", Goal: "g", Trigger: Trigger{Kind: "manual"},
-		Executor: ExecutorSpec{Kind: "cli", Cli: sp("claude"), Cwd: sp("/repo"), Isolation: sp("worktree")},
-		Grant:    Grant{Level: level, Paths: []string{"/repo"}}}).ID
+		Executor:   ExecutorSpec{Kind: "cli", Cli: sp("claude"), Cwd: sp("/repo"), Isolation: sp("worktree")},
+		Grant:      Grant{Level: level, Paths: []string{"/repo"}},
+		Acceptance: "user"}).ID
 }
 
 func TestDecidePermission(t *testing.T) {
@@ -148,32 +149,55 @@ func TestDecidePermission(t *testing.T) {
 		kind    string
 		summary string
 		tainted bool
+		relaxed bool
 		want    string
 	}{
-		{4, "approve-plan", "", false, "ask"},
-		{4, "", "Bash: gh auth token", false, "ask"},
-		{4, "", "Bash: gh pr merge 1", false, "ask"},
-		{3, "", "Bash: git push origin x", false, "ask"},
-		{4, "", "Bash: git push origin x", false, "ask"},
-		{2, "", "Bash: npm test", false, "deny"},
-		{3, "", "Bash: npm test", false, "allow"},
-		{3, "", "Bash: npm test", true, "ask"},
+		{4, "approve-plan", "", false, false, "ask"},
+		{4, "", "Bash: gh auth token", false, false, "ask"},
+		{4, "", "Bash: gh pr merge 1", false, false, "ask"},
+		{3, "", "Bash: git push origin x", false, false, "ask"},
+		{4, "", "Bash: git push origin x", false, false, "ask"},
+		{2, "", "Bash: npm test", false, false, "deny"},
+		{3, "", "Bash: npm test", false, false, "allow"},
+		{3, "", "Bash: npm test", true, false, "ask"},
+		// 按风险自动判断 / 全部自动：依然问人
+		{3, "", "Bash: npm test", true, true, "ask"},
+		{4, "", "Bash: gh auth token", false, true, "ask"},
+		{3, "", "Bash: git push origin x", false, true, "ask"},
+		{2, "", "Bash: npm test", false, true, "deny"},
 	}
 	for _, c := range cases {
-		if got := DecidePermission(Task{Grant: Grant{Level: c.level}}, c.kind, c.summary, c.tainted); got != c.want {
+		if got := DecidePermission(Task{Grant: Grant{Level: c.level}}, c.kind, c.summary, c.tainted, c.relaxed); got != c.want {
 			t.Errorf("%+v → %s", c, got)
 		}
 	}
 	gh4 := Task{Grant: Grant{Level: 4, Connections: []ConnectionGrant{
 		{ConnectionID: "c", Capabilities: []string{"github.pr.create"}, Resources: []string{"o/r"}}}}}
-	if DecidePermission(gh4, "", "Bash: git push origin x", false) != "allow" {
+	if DecidePermission(gh4, "", "Bash: git push origin x", false, false) != "allow" {
 		t.Fatal("L4 + github 对外能力应放行")
 	}
-	// 委派时 Nomi 没开「全部自动」：命令都问人
+	// 委派时 Nomi 没开「全部自动」：命令都问人；开了按风险自动判断（L3 及以上）时不再拦
 	yes := true
 	ask3 := Task{Grant: Grant{Level: 3}, Executor: ExecutorSpec{Kind: "cli", AskCommands: &yes}}
-	if DecidePermission(ask3, "", "Bash: npm test", false) != "ask" {
+	if DecidePermission(ask3, "", "Bash: npm test", false, false) != "ask" {
 		t.Fatal("askCommands")
+	}
+	if DecidePermission(ask3, "", "Bash: npm test", false, true) != "allow" {
+		t.Fatal("自动判断时应放行")
+	}
+	// 按风险自动判断：缺省就开（L3 及以上），只有授权里显式关掉才逐条问人
+	bt := func(b bool) *bool { return &b }
+	if autoJudge(Task{Grant: Grant{Level: 2}}) {
+		t.Fatal("L2 不生效")
+	}
+	if !autoJudge(Task{Grant: Grant{Level: 3}}) {
+		t.Fatal("L3 缺省应生效")
+	}
+	if !autoJudge(Task{Grant: Grant{Level: 3, AutoJudge: bt(true)}}) {
+		t.Fatal("L3 显式开应生效")
+	}
+	if autoJudge(Task{Grant: Grant{Level: 3, AutoJudge: bt(false)}}) {
+		t.Fatal("L3 显式关不生效")
 	}
 	if ClassifySummary("Bash: gh release create v1") != "never" || ClassifySummary("Edit: src/a.ts") != "" {
 		t.Fatal("classify")
@@ -492,6 +516,59 @@ func TestCliRetireLandsOnAccept(t *testing.T) {
 	}
 }
 
+// 自动收下（acceptance = auto，默认）：做完直接落地 worktree 里的改动，不等用户点验收
+func TestCliRetireLandsOnAutoAccept(t *testing.T) {
+	f := newFakeCli(map[string]bool{"claude": true})
+	var mu sync.Mutex
+	landed, released := []string{}, []string{}
+	calls := 0
+	exec := NewCliExecutor(CliDeps{
+		Harness: f,
+		PrepareIsolation: func(cwd, key, _ string) (CliIsolation, error) {
+			return CliIsolation{Kind: "worktree", Cwd: "/wt/" + key, SourceCwd: cwd, GitRoot: cwd, WorktreePath: "/wt/" + key}, nil
+		},
+		ReleaseIsolation: func(iso CliIsolation) { mu.Lock(); released = append(released, iso.WorktreePath); mu.Unlock() },
+		Land: func(iso CliIsolation, files []string, title string) WorktreeApply {
+			mu.Lock()
+			landed = append(landed, iso.WorktreePath+":"+strings.Join(files, ","))
+			mu.Unlock()
+			return WorktreeApply{}
+		},
+		GitChanged: func(cwd string) []string {
+			mu.Lock()
+			defer mu.Unlock()
+			calls++
+			if calls == 1 {
+				return []string{}
+			}
+			return []string{"src/a.ts"}
+		},
+		BuildPrompt: func(goal, _, _, _ string) string { return goal },
+		ParseReport: func(string) *CliReport { return nil },
+		DirOk:       func(d string) bool { return d == "/repo" },
+	})
+	n := 0
+	var idMu sync.Mutex
+	rt := NewRuntime(RuntimeDeps{Store: newMemStoreSafe(), Executors: map[string]Executor{"cli": exec},
+		Now: func() int64 { return 1_800_000_000_000 }, SetTimer: func(func(), int64) func() { return func() {} },
+		NewID: func(p string) string { idMu.Lock(); defer idMu.Unlock(); n++; return fmt.Sprintf("%s_%d", p, n) }, Log: &nopLog{}})
+	rt.Start()
+	id := rt.Create(CreateInput{Title: "修 bug", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "cli", Cli: sp("claude"), Cwd: sp("/repo"), Isolation: sp("worktree")},
+		Grant:    Grant{Level: 2, Paths: []string{"/repo"}}}).ID
+	rt.Command(id, Command{Type: "runNow"})
+	waitFor(t, func() bool { return f.sendCount() == 1 })
+	f.finish("done")
+	waitFor(t, func() bool { return rt.Get(id).Task.Status == StatusDone })
+	waitFor(t, func() bool { mu.Lock(); defer mu.Unlock(); return len(landed)+len(released) == 1 })
+	time.Sleep(20 * time.Millisecond)
+	mu.Lock()
+	defer mu.Unlock()
+	if len(landed) != 1 || !strings.HasSuffix(landed[0], ":src/a.ts") || len(released) != 0 {
+		t.Fatalf("auto accept: landed=%v released=%v", landed, released)
+	}
+}
+
 // 直接改（in-place）：同一种任务接着用找到的空闲标签，不新开；登记 / 收尾经 Claim / Unclaim，让出去的写进结果
 func TestCliReusesTabAndClaims(t *testing.T) {
 	f := newFakeCli(map[string]bool{"claude": true})
@@ -528,7 +605,8 @@ func TestCliReusesTabAndClaims(t *testing.T) {
 	rt.Start()
 	id := rt.Create(CreateInput{Title: "修 bug", Goal: "g", Trigger: Trigger{Kind: "manual"},
 		Executor: ExecutorSpec{Kind: "cli", Cli: sp("claude"), Cwd: sp("/repo"), Isolation: sp("worktree")},
-		Grant:    Grant{Level: 2, Paths: []string{"/repo"}}, Priority: sp("high")}).ID
+		Grant:    Grant{Level: 2, Paths: []string{"/repo"}}, Priority: sp("high"),
+		Acceptance: "user"}).ID
 	rt.Command(id, Command{Type: "runNow"})
 	waitFor(t, func() bool { return f.sendCount() == 1 })
 	f.mu.Lock()

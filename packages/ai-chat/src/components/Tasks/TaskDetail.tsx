@@ -173,6 +173,7 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
                         paths: task.grant.paths,
                         connections: task.grant.connections,
                         ...(task.grant.clis ? { clis: task.grant.clis } : {}),
+                        ...(task.grant.autoJudge === false ? { autoJudge: false } : {}),
                       },
                     }),
                   false,
@@ -463,6 +464,9 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
         <dd>
           {t(LEVEL_LABEL[task.grant.level])}
           {task.grant.clis?.length ? ` · ${task.grant.clis.join('、')}` : ''}
+          {task.grant.level >= 3 && task.grant.autoJudge !== false
+            ? ` · ${t('ui.providers-schedule.task-auto-judge')}`
+            : ''}
           {task.grant.expiresAt
             ? ` · ${t('ui.providers-schedule.task-grant-until', fmtTime(task.grant.expiresAt))}`
             : ''}

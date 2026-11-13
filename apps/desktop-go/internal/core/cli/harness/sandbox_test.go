@@ -568,3 +568,101 @@ func TestSandboxNoteIsStrippable(t *testing.T) {
 		t.Fatalf("plain text changed: %q", got)
 	}
 }
+
+// 沙箱授权只改变权限，不代表用户发送了新的对话消息。
+func TestSandboxGrantDoesNotSendMessage(t *testing.T) {
+	for _, choice := range []string{"session", "always"} {
+		t.Run(choice, func(t *testing.T) {
+			o := titleTestOrch(t)
+			defer jsrt.Run(o.Dispose)
+			jsrt.Run(func() {
+				tab := o.CreateTab(util.NewObj("backend", "claude"))
+				id := str(tab, "id")
+				o.sbxTab(id).pending = []*sbxPending{{id: "ssh-grant", req: sandbox.Request{Kind: "category", Value: "ssh"}}}
+				if !o.SandboxReply(id, "ssh-grant", choice) {
+					t.Fatal("grant rejected")
+				}
+				if !o.sbxTab(id).granted["category:ssh"] {
+					t.Fatal("grant must still apply to this session")
+				}
+				if messages := o.TabMessages(id); len(messages) != 0 {
+					t.Fatalf("grant injected a user message: %v", util.Stringify(messages))
+				}
+				if status := str(o.tab(id), "status"); status != "idle" {
+					t.Fatalf("grant started a turn: status=%s", status)
+				}
+			})
+		})
+	}
+}
+
+func TestSandboxGrantDoesNotResumeAfterTurn(t *testing.T) {
+	for _, stop := range []bool{false, true} {
+		name := "normal completion"
+		if stop {
+			name = "user stopped"
+		}
+		t.Run(name, func(t *testing.T) {
+			o := titleTestOrch(t)
+			defer jsrt.Run(o.Dispose)
+			t.Setenv("NOMI_MOCK_FIRST_TOKEN_MS", "250")
+			if stop {
+				t.Setenv("NOMI_MOCK_HOLD_PROMPT", "original-request")
+			}
+			id := jsrt.Call(func() string {
+				return str(o.CreateTab(util.NewObj("backend", "claude")), "id")
+			})
+			p := jsrt.Call(func() *jsrt.Promise[*util.Obj] {
+				return o.SendTab(id, "original-request", nil, true)
+			})
+			deadline := time.Now().Add(5 * time.Second)
+			for !jsrt.Call(func() bool {
+				live := o.live.claude[id]
+				return live != nil && live.turn != nil && !live.turn.settled
+			}) {
+				if p.Settled() || time.Now().After(deadline) {
+					t.Fatal("mock Claude turn did not start")
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			jsrt.Run(func() {
+				o.sbxTab(id).pending = []*sbxPending{{id: "ssh-grant", req: sandbox.Request{Kind: "category", Value: "ssh"}}}
+				if !o.SandboxReply(id, "ssh-grant", "session") {
+					t.Fatal("grant rejected")
+				}
+				if !o.live.claude[id].recycleAfterTurn {
+					t.Fatal("running CLI must still be recycled for the updated sandbox")
+				}
+				if stop && !o.CancelTab(id) {
+					t.Fatal("stop rejected")
+				}
+			})
+			select {
+			case <-p.Done():
+			case <-time.After(5 * time.Second):
+				t.Fatal("turn did not finish")
+			}
+			// 留出迟到收尾回调的窗口：不允许授权在本轮结束（包括停止）后偷偷开新一轮。
+			for until := time.Now().Add(200 * time.Millisecond); time.Now().Before(until); {
+				jsrt.Run(func() {
+					users := 0
+					for _, m := range o.TabMessages(id) {
+						if str(m, "role") == "user" {
+							users++
+							if str(m, "content") != "original-request" {
+								t.Errorf("sandbox injected a follow-up: %s", str(m, "content"))
+							}
+						}
+					}
+					if users != 1 {
+						t.Errorf("user messages = %d, want only the original request", users)
+					}
+				})
+				if t.Failed() {
+					return
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+		})
+	}
+}

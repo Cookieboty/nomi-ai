@@ -62,7 +62,8 @@ func (o *Orchestrator) reclaimIdle(now, idleMs float64) []string {
 	for _, id := range o.live.codexOrder {
 		cl := o.live.codex[id]
 		cands = append(cands, cli.IdleCandidate{ID: id, LastActivityAt: cl.lastActivityAt, TurnActive: cl.turn != nil,
-			PermissionPending: len(cl.perms) > 0, TabBusy: o.tabBusy(id), Resumable: truthy(o.tab(id).Get("cliSessionId")) || !cl.used})
+			PermissionPending: len(cl.perms) > 0, TabBusy: o.tabBusy(id), Resumable: truthy(o.tab(id).Get("cliSessionId")) || !cl.used,
+			BackgroundActive: cl.driver.HasActiveChildren()})
 	}
 	for _, id := range o.live.claudeOrder {
 		l := o.live.claude[id]

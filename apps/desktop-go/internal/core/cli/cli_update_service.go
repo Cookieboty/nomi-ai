@@ -911,7 +911,9 @@ func (s *CliUpdateService) inspectInner(refresh bool) ([]*util.Obj, error) {
 		cacheState = "stale"
 	}
 	willRefresh := refresh || missing || stale
-	willProbe := refresh || s.probed == nil || cuNow()-s.probed.at > probeTTLMs
+	// 计划与使用必须基于同一份快照；finishJob 可能在解锁后清空缓存。
+	probed := s.probed
+	willProbe := refresh || probed == nil || cuNow()-probed.at > probeTTLMs
 	s.mu.Unlock()
 	// TEMP(cli-inspect): 定位用，后续可随时移除
 	s.logInspect(false, "cli-update inspect plan", fmt.Sprintf("refreshLatest=%v cache=%s willRefresh=%v willProbe=%v", refresh, cacheState, willRefresh, willProbe))
@@ -920,9 +922,6 @@ func (s *CliUpdateService) inspectInner(refresh bool) ([]*util.Obj, error) {
 	if willRefresh {
 		jsrt.Go(func() { s.refreshLatest() })
 	}
-	s.mu.Lock()
-	probed := s.probed
-	s.mu.Unlock()
 	if willProbe {
 		entry := &probedEntry{at: cuNow(), rows: s.probeLocal()}
 		s.mu.Lock()

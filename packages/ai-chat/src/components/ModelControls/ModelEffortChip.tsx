@@ -14,7 +14,6 @@ import {
   BrandIcon,
   Icon,
   ModelPicker,
-  Select,
   t,
   type PickerProvider,
   type SelectOption,
@@ -27,6 +26,7 @@ import { registerModelMenu } from '../../services/modelMenu';
 import { ChipMenu, pickerHeight } from './ChipMenu';
 import { EffortSlider } from './EffortSlider';
 import styles from './index.module.css';
+import { ModelChoicePage, ModelChoiceRow, type ModelChoiceSource } from './ModelChoicePage';
 
 /** 档位页的数据与动作 */
 export interface EffortPageSource {
@@ -71,15 +71,14 @@ export interface ModelPageSource {
 }
 
 /** 账号页（仅编程助手有） */
-export interface AccountPageSource {
-  title: string;
-  rowLabel: string;
-  rowValue: string;
-  rowAriaLabel: string;
-  value: string;
-  options: SelectOption[];
+export interface AccountPageSource extends ModelChoiceSource {
   /** '' = 跟随默认账号 */
   onChange: (id: string | null) => void;
+}
+
+export interface ProviderPageSource extends ModelChoiceSource {
+  /** 没有同名模型时去目标供应商的模型页，不立即改供应商。 */
+  onChange: (id: string) => 'effort' | 'model' | 'close';
 }
 
 export interface ModelEffortSource {
@@ -102,6 +101,7 @@ export interface ModelEffortSource {
   effort: EffortPageSource;
   model: ModelPageSource;
   account?: AccountPageSource | null;
+  provider?: ProviderPageSource | null;
   /** 「模型：xxx ›」行显示的名字 */
   modelLabel: string;
   modelRowAria: string;
@@ -131,8 +131,9 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
   disabled = null,
 }) => {
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<'effort' | 'model' | 'account'>(source.initialView);
+  const [view, setView] = useState<'effort' | 'model' | 'account' | 'provider'>(source.initialView);
   const [query, setQuery] = useState('');
+  const [focusedProvider, setFocusedProvider] = useState<string>();
   /** 拖动滑杆时的预览档位（松手提交后清空，回到适配器给的值） */
   const [preview, setPreview] = useState<string | null>(null);
   const [pickerMax, setPickerMax] = useState(420);
@@ -164,6 +165,7 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
       setPickerMax(pickerHeight(btnRef.current, s.model.showBack, !!s.model.footer));
       setView(s.menuCommandView);
       setQuery(q);
+      setFocusedProvider(undefined);
       setPreview(null);
       setOpen(true);
       onOpenChangeRef.current?.(true);
@@ -194,6 +196,7 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
     if (!open) measure();
     setView(source.initialView);
     setQuery('');
+    setFocusedProvider(undefined);
     setPreview(null);
     setOpenWithNotify(!open);
   };
@@ -205,6 +208,7 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
 
   const toEffort = () => {
     setQuery('');
+    setFocusedProvider(undefined);
     setView('effort');
   };
 
@@ -212,6 +216,7 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
     picked.current = true;
     const next = source.model.onPick(value);
     setQuery('');
+    setFocusedProvider(undefined);
     setPreview(null);
     if (next === 'close') close();
     else setView('effort');
@@ -234,7 +239,24 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
     setView('effort');
   };
 
-  const { effort, model, account } = source;
+  const onProviderPick = (id: string) => {
+    const next = source.provider?.onChange(id);
+    picked.current = true;
+    setQuery('');
+    setPreview(null);
+    setFocusedProvider(next === 'model' ? id : undefined);
+    if (next === 'close') close();
+    else setView(next ?? 'effort');
+  };
+
+  const { effort, model, account, provider } = source;
+  const providerRow = provider && (
+    <ModelChoiceRow
+      source={provider}
+      testId={`${prefix}-provider-open`}
+      onClick={() => setView('provider')}
+    />
+  );
   const shown = preview ?? effort.value;
 
   return (
@@ -343,46 +365,30 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
                 <Icon icon={ChevronRight} size={14} />
               </button>
               {account && (
-                <button
-                  type="button"
-                  className={styles.modelRow}
-                  data-testid="account-open"
-                  aria-label={account.rowAriaLabel}
+                <ModelChoiceRow
+                  source={account}
+                  testId="account-open"
                   onClick={() => setView('account')}
-                >
-                  <span className={styles.modelRowLabel}>{account.rowLabel}</span>
-                  <span className={styles.modelRowValue}>
-                    <span className={styles.modelLinkText}>{account.rowValue}</span>
-                  </span>
-                  <Icon icon={ChevronRight} size={14} />
-                </button>
+                />
               )}
+              {providerRow}
             </div>
           ) : view === 'account' && account ? (
-            <>
-              <div className={styles.modelHead}>
-                <button
-                  type="button"
-                  className={styles.back}
-                  data-testid="account-back"
-                  onClick={toEffort}
-                >
-                  <Icon icon={ChevronLeft} size={14} />
-                  {account.title}
-                </button>
-              </div>
-              <Select
-                inline
-                size="sm"
-                inlineMaxHeight={300}
-                aria-label={account.title}
-                data-testid="account-picker"
-                value={account.value}
-                options={account.options}
-                onChange={(e) => onAccountPick(e.target.value || null)}
-                onOpenChange={onPickerOpenChange}
-              />
-            </>
+            <ModelChoicePage
+              source={account}
+              prefix="account"
+              onBack={toEffort}
+              onChange={(id) => onAccountPick(id || null)}
+              onOpenChange={onPickerOpenChange}
+            />
+          ) : view === 'provider' && provider ? (
+            <ModelChoicePage
+              source={provider}
+              prefix={`${prefix}-provider`}
+              onBack={() => setView(source.initialView)}
+              onChange={onProviderPick}
+              onOpenChange={onPickerOpenChange}
+            />
           ) : (
             <>
               {model.showBack && (
@@ -407,19 +413,20 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
                 inlineMaxHeight={pickerMax}
                 defaultQuery={query}
                 providers={model.providers}
-                value={model.value}
+                value={focusedProvider ? null : model.value}
                 extraOptions={model.extraOptions}
                 tailOptions={model.tailOptions}
                 notice={model.notice}
                 headerEnd={model.headerEnd}
                 optionTestId={model.optionTestId}
-                focusProvider={model.focusProvider}
+                focusProvider={focusedProvider ?? model.focusProvider}
                 onChange={onPick}
                 onOpenChange={onPickerOpenChange}
                 aria-label={t('ui.foundation.model')}
                 data-testid={`${prefix}-picker`}
               />
               {model.footer}
+              {!model.showBack && providerRow}
             </>
           )}
         </ChipMenu>

@@ -8988,6 +8988,7 @@ type TasksCreateInputGrant struct {
 	Connections []TasksCreateInputGrantConnectionsItem `json:"connections"`
 	Clis        []string                               `json:"clis,omitempty"`
 	Sandbox     []string                               `json:"sandbox,omitempty"`
+	AutoJudge   *bool                                  `json:"autoJudge,omitempty"`
 	ExpiresAt   *float64                               `json:"expiresAt,omitempty"`
 }
 
@@ -9197,6 +9198,7 @@ type TasksGrantInputGrant struct {
 	Connections []TasksGrantInputGrantConnectionsItem `json:"connections"`
 	Clis        []string                              `json:"clis,omitempty"`
 	Sandbox     []string                              `json:"sandbox,omitempty"`
+	AutoJudge   *bool                                 `json:"autoJudge,omitempty"`
 	ExpiresAt   *float64                              `json:"expiresAt,omitempty"`
 }
 

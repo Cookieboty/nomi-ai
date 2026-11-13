@@ -11,6 +11,8 @@ var errorRetryable = map[string]bool{
 	"grant_denied":        false,
 	"reconcile_abandoned": false,
 	"prepare_failed":      false,
+	// approval_timeout：等批准超时按拒绝处理，任务因需批准而中断（无人值守不永久卡在「等你批准」）
+	"approval_timeout": false,
 }
 
 // errorAsks：要人处理的错误（配置变了）：执行失败后任务停到「等你处理」，用户确认后重跑，不悄悄换配置

@@ -4,9 +4,19 @@ import { byCli, cliName } from '@nomi-ai/cli-catalog';
  * 登录由 CLI 自己完成，Nomi 不保存凭据。多个账号可以在不同标签里同时使用；「默认账号」给新标签
  * 与跟随默认的标签用。界面只拿得到身份（邮箱 / 套餐）。
  */
-import { Badge, Button, Icon, Modal, Notice, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
+import {
+  Badge,
+  Button,
+  Icon,
+  Modal,
+  ModalHostContext,
+  Notice,
+  SettingRow,
+  SettingsGroup,
+  t,
+} from '@nomi-ai/ui';
 import { Copy, ExternalLink, LogIn, RotateCw, UserRound } from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   cliAccountClient,
@@ -80,6 +90,19 @@ const LoginDialog: React.FC<{
 }> = ({ kind, event, onClose, onRetry }) => {
   const [code, setCode] = useState('');
   const [copied, setCopied] = useState(false);
+  const openedSession = useRef<string | null>(null);
+  // 设备码登录的 CLI 只打印链接；收到完整的链接和设备码后，由桌面应用打开一次。
+  useEffect(() => {
+    if (
+      event.state !== 'waiting' ||
+      !event.url ||
+      !event.code ||
+      openedSession.current === event.id
+    )
+      return;
+    openedSession.current = event.id;
+    void cliAccountClient.openUrl(event.url).catch(() => undefined);
+  }, [event.id, event.state, event.url, event.code]);
   const busy = event.state === 'starting' || event.state === 'verifying';
   const ended = event.state === 'done' || event.state === 'error' || event.state === 'cancelled';
   const close = () => {
@@ -188,6 +211,9 @@ const LoginDialog: React.FC<{
 export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
   const [accounts, setAccounts] = useState<CliAccount[]>([]);
   const [login, setLogin] = useState<LoginEvent | null>(null);
+  const [loginGeneration, setLoginGeneration] = useState(0);
+  // 只接收本页主动发起且尚未关闭的登录；保留先于启动响应到达的进度。
+  const loginAttempt = useRef<{ id?: string; events: Map<string, LoginEvent> } | null>(null);
   const [msg, setMsg] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   /** 上次登录用的账号（undefined = 新建账号），给「重试」用 */
@@ -215,14 +241,28 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
       .catch(() => undefined);
     const off1 = cliAccountClient.onChanged(() => void reload());
     const off2 = cliAccountClient.onLogin((e) => {
-      if (e.kind !== kind) return;
-      setLogin((cur) => (cur && cur.id !== e.id ? cur : e));
+      const attempt = loginAttempt.current;
+      if (e.kind !== kind || !attempt) return;
+      if (!attempt.id) {
+        attempt.events.set(e.id, e);
+        return;
+      }
+      if (attempt.id !== e.id) return;
+      if (e.state === 'cancelled') {
+        loginAttempt.current = null;
+        setLogin(null);
+      } else {
+        setLogin(e);
+      }
       if (e.state === 'done' || e.state === 'error' || e.state === 'cancelled') void reload();
     });
     return () => {
       alive = false;
       off1();
       off2();
+      const attempt = loginAttempt.current;
+      loginAttempt.current = null;
+      if (attempt?.id) void cliAccountClient.loginCancel(attempt.id).catch(() => undefined);
     };
   }, [kind, reload]);
 
@@ -244,10 +284,33 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
     !!login && login.state !== 'done' && login.state !== 'error' && login.state !== 'cancelled';
   const startLogin = (accountId?: string) => {
     setLoginAccount(accountId);
+    setLoginGeneration((n) => n + 1);
+    setMsg(null);
+    const attempt: { id?: string; events: Map<string, LoginEvent> } = { events: new Map() };
+    loginAttempt.current = attempt;
     void cliAccountClient
       .loginStart(kind, accountId)
-      .then(setLogin)
-      .catch((e) => setMsg({ tone: 'danger', text: errorText(e) }));
+      .then((e) => {
+        if (loginAttempt.current !== attempt) {
+          void cliAccountClient.loginCancel(e.id).catch(() => undefined);
+          return;
+        }
+        attempt.id = e.id;
+        const latest = attempt.events.get(e.id) ?? e;
+        attempt.events.clear();
+        if (latest.state === 'cancelled') {
+          loginAttempt.current = null;
+          setLogin(null);
+        } else {
+          setLogin(latest);
+        }
+      })
+      .catch((e) => {
+        if (loginAttempt.current !== attempt) return;
+        loginAttempt.current = null;
+        setLogin(null);
+        setMsg({ tone: 'danger', text: errorText(e) });
+      });
   };
   // 登录被拒时「沿用终端代理并重试」：开关本身在「通用」里（对所有编程助手生效）
   const setUseShellProxy = (on: boolean) =>
@@ -484,12 +547,19 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
         </p>
       )}
       {login && (
-        <LoginDialog
-          kind={kind}
-          event={login}
-          onClose={() => setLogin(null)}
-          onRetry={(p) => void retryLogin(p)}
-        />
+        // 设置页本身是内嵌面板；登录始终使用独立弹窗，不继承外层的宿主模式。
+        <ModalHostContext.Provider value={null}>
+          <LoginDialog
+            key={loginGeneration}
+            kind={kind}
+            event={login}
+            onClose={() => {
+              loginAttempt.current = null;
+              setLogin(null);
+            }}
+            onRetry={(p) => void retryLogin(p)}
+          />
+        </ModalHostContext.Provider>
       )}
     </SettingsGroup>
   );

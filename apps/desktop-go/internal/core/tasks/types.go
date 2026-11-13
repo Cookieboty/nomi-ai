@@ -99,6 +99,10 @@ type Grant struct {
 	Paths       []string          `json:"paths"`
 	Connections []ConnectionGrant `json:"connections"`
 	Clis        *[]string         `json:"clis,omitempty"`
+	// AutoJudge：按风险自动判断（缺省就开，L3 及以上生效）：命令交给命令审核判定，放行就直接跑，
+	// 只有高风险（破坏性、凭据 / 永不放行类、审核不放行、事件触发读过外部内容）才问人；
+	// 用户在授权卡片上取消勾选时显式写 false = 每条命令都问我（旧数据没有这个字段，按开处理）
+	AutoJudge *bool `json:"autoJudge,omitempty"`
 	// Sandbox：编程助手沙箱里预先允许的类别（ssh / cloud / …），跑的时候不用再问
 	Sandbox   []string `json:"sandbox,omitempty"`
 	GrantedAt int64    `json:"grantedAt"`
@@ -153,6 +157,14 @@ type AttemptCause struct {
 	Answer   *Answer `json:"answer,omitempty"`
 	// Images：追问带的图片（存在 <Root>/attachments/<任务 id>/ 下的文件路径）
 	Images []string `json:"images,omitempty"`
+	// FollowUp：追问的原始输入与追问之前的结论；重试 / 恢复时沿用，不被错误码覆盖。
+	FollowUp *FollowUpContext `json:"followUp,omitempty"`
+}
+
+// FollowUpContext 与执行记录一起持久化；Cause.Kind 仍区分 followup / retry / resume。
+type FollowUpContext struct {
+	Text            string `json:"text"`
+	PreviousSummary string `json:"previousSummary,omitempty"`
 }
 
 // FromExternalEvent = fromExternalEvent：这次执行带着事件的外部内容——事件触发的，以及接着它

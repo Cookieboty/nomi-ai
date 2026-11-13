@@ -30,6 +30,7 @@ import {
   type CliAccount,
 } from '../../services/cliAccountClient';
 import {
+  codingProviders,
   providerOfRef,
   switchTabSource,
   tabSourceOf,
@@ -47,13 +48,14 @@ import {
   type TabSource,
 } from '../../services/harnessClient';
 import type { LongContextInfo } from '../../services/longContext';
-import { providerBrand, useGatewayState } from '../../services/nomiModel';
+import { providerBrand, splitRef, useGatewayState } from '../../services/nomiModel';
 import { resolveThinkingLevel, thinkingProfileOf } from '../../services/thinkingDepth';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
 import { effortLabel, thinkingLevelLabel } from './effortLabel';
 import menuStyles from './index.module.css';
 import type { EffortPageSource, ModelEffortSource, ModelPageSource } from './ModelEffortChip';
+import { thirdPartyProviderSource } from './providerSource';
 
 /** 官方来源标签的模型页里，CLI 自己那一页的标签 id（不会和网关供应商 id 撞上） */
 const OWN_TAB = '__cli';
@@ -183,7 +185,6 @@ export function useCliModelEffortSource({
   open,
   long = null,
   sessionRef = null,
-  groups = null,
   sourceSwitch = null,
   providerTabs: thirdPartyTabs = null,
   switchProviders = null,
@@ -212,10 +213,6 @@ export function useCliModelEffortSource({
         : null,
     [switchProviders, tab, backendName, defaultProviderId],
   );
-  const providerTabs = thirdPartyTabs ?? officialTabs;
-  const tabbed = !!providerTabs && providerTabs.length > 1;
-  // 分了供应商标签就不再按组列标题（组的说明放到标签的悬停提示里）
-  const grouped = !tabbed && !!groups && groups.length > 1;
   const thirdParty = tabSourceOf(tab) === 'thirdParty';
   const gateway = useGatewayState();
   const provider = useMemo(
@@ -269,19 +266,16 @@ export function useCliModelEffortSource({
 
   const defaultLabel = catalog.defaultModel?.label ?? catalog.defaultModel?.id;
   // 没选模型时显示 CLI 默认用的那个模型名（浮层里再标「默认」）
-  // 分组时同名模型可能出现在两家：按钮上带上供应商名
-  const groupOf = (id: string) => groups?.find((g) => id.startsWith(`${g.id}/`));
-  const currentGroupName =
-    current && tabbed
-      ? (providerTabs.find((p) => p.id === providerOfRef(current))?.name ?? null)
-      : grouped && current
-        ? (groupOf(current)?.name ?? null)
-        : null;
-  const modelLabel = current
-    ? currentGroupName
-      ? `${currentGroupName} / ${currentModel?.label ?? current}`
-      : (currentModel?.label ?? current)
-    : (defaultLabel ?? t('ui.providers-schedule.default-model'));
+  // 第三方供应商单独成行；按钮和「模型」行只显示模型名。
+  const selectedModel = current ? currentModel : catalog.defaultModel;
+  const selectedLabel = selectedModel?.label;
+  const providerPrefix = selectedLabel?.indexOf(' / ') ?? -1;
+  const modelLabel =
+    thirdParty && selectedModel
+      ? providerPrefix >= 0
+        ? selectedLabel!.slice(providerPrefix + 3)
+        : (selectedLabel ?? splitRef(selectedModel.id)?.model ?? selectedModel.id)
+      : (selectedLabel ?? current ?? defaultLabel ?? t('ui.providers-schedule.default-model'));
   // 没有显式覆盖时也显示 CLI 的实际默认档位，让底部按钮直接反映当前设置。
   const chipEffort = effort ?? defaultEffort;
   const shortLabel = chipEffort
@@ -656,6 +650,25 @@ export function useCliModelEffortSource({
     menuKey: tab.id,
     effort: effortPage,
     model: modelPage,
+    provider: thirdParty
+      ? thirdPartyProviderSource(
+          codingProviders(gateway)
+            .map((p) => ({
+              id: p.id,
+              name: p.name,
+              brand: providerBrand(gateway, p.id),
+              models: p.models
+                .filter((m) => catalog.models.some((c) => c.id === m.ref))
+                .map((m) => ({ id: m.model })),
+            }))
+            .filter((p) => p.models.length > 0),
+          thirdPartyRef,
+          (ref) => {
+            pickModel(ref);
+            return afterThirdPartyPick(ref);
+          },
+        )
+      : null,
     account: accountKind
       ? {
           title: t('ui.chat-settings.official-accounts'),

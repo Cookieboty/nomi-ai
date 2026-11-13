@@ -53,6 +53,8 @@ export interface TaskGrant {
   clis?: string[];
   /** 编程助手沙箱里预先允许的类别 */
   sandbox?: string[];
+  /** 按风险自动判断（默认开；L3 及以上才生效，显式 false = 每条命令都问我） */
+  autoJudge?: boolean;
   grantedAt: number;
   expiresAt?: number;
   revokedAt?: number;

@@ -122,7 +122,6 @@ func (o *Orchestrator) SendTab(id, prompt string, images []any, userInitiated bo
 			return nil, &StoppedError{Msg: "task stopped"}
 		}
 		current.Set("status", "running")
-		o.beginTurnSandbox(id)
 		if o.turnOrigin == nil {
 			o.turnOrigin = map[string]string{}
 		}
@@ -154,7 +153,6 @@ func (o *Orchestrator) SendTab(id, prompt string, images []any, userInitiated bo
 			stageDir = o.promptImageDir(id)
 		}
 		defer func() {
-			stopped := abort.Signal.Aborted() || o.stopRequested[id]
 			if stageDir != "" {
 				cli.CleanupStagedDir(stageDir)
 			}
@@ -168,7 +166,6 @@ func (o *Orchestrator) SendTab(id, prompt string, images []any, userInitiated bo
 			if backend != "claude" {
 				o.clearBackgroundAgents(id)
 			}
-			o.afterTurnSandbox(id, stopped)
 		}()
 		result, err := o.runTurn(current, backend, toCli, abort, normalized, stageDir, userMessageID)
 		if err == nil {

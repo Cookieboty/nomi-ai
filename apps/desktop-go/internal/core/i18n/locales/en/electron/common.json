@@ -583,7 +583,6 @@
   "electron.common.cli-cwd-blocked": "Coding agents can't work in {0}: {1}. Choose a project folder instead.",
   "electron.common.choose-folder-to-protect": "Choose a folder to protect",
   "electron.common.protect": "Protect",
-  "electron.common.sandbox-granted-continue": "Access to {0} is now allowed in the sandbox. Please continue with the step that was blocked.",
   "electron.common.sandbox-category-ssh": "SSH and Git credentials",
   "electron.common.sandbox-category-cloud": "Cloud credentials",
   "electron.common.sandbox-category-keys": "Keys and password stores",

@@ -56,7 +56,8 @@ func TestTaskCLIPlanLifecycle(t *testing.T) {
 			defer rt.Stop()
 			cli := "codex"
 			result := rt.Create(tasks.CreateInput{Title: "plan", Goal: "make a plan", Trigger: tasks.Trigger{Kind: "manual"},
-				Executor: tasks.ExecutorSpec{Kind: "cli", Cli: &cli, Cwd: &root}, Grant: tasks.Grant{Level: 1, Paths: []string{root}}})
+				Executor: tasks.ExecutorSpec{Kind: "cli", Cli: &cli, Cwd: &root}, Grant: tasks.Grant{Level: 1, Paths: []string{root}},
+				Acceptance: "user"})
 			id := result.ID
 			rt.Command(id, tasks.Command{Type: "runNow"})
 			waitTaskStatus(t, rt, id, "waiting_user")

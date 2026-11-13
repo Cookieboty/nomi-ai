@@ -69,8 +69,15 @@ func TestServiceCreateDelegatedAndPriority(t *testing.T) {
 	if task.Origin.CreatedBy != "nomi" || task.Origin.Via == nil || *task.Origin.Via != "delegate" ||
 		*task.Origin.ConversationID != "conv_1" || task.Grant.Level != 3 || task.Grant.Paths[0] != dir ||
 		task.Grant.Clis == nil || (*task.Grant.Clis)[0] != "claude" || task.Budget.MaxRetries != 1 ||
-		task.Acceptance != "user" || task.Status != StatusRunning || *task.Category != "coding" {
+		task.Acceptance != "auto" || task.Status != StatusRunning || *task.Category != "coding" {
 		t.Fatalf("%+v", task)
+	}
+	// 要人工验收的：入参里明确传 user
+	manual, _ := s.CreateDelegated(DelegatedInput{Title: "Nomi · 修 bug", Goal: "修 bug",
+		Executor: ExecutorSpec{Kind: "cli", Cli: ptr("claude"), Cwd: &dir, Isolation: ptr("worktree")},
+		Level:    3, Paths: []string{dir}, Acceptance: "user"})
+	if manual.Acceptance != "user" {
+		t.Fatalf("%+v", manual)
 	}
 	rec := s.Get(task.ID)
 	att := rec.Attempts[len(rec.Attempts)-1]
