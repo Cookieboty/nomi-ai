@@ -191,6 +191,7 @@ const ThreadItemImpl: React.FC<{
       style={style}
       data-active={active || undefined}
       data-testid="conversation-row"
+      data-pinned={c.pinnedAt ? true : undefined}
       onMouseEnter={onPeek ? (e) => onPeek(c.id, e.currentTarget) : undefined}
       onMouseLeave={onPeek ? () => onPeek(c.id, null) : undefined}
     >
@@ -219,9 +220,24 @@ const ThreadItemImpl: React.FC<{
             {live === 'running' ? t('ui.chat-settings.in-progress') : t('ui.mascot-theme.queued')}
           </span>
         )}
-        {endpointMark ? (
-          <span className={styles.threadEp} data-testid="thread-endpoint" aria-hidden>
-            <EndpointIcon backend={c.backend} size={12} decorative />
+        {/* 行尾：置顶标记（置顶的会话排在所在项目最前，没有单独的分组）+ 端点图标；悬停时让位给行内操作 */}
+        {endpointMark || c.pinnedAt ? (
+          <span className={styles.threadTail}>
+            {c.pinnedAt ? (
+              <span
+                className={styles.threadPin}
+                data-testid="thread-pinned"
+                title={t('ui.knowledge-local.pinned-state')}
+              >
+                <Icon icon={Pin} size={12} />
+                <span className={styles.srOnly}>{t('ui.knowledge-local.pinned-state')}</span>
+              </span>
+            ) : null}
+            {endpointMark ? (
+              <span className={styles.threadEp} data-testid="thread-endpoint" aria-hidden>
+                <EndpointIcon backend={c.backend} size={12} decorative />
+              </span>
+            ) : null}
           </span>
         ) : (
           <span />

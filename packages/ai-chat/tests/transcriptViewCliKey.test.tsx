@@ -16,15 +16,9 @@ import {
 beforeEach(() => resetTranscriptViewsForTest());
 
 type Tab = Parameters<typeof cliTranscriptKey>[0];
-const tab = (
-  id: string,
-  cliSessionId: string | null,
-  backend = 'claude',
-  pluginId?: string,
-): Tab => ({
+const tab = (id: string, cliSessionId: string | null, backend = 'claude'): Tab => ({
   id,
   backend,
-  pluginId,
   cliSessionId,
 });
 
@@ -35,13 +29,11 @@ function useActiveTab(t: Tab) {
 }
 
 describe('cliTranscriptKey', () => {
-  it('uses the CLI session when there is one, namespaced by backend (and external plugin)', () => {
+  it('uses the CLI session when there is one, namespaced by backend', () => {
     expect(cliTranscriptKey(tab('t1', null))).toBe('tab:t1');
     expect(cliTranscriptKey(tab('t1', 's1'))).toBe('cli:claude:s1');
     expect(cliTranscriptKey(tab('t2', 's1'))).toBe('cli:claude:s1');
     expect(cliTranscriptKey(tab('t3', 's1', 'codex'))).toBe('cli:codex:s1');
-    expect(cliTranscriptKey(tab('t4', 's1', 'external', 'p1'))).toBe('cli:external/p1:s1');
-    expect(cliTranscriptKey(tab('t5', 's1', 'external', 'p2'))).toBe('cli:external/p2:s1');
   });
 
   it('migrate moves the override; an existing override on the target wins', () => {

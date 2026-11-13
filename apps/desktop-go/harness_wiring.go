@@ -10,8 +10,8 @@ import (
 	"sync"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/agents"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/accounts"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/harness"
@@ -23,9 +23,11 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/projects"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/quality"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/terminal"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/hostports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodeproc"
 )
 
 // harnessPorts：HarnessPorts（dialogs.pickDirectory / windows.anyFocused）
@@ -60,14 +62,6 @@ func (stdLogger) Warn(m string, d any) { log.Printf("[harness] WARN %s %v", m, d
 type hostEvents struct{ r *contract.Router }
 
 func (e hostEvents) Publish(ev string, p any) { e.r.Emit(ev, p) }
-
-// externals：外部插件spec / handshake（握手能力只能收窄注册表能力位）
-type externals struct{ h *cli.CliPluginHost }
-
-func (e externals) Spec(id string) *util.Obj { return e.h.ExternalSpec(id) }
-func (e externals) Handshake(id string, images, resume bool) {
-	e.h.SetHandshake(id, util.NewObj("images", images, "resume", resume))
-}
 
 // harnessOrch：wireHarness 构造的编排器（main 里只有一个）
 var harnessOrch *harness.Orchestrator
@@ -104,14 +98,6 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 					o.RestartForUpgrade(id)
 				}
 			},
-			SpawnExternal: func(command string, args []string, cwd string) (clisdk.ChildLike, error) {
-				useNode := harness.IsScript(command)
-				if useNode {
-					command, args = harness.NodeExecPath(), append([]string{command}, args...)
-				}
-				return harness.SpawnHarness(command, args, cwd, harness.CliChildEnv(useNode, nil, envAllow()), ""), nil
-			},
-			OnExternalRemoved: func(id string) { o.ExternalRemoved(id) },
 		})
 	})
 	// AccountService
@@ -142,6 +128,10 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 				return n
 			},
 			OnChanged: func() { acc.BroadcastChanged() },
+			// 删除账号时认「Nomi 之外的进程」：去掉 Nomi 自己拉起的（登录、额度读取、标签），以及会话文件残留后被复用的 pid
+			Procs: accountProcs,
+			// 用户确认「结束这些进程再删除」时才用
+			KillPid: nodeproc.KillPid,
 		})
 		if err != nil {
 			log.Printf("[desktop-go] AccountService: %v", err)
@@ -181,10 +171,10 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 	o = jsrt.Call(func() *harness.Orchestrator {
 		return harness.New(harness.Deps{
 			ImageStore: &cli.MessageImageStore{ChatRoot: filepath.Join(userData, "chat"), DirOK: cliImageDirectoryAllowed},
-			Externals:  externals{plugins}, Accounts: accPort,
-			Gateway: gatewayPort(gw),
-			Quality: quality.CliSink{S: q},
-			Root:    filepath.Join(userData, "harness"), Logger: stdLogger{}, Home: home,
+			Accounts:   accPort,
+			Gateway:    gatewayPort(gw),
+			Quality:    quality.CliSink{S: q},
+			Root:       filepath.Join(userData, "harness"), Logger: stdLogger{}, Home: home,
 			DefaultCwd: filepath.Join(docs, "nomi"), LegacyDefaultCwd: docs,
 			Ports:          harnessPorts{hp},
 			PrewarmClaude:  os.Getenv("NOMI_HARNESS_PREWARM") != "0",
@@ -315,4 +305,17 @@ func cliImageDirectoryAllowed(dir string) bool {
 		return (*check)(dir)
 	}
 	return false
+}
+
+// accountProcs：本机进程表（编程助手监视同一份读取，短时间内复用）→ 账号服务的进程行；读不到 = nil
+func accountProcs() []accounts.ProcRow {
+	raw := agents.ReadProcesses(usage.Platform())
+	if raw == nil {
+		return nil
+	}
+	out := make([]accounts.ProcRow, 0, len(raw))
+	for _, p := range raw {
+		out = append(out, accounts.ProcRow{Pid: p.Pid, Ppid: p.Ppid, Name: p.Name, Cmd: p.Cmd})
+	}
+	return out
 }

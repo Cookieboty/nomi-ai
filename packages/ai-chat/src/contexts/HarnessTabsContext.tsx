@@ -551,7 +551,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       if (tab.status === 'running' || tab.status === 'queued' || dispatching.current.has(tabId)) {
         // 排队不带图：有附图时拒绝入队，避免静默丢图
         if (images?.length) return false;
-        // 后端不能中途插入（Gemini / dsh / 外部 CLI）：一律排队
+        // 后端不能中途插入（Gemini / dsh）：一律排队
         const m: PendingMode = mode === 'steer' && canSteer(tab.backend) ? 'steer' : 'queue';
         const item: PendingSend = { id: newPendingId(), text, mode: m };
         updateQueues((cur) => ({ ...cur, [tabId]: [...(cur[tabId] ?? []), item] }));

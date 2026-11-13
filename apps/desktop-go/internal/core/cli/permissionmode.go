@@ -7,21 +7,10 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// externalPermissions = EXTERNAL_PERMISSIONS（外部插件只有「逐项确认」）。
-var externalPermissions = &clisdk.PermissionCapability{
-	Supported:  []string{"manual"},
-	Launch:     func(string, *bool) ([]string, *util.Obj) { return []string{}, util.NewObj() },
-	ModeID:     func(string) string { return "" },
-	FromModeID: func(string) string { return "" },
-}
-
-// permOf：backend 的权限能力（内置的取插件的；外部插件只有「逐项确认」）
+// permOf：backend 的权限能力（取内置插件的）
 func permOf(backend string) *clisdk.PermissionCapability {
 	if m := builtin.Impl(backend); m != nil && m.Permissions != nil {
 		return m.Permissions
-	}
-	if backend == "external" {
-		return externalPermissions
 	}
 	return nil
 }

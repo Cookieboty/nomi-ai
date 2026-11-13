@@ -135,7 +135,7 @@ func historyCloseKey(backend, sessionID, tabID string) string {
 	return backend + ":" + sessionID
 }
 
-// CloseTabAndWait covers new tabs and external CLIs without native history support.
+// CloseTabAndWait covers new tabs without native history support.
 func (o *Orchestrator) CloseTabAndWait(id string) *jsrt.Promise[struct{}] {
 	identity := o.HistoryTabSession(id)
 	if identity == nil {

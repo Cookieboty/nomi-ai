@@ -29,15 +29,23 @@ const (
 	logoutTimeoutMs = 20_000
 )
 
-// AccountError = AccountError（Code: not-found / in-use / local / unsupported / unknown-live）。
-type AccountError struct{ Code, Message string }
+// AccountError = AccountError（Code: not-found / in-use / no-account / unsupported / unknown-live / external-busy）。
+// no-account：这个编程助手还没有 Nomi 管理的官方账号（不再退回这台电脑上 CLI 自己的登录）。
+// external-busy：有 Nomi 之外的 CLI 进程在用这个账号目录（Pids），界面可以让用户选择结束它们再删除。
+type AccountError struct {
+	Code, Message string
+	Pids          []float64
+}
 
 func (e *AccountError) Error() string { return e.Message }
 
-func accountErr(code, msg string) *AccountError { return &AccountError{code, msg} }
+func accountErr(code, msg string) *AccountError { return &AccountError{Code: code, Message: msg} }
 
-// LocalAccountID = localAccountId.
-func LocalAccountID(kind string) string { return "local-" + kind }
+// 旧版本有一条「本机登录」记录（id local-<kind>，没有账号目录，用这台电脑上 CLI 自己的登录）。
+// 现在只有 Nomi 管理的官方账号和第三方模型：读取时删掉这类记录，指向它的默认 / 标签按没有指定处理。
+
+// IsLegacyLocalID：id 是旧版本的「本机登录」哨兵（local-<kind>；官方账号的 id 是 uuid，不会撞上）
+func IsLegacyLocalID(id string) bool { return strings.HasPrefix(id, "local-") }
 
 // ServiceDeps = AccountService 的构造参数（nil / 零值 = 未注入）。
 type ServiceDeps struct {
@@ -56,6 +64,17 @@ type ServiceDeps struct {
 	OnChanged     func()
 	Logout        func(kind string, env *util.Obj) error
 	LiveProcesses func(kind, dir string) (LiveCheck, error)
+	// Procs：本机进程表（判断进程是不是 Nomi 自己拉起的、会话文件里的 pid 还是不是这个 CLI）；nil = 不看
+	Procs func() []ProcRow
+	// KillPid：删除时用户选择「结束这些进程」才用（nodeproc.KillPid）
+	KillPid func(pid int, signal string) error
+	// Sleep：等被结束的进程退出（测试注入；nil = time.Sleep，锁外睡）
+	Sleep func(ms int)
+}
+
+// RemoveOpts：Force = 读不到是否有进程在用时也删除；StopExternal = 先结束 Nomi 之外还在用这个账号的 CLI 进程再删除
+type RemoveOpts struct {
+	Force, StopExternal bool
 }
 
 type storeT struct {
@@ -220,25 +239,47 @@ func (s *AccountService) store() *storeT {
 			}
 		}
 	}
-	for _, kind := range AccountKinds {
-		id := LocalAccountID(kind)
-		found := false
-		for _, a := range st.accounts {
-			if prop(a, "id") == id {
-				found = true
-				break
-			}
-		}
-		if !found {
-			rec := util.NewObj("id", id, "kind", kind, "label", t("electron.common.this-computer-s-sign-in"),
-				"dir", nil, "identity", nil, "loggedIn", false, "createdAt", s.now())
-			st.accounts = append([]any{rec}, st.accounts...)
-		}
-	}
 	s.data = st
+	s.dropLocalRecords()
 	s.migrateVault()
 	s.dropRetiredKinds()
 	return st
+}
+
+// dropLocalRecords：删掉旧版本的「本机登录」记录（没有 Nomi 账号目录的记录），以及指向它的默认账号。
+// 只改 Nomi 的账号清单，不碰 ~/.claude、~/.codex 这些 CLI 自己的目录。
+func (s *AccountService) dropLocalRecords() {
+	st := s.data
+	kept := make([]any, 0, len(st.accounts))
+	dropped := map[string]bool{}
+	for _, a := range st.accounts {
+		o, ok := a.(*util.Obj)
+		if !ok || o == nil {
+			kept = append(kept, a) // 格式不对的记录照旧留着（其余读取路径按原样报错）
+			continue
+		}
+		id, _ := o.Get("id").(string)
+		dir := o.Get("dir")
+		if !IsLegacyLocalID(id) && !nullish(dir) && dir != "" {
+			kept = append(kept, a)
+			continue
+		}
+		dropped[id] = true
+	}
+	changed := len(kept) != len(st.accounts)
+	st.accounts = kept
+	for _, kind := range AccountKinds {
+		if d, ok := st.getDefault(kind).(string); ok && (dropped[d] || IsLegacyLocalID(d)) {
+			st.deleteDefault(kind)
+			changed = true
+		}
+	}
+	if !changed || !usage.ExistsSync(s.file()) {
+		return
+	}
+	if err := utils.WritePrivateFileAtomicNode(s.file(), []byte(st.json())); err != nil {
+		s.warn("drop local sign-in records: save failed", errString(err))
+	}
 }
 
 // retiredKinds：不再支持官方账号的 CLI（Gemini：Google 不再让 Gemini CLI 用个人 Google 账号登录）。
@@ -495,6 +536,7 @@ func (s *AccountService) find(id string) any {
 	panic(accountErr("not-found", t("electron.common.account-not-found")))
 }
 
+// defaultID：设过且还在的默认账号 > 第一个已登录的账号 > 第一个账号；一个都没有 = ""（没有官方账号）。
 func (s *AccountService) defaultID(kind string) string {
 	st := s.store()
 	id := st.getDefault(kind)
@@ -505,7 +547,30 @@ func (s *AccountService) defaultID(kind string) string {
 			}
 		}
 	}
-	return LocalAccountID(kind)
+	first := ""
+	for _, a := range st.accounts {
+		if prop(a, "kind") != kind {
+			continue
+		}
+		aid, _ := prop(a, "id").(string)
+		if truthy(prop(a, "loggedIn")) {
+			return aid
+		}
+		if first == "" {
+			first = aid
+		}
+	}
+	return first
+}
+
+// HasAccount：这个编程助手有没有 Nomi 管理的官方账号
+func (s *AccountService) HasAccount(kind string) (ok bool) {
+	defer func() {
+		if recover() != nil {
+			ok = false
+		}
+	}()
+	return s.defaultID(kind) != ""
 }
 
 // DefaultID = defaultId.
@@ -565,7 +630,6 @@ func (s *AccountService) view(a any) *util.Obj {
 	v := util.NewObj("id", prop(a, "id"), "kind", prop(a, "kind"), "label", prop(a, "label"),
 		"identity", prop(a, "identity"),
 		"active", s.defaultID(kind) == prop(a, "id"),
-		"local", prop(a, "dir") == nil,
 		"loggedIn", prop(a, "loggedIn"))
 	if truthy(prop(a, "needsLogin")) {
 		v.Set("needsLogin", true)
@@ -747,6 +811,9 @@ func (s *AccountService) IdentityKey(kind string, accountID *string) (k any, err
 	} else {
 		want = s.defaultID(kind)
 	}
+	if want == "" {
+		return nil, nil
+	}
 	for _, a := range s.store().accounts {
 		if prop(a, "id") == want {
 			return orElse(opt(prop(a, "identity"), "key"), nil), nil
@@ -915,24 +982,20 @@ func (s *AccountService) Rename(id string, label any) (v *util.Obj, err error) {
 
 // Remove = remove(id, { force }).
 func (s *AccountService) Remove(id string, force bool) *jsrt.Promise[struct{}] {
+	return s.RemoveWith(id, RemoveOpts{Force: force})
+}
+
+// RemoveWith = remove(id, opts)。
+func (s *AccountService) RemoveWith(id string, o RemoveOpts) *jsrt.Promise[struct{}] {
 	return jsrt.Async(func() (v struct{}, err error) {
 		defer catchJS(&err)
-		s.remove(id, force)
+		s.remove(id, o)
 		return struct{}{}, nil
 	})
 }
 
-func (s *AccountService) remove(id string, force bool) {
-	a := s.find(id)
-	kind := kindOf(a)
-	dir := dirOf(a)
-	if !hasDir(dir) {
-		panic(accountErr("local", t("electron.common.this-computer-s-sign-in-is-the-cli")))
-	}
-	busy := s.inUse(kind, prop(a, "id"))
-	if f, ok := busy.(float64); ok && f > 0 {
-		panic(accountErr("in-use", t("electron.common.tab-s-still-use-this-account-close-them", jsStr(busy))))
-	}
+// liveCheck：这个账号目录还有没有 Nomi 之外的 CLI 进程在用（读不到 = unknown）
+func (s *AccountService) liveCheck(kind, dir string) LiveCheck {
 	live := LiveCheck{State: "unknown"}
 	func() {
 		var lerr error
@@ -943,26 +1006,95 @@ func (s *AccountService) remove(id string, force bool) {
 		}()
 		defer catchJS(&lerr)
 		if s.d.LiveProcesses != nil {
-			l, e := s.d.LiveProcesses(kind, *dir)
+			l, e := s.d.LiveProcesses(kind, dir)
 			if e != nil {
 				lerr = e
 				return
 			}
 			live = l
 		} else {
-			live = LiveProcesses(kind, *dir, LiveDeps{Platform: s.d.Platform})
+			live = LiveProcesses(kind, dir, LiveDeps{Platform: s.d.Platform, Procs: s.d.Procs})
 		}
 	}()
+	return live
+}
+
+func externalBusyErr(live LiveCheck) *AccountError {
+	ps := make([]string, 0, 5)
+	for i, p := range live.Pids {
+		if i >= 5 {
+			break
+		}
+		ps = append(ps, jsStr(p))
+	}
+	e := accountErr("external-busy", t("electron.common.cli-process-es-outside-nomi-still-use-this", jsStr(float64(len(live.Pids))), strings.Join(ps, ", ")))
+	e.Pids = append([]float64(nil), live.Pids...)
+	return e
+}
+
+// stopExternal：用户确认后结束这些进程（先 SIGTERM，等一会儿还在再 SIGKILL），返回结束后的检查结果。
+// 只动刚才认出来的那几个 pid，并且发信号前再核对一次它们仍在用这个账号目录。
+func (s *AccountService) stopExternal(kind, dir string, live LiveCheck) LiveCheck {
+	if s.d.KillPid == nil {
+		return live
+	}
+	sleep := s.d.Sleep
+	if sleep == nil {
+		sleep = func(ms int) {
+			jsrt.Sleep(time.Duration(ms) * time.Millisecond)
+		}
+	}
+	targets := map[float64]bool{}
+	for _, p := range live.Pids {
+		targets[p] = true
+	}
+	for _, sig := range []string{"SIGTERM", "SIGKILL"} {
+		for p := range targets {
+			if err := s.d.KillPid(int(p), sig); err != nil {
+				s.warn("account remove: stop external cli failed", util.NewObj("pid", p, "signal", sig, "e", errString(err)))
+			}
+		}
+		for i := 0; i < 15; i++ {
+			sleep(200)
+			live = s.liveCheck(kind, dir)
+			if live.State != "busy" {
+				return live
+			}
+			still := map[float64]bool{}
+			for _, p := range live.Pids {
+				if targets[p] {
+					still[p] = true
+				}
+			}
+			if len(still) == 0 {
+				// 剩下的是新出现的进程：不替用户结束没确认过的
+				return live
+			}
+			targets = still
+		}
+	}
+	return live
+}
+
+func (s *AccountService) remove(id string, o RemoveOpts) {
+	force := o.Force
+	a := s.find(id)
+	kind := kindOf(a)
+	dir := dirOf(a)
+	if !hasDir(dir) {
+		panic(accountErr("not-found", t("electron.common.account-not-found")))
+	}
+	busy := s.inUse(kind, prop(a, "id"))
+	if f, ok := busy.(float64); ok && f > 0 {
+		panic(accountErr("in-use", t("electron.common.tab-s-still-use-this-account-close-them", jsStr(busy))))
+	}
+	live := s.liveCheck(kind, *dir)
+	if live.State == "busy" && o.StopExternal {
+		live = s.stopExternal(kind, *dir, live)
+	}
 	switch {
 	case live.State == "busy":
-		ps := make([]string, 0, 5)
-		for i, p := range live.Pids {
-			if i >= 5 {
-				break
-			}
-			ps = append(ps, jsStr(p))
-		}
-		panic(accountErr("in-use", t("electron.common.cli-process-es-outside-nomi-still-use-this", jsStr(float64(len(live.Pids))), strings.Join(ps, ", "))))
+		panic(externalBusyErr(live))
 	case live.State == "unknown" && !force:
 		panic(accountErr("unknown-live", t("electron.common.could-not-confirm-whether-a-cli-is-still")))
 	case live.State == "unknown":
@@ -1050,8 +1182,14 @@ func (s *AccountService) OfficialLaunch(kind string, accountID *string) (out Off
 	if id == "" {
 		id = s.defaultID(kind)
 	}
+	if id == "" {
+		panic(noAccountErr(kind))
+	}
 	a := s.find(id)
 	dir := dirOf(a)
+	if !hasDir(dir) {
+		panic(noAccountErr(kind))
+	}
 	problems := []HomeProblem{}
 	if hasDir(dir) {
 		problems = s.ensureHome(kind, *dir)
@@ -1071,6 +1209,15 @@ func (s *AccountService) OfficialLaunch(kind string, accountID *string) (out Off
 		}
 	}
 	return OfficialLaunch{Dir: dir, Env: env, Strip: strip, Args: OfficialAccountArgs(kind, dir), Sig: "official:" + jsStr(prop(a, "id")), Problems: problems}, nil
+}
+
+// noAccountErr：没有官方账号时启动官方来源的标签（不再退回 CLI 自己的登录）
+func noAccountErr(kind string) *AccountError {
+	name := builtin.DisplayName(kind)
+	if name == "" {
+		name = kind
+	}
+	return accountErr("no-account", t("electron.common.no-official-account-yet", name))
 }
 
 // Resolve = resolve(kind, accountId).
@@ -1106,6 +1253,11 @@ func (h HarnessAdapter) Launch(kind ports.AccountBackend, accountID *string) por
 		panic(jsrt.JSThrow{Name: "Error", Message: err.Error()})
 	}
 	return ports.AccountLaunch{Env: l.Env, Strip: l.Strip, Args: l.Args, Sig: l.Sig}
+}
+
+// HasAccount = ports.AccountPresence。
+func (h HarnessAdapter) HasAccount(kind ports.AccountBackend) bool {
+	return h.S.HasAccount(string(kind))
 }
 
 func (h HarnessAdapter) NoteSession(kind ports.AccountBackend, sessionID string, accountID *string) {

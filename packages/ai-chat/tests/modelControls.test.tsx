@@ -353,6 +353,106 @@ describe('ModelControls', () => {
     );
   });
 
+  it('第三方模型（如 MAAS / deepseek）：思考深度与 Nomi 对话同一套——按网关的模型能力出档位，不给选「不思考」，没选过落在第二档', async () => {
+    const thinking = {
+      control: 'effort',
+      levels: ['off', 'low', 'medium', 'high'],
+      default: 'low',
+    };
+    const model = (id: string, th?: object) => ({
+      id,
+      enabled: true,
+      effective: {
+        ctx: 262_000,
+        maxOutput: 1,
+        source: 'catalog',
+        maxOutputSource: 'catalog',
+        ...(th ? { thinking: th } : {}),
+      },
+    });
+    const gatewayState = {
+      status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
+      providers: [
+        {
+          id: 'maas',
+          name: 'MAAS',
+          enabled: true,
+          urls: {},
+          keys: [],
+          models: [model('deepseek-v4.1-flash', thinking), model('glm-5.3')],
+        },
+      ],
+      clients: { codex: { models: {} } },
+      allowedPrivateHosts: [],
+      port: 1,
+    };
+    const ds = 'maas/deepseek-v4.1-flash';
+    let current: HarnessTabMeta = { ...baseTab, source: 'thirdParty', modelOverride: ds };
+    const invoke = vi.fn(async (ch: string, i?: Record<string, unknown>) => {
+      if (ch === 'gateway.state') return gatewayState;
+      if (ch === 'harness.modelCatalog')
+        return {
+          backend: 'codex',
+          provider: { id: 'gateway', name: '第三方模型' },
+          defaultModel: null,
+          models: [
+            { id: ds, label: 'MAAS / deepseek-v4.1-flash', reasoning: false, efforts: [] },
+            { id: 'maas/glm-5.3', label: 'MAAS / glm-5.3', reasoning: false, efforts: [] },
+          ],
+        };
+      if (ch === 'harness.tabEffort') {
+        current = { ...current, reasoningEffort: i?.effort as ReasoningEffort | null };
+        return { ...current };
+      }
+      if (ch === 'harness.tabModel') {
+        current = { ...current, modelOverride: String(i?.model ?? '') || null };
+        return { ...current };
+      }
+      return {};
+    });
+    installFakeApi(invoke);
+    const r = render(<ModelControls tab={current} />);
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('gateway.state'));
+    await act(async () => {});
+    // 按钮和 Nomi 对话一样显示「模型 · 档位」：没选过 = 模型的默认档（第二档 low，off 不算）
+    await waitFor(() => expect(r.getByTestId('model-chip').textContent).toContain('轻度'));
+    fireEvent.click(r.getByTestId('model-chip'));
+    // 先停在档位页，模型入口在里面
+    const slider = await r.findByTestId('effort-slider');
+    expect(slider.getAttribute('aria-valuetext')).toBe('轻度');
+    expect(slider.getAttribute('aria-valuenow')).toBe('0');
+    expect(r.getByTestId('model-open').textContent).toContain('deepseek-v4.1-flash');
+    fireEvent.keyDown(slider, { key: 'End' });
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('harness.tabEffort', { id: 'cx', effort: 'high' }),
+    );
+    // 「不思考」不在可选档位里：Home 回到 low，不会发 off
+    r.rerender(<ModelControls tab={current} />);
+    expect(r.getByTestId('model-chip').textContent).toContain('高');
+    fireEvent.keyDown(r.getByTestId('effort-slider'), { key: 'Home' });
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('harness.tabEffort', { id: 'cx', effort: 'low' }),
+    );
+    expect(invoke).not.toHaveBeenCalledWith('harness.tabEffort', { id: 'cx', effort: 'off' });
+    // 换到网关里没有思考深度的模型：选完收起浮层；再打开直接是模型列表
+    fireEvent.click(r.getByTestId('model-open'));
+    const menu = await r.findByTestId('model-menu');
+    fireEvent.click(within(menu).getByTestId('model-maas/glm-5.3'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('harness.tabModel', {
+        id: 'cx',
+        model: 'maas/glm-5.3',
+        expectSource: 'thirdParty',
+      }),
+    );
+    await waitFor(() => expect(r.queryByTestId('model-menu')).toBeNull());
+    r.rerender(<ModelControls tab={current} />);
+    expect(r.getByTestId('model-chip').textContent).not.toContain('·');
+    fireEvent.click(r.getByTestId('model-chip'));
+    await r.findByTestId('model-menu');
+    expect(r.queryByTestId('effort-slider')).toBeNull();
+  });
+
   it('长上下文：分档计价的第三方模型在模型页有「标准 / 长上下文」一组，价格写清楚', async () => {
     const ref = 'amux/openai/gpt-6.1-sol';
     const gatewayState = {

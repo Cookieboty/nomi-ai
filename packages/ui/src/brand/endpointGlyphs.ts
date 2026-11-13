@@ -7,7 +7,7 @@
  * - gemini：项目自绘的通用四角星（不用 Google 商标）。
  * - kimi：Moonshot AI 的 Kimi 标志；minimax：MiniMax 标志（单色，原图是渐变）。路径同样取自 @lobehub/icons-static-svg v1.95.1，
  *   与 brand/icons.ts 同源。
- * - external：用户添加的外部 CLI，项目自绘的通用终端提示符 `>_`。
+ * - external：非内置的编程助手（舰队里认出的其它 CLI 等）用的通用终端提示符 `>_`，项目自绘。
  * 灵动岛页面（apps/desktop-go/internal/core/island/island.html）内嵌了同一份数据，改这里请同步。
  */
 export type EndpointGlyphKey =

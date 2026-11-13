@@ -769,7 +769,8 @@ func main() {
 	defer wireAgents(router, userData, desktopSvc)()
 	defer wireFleet(router, userData, b8.Tasks, chatHandlers, toolRegistry)()
 	defer wireIslandPending(isl, islandPendingSources{orch: harnessOrch, tasks: b8.Tasks, desktop: desktopSvc,
-		open: func(target, id string) { islandOpenItem(sh, router, target, id) }})()
+		open:   func(target, id string) { islandOpenItem(sh, router, target, id) },
+		screen: func() island.Screen { return islandScreenOf(sh) }})()
 	wireScreenAndPending(router, userData, rootLog, desktopSvc)
 	defer disposeHarness()
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
@@ -1401,19 +1402,10 @@ func desktopWindows(shp *shell.Shell, st *startup.Service, isl *island.Service) 
 		ShowInactive: func() { sh().Show(shell.Mascot) },
 		OpenChat:     func() { sh().Show(shell.Chat) },
 		// 工作台（对话窗口）在屏幕上（可见、没最小化）：确认请求只发给它
-		ChatOpen: func() bool {
-			if sh() == nil {
-				return false
-			}
-			if g, ok := sh().(interface {
-				Shown(shell.WindowKind) (bool, bool)
-			}); ok {
-				v, min := g.Shown(shell.Chat)
-				return v && !min
-			}
-			return sh().Visible(shell.Chat)
-		},
-		MascotHidden: func() bool { return !st.Get().ShowMascot },
+		ChatOpen: func() bool { return chatOnScreen(sh()) },
+		// 工作台在屏幕上时只弹要你处理的与报警；你正看着的会话什么都不弹（island.ShouldShow）
+		NoticeAllowed: func(n desktop.IslandNotice) bool { return islandNoticeAllowed(sh(), n) },
+		MascotHidden:  func() bool { return !st.Get().ShowMascot },
 		SummonMascot: func() {
 			if sh().Visible(shell.Mascot) {
 				sh().Show(shell.Mascot)

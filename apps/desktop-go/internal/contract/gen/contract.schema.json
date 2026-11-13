@@ -6405,180 +6405,6 @@
     "additionalProperties": {}
    }
   },
-  "cli.pluginAdd": {
-   "kind": "mutation",
-   "dangerous": false,
-   "surfaces": [],
-   "input": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
-    "properties": {
-     "spec": {
-      "type": "object",
-      "properties": {},
-      "additionalProperties": {}
-     }
-    },
-    "required": [
-     "spec"
-    ]
-   },
-   "output": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "anyOf": [
-     {
-      "type": "object",
-      "properties": {
-       "ok": {
-        "type": "boolean",
-        "const": true
-       },
-       "entry": {
-        "type": "object",
-        "properties": {
-         "id": {
-          "type": "string"
-         },
-         "displayName": {
-          "type": "string"
-         },
-         "builtin": {
-          "type": "boolean"
-         },
-         "status": {
-          "type": "string"
-         },
-         "errors": {
-          "type": "array",
-          "items": {
-           "type": "string"
-          }
-         },
-         "version": {
-          "type": [
-           "string",
-           "null"
-          ]
-         }
-        },
-        "required": [
-         "id",
-         "displayName",
-         "builtin",
-         "status",
-         "errors",
-         "version"
-        ],
-        "additionalProperties": {}
-       }
-      },
-      "required": [
-       "ok",
-       "entry"
-      ],
-      "additionalProperties": {}
-     },
-     {
-      "type": "object",
-      "properties": {
-       "ok": {
-        "type": "boolean",
-        "const": false
-       },
-       "errors": {
-        "type": "array",
-        "items": {
-         "type": "string"
-        }
-       }
-      },
-      "required": [
-       "ok",
-       "errors"
-      ],
-      "additionalProperties": {}
-     }
-    ]
-   }
-  },
-  "cli.pluginRemove": {
-   "kind": "mutation",
-   "dangerous": false,
-   "surfaces": [],
-   "input": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
-    "properties": {
-     "id": {
-      "type": "string"
-     }
-    },
-    "required": [
-     "id"
-    ]
-   },
-   "output": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "boolean"
-   }
-  },
-  "cli.pluginTest": {
-   "kind": "mutation",
-   "dangerous": false,
-   "surfaces": [],
-   "input": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
-    "properties": {
-     "spec": {
-      "type": "object",
-      "properties": {},
-      "additionalProperties": {}
-     }
-    },
-    "required": [
-     "spec"
-    ]
-   },
-   "output": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "anyOf": [
-     {
-      "type": "object",
-      "properties": {
-       "ok": {
-        "type": "boolean",
-        "const": true
-       }
-      },
-      "required": [
-       "ok"
-      ],
-      "additionalProperties": {}
-     },
-     {
-      "type": "object",
-      "properties": {
-       "ok": {
-        "type": "boolean",
-        "const": false
-       },
-       "errors": {
-        "type": "array",
-        "items": {
-         "type": "string"
-        }
-       }
-      },
-      "required": [
-       "ok",
-       "errors"
-      ],
-      "additionalProperties": {}
-     }
-    ]
-   }
-  },
   "cli.registry": {
    "kind": "query",
    "dangerous": false,
@@ -6669,9 +6495,6 @@
       "active": {
        "type": "boolean"
       },
-      "local": {
-       "type": "boolean"
-      },
       "loggedIn": {
        "type": "boolean"
       },
@@ -6687,7 +6510,6 @@
       "kind",
       "label",
       "active",
-      "local",
       "loggedIn",
       "inUse",
       "createdAt"
@@ -6903,9 +6725,6 @@
       "active": {
        "type": "boolean"
       },
-      "local": {
-       "type": "boolean"
-      },
       "loggedIn": {
        "type": "boolean"
       },
@@ -6921,7 +6740,6 @@
       "kind",
       "label",
       "active",
-      "local",
       "loggedIn",
       "inUse",
       "createdAt"
@@ -6942,6 +6760,9 @@
       "type": "string"
      },
      "force": {
+      "type": "boolean"
+     },
+     "stopExternal": {
       "type": "boolean"
      }
     },
@@ -6989,9 +6810,6 @@
      "active": {
       "type": "boolean"
      },
-     "local": {
-      "type": "boolean"
-     },
      "loggedIn": {
       "type": "boolean"
      },
@@ -7007,7 +6825,6 @@
      "kind",
      "label",
      "active",
-     "local",
      "loggedIn",
      "inUse",
      "createdAt"
@@ -7051,9 +6868,6 @@
      "active": {
       "type": "boolean"
      },
-     "local": {
-      "type": "boolean"
-     },
      "loggedIn": {
       "type": "boolean"
      },
@@ -7069,7 +6883,6 @@
      "kind",
      "label",
      "active",
-     "local",
      "loggedIn",
      "inUse",
      "createdAt"
@@ -21814,9 +21627,6 @@
       }
      },
      "permissionMode": {
-      "type": "string"
-     },
-     "pluginId": {
       "type": "string"
      }
     },
@@ -39722,9 +39532,9 @@
   "CONVERSATION_NOT_FOUND",
   "ACCOUNT_NOT_FOUND",
   "ACCOUNT_IN_USE",
-  "ACCOUNT_LOCAL",
   "ACCOUNT_UNSUPPORTED",
   "ACCOUNT_UNKNOWN_LIVE",
+  "ACCOUNT_EXTERNAL_BUSY",
   "PROJECT_NOT_FOUND",
   "PROJECT_FOLDER_DENIED",
   "FLEET_NOT_IDLE",

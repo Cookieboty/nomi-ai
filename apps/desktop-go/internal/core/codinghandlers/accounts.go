@@ -17,6 +17,7 @@ type Accounts interface {
 	SetDefault(kind, id string) (*util.Obj, error)
 	Rename(id string, label any) (*util.Obj, error)
 	Remove(id string, force bool) *jsrt.Promise[struct{}]
+	RemoveWith(id string, o accounts.RemoveOpts) *jsrt.Promise[struct{}]
 }
 
 // AccountLogin = AccountLogin 的公开面
@@ -42,9 +43,11 @@ type AccountServices struct {
 var accountCodes = map[string]string{
 	"not-found":    "ACCOUNT_NOT_FOUND",
 	"in-use":       "ACCOUNT_IN_USE",
-	"local":        "ACCOUNT_LOCAL",
+	"no-account":   "ACCOUNT_NOT_FOUND",
 	"unsupported":  "ACCOUNT_UNSUPPORTED",
 	"unknown-live": "ACCOUNT_UNKNOWN_LIVE",
+	// Nomi 之外还有 CLI 进程在用这个账号目录：data.pids 是它们的进程号，界面可以让用户选择结束它们再删除
+	"external-busy": "ACCOUNT_EXTERNAL_BUSY",
 }
 
 // accountCall = accountCall：AccountError 按契约错误码失败（ctx.fail），其余错误照常抛出
@@ -55,7 +58,15 @@ func accountCall(err error) {
 	var ae *accounts.AccountError
 	if errors.As(err, &ae) {
 		if code, ok := accountCodes[ae.Code]; ok {
-			panic(&contract.Error{Code: code, Message: ae.Message})
+			ce := &contract.Error{Code: code, Message: ae.Message}
+			if len(ae.Pids) > 0 {
+				pids := make([]any, len(ae.Pids))
+				for i, p := range ae.Pids {
+					pids[i] = p
+				}
+				ce.Data = util.NewObj("pids", pids)
+			}
+			panic(ce)
 		}
 	}
 	var t jsrt.JSThrow
@@ -112,7 +123,14 @@ func RegisterAccounts(r *contract.Router, s AccountServices) {
 		return v
 	})
 	gil(r, "cliAccount.remove", func(a in) any {
-		awaitAccount(acc().Remove(a.str("id"), a.is("force")))
+		id := a.str("id")
+		// 这个账号还开着登录（登录卡在浏览器那一步时常见）：先取消，登录用的 CLI 不再挡着删除
+		if s.Login != nil {
+			if l := s.Login(); l != nil {
+				l.Cancel(id)
+			}
+		}
+		awaitAccount(acc().RemoveWith(id, accounts.RemoveOpts{Force: a.is("force"), StopExternal: a.is("stopExternal")}))
 		return nil
 	})
 	gil(r, "cliAccount.loginStart", func(a in) any {

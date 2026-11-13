@@ -7,6 +7,7 @@ import (
 	"testing"
 	"unicode/utf16"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/ports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
@@ -170,5 +171,26 @@ func TestCliSessionTitleReplacesHeuristic(t *testing.T) {
 	}
 	if r := jsrt.Call(func() *util.Obj { return o.ApplyAutoTitle(id, "智能名") }); r != nil {
 		t.Fatalf("ApplyAutoTitle after CLI title = %v, want nil", r)
+	}
+}
+
+// plainGateway：只给第三方来源一个默认模型、启动参数为空的网关（dsh / Gemini 没有官方账号，只能走第三方）
+type plainGateway struct{}
+
+func (plainGateway) Defaults(string) ports.GatewayDefaults {
+	m := "mock/model"
+	return ports.GatewayDefaults{Source: "official", Model: &m}
+}
+func (plainGateway) Launch(string, string, string, *ports.GatewayLaunchOpts) *ports.GatewayLaunch {
+	return &ports.GatewayLaunch{Env: util.NewObj(), Args: []string{}, Strip: []string{}}
+}
+func (plainGateway) OfficialEnv(env *util.Obj) *util.Obj { return env }
+func (plainGateway) Models() []ports.GatewayModel        { return nil }
+func (plainGateway) ReleaseAgent(string, string)         {}
+
+// withThirdPartyGateway：没有官方账号的编程助手（Gemini、dsh）的标签要经网关跑
+func withThirdPartyGateway(o *Orchestrator, backend string) {
+	if isBuiltin(backend) && !isAccountBackend(backend) {
+		o.d.Gateway = plainGateway{}
 	}
 }

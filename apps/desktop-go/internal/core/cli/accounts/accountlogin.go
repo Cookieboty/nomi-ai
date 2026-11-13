@@ -3,6 +3,7 @@ package accounts
 import (
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -153,9 +154,11 @@ func (l *AccountLogin) Start(kind string, accountID *string) *jsrt.Promise[*util
 		if _, ok := l.sessions[id]; ok {
 			l.Cancel(id)
 		}
+		// 登录用的 CLI 不在账号目录里跑：工作目录在账号目录里时，lsof 会把它（和它拉起的原生程序）
+		// 算成「在用这个账号的进程」，登录卡住 / 没退干净时账号就删不掉。用一个空的临时目录。
 		cwd := os.TempDir()
-		if target.Dir != nil {
-			cwd = *target.Dir
+		if d, err := os.MkdirTemp("", "nomi-acct-login-"); err == nil {
+			cwd = d
 		}
 		args := LoginArgs(kind)
 		script := harness.IsScript(bin)
@@ -310,6 +313,14 @@ func (l *AccountLogin) tail(s *loginSession) string {
 func (l *AccountLogin) cleanup(s *loginSession, failed bool) {
 	jsrt.ClearTimeout(s.timer)
 	l.delSession(s.id)
+	if s.cwd != os.TempDir() && strings.HasPrefix(filepath.Base(s.cwd), "nomi-acct-login-") {
+		dir := s.cwd
+		if s.child.ExitCode() == nil && s.child.SignalCode() == "" {
+			s.child.OnClose(func(*int, string) { _ = os.RemoveAll(dir) })
+		} else {
+			_ = os.RemoveAll(dir)
+		}
+	}
 	if !failed || !s.created {
 		return
 	}
