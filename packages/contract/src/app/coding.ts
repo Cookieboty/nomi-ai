@@ -32,15 +32,12 @@ import {
   CliInstallPlan,
   CliInstallScope,
   CliJob,
-  CliPluginAddResult,
   CliRegistrySnapshot,
   CliRunResult,
   CliUpdateEvent,
   DelegateResult,
   DelegateSettings,
   DelegateSettingsView,
-  ExternalCliSpec,
-  ExternalTestResult,
   GeminiTrustResult,
   GitBranchList,
   GitBranchResult,
@@ -212,8 +209,6 @@ const harnessProcedures = {
       title: z.string().optional(),
       messages: z.array(HarnessTabMessage).optional(),
       permissionMode: PermissionMode.optional(),
-      /** backend = 'external' 时：外部插件 id */
-      pluginId: z.string().optional(),
     }),
     output: HarnessTabMeta,
   },
@@ -487,19 +482,6 @@ const harnessProcedures = {
 
 const cliProcedures = {
   'cli.registry': { kind: 'query', input: z.void(), output: CliRegistrySnapshot },
-  /** 外部插件（用户添加的说 ACP 的 CLI）：清单不合格时 `{ ok: false, errors }` */
-  'cli.pluginAdd': {
-    kind: 'mutation',
-    input: z.object({ spec: ExternalCliSpec }),
-    output: CliPluginAddResult,
-  },
-  'cli.pluginRemove': { kind: 'mutation', input: byId, output: z.boolean() },
-  /** 试运行（在临时目录里握手），不保存 */
-  'cli.pluginTest': {
-    kind: 'mutation',
-    input: z.object({ spec: ExternalCliSpec }),
-    output: ExternalTestResult,
-  },
 } as const satisfies ProcedureMap;
 
 const cliAccountProcedures = {

@@ -14,7 +14,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// DelegateClis：可以委派的内置编程助手（外部 CLI 暂不支持委派）
+// DelegateClis：可以委派的内置编程助手
 var DelegateClis = builtin.Ordered
 
 // DelegateKinds：任务类型（设置里按类型配默认编程助手）

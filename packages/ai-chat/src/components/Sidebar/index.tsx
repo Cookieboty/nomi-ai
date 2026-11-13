@@ -274,7 +274,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   }, [list, isNormal, tabById]);
 
   const counts = useMemo(() => {
-    const c: Record<ConversationBackend, number> = { nomi: 0, ...byCli(() => 0), external: 0 };
+    const c: Record<ConversationBackend, number> = { nomi: 0, ...byCli(() => 0) };
     for (const x of navList) c[x.backend] = (c[x.backend] ?? 0) + 1;
     return c;
   }, [navList]);

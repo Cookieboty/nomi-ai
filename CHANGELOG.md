@@ -77,9 +77,12 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **cli:** context compaction for Codex and Grok tabs. (`@nomi-ai/ai-chat` patch)
 - **cli:** context compaction for Codex and Grok tabs. (`@nomi-ai/i18n` patch)
 - **cli:** copy for running coding assistants without the local sign-in (no official account yet, third-party only), and drop the unused "this computer's sign-in" strings (see remove-local-sign-in). (`@nomi-ai/i18n` patch)
+- **cli:** drop `cli.pluginAdd`, `cli.pluginRemove`, `cli.pluginTest`, the external CLI spec schemas and `harness.tabCreate`'s `pluginId` (see remove-external-cli). (`@nomi-ai/contract` patch)
+- **cli:** drop the "External CLI" settings page and error copy (see remove-external-cli). (`@nomi-ai/i18n` patch)
 - **cli:** groundwork for multiple official coding-agent accounts. Nomi can keep several Claude Code, Codex, Grok and Gemini sign-ins (encrypted with the system keychain) and switch the global sign-in between them, so the CLI in your own terminal follows too. Before switching it saves any token refresh the CLI made, keeps an account signed in from the terminal instead of losing it, cancels instead of overwriting when it can't tell which credentials are newer, backs up the previous sign-in and restores it if writing fails. (`@nomi-ai/desktop-go` patch)
 - **cli:** official accounts no longer have a `local` flag and `ACCOUNT_LOCAL` is gone; every account is a Nomi-managed config folder (see remove-local-sign-in). (`@nomi-ai/contract` patch)
 - **cli:** per-tab permission modes for coding-agent tabs (plan / manual / accept edits / auto / full access), mapped to each CLI's native flags. Codex tabs can now edit files and use the network (`codex exec` previously ran in its read-only, no-network sandbox); dsh gets `DSH_PERMISSION_MODE`; Grok no longer runs with `--yolo` by default (it now uses accept-edits unless full access is confirmed for that tab). Full access needs explicit confirmation and resets after restart. Design: docs/design/cli-permission-modes.md. (`@nomi-ai/desktop-go` minor)
+- **cli:** remove "External CLI" (user-added ACP coding assistants). The Settings → Coding assistants sidebar entry and page are gone, and only the built-in coding assistants can be used, through Nomi official accounts or third-party models. (`@nomi-ai/desktop-go` patch, `@nomi-ai/ai-chat` patch, `@nomi-ai/types` patch)
 - **cli:** remove the "this computer's sign-in" option for every built-in coding assistant. Claude Code, Codex, Grok, Kimi Code and MiniMax Code now run only on Nomi-managed official accounts (each in its own config folder, sign-in done by the CLI) or on third-party models through the Nomi gateway; dsh and Gemini, which have no official accounts, run only on third-party models, and their old "own config" default is gone. (`@nomi-ai/desktop-go` patch, `@nomi-ai/ai-chat` patch)
 - **cli:** sign in to official Claude Code, Codex and Grok accounts from inside Nomi. Each sign-in runs the CLI's own login command in a separate staging folder, so your current sign-in is untouched until you switch; Nomi shows the sign-in link and device code (or a box to paste Claude's authorization code), stores the new account encrypted and cleans up the staging folder (and its temporary keychain item on macOS). Only official sign-in pages can be opened from it. (`@nomi-ai/desktop-go` patch)
 - **cli:** subagents started by Codex (`spawn_agent` / `wait` / `close_agent`), dsh (`subagent` / `subagent_fork`) and Claude Code (task lifecycle) now show up in the conversation timeline instead of a silent wait, with what each subagent was asked and what it reported back. (`@nomi-ai/ai-chat` patch)
@@ -578,6 +581,11 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **release:** macOS signing + notarization and Windows signing are enabled automatically when the documented secrets are present; root CHANGELOG generated from changesets.
 - **release:** tag builds check the tag equals `v${version}`, create one draft Release from `docs/releases/<tag>.md` before packaging, and publish only after every installer and blockmap listed in latest*.yml is attached (#146). (`@nomi-ai/desktop-go` patch)
 - 2.2.0 起只发布 Go 版（Go 内核 + Wails），不再提供 Electron 版安装包（`Nomi-Electron-*`）；仓库里删除了 Electron 应用与 Node 内核。已安装 Electron 版的用户照常经应用内更新升级到 Go 版，数据在首次启动时迁移。 (`@nomi-ai/desktop-go` minor)
+
+### Documentation
+
+- **cli-catalog:** drop the external CLI mention from the interject capability note (see remove-external-cli). (`@nomi-ai/cli-catalog` patch)
+- **ui:** the generic `>_` endpoint glyph is now described as the icon for non built-in CLIs (see remove-external-cli). (`@nomi-ai/ui` patch)
 
 ### Maintenance
 

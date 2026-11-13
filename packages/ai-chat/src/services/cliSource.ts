@@ -201,7 +201,7 @@ export interface SourceSwitch {
 /**
  * 标签的来源（官方 / 第三方）与这个编程助手的「新标签默认用」不同时，模型按钮里多一组，
  * 一步切到默认来源：默认是官方 → 「切换到官方账号」；默认是第三方 → 默认供应商的全部模型。
- * 来源相同（或网关状态还没到、外部 CLI）返回 null。
+ * 来源相同（或网关状态还没到）返回 null。
  */
 export function defaultSourceSwitch(
   tab: Pick<HarnessTabMeta, 'backend' | 'source'>,

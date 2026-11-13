@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/agents"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
@@ -64,14 +63,6 @@ type hostEvents struct{ r *contract.Router }
 
 func (e hostEvents) Publish(ev string, p any) { e.r.Emit(ev, p) }
 
-// externals：外部插件spec / handshake（握手能力只能收窄注册表能力位）
-type externals struct{ h *cli.CliPluginHost }
-
-func (e externals) Spec(id string) *util.Obj { return e.h.ExternalSpec(id) }
-func (e externals) Handshake(id string, images, resume bool) {
-	e.h.SetHandshake(id, util.NewObj("images", images, "resume", resume))
-}
-
 // harnessOrch：wireHarness 构造的编排器（main 里只有一个）
 var harnessOrch *harness.Orchestrator
 
@@ -107,14 +98,6 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 					o.RestartForUpgrade(id)
 				}
 			},
-			SpawnExternal: func(command string, args []string, cwd string) (clisdk.ChildLike, error) {
-				useNode := harness.IsScript(command)
-				if useNode {
-					command, args = harness.NodeExecPath(), append([]string{command}, args...)
-				}
-				return harness.SpawnHarness(command, args, cwd, harness.CliChildEnv(useNode, nil, envAllow()), ""), nil
-			},
-			OnExternalRemoved: func(id string) { o.ExternalRemoved(id) },
 		})
 	})
 	// AccountService
@@ -188,10 +171,10 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 	o = jsrt.Call(func() *harness.Orchestrator {
 		return harness.New(harness.Deps{
 			ImageStore: &cli.MessageImageStore{ChatRoot: filepath.Join(userData, "chat"), DirOK: cliImageDirectoryAllowed},
-			Externals:  externals{plugins}, Accounts: accPort,
-			Gateway: gatewayPort(gw),
-			Quality: quality.CliSink{S: q},
-			Root:    filepath.Join(userData, "harness"), Logger: stdLogger{}, Home: home,
+			Accounts:   accPort,
+			Gateway:    gatewayPort(gw),
+			Quality:    quality.CliSink{S: q},
+			Root:       filepath.Join(userData, "harness"), Logger: stdLogger{}, Home: home,
 			DefaultCwd: filepath.Join(docs, "nomi"), LegacyDefaultCwd: docs,
 			Ports:          harnessPorts{hp},
 			PrewarmClaude:  os.Getenv("NOMI_HARNESS_PREWARM") != "0",

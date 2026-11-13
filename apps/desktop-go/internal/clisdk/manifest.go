@@ -192,3 +192,7 @@ func EffectiveCapabilities(m *util.Obj, version *string, inRange func(v, r strin
 	}
 	return caps
 }
+
+func isPlainObj(v any) (*util.Obj, bool) { o, ok := v.(*util.Obj); return o, ok }
+
+func itoa(i int) string { return util.FormatNumber(float64(i)) }

@@ -254,14 +254,10 @@ const PROVIDER_ENDPOINT_KEY = 'ai-chat:providerEndpoint';
 const providerEpSubs = new Set<Listener>();
 
 /** 编程助手页的当前标签：内置编程助手端点之一，或「监视与会话」 */
-/** general = 运行环境与权限；external = 外部 CLI（编程助手页左栏的两项） */
-export type CodingTab = ConversationBackend | 'monitor' | 'delegate' | 'general' | 'external';
+/** general = 运行环境与权限（编程助手页左栏）；旧版本存的 external（外部 CLI）不再认，回到默认 */
+export type CodingTab = ConversationBackend | 'monitor' | 'delegate' | 'general';
 export const isCodingTab = (v: unknown): v is CodingTab =>
-  v === 'monitor' ||
-  v === 'delegate' ||
-  v === 'general' ||
-  v === 'external' ||
-  isConversationBackend(v);
+  v === 'monitor' || v === 'delegate' || v === 'general' || isConversationBackend(v);
 
 export function getProviderEndpoint(): CodingTab {
   try {

@@ -306,11 +306,6 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 		throw(i18n.T("electron.common.new-tabs-can-only-use-a-coding-agent"))
 	}
 	backend := backendV.(string)
-	var ext *util.Obj
-	if backend == "external" {
-		pid, _ := opts.Get("pluginId").(string)
-		ext = o.externalSpecOf(pid)
-	}
 	// 项目：工作目录默认是它的主文件夹（委派的 worktree 标签会另给 cwd）
 	projectID, _ := opts.Get("projectId").(string)
 	projectPrimary := ""
@@ -345,14 +340,11 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 	sameKind := 0
 	for _, k := range o.tabs.Keys() {
 		x := o.tab(k)
-		if str(x, "backend") == backend && (ext == nil || x.Get("pluginId") == ext.Get("id")) {
+		if str(x, "backend") == backend {
 			sameKind++
 		}
 	}
 	baseTitle := backendTitle(backend)
-	if ext != nil {
-		baseTitle = jsStr(ext.Get("displayName"))
-	}
 	title := ""
 	if s, ok := opts.Get("title").(string); ok {
 		title = clisdk.Slice0(util.JSTrim(s), 60)
@@ -372,9 +364,6 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 	}
 	effMode, _ := cli.EffectiveMode(backend, mode)
 	tab := util.NewObj("id", clisdk.RandomUUID(), "title", title, "backend", backend)
-	if ext != nil {
-		tab.Set("pluginId", ext.Get("id"))
-	}
 	if projectID != "" {
 		tab.Set("projectId", projectID)
 	}
@@ -692,9 +681,6 @@ func (o *Orchestrator) SetTabBackend(id string, backendV any) *util.Obj {
 	if backend == "nomi" && id != MainTabID {
 		throw(i18n.T("electron.common.new-tabs-can-only-use-a-coding-agent"))
 	}
-	if backend == "external" || tab.Get("backend") == "external" {
-		throw(i18n.T("electron.common.an-external-cli-tab-can-t-switch-to"))
-	}
 	if s := tab.Get("status"); s == "running" || s == "queued" {
 		throw(i18n.T("electron.common.previous-turn-still-running"))
 	}
@@ -830,9 +816,6 @@ func (o *Orchestrator) SetTabSource(id string, source any, model *string) *util.
 	}
 	if source != "official" && source != "thirdParty" {
 		throw(i18n.T("electron.common.unknown-source"))
-	}
-	if source == "thirdParty" && backend == "external" {
-		throw(i18n.T("electron.common.an-external-cli-only-uses-its-own-sign"))
 	}
 	if source == "official" && isBuiltin(backend) && !isAccountBackend(backend) {
 		throw(i18n.T("electron.common.only-third-party-models", builtin.DisplayName(backend)))
@@ -1049,7 +1032,7 @@ func (o *Orchestrator) switchAcpMode(id string, gl *acpLiveSession, mode string)
 			return struct{}{}, gemini.NewUntrustedError(str(o.tab(id), "cwd"), err)
 		}
 		return struct{}{}, fmt.Errorf("%s", i18n.T("electron.common.cli-did-not-confirm-the-permission-mode-change",
-			acpDisplayName(gl.backend, nil), why))
+			acpDisplayName(gl.backend), why))
 	})
 	gl.modeChange = change
 }

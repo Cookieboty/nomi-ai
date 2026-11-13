@@ -69,17 +69,13 @@ export interface ChatMessage {
 
 /** 对话所属后端：与 harness 后端一致；侧栏列表按此后端隔离 */
 /** 对话后端：Nomi 自己 + 内置编程助手（id 由 @nomi-ai/cli-catalog 生成） */
-/** 'external'：用户添加的外部 CLI，具体是哪个插件看标签 / 对话的 pluginId */
-export type ConversationBackend = 'nomi' | BuiltinCliId | 'external';
+export type ConversationBackend = 'nomi' | BuiltinCliId;
 
 export const CONVERSATION_BACKENDS: readonly ConversationBackend[] = ['nomi', ...BUILTIN_CLI_ORDER];
 
 export function isConversationBackend(v: unknown): v is ConversationBackend {
-  // 'external'（外部 CLI）不在固定端点列表里（它要带 pluginId），但它的对话也是合法的
-  return (
-    typeof v === 'string' &&
-    (v === 'external' || (CONVERSATION_BACKENDS as readonly string[]).includes(v))
-  );
+  // 旧版本「外部 CLI」的对话（backend 'external'）不再认，按非法 backend 回退 Nomi
+  return typeof v === 'string' && (CONVERSATION_BACKENDS as readonly string[]).includes(v);
 }
 
 export interface ChatSession {

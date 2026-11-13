@@ -24,8 +24,6 @@ type CliBackend = Exclude<HarnessBackend, 'nomi'>;
 /** 各端支持的档位：内置 CLI 取清单的 permissionModes */
 const SUPPORTED: Record<CliBackend, readonly PermissionMode[]> = {
   ...byCli((id) => (BUILTIN_MANIFESTS[id].capabilities.permissionModes ?? []).map((m) => m.mode)),
-  // 外部 CLI（L1）只有逐项确认：每次工具调用都经 ACP 权限请求由你批准
-  external: ['manual'],
 };
 
 export const isPermissionMode = (v: unknown): v is PermissionMode =>
@@ -43,7 +41,7 @@ export function fallbackMode(backend: HarnessBackend, mode: PermissionMode): Per
   const ok = supportedModes(backend);
   if (ok.includes(mode)) return mode;
   const next = mode === 'manual' ? 'plan' : 'acceptEdits';
-  // 外部插件只有逐项确认：降不到计划 / 自动改文件时用它支持的第一档
+  // 降不到计划 / 自动改文件时用它支持的第一档
   return ok.includes(next) || !ok.length ? next : ok[0]!;
 }
 

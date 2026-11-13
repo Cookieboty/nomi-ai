@@ -54,7 +54,6 @@
   "ui.models.detect-again": "Detect again",
   "ui.models.detecting-apis": "Detecting available APIs…",
   "ui.models.disable-shown": "Disable all",
-  "ui.models.cli-own-config": "{0}'s own config",
   "ui.models.edit": "Edit “{0}”",
   "ui.models.enable-long-context": "Turn on long context ({0})",
   "ui.models.enable-shown": "Enable all",

@@ -454,7 +454,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
                     await cliAccountClient.remove(a.id, { stopExternal: true });
                     return;
                   }
-                  // 按错误码判断（文案随语言变）：无法确认外部 CLI 是否在用 → 让用户再确认一次后强制删除
+                  // 按错误码判断（文案随语言变）：无法确认 Nomi 之外的 CLI 进程是否在用 → 让用户再确认一次后强制删除
                   if (
                     (e as { code?: unknown }).code === 'unknown-live' &&
                     (await confirmDialog({

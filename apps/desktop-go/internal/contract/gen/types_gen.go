@@ -1553,18 +1553,6 @@ type ChatBgSetOutput struct {
 	Opacity  float64 `json:"opacity"`
 }
 
-type CliPluginAddInput struct {
-	Spec map[string]any `json:"spec"`
-}
-
-type CliPluginRemoveInput struct {
-	Id string `json:"id"`
-}
-
-type CliPluginTestInput struct {
-	Spec map[string]any `json:"spec"`
-}
-
 type CliRegistryOutputPluginsItem struct {
 	Id          string   `json:"id"`
 	DisplayName string   `json:"displayName"`
@@ -6521,7 +6509,6 @@ type HarnessTabCreateInput struct {
 	Title          *string                             `json:"title,omitempty"`
 	Messages       []HarnessTabCreateInputMessagesItem `json:"messages,omitempty"`
 	PermissionMode *string                             `json:"permissionMode,omitempty"`
-	PluginId       *string                             `json:"pluginId,omitempty"`
 }
 
 // HarnessTabCreateOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
@@ -11941,18 +11928,6 @@ type ChatBgResetOutputT = ChatBgResetOutput
 // ChatBgSetInputT 是 chatBg.set 的入参
 type ChatBgSetInputT = ChatBgSetInput
 type ChatBgSetOutputT = ChatBgSetOutput
-
-// CliPluginAddInputT 是 cli.pluginAdd 的入参
-type CliPluginAddInputT = CliPluginAddInput
-type CliPluginAddOutputT = json.RawMessage
-
-// CliPluginRemoveInputT 是 cli.pluginRemove 的入参
-type CliPluginRemoveInputT = CliPluginRemoveInput
-type CliPluginRemoveOutputT = bool
-
-// CliPluginTestInputT 是 cli.pluginTest 的入参
-type CliPluginTestInputT = CliPluginTestInput
-type CliPluginTestOutputT = json.RawMessage
 
 // CliRegistryInputT 是 cli.registry 的入参
 type CliRegistryInputT = any

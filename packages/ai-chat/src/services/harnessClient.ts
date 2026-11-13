@@ -7,7 +7,7 @@ import type { PermissionMode } from '../utils/permissionModes';
 import { api, hasTransport } from './api';
 import { clearModelSwitch, noteModelSwitch } from './modelSwitchTip';
 
-export type HarnessBackend = 'nomi' | BuiltinCliId | 'external';
+export type HarnessBackend = 'nomi' | BuiltinCliId;
 
 export interface HarnessState {
   backend: HarnessBackend;
@@ -59,11 +59,6 @@ export interface HarnessTabMeta {
   /** 由 Nomi 委派开的标签 */
   delegation?: HarnessDelegation;
   backend: HarnessBackend;
-  /**
-   * backend 为 'external' 时：用哪个外部插件（「设置 → 编程助手 → 添加 CLI」里的 id）。
-   * 插件被删除后标签保留，发消息时报错。
-   */
-  pluginId?: string;
   /** 工作目录：项目的主文件夹（委派开的 worktree 标签是 worktree） */
   cwd: string;
   /** 标签所在的项目 */
@@ -591,8 +586,6 @@ export const harnessClient = {
     projectId?: string;
     title?: string;
     messages?: HarnessTabMessage[];
-    /** backend = 'external' 时：外部插件 id（「添加 CLI」） */
-    pluginId?: string;
   }) => call<HarnessTabMeta>(() => api.harness.tabCreate(o as never)),
   seedTabMessages: (id: string, messages: HarnessTabMessage[]) =>
     call<HarnessTabMeta>(() => api.harness.tabSeed({ id, messages: messages as never })),

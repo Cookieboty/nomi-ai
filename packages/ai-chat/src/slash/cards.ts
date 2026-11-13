@@ -16,7 +16,7 @@ import type { BackendModelCatalog, TabSource } from '../services/harnessClient';
 import { nomiMainRef, nomiModelChoices, splitRef } from '../services/nomiModel';
 import { providerDisplayName } from '../services/providerClient';
 import { cacheHitRate, formatHitRate } from '../utils/cacheHit';
-import { hasOfficialAccount, ownConfigLabel, thirdPartyOnly } from '../utils/cliCaps';
+import { thirdPartyOnly } from '../utils/cliCaps';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
 import { rankItems } from '../utils/fuzzy';
 
@@ -113,7 +113,6 @@ function cliSourceLine(ctx: SlashContext, data: SlashData): CardRow {
   }
   if (thirdPartyOnly(ctx.backend))
     return { label, value: t('ui.models.third-party-no-model-set'), tone: 'warn' };
-  if (!hasOfficialAccount(ctx.backend)) return { label, value: ownConfigLabel(ctx.backend) };
   const a = data.cliAccount;
   return a
     ? { label, value: t('ui.chat-settings.official', a.identity?.email ?? a.label) }
@@ -326,11 +325,9 @@ function officialChoices(ctx: SlashContext, data: SlashData, source: TabSource):
 
 function officialChoice(ctx: SlashContext, data: SlashData, source: TabSource): ModelChoice {
   const a = data.cliAccount;
-  const label = !hasOfficialAccount(ctx.backend)
-    ? ownConfigLabel(ctx.backend)
-    : a
-      ? t('ui.chat-settings.official', a.identity?.email ?? a.label)
-      : t('ui.models.official');
+  const label = a
+    ? t('ui.chat-settings.official', a.identity?.email ?? a.label)
+    : t('ui.models.official');
   return {
     label,
     provider: t('ui.models.official'),

@@ -124,7 +124,7 @@ describe('OfficialAccounts', () => {
     expect(ipc.invoke).toHaveBeenCalledWith('cliAccount.remove', { id: 'b', force: false });
   });
 
-  it('删除时无法确认外部 CLI 是否在用（unknown-live）：英文文案下也再确认一次，确认后只强制删除一次（#137）', async () => {
+  it('删除时无法确认 Nomi 之外的 CLI 进程是否在用（unknown-live）：英文文案下也再确认一次，确认后只强制删除一次（#137）', async () => {
     const calls: unknown[][] = [];
     const ipc = mockIpc({
       'cliAccount.remove': ({ id, force }) => {

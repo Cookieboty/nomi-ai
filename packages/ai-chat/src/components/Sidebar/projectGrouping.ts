@@ -77,10 +77,9 @@ export function projectBackend(
   view: ConversationListView,
   endpointFilter: ConversationBackend,
 ): ConversationBackend {
-  const b = isNormal
+  return isNormal
     ? 'nomi'
     : view === 'by-endpoint'
       ? endpointFilter
       : (g.items[0]?.backend ?? 'nomi');
-  return b === 'external' ? 'nomi' : b;
 }

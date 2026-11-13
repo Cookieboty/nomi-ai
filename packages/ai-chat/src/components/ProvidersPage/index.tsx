@@ -1,11 +1,10 @@
 /**
  * 「编程助手」页：逐个配置各编程助手（CLI），分段标签「助手 / 监视与会话」。
  * Nomi 自己的设置（权限、委派、工具权限）在设置 →「Nomi」。
- * - 助手：左右两栏。左栏固定的列表：五个内置助手（带安装状态）、外部 CLI、通用；
+ * - 助手：左右两栏。左栏固定的列表：内置助手（带安装状态）、通用；
  *   右栏只显示选中那一项：
  *   - 内置助手：标题行（名称、路径、版本、检查更新 / 安装）→ 官方账号 → 第三方模型入口
  *     （第三方供应商与模型分配都在设置 →「模型」，统一网关）；
- *   - 外部 CLI：用户添加的说 ACP 的编程助手；
  *   - 通用：运行环境（Node.js / npm）与「全部自动」权限。运行环境有问题时左栏「通用」亮警示点，
  *     助手详情顶部也提示一行。
  *   窄窗口时左栏收成顶部一排（容器查询）。
@@ -13,7 +12,7 @@
  * 切换只是换一个视图，不会改任何配置。
  */
 import { Button, Notice, t, Tabs } from '@nomi-ai/ui';
-import { Settings2, SquareTerminal } from 'lucide-react';
+import { Settings2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import { useProviderEndpoint } from '../../hooks/useProviderEndpoint';
@@ -31,7 +30,6 @@ import { EndpointIcon } from '../EndpointIcon';
 
 import { AutoApproveSetting } from './AutoApproveSetting';
 import { CliEndpointSection } from './CliEndpointSection';
-import { ExternalClis } from './ExternalClis';
 import styles from './index.module.css';
 import { envHasProblem, RuntimeEnvironment, useCliEnvironment } from './RuntimeEnvironment';
 import { ShellProxySetting } from './ShellProxySetting';
@@ -39,10 +37,10 @@ import { ShellProxySetting } from './ShellProxySetting';
 /** 左栏助手的顺序：与对话区端点顺序一致，去掉 Nomi（Nomi 的模型在「模型」页） */
 const CLIS = CONVERSATION_BACKENDS.filter((b): b is CliKind => b !== 'nomi');
 
-/** 左栏的一项：内置助手、外部 CLI、通用 */
-type Item = CliKind | 'external' | 'general';
-const ITEMS: Item[] = [...CLIS, 'external', 'general'];
-const isItem = (v: string): v is Item => v === 'external' || v === 'general' || isCliKind(v);
+/** 左栏的一项：内置助手、通用（旧版本的「外部 CLI」已移除，存下的选中值落到第一个助手） */
+type Item = CliKind | 'general';
+const ITEMS: Item[] = [...CLIS, 'general'];
+const isItem = (v: string): v is Item => v === 'general' || isCliKind(v);
 
 /** plain：只是一行说明，不带状态点 */
 type Tone = 'ok' | 'warn' | 'off' | 'plain';
@@ -180,7 +178,6 @@ export const ProvidersPage: React.FC<{
           {t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app')}
         </p>
       );
-    if (item === 'external') return <ExternalClis onOpenedTab={onOpenedTab} />;
     return (
       <>
         {envBad && (
@@ -240,12 +237,6 @@ export const ProvidersPage: React.FC<{
                 ),
               )}
               <span className={styles.pickSep} aria-hidden="true" />
-              {navButton(
-                'external',
-                <SquareTerminal size={20} aria-hidden="true" className={styles.pickIcon} />,
-                t('ui.providers-schedule.external-cli'),
-                null,
-              )}
               {navButton(
                 'general',
                 <Settings2 size={20} aria-hidden="true" className={styles.pickIcon} />,

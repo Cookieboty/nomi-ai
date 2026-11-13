@@ -102,15 +102,6 @@ type AccountSessionNoter interface {
 	NoteSession(kind AccountBackend, sessionId string, accountId *string)
 }
 
-// HarnessExternalPlugins：外部插件端口（Spec nil = undefined）。
-type HarnessExternalPlugins interface {
-	Spec(id string) *util.Obj
-}
-
-type ExternalHandshaker interface {
-	Handshake(id string, images, resume bool)
-}
-
 // ---- 模型发现 ----
 
 type ModelDiscoveryDeps struct {

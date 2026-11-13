@@ -1,7 +1,7 @@
 package harness
 
 // orchestrator_launch.go：来源注入（launchFor / 标签绑定）、
-// 外部插件、会话归属、子进程环境、设置继承、预热、选目录、取消与 dispose。
+// 会话归属、子进程环境、设置继承、预热、选目录、取消与 dispose。
 
 import (
 	"errors"
@@ -202,32 +202,6 @@ func (o *Orchestrator) dropTabBinding(tab *util.Obj) {
 	}
 }
 
-// externalSpecOf(id?)；id "" = undefined；可能 throw。
-func (o *Orchestrator) externalSpecOf(id string) *util.Obj {
-	var spec *util.Obj
-	if id != "" && o.d.Externals != nil {
-		spec = o.d.Externals.Spec(id)
-	}
-	if spec == nil {
-		shown := id
-		if shown == "" {
-			shown = "?"
-		}
-		throw(i18n.T("electron.common.the-external-cli-was-deleted-or-its-manifest", shown))
-	}
-	return spec
-}
-
-// ExternalRemoved = externalRemoved。
-func (o *Orchestrator) ExternalRemoved(pluginID string) {
-	for _, k := range o.tabs.Keys() {
-		if t := o.tab(k); t.Get("backend") == "external" && t.Get("pluginId") == pluginID {
-			o.teardownAcpLive(k)
-		}
-	}
-	o.changed()
-}
-
 // noteServed = noteServed。
 func (o *Orchestrator) noteServed(tab *util.Obj, ref string) {
 	if o.sourceOf(tab) != "thirdParty" {
@@ -277,7 +251,7 @@ func (o *Orchestrator) bindCliSession(tab *util.Obj, sessionID string) {
 
 // officialLaunchFor = officialLaunch(backend, accountId)（方法名避开同名变量 OFFICIAL_LAUNCH）。
 // 内置编程助手不再用这台电脑上 CLI 自己的登录：有官方账号的用 Nomi 管理的账号目录，
-// 没有官方账号的（dsh、Gemini）只能经网关用第三方模型。外部 CLI 不经 Nomi 的账号和网关，照旧自己管登录。
+// 没有官方账号的（dsh、Gemini）只能经网关用第三方模型。
 func (o *Orchestrator) officialLaunchFor(backend string, accountID *string) *tabLaunch {
 	if isBuiltin(backend) && !isAccountBackend(backend) {
 		if o.d.Gateway == nil {
@@ -414,7 +388,7 @@ func (o *Orchestrator) prewarm(id string) {
 			}
 			return struct{}{}, nil
 		})
-	case (backend == "external" || builtin.UsesAcp(backend) && (backend != "grok" || o.usesGrokAcp())) && o.live.acp[id] == nil:
+	case builtin.UsesAcp(backend) && (backend != "grok" || o.usesGrokAcp()) && o.live.acp[id] == nil:
 		p := o.ensureAcpLive(tab, nil)
 		jsrt.Async(func() (struct{}, error) {
 			if _, err := jsrt.Await(p); err != nil {

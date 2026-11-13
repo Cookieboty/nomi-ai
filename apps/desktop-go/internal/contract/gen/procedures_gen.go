@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 474：mutation 333 / query 136 / stream 5
+// 合计 471：mutation 330 / query 136 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -75,9 +75,6 @@ var Procedures = []Procedure{
 	{Name: "chatBg.pickImage", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatBg.reset", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatBg.set", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
-	{Name: "cli.pluginAdd", Kind: "mutation", Dangerous: false, Surfaces: nil},
-	{Name: "cli.pluginRemove", Kind: "mutation", Dangerous: false, Surfaces: nil},
-	{Name: "cli.pluginTest", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "cli.registry", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "cliAccount.list", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "cliAccount.loginCancel", Kind: "mutation", Dangerous: false, Surfaces: nil},

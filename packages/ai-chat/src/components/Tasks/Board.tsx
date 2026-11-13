@@ -100,9 +100,7 @@ export const PriorityBadge: React.FC<{ priority?: TaskPriority | undefined; quie
 export const ExecutorIcon: React.FC<{ ex: ExecutorSpec }> = ({ ex }) => {
   if (ex.kind === 'notify') return <Icon icon={Bell} size={14} />;
   if (ex.kind === 'nomi') return <EndpointIcon backend="nomi" size={16} decorative />;
-  return (
-    <EndpointIcon backend={isBuiltinCliId(ex.cli) ? ex.cli : 'external'} size={16} decorative />
-  );
+  return <EndpointIcon backend={isBuiltinCliId(ex.cli) ? ex.cli : 'other'} size={16} decorative />;
 };
 
 /** 卡片上的快捷操作：只做不用再确认的 */

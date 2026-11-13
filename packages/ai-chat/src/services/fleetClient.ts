@@ -4,7 +4,7 @@
  */
 import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
 
-import type { ConversationBackend } from '../types/chat';
+import type { EndpointKey } from '../utils/endpointBadge';
 
 import { api, hasTransport } from './api';
 
@@ -55,10 +55,10 @@ export const NEEDS_YOU_LABEL: Record<NonNullable<FleetAgent['needsYou']>, string
   question: 'ui.mascot-theme.island-debug-pending',
 };
 
-/** 端点图标用的后端：内核报来的插件 / 未知后端按「外部插件」画 */
-export function iconBackend(a: FleetAgent): ConversationBackend {
+/** 端点图标用的后端：内核报来的未知后端按通用 CLI 画 */
+export function iconBackend(a: FleetAgent): EndpointKey {
   if (a.backend === 'nomi') return 'nomi';
-  return isBuiltinCliId(a.backend) ? a.backend : 'external';
+  return isBuiltinCliId(a.backend) ? a.backend : 'other';
 }
 
 /** 1536 MB → 「1.5 GB」；不到 1 MB 写「< 1 MB」 */
