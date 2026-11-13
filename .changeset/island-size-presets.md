@@ -1,7 +1,6 @@
 ---
 '@nomi-ai/desktop-go': patch
 '@nomi-ai/ai-chat': patch
-'@nomi-ai/contract': patch
 ---
 
 灵动岛增加大、中、小尺寸设置，默认大保留现有外观和点击行为。小尺寸隐藏次要说明，保留状态、标题与操作；切换立即生效并在重启后保留，不清除通知或待处理任务。
