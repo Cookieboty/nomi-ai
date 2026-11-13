@@ -1,18 +1,21 @@
-/* 主对话列顶部的子任务返回条：不占侧栏，下面就是普通会话和输入栏 */
-.bar {
+/* 子任务侧栏：全高。上面是状态，中间是和主列同一套会话，下面是输入栏（仅 harness 标签）。 */
+.pane {
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--cd-color-border);
+  min-height: 0;
+  height: 100%;
   background: var(--cd-color-surface);
+  border-left: 1px solid var(--cd-color-border);
 }
 
-.row {
+.head {
   display: flex;
   align-items: center;
   gap: var(--cd-space-2);
   min-height: var(--cd-control-h-lg);
   padding: 0 var(--cd-space-3);
+  border-bottom: 1px solid var(--cd-color-border);
+  flex-shrink: 0;
 }
 
 .title {
@@ -43,9 +46,10 @@
 .goal,
 .hint {
   margin: 0;
-  padding: 0 var(--cd-space-3) var(--cd-space-2);
+  padding: var(--cd-space-2) var(--cd-space-3);
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
+  flex-shrink: 0;
 }
 
 .goal {
@@ -53,4 +57,17 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  border-bottom: 1px solid var(--cd-color-border);
+}
+
+.conv {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.composer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--cd-color-border);
 }

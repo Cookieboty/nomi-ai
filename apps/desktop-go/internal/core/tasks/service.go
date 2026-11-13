@@ -281,6 +281,20 @@ func (s *Service) Journal(id string) []JournalEntry {
 	return s.Store.Journal(id)
 }
 
+// TraceView 是契约 tasks.trace：最近一次执行的运行轨迹。没有任务或还没有执行时 lines 为空。
+func (s *Service) TraceView(id string) map[string]any {
+	rec := s.Get(id)
+	if rec == nil || len(rec.Attempts) == 0 {
+		return map[string]any{"attemptId": nil, "lines": []map[string]any{}}
+	}
+	attempt := rec.Attempts[len(rec.Attempts)-1]
+	lines := s.Store.Trace(id, attempt.ID)
+	if lines == nil {
+		lines = []map[string]any{}
+	}
+	return map[string]any{"attemptId": attempt.ID, "lines": lines}
+}
+
 // CreateRequest 对应契约 tasks.create 的入参
 type CreateRequest struct {
 	Title          string       `json:"title"`

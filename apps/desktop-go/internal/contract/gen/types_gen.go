@@ -9379,6 +9379,23 @@ type TasksSetModeOutput struct {
 	UpdatedAt float64                    `json:"updatedAt"`
 }
 
+type TasksTraceInput struct {
+	Id string `json:"id"`
+}
+
+type TasksTraceOutputLinesItem struct {
+	At     *float64 `json:"at,omitempty"`
+	Tool   *string  `json:"tool,omitempty"`
+	Output *string  `json:"output,omitempty"`
+	Error  *string  `json:"error,omitempty"`
+	Done   *string  `json:"done,omitempty"`
+}
+
+type TasksTraceOutput struct {
+	AttemptId string                      `json:"attemptId"`
+	Lines     []TasksTraceOutputLinesItem `json:"lines"`
+}
+
 type TasksUpdateInputBudget struct {
 	MaxRetries *int64 `json:"maxRetries,omitempty"`
 }
@@ -13308,6 +13325,10 @@ type TasksRunNowOutputT = TasksRunNowOutput
 // TasksSetModeInputT 是 tasks.setMode 的入参
 type TasksSetModeInputT = TasksSetModeInput
 type TasksSetModeOutputT = *TasksSetModeOutput
+
+// TasksTraceInputT 是 tasks.trace 的入参
+type TasksTraceInputT = TasksTraceInput
+type TasksTraceOutputT = TasksTraceOutput
 
 // TasksUpdateInputT 是 tasks.update 的入参
 type TasksUpdateInputT = TasksUpdateInput

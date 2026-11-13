@@ -158,6 +158,12 @@ export const tasksApi = {
   get: async (id: string) =>
     (await api.tasks.get({ id })) as unknown as { task: Task; attempts: Attempt[] } | null,
   journal: async (id: string) => (await api.tasks.journal({ id })) as unknown as JournalEntry[],
+  trace: async (id: string) =>
+    (await api.tasks.trace({ id })) as {
+      attemptId: string | null;
+      lines: Array<{ at?: number; tool?: string; output?: string; error?: string; done?: string }>;
+    },
+  cancel: (id: string) => api.tasks.cancel({ id }),
   onChange: (fn: () => void) => api.on('tasks.changed', fn),
   /** 看板卡片上的快捷操作（结果随 tasks.changed 刷新） */
   runNow: (id: string) => api.tasks.runNow({ id }),

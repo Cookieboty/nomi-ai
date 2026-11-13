@@ -57,6 +57,13 @@ func taskHandlers(sv Services) map[string]H {
 			}
 			return s.Journal(in.ID), nil
 		}),
+		"tasks.trace": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
+			var in taskIDIn
+			if err := decode(raw, &in); err != nil {
+				return nil, err
+			}
+			return s.TraceView(in.ID), nil
+		}),
 		"tasks.create": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
 			var in tasks.CreateRequest
 			if err := decode(raw, &in); err != nil {

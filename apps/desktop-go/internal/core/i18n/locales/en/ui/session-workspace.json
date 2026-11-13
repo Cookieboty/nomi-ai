@@ -192,6 +192,8 @@
   "ui.session-workspace.subagent-followup-failed": "{0} hit an error in the sub-task follow-up: {1}",
   "ui.session-workspace.subagent-pane-title": "{0} sub-task",
   "ui.session-workspace.subagent-hint-idle": "Continues this sub-task; the result comes back to the main chat.",
+  "ui.session-workspace.subagent-nested-hint": "Steps for this subagent are shown here. It has no separate follow-up channel; Stop works when the agent can be stopped.",
+  "ui.session-workspace.subagent-nomi-hint": "This background Nomi can't take a follow-up here. To change the work, delegate again from the main chat and include the last result plus what to change.",
   "ui.session-workspace.subagent-hint-running": "Running: sending interjects (or waits for this turn if it can't); Stop interrupts it.",
   "ui.session-workspace.session-details": "Session details",
   "ui.session-workspace.show-session-details": "Show session details",

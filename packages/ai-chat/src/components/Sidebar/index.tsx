@@ -243,13 +243,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   }, [tabs.state, isLoading]);
 
   // 高亮项：工作台模式下当前在 CLI 标签时以标签为准。新建标签不会切换 Nomi 当前会话，
-  // 只看 currentConversationId 会让高亮停在之前打开的那一项上。
-  // Nomi 委派的子任务不进侧栏：查看时主列是它，高亮仍留在来源会话。
+  // 只看 currentConversationId 会让高亮停在之前打开的那一项上
   const activeTabId = tabs.state?.activeTabId;
-  const activeTab = tabs.state?.tabs.find((tab) => tab.id === activeTabId);
-  const viewingDelegated = !!activeTab && isNomiDelegated(activeTab);
   const highlightId =
-    isDev && activeTabId && activeTabId !== MAIN_TAB_ID && !viewingDelegated
+    isDev && activeTabId && activeTabId !== MAIN_TAB_ID
       ? list.find((x) => x.tabId === activeTabId)?.id
       : current;
   const rowActiveId = pageOpen ? undefined : highlightId;

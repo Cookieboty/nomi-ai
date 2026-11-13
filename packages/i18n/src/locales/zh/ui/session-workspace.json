@@ -192,6 +192,8 @@
   "ui.session-workspace.subagent-followup-failed": "{0} 在子任务里接着做时出错：{1}",
   "ui.session-workspace.subagent-pane-title": "{0} 子任务",
   "ui.session-workspace.subagent-hint-idle": "接着这个子任务再做一轮，做完的结果会回到主对话。",
+  "ui.session-workspace.subagent-nested-hint": "这个子代理的步骤在这里看。它没有单独的追问通道；能停的可以点停止。",
+  "ui.session-workspace.subagent-nomi-hint": "后台的 Nomi 不能在这里追问。要改的话，回到主对话再派一次，写上上次的结果和修改意见。",
   "ui.session-workspace.subagent-hint-running": "正在运行：发送会插话给它（不支持插话时等这一轮结束再发）；点「停止」可以打断。",
   "ui.session-workspace.session-details": "会话详情",
   "ui.session-workspace.show-session-details": "显示会话详情",

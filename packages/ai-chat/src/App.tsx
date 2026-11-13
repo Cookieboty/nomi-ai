@@ -31,7 +31,7 @@ import { RestartUpdateButton } from './components/RestartUpdateButton';
 import { SessionDetailsDock } from './components/SessionDetails';
 import { useChangesUi } from './components/SessionWorkspace';
 import { Sidebar } from './components/Sidebar';
-import { SideColumn, SubagentReturnBar, WorkspacePanesProvider } from './components/SubagentPane';
+import { SideColumn, WorkspacePanesProvider } from './components/SubagentPane';
 import { AppTitleBar, hasAppTitleBar } from './components/TitleBar';
 import { SessionTools, TitleBarTitle } from './components/TitleBar/SessionTitle';
 import { UserQuestionDock } from './components/UserQuestionCard/dock';
@@ -331,8 +331,6 @@ const AiChatContent: React.FC = () => {
                 {/* 桌面应用里会话名与工具在标题栏（与对话卡片对齐）；浏览器里没有标题栏，留一行顶栏 */}
                 {previewChat.header}
                 {!titleBar && <ChatHeader trailing={sessionTools} />}
-                {/* 委派的子任务：主列就是它的会话（和编程助手标签同一套视图与输入栏），这条只负责返回 */}
-                <SubagentReturnBar />
                 {/* 待带入的新会话前文属于当前对话状态，放在对话区顶部，避免和输入工具混在一起。 */}
                 <div className="session-bar chat-session-bar">
                   <SessionControls />

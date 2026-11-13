@@ -1,14 +1,15 @@
 /**
  * 会话详情这一栏的开关状态：
  * - 用户的选择（开 / 关）记在本机；
- * - 展开了文件预览或 Diff（中栏）时自动收起，不管屏幕多宽；屏幕较窄（< 1440）时，文件栏展开也收起，
- *   给对话留地方。子任务在主对话列里看，不占一栏，也不挤这一栏；
+ * - 展开了文件预览或 Diff（中栏）时自动收起，不管屏幕多宽；屏幕较窄（< 1440）时，文件栏、子任务侧栏展开也收起，
+ *   给对话留地方；
  * - 这时点标题栏按钮可以手动再打开：以浮层盖在对话上方（不挤占对话），点浮层外面或 Esc 收回；
  *   那几栏开关有变化后又按自动规则来；
- * - 宽屏下文件栏展开时不收起，但也改成浮层盖在对话右上角，不挤压对话。
+ * - 宽屏下文件栏 / 子任务侧栏展开时不收起，但也改成浮层盖在对话右上角，不挤压对话。
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
+import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import { useChangesUi } from '../SessionWorkspace/ChangesUiContext';
 
 const STORE_KEY = 'nomi.sessionDetails.open';
@@ -67,10 +68,19 @@ export const SessionDetailsProvider: React.FC<{ children: React.ReactNode }> = (
   const [override, setOverride] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
   const { workbench, previewOpen } = useChangesUi();
+  const subagent = useSubagentPane()?.target ?? null;
+  const subagentOpen = !!subagent;
+  const subKey = !subagent
+    ? ''
+    : subagent.kind === 'harness'
+      ? subagent.tabId
+      : subagent.kind === 'nested'
+        ? subagent.callId
+        : subagent.taskId;
   const small = useMedia(SESSION_DETAILS_SMALL);
-  const crowded = !!workbench || previewOpen || (small && railOpen);
-  // 那几栏开关有变化：清掉手动打开，重新按自动规则（渲染期比对，不在 effect 里 setState）
-  const layoutKey = `${small}|${railOpen}|${!!workbench}|${previewOpen}`;
+  const crowded = !!workbench || previewOpen || (small && (railOpen || subagentOpen));
+  // 那几栏开关有变化（含子任务换了一个）：清掉手动打开，重新按自动规则（渲染期比对，不在 effect 里 setState）
+  const layoutKey = `${small}|${railOpen}|${!!workbench}|${previewOpen}|${subKey}`;
   const [prevKey, setPrevKey] = useState(layoutKey);
   if (prevKey !== layoutKey) {
     setPrevKey(layoutKey);
@@ -91,7 +101,7 @@ export const SessionDetailsProvider: React.FC<{ children: React.ReactNode }> = (
     setOverride(false);
   }, [setPref]);
   const dismissible = visible && crowded;
-  const floating = visible && (crowded || railOpen);
+  const floating = visible && (crowded || railOpen || subagentOpen);
   const dismiss = useCallback(() => setOverride(false), []);
   const toggle = useCallback(() => {
     if (dismissible) return dismiss();

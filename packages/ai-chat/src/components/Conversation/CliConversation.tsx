@@ -28,24 +28,33 @@ export const CliConversation: React.FC<Props> = (props) => {
   useLayoutEffect(() => {
     tabsRef.current = tabs;
   });
+  const scopeRef = useRef(props.scopeId);
+  const messagesRef = useRef(props.messages);
+  useLayoutEffect(() => {
+    scopeRef.current = props.scopeId;
+    messagesRef.current = props.messages;
+  });
   const onPermission = useCallback(
     (id: string, allow: boolean, opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' }) => {
-      void tabsRef.current.replyPermission(id, allow, opts);
+      void tabsRef.current.replyPermissionFor(scopeRef.current, id, allow, opts);
     },
     [],
   );
   /** 重新生成 / 重试：删掉之前那条用户消息及之后的内容，从它开新会话重发 */
   const onRetry = useCallback((id: string) => {
-    const { messages, resendFrom } = tabsRef.current;
-    const i = messages.findIndex((m) => m.id === id);
+    const list = messagesRef.current;
+    const i = list.findIndex((m) => m.id === id);
     for (let k = i - 1; k >= 0; k--) {
-      const m = messages[k]!;
-      if (m.role === 'user') return void resendFrom(m.id, m.content).catch(() => undefined);
+      const m = list[k]!;
+      if (m.role === 'user')
+        return void tabsRef.current
+          .resendFromTab(scopeRef.current, m.id, m.text)
+          .catch(() => undefined);
     }
   }, []);
   /** 编辑：同样截断到这条用户消息之前，再发改过的内容 */
   const onEdit = useCallback((id: string, text: string) => {
-    void tabsRef.current.resendFrom(id, text).catch(() => undefined);
+    void tabsRef.current.resendFromTab(scopeRef.current, id, text).catch(() => undefined);
   }, []);
   const scopeId = props.scopeId;
   // 会话中途换了模型、还没发送：弱提示（发送后消失，切回原模型也消失）

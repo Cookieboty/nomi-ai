@@ -31412,6 +31412,64 @@
     ]
    }
   },
+  "tasks.trace": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "attemptId": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "lines": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "at": {
+         "type": "number"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "output": {
+         "type": "string"
+        },
+        "error": {
+         "type": "string"
+        },
+        "done": {
+         "type": "string"
+        }
+       },
+       "additionalProperties": {}
+      }
+     }
+    },
+    "required": [
+     "attemptId",
+     "lines"
+    ],
+    "additionalProperties": false
+   }
+  },
   "tasks.update": {
    "kind": "mutation",
    "dangerous": false,

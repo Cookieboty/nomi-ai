@@ -237,6 +237,26 @@ export const knowledgeProcedures = {
   'tasks.inbox': { kind: 'query', input: none, output: z.array(TaskView) },
   /** 事件日志（状态变化、对外动作、投递），任务详情的历史 */
   'tasks.journal': { kind: 'query', input: id, output: z.array(TaskJournalEntry) },
+  /**
+   * 最近一次执行的运行轨迹（工具名与截断后的输出）。后台 Nomi 的子任务侧栏用它画工具步骤；
+   * 没有执行、或这一轮还没写过轨迹时 lines 为空。
+   */
+  'tasks.trace': {
+    kind: 'query',
+    input: id,
+    output: z.object({
+      attemptId: z.string().nullable(),
+      lines: z.array(
+        z.looseObject({
+          at: z.number().optional(),
+          tool: z.string().optional(),
+          output: z.string().optional(),
+          error: z.string().optional(),
+          done: z.string().optional(),
+        }),
+      ),
+    }),
+  },
   /** 用户在表单或授权卡片上确认后创建 */
   'tasks.create': { kind: 'mutation', input: TaskCreateInput, output: TaskView, dangerous: true },
   /** 改标题、触发器、预算（不改授权；收窄授权用 tasks.grant） */

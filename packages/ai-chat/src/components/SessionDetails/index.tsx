@@ -216,6 +216,7 @@ const DetailsPanel: React.FC<
       .join('\n'),
   );
   const pane = useSubagentPane();
+  const parentTabId = isDev && tabs.isCliTab ? (tabs.activeTab?.id ?? null) : null;
   const { openWorkbench } = useChangesUi();
   const branch = useGitBranch(cwd);
   const sessionChanges = useMemo(
@@ -316,7 +317,13 @@ const DetailsPanel: React.FC<
           <AgentRow
             key={a.id}
             agent={a}
-            onOpen={a.tabId && pane ? () => pane.openSubagent(a.tabId!) : undefined}
+            onOpen={
+              pane
+                ? a.tabId
+                  ? () => pane.openSubagent(a.tabId!)
+                  : () => pane.openNested(a.id, parentTabId)
+                : undefined
+            }
           />
         )}
       />
@@ -331,7 +338,17 @@ const DetailsPanel: React.FC<
         items={tasks}
         render={(task) => (
           <li key={task.id} data-testid="session-details-task">
-            <button type="button" className={styles.row} onClick={() => requestOpenTask(task.id)}>
+            <button
+              type="button"
+              className={styles.row}
+              onClick={() => {
+                if (pane && task.origin?.via === 'delegate' && task.executor.kind === 'nomi') {
+                  pane.openNomiTask(task.id);
+                  return;
+                }
+                requestOpenTask(task.id);
+              }}
+            >
               <Icon icon={ListChecks} size={16} />
               <span className={styles.itemText}>
                 <span className={styles.itemName}>{task.title}</span>

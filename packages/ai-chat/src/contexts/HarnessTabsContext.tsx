@@ -27,6 +27,7 @@ import {
   type HarnessTabMeta,
   type HarnessTabsState,
 } from '../services/harnessClient';
+import { replyPermissionRequest } from '../services/permissionReply';
 import { canSteer } from '../utils/cliCaps';
 import { applyLiveEvents, type LiveStatus, type TabLive } from '../utils/liveState';
 import {
@@ -98,6 +99,21 @@ export interface HarnessTabsCore {
     allow: boolean,
     opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
   ) => Promise<void>;
+  /** 回指定标签的权限（侧栏里的委派标签不是当前标签） */
+  replyPermissionFor: (
+    tabId: string,
+    requestId: string,
+    allow: boolean,
+    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+  ) => Promise<void>;
+  /** 从指定标签的某条用户消息重新发送 */
+  resendFromTab: (tabId: string, messageId: string, text: string) => Promise<void>;
+  /** 停止指定标签这一轮（有后台子代理时先确认） */
+  cancelRun: (tabId: string) => Promise<void>;
+  /** 从指定标签的待发列表删掉一条 */
+  removePendingFrom: (tabId: string, id: string) => void;
+  /** 停止指定标签这一轮，待发列表合成一条马上发出 */
+  flushPendingFor: (tabId: string) => Promise<boolean>;
   /** 最近使用的编程助手后端（新建标签默认） */
   lastBackend: HarnessBackend;
 }
@@ -141,6 +157,41 @@ function createLiveStore(): LiveStore {
 
 const EMPTY_LIVE_STORE = createLiveStore();
 const LiveCtx = createContext<LiveStore>(EMPTY_LIVE_STORE);
+
+interface CacheStore {
+  get(): Record<string, HarnessTabMessage[]>;
+  set(next: Record<string, HarnessTabMessage[]>): void;
+  subscribe(listener: () => void): () => void;
+}
+
+function createCacheStore(): CacheStore {
+  let cache: Record<string, HarnessTabMessage[]> = {};
+  const listeners = new Set<() => void>();
+  return {
+    get: () => cache,
+    set(next) {
+      if (next === cache) return;
+      cache = next;
+      for (const l of [...listeners]) l();
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+}
+
+const EMPTY_CACHE_STORE = createCacheStore();
+const CacheCtx = createContext<CacheStore>(EMPTY_CACHE_STORE);
+
+interface TabCacheApi {
+  pin(id: string): void;
+  unpin(id: string): void;
+  seed(id: string, list: HarnessTabMessage[]): void;
+}
+
+const EMPTY_PIN: TabCacheApi = { pin() {}, unpin() {}, seed() {} };
+const PinCtx = createContext<TabCacheApi>(EMPTY_PIN);
 const EMPTY_MESSAGES: HarnessTabMessage[] = [];
 const LAST_BACKEND_KEY = 'nomi.tabs.lastBackend';
 
@@ -158,6 +209,10 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   const available = harnessClient.available();
   const [state, setState] = useState<HarnessTabsState | null>(null);
   const [cache, setCache] = useState<Record<string, HarnessTabMessage[]>>({});
+  const [cacheStore] = useState(createCacheStore);
+  useLayoutEffect(() => {
+    cacheStore.set(cache);
+  }, [cache, cacheStore]);
   /** 每个标签最近一次已观察到的工作目录；换目录即丢弃旧会话的渲染缓存。 */
   const cwdRef = useRef<Record<string, string>>({});
   const [live, setLive] = useState<LiveMap>({});
@@ -348,17 +403,21 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       .catch(() => undefined);
   }, [available, isCliTab, activeId, cache]);
 
-  // 缓存只留最近用过的几个标签：切走后不再占内存，回来时重新读取
+  // 缓存只留最近用过的几个标签：切走后不再占内存，回来时重新读取。
+  // 侧栏钉住的标签（委派会话）不在当前标签里，也不能被这轮回收丢掉。
   const recentRef = useRef<string[]>([]);
+  const pinsRef = useRef(new Set<string>());
   useEffect(() => {
     recentRef.current = [activeId, ...recentRef.current.filter((x) => x !== activeId)].slice(
       0,
       MAX_CACHED_TABS,
     );
     setCache((cur) => {
-      if (Object.keys(cur).length <= MAX_CACHED_TABS) return cur;
+      const keep = new Set([...recentRef.current, ...pinsRef.current]);
+      const keys = Object.keys(cur);
+      if (keys.every((k) => keep.has(k))) return cur;
       const next: Record<string, HarnessTabMessage[]> = {};
-      for (const k of recentRef.current) if (cur[k]) next[k] = cur[k]!;
+      for (const k of keys) if (keep.has(k) && cur[k]) next[k] = cur[k]!;
       return next;
     });
   }, [activeId, cache]);
@@ -486,37 +545,55 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     },
     [isCliTab, activeId, sendToTab],
   );
-  const resendFrom = useCallback(
-    async (messageId: string, text: string) => {
-      if (!isCliTab) return;
-      const tabId = activeId;
+  const resendFromTab = useCallback(
+    async (tabId: string, messageId: string, text: string) => {
+      if (tabId === MAIN_TAB_ID) return;
+      if (!stateRef.current?.tabs.some((t) => t.id === tabId)) return;
       const kept = await harnessClient.rewindTab(tabId, messageId);
       setCache((cur) => ({ ...cur, [tabId]: kept }));
       await sendToTab(tabId, text);
     },
-    [isCliTab, activeId, sendToTab],
+    [sendToTab],
+  );
+  const resendFrom = useCallback(
+    async (messageId: string, text: string) => {
+      if (!isCliTab) return;
+      await resendFromTab(activeId, messageId, text);
+    },
+    [isCliTab, activeId, resendFromTab],
+  );
+  const removePendingFrom = useCallback(
+    (tabId: string, id: string) =>
+      updateQueues((cur) => {
+        const q = cur[tabId];
+        if (!q?.some((i) => i.id === id)) return cur;
+        return { ...cur, [tabId]: q.filter((i) => i.id !== id) };
+      }),
+    [updateQueues],
   );
   const removePending = useCallback(
-    (id: string) =>
-      updateQueues((cur) => {
-        const q = cur[activeId];
-        if (!q?.some((i) => i.id === id)) return cur;
-        return { ...cur, [activeId]: q.filter((i) => i.id !== id) };
-      }),
-    [activeId, updateQueues],
+    (id: string) => removePendingFrom(activeId, id),
+    [activeId, removePendingFrom],
+  );
+  const flushPendingFor = useCallback(
+    async (tabId: string) => {
+      const all = queuesRef.current[tabId] ?? [];
+      if (tabId === MAIN_TAB_ID || !all.length) return false;
+      if (!stateRef.current?.tabs.some((t) => t.id === tabId)) return false;
+      // 合成一条排在最前：停下来后队列自动发送马上发出它
+      updateQueues((cur) => ({
+        ...cur,
+        [tabId]: [{ id: newPendingId(), text: mergePending(all), mode: 'queue' }],
+      }));
+      await harnessClient.cancelTab(tabId);
+      return true;
+    },
+    [updateQueues],
   );
   const flushPending = useCallback(async () => {
-    const tabId = activeId;
-    const all = queuesRef.current[tabId] ?? [];
-    if (!isCliTab || !all.length) return false;
-    // 合成一条排在最前：停下来后队列自动发送马上发出它
-    updateQueues((cur) => ({
-      ...cur,
-      [tabId]: [{ id: newPendingId(), text: mergePending(all), mode: 'queue' }],
-    }));
-    await harnessClient.cancelTab(tabId);
-    return true;
-  }, [isCliTab, activeId, updateQueues]);
+    if (!isCliTab) return false;
+    return flushPendingFor(activeId);
+  }, [isCliTab, activeId, flushPendingFor]);
 
   // 队列自动发送：标签空闲且队列非空时发出队首；已派发的标签要等它进入运行态后再继续
   useEffect(() => {
@@ -538,12 +615,44 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       });
     }
   }, [state, queues, tick, dispatchSend, updateQueues]);
+  const cancelRun = useCallback(async (tabId: string) => {
+    if (tabId === MAIN_TAB_ID) return;
+    const tab = stateRef.current?.tabs.find((x) => x.id === tabId);
+    if (!tab) return;
+    if (!(await confirmStopBackground(tab))) return;
+    await harnessClient.cancelTab(tabId);
+  }, []);
   const cancel = useCallback(async () => {
     if (!isCliTab) return;
-    if (!(await confirmStopBackground(stateRef.current?.tabs.find((x) => x.id === activeId))))
-      return;
-    await harnessClient.cancelTab(activeId);
-  }, [isCliTab, activeId]);
+    await cancelRun(activeId);
+  }, [isCliTab, activeId, cancelRun]);
+  const replyPermissionFor = useCallback(
+    async (
+      tabId: string,
+      requestId: string,
+      allow: boolean,
+      opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+    ) => {
+      if (tabId === MAIN_TAB_ID) return;
+      const tab = stateRef.current?.tabs.find((t) => t.id === tabId);
+      if (!tab) return;
+      const taskId = tab.delegation?.taskId;
+      // 持续任务的委派先经任务回应，失败再回标签（与主列同一条 replyPermissionRequest）
+      const ok = await replyPermissionRequest(tabId, requestId, allow, {
+        ...(opts?.approvePlan ? { approvePlan: opts.approvePlan } : {}),
+        ...(taskId ? { taskId } : {}),
+      }).catch(() => false);
+      if (!ok) return;
+      setLive((cur) => {
+        const prev = cur[tabId];
+        if (!prev?.permissions?.some((p) => p.id === requestId)) return cur;
+        const rest = prev.permissions.filter((p) => p.id !== requestId);
+        const { permissions: _p, ...others } = prev;
+        return { ...cur, [tabId]: rest.length ? { ...others, permissions: rest } : others };
+      });
+    },
+    [],
+  );
   const replyPermission = useCallback(
     async (
       requestId: string,
@@ -551,17 +660,9 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
     ) => {
       if (!isCliTab) return;
-      await harnessClient.replyPermission(activeId, requestId, allow, opts).catch(() => undefined);
-      // 主进程会再发 permission-resolved；这里先乐观移除这一项（队列里的其它请求保留）
-      setLive((cur) => {
-        const prev = cur[activeId];
-        if (!prev?.permissions?.some((p) => p.id === requestId)) return cur;
-        const rest = prev.permissions.filter((p) => p.id !== requestId);
-        const { permissions: _p, ...others } = prev;
-        return { ...cur, [activeId]: rest.length ? { ...others, permissions: rest } : others };
-      });
+      await replyPermissionFor(activeId, requestId, allow, opts);
     },
-    [isCliTab, activeId],
+    [isCliTab, activeId, replyPermissionFor],
   );
 
   const messages = (isCliTab && cache[activeId]) || EMPTY_MESSAGES;
@@ -588,6 +689,11 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       flushPending,
       cancel,
       replyPermission,
+      replyPermissionFor,
+      resendFromTab,
+      cancelRun,
+      removePendingFrom,
+      flushPendingFor,
       lastBackend,
     }),
     [
@@ -611,14 +717,37 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       flushPending,
       cancel,
       replyPermission,
+      replyPermissionFor,
+      resendFromTab,
+      cancelRun,
+      removePendingFrom,
+      flushPendingFor,
       lastBackend,
     ],
   );
   const value = useMemo<HarnessTabsValue>(() => ({ ...core, state }), [core, state]);
+  const tabCacheApi = useMemo<TabCacheApi>(
+    () => ({
+      pin(id: string) {
+        pinsRef.current.add(id);
+      },
+      unpin(id: string) {
+        pinsRef.current.delete(id);
+      },
+      seed(id: string, list: HarnessTabMessage[]) {
+        setCache((cur) => (cur[id] ? cur : { ...cur, [id]: list }));
+      },
+    }),
+    [],
+  );
   return (
     <Ctx.Provider value={value}>
       <CoreCtx.Provider value={core}>
-        <LiveCtx.Provider value={liveStore}>{children}</LiveCtx.Provider>
+        <LiveCtx.Provider value={liveStore}>
+          <CacheCtx.Provider value={cacheStore}>
+            <PinCtx.Provider value={tabCacheApi}>{children}</PinCtx.Provider>
+          </CacheCtx.Provider>
+        </LiveCtx.Provider>
       </CoreCtx.Provider>
     </Ctx.Provider>
   );
@@ -646,6 +775,11 @@ const EMPTY: HarnessTabsValue = {
   flushPending: async () => false,
   cancel: async () => undefined,
   replyPermission: async () => undefined,
+  replyPermissionFor: async () => undefined,
+  resendFromTab: async () => undefined,
+  cancelRun: async () => undefined,
+  removePendingFrom: () => undefined,
+  flushPendingFor: async () => false,
   lastBackend: 'claude',
 };
 
@@ -667,4 +801,36 @@ export function useHarnessLive<T>(selector: (live: LiveMap) => T): T {
   const store = useContext(LiveCtx);
   const get = () => selector(store.get());
   return useSyncExternalStore(store.subscribe, get, get);
+}
+
+/**
+ * 某个标签的消息（不必是当前标签）。侧栏打开委派会话时钉住这份缓存，
+ * 流式定稿经 tab-message 写进来，主列仍停在来源对话。
+ */
+export function useHarnessTabMessages(tabId: string | null): readonly HarnessTabMessage[] {
+  const store = useContext(CacheCtx);
+  const pins = useContext(PinCtx);
+  useEffect(() => {
+    if (!tabId) return;
+    pins.pin(tabId);
+    return () => pins.unpin(tabId);
+  }, [tabId, pins]);
+  useEffect(() => {
+    if (!tabId || !harnessClient.available() || store.get()[tabId]) return;
+    let alive = true;
+    void harnessClient
+      .tabMessages(tabId)
+      .then((list) => {
+        if (alive) pins.seed(tabId, list);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [tabId, store, pins]);
+  return useSyncExternalStore(
+    store.subscribe,
+    () => (tabId ? store.get()[tabId] : undefined) ?? EMPTY_MESSAGES,
+    () => EMPTY_MESSAGES,
+  );
 }

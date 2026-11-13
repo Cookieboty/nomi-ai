@@ -170,7 +170,8 @@ html[data-chat-bg] .workspace-card {
 
 /* Diff 旁列：占满剩余宽度与全高（不压在对话/输入下面） */
 .main-content--with-changes [data-testid='center-changes-pane'],
-.main-content--with-changes [data-testid='center-preview-pane'] {
+.main-content--with-changes [data-testid='center-preview-pane'],
+.main-content--with-changes [data-testid='subagent-pane'] {
   flex: 1 1 0;
   min-width: var(--cd-center-pane-min);
   min-height: 0;
