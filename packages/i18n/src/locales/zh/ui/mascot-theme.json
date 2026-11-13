@@ -293,5 +293,9 @@
   "ui.mascot-theme.onb-line-ai": "先装一个编程助手，我就能派它干活。",
   "ui.mascot-theme.onb-line-personal": "告诉我怎么称呼你吧，不想说也没关系。",
   "ui.mascot-theme.onb-model-none": "还没接对话模型",
-  "ui.mascot-theme.onb-model-connect": "接一个模型"
+  "ui.mascot-theme.onb-model-connect": "接一个模型",
+  "ui.mascot-theme.island-size": "灵动岛大小",
+  "ui.mascot-theme.island-size-description": "大保持当前外观；中、小更紧凑，小号精简次要内容。点击操作保持不变。",
+  "ui.mascot-theme.island-size-large": "大",
+  "ui.mascot-theme.island-size-small": "小"
 }

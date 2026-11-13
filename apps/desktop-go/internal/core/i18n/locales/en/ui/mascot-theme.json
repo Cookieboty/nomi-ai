@@ -293,5 +293,9 @@
   "ui.mascot-theme.onb-line-ai": "Install a coding assistant and I can put it to work.",
   "ui.mascot-theme.onb-line-personal": "Tell me what to call you. Or don’t, that’s fine too.",
   "ui.mascot-theme.onb-model-none": "No chat model yet",
-  "ui.mascot-theme.onb-model-connect": "Connect a model"
+  "ui.mascot-theme.onb-model-connect": "Connect a model",
+  "ui.mascot-theme.island-size": "Dynamic Island size",
+  "ui.mascot-theme.island-size-description": "Large keeps the current appearance. Medium and Small are more compact; Small simplifies secondary content. Click actions stay the same.",
+  "ui.mascot-theme.island-size-large": "Large",
+  "ui.mascot-theme.island-size-small": "Small"
 }

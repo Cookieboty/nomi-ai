@@ -23842,6 +23842,15 @@
        "pill"
       ]
      },
+     "size": {
+      "default": "large",
+      "type": "string",
+      "enum": [
+       "large",
+       "medium",
+       "small"
+      ]
+     },
      "kinds": {
       "type": "object",
       "properties": {
@@ -23880,6 +23889,7 @@
     "required": [
      "enabled",
      "style",
+     "size",
      "kinds",
      "mode",
      "platform"
@@ -23905,6 +23915,14 @@
       "enum": [
        "auto",
        "pill"
+      ]
+     },
+     "size": {
+      "type": "string",
+      "enum": [
+       "large",
+       "medium",
+       "small"
       ]
      },
      "kinds": {
@@ -23941,6 +23959,15 @@
        "pill"
       ]
      },
+     "size": {
+      "default": "large",
+      "type": "string",
+      "enum": [
+       "large",
+       "medium",
+       "small"
+      ]
+     },
      "kinds": {
       "type": "object",
       "properties": {
@@ -23969,6 +23996,7 @@
     "required": [
      "enabled",
      "style",
+     "size",
      "kinds"
     ],
     "additionalProperties": {}
