@@ -785,7 +785,13 @@ func (p *Provider) params(r *llm.ChatRequest, ts []Tool, hasTools bool) *TextPar
 	}
 	modelID := p.resolveModel(r)
 	think := p.thinkingOptions()
-	level := models.ResolveRequestLevel(modelID, requestEffort(r))
+	var level string
+	if p.ID == gatewayProviderID {
+		// 网关才有用户保存的 like / efforts，档位交给它按真实模型对象规范化（#362）
+		level = models.GatewayRequestLevel(requestEffort(r))
+	} else {
+		level = models.ResolveRequestLevel(modelID, requestEffort(r))
+	}
 	if level != "" {
 		// 这一轮的档位覆盖供应商上的总开关，避免再写死 medium / 2048。
 		think = nil

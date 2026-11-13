@@ -66,6 +66,7 @@ func TestCodexResumesThreadAfterFailedFirstTurn(t *testing.T) {
 func TestGeminiKeepsSessionAfterFailedFirstTurn(t *testing.T) {
 	o := titleTestOrch(t)
 	defer jsrt.Run(o.Dispose)
+	withThirdPartyGateway(o, "gemini")
 	t.Setenv("NOMI_MOCK_GEMINI_FAIL", "1")
 	tab := jsrt.Call(func() *util.Obj { return o.CreateTab(util.NewObj("backend", "gemini")) })
 	id := str(tab, "id")

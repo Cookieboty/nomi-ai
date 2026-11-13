@@ -1,0 +1,6 @@
+---
+'@nomi-ai/desktop-go': minor
+'@nomi-ai/ai-chat': minor
+---
+
+feat(chat): 在子任务侧栏里对 CLI 子代理说的话直接发给这个子代理本身，不再经主代理转述：Codex 插进子线程正在跑的这一步，或在它自己的线程上开新一轮（multi-agent v2 子代理不收外部输入时 fork 它的线程接着说）；Claude Code 子代理结束后接着它自己的会话在一个关联会话里继续，还在跑时先排在侧栏里；其余 CLI 没有可寻址的子代理，仍经主代理转达并在侧栏里说明。Codex 子代理的正文逐字流式、内部步骤（命令、改文件、工具调用）也出现在侧栏；Claude Code 子代理的正文和思考按条实时出现。后台 Nomi 的追问可以带图片。侧栏可以单独停止 Codex 子代理。/ Messages typed to a CLI subagent in the sub-task side panel now go straight to that subagent instead of being relayed by the main agent: Codex steers the sub-thread's running turn or starts a new turn on its own thread (forking it when a multi-agent v2 subagent refuses outside input); a finished Claude Code subagent continues its own session in a linked session, and messages wait in the panel while it is still running; other CLIs have no addressable subagent, so they still relay through the main agent and the panel says so. Codex subagent text streams token by token and its internal steps (commands, file edits, tool calls) show in the panel; Claude Code subagent text and thinking appear message by message. Follow-ups to background Nomi can include images. A Codex subagent can be stopped on its own from the panel.

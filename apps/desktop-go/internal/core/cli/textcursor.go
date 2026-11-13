@@ -42,7 +42,7 @@ func FoldAssistantEvent(prev string, breaks []float64, ev *util.Obj) (string, []
 		}
 		s, b := MergeAssistantText(prev, text, breaks, kind)
 		return s, b, ev
-	case (t == "tool" || t == "thinking" || t == "interject") && isUndefined(ev, "textAt"):
+	case (t == "tool" || t == "thinking" || t == "interject" || t == "agent-text" || t == "agent-input") && isUndefined(ev, "textAt"):
 		c := ev.Clone()
 		c.Set("textAt", float64(util.UTF16Len(prev)))
 		return prev, append([]float64{}, breaks...), c

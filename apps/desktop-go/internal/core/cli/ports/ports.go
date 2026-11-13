@@ -54,6 +54,14 @@ type GatewayTabLaunch struct {
 type GatewayModel struct {
 	Ref, Provider, Label string
 	Vision               *bool
+	// Thinking：网关按模型能力给出的思考深度（与 Nomi 对话同一份 models.ProfileOf）；nil = 不能调
+	Thinking *GatewayThinking
+}
+
+// GatewayThinking：一个第三方模型可调的思考深度档位（由浅到深，可能含 off）与默认档。
+type GatewayThinking struct {
+	Levels  []string
+	Default string
 }
 
 // HarnessGateway：编排器用的网关端口。可选方法用 HasTabAPI 判断（相当于 `?.`）。
@@ -84,18 +92,14 @@ type HarnessOfficialAccounts interface {
 	Launch(kind AccountBackend, accountId *string) AccountLaunch
 }
 
+// AccountPresence = 可选：这个编程助手有没有 Nomi 管理的官方账号（没有时新标签改用第三方模型）。
+type AccountPresence interface {
+	HasAccount(kind AccountBackend) bool
+}
+
 // AccountSessionNoter = 可选的 noteSession。
 type AccountSessionNoter interface {
 	NoteSession(kind AccountBackend, sessionId string, accountId *string)
-}
-
-// HarnessExternalPlugins：外部插件端口（Spec nil = undefined）。
-type HarnessExternalPlugins interface {
-	Spec(id string) *util.Obj
-}
-
-type ExternalHandshaker interface {
-	Handshake(id string, images, resume bool)
 }
 
 // ---- 模型发现 ----

@@ -36,7 +36,7 @@ func wireAgents(router *contract.Router, userData string, d *desktop.Service) fu
 			}),
 			Notify: func(n agents.Notice) {
 				d.Notify(desktop.DesktopNotice{Kind: n.Kind, Title: n.Title, Text: n.Text, Body: n.Body, Status: n.Status,
-					Endpoint: n.Endpoint, Passive: n.Passive, Bubble: n.Bubble})
+					Endpoint: n.Endpoint, Session: n.Session, Passive: n.Passive, Bubble: n.Bubble})
 			},
 			IsQuiet:  func() bool { return d.NotifyPolicy != nil && d.NotifyPolicy.Quiet() },
 			UsageOf:  agentsUsageOf,
@@ -49,7 +49,7 @@ func wireAgents(router *contract.Router, userData string, d *desktop.Service) fu
 					out := []*util.Obj{}
 					arr, _ := o.ListTabs().Get("tabs").([]any)
 					for _, x := range arr {
-						if t, ok := x.(*util.Obj); ok && t.Get("backend") != "external" {
+						if t, ok := x.(*util.Obj); ok {
 							out = append(out, t)
 						}
 					}
@@ -59,7 +59,7 @@ func wireAgents(router *contract.Router, userData string, d *desktop.Service) fu
 				OnFinished: func(fn func(agents.EndpointFinished)) {
 					ev.On("tab-finished", func(v any) {
 						e, ok := v.(harness.TabFinished)
-						if !ok || e.Backend == "external" {
+						if !ok {
 							return
 						}
 						f := agents.EndpointFinished{TabID: e.TabID, Title: e.Title, Backend: e.Backend, Ok: e.Ok, Text: e.Text, Background: e.Background}
@@ -72,15 +72,11 @@ func wireAgents(router *contract.Router, userData string, d *desktop.Service) fu
 				OnPermission: func(fn func(agents.EndpointPermissionNeeded)) {
 					ev.On("permission-needed", func(v any) {
 						e := util.AsObj(v)
-						if e.Get("backend") == "external" {
-							return
-						}
 						str := func(k string) string { x, _ := e.Get(k).(string); return x }
 						fn(agents.EndpointPermissionNeeded{TabID: str("tabId"), Title: str("title"), Backend: str("backend"),
 							Summary: str("summary"), Background: e.Get("background") == true})
 					})
 				},
-				Progress: o.ProgressHint,
 			})
 		}
 		if s.Settings().Enabled {

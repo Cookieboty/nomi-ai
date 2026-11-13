@@ -88,6 +88,54 @@ const id = z.object({ id: z.string() });
 const name = z.object({ name: z.string() });
 const ok = z.boolean();
 
+/** 后台 Nomi 运行轨迹的一行：工具结果（tool / output / error，带 id、input、textAt）、插话（user）或收尾文字（done） */
+const TaskTraceLine = z.looseObject({
+  at: z.number().optional(),
+  tool: z.string().optional(),
+  id: z.string().optional(),
+  input: z.string().optional(),
+  output: z.string().optional(),
+  error: z.string().optional(),
+  startedAt: z.number().optional(),
+  /** 发生时正文的字符下标（UTF-16），步骤按它插在正文中间 */
+  textAt: z.number().optional(),
+  /** 用户在侧栏里插的话 */
+  user: z.string().optional(),
+  done: z.string().optional(),
+});
+
+/** 正在跑的这次执行：写到一半的正文、思考与进行中的工具 */
+const TaskLiveView = z.looseObject({
+  attemptId: z.string(),
+  text: z.string(),
+  reasoning: z.string().optional(),
+  tools: z.array(
+    z.looseObject({
+      id: z.string(),
+      name: z.string(),
+      input: z.string().optional(),
+      at: z.number(),
+      textAt: z.number(),
+    }),
+  ),
+});
+
+/** tasks.live 的事件：delta / reasoning（text）、tool（status start / done / error）、interject（text）、done（error） */
+const TaskLiveEvent = z.looseObject({
+  type: z.enum(['delta', 'reasoning', 'tool', 'interject', 'done']),
+  text: z.string().optional(),
+  id: z.string().optional(),
+  name: z.string().optional(),
+  tool: z.string().optional(),
+  status: z.enum(['start', 'done', 'error']).optional(),
+  input: z.string().optional(),
+  output: z.string().optional(),
+  error: z.string().optional(),
+  at: z.number().optional(),
+  startedAt: z.number().optional(),
+  textAt: z.number().optional(),
+});
+
 export const knowledgeProcedures = {
   // ---------- kb：本地知识库（KnowledgeService） ----------
   'kb.state': { kind: 'query', input: none, output: KbState },
@@ -237,6 +285,59 @@ export const knowledgeProcedures = {
   'tasks.inbox': { kind: 'query', input: none, output: z.array(TaskView) },
   /** 事件日志（状态变化、对外动作、投递），任务详情的历史 */
   'tasks.journal': { kind: 'query', input: id, output: z.array(TaskJournalEntry) },
+  /**
+   * 运行轨迹（工具名与截断后的输出、插话、收尾文字）。后台 Nomi 的子任务侧栏用它画成会话：
+   * attempts 按时间先后列出每次执行（第一次是任务目标，cause = followup 的是用户在侧栏里的追问，note 是原话）；
+   * live 是正在跑的那次写到一半的正文、思考与进行中的工具（没在跑时 null），之后的增量走 `tasks.live` 事件。
+   * attemptId / lines 是最近一次执行的，给只看最近一次的调用方。
+   */
+  'tasks.trace': {
+    kind: 'query',
+    input: id,
+    output: z.object({
+      attemptId: z.string().nullable(),
+      lines: z.array(TaskTraceLine),
+      attempts: z
+        .array(
+          z.looseObject({
+            attemptId: z.string(),
+            cause: z.string(),
+            note: z.string().optional(),
+            status: z.string(),
+            startedAt: z.number(),
+            endedAt: z.number().optional(),
+            lines: z.array(TaskTraceLine),
+          }),
+        )
+        .optional(),
+      live: TaskLiveView.nullable().optional(),
+    }),
+  },
+  /**
+   * 子任务侧栏里插话：后台任务正在跑时把这句话交给这次执行，下一步并进上下文（和主对话的插话一样）。
+   * 没在跑、或这一步已经不收插入消息时 false，界面改成排队，做完后用 `tasks.followUp` 追问。
+   */
+  'tasks.steer': {
+    kind: 'mutation',
+    input: z.object({ id: z.string(), text: z.string().min(1).max(8000) }),
+    output: z.boolean(),
+  },
+  /**
+   * 子任务侧栏里追问：上一次执行结束后带着这句话把同一件事再跑一次（结果照常写回来源对话）。只支持 Nomi 执行者。
+   * 可以只带图片（text 为空）；图片最多 8 张，base64（可带 data: 前缀）
+   */
+  'tasks.followUp': {
+    kind: 'mutation',
+    input: z.object({
+      id: z.string(),
+      text: z.string().max(8000),
+      images: z
+        .array(z.object({ mime: z.string(), data: z.string() }))
+        .max(8)
+        .optional(),
+    }),
+    output: TaskCmdResult,
+  },
   /** 用户在表单或授权卡片上确认后创建 */
   'tasks.create': { kind: 'mutation', input: TaskCreateInput, output: TaskView, dangerous: true },
   /** 改标题、触发器、预算（不改授权；收窄授权用 tasks.grant） */
@@ -473,6 +574,8 @@ export const knowledgeEvents = {
   'sched.proactive': z.looseObject({ text: z.string(), at: z.number() }),
   /** 任务或它的执行变了 */
   'tasks.changed': z.object({ id: z.string() }),
+  /** 后台任务正在跑的这次执行的实时事件（正文增量、思考、工具开始 / 结束、插话、结束），子任务侧栏用 */
+  'tasks.live': z.object({ id: z.string(), attemptId: z.string(), event: TaskLiveEvent }),
   'connections.changed': z.null(),
   'local.changed': z.null(),
   /** 模型 / 运行时下载、Ollama 拉取的进度 */

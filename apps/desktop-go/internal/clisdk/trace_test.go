@@ -17,3 +17,14 @@ func TestTraceKeepsInterject(t *testing.T) {
 		t.Fatal(out)
 	}
 }
+
+// 子代理的正文（agent-text）进轨迹；同一个子代理连续的几段合成一段
+func TestTraceMergesAgentText(t *testing.T) {
+	a := StampEvent(util.NewObj("type", "agent-text", "text", "第一段", "parentId", "c1"), 1)
+	b := util.NewObj("type", "agent-text", "text", "第二段", "parentId", "c1", "at", 2.0)
+	c := util.NewObj("type", "agent-text", "text", "别的", "parentId", "c2", "at", 3.0)
+	out := BuildTrace([]Ev{a, b, c})
+	if len(out) != 2 || out[0].Get("text") != "第一段\n\n第二段" || out[1].Get("parentId") != "c2" {
+		t.Fatal(out)
+	}
+}

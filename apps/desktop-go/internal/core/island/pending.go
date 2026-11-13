@@ -29,6 +29,9 @@ type Pending struct {
 	Actions  []Action `json:"actions"`
 	// At：开始等的时间（毫秒），先来的排前面
 	At int64 `json:"at"`
+	// Session：这一条在哪个会话里能处理（标签 id，主对话 MainSession；任务等不属于会话的为 ""）。
+	// 你正看着那个会话时它不上岛（ShouldShow），卡片就在眼前
+	Session string `json:"-"`
 }
 
 // Labels：页面上的固定文案（{0} = 数量）
@@ -118,7 +121,21 @@ func (s *Service) DebugPending(list []Pending) {
 // DebugPrefix：调试样例的 id 前缀
 const DebugPrefix = "debug\x1f"
 
+// SetScreen：读工作台此刻状态的函数（装配层：对话窗口可见 / 前台标签）；nil = 不知道，按工作台不在屏幕上处理
+func (s *Service) SetScreen(fn func() Screen) {
+	s.mu.Lock()
+	s.screen = fn
+	s.mu.Unlock()
+}
+
 func (s *Service) push() {
+	s.mu.Lock()
+	scr := s.screen
+	s.mu.Unlock()
+	var sc Screen
+	if scr != nil {
+		sc = scr()
+	}
 	s.mu.Lock()
 	list := s.raw
 	if !s.s.Enabled || !s.s.Kinds.Approval {
@@ -143,15 +160,16 @@ func (s *Service) push() {
 	})
 	clean = append(clean, s.debug...)
 	s.all = clean
+	// 你正看着的会话里的那几条不上岛（Pending() 仍返回完整列表，它们还在等你）
+	shown := slices.DeleteFunc(slices.Clone(clean), func(p Pending) bool { return !ShouldShow(ClassActionable, p.Session, sc) })
 	// 用户关掉过：只剩关掉时就有的（或更少）就不显示；来了新的，连同关掉的一起显示
-	shown := clean
 	if len(clean) == 0 {
 		// 都处理完了：关掉的记录作废
 		s.dismissed = nil
 	}
 	if len(s.dismissed) > 0 {
 		fresh := false
-		for _, p := range clean {
+		for _, p := range shown {
 			if !s.dismissed[p.ID] {
 				fresh = true
 				break

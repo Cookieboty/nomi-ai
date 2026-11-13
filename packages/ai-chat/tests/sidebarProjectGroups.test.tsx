@@ -4,7 +4,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Sidebar } from '../src/components/Sidebar';
-import { groupByProject } from '../src/components/Sidebar/projectGrouping';
+import { groupByProject, pinnedFirst } from '../src/components/Sidebar/projectGrouping';
 import { SECTION_WORKSPACES } from '../src/components/Sidebar/ProjectGroups';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import {
@@ -192,6 +192,38 @@ describe('groupByProject', () => {
   });
 });
 
+describe('pinnedFirst', () => {
+  const m = (id: string, pinnedAt?: number) => ({ id, pinnedAt });
+
+  it('置顶的排最前（后置顶的在上），其余保持原顺序；没有置顶时原样返回', () => {
+    const items = [m('1'), m('2', 10), m('3'), m('4', 20), m('5')];
+    expect(pinnedFirst(items).map((x) => x.id)).toEqual(['4', '2', '1', '3', '5']);
+    const plain = [m('1'), m('2')];
+    expect(pinnedFirst(plain)).toBe(plain);
+  });
+
+  it('先排再分组：每个项目和「其他对话」里都是置顶的在最前，项目顺序仍按最近活动', () => {
+    const c = (id: string, updatedAt: number, projectId?: string, pinnedAt?: number) =>
+      ({ id, name: id, backend: 'nomi', createdAt: 0, updatedAt, projectId, pinnedAt }) as never;
+    const { groups, rest } = groupByProject(
+      pinnedFirst([
+        c('1', 9, 'p_api'),
+        c('2', 8, 'p_app'),
+        c('3', 7),
+        c('4', 6, 'p_api', 100),
+        c('5', 5),
+        c('6', 4, undefined, 50),
+      ]),
+      PROJECTS,
+      (x) => (x as { projectId?: string }).projectId,
+    );
+    const ids = (xs: readonly unknown[]) => xs.map((x) => (x as { id: string }).id);
+    expect(groups.map((g) => g.key)).toEqual(['p_api', 'p_app', 'p_empty']);
+    expect(ids(groups[0]!.items)).toEqual(['4', '1']);
+    expect(ids(rest)).toEqual(['6', '3', '5']);
+  });
+});
+
 describe('sidebar project groups', () => {
   it('Nomi 对话按会话的项目、CLI 会话按标签的项目成组，每组默认 5 条，展开后显示全部', async () => {
     const r = mount();
@@ -373,5 +405,34 @@ describe('sidebar project groups', () => {
         .map((x) => x.title || x.textContent),
     ).toHaveLength(2);
     expect(within(edit).getByTestId('project-remove')).toBeTruthy();
+  });
+});
+
+describe('sidebar pinned sessions', () => {
+  it('置顶不单独成组：置顶的会话留在自己的项目里排第一，带置顶标记', async () => {
+    convs = convs.map((c) =>
+      c.id === 'a5' ? { ...c, pinnedAt: now } : c.id === 'n9' ? { ...c, pinnedAt: now - 1 } : c,
+    );
+    const r = mount();
+    const groups = await r.findAllByTestId('workspace-group');
+    expect(r.queryByTestId('pinned-section')).toBeNull();
+    const app = groups.find((g) => g.getAttribute('data-project') === 'p_app')!;
+    // 原本排在第 6 条（默认收起看不到），置顶后排到项目第一
+    expect(names(app)[0]).toContain('app chat 5');
+    expect(names(app)).toHaveLength(5);
+    const first = app.querySelector('[data-testid="conversation-row"]')!;
+    expect(first.getAttribute('data-pinned')).toBe('true');
+    expect(within(first as HTMLElement).getByTestId('thread-pinned')).toBeTruthy();
+    // 没有项目的置顶会话在「其他对话」里排第一
+    expect(names(r.getByTestId('workspace-recent'))[0]).toContain('loose chat');
+  });
+
+  it('平铺列表里置顶的也排在最前', async () => {
+    convs = convs.map((c) => (c.id === 'n9' ? { ...c, pinnedAt: now } : c));
+    setGroupByWorkspace(false);
+    const r = mount();
+    await waitFor(() => expect(r.getAllByTestId('history-item').length).toBeGreaterThan(0));
+    expect(r.getAllByTestId('history-item')[0]!.textContent).toContain('loose chat');
+    expect(r.queryByTestId('pinned-section')).toBeNull();
   });
 });

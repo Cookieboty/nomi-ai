@@ -439,6 +439,10 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 		permissionMode: str(tab, "permissionMode"), modelOverride: ov.model, reasoningEffort: ov.effort,
 		launchSig: sl.sig, modelSig: sl.modelSig, bgTasks: map[string]bool{}, lastActivityAt: nowMs(),
 	}
+	// 让 CLI 把子代理（Task / Agent）自己说的话和思考也写到 stdout（官方 SDK 的 forwardSubagentText；
+	// 不开时子代理只有工具步骤）。逐条消息转发：CLI 的 token 级 stream_event 只发主代理的，子代理的拿不到增量。
+	// 不认这个字段的旧版本照常忽略；不等应答
+	driver.NotifyControl(util.NewObj("subtype", "initialize", "forwardSubagentText", true))
 	o.live.setClaude(id, live)
 	delete(o.dormant, id)
 	o.startIdleSweep()
@@ -494,9 +498,6 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 }
 
 // nodeExecPath = process.execPath（脚本型 mock CLI 用 PATH 上的 node 跑）。
-// NodeExecPath：外部插件「测试」用（spawnExternal 的 process.execPath）
-func NodeExecPath() string { return nodeExecPath() }
-
 var nodeExecPath = func() string {
 	if p := os.Getenv("NOMI_NODE_BIN"); p != "" {
 		return p

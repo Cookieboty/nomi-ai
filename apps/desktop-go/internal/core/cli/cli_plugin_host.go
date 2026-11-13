@@ -14,7 +14,6 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/drivers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
@@ -51,16 +50,12 @@ type CliPluginHostDeps struct {
 	Extend  func(id string, impl *clisdk.CliMainImpl) *clisdk.CliMainImpl
 	Events  HostEvents
 	// OnVersionChange 第一次读到版本（from = null）不算
-	OnVersionChange   func(id, from, to string)
-	ExternalDir       string // "" = <root>/external
-	SpawnExternal     func(command string, args []string, cwd string) (clisdk.ChildLike, error)
-	OnExternalRemoved func(id string)
+	OnVersionChange func(id, from, to string)
 }
 
 type hostLoaded struct {
 	manifest  any // plugin.manifest（可能不是对象）
 	builtin   bool
-	external  *util.Obj
 	status    PluginStatus
 	errors    []string
 	impl      *clisdk.CliMainImpl
@@ -69,11 +64,10 @@ type hostLoaded struct {
 }
 
 type CliPluginHost struct {
-	d         CliPluginHostDeps
-	keys      []string
-	loaded    map[string]*hostLoaded
-	started   bool
-	externals *ExternalPluginStore
+	d       CliPluginHostDeps
+	keys    []string
+	loaded  map[string]*hostLoaded
+	started bool
 }
 
 var inRangeWsRe = regexp.MustCompile(`(?:` + util.JSWhitespace + `)+`)
@@ -137,13 +131,7 @@ func InRange(version, rng string) bool {
 }
 
 func NewCliPluginHost(d CliPluginHostDeps) *CliPluginHost {
-	h := &CliPluginHost{d: d, loaded: map[string]*hostLoaded{}}
-	dir := d.ExternalDir
-	if dir == "" {
-		dir = filepath.Join(d.Root, "external")
-	}
-	h.externals = NewExternalPluginStore(dir, h.reservedIDs())
-	return h
+	return &CliPluginHost{d: d, loaded: map[string]*hostLoaded{}}
 }
 
 func (h *CliPluginHost) set(id string, l *hostLoaded) {
@@ -179,25 +167,6 @@ func (h *CliPluginHost) plugins() []NamedPlugin {
 	for _, k := range keys {
 		out = append(out, NamedPlugin{k, builtin.Plugins[k]})
 	}
-	return out
-}
-
-func (h *CliPluginHost) reservedIDs() []string {
-	seen := map[string]bool{}
-	out := []string{}
-	add := func(s string) {
-		if !seen[s] {
-			seen[s] = true
-			out = append(out, s)
-		}
-	}
-	for _, id := range builtin.IDs {
-		add(id)
-	}
-	for _, p := range h.d.Plugins {
-		add(p.Key)
-	}
-	add("nomi")
 	return out
 }
 
@@ -282,7 +251,7 @@ func (h *CliPluginHost) Start() *jsrt.Promise[struct{}] {
 				h.d.Logger.Warn("cli plugin failed to start", util.NewObj("id", id, "error", entry.errors[0]))
 			}
 		}
-		h.loadExternals()
+		h.dropLegacyExternals()
 		h.changed()
 		h.RefreshVersions()
 		return struct{}{}, nil
@@ -311,82 +280,20 @@ func hostStrs(s []string) []any {
 	return out
 }
 
-func (h *CliPluginHost) loadExternals() {
-	for _, e := range h.externals.Load() {
-		if _, ok := h.loaded[e.ID]; ok {
-			continue
-		}
-		h.set(e.ID, h.externalEntry(e.ID, e.Spec, e.Errors))
-		if len(e.Errors) > 0 {
-			h.d.Logger.Warn("external cli plugin rejected", util.NewObj("id", e.ID, "errors", hostStrs(e.Errors)))
-		}
+// dropLegacyExternals：旧版本「外部 CLI」存下的清单（<root>/external）已不再支持，启动时删掉。
+func (h *CliPluginHost) dropLegacyExternals() {
+	if h.d.Root == "" {
+		return
 	}
-}
-
-func (h *CliPluginHost) externalEntry(id string, spec *util.Obj, errs []string) *hostLoaded {
-	var m *util.Obj
-	status := "invalid"
-	if spec != nil {
-		m = clisdk.ExternalManifest(spec)
-		status = "ready"
-	} else {
-		m = util.NewObj("id", id, "displayName", id, "icon", "")
+	dir := filepath.Join(h.d.Root, "external")
+	if _, err := os.Stat(dir); err != nil {
+		return
 	}
-	if errs == nil {
-		errs = []string{}
+	if err := nodefs.RmForce(dir); err != nil {
+		h.d.Logger.Warn("legacy external cli specs not removed", util.NewObj("dir", dir, "error", err.Error()))
+		return
 	}
-	return &hostLoaded{manifest: m, external: spec, status: status, errors: errs, handshake: util.NewObj()}
-}
-
-// ExternalSpec：就绪外部插件的清单（nil = undefined）。
-func (h *CliPluginHost) ExternalSpec(id string) *util.Obj {
-	if l := h.loaded[id]; l != nil && l.status == "ready" {
-		return l.external
-	}
-	return nil
-}
-
-// AddExternal 返回 {ok:true, entry} | {ok:false, errors}。
-func (h *CliPluginHost) AddExternal(raw any) *util.Obj {
-	spec, errs := h.externals.Save(raw)
-	if errs != nil {
-		return util.NewObj("ok", false, "errors", hostStrs(errs))
-	}
-	id := util.Str(spec.Get("id"))
-	h.set(id, h.externalEntry(id, spec, []string{}))
-	h.d.Logger.Info("external cli plugin saved", util.NewObj("id", id))
-	h.changed()
-	var entry any
-	for _, p := range h.Snapshot().Get("plugins").([]any) {
-		if p.(*util.Obj).Get("id") == id {
-			entry = p
-			break
-		}
-	}
-	return util.NewObj("ok", true, "entry", entry)
-}
-
-// RemoveExternal 删除外部插件（内置插件不能删）。
-func (h *CliPluginHost) RemoveExternal(id string) bool {
-	l := h.loaded[id]
-	if l == nil || l.builtin || (l.external == nil && l.status != "invalid") {
-		return false
-	}
-	h.externals.Remove(id)
-	h.del(id)
-	h.d.Logger.Info("external cli plugin removed", util.NewObj("id", id))
-	if h.d.OnExternalRemoved != nil {
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					h.d.Logger.Warn("external cli plugin remove hook failed", util.NewObj("id", id, "error", jsErrString(r)))
-				}
-			}()
-			h.d.OnExternalRemoved(id)
-		}()
-	}
-	h.changed()
-	return true
+	h.d.Logger.Info("legacy external cli specs removed", util.NewObj("dir", dir))
 }
 
 // jsErrString = String(e)：Error → "Error: msg"。
@@ -395,50 +302,6 @@ func jsErrString(r any) string {
 		return "Error: " + e.Error()
 	}
 	return util.JSString(r)
-}
-
-// TestExternal：起进程、只做 ACP initialize 握手。
-func (h *CliPluginHost) TestExternal(raw any, cwd string) *jsrt.Promise[*util.Obj] {
-	return jsrt.Async(func() (*util.Obj, error) {
-		fail := func(e ...string) (*util.Obj, error) { return util.NewObj("ok", false, "errors", hostStrs(e)), nil }
-		if errs := clisdk.ValidateExternalSpec(raw, h.reservedIDs()); len(errs) > 0 {
-			return fail(errs...)
-		}
-		if h.d.SpawnExternal == nil {
-			return fail("spawn not available")
-		}
-		spec := raw.(*util.Obj)
-		env := h.env()
-		var args []string
-		if a, ok := spec.Get("args").([]any); ok {
-			for _, x := range a {
-				args = append(args, util.Str(x))
-			}
-		}
-		args = clisdk.RenderExternalArgs(args, map[string]string{"cwd": cwd, "home": h.home()})
-		child, err := h.d.SpawnExternal(util.Str(spec.Get("command")), args, cwd)
-		if err != nil {
-			return fail(err.Error())
-		}
-		race := jsrt.NewPromise[*util.Obj]()
-		child.OnError(func(e error) { race.Reject(e) })
-		jsrt.Async(func() (struct{}, error) {
-			v, e := drivers.ProbeAcp(child, nil, nil)
-			if e != nil {
-				race.Reject(e)
-			} else {
-				race.Resolve(v)
-			}
-			return struct{}{}, nil
-		})
-		r, err := jsrt.Await(race)
-		if err != nil {
-			return fail(err.Error())
-		}
-		out := util.NewObj("ok", true, "missingEnv", hostStrs(clisdk.MissingExternalEnv(spec, env)))
-		out.Assign(r)
-		return out, nil
-	})
 }
 
 // Stop 丢掉主进程实现。
@@ -462,7 +325,7 @@ func (h *CliPluginHost) RefreshVersions() *jsrt.Promise[struct{}] {
 		for _, id := range append([]string(nil), h.keys...) {
 			id, l := id, h.loaded[id]
 			ps = append(ps, jsrt.Async(func() (struct{}, error) {
-				if l.status == "invalid" || l.external != nil {
+				if l.status == "invalid" {
 					return struct{}{}, nil
 				}
 				v, err := jsrt.Await(h.d.Version(id))
@@ -580,31 +443,9 @@ func (h *CliPluginHost) Snapshot() *util.Obj {
 			}
 		}
 		e.Set("capabilities", caps)
-		if l.external != nil {
-			x := util.NewObj()
-			x.Assign(l.external)
-			x.Set("missingEnv", hostStrs(clisdk.MissingExternalEnv(l.external, h.env())))
-			e.Set("external", x)
-		}
 		plugins = append(plugins, e)
 	}
 	return util.NewObj("plugins", plugins)
-}
-
-// TestExternalInTemp：试运行在临时目录里做。
-func (h *CliPluginHost) TestExternalInTemp(raw any) *jsrt.Promise[*util.Obj] {
-	return jsrt.Async(func() (*util.Obj, error) {
-		dir, err := os.MkdirTemp("", "nomi-cli-test-")
-		if err != nil {
-			return nil, err
-		}
-		r, err := jsrt.Await(h.TestExternal(raw, dir))
-		// finally { rmSync(dir, {recursive, force}) }：清理抛错覆盖结果（Windows 子进程未退时 EBUSY）
-		if rerr := nodefs.RmForce(dir); rerr != nil {
-			return nil, rerr
-		}
-		return r, err
-	})
 }
 
 func (h *CliPluginHost) changed() {

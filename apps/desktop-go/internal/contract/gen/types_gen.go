@@ -1553,18 +1553,6 @@ type ChatBgSetOutput struct {
 	Opacity  float64 `json:"opacity"`
 }
 
-type CliPluginAddInput struct {
-	Spec map[string]any `json:"spec"`
-}
-
-type CliPluginRemoveInput struct {
-	Id string `json:"id"`
-}
-
-type CliPluginTestInput struct {
-	Spec map[string]any `json:"spec"`
-}
-
 type CliRegistryOutputPluginsItem struct {
 	Id          string   `json:"id"`
 	DisplayName string   `json:"displayName"`
@@ -1587,7 +1575,6 @@ type CliAccountListOutputItem struct {
 	Kind      string  `json:"kind"`
 	Label     string  `json:"label"`
 	Active    bool    `json:"active"`
-	Local     bool    `json:"local"`
 	LoggedIn  bool    `json:"loggedIn"`
 	InUse     float64 `json:"inUse"`
 	CreatedAt float64 `json:"createdAt"`
@@ -1640,15 +1627,15 @@ type CliAccountRefreshOutputItem struct {
 	Kind      string  `json:"kind"`
 	Label     string  `json:"label"`
 	Active    bool    `json:"active"`
-	Local     bool    `json:"local"`
 	LoggedIn  bool    `json:"loggedIn"`
 	InUse     float64 `json:"inUse"`
 	CreatedAt float64 `json:"createdAt"`
 }
 
 type CliAccountRemoveInput struct {
-	Id    string `json:"id"`
-	Force *bool  `json:"force,omitempty"`
+	Id           string `json:"id"`
+	Force        *bool  `json:"force,omitempty"`
+	StopExternal *bool  `json:"stopExternal,omitempty"`
 }
 
 type CliAccountRenameInput struct {
@@ -1661,7 +1648,6 @@ type CliAccountRenameOutput struct {
 	Kind      string  `json:"kind"`
 	Label     string  `json:"label"`
 	Active    bool    `json:"active"`
-	Local     bool    `json:"local"`
 	LoggedIn  bool    `json:"loggedIn"`
 	InUse     float64 `json:"inUse"`
 	CreatedAt float64 `json:"createdAt"`
@@ -1677,7 +1663,6 @@ type CliAccountSetDefaultOutput struct {
 	Kind      string  `json:"kind"`
 	Label     string  `json:"label"`
 	Active    bool    `json:"active"`
-	Local     bool    `json:"local"`
 	LoggedIn  bool    `json:"loggedIn"`
 	InUse     float64 `json:"inUse"`
 	CreatedAt float64 `json:"createdAt"`
@@ -5851,6 +5836,41 @@ type HarnessGitWorktreesOutput struct {
 	Worktrees []HarnessGitWorktreesOutputWorktreesItem `json:"worktrees"`
 }
 
+type HarnessMessageAgentInputImagesItem struct {
+	Mime   string   `json:"mime"`
+	Data   string   `json:"data"`
+	Width  *float64 `json:"width,omitempty"`
+	Height *float64 `json:"height,omitempty"`
+	Thumb  *string  `json:"thumb,omitempty"`
+	Source *string  `json:"source,omitempty"`
+	Url    *string  `json:"url,omitempty"`
+}
+
+// HarnessMessageAgentInputMode 枚举：steer | queue
+type HarnessMessageAgentInputMode = string
+
+const (
+	HarnessMessageAgentInputModeSteer HarnessMessageAgentInputMode = "steer"
+	HarnessMessageAgentInputModeQueue HarnessMessageAgentInputMode = "queue"
+)
+
+type HarnessMessageAgentInput struct {
+	Id      string                               `json:"id"`
+	CallId  *string                              `json:"callId,omitempty"`
+	AgentId *string                              `json:"agentId,omitempty"`
+	Text    string                               `json:"text"`
+	Images  []HarnessMessageAgentInputImagesItem `json:"images,omitempty"`
+	Mode    *HarnessMessageAgentInputMode        `json:"mode,omitempty"`
+}
+
+type HarnessMessageAgentOutput struct {
+	Ok      bool    `json:"ok"`
+	Via     *string `json:"via,omitempty"`
+	Reason  *string `json:"reason,omitempty"`
+	Message *string `json:"message,omitempty"`
+	TabId   *string `json:"tabId,omitempty"`
+}
+
 // HarnessModelCatalogInputSource 枚举：official | thirdParty
 type HarnessModelCatalogInputSource = string
 
@@ -6524,7 +6544,6 @@ type HarnessTabCreateInput struct {
 	Title          *string                             `json:"title,omitempty"`
 	Messages       []HarnessTabCreateInputMessagesItem `json:"messages,omitempty"`
 	PermissionMode *string                             `json:"permissionMode,omitempty"`
-	PluginId       *string                             `json:"pluginId,omitempty"`
 }
 
 // HarnessTabCreateOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected
@@ -7235,6 +7254,15 @@ const (
 	IslandGetOutputStylePill IslandGetOutputStyle = "pill"
 )
 
+// IslandGetOutputSize 枚举：large | medium | small
+type IslandGetOutputSize = string
+
+const (
+	IslandGetOutputSizeLarge  IslandGetOutputSize = "large"
+	IslandGetOutputSizeMedium IslandGetOutputSize = "medium"
+	IslandGetOutputSizeSmall  IslandGetOutputSize = "small"
+)
+
 type IslandGetOutputKinds struct {
 	Message  bool `json:"message"`
 	Agent    bool `json:"agent"`
@@ -7253,6 +7281,7 @@ const (
 type IslandGetOutput struct {
 	Enabled  bool                 `json:"enabled"`
 	Style    IslandGetOutputStyle `json:"style"`
+	Size     IslandGetOutputSize  `json:"size"`
 	Kinds    IslandGetOutputKinds `json:"kinds"`
 	Mode     IslandGetOutputMode  `json:"mode"`
 	Platform string               `json:"platform"`
@@ -7266,6 +7295,15 @@ const (
 	IslandSetInputStylePill IslandSetInputStyle = "pill"
 )
 
+// IslandSetInputSize 枚举：large | medium | small
+type IslandSetInputSize = string
+
+const (
+	IslandSetInputSizeLarge  IslandSetInputSize = "large"
+	IslandSetInputSizeMedium IslandSetInputSize = "medium"
+	IslandSetInputSizeSmall  IslandSetInputSize = "small"
+)
+
 type IslandSetInputKinds struct {
 	Message  *bool `json:"message,omitempty"`
 	Agent    *bool `json:"agent,omitempty"`
@@ -7276,6 +7314,7 @@ type IslandSetInputKinds struct {
 type IslandSetInput struct {
 	Enabled *bool                `json:"enabled,omitempty"`
 	Style   *IslandSetInputStyle `json:"style,omitempty"`
+	Size    *IslandSetInputSize  `json:"size,omitempty"`
 	Kinds   *IslandSetInputKinds `json:"kinds,omitempty"`
 }
 
@@ -7285,6 +7324,15 @@ type IslandSetOutputStyle = string
 const (
 	IslandSetOutputStyleAuto IslandSetOutputStyle = "auto"
 	IslandSetOutputStylePill IslandSetOutputStyle = "pill"
+)
+
+// IslandSetOutputSize 枚举：large | medium | small
+type IslandSetOutputSize = string
+
+const (
+	IslandSetOutputSizeLarge  IslandSetOutputSize = "large"
+	IslandSetOutputSizeMedium IslandSetOutputSize = "medium"
+	IslandSetOutputSizeSmall  IslandSetOutputSize = "small"
 )
 
 type IslandSetOutputKinds struct {
@@ -7297,6 +7345,7 @@ type IslandSetOutputKinds struct {
 type IslandSetOutput struct {
 	Enabled bool                 `json:"enabled"`
 	Style   IslandSetOutputStyle `json:"style"`
+	Size    IslandSetOutputSize  `json:"size"`
 	Kinds   IslandSetOutputKinds `json:"kinds"`
 }
 
@@ -9048,6 +9097,22 @@ type TasksEventsOutput struct {
 	Sources    []string                        `json:"sources"`
 }
 
+type TasksFollowUpInputImagesItem struct {
+	Mime string `json:"mime"`
+	Data string `json:"data"`
+}
+
+type TasksFollowUpInput struct {
+	Id     string                         `json:"id"`
+	Text   string                         `json:"text"`
+	Images []TasksFollowUpInputImagesItem `json:"images,omitempty"`
+}
+
+type TasksFollowUpOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
 type TasksGetInput struct {
 	Id string `json:"id"`
 }
@@ -9379,6 +9444,73 @@ type TasksSetModeOutput struct {
 	Executor  TasksSetModeOutputExecutor `json:"executor"`
 	Grant     TasksSetModeOutputGrant    `json:"grant"`
 	UpdatedAt float64                    `json:"updatedAt"`
+}
+
+type TasksSteerInput struct {
+	Id   string `json:"id"`
+	Text string `json:"text"`
+}
+
+type TasksTraceInput struct {
+	Id string `json:"id"`
+}
+
+type TasksTraceOutputLinesItem struct {
+	At        *float64 `json:"at,omitempty"`
+	Tool      *string  `json:"tool,omitempty"`
+	Id        *string  `json:"id,omitempty"`
+	Input     *string  `json:"input,omitempty"`
+	Output    *string  `json:"output,omitempty"`
+	Error     *string  `json:"error,omitempty"`
+	StartedAt *float64 `json:"startedAt,omitempty"`
+	TextAt    *float64 `json:"textAt,omitempty"`
+	User      *string  `json:"user,omitempty"`
+	Done      *string  `json:"done,omitempty"`
+}
+
+type TasksTraceOutputAttemptsItemLinesItem struct {
+	At        *float64 `json:"at,omitempty"`
+	Tool      *string  `json:"tool,omitempty"`
+	Id        *string  `json:"id,omitempty"`
+	Input     *string  `json:"input,omitempty"`
+	Output    *string  `json:"output,omitempty"`
+	Error     *string  `json:"error,omitempty"`
+	StartedAt *float64 `json:"startedAt,omitempty"`
+	TextAt    *float64 `json:"textAt,omitempty"`
+	User      *string  `json:"user,omitempty"`
+	Done      *string  `json:"done,omitempty"`
+}
+
+type TasksTraceOutputAttemptsItem struct {
+	AttemptId string                                  `json:"attemptId"`
+	Cause     string                                  `json:"cause"`
+	Note      *string                                 `json:"note,omitempty"`
+	Status    string                                  `json:"status"`
+	StartedAt float64                                 `json:"startedAt"`
+	EndedAt   *float64                                `json:"endedAt,omitempty"`
+	Lines     []TasksTraceOutputAttemptsItemLinesItem `json:"lines"`
+}
+
+type TasksTraceOutputLiveToolsItem struct {
+	Id     string  `json:"id"`
+	Name   string  `json:"name"`
+	Input  *string `json:"input,omitempty"`
+	At     float64 `json:"at"`
+	TextAt float64 `json:"textAt"`
+}
+
+type TasksTraceOutputLive struct {
+	AttemptId string                          `json:"attemptId"`
+	Text      string                          `json:"text"`
+	Reasoning *string                         `json:"reasoning,omitempty"`
+	Tools     []TasksTraceOutputLiveToolsItem `json:"tools"`
+}
+
+type TasksTraceOutput struct {
+	AttemptId string                         `json:"attemptId"`
+	Lines     []TasksTraceOutputLinesItem    `json:"lines"`
+	Attempts  []TasksTraceOutputAttemptsItem `json:"attempts,omitempty"`
+	Live      *TasksTraceOutputLive          `json:"live,omitempty"`
 }
 
 type TasksUpdateInputBudget struct {
@@ -11589,6 +11721,47 @@ type EventTasksChanged struct {
 	Id string `json:"id"`
 }
 
+// EventTasksLiveEventType 枚举：delta | reasoning | tool | interject | done
+type EventTasksLiveEventType = string
+
+const (
+	EventTasksLiveEventTypeDelta     EventTasksLiveEventType = "delta"
+	EventTasksLiveEventTypeReasoning EventTasksLiveEventType = "reasoning"
+	EventTasksLiveEventTypeTool      EventTasksLiveEventType = "tool"
+	EventTasksLiveEventTypeInterject EventTasksLiveEventType = "interject"
+	EventTasksLiveEventTypeDone      EventTasksLiveEventType = "done"
+)
+
+// EventTasksLiveEventStatus 枚举：start | done | error
+type EventTasksLiveEventStatus = string
+
+const (
+	EventTasksLiveEventStatusStart EventTasksLiveEventStatus = "start"
+	EventTasksLiveEventStatusDone  EventTasksLiveEventStatus = "done"
+	EventTasksLiveEventStatusError EventTasksLiveEventStatus = "error"
+)
+
+type EventTasksLiveEvent struct {
+	Type      EventTasksLiveEventType    `json:"type"`
+	Text      *string                    `json:"text,omitempty"`
+	Id        *string                    `json:"id,omitempty"`
+	Name      *string                    `json:"name,omitempty"`
+	Tool      *string                    `json:"tool,omitempty"`
+	Status    *EventTasksLiveEventStatus `json:"status,omitempty"`
+	Input     *string                    `json:"input,omitempty"`
+	Output    *string                    `json:"output,omitempty"`
+	Error     *string                    `json:"error,omitempty"`
+	At        *float64                   `json:"at,omitempty"`
+	StartedAt *float64                   `json:"startedAt,omitempty"`
+	TextAt    *float64                   `json:"textAt,omitempty"`
+}
+
+type EventTasksLive struct {
+	Id        string              `json:"id"`
+	AttemptId string              `json:"attemptId"`
+	Event     EventTasksLiveEvent `json:"event"`
+}
+
 // EventThemeChangedResolved 枚举：light | dark | mist | graphite | ink | cream | sunset
 type EventThemeChangedResolved = string
 
@@ -11946,18 +12119,6 @@ type ChatBgResetOutputT = ChatBgResetOutput
 // ChatBgSetInputT 是 chatBg.set 的入参
 type ChatBgSetInputT = ChatBgSetInput
 type ChatBgSetOutputT = ChatBgSetOutput
-
-// CliPluginAddInputT 是 cli.pluginAdd 的入参
-type CliPluginAddInputT = CliPluginAddInput
-type CliPluginAddOutputT = json.RawMessage
-
-// CliPluginRemoveInputT 是 cli.pluginRemove 的入参
-type CliPluginRemoveInputT = CliPluginRemoveInput
-type CliPluginRemoveOutputT = bool
-
-// CliPluginTestInputT 是 cli.pluginTest 的入参
-type CliPluginTestInputT = CliPluginTestInput
-type CliPluginTestOutputT = json.RawMessage
 
 // CliRegistryInputT 是 cli.registry 的入参
 type CliRegistryInputT = any
@@ -12546,6 +12707,10 @@ type HarnessGitUnstageOutputT = HarnessGitUnstageOutput
 // HarnessGitWorktreesInputT 是 harness.gitWorktrees 的入参
 type HarnessGitWorktreesInputT = HarnessGitWorktreesInput
 type HarnessGitWorktreesOutputT = *HarnessGitWorktreesOutput
+
+// HarnessMessageAgentInputT 是 harness.messageAgent 的入参
+type HarnessMessageAgentInputT = HarnessMessageAgentInput
+type HarnessMessageAgentOutputT = HarnessMessageAgentOutput
 
 // HarnessModelCatalogInputT 是 harness.modelCatalog 的入参
 type HarnessModelCatalogInputT = HarnessModelCatalogInput
@@ -13255,6 +13420,10 @@ type TasksDecideOutputT = TasksDecideOutput
 type TasksEventsInputT = TasksEventsInput
 type TasksEventsOutputT = TasksEventsOutput
 
+// TasksFollowUpInputT 是 tasks.followUp 的入参
+type TasksFollowUpInputT = TasksFollowUpInput
+type TasksFollowUpOutputT = TasksFollowUpOutput
+
 // TasksGetInputT 是 tasks.get 的入参
 type TasksGetInputT = TasksGetInput
 type TasksGetOutputT = *TasksGetOutput
@@ -13310,6 +13479,14 @@ type TasksRunNowOutputT = TasksRunNowOutput
 // TasksSetModeInputT 是 tasks.setMode 的入参
 type TasksSetModeInputT = TasksSetModeInput
 type TasksSetModeOutputT = *TasksSetModeOutput
+
+// TasksSteerInputT 是 tasks.steer 的入参
+type TasksSteerInputT = TasksSteerInput
+type TasksSteerOutputT = bool
+
+// TasksTraceInputT 是 tasks.trace 的入参
+type TasksTraceInputT = TasksTraceInput
+type TasksTraceOutputT = TasksTraceOutput
 
 // TasksUpdateInputT 是 tasks.update 的入参
 type TasksUpdateInputT = TasksUpdateInput
@@ -13677,6 +13854,7 @@ type EventSchedProactiveT = EventSchedProactive
 type EventSchedResultT = EventSchedResult
 type EventStartupChangedT = EventStartupChanged
 type EventTasksChangedT = EventTasksChanged
+type EventTasksLiveT = EventTasksLive
 type EventThemeChangedT = EventThemeChanged
 type EventUpdatesChangedT = EventUpdatesChanged
 type EventUsageChangedT = any

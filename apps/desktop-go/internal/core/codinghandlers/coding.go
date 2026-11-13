@@ -18,9 +18,6 @@ import (
 // Plugins = CliPluginHost 的公开面
 type Plugins interface {
 	Snapshot() *util.Obj
-	AddExternal(raw any) *util.Obj
-	RemoveExternal(id string) bool
-	TestExternalInTemp(raw any) *jsrt.Promise[*util.Obj]
 }
 
 // Updates = CliUpdateService 的公开面
@@ -152,7 +149,7 @@ func pageOpts(v any) cli.HistoryPageOpts {
 	return cli.HistoryPageOpts{Offset: num("offset"), Limit: num("limit"), Force: util.Truthy(o.Get("force"))}
 }
 
-// RegisterCoding 挂上 cli.registry/plugin*、cliUpdate.*、delegate.*、history.*
+// RegisterCoding 挂上 cli.registry、cliUpdate.*、delegate.*、history.*
 func RegisterCoding(r *contract.Router, s CodingServices) {
 	plugins := func() Plugins { return need(s.Plugins, "cliPlugins") }
 	updates := func() Updates { return need(s.Updates, "cliUpdate") }
@@ -161,12 +158,15 @@ func RegisterCoding(r *contract.Router, s CodingServices) {
 
 	// ── cli：插件注册表 ──
 	gil(r, "cli.registry", func(in) any { return plugins().Snapshot() })
-	gil(r, "cli.pluginAdd", func(a in) any { return plugins().AddExternal(a.any("spec")) })
-	gil(r, "cli.pluginRemove", func(a in) any { return plugins().RemoveExternal(a.str("id")) })
-	gil(r, "cli.pluginTest", func(a in) any { return await(plugins().TestExternalInTemp(a.any("spec"))) })
 
 	// ── cliUpdate：安装 / 更新 ──
-	gil(r, "cliUpdate.inspect", func(a in) any { return await(updates().Inspect(a.is("refresh"))) })
+	// inspect 的探测在独立 goroutine 里跑，IPC 用 Block 等结果，不经过
+	// jsrt.Go / Await 回等 GIL。启动阶段若有其它工作占着锁，检测仍能在超时前完成。
+	plain(r, "cliUpdate.inspect", func(a in) any {
+		v, err := jsrt.Block(updates().Inspect(a.is("refresh")))
+		throwIf(err)
+		return v
+	})
 	gil(r, "cliUpdate.preview", func(a in) any {
 		return await(updates().PreviewUpdate(cli.ToUpdatable(a.any("kind")), cli.ToScope(a.any("scope"))))
 	})

@@ -9,14 +9,42 @@ import {
   useSubagentPane,
   WorkspacePanesProvider,
 } from '../src/components/SubagentPane';
+import { nestedMessages, nomiTaskMessages } from '../src/components/SubagentPane/project';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import type { DelegateResult } from '../src/services/delegateClient';
 import { CHANGED_FILES_SHOWN, delegateResultMessage } from '../src/services/delegateMessage';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
+import type { ConvMessage } from '../src/types/conversation';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
+
+vi.mock('../src/contexts/aiChatStore', async (original) => {
+  const actual = await original();
+  const state = {
+    messages: [],
+    isLoading: false,
+    busyConvos: [],
+    streamingConvos: [],
+    viewConvoId: undefined,
+  };
+  return {
+    ...(actual as object),
+    useAiChatSelector: (selector: (s: typeof state) => unknown) => selector(state),
+    useAiChatActions: () => ({
+      actions: {
+        resendFrom: vi.fn(),
+        sendMessage: vi.fn(),
+        sendStreamMessage: vi.fn(),
+        stopGeneration: vi.fn(),
+        askKnowledge: vi.fn(),
+      },
+      store: { get: () => state },
+      dispatch: vi.fn(),
+    }),
+  };
+});
 
 const tab = (over: Partial<HarnessTabMeta> = {}): HarnessTabMeta => ({
   id: 'd1',
@@ -32,26 +60,27 @@ const tab = (over: Partial<HarnessTabMeta> = {}): HarnessTabMeta => ({
   ...over,
 });
 
-function setup(meta: HarnessTabMeta, steerOk = true) {
+function setup(meta: HarnessTabMeta) {
   const state: HarnessTabsState = { tabs: [meta], activeTabId: 'main', running: 0, queued: 0 };
   const invoke = vi.fn(async (ch: string) => {
     if (ch === 'harness.tabs') return state;
     if (ch === 'harness.tabMessages')
       return [{ id: 'm1', role: 'assistant', content: '修好了', timestamp: 1 }];
-    if (ch === 'harness.tabSteer') return steerOk;
+    if (ch === 'harness.tabSend') return { text: 'ok', sessionId: null };
+    if (ch === 'harness.tabCancel') return true;
     if (ch === 'harness.modelCatalog')
       return {
         backend: 'claude',
         defaultModel: null,
         models: [{ id: 'sonnet', label: 'Sonnet 5.5', reasoning: false, efforts: [] }],
       };
+    if (ch === 'shortcuts.list' || ch === 'ai.userQuestion.pending') return [];
     return true;
   });
-  const fake = installFakeApi(invoke);
-  return { invoke, fake, state };
+  installFakeApi(invoke);
+  return { invoke, state };
 }
 
-/** 挂上面板并打开 d1 */
 const Opener: React.FC = () => {
   const open = useSubagentPane()?.openSubagent;
   const once = useRef(false);
@@ -62,12 +91,13 @@ const Opener: React.FC = () => {
   }, [open]);
   return null;
 };
+
 const mount = () =>
   render(
     <HarnessTabsProvider>
       <WorkspacePanesProvider>
         <Opener />
-        <SubagentPane />
+        <SubagentPane columnMessages={[]} />
       </WorkspacePanesProvider>
     </HarnessTabsProvider>,
   );
@@ -79,56 +109,89 @@ afterEach(() => {
 });
 
 describe('SubagentPane', () => {
-  it('opens beside the chat with the sub-task conversation; idle send continues the sub-task', async () => {
-    const { invoke } = setup(tab());
+  it('keeps the delegated tab beside the parent chat and shows its transcript', async () => {
+    const { invoke, state } = setup(tab());
     mount();
-    await screen.findByTestId('subagent-pane');
-    await waitFor(() =>
-      expect(screen.getByTestId('subagent-pane').textContent).toContain('修好了'),
-    );
-    // 子任务的模型 / 思考深度：输入栏里与编程助手标签同一个按钮（模型列表异步取到后才渲染，CI 上可能晚于正文）
-    await waitFor(() =>
-      expect(
-        screen.getByTestId('subagent-pane').querySelector('[data-testid="model-chip"]'),
-      ).toBeTruthy(),
-    );
-    fireEvent.change(screen.getByTestId('subagent-input'), { target: { value: '再加个测试' } });
-    fireEvent.keyDown(screen.getByTestId('subagent-input'), { key: 'Enter' });
-    await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('harness.tabSend', {
-        id: 'd1',
-        prompt: '再加个测试',
-        images: undefined,
-      }),
-    );
+    const pane = await screen.findByTestId('subagent-pane');
+    await waitFor(() => expect(pane.textContent).toContain('修好了'));
+    expect(pane.textContent).toContain('修复登录 bug');
+    // 主列的当前标签不动
+    expect(state.activeTabId).toBe('main');
+    expect(invoke.mock.calls.some(([ch]) => ch === 'harness.tabActivate')).toBe(false);
+    expect(screen.getByTestId('chat-input')).toBeTruthy();
     expect(screen.queryByTestId('subagent-stop')).toBeNull();
   });
 
-  it('while running: sending interjects; stop interrupts; Esc closes', async () => {
-    const { invoke } = setup(tab({ status: 'running' }));
+  it('uses the main composer and Esc outside it closes the pane', async () => {
+    setup(tab());
     mount();
     await screen.findByTestId('subagent-pane');
-    fireEvent.change(screen.getByTestId('subagent-input'), { target: { value: '先别动配置' } });
-    fireEvent.click(screen.getByTestId('subagent-send'));
-    await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('harness.tabSteer', { id: 'd1', text: '先别动配置' }),
-    );
-    expect(invoke.mock.calls.some(([ch]) => ch === 'harness.tabSend')).toBe(false);
-    fireEvent.click(screen.getByTestId('subagent-stop'));
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('harness.tabCancel', { id: 'd1' }));
+    expect(screen.getByTestId('chat-input')).toBeTruthy();
+    expect(screen.getByTestId('send-button')).toBeTruthy();
+    expect(screen.getByTestId('composer-bar')).toBeTruthy();
+    fireEvent.keyDown(screen.getByTestId('chat-input'), { key: 'Escape' });
+    expect(screen.getByTestId('subagent-pane')).toBeTruthy();
     act(() => {
       fireEvent.keyDown(window, { key: 'Escape' });
     });
     await waitFor(() => expect(screen.queryByTestId('subagent-pane')).toBeNull());
   });
 
-  it('when the agent cannot interject, the message is queued for after this turn', async () => {
-    setup(tab({ status: 'running' }), false);
+  it('stop interrupts that tab, not the parent', async () => {
+    const { invoke } = setup(tab({ status: 'running' }));
     mount();
     await screen.findByTestId('subagent-pane');
-    fireEvent.change(screen.getByTestId('subagent-input'), { target: { value: '顺便更新文档' } });
-    fireEvent.click(screen.getByTestId('subagent-send'));
-    await screen.findByTestId('conv-queued');
+    fireEvent.click(screen.getByTestId('subagent-stop'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('harness.tabCancel', { id: 'd1' }));
+  });
+});
+
+describe('nested and nomi-task projections', () => {
+  it('lifts a subagent call and its child steps into a conversation', () => {
+    const messages: ConvMessage[] = [
+      {
+        id: 'a',
+        role: 'assistant',
+        text: '',
+        at: 1,
+        trace: [
+          {
+            type: 'tool',
+            name: 'Task',
+            status: 'done',
+            id: 'c1',
+            input: JSON.stringify({ prompt: '查调用方' }),
+            output: '找到了',
+          },
+          {
+            type: 'tool',
+            name: 'Read',
+            status: 'done',
+            id: 'c2',
+            parentId: 'c1',
+            output: 'auth.ts',
+          },
+        ],
+      },
+    ];
+    const conv = nestedMessages(messages, 'c1');
+    expect(conv[0]?.text).toBe('查调用方');
+    expect(conv[1]?.text).toBe('找到了');
+    expect(conv[1]?.trace?.some((e) => e.type === 'tool' && e.name === 'Read')).toBe(true);
+  });
+
+  it('turns a Nomi task trace into a goal plus tool steps', () => {
+    const conv = nomiTaskMessages('画五张', {
+      attemptId: 'a1',
+      lines: [
+        { at: 2, tool: 'image_generate', output: 'ok' },
+        { at: 3, done: '画好了' },
+      ],
+    });
+    expect(conv[0]?.text).toBe('画五张');
+    expect(conv[1]?.text).toBe('画好了');
+    expect(conv[1]?.trace?.[0]).toMatchObject({ name: 'image_generate', status: 'start' });
+    expect(conv[1]?.trace?.[1]).toMatchObject({ name: 'image_generate', status: 'done' });
   });
 });
 
@@ -152,11 +215,9 @@ describe('delegateResultMessage', () => {
   });
 
   it('lists the changed files so the chat and the next Nomi turn see them', () => {
-    // 持续任务的结果没有汇报，只有内核核对出的 changedFiles
     const m = delegateResultMessage({ ...base, changedFiles: ['src/a.ts', 'src/b.ts'] });
     expect(m.content).toContain('`src/a.ts`');
     expect(m.content).toContain('`src/b.ts`');
-    // 有汇报时用汇报里的
     const r = delegateResultMessage({
       ...base,
       changedFiles: ['x.ts'],
@@ -164,18 +225,15 @@ describe('delegateResultMessage', () => {
     });
     expect(r.content).toContain('`y.ts`');
     expect(r.content).not.toContain('`x.ts`');
-    // 失败但已经改了的也列出来
     expect(
       delegateResultMessage({ ...base, status: 'error', error: 'boom', changedFiles: ['z.ts'] })
         .content,
     ).toContain('`z.ts`');
-    // 太多时只列前面的，其余报数量
     const many = Array.from({ length: CHANGED_FILES_SHOWN + 3 }, (_, i) => `f${i}.ts`);
     const big = delegateResultMessage({ ...base, changedFiles: many }).content;
     expect(big).toContain('`f0.ts`');
     expect(big).not.toContain(`\`f${CHANGED_FILES_SHOWN}.ts\``);
     expect(big).toMatch(/3/);
-    // 没改文件：不加这一段
     expect(delegateResultMessage(base).content).not.toContain('- `');
   });
 

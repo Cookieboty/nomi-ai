@@ -23,6 +23,7 @@ type Event struct {
 	Approve             bool               `json:"approve,omitempty"`
 	Input               *string            `json:"input,omitempty"`
 	Feedback            string             `json:"feedback,omitempty"`
+	Images              []string           `json:"images,omitempty"`
 	Outcome             string             `json:"outcome,omitempty"`
 	UnconfirmedExternal bool               `json:"unconfirmedExternal,omitempty"`
 	Grant               *Grant             `json:"grant,omitempty"`
@@ -245,14 +246,14 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 		}
 		// 续跑（重试 / 恢复 / 退回）沿用上一次执行的触发事件批，执行者才拿得到原始事件（#240）
 		eventKey := p.EventKey
-		if eventKey == nil && attempt != nil && (p.Cause == "retry" || p.Cause == "resume" || p.Cause == "rework") {
+		if eventKey == nil && attempt != nil && (p.Cause == "retry" || p.Cause == "resume" || p.Cause == "rework" || p.Cause == "followup") {
 			eventKey = attempt.Cause.EventKey
 		}
 		next := &Attempt{
 			ID:        ev.AttemptID,
 			TaskID:    task.ID,
 			Gen:       gen,
-			Cause:     AttemptCause{Kind: p.Cause, EventKey: eventKey, Note: p.Note, Answer: p.Answer},
+			Cause:     AttemptCause{Kind: p.Cause, EventKey: eventKey, Note: p.Note, Answer: p.Answer, Images: p.Images},
 			Snapshot:  snap,
 			Status:    "running",
 			StartedAt: at,
@@ -419,6 +420,29 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 		a := copyAttempt(attempt)
 		a.Status = "rejected"
 		return ok(enqueue(t, at, PendingRun{Cause: "rework", Note: ptr(ev.Feedback)}, &fx), a, fx)
+
+	case "follow_up":
+		// 子任务侧栏里的追问：上一次执行已经结束（做完、失败或被停下），带着这句话再跑一次同一件事。
+		// 正在跑的执行由执行者直接插话，不经过状态机。
+		if ev.Feedback == "" {
+			return reject(task, attempt, "illegal")
+		}
+		switch task.Status {
+		case StatusIdle, StatusDone, StatusFailed, StatusCancelled:
+		default:
+			return reject(task, attempt, "busy")
+		}
+		if !task.Enabled {
+			return reject(task, attempt, "paused")
+		}
+		if task.Grant.RevokedAt != nil {
+			return reject(task, attempt, "grant")
+		}
+		if grantExpired(&task, at) {
+			return reject(task, attempt, "grant")
+		}
+		t.RetryCount, t.LastError = 0, nil
+		return ok(enqueue(t, at, PendingRun{Cause: "followup", Note: ptr(ev.Feedback), Images: ev.Images}, &fx), attempt, fx)
 
 	case "cancel":
 		if IsTerminal(task.Status) {

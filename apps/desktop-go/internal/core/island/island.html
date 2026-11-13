@@ -414,6 +414,73 @@
       #more.on {
         display: block;
       }
+      /* Presets change presentation only; keep the same rows and action handlers. */
+      #island[data-size='medium'] .row {
+        gap: 10px;
+        min-height: 36px;
+      }
+      #island[data-size='medium'] .av {
+        flex-basis: 36px;
+        width: 36px;
+        height: 36px;
+      }
+      #island[data-size='medium'] .av > svg.nomi {
+        width: 25px;
+        height: 25px;
+      }
+      #island[data-size='small'] .row {
+        gap: 8px;
+        min-height: 28px;
+        flex-wrap: wrap;
+      }
+      #island[data-size='small'] .av {
+        flex-basis: 28px;
+        width: 28px;
+        height: 28px;
+        border-radius: 9px;
+      }
+      #island[data-size='small'] .av > svg.nomi {
+        width: 20px;
+        height: 20px;
+      }
+      #island[data-size='small'] .badge {
+        width: 14px;
+        height: 14px;
+        right: -3px;
+        bottom: -3px;
+      }
+      #island[data-size='small'] .badge svg {
+        width: 9px;
+        height: 9px;
+      }
+      #island[data-size='small'] .title {
+        font-size: 13px;
+      }
+      /* Hide only secondary copy. Identity, state badge, count and all actions remain. */
+      #island[data-size='small'] .body {
+        display: none;
+      }
+      #island[data-size='small'] .pulse {
+        display: none;
+      }
+      #island:not([data-size='large']) .acts {
+        max-width: 100%;
+        flex-wrap: wrap;
+      }
+      #island:not([data-size='large']) .row:has(.btn) {
+        flex-wrap: wrap;
+      }
+      #island:not([data-size='large']) .row:has(.btn) .text {
+        flex-basis: calc(100% - 54px);
+      }
+      #island:not([data-size='large']) .row:has(.btn) .acts {
+        margin-left: auto;
+      }
+      #island:not([data-size='large']) .btn {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
       @media (prefers-reduced-motion: reduce) {
         #island,
         #content {
@@ -428,7 +495,14 @@
     </style>
   </head>
   <body>
-    <div id="island" class="⟦mode⟧" data-mode="⟦mode⟧" role="status" aria-live="polite">
+    <div
+      id="island"
+      class="⟦mode⟧"
+      data-mode="⟦mode⟧"
+      data-size="⟦preset⟧"
+      role="status"
+      aria-live="polite"
+    >
       <div id="content">
         <div id="head">
           <span class="dot" aria-hidden="true"></span><span id="headText"></span
@@ -597,6 +671,16 @@
 
       const measure = () => Math.ceil($('content').getBoundingClientRect().height);
 
+      function updateMore() {
+        const rows = $('rows');
+        const children = [...rows.children];
+        const visible = el.dataset.size === 'large' ? ⟦listRows⟧ : children.filter((row) =>
+          row.offsetTop + row.offsetHeight - (children[0]?.offsetTop || 0) <= rows.clientHeight + 1).length;
+        const hidden = Math.max(0, children.length - visible);
+        $('more').textContent = hidden ? fmt(labels.more, hidden) : '';
+        $('more').classList.toggle('on', hidden > 0);
+      }
+
       function render() {
         const items = notice ? [Object.assign({ id: '__notice' }, notice)].concat(pending) : pending.slice();
         if (!items.length) return collapse();
@@ -607,9 +691,7 @@
         const rows = $('rows');
         rows.replaceChildren(...items.map((it) => rowOf(it, it.id === '__notice')));
         if (notice && list) rows.firstChild.classList.add('flash');
-        const hidden = Math.max(0, items.length - ⟦listRows⟧);
-        $('more').textContent = hidden ? fmt(labels.more, hidden) : '';
-        $('more').classList.toggle('on', hidden > 0);
+        updateMore();
         const target = Math.max(⟦ch⟧, measure());
         setHeight(target);
         open();
@@ -655,6 +737,25 @@
       }
 
       window.__island = {
+        /** Update an existing window without replacing notifications, busy actions or their timers. */
+        setLayout(g) {
+          el.dataset.size = ['small', 'medium'].includes(g.preset) ? g.preset : 'large';
+          el.dataset.mode = g.mode;
+          el.classList.toggle('notch', g.mode === 'notch');
+          el.classList.toggle('pill', g.mode !== 'notch');
+          for (const [key, value] of Object.entries({ w: g.width, cw: g.collapsed.width,
+            ch: g.collapsed.height, inset: g.inset, padT: g.pad.top, padB: g.pad.bottom, mx: g.margin.x })) {
+            document.documentElement.style.setProperty('--' + key, value + 'px');
+          }
+          // Invalidate even while hidden: the next item may have the same height
+          // but a different width/position, and must still update native bounds.
+          shownH = 0;
+          updateMore();
+          if (notice || pending.length) {
+            const target = Math.max(g.collapsed.height, measure());
+            setHeight(target);
+          }
+        },
         /** 一条通知：显示几秒后收起（有等你处理的事时，叠在列表最上面） */
         show(n) { notice = n || null; render(); armTimer(); return shownH; },
         /** 等你处理的事（整份替换）；labels：列表头、更多、关闭的文案 */

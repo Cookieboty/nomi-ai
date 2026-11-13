@@ -1,4 +1,4 @@
-/* 子任务面板：对话旁的一栏，全高；头部 / 目标 / 会话（可滚动）/ 输入 */
+/* 子任务侧栏：全高。上面是状态，中间是和主列同一套会话，下面是输入栏（仅 harness 标签）。 */
 .pane {
   display: flex;
   flex-direction: column;
@@ -12,19 +12,21 @@
   display: flex;
   align-items: center;
   gap: var(--cd-space-2);
-  height: var(--cd-control-h-lg);
+  min-height: var(--cd-control-h-lg);
   padding: 0 var(--cd-space-3);
   border-bottom: 1px solid var(--cd-color-border);
   flex-shrink: 0;
 }
 
 .title {
+  min-width: 0;
   font-size: var(--cd-font-size-sm);
   font-weight: var(--cd-font-weight-medium);
   color: var(--cd-color-text);
 }
 
 .status {
+  flex-shrink: 0;
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
 }
@@ -41,17 +43,21 @@
   flex: 1;
 }
 
-.goal {
+.goal,
+.hint {
   margin: 0;
   padding: var(--cd-space-2) var(--cd-space-3);
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
-  border-bottom: 1px solid var(--cd-color-border);
+  flex-shrink: 0;
+}
+
+.goal {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  flex-shrink: 0;
+  border-bottom: 1px solid var(--cd-color-border);
 }
 
 .conv {
@@ -62,29 +68,6 @@
 }
 
 .composer {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-2);
-  padding: var(--cd-space-2) var(--cd-space-3) var(--cd-space-3);
-  border-top: 1px solid var(--cd-color-border);
   flex-shrink: 0;
-}
-
-.composerRow {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-2);
-}
-
-.hint {
-  min-width: 0;
-  flex: 1;
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-muted);
-}
-
-.error {
-  margin: 0;
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-danger);
+  border-top: 1px solid var(--cd-color-border);
 }

@@ -1,7 +1,7 @@
 /**
  * 设置 → 通知：灵动岛式通知开关 / 样式 / 类型，测试按钮。主进程 IslandService（island:*）。
  */
-import { Button, SettingRow, SettingsGroup, Switch, t, tName } from '@nomi-ai/ui';
+import { Button, Select, SettingRow, SettingsGroup, Switch, t, tName } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { api, hasTransport } from '../../services/api';
@@ -12,6 +12,7 @@ import styles from './index.module.css';
 interface IslandState {
   enabled: boolean;
   style: 'auto' | 'pill';
+  size: 'large' | 'medium' | 'small';
   kinds: { message: boolean; agent: boolean; reminder: boolean; approval: boolean };
   mode: 'notch' | 'pill';
   platform: string;
@@ -92,6 +93,24 @@ export const IslandSettings: React.FC = () => {
             onChange={(v) => set({ enabled: v })}
             aria-label={t('ui.mascot-theme.enable-dynamic-island-notifications')}
             data-testid="island-enabled"
+          />
+        </SettingRow>
+        <SettingRow
+          title={t('ui.mascot-theme.island-size')}
+          description={t('ui.mascot-theme.island-size-description')}
+        >
+          <Select
+            size="sm"
+            value={s.size ?? 'large'}
+            disabled={!s.enabled}
+            aria-label={t('ui.mascot-theme.island-size')}
+            data-testid="island-size"
+            onChange={(e) => set({ size: e.target.value as IslandState['size'] })}
+            options={[
+              { value: 'large', label: t('ui.mascot-theme.island-size-large') },
+              { value: 'medium', label: t('ui.chat-settings.medium') },
+              { value: 'small', label: t('ui.mascot-theme.island-size-small') },
+            ]}
           />
         </SettingRow>
         {mac && (

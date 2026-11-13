@@ -6,20 +6,25 @@
 import { ENDPOINT_BRAND_COLOR, ENDPOINT_GLYPHS, t } from '@nomi-ai/ui';
 import React from 'react';
 
-import type { ConversationBackend } from '../../types/chat';
-import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import { ENDPOINT_NAME, type EndpointKey } from '../../utils/endpointBadge';
 
-export const ENDPOINT_COLOR: Record<ConversationBackend, string> = ENDPOINT_BRAND_COLOR;
+/** other（非内置的编程助手）用通用终端图标 */
+const glyphKey = (b: EndpointKey) => (b === 'other' ? 'external' : b);
+
+export const ENDPOINT_COLOR: Record<EndpointKey, string> = {
+  ...ENDPOINT_BRAND_COLOR,
+  other: ENDPOINT_BRAND_COLOR.external,
+};
 
 export const EndpointIcon: React.FC<{
-  backend: ConversationBackend;
+  backend: EndpointKey;
   size?: number;
   /** 旁边已有文字名称时设为 true：不再重复朗读 / 提示 */
   decorative?: boolean;
   className?: string;
 }> = ({ backend, size = 16, decorative = false, className }) => {
   const name = t(ENDPOINT_NAME[backend]);
-  const glyph = ENDPOINT_GLYPHS[backend];
+  const glyph = ENDPOINT_GLYPHS[glyphKey(backend)];
   return (
     <svg
       className={className}

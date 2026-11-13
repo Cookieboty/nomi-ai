@@ -95,3 +95,54 @@ func TestMarkedNonThinkingSendsNothing(t *testing.T) {
 		t.Fatalf("user marked non-thinking, got %s", got)
 	}
 }
+
+// 编程助手第三方标签选的档位要压过 CLI 自己带的推理参数（Codex 每个请求都带 reasoning.effort），
+// 否则输入栏里的思考深度对 CLI 不生效；CLI 明确关掉思考的辅助请求保持关闭。
+func TestBindingEffortOverridesClientExplicit(t *testing.T) {
+	p := relay(config.RuntimeModel{ID: "grok-4.20", Enabled: true})
+	codexBody := func() *u.Obj {
+		return u.NewObj("model", "m", "input", []any{}, "reasoning", u.NewObj("effort", "medium", "summary", "auto"))
+	}
+	level := "high"
+	out, err := Body("responses", candOf(p, "grok-4.20", "responses"), codexBody(), BodyOpts{Client: "codex", BindingEffort: &level})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := u.Stringify(out); !strings.Contains(s, `"effort":"high"`) || strings.Contains(s, `"effort":"medium"`) {
+		t.Fatalf("binding effort should win over the CLI's own effort: %s", s)
+	}
+	none, err := Body("responses", candOf(p, "grok-4.20", "responses"), codexBody(), BodyOpts{Client: "codex"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := u.Stringify(none); !strings.Contains(s, `"effort":"medium"`) {
+		t.Fatalf("without a binding the CLI's own effort is kept: %s", s)
+	}
+	ds := relay(config.RuntimeModel{ID: "deepseek-v3.2", Enabled: true})
+	off := u.NewObj("model", "m", "messages", []any{u.NewObj("role", "user", "content", "hi")}, "thinking", u.NewObj("type", "disabled"))
+	kept, err := Body("messages", candOf(ds, "deepseek-v3.2", "chat"), off, BodyOpts{Client: "claude", BindingEffort: &level})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := u.Stringify(kept); strings.Contains(s, `"type":"enabled"`) {
+		t.Fatalf("explicitly disabled helper request must stay off: %s", s)
+	}
+}
+
+// 自定义模型的 like / efforts 由网关按真实模型对象把 Nomi 带来的档位写进上游参数（#362）
+func TestCustomModelLevelFromStoredProfile(t *testing.T) {
+	like := "gpt-5"
+	got := mapLevel(t, "my-model", "chat", "high", config.RuntimeModel{Like: &like})
+	if !strings.Contains(got, `"reasoning_effort":"high"`) {
+		t.Fatalf("like=gpt-5: %s", got)
+	}
+	got = mapLevel(t, "my-model", "chat", "medium", config.RuntimeModel{Efforts: []string{"low", "medium", "high"}})
+	if !strings.Contains(got, `"reasoning_effort":"medium"`) {
+		t.Fatalf("efforts: %s", got)
+	}
+	no := false
+	got = mapLevel(t, "my-model", "chat", "high", config.RuntimeModel{Like: &like, Reasoning: &no})
+	if strings.Contains(got, `"reasoning_effort"`) {
+		t.Fatalf("reasoning=false must not send a level: %s", got)
+	}
+}

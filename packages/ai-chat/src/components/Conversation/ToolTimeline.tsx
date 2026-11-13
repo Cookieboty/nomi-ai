@@ -27,8 +27,18 @@ import {
   Wrench,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import React, { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  memo,
+  useContext,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
+import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import type { TranscriptView } from '../../services/transcriptView';
 import { thoughtLabel } from '../../utils/convTime';
 import type { LiveAgent } from '../../utils/liveState';
@@ -53,6 +63,7 @@ import {
   groupDuration,
   groupStats,
   groupTitle,
+  baseToolName,
   parseInput,
   type Bucket,
   type CallStatus,
@@ -62,6 +73,7 @@ import {
 } from '../../utils/toolTrace';
 
 import { useAgentForCall } from './agentContext';
+import { ConvHostContext } from './convHost';
 import { DelegateCard, DelegateGroup } from './DelegateCard';
 import { DiffView } from './DiffView';
 import { Markdown } from './Markdown';
@@ -475,11 +487,34 @@ const AGENT_STATUS: Record<LiveAgent['status'], CallStatus> = {
   failed: 'error',
 };
 
+function nomiTaskId(output: string | undefined): string | undefined {
+  if (!output) return undefined;
+  try {
+    const v = JSON.parse(output) as { taskId?: unknown; data?: { taskId?: unknown } };
+    if (typeof v.taskId === 'string') return v.taskId;
+    if (typeof v.data?.taskId === 'string') return v.data.taskId;
+  } catch {
+    /* 不是 JSON */
+  }
+  return undefined;
+}
+
 const Subagent: React.FC<{ call: ToolCall; children: TimelineItem[] }> = ({ call, children }) => {
   const o = parseInput(call.input);
   const prompt = typeof o?.prompt === 'string' ? o.prompt : undefined;
   const d = describeCall(call);
   const agent = useAgentForCall(call.id);
+  const pane = useSubagentPane();
+  const parentTabId = useContext(ConvHostContext);
+  const openHere = () => {
+    if (!pane) return;
+    if (baseToolName(call.name) === 'delegate_to_nomi') {
+      const taskId = nomiTaskId(call.output);
+      if (taskId) pane.openNomiTask(taskId);
+      return;
+    }
+    pane.openNested(call.id, parentTabId);
+  };
   // Verbose：展开子代理任务、内部步骤与结果
   const disclosure = useViewOpen((view) => view === 'verbose');
   // 后台子代理：派生它的调用立刻返回，但子代理本身还在跑，以子代理状态为准
@@ -501,6 +536,19 @@ const Subagent: React.FC<{ call: ToolCall; children: TimelineItem[] }> = ({ call
         <span className={styles.subCount} data-testid="subagent-progress" title={agent.progress}>
           {agent.progress}
         </span>
+      )}
+      {pane && (
+        <button
+          type="button"
+          className={styles.subCount}
+          data-testid="subagent-open"
+          onClick={(e) => {
+            e.stopPropagation();
+            openHere();
+          }}
+        >
+          {t('ui.session-workspace.view-subtask')}
+        </button>
       )}
       {children.length > 0 ? (
         <span className={styles.subCount}>{t('ui.usage-tools.steps', countCalls(children))}</span>

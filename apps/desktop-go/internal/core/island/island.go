@@ -47,6 +47,7 @@ type Kinds struct {
 type Settings struct {
 	Enabled bool   `json:"enabled"`
 	Style   string `json:"style"`
+	Size    string `json:"size"`
 	Kinds   Kinds  `json:"kinds"`
 }
 
@@ -70,7 +71,12 @@ func Sanitize(raw any, platform string) Settings {
 	if o["style"] == "pill" {
 		style = "pill"
 	}
+	size := "large"
+	if o["size"] == "medium" || o["size"] == "small" {
+		size = o["size"].(string)
+	}
 	return Settings{
+		Size:    size,
 		Enabled: b(o["enabled"], platform == "darwin"),
 		Style:   style,
 		Kinds: Kinds{Message: b(k["message"], true), Agent: b(k["agent"], true), Reminder: b(k["reminder"], true),
@@ -97,6 +103,8 @@ type Service struct {
 	opener func(id string)
 	// dismissed：用户按 Esc / 点关闭时在列表里的条目：这些不再弹出，来了新的才连同它们一起再显示
 	dismissed map[string]bool
+	// screen：工作台此刻的状态（SetScreen；policy.go）
+	screen func() Screen
 	// PrimaryDisplay 主屏几何；nil 或 ok=false 时 mode=pill
 	PrimaryDisplay func() (Display, bool)
 }
@@ -141,6 +149,14 @@ func (s *Service) Set(patch map[string]any) (Settings, error) {
 	raw := s.raw
 	s.mu.Unlock()
 	s.SetPending(raw)
+	s.mu.Lock()
+	layout := s.host.UpdateLayout
+	s.mu.Unlock()
+	if st.Enabled && layout != nil {
+		if g, ok := s.Layout(); ok {
+			layout(g)
+		}
+	}
 	return st, err
 }
 
@@ -175,5 +191,6 @@ func (s *Service) Layout() (Geometry, bool) {
 	if !ok {
 		return Geometry{}, false
 	}
-	return IslandGeometry(s.platform, d, s.Get().Style), true
+	st := s.Get()
+	return IslandGeometry(s.platform, d, st.Style, st.Size), true
 }

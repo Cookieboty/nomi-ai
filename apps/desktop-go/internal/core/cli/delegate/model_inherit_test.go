@@ -13,7 +13,7 @@ import (
 type fakeGateway struct{ d *util.Obj }
 
 func (g fakeGateway) Defaults(string) *util.Obj { return g.d }
-func (g fakeGateway) Models() []*util.Obj      { return nil }
+func (g fakeGateway) Models() []*util.Obj       { return nil }
 
 func TestPreselectedModelInheritsOfficialChoice(t *testing.T) {
 	svc := &Service{d: Deps{Gateway: fakeGateway{d: util.NewObj(

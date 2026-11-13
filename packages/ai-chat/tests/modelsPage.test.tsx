@@ -1538,7 +1538,7 @@ describe('ModelsPage', () => {
       );
     });
 
-    it('新标签默认用：默认（本机登录）/ 官方账号（跟随默认或指定账号）/ 第三方供应商三组；选供应商带上模型，清主模型退回官方', async () => {
+    it('新标签默认用：官方账号（跟随默认或指定账号）/ 第三方供应商两组，没有「本机登录」；选供应商带上模型，清主模型退回官方', async () => {
       const m = fakeMain();
       seed(m);
       // 「新会话默认用」在「编程助手」页各助手的详情里；主模型仍在「模型」页
@@ -1551,20 +1551,12 @@ describe('ModelsPage', () => {
       expect(within(screen.getByTestId('models-cli')).queryByTestId('cli-source-grok')).toBeNull();
       const src = (await screen.findByTestId('cli-source-grok')) as HTMLSelectElement;
       const values = () => Array.from(src.options).map((o) => o.value);
-      // 默认 = 本机登录；官方账号组有「跟随默认」；第三方组是具体供应商（不是一个笼统开关）
-      expect(values()).toContain('default');
+      // 官方账号组有「跟随默认」；第三方组是具体供应商（不是一个笼统开关）；不再有「默认（本机登录）」
+      expect(values()).not.toContain('default');
       expect(values()).toContain('follow');
       expect(values()).toContain('provider:ds');
       // 初始没有账号偏好时选中「跟随默认账号」
       await waitFor(() => expect(src.value).toBe('follow'));
-      // 默认：本机 grok 自己的登录目录（local-grok）
-      pick('cli-source-grok', 'default');
-      await waitFor(() =>
-        expect(assignments(m)).toContainEqual([
-          'grok',
-          { newTabSource: 'official', newTabAccountId: 'local-grok' },
-        ]),
-      );
       // 第三方供应商：自动带上该供应商第一个可用模型
       pick('cli-source-grok', 'provider:ds');
       await waitFor(() =>

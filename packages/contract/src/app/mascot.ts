@@ -252,6 +252,8 @@ const IslandKinds = z.object({
 export const IslandSettings = z.looseObject({
   enabled: z.boolean(),
   style: z.enum(['auto', 'pill']),
+  /** 缺省兼容旧设置：大即现有外观 */
+  size: z.enum(['large', 'medium', 'small']).default('large'),
   kinds: IslandKinds,
 });
 
@@ -301,6 +303,7 @@ export const IslandDebugInput = z.discriminatedUnion('op', [
 export const IslandPatch = z.looseObject({
   enabled: z.boolean().optional(),
   style: z.enum(['auto', 'pill']).optional(),
+  size: z.enum(['large', 'medium', 'small']).optional(),
   kinds: IslandKinds.partial().optional(),
 });
 

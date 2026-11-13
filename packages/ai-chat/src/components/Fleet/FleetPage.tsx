@@ -123,7 +123,7 @@ const IdleList: React.FC<{
               />
             )}
             <EndpointIcon
-              backend={isBuiltinCliId(it.backend) ? it.backend : 'external'}
+              backend={isBuiltinCliId(it.backend) ? it.backend : 'other'}
               size={16}
               decorative
             />

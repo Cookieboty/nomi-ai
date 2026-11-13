@@ -88,7 +88,7 @@
   不允许（本会话不再问）。允许后 `recycleTab` 重开这个标签的 CLI（在跑就等这一轮结束，续接会话），并发一条「已允许，请继续」。
 - 任务预授权：任务授权的 `grant.sandbox`（类别 id），有 GitHub 对外能力时自动加 `ssh`（`tasks.SandboxGrants`）；建标签时写进
   `delegation.sandboxGrants`，`grantedFor` 当作已授权。只有内核自己的委派 / 任务路径能写 `delegation`：契约 `harness.tabCreate`
-  只收视图能给的字段（backend、cwd、title、messages、permissionMode、pluginId），视图带来的 `delegation` 等内部字段一律丢掉。
+  只收视图能给的字段（backend、cwd、title、messages、permissionMode），视图带来的 `delegation` 等内部字段一律丢掉。
 - 告诉编程助手它在沙箱里（`prompts/text/cli-sandbox.md`）：Claude 用 `--append-system-prompt`，别的 CLI 在 CLI 会话的第一条消息前带上（`withSandboxNote`）；
   被拒时停下说明、结束这一轮，不要绕路。说明里也写明 CLI 自己的配置目录（技能、提示词、插件）与 `~/.agents` 可读可执行；
   运行脚本报 "Permission denied" / 退出码 126 是脚本没有执行位，不是沙箱（沙箱拒绝是 "Operation not permitted"），
@@ -131,7 +131,7 @@ Nomi 用 `delegate_to_cli`（或持续任务的编程助手执行）把任务交
 
 编程助手自带的沙箱（如 Codex 的 Seatbelt）照常生效；这一层只解决并行写同一工作树。
 
-委派出去的编程助手标签只在 Nomi 里看（对话里的子任务卡片与对话旁的子任务面板、任务页）：不进侧栏，委派用过的会话不出现在编程助手的历史里
+委派出去的编程助手标签只在 Nomi 里看（对话里的子任务卡片、对话旁的子任务侧栏、任务页）：不进侧栏，委派用过的会话不出现在编程助手的历史里
 （`harness/orchestrator_delegated.go`）。同一个对话里同一种委派（编程助手、目录、任务类型、模型、思考深度都相同）
 接着用上一次空闲的会话（一小时内用过的，`reuse.go`），省 token 也更快；在 worktree 里做的不复用。
 委派标签闲置超过一周、对应任务已结束的，应用启动时关掉（用户在侧栏关不到它们）。

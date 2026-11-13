@@ -112,7 +112,7 @@
   "ui.mascot-theme.not-installed": "未安装",
   "ui.mascot-theme.notch-display-detected-notifications-expand-out-of-the": "检测到刘海屏：通知会从刘海里展开，点一下打开对话。",
   "ui.mascot-theme.noted": "记住啦～",
-  "ui.mascot-theme.nothing-pops-up-during-quiet-hours-schedule": "免打扰时段（日程 → 免打扰）内不会弹出。macOS 专注模式没有公开接口，无法自动感知。",
+  "ui.mascot-theme.nothing-pops-up-during-quiet-hours-schedule": "免打扰时段（日程 → 免打扰）内不会弹出。Nomi 工作台在屏幕上时只弹等你处理的事和报警，你正在看的会话什么都不弹。macOS 专注模式没有公开接口，无法自动感知。",
   "ui.mascot-theme.notifications-island": "通知 / 灵动岛",
   "ui.mascot-theme.occupation": "职业",
   "ui.mascot-theme.occupation-line": "- 我的职业：{0}",
@@ -293,5 +293,9 @@
   "ui.mascot-theme.onb-line-ai": "先装一个编程助手，我就能派它干活。",
   "ui.mascot-theme.onb-line-personal": "告诉我怎么称呼你吧，不想说也没关系。",
   "ui.mascot-theme.onb-model-none": "还没接对话模型",
-  "ui.mascot-theme.onb-model-connect": "接一个模型"
+  "ui.mascot-theme.onb-model-connect": "接一个模型",
+  "ui.mascot-theme.island-size": "灵动岛大小",
+  "ui.mascot-theme.island-size-description": "大保持当前外观；中、小更紧凑，小号精简次要内容。点击操作保持不变。",
+  "ui.mascot-theme.island-size-large": "大",
+  "ui.mascot-theme.island-size-small": "小"
 }

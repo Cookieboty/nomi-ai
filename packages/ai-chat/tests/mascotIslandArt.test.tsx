@@ -22,6 +22,7 @@ afterEach(() => {
 const settings = {
   enabled: true,
   style: 'auto' as const,
+  size: 'large' as const,
   kinds: { message: true, agent: true, reminder: true, approval: true },
 };
 

@@ -47,12 +47,45 @@ export interface UserQuestionSubmission {
 
 const letterOf = (i: number) => (i >= 0 && i < 26 ? String.fromCharCode(65 + i) : String(i + 1));
 
+/** 卡所在的区域：侧栏子任务面板标了 data-question-scope，主栏没有（null） */
+const scopeOf = (el: Element | null): Element | null =>
+  el?.closest('[data-question-scope]') ?? null;
+
+/** 自己或某个祖先被隐藏（display:none / hidden / visibility:hidden）就算看不见 */
+export const isShown = (el: HTMLElement): boolean => {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
+  if (!el.isConnected) return false;
+  for (let cur: HTMLElement | null = el; cur; cur = cur.parentElement) {
+    if (cur.hidden) return false;
+    const style = window.getComputedStyle(cur);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+  }
+  return true;
+};
+
+/** 焦点不在卡里时，这张卡是否接管 Enter / Esc 等全局按键 */
+export const ownsGlobalKeys = (root: HTMLElement, target: HTMLElement | null): boolean => {
+  if (!isShown(root)) return false;
+  const focus =
+    target instanceof Element && target !== document.body && target !== document.documentElement
+      ? target
+      : null;
+  // 焦点在另一张问题卡里：交给那张卡
+  const otherDock = focus?.closest('[data-testid="user-question-dock"]');
+  if (otherDock && otherDock !== root) return false;
+  return scopeOf(focus) === scopeOf(root);
+};
+
 const emptyPick = (): { selected: string[]; custom: string } => ({ selected: [], custom: '' });
 
 export const UserQuestionCard: React.FC<{
   request: UserQuestionRequest;
   onSubmit: (submission: UserQuestionSubmission) => void;
-}> = ({ request, onSubmit }) => {
+  /** 正在提交：按钮和快捷键先不响应，避免重复提交 */
+  busy?: boolean;
+  /** 上次提交失败的提示；卡和已选内容保留，可以再试 */
+  error?: string;
+}> = ({ request, onSubmit, busy = false, error }) => {
   const questions = request.questions;
   const rootRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -60,12 +93,14 @@ export const UserQuestionCard: React.FC<{
   const [cursor, setCursor] = useState(0);
   const [picks, setPicks] = useState<Record<string, { selected: string[]; custom: string }>>({});
   const [details, setDetails] = useState('');
+  const busyRef = useRef(busy);
   const pageRef = useRef(page);
   const cursorRef = useRef(cursor);
   const picksRef = useRef(picks);
   const detailsRef = useRef(details);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
+    busyRef.current = busy;
     pageRef.current = page;
     cursorRef.current = cursor;
     picksRef.current = picks;
@@ -134,6 +169,7 @@ export const UserQuestionCard: React.FC<{
     });
 
   const continueOn = () => {
+    if (busyRef.current) return;
     const i = pageRef.current;
     if (i < questions.length - 1) {
       go(i + 1);
@@ -144,6 +180,7 @@ export const UserQuestionCard: React.FC<{
   };
 
   const skip = () => {
+    if (busyRef.current) return;
     const note = detailsRef.current.trim();
     onSubmit({ action: 'skip', ...(note ? { details: note } : {}) });
   };
@@ -155,6 +192,9 @@ export const UserQuestionCard: React.FC<{
       if (!root) return;
       const target = e.target as HTMLElement | null;
       const inCard = !!target && root.contains(target);
+      // 看不见的卡（设置页盖住、保活隐藏、窗口在后台）不截全局按键；
+      // 主栏和侧栏各有一张卡时，只有焦点所在那一侧的卡接管（#358）
+      if (!inCard && !ownsGlobalKeys(root, target)) return;
       const focusInCard =
         !!document.activeElement &&
         (root.contains(document.activeElement) || document.activeElement === cardRef.current);
@@ -312,8 +352,19 @@ export const UserQuestionCard: React.FC<{
             />
           </label>
         </div>
+        {error && (
+          <p className={styles.error} role="alert" data-testid="user-question-error">
+            {error}
+          </p>
+        )}
         <div className={styles.actions}>
-          <Button type="button" size="sm" onClick={skip} data-testid="user-question-skip">
+          <Button
+            type="button"
+            size="sm"
+            onClick={skip}
+            disabled={busy}
+            data-testid="user-question-skip"
+          >
             {t('ui.chat-settings.question-skip')}
             <kbd className={styles.kbd}>Esc</kbd>
           </Button>
@@ -322,6 +373,7 @@ export const UserQuestionCard: React.FC<{
             size="sm"
             variant="primary"
             onClick={continueOn}
+            disabled={busy}
             data-testid="user-question-continue"
           >
             {t('ui.chat-settings.question-continue')}

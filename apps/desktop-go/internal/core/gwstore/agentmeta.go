@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore/agents"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/models"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -50,6 +51,10 @@ func (s *Service) CliModels() []*u.Obj {
 				if meta.Source != "default" {
 					o.Set("ctx", meta.Ctx)
 				}
+			}
+			// 思考深度与 Nomi 对话同一份能力表（models.ProfileOf）：编程助手第三方标签按它出档位、发请求
+			if th := models.ProfileOf(mid, m).Obj(); th != nil {
+				o.Set("thinking", th)
 			}
 			out = append(out, o)
 		}

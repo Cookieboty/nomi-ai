@@ -1,7 +1,7 @@
 package harness
 
 // orchestrator_launch.go：来源注入（launchFor / 标签绑定）、
-// 外部插件、会话归属、子进程环境、设置继承、预热、选目录、取消与 dispose。
+// 会话归属、子进程环境、设置继承、预热、选目录、取消与 dispose。
 
 import (
 	"errors"
@@ -33,7 +33,9 @@ type tabLaunch struct {
 var officialLaunch = &tabLaunch{env: util.NewObj(), args: []string{}, strip: []string{}, official: true, sig: "official"}
 
 // overrides = effectiveOverrides 的返回（nil = null）。
-type overrides struct{ model, effort *string }
+// effort 只给官方来源（写进 CLI 的参数）；第三方来源的思考深度是 bindEffort：登记在网关的标签绑定上，
+// 由网关按模型能力写进上游请求（与 Nomi 对话同一条路），不改 CLI 的参数。
+type overrides struct{ model, effort, bindEffort *string }
 
 var modelKeyRe = regexp.MustCompile(`MODEL`)
 
@@ -43,6 +45,13 @@ func strsAny(xs []string) []any {
 		out[i] = x
 	}
 	return out
+}
+
+func derefStr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }
 
 // launchFor 可能 throw。
@@ -114,7 +123,7 @@ func (o *Orchestrator) bindTabLaunch(tab *util.Obj, launch *tabLaunch) *jsrt.Pro
 			throw(i18n.T("electron.common.this-tab-has-no-third-party-model-yet"))
 		}
 		model := *m
-		effort := o.effectiveOverrides(tab).effort
+		effort := o.effectiveOverrides(tab).bindEffort
 		r, err := jsrt.Await(o.gatewayTabs().LaunchForTab(str(tab, "backend"), str(tab, "id"), model, effort, o.longContextOf(tab, model)))
 		if err != nil {
 			return nil, err
@@ -122,7 +131,7 @@ func (o *Orchestrator) bindTabLaunch(tab *util.Obj, launch *tabLaunch) *jsrt.Pro
 		if r == nil {
 			throw(i18n.T("electron.common.the-model-gateway-isn-t-running-so-third"))
 		}
-		o.tabBindings[str(tab, "id")] = &tabBinding{generation: r.Generation, model: model, modelInConfig: r.ModelInConfig}
+		o.tabBindings[str(tab, "id")] = &tabBinding{generation: r.Generation, model: model, effort: derefStr(effort), modelInConfig: r.ModelInConfig}
 		next := *o.launchFor(tab)
 		next.env = r.Env
 		return &next, nil
@@ -161,15 +170,21 @@ func (o *Orchestrator) syncTabBinding(tab *util.Obj) *jsrt.Promise[struct{}] {
 			return struct{}{}, nil
 		}
 		ov := o.effectiveOverrides(tab)
-		if ov.model == nil || *ov.model == "" || *ov.model == bound.model {
+		// 模型或思考深度变了都要更新绑定：档位在网关这边生效，不用重启 CLI
+		if ov.model == nil || *ov.model == "" || (*ov.model == bound.model && derefStr(ov.bindEffort) == bound.effort) {
 			return struct{}{}, nil
 		}
-		ok, err := jsrt.Await(o.gatewayTabs().UpdateTab(str(tab, "backend"), str(tab, "id"), *ov.model, ov.effort))
+		// 先记下要登记的值（连着改两次档位时，第二次比较的是第一次要写的值），没写成再退回
+		prevModel, prevEffort := bound.model, bound.effort
+		bound.model, bound.effort = *ov.model, derefStr(ov.bindEffort)
+		ok, err := jsrt.Await(o.gatewayTabs().UpdateTab(str(tab, "backend"), str(tab, "id"), *ov.model, ov.bindEffort))
+		if err != nil || !ok {
+			if bound.model == *ov.model && bound.effort == derefStr(ov.bindEffort) {
+				bound.model, bound.effort = prevModel, prevEffort
+			}
+		}
 		if err != nil {
 			return struct{}{}, err
-		}
-		if ok {
-			bound.model = *ov.model
 		}
 		return struct{}{}, nil
 	})
@@ -185,32 +200,6 @@ func (o *Orchestrator) dropTabBinding(tab *util.Obj) {
 	if gt := o.gatewayTabs(); gt != nil {
 		gt.ReleaseTab(str(tab, "backend"), id, nil)
 	}
-}
-
-// externalSpecOf(id?)；id "" = undefined；可能 throw。
-func (o *Orchestrator) externalSpecOf(id string) *util.Obj {
-	var spec *util.Obj
-	if id != "" && o.d.Externals != nil {
-		spec = o.d.Externals.Spec(id)
-	}
-	if spec == nil {
-		shown := id
-		if shown == "" {
-			shown = "?"
-		}
-		throw(i18n.T("electron.common.the-external-cli-was-deleted-or-its-manifest", shown))
-	}
-	return spec
-}
-
-// ExternalRemoved = externalRemoved。
-func (o *Orchestrator) ExternalRemoved(pluginID string) {
-	for _, k := range o.tabs.Keys() {
-		if t := o.tab(k); t.Get("backend") == "external" && t.Get("pluginId") == pluginID {
-			o.teardownAcpLive(k)
-		}
-	}
-	o.changed()
 }
 
 // noteServed = noteServed。
@@ -261,7 +250,15 @@ func (o *Orchestrator) bindCliSession(tab *util.Obj, sessionID string) {
 }
 
 // officialLaunchFor = officialLaunch(backend, accountId)（方法名避开同名变量 OFFICIAL_LAUNCH）。
+// 内置编程助手不再用这台电脑上 CLI 自己的登录：有官方账号的用 Nomi 管理的账号目录，
+// 没有官方账号的（dsh、Gemini）只能经网关用第三方模型。
 func (o *Orchestrator) officialLaunchFor(backend string, accountID *string) *tabLaunch {
+	if isBuiltin(backend) && !isAccountBackend(backend) {
+		if o.d.Gateway == nil {
+			throw(i18n.T("electron.common.the-model-gateway-isn-t-running-so-third"))
+		}
+		throw(i18n.T("electron.common.only-third-party-models", builtin.DisplayName(backend)))
+	}
 	if o.d.Accounts == nil || !isAccountBackend(backend) {
 		return officialLaunch
 	}
@@ -391,7 +388,7 @@ func (o *Orchestrator) prewarm(id string) {
 			}
 			return struct{}{}, nil
 		})
-	case (backend == "external" || builtin.UsesAcp(backend) && (backend != "grok" || o.usesGrokAcp())) && o.live.acp[id] == nil:
+	case builtin.UsesAcp(backend) && (backend != "grok" || o.usesGrokAcp()) && o.live.acp[id] == nil:
 		p := o.ensureAcpLive(tab, nil)
 		jsrt.Async(func() (struct{}, error) {
 			if _, err := jsrt.Await(p); err != nil {

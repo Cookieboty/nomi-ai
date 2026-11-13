@@ -57,6 +57,13 @@ func taskHandlers(sv Services) map[string]H {
 			}
 			return s.Journal(in.ID), nil
 		}),
+		"tasks.trace": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
+			var in taskIDIn
+			if err := decode(raw, &in); err != nil {
+				return nil, err
+			}
+			return s.TraceView(in.ID), nil
+		}),
 		"tasks.create": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
 			var in tasks.CreateRequest
 			if err := decode(raw, &in); err != nil {
@@ -117,6 +124,27 @@ func taskHandlers(sv Services) map[string]H {
 				return nil, err
 			}
 			return plain(s.Command(in.ID, tasks.Command{Type: "reject", Feedback: in.Feedback}))
+		}),
+		"tasks.steer": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
+			var in struct {
+				ID   string `json:"id"`
+				Text string `json:"text"`
+			}
+			if err := decode(raw, &in); err != nil {
+				return nil, err
+			}
+			return s.Steer(in.ID, in.Text), nil
+		}),
+		"tasks.followUp": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
+			var in struct {
+				ID     string                `json:"id"`
+				Text   string                `json:"text"`
+				Images []tasks.FollowUpImage `json:"images"`
+			}
+			if err := decode(raw, &in); err != nil {
+				return nil, err
+			}
+			return s.FollowUp(in.ID, in.Text, in.Images...), nil
 		}),
 		"tasks.reconcile": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
 			var in struct {
