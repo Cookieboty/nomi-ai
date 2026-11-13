@@ -792,10 +792,17 @@ func (s *CliUpdateService) emitInspectUpdated(rows []*util.Obj) {
 }
 
 func (s *CliUpdateService) followProbe(entry *probedEntry) {
-	if entry == nil || entry.followed {
+	if entry == nil {
+		return
+	}
+	// 两次 inspect 可能同时跑在普通 goroutine 里，followed 也要在锁里改
+	s.mu.Lock()
+	if entry.followed {
+		s.mu.Unlock()
 		return
 	}
 	entry.followed = true
+	s.mu.Unlock()
 	go func() {
 		local, err := jsrt.Block(entry.rows)
 		if err != nil {
@@ -822,7 +829,9 @@ func (s *CliUpdateService) followProbe(entry *probedEntry) {
 			ok, miss := localInstalled(local)
 			// TEMP(cli-inspect): 定位用，后续可随时移除
 			s.logInspect(false, "cli-update inspect late result", fmt.Sprintf("rows=%d installed=%d missing=%d", len(local), ok, miss))
-			s.emitInspectUpdated(rows)
+			// 推事件要读 jobs、走事件总线，这些都按持 GIL 访问：回到 jsrt 线程再发。
+			// 只是晚到的补推，等锁不影响 inspect 本身按时返回
+			jsrt.Go(func() { s.emitInspectUpdated(rows) })
 		}
 	}()
 }
