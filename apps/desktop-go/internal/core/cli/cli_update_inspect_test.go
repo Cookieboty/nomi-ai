@@ -50,6 +50,14 @@ func (l *inspectLog) warns() []string {
 	return out
 }
 
+func (l *inspectLog) infos() []string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	out := make([]string, len(l.info))
+	copy(out, l.info)
+	return out
+}
+
 func (e *inspectEvents) all() []*util.Obj {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -237,5 +245,49 @@ func TestInspectTimesOutInsteadOfHanging(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected timeout log with empty fallback, got %q", lg.warns())
+	}
+}
+
+// Inspect 必须在有人长时间占着 GIL 时仍能探到 plan/rows，
+// 避免启动期其它 jsrt 工作把 inspectInner 卡到 20s 超时（无 plan 日志）。
+func TestInspectProgressesWhileGILHeld(t *testing.T) {
+	stubInspectBins(t, map[string]string{"claude": "/usr/bin/claude"}, map[string]string{"/usr/bin/claude": "2.1.0"})
+	lg := &inspectLog{}
+	s, err := NewCliUpdateService(CliUpdateOptions{Root: t.TempDir(), Logger: lg})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := jsrt.Call(func() *jsrt.Promise[[]*util.Obj] { return s.Inspect(false) })
+
+	holding := make(chan struct{})
+	release := make(chan struct{})
+	go jsrt.Run(func() {
+		close(holding)
+		<-release
+	})
+	<-holding
+
+	start := time.Now()
+	rows, err := jsrt.Block(p)
+	elapsed := time.Since(start)
+	close(release)
+	if err != nil {
+		t.Fatalf("inspect: %v", err)
+	}
+	if elapsed > 2*time.Second {
+		t.Fatalf("inspect blocked on GIL holder: %s", elapsed)
+	}
+	if rowByKind(t, rows, "claude").Get("path") != "/usr/bin/claude" {
+		t.Fatalf("rows=%v", rows)
+	}
+	var planned bool
+	for _, line := range lg.infos() {
+		if strings.Contains(line, "cli-update inspect plan") {
+			planned = true
+			break
+		}
+	}
+	if !planned {
+		t.Fatalf("expected plan log while GIL held, info=%q warn=%q", lg.infos(), lg.warns())
 	}
 }

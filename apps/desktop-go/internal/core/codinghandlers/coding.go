@@ -160,7 +160,13 @@ func RegisterCoding(r *contract.Router, s CodingServices) {
 	gil(r, "cli.registry", func(in) any { return plugins().Snapshot() })
 
 	// ── cliUpdate：安装 / 更新 ──
-	gil(r, "cliUpdate.inspect", func(a in) any { return await(updates().Inspect(a.is("refresh"))) })
+	// inspect 的探测在独立 goroutine 里跑，IPC 用 Block 等结果，不经过
+	// jsrt.Go / Await 回等 GIL。启动阶段若有其它工作占着锁，检测仍能在超时前完成。
+	plain(r, "cliUpdate.inspect", func(a in) any {
+		v, err := jsrt.Block(updates().Inspect(a.is("refresh")))
+		throwIf(err)
+		return v
+	})
 	gil(r, "cliUpdate.preview", func(a in) any {
 		return await(updates().PreviewUpdate(cli.ToUpdatable(a.any("kind")), cli.ToScope(a.any("scope"))))
 	})

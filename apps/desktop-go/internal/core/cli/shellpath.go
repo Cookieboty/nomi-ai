@@ -175,6 +175,25 @@ func WaitForShellPath(ms int) {
 	jsrt.ClearTimeout(t)
 }
 
+// WaitForShellPathOffThread waits for the login-shell PATH merge without
+// taking or requiring the GIL. Use this from inspect/probe workers so a
+// long GIL hold cannot stall detection.
+func WaitForShellPathOffThread(ms int) {
+	shellMu.Lock()
+	r := shellReady
+	shellMu.Unlock()
+	if r == nil {
+		return
+	}
+	if ms == 0 {
+		ms = shellTimeoutMs + 500
+	}
+	select {
+	case <-r.Done():
+	case <-time.After(time.Duration(ms) * time.Millisecond):
+	}
+}
+
 // ResetShellPathForTest = resetShellPathForTest。
 func ResetShellPathForTest() {
 	shellMu.Lock()
