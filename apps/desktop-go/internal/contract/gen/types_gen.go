@@ -5851,6 +5851,41 @@ type HarnessGitWorktreesOutput struct {
 	Worktrees []HarnessGitWorktreesOutputWorktreesItem `json:"worktrees"`
 }
 
+type HarnessMessageAgentInputImagesItem struct {
+	Mime   string   `json:"mime"`
+	Data   string   `json:"data"`
+	Width  *float64 `json:"width,omitempty"`
+	Height *float64 `json:"height,omitempty"`
+	Thumb  *string  `json:"thumb,omitempty"`
+	Source *string  `json:"source,omitempty"`
+	Url    *string  `json:"url,omitempty"`
+}
+
+// HarnessMessageAgentInputMode 枚举：steer | queue
+type HarnessMessageAgentInputMode = string
+
+const (
+	HarnessMessageAgentInputModeSteer HarnessMessageAgentInputMode = "steer"
+	HarnessMessageAgentInputModeQueue HarnessMessageAgentInputMode = "queue"
+)
+
+type HarnessMessageAgentInput struct {
+	Id      string                               `json:"id"`
+	CallId  *string                              `json:"callId,omitempty"`
+	AgentId *string                              `json:"agentId,omitempty"`
+	Text    string                               `json:"text"`
+	Images  []HarnessMessageAgentInputImagesItem `json:"images,omitempty"`
+	Mode    *HarnessMessageAgentInputMode        `json:"mode,omitempty"`
+}
+
+type HarnessMessageAgentOutput struct {
+	Ok      bool    `json:"ok"`
+	Via     *string `json:"via,omitempty"`
+	Reason  *string `json:"reason,omitempty"`
+	Message *string `json:"message,omitempty"`
+	TabId   *string `json:"tabId,omitempty"`
+}
+
 // HarnessModelCatalogInputSource 枚举：official | thirdParty
 type HarnessModelCatalogInputSource = string
 
@@ -9047,9 +9082,15 @@ type TasksEventsOutput struct {
 	Sources    []string                        `json:"sources"`
 }
 
+type TasksFollowUpInputImagesItem struct {
+	Mime string `json:"mime"`
+	Data string `json:"data"`
+}
+
 type TasksFollowUpInput struct {
-	Id   string `json:"id"`
-	Text string `json:"text"`
+	Id     string                         `json:"id"`
+	Text   string                         `json:"text"`
+	Images []TasksFollowUpInputImagesItem `json:"images,omitempty"`
 }
 
 type TasksFollowUpOutput struct {
@@ -12662,6 +12703,10 @@ type HarnessGitUnstageOutputT = HarnessGitUnstageOutput
 // HarnessGitWorktreesInputT 是 harness.gitWorktrees 的入参
 type HarnessGitWorktreesInputT = HarnessGitWorktreesInput
 type HarnessGitWorktreesOutputT = *HarnessGitWorktreesOutput
+
+// HarnessMessageAgentInputT 是 harness.messageAgent 的入参
+type HarnessMessageAgentInputT = HarnessMessageAgentInput
+type HarnessMessageAgentOutputT = HarnessMessageAgentOutput
 
 // HarnessModelCatalogInputT 是 harness.modelCatalog 的入参
 type HarnessModelCatalogInputT = HarnessModelCatalogInput

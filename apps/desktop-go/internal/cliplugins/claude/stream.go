@@ -115,6 +115,8 @@ func ParseLine(line string, state *StreamState) []Ev {
 	typ := JSString(Coalesce(j.Get("type"), ""))
 	switch {
 	case typ == "stream_event":
+		// 子代理的 stream_event 不转：CLI 只给主代理发 token 级增量（实测子代理的 parent_tool_use_id 恒为 null，
+		// 带 parent 的不会出现；万一出现也不能并进主回复）。子代理的正文按整条 assistant 消息转发（agent-text）
 		if parentID(j) != nil {
 			return out
 		}
@@ -289,7 +291,12 @@ func ParseLine(line string, state *StreamState) []Ev {
 				parent := parentID(j)
 				if typ == "assistant" && c.Get("type") == "thinking" {
 					if th, ok := c.Get("thinking").(string); ok && JSTrim(th) != "" {
-						out = append(out, O("type", "thinking", "text", sh.Clip(th, sh.MaxThinking)))
+						ev := O("type", "thinking", "text", sh.Clip(th, sh.MaxThinking))
+						if parent != nil {
+							// 子代理的思考：归到派生它的调用下面（子任务侧栏里显示），不进主回复的思考
+							ev.Set("parentId", *parent)
+						}
+						out = append(out, ev)
 					}
 				}
 				if typ == "assistant" && c.Get("type") == "tool_use" {

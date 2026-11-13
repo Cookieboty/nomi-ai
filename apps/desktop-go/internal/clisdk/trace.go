@@ -13,7 +13,7 @@ const (
 // IsTraceEvent reports whether ev belongs in a turn's trace.
 func IsTraceEvent(ev Ev) bool {
 	t := ev.Get("type")
-	return t == "tool" || t == "thinking" || t == "interject" || t == "agent-text"
+	return t == "tool" || t == "thinking" || t == "interject" || t == "agent-text" || t == "agent-input"
 }
 
 // StampEvent：tool / thinking / interject / agent-text 打主进程时间戳。

@@ -197,6 +197,9 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 	call("harness.tabCancel", func(a in) any { return h().CancelTab(a.str("id")) })
 	call("harness.tabSteer", func(a in) any { return await(h().SteerTab(a.str("id"), a.str("text"))) })
 	call("harness.stopAgent", func(a in) any { return h().StopAgent(a.str("id"), a.str("agentId")) })
+	call("harness.messageAgent", func(a in) any {
+		return await(h().MessageAgent(a.str("id"), a.str("callId"), a.str("agentId"), a.str("text"), a.list("images"), a.str("mode")))
+	})
 	call("harness.tabContext", func(a in) any { return await(h().TabContext(a.str("id"))) })
 
 	// ── 斜杠命令 / 改动 / 工作区文件 ──

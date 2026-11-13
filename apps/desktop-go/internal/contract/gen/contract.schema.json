@@ -19765,6 +19765,99 @@
     ]
    }
   },
+  "harness.messageAgent": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "callId": {
+      "type": "string"
+     },
+     "agentId": {
+      "type": "string"
+     },
+     "text": {
+      "type": "string"
+     },
+     "images": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "mime": {
+         "type": "string"
+        },
+        "data": {
+         "type": "string"
+        },
+        "width": {
+         "type": "number"
+        },
+        "height": {
+         "type": "number"
+        },
+        "thumb": {
+         "type": "string"
+        },
+        "source": {
+         "type": "string"
+        },
+        "url": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "mime",
+        "data"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "steer",
+       "queue"
+      ]
+     }
+    },
+    "required": [
+     "id",
+     "text"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "via": {
+      "type": "string"
+     },
+     "reason": {
+      "type": "string"
+     },
+     "message": {
+      "type": "string"
+     },
+     "tabId": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "harness.modelCatalog": {
    "kind": "query",
    "dangerous": false,
@@ -30394,8 +30487,26 @@
      },
      "text": {
       "type": "string",
-      "minLength": 1,
       "maxLength": 8000
+     },
+     "images": {
+      "maxItems": 8,
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "mime": {
+         "type": "string"
+        },
+        "data": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "mime",
+        "data"
+       ]
+      }
      }
     },
     "required": [
