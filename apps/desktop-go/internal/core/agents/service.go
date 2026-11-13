@@ -23,16 +23,13 @@ import (
 )
 
 const (
-	DigestIntervalMs         = 10 * 60_000
-	DigestQuietAfterRemindMs = 60_000
-	digestMaxDetail          = 2
-	EndedVisibleMs           = 30 * 60_000
-	aliveLookbackMs          = 3 * 24 * 60 * 60_000
-	maxFilesPerKind          = 60
-	fullRestatMs             = 60_000
-	costWaitMs               = 3000
-	bubbleMax                = 140
-	AppName                  = "Nomi" // brand.appName
+	EndedVisibleMs  = 30 * 60_000
+	aliveLookbackMs = 3 * 24 * 60 * 60_000
+	maxFilesPerKind = 60
+	fullRestatMs    = 60_000
+	costWaitMs      = 3000
+	bubbleMax       = 140
+	AppName         = "Nomi" // brand.appName
 )
 
 // labelOf：编程助手的完整名称（「Gemini CLI」）
@@ -69,8 +66,6 @@ func remind(status, l, s string) string {
 			s = tr.T("electron.common.check-the-terminal")
 		}
 		return tr.T("electron.common.hit-an-error", l, s)
-	case "stalled":
-		return tr.T("electron.common.seems-stuck-want-to-take-a-look", l)
 	case "waiting":
 		return tr.T("electron.common.finished-this-turn-and-is-waiting-for-you", l)
 	}
@@ -80,8 +75,10 @@ func remind(status, l, s string) string {
 // Notice：桌面通知（"" = undefined）。
 type Notice struct {
 	Kind, Endpoint, Status, Title, Body, Text string
-	Bubble                                    *util.Obj
-	Passive                                   bool
+	// Session：所属的 Nomi 标签（你正看着它时不弹，见 island.ShouldShow）；外部终端里的会话为 ""
+	Session string
+	Bubble  *util.Obj
+	Passive bool
 }
 
 // Obj：测试 / 日志用的 JSON 形状。
@@ -132,7 +129,6 @@ type Deps struct {
 	// LockedInodes 测试注入；nil = 无法判断。
 	LockedInodes func() map[float64]bool
 	IsQuiet      func() bool
-	DigestMs     float64
 	UsageOf      func(source, session string) *util.Obj
 	TaskCost     func(q CostQuery) *jsrt.Promise[string]
 }
@@ -143,7 +139,6 @@ type Harness struct {
 	OnTabs       func(fn func())
 	OnFinished   func(fn func(EndpointFinished))
 	OnPermission func(fn func(EndpointPermissionNeeded))
-	Progress     func(tabID string) string
 }
 
 // EndpointFinished：一个端点的一轮结束（Error "" = undefined）。
@@ -217,19 +212,20 @@ type inspectedHit struct {
 
 // Service：编程助手进度服务。
 type Service struct {
-	d              Deps
-	settings       Settings
-	trackedKeys    []string
-	tracked        map[string]*trackedT
-	trackedSig     string
-	timer, digestT *jsrt.Timer
+	d           Deps
+	settings    Settings
+	trackedKeys []string
+	tracked     map[string]*trackedT
+	trackedSig  string
+	timer       *jsrt.Timer
 	// 攒着待合并的编程助手提醒（notify）
-	pendingNotices    []Notice
-	noticeTimer       *jsrt.Timer
+	pendingNotices []Notice
+	noticeTimer    *jsrt.Timer
+	// lastRemindAt：上次提醒的时间（State 里给界面看）
 	lastRemindAt      float64
 	home              string
 	now               func() float64
-	pollMs, digestMs  float64
+	pollMs            float64
 	runStart          map[string]float64
 	settingsPath      string
 	procs             []AgentProc
@@ -244,7 +240,6 @@ type Service struct {
 	ticking           *jsrt.Promise[struct{}]
 	tickAgain         *bool
 	tabs              func() []*util.Obj
-	tabProgress       func(string) string
 	// owned：Nomi 标签用过的 CLI 会话（owned.go）
 	owned map[string]float64
 	// ownedSavedAt：owned 上次写盘的时间（启动时 0：第一次见到标签就把最后见到写回去）
@@ -262,7 +257,7 @@ func nodePlatform() string {
 func New(d Deps) *Service {
 	s := &Service{d: d, settings: DefaultAgentWatch(), tracked: map[string]*trackedT{}, runStart: map[string]float64{},
 		inspected: map[string]inspectedHit{}, scan: NewScanCache(),
-		tabs: func() []*util.Obj { return nil }, tabProgress: func(string) string { return "" }}
+		tabs: func() []*util.Obj { return nil }}
 	if d.Platform == "" {
 		s.d.Platform = nodePlatform()
 	}
@@ -292,10 +287,6 @@ func New(d Deps) *Service {
 	s.pollMs = d.PollMs
 	if s.pollMs == 0 {
 		s.pollMs = 8_000
-	}
-	s.digestMs = d.DigestMs
-	if s.digestMs == 0 {
-		s.digestMs = DigestIntervalMs
 	}
 	s.settingsPath = filepath.Join(d.Root, "settings.json")
 	_ = os.MkdirAll(d.Root, 0o777)
@@ -1012,8 +1003,10 @@ func (s *Service) setTracked(t *trackedT) {
 
 func nowGap(from, to float64) float64 { return math.Max(0, to-from) }
 
+// maybeRemind：外部终端里的会话做完 / 出错 / 这一轮做完在等你时提醒一次。
+// 进行中、好像卡住这类中途状态不提醒（不播报进度，只在结束时说一次）
 func (s *Service) maybeRemind(prev, next *trackedT) {
-	if next.status == "idle" || next.status == "running" {
+	if next.status == "idle" || next.status == "running" || next.status == "stalled" {
 		return
 	}
 	if prev == nil {
@@ -1026,8 +1019,7 @@ func (s *Service) maybeRemind(prev, next *trackedT) {
 	if (next.status == "completed" || next.status == "failed") && prev.status == "idle" {
 		return
 	}
-	changed := prev.status != next.status
-	if !changed && next.status != "stalled" {
+	if prev.status == next.status {
 		return
 	}
 	if next.lastRemindStatus == next.status && nowGap(next.lastRemindAt, s.now()) < s.settings.CooldownMs {
@@ -1048,11 +1040,10 @@ func (s *Service) maybeRemind(prev, next *trackedT) {
 	if text == "" {
 		return
 	}
+	// 这一轮做完在等你回复 = 一件事做完了（完成类），不是要你处理的请求
 	st := "done"
 	if next.status == "failed" {
 		st = "failed"
-	} else if next.status == "stalled" || next.status == "waiting" {
-		st = "attention"
 	}
 	var q *CostQuery
 	if finished && isUsageKind(string(next.kind)) {
@@ -1062,7 +1053,7 @@ func (s *Service) maybeRemind(prev, next *trackedT) {
 	}
 	s.sayWithCost(text, Notice{Endpoint: next.kind, Status: st, Title: who, Body: next.title, Bubble: agentBubbleOpts(next.status, voice)}, q)
 	g := "thumbsUp"
-	if next.status == "failed" || next.status == "stalled" {
+	if next.status == "failed" {
 		g = "apologize"
 	}
 	deps.AvatarGesture(s.d.Events, g)
@@ -1082,11 +1073,6 @@ func (s *Service) info(m string, d any) {
 // AttachHarness：接上编排器 h（标签端点的进度来自它）。
 func (s *Service) AttachHarness(h Harness) {
 	s.tabs = h.Tabs
-	if h.Progress != nil {
-		s.tabProgress = h.Progress
-	} else {
-		s.tabProgress = func(string) string { return "" }
-	}
 	h.OnTabs(func() {
 		now := s.now()
 		tabs := s.safeTabs()
@@ -1140,7 +1126,7 @@ func (s *Service) OnPermissionNeeded(e EndpointPermissionNeeded) {
 		v = "full"
 	}
 	s.notify(Notice{Kind: "agent", Endpoint: e.Backend, Status: "attention", Title: who, Body: body,
-		Text: util.UTF16Slice0(text, 140), Bubble: util.NewObj("voice", v)})
+		Text: util.UTF16Slice0(text, 140), Bubble: util.NewObj("voice", v), Session: e.TabID})
 	deps.AvatarGesture(s.d.Events, "think")
 	s.lastRemindAt = s.now()
 	s.info("agent-progress permission needed", util.NewObj("backend", e.Backend, "background", e.Background))
@@ -1212,6 +1198,13 @@ func MergeNotices(list []Notice) Notice {
 		passive = passive && n.Passive
 	}
 	out := top
+	// 几个会话的合在一起：不再属于某一个会话（不会因为你正看着其中一个就把别家的也吞掉）
+	for _, n := range list {
+		if n.Session != top.Session {
+			out.Session = ""
+			break
+		}
+	}
 	out.Title = strings.Join(titles, tr.T("electron.common.list-separator"))
 	out.Text = strings.Join(texts, "\n")
 	out.Body = strings.Join(bodies, " · ")
@@ -1273,7 +1266,7 @@ func (s *Service) OnEndpointFinished(e EndpointFinished) {
 			q = &CostQuery{Source: e.Backend, Session: util.JSString(tab.Get("cliSessionId")), Since: since}
 		}
 	}
-	s.sayWithCost(text, Notice{Endpoint: e.Backend, Status: st, Title: who, Body: body, Bubble: agentBubbleOpts(bs, voice)}, q)
+	s.sayWithCost(text, Notice{Endpoint: e.Backend, Status: st, Title: who, Body: body, Bubble: agentBubbleOpts(bs, voice), Session: e.TabID}, q)
 	g := "thumbsUp"
 	if !e.Ok {
 		g = "apologize"
@@ -1333,16 +1326,6 @@ func (s *Service) startTimers() bool {
 		}
 		s.catchTick(s.Tick(true))
 	})
-	if s.digestT == nil {
-		s.digestT = jsrt.SetInterval(time.Duration(s.digestMs)*time.Millisecond, func() {
-			defer func() {
-				if r := recover(); r != nil && s.d.Logger != nil {
-					s.d.Logger.Warn("agent-progress digest", util.JSString(r))
-				}
-			}()
-			s.Digest()
-		})
-	}
 	return true
 }
 
@@ -1365,114 +1348,6 @@ func (s *Service) Stop() {
 		jsrt.ClearTimeout(s.noticeTimer)
 		s.flushNotices()
 	}
-	jsrt.ClearTimeout(s.digestT)
-	s.digestT = nil
-}
-
-type runningTask struct{ kind, label, title, summary string }
-
-func (s *Service) runningTasks() []runningTask {
-	out := []runningTask{}
-	for _, x := range s.State().Get("sessions").([]any) {
-		v := x.(*util.Obj)
-		kind, _ := v.Get("kind").(string)
-		if v.Get("status") != "running" || kind == "nomi" {
-			continue
-		}
-		if on, ok := s.settings.Tools[kind]; ok && !on {
-			continue
-		}
-		sum, _ := v.Get("summary").(string)
-		if v.Get("source") == "tab" && truthy(v.Get("tabId")) {
-			if h := s.tabProgress(util.JSString(v.Get("tabId"))); h != "" {
-				sum = h
-			}
-		}
-		title, _ := v.Get("title").(string)
-		lb := labelOf(kind)
-		if lb == "" {
-			lb = "undefined"
-		}
-		out = append(out, runningTask{kind, lb, title, sum})
-	}
-	return out
-}
-
-// Digest：汇总通知。
-func (s *Service) Digest() bool {
-	if !s.settings.Enabled {
-		return false
-	}
-	running := s.runningTasks()
-	if len(running) == 0 {
-		return false
-	}
-	if s.d.IsQuiet != nil && s.d.IsQuiet() {
-		return false
-	}
-	if s.lastRemindAt != 0 && nowGap(s.lastRemindAt, s.now()) < DigestQuietAfterRemindMs {
-		return false
-	}
-	gk := []string{}
-	gn := map[string]int{}
-	for _, r := range running {
-		if _, ok := gn[r.label]; !ok {
-			gk = append(gk, r.label)
-		}
-		gn[r.label]++
-	}
-	parts := make([]string, len(gk))
-	for i, l := range gk {
-		parts[i] = l + " " + util.JSString(float64(gn[l]))
-	}
-	breakdown := strings.Join(parts, " · ")
-	head := tr.T("electron.common.coding-task-s-still-in-progress", float64(len(running)), breakdown)
-	summary := s.settings.SummaryEnabled
-	text := head
-	if summary {
-		ls := []string{}
-		for i, r := range running {
-			if i >= digestMaxDetail {
-				break
-			}
-			step := brief(r.summary, 36)
-			l := "「" + brief(r.title, 16) + "」"
-			if step != "" {
-				l += step
-			}
-			ls = append(ls, l)
-		}
-		if lines := strings.Join(ls, "；"); lines != "" {
-			text = head + "：" + lines
-		}
-	}
-	kinds := map[string]bool{}
-	first := ""
-	for _, r := range running {
-		if first == "" {
-			first = r.kind
-		}
-		kinds[r.kind] = true
-	}
-	ep := ""
-	if len(kinds) == 1 {
-		ep = first
-	}
-	body := breakdown
-	if summary {
-		hl := util.UTF16Len(head) + 1
-		if tl := util.UTF16Len(text); tl > hl {
-			body = util.UTF16Tail(text, tl-hl)
-		}
-	}
-	v := "none"
-	if summary {
-		v = "full"
-	}
-	s.notify(Notice{Kind: "agent", Endpoint: ep, Status: "running", Title: tr.T("electron.common.coding-task-s-in-progress", float64(len(running))),
-		Body: body, Text: util.UTF16Slice0(text, 140), Bubble: util.NewObj("kind", "digest", "voice", v), Passive: true})
-	s.info("agent-progress digest", util.NewObj("running", float64(len(running)), "summary", summary))
-	return true
 }
 
 // ScanNow：立即扫描（持 GIL 调用；内部 Await）。

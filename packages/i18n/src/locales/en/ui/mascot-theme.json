@@ -112,7 +112,7 @@
   "ui.mascot-theme.not-installed": "Not installed",
   "ui.mascot-theme.notch-display-detected-notifications-expand-out-of-the": "Notch display detected: notifications expand out of the notch; click to open chat.",
   "ui.mascot-theme.noted": "Noted~",
-  "ui.mascot-theme.nothing-pops-up-during-quiet-hours-schedule": "Nothing pops up during quiet hours (Schedule → Do not disturb). macOS Focus has no public API, so it can't be detected automatically.",
+  "ui.mascot-theme.nothing-pops-up-during-quiet-hours-schedule": "Nothing pops up during quiet hours (Schedule → Do not disturb). While the Nomi window is on screen, only items that need you and alerts pop up, and nothing pops up for the conversation you're viewing. macOS Focus has no public API, so it can't be detected automatically.",
   "ui.mascot-theme.notifications-island": "Notifications / Island",
   "ui.mascot-theme.occupation": "Occupation",
   "ui.mascot-theme.occupation-line": "- My occupation: {0}",
