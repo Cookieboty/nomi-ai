@@ -3,6 +3,7 @@ package desktop
 import (
 	"context"
 	"encoding/json"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -305,12 +306,12 @@ func TestCancelPendingWhere(t *testing.T) {
 	_ = ui
 }
 
-// 「本会话始终执行」：这个对话里同一条命令、同一工作目录不再问；换命令、换目录、换对话、「逐项确认」照样问
+// 「本会话始终执行」：这个对话里同一工作目录的普通命令不再问；换目录、换对话、受保护命令、「逐项确认」照样问
 func TestSessionCommand(t *testing.T) {
 	b, ui, _ := reviewBroker(t, nil)
 	run := func(ctx context.Context, cmd, cwd string) Decision {
 		return b.Authorize(AuthorizeInput{Tool: "workspace_run", Danger: "destructive", Summary: "跑",
-			Args: json.RawMessage(`{"command":"` + cmd + `","cwd":"` + cwd + `"}`), Signal: ctx, Force: &struct{ Dialog bool }{true}})
+			Args: map[string]any{"command": cmd, "cwd": cwd}, Signal: ctx, Force: &struct{ Dialog bool }{true}})
 	}
 	answerSession := func(n int) {
 		go func() {
@@ -327,32 +328,35 @@ func TestSessionCommand(t *testing.T) {
 		}()
 	}
 	a := convCtx(t, "c1")
+	cwd := filepath.Join("workspace", "project")
+	sameCwd := cwd + string(filepath.Separator)
+	otherCwd := filepath.Join("workspace", "other")
 	answerSession(1)
-	if d := run(a, "pbpaste", `D:\\w`); d != "allowed" {
+	if d := run(a, "pbpaste", cwd); d != "allowed" {
 		t.Fatal(d)
 	}
 	if r := ui.last(); r.SessionCommand != "pbpaste" {
 		t.Fatalf("card should offer the command: %+v", r)
 	}
-	if d := run(convCtx(t, "c1"), "pbpaste", `D:/W/`); d != "auto" {
-		t.Fatalf("same command, same conversation: %s", d)
+	if d := run(convCtx(t, "c1"), "python verify.py", sameCwd); d != "auto" {
+		t.Fatalf("same working directory, different command: %s", d)
 	}
 	n := len(ui.seen)
 	answerRemember(b, ui, n+1, false, false)
-	if d := run(a, "pbpaste", `D:\\other`); d != "denied" {
+	if d := run(a, "pbpaste", otherCwd); d != "denied" {
 		t.Fatalf("another working directory still asks: %s", d)
 	}
 	answerRemember(b, ui, n+2, false, false)
-	if d := run(a, "pbcopy", "/w"); d != "denied" {
-		t.Fatalf("another command still asks: %s", d)
+	if d := run(a, "git status", cwd); d != "auto" {
+		t.Fatalf("ordinary command in the same working directory should run: %s", d)
 	}
-	answerRemember(b, ui, n+3, false, false)
-	if d := run(convCtx(t, "c2"), "pbpaste", `D:\\w`); d != "denied" {
+	if d := run(convCtx(t, "c2"), "pbpaste", cwd); d != "denied" {
 		t.Fatalf("another conversation still asks: %s", d)
 	}
-	// 发布 / 对外命令不提供「本会话始终执行」
-	answerRemember(b, ui, n+4, false, false)
-	run(a, "git push", "/w")
+	answerRemember(b, ui, n+3, false, false)
+	if d := run(a, "git push", cwd); d != "denied" {
+		t.Fatalf("external commands must still ask: %s", d)
+	}
 	if ui.last().SessionCommand != "" {
 		t.Fatal("external commands must not offer session allow")
 	}

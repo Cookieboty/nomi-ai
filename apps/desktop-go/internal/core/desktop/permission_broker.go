@@ -56,7 +56,7 @@ type ConfirmRequest struct {
 	RememberRule string `json:"rememberRule,omitempty"`
 	// RememberGroup：勾「记住」= 这个对话里这类操作不再问（files 改文件 / delegate 委派与追问 / computer 桌面操作 / tool 这个工具）
 	RememberGroup string `json:"rememberGroup,omitempty"`
-	// SessionCommand：跑命令的确认：可以「本会话始终执行」的那条命令（这个对话里同一条命令、同一工作目录不再问）
+	// SessionCommand：跑命令的确认：可以「本会话始终执行」当前工作目录里的普通命令
 	SessionCommand string `json:"sessionCommand,omitempty"`
 }
 
@@ -97,8 +97,8 @@ type PermissionBroker struct {
 	taintUntil float64
 	// convGrants：对话里勾过「这个对话里不再询问」的操作类别（对话 id → ToolGroup），只在内存里，重启清空
 	convGrants map[string]map[string]bool
-	// convCommands：对话 → 「本会话始终执行」过的命令（命令 + 工作目录）
-	convCommands map[string]map[string]bool
+	// convCommandCwds：对话 → 「本会话始终执行」过的工作目录；目录里的普通命令不再问
+	convCommandCwds map[string]map[string]bool
 	// rulesSuspendedUntil：读过外部内容后写过文件 → 命令白名单暂停到这个时间（用户亲手确认一次命令就清零）。
 	// 按对话记（convRulesSuspended）；没有对话的（桌面角色窗口等）记在 rulesSuspendedUntil
 	rulesSuspendedUntil float64
@@ -130,7 +130,7 @@ type BrokerOpts struct {
 }
 
 func NewPermissionBroker(file string, envBase GuardEnv, opts BrokerOpts) *PermissionBroker {
-	b := &PermissionBroker{file: file, envBase: envBase, nowFn: opts.Now, sessionAllowed: map[string]bool{}, taint: map[<-chan struct{}]bool{}, convGrants: map[string]map[string]bool{}, convCommands: map[string]map[string]bool{},
+	b := &PermissionBroker{file: file, envBase: envBase, nowFn: opts.Now, sessionAllowed: map[string]bool{}, taint: map[<-chan struct{}]bool{}, convGrants: map[string]map[string]bool{}, convCommandCwds: map[string]map[string]bool{},
 		convRulesSuspended: map[string]float64{}, pending: map[string]*pendingConfirm{}}
 	if b.nowFn == nil {
 		b.nowFn = nowMs
@@ -414,7 +414,7 @@ type AuthorizeInput struct {
 }
 
 // AuthorizeIn：工作区里的操作要不要确认。「计划」档拦下写；「全部自动」开着时不确认；
-// 带 Force 的（如 workspace_run）始终确认
+// 带 Force 的（如 workspace_run）默认确认，会话授权与命令白名单仍可按规则放行
 func (b *PermissionBroker) AuthorizeIn(i AuthorizeInput) Decision {
 	// 后台任务不看前台的档位与「全部自动」（docs/features/scheduling-calendar.md）
 	if BackgroundFrom(i.Signal) != nil {
@@ -532,7 +532,7 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	if mode == "plan" && i.Danger != "read" {
 		return "blocked"
 	}
-	// 本会话始终执行：这个对话里点过的同一条命令、同一工作目录直接执行（「逐项确认」模式下不认）
+	// 本会话始终执行：这个对话里点过的当前工作目录，后续普通命令直接执行（「逐项确认」模式下不认）
 	if conv := tools.ConversationFrom(i.Signal); conv != "" && mode != "manual" && b.convCommandAllowed(conv, i) {
 		return "auto"
 	}
@@ -620,7 +620,8 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 		p := u16slice(*i.Preview, 0, ConfirmPreviewCap)
 		req.Preview = &p
 	}
-	// 跑命令：这个对话里可以「本会话始终执行」这一条（读凭据、发布这类永远问人的命令不提供）
+	// 跑命令：这个对话里可以「本会话始终执行」当前工作目录中的普通命令
+	// （读凭据、发布、推送和其他明确的对外 / 不可逆命令不提供）
 	if ReviewedTools[i.Tool] && conv != "" && mode != "manual" {
 		if cmd, _, ok := parseCommandArgs(i.Args); ok {
 			if cls := ClassifyCommand(cmd); cls != "credential" && cls != "never" && cls != "external" {
@@ -989,7 +990,7 @@ func (b *PermissionBroker) AnswerPick(id string, allow, remember, pick bool) boo
 	return b.AnswerFull(id, allow, remember, pick, false)
 }
 
-// AnswerFull：session = 「本会话始终执行」这条命令（只对带 SessionCommand 的确认有效）
+// AnswerFull：session = 「本会话始终执行」当前工作目录中的普通命令（只对带 SessionCommand 的确认有效）
 func (b *PermissionBroker) AnswerFull(id string, allow, remember, pick, session bool) bool {
 	b.mu.Lock()
 	p, ok := b.pending[id]
@@ -1108,7 +1109,7 @@ func (b *PermissionBroker) ResetAll() {
 	b.sessionScopes = nil
 	b.sessionAllowed = map[string]bool{}
 	b.convGrants = map[string]map[string]bool{}
-	b.convCommands = map[string]map[string]bool{}
+	b.convCommandCwds = map[string]map[string]bool{}
 	b.convRulesSuspended = map[string]float64{}
 	b.saveLocked()
 	b.mu.Unlock()
@@ -1161,10 +1162,6 @@ func (b *PermissionBroker) SetComputerAlways(on bool) {
 	b.notify()
 }
 
-func convCommandKey(cmd, cwd string) string {
-	return strings.Join(strings.Fields(cmd), " ") + "\x00" + normalizeCommandCwd(cwd)
-}
-
 // normalizeCommandCwd：Windows 下同一工作目录可能从不同调用路径以
 // D:\\work、D:/work 或带尾部斜杠的形式传入；会话级命令授权应把它们视为同一目录。
 func normalizeCommandCwd(cwd string) string {
@@ -1179,29 +1176,36 @@ func normalizeCommandCwd(cwd string) string {
 	return cwd
 }
 
-// convCommandAllowed：这个对话里「本会话始终执行」过这条命令（同一工作目录）
+// convCommandAllowed：这个对话里「本会话始终执行」过当前工作目录中的普通命令
 func (b *PermissionBroker) convCommandAllowed(conv string, i AuthorizeInput) bool {
 	if !ReviewedTools[i.Tool] {
 		return false
 	}
 	cmd, cwd, ok := parseCommandArgs(i.Args)
-	if !ok {
+	if !ok || normalizeCommandCwd(cwd) == "" {
+		return false
+	}
+	// 即使用户允许了当前目录，凭据、发布、推送和其他明确的对外 / 不可逆命令仍要逐次确认。
+	if cls := ClassifyCommand(cmd); cls == "credential" || cls == "never" || cls == "external" {
 		return false
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.convCommands[conv][convCommandKey(cmd, cwd)]
+	return b.convCommandCwds[conv][normalizeCommandCwd(cwd)]
 }
 
 func (b *PermissionBroker) allowConvCommand(conv string, i AuthorizeInput) {
 	cmd, cwd, ok := parseCommandArgs(i.Args)
-	if !ok || conv == "" {
+	if !ok || conv == "" || normalizeCommandCwd(cwd) == "" {
+		return
+	}
+	if cls := ClassifyCommand(cmd); cls == "credential" || cls == "never" || cls == "external" {
 		return
 	}
 	b.mu.Lock()
-	if b.convCommands[conv] == nil {
-		b.convCommands[conv] = map[string]bool{}
+	if b.convCommandCwds[conv] == nil {
+		b.convCommandCwds[conv] = map[string]bool{}
 	}
-	b.convCommands[conv][convCommandKey(cmd, cwd)] = true
+	b.convCommandCwds[conv][normalizeCommandCwd(cwd)] = true
 	b.mu.Unlock()
 }

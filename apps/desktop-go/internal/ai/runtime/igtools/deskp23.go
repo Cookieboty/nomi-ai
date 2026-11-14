@@ -473,8 +473,9 @@ func WrapCommandOutput(text string) string {
 	return "<command_output trust=\"untrusted\">\n" + regexp.MustCompile(`(?i)</command_output>`).ReplaceAllString(text, "</command_output_>") + "\n</command_output>"
 }
 
-// runConfirm = workspaceTools RUN_CONFIRM：workspace_run 强制在对话框里确认。工作区只决定工作目录，
-// 命令以用户身份运行、能访问工作区外的任何文件（没有沙箱），所以不受「全部自动」影响、也不能记住；
+// runConfirm = workspaceTools RUN_CONFIRM：workspace_run 默认在对话框里确认。工作区只决定工作目录，
+// 命令以用户身份运行、能访问工作区外的任何文件（没有沙箱），所以不受「全部自动」影响；
+// 用户选择「本会话始终执行」后，同一工作目录里的普通命令可继续执行；敏感与对外命令仍逐次确认。
 // 开了命令自动审核时由审核结论决定是否免确认（见 desktop/command_review.go）；「计划」档照旧拦下
 func runConfirm() *struct{ Dialog bool } { return &struct{ Dialog bool }{Dialog: true} }
 

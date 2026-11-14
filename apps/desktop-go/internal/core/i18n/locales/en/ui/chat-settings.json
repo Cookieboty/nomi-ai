@@ -127,7 +127,7 @@
   "ui.chat-settings.dont-ask-computer-in-conversation": "Allow this once and run the rest of this conversation's desktop actions automatically, including payments, sending, deleting, System Settings and coordinate clicks",
   "ui.chat-settings.always-allow-computer": "Run desktop actions automatically in every conversation from now on, including payments, sending, deleting, System Settings and coordinate clicks (turn off in Settings > Computer Use)",
   "ui.chat-settings.session-command-always": "Always run in this chat",
-  "ui.chat-settings.session-command-always-tip": "Run \"{0}\" (same working directory) without asking again in this conversation; a new conversation or a restart asks again",
+  "ui.chat-settings.session-command-always-tip": "Run \"{0}\" and other ordinary commands in this working directory without asking again in this conversation; a different directory, conversation, or restart asks again",
   "ui.chat-settings.dont-ask-tool-in-conversation": "Don't ask again for this tool in this conversation",
   "ui.chat-settings.don-t-bring-the-context": "Don't bring the context",
   "ui.chat-settings.done": "✅ Done: {0}",

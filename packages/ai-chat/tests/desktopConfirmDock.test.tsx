@@ -77,7 +77,7 @@ describe('DesktopConfirmDock', () => {
     ]);
   });
 
-  it('跑命令的确认：「本会话始终执行」只对这条命令、经契约带 session 答复', async () => {
+  it('跑命令的确认：「本会话始终执行」经契约带 session 答复', async () => {
     pending = [req({ tool: 'workspace_run', danger: 'destructive', sessionCommand: 'pbpaste' })];
     await mount();
     const btn = screen.getByTestId('desktop-confirm-session');

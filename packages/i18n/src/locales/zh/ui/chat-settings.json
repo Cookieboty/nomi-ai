@@ -127,7 +127,7 @@
   "ui.chat-settings.dont-ask-computer-in-conversation": "允许这一次，这个对话里后面的桌面操作都自动执行，包括付款、发送、删除、系统设置和按坐标点击",
   "ui.chat-settings.always-allow-computer": "以后所有对话里的桌面操作都自动执行，包括付款、发送、删除、系统设置和按坐标点击（可在「设置 → Computer Use」里关掉）",
   "ui.chat-settings.session-command-always": "本会话始终执行",
-  "ui.chat-settings.session-command-always-tip": "这个对话里再执行「{0}」（同一工作目录）不再询问；换个对话或重启后会重新问",
+  "ui.chat-settings.session-command-always-tip": "这个对话里在同一工作目录执行「{0}」及其它普通命令不再询问；换个工作目录、对话或重启后会重新问",
   "ui.chat-settings.dont-ask-tool-in-conversation": "这个对话里不再询问这个工具",
   "ui.chat-settings.don-t-bring-the-context": "不带前文",
   "ui.chat-settings.done": "✅ 已完成：{0}",
