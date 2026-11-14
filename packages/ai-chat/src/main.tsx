@@ -7,6 +7,8 @@ import '@nomi-ai/ui/styles.css';
 import '@nomi-ai/voice/styles.css';
 import App from './App';
 import { BootScreen, type BootScreenState } from './components/BootScreen';
+import { onboardingClient } from './components/Onboarding/client';
+import { preloadOnboarding } from './components/Onboarding/host';
 import { api, hasTransport, installHostBackends } from './services/api';
 import { initChatBackground } from './services/chatBackground';
 import { dropRetiredPrefs } from './services/chatPrefs';
@@ -106,13 +108,19 @@ async function bootConversations(): Promise<void> {
   } catch {
     storage = undefined;
   }
-  const r = await prepareConversationStore({
-    api,
-    ...(storage ? { storage } : {}),
-    fetchLegacy: () => api.migration.chatHistory(),
-    onProgress: (p) => renderBoot({ kind: 'migrating', done: p.done, total: p.total }),
-  }).catch((error: unknown) => ({ ok: false as const, error }));
+  const [r, onboarding] = await Promise.all([
+    prepareConversationStore({
+      api,
+      ...(storage ? { storage } : {}),
+      fetchLegacy: () => api.migration.chatHistory(),
+      onProgress: (p) => renderBoot({ kind: 'migrating', done: p.done, total: p.total }),
+    }).catch((error: unknown) => ({ ok: false as const, error })),
+    onboardingClient.prepareInitial().catch(() => null),
+  ]);
   if (r.ok) {
+    if (onboarding && !onboarding.done) {
+      await preloadOnboarding().catch(() => undefined);
+    }
     renderApp();
     return;
   }

@@ -56,7 +56,7 @@
   font-size: var(--cd-font-size-md);
 }
 .cd-btn:active:not(:disabled) {
-  transform: translateY(0.5px);
+  transform: scale(0.985);
 }
 /* 键盘焦点兜底：没有自己焦点样式的可交互元素统一用这一种描边（:where 不加特异性，组件自己的样式优先）。
    描边用 accent-strong：浅色主题下 accent 对背景的非文本对比度不够 3:1 */
@@ -101,10 +101,11 @@
   border-radius: var(--cd-radius-md);
   font: var(--cd-text-body);
   font-size: var(--cd-font-size-sm);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.02);
   transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    background-color 0.15s ease;
+    border-color var(--cd-duration-press) var(--cd-ease-out),
+    box-shadow var(--cd-duration-press) var(--cd-ease-out),
+    background-color var(--cd-duration-press) var(--cd-ease-out);
 }
 .cd-input--sm {
   height: var(--cd-control-h-sm);
@@ -195,7 +196,7 @@
   padding: 0 var(--cd-space-2);
   font-size: var(--cd-font-size-xs);
   line-height: 20px;
-  border-radius: var(--cd-radius-full);
+  border-radius: var(--cd-radius-xs);
   white-space: nowrap;
 }
 .cd-tooltip__bubble {

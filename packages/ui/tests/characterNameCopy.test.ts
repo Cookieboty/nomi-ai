@@ -137,7 +137,7 @@ describe('character-name copy with the official pack (docs/BRAND.md)', () => {
     applyLocale('zh-CN');
     expect(tName('ui.mascot-theme.show-nomi', '小纸')).toBe('显示小纸');
     expect(tName('ui.usage-tools.nomi-size', '小纸')).toBe('小纸大小');
-    expect(tName('ui.mascot-theme.onb-startup-character', '小纸')).toBe('打开小纸');
+    expect(tName('ui.mascot-theme.onb-startup-character', '小纸')).toBe('桌面伴侣 · 小纸');
   });
 
   it('no rendered zh string shows a bare 诺米', () => {

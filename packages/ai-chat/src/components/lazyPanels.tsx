@@ -38,6 +38,7 @@ function loadable<P>(load: Loader<P>) {
       return done;
     },
     Lazy,
+    preload: get,
   };
 }
 
@@ -49,18 +50,26 @@ export function prefetchPanels(): void {
   for (const p of prefetchers) void p().catch(() => undefined);
 }
 
-export function lazyComponent<P extends object>(load: Loader<P>): React.FC<P> {
+export type PreloadableFC<P extends object> = React.FC<P> & {
+  preload: () => Promise<unknown>;
+};
+
+export function lazyComponent<P extends object>(
+  load: Loader<P>,
+  fallback: React.ReactNode = <PanelFallback />,
+): PreloadableFC<P> {
   const m = loadable(load);
-  const C: React.FC<P> = (props) => {
+  const C: PreloadableFC<P> = (props) => {
     // 挂载时定下用哪种渲染，之后不切换（切换会改变元素类型导致面板重挂载、丢状态）
     const [Done] = useState(() => m.loaded);
     if (Done) return <Done {...(props as P & React.JSX.IntrinsicAttributes)} />;
     return (
-      <Suspense fallback={<PanelFallback />}>
+      <Suspense fallback={fallback}>
         <m.Lazy {...(props as P & React.JSX.IntrinsicAttributes)} />
       </Suspense>
     );
   };
+  C.preload = m.preload;
   return C;
 }
 

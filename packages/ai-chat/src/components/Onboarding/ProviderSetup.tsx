@@ -11,7 +11,7 @@ import { gatewayClient, type GatewayState } from '../../services/gatewayClient';
 import { nomiMainRef, refreshNomiModel, useGatewayState } from '../../services/nomiModel';
 import { ProviderForm } from '../ModelsPage/ProviderForm';
 
-import styles from './index.module.css';
+import styles from './ProviderSetup.module.css';
 
 /** 已配置、可用于对话的供应商（启用且至少有一个启用的对话模型） */
 export function usableProviders(s: GatewayState | null) {

@@ -6,21 +6,48 @@ import React, { useEffect, useState } from 'react';
 import { lazyComponent } from '../lazyPanels';
 
 import { onboardingClient } from './client';
+import styles from './host.module.css';
 
-const Onboarding = lazyComponent(() => import('./index').then((m) => m.Onboarding));
+const Onboarding = lazyComponent(
+  () => import('./index').then((m) => m.Onboarding),
+  <div className={styles.gate} data-testid="onboarding-gate" aria-hidden />,
+);
 
-/** 挂在对话窗口根部：未完成引导时显示；设置里「重新打开」也走这里 */
+/** 启动预热：仅在需要显示引导时由 main.tsx 调用，保证切换出 BootScreen 的第一帧即完整就绪 */
+export const preloadOnboarding = (): Promise<unknown> => Onboarding.preload();
+
+/** 挂在对话窗口根部：未完成引导时显示（状态待定期间用纯色幕布遮挡，避免闪现首页） */
 export const OnboardingHost: React.FC = () => {
-  const [open, setOpen] = useState(false);
+  const [initial] = useState(() => onboardingClient.peekInitial());
+  const [state, setState] = useState<'pending' | 'open' | 'closed'>(() => {
+    if (initial) return initial.done ? 'closed' : 'open';
+    return onboardingClient.available() ? 'pending' : 'closed';
+  });
   useEffect(() => {
     let alive = true;
-    void onboardingClient.get().then((s) => alive && setOpen(!s.done));
-    const off = onboardingClient.onShow(() => setOpen(true));
+    if (!initial) {
+      void onboardingClient.get().then((s) => {
+        if (alive) setState(s.done ? 'closed' : 'open');
+      });
+    }
+    const off = onboardingClient.onShow(() => {
+      onboardingClient.setPreparedDone(false);
+      setState('open');
+    });
     return () => {
       alive = false;
       off();
     };
-  }, []);
-  if (!open) return null;
-  return <Onboarding onDone={() => setOpen(false)} />;
+  }, [initial]);
+  if (state === 'closed') return null;
+  if (state === 'pending')
+    return <div className={styles.gate} data-testid="onboarding-gate" aria-hidden />;
+  return (
+    <Onboarding
+      onDone={() => {
+        onboardingClient.setPreparedDone(true);
+        setState('closed');
+      }}
+    />
+  );
 };

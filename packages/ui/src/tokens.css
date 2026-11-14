@@ -18,11 +18,11 @@
   --cd-image-viewer-hover: #404040;
   --cd-image-viewer-text: #f5f5f5;
   /* radius */
-  --cd-radius-xs: 4px;
-  --cd-radius-sm: 6px;
-  --cd-radius-md: 8px;
-  --cd-radius-lg: 12px;
-  --cd-radius-xl: 16px;
+  --cd-radius-xs: 6px;
+  --cd-radius-sm: 8px;
+  --cd-radius-md: 10px;
+  --cd-radius-lg: 14px;
+  --cd-radius-xl: 20px;
   --cd-radius-full: 9999px;
 
   /* spacing (4px grid) */
@@ -100,6 +100,7 @@
   --cd-panel-blur: var(--cd-blur);
   --cd-panel-border: var(--cd-color-border);
   --cd-modal-bg: var(--cd-panel-surface-raised);
+  --cd-highlight-inset: inset 0 1px 0 rgba(255, 255, 255, 0.78);
   --cd-chat-popover-bg: var(--cd-color-surface-raised);
   --cd-chat-header-h: calc(var(--cd-control-h-lg) + var(--cd-space-1));
   --cd-chat-header-bg: transparent;
@@ -119,8 +120,11 @@
   --cd-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   /* 只过渡某个属性时用这两个拼：transition: width var(--cd-duration-fast) var(--cd-ease)
      （--cd-transition 是完整简写，不能接在属性名后面） */
+  --cd-duration-press: 0.12s;
   --cd-duration-fast: 0.2s;
+  --cd-duration-smooth: 0.24s;
   --cd-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --cd-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
   /* layers */
   --cd-z-chat-content: 1; /* 聊天主区内容（盖在聊天背景层之上） */
@@ -207,10 +211,11 @@
   --cd-title-fill: none;
   --cd-title-color: var(--cd-color-text);
   --cd-app-glow: none;
-  --cd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --cd-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
-  --cd-shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.12);
-  --cd-shadow-glow: 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --cd-highlight-inset: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  --cd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.02);
+  --cd-shadow-md: 0 2px 6px rgba(0, 0, 0, 0.04), 0 12px 28px -4px rgba(0, 0, 0, 0.08);
+  --cd-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.05), 0 24px 56px -12px rgba(0, 0, 0, 0.14);
+  --cd-shadow-glow: 0 0 0 1px rgba(0, 0, 0, 0.05);
   --cd-focus-ring: 0 0 0 2px rgba(217, 101, 53, 1);
   --cd-input-ring: 0 0 0 2px rgba(217, 101, 53, 0.24);
   --cd-bubble-bg: rgba(255, 255, 255, 0.97);
@@ -295,10 +300,11 @@
   --cd-title-fill: none;
   --cd-title-color: var(--cd-color-text);
   --cd-app-glow: none;
-  --cd-shadow-sm: 0 1px 2px rgba(63, 43, 36, 0.05);
-  --cd-shadow-md: 0 8px 24px rgba(63, 43, 36, 0.1);
-  --cd-shadow-lg: 0 18px 48px rgba(63, 43, 36, 0.16);
-  --cd-shadow-glow: 0 0 0 1px rgba(63, 43, 36, 0.06);
+  --cd-highlight-inset: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --cd-shadow-sm: 0 1px 2px rgba(63, 43, 36, 0.04), 0 0 0 1px rgba(63, 43, 36, 0.02);
+  --cd-shadow-md: 0 2px 6px rgba(63, 43, 36, 0.05), 0 12px 28px -4px rgba(63, 43, 36, 0.1);
+  --cd-shadow-lg: 0 4px 12px rgba(63, 43, 36, 0.06), 0 24px 56px -12px rgba(63, 43, 36, 0.16);
+  --cd-shadow-glow: 0 0 0 1px rgba(63, 43, 36, 0.05);
   --cd-focus-ring: 0 0 0 2px rgba(217, 101, 53, 1);
   --cd-input-ring: 0 0 0 2px rgba(217, 101, 53, 0.24);
   --cd-bubble-bg: rgba(255, 255, 255, 0.97);
@@ -382,10 +388,11 @@
   --cd-title-fill: none;
   --cd-title-color: var(--cd-color-text);
   --cd-app-glow: none;
-  --cd-shadow-sm: 0 1px 2px rgba(64, 49, 38, 0.04);
-  --cd-shadow-md: 0 8px 24px rgba(64, 49, 38, 0.08);
-  --cd-shadow-lg: 0 18px 48px rgba(64, 49, 38, 0.14);
-  --cd-shadow-glow: 0 0 0 1px rgba(64, 49, 38, 0.06);
+  --cd-highlight-inset: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  --cd-shadow-sm: 0 1px 2px rgba(64, 49, 38, 0.04), 0 0 0 1px rgba(64, 49, 38, 0.02);
+  --cd-shadow-md: 0 2px 6px rgba(64, 49, 38, 0.04), 0 12px 28px -4px rgba(64, 49, 38, 0.08);
+  --cd-shadow-lg: 0 4px 12px rgba(64, 49, 38, 0.05), 0 24px 56px -12px rgba(64, 49, 38, 0.14);
+  --cd-shadow-glow: 0 0 0 1px rgba(64, 49, 38, 0.05);
   --cd-focus-ring: 0 0 0 2px rgba(185, 109, 67, 1);
   --cd-input-ring: 0 0 0 2px rgba(185, 109, 67, 0.24);
   --cd-bubble-bg: rgba(255, 255, 255, 0.97);
@@ -469,10 +476,11 @@
   --cd-title-fill: none;
   --cd-title-color: var(--cd-color-text);
   --cd-app-glow: none;
-  --cd-shadow-sm: 0 1px 2px rgba(32, 52, 61, 0.05);
-  --cd-shadow-md: 0 8px 24px rgba(32, 52, 61, 0.1);
-  --cd-shadow-lg: 0 18px 48px rgba(32, 52, 61, 0.16);
-  --cd-shadow-glow: 0 0 0 1px rgba(32, 52, 61, 0.06);
+  --cd-highlight-inset: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  --cd-shadow-sm: 0 1px 2px rgba(32, 52, 61, 0.04), 0 0 0 1px rgba(32, 52, 61, 0.02);
+  --cd-shadow-md: 0 2px 6px rgba(32, 52, 61, 0.05), 0 12px 28px -4px rgba(32, 52, 61, 0.1);
+  --cd-shadow-lg: 0 4px 12px rgba(32, 52, 61, 0.06), 0 24px 56px -12px rgba(32, 52, 61, 0.16);
+  --cd-shadow-glow: 0 0 0 1px rgba(32, 52, 61, 0.05);
   --cd-focus-ring: 0 0 0 2px rgba(100, 137, 154, 1);
   --cd-input-ring: 0 0 0 2px rgba(100, 137, 154, 0.24);
   --cd-bubble-bg: rgba(255, 255, 255, 0.97);
@@ -556,10 +564,11 @@
   --cd-title-fill: none;
   --cd-title-color: var(--cd-color-text);
   --cd-app-glow: none;
-  --cd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --cd-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.36);
-  --cd-shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.44);
-  --cd-shadow-glow: 0 0 0 1px rgba(245, 237, 230, 0.06);
+  --cd-highlight-inset: inset 0 1px 0 rgba(245, 237, 230, 0.06);
+  --cd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(245, 237, 230, 0.03);
+  --cd-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.28), 0 12px 32px -4px rgba(0, 0, 0, 0.38);
+  --cd-shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.32), 0 24px 60px -12px rgba(0, 0, 0, 0.48);
+  --cd-shadow-glow: 0 0 0 1px rgba(245, 237, 230, 0.07);
   --cd-focus-ring: 0 0 0 2px rgba(240, 138, 93, 1);
   --cd-input-ring: 0 0 0 2px rgba(240, 138, 93, 0.32);
   --cd-bubble-bg: rgba(245, 237, 230, 0.97);
@@ -643,10 +652,11 @@
   --cd-title-fill: none;
   --cd-title-color: var(--cd-color-text);
   --cd-app-glow: none;
-  --cd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.32);
-  --cd-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
-  --cd-shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.48);
-  --cd-shadow-glow: 0 0 0 1px rgba(240, 242, 246, 0.06);
+  --cd-highlight-inset: inset 0 1px 0 rgba(240, 242, 246, 0.06);
+  --cd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(240, 242, 246, 0.03);
+  --cd-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3), 0 12px 32px -4px rgba(0, 0, 0, 0.42);
+  --cd-shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.36), 0 24px 60px -12px rgba(0, 0, 0, 0.52);
+  --cd-shadow-glow: 0 0 0 1px rgba(240, 242, 246, 0.07);
   --cd-focus-ring: 0 0 0 2px rgba(150, 161, 255, 1);
   --cd-input-ring: 0 0 0 2px rgba(150, 161, 255, 0.32);
   --cd-bubble-bg: rgba(32, 37, 45, 0.96);
@@ -730,10 +740,11 @@
   --cd-title-fill: none;
   --cd-title-color: var(--cd-color-text);
   --cd-app-glow: none;
-  --cd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --cd-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
-  --cd-shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.5);
-  --cd-shadow-glow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --cd-highlight-inset: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  --cd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --cd-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3), 0 12px 32px -4px rgba(0, 0, 0, 0.42);
+  --cd-shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.36), 0 24px 60px -12px rgba(0, 0, 0, 0.52);
+  --cd-shadow-glow: 0 0 0 1px rgba(255, 255, 255, 0.07);
   --cd-focus-ring: 0 0 0 2px rgba(240, 138, 93, 1);
   --cd-input-ring: 0 0 0 2px rgba(240, 138, 93, 0.32);
   --cd-bubble-bg: rgba(31, 31, 31, 0.97);

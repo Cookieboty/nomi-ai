@@ -199,9 +199,9 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
         <div className={styles.chosen}>
           <span className={styles.chosenName}>
             {custom ? (
-              <Icon icon={Globe} size={20} />
+              <Icon icon={Globe} size={18} />
             ) : (
-              <BrandIcon brand={preset.icon ?? preset.id} name={preset.name} size={20} />
+              <BrandIcon brand={preset.icon ?? preset.id} name={preset.name} size={20} inline />
             )}
             {custom ? t('ui.models.custom-address') : preset.name}
           </span>
@@ -296,7 +296,7 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
       </div>
     );
 
-  // 第一步：按官方厂商 / 三方平台 / 本地 / 其他分组的卡片
+  // 第一步：按官方厂商 / 三方平台 / 本地 / 其他分组的紧凑宫格
   const card = (p: ProviderPreset) => (
     <button
       key={p.id}
@@ -305,7 +305,9 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
       data-testid={`${idPrefix}-preset-${p.id}`}
       onClick={() => choose(p)}
     >
-      <BrandIcon brand={p.icon ?? p.id} name={p.name} size={20} />
+      <span className={styles.cardIcon} aria-hidden>
+        <BrandIcon brand={p.icon ?? p.id} name={p.name} size={20} inline />
+      </span>
       <span className={styles.cardName}>{p.name}</span>
     </button>
   );
@@ -336,7 +338,9 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
             data-testid={`${idPrefix}-preset-custom`}
             onClick={() => choose(null)}
           >
-            <Icon icon={Globe} size={20} />
+            <span className={styles.cardIcon} aria-hidden>
+              <Icon icon={Globe} size={17} />
+            </span>
             <span className={styles.cardName}>{t('ui.models.custom-address')}</span>
           </button>
         </div>
