@@ -350,6 +350,10 @@ const harnessProcedures = {
    */
   'harness.messageAgent': {
     kind: 'mutation',
+    // 会把用户消息注入子代理线程（子代理能跑命令）；只允许对话窗口（含弹出的子任务窗口）调用。
+    // 内核还会校验 thread / agent 是当前标签已发现的子代理，拒绝主线程和未登记的 id。
+    dangerous: true,
+    surfaces: ['chat'],
     input: z.object({
       id: z.string(),
       callId: z.string().optional(),

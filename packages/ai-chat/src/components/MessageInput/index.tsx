@@ -121,6 +121,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   draftStore,
   draftKey,
   endpointTab,
+  modelControl,
 }) => {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
@@ -954,7 +955,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       <div className={styles.voiceRow}>
         <VoiceStatusRow cv={cv} />
       </div>
-      {!compact && <PermissionTip tab={endpointTab} />}
+      {!compact && !modelControl && <PermissionTip tab={endpointTab} />}
       {viewing && images.some((x) => x.id === viewing.id) && (
         <ImageLightbox image={viewing} onClose={closeViewer} />
       )}
@@ -1129,7 +1130,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
               </button>
             )}
             {/* Codex 式：左边是 + 与权限模式，模型放到右边、挨着语音与发送 */}
-            {!compact && (
+            {!compact && !modelControl && (
               <div className={styles.modelStatus}>
                 <EndpointControls part="mode" tab={endpointTab} />
               </div>
@@ -1137,9 +1138,9 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
           </div>
           <div className={styles.composerRight} data-zone="right">
             <div className={styles.modelStatus} data-testid="composer-model">
-              <EndpointControls part="model" tab={endpointTab} />
+              {modelControl ?? <EndpointControls part="model" tab={endpointTab} />}
             </div>
-            {compact && <EndpointControls part="mode" tab={endpointTab} />}
+            {compact && !modelControl && <EndpointControls part="mode" tab={endpointTab} />}
             {!compact && <VoiceButtons cv={cv} disabled={disabled} />}
             {!compact && contextMessages?.length ? (
               <ContextUsageBar messages={contextMessages} model={contextModel} />

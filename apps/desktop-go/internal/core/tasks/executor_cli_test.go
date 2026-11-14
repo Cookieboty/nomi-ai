@@ -628,3 +628,99 @@ func TestCliReusesTabAndClaims(t *testing.T) {
 		t.Fatalf("claimed=%v unclaimed=%v", claimed, unclaimed)
 	}
 }
+
+func TestCliTaskModeRequiresOsSandbox(t *testing.T) {
+	orig := osSandboxSupported
+	t.Cleanup(func() { osSandboxSupported = orig })
+	on := true
+	l3 := Task{Grant: Grant{Level: 3, AutoJudge: &on}}
+	l2 := Task{Grant: Grant{Level: 2}}
+
+	osSandboxSupported = func() bool { return true }
+	e := &cliExecutor{}
+	if !e.relaxed(l3) || cliTaskMode(l3, e.relaxed(l3)) != "auto" {
+		t.Fatal("有系统沙箱时 L3 自动判断应切到 auto")
+	}
+	if cliTaskMode(l2, e.relaxed(l2)) != "acceptEdits" {
+		t.Fatal("L2 仍是 acceptEdits")
+	}
+
+	osSandboxSupported = func() bool { return false }
+	if e.relaxed(l3) {
+		t.Fatal("没有系统沙箱时不能放松")
+	}
+	if got := cliTaskMode(l3, e.relaxed(l3)); got != "acceptEdits" {
+		t.Fatalf("没有系统沙箱时停在 acceptEdits，得到 %s", got)
+	}
+	e.d.AutoAll = func() bool { return true }
+	if e.relaxed(l3) || cliTaskMode(l3, e.relaxed(l3)) != "acceptEdits" {
+		t.Fatal("没有系统沙箱时前台「全部自动」也不切到 auto")
+	}
+	if e.decidePermission(l3, "", "Bash: npm test", false) != "ask" {
+		t.Fatal("没有系统沙箱时普通命令也要逐条确认")
+	}
+
+	osSandboxSupported = func() bool { return true }
+	e.d.AutoAll = nil
+	if e.decidePermission(l3, "", "Bash: npm test", false) != "allow" {
+		t.Fatal("有系统沙箱时自动判断仍可放行普通命令")
+	}
+}
+
+func TestCliExecutorL3StaysConfirmWithoutOsSandbox(t *testing.T) {
+	orig := osSandboxSupported
+	t.Cleanup(func() { osSandboxSupported = orig })
+	osSandboxSupported = func() bool { return false }
+
+	rt, f := newCliHarness(t, map[string]bool{"claude": true})
+	on := true
+	id := rt.Create(CreateInput{Title: "修 bug", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor:   ExecutorSpec{Kind: "cli", Cli: sp("claude"), Cwd: sp("/repo"), Isolation: sp("worktree")},
+		Grant:      Grant{Level: 3, Paths: []string{"/repo"}, AutoJudge: &on},
+		Acceptance: "user"}).ID
+	rt.Command(id, Command{Type: "runNow"})
+	waitFor(t, func() bool { return f.sendCount() == 1 })
+	f.mu.Lock()
+	mode := f.tabs["tab_1"].mode
+	f.mu.Unlock()
+	if mode != "acceptEdits" {
+		t.Fatalf("no OS sandbox: want acceptEdits, got %s", mode)
+	}
+	f.emit(CliTabEvent{TabID: "tab_1", Type: "permission", ID: "p1", Summary: "Bash: npm test"})
+	waitFor(t, func() bool { return rt.Get(id).Task.Status == "waiting_user" })
+	if w := rt.Get(id).Task.Wait; w.Kind != "approval" || w.RequestID == nil || *w.RequestID != "p1" {
+		t.Fatalf("ordinary L3 command must ask without OS sandbox: %+v", rt.Get(id).Task.Wait)
+	}
+	if len(f.replies) != 0 {
+		t.Fatalf("must not auto-allow: %v", f.replies)
+	}
+	rt.Command(id, Command{Type: "cancel"})
+}
+
+func TestCliExecutorL3AutoWithOsSandbox(t *testing.T) {
+	orig := osSandboxSupported
+	t.Cleanup(func() { osSandboxSupported = orig })
+	osSandboxSupported = func() bool { return true }
+
+	rt, f := newCliHarness(t, map[string]bool{"claude": true})
+	id := cliTask(rt, 3)
+	rt.Command(id, Command{Type: "runNow"})
+	waitFor(t, func() bool { return f.sendCount() == 1 })
+	f.mu.Lock()
+	mode := f.tabs["tab_1"].mode
+	f.mu.Unlock()
+	if mode != "auto" {
+		t.Fatalf("OS sandbox: want auto, got %s", mode)
+	}
+	f.emit(CliTabEvent{TabID: "tab_1", Type: "permission", ID: "p1", Summary: "Bash: npm test"})
+	waitFor(t, func() bool {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return len(f.replies) == 1
+	})
+	if f.replies[0] != "tab_1/p1/true" {
+		t.Fatal(f.replies)
+	}
+	f.finish("[nomi-report]")
+	waitFor(t, func() bool { return rt.Get(id).Task.Status == "awaiting_accept" })
+}

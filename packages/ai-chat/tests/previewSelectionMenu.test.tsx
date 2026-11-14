@@ -8,6 +8,7 @@ import {
   ChangesUiProvider,
   useChangesUi,
 } from '../src/components/SessionWorkspace/ChangesUiContext';
+import { SelectionActionsContext } from '../src/contexts/SelectionActionsContext';
 
 const highlightKey = 'preview-context-selection';
 let highlights: Map<string, unknown>;
@@ -86,6 +87,24 @@ afterEach(() => {
   writeText.mockClear();
 });
 describe('preview selection dismissal', () => {
+  it('in the main window offers add-to-chat and ask-in-side-chat with the file line range', () => {
+    const askInSideChat = vi.fn();
+    render(
+      <SelectionActionsContext.Provider value={{ addToChat: vi.fn(), askInSideChat }}>
+        <ChangesUiProvider>
+          <Document />
+        </ChangesUiProvider>
+      </SelectionActionsContext.Provider>,
+    );
+    fireEvent.contextMenu(selectTable());
+    expect(screen.getByTestId('preview-selection-ask').textContent).toBe('添加到对话');
+    fireEvent.click(screen.getByTestId('preview-selection-side-chat'));
+    expect(askInSideChat).toHaveBeenCalledWith({
+      text: expect.stringContaining('left'),
+      source: 'design.md:7-7',
+    });
+    expectCleared();
+  });
   it('keeps the table selection while the menu is open and clears it after copying its snapshot', async () => {
     mount();
     fireEvent.contextMenu(selectTable());

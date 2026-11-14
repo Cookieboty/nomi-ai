@@ -11,6 +11,7 @@ import { api, hasTransport, installHostBackends } from './services/api';
 import { initChatBackground } from './services/chatBackground';
 import { dropRetiredPrefs } from './services/chatPrefs';
 import { prepareConversationStore } from './services/conversationBoot';
+import { parseDetachSpec } from './utils/detachedTabs';
 
 const log = createLogger('main');
 
@@ -56,6 +57,15 @@ if (!hasHost) {
 const root = ReactDOM.createRoot(document.getElementById('root')!);
 
 /**
+ * 弹出窗口（?detached=<spec>，见 docs/design/side-tabs-workspace.md）：只画那一个子任务 / 文件。
+ * 单独一个 chunk，主窗口不加载。
+ */
+const detachSpec = parseDetachSpec(window.location.search);
+const DetachedApp = React.lazy(() =>
+  import('./detached/DetachedApp').then((m) => ({ default: m.DetachedApp })),
+);
+
+/**
  * 会话存储在 Go 内核里：渲染 App 前取好索引（会话列表、预览、当前会话），首次运行时把本窗口
  * localStorage 里旧的会话（以及 Electron 旧版抽出来的，#181）导入内核（conversationBoot）。
  * 会话存储在 App 渲染时随 IPC 客户端构造，所以先准备再渲染 App；这期间先画启动画面（不白屏，导入时
@@ -75,7 +85,13 @@ function renderApp(): void {
       <LocaleRoot
         render={() => (
           <AIProvider>
-            <App />
+            {detachSpec ? (
+              <React.Suspense fallback={null}>
+                <DetachedApp spec={detachSpec} />
+              </React.Suspense>
+            ) : (
+              <App />
+            )}
           </AIProvider>
         )}
       />

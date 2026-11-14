@@ -86,6 +86,8 @@ type Wails struct {
 	loads map[*application.WebviewWindow]*pageLoad
 	// notes：系统通知（notify.go）
 	notes *notifier
+	// detached：对话标签弹出来的独立窗口（detachedwindow.go），按标签 id
+	detached map[string]*application.WebviewWindow
 }
 
 type pageLoad struct {
@@ -95,8 +97,8 @@ type pageLoad struct {
 
 func New(cfg Config) *Wails {
 	w := &Wails{cfg: cfg, wins: map[shell.WindowKind]*application.WebviewWindow{}, aot: map[shell.WindowKind]bool{}, loads: map[*application.WebviewWindow]*pageLoad{},
-		releases: map[*application.WebviewWindow]func(){},
-		notes:    newNotifier()}
+		releases: map[*application.WebviewWindow]func(){}, detached: map[string]*application.WebviewWindow{},
+		notes: newNotifier()}
 	w.app = application.New(application.Options{
 		Name:     hostports.GoProductName,
 		Services: w.notes.services(),
@@ -846,11 +848,14 @@ func (w *Wails) ExecJS(k shell.WindowKind, js string) {
 // AnyFocused：任一应用窗口处于焦点（WindowFocus 接口）
 func (w *Wails) AnyFocused() bool {
 	w.mu.Lock()
-	ws := make([]*application.WebviewWindow, 0, len(w.wins))
+	ws := make([]*application.WebviewWindow, 0, len(w.wins)+len(w.detached))
 	for _, win := range w.wins {
 		if win != nil {
 			ws = append(ws, win)
 		}
+	}
+	for _, win := range w.detached {
+		ws = append(ws, win)
 	}
 	w.mu.Unlock()
 	for _, win := range ws {

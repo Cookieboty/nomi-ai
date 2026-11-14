@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/sidechat"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/config"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/models"
 	gwnet "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
@@ -426,6 +427,9 @@ func (s *Service) nomiPick(role string) *nomiPicked {
 		ref, _ = ms.Get("tools").(string)
 	case "summary":
 		ref, _ = ms.Get("summary").(string)
+	default:
+		// 侧边聊天换用的 Nomi 模型（"model:<供应商/模型>"，internal/core/sidechat）
+		ref, _ = sidechat.ModelRef(role)
 	}
 	if ref == "" {
 		ref = main

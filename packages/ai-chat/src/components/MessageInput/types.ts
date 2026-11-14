@@ -1,4 +1,6 @@
 /** 发文框的属性（从 index.tsx 拆出，控制单文件行数） */
+import type React from 'react';
+
 import type { createComposerDraftStore } from '../../services/composerDrafts';
 import type { HarnessTabMeta } from '../../services/harnessClient';
 import type { ImageAttachment } from '../../services/screenClient';
@@ -70,4 +72,9 @@ export interface MessageInputProps {
    * 侧栏里的委派会话和主列同时开着时用它。
    */
   endpointTab?: HarnessTabMeta | null;
+  /**
+   * 侧边聊天：用这个代替「模型 · 思考深度」按钮（绑在那个侧边聊天上），不显示权限模式。
+   * 不传 = 按 endpointTab / 当前标签显示。
+   */
+  modelControl?: React.ReactNode;
 }

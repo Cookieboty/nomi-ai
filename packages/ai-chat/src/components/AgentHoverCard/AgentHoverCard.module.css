@@ -1,0 +1,111 @@
+/* 子任务悬停卡片（参考 Codex 的子智能体浮窗）：名字 + 状态、最近一句（右侧气泡）、最近输出（四行） */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.card {
+  position: fixed;
+  z-index: var(--cd-z-tooltip);
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  max-width: calc(100vw - 16px);
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-chat-popover-bg);
+  box-shadow: var(--cd-shadow-md);
+  color: var(--cd-color-text);
+  font-size: var(--cd-font-size-sm);
+  cursor: default;
+}
+.card[data-clickable='true'] {
+  cursor: pointer;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-width: 0;
+}
+
+.name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.spin {
+  display: inline-flex;
+  color: var(--cd-color-text-muted);
+  animation: agentCardSpin 1s linear infinite;
+}
+@keyframes agentCardSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+
+.state {
+  margin-top: calc(var(--cd-space-1) * -1);
+  color: var(--cd-color-text-muted);
+}
+.state[data-state='waiting'] {
+  color: var(--cd-color-warning);
+}
+.state[data-state='failed'] {
+  color: var(--cd-color-danger);
+}
+
+.waiting {
+  color: var(--cd-color-warning);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bubble {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: var(--cd-space-2) var(--cd-space-3);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-hover);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.output {
+  color: var(--cd-color-text-muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.muted {
+  color: var(--cd-color-text-muted);
+}
+
+.hint {
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+}

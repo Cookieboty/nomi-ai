@@ -23,11 +23,12 @@ import {
   withDelegateResult,
 } from '../Conversation/DelegateCard';
 
-export type SessionAgentStatus = 'running' | 'waiting' | 'done' | 'error' | 'stopped';
+export type SessionAgentStatus = 'running' | 'waiting' | 'done' | 'error' | 'stopped' | 'idle';
 
 export interface SessionAgent {
   id: string;
-  kind: 'delegate' | 'subagent';
+  /** side-chat：侧边聊天（只问 Nomi 的临时聊天，和子任务在同一个标签区里） */
+  kind: 'delegate' | 'subagent' | 'side-chat';
   /** 子任务：编程助手；子代理：类型 / 名字（空 = 界面写「子代理」） */
   backend?: HarnessBackend | null;
   label?: string;
@@ -36,6 +37,8 @@ export interface SessionAgent {
   status: SessionAgentStatus;
   /** 子任务的标签 id（标签还在时才有，可以打开） */
   tabId?: string;
+  /** 侧边聊天的 id */
+  chatId?: string;
 }
 
 const PHASE_STATUS = {
@@ -62,7 +65,8 @@ function callStatus(c: ToolCall): SessionAgentStatus {
 /** 一条消息里和 Agents 有关的工具调用（委派子任务、子代理），连同预先解析好的字段 */
 interface AgentCall {
   call: ToolCall;
-  kind: 'delegate' | 'subagent';
+  /** side-chat：侧边聊天（只问 Nomi 的临时聊天，和子任务在同一个标签区里） */
+  kind: 'delegate' | 'subagent' | 'side-chat';
   /** 委派：最终结果还没到（输出是 running 占位）时的任务 id */
   pendingTaskId?: string;
   taskId?: string;
@@ -189,4 +193,28 @@ export function collectSessionAgents(
 
 export function countRunning(agents: readonly SessionAgent[]): number {
   return agents.filter((a) => a.status === 'running' || a.status === 'waiting').length;
+}
+
+/** 本会话开着的侧边聊天（会话详情的 Agents 列表里和子任务排在一起） */
+export function sideChatAgents(
+  chats: ReadonlyArray<{
+    id: string;
+    name: string;
+    running: boolean;
+    messages: ReadonlyArray<{ role: string; text: string; error?: string }>;
+  }>,
+): SessionAgent[] {
+  return chats.map((c) => {
+    const last = c.messages[c.messages.length - 1];
+    const lastUser = [...c.messages].reverse().find((m) => m.role === 'user');
+    return {
+      id: `side-chat:${c.id}`,
+      kind: 'side-chat' as const,
+      backend: 'nomi' as const,
+      label: c.name,
+      ...(lastUser?.text ? { detail: lastUser.text.replace(/\s+/g, ' ').slice(0, 160) } : {}),
+      status: c.running ? 'running' : last?.error ? 'error' : last ? 'done' : 'idle',
+      chatId: c.id,
+    };
+  });
 }

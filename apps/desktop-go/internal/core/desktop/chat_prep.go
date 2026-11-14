@@ -8,6 +8,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codingcli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/sidechat"
 )
 
 // 对话请求发出前的准备：prepareChat + applyConversationWorkspace + receiversFor/checkSendAll
@@ -185,7 +186,7 @@ func (c ChatPrep) PrepareChat(options map[string]any, method string, signal <-ch
 			fallback = "agent-tools"
 		}
 		role := fallback
-		if r, ok := options["role"].(string); ok && (r == "chat" || r == "agent-tools" || r == "summary") {
+		if r, ok := options["role"].(string); ok && sidechat.KnownRole(r) {
 			role = r
 		}
 		return CheckSendAll(ReceiversFor(nil, []Role{role}, c.ProviderFor), ctx, what, c.CheckSend)

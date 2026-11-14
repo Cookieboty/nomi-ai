@@ -119,3 +119,6 @@
   flex-basis: 100%;
   color: var(--cd-color-text);
 }
+.reviewNotice {
+  flex-basis: 100%;
+}

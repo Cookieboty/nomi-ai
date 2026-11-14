@@ -38,7 +38,8 @@ describe('appContract · D3 coding', () => {
       expect(name).not.toMatch(/-/);
     }
     for (const [name, d] of Object.entries(codingProcedures as Record<string, Def>)) {
-      if (name.startsWith('harness.preview')) expect(d.surfaces).toEqual(['chat']);
+      if (name.startsWith('harness.preview') || name === 'harness.messageAgent')
+        expect(d.surfaces).toEqual(['chat']);
       else expect(d.surfaces).toBeUndefined();
     }
     const dangerous = Object.entries(codingProcedures as Record<string, Def>)
@@ -53,6 +54,7 @@ describe('appContract · D3 coding', () => {
       'fleet.setAutoPause',
       'fleet.setPolicy',
       'harness.geminiTrustFolder',
+      'harness.messageAgent',
       'harness.previewExternal',
       'harness.previewListDirectory',
       'harness.previewOpen',

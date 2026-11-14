@@ -3,7 +3,7 @@
  *
  * 本文件只属于 D2：过程、事件、业务错误码都在这里声明，`app/index.ts` 负责汇总。
  * 命名空间：theme、locale、startup、onboarding、providers、gateway、providerLink、usage、quality、updates、diagnostics、appIcon、
- * migration、conversations（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
+ * migration、conversations、chatWindow（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
  *
  * 旧面（迁入后由收尾批次删除）：
  * - `ai:theme:*`、`ai:locale:*`（packages/ui 的 theme.ts / i18n.ts）、`ai:startup:*`、`ai:onboarding:*`
@@ -430,6 +430,47 @@ export const shellProcedures = {
     output: v,
     surfaces: CHAT,
   },
+  // ---- 对话标签弹出到独立窗口（docs/design/side-tabs-workspace.md）----
+  /**
+   * 把对话旁标签区的一个标签（子任务 / 文件预览）弹到独立的原生窗口；同一个 id 已经弹出去时把那个窗口提到最前
+   * （focused = true）。spec 是视图自己解析的不透明 JSON（宿主只限长度、原样放进新窗口地址的 ?detached=）。
+   */
+  'chatWindow.detachTab': {
+    kind: 'mutation',
+    input: S.DetachTabInput,
+    output: S.DetachTabResult,
+    surfaces: CHAT,
+  },
+  /** 当前开着的弹出窗口的 id（主窗口据此在标签栏里隐藏这些标签） */
+  'chatWindow.detachedTabs': {
+    kind: 'query',
+    input: v,
+    output: z.array(z.string()),
+    surfaces: CHAT,
+  },
+  /** 弹出窗口里「放回主窗口」：关掉这个窗口，并通知主窗口切到这个标签（chatWindow.tabDocked） */
+  'chatWindow.dockTab': {
+    kind: 'mutation',
+    input: z.object({ id: z.string().min(1).max(2048) }),
+    output: z.boolean(),
+    surfaces: CHAT,
+  },
+  /**
+   * 交接一个只在界面内存里的标签（侧边聊天）的内容：弹出 / 放回 / 关窗口时，当前持有它的窗口把快照放在宿主内存里，
+   * 另一个窗口取走（取一次就删）。宿主不解析、不落盘，关掉应用就没了。
+   */
+  'chatWindow.handoffPut': {
+    kind: 'mutation',
+    input: S.HandoffPutInput,
+    output: z.boolean(),
+    surfaces: CHAT,
+  },
+  'chatWindow.handoffTake': {
+    kind: 'mutation',
+    input: z.object({ id: z.string().min(1).max(2048) }),
+    output: z.string().nullable(),
+    surfaces: CHAT,
+  },
 } as const satisfies ProcedureMap;
 
 export const shellEvents = {
@@ -453,11 +494,17 @@ export const shellEvents = {
   'updates.changed': S.UpdateState,
   /** 会话存储变了（`source` 是写入方传的标记）：其他窗口重新取索引、丢掉这些会话的消息缓存 */
   'conversations.changed': S.ConversationsChanged,
+  /** 弹出窗口开 / 关之后的整份 id 列表 */
+  'chatWindow.detachedChanged': z.array(z.string()),
+  /** 弹出窗口里点了「放回主窗口」：主窗口切到这个标签 */
+  'chatWindow.tabDocked': z.object({ id: z.string() }),
 } as const satisfies EventMap;
 
 /** 只推给对话窗口的事件 */
 export const shellEventSurfaces = {
   'conversations.changed': ['chat'],
+  'chatWindow.detachedChanged': ['chat'],
+  'chatWindow.tabDocked': ['chat'],
 } as const;
 
 /** 业务错误码（UPPER_SNAKE_CASE，不得与其他域重名）；处理函数用 `ctx.fail(code, message)` 抛出 */

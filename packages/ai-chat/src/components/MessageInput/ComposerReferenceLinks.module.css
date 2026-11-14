@@ -41,3 +41,18 @@
 .reference button:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
 }
+
+.quote {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  min-width: 0;
+  padding: 0 var(--cd-space-1-5);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-color-bg-subtle);
+  color: var(--cd-color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

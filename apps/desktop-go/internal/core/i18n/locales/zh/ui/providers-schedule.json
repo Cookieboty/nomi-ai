@@ -159,7 +159,7 @@
   "ui.providers-schedule.task-attempt-interrupted": "被中断",
   "ui.providers-schedule.task-attempt-rejected": "被退回",
   "ui.providers-schedule.task-auto-judge": "按风险自动判断（L3 及以上）",
-  "ui.providers-schedule.task-auto-judge-hint": "命令先交给命令审核，放行就直接跑；高风险、凭据、破坏性和读了外部内容的操作仍会问你。取消勾选 = 每条命令都问你。",
+  "ui.providers-schedule.task-auto-judge-hint": "有系统沙箱时，命令先交给命令审核（会发送命令全文，已尽量去掉密钥和本机路径），放行就直接跑；高风险、凭据、破坏性和读了外部内容的操作仍会问你。没有系统沙箱（Windows / Linux）时不会自动执行，每条命令都问你。取消勾选 = 每条命令都问你。",
   "ui.providers-schedule.task-awaiting-accept": "等你验收",
   "ui.providers-schedule.task-board-by-priority": "按重要程度",
   "ui.providers-schedule.task-board-by-stage": "按进度",
@@ -330,5 +330,6 @@
   "ui.providers-schedule.when-on-nomi-occasionally-starts-a-chat-while": "开启后，Nomi 会在你空闲时偶尔主动搭话（结合长期记忆里的话题）。默认关闭；免打扰时段、你刚聊过天或不在电脑前时不会打扰。",
   "ui.providers-schedule.task-sandbox-pregrant": "编程助手沙箱里预先允许（跑的时候不用再问；有 GitHub 对外动作时自动带上 SSH 与 Git 凭据）",
   "ui.providers-schedule.task-search": "搜索任务…",
-  "ui.providers-schedule.task-stage-filter": "按进度筛选"
+  "ui.providers-schedule.task-stage-filter": "按进度筛选",
+  "ui.providers-schedule.task-auto-judge-no-sandbox": "当前系统没有编程助手沙箱（Windows / Linux），不会自动执行命令，仍会逐条请你确认。"
 }

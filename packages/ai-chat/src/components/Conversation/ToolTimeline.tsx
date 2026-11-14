@@ -42,6 +42,7 @@ import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import type { TranscriptView } from '../../services/transcriptView';
 import { thoughtLabel } from '../../utils/convTime';
 import type { LiveAgent } from '../../utils/liveState';
+import type { SubagentTarget } from '../../utils/sideTabs';
 import {
   activeStep,
   activityCalls,
@@ -71,6 +72,7 @@ import {
   type ToolCall,
   type ToolKind,
 } from '../../utils/toolTrace';
+import { AgentHoverCard } from '../AgentHoverCard';
 
 import { useAgentForCall } from './agentContext';
 import { ConvHostContext } from './convHost';
@@ -515,6 +517,14 @@ const Subagent: React.FC<{ call: ToolCall; children: TimelineItem[] }> = ({ call
     }
     pane.openNested(call.id, parentTabId);
   };
+  // 悬停卡片：后台 Nomi 看任务，其余看父转录里的这个子代理
+  const isNomiTask = baseToolName(call.name) === 'delegate_to_nomi';
+  const taskId = isNomiTask ? nomiTaskId(call.output) : undefined;
+  const hoverTarget: SubagentTarget | null = isNomiTask
+    ? taskId
+      ? { kind: 'nomi-task', taskId }
+      : null
+    : { kind: 'nested', callId: call.id, parentTabId };
   // Verbose：展开子代理任务、内部步骤与结果
   const disclosure = useViewOpen((view) => view === 'verbose');
   // 后台子代理：派生它的调用立刻返回，但子代理本身还在跑，以子代理状态为准
@@ -563,14 +573,18 @@ const Subagent: React.FC<{ call: ToolCall; children: TimelineItem[] }> = ({ call
     <Disclosure
       icon={Bot}
       label={
-        <>
+        <AgentHoverCard
+          target={hoverTarget}
+          onOpen={pane ? openHere : undefined}
+          fallback={{ lastUser: prompt, lastOutput: agent?.progress || result }}
+        >
           <span className={styles.verb}>{d.verb}</span>
           {d.target && (
             <span className={styles.target} title={d.target}>
               {d.target}
             </span>
           )}
-        </>
+        </AgentHoverCard>
       }
       meta={meta}
       status={status}

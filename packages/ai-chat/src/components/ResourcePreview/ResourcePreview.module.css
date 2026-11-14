@@ -29,6 +29,27 @@
   gap: var(--cd-space-2);
   flex-shrink: 0;
 }
+/* 在对话旁的标签区里：跟着那一栏排版（标签栏在外面），不再浮在对话上 */
+.panel.embedded {
+  position: relative;
+  inset: auto;
+  width: auto;
+  flex: 1 1 0;
+  min-height: 0;
+  border-inline-start: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  z-index: auto;
+}
+/* 挂载时把焦点放在预览区（Esc / 查找归它），容器本身不画焦点框 */
+.panel.embedded:focus {
+  outline: none;
+}
+.panel[hidden],
+.tabs[hidden] {
+  display: none;
+}
 .tabs {
   overflow-x: auto;
   padding: var(--cd-space-2);
@@ -248,6 +269,13 @@
   scroll-padding-block-end: calc(
     var(--resource-composer-height, var(--cd-control-h-lg)) + var(--cd-space-8)
   );
+}
+/* 标签区铺满时对话是一个标签，不浮在文档上：底部不用给输入框让位 */
+.embedded.expanded .documentBody,
+.embedded.expanded .source,
+.embedded.expanded .officeBody {
+  padding-block-end: var(--cd-space-4);
+  scroll-padding-block-end: var(--cd-space-4);
 }
 .markdown {
   width: 100%;

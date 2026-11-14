@@ -10,6 +10,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';
+import { agentKey } from '../../utils/sideTabs';
 import { useChangesUi } from '../SessionWorkspace/ChangesUiContext';
 
 const STORE_KEY = 'nomi.sessionDetails.open';
@@ -68,15 +69,11 @@ export const SessionDetailsProvider: React.FC<{ children: React.ReactNode }> = (
   const [override, setOverride] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
   const { workbench, previewOpen } = useChangesUi();
-  const subagent = useSubagentPane()?.target ?? null;
-  const subagentOpen = !!subagent;
-  const subKey = !subagent
-    ? ''
-    : subagent.kind === 'harness'
-      ? subagent.tabId
-      : subagent.kind === 'nested'
-        ? subagent.callId
-        : subagent.taskId;
+  const pane = useSubagentPane();
+  const subagent = pane?.target ?? null;
+  // 标签区开着（子任务或文件标签）就算占了对话旁那一栏
+  const subagentOpen = (pane?.targets.length ?? 0) > 0 || !!pane?.filesOpen;
+  const subKey = subagent ? agentKey(subagent) : '';
   const small = useMedia(SESSION_DETAILS_SMALL);
   const crowded = !!workbench || previewOpen || (small && (railOpen || subagentOpen));
   // 那几栏开关有变化（含子任务换了一个）：清掉手动打开，重新按自动规则（渲染期比对，不在 effect 里 setState）

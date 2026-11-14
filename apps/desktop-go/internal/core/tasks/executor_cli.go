@@ -10,9 +10,14 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/sandbox"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
+
+// osSandboxSupported：系统级编程助手沙箱是否可用（目前仅 macOS 且内置执行文件在）。
+// Windows / Linux 为假：L3 不切到 auto，命令保持逐条确认。测试里可替换。
+var osSandboxSupported = sandbox.Supported
 
 // CliTabEvent：编排器的标签事件（只用到审批相关字段）
 type CliTabEvent struct {
@@ -257,8 +262,34 @@ func autoJudge(t Task) bool {
 // autoAll：前台「全部自动」开着（没有这个开关时为关）
 func (e *cliExecutor) autoAll() bool { return e.d.AutoAll != nil && e.d.AutoAll() }
 
-// relaxed：自动判断 / 全部自动：命令不再逐项问人（破坏性、凭据、对外、事件触发仍问）
-func (e *cliExecutor) relaxed(t Task) bool { return autoJudge(t) || e.autoAll() }
+// relaxed：自动判断 / 全部自动：命令不再逐项问人（破坏性、凭据、对外、事件触发仍问）。
+// 没有系统沙箱时一律不放松：不要在 Windows / Linux 上把 L3 变成自动执行。
+func (e *cliExecutor) relaxed(t Task) bool {
+	return osSandboxSupported() && (autoJudge(t) || e.autoAll())
+}
+
+// decidePermission：没有系统沙箱时，即便授权里勾了「按风险自动判断」，也按「每条命令都问」处理。
+func (e *cliExecutor) decidePermission(t Task, kind, summary string, tainted bool) string {
+	if !osSandboxSupported() {
+		off := false
+		g := t.Grant
+		g.AutoJudge = &off
+		t.Grant = g
+	}
+	return DecidePermission(t, kind, summary, tainted, e.relaxed(t))
+}
+
+// cliTaskMode：授权等级换成编程助手的权限档。L3 且放松时才用 auto；没有系统沙箱时停在 acceptEdits。
+func cliTaskMode(t Task, relaxed bool) string {
+	mode := "plan"
+	if t.Grant.Level >= 2 {
+		mode = "acceptEdits"
+	}
+	if t.Grant.Level >= 3 && relaxed {
+		mode = "auto"
+	}
+	return mode
+}
 
 func (e *cliExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
 	ex := t.Executor
@@ -383,15 +414,9 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 			return
 		}
 		iso = &got
-		// 权限档：L2 起可以改文件；开了「按风险自动判断」或前台「全部自动」且到了 L3 时用 auto
-		// （等价 codex 的 full-auto：改动与命令都直接跑，后端不支持时降级到 acceptEdits）
-		mode := "plan"
-		if t.Grant.Level >= 2 {
-			mode = "acceptEdits"
-		}
-		if t.Grant.Level >= 3 && e.relaxed(t) {
-			mode = "auto"
-		}
+		// 权限档：L2 起可以改文件；开了「按风险自动判断」或前台「全部自动」且到了 L3、
+		// 并且系统沙箱可用时用 auto（等价 codex 的 full-auto）。没有系统沙箱时停在 acceptEdits，命令逐条确认。
+		mode := cliTaskMode(t, e.relaxed(t))
 		model := ""
 		if ex.Model != nil {
 			model = *ex.Model
@@ -482,7 +507,7 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 		if ev.Type != "permission" || ev.ID == "" {
 			return
 		}
-		switch DecidePermission(t, ev.Kind, ev.Summary, tainted, e.relaxed(t)) {
+		switch e.decidePermission(t, ev.Kind, ev.Summary, tainted) {
 		case "allow":
 			h.ReplyPermission(tabID, ev.ID, true)
 		case "deny":

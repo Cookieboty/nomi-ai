@@ -1,0 +1,21 @@
+.empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cd-space-2);
+  min-height: 0;
+  padding: var(--cd-space-4);
+  color: var(--cd-color-text-muted);
+  text-align: center;
+}
+.empty strong {
+  color: var(--cd-color-text);
+  font-size: var(--cd-font-size-lg);
+  font-weight: var(--cd-font-weight-medium);
+}
+.empty p {
+  margin: 0;
+  font-size: var(--cd-font-size-sm);
+}

@@ -12,13 +12,16 @@ import {
   collectSessionAgents,
   countRunning,
   pendingDelegateTaskIds,
+  sideChatAgents,
 } from '../src/components/SessionDetails/agents';
 import { summarizeGit } from '../src/components/SessionDetails/useWorkspaceChanges';
 import { useChangesUi } from '../src/components/SessionWorkspace';
 import { useSubagentPane, WorkspacePanesProvider } from '../src/components/SubagentPane';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
+import { createSideChat, resetSideChats } from '../src/services/sideChat';
 import type { ConvMessage } from '../src/types/conversation';
+import { agentKey } from '../src/utils/sideTabs';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
@@ -149,6 +152,7 @@ const Probe: React.FC = () => {
       <span data-testid="probe">
         {pane?.tabId ?? '-'}|{workbench ? 'wb' : '-'}
       </span>
+      <span data-testid="probe-target">{pane?.target ? agentKey(pane.target) : '-'}</span>
       <button
         type="button"
         data-testid="probe-open-pane"
@@ -228,6 +232,57 @@ describe('collectSessionAgents', () => {
     ]);
     // 标签已经没了：子任务仍列出，但不能打开
     expect(agents[0]).toMatchObject({ kind: 'delegate', tabId: undefined });
+  });
+});
+
+describe('side chats in the agents list', () => {
+  it('maps side chats to agent rows (status from the last turn)', () => {
+    expect(
+      sideChatAgents([
+        {
+          id: 'a',
+          name: '侧边聊天 1',
+          running: true,
+          messages: [{ role: 'user', text: ' 问\n题 ' }],
+        },
+        { id: 'b', name: '侧边聊天 2', running: false, messages: [] },
+        {
+          id: 'c',
+          name: '侧边聊天 3',
+          running: false,
+          messages: [
+            { role: 'user', text: 'q' },
+            { role: 'assistant', text: '', error: 'x' },
+          ],
+        },
+      ]).map((a) => [a.id, a.kind, a.status, a.detail ?? '']),
+    ).toEqual([
+      ['side-chat:a', 'side-chat', 'running', ' 问 题 '],
+      ['side-chat:b', 'side-chat', 'idle', ''],
+      ['side-chat:c', 'side-chat', 'error', 'q'],
+    ]);
+  });
+
+  it("lists this conversation's side chats with the agents and opens one as a tab", async () => {
+    resetSideChats();
+    const id = createSideChat('');
+    createSideChat('other');
+    try {
+      setup();
+      mount();
+      fireEvent.click(screen.getByTestId('session-details-toggle'));
+      await waitFor(() => expect(screen.getAllByTestId('session-details-agent')).toHaveLength(3));
+      const row = screen
+        .getAllByTestId('session-details-agent')
+        .find((r) => r.textContent?.includes('侧边聊天 1'))!;
+      expect(row).toBeTruthy();
+      fireEvent.click(row.querySelector('button')!);
+      await waitFor(() =>
+        expect(screen.getByTestId('probe-target').textContent).toBe(`side-chat:${id}`),
+      );
+    } finally {
+      resetSideChats();
+    }
   });
 });
 

@@ -46,6 +46,7 @@ import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { shouldIgnoreEscape } from '../../utils/keyboard';
 import type { LiveAgent } from '../../utils/liveState';
 import { type PendingMode, type PendingSend } from '../../utils/pendingSends';
+import { agentKey } from '../../utils/sideTabs';
 import { CliConversation } from '../Conversation/CliConversation';
 import { buildCliSlots } from '../Conversation/cliSlots';
 import { ConversationView } from '../Conversation/index';
@@ -55,6 +56,7 @@ import { PendingDock } from '../PendingDock';
 import { SessionDetailsProvider } from '../SessionDetails';
 import { CenterChangesHost, ChangesUiProvider } from '../SessionWorkspace';
 import type { SettingsSection } from '../SettingsView/sections';
+import { SideChatPane } from '../SideChat';
 import { UserQuestionDock } from '../UserQuestionCard/dock';
 
 import {
@@ -88,6 +90,24 @@ export interface SubagentPaneActions {
 
 const ActionsCtx = React.createContext<SubagentPaneActions>({});
 const usePaneActions = () => React.useContext(ActionsCtx);
+/** 在标签区里：关闭在标签上（×），面板头不再放关闭按钮 */
+const TabbedCtx = React.createContext(false);
+
+/** 这个子任务在标签区里的状态：是不是当前标签、标签区是否铺满 */
+interface PaneSlot {
+  tabKey: string;
+  active: boolean;
+  maximized: boolean;
+}
+
+/** 把名字和状态报给标签栏（标签上显示），卸载时撤掉 */
+function useReportMeta(tabKey: string, name: string, state: 'running' | 'waiting' | 'idle') {
+  const report = useSubagentPane()?.reportMeta;
+  React.useEffect(() => {
+    report?.(tabKey, { name, state });
+  }, [report, tabKey, name, state]);
+  React.useEffect(() => () => report?.(tabKey, null), [report, tabKey]);
+}
 
 /** 输入栏上的主窗口面板按钮：和主列同一组 */
 function panelButtons(a: SubagentPaneActions, withPlugins: boolean) {
@@ -132,42 +152,51 @@ const PaneHead: React.FC<{
   goal?: string;
   onClose: () => void;
   onStop?: () => void;
-}> = ({ name, state, goal, onClose, onStop }) => (
-  <>
-    <header className={styles.head}>
-      <span className={styles.title}>{name}</span>
-      <span className={styles.status} data-testid="subagent-status" data-state={state}>
-        {state === 'waiting'
-          ? t('ui.session-workspace.needs-your-approval')
-          : state === 'running'
-            ? t('ui.knowledge-local.running')
-            : t('ui.mascot-theme.idle')}
-      </span>
-      <span className={styles.spacer} />
-      {onStop && state === 'running' && (
-        <Button size="sm" variant="ghost" onClick={onStop} data-testid="subagent-stop">
-          <Icon icon={Square} size={12} />
-          {t('ui.foundation.stop')}
-        </Button>
+}> = ({ name, state, goal, onClose, onStop }) => {
+  const tabbed = React.useContext(TabbedCtx);
+  return (
+    <>
+      <header className={styles.head}>
+        <span className={styles.title}>{name}</span>
+        <span className={styles.status} data-testid="subagent-status" data-state={state}>
+          {state === 'waiting'
+            ? t('ui.session-workspace.needs-your-approval')
+            : state === 'running'
+              ? t('ui.knowledge-local.running')
+              : t('ui.mascot-theme.idle')}
+        </span>
+        <span className={styles.spacer} />
+        {onStop && state === 'running' && (
+          <Button size="sm" variant="ghost" onClick={onStop} data-testid="subagent-stop">
+            <Icon icon={Square} size={12} />
+            {t('ui.foundation.stop')}
+          </Button>
+        )}
+        {!tabbed && (
+          <IconButton
+            size="sm"
+            label={t('ui.providers-schedule.close')}
+            icon={<Icon icon={X} size={14} />}
+            onClick={onClose}
+            data-testid="subagent-close"
+          />
+        )}
+      </header>
+      {goal && (
+        <p className={styles.goal} title={goal}>
+          {goal}
+        </p>
       )}
-      <IconButton
-        size="sm"
-        label={t('ui.providers-schedule.close')}
-        icon={<Icon icon={X} size={14} />}
-        onClick={onClose}
-        data-testid="subagent-close"
-      />
-    </header>
-    {goal && (
-      <p className={styles.goal} title={goal}>
-        {goal}
-      </p>
-    )}
-  </>
-);
+    </>
+  );
+};
 
 /** 委派的编程助手：和主列同一个 CliConversation / MessageInput，只是绑在这个标签上 */
-const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void }> = ({ tab, onClose }) => {
+const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: PaneSlot }> = ({
+  tab,
+  onClose,
+  slot,
+}) => {
   const core = useHarnessTabsCore();
   const actions = usePaneActions();
   const raw = useHarnessTabMessages(tab.id);
@@ -214,17 +243,22 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void }> = ({ t
     },
   });
   const name = t(ENDPOINT_NAME[tab.backend] ?? tab.backend);
-  usePaneEscape(true, onClose);
+  const paneState = waiting ? 'waiting' : running ? 'running' : 'idle';
+  useReportMeta(slot.tabKey, name, paneState);
+  usePaneEscape(slot.active && !slot.maximized, onClose);
   return (
     <section
       className={styles.pane}
+      hidden={!slot.active}
       data-testid="subagent-pane"
+      data-side-tab={slot.tabKey}
       data-question-scope="subagent"
+      data-selection-label={name}
       aria-label={t('ui.session-workspace.subagent-pane-title', name)}
     >
       <PaneHead
         name={name}
-        state={waiting ? 'waiting' : running ? 'running' : 'idle'}
+        state={paneState}
         goal={tab.delegation?.goal}
         onClose={onClose}
         onStop={() => void core.cancelRun(tab.id)}
@@ -334,7 +368,8 @@ const NestedChat: React.FC<{
   parentTabId: string | null;
   columnMessages: readonly ConvMessage[];
   onClose: () => void;
-}> = ({ callId, parentTabId, columnMessages, onClose }) => {
+  slot: PaneSlot;
+}> = ({ callId, parentTabId, columnMessages, onClose, slot }) => {
   const core = useHarnessTabsCore();
   const actions = usePaneActions();
   const tabs = useHarnessTabs();
@@ -497,12 +532,16 @@ const NestedChat: React.FC<{
       if (open) await core.cancelRun(parentTabId);
     })();
   };
-  usePaneEscape(true, onClose);
+  useReportMeta(slot.tabKey, name, running ? 'running' : 'idle');
+  usePaneEscape(slot.active && !slot.maximized, onClose);
   return (
     <section
       className={styles.pane}
+      hidden={!slot.active}
       data-testid="subagent-pane"
+      data-side-tab={slot.tabKey}
       data-question-scope="subagent"
+      data-selection-label={name}
       aria-label={name}
     >
       <PaneHead
@@ -593,7 +632,11 @@ const TASK_ACTIVE = new Set(['running', 'queued', 'waiting_user']);
  * （tasks.steer，下一步并进上下文，不收时转为排队），Ctrl/⌘+Enter = 排队，这次跑完后合成一条追问发出；
  * 停止 = 取消这次执行。
  */
-const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void }> = ({ taskId, onClose }) => {
+const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSlot }> = ({
+  taskId,
+  onClose,
+  slot,
+}) => {
   const actions = usePaneActions();
   const [goal, setGoal] = React.useState('');
   const [title, setTitle] = React.useState('');
@@ -669,18 +712,23 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void }> = ({ taskI
   );
   const enqueue = outbox.enqueue;
   const stop = () => void tasksApi.cancel(taskId).catch(() => undefined);
-  usePaneEscape(true, onClose);
+  usePaneEscape(slot.active && !slot.maximized, onClose);
   const name = title || t('ui.usage-tools.subagent');
+  const paneState = status === 'waiting_user' ? 'waiting' : running ? 'running' : 'idle';
+  useReportMeta(slot.tabKey, name, paneState);
   return (
     <section
       className={styles.pane}
+      hidden={!slot.active}
       data-testid="subagent-pane"
+      data-side-tab={slot.tabKey}
       data-question-scope="subagent"
+      data-selection-label={name}
       aria-label={t('ui.session-workspace.subagent-pane-title', name)}
     >
       <PaneHead
         name={name}
-        state={status === 'waiting_user' ? 'waiting' : running ? 'running' : 'idle'}
+        state={paneState}
         goal={goal}
         onClose={onClose}
         onStop={running ? stop : undefined}
@@ -756,12 +804,13 @@ const PaneBody: React.FC<{
   target: SubagentTarget;
   columnMessages: readonly ConvMessage[];
   onClose: () => void;
-}> = ({ target, columnMessages, onClose }) => {
+  slot: PaneSlot;
+}> = ({ target, columnMessages, onClose, slot }) => {
   const tabs = useHarnessTabs();
   if (target.kind === 'harness') {
     const tab = tabs.state?.tabs.find((item) => item.id === target.tabId);
     if (!tab) return null;
-    return <HarnessChat key={tab.id} tab={tab} onClose={onClose} />;
+    return <HarnessChat key={tab.id} tab={tab} onClose={onClose} slot={slot} />;
   }
   if (target.kind === 'nested') {
     return (
@@ -771,22 +820,46 @@ const PaneBody: React.FC<{
         parentTabId={target.parentTabId}
         columnMessages={columnMessages}
         onClose={onClose}
+        slot={slot}
       />
     );
   }
-  return <NomiTaskChat key={target.taskId} taskId={target.taskId} onClose={onClose} />;
+  if (target.kind === 'side-chat')
+    return <SideChatPane key={target.chatId} chatId={target.chatId} slot={slot} />;
+  return <NomiTaskChat key={target.taskId} taskId={target.taskId} onClose={onClose} slot={slot} />;
 };
 
+/**
+ * 开着的子任务都挂着（切走的只隐藏），切回来时流式输出、输入框草稿、滚动位置都还在。
+ * tabbed：在标签区里（关闭在标签上）；单独用时（单测 / 别的窗口）面板头自带关闭按钮。
+ */
 export const SubagentPane: React.FC<{
   columnMessages: readonly ConvMessage[];
   actions?: SubagentPaneActions;
-}> = ({ columnMessages, actions }) => {
+  tabbed?: boolean;
+  /** 独立窗口里（弹出的标签）：整窗只有它，Esc 不关、没有关闭按钮（关窗口即可） */
+  standalone?: boolean;
+}> = ({ columnMessages, actions, tabbed = false, standalone = false }) => {
   const pane = useSubagentPane();
   const value = useMemo(() => actions ?? {}, [actions]);
-  if (!pane?.target) return null;
+  if (!pane?.targets.length) return null;
+  const maximized = pane.tabs.maximized || standalone;
   return (
     <ActionsCtx.Provider value={value}>
-      <PaneBody target={pane.target} columnMessages={columnMessages} onClose={pane.closeSubagent} />
+      <TabbedCtx.Provider value={tabbed || standalone}>
+        {pane.targets.map((target) => {
+          const key = agentKey(target);
+          return (
+            <PaneBody
+              key={key}
+              target={target}
+              columnMessages={columnMessages}
+              onClose={() => pane.closeTab(key)}
+              slot={{ tabKey: key, active: pane.active === key, maximized }}
+            />
+          );
+        })}
+      </TabbedCtx.Provider>
     </ActionsCtx.Provider>
   );
 };

@@ -1,11 +1,14 @@
 import { useMemo, type Dispatch, type SetStateAction } from 'react';
 
 import { basename, resourceTarget, workspaceFileHref } from '../../utils/resourceLinks';
+import { quoteExcerpt, quoteKey, readQuoteBlock } from '../../utils/selectionQuote';
 
 export interface ComposerReference {
   href: string;
   label: string;
   markdown: string;
+  /** 选中文字的引用（「添加到对话」）：胶囊悬停显示全文；没有 = 文件链接 */
+  quote?: { text: string; source: string };
 }
 
 /** Only absolute file references with source lines become links in the composer. */
@@ -29,6 +32,22 @@ export function splitReferenceDraft(value: string): {
       )
         fence = null;
       prose.push(line);
+      continue;
+    }
+    const quoted = !fence ? readQuoteBlock(lines, index) : null;
+    if (quoted) {
+      references.push({
+        href: quoteKey(quoted.markdown),
+        label: quoteExcerpt(quoted.quote.text),
+        markdown: quoted.markdown,
+        quote: quoted.quote,
+      });
+      index = quoted.end - 1;
+      if (lines.slice(index + 1).every((next) => !next.trim())) {
+        while (prose.length && prose[prose.length - 1] === '') prose.pop();
+        break;
+      }
+      if (lines[index + 1] === '') index++;
       continue;
     }
     const match = !fence && /^[ \t]*\[((?:\\.|[^\]\\])*)\]\(([^\n)]+)\)[ \t]*\r?$/.exec(line);
@@ -55,7 +74,9 @@ export function splitReferenceDraft(value: string): {
 
 export function joinReferenceDraft(references: ComposerReference[], text: string): string {
   const unique = [...new Map(references.map((item) => [item.href, item])).values()];
-  return unique.length ? `${unique.map((item) => item.markdown).join('\n')}\n\n${text}` : text;
+  // 引用块后面要空一行（否则下一行会被并进引用里）
+  const sep = unique.some((item) => item.quote) ? '\n\n' : '\n';
+  return unique.length ? `${unique.map((item) => item.markdown).join(sep)}\n\n${text}` : text;
 }
 
 /** Draft storage and sends retain Markdown; editing and caret operations see only prose. */

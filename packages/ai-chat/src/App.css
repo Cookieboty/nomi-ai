@@ -171,7 +171,7 @@ html[data-chat-bg] .workspace-card {
 /* Diff 旁列：占满剩余宽度与全高（不压在对话/输入下面） */
 .main-content--with-changes [data-testid='center-changes-pane'],
 .main-content--with-changes [data-testid='center-preview-pane'],
-.main-content--with-changes [data-testid='subagent-pane'] {
+.main-content--with-changes [data-testid='side-workspace'] {
   flex: 1 1 0;
   min-width: var(--cd-center-pane-min);
   min-height: 0;
@@ -855,4 +855,73 @@ html[data-chat-bg] .main-content--with-changes [data-testid='center-preview-pane
   /* Keep the entire grab area inside the clipped main-content when snapped to 100%. */
   inset-inline-start: 0;
   transform: none;
+}
+
+/* 对话旁的标签区（子任务 + 文件）：隐藏的标签只隐藏不卸载 */
+.chat-column[hidden],
+.center-changes-splitter[hidden],
+[data-testid='side-workspace'] [data-testid='subagent-pane'][hidden] {
+  display: none;
+}
+/* 标签区铺满：标签栏在整个对话区顶上，下面是当前标签（主会话或右侧那一栏），另一个只隐藏 */
+.main-content--side-max {
+  flex-direction: column;
+  min-width: 0;
+}
+.main-content--side-max > .chat-column {
+  flex: 1 1 0;
+  width: auto;
+  max-width: none;
+  min-height: 0;
+}
+.main-content--side-max > [data-testid='side-workspace'] {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  border-left: none;
+}
+.main-content--side-max[data-side-main] > [data-testid='side-workspace'] {
+  display: none;
+}
+
+/* 铺满 + 向右拆分：标签栏在上，下面 主会话 | 分割线 | 当前标签（比例存在 --side-split） */
+.main-content--side-split {
+  display: grid;
+  grid-template-columns: minmax(0, var(--side-split, 50%)) auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.main-content--side-split > [data-testid='side-tab-strip'] {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+.main-content--side-split > .chat-column {
+  grid-column: 1;
+  grid-row: 2;
+  width: auto;
+  min-width: 0;
+}
+.main-content--side-split > .side-split-splitter {
+  grid-column: 2;
+  grid-row: 2;
+}
+.main-content--side-split > [data-testid='side-workspace'] {
+  grid-column: 3;
+  grid-row: 2;
+  min-width: 0;
+  border-left: none;
+}
+.side-split-splitter {
+  width: 5px;
+  cursor: col-resize;
+  background: var(--cd-color-border);
+  background-clip: content-box;
+  padding: 0 2px;
+  touch-action: none;
+}
+.side-split-splitter:hover,
+.side-split-splitter:focus-visible {
+  padding: 0 1px;
+  background: var(--cd-color-accent-strong);
+  background-clip: content-box;
+  outline: none;
 }

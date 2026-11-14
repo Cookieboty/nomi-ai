@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React, { useEffect, useRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -524,7 +524,12 @@ describe('durable subagent delivery', () => {
     const fake = mutableTask();
     await queueTaskMessage('belongs to t9');
     fireEvent.click(screen.getByTestId('switch-task'));
-    await waitFor(() => expect(screen.queryByTestId('pending-dock')).toBeNull());
+    // 标签区：t9 留在自己的（隐藏）标签里，当前显示的 t10 面板上没有它的待发消息
+    await waitFor(() => {
+      const visible = screen.getAllByTestId('subagent-pane').filter((p) => !p.hidden);
+      expect(visible).toHaveLength(1);
+      expect(within(visible[0]!).queryByTestId('pending-dock')).toBeNull();
+    });
     fake.setStatus('done');
     await fake.emit('tasks.changed', {});
     await waitFor(() =>

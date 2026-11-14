@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 475：mutation 333 / query 137 / stream 5
+// 合计 480：mutation 337 / query 138 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -75,6 +75,11 @@ var Procedures = []Procedure{
 	{Name: "chatBg.pickImage", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatBg.reset", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatBg.set", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "chatWindow.detachTab", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "chatWindow.detachedTabs", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "chatWindow.dockTab", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "chatWindow.handoffPut", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "chatWindow.handoffTake", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "cli.registry", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "cliAccount.list", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "cliAccount.loginCancel", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -222,7 +227,7 @@ var Procedures = []Procedure{
 	{Name: "harness.gitSyncStatus", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.gitUnstage", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.gitWorktrees", Kind: "mutation", Dangerous: false, Surfaces: nil},
-	{Name: "harness.messageAgent", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "harness.messageAgent", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "harness.modelCatalog", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.openTerminal", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.permissionDefaults", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -513,6 +518,8 @@ var Events = []string{
 	"character.assetsChanged",
 	"chatAssets.changed",
 	"chatBg.changed",
+	"chatWindow.detachedChanged",
+	"chatWindow.tabDocked",
 	"cli.registryChanged",
 	"cliAccount.changed",
 	"cliAccount.login",
