@@ -88,9 +88,10 @@ const Group: React.FC<{
   title: string;
   desc?: string;
   id?: string;
+  className?: string;
   children: React.ReactNode;
-}> = ({ title, desc, id, children }) => (
-  <section className={styles.group} aria-labelledby={id}>
+}> = ({ title, desc, id, className, children }) => (
+  <section className={`${styles.group} ${className ?? ''}`} aria-labelledby={id}>
     <div className={styles.groupHead}>
       <h2 className={styles.groupTitle} id={id}>
         {title}
@@ -390,6 +391,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
             <Group
               title={t('ui.providers-schedule.coding-agents')}
               desc={t('ui.mascot-theme.onb-agents-group-desc')}
+              className={styles.statusGroup}
             >
               <ul className={styles.list}>
                 {DISPATCH_CLIS.map((id) => {
@@ -443,6 +445,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
             <Group
               title={t('ui.mascot-theme.onb-section-model')}
               desc={t('ui.mascot-theme.onb-model-optional')}
+              className={styles.statusGroup}
             >
               {modelOpen || model === 'ready' || model === 'unassigned' ? (
                 <ProviderSetup onOpenModels={openModels} />
@@ -531,7 +534,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                         );
                       }}
                     >
-                      {on && <Check size={14} strokeWidth={2.5} aria-hidden />}
+                      <Check className={styles.pillCheck} size={14} strokeWidth={2.5} aria-hidden />
                       {INTEREST_LABEL[x]()}
                     </button>
                   );

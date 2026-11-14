@@ -2506,6 +2506,7 @@ export type TranslationKey =
   | 'ui.mascot-theme.onb-checking-provider'
   | 'ui.mascot-theme.onb-choose-model'
   | 'ui.mascot-theme.onb-choose-provider'
+  | 'ui.mascot-theme.onb-change-model'
   | 'ui.mascot-theme.onb-model-ready'
   | 'ui.mascot-theme.onb-provider-configured'
   | 'ui.mascot-theme.onb-provider-first'

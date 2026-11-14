@@ -121,6 +121,7 @@
   "ui.mascot-theme.onb-checking-provider": "Checking…",
   "ui.mascot-theme.onb-choose-model": "Choose Nomi's model",
   "ui.mascot-theme.onb-choose-provider": "Choose a provider",
+  "ui.mascot-theme.onb-change-model": "Change model",
   "ui.mascot-theme.onb-model-ready": "All set — Nomi will chat with this model.",
   "ui.mascot-theme.onb-provider-configured": "Configured: {0}",
   "ui.mascot-theme.onb-provider-first": "Set up a provider first, then pick a model.",

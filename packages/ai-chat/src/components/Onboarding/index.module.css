@@ -139,12 +139,75 @@
   margin-top: var(--cd-space-8);
 }
 
+/* AI 页需要在默认窗口高度内一次看完；模型列表展开时只在列表本身收纳内容。 */
+.overlay[data-step='ai'] .step {
+  padding-top: var(--cd-space-5);
+  padding-bottom: var(--cd-space-4);
+}
+.overlay[data-step='ai'] .body {
+  gap: var(--cd-space-4);
+  margin-top: var(--cd-space-5);
+}
+.overlay[data-step='ai'] .statusGroup {
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-3);
+}
+.overlay[data-step='ai'] .groupHead {
+  gap: 0;
+}
+.overlay[data-step='ai'] .listRow {
+  min-height: 44px;
+  padding: var(--cd-space-1) var(--cd-space-3);
+}
+.overlay[data-step='ai'] .listIcon {
+  width: 28px;
+  height: 28px;
+}
+.overlay[data-step='ai'] .subStep {
+  column-gap: var(--cd-space-2);
+  row-gap: var(--cd-space-1);
+}
+.overlay[data-step='ai'] .configured,
+.overlay[data-step='ai'] .modelSummary {
+  padding: var(--cd-space-2) var(--cd-space-3);
+}
+.overlay[data-step='ai'] .collapsed {
+  min-height: 44px;
+}
+.overlay[data-step='ai'] .footInner {
+  padding-top: var(--cd-space-2);
+  padding-bottom: var(--cd-space-2);
+}
+
+/* 个性化页的内容较轻，收紧分组间距，让隐私说明和底部操作始终同屏。 */
+.overlay[data-step='personal'] .step {
+  padding-top: var(--cd-space-5);
+  padding-bottom: var(--cd-space-4);
+}
+.overlay[data-step='personal'] .body {
+  gap: var(--cd-space-5);
+  margin-top: var(--cd-space-6);
+}
+.overlay[data-step='personal'] .group {
+  gap: var(--cd-space-2);
+}
+.overlay[data-step='personal'] .privacy {
+  gap: var(--cd-space-1);
+  padding-top: var(--cd-space-3);
+}
+
 /* 一组表单 */
 .group {
   display: flex;
   flex-direction: column;
   gap: var(--cd-space-3);
   min-width: 0;
+}
+.statusGroup {
+  padding: var(--cd-space-4);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface);
 }
 .groupHead {
   display: flex;
@@ -277,6 +340,7 @@
   gap: var(--cd-space-2);
 }
 .pill {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--cd-space-1);
@@ -288,16 +352,42 @@
   color: var(--cd-color-text);
   font-size: var(--cd-font-size-sm);
   cursor: pointer;
-  transition: border-color var(--cd-duration-fast, 0.15s);
+  transition:
+    border-color var(--cd-duration-fast, 0.15s),
+    background-color var(--cd-duration-fast, 0.15s),
+    color var(--cd-duration-fast, 0.15s);
 }
 .pill:hover {
   border-color: var(--cd-color-border-strong);
+}
+.pillCheck {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  padding: 2px;
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-accent-strong);
+  color: var(--cd-color-text-on-accent);
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity var(--cd-duration-fast, 0.15s),
+    transform var(--cd-duration-fast, 0.15s);
 }
 .pillOn,
 .pillOn:hover {
   border-color: var(--cd-color-accent-strong);
   background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent-strong);
+  color: var(--cd-color-text);
+}
+.pillOn .pillCheck {
+  opacity: 1;
+  transform: none;
 }
 
 /* 编程助手：一组列表，行之间用细线分开 */
@@ -389,6 +479,41 @@
 }
 .configured svg {
   color: var(--cd-color-success);
+}
+.modelSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-3);
+  min-width: 0;
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-color-success-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-success-soft);
+}
+.modelSummary > svg {
+  flex: none;
+  color: var(--cd-color-success);
+}
+.modelSummaryCopy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+}
+.modelSummaryTitle,
+.modelSummaryHint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.modelSummaryTitle {
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+}
+.modelSummaryHint {
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
 }
 .chips {
   display: flex;

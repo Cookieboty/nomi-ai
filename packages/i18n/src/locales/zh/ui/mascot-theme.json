@@ -121,6 +121,7 @@
   "ui.mascot-theme.onb-checking-provider": "正在检测…",
   "ui.mascot-theme.onb-choose-model": "选择 Nomi 用的模型",
   "ui.mascot-theme.onb-choose-provider": "选择第三方供应商",
+  "ui.mascot-theme.onb-change-model": "更换模型",
   "ui.mascot-theme.onb-model-ready": "已选好，Nomi 会用这个模型和你聊天。",
   "ui.mascot-theme.onb-provider-configured": "已配置：{0}",
   "ui.mascot-theme.onb-provider-first": "先配置好供应商，才能选择模型。",
