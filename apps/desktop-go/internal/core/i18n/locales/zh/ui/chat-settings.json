@@ -228,7 +228,7 @@
   "ui.chat-settings.low": "轻度",
   "ui.chat-settings.m-s": "{0} 分 {1} 秒",
   "ui.chat-settings.make-default-for-new-tabs": "设为新标签默认",
-  "ui.chat-settings.makes-changes-without-asking-deletions-and-other-destructive": "修改操作不再询问；删除等破坏性操作仍要确认",
+  "ui.chat-settings.makes-changes-without-asking-deletions-and-other-destructive": "自动执行允许的操作，不再逐项确认",
   "ui.chat-settings.manage-mcp-servers-plugins-and-skills-to-extend": "管理 MCP 服务器、插件与技能，扩展 Nomi 能调用的工具。",
   "ui.chat-settings.manage-memory": "管理记忆",
   "ui.chat-settings.manage-skill-packs-the-assistant-can-use": "管理可被助手调用的技能包。",

@@ -413,17 +413,24 @@ type AuthorizeInput struct {
 	Approved bool
 }
 
-// AuthorizeIn：工作区里的操作要不要确认。「计划」档拦下写；「全部自动」开着时不确认；
-// 带 Force 的（如 workspace_run）默认确认，会话授权与命令白名单仍可按规则放行
+// AuthorizeIn：工作区里的操作要不要确认。「计划」档拦下写；Nomi「自动」档直接放行；
+// 「全部自动」设置仍只对没有 Force 的工作区操作生效，带 Force 的命令由权限模式决定。
 func (b *PermissionBroker) AuthorizeIn(i AuthorizeInput) Decision {
 	// 后台任务不看前台的档位与「全部自动」（docs/features/scheduling-calendar.md）
 	if BackgroundFrom(i.Signal) != nil {
 		return b.Authorize(i)
 	}
-	if b.PermissionMode() == "plan" && i.Danger != "read" {
+	mode := b.PermissionMode()
+	if mode == "plan" && i.Danger != "read" {
 		return "blocked"
 	}
-	if i.Force == nil && b.AutoApprove() {
+	if i.Signal != nil && i.Signal.Err() != nil {
+		return "denied"
+	}
+	if mode == "auto" && !i.IgnoreMode {
+		return "auto"
+	}
+	if i.Force == nil && !i.IgnoreMode && b.AutoApprove() {
 		return "auto"
 	}
 	return b.Authorize(i)
@@ -531,6 +538,12 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	}
 	if mode == "plan" && i.Danger != "read" {
 		return "blocked"
+	}
+	if i.Signal != nil && i.Signal.Err() != nil {
+		return "denied"
+	}
+	if mode == "auto" && !i.IgnoreMode {
+		return "auto"
 	}
 	// 本会话始终执行：这个对话里点过的当前工作目录，后续普通命令直接执行（「逐项确认」模式下不认）
 	if conv := tools.ConversationFrom(i.Signal); conv != "" && mode != "manual" && b.convCommandAllowed(conv, i) {

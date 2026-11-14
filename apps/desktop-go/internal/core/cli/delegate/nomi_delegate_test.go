@@ -100,6 +100,52 @@ func TestDelegateToNomiModes(t *testing.T) {
 	}
 }
 
+func TestChildPermissionMode(t *testing.T) {
+	for _, tc := range []struct {
+		nomi, tabDefault, want string
+	}{
+		{"plan", "auto", "plan"},
+		{"manual", "auto", "manual"},
+		{"acceptEdits", "auto", "acceptEdits"},
+		{"auto", "plan", "auto"},
+		{"auto", "acceptEdits", "auto"},
+	} {
+		if got := ChildPermissionMode(tc.nomi, tc.tabDefault); got != tc.want {
+			t.Errorf("ChildPermissionMode(%q, %q) = %q, want %q", tc.nomi, tc.tabDefault, got, tc.want)
+		}
+	}
+	for _, tc := range []struct {
+		cli, want string
+	}{
+		{"claude", "auto"},
+		{"dsh", "acceptEdits"},
+		{"minimax", "manual"},
+	} {
+		if got := ChildPermissionModeFor(tc.cli, "auto", "plan"); got != tc.want {
+			t.Errorf("ChildPermissionModeFor(%q, auto, plan) = %q, want %q", tc.cli, got, tc.want)
+		}
+	}
+}
+
+func TestDelegateToCliAutoModePassesAutoPermission(t *testing.T) {
+	e := newTaskEnv(t, util.NewObj("mode", "auto", "autoApprove", false, "tabDefault", "acceptEdits"), nil)
+	r := e.call(nil, "delegate_to_cli", delegateRaw("background", false, "cli", "claude"), tools.ExecContext{})
+	if r.Get("ok") != true {
+		t.Fatal(util.Stringify(r))
+	}
+	if len(e.log.harness) == 0 {
+		t.Fatal("delegate did not create a child tab")
+	}
+	created, ok := e.log.harness[0].([]any)
+	if !ok || len(created) != 2 || created[0] != "createTab" {
+		t.Fatalf("unexpected harness log: %v", e.log.harness)
+	}
+	opts, ok := created[1].(*util.Obj)
+	if !ok || opts.Get("permissionMode") != "auto" {
+		t.Fatalf("child permission mode = %v, want auto; opts=%s", opts.Get("permissionMode"), util.Stringify(opts))
+	}
+}
+
 func TestDelegateToNomiDepth(t *testing.T) {
 	ft := newFakeTasks()
 	e := newTaskEnv(t, util.NewObj(), ft)

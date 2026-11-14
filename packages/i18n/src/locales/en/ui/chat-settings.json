@@ -228,7 +228,7 @@
   "ui.chat-settings.low": "Low",
   "ui.chat-settings.m-s": "{0}m {1}s",
   "ui.chat-settings.make-default-for-new-tabs": "Make default for new tabs",
-  "ui.chat-settings.makes-changes-without-asking-deletions-and-other-destructive": "Makes changes without asking; deletions and other destructive actions still need confirmation",
+  "ui.chat-settings.makes-changes-without-asking-deletions-and-other-destructive": "Runs allowed actions automatically without asking each time",
   "ui.chat-settings.manage-mcp-servers-plugins-and-skills-to-extend": "Manage MCP servers, plugins and skills to extend the tools Nomi can use.",
   "ui.chat-settings.manage-memory": "Manage memory",
   "ui.chat-settings.manage-skill-packs-the-assistant-can-use": "Manage skill packs the assistant can use.",

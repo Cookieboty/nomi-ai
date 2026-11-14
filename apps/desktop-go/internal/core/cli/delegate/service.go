@@ -1192,7 +1192,7 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64) (*util.Obj, err
 		opts.Set("projectId", ws.ProjectID)
 	}
 	if !(h.AutoApproveEnabled() && nomiMode != "plan" && nomiMode != "manual") {
-		opts.Set("permissionMode", ChildPermissionMode(nomiMode, util.Str(h.ListTabs().Get("defaultPermissionMode"))))
+		opts.Set("permissionMode", ChildPermissionModeFor(cli, nomiMode, util.Str(h.ListTabs().Get("defaultPermissionMode"))))
 	}
 	opts.Set("activate", false)
 	del := util.NewObj()
