@@ -227,7 +227,7 @@ var Procedures = []Procedure{
 	{Name: "harness.gitSyncStatus", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.gitUnstage", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.gitWorktrees", Kind: "mutation", Dangerous: false, Surfaces: nil},
-	{Name: "harness.messageAgent", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "harness.messageAgent", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "harness.modelCatalog", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.openTerminal", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.permissionDefaults", Kind: "mutation", Dangerous: false, Surfaces: nil},

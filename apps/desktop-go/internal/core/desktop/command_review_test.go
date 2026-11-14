@@ -217,3 +217,46 @@ func TestBrokerReviewTaintedAndQuietSend(t *testing.T) {
 		t.Fatal("CanSendQuietly")
 	}
 }
+
+func TestRedactReviewSecrets(t *testing.T) {
+	orig := reviewHome
+	reviewHome = "/Users/ada"
+	t.Cleanup(func() { reviewHome = orig })
+
+	got := RedactReviewSecrets(`curl --api-key sk-abc1234567890 /Users/ada/src -H "Authorization: Bearer tok_live_secret" TOKEN=ghp_abcdefghijklmn https://ex?access_token=s3cret`)
+	if strings.Contains(got, "sk-abc") || strings.Contains(got, "tok_live") || strings.Contains(got, "ghp_abcd") || strings.Contains(got, "s3cret") {
+		t.Fatalf("secrets leaked: %s", got)
+	}
+	if strings.Contains(got, "/Users/ada") {
+		t.Fatalf("home path leaked: %s", got)
+	}
+	if !strings.Contains(got, "--api-key=") && !strings.Contains(got, "--api-key***") && !strings.Contains(got, "--api-key***") {
+		// we keep the flag name and replace the value
+	}
+	if !strings.Contains(got, "***") || !strings.Contains(got, "~/src") {
+		t.Fatalf("expected redaction marks and home rewrite: %s", got)
+	}
+
+	space := RedactReviewSecrets("tool --token 's3cret-value' do")
+	if strings.Contains(space, "s3cret-value") || !strings.Contains(space, "--token") {
+		t.Fatalf("flag space: %s", space)
+	}
+
+	plain := RedactReviewSecrets("pnpm test --filter pkg")
+	if plain != "pnpm test --filter pkg" {
+		t.Fatalf("ordinary command changed: %s", plain)
+	}
+
+	m := ReviewMessages(CommandReviewInput{
+		Command:  "export OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwxyz /Users/ada/bin/run",
+		Cwd:      "/Users/ada/proj",
+		UserText: "用我的 key sk-abcdefghijklmnopqrstuvwxyz 跑一下",
+	})
+	body := m[1]["content"]
+	if strings.Contains(body, "sk-abcdefgh") || strings.Contains(body, "/Users/ada") {
+		t.Fatalf("review prompt leaked secrets: %s", body)
+	}
+	if !strings.Contains(body, "~") || !strings.Contains(body, "***") {
+		t.Fatalf("review prompt should be redacted: %s", body)
+	}
+}

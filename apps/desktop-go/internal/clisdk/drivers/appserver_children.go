@@ -35,7 +35,28 @@ type appChild struct {
 // ErrDirectInputRejected：子代理不收外部直接输入（multi-agent v2），并且 fork 也失败了。
 var ErrDirectInputRejected = errors.New("direct input rejected")
 
+// ErrUnknownChild：threadID 不是这个连接上已发现的子代理（未登记，或就是主线程）。
+var ErrUnknownChild = errors.New("unknown child thread")
+
 const directInputRejected = "direct app-server input is not allowed"
+
+func (d *AppServerDriver) isMainThread(id string) bool {
+	return id != "" && d.ThreadID != nil && *d.ThreadID == id
+}
+
+// knownChild：threadID 是已登记的子代理（含它的 fork 目标 / 别名），且不是主线程。
+func (d *AppServerDriver) knownChild(threadID string) bool {
+	if threadID == "" || d.isMainThread(threadID) {
+		return false
+	}
+	if d.children[threadID] != nil {
+		return true
+	}
+	if f := d.forks[threadID]; f != "" && f != threadID && !d.isMainThread(f) && d.children[f] != nil {
+		return true
+	}
+	return false
+}
 
 func (d *AppServerDriver) child(threadID string) *appChild {
 	if d.children == nil {
@@ -261,7 +282,14 @@ func (d *AppServerDriver) SendToThread(threadID string, input []any, params Json
 		if d.Closed() {
 			return "", errors.New("app-server process exited")
 		}
+		// 只接受这个标签已经发现的子代理；拒绝主线程和未登记的 id（不会因此新建 child 状态）。
+		if !d.knownChild(threadID) {
+			return "", ErrUnknownChild
+		}
 		target := d.forkOf(threadID)
+		if d.isMainThread(target) || (d.children[target] == nil && d.children[threadID] == nil) {
+			return "", ErrUnknownChild
+		}
 		// 先占住原 id 与实际目标：两个别名不能在 turn/start 应答前各开一轮，
 		// fork / resume 等待期间也不能重复 fork 或被空闲回收。
 		reserved := []*appChild{}
@@ -283,8 +311,18 @@ func (d *AppServerDriver) SendToThread(threadID string, input []any, params Json
 				c.sending = false
 			}
 		}()
-		c := d.child(target)
-		if !reserve(d.child(threadID)) || !reserve(c) {
+		c := d.children[target]
+		if c == nil {
+			c = d.children[threadID]
+		}
+		src := d.children[threadID]
+		if src == nil {
+			src = c
+		}
+		if c == nil || src == nil {
+			return "", ErrUnknownChild
+		}
+		if !reserve(src) || !reserve(c) {
 			return "busy", nil
 		}
 		if c.running {
@@ -299,7 +337,10 @@ func (d *AppServerDriver) SendToThread(threadID string, input []any, params Json
 		}
 		startBusy := errors.New("child thread busy")
 		start := func(tid string) error {
-			cc := d.child(tid)
+			cc := d.children[tid]
+			if cc == nil {
+				return ErrUnknownChild
+			}
 			if !reserve(cc) || cc.running {
 				return startBusy
 			}

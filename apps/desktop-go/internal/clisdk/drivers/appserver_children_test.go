@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -313,6 +314,68 @@ func TestAppServerChildStartsWhileResuming(t *testing.T) {
 		}
 		if starts != 1 || !d.ChildRunning("c1") {
 			t.Fatalf("must preserve external turn without a second start: starts=%d running=%v", starts, d.ChildRunning("c1"))
+		}
+	})
+}
+
+// 直接对话只接受这个连接上已发现的子代理：拒绝主线程、未登记 id、以及只在别的连接上登记过的 id。
+func TestSendToThreadRejectsUnregistered(t *testing.T) {
+	jsrt.Run(func() {
+		started := 0
+		child := newFakeChild()
+		child.onLine = func(msg *util.Obj) {
+			reply := func(result any) { child.send(O("jsonrpc", "2.0", "id", msg.Get("id"), "result", result)) }
+			switch msg.Get("method") {
+			case "initialize":
+				reply(O("userAgent", "codex/0.163.0"))
+			case "thread/start":
+				reply(O("thread", O("id", "th1")))
+			case "turn/start":
+				started++
+				reply(O("turn", O("id", "ct")))
+			case "thread/resume":
+				reply(O())
+			}
+		}
+		d := NewAppServerDriver(AppServerDriverOptions{Child: child})
+		if _, err := jsrt.Await(d.Start(clisdk.StartOptions{Cwd: "/w"})); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := jsrt.Await(d.EnsureThread("/w")); err != nil {
+			t.Fatal(err)
+		}
+		if d.ThreadID == nil || *d.ThreadID != "th1" {
+			t.Fatalf("main thread %v", d.ThreadID)
+		}
+		mustReject := func(id, why string) {
+			t.Helper()
+			via, err := jsrt.Await(d.SendToThread(id, []any{O("type", "text", "text", "hi")}, nil, false))
+			if !errors.Is(err, ErrUnknownChild) || via != "" {
+				t.Fatalf("%s: via=%q err=%v", why, via, err)
+			}
+			if d.IsChild(id) && id != "c1" {
+				t.Fatalf("%s: must not register the spoofed id", why)
+			}
+		}
+		mustReject("th1", "main thread")
+		mustReject("spoof-thread", "never discovered")
+		mustReject("", "empty")
+
+		// 另一个连接上登记的子代理，不能用这边的 SendToThread 发
+		other := NewAppServerDriver(AppServerDriverOptions{Child: newFakeChild()})
+		other.NoteChild("c-other", "call-x")
+		mustReject("c-other", "other connection")
+
+		d.NoteChild("c1", "call1")
+		via, err := jsrt.Await(d.SendToThread("c1", []any{O("type", "text", "text", "ok")}, nil, false))
+		if err != nil || via != "start" || started != 1 {
+			t.Fatalf("known child: via=%q err=%v starts=%d", via, err, started)
+		}
+
+		// 登记之后再拿主线程发，仍然拒绝，也不能因此把主线程变成 child
+		mustReject("th1", "main after a real child exists")
+		if d.IsChild("th1") {
+			t.Fatal("main thread must not become a child")
 		}
 	})
 }

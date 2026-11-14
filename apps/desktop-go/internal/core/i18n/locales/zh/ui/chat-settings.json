@@ -26,7 +26,7 @@
   "ui.chat-settings.agentprofile-ids-default-cheap-local-preferlocal-is-metadata": "对应 AgentProfile：default / cheap / local（本地优先仅作标记）。",
   "ui.chat-settings.ai-review": "AI 审核",
   "ui.chat-settings.ai-review-commands": "命令自动审核",
-  "ui.chat-settings.ai-review-commands-description": "Nomi 跑命令前先让辅助模型判断风险：低风险直接执行；高风险，或这一轮读过外部内容时，仍要你确认。辅助模型在云端时，需要先同意过向它发送内容。",
+  "ui.chat-settings.ai-review-commands-description": "Nomi 跑命令前先让辅助模型判断风险：低风险直接执行；高风险，或这一轮读过外部内容时，仍要你确认。审核时会把命令全文、工作目录和你的原话发给审核模型（先尽量去掉密钥、令牌和本机路径）。辅助模型在云端时，需要先同意过向它发送内容。",
   "ui.chat-settings.all-automatic-still-logged": "全部自动（仍记录）",
   "ui.chat-settings.allow": "允许",
   "ui.chat-settings.also-catch-values-by-their-name-may-misfire": "也按键名认密钥（如 DB_PASSWORD=…、api_token: …），够长够乱的值才算；可能误判。",
@@ -717,5 +717,6 @@
   "ui.chat-settings.resize-sidebar": "调整侧栏宽度",
   "ui.chat-settings.stop-these-cli-processes-and-remove-the-account": "{0}\n\n也可以让 Nomi 现在结束这些进程，再删除「{1}」。它们正在进行的会话会被中断。",
   "ui.chat-settings.stop-processes-and-remove": "结束进程并删除",
-  "ui.chat-settings.question-submit-failed": "没交上去，你的选择还在，可以再提交一次"
+  "ui.chat-settings.question-submit-failed": "没交上去，你的选择还在，可以再提交一次",
+  "ui.chat-settings.command-review-sends-command": "命令全文会发送给审核模型（已尽量去掉密钥和本机路径）。"
 }

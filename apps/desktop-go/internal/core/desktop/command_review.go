@@ -79,11 +79,16 @@ func ReviewMessages(i CommandReviewInput) []map[string]string {
 	user := clipRunes(strings.TrimSpace(i.UserText), 2000)
 	if user == "" {
 		user = "(none)"
+	} else {
+		user = RedactReviewSecrets(user)
 	}
 	cwd := i.Cwd
 	if cwd == "" {
 		cwd = "(unknown)"
+	} else {
+		cwd = RedactReviewSecrets(cwd)
 	}
+	cmd := RedactReviewSecrets(i.Command)
 	tainted := "no"
 	if i.Tainted {
 		tainted = "yes"
@@ -91,7 +96,7 @@ func ReviewMessages(i CommandReviewInput) []map[string]string {
 	return []map[string]string{
 		{"role": "system", "content": ReviewSystemPrompt},
 		{"role": "user", "content": prompts.Render("command-review-user", map[string]any{
-			"UserText": user, "Cwd": cwd, "Tainted": tainted, "Command": i.Command})},
+			"UserText": user, "Cwd": cwd, "Tainted": tainted, "Command": cmd})},
 	}
 }
 

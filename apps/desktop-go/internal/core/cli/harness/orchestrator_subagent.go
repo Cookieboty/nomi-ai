@@ -166,6 +166,23 @@ func agentInput(parentID, text string, normalized []cli.NormalizedImage) *util.O
 	return clisdk.StampEvent(ev, nowMs())
 }
 
+// acceptCodexAgentThread：threadID 必须是这个标签已发现的子代理，不能是主线程或未登记的 id。
+func acceptCodexAgentThread(d *drivers.AppServerDriver, threadID string) bool {
+	if d == nil || threadID == "" {
+		return false
+	}
+	if d.ThreadID != nil && threadID == *d.ThreadID {
+		return false
+	}
+	if d.IsChild(threadID) {
+		return true
+	}
+	if f := d.ForkOf(threadID); f != "" && f != threadID && d.IsChild(f) {
+		return true
+	}
+	return false
+}
+
 func (o *Orchestrator) messageCodexAgent(tab *util.Obj, callID, threadID, text string, normalized []cli.NormalizedImage, steer bool) (*util.Obj, error) {
 	id := str(tab, "id")
 	if threadID == "" || !o.usesCodexApp() {
@@ -176,6 +193,10 @@ func (o *Orchestrator) messageCodexAgent(tab *util.Obj, callID, threadID, text s
 		return util.NewObj("ok", false, "reason", "error", "message", err.Error()), nil
 	}
 	o.restoreCodexForks(tab, live)
+	if !acceptCodexAgentThread(live.driver, threadID) {
+		return fail("not_found"), nil
+	}
+	// 已确认是这个标签发现的子代理，只补上派出它的 callId（不再用这次入参登记新 child）
 	live.driver.NoteChild(threadID, callID)
 	if steer && live.driver.ChildRunning(threadID) && len(normalized) > 0 {
 		// turn/steer 只收文字：带图的话等这一轮结束后作为新一轮发
@@ -201,6 +222,9 @@ func (o *Orchestrator) messageCodexAgent(tab *util.Obj, callID, threadID, text s
 			cli.CleanupStagedDir(stageDir)
 		}
 		if err != nil {
+			if errors.Is(err, drivers.ErrUnknownChild) {
+				return fail("not_found"), nil
+			}
 			if errors.Is(err, drivers.ErrDirectInputRejected) {
 				return fail("unsupported"), nil
 			}

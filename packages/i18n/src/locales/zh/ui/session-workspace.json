@@ -303,7 +303,6 @@
   "ui.session-workspace.side-tab-maximize": "铺满（双击标签也可以）",
   "ui.session-workspace.side-tab-restore": "回到分栏（Esc）",
   "ui.session-workspace.side-tab-add": "打开…",
-  "ui.session-workspace.side-tab-agents": "本会话的 Agents",
   "ui.session-workspace.side-tab-browse-files": "浏览文件",
   "ui.session-workspace.side-tab-detach": "在新窗口打开",
   "ui.session-workspace.side-tab-split": "向右拆分",

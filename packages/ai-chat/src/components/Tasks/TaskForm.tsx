@@ -81,6 +81,8 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   const [acceptance, setAcceptance] = useState<'auto' | 'user'>('auto');
   // 按风险自动判断（默认开，L3 及以上才生效）：命令交给命令审核，放行就直接跑，只有高风险才问人
   const [autoJudge, setAutoJudge] = useState(true);
+  // 没有系统沙箱（Windows / Linux）时自动判断不会真正自动跑命令
+  const [sandboxSupported, setSandboxSupported] = useState(true);
   const [repoText, setRepoText] = useState('');
   // Nomi 读写文件的授权文件夹（grant.paths）：后台任务只能碰这些文件夹（#231）
   const [folders, setFolders] = useState<string[]>([]);
@@ -109,6 +111,17 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
   const [mcpPick, setMcpPick] = useState<Record<string, string[]>>({});
   const installed = CLIS.filter((b) => !!bins[b]);
+  useEffect(() => {
+    if (!desktopClient.available()) return;
+    let off = () => {};
+    void desktopClient.state().then(
+      (st) => setSandboxSupported(st.cliSandboxSupported !== false),
+      () => undefined,
+    );
+    off = desktopClient.onChanged((st) => setSandboxSupported(st.cliSandboxSupported !== false));
+    return () => off();
+  }, []);
+
   useEffect(() => {
     void harnessClient
       .state()
@@ -712,15 +725,22 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
               {level >= 3 && (
                 <label className={styles.check}>
                   <Checkbox
-                    checked={autoJudge}
+                    checked={sandboxSupported && autoJudge}
                     onChange={(e) => setAutoJudge(e.target.checked)}
+                    disabled={!sandboxSupported}
                     data-testid="task-form-auto-judge"
                   />
                   {t('ui.providers-schedule.task-auto-judge')}
                 </label>
               )}
               {level >= 3 && (
-                <p className={styles.hint}>{t('ui.providers-schedule.task-auto-judge-hint')}</p>
+                <p className={styles.hint}>
+                  {t(
+                    sandboxSupported
+                      ? 'ui.providers-schedule.task-auto-judge-hint'
+                      : 'ui.providers-schedule.task-auto-judge-no-sandbox',
+                  )}
+                </p>
               )}
             </section>
           </div>

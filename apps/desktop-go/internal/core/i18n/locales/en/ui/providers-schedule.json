@@ -159,7 +159,7 @@
   "ui.providers-schedule.task-attempt-interrupted": "Interrupted",
   "ui.providers-schedule.task-attempt-rejected": "Sent back",
   "ui.providers-schedule.task-auto-judge": "Judge by risk (L3 and up)",
-  "ui.providers-schedule.task-auto-judge-hint": "Commands go to command review first and run once cleared; high-risk actions, credentials, destructive steps and anything that read outside content still ask you. Uncheck to ask about every command.",
+  "ui.providers-schedule.task-auto-judge-hint": "When an OS sandbox is available, commands go to command review first (the full command is sent, with credentials and your home path redacted) and run once cleared; high-risk actions, credentials, destructive steps and anything that read outside content still ask you. Without an OS sandbox (Windows / Linux), every command still asks you. Uncheck to ask about every command.",
   "ui.providers-schedule.task-awaiting-accept": "Waiting for your review",
   "ui.providers-schedule.task-board-by-priority": "By priority",
   "ui.providers-schedule.task-board-by-stage": "By progress",
@@ -330,5 +330,6 @@
   "ui.providers-schedule.when-on-nomi-occasionally-starts-a-chat-while": "When on, Nomi occasionally starts a chat while you're idle (using topics from long-term memory). Off by default; never during do-not-disturb hours, right after you've chatted, or while you're away.",
   "ui.providers-schedule.task-sandbox-pregrant": "Allow in the coding-agent sandbox up front (no prompts while running; SSH and Git credentials are added automatically for GitHub actions)",
   "ui.providers-schedule.task-search": "Search tasks…",
-  "ui.providers-schedule.task-stage-filter": "Filter by progress"
+  "ui.providers-schedule.task-stage-filter": "Filter by progress",
+  "ui.providers-schedule.task-auto-judge-no-sandbox": "This system has no coding-assistant OS sandbox (Windows / Linux), so commands are not auto-run and still ask you one by one."
 }
