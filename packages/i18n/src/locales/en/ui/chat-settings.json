@@ -172,7 +172,7 @@
   "ui.chat-settings.full-access-won-t-ask-and-can-change": "Full access: {0} won't ask and can change any file and run any command. Applies to this tab only.",
   "ui.chat-settings.general": "General",
   "ui.chat-settings.general-sections": "General sections",
-  "ui.chat-settings.go-through-it-again-language-theme-startup-layout": "Go through it again: language, theme, startup, layout, voice, name and tone, model providers and the privacy note.",
+  "ui.chat-settings.go-through-it-again-language-theme-startup-layout": "Go through it again: language, theme, layout, voice, name, model providers and the privacy note.",
   "ui.chat-settings.goals": "Goals",
   "ui.chat-settings.grant-folder": "Grant",
   "ui.chat-settings.graphite": "Graphite",

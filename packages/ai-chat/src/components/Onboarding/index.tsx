@@ -2,7 +2,7 @@
  * 首次启动引导，三步：
  *   1. 语言和外观；
  *   2. AI 能力：编程助手（检测本机、没装的就地安装，用自己的账号登录）+ 对话模型（第三方供应商，可选）；
- *   3. 个性化：称呼、职业与兴趣、启动方式（都可选）。
+ *   3. 个性化：称呼、职业与兴趣（都可选）。
  * 职业与兴趣存在主进程，侧栏「开始使用」与欢迎页据此推荐任务（services/recommendations）。
  * 填过的称呼、职业与兴趣在结束时一起保存（「跳过引导」也保存；没改过就不写）。
  * 结束后装了编程助手的进看板，一个都没装的留在对话。右上角「跳过引导」直接结束；
@@ -29,7 +29,6 @@ import {
   setLocalePref,
   setTheme,
   t,
-  tName,
   useFocusTrap,
   useLocale,
   type LocalePref,
@@ -39,8 +38,8 @@ import { Check, CheckCircle2, Cloud, KeyRound, Lock } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useNomiModelStatus } from '../../hooks/useNomiModelStatus';
-import { characterName, useCharacterName } from '../../services/characterName';
-import { startupClient, type StartupView } from '../../services/startupClient';
+import { useCharacterName } from '../../services/characterName';
+import { startupClient } from '../../services/startupClient';
 import { requestOpenFleet } from '../../services/workbenchNav';
 import { isImeComposing } from '../../utils/keyboard';
 import { DISPATCH_CLIS } from '../DispatchCli';
@@ -102,7 +101,7 @@ const Group: React.FC<{
   </section>
 );
 
-/** 可选中的卡片（主题、职业、启动方式）：选中只换描边并在右上角打勾，不整块填色 */
+/** 可选中的卡片（主题、职业）：选中只换描边并在右上角打勾，不整块填色 */
 const OptionCard: React.FC<{
   on: boolean;
   role: 'radio' | 'checkbox';
@@ -134,19 +133,6 @@ const LANGS: { id: LocalePref; label: () => string }[] = [
   // i18n-ignore
   { id: 'zh-CN', label: () => '简体中文' },
   { id: 'en', label: () => 'English' },
-];
-
-const STARTUPS: { id: StartupView; label: () => string; hint: () => string }[] = [
-  {
-    id: 'main',
-    label: () => t('ui.mascot-theme.onb-startup-workbench'),
-    hint: () => t('ui.mascot-theme.onb-startup-workbench-hint'),
-  },
-  {
-    id: 'mascot',
-    label: () => tName('ui.mascot-theme.onb-startup-character', characterName()),
-    hint: () => tName('ui.mascot-theme.onb-startup-character-hint', characterName()),
-  },
 ];
 
 /** 早期引导写的「回答语气」行：这个功能已删除，重写引导那一段时丢掉 */
@@ -210,14 +196,14 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   /** 对话模型那一组默认收起（供应商列表很长，会把编程助手挤出首屏）；已经接好模型的直接展开 */
   const [modelOpen, setModelOpen] = useState(false);
   const cli = useCliInstall(setCliError, { layer: 'top' });
-  // 启动方式：默认打开工作台，桌面角色关着。点选即写入设置。
-  const [startup, setStartup] = useState<StartupView>('main');
+  // 引导不负责开启桌面角色；已有设置开启时才转发引导台词。
+  const [showMascot, setShowMascot] = useState(false);
   /** 「关于我」里引导那一段中认不出的行（手改的、换语言前写的）：重写时原样保留 */
   const keepLines = useRef<string[]>([]);
   const loaded = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
-    void startupClient.get().then(setStartup);
+    void startupClient.getShowMascot().then(setShowMascot);
     // 重新引导时带出上次选的职业与兴趣
     const profile = onboardingClient.profile().then((p) => {
       setRole(p.role);
@@ -243,13 +229,13 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   // 桌面角色开着时，每进入一步说一句。关着时不说话。
   const line = STEP_LINE[step]();
   useEffect(() => {
-    if (startup !== 'mascot') return;
+    if (!showMascot) return;
     onboardingClient.mascot({
       type: 'say',
       text: line,
       gesture: step === 'welcome' ? 'wave' : undefined,
     });
-  }, [step, line, startup]);
+  }, [step, line, showMascot]);
 
   /** 称呼、职业与兴趣一起写进「关于我」里引导的那一段；返回是否写了内容 */
   const writePersona = useCallback(async (): Promise<boolean> => {
@@ -275,20 +261,20 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     const profile: UserProfile = { role, interests };
     await onboardingClient.setProfile(profile);
     if (!(await writePersona())) return;
-    if (startup !== 'mascot') return;
+    if (!showMascot) return;
     onboardingClient.mascot({
       type: 'say',
       text: name.trim()
         ? t('ui.mascot-theme.got-it-that-s-what-i-ll-call', name.trim().slice(0, 40))
         : t('ui.mascot-theme.noted'),
     });
-  }, [name, role, interests, writePersona, startup]);
+  }, [name, role, interests, writePersona, showMascot]);
 
   const finish = useCallback(
     async (skipped: boolean, opts?: { board?: boolean }) => {
       if (profileTouched.current) await saveProfile();
       await onboardingClient.complete(skipped);
-      if (startup === 'mascot') {
+      if (showMascot) {
         onboardingClient.mascot({
           type: 'say',
           text: skipped
@@ -303,7 +289,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
       // 装了编程助手：进看板（空看板上就是派出按钮）；一个都没装：留在对话，「开始使用」清单接着引导
       if (opts?.board !== false && cli.anyInstalled) requestOpenFleet();
     },
-    [onDone, modelReady, startup, saveProfile, cli.anyInstalled],
+    [onDone, modelReady, saveProfile, cli.anyInstalled, showMascot],
   );
   /** 去设置里接模型：结束引导（算完成）再打开「设置 → 模型与供应商」 */
   const openModels = () => {
@@ -550,33 +536,6 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                     </button>
                   );
                 })}
-              </div>
-            </Group>
-            <Group title={t('ui.mascot-theme.startup-mode')} id="onb-startup-label">
-              <div
-                className={`${styles.options} ${styles.optionsPair}`}
-                role="radiogroup"
-                aria-labelledby="onb-startup-label"
-              >
-                {STARTUPS.map((x) => (
-                  <OptionCard
-                    key={x.id}
-                    role="radio"
-                    on={startup === x.id}
-                    testId={`onb-startup-${x.id}`}
-                    title={x.label()}
-                    hint={x.hint()}
-                    onClick={() => {
-                      const prev = startup;
-                      setStartup(x.id);
-                      void startupClient.set(x.id).then(async (saved) => {
-                        const view = saved ?? prev;
-                        setStartup(view);
-                        if (view === 'main') await startupClient.setShowMascot(false);
-                      });
-                    }}
-                  />
-                ))}
               </div>
             </Group>
             <ul className={styles.privacy}>

@@ -198,7 +198,7 @@ describe('first-launch onboarding', () => {
     expect(screen.queryByTestId('models-page')).toBeNull();
     fireEvent.click(screen.getByTestId('onboarding-next'));
 
-    // 最后一步只有个性化：称呼、职业与兴趣、启动方式
+    // 最后一步只有个性化：称呼、职业与兴趣
     await screen.findByTestId('onboarding-step-personal');
     expect(screen.queryByTestId('onb-model-section')).toBeNull();
     expect(screen.queryByTestId('onboarding-skip-step')).toBeNull();
@@ -316,39 +316,16 @@ describe('first-launch onboarding', () => {
     window.removeEventListener(OPEN_MODELS_EVENT, onOpen);
   });
 
-  it('lets the user open the workbench; choice is saved immediately and survives skipping', async () => {
+  it('does not expose startup mode in the guide or change startup settings', async () => {
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
     await skipTo('personal', 2);
-    expect(screen.getByTestId('onb-startup-mascot').textContent).toContain('打开小纸');
-    expect(screen.getByTestId('onb-startup-main').textContent).toContain('打开工作台');
-    fireEvent.click(screen.getByTestId('onb-startup-main'));
-    await waitFor(() =>
-      expect(screen.getByTestId('onb-startup-main').getAttribute('aria-checked')).toBe('true'),
-    );
-    expect(calls).toContainEqual(['startup.set', { defaultView: 'main' }]);
-    expect(startupView).toBe('main');
+    expect(screen.queryByTestId('onb-startup-mascot')).toBeNull();
+    expect(screen.queryByTestId('onb-startup-main')).toBeNull();
+    expect(screen.queryByText('启动方式')).toBeNull();
     fireEvent.click(screen.getByTestId('onboarding-skip-all'));
     await waitFor(() => expect(screen.queryByTestId('onboarding')).toBeNull());
-    expect(startupView).toBe('main');
-  });
-
-  it('welcome step is skippable and keeps the saved startup mode', async () => {
-    render(<OnboardingHost />);
-    await screen.findByTestId('onboarding-step-welcome');
-    await skipTo('ai', 1);
-    expect(startupView).toBe('mascot');
     expect(calls.some((c) => c[0] === 'startup.set')).toBe(false);
-  });
-
-  it('reopened onboarding preselects the currently saved startup mode', async () => {
-    startupView = 'main';
-    render(<OnboardingHost />);
-    await screen.findByTestId('onboarding-step-welcome');
-    await skipTo('personal', 2);
-    await waitFor(() =>
-      expect(screen.getByTestId('onb-startup-main').getAttribute('aria-checked')).toBe('true'),
-    );
   });
 
   it('can be skipped entirely and is not shown again once done', async () => {

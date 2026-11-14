@@ -172,7 +172,7 @@
   "ui.chat-settings.full-access-won-t-ask-and-can-change": "完全放开：{0} 不再询问，可以修改任何文件、运行任何命令。只对当前标签生效。",
   "ui.chat-settings.general": "通用",
   "ui.chat-settings.general-sections": "通用分区",
-  "ui.chat-settings.go-through-it-again-language-theme-startup-layout": "重新走一遍：语言、主题、启动方式、界面模式、声音、称呼与语气、模型供应商和隐私说明。",
+  "ui.chat-settings.go-through-it-again-language-theme-startup-layout": "重新走一遍：语言、主题、界面模式、声音、称呼、模型供应商和隐私说明。",
   "ui.chat-settings.goals": "目标",
   "ui.chat-settings.grant-folder": "授权",
   "ui.chat-settings.graphite": "石墨",

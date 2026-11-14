@@ -28,8 +28,8 @@ func TestDefaultsAndSet(t *testing.T) {
 	}
 }
 
-// 没改过启动方式的老安装（没有 startup.json，但已有引导 / 供应商 / 记忆数据）升级后仍从桌面角色启动
-func TestExistingInstallKeepsMascot(t *testing.T) {
+// 没有 startup.json 的升级安装也统一使用工作台；桌面角色必须由用户在设置中开启。
+func TestExistingInstallUsesWorkbench(t *testing.T) {
 	for _, marker := range []string{"onboarding.json", "ai-providers.json", "memory"} {
 		t.Run(marker, func(t *testing.T) {
 			dir := t.TempDir()
@@ -41,7 +41,7 @@ func TestExistingInstallKeepsMascot(t *testing.T) {
 				t.Fatal(err)
 			}
 			st := startup.New(filepath.Join(dir, "startup.json"), nil).Get()
-			if st.DefaultView != "mascot" || !st.ShowMascot || st.CloseMain != "hide" {
+			if st.DefaultView != "main" || st.ShowMascot || st.CloseMain != "hide" {
 				t.Fatalf("%+v", st)
 			}
 		})

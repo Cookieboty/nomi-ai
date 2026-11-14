@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path/filepath"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
 )
@@ -36,11 +35,7 @@ func New(file string, emit func(State)) *Service {
 	s := &Service{file: file, state: State{DefaultView: DefaultView, CloseMain: DefaultCloseMain, ShowMascot: false}, emit: emit}
 	raw, err := os.ReadFile(file)
 	if errors.Is(err, fs.ErrNotExist) {
-		// 没有 startup.json：新安装用工作台默认；从没改过启动方式的老安装保持桌面角色（2.3.10 之前的默认）。
-		// 判定结果立刻写盘，之后引导写出 onboarding.json 也不会把新安装误认成老安装。
-		if isExistingInstall(filepath.Dir(file)) {
-			s.state = State{DefaultView: "mascot", CloseMain: DefaultCloseMain, ShowMascot: true}
-		}
+		// 没有 startup.json 的安装统一从工作台启动；桌面角色由用户在设置中主动开启。
 		_ = s.save()
 		return s
 	}
@@ -67,16 +62,6 @@ func New(file string, emit func(State)) *Service {
 		}
 	}
 	return s
-}
-
-// isExistingInstall：用户数据目录里已有引导、供应商或记忆数据，说明是升级上来的老安装（同 onboarding.load 的判定）
-func isExistingInstall(userData string) bool {
-	for _, f := range []string{"onboarding.json", "ai-providers.json", "memory"} {
-		if _, err := os.Stat(filepath.Join(userData, f)); err == nil {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *Service) save() error {
