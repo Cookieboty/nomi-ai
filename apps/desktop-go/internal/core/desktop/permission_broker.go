@@ -6,6 +6,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -1161,7 +1162,21 @@ func (b *PermissionBroker) SetComputerAlways(on bool) {
 }
 
 func convCommandKey(cmd, cwd string) string {
-	return strings.Join(strings.Fields(cmd), " ") + "\x00" + cwd
+	return strings.Join(strings.Fields(cmd), " ") + "\x00" + normalizeCommandCwd(cwd)
+}
+
+// normalizeCommandCwd：Windows 下同一工作目录可能从不同调用路径以
+// D:\\work、D:/work 或带尾部斜杠的形式传入；会话级命令授权应把它们视为同一目录。
+func normalizeCommandCwd(cwd string) string {
+	cwd = strings.TrimSpace(cwd)
+	if cwd == "" {
+		return ""
+	}
+	cwd = filepath.Clean(cwd)
+	if runtime.GOOS == "windows" {
+		cwd = strings.ToLower(cwd)
+	}
+	return cwd
 }
 
 // convCommandAllowed：这个对话里「本会话始终执行」过这条命令（同一工作目录）

@@ -236,6 +236,13 @@ func ParseLine(line string, state *StreamState) []Ev {
 			state.LastContext = post
 		}
 	case typ == "error" || (typ == "system" && j.Get("subtype") == "error"):
+		// Some Claude Code versions report a child failure as a top-level
+		// error carrying task_id instead of task_notification. Preserve the
+		// child lifecycle event so its card cannot remain stuck in running.
+		if ev := taskEvent(j); ev != nil {
+			out = append(out, ev)
+			break
+		}
 		m := Coalesce(j.Get("error"), j.Get("message"))
 		msg := T("electron.common.claude-error")
 		if m != nil {
@@ -406,6 +413,9 @@ func taskEvent(j *util.Obj) Ev {
 	id := JSString(j.Get("task_id"))
 	usage := sh.AgentUsage(j.Get("usage"))
 	sub := j.Get("subtype")
+	if sub == nil && j.Get("type") == "error" {
+		sub = "error"
+	}
 	if sub == "task_started" {
 		if j.Get("task_type") != "local_agent" && OptStr(j.Get("subagent_type")) == nil {
 			return nil
@@ -420,6 +430,11 @@ func taskEvent(j *util.Obj) Ev {
 			"background", j.Get("is_backgrounded") == true)
 	}
 	if sub == "task_progress" {
+		patch := util.AsObj(Coalesce(j.Get("patch"), util.NewObj()))
+		statusValue := Coalesce(j.Get("status"), patch.Get("status"))
+		if status, ok := sh.AgentEndStatus[JSString(Coalesce(statusValue, ""))]; ok {
+			return WithOpt(O("type", "agent", "op", "end", "id", id, "status", status), "callId", OptStr(j.Get("tool_use_id")), "usage", usage)
+		}
 		p := OptStr(j.Get("description"))
 		if p == nil {
 			p = OptStr(j.Get("last_tool_name"))
@@ -432,8 +447,14 @@ func taskEvent(j *util.Obj) Ev {
 		return WithOpt(O("type", "agent", "op", "progress", "id", id), "callId", OptStr(j.Get("tool_use_id")), "progress", prog, "usage", usage)
 	}
 	patch := util.AsObj(Coalesce(j.Get("patch"), util.NewObj()))
-	status, ok := sh.AgentEndStatus[JSString(Coalesce(j.Get("status"), patch.Get("status"), ""))]
-	if (sub == "task_notification" || sub == "task_updated") && ok {
+	statusValue := Coalesce(j.Get("status"), patch.Get("status"))
+	if statusValue == nil {
+		if err := util.AsObj(j.Get("error")); err != nil {
+			statusValue = err.Get("status")
+		}
+	}
+	status, ok := sh.AgentEndStatus[JSString(Coalesce(statusValue, ""))]
+	if (sub == "task_notification" || sub == "task_updated" || sub == "task_progress" || sub == "error") && ok {
 		var sum *string
 		if s := OptStr(j.Get("summary")); s != nil {
 			x := Slice0(*s, 2000)

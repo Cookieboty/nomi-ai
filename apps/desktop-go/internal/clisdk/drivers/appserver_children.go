@@ -271,6 +271,21 @@ func (d *AppServerDriver) onChildNotification(threadID string, c *appChild, meth
 			ev.Set("callId", c.callID)
 		}
 		d.emitChild(threadID, ev)
+	case "error":
+		// app-server may report a terminal child-turn failure before (or
+		// without) turn/completed.  Clear the child lifecycle state and emit
+		// the same end event used by turn/completed; otherwise the UI keeps
+		// the sub-agent in the running state indefinitely.
+		if params.Get("willRetry") == true || !c.running {
+			return
+		}
+		c.running = false
+		c.turnID = nil
+		ev := O("type", "agent", "op", "end", "id", threadID, "status", "failed")
+		if c.callID != "" {
+			ev.Set("callId", c.callID)
+		}
+		d.emitChild(threadID, ev)
 	}
 }
 

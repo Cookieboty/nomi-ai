@@ -328,18 +328,18 @@ func TestSessionCommand(t *testing.T) {
 	}
 	a := convCtx(t, "c1")
 	answerSession(1)
-	if d := run(a, "pbpaste", "/w"); d != "allowed" {
+	if d := run(a, "pbpaste", `D:\\w`); d != "allowed" {
 		t.Fatal(d)
 	}
 	if r := ui.last(); r.SessionCommand != "pbpaste" {
 		t.Fatalf("card should offer the command: %+v", r)
 	}
-	if d := run(convCtx(t, "c1"), "pbpaste", "/w"); d != "auto" {
+	if d := run(convCtx(t, "c1"), "pbpaste", `D:/W/`); d != "auto" {
 		t.Fatalf("same command, same conversation: %s", d)
 	}
 	n := len(ui.seen)
 	answerRemember(b, ui, n+1, false, false)
-	if d := run(a, "pbpaste", "/other"); d != "denied" {
+	if d := run(a, "pbpaste", `D:\\other`); d != "denied" {
 		t.Fatalf("another working directory still asks: %s", d)
 	}
 	answerRemember(b, ui, n+2, false, false)
@@ -347,7 +347,7 @@ func TestSessionCommand(t *testing.T) {
 		t.Fatalf("another command still asks: %s", d)
 	}
 	answerRemember(b, ui, n+3, false, false)
-	if d := run(convCtx(t, "c2"), "pbpaste", "/w"); d != "denied" {
+	if d := run(convCtx(t, "c2"), "pbpaste", `D:\\w`); d != "denied" {
 		t.Fatalf("another conversation still asks: %s", d)
 	}
 	// 发布 / 对外命令不提供「本会话始终执行」
