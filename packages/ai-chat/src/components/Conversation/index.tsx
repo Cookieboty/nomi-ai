@@ -5,7 +5,13 @@
  * 消息操作：复制 / 重新生成 / 编辑重发 / 停止；排队中的待发消息。
  */
 import { Icon, t, useLocale } from '@nomi-ai/ui';
-import { ArrowDown, ArrowLeftRight, ChevronsUp, Layers, X } from 'lucide-react';
+import {
+  IconArrowDown as ArrowDown,
+  IconArrowLeftRight as ArrowLeftRight,
+  IconChevronsUp as ChevronsUp,
+  IconStack2 as Layers,
+  IconX as X,
+} from '@tabler/icons-react';
 import React, {
   useCallback,
   useEffect,

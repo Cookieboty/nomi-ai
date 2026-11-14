@@ -8,7 +8,7 @@
  *   编程助手的供应商在侧栏底部信息卡的「新标签默认」（CliDefaultSource）里设，模型在模型按钮里换。
  */
 import { Icon, t } from '@nomi-ai/ui';
-import { History, X } from 'lucide-react';
+import { IconHistory as History, IconX as X } from '@tabler/icons-react';
 import React from 'react';
 
 import { selectMessageCount, useAiChatSelector } from '../../contexts/aiChatStore';
@@ -124,7 +124,9 @@ const ContextBar: React.FC<{
     <div className={styles.contextBar} data-testid="new-chat-context">
       {picker}
       {/* 主文件夹的当前分支：点开可以搜索、切换或新建分支（与右栏「改动」顶部同一个切换器） */}
-      {branch && cwd && <BranchPicker cwd={cwd} branch={branch} up testId="new-chat-branch" />}
+      {branch && cwd && (
+        <BranchPicker cwd={cwd} branch={branch} size="sm" up testId="new-chat-branch" />
+      )}
     </div>
   );
 };
@@ -141,7 +143,7 @@ const NomiContextBar: React.FC = () => {
           onChange={ws.set}
           onClear={ws.clear}
           emptyLabel={t('ui.cli-monitor.no-project')}
-          size="ms"
+          size="sm"
           variant="ghost"
           up
           testId="nomi-project"
@@ -168,7 +170,7 @@ const NewChatContextImpl: React.FC = () => {
         <ProjectPicker
           value={projectId}
           onChange={changeProject}
-          size="ms"
+          size="sm"
           variant="ghost"
           up
           testId="cli-project"

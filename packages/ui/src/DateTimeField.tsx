@@ -1,4 +1,9 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import {
+  IconCalendar as CalendarDays,
+  IconChevronLeft as ChevronLeft,
+  IconChevronRight as ChevronRight,
+  IconClock as Clock,
+} from '@tabler/icons-react';
 import React, {
   forwardRef,
   useCallback,

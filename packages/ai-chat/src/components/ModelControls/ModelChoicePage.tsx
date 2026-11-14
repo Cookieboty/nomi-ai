@@ -1,6 +1,9 @@
 /** 模型浮层里的账号 / 第三方供应商选择：共用同一行样式与内嵌列表。 */
 import { Icon, Select, type SelectOption } from '@nomi-ai/ui';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  IconChevronLeft as ChevronLeft,
+  IconChevronRight as ChevronRight,
+} from '@tabler/icons-react';
 import React from 'react';
 
 import styles from './index.module.css';

@@ -4,7 +4,12 @@
  * 早期消息只有缩略图（没有 url）：放大看的是缩略图，不能引用。
  */
 import { Button, Icon, t, useLocale } from '@nomi-ai/ui';
-import { Copy, Download, ImagePlus, PencilLine } from 'lucide-react';
+import {
+  IconCopy as Copy,
+  IconDownload as Download,
+  IconPhotoPlus as ImagePlus,
+  IconPencil as PencilLine,
+} from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import { api, hostAssetUrl } from '../../services/api';

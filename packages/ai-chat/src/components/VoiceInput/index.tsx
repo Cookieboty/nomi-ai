@@ -13,7 +13,7 @@ import {
   useVoice,
   type UseVoice,
 } from '@nomi-ai/voice';
-import { Headphones } from 'lucide-react';
+import { IconHeadphones as Headphones } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 

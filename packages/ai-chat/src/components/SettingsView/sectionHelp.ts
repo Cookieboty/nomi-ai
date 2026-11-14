@@ -1,26 +1,26 @@
 import {
-  Activity,
-  AppWindow,
-  Ban,
-  BarChart3,
-  BookOpen,
-  Boxes,
-  ClipboardList,
-  Cpu,
-  Download,
-  FolderLock,
-  Gauge,
-  Layers,
-  Plug,
-  ReceiptText,
-  Shield,
-  ShieldCheck,
-  SquareTerminal,
-  Timer,
-  Wallet,
-  Waypoints,
-  type LucideIcon,
-} from 'lucide-react';
+  IconActivity as Activity,
+  IconAppWindow as AppWindow,
+  IconBan as Ban,
+  IconChartBar as BarChart3,
+  IconBook2 as BookOpen,
+  IconPackages as Boxes,
+  IconClipboardList as ClipboardList,
+  IconCpu as Cpu,
+  IconDownload as Download,
+  IconFolderLock as FolderLock,
+  IconGauge as Gauge,
+  IconStack2 as Layers,
+  IconPlug as Plug,
+  IconReceipt as ReceiptText,
+  IconShield as Shield,
+  IconShieldCheck as ShieldCheck,
+  IconTerminal2 as SquareTerminal,
+  IconStopwatch as Timer,
+  IconWallet as Wallet,
+  IconRoute as Waypoints,
+  type TablerIcon as IconGlyph,
+} from '@tabler/icons-react';
 
 import { FEATURE_ICONS } from '../AppIcons';
 
@@ -28,7 +28,7 @@ import type { SettingsSection } from './sections';
 
 /** 右侧「配置说明」：每个分区里有哪些卡片 / 标签、各自做什么（文案为 i18n key）。 */
 export interface HelpItem {
-  icon: LucideIcon;
+  icon: IconGlyph;
   title: string;
   desc: string;
 }

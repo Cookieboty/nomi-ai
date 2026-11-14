@@ -4,7 +4,13 @@
  * 新会话的初始项目）。
  */
 import { Icon, t, useLocale, usePresence } from '@nomi-ai/ui';
-import { Check, Folder, FolderX, Search, SquarePen } from 'lucide-react';
+import {
+  IconCheck as Check,
+  IconFolder as Folder,
+  IconFolderX as FolderX,
+  IconSearch as Search,
+  IconEdit as SquarePen,
+} from '@tabler/icons-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 

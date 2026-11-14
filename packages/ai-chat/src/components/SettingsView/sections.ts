@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react';
+import type { TablerIcon as IconGlyph } from '@tabler/icons-react';
 
 import { SETTINGS_ICONS } from '../AppIcons';
 
@@ -25,7 +25,7 @@ const DEV = DEV_SECTIONS;
 
 export const SETTINGS_SECTIONS: Array<{
   id: SettingsSection;
-  icon: LucideIcon;
+  icon: IconGlyph;
   label: string;
   /** 页头说明（i18n key）：设置页统一在右侧顶部渲染「标题 + 说明」 */
   intro: string;

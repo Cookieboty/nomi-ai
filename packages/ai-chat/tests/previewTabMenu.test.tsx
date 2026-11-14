@@ -314,21 +314,41 @@ describe('preview tab context menu', () => {
     editable = true;
     render(<Probe />);
     await open('a');
-    const session = draft('a');
+    // Fail writes before drafting so a typist debounce cannot save the draft first.
     vi.mocked(resourcePreviewClient.save).mockResolvedValue({ ok: false, code: 'write' });
-    fireEvent.click(within(screen.getByRole('tablist')).getByRole('button'));
-    await waitFor(() => expect(session.state.error).toBe('write'));
-    expect(tabs()).toEqual(['a.txt']);
-    fireEvent.keyDown(window, { key: 'Escape' });
-    await waitFor(() => expect(resourcePreviewClient.save).toHaveBeenCalledTimes(2));
-    expect(screen.getByTestId('resource-preview')).toBeTruthy();
-    fireEvent.click(
-      within(screen.getByTestId('resource-preview-header')).getByRole('button', {
-        name: /关闭|Close/,
-      }),
+    const session = draft('a');
+    const saves = () => vi.mocked(resourcePreviewClient.save).mock.calls.length;
+    // Drain that debounce so close-triggered saves have a stable baseline.
+    await act(async () => {
+      await session.flush();
+    });
+    await waitFor(() => {
+      expect(session.state.error).toBe('write');
+      expect(session.state.saving).toBe(false);
+    });
+    const closeKeepsDraft = async (action: () => void) => {
+      const before = saves();
+      action();
+      await waitFor(() => {
+        expect(session.state.error).toBe('write');
+        expect(session.state.saving).toBe(false);
+        expect(saves()).toBeGreaterThan(before);
+      });
+      expect(saves()).toBe(before + 1);
+      expect(tabs()).toEqual(['a.txt']);
+      expect(screen.getByTestId('resource-preview')).toBeTruthy();
+    };
+    await closeKeepsDraft(() =>
+      fireEvent.click(within(screen.getByRole('tablist')).getByRole('button')),
     );
-    await waitFor(() => expect(resourcePreviewClient.save).toHaveBeenCalledTimes(3));
-    expect(screen.getByTestId('resource-preview')).toBeTruthy();
+    await closeKeepsDraft(() => fireEvent.keyDown(window, { key: 'Escape' }));
+    await closeKeepsDraft(() =>
+      fireEvent.click(
+        within(screen.getByTestId('resource-preview-header')).getByRole('button', {
+          name: /关闭|Close/,
+        }),
+      ),
+    );
   });
 });
 

@@ -4,7 +4,7 @@
  * 按文件扩展名做语法高亮（与对话代码块同一个按需加载的高亮器），加载完成前先显示纯文本。
  */
 import { t } from '@nomi-ai/ui';
-import { Columns2, Rows2 } from 'lucide-react';
+import { IconColumns2 as Columns2, IconLayoutRows as Rows2 } from '@tabler/icons-react';
 import React, {
   createContext,
   useContext,

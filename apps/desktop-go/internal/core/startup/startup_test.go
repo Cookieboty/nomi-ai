@@ -63,3 +63,31 @@ func TestNewInstallDefaultPersists(t *testing.T) {
 		t.Fatalf("reload %+v vs %+v", again, first)
 	}
 }
+
+func TestPickMascotDefaultViewAutoEnablesMascot(t *testing.T) {
+	f := filepath.Join(t.TempDir(), "startup.json")
+	s := startup.New(f, nil)
+	if st := s.Get(); st.DefaultView != "main" || st.ShowMascot {
+		t.Fatalf("expected initial {main, false}, got %+v", st)
+	}
+
+	st, err := s.Set(map[string]any{"defaultView": "mascot"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.DefaultView != "mascot" || !st.ShowMascot {
+		t.Fatalf("expected {mascot, true}, got %+v", st)
+	}
+
+	if _, err := s.Set(map[string]any{"defaultView": "mascot", "showMascot": false}); err == nil {
+		t.Fatalf("expected error when picking mascot and closing it simultaneously")
+	}
+
+	st, err = s.Set(map[string]any{"showMascot": false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.DefaultView != "main" || st.ShowMascot {
+		t.Fatalf("expected fallback {main, false}, got %+v", st)
+	}
+}

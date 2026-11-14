@@ -1,4 +1,5 @@
-import { act } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
+import { expect } from 'vitest';
 
 import { codeViewAt } from '../../src/components/ResourcePreview/codeViewModel';
 
@@ -21,4 +22,12 @@ export function changeSource(element: Element, text: string) {
 }
 export function sourceEditable(element: Element) {
   return !sourceView(element).state.readOnly;
+}
+/** CodeMirror paints tokens incrementally; wait for the class rather than a fixed delay. */
+export async function expectSourceToken(
+  root: ParentNode | null,
+  kind: 'keyword' | 'string',
+  text: string,
+) {
+  await waitFor(() => expect(root?.querySelector(`.token.${kind}`)?.textContent).toBe(text));
 }

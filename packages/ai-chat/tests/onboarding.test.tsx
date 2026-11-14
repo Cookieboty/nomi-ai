@@ -8,9 +8,10 @@ import {
   OPEN_MODELS_EVENT,
   matchTemplate,
   mergePersona,
+  onboardingClient,
   personaBlockLines,
 } from '../src/components/Onboarding/client';
-import { OnboardingHost } from '../src/components/Onboarding/host';
+import { OnboardingHost, preloadOnboarding } from '../src/components/Onboarding/host';
 import { setCharacterNameForTest } from '../src/services/characterName';
 import { cliUpdateClient } from '../src/services/cliUpdateClient';
 import { OPEN_FLEET_EVENT } from '../src/services/workbenchNav';
@@ -147,6 +148,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   window.removeEventListener(OPEN_FLEET_EVENT, onFleet);
+  onboardingClient.clearPrepared();
   cleanup();
   applyLocale('zh-CN');
   resetFakeApi();
@@ -168,15 +170,30 @@ describe('first-launch onboarding', () => {
     // 盖住主界面，不用装饰插画；不写死官方角色名
     expect(screen.queryByTestId('onb-art')).toBeNull();
     expect(screen.getByTestId('onboarding').querySelector('img')).toBeNull();
-    expect(screen.getByText('选好语言和主题')).toBeTruthy();
+    expect(screen.getByText('设置语言与外观')).toBeTruthy();
     expect(screen.getByTestId('onboarding').textContent).not.toMatch(/诺米/);
     // 步骤条带名字，读屏读到「第 1 步，共 3 步」
-    expect(screen.getByLabelText('第 1 步，共 3 步').textContent).toContain('语言和外观');
+    expect(screen.getByLabelText('第 1 步，共 3 步').textContent).toContain('语言与外观');
     expect(screen.queryByTestId('onb-startup-main')).toBeNull();
+    expect(
+      Array.from(
+        screen.getByTestId('onboarding').querySelectorAll('[data-testid^="onb-theme-"]'),
+      ).map((el) => el.getAttribute('data-testid')),
+    ).toEqual([
+      'onb-theme-system',
+      'onb-theme-light',
+      'onb-theme-dark',
+      'onb-theme-sunset',
+      'onb-theme-cream',
+      'onb-theme-mist',
+      'onb-theme-ink',
+      'onb-theme-graphite',
+      'onb-theme-image',
+    ]);
 
     act(() => fireEvent.click(screen.getByTestId('onb-lang-en')));
     expect(getLocale()).toBe('en');
-    expect(screen.getByTestId('onboarding-next').textContent).toBe('Next');
+    expect(screen.getByTestId('onboarding-next').textContent).toMatch(/^Next(?:⌘|Ctrl)↵$/);
     act(() => fireEvent.click(screen.getByTestId('onb-lang-zh-CN')));
     expect(screen.getByTestId('onb-theme-light')).toBeTruthy();
     expect(screen.getByTestId('onb-theme-sunset')).toBeTruthy();
@@ -198,7 +215,7 @@ describe('first-launch onboarding', () => {
     expect(screen.queryByTestId('models-page')).toBeNull();
     fireEvent.click(screen.getByTestId('onboarding-next'));
 
-    // 最后一步只有个性化：称呼、职业与兴趣
+    // 最后一步只有个性化：称呼、职业与兴趣、启动方式
     await screen.findByTestId('onboarding-step-personal');
     expect(screen.queryByTestId('onb-model-section')).toBeNull();
     expect(screen.queryByTestId('onboarding-skip-step')).toBeNull();
@@ -316,16 +333,50 @@ describe('first-launch onboarding', () => {
     window.removeEventListener(OPEN_MODELS_EVENT, onOpen);
   });
 
-  it('does not expose startup mode in the guide or change startup settings', async () => {
+  it('lets the user open the workbench; choice is saved immediately and survives skipping', async () => {
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
     await skipTo('personal', 2);
-    expect(screen.queryByTestId('onb-startup-mascot')).toBeNull();
-    expect(screen.queryByTestId('onb-startup-main')).toBeNull();
-    expect(screen.queryByText('启动方式')).toBeNull();
+    expect(screen.getByTestId('onb-startup-mascot').textContent).toContain('桌面伴侣 · 小纸');
+    expect(screen.getByTestId('onb-startup-main').textContent).toContain('工作台');
+    fireEvent.click(screen.getByTestId('onb-startup-main'));
+    await waitFor(() =>
+      expect(screen.getByTestId('onb-startup-main').getAttribute('aria-checked')).toBe('true'),
+    );
+    expect(calls).toContainEqual(['startup.set', { defaultView: 'main' }]);
+    expect(startupView).toBe('main');
+    fireEvent.click(screen.getByTestId('onb-startup-mascot'));
+    await waitFor(() =>
+      expect(screen.getByTestId('onb-startup-mascot').getAttribute('aria-checked')).toBe('true'),
+    );
+    expect(calls).toContainEqual(['startup.set', { defaultView: 'mascot' }]);
+    expect(startupView).toBe('mascot');
+    fireEvent.click(screen.getByTestId('onb-startup-main'));
+    await waitFor(() =>
+      expect(screen.getByTestId('onb-startup-main').getAttribute('aria-checked')).toBe('true'),
+    );
+    expect(startupView).toBe('main');
     fireEvent.click(screen.getByTestId('onboarding-skip-all'));
     await waitFor(() => expect(screen.queryByTestId('onboarding')).toBeNull());
+    expect(startupView).toBe('main');
+  });
+
+  it('welcome step is skippable and keeps the saved startup mode', async () => {
+    render(<OnboardingHost />);
+    await screen.findByTestId('onboarding-step-welcome');
+    await skipTo('ai', 1);
+    expect(startupView).toBe('mascot');
     expect(calls.some((c) => c[0] === 'startup.set')).toBe(false);
+  });
+
+  it('reopened onboarding preselects the currently saved startup mode', async () => {
+    startupView = 'main';
+    render(<OnboardingHost />);
+    await screen.findByTestId('onboarding-step-welcome');
+    await skipTo('personal', 2);
+    await waitFor(() =>
+      expect(screen.getByTestId('onb-startup-main').getAttribute('aria-checked')).toBe('true'),
+    );
   });
 
   it('can be skipped entirely and is not shown again once done', async () => {
@@ -413,5 +464,21 @@ describe('first-launch onboarding', () => {
       '多用表情',
     ]);
     expect(matchTemplate('- 请称呼我：{0}', '- 别的')).toBeNull();
+  });
+
+  it('covers viewport synchronously with gate while onboarding state is pending, and skips gate when preloaded', async () => {
+    const { container, unmount } = render(<OnboardingHost />);
+    expect(container.querySelector('[data-testid="onboarding-gate"]')).toBeTruthy();
+    await screen.findByTestId('onboarding-step-welcome');
+    expect(container.querySelector('[data-testid="onboarding-gate"]')).toBeNull();
+    unmount();
+
+    await onboardingClient.prepareInitial();
+    await preloadOnboarding();
+    calls = [];
+    const preloaded = render(<OnboardingHost />);
+    expect(preloaded.container.querySelector('[data-testid="onboarding-gate"]')).toBeNull();
+    expect(preloaded.container.querySelector('[data-testid="onboarding"]')).toBeTruthy();
+    expect(calls.some((c) => c[0] === 'onboarding.get')).toBe(false);
   });
 });

@@ -9,7 +9,11 @@
 import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
 import { hasUserProfile } from '@nomi-ai/types';
 import { Button, Icon, IconButton, t } from '@nomi-ai/ui';
-import { CircleCheck, Circle, X } from 'lucide-react';
+import {
+  IconCircleCheck as CircleCheck,
+  IconCircle as Circle,
+  IconX as X,
+} from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import { useNomiModelStatus } from '../../hooks/useNomiModelStatus';

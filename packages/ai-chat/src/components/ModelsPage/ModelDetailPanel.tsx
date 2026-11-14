@@ -16,7 +16,7 @@ import {
   type PickerProvider,
   type SelectOption,
 } from '@nomi-ai/ui';
-import { Trash2 } from 'lucide-react';
+import { IconTrash as Trash2 } from '@tabler/icons-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import {

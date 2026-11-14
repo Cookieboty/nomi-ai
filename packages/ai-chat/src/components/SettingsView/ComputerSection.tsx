@@ -14,7 +14,7 @@ import {
   t,
   type BadgeTone,
 } from '@nomi-ai/ui';
-import { AlertTriangle, Info } from 'lucide-react';
+import { IconAlertTriangle as AlertTriangle, IconInfoCircle as Info } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { api, hasTransport } from '../../services/api';

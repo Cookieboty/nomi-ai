@@ -3,7 +3,13 @@
  * 受控组件：由调用方决定如何应用（更改正在运行的 CLI 会话 / 新建标签时的初始目录）。
  */
 import { t, Icon, usePresence } from '@nomi-ai/ui';
-import { Check, Folder, FolderOpen, FolderX, Search } from 'lucide-react';
+import {
+  IconCheck as Check,
+  IconFolder as Folder,
+  IconFolderOpen as FolderOpen,
+  IconFolderX as FolderX,
+  IconSearch as Search,
+} from '@tabler/icons-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 

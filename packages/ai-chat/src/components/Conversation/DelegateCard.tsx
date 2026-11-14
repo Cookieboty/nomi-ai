@@ -9,7 +9,12 @@
  * 数据：工具调用 id → 标签（delegation.callId）→ 标签的实时状态；历史消息只有工具输出。
  */
 import { Button, Icon, Modal, ModalHostContext, t } from '@nomi-ai/ui';
-import { ChevronDown, ChevronRight, ExternalLink, Square } from 'lucide-react';
+import {
+  IconChevronDown as ChevronDown,
+  IconChevronRight as ChevronRight,
+  IconExternalLink as ExternalLink,
+  IconSquare as Square,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';

@@ -8,22 +8,22 @@
 import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
 import { createLogger, Icon, IconButton, t } from '@nomi-ai/ui';
 import {
-  AlertTriangle,
-  Bell,
-  BookOpen,
-  ChevronDown,
-  ChevronsUp,
-  Code2,
-  Equal,
-  Eye,
-  ListTodo,
-  Minus,
-  Pause,
-  PenLine,
-  Play,
-  Radar,
-  type LucideIcon,
-} from 'lucide-react';
+  IconAlertTriangle as AlertTriangle,
+  IconBell as Bell,
+  IconBook2 as BookOpen,
+  IconChevronDown as ChevronDown,
+  IconChevronsUp as ChevronsUp,
+  IconCode as Code2,
+  IconEqual as Equal,
+  IconEye as Eye,
+  IconListCheck as ListTodo,
+  IconMinus as Minus,
+  IconPlayerPause as Pause,
+  IconEdit as PenLine,
+  IconPlayerPlay as Play,
+  IconRadar as Radar,
+  type TablerIcon as IconGlyph,
+} from '@tabler/icons-react';
 import React, { useMemo } from 'react';
 
 import {
@@ -57,7 +57,7 @@ export type BoardGroup = 'stage' | 'priority';
 type PriorityKey = TaskPriority | 'none';
 type ColumnKey = TaskStage | PriorityKey;
 
-const PRIORITY_ICON: Record<PriorityKey, LucideIcon> = {
+const PRIORITY_ICON: Record<PriorityKey, IconGlyph> = {
   urgent: AlertTriangle,
   high: ChevronsUp,
   medium: Equal,
@@ -65,7 +65,7 @@ const PRIORITY_ICON: Record<PriorityKey, LucideIcon> = {
   none: Minus,
 };
 
-export const CATEGORY_ICON: Record<TaskCategory, LucideIcon> = {
+export const CATEGORY_ICON: Record<TaskCategory, IconGlyph> = {
   coding: Code2,
   review: Eye,
   research: BookOpen,
@@ -106,7 +106,7 @@ export const ExecutorIcon: React.FC<{ ex: ExecutorSpec }> = ({ ex }) => {
 /** 卡片上的快捷操作：只做不用再确认的 */
 export function quickAction(
   task: Task,
-): { icon: LucideIcon; label: string; run: () => Promise<unknown> } | null {
+): { icon: IconGlyph; label: string; run: () => Promise<unknown> } | null {
   const id = task.id;
   if (task.status === 'idle') {
     return task.enabled

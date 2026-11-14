@@ -1,18 +1,18 @@
 import { brand } from '@nomi-ai/types';
 import { Button, Icon, IconButton, t } from '@nomi-ai/ui';
 import {
-  AlertTriangle,
-  CircleAlert,
-  CornerDownRight,
-  Cpu,
-  Folder,
-  Hourglass,
-  MemoryStick,
-  MoreHorizontal,
-  Pause,
-  PauseCircle,
-  Play,
-} from 'lucide-react';
+  IconAlertTriangle as AlertTriangle,
+  IconAlertCircle as CircleAlert,
+  IconCornerDownRight as CornerDownRight,
+  IconCpu as Cpu,
+  IconFolder as Folder,
+  IconHourglass as Hourglass,
+  IconDeviceSdCard as MemoryStick,
+  IconDots as MoreHorizontal,
+  IconPlayerPause as Pause,
+  IconPlayerPause as PauseCircle,
+  IconPlayerPlay as Play,
+} from '@tabler/icons-react';
 import React, { useEffect, useRef, useState } from 'react';
 
 import {

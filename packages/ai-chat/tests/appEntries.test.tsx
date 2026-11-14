@@ -34,6 +34,13 @@ describe('侧栏底部的应用级入口', () => {
     expect(r.getByTestId('app-entries').querySelectorAll('button')).toHaveLength(1);
   });
 
+  it('设置在内容区打开时，导航入口显示当前页面状态', () => {
+    const r = render(<AppEntries collapsed active {...handlers()} />);
+    expect(r.getByTestId('open-settings').getAttribute('aria-current')).toBe('page');
+    r.rerender(<AppEntries collapsed {...handlers()} />);
+    expect(r.getByTestId('open-settings').getAttribute('aria-current')).toBeNull();
+  });
+
   it('顶栏不再放应用级入口', () => {
     const r = render(<ChatHeader trailing={<button type="button">rail</button>} />);
     expect(r.queryByTestId('open-settings')).toBeNull();

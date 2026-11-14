@@ -24,13 +24,13 @@
   font-size: var(--cd-font-size-xs);
   font-variant-numeric: tabular-nums;
 }
-/* 标题栏负载指示：与标题栏按钮同高（sm）、同样的悬停与焦点，宽度随内容（不用全局 .app-titlebar-btn，它是定宽的） */
+/* 标题栏负载指示：与标题栏按钮同高（ms）、同样的悬停与焦点，宽度随内容（不用全局 .app-titlebar-btn，它是定宽的） */
 .indicator {
   position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--cd-space-1);
-  height: var(--cd-control-h-sm);
+  height: var(--cd-control-h-ms);
   padding: 0 var(--cd-space-2);
   border: none;
   border-radius: var(--cd-radius-md);
@@ -44,8 +44,11 @@
 }
 .indicator:hover,
 .indicator[aria-expanded='true'] {
-  background: var(--cd-color-hover);
+  background: var(--cd-color-nav-bg);
   color: var(--cd-color-text);
+}
+.indicator:active {
+  background: var(--cd-color-nav-pressed);
 }
 .indicator:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
@@ -58,6 +61,9 @@
   color: var(--cd-color-danger-text);
 }
 .indicatorText {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
   white-space: nowrap;
 }
 .indicatorDot {

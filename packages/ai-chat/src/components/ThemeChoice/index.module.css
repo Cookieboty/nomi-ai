@@ -1,0 +1,219 @@
+.choice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-width: 0;
+  min-height: 46px;
+  padding: 9px 10px;
+  overflow: hidden;
+  border: 1px solid var(--cd-color-border-subtle);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface);
+  box-shadow: var(--cd-highlight-inset);
+  color: var(--cd-color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--cd-transition);
+}
+.choice::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    180px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(var(--cd-accent-rgb), 0.09),
+    transparent 70%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--cd-duration-press) ease;
+}
+.choice > * {
+  position: relative;
+  z-index: 2;
+}
+.choice:hover {
+  background: var(--cd-color-hover);
+  border-color: var(--cd-color-border);
+}
+.choice:hover::before {
+  opacity: 1;
+}
+.choice:active {
+  transform: scale(0.985);
+}
+.choice:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+}
+.selected {
+  --theme-sel-a: 0.095;
+  --theme-sel-b: 0.03;
+  border-color: var(--cd-color-accent);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--cd-accent-rgb), var(--theme-sel-a)),
+    rgba(var(--cd-accent-rgb), var(--theme-sel-b))
+  );
+  box-shadow:
+    0 0 0 1px rgba(var(--cd-accent-rgb), 0.24),
+    var(--cd-shadow-sm),
+    var(--cd-highlight-inset);
+}
+.selected:hover {
+  --theme-sel-a: 0.12;
+  --theme-sel-b: 0.045;
+  border-color: var(--cd-color-accent);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--cd-accent-rgb), var(--theme-sel-a)),
+    rgba(var(--cd-accent-rgb), var(--theme-sel-b))
+  );
+}
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  min-width: 0;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  line-height: 1.3;
+}
+.label > svg {
+  flex: none;
+}
+.labelText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.selected .label {
+  font-weight: var(--cd-font-weight-bold);
+}
+.check {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  color: var(--cd-color-accent-strong);
+  opacity: 0;
+  transform: scale(0.55);
+  transition:
+    opacity var(--cd-duration-press) ease,
+    transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.selected .check {
+  opacity: 1;
+  transform: scale(1);
+}
+.preview {
+  position: relative;
+  display: flex;
+  flex: none;
+  width: 40px;
+  height: 28px;
+  border-radius: var(--cd-radius-sm);
+  padding: 2.5px;
+  gap: 2.5px;
+  border: 1px solid rgba(128, 128, 128, 0.24);
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: transform var(--cd-duration-press) var(--cd-ease-out);
+}
+.choice:hover .preview,
+.selected .preview {
+  transform: scale(1.03);
+}
+.sidebar,
+.pane,
+.splitLight,
+.splitDark {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.sidebar {
+  width: 8px;
+  border-radius: 3.5px;
+  padding: 3px 1.5px;
+  gap: 2.5px;
+  background: rgba(128, 128, 128, 0.1);
+}
+.navDot {
+  width: 100%;
+  height: 2px;
+  border-radius: 2px;
+}
+.pane {
+  flex: 1 1 auto;
+  justify-content: space-between;
+  border-radius: 4.5px;
+  padding: 3px 4px;
+  border: 1px solid rgba(128, 128, 128, 0.14);
+}
+.system {
+  padding: 0;
+  gap: 0;
+}
+.splitLight,
+.splitDark {
+  flex: 1 1 50%;
+  justify-content: space-between;
+  padding: 4px 3px;
+}
+.splitLight {
+  background: #f5f5f5;
+}
+.splitDark {
+  background: #141416;
+}
+.bubbleUser,
+.bubbleAi {
+  height: 3.5px;
+  border-radius: 2px;
+}
+.bubbleUser {
+  width: 11px;
+  align-self: flex-end;
+}
+.bubbleAi {
+  width: 48%;
+  align-self: flex-start;
+  transition: width var(--cd-duration-fast) var(--cd-ease-out);
+}
+.choice:hover .bubbleAi,
+.selected .bubbleAi {
+  width: 78%;
+}
+.imageLayers {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  color: var(--cd-color-text-muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .choice,
+  .choice::before,
+  .check,
+  .preview,
+  .bubbleAi {
+    transition: none;
+  }
+}

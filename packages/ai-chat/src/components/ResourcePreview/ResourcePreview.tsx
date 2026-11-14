@@ -1,5 +1,12 @@
 import { Icon, t } from '@nomi-ai/ui';
-import { Expand, FileCode2, GitCompareArrows, Minimize2, Pencil, X } from 'lucide-react';
+import {
+  IconMaximize as Expand,
+  IconFileCode2 as FileCode2,
+  IconGitCompare as GitCompareArrows,
+  IconArrowsMinimize as Minimize2,
+  IconPencil as Pencil,
+  IconX as X,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import {

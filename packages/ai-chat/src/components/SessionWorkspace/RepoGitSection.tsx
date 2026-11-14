@@ -6,15 +6,15 @@
  */
 import { Select, t } from '@nomi-ai/ui';
 import {
-  Bot,
-  ChevronDown,
-  ChevronRight,
-  FolderGit2,
-  LocateFixed,
-  Minus,
-  Plus,
-  Undo2,
-} from 'lucide-react';
+  IconRobot as Bot,
+  IconChevronDown as ChevronDown,
+  IconChevronRight as ChevronRight,
+  IconFolderCode as FolderGit2,
+  IconCurrentLocation as LocateFixed,
+  IconMinus as Minus,
+  IconPlus as Plus,
+  IconArrowBackUp as Undo2,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -105,7 +105,7 @@ const GitRow: React.FC<{
   onDiscard,
 }) => (
   <div
-    className={styles.row}
+    className={`${styles.row} ${pane.gitRow}`}
     data-testid="git-row"
     data-area={area}
     data-selected={selected || undefined}
@@ -122,62 +122,66 @@ const GitRow: React.FC<{
       <span className={pane.gitDir} aria-hidden>
         {entry.path.includes('/') ? entry.path.slice(0, entry.path.lastIndexOf('/')) : ''}
       </span>
-      {session ? (
-        <span
-          className={pane.sessionMark}
-          aria-label={t('ui.session-workspace.edited-by-the-assistant-in-this-session')}
-          data-testid="git-row-session"
-        >
-          <Bot size={12} />
-        </span>
-      ) : null}
-      {entry.untracked ? (
-        <span className={styles.badge}>{t('ui.session-workspace.untracked')}</span>
-      ) : null}
-      {(added != null || removed != null) && (
-        <span className={styles.stat}>
-          {added != null ? <span className={styles.add}>+{added}</span> : null}
-          {removed != null ? <span className={styles.del}>−{removed}</span> : null}
-        </span>
-      )}
+      <span className={pane.gitMeta}>
+        {session ? (
+          <span
+            className={pane.sessionMark}
+            aria-label={t('ui.session-workspace.edited-by-the-assistant-in-this-session')}
+            data-testid="git-row-session"
+          >
+            <Bot size={12} />
+          </span>
+        ) : null}
+        {entry.untracked ? (
+          <span className={styles.badge}>{t('ui.session-workspace.untracked')}</span>
+        ) : null}
+        {(added != null || removed != null) && (
+          <span className={styles.stat}>
+            {added != null ? <span className={styles.add}>+{added}</span> : null}
+            {removed != null ? <span className={styles.del}>−{removed}</span> : null}
+          </span>
+        )}
+      </span>
     </button>
-    {session?.messageId ? (
-      <button
-        type="button"
-        className={styles.iconBtn}
-        data-testid="change-locate"
-        aria-label={t('ui.session-workspace.show-in-conversation')}
-        onClick={() => locateChangeMessage(session.messageId)}
-      >
-        <LocateFixed size={12} />
-      </button>
-    ) : null}
-    {onDiscard ? (
-      <button
-        type="button"
-        className={`${styles.iconBtn} ${pane.stageBtn}`}
-        data-testid="git-row-discard"
-        disabled={stageDisabled}
-        aria-label={`${t('ui.session-workspace.discard-changes')} ${entry.path}`}
-        onClick={onDiscard}
-      >
-        <Undo2 size={12} />
-      </button>
-    ) : null}
-    {onStage ? (
-      <button
-        type="button"
-        className={`${styles.iconBtn} ${pane.stageBtn}`}
-        data-testid={area === 'staged' ? 'git-row-unstage' : 'git-row-stage'}
-        disabled={stageDisabled}
-        aria-label={`${
-          area === 'staged' ? t('ui.session-workspace.unstage') : t('ui.session-workspace.stage')
-        } ${entry.path}`}
-        onClick={onStage}
-      >
-        {area === 'staged' ? <Minus size={12} /> : <Plus size={12} />}
-      </button>
-    ) : null}
+    <span className={pane.gitActions}>
+      {session?.messageId ? (
+        <button
+          type="button"
+          className={styles.iconBtn}
+          data-testid="change-locate"
+          aria-label={t('ui.session-workspace.show-in-conversation')}
+          onClick={() => locateChangeMessage(session.messageId)}
+        >
+          <LocateFixed size={12} />
+        </button>
+      ) : null}
+      {onDiscard ? (
+        <button
+          type="button"
+          className={styles.iconBtn}
+          data-testid="git-row-discard"
+          disabled={stageDisabled}
+          aria-label={`${t('ui.session-workspace.discard-changes')} ${entry.path}`}
+          onClick={onDiscard}
+        >
+          <Undo2 size={12} />
+        </button>
+      ) : null}
+      {onStage ? (
+        <button
+          type="button"
+          className={styles.iconBtn}
+          data-testid={area === 'staged' ? 'git-row-unstage' : 'git-row-stage'}
+          disabled={stageDisabled}
+          aria-label={`${
+            area === 'staged' ? t('ui.session-workspace.unstage') : t('ui.session-workspace.stage')
+          } ${entry.path}`}
+          onClick={onStage}
+        >
+          {area === 'staged' ? <Minus size={12} /> : <Plus size={12} />}
+        </button>
+      ) : null}
+    </span>
   </div>
 );
 

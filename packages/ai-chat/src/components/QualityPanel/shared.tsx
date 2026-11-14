@@ -1,6 +1,10 @@
 /** 模型质量面板共用的小部件与数据加载 */
 import { ErrorState, Icon, Skeleton, t } from '@nomi-ai/ui';
-import { ArrowDownRight, ArrowUpRight, type LucideIcon } from 'lucide-react';
+import {
+  IconArrowDownRight as ArrowDownRight,
+  IconArrowUpRight as ArrowUpRight,
+  type TablerIcon as IconGlyph,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { qualityClient, type QualityLayer } from '../../services/qualityClient';
@@ -91,7 +95,7 @@ export const Delta: React.FC<{
 
 /** 紧凑的空状态：小图标 + 一行标题 + 一行说明 + 可选操作，留在表格区域里 */
 export const InlineEmpty: React.FC<{
-  icon: LucideIcon;
+  icon: IconGlyph;
   title: string;
   hint?: string;
   action?: { label: string; onClick: () => void; testId?: string };

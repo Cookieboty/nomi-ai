@@ -1,6 +1,6 @@
 import { BUILTIN_CLI_ORDER } from '@nomi-ai/cli-catalog';
 import { Badge, t } from '@nomi-ai/ui';
-import { Bot, Terminal } from 'lucide-react';
+import { IconRobot as Bot, IconTerminal as Terminal } from '@tabler/icons-react';
 import React from 'react';
 
 import type { ConversationBackend } from '../../types/chat';
@@ -18,7 +18,7 @@ export const moneyOf = (fx: Fx) => (usd: number) => formatMoney(usd, fx.currency
 
 const BACKENDS = new Set<string>(['nomi', ...BUILTIN_CLI_ORDER]);
 
-/** 来源图标：Nomi / Claude Code / Codex / dsh 用端点品牌图标，其余用通用 lucide 图标 */
+/** 来源图标：Nomi / Claude Code / Codex / dsh 用端点品牌图标，其余用通用 Tabler 图标 */
 export const SourceIcon: React.FC<{ source: string; size?: number }> = ({ source, size = 16 }) =>
   BACKENDS.has(source) ? (
     <EndpointIcon backend={source as ConversationBackend} size={size} decorative />

@@ -30,7 +30,7 @@ import {
   type SeedKey,
   type ThemeBase,
 } from '@nomi-ai/ui';
-import { AlertTriangle, Check } from 'lucide-react';
+import { IconAlertTriangle as AlertTriangle, IconCheck as Check } from '@tabler/icons-react';
 import React, { useEffect, useId, useMemo, useState } from 'react';
 
 import { saveCustomTheme, themeErrorText } from '../../services/customThemes';

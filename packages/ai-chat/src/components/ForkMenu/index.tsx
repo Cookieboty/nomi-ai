@@ -3,7 +3,7 @@
  * 从消息末尾的「分叉」进来时只带到那条回复为止。原会话不受影响。
  */
 import { Button, Icon, Modal, Select, t, useLocale } from '@nomi-ai/ui';
-import { Check, MessageSquarePlus } from 'lucide-react';
+import { IconCheck as Check, IconMessagePlus as MessageSquarePlus } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';

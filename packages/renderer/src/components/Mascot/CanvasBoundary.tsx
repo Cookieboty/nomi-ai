@@ -1,5 +1,5 @@
 import { createLogger, Icon } from '@nomi-ai/ui';
-import { UserRound } from 'lucide-react';
+import { IconUserCircle as UserRound } from '@tabler/icons-react';
 import React from 'react';
 
 const log = createLogger('canvas-boundary');

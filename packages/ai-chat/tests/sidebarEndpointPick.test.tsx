@@ -9,7 +9,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Sidebar } from '../src/components/Sidebar';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
-import { setChatMode, setEndpointVisibility } from '../src/services/chatPrefs';
+import {
+  getConversationListView,
+  setChatMode,
+  setEndpointVisibility,
+} from '../src/services/chatPrefs';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
@@ -110,6 +114,26 @@ afterEach(() => {
 });
 
 describe('sidebar endpoint switch picks a session', () => {
+  it('deselects the active agent back to all sessions without opening another session', async () => {
+    const { activated, created } = mockIpc();
+    const r = render(
+      <HarnessTabsProvider>
+        <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />
+      </HarnessTabsProvider>,
+    );
+    await waitFor(() => r.getByTestId('endpoint-filter-claude'));
+    expect(r.queryByTestId('list-view-all')).toBeNull();
+    fireEvent.click(r.getByTestId('endpoint-filter-claude'));
+    await waitFor(() => expect(activated).toContain('t1'));
+    expect(getConversationListView()).toBe('by-endpoint');
+    const before = [...activated];
+    fireEvent.click(r.getByTestId('endpoint-filter-claude'));
+    expect(getConversationListView()).toBe('all');
+    expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-pressed')).toBe('false');
+    expect(activated).toEqual(before);
+    expect(created).toEqual([]);
+  });
+
   it('opens the running session of that endpoint, else the first one in the list', async () => {
     const { activated, created } = mockIpc();
     const r = render(

@@ -2,7 +2,7 @@
  * 设置 → Nomi → 已归档的对话：侧栏里归档的 Nomi 对话都在这里，可以取消归档（回到侧栏）或永久删除。
  */
 import { Button, SettingsGroup, t, useLocale } from '@nomi-ai/ui';
-import { Folder } from 'lucide-react';
+import { IconFolder as Folder } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { selectIpcClient, useAiChatActions, useAiChatSelector } from '../../contexts/aiChatStore';

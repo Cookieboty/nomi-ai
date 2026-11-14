@@ -4,14 +4,14 @@
  *   2. 供应商配好后列出它的对话模型，点一个即设为 Nomi 对话使用的模型。供应商没配好前第 2 段置灰。
  */
 import { Icon, t } from '@nomi-ai/ui';
-import { CheckCircle2 } from 'lucide-react';
+import { IconCircleCheck as CheckCircle2 } from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import { gatewayClient, type GatewayState } from '../../services/gatewayClient';
-import { nomiMainRef, refLabel, refreshNomiModel, useGatewayState } from '../../services/nomiModel';
+import { nomiMainRef, refreshNomiModel, useGatewayState } from '../../services/nomiModel';
 import { ProviderForm } from '../ModelsPage/ProviderForm';
 
-import styles from './index.module.css';
+import styles from './ProviderSetup.module.css';
 
 /** 已配置、可用于对话的供应商（启用且至少有一个启用的对话模型） */
 export function usableProviders(s: GatewayState | null) {
@@ -27,7 +27,6 @@ export const ProviderSetup: React.FC<{ onOpenModels: () => void }> = ({ onOpenMo
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
-  const [modelPickerOpen, setModelPickerOpen] = useState(false);
 
   // 第 2 段列哪个供应商：刚配好的 > 当前 Nomi 用的 > 第一个可用的
   const providerId =
@@ -42,15 +41,11 @@ export const ProviderSetup: React.FC<{ onOpenModels: () => void }> = ({ onOpenMo
     setError(null);
     gatewayClient
       .setAssignment('nomi', { models: { main: ref } })
-      .then(() => {
-        refreshNomiModel();
-        setModelPickerOpen(false);
-      })
+      .then(refreshNomiModel)
       .catch((e: Error) => setError(e.message));
   };
 
   const chatModels = provider?.models.filter((m) => m.enabled && m.toolCalling !== false) ?? [];
-  const modelLabel = current ? refLabel(state, current) : null;
 
   return (
     <>
@@ -108,58 +103,28 @@ export const ProviderSetup: React.FC<{ onOpenModels: () => void }> = ({ onOpenMo
         </div>
         {!provider ? (
           <p className={styles.note}>{t('ui.mascot-theme.onb-provider-first')}</p>
-        ) : current && !modelPickerOpen ? (
-          <div className={styles.modelSummary} data-testid="onb-model-summary">
-            <Icon icon={CheckCircle2} />
-            <div className={styles.modelSummaryCopy}>
-              <strong className={styles.modelSummaryTitle}>{modelLabel ?? current}</strong>
-              <span className={styles.modelSummaryHint}>
-                {t('ui.mascot-theme.onb-model-ready')}
-              </span>
-            </div>
-            <button
-              type="button"
-              className={styles.link}
-              data-testid="onb-model-change"
-              onClick={() => setModelPickerOpen(true)}
-            >
-              {t('ui.mascot-theme.onb-change-model')}
-            </button>
-          </div>
         ) : (
-          <>
-            <div className={styles.chips} role="radiogroup">
-              {chatModels.map((m) => {
-                const ref = `${provider.id}/${m.id}`;
-                return (
-                  <button
-                    key={ref}
-                    type="button"
-                    role="radio"
-                    aria-checked={current === ref}
-                    className={`${styles.chip} ${current === ref ? styles.chipOn : ''}`}
-                    data-testid={`onb-model-${m.id}`}
-                    onClick={() => assign(ref)}
-                  >
-                    {current === ref && <Icon icon={CheckCircle2} size={14} />}
-                    <span>{m.label ?? m.id}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {current && (
-              <button
-                type="button"
-                className={styles.link}
-                data-testid="onb-model-collapse"
-                onClick={() => setModelPickerOpen(false)}
-              >
-                {t('ui.foundation.done')}
-              </button>
-            )}
-          </>
+          <div className={styles.chips} role="radiogroup">
+            {chatModels.map((m) => {
+              const ref = `${provider.id}/${m.id}`;
+              return (
+                <button
+                  key={ref}
+                  type="button"
+                  role="radio"
+                  aria-checked={current === ref}
+                  className={`${styles.chip} ${current === ref ? styles.chipOn : ''}`}
+                  data-testid={`onb-model-${m.id}`}
+                  onClick={() => assign(ref)}
+                >
+                  {current === ref && <Icon icon={CheckCircle2} size={14} />}
+                  <span>{m.label ?? m.id}</span>
+                </button>
+              );
+            })}
+          </div>
         )}
-        {current && provider && modelPickerOpen && (
+        {current && provider && (
           <p className={styles.note} data-testid="onb-model-ready">
             {t('ui.mascot-theme.onb-model-ready')}
           </p>

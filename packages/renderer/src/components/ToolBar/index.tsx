@@ -3,25 +3,25 @@ import { brand } from '@nomi-ai/types';
 import { createLogger, t as tr, tName } from '@nomi-ai/ui';
 import { Switch, Tooltip } from '@nomi-ai/ui';
 import {
-  AudioLines,
-  ChevronDown,
-  ChevronRight,
-  Ellipsis,
-  EyeOff,
-  Hand,
-  Info,
-  MessageCircleMore,
-  Mic,
-  RotateCcw,
-  Sparkle,
-  Volume2,
-  VolumeX,
-  X,
-  ZoomIn,
-  ZoomOut,
-  type LucideIcon,
-  ListChecks,
-} from 'lucide-react';
+  IconWaveSine as AudioLines,
+  IconChevronDown as ChevronDown,
+  IconChevronRight as ChevronRight,
+  IconDots as Ellipsis,
+  IconEyeOff as EyeOff,
+  IconHandStop as Hand,
+  IconInfoCircle as Info,
+  IconMessageCircle as MessageCircleMore,
+  IconMicrophone as Mic,
+  IconRotate as RotateCcw,
+  IconSparkles as Sparkle,
+  IconVolume2 as Volume2,
+  IconVolumeOff as VolumeX,
+  IconX as X,
+  IconZoomIn as ZoomIn,
+  IconZoomOut as ZoomOut,
+  type TablerIcon as IconGlyph,
+  IconListCheck as ListChecks,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { VoiceService } from '../../services/VoiceService';
@@ -55,7 +55,7 @@ const log = createLogger('toolbar');
 /**
  * 桌面角色工具栏。角色关掉时不出现。
  * - 竖向胶囊：AI 对话（主按钮，橙色）/ 语音交互 / 任务看板 / 角色互动 / 声音设置 / 更多；
- *   四种样式（深色胶囊默认、浅色胶囊、毛玻璃、极简），Lucide（ISC）统一图标。
+ *   四种样式（深色胶囊默认、浅色胶囊、毛玻璃、极简），Tabler（MIT）统一图标。
  * - 提示：深色两行（标题 + 说明，文本里用换行分隔，第一行加粗）。
  * - 点「更多」展开完整功能面板（Nomi 标题 + 关闭，图标 + 标题 + 说明）；面板里「更多」再展开设置 / 大小 / 样式。
  * - 光标只是靠近时不出现，悬停到角色 / 工具栏上才展开；离开 250ms 后收起，动效约 180ms。
@@ -599,7 +599,7 @@ export const ToolBar: React.FC = () => {
   }, [menuOpen, moreOpen, place, prefs.compact, size?.scale]);
 
   // ---------- 按钮 ----------
-  const toolIcon = (toolId: string): LucideIcon => {
+  const toolIcon = (toolId: string): IconGlyph => {
     switch (toolId) {
       case 'ai-chat':
         return MessageCircleMore;

@@ -1,5 +1,5 @@
 /**
- * 对话窗口的面板与侧栏开关：设置（覆盖层）、桌面能力 / 扩展（右侧抽屉，「在设置中打开」）、知识中心抽屉、
+ * 对话窗口的面板与侧栏开关：设置（内容区）、桌面能力 / 扩展（右侧抽屉，「在设置中打开」）、知识中心抽屉、
  * 编程助手插件面板、侧栏收起。托盘、桌面角色、新手引导里的「打开某个面板」也接在这里。
  * 回调都保持引用稳定：侧栏、输入框是 memo 组件，换引用会连带整列重渲染。
  */
@@ -114,8 +114,8 @@ export function useAppPanels() {
   }, [openSettings]);
   // 侧栏底部的应用级入口（只有设置；知识 · 记忆、扩展 / MCP 从输入栏菜单、快捷键打开）
   const sidebarFooter = useMemo(
-    () => <AppEntries collapsed onSettings={openGeneralSettings} />,
-    [openGeneralSettings],
+    () => <AppEntries collapsed active={!!settings} onSettings={openGeneralSettings} />,
+    [openGeneralSettings, settings],
   );
 
   return {

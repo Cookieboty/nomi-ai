@@ -259,7 +259,7 @@ describe('CLI history in the sidebar', () => {
     await untilIdle();
     expect(r.getByTestId('endpoint-info-card').getAttribute('data-endpoint')).toBe('codex');
     // 「全部」视图下也保留
-    fireEvent.click(r.getByTestId('list-view-all'));
+    fireEvent.click(r.getByTestId('endpoint-filter-codex'));
     expect(r.getByTestId('endpoint-info-card')).toBeTruthy();
   });
 
@@ -270,7 +270,7 @@ describe('CLI history in the sidebar', () => {
     const r = await mount();
     await untilIdle();
     expect(r.getAllByTestId('history-session-item')).toHaveLength(3);
-    expect(r.getByTestId('list-view-all').getAttribute('aria-pressed')).toBe('true');
+    expect(r.queryByTestId('list-view-all')).toBeNull();
     expect(r.getByTestId('new-chat').textContent).toBe('新建会话');
     expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-pressed')).toBe('false');
     expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-label')).toBe(
@@ -278,7 +278,7 @@ describe('CLI history in the sidebar', () => {
     );
 
     fireEvent.click(r.getByTestId('endpoint-filter-claude'));
-    expect(r.getByTestId('list-view-all').getAttribute('aria-pressed')).toBe('false');
+    expect(r.queryByTestId('list-view-all')).toBeNull();
     expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-pressed')).toBe('true');
     expect(r.getByTestId('new-chat').textContent).toBe('新建会话');
     expect(r.getByTestId('new-chat').getAttribute('aria-label')).toBe('新建会话');

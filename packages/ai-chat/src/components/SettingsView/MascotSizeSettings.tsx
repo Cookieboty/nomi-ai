@@ -6,7 +6,7 @@
  */
 import type { MascotScaleState } from '@nomi-ai/types';
 import { Button, SettingRow, Slider, t, tName } from '@nomi-ai/ui';
-import { Minus, Plus } from 'lucide-react';
+import { IconMinus as Minus, IconPlus as Plus } from '@tabler/icons-react';
 import React, { useEffect, useRef, useState } from 'react';
 
 import { api, hasTransport } from '../../services/api';

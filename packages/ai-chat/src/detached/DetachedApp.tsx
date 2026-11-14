@@ -9,7 +9,7 @@
 import type { ClientAIClient } from '@nomi-ai/ai-sdk-client';
 import * as AISdkReact from '@nomi-ai/ai-sdk-client/react';
 import { Button, Icon, t } from '@nomi-ai/ui';
-import { Undo2 } from 'lucide-react';
+import { IconArrowBackUp as Undo2 } from '@tabler/icons-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { ChatBackgroundLayer } from '../components/ChatBackground/ChatBackgroundLayer';

@@ -3,8 +3,8 @@
  * 选择只作用于当前会话（sessionKey），由 useTranscriptView 持久化；不改变其它会话。
  */
 import { Icon, t, useLocale, usePresence } from '@nomi-ai/ui';
-import { Check, Eye } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { IconCheck as Check, IconChevronDown, IconEye as Eye } from '@tabler/icons-react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 
 import { useTranscriptView } from '../../hooks/useTranscriptView';
 import { TRANSCRIPT_VIEWS, type TranscriptView } from '../../services/transcriptView';
@@ -170,6 +170,86 @@ export const TranscriptViewButton: React.FC<{ sessionKey: string }> = ({ session
                 )}
               </span>
             </span>
+          </button>
+        </div>
+      )}
+    </>
+  );
+};
+
+/** 标题下拉中的折叠项：沿用同一份会话偏好，不再占用导航按钮。 */
+export const TranscriptViewSection: React.FC<{
+  sessionKey: string;
+  onDone: (restoreFocus: boolean) => void;
+}> = ({ sessionKey, onDone }) => {
+  useLocale();
+  const { view, globalView, hasOverride, setView, followGlobal } = useTranscriptView(sessionKey);
+  const [expanded, setExpanded] = useState(false);
+  const optionsId = useId();
+  return (
+    <>
+      <button
+        type="button"
+        role="menuitem"
+        className={styles.sectionToggle}
+        aria-expanded={expanded}
+        aria-controls={expanded ? optionsId : undefined}
+        data-testid="conversation-transcript-view"
+        onClick={() => setExpanded((value) => !value)}
+      >
+        <span>{t('ui.chat-settings.transcript-view')}</span>
+        <span className={styles.current}>
+          {t(TRANSCRIPT_VIEW_LABEL_KEY[view])}
+          <Icon
+            icon={IconChevronDown}
+            size={14}
+            className={expanded ? styles.expanded : undefined}
+          />
+        </span>
+      </button>
+      {expanded && (
+        <div
+          id={optionsId}
+          role="group"
+          aria-label={t('ui.chat-settings.transcript-view')}
+          className={styles.inlineOptions}
+        >
+          {TRANSCRIPT_VIEWS.map((id) => (
+            <button
+              key={id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={hasOverride && view === id}
+              className={styles.inlineItem}
+              data-testid={`transcript-view-${id}`}
+              onClick={(e) => {
+                setView(id);
+                onDone(e.detail === 0);
+              }}
+            >
+              <span>{t(TRANSCRIPT_VIEW_LABEL_KEY[id])}</span>
+              {hasOverride && view === id && <Icon icon={Check} size={14} />}
+            </button>
+          ))}
+          <button
+            type="button"
+            role="menuitemradio"
+            aria-checked={!hasOverride}
+            className={styles.inlineItem}
+            data-testid="transcript-view-global"
+            onClick={(e) => {
+              followGlobal();
+              onDone(e.detail === 0);
+            }}
+          >
+            <span>
+              {t('ui.chat-settings.transcript-view-use-global')}
+              <span className={styles.globalView}>
+                {' '}
+                · {t(TRANSCRIPT_VIEW_LABEL_KEY[globalView])}
+              </span>
+            </span>
+            {!hasOverride && <Icon icon={Check} size={14} />}
           </button>
         </div>
       )}

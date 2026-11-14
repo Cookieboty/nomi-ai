@@ -1,6 +1,6 @@
 /** 顶栏右侧：展开 / 收起右栏（改动 · 文件），带本会话变更文件数 */
 import { Icon, t, Tooltip } from '@nomi-ai/ui';
-import { PanelRight } from 'lucide-react';
+import { IconSquareRoundedChevronRight } from '@tabler/icons-react';
 import React from 'react';
 
 import styles from './FilesRailToggle.module.css';
@@ -27,7 +27,7 @@ export const FilesRailToggle: React.FC<{
         data-testid="files-rail-toggle"
         onClick={onToggle}
       >
-        <Icon icon={PanelRight} size={16} />
+        <Icon icon={IconSquareRoundedChevronRight} size={16} />
         {count > 0 && (
           <span className={styles.count} data-testid="files-rail-toggle-count">
             {count}

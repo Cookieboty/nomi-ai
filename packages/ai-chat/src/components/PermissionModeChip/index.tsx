@@ -8,15 +8,15 @@
  */
 import { Icon, t, usePresence } from '@nomi-ai/ui';
 import {
-  Check,
-  ChevronDown,
-  ClipboardList,
-  FilePen,
-  Hand,
-  ShieldAlert,
-  X,
-  type LucideIcon,
-} from 'lucide-react';
+  IconCheck as Check,
+  IconChevronDown as ChevronDown,
+  IconClipboardList as ClipboardList,
+  IconFilePencil as FilePen,
+  IconHandStop as Hand,
+  IconShieldExclamation as ShieldAlert,
+  IconX as X,
+  type TablerIcon as IconGlyph,
+} from '@tabler/icons-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -40,7 +40,7 @@ import { FEATURE_ICONS } from '../AppIcons';
 
 import styles from './index.module.css';
 
-const ICON: Record<PermissionMode, LucideIcon> = {
+const ICON: Record<PermissionMode, IconGlyph> = {
   plan: ClipboardList,
   manual: Hand,
   acceptEdits: FilePen,

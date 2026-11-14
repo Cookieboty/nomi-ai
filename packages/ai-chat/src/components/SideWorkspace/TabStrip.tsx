@@ -9,18 +9,18 @@
  */
 import { Icon, IconButton, t } from '@nomi-ai/ui';
 import {
-  Bot,
-  Columns2,
-  FileText,
-  GitCompareArrows,
-  Maximize2,
-  MessageCirclePlus,
-  MessageSquare,
-  Minimize2,
-  Plus,
-  SquareArrowOutUpRight,
-  X,
-} from 'lucide-react';
+  IconRobot as Bot,
+  IconColumns2 as Columns2,
+  IconFileText as FileText,
+  IconGitCompare as GitCompareArrows,
+  IconArrowsMaximize as Maximize2,
+  IconMessageCirclePlus as MessageCirclePlus,
+  IconMessage as MessageSquare,
+  IconArrowsMinimize as Minimize2,
+  IconPlus as Plus,
+  IconExternalLink as SquareArrowOutUpRight,
+  IconX as X,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
@@ -32,6 +32,7 @@ import { dropIndex, type SideTabItem, type SubagentTarget } from '../../utils/si
 import { AgentHoverCard, setHoverCardsSuppressed } from '../AgentHoverCard';
 import { EndpointIcon } from '../EndpointIcon';
 import type { PreviewEntry } from '../ResourcePreview/ResourcePreview';
+import { TitlebarContent } from '../TitleBar/panels';
 
 import styles from './SideWorkspace.module.css';
 
@@ -170,305 +171,316 @@ export const SideTabStrip: React.FC<{
     setSplitHot(false);
   };
   return (
-    <div className={styles.strip} data-testid="side-tab-strip">
-      <div
-        ref={stripRef}
-        className={styles.tabs}
-        role="tablist"
-        aria-label={t('ui.session-workspace.side-tabs-label')}
-      >
-        {model.items.map((item) => {
-          const selected = item.key === model.stripActive;
-          const state = item.kind === 'agent' ? model.meta[item.key]?.state : undefined;
-          const name = label(item);
-          const movable = item.kind !== 'main';
-          return (
-            <div
-              key={item.key}
-              className={styles.tab}
-              data-active={selected || undefined}
-              data-kind={item.kind}
-              data-dragging={drag === item.key || undefined}
-              data-drop={dropAt?.key === item.key ? (dropAt.after ? 'after' : 'before') : undefined}
-              data-testid="side-tab"
-              data-side-tab-key={item.key}
-              draggable={movable}
-              onDragStart={(e) => {
-                if (!movable) return;
-                e.dataTransfer.setData(DRAG_TYPE, item.key);
-                e.dataTransfer.effectAllowed = 'move';
-                setDrag(item.key);
-              }}
-              onDragOver={(e) => {
-                if (!drag || drag === item.key) return;
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                const box = e.currentTarget.getBoundingClientRect();
-                const after = e.clientX > box.left + box.width / 2;
-                if (dropAt?.key !== item.key || dropAt.after !== after)
-                  setDropAt({ key: item.key, after });
-              }}
-              onDragLeave={() => {
-                if (dropAt?.key === item.key) setDropAt(null);
-              }}
-              onDrop={(e) => {
-                if (!drag) return;
-                e.preventDefault();
-                const box = e.currentTarget.getBoundingClientRect();
-                const after = e.clientX > box.left + box.width / 2;
-                model.move(drag, dropIndex(model.items, drag, item.key, after));
-                endDrag();
-              }}
-              onDragEnd={(e) => {
-                // 拖出窗口松手：弹到独立窗口
-                if (drag && e.dataTransfer.dropEffect === 'none' && outsideWindow(e))
-                  model.detach(item, name);
-                endDrag();
-              }}
-              onContextMenu={
-                item.kind === 'file' && item.entryKey
-                  ? (event) => {
-                      event.preventDefault();
-                      const trigger =
-                        event.currentTarget.querySelector<HTMLButtonElement>('[role="tab"]')!;
-                      model.control.current?.openMenu({
-                        key: item.entryKey!,
-                        x: event.clientX,
-                        y: event.clientY,
-                        trigger,
-                      });
-                    }
-                  : item.kind === 'agent'
+    <TitlebarContent name="center">
+      <div className={styles.strip} data-testid="side-tab-strip">
+        <div
+          ref={stripRef}
+          className={styles.tabs}
+          role="tablist"
+          aria-label={t('ui.session-workspace.side-tabs-label')}
+        >
+          {model.items.map((item) => {
+            const selected = item.key === model.stripActive;
+            const state = item.kind === 'agent' ? model.meta[item.key]?.state : undefined;
+            const name = label(item);
+            const movable = item.kind !== 'main';
+            return (
+              <div
+                key={item.key}
+                className={styles.tab}
+                data-active={selected || undefined}
+                data-kind={item.kind}
+                data-dragging={drag === item.key || undefined}
+                data-drop={
+                  dropAt?.key === item.key ? (dropAt.after ? 'after' : 'before') : undefined
+                }
+                data-testid="side-tab"
+                data-side-tab-key={item.key}
+                draggable={movable}
+                onDragStart={(e) => {
+                  if (!movable) return;
+                  e.dataTransfer.setData(DRAG_TYPE, item.key);
+                  e.dataTransfer.effectAllowed = 'move';
+                  setDrag(item.key);
+                }}
+                onDragOver={(e) => {
+                  if (!drag || drag === item.key) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  const box = e.currentTarget.getBoundingClientRect();
+                  const after = e.clientX > box.left + box.width / 2;
+                  if (dropAt?.key !== item.key || dropAt.after !== after)
+                    setDropAt({ key: item.key, after });
+                }}
+                onDragLeave={() => {
+                  if (dropAt?.key === item.key) setDropAt(null);
+                }}
+                onDrop={(e) => {
+                  if (!drag) return;
+                  e.preventDefault();
+                  const box = e.currentTarget.getBoundingClientRect();
+                  const after = e.clientX > box.left + box.width / 2;
+                  model.move(drag, dropIndex(model.items, drag, item.key, after));
+                  endDrag();
+                }}
+                onDragEnd={(e) => {
+                  // 拖出窗口松手：弹到独立窗口
+                  if (drag && e.dataTransfer.dropEffect === 'none' && outsideWindow(e))
+                    model.detach(item, name);
+                  endDrag();
+                }}
+                onContextMenu={
+                  item.kind === 'file' && item.entryKey
                     ? (event) => {
                         event.preventDefault();
-                        setTabMenu({ item, x: event.clientX, y: event.clientY });
+                        const trigger =
+                          event.currentTarget.querySelector<HTMLButtonElement>('[role="tab"]')!;
+                        model.control.current?.openMenu({
+                          key: item.entryKey!,
+                          x: event.clientX,
+                          y: event.clientY,
+                          trigger,
+                        });
                       }
-                    : undefined
-              }
-            >
-              <AgentHoverCard
-                target={item.kind === 'agent' ? item.target : null}
-                disabled={selected || !!drag}
-                columnMessages={columnMessages}
-                onOpen={() => model.activate(item)}
-                className={styles.hoverWrap}
+                    : item.kind === 'agent'
+                      ? (event) => {
+                          event.preventDefault();
+                          setTabMenu({ item, x: event.clientX, y: event.clientY });
+                        }
+                      : undefined
+                }
               >
-                <button
-                  type="button"
-                  role="tab"
-                  className={styles.tabMain}
-                  aria-selected={selected}
-                  onClick={() => model.activate(item)}
-                  onDoubleClick={(e) => {
-                    e.preventDefault();
-                    model.toggleMaximized(item);
-                  }}
-                  onMouseDown={(e) => {
-                    // 中键关标签（和浏览器一样）
-                    if (e.button === 1 && item.closable) {
-                      e.preventDefault();
-                      model.close(item);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (!movable) return;
-                    const pg = e.ctrlKey && e.shiftKey && !e.altKey;
-                    const arrow = e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey;
-                    if ((pg && e.key === 'PageUp') || (arrow && e.key === 'ArrowLeft')) {
-                      e.preventDefault();
-                      moveBy(item, -1);
-                    } else if ((pg && e.key === 'PageDown') || (arrow && e.key === 'ArrowRight')) {
-                      e.preventDefault();
-                      moveBy(item, 1);
-                    } else if (item.kind === 'agent' && e.shiftKey && e.key === 'F10') {
-                      e.preventDefault();
-                      const box = e.currentTarget.getBoundingClientRect();
-                      setTabMenu({ item, x: box.left, y: box.bottom });
-                    }
-                  }}
+                <AgentHoverCard
+                  target={item.kind === 'agent' ? item.target : null}
+                  disabled={selected || !!drag}
+                  columnMessages={columnMessages}
+                  onOpen={() => model.activate(item)}
+                  className={styles.hoverWrap}
                 >
-                  <TabIcon item={item} backendOf={backendOf} entry={model.entryOf(item)} />
-                  <span className={styles.tabLabel}>{name}</span>
-                  {state && state !== 'idle' && (
-                    <span
-                      className={styles.dot}
-                      data-state={state}
-                      data-testid="side-tab-status"
-                      aria-label={
-                        state === 'waiting'
-                          ? t('ui.session-workspace.needs-your-approval')
-                          : t('ui.knowledge-local.running')
+                  <button
+                    type="button"
+                    role="tab"
+                    className={styles.tabMain}
+                    aria-selected={selected}
+                    onClick={() => model.activate(item)}
+                    onDoubleClick={(e) => {
+                      e.preventDefault();
+                      model.toggleMaximized(item);
+                    }}
+                    onMouseDown={(e) => {
+                      // 中键关标签（和浏览器一样）
+                      if (e.button === 1 && item.closable) {
+                        e.preventDefault();
+                        model.close(item);
                       }
-                    />
-                  )}
-                </button>
-              </AgentHoverCard>
-              {item.closable && (
-                <button
-                  type="button"
-                  className={styles.close}
-                  aria-label={t('ui.session-workspace.side-tab-close', name)}
-                  data-testid="side-tab-close"
-                  onClick={() => model.close(item)}
-                >
-                  <Icon icon={X} size={12} />
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {tabMenu && (
-        <div
-          ref={tabMenuRef}
-          className={`${styles.menu} ${styles.menuFixed}`}
-          role="menu"
-          data-testid="side-tab-menu"
-          style={{
-            left: Math.max(4, Math.min(tabMenu.x, window.innerWidth - 220)),
-            top: tabMenu.y,
-          }}
-        >
-          {model.canDetach(tabMenu.item) && (
+                    }}
+                    onKeyDown={(e) => {
+                      if (!movable) return;
+                      const pg = e.ctrlKey && e.shiftKey && !e.altKey;
+                      const arrow = e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey;
+                      if ((pg && e.key === 'PageUp') || (arrow && e.key === 'ArrowLeft')) {
+                        e.preventDefault();
+                        moveBy(item, -1);
+                      } else if (
+                        (pg && e.key === 'PageDown') ||
+                        (arrow && e.key === 'ArrowRight')
+                      ) {
+                        e.preventDefault();
+                        moveBy(item, 1);
+                      } else if (item.kind === 'agent' && e.shiftKey && e.key === 'F10') {
+                        e.preventDefault();
+                        const box = e.currentTarget.getBoundingClientRect();
+                        setTabMenu({ item, x: box.left, y: box.bottom });
+                      }
+                    }}
+                  >
+                    <TabIcon item={item} backendOf={backendOf} entry={model.entryOf(item)} />
+                    <span className={styles.tabLabel}>{name}</span>
+                    {state && state !== 'idle' && (
+                      <span
+                        className={styles.dot}
+                        data-state={state}
+                        data-testid="side-tab-status"
+                        aria-label={
+                          state === 'waiting'
+                            ? t('ui.session-workspace.needs-your-approval')
+                            : t('ui.knowledge-local.running')
+                        }
+                      />
+                    )}
+                  </button>
+                </AgentHoverCard>
+                {item.closable && (
+                  <button
+                    type="button"
+                    className={styles.close}
+                    aria-label={t('ui.session-workspace.side-tab-close', name)}
+                    data-testid="side-tab-close"
+                    onClick={() => model.close(item)}
+                  >
+                    <Icon icon={X} size={12} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {tabMenu && (
+          <div
+            ref={tabMenuRef}
+            className={`${styles.menu} ${styles.menuFixed}`}
+            role="menu"
+            data-testid="side-tab-menu"
+            style={{
+              left: Math.max(4, Math.min(tabMenu.x, window.innerWidth - 220)),
+              top: tabMenu.y,
+            }}
+          >
+            {model.canDetach(tabMenu.item) && (
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="side-tab-detach"
+                onClick={() => {
+                  setTabMenu(null);
+                  model.detach(tabMenu.item, label(tabMenu.item));
+                }}
+              >
+                <Icon icon={SquareArrowOutUpRight} size={14} />
+                {t('ui.session-workspace.side-tab-detach')}
+              </button>
+            )}
             <button
               type="button"
               role="menuitem"
-              data-testid="side-tab-detach"
+              data-testid="side-tab-split"
               onClick={() => {
                 setTabMenu(null);
-                model.detach(tabMenu.item, label(tabMenu.item));
+                model.toggleSplit(tabMenu.item);
               }}
             >
-              <Icon icon={SquareArrowOutUpRight} size={14} />
-              {t('ui.session-workspace.side-tab-detach')}
+              <Icon icon={Columns2} size={14} />
+              {t(
+                model.split
+                  ? 'ui.session-workspace.side-tab-unsplit'
+                  : 'ui.session-workspace.side-tab-split',
+              )}
             </button>
-          )}
-          <button
-            type="button"
-            role="menuitem"
-            data-testid="side-tab-split"
-            onClick={() => {
-              setTabMenu(null);
-              model.toggleSplit(tabMenu.item);
-            }}
-          >
-            <Icon icon={Columns2} size={14} />
-            {t(
-              model.split
-                ? 'ui.session-workspace.side-tab-unsplit'
-                : 'ui.session-workspace.side-tab-split',
-            )}
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setTabMenu(null);
-              model.close(tabMenu.item);
-            }}
-          >
-            <Icon icon={X} size={14} />
-            {t('ui.session-workspace.side-tab-close', label(tabMenu.item))}
-          </button>
-        </div>
-      )}
-      {(onBrowseFiles || model.newSideChat) && (
-        <div className={styles.addWrap} ref={menuRef}>
-          <IconButton
-            size="sm"
-            label={t('ui.session-workspace.side-tab-add')}
-            icon={<Icon icon={Plus} size={14} />}
-            onClick={() => setMenu((v) => !v)}
-            aria-expanded={menu}
-            aria-haspopup="menu"
-            data-testid="side-tab-add"
-          />
-          {menu && (
-            <div className={styles.menu} role="menu">
-              {model.newSideChat && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-testid="side-tab-new-chat"
-                  onClick={() => {
-                    setMenu(false);
-                    model.newSideChat?.();
-                  }}
-                >
-                  <Icon icon={MessageCirclePlus} size={14} />
-                  {t('ui.session-workspace.side-chat-new')}
-                </button>
-              )}
-              {onBrowseFiles && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setMenu(false);
-                    onBrowseFiles();
-                  }}
-                >
-                  <Icon icon={FileText} size={14} />
-                  {t('ui.session-workspace.side-tab-browse-files')}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-      {(sideItem || model.split) && (
-        <span
-          className={styles.dropTarget}
-          data-hot={splitHot || undefined}
-          onDragOver={(e) => {
-            if (!drag) return;
-            e.preventDefault();
-            setSplitHot(true);
-          }}
-          onDragLeave={() => setSplitHot(false)}
-          onDrop={(e) => {
-            if (!drag) return;
-            e.preventDefault();
-            const item = model.items.find((i) => i.key === drag);
-            if (item && !model.split) model.toggleSplit(item);
-            else if (item) model.activate(item);
-            endDrag();
-          }}
-        >
-          <IconButton
-            size="sm"
-            label={t(
-              model.split
-                ? 'ui.session-workspace.side-tab-unsplit'
-                : 'ui.session-workspace.side-tab-split',
-            )}
-            icon={<Icon icon={Columns2} size={14} />}
-            aria-pressed={model.split}
-            onClick={() => model.toggleSplit(sideItem)}
-            data-testid="side-tab-split-toggle"
-          />
-        </span>
-      )}
-      {sideItem && model.canDetach(sideItem) && (
-        <IconButton
-          size="sm"
-          label={t('ui.session-workspace.side-tab-detach')}
-          icon={<Icon icon={SquareArrowOutUpRight} size={14} />}
-          onClick={() => model.detach(sideItem, label(sideItem))}
-          data-testid="side-tab-popout"
-        />
-      )}
-      <IconButton
-        size="sm"
-        label={t(
-          model.maximized
-            ? 'ui.session-workspace.side-tab-restore'
-            : 'ui.session-workspace.side-tab-maximize',
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setTabMenu(null);
+                model.close(tabMenu.item);
+              }}
+            >
+              <Icon icon={X} size={14} />
+              {t('ui.session-workspace.side-tab-close', label(tabMenu.item))}
+            </button>
+          </div>
         )}
-        icon={<Icon icon={model.maximized ? Minimize2 : Maximize2} size={14} />}
-        onClick={() => (model.maximized ? model.restore() : model.toggleMaximized(currentItem))}
-        data-testid="side-tab-maximize"
-      />
-    </div>
+        {(onBrowseFiles || model.newSideChat) && (
+          <div className={styles.addWrap} ref={menuRef}>
+            <IconButton
+              size="ms"
+              variant="nav"
+              label={t('ui.session-workspace.side-tab-add')}
+              icon={<Icon icon={Plus} size={14} />}
+              onClick={() => setMenu((v) => !v)}
+              aria-expanded={menu}
+              aria-haspopup="menu"
+              data-testid="side-tab-add"
+            />
+            {menu && (
+              <div className={styles.menu} role="menu">
+                {model.newSideChat && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-testid="side-tab-new-chat"
+                    onClick={() => {
+                      setMenu(false);
+                      model.newSideChat?.();
+                    }}
+                  >
+                    <Icon icon={MessageCirclePlus} size={14} />
+                    {t('ui.session-workspace.side-chat-new')}
+                  </button>
+                )}
+                {onBrowseFiles && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenu(false);
+                      onBrowseFiles();
+                    }}
+                  >
+                    <Icon icon={FileText} size={14} />
+                    {t('ui.session-workspace.side-tab-browse-files')}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        {(sideItem || model.split) && (
+          <span
+            className={styles.dropTarget}
+            data-hot={splitHot || undefined}
+            onDragOver={(e) => {
+              if (!drag) return;
+              e.preventDefault();
+              setSplitHot(true);
+            }}
+            onDragLeave={() => setSplitHot(false)}
+            onDrop={(e) => {
+              if (!drag) return;
+              e.preventDefault();
+              const item = model.items.find((i) => i.key === drag);
+              if (item && !model.split) model.toggleSplit(item);
+              else if (item) model.activate(item);
+              endDrag();
+            }}
+          >
+            <IconButton
+              size="ms"
+              variant="nav"
+              label={t(
+                model.split
+                  ? 'ui.session-workspace.side-tab-unsplit'
+                  : 'ui.session-workspace.side-tab-split',
+              )}
+              icon={<Icon icon={Columns2} size={14} />}
+              aria-pressed={model.split}
+              onClick={() => model.toggleSplit(sideItem)}
+              data-testid="side-tab-split-toggle"
+            />
+          </span>
+        )}
+        {sideItem && model.canDetach(sideItem) && (
+          <IconButton
+            size="ms"
+            variant="nav"
+            label={t('ui.session-workspace.side-tab-detach')}
+            icon={<Icon icon={SquareArrowOutUpRight} size={14} />}
+            onClick={() => model.detach(sideItem, label(sideItem))}
+            data-testid="side-tab-popout"
+          />
+        )}
+        <IconButton
+          size="ms"
+          variant="nav"
+          label={t(
+            model.maximized
+              ? 'ui.session-workspace.side-tab-restore'
+              : 'ui.session-workspace.side-tab-maximize',
+          )}
+          icon={<Icon icon={model.maximized ? Minimize2 : Maximize2} size={14} />}
+          onClick={() => (model.maximized ? model.restore() : model.toggleMaximized(currentItem))}
+          data-testid="side-tab-maximize"
+        />
+      </div>
+    </TitlebarContent>
   );
 };

@@ -404,13 +404,41 @@
   color: var(--cd-color-accent-strong);
 }
 
-/* 行内暂存 / 取消暂存：悬停或键盘聚焦时出现 */
-.stageBtn {
-  opacity: 0;
+/* 状态平时贴右；悬浮 / 键盘聚焦时，操作按钮在同一位置替换状态，不常驻占宽。 */
+.gitRow {
+  position: relative;
 }
-div:hover > .stageBtn,
-.stageBtn:focus-visible {
-  opacity: 1;
+.gitRow .gitName {
+  flex: 0 1 auto;
+}
+.gitMeta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--cd-space-1-5);
+  flex: none;
+  min-width: calc(3 * var(--cd-control-h-xs));
+  margin-left: auto;
+}
+.gitActions {
+  position: absolute;
+  right: var(--cd-space-0-5);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-0-5);
+  visibility: hidden;
+  pointer-events: none;
+}
+.gitRow:hover .gitActions,
+.gitRow:focus-within .gitActions {
+  visibility: visible;
+  pointer-events: auto;
+}
+.gitRow:hover .gitMeta,
+.gitRow:focus-within .gitMeta {
+  visibility: hidden;
 }
 
 /* 改动列表：有暂存内容时分「已暂存 / 未暂存」两组 */
@@ -506,4 +534,8 @@ div:hover > .stageBtn,
   border-radius: var(--cd-radius-sm);
   color: var(--cd-color-text-subtle);
   font-weight: normal;
+}
+
+.tabLabel {
+  min-width: 0;
 }

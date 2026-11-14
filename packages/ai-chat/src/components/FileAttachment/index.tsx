@@ -2,7 +2,7 @@
  * 文件附件卡片：图标 + 文件名（悬停看完整路径），点开弹窗预览文本内容；输入框与已发送消息共用。
  */
 import { Icon, Modal, t } from '@nomi-ai/ui';
-import { File as FileIcon, FileText, X } from 'lucide-react';
+import { IconFile as FileIcon, IconFileText as FileText, IconX as X } from '@tabler/icons-react';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 

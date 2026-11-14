@@ -5,7 +5,11 @@
  * 旧的提醒 / 定时作为同样的卡片排在后面，点开进日程面板。
  */
 import { createLogger, Icon, IconButton, t } from '@nomi-ai/ui';
-import { Bell, CalendarClock, Clock } from 'lucide-react';
+import {
+  IconBell as Bell,
+  IconCalendarClock as CalendarClock,
+  IconClock as Clock,
+} from '@tabler/icons-react';
 import React from 'react';
 
 import { describeRepeat } from '../../services/desktopClient';

@@ -2,7 +2,7 @@
  * 模型列表的浏览控件：顶部按供应商分标签、右侧按厂商（OpenAI、Anthropic …）快速筛选。
  * ModelPicker（browse）与编程助手的模型按钮共用，外观与交互一致。
  */
-import { Ellipsis, LayoutGrid } from 'lucide-react';
+import { IconDots as Ellipsis, IconLayoutGrid as LayoutGrid } from '@tabler/icons-react';
 import React from 'react';
 
 import { BrandIcon } from './BrandIcon';

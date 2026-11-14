@@ -442,8 +442,8 @@ describe('normal mode: Nomi only', () => {
     await waitFor(() => r.getAllByTestId('history-item'));
     expect(r.queryByTestId('list-view-all')).toBeNull();
     act(() => setChatMode('dev'));
-    await waitFor(() => r.getByTestId('list-view-all'));
-    expect(r.getByTestId('list-view-all').getAttribute('aria-pressed')).toBe('false');
+    await waitFor(() => r.getByTestId('endpoint-rail'));
+    expect(r.queryByTestId('list-view-all')).toBeNull();
     expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-pressed')).toBe('true');
   });
 });

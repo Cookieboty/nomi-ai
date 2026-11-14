@@ -14,7 +14,7 @@ import {
   t as tr,
   toHex,
 } from '@nomi-ai/ui';
-import { RotateCcw } from 'lucide-react';
+import { IconRotate as RotateCcw } from '@tabler/icons-react';
 import React from 'react';
 
 import styles from './CustomThemeEditor.module.css';

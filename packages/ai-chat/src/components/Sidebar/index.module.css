@@ -9,14 +9,14 @@
   /* 导航栏里端点菜单向右弹出，盖在对话区上面 */
   z-index: 3;
   min-height: 0;
-  /* 侧栏选中行：比通用选中色浅一档（仍比悬停深），不抢过标题文字 */
-  --sb-selected-bg: color-mix(in srgb, var(--cd-color-selected-bg) 55%, var(--cd-color-hover));
+  /* 悬浮与选中共用导航浅底；按下时才加深。 */
+  --sb-selected-bg: var(--cd-color-nav-bg);
   /*
    * 列表滚动条槽宽：.threads 用 scrollbar-gutter: stable 常留这条槽
    * （实际宽度见 packages/ui/src/styles/theme.css 的 ::-webkit-scrollbar: 10px），
    * 顶行右侧按钮按这条槽让位，才能和列表里的按钮对齐。
    */
-  --sb-gutter: 10px;
+  --sb-gutter: 0px;
 }
 .collapsed {
   width: 52px;
@@ -67,11 +67,10 @@
  * 同样的上下外边距、边框与圆角，右侧不画边（对话卡片的左边框就是分隔线）。
  */
 .panel:not(.panelFloating) {
-  margin: var(--cd-space-2) 0;
-  background: var(--cd-panel-bg);
-  border: 1px solid var(--cd-panel-border);
-  border-right: none;
-  border-radius: var(--cd-radius-xl) 0 0 var(--cd-radius-xl);
+  margin: var(--cd-space-2) 0 var(--cd-space-0-5);
+  background: var(--cd-workspace-bg);
+  border: none;
+  border-radius: var(--cd-radius-xl) 0 0 0;
 }
 :global(html[data-platform]) .panel:not(.panelFloating) {
   margin-top: 0;
@@ -101,7 +100,7 @@
     clip-path: inset(0 0 0 0);
   }
 }
-/* 工作台：竖排的端点；「更多」与「显示设置」的弹出层向右展开 */
+/* 工作台：竖排的端点；再次点击选中项恢复全部，「更多」向右展开。 */
 .epRail {
   position: relative;
   display: flex;
@@ -109,18 +108,31 @@
   align-items: center;
   gap: 2px;
   width: 100%;
-  padding-top: var(--cd-space-2);
-  margin-top: var(--cd-space-1);
-  border-top: 1px solid var(--cd-panel-border);
+  padding-top: 0;
+  margin-top: var(--cd-space-2);
 }
-.epRail .epVisWrap {
-  margin-left: 0;
+.epRail::before {
+  content: '';
+  width: var(--cd-space-5);
+  height: 1px;
+  flex: none;
+  background: var(--cd-panel-border);
+  margin-bottom: var(--cd-space-1);
 }
-.epRail .epVisMenu {
-  top: 0;
-  left: calc(100% + var(--cd-space-2));
-  right: auto;
-  width: 260px;
+.epRail .epChip {
+  width: var(--cd-control-h-ms);
+  height: var(--cd-control-h-ms);
+  border: none;
+}
+.epRail .epChip:hover:not(:disabled) {
+  background: var(--cd-color-nav-bg);
+}
+.epRail .epChip[aria-pressed='true'],
+.epRail .epChip[aria-expanded='true'] {
+  background: var(--cd-color-nav-bg);
+}
+.epRail .epChip:active:not(:disabled) {
+  background: var(--cd-color-nav-pressed);
 }
 .top {
   display: flex;
@@ -132,7 +144,7 @@
    * 右侧让出滚动条槽 + 行尾操作的 4px：搜索按钮与「项目」行的「…」「+」、会话行尾的图标同一条竖线
    * （见 .threads 的 scrollbar-gutter 与 .rowActions 的 right: 4px）。
    */
-  padding: 0 calc(var(--sb-gutter) + var(--cd-space-1)) 0 0;
+  padding: 0;
 }
 .brand {
   font-size: var(--cd-font-size-xl);
@@ -158,7 +170,7 @@
     color var(--cd-duration-fast) var(--cd-ease);
 }
 .brandWrap:hover {
-  background: var(--cd-chat-hover-overlay);
+  background: var(--cd-color-nav-bg);
 }
 .brandWrap:focus-visible,
 .iconBtn:focus-visible {
@@ -225,7 +237,7 @@
   line-height: 1;
 }
 .searchClear:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-color-nav-bg);
   color: var(--cd-color-text);
 }
 .hit {
@@ -235,7 +247,7 @@
   padding: 0 1px;
 }
 .resultActive {
-  background: var(--cd-color-hover);
+  background: var(--cd-color-nav-bg);
   color: var(--cd-color-text);
 }
 .listHeadRow {
@@ -255,9 +267,7 @@
 }
 .iconBtn,
 .thread,
-.segBtn,
-.epChip,
-.epAll {
+.epChip {
   border: none;
   background: transparent;
   color: var(--cd-color-text-muted);
@@ -278,18 +288,14 @@
 }
 .iconBtn:hover,
 .thread:hover,
-.segBtn:hover,
-.epChip:hover,
-.epAll:hover {
-  background: var(--cd-chat-hover-overlay);
+.epChip:hover {
+  background: var(--cd-color-nav-bg);
   color: var(--cd-color-text);
 }
 @media (prefers-reduced-motion: reduce) {
   .iconBtn,
   .thread,
-  .segBtn,
-  .epChip,
-  .epAll {
+  .epChip {
     transition: none;
   }
 }
@@ -299,29 +305,6 @@
   gap: var(--cd-space-1-5);
   padding: var(--cd-space-0-5) var(--cd-space-0-5) 0;
 }
-.seg {
-  display: inline-flex;
-  padding: var(--cd-space-0-5);
-  border-radius: var(--cd-radius-md);
-  background: var(--cd-color-bg-subtle);
-  border: 1px solid var(--cd-color-border);
-  flex-shrink: 0;
-  gap: var(--cd-space-0-5);
-}
-.segBtn {
-  height: var(--cd-control-h-xs);
-  padding: 0 var(--cd-space-2);
-  font-size: var(--cd-font-size-sm);
-  font-weight: var(--cd-font-weight-medium);
-  border-radius: var(--cd-radius-sm);
-  border: 1px solid transparent;
-}
-.segBtn[aria-pressed='true'],
-.segBtn[aria-checked='true'] {
-  background: var(--cd-color-surface);
-  color: var(--cd-color-text);
-  border-color: var(--cd-color-border);
-}
 .epRow {
   /* 端点显示设置的弹出层以整行为锚：侧栏 overflow: hidden，锚在按钮上会被裁掉右侧 */
   position: relative;
@@ -329,8 +312,7 @@
   flex-wrap: wrap;
   gap: var(--cd-space-1);
 }
-.epChip,
-.epAll {
+.epChip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -338,20 +320,14 @@
   height: var(--cd-control-h-sm);
   border: 1px solid transparent;
 }
-/* 端点只放图标：名称与数量在悬停提示里，6 个端点 +「全部」+ 设置一行放得下 */
+/* 端点只放图标：名称与数量在悬停提示里。 */
 .epChip {
   width: var(--cd-control-h-sm);
   padding: 0;
 }
-.epAll {
-  padding: 0 var(--cd-space-2);
-  font-size: var(--cd-font-size-sm);
-  font-weight: var(--cd-font-weight-medium);
-}
-.epAll[aria-pressed='true'],
 .epChip[aria-pressed='true'] {
   border-color: var(--cd-color-border);
-  background: var(--cd-color-active);
+  background: var(--cd-color-nav-bg);
   color: var(--cd-color-text);
 }
 .epChip:disabled {
@@ -387,7 +363,7 @@
   white-space: nowrap;
 }
 .newChatBtn:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-color-nav-bg);
 }
 .newChatBtn:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
@@ -406,7 +382,7 @@
   cursor: pointer;
 }
 .headBtn:hover:not(:disabled) {
-  background: var(--cd-color-hover);
+  background: var(--cd-color-nav-bg);
   color: var(--cd-color-text);
 }
 .headBtn:focus-visible {
@@ -427,15 +403,16 @@
 }
 .threads {
   /* 撑到面板右边缘：滚动条贴边（Codex 式），内容仍按原来的内边距排 */
-  margin-right: calc(-1 * var(--cd-space-2));
-  padding-right: var(--cd-space-2);
+  margin-inline: calc(-1 * var(--cd-space-2));
+  padding-inline: var(--cd-space-2);
   margin-top: var(--cd-space-0-5);
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0;
   overflow-y: auto;
   /* 预留滚动条的位置：列表变长出现滚动条时内容不左右跳 */
-  scrollbar-gutter: stable;
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: thin;
   min-height: 0;
   flex: 1;
 }
@@ -496,8 +473,9 @@
   white-space: nowrap;
 }
 .threadTime {
-  font-size: var(--cd-font-size-sm);
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-subtle);
+  opacity: 0.6;
   white-space: nowrap;
   margin-left: auto;
 }
@@ -546,7 +524,7 @@
 }
 .histRow {
   content-visibility: auto;
-  contain-intrinsic-size: auto 36px;
+  contain-intrinsic-size: auto 32px;
 }
 .histRow[data-cwd-missing] {
   opacity: 0.55;
@@ -567,7 +545,7 @@
   cursor: pointer;
 }
 .histMore:hover:not(:disabled) {
-  background: var(--cd-color-hover);
+  background: var(--cd-color-nav-bg);
   color: var(--cd-color-text);
 }
 
@@ -576,6 +554,7 @@
    悬浮时 meta 淡出，同时操作区左侧加与行同色的渐隐蒙版盖住残余文字（类似微信会话列表）。 */
 .row {
   position: relative;
+  margin-bottom: var(--cd-space-0-5);
   min-width: 0;
   border-radius: var(--cd-radius-md);
 }
@@ -595,7 +574,7 @@
 }
 .row:hover,
 .row:focus-within {
-  background: var(--cd-color-hover);
+  background: var(--cd-color-nav-bg);
 }
 .row[data-active] {
   /* Codex 式：选中只用浅色圆角底，不加左侧强调条；标题加一档字重 */
@@ -617,15 +596,15 @@
   justify-content: flex-end;
   gap: 1px;
   box-sizing: border-box;
-  /* 覆盖右侧 84px meta 槽，避免长文案（In progress / 进行中）探出蒙版 */
-  min-width: 80px;
-  padding-left: 20px;
+  /* 操作区仅包住置顶与更多，不再预留删除按钮占位。 */
+  min-width: 0;
+  padding-left: var(--cd-space-3);
   /* 左侧短渐隐 + 右侧实心行底：盖住时间 / 「进行中」 */
   background: linear-gradient(
     to right,
     transparent 0,
-    var(--cd-color-hover) 10px,
-    var(--cd-color-hover) 100%
+    var(--cd-color-nav-bg) 10px,
+    var(--cd-color-nav-bg) 100%
   );
   opacity: 0;
   pointer-events: none;
@@ -649,7 +628,7 @@
   right: 6px;
   padding: 0 var(--cd-space-1-5);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-hover);
+  background: var(--cd-color-nav-bg);
 }
 .row[data-active][data-confirming] .rowActions {
   background: var(--sb-selected-bg);
@@ -690,7 +669,7 @@
 }
 .rowBtn:hover,
 .rowBtn:focus-visible {
-  background: var(--cd-color-hover);
+  background: var(--cd-color-nav-bg);
   color: var(--cd-color-text);
 }
 .rowBtnDanger:hover,
@@ -727,107 +706,6 @@
   }
 }
 
-/* 侧栏「按端」的端点显示设置 */
-.epVisWrap {
-  display: inline-flex;
-  margin-left: auto;
-}
-.epVisMenu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  z-index: 40;
-  padding: var(--cd-space-2);
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-1-5);
-  border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
-  box-shadow: var(--cd-shadow-popover);
-}
-.epVisHint {
-  margin: 0 0 var(--cd-space-0-5);
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-muted);
-}
-.epVisRow {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-1);
-  border-radius: var(--cd-radius-md);
-}
-.epVisRow[draggable='true'] {
-  cursor: grab;
-}
-.epVisRow[data-dragging] {
-  opacity: 0.4;
-}
-/* 名称一行显示，过长时省略（不再把「Claude Code」折成两行） */
-.epVisName {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cd-space-1);
-  flex: 1;
-  font-size: var(--cd-font-size-sm);
-  font-weight: var(--cd-font-weight-bold);
-  min-width: 0;
-  white-space: nowrap;
-}
-.epVisLabel {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-.epVisRow .seg {
-  flex-shrink: 0;
-}
-.epVisRow .segBtn {
-  padding: 0 var(--cd-space-1-5);
-}
-.epVisGrip {
-  flex-shrink: 0;
-  width: var(--cd-control-h-2xs);
-  height: var(--cd-control-h-xs);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: var(--cd-radius-sm);
-  background: transparent;
-  color: var(--cd-color-text-subtle);
-  cursor: grab;
-}
-.epVisGrip:hover {
-  background: var(--cd-color-hover);
-  color: var(--cd-color-text);
-}
-.epVisGrip:focus-visible,
-.epVisReset:focus-visible,
-.epVisOrder {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--cd-space-2);
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-subtle);
-}
-.epVisReset {
-  border: none;
-  background: transparent;
-  color: var(--cd-color-accent-strong);
-  font: inherit;
-  font-size: var(--cd-font-size-xs);
-  padding: var(--cd-space-0-5) var(--cd-space-1);
-  border-radius: var(--cd-radius-sm);
-  cursor: pointer;
-}
-.epVisReset:hover {
-  background: var(--cd-color-hover);
-}
-/* 「更多」：弹层与显示设置一样以整行为锚，这里不设 position */
 .srOnly {
   position: absolute;
   width: 1px;
@@ -862,6 +740,9 @@
 }
 /* 自定义背景图：侧栏仍压一层面板色，文字不直接压在图上 */
 :global(html[data-chat-bg]) .sidebar {
+  background: transparent;
+}
+:global(html[data-chat-bg]) .rail {
   background: var(--cd-panel-bg-subtle);
 }
 
@@ -988,7 +869,7 @@
   cursor: pointer;
 }
 .orgItem:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-color-nav-bg);
 }
 .orgItem:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
@@ -1112,7 +993,7 @@
   color: var(--cd-color-text);
 }
 .searchTab[aria-selected='true'] {
-  background: var(--cd-color-hover);
+  background: var(--cd-color-nav-bg);
   color: var(--cd-color-text);
 }
 .searchTab:focus-visible {
@@ -1120,12 +1001,12 @@
   outline-offset: -2px;
 }
 
-/* 行尾的端点小图标：灰色、不抢标题；悬停时让位给行内操作 */
+/* 会话行尾品牌标识置灰，保持辅助信息的视觉权重；悬停时让位给操作。 */
 .threadEp {
   display: inline-flex;
   justify-self: end;
   filter: grayscale(1);
-  opacity: 0.5;
+  opacity: 0.55;
 }
 .threadTail {
   display: inline-flex;
@@ -1165,14 +1046,70 @@
   inset-block: 0;
   left: 3px;
   width: 1px;
-  background: transparent;
+  background: var(--cd-color-pane-divider);
   pointer-events: none;
 }
 .resizeHandle:hover::after,
 .resizeHandle.resizing::after {
-  background: var(--cd-color-accent-strong);
+  background: var(--cd-color-pane-divider-hover);
 }
 .resizeHandle:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: -2px;
+}
+
+.iconBtn:active,
+.headBtn:active,
+.newChatBtn:active,
+.rowBtn:active,
+.orgItem:active,
+.row:active {
+  background: var(--cd-color-nav-pressed);
+}
+.row .thread:active {
+  background: transparent;
+}
+.row:active .rowActions {
+  background: linear-gradient(
+    to right,
+    transparent 0,
+    var(--cd-color-nav-pressed) 10px,
+    var(--cd-color-nav-pressed) 100%
+  );
+}
+
+/* 两侧滚动槽固定且等宽：有无溢出都不改变会话行宽度。 */
+.threads::-webkit-scrollbar {
+  width: var(--cd-space-1);
+}
+.threads::-webkit-scrollbar-thumb {
+  border: none;
+}
+.thread[data-layout] {
+  height: var(--cd-control-h-ms);
+}
+.histTitle .threadName {
+  flex: 1;
+}
+.histTitle {
+  overflow: hidden;
+}
+.panel:not(.panelFloating) {
+  box-shadow: var(--cd-shadow-workspace);
+}
+
+.threads:has(.virtualList) {
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
+.virtualList {
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: thin;
+}
+.virtualList::-webkit-scrollbar {
+  width: var(--cd-space-1);
+}
+
+.panel[hidden] {
+  display: none;
 }

@@ -1,6 +1,5 @@
 import { byCli } from '@nomi-ai/cli-catalog';
 import { t, Icon, useLocale, usePresence } from '@nomi-ai/ui';
-import { MessagesSquare, SquarePen } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { List } from 'react-window';
 
@@ -43,6 +42,7 @@ import { CONVERSATION_BACKENDS, type ConversationBackend } from '../../types/cha
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { rankItems } from '../../utils/fuzzy';
 import { isImeComposing } from '../../utils/keyboard';
+import { startupBrandIntro } from '../BrandIntro/state';
 import { confirmDialog } from '../ConfirmDialog';
 import { ConversationMenu } from '../ConversationMenu';
 import { EndpointInfoCard } from '../EndpointInfo';
@@ -53,6 +53,7 @@ import type { SettingsSection, SettingsTab } from '../SettingsView/sections';
 
 import { AnchoredPopover } from './AnchoredPopover';
 import { EndpointRail } from './EndpointRail';
+import { SIDEBAR_ICONS } from './icons';
 import styles from './index.module.css';
 import { sameMetaList } from './listEquality';
 import { LocalHistorySection } from './LocalHistorySection';
@@ -78,6 +79,8 @@ import { useSidebarResize } from './useSidebarResize';
 
 interface SidebarProps {
   collapsed: boolean;
+  /** 设置在内容区打开时，保留应用导航，隐藏并保活会话列表。 */
+  panelHidden?: boolean;
   onToggle: () => void;
   /** projectId：新 Nomi 对话放进哪个项目（null = 不放进项目；不给 = 沿用当前对话的） */
   onNewChat: (opts?: { projectId?: string | null }) => void | Promise<void>;
@@ -106,6 +109,7 @@ type MenuAt = { x: number; y: number; anchor?: HTMLElement };
 
 const SidebarImpl: React.FC<SidebarProps> = ({
   collapsed,
+  panelHidden = false,
   onToggle,
   onNewChat,
   onForkRequest,
@@ -170,7 +174,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const newPopRef = useRef<HTMLDivElement | null>(null);
 
   const refresh = useCallback(() => {
-    if (!ipc?.listConversations) return;
+    if (!ipc?.listConversations) {
+      startupBrandIntro.taskDone('sidebar');
+      return;
+    }
     void ipc
       .listConversations()
       .then((l) => {
@@ -179,7 +186,8 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         setList((prev) => (sameMetaList(prev, next) ? prev : next));
         setCurrent(ipc.currentConversationId?.());
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => startupBrandIntro.taskDone('sidebar'));
   }, [ipc]);
 
   useCliTabSync(refresh);
@@ -478,7 +486,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     latest.current = { list, current, tabs, isDev, removeItem, archiveItem };
   });
 
-  // 行内垃圾桶统一永久删除；归档仍是菜单中明确标注的独立操作。
+  // 行内仅保留置顶；归档与删除在更多菜单中操作。
   const togglePin = useCallback(
     (id: string) => {
       const meta = latest.current.list.find((x) => x.id === id);
@@ -489,9 +497,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     },
     [ipc, refresh],
   );
-  const requestDelete = useCallback((id: string) => {
-    void latest.current.removeItem?.(id);
-  }, []);
   const listPeek = useSessionPeek(400);
 
   /** 行内「更多」：与右键共用同一个 ConversationMenu，只是锚在按钮下方 */
@@ -588,6 +593,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     [shownEndpoints, endpointActivity, endpointOrder],
   );
   const pickEndpoint = (b: ConversationBackend) => {
+    leaveRef.current?.();
     setCardPick(b);
     setEndpointFilter(b);
     setView('by-endpoint');
@@ -790,7 +796,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         aria-expanded={isDev && view === 'all' ? newMenu : undefined}
         data-testid="new-chat"
       >
-        <Icon icon={SquarePen} size={16} />
+        <Icon icon={SIDEBAR_ICONS.newChat} size={16} />
         <span className={styles.newChatLabel}>{newLabel}</span>
       </button>
       {newMenuP.value && (
@@ -836,7 +842,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       renamingId,
       onRename: commitRename,
       onPinToggle: togglePin,
-      onDeleteRequest: requestDelete,
       onMore: openMore,
       onPeek: listPeek.onPeek,
       showIcon: isDev && view === 'all',
@@ -850,7 +855,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       onCtx,
       renamingId,
       commitRename,
-      requestDelete,
       openMore,
       listPeek.onPeek,
       isDev,
@@ -859,24 +863,24 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   );
   return (
     <aside
-      className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}
+      className={`${styles.sidebar} ${collapsed || panelHidden ? styles.collapsed : ''}`}
       data-testid="chat-sidebar"
-      data-panel={collapsed ? undefined : 'open'} // 展开：与右边对话卡片拼成一张（App.css）
-      onMouseEnter={float.floating ? float.cancelHide : undefined}
-      onMouseLeave={collapsed ? float.scheduleHide : undefined}
+      data-panel={collapsed || panelHidden ? undefined : 'open'} // 展开：与右边对话卡片拼成一张（App.css）
+      onMouseEnter={!panelHidden && float.floating ? float.cancelHide : undefined}
+      onMouseLeave={!panelHidden && collapsed ? float.scheduleHide : undefined}
     >
-      {resize.splitter}
+      {!panelHidden && resize.splitter}
       {/* 左侧固定导航：对话 · 任务 · 素材库；工作台模式下端点竖排挂在下面；底部是应用级入口 */}
       <div className={styles.rail} data-testid="app-rail">
         <nav className={styles.railNav} aria-label={t('ui.foundation.app-shortcuts')}>
           {/* 收起时悬停 / 聚焦「对话」弹出会话浮层 */}
           <span
             className={styles.railHover}
-            onMouseEnter={collapsed ? float.show : undefined}
-            onFocus={collapsed ? float.show : undefined}
+            onMouseEnter={!panelHidden && collapsed ? float.show : undefined}
+            onFocus={!panelHidden && collapsed ? float.show : undefined}
           >
             <SideNavItem
-              icon={MessagesSquare}
+              icon={SIDEBAR_ICONS.chats}
               label={t('ui.chat-settings.chats')}
               collapsed
               active={!pageOpen}
@@ -892,12 +896,11 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         {isDev && (
           <span
             className={styles.railHover}
-            onMouseEnter={collapsed ? float.show : undefined}
-            onFocus={collapsed ? float.show : undefined}
+            onMouseEnter={!panelHidden && collapsed ? float.show : undefined}
+            onFocus={!panelHidden && collapsed ? float.show : undefined}
           >
             <EndpointRail
-              allActive={view === 'all'}
-              active={view === 'by-endpoint' ? endpointFilter : null}
+              active={!panelHidden && view === 'by-endpoint' ? endpointFilter : null}
               shown={railEndpoints}
               ordered={orderEndpoints(CONVERSATION_BACKENDS, endpointActivity, endpointOrder)}
               activity={endpointActivity}
@@ -905,7 +908,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               customOrder={endpointOrder !== null}
               isDisabled={cliMissing}
               tipOf={endpointTip}
-              onAll={() => setView('all')}
+              onAll={() => {
+                leaveRef.current?.();
+                setView('all');
+              }}
               onPick={pickEndpoint}
               onReorder={setEndpointOrder}
               onVisibility={(b, v) => {
@@ -923,6 +929,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         <div
           className={`${styles.panel} ${float.floating ? styles.panelFloating : ''}`}
           data-testid="sidebar-panel"
+          hidden={panelHidden}
           data-floating={float.floating || undefined}
           data-closing={panelP.closing || undefined}
           aria-hidden={panelP.closing || undefined}
@@ -1001,7 +1008,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
                   renaming={renamingId === c.id}
                   onRename={commitRename}
                   onPinToggle={togglePin}
-                  onDeleteRequest={requestDelete}
                   onMore={openMore}
                   onPeek={listPeek.onPeek}
                   showIcon={isDev && view === 'all'}
@@ -1015,6 +1021,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
                 <List
                   rowCount={ordered.length}
                   rowHeight={34}
+                  className={styles.virtualList}
                   rowComponent={VirtualRow}
                   rowProps={rowProps}
                   style={{ height: '100%', width: '100%' }}
@@ -1035,7 +1042,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
                     anchor && cur?.anchor === anchor ? null : { h, x, y, anchor },
                   );
                 }}
-                onDelete={(h) => void deleteHistory(h)}
                 hasMore={histScopeSupported && history.hasMore(histScope)}
                 loading={history.loading}
                 onLoadMore={() => history.loadMore(histScope)}

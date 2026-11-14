@@ -1,7 +1,7 @@
 import { toErrorHint, type ErrorAction } from '@nomi-ai/ai-sdk-client';
 import { t, Icon } from '@nomi-ai/ui';
 import { Button, IconButton } from '@nomi-ai/ui';
-import { TriangleAlert, X } from 'lucide-react';
+import { IconAlertTriangle as TriangleAlert, IconX as X } from '@tabler/icons-react';
 import React from 'react';
 
 import styles from './index.module.css';

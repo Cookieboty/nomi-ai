@@ -2,7 +2,7 @@
  * 自定义主题编辑器 · 背景图：选图（内核暂存）、移除、毛玻璃与蒙版不透明度（与图片主题同一套图层）。
  */
 import { Button, DEFAULT_THEME_BG, Slider, t as tr, type ThemeBackground } from '@nomi-ai/ui';
-import { ImagePlus, Trash2 } from 'lucide-react';
+import { IconPhotoPlus as ImagePlus, IconTrash as Trash2 } from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import { hostAssetUrl } from '../../services/api';

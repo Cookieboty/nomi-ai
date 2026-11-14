@@ -2,7 +2,7 @@
  * 附件图片放大查看：缩放 / Esc 关闭；挂到 body。
  */
 import { Icon, t, useFocusTrap } from '@nomi-ai/ui';
-import { Minus, Plus, X } from 'lucide-react';
+import { IconMinus as Minus, IconPlus as Plus, IconX as X } from '@tabler/icons-react';
 import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 

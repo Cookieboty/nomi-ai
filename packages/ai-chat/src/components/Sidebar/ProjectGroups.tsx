@@ -1,16 +1,16 @@
 import { t, Icon, useLocale, usePresence } from '@nomi-ai/ui';
 import {
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Ellipsis,
-  Folder,
-  FolderOpen,
-  FolderTree,
-  List,
-  Plus,
-  SquarePen,
-} from 'lucide-react';
+  IconCheck as Check,
+  IconChevronDown as ChevronDown,
+  IconChevronUp as ChevronUp,
+  IconDots as Ellipsis,
+  IconFolder as Folder,
+  IconFolderOpen as FolderOpen,
+  IconFolders as FolderTree,
+  IconList as List,
+  IconPlus as Plus,
+  IconEdit as SquarePen,
+} from '@tabler/icons-react';
 import React, { useEffect, useRef, useState } from 'react';
 
 import { AnchoredPopover } from './AnchoredPopover';
@@ -48,7 +48,6 @@ const Rows: React.FC<{ items: readonly Meta[]; activeId?: string; rows: VirtualP
         renaming={rows.renamingId === c.id}
         onRename={rows.onRename}
         onPinToggle={rows.onPinToggle}
-        onDeleteRequest={rows.onDeleteRequest}
         onMore={rows.onMore}
         onPeek={rows.onPeek}
         showIcon={rows.showIcon}

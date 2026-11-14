@@ -1,5 +1,5 @@
 import { Badge, Button, Input, Notice, Switch, t } from '@nomi-ai/ui';
-import { Info, Plus, Trash2 } from 'lucide-react';
+import { IconInfoCircle as Info, IconPlus as Plus, IconTrash as Trash2 } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 
 import { gatewayClient, type GatewayState } from '../../services/gatewayClient';

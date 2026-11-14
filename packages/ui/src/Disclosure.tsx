@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react';
+import { IconChevronRight as ChevronRight } from '@tabler/icons-react';
 import React, { useId, useState } from 'react';
 
 import { cx } from './cx';

@@ -13,6 +13,7 @@ import { useCliContext } from './app/useCliContext';
 import { useRail } from './app/useRail';
 import { useSelectionActions } from './app/useSelectionActions';
 import { useSplitWidths } from './app/useSplitWidths';
+import { StartupReady } from './components/BrandIntro/StartupReady';
 import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundLayer';
 import { ChatHeader } from './components/ChatHeader';
 import { ComputerActivityBar } from './components/ComputerActivityBar';
@@ -20,7 +21,7 @@ import { ForkFromMessageContext } from './components/Conversation/forkContext';
 import { DesktopConfirmDock } from './components/DesktopConfirmDock';
 import { NewChatContext, SessionControls } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { prefetchPanels } from './components/lazyPanels';
+import { prefetchPanels, SettingsView } from './components/lazyPanels';
 import { MessageInput } from './components/MessageInput';
 import { onboardingClient } from './components/Onboarding/client';
 import { OnboardingHost } from './components/Onboarding/host';
@@ -46,7 +47,8 @@ import {
   type SubagentPaneActions,
 } from './components/SubagentPane';
 import { AppTitleBar, hasAppTitleBar } from './components/TitleBar';
-import { SessionTools, TitleBarTitle } from './components/TitleBar/SessionTitle';
+import { TitlebarPanelsProvider } from './components/TitleBar/panels';
+import { SessionTitle, SessionTools, TitleBarTitle } from './components/TitleBar/SessionTitle';
 import { UserQuestionDock } from './components/UserQuestionCard/dock';
 import { AiChatContextProvider } from './contexts/AiChatContext';
 import type { AiChatState } from './contexts/AiChatContext';
@@ -86,6 +88,7 @@ import { cliTabPlaceholder } from './utils/cliTabPlaceholder';
 import { fromHarnessMessage, nomiConvMessages, settledNomiMessages } from './utils/convAdapters';
 import { FILES_SIDE_TAB, MAIN_SIDE_TAB } from './utils/sideTabs';
 import './App.css';
+import './components/TitleBar/panels.css';
 
 const selectSettledNomi = (s: AiChatState) => settledNomiMessages(s.messages, selectBusyHere(s));
 
@@ -162,6 +165,7 @@ const AiChatContent: React.FC = () => {
   });
   const details = useSessionDetails();
   const panels = useAppPanels();
+  const closeSettings = panels.closeSettings;
   // 子任务侧栏里的设置 / 插件 / 模型等按钮：打开主窗口的同一组面板
   const { openPlugins, openProviders, onInputSettings, openDesktop, openHub, openExt, openLocal } =
     panels;
@@ -246,8 +250,16 @@ const AiChatContent: React.FC = () => {
   });
 
   // 主区整页（任务 / Agent 看板 / 素材库）：入口在左侧导航栏，三个互斥
-  const mainPages = useMainPages(() => panels.openSettings('knowledge', 'schedule'));
+  const mainPages = useMainPages(
+    () => panels.openSettings('knowledge', 'schedule'),
+    closeSettings,
+    !!panels.settings,
+  );
   const { openPage, leave: leavePage } = mainPages;
+  const leaveSettingsPage = useCallback(() => {
+    closeSettings();
+    leavePage();
+  }, [closeSettings, leavePage]);
   const mainHidden = openPage !== null;
   // 右栏收起时先放完滑出动画再卸载；切到整页时直接收
   const filesRail = usePresence(rail.open && !!rail.cwd && !mainHidden);
@@ -257,10 +269,10 @@ const AiChatContent: React.FC = () => {
   });
   const handleNewChat = useCallback(
     (opts?: { projectId?: string | null }) => {
-      leavePage();
+      leaveSettingsPage();
       return actions.newConversation(opts);
     },
-    [actions, leavePage],
+    [actions, leaveSettingsPage],
   );
 
   // ───── stable props for the memoized composer ─────
@@ -304,12 +316,10 @@ const AiChatContent: React.FC = () => {
     ],
   );
 
-  // 当前会话的「…」菜单 + 工具栏（改动 · 文件）开关：桌面应用在标题栏右侧，浏览器在对话顶栏
+  // 详情与文件栏开关：桌面应用在标题栏右侧，更多操作与详细程度归入左侧标题下拉
   const titleBar = hasAppTitleBar();
   const sessionTools = (
     <SessionTools
-      sessionKey={sessionKey}
-      onFork={commands.onForkRequest}
       messages={rail.messages}
       rail={rail.cwd ? { open: rail.open, cwd: rail.cwd, onToggle: rail.toggle } : null}
     />
@@ -334,41 +344,49 @@ const AiChatContent: React.FC = () => {
         <SelectionToolbar />
         <div className="ai-chat-app">
           <ChatBackgroundLayer />
+          <StartupReady />
           <AppTitleBar
             sidebarCollapsed={panels.sidebarCollapsed}
+            filesOpen={!panels.settings && !mainHidden && rail.open}
+            centerOpen={!panels.settings && !mainHidden && centerOpen}
+            layoutKey={`${panels.settings}:${openPage}:${sideMax}:${sideSplit}:${details?.visible}`}
             onToggleSidebar={panels.toggleSidebar}
-            title={<TitleBarTitle page={openPage} />}
+            title={
+              panels.settings ? null : (
+                <TitleBarTitle page={openPage} onFork={commands.onForkRequest} />
+              )
+            }
             trailing={
               titleBar ? (
                 <>
                   {/* 更新已下载好：设置页外在标题栏提示「重启更新」（设置页里在导航底部） */}
                   {!panels.settings && <RestartUpdateButton placement="titlebar" />}
-                  {!mainHidden && sessionTools}
+                  {!panels.settings && !mainHidden && sessionTools}
                 </>
               ) : undefined
             }
-            lead={titleBar ? mainPages.fleetIndicator : undefined}
+            lead={titleBar && !panels.settings ? mainPages.fleetIndicator : undefined}
           />
-          {/* 会话树保活：打开设置时只隐藏（display:none）不卸载，避免关闭时整树冷重挂载导致卡顿、
-          草稿/滚动位置丢失与 IPC 订阅重建 */}
-          <div className={panels.settings ? 'chat-keepalive-hidden' : 'chat-keepalive'}>
-            <Sidebar
-              collapsed={panels.sidebarCollapsed}
-              onToggle={panels.toggleSidebar}
-              onNewChat={handleNewChat}
-              onForkRequest={commands.onForkRequest}
-              onNotice={setToast}
-              onOpenSettings={panels.openSettings}
-              footer={panels.sidebarFooter}
-              pageOpen={mainHidden}
-              onLeavePage={leavePage}
-              topNav={mainPages.topNav}
-              onOpenTask={mainPages.openTask}
-              onOpenAsset={mainPages.openAsset}
-            />
+          <Sidebar
+            collapsed={panels.sidebarCollapsed}
+            panelHidden={!!panels.settings}
+            onToggle={panels.toggleSidebar}
+            onNewChat={handleNewChat}
+            onForkRequest={commands.onForkRequest}
+            onNotice={setToast}
+            onOpenSettings={panels.openSettings}
+            footer={panels.sidebarFooter}
+            pageOpen={mainHidden || !!panels.settings}
+            onLeavePage={leaveSettingsPage}
+            topNav={mainPages.topNav}
+            onOpenTask={mainPages.openTask}
+            onOpenAsset={mainPages.openAsset}
+          />
 
-            {/* 对话区（对话 / 中栏 / 任务 / 素材库 / 右栏）是白色圆角卡片；会话面板展开时是它左边的灰色半张 */}
-            <div className="workspace-card" data-testid="workspace-card">
+          {/* 对话区（对话 / 中栏 / 任务 / 素材库 / 右栏）是白色圆角卡片；会话面板展开时是它左边的灰色半张 */}
+          <div className="workspace-card" data-testid="workspace-card">
+            {/* 会话内容保活：设置只替换展示区域，草稿、滚动与订阅保留。 */}
+            <div className={panels.settings ? 'chat-keepalive-hidden' : 'chat-keepalive'}>
               {/* 主内容：无查看区时对话全宽；有本会话 Diff 或右栏文件预览时 chat-column | 中栏 横排全高 */}
               <div
                 className={`main-content${centerOpen ? ' main-content--with-changes' : ''}${sideMax ? ' main-content--side-max' : ''}${sideSplit ? ' main-content--side-split' : ''}`}
@@ -408,12 +426,17 @@ const AiChatContent: React.FC = () => {
                   }}
                 >
                   {/* 桌面应用里会话名与工具在标题栏（与对话卡片对齐）；浏览器里没有标题栏，留一行顶栏 */}
-                  {!titleBar && <ChatHeader trailing={sessionTools} />}
+                  {!titleBar && (
+                    <ChatHeader
+                      title={<SessionTitle onFork={commands.onForkRequest} />}
+                      trailing={sessionTools}
+                    />
+                  )}
                   {/* 待带入的新会话前文属于当前对话状态，放在对话区顶部，避免和输入工具混在一起。 */}
                   <div className="session-bar chat-session-bar">
                     <SessionControls />
                   </div>
-                  {/* 会话详情自动收起后再打开：浮在对话列右上角 */}
+                  {/* 会话详情始终浮在对话列右上角，不参与分栏 */}
                   {!mainHidden && (
                     <SessionDetailsDock overlay messages={rail.messages} cwd={rail.cwd} />
                   )}
@@ -510,13 +533,23 @@ const AiChatContent: React.FC = () => {
                   </>
                 ) : null}
               </div>
-              {!mainHidden && <SessionDetailsDock messages={rail.messages} cwd={rail.cwd} />}
               {/* 整页（素材库 / 任务 / Agent 看板）：替换对话区（对话区只隐藏不卸载），侧栏保持 */}
               {mainPages.pages}
               {filesRail.value && !mainHidden ? (
                 <FilesRail rail={rail} split={split.filesRail} closing={filesRail.closing} />
               ) : null}
             </div>
+            {panels.settings && (
+              <div className="settings-workspace" data-testid="settings-workspace">
+                <SettingsView
+                  section={panels.settings}
+                  deepLink={panels.settingsLink}
+                  onSection={panels.setSettings}
+                  onClose={panels.closeSettings}
+                  collapsed={panels.sidebarCollapsed}
+                />
+              </div>
+            )}
           </div>
 
           <AppOverlays
@@ -552,7 +585,9 @@ function App() {
       <AiChatContextProvider client={client}>
         <HarnessTabsProvider>
           <WorkspacePanesProvider>
-            <AiChatContent />
+            <TitlebarPanelsProvider>
+              <AiChatContent />
+            </TitlebarPanelsProvider>
           </WorkspacePanesProvider>
         </HarnessTabsProvider>
         {/* 首次启动引导（未完成时覆盖在对话窗口上；设置 → 通用 可重新打开） */}

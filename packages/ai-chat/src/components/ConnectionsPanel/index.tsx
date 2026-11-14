@@ -10,14 +10,14 @@
  */
 import { Badge, Button, Icon, Input, Modal, t } from '@nomi-ai/ui';
 import {
-  Puzzle,
-  BookOpen,
-  GitMerge,
-  GitPullRequest,
-  RefreshCw,
-  Trash2,
-  type LucideIcon,
-} from 'lucide-react';
+  IconPuzzle as Puzzle,
+  IconBook2 as BookOpen,
+  IconGitMerge as GitMerge,
+  IconGitPullRequest as GitPullRequest,
+  IconRefresh as RefreshCw,
+  IconTrash as Trash2,
+  type TablerIcon as IconGlyph,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { api, hasTransport } from '../../services/api';
@@ -368,7 +368,7 @@ const GithubDialog: React.FC<{ items: ConnectionView[]; onClose: () => void }> =
 
 interface AppCard {
   id: string;
-  icon: LucideIcon;
+  icon: IconGlyph;
   name: string;
   desc: string;
   soon?: boolean;

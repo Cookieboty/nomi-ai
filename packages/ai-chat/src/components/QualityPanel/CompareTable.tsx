@@ -5,17 +5,17 @@
 import { brand } from '@nomi-ai/types';
 import { Badge, BrandIcon, Checkbox, Icon, Tooltip, t } from '@nomi-ai/ui';
 import {
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Columns3,
-  Copy,
-  FilterX,
-  Info,
-  Network,
-  Star,
-  X,
-} from 'lucide-react';
+  IconCheck as Check,
+  IconChevronDown as ChevronDown,
+  IconChevronRight as ChevronRight,
+  IconColumns3 as Columns3,
+  IconCopy as Copy,
+  IconFilterOff as FilterX,
+  IconInfoCircle as Info,
+  IconNetwork as Network,
+  IconStar as Star,
+  IconX as X,
+} from '@tabler/icons-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import {

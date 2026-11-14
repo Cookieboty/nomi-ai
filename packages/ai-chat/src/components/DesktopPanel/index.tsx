@@ -15,7 +15,13 @@ import {
   Switch,
   Tabs,
 } from '@nomi-ai/ui';
-import { FolderLock, ScrollText, Lock, Plus, Undo2 } from 'lucide-react';
+import {
+  IconFolderLock as FolderLock,
+  IconScript as ScrollText,
+  IconLock as Lock,
+  IconPlus as Plus,
+  IconArrowBackUp as Undo2,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {

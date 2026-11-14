@@ -16,7 +16,14 @@ import {
   Switch,
   Tabs,
 } from '@nomi-ai/ui';
-import { FolderOpen, SearchX, Folder, Lock, Plus, RefreshCw } from 'lucide-react';
+import {
+  IconFolderOpen as FolderOpen,
+  IconSearchOff as SearchX,
+  IconFolder as Folder,
+  IconLock as Lock,
+  IconPlus as Plus,
+  IconRefresh as RefreshCw,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 

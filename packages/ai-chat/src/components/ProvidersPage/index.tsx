@@ -12,7 +12,7 @@
  * 切换只是换一个视图，不会改任何配置。
  */
 import { Button, Notice, t, Tabs } from '@nomi-ai/ui';
-import { Settings2 } from 'lucide-react';
+import { IconAdjustments as Settings2 } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 
 import { useProviderEndpoint } from '../../hooks/useProviderEndpoint';

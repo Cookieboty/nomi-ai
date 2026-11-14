@@ -3,7 +3,7 @@
  * 「项目」「其他对话」「本机历史」共用。
  */
 import { Icon } from '@nomi-ai/ui';
-import { ChevronRight } from 'lucide-react';
+import { IconChevronRight as ChevronRight } from '@tabler/icons-react';
 import React from 'react';
 
 import styles from './index.module.css';

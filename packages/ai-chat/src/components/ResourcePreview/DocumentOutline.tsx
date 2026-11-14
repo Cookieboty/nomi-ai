@@ -1,5 +1,8 @@
 import { Icon, t } from '@nomi-ai/ui';
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import {
+  IconLayoutSidebarLeftCollapse as PanelLeftClose,
+  IconLayoutSidebarLeftExpand as PanelLeftOpen,
+} from '@tabler/icons-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { startSplitDrag } from '../../utils/splitDrag';

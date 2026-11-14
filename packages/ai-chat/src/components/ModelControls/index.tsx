@@ -8,7 +8,7 @@
  * 不改写用户的全局 CLI 配置；每轮新进程的后端下一条消息即生效，Claude 长驻进程空闲时重启复用。
  */
 import { Icon, isImageModel, t, type PickerModel } from '@nomi-ai/ui';
-import { Cpu, RefreshCw } from 'lucide-react';
+import { IconRefresh as RefreshCw } from '@tabler/icons-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import {
@@ -59,7 +59,6 @@ const LoadingChip: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
         )}
         data-testid="model-chip-loading"
       >
-        <Icon icon={Cpu} />
         <span className={styles.label}>{label}</span>
         <span className={styles.spin}>
           <Icon icon={RefreshCw} size={12} />

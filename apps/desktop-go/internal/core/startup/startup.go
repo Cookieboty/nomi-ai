@@ -116,16 +116,14 @@ func (s *Service) Set(patch map[string]any) (State, error) {
 		}
 		next.ShowMascot = b
 	}
-	if next.DefaultView == "mascot" && !next.ShowMascot {
-		if _, hasView := patch["defaultView"]; hasView {
-			if _, hasShow := patch["showMascot"]; hasShow && patch["showMascot"] == false {
-				return State{}, fmt.Errorf("cannot pick the mascot as default view and close it at the same time")
-			}
-		}
-		next.DefaultView = "main"
-	}
 	if v, ok := patch["defaultView"]; ok && v == "mascot" {
+		if _, hasShow := patch["showMascot"]; hasShow && !next.ShowMascot {
+			return State{}, fmt.Errorf("cannot pick the mascot as default view and close it at the same time")
+		}
 		next.ShowMascot = true
+	}
+	if next.DefaultView == "mascot" && !next.ShowMascot {
+		next.DefaultView = "main"
 	}
 	s.state = next
 	b, _ := json.MarshalIndent(next, "", "  ")

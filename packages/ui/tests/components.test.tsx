@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { IconInbox as Inbox, IconSettings as Settings } from '@tabler/icons-react';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { Inbox, Settings } from 'lucide-react';
 import React, { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -40,7 +40,7 @@ describe('@nomi-ai/ui', () => {
     expect(screen.getByRole('heading', { level: 4 }).textContent).toBe('Details');
   });
 
-  it('EmptyState: lucide icon sits in the rounded tinted container (no emoji)', () => {
+  it('EmptyState: Tabler icon sits in the rounded tinted container (no emoji)', () => {
     const { container } = render(<EmptyState icon={Inbox} title="还没有内容" />);
     const box = container.querySelector('.cd-empty__icon');
     expect(box).toBeTruthy();

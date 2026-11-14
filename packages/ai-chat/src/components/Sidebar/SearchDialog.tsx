@@ -4,7 +4,12 @@
  * ↑↓ 选择、Enter 打开；Esc 先清空再关闭，点窗外也关闭。
  */
 import { Icon, t, useLocale } from '@nomi-ai/ui';
-import { ListChecks, MessageSquare, SquarePen, X } from 'lucide-react';
+import {
+  IconListCheck as ListChecks,
+  IconMessage as MessageSquare,
+  IconEdit as SquarePen,
+  IconX as X,
+} from '@tabler/icons-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -248,7 +253,7 @@ export const SearchDialog: React.FC<{
                         }
                         aria-hidden
                       />
-                      <EndpointIcon backend={c.backend} size={14} decorative />
+                      <EndpointIcon backend={c.backend} size={14} variant="color" decorative />
                       <span className={styles.threadName}>
                         <Highlight text={item.title} ranges={ranges} />
                       </span>
@@ -275,7 +280,7 @@ export const SearchDialog: React.FC<{
                     onClick={() => p.onOpenHist(h)}
                   >
                     <span className={styles.dot} aria-hidden />
-                    <EndpointIcon backend={h.backend} size={14} decorative />
+                    <EndpointIcon backend={h.backend} size={14} variant="color" decorative />
                     <span className={styles.threadName}>
                       <Highlight text={h.title} ranges={ranges} />
                     </span>
