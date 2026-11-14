@@ -11,7 +11,7 @@ import { ResourceScopeProvider } from '../src/contexts/ResourceContext';
 import { useResourcePreview } from '../src/hooks/useResourcePreview';
 import { resourcePreviewClient } from '../src/services/resourcePreviewClient';
 
-import { changeSource, sourceEditable, sourceView } from './helpers/codeView';
+import { changeSource, expectSourceToken, sourceEditable, sourceView } from './helpers/codeView';
 import { untilIdle } from './helpers/fakeApi';
 
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
@@ -150,19 +150,19 @@ describe('non-modal resource preview', () => {
     const source = await screen.findByTestId('resource-preview-source');
     expect(resourcePreviewClient.open).toHaveBeenCalledWith('/w', path, true);
     expect(source.getAttribute('data-code-language')).toBe('go');
-    expect(source.querySelector('.token.keyword')?.textContent).toBe('package');
-    expect(source.querySelector('.token.string')?.textContent).toBe('"outside"');
+    await expectSourceToken(source, 'keyword', 'package');
+    await expectSourceToken(source, 'string', '"outside"');
     view.rerender(<ResourcePreview {...input} expanded={false} originMismatch />);
-    expect(
-      screen.getByTestId('resource-preview-source').querySelector('.token.keyword')?.textContent,
-    ).toBe('package');
+    await expectSourceToken(screen.getByTestId('resource-preview-source'), 'keyword', 'package');
     fireEvent.click(screen.getByTestId('resource-preview-edit'));
     await waitFor(() =>
       expect(sourceEditable(screen.getByTestId('resource-preview-source'))).toBe(true),
     );
-    expect(
-      view.container.querySelector('[data-preview-code-scroll] .token.keyword')?.textContent,
-    ).toBe('package');
+    await expectSourceToken(
+      view.container.querySelector('[data-preview-code-scroll]'),
+      'keyword',
+      'package',
+    );
     const changed = code.replace('"outside"', '"saved"');
     changeSource(screen.getByTestId('resource-preview-source'), changed);
     await waitFor(() =>
@@ -172,34 +172,30 @@ describe('non-modal resource preview', () => {
         changed,
       ),
     );
-    expect(
-      view.container.querySelector('[data-preview-code-scroll] .token.string')?.textContent,
-    ).toBe('"saved"');
+    await expectSourceToken(
+      view.container.querySelector('[data-preview-code-scroll]'),
+      'string',
+      '"saved"',
+    );
     fireEvent.click(screen.getByTestId('resource-preview-edit'));
     await waitFor(() =>
       expect(sourceEditable(screen.getByTestId('resource-preview-source'))).toBe(false),
     );
-    expect(
-      screen.getByTestId('resource-preview-source').querySelector('.token.string')?.textContent,
-    ).toBe('"saved"');
+    await expectSourceToken(screen.getByTestId('resource-preview-source'), 'string', '"saved"');
     view.rerender(<ResourcePreview {...input} activeKey="local-highlight" />);
     await waitFor(() =>
       expect(screen.getByTestId('resource-preview-source').getAttribute('data-code-language')).toBe(
         'swift',
       ),
     );
-    expect(
-      screen.getByTestId('resource-preview-source').querySelector('.token.keyword')?.textContent,
-    ).toBe('import');
+    await expectSourceToken(screen.getByTestId('resource-preview-source'), 'keyword', 'import');
     view.rerender(<ResourcePreview {...input} />);
     await waitFor(() =>
       expect(screen.getByTestId('resource-preview-source').getAttribute('data-code-language')).toBe(
         'go',
       ),
     );
-    expect(
-      screen.getByTestId('resource-preview-source').querySelector('.token.keyword')?.textContent,
-    ).toBe('package');
+    await expectSourceToken(screen.getByTestId('resource-preview-source'), 'keyword', 'package');
   });
 
   it('scrolls a source range to its first line without taking keyboard focus from the conversation', async () => {

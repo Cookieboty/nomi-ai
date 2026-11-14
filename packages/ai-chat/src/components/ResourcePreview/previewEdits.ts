@@ -91,7 +91,8 @@ export class PreviewEditSession {
   change = (text: string) => {
     this.update({ text, dirty: text !== this.baseline });
     if (this.timer) clearTimeout(this.timer);
-    if (this.state.error) return;
+    // An in-flight flush temporarily clears error; do not arm another debounce mid-write.
+    if (this.state.error || this.state.saving) return;
     this.timer = setTimeout(() => {
       this.timer = undefined;
       void this.flush();
