@@ -78,6 +78,7 @@ import {
   personaBlockLines,
 } from './client';
 import styles from './index.module.css';
+import choiceStyles from './PersonalChoices.module.css';
 import { ProviderSetup } from './ProviderSetup';
 
 const STEPS = ['welcome', 'ai', 'personal'] as const;
@@ -111,9 +112,10 @@ const Group: React.FC<{
   title: string;
   desc?: string;
   id?: string;
+  className?: string;
   children: React.ReactNode;
-}> = ({ title, desc, id, children }) => (
-  <section className={styles.group} aria-labelledby={id}>
+}> = ({ title, desc, id, className = '', children }) => (
+  <section className={`${styles.group} ${className}`} aria-labelledby={id}>
     <div className={styles.groupHead}>
       <h2 className={styles.groupTitle} id={id}>
         {title}
@@ -153,20 +155,36 @@ const OptionCard: React.FC<{
   compact?: boolean;
   hideCheck?: boolean;
   index?: number;
+  className?: string;
+  iconClassName?: string;
   onClick: () => void;
-}> = ({ on, role, testId, title, hint, preview, icon, compact, hideCheck, index, onClick }) => (
+}> = ({
+  on,
+  role,
+  testId,
+  title,
+  hint,
+  preview,
+  icon,
+  compact,
+  hideCheck,
+  index,
+  className = '',
+  iconClassName = '',
+  onClick,
+}) => (
   <button
     type="button"
     role={role}
     aria-checked={on}
     data-testid={testId}
-    className={`${styles.option} ${compact ? styles.optionCompact : ''} ${on ? styles.optionOn : ''}`}
+    className={`${styles.option} ${compact ? styles.optionCompact : ''} ${on ? styles.optionOn : ''} ${className}`}
     style={index === undefined ? undefined : stagger(index)}
     onPointerMove={trackSpotlight}
     onClick={onClick}
   >
     {preview}
-    {icon && <span className={styles.optionIcon}>{icon}</span>}
+    {icon && <span className={`${styles.optionIcon} ${iconClassName}`}>{icon}</span>}
     <span className={styles.optionText}>
       <span className={styles.optionTitle}>{title}</span>
       {hint && <span className={styles.optionHint}>{hint}</span>}
@@ -699,9 +717,14 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                 )}
               </div>
             </Group>
-            <Group title={t('ui.mascot-theme.occupation')} id="onb-role-label">
+            <Group
+              title={t('ui.mascot-theme.occupation')}
+              desc={role ? ROLE_LABEL[role].hint() : undefined}
+              id="onb-role-label"
+              className={choiceStyles.group}
+            >
               <div
-                className={`${styles.options} ${styles.optionsRoles}`}
+                className={`${styles.options} ${styles.optionsRoles} ${choiceStyles.roles}`}
                 role="radiogroup"
                 aria-labelledby="onb-role-label"
               >
@@ -715,7 +738,8 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                     on={role === r}
                     testId={`onb-role-${r}`}
                     title={ROLE_LABEL[r].label()}
-                    hint={ROLE_LABEL[r].hint()}
+                    className={choiceStyles.role}
+                    iconClassName={choiceStyles.roleIcon}
                     icon={<Icon icon={ROLE_LABEL[r].icon} size={15} />}
                     onClick={() => {
                       touch();
@@ -729,8 +753,13 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
               title={t('ui.mascot-theme.interests-pick-any')}
               desc={t('ui.mascot-theme.i-ll-suggest-coding-agents-example-questions')}
               id="onb-interests-label"
+              className={choiceStyles.group}
             >
-              <div className={styles.pills} role="group" aria-labelledby="onb-interests-label">
+              <div
+                className={`${styles.pills} ${choiceStyles.interests}`}
+                role="group"
+                aria-labelledby="onb-interests-label"
+              >
                 {USER_INTERESTS.map((x, idx) => {
                   const on = interests.includes(x);
                   return (
@@ -740,7 +769,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                       role="checkbox"
                       aria-checked={on}
                       data-testid={`onb-interest-${x}`}
-                      className={`${styles.pill} ${on ? styles.pillOn : ''}`}
+                      className={`${styles.pill} ${on ? styles.pillOn : ''} ${choiceStyles.interest}`}
                       style={stagger(idx)}
                       onPointerMove={trackSpotlight}
                       onClick={() => {
