@@ -17,14 +17,13 @@
     background-color var(--cd-duration-fast) var(--cd-ease),
     color var(--cd-duration-fast) var(--cd-ease);
 }
-.item:hover {
-  background: var(--cd-color-hover);
+.item:hover,
+.item[aria-current='page'] {
+  background: var(--cd-color-nav-bg);
   color: var(--cd-color-text);
 }
-.item[aria-current='page'] {
-  background: var(--cd-color-selected-bg);
-  color: var(--cd-color-text);
-  box-shadow: inset 3px 0 0 var(--cd-color-brand);
+.item:active {
+  background: var(--cd-color-nav-pressed);
 }
 .item:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
@@ -42,18 +41,6 @@
 .iconWrap {
   flex: none;
   display: inline-flex;
-  border-radius: var(--cd-radius-full);
-}
-/* 负载环：告警黄、危险红（Agent 看板入口） */
-.iconWrap[data-load] {
-  padding: var(--cd-space-0-5);
-  margin: calc(var(--cd-space-0-5) * -1);
-}
-.iconWrap[data-load='warn'] {
-  box-shadow: 0 0 0 1.5px var(--cd-color-warning);
-}
-.iconWrap[data-load='critical'] {
-  box-shadow: 0 0 0 1.5px var(--cd-color-danger);
 }
 .label {
   flex: 1;

@@ -162,11 +162,13 @@ describe('Sidebar 按端：显示哪些端点', () => {
     fireEvent.click(r.getByTestId('endpoint-visibility'));
     const menu = r.getByTestId('endpoint-visibility-menu');
     expect(menu.textContent).not.toContain('Nomi');
-    expect(r.getByTestId('endpoint-visibility-grok-auto').getAttribute('aria-checked')).toBe(
-      'true',
-    );
-    fireEvent.click(r.getByTestId('endpoint-visibility-grok-show'));
-    fireEvent.click(r.getByTestId('endpoint-visibility-codex-hide'));
+    expect(r.queryByTestId('endpoint-visibility-grok-auto')).toBeNull();
+    const toggle = r.getByTestId('endpoint-visibility-grok-toggle');
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    expect(r.getByTestId('endpoint-order-dsh').textContent).toContain('DeepSeek Harness');
+    expect(r.getByTestId('endpoint-order-grok').querySelectorAll('button')).toHaveLength(2);
+    fireEvent.click(toggle);
+    fireEvent.click(r.getByTestId('endpoint-visibility-codex-toggle'));
     await waitFor(() => r.getByTestId('endpoint-filter-grok'));
     expect(r.queryByTestId('endpoint-filter-codex')).toBeNull();
     expect(JSON.parse(localStorage.getItem('ai-chat:sidebarEndpoints') ?? '{}')).toEqual({
@@ -174,8 +176,8 @@ describe('Sidebar 按端：显示哪些端点', () => {
       codex: 'hide',
     });
 
-    // 改回「自动」：grok 没有对话，又不显示了
-    fireEvent.click(r.getByTestId('endpoint-visibility-grok-auto'));
+    // 同一个眼睛按钮切换为隐藏，设置持续保留。
+    fireEvent.click(r.getByTestId('endpoint-visibility-grok-toggle'));
     await waitFor(() => expect(r.queryByTestId('endpoint-filter-grok')).toBeNull());
 
     fireEvent.keyDown(window, { key: 'Escape' });

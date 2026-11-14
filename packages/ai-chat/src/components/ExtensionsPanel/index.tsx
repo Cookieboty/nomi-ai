@@ -16,7 +16,15 @@ import {
   Tabs,
   Textarea,
 } from '@nomi-ai/ui';
-import { Puzzle, ChevronDown, ChevronRight, FolderOpen, Pencil, Plus, Trash2 } from 'lucide-react';
+import {
+  IconPuzzle as Puzzle,
+  IconChevronDown as ChevronDown,
+  IconChevronRight as ChevronRight,
+  IconFolderOpen as FolderOpen,
+  IconPencil as Pencil,
+  IconPlus as Plus,
+  IconTrash as Trash2,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {

@@ -5,7 +5,7 @@
  */
 import { t as tr, Icon } from '@nomi-ai/ui';
 import { Badge, Button, EmptyState, Input, SettingRow, SettingsGroup, Switch } from '@nomi-ai/ui';
-import { Plus, ShieldCheck } from 'lucide-react';
+import { IconPlus as Plus, IconShieldCheck as ShieldCheck } from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import { desktopClient, type DesktopState } from '../../services/desktopClient';

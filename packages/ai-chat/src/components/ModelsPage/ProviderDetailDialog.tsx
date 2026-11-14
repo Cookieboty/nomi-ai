@@ -21,7 +21,13 @@ import {
   t,
   type SelectOption,
 } from '@nomi-ai/ui';
-import { Check, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import {
+  IconCheck as Check,
+  IconChevronDown as ChevronDown,
+  IconChevronRight as ChevronRight,
+  IconPlus as Plus,
+  IconTrash as Trash2,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {

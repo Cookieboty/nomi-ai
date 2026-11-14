@@ -4,7 +4,10 @@
  * - 不知道总数（服务端按 offset 取，hasNext 表示还有下一页）：「第 n 页」· 上一页 · 下一页。
  */
 import { Icon, Select, t } from '@nomi-ai/ui';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  IconChevronLeft as ChevronLeft,
+  IconChevronRight as ChevronRight,
+} from '@tabler/icons-react';
 import React from 'react';
 
 import styles from './index.module.css';

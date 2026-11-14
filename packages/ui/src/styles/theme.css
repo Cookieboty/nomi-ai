@@ -34,7 +34,7 @@
   color: var(--cd-color-text-muted);
 }
 
-/* buttons: 28 / 36 / 40 */
+/* buttons: 28 / 32 / 36 / 40 */
 .cd-btn {
   height: var(--cd-control-h-md);
   padding: 0 var(--cd-space-4);
@@ -92,6 +92,34 @@
 }
 .cd-icon-btn.cd-btn--lg {
   width: var(--cd-control-h-lg);
+}
+
+/* 导航图标按钮：32px 点击区域，悬浮 / 选中共用浅底，按下只深一档。 */
+.cd-btn--ms {
+  height: var(--cd-control-h-ms);
+}
+.cd-icon-btn.cd-btn--ms {
+  width: var(--cd-control-h-ms);
+  padding: 0;
+}
+.cd-icon-btn.cd-btn--ms svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.cd-btn--nav {
+  border-color: transparent;
+  background: transparent;
+  color: var(--cd-color-text-muted);
+}
+.cd-btn--nav:hover:not(:disabled),
+.cd-btn--nav[aria-pressed='true'],
+.cd-btn--nav[aria-expanded='true'] {
+  background: var(--cd-color-nav-bg);
+  color: var(--cd-color-text);
+}
+.cd-btn--nav:active:not(:disabled) {
+  background: var(--cd-color-nav-pressed);
 }
 
 /* inputs */
@@ -310,10 +338,11 @@
 
 /* brand icon */
 .cd-brand {
-  display: inline-flex;
+  display: inline-grid;
   flex: none;
   align-items: center;
   justify-content: center;
+  justify-items: center;
   border-radius: var(--cd-radius-md);
   background: rgba(255, 255, 255, 0.92);
   color: #0f172a;
@@ -321,6 +350,7 @@
 }
 .cd-brand__glyph {
   display: block;
+  grid-area: 1 / 1;
   background-color: currentColor;
   background-repeat: no-repeat;
   background-position: center;

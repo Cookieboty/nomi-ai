@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-/** Agent 看板：总览（调度者 / 空闲进程）+ 四列（含外部会话、只读）、归档、标题栏负载指示与浮层、导航栏负载环 */
+/** Agent 看板：总览（调度者 / 空闲进程）+ 四列（含外部会话、只读）、归档、标题栏负载指示与浮层、导航栏负载提示 */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -526,7 +526,7 @@ describe('FleetIndicator', () => {
 });
 
 describe('FleetNav', () => {
-  it('marks the icon with the load level', () => {
+  it('keeps the navigation icon plain when load is critical', () => {
     const { rerender } = render(
       <FleetNav
         collapsed
@@ -549,7 +549,7 @@ describe('FleetNav', () => {
         onOpen={() => {}}
       />,
     );
-    expect(btn.querySelector('[data-load="critical"]')).toBeTruthy();
+    expect(btn.querySelector('[data-load]')).toBeNull();
     // 收起时要你处理的只是一个小圆点，数量在提示与读屏文字里
     expect(screen.getByTestId('fleet-open-dot')).toBeTruthy();
     expect(btn.textContent).not.toMatch(/\d/);

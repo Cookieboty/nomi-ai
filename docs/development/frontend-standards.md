@@ -4,10 +4,14 @@
 
 ## 目录与依赖边界
 
+界面图标统一使用 `@tabler/icons-react` 的具名导入，尺寸、线宽优先通过共享 `Icon` 控制；禁止整库命名空间、动态图标名查找或运行时图标服务。Icônes 仅用于检索与挑选，无需引入其运行时。供应商与 Agent 产品标识使用共享 `BrandIcon` / `EndpointIcon`，Nomi 保留自有品牌。LobeHub 只保存实际使用的静态 SVG；更新方式见 `scripts/icons/update-brands.mjs`，运行后同步生成灵动岛资源，再用 Prettier 格式化生成文件。
+
 - `packages/ui` 只放跨窗口复用的设计令牌、无业务组件、无业务状态和无宿主依赖。组件必须通过 `packages/ui/src/index.ts` 暴露，页面禁止从 UI 包的内部路径导入。
 - `packages/ai-chat` 和 `packages/renderer` 按功能组织页面。一个功能目录可以包含 `index.tsx`、局部子组件、hooks、services 和 CSS Module；跨功能复用的代码上移到 `packages/ui` 或对应包的 `shared` 目录。
 - 依赖方向保持单向：`ui → React/图标库`，业务包 → `ui/types/sdk-client`，视图只经契约（`services/api.ts`）与 Go 内核通信。UI 包不能依赖业务包或窗口实现。
 - 页面组件负责组合和路由，业务组件负责展示与交互，hooks 负责状态和副作用，services 负责 IPC/API 适配，纯计算放在 `utils`。组件中不直接拼接 IPC 通道名。
+
+顶栏面板工具通过 `TitleBar/panels.tsx` 的插槽复用原组件，面板状态保留在原来的组件内；桌面窗口的列边界由 `ResizeObserver` 读取实际面板宽度，浏览器预览保留面板内工具栏。启动开屏仅管理视觉遮罩，等会话索引、初始消息与首帧排版完成后退出，不能修改引导完成标记或会话数据。
 
 ## 文件、组件和公共能力
 

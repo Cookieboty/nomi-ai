@@ -16,6 +16,7 @@ import React, {
   useSyncExternalStore,
 } from 'react';
 
+import { startupBrandIntro } from '../components/BrandIntro/state';
 import { confirmDialog } from '../components/ConfirmDialog';
 import {
   MAIN_TAB_ID,
@@ -287,11 +288,14 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   });
 
   useEffect(() => {
-    if (!available) return;
+    if (!available) {
+      startupBrandIntro.taskDone('tabs');
+      return;
+    }
     void harnessClient
       .tabs()
       .then((s) => setState((cur) => shareTabsState(cur, s)))
-      .catch(() => undefined);
+      .catch(() => startupBrandIntro.taskDone('tabs'));
     let flushPending: () => void = () => undefined;
     const off1 = harnessClient.onTabs((s) => {
       // 先落下已入队的实时事件（主进程保证它们先于本次标签状态到达），再清理已结束的标签
@@ -437,8 +441,12 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     void harnessClient
       .tabMessages(activeId)
       .then((list) => setCache((cur) => ({ ...cur, [activeId]: list })))
-      .catch(() => undefined);
+      .catch(() => startupBrandIntro.taskDone('tabs'));
   }, [available, isCliTab, activeId, cache]);
+
+  useEffect(() => {
+    if (state && (!isCliTab || cache[activeId])) startupBrandIntro.taskDone('tabs');
+  }, [state, isCliTab, activeId, cache]);
 
   // 缓存只留最近用过的几个标签：切走后不再占内存，回来时重新读取。
   // 侧栏钉住的标签（委派会话）不在当前标签里，也不能被这轮回收丢掉。

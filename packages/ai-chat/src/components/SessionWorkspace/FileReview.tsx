@@ -3,7 +3,14 @@
  * 磁盘内容可编辑保存（cwd 沙箱）、可选丢弃本轮 diff。
  */
 import { t } from '@nomi-ai/ui';
-import { ChevronLeft, ChevronRight, FileCode2, Undo2, Save, X } from 'lucide-react';
+import {
+  IconChevronLeft as ChevronLeft,
+  IconChevronRight as ChevronRight,
+  IconFileCode2 as FileCode2,
+  IconArrowBackUp as Undo2,
+  IconDeviceFloppy as Save,
+  IconX as X,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';

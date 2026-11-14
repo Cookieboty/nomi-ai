@@ -20,7 +20,7 @@
 }
 .wsHead:hover,
 .wsHead:focus-within {
-  background: var(--cd-color-hover);
+  background: var(--cd-color-nav-bg);
 }
 .wsToggle {
   flex: 1;
@@ -81,7 +81,7 @@
   opacity: 1;
 }
 .wsNew:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-color-nav-bg);
   color: var(--cd-color-text);
 }
 .wsItems {

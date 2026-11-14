@@ -78,7 +78,7 @@
   width: calc(100% - 2 * var(--cd-space-3));
   max-width: calc(var(--cd-chat-content-w) - 2 * var(--cd-space-3));
   margin: 0 auto calc(-1 * var(--cd-space-3));
-  padding: var(--cd-space-1) var(--cd-space-2) var(--cd-space-4);
+  padding: var(--cd-space-0-5) var(--cd-space-1-5) var(--cd-space-3);
   border-radius: var(--cd-radius-lg) var(--cd-radius-lg) 0 0;
   background: var(--cd-color-bg-subtle);
 }

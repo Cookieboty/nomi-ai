@@ -1,5 +1,11 @@
 import { Icon, t } from '@nomi-ai/ui';
-import { ChevronDown, ChevronRight, File, Folder, Search } from 'lucide-react';
+import {
+  IconChevronDown as ChevronDown,
+  IconChevronRight as ChevronRight,
+  IconFile as File,
+  IconFolder as Folder,
+  IconSearch as Search,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import type { ResourceContextValue, ResourceScope } from '../../contexts/ResourceContext';

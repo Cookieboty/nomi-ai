@@ -4,7 +4,7 @@
  * 受保护的文件夹不能在这里放开，只提示去设置里取消保护。挂在标签状态上，一轮结束后也还在。
  */
 import { Icon, t } from '@nomi-ai/ui';
-import { ShieldCheck } from 'lucide-react';
+import { IconShieldCheck as ShieldCheck } from '@tabler/icons-react';
 import React, { useCallback } from 'react';
 
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';

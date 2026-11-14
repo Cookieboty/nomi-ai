@@ -6,7 +6,10 @@
  * 数据在 services/sideChat（按聊天 id）。设计见 docs/design/side-tabs-workspace.md。
  */
 import { Button, Icon, t } from '@nomi-ai/ui';
-import { MessageCirclePlus, Square } from 'lucide-react';
+import {
+  IconMessageCirclePlus as MessageCirclePlus,
+  IconSquare as Square,
+} from '@tabler/icons-react';
 import React, { useEffect, useMemo } from 'react';
 
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';

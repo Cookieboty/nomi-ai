@@ -6,17 +6,17 @@
 import { brand } from '@nomi-ai/types';
 import { Button, Icon, IconButton, t } from '@nomi-ai/ui';
 import {
-  Bug,
-  ExternalLink,
-  MessageSquare,
-  Globe,
-  RefreshCw,
-  Settings2,
-  Star,
-  X,
-  Newspaper,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+  IconBug as Bug,
+  IconExternalLink as ExternalLink,
+  IconMessage as MessageSquare,
+  IconGlobe as Globe,
+  IconRefresh as RefreshCw,
+  IconAdjustments as Settings2,
+  IconStar as Star,
+  IconX as X,
+  IconNews as Newspaper,
+} from '@tabler/icons-react';
+import type { TablerIcon as IconGlyph } from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import { RELEASE_HISTORY_URL } from '../../releaseNotes';
@@ -54,7 +54,7 @@ function writeStarDismissed(): void {
 }
 
 /** 外链：系统浏览器打开（与更新日志弹层里的链接同一种方式），外观同次要小按钮 */
-const LinkButton: React.FC<{ href: string; icon: LucideIcon; label: string; testId: string }> = ({
+const LinkButton: React.FC<{ href: string; icon: IconGlyph; label: string; testId: string }> = ({
   href,
   icon,
   label,

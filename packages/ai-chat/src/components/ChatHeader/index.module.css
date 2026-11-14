@@ -21,3 +21,8 @@
   transform: none;
   white-space: nowrap;
 }
+
+.title {
+  flex: 1;
+  min-width: 0;
+}

@@ -19,18 +19,18 @@ import {
   t,
 } from '@nomi-ai/ui';
 import {
-  AlertCircle,
-  GripVertical,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Download,
-  Boxes,
-  Info,
-  Plus,
-  Waypoints,
-  X,
-} from 'lucide-react';
+  IconAlertCircle as AlertCircle,
+  IconGripVertical as GripVertical,
+  IconCheck as Check,
+  IconChevronDown as ChevronDown,
+  IconChevronRight as ChevronRight,
+  IconDownload as Download,
+  IconPackages as Boxes,
+  IconInfoCircle as Info,
+  IconPlus as Plus,
+  IconRoute as Waypoints,
+  IconX as X,
+} from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 
 import { CLI_KINDS, providerOfRef, type CliKind } from '../../services/cliSource';

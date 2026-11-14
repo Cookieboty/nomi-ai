@@ -8,6 +8,7 @@ import { t } from '@nomi-ai/ui';
 import React, { useEffect, useRef } from 'react';
 
 import { formatCombo, useShortcutBindings } from '../../services/shortcuts';
+import { TranscriptViewSection } from '../TranscriptViewMenu';
 
 import styles from './index.module.css';
 
@@ -29,6 +30,8 @@ export interface ConversationMenuProps {
   /** Nomi 对话：归档（不在侧栏显示，可在设置里找回）；有归档时「删除」写成「永久删除」 */
   onArchive?: () => void;
   onDelete?: () => void;
+  /** 仅标题菜单传入；侧栏右键菜单保持轻量。 */
+  sessionKey?: string;
   onDismiss: () => void;
   /** 正在收起：放淡出动画（usePresence） */
   closing?: boolean;
@@ -51,6 +54,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
   onArchive,
   onDelete,
   onDismiss,
+  sessionKey,
   closing,
   anchor,
 }) => {
@@ -79,15 +83,25 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
     };
   }, [onDismiss, closing, anchor]);
 
+  const dismiss = (restoreFocus = false) => {
+    onDismiss();
+    if (restoreFocus) {
+      const anchorEl = anchor && 'current' in anchor ? anchor.current : anchor;
+      anchorEl?.focus();
+    }
+  };
+
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
-      onDismiss();
+      dismiss(true);
       e.stopPropagation();
       return;
     }
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     const items = Array.from(
-      ref.current?.querySelectorAll<HTMLButtonElement>('[role=menuitem]:not(:disabled)') ?? [],
+      ref.current?.querySelectorAll<HTMLButtonElement>(
+        '[role=menuitem]:not(:disabled), [role=menuitemradio]:not(:disabled)',
+      ) ?? [],
     );
     if (!items.length) return;
     const i = items.indexOf(document.activeElement as HTMLButtonElement);
@@ -102,7 +116,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
 
   // 贴边时往里收一点，避免菜单被窗口裁掉
   const left = Math.max(4, Math.min(x, window.innerWidth - 210));
-  const menuHeight = onCloseLeft || onCloseRight ? 330 : 260;
+  const menuHeight = sessionKey ? 440 : onCloseLeft || onCloseRight ? 330 : 260;
   const top = Math.max(4, Math.min(y, window.innerHeight - menuHeight));
 
   return (
@@ -160,6 +174,12 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
         >
           {t('ui.cli-monitor.fork-dialog-title')}
         </button>
+      )}
+      {sessionKey && (
+        <>
+          <div className={styles.sep} role="separator" />
+          <TranscriptViewSection sessionKey={sessionKey} onDone={dismiss} />
+        </>
       )}
       {(onClose || onArchive || onDelete) && <div className={styles.sep} role="separator" />}
       {onClose && (

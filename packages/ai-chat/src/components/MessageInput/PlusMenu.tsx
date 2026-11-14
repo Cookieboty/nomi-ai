@@ -3,7 +3,7 @@
  * 去别的页面的入口（模型、设置）不放这里。点外面或 Esc 关闭；「交给编程助手」是第二层。
  */
 import { Icon, t as tr } from '@nomi-ai/ui';
-import { Plus } from 'lucide-react';
+import { IconPlus as Plus } from '@tabler/icons-react';
 import React, { useEffect, useRef, useState } from 'react';
 
 import type { DelegateCli } from '../../services/delegateClient';

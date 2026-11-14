@@ -4,7 +4,7 @@
  */
 import { t, Icon } from '@nomi-ai/ui';
 import { Button, Modal } from '@nomi-ai/ui';
-import { BookOpen } from 'lucide-react';
+import { IconBook2 as BookOpen } from '@tabler/icons-react';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 

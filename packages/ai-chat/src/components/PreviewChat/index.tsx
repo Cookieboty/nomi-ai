@@ -1,15 +1,15 @@
 import { Icon, t, useLocale } from '@nomi-ai/ui';
 import {
-  Check,
-  ChevronDown,
-  PanelTopClose,
-  PanelTopOpen,
-  GitFork,
-  Grip,
-  MessagesSquare,
-  Minimize2,
-  Search,
-} from 'lucide-react';
+  IconCheck as Check,
+  IconChevronDown as ChevronDown,
+  IconLayoutBottombarExpand as PanelTopClose,
+  IconLayoutBottombarCollapse as PanelTopOpen,
+  IconGitFork as GitFork,
+  IconGridDots as Grip,
+  IconMessages as MessagesSquare,
+  IconArrowsMinimize as Minimize2,
+  IconSearch as Search,
+} from '@tabler/icons-react';
 import React, { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 

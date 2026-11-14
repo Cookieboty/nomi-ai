@@ -1,5 +1,11 @@
 import { createLogger, t as tr, Icon, useLocale } from '@nomi-ai/ui';
-import { BookOpen, X, ArrowUp, ListPlus, Square } from 'lucide-react';
+import {
+  IconBook2 as BookOpen,
+  IconX as X,
+  IconArrowUp as ArrowUp,
+  IconPlaylistAdd as ListPlus,
+  IconSquare as Square,
+} from '@tabler/icons-react';
 import React, {
   memo,
   useCallback,

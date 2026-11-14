@@ -152,11 +152,10 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(k.getByTestId('settings-schedule')).toBeTruthy();
   });
 
-  it('侧栏品牌头；每个分区都有标题 + 说明，没有横幅', () => {
+  it('设置目录顶部直接展示返回；每个分区都有标题 + 说明', () => {
     const r = render(<Harness onClose={() => undefined} start="general" />);
-    // 品牌头只写产品名（brand.appName），不带角色名
-    expect(r.getByTestId('settings-brand').textContent).toContain('Nomi');
-    expect(r.getByTestId('settings-brand').textContent).not.toMatch(/诺米|·/);
+    expect(r.queryByTestId('settings-brand')).toBeNull();
+    expect(r.getByTestId('settings-nav').firstElementChild).toBe(r.getByTestId('settings-back'));
     expect(r.queryByTestId('settings-sidebar-foot')).toBeNull();
     expect(r.queryByTestId('settings-banner')).toBeNull();
     for (const s of SETTINGS_SECTIONS) {
@@ -169,10 +168,11 @@ describe('SettingsView 合并后的标签页分区', () => {
     }
   });
 
-  it('右侧「配置说明」：非通用分区按 SECTION_HELP 列出卡片说明，通用页没有；侧栏有副标题与「设置」分组', async () => {
+  it('右侧「配置说明」：非通用分区按 SECTION_HELP 列出卡片说明，通用页没有；侧栏保留返回入口', async () => {
     const { SECTION_HELP } = await import('../src/components/SettingsView/sectionHelp');
     const r = render(<Harness onClose={() => undefined} start="general" />);
-    expect(r.getByTestId('settings-brand').textContent).toContain('本地优先的 Agent 工作台');
+    expect(r.queryByTestId('settings-brand')).toBeNull();
+    expect(r.getByTestId('settings-back')).toBeTruthy();
     expect(r.queryByTestId('settings-help')).toBeNull();
     fireEvent.click(r.getByTestId('settings-nav-models'));
     const help = r.getByTestId('settings-help');

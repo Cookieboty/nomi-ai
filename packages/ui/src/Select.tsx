@@ -1,4 +1,4 @@
-import { Check as CheckIcon, ChevronDown } from 'lucide-react';
+import { IconCheck as CheckIcon, IconChevronDown as ChevronDown } from '@tabler/icons-react';
 import React, {
   forwardRef,
   useCallback,

@@ -296,5 +296,7 @@
   "ui.mascot-theme.island-size": "Dynamic Island size",
   "ui.mascot-theme.island-size-description": "Large keeps the current appearance. Medium and Small are more compact; Small simplifies secondary content. Click actions stay the same.",
   "ui.mascot-theme.island-size-large": "Large",
-  "ui.mascot-theme.island-size-small": "Small"
+  "ui.mascot-theme.island-size-small": "Small",
+  "ui.mascot-theme.startup-animation-label": "Starting {0}",
+  "ui.mascot-theme.startup-animation-skip": "Skip animation"
 }

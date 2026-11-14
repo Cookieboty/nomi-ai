@@ -4,7 +4,12 @@
  * 有会被覆盖的未提交改动时 git 会拒绝切换（不丢改动），错误留在菜单里，可以改了再试。
  */
 import { Icon, t, usePresence } from '@nomi-ai/ui';
-import { Check, GitBranch, Plus, Search } from 'lucide-react';
+import {
+  IconCheck as Check,
+  IconGitBranch as GitBranch,
+  IconPlus as Plus,
+  IconSearch as Search,
+} from '@tabler/icons-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -44,11 +49,21 @@ export const BranchPicker: React.FC<{
   up?: boolean;
   /** 正在跑（助手可能在改仓库）：不让切 */
   disabled?: boolean;
+  size?: 'sm' | 'ms';
   className?: string;
   testId?: string;
   /** 切换成功后（例如右栏据此重读改动） */
   onSwitched?: (branch: string) => void;
-}> = ({ cwd, branch, up = false, disabled, className, testId = 'branch-picker', onSwitched }) => {
+}> = ({
+  cwd,
+  branch,
+  up = false,
+  disabled,
+  size = 'ms',
+  className,
+  testId = 'branch-picker',
+  onSwitched,
+}) => {
   const [open, setOpen] = useState(false);
   // 收起时先放完淡出动画再卸载
   const menuP = usePresence(open);
@@ -129,6 +144,7 @@ export const BranchPicker: React.FC<{
       <button
         type="button"
         className={styles.chip}
+        data-size={size}
         disabled={disabled || !label}
         aria-haspopup="menu"
         aria-expanded={open}

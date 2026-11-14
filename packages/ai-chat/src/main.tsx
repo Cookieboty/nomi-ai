@@ -7,6 +7,8 @@ import '@nomi-ai/ui/styles.css';
 import '@nomi-ai/voice/styles.css';
 import App from './App';
 import { BootScreen, type BootScreenState } from './components/BootScreen';
+import { StartupBrandIntro } from './components/BrandIntro';
+import { startupBrandIntro } from './components/BrandIntro/state';
 import { onboardingClient } from './components/Onboarding/client';
 import { preloadOnboarding } from './components/Onboarding/host';
 import { api, hasTransport, installHostBackends } from './services/api';
@@ -73,31 +75,36 @@ const DetachedApp = React.lazy(() =>
  * 会话存储在 App 渲染时随 IPC 客户端构造，所以先准备再渲染 App；这期间先画启动画面（不白屏，导入时
  * 显示进度）。读不到对话记录时停在启动画面显示错误与「重试」，不渲染空列表。
  */
-function renderBoot(state: BootScreenState, onRetry?: () => void): void {
-  root.render(
-    <React.StrictMode>
-      <LocaleRoot render={() => <BootScreen state={state} {...(onRetry ? { onRetry } : {})} />} />
-    </React.StrictMode>,
-  );
-}
-
-function renderApp(): void {
+function renderRoot(content: React.ReactNode, bootState?: BootScreenState): void {
   root.render(
     <React.StrictMode>
       <LocaleRoot
         render={() => (
-          <AIProvider>
-            {detachSpec ? (
-              <React.Suspense fallback={null}>
-                <DetachedApp spec={detachSpec} />
-              </React.Suspense>
-            ) : (
-              <App />
-            )}
-          </AIProvider>
+          <>
+            {content}
+            <StartupBrandIntro bootState={bootState} />
+          </>
         )}
       />
     </React.StrictMode>,
+  );
+}
+
+function renderBoot(state: BootScreenState, onRetry?: () => void): void {
+  renderRoot(<BootScreen state={state} {...(onRetry ? { onRetry } : {})} />, state);
+}
+
+function renderApp(): void {
+  renderRoot(
+    <AIProvider>
+      {detachSpec ? (
+        <React.Suspense fallback={null}>
+          <DetachedApp spec={detachSpec} />
+        </React.Suspense>
+      ) : (
+        <App />
+      )}
+    </AIProvider>,
   );
 }
 
@@ -115,7 +122,13 @@ async function bootConversations(): Promise<void> {
       fetchLegacy: () => api.migration.chatHistory(),
       onProgress: (p) => renderBoot({ kind: 'migrating', done: p.done, total: p.total }),
     }).catch((error: unknown) => ({ ok: false as const, error })),
-    onboardingClient.prepareInitial().catch(() => null),
+    onboardingClient
+      .prepareInitial()
+      .then((state) => {
+        if (!state.done && !detachSpec) startupBrandIntro.showOnboarding();
+        return state;
+      })
+      .catch(() => null),
   ]);
   if (r.ok) {
     if (onboarding && !onboarding.done) {
@@ -125,6 +138,7 @@ async function bootConversations(): Promise<void> {
     return;
   }
   log.warn('准备会话存储失败', r.error);
+  startupBrandIntro.cancel();
   const retry = () => {
     renderBoot({ kind: 'failed', retrying: true });
     void bootConversations();
@@ -133,13 +147,10 @@ async function bootConversations(): Promise<void> {
 }
 
 if (hasHost) {
+  if (!detachSpec) startupBrandIntro.start('app');
   renderBoot({ kind: 'loading' });
   void bootConversations();
 } else {
   // 开发/预览模式下不构造 ClientAIClient，避免其在契约传输缺失时抛错
-  root.render(
-    <React.StrictMode>
-      <LocaleRoot render={() => <App />} />
-    </React.StrictMode>,
-  );
+  renderRoot(<App />);
 }

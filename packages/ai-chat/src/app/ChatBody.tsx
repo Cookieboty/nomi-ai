@@ -2,7 +2,7 @@
  * 对话区主体：编程助手标签（空标签的欢迎语 / 会话）或 Nomi 主对话（欢迎屏 / 会话）。
  * Nomi 会话里只有 NomiConversation 订阅流式的最后一轮，其余部分不随每帧重渲染。
  */
-import { Button, t } from '@nomi-ai/ui';
+import { t } from '@nomi-ai/ui';
 import React, { useCallback, useMemo } from 'react';
 
 import { ConversationView } from '../components/Conversation';
@@ -12,6 +12,7 @@ import { GeminiTrustAction } from '../components/Conversation/GeminiTrustAction'
 import type { ConvSlots } from '../components/Conversation/Messages';
 import { nomiSlots } from '../components/Conversation/nomiSlots';
 import { nomiTraceSlots, traceActions } from '../components/Conversation/TraceAction';
+import { ConversationWelcome } from '../components/ConversationWelcome';
 import type { AiChatState } from '../contexts/AiChatContext';
 import {
   selectBusyHere,
@@ -85,14 +86,11 @@ const CliBody: React.FC<{
   );
   if (tabs.messages.length === 0 && !hasLive && slash.cards.length === 0 && tab.status === 'idle')
     return (
-      <div className="welcome-screen" data-testid="cli-tab-empty">
-        <div className="welcome-content">
-          <h2 className="welcome-title">{t('ui.mascot-theme.new-session', tab.title)}</h2>
-          <p className="welcome-subtitle">
-            {t('ui.mascot-theme.messages-go-to-the-coding-agent-on-this')}
-          </p>
-        </div>
-      </div>
+      <ConversationWelcome
+        backend={tab.backend}
+        title={t('ui.mascot-theme.new-session', tab.title)}
+        description={t('ui.mascot-theme.messages-go-to-the-coding-agent-on-this')}
+      />
     );
   return (
     <CliConversation
@@ -116,46 +114,15 @@ const NomiWelcome: React.FC<{ onOpenModels: () => void }> = ({ onOpenModels }) =
   const modelStatus = useNomiModelStatus();
   // 示例问题按新手引导里选的职业与兴趣推荐
   const quickPrompts = recommend(useUserProfile()).prompts;
+  const needsModel = modelStatus === 'none' || modelStatus === 'unassigned';
   return (
-    <div className="welcome-screen" data-testid="welcome-screen">
-      <div className="welcome-content">
-        <h2 className="welcome-title">{t('ui.foundation.what-would-you-like-to-do-today')}</h2>
-        {modelStatus === 'none' || modelStatus === 'unassigned' ? (
-          <div
-            className="welcome-setup"
-            data-testid="welcome-needs-model"
-            data-status={modelStatus}
-          >
-            <p className="welcome-subtitle">
-              {modelStatus === 'none'
-                ? t('ui.foundation.nomi-has-no-model-yet-add-one-to-start')
-                : t('ui.foundation.pick-one-of-your-models-for-nomi-chat')}
-            </p>
-            <Button variant="primary" onClick={onOpenModels} data-testid="welcome-add-model">
-              {modelStatus === 'none'
-                ? t('ui.foundation.getting-started-add-a-model')
-                : t('ui.models.choose-a-model')}
-            </Button>
-          </div>
-        ) : (
-          <div className="quick-actions">
-            {quickPrompts.map((id) => (
-              <button
-                key={id}
-                className="quick-action-btn"
-                data-testid={`quick-action-${id}`}
-                onClick={() => actions.sendMessage(t(QUICK_PROMPT_TEXT[id].prompt))}
-              >
-                {t(QUICK_PROMPT_TEXT[id].label)}
-              </button>
-            ))}
-          </div>
-        )}
-        <p className="welcome-subtitle">
-          {t('ui.foundation.type-for-commands-for-knowledge-base-voice-models')}
-        </p>
-      </div>
-    </div>
+    <ConversationWelcome
+      title={t('ui.foundation.what-would-you-like-to-do-today')}
+      modelStatus={needsModel ? modelStatus : undefined}
+      onOpenModels={onOpenModels}
+      prompts={needsModel ? undefined : quickPrompts}
+      onPrompt={(id) => actions.sendMessage(t(QUICK_PROMPT_TEXT[id].prompt))}
+    />
   );
 };
 

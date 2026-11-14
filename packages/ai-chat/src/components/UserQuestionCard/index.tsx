@@ -3,7 +3,11 @@
  * 一次只显示一个问题（1 / N），字母选项，最后一行是自己写；Enter 继续，Esc 跳过。
  */
 import { Button, Icon, IconButton, t } from '@nomi-ai/ui';
-import { ChevronDown, ChevronUp, MessageCircleQuestion } from 'lucide-react';
+import {
+  IconChevronDown as ChevronDown,
+  IconChevronUp as ChevronUp,
+  IconMessageCircleQuestion as MessageCircleQuestion,
+} from '@tabler/icons-react';
 import React, { useEffect, useRef, useState } from 'react';
 
 import { isImeComposing } from '../../utils/keyboard';

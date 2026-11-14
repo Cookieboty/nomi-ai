@@ -1,0 +1,130 @@
+.lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--cd-space-2) * var(--brand-scale, 1));
+  height: calc(var(--cd-control-h-2xs) * var(--brand-scale, 1));
+  color: var(--cd-color-text);
+  vertical-align: middle;
+  flex: none;
+}
+.mark,
+.word {
+  display: block;
+  flex: none;
+}
+.mark {
+  border-radius: var(--cd-radius-xs);
+}
+.ink {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+.lockup[data-animated] .ink {
+  animation: write var(--ink-duration) cubic-bezier(0.4, 0, 0.2, 1) var(--ink-delay) both;
+}
+.lockup[data-animated] .star {
+  animation: starIn 180ms var(--cd-ease-out) 1220ms both;
+}
+.lockup[data-skipped] .ink,
+.lockup[data-skipped] .star {
+  animation: none;
+}
+@keyframes write {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+  1% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+@keyframes starIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--cd-z-modal) + 20);
+  isolation: isolate;
+}
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse 70% 42% at 50% -14%,
+      rgba(var(--cd-accent-rgb), 0.065),
+      transparent 68%
+    ),
+    var(--cd-panel-surface-raised);
+}
+:global(html[data-chat-bg]) .backdrop {
+  background: var(--cd-modal-bg);
+}
+.root[data-phase='revealing'] .backdrop {
+  opacity: 0;
+  transition: opacity 150ms linear;
+}
+.floating {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  transform-origin: 0 0;
+}
+.root[data-phase='docking'] .floating,
+.root[data-phase='revealing'] .floating {
+  will-change: transform;
+}
+.status {
+  position: absolute;
+  top: calc(50% + var(--cd-space-8) * 2);
+  left: var(--cd-space-6);
+  right: var(--cd-space-6);
+  margin: 0;
+  text-align: center;
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-xs);
+  color: var(--cd-color-text-muted);
+}
+.skip {
+  position: absolute;
+  right: var(--cd-space-6);
+  bottom: var(--cd-space-6);
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+}
+.root[data-phase='docking'] .skip,
+.root[data-phase='revealing'] .skip {
+  visibility: hidden;
+}
+.drag {
+  position: absolute;
+  inset: 0 0 auto;
+  height: var(--cd-titlebar-h, 46px);
+  -webkit-app-region: drag;
+  app-region: drag;
+  --wails-draggable: drag;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lockup[data-animated] .ink,
+  .lockup[data-animated] .star,
+  .backdrop {
+    animation: none;
+    transition: none;
+  }
+}
+
+.root[data-mode='app'][data-phase='revealing'] .floating {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}

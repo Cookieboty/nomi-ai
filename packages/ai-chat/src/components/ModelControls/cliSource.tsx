@@ -21,7 +21,7 @@ import {
   type PickerProvider,
   type SelectOption,
 } from '@nomi-ai/ui';
-import { RefreshCw } from 'lucide-react';
+import { IconRefresh as RefreshCw } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {

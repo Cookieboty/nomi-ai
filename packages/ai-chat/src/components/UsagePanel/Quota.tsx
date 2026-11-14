@@ -7,7 +7,14 @@
  * 额度只来自本机已有数据与用户点「刷新」时官方 CLI 自己取到的结果；Nomi 不读取、不上传任何登录凭据。
  */
 import { Badge, Button, t } from '@nomi-ai/ui';
-import { Gauge, KeyRound, LoaderCircle, RefreshCw, TriangleAlert, UserRound } from 'lucide-react';
+import {
+  IconGauge as Gauge,
+  IconKey as KeyRound,
+  IconLoader2 as LoaderCircle,
+  IconRefresh as RefreshCw,
+  IconAlertTriangle as TriangleAlert,
+  IconUserCircle as UserRound,
+} from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 
 import { isQuotaTool, useToolQuota, type ToolCardState } from '../../hooks/useToolQuota';

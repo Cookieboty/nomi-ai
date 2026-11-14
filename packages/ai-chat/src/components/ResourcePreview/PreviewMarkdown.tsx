@@ -1,6 +1,6 @@
 /** File-preview Markdown only. No conversation reports, citations or streaming. */
 import { Icon, t, useLocale } from '@nomi-ai/ui';
-import { Check, Copy } from 'lucide-react';
+import { IconCheck as Check, IconCopy as Copy } from '@tabler/icons-react';
 import React, { lazy, Suspense, memo, useEffect, useState, useSyncExternalStore } from 'react';
 import type { Components } from 'react-markdown';
 

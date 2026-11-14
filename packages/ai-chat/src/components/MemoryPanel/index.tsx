@@ -17,7 +17,12 @@ import {
   Tabs,
   Textarea,
 } from '@nomi-ai/ui';
-import { Brain, UserRound, Lock, Pin } from 'lucide-react';
+import {
+  IconBrain as Brain,
+  IconUserCircle as UserRound,
+  IconLock as Lock,
+  IconPinned as Pin,
+} from '@tabler/icons-react';
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAiChatActions } from '../../contexts/aiChatStore';

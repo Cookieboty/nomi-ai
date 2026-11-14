@@ -1,7 +1,11 @@
 import type { StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { Icon, t } from '@nomi-ai/ui';
-import { ArrowDown, ArrowUp, X } from 'lucide-react';
+import {
+  IconArrowDown as ArrowDown,
+  IconArrowUp as ArrowUp,
+  IconX as X,
+} from '@tabler/icons-react';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { matchShortcut } from '../../services/shortcuts';

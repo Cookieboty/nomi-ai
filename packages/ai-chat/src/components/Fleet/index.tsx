@@ -1,6 +1,6 @@
 /**
  * Agent 看板（docs/development/agent-board.md）的两个入口：
- * - 左侧导航栏独立一项（与任务、素材库并列），打开后整页显示看板；图标带「要你处理」角标、在跑的数量与负载环；
+ * - 左侧导航栏独立一项（与任务、素材库并列），打开后整页显示看板；图标带「要你处理」角标、在跑的数量与负载提示；
  * - 标题栏右侧的负载指示，点开小浮层看正在跑的，再进完整看板。
  * 两个入口共用一份数据（useFleet）：看板或浮层开着时 3 秒刷新占用，平时 15 秒，窗口隐藏时不刷新。
  */
@@ -8,7 +8,6 @@ import { isBuiltinCliId, type BuiltinCliId } from '@nomi-ai/cli-catalog';
 import { isContractError } from '@nomi-ai/contract';
 import { brand } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
-import {} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -32,9 +31,9 @@ import { requestOpenTask } from '../../services/tasksClient';
 import { OPEN_FLEET_EVENT } from '../../services/workbenchNav';
 import type { IPCClient } from '../../types/ipc';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
-import { FEATURE_ICONS } from '../AppIcons';
 import { confirmDialog } from '../ConfirmDialog';
 import { lazyComponent } from '../lazyPanels';
+import { SIDEBAR_ICONS } from '../Sidebar/icons';
 import { SideNavItem } from '../Sidebar/SideNavItem';
 
 import { agentTitle } from './AgentCard';
@@ -65,14 +64,13 @@ export const FleetNav: React.FC<{
       : `${base} · ${t(level === 'critical' ? 'ui.cli-monitor.fleet-load-critical' : 'ui.cli-monitor.fleet-load-warn')}`;
   return (
     <SideNavItem
-      icon={FEATURE_ICONS.agents}
+      icon={SIDEBAR_ICONS.agents}
       label={t('ui.cli-monitor.fleet')}
       title={title}
       collapsed={collapsed}
       active={active}
       badge={needsYou}
       count={running}
-      load={level === 'normal' ? undefined : level}
       onOpen={onOpen}
       testId="fleet-open"
     />

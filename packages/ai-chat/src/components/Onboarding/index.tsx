@@ -10,7 +10,6 @@
  */
 import { cliName } from '@nomi-ai/cli-catalog';
 import {
-  brand,
   USER_INTERESTS,
   USER_ROLES,
   type UserInterest,
@@ -34,30 +33,29 @@ import {
   useFocusTrap,
   useLocale,
   type LocalePref,
-  type ThemeInfo,
   type ThemePref,
 } from '@nomi-ai/ui';
 import {
-  BookOpen,
-  BotMessageSquare,
-  Boxes,
-  Briefcase,
-  CalendarCheck2,
-  Check,
-  CheckCircle2,
-  Cloud,
-  Code2,
-  Compass,
-  Feather,
-  GraduationCap,
-  KeyRound,
-  Languages,
-  LayoutPanelLeft,
-  Lock,
-  Plug,
-  Sparkles,
-  type LucideIcon,
-} from 'lucide-react';
+  IconBook2 as BookOpen,
+  IconMessageChatbot as BotMessageSquare,
+  IconPackages as Boxes,
+  IconBriefcase as Briefcase,
+  IconCalendarCheck as CalendarCheck2,
+  IconCheck as Check,
+  IconCircleCheck as CheckCircle2,
+  IconCloud as Cloud,
+  IconCode as Code2,
+  IconCompass as Compass,
+  IconFeather as Feather,
+  IconSchool as GraduationCap,
+  IconKey as KeyRound,
+  IconLanguage as Languages,
+  IconLayoutSidebar as LayoutPanelLeft,
+  IconLock as Lock,
+  IconPlug as Plug,
+  IconSparkles as Sparkles,
+  type TablerIcon as IconGlyph,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 
 import { useNomiModelStatus } from '../../hooks/useNomiModelStatus';
@@ -65,10 +63,13 @@ import { characterName, useCharacterName } from '../../services/characterName';
 import { startupClient, type StartupView } from '../../services/startupClient';
 import { requestOpenFleet } from '../../services/workbenchNav';
 import { isImeComposing } from '../../utils/keyboard';
+import { BrandLockup } from '../BrandIntro/BrandLockup';
+import { introActive, introHolding, startupBrandIntro, useBrandIntro } from '../BrandIntro/state';
 import { DISPATCH_CLIS } from '../DispatchCli';
 import { EndpointIcon } from '../EndpointIcon';
 import { useCliInstall } from '../ModelsPage/useCliInstall';
 import { ChatBackgroundSettings } from '../SettingsView/ChatBackgroundSettings';
+import { ThemeChoice, ThemeMiniature } from '../ThemeChoice';
 
 import {
   OPEN_MODELS_EVENT,
@@ -197,42 +198,6 @@ const OptionCard: React.FC<{
   </button>
 );
 
-/** 建筑感圆角矩形微缩桌面工作台窗口（侧边栏 + 主画布 + 用户/AI 气泡，悬停微舒展） */
-const ThemePreview: React.FC<{ info: ThemeInfo }> = ({ info }) => {
-  const [bg, surface, text, accent] = info.swatch;
-  if (info.id === 'system') {
-    return (
-      <span className={`${styles.swatchTile} ${styles.swatchTileSystem}`} aria-hidden>
-        <span className={styles.swatchSplitLight}>
-          <span
-            className={styles.swatchBubbleAi}
-            style={{ background: '#18181b', opacity: 0.55 }}
-          />
-        </span>
-        <span className={styles.swatchSplitDark}>
-          <span className={styles.swatchBubbleUser} style={{ background: accent }} />
-          <span
-            className={styles.swatchBubbleAi}
-            style={{ background: '#f4f4f5', opacity: 0.65 }}
-          />
-        </span>
-      </span>
-    );
-  }
-  return (
-    <span className={styles.swatchTile} aria-hidden style={{ background: bg }}>
-      <span className={styles.swatchSidebar}>
-        <span className={styles.swatchNavDot} style={{ background: text, opacity: 0.28 }} />
-        <span className={styles.swatchNavDot} style={{ background: text, opacity: 0.16 }} />
-      </span>
-      <span className={styles.swatchPane} style={{ background: surface }}>
-        <span className={styles.swatchBubbleUser} style={{ background: accent }} />
-        <span className={styles.swatchBubbleAi} style={{ background: text, opacity: 0.52 }} />
-      </span>
-    </span>
-  );
-};
-
 const LANGS: { id: LocalePref; label: () => string }[] = [
   { id: 'system', label: () => t('ui.mascot-theme.follow-system') },
   // i18n-ignore
@@ -256,39 +221,38 @@ const STARTUPS: { id: StartupView; label: () => string; hint: () => string }[] =
 /** 早期引导写的「回答语气」行：这个功能已删除，重写引导那一段时丢掉 */
 const DROPPED_TONE_LINE = /^- (回答语气|Reply tone)[:：]/;
 
-const ROLE_LABEL: Record<UserRole, { label: () => string; hint: () => string; icon: LucideIcon }> =
-  {
-    developer: {
-      label: () => t('ui.mascot-theme.role-developer'),
-      hint: () => t('ui.mascot-theme.role-developer-hint'),
-      icon: Code2,
-    },
-    product: {
-      label: () => t('ui.mascot-theme.role-product'),
-      hint: () => t('ui.mascot-theme.role-product-hint'),
-      icon: Compass,
-    },
-    creator: {
-      label: () => t('ui.mascot-theme.role-creator'),
-      hint: () => t('ui.mascot-theme.role-creator-hint'),
-      icon: Feather,
-    },
-    office: {
-      label: () => t('ui.mascot-theme.role-office'),
-      hint: () => t('ui.mascot-theme.role-office-hint'),
-      icon: Briefcase,
-    },
-    student: {
-      label: () => t('ui.mascot-theme.role-student'),
-      hint: () => t('ui.mascot-theme.role-student-hint'),
-      icon: GraduationCap,
-    },
-    other: {
-      label: () => t('ui.mascot-theme.role-other'),
-      hint: () => t('ui.mascot-theme.role-other-hint'),
-      icon: Sparkles,
-    },
-  };
+const ROLE_LABEL: Record<UserRole, { label: () => string; hint: () => string; icon: IconGlyph }> = {
+  developer: {
+    label: () => t('ui.mascot-theme.role-developer'),
+    hint: () => t('ui.mascot-theme.role-developer-hint'),
+    icon: Code2,
+  },
+  product: {
+    label: () => t('ui.mascot-theme.role-product'),
+    hint: () => t('ui.mascot-theme.role-product-hint'),
+    icon: Compass,
+  },
+  creator: {
+    label: () => t('ui.mascot-theme.role-creator'),
+    hint: () => t('ui.mascot-theme.role-creator-hint'),
+    icon: Feather,
+  },
+  office: {
+    label: () => t('ui.mascot-theme.role-office'),
+    hint: () => t('ui.mascot-theme.role-office-hint'),
+    icon: Briefcase,
+  },
+  student: {
+    label: () => t('ui.mascot-theme.role-student'),
+    hint: () => t('ui.mascot-theme.role-student-hint'),
+    icon: GraduationCap,
+  },
+  other: {
+    label: () => t('ui.mascot-theme.role-other'),
+    hint: () => t('ui.mascot-theme.role-other-hint'),
+    icon: Sparkles,
+  },
+};
 
 const INTEREST_LABEL: Record<UserInterest, () => string> = {
   coding: () => t('ui.mascot-theme.interest-coding'),
@@ -299,7 +263,7 @@ const INTEREST_LABEL: Record<UserInterest, () => string> = {
   automation: () => t('ui.mascot-theme.interest-automation'),
 };
 
-const INTEREST_ICON: Record<UserInterest, LucideIcon> = {
+const INTEREST_ICON: Record<UserInterest, IconGlyph> = {
   coding: Code2,
   writing: Feather,
   language: Languages,
@@ -316,6 +280,12 @@ const prefersReducedMotion = (): boolean =>
 
 export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ onDone }) => {
   useLocale();
+  const intro = useBrandIntro();
+  const introBrandRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    startupBrandIntro.setTarget(introBrandRef.current);
+    return () => startupBrandIntro.setTarget(null);
+  }, []);
   const [i, setI] = useState(0);
   const [navI, setNavI] = useState(0);
   const [dir, setDir] = useState<'next' | 'prev'>('next');
@@ -574,16 +544,15 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                 aria-labelledby="onb-theme-label"
               >
                 {themes.map((x, idx) => (
-                  <OptionCard
+                  <ThemeChoice
                     key={x.id}
-                    compact
-                    role="radio"
-                    index={idx}
-                    on={theme === x.id}
+                    className={styles.themeChoice}
+                    style={stagger(idx)}
+                    selected={theme === x.id}
                     testId={`onb-theme-${x.id}`}
-                    title={t(x.name)}
-                    preview={<ThemePreview info={x} />}
-                    onClick={() => {
+                    label={t(x.name)}
+                    preview={<ThemeMiniature swatch={x.swatch} system={x.id === 'system'} />}
+                    onPick={() => {
                       setThemeSel(x.id);
                       void setTheme(x.id);
                     }}
@@ -874,7 +843,12 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   const isMac =
     typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || navigator.userAgent);
   return (
-    <div className={styles.overlay} data-testid="onboarding" data-step={step}>
+    <div
+      className={styles.overlay}
+      data-testid="onboarding"
+      data-step={step}
+      data-brand-intro={introActive(intro.phase) || undefined}
+    >
       <div
         ref={cardRef}
         className={styles.card}
@@ -889,8 +863,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
         <header className={styles.topBar}>
           <div className={styles.topLeft}>
             <span className={styles.brand}>
-              <EndpointIcon backend="nomi" size={20} decorative className={styles.brandLogo} />
-              <span className={styles.brandName}>{brand.appName}</span>
+              <BrandLockup ref={introBrandRef} />
             </span>
           </div>
           <nav className={styles.railNav}>
@@ -945,25 +918,27 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           </div>
         </header>
         <div className={styles.scroll} ref={scrollRef}>
-          <div
-            className={styles.step}
-            key={step}
-            data-dir={dir}
-            data-phase={phase}
-            data-testid={`onboarding-step-${step}`}
-          >
-            <div className={styles.hero}>
-              <div className={styles.heroBadge} aria-hidden>
-                <span className={styles.heroBadgeDot} />
-                <span>{`0${i + 1} / 0${STEPS.length}`}</span>
+          {!introHolding(intro.phase) && (
+            <div
+              className={styles.step}
+              key={step}
+              data-dir={dir}
+              data-phase={phase}
+              data-testid={`onboarding-step-${step}`}
+            >
+              <div className={styles.hero}>
+                <div className={styles.heroBadge} aria-hidden>
+                  <span className={styles.heroBadgeDot} />
+                  <span>{`0${i + 1} / 0${STEPS.length}`}</span>
+                </div>
+                <h1 id="onb-title" className={styles.title} tabIndex={-1}>
+                  {STEP_TITLE[step]()}
+                </h1>
+                <p className={styles.intro}>{STEP_INTRO[step]()}</p>
               </div>
-              <h1 id="onb-title" className={styles.title}>
-                {STEP_TITLE[step]()}
-              </h1>
-              <p className={styles.intro}>{STEP_INTRO[step]()}</p>
+              <div className={styles.body}>{body}</div>
             </div>
-            <div className={styles.body}>{body}</div>
-          </div>
+          )}
         </div>
         <footer className={styles.foot}>
           <div className={styles.footInner}>

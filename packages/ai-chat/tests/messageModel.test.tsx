@@ -14,6 +14,7 @@ import {
 import type { ChatMessage } from '../src/types/chat';
 import type { ConvMessage } from '../src/types/conversation';
 import { fromChatMessage, fromHarnessMessage } from '../src/utils/convAdapters';
+import { ENDPOINT_NAME } from '../src/utils/endpointBadge';
 
 afterEach(cleanup);
 
@@ -144,4 +145,20 @@ describe('会话中途换模型的弱提示', () => {
     rerender(<ConversationView {...base} modelSwitchTip={null} />);
     expect(queryByTestId('conv-model-switch-tip')).toBeNull();
   });
+});
+
+describe('回复来源图标', () => {
+  it.each(Object.entries(ENDPOINT_NAME))(
+    '为 %s 的回复来源名称配上对应图标且不重复朗读',
+    (backend, label) => {
+      const r = render(
+        <ConversationView scopeId="s" messages={[assistant({ label })]} phase="idle" />,
+      );
+      const source = r.getByTestId('conv-agent-label');
+      expect(source.textContent).toBe(label);
+      expect(
+        source.querySelector(`[data-endpoint="${backend}"]`)?.getAttribute('aria-hidden'),
+      ).toBe('true');
+    },
+  );
 });

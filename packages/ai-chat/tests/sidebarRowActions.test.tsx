@@ -179,23 +179,19 @@ describe('sidebar row actions', () => {
     );
   });
 
-  it('every conversation row carries pin / archive / more icon buttons with aria-labels and no native titles', async () => {
+  it('every conversation row carries only pin / more icon buttons with aria-labels and no native titles', async () => {
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     const w = within(row(r, 'n2'));
     for (const [id, label] of [
       ['row-pin', '置顶聊天'],
-      ['row-delete', '永久删除'],
       ['row-more', '更多操作'],
     ] as const) {
       const b = w.getByTestId(id);
       expect(b.getAttribute('aria-label')).toBe(label);
       expect(b.getAttribute('title')).toBeNull();
     }
-    // CLI 标签与 Nomi 对话的垃圾桶统一为永久删除。
-    expect(within(row(r, 'c1')).getByTestId('row-delete').getAttribute('aria-label')).toBe(
-      '永久删除',
-    );
+    expect(within(row(r, 'c1')).queryByTestId('row-delete')).toBeNull();
     // 不为每行常驻挂载菜单
     expect(r.queryByTestId('conversation-context-menu')).toBeNull();
     // 按钮是兄弟节点，不是嵌套在行按钮里
@@ -243,13 +239,15 @@ describe('sidebar row actions', () => {
   it('recent Nomi deletion confirms before stopping its reply and permanently removing it', async () => {
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
-    fireEvent.click(within(row(r, 'n2')).getByTestId('row-delete'));
+    fireEvent.click(within(row(r, 'n2')).getByTestId('row-more'));
+    fireEvent.click(await screen.findByTestId('conversation-delete'));
     expect((await screen.findByTestId('confirm-dialog')).textContent).toContain('永久删除');
     fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
     await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
     expect(deleteConversation).not.toHaveBeenCalled();
     expect(abortConversation).not.toHaveBeenCalled();
-    fireEvent.click(within(row(r, 'n2')).getByTestId('row-delete'));
+    fireEvent.click(within(row(r, 'n2')).getByTestId('row-more'));
+    fireEvent.click(await screen.findByTestId('conversation-delete'));
     fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
     await waitFor(() => expect(deleteConversation).toHaveBeenCalledWith('n2'));
     expect(abortConversation).toHaveBeenCalledWith('n2');
@@ -273,13 +271,15 @@ describe('sidebar row actions', () => {
       tabStatus = status;
       const r = mount();
       await waitFor(() => r.getAllByTestId('history-item'));
-      fireEvent.click(within(row(r, 'c1')).getByTestId('row-delete'));
+      fireEvent.click(within(row(r, 'c1')).getByTestId('row-more'));
+      fireEvent.click(await screen.findByTestId('conversation-delete'));
       expect((await screen.findByTestId('confirm-dialog')).textContent).toContain('永久删除');
       expect(screen.getByTestId('confirm-dialog').textContent).toContain('终止');
       fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
       await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
       expect(calls.some(([ch]) => ch === 'history.deleteTab')).toBe(false);
-      fireEvent.click(within(row(r, 'c1')).getByTestId('row-delete'));
+      fireEvent.click(within(row(r, 'c1')).getByTestId('row-more'));
+      fireEvent.click(await screen.findByTestId('conversation-delete'));
       fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
       await waitFor(() =>
         expect(calls.some(([ch, input]) => ch === 'history.deleteTab' && input.id === 't1')).toBe(
@@ -326,7 +326,7 @@ describe('sidebar row actions', () => {
     const hrow = item.closest('[data-testid="history-session-row"]') as HTMLElement;
     const w = within(hrow);
     expect(w.queryByTestId('row-rename')).toBeNull();
-    expect(w.getByTestId('row-delete')).toBeTruthy();
+    expect(w.queryByTestId('row-delete')).toBeNull();
     fireEvent.click(w.getByTestId('row-more'));
     const menu = r.getByTestId('conversation-context-menu');
     expect(within(menu).queryByTestId('conversation-rename')).toBeNull();
@@ -342,7 +342,8 @@ describe('sidebar row actions', () => {
     const r = mount();
     const item = await waitFor(() => r.getByTestId('history-session-item'));
     const w = within(item.closest('[data-testid="history-session-row"]') as HTMLElement);
-    fireEvent.click(w.getByTestId('row-delete'));
+    fireEvent.click(w.getByTestId('row-more'));
+    fireEvent.click(await screen.findByTestId('conversation-delete'));
     expect((await screen.findByTestId('confirm-dialog')).textContent).toContain(
       'disk codex session',
     );
@@ -351,7 +352,8 @@ describe('sidebar row actions', () => {
     expect(calls.some(([ch]) => ch === 'history.delete')).toBe(false);
 
     const listsBefore = calls.filter(([ch]) => ch === 'history.list').length;
-    fireEvent.click(w.getByTestId('row-delete'));
+    fireEvent.click(w.getByTestId('row-more'));
+    fireEvent.click(await screen.findByTestId('conversation-delete'));
     fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
     await waitFor(() =>
       expect(calls.some(([ch, a]) => ch === 'history.delete' && a.sessionId === 's9')).toBe(true),

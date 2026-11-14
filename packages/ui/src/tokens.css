@@ -17,6 +17,14 @@
   --cd-image-viewer-control-bg: #292929;
   --cd-image-viewer-hover: #404040;
   --cd-image-viewer-text: #f5f5f5;
+  --cd-workspace-bg: var(--cd-color-surface);
+  --cd-shadow-workspace-top: 0 -4px 12px -4px
+    color-mix(in srgb, var(--cd-color-overlay) 16%, transparent);
+  --cd-shadow-workspace-left: -4px 0 12px -4px
+    color-mix(in srgb, var(--cd-color-overlay) 16%, transparent);
+  --cd-shadow-workspace: var(--cd-shadow-workspace-top), var(--cd-shadow-workspace-left);
+  --cd-color-pane-divider: color-mix(in srgb, var(--cd-color-border) 55%, transparent);
+  --cd-color-pane-divider-hover: color-mix(in srgb, var(--cd-color-text-muted) 45%, transparent);
   /* radius */
   --cd-radius-xs: 6px;
   --cd-radius-sm: 8px;
@@ -113,6 +121,13 @@
   --cd-chat-hover-bg: var(--cd-color-hover);
   --cd-chat-hover-overlay: var(--cd-color-hover);
   --cd-control-hover-bg: var(--cd-color-hover);
+  /* 导航：悬浮与选中共用浅底，按下只加深一档。 */
+  --cd-color-nav-bg: color-mix(in srgb, var(--cd-color-hover), var(--cd-color-selected-bg));
+  --cd-color-nav-pressed: color-mix(
+    in srgb,
+    var(--cd-color-selected-bg) 70%,
+    var(--cd-color-hover)
+  );
   --cd-control-active-bg: var(--cd-color-active);
   --cd-settings-card-bg: var(--cd-panel-surface-raised);
 
@@ -755,6 +770,9 @@
 }
 
 html[data-chat-bg] {
+  --cd-workspace-bg: transparent;
+  --cd-color-nav-bg: color-mix(in srgb, var(--cd-color-bg-subtle) 28%, transparent);
+  --cd-color-nav-pressed: color-mix(in srgb, var(--cd-color-bg-subtle) 40%, transparent);
   --cd-panel-bg: color-mix(in srgb, var(--cd-color-bg) 55%, transparent);
   --cd-panel-bg-subtle: color-mix(in srgb, var(--cd-color-bg-subtle) 55%, transparent);
   --cd-panel-surface: color-mix(in srgb, var(--cd-color-surface) 55%, transparent);

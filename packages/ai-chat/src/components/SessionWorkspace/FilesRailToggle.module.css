@@ -1,12 +1,15 @@
-/* 与 ChatHeader 的图标按钮同高（ms），有数字时变成胶囊 */
+/* 导航按钮保持固定 32px 方形，变更数量用角标显示，不改变悬浮底色尺寸。 */
 .toggle {
+  position: relative;
+  width: var(--cd-control-h-ms);
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--cd-space-1);
   min-width: var(--cd-control-h-ms);
   height: var(--cd-control-h-ms);
-  padding: 0 var(--cd-space-2);
+  padding: 0;
   border: none;
   border-radius: var(--cd-radius-md);
   background: transparent;
@@ -14,19 +17,29 @@
   font-size: var(--cd-font-size-sm);
   cursor: pointer;
 }
-.toggle:hover {
-  background: var(--cd-color-hover);
+.toggle:hover,
+.toggle[data-open] {
+  background: var(--cd-color-nav-bg);
   color: var(--cd-color-text);
 }
 .toggle:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: 2px;
 }
-.toggle[data-open] {
-  background: var(--cd-color-active);
-  color: var(--cd-color-text);
+.toggle:active {
+  background: var(--cd-color-nav-pressed);
 }
 .count {
+  color: var(--cd-color-success);
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: var(--cd-space-3);
+  height: var(--cd-space-3);
+  background: transparent;
+  font-size: calc(var(--cd-font-size-xs) * 0.85);
+  line-height: var(--cd-space-3);
+  text-align: center;
   font-variant-numeric: tabular-nums;
   font-weight: var(--cd-font-weight-medium);
 }

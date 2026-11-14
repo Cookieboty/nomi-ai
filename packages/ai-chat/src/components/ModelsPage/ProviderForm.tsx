@@ -6,7 +6,11 @@
  * 可一次填多个 Key（空格、逗号或换行分隔），依次成为主 Key 与备用 Key。
  */
 import { BrandIcon, Button, FormField, Icon, Input, t } from '@nomi-ai/ui';
-import { ArrowLeft, Globe, Loader2 } from 'lucide-react';
+import {
+  IconArrowLeft as ArrowLeft,
+  IconGlobe as Globe,
+  IconLoader2 as Loader2,
+} from '@tabler/icons-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import {

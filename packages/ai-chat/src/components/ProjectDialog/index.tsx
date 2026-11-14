@@ -6,7 +6,14 @@
  * 移除项目只删记录，不碰磁盘上的文件。
  */
 import { Button, Icon, Modal, t, useLocale } from '@nomi-ai/ui';
-import { ChevronDown, Folder, FolderOpen, Plus, Star, X } from 'lucide-react';
+import {
+  IconChevronDown as ChevronDown,
+  IconFolder as Folder,
+  IconFolderOpen as FolderOpen,
+  IconPlus as Plus,
+  IconStar as Star,
+  IconX as X,
+} from '@tabler/icons-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 

@@ -3,7 +3,11 @@
  * 数据来自主进程 UsageService（ai:usage:*）；全部只存本机。
  */
 import { Button, EmptyState, ErrorState, Notice, Skeleton, Tabs, t } from '@nomi-ai/ui';
-import { Activity, Coins, RefreshCw } from 'lucide-react';
+import {
+  IconActivity as Activity,
+  IconCoins as Coins,
+  IconRefresh as RefreshCw,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {

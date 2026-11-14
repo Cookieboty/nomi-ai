@@ -1,8 +1,18 @@
 import { Icon, t } from '@nomi-ai/ui';
-import { Copy, Minus, PanelLeftClose, PanelLeftOpen, Square, X } from 'lucide-react';
+import {
+  IconCopy as Copy,
+  IconMinus as Minus,
+  IconSquareRoundedChevronLeft as PanelLeftClose,
+  IconSquareRoundedChevronRight as PanelLeftOpen,
+  IconSquare as Square,
+  IconX as X,
+} from '@tabler/icons-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { isGoHost } from '../../services/api';
+
+import { TitlebarSlot } from './panels';
+import { usePanelColumns } from './usePanelColumns';
 
 /** 是否运行在桌面应用里（有一体化标题栏）：main.tsx 按平台设置 html[data-platform] */
 export const hasAppTitleBar = (): boolean =>
@@ -97,6 +107,9 @@ export const WindowControls: React.FC = () => {
  */
 export const AppTitleBar: React.FC<{
   sidebarCollapsed: boolean;
+  filesOpen?: boolean;
+  centerOpen?: boolean;
+  layoutKey?: string;
   onToggleSidebar: () => void;
   /** 对话卡片上方左侧：当前会话（工作区图标 + 名称）；新会话时为空 */
   title?: React.ReactNode;
@@ -104,10 +117,20 @@ export const AppTitleBar: React.FC<{
   trailing?: React.ReactNode;
   /** 紧跟在侧栏收起按钮后面、任何页面都显示：Agent 看板的负载指示 */
   lead?: React.ReactNode;
-}> = ({ sidebarCollapsed, onToggleSidebar, title, trailing, lead }) => {
+}> = ({
+  sidebarCollapsed,
+  onToggleSidebar,
+  title,
+  trailing,
+  lead,
+  filesOpen = false,
+  centerOpen = false,
+  layoutKey = '',
+}) => {
   const labels = sidebarToggleLabels(sidebarCollapsed);
   const bar = useRef<HTMLDivElement>(null);
   const leadRef = useRef<HTMLDivElement>(null);
+  usePanelColumns(bar, `${sidebarCollapsed}:${filesOpen}:${centerOpen}:${layoutKey}`);
   // 侧栏收起时会话名紧跟在收起按钮后面：量出 lead 的宽度，把会话名往右挪，免得被盖住
   useLayoutEffect(() => {
     const el = leadRef.current;
@@ -130,6 +153,8 @@ export const AppTitleBar: React.FC<{
       className="app-titlebar"
       data-testid="app-titlebar"
       data-sidebar={sidebarCollapsed ? 'collapsed' : 'expanded'}
+      data-files={filesOpen || undefined}
+      data-center={centerOpen || undefined}
       onDoubleClick={onTitleBarDoubleClick}
     >
       <button
@@ -152,8 +177,22 @@ export const AppTitleBar: React.FC<{
         <div className="app-titlebar-title" data-testid="titlebar-title">
           {title}
         </div>
-        {trailing && <div className="app-titlebar-actions">{trailing}</div>}
+        <div className="app-titlebar-actions">
+          {trailing}
+          <TitlebarSlot name="session" className="app-titlebar-slot" />
+        </div>
       </div>
+      {centerOpen && (
+        <div className="app-titlebar-center app-titlebar-column">
+          <TitlebarSlot name="center" className="app-titlebar-slot app-titlebar-panel-tools" />
+        </div>
+      )}
+      {filesOpen && (
+        <div className="app-titlebar-files app-titlebar-column">
+          <TitlebarSlot name="files" className="app-titlebar-slot app-titlebar-panel-tools" />
+        </div>
+      )}
+      <TitlebarSlot name="rail-toggle" className="app-titlebar-rail-toggle app-titlebar-slot" />
       {isGoHost() && <WindowControls />}
     </div>
   );

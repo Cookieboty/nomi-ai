@@ -3,7 +3,7 @@
  * 确认后只把这一个文件夹写进 Gemini 自己的受信任列表（主进程按消息查出文件夹），成功后自动重试这一轮。
  */
 import { Icon, t } from '@nomi-ai/ui';
-import { ShieldCheck } from 'lucide-react';
+import { IconShieldCheck as ShieldCheck } from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';

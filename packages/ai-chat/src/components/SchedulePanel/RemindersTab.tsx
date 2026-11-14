@@ -1,6 +1,6 @@
 import { t as tr } from '@nomi-ai/ui';
 import { Badge, Button, EmptyState, Input, Select, Switch } from '@nomi-ai/ui';
-import { BellRing, Repeat } from 'lucide-react';
+import { IconBellRinging as BellRing, IconRepeat as Repeat } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {

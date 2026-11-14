@@ -1,7 +1,7 @@
 import type { DesktopReminderEvent } from '@nomi-ai/types';
 import { t as tr, Icon } from '@nomi-ai/ui';
 import { Button } from '@nomi-ai/ui';
-import { BellRing } from 'lucide-react';
+import { IconBellRinging as BellRing } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 
 import styles from './DesktopConfirm.module.css';

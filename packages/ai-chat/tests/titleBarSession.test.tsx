@@ -5,14 +5,11 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resetConfirmDialogForTest } from '../src/components/ConfirmDialog';
-import {
-  SessionMenuButton,
-  SessionTitle,
-  TitleBarTitle,
-} from '../src/components/TitleBar/SessionTitle';
+import { SessionTitle, TitleBarTitle } from '../src/components/TitleBar/SessionTitle';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import { __setProjectsForTest } from '../src/services/projects';
+import { getTranscriptView, setGlobalTranscriptView } from '../src/services/transcriptView';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
@@ -93,7 +90,6 @@ const mount = () =>
   render(
     <HarnessTabsProvider>
       <SessionTitle />
-      <SessionMenuButton />
     </HarnessTabsProvider>,
   );
 
@@ -104,14 +100,25 @@ describe('标题栏的当前会话', () => {
     expect(r.queryByTestId('titlebar-session-menu')).toBeNull();
   });
 
-  it('有消息时显示会话名与项目名；「…」里能归档与永久删除', async () => {
+  it('项目在会话名右侧，整组下拉能归档与永久删除', async () => {
     messages = [{ id: 'm', role: 'user', content: 'hi', timestamp: 1 }];
     const r = mount();
     const title = r.getByTestId('titlebar-session');
+    expect(title.querySelector('.tabler-icon-folder')).toBeTruthy();
+    expect(title.querySelector('.tabler-icon-chevron-down')).toBeTruthy();
+    expect(
+      title
+        .querySelector('.app-titlebar-session-cwd')!
+        .compareDocumentPosition(title.querySelector('.app-titlebar-session-name')!),
+    ).toBe(Node.DOCUMENT_POSITION_PRECEDING);
+    expect(title.querySelector('svg')?.getAttribute('width')).toBe('18');
     expect(title.textContent).toContain('周报整理');
     expect(title.textContent).toContain('app');
     // 悬停看项目的全部文件夹（主文件夹标 ★）
-    expect(title.getAttribute('title')).toBe('app\n★ /w/app\n  /w/api');
+    expect(title.querySelector('.app-titlebar-session-cwd')?.getAttribute('title')).toBe(
+      'app\n★ /w/app\n  /w/api',
+    );
+    expect(r.getByTestId('titlebar-session-menu').getAttribute('title')).toBeNull();
 
     // 再点一次「…」按钮：关掉菜单（按下时不先当作点外面关掉、再被点开）
     const more = r.getByTestId('titlebar-session-menu');
@@ -131,6 +138,28 @@ describe('标题栏的当前会话', () => {
     fireEvent.click(r.getByTestId('conversation-delete'));
     fireEvent.click(await screen.findByTestId('confirm-dialog-ok'));
     await waitFor(() => expect(deleteConversation).toHaveBeenCalledWith('n1'));
+  });
+
+  it('详细程度收在标题菜单内，按当前会话保存并支持跟随全局', async () => {
+    localStorage.removeItem('nomi.transcriptView.v1');
+    setGlobalTranscriptView('thinking');
+    messages = [{ id: 'm', role: 'user', content: 'hi', timestamp: 1 }];
+    const r = mount();
+    expect(r.queryByTestId('titlebar-transcript-view')).toBeNull();
+    fireEvent.click(r.getByTestId('titlebar-session-menu'));
+    const detail = r.getByTestId('conversation-transcript-view');
+    expect(detail.getAttribute('aria-expanded')).toBe('false');
+    expect(r.queryByTestId('transcript-view-normal')).toBeNull();
+    fireEvent.click(detail);
+    fireEvent.click(r.getByTestId('transcript-view-verbose'));
+    expect(getTranscriptView('nomi:n1')).toBe('verbose');
+    expect(getTranscriptView('nomi:other')).toBe('thinking');
+    await waitFor(() => expect(r.queryByTestId('conversation-context-menu')).toBeNull());
+    fireEvent.click(r.getByTestId('titlebar-session-menu'));
+    fireEvent.click(r.getByTestId('conversation-transcript-view'));
+    expect(r.getByTestId('transcript-view-verbose').getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(r.getByTestId('transcript-view-global'));
+    expect(getTranscriptView('nomi:n1')).toBe('thinking');
   });
 
   it('任务 / 素材库整页打开时显示页名，不显示会话名', () => {

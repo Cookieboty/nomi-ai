@@ -287,7 +287,7 @@ describe('side chats in the agents list', () => {
 });
 
 describe('SessionDetailsToggle', () => {
-  it('toggles a docked column with the project, changes and agents', async () => {
+  it('floats the session details over the chat even when the files rail is closed', async () => {
     setup();
     mount();
     const btn = screen.getByTestId('session-details-toggle');
@@ -297,8 +297,8 @@ describe('SessionDetailsToggle', () => {
     const panel = await screen.findByTestId('session-details');
     expect(btn.getAttribute('aria-pressed')).toBe('true');
     expect(panel.tagName).toBe('ASIDE');
-    // 平时那一栏在对话列外面（对话卡片右侧）
-    expect(screen.getByTestId('chat-col').contains(panel)).toBe(false);
+    expect(panel.getAttribute('data-floating')).toBe('true');
+    expect(screen.getByTestId('chat-col').contains(panel)).toBe(true);
     expect(panel.textContent).toContain('app');
     await waitFor(() =>
       expect(screen.getByTestId('session-details-branch').textContent).toBe('release/2.3.3'),

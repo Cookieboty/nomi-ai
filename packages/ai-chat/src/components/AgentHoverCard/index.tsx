@@ -5,7 +5,7 @@
  * 内容只在卡片开着时订阅（./preview.ts 取摘录）。
  */
 import { Icon, t } from '@nomi-ai/ui';
-import { Bot, Loader2 } from 'lucide-react';
+import { IconRobot as Bot, IconLoader2 as Loader2 } from '@tabler/icons-react';
 import React, {
   useCallback,
   useEffect,

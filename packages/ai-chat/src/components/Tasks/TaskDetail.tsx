@@ -3,7 +3,7 @@
  * 以及立即运行、暂停 / 恢复、取消、撤销授权、删除。撤销、取消、删除先用应用内确认框确认。
  */
 import { Button, Disclosure, Icon, IconButton, Select, t, Textarea } from '@nomi-ai/ui';
-import { X } from 'lucide-react';
+import { IconX as X } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 
 import { api } from '../../services/api';

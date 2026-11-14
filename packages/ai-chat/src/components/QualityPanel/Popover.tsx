@@ -3,7 +3,11 @@
  * 共享组件里没有通用弹层与多选下拉，这里只做面板需要的最小实现。
  */
 import { BrandIcon, Icon, Input, t } from '@nomi-ai/ui';
-import { Check, ChevronDown, type LucideIcon } from 'lucide-react';
+import {
+  IconCheck as Check,
+  IconChevronDown as ChevronDown,
+  type TablerIcon as IconGlyph,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import styles from './index.module.css';
@@ -13,7 +17,7 @@ export interface PopoverProps {
   label: React.ReactNode;
   /** 触发按钮的无障碍名称（label 不是纯文本时给） */
   ariaLabel?: string;
-  icon?: LucideIcon;
+  icon?: IconGlyph;
   /** 只显示图标（工具栏右侧的设置等） */
   iconOnly?: boolean;
   /** 有选中值：芯片高亮 */

@@ -6,7 +6,7 @@
  * 应用里每个文件的 Diff 是预览区的一个标签，中栏只给右栏预览留挂载点（mode="slot"）。
  */
 import { t } from '@nomi-ai/ui';
-import { X } from 'lucide-react';
+import { IconX as X } from '@tabler/icons-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ConvMessage } from '../../types/conversation';

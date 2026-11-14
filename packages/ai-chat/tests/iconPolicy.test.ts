@@ -38,7 +38,7 @@ describe('图标规范：界面里不用 emoji 当图标', () => {
 });
 
 describe('设置左侧导航图标', () => {
-  it('11 个分区各有一个 lucide 图标，且互不重复', () => {
+  it('11 个分区各有一个 Tabler 图标，且互不重复', () => {
     expect(SETTINGS_SECTIONS).toHaveLength(11);
     const icons = SETTINGS_SECTIONS.map((s) => s.icon);
     expect(icons.every(Boolean)).toBe(true);

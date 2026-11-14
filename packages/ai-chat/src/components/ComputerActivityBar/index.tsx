@@ -3,7 +3,7 @@
  * 点「停止」= 紧急停止（中止正在操作桌面的那几轮，撤掉确认卡）。被操作的应用在前台时用系统级快捷键停止。
  */
 import { Button, Icon, t } from '@nomi-ai/ui';
-import { MousePointerClick } from 'lucide-react';
+import { IconClick as MousePointerClick } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 
 import { api, hasTransport } from '../../services/api';

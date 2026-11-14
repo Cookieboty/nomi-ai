@@ -3,7 +3,7 @@
  * 默认「查看变更」走中栏 Diff，不走此 portal。
  */
 import { t } from '@nomi-ai/ui';
-import { Search, X } from 'lucide-react';
+import { IconSearch as Search, IconX as X } from '@tabler/icons-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 

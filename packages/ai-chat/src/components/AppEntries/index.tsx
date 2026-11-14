@@ -6,7 +6,7 @@
 import { Icon, t, useLocale } from '@nomi-ai/ui';
 import React from 'react';
 
-import { FEATURE_ICONS } from '../AppIcons';
+import { SIDEBAR_ICONS } from '../Sidebar/icons';
 
 import styles from './index.module.css';
 
@@ -14,6 +14,7 @@ export interface AppEntriesProps {
   /** 侧栏收起：只显示图标 */
   collapsed: boolean;
   onSettings: () => void;
+  active?: boolean;
 }
 
 export const AppEntries: React.FC<AppEntriesProps> = (p) => {
@@ -33,10 +34,11 @@ export const AppEntries: React.FC<AppEntriesProps> = (p) => {
         type="button"
         className={`${styles.btn} ${p.collapsed ? '' : styles.settings}`}
         onClick={p.onSettings}
+        aria-current={p.active ? 'page' : undefined}
         aria-label={settingsTip}
         data-testid="open-settings"
       >
-        <Icon icon={FEATURE_ICONS.settings} size={16} />
+        <Icon icon={SIDEBAR_ICONS.settings} size="nav" />
         {!p.collapsed && <span>{settingsTip}</span>}
       </button>
     </nav>

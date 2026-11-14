@@ -6,7 +6,7 @@
  * 设置 / 插件 / 模型等按钮打开主窗口的面板（SubagentPaneActions，由 App 传入）。
  */
 import { Button, Icon, IconButton, t } from '@nomi-ai/ui';
-import { Square, X } from 'lucide-react';
+import { IconSquare as Square, IconX as X } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 
 import {

@@ -105,14 +105,8 @@
   align-items: center;
   gap: 8px;
 }
-.brandLogo {
-  border-radius: var(--cd-radius-xs);
-}
-.brandName {
-  font-size: var(--cd-font-size-sm);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--cd-color-text);
+.overlay[data-brand-intro] .brand {
+  visibility: hidden;
 }
 
 /* ---------- 顶部分段式圆角步进导航 ---------- */
@@ -358,6 +352,9 @@
   line-height: 1.22;
   color: var(--cd-color-text);
 }
+.title:focus {
+  outline: none;
+}
 .intro {
   font-size: var(--cd-font-size-sm);
   line-height: 1.5;
@@ -393,7 +390,7 @@
 .step[data-phase='in'] .body > :nth-child(5) {
   --onb-d: 0.32s;
 }
-.step[data-phase='in'] :is(.option, .listRow, .pill, .privacy li) {
+.step[data-phase='in'] :is(.option, .themeChoice, .listRow, .pill, .privacy li) {
   animation: onbTilePop 0.28s var(--cd-ease-out) calc(var(--onb-d, 0.1s) + var(--onb-i, 0) * 0.025s)
     both;
 }
@@ -641,7 +638,6 @@
   gap: 5px;
   white-space: nowrap;
 }
-.optionsThemes .optionTitle,
 .inputGreetingText {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -696,11 +692,6 @@
   gap: 10px;
   padding: 10px 12px;
   min-height: 50px;
-}
-.optionsThemes .optionCompact {
-  gap: 8px;
-  padding: 9px 10px;
-  min-height: 46px;
 }
 .option:hover {
   background: var(--cd-color-hover);
@@ -778,92 +769,6 @@
   opacity: 1;
   transform: scale(1);
 }
-.swatchTile,
-.swatchSidebar,
-.swatchPane,
-.swatchSplitLight,
-.swatchSplitDark {
-  display: flex;
-}
-.swatchSidebar,
-.swatchPane,
-.swatchSplitLight,
-.swatchSplitDark {
-  height: 100%;
-  flex-direction: column;
-}
-.swatchPane,
-.swatchSplitLight,
-.swatchSplitDark {
-  justify-content: space-between;
-}
-.swatchTile {
-  width: 40px;
-  height: 28px;
-  border-radius: var(--cd-radius-sm);
-  padding: 2.5px;
-  gap: 2.5px;
-  border: 1px solid rgba(128, 128, 128, 0.24);
-  overflow: hidden;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transition: transform var(--cd-duration-press) var(--cd-ease-out);
-}
-.option:hover .swatchTile,
-.optionOn .swatchTile {
-  transform: scale(1.03);
-}
-.swatchSidebar {
-  width: 8px;
-  border-radius: 3.5px;
-  padding: 3px 1.5px;
-  gap: 2.5px;
-  background: rgba(128, 128, 128, 0.1);
-}
-.swatchNavDot {
-  width: 100%;
-  height: 2px;
-  border-radius: 2px;
-}
-.swatchPane {
-  flex: 1 1 auto;
-  border-radius: 4.5px;
-  padding: 3px 4px;
-  border: 1px solid rgba(128, 128, 128, 0.14);
-}
-.swatchTileSystem {
-  padding: 0;
-  gap: 0;
-}
-.swatchSplitLight,
-.swatchSplitDark {
-  flex: 1 1 50%;
-  padding: 4px 3px;
-}
-.swatchSplitLight {
-  background: #f5f5f5;
-}
-.swatchSplitDark {
-  background: #141416;
-}
-.swatchBubbleUser,
-.swatchBubbleAi {
-  height: 3.5px;
-  border-radius: 2px;
-}
-.swatchBubbleUser {
-  width: 11px;
-  align-self: flex-end;
-}
-.swatchBubbleAi {
-  width: 48%;
-  align-self: flex-start;
-  transition: width var(--cd-duration-fast) var(--cd-ease-out);
-}
-.option:hover .swatchBubbleAi,
-.optionOn .swatchBubbleAi {
-  width: 78%;
-}
-
 /* ---------- 兴趣方片 / 编程助手卡片 / 实时回音条 / 隐私细字 ---------- */
 
 .pills {
@@ -1014,8 +919,6 @@
 .optionIcon,
 .listIcon,
 .collapsedIcon,
-.swatchTile,
-.swatchSidebar,
 .echoLogo,
 .privacy svg {
   flex: 0 0 auto;

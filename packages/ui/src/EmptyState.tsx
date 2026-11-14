@@ -1,12 +1,12 @@
-import type { LucideIcon } from 'lucide-react';
+import type { TablerIcon as IconGlyph } from '@tabler/icons-react';
 import React from 'react';
 
 import { cx } from './cx';
 import { Icon } from './icons';
 
 export interface EmptyStateProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
-  /** lucide 图标组件（放进圆角淡色底容器居中展示）；不要传 emoji */
-  icon?: LucideIcon;
+  /** Tabler 图标组件（放进圆角淡色底容器居中展示）；不要传 emoji */
+  icon?: IconGlyph;
   title: React.ReactNode;
   description?: React.ReactNode;
   action?: React.ReactNode;

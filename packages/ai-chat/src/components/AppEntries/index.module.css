@@ -34,9 +34,13 @@
 .settings {
   padding: 0 var(--cd-space-2);
 }
-.btn:hover {
-  background: var(--cd-color-hover);
+.btn:hover,
+.btn[aria-current='page'] {
+  background: var(--cd-color-nav-bg);
   color: var(--cd-color-text);
+}
+.btn:active {
+  background: var(--cd-color-nav-pressed);
 }
 .btn:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);

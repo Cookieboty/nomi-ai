@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react';
+import type { TablerIcon as IconGlyph } from '@tabler/icons-react';
 import React from 'react';
 
 import { BRAND_ICONS } from './brand/icons';
@@ -12,12 +12,12 @@ export interface BrandIconProps {
   name: string;
   size?: number;
   className?: string;
-  /** 没有品牌图标时用 lucide 图标代替首字母（如「自定义」） */
-  fallbackIcon?: LucideIcon;
+  /** 没有品牌图标时用 Tabler 图标代替首字母（如「自定义」） */
+  fallbackIcon?: IconGlyph;
   /**
-   * 跟文字 / lucide 图标排在一起的小图标（按钮里的「图标 + 模型名」、厂商栏）：不画白底方块，图形与同尺寸的
-   * lucide 图标一样大；默认（方块头像）在小尺寸下图形只剩 6 成，看着偏小、和文字对不齐。原色里有黑 / 白的
-   * 品牌（inlineMono）按单色跟随文字颜色，换主题也看得见
+   * 跟文字 / Tabler 图标排在一起的小图标（按钮里的「图标 + 模型名」、厂商栏）：不画白底方块，图形与同尺寸的
+   * Tabler 图标一样大；默认（方块头像）在小尺寸下图形只剩 6 成，看着偏小、和文字对不齐。
+   * 单色图形跟随文字颜色，混色品牌保留原色细节。
    */
   inline?: boolean;
 }
@@ -74,9 +74,9 @@ export function BrandIcon({
     );
   }
   const uri = `url("data:image/svg+xml;utf8,${encodeURIComponent(icon.svg)}")`;
-  // 行内：与 lucide 图标同样的留白（24 格里画 20 格），同尺寸时看起来一样大
+  // 行内：与 Tabler 图标同样的留白（24 格里画 20 格），同尺寸时看起来一样大
   const inner = Math.round(size * (inline ? 20 / 24 : 0.62));
-  const mono = icon.mono || (inline && icon.inlineMono);
+  const mono = icon.mono;
   return (
     <span
       className={cx('cd-brand', inline && 'cd-brand--inline', className)}
@@ -92,6 +92,18 @@ export function BrandIcon({
             : { width: inner, height: inner, backgroundImage: uri, backgroundColor: 'transparent' }
         }
       />
+      {icon.colorSvg && (
+        <span
+          className="cd-brand__glyph"
+          style={{
+            width: inner,
+            height: inner,
+            zIndex: 1,
+            backgroundImage: `url("data:image/svg+xml;utf8,${encodeURIComponent(icon.colorSvg)}")`,
+            backgroundColor: 'transparent',
+          }}
+        />
+      )}
     </span>
   );
 }

@@ -296,5 +296,7 @@
   "ui.mascot-theme.island-size": "灵动岛大小",
   "ui.mascot-theme.island-size-description": "大保持当前外观；中、小更紧凑，小号精简次要内容。点击操作保持不变。",
   "ui.mascot-theme.island-size-large": "大",
-  "ui.mascot-theme.island-size-small": "小"
+  "ui.mascot-theme.island-size-small": "小",
+  "ui.mascot-theme.startup-animation-label": "{0} 正在启动",
+  "ui.mascot-theme.startup-animation-skip": "跳过动画"
 }

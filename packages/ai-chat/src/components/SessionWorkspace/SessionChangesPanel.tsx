@@ -4,8 +4,17 @@
  * （RepoGitSection；同一个仓库的多个文件夹合成一段）。都不是 git 仓库（或读不到）时退回本会话变更树。
  * 文件：一个文件夹时就是它的目录树；多个时每个文件夹一个顶层节点（主文件夹默认展开）。中栏 Diff 见 CenterChangesHost。
  */
-import { t } from '@nomi-ai/ui';
-import { Bot, Expand, FolderTree, PanelRightClose, RefreshCw, Search } from 'lucide-react';
+import { Icon, t } from '@nomi-ai/ui';
+import {
+  IconRobot as Bot,
+  IconGitCompare,
+  IconFolder,
+  IconMaximize as Expand,
+  IconFolders as FolderTree,
+  IconLayoutSidebarRightCollapse as PanelRightClose,
+  IconRefresh as RefreshCw,
+  IconSearch as Search,
+} from '@tabler/icons-react';
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -25,6 +34,7 @@ import {
   type ChangeTreeNode,
 } from '../../utils/sessionChanges';
 import { rootOf, workspaceKey } from '../../utils/workspacePath';
+import { TitlebarContent } from '../TitleBar/panels';
 
 import { ChangeFileTree } from './ChangeFileTree';
 import { useChangesUi } from './ChangesUiContext';
@@ -491,89 +501,95 @@ export const SessionChangesPanel: React.FC<{
       tabIndex={-1}
     >
       {/* 一行：左侧「改动 · 文件」分段，右侧统计与操作；与 ChatHeader 同高 */}
-      <header className={styles.panelHead}>
-        <div
-          className={pane.seg}
-          role="tablist"
-          aria-label={t('ui.session-workspace.changes-panel-view')}
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={changesActive}
-            className={pane.segBtn}
-            data-active={changesActive || undefined}
-            data-testid="rail-tab-changes"
-            onClick={() => setView('changes')}
+      <TitlebarContent name="files" enabled={rail}>
+        <header className={styles.panelHead}>
+          <div
+            className={pane.seg}
+            role="tablist"
+            aria-label={t('ui.session-workspace.changes-panel-view')}
           >
-            {t('ui.session-workspace.changes')}
-            {changesCount ? (
-              <span className={styles.count} data-pulse={badgePulse || undefined}>
-                {changesCount}
-              </span>
-            ) : null}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={workspaceActive}
-            className={pane.segBtn}
-            data-active={workspaceActive || undefined}
-            data-testid="rail-tab-workspace"
-            onClick={openWorkspace}
-          >
-            {t('ui.knowledge-local.files')}
-          </button>
-        </div>
-        <span className={styles.wbSpacer} />
-        {summary.files > 0 && changesActive ? (
-          <span
-            className={`${styles.summary} ${pane.railSummary}`}
-            data-pulse={badgePulse || undefined}
-            data-testid="changes-summary"
-          >
-            <span className={styles.add}>+{summary.added}</span>{' '}
-            <span className={styles.del}>−{summary.removed}</span>
-          </span>
-        ) : null}
-        {cwd ? (
-          <button
-            type="button"
-            className={styles.iconBtn}
-            onClick={() => {
-              setNonce((n) => n + 1);
-              if (workspaceActive) void refreshDisk();
-            }}
-            disabled={refreshing}
-            aria-label={t('ui.knowledge-local.refresh')}
-            data-testid={workspaceActive ? 'files-rail-refresh' : 'git-refresh'}
-          >
-            <RefreshCw size={14} className={refreshing ? styles.spin : undefined} />
-          </button>
-        ) : null}
-        {rail && changes.length > 0 ? (
-          <button
-            type="button"
-            className={styles.iconBtn}
-            data-testid="rail-open-fullscreen"
-            aria-label={t('ui.session-workspace.full-screen-review')}
-            onClick={openFullscreen}
-          >
-            <Expand size={14} />
-          </button>
-        ) : null}
-        {onClose ? (
-          <button
-            type="button"
-            className={styles.iconBtn}
-            aria-label={t('ui.session-workspace.hide-changes-panel')}
-            data-testid="files-rail-close"
-            onClick={onClose}
-          >
-            <PanelRightClose size={14} />
-          </button>
-        ) : null}
-      </header>
+            <button
+              type="button"
+              role="tab"
+              aria-label={t('ui.session-workspace.changes')}
+              aria-selected={changesActive}
+              className={pane.segBtn}
+              data-active={changesActive || undefined}
+              data-testid="rail-tab-changes"
+              onClick={() => setView('changes')}
+            >
+              <Icon icon={IconGitCompare} size={14} />
+              <span className={pane.tabLabel}>{t('ui.session-workspace.changes')}</span>
+              {changesCount ? (
+                <span className={styles.count} data-pulse={badgePulse || undefined}>
+                  {changesCount}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-label={t('ui.knowledge-local.files')}
+              aria-selected={workspaceActive}
+              className={pane.segBtn}
+              data-active={workspaceActive || undefined}
+              data-testid="rail-tab-workspace"
+              onClick={openWorkspace}
+            >
+              <Icon icon={IconFolder} size={14} />
+              <span className={pane.tabLabel}>{t('ui.knowledge-local.files')}</span>
+            </button>
+          </div>
+          <span className={styles.wbSpacer} />
+          {summary.files > 0 && changesActive ? (
+            <span
+              className={`${styles.summary} ${pane.railSummary}`}
+              data-pulse={badgePulse || undefined}
+              data-testid="changes-summary"
+            >
+              <span className={styles.add}>+{summary.added}</span>{' '}
+              <span className={styles.del}>−{summary.removed}</span>
+            </span>
+          ) : null}
+          {cwd ? (
+            <button
+              type="button"
+              className={styles.iconBtn}
+              onClick={() => {
+                setNonce((n) => n + 1);
+                if (workspaceActive) void refreshDisk();
+              }}
+              disabled={refreshing}
+              aria-label={t('ui.knowledge-local.refresh')}
+              data-testid={workspaceActive ? 'files-rail-refresh' : 'git-refresh'}
+            >
+              <RefreshCw size={14} className={refreshing ? styles.spin : undefined} />
+            </button>
+          ) : null}
+          {rail && changes.length > 0 ? (
+            <button
+              type="button"
+              className={styles.iconBtn}
+              data-testid="rail-open-fullscreen"
+              aria-label={t('ui.session-workspace.full-screen-review')}
+              onClick={openFullscreen}
+            >
+              <Expand size={14} />
+            </button>
+          ) : null}
+          {onClose ? (
+            <button
+              type="button"
+              className={styles.iconBtn}
+              aria-label={t('ui.session-workspace.hide-changes-panel')}
+              data-testid="files-rail-close"
+              onClick={onClose}
+            >
+              <PanelRightClose size={14} />
+            </button>
+          ) : null}
+        </header>
+      </TitlebarContent>
 
       {/* 各仓库段一直挂在同一个位置（换视图 / 数据源时不重新挂载）；不在「改动 · git」时不画，但仍报状态 */}
       {changesActive && source === 'git' ? filterBox : null}

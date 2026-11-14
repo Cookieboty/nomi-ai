@@ -3,7 +3,7 @@
  * 取消选择不算失败（什么也不显示）；只有文件本身不对才在弹窗里提示。
  */
 import { Button, Icon, Modal, ModalHostContext, t as tr, type CustomThemeDef } from '@nomi-ai/ui';
-import { FileDown, Upload } from 'lucide-react';
+import { IconFileDownload as FileDown, IconUpload as Upload } from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import {

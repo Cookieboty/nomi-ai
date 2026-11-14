@@ -3,7 +3,7 @@
  * 点开右侧抽屉看这一轮的时间线、工具参数与输出、网关请求、子进程收发。抽屉按需加载。
  */
 import { t } from '@nomi-ai/ui';
-import { ScanSearch } from 'lucide-react';
+import { IconZoomScan as ScanSearch } from '@tabler/icons-react';
 import React, { Suspense, lazy, useState } from 'react';
 
 import type { ConvMessage } from '../../types/conversation';

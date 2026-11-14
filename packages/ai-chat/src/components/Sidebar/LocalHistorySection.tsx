@@ -1,5 +1,5 @@
 import { Icon, t } from '@nomi-ai/ui';
-import { RefreshCw } from 'lucide-react';
+import { IconRefresh as RefreshCw } from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import type { HistorySession } from '../../services/historyClient';
@@ -15,24 +15,12 @@ export const LocalHistorySection: React.FC<{
   openingKey: string | null | undefined;
   onOpen: (h: HistorySession) => void;
   onMenu: (h: HistorySession, x: number, y: number, anchor?: HTMLElement) => void;
-  onDelete: (h: HistorySession) => void;
   hasMore: boolean;
   loading: boolean;
   onLoadMore: () => void;
   /** 标题右侧的「刷新」：重新扫描各 CLI 的本机历史 */
   onRefresh?: () => void;
-}> = ({
-  items,
-  scanning,
-  openingKey,
-  onOpen,
-  onMenu,
-  onDelete,
-  hasMore,
-  loading,
-  onLoadMore,
-  onRefresh,
-}) => {
+}> = ({ items, scanning, openingKey, onOpen, onMenu, hasMore, loading, onLoadMore, onRefresh }) => {
   const [open, setOpen] = useState(false);
   const label = open
     ? t('ui.cli-monitor.collapse-local-history')
@@ -71,7 +59,6 @@ export const LocalHistorySection: React.FC<{
             busy={openingKey === h.key}
             onOpen={() => onOpen(h)}
             onMenu={(x, y, anchor) => onMenu(h, x, y, anchor)}
-            onDelete={() => onDelete(h)}
           />
         ))}
       {open && hasMore && (
