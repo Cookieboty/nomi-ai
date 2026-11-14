@@ -1,5 +1,9 @@
 import { Badge, EmptyState, Notice, Tabs, Tooltip, t } from '@nomi-ai/ui';
-import { Info, ReceiptText, TriangleAlert } from 'lucide-react';
+import {
+  IconInfoCircle as Info,
+  IconReceipt as ReceiptText,
+  IconAlertTriangle as TriangleAlert,
+} from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 
 import {

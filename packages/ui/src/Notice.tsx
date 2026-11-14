@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react';
+import type { TablerIcon as IconGlyph } from '@tabler/icons-react';
 import React from 'react';
 
 import { cx } from './cx';
@@ -6,8 +6,8 @@ import { Icon } from './icons';
 
 export interface NoticeProps extends React.HTMLAttributes<HTMLDivElement> {
   tone?: 'info' | 'success' | 'warning' | 'danger';
-  /** 行首 lucide 图标（不要用 emoji 前缀） */
-  icon?: LucideIcon;
+  /** 行首 Tabler 图标（不要用 emoji 前缀） */
+  icon?: IconGlyph;
 }
 
 /** 行内提示条（面板顶部的说明 / 警告 / 错误）。 */

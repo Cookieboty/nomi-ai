@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { IconChevronDown as ChevronDown, IconChevronUp as ChevronUp } from '@tabler/icons-react';
 import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 
 import { cx } from './cx';

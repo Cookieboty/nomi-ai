@@ -19,7 +19,7 @@ import {
   Tabs,
   IconButton,
 } from '@nomi-ai/ui';
-import { Cpu, Trash2 } from 'lucide-react';
+import { IconCpu as Cpu, IconTrash as Trash2 } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {

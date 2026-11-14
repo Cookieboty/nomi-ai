@@ -1,5 +1,5 @@
 import { Icon, t, useLocale } from '@nomi-ai/ui';
-import { Maximize2 } from 'lucide-react';
+import { IconArrowsMaximize as Maximize2 } from '@tabler/icons-react';
 import React, { useEffect, useRef, useState } from 'react';
 
 import { MermaidLightbox } from '../ImageLightbox/MermaidLightbox';

@@ -31,6 +31,7 @@
 }
 /* 在对话旁的标签区里：跟着那一栏排版（标签栏在外面），不再浮在对话上 */
 .panel.embedded {
+  background: var(--cd-workspace-bg);
   position: relative;
   inset: auto;
   width: auto;

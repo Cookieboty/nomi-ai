@@ -6,7 +6,7 @@
   min-width: var(--cd-center-pane-min);
   min-height: 0;
   height: 100%;
-  background: var(--cd-color-surface);
+  background: var(--cd-workspace-bg);
   border-left: 1px solid var(--cd-color-border);
 }
 
@@ -33,7 +33,7 @@
   min-height: var(--cd-control-h-lg);
   padding: 0 var(--cd-space-2);
   border-bottom: 1px solid var(--cd-color-border);
-  background: var(--cd-color-surface);
+  background: var(--cd-workspace-bg);
   --wails-draggable: no-drag;
   -webkit-app-region: no-drag;
 }
@@ -58,7 +58,7 @@
   flex: 0 1 auto;
   min-width: 6.5rem;
   max-width: 14rem;
-  height: var(--cd-control-h-sm);
+  height: var(--cd-control-h-ms);
   border-radius: var(--cd-radius-md);
   color: var(--cd-color-text-muted);
 }
@@ -125,12 +125,12 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: var(--cd-control-h-ms);
+  height: var(--cd-control-h-ms);
   margin-inline-end: var(--cd-space-1);
   padding: 0;
   border: 0;
-  border-radius: var(--cd-radius-sm);
+  border-radius: var(--cd-radius-md);
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -142,7 +142,7 @@
   opacity: 1;
 }
 .close:hover {
-  background: var(--cd-color-hover);
+  background: var(--cd-color-nav-bg);
 }
 
 .addWrap {
@@ -219,4 +219,8 @@
 }
 .dropTarget[data-hot] {
   box-shadow: 0 0 0 2px var(--cd-color-accent-strong);
+}
+
+.close:active {
+  background: var(--cd-color-nav-pressed);
 }

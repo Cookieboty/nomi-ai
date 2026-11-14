@@ -7,13 +7,13 @@ entry in `assets-licenses.json`.
 
 ## Mascot stack
 
-| Component                                                                                                                                                           | Licence              | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Nomi brand assets (`apps/desktop-go/assets/{icon.*,trayTemplate*.png,icons/,app-icons/}`, `docs/brand/*.svg`, `apps/desktop-go/assets/backgrounds/nomi-preset.jpg`) | MIT (owner-provided) | Owner-provided, AI-generated, licensed by project owner (Cookieboty). Vector logo recreated from the brand board by contributors.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Completion chimes (`apps/desktop-go/assets/completion/*.mp3`)                                                                                                       | CC0-1.0              | Synthesised by the project with ffmpeg                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Toolbar icons (`lucide-react`)                                                                                                                                      | ISC                  | Lucide icons — https://lucide.dev/license                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Provider brand icons (`packages/ui/src/brand/icons.ts`, 14 SVGs)                                                                                                    | MIT                  | From `@lobehub/icons-static-svg` 1.95.1 © 2023 LobeHub — https://github.com/lobehub/lobe-icons/blob/master/LICENSE. Logos are trademarks of their respective owners (OpenAI, Anthropic, Google, DeepSeek, Moonshot AI, Zhipu, Alibaba Cloud, ByteDance/Volcengine, MiniMax, xAI, OpenRouter, SiliconFlow, Ollama, LM Studio), shown only to identify the corresponding API service; no endorsement implied. Providers without an icon fall back to initials. The Codex endpoint icon reuses the OpenAI mark and the dsh endpoint icon the DeepSeek whale mark from the same set (`packages/ui/src/brand/endpointGlyphs.ts`, also embedded in the Dynamic Island page); the Nomi endpoint icon is the project's own app mark. |
-| Mascot tip / greeting texts (`characters/nomi/locales/*.json`)                                                                                                      | MIT                  | Original project text                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Component                                                                                                                                                           | Licence              | Notes                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Nomi brand assets (`apps/desktop-go/assets/{icon.*,trayTemplate*.png,icons/,app-icons/}`, `docs/brand/*.svg`, `apps/desktop-go/assets/backgrounds/nomi-preset.jpg`) | MIT (owner-provided) | Owner-provided, AI-generated, licensed by project owner (Cookieboty). Vector logo recreated from the brand board by contributors.                                                                                                                                                                                                                                 |
+| Completion chimes (`apps/desktop-go/assets/completion/*.mp3`)                                                                                                       | CC0-1.0              | Synthesised by the project with ffmpeg                                                                                                                                                                                                                                                                                                                            |
+| UI icons (`@tabler/icons-react`, standalone island SVG subset)                                                                                                      | MIT                  | Tabler 3.52.0 © 2020–2026 Paweł Kuna — https://github.com/tabler/tabler-icons/blob/main/LICENSE. Static named ESM imports; only used icons are bundled.                                                                                                                                                                                                           |
+| Provider and Agent product icons (`packages/ui/src/brand/icons.ts`, standalone island)                                                                              | MIT                  | Selected SVGs from `@lobehub/icons-static-svg` 1.102.0 © 2023 LobeHub — https://github.com/lobehub/lobe-icons/blob/master/LICENSE. Product marks (Claude Code, Codex, Gemini CLI, Grok) are distinct from provider marks. Logos belong to their respective owners and identify the corresponding product or service. Nomi and Amux retain existing local artwork. |
+| Mascot tip / greeting texts (`characters/nomi/locales/*.json`)                                                                                                      | MIT                  | Original project text                                                                                                                                                                                                                                                                                                                                             |
 
 ## Desktop file tools
 
@@ -293,7 +293,8 @@ and the projects above; they are marked as not yet verified against every real i
 | `lodash-es`                                         | 4.18.1        | MIT                     |
 | `longest-streak`                                    | 3.1.0         | MIT                     |
 | `lowlight`                                          | 3.3.0         | MIT                     |
-| `lucide-react`                                      | 1.55.0        | ISC                     |
+| `@tabler/icons-react`                               | 3.52.0        | MIT                     |
+| `@tabler/icons`                                     | 3.52.0        | MIT                     |
 | `markdown-table`                                    | 3.0.4         | MIT                     |
 | `marked`                                            | 16.4.2        | MIT                     |
 | `mdast-util-find-and-replace`                       | 3.0.3         | MIT                     |
@@ -444,4 +445,32 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
+```
+
+## Tabler Icons
+
+The interface uses named imports from `@tabler/icons-react`; the standalone island embeds a small static subset.
+
+```text
+MIT License
+
+Copyright (c) 2020-2026 Paweł Kuna
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```

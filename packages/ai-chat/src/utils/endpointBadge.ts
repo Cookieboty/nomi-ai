@@ -1,4 +1,4 @@
-import { BUILTIN_CLI_ORDER, byCli, cliName } from '@nomi-ai/cli-catalog';
+import { BUILTIN_CLI_ORDER, byCli, cliFullName, cliName } from '@nomi-ai/cli-catalog';
 /**
  * 端点徽标：短标签 + 与灵动岛一致的色调（claude 橙、codex 蓝、dsh 蓝紫、grok 黑、nomi 珊瑚）。
  */
@@ -18,7 +18,7 @@ export const ENDPOINT_NAME: Record<EndpointKey, string> = {
 
 export const ENDPOINT_FULL: Record<ConversationBackend, () => string> = {
   nomi: () => brand.appName,
-  ...byCli((id) => () => cliName(id)),
+  ...byCli((id) => () => cliFullName(id)),
 };
 
 /** CSS 变量友好的 data-ep 值，样式见 Sidebar */

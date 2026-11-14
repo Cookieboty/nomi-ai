@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@nomi-ai/i18n": "workspace:*",
-    "lucide-react": "^1.55.0"
+    "@tabler/icons-react": "^3.52.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",

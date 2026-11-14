@@ -3,7 +3,7 @@
  * Used in the title bar (outside Settings) and in the settings nav footer.
  */
 import { Button, Icon, t, useLocale } from '@nomi-ai/ui';
-import { RefreshCw } from 'lucide-react';
+import { IconRefresh as RefreshCw } from '@tabler/icons-react';
 import React, { useCallback, useState } from 'react';
 
 import { api, hasTransport } from '../../services/api';

@@ -1,6 +1,6 @@
 /** Nomi的 MCP UI 定制：只把上游请求头文本框换成 K–V 行，保存仍交给 extClient.parseKv。 */
 import { Button, Icon, IconButton, Input, t } from '@nomi-ai/ui';
-import { Plus, Trash2 } from 'lucide-react';
+import { IconPlus as Plus, IconTrash as Trash2 } from '@tabler/icons-react';
 import React, { useRef, useState } from 'react';
 
 import styles from './McpHeaderRows.module.css';

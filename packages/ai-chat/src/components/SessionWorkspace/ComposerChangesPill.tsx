@@ -1,6 +1,6 @@
 /** Composer 附近「N 个文件已更改 +x −y」pill；点击打开并排 Diff 工作台 */
 import { t } from '@nomi-ai/ui';
-import { FileDiff } from 'lucide-react';
+import { IconFileDiff as FileDiff } from '@tabler/icons-react';
 import React, { useMemo } from 'react';
 
 import type { ConvMessage } from '../../types/conversation';

@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react';
+import type { TablerIcon as IconGlyph } from '@tabler/icons-react';
 import React from 'react';
 
 import { cx } from './cx';
@@ -9,8 +9,8 @@ export type BadgeTone = 'accent' | 'neutral' | 'success' | 'warning' | 'danger';
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   tone?: BadgeTone;
   outline?: boolean;
-  /** 文字前的 lucide 小图标（12px） */
-  icon?: LucideIcon;
+  /** 文字前的 Tabler 小图标（12px） */
+  icon?: IconGlyph;
 }
 
 export const Badge: React.FC<BadgeProps> = ({

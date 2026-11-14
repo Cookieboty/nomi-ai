@@ -10,7 +10,11 @@ import { useTasksHost } from '../components/Tasks';
 
 export type MainPage = 'tasks' | 'assets' | 'fleet';
 
-export function useMainPages(onOpenSchedule: () => void) {
+export function useMainPages(
+  onOpenSchedule: () => void,
+  onNavigate?: () => void,
+  inactive = false,
+) {
   const assets = useAssetLibraryHost(true);
   // 任务页：旧的提醒 / 定时点开进日程面板
   const tasks = useTasksHost(true, onOpenSchedule);
@@ -48,17 +52,17 @@ export function useMainPages(onOpenSchedule: () => void) {
   const tasksNav = tasks.nav;
   const assetNav = assets.nav;
   const fleetNav = fleet.nav;
-  const topNav = useMemo(
-    () =>
-      assetNav || tasksNav || fleetNav ? (
-        <div className="side-top-nav">
-          {tasksNav}
-          {fleetNav}
-          {assetNav}
-        </div>
-      ) : null,
-    [tasksNav, assetNav, fleetNav],
-  );
+  const topNav = useMemo(() => {
+    const nav = (item: React.ReactElement<{ active: boolean }> | null) =>
+      item && React.cloneElement(item, { active: !inactive && item.props.active });
+    return assetNav || tasksNav || fleetNav ? (
+      <div className="side-top-nav" onClickCapture={onNavigate}>
+        {nav(tasksNav)}
+        {nav(fleetNav)}
+        {nav(assetNav)}
+      </div>
+    ) : null;
+  }, [tasksNav, assetNav, fleetNav, inactive, onNavigate]);
 
   // 侧栏里点会话 / 新建 / 打开历史：关掉整页，直接回到对话
   const leave = useCallback(() => {

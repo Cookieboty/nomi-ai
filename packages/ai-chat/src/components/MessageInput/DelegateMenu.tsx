@@ -3,7 +3,7 @@
  * 选了之后输入框上方出现「交给 X ×」。委派没开时只给一句去哪儿打开的说明。
  */
 import { Icon, t as tr } from '@nomi-ai/ui';
-import { ChevronLeft } from 'lucide-react';
+import { IconChevronLeft as ChevronLeft } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 
 import { delegateClient, type DelegateCli } from '../../services/delegateClient';

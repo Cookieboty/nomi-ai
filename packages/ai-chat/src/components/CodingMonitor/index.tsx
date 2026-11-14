@@ -15,7 +15,7 @@ import {
   Switch,
   t as tr,
 } from '@nomi-ai/ui';
-import { SquareTerminal } from 'lucide-react';
+import { IconTerminal2 as SquareTerminal } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {

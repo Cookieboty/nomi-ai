@@ -1,5 +1,5 @@
 import { Icon } from '@nomi-ai/ui';
-import { Search } from 'lucide-react';
+import { IconSearch as Search } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 
 import type { HistorySession } from '../../services/historyClient';

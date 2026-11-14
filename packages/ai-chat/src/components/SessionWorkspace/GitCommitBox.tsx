@@ -4,13 +4,13 @@
  */
 import { Button, Checkbox, Disclosure, t } from '@nomi-ai/ui';
 import {
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  Bot,
-  CloudDownload,
-  Sparkles,
-  Undo2,
-} from 'lucide-react';
+  IconDownload as ArrowDownToLine,
+  IconUpload as ArrowUpFromLine,
+  IconRobot as Bot,
+  IconCloudDownload as CloudDownload,
+  IconSparkles as Sparkles,
+  IconArrowBackUp as Undo2,
+} from '@tabler/icons-react';
 import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 import {

@@ -2,8 +2,8 @@ import React, { forwardRef } from 'react';
 
 import { cx } from './cx';
 
-export type ButtonVariant = 'secondary' | 'primary' | 'ghost' | 'danger';
-export type ButtonSize = 'sm' | 'md' | 'lg';
+export type ButtonVariant = 'secondary' | 'primary' | 'ghost' | 'danger' | 'nav';
+export type ButtonSize = 'sm' | 'ms' | 'md' | 'lg';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;

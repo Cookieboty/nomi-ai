@@ -18,7 +18,11 @@ import {
   type PickerProvider,
   type SelectOption,
 } from '@nomi-ai/ui';
-import { ChevronDown, ChevronLeft, ChevronRight, Cpu } from 'lucide-react';
+import {
+  IconChevronDown as ChevronDown,
+  IconChevronLeft as ChevronLeft,
+  IconChevronRight as ChevronRight,
+} from '@tabler/icons-react';
 import React, { useEffect, useRef, useState } from 'react';
 
 import { registerModelMenu } from '../../services/modelMenu';
@@ -182,7 +186,6 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
           aria-label={disabled.ariaLabel}
           data-testid={`${prefix}-chip`}
         >
-          <Icon icon={Cpu} />
           <span className={styles.label}>{disabled.label}</span>
         </button>
       </div>
@@ -271,11 +274,7 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
         data-testid={`${prefix}-chip`}
         onClick={toggle}
       >
-        {source.brand ? (
-          <BrandIcon brand={source.brand} name={source.label} size={16} inline />
-        ) : (
-          <Icon icon={Cpu} />
-        )}
+        {source.brand && <BrandIcon brand={source.brand} name={source.label} size={16} inline />}
         <span className={styles.label}>{source.label}</span>
         {source.longBadge && (
           <span className={styles.longBadge} data-testid={`${prefix}-chip-long`}>

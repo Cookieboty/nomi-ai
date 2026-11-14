@@ -1,5 +1,5 @@
 /**
- * 通用 UI 图标：lucide-react（ISC），统一走 @nomi-ai/ui 的 `Icon`（尺寸 / 线宽 / currentColor 规范）。
+ * 通用 UI 图标：@tabler/icons-react（MIT，具名按需导入），统一走 @nomi-ai/ui 的 `Icon`（尺寸 / 线宽 / currentColor 规范）。
  * 供应商品牌仍用 @nomi-ai/ui BrandIcon / EndpointIcon（lobehub 静态 SVG）。
  * 不引入完整 @lobehub/icons React 包（体积大、且品牌已覆盖）。
  *
@@ -8,35 +8,35 @@
  */
 import { Icon, type ICON_SIZE } from '@nomi-ai/ui';
 import {
-  Bug,
-  AudioLines,
-  Bell,
-  Link2,
-  BookOpen,
-  Bot,
-  Boxes,
-  Brain,
-  Coins,
-  Cpu,
-  Info,
-  Puzzle,
-  Settings,
-  ShieldCheck,
-  SlidersHorizontal,
-  Sparkles,
-  SquareTerminal,
-  type LucideIcon,
-  type LucideProps,
-  Paperclip,
-  AtSign,
-  Forward,
-  MonitorCog,
-  MousePointerClick,
-  ListChecks,
-  GraduationCap,
-  Zap,
-  Scale,
-} from 'lucide-react';
+  IconBug as Bug,
+  IconWaveSine as AudioLines,
+  IconBell as Bell,
+  IconLink as Link2,
+  IconBook2 as BookOpen,
+  IconRobot as Bot,
+  IconPackages as Boxes,
+  IconBrain as Brain,
+  IconCoins as Coins,
+  IconCpu as Cpu,
+  IconInfoCircle as Info,
+  IconPuzzle as Puzzle,
+  IconSettings as Settings,
+  IconShieldCheck as ShieldCheck,
+  IconAdjustmentsHorizontal as SlidersHorizontal,
+  IconSparkles as Sparkles,
+  IconTerminal2 as SquareTerminal,
+  type TablerIcon as IconGlyph,
+  type IconProps as IconGlyphProps,
+  IconPaperclip as Paperclip,
+  IconAt as AtSign,
+  IconArrowForwardUp as Forward,
+  IconDeviceDesktopCog as MonitorCog,
+  IconClick as MousePointerClick,
+  IconListCheck as ListChecks,
+  IconSchool as GraduationCap,
+  IconBolt as Zap,
+  IconScale as Scale,
+} from '@tabler/icons-react';
 import React from 'react';
 
 export function AppIcon({
@@ -44,7 +44,7 @@ export function AppIcon({
   size = 'inline',
   className,
 }: {
-  icon: LucideIcon;
+  icon: IconGlyph;
   /** 数字（px）或预设 nav(18) / inline(16) / empty(22)；默认 16 */
   size?: number | keyof typeof ICON_SIZE;
   className?: string;
@@ -118,4 +118,4 @@ export const FEATURE_ICONS = {
   compare: Scale,
 } as const;
 
-export type { LucideIcon, LucideProps };
+export type { IconGlyph, IconGlyphProps };

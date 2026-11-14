@@ -4,7 +4,12 @@
  * 列表可能有几百行：行组件是 memo，回调由调用方保持引用稳定。
  */
 import { Button, Checkbox, formatContext, Icon, Input, Select, t, useLocale } from '@nomi-ai/ui';
-import { ChevronRight, Loader2, Plus, RefreshCw } from 'lucide-react';
+import {
+  IconChevronRight as ChevronRight,
+  IconLoader2 as Loader2,
+  IconPlus as Plus,
+  IconRefresh as RefreshCw,
+} from '@tabler/icons-react';
 import React, { memo, useMemo, useState } from 'react';
 
 import type { GatewayModel } from '../../services/gatewayClient';

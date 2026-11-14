@@ -1,5 +1,5 @@
 import { Button, Icon, t } from '@nomi-ai/ui';
-import { Activity } from 'lucide-react';
+import { IconActivity as Activity, IconCpu } from '@tabler/icons-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -92,7 +92,9 @@ export const FleetIndicator: React.FC<{
       >
         <Icon icon={Activity} size={14} />
         <span className={styles.indicatorText}>
-          {sum.running} · {formatBytes(total)} · {t('ui.cli-monitor.fleet-cpu', cpu)}
+          {sum.running} · {formatBytes(total)} ·
+          <Icon icon={IconCpu} size={14} />
+          {cpu}
         </span>
         {sum.needsYou > 0 && <span className={styles.indicatorDot} aria-hidden />}
       </button>

@@ -44,9 +44,9 @@ export function collectCredits(
   rows.push({
     key: 'ui-icons',
     title: t('ui.chat-settings.toolbar-icons'),
-    author: 'Lucide contributors',
-    license: 'ISC',
-    source: 'https://lucide.dev/license',
+    author: 'Paweł Kuna / Tabler contributors',
+    license: 'MIT',
+    source: 'https://github.com/tabler/tabler-icons/blob/main/LICENSE',
   });
   rows.push({
     key: 'icon',

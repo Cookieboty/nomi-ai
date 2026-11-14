@@ -13,8 +13,8 @@ import {
   USER_INTERESTS,
   USER_ROLES,
   type UserInterest,
-  type UserProfile,
   type UserRole,
+  type UserProfile,
 } from '@nomi-ai/types';
 import {
   Badge,
@@ -35,18 +35,41 @@ import {
   type LocalePref,
   type ThemePref,
 } from '@nomi-ai/ui';
-import { Check, CheckCircle2, Cloud, KeyRound, Lock } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  IconBook2 as BookOpen,
+  IconMessageChatbot as BotMessageSquare,
+  IconPackages as Boxes,
+  IconBriefcase as Briefcase,
+  IconCalendarCheck as CalendarCheck2,
+  IconCheck as Check,
+  IconCircleCheck as CheckCircle2,
+  IconCloud as Cloud,
+  IconCode as Code2,
+  IconCompass as Compass,
+  IconFeather as Feather,
+  IconSchool as GraduationCap,
+  IconKey as KeyRound,
+  IconLanguage as Languages,
+  IconLayoutSidebar as LayoutPanelLeft,
+  IconLock as Lock,
+  IconPlug as Plug,
+  IconSparkles as Sparkles,
+  type TablerIcon as IconGlyph,
+} from '@tabler/icons-react';
+import React, { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 
 import { useNomiModelStatus } from '../../hooks/useNomiModelStatus';
 import { characterName, useCharacterName } from '../../services/characterName';
 import { startupClient, type StartupView } from '../../services/startupClient';
 import { requestOpenFleet } from '../../services/workbenchNav';
 import { isImeComposing } from '../../utils/keyboard';
+import { BrandLockup } from '../BrandIntro/BrandLockup';
+import { introActive, introHolding, startupBrandIntro, useBrandIntro } from '../BrandIntro/state';
 import { DISPATCH_CLIS } from '../DispatchCli';
 import { EndpointIcon } from '../EndpointIcon';
 import { useCliInstall } from '../ModelsPage/useCliInstall';
 import { ChatBackgroundSettings } from '../SettingsView/ChatBackgroundSettings';
+import { ThemeChoice, ThemeMiniature } from '../ThemeChoice';
 
 import {
   OPEN_MODELS_EVENT,
@@ -56,6 +79,7 @@ import {
   personaBlockLines,
 } from './client';
 import styles from './index.module.css';
+import choiceStyles from './PersonalChoices.module.css';
 import { ProviderSetup } from './ProviderSetup';
 
 const STEPS = ['welcome', 'ai', 'personal'] as const;
@@ -89,9 +113,10 @@ const Group: React.FC<{
   title: string;
   desc?: string;
   id?: string;
+  className?: string;
   children: React.ReactNode;
-}> = ({ title, desc, id, children }) => (
-  <section className={styles.group} aria-labelledby={id}>
+}> = ({ title, desc, id, className = '', children }) => (
+  <section className={`${styles.group} ${className}`} aria-labelledby={id}>
     <div className={styles.groupHead}>
       <h2 className={styles.groupTitle} id={id}>
         {title}
@@ -102,7 +127,24 @@ const Group: React.FC<{
   </section>
 );
 
-/** 可选中的卡片（主题、职业、启动方式）：选中只换描边并在右上角打勾，不整块填色 */
+/** 光标随动微光：通过 CSS 变量 --mx / --my 零重渲染驱动局部聚光灯 */
+const trackSpotlight = (e: React.PointerEvent<HTMLElement>) => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  e.currentTarget.style.setProperty('--mx', `${e.clientX - rect.left}px`);
+  e.currentTarget.style.setProperty('--my', `${e.clientY - rect.top}px`);
+};
+
+/** 卡片整体环境聚光灯 */
+const trackCanvasSpotlight = (e: React.PointerEvent<HTMLDivElement>) => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  e.currentTarget.style.setProperty('--cx', `${e.clientX - rect.left}px`);
+  e.currentTarget.style.setProperty('--cy', `${e.clientY - rect.top}px`);
+};
+
+/** 波浪入场索引样式 */
+const stagger = (index: number): CSSProperties => ({ '--onb-i': index }) as CSSProperties;
+
+/** 可选中的交互卡片（主题、职业、启动方式）：极简紧凑单/双行卡片 + 光标微光 + 选中微缩放 */
 const OptionCard: React.FC<{
   on: boolean;
   role: 'radio' | 'checkbox';
@@ -110,22 +152,49 @@ const OptionCard: React.FC<{
   title: string;
   hint?: string;
   preview?: React.ReactNode;
+  icon?: React.ReactNode;
+  compact?: boolean;
+  hideCheck?: boolean;
+  index?: number;
+  className?: string;
+  iconClassName?: string;
   onClick: () => void;
-}> = ({ on, role, testId, title, hint, preview, onClick }) => (
+}> = ({
+  on,
+  role,
+  testId,
+  title,
+  hint,
+  preview,
+  icon,
+  compact,
+  hideCheck,
+  index,
+  className = '',
+  iconClassName = '',
+  onClick,
+}) => (
   <button
     type="button"
     role={role}
     aria-checked={on}
     data-testid={testId}
-    className={`${styles.option} ${on ? styles.optionOn : ''}`}
+    className={`${styles.option} ${compact ? styles.optionCompact : ''} ${on ? styles.optionOn : ''} ${className}`}
+    style={index === undefined ? undefined : stagger(index)}
+    onPointerMove={trackSpotlight}
     onClick={onClick}
   >
     {preview}
-    <span className={styles.optionTitle}>{title}</span>
-    {hint && <span className={styles.optionHint}>{hint}</span>}
-    <span className={styles.optionCheck} aria-hidden>
-      <Check size={12} strokeWidth={3} />
+    {icon && <span className={`${styles.optionIcon} ${iconClassName}`}>{icon}</span>}
+    <span className={styles.optionText}>
+      <span className={styles.optionTitle}>{title}</span>
+      {hint && <span className={styles.optionHint}>{hint}</span>}
     </span>
+    {!hideCheck && (
+      <span className={styles.optionCheck} aria-hidden>
+        <Check size={13} strokeWidth={2.75} />
+      </span>
+    )}
   </button>
 );
 
@@ -152,30 +221,36 @@ const STARTUPS: { id: StartupView; label: () => string; hint: () => string }[] =
 /** 早期引导写的「回答语气」行：这个功能已删除，重写引导那一段时丢掉 */
 const DROPPED_TONE_LINE = /^- (回答语气|Reply tone)[:：]/;
 
-const ROLE_LABEL: Record<UserRole, { label: () => string; hint: () => string }> = {
+const ROLE_LABEL: Record<UserRole, { label: () => string; hint: () => string; icon: IconGlyph }> = {
   developer: {
     label: () => t('ui.mascot-theme.role-developer'),
     hint: () => t('ui.mascot-theme.role-developer-hint'),
+    icon: Code2,
   },
   product: {
     label: () => t('ui.mascot-theme.role-product'),
     hint: () => t('ui.mascot-theme.role-product-hint'),
+    icon: Compass,
   },
   creator: {
     label: () => t('ui.mascot-theme.role-creator'),
     hint: () => t('ui.mascot-theme.role-creator-hint'),
+    icon: Feather,
   },
   office: {
     label: () => t('ui.mascot-theme.role-office'),
     hint: () => t('ui.mascot-theme.role-office-hint'),
+    icon: Briefcase,
   },
   student: {
     label: () => t('ui.mascot-theme.role-student'),
     hint: () => t('ui.mascot-theme.role-student-hint'),
+    icon: GraduationCap,
   },
   other: {
     label: () => t('ui.mascot-theme.role-other'),
     hint: () => t('ui.mascot-theme.role-other-hint'),
+    icon: Sparkles,
   },
 };
 
@@ -188,9 +263,36 @@ const INTEREST_LABEL: Record<UserInterest, () => string> = {
   automation: () => t('ui.mascot-theme.interest-automation'),
 };
 
+const INTEREST_ICON: Record<UserInterest, IconGlyph> = {
+  coding: Code2,
+  writing: Feather,
+  language: Languages,
+  learning: BookOpen,
+  productivity: CalendarCheck2,
+  automation: Plug,
+};
+
+const EXIT_MS = 140;
+const prefersReducedMotion = (): boolean =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ onDone }) => {
   useLocale();
+  const intro = useBrandIntro();
+  const introBrandRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    startupBrandIntro.setTarget(introBrandRef.current);
+    return () => startupBrandIntro.setTarget(null);
+  }, []);
   const [i, setI] = useState(0);
+  const [navI, setNavI] = useState(0);
+  const [dir, setDir] = useState<'next' | 'prev'>('next');
+  const [phase, setPhase] = useState<'in' | 'out'>('in');
+  const targetStepRef = useRef<number | null>(null);
+  const exitTimerRef = useRef<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   // 引导是阻断式对话框：焦点留在卡片内（Esc 不关闭，需点「跳过引导」）
   const cardRef = useRef<HTMLDivElement>(null);
   useFocusTrap(cardRef, true);
@@ -312,16 +414,62 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
     );
   };
 
+  const commitStep = useCallback((idx: number) => {
+    targetStepRef.current = null;
+    exitTimerRef.current = null;
+    setI(idx);
+    setNavI(idx);
+    setPhase('in');
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, []);
+
+  const goToStep = useCallback(
+    (nextIndex: number) => {
+      const clamped = Math.max(0, Math.min(nextIndex, STEPS.length - 1));
+      const base = targetStepRef.current ?? i;
+      if (clamped === base) return;
+      setDir(clamped > base ? 'next' : 'prev');
+      setNavI(clamped);
+      if (prefersReducedMotion()) {
+        if (exitTimerRef.current !== null) window.clearTimeout(exitTimerRef.current);
+        commitStep(clamped);
+        return;
+      }
+      targetStepRef.current = clamped;
+      setPhase('out');
+      if (exitTimerRef.current !== null) return;
+      exitTimerRef.current = window.setTimeout(() => {
+        commitStep(targetStepRef.current ?? clamped);
+      }, EXIT_MS);
+    },
+    [commitStep, i],
+  );
+
+  useEffect(
+    () => () => {
+      if (exitTimerRef.current !== null) window.clearTimeout(exitTimerRef.current);
+    },
+    [],
+  );
+
   // 保存（写 persona / 职业与兴趣）期间不能再前进 / 后退 / 跳过，否则会连跳两步或丢掉正在写的内容
   const savingRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const next = async () => {
     if (savingRef.current) return;
+    const cur = targetStepRef.current ?? i;
+    if (cur < STEPS.length - 1) {
+      goToStep(cur + 1);
+      return;
+    }
+    if (exitTimerRef.current !== null) {
+      window.clearTimeout(exitTimerRef.current);
+      commitStep(cur);
+    }
     savingRef.current = true;
     setSaving(true);
     try {
-      if (i === STEPS.length - 1) return await finish(false);
-      setI(i + 1);
+      await finish(false);
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -329,8 +477,24 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   };
   const skipStep = () => {
     if (savingRef.current) return;
-    setI(Math.min(i + 1, STEPS.length - 1));
+    const cur = targetStepRef.current ?? i;
+    goToStep(Math.min(cur + 1, STEPS.length - 1));
   };
+  const nextRef = useRef(next);
+  useEffect(() => {
+    nextRef.current = next;
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter') return;
+      if (isImeComposing(e) || savingRef.current) return;
+      if (document.querySelector('[role="alertdialog"], .cd-modal-overlay')) return;
+      e.preventDefault();
+      void nextRef.current();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const touch = () => {
     profileTouched.current = true;
   };
@@ -338,14 +502,26 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   const body = (() => {
     switch (step) {
       case 'welcome': {
-        // 浅色（新安装默认）排在前面，不把日落橙标成另一套默认
-        const themes = [
-          ...THEMES.filter((x) => x.id === 'light' || x.id === 'dark' || x.id === 'sunset'),
-          ...THEMES.filter((x) => x.id !== 'light' && x.id !== 'dark' && x.id !== 'sunset'),
+        // 第一排：跟随系统、浅色、深色；第二排：亮色主题；第三排：暗色主题
+        const order: readonly ThemePref[] = [
+          'system',
+          'light',
+          'dark',
+          'sunset',
+          'cream',
+          'mist',
+          'ink',
+          'graphite',
+          'image',
         ];
+        const themes = [...THEMES].sort((a, b) => {
+          const ia = order.indexOf(a.id);
+          const ib = order.indexOf(b.id);
+          return (ia === -1 ? order.length : ia) - (ib === -1 ? order.length : ib);
+        });
         return (
           <>
-            <Group title={t('ui.mascot-theme.choose-your-language')}>
+            <Group title={t('ui.voice-mascot.language')}>
               <SegmentedControl<LocalePref>
                 aria-label={t('ui.voice-mascot.language')}
                 className={styles.segmented}
@@ -367,33 +543,27 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                 role="radiogroup"
                 aria-labelledby="onb-theme-label"
               >
-                {themes.map((x) => (
-                  <OptionCard
+                {themes.map((x, idx) => (
+                  <ThemeChoice
                     key={x.id}
-                    role="radio"
-                    on={theme === x.id}
+                    className={styles.themeChoice}
+                    style={stagger(idx)}
+                    selected={theme === x.id}
                     testId={`onb-theme-${x.id}`}
-                    title={t(x.name)}
-                    preview={
-                      <span
-                        className={styles.swatch}
-                        aria-hidden
-                        style={{
-                          background:
-                            x.id === 'system'
-                              ? `linear-gradient(110deg, ${x.swatch[0]} 50%, ${x.swatch[2]} 50%)`
-                              : `linear-gradient(135deg, ${x.swatch[0]} 62%, ${x.swatch[3]} 62%)`,
-                        }}
-                      />
-                    }
-                    onClick={() => {
+                    label={t(x.name)}
+                    preview={<ThemeMiniature swatch={x.swatch} system={x.id === 'system'} />}
+                    onPick={() => {
                       setThemeSel(x.id);
                       void setTheme(x.id);
                     }}
                   />
                 ))}
               </div>
-              {theme === 'image' && <ChatBackgroundSettings />}
+              {theme === 'image' && (
+                <div className={styles.revealPanel}>
+                  <ChatBackgroundSettings />
+                </div>
+              )}
             </Group>
           </>
         );
@@ -402,16 +572,22 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
         return (
           <>
             <Group
-              title={t('ui.providers-schedule.coding-agents')}
+              title={t('ui.mascot-theme.onb-section-agents')}
               desc={t('ui.mascot-theme.onb-agents-group-desc')}
             >
               <ul className={styles.list}>
-                {DISPATCH_CLIS.map((id) => {
+                {DISPATCH_CLIS.map((id, idx) => {
                   const installed = cli.installed(id);
                   return (
-                    <li key={id} className={styles.listRow} data-testid={`onb-agent-${id}`}>
+                    <li
+                      key={id}
+                      className={styles.listRow}
+                      style={stagger(idx)}
+                      data-testid={`onb-agent-${id}`}
+                      onPointerMove={trackSpotlight}
+                    >
                       <span className={styles.listIcon}>
-                        <EndpointIcon backend={id} size={20} decorative />
+                        <EndpointIcon backend={id} size={18} decorative />
                       </span>
                       <span className={styles.listName}>{cliName(id)}</span>
                       {installed ? (
@@ -454,14 +630,16 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
               <p className={styles.note}>{t('ui.mascot-theme.onb-agents-note')}</p>
               {cli.dialog}
             </Group>
-            <Group
-              title={t('ui.mascot-theme.onb-section-model')}
-              desc={t('ui.mascot-theme.onb-model-optional')}
-            >
+            <Group title={t('ui.foundation.model')} desc={t('ui.mascot-theme.onb-model-optional')}>
               {modelOpen || model === 'ready' || model === 'unassigned' ? (
-                <ProviderSetup onOpenModels={openModels} />
+                <div className={styles.revealPanel}>
+                  <ProviderSetup onOpenModels={openModels} />
+                </div>
               ) : (
-                <div className={styles.collapsed}>
+                <div className={styles.collapsed} onPointerMove={trackSpotlight}>
+                  <span className={styles.collapsedIcon} aria-hidden>
+                    <Icon icon={Boxes} size={15} />
+                  </span>
                   <span className={styles.collapsedText}>
                     {t('ui.mascot-theme.onb-model-none')}
                   </span>
@@ -482,36 +660,56 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
         return (
           <>
             <Group title={t('ui.mascot-theme.name')}>
-              <Input
-                className={styles.input}
-                data-testid="onb-name"
-                aria-label={t('ui.mascot-theme.name')}
-                value={name}
-                maxLength={40}
-                placeholder={t('ui.mascot-theme.e-g-lin-boss-your-name')}
-                onChange={(e) => {
-                  touch();
-                  setName(e.target.value);
-                }}
-                onKeyDown={(e) =>
-                  e.key === 'Enter' && !isImeComposing(e.nativeEvent) && void next()
-                }
-              />
+              <div className={styles.inputWrap} onPointerMove={trackSpotlight}>
+                <Input
+                  className={styles.input}
+                  data-testid="onb-name"
+                  aria-label={t('ui.mascot-theme.name')}
+                  value={name}
+                  maxLength={40}
+                  placeholder={t('ui.mascot-theme.e-g-lin-boss-your-name')}
+                  onChange={(e) => {
+                    touch();
+                    setName(e.target.value);
+                  }}
+                  onKeyDown={(e) =>
+                    e.key === 'Enter' && !isImeComposing(e.nativeEvent) && void next()
+                  }
+                />
+                {name.trim() && (
+                  <span className={styles.inputGreeting} aria-hidden>
+                    <Sparkles size={12} />
+                    <span className={styles.inputGreetingText}>
+                      {t('ui.mascot-theme.got-it-that-s-what-i-ll-call', name.trim().slice(0, 40))}
+                    </span>
+                  </span>
+                )}
+              </div>
             </Group>
-            <Group title={t('ui.mascot-theme.occupation')} id="onb-role-label">
+            <Group
+              title={t('ui.mascot-theme.occupation')}
+              desc={role ? ROLE_LABEL[role].hint() : undefined}
+              id="onb-role-label"
+              className={choiceStyles.group}
+            >
               <div
-                className={`${styles.options} ${styles.optionsRoles}`}
+                className={`${styles.options} ${styles.optionsRoles} ${choiceStyles.roles}`}
                 role="radiogroup"
                 aria-labelledby="onb-role-label"
               >
-                {USER_ROLES.map((r) => (
+                {USER_ROLES.map((r, idx) => (
                   <OptionCard
                     key={r}
+                    compact
+                    hideCheck
                     role="radio"
+                    index={idx}
                     on={role === r}
                     testId={`onb-role-${r}`}
                     title={ROLE_LABEL[r].label()}
-                    hint={ROLE_LABEL[r].hint()}
+                    className={choiceStyles.role}
+                    iconClassName={choiceStyles.roleIcon}
+                    icon={<Icon icon={ROLE_LABEL[r].icon} size={15} />}
                     onClick={() => {
                       touch();
                       setRole(r);
@@ -524,9 +722,14 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
               title={t('ui.mascot-theme.interests-pick-any')}
               desc={t('ui.mascot-theme.i-ll-suggest-coding-agents-example-questions')}
               id="onb-interests-label"
+              className={choiceStyles.group}
             >
-              <div className={styles.pills} role="group" aria-labelledby="onb-interests-label">
-                {USER_INTERESTS.map((x) => {
+              <div
+                className={`${styles.pills} ${choiceStyles.interests}`}
+                role="group"
+                aria-labelledby="onb-interests-label"
+              >
+                {USER_INTERESTS.map((x, idx) => {
                   const on = interests.includes(x);
                   return (
                     <button
@@ -535,7 +738,9 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                       role="checkbox"
                       aria-checked={on}
                       data-testid={`onb-interest-${x}`}
-                      className={`${styles.pill} ${on ? styles.pillOn : ''}`}
+                      className={`${styles.pill} ${on ? styles.pillOn : ''} ${choiceStyles.interest}`}
+                      style={stagger(idx)}
+                      onPointerMove={trackSpotlight}
                       onClick={() => {
                         touch();
                         setInterests((cur) =>
@@ -545,8 +750,11 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                         );
                       }}
                     >
-                      {on && <Check size={14} strokeWidth={2.5} aria-hidden />}
-                      {INTEREST_LABEL[x]()}
+                      <span className={styles.pillGlyph} aria-hidden>
+                        <Icon icon={INTEREST_ICON[x]} size={13} className={styles.pillIconBase} />
+                        <Check size={13} strokeWidth={2.75} className={styles.pillIconCheck} />
+                      </span>
+                      <span>{INTEREST_LABEL[x]()}</span>
                     </button>
                   );
                 })}
@@ -558,14 +766,20 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                 role="radiogroup"
                 aria-labelledby="onb-startup-label"
               >
-                {STARTUPS.map((x) => (
+                {STARTUPS.map((x, idx) => (
                   <OptionCard
                     key={x.id}
+                    compact
+                    hideCheck
                     role="radio"
+                    index={idx}
                     on={startup === x.id}
                     testId={`onb-startup-${x.id}`}
                     title={x.label()}
                     hint={x.hint()}
+                    icon={
+                      <Icon icon={x.id === 'main' ? LayoutPanelLeft : BotMessageSquare} size={16} />
+                    }
                     onClick={() => {
                       const prev = startup;
                       setStartup(x.id);
@@ -579,18 +793,43 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                 ))}
               </div>
             </Group>
+            <div className={styles.personaEcho} aria-hidden onPointerMove={trackSpotlight}>
+              <EndpointIcon backend="nomi" size={18} decorative className={styles.echoLogo} />
+              <div className={styles.echoTags}>
+                <span className={styles.echoTag}>
+                  {startup === 'main'
+                    ? t('ui.mascot-theme.onb-startup-workbench')
+                    : tName('ui.mascot-theme.onb-startup-character', characterName())}
+                </span>
+                {name.trim() && (
+                  <span className={`${styles.echoTag} ${styles.echoTagAccent}`}>
+                    {name.trim().slice(0, 20)}
+                  </span>
+                )}
+                {role && (
+                  <span className={`${styles.echoTag} ${styles.echoTagAccent}`}>
+                    {ROLE_LABEL[role].label()}
+                  </span>
+                )}
+                {interests.map((x) => (
+                  <span key={x} className={styles.echoTag}>
+                    {INTEREST_LABEL[x]()}
+                  </span>
+                ))}
+              </div>
+            </div>
             <ul className={styles.privacy}>
-              <li>
-                <Icon icon={Lock} size={14} />
-                {t('ui.mascot-theme.chats-memories-and-the-knowledge-base-stay-local')}
+              <li style={stagger(0)}>
+                <Icon icon={Lock} size={12} />
+                <span>{t('ui.mascot-theme.chats-memories-and-the-knowledge-base-stay-local')}</span>
               </li>
-              <li>
-                <Icon icon={KeyRound} size={14} />
-                {t('ui.mascot-theme.api-keys-are-encrypted-with-the-system-secure')}
+              <li style={stagger(1)}>
+                <Icon icon={KeyRound} size={12} />
+                <span>{t('ui.mascot-theme.api-keys-are-encrypted-with-the-system-secure')}</span>
               </li>
-              <li>
-                <Icon icon={Cloud} size={14} />
-                {t('ui.mascot-theme.onb-models-official')}
+              <li style={stagger(2)}>
+                <Icon icon={Cloud} size={12} />
+                <span>{t('ui.mascot-theme.onb-models-official')}</span>
               </li>
             </ul>
           </>
@@ -599,58 +838,118 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   })();
 
   const last = i === STEPS.length - 1;
+  const navLast = navI === STEPS.length - 1;
+  const pct = ((navI + 1) / STEPS.length) * 100;
+  const isMac =
+    typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || navigator.userAgent);
   return (
-    <div className={styles.overlay} data-testid="onboarding" data-step={step}>
+    <div
+      className={styles.overlay}
+      data-testid="onboarding"
+      data-step={step}
+      data-brand-intro={introActive(intro.phase) || undefined}
+    >
       <div
         ref={cardRef}
         className={styles.card}
         role="dialog"
         aria-modal="true"
         aria-labelledby="onb-title"
+        onPointerMove={trackCanvasSpotlight}
       >
-        <header className={styles.head}>
-          <ol
-            className={styles.stepper}
-            aria-label={t('ui.mascot-theme.step-of', i + 1, STEPS.length)}
-          >
-            {STEPS.map((s, k) => (
-              <li
-                key={s}
-                className={`${styles.stepItem} ${k === i ? styles.stepOn : ''} ${k < i ? styles.stepDone : ''}`}
-                aria-current={k === i ? 'step' : undefined}
-              >
-                <span className={styles.stepNo} aria-hidden>
-                  {k < i ? <Check size={12} strokeWidth={3} /> : k + 1}
-                </span>
-                <span className={styles.stepName}>{STEP_NAME[s]()}</span>
-              </li>
-            ))}
-          </ol>
-          <Button
-            variant="ghost"
-            size="sm"
-            data-testid="onboarding-skip-all"
-            onClick={() => void finish(true)}
-          >
-            {t('ui.mascot-theme.skip-guide')}
-          </Button>
-        </header>
-        <div className={styles.scroll}>
-          <div className={styles.step} key={step} data-testid={`onboarding-step-${step}`}>
-            <h1 id="onb-title" className={styles.title}>
-              {STEP_TITLE[step]()}
-            </h1>
-            <p className={styles.intro}>{STEP_INTRO[step]()}</p>
-            <div className={styles.body}>{body}</div>
+        <div className={styles.progressTrack} aria-hidden>
+          <div className={styles.progressFill} style={{ width: `${pct}%` }} />
+        </div>
+        <header className={styles.topBar}>
+          <div className={styles.topLeft}>
+            <span className={styles.brand}>
+              <BrandLockup ref={introBrandRef} />
+            </span>
           </div>
+          <nav className={styles.railNav}>
+            <ol
+              className={styles.stepper}
+              aria-label={t('ui.mascot-theme.step-of', navI + 1, STEPS.length)}
+            >
+              {STEPS.map((s, k) => {
+                const done = k < navI;
+                const active = k === navI;
+                const inner = (
+                  <>
+                    <span className={styles.stepIndex} aria-hidden>
+                      {done ? <Check size={11} strokeWidth={2.75} /> : `0${k + 1}`}
+                    </span>
+                    <span className={styles.stepName}>{STEP_NAME[s]()}</span>
+                  </>
+                );
+                return (
+                  <li
+                    key={s}
+                    className={`${styles.stepItem} ${active ? styles.stepOn : ''} ${done ? styles.stepDone : ''}`}
+                    aria-current={active ? 'step' : undefined}
+                  >
+                    {done ? (
+                      <button
+                        type="button"
+                        className={styles.stepBtn}
+                        disabled={saving}
+                        onClick={() => goToStep(k)}
+                      >
+                        {inner}
+                      </button>
+                    ) : (
+                      <span className={styles.stepBtnStatic}>{inner}</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+          <div className={styles.topRight}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={styles.skipAllBtn}
+              data-testid="onboarding-skip-all"
+              onClick={() => void finish(true)}
+            >
+              {t('ui.mascot-theme.skip-guide')}
+            </Button>
+          </div>
+        </header>
+        <div className={styles.scroll} ref={scrollRef}>
+          {!introHolding(intro.phase) && (
+            <div
+              className={styles.step}
+              key={step}
+              data-dir={dir}
+              data-phase={phase}
+              data-testid={`onboarding-step-${step}`}
+            >
+              <div className={styles.hero}>
+                <div className={styles.heroBadge} aria-hidden>
+                  <span className={styles.heroBadgeDot} />
+                  <span>{`0${i + 1} / 0${STEPS.length}`}</span>
+                </div>
+                <h1 id="onb-title" className={styles.title} tabIndex={-1}>
+                  {STEP_TITLE[step]()}
+                </h1>
+                <p className={styles.intro}>{STEP_INTRO[step]()}</p>
+              </div>
+              <div className={styles.body}>{body}</div>
+            </div>
+          )}
         </div>
         <footer className={styles.foot}>
           <div className={styles.footInner}>
             <Button
               variant="ghost"
+              size="sm"
+              className={styles.backBtn}
               data-testid="onboarding-back"
-              disabled={i === 0 || saving}
-              onClick={() => setI(Math.max(0, i - 1))}
+              data-first={navI === 0 ? 'true' : undefined}
+              disabled={navI === 0 || saving}
+              onClick={() => goToStep((targetStepRef.current ?? i) - 1)}
             >
               {t('ui.mascot-theme.back')}
             </Button>
@@ -658,6 +957,9 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
             {!last && (
               <Button
                 variant="ghost"
+                size="sm"
+                className={styles.skipStepBtn}
+                data-leaving={navLast ? 'true' : undefined}
                 data-testid="onboarding-skip-step"
                 disabled={saving}
                 onClick={skipStep}
@@ -667,11 +969,21 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
             )}
             <Button
               variant="primary"
+              size="sm"
+              className={styles.primaryCta}
               data-testid={last ? 'onboarding-finish' : 'onboarding-next'}
               disabled={saving}
               onClick={() => void next()}
             >
-              {last ? t('ui.mascot-theme.get-started') : t('ui.mascot-theme.next')}
+              <span className={styles.ctaLabel} key={last ? 'finish' : 'next'}>
+                {last ? t('ui.mascot-theme.get-started') : t('ui.mascot-theme.next')}
+              </span>
+              <kbd className={styles.ctaKbd} aria-hidden>
+                <span className={styles.ctaKey} data-wide={!isMac ? 'true' : undefined}>
+                  {isMac ? '⌘' : 'Ctrl'}
+                </span>
+                <span className={styles.ctaKey}>↵</span>
+              </kbd>
             </Button>
           </div>
         </footer>

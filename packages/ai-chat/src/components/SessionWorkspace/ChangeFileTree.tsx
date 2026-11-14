@@ -1,5 +1,10 @@
 /** 工作区 / 变更文件树（右栏横排「文件」侧；详情页共用） */
-import { ChevronDown, ChevronRight, FileCode2, LocateFixed } from 'lucide-react';
+import {
+  IconChevronDown as ChevronDown,
+  IconChevronRight as ChevronRight,
+  IconFileCode2 as FileCode2,
+  IconCurrentLocation as LocateFixed,
+} from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import type { ChangeTreeNode } from '../../utils/sessionChanges';

@@ -7,7 +7,12 @@
  */
 import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
 import { Badge, Button, Modal, ModalHostContext, t } from '@nomi-ai/ui';
-import { ChevronDown, ChevronRight, LoaderCircle, RefreshCw } from 'lucide-react';
+import {
+  IconChevronDown as ChevronDown,
+  IconChevronRight as ChevronRight,
+  IconLoader2 as LoaderCircle,
+  IconRefresh as RefreshCw,
+} from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import { configPathsOf, useEndpointInfo, type EndpointInfo } from '../../hooks/useEndpointInfo';
@@ -171,7 +176,7 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
           data-testid="endpoint-card-open"
         >
           <span className={styles.head}>
-            <EndpointIcon backend={backend} size={18} decorative />
+            <EndpointIcon backend={backend} size={18} variant="color" decorative />
             <b className={styles.name}>{name}</b>
             {installed === false ? (
               <Badge tone="warning" data-testid="endpoint-card-install">

@@ -1,0 +1,126 @@
+/* 侧栏「按端」的端点显示设置 */
+.epVisWrap {
+  display: inline-flex;
+}
+.epVisMenu {
+  position: absolute;
+  top: 0;
+  left: calc(100% + var(--cd-space-2));
+  width: 260px;
+  z-index: 40;
+  padding: var(--cd-space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1-5);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-popover);
+}
+.epVisHint {
+  margin: 0 0 var(--cd-space-0-5);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.epVisRow {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  border-radius: var(--cd-radius-md);
+}
+.epVisRow[draggable='true'] {
+  cursor: grab;
+}
+.epVisRow[data-dragging] {
+  opacity: 0.4;
+}
+/* 名称一行显示，过长时省略（不再把「Claude Code」折成两行） */
+.epVisName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  flex: 1;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-bold);
+  min-width: 0;
+  white-space: nowrap;
+}
+.epVisLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.epVisGrip {
+  flex-shrink: 0;
+  width: var(--cd-control-h-2xs);
+  height: var(--cd-control-h-xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text-subtle);
+  cursor: grab;
+}
+.epVisGrip:hover {
+  background: var(--cd-color-nav-bg);
+  color: var(--cd-color-text);
+}
+.epVisAction:focus-visible,
+.epVisGrip:focus-visible,
+.epVisReset:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+}
+.epVisOrder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-2);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+}
+.epVisReset {
+  border: none;
+  background: transparent;
+  color: var(--cd-color-accent-strong);
+  font: inherit;
+  font-size: var(--cd-font-size-xs);
+  padding: var(--cd-space-0-5) var(--cd-space-1);
+  border-radius: var(--cd-radius-sm);
+  cursor: pointer;
+}
+.epVisReset:hover {
+  background: var(--cd-color-nav-bg);
+}
+/* 「更多」：弹层与显示设置一样以整行为锚，这里不设 position */
+/* 图标式显示 / 隐藏操作：默认不选中，再点选中项恢复自动。 */
+.epVisActions {
+  display: inline-flex;
+  gap: var(--cd-space-0-5);
+  flex: none;
+}
+.epVisAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cd-control-h-xs);
+  height: var(--cd-control-h-xs);
+  padding: 0;
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text-subtle);
+  cursor: pointer;
+}
+.epVisAction:hover,
+.epVisAction[aria-pressed='true'] {
+  background: var(--cd-color-nav-bg);
+  color: var(--cd-color-text);
+}
+.epVisAction:active,
+.epVisGrip:active {
+  background: var(--cd-color-nav-pressed);
+}

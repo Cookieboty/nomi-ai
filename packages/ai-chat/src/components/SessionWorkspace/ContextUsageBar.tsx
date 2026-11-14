@@ -27,7 +27,7 @@ import type { ConvMessage } from '../../types/conversation';
 
 import styles from './SessionWorkspace.module.css';
 
-// 与输入栏里的图标同大（16px，圆环留 1.5px 边距，和 lucide 图标的留白一致）
+// 与输入栏里的图标同大（16px，圆环留 1.5px 边距，和 Tabler 图标的留白一致）
 const R = 6.5;
 const C = 2 * Math.PI * R;
 

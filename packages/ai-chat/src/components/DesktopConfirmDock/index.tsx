@@ -6,7 +6,11 @@
  */
 import type { DesktopConfirmRequest } from '@nomi-ai/types';
 import { Badge, Button, Icon, t } from '@nomi-ai/ui';
-import { FolderLock, ShieldAlert, Sparkles } from 'lucide-react';
+import {
+  IconFolderLock as FolderLock,
+  IconShieldExclamation as ShieldAlert,
+  IconSparkles as Sparkles,
+} from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 
 import { api, hasTransport } from '../../services/api';

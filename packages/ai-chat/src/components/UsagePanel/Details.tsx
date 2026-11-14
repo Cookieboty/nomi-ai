@@ -1,5 +1,12 @@
 import { Badge, Button, EmptyState, Select, Tabs, t } from '@nomi-ai/ui';
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, SearchX } from 'lucide-react';
+import {
+  IconArrowDown as ArrowDown,
+  IconArrowUp as ArrowUp,
+  IconChevronLeft as ChevronLeft,
+  IconChevronRight as ChevronRight,
+  IconDownload as Download,
+  IconSearchOff as SearchX,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {

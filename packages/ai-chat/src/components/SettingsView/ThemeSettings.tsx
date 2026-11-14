@@ -2,7 +2,7 @@
  * 设置 → 通用 → 外观 → 主题：一个色卡网格放内置主题与我的主题（自定义 / 主题包），点选即时生效。
  *
  * - 标题行右侧：跟随系统开关、新建主题、导入主题包（弹窗：拖入 / 选择文件 / 下载模板）；
- * - 网格：我的主题 → 内置主题，默认一行，其余收进「更多主题」；
+ * - 网格：我的主题 → 内置主题，默认五项，其余收进「更多主题」；
  * - 网格下方是选中主题的设置：图片主题选图与蒙版，自定义主题编辑 / 导出 / 删除；
  * - 新建与编辑在右侧抽屉里（CustomThemeEditor）。
  */
@@ -30,17 +30,16 @@ import {
   type ThemeState,
 } from '@nomi-ai/ui';
 import {
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Download,
-  Image,
-  Palette,
-  Pencil,
-  Plus,
-  Trash2,
-  Upload,
-} from 'lucide-react';
+  IconChevronDown as ChevronDown,
+  IconChevronUp as ChevronUp,
+  IconDownload as Download,
+  IconPhoto as Image,
+  IconPalette as Palette,
+  IconPencil as Pencil,
+  IconPlus as Plus,
+  IconTrash as Trash2,
+  IconUpload as Upload,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { hostAssetUrl } from '../../services/api';
@@ -59,13 +58,14 @@ import {
   themeErrorText,
 } from '../../services/customThemes';
 import { confirmDialog } from '../ConfirmDialog';
+import { ThemeChoice, ThemeMiniature } from '../ThemeChoice';
 
 import { ChatBackgroundSettings } from './ChatBackgroundSettings';
 import { CustomThemeEditor } from './CustomThemeEditor';
 import styles from './index.module.css';
 import { ThemeImportDialog } from './ThemeImportDialog';
 
-/** 默认只显示一行（5 个），其余点「更多主题」展开 */
+/** 默认只显示 5 个，其余点「更多主题」展开 */
 export const THEMES_FIRST_ROW = 5;
 
 export type ThemeItem =
@@ -412,62 +412,38 @@ const ThemeCard: React.FC<{
     if (def.background) previewImage = cssUrl(def.background.image);
     else if (isAdaptiveTheme(def)) split = customThemeSwatch(def, otherBase(def.base))[0];
   }
-  const [bg, surface, text, accent] = swatch;
-  if (split) previewImage = `linear-gradient(110deg, ${bg} 50%, ${split} 50%)`;
+
   return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={on}
-      className={`${styles.theme} ${on ? styles.themeOn : ''}`}
-      onClick={onPick}
-      data-testid={item.kind === 'custom' ? `theme-custom-${item.def.id}` : `theme-${item.id}`}
-    >
-      <span
-        className={styles.themePreview}
-        style={{
-          ...(isImage ? chatBgStyle(background) : {}),
-          backgroundColor: bg,
-          borderColor: surface,
-          backgroundImage: previewImage,
-        }}
-        aria-hidden
-        data-testid={isImage ? 'theme-bg-preview' : undefined}
-      >
-        {isImage && background.imageUrl && (
-          <span className={styles.themeImageLayers}>
-            <span className="chat-bg-image" data-testid="theme-bg-image" />
-            <span className="chat-bg-mask" data-testid="theme-bg-mask" />
-          </span>
-        )}
-        {isImage && !background.imageUrl ? (
-          <span className={styles.themeImagePlaceholder}>
-            <Icon icon={Image} size={24} />
-          </span>
-        ) : (
-          <span
-            style={{
-              background: isImage ? `color-mix(in srgb, ${surface} 55%, transparent)` : surface,
-            }}
-            className={styles.themeCard}
-          >
-            <span style={{ background: text }} className={styles.themeLine} />
-            <span style={{ background: text, opacity: 0.45 }} className={styles.themeLine} />
-            <span style={{ background: accent }} className={styles.themeDot} />
-          </span>
-        )}
-        {on && (
-          <span className={styles.themeCheck}>
-            <Icon icon={Check} size={12} />
-          </span>
-        )}
-      </span>
-      <span className={styles.themeName}>
-        {item.kind === 'custom' && (
-          <Icon icon={Palette} size={12} className={styles.themeNameIcon} />
-        )}
-        {label}
-      </span>
-    </button>
+    <ThemeChoice
+      label={label}
+      selected={on}
+      description={title}
+      testId={item.kind === 'custom' ? `theme-custom-${item.def.id}` : `theme-${item.id}`}
+      onPick={onPick}
+      labelIcon={item.kind === 'custom' ? <Icon icon={Palette} size={12} /> : undefined}
+      preview={
+        <ThemeMiniature
+          swatch={swatch}
+          split={split}
+          style={{
+            ...(isImage ? chatBgStyle(background) : {}),
+            ...(previewImage !== 'none' ? { backgroundImage: previewImage } : {}),
+          }}
+          testId={isImage ? 'theme-bg-preview' : undefined}
+          translucent={isImage}
+          layers={
+            isImage && background.imageUrl ? (
+              <>
+                <span className="chat-bg-image" data-testid="theme-bg-image" />
+                <span className="chat-bg-mask" data-testid="theme-bg-mask" />
+              </>
+            ) : undefined
+          }
+          placeholder={
+            isImage && !background.imageUrl ? <Icon icon={Image} size={18} /> : undefined
+          }
+        />
+      }
+    />
   );
 };

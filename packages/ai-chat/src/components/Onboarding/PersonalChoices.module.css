@@ -1,0 +1,45 @@
+/* 只收紧个性化步骤的两组选项；交互与动效沿用引导页原有样式。 */
+.group > :first-child {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--cd-space-1) var(--cd-space-2);
+  min-height: var(--cd-line-height-xs);
+}
+.roles.roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cd-space-1-5);
+}
+.roles .role {
+  flex: 0 0 auto;
+  min-height: var(--cd-control-h-sm);
+  height: var(--cd-control-h-sm);
+  padding: 0 var(--cd-space-2);
+  gap: var(--cd-space-1-5);
+  border-radius: var(--cd-radius-md);
+  font-size: var(--cd-font-size-xs);
+}
+.roles .role span {
+  font-size: inherit;
+  white-space: nowrap;
+}
+.roles .role .roleIcon {
+  width: var(--cd-space-4);
+  height: var(--cd-space-4);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--cd-color-text-muted);
+}
+.roles .role[aria-checked='true'] .roleIcon {
+  color: var(--cd-color-accent-strong);
+}
+.interests.interests {
+  gap: var(--cd-space-1-5);
+}
+.interests .interest {
+  height: var(--cd-control-h-sm);
+  padding: 0 var(--cd-space-2);
+  gap: var(--cd-space-1-5);
+}

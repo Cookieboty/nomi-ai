@@ -1,18 +1,18 @@
 /** 运行中的等待态状态行：图标 + 明确文案 + 已用时 */
 import { Icon } from '@nomi-ai/ui';
 import {
-  Bot,
-  Brain,
-  Clock,
-  Hourglass,
-  LoaderCircle,
-  PenLine,
-  RefreshCw,
-  ShieldAlert,
-  Shrink,
-  Unplug,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+  IconRobot as Bot,
+  IconBrain as Brain,
+  IconClock as Clock,
+  IconHourglass as Hourglass,
+  IconLoader2 as LoaderCircle,
+  IconEdit as PenLine,
+  IconRefresh as RefreshCw,
+  IconShieldExclamation as ShieldAlert,
+  IconArrowsMinimize as Shrink,
+  IconPlugOff as Unplug,
+} from '@tabler/icons-react';
+import type { TablerIcon as IconGlyph } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 
 import type { StatusInfo, StatusKind } from '../../utils/convStatus';
@@ -20,7 +20,7 @@ import { formatDuration } from '../../utils/toolTrace';
 
 import styles from './index.module.css';
 
-const ICONS: Record<StatusKind, LucideIcon> = {
+const ICONS: Record<StatusKind, IconGlyph> = {
   queued: Clock,
   permission: ShieldAlert,
   compact: Shrink,

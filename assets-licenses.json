@@ -43,7 +43,7 @@
     {
       "pattern": "packages/ui/src/brand/*",
       "license": "MIT",
-      "author": "LobeHub (@lobehub/icons-static-svg v1.95.1); logos are trademarks of their respective owners, used nominatively",
+      "author": "LobeHub (@lobehub/icons-static-svg v1.102.0); logos are trademarks of their respective owners, used nominatively; Nomi and Amux retain existing local artwork",
       "source": "https://github.com/lobehub/lobe-icons/blob/master/LICENSE"
     },
     {

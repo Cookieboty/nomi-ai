@@ -8,6 +8,7 @@ export const manifest: CliManifest = {
   id: 'dsh',
   apiVersion: 1,
   displayName: 'dsh',
+  fullName: 'DeepSeek Harness',
   icon: 'dsh',
   binary: {
     names: ['dsh'],

@@ -12,8 +12,12 @@
   cursor: pointer;
   vertical-align: middle;
   transition:
-    background-color var(--cd-duration-fast) var(--cd-ease),
-    border-color var(--cd-duration-fast) var(--cd-ease);
+    background-color var(--cd-duration-press) var(--cd-ease-out),
+    border-color var(--cd-duration-press) var(--cd-ease-out),
+    transform var(--cd-duration-press) var(--cd-ease-out);
+}
+.cd-checkbox:active:not(:disabled) {
+  transform: scale(0.92);
 }
 .cd-checkbox:hover:not(:disabled) {
   border-color: var(--cd-color-accent);

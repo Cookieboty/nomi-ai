@@ -2,10 +2,9 @@
  * 统一设置页（参考 Codex app 的 Settings：左侧分区导航，右侧内容）。
  * 各分区直接复用原有面板，通过 ModalHostContext 以「内嵌」方式渲染，功能与 test id 不变。
  */
-import { brand } from '@nomi-ai/types';
 import { Button, Icon, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import { ModalHostContext } from '@nomi-ai/ui';
-import { ChevronLeft, Lightbulb } from 'lucide-react';
+import { IconChevronLeft as ChevronLeft, IconBulb as Lightbulb } from '@tabler/icons-react';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
@@ -32,7 +31,6 @@ import { KnowledgeSection } from './KnowledgeSection';
 import { LanguageSettings } from './LanguageSettings';
 import { MascotRendererSettings } from './MascotRendererSettings';
 import { MascotSizeSettings } from './MascotSizeSettings';
-import { NomiMark } from './NomiMark';
 import { NomiSection } from './NomiSection';
 import { PrivacySection } from './PrivacySection';
 import { SECTION_HELP } from './sectionHelp';
@@ -282,15 +280,6 @@ export const SettingsView: React.FC<Props> = ({
         aria-label={t('ui.chat-settings.settings-sections')}
         data-testid="settings-nav"
       >
-        <div className={styles.brand} data-testid="settings-brand">
-          <NomiMark className={styles.brandMark} size={collapsed ? 24 : 36} />
-          <span className={styles.brandText}>
-            <span className={styles.brandName}>{brand.appName}</span>
-            <span className={styles.brandSub}>
-              {t('ui.chat-settings.your-desktop-ai-assistant')}
-            </span>
-          </span>
-        </div>
         <button
           type="button"
           className={styles.back}

@@ -1,0 +1,153 @@
+/* 顶栏分区沿用实际内容列的坐标。短线只出现在对应的面板边界。 */
+.app-titlebar-main {
+  left: var(--titlebar-main-left, calc(52px + var(--sidebar-panel-w)));
+  right: var(--titlebar-main-right, var(--cd-space-0-5));
+  padding-inline: var(--cd-space-3) var(--cd-space-8);
+}
+.app-titlebar[data-sidebar='collapsed'] .app-titlebar-main {
+  left: max(var(--titlebar-main-left, 52px), calc(116px + var(--cd-titlebar-lead-w, 0px)));
+}
+.app-titlebar-column {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: var(--cd-space-0-5);
+  padding-inline: var(--cd-space-2);
+}
+.app-titlebar-main::before,
+.app-titlebar-column::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: var(--cd-space-4);
+  width: 1px;
+  transform: translateY(-50%);
+  background: var(--cd-color-pane-divider);
+  pointer-events: none;
+}
+.app-titlebar-center {
+  left: var(--titlebar-center-left);
+  width: var(--titlebar-center-w);
+}
+.app-titlebar-files {
+  left: var(--titlebar-files-left);
+  width: var(--titlebar-files-w);
+  padding-right: var(--cd-space-8);
+}
+.app-titlebar-slot {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-0-5);
+  min-width: 0;
+  -webkit-app-region: no-drag;
+  --wails-draggable: no-drag;
+}
+.app-titlebar-slot:empty {
+  display: none;
+}
+.app-titlebar-panel-tools {
+  flex: 1;
+  overflow: hidden;
+}
+.app-titlebar-rail-toggle {
+  position: absolute;
+  right: var(--cd-space-1);
+  top: 50%;
+  transform: translateY(-50%);
+}
+html[data-platform]:not([data-platform='darwin']) .app-titlebar-rail-toggle {
+  right: 140px;
+}
+.app-titlebar-panel-tools > header,
+.app-titlebar-panel-tools > [data-testid='side-tab-strip'] {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: var(--cd-control-h-ms);
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+[data-titlebar-slot='files'] [data-testid='changes-summary'],
+[data-titlebar-slot='files'] [data-testid='files-rail-close'] {
+  display: none;
+}
+[data-titlebar-slot='files'] [role='tablist'] {
+  min-width: 0;
+  gap: var(--cd-space-0-5);
+}
+[data-titlebar-slot='files'] [role='tab'] {
+  justify-content: center;
+  height: var(--cd-control-h-ms);
+  padding-inline: var(--cd-space-1);
+  font-size: var(--cd-font-size-xs);
+}
+[data-titlebar-slot='files'] button {
+  flex-shrink: 0;
+}
+[data-titlebar-slot='center'] [data-testid='side-tab-strip'] {
+  gap: var(--cd-space-0-5);
+}
+
+html[data-platform]:not([data-platform='darwin']) .app-titlebar-main {
+  right: max(var(--titlebar-main-right, 0px), 140px);
+}
+.app-titlebar-files {
+  container-type: inline-size;
+}
+@container (max-width: 320px) {
+  [data-titlebar-slot='files'] [role='tab'] > span {
+    display: none;
+  }
+  [data-titlebar-slot='files'] [role='tablist'] {
+    padding: 0;
+    background: transparent;
+  }
+  [data-titlebar-slot='files'] button {
+    width: var(--cd-control-h-ms);
+    min-width: var(--cd-control-h-ms);
+    padding-inline: 0;
+  }
+}
+/* 会话工具始终位于会话区域右侧，文件栏只展示它自己的工具。 */
+.app-titlebar:is([data-files], [data-center]) .app-titlebar-main {
+  padding-inline-end: var(--cd-space-2);
+}
+.app-titlebar[data-center]:not([data-files]) .app-titlebar-center {
+  padding-inline-end: var(--cd-space-8);
+}
+
+/* 面板工具中的图标也使用同一尺寸，不随面板变窄而缩小按钮。 */
+[data-titlebar-slot='files'] button:not([role='tab']) {
+  width: var(--cd-control-h-ms);
+  min-width: var(--cd-control-h-ms);
+  height: var(--cd-control-h-ms);
+  padding: 0;
+  border-radius: var(--cd-radius-md);
+}
+[data-titlebar-slot='files'] button:hover:not(:disabled) {
+  background: var(--cd-color-nav-bg);
+}
+[data-titlebar-slot='files'] button:active:not(:disabled) {
+  background: var(--cd-color-nav-pressed);
+}
+.app-titlebar-toggle > svg,
+.app-titlebar-btn > svg,
+.app-titlebar-slot button > svg.tabler-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* 顶栏相邻工具保持 2px 间距；选中标签的实底优先于悬浮反馈。 */
+[data-titlebar-slot='files'] > header {
+  gap: var(--cd-space-0-5);
+}
+[data-titlebar-slot='files'] button[role='tab'][aria-selected='true'] {
+  background: var(--cd-panel-surface-raised);
+  color: var(--cd-color-text);
+}

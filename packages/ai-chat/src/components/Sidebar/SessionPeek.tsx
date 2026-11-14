@@ -5,7 +5,7 @@
  */
 import { brand } from '@nomi-ai/types';
 import { Icon, t, useLocale } from '@nomi-ai/ui';
-import { Folder } from 'lucide-react';
+import { IconFolder as Folder } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -162,7 +162,7 @@ export const SessionPeek: React.FC<{
           <span className={rail.peekTitle}>{name}</span>
         )}
         <span className={rail.peekIcon} role="img" aria-label={t(ENDPOINT_NAME[c.backend])}>
-          <EndpointIcon backend={c.backend} size={14} decorative />
+          <EndpointIcon backend={c.backend} size={14} variant="color" decorative />
         </span>
         <span className={rail.peekTime}>{rel(c.updatedAt)}</span>
       </span>

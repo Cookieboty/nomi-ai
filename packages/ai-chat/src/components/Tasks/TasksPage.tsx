@@ -1,6 +1,10 @@
 /** 任务页主体（列表 / 看板、详情、新建）：首次打开任务页时才加载（见 index.tsx 的 useTasksHost） */
 import { Button, EmptyState, Icon, Select, t, Tabs } from '@nomi-ai/ui';
-import { ListChecks, Plus, Search } from 'lucide-react';
+import {
+  IconListCheck as ListChecks,
+  IconPlus as Plus,
+  IconSearch as Search,
+} from '@tabler/icons-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import {

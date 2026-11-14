@@ -2,6 +2,8 @@
   position: fixed;
   z-index: 80;
   min-width: 190px;
+  max-height: calc(100vh - var(--cd-space-2));
+  overflow-y: auto;
   padding: var(--cd-space-1-5);
   border-radius: var(--cd-radius-lg);
   background: var(--cd-color-surface-raised);

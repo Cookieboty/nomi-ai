@@ -1,4 +1,4 @@
-import { TriangleAlert } from 'lucide-react';
+import { IconAlertTriangle as TriangleAlert } from '@tabler/icons-react';
 import React from 'react';
 
 import { Button } from './Button';

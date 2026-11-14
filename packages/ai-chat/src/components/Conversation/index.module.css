@@ -47,7 +47,7 @@
 .userBubble {
   max-width: min(640px, 82%);
   padding: var(--cd-space-2) 14px;
-  border-radius: var(--cd-radius-xl) var(--cd-radius-xl) var(--cd-radius-xs) var(--cd-radius-xl);
+  border-radius: var(--cd-radius-lg) var(--cd-radius-lg) var(--cd-radius-xs) var(--cd-radius-lg);
   background: var(--cd-chat-user-bg);
   color: var(--cd-color-text);
   font-size: var(--conv-text);
@@ -232,6 +232,9 @@
   font-variant-numeric: tabular-nums;
 }
 .label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
   color: var(--cd-color-text-muted);
 }
 /* 产生这条消息的模型：跟在端点名后面，弱一档，过长截断。上游换了模型时接「→ 实际名称」 */
@@ -471,7 +474,7 @@
   gap: var(--cd-space-2);
   max-width: min(640px, 82%);
   padding: var(--cd-space-1-5) 10px var(--cd-space-1-5) 14px;
-  border-radius: var(--cd-radius-xl) var(--cd-radius-xl) var(--cd-radius-xs) var(--cd-radius-xl);
+  border-radius: var(--cd-radius-lg) var(--cd-radius-lg) var(--cd-radius-xs) var(--cd-radius-lg);
   border: 1px dashed var(--cd-color-border-strong);
   color: var(--cd-color-text-muted);
   font-size: var(--conv-text);
@@ -519,7 +522,7 @@
   align-self: flex-start;
   gap: var(--cd-space-2);
   max-width: 100%;
-  padding: var(--cd-space-1) var(--cd-space-0-5);
+  padding: var(--cd-space-1) 0;
   font-size: var(--conv-ui);
   color: var(--cd-color-text-muted);
 }
@@ -714,4 +717,11 @@
   height: 36px;
   cursor: pointer;
   font-size: 18px;
+}
+
+.agentIcon {
+  display: inline-flex;
+  flex: none;
+  filter: grayscale(1);
+  opacity: 0.6;
 }

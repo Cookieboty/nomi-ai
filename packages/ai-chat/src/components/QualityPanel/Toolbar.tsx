@@ -4,15 +4,15 @@
  */
 import { Icon, Input, SegmentedControl, Switch, Tooltip, t } from '@nomi-ai/ui';
 import {
-  CalendarRange,
-  Download,
-  Info,
-  Layers,
-  RefreshCw,
-  Ruler,
-  Settings2,
-  X,
-} from 'lucide-react';
+  IconCalendarWeek as CalendarRange,
+  IconDownload as Download,
+  IconInfoCircle as Info,
+  IconStack2 as Layers,
+  IconRefresh as RefreshCw,
+  IconRuler as Ruler,
+  IconAdjustments as Settings2,
+  IconX as X,
+} from '@tabler/icons-react';
 import React from 'react';
 
 import type { QualityFacets, QualityLayer, QualityOutcome } from '../../services/qualityClient';

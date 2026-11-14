@@ -3,7 +3,14 @@
  * 它们由 Nomi 本机生成，不属于任何一轮模型回复，也不会发给模型。
  */
 import { Icon, t } from '@nomi-ai/ui';
-import { AlertTriangle, Check, Info, Terminal, X, XCircle } from 'lucide-react';
+import {
+  IconAlertTriangle as AlertTriangle,
+  IconCheck as Check,
+  IconInfoCircle as Info,
+  IconTerminal as Terminal,
+  IconX as X,
+  IconCircleX as XCircle,
+} from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import { formatTokens, formatUsd } from '../../slash/tokens';

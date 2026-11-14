@@ -4,7 +4,7 @@
  * 「编程助手」页的版本卡片和「模型」页的 CLI 行共用（命令由主进程 cliUpdateClient.preview 给出）。
  */
 import { Button, Icon, Modal, Notice, t } from '@nomi-ai/ui';
-import { CircleCheck, CircleX } from 'lucide-react';
+import { IconCircleCheck as CircleCheck, IconCircleX as CircleX } from '@tabler/icons-react';
 import React from 'react';
 
 import type { CliInstallPlan } from '../../services/cliUpdateClient';

@@ -1,5 +1,9 @@
 import { t, tName } from '@nomi-ai/ui';
-import { RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import {
+  IconRotate as RotateCcw,
+  IconZoomIn as ZoomIn,
+  IconZoomOut as ZoomOut,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import styles from './ContextMenu.module.css';

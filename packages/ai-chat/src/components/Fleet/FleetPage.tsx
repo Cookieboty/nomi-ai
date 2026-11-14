@@ -1,7 +1,12 @@
 import { isBuiltinCliId, type BuiltinCliId } from '@nomi-ai/cli-catalog';
 import { brand } from '@nomi-ai/types';
 import { Button, Checkbox, EmptyState, Icon, Select, Switch, t } from '@nomi-ai/ui';
-import { Folder, Search, SlidersHorizontal, SquareTerminal } from 'lucide-react';
+import {
+  IconFolder as Folder,
+  IconSearch as Search,
+  IconAdjustmentsHorizontal as SlidersHorizontal,
+  IconTerminal2 as SquareTerminal,
+} from '@tabler/icons-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import {

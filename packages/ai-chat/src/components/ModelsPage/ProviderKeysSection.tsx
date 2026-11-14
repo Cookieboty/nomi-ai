@@ -16,7 +16,14 @@ import {
   Textarea,
   type SelectOption,
 } from '@nomi-ai/ui';
-import { ArrowDown, ArrowUp, KeyRound, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
+import {
+  IconArrowDown as ArrowDown,
+  IconArrowUp as ArrowUp,
+  IconKey as KeyRound,
+  IconPlus as Plus,
+  IconAdjustmentsHorizontal as SlidersHorizontal,
+  IconTrash as Trash2,
+} from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import { WIRE_LABEL, type ProviderView, type Wire } from '../../services/gatewayClient';

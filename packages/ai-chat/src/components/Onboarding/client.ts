@@ -20,6 +20,9 @@ export type MascotCmd =
   | { type: 'gesture'; name: SemanticGesture }
   | { type: 'reply'; phase: 'waiting' | 'settled' };
 
+/** 启动预查结果（仅由 main.tsx 显式 prepareInitial 写入，避免跨用例状态污染） */
+let preparedInitial: OnboardingState | null = null;
+
 export const onboardingClient = {
   available: () => hasTransport(),
   async get(): Promise<OnboardingState> {
@@ -30,11 +33,28 @@ export const onboardingClient = {
       }
     );
   },
+  /** 启动期提前并行查一次引导状态，避免 renderApp 后首帧闪出主界面 */
+  async prepareInitial(): Promise<OnboardingState> {
+    const state = await this.get();
+    preparedInitial = state;
+    return state;
+  },
+  peekInitial(): OnboardingState | null {
+    return preparedInitial;
+  },
+  setPreparedDone(done: boolean): void {
+    if (preparedInitial) preparedInitial = { done };
+  },
+  clearPrepared(): void {
+    preparedInitial = null;
+  },
   async complete(skipped: boolean): Promise<void> {
+    if (preparedInitial) preparedInitial = { done: true, skipped };
     if (!hasTransport()) return;
     await api.onboarding.complete({ skipped }).catch(() => undefined);
   },
   async reopen(): Promise<void> {
+    if (preparedInitial) preparedInitial = { done: false };
     if (hasTransport()) await api.onboarding.reopen().catch(() => undefined);
     // 同一窗口内立即显示（主进程也会广播 onboarding.show）
     window.dispatchEvent(new CustomEvent('cd:onboarding-show'));

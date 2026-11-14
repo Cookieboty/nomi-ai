@@ -1,5 +1,5 @@
 /**
- * 「会话详情」：标题栏里文件栏开关前面的按钮，开 / 收对话卡片右侧的一栏（不盖住对话，对话区相应变窄）：
+ * 「会话详情」：从会话顶栏打开，悬浮在会话区域右上角，不占用分栏宽度：
  * - 项目：工作区名（悬停看路径）、当前分支；
  * - 变更：本会话改过的文件数与增删行，点开中栏 Diff；
  * - Agents：本会话用到的子任务 / 子代理与状态，子任务点开在子任务面板里接着看；
@@ -8,14 +8,15 @@
  */
 import { Icon, t, Tooltip, usePresence } from '@nomi-ai/ui';
 import {
-  Bot,
-  ChevronUp,
-  createLucideIcon,
-  Ellipsis,
-  GitBranch,
-  ListChecks,
-  MessageCirclePlus,
-} from 'lucide-react';
+  IconFileDiff as FileDiff,
+  IconRobot as Bot,
+  IconChevronUp as ChevronUp,
+  IconInfoSquareRounded,
+  IconDots as Ellipsis,
+  IconGitBranch as GitBranch,
+  IconListCheck as ListChecks,
+  IconMessageCirclePlus as MessageCirclePlus,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { selectIpcClient, useAiChatSelector } from '../../contexts/aiChatStore';
@@ -57,14 +58,6 @@ import { useWorkspaceChanges } from './useWorkspaceChanges';
 
 export { SessionDetailsProvider, useSessionDetails } from './context';
 
-/** 标题栏「会话详情」按钮的图标：左边两个小圆、右边两条线（一份清单的样子） */
-const SessionDetailsIcon = createLucideIcon('session-details', [
-  ['circle', { cx: '6', cy: '7.5', r: '2.5', key: 'sd1' }],
-  ['path', { d: 'M12 7.5h9', key: 'sd2' }],
-  ['circle', { cx: '6', cy: '16.5', r: '2.5', key: 'sd3' }],
-  ['path', { d: 'M12 16.5h9', key: 'sd4' }],
-]);
-
 const STATUS_KEY: Record<SessionAgentStatus, string> = {
   running: 'ui.knowledge-local.running',
   waiting: 'ui.session-workspace.needs-your-approval',
@@ -83,25 +76,6 @@ const TASK_STATE: Record<TaskGroup, string> = {
 
 /** 列表先显示几个，其余点「更多」展开 */
 export const DETAILS_LIST_MAX = 5;
-
-/** 「变更」图标：圆角方框里一个 ±（lucide 没有这个图形；线宽、尺寸与 lucide 图标一致） */
-const ChangesIcon: React.FC = () => (
-  <svg
-    className={styles.rowIcon}
-    width={18}
-    height={18}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <rect x="3" y="3" width="18" height="18" rx="4" />
-    <path d="M12 7v6M9 10h6M9 16.5h6" />
-  </svg>
-);
 
 /** 区块（分隔线 + 标题 + 计数 + 「更多 / 收起」图标）；没有条目时整块不显示，超过 DETAILS_LIST_MAX 个才有展开按钮 */
 function Section<T>({
@@ -327,7 +301,7 @@ const DetailsPanel: React.FC<
             data-testid="session-details-changes"
             onClick={() => openWorkbench({})}
           >
-            <ChangesIcon />
+            <Icon icon={FileDiff} size="nav" className={styles.rowIcon} />
             <span className={styles.rowLabel}>{t('ui.session-workspace.changed')}</span>
             <span className={styles.stats}>
               <span className={styles.muted}>
@@ -339,7 +313,7 @@ const DetailsPanel: React.FC<
           </button>
         ) : (
           <div className={styles.row} data-static data-testid="session-details-changes">
-            <ChangesIcon />
+            <Icon icon={FileDiff} size="nav" className={styles.rowIcon} />
             <span className={styles.rowLabel}>{t('ui.session-workspace.changed')}</span>
             <span className={styles.muted}>{t('ui.session-workspace.details-no-changes')}</span>
           </div>
@@ -454,16 +428,14 @@ export const SessionDetailsToggle: React.FC<{
         data-testid="session-details-toggle"
         onClick={v.toggle}
       >
-        <Icon icon={SessionDetailsIcon} size={16} />
+        <Icon icon={IconInfoSquareRounded} size={16} />
       </button>
     </Tooltip>
   );
 };
 
 /**
- * 对话卡片右侧的一栏：显示着且会话有消息时才有（空会话不占地方）。
- * 放两处：平时那一栏放在对话卡片右侧（overlay 不传）；浮层（自动收起后再打开，或旁边开着文件栏 /
- * 子任务栏）放进对话列里（overlay），盖在对话右上角，不挤压对话，也不落到中栏的 Diff / 文件预览上。
+ * 会话详情：会话有消息时悬浮在对话列右上角，不挤压对话或展开文件栏。
  */
 export const SessionDetailsDock: React.FC<Props & { overlay?: boolean }> = ({
   overlay = false,

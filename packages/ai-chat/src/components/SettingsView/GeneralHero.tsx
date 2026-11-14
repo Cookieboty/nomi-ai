@@ -2,8 +2,8 @@
  * 「通用」页顶部的速览卡：版本 / 主题 / 语言三格。版本跳到「关于」，其余滚到本页对应设置。
  */
 import { getLocalePref, Icon, t, useLocale, type LocalePref } from '@nomi-ai/ui';
-import { Globe, Palette, Tag } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { IconGlobe as Globe, IconPalette as Palette, IconTag as Tag } from '@tabler/icons-react';
+import type { TablerIcon as IconGlyph } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 
 import styles from './GeneralHero.module.css';
@@ -101,7 +101,7 @@ function jump(id: string) {
 }
 
 const Cell: React.FC<{
-  icon: LucideIcon;
+  icon: IconGlyph;
   label: string;
   value: string;
   sub: string;

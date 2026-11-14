@@ -1,5 +1,5 @@
 /**
- * 盖在对话窗口上的一层：设置（覆盖层，会话树保持挂载）、命令面板、编程助手插件面板、桌面能力 / 扩展 /
+ * 盖在对话窗口上的一层：命令面板、编程助手插件面板、桌面能力 / 扩展 /
  * 知识中心抽屉、分叉目标选择框与底部的短提示。
  */
 import { ModalHostContext } from '@nomi-ai/ui';
@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CommandPalette } from '../components/CommandPalette';
 import { ForkDialog } from '../components/ForkMenu';
 import { HubDrawer } from '../components/HubDrawer';
-import { DesktopPanel, ExtensionsPanel, SettingsView } from '../components/lazyPanels';
+import { DesktopPanel, ExtensionsPanel } from '../components/lazyPanels';
 import { PluginPanel } from '../components/PluginPanel';
 import { useConversationWriteNotice } from '../hooks/useConversationWriteNotice';
 import type { SlashHook } from '../slash/useSlashCommands';
@@ -39,18 +39,6 @@ export const AppOverlays: React.FC<{
   toast: string | null;
 }> = ({ panels: p, commands: c, slash, slashBackend, slashCwd, toast }) => (
   <>
-    {/* 设置为覆盖层：会话树保持挂载，仅被此层盖住；关闭即瞬时回到原会话 */}
-    {p.settings && (
-      <div className="settings-overlay">
-        <SettingsView
-          section={p.settings}
-          deepLink={p.settingsLink}
-          onSection={p.setSettings}
-          onClose={p.closeSettings}
-          collapsed={p.sidebarCollapsed}
-        />
-      </div>
-    )}
     {/* 模型配置保持为弹窗；日常功能为右侧抽屉（快速视图） */}
     <CommandPalette open={c.palette} onClose={c.closePalette} commands={c.paletteCommands} />
     <PluginPanel

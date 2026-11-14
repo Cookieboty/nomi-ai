@@ -4,7 +4,7 @@
  * 数据来自主进程 QualityService（ai:quality:*）；只有元数据，全部只存本机。
  */
 import { EmptyState, Tabs, t } from '@nomi-ai/ui';
-import { Activity } from 'lucide-react';
+import { IconActivity as Activity } from '@tabler/icons-react';
 import React, { useCallback, useMemo, useState } from 'react';
 
 import { qualityClient, type QualityFacets, type QualityLayer } from '../../services/qualityClient';

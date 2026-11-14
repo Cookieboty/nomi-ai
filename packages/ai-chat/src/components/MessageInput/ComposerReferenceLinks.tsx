@@ -1,5 +1,5 @@
 import { Icon, t } from '@nomi-ai/ui';
-import { Quote, X } from 'lucide-react';
+import { IconQuote as Quote, IconX as X } from '@tabler/icons-react';
 import React from 'react';
 
 import { useResourceContext } from '../../contexts/ResourceContext';

@@ -1,7 +1,7 @@
 /** 助手正文的 Markdown 渲染：react-markdown + remark-gfm + rehype-highlight；
  *  components 覆盖以维持代码块复制按钮、链接协议白名单、图片放大能力。 */
 import { Icon, t, useLocale } from '@nomi-ai/ui';
-import { Check, Copy } from 'lucide-react';
+import { IconCheck as Check, IconCopy as Copy } from '@tabler/icons-react';
 import React, {
   createContext,
   lazy,

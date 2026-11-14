@@ -3,7 +3,7 @@
  * 全部只存本机；没有云同步 / 排行榜 / 分享入口。
  */
 import { Badge, Button, Input, Notice, Select, Switch, t } from '@nomi-ai/ui';
-import { ShieldCheck, Trash2 } from 'lucide-react';
+import { IconShieldCheck as ShieldCheck, IconTrash as Trash2 } from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import {

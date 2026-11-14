@@ -4,7 +4,7 @@
  * Windows 经确认后加入用户 PATH，关闭时只移除 Nomi 添加的项。
  */
 import { Button, Icon, Modal, Switch, t } from '@nomi-ai/ui';
-import { SquareTerminal } from 'lucide-react';
+import { IconTerminal2 as SquareTerminal } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {

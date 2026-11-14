@@ -19,7 +19,7 @@
     "@nomi-ai/ui": "workspace:*",
     "@nomi-ai/voice": "workspace:*",
     "@rive-app/canvas-lite": "2.44.2",
-    "lucide-react": "^1.55.0",
+    "@tabler/icons-react": "^3.52.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

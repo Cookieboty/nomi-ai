@@ -3,7 +3,7 @@
  * 纯 SVG，配色走 --cd-viz-*；图例 + 线尾直接标注 + 悬停十字线提示，另有表格视图。
  */
 import { SegmentedControl, Select, t } from '@nomi-ai/ui';
-import { ChartLine, FilterX } from 'lucide-react';
+import { IconChartLine as ChartLine, IconFilterOff as FilterX } from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import {

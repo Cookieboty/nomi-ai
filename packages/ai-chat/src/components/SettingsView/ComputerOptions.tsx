@@ -14,7 +14,7 @@ import {
   Switch,
   t,
 } from '@nomi-ai/ui';
-import { X } from 'lucide-react';
+import { IconX as X } from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import { api } from '../../services/api';

@@ -1,5 +1,13 @@
 import { Icon, ModalHostContext, t, useFocusTrap } from '@nomi-ai/ui';
-import { ChevronLeft, ChevronRight, Download, Info, Minus, Plus, X } from 'lucide-react';
+import {
+  IconChevronLeft as ChevronLeft,
+  IconChevronRight as ChevronRight,
+  IconDownload as Download,
+  IconInfoCircle as Info,
+  IconMinus as Minus,
+  IconPlus as Plus,
+  IconX as X,
+} from '@tabler/icons-react';
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 

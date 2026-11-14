@@ -5,28 +5,28 @@
  */
 import { Icon, t, useLocale } from '@nomi-ai/ui';
 import {
-  Bot,
-  Brain,
-  Check,
-  ChevronRight,
-  ChevronsUp,
-  CircleAlert,
-  Compass,
-  CornerDownRight,
-  FileDiff as FileDiffIcon,
-  FilePen,
-  FilePlus,
-  FileText,
-  FolderOpen,
-  Globe,
-  Layers,
-  ListChecks,
-  LoaderCircle,
-  Search,
-  SquareTerminal,
-  Wrench,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+  IconRobot as Bot,
+  IconBrain as Brain,
+  IconCheck as Check,
+  IconChevronRight as ChevronRight,
+  IconChevronsUp as ChevronsUp,
+  IconAlertCircle as CircleAlert,
+  IconCompass as Compass,
+  IconCornerDownRight as CornerDownRight,
+  IconFileDiff as FileDiffIcon,
+  IconFilePencil as FilePen,
+  IconFilePlus as FilePlus,
+  IconFileText as FileText,
+  IconFolderOpen as FolderOpen,
+  IconGlobe as Globe,
+  IconStack2 as Layers,
+  IconListCheck as ListChecks,
+  IconLoader2 as LoaderCircle,
+  IconSearch as Search,
+  IconTerminal2 as SquareTerminal,
+  IconTool as Wrench,
+} from '@tabler/icons-react';
+import type { TablerIcon as IconGlyph } from '@tabler/icons-react';
 import React, {
   memo,
   useContext,
@@ -83,7 +83,7 @@ import { MarkdownImage } from './MarkdownImage';
 import styles from './Tool.module.css';
 import { useTranscriptViewMode } from './transcriptViewContext';
 
-const KIND_ICON: Record<ToolKind, LucideIcon> = {
+const KIND_ICON: Record<ToolKind, IconGlyph> = {
   read: FileText,
   search: Search,
   list: FolderOpen,
@@ -96,7 +96,7 @@ const KIND_ICON: Record<ToolKind, LucideIcon> = {
   other: Wrench,
 };
 
-const BUCKET_ICON: Record<Bucket, LucideIcon> = {
+const BUCKET_ICON: Record<Bucket, IconGlyph> = {
   explore: Compass,
   command: SquareTerminal,
   edit: FileDiffIcon,
@@ -145,7 +145,7 @@ const StatusMark: React.FC<{ status: CallStatus }> = ({ status }) =>
 
 /** 带展开 / 折叠的一行；header 是整行按钮 */
 const Disclosure: React.FC<{
-  icon: LucideIcon;
+  icon: IconGlyph;
   label: React.ReactNode;
   meta?: React.ReactNode;
   status: CallStatus;
@@ -797,7 +797,7 @@ const ActivityRow: React.FC<{ id: string; bucket?: Bucket; steps: ActivityStep[]
     : calls.some((c) => c.status === 'error')
       ? 'error'
       : 'done';
-  let icon: LucideIcon = Brain;
+  let icon: IconGlyph = Brain;
   let label: React.ReactNode;
   if (active?.type === 'call') {
     icon = KIND_ICON[describeCall(active.call).kind];

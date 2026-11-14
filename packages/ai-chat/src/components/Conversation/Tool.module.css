@@ -29,7 +29,7 @@
   gap: 7px;
   width: 100%;
   min-height: 28px;
-  padding: 3px var(--cd-space-2);
+  padding: 3px 0;
   border: none;
   border-radius: inherit;
   background: transparent;
@@ -523,7 +523,7 @@
   align-items: center;
   gap: var(--cd-space-1-5);
   align-self: flex-start;
-  padding: 3px var(--cd-space-2);
+  padding: 3px 0;
   border: none;
   border-radius: var(--cd-radius-md);
   background: transparent;
@@ -624,4 +624,11 @@
   min-width: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* 顶层工具与思考和助手正文共享左边界，子步骤保留层级缩进。 */
+.timeline:not(.nested) > .item > .body {
+  margin-inline: 0;
+  padding-inline: 0;
+  border-left: none;
 }

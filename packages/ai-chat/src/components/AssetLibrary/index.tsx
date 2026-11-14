@@ -7,7 +7,6 @@
  * 数据来自内核 media/AssetLibrary.ts（契约 chatAssets.*）；生成 / 删除后内核推 chatAssets.changed。
  */
 import { t } from '@nomi-ai/ui';
-import { Images } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { selectFirstMessageId, useAiChatSelector } from '../../contexts/aiChatStore';
@@ -15,6 +14,7 @@ import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { hasTransport } from '../../services/api';
 import { lazyComponent } from '../lazyPanels';
 import { useChangesUi } from '../SessionWorkspace/ChangesUiContext';
+import { SIDEBAR_ICONS } from '../Sidebar/icons';
 import { SideNavItem } from '../Sidebar/SideNavItem';
 
 import styles from './index.module.css';
@@ -36,7 +36,7 @@ export const AssetLibraryNav: React.FC<{
   onOpen: () => void;
 }> = ({ collapsed, active, count, onOpen }) => (
   <SideNavItem
-    icon={Images}
+    icon={SIDEBAR_ICONS.assets}
     label={t('ui.media.asset-library')}
     collapsed={collapsed}
     active={active}

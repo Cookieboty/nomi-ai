@@ -3,7 +3,12 @@
  * 展开看各候选的尝试、网关修正、解析方式、协议、追踪 id 与错误。只有元数据，不含对话内容。
  */
 import { Badge, BrandIcon, Icon, Select, t } from '@nomi-ai/ui';
-import { ChevronDown, ChevronRight, FilterX, ListX } from 'lucide-react';
+import {
+  IconChevronDown as ChevronDown,
+  IconChevronRight as ChevronRight,
+  IconFilterOff as FilterX,
+  IconPlaylistX as ListX,
+} from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 
 import {

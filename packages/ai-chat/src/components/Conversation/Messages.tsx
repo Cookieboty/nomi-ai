@@ -1,16 +1,16 @@
 /** 会话里的消息：用户气泡、助手消息（时间线 + 正文 + 元信息）、错误卡片、消息操作 */
 import { Icon, t, Tooltip, useLocale } from '@nomi-ai/ui';
 import {
-  Check,
-  CircleAlert,
-  Copy,
-  FoldVertical,
-  Layers,
-  OctagonX,
-  Pencil,
-  RefreshCw,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+  IconCheck as Check,
+  IconAlertCircle as CircleAlert,
+  IconCopy as Copy,
+  IconArrowsVertical as FoldVertical,
+  IconStack2 as Layers,
+  IconXboxX as OctagonX,
+  IconPencil as Pencil,
+  IconRefresh as RefreshCw,
+} from '@tabler/icons-react';
+import type { TablerIcon as IconGlyph } from '@tabler/icons-react';
 import React, { memo, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { joinFileAttachments, splitFileAttachments } from '../../services/fileAttachments';
@@ -18,6 +18,7 @@ import { refLabel, useGatewayState } from '../../services/nomiModel';
 import type { ConvMessage } from '../../types/conversation';
 import { layoutBody, planBody, planLength, sliceBody } from '../../utils/convSegments';
 import { formatFullTime, turnSummary } from '../../utils/convTime';
+import { ENDPOINT_NAME, type EndpointKey } from '../../utils/endpointBadge';
 import { isImeComposing } from '../../utils/keyboard';
 import {
   entriesFromLegacyTools,
@@ -25,6 +26,7 @@ import {
   reduceTraceCached,
   settleTrace,
 } from '../../utils/toolTrace';
+import { EndpointIcon } from '../EndpointIcon';
 import { FileChipRow } from '../FileAttachment';
 
 import { ForkFromMessageContext } from './forkContext';
@@ -50,7 +52,7 @@ export interface ConvSlots {
 }
 
 export const ActionButton: React.FC<{
-  icon: LucideIcon;
+  icon: IconGlyph;
   label: string;
   onClick: () => void;
   testId: string;
@@ -362,6 +364,10 @@ export const AssistantMessage = memo(function AssistantMessage({
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
   const full = formatFullTime(message.at);
+  const backend =
+    (Object.keys(ENDPOINT_NAME) as EndpointKey[]).find(
+      (key) => ENDPOINT_NAME[key] === message.label,
+    ) ?? 'other';
   const body = slots?.body?.(message);
   const retry = canRetry && onRetry ? () => onRetry(message.id) : undefined;
   const forkFrom = useContext(ForkFromMessageContext);
@@ -398,7 +404,14 @@ export const AssistantMessage = memo(function AssistantMessage({
         )}
         {slots?.after?.(message)}
         <div className={styles.meta}>
-          {message.label && <span className={styles.label}>{message.label}</span>}
+          {message.label && (
+            <span className={styles.label} data-testid="conv-agent-label">
+              <span className={styles.agentIcon} aria-hidden>
+                <EndpointIcon backend={backend} size={14} decorative />
+              </span>
+              {message.label}
+            </span>
+          )}
           {message.model && (
             <ModelTag model={message.model} responseModel={message.responseModel} />
           )}

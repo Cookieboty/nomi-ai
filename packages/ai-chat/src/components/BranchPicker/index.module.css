@@ -20,6 +20,10 @@
   font-size: var(--cd-font-size-sm);
   cursor: pointer;
 }
+.chip[data-size='sm'] {
+  height: var(--cd-control-h-sm);
+  font-size: var(--cd-font-size-xs);
+}
 .chip:hover:not(:disabled),
 .chip[aria-expanded='true'] {
   background: var(--cd-color-hover);

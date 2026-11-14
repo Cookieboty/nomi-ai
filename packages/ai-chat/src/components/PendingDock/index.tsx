@@ -4,7 +4,12 @@
  * 可以撤回修改（文字退回输入框）或删除。
  */
 import { Icon, t, useLocale } from '@nomi-ai/ui';
-import { CornerDownRight, ListEnd, Pencil, X } from 'lucide-react';
+import {
+  IconCornerDownRight as CornerDownRight,
+  IconListTree as ListEnd,
+  IconPencil as Pencil,
+  IconX as X,
+} from '@tabler/icons-react';
 import React, { memo } from 'react';
 
 import type { PendingSend } from '../../utils/pendingSends';

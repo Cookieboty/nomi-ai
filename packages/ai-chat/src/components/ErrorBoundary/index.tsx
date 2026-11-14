@@ -1,6 +1,8 @@
 import { createLogger, Disclosure, t, Icon } from '@nomi-ai/ui';
-import { TriangleAlert } from 'lucide-react';
+import { IconAlertTriangle as TriangleAlert } from '@tabler/icons-react';
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
+
+import { startupBrandIntro } from '../BrandIntro/state';
 
 import styles from './index.module.css';
 
@@ -27,6 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    startupBrandIntro.cancel();
     log.error('AI Chat Error Boundary caught an error:', error, errorInfo);
     this.setState({ error, errorInfo });
   }

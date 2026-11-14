@@ -88,9 +88,10 @@ describe('全局背景层', () => {
     );
     const header = read('src/components/ChatHeader/index.module.css');
     expect(ruleBody(header, '.header')).toContain('--cd-chat-header-bg');
-    // 侧栏不再画分割线：对话区是一张带同一边框令牌的圆角卡片
-    expect(ruleBody(app, '.workspace-card')).toContain('--cd-panel-border');
-    expect(ruleBody(app, '.files-rail')).toContain('--cd-panel-border');
+    // 内容区取消外边框；各栏共用内容背景，拖动分隔线单独绘制。
+    expect(ruleBody(app, '.workspace-card')).toContain('border: none');
+    expect(ruleBody(app, '.workspace-card')).toContain('--cd-workspace-bg');
+    expect(ruleBody(app, '.files-rail')).toContain('border-left: none');
     expect(ruleBody(app, 'html[data-chat-bg] .files-rail')).toContain('border-left: none');
     const splitter = ruleBody(
       app,
@@ -132,16 +133,20 @@ describe('全局背景层', () => {
   });
 
   it('图片主题预览复用底图和蒙版，不模糊卡片内容或遮挡选中标记', () => {
-    const settings = read('src/components/SettingsView/index.module.css');
-    expect(ruleBody(settings, '.themeImageLayers')).toMatch(/inset:\s*0/);
-    expect(ruleBody(settings, '.themeImageLayers')).toMatch(/overflow:\s*hidden/);
-    expect(ruleBody(settings, '.themeImageLayers')).not.toMatch(/filter:|opacity:/);
-    expect(ruleBody(settings, '.themeCard')).toMatch(/z-index:\s*2/);
-    expect(ruleBody(settings, '.themeCheck')).toMatch(/z-index:\s*2/);
+    const choices = read('src/components/ThemeChoice/index.module.css');
+    expect(ruleBody(choices, '.imageLayers')).toMatch(/inset:\s*0/);
+    expect(ruleBody(choices, '.imageLayers')).toMatch(/overflow:\s*hidden/);
+    expect(ruleBody(choices, '.imageLayers')).not.toMatch(/filter:|opacity:/);
+    expect(ruleBody(choices, '.sidebar,\n.pane,\n.splitLight,\n.splitDark')).toMatch(
+      /z-index:\s*2/,
+    );
+    expect(ruleBody(choices, '.choice > *')).toMatch(/z-index:\s*2/);
   });
 
   it('欢迎区、输入区和各栏不再单独模糊', () => {
-    expect(ruleBody(app, '.welcome-content')).not.toContain('backdrop-filter');
+    expect(
+      ruleBody(read('src/components/ConversationWelcome/index.module.css'), '.content'),
+    ).not.toContain('backdrop-filter');
     expect(ruleBody(app, '.input-container')).not.toContain('backdrop-filter');
     expect(app).not.toMatch(/--cd-chat-bg-blur-(left|center|right)/);
     const sidebar = read('src/components/Sidebar/index.module.css');
@@ -151,12 +156,12 @@ describe('全局背景层', () => {
   });
 
   it('设置、标题栏、引导和共享弹层使用全局面板背景，保留基础主题色板', () => {
-    expect(ruleBody(app, 'html[data-chat-bg] .settings-overlay')).toMatch(
+    expect(ruleBody(app, 'html[data-chat-bg] .settings-workspace')).toMatch(
       /background:\s*transparent/,
     );
-    expect(ruleBody(app, 'html[data-platform] .app-titlebar')).toContain('--cd-panel-bg');
+    expect(ruleBody(app, 'html[data-platform] .app-titlebar')).toContain('background: transparent');
     const settings = read('src/components/SettingsView/index.module.css');
-    expect(ruleBody(settings, '.nav')).toContain('--cd-panel-bg-subtle');
+    expect(ruleBody(settings, '.nav')).toContain('background: transparent');
     expect(ruleBody(settings, '.block')).toContain('--cd-settings-card-bg');
     const onboarding = read('src/components/Onboarding/index.module.css');
     expect(ruleBody(onboarding, '.card')).toContain('--cd-panel-surface-raised');
@@ -188,7 +193,7 @@ describe('全局背景层', () => {
       expect(custom).toContain(`${name}: var(--cd-panel-bg-subtle)`);
     }
     const sidebar = read('src/components/Sidebar/index.module.css');
-    expect(ruleBody(sidebar, ':global(html[data-chat-bg]) .sidebar')).toContain(
+    expect(ruleBody(sidebar, ':global(html[data-chat-bg]) .rail')).toContain(
       'background: var(--cd-panel-bg-subtle)',
     );
     const conversation = read('src/components/Conversation/index.module.css');
@@ -198,7 +203,7 @@ describe('全局背景层', () => {
     expect(ruleBody(tools, '.diff')).toContain('--cd-chat-tool-detail-bg');
     const input = read('src/components/MessageInput/index.module.css');
     expect(ruleBody(input, '.inputWrapper')).toContain('--cd-chat-input-bg');
-    expect(ruleBody(app, 'html[data-chat-bg] .files-rail')).toContain('--cd-panel-bg-subtle');
+    expect(ruleBody(app, 'html[data-chat-bg] .files-rail')).toContain('--cd-workspace-bg');
     const workspace = read('src/components/SessionWorkspace/SessionWorkspace.module.css');
     expect(ruleBody(workspace, '.panel[data-rail]')).toContain('background: transparent');
     expect(
@@ -226,7 +231,7 @@ describe('全局背景层', () => {
       '--cd-chat-hover-overlay',
     );
     const sidebar = read('src/components/Sidebar/index.module.css');
-    expect(ruleBody(sidebar, '.brandWrap:hover')).toContain('--cd-chat-hover-overlay');
+    expect(ruleBody(sidebar, '.brandWrap:hover')).toContain('--cd-color-nav-bg');
     for (const css of [tools, sidebar]) {
       expect(css).toContain('background-color var(--cd-duration-fast) var(--cd-ease)');
       expect(css).toContain('color var(--cd-duration-fast) var(--cd-ease)');
@@ -317,12 +322,13 @@ describe('全局背景层', () => {
     for (const selector of [
       '.back:hover,\n.navItem:hover',
       '.iconOpt:hover',
-      '.theme:hover',
       '.helpToggle:hover',
     ]) {
-      expect(ruleBody(settings, selector)).toContain('--cd-chat-hover-overlay');
+      expect(ruleBody(settings, selector)).toContain(
+        selector.startsWith('.back') ? '--cd-color-nav-bg' : '--cd-chat-hover-overlay',
+      );
     }
-    expect(ruleBody(settings, '.back,\n.navItem,\n.iconOpt,\n.theme,\n.helpToggle')).toContain(
+    expect(ruleBody(settings, '.back,\n.navItem,\n.iconOpt,\n.helpToggle')).toContain(
       'background-color var(--cd-duration-fast) var(--cd-ease)',
     );
     const pane = read('src/components/SessionWorkspace/WorkspacePane.module.css');
@@ -431,12 +437,10 @@ describe('侧栏悬浮蒙版：时间被遮住', () => {
     // 进行中 / 排队只看行首状态点，状态文字只给读屏（.srOnly），没有 .threadLive 样式了
     expect(sidebar).not.toContain('.threadLive');
     expect(ruleBody(sidebar, '.rowActions')).toMatch(/z-index:\s*1/);
-    expect(ruleBody(sidebar, '.rowActions')).toMatch(/min-width:\s*80px/);
-    expect(ruleBody(sidebar, '.rowActions')).toContain('var(--cd-color-hover) 100%');
+    expect(ruleBody(sidebar, '.rowActions')).toMatch(/min-width:\s*0/);
+    expect(ruleBody(sidebar, '.rowActions')).toContain('var(--cd-color-nav-bg) 100%');
     // 侧栏选中色比通用选中色浅一档（.sidebar 上的 --sb-selected-bg），蒙版跟着用它
-    expect(ruleBody(sidebar, '.sidebar')).toMatch(
-      /--sb-selected-bg:[^;]*var\(--cd-color-selected-bg\)/,
-    );
+    expect(ruleBody(sidebar, '.sidebar')).toMatch(/--sb-selected-bg:[^;]*var\(--cd-color-nav-bg\)/);
     expect(ruleBody(sidebar, '.row[data-active] .rowActions')).toContain(
       'var(--sb-selected-bg) 100%',
     );

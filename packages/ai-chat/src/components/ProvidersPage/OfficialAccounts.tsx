@@ -15,7 +15,13 @@ import {
   SettingsGroup,
   t,
 } from '@nomi-ai/ui';
-import { Copy, ExternalLink, LogIn, RotateCw, UserRound } from 'lucide-react';
+import {
+  IconCopy as Copy,
+  IconExternalLink as ExternalLink,
+  IconLogin as LogIn,
+  IconRotateClockwise as RotateCw,
+  IconUserCircle as UserRound,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import {

@@ -4,14 +4,14 @@
  *   2. 供应商配好后列出它的对话模型，点一个即设为 Nomi 对话使用的模型。供应商没配好前第 2 段置灰。
  */
 import { Icon, t } from '@nomi-ai/ui';
-import { CheckCircle2 } from 'lucide-react';
+import { IconCircleCheck as CheckCircle2 } from '@tabler/icons-react';
 import React, { useState } from 'react';
 
 import { gatewayClient, type GatewayState } from '../../services/gatewayClient';
 import { nomiMainRef, refreshNomiModel, useGatewayState } from '../../services/nomiModel';
 import { ProviderForm } from '../ModelsPage/ProviderForm';
 
-import styles from './index.module.css';
+import styles from './ProviderSetup.module.css';
 
 /** 已配置、可用于对话的供应商（启用且至少有一个启用的对话模型） */
 export function usableProviders(s: GatewayState | null) {

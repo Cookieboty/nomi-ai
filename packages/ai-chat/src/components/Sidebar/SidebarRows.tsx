@@ -1,5 +1,9 @@
 import { t, Icon, useLocale } from '@nomi-ai/ui';
-import { Ellipsis, Pin, PinOff, Trash2 } from 'lucide-react';
+import {
+  IconDots as Ellipsis,
+  IconPinned as Pin,
+  IconPinnedOff as PinOff,
+} from '@tabler/icons-react';
 import React from 'react';
 import { type RowComponentProps } from 'react-window';
 
@@ -40,31 +44,26 @@ export function liveOf(tab: HarnessTabMeta | undefined): string {
 /** 行内操作的图标（描边，随文字色） */
 const PinIcon = () => <Icon icon={Pin} size={14} />;
 const UnpinIcon = () => <Icon icon={PinOff} size={14} />;
-const TrashIcon = () => <Icon icon={Trash2} size={14} />;
 const MoreIcon = () => <Icon icon={Ellipsis} size={14} />;
 
 export interface RowActionHandlers {
   /** 置顶 / 取消置顶（改标题在悬停卡片里点标题） */
   onPin?: () => void;
   pinned?: boolean;
-  /** Nomi 对话：归档（可在设置里找回）；CLI 标签：关闭标签；本机历史：删除 */
-  onDelete?: () => void;
   /** 「更多」按钮本身：菜单锚在它下方，再点它关掉菜单 */
   onMore: (anchor: HTMLElement) => void;
 }
 
 /**
- * 行尾三个图标按钮：置顶 / 永久删除 / 更多。悬浮、行内键盘焦点时显示；
- * 行内与菜单中的删除使用同一个确认流程。
+ * 行尾仅显示置顶 / 更多。悬浮、行内键盘焦点时显示；
+ * 删除保留在更多菜单中，沿用原有确认流程。
  */
 export const RowActions: React.FC<RowActionHandlers & { kind: 'conv' | 'tab' | 'hist' }> = ({
   onPin,
   pinned,
-  onDelete,
   onMore,
 }) => {
   const pinLabel = pinned ? t('ui.knowledge-local.unpin') : t('ui.cli-monitor.pin-chat');
-  const delLabel = t('ui.cli-monitor.delete-permanently');
   return (
     <div
       className={styles.rowActions}
@@ -82,17 +81,6 @@ export const RowActions: React.FC<RowActionHandlers & { kind: 'conv' | 'tab' | '
           data-testid="row-pin"
         >
           {pinned ? <UnpinIcon /> : <PinIcon />}
-        </button>
-      )}
-      {onDelete && (
-        <button
-          type="button"
-          className={`${styles.rowBtn} ${styles.rowBtnDanger}`}
-          aria-label={delLabel}
-          onClick={onDelete}
-          data-testid="row-delete"
-        >
-          <TrashIcon />
         </button>
       )}
       <button
@@ -121,13 +109,11 @@ const ThreadItemImpl: React.FC<{
   onRename?: (id: string, name: string | null) => void;
   /** 行内的置顶 / 取消置顶 */
   onPinToggle?: (id: string) => void;
-  /** 行内的归档（Nomi 对话）/ 关闭（CLI 标签） */
-  onDeleteRequest?: (id: string) => void;
   onMore?: (id: string, anchor: HTMLElement) => void;
   /** 悬停 / 聚焦：el 为 null 时收起详情卡片 */
   onPeek?: (id: string, el: HTMLElement | null) => void;
   /**
-   * 行尾的端点小图标（灰色）：只在工坊「全部」里给编程助手的会话标出端点；Nomi 是默认，不标。
+   * 行尾的端点品牌图标：只在工坊「全部」里给编程助手的会话标出端点；Nomi 是默认，不标。
    * 行首不画图标，所有标题左对齐（Codex 式）。
    */
   showIcon?: boolean;
@@ -142,7 +128,6 @@ const ThreadItemImpl: React.FC<{
   renaming,
   onRename,
   onPinToggle,
-  onDeleteRequest,
   onMore,
   onPeek,
   showIcon = true,
@@ -235,7 +220,7 @@ const ThreadItemImpl: React.FC<{
             ) : null}
             {endpointMark ? (
               <span className={styles.threadEp} data-testid="thread-endpoint" aria-hidden>
-                <EndpointIcon backend={c.backend} size={12} decorative />
+                <EndpointIcon backend={c.backend} size={12} variant="color" decorative />
               </span>
             ) : null}
           </span>
@@ -248,7 +233,6 @@ const ThreadItemImpl: React.FC<{
           kind={c.tabId ? 'tab' : 'conv'}
           onPin={onPinToggle ? () => onPinToggle(c.id) : undefined}
           pinned={Boolean(c.pinnedAt)}
-          onDelete={() => onDeleteRequest?.(c.id)}
           onMore={(r) => onMore(c.id, r)}
         />
       )}
@@ -270,7 +254,6 @@ export type VirtualProps = {
   renamingId: string | null;
   onRename: (id: string, name: string | null) => void;
   onPinToggle: (id: string) => void;
-  onDeleteRequest: (id: string) => void;
   onMore: (id: string, anchor: HTMLElement) => void;
   onPeek?: (id: string, el: HTMLElement | null) => void;
   showIcon?: boolean;
@@ -289,7 +272,6 @@ export const VirtualRow = ({
   renamingId,
   onRename,
   onPinToggle,
-  onDeleteRequest,
   onMore,
   onPeek,
   showIcon,
@@ -308,7 +290,6 @@ export const VirtualRow = ({
         renaming={renamingId === c.id}
         onRename={onRename}
         onPinToggle={onPinToggle}
-        onDeleteRequest={onDeleteRequest}
         onMore={onMore}
         onPeek={onPeek}
         showIcon={showIcon}
@@ -328,8 +309,7 @@ export const HistoryRow: React.FC<{
   onOpen: () => void;
   /** 在 (x, y) 打开这一行的菜单（右键或「更多」） */
   onMenu: (x: number, y: number, anchor?: HTMLElement) => void;
-  onDelete: () => void;
-}> = ({ h, busy, onOpen, onMenu, onDelete }) => {
+}> = ({ h, busy, onOpen, onMenu }) => {
   const tag = routeTag(h);
   return (
     <div className={`${styles.row} ${styles.histRow}`} data-testid="history-session-row">
@@ -337,6 +317,7 @@ export const HistoryRow: React.FC<{
         type="button"
         className={styles.thread}
         data-testid="history-session-item"
+        data-layout="plain"
         data-backend={h.backend}
         data-session-id={h.sessionId}
         data-cwd-missing={h.cwdMissing || undefined}
@@ -348,7 +329,6 @@ export const HistoryRow: React.FC<{
         }}
       >
         <span className={styles.dot} aria-hidden />
-        <EndpointIcon backend={h.backend} size={14} />
         {/* 标签放在标题格里：行是 4 列网格，多一个子元素会把时间挤到第二行 */}
         <span className={styles.histTitle}>
           <span
@@ -370,11 +350,15 @@ export const HistoryRow: React.FC<{
             </span>
           )}
         </span>
-        <span className={styles.threadTime}>{rel(h.updatedAt)}</span>
+        <span className={styles.threadTail}>
+          <span className={styles.threadEp} aria-hidden>
+            <EndpointIcon backend={h.backend} size={12} decorative />
+          </span>
+          <span className={styles.threadTime}>{rel(h.updatedAt)}</span>
+        </span>
       </button>
       <RowActions
         kind="hist"
-        onDelete={onDelete}
         onMore={(a) => {
           const r = a.getBoundingClientRect();
           onMenu(r.right - 184, r.bottom + 2, a);

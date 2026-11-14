@@ -16,7 +16,14 @@ import {
   Tabs,
   Textarea,
 } from '@nomi-ai/ui';
-import { ListChecks, Bell, MessageCircle, Moon, Plus, Sun } from 'lucide-react';
+import {
+  IconListCheck as ListChecks,
+  IconBell as Bell,
+  IconMessageCircle as MessageCircle,
+  IconMoon as Moon,
+  IconPlus as Plus,
+  IconSun as Sun,
+} from '@tabler/icons-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { characterName } from '../../services/characterName';

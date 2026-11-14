@@ -1,6 +1,10 @@
 /** 素材库页主体（瀑布流、筛选、查看器）：首次打开素材库时才加载（见 index.tsx 的 useAssetLibraryHost） */
 import { Icon, Select, t } from '@nomi-ai/ui';
-import { Database, Images, Search } from 'lucide-react';
+import {
+  IconDatabase as Database,
+  IconLibraryPhoto as Images,
+  IconSearch as Search,
+} from '@tabler/icons-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { hostAssetUrl } from '../../services/api';

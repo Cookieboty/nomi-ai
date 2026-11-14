@@ -13,6 +13,7 @@ import React, {
   type ReactNode,
 } from 'react';
 
+import { startupBrandIntro } from '../components/BrandIntro/state';
 import { importChatImages } from '../services/chatImages';
 import { injectedMemoryIds, isCompaction } from '../services/compaction';
 import { notifyConversationsChanged } from '../services/conversationStore';
@@ -1014,6 +1015,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
 
   // 加载对话历史
   const loadChatHistory = useCallback(async () => {
+    startupBrandIntro.taskStart('nomi');
     const my = ++historySeq.current;
     // 切换会话：停止朗读上一个会话的回复
     stopReplySpeech();
@@ -1032,6 +1034,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     } catch (error) {
       if (my !== historySeq.current) return;
       dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
+    } finally {
+      if (my === historySeq.current) startupBrandIntro.taskDone('nomi');
     }
   }, []);
 
@@ -1105,7 +1109,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   // 初始化数据（ipcClient 变化时重新加载，保证 SDK client 就绪后拉到最新数据）
   useEffect(() => {
     loadConfig();
-    loadChatHistory();
+    void loadChatHistory();
   }, [state.ipcClient, loadConfig, loadChatHistory]);
 
   const actions = useMemo(

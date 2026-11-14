@@ -1,0 +1,11 @@
+/* 引导状态查询或 chunk 预热期间的全屏底色幕布（禁止动效与虚化，避免首帧闪出主界面） */
+
+.gate {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--cd-z-modal) + 10);
+  background: var(--cd-panel-surface-raised);
+}
+:global(html[data-chat-bg]) .gate {
+  background: var(--cd-modal-bg);
+}
