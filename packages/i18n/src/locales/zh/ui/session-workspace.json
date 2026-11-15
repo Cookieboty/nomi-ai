@@ -1,5 +1,4 @@
 {
-  "ui.session-workspace.after-committing-run-a-plain-git-push-use": "提交完成后执行普通的 git push（没有上游分支时用 -u origin <当前分支>），不要 force-push。",
   "ui.session-workspace.agent-card-open": "点击打开",
   "ui.session-workspace.agent-card-running": "处理中",
   "ui.session-workspace.approval-requests-denied-timed-out": "审批 {0} 次，拒绝 {1} 次，超时 {2} 次",
@@ -114,7 +113,6 @@
   "ui.session-workspace.new-branch-name": "新分支名",
   "ui.session-workspace.new-tab": "新标签页",
   "ui.session-workspace.new-tab-search": "搜索文件或输入网址",
-  "ui.session-workspace.new-tab-section": "新建",
   "ui.session-workspace.next": "下一张",
   "ui.session-workspace.next-file": "下一个文件",
   "ui.session-workspace.no-diff-switch-to-file-to-view-disk": "无 diff，可切换到「文件」查看磁盘内容",
@@ -221,7 +219,6 @@
   "ui.session-workspace.publish-branch-to": "推送到 {0} 并设为上游分支",
   "ui.session-workspace.pull-n-commits-fast-forward-only": "拉取 {0} 个新提交（只快进，不合并）",
   "ui.session-workspace.pulled-fast-forward": "已拉取远端的新提交",
-  "ui.session-workspace.push-after-commit": "提交后推送",
   "ui.session-workspace.push-n-commits-to": "推送 {0} 个提交到 {1}",
   "ui.session-workspace.pushed-to": "已推送到 {0}",
   "ui.session-workspace.put-a-commit-request-in-the-composer-send": "把提交指令填进输入框，确认后发给助手",

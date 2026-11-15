@@ -1,5 +1,4 @@
 {
-  "ui.session-workspace.after-committing-run-a-plain-git-push-use": "After committing, run a plain git push (use -u origin <current branch> if there is no upstream). Do not force-push.",
   "ui.session-workspace.agent-card-open": "Click to open",
   "ui.session-workspace.agent-card-running": "Working",
   "ui.session-workspace.approval-requests-denied-timed-out": "{0} approval requests, {1} denied, {2} timed out",
@@ -114,7 +113,6 @@
   "ui.session-workspace.new-branch-name": "New branch name",
   "ui.session-workspace.new-tab": "New tab",
   "ui.session-workspace.new-tab-search": "Search files or enter a URL",
-  "ui.session-workspace.new-tab-section": "New",
   "ui.session-workspace.next": "Next",
   "ui.session-workspace.next-file": "Next file",
   "ui.session-workspace.no-diff-switch-to-file-to-view-disk": "No diff — switch to File to view disk content",
@@ -221,7 +219,6 @@
   "ui.session-workspace.publish-branch-to": "Push to {0} and set it as upstream",
   "ui.session-workspace.pull-n-commits-fast-forward-only": "Pull {0} new commits (fast-forward only, no merge)",
   "ui.session-workspace.pulled-fast-forward": "Pulled new commits from the remote",
-  "ui.session-workspace.push-after-commit": "Push after commit",
   "ui.session-workspace.push-n-commits-to": "Push {0} commits to {1}",
   "ui.session-workspace.pushed-to": "Pushed to {0}",
   "ui.session-workspace.put-a-commit-request-in-the-composer-send": "Put a commit request in the composer; send it to the assistant when ready",
