@@ -375,6 +375,7 @@ export const SideWorkspace: React.FC<{
                 onOpenSideChat={() => void model.openSideChat?.({ fresh: true, replace: key })}
                 onOpenBrowser={(url) => model.openBrowser?.(url, { replace: key })}
                 onOpenFile={(href, root) => {
+                  // 先让预览区接管文件，再移除新标签页，保证这是“替换”而不是先关闭再切换。
                   resource?.open(href, { ...resource.scope, cwd: root });
                   model.close({ key, kind: 'new-tab', closable: true, page });
                 }}
