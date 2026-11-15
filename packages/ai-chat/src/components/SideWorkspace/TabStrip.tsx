@@ -9,10 +9,13 @@
  */
 import { Icon, IconButton, t } from '@nomi-ai/ui';
 import {
+  AppWindow,
   Bot,
   Columns2,
   FileText,
+  FolderOpen,
   GitCompareArrows,
+  Globe,
   Maximize2,
   MessageCirclePlus,
   MessageSquare,
@@ -48,6 +51,10 @@ const TabIcon: React.FC<{
   entry?: PreviewEntry;
 }> = ({ item, backendOf, entry }) => {
   if (item.kind === 'main') return <Icon icon={MessageSquare} size={14} />;
+  if (item.kind === 'new-tab') return <Icon icon={AppWindow} size={14} />;
+  if (item.kind === 'changes') return <Icon icon={GitCompareArrows} size={14} />;
+  if (item.kind === 'open-file') return <Icon icon={FolderOpen} size={14} />;
+  if (item.kind === 'browser') return <Icon icon={Globe} size={14} />;
   if (item.target?.kind === 'side-chat') return <Icon icon={MessageCirclePlus} size={14} />;
   if (item.kind === 'file')
     return <Icon icon={entry?.diff ? GitCompareArrows : FileText} size={14} />;
@@ -100,8 +107,7 @@ export const SideTabStrip: React.FC<{
   model: SideWorkspaceModel;
   /** 主列消息（主会话里进程内子代理的悬停卡片用） */
   columnMessages?: readonly ConvMessage[];
-  onBrowseFiles?: () => void;
-}> = ({ model, columnMessages, onBrowseFiles }) => {
+}> = ({ model, columnMessages }) => {
   const harness = useHarnessTabs();
   const backendOf = useCallback(
     (target: SubagentTarget): string | null => {
@@ -112,8 +118,6 @@ export const SideTabStrip: React.FC<{
     },
     [harness.state?.tabs],
   );
-  const [menu, setMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const [tabMenu, setTabMenu] = useState<TabMenu | null>(null);
   const tabMenuRef = useRef<HTMLDivElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
@@ -122,9 +126,7 @@ export const SideTabStrip: React.FC<{
   const [splitHot, setSplitHot] = useState(false);
   // 键盘排序后焦点跟着标签走（排好后的下一次渲染里聚焦）
   const refocus = useRef<string | null>(null);
-  const closeMenu = useCallback(() => setMenu(false), []);
   const closeTabMenu = useCallback(() => setTabMenu(null), []);
-  useDismiss(menu, menuRef, closeMenu);
   useDismiss(!!tabMenu, tabMenuRef, closeTabMenu);
   // 当前标签被挤到可见范围外（标签多、这一栏窄）时滚过去
   const current = model.stripActive;
@@ -150,6 +152,21 @@ export const SideTabStrip: React.FC<{
   }, [drag]);
   const label = (item: SideTabItem): string => {
     if (item.kind === 'main') return t('ui.session-workspace.side-tab-main');
+    if (item.kind === 'new-tab') return t('ui.session-workspace.new-tab');
+    if (item.kind === 'changes') return t('ui.session-workspace.changed');
+    if (item.kind === 'open-file') return t('ui.providers-schedule.open-file');
+    if (item.kind === 'browser') {
+      const page = item.page && item.page.kind === 'browser' ? item.page : undefined;
+      if (page?.title) return page.title;
+      if (page?.url) {
+        try {
+          return new URL(page.url).hostname || page.url;
+        } catch {
+          return page.url;
+        }
+      }
+      return t('ui.session-workspace.open-browser');
+    }
     if (item.kind === 'file') {
       const entry = model.entryOf(item);
       return entry ? fileLabel(entry) : '';
@@ -238,7 +255,7 @@ export const SideTabStrip: React.FC<{
                         trigger,
                       });
                     }
-                  : item.kind === 'agent'
+                  : item.kind !== 'main'
                     ? (event) => {
                         event.preventDefault();
                         setTabMenu({ item, x: event.clientX, y: event.clientY });
@@ -280,7 +297,12 @@ export const SideTabStrip: React.FC<{
                     } else if ((pg && e.key === 'PageDown') || (arrow && e.key === 'ArrowRight')) {
                       e.preventDefault();
                       moveBy(item, 1);
-                    } else if (item.kind === 'agent' && e.shiftKey && e.key === 'F10') {
+                    } else if (
+                      item.kind !== 'main' &&
+                      item.kind !== 'file' &&
+                      e.shiftKey &&
+                      e.key === 'F10'
+                    ) {
                       e.preventDefault();
                       const box = e.currentTarget.getBoundingClientRect();
                       setTabMenu({ item, x: box.left, y: box.bottom });
@@ -372,49 +394,14 @@ export const SideTabStrip: React.FC<{
           </button>
         </div>
       )}
-      {(onBrowseFiles || model.newSideChat) && (
-        <div className={styles.addWrap} ref={menuRef}>
-          <IconButton
-            size="sm"
-            label={t('ui.session-workspace.side-tab-add')}
-            icon={<Icon icon={Plus} size={14} />}
-            onClick={() => setMenu((v) => !v)}
-            aria-expanded={menu}
-            aria-haspopup="menu"
-            data-testid="side-tab-add"
-          />
-          {menu && (
-            <div className={styles.menu} role="menu">
-              {model.newSideChat && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-testid="side-tab-new-chat"
-                  onClick={() => {
-                    setMenu(false);
-                    model.newSideChat?.();
-                  }}
-                >
-                  <Icon icon={MessageCirclePlus} size={14} />
-                  {t('ui.session-workspace.side-chat-new')}
-                </button>
-              )}
-              {onBrowseFiles && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setMenu(false);
-                    onBrowseFiles();
-                  }}
-                >
-                  <Icon icon={FileText} size={14} />
-                  {t('ui.session-workspace.side-tab-browse-files')}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+      {model.openNewTab && (
+        <IconButton
+          size="sm"
+          label={t('ui.session-workspace.new-tab')}
+          icon={<Icon icon={Plus} size={14} />}
+          onClick={() => model.openNewTab?.()}
+          data-testid="side-tab-add"
+        />
       )}
       {(sideItem || model.split) && (
         <span

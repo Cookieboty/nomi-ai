@@ -30,3 +30,9 @@
   font-variant-numeric: tabular-nums;
   font-weight: var(--cd-font-weight-medium);
 }
+
+.shortcut {
+  margin-left: var(--cd-space-2);
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-sm);
+}

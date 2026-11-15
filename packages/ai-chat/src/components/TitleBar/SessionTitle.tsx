@@ -204,7 +204,7 @@ export const SessionTools: React.FC<{
   sessionKey: string | null;
   /** 当前会话的消息（变更统计、用到的 Agents） */
   messages: readonly ConvMessage[];
-  rail: { open: boolean; cwd: string; onToggle: () => void } | null;
+  rail: { open: boolean; onToggle: () => void } | null;
 }> = ({ onFork, sessionKey, messages, rail }) => {
   const s = useCurrentSession();
   const count = useMemo(() => aggregateSessionChanges(messages).length, [messages]);

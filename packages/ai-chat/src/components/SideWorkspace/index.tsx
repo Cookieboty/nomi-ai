@@ -11,6 +11,7 @@
 import { t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useResourceContext } from '../../contexts/ResourceContext';
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import type { EmbeddedPreviewProps } from '../../hooks/useResourcePreview';
 import { detachedWindows } from '../../services/detachedWindows';
@@ -30,6 +31,7 @@ import {
   fileTabKey,
   isMaximized,
   isSplit,
+  pageKey,
   MAIN_SIDE_TAB,
   SPLIT_RATIO_MAX,
   SPLIT_RATIO_MIN,
@@ -40,6 +42,10 @@ import type { PreviewEntry, PreviewTabsControl } from '../ResourcePreview/Resour
 import { CenterChangesHost } from '../SessionWorkspace';
 import { SubagentPane, type SubagentPaneActions } from '../SubagentPane';
 
+import { BrowserTab } from './BrowserTab';
+import { ChangesTab } from './ChangesTab';
+import { NewTabPage } from './NewTabPage';
+import { OpenFileTab } from './OpenFileTab';
 import styles from './SideWorkspace.module.css';
 import { SideTabStrip } from './TabStrip';
 
@@ -80,7 +86,11 @@ export function useSideWorkspace(files: SideFiles) {
   const split = !!tabs && isSplit(tabs, hasFiles);
   const splitRatio = tabs?.splitRatio ?? 0.5;
   const active = pane?.active ?? null;
-  const open = !!tabs && (tabs.agents.length > 0 || hasFiles);
+  const open = !!pane && pane.paneVisible;
+  const mounted =
+    !!pane &&
+    (pane.paneVisible ||
+      (tabs != null && (tabs.agents.length > 0 || hasFiles || tabs.pages.length > 0)));
   /** 标签栏上高亮的那个：文件时是预览区当前的文件 */
   const stripActive =
     active === FILES_SIDE_TAB ? (files.activeKey ? fileTabKey(files.activeKey) : null) : active;
@@ -239,6 +249,14 @@ export function useSideWorkspace(files: SideFiles) {
     entryOf,
     scope,
     newSideChat: pane ? () => void pane.openSideChat({ fresh: true }) : undefined,
+    openNewTab: pane ? () => void pane.openNewTab() : undefined,
+    openChanges: pane ? pane.openChanges : undefined,
+    openFileBrowser: pane ? pane.openFileBrowser : undefined,
+    pages: pane?.pages ?? [],
+    mounted,
+    openBrowser: pane ? pane.openBrowser : undefined,
+    setBrowserUrl: pane ? pane.setBrowserUrl : undefined,
+    openSideChat: pane ? pane.openSideChat : undefined,
   };
 }
 
@@ -300,31 +318,39 @@ export const SideWorkspace: React.FC<{
   messages: readonly ConvMessage[];
   cwd?: string | null;
   roots?: readonly string[] | null;
+  busy?: boolean;
   actions?: SubagentPaneActions;
   showStrip: boolean;
-  onBrowseFiles?: () => void;
-}> = ({ model, messages, cwd, roots, actions, showStrip, onBrowseFiles }) => {
-  if (!model.open)
+}> = ({ model, messages, cwd, roots, busy, actions, showStrip }) => {
+  const resource = useResourceContext();
+  if (!model.mounted && !model.open)
     return <CenterChangesHost messages={messages} cwd={cwd} roots={roots} mode="slot" />;
   const filesActive = model.active === FILES_SIDE_TAB;
+  const kind =
+    model.active === MAIN_SIDE_TAB
+      ? 'main'
+      : filesActive
+        ? 'files'
+        : model.active?.startsWith('side-chat:')
+          ? 'chat'
+          : model.active?.startsWith('new-tab:')
+            ? 'new-tab'
+            : model.active === 'changes'
+              ? 'changes'
+              : model.active === 'open-file'
+                ? 'open-file'
+                : model.active?.startsWith('browser:')
+                  ? 'browser'
+                  : 'agent';
   return (
     <section
       className={styles.workspace}
       data-testid="side-workspace"
       data-side-workspace=""
-      data-active-kind={
-        model.active === MAIN_SIDE_TAB
-          ? 'main'
-          : filesActive
-            ? 'files'
-            : model.active?.startsWith('side-chat:')
-              ? 'chat'
-              : 'agent'
-      }
+      data-active-kind={kind}
+      hidden={!model.open || undefined}
     >
-      {showStrip && (
-        <SideTabStrip model={model} columnMessages={messages} onBrowseFiles={onBrowseFiles} />
-      )}
+      {showStrip && <SideTabStrip model={model} columnMessages={messages} />}
       <div className={styles.body}>
         <SubagentPane columnMessages={messages} actions={actions} tabbed />
         {model.files.render({
@@ -332,6 +358,60 @@ export const SideWorkspace: React.FC<{
           expanded: model.maximized,
           onExpanded: model.setExpanded,
           controlRef: model.control,
+        })}
+        {model.pages.map((page) => {
+          const key = pageKey(page);
+          const hidden = model.active !== key;
+          if (page.kind === 'new-tab')
+            return (
+              <NewTabPage
+                key={key}
+                tabKey={key}
+                hidden={hidden}
+                cwd={cwd}
+                roots={roots}
+                onOpenChanges={() => model.openChanges?.({ replace: key })}
+                onOpenFiles={() => model.openFileBrowser?.({ replace: key })}
+                onOpenSideChat={() => void model.openSideChat?.({ fresh: true, replace: key })}
+                onOpenBrowser={(url) => model.openBrowser?.(url, { replace: key })}
+                onOpenFile={(href, root) => {
+                  resource?.open(href, { ...resource.scope, cwd: root });
+                  model.close({ key, kind: 'new-tab', closable: true, page });
+                }}
+              />
+            );
+          if (page.kind === 'changes')
+            return (
+              <ChangesTab
+                key={key}
+                hidden={hidden}
+                messages={messages}
+                cwd={cwd}
+                roots={roots}
+                busy={busy}
+              />
+            );
+          if (page.kind === 'open-file')
+            return (
+              <OpenFileTab
+                key={key}
+                hidden={hidden}
+                messages={messages}
+                cwd={cwd}
+                roots={roots}
+                busy={busy}
+              />
+            );
+          return (
+            <BrowserTab
+              key={key}
+              tabKey={key}
+              url={page.url}
+              title={page.title}
+              hidden={hidden}
+              onNavigate={(url, title) => model.setBrowserUrl?.(key, url, title)}
+            />
+          );
         })}
       </div>
     </section>

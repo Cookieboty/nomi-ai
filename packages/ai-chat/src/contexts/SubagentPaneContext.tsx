@@ -26,19 +26,33 @@ import {
   importSideChat,
   sideChatState,
 } from '../services/sideChat';
+import {
+  isSideTabsPaneVisible,
+  persistSideTabsPanePref,
+  readSideTabsPanePref,
+  type SideTabsPanePref,
+} from '../services/sideTabsPanePrefs';
 import { detachedKeysFor, parseDetachedId } from '../utils/detachedTabs';
 import type { SelectionQuote } from '../utils/selectionQuote';
 import {
   activateTab,
   agentKey,
   closeAgent,
+  closePage,
+  closeSideTab,
   EMPTY_SIDE_TABS,
+  hasSideTabs,
   isSideChatKey,
   moveTab,
   openAgent,
+  openBrowserTab,
+  openChanges,
+  openFileBrowser,
+  openNewTab,
   pruneAgents,
   readSideTabsStore,
   resolveActive,
+  setBrowserUrl as setBrowserUrlState,
   setSplitRatio,
   toggleMaximized,
   toggleSplit,
@@ -46,6 +60,7 @@ import {
   type SideTabItem,
   type SideTabsState,
   type SubagentTarget,
+  type WorkspacePage,
 } from '../utils/sideTabs';
 
 import { useHarnessTabs } from './HarnessTabsContext';
@@ -102,11 +117,28 @@ interface SubagentPaneValue {
    * 侧边聊天：fresh = 新开一个（「+ 新侧边聊天」）；否则当前标签是侧边聊天时加到它上面，不是时新开。
    * quote：带到输入栏上的选区。返回聊天 id。
    */
-  openSideChat: (opts?: { fresh?: boolean; quote?: SelectionQuote }) => string;
+  openSideChat: (opts?: { fresh?: boolean; quote?: SelectionQuote; replace?: string }) => string;
   /** 打开某个已有的侧边聊天标签（会话详情的列表、弹出窗口用） */
   openSideChatTab: (chatId: string) => void;
   /** 当前会话所属的项目（侧边聊天带上它，App 同步进来） */
   setProjectId: (projectId: string | null) => void;
+  /** 工作区页（新标签页 / 变更 / 打开文件 / 浏览器） */
+  pages: readonly WorkspacePage[];
+  /** 标签区整栏是否显示（隐藏时保留标签状态） */
+  paneVisible: boolean;
+  panePref: SideTabsPanePref;
+  showPane: () => void;
+  hidePane: () => void;
+  togglePane: () => void;
+  /** 打开一个新标签页（标签栏「+」） */
+  openNewTab: () => string;
+  /** 打开（或切到已开着的）变更标签 */
+  openChanges: (opts?: { replace?: string }) => void;
+  /** 打开（或切到已开着的）打开文件标签 */
+  openFileBrowser: (opts?: { replace?: string }) => void;
+  /** 打开浏览器标签（同一 URL 已开着则切过去） */
+  openBrowser: (url: string, opts?: { replace?: string; title?: string }) => void;
+  setBrowserUrl: (key: string, url: string, title?: string) => void;
 }
 
 const Ctx = createContext<SubagentPaneValue | null>(null);
@@ -119,6 +151,11 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [byScope, setByScope] = useState<Record<string, SideTabsState>>(readSideTabsStore);
   const [meta, setMeta] = useState<Record<string, SideTabMeta>>({});
   const [filesOpen, setFilesOpen] = useState(false);
+  const [panePref, setPanePrefState] = useState<SideTabsPanePref>(readSideTabsPanePref);
+  const setPanePref = useCallback((pref: SideTabsPanePref) => {
+    setPanePrefState(pref);
+    persistSideTabsPanePref(pref);
+  }, []);
   // 委派标签被关掉、来源标签没了：对应的子任务标签不再显示（读的时候滤掉，下次改动时一并落盘）。
   // 不切换主列的当前标签。
   const liveTabs = harnessTabs.state?.tabs;
@@ -168,13 +205,25 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
   );
   const tabId = shownTarget?.kind === 'harness' ? shownTarget.tabId : null;
   // 已经弹到独立窗口的：把那个窗口提到最前，不在这一侧再开一份
+  const revealPane = useCallback(() => {
+    setPanePrefState((cur) => {
+      if (cur === 'closed') {
+        persistSideTabsPanePref('open');
+        return 'open';
+      }
+      return cur;
+    });
+  }, []);
   const open = useCallback(
     (target: SubagentTarget) => {
       const key = agentKey(target);
       if (detached.has(key)) detachedWindows.focus(scope, key);
-      else update((s) => openAgent(s, target));
+      else {
+        revealPane();
+        update((s) => openAgent(s, target));
+      }
     },
-    [update, detached, scope],
+    [update, detached, scope, revealPane],
   );
   const openSubagent = useCallback(
     (id: string) => {
@@ -205,7 +254,7 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const closeTab = useCallback(
     (key: string) => {
       if (isSideChatKey(key)) discardSideChat(key.slice('side-chat:'.length));
-      update((s) => closeAgent(s, key));
+      update((s) => closeSideTab(s, key));
     },
     [update],
   );
@@ -217,7 +266,7 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
     [open],
   );
   const openSideChat = useCallback(
-    (opts: { fresh?: boolean; quote?: SelectionQuote } = {}) => {
+    (opts: { fresh?: boolean; quote?: SelectionQuote; replace?: string } = {}) => {
       const current = isSideChatKey(active) ? active!.slice('side-chat:'.length) : null;
       if (!opts.fresh && current && sideChatState(current)) {
         if (opts.quote) addSideChatQuote(current, opts.quote);
@@ -225,10 +274,15 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return current;
       }
       const id = createSideChat(scope, { projectId, quote: opts.quote });
-      open({ kind: 'side-chat', chatId: id });
+      revealPane();
+      update((s) => {
+        let next = openAgent(s, { kind: 'side-chat', chatId: id });
+        if (opts.replace) next = closePage(next, opts.replace);
+        return next;
+      });
       return id;
     },
-    [active, update, open, scope, projectId],
+    [active, update, revealPane, scope, projectId],
   );
   // 弹出去的侧边聊天回来了（窗口关掉 / 放回）：收下那个窗口交接的内容；没有内容（窗口里关掉了）就关标签。
   // 按宿主的整份 id 列表比较（切换会话不算「回来」）
@@ -274,6 +328,65 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
     });
   }, []);
 
+  const hasContent = hasSideTabs(tabs, filesOpen);
+  const paneVisible = isSideTabsPaneVisible(panePref, hasContent);
+  const didInitPane = useRef(false);
+  useEffect(() => {
+    if (!didInitPane.current) {
+      didInitPane.current = true;
+      if (panePref === 'open' && !hasContent) update((s) => openNewTab(s));
+      return;
+    }
+    if (!hasContent && panePref === 'open') setPanePref('auto');
+  }, [hasContent, panePref, setPanePref, update]);
+
+  const showPane = useCallback(() => {
+    update((s) => (hasSideTabs(s, filesOpen) ? s : openNewTab(s)));
+    setPanePref('open');
+  }, [update, filesOpen, setPanePref]);
+  const hidePane = useCallback(() => setPanePref('closed'), [setPanePref]);
+  const togglePane = useCallback(() => {
+    if (paneVisible) hidePane();
+    else showPane();
+  }, [paneVisible, hidePane, showPane]);
+  const addNewTab = useCallback(() => {
+    const idRef = { current: '' };
+    revealPane();
+    update((s) => {
+      const next = openNewTab(s);
+      const page = next.pages[next.pages.length - 1];
+      idRef.current = page && page.kind === 'new-tab' ? page.id : '';
+      return next;
+    });
+    return idRef.current;
+  }, [update, revealPane]);
+  const addChanges = useCallback(
+    (opts?: { replace?: string }) => {
+      revealPane();
+      update((s) => openChanges(s, opts));
+    },
+    [update, revealPane],
+  );
+  const addFileBrowser = useCallback(
+    (opts?: { replace?: string }) => {
+      revealPane();
+      update((s) => openFileBrowser(s, opts));
+    },
+    [update, revealPane],
+  );
+  const addBrowser = useCallback(
+    (url: string, opts?: { replace?: string; title?: string }) => {
+      revealPane();
+      update((s) => openBrowserTab(s, url, opts));
+    },
+    [update, revealPane],
+  );
+  const patchBrowserUrl = useCallback(
+    (key: string, url: string, title?: string) =>
+      update((s) => setBrowserUrlState(s, key, url, title)),
+    [update],
+  );
+
   const value = useMemo(
     () => ({
       target: shownTarget,
@@ -302,10 +415,31 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
       openSideChat,
       openSideChatTab,
       setProjectId,
+      pages: tabs.pages,
+      paneVisible,
+      panePref,
+      showPane,
+      hidePane,
+      togglePane,
+      openNewTab: addNewTab,
+      openChanges: addChanges,
+      openFileBrowser: addFileBrowser,
+      openBrowser: addBrowser,
+      setBrowserUrl: patchBrowserUrl,
     }),
     [
       openSideChat,
       openSideChatTab,
+      addNewTab,
+      addChanges,
+      addFileBrowser,
+      addBrowser,
+      patchBrowserUrl,
+      paneVisible,
+      panePref,
+      showPane,
+      hidePane,
+      togglePane,
       scope,
       detached,
       move,
