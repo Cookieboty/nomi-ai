@@ -46,6 +46,25 @@ describe('NewTabPage', () => {
     expect(onOpenBrowser).toHaveBeenLastCalledWith('https://example.com/docs');
   });
 
+  it('shows feedback when Enter is pressed with no matching file', () => {
+    render(
+      <NewTabPage
+        tabKey="new-tab:3"
+        cwd="/repo"
+        roots={['/repo']}
+        onOpenChanges={() => {}}
+        onOpenFiles={() => {}}
+        onOpenSideChat={() => {}}
+        onOpenBrowser={() => {}}
+        onOpenFile={() => {}}
+      />,
+    );
+    const search = screen.getByTestId('new-tab-search');
+    fireEvent.change(search, { target: { value: 'definitely-missing-file' } });
+    fireEvent.submit(search.closest('form')!);
+    expect(screen.getByTestId('new-tab-no-match')).toBeTruthy();
+  });
+
   it('disables files and changes when there is no workspace', () => {
     render(
       <NewTabPage

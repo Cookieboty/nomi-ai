@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConversationView, INITIAL_RENDER } from '../src/components/Conversation';
+import { ConversationView, INITIAL_RENDER, snapStartToTurn } from '../src/components/Conversation';
 import { ForkFromMessageContext } from '../src/components/Conversation/forkContext';
 import type { ChatMessage } from '../src/types/chat';
 import type { ConvLive, ConvMessage } from '../src/types/conversation';
@@ -361,7 +361,11 @@ describe('Nomi 对话走同一套视图', () => {
     const { container } = render(<NomiConversation messages={many} />);
     const rows = () =>
       container.querySelectorAll('[data-testid="msg-user"],[data-testid="msg-assistant"]');
-    expect(rows().length).toBe(INITIAL_RENDER);
+    // 末尾几条若落在一轮中间，会补上该轮的用户消息，首帧可能略多于 INITIAL_RENDER。
+    const first = many.length - snapStartToTurn(many, many.length - INITIAL_RENDER);
+    expect(rows().length).toBe(first);
+    expect(first).toBeGreaterThanOrEqual(INITIAL_RENDER);
+    expect(first).toBeLessThan(many.length);
     expect(container.textContent).toContain('条目19');
     expect(container.textContent).not.toContain('条目0条');
     await waitFor(() => expect(rows().length).toBe(20));

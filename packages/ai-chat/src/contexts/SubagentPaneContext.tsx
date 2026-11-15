@@ -30,6 +30,7 @@ import {
 import {
   isSideTabsPaneVisible,
   persistSideTabsPanePref,
+  panePrefWhenEmpty,
   readSideTabsPanePref,
   type SideTabsPanePref,
 } from '../services/sideTabsPanePrefs';
@@ -258,9 +259,18 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const closeTab = useCallback(
     (key: string) => {
       if (isSideChatKey(key)) discardSideChat(key.slice('side-chat:'.length));
-      update((s) => closeSideTab(s, key));
+      update((s) => {
+        const next = closeSideTab(s, key);
+        if (
+          panePrefWhenEmpty(panePref, 'close-last-tab') === 'auto' &&
+          !hasSideTabs(next, filesOpen)
+        ) {
+          setPanePref('auto');
+        }
+        return next;
+      });
     },
-    [update],
+    [update, panePref, filesOpen, setPanePref],
   );
   const closeSubagent = useCallback(() => {
     if (active) closeTab(active);
@@ -341,8 +351,11 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (panePref === 'open' && !hasContent) update((s) => openNewTab(s));
       return;
     }
-    if (!hasContent && panePref === 'open') setPanePref('auto');
-  }, [hasContent, panePref, setPanePref, update]);
+    // 切到没有标签的会话：保持 open，并补一个新标签页，不要把偏好降回 auto。
+    if (panePrefWhenEmpty(panePref, 'empty-scope') === 'open' && !hasContent) {
+      update((s) => openNewTab(s));
+    }
+  }, [hasContent, panePref, update]);
 
   const showPane = useCallback(() => {
     update((s) => (hasSideTabs(s, filesOpen) ? s : openNewTab(s)));

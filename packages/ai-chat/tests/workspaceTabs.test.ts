@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   isSideTabsPaneVisible,
+  panePrefWhenEmpty,
   persistSideTabsPanePref,
   readSideTabsPanePref,
   SIDE_TABS_PANE_KEY,
@@ -94,6 +95,13 @@ describe('tab pane show / hide preference', () => {
     expect(isSideTabsPaneVisible('auto', true)).toBe(true);
     expect(isSideTabsPaneVisible('open', false)).toBe(true);
     expect(isSideTabsPaneVisible('closed', true)).toBe(false);
+  });
+
+  it('keeps open when switching to an empty session, and only drops to auto after the last tab is closed', () => {
+    expect(panePrefWhenEmpty('open', 'empty-scope')).toBe('open');
+    expect(panePrefWhenEmpty('open', 'close-last-tab')).toBe('auto');
+    expect(panePrefWhenEmpty('closed', 'close-last-tab')).toBe('closed');
+    expect(panePrefWhenEmpty('auto', 'empty-scope')).toBe('auto');
   });
 
   it('persists the preference and migrates a previously open files rail', () => {

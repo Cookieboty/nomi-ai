@@ -8,7 +8,7 @@ import {
   IconWorld as Globe,
   IconRefresh as RotateCw,
 } from '@tabler/icons-react';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import { cliAccountClient } from '../../services/cliAccountClient';
 import { parseBrowserUrl } from '../../utils/sideTabs';
@@ -43,11 +43,34 @@ export const BrowserTab: React.FC<{
   const [blocked, setBlocked] = useState(false);
   const [urlFor, setUrlFor] = useState(url);
   const frame = useRef<HTMLIFrameElement>(null);
+  const blockTimer = useRef<number | null>(null);
   if (urlFor !== url) {
     setUrlFor(url);
     setDraft(url);
     setBlocked(false);
   }
+  useEffect(() => {
+    if (blockTimer.current != null) {
+      window.clearTimeout(blockTimer.current);
+      blockTimer.current = null;
+    }
+    return () => {
+      if (blockTimer.current != null) window.clearTimeout(blockTimer.current);
+    };
+  }, [url]);
+
+  const inspectFrame = (frameEl: HTMLIFrameElement): 'ok' | 'blocked' | 'pending' => {
+    try {
+      const loc = frameEl.contentWindow?.location.href;
+      if (!loc || loc === 'about:blank') return 'pending';
+      const doc = frameEl.contentDocument;
+      if (doc && !doc.body?.childElementCount && !doc.body?.textContent?.trim()) return 'pending';
+      return 'ok';
+    } catch {
+      // 跨域读不了 location：页面已经画出来，嵌入成功
+      return 'ok';
+    }
+  };
 
   const go = (value = draft) => {
     const href = parseBrowserUrl(value);
@@ -115,12 +138,29 @@ export const BrowserTab: React.FC<{
           referrerPolicy="no-referrer"
           data-testid="browser-frame"
           onLoad={(e) => {
-            try {
-              const loc = e.currentTarget.contentWindow?.location.href;
-              if (loc && loc !== 'about:blank') onNavigate(url, hostname(url));
-            } catch {
-              // 跨域读不了 location：不算失败，页面可能已经画出来了
+            const frameEl = e.currentTarget;
+            // X-Frame-Options / CSP frame-ancestors 拦下时通常停在 about:blank，onError 不会触发。
+            // 第一次 load 也可能是导航前的空白文档，稍后再看一次再判定失败。
+            const finish = (status: 'ok' | 'blocked' | 'pending') => {
+              if (status === 'ok') {
+                try {
+                  const loc = frameEl.contentWindow?.location.href;
+                  if (loc && loc !== 'about:blank') onNavigate(url, hostname(url));
+                } catch {
+                  /* 跨域成功时读不了 href */
+                }
+              } else if (status === 'blocked') setBlocked(true);
+            };
+            const status = inspectFrame(frameEl);
+            if (status !== 'pending') {
+              finish(status);
+              return;
             }
+            if (blockTimer.current != null) window.clearTimeout(blockTimer.current);
+            blockTimer.current = window.setTimeout(() => {
+              blockTimer.current = null;
+              finish(inspectFrame(frameEl) === 'ok' ? 'ok' : 'blocked');
+            }, 300);
           }}
           onError={() => setBlocked(true)}
         />

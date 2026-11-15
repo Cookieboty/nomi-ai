@@ -34,3 +34,12 @@ export function isSideTabsPaneVisible(pref: SideTabsPanePref, hasContent: boolea
   if (pref === 'open') return true;
   return hasContent;
 }
+
+/** 空标签时的偏好：会话切换保持 open（由调用方补一个新标签页），只有用户关掉最后一个标签才回到 auto。 */
+export function panePrefWhenEmpty(
+  pref: SideTabsPanePref,
+  cause: 'close-last-tab' | 'empty-scope',
+): SideTabsPanePref {
+  if (pref !== 'open') return pref;
+  return cause === 'close-last-tab' ? 'auto' : 'open';
+}

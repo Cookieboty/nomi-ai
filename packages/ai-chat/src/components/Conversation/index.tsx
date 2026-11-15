@@ -318,83 +318,185 @@ export function windowStart(
   return i;
 }
 
+/** 窗口起点落在一轮中间时，回退到该轮用户消息，避免第一轮被助手 id 错标成 0。 */
+export function snapStartToTurn(
+  messages: readonly Pick<ConvMessage, 'role'>[],
+  start: number,
+): number {
+  if (start <= 0 || messages.length === 0) return 0;
+  let i = Math.min(start, messages.length - 1);
+  while (i > 0 && messages[i]!.role !== 'user') i--;
+  return i;
+}
+
+/** 第 turnIndex 轮第一条消息在全部消息中的下标（与 groupTurns 同一规则）。 */
+export function turnStartMessageIndex(
+  messages: readonly Pick<ConvMessage, 'role'>[],
+  turnIndex: number,
+): number {
+  let current = -1;
+  for (let i = 0; i < messages.length; i++) {
+    if (messages[i]!.role === 'user' || current < 0) current += 1;
+    if (current === turnIndex) return i;
+  }
+  return 0;
+}
+
+/** 让分页窗口覆盖到 messageIndex 所需的 extra（一次算够，避免跳转时反复 +30）。 */
+export function extraToReachMessage(
+  messages: readonly Pick<ConvMessage, 'text' | 'trace' | 'error'>[],
+  messageIndex: number,
+): number {
+  const target = Math.max(0, Math.min(messageIndex, Math.max(0, messages.length - 1)));
+  if (windowStart(messages, 0) <= target) return 0;
+  let lo = 1;
+  let hi = messages.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (windowStart(messages, mid) <= target) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
+}
+
+const HOVER_WIDTHS = [24, 18, 14, 10] as const;
+const HOVER_HEIGHTS = [4, 3, 2, 2] as const;
+
+const ConversationQuickNavItem = React.memo(function ConversationQuickNavItem({
+  item,
+  distance,
+  inView,
+  tabIndex,
+  onNavigate,
+  onHover,
+  onKeyDown,
+}: {
+  item: { turnIndex: number; width: number; title: string; detail: string };
+  distance: number;
+  inView: boolean;
+  tabIndex: number;
+  onNavigate: (index: number) => void;
+  onHover: (index: number, el: HTMLButtonElement) => void;
+  onKeyDown: (index: number, e: React.KeyboardEvent<HTMLButtonElement>) => void;
+}) {
+  const hovered = distance >= 0 && distance <= 3;
+  const style = {
+    '--quick-nav-width': `${item.width}px`,
+    '--quick-nav-sx': hovered ? String(HOVER_WIDTHS[distance]! / item.width) : '1',
+    '--quick-nav-sy': hovered ? String(HOVER_HEIGHTS[distance]! / 2) : '1',
+  } as CSSProperties;
+  return (
+    <button
+      type="button"
+      className={styles.quickNavItem}
+      aria-label={t('ui.chat-settings.jump-to-conversation-turn', String(item.turnIndex + 1))}
+      data-in-view={inView ? 'true' : undefined}
+      data-testid="conversation-quick-nav-item"
+      data-turn-index={item.turnIndex}
+      tabIndex={tabIndex}
+      onMouseEnter={(e) => onHover(item.turnIndex, e.currentTarget)}
+      onFocus={(e) => onHover(item.turnIndex, e.currentTarget)}
+      onKeyDown={(e) => onKeyDown(item.turnIndex, e)}
+      onClick={() => onNavigate(item.turnIndex)}
+    >
+      <span className={styles.quickNavLine} style={style} />
+    </button>
+  );
+});
+
 const ConversationQuickNav: React.FC<{
   items: readonly { turnIndex: number; width: number; title: string; detail: string }[];
   visibleIndices: ReadonlySet<number>;
   onNavigate: (index: number) => void;
 }> = ({ items, visibleIndices, onNavigate }) => {
   const [hovered, setHovered] = useState<number | null>(null);
+  const [focusIndex, setFocusIndex] = useState<number | null>(null);
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   const [viewport, setViewport] = useState<HTMLElement | null>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const onHover = useCallback((turnIndex: number, el: HTMLButtonElement) => {
+    setHovered(turnIndex);
+    setAnchor(el);
+    setViewport(el.closest<HTMLElement>('[data-testid="conversation"]'));
+  }, []);
+  const clearHover = useCallback(() => {
+    setHovered(null);
+    setAnchor(null);
+    setViewport(null);
+  }, []);
+  const onItemKeyDown = useCallback(
+    (turnIndex: number, e: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End')
+        return;
+      e.preventDefault();
+      const pos = items.findIndex((item) => item.turnIndex === turnIndex);
+      if (pos < 0) return;
+      const next =
+        e.key === 'ArrowDown'
+          ? Math.min(items.length - 1, pos + 1)
+          : e.key === 'ArrowUp'
+            ? Math.max(0, pos - 1)
+            : e.key === 'Home'
+              ? 0
+              : items.length - 1;
+      const target = items[next];
+      if (!target) return;
+      setFocusIndex(target.turnIndex);
+      const btn = navRef.current?.querySelector<HTMLButtonElement>(
+        `[data-turn-index="${target.turnIndex}"]`,
+      );
+      btn?.focus();
+      btn?.scrollIntoView({ block: 'nearest' });
+      if (btn) onHover(target.turnIndex, btn);
+    },
+    [items, onHover],
+  );
+  useEffect(() => {
+    if (items.length <= 5) return;
+    const first = [...visibleIndices].sort((a, b) => a - b)[0];
+    if (first == null) return;
+    navRef.current
+      ?.querySelector<HTMLElement>(`[data-turn-index="${first}"]`)
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [visibleIndices, items.length]);
   if (items.length <= 5) return null;
   const hoveredPosition =
     hovered === null ? -1 : items.findIndex((item) => item.turnIndex === hovered);
+  const tabStop =
+    focusIndex != null && items.some((item) => item.turnIndex === focusIndex)
+      ? focusIndex
+      : (items.find((item) => visibleIndices.has(item.turnIndex))?.turnIndex ??
+        items[0]!.turnIndex);
+  const hoveredItem =
+    hovered === null ? undefined : items.find((item) => item.turnIndex === hovered);
   return (
     <>
       <nav
+        ref={navRef}
         className={styles.quickNav}
         data-hovered={hovered === null ? undefined : 'true'}
         aria-label={t('ui.chat-settings.conversation-quick-navigation')}
         data-testid="conversation-quick-nav"
-        onMouseLeave={() => {
-          setHovered(null);
-          setAnchor(null);
-          setViewport(null);
+        onMouseLeave={clearHover}
+        onBlur={(e) => {
+          if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+          clearHover();
         }}
       >
         {items.map((item, position) => {
-          const distance = hoveredPosition < 0 ? 99 : Math.abs(position - hoveredPosition);
-          const hoverWidth =
-            distance === 0
-              ? 24
-              : distance === 1
-                ? 18
-                : distance === 2
-                  ? 14
-                  : distance === 3
-                    ? 10
-                    : 7;
-          const hoverHeight = distance === 0 ? 4 : distance === 1 ? 3 : 2;
+          const distance =
+            hoveredPosition < 0 ? -1 : Math.min(4, Math.abs(position - hoveredPosition));
           return (
-            <button
+            <ConversationQuickNavItem
               key={item.turnIndex}
-              type="button"
-              className={styles.quickNavItem}
-              aria-label={t(
-                'ui.chat-settings.jump-to-conversation-turn',
-                String(item.turnIndex + 1),
-              )}
-              data-in-view={visibleIndices.has(item.turnIndex) ? 'true' : undefined}
-              data-testid="conversation-quick-nav-item"
-              data-turn-index={item.turnIndex}
-              onMouseEnter={(e) => {
-                setHovered(item.turnIndex);
-                setAnchor(e.currentTarget);
-                setViewport(e.currentTarget.closest<HTMLElement>('[data-testid="conversation"]'));
-              }}
-              onFocus={(e) => {
-                setHovered(item.turnIndex);
-                setAnchor(e.currentTarget);
-                setViewport(e.currentTarget.closest<HTMLElement>('[data-testid="conversation"]'));
-              }}
-              onBlur={() => {
-                setHovered(null);
-                setAnchor(null);
-                setViewport(null);
-              }}
-              onClick={() => onNavigate(item.turnIndex)}
-            >
-              <span
-                className={styles.quickNavLine}
-                style={
-                  {
-                    '--quick-nav-width': `${item.width}px`,
-                    '--quick-nav-hover-width': `${hoverWidth}px`,
-                    '--quick-nav-hover-height': `${hoverHeight}px`,
-                  } as CSSProperties
-                }
-              />
-            </button>
+              item={item}
+              distance={distance}
+              inView={visibleIndices.has(item.turnIndex)}
+              tabIndex={item.turnIndex === tabStop ? 0 : -1}
+              onNavigate={onNavigate}
+              onHover={onHover}
+              onKeyDown={onItemKeyDown}
+            />
           );
         })}
       </nav>
@@ -404,18 +506,14 @@ const ConversationQuickNav: React.FC<{
         viewport={viewport}
         className={styles.quickNavTip}
       >
-        {hovered === null ? null : (
+        {hoveredItem ? (
           <>
-            <span className={styles.quickNavTipTitle}>
-              {items.find((item) => item.turnIndex === hovered)?.title}
-            </span>
-            {items.find((item) => item.turnIndex === hovered)?.detail && (
-              <span className={styles.quickNavTipText}>
-                {items.find((item) => item.turnIndex === hovered)?.detail}
-              </span>
-            )}
+            <span className={styles.quickNavTipTitle}>{hoveredItem.title}</span>
+            {hoveredItem.detail ? (
+              <span className={styles.quickNavTipText}>{hoveredItem.detail}</span>
+            ) : null}
           </>
-        )}
+        ) : null}
       </FloatingTip>
     </>
   );
@@ -498,15 +596,18 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   const fullStart = useMemo(() => windowStart(messages, extra), [messages, extra]);
   // 切换会话 / 首次挂载：先只渲染末尾几条（首帧尽快出现），其余按帧分批往上补，主线程不会被一次性占满
   const [eagerCount, setEagerCount] = useState(INITIAL_RENDER);
-  const start = Math.max(fullStart, messages.length - eagerCount);
+  const start = snapStartToTurn(messages, Math.max(fullStart, messages.length - eagerCount));
   // 记住切片：live / 状态变化引起的重渲染（消息没变）不让 groupTurns 重算
   const shown = useMemo(() => (start > 0 ? messages.slice(start) : messages), [messages, start]);
   const turns = useMemo(() => groupTurns(shown), [shown]);
   const allTurns = useMemo(() => groupTurns(messages), [messages]);
-  const allTurnIndexByKey = useMemo(
-    () => new Map(allTurns.map((turn, index) => [turn.key, index])),
-    [allTurns],
-  );
+  const allTurnIndexByMessage = useMemo(() => {
+    const map = new Map<string, number>();
+    allTurns.forEach((turn, index) => {
+      for (const message of turn.messages) map.set(message.id, index);
+    });
+    return map;
+  }, [allTurns]);
   const quickNavItems = useMemo(
     () =>
       allTurns.flatMap((turn, turnIndex) => {
@@ -550,21 +651,11 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   const loadingEarlierRef = useRef(false);
   const [visibleTurns, setVisibleTurns] = useState<ReadonlySet<number>>(new Set());
   const [pendingTurn, setPendingTurn] = useState<number | null>(null);
+  const jumpingRef = useRef(false);
+  const skipStagingRef = useRef(false);
+  const jumpClearRef = useRef<number | null>(null);
 
-  const updateVisibleTurns = useCallback(() => {
-    const scroller = scrollRef.current;
-    if (!scroller) return;
-    const viewport = scroller.getBoundingClientRect();
-    const rendered = Array.from(
-      scroller.querySelectorAll<HTMLElement>('[data-testid="conv-turn"]'),
-    );
-    const next = new Set<number>();
-    rendered.forEach((turn) => {
-      const rect = turn.getBoundingClientRect();
-      if (rect.bottom <= viewport.top || rect.top >= viewport.bottom) return;
-      const index = Number(turn.dataset.turnIndex);
-      if (Number.isFinite(index)) next.add(index);
-    });
+  const commitVisibleTurns = useCallback((next: Set<number>) => {
     setVisibleTurns((current) => {
       if (current.size === next.size && [...current].every((index) => next.has(index)))
         return current;
@@ -572,21 +663,68 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     });
   }, []);
 
-  const navigateToTurn = useCallback((index: number) => {
-    followRef.current = false;
-    const target = scrollRef.current?.querySelector<HTMLElement>(
-      `[data-testid="conv-turn"][data-turn-index="${index}"]`,
-    );
+  const measureVisibleTurns = useCallback(() => {
     const scroller = scrollRef.current;
     if (!scroller) return;
-    if (!target) {
-      setPendingTurn(index);
-      setExtra((value) => value + LOAD_MORE_STEP);
-      return;
+    const viewport = scroller.getBoundingClientRect();
+    const next = new Set<number>();
+    scroller.querySelectorAll<HTMLElement>('[data-testid="conv-turn"]').forEach((turn) => {
+      const rect = turn.getBoundingClientRect();
+      if (rect.bottom <= viewport.top || rect.top >= viewport.bottom) return;
+      const index = Number(turn.dataset.turnIndex);
+      if (Number.isFinite(index)) next.add(index);
+    });
+    commitVisibleTurns(next);
+  }, [commitVisibleTurns]);
+
+  const endJump = useCallback(() => {
+    jumpingRef.current = false;
+    if (jumpClearRef.current != null) {
+      window.clearTimeout(jumpClearRef.current);
+      jumpClearRef.current = null;
     }
-    scroller.scrollTo({ top: Math.max(0, target.offsetTop - 24), behavior: 'smooth' });
-    setAway(true);
   }, []);
+
+  const navigateToTurn = useCallback(
+    (index: number) => {
+      followRef.current = false;
+      jumpingRef.current = true;
+      const scroller = scrollRef.current;
+      const target = scroller?.querySelector<HTMLElement>(
+        `[data-testid="conv-turn"][data-turn-index="${index}"]`,
+      );
+      if (!scroller) return;
+      if (!target) {
+        setPendingTurn(index);
+        const messageIndex = turnStartMessageIndex(messages, index);
+        const needed = extraToReachMessage(messages, messageIndex);
+        skipStagingRef.current = true;
+        setExtra((value) => Math.max(value, needed));
+        setEagerCount(messages.length);
+        return;
+      }
+      const reduce =
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      scroller.scrollTo({
+        top: Math.max(0, target.offsetTop - 24),
+        behavior: reduce ? 'instant' : 'smooth',
+      });
+      setAway(true);
+      if (reduce) {
+        endJump();
+        return;
+      }
+      const done = () => {
+        scroller.removeEventListener('scrollend', done);
+        endJump();
+      };
+      scroller.addEventListener('scrollend', done, { once: true });
+      if (jumpClearRef.current != null) window.clearTimeout(jumpClearRef.current);
+      jumpClearRef.current = window.setTimeout(done, 800);
+    },
+    [messages, endJump],
+  );
 
   const loadEarlier = useCallback(() => {
     if (start <= 0 || loadingEarlierRef.current) return;
@@ -608,6 +746,10 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   // 内容已经超出一屏时，浏览器的滚动锚定（overflow-anchor）会让视口里的内容保持不动；
   // 还没超出一屏（scrollTop 为 0，锚定不生效）时才由下面的 effect 补一次贴底。
   useEffect(() => {
+    if (skipStagingRef.current) {
+      skipStagingRef.current = false;
+      return;
+    }
     if (start <= fullStart) return;
     const id = window.setTimeout(() => setEagerCount((n) => n + RENDER_STEP), 0);
     return () => window.clearTimeout(id);
@@ -648,7 +790,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    if (el.scrollTop <= LOAD_EARLIER_THRESHOLD) loadEarlier();
+    if (!jumpingRef.current && el.scrollTop <= LOAD_EARLIER_THRESHOLD) loadEarlier();
     const near = isNearBottom(el);
     const scrolledUp = el.scrollTop < lastTopRef.current - 1;
     lastTopRef.current = el.scrollTop;
@@ -663,10 +805,45 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     scrollToBottom();
   }, [scrollToBottom]);
 
-  // 初次贴底后再计算当前轮次，保证当前高亮对应实际视口里的最后一轮。
-  useLayoutEffect(() => {
-    updateVisibleTurns();
-  }, [messages.length, start, turns.length, updateVisibleTurns]);
+  // 用 IntersectionObserver 跟踪当前轮次；没有 IO（测试环境）时退回 rAF 节流测量。
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      let raf = 0;
+      const onScroll = () => {
+        if (raf) return;
+        raf = window.requestAnimationFrame(() => {
+          raf = 0;
+          measureVisibleTurns();
+        });
+      };
+      measureVisibleTurns();
+      scroller.addEventListener('scroll', onScroll, { passive: true });
+      return () => {
+        scroller.removeEventListener('scroll', onScroll);
+        if (raf) window.cancelAnimationFrame(raf);
+      };
+    }
+    const seen = new Map<number, boolean>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const index = Number((entry.target as HTMLElement).dataset.turnIndex);
+          if (!Number.isFinite(index)) continue;
+          seen.set(index, entry.isIntersecting);
+        }
+        const next = new Set<number>();
+        for (const [index, on] of seen) if (on) next.add(index);
+        commitVisibleTurns(next);
+      },
+      { root: scroller, threshold: 0 },
+    );
+    scroller.querySelectorAll<HTMLElement>('[data-testid="conv-turn"]').forEach((el) => {
+      io.observe(el);
+    });
+    return () => io.disconnect();
+  }, [messages.length, start, turns.length, commitVisibleTurns, measureVisibleTurns]);
 
   useLayoutEffect(() => {
     if (pendingTurn === null) return;
@@ -676,8 +853,6 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     if (target) {
       setPendingTurn(null);
       navigateToTurn(pendingTurn);
-    } else {
-      setExtra((value) => value + LOAD_MORE_STEP);
     }
   }, [pendingTurn, start, navigateToTurn]);
 
@@ -730,10 +905,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
         <div
           className={styles.scroll}
           ref={scrollRef}
-          onScroll={() => {
-            onScroll();
-            updateVisibleTurns();
-          }}
+          onScroll={onScroll}
           onWheel={onWheel}
           data-testid="conv-scroll"
         >
@@ -758,7 +930,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
                 // 已完成的轮次（不是最后一轮）：视口外跳过样式 / 布局 / 绘制
                 className={i < turns.length - 1 ? `${styles.turn} ${styles.turnDone}` : styles.turn}
                 data-testid="conv-turn"
-                data-turn-index={allTurnIndexByKey.get(turn.key) ?? i}
+                data-turn-index={allTurnIndexByMessage.get(turn.messages[0]?.id ?? turn.key) ?? i}
               >
                 {turn.messages.map((m) => (
                   <React.Fragment key={m.id}>

@@ -4,6 +4,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  container-type: inline-size;
+  container-name: conversation;
   --conv-text: 14px;
   --conv-leading: 22px;
   --conv-code: 14px;
@@ -14,7 +16,10 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--cd-space-5) var(--cd-space-4) var(--cd-space-5) 52px;
+  padding: var(--cd-space-5) var(--cd-space-4);
+}
+.root:has(.quickNav) .scroll {
+  padding-left: 52px;
 }
 .inner {
   display: flex;
@@ -64,15 +69,12 @@
   border-radius: var(--cd-radius-full);
   background: var(--cd-color-border-strong);
   opacity: 0.72;
+  transform-origin: left center;
+  transform: scaleX(var(--quick-nav-sx, 1)) scaleY(var(--quick-nav-sy, 1));
   transition:
-    width var(--cd-duration-fast) var(--cd-ease),
-    height var(--cd-duration-fast) var(--cd-ease),
+    transform var(--cd-duration-fast) var(--cd-ease),
     background var(--cd-duration-fast) var(--cd-ease),
     opacity var(--cd-duration-fast) var(--cd-ease);
-}
-.quickNav[data-hovered='true'] .quickNavLine {
-  width: var(--quick-nav-hover-width, var(--quick-nav-width));
-  height: var(--quick-nav-hover-height, 2px);
 }
 .quickNavItem:hover .quickNavLine {
   background: var(--cd-color-text);
@@ -110,7 +112,7 @@
 .quickNavTipTitle {
   color: var(--cd-color-text-muted);
   font-size: var(--cd-font-size-sm);
-  font-weight: var(--cd-font-weight-semibold);
+  font-weight: var(--cd-font-weight-bold);
 }
 .quickNavTipText {
   max-height: 220px;
@@ -119,8 +121,8 @@
   overflow-wrap: anywhere;
   color: var(--cd-color-text);
 }
-@media (max-width: 560px) {
-  .scroll {
+@container conversation (max-width: 560px) {
+  .root:has(.quickNav) .scroll {
     padding-left: 44px;
   }
   .quickNav {

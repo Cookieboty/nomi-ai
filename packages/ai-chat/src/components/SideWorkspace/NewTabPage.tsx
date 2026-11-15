@@ -9,7 +9,7 @@ import {
   IconMessageCirclePlus as MessageCirclePlus,
   IconSearch as Search,
 } from '@tabler/icons-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { harnessClient, type WorkspaceTreeNode } from '../../services/harnessClient';
 import { rankItems } from '../../utils/fuzzy';
@@ -59,6 +59,9 @@ export const NewTabPage: React.FC<{
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const [files, setFiles] = useState<FileHit[]>([]);
+  const [noMatch, setNoMatch] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const cached = useRef<{ key: string; files: FileHit[] } | null>(null);
   const folders = useMemo(
     () => (roots?.length ? [...roots] : cwd ? [cwd] : []).filter(Boolean),
     [roots, cwd],
@@ -66,6 +69,11 @@ export const NewTabPage: React.FC<{
 
   useEffect(() => {
     if (hidden || !folders.length) return;
+    const key = folders.join('\0');
+    if (cached.current?.key === key) {
+      setFiles(cached.current.files);
+      return;
+    }
     let cancelled = false;
     void (async () => {
       const hits: FileHit[] = [];
@@ -76,12 +84,19 @@ export const NewTabPage: React.FC<{
           for (const f of flatten(res.entries)) hits.push({ ...f, root });
         }
       }
-      if (!cancelled) setFiles(hits);
+      if (!cancelled) {
+        cached.current = { key, files: hits };
+        setFiles(hits);
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, [hidden, folders]);
+
+  useEffect(() => {
+    if (!hidden) inputRef.current?.focus();
+  }, [hidden]);
 
   const url = parseBrowserUrl(query);
   const hits = useMemo(() => {
@@ -100,11 +115,17 @@ export const NewTabPage: React.FC<{
 
   const submit = (index = active) => {
     if (url) {
+      setNoMatch(false);
       onOpenBrowser(url);
       return;
     }
     const hit = hits[index];
-    if (hit) onOpenFile(workspaceFileHref(hit.root, hit.path), hit.root);
+    if (hit) {
+      setNoMatch(false);
+      onOpenFile(workspaceFileHref(hit.root, hit.path), hit.root);
+      return;
+    }
+    if (query.trim()) setNoMatch(true);
   };
 
   return (
@@ -120,11 +141,13 @@ export const NewTabPage: React.FC<{
           >
             <Icon icon={Search} size={16} className={styles.searchIcon} />
             <input
+              ref={inputRef}
               className={styles.search}
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
                 setActive(0);
+                setNoMatch(false);
               }}
               onKeyDown={(e) => {
                 if (!hits.length) return;
@@ -139,7 +162,6 @@ export const NewTabPage: React.FC<{
               placeholder={t('ui.session-workspace.new-tab-search')}
               aria-label={t('ui.session-workspace.new-tab-search')}
               data-testid="new-tab-search"
-              autoFocus={!hidden}
             />
             {hits.length > 0 && (
               <ul className={styles.suggest} role="listbox" data-testid="new-tab-file-hits">
@@ -160,6 +182,11 @@ export const NewTabPage: React.FC<{
                   </li>
                 ))}
               </ul>
+            )}
+            {noMatch && (
+              <p className={styles.emptyHint} role="status" data-testid="new-tab-no-match">
+                {t('ui.foundation.no-matching-files')}
+              </p>
             )}
           </form>
           <div>
