@@ -28,7 +28,7 @@ func TestDerivedLists(t *testing.T) {
 	}
 	for id, want := range map[string][2]string{
 		"claude": {"Claude Code", "Claude Code"}, "codex": {"Codex", "Codex"}, "grok": {"Grok", "Grok"},
-		"gemini": {"Gemini", "Gemini CLI"}, "dsh": {"dsh", "dsh"}, "kimi": {"Kimi Code", "Kimi Code"},
+		"gemini": {"Gemini", "Gemini CLI"}, "dsh": {"dsh", "DeepSeek Harness"}, "kimi": {"Kimi Code", "Kimi Code"},
 		"minimax": {"MiniMax Code", "MiniMax Code"},
 	} {
 		if DisplayName(id) != want[0] || FullName(id) != want[1] {
