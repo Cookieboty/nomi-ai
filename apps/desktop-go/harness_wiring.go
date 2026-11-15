@@ -254,8 +254,11 @@ func wireNomiBroker(b *desktop.PermissionBroker, o *harness.Orchestrator) {
 		return false
 	}
 	mascothandlers.LocalImageDirOk.Store(&dirOk)
-	// Nomi 自己的「工作区文件操作免确认」（没单独设过时跟随编程助手的「全部自动」）
-	b.AutoApprove = func() bool { return jsrt.Call(o.NomiAutoApproveEnabled) }
+	// Nomi 自己的「工作区文件操作免确认」（没单独设过时跟随编程助手的「全部自动」）。
+	// 输入栏切到「自动」时也要同步给工作区提示词与 deskfs，避免模型继续以为需要逐项确认。
+	b.AutoApprove = func() bool {
+		return jsrt.Call(o.NomiAutoApproveEnabled) || jsrt.Call(o.MainPermissionMode) == "auto"
+	}
 	b.OnWorkspaceRejected = func(dir, reason string) {
 		log.Printf("[desktop] WARN Nomi workspace rejected; tools fall back to granted folders dir=%s reason=%s", dir, reason)
 	}

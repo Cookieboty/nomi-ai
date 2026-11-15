@@ -2,14 +2,14 @@
  * 右栏「改动」的提交区（固定在底部）与分支栏的同步按钮（docs/development/coding-agents.md）。
  * git 由主进程执行（cli/gitOps.ts）：钩子照常跑，拉取只快进，推送从不强推。
  */
-import { Button, Checkbox, Disclosure, t } from '@nomi-ai/ui';
+import { Button, Disclosure, FloatingTip, IconButton, t } from '@nomi-ai/ui';
 import {
   IconDownload as ArrowDownToLine,
   IconUpload as ArrowUpFromLine,
-  IconRobot as Bot,
   IconCloudDownload as CloudDownload,
-  IconSparkles as Sparkles,
+  IconMessageSpark as MessageSpark,
   IconArrowBackUp as Undo2,
+  IconWand as Wand,
 } from '@tabler/icons-react';
 import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
@@ -80,7 +80,6 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
   const [op, setOp] = useState<GitOp | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [message, setMessage] = useState('');
-  const [pushAfter, setPushAfter] = useState(false);
   const opRef = useRef<GitOp | null>(null);
 
   // 换目录：上一个仓库的提示和没写完的提交信息不带过来
@@ -139,7 +138,7 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
   };
 
   /** paths：没有已暂存内容时要提交的文件；undefined = 只提交已暂存的 */
-  const commit = async (paths: string[] | undefined, sync: GitSyncStatus | null) => {
+  const commit = async (paths: string[] | undefined) => {
     const msg = message.trim();
     if (!cwd || !msg) return;
     const r = await exec('commit', () => harnessClient.gitCommit(cwd, msg, paths));
@@ -152,7 +151,6 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
         undo: { kind: 'commit', cwd, sha: r.sha, message: msg },
       });
     }
-    if (pushAfter) await push(sync);
   };
 
   const undo = async () => {
@@ -219,8 +217,6 @@ export function useGitOps(cwd: string | null | undefined, refresh: () => void) {
     dismiss: () => setNotice(null),
     message,
     setMessage,
-    pushAfter,
-    setPushAfter,
     stage,
     commit,
     undo,
@@ -369,27 +365,48 @@ const NoticeLine: React.FC<{ ops: GitOps }> = ({ ops }) => {
   );
 };
 
+const CommitActionTip: React.FC<{
+  content: React.ReactNode;
+  children: React.ReactElement;
+}> = ({ content, children }) => {
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+  return (
+    <span
+      ref={anchorRef}
+      className={pane.commitTip}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false);
+      }}
+    >
+      {children}
+      <FloatingTip anchor={open ? anchorRef.current : null} placement="bottom">
+        {content}
+      </FloatingTip>
+    </span>
+  );
+};
+
 /**
  * 底部提交区。stagedCount > 0 时只提交已暂存的；否则先暂存 paths（当前列表里的文件）再提交。
- * 「提交后推送」对「让助手提交」同样生效。
  */
 export const GitCommitBox: React.FC<{
   ops: GitOps;
-  sync: GitSyncStatus | null;
   /** 有可提交的改动（工作区干净时只显示结果提示） */
   hasChanges: boolean;
   stagedCount: number;
   paths: string[];
-  onAskAssistant: (push: boolean) => void;
-}> = ({ ops, sync, hasChanges, stagedCount, paths, onAskAssistant }) => {
+  onAskAssistant: () => void;
+}> = ({ ops, hasChanges, stagedCount, paths, onAskAssistant }) => {
   if (!hasChanges && !ops.notice) return null;
   const busy = ops.op !== null;
   const count = stagedCount > 0 ? stagedCount : paths.length;
   const canCommit = !busy && !!ops.message.trim() && count > 0;
-  // 游离 HEAD 推不了：不给勾
-  const canPush = !!sync?.branch && (!!sync.upstream || !!sync.pushRemote);
   const submit = () => {
-    if (canCommit) void ops.commit(stagedCount > 0 ? undefined : paths, sync);
+    if (canCommit) void ops.commit(stagedCount > 0 ? undefined : paths);
   };
   return (
     <div className={pane.commitBox} data-testid="rail-commit-box">
@@ -416,38 +433,36 @@ export const GitCommitBox: React.FC<{
             }}
           />
           <div className={pane.commitActions}>
-            <button
-              type="button"
-              className={pane.syncBtn}
-              disabled={busy || count === 0}
-              data-busy={ops.op === 'suggest' || undefined}
-              data-testid="rail-commit-suggest"
-              aria-label={t('ui.session-workspace.write-a-commit-message-with-the-helper-model')}
-              onClick={() => void ops.suggest(stagedCount > 0 ? undefined : paths)}
+            <CommitActionTip
+              content={t('ui.session-workspace.put-a-commit-request-in-the-composer-send')}
             >
-              <Sparkles size={13} className={ops.op === 'suggest' ? pane.pulse : undefined} />
-            </button>
-            <label className={pane.commitCheck}>
-              <Checkbox
-                checked={ops.pushAfter && canPush}
-                disabled={!canPush || busy}
-                data-testid="rail-commit-push-after"
-                onChange={(e) => ops.setPushAfter(e.target.checked)}
+              <IconButton
+                size="sm"
+                variant="ghost"
+                className={pane.commitAsk}
+                label={t('ui.session-workspace.ask-assistant-to-commit')}
+                disabled={busy}
+                data-testid="rail-ask-commit"
+                onClick={onAskAssistant}
+                icon={<MessageSpark size={15} />}
               />
-              {t('ui.session-workspace.push-after-commit')}
-            </label>
+            </CommitActionTip>
             <span className={pane.commitSpacer} />
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={busy}
-              data-testid="rail-ask-commit"
-              title={t('ui.session-workspace.put-a-commit-request-in-the-composer-send')}
-              onClick={() => onAskAssistant(ops.pushAfter && canPush)}
+            <CommitActionTip
+              content={t('ui.session-workspace.write-a-commit-message-with-the-helper-model')}
             >
-              <Bot size={14} />
-              {t('ui.session-workspace.ask-assistant-to-commit')}
-            </Button>
+              <IconButton
+                size="sm"
+                variant="ghost"
+                className={pane.commitSuggest}
+                label={t('ui.session-workspace.write-a-commit-message-with-the-helper-model')}
+                disabled={busy || count === 0}
+                data-busy={ops.op === 'suggest' || undefined}
+                data-testid="rail-commit-suggest"
+                onClick={() => void ops.suggest(stagedCount > 0 ? undefined : paths)}
+                icon={<Wand size={15} className={ops.op === 'suggest' ? pane.pulse : undefined} />}
+              />
+            </CommitActionTip>
             <Button
               size="sm"
               variant="primary"

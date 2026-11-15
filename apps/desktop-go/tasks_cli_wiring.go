@@ -212,7 +212,8 @@ func taskCliDeps(d *desktop.Service) tasks.CliDeps {
 	return tasks.CliDeps{
 		Harness: taskCliHarness{},
 		// 前台「全部自动」：后台标签用 auto 档、跑命令不再逐项问人（凭据 / 对外 / 事件触发仍问）
-		AutoAll: func() bool { return d.Broker.AutoApprove() },
+		AutoAll:  func() bool { return d.Broker.AutoApprove() },
+		NomiAuto: func() bool { return d.Broker.PermissionMode() == "auto" },
 		PrepareIsolation: func(cwd, key, base string) (tasks.CliIsolation, error) {
 			iso, err := delegate.PrepareIsolation(cwd, key, base)
 			if err != nil {

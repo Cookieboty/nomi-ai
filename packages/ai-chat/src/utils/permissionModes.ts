@@ -1,7 +1,7 @@
 import { BUILTIN_MANIFESTS, byCli } from '@nomi-ai/cli-catalog';
 /**
  * 权限模式（docs/development/coding-agents.md）：编程助手，以及 Nomi 自己的工具
- * （主进程 desktop/consent.ts；Nomi 没有「完全放开」）。
+ * （主进程 desktop/consent.ts；Nomi 没有「完全放开」，「自动」就是 Nomi 的最高档）。
  * 与主进程 cli/permissionMode.ts 的 SUPPORTED / 降级规则保持一致：主进程是最终裁决（返回 degraded），
  * 这里只用来决定下拉里哪些可选、Shift+Tab 怎么循环。
  */
@@ -29,7 +29,7 @@ const SUPPORTED: Record<CliBackend, readonly PermissionMode[]> = {
 export const isPermissionMode = (v: unknown): v is PermissionMode =>
   typeof v === 'string' && (PERMISSION_MODES as readonly string[]).includes(v);
 
-/** Nomi 自己的工具：破坏性操作永远要确认，所以没有「完全放开」 */
+/** Nomi 自己的工具：没有「完全放开」，「自动」覆盖允许工具的逐项确认 */
 const NOMI_MODES: readonly PermissionMode[] = ['plan', 'manual', 'acceptEdits', 'auto'];
 
 export function supportedModes(backend: HarnessBackend): readonly PermissionMode[] {

@@ -97,8 +97,11 @@ type CliReport struct {
 // CliDeps：编程助手执行者的依赖（编排器、worktree、git、委派提示词与汇报格式，见 main 里的装配）
 type CliDeps struct {
 	Harness CliHarness
-	// AutoAll：读前台的「全部自动」（nil = 关）：开着时后台标签用 auto 档、跑命令不再逐项问人
+	// AutoAll：读前台编程助手的「全部自动」（nil = 关）：开着时后台标签用 auto 档、跑命令不再逐项问人
 	AutoAll func() bool
+	// NomiAuto：Nomi 主对话当前是「自动」档。该档位明确授权 Nomi 委派的子 agent
+	// 在没有系统沙箱的平台也使用 auto；其它后台任务仍遵守系统沙箱限制。
+	NomiAuto func() bool
 	// PrepareIsolation：baseBranch 是别的分支时开 worktree，否则直接在 sourceCwd 里改（in-place / shared-cwd）
 	PrepareIsolation func(sourceCwd, key, baseBranch string) (CliIsolation, error)
 	// ReleaseIsolation：拆掉 worktree：准备好但没用上（准备期间被取消），或任务结束后；可为空
@@ -263,9 +266,10 @@ func autoJudge(t Task) bool {
 func (e *cliExecutor) autoAll() bool { return e.d.AutoAll != nil && e.d.AutoAll() }
 
 // relaxed：自动判断 / 全部自动：命令不再逐项问人（破坏性、凭据、对外、事件触发仍问）。
-// 没有系统沙箱时一律不放松：不要在 Windows / Linux 上把 L3 变成自动执行。
+// 没有系统沙箱时，只有 Nomi 明确切到「自动」才放松；其它后台任务仍保持逐条确认。
 func (e *cliExecutor) relaxed(t Task) bool {
-	return osSandboxSupported() && (autoJudge(t) || e.autoAll())
+	nomiAuto := e.d.NomiAuto != nil && e.d.NomiAuto()
+	return (osSandboxSupported() || nomiAuto) && (autoJudge(t) || e.autoAll() || nomiAuto)
 }
 
 // decidePermission：没有系统沙箱时，即便授权里勾了「按风险自动判断」，也按「每条命令都问」处理。
@@ -415,7 +419,8 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 		}
 		iso = &got
 		// 权限档：L2 起可以改文件；开了「按风险自动判断」或前台「全部自动」且到了 L3、
-		// 并且系统沙箱可用时用 auto（等价 codex 的 full-auto）。没有系统沙箱时停在 acceptEdits，命令逐条确认。
+		// 并且系统沙箱可用时用 auto（等价 codex 的 full-auto）。Nomi「自动」明确委派的子 agent
+		// 即使没有系统沙箱也用 auto。
 		mode := cliTaskMode(t, e.relaxed(t))
 		model := ""
 		if ex.Model != nil {

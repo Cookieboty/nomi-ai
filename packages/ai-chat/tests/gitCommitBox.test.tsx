@@ -129,24 +129,18 @@ describe('右栏提交区', () => {
     await waitFor(() => expect(message().value).toBe('feat: z'));
   });
 
-  it('勾上「提交后推送」：提交成功后接着推送', async () => {
+  it('提交不会自动推送', async () => {
     mount();
     await screen.findByTestId('rail-commit-box');
-    await waitFor(() =>
-      expect((screen.getByTestId('rail-commit-push-after') as HTMLInputElement).disabled).toBe(
-        false,
-      ),
-    );
-    fireEvent.click(screen.getByTestId('rail-commit-push-after'));
     fireEvent.change(message(), { target: { value: 'feat: p' } });
     fireEvent.click(screen.getByTestId('rail-commit'));
-    await waitFor(() => expect(h.gitPush).toHaveBeenCalledWith('/tmp/proj'));
     await waitFor(() =>
-      expect(screen.getByTestId('git-notice').textContent).toContain('origin/main'),
+      expect(h.gitCommit).toHaveBeenCalledWith('/tmp/proj', 'feat: p', ['a.ts', 'b.md']),
     );
+    expect(h.gitPush).not.toHaveBeenCalled();
   });
 
-  it('游离 HEAD：不能勾「提交后推送」，分支栏没有同步按钮', async () => {
+  it('游离 HEAD：提交区没有推送选项，分支栏没有同步按钮', async () => {
     h.gitSyncStatus.mockResolvedValue({
       branch: null,
       detached: 'abc1234',
@@ -157,7 +151,7 @@ describe('右栏提交区', () => {
     mount();
     await screen.findByTestId('rail-commit-box');
     await waitFor(() => expect(h.gitSyncStatus).toHaveBeenCalled());
-    expect((screen.getByTestId('rail-commit-push-after') as HTMLInputElement).disabled).toBe(true);
+    expect(screen.queryByTestId('rail-commit-push-after')).toBeNull();
     expect(screen.queryByTestId('rail-git-sync')).toBeNull();
   });
 

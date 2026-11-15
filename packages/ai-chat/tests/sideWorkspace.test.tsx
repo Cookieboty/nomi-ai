@@ -101,24 +101,52 @@ const bindControl = (ref: EmbeddedPreviewProps['controlRef']) => {
     openMenu: () => undefined,
   };
 };
-const FakePreview: React.FC<EmbeddedPreviewProps> = (p) => {
+const FakePreview: React.FC<
+  EmbeddedPreviewProps & { entryKeys?: string[]; onClosed?: () => void }
+> = (p) => {
   const { controlRef } = p;
   useEffect(() => bindControl(controlRef), [controlRef]);
   return (
-    <div data-testid="files-body" hidden={p.inactive} data-expanded={p.expanded || undefined} />
+    <div
+      data-testid="files-body"
+      hidden={p.inactive}
+      data-expanded={p.expanded || undefined}
+      data-show-tabs={p.showTabs ? 'true' : undefined}
+    >
+      {p.onClosed && (
+        <button
+          type="button"
+          data-testid="preview-close-last"
+          onClick={() => {
+            const keys = p.entryKeys ?? [];
+            if (keys.length) controlRef.current?.close(keys);
+            p.onClosed?.();
+          }}
+        />
+      )}
+    </div>
   );
 };
 
 let opener: ReturnType<typeof useSubagentPane> = null;
 const Shell: React.FC<{ entries?: PreviewEntry[] }> = ({ entries = [] }) => {
   const pane = useSubagentPane();
+  const [previewEntries, setPreviewEntries] = React.useState(entries);
   useEffect(() => {
     opener = pane;
   }, [pane]);
   const files: SideFiles = {
-    entries,
-    activeKey: entries[0]?.key ?? '',
-    render: (p) => (entries.length ? <FakePreview {...p} /> : null),
+    entries: previewEntries,
+    activeKey: previewEntries[0]?.key ?? '',
+    render: (p) =>
+      previewEntries.length ? (
+        <FakePreview
+          {...p}
+          entryKeys={previewEntries.map((entry) => entry.key)}
+          onClosed={() => setPreviewEntries([])}
+        />
+      ) : null,
+    railSplit: { width: 260, onPointerDown: () => undefined, onDoubleClick: () => undefined },
   };
   const side = useSideWorkspace(files);
   useSideWorkspaceKeys(side);
@@ -159,7 +187,7 @@ const mount = (ids: string[], entries?: PreviewEntry[]) =>
     </HarnessTabsProvider>,
   );
 
-const tabKeys = () => screen.getAllByTestId('side-tab').map((el) => el.dataset.sideTabKey);
+const tabKeys = () => screen.queryAllByTestId('side-tab').map((el) => el.dataset.sideTabKey);
 const tabByKey = (key: string) =>
   screen.getAllByTestId('side-tab').find((el) => el.dataset.sideTabKey === key)!;
 const tabButton = (key: string) => tabByKey(key).querySelector<HTMLButtonElement>('[role="tab"]')!;
@@ -209,6 +237,15 @@ describe('side tabs workspace', () => {
     expect(fake.inputs('tasks.cancel')).toEqual([]);
   });
 
+  it('removes the final tab before hiding the side workspace', async () => {
+    setup();
+    mount(['k1']);
+    await waitFor(() => expect(tabKeys()).toEqual(['nomi-task:k1']));
+    fireEvent.click(tabByKey('nomi-task:k1').querySelector('[data-testid="side-tab-close"]')!);
+    expect(tabKeys()).toEqual([]);
+    await waitFor(() => expect(screen.queryByTestId('side-workspace')).toBeNull());
+  });
+
   it('double-click maximizes with a non-closable main tab first, and restores', async () => {
     setup();
     mount(['k1', 'k2']);
@@ -250,25 +287,33 @@ describe('side tabs workspace', () => {
     expect(screen.queryAllByTestId('side-tab')).toHaveLength(0);
   });
 
-  it('file tabs share the strip with agents and maximize the same way', async () => {
+  it('file previews live inside the open-file page and keep their own tabs', async () => {
     setup();
     calls.activate = [];
     calls.close = [];
     mount(['k1'], [fileEntry('f1', '/w/a.md'), fileEntry('f2', '/w/b.ts')]);
-    await waitFor(() => expect(tabKeys()).toEqual(['nomi-task:k1', 'file:f1', 'file:f2']));
-    expect(tabByKey('file:f1').textContent).toContain('a.md');
+    await waitFor(() => expect(tabKeys()).toEqual(['nomi-task:k1', 'open-file']));
+    expect(tabKeys().some((key) => key?.startsWith('file:'))).toBe(false);
+    expect(screen.getByTestId('files-body').hidden).toBe(false);
+    expect(screen.getByTestId('files-body').dataset.showTabs).toBe('true');
+    fireEvent.click(tabButton('nomi-task:k1'));
     expect(screen.getByTestId('files-body').hidden).toBe(true);
-    fireEvent.click(tabButton('file:f2'));
-    expect(calls.activate).toEqual(['f2']);
+    fireEvent.click(tabButton('open-file'));
     expect(screen.getByTestId('files-body').hidden).toBe(false);
     expect(paneFor('nomi-task:k1').hidden).toBe(true);
-    fireEvent.doubleClick(tabButton('file:f1'));
+    fireEvent.doubleClick(tabButton('open-file'));
     expect(screen.getByTestId('main-content').dataset.sideMax).toBe('true');
     expect(screen.getByTestId('files-body').dataset.expanded).toBe('true');
     expect(tabKeys()[0]).toBe(MAIN_SIDE_TAB);
-    // 文件标签的关闭交给预览区（先存草稿）
-    fireEvent.click(tabByKey('file:f2').querySelector('[data-testid="side-tab-close"]')!);
-    expect(calls.close).toEqual([['f2']]);
+  });
+
+  it('removes the open-file page after closing its final file', async () => {
+    setup();
+    mount([], [fileEntry('f1', '/w/a.md')]);
+    await waitFor(() => expect(tabKeys()).toEqual(['open-file']));
+    fireEvent.click(screen.getByTestId('preview-close-last'));
+    expect(tabKeys()).toEqual([]);
+    await waitFor(() => expect(screen.queryByTestId('side-workspace')).toBeNull());
   });
 
   it('Ctrl+Tab cycles and Mod+W closes the current tab when focus is in the pane', async () => {
@@ -336,18 +381,22 @@ describe('side tabs workspace', () => {
     expect(main.dataset.sideSplit).toBe('true');
     expect(screen.getByTestId('chat-column').hidden).toBe(false);
     expect(paneFor('nomi-task:k1').hidden).toBe(false);
-    // 点主会话：右边不变
+    // 点主会话：退出拆分，只显示主会话
     fireEvent.click(tabButton(MAIN_SIDE_TAB));
-    expect(paneFor('nomi-task:k1').hidden).toBe(false);
-    // 换右边
+    expect(paneFor('nomi-task:k1').hidden).toBe(true);
+    expect(screen.getByTestId('chat-column').hidden).toBe(false);
+    // 切到右侧标签：只显示右侧标签
     fireEvent.click(tabButton('nomi-task:k2'));
     expect(paneFor('nomi-task:k2').hidden).toBe(false);
+    expect(screen.getByTestId('chat-column').hidden).toBe(true);
+    // 再次点击拆分：恢复左右并排
+    fireEvent.click(screen.getByTestId('side-tab-split-toggle'));
+    expect(main.dataset.sideSplit).toBe('true');
     expect(screen.getByTestId('chat-column').hidden).toBe(false);
+    // 拆分时 Esc = 回到分栏
     fireEvent.click(screen.getByTestId('side-tab-split-toggle'));
     expect(main.dataset.sideSplit).toBeUndefined();
     expect(main.dataset.sideMax).toBe('true');
-    // 拆分时 Esc = 回到分栏
-    fireEvent.click(screen.getByTestId('side-tab-split-toggle'));
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(main.dataset.sideMax).toBeUndefined();
     expect(main.dataset.sideSplit).toBeUndefined();
@@ -400,86 +449,54 @@ describe('side tabs workspace', () => {
     expect(screen.queryByTestId('agent-hover-card')).toBeNull();
   });
 
-  it('side chats: several tabs, selection adds to the focused one, hover card, pop out and back', async () => {
-    const handoff = new Map<string, string>();
-    const fake = setup((name, input) => {
-      if (name === 'chatWindow.handoffPut') {
-        const i = input as { id: string; data: string };
-        handoff.set(i.id, i.data);
-        return true;
-      }
-      if (name === 'chatWindow.handoffTake') {
-        const id = (input as { id: string }).id;
-        const v = handoff.get(id) ?? null;
-        handoff.delete(id);
-        return v;
-      }
-      return undefined;
-    });
+  it('side chats enter the top-level tab strip and keep their temporary content', async () => {
     mount(['k1']);
     await waitFor(() => expect(tabKeys()).toHaveLength(1));
     let first = '';
     act(() => {
       first = opener!.openSideChat({ quote: { text: '选中的', source: '主会话' } })!;
     });
-    const k1 = `side-chat:${first}`;
-    expect(tabKeys()).toEqual(['nomi-task:k1', k1]);
-    expect(tabByKey(k1).textContent).toContain('侧边聊天 1');
-    expect(screen.getByTestId('side-chat').hidden).toBe(false);
+    const firstKey = `side-chat:${first}`;
+    expect(tabKeys()).toEqual(['nomi-task:k1', firstKey]);
+    expect(screen.getAllByTestId('side-chat').find((el) => !el.hidden)?.hidden).toBe(false);
     expect(paneFor('nomi-task:k1').hidden).toBe(true);
     expect(sideChatDrafts.read(sideChatDraftKey(first)).text).toContain('选中的');
-    // 当前是侧边聊天：「在侧边聊天中提问」加到它上面
+
+    // 当前是侧边聊天时继续引用，仍然追加到同一个标签页面。
     act(() => {
       opener!.openSideChat({ quote: { text: '另一段', source: '主会话' } });
     });
-    expect(tabKeys()).toEqual(['nomi-task:k1', k1]);
-    // 「+ → 新侧边聊天」总是新开一个
-    fireEvent.click(screen.getByTestId('side-tab-add'));
-    fireEvent.click(screen.getByTestId('side-tab-new-chat'));
-    const second = sideChatsIn('')[1]!.id;
-    const k2 = `side-chat:${second}`;
-    expect(tabKeys()).toEqual(['nomi-task:k1', k1, k2]);
-    expect(tabByKey(k2).textContent).toContain('侧边聊天 2');
-    expect(tabButton(k2).getAttribute('aria-selected')).toBe('true');
-    // 当前不是侧边聊天：提问时新开一个
-    fireEvent.click(tabButton('nomi-task:k1'));
+    expect(screen.getAllByTestId('side-chat').find((el) => !el.hidden)?.dataset.sideTab).toBe(
+      firstKey,
+    );
+
+    // 从新标签页打开第二个侧边聊天，替换新标签页并插入顶层 strip。
     act(() => {
-      opener!.openSideChat({ quote: { text: '第三段', source: '主会话' } });
+      opener!.openNewTab();
     });
-    expect(tabKeys()).toHaveLength(4);
-    // 悬停卡片（和子任务同一套）
-    const wrap = tabButton(k1).parentElement!;
-    fireEvent.pointerOver(wrap, { pointerType: 'mouse', buttons: 0 });
-    fireEvent.pointerEnter(wrap, { pointerType: 'mouse', buttons: 0 });
-    const card = await screen.findByTestId('agent-hover-card', undefined, { timeout: 2000 });
-    expect(card.textContent).toContain('侧边聊天 1');
-    expect(screen.getByTestId('agent-card-state').dataset.state).toBe('idle');
-    fireEvent.pointerLeave(wrap, { pointerType: 'mouse', buttons: 0 });
+    fireEvent.click(screen.getByTestId('new-tab-open-side-chat'));
+    const second = sideChatsIn('')[1]!.id;
+    const secondKey = `side-chat:${second}`;
+    expect(tabKeys()).toEqual(['nomi-task:k1', firstKey, secondKey]);
+    expect(screen.getAllByTestId('side-chat').find((el) => !el.hidden)?.dataset.sideTab).toBe(
+      secondKey,
+    );
+    const visibleSideChat = screen.getAllByTestId('side-chat').find((el) => !el.hidden)!;
+    expect(visibleSideChat.querySelector('[data-testid="side-chat-close"]')).toBeTruthy();
 
-    // 弹到独立窗口：内容经宿主内存交过去，这里不再留一份
-    fireEvent.contextMenu(tabByKey(k1));
-    fireEvent.click(screen.getByTestId('side-tab-detach'));
-    await waitFor(() => expect(fake.inputs('chatWindow.detachTab')).toHaveLength(1));
-    const input = fake.inputs('chatWindow.detachTab')[0] as { id: string; spec: string };
-    expect(JSON.parse(input.spec)).toMatchObject({
-      kind: 'agent',
-      target: { kind: 'side-chat', chatId: first },
-    });
-    expect(JSON.parse(handoff.get(input.id)!).chat.id).toBe(first);
-    expect(sideChatState(first)).toBeUndefined();
-    await fake.emit('chatWindow.detachedChanged', [input.id]);
-    await waitFor(() => expect(tabKeys()).not.toContain(k1));
-    // 窗口关掉：取回内容，标签回来
-    await fake.emit('chatWindow.detachedChanged', []);
-    await waitFor(() => expect(tabKeys()).toContain(k1));
-    expect(sideChatState(first)?.seq).toBe(1);
-    expect(handoff.has(input.id)).toBe(false);
+    // 点击另一个侧边聊天标签只切换标签，不新建页面。
+    fireEvent.click(tabButton(firstKey));
+    expect(screen.getAllByTestId('side-chat').find((el) => !el.hidden)?.dataset.sideTab).toBe(
+      firstKey,
+    );
+    fireEvent.click(tabButton(secondKey));
 
-    // 铺满、关掉（内容丢掉）
-    fireEvent.doubleClick(tabButton(k2));
-    expect(screen.getByTestId('main-content').dataset.sideMax).toBe('true');
-    fireEvent.click(tabByKey(k2).querySelector('[data-testid="side-tab-close"]')!);
-    expect(tabKeys()).not.toContain(k2);
+    // 页面自己的关闭按钮只关闭侧边聊天，不影响普通子任务。
+    fireEvent.click(visibleSideChat.querySelector('[data-testid="side-chat-close"]')!);
     expect(sideChatState(second)).toBeUndefined();
+    expect(tabKeys()).toEqual(['nomi-task:k1', firstKey]);
+    expect(screen.getAllByTestId('side-chat').find((el) => !el.hidden)?.dataset.sideTab).toBe(
+      firstKey,
+    );
   });
 });

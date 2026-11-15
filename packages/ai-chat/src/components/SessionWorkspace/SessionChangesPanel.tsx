@@ -4,15 +4,13 @@
  * （RepoGitSection；同一个仓库的多个文件夹合成一段）。都不是 git 仓库（或读不到）时退回本会话变更树。
  * 文件：一个文件夹时就是它的目录树；多个时每个文件夹一个顶层节点（主文件夹默认展开）。中栏 Diff 见 CenterChangesHost。
  */
-import { Icon, t } from '@nomi-ai/ui';
+import { t } from '@nomi-ai/ui';
 import {
-  IconRobot as Bot,
-  IconGitCompare,
-  IconFolder,
-  IconMaximize as Expand,
-  IconFolders as FolderTree,
+  IconArrowsMaximize as Expand,
+  IconFolder as FolderTree,
   IconLayoutSidebarRightCollapse as PanelRightClose,
   IconRefresh as RefreshCw,
+  IconRobot as Bot,
   IconSearch as Search,
 } from '@tabler/icons-react';
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
@@ -34,7 +32,6 @@ import {
   type ChangeTreeNode,
 } from '../../utils/sessionChanges';
 import { rootOf, workspaceKey } from '../../utils/workspacePath';
-import { TitlebarContent } from '../TitleBar/panels';
 
 import { ChangeFileTree } from './ChangeFileTree';
 import { useChangesUi } from './ChangesUiContext';
@@ -44,7 +41,6 @@ import styles from './SessionWorkspace.module.css';
 import pane from './WorkspacePane.module.css';
 
 type View = 'changes' | 'workspace';
-
 const sep = (root: string) => (root.includes('\\') && !root.includes('/') ? '\\' : '/');
 const joinPath = (root: string, rel: string) =>
   `${root.replace(/[\\/]+$/, '')}${sep(root)}${rel.replace(/^[\\/]+/, '')}`;
@@ -71,8 +67,11 @@ export const SessionChangesPanel: React.FC<{
   busy?: boolean;
   /** 收起右栏（与顶栏开关同一状态） */
   onClose?: () => void;
-}> = ({ messages, cwd, roots: rootsProp, rail = false, busy = false, onClose }) => {
-  const [view, setView] = useState<View>('changes');
+  /** 锁在某一个视图（变更 / 打开文件标签里用，不再显示「改动 · 文件」切换） */
+  lockedView?: View;
+}> = ({ messages, cwd, roots: rootsProp, rail = false, busy = false, onClose, lockedView }) => {
+  const [view, setView] = useState<View>(lockedView ?? 'changes');
+  if (lockedView && view !== lockedView) setView(lockedView);
   const [onlySession, setOnlySession] = useState(false);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -149,11 +148,22 @@ export const SessionChangesPanel: React.FC<{
     () =>
       multi
         ? wrapRoots((r) =>
-            absTree(mergeWorkspaceAndChanges(diskTrees[r] ?? [], changesByRoot.get(r) ?? [], r), r),
+            absTree(
+              mergeWorkspaceAndChanges(
+                diskTrees[r] ?? [],
+                lockedView === 'workspace' ? [] : (changesByRoot.get(r) ?? []),
+                r,
+              ),
+              r,
+            ),
           )
-        : mergeWorkspaceAndChanges(diskTrees[primary ?? ''] ?? [], changes, cwd),
+        : mergeWorkspaceAndChanges(
+            diskTrees[primary ?? ''] ?? [],
+            lockedView === 'workspace' ? [] : changes,
+            cwd,
+          ),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- wrapRoots 只读 roots
-    [diskTrees, changes, cwd, multi, changesByRoot, primary, rootsKey],
+    [diskTrees, changes, cwd, lockedView, multi, changesByRoot, primary, rootsKey],
   );
   const project = projectNameFromCwd(cwd);
 
@@ -348,7 +358,7 @@ export const SessionChangesPanel: React.FC<{
     return () => window.removeEventListener('keydown', onKey);
   }, [previewKey, workbench, closeWorkbench]);
 
-  if (!changes.length && !cwd) return null;
+  if (!lockedView && !changes.length && !cwd) return null;
 
   const gitNote = (() => {
     if (source === 'git') return null;
@@ -417,34 +427,55 @@ export const SessionChangesPanel: React.FC<{
       : changes.length > 0
     : !diskErr && (!diskEmpty || changes.length > 0);
 
-  const filterBox = showFilter ? (
-    <div className={pane.toolRow}>
-      <label className={styles.wbFilter}>
-        <Search size={12} />
-        <input
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder={t('ui.session-workspace.filter-files')}
-          aria-label={t('ui.session-workspace.filter-files')}
-          data-testid="files-rail-filter"
-        />
-      </label>
-      {changesActive && source === 'git' && gitTotals.sessionInGit > 0 ? (
-        <button
-          type="button"
-          className={pane.chip}
-          aria-pressed={onlySession}
-          data-active={onlySession || undefined}
-          data-testid="changes-only-session"
-          onClick={() => setOnlySession((v) => !v)}
-        >
-          <Bot size={12} />
-          {t('ui.slash-commands.this-session')}
-          <span className={styles.count}>{gitTotals.sessionInGit}</span>
-        </button>
-      ) : null}
-    </div>
-  ) : null;
+  const showWorkspaceRefresh = workspaceActive && !!cwd;
+  const filterBox =
+    showFilter || showWorkspaceRefresh ? (
+      <div className={pane.toolRow}>
+        {showFilter ? (
+          <label className={styles.wbFilter}>
+            <Search size={12} />
+            <input
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder={t('ui.session-workspace.filter-files')}
+              aria-label={t('ui.session-workspace.filter-files')}
+              data-testid="files-rail-filter"
+            />
+          </label>
+        ) : (
+          <span className={styles.wbSpacer} />
+        )}
+        {showWorkspaceRefresh ? (
+          <button
+            type="button"
+            className={styles.iconBtn}
+            onClick={() => {
+              setNonce((n) => n + 1);
+              void refreshDisk();
+            }}
+            disabled={refreshing}
+            aria-label={t('ui.knowledge-local.refresh')}
+            data-testid="files-rail-refresh"
+          >
+            <RefreshCw size={14} className={refreshing ? styles.spin : undefined} />
+          </button>
+        ) : null}
+        {changesActive && source === 'git' && gitTotals.sessionInGit > 0 ? (
+          <button
+            type="button"
+            className={pane.chip}
+            aria-pressed={onlySession}
+            data-active={onlySession || undefined}
+            data-testid="changes-only-session"
+            onClick={() => setOnlySession((v) => !v)}
+          >
+            <Bot size={12} />
+            {t('ui.slash-commands.this-session')}
+            <span className={styles.count}>{gitTotals.sessionInGit}</span>
+          </button>
+        ) : null}
+      </div>
+    ) : null;
 
   const sessionTree = (
     <div className={styles.railTree} data-testid="files-rail-tree">
@@ -472,7 +503,17 @@ export const SessionChangesPanel: React.FC<{
       keyPrefix={multi ? `g:${i}|` : 'g:'}
       label={multi ? label(r) : undefined}
       primary={multi && i === 0}
-      show={dupOf(r) ? 'none' : changesActive ? 'all' : multi ? 'none' : 'branch'}
+      show={
+        lockedView === 'workspace'
+          ? 'none'
+          : dupOf(r)
+            ? 'none'
+            : changesActive
+              ? 'all'
+              : multi
+                ? 'none'
+                : 'branch'
+      }
       busy={busy}
       changes={multi ? (changesByRoot.get(r) ?? []) : changes}
       query={q}
@@ -501,45 +542,43 @@ export const SessionChangesPanel: React.FC<{
       tabIndex={-1}
     >
       {/* 一行：左侧「改动 · 文件」分段，右侧统计与操作；与 ChatHeader 同高 */}
-      <TitlebarContent name="files" enabled={rail}>
+      {(lockedView !== 'workspace' || onClose) && (
         <header className={styles.panelHead}>
-          <div
-            className={pane.seg}
-            role="tablist"
-            aria-label={t('ui.session-workspace.changes-panel-view')}
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-label={t('ui.session-workspace.changes')}
-              aria-selected={changesActive}
-              className={pane.segBtn}
-              data-active={changesActive || undefined}
-              data-testid="rail-tab-changes"
-              onClick={() => setView('changes')}
+          {!lockedView && (
+            <div
+              className={pane.seg}
+              role="tablist"
+              aria-label={t('ui.session-workspace.changes-panel-view')}
             >
-              <Icon icon={IconGitCompare} size={14} />
-              <span className={pane.tabLabel}>{t('ui.session-workspace.changes')}</span>
-              {changesCount ? (
-                <span className={styles.count} data-pulse={badgePulse || undefined}>
-                  {changesCount}
-                </span>
-              ) : null}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-label={t('ui.knowledge-local.files')}
-              aria-selected={workspaceActive}
-              className={pane.segBtn}
-              data-active={workspaceActive || undefined}
-              data-testid="rail-tab-workspace"
-              onClick={openWorkspace}
-            >
-              <Icon icon={IconFolder} size={14} />
-              <span className={pane.tabLabel}>{t('ui.knowledge-local.files')}</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={changesActive}
+                className={pane.segBtn}
+                data-active={changesActive || undefined}
+                data-testid="rail-tab-changes"
+                onClick={() => setView('changes')}
+              >
+                {t('ui.session-workspace.changes')}
+                {changesCount ? (
+                  <span className={styles.count} data-pulse={badgePulse || undefined}>
+                    {changesCount}
+                  </span>
+                ) : null}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={workspaceActive}
+                className={pane.segBtn}
+                data-active={workspaceActive || undefined}
+                data-testid="rail-tab-workspace"
+                onClick={openWorkspace}
+              >
+                {t('ui.knowledge-local.files')}
+              </button>
+            </div>
+          )}
           <span className={styles.wbSpacer} />
           {summary.files > 0 && changesActive ? (
             <span
@@ -551,7 +590,7 @@ export const SessionChangesPanel: React.FC<{
               <span className={styles.del}>−{summary.removed}</span>
             </span>
           ) : null}
-          {cwd ? (
+          {cwd && !workspaceActive ? (
             <button
               type="button"
               className={styles.iconBtn}
@@ -589,16 +628,18 @@ export const SessionChangesPanel: React.FC<{
             </button>
           ) : null}
         </header>
-      </TitlebarContent>
+      )}
 
       {/* 各仓库段一直挂在同一个位置（换视图 / 数据源时不重新挂载）；不在「改动 · git」时不画，但仍报状态 */}
       {changesActive && source === 'git' ? filterBox : null}
-      <div
-        className={multi && changesActive && source === 'git' ? pane.repoStack : pane.repoSingle}
-        data-testid={multi ? 'repo-stack' : undefined}
-      >
-        {sections}
-      </div>
+      {lockedView === 'workspace' ? null : (
+        <div
+          className={multi && changesActive && source === 'git' ? pane.repoStack : pane.repoSingle}
+          data-testid={multi ? 'repo-stack' : undefined}
+        >
+          {sections}
+        </div>
+      )}
       {changesActive && source === 'git' ? null : (
         <>
           {changesActive ? (
@@ -621,7 +662,7 @@ export const SessionChangesPanel: React.FC<{
                     {!changes.length ? (
                       <div className={pane.empty} data-testid="files-rail-no-changes">
                         <p>{t('ui.session-workspace.no-file-changes-in-this-session-yet')}</p>
-                        {cwd ? (
+                        {cwd && !lockedView ? (
                           <div className={pane.emptyActions}>
                             <button type="button" className={pane.link} onClick={openWorkspace}>
                               <FolderTree size={12} />

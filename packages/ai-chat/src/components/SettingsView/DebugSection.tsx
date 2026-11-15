@@ -8,6 +8,7 @@ import { Button, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import React, { useState } from 'react';
 
 import { api, hasTransport } from '../../services/api';
+import { requestConversationNavDemo } from '../../services/conversationNavDemo';
 
 import styles from './index.module.css';
 
@@ -206,13 +207,15 @@ export const DebugSection: React.FC = () => {
   };
   if (!hasTransport()) {
     return (
-      <p className={styles.muted} data-testid="settings-debug">
-        {t('ui.mascot-theme.available-in-the-desktop-app-only')}
-      </p>
+      <div className={styles.groups} data-testid="settings-debug">
+        <ConversationNavDemo />
+        <p className={styles.muted}>{t('ui.mascot-theme.available-in-the-desktop-app-only')}</p>
+      </div>
     );
   }
   return (
     <div className={styles.groups} data-testid="settings-debug">
+      <ConversationNavDemo />
       <SettingsGroup
         title={t('ui.mascot-theme.island-debug-notices')}
         description={t('ui.mascot-theme.island-debug-notices-desc')}
@@ -269,3 +272,21 @@ export const DebugSection: React.FC = () => {
     </div>
   );
 };
+
+const ConversationNavDemo: React.FC = () => (
+  <SettingsGroup
+    title={t('ui.chat-settings.conversation-nav-demo')}
+    description={t('ui.chat-settings.conversation-nav-demo-description')}
+  >
+    <SettingRow title={t('ui.chat-settings.conversation-nav-demo-row')}>
+      <Button
+        size="sm"
+        variant="secondary"
+        onClick={requestConversationNavDemo}
+        data-testid="debug-conversation-nav-demo"
+      >
+        {t('ui.chat-settings.insert-conversation-nav-demo')}
+      </Button>
+    </SettingRow>
+  </SettingsGroup>
+);

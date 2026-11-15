@@ -5,10 +5,11 @@
  * 模型 / 思考深度是主对话同一个选择器（NomiModelSwitch 的 binding，记在这个侧边聊天上）。
  * 数据在 services/sideChat（按聊天 id）。设计见 docs/design/side-tabs-workspace.md。
  */
-import { Button, Icon, t } from '@nomi-ai/ui';
+import { Button, Icon, IconButton, t } from '@nomi-ai/ui';
 import {
   IconMessageCirclePlus as MessageCirclePlus,
   IconSquare as Square,
+  IconX as X,
 } from '@tabler/icons-react';
 import React, { useEffect, useMemo } from 'react';
 
@@ -70,7 +71,8 @@ export const SideChatPane: React.FC<{
   chatId: string;
   slot: SideChatSlot;
   cwd?: string | null;
-}> = ({ chatId, slot, cwd }) => {
+  onClose?: () => void;
+}> = ({ chatId, slot, cwd, onClose }) => {
   const chat = useSideChat(chatId);
   const report = useSubagentPane()?.reportMeta;
   const name = sideChatName(chat);
@@ -117,6 +119,15 @@ export const SideChatPane: React.FC<{
           {running ? t('ui.knowledge-local.running') : t('ui.mascot-theme.idle')}
         </span>
         <span className={paneStyles.spacer} />
+        {onClose && (
+          <IconButton
+            size="sm"
+            label={t('ui.providers-schedule.close')}
+            icon={<Icon icon={X} size={14} />}
+            onClick={onClose}
+            data-testid="side-chat-close"
+          />
+        )}
         {running && (
           <Button
             size="sm"

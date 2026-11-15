@@ -1,11 +1,10 @@
 import type { ClientAIClient } from '@nomi-ai/ai-sdk-client';
 import * as AISdkReact from '@nomi-ai/ai-sdk-client/react';
-import { t, usePresence } from '@nomi-ai/ui';
+import { t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 
 import { AppOverlays, useToast } from './app/AppOverlays';
 import { ChatBody } from './app/ChatBody';
-import { FilesRail } from './app/FilesRail';
 import { useAppCommands } from './app/useAppCommands';
 import { useAppPanels } from './app/useAppPanels';
 import { useAppSlash } from './app/useAppSlash';
@@ -86,7 +85,7 @@ import { CHAT_COL_W_MAX, CHAT_COL_W_MIN } from './utils/chatColumnWidth';
 import { useCliImageSupport } from './utils/cliImageSupport';
 import { cliTabPlaceholder } from './utils/cliTabPlaceholder';
 import { fromHarnessMessage, nomiConvMessages, settledNomiMessages } from './utils/convAdapters';
-import { FILES_SIDE_TAB, MAIN_SIDE_TAB } from './utils/sideTabs';
+import { CHANGES_SIDE_TAB, MAIN_SIDE_TAB, OPEN_FILE_SIDE_TAB } from './utils/sideTabs';
 import './App.css';
 import './components/TitleBar/panels.css';
 
@@ -99,7 +98,7 @@ const selectSettledNomi = (s: AiChatState) => settledNomiMessages(s.messages, se
  */
 const AiChatContent: React.FC = () => {
   const split = useSplitWidths();
-  const { composerFill } = useChangesUi();
+  const { composerFill, workbench } = useChangesUi();
   const { actions } = useAiChatActions();
   const isLoading = useAiChatSelector(selectIsLoading);
   const busyHere = useAiChatSelector(selectBusyHere);
@@ -142,6 +141,10 @@ const AiChatContent: React.FC = () => {
   useEffect(() => {
     setPaneProject?.(rail.projectId ?? null);
   }, [setPaneProject, rail.projectId]);
+  const openChangesTab = pane?.openChanges;
+  useEffect(() => {
+    if (workbench) openChangesTab?.();
+  }, [workbench, openChangesTab]);
   const activatePane = pane?.activate;
   const resourcePreview = useResourcePreview(
     {
@@ -150,12 +153,24 @@ const AiChatContent: React.FC = () => {
       source: isDev && tabs.isCliTab ? tabs.activeTab?.backend : 'nomi',
     },
     // 开了 / 切到一个文件：标签区切到文件
-    { onShow: () => activatePane?.(FILES_SIDE_TAB) },
+    {
+      onShow: (kind) => {
+        pane?.showPane();
+        if (kind === 'diff') {
+          pane?.openChanges?.();
+          activatePane?.(CHANGES_SIDE_TAB);
+        } else {
+          pane?.openFileBrowser?.();
+          activatePane?.(OPEN_FILE_SIDE_TAB);
+        }
+      },
+    },
   );
   const side = useSideWorkspace({
     entries: resourcePreview.entries,
     activeKey: resourcePreview.activeKey,
     render: resourcePreview.renderEmbedded,
+    railSplit: split.filesRail,
   });
   useSideWorkspaceKeys(side);
   const selectionActions = useSelectionActions(side);
@@ -247,6 +262,7 @@ const AiChatContent: React.FC = () => {
     panels,
     setToast,
     cwd: rail.cwd,
+    toggleTabs: pane?.togglePane,
   });
 
   // 主区整页（任务 / Agent 看板 / 素材库）：入口在左侧导航栏，三个互斥
@@ -261,8 +277,6 @@ const AiChatContent: React.FC = () => {
     leavePage();
   }, [closeSettings, leavePage]);
   const mainHidden = openPage !== null;
-  // 右栏收起时先放完滑出动画再卸载；切到整页时直接收
-  const filesRail = usePresence(rail.open && !!rail.cwd && !mainHidden);
   // 灵动岛上点「打开」/ 点某一条：跳到任务详情 / 编程助手标签 / 主对话
   useIslandOpenItem(mainPages.openTask, leavePage, (id) => {
     void ipcClient?.switchConversation(id);
@@ -318,26 +332,29 @@ const AiChatContent: React.FC = () => {
 
   // 详情与文件栏开关：桌面应用在标题栏右侧，更多操作与详细程度归入左侧标题下拉
   const titleBar = hasAppTitleBar();
+  const sideMaximized = side.maximized;
+  const restoreSide = side.restore;
+  const toggleSidePane = useCallback(() => {
+    // 全屏状态下先退出全屏，再隐藏工作区；否则只改可见偏好，最大化状态会把它重新顶回来。
+    if (sideMaximized) {
+      restoreSide();
+      pane?.hidePane?.();
+      return;
+    }
+    pane?.togglePane();
+  }, [pane, restoreSide, sideMaximized]);
   const sessionTools = (
     <SessionTools
       messages={rail.messages}
-      rail={rail.cwd ? { open: rail.open, cwd: rail.cwd, onToggle: rail.toggle } : null}
+      rail={pane ? { open: side.open, onToggle: toggleSidePane } : null}
     />
   );
   // 对话旁那一栏：子任务 / 文件标签，或右栏的未提交文件预览（挂载点）
-  const centerOpen = rail.centerOpen || resourcePreview.isOpen;
+  const centerOpen = side.open;
   const sideMax = centerOpen && side.maximized;
   // 铺满时向右拆分：左主会话、右当前标签，中间分割线
   const sideSplit = sideMax && side.split;
   const mainShown = !sideMax || sideSplit || side.active === MAIN_SIDE_TAB;
-  const railCwd = rail.cwd;
-  const railOpen = rail.open;
-  const railToggle = rail.toggle;
-  const browseFiles = railCwd
-    ? () => {
-        if (!railOpen) railToggle();
-      }
-    : undefined;
   return (
     <SelectionActionsContext.Provider value={selectionActions}>
       <ResourceScopeProvider value={resourcePreview.value}>
@@ -401,13 +418,7 @@ const AiChatContent: React.FC = () => {
                 hidden={mainHidden}
               >
                 {/* 铺满时标签栏在整个对话区顶上，主会话是第一个标签（不能关） */}
-                {sideMax && (
-                  <SideTabStrip
-                    model={side}
-                    columnMessages={rail.messages}
-                    onBrowseFiles={browseFiles}
-                  />
-                )}
+                {sideMax && <SideTabStrip model={side} columnMessages={rail.messages} />}
                 <div
                   className="chat-column"
                   data-testid="chat-column"
@@ -526,18 +537,27 @@ const AiChatContent: React.FC = () => {
                       messages={rail.messages}
                       cwd={rail.cwd}
                       roots={rail.roots}
+                      busy={rail.busy}
                       actions={paneActions}
                       showStrip={!sideMax}
-                      onBrowseFiles={browseFiles}
                     />
                   </>
+                ) : side.mounted ? (
+                  <div hidden>
+                    <SideWorkspace
+                      model={side}
+                      messages={rail.messages}
+                      cwd={rail.cwd}
+                      roots={rail.roots}
+                      busy={rail.busy}
+                      actions={paneActions}
+                      showStrip={false}
+                    />
+                  </div>
                 ) : null}
               </div>
               {/* 整页（素材库 / 任务 / Agent 看板）：替换对话区（对话区只隐藏不卸载），侧栏保持 */}
               {mainPages.pages}
-              {filesRail.value && !mainHidden ? (
-                <FilesRail rail={rail} split={split.filesRail} closing={filesRail.closing} />
-              ) : null}
             </div>
             {panels.settings && (
               <div className="settings-workspace" data-testid="settings-workspace">

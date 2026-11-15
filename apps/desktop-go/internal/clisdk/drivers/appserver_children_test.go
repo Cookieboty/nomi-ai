@@ -152,6 +152,38 @@ func TestAppServerChildFastCompletion(t *testing.T) {
 	}
 }
 
+func TestAppServerChildTerminalErrorEndsAgent(t *testing.T) {
+	jsrt.Run(func() {
+		child := newFakeChild()
+		d := NewAppServerDriver(AppServerDriverOptions{Child: child})
+		defer d.Close()
+		d.NoteChild("c1", "call1")
+		var got []*util.Obj
+		d.On(func(e SessionEvent) {
+			if e.Get("child") != nil {
+				got = append(got, util.AsObj(e.Get("event")))
+			}
+		})
+		child.onLine = func(msg *util.Obj) {
+			if msg.Get("method") == "turn/start" {
+				child.send(O("id", msg.Get("id"), "result", O("turn", O("id", "ct1"))))
+			}
+		}
+		if via, err := jsrt.Await(d.SendToThread("c1", []any{}, nil, false)); err != nil || via != "start" {
+			t.Fatalf("via=%q err=%v", via, err)
+		}
+		child.send(O("method", "turn/started", "params", O("threadId", "c1", "turn", O("id", "ct1"))))
+		child.send(O("method", "error", "params", O("threadId", "c1", "error", O("message", "child failed"), "willRetry", false)))
+		jsrt.Sleep(0)
+		if d.ChildRunning("c1") {
+			t.Fatal("terminal child error left the child running")
+		}
+		if len(got) != 2 || got[0].Get("op") != "start" || got[1].Get("op") != "end" || got[1].Get("status") != "failed" {
+			t.Fatalf("events=%v", got)
+		}
+	})
+}
+
 func TestAppServerChildStartResponsePreservesNewerTurn(t *testing.T) {
 	jsrt.Run(func() {
 		child := newFakeChild()

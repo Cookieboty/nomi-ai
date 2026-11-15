@@ -49,8 +49,10 @@ export function useAppCommands(opts: {
   setToast: (msg: string) => void;
   /** 「在终端打开当前项目」用的目录 */
   cwd: string | null;
+  /** 显示 / 隐藏对话旁的标签页 */
+  toggleTabs?: () => void;
 }) {
-  const { actions, ipcClient, tabs, isDev, panels, setToast, cwd } = opts;
+  const { actions, ipcClient, tabs, isDev, panels, setToast, cwd, toggleTabs } = opts;
   const { setSettings, openSettings, toggleSettings, toggleSidebar, expandSidebar } = panels;
   const { toggleHub, toggleExt, openLocal } = panels;
   const bindings = useShortcutBindings();
@@ -186,6 +188,7 @@ export function useAppCommands(opts: {
       },
       // 在终端打开当前会话的工作目录（services/openProjectTerminal）
       openTerminal: () => openProjectTerminal(cwd, setToast),
+      toggleTabs,
     }),
     [
       newChat,
@@ -202,6 +205,7 @@ export function useAppCommands(opts: {
       toggleHub,
       toggleExt,
       openLocal,
+      toggleTabs,
     ],
   );
   useEffect(() => {

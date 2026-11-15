@@ -70,6 +70,11 @@ func Decide(i ConsentInput) ConsentDecision {
 	if mode == "plan" && i.Danger != "read" {
 		return ConsentDecision{Blocked: true, Reason: "mode"}
 	}
+	// 「自动」是 Nomi 的最高权限档：允许的工具调用直接执行，不再按工具策略或风险等级逐项确认。
+	// 系统级的额外同意（Authorize 的 IgnoreMode）由调用方在进入这里前隔离处理。
+	if mode == "auto" {
+		return ConsentDecision{Reason: "auto-mode"}
+	}
 	var pin any = i.Policy
 	if pin == nil {
 		pin = DefaultPolicy[i.Danger]

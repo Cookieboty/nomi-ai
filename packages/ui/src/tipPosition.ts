@@ -11,16 +11,27 @@ export function tipPosition(
   size: { width: number; height: number },
   placement: 'side' | 'bottom' = 'bottom',
   boundary: DOMRect = anchor,
+  viewport?: DOMRect,
 ): { left: number; top: number } {
   const { width: w, height: h } = size;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  const bounds = viewport ?? {
+    left: 0,
+    top: 0,
+    right: window.innerWidth,
+    bottom: window.innerHeight,
+  };
+  const vw = bounds.right;
+  const vh = bounds.bottom;
+  const minLeft = bounds.left + TIP_MARGIN;
+  const minTop = bounds.top + TIP_MARGIN;
+  const maxLeft = Math.max(minLeft, vw - w - TIP_MARGIN);
+  const maxTop = Math.max(minTop, vh - h - TIP_MARGIN);
   let left: number;
   let top: number;
   if (placement === 'side' && boundary.right + TIP_GAP + w <= vw - TIP_MARGIN) {
     left = boundary.right + TIP_GAP;
     top = anchor.top + (anchor.height - h) / 2;
-  } else if (placement === 'side' && boundary.left - TIP_GAP - w >= TIP_MARGIN) {
+  } else if (placement === 'side' && boundary.left - TIP_GAP - w >= minLeft) {
     left = boundary.left - TIP_GAP - w;
     top = anchor.top + (anchor.height - h) / 2;
   } else {
@@ -30,7 +41,7 @@ export function tipPosition(
     if (top + h > vh - TIP_MARGIN) top = anchor.top - TIP_GAP - h;
   }
   return {
-    left: Math.max(TIP_MARGIN, Math.min(left, vw - w - TIP_MARGIN)),
-    top: Math.max(TIP_MARGIN, Math.min(top, vh - h - TIP_MARGIN)),
+    left: Math.max(minLeft, Math.min(left, maxLeft)),
+    top: Math.max(minTop, Math.min(top, maxTop)),
   };
 }

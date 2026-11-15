@@ -3,7 +3,7 @@
  * Nomi 会话里只有 NomiConversation 订阅流式的最后一轮，其余部分不随每帧重渲染。
  */
 import { t } from '@nomi-ai/ui';
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ConversationView } from '../components/Conversation';
 import { CliConversation } from '../components/Conversation/CliConversation';
@@ -17,7 +17,6 @@ import type { AiChatState } from '../contexts/AiChatContext';
 import {
   selectBusyHere,
   selectFirstMessageId,
-  selectMessageCount,
   useAiChatActions,
   useAiChatSelector,
 } from '../contexts/aiChatStore';
@@ -26,6 +25,10 @@ import { useLiveWithGatewayRetry } from '../hooks/useGatewayRetry';
 import { useNomiModelStatus } from '../hooks/useNomiModelStatus';
 import { useTranscriptView } from '../hooks/useTranscriptView';
 import { useUserProfile } from '../hooks/useUserProfile';
+import {
+  CONVERSATION_NAV_DEMO_EVENT,
+  conversationNavDemoMessages,
+} from '../services/conversationNavDemo';
 import { derivedSwitchTip } from '../services/modelSwitchTip';
 import { nomiModelLabel, useGatewayState } from '../services/nomiModel';
 import { QUICK_PROMPT_TEXT, recommend } from '../services/recommendations';
@@ -84,7 +87,7 @@ const CliBody: React.FC<{
       }),
     [tabId, cwd, isDev],
   );
-  if (tabs.messages.length === 0 && !hasLive && slash.cards.length === 0 && tab.status === 'idle')
+  if (messages.length === 0 && !hasLive && slash.cards.length === 0 && tab.status === 'idle')
     return (
       <ConversationWelcome
         backend={tab.backend}
@@ -136,11 +139,36 @@ export const ChatBody: React.FC<{
   slash: SlashHook;
   onOpenModels: () => void;
 }> = ({ tabs, isDev, sessionKey, cliMessages, nomiMessages, slash, onOpenModels }) => {
+  const [navDemoSessionKey, setNavDemoSessionKey] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!isDev) return;
+    const onDemo = () => setNavDemoSessionKey(sessionKey);
+    window.addEventListener(CONVERSATION_NAV_DEMO_EVENT, onDemo);
+    return () => window.removeEventListener(CONVERSATION_NAV_DEMO_EVENT, onDemo);
+  }, [isDev, sessionKey]);
+  const navDemoMessages = useMemo(
+    () =>
+      navDemoSessionKey !== undefined && navDemoSessionKey === sessionKey
+        ? conversationNavDemoMessages()
+        : [],
+    [navDemoSessionKey, sessionKey],
+  );
+  const displayCliMessages = useMemo(
+    () =>
+      navDemoMessages.length && tabs.isCliTab ? [...cliMessages, ...navDemoMessages] : cliMessages,
+    [cliMessages, navDemoMessages, tabs.isCliTab],
+  );
+  const displayNomiMessages = useMemo(
+    () =>
+      navDemoMessages.length && !tabs.isCliTab
+        ? [...nomiMessages, ...navDemoMessages]
+        : nomiMessages,
+    [nomiMessages, navDemoMessages, tabs.isCliTab],
+  );
   const { view: transcriptView } = useTranscriptView(sessionKey);
   const { actions, store: chatStore } = useAiChatActions();
   const busyHere = useAiChatSelector(selectBusyHere);
   const firstMessageId = useAiChatSelector(selectFirstMessageId);
-  const messageCount = useAiChatSelector(selectMessageCount);
   const onRetry = useCallback(
     (id: string) => {
       const u = precedingUser(chatStore.get().messages, id);
@@ -157,17 +185,17 @@ export const ChatBody: React.FC<{
       <CliBody
         tabs={tabs}
         isDev={isDev}
-        messages={cliMessages}
+        messages={displayCliMessages}
         slash={slash}
         transcriptView={transcriptView}
       />
     );
-  if (messageCount === 0 && slash.cards.length === 0)
+  if (displayNomiMessages.length === 0 && slash.cards.length === 0)
     return <NomiWelcome onOpenModels={onOpenModels} />;
   return (
     <NomiConversation
       scopeId={sessionKey ?? `nomi:${firstMessageId ?? 'new'}`}
-      messages={nomiMessages}
+      messages={displayNomiMessages}
       transcriptView={transcriptView}
       phase={busyHere ? 'running' : 'idle'}
       onRetry={onRetry}

@@ -656,8 +656,12 @@ func TestCliTaskModeRequiresOsSandbox(t *testing.T) {
 	if e.relaxed(l3) || cliTaskMode(l3, e.relaxed(l3)) != "acceptEdits" {
 		t.Fatal("没有系统沙箱时前台「全部自动」也不切到 auto")
 	}
-	if e.decidePermission(l3, "", "Bash: npm test", false) != "ask" {
-		t.Fatal("没有系统沙箱时普通命令也要逐条确认")
+	e.d.NomiAuto = func() bool { return true }
+	if !e.relaxed(l3) || cliTaskMode(l3, e.relaxed(l3)) != "auto" {
+		t.Fatal("Nomi「自动」应在没有系统沙箱时也切到 auto")
+	}
+	if e.decidePermission(l3, "", "Bash: npm test", false) != "allow" {
+		t.Fatal("Nomi「自动」下命令不应逐条确认")
 	}
 
 	osSandboxSupported = func() bool { return true }

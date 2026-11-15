@@ -370,8 +370,12 @@ func indexOf(xs []string, v string) int {
 	return -1
 }
 
-// ChildPermissionMode：取更严的一个；永远不是 bypass
+// ChildPermissionMode：子 agent 默认不超过用户给它的档位；Nomi 处于「自动」时，
+// 子 agent 至少使用 auto。永远不是 bypass。
 func ChildPermissionMode(nomi, tabDefault string) string {
+	if nomi == "auto" {
+		return "auto"
+	}
 	a, b := indexOf(modeOrder, nomi), indexOf(modeOrder, tabDefault)
 	if a < 0 {
 		a = 0
@@ -384,6 +388,23 @@ func ChildPermissionMode(nomi, tabDefault string) string {
 		return "auto"
 	}
 	return m
+}
+
+// ChildPermissionModeFor：按具体 CLI 的能力把 Nomi 的「自动」映射到最高非 bypass 档。
+// 例如 Claude 支持 auto 就传 auto，只有 acceptEdits 的 CLI 就传 acceptEdits，
+// 只有 plan / manual 的 CLI 则传 manual，避免通用降级把自动委派错误降到只读。
+func ChildPermissionModeFor(cli, nomi, tabDefault string) string {
+	if nomi != "auto" {
+		return ChildPermissionMode(nomi, tabDefault)
+	}
+	if p := builtin.Impl(cli); p != nil && p.Permissions != nil {
+		for i := len(modeOrder) - 2; i >= 0; i-- {
+			if contains(p.Permissions.Supported, modeOrder[i]) {
+				return modeOrder[i]
+			}
+		}
+	}
+	return "auto"
 }
 
 // DelegateBrief：任务说明

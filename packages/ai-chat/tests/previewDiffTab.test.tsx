@@ -4,10 +4,11 @@
  * 同一文件的 Diff 与文件本身是两个标签；切到文件时 Diff 标签留着。
  */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import React from 'react';
+import React, { useState } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { confirmDialog } from '../src/components/ConfirmDialog';
+import type { PreviewTabsControl } from '../src/components/ResourcePreview/ResourcePreview';
 import {
   dirtyReviewDrafts,
   dropReviewDrafts,
@@ -74,6 +75,40 @@ function Probe() {
       <button onClick={() => v.updateDiff(diffOf('src/c.ts'))}>refresh c</button>
       <button onClick={() => v.open('/work/src/a.ts', v.scope)}>file a</button>
       {preview.panel}
+    </>
+  );
+}
+
+function EmbeddedProbe() {
+  const preview = useResourcePreview({ id: 'embedded-diff-tabs', cwd: '/work' });
+  const [fileControl] = useState<{ current: PreviewTabsControl | null }>(() => ({ current: null }));
+  const [diffControl] = useState<{ current: PreviewTabsControl | null }>(() => ({ current: null }));
+  return (
+    <>
+      <button onClick={() => preview.value.openDiff?.(diffOf('src/a.ts'))}>embedded diff</button>
+      <button onClick={() => preview.value.open('/work/src/a.ts', preview.value.scope)}>
+        embedded file
+      </button>
+      <div data-testid="embedded-files">
+        {preview.renderEmbedded({
+          inactive: false,
+          expanded: false,
+          onExpanded: () => undefined,
+          controlRef: fileControl,
+          showTabs: true,
+          mode: 'files',
+        })}
+      </div>
+      <div data-testid="embedded-diffs">
+        {preview.renderEmbedded({
+          inactive: false,
+          expanded: false,
+          onExpanded: () => undefined,
+          controlRef: diffControl,
+          showTabs: true,
+          mode: 'diffs',
+        })}
+      </div>
     </>
   );
 }
@@ -173,5 +208,26 @@ describe('文件 Diff 标签', () => {
     closeA();
     await waitFor(() => expect(tabNames()).not.toContain('a.ts 的改动'));
     expect(dirtyReviewDrafts([tabKey('src/a.ts')])).toEqual([]);
+  });
+
+  it('嵌入到工作区时，文件页和变更页各自只显示自己的 tabs', async () => {
+    render(<EmbeddedProbe />);
+    fireEvent.click(screen.getByText('embedded diff'));
+    expect(await screen.findByTestId('preview-diff')).toBeTruthy();
+    fireEvent.click(screen.getByText('embedded file'));
+    await screen.findByTestId('resource-preview-source');
+
+    const files = screen.getByTestId('embedded-files');
+    const diffs = screen.getByTestId('embedded-diffs');
+    expect(
+      Array.from(files.querySelectorAll('[data-preview-tab-key] > [role="tab"]')).map(
+        (tab) => tab.textContent,
+      ),
+    ).toEqual(['a.ts']);
+    expect(
+      Array.from(diffs.querySelectorAll('[data-preview-tab-key] > [role="tab"]')).map((tab) =>
+        tab.getAttribute('aria-label'),
+      ),
+    ).toEqual(['a.ts 的改动']);
   });
 });

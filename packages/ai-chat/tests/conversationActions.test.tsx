@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConversationView, INITIAL_RENDER } from '../src/components/Conversation';
+import { ConversationView, INITIAL_RENDER, snapStartToTurn } from '../src/components/Conversation';
 import { ForkFromMessageContext } from '../src/components/Conversation/forkContext';
 import type { ChatMessage } from '../src/types/chat';
 import type { ConvLive, ConvMessage } from '../src/types/conversation';
@@ -335,7 +335,7 @@ describe('Nomi 对话走同一套视图', () => {
     expect(getByTestId('conv-status').getAttribute('data-kind')).toBe('first-token');
   });
 
-  it('长对话分页：只渲染末尾窗口，「显示更早」加载更多', async () => {
+  it('长对话分页：滚动到顶部会自动加载更早消息', async () => {
     const many = Array.from({ length: 120 }, (_, i) =>
       chat({ id: `m${i}`, role: i % 2 ? 'assistant' : 'user', content: `消息${i}` }),
     );
@@ -343,12 +343,14 @@ describe('Nomi 对话走同一套视图', () => {
     const rows = () =>
       container.querySelectorAll('[data-testid="msg-user"],[data-testid="msg-assistant"]');
     // 窗口分批补齐后才出现「显示更早」
-    const earlier = await findByTestId('conv-load-earlier');
+    await findByTestId('conv-load-earlier');
     const n = rows().length;
     expect(n).toBeLessThan(120);
     expect(container.textContent).toContain('消息119');
     expect(container.textContent).not.toContain('消息0消息');
-    fireEvent.click(earlier);
+    const scroller = container.querySelector<HTMLElement>('[data-testid="conv-scroll"]')!;
+    scroller.scrollTop = 0;
+    fireEvent.scroll(scroller);
     await waitFor(() => expect(rows().length).toBeGreaterThan(n));
   });
 
@@ -359,7 +361,11 @@ describe('Nomi 对话走同一套视图', () => {
     const { container } = render(<NomiConversation messages={many} />);
     const rows = () =>
       container.querySelectorAll('[data-testid="msg-user"],[data-testid="msg-assistant"]');
-    expect(rows().length).toBe(INITIAL_RENDER);
+    // 末尾几条若落在一轮中间，会补上该轮的用户消息，首帧可能略多于 INITIAL_RENDER。
+    const first = many.length - snapStartToTurn(many, many.length - INITIAL_RENDER);
+    expect(rows().length).toBe(first);
+    expect(first).toBeGreaterThanOrEqual(INITIAL_RENDER);
+    expect(first).toBeLessThan(many.length);
     expect(container.textContent).toContain('条目19');
     expect(container.textContent).not.toContain('条目0条');
     await waitFor(() => expect(rows().length).toBe(20));

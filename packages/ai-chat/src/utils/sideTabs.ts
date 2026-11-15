@@ -1,12 +1,13 @@
 /**
- * 对话旁的标签区（子任务 + 文件预览共用一块）：纯函数，便于单测。
+ * 对话旁工作区标签状态：纯函数，便于单测。
  * - 每个会话一份：开着的子任务标签、当前标签、是否铺满（全屏）；
- * - 当前标签：'main'（铺满时的主会话标签）| 'files'（文件预览，具体哪个文件由预览区自己记）| 子任务的键；
- * - 铺满时主会话是第一个标签，不能关；没有任何子任务 / 文件标签时自动回到分栏；
+ * - 当前标签：'main'（铺满时的主会话标签）| 子任务键 | 工作区页键；文件 tabs 属于打开文件页内部
+ *   | 子任务的键 | 工作区页（新标签页 / 变更 / 打开文件 / 侧边聊天 / 浏览器）；
+ * - 铺满时主会话是第一个标签，不能关；没有任何子任务 / 文件 / 工作区页时自动回到分栏；
+ * - 文件浏览（打开文件）和变更（Diff / git 状态）是两类独立标签，互不耦合开关；
  * - 标签可以拖动排序（order，主会话标签固定在最前）；铺满时可以「向右拆分」：左主会话、右当前标签；
  * - 弹出到独立窗口的标签（detached）由宿主记着，只在这一侧隐藏，窗口关掉后回到标签栏；
- * - 侧边聊天（SubagentTarget kind 'side-chat'）：和子任务一样是一个标签，可以开好几个；内容只在内存里，
- *   重开应用后不恢复（写本地存储时去掉）。
+ * - 侧边聊天是工作区页，也进入顶层标签栏；内容只在内存里，重开应用后不恢复。
  * 语义见 docs/design/side-tabs-workspace.md。
  */
 
@@ -18,11 +19,22 @@ export type SubagentTarget =
 
 export const MAIN_SIDE_TAB = 'main';
 export const FILES_SIDE_TAB = 'files';
+export const CHANGES_SIDE_TAB = 'changes';
+export const OPEN_FILE_SIDE_TAB = 'open-file';
+
+export type WorkspacePage =
+  | { kind: 'new-tab'; id: string }
+  | { kind: 'changes' }
+  | { kind: 'open-file' }
+  | { kind: 'side-chat'; id: string }
+  | { kind: 'browser'; id: string; url: string; title?: string };
 
 export interface SideTabsState {
   /** 开着的子任务（按打开顺序） */
   agents: SubagentTarget[];
-  /** 右侧（标签区）当前看的：'files' | 子任务键；null = 跟着默认规则 */
+  /** 工作区页：新标签页、变更、打开文件、侧边聊天、浏览器 */
+  pages: WorkspacePage[];
+  /** 右侧（标签区）当前看的：'files' | 子任务键 | 工作区页键；null = 跟着默认规则 */
   active: string | null;
   /** 标签区铺满整个对话区（主会话变成第一个标签） */
   maximized: boolean;
@@ -42,6 +54,7 @@ const ORDER_KEEP = 80;
 
 export const EMPTY_SIDE_TABS: SideTabsState = {
   agents: [],
+  pages: [],
   active: null,
   maximized: false,
   mainActive: false,
@@ -66,6 +79,163 @@ export function agentKey(target: SubagentTarget): string {
 
 export const isSideChatKey = (key: string | null | undefined) => !!key?.startsWith('side-chat:');
 
+export function newWorkspaceId(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function pageKey(page: WorkspacePage): string {
+  switch (page.kind) {
+    case 'new-tab':
+      return `new-tab:${page.id}`;
+    case 'changes':
+      return CHANGES_SIDE_TAB;
+    case 'open-file':
+      return OPEN_FILE_SIDE_TAB;
+    case 'side-chat':
+      return `side-chat:${page.id}`;
+    case 'browser':
+      return `browser:${page.id}`;
+  }
+}
+
+export const isNewTabKey = (key: string | null | undefined) => !!key?.startsWith('new-tab:');
+export const isBrowserKey = (key: string | null | undefined) => !!key?.startsWith('browser:');
+export const isSideChatPageKey = (key: string | null | undefined) =>
+  !!key?.startsWith('side-chat:');
+
+export function isPageKey(key: string | null | undefined): boolean {
+  return (
+    key === CHANGES_SIDE_TAB ||
+    key === OPEN_FILE_SIDE_TAB ||
+    isNewTabKey(key) ||
+    isBrowserKey(key) ||
+    isSideChatPageKey(key)
+  );
+}
+
+export function findPage(state: SideTabsState, key: string): WorkspacePage | undefined {
+  return state.pages.find((p) => pageKey(p) === key);
+}
+
+/** 把 http(s) 地址或形如 example.com 的输入收成可打开的 URL；其它协议不要 */
+export function parseBrowserUrl(input: string): string | null {
+  const raw = input.trim();
+  if (!raw) return null;
+  const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(raw);
+  const candidate = hasScheme ? raw : `https://${raw}`;
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    if (!hasScheme) {
+      // 没写协议时，要求看起来像主机名，避免把 README.md 这类文件名当成网址
+      const hostPort = raw.split('/')[0] ?? '';
+      const host = hostPort.split(':')[0] ?? '';
+      const fileish =
+        /\.(?:md|txt|ts|tsx|js|jsx|mjs|cjs|json|css|scss|html|go|rs|py|rb|java|kt|c|cc|cpp|h|hpp|vue|svelte|yml|yaml|toml|lock|map|svg|png|jpe?g|gif|webp|pdf|sh|bash|zsh)$/i;
+      if (fileish.test(hostPort)) return null;
+      if (host !== 'localhost' && !/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host) && !host.includes('.'))
+        return null;
+    }
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+const dropPage = (state: SideTabsState, key: string): SideTabsState => {
+  if (!state.pages.some((p) => pageKey(p) === key)) return state;
+  return {
+    ...state,
+    pages: state.pages.filter((p) => pageKey(p) !== key),
+    order: state.order.includes(key) ? state.order.filter((k) => k !== key) : state.order,
+  };
+};
+
+/** 打开（或切到已开着的唯一）工作区页；replace = 用这个新标签页换掉（从新标签页点进去） */
+export function openPage(
+  state: SideTabsState,
+  page: WorkspacePage,
+  opts?: { replace?: string },
+): SideTabsState {
+  const key = pageKey(page);
+  const unique = page.kind === 'changes' || page.kind === 'open-file';
+  const exists = unique
+    ? state.pages.some((p) => p.kind === page.kind)
+    : state.pages.some((p) => pageKey(p) === key);
+  let next: SideTabsState = exists
+    ? {
+        ...state,
+        pages: unique ? state.pages.map((p) => (p.kind === page.kind ? page : p)) : state.pages,
+        active: key,
+        mainActive: false,
+      }
+    : { ...state, pages: [...state.pages, page], active: key, mainActive: false };
+  const replace = opts?.replace;
+  if (replace && isNewTabKey(replace) && replace !== key) {
+    const after = dropPage(next, replace);
+    if (next.active === replace) after.active = key;
+    next = after;
+  }
+  return next;
+}
+
+export function openNewTab(state: SideTabsState, id = newWorkspaceId()): SideTabsState {
+  return openPage(state, { kind: 'new-tab', id });
+}
+
+export function openChanges(state: SideTabsState, opts?: { replace?: string }): SideTabsState {
+  return openPage(state, { kind: 'changes' }, opts);
+}
+
+export function openFileBrowser(state: SideTabsState, opts?: { replace?: string }): SideTabsState {
+  return openPage(state, { kind: 'open-file' }, opts);
+}
+
+export function openSideChatPage(
+  state: SideTabsState,
+  chatId: string,
+  opts?: { replace?: string },
+): SideTabsState {
+  return openPage(state, { kind: 'side-chat', id: chatId }, opts);
+}
+
+export function openBrowserTab(
+  state: SideTabsState,
+  url: string,
+  opts?: { replace?: string; title?: string; id?: string },
+): SideTabsState {
+  const trimmed = url.trim();
+  const href = trimmed === '' ? '' : parseBrowserUrl(trimmed);
+  if (href === null) return state;
+  if (href) {
+    const existing = state.pages.find((p) => p.kind === 'browser' && p.url === href);
+    if (existing) return openPage(state, existing, opts);
+  }
+  return openPage(
+    state,
+    { kind: 'browser', id: opts?.id ?? newWorkspaceId(), url: href, title: opts?.title },
+    opts,
+  );
+}
+
+export function setBrowserUrl(
+  state: SideTabsState,
+  key: string,
+  url: string,
+  title?: string,
+): SideTabsState {
+  const href = parseBrowserUrl(url);
+  if (!href) return state;
+  return {
+    ...state,
+    pages: state.pages.map((p) =>
+      pageKey(p) === key && p.kind === 'browser' ? { ...p, url: href, title: title ?? p.title } : p,
+    ),
+  };
+}
+
 /** 打开（或切到已开着的）子任务标签 */
 export function openAgent(state: SideTabsState, target: SubagentTarget): SideTabsState {
   const key = agentKey(target);
@@ -82,9 +252,9 @@ export function openAgent(state: SideTabsState, target: SubagentTarget): SideTab
 
 /** 切换标签：'main' 只在铺满时有意义 */
 export function activateTab(state: SideTabsState, key: string): SideTabsState {
-  // 拆分时主会话一直在左边：点它只是把焦点给它，右边不变
+  // 全屏时点主会话只显示主会话；退出拆分，避免右侧标签仍占据视图。
   if (key === MAIN_SIDE_TAB)
-    return state.maximized && !state.split ? { ...state, mainActive: true } : state;
+    return state.maximized ? { ...state, mainActive: true, split: false } : state;
   return { ...state, active: key, mainActive: false };
 }
 
@@ -102,6 +272,30 @@ export function closeAgent(state: SideTabsState, key: string): SideTabsState {
   return { ...state, agents, order, active: next ? agentKey(next) : null };
 }
 
+/**
+ * 关掉一个工作区页。关的是当前标签时，切到旁边还开着的子任务 / 工作区页（有文件就交给 resolveActive）。
+ */
+export function closePage(state: SideTabsState, key: string): SideTabsState {
+  const index = state.pages.findIndex((p) => pageKey(p) === key);
+  if (index < 0) return state;
+  const pages = state.pages.filter((_, i) => i !== index);
+  const order = state.order.includes(key) ? state.order.filter((k) => k !== key) : state.order;
+  if (state.active !== key) return { ...state, pages, order };
+  const next = pages[index] ?? pages[index - 1];
+  const fallback = next
+    ? pageKey(next)
+    : state.agents[state.agents.length - 1]
+      ? agentKey(state.agents[state.agents.length - 1]!)
+      : null;
+  return { ...state, pages, order, active: fallback };
+}
+
+/** 关掉子任务或工作区页 */
+export function closeSideTab(state: SideTabsState, key: string): SideTabsState {
+  if (isPageKey(key) && state.pages.some((p) => pageKey(p) === key)) return closePage(state, key);
+  return closeAgent(state, key);
+}
+
 /** 只留下还在的子任务（委派标签被关掉、来源标签没了） */
 export function pruneAgents(
   state: SideTabsState,
@@ -116,9 +310,9 @@ export function pruneAgents(
   return next;
 }
 
-/** 标签区里有没有东西（子任务或文件） */
+/** 标签区里有没有东西（子任务、文件预览或工作区页） */
 export function hasSideTabs(state: SideTabsState, hasFiles: boolean): boolean {
-  return state.agents.length > 0 || hasFiles;
+  return state.agents.length > 0 || hasFiles || state.pages.length > 0;
 }
 
 /** 实际显示的当前标签：铺满且切到主会话时是 'main'；记下的那个不在了就退回最后一个子任务 → 文件 → null */
@@ -127,8 +321,11 @@ export function resolveActive(state: SideTabsState, hasFiles: boolean): string |
   if (state.mainActive && !state.split && isMaximized(state, hasFiles)) return MAIN_SIDE_TAB;
   if (active === FILES_SIDE_TAB && hasFiles) return FILES_SIDE_TAB;
   if (active && state.agents.some((a) => agentKey(a) === active)) return active;
+  if (active && state.pages.some((p) => pageKey(p) === active)) return active;
   const last = state.agents[state.agents.length - 1];
   if (last) return agentKey(last);
+  const lastPage = state.pages[state.pages.length - 1];
+  if (lastPage) return pageKey(lastPage);
   return hasFiles ? FILES_SIDE_TAB : null;
 }
 
@@ -175,13 +372,17 @@ export function setSplitRatio(state: SideTabsState, ratio: number): SideTabsStat
   return next === state.splitRatio ? state : { ...state, splitRatio: next };
 }
 
+export type SideTabKind =
+  'main' | 'agent' | 'file' | 'new-tab' | 'changes' | 'open-file' | 'side-chat' | 'browser';
+
 export interface SideTabItem {
   key: string;
-  kind: 'main' | 'agent' | 'file';
+  kind: SideTabKind;
   closable: boolean;
   /** 文件标签：预览区里的条目键 */
   entryKey?: string;
   target?: SubagentTarget;
+  page?: WorkspacePage;
 }
 
 /**
@@ -190,21 +391,25 @@ export interface SideTabItem {
  */
 export function sideTabItems(
   state: SideTabsState,
-  fileKeys: readonly string[],
+  _fileKeys: readonly string[] = [],
   hidden?: ReadonlySet<string>,
 ): SideTabItem[] {
   const rest: SideTabItem[] = [];
   for (const target of state.agents)
-    rest.push({ key: agentKey(target), kind: 'agent', closable: true, target });
-  for (const entryKey of fileKeys)
-    rest.push({ key: fileTabKey(entryKey), kind: 'file', closable: true, entryKey });
+    if (target.kind !== 'side-chat')
+      rest.push({ key: agentKey(target), kind: 'agent', closable: true, target });
+  for (const page of state.pages)
+    rest.push({ key: pageKey(page), kind: page.kind, closable: true, page });
   const shown = hidden?.size ? rest.filter((i) => !hidden.has(i.key)) : rest;
   const rank = new Map(state.order.map((k, i) => [k, i]));
   const sorted = shown
     .map((item, i) => ({ item, r: rank.get(item.key) ?? state.order.length + i }))
     .sort((a, b) => a.r - b.r)
     .map((x) => x.item);
-  return isMaximized(state, fileKeys.length > 0)
+  return isMaximized(
+    state,
+    state.pages.some((p) => p.kind === 'open-file'),
+  )
     ? [{ key: MAIN_SIDE_TAB, kind: 'main', closable: false }, ...sorted]
     : sorted;
 }
@@ -248,6 +453,16 @@ export function cycleTabKey(
   return items[next < 0 ? 0 : next]!.key;
 }
 
+const isPage = (v: unknown): v is WorkspacePage => {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as Record<string, unknown>;
+  if (o.kind === 'changes' || o.kind === 'open-file') return true;
+  if (o.kind === 'side-chat') return typeof o.id === 'string' && !!o.id;
+  if (o.kind === 'new-tab') return typeof o.id === 'string' && !!o.id;
+  if (o.kind === 'browser') return typeof o.id === 'string' && !!o.id && typeof o.url === 'string';
+  return false;
+};
+
 const isTarget = (v: unknown): v is SubagentTarget => {
   if (!v || typeof v !== 'object') return false;
   const o = v as Record<string, unknown>;
@@ -267,6 +482,10 @@ export function parseSideTabs(v: unknown): SideTabsState | null {
   if (!v || typeof v !== 'object') return null;
   const o = v as Record<string, unknown>;
   const agents = Array.isArray(o.agents) ? o.agents.filter(isTarget) : [];
+  // 侧边聊天是内存页，旧版本落盘过的 side-chat 页面也不要恢复。
+  const pages = Array.isArray(o.pages)
+    ? o.pages.filter(isPage).filter((p) => p.kind !== 'side-chat')
+    : [];
   const active = typeof o.active === 'string' ? o.active : null;
   const order = Array.isArray(o.order)
     ? o.order.filter((k): k is string => typeof k === 'string').slice(0, ORDER_KEEP)
@@ -274,6 +493,7 @@ export function parseSideTabs(v: unknown): SideTabsState | null {
   const ratio = typeof o.splitRatio === 'number' ? o.splitRatio : 0.5;
   return {
     agents,
+    pages,
     active,
     maximized: o.maximized === true,
     mainActive: o.mainActive === true,
@@ -285,12 +505,28 @@ export function parseSideTabs(v: unknown): SideTabsState | null {
 
 /** 去掉侧边聊天（落盘用） */
 export function withoutSideChats(state: SideTabsState): SideTabsState {
-  if (!state.agents.some((a) => a.kind === 'side-chat')) return state;
+  if (
+    !state.agents.some((a) => a.kind === 'side-chat') &&
+    !state.pages.some((p) => p.kind === 'side-chat')
+  )
+    return state;
   return {
     ...state,
     agents: state.agents.filter((a) => a.kind !== 'side-chat'),
+    pages: state.pages.filter((p) => p.kind !== 'side-chat'),
     order: state.order.filter((k) => !isSideChatKey(k)),
     active: isSideChatKey(state.active) ? null : state.active,
+  };
+}
+
+/** 去掉空的新标签页（落盘用；打开后再建即可） */
+export function withoutNewTabs(state: SideTabsState): SideTabsState {
+  if (!state.pages.some((p) => p.kind === 'new-tab')) return state;
+  return {
+    ...state,
+    pages: state.pages.filter((p) => p.kind !== 'new-tab'),
+    order: state.order.filter((k) => !isNewTabKey(k)),
+    active: isNewTabKey(state.active) ? null : state.active,
   };
 }
 
@@ -319,8 +555,10 @@ export function readSideTabsStore(): Record<string, SideTabsState> {
 export function writeSideTabsStore(all: Record<string, SideTabsState>): void {
   try {
     const entries = Object.entries(all)
-      .map(([scope, s]): [string, SideTabsState] => [scope, withoutSideChats(s)])
-      .filter(([scope, s]) => !!scope && (s.agents.length > 0 || s.maximized));
+      .map(([scope, s]): [string, SideTabsState] => [scope, withoutNewTabs(withoutSideChats(s))])
+      .filter(
+        ([scope, s]) => !!scope && (s.agents.length > 0 || s.pages.length > 0 || s.maximized),
+      );
     localStorage.setItem(
       STORE_KEY,
       JSON.stringify(Object.fromEntries(entries.slice(-SIDE_TABS_KEEP))),

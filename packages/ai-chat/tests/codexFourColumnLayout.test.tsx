@@ -325,17 +325,7 @@ describe('Codex four-column changes layout', () => {
     expect(text).toContain('只提交，不要推送');
 
     fireEvent.click(screen.getByTestId('changes-only-session'));
-    // 「提交后推送」对让助手提交同样生效
-    await waitFor(() =>
-      expect((screen.getByTestId('rail-commit-push-after') as HTMLInputElement).disabled).toBe(
-        false,
-      ),
-    );
-    fireEvent.click(screen.getByTestId('rail-commit-push-after'));
-    fireEvent.click(screen.getByTestId('rail-ask-commit'));
-    const pushText = screen.getByTestId('fill-probe').textContent ?? '';
-    expect(pushText).toContain('- notes.md');
-    expect(pushText).toContain('不要 force-push');
+    expect(screen.queryByTestId('rail-commit-push-after')).toBeNull();
   });
 
   it('git repo: splits 已暂存 / 未暂存; a partly staged file shows in both with its own diff', async () => {
@@ -444,6 +434,25 @@ describe('Codex four-column changes layout', () => {
     fireEvent.click(screen.getByText('src'));
     expect(tree.textContent).toContain('a.ts');
     vi.mocked(harnessClient.workspaceList).mockResolvedValue({ ok: true, entries: [] } as never);
+  });
+
+  it('打开文件页的右侧只显示磁盘目录，不插入会话 Diff 文件', async () => {
+    vi.mocked(harnessClient.workspaceList).mockResolvedValue({ ok: true, entries: [] } as never);
+    render(
+      <ChangesUiProvider>
+        <SessionChangesPanel rail messages={messages} cwd="/tmp/proj" lockedView="workspace" />
+      </ChangesUiProvider>,
+    );
+    const tree = await screen.findByTestId('files-rail-tree');
+    expect(tree.textContent).not.toContain('MascotWindowController');
+    expect(tree.textContent).not.toContain('windowBounds');
+    expect(screen.queryByTestId('rail-git-branch')).toBeNull();
+    expect(
+      screen
+        .getByTestId('session-changes-panel')
+        .querySelector('[data-testid="files-rail-refresh"]'),
+    ).toBeTruthy();
+    expect(screen.queryByTestId('git-refresh')).toBeNull();
   });
 
   it('一轮结束（busy 下降沿）与窗口重新聚焦接连发生：合并成一次 git diff', async () => {

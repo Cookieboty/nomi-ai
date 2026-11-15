@@ -102,8 +102,10 @@ export const ResourcePreview: React.FC<{
   onCloseEntries: (keys: string[]) => void;
   onExpanded: (expanded: boolean) => void;
   onOpen: ResourceContextValue['open'];
-  /** 标签栏由外面画（对话旁的标签区）：这里不画自己的文件标签 */
+  /** 隐藏文件 tabs；打开文件页内部会保留自己的 tabs。 */
   hideTabs?: boolean;
+  /** 在工作区页内部嵌入；允许同时显示自己的文件 tabs。 */
+  embedded?: boolean;
   /** 不是当前标签（隐藏着挂载）：不接管 Esc、不抢焦点 */
   inactive?: boolean;
   controlRef?: React.MutableRefObject<PreviewTabsControl | null>;
@@ -119,6 +121,7 @@ export const ResourcePreview: React.FC<{
   onExpanded,
   onOpen,
   hideTabs = false,
+  embedded = false,
   inactive = false,
   controlRef,
 }) => {
@@ -475,7 +478,7 @@ export const ResourcePreview: React.FC<{
       tabIndex={-1}
       role="region"
       aria-label={t('ui.session-workspace.preview-title')}
-      className={`${styles.panel} ${expanded ? styles.expanded : ''} ${hideTabs ? styles.embedded : ''}`}
+      className={`${styles.panel} ${expanded ? styles.expanded : ''} ${embedded || hideTabs ? styles.embedded : ''}`}
       onContextMenu={activeDiff ? undefined : selectionMenu.onContextMenu}
       onMouseUp={activeDiff ? undefined : selectionMenu.onMouseUp}
       data-testid="resource-preview"

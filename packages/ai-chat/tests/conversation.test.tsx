@@ -1,9 +1,17 @@
 // @vitest-environment happy-dom
-import { act, cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConversationView } from '../src/components/Conversation';
+import {
+  ConversationView,
+  extraToReachMessage,
+  groupTurns,
+  snapStartToTurn,
+  summarizeAssistantText,
+  turnStartMessageIndex,
+  windowStart,
+} from '../src/components/Conversation';
 import { Markdown } from '../src/components/Conversation/Markdown';
 import type { TabLive } from '../src/contexts/HarnessTabsContext';
 import type {
@@ -89,6 +97,14 @@ const messages: HarnessTabMessage[] = [
 ];
 
 describe('CliConversation 历史消息', () => {
+  it('导航摘要取助手回复开头的有效段落，不展示代码和整段正文', () => {
+    expect(
+      summarizeAssistantText(
+        '先确认表结构，字段名和现有的 migration 写法。\n\n```sql\nSELECT * FROM channels;\n```\n\n后续细节。',
+      ),
+    ).toBe('先确认表结构，字段名和现有的 migration 写法。');
+  });
+
   it('用户气泡右对齐、助手正文走 Markdown，工具调用不再是纯文本流', () => {
     const { getByTestId, queryByText, container } = render(
       <CliConversation tab={tab()} messages={messages} onPermission={() => undefined} />,
@@ -677,6 +693,121 @@ describe('follow-scroll is ResizeObserver-driven (no per-frame forced layout)', 
     expect(turns.length).toBeGreaterThan(1);
     expect(turns.at(-1)!.className).not.toMatch(/turnDone/);
     expect(turns[0]!.className).toMatch(/turnDone/);
+  });
+
+  it('会话快捷导航按有助手回复的轮次展示，悬停只提供助手内容', async () => {
+    const extraTurns = Array.from({ length: 5 }, (_, i) => [
+      {
+        id: `u${i + 2}`,
+        role: 'user' as const,
+        content: `继续检查第 ${i + 2} 个文件`,
+        timestamp: i + 3,
+      },
+      {
+        id: `a${i + 2}`,
+        role: 'assistant' as const,
+        content: `第 ${i + 2} 轮完成`,
+        timestamp: i + 4,
+      },
+    ]).flat();
+    const { getByTestId, getAllByTestId } = render(
+      <CliConversation tab={tab()} messages={[...messages, ...extraTurns]} />,
+    );
+    await waitFor(() => expect(getByTestId('conversation-quick-nav')).toBeTruthy());
+    const items = getAllByTestId('conversation-quick-nav-item');
+    expect(items).toHaveLength(6);
+    fireEvent.mouseEnter(items[1]!);
+    const tip = document.querySelector('[role="tooltip"]');
+    expect(tip?.textContent).toContain('第 2 轮完成');
+    expect(tip?.textContent).not.toContain('继续检查第 2 个文件');
+    expect(items[1]?.querySelector('[class*="quickNavLine"]')?.getAttribute('style')).toContain(
+      '--quick-nav-width',
+    );
+  });
+});
+
+describe('会话窗口起点与跳转加载', () => {
+  const manyTurns = (count: number, extraAssistant = false): HarnessTabMessage[] => {
+    const out: HarnessTabMessage[] = [];
+    for (let i = 0; i < count; i++) {
+      out.push({
+        id: `u${i}`,
+        role: 'user',
+        content: `问题 ${i}`,
+        timestamp: i * 2,
+      });
+      out.push({
+        id: `a${i}`,
+        role: 'assistant',
+        content: `回答 ${i} 的结论。`,
+        timestamp: i * 2 + 1,
+      });
+    }
+    if (extraAssistant) {
+      out.push({
+        id: 'a-tail',
+        role: 'assistant',
+        content: '额外一句',
+        timestamp: count * 2,
+      });
+    }
+    return out;
+  };
+
+  it('窗口落在一轮中间时回退到该轮用户消息', () => {
+    const messages = manyTurns(40, true).map((m) => fromHarnessMessage(m, 'grok'));
+    expect(windowStart(messages, 0)).toBe(51);
+    expect(messages[51]?.role).toBe('assistant');
+    expect(snapStartToTurn(messages, 51)).toBe(50);
+    expect(messages[50]?.role).toBe('user');
+    const split = groupTurns(messages.slice(51));
+    expect(split[0]?.key).toBe('a25');
+    expect(groupTurns(messages.slice(snapStartToTurn(messages, 51)))[0]?.key).toBe('u25');
+  });
+
+  it('按目标消息一次算够 extra，不会把窗口推到会话开头', () => {
+    const messages = manyTurns(80).map((m) => fromHarnessMessage(m, 'grok'));
+    const target = turnStartMessageIndex(messages, 20);
+    expect(target).toBe(40);
+    const extra = extraToReachMessage(messages, target);
+    expect(windowStart(messages, extra)).toBeLessThanOrEqual(target);
+    expect(windowStart(messages, extra)).toBeGreaterThan(0);
+    if (extra > 0) expect(windowStart(messages, extra - 1)).toBeGreaterThan(target);
+  });
+
+  it('部分窗口渲染时第一轮带正确的全局序号', async () => {
+    const { getAllByTestId } = render(
+      <CliConversation tab={tab()} messages={manyTurns(40, true)} />,
+    );
+    await waitFor(() => {
+      const turns = getAllByTestId('conv-turn');
+      expect(turns.length).toBeGreaterThan(1);
+      expect(turns[0]!.getAttribute('data-turn-index')).toBe('25');
+    });
+    const indices = getAllByTestId('conv-turn').map((el) => el.getAttribute('data-turn-index'));
+    expect(indices[0]).toBe('25');
+    expect(indices).not.toContain('0');
+  });
+
+  it('跳到尚未加载的轮次只补到目标，不渲染整段对话', async () => {
+    const { getAllByTestId, getByTestId } = render(
+      <CliConversation tab={tab()} messages={manyTurns(80)} />,
+    );
+    await waitFor(() => expect(getByTestId('conversation-quick-nav')).toBeTruthy());
+    await waitFor(() => {
+      expect(getAllByTestId('conv-turn').length).toBeGreaterThan(5);
+      expect(getAllByTestId('conv-turn').length).toBeLessThan(80);
+    });
+    const nav = getAllByTestId('conversation-quick-nav-item');
+    const target = nav.find((el) => el.getAttribute('data-turn-index') === '20');
+    expect(target).toBeTruthy();
+    fireEvent.click(target!);
+    await waitFor(() => {
+      const turns = getAllByTestId('conv-turn');
+      expect(turns.some((el) => el.getAttribute('data-turn-index') === '20')).toBe(true);
+      expect(turns.length).toBeLessThan(80);
+      expect(turns.some((el) => el.getAttribute('data-turn-index') === '0')).toBe(false);
+    });
   });
 });
 

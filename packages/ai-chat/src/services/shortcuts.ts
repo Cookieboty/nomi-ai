@@ -37,7 +37,8 @@ export type ShortcutId =
   | 'nextTab'
   | 'prevTab'
   | 'renameTab'
-  | 'openTerminal';
+  | 'openTerminal'
+  | 'toggleTabs';
 
 export interface ShortcutDef {
   id: ShortcutId;
@@ -74,6 +75,7 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
   { id: 'renameTab', label: 'ui.cli-monitor.rename-tab', combo: 'Mod+Shift+R' },
   // macOS ⇧⌘C，其他平台 Ctrl+Shift+C
   { id: 'openTerminal', label: 'ui.chat-settings.open-project-in-terminal', combo: 'Mod+Shift+C' },
+  { id: 'toggleTabs', label: 'ui.session-workspace.toggle-tabs', combo: 'Mod+Shift+B' },
 ];
 
 /** 不可改绑、仅展示的按键 */
