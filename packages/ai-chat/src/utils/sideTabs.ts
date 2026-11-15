@@ -2,12 +2,12 @@
  * 对话旁工作区标签状态：纯函数，便于单测。
  * - 每个会话一份：开着的子任务标签、当前标签、是否铺满（全屏）；
  * - 当前标签：'main'（铺满时的主会话标签）| 子任务键 | 工作区页键；文件 tabs 属于打开文件页内部
- *   | 子任务的键 | 工作区页（新标签页 / 变更 / 打开文件 / 浏览器）；
+ *   | 子任务的键 | 工作区页（新标签页 / 变更 / 打开文件 / 侧边聊天 / 浏览器）；
  * - 铺满时主会话是第一个标签，不能关；没有任何子任务 / 文件 / 工作区页时自动回到分栏；
  * - 文件浏览（打开文件）和变更（Diff / git 状态）是两类独立标签，互不耦合开关；
  * - 标签可以拖动排序（order，主会话标签固定在最前）；铺满时可以「向右拆分」：左主会话、右当前标签；
  * - 弹出到独立窗口的标签（detached）由宿主记着，只在这一侧隐藏，窗口关掉后回到标签栏；
- * - 侧边聊天是独立工作区页，不进入顶层标签栏；内容只在内存里，重开应用后不恢复。
+ * - 侧边聊天是工作区页，也进入顶层标签栏；内容只在内存里，重开应用后不恢复。
  * 语义见 docs/design/side-tabs-workspace.md。
  */
 
@@ -399,8 +399,7 @@ export function sideTabItems(
     if (target.kind !== 'side-chat')
       rest.push({ key: agentKey(target), kind: 'agent', closable: true, target });
   for (const page of state.pages)
-    if (page.kind !== 'side-chat')
-      rest.push({ key: pageKey(page), kind: page.kind, closable: true, page });
+    rest.push({ key: pageKey(page), kind: page.kind, closable: true, page });
   const shown = hidden?.size ? rest.filter((i) => !hidden.has(i.key)) : rest;
   const rank = new Map(state.order.map((k, i) => [k, i]));
   const sorted = shown

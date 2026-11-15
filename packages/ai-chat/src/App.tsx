@@ -85,12 +85,7 @@ import { CHAT_COL_W_MAX, CHAT_COL_W_MIN } from './utils/chatColumnWidth';
 import { useCliImageSupport } from './utils/cliImageSupport';
 import { cliTabPlaceholder } from './utils/cliTabPlaceholder';
 import { fromHarnessMessage, nomiConvMessages, settledNomiMessages } from './utils/convAdapters';
-import {
-  CHANGES_SIDE_TAB,
-  isSideChatKey,
-  MAIN_SIDE_TAB,
-  OPEN_FILE_SIDE_TAB,
-} from './utils/sideTabs';
+import { CHANGES_SIDE_TAB, MAIN_SIDE_TAB, OPEN_FILE_SIDE_TAB } from './utils/sideTabs';
 import './App.css';
 import './components/TitleBar/panels.css';
 
@@ -423,9 +418,7 @@ const AiChatContent: React.FC = () => {
                 hidden={mainHidden}
               >
                 {/* 铺满时标签栏在整个对话区顶上，主会话是第一个标签（不能关） */}
-                {sideMax && !isSideChatKey(side.active) && (
-                  <SideTabStrip model={side} columnMessages={rail.messages} />
-                )}
+                {sideMax && <SideTabStrip model={side} columnMessages={rail.messages} />}
                 <div
                   className="chat-column"
                   data-testid="chat-column"

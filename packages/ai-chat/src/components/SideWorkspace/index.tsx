@@ -4,7 +4,7 @@
  * - 双击任意标签铺满整个对话区，主会话变成第一个标签（不能关）；再双击 / Esc / 右上角按钮回到分栏；
  * - 文件预览（预览区的文件 / Diff 标签）显示在“打开文件”页内部；
  * - 标签可以拖动排序；拖出窗口 / 右键「在新窗口打开」弹到独立窗口；铺满时可以「向右拆分」（左主会话、右标签）；
- * - 侧边聊天（只问 Nomi 的临时聊天）是独立页面，不进入这一排 tabs。
+ * - 侧边聊天（只问 Nomi 的临时聊天）也是这一排里的可关闭标签；内容只在内存里。
  * 状态在 SubagentPaneContext（按会话各记一份），文件预览状态来自 App 的 useResourcePreview。
  * 设计见 docs/design/side-tabs-workspace.md。
  */
@@ -376,9 +376,7 @@ export const SideWorkspace: React.FC<{
       data-active-kind={kind}
       hidden={!model.open || undefined}
     >
-      {showStrip && !model.active?.startsWith('side-chat:') && (
-        <SideTabStrip model={model} columnMessages={messages} />
-      )}
+      {showStrip && <SideTabStrip model={model} columnMessages={messages} />}
       <div className={styles.body}>
         <SubagentPane columnMessages={messages} actions={actions} tabbed />
         {model.pages.map((page) => {

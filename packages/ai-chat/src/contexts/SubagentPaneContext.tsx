@@ -5,7 +5,7 @@
  * - harness：委派出去的编程助手标签（完整输入栏，按标签 id 绑定）；
  * - nested：进程内子代理（Task / spawn_agent），步骤来自父转录；
  * - nomi-task：delegate_to_nomi 的后台 Nomi 任务；
- * - side-chat：侧边聊天（只问 Nomi 的临时聊天，内容在 services/sideChat 的内存里），作为独立页面打开。
+ * - side-chat：侧边聊天（只问 Nomi 的临时聊天，内容在 services/sideChat 的内存里），作为工作区标签打开。
  * 可以同时开好几个子任务标签；每个会话（主列的会话键）各记一份开着的标签、当前标签、是否铺满。
  * 文件标签来自预览区（App 的 useResourcePreview），这里只记「当前看的是文件」。
  */

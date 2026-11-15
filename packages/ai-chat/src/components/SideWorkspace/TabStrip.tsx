@@ -54,6 +54,7 @@ const TabIcon: React.FC<{
   if (item.kind === 'new-tab') return <Icon icon={AppWindow} size={14} />;
   if (item.kind === 'changes') return <Icon icon={GitCompareArrows} size={14} />;
   if (item.kind === 'open-file') return <Icon icon={FolderOpen} size={14} />;
+  if (item.kind === 'side-chat') return <Icon icon={MessageCirclePlus} size={14} />;
   if (item.kind === 'browser') return <Icon icon={Globe} size={14} />;
   if (item.target?.kind === 'side-chat') return <Icon icon={MessageCirclePlus} size={14} />;
   if (item.kind === 'file')
@@ -155,6 +156,7 @@ export const SideTabStrip: React.FC<{
     if (item.kind === 'new-tab') return t('ui.session-workspace.new-tab');
     if (item.kind === 'changes') return t('ui.session-workspace.changed');
     if (item.kind === 'open-file') return t('ui.providers-schedule.open-file');
+    if (item.kind === 'side-chat') return t('ui.session-workspace.side-chat-title');
     if (item.kind === 'browser') {
       const page = item.page && item.page.kind === 'browser' ? item.page : undefined;
       if (page?.title) return page.title;
@@ -196,7 +198,10 @@ export const SideTabStrip: React.FC<{
       >
         {model.items.map((item) => {
           const selected = item.key === model.stripActive;
-          const state = item.kind === 'agent' ? model.meta[item.key]?.state : undefined;
+          const state =
+            item.kind === 'agent' || item.kind === 'side-chat'
+              ? model.meta[item.key]?.state
+              : undefined;
           const name = label(item);
           const movable = item.kind !== 'main';
           return (

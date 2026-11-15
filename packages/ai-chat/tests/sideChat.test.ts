@@ -90,12 +90,16 @@ describe('composer quote chips (添加到对话)', () => {
 describe('side chat tab state', () => {
   const agent = { kind: 'nomi-task', taskId: 'k1' } as const;
   const chat = (chatId: string) => ({ kind: 'side-chat', chatId }) as const;
-  it('several side chats are independent pages (not top-level tabs)', () => {
+  it('several side chats are top-level tabs backed by temporary pages', () => {
     let s = openAgent(EMPTY_SIDE_TABS, agent);
     s = openSideChatPage(s, 'a');
     s = openSideChatPage(s, 'b');
     expect(resolveActive(s, true)).toBe('side-chat:b');
-    expect(sideTabItems(s, ['f1']).map((i) => i.key)).toEqual(['nomi-task:k1']);
+    expect(sideTabItems(s, ['f1']).map((i) => i.key)).toEqual([
+      'nomi-task:k1',
+      'side-chat:a',
+      'side-chat:b',
+    ]);
     expect(isSideChatKey('side-chat:a')).toBe(true);
     expect(isSideChatKey('nomi-task:k1')).toBe(false);
     const only = toggleMaximized(openSideChatPage(EMPTY_SIDE_TABS, 'a'), 'side-chat:a');

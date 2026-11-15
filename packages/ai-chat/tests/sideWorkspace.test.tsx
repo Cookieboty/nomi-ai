@@ -449,7 +449,7 @@ describe('side tabs workspace', () => {
     expect(screen.queryByTestId('agent-hover-card')).toBeNull();
   });
 
-  it('side chats are independent pages and never enter the top-level tab strip', async () => {
+  it('side chats enter the top-level tab strip and keep their temporary content', async () => {
     mount(['k1']);
     await waitFor(() => expect(tabKeys()).toHaveLength(1));
     let first = '';
@@ -457,12 +457,12 @@ describe('side tabs workspace', () => {
       first = opener!.openSideChat({ quote: { text: '选中的', source: '主会话' } })!;
     });
     const firstKey = `side-chat:${first}`;
-    expect(tabKeys()).toEqual([]);
+    expect(tabKeys()).toEqual(['nomi-task:k1', firstKey]);
     expect(screen.getAllByTestId('side-chat').find((el) => !el.hidden)?.hidden).toBe(false);
     expect(paneFor('nomi-task:k1').hidden).toBe(true);
     expect(sideChatDrafts.read(sideChatDraftKey(first)).text).toContain('选中的');
 
-    // 当前是侧边聊天时继续引用，仍然追加到同一个独立页面。
+    // 当前是侧边聊天时继续引用，仍然追加到同一个标签页面。
     act(() => {
       opener!.openSideChat({ quote: { text: '另一段', source: '主会话' } });
     });
@@ -470,24 +470,31 @@ describe('side tabs workspace', () => {
       firstKey,
     );
 
-    // 从新标签页打开第二个侧边聊天，替换新标签页，但仍不进入顶层 strip。
+    // 从新标签页打开第二个侧边聊天，替换新标签页并插入顶层 strip。
     act(() => {
       opener!.openNewTab();
     });
     fireEvent.click(screen.getByTestId('new-tab-open-side-chat'));
     const second = sideChatsIn('')[1]!.id;
     const secondKey = `side-chat:${second}`;
-    expect(tabKeys()).toEqual([]);
+    expect(tabKeys()).toEqual(['nomi-task:k1', firstKey, secondKey]);
     expect(screen.getAllByTestId('side-chat').find((el) => !el.hidden)?.dataset.sideTab).toBe(
       secondKey,
     );
     const visibleSideChat = screen.getAllByTestId('side-chat').find((el) => !el.hidden)!;
     expect(visibleSideChat.querySelector('[data-testid="side-chat-close"]')).toBeTruthy();
 
+    // 点击另一个侧边聊天标签只切换标签，不新建页面。
+    fireEvent.click(tabButton(firstKey));
+    expect(screen.getAllByTestId('side-chat').find((el) => !el.hidden)?.dataset.sideTab).toBe(
+      firstKey,
+    );
+    fireEvent.click(tabButton(secondKey));
+
     // 页面自己的关闭按钮只关闭侧边聊天，不影响普通子任务。
     fireEvent.click(visibleSideChat.querySelector('[data-testid="side-chat-close"]')!);
     expect(sideChatState(second)).toBeUndefined();
-    expect(tabKeys()).toEqual([]);
+    expect(tabKeys()).toEqual(['nomi-task:k1', firstKey]);
     expect(screen.getAllByTestId('side-chat').find((el) => !el.hidden)?.dataset.sideTab).toBe(
       firstKey,
     );
