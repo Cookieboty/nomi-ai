@@ -39,7 +39,8 @@ pnpm --filter @nomi-ai/contract build
 node scripts/go-contract/gen.mjs          # 写入；--check 只检查（CI 在 Linux 上跑）
 ```
 
-`packages/i18n` 的词典改了要复制到 `apps/desktop-go/internal/core/i18n/locales`（`dict_test.go` 比对两份）。
+`packages/i18n` 的词典改了跑 `pnpm i18n:sync` 同步到 `apps/desktop-go/internal/core/i18n/locales`
+（`dict_test.go` 比对两份，`pnpm check:i18n` 在 CI 里查漂移）。
 
 ## 角色名扫描
 
