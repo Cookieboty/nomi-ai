@@ -15,6 +15,8 @@ export function usePanelColumns(ref: RefObject<HTMLDivElement | null>, key: stri
     const panel = query('sidebar-panel');
     const settingsNav = query('settings-nav');
     const settingsContent = app.querySelector<HTMLElement>('.settings-workspace main');
+    // 文件栏开关绝对定位在标题栏右端，宽度不进列布局：单独量出来，正文列（会话详情按钮）才让得开
+    const railToggle = bar.querySelector<HTMLElement>('.app-titlebar-rail-toggle');
     const sync = () => {
       const visibleRect = (el: HTMLElement | null) =>
         el?.getClientRects().length ? el.getBoundingClientRect() : null;
@@ -30,6 +32,7 @@ export function usePanelColumns(ref: RefObject<HTMLDivElement | null>, key: stri
       bar.style.setProperty('--titlebar-center-w', `${middle?.width ?? 0}px`);
       bar.style.setProperty('--titlebar-files-left', `${right?.left ?? bounds.right}px`);
       bar.style.setProperty('--titlebar-files-w', `${right?.width ?? 0}px`);
+      bar.style.setProperty('--cd-titlebar-rail-toggle-w', `${railToggle?.offsetWidth ?? 0}px`);
       bar.style.setProperty(
         '--titlebar-panel-edge',
         `${visibleRect(settingsNav)?.right ?? visibleRect(panel)?.right ?? bounds.left}px`,
@@ -37,7 +40,17 @@ export function usePanelColumns(ref: RefObject<HTMLDivElement | null>, key: stri
     };
     sync();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(sync);
-    for (const el of [app, card, chat, center, files, panel, settingsNav, settingsContent])
+    for (const el of [
+      app,
+      card,
+      chat,
+      center,
+      files,
+      panel,
+      settingsNav,
+      settingsContent,
+      railToggle,
+    ])
       if (el) observer?.observe(el);
     // 设置页为懒加载，初次提交时可能仍是 Suspense 占位。
     const mountObserver =

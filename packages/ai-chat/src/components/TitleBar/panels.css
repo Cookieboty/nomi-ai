@@ -1,7 +1,11 @@
 /* 顶栏分区沿用实际内容列的坐标。短线只出现在对应的面板边界。 */
 .app-titlebar-main {
   left: var(--titlebar-main-left, calc(52px + var(--sidebar-panel-w)));
-  right: var(--titlebar-main-right, var(--cd-space-0-5));
+  /* 右侧让出文件栏开关（rail-toggle）的位置，会话详情按钮不再压在它上面 */
+  right: calc(
+    var(--titlebar-main-right, var(--cd-space-0-5)) + var(--cd-titlebar-rail-toggle-w, 0px) +
+      var(--cd-space-1)
+  );
   padding-inline: var(--cd-space-3) var(--cd-space-8);
 }
 .app-titlebar[data-sidebar='collapsed'] .app-titlebar-main {
@@ -55,6 +59,8 @@
 }
 .app-titlebar-rail-toggle {
   position: absolute;
+  display: flex;
+  align-items: center;
   right: var(--cd-space-1);
   top: 50%;
   transform: translateY(-50%);
@@ -94,7 +100,10 @@ html[data-platform]:not([data-platform='darwin']) .app-titlebar-rail-toggle {
 }
 
 html[data-platform]:not([data-platform='darwin']) .app-titlebar-main {
-  right: max(var(--titlebar-main-right, 0px), var(--cd-titlebar-window-controls-w, 140px));
+  right: calc(
+    max(var(--titlebar-main-right, 0px), var(--cd-titlebar-window-controls-w, 140px)) +
+      var(--cd-titlebar-rail-toggle-w, 0px) + var(--cd-space-1)
+  );
 }
 .app-titlebar-files {
   container-type: inline-size;
