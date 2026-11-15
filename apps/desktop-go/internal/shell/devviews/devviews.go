@@ -122,11 +122,17 @@ func isTransientConnErr(err error) bool {
 	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return false
 	}
-	return errors.Is(err, syscall.ECONNRESET) ||
+	if errors.Is(err, syscall.ECONNRESET) ||
 		errors.Is(err, syscall.ECONNREFUSED) ||
 		errors.Is(err, syscall.EPIPE) ||
 		errors.Is(err, io.EOF) ||
-		errors.Is(err, io.ErrUnexpectedEOF)
+		errors.Is(err, io.ErrUnexpectedEOF) {
+		return true
+	}
+	// Windows 上 syscall.ECONNRESET 是另造的值，wsarecv 实际返回 WSAECONNRESET（10054）。
+	// 它包在 *net.OpError / *os.SyscallError 里，Err 可能是 syscall.Errno，也可能是
+	// golang.org/x/sys/windows.Errno；errors.Is 对不上这两种 Errno。
+	return isWSATransient(err)
 }
 
 func proxy(target *url.URL, rt http.RoundTripper) http.Handler {
