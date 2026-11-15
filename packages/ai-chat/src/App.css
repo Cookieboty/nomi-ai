@@ -411,6 +411,8 @@ html[data-platform='darwin'] .app-titlebar-toggle {
 /* 负载指示的宽度：TitleBar 量出来写到标题栏上（没有指示时为 0） */
 .app-titlebar {
   --cd-titlebar-lead-w: 0px;
+  /* 右端文件栏开关的实测宽度（usePanelColumns 写入），正文列据此让位 */
+  --cd-titlebar-rail-toggle-w: 0px;
 }
 /* 紧跟在收起按钮后面（Agent 看板的负载指示） */
 .app-titlebar-lead {

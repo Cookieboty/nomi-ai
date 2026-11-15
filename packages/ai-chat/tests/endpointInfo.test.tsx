@@ -151,12 +151,14 @@ const renderCard = (
 };
 
 describe('按端信息卡（左下角）', () => {
-  it('精简：端图标 / 名称 / 套餐，只有最吃紧的一个额度窗口，今日花费；其余在抽屉里', async () => {
+  it('精简：端图标 / 套餐，只有最吃紧的一个额度窗口，今日花费；其余在抽屉里', async () => {
     const { findByTestId, getByTestId, queryByTestId } = renderCard();
     const card = await findByTestId('endpoint-info-card');
     await waitFor(() => expect(getByTestId('endpoint-card-auth').textContent).toBe('Plus'));
     expect(card.querySelector('[data-testid="endpoint-icon-codex"]')).toBeTruthy();
-    expect(card.textContent).toContain('Codex');
+    // 卡片只留图标：端名不再写在卡片上，留给详情抽屉与 aria-label
+    expect(card.textContent).not.toContain('Codex');
+    expect(getByTestId('endpoint-card-open').getAttribute('aria-label')).toContain('Codex');
     expect(card.textContent).not.toContain('v0.46.0');
     expect(card.textContent).not.toContain('已安装');
     expect(card.textContent).not.toContain('账号登录');
