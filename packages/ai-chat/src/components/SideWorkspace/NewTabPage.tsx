@@ -111,6 +111,10 @@ export const NewTabPage: React.FC<{
     <div className={styles.page} hidden={hidden} data-testid="new-tab-page" data-tab-key={tabKey}>
       <div className={styles.hero}>
         <div className={styles.heroInner}>
+          <div className={styles.intro}>
+            <span className={styles.eyebrow}>{t('ui.session-workspace.new-tab')}</span>
+            <h1>{t('ui.session-workspace.new-tab-section')}</h1>
+          </div>
           <form
             className={styles.searchWrap}
             onSubmit={(e) => {
@@ -171,7 +175,9 @@ export const NewTabPage: React.FC<{
                 data-testid="new-tab-open-browser"
                 onClick={() => onOpenBrowser('')}
               >
-                <Icon icon={Globe} size={20} />
+                <span className={styles.tileIcon}>
+                  <Icon icon={Globe} size={19} />
+                </span>
                 <span className={styles.tileLabel}>{t('ui.session-workspace.open-browser')}</span>
               </button>
               <button
@@ -181,7 +187,9 @@ export const NewTabPage: React.FC<{
                 disabled={!cwd}
                 onClick={onOpenFiles}
               >
-                <Icon icon={FileText} size={20} />
+                <span className={styles.tileIcon}>
+                  <Icon icon={FileText} size={19} />
+                </span>
                 <span className={styles.tileLabel}>{t('ui.knowledge-local.files')}</span>
               </button>
               <button
@@ -191,7 +199,9 @@ export const NewTabPage: React.FC<{
                 disabled={!cwd}
                 onClick={onOpenChanges}
               >
-                <Icon icon={GitCompareArrows} size={20} />
+                <span className={styles.tileIcon}>
+                  <Icon icon={GitCompareArrows} size={19} />
+                </span>
                 <span className={styles.tileLabel}>{t('ui.session-workspace.changed')}</span>
               </button>
               <button
@@ -200,7 +210,9 @@ export const NewTabPage: React.FC<{
                 data-testid="new-tab-open-side-chat"
                 onClick={onOpenSideChat}
               >
-                <Icon icon={MessageCirclePlus} size={20} />
+                <span className={styles.tileIcon}>
+                  <Icon icon={MessageCirclePlus} size={19} />
+                </span>
                 <span className={styles.tileLabel}>{t('ui.session-workspace.open-side-chat')}</span>
               </button>
             </div>

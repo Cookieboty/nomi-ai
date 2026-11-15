@@ -18,6 +18,7 @@ import {
   isMaximized,
   isSideChatKey,
   openAgent,
+  openSideChatPage,
   parseSideTabs,
   resolveActive,
   sideTabItems,
@@ -89,23 +90,18 @@ describe('composer quote chips (添加到对话)', () => {
 describe('side chat tab state', () => {
   const agent = { kind: 'nomi-task', taskId: 'k1' } as const;
   const chat = (chatId: string) => ({ kind: 'side-chat', chatId }) as const;
-  it('several side chats are ordinary agent tabs (keys, order, maximize)', () => {
+  it('several side chats are independent pages (not top-level tabs)', () => {
     let s = openAgent(EMPTY_SIDE_TABS, agent);
-    s = openAgent(s, chat('a'));
-    s = openAgent(s, chat('b'));
+    s = openSideChatPage(s, 'a');
+    s = openSideChatPage(s, 'b');
     expect(resolveActive(s, true)).toBe('side-chat:b');
-    expect(sideTabItems(s, ['f1']).map((i) => i.key)).toEqual([
-      'nomi-task:k1',
-      'side-chat:a',
-      'side-chat:b',
-      'file:f1',
-    ]);
+    expect(sideTabItems(s, ['f1']).map((i) => i.key)).toEqual(['nomi-task:k1']);
     expect(isSideChatKey('side-chat:a')).toBe(true);
     expect(isSideChatKey('nomi-task:k1')).toBe(false);
-    const only = toggleMaximized(openAgent(EMPTY_SIDE_TABS, chat('a')), 'side-chat:a');
+    const only = toggleMaximized(openSideChatPage(EMPTY_SIDE_TABS, 'a'), 'side-chat:a');
     expect(isMaximized(only, false)).toBe(true);
     // 再开同一个只是切过去
-    expect(openAgent(s, chat('a')).agents).toHaveLength(3);
+    expect(openSideChatPage(s, 'a').pages.filter((p) => p.kind === 'side-chat')).toHaveLength(2);
   });
 
   it('side chats are never written to storage (content is memory only)', () => {

@@ -1,6 +1,9 @@
 /** 顶栏右侧：显示 / 隐藏对话旁的标签页（替代原来的变更栏开关） */
 import { Icon, t, Tooltip } from '@nomi-ai/ui';
-import { IconAppWindow } from '@tabler/icons-react';
+import {
+  IconLayoutSidebarRightCollapse as CollapseTabs,
+  IconLayoutSidebarRightExpand as ExpandTabs,
+} from '@tabler/icons-react';
 import React from 'react';
 
 import { formatCombo, useShortcutBindings } from '../../services/shortcuts';
@@ -38,7 +41,7 @@ export const FilesRailToggle: React.FC<{
         data-testid="side-tabs-toggle"
         onClick={onToggle}
       >
-        <Icon icon={IconAppWindow} size={16} />
+        <Icon icon={open ? CollapseTabs : ExpandTabs} size={16} />
         {count > 0 && (
           <span className={styles.count} data-testid="side-tabs-toggle-count">
             {count}

@@ -1,16 +1,17 @@
 /**
- * 对话旁的标签区：子任务（委派的编程助手、进程内子代理、后台 Nomi）和打开的文件共用一块、一排标签。
+ * 对话旁的工作区：子任务和工作区页共用一块；文件预览 tabs 属于“打开文件”页内部。
  * - 点「查看」开一个子任务标签（已开着就切过去），可以同时开好几个，切走的只隐藏、状态都在；
  * - 双击任意标签铺满整个对话区，主会话变成第一个标签（不能关）；再双击 / Esc / 右上角按钮回到分栏；
- * - 文件预览（预览区的文件 / Diff 标签）也在这一排，双击一样铺满；
+ * - 文件预览（预览区的文件 / Diff 标签）显示在“打开文件”页内部；
  * - 标签可以拖动排序；拖出窗口 / 右键「在新窗口打开」弹到独立窗口；铺满时可以「向右拆分」（左主会话、右标签）；
- * - 侧边聊天（只问 Nomi 的临时聊天）也是这里的子任务标签，可以开好几个（「+」→ 新侧边聊天）。
- * 状态在 SubagentPaneContext（按会话各记一份），文件标签来自 App 的 useResourcePreview。
+ * - 侧边聊天（只问 Nomi 的临时聊天）是独立页面，不进入这一排 tabs。
+ * 状态在 SubagentPaneContext（按会话各记一份），文件预览状态来自 App 的 useResourcePreview。
  * 设计见 docs/design/side-tabs-workspace.md。
  */
 import { t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import type { SplitWidth } from '../../app/useSplitWidths';
 import { useResourceContext } from '../../contexts/ResourceContext';
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import type { EmbeddedPreviewProps } from '../../hooks/useResourcePreview';
@@ -27,11 +28,13 @@ import {
 import { isImeComposing, shouldIgnoreEscape } from '../../utils/keyboard';
 import {
   cycleTabKey,
+  CHANGES_SIDE_TAB,
   FILES_SIDE_TAB,
   fileTabKey,
   isMaximized,
   isSplit,
   pageKey,
+  OPEN_FILE_SIDE_TAB,
   MAIN_SIDE_TAB,
   SPLIT_RATIO_MAX,
   SPLIT_RATIO_MIN,
@@ -40,6 +43,7 @@ import {
 } from '../../utils/sideTabs';
 import type { PreviewEntry, PreviewTabsControl } from '../ResourcePreview/ResourcePreview';
 import { CenterChangesHost } from '../SessionWorkspace';
+import { SideChatPane } from '../SideChat';
 import { SubagentPane, type SubagentPaneActions } from '../SubagentPane';
 
 import { BrowserTab } from './BrowserTab';
@@ -51,11 +55,13 @@ import { SideTabStrip } from './TabStrip';
 
 export { SideTabStrip };
 
-/** 预览区的文件标签（App 的 useResourcePreview） */
+/** 预览区状态（App 的 useResourcePreview） */
 export interface SideFiles {
   entries: readonly PreviewEntry[];
   activeKey: string;
   render: (p: EmbeddedPreviewProps) => React.ReactNode;
+  /** 打开文件 / 变更页右侧文件树的宽度控制。 */
+  railSplit: SplitWidth;
 }
 
 /**
@@ -66,22 +72,41 @@ export function useSideWorkspace(files: SideFiles) {
   const pane = useSubagentPane();
   // 普通的可变对象（不是 ref）：随 model 往下传给预览区和标签栏
   const [control] = useState<{ current: PreviewTabsControl | null }>(() => ({ current: null }));
+  const [diffControl] = useState<{ current: PreviewTabsControl | null }>(() => ({ current: null }));
   const detached = pane?.detached;
   // 弹到独立窗口的文件不在这一侧显示
   const fileKeys = useMemo(
     () =>
       files.entries
         .map((e) => e.key)
+        .filter((key) => !files.entries.find((entry) => entry.key === key)?.diff)
         .filter((k) => !detached?.size || !detached.has(fileTabKey(k))),
     [files.entries, detached],
   );
   const hasFiles = fileKeys.length > 0;
+  const hasDiffs = files.entries.some((entry) => !!entry.diff);
   const tabs = pane?.tabs;
   const setFilesOpen = pane?.setFilesOpen;
   useEffect(() => {
     setFilesOpen?.(hasFiles);
   }, [hasFiles, setFilesOpen]);
-  const items = useMemo(() => (tabs ? sideTabItems(tabs, fileKeys) : []), [tabs, fileKeys]);
+  useEffect(() => {
+    if (!pane || !hasFiles || tabs?.pages.some((p) => p.kind === 'open-file')) return;
+    pane.openFileBrowser?.();
+  }, [pane, hasFiles, tabs?.pages]);
+  // 删除预览区最后一个文件 / Diff 后，先让预览状态移除，再移除对应的空工作区页。
+  // 用前一次状态区分“刚关闭最后一项”和“用户主动打开空页面”，后者要保留。
+  const previousPreview = useRef({ files: hasFiles, diffs: hasDiffs });
+  useEffect(() => {
+    const previous = previousPreview.current;
+    previousPreview.current = { files: hasFiles, diffs: hasDiffs };
+    if (!pane || !tabs) return;
+    if (previous.files && !hasFiles && tabs.pages.some((p) => p.kind === 'open-file'))
+      pane.closeTab(OPEN_FILE_SIDE_TAB);
+    if (previous.diffs && !hasDiffs && tabs.pages.some((p) => p.kind === 'changes'))
+      pane.closeTab(CHANGES_SIDE_TAB);
+  }, [pane, tabs, hasFiles, hasDiffs]);
+  const items = useMemo(() => (tabs ? sideTabItems(tabs) : []), [tabs]);
   const maximized = !!tabs && isMaximized(tabs, hasFiles);
   const split = !!tabs && isSplit(tabs, hasFiles);
   const splitRatio = tabs?.splitRatio ?? 0.5;
@@ -92,8 +117,7 @@ export function useSideWorkspace(files: SideFiles) {
     (pane.paneVisible ||
       (tabs != null && (tabs.agents.length > 0 || hasFiles || tabs.pages.length > 0)));
   /** 标签栏上高亮的那个：文件时是预览区当前的文件 */
-  const stripActive =
-    active === FILES_SIDE_TAB ? (files.activeKey ? fileTabKey(files.activeKey) : null) : active;
+  const stripActive = active === FILES_SIDE_TAB ? OPEN_FILE_SIDE_TAB : active;
   const activate = useCallback(
     (item: SideTabItem) => {
       if (!pane) return;
@@ -219,7 +243,8 @@ export function useSideWorkspace(files: SideFiles) {
     (next: boolean) => {
       if (!pane) return;
       if (next === maximized) return;
-      if (next) pane.toggleMaximized(FILES_SIDE_TAB);
+      const target = pane.active === CHANGES_SIDE_TAB ? CHANGES_SIDE_TAB : FILES_SIDE_TAB;
+      if (next) pane.toggleMaximized(target);
       else pane.restore();
     },
     [pane, maximized],
@@ -238,6 +263,7 @@ export function useSideWorkspace(files: SideFiles) {
     restore,
     setExpanded,
     control,
+    diffControl,
     files,
     split,
     splitRatio,
@@ -325,7 +351,7 @@ export const SideWorkspace: React.FC<{
   const resource = useResourceContext();
   if (!model.mounted && !model.open)
     return <CenterChangesHost messages={messages} cwd={cwd} roots={roots} mode="slot" />;
-  const filesActive = model.active === FILES_SIDE_TAB;
+  const filesActive = model.active === FILES_SIDE_TAB || model.active === OPEN_FILE_SIDE_TAB;
   const kind =
     model.active === MAIN_SIDE_TAB
       ? 'main'
@@ -350,15 +376,11 @@ export const SideWorkspace: React.FC<{
       data-active-kind={kind}
       hidden={!model.open || undefined}
     >
-      {showStrip && <SideTabStrip model={model} columnMessages={messages} />}
+      {showStrip && !model.active?.startsWith('side-chat:') && (
+        <SideTabStrip model={model} columnMessages={messages} />
+      )}
       <div className={styles.body}>
         <SubagentPane columnMessages={messages} actions={actions} tabbed />
-        {model.files.render({
-          inactive: !filesActive,
-          expanded: model.maximized,
-          onExpanded: model.setExpanded,
-          controlRef: model.control,
-        })}
         {model.pages.map((page) => {
           const key = pageKey(page);
           const hidden = model.active !== key;
@@ -375,9 +397,9 @@ export const SideWorkspace: React.FC<{
                 onOpenSideChat={() => void model.openSideChat?.({ fresh: true, replace: key })}
                 onOpenBrowser={(url) => model.openBrowser?.(url, { replace: key })}
                 onOpenFile={(href, root) => {
-                  // 先让预览区接管文件，再移除新标签页，保证这是“替换”而不是先关闭再切换。
+                  // 文件预览归入“打开文件”页面内部；新标签页由打开文件页替换。
+                  model.openFileBrowser?.({ replace: key });
                   resource?.open(href, { ...resource.scope, cwd: root });
-                  model.close({ key, kind: 'new-tab', closable: true, page });
                 }}
               />
             );
@@ -390,6 +412,21 @@ export const SideWorkspace: React.FC<{
                 cwd={cwd}
                 roots={roots}
                 busy={busy}
+                renderPreview={model.files.render}
+                expanded={model.maximized}
+                onExpanded={model.setExpanded}
+                controlRef={model.diffControl}
+                railSplit={model.files.railSplit}
+              />
+            );
+          if (page.kind === 'side-chat')
+            return (
+              <SideChatPane
+                key={key}
+                chatId={page.id}
+                cwd={cwd}
+                slot={{ tabKey: key, active: !hidden }}
+                onClose={() => model.close({ key, kind: 'side-chat', closable: true, page })}
               />
             );
           if (page.kind === 'open-file')
@@ -401,6 +438,11 @@ export const SideWorkspace: React.FC<{
                 cwd={cwd}
                 roots={roots}
                 busy={busy}
+                renderPreview={model.files.render}
+                expanded={model.maximized}
+                onExpanded={model.setExpanded}
+                controlRef={model.control}
+                railSplit={model.files.railSplit}
               />
             );
           return (

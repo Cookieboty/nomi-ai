@@ -8,7 +8,6 @@ import {
   dropIndex,
   EMPTY_SIDE_TABS,
   FILES_SIDE_TAB,
-  fileTabKey,
   isMaximized,
   isSplit,
   MAIN_SIDE_TAB,
@@ -80,7 +79,6 @@ describe('side tabs: maximize', () => {
       'harness:t1',
       'nested:c1',
       'nomi-task:k1',
-      fileTabKey('f1'),
     ]);
     const max = toggleMaximized(s, 'nested:c1');
     const items = sideTabItems(max, ['f1']);
@@ -113,8 +111,8 @@ describe('side tabs: keyboard cycle', () => {
   it('wraps around in both directions', () => {
     const items = sideTabItems(toggleMaximized(withAll()), ['f1']);
     expect(cycleTabKey(items, MAIN_SIDE_TAB, 1)).toBe('harness:t1');
-    expect(cycleTabKey(items, MAIN_SIDE_TAB, -1)).toBe(fileTabKey('f1'));
-    expect(cycleTabKey(items, fileTabKey('f1'), 1)).toBe(MAIN_SIDE_TAB);
+    expect(cycleTabKey(items, MAIN_SIDE_TAB, -1)).toBe('nomi-task:k1');
+    expect(cycleTabKey(items, 'nomi-task:k1', 1)).toBe(MAIN_SIDE_TAB);
     expect(cycleTabKey([], null, 1)).toBeNull();
   });
 });
@@ -167,14 +165,10 @@ describe('side tabs: reorder', () => {
     const items = sideTabItems(s, ['f1']);
     // c 拖到 a 前面
     const moved = moveTab(s, items, agentKey(c), dropIndex(items, agentKey(c), agentKey(a), false));
-    expect(keys(moved, ['f1'])).toEqual([agentKey(c), agentKey(a), agentKey(b), fileTabKey('f1')]);
-    // 文件拖到最前
-    const items2 = sideTabItems(moved, ['f1']);
-    const moved2 = moveTab(moved, items2, fileTabKey('f1'), 0);
-    expect(keys(moved2, ['f1'])[0]).toBe(fileTabKey('f1'));
+    expect(keys(moved, ['f1'])).toEqual([agentKey(c), agentKey(a), agentKey(b)]);
     // 新开的标签排在后面
     const d: SubagentTarget = { kind: 'harness', tabId: 't9' };
-    expect(keys(openAgent(moved2, d), ['f1']).at(-1)).toBe(agentKey(d));
+    expect(keys(openAgent(moved, d), ['f1']).at(-1)).toBe(agentKey(d));
   });
 
   it('the main tab stays pinned first while maximized', () => {
@@ -217,10 +211,7 @@ describe('side tabs: reorder', () => {
 
   it('hidden (detached) tabs are left out of the strip but keep their place', () => {
     const s = withAll();
-    expect(keys(s, ['f1'], new Set([agentKey(b), fileTabKey('f1')]))).toEqual([
-      agentKey(a),
-      agentKey(c),
-    ]);
+    expect(keys(s, ['f1'], new Set([agentKey(b)]))).toEqual([agentKey(a), agentKey(c)]);
     const items = sideTabItems(s, [], new Set([agentKey(b)]));
     const moved = moveTab(s, items, agentKey(c), 0);
     expect(moved.order).toEqual([agentKey(c), agentKey(a)]);

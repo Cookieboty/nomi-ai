@@ -85,7 +85,12 @@ import { CHAT_COL_W_MAX, CHAT_COL_W_MIN } from './utils/chatColumnWidth';
 import { useCliImageSupport } from './utils/cliImageSupport';
 import { cliTabPlaceholder } from './utils/cliTabPlaceholder';
 import { fromHarnessMessage, nomiConvMessages, settledNomiMessages } from './utils/convAdapters';
-import { FILES_SIDE_TAB, MAIN_SIDE_TAB } from './utils/sideTabs';
+import {
+  CHANGES_SIDE_TAB,
+  isSideChatKey,
+  MAIN_SIDE_TAB,
+  OPEN_FILE_SIDE_TAB,
+} from './utils/sideTabs';
 import './App.css';
 import './components/TitleBar/panels.css';
 
@@ -154,9 +159,15 @@ const AiChatContent: React.FC = () => {
     },
     // 开了 / 切到一个文件：标签区切到文件
     {
-      onShow: () => {
+      onShow: (kind) => {
         pane?.showPane();
-        activatePane?.(FILES_SIDE_TAB);
+        if (kind === 'diff') {
+          pane?.openChanges?.();
+          activatePane?.(CHANGES_SIDE_TAB);
+        } else {
+          pane?.openFileBrowser?.();
+          activatePane?.(OPEN_FILE_SIDE_TAB);
+        }
       },
     },
   );
@@ -164,6 +175,7 @@ const AiChatContent: React.FC = () => {
     entries: resourcePreview.entries,
     activeKey: resourcePreview.activeKey,
     render: resourcePreview.renderEmbedded,
+    railSplit: split.filesRail,
   });
   useSideWorkspaceKeys(side);
   const selectionActions = useSelectionActions(side);
@@ -325,10 +337,21 @@ const AiChatContent: React.FC = () => {
 
   // 详情与文件栏开关：桌面应用在标题栏右侧，更多操作与详细程度归入左侧标题下拉
   const titleBar = hasAppTitleBar();
+  const sideMaximized = side.maximized;
+  const restoreSide = side.restore;
+  const toggleSidePane = useCallback(() => {
+    // 全屏状态下先退出全屏，再隐藏工作区；否则只改可见偏好，最大化状态会把它重新顶回来。
+    if (sideMaximized) {
+      restoreSide();
+      pane?.hidePane?.();
+      return;
+    }
+    pane?.togglePane();
+  }, [pane, restoreSide, sideMaximized]);
   const sessionTools = (
     <SessionTools
       messages={rail.messages}
-      rail={pane ? { open: side.open, onToggle: pane.togglePane } : null}
+      rail={pane ? { open: side.open, onToggle: toggleSidePane } : null}
     />
   );
   // 对话旁那一栏：子任务 / 文件标签，或右栏的未提交文件预览（挂载点）
@@ -400,7 +423,9 @@ const AiChatContent: React.FC = () => {
                 hidden={mainHidden}
               >
                 {/* 铺满时标签栏在整个对话区顶上，主会话是第一个标签（不能关） */}
-                {sideMax && <SideTabStrip model={side} columnMessages={rail.messages} />}
+                {sideMax && !isSideChatKey(side.active) && (
+                  <SideTabStrip model={side} columnMessages={rail.messages} />
+                )}
                 <div
                   className="chat-column"
                   data-testid="chat-column"

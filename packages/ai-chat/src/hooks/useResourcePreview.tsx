@@ -71,19 +71,26 @@ function withDiff(state: PreviewTabsState, key: string, diff: DiffTabSpec): Prev
   };
 }
 
-/** 对话旁的标签区里怎么画预览（标签栏在外面，见 SideWorkspace） */
+/** 在工作区页里怎么画预览；文件 tabs 由 ResourcePreview 自己绘制。 */
 export interface EmbeddedPreviewProps {
   inactive: boolean;
   expanded: boolean;
   onExpanded: (expanded: boolean) => void;
   controlRef: React.MutableRefObject<PreviewTabsControl | null>;
+  /** 打开文件页内部显示 ResourcePreview 自己的文件 tabs。 */
+  showTabs?: boolean;
+  /** 只显示普通文件或 Diff，避免两个页面共用一排内部 tabs。 */
+  mode?: 'files' | 'diffs' | 'all';
 }
 
 /**
  * A visual overlay only: never owns a conversation, stream, queue or task lifecycle.
- * onShow：真的开了 / 切到一个文件标签时通知（标签区据此切到文件）。
+ * onShow：真的开了 / 切到一个文件或 Diff 时通知（工作区据此打开文件页）。
  */
-export function useResourcePreview(scope: ResourceScope, opts?: { onShow?: () => void }) {
+export function useResourcePreview(
+  scope: ResourceScope,
+  opts?: { onShow?: (kind: 'file' | 'diff') => void },
+) {
   const onShowRef = useRef(opts?.onShow);
   useLayoutEffect(() => {
     onShowRef.current = opts?.onShow;
@@ -148,7 +155,7 @@ export function useResourcePreview(scope: ResourceScope, opts?: { onShow?: () =>
           protectedPreviewKeys(old.entries),
         ),
       );
-      onShowRef.current?.();
+      onShowRef.current?.('file');
     },
     [isOpen, resetLayout],
   );
@@ -175,7 +182,7 @@ export function useResourcePreview(scope: ResourceScope, opts?: { onShow?: () =>
           protectedPreviewKeys(old.entries),
         ),
       );
-      onShowRef.current?.();
+      onShowRef.current?.('diff');
     },
     [isOpen, resetLayout, scopeId, scopeCwd, scopeSource],
   );
@@ -244,12 +251,23 @@ export function useResourcePreview(scope: ResourceScope, opts?: { onShow?: () =>
     </>
   );
   /** 标签区里的预览：标签栏在外面，铺满由标签区管 */
-  const renderEmbedded = (p: EmbeddedPreviewProps) =>
-    isOpen ? (
+  const renderEmbedded = (p: EmbeddedPreviewProps) => {
+    const mode = p.mode ?? 'all';
+    const visibleEntries =
+      mode === 'files'
+        ? entries.filter((entry) => !entry.diff)
+        : mode === 'diffs'
+          ? entries.filter((entry) => !!entry.diff)
+          : entries;
+    if (!visibleEntries.length) return null;
+    const visibleActiveKey = visibleEntries.some((entry) => entry.key === activeKey)
+      ? activeKey
+      : visibleEntries[visibleEntries.length - 1]!.key;
+    return isOpen ? (
       <Suspense fallback={null}>
         <LazyPreview
-          entries={entries}
-          activeKey={activeKey}
+          entries={visibleEntries}
+          activeKey={visibleActiveKey}
           expanded={p.expanded}
           originMismatch={mismatch}
           conversationConnected={mismatch && !sendMismatch}
@@ -258,12 +276,14 @@ export function useResourcePreview(scope: ResourceScope, opts?: { onShow?: () =>
           onCloseEntries={closeEntries}
           onExpanded={p.onExpanded}
           onOpen={open}
-          hideTabs
+          hideTabs={!p.showTabs}
+          embedded
           inactive={p.inactive}
           controlRef={p.controlRef}
         />
       </Suspense>
     ) : null;
+  };
   return {
     value,
     isOpen,

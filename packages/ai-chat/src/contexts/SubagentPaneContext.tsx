@@ -1,10 +1,11 @@
 /**
- * 对话旁的标签区：子任务和文件预览共用一块，像浏览器的标签栏（见 docs/design/side-tabs-workspace.md）。
+ * 对话旁的工作区：子任务和工作区页使用顶层标签栏，文件 tabs 保留在打开文件页内部
+ * （见 docs/design/side-tabs-workspace.md）。
  * 子任务有三种会话，都走同一套面板：
  * - harness：委派出去的编程助手标签（完整输入栏，按标签 id 绑定）；
  * - nested：进程内子代理（Task / spawn_agent），步骤来自父转录；
  * - nomi-task：delegate_to_nomi 的后台 Nomi 任务；
- * - side-chat：侧边聊天（只问 Nomi 的临时聊天，内容在 services/sideChat 的内存里）。
+ * - side-chat：侧边聊天（只问 Nomi 的临时聊天，内容在 services/sideChat 的内存里），作为独立页面打开。
  * 可以同时开好几个子任务标签；每个会话（主列的会话键）各记一份开着的标签、当前标签、是否铺满。
  * 文件标签来自预览区（App 的 useResourcePreview），这里只记「当前看的是文件」。
  */
@@ -38,7 +39,6 @@ import {
   activateTab,
   agentKey,
   closeAgent,
-  closePage,
   closeSideTab,
   EMPTY_SIDE_TABS,
   hasSideTabs,
@@ -49,6 +49,8 @@ import {
   openChanges,
   openFileBrowser,
   openNewTab,
+  openSideChatPage,
+  pageKey,
   pruneAgents,
   readSideTabsStore,
   resolveActive,
@@ -199,10 +201,12 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
     [scope, alive],
   );
 
-  const shownTarget = useMemo(
-    () => tabs.agents.find((a) => agentKey(a) === active) ?? null,
-    [tabs.agents, active],
-  );
+  const shownTarget = useMemo(() => {
+    const agent = tabs.agents.find((a) => agentKey(a) === active);
+    if (agent) return agent;
+    const page = tabs.pages.find((p) => p.kind === 'side-chat' && pageKey(p) === active);
+    return page?.kind === 'side-chat' ? ({ kind: 'side-chat', chatId: page.id } as const) : null;
+  }, [tabs.agents, tabs.pages, active]);
   const tabId = shownTarget?.kind === 'harness' ? shownTarget.tabId : null;
   // 已经弹到独立窗口的：把那个窗口提到最前，不在这一侧再开一份
   const revealPane = useCallback(() => {
@@ -262,8 +266,12 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (active) closeTab(active);
   }, [closeTab, active]);
   const openSideChatTab = useCallback(
-    (chatId: string) => open({ kind: 'side-chat', chatId }),
-    [open],
+    (chatId: string) => {
+      if (!chatId) return;
+      revealPane();
+      update((s) => openSideChatPage(s, chatId));
+    },
+    [revealPane, update],
   );
   const openSideChat = useCallback(
     (opts: { fresh?: boolean; quote?: SelectionQuote; replace?: string } = {}) => {
@@ -275,11 +283,7 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
       const id = createSideChat(scope, { projectId, quote: opts.quote });
       revealPane();
-      update((s) => {
-        let next = openAgent(s, { kind: 'side-chat', chatId: id });
-        if (opts.replace) next = closePage(next, opts.replace);
-        return next;
-      });
+      update((s) => openSideChatPage(s, id, { replace: opts.replace }));
       return id;
     },
     [active, update, revealPane, scope, projectId],

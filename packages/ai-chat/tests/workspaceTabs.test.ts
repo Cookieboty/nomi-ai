@@ -38,11 +38,7 @@ describe('workspace tabs: files vs changes', () => {
     const again = openChanges(s);
     expect(again.pages.filter((p) => p.kind === 'changes')).toHaveLength(1);
     expect(again.active).toBe('changes');
-    expect(sideTabItems(again, ['readme.md']).map((i) => i.key)).toEqual([
-      'changes',
-      'open-file',
-      'file:readme.md',
-    ]);
+    expect(sideTabItems(again, ['readme.md']).map((i) => i.key)).toEqual(['changes', 'open-file']);
   });
 
   it('keeps a file preview tab while the changes tab stays open', () => {

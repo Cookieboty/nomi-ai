@@ -51,6 +51,11 @@
   display: none;
 }
 
+.addTab {
+  flex: none;
+  margin-inline-start: var(--cd-space-1);
+}
+
 .actions {
   display: inline-flex;
   align-items: center;

@@ -339,6 +339,16 @@ export const SideTabStrip: React.FC<{
             </div>
           );
         })}
+        {model.openNewTab && (
+          <IconButton
+            size="sm"
+            className={styles.addTab}
+            label={t('ui.session-workspace.new-tab')}
+            icon={<Icon icon={Plus} size={14} />}
+            onClick={() => model.openNewTab?.()}
+            data-testid="side-tab-add"
+          />
+        )}
       </div>
       {tabMenu && (
         <div
@@ -395,15 +405,6 @@ export const SideTabStrip: React.FC<{
         </div>
       )}
       <div className={styles.actions} data-testid="side-tab-actions">
-        {model.openNewTab && (
-          <IconButton
-            size="sm"
-            label={t('ui.session-workspace.new-tab')}
-            icon={<Icon icon={Plus} size={14} />}
-            onClick={() => model.openNewTab?.()}
-            data-testid="side-tab-add"
-          />
-        )}
         {(sideItem || model.split) && (
           <span
             className={styles.dropTarget}

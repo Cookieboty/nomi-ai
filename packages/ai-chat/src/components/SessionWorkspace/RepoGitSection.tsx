@@ -439,13 +439,12 @@ export const RepoGitSection: React.FC<{
   const commitPaths = [...new Set(pickedRows.map((r) => r.entry.path))];
 
   /** 交给当前助手提交：只填进输入框，用户看过再发。多个仓库时写明在哪个仓库 */
-  const askCommit = (push: boolean) => {
+  const askCommit = () => {
     const paths = new Set(commitPaths);
     const files = gitFiles
       .filter((g) => paths.has(g.path))
       .map((g) => ({ path: g.path, staged: g.staged, unstaged: g.unstaged }));
-    if (files.length)
-      fillComposer(buildCommitPrompt(files, push, wtCwd ?? (label ? gitCwd : undefined)));
+    if (files.length) fillComposer(buildCommitPrompt(files, wtCwd ?? (label ? gitCwd : undefined)));
   };
 
   // worktree：正在看的那个（文件夹所在的，或切过去的）；助手改的文件落在别的 worktree 时提示
@@ -655,7 +654,6 @@ export const RepoGitSection: React.FC<{
           </div>
           <GitCommitBox
             ops={ops}
-            sync={sync}
             hasChanges={gitRows.length > 0}
             stagedCount={stagedCount}
             paths={commitPaths}

@@ -15,6 +15,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ChatBackgroundLayer } from '../components/ChatBackground/ChatBackgroundLayer';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import type { PreviewTabsControl } from '../components/ResourcePreview/ResourcePreview';
+import { SideChatPane } from '../components/SideChat';
 import { useSubagentPane, SubagentPane, WorkspacePanesProvider } from '../components/SubagentPane';
 import { wailsWindow, WindowControls } from '../components/TitleBar';
 import { AiChatContextProvider } from '../contexts/AiChatContext';
@@ -128,7 +129,14 @@ const AgentWindow: React.FC<{ spec: Extract<DetachSpec, { kind: 'agent' }> }> = 
     <>
       <Bar title={name} onDock={dock} />
       <main className={styles.body} data-testid="detached-agent">
-        <SubagentPane columnMessages={NO_MESSAGES} standalone />
+        {spec.target.kind === 'side-chat' ? (
+          <SideChatPane
+            chatId={spec.target.chatId}
+            slot={{ tabKey: key, active: pane?.active === key }}
+          />
+        ) : (
+          <SubagentPane columnMessages={NO_MESSAGES} standalone />
+        )}
         {gone && (
           <p className={styles.empty} data-testid="detached-gone">
             {t('ui.session-workspace.side-tab-detached-missing')}
