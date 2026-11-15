@@ -144,6 +144,7 @@ describe('side tabs: persistence', () => {
       parseSideTabs({ agents: [{ kind: 'harness' }, a, { kind: 'x' }], active: 3, maximized: 1 }),
     ).toEqual({
       agents: [a],
+      pages: [],
       active: null,
       maximized: false,
       mainActive: false,

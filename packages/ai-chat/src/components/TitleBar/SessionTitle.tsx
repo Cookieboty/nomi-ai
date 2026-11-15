@@ -1,10 +1,10 @@
 /**
  * 标题栏里与当前会话有关的部分（与对话卡片对齐）：
- * - 左：文件夹 + 有宽度上限的会话名 + 项目 + 下拉箭头；点击整组打开共享会话菜单；
- * - 右：详情与文件栏开关。
+ * - 左：工作区图标 + 会话名（新会话还没有消息时不显示）；
+ * - 右：「…」会话菜单（重命名 / 分叉 / 归档 / 关闭标签 / 删除），与侧栏右键菜单同一个 ConversationMenu。
  */
 import { Icon, t, useLocale, usePresence } from '@nomi-ai/ui';
-import { IconChevronDown, IconFolder } from '@tabler/icons-react';
+import { IconDots, IconFolder } from '@tabler/icons-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -23,7 +23,6 @@ import {
 } from '../../services/conversationStore';
 import { sessionPlace } from '../../services/projects';
 import { clearNomiAutoTitle } from '../../services/sessionTitle';
-import { cliTranscriptKey } from '../../services/transcriptView';
 import type { ConvMessage } from '../../types/conversation';
 import type { IPCClient } from '../../types/ipc';
 import { aggregateSessionChanges } from '../../utils/sessionChanges';
@@ -33,8 +32,7 @@ import { confirmDialog, promptDialog } from '../ConfirmDialog';
 import { ConversationMenu } from '../ConversationMenu';
 import { SessionDetailsToggle } from '../SessionDetails';
 import { FilesRailToggle } from '../SessionWorkspace';
-
-import { TitlebarContent } from './panels';
+import { TranscriptViewButton } from '../TranscriptViewMenu';
 
 interface CurrentSession {
   /** 会话列表里的 id（CLI 标签是它的镜像项） */
@@ -86,10 +84,27 @@ function useCurrentSession(): CurrentSession | null {
   };
 }
 
-export const SessionTitle: React.FC<{
+export const SessionTitle: React.FC<{ onFork?: (id: string) => void }> = () => {
+  const s = useCurrentSession();
+  if (!s?.hasMessages) return null;
+  return (
+    <span
+      className="app-titlebar-session"
+      title={s.place.title || s.name}
+      data-testid="titlebar-session"
+    >
+      {s.place.label && <Icon icon={IconFolder} size={14} />}
+      <span className="app-titlebar-session-name">{s.name}</span>
+      {s.place.label && <span className="app-titlebar-session-cwd">{s.place.label}</span>}
+    </span>
+  );
+};
+
+export const SessionMenuButton: React.FC<{
   onFork?: (id: string) => void;
 }> = ({ onFork }) => {
   const s = useCurrentSession();
+  const { isDev } = useChatMode();
   const tabs = useHarnessTabs();
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
   const { actions } = useAiChatActions();
@@ -151,36 +166,17 @@ export const SessionTitle: React.FC<{
       <button
         ref={btn}
         type="button"
-        className="app-titlebar-session-trigger"
-        aria-label={[s.name, s.place.label, t('ui.cli-monitor.more-actions')]
-          .filter(Boolean)
-          .join(' · ')}
+        className="app-titlebar-btn"
+        aria-label={t('ui.cli-monitor.more-actions')}
         aria-haspopup="menu"
         aria-expanded={!!at}
         data-testid="titlebar-session-menu"
-        onKeyDown={(e) => {
-          if (e.key !== 'ArrowDown') return;
-          e.preventDefault();
-          const rect = btn.current?.getBoundingClientRect();
-          if (rect) setAt({ x: rect.left, y: titlebarMenuTop(rect) });
-        }}
         onClick={() => {
           const r = btn.current?.getBoundingClientRect();
-          setAt(at || !r ? null : { x: r.left, y: titlebarMenuTop(r) });
+          setAt(at || !r ? null : { x: r.right - 200, y: titlebarMenuTop(r) });
         }}
       >
-        <span className="app-titlebar-session" data-testid="titlebar-session">
-          <Icon icon={IconFolder} size="nav" className="app-titlebar-session-icon" />
-          <span className="app-titlebar-session-name" title={s.name}>
-            {s.name}
-          </span>
-          {s.place.label && (
-            <span className="app-titlebar-session-cwd" title={s.place.title}>
-              {s.place.label}
-            </span>
-          )}
-          <Icon icon={IconChevronDown} size={16} className="app-titlebar-session-chevron" />
-        </span>
+        <Icon icon={IconDots} size={16} />
       </button>
       {atP.value && (
         <ConversationMenu
@@ -189,13 +185,6 @@ export const SessionTitle: React.FC<{
           closing={atP.closing}
           anchor={btn}
           isTab={!!s.tabId}
-          sessionKey={
-            s.tabId && tabs.activeTab
-              ? cliTranscriptKey(tabs.activeTab)
-              : s.id
-                ? `nomi:${s.id}`
-                : undefined
-          }
           onDismiss={() => setAt(null)}
           onRename={() => void rename()}
           onFork={s.id && onFork ? () => onFork(s.id!) : undefined}
@@ -208,33 +197,34 @@ export const SessionTitle: React.FC<{
   );
 };
 
-/** 标题栏右侧：详情与文件栏开关；更多操作与详细程度归入标题下拉。 */
+/** 标题栏右侧：会话菜单「…」+ 会话详情浮层 + 工具栏（改动 · 文件）开关（只在有工作区时） */
 export const SessionTools: React.FC<{
+  onFork?: (id: string) => void;
+  /** 当前会话的键（tab:… / nomi:…）；为空时不显示 Transcript view */
+  sessionKey?: string | null;
   /** 当前会话的消息（变更统计、用到的 Agents） */
   messages: readonly ConvMessage[];
-  rail: { open: boolean; cwd: string; onToggle: () => void } | null;
-}> = ({ messages, rail }) => {
+  rail: { open: boolean; onToggle: () => void } | null;
+}> = ({ onFork, sessionKey, messages, rail }) => {
   const s = useCurrentSession();
   const count = useMemo(() => aggregateSessionChanges(messages).length, [messages]);
   return (
     <>
-      <TitlebarContent name="session">
-        {s?.hasMessages && (
-          <SessionDetailsToggle
-            railOpen={!!rail?.open}
-            bubbleClassName={chatHeaderStyles.actionsTipBubble}
-          />
-        )}
-      </TitlebarContent>
+      {s?.hasMessages && sessionKey && <TranscriptViewButton sessionKey={sessionKey} />}
+      <SessionMenuButton onFork={onFork} />
+      {s?.hasMessages && (
+        <SessionDetailsToggle
+          railOpen={!!rail?.open}
+          bubbleClassName={chatHeaderStyles.actionsTipBubble}
+        />
+      )}
       {rail && (
-        <TitlebarContent name="rail-toggle">
-          <FilesRailToggle
-            open={rail.open}
-            count={count}
-            onToggle={rail.onToggle}
-            bubbleClassName={chatHeaderStyles.actionsTipBubble}
-          />
-        </TitlebarContent>
+        <FilesRailToggle
+          open={rail.open}
+          count={count}
+          onToggle={rail.onToggle}
+          bubbleClassName={chatHeaderStyles.actionsTipBubble}
+        />
       )}
     </>
   );
@@ -250,9 +240,9 @@ const PAGE_TITLE = {
 export const TitleBarTitle: React.FC<{
   page: keyof typeof PAGE_TITLE | null;
   onFork?: (id: string) => void;
-}> = ({ page, onFork }) => {
+}> = ({ page }) => {
   useLocale();
-  if (!page) return <SessionTitle onFork={onFork} />;
+  if (!page) return <SessionTitle />;
   return (
     <span className="app-titlebar-session" data-testid="titlebar-page">
       {t(PAGE_TITLE[page])}

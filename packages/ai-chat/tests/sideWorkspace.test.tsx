@@ -433,9 +433,9 @@ describe('side tabs workspace', () => {
       opener!.openSideChat({ quote: { text: '另一段', source: '主会话' } });
     });
     expect(tabKeys()).toEqual(['nomi-task:k1', k1]);
-    // 「+ → 新侧边聊天」总是新开一个
+    // 「+」打开新标签页，再从新标签页打开侧边会话
     fireEvent.click(screen.getByTestId('side-tab-add'));
-    fireEvent.click(screen.getByTestId('side-tab-new-chat'));
+    fireEvent.click(screen.getByTestId('new-tab-open-side-chat'));
     const second = sideChatsIn('')[1]!.id;
     const k2 = `side-chat:${second}`;
     expect(tabKeys()).toEqual(['nomi-task:k1', k1, k2]);
