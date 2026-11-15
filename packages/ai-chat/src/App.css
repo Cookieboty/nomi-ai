@@ -348,6 +348,11 @@ html[data-platform] {
 html[data-platform='darwin'] {
   --cd-titlebar-h: 44px;
 }
+/* Windows / Linux：标题栏右侧窗口按钮的安全区。Electron 优先使用 WCO 提供的宽度，
+ * Wails 没有 titlebar-area-width 时按三枚 46px 按钮回退。 */
+html[data-platform]:not([data-platform='darwin']) {
+  --cd-titlebar-window-controls-w: calc(100vw - env(titlebar-area-width, calc(100vw - 140px)));
+}
 .app-titlebar {
   display: none;
 }
@@ -367,8 +372,8 @@ html[data-platform] .app-titlebar {
   app-region: drag;
   --wails-draggable: drag; /* Go 宿主（Wails）认这个，不认 app-region */
   user-select: none;
-  /* Windows / Linux：右侧是原生按钮（宽度由 WCO 提供，回退 140px） */
-  padding-right: calc(100vw - env(titlebar-area-width, calc(100vw - 140px)));
+  /* Windows / Linux：右侧是窗口按钮（宽度由 WCO 提供，回退 140px） */
+  padding-right: var(--cd-titlebar-window-controls-w, 140px);
 }
 html[data-platform='darwin'] .app-titlebar {
   padding-left: 78px; /* 红绿灯 */
@@ -426,6 +431,7 @@ html[data-platform='darwin'] .app-titlebar-lead {
   right: 0;
   height: 100%;
   display: flex;
+  z-index: 3;
   -webkit-app-region: no-drag;
   app-region: no-drag;
   --wails-draggable: no-drag;
@@ -482,7 +488,7 @@ html[data-platform='darwin'] .app-titlebar[data-sidebar='collapsed'] {
 }
 /* Windows / Linux：右侧给窗口按钮留位 */
 html[data-platform]:not([data-platform='darwin']) .app-titlebar-main {
-  right: 140px;
+  right: var(--cd-titlebar-window-controls-w, 140px);
 }
 .app-titlebar-title {
   flex: 1;
