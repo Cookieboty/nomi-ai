@@ -56,7 +56,11 @@ export interface FloatingTipProps {
   placement?: 'side' | 'bottom';
   /** side 定位参照的外框（如整个下拉菜单），让提示贴着菜单外沿而不压住选项 */
   boundary?: HTMLElement | null;
+  /** 限制浮层的可用区域；适用于嵌在窄面板中的悬停卡片。 */
+  viewport?: HTMLElement | null;
   id?: string;
+  /** 追加到浮层外框上的 class，用于特定场景调整卡片尺寸与内容布局。 */
+  className?: string;
   children: React.ReactNode;
 }
 
@@ -68,7 +72,9 @@ export const FloatingTip: React.FC<FloatingTipProps> = ({
   anchor,
   placement = 'bottom',
   boundary,
+  viewport,
   id,
+  className,
   children,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -83,9 +89,10 @@ export const FloatingTip: React.FC<FloatingTipProps> = ({
         { width: el.offsetWidth, height: el.offsetHeight },
         placement,
         (boundary ?? anchor).getBoundingClientRect(),
+        viewport?.getBoundingClientRect(),
       ),
     );
-  }, [anchor, boundary, placement, children]);
+  }, [anchor, boundary, placement, viewport, children]);
 
   if (!anchor) return null;
   return createPortal(
@@ -93,8 +100,18 @@ export const FloatingTip: React.FC<FloatingTipProps> = ({
       ref={ref}
       id={id}
       role="tooltip"
-      className="cd-floating-tip"
-      style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }}
+      className={cx('cd-floating-tip', className)}
+      style={
+        pos
+          ? {
+              left: pos.left,
+              top: pos.top,
+              ...(viewport
+                ? { maxWidth: `${Math.max(80, viewport.getBoundingClientRect().width - 16)}px` }
+                : {}),
+            }
+          : { visibility: 'hidden' }
+      }
     >
       {children}
     </div>,

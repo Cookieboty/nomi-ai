@@ -14,7 +14,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--cd-space-5) var(--cd-space-4);
+  padding: var(--cd-space-5) var(--cd-space-4) var(--cd-space-5) 52px;
 }
 .inner {
   display: flex;
@@ -23,6 +23,114 @@
   max-width: var(--cd-chat-content-w);
   margin: 0 auto;
   padding-bottom: var(--cd-space-5);
+}
+
+/* 统一会话快捷导航：主会话、侧边会话和子代理都由 ConversationView 渲染。 */
+.quickNav {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  max-height: min(65%, 420px);
+  padding: 4px 0;
+  overflow-y: auto;
+  transform: translateY(-50%);
+  scrollbar-width: none;
+}
+.quickNav::-webkit-scrollbar {
+  display: none;
+}
+.quickNavItem {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 34px;
+  height: 14px;
+  margin: -3px 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.quickNavLine {
+  display: block;
+  width: var(--quick-nav-width, 18px);
+  height: 2px;
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-border-strong);
+  opacity: 0.72;
+  transition:
+    width var(--cd-duration-fast) var(--cd-ease),
+    height var(--cd-duration-fast) var(--cd-ease),
+    background var(--cd-duration-fast) var(--cd-ease),
+    opacity var(--cd-duration-fast) var(--cd-ease);
+}
+.quickNav[data-hovered='true'] .quickNavLine {
+  width: var(--quick-nav-hover-width, var(--quick-nav-width));
+  height: var(--quick-nav-hover-height, 2px);
+}
+.quickNavItem:hover .quickNavLine {
+  background: var(--cd-color-text);
+  opacity: 1;
+}
+.quickNavItem[data-in-view='true'] .quickNavLine {
+  background: var(--cd-color-accent-strong);
+  opacity: 1;
+}
+.quickNav[data-hovered='true'] .quickNavItem[data-in-view='true'] .quickNavLine {
+  background: var(--cd-color-border-strong);
+  opacity: 0.72;
+}
+.quickNav[data-hovered='true'] .quickNavItem:hover .quickNavLine {
+  background: var(--cd-color-text);
+  opacity: 1;
+}
+.quickNavItem:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+  border-radius: var(--cd-radius-xs);
+}
+.quickNavTip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1-5);
+  width: min(360px, calc(100vw - 32px));
+  max-width: min(360px, calc(100vw - 32px));
+  padding: var(--cd-space-3) var(--cd-space-4);
+  border-radius: var(--cd-radius-lg);
+  font-size: var(--cd-font-size-sm);
+  line-height: 1.5;
+  letter-spacing: normal;
+}
+.quickNavTipTitle {
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-semibold);
+}
+.quickNavTipText {
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--cd-color-text);
+}
+@media (max-width: 560px) {
+  .scroll {
+    padding-left: 44px;
+  }
+  .quickNav {
+    left: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quickNavLine {
+    transition: none;
+  }
 }
 
 /* 一次发送一轮：轮与轮之间留白，轮内的用户消息和回复靠得更近 */

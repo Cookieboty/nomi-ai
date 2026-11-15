@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
-import { act, cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConversationView } from '../src/components/Conversation';
+import { ConversationView, summarizeAssistantText } from '../src/components/Conversation';
 import { Markdown } from '../src/components/Conversation/Markdown';
 import type { TabLive } from '../src/contexts/HarnessTabsContext';
 import type {
@@ -89,6 +89,14 @@ const messages: HarnessTabMessage[] = [
 ];
 
 describe('CliConversation 历史消息', () => {
+  it('导航摘要取助手回复开头的有效段落，不展示代码和整段正文', () => {
+    expect(
+      summarizeAssistantText(
+        '先确认表结构，字段名和现有的 migration 写法。\n\n```sql\nSELECT * FROM channels;\n```\n\n后续细节。',
+      ),
+    ).toBe('先确认表结构，字段名和现有的 migration 写法。');
+  });
+
   it('用户气泡右对齐、助手正文走 Markdown，工具调用不再是纯文本流', () => {
     const { getByTestId, queryByText, container } = render(
       <CliConversation tab={tab()} messages={messages} onPermission={() => undefined} />,
@@ -677,6 +685,36 @@ describe('follow-scroll is ResizeObserver-driven (no per-frame forced layout)', 
     expect(turns.length).toBeGreaterThan(1);
     expect(turns.at(-1)!.className).not.toMatch(/turnDone/);
     expect(turns[0]!.className).toMatch(/turnDone/);
+  });
+
+  it('会话快捷导航按有助手回复的轮次展示，悬停只提供助手内容', async () => {
+    const extraTurns = Array.from({ length: 5 }, (_, i) => [
+      {
+        id: `u${i + 2}`,
+        role: 'user' as const,
+        content: `继续检查第 ${i + 2} 个文件`,
+        timestamp: i + 3,
+      },
+      {
+        id: `a${i + 2}`,
+        role: 'assistant' as const,
+        content: `第 ${i + 2} 轮完成`,
+        timestamp: i + 4,
+      },
+    ]).flat();
+    const { getByTestId, getAllByTestId } = render(
+      <CliConversation tab={tab()} messages={[...messages, ...extraTurns]} />,
+    );
+    await waitFor(() => expect(getByTestId('conversation-quick-nav')).toBeTruthy());
+    const items = getAllByTestId('conversation-quick-nav-item');
+    expect(items).toHaveLength(6);
+    fireEvent.mouseEnter(items[1]!);
+    const tip = document.querySelector('[role="tooltip"]');
+    expect(tip?.textContent).toContain('第 2 轮完成');
+    expect(tip?.textContent).not.toContain('继续检查第 2 个文件');
+    expect(items[1]?.querySelector('[class*="quickNavLine"]')?.getAttribute('style')).toContain(
+      '--quick-nav-width',
+    );
   });
 });
 
