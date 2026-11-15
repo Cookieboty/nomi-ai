@@ -717,5 +717,20 @@
   "ui.chat-settings.stop-these-cli-processes-and-remove-the-account": "{0}\n\n也可以让 Nomi 现在结束这些进程，再删除「{1}」。它们正在进行的会话会被中断。",
   "ui.chat-settings.stop-processes-and-remove": "结束进程并删除",
   "ui.chat-settings.question-submit-failed": "没交上去，你的选择还在，可以再提交一次",
-  "ui.chat-settings.command-review-sends-command": "命令全文会发送给审核模型（已尽量去掉密钥和本机路径）。"
+  "ui.chat-settings.command-review-sends-command": "命令全文会发送给审核模型（已尽量去掉密钥和本机路径）。",
+  "ui.chat-settings.conversation-quick-navigation": "会话快捷导航",
+  "ui.chat-settings.jump-to-conversation-turn": "跳转到第 {0} 轮",
+  "ui.chat-settings.conversation-nav-demo": "会话导航演示",
+  "ui.chat-settings.conversation-nav-demo-description": "在当前开发会话中临时插入 50 轮消息，用来检查长会话导航密度与悬停动画；不会写入会话记录。",
+  "ui.chat-settings.conversation-nav-demo-row": "插入测试对话",
+  "ui.chat-settings.insert-conversation-nav-demo": "插入 50 轮演示",
+  "ui.chat-settings.conversation-nav-demo-prompt-1": "先快速看一下这个项目的目录结构",
+  "ui.chat-settings.conversation-nav-demo-prompt-2": "找出和会话导航相关的组件",
+  "ui.chat-settings.conversation-nav-demo-prompt-3": "检查它们之间的数据流和滚动关系",
+  "ui.chat-settings.conversation-nav-demo-prompt-4": "把这一段布局改得更紧凑一些",
+  "ui.chat-settings.conversation-nav-demo-prompt-5": "确认窄窗口下是否会挤压正文",
+  "ui.chat-settings.conversation-nav-demo-prompt-6": "再看一下悬停提示的位置是否正确",
+  "ui.chat-settings.conversation-nav-demo-prompt-7": "比较短消息和长消息对应的导航线长度",
+  "ui.chat-settings.conversation-nav-demo-prompt-8": "最后总结这轮视觉调整的结果",
+  "ui.chat-settings.conversation-nav-demo-final": "已完成检查：导航会在超过五轮时出现，悬停宽度随助手摘要变化。"
 }
