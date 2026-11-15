@@ -111,10 +111,6 @@ export const NewTabPage: React.FC<{
     <div className={styles.page} hidden={hidden} data-testid="new-tab-page" data-tab-key={tabKey}>
       <div className={styles.hero}>
         <div className={styles.heroInner}>
-          <div className={styles.intro}>
-            <span className={styles.eyebrow}>{t('ui.session-workspace.new-tab')}</span>
-            <h1>{t('ui.session-workspace.new-tab-section')}</h1>
-          </div>
           <form
             className={styles.searchWrap}
             onSubmit={(e) => {
@@ -167,7 +163,6 @@ export const NewTabPage: React.FC<{
             )}
           </form>
           <div>
-            <p className={styles.sectionLabel}>{t('ui.session-workspace.new-tab-section')}</p>
             <div className={styles.tiles}>
               <button
                 type="button"
