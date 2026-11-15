@@ -1,5 +1,6 @@
 import { defineConfig, mergeConfig } from 'vitest/config';
 
+import { coverageConfig } from '../../vitest.base.ts';
 import viteConfig from './vite.config.mts';
 
 /**
@@ -14,6 +15,7 @@ export default mergeConfig(
       passWithNoTests: true,
       testTimeout: 15_000,
       hookTimeout: 15_000,
+      coverage: coverageConfig({ statements: 50, branches: 49, functions: 43, lines: 51 }),
     },
   }),
 );
