@@ -236,9 +236,9 @@ export function openAgent(state: SideTabsState, target: SubagentTarget): SideTab
 
 /** 切换标签：'main' 只在铺满时有意义 */
 export function activateTab(state: SideTabsState, key: string): SideTabsState {
-  // 拆分时主会话一直在左边：点它只是把焦点给它，右边不变
+  // 全屏时点主会话只显示主会话；退出拆分，避免右侧标签仍占据视图。
   if (key === MAIN_SIDE_TAB)
-    return state.maximized && !state.split ? { ...state, mainActive: true } : state;
+    return state.maximized ? { ...state, mainActive: true, split: false } : state;
   return { ...state, active: key, mainActive: false };
 }
 

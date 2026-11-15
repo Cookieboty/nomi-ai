@@ -394,68 +394,70 @@ export const SideTabStrip: React.FC<{
           </button>
         </div>
       )}
-      {model.openNewTab && (
-        <IconButton
-          size="sm"
-          label={t('ui.session-workspace.new-tab')}
-          icon={<Icon icon={Plus} size={14} />}
-          onClick={() => model.openNewTab?.()}
-          data-testid="side-tab-add"
-        />
-      )}
-      {(sideItem || model.split) && (
-        <span
-          className={styles.dropTarget}
-          data-hot={splitHot || undefined}
-          onDragOver={(e) => {
-            if (!drag) return;
-            e.preventDefault();
-            setSplitHot(true);
-          }}
-          onDragLeave={() => setSplitHot(false)}
-          onDrop={(e) => {
-            if (!drag) return;
-            e.preventDefault();
-            const item = model.items.find((i) => i.key === drag);
-            if (item && !model.split) model.toggleSplit(item);
-            else if (item) model.activate(item);
-            endDrag();
-          }}
-        >
+      <div className={styles.actions} data-testid="side-tab-actions">
+        {model.openNewTab && (
           <IconButton
             size="sm"
-            label={t(
-              model.split
-                ? 'ui.session-workspace.side-tab-unsplit'
-                : 'ui.session-workspace.side-tab-split',
-            )}
-            icon={<Icon icon={Columns2} size={14} />}
-            aria-pressed={model.split}
-            onClick={() => model.toggleSplit(sideItem)}
-            data-testid="side-tab-split-toggle"
+            label={t('ui.session-workspace.new-tab')}
+            icon={<Icon icon={Plus} size={14} />}
+            onClick={() => model.openNewTab?.()}
+            data-testid="side-tab-add"
           />
-        </span>
-      )}
-      {sideItem && model.canDetach(sideItem) && (
+        )}
+        {(sideItem || model.split) && (
+          <span
+            className={styles.dropTarget}
+            data-hot={splitHot || undefined}
+            onDragOver={(e) => {
+              if (!drag) return;
+              e.preventDefault();
+              setSplitHot(true);
+            }}
+            onDragLeave={() => setSplitHot(false)}
+            onDrop={(e) => {
+              if (!drag) return;
+              e.preventDefault();
+              const item = model.items.find((i) => i.key === drag);
+              if (item && !model.split) model.toggleSplit(item);
+              else if (item) model.activate(item);
+              endDrag();
+            }}
+          >
+            <IconButton
+              size="sm"
+              label={t(
+                model.split
+                  ? 'ui.session-workspace.side-tab-unsplit'
+                  : 'ui.session-workspace.side-tab-split',
+              )}
+              icon={<Icon icon={Columns2} size={14} />}
+              aria-pressed={model.split}
+              onClick={() => model.toggleSplit(sideItem)}
+              data-testid="side-tab-split-toggle"
+            />
+          </span>
+        )}
+        {sideItem && model.canDetach(sideItem) && (
+          <IconButton
+            size="sm"
+            label={t('ui.session-workspace.side-tab-detach')}
+            icon={<Icon icon={SquareArrowOutUpRight} size={14} />}
+            onClick={() => model.detach(sideItem, label(sideItem))}
+            data-testid="side-tab-popout"
+          />
+        )}
         <IconButton
           size="sm"
-          label={t('ui.session-workspace.side-tab-detach')}
-          icon={<Icon icon={SquareArrowOutUpRight} size={14} />}
-          onClick={() => model.detach(sideItem, label(sideItem))}
-          data-testid="side-tab-popout"
+          label={t(
+            model.maximized
+              ? 'ui.session-workspace.side-tab-restore'
+              : 'ui.session-workspace.side-tab-maximize',
+          )}
+          icon={<Icon icon={model.maximized ? Minimize2 : Maximize2} size={14} />}
+          onClick={() => (model.maximized ? model.restore() : model.toggleMaximized(currentItem))}
+          data-testid="side-tab-maximize"
         />
-      )}
-      <IconButton
-        size="sm"
-        label={t(
-          model.maximized
-            ? 'ui.session-workspace.side-tab-restore'
-            : 'ui.session-workspace.side-tab-maximize',
-        )}
-        icon={<Icon icon={model.maximized ? Minimize2 : Maximize2} size={14} />}
-        onClick={() => (model.maximized ? model.restore() : model.toggleMaximized(currentItem))}
-        data-testid="side-tab-maximize"
-      />
+      </div>
     </div>
   );
 };

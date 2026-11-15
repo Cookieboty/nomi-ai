@@ -51,6 +51,14 @@
   display: none;
 }
 
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  flex: none;
+  margin-inline-start: auto;
+}
+
 .tab {
   display: flex;
   align-items: center;

@@ -234,8 +234,10 @@ describe('side tabs: split', () => {
     expect(s.maximized && s.split).toBe(true);
     expect(isSplit(s, false)).toBe(true);
     expect(resolveActive(s, false)).toBe(agentKey(a));
-    // 点主会话不换右边
-    expect(resolveActive(activateTab(s, MAIN_SIDE_TAB), false)).toBe(agentKey(a));
+    // 点主会话只显示主会话，并退出拆分
+    const main = activateTab(s, MAIN_SIDE_TAB);
+    expect(main.split).toBe(false);
+    expect(resolveActive(main, false)).toBe(MAIN_SIDE_TAB);
     // 双击右边别的标签：只换右边，仍拆分
     const other = toggleMaximized(s, agentKey(b));
     expect(other.split && other.maximized).toBe(true);

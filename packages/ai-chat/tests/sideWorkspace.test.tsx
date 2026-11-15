@@ -336,18 +336,22 @@ describe('side tabs workspace', () => {
     expect(main.dataset.sideSplit).toBe('true');
     expect(screen.getByTestId('chat-column').hidden).toBe(false);
     expect(paneFor('nomi-task:k1').hidden).toBe(false);
-    // 点主会话：右边不变
+    // 点主会话：退出拆分，只显示主会话
     fireEvent.click(tabButton(MAIN_SIDE_TAB));
-    expect(paneFor('nomi-task:k1').hidden).toBe(false);
-    // 换右边
+    expect(paneFor('nomi-task:k1').hidden).toBe(true);
+    expect(screen.getByTestId('chat-column').hidden).toBe(false);
+    // 切到右侧标签：只显示右侧标签
     fireEvent.click(tabButton('nomi-task:k2'));
     expect(paneFor('nomi-task:k2').hidden).toBe(false);
+    expect(screen.getByTestId('chat-column').hidden).toBe(true);
+    // 再次点击拆分：恢复左右并排
+    fireEvent.click(screen.getByTestId('side-tab-split-toggle'));
+    expect(main.dataset.sideSplit).toBe('true');
     expect(screen.getByTestId('chat-column').hidden).toBe(false);
+    // 拆分时 Esc = 回到分栏
     fireEvent.click(screen.getByTestId('side-tab-split-toggle'));
     expect(main.dataset.sideSplit).toBeUndefined();
     expect(main.dataset.sideMax).toBe('true');
-    // 拆分时 Esc = 回到分栏
-    fireEvent.click(screen.getByTestId('side-tab-split-toggle'));
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(main.dataset.sideMax).toBeUndefined();
     expect(main.dataset.sideSplit).toBeUndefined();
