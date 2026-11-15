@@ -528,6 +528,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **ui:** 将当前月夜村庄图片加入项目作为 Nomi 图片预设，随应用资源打包，不再依赖用户电脑上的预设目录；保留自定义选图即时覆盖、参数缓存，以及恢复预设和 8px / 40% 默认值的功能。 (`@nomi-ai/desktop-go` patch)
 - **ui:** 带搜索的下拉框（如模型选择）里，搜索框上下留出更多间距，Windows 上不再显得拥挤。 (`@nomi-ai/ui` patch)
 - **ui:** 恢复旧主题 id paper → cream 的映射，新增图片主题选图失败的提示文案（详见 background-image-review-fixes）。 (`@nomi-ai/ui` patch, `@nomi-ai/i18n` patch)
+- **ui:** 标题栏里会话详情按钮不再压在文件栏开关上：量出开关宽度并在右侧让位；侧栏端信息卡只留端图标，名字保留在 aria-label 与详情抽屉里。 Keep the session details button clear of the files rail toggle in the title bar by reserving the toggle's measured width, and show only the endpoint icon on the sidebar endpoint card (the name stays in the aria-label and the detail drawer). (`@nomi-ai/ai-chat` patch)
 - **ui:** 补充品牌图标透明展示的前景色信息，保留品牌色并适配深浅主题。 (`@nomi-ai/ui` patch)
 - **updates:** add the "new version is still being published" message (see update-release-pending). (`@nomi-ai/i18n` patch)
 - **updates:** the What's new panel shows the notes of the version you are running instead of the 2.0.5 notes. They come from that version's release (docs/releases/vX.Y.Z.md, delivered in its latest-go.json), are cached for offline use, follow the UI language, and fall back to a GitHub Releases link when they can't be fetched. (`@nomi-ai/ai-chat` patch)
