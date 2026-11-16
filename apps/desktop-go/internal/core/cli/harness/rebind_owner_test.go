@@ -37,5 +37,15 @@ func TestRebindDelegationChecksExpectedOwner(t *testing.T) {
 		if !o.RebindDelegation(id, util.NewObj("goal", "d", "taskId", "D")) || owner() != "D" {
 			t.Fatal("rebind without an expected owner keeps working")
 		}
+		// 出错的委派标签不再被 RebindDelegation 复用；RecoverDelegatedTab 可丢弃损坏会话并结转上下文
+		errStr := "error_during_execution"
+		o.tab(id).Set("cliSessionId", "bad_sess")
+		o.finish(o.tab(id), false, "", &errStr)
+		if o.RebindDelegation(id, util.NewObj("goal", "e", "taskId", "E", "expectTaskId", "D")) {
+			t.Fatal("errored tab must not be rebound to a new delegation")
+		}
+		if !o.RecoverDelegatedTab(id, true) || o.tab(id).Get("cliSessionId") != nil {
+			t.Fatalf("RecoverDelegatedTab(dropSession=true) should clear cliSessionId, got %v", o.tab(id).Get("cliSessionId"))
+		}
 	})
 }

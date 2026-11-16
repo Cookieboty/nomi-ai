@@ -37,6 +37,7 @@ import { replyPermissionRequest } from '../../services/permissionReply';
 import type { ConvMessage } from '../../types/conversation';
 import { canStopSubagent } from '../../utils/cliCaps';
 import { fromHarnessMessage, tabLiveToConv } from '../../utils/convAdapters';
+import { delegateOpenTab } from '../../utils/delegateTarget';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import type { LiveAgent, TabLive } from '../../utils/liveState';
 import { resourceTarget, resolveDocumentHref, workspaceFileHref } from '../../utils/resourceLinks';
@@ -466,21 +467,23 @@ const Report: React.FC<{
  */
 const DelegateDrawer: React.FC<{
   v: DelegateView;
+  fallbackTab?: HarnessTabMeta | null;
   elapsed: string | null;
   running: boolean;
   stopping: boolean;
   onStop: () => void;
   onClose: () => void;
-}> = ({ v, elapsed, running, stopping, onStop, onClose }) => {
-  const tabId = v.tab?.id;
-  const messages = useTabMessages(tabId, v.tab?.updatedAt, running);
+}> = ({ v, fallbackTab, elapsed, running, stopping, onStop, onClose }) => {
+  const drawerTab = v.tab ?? fallbackTab ?? null;
+  const tabId = drawerTab?.id;
+  const messages = useTabMessages(tabId, drawerTab?.updatedAt, running);
   const backend = v.backend ?? 'claude';
   const conv = useMemo(
     () => (messages ?? []).map((m) => fromHarnessMessage(m, backend)),
     [messages, backend],
   );
   const live = useMemo(() => tabLiveToConv(v.live), [v.live]);
-  const cwd = v.tab?.cwd ?? null;
+  const cwd = drawerTab?.cwd ?? null;
   const slots = useMemo(() => buildCliSlots({ cwd }), [cwd]);
   const drawerTaskId = v.tab?.delegation?.taskId;
   const onPermission = useCallback(
@@ -613,6 +616,8 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
   const step = running ? currentStep(v.live) : null;
   const name = v.backend ? t(ENDPOINT_NAME[v.backend]) : t('ui.providers-schedule.coding-agents');
   const tab = v.tab;
+  // 标签被后来的同类委派接着用了：仍能从这张卡片打开它接着说（同一个会话）
+  const openTab = tab ?? delegateOpenTab(call, tabs.state?.tabs, liveResult);
   // 后台委派是持续任务（标签带 taskId）：停止 = 取消任务；直接停标签会让任务以为执行者崩了
   const tabTaskId = tab?.delegation?.taskId;
   // 结束后：从子任务对话里补齐改过的文件；读文件时按目录依次找
@@ -621,7 +626,8 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
   // 不手写 useMemo：交给 React Compiler（卡片里的 v / tab 每次渲染新建，手写依赖保不住）
   // A vanished child tab provides no proven cwd: never reinterpret historical
   // relative files in whichever main workspace happens to be active now.
-  const roots = tab?.cwd ? [...new Set([tab.cwd, mainCwd].filter((x): x is string => !!x))] : [];
+  const fileCwd = tab?.cwd ?? openTab?.cwd;
+  const roots = fileCwd ? [...new Set([fileCwd, mainCwd].filter((x): x is string => !!x))] : [];
   const childMessages = useTabMessages(tab?.id, tab?.updatedAt, running, !running && open);
   const backend = v.backend ?? 'claude';
   const childConv = (childMessages ?? []).map((m) => fromHarnessMessage(m, backend));
@@ -635,8 +641,8 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
   const childResource: ResourceContextValue | null = resource
     ? {
         scope: {
-          id: tab ? `cli:${tab.id}` : `delegate:${taskId ?? call.id}`,
-          cwd: tab?.cwd ?? null,
+          id: openTab ? `cli:${openTab.id}` : `delegate:${taskId ?? call.id}`,
+          cwd: fileCwd ?? null,
           source: backend,
           ...(roots.length > 1 ? { fallbackCwds: roots.slice(1) } : {}),
         },
@@ -708,8 +714,10 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
           </button>
           {v.backend && <EndpointIcon backend={v.backend} size={16} decorative />}
           <AgentHoverCard
-            target={tab ? { kind: 'harness', tabId: tab.id } : null}
-            onOpen={tab && subagentPane ? () => subagentPane.openSubagent(tab.id) : undefined}
+            target={openTab ? { kind: 'harness', tabId: openTab.id } : null}
+            onOpen={
+              openTab && subagentPane ? () => subagentPane.openSubagent(openTab.id) : undefined
+            }
             fallback={{ lastUser: v.goal }}
             className={styles.title}
           >
@@ -732,13 +740,15 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
               <Icon icon={Square} size={12} />
             </button>
           )}
-          {tab && (
+          {openTab && (
             <button
               type="button"
               className={styles.iconBtn}
               aria-label={t('ui.session-workspace.view-subtask')}
               data-testid="delegate-view"
-              onClick={() => (subagentPane ? subagentPane.openSubagent(tab.id) : setDrawer(true))}
+              onClick={() =>
+                subagentPane ? subagentPane.openSubagent(openTab.id) : setDrawer(true)
+              }
             >
               <Icon icon={ExternalLink} size={13} />
             </button>
@@ -795,6 +805,7 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
         {drawer && (
           <DelegateDrawer
             v={v}
+            fallbackTab={openTab}
             elapsed={elapsed}
             running={running}
             stopping={stopping}

@@ -5,6 +5,7 @@ package delegate
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -112,11 +113,12 @@ func (f *fakeTasks) advance(id, status string, attempt *tasks.Attempt, lastErr *
 }
 
 type taskEnv struct {
-	svc  *Service
-	log  *envLog
-	h    *fakeHarness
-	dir  string
-	defs map[string]tools.Definition
+	svc   *Service
+	log   *envLog
+	h     *fakeHarness
+	edits *EditLog
+	dir   string
+	defs  map[string]tools.Definition
 }
 
 func newTaskEnv(t *testing.T, sc *util.Obj, tp TaskPort) *taskEnv {
@@ -128,7 +130,11 @@ func newTaskEnv(t *testing.T, sc *util.Obj, tp TaskPort) *taskEnv {
 	h := &fakeHarness{sc: sc, base: B, log: log, cancelCh: make(chan struct{}, 4)}
 	h.sends = append(h.sends, arr(sc.Get("sends"))...)
 	dk := &fakeDesktop{sc: sc, base: B, log: log, decisions: strs(sc.Get("decisions"))}
-	d := Deps{Root: t.TempDir(), Harness: h, Desktop: dk, Events: fakeEvents{log}}
+	edits := NewEditLog()
+	d := Deps{
+		Root: t.TempDir(), Harness: h, Desktop: dk, Events: fakeEvents{log}, Edits: edits,
+		RetryBackoff: func(int) time.Duration { return 0 },
+	}
 	if tp != nil {
 		d.Tasks = tp
 	}
@@ -137,7 +143,7 @@ func newTaskEnv(t *testing.T, sc *util.Obj, tp TaskPort) *taskEnv {
 	for _, x := range svc.Tools() {
 		defs[x.Name] = x
 	}
-	return &taskEnv{svc: svc, log: log, h: h, dir: B, defs: defs}
+	return &taskEnv{svc: svc, log: log, h: h, edits: edits, dir: B, defs: defs}
 }
 
 func (e *taskEnv) call(ctx context.Context, name string, raw *util.Obj, ec tools.ExecContext) *util.Obj {
@@ -245,6 +251,52 @@ func TestDelegateBackgroundBecomesTask(t *testing.T) {
 	r3 := newTaskEnv(t, util.NewObj("decisions", []any{"denied"}), ft3).call(nil, "delegate_to_cli", delegateRaw("background", true), tools.ExecContext{})
 	if errCode(r3) != "user_denied" || len(ft3.created) != 0 {
 		t.Fatal(util.Stringify(r3))
+	}
+}
+
+// 后台委派（持续任务）结束：失败 / 被停下且直接在工作目录里跑时，工具事件补进改动列表；
+// 但临时 worktree 失败拆毁时不虚报改动，正常完成时尊重 executor_cli 已核对出的 Artifacts（不把已还原/让路的文件塞回）。
+func TestDelegateTaskResultIncludesToolEdits(t *testing.T) {
+	ft := newFakeTasks()
+	e := newTaskEnv(t, util.NewObj(), ft)
+	id := util.Str(dataOf(e.call(nil, "delegate_to_cli", delegateRaw("background", true), tools.ExecContext{ConversationID: "c"})).Get("taskId"))
+	cwd := filepath.Join(e.dir, "repo")
+	tab := "tab_" + id
+	e.edits.Note(tab, []string{filepath.Join(cwd, "before.go")}, 50) // 这次执行之前
+	e.edits.Note(tab, []string{filepath.Join(cwd, "upstream_protocol.go")}, 150)
+	e.edits.Note(tab, []string{filepath.Join(cwd, "upstream_protocol_test.go")}, 160)
+	end := int64(200)
+	ft.advance(id, tasks.StatusFailed, &tasks.Attempt{StartedAt: 100, EndedAt: &end,
+		Carrier: &tasks.Carrier{TabID: &tab, Cwd: &cwd}}, &tasks.TaskError{Code: "executor_failed", Message: "boom"})
+	waitUntil(t, func() bool { return len(e.completed()) == 1 })
+	p := e.completed()[0]
+	if p.Get("status") != "error" || p.Get("tabId") != tab || p.Get("cwd") != cwd ||
+		util.Stringify(p.Get("changedFiles")) != `["upstream_protocol.go","upstream_protocol_test.go"]` {
+		t.Fatal(util.Stringify(p))
+	}
+
+	// 临时 worktree 里失败：worktree 会被 Release 拆掉，不把没落地的文件当成主工作区改动
+	id2 := util.Str(dataOf(e.call(nil, "delegate_to_cli", delegateRaw("background", true), tools.ExecContext{ConversationID: "c"})).Get("taskId"))
+	wt := filepath.Join(e.dir, ".nomi-wt")
+	tab2 := "tab_" + id2
+	e.edits.Note(tab2, []string{filepath.Join(wt, "ghost.go")}, 150)
+	ft.advance(id2, tasks.StatusFailed, &tasks.Attempt{StartedAt: 100, EndedAt: &end,
+		Carrier: &tasks.Carrier{TabID: &tab2, Cwd: &wt, SourceCwd: &cwd, Worktree: &wt}}, &tasks.TaskError{Code: "executor_failed", Message: "boom"})
+	waitUntil(t, func() bool { return len(e.completed()) == 2 })
+	if p2 := e.completed()[1]; p2.Get("changedFiles") != nil {
+		t.Fatalf("failed worktree should not report unlanded files: %s", util.Stringify(p2))
+	}
+
+	// 正常完成：以 executor_cli 核对后的 Artifacts 为准，不把工具改过但后来还原的文件重新塞进来
+	id3 := util.Str(dataOf(e.call(nil, "delegate_to_cli", delegateRaw("background", true), tools.ExecContext{ConversationID: "c"})).Get("taskId"))
+	tab3 := "tab_" + id3
+	e.edits.Note(tab3, []string{filepath.Join(cwd, "reverted.go")}, 150)
+	ft.advance(id3, tasks.StatusDone, &tasks.Attempt{StartedAt: 100, EndedAt: &end,
+		Carrier: &tasks.Carrier{TabID: &tab3, Cwd: &cwd, SourceCwd: &cwd},
+		Result:  &tasks.AttemptResult{Summary: "ok", Artifacts: []tasks.Artifact{{Kind: tasks.ArtifactFile, Ref: "kept.go"}}}}, nil)
+	waitUntil(t, func() bool { return len(e.completed()) == 3 })
+	if p3 := e.completed()[2]; util.Stringify(p3.Get("changedFiles")) != `["kept.go"]` || p3.Get("cwd") != cwd {
+		t.Fatalf("done task should keep verified artifacts only: %s", util.Stringify(p3))
 	}
 }
 

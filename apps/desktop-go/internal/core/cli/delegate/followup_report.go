@@ -16,23 +16,52 @@ func NomiTaskOf(tabs *util.Obj, tabID string) string {
 
 // ReportFollowUp：委派标签里「委派那一轮之后」又跑完了一轮（用户在子任务里接着对话、沙箱授权后的「请继续」…）：
 // 结果同样经 `delegate.completed`（带 followUp）回到来源对话。调用方只传用户自己发的 / 沙箱续跑的轮次（TabFinished.Origin），委派自己的轮次由 finalize 回报。
-func (s *Service) ReportFollowUp(taskID string, ok bool, text string, errMsg *string, durationMs float64) {
+//
+// 这一轮改过的文件（汇报里列的 + 这一轮改文件的工具事件）也带回去：原来只回报文字，
+// 来源对话（和那边的 Nomi）不知道子任务改了什么。失败 / 被停下的一轮已经改了的同样带上。
+func (s *Service) ReportFollowUp(taskID, tabID string, ok bool, text string, errMsg *string, durationMs float64) {
 	base := s.StatusOf(taskID)
 	if base == nil {
 		return
 	}
 	res := util.NewObj("taskId", taskID, "cli", base.Get("cli"), "status", "done", "followUp", true)
+	if tabID != "" {
+		res.Set("tabId", tabID)
+	}
 	if !ok {
 		res.Set("status", "error")
 		if errMsg != nil {
 			res.Set("error", *errMsg)
 		}
 	}
-	if report := ParseDelegateReport(text); report != nil {
-		res.Set("report", wrapReport(report, nil))
+	report := ParseDelegateReport(text)
+	var changed []string
+	if report != nil {
+		changed = strList(report.Get("changedFiles"))
+	}
+	cwd := ""
+	if tabID != "" {
+		if tab := s.findTab(tabID); tab != nil {
+			cwd = util.Str(tab.Get("cwd"))
+		}
+		// 这一轮从用户那条消息算起（多留 1 秒余量）；不知道用时就不认工具事件，免得把更早的轮次算进来
+		if durationMs > 0 {
+			now := s.d.Now()
+			changed = mergeFiles(changed, s.edits().Since(tabID, cwd, now-durationMs-1000, now))
+		}
+	}
+	changed = head(changed, 50)
+	if report != nil {
+		res.Set("report", wrapReport(report, changed))
 		res.Set("summary", "")
 	} else {
 		res.Set("summary", Untrusted(TailText(text, 3000)))
+	}
+	if len(changed) > 0 {
+		res.Set("changedFiles", toAnyList(changed))
+		if cwd != "" {
+			res.Set("cwd", cwd)
+		}
 	}
 	res.Set("filesVerified", false)
 	res.Set("approvals", s.approvalsOf(taskID).Clone())

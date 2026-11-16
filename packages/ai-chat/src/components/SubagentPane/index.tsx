@@ -39,9 +39,11 @@ import { tasksApi, type TaskTraceView } from '../../services/tasksClient';
 import { cliTranscriptKey } from '../../services/transcriptView';
 import { useSlashCommands } from '../../slash/useSlashCommands';
 import type { ConvLive, ConvMessage } from '../../types/conversation';
+import { nestedHostTabId } from '../../utils/agentIdentity';
 import { useCliImageSupport } from '../../utils/cliImageSupport';
 import { cliTabPlaceholder } from '../../utils/cliTabPlaceholder';
 import { fromHarnessMessage, tabLiveToConv } from '../../utils/convAdapters';
+import { resolveDelegateTarget } from '../../utils/delegateTarget';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { shouldIgnoreEscape } from '../../utils/keyboard';
 import type { LiveAgent } from '../../utils/liveState';
@@ -59,6 +61,7 @@ import type { SettingsSection } from '../SettingsView/sections';
 import { SideChatPane } from '../SideChat';
 import { UserQuestionDock } from '../UserQuestionCard/dock';
 
+import { PaneBrief, type PaneNotes, useInTabStrip } from './chrome';
 import {
   agentIdsOfCall,
   applyTaskLiveEvent,
@@ -146,14 +149,17 @@ const OutboxFailure: React.FC<{ error: string | null; retry: () => void }> = ({ 
     </div>
   ) : null;
 
-const PaneHead: React.FC<{
-  name: string;
-  state: 'running' | 'waiting' | 'idle';
-  goal?: string;
-  onClose: () => void;
-  onStop?: () => void;
-}> = ({ name, state, goal, onClose, onStop }) => {
+const PaneHead: React.FC<
+  PaneNotes & {
+    name: string;
+    state: 'running' | 'waiting' | 'idle';
+    onClose: () => void;
+    onStop?: () => void;
+  }
+> = ({ name, state, goal, hint, hintTestId, notice, onClose, onStop }) => {
   const tabbed = React.useContext(TabbedCtx);
+  // 标签区里：名字 / 状态在标签上、关闭在标签的 ×、停止在输入栏，说明收进输入框上方（PaneBrief）
+  if (useInTabStrip()) return null;
   return (
     <>
       <header className={styles.head}>
@@ -185,6 +191,16 @@ const PaneHead: React.FC<{
       {goal && (
         <p className={styles.goal} title={goal}>
           {goal}
+        </p>
+      )}
+      {hint && (
+        <p className={styles.hint} data-testid={hintTestId}>
+          {hint}
+        </p>
+      )}
+      {notice && (
+        <p className={styles.hint} data-testid="subagent-notice" role="status">
+          {notice}
         </p>
       )}
     </>
@@ -246,6 +262,13 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
   const paneState = waiting ? 'waiting' : running ? 'running' : 'idle';
   useReportMeta(slot.tabKey, name, paneState);
   usePaneEscape(slot.active && !slot.maximized, onClose);
+  const inStrip = useInTabStrip();
+  const notes: PaneNotes = {
+    goal: tab.delegation?.goal,
+    hint: running
+      ? t('ui.session-workspace.subagent-hint-running')
+      : t('ui.session-workspace.subagent-hint-idle'),
+  };
   return (
     <section
       className={styles.pane}
@@ -259,15 +282,10 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
       <PaneHead
         name={name}
         state={paneState}
-        goal={tab.delegation?.goal}
+        {...notes}
         onClose={onClose}
         onStop={() => void core.cancelRun(tab.id)}
       />
-      <p className={styles.hint}>
-        {running
-          ? t('ui.session-workspace.subagent-hint-running')
-          : t('ui.session-workspace.subagent-hint-idle')}
-      </p>
       <div className={styles.conv}>
         <CliConversation
           scopeId={tab.id}
@@ -282,7 +300,8 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
           backgroundCount={tab.background}
         />
       </div>
-      <footer className={styles.composer}>
+      <footer className={styles.composer} data-in-strip={inStrip || undefined}>
+        {inStrip && <PaneBrief {...notes} />}
         <UserQuestionDock tabId={tab.id} />
         <PendingDock
           items={pending}
@@ -369,15 +388,21 @@ const NestedChat: React.FC<{
   columnMessages: readonly ConvMessage[];
   onClose: () => void;
   slot: PaneSlot;
-}> = ({ callId, parentTabId, columnMessages, onClose, slot }) => {
+}> = ({ callId, parentTabId: sourceTabId, columnMessages, onClose, slot }) => {
   const core = useHarnessTabsCore();
   const actions = usePaneActions();
   const tabs = useHarnessTabs();
+  // 替这个子代理收话的标签：来源标签；父转录是 Nomi 对话时，主标签接在编程助手上（那一轮其实是它跑的）就是主标签。
+  // 主标签是 Nomi 时没有（Nomi 自己没有进程内子代理，Nomi 派出去的委派在 PaneBody 里已经换成了它的标签）
+  const parentTabId = nestedHostTabId(sourceTabId, tabs.state?.tabs, callId, columnMessages);
   const parent = parentTabId ? tabs.state?.tabs.find((t) => t.id === parentTabId) : undefined;
-  const raw = useHarnessTabMessages(parentTabId);
+  const raw = useHarnessTabMessages(sourceTabId);
   const parentMessages = useMemo(
-    () => (parent ? raw.map((m) => fromHarnessMessage(m, parent.backend)) : columnMessages),
-    [parent, raw, columnMessages],
+    () =>
+      sourceTabId && parent
+        ? raw.map((m) => fromHarnessMessage(m, parent.backend))
+        : columnMessages,
+    [sourceTabId, parent, raw, columnMessages],
   );
   const live = useHarnessLive((map) => (parentTabId ? map[parentTabId] : undefined));
   const detached = useHarnessDetached((map) => (parentTabId ? map[parentTabId] : undefined));
@@ -534,6 +559,17 @@ const NestedChat: React.FC<{
   };
   useReportMeta(slot.tabKey, name, running ? 'running' : 'idle');
   usePaneEscape(slot.active && !slot.maximized, onClose);
+  const inStrip = useInTabStrip();
+  const notes: PaneNotes = {
+    goal: agent?.progress,
+    hint: !parentTabId
+      ? t('ui.session-workspace.subagent-nested-readonly')
+      : relay
+        ? t('ui.session-workspace.subagent-nested-hint')
+        : t('ui.session-workspace.subagent-direct-hint'),
+    hintTestId: 'subagent-hint',
+    notice,
+  };
   return (
     <section
       className={styles.pane}
@@ -547,22 +583,10 @@ const NestedChat: React.FC<{
       <PaneHead
         name={name}
         state={waiting ? 'waiting' : running ? 'running' : 'idle'}
-        goal={agent?.progress}
+        {...notes}
         onClose={onClose}
         onStop={parentTabId && (agent || open || forkRunning) ? stop : undefined}
       />
-      <p className={styles.hint} data-testid="subagent-hint">
-        {!parentTabId
-          ? t('ui.session-workspace.subagent-nested-readonly')
-          : relay
-            ? t('ui.session-workspace.subagent-nested-hint')
-            : t('ui.session-workspace.subagent-direct-hint')}
-      </p>
-      {notice && (
-        <p className={styles.hint} data-testid="subagent-notice" role="status">
-          {notice}
-        </p>
-      )}
       <div className={styles.conv}>
         <ConversationView
           scopeId={`nested:${callId}`}
@@ -578,7 +602,8 @@ const NestedChat: React.FC<{
         />
       </div>
       {parentTabId && parent ? (
-        <footer className={styles.composer}>
+        <footer className={styles.composer} data-in-strip={inStrip || undefined}>
+          {inStrip && <PaneBrief {...notes} />}
           {forkTab && <UserQuestionDock tabId={forkTab.id} />}
           <OutboxFailure error={outbox.error} retry={outbox.retry} />
           <PendingDock
@@ -616,6 +641,11 @@ const NestedChat: React.FC<{
             delegate={false}
             {...panelButtons(actions, true)}
           />
+        </footer>
+      ) : inStrip ? (
+        // 只读（来源是 Nomi 会话）：没有输入栏，说明仍放在底部
+        <footer className={styles.composer} data-in-strip="">
+          <PaneBrief {...notes} />
         </footer>
       ) : null}
     </section>
@@ -716,6 +746,13 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSl
   const name = title || t('ui.usage-tools.subagent');
   const paneState = status === 'waiting_user' ? 'waiting' : running ? 'running' : 'idle';
   useReportMeta(slot.tabKey, name, paneState);
+  const inStrip = useInTabStrip();
+  const notes: PaneNotes = {
+    goal,
+    hint: running
+      ? t('ui.session-workspace.subagent-nomi-hint-running')
+      : t('ui.session-workspace.subagent-nomi-hint'),
+  };
   return (
     <section
       className={styles.pane}
@@ -729,15 +766,10 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSl
       <PaneHead
         name={name}
         state={paneState}
-        goal={goal}
+        {...notes}
         onClose={onClose}
         onStop={running ? stop : undefined}
       />
-      <p className={styles.hint}>
-        {running
-          ? t('ui.session-workspace.subagent-nomi-hint-running')
-          : t('ui.session-workspace.subagent-nomi-hint')}
-      </p>
       <div className={styles.conv}>
         <ConversationView
           scopeId={`nomi-task:${taskId}`}
@@ -746,7 +778,8 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSl
           phase={running ? 'running' : 'idle'}
         />
       </div>
-      <footer className={styles.composer}>
+      <footer className={styles.composer} data-in-strip={inStrip || undefined}>
+        {inStrip && <PaneBrief {...notes} />}
         <OutboxFailure error={outbox.error} retry={outbox.retry} />
         <PendingDock
           items={pending}
@@ -813,6 +846,12 @@ const PaneBody: React.FC<{
     return <HarnessChat key={tab.id} tab={tab} onClose={onClose} slot={slot} />;
   }
   if (target.kind === 'nested') {
+    // 按「进程内子代理」打开的其实是 Nomi 的一次委派：就是它的编程助手标签，和委派卡片里打开的同一个会话
+    const resolved = resolveDelegateTarget(target, tabs.state?.tabs, columnMessages);
+    if (resolved.kind === 'harness') {
+      const tab = tabs.state?.tabs.find((item) => item.id === resolved.tabId);
+      if (tab) return <HarnessChat key={tab.id} tab={tab} onClose={onClose} slot={slot} />;
+    }
     return (
       <NestedChat
         key={target.callId}
@@ -865,9 +904,12 @@ export const SubagentPane: React.FC<{
 };
 
 /** 对话旁的查看区、子任务侧栏、会话详情各自的状态（互不影响） */
-export const WorkspacePanesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+export const WorkspacePanesProvider: React.FC<{
+  scope?: string | null;
+  children: React.ReactNode;
+}> = ({ scope, children }) => (
   <ChangesUiProvider>
-    <SubagentPaneProvider>
+    <SubagentPaneProvider scope={scope}>
       <SubagentOutboxProvider>
         <SessionDetailsProvider>{children}</SessionDetailsProvider>
       </SubagentOutboxProvider>

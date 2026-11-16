@@ -24,8 +24,11 @@ func AsksUser(code string) bool { return errorAsks[code] }
 // IsRetryable：未知错误码按不可重试处理
 func IsRetryable(code string) bool { return errorRetryable[code] }
 
-// DefaultMaxRetries：瞬时错误最多重试次数（Budget.MaxRetries 默认值）
-const DefaultMaxRetries = 3
+// DefaultMaxRetries：瞬时与执行中断错误默认最多重试次数（至少尝试 5 次重试）
+const DefaultMaxRetries = 5
+
+// DelegatedMaxRetries：委派任务出错时的自动重试次数（至少尝试 5 次重试）
+const DelegatedMaxRetries = 5
 
 // AutoPauseAfterFailures：重复任务连续失败多少次自动暂停
 const AutoPauseAfterFailures = 3

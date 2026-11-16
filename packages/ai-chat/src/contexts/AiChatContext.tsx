@@ -15,6 +15,7 @@ import React, {
 
 import { startupBrandIntro } from '../components/BrandIntro/state';
 import { notifyConversationsChanged } from '../services/conversationStore';
+import { collectDelegateChanges, reportedFiles } from '../services/delegateChanges';
 import { delegateClient, type DelegateResult } from '../services/delegateClient';
 import { delegateResultMessage } from '../services/delegateMessage';
 import { desktopClient } from '../services/desktopClient';
@@ -81,8 +82,11 @@ export interface AiChatActions {
   askKnowledge: (content: string, override?: { history: ChatMessage[] }) => Promise<void>;
   loadChatHistory: () => Promise<void>;
   clearChatHistory: () => Promise<void>;
-  /** projectId：新 Nomi 对话的项目；缺省沿用当前 Nomi 对话的 */
-  newConversation: (opts?: { projectId?: string | null }) => Promise<void>;
+  /** projectId：新 Nomi 对话的项目；缺省沿用当前 Nomi 对话的；notReuse：额外禁止复用的空对话 id */
+  newConversation: (opts?: {
+    projectId?: string | null;
+    notReuse?: readonly string[];
+  }) => Promise<void>;
   loadConfig: () => Promise<void>;
   updateConfig: (config: Partial<ChatConfig>) => Promise<void>;
 }
@@ -104,6 +108,10 @@ export {
   type AiChatState,
 } from './aiChatState';
 export { openTurn, type ConversationTurn } from './chatTurn';
+
+// 给模型看的后台委派异常兜底说明（同 services/history.ts 的 CLI_OUTPUT_NOTE，不随界面语言变化）
+const DELEGATE_RECOVERY_PROMPT =
+  'The background coding-assistant delegation failed even after automatic kernel retries (see <cli-output> above for the error and any files already modified). Inspect the error and current workspace state: if another healthy coding assistant is available you may re-delegate, or finish the remaining work directly with your own file/command tools; if user action is required (such as login or quota), explain briefly in the user’s language.';
 
 export function AiChatContextProvider({ children, client }: AiChatContextProviderProps) {
   const [state, dispatch] = useReducer(aiChatReducer, client, buildInitialState);
@@ -181,11 +189,53 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     [ipcClient],
   );
 
-  // 异步委派完成 → 写进当前对话（卡片也订阅同一广播更新汇报；Nomi 下一轮能读到）
-  useEffect(
-    () =>
-      delegateClient.onCompleted((r: DelegateResult) => {
-        const m = delegateResultMessage(r);
+  // 异步委派完成 → 写进当前对话；运行中经 steer 实时告知主模型，空闲且后台委派最终出错时受控唤醒 Nomi 接手兜底
+  const autoRecoverRef = useRef(new Map<string, { userId: string; count: number }>());
+  const sendStreamRef = useRef<
+    | ((
+        content: string,
+        images?: ImageAttachment[],
+        override?: { history: ChatMessage[]; backgroundFollowUp?: boolean },
+      ) => Promise<void>)
+    | null
+  >(null);
+  useEffect(() => {
+    let alive = true;
+    const off = delegateClient.onCompleted((r: DelegateResult) => {
+      const completedAt = Date.now();
+      const notifyMain = (m: ChatMessage) => {
+        if (!r.background || r.followUp) return;
+        const currentId = ipcClient.currentConversationId?.();
+        const targetId = r.conversationId ?? currentId;
+        const key = convoKey(targetId);
+        // 1. 主模型正在流式执行中（例如同一轮还在跑其他工具）：经 steer 把后台委派终态注入当前轮，免得主模型盲等
+        const running = activeStream.current.get(key);
+        if (running?.steer && !running.controller.signal.aborted) {
+          void running.steer(`<cli-output>\n${m.content}\n</cli-output>`);
+          return;
+        }
+        // 2. 主会话当前空闲且后台委派经内核 5 次自动重试仍失败：受控唤醒 Nomi 接棒（改派健康 CLI 或自力完成，每轮用户提问最多 2 次）
+        if (r.status !== 'error') return;
+        if (
+          (r.conversationId && r.conversationId !== currentId) ||
+          busyIn(stateRef.current, targetId)
+        )
+          return;
+        const msgs = stateRef.current.messages;
+        const lastUser = [...msgs].reverse().find((x) => x.role === 'user');
+        if (!lastUser) return;
+        const rec = autoRecoverRef.current.get(key);
+        const used = rec?.userId === lastUser.id ? rec.count : 0;
+        if (used >= 2) return;
+        autoRecoverRef.current.set(key, { userId: lastUser.id, count: used + 1 });
+        const nextHistory = [...msgs, m];
+        void sendStreamRef.current?.(DELEGATE_RECOVERY_PROMPT, undefined, {
+          history: nextHistory,
+          backgroundFollowUp: true,
+        });
+      };
+      const write = (m: ChatMessage) => {
+        if (!alive) return;
         const targetId = r.conversationId;
         if (targetId && ipcClient.saveMessageTo) {
           // 只在目标会话仍是当前展示时更新 UI，避免污染另一会话（#116）
@@ -197,9 +247,26 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           dispatch({ type: 'ADD_MESSAGE', payload: m });
           void ipcClient.saveMessage(m);
         }
-      }),
-    [ipcClient],
-  );
+        notifyMain(m);
+      };
+      // 没有改动文件：直接写；有改动：先从子任务会话里补上每个文件的 +/− 与 Diff（读不到就只带文件列表）
+      if (!reportedFiles(r).length) {
+        write(delegateResultMessage(r, completedAt));
+        return;
+      }
+      void collectDelegateChanges(r, {
+        tabs: () => harnessClient.tabs(),
+        tabMessages: (id) => harnessClient.tabMessages(id),
+        now: () => completedAt,
+      })
+        .catch(() => null)
+        .then((changes) => write(delegateResultMessage(r, completedAt, changes)));
+    });
+    return () => {
+      alive = false;
+      off();
+    };
+  }, [ipcClient]);
 
   // 主标签接在编程助手上时，CLI 自发的一轮（后台子代理完成后的跟进）由主进程广播，这里落进当前会话
   useEffect(
@@ -256,6 +323,9 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     maybeIngest,
     notifyToolStart,
   });
+  useLayoutEffect(() => {
+    sendStreamRef.current = sendStreamMessage;
+  }, [sendStreamMessage]);
 
   const resendFrom = useCallback(
     async (userMessageId: string, newText?: string) => {
@@ -362,7 +432,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
 
   // 新建会话（旧会话保留在本地存储中；进行中的流继续写回旧会话）
   const newConversation = useCallback(
-    async (opts?: { projectId?: string | null }) => {
+    async (opts?: { projectId?: string | null; notReuse?: readonly string[] }) => {
       historySeq.current++;
       stopReplySpeech();
       dispatch({ type: 'SET_ERROR', payload: undefined });
@@ -373,6 +443,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         const { messages, isLoading, busyConvos, ipcClient } = stateRef.current;
         const current = ipcClient.currentConversationId?.();
         const notReuse = [
+          ...(opts?.notReuse ?? []),
           ...(busyConvos ?? []),
           ...inflight.current.keys(),
           ...activeStream.current.keys(),

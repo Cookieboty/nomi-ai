@@ -194,6 +194,7 @@ export const AppTitleBar: React.FC<{
         </div>
       )}
       <div ref={railRef} className="app-titlebar-rail-toggle">
+        <TitlebarSlot name="workspace-actions" className="app-titlebar-slot" />
         <TitlebarSlot name="rail-toggle" className="app-titlebar-slot" />
       </div>
       {isGoHost() && <WindowControls />}

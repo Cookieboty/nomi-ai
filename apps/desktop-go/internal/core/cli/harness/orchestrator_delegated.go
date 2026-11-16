@@ -101,7 +101,7 @@ func (o *Orchestrator) RebindDelegation(id string, del *util.Obj) bool {
 	}
 	tab := o.tab(id)
 	d, _ := tab.Get("delegation").(*util.Obj)
-	if d == nil || d.Get("by") != "nomi" || truthy(d.Get("takenOver")) || tab.Get("status") != "idle" {
+	if d == nil || d.Get("by") != "nomi" || truthy(d.Get("takenOver")) || truthy(d.Get("lastError")) || tab.Get("status") != "idle" {
 		return false
 	}
 	if expect, ok := del.Lookup("expectTaskId"); ok && jsStr(expect) != jsStr(d.Get("taskId")) {
@@ -129,7 +129,32 @@ func (o *Orchestrator) RebindDelegation(id string, del *util.Obj) bool {
 	if pm, ok := del.Get("permissionMode").(string); ok && pm != "" && pm != str(tab, "permissionMode") {
 		o.tryWarn("harness rebind permission mode failed", func() { o.SetTabPermissionMode(id, pm, PermOpts{}) })
 	}
+	d.Delete("lastError")
 	o.delegatedUnsent[id] = true
+	o.changed()
+	return true
+}
+
+// RecoverDelegatedTab：委派标签出错后的进程与会话恢复：
+//   - dropSession=false：拆掉常驻进程（立即释放几百 MB 内存与卡死的管道/MCP），保留 cliSessionId 标为休眠，下次发消息起新进程续接；
+//   - dropSession=true：连续重试仍崩溃时，清掉可能已损坏/超限的 cliSessionId，把已有对话摘要结转到全新会话。
+func (o *Orchestrator) RecoverDelegatedTab(id string, dropSession bool) bool {
+	if !o.tabs.Has(id) {
+		return false
+	}
+	tab := o.tab(id)
+	if tab == nil || o.tabBusy(id) {
+		return false
+	}
+	o.teardownClaudeLive(id)
+	if dropSession {
+		if truthy(tab.Get("cliSessionId")) {
+			tab.Set("cliSessionId", nil)
+			o.setCarried(tab, o.TabMessages(id), str(tab, "cwd"))
+		}
+	} else if truthy(tab.Get("cliSessionId")) {
+		o.dormant[id] = true
+	}
 	o.changed()
 	return true
 }

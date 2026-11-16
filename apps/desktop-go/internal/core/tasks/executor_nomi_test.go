@@ -185,11 +185,113 @@ func TestNomiExecutorLargeUsageKeepsRunning(t *testing.T) {
 }
 
 func TestClassifyError(t *testing.T) {
-	for msg, code := range map[string]string{"HTTP 429": "upstream_transient", "upstream 503": "upstream_transient",
-		"read: connection reset by peer": "network", "invalid api key": "executor_failed"} {
+	for msg, code := range map[string]string{
+		"HTTP 429":                                      "upstream_transient",
+		"upstream 503":                                  "upstream_transient",
+		"error_during_execution: 529 Overloaded":        "upstream_transient",
+		"ACP 请求超时":                                    "upstream_transient",
+		"read: connection reset by peer":                "network",
+		"stream disconnected before completion":         "network",
+		"RPC connection closed":                         "network",
+		"error_during_execution":                        "executor_crashed",
+		"error_max_turns":                               "executor_crashed",
+		"The codex process exited":                      "executor_crashed",
+		"dsh 退出码 1":                                     "executor_crashed",
+		"grok exited with code 1":                       "executor_crashed",
+		"无法启动 Kimi Code 的 ACP 会话：进程已退出":                 "executor_crashed",
+		"couldn't start an ACP session":                 "executor_crashed",
+		"empty_result":                                  "executor_crashed",
+		"invalid api key":                               "executor_failed",
+		"error_during_execution: 401 Unauthorized":      "executor_failed",
+		"Authentication required":                       "executor_failed",
+		"Kimi Code 需要登录":                                "executor_failed",
+		"insufficient_quota: credit balance is too low": "executor_failed",
+	} {
 		if got := ClassifyError(msg).Code; got != code {
-			t.Fatalf("%s: %s", msg, got)
+			t.Fatalf("%s: got %s, want %s", msg, got, code)
 		}
+	}
+}
+
+func TestNomiExecutorRetriesCarryProgressAndRecoverEmptyResult(t *testing.T) {
+	var tmu sync.Mutex
+	var sysSeen []string
+	calls := 0
+	exec := NewNomiExecutor(NomiDeps{
+		AgentStream: func(_ context.Context, msgs []blm.ChatMessage, _ []string, _ map[string]any, emit func(blm.ChatChunk)) error {
+			tmu.Lock()
+			n := calls
+			calls++
+			sysSeen = append(sysSeen, msgs[0].Content)
+			tmu.Unlock()
+			switch n {
+			case 0:
+				id := "tc_1"
+				emit(blm.ChatChunk{Type: "tool_call.delta", ID: &id, Name: sp("fs_read_text"), ArgumentsJSON: sp(`{"path":"a.go"}`)})
+				emit(blm.ChatChunk{Type: "tool_call.result", ID: &id, Name: sp("fs_read_text"), Output: sp("package a")})
+				emit(blm.ChatChunk{Type: "delta", Content: "已完成模块 A 分析"})
+				return fmt.Errorf("read: connection reset by peer")
+			case 1:
+				// 异常空流（empty_result）也应作为可重试崩溃继续恢复
+				return nil
+			default:
+				emit(blm.ChatChunk{Type: "delta", Content: "全部模块分析与修复完成"})
+				return nil
+			}
+		},
+		Ready: func() bool { return true },
+	})
+	seq := 0
+	now := int64(1_800_000_000_000)
+	var nextTimer func()
+	rt := NewRuntime(RuntimeDeps{
+		Store:     newMemStoreSafe(),
+		Executors: map[string]Executor{"nomi": exec},
+		Now:       func() int64 { tmu.Lock(); defer tmu.Unlock(); return now },
+		SetTimer: func(fn func(), ms int64) func() {
+			tmu.Lock()
+			delay := ms
+			nextTimer = func() {
+				tmu.Lock()
+				now += delay + 1
+				tmu.Unlock()
+				fn()
+			}
+			tmu.Unlock()
+			return func() {}
+		},
+		NewID: func(p string) string { seq++; return fmt.Sprintf("%s_%d", p, seq) },
+		Log:   &nopLog{},
+	})
+	rt.Start()
+	defer rt.Stop()
+	tools := []string{"read"}
+	id := rt.Create(CreateInput{
+		Title: "长程分析", Goal: "分析全项目", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools}, Grant: Grant{Level: 1},
+	}).ID
+	if got := rt.Get(id).Task.Budget.MaxRetries; got != 5 {
+		t.Fatalf("expected DefaultMaxRetries=5, got %d", got)
+	}
+	rt.Command(id, Command{Type: "runNow"})
+	for round := 1; round <= 2; round++ {
+		waitFor(t, func() bool {
+			tk := rt.Get(id).Task
+			return tk.Status == StatusQueued && tk.RetryCount == round
+		})
+		tmu.Lock()
+		fn := nextTimer
+		tmu.Unlock()
+		fn()
+	}
+	waitFor(t, func() bool { return rt.Get(id).Task.Status == StatusDone })
+	tmu.Lock()
+	defer tmu.Unlock()
+	if len(sysSeen) != 3 {
+		t.Fatalf("expected 3 attempts, got %d", len(sysSeen))
+	}
+	if !strings.Contains(sysSeen[1], "fs_read_text") || !strings.Contains(sysSeen[1], "已完成模块 A 分析") {
+		t.Fatalf("retry prompt did not carry previous attempt progress:\n%s", sysSeen[1])
 	}
 }
 

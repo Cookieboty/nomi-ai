@@ -83,7 +83,8 @@ export const SessionDetailsProvider: React.FC<{ children: React.ReactNode }> = (
     setPrevKey(layoutKey);
     if (override) setOverride(false);
   }
-  const visible = pref && (!crowded || override);
+  const paneMaximized = !!pane?.paneVisible && !!pane?.tabs.maximized;
+  const visible = !paneMaximized && pref && (!crowded || override);
 
   const setPref = useCallback((v: boolean) => {
     setPrefState(v);

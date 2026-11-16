@@ -1,7 +1,7 @@
 import type { ClientAIClient } from '@nomi-ai/ai-sdk-client';
 import * as AISdkReact from '@nomi-ai/ai-sdk-client/react';
-import { t } from '@nomi-ai/ui';
-import React, { useCallback, useEffect, useMemo } from 'react';
+import { t, usePresence } from '@nomi-ai/ui';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { AppOverlays, useToast } from './app/AppOverlays';
 import { ChatBody } from './app/ChatBody';
@@ -72,11 +72,13 @@ import { useMainPages } from './hooks/useMainPages';
 import { useResourcePreview } from './hooks/useResourcePreview';
 import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSessionComposerDrafts } from './hooks/useSessionComposerDrafts';
+import { useWorkspaceLayoutMotion } from './hooks/useTabMotion';
 import { useMigrateCliTranscriptView } from './hooks/useTranscriptView';
 import { useWindowEvent } from './hooks/useWindowEvent';
 import { toHarnessImages } from './services/chatImages';
 import { watchCliPresence } from './services/cliPresence';
 import { smartTitleOnFirstSend } from './services/cliSmartTitle';
+import { CONVERSATIONS_CHANGED_EVENT } from './services/conversationStore';
 import { watchNomiModel } from './services/nomiModel';
 import type { ImageAttachment } from './services/screenClient';
 import { cliTranscriptKey } from './services/transcriptView';
@@ -92,13 +94,50 @@ import './components/TitleBar/panels.css';
 const selectSettledNomi = (s: AiChatState) => settledNomiMessages(s.messages, selectBusyHere(s));
 
 /**
+ * 实时计算当前主列会话的唯一标识：
+ * - CLI 标签激活时使用 cliTranscriptKey（新标签为 tab:<id>，拿到会话 id 后升级为 cli:<backend>:<id>）；
+ * - Nomi 会话监听 CONVERSATIONS_CHANGED_EVENT 与 viewConvoId，切换或新建会话的第 0ms 立即同步，
+ *   且过滤掉 CLI 镜像项 id，绝不把镜像项误认成 Nomi 会话。
+ */
+function useActiveSessionInfo() {
+  const ipcClient = useAiChatSelector(selectIpcClient);
+  const viewConvoId = useAiChatSelector(selectViewConvoId);
+  const tabs = useHarnessTabsCore();
+  const { isDev } = useChatMode();
+  const [storeVersion, setStoreVersion] = useState(0);
+  useEffect(() => {
+    const onChanged = () => setStoreVersion((v) => v + 1);
+    window.addEventListener(CONVERSATIONS_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(CONVERSATIONS_CHANGED_EVENT, onChanged);
+  }, []);
+  const nomiSessionId = useMemo(() => {
+    void storeVersion;
+    const store = ipcClient?.conversationStore?.();
+    if (store) {
+      const cur = store.currentId();
+      if (cur && store.isNomi(cur)) return cur;
+      if (viewConvoId && store.isNomi(viewConvoId)) return viewConvoId;
+      return store.lastNomiId() ?? viewConvoId;
+    }
+    return viewConvoId ?? ipcClient?.currentConversationId?.();
+  }, [ipcClient, viewConvoId, storeVersion]);
+  const activeCliTab = isDev && tabs.isCliTab ? tabs.activeTab : null;
+  const sessionKey = activeCliTab
+    ? cliTranscriptKey(activeCliTab)
+    : nomiSessionId
+      ? `nomi:${nomiSessionId}`
+      : null;
+  return { sessionKey, nomiSessionId, activeCliTab };
+}
+
+/**
  * 对话窗口的组装：侧栏 | 对话卡片（对话列、中栏、会话详情、整页、右栏）+ 覆盖层。
  * 各部分的状态在 app/ 下的 hook 里；这里只订阅需要的切片：流式输出的一帧只改最后一轮，
  * 由 NomiConversation（app/ChatBody）自己订阅，App 与其余部分不跟着重渲染。
  */
 const AiChatContent: React.FC = () => {
   const split = useSplitWidths();
-  const { composerFill, workbench } = useChangesUi();
+  const { composerFill, workbench, closeWorkbench, closeDetail } = useChangesUi();
   const { actions } = useAiChatActions();
   const isLoading = useAiChatSelector(selectIsLoading);
   const busyHere = useAiChatSelector(selectBusyHere);
@@ -109,18 +148,11 @@ const AiChatContent: React.FC = () => {
   const tabs = useHarnessTabsCore();
   const { isDev } = useChatMode();
   const harness = useHarnessState();
-  // 当前会话的键：CLI 标签用 tab:<id>，Nomi 对话用 nomi:<conversationId>；
-  // Transcript view 按这个键分开保存，切换会话互不影响。
-  const viewConvoId = useAiChatSelector(selectViewConvoId);
-  const nomiSessionId = viewConvoId ?? ipcClient?.currentConversationId?.();
-  const sessionKey =
-    isDev && tabs.isCliTab && tabs.activeTab
-      ? cliTranscriptKey(tabs.activeTab)
-      : nomiSessionId
-        ? `nomi:${nomiSessionId}`
-        : null;
+  // 当前会话的键：CLI 标签与 Nomi 对话统一使用实时响应的 sessionKey，
+  // Transcript view、工作区 Tabs 与文件预览全部按这个键分开保存，切换会话互不影响。
+  const { sessionKey, nomiSessionId, activeCliTab } = useActiveSessionInfo();
   // 编程助手标签拿到会话 id 后，把按标签存的 Transcript view 覆盖搬到会话键（关标签、从历史重开也在）
-  useMigrateCliTranscriptView(isDev && tabs.isCliTab ? tabs.activeTab : null);
+  useMigrateCliTranscriptView(activeCliTab);
   // ───── 统一会话视图的数据：Nomi 主对话与编程助手标签走同一个 ConversationView ─────
   const nomiMessages = useMemo(() => nomiConvMessages(settledNomi), [settledNomi]);
   const cliBackend = tabs.activeTab?.backend ?? 'claude';
@@ -130,32 +162,46 @@ const AiChatContent: React.FC = () => {
   );
   const { liveContext, cliContextMessages } = useCliContext(tabs, cliConvMessages);
   const rail = useRail({ tabs, isDev, harness, busyHere, cliConvMessages, nomiMessages });
-  // 对话旁的标签区（子任务 + 文件）：按主列的会话各记一份
+  // 对话旁的标签区（子任务 + 文件）：外层 ScopedWorkspacePanes 已按 sessionKey 同帧同步注入 scope
   const pane = useSubagentPane();
-  const setPaneScope = pane?.setScope;
-  useEffect(() => {
-    setPaneScope?.(sessionKey);
-  }, [setPaneScope, sessionKey]);
   // 侧边聊天带上当前会话所属的项目（只读）
   const setPaneProject = pane?.setProjectId;
   useEffect(() => {
     setPaneProject?.(rail.projectId ?? null);
   }, [setPaneProject, rail.projectId]);
   const openChangesTab = pane?.openChanges;
+  const prevSessionKeyRef = useRef(sessionKey);
+  const prevWorkbenchRef = useRef(workbench);
   useEffect(() => {
-    if (workbench) openChangesTab?.();
-  }, [workbench, openChangesTab]);
+    const sessionChanged = prevSessionKeyRef.current !== sessionKey;
+    prevSessionKeyRef.current = sessionKey;
+    const workbenchChanged = prevWorkbenchRef.current !== workbench;
+    prevWorkbenchRef.current = workbench;
+    if (sessionChanged) {
+      closeWorkbench();
+      closeDetail();
+      return;
+    }
+    if (workbenchChanged && workbench) {
+      openChangesTab?.();
+    }
+  }, [sessionKey, workbench, openChangesTab, closeWorkbench, closeDetail]);
   const activatePane = pane?.activate;
+  const fallbackCwds = useMemo(() => {
+    const rest = (rail.roots ?? []).filter((r) => r && r !== rail.cwd);
+    return rest.length > 0 ? rest : undefined;
+  }, [rail.roots, rail.cwd]);
   const resourcePreview = useResourcePreview(
     {
-      id: isDev && tabs.isCliTab ? `cli:${tabs.activeTabId}` : `nomi:${nomiSessionId ?? ''}`,
+      id: sessionKey ?? '',
       cwd: rail.cwd,
       source: isDev && tabs.isCliTab ? tabs.activeTab?.backend : 'nomi',
+      fallbackCwds,
     },
-    // 开了 / 切到一个文件：标签区切到文件
+    // 开了 / 切到一个文件：标签区切到文件；按会话分桶存储预览列表
     {
+      scoped: true,
       onShow: (kind) => {
-        pane?.showPane();
         if (kind === 'diff') {
           pane?.openChanges?.();
           activatePane?.(CHANGES_SIDE_TAB);
@@ -166,10 +212,21 @@ const AiChatContent: React.FC = () => {
       },
     },
   );
+  // 编程助手新标签拿到 cliSessionId 后，绘制前把已打开的工作区 Tabs 与文件预览平滑迁移到稳定会话键
+  const migratePaneScope = pane?.migrateScope;
+  const migratePreviewScope = resourcePreview.migrateScope;
+  const cliTabId = activeCliTab?.id;
+  useLayoutEffect(() => {
+    if (!cliTabId || !sessionKey || sessionKey === `tab:${cliTabId}`) return;
+    const fromKey = `tab:${cliTabId}`;
+    migratePaneScope?.(fromKey, sessionKey);
+    migratePreviewScope(fromKey, sessionKey);
+  }, [cliTabId, sessionKey, migratePaneScope, migratePreviewScope]);
   const side = useSideWorkspace({
     entries: resourcePreview.entries,
     activeKey: resourcePreview.activeKey,
     render: resourcePreview.renderEmbedded,
+    closeEntries: resourcePreview.closeEntries,
     railSplit: split.filesRail,
   });
   useSideWorkspaceKeys(side);
@@ -281,12 +338,14 @@ const AiChatContent: React.FC = () => {
   useIslandOpenItem(mainPages.openTask, leavePage, (id) => {
     void ipcClient?.switchConversation(id);
   });
+  const hasOpenWorkspaceInCurrent = side.mounted || resourcePreview.entries.length > 0;
   const handleNewChat = useCallback(
     (opts?: { projectId?: string | null }) => {
       leaveSettingsPage();
-      return actions.newConversation(opts);
+      const notReuse = hasOpenWorkspaceInCurrent && nomiSessionId ? [nomiSessionId] : undefined;
+      return actions.newConversation({ ...opts, ...(notReuse ? { notReuse } : {}) });
     },
-    [actions, leaveSettingsPage],
+    [actions, leaveSettingsPage, hasOpenWorkspaceInCurrent, nomiSessionId],
   );
 
   // ───── stable props for the memoized composer ─────
@@ -343,18 +402,30 @@ const AiChatContent: React.FC = () => {
     }
     pane?.togglePane();
   }, [pane, restoreSide, sideMaximized]);
-  const sessionTools = (
-    <SessionTools
-      messages={rail.messages}
-      rail={pane ? { open: side.open, onToggle: toggleSidePane } : null}
-    />
-  );
   // 对话旁那一栏：子任务 / 文件标签，或右栏的未提交文件预览（挂载点）
   const centerOpen = side.open;
+  const centerP = usePresence(centerOpen, 205);
+  const centerRendered = !!centerP.value;
   const sideMax = centerOpen && side.maximized;
   // 铺满时向右拆分：左主会话、右当前标签，中间分割线
   const sideSplit = sideMax && side.split;
   const mainShown = !sideMax || sideSplit || side.active === MAIN_SIDE_TAB;
+  const sessionTools = (
+    <SessionTools
+      messages={rail.messages}
+      rail={pane ? { open: side.open, onToggle: toggleSidePane } : null}
+      hideDetails={sideMax}
+    />
+  );
+  const mainContentRef = useRef<HTMLDivElement>(null);
+  useWorkspaceLayoutMotion({
+    mainRef: mainContentRef,
+    maximized: sideMax,
+    split: sideSplit,
+    open: centerOpen,
+    closing: centerP.closing,
+    chatWidth: split.chatColumn.width,
+  });
   return (
     <SelectionActionsContext.Provider value={selectionActions}>
       <ResourceScopeProvider value={resourcePreview.value}>
@@ -406,7 +477,8 @@ const AiChatContent: React.FC = () => {
             <div className={panels.settings ? 'chat-keepalive-hidden' : 'chat-keepalive'}>
               {/* 主内容：无查看区时对话全宽；有本会话 Diff 或右栏文件预览时 chat-column | 中栏 横排全高 */}
               <div
-                className={`main-content${centerOpen ? ' main-content--with-changes' : ''}${sideMax ? ' main-content--side-max' : ''}${sideSplit ? ' main-content--side-split' : ''}`}
+                ref={mainContentRef}
+                className={`main-content${centerRendered ? ' main-content--with-changes' : ''}${sideMax ? ' main-content--side-max' : ''}${sideSplit ? ' main-content--side-split' : ''}`}
                 data-with-changes={centerOpen ? 'true' : undefined}
                 data-side-max={sideMax ? 'true' : undefined}
                 data-side-main={sideMax && !sideSplit && mainShown ? 'true' : undefined}
@@ -418,7 +490,13 @@ const AiChatContent: React.FC = () => {
                 hidden={mainHidden}
               >
                 {/* 铺满时标签栏在整个对话区顶上，主会话是第一个标签（不能关） */}
-                {sideMax && <SideTabStrip model={side} columnMessages={rail.messages} />}
+                {sideMax && (
+                  <SideTabStrip
+                    model={side}
+                    columnMessages={rail.messages}
+                    actionsInTitlebar={!panels.settings && !mainHidden}
+                  />
+                )}
                 <div
                   className="chat-column"
                   data-testid="chat-column"
@@ -517,10 +595,10 @@ const AiChatContent: React.FC = () => {
                   <SideSplitHandle ratio={side.splitRatio} onRatio={side.setSplitRatio} />
                 )}
                 {resourcePreview.overlays}
-                {centerOpen ? (
+                {centerRendered ? (
                   <>
                     <div
-                      hidden={sideMax}
+                      hidden={sideMax || centerP.closing}
                       className="center-changes-splitter"
                       data-testid="center-changes-splitter"
                       role="separator"
@@ -539,7 +617,8 @@ const AiChatContent: React.FC = () => {
                       roots={rail.roots}
                       busy={rail.busy}
                       actions={paneActions}
-                      showStrip={!sideMax}
+                      showStrip={!sideMax && !centerP.closing && !panels.settings && !mainHidden}
+                      closing={centerP.closing}
                     />
                   </>
                 ) : side.mounted ? (
@@ -598,17 +677,22 @@ function useOptionalAIClient(): ClientAIClient | undefined {
   }
 }
 
+const ScopedWorkspacePanes: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { sessionKey } = useActiveSessionInfo();
+  return <WorkspacePanesProvider scope={sessionKey}>{children}</WorkspacePanesProvider>;
+};
+
 function App() {
   const client = useOptionalAIClient();
   return (
     <ErrorBoundary>
       <AiChatContextProvider client={client}>
         <HarnessTabsProvider>
-          <WorkspacePanesProvider>
+          <ScopedWorkspacePanes>
             <TitlebarPanelsProvider>
               <AiChatContent />
             </TitlebarPanelsProvider>
-          </WorkspacePanesProvider>
+          </ScopedWorkspacePanes>
         </HarnessTabsProvider>
         {/* 首次启动引导（未完成时覆盖在对话窗口上；设置 → 通用 可重新打开） */}
         <OnboardingHost />

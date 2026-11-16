@@ -103,6 +103,25 @@ func TestWebRejectsLocalAddresses(t *testing.T) {
 	}
 }
 
+func TestBlocksCrossOriginEmbed(t *testing.T) {
+	deny := http.Header{"X-Frame-Options": []string{"SAMEORIGIN"}}
+	if !blocksCrossOriginEmbed(deny) {
+		t.Fatal("expected SAMEORIGIN to block cross-origin iframe embed")
+	}
+	cspSelf := http.Header{"Content-Security-Policy": []string{"default-src 'self'; frame-ancestors 'self' https://*.google.com"}}
+	if !blocksCrossOriginEmbed(cspSelf) {
+		t.Fatal("expected restrictive frame-ancestors to block cross-origin iframe embed")
+	}
+	cspWildcard := http.Header{"Content-Security-Policy": []string{"frame-ancestors *"}}
+	if blocksCrossOriginEmbed(cspWildcard) {
+		t.Fatal("wildcard frame-ancestors should allow embed")
+	}
+	allow := http.Header{"Content-Type": []string{"text/html"}}
+	if blocksCrossOriginEmbed(allow) {
+		t.Fatal("plain HTML without frame restrictions should allow embed")
+	}
+}
+
 func TestExternalHTMLUsesIsolatedOriginWithApprovedAssets(t *testing.T) {
 	dir := t.TempDir()
 	_ = os.WriteFile(filepath.Join(dir, "page.html"), []byte(`<html><script src="app.js"></script><h1>page</h1></html>`), 0600)
@@ -147,5 +166,28 @@ func TestExternalHTMLUsesIsolatedOriginWithApprovedAssets(t *testing.T) {
 	r.Body.Close()
 	if r.StatusCode != 404 {
 		t.Fatal("closed HTML still served")
+	}
+}
+
+func TestUniqueSuffixSkipsIgnoredDirectories(t *testing.T) {
+	home := t.TempDir()
+	work := filepath.Join(home, "work")
+	if err := os.MkdirAll(filepath.Join(work, "node_modules", "pkg"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(work, "node_modules", "pkg", "wails.go"), []byte("package ignored\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(work, "apps", "shell", "wails.go")
+	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(target, []byte("package shell\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	s := New()
+	res := s.Open(work, ".../wails.go", home, false)
+	if !res.OK || res.Content != "package shell\n" {
+		t.Fatalf("expected unique suffix match in apps/shell/wails.go, got %+v", res)
 	}
 }

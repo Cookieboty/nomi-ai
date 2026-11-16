@@ -37,6 +37,7 @@ import type { ConvSlots } from '../Conversation/Messages';
 import { UserImages } from '../Conversation/UserImages';
 import { MessageInput } from '../MessageInput';
 import { NomiModelSwitch } from '../NomiModelSwitch';
+import { PaneBrief, type PaneNotes, useInTabStrip } from '../SubagentPane/chrome';
 import paneStyles from '../SubagentPane/SubagentPane.module.css';
 
 import styles from './SideChat.module.css';
@@ -74,6 +75,8 @@ export const SideChatPane: React.FC<{
   onClose?: () => void;
 }> = ({ chatId, slot, cwd, onClose }) => {
   const chat = useSideChat(chatId);
+  // 标签区里名字 / 状态在标签上、关闭在 ×、停止在输入栏：不再画面板头（见 SubagentPane/chrome）
+  const inStrip = useInTabStrip();
   const report = useSubagentPane()?.reportMeta;
   const name = sideChatName(chat);
   const running = !!chat?.running;
@@ -99,6 +102,7 @@ export const SideChatPane: React.FC<{
   );
   if (!chat || !binding) return null;
   const empty = !chat.messages.length && !chat.running;
+  const notes: PaneNotes = { hint: t('ui.session-workspace.side-chat-only-nomi') };
   return (
     <section
       className={paneStyles.pane}
@@ -108,39 +112,43 @@ export const SideChatPane: React.FC<{
       data-selection-label={name}
       aria-label={name}
     >
-      <header className={paneStyles.head}>
-        <Icon icon={MessageCirclePlus} size={14} />
-        <span className={paneStyles.title}>{name}</span>
-        <span
-          className={paneStyles.status}
-          data-testid="side-chat-status"
-          data-state={running ? 'running' : 'idle'}
-        >
-          {running ? t('ui.knowledge-local.running') : t('ui.mascot-theme.idle')}
-        </span>
-        <span className={paneStyles.spacer} />
-        {onClose && (
-          <IconButton
-            size="sm"
-            label={t('ui.providers-schedule.close')}
-            icon={<Icon icon={X} size={14} />}
-            onClick={onClose}
-            data-testid="side-chat-close"
-          />
-        )}
-        {running && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => stopSideChat(chatId)}
-            data-testid="side-chat-stop"
-          >
-            <Icon icon={Square} size={12} />
-            {t('ui.foundation.stop')}
-          </Button>
-        )}
-      </header>
-      <p className={paneStyles.hint}>{t('ui.session-workspace.side-chat-only-nomi')}</p>
+      {!inStrip && (
+        <>
+          <header className={paneStyles.head}>
+            <Icon icon={MessageCirclePlus} size={14} />
+            <span className={paneStyles.title}>{name}</span>
+            <span
+              className={paneStyles.status}
+              data-testid="side-chat-status"
+              data-state={running ? 'running' : 'idle'}
+            >
+              {running ? t('ui.knowledge-local.running') : t('ui.mascot-theme.idle')}
+            </span>
+            <span className={paneStyles.spacer} />
+            {onClose && (
+              <IconButton
+                size="sm"
+                label={t('ui.providers-schedule.close')}
+                icon={<Icon icon={X} size={14} />}
+                onClick={onClose}
+                data-testid="side-chat-close"
+              />
+            )}
+            {running && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => stopSideChat(chatId)}
+                data-testid="side-chat-stop"
+              >
+                <Icon icon={Square} size={12} />
+                {t('ui.foundation.stop')}
+              </Button>
+            )}
+          </header>
+          <p className={paneStyles.hint}>{notes.hint}</p>
+        </>
+      )}
       <div className={paneStyles.conv}>
         {empty ? (
           <div className={styles.empty} data-testid="side-chat-empty" data-selection-scope="">
@@ -161,7 +169,8 @@ export const SideChatPane: React.FC<{
           />
         )}
       </div>
-      <footer className={paneStyles.composer}>
+      <footer className={paneStyles.composer} data-in-strip={inStrip || undefined}>
+        {inStrip && <PaneBrief {...notes} />}
         <MessageInput
           onSend={(text, images) =>
             void sendSideChat(

@@ -2,7 +2,7 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-type Slot = 'session' | 'center' | 'files' | 'rail-toggle';
+type Slot = 'session' | 'center' | 'files' | 'workspace-actions' | 'rail-toggle';
 interface Slots {
   targets: Partial<Record<Slot, HTMLElement>>;
   register: (name: Slot, element: HTMLElement | null) => void;

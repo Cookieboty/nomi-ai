@@ -21,6 +21,7 @@ import { hasLangFence, hasOpenFence, splitMarkdownChunks } from '../../utils/mar
 import { streamRenderIntervalMs } from '../../utils/streamPolicy';
 
 import { CiteRef, remarkCiteRefs } from './citeRefs';
+import { ConversationInlineCode } from './ConversationInlineCode';
 import { ConversationLink } from './ConversationLink';
 import { remarkDelegateReport } from './delegateReport';
 import { resourceUrlTransform } from './Markdown.helpers';
@@ -127,9 +128,9 @@ export const markdownComponents: Components = {
     const isBlock = Boolean(lang) || text.includes('\n');
     if (!isBlock) {
       return (
-        <code className={styles.inlineCode} {...rest}>
+        <ConversationInlineCode text={text} className={className} {...rest}>
           {children}
-        </code>
+        </ConversationInlineCode>
       );
     }
     return (

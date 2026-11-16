@@ -373,6 +373,8 @@
 
 /* ---------- Tabs ---------- */
 .cd-tabs {
+  position: relative;
+  isolation: isolate;
   display: flex;
   gap: var(--cd-space-0-5);
   padding: var(--cd-space-0-5);
@@ -382,7 +384,27 @@
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
   width: fit-content;
 }
+.cd-tabs__indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+  box-sizing: border-box;
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-panel-surface);
+  border: 1px solid var(--cd-panel-border);
+  box-shadow: var(--cd-shadow-sm), var(--cd-highlight-inset);
+}
+.cd-tabs__indicator[data-animate='true'] {
+  transition:
+    transform var(--cd-duration-fast) var(--cd-ease-out),
+    width var(--cd-duration-fast) var(--cd-ease-out),
+    height var(--cd-duration-fast) var(--cd-ease-out);
+}
 .cd-tab {
+  position: relative;
+  z-index: 1;
   height: var(--cd-control-h-sm);
   padding: 0 var(--cd-space-3);
   border: 1px solid transparent;
@@ -396,8 +418,12 @@
     background-color var(--cd-duration-press) var(--cd-ease-out),
     border-color var(--cd-duration-press) var(--cd-ease-out),
     color var(--cd-duration-press) var(--cd-ease-out),
-    box-shadow var(--cd-duration-press) var(--cd-ease-out);
+    box-shadow var(--cd-duration-press) var(--cd-ease-out),
+    transform var(--cd-duration-press) var(--cd-ease-out);
   font-weight: var(--cd-font-weight-medium);
+}
+.cd-tab:active:not(:disabled) {
+  transform: scale(0.975);
 }
 .cd-tab:hover {
   background: var(--cd-control-hover-bg);
@@ -410,6 +436,13 @@
   color: var(--cd-color-text);
   border-color: var(--cd-panel-border);
   box-shadow: var(--cd-shadow-sm), var(--cd-highlight-inset);
+}
+/* 滑块激活时由 .cd-tabs__indicator 承载底板与阴影，按钮自身只保留文字色与悬停 */
+.cd-tabs[data-sliding='true'] .cd-tab[aria-selected='true'],
+.cd-tabs[data-sliding='true'] .cd-tab[aria-checked='true'] {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 .cd-tab:focus-visible {
   outline: none;
@@ -433,6 +466,16 @@
   border-bottom: 1px solid var(--cd-panel-border);
   border-radius: 0;
   background: transparent;
+  box-shadow: none;
+}
+.cd-tabs--underline .cd-tabs__indicator {
+  top: auto;
+  bottom: -1px;
+  height: 2px;
+  border: 0;
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-accent-strong);
+  box-shadow: none;
 }
 .cd-tabs--underline .cd-tab {
   padding: 0;
@@ -447,6 +490,18 @@
 .cd-tabs--underline .cd-tab[aria-selected='true'] {
   background: transparent;
   border-bottom-color: var(--cd-color-accent-strong);
+}
+.cd-tabs--underline[data-sliding='true'] .cd-tab[aria-selected='true'] {
+  border-bottom-color: transparent;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cd-tabs__indicator[data-animate='true'],
+  .cd-tab {
+    transition: none;
+  }
+  .cd-tab:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 /* ---------- Badge / Tag ---------- */

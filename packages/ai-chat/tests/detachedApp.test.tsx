@@ -65,6 +65,9 @@ describe('detached tab window', () => {
     // 独立窗口里没有关闭按钮（关窗口即可），也没有侧栏 / 主列
     expect(screen.queryByTestId('subagent-close')).toBeNull();
     expect(screen.queryByTestId('chat-column')).toBeNull();
+    // 独立窗口没有标签栏：面板头（状态）照旧，说明不收进输入框上方
+    expect(pane.querySelector('[data-testid="subagent-status"]')).toBeTruthy();
+    expect(pane.querySelector('[data-testid="subagent-brief"]')).toBeNull();
     await waitFor(() => expect(document.title).toBe('整理周报 — Nomi'));
     fireEvent.click(screen.getByTestId('detached-dock'));
     await waitFor(() =>

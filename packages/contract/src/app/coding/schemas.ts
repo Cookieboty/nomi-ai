@@ -320,6 +320,12 @@ export const DelegateResult = loose({
   summary: z.string(),
   /** 委派结束后在子任务里接着跑的一轮（用户接着对话 / 沙箱授权后续跑）的结果，同样回到来源对话 */
   followUp: z.boolean().optional(),
+  /** 是否为异步后台委派（持续任务 / background:true）的完成广播 */
+  background: z.boolean().optional(),
+  /** 子任务标签：来源对话从它的会话里读改动的 +/− 与 Diff */
+  tabId: z.string().optional(),
+  /** 改动落地的目标工作目录；转存独立分支或尚未验收落地时为 null */
+  cwd: z.string().nullable().optional(),
 });
 
 // ---------------------------------------------------------------------------

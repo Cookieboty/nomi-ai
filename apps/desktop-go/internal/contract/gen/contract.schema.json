@@ -8989,6 +8989,18 @@
      },
      "followUp": {
       "type": "boolean"
+     },
+     "background": {
+      "type": "boolean"
+     },
+     "tabId": {
+      "type": "string"
+     },
+     "cwd": {
+      "type": [
+       "string",
+       "null"
+      ]
      }
     },
     "required": [
@@ -9154,6 +9166,18 @@
        },
        "followUp": {
         "type": "boolean"
+       },
+       "background": {
+        "type": "boolean"
+       },
+       "tabId": {
+        "type": "string"
+       },
+       "cwd": {
+        "type": [
+         "string",
+         "null"
+        ]
        }
       },
       "required": [
@@ -37187,6 +37211,18 @@
     },
     "followUp": {
      "type": "boolean"
+    },
+    "background": {
+     "type": "boolean"
+    },
+    "tabId": {
+     "type": "string"
+    },
+    "cwd": {
+     "type": [
+      "string",
+      "null"
+     ]
     }
    },
    "required": [

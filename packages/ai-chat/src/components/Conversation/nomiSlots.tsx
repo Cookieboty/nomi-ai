@@ -1,5 +1,5 @@
 /**
- * Nomi 普通对话在统一会话视图里的扩展内容：参考记忆、图片、知识库引用 / 来源、知识库标签。
+ * Nomi 普通对话在统一会话视图里的扩展内容：参考记忆、图片、知识库引用 / 来源、知识库标签、委派结果的改动。
  * 这些是 Nomi 独有的数据（ChatMessage.raw），视图本身只认统一的 ConvMessage。
  */
 import { Disclosure, t } from '@nomi-ai/ui';
@@ -13,6 +13,7 @@ import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { SourceList, SourcePreview } from './Citations';
 import styles from './Citations.module.css';
 import { CiteProvider } from './citeRefs';
+import { DelegateChangesCard } from './DelegateChangesCard';
 import { Markdown } from './Markdown';
 import type { ConvSlots } from './Messages';
 import { UserImages } from './UserImages';
@@ -90,7 +91,11 @@ export const nomiSlots: ConvSlots = {
   },
   after: (m) => {
     const raw = rawOf(m);
-    return m.role === 'assistant' && raw?.kb && !raw.sources?.length ? (
+    if (m.role !== 'assistant' || !raw) return null;
+    // 委派结果：子任务改的文件（+/− 与每个文件的 Diff），和子任务面板里同一张卡片
+    if (raw.delegateChanges?.files.length)
+      return <DelegateChangesCard messageId={m.id} changes={raw.delegateChanges} />;
+    return raw.kb && !raw.sources?.length ? (
       <span className={styles.kbTag}>{t('ui.foundation.knowledge-base')}</span>
     ) : null;
   },

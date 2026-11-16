@@ -26,7 +26,9 @@ import {
 import { sideChatName, useSideChat } from '../../services/sideChat';
 import { tasksApi, type TaskTraceView } from '../../services/tasksClient';
 import type { ConvMessage } from '../../types/conversation';
+import { nestedOwnerBackend } from '../../utils/agentIdentity';
 import { fromHarnessMessage } from '../../utils/convAdapters';
+import { resolveDelegateTarget } from '../../utils/delegateTarget';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import type { LiveAgent } from '../../utils/liveState';
 import type { SubagentTarget } from '../../utils/sideTabs';
@@ -237,7 +239,7 @@ const NestedBody: React.FC<{
   const ex = lastExchange(messages);
   return (
     <CardView
-      backend={parent?.backend ?? null}
+      backend={nestedOwnerBackend(parentTabId, tabs.state?.tabs, callId, columnMessages)}
       preview={{
         name: agent?.label || agent?.agentType || t('ui.usage-tools.subagent'),
         state,
@@ -268,9 +270,12 @@ const SideChatBody: React.FC<{ chatId: string }> = ({ chatId }) => {
 };
 
 const CardBody: React.FC<{ target: SubagentTarget; columnMessages: readonly ConvMessage[] }> = ({
-  target,
+  target: raw,
   columnMessages,
 }) => {
+  const tabs = useHarnessTabs();
+  // 按「进程内子代理」打开的其实是 Nomi 的一次委派：看它的编程助手标签（和侧栏、标签同一个判断）
+  const target = resolveDelegateTarget(raw, tabs.state?.tabs, columnMessages);
   if (target.kind === 'harness') return <HarnessBody tabId={target.tabId} />;
   if (target.kind === 'nomi-task') return <NomiTaskBody taskId={target.taskId} />;
   if (target.kind === 'side-chat') return <SideChatBody chatId={target.chatId} />;

@@ -68,7 +68,7 @@ func TestServiceCreateDelegatedAndPriority(t *testing.T) {
 		Level: 3, Paths: []string{dir}})
 	if task.Origin.CreatedBy != "nomi" || task.Origin.Via == nil || *task.Origin.Via != "delegate" ||
 		*task.Origin.ConversationID != "conv_1" || task.Grant.Level != 3 || task.Grant.Paths[0] != dir ||
-		task.Grant.Clis == nil || (*task.Grant.Clis)[0] != "claude" || task.Budget.MaxRetries != 1 ||
+		task.Grant.Clis == nil || (*task.Grant.Clis)[0] != "claude" || task.Budget.MaxRetries != DelegatedMaxRetries ||
 		task.Acceptance != "auto" || task.Status != StatusRunning || *task.Category != "coding" {
 		t.Fatalf("%+v", task)
 	}
@@ -130,7 +130,7 @@ func TestServiceCreateDelegatedNomi(t *testing.T) {
 			Brief: &Brief{DoneWhen: "PPT 写进工作区"}, CallID: ptr("call_1")},
 		Level: 4, Paths: []string{}, Category: "writing"})
 	b := task.Budget
-	if task.Grant.Clis == nil || len(*task.Grant.Clis) != 0 || b.MaxRetries != 1 ||
+	if task.Grant.Clis == nil || len(*task.Grant.Clis) != 0 || b.MaxRetries != DelegatedMaxRetries ||
 		task.Grant.Level != 4 || task.Acceptance != "auto" || *task.Category != "writing" || task.Status != StatusRunning {
 		t.Fatalf("%+v %+v", task, b)
 	}
@@ -139,7 +139,7 @@ func TestServiceCreateDelegatedNomi(t *testing.T) {
 		t.Fatalf("executor JSON\n got %s\nwant %s", raw, want)
 	}
 	braw, _ := json.Marshal(b)
-	if want := `{"maxRetries":1}`; string(braw) != want {
+	if want := `{"maxRetries":5}`; string(braw) != want {
 		t.Fatalf("budget JSON %s", braw)
 	}
 }

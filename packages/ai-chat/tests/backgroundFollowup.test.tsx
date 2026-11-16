@@ -73,4 +73,109 @@ describe('CLI 自发的跟进轮次', () => {
     expect(msgs.map((m) => [m.content, m.origin])).toEqual([['FOLLOWUP', 'background']]);
     expect(save).toHaveBeenCalledTimes(1);
   });
+
+  it('后台委派重试耗尽仍失败：空闲时自动唤醒 Nomi 跟进兜底（不插假用户气泡，单轮最多 2 次）', async () => {
+    const fake = installFakeApi((name) => {
+      if (name === 'harness.state') return { backend: 'nomi', cwd: '/repo', bins: {} };
+      return null;
+    });
+    let round = 0;
+    const steerCalls: Array<{ reqId: string; text: string }> = [];
+    let holdStream: (() => void) | null = null;
+    const client = {
+      chat: {
+        agentStream: vi.fn(function () {
+          const cur = ++round;
+          return (async function* () {
+            if (holdStream) {
+              await new Promise<void>((r) => {
+                holdStream = r;
+              });
+            }
+            yield { type: 'delta', content: `Nomi 接手第 ${cur} 次` };
+          })();
+        }),
+        stream: vi.fn(),
+        sendMessage: vi.fn(),
+        abort: vi.fn(),
+        steer: vi.fn((reqId: string, text: string) => {
+          steerCalls.push({ reqId, text });
+          return Promise.resolve(true);
+        }),
+      },
+      memory: { userProfile: { get: () => undefined, set: vi.fn() } },
+      dispose: vi.fn(),
+    } as unknown as ClientAIClient;
+    const ref: { api?: ReturnType<typeof useAiChat> } = {};
+    const Probe = () => {
+      ref.api = useAiChat();
+      return null;
+    };
+    render(
+      <AiChatContextProvider client={client}>
+        <Probe />
+      </AiChatContextProvider>,
+    );
+    await act(async () => void (await new Promise((r) => setTimeout(r, 0))));
+
+    // 用户先发了一条需求（挂起流，先测运行中收到后台委派终态经 steer 注入当前轮）
+    holdStream = () => {};
+    let turnDone: Promise<void> | undefined;
+    act(() => {
+      turnDone = ref.api!.actions.sendStreamMessage('修一下前端协议');
+    });
+    await act(async () => void (await new Promise((r) => setTimeout(r, 20))));
+    await act(async () => {
+      fake.emit('delegate.completed', {
+        taskId: 't_live',
+        cli: 'claude',
+        status: 'error',
+        error: 'error_during_execution',
+        summary: '',
+        filesVerified: false,
+        approvals: { asked: 0, denied: 0, timedOut: 0 },
+        durationMs: 50,
+        background: true,
+      });
+      await new Promise((r) => setTimeout(r, 10));
+    });
+    expect(steerCalls.length).toBe(1);
+    expect(steerCalls[0]!.text).toContain('error_during_execution');
+
+    // 放行第一轮结束，进入空闲态
+    const release = holdStream;
+    holdStream = null;
+    await act(async () => {
+      release?.();
+      await turnDone;
+    });
+    expect(round).toBe(1);
+
+    // 空闲态连续 3 次收到后台委派最终失败广播：只自动跟进 2 次（防死循环），且不制造假 user 消息
+    for (let i = 1; i <= 3; i++) {
+      await act(async () => {
+        fake.emit('delegate.completed', {
+          taskId: `t_${i}`,
+          cli: 'claude',
+          status: 'error',
+          error: 'error_during_execution（已自动重试 5 次仍失败）',
+          summary: '',
+          filesVerified: false,
+          approvals: { asked: 0, denied: 0, timedOut: 0 },
+          durationMs: 100,
+          background: true,
+        });
+        await new Promise((r) => setTimeout(r, 25));
+      });
+    }
+
+    expect(round).toBe(3); // 1 次用户提问 + 最多 2 次自动恢复跟进
+    const users = ref.api!.state.messages.filter((m) => m.role === 'user');
+    expect(users.map((u) => u.content)).toEqual(['修一下前端协议']);
+    expect(
+      ref.api!.state.messages.some(
+        (m) => m.origin === 'background' && m.content.includes('Nomi 接手第 2 次'),
+      ),
+    ).toBe(true);
+  });
 });

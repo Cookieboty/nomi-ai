@@ -244,6 +244,15 @@ func kindOf(p string) string {
 		return "text"
 	}
 }
+func skipSuffixDir(name string) bool {
+	switch name {
+	case "node_modules", "vendor", "dist", "target", "build", "__pycache__":
+		return true
+	default:
+		return strings.HasPrefix(name, ".")
+	}
+}
+
 func uniqueSuffix(root, suffix string) (string, error) {
 	if root == "" || strings.Contains(suffix, "..") {
 		return "", fmt.Errorf("invalid suffix")
@@ -251,15 +260,15 @@ func uniqueSuffix(root, suffix string) (string, error) {
 	var matches []string
 	count := 0
 	err := filepath.WalkDir(root, func(p string, d os.DirEntry, e error) error {
-		count++
-		if count > 5000 {
-			return fmt.Errorf("scan limit")
-		}
 		if e != nil {
 			return nil
 		}
-		if d.IsDir() && p != root && strings.HasPrefix(d.Name(), ".") {
+		if d.IsDir() && p != root && skipSuffixDir(d.Name()) {
 			return filepath.SkipDir
+		}
+		count++
+		if count > 30000 {
+			return fmt.Errorf("scan limit")
 		}
 		if !d.IsDir() && strings.HasSuffix(filepath.ToSlash(p), "/"+filepath.ToSlash(suffix)) {
 			matches = append(matches, p)

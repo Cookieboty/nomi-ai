@@ -446,6 +446,106 @@ describe('in-process subagent in the side panel', () => {
   });
 });
 
+const OpenNomiNested: React.FC<{ callId: string }> = ({ callId }) => {
+  const pane = useSubagentPane();
+  const once = useRef(false);
+  useEffect(() => {
+    if (once.current || !pane) return;
+    once.current = true;
+    // 父转录是 Nomi 对话（主列消息）：parentTabId 为空
+    pane.openNested(callId, null);
+  }, [pane, callId]);
+  return null;
+};
+
+function renderNomiNested(
+  callId: string,
+  tabs: HarnessTabMeta[],
+  columnMessages: ConvMessage[],
+  messageAgent: (input: unknown) => unknown = () => ({ ok: true, via: 'start' }),
+) {
+  const state: HarnessTabsState = { tabs, activeTabId: 'main', running: 0, queued: 0 };
+  const fake = installFakeApi((name, input) => {
+    if (name === 'harness.tabs') return state;
+    if (name === 'harness.tabMessages') return [];
+    if (name === 'harness.tabSend') return { text: 'ok', sessionId: null };
+    if (name === 'harness.messageAgent') return messageAgent(input);
+    if (name === 'harness.modelCatalog')
+      return { backend: 'claude', defaultModel: null, models: [] };
+    if (name === 'shortcuts.list' || name === 'ai.userQuestion.pending') return [];
+    return true;
+  });
+  render(
+    <HarnessTabsProvider>
+      <WorkspacePanesProvider>
+        <OpenNomiNested callId={callId} />
+        <SubagentPane columnMessages={columnMessages} />
+      </WorkspacePanesProvider>
+    </HarnessTabsProvider>,
+  );
+  return fake;
+}
+
+describe('sub-agents of the Nomi chat can be continued too', () => {
+  it('a delegation opened by call id is its coding-agent tab, with a composer', async () => {
+    // 委派的标签被后来的同类委派接着用了（callId 换成了 c9），旧的 c1 按结果里的 taskId 找回
+    const tab = parentTab({
+      id: 'd1',
+      backend: 'codex',
+      delegation: {
+        by: 'nomi',
+        callId: 'c9',
+        goal: '新的一次',
+        approvals: { asked: 0, denied: 0, timedOut: 0 },
+      },
+    });
+    const column = [
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: '',
+        at: 1,
+        trace: [
+          {
+            type: 'tool',
+            name: 'delegate_to_cli',
+            status: 'done',
+            id: 'c1',
+            input: '{"goal":"先查一下"}',
+            output: JSON.stringify({
+              ok: true,
+              data: { taskId: 'd1', cli: 'codex', status: 'done', summary: '' },
+            }),
+          },
+        ],
+      },
+    ] as unknown as ConvMessage[];
+    const fake = renderNomiNested('c1', [tab], column);
+    await waitFor(() => expect(screen.getByTestId('chat-input')).toBeTruthy());
+    // 不是只读的「属于 Nomi 对话」
+    const pane = screen.getByTestId('subagent-pane');
+    expect(within(pane).queryByText(/属于 Nomi 对话|belongs to the Nomi chat/)).toBeNull();
+    typeAndSend('接着把测试补上');
+    await waitFor(() => expect(fake.inputs('harness.tabSend').length).toBe(1));
+    expect(fake.inputs('harness.tabSend')[0]).toMatchObject({ id: 'd1' });
+  });
+
+  it('a sub-agent of a Nomi-chat turn run by a CLI main tab talks to it directly', async () => {
+    const main = parentTab({ id: 'main', backend: 'claude' });
+    const fake = renderNomiNested('c1', [main], parentMessages() as unknown as ConvMessage[]);
+    const pane = await screen.findByTestId('subagent-pane');
+    await waitFor(() => expect(pane.textContent).toContain('我在查 auth.ts'));
+    typeAndSend('也看看 session.ts');
+    await waitFor(() => expect(fake.inputs('harness.messageAgent').length).toBe(1));
+    expect(fake.inputs('harness.messageAgent')[0]).toMatchObject({
+      id: 'main',
+      callId: 'c1',
+      agentId: 'a1b2c3',
+      text: '也看看 session.ts',
+    });
+  });
+});
+
 const TaskPaneControls: React.FC = () => {
   const pane = useSubagentPane();
   return (

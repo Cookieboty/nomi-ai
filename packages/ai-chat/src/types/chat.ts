@@ -1,6 +1,7 @@
 import { BUILTIN_CLI_ORDER } from '@nomi-ai/cli-catalog';
 import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
 
+import type { DelegateChanges } from '../services/delegateChanges';
 import type { HarnessTraceEvent, HarnessUsage } from '../services/harnessClient';
 
 export interface ChatMessage {
@@ -56,6 +57,11 @@ export interface ChatMessage {
   usage?: HarnessUsage;
   /** 用户用 `/cli` 指定这条需求交给哪个编程助手（docs/development/coding-agents.md） */
   delegateTo?: BuiltinCliId;
+  /**
+   * 委派结果消息（origin background）：子任务改了哪些文件、各增删多少行，
+   * 对话里用「已编辑 N 个文件」卡片打开每个文件的 Diff（services/delegateChanges.ts）
+   */
+  delegateChanges?: DelegateChanges;
   /** 用户消息附带的图片：只保存缩略图（原图只随本轮发送，不进历史） */
   images?: Array<{
     thumb: string;

@@ -114,6 +114,10 @@ type CliDeps struct {
 	// Claim / Unclaim：同一仓库里直接改的并行任务按文件、按优先级裁决；Unclaim 返回自己的改动与让出去的文件；可为空
 	Claim       func(tabID, gitRoot, cwd, priority, label string)
 	Unclaim     func(tabID string, changed []string) (mine, yielded []string)
+	// EditsSince：标签在 [from, to] 之间工具事件改过的文件（补齐委派前就已 dirty 的文件）；可为空
+	EditsSince  func(tabID, cwd string, from, to int64) []string
+	// RecoverTab：重试前重置标签的常驻进程（dropSession=true 时丢弃已损坏的原生会话并结转前文摘要）；可为空
+	RecoverTab  func(tabID string, dropSession bool)
 	GitChanged  func(cwd string) []string // nil = 不在 git 仓库里
 	BuildPrompt func(goal, context, doneWhen, outOfScope string) string
 	ParseReport func(text string) *CliReport
@@ -335,6 +339,11 @@ func (e *cliExecutor) promptFor(ctx AttemptContext, reused bool) string {
 			}
 			return "用户对你上次停下来请求的回答：" + yes + extra + "。请继续，完成后照原格式汇报。"
 		}
+		// 第 3 次及以上重试（已切换为全新原生会话）：重新带上完整任务目标与汇报格式，同时说明工作目录已有前序部分改动
+		if c.Kind == "retry" && ctx.Task.RetryCount >= 3 && e.d.RecoverTab != nil {
+			return "【自动恢复重试】前序尝试在运行中途异常中断，工作目录里可能已有部分已完成的改动。请先检查当前工作目录与 git 状态，保留并承接已完成部分，继续完成剩余目标：\n\n" +
+				e.promptFor(ctx, false)
+		}
 		return "上次执行被中断了（应用重启或出错）。先检查工作目录与 git 状态，确认哪些已经做过，不要重复对外动作；然后接着完成任务，照原格式汇报。"
 	}
 	if b := ctx.Task.Executor.Brief; ctx.Task.Executor.Kind == "cli" && b != nil {
@@ -462,6 +471,10 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 		}
 		rep.Carrier(c)
 	} else {
+		if k == "retry" && e.d.RecoverTab != nil {
+			// 重试前先拆掉可能半残的常驻 CLI 进程；前 2 次带原 cliSessionId 续接，第 3 次起清掉可能已损坏的会话开新会话续跑
+			e.d.RecoverTab(tabID, t.RetryCount >= 3)
+		}
 		rep.Carrier(*prev.Carrier)
 	}
 	// 直接在仓库里改（不是 worktree）：登记，和同仓库并行的任务按文件、按优先级裁决
@@ -581,6 +594,10 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 		workCwd = *prev.Carrier.Cwd
 	}
 	after := e.d.GitChanged(workCwd)
+	var edited []string
+	if e.d.EditsSince != nil {
+		edited = e.d.EditsSince(tabID, workCwd, a.StartedAt, 0)
+	}
 	changed := []string{}
 	if after != nil {
 		seen := map[string]bool{}
@@ -593,13 +610,29 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 				inReport[f] = true
 			}
 		}
+		inEdited := map[string]bool{}
+		for _, f := range edited {
+			inEdited[f] = true
+		}
 		for _, f := range after {
-			if !seen[f] || inReport[f] {
+			if !seen[f] || inReport[f] || inEdited[f] {
 				changed = append(changed, f)
 			}
 		}
-	} else if parsed != nil {
-		changed = append(changed, parsed.ChangedFiles...)
+	} else {
+		inChanged := map[string]bool{}
+		add := func(list []string) {
+			for _, f := range list {
+				if f != "" && !inChanged[f] {
+					inChanged[f] = true
+					changed = append(changed, f)
+				}
+			}
+		}
+		if parsed != nil {
+			add(parsed.ChangedFiles)
+		}
+		add(edited)
 	}
 	changed, yielded := unclaim(changed)
 	parts := []string{}

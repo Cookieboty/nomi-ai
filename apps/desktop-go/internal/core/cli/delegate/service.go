@@ -65,6 +65,13 @@ type Harness interface {
 	RebindDelegation(tabID string, del *util.Obj) error
 }
 
+// RecoverableHarness：编排器可选实现的出错标签恢复接口（拆半残常驻进程，连续崩溃时切换干净会话）
+type RecoverableHarness interface {
+	RecoverTab(id string, dropSession bool)
+}
+
+// DefaultCliMaxRetries：编程助手委派遇瞬时 / 执行中断错误时默认自动重试次数（至少尝试 5 次重试）
+const DefaultCliMaxRetries = 5
 // Desktop：DesktopService 的 broker / audit / receiversFor 子集（PermissionBroker 是同步的）
 type Desktop interface {
 	WorkspaceOf(projectID any) desktop.Workspace
@@ -98,9 +105,42 @@ type Deps struct {
 	Tasks TaskPort
 	// Claims：同一仓库里直接改的并行任务按文件、按优先级裁决（可空）
 	Claims *Claims
+	// Edits：每个标签改文件的工具事件记录；可空（缺省用包级 Edits）
+	Edits *EditLog
+	// MaxRetries / RetryBackoff：同步委派遇瞬时或 CLI 执行中断错误时的自动重试次数（缺省 DefaultCliMaxRetries = 5）与退避时长
+	MaxRetries   *int
+	RetryBackoff func(retry int) time.Duration
 	// MemoryCritical：系统内存紧张（或「全速」调度策略下 CPU 太忙）、看板在扣着新的编程助手（Agent 看板）。后台委派照常建任务（排队，缓解后开始）；
 	// 同步委派：后台 Nomi 里的等缓解，前台对话里的返回 memory_pressure（可空）
 	MemoryCritical func() bool
+}
+
+func (s *Service) maxRetries() int {
+	if s != nil && s.d.MaxRetries != nil {
+		return *s.d.MaxRetries
+	}
+	return DefaultCliMaxRetries
+}
+
+func (s *Service) retryBackoff(retry int) time.Duration {
+	if s != nil && s.d.RetryBackoff != nil {
+		return s.d.RetryBackoff(retry)
+	}
+	ms := 2000
+	for i := 1; i < retry && ms < 30_000; i++ {
+		ms *= 2
+	}
+	if ms > 30_000 {
+		ms = 30_000
+	}
+	return time.Duration(ms) * time.Millisecond
+}
+
+func (s *Service) edits() *EditLog {
+	if s != nil && s.d.Edits != nil {
+		return s.d.Edits
+	}
+	return Edits
 }
 
 // MemoryWaitPoll：后台 Nomi 里的同步委派等内存缓解时多久看一次
@@ -291,6 +331,7 @@ func (s *Service) resultFromTask(rec *tasks.Record) *util.Obj {
 	}
 	changed, images := []string{}, []string{}
 	worktree, inGit := "", false
+	res0TabID, landedCwd, hasLandedCwd := "", "", false
 	if attempt != nil {
 		if attempt.Result != nil {
 			for _, a := range attempt.Result.Artifacts {
@@ -305,6 +346,37 @@ func (s *Service) resultFromTask(rec *tasks.Record) *util.Obj {
 		if attempt.Carrier != nil {
 			worktree = ps(attempt.Carrier.Worktree)
 			inGit = ps(attempt.Carrier.GitRoot) != ""
+			carrierCwd := ps(attempt.Carrier.Cwd)
+			sourceCwd := ps(attempt.Carrier.SourceCwd)
+			if sourceCwd == "" {
+				sourceCwd = carrierCwd
+			}
+			// 正常完成的执行已在 executor_cli 里合并过工具编辑、git 状态核对与并行优先级让路（Unclaim）；
+			// 这里只在失败 / 被取消（attempt.Result == nil）且直接在工作目录里改（非临时 worktree）时补回残留改动。
+			if tabID := ps(attempt.Carrier.TabID); tabID != "" && status != "running" && attempt.Result == nil && worktree == "" {
+				var to float64
+				if attempt.EndedAt != nil {
+					to = float64(*attempt.EndedAt)
+				}
+				edited := s.edits().Since(tabID, carrierCwd, float64(attempt.StartedAt), to)
+				if after := GitChanged(carrierCwd); after != nil {
+					kept := []string{}
+					for _, f := range after {
+						if contains(edited, f) {
+							kept = append(kept, f)
+						}
+					}
+					edited = kept
+				}
+				changed = mergeFiles(changed, edited)
+			}
+			if tabID := ps(attempt.Carrier.TabID); tabID != "" {
+				res0TabID = tabID
+			}
+			hasLandedCwd = true
+			if worktree == "" || task.Status == tasks.StatusDone {
+				landedCwd = sourceCwd
+			}
 		}
 	}
 	changed = head(changed, 50)
@@ -327,13 +399,24 @@ func (s *Service) resultFromTask(rec *tasks.Record) *util.Obj {
 	default:
 		summary = cliName[cli] + " 仍在后台执行：" + slice(task.Goal, 80)
 	}
-	res := util.NewObj("taskId", task.ID, "cli", cli, "status", status)
+	res := util.NewObj("taskId", task.ID, "cli", cli, "status", status, "background", true)
 	if status == "cancelled" {
 		res.Set("cancelledBy", "user")
+	}
+	// 子任务标签：来源对话据此读它的改动（+/− 与 Diff）
+	if res0TabID != "" {
+		res.Set("tabId", res0TabID)
 	}
 	res.Set("summary", summary)
 	if len(changed) > 0 {
 		res.Set("changedFiles", toAnyList(changed))
+		if hasLandedCwd {
+			if landedCwd != "" {
+				res.Set("cwd", landedCwd)
+			} else {
+				res.Set("cwd", nil)
+			}
+		}
 	}
 	// 后台 Nomi 生成的图片（chat-asset:// 地址）：回到来源对话里显示，Nomi 下一轮也能引用
 	if len(images) > 0 {
@@ -342,7 +425,11 @@ func (s *Service) resultFromTask(rec *tasks.Record) *util.Obj {
 	res.Set("filesVerified", false)
 	res.Set("approvals", approvalsZero())
 	if status == "error" && task.LastError != nil {
-		res.Set("error", task.LastError.Message)
+		msg := task.LastError.Message
+		if len(rec.Attempts) > 1 {
+			msg += "（已自动重试 " + strconv.Itoa(len(rec.Attempts)-1) + " 次仍失败；请改用其他可用编程助手或直接用自身工具继续完成）"
+		}
+		res.Set("error", msg)
 		res.Set("errorCode", task.LastError.Code)
 	}
 	end := s.d.Now()
@@ -1457,48 +1544,61 @@ func isoKindFor(cwd, base string) string {
 // taskRetired：任务这些状态下它的标签空出来了，可以给同一种新委派接着用
 var taskRetired = []string{tasks.StatusDone, tasks.StatusFailed, tasks.StatusCancelled, tasks.StatusExpired, tasks.StatusIdle}
 
-// taskBusy：委派标签上一个任务还没结束（运行中、等验收、要返工……）
-func (s *Service) taskBusy(taskID string) bool {
+// taskNotReusable：委派标签上一个任务还在跑、等处理，或者以失败收场（失败会话可能已毒化/损坏，不再复用给新委派）
+func (s *Service) taskNotReusable(taskID string) bool {
 	if s.d.Tasks != nil {
 		if rec := s.d.Tasks.Get(taskID); rec != nil {
-			return !contains(taskRetired, rec.Task.Status)
+			return rec.Task.Status == tasks.StatusFailed || !contains(taskRetired, rec.Task.Status)
 		}
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	t := s.tasks[taskID]
-	return t != nil && t.status() == "running"
+	return t != nil && (t.status() == "running" || t.status() == "error")
 }
 
-// reusableTab：能接着用的同一种委派标签（没有返回空）
 // reusableTab：能接着用的委派标签与挑选时它的拥有者（taskId）
 func (s *Service) reusableTab(key string) (string, string) {
 	if key == "" {
 		return "", ""
 	}
 	tabs, _ := s.d.Harness.ListTabs().Get("tabs").([]any)
-	id := FindReusableTab(tabs, key, s.d.Now(), s.taskBusy)
+	id := FindReusableTab(tabs, key, s.d.Now(), s.taskNotReusable)
 	return id, ReuseOwner(tabs, id)
 }
 
 var (
-	transientErrRE = regexp.MustCompile(`(?i)\b(408|429|5\d\d)\b|rate.?limit|overloaded|timed? ?out`)
-	networkErrRE   = regexp.MustCompile(`(?i)ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|network`)
+	permanentErrRE = regexp.MustCompile(`(?i)\b(401|403)\b|unauthorized|invalid[_ -]?api[_ -]?key|authentication[_ -]?(failed|required)|auth_required|not logged in|needs sign-in|please run /login|需要登录|尚未登录|先登录|insufficient[_ -]?quota|credit balance is too low|billing|model[_ -]?not[_ -]?found|untrusted`)
+	transientErrRE = regexp.MustCompile(`(?i)\b(408|409|425|429|5\d\d)\b|rate.?limit|overloaded|timeout|timed? ?out|too many requests|temporarily unavailable|try again|请求超时`)
+	networkErrRE   = regexp.MustCompile(`(?i)ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|EPIPE|\bEOF\b|broken pipe|socket hang up|network|connection reset|connection refused|no such host|stream (disconnected|closed|ended)|incomplete chunked|reconnect|rpc connection closed`)
+	cliExecErrRE   = regexp.MustCompile(`(?i)error_during_execution|error_max_turns|process exited|进程已退出|app-server error|(codex|claude|dsh|grok)-error|(codex|claude|dsh|grok) 出错|turn\.failed|exit code|exited with code|退出码|couldn't start an acp session|无法启动.*acp 会话|acp session ended|会话已结束|internal error|empty_result`)
 )
 
-// classifyRunError：编程助手这一轮出错的错误码（upstream_transient / network / executor_failed）
+// classifyRunError：编程助手这一轮出错的错误码（upstream_transient / network / executor_crashed / executor_failed）
 func classifyRunError(msg string) string {
+	if permanentErrRE.MatchString(msg) {
+		return "executor_failed"
+	}
 	switch {
 	case transientErrRE.MatchString(msg):
 		return "upstream_transient"
 	case networkErrRE.MatchString(msg):
 		return "network"
+	case cliExecErrRE.MatchString(msg):
+		return "executor_crashed"
 	}
 	return "executor_failed"
 }
 
+func isRetryableRunError(code string) bool {
+	return code == "upstream_transient" || code == "network" || code == "executor_crashed"
+}
+
 func (s *Service) runChild(task *bgTask, prompt string, linkAbort bool, sig context.Context) *util.Obj {
 	h := s.d.Harness
+	if !linkAbort {
+		task.o.Set("background", true)
+	}
 	if task.iso != nil && task.iso.Kind == IsoInPlace {
 		s.d.Claims.Register(task.id(), task.iso.GitRoot, util.Str(task.o.Get("cwd")), util.Str(task.o.Get("priority")),
 			"Nomi · "+slice(trim(util.Str(task.o.Get("goal"))), 30))
@@ -1523,22 +1623,71 @@ func (s *Service) runChild(task *bgTask, prompt string, linkAbort bool, sig cont
 	errMsg := ""
 	errCode := ""
 	var usage any
-	r, err := h.SendTab(task.id(), prompt)
-	close(done)
-	if err != nil {
+	curPrompt := prompt
+	maxRetries := s.maxRetries()
+	retries := 0
+	for {
+		r, err := h.SendTab(task.id(), curPrompt)
+		if err == nil {
+			status = "done"
+			errMsg, errCode = "", ""
+			if r != nil {
+				text = util.Str(r.Get("text"))
+				usage = r.Get("usage")
+			}
+			break
+		}
 		var se *harness.StoppedError
 		if errors.As(err, &se) {
 			status = "cancelled"
 			text = se.PartialText
-		} else {
-			status = "error"
-			errMsg = err.Error()
-			errCode = classifyRunError(errMsg)
+			break
 		}
-	} else if r != nil {
-		text = util.Str(r.Get("text"))
-		usage = r.Get("usage")
+		if sig != nil && sig.Err() != nil {
+			status = "cancelled"
+			cmu.Lock()
+			cancelledByNomi = true
+			cmu.Unlock()
+			break
+		}
+		errMsg = err.Error()
+		errCode = classifyRunError(errMsg)
+		if !isRetryableRunError(errCode) || retries >= maxRetries {
+			status = "error"
+			if retries > 0 {
+				errMsg += "（已自动重试 " + strconv.Itoa(retries) + " 次仍失败；请改用其他可用编程助手或直接用自身工具继续完成）"
+			}
+			break
+		}
+		wait := s.retryBackoff(retries + 1)
+		if wait > 0 {
+			if sig != nil {
+				select {
+				case <-sig.Done():
+					status = "cancelled"
+					cmu.Lock()
+					cancelledByNomi = true
+					cmu.Unlock()
+				case <-time.After(wait):
+				}
+				if status == "cancelled" {
+					break
+				}
+			} else {
+				time.Sleep(wait)
+			}
+		}
+		retries++
+		if rh, ok := h.(RecoverableHarness); ok {
+			rh.RecoverTab(task.id(), retries >= 3)
+		}
+		if retries >= 3 {
+			curPrompt = "【自动恢复重试】前序尝试在运行中途异常中断，工作目录里可能已有部分已完成的改动。请先检查当前工作目录与 git 状态，保留并承接已完成部分，继续完成剩余目标：\n\n" + prompt
+		} else {
+			curPrompt = "上次执行因运行错误中断（第 " + strconv.Itoa(retries) + " 次自动重试）。请先检查工作目录与 git 状态，确认哪些已经做过，不要重复对外动作；接着完成剩余目标并照原格式汇报。"
+		}
 	}
+	close(done)
 	cmu.Lock()
 	by := ""
 	if status == "cancelled" {
@@ -1602,10 +1751,12 @@ func (s *Service) finalize(task *bgTask, status, text, errMsg, errCode string, u
 	if report != nil {
 		rFiles = strList(report.Get("changedFiles"))
 	}
+	// 编程助手的工具事件里改过的文件：委派前就有改动的文件 git 前后都在，按差集会被丢掉
+	edited := s.edits().Since(task.id(), util.Str(task.o.Get("cwd")), task.started(), 0)
 	if gitOK {
 		gitList = []string{}
 		for _, f := range after {
-			if !contains(before, f) || (report != nil && contains(rFiles, f)) {
+			if !contains(before, f) || (report != nil && contains(rFiles, f)) || contains(edited, f) {
 				gitList = append(gitList, f)
 			}
 		}
@@ -1615,9 +1766,9 @@ func (s *Service) finalize(task *bgTask, status, text, errMsg, errCode string, u
 	case gitOK:
 		changed = gitList
 	case report != nil:
-		changed = rFiles
+		changed = mergeFiles(rFiles, edited)
 	default:
-		changed = []string{}
+		changed = mergeFiles(nil, edited)
 	}
 	// 落地处理完整的变更集合；只有给模型 / 界面看的列表截到 50 个（#255）
 	isoNote := task.iso.Note
@@ -1634,33 +1785,45 @@ func (s *Service) finalize(task *bgTask, status, text, errMsg, errCode string, u
 	if d := delegationOf(s.findTab(task.id())); d != nil && util.Truthy(d.Get("takenOver")) {
 		takenOver = true
 	}
-	if task.iso.Kind == IsoWorktree && !takenOver {
-		switch {
-		case status == "cancelled":
-			ReleaseIsolation(task.iso, func(m string) { log.Printf("[delegate] %s", m) })
-		case status == "error" && !gitOK:
-			// 列不出变更：worktree 留着给用户接手（#255）
-		default:
-			// 做完（或失败但列得出变更）：落地。改动少拷回当前工作区，改动多 / 拷不回去的提交到新分支，然后拆掉
-			lr := LandWorktree(task.iso, changed, util.Str(task.o.Get("goal")),
-				func(dest string) bool { return s.d.Desktop.Guard(dest, "write", true).OK })
-			conflictedFiles = append(append(conflictedFiles, lr.Apply.Conflicted...), lr.Apply.Denied...)
+	landedCwd := util.Str(task.o.Get("sourceCwd"))
+	if landedCwd == "" {
+		landedCwd = util.Str(task.o.Get("cwd"))
+	}
+	if task.iso.Kind == IsoWorktree {
+		if takenOver {
+			landedCwd = task.iso.WorktreePath
+		} else {
+			landedCwd = ""
 			switch {
-			case lr.Mode == "branch":
-				isoNote += " 改动较多（" + strconv.Itoa(len(changed)) + " 个文件），没有拷进当前分支，已提交到新分支 " + lr.Branch +
-					"（基于 " + task.iso.BaseBranch + "），由用户决定是否合并"
-			case lr.Mode == "applied":
-				if len(lr.Apply.Applied) > 0 {
-					changed = lr.Apply.Applied
+			case status == "cancelled":
+				ReleaseIsolation(task.iso, func(m string) { log.Printf("[delegate] %s", m) })
+			case status == "error" && !gitOK:
+				// 列不出变更：worktree 留着给用户接手（#255）
+				landedCwd = task.iso.WorktreePath
+			default:
+				// 做完（或失败但列得出变更）：落地。改动少拷回当前工作区，改动多 / 拷不回去的提交到新分支，然后拆掉
+				lr := LandWorktree(task.iso, changed, util.Str(task.o.Get("goal")),
+					func(dest string) bool { return s.d.Desktop.Guard(dest, "write", true).OK })
+				conflictedFiles = append(append(conflictedFiles, lr.Apply.Conflicted...), lr.Apply.Denied...)
+				switch {
+				case lr.Mode == "branch":
+					isoNote += " 改动较多（" + strconv.Itoa(len(changed)) + " 个文件），没有拷进当前分支，已提交到新分支 " + lr.Branch +
+						"（基于 " + task.iso.BaseBranch + "），由用户决定是否合并"
+				case lr.Mode == "applied":
+					if len(lr.Apply.Applied) > 0 {
+						changed = lr.Apply.Applied
+						landedCwd = task.iso.SourceCwd
+					}
+					isoNote += " 改动已拷回当前工作区"
+					if lr.Branch != "" {
+						isoNote += "；以下文件拷不回去（工作区里已有改动、未授权或复制失败），提交到了新分支 " + lr.Branch + "：" +
+							joinComma(head(append(append(append([]string{}, lr.Apply.Conflicted...), lr.Apply.Denied...), lr.Apply.Skipped...), 20))
+					}
 				}
-				isoNote += " 改动已拷回当前工作区"
-				if lr.Branch != "" {
-					isoNote += "；以下文件拷不回去（工作区里已有改动、未授权或复制失败），提交到了新分支 " + lr.Branch + "：" +
-						joinComma(head(append(append(append([]string{}, lr.Apply.Conflicted...), lr.Apply.Denied...), lr.Apply.Skipped...), 20))
+				if lr.Kept {
+					landedCwd = task.iso.WorktreePath
+					isoNote += " 落地失败（" + slice(lr.Err, 200) + "），改动仍在 worktree 中：" + task.iso.WorktreePath
 				}
-			}
-			if lr.Kept {
-				isoNote += " 落地失败（" + slice(lr.Err, 200) + "），改动仍在 worktree 中：" + task.iso.WorktreePath
 			}
 		}
 	}
@@ -1670,14 +1833,24 @@ func (s *Service) finalize(task *bgTask, status, text, errMsg, errCode string, u
 	}
 	approvals := s.approvalsOf(task.id()).Clone()
 	res := util.NewObj("taskId", task.id(), "cli", task.cli(), "status", status)
+	if util.Truthy(task.o.Get("background")) {
+		res.Set("background", true)
+	}
 	if status == "cancelled" && cancelledBy != "" {
 		res.Set("cancelledBy", cancelledBy)
 	}
+	// 委派标签的 id 就是任务 id：来源对话据此读它的改动（+/− 与 Diff）
+	res.Set("tabId", task.id())
 	if report != nil {
 		res.Set("report", report)
 	}
 	if len(changed) > 0 {
 		res.Set("changedFiles", toAnyList(changed))
+		if landedCwd != "" {
+			res.Set("cwd", landedCwd)
+		} else {
+			res.Set("cwd", nil)
+		}
 	}
 	if len(conflictedFiles) > 0 {
 		res.Set("conflictedFiles", toAnyList(conflictedFiles))

@@ -14,8 +14,9 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// MaxPlanNudges：一轮里因为计划没做完最多提醒几次
-var MaxPlanNudges = 2
+// MaxPlanNudges：一轮里因为计划没做完最多提醒几次（只要每次提醒后模型有新的实质工具进展即可继续推进，
+// 满足多阶段长程任务；一旦某次提醒后无任何新动作，sinceNudge 为 false 会立即停止，不空转）
+var MaxPlanNudges = 8
 
 const planTool = "plan_update"
 

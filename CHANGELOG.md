@@ -7,6 +7,27 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ### Maintenance
 
+- **release:** empty changeset after archiving 2.3.17
+
+## 2.3.17 — 2026-11-16
+
+### Features
+
+- **conversation:** 对话里的相对路径链接和像路径的行内代码按工作区文件索引解析，点开在侧栏里看，不再交给系统浏览器；按文件名查找时跳过 node_modules / vendor / dist 等目录。 Relative file links and path-like inline code in messages resolve against the workspace file index and open in the side pane instead of the system browser; the file lookup skips node_modules, vendor, dist and similar folders. (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
+- **workspace:** 标签区、预览面板与内置浏览器加上切换 / 铺满动画，标签之间滑动的指示条（设置页、分段控件同一套）；打开文件页与改动页的文件树可以收起（按用户记住）；标题栏槽位在拖宽和面板动画时跟着列边缘走；内置浏览器能识别不允许嵌入的网页和加载卡住，对话窗口的 CSP 放行 http(s) 内嵌页。 Side tabs, the preview pane and the built-in browser animate when switching and going fullscreen, with a sliding tab indicator shared by settings and segmented controls; the file tree in the open-file and changes pages can be collapsed (remembered); title-bar slots follow the column edges while resizing; the built-in browser detects pages that refuse embedding or stall, and the chat window CSP allows http(s) frames. (`@nomi-ai/ai-chat` patch)
+
+### Fixes
+
+- **ai-runtime:** 一步的流在还没执行工具时中途断开（断流、连接重置、5xx、429 等）会自动重发这一步（指数退避，最多 5 次）；鉴权、额度、上下文超长等错误不重试。带工具的 Agent 请求默认重试 5 次，计划没做完时只要还有新进展就继续推进（最多 8 次提醒）。编程助手插件的流式错误带上状态码与能否重试。 A step whose stream breaks before any tool ran (EOF, reset, 5xx, 429…) is retried with exponential backoff (up to 5 times); auth, quota and context-length errors are not retried. Agent tool loops default to 5 retries and keep nudging an unfinished plan while it still makes progress (up to 8 nudges). CLI plugins report stream errors with status and retryability. (`@nomi-ai/desktop-go` patch)
+- **delegate:** 委派遇到瞬时错误或编程助手执行中断时自动重试（最多 5 次、带退避），并恢复半死的会话进程；上一次以失败收场的标签不再给新委派复用。失败 / 被停下的一次也把已经改了的文件带回来，结果里带上落地目录，来源对话能显示增删行与 Diff。后台委派重试后仍失败时，Nomi 在对话空闲时接手（换一个编程助手或自己完成，每次提问最多两次）。 Delegations retry transient and crashed-executor errors (up to 5 times with backoff) and recover a half-dead session; a tab whose last task failed is no longer reused. Failed or stopped runs bring back the files they already edited, the result names the directory the changes landed in, and when a background delegation still fails Nomi takes over while the chat is idle (another coding agent or its own tools, at most twice per question). (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
+- **delegate:** 子任务改的文件带回主会话：在子任务里接着对话的一轮原来只回报文字（汇报里列的文件也被清空），委派前就有改动的文件按 git 前后差集被丢掉，失败 / 被停下的一次一个文件都不带；现在按编程助手改文件的工具事件补齐，结果带上子任务标签。主会话的结果消息列出改动文件与增删行数（Nomi 下一轮读得到，不放整段 Diff），下面是和子任务面板同一张「已编辑 N 个文件」卡片，可打开每个文件的 Diff。 A subagent's file changes now reach the main chat: follow-up turns in the subagent used to report text only (even dropping the files listed in its report), files already dirty before the delegation fell out of the git before/after diff, and failed or stopped runs carried no files at all; the edit tool events now fill those in and the result names the child tab. The result message lists the changed files with +/− counts (so the main assistant knows what changed, without full diffs), with the same "Edited N files" card underneath to open each file's diff. (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
+- **delegate:** 出错或被停下的委派标签和正常完成的一样闲置一周才关（同 2.3.16），可以一直在里面接着回复；出错标签仍只拆掉常驻进程、保留原会话，下次回复时续接，也仍不拿来给新委派复用，免得被别的任务占走。 Failed or stopped delegation tabs, like finished ones, stay open for a week (as in 2.3.16) and keep accepting replies. An errored tab still drops only its resident process and resumes its session on the next reply, and is still not handed to a new delegation so another task can't take it over. (`@nomi-ai/desktop-go` patch)
+- **subagent:** 侧边聊天、打开的文件和预览标签按会话各记一份，编程助手新标签拿到会话 id 后从临时键平滑迁过去；子代理的图标按父消息实际的后端判断（流式中也对）；标签区铺满时收起会话详情。 Side chats, open files and preview tabs are kept per session and move over once a new coding-agent tab gets its session id; a sub-agent's icon follows the backend that actually produced its parent message (also while streaming); session details hide while the side tabs are maximized. (`@nomi-ai/ai-chat` patch)
+- **subagents:** Nomi 派出去的子代理可以接着说了：会话详情里点开一次委派（包括标签已被后来的同类委派接着用的）打开的是它的编程助手标签，和委派卡片里同一个会话，不再是只读的「属于 Nomi 对话」；主标签接在编程助手上时，Nomi 对话里的子代理也能直接对它说话。标签、会话详情、悬停卡片的图标与名字都按子代理实际的来源显示（Nomi 对话里的是 Nomi，不再画成别的助手）。会话详情的 Agents 按状态分组排序（进行中 → 出错 → 已完成），组内新的在前。 (`@nomi-ai/ai-chat` patch)
+- **ui:** 子任务看板（右侧标签区）和主对话重新对齐：分栏时标签栏回到标题栏那一行（合并 2.3.15 标签冲突时丢了这层），标签区里的子任务 / 侧边聊天不再画面板头（名字、状态在标签上，关闭在 ×，停止在输入栏），任务目标与提示收在输入框上方，输入区内边距与主列一致，会话顶部和输入框底边与左边主对话齐平；标签栏右端给文件栏开关 / Windows 窗口按钮让位。 The subagent pane in the side tabs lines up with the main chat again: in split view the tab strip sits in the title bar row (lost while resolving the 2.3.15 side-tabs conflict), panes inside the tabs no longer draw their own head (name and state are on the tab, close is its ×, stop is in the composer), the goal and hint sit above the composer, and the composer uses the main column's padding, so the conversation top and the composer bottom match the main chat; the strip stops short of the rail toggle and the Windows window controls. (`@nomi-ai/ai-chat` patch)
+
+### Maintenance
+
 - **release:** empty changeset after archiving 2.3.16
 
 ## 2.3.16 — 2026-11-16

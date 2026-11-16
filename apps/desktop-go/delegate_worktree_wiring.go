@@ -19,6 +19,7 @@ import (
 )
 
 var delegateClaims = delegate.NewClaims()
+var delegateEdits = delegate.NewEditLog()
 
 // wireDelegateClaims：编排器就绪后接上插话与工具事件
 func wireDelegateClaims(o *harness.Orchestrator) {
@@ -45,12 +46,30 @@ func wireDelegateClaims(o *harness.Orchestrator) {
 			if len(paths) == 0 {
 				return
 			}
+			// 记下这个标签什么时候改了哪些文件：委派收尾 / 子任务里接着对话的轮次据此把改动带回来源对话
+			delegateEdits.Note(tabID, paths, float64(time.Now().UnixMilli()))
 			// 编排器的回调持锁：转到别的 goroutine（Touch 可能插话，插话要进编排器）
 			go func() {
 				if delegateClaims.Active(tabID) {
 					delegateClaims.Touch(tabID, paths)
 				}
 			}()
+		})
+		o.Events().OnOff("tabs", func(v any) {
+			x, _ := v.(*util.Obj)
+			if x == nil {
+				return
+			}
+			tabs, _ := x.Get("tabs").([]any)
+			ids := make([]string, 0, len(tabs))
+			for _, t := range tabs {
+				if obj, ok := t.(*util.Obj); ok {
+					if id := util.Str(obj.Get("id")); id != "" {
+						ids = append(ids, id)
+					}
+				}
+			}
+			delegateEdits.Retain(ids)
 		})
 	})
 }
@@ -110,10 +129,7 @@ func retiredTaskStatus(s string) bool {
 	return false
 }
 
-// staleDelegatedTabMs：委派标签闲置多久后关掉（同一种委派复用会话只看一小时内的，留一周给对话里的卡片查看）
-const staleDelegatedTabMs = 7 * 24 * 60 * 60_000
-
-// closeStaleDelegatedTabs：关掉闲置超过一周、没被用户接手、对应任务已结束的委派标签
+// closeStaleDelegatedTabs：关掉闲置一周（delegate.StaleDelegatedTabMs）、没被用户接手、对应任务已结束的委派标签
 func closeStaleDelegatedTabs(o *harness.Orchestrator) {
 	if o == nil {
 		return
@@ -122,16 +138,11 @@ func closeStaleDelegatedTabs(o *harness.Orchestrator) {
 	tabs, _ := jsrt.Call(o.ListTabs).Get("tabs").([]any)
 	for _, t := range tabs {
 		x, _ := t.(*util.Obj)
-		if x == nil || x.Get("status") != "idle" {
+		// 出错 / 被停下的委派标签和正常完成的一样留一周（用户还要在里面接着说），不再 15 分钟就关
+		if !delegate.DelegatedTabExpired(x, now) {
 			continue
 		}
 		d, _ := x.Get("delegation").(*util.Obj)
-		if d == nil || d.Get("by") != "nomi" || util.Truthy(d.Get("takenOver")) {
-			continue
-		}
-		if at, _ := x.Get("updatedAt").(float64); now-at < staleDelegatedTabMs {
-			continue
-		}
 		if id := util.Str(d.Get("taskId")); id != "" && taskBusy(id) {
 			continue
 		}

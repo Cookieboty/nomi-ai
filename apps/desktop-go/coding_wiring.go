@@ -80,6 +80,9 @@ func (h delegateHarness) CloseTab(id string) error {
 	_, err := gilErr(func() *util.Obj { return h.o.CloseTab(id) })
 	return err
 }
+func (h delegateHarness) RecoverTab(id string, dropSession bool) {
+	_, _ = gilErr(func() bool { return h.o.RecoverDelegatedTab(id, dropSession) })
+}
 
 // delegateDesktop：delegate.Desktop ← DesktopService（broker / audit / receiversFor）
 type delegateDesktop struct{ s *desktop.Service }
@@ -174,7 +177,7 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 	}
 	dd := delegate.Deps{
 		Root: filepath.Join(userData, "delegate"), Harness: delegateHarness{o}, Desktop: delegateDesktop{d},
-		Events: hostEvents{router}, Claims: delegateClaims,
+		Events: hostEvents{router}, Claims: delegateClaims, Edits: delegateEdits,
 		// 内存守护正扣着新的编程助手时：同步委派等缓解（后台 Nomi 里）或改成后台委派（前台对话里）
 		MemoryCritical: fleetHolding,
 	}
@@ -214,7 +217,7 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 				if taskID == "" {
 					return
 				}
-				go dlg.ReportFollowUp(taskID, e.Ok, e.Text, e.Error, e.DurationMs)
+				go dlg.ReportFollowUp(taskID, e.TabID, e.Ok, e.Text, e.Error, e.DurationMs)
 			})
 		})
 	}

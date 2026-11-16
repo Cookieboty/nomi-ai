@@ -512,7 +512,7 @@ func (s *Service) CreateDelegated(i DelegatedInput) (Task, error) {
 		category = "coding"
 	}
 	via := "delegate"
-	budget := &BudgetInput{MaxRetries: ptr(1)}
+	budget := &BudgetInput{MaxRetries: ptr(DelegatedMaxRetries)}
 	// 委派出去的任务做完自动收下（结果直接回对话 / 卡片上给「查看改动」）；要人工验收的在入参里明确传 user
 	acceptance := "auto"
 	if i.Acceptance == "user" {

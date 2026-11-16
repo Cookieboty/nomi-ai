@@ -69,7 +69,19 @@ func ParseLine(line string) []Ev {
 		out := []Ev{WithOpt(O("type", "tool", "name", or(str("tool"), "tool"), "status", st, "detail", str("callId")), "output", sh.OutputText(raw))}
 		return append(out, sh.ImageEvent(raw, reImageTool.MatchString(util.JSIText(str("tool"))), false)...)
 	case "error":
-		return []Ev{O("type", "error", "message", or(str("message"), T("electron.common.dsh-error")))}
+		var nested string
+		switch e := j.Get("error").(type) {
+		case string:
+			nested = e
+		case *util.Obj:
+			nested = or(util.Str(e.Get("message")), util.Str(e.Get("detail")), util.Str(e.Get("code")))
+		}
+		if nested == "" {
+			if d, ok := j.Get("data").(*util.Obj); ok {
+				nested = util.Str(d.Get("message"))
+			}
+		}
+		return []Ev{O("type", "error", "message", or(str("message"), nested, str("detail"), T("electron.common.dsh-error")))}
 	case "status":
 		reason, _ := j.Get("reason").(*util.Obj)
 		if j.Get("phase") == "turn_end" && reason.Get("kind") == "error" {

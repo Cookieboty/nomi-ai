@@ -6,6 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Sidebar } from '../src/components/Sidebar';
 import { setChatMode, visibleEndpoints } from '../src/services/chatPrefs';
 
+// 会话面板的收回动画比通用退出动画长（Sidebar 里 usePresence(…, 220)，和 .panel[data-closing] 的 0.2s 对齐）
+const PANEL_EXIT_MS = Math.max(EXIT_MS, 220);
+
 const list = [
   { id: 'a', name: '修复登录', backend: 'codex', createdAt: 1, updatedAt: Date.now(), tabId: 't1' },
   { id: 'b', name: '聊聊天气', backend: 'nomi', createdAt: 1, updatedAt: Date.now() - 1000 },
@@ -70,11 +73,11 @@ describe('Sidebar rows', () => {
     act(() => void vi.advanceTimersByTime(400));
     // 收起时先放完收回动画再卸载
     expect(view.getByTestId('sidebar-panel').hasAttribute('data-closing')).toBe(true);
-    act(() => void vi.advanceTimersByTime(EXIT_MS));
+    act(() => void vi.advanceTimersByTime(PANEL_EXIT_MS));
     expect(view.queryByTestId('sidebar-panel')).toBeNull();
     fireEvent.mouseEnter(view.getByTestId('nav-chats'));
     fireEvent.keyDown(window, { key: 'Escape' });
-    act(() => void vi.advanceTimersByTime(EXIT_MS));
+    act(() => void vi.advanceTimersByTime(PANEL_EXIT_MS));
     expect(view.queryByTestId('sidebar-panel')).toBeNull();
     vi.useRealTimers();
   });

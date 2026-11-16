@@ -2,6 +2,8 @@ import React from 'react';
 
 import { cx } from './cx';
 import { t } from './i18n';
+import { useLocale } from './i18n';
+import { useTabIndicator } from './useTabIndicator';
 
 export interface TabItem<T extends string = string> {
   value: T;
@@ -30,6 +32,10 @@ export function Tabs<T extends string = string>({
   variant = 'segmented',
   ...rest
 }: TabsProps<T>) {
+  const locale = useLocale();
+  const { listRef, indicator } = useTabIndicator<HTMLDivElement>(
+    `${value}\0${locale}\0${items.length}`,
+  );
   const enabled = items.filter((i) => !i.disabled);
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
@@ -40,11 +46,32 @@ export function Tabs<T extends string = string>({
   };
   return (
     <div
+      ref={listRef}
       role="tablist"
+      data-sliding={indicator.visible ? 'true' : undefined}
       className={cx('cd-tabs', variant === 'underline' && 'cd-tabs--underline', className)}
       onKeyDown={onKey}
       {...rest}
     >
+      {indicator.visible && (
+        <span
+          aria-hidden="true"
+          data-animate={indicator.animate ? 'true' : undefined}
+          className="cd-tabs__indicator"
+          style={
+            variant === 'underline'
+              ? {
+                  width: `${indicator.width}px`,
+                  transform: `translate3d(${indicator.left}px, 0, 0)`,
+                }
+              : {
+                  width: `${indicator.width}px`,
+                  height: `${indicator.height}px`,
+                  transform: `translate3d(${indicator.left}px, ${indicator.top}px, 0)`,
+                }
+          }
+        />
+      )}
       {items.map((it) => (
         <button
           key={it.value}

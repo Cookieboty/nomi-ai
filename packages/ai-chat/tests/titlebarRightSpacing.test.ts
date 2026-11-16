@@ -44,4 +44,14 @@ describe('titlebar right edge spacing', () => {
     expect(rule('.app-titlebar-main')).toContain('padding-inline: var(--cd-space-3) 0');
     expect(css).not.toMatch(/\.app-titlebar-main \{[^}]*var\(--cd-space-8\)/);
   });
+
+  it('the side tab strip in the center slot stops one icon gap left of the toggle / window controls', () => {
+    const pad = rule('.app-titlebar[data-center]:not([data-files]) .app-titlebar-center');
+    // 让出的宽度扣掉中栏右边到窗口右边已有的距离，不叠加；至少 space-2（Chrome 实测：mac / Windows 都隔 4px）
+    expect(pad).toMatch(/padding-inline-end: max\( var\(--cd-space-2\), calc\(/);
+    expect(pad).toContain(
+      'var(--cd-titlebar-rail-toggle-right) + var(--cd-titlebar-rail-toggle-w, 0px) + var(--cd-space-1) - (100vw - var(--titlebar-center-left, 0px) - var(--titlebar-center-w, 0px))',
+    );
+    expect(pad).not.toContain('space-8');
+  });
 });

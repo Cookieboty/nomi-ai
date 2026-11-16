@@ -3,13 +3,69 @@ package aisdk
 import (
 	"context"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/llm"
+	"math"
+	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
 const defaultMaxRetries = 2
+
+var (
+	// AgentMaxRetries：带工具循环的 Agent 请求在未显式指定 MaxRetries 时的默认重试次数（至少尝试 5 次）
+	AgentMaxRetries = 5
+	// StepStreamMaxRetries：单步流读取在尚未执行任何工具前遭遇断流 / 上游瞬时错误时的自动重试次数（至少尝试 5 次）
+	StepStreamMaxRetries = 5
+	// StepStreamRetryBaseMs：单步断流重试初始退避毫秒数（单测可置 0）
+	StepStreamRetryBaseMs = 1000.0
+
+	midStreamPermRE  = regexp.MustCompile(`(?i)\b(401|403|413)\b|unauthorized|invalid[_ -]?api[_ -]?key|authentication[_ -]?failed|insufficient[_ -]?quota|credit balance is too low|billing|model[_ -]?not[_ -]?found|context_length_exceeded|prompt is too long|maximum context length`)
+	midStreamRetryRE = regexp.MustCompile(`(?i)\b(408|409|425|429|5\d\d)\b|rate.?limit|overloaded|server_error|internal[_ ]error|timeout|timed? ?out|too many requests|temporarily unavailable|try again|\bEOF\b|ECONNRESET|EPIPE|broken pipe|socket hang up|connection reset|connection lost|incomplete chunked|stream (ended without a finish|disconnected|closed|error)|no output generated`)
+)
+
+func isRetryableMidStreamError(err any) bool {
+	if err == nil {
+		return false
+	}
+	if _, ok := err.(*NoOutputGeneratedError); ok {
+		return true
+	}
+	if spe, ok := err.(*StreamProviderError); ok {
+		if spe.StatusCode == 401 || spe.StatusCode == 403 || spe.StatusCode == 413 {
+			return false
+		}
+		if spe.IsRetryable {
+			return true
+		}
+	}
+	msg := DescribeStreamError(err)
+	if midStreamPermRE.MatchString(msg) {
+		return false
+	}
+	return midStreamRetryRE.MatchString(msg)
+}
+
+func waitStepRetry(ctx context.Context, attempt int) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+	base := StepStreamRetryBaseMs
+	if base <= 0 {
+		return true
+	}
+	ms := math.Min(base*math.Pow(2, float64(max(0, attempt))), 16_000)
+	t := time.NewTimer(time.Duration(ms) * time.Millisecond)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-t.C:
+		return true
+	}
+}
 
 // toJSONValue: JSON round trip (undefined → null).
 func toJSONValue(v any) any {
@@ -182,159 +238,224 @@ func StreamText(ctx context.Context, p *TextParams, emit func(Part)) {
 			markCacheBreakpoints(prompt)
 		}
 		opts := p.callOptions(prompt, true)
-		resp, err := llm.Retry(ctx, llm.RetryOptions{MaxRetries: p.MaxRetries}, func() (*llm.StreamResult, error) { return p.Model.DoStream(ctx, opts) })
-		// 超出上下文长度：缩短后重发这一步（守护决定能不能、只重试一次）
-		if err != nil && ctx.Err() == nil && p.RetryOverflow != nil {
-			if next := p.RetryOverflow(err, stepMessages); next != nil {
-				if prompt, perr := convertPrompt(p.Instructions, next); perr == nil {
-					if p.CacheBreakpoints {
-						markCacheBreakpoints(prompt)
-					}
-					opts = p.callOptions(prompt, true)
-					resp, err = llm.Retry(ctx, llm.RetryOptions{MaxRetries: p.MaxRetries}, func() (*llm.StreamResult, error) { return p.Model.DoStream(ctx, opts) })
-				}
-			}
+		callRetries := p.MaxRetries
+		if callRetries == nil && p.HasTools {
+			r := AgentMaxRetries
+			callRetries = &r
 		}
-		if err != nil {
-			if ctx.Err() != nil {
-				return
-			}
-			emit(Part{Type: "error", Error: err})
-			return
-		}
-		steps++
 		var (
+			resp          *llm.StreamResult
 			content       []*stepContent
-			active        = map[string]*stepContent{}
 			calls         []parsedCall
 			outcomes      []toolOutcome
-			terminal      bool
-			outputChunk   bool
-			finishReason  = "other"
+			finishReason  string
 			stepUsage     Usage
-			sawFinish     bool
 			responseModel string
 		)
-	read:
+		stepRetries := 0
+	retryStep:
 		for {
-			var chunk llm.StreamPart
-			var ok bool
-			select {
-			case <-ctx.Done():
-				abandon(resp.Stream)
+			var err error
+			resp, err = llm.Retry(ctx, llm.RetryOptions{MaxRetries: callRetries}, func() (*llm.StreamResult, error) { return p.Model.DoStream(ctx, opts) })
+			// 超出上下文长度：缩短后重发这一步（守护决定能不能、只重试一次）
+			if err != nil && ctx.Err() == nil && p.RetryOverflow != nil {
+				if next := p.RetryOverflow(err, stepMessages); next != nil {
+					if np, perr := convertPrompt(p.Instructions, next); perr == nil {
+						if p.CacheBreakpoints {
+							markCacheBreakpoints(np)
+						}
+						opts = p.callOptions(np, true)
+						resp, err = llm.Retry(ctx, llm.RetryOptions{MaxRetries: callRetries}, func() (*llm.StreamResult, error) { return p.Model.DoStream(ctx, opts) })
+					}
+				}
+			}
+			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				emit(Part{Type: "error", Error: err, ResponseMessages: messages[len(p.Messages):]})
 				return
-			case chunk, ok = <-resp.Stream:
 			}
-			if !ok {
-				break read
-			}
-			switch chunk.Type {
-			case "response-metadata":
-				if chunk.Meta != nil && chunk.Meta.ModelID != nil {
-					if s := strings.TrimSpace(*chunk.Meta.ModelID); s != "" {
-						responseModel = s
-					}
+			content = nil
+			calls = nil
+			outcomes = nil
+			finishReason = "other"
+			stepUsage = Usage{}
+			responseModel = ""
+			var (
+				active        = map[string]*stepContent{}
+				terminal      bool
+				outputChunk   bool
+				emittedText   bool
+				reasoningOpen bool
+				toolsRan      bool
+				stepErr       any
+				streamReadErr error
+			)
+		read:
+			for {
+				var chunk llm.StreamPart
+				var ok bool
+				select {
+				case <-ctx.Done():
+					abandon(resp.Stream)
+					return
+				case chunk, ok = <-resp.Stream:
 				}
-			case "text-start", "reasoning-start":
-				kind := strings.TrimSuffix(chunk.Type, "-start")
-				c := &stepContent{kind: kind, text: &strings.Builder{}}
-				content = append(content, c)
-				active[kind+":"+chunk.ID] = c
-				if chunk.Type == "reasoning-start" {
-					emit(Part{Type: "reasoning-start"})
+				if !ok {
+					break read
 				}
-			case "reasoning-end":
-				emit(Part{Type: "reasoning-end"})
-			case "text-delta", "reasoning-delta":
-				kind := strings.TrimSuffix(chunk.Type, "-delta")
-				d := chunk.Delta
-				if c := active[kind+":"+chunk.ID]; c != nil {
-					c.text.WriteString(d)
-				}
-				if d != "" {
-					outputChunk = true
-					emit(Part{Type: kind + "-delta", Text: d})
-				}
-			case "tool-input-delta":
-				if chunk.Delta != "" {
-					outputChunk = true
-				}
-			case "file", "reasoning-file":
-				outputChunk = true
-			case "tool-call":
-				outputChunk = true
-				c := parseToolCall(chunk, p)
-				calls = append(calls, c)
-				content = append(content, &stepContent{kind: "tool-call", call: c})
-				emit(Part{Type: "tool-call", ToolCallID: c.ToolCallID, ToolName: c.ToolName, Input: c.Input, Invalid: c.Invalid})
-				if c.Invalid {
-					o := toolOutcome{call: c, err: GetErrorMessage(c.Err), isError: true}
-					outcomes = append(outcomes, o)
-					emit(o.part())
-				}
-			case "finish":
-				terminal, sawFinish = true, true
-				finishReason = finishReasonOf(chunk.FinishReason)
-				if chunk.Usage != nil {
-					stepUsage = asUsage(*chunk.Usage)
-				}
-				if toolExecutionAllowed(finishReason) {
-					results := make(chan toolOutcome)
-					var wg sync.WaitGroup
-					for _, c := range calls {
-						if t := executable(p, c); t != nil {
-							wg.Add(1)
-							go func(t *Tool, c parsedCall) {
-								defer wg.Done()
-								results <- runTool(ctx, t, c)
-							}(t, c)
+				switch chunk.Type {
+				case "response-metadata":
+					if chunk.Meta != nil && chunk.Meta.ModelID != nil {
+						if s := strings.TrimSpace(*chunk.Meta.ModelID); s != "" {
+							responseModel = s
 						}
 					}
-					go func() { wg.Wait(); close(results) }()
-					for o := range results {
-						if ctx.Err() != nil {
-							go func() {
-								for range results {
+				case "text-start", "reasoning-start":
+					kind := strings.TrimSuffix(chunk.Type, "-start")
+					c := &stepContent{kind: kind, text: &strings.Builder{}}
+					content = append(content, c)
+					active[kind+":"+chunk.ID] = c
+					if chunk.Type == "reasoning-start" {
+						reasoningOpen = true
+						emit(Part{Type: "reasoning-start"})
+					}
+				case "reasoning-end":
+					reasoningOpen = false
+					emit(Part{Type: "reasoning-end"})
+				case "text-delta", "reasoning-delta":
+					kind := strings.TrimSuffix(chunk.Type, "-delta")
+					d := chunk.Delta
+					if c := active[kind+":"+chunk.ID]; c != nil {
+						c.text.WriteString(d)
+					}
+					if d != "" {
+						outputChunk = true
+						if kind == "text" {
+							emittedText = true
+						}
+						emit(Part{Type: kind + "-delta", Text: d})
+					}
+				case "tool-input-delta":
+					if chunk.Delta != "" {
+						outputChunk = true
+					}
+				case "file", "reasoning-file":
+					outputChunk = true
+				case "tool-call":
+					outputChunk = true
+					c := parseToolCall(chunk, p)
+					calls = append(calls, c)
+					content = append(content, &stepContent{kind: "tool-call", call: c})
+				case "finish":
+					terminal = true
+					finishReason = finishReasonOf(chunk.FinishReason)
+					if chunk.Usage != nil {
+						stepUsage = asUsage(*chunk.Usage)
+					}
+					// 仅当本步流正常收尾（无前置流错误）时才发出 tool-call 并执行工具；
+					// 若上游流半途截断（如 compatible 补发的 finish="error"），保留给外层重发本步，不泄漏半截残缺工具调用
+					if stepErr == nil && finishReason != "error" {
+						for _, c := range calls {
+							emit(Part{Type: "tool-call", ToolCallID: c.ToolCallID, ToolName: c.ToolName, Input: c.Input, Invalid: c.Invalid})
+							if c.Invalid {
+								o := toolOutcome{call: c, err: GetErrorMessage(c.Err), isError: true}
+								outcomes = append(outcomes, o)
+								emit(o.part())
+							}
+						}
+						if toolExecutionAllowed(finishReason) {
+							toolsRan = true
+							results := make(chan toolOutcome)
+							var wg sync.WaitGroup
+							for _, c := range calls {
+								if t := executable(p, c); t != nil {
+									wg.Add(1)
+									go func(t *Tool, c parsedCall) {
+										defer wg.Done()
+										results <- runTool(ctx, t, c)
+									}(t, c)
 								}
-							}()
-							abandon(resp.Stream)
-							return
+							}
+							go func() { wg.Wait(); close(results) }()
+							for o := range results {
+								if ctx.Err() != nil {
+									go func() {
+										for range results {
+										}
+									}()
+									abandon(resp.Stream)
+									return
+								}
+								outcomes = append(outcomes, o)
+								emit(o.part())
+							}
+							if ctx.Err() != nil {
+								abandon(resp.Stream)
+								return
+							}
 						}
-						outcomes = append(outcomes, o)
-						emit(o.part())
 					}
-					if ctx.Err() != nil {
+				case "error":
+					terminal = true
+					finishReason = "error"
+					var raw any = chunk.RawValue
+					if chunk.Err != nil {
+						raw = chunk.Err
+					}
+					stepErr = NormalizeStreamProviderError(raw)
+				case llm.PartStreamError:
+					// the ReadableStream itself errored: retry this step if no tools ran yet
+					if ctx.Err() != nil || llm.IsAbortError(chunk.Err) {
 						abandon(resp.Stream)
 						return
 					}
-				}
-			case "error":
-				terminal = true
-				finishReason = "error"
-				var raw any = chunk.RawValue
-				if chunk.Err != nil {
-					raw = chunk.Err
-				}
-				emit(Part{Type: "error", Error: NormalizeStreamProviderError(raw)})
-			case llm.PartStreamError:
-				// the ReadableStream itself errored: streamText's fullStream rejects with that error
-				if ctx.Err() != nil || llm.IsAbortError(chunk.Err) {
+					streamReadErr = chunk.Err
 					abandon(resp.Stream)
-					return
+					break read
 				}
-				emit(Part{Type: "error", Error: chunk.Err})
-				abandon(resp.Stream)
+			}
+			if ctx.Err() != nil {
 				return
 			}
+			var retryErr any
+			switch {
+			case streamReadErr != nil:
+				retryErr = streamReadErr
+			case stepErr != nil:
+				retryErr = stepErr
+			case !terminal && !emittedText && len(calls) == 0:
+				// 空流、或仅输出了一半思考/工具参数碎片便静默断流：不可误判为正常结束，按无输出截断触发重发
+				_ = outputChunk
+				retryErr = &NoOutputGeneratedError{Message: "No output generated. The model stream ended without a finish chunk."}
+			}
+			if retryErr != nil {
+				canRetry := !toolsRan && stepRetries < StepStreamMaxRetries && (streamReadErr != nil || isRetryableMidStreamError(retryErr))
+				if canRetry {
+					if reasoningOpen {
+						emit(Part{Type: "reasoning-end"})
+					}
+					if emittedText {
+						emit(Part{Type: "text-delta", Text: "\n\n"})
+					}
+					if !waitStepRetry(ctx, stepRetries) {
+						return
+					}
+					stepRetries++
+					continue retryStep
+				}
+				if reasoningOpen {
+					emit(Part{Type: "reasoning-end"})
+				}
+				emit(Part{Type: "error", Error: retryErr, ResponseMessages: messages[len(p.Messages):]})
+				if streamReadErr != nil || !terminal {
+					return
+				}
+			}
+			break retryStep
 		}
-		_ = sawFinish
-		if ctx.Err() != nil {
-			return
-		}
-		if !terminal && !outputChunk {
-			emit(Part{Type: "error", Error: &NoOutputGeneratedError{Message: "No output generated. The model stream ended without a finish chunk."}})
-			return
-		}
+		steps++
 		total = addUsage(total, stepUsage)
 		emit(Part{Type: "finish-step", FinishReason: finishReason, Usage: stepUsage, Headers: resp.ResponseHeaders, ResponseModel: responseModel})
 		client := 0

@@ -3,8 +3,10 @@
  * - 标签是 WAI-ARIA tablist：左右方向键 / Home / End 切换并移动焦点（roving tabindex）；
  * - 只渲染当前标签的内容（面板各自懒加载、切换分区时的状态行为与原先一致）。
  */
-import { t } from '@nomi-ai/ui';
-import React, { useId, useRef } from 'react';
+import { t, useLocale, useTabIndicator } from '@nomi-ai/ui';
+import React, { useId, useMemo, useRef } from 'react';
+
+import { useDirectionalTabMotion } from '../../hooks/useTabMotion';
 
 import styles from './SectionPage.module.css';
 
@@ -36,7 +38,13 @@ export function SectionPage<T extends string>({
   children,
 }: Props<T>): React.ReactElement {
   const uid = useId();
+  const locale = useLocale();
   const refs = useRef(new Map<T, HTMLButtonElement>());
+  const tabKeys = useMemo(() => tabs.map((x) => x.id), [tabs]);
+  const panelMotion = useDirectionalTabMotion(tabKeys, value);
+  const { listRef, indicator } = useTabIndicator<HTMLDivElement>(
+    `${value}\0${locale}\0${tabs.length}`,
+  );
 
   const onKey = (e: React.KeyboardEvent) => {
     const i = tabs.findIndex((x) => x.id === value);
@@ -61,12 +69,26 @@ export function SectionPage<T extends string>({
     >
       <div className={styles.head}>
         <div
+          ref={listRef}
           role="tablist"
           aria-label={t(tabsLabel)}
+          data-sliding={indicator.visible ? 'true' : undefined}
           className={styles.tabs}
           data-testid={`${testId}-tabs`}
           onKeyDown={onKey}
         >
+          {indicator.visible && (
+            <span
+              aria-hidden="true"
+              data-animate={indicator.animate ? 'true' : undefined}
+              className={styles.tabIndicator}
+              style={{
+                width: `${indicator.width}px`,
+                height: `${indicator.height}px`,
+                transform: `translate3d(${indicator.left}px, ${indicator.top}px, 0)`,
+              }}
+            />
+          )}
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -94,6 +116,7 @@ export function SectionPage<T extends string>({
         id={`${uid}-panel`}
         aria-labelledby={`${uid}-tab-${value}`}
         className={styles.panel}
+        data-tab-motion={panelMotion}
         data-testid={`${testId}-panel`}
       >
         {children}

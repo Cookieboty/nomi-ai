@@ -213,13 +213,15 @@ export const SessionTools: React.FC<{
   /** 当前会话的消息（变更统计、用到的 Agents） */
   messages: readonly ConvMessage[];
   rail: { open: boolean; onToggle: () => void } | null;
-}> = ({ messages, rail }) => {
+  /** 工作区全屏铺满时直接隐藏会话详情按钮 */
+  hideDetails?: boolean;
+}> = ({ messages, rail, hideDetails = false }) => {
   const s = useCurrentSession();
   const count = useMemo(() => aggregateSessionChanges(messages).length, [messages]);
   return (
     <>
       <TitlebarContent name="session">
-        {s?.hasMessages && (
+        {!hideDetails && s?.hasMessages && (
           <SessionDetailsToggle
             railOpen={!!rail?.open}
             bubbleClassName={chatHeaderStyles.actionsTipBubble}

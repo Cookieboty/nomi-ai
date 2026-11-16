@@ -4,7 +4,7 @@
  * （RepoGitSection；同一个仓库的多个文件夹合成一段）。都不是 git 仓库（或读不到）时退回本会话变更树。
  * 文件：一个文件夹时就是它的目录树；多个时每个文件夹一个顶层节点（主文件夹默认展开）。中栏 Diff 见 CenterChangesHost。
  */
-import { t } from '@nomi-ai/ui';
+import { t, useLocale, useTabIndicator } from '@nomi-ai/ui';
 import {
   IconArrowsMaximize as Expand,
   IconFolder as FolderTree,
@@ -72,6 +72,10 @@ export const SessionChangesPanel: React.FC<{
 }> = ({ messages, cwd, roots: rootsProp, rail = false, busy = false, onClose, lockedView }) => {
   const [view, setView] = useState<View>(lockedView ?? 'changes');
   if (lockedView && view !== lockedView) setView(lockedView);
+  const locale = useLocale();
+  const { listRef: viewSegRef, indicator: viewSegIndicator } = useTabIndicator<HTMLDivElement>(
+    `${view}\0${locale}`,
+  );
   const [onlySession, setOnlySession] = useState(false);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -546,10 +550,24 @@ export const SessionChangesPanel: React.FC<{
         <header className={styles.panelHead}>
           {!lockedView && (
             <div
+              ref={viewSegRef}
+              data-sliding={viewSegIndicator.visible ? 'true' : undefined}
               className={pane.seg}
               role="tablist"
               aria-label={t('ui.session-workspace.changes-panel-view')}
             >
+              {viewSegIndicator.visible && (
+                <span
+                  aria-hidden="true"
+                  data-animate={viewSegIndicator.animate ? 'true' : undefined}
+                  className={pane.segIndicator}
+                  style={{
+                    width: `${viewSegIndicator.width}px`,
+                    height: `${viewSegIndicator.height}px`,
+                    transform: `translate3d(${viewSegIndicator.left}px, ${viewSegIndicator.top}px, 0)`,
+                  }}
+                />
+              )}
               <button
                 type="button"
                 role="tab"

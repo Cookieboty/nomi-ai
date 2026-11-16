@@ -68,6 +68,12 @@ export interface DelegateResult {
   conversationId?: string;
   /** 委派结束后在子任务里接着跑的一轮（用户接着对话 / 沙箱授权后续跑）的结果 */
   followUp?: boolean;
+  /** 是否为异步后台委派的完成广播（同步工具调用的广播不带或为 false） */
+  background?: boolean;
+  /** 子任务标签：来源对话从它的会话里读改动的 +/− 与 Diff */
+  tabId?: string;
+  /** 改动落地的目标工作目录（worktree 拷回后为主目录；转存新分支或未验收落地时为 null） */
+  cwd?: string | null;
 }
 
 export function delegateKindLabel(k: DelegateKind): string {

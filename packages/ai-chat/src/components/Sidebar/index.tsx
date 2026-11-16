@@ -228,7 +228,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const float = useFloatingPanel(collapsed);
   const resize = useSidebarResize(!collapsed);
   // 会话面板收起时先放完收回动画再卸载
-  const panelP = usePresence(!collapsed || float.floating);
+  const panelP = usePresence(!collapsed || float.floating, 220);
   // 浮层里选了会话 / 新建了会话（高亮换了）：收起浮层
   const [floatFor, setFloatFor] = useState(highlightId);
   if (floatFor !== highlightId) {
@@ -484,9 +484,11 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       view,
     ],
   );
+  // 收起退场动画（panelP.closing）期间不要立即把外层锁成 52px，否则右侧卡片会 0ms 硬跳盖住退场抽屉
+  const railOnly = !panelP.value || float.floating || panelHidden;
   return (
     <aside
-      className={`${styles.sidebar} ${collapsed || panelHidden ? styles.collapsed : ''}`}
+      className={`${styles.sidebar} ${railOnly ? styles.collapsed : ''}`}
       data-testid="chat-sidebar"
       data-panel={collapsed || panelHidden ? undefined : 'open'} // 展开：与右边对话卡片拼成一张（App.css）
       onMouseEnter={!panelHidden && float.floating ? float.cancelHide : undefined}

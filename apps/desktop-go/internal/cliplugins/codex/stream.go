@@ -229,8 +229,16 @@ func ParseLine(line string) []Ev {
 	case typ == "turn.failed" || typ == "error":
 		m := Coalesce(j.Get("error"), j.Get("message"))
 		message := T("electron.common.codex-error")
-		if m != nil {
-			message = JSString(m)
+		if eo, ok := m.(*util.Obj); ok && eo != nil {
+			if em := strings.TrimSpace(util.Str(Coalesce(eo.Get("message"), eo.Get("error")))); em != "" {
+				message = em
+			} else if s := strings.TrimSpace(util.Str(j.Get("message"))); s != "" {
+				message = s
+			}
+		} else if m != nil {
+			if s := strings.TrimSpace(JSString(m)); s != "" {
+				message = s
+			}
 		}
 		re := reReconnectN.FindStringSubmatch(message)
 		if typ == "error" && (re != nil || reReconnect.MatchString(util.JSIText(message))) {

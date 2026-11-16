@@ -14,8 +14,21 @@ html[data-platform]:not([data-platform='darwin']) .app-titlebar {
  * Windows / Linux 的开关位置已经含窗口按钮区，所以同一个式子也不会压到最小化 / 最大化 / 关闭。
  */
 .app-titlebar-main {
-  left: var(--titlebar-main-left, calc(52px + var(--sidebar-panel-w)));
+  left: max(
+    var(--titlebar-main-left, calc(52px + var(--sidebar-panel-w))),
+    calc(52px + var(--cd-titlebar-lead-w, 0px))
+  );
   padding-inline: var(--cd-space-3) 0;
+}
+html[data-platform='darwin'] .app-titlebar-main {
+  left: max(
+    var(--titlebar-main-left, calc(52px + var(--sidebar-panel-w))),
+    calc(116px + var(--cd-titlebar-lead-w, 0px))
+  );
+}
+/* usePanelColumns 逐帧实时同步列边界后关闭 CSS 二次 left 延迟，确保顶栏短线与下方分割线帧级严丝合缝 */
+.app-titlebar[data-columns-synced='true'] .app-titlebar-main {
+  transition: none;
 }
 /* 带平台前缀的一条要盖过 App.css 里 Windows / Linux 的 right（只写 right，不碰 left） */
 .app-titlebar-main,
@@ -81,6 +94,7 @@ html[data-platform]:not([data-platform='darwin']) .app-titlebar-main {
   position: absolute;
   display: flex;
   align-items: center;
+  gap: var(--cd-space-0-5);
   right: var(--cd-titlebar-rail-toggle-right);
   top: 50%;
   transform: translateY(-50%);
@@ -163,8 +177,19 @@ html[data-platform]:not([data-platform='darwin']) .app-titlebar-files {
 .app-titlebar:is([data-files], [data-center]) .app-titlebar-main {
   padding-inline-end: var(--cd-space-2);
 }
+/*
+ * 中栏（标签区的标签栏）右边缘和窗口右边缘重合时，给文件栏开关（Windows / Linux 还有窗口按钮）让位：
+ * 让出的宽度 = 开关左边到窗口右边的距离 − 中栏右边到窗口右边的距离，至少常规的 space-2。
+ */
 .app-titlebar[data-center]:not([data-files]) .app-titlebar-center {
-  padding-inline-end: var(--cd-space-8);
+  padding-inline-end: max(
+    var(--cd-space-2),
+    calc(
+      var(--cd-titlebar-rail-toggle-right) + var(--cd-titlebar-rail-toggle-w, 0px) +
+        var(--cd-space-1) -
+        (100vw - var(--titlebar-center-left, 0px) - var(--titlebar-center-w, 0px))
+    )
+  );
 }
 
 /* 面板工具中的图标也使用同一尺寸，不随面板变窄而缩小按钮。 */
