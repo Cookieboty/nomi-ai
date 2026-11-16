@@ -4,9 +4,21 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { StartupBrandIntro } from '../src/components/BrandIntro';
-import { introActive, startupBrandIntro } from '../src/components/BrandIntro/state';
+import {
+  FONTS_READY_TIMEOUT_MS,
+  LAYOUT_FRAME_FALLBACK_MS,
+  StartupReady,
+} from '../src/components/BrandIntro/StartupReady';
+import {
+  introActive,
+  STARTUP_HARD_TIMEOUT_MS,
+  STARTUP_TASK_TIMEOUT_MS,
+  startupBrandIntro,
+} from '../src/components/BrandIntro/state';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { Onboarding } from '../src/components/Onboarding';
+
+const WRITE_AND_HOLD_MS = 1400 + 450;
 
 beforeEach(() => {
   startupBrandIntro.resetForTest();
@@ -202,12 +214,120 @@ describe('returning-user startup', () => {
     expect(startupBrandIntro.getSnapshot().phase).toBe('revealing');
   });
 
-  it('skipping animation still waits for the loaded app', () => {
+  it('skip closes the cover immediately even while startup data is still loading', () => {
     startupBrandIntro.start('app');
-    startupBrandIntro.skip();
+    startupBrandIntro.drawn();
     expect(startupBrandIntro.getSnapshot().phase).toBe('waiting');
+    startupBrandIntro.skip();
+    expect(startupBrandIntro.getSnapshot().phase).toBe('done');
+    // 数据随后到达也不会把开屏拉回来
+    startupBrandIntro.taskStart('nomi');
     startupBrandIntro.appReady();
     expect(startupBrandIntro.getSnapshot().phase).toBe('done');
+  });
+
+  it('clicking the skip button while waiting removes the cover', () => {
+    startupBrandIntro.start('app');
+    render(<StartupBrandIntro />);
+    act(() => startupBrandIntro.drawn());
+    expect(screen.getByTestId('startup-brand-intro').dataset.phase).toBe('waiting');
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.queryByTestId('startup-brand-intro')).toBeNull();
+  });
+
+  it('a startup task that never finishes is given up on after its own timeout', () => {
+    startupBrandIntro.start('app');
+    startupBrandIntro.taskDone('tabs');
+    startupBrandIntro.taskDone('sidebar');
+    act(() => vi.advanceTimersByTime(STARTUP_TASK_TIMEOUT_MS - 1));
+    expect(startupBrandIntro.getSnapshot().pending).toEqual(['nomi']);
+    act(() => vi.advanceTimersByTime(1));
+    expect(startupBrandIntro.getSnapshot().pending).toEqual([]);
+  });
+
+  it('hung startup work still closes the cover at the hard timeout', () => {
+    // 字体就绪与所有启动任务都永远不回
+    Object.defineProperty(document, 'fonts', {
+      configurable: true,
+      value: { ready: new Promise(() => undefined) },
+    });
+    try {
+      startupBrandIntro.start('app');
+      render(
+        <>
+          <StartupReady />
+          <StartupBrandIntro />
+        </>,
+      );
+      act(() => vi.advanceTimersByTime(WRITE_AND_HOLD_MS));
+      expect(screen.getByTestId('startup-brand-intro').dataset.phase).toBe('waiting');
+      // 后续不断开始新的加载也不能无限续命
+      startupBrandIntro.taskStart('nomi');
+      act(() => vi.advanceTimersByTime(STARTUP_HARD_TIMEOUT_MS - WRITE_AND_HOLD_MS - 1));
+      expect(screen.queryByTestId('startup-brand-intro')).not.toBeNull();
+      act(() => vi.advanceTimersByTime(1));
+      act(() => vi.advanceTimersByTime(1000));
+      expect(screen.queryByTestId('startup-brand-intro')).toBeNull();
+      expect(startupBrandIntro.getSnapshot().phase).toBe('done');
+    } finally {
+      Reflect.deleteProperty(document, 'fonts');
+    }
+  });
+
+  it('a hung document.fonts.ready does not block the normal ready path', async () => {
+    Object.defineProperty(document, 'fonts', {
+      configurable: true,
+      value: { ready: new Promise(() => undefined) },
+    });
+    try {
+      startupBrandIntro.start('app');
+      render(<StartupReady />);
+      act(() => startupBrandIntro.drawn());
+      for (const task of ['nomi', 'tabs', 'sidebar'] as const)
+        act(() => startupBrandIntro.taskDone(task));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(FONTS_READY_TIMEOUT_MS + LAYOUT_FRAME_FALLBACK_MS + 50);
+      });
+      expect(startupBrandIntro.getSnapshot().phase).toBe('revealing');
+    } finally {
+      Reflect.deleteProperty(document, 'fonts');
+    }
+  });
+
+  it('normal ready path releases on data + layout well before any timeout', async () => {
+    startupBrandIntro.start('app');
+    render(<StartupReady />);
+    act(() => vi.advanceTimersByTime(WRITE_AND_HOLD_MS));
+    act(() => startupBrandIntro.drawn());
+    for (const task of ['nomi', 'tabs', 'sidebar'] as const)
+      act(() => startupBrandIntro.taskDone(task));
+    expect(startupBrandIntro.getSnapshot().phase).toBe('waiting');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+    expect(startupBrandIntro.getSnapshot()).toMatchObject({ phase: 'revealing', forced: false });
+  });
+
+  it('re-waits for layout when a load starts and ends within one batch after revealing', async () => {
+    startupBrandIntro.start('app');
+    render(<StartupReady />);
+    act(() => startupBrandIntro.drawn());
+    act(() => {
+      for (const task of ['nomi', 'tabs', 'sidebar'] as const) startupBrandIntro.taskDone(task);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+    expect(startupBrandIntro.getSnapshot().phase).toBe('revealing');
+    act(() => {
+      startupBrandIntro.taskStart('nomi');
+      startupBrandIntro.taskDone('nomi');
+    });
+    expect(startupBrandIntro.getSnapshot().phase).toBe('waiting');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+    expect(startupBrandIntro.getSnapshot().phase).toBe('revealing');
   });
 
   it('keeps a static loading cover for reduced motion, then removes it when ready', () => {

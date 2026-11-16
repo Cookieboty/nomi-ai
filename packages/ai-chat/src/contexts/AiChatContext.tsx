@@ -128,6 +128,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   const inflight = useRef(new Map<string, InflightTurn>());
   /** 历史加载序号：切换会话时后发起的加载为准，先发起的晚到结果直接丢弃 */
   const historySeq = useRef(0);
+  /** 只按加载本身计数：新建 / 清空会话也会推进 historySeq，但不能因此让开屏的 nomi 任务永远等不到完成 */
+  const historyLoadSeq = useRef(0);
 
   // 当外部提供 ClientAIClient 时，使用绑定该 client 的 IPCClient（首屏已绑定的直接复用）；
   // 否则沿用初始化时通过工厂函数产出的实例（可能是 Mock）。
@@ -319,6 +321,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   const loadChatHistory = useCallback(async () => {
     startupBrandIntro.taskStart('nomi');
     const my = ++historySeq.current;
+    const myLoad = ++historyLoadSeq.current;
     // 切换会话：停止朗读上一个会话的回复
     stopReplySpeech();
     // 换了会话：上一个会话的错误提示不再适用（#78）
@@ -337,7 +340,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       if (my !== historySeq.current) return;
       dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
     } finally {
-      if (my === historySeq.current) startupBrandIntro.taskDone('nomi');
+      // 最新的一次加载结束就报完成；期间若被新建 / 清空会话打断（historySeq 变了）也要报，否则开屏一直等
+      if (myLoad === historyLoadSeq.current) startupBrandIntro.taskDone('nomi');
     }
   }, []);
 
