@@ -524,7 +524,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     busy,
     queue,
     handleSend,
-    chatStoreMessages: chatStore.get().messages,
+    getChatMessages: () => chatStore.get().messages,
     newlineCaret,
   });
 

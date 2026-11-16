@@ -38,7 +38,8 @@ interface KeyboardHandlerContext {
   busy: boolean;
   queue?: { onFlush?: () => void; pending?: number };
   handleSend: (mode?: 'steer' | 'queue') => void | Promise<void>;
-  chatStoreMessages: Array<{ role: string; content: string }>;
+  /** 按键时再读最新的消息（渲染期的快照可能还没有刚发出的那条） */
+  getChatMessages: () => ReadonlyArray<{ role: string; content: string }>;
   newlineCaret: React.MutableRefObject<number | null>;
 }
 
@@ -176,7 +177,7 @@ export function createKeyDownHandler(ctx: KeyboardHandlerContext) {
 
     // ↑ 空输入框找回上一条
     if (e.key === 'ArrowUp' && !ctx.message) {
-      const last = [...ctx.chatStoreMessages].reverse().find((m) => m.role === 'user');
+      const last = [...ctx.getChatMessages()].reverse().find((m) => m.role === 'user');
       if (last) {
         e.preventDefault();
         ctx.setMessage(last.content);
