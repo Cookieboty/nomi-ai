@@ -14,6 +14,37 @@ import (
 type StreamState struct {
 	TextSeen    bool
 	LastContext *float64
+	LastError   string
+}
+
+func extractResultErrors(j *util.Obj) string {
+	if j == nil {
+		return ""
+	}
+	parts := []string{}
+	add := func(v any) {
+		switch x := v.(type) {
+		case string:
+			if s := strings.TrimSpace(x); s != "" {
+				parts = append(parts, s)
+			}
+		case *util.Obj:
+			if x != nil {
+				if s := strings.TrimSpace(util.Str(Coalesce(x.Get("message"), x.Get("error")))); s != "" {
+					parts = append(parts, s)
+				}
+			}
+		}
+	}
+	if arr, ok := j.Get("errors").([]any); ok {
+		for _, item := range arr {
+			add(item)
+		}
+	}
+	if len(parts) == 0 {
+		add(j.Get("error"))
+	}
+	return strings.Join(parts, "; ")
 }
 
 func anthropicRequestContext(u any) *float64 {
@@ -165,9 +196,12 @@ func ParseLine(line string, state *StreamState) []Ev {
 		out = append(out, sh.ImageEvent(msg.Get("content"), true, false)...)
 	case typ == "result":
 		ctxT, ctxW, model := claudeContext(j, state)
+		lastErr := ""
 		if state != nil {
+			lastErr = state.LastError
 			state.TextSeen = false
 			state.LastContext = nil
+			state.LastError = ""
 		}
 		var text string
 		if s, ok := j.Get("result").(string); ok {
@@ -183,11 +217,20 @@ func ParseLine(line string, state *StreamState) []Ev {
 		sub, subStr := j.Get("subtype").(string)
 		failed := j.Get("is_error") == true || (subStr && strings.HasPrefix(sub, "error"))
 		if failed {
-			msg := text
+			msg := strings.TrimSpace(text)
+			detail := extractResultErrors(j)
+			if detail == "" {
+				detail = lastErr
+			}
 			if msg == "" {
-				if j.Get("subtype") != nil {
+				switch {
+				case subStr && sub != "" && detail != "" && !strings.Contains(detail, sub):
+					msg = sub + ": " + detail
+				case detail != "":
+					msg = detail
+				case j.Get("subtype") != nil:
 					msg = JSString(j.Get("subtype"))
-				} else {
+				default:
 					msg = T("electron.common.claude-error")
 				}
 			}
@@ -204,6 +247,11 @@ func ParseLine(line string, state *StreamState) []Ev {
 			out = append(out, O("type", "session", "sessionId", *sid))
 		}
 	case typ == "system" && j.Get("subtype") == "api_retry":
+		if state != nil {
+			if e := strings.TrimSpace(util.Str(j.Get("error"))); e != "" {
+				state.LastError = e
+			}
+		}
 		out = append(out, WithOpt(O("type", "status", "kind", "retry"),
 			"attempt", sh.Num(j.Get("attempt")), "max", sh.Num(j.Get("max_retries")), "text", StrOr(j.Get("error"))))
 	case typ == "system" && j.Get("subtype") == "status":

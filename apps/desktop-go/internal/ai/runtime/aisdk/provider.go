@@ -1002,6 +1002,19 @@ func (p *Provider) runStream(ctx context.Context, r *llm.ChatRequest, ts []Tool,
 				resMsgs = part.ResponseMessages
 				stepLimit = part.StepLimit
 			case "error":
+				if len(part.ResponseMessages) > 0 {
+					resMsgs = part.ResponseMessages
+				}
+				// 在发出 error 块导致客户端断开迭代器之前，先把本轮已成功跑完的工具步骤发出去
+				if hasTools && c.Err() == nil && (len(messages) > len(tp.Messages) || len(resMsgs) > 0) {
+					all := WithSteerInserts(append(append([]*u.Obj{}, messages...), resMsgs...), inserts)
+					from := len(tp.Messages)
+					if from <= len(all) {
+						if st := StepsJSON(guard.condense(all)[from:]); st != "" {
+							emit(llm.ChatChunk{Type: "steps", Steps: st})
+						}
+					}
+				}
 				s := DescribeStreamError(part.Error)
 				emit(llm.ChatChunk{Type: "error", Error: &s})
 			}

@@ -108,7 +108,14 @@ func ParseLine(line string) []Ev {
 		}
 		return []Ev{WithOpt(WithOpt(O("type", "done", "text", sh.TextWithImage(endText, image)), "sessionId", nonEmpty(str("sessionId"))), "usage", sh.ParseUsage(j.Get("usage"), nil, nil))}
 	case "error":
-		return []Ev{O("type", "error", "message", or(str("message"), T("electron.common.grok-error")))}
+		var nested string
+		switch e := j.Get("error").(type) {
+		case string:
+			nested = e
+		case *util.Obj:
+			nested = or(util.Str(e.Get("message")), util.Str(e.Get("detail")), util.Str(e.Get("code")))
+		}
+		return []Ev{O("type", "error", "message", or(str("message"), nested, str("data"), str("detail"), T("electron.common.grok-error")))}
 	case "thought":
 		if data := or(str("data"), str("text")); data != "" {
 			return []Ev{O("type", "thinking", "text", sh.Clip(data, sh.MaxThinking))}
