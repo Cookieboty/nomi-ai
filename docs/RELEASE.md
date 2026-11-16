@@ -26,6 +26,10 @@ Nomi 的安装包（`apps/desktop-go`，Go 内核 + Wails v3）由
    `latest-go.json`（`releaseNotes`）。应用内「更新日志」弹层经 `updates.releaseNotes` 按版本号取
    `releases/download/vX.Y.Z/latest-go.json` 并缓存，界面里不内置任何版本的文案，发版不用改代码。
    新说明先写中文短句，再用 `## English` 另开英文。2.3.9 及更早的说明仍是每行「中文 / English」，弹层两种都认。只写给用户看的内容。
+   同时把待发布的 changeset 归档：`pnpm changeset:version`（= `node scripts/release/changelog.mjs --release`
+   把 `## Unreleased` 定版成当前版本号 + 日期，再 `changeset version` 删除已消费的 `.changeset/*.md`），
+   连同 `CHANGELOG.md` 一起提交。只加 changeset 不跑 `pnpm changelog` 时，`CI` 的 `changelog --check` 会红；
+   `.changeset/` 的积压上限由 `scripts/__tests__/changesets.test.ts` 守着（消费完把上限调小）。
 2. 在 `main` 上等 `desktop-go` 与 `CI` 都绿（tag 上不再重跑测试，直接打包发布）。
 
    发版分支（`release/X.Y.Z` → PR → `main`）怎么少等一轮：

@@ -1,7 +1,6 @@
 import { byCli } from '@nomi-ai/cli-catalog';
-import { t, Icon, useLocale, usePresence } from '@nomi-ai/ui';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { List } from 'react-window';
+import { t, useLocale, usePresence } from '@nomi-ai/ui';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   selectBusyConvos,
@@ -13,69 +12,44 @@ import {
 } from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
-import { useCliHistory } from '../../hooks/useCliHistory';
 import { useCliTabSync } from '../../hooks/useCliTabSync';
 import { useConversationListView } from '../../hooks/useConversationListView';
-import { MAX_RESULTS, useHistorySearchIndex } from '../../hooks/useHistorySearchIndex';
 import { useNewProject } from '../../hooks/useNewProject';
-import { orderEndpoints, visibleEndpoints } from '../../services/chatPrefs';
+import { orderEndpoints } from '../../services/chatPrefs';
 import { cliUpdateClient } from '../../services/cliUpdateClient';
 import {
   CONVERSATIONS_CHANGED_EVENT,
   OPEN_CONVERSATION_EVENT,
 } from '../../services/conversationStore';
-import {
-  MAIN_TAB_ID,
-  harnessClient,
-  isNomiDelegated,
-  type HarnessTabMeta,
-} from '../../services/harnessClient';
-import {
-  HISTORY_BACKENDS,
-  type HistoryBackend,
-  type HistorySession,
-} from '../../services/historyClient';
+import { MAIN_TAB_ID, harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
+import type { HistorySession } from '../../services/historyClient';
 import { useProjects, type Project } from '../../services/projects';
-import { clearNomiAutoTitle } from '../../services/sessionTitle';
 import { formatCombo, useShortcutBindings } from '../../services/shortcuts';
 import { CONVERSATION_BACKENDS, type ConversationBackend } from '../../types/chat';
-import { ENDPOINT_FULL } from '../../utils/endpointBadge';
-import { rankItems } from '../../utils/fuzzy';
-import { isImeComposing } from '../../utils/keyboard';
 import { startupBrandIntro } from '../BrandIntro/state';
-import { confirmDialog } from '../ConfirmDialog';
-import { ConversationMenu } from '../ConversationMenu';
 import { EndpointInfoCard } from '../EndpointInfo';
 import { GettingStarted } from '../GettingStarted';
-import { NewChatMenu } from '../NewChatMenu';
-import { ProjectDialog } from '../ProjectDialog';
 import type { SettingsSection, SettingsTab } from '../SettingsView/sections';
 
-import { AnchoredPopover } from './AnchoredPopover';
-import { EndpointRail } from './EndpointRail';
-import { SIDEBAR_ICONS } from './icons';
 import styles from './index.module.css';
 import { sameMetaList } from './listEquality';
-import { LocalHistorySection } from './LocalHistorySection';
+import { NewChatButton } from './NewChatButton';
 import { useProjectGrouping, projectBackend, pinnedFirst } from './projectGrouping';
-import { NewProjectButton, OrganizeMenu, ProjectGroups, SECTION_WORKSPACES } from './ProjectGroups';
-import { SearchDialog } from './SearchDialog';
-import {
-  firstUserMessageCache,
-  fieldsOf,
-  useDebounced,
-  SearchIcon,
-  type SearchEntry,
-} from './searchSupport';
-import { SectionHeader } from './SectionHeader';
-import { SessionPeek, useSessionPeek } from './SessionPeek';
-import { ThreadItem, VirtualRow } from './SidebarRows';
-import { SideNavItem } from './SideNavItem';
+import { NewProjectButton, OrganizeMenu, SECTION_WORKSPACES } from './ProjectGroups';
+import { SearchIcon } from './searchSupport';
+import { useSessionPeek } from './SessionPeek';
+import { SidebarOverlays } from './SidebarOverlays';
+import { SidebarRail } from './SidebarRail';
+import { SidebarThreads } from './SidebarThreads';
 import type { Meta } from './types';
 import { useFloatingPanel } from './useFloatingPanel';
 import { useSessionActions } from './useSessionActions';
-import { useSidebarRename, useSidebarSearchShortcut } from './useSidebarRename';
+import { useSidebarEndpoints, useModeRedirect } from './useSidebarEndpoints';
+import { useSidebarHistory } from './useSidebarHistory';
+import { useSidebarRename } from './useSidebarRename';
 import { useSidebarResize } from './useSidebarResize';
+import { useSidebarSearch } from './useSidebarSearch';
+import { useSidebarSessions } from './useSidebarSessions';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -280,28 +254,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     return c;
   }, [navList]);
 
-  // 左下角信息卡跟随当前会话所在的端（CLI 标签 / Nomi 对话）；点了顶部端点图标就先看那个端，
-  // 直到切换会话。还没有当前会话时退回筛选的端
-  const [cardPick, setCardPick] = useState<ConversationBackend | null>(null);
   const startRename = useSidebarRename(collapsed, onToggle, highlightId, setRenamingId);
-  const [cardPickFor, setCardPickFor] = useState(highlightId);
-  if (cardPickFor !== highlightId) {
-    setCardPickFor(highlightId);
-    setCardPick(null);
-  }
-  const cardBackend: ConversationBackend =
-    cardPick ?? navList.find((x) => x.id === highlightId)?.backend ?? endpointFilter;
-  // 该端的运行中 / 排队中标签数与最近一次标签活动（信息卡用）
-  const { endpointRunning, endpointLastTab } = useMemo(() => {
-    let running = 0;
-    let last: number | null = null;
-    for (const x of tabs.state?.tabs ?? []) {
-      if (x.backend !== cardBackend || isNomiDelegated(x)) continue;
-      if (x.status === 'running' || x.status === 'queued') running++;
-      if (last == null || x.updatedAt > last) last = x.updatedAt;
-    }
-    return { endpointRunning: running, endpointLastTab: last };
-  }, [tabs.state, cardBackend]);
 
   const visible = useMemo(() => {
     if (view === 'by-endpoint') return navList.filter((x) => x.backend === endpointFilter);
@@ -312,58 +265,74 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const ordered = useMemo(() => pinnedFirst(visible), [visible]);
   const wsGroups = useProjectGrouping(ordered, projects, tabById, groupByWorkspace);
 
-  // 行回调读最新的 list / current / tabs（经 ref），回调本身保持稳定：
-  // 否则每次渲染换引用，ThreadItem 的 React.memo 全部失效
-  const latest = useRef({
+  const {
+    histBackends,
+    tabsKey,
+    history,
+    openSessionKeys,
+    historyItems,
+    histScope,
+    histScopeSupported,
+    histItems,
+    endpointActivity,
+    railEndpoints,
+    histVisible,
+    histScanning,
+  } = useSidebarHistory({
+    isDev,
+    list,
+    bins,
+    tabs,
+    view,
+    endpointFilter,
+    endpointVisibility,
+    endpointOrder,
+    counts,
+  });
+
+  const {
+    openingKey,
+    openHistory: openHistoryRaw,
+    deleteHistory,
+    deleteTab,
+  } = useSessionActions({
+    onNotice,
+    refresh,
+    refreshHistory: history.refresh,
+  });
+
+  const {
+    leaveRef,
+    open,
+    createFor,
+    removeItem,
+    closeItem,
+    commitRename,
+    archiveItem,
+    togglePin,
+    openMore,
+    onCtx,
+  } = useSidebarSessions({
+    ipc,
+    actions,
     list,
     current,
     tabs,
     isDev,
-    removeItem: undefined as ((id: string) => Promise<void>) | undefined,
-    archiveItem: undefined as ((id: string) => Promise<void>) | undefined,
+    refresh,
+    onNewChat,
+    onNotice,
+    onLeavePage,
+    chosenProject: ws.chosen ?? null,
+    resetChosenProject: ws.reset,
+    deleteTab,
+    tabStatusOf: (tabId) => tabById.get(tabId)?.status,
+    setCtx,
+    setNewMenu,
+    setHistMenu,
+    setRenamingId,
   });
 
-  // 经 ref 调用：回调保持稳定，不让 ThreadItem 的 memo 失效
-  const leaveRef = useRef(onLeavePage);
-  useLayoutEffect(() => {
-    leaveRef.current = onLeavePage;
-  }, [onLeavePage]);
-
-  const open = useCallback(
-    async (id: string) => {
-      leaveRef.current?.();
-      if (!ipc) return;
-      const { list, current, tabs } = latest.current;
-      const meta =
-        list.find((x) => x.id === id) ?? (await ipc.listConversations()).find((x) => x.id === id);
-      if (!meta) return;
-      setCtx(null);
-
-      if (meta.backend !== 'nomi' && meta.tabId) {
-        const activated = tabs.activate(meta.tabId);
-        await ipc.switchConversation(id).catch(() => undefined);
-        await activated;
-        refresh();
-        return;
-      }
-
-      // 先把主进程侧的标签 / 后端切换发出去（已经在 Nomi 主标签时完全不发），
-      // 本地会话切换与消息加载不等它们，两边并行
-      const mainTab = tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID);
-      const pending: Promise<unknown>[] = [];
-      if (tabs.available && tabs.state?.activeTabId !== MAIN_TAB_ID)
-        pending.push(tabs.activate(MAIN_TAB_ID));
-      if (harnessClient.available() && mainTab?.backend !== 'nomi')
-        pending.push(harnessClient.setBackend('nomi').catch(() => undefined));
-      if (id !== current) {
-        await ipc.switchConversation(id);
-        await actions.loadChatHistory();
-      }
-      await Promise.all(pending);
-      refresh();
-    },
-    [ipc, refresh, actions],
-  );
   // 别处请求打开会话（Agent 看板里正在回答的 Nomi 对话）
   useEffect(() => {
     const on = (e: Event) => {
@@ -373,31 +342,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     window.addEventListener(OPEN_CONVERSATION_EVENT, on);
     return () => window.removeEventListener(OPEN_CONVERSATION_EVENT, on);
   }, [open]);
-
-  /** projectId：指定项目（项目行上的「新建」）；null = 不放进项目；缺省用新建菜单里选的项目 */
-  const createFor = async (backend: ConversationBackend, projectId?: string | null) => {
-    setNewMenu(false);
-    leaveRef.current?.();
-    const pid = projectId === undefined ? (ws.chosen ?? null) : projectId;
-    ws.reset(); // 菜单里选的项目只管这一次新建，不带到下一次
-    try {
-      if (backend === 'nomi') {
-        if (tabs.available) await tabs.activate(MAIN_TAB_ID);
-        if (harnessClient.available())
-          await harnessClient.setBackend('nomi').catch(() => undefined);
-        // 新建是异步操作。必须等它创建并切换到新的 Nomi 会话后再刷新侧栏，
-        // 否则 ensureCurrent() 可能读到旧的 CLI 镜像项并把它改写成 Nomi。
-        await onNewChat({ projectId: pid });
-        refresh();
-        return;
-      }
-      if (!tabs.available) return;
-      await tabs.create(backend, pid ?? undefined);
-      refresh();
-    } catch (e) {
-      onNotice?.(t('ui.cli-monitor.new-chat-failed', e instanceof Error ? e.message : String(e)));
-    }
-  };
 
   const handleNewClick = () => {
     if (isNormal) {
@@ -411,408 +355,87 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     setNewMenu((v) => !v);
   };
 
-  const removeItem = async (id: string) => {
-    setCtx(null);
-    const meta = list.find((x) => x.id === id);
-    if (!meta || !ipc) return;
-    if (meta.tabId) {
-      await deleteTab(meta);
-    } else {
-      // 永久删除不能撤销，先确认，再中止属于这个会话的回复。
-      const ok = await confirmDialog({
-        message: t('ui.cli-monitor.delete-chat-permanently-confirm', t(meta.name)),
-        confirmLabel: t('ui.cli-monitor.delete-permanently'),
-        danger: true,
-      });
-      if (!ok) return;
-      // 先中止属于该会话的在途流：删除后它的回调不能再写回界面或记忆
-      actions.abortConversation?.(id);
-      await ipc.deleteConversation?.(id);
-      if (id === current) {
-        // store 已把当前会话切到同后端最近更新的会话；一个不剩则只清空消息区，不新建会话
-        if (ipc.currentConversationId?.()) await actions.loadChatHistory();
-        else await actions.clearChatHistory();
-      }
-    }
-    refresh();
-  };
-
-  const closeItem = async (meta: Meta) => {
-    if (!meta.tabId) return;
-    const status = tabById.get(meta.tabId)?.status;
-    if (
-      (status === 'running' || status === 'queued') &&
-      !(await confirmDialog({
-        message: t('ui.mascot-theme.this-tab-is-still-running-closing-it-will'),
-      }))
-    )
-      return;
-    await tabs.close(meta.tabId);
-  };
-
-  const commitRename = useCallback(
-    (id: string, name: string | null) => {
-      setRenamingId(null);
-      if (!name || !ipc) return;
-      const { list, tabs } = latest.current;
-      const meta = list.find((x) => x.id === id);
-      if (!meta || meta.name === name) return;
-      if (meta.tabId) void tabs.rename(meta.tabId, name).catch(() => undefined);
-      else {
-        clearNomiAutoTitle(id);
-        ipc.conversationStore?.()?.updateMeta(id, { name });
-      }
-      refresh();
-    },
-    [ipc, refresh],
-  );
-
-  /** 归档 Nomi 对话：不在侧栏显示，可在设置里恢复；是当前会话时 store 已切到同端最近的会话 */
-  const archiveItem = async (id: string) => {
-    setCtx(null);
-    const store = ipc?.conversationStore?.();
-    const meta = list.find((x) => x.id === id);
-    if (!store || !meta || meta.tabId) return;
-    store.setArchived(id, true);
-    if (id === current) {
-      if (ipc?.currentConversationId?.()) await actions.loadChatHistory();
-      else await actions.clearChatHistory();
-    }
-    onNotice?.(t('ui.cli-monitor.chat-archived', t(meta.name)));
-    refresh();
-  };
-
-  useLayoutEffect(() => {
-    latest.current = { list, current, tabs, isDev, removeItem, archiveItem };
-  });
-
-  // 行内仅保留置顶；归档与删除在更多菜单中操作。
-  const togglePin = useCallback(
-    (id: string) => {
-      const meta = latest.current.list.find((x) => x.id === id);
-      const store = ipc?.conversationStore?.();
-      if (!meta || !store) return;
-      store.setPinned(id, !meta.pinnedAt);
-      refresh();
-    },
-    [ipc, refresh],
-  );
   const listPeek = useSessionPeek(400);
-
-  /** 行内「更多」：与右键共用同一个 ConversationMenu，只是锚在按钮下方 */
-  const openMore = useCallback((id: string, anchor: HTMLElement) => {
-    setNewMenu(false);
-    setHistMenu(null);
-    const a = anchor.getBoundingClientRect();
-    // 再点同一个「更多」按钮：关掉菜单
-    setCtx((cur) =>
-      cur?.anchor === anchor ? null : { id, x: a.right - 184, y: a.bottom + 2, anchor },
-    );
-  }, []);
-
-  const onCtx = useCallback((id: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    setNewMenu(false);
-    setCtx({ id, x: e.clientX, y: e.clientY });
-  }, []);
 
   const cliMissing = (b: ConversationBackend) => b !== 'nomi' && !bins[b];
 
-  // 开发模式：磁盘上的 CLI 历史会话（每端 50 条一页）
-  const histBackends = useMemo(() => HISTORY_BACKENDS.filter((b) => Boolean(bins[b])), [bins]);
-  const tabsKey = (tabs.state?.tabs ?? []).map((x) => `${x.id}:${x.cliSessionId ?? ''}`).join('|');
-  const history = useCliHistory(isDev, histBackends, tabsKey);
-  const {
-    openingKey,
-    openHistory: openHistoryRaw,
-    deleteHistory,
-    deleteTab,
-  } = useSessionActions({
-    onNotice,
-    refresh,
-    refreshHistory: history.refresh,
-  });
   const openHistory = useCallback(
     (h: Parameters<typeof openHistoryRaw>[0]) => {
       leaveRef.current?.();
       return openHistoryRaw(h);
     },
-    [openHistoryRaw],
+    [openHistoryRaw, leaveRef],
   );
-  // 镜像条目与本机历史使用同一个稳定键：CLI 后端 + 原生会话 id。
-  // 主进程会尽量提前排除已打开的会话，但这里还要防住历史扫描与标签同步的竞态，
-  // 也要覆盖搜索索引返回得比侧栏列表更早的情况。
-  const openSessionKeys = useMemo(() => {
-    const keys = new Set(
-      list.filter((c) => c.tabId && c.cliSessionId).map((c) => `${c.backend}:${c.cliSessionId}`),
-    );
-    // 标签状态先于 ConversationStore 镜像到达时，也要立即隐藏本机历史。
-    for (const tab of tabs.state?.tabs ?? []) {
-      if (tab.id !== MAIN_TAB_ID && tab.cliSessionId)
-        keys.add(`${tab.backend}:${tab.cliSessionId}`);
-    }
-    return keys;
-  }, [list, tabs.state]);
-  const historyItems = useCallback(
-    (backend?: HistoryBackend) => history.items(backend).filter((h) => !openSessionKeys.has(h.key)),
-    [history, openSessionKeys],
-  );
-  const histScope: HistoryBackend | undefined =
-    view === 'by-endpoint' && endpointFilter !== 'nomi'
-      ? (endpointFilter as HistoryBackend)
-      : undefined;
-  // 磁盘历史扫描由主进程按各 CLI 的本地格式完成，包含 Grok 的 updates.jsonl。
-  const histScopeSupported =
-    histScope === undefined || (HISTORY_BACKENDS as readonly string[]).includes(histScope);
-  const histItems: HistorySession[] =
-    !histScopeSupported || (view === 'by-endpoint' && endpointFilter === 'nomi')
-      ? []
-      : historyItems(histScope);
 
-  // 侧栏「按端」：对话数（CLI 标签已镜像进对话列表）+ 磁盘历史；都为 0 且没有显式设置的端点不显示
-  const endpointActivity = useMemo(() => {
-    const a: Partial<Record<ConversationBackend, number>> = { ...counts };
-    for (const b of histBackends) a[b] = (a[b] ?? 0) + historyItems(b).length;
-    return a;
-  }, [counts, histBackends, historyItems]);
-  const shownEndpoints = useMemo(() => {
-    const shown = visibleEndpoints(
-      CONVERSATION_BACKENDS,
-      endpointVisibility,
-      endpointActivity,
-      (b) => Boolean(bins[b]),
-    );
-    // 正在看的端点（没被显式隐藏）始终保留，避免数据还没加载完时按钮跳动
-    if (!shown.includes(endpointFilter) && endpointVisibility[endpointFilter] !== 'hide')
-      return CONVERSATION_BACKENDS.filter((b) => b === endpointFilter || shown.includes(b));
-    return shown;
-  }, [endpointVisibility, endpointActivity, endpointFilter, bins]);
-  // 导航栏够高：全部端点按顺序竖排（Nomi 最前，其余按自定义顺序或对话数）
-  const railEndpoints = useMemo(
-    () => orderEndpoints(shownEndpoints, endpointActivity, endpointOrder),
-    [shownEndpoints, endpointActivity, endpointOrder],
-  );
-  const pickEndpoint = (b: ConversationBackend) => {
-    leaveRef.current?.();
-    setCardPick(b);
-    setEndpointFilter(b);
-    setView('by-endpoint');
-    // 切到另一个端：打开它正在运行（或排队）的会话；没有就打开列表里第一条；一条都没有就新建一个空对话
-    // （没安装的 CLI 只切筛选）。已经停在这个端的会话上就不动
-    if (navList.find((x) => x.id === highlightId)?.backend === b) return;
-    const items = navList.filter((x) => x.backend === b);
-    const busy = (x: (typeof items)[number]) => {
-      const st = x.tabId ? tabById.get(x.tabId)?.status : undefined;
-      return st === 'running' || st === 'queued';
-    };
-    const target = items.find(busy) ?? items[0];
-    if (target) void open(target.id);
-    else if (!cliMissing(b)) void createFor(b);
-  };
-
-  // 端点图标的悬停提示：名称 + 对话数 + 本机历史数（只列非 0 的）
-  const endpointTip = (b: ConversationBackend): string => {
-    const hist = (histBackends as readonly string[]).includes(b)
-      ? historyItems(b as HistoryBackend).length
-      : 0;
-    return [
-      ENDPOINT_FULL[b](),
-      counts[b] ? t('ui.cli-monitor.conversations', counts[b]) : '',
-      hist ? t('ui.cli-monitor.local-sessions', hist) : '',
-      cliMissing(b) ? t('ui.mascot-theme.not-installed') : '',
-    ]
-      .filter(Boolean)
-      .join(' · ');
-  };
-  // 本机历史随当前筛选合在同一个列表里：Nomi 没有磁盘历史，不显示
-  const histVisible =
-    isDev &&
-    history.available &&
-    histBackends.length > 0 &&
-    histScopeSupported &&
-    !(view === 'by-endpoint' && endpointFilter === 'nomi');
-  const histScanning = histVisible && histItems.length === 0 && history.loading && !history.loaded;
-
-  // ── 模式切换：普通模式下当前会话若是 CLI 会话，自动换到最近的 Nomi 会话（没有则新建）；
-  //    切回开发模式时回到离开前选中的会话。CLI 标签一直在后台运行。
-  const leftDevOn = useRef<string | null>(null);
-  const redirecting = useRef(false);
-  const currentMeta = list.find((x) => x.id === current);
-  useEffect(() => {
-    if (isDev) {
-      const back = leftDevOn.current;
-      leftDevOn.current = null;
-      if (back && back !== current && list.some((x) => x.id === back)) void open(back);
-      return;
-    }
-    if (!currentMeta || currentMeta.backend === 'nomi' || redirecting.current || !list.length)
-      return;
-    redirecting.current = true;
-    leftDevOn.current = currentMeta.id;
-    const nomi = list.find((x) => x.backend === 'nomi');
-    // 一次性的模式切换重定向（受 redirecting 保护），不会级联渲染
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void (nomi ? open(nomi.id) : createFor('nomi')).finally(() => {
-      redirecting.current = false;
+  const { cardBackend, endpointRunning, endpointLastTab, pickEndpoint, endpointTip } =
+    useSidebarEndpoints({
+      tabs,
+      navList,
+      highlightId,
+      endpointFilter,
+      setEndpointFilter,
+      setView,
+      counts,
+      tabById,
+      histBackends,
+      historyItems,
+      cliMissing,
+      open,
+      createFor,
+      onLeavePage,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDev, currentMeta?.id, currentMeta?.backend, list.length]);
+
+  useModeRedirect({ isDev, list, current, open, createFor });
 
   // ── 搜索：图标按钮 → 原位展开为搜索框；Mod+F 聚焦；Esc 清空 / 收起；150ms 防抖
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [activeIdx, setActiveIdx] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const debounced = useDebounced(query, 150);
-  const searching = searchOpen && debounced.trim() !== '';
-  const searchIndex = useHistorySearchIndex(isDev && searching, histBackends, tabsKey);
-
-  useSidebarSearchShortcut(setSearchOpen, inputRef);
-  useEffect(() => {
-    if (searchOpen) inputRef.current?.focus();
-  }, [searchOpen]);
-  // 普通 / 开发模式切换后端点范围变了，丢掉光标（在渲染期根据键变化重置，避免 effect 内 setState 触发级联渲染）
-  const activeIdxKey = `${debounced}\u0001${isDev ? 1 : 0}\u0001${view}\u0001${endpointFilter}`;
-  const [prevActiveIdxKey, setPrevActiveIdxKey] = useState(activeIdxKey);
-  if (prevActiveIdxKey !== activeIdxKey) {
-    setPrevActiveIdxKey(activeIdxKey);
-    if (activeIdx !== 0) setActiveIdx(0);
-  }
-
-  const firstUserMessage = useCallback(
-    (m: Meta): string => {
-      if (m.tabId) return '';
-      const k = `${m.id}:${m.updatedAt}`;
-      const hit = firstUserMessageCache.get(k);
-      if (hit !== undefined) return hit;
-      let text = '';
-      try {
-        // 只取预览。getMessages 会把整段历史留在缓存里，搜索一次就会钉住列表里的全部对话。
-        text = ipc?.conversationStore?.()?.firstUserPreview?.(m.id) ?? '';
-      } catch {
-        /* 取不到就只搜标题 */
-      }
-      if (firstUserMessageCache.size > 2000) firstUserMessageCache.clear();
-      firstUserMessageCache.set(k, text);
-      return text;
-    },
-    [ipc],
-  );
-
-  const results = useMemo(() => {
-    if (!searching) return [];
-    const seen = new Set<string>();
-    const entries: SearchEntry[] = [];
-    for (const m of visible) {
-      seen.add(m.id);
-      entries.push({
-        kind: 'conv',
-        id: m.id,
-        meta: m,
-        title: m.name ? t(m.name) : t('ui.chat-settings.new-chat'),
-        first: firstUserMessage(m),
-        cwd: (m.tabId ? tabById.get(m.tabId)?.cwd : '') ?? '',
-      });
-    }
-    if (isDev && histScopeSupported && !(view === 'by-endpoint' && endpointFilter === 'nomi')) {
-      // 已加载的分页 + 搜索索引合并，同一会话（backend:sessionId）只保留一条
-      for (const h of [...historyItems(histScope), ...searchIndex.items]) {
-        if (histScope && h.backend !== histScope) continue;
-        if (openSessionKeys.has(h.key)) continue;
-        if (seen.has(h.key)) continue;
-        seen.add(h.key);
-        entries.push({ kind: 'hist', id: h.key, h });
-      }
-    }
-    return rankItems(entries, debounced, fieldsOf);
-  }, [
+  const {
+    searchOpen,
+    setSearchOpen,
+    query,
+    setQuery,
+    inputRef,
     searching,
-    visible,
-    tabById,
+    searchIndex,
+    results,
+    shown,
+    activeIdx,
+    setActiveIdx,
+    closeSearch,
+    onSearchKey,
+    canSearchMore,
+  } = useSidebarSearch({
     isDev,
     view,
     endpointFilter,
+    visible,
+    tabById,
+    ipc,
+    histBackends,
+    tabsKey,
     historyItems,
     openSessionKeys,
     histScope,
     histScopeSupported,
-    searchIndex.items,
-    debounced,
-    firstUserMessage,
-  ]);
-  const shown = results.slice(0, MAX_RESULTS);
-  const activeEntry = shown[Math.min(activeIdx, Math.max(shown.length - 1, 0))]?.item;
+    open,
+    openHistory,
+  });
 
-  const openEntry = (e: SearchEntry | undefined) => {
-    if (!e) return;
-    closeSearch();
-    if (e.kind === 'conv') void open(e.id);
-    else void openHistory(e.h);
-  };
-  const closeSearch = () => {
-    setQuery('');
-    setSearchOpen(false);
-  };
-  const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    e.stopPropagation();
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      if (query) setQuery('');
-      else closeSearch();
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActiveIdx((i) => Math.min(i + 1, Math.max(shown.length - 1, 0)));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveIdx((i) => Math.max(i - 1, 0));
-    } else if (e.key === 'Enter' && !isImeComposing(e.nativeEvent)) {
-      e.preventDefault();
-      openEntry(activeEntry);
-    }
-  };
-  useEffect(() => {
-    if (!searching) return;
-    document
-      .getElementById(`sb-result-${Math.min(activeIdx, Math.max(shown.length - 1, 0))}`)
-      ?.scrollIntoView?.({ block: 'nearest' });
-  }, [activeIdx, searching, shown.length]);
-
-  const canSearchMore = isDev && searchIndex.hasMore;
   const newLabel = t('ui.cli-monitor.new-conversation');
-  const searchTip = [
-    t('ui.cli-monitor.search-conversations'),
-    formatCombo(bindings.searchChats),
-  ].join(' ');
 
   const newBtn = (
-    <div className={styles.newWrap} ref={menuRef}>
-      <button
-        ref={newBtnRef}
-        type="button"
-        className={styles.newChatBtn}
-        onClick={handleNewClick}
-        aria-label={newLabel}
-        aria-haspopup={isDev && view === 'all' ? 'menu' : undefined}
-        aria-expanded={isDev && view === 'all' ? newMenu : undefined}
-        data-testid="new-chat"
-      >
-        <Icon icon={SIDEBAR_ICONS.newChat} size={16} />
-        <span className={styles.newChatLabel}>{newLabel}</span>
-      </button>
-      {newMenuP.value && (
-        <AnchoredPopover anchor={newBtnRef.current} popRef={newPopRef}>
-          <NewChatMenu
-            closing={newMenuP.closing}
-            className={styles.newMenu}
-            backends={CONVERSATION_BACKENDS}
-            bins={bins}
-            strictBins
-            project={ws}
-            onPick={(b) => void createFor(b)}
-          />
-        </AnchoredPopover>
-      )}
-    </div>
+    <NewChatButton
+      label={newLabel}
+      onClick={handleNewClick}
+      hasMenu={isDev && view === 'all'}
+      menuOpen={newMenu}
+      menuP={newMenuP}
+      menuRef={menuRef}
+      newBtnRef={newBtnRef}
+      newPopRef={newPopRef}
+      bins={bins}
+      project={ws}
+      onPick={(b) => void createFor(b)}
+    />
   );
 
   // 新建项目（「+」）：打开「创建项目」弹窗，建好后在这个项目里开一个会话（onSaved）
@@ -870,61 +493,33 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       onMouseLeave={!panelHidden && collapsed ? float.scheduleHide : undefined}
     >
       {!panelHidden && resize.splitter}
-      {/* 左侧固定导航：对话 · 任务 · 素材库；工作台模式下端点竖排挂在下面；底部是应用级入口 */}
-      <div className={styles.rail} data-testid="app-rail">
-        <nav className={styles.railNav} aria-label={t('ui.foundation.app-shortcuts')}>
-          {/* 收起时悬停 / 聚焦「对话」弹出会话浮层 */}
-          <span
-            className={styles.railHover}
-            onMouseEnter={!panelHidden && collapsed ? float.show : undefined}
-            onFocus={!panelHidden && collapsed ? float.show : undefined}
-          >
-            <SideNavItem
-              icon={SIDEBAR_ICONS.chats}
-              label={t('ui.chat-settings.chats')}
-              collapsed
-              active={!pageOpen}
-              onOpen={() => {
-                leaveRef.current?.();
-                if (collapsed) float.show();
-              }}
-              testId="nav-chats"
-            />
-          </span>
-          {topNav}
-        </nav>
-        {isDev && (
-          <span
-            className={styles.railHover}
-            onMouseEnter={!panelHidden && collapsed ? float.show : undefined}
-            onFocus={!panelHidden && collapsed ? float.show : undefined}
-          >
-            <EndpointRail
-              active={!panelHidden && view === 'by-endpoint' ? endpointFilter : null}
-              shown={railEndpoints}
-              ordered={orderEndpoints(CONVERSATION_BACKENDS, endpointActivity, endpointOrder)}
-              activity={endpointActivity}
-              visibility={endpointVisibility}
-              customOrder={endpointOrder !== null}
-              isDisabled={cliMissing}
-              tipOf={endpointTip}
-              onAll={() => {
-                leaveRef.current?.();
-                setView('all');
-              }}
-              onPick={pickEndpoint}
-              onReorder={setEndpointOrder}
-              onVisibility={(b, v) => {
-                setEndpointVisibility(b, v);
-                // 隐藏了正在看的端点：回到「全部」，免得筛选停在看不见的端点上
-                if (v === 'hide' && b === endpointFilter && view === 'by-endpoint') setView('all');
-              }}
-            />
-          </span>
-        )}
-        <span className={styles.railSpacer} />
-        {footer}
-      </div>
+      <SidebarRail
+        panelHidden={panelHidden}
+        collapsed={collapsed}
+        pageOpen={pageOpen}
+        topNav={topNav}
+        footer={footer}
+        showEndpoints={isDev}
+        view={view}
+        endpointFilter={endpointFilter}
+        railEndpoints={railEndpoints}
+        allEndpoints={orderEndpoints(CONVERSATION_BACKENDS, endpointActivity, endpointOrder)}
+        endpointActivity={endpointActivity}
+        endpointVisibility={endpointVisibility}
+        endpointOrder={endpointOrder}
+        cliMissing={cliMissing}
+        tipOf={endpointTip}
+        onShowFloat={float.show}
+        onLeavePage={() => leaveRef.current?.()}
+        onAll={() => setView('all')}
+        onPick={pickEndpoint}
+        onReorder={setEndpointOrder}
+        onVisibility={(b, v) => {
+          setEndpointVisibility(b, v);
+          // 隐藏了正在看的端点：回到「全部」，免得筛选停在看不见的端点上
+          if (v === 'hide' && b === endpointFilter && view === 'by-endpoint') setView('all');
+        }}
+      />
       {panelP.value && (
         <div
           className={`${styles.panel} ${float.floating ? styles.panelFloating : ''}`}
@@ -967,87 +562,48 @@ const SidebarImpl: React.FC<SidebarProps> = ({
                 {t('ui.chat-settings.no-past-conversations')}
               </div>
             )}
-            {wsGroups.grouped && (
-              <ProjectGroups
-                groups={wsGroups.groups}
-                rest={wsGroups.rest}
-                collapsed={collapsedWorkspaces}
-                onToggleCollapsed={setWorkspaceCollapsed}
-                onNewIn={(g) =>
-                  void createFor(projectBackend(g, isNormal, view, endpointFilter), g.project.id)
-                }
-                onEdit={(g) => setProjectDialog(g.project)}
-                activeId={rowActiveId}
-                rows={rowProps}
-                headerActions={listActions}
-                hideEmpty={isDev && view === 'by-endpoint'}
-              />
-            )}
-            {!wsGroups.grouped && (
-              <SectionHeader
-                label={t('ui.chat-settings.chats')}
-                open={listOpen}
-                onToggle={() => setWorkspaceCollapsed(SECTION_WORKSPACES, listOpen)}
-                testId="list-section-toggle"
-                actions={listActions}
-              />
-            )}
-            {!wsGroups.grouped &&
-              listOpen &&
-              ordered.length > 0 &&
-              ordered.length <= 100 &&
-              ordered.map((c) => (
-                <ThreadItem
-                  key={c.id}
-                  c={c}
-                  active={c.id === rowActiveId}
-                  tab={c.tabId ? tabById.get(c.tabId) : undefined}
-                  running={c.tabId ? undefined : runningIds.has(c.id)}
-                  onOpen={open}
-                  onCtx={onCtx}
-                  renaming={renamingId === c.id}
-                  onRename={commitRename}
-                  onPinToggle={togglePin}
-                  onMore={openMore}
-                  onPeek={listPeek.onPeek}
-                  showIcon={isDev && view === 'all'}
-                />
-              ))}
-            {!wsGroups.grouped && listOpen && ordered.length > 100 && (
-              <div
-                style={{ height: '100%', minHeight: 320 }}
-                data-testid="conversation-list-virtual"
-              >
-                <List
-                  rowCount={ordered.length}
-                  rowHeight={34}
-                  className={styles.virtualList}
-                  rowComponent={VirtualRow}
-                  rowProps={rowProps}
-                  style={{ height: '100%', width: '100%' }}
-                />
-              </div>
-            )}
-            {histVisible && (histItems.length > 0 || histScanning) && (
-              <LocalHistorySection
-                items={histItems}
-                scanning={histScanning}
-                openingKey={openingKey}
-                onOpen={(h) => void openHistory(h)}
-                onMenu={(h, x, y, anchor) => {
-                  setNewMenu(false);
-                  setCtx(null);
-                  // 再点同一个「更多」按钮：关掉菜单
-                  setHistMenu((cur) =>
-                    anchor && cur?.anchor === anchor ? null : { h, x, y, anchor },
-                  );
-                }}
-                hasMore={histScopeSupported && history.hasMore(histScope)}
-                loading={history.loading}
-                onLoadMore={() => history.loadMore(histScope)}
-                onRefresh={history.refresh}
-              />
-            )}
+            <SidebarThreads
+              grouped={wsGroups.grouped}
+              wsGroups={wsGroups}
+              collapsedWorkspaces={collapsedWorkspaces}
+              onToggleCollapsed={setWorkspaceCollapsed}
+              onNewIn={(g) =>
+                void createFor(projectBackend(g, isNormal, view, endpointFilter), g.project.id)
+              }
+              onEdit={(g) => setProjectDialog(g.project)}
+              activeId={rowActiveId}
+              rows={rowProps}
+              headerActions={listActions}
+              isDev={isDev}
+              view={view}
+              listLabel={t('ui.chat-settings.chats')}
+              listOpen={listOpen}
+              onToggleList={() => setWorkspaceCollapsed(SECTION_WORKSPACES, listOpen)}
+              ordered={ordered}
+              tabById={tabById}
+              runningIds={runningIds}
+              renamingId={renamingId}
+              showIcon={isDev && view === 'all'}
+              histVisible={histVisible}
+              histItems={histItems}
+              histScanning={histScanning}
+              openingKey={openingKey}
+              onOpenHistory={(h) => void openHistory(h)}
+              onHistMenu={(h, x, y, anchor) => {
+                setNewMenu(false);
+                setCtx(null);
+                // 再点同一个「更多」按钮：关掉菜单
+                setHistMenu((cur) =>
+                  anchor && cur?.anchor === anchor ? null : { h, x, y, anchor },
+                );
+              }}
+              histScope={histScope}
+              histScopeSupported={histScopeSupported}
+              hasMore={histScopeSupported && history.hasMore(histScope)}
+              historyLoading={history.loading}
+              onLoadMore={() => history.loadMore(histScope)}
+              onRefreshHistory={history.refresh}
+            />
           </nav>
 
           {/* 工作台模式：左下角固定一张当前会话所在端的信息卡（点击打开详情抽屉） */}
@@ -1067,108 +623,53 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {ctxP.value &&
-        (() => {
-          const ctx = ctxP.value;
-          const meta = list.find((x) => x.id === ctx.id);
-          return (
-            <ConversationMenu
-              // 换了一行右键：重新挂载，焦点回到新菜单的第一项
-              key={`${ctx.id}:${ctx.x}:${ctx.y}`}
-              closing={ctxP.closing}
-              anchor={ctx.anchor}
-              x={ctx.x}
-              y={ctx.y}
-              isTab={Boolean(meta?.tabId)}
-              onDismiss={() => setCtx(null)}
-              onRename={() => startRename(ctx.id)}
-              onPin={meta ? () => togglePin(ctx.id) : undefined}
-              pinned={Boolean(meta?.pinnedAt)}
-              onFork={() => onForkRequest?.(ctx.id)}
-              onClose={meta?.tabId ? () => void closeItem(meta) : undefined}
-              onArchive={meta && !meta.tabId ? () => void archiveItem(ctx.id) : undefined}
-              // 最近列表与本机历史统一确认后永久删除。
-              onDelete={() => void removeItem(ctx.id)}
-            />
-          );
-        })()}
-
-      {listPeek.peek &&
-        (() => {
-          const c = visible.find((x) => x.id === listPeek.peek?.id);
-          if (!c) return null;
-          const { top, left } = listPeek.peek;
-          const tab = c.tabId ? tabById.get(c.tabId) : undefined;
-          return (
-            <SessionPeek
-              c={c}
-              tab={tab}
-              running={c.tabId ? undefined : runningIds.has(c.id)}
-              top={top}
-              left={left}
-              onRename={commitRename}
-              onHold={listPeek.hold}
-              onRelease={listPeek.release}
-            />
-          );
-        })()}
-
-      {projectDialog && (
-        <ProjectDialog
-          project={projectDialog === 'new' ? undefined : projectDialog}
-          onClose={() => setProjectDialog(null)}
-          onSaved={
-            projectDialog === 'new'
-              ? (p) =>
-                  void createFor(
-                    isNormal ? 'nomi' : view === 'by-endpoint' ? endpointFilter : 'nomi',
-                    p.id,
-                  )
-              : undefined
-          }
-        />
-      )}
-      {searchOpen && (
-        <SearchDialog
-          query={query}
-          onQuery={setQuery}
-          inputRef={inputRef}
-          onKeyDown={onSearchKey}
-          onClose={closeSearch}
-          searching={searching}
-          shown={shown}
-          total={results.length}
-          max={MAX_RESULTS}
-          activeIdx={activeIdx}
-          onActive={setActiveIdx}
-          indexing={searchIndex.loading}
-          canSearchMore={canSearchMore}
-          onSearchMore={searchIndex.more}
-          openingKey={openingKey}
-          tabById={tabById}
-          onOpenConv={(id) => (closeSearch(), void open(id))}
-          onOpenHist={(h) => (closeSearch(), void openHistory(h))}
-          onCtx={onCtx}
-          recent={navList.slice(0, 6)}
-          newLabel={newLabel}
-          newHint={formatCombo(bindings.newChat)}
-          onNew={handleNewClick}
-          onOpenTask={onOpenTask}
-          onOpenAsset={onOpenAsset}
-        />
-      )}
-      {histMenuP.value && (
-        <ConversationMenu
-          x={histMenuP.value.x}
-          y={histMenuP.value.y}
-          isTab={false}
-          closing={histMenuP.closing}
-          anchor={histMenuP.value.anchor}
-          onDismiss={() => setHistMenu(null)}
-          onOpen={() => void openHistory(histMenuP.value!.h)}
-          onDelete={() => void deleteHistory(histMenuP.value!.h)}
-        />
-      )}
+      <SidebarOverlays
+        list={list}
+        visible={visible}
+        navList={navList}
+        tabById={tabById}
+        runningIds={runningIds}
+        onForkRequest={onForkRequest}
+        startRename={startRename}
+        togglePin={togglePin}
+        closeItem={(m) => void closeItem(m)}
+        archiveItem={(id) => void archiveItem(id)}
+        removeItem={(id) => void removeItem(id)}
+        onCtx={onCtx}
+        ctxP={ctxP}
+        setCtx={setCtx}
+        listPeek={listPeek}
+        commitRename={commitRename}
+        projectDialog={projectDialog}
+        setProjectDialog={setProjectDialog}
+        onProjectSaved={(p) =>
+          void createFor(isNormal ? 'nomi' : view === 'by-endpoint' ? endpointFilter : 'nomi', p.id)
+        }
+        searchOpen={searchOpen}
+        query={query}
+        setQuery={setQuery}
+        inputRef={inputRef}
+        onSearchKey={onSearchKey}
+        closeSearch={closeSearch}
+        searching={searching}
+        shown={shown}
+        results={results}
+        activeIdx={activeIdx}
+        setActiveIdx={setActiveIdx}
+        searchIndex={searchIndex}
+        canSearchMore={canSearchMore}
+        openingKey={openingKey}
+        open={(id) => void open(id)}
+        openHistory={(h) => void openHistory(h)}
+        newLabel={newLabel}
+        newHint={formatCombo(bindings.newChat)}
+        onNew={handleNewClick}
+        onOpenTask={onOpenTask}
+        onOpenAsset={onOpenAsset}
+        histMenuP={histMenuP}
+        setHistMenu={setHistMenu}
+        deleteHistory={(h) => void deleteHistory(h)}
+      />
     </aside>
   );
 };

@@ -5,6 +5,12 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ## Unreleased
 
+### Maintenance
+
+- **release:** empty changeset after archiving 2.3.16
+
+## 2.3.16 — 2026-11-16
+
 ### Features
 
 - **a11y:** dialogs trap focus, Esc closes only the top-most dialog and focus returns to the opener; reduced motion calms the VRM rig and the island.
@@ -524,11 +530,16 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **ui:** the model picker no longer shows capabilities (reasoning · vision · context) next to each model, which truncated model names; they appear in a hover tooltip with the full name instead. Dropdown options and the trigger now use an in-app tooltip (new `FloatingTip`) instead of the system `title` tooltip, shown beside the menu after a short pause on mouse hover or arrow-key navigation. `SelectOption` gains a hover-only `hint`. (`@nomi-ai/ui` patch)
 - **ui:** toolbar and chat-header tooltips stay inside the window, and several colors now follow the theme tokens (tool rows brighten on hover, context ring uses warning / danger colors). (`@nomi-ai/ai-chat` patch, `@nomi-ai/renderer` patch)
 - **ui:** toolbar and chat-header tooltips stay inside the window, and several colors now follow the theme tokens (tool rows brighten on hover, context ring uses warning / danger colors). (`@nomi-ai/ui` patch)
+- **ui:** 会话详情的 Agents 跟上实时状态：第一次派出子任务 / 子代理时，进行中这一轮里的调用就列出来并算「进行中」；出错后在子任务里「继续」，标签又跑起来时显示进行中，那一轮结束后按它的结果显示；编程助手标签一轮结束后仍在跑的后台子代理也按实时状态显示。Session details' Agents follow live status: sub-tasks / sub-agents started in the running turn show up (as running) right away; after an error, continuing in the sub-task shows it running again and then the follow-up's result; background sub-agents still running after a coding-agent turn ends keep their live status. (`@nomi-ai/ai-chat` patch)
+- **ui:** 回访启动的品牌开屏不会再一直卡住：单个启动任务最多等 5 秒、字体就绪最多等 1.5 秒、窗口不可见时排版两帧按时间兜底，开屏总时限 8 秒；「跳过」在等待数据时也立刻收起，会话与侧栏在后台继续加载；启动时新建 / 清空会话打断历史加载也会报告完成。 The returning-user brand splash can no longer hang: each startup task is given up after 5 s, font readiness after 1.5 s, layout frames fall back to a timer when the window is hidden, and the whole splash closes after 8 s; Skip closes it immediately even while data is loading (loading continues in the background), and a new / cleared conversation that supersedes the startup history load still reports it done. (`@nomi-ai/ai-chat` patch)
 - **ui:** 图片主题选图出错时（超过 15 MB、格式不支持）在设置里提示原因，不再点了没反应；滑块写入失败时回到实际保存的值。过宽或过高的图片按最长边缩到 2560，PNG 缩小后仍存 PNG、保留透明。早期「纸白」主题的老用户升级后仍是奶油，不再被重置成 Sunset Orange。 (`@nomi-ai/ai-chat` patch)
 - **ui:** 将当前月夜村庄图片加入项目作为 Nomi 图片预设，随应用资源打包，不再依赖用户电脑上的预设目录；保留自定义选图即时覆盖、参数缓存，以及恢复预设和 8px / 40% 默认值的功能。 (`@nomi-ai/desktop-go` patch)
 - **ui:** 带搜索的下拉框（如模型选择）里，搜索框上下留出更多间距，Windows 上不再显得拥挤。 (`@nomi-ai/ui` patch)
 - **ui:** 恢复旧主题 id paper → cream 的映射，新增图片主题选图失败的提示文案（详见 background-image-review-fixes）。 (`@nomi-ai/ui` patch, `@nomi-ai/i18n` patch)
+- **ui:** 标题栏右上角的会话详情按钮紧挨文件栏开关（间距 4px），macOS 上不再空出约 40px；Windows / Linux 的开关仍排在窗口按钮左边，不会压到最小化 / 最大化 / 关闭。 The session details button now sits right next to the files rail toggle in the title bar (4 px apart) instead of ~40 px away on macOS; on Windows / Linux the toggle still stays left of the window controls. (`@nomi-ai/ai-chat` patch)
+- **ui:** 标题栏里会话详情按钮不再压在文件栏开关上：量出开关宽度并在右侧让位；侧栏端信息卡只留端图标，名字保留在 aria-label 与详情抽屉里。 Keep the session details button clear of the files rail toggle in the title bar by reserving the toggle's measured width, and show only the endpoint icon on the sidebar endpoint card (the name stays in the aria-label and the detail drawer). (`@nomi-ai/ai-chat` patch)
 - **ui:** 补充品牌图标透明展示的前景色信息，保留品牌色并适配深浅主题。 (`@nomi-ai/ui` patch)
+- **ui:** 输入框空着按 ↑ 找回的是刚发出的那条提问，不再是更早的一条（拆分输入框时把消息读成了渲染期的快照）。 ArrowUp on an empty composer recalls the message you just sent again, not an older one (the composer split had read messages from a render-time snapshot). (`@nomi-ai/ai-chat` patch)
 - **updates:** add the "new version is still being published" message (see update-release-pending). (`@nomi-ai/i18n` patch)
 - **updates:** the What's new panel shows the notes of the version you are running instead of the 2.0.5 notes. They come from that version's release (docs/releases/vX.Y.Z.md, delivered in its latest-go.json), are cached for offline use, follow the UI language, and fall back to a GitHub Releases link when they can't be fetched. (`@nomi-ai/ai-chat` patch)
 - **updates:** when the newest Release doesn't have this platform's `latest*.yml` yet (the version is still being published), "Check for updates" now says a new version is being published and to check again later, instead of showing a 404 error. Tag builds now upload to a draft Release that CI publishes only after all three platforms are uploaded (#146). (`@nomi-ai/ai-chat` patch)

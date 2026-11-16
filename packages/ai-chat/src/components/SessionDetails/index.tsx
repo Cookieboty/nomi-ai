@@ -19,16 +19,23 @@ import {
 } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { selectIpcClient, useAiChatSelector } from '../../contexts/aiChatStore';
-import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
+import type { AiChatState } from '../../contexts/AiChatContext';
+import { selectBusyHere, selectIpcClient, useAiChatSelector } from '../../contexts/aiChatStore';
+import {
+  useHarnessDetached,
+  useHarnessLive,
+  useHarnessTabs,
+} from '../../contexts/HarnessTabsContext';
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { useGitBranch } from '../../hooks/useGitBranch';
 import type { ConversationStore } from '../../services/conversationStore';
+import type { HarnessTraceEvent } from '../../services/harnessClient';
 import { sideChatName, useSideChatsIn } from '../../services/sideChat';
 import { groupOf, requestOpenTask, statusLabel, type TaskGroup } from '../../services/tasksClient';
 import type { ConvMessage } from '../../types/conversation';
 import type { IPCClient } from '../../types/ipc';
+import { nomiLiveTrace } from '../../utils/convAdapters';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import type { TabLive } from '../../utils/liveState';
 import {
@@ -183,6 +190,19 @@ interface Props {
   cwd: string | null;
 }
 
+/** Nomi 对话进行中这一轮的轨迹（只在轨迹变化时换引用，流式正文不触发重算） */
+const selectNomiLiveTrace = (s: AiChatState) => nomiLiveTrace(s.messages, selectBusyHere(s));
+/** 把进行中这一轮的轨迹包成一条消息，和已定稿的消息一起收集 Agents */
+const liveTurnCache = new WeakMap<readonly HarnessTraceEvent[], ConvMessage>();
+function liveTurnMessage(trace: HarnessTraceEvent[]): ConvMessage {
+  let m = liveTurnCache.get(trace);
+  if (!m) {
+    m = { id: 'session-details-live-turn', role: 'assistant', text: '', at: 0, trace };
+    liveTurnCache.set(trace, m);
+  }
+  return m;
+}
+
 /** 「在等你批准」的占位实时状态：delegateView 只看 permissions 有没有 */
 const WAITING_LIVE = { permissions: [{}] } as unknown as TabLive;
 function waitingLive(key: string): Record<string, TabLive> {
@@ -212,7 +232,24 @@ const DetailsPanel: React.FC<
   const tabId = isDev && tabs.isCliTab ? tabs.activeTab?.id : undefined;
   // 只订阅用到的切片（别的标签 / 本标签的流式输出不让这一栏重算）：当前标签的实时子代理，
   // 以及哪些标签在等你批准（委派状态只看这一项，见 delegateView）
-  const liveAgents = useHarnessLive((l) => (tabId ? l[tabId]?.agents : undefined));
+  const turnAgents = useHarnessLive((l) => (tabId ? l[tabId]?.agents : undefined));
+  // 标签这一轮结束后还在跑的后台子代理（DetachedCtx）：和子任务面板一样以它为准，否则一轮结束就只剩工具调用的状态
+  const offTurnAgents = useHarnessDetached((l) => (tabId ? l[tabId]?.agents : undefined));
+  const liveAgents = useMemo(
+    () =>
+      offTurnAgents && turnAgents
+        ? { ...turnAgents, ...offTurnAgents }
+        : (offTurnAgents ?? turnAgents),
+    [turnAgents, offTurnAgents],
+  );
+  // 进行中这一轮的工具调用：主列只给已定稿的消息，第一次派出子任务 / 子代理时它们还只在实时轨迹里
+  const cliLiveTrace = useHarnessLive((l) => (tabId ? l[tabId]?.trace : undefined));
+  const nomiLiveTrace = useAiChatSelector(selectNomiLiveTrace);
+  const liveTrace = tabId ? cliLiveTrace : tabs.isCliTab ? undefined : nomiLiveTrace;
+  const agentMessages = useMemo(
+    () => (liveTrace?.length ? [...messages, liveTurnMessage(liveTrace)] : messages),
+    [messages, liveTrace],
+  );
   const waitingKey = useHarnessLive((l) =>
     Object.keys(l)
       .filter((id) => l[id]?.permissions?.length)
@@ -230,17 +267,18 @@ const DetailsPanel: React.FC<
   // git 仓库里以工作区改动为准（委派出去的编程助手改的也算）；不是 git 仓库时退回本会话的改动
   const gitChanges = useWorkspaceChanges(cwd, messages.length);
   const changes = gitChanges ?? sessionChanges;
-  const pending = useMemo(() => pendingDelegateTaskIds(messages), [messages]);
-  const results = useDelegateResults(pending);
+  const pending = useMemo(() => pendingDelegateTaskIds(agentMessages), [agentMessages]);
+  const { results, followUps } = useDelegateResults(pending);
   const sideChats = useSideChatsIn(pane?.scope ?? '');
   const agents = useMemo(
     () => [
       ...collectSessionAgents(
-        messages,
+        agentMessages,
         tabs.state?.tabs,
         waitingLive(waitingKey),
         liveAgents ?? {},
         results,
+        followUps,
       ),
       ...sideChatAgents(
         sideChats.map((c) => ({
@@ -251,7 +289,7 @@ const DetailsPanel: React.FC<
         })),
       ),
     ],
-    [messages, tabs.state?.tabs, waitingKey, liveAgents, results, sideChats],
+    [agentMessages, tabs.state?.tabs, waitingKey, liveAgents, results, followUps, sideChats],
   );
   // 这个会话的持续任务：Nomi 对话用当前会话 id；编程助手标签用它在会话列表里的镜像项
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;

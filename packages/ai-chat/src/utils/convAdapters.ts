@@ -108,6 +108,25 @@ export function settledNomiMessages(
   return liveTail(list, running) ? list.slice(0, -1) : list;
 }
 
+/**
+ * 进行中这一轮（流式中的助手尾消息）的轨迹；没在跑 / 没有轨迹时 undefined。
+ * 返回原数组引用：轨迹只在有新事件时换数组，选择器订阅它不会因流式正文重算。
+ */
+export function nomiLiveTrace(
+  messages: readonly ChatMessage[],
+  running: boolean,
+): ChatMessage['trace'] | undefined {
+  if (!running) return undefined;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i]!;
+    if (m.role === 'system') continue;
+    return m.role === 'assistant' && !m.error && !m.stopped && m.trace?.length
+      ? m.trace
+      : undefined;
+  }
+  return undefined;
+}
+
 /** The live turn while running (streamed text / trace of the tail), else undefined. */
 export function nomiLive(messages: readonly ChatMessage[], running: boolean): ConvLive | undefined {
   if (!running) return undefined;

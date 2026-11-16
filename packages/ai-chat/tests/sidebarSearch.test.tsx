@@ -177,7 +177,7 @@ describe('sidebar search', () => {
     setGroupByWorkspace(false);
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
-    expect(r.getAllByText('Nomi').length).toBeGreaterThan(0);
+    // 端信息卡只留图标，不再有端名文本
     expect(r.getAllByTestId('endpoint-icon-nomi').length).toBeGreaterThan(0);
     expect(r.getByTestId('sidebar-search-toggle').getAttribute('aria-label')).toBe('搜索对话');
     const nb = r.getByTestId('new-chat');

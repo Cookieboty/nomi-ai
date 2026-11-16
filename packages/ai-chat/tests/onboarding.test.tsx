@@ -2,7 +2,7 @@
 import { applyLocale, currentTheme, getLocale } from '@nomi-ai/ui';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   OPEN_MODELS_EVENT,
@@ -66,6 +66,13 @@ const gatewayState = () => ({
   clients: model === 'ready' ? { nomi: { models: { main: nomiMain } } } : {},
 });
 
+// 引导本体是 lazyComponent(() => import('./index'))：第一次挂载要现场转译（CI 上还要插桩统计覆盖率）
+// 整棵引导模块树，期间只显示 onboarding-gate。不预载就全压在第一个用例 findBy* 的 1 秒轮询里，
+// Windows + 覆盖率统计下必挂。先把这块 chunk 载进模块表（同 resourcePreviewLayout 的做法）；
+// 「未预载时先出幕布」由下面的 pending 用例覆盖（幕布在状态待定时同步出现，与 chunk 是否已载无关）。
+beforeAll(async () => {
+  await preloadOnboarding();
+});
 beforeEach(() => {
   // 角色名来自当前角色的人设（persona.get）；这里用替身角色的名字，断言界面不写死官方角色名
   setCharacterNameForTest('小纸');

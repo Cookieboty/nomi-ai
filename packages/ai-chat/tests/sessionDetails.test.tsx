@@ -27,17 +27,17 @@ import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
+// Nomi 对话的状态（含流式中的尾消息）：用例可改 messages / isLoading 模拟进行中的一轮
+const aiChatState = vi.hoisted(() => ({
+  messages: [] as unknown[],
+  isLoading: false,
+  ipcClient: {
+    currentConversationId: () => 'n1',
+    conversationStore: () => ({ list: () => [], get: () => undefined }),
+  },
+}));
 vi.mock('../src/contexts/AiChatContext', () => {
-  const api = {
-    state: {
-      messages: [],
-      ipcClient: {
-        currentConversationId: () => 'n1',
-        conversationStore: () => ({ list: () => [], get: () => undefined }),
-      },
-    },
-    actions: {},
-  };
+  const api = { state: aiChatState, actions: {} };
   return { useAiChat: () => api };
 });
 
@@ -179,6 +179,8 @@ const mount = (cwd: string | null = '/w/app', msgs: ConvMessage[] = messages, ra
 
 afterEach(() => {
   cleanup();
+  aiChatState.messages = [];
+  aiChatState.isLoading = false;
   localStorage.clear();
   vi.restoreAllMocks();
   resetFakeApi();
@@ -589,6 +591,87 @@ describe('会话详情：异步委派的状态与工作区改动', () => {
     // 子任务里后续轮次的结果不算委派本身
     const follow = { taskId: 't1', cli: 'codex', status: 'done', followUp: true } as never;
     expect(collectSessionAgents(msgs, tabs, {}, {}, { t1: follow })[0]?.status).toBe('running');
+  });
+
+  it('出错后在子任务里「继续」：标签又跑起来就显示进行中，那一轮结束后按它的结果', () => {
+    const msgs = asyncMessages(running);
+    const failed = { taskId: 't1', cli: 'codex', status: 'error', error: '400' } as never;
+    const runningTab = [{ ...delegated, status: 'running' as const }];
+    const agents = collectSessionAgents(msgs, runningTab, {}, {}, { t1: failed });
+    expect(agents[0]?.status).toBe('running');
+    expect(countRunning(agents)).toBe(1);
+    // 排队中也算进行中；等你批准时显示等待
+    const queued = [{ ...delegated, status: 'queued' as const }];
+    expect(collectSessionAgents(msgs, queued, {}, {}, { t1: failed })[0]?.status).toBe('running');
+    const live = { d1: { permissions: [{}] } } as never;
+    expect(collectSessionAgents(msgs, runningTab, live, {}, { t1: failed })[0]?.status).toBe(
+      'waiting',
+    );
+    // 「继续」那一轮结束：按它的结果，而不是委派最初的出错
+    const idle = [{ ...delegated, status: 'idle' as const }];
+    const followDone = { taskId: 't1', cli: 'codex', status: 'done', followUp: true } as never;
+    expect(
+      collectSessionAgents(msgs, idle, {}, {}, { t1: failed }, { t1: followDone })[0]?.status,
+    ).toBe('done');
+    expect(collectSessionAgents(msgs, idle, {}, {}, { t1: failed })[0]?.status).toBe('error');
+  });
+
+  it('Nomi 这一轮出错后「继续」：旧消息里被关掉的委派调用，标签还在跑就显示进行中', () => {
+    const msgs = [
+      {
+        id: 'a1',
+        role: 'assistant',
+        content: '',
+        timestamp: 1,
+        error: 'network',
+        trace: [
+          {
+            type: 'tool',
+            name: 'delegate_to_cli',
+            status: 'start',
+            id: 'c1',
+            input: JSON.stringify({ goal: '修复登录 bug' }),
+          },
+          { type: 'tool', name: 'delegate_to_cli', status: 'error', id: 'c1', output: '已停止' },
+        ],
+      },
+    ] as unknown as ConvMessage[];
+    expect(collectSessionAgents(msgs, [{ ...delegated, status: 'idle' }], {})[0]?.status).toBe(
+      'error',
+    );
+    expect(collectSessionAgents(msgs, [delegated], {})[0]?.status).toBe('running');
+  });
+
+  it('第一次派出子任务：还在进行中的这一轮里就列出来并算进行中', async () => {
+    setup();
+    const user = { id: 'u1', role: 'user', content: '修一下登录', timestamp: 1 };
+    // 主列只给定稿的消息（只有用户这一条）；委派调用还只在流式中的尾消息里
+    aiChatState.messages = [
+      user,
+      {
+        id: 'a1',
+        role: 'assistant',
+        content: '',
+        timestamp: 2,
+        trace: [
+          {
+            type: 'tool',
+            name: 'delegate_to_cli',
+            status: 'start',
+            id: 'c1',
+            input: JSON.stringify({ goal: '修复登录 bug' }),
+          },
+        ],
+      },
+    ];
+    aiChatState.isLoading = true;
+    const settled = [{ id: 'u1', role: 'user', text: '修一下登录', at: 1 }] as ConvMessage[];
+    mount('/w/app', settled);
+    fireEvent.click(screen.getByTestId('session-details-toggle'));
+    await waitFor(() => expect(screen.getAllByTestId('session-details-agent')).toHaveLength(1));
+    await waitFor(() =>
+      expect(screen.getByTestId('session-details-agents-count').textContent).toMatch(/1.*1/),
+    );
   });
 
   it('标签已经出错停下、结果还没到：显示出错', () => {

@@ -1,6 +1,6 @@
 {
   "name": "nomi",
-  "version": "2.3.15",
+  "version": "2.3.16",
   "description": "Nomi·诺米：本地优先的 Agent 工作台，统一模型网关（Go 内核 + Wails v3）",
   "private": true,
   "type": "module",
@@ -26,7 +26,8 @@
     "prepare": "husky",
     "release:check": "bash scripts/release/check.sh",
     "check:licenses": "node scripts/check-licenses.mjs",
-    "check:i18n": "node scripts/i18n/check.cjs",
+    "check:i18n": "node scripts/i18n/check.cjs && node scripts/i18n/sync-go.mjs --check",
+    "i18n:sync": "node scripts/i18n/sync-go.mjs",
     "check:character-leak": "node scripts/check-character-leak.mjs",
     "check:frontend": "node scripts/check-frontend-standards.mjs",
     "changelog": "node scripts/release/changelog.mjs",

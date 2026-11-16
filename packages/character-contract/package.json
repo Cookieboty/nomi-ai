@@ -1,6 +1,6 @@
 {
   "name": "@nomi-ai/character-contract",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "description": "角色包契约：manifest / persona / mapping / locales 的类型与 zod schema、contract.json、voice-ids.json、validatePack 与迁移函数（Node 与浏览器通用，不依赖 Electron）",
   "type": "module",

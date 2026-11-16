@@ -42,6 +42,10 @@ function Probe() {
   );
 }
 async function openPreview() {
+  // 预览面板是 lazy(() => import('../components/ResourcePreview/ResourcePreview'))：
+  // 先把这块 chunk 载进模块表，Suspense 才会在同一次 untilIdle 里出内容。不预载就只能靠
+  // findBy* 的 1 秒轮询，CI 慢一点（如开着覆盖率统计）必挂。
+  await import('../src/components/ResourcePreview/ResourcePreview');
   vi.mocked(resourcePreviewClient.open).mockResolvedValue({
     ok: true,
     kind: 'markdown',
@@ -51,7 +55,7 @@ async function openPreview() {
   const r = render(<Probe />);
   fireEvent.click(screen.getByText('open'));
   await untilIdle();
-  await screen.findByTestId('preview-markdown');
+  expect(screen.getByTestId('preview-markdown')).not.toBeNull();
   return r;
 }
 function mockBounds() {

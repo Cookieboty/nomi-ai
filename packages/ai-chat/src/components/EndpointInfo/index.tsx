@@ -176,8 +176,8 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
           data-testid="endpoint-card-open"
         >
           <span className={styles.head}>
+            {/* 卡片只留 icon：icon 足以代表对应的 CLI，名字留在详情抽屉与 aria-label 里 */}
             <EndpointIcon backend={backend} size={18} variant="color" decorative />
-            <b className={styles.name}>{name}</b>
             {installed === false ? (
               <Badge tone="warning" data-testid="endpoint-card-install">
                 {t('ui.mascot-theme.not-installed')}

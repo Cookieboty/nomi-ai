@@ -1,7 +1,7 @@
 # character-pack (extraResources)
 
 This directory is copied into the packaged app as `resources/character-pack`
-(see `apps/desktop-electron/electron-builder.yml` → `extraResources`).
+(see `apps/desktop-go/packaging/package.sh`).
 
 Resolve order (CharacterPackService):
 

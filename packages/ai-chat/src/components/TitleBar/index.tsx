@@ -130,6 +130,7 @@ export const AppTitleBar: React.FC<{
   const labels = sidebarToggleLabels(sidebarCollapsed);
   const bar = useRef<HTMLDivElement>(null);
   const leadRef = useRef<HTMLDivElement>(null);
+  const railRef = useRef<HTMLDivElement>(null);
   usePanelColumns(bar, `${sidebarCollapsed}:${filesOpen}:${centerOpen}:${layoutKey}`);
   // 侧栏收起时会话名紧跟在收起按钮后面：量出 lead 的宽度，把会话名往右挪，免得被盖住
   useLayoutEffect(() => {
@@ -192,7 +193,9 @@ export const AppTitleBar: React.FC<{
           <TitlebarSlot name="files" className="app-titlebar-slot app-titlebar-panel-tools" />
         </div>
       )}
-      <TitlebarSlot name="rail-toggle" className="app-titlebar-rail-toggle app-titlebar-slot" />
+      <div ref={railRef} className="app-titlebar-rail-toggle">
+        <TitlebarSlot name="rail-toggle" className="app-titlebar-slot" />
+      </div>
       {isGoHost() && <WindowControls />}
     </div>
   );

@@ -134,7 +134,8 @@ export function pendingDelegateTaskIds(messages: readonly ConvMessage[]): string
 /**
  * messages：当前会话（含进行中的一轮）；tabs：编程助手标签；live：标签实时状态；
  * liveAgents：当前标签这一轮的子代理（还没出现在消息里的也算）；
- * results：异步委派的最终结果（taskId → 结果；工具输出只是 running 占位，与子任务卡片同一来源）
+ * results：异步委派的最终结果（taskId → 结果；工具输出只是 running 占位，与子任务卡片同一来源）；
+ * followUps：委派结束后在子任务里接着跑的那一轮（出错后「继续」等）的最新结果
  */
 export function collectSessionAgents(
   messages: readonly ConvMessage[],
@@ -142,6 +143,7 @@ export function collectSessionAgents(
   live: Record<string, TabLive>,
   liveAgents?: Record<string, LiveAgent>,
   results?: Record<string, DelegateResult>,
+  followUps?: Record<string, DelegateResult>,
 ): SessionAgent[] {
   const agents: SessionAgent[] = [];
   const seen = new Set<string>();
@@ -162,7 +164,9 @@ export function collectSessionAgents(
         kind: 'delegate',
         backend: v.backend,
         detail: v.goal || undefined,
-        status: PHASE_STATUS[v.phase],
+        status: delegateStatus(PHASE_STATUS[v.phase], tab, tab ? live[tab.id] : undefined, () =>
+          taskId ? followUps?.[taskId] : undefined,
+        ),
         tabId: tab?.id,
       });
       continue;
@@ -189,6 +193,24 @@ export function collectSessionAgents(
     });
   }
   return agents;
+}
+
+/**
+ * 委派的状态以子任务标签的现状为准：最终结果（出错 / 完成）到了以后，用户在子任务里「继续」，
+ * 标签又跑起来——这时是进行中，而不是一直停在最终结果上；那一轮结束后按它的结果（followUp）显示。
+ */
+function delegateStatus(
+  base: SessionAgentStatus,
+  tab: HarnessTabMeta | null,
+  tl: TabLive | undefined,
+  followUp: () => DelegateResult | undefined,
+): SessionAgentStatus {
+  if (base === 'running' || base === 'waiting') return base;
+  if (tab && (tab.status === 'running' || tab.status === 'queued'))
+    return tl?.permissions?.length || tab.sandboxPending?.length ? 'waiting' : 'running';
+  const f = followUp();
+  if (f && f.status !== 'running') return PHASE_STATUS[f.status];
+  return base;
 }
 
 export function countRunning(agents: readonly SessionAgent[]): number {
