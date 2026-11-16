@@ -2,11 +2,14 @@
  * 多文件改动审查：Tab / 面包屑、切文件保留滚动与选区、←→ 切文件、
  * 磁盘内容可编辑保存（cwd 沙箱）、可选丢弃本轮 diff。
  */
-import { t } from '@nomi-ai/ui';
+import { t, useLocale, useTabIndicator } from '@nomi-ai/ui';
 import {
   IconChevronLeft as ChevronLeft,
   IconChevronRight as ChevronRight,
   IconFileCode2 as FileCode2,
+  IconLayoutSidebarRightCollapse as SidebarCollapse,
+  IconLayoutSidebarRightExpand as SidebarExpand,
+  IconRefresh as RefreshCw,
   IconArrowBackUp as Undo2,
   IconDeviceFloppy as Save,
   IconX as X,
@@ -19,6 +22,7 @@ import type { ChangeEntry } from '../../utils/sessionChanges';
 import type { FileDiff } from '../../utils/toolTrace';
 import { undoErrorText, undoTurnChanges } from '../../utils/undoTurnChanges';
 import { workspaceRelPath } from '../../utils/workspacePath';
+import { confirmDialog } from '../ConfirmDialog';
 import { DiffView } from '../Conversation/DiffView';
 
 import {
@@ -67,6 +71,10 @@ export const FileReview: React.FC<{
    * 见 reviewDrafts.ts。不给 = 只在组件里
    */
   draftKey?: string;
+  /** 右侧工作区文件目录栏是否展开 */
+  treeOpen?: boolean;
+  /** 切换显示 / 隐藏右侧工作区文件目录栏 */
+  onToggleTree?: () => void;
 }> = ({
   files,
   activeKey,
@@ -77,6 +85,8 @@ export const FileReview: React.FC<{
   hideFileTabs = false,
   className,
   draftKey,
+  treeOpen = true,
+  onToggleTree,
 }) => {
   const [store] = useState<ReviewDraftStore>(() =>
     draftKey ? reviewDraftStore(draftKey) : { views: new Map() },
@@ -139,6 +149,10 @@ export const FileReview: React.FC<{
     const p = active?.path ?? '';
     return p.split(/[/\\]/).filter(Boolean);
   }, [active?.path]);
+  const locale = useLocale();
+  const { listRef: modeTabsRef, indicator: modeIndicator } = useTabIndicator<HTMLDivElement>(
+    `${mode}\0${locale}\0${active?.key ?? ''}`,
+  );
 
   const persistView = useCallback(() => {
     if (!active) return;
@@ -443,7 +457,24 @@ export const FileReview: React.FC<{
           ))}
         </nav>
         <div className={styles.previewActions}>
-          <div className={styles.modeTabs} role="tablist">
+          <div
+            ref={modeTabsRef}
+            data-sliding={modeIndicator.visible ? 'true' : undefined}
+            className={styles.modeTabs}
+            role="tablist"
+          >
+            {modeIndicator.visible && (
+              <span
+                aria-hidden="true"
+                data-animate={modeIndicator.animate ? 'true' : undefined}
+                className={styles.modeIndicator}
+                style={{
+                  width: `${modeIndicator.width}px`,
+                  height: `${modeIndicator.height}px`,
+                  transform: `translate3d(${modeIndicator.left}px, ${modeIndicator.top}px, 0)`,
+                }}
+              />
+            )}
             <button
               type="button"
               role="tab"
@@ -501,12 +532,61 @@ export const FileReview: React.FC<{
           <button
             type="button"
             className={styles.iconBtn}
-            onClick={onClose}
-            aria-label={t('ui.session-workspace.close-preview')}
-            data-testid="preview-close"
+            disabled={busy || loading}
+            aria-label={t('ui.session-workspace.preview-refresh')}
+            data-testid="preview-refresh"
+            onClick={() => {
+              if (meta[active.key]?.dirty) {
+                void confirmDialog({
+                  title: t('ui.session-workspace.preview-discard-draft-title'),
+                  message: t('ui.session-workspace.preview-refresh-discard-message'),
+                  confirmLabel: t('ui.knowledge-local.refresh'),
+                  danger: true,
+                }).then((ok) => {
+                  if (!ok) return;
+                  const st = viewState.current.get(active.key);
+                  if (st) {
+                    st.dirty = false;
+                    st.draft = undefined;
+                  }
+                  commitMeta(active.key, undefined, false);
+                  void loadDisk();
+                });
+                return;
+              }
+              void loadDisk();
+            }}
           >
-            <X size={14} />
+            <RefreshCw size={14} />
           </button>
+          {onToggleTree && (
+            <button
+              type="button"
+              className={styles.iconBtn}
+              data-active={treeOpen || undefined}
+              aria-pressed={!!treeOpen}
+              aria-label={t(
+                treeOpen
+                  ? 'ui.session-workspace.hide-file-tree'
+                  : 'ui.session-workspace.show-file-tree',
+              )}
+              data-testid="preview-toggle-tree"
+              onClick={onToggleTree}
+            >
+              {treeOpen ? <SidebarCollapse size={14} /> : <SidebarExpand size={14} />}
+            </button>
+          )}
+          {!hideFileTabs && (
+            <button
+              type="button"
+              className={styles.iconBtn}
+              onClick={onClose}
+              aria-label={t('ui.session-workspace.close-preview')}
+              data-testid="preview-close"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
       </header>
 
@@ -594,7 +674,10 @@ export const FileReview: React.FC<{
           )}
         </div>
       ) : (
-        <div className={styles.previewBody} data-testid="preview-file-body">
+        <div
+          className={`${styles.previewBody} ${styles.previewEditorBody}`}
+          data-testid="preview-file-body"
+        >
           {loading ? (
             <p className={styles.empty}>{t('ui.session-workspace.reading')}</p>
           ) : binary ? (

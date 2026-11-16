@@ -7,7 +7,7 @@
  * - 鼠标停在不在看的子任务标签上：悬停卡片（AgentHoverCard）；
  * - 「+」：新侧边聊天 / 浏览文件。
  */
-import { Icon, IconButton, t } from '@nomi-ai/ui';
+import { Icon, IconButton, t, useTabIndicator } from '@nomi-ai/ui';
 import {
   IconAppWindow as AppWindow,
   IconRobot as Bot,
@@ -28,6 +28,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import type { SideTabMeta } from '../../contexts/SubagentPaneContext';
+import { scrollTabIntoStrip, useTabStripFlip } from '../../hooks/useTabMotion';
 import type { ConvMessage } from '../../types/conversation';
 import { agentTargetBackend } from '../../utils/agentIdentity';
 import { resolveDelegateTarget } from '../../utils/delegateTarget';
@@ -117,7 +118,9 @@ export const SideTabStrip: React.FC<{
    * 铺满时由 App 画在整个对话区顶上（主会话也是一个标签），不进标题栏。
    */
   inTitlebar?: boolean;
-}> = ({ model, columnMessages, inTitlebar = false }) => {
+  /** 操作按钮（拆分 / 弹出 / 全屏）是否固定到桌面标题栏右侧槽位（设置页或整页隐藏主内容时禁用） */
+  actionsInTitlebar?: boolean;
+}> = ({ model, columnMessages, inTitlebar = false, actionsInTitlebar = true }) => {
   const harness = useHarnessTabs();
   const resolveTarget = useCallback(
     (target: SubagentTarget) => resolveDelegateTarget(target, harness.state?.tabs, columnMessages),
@@ -125,12 +128,17 @@ export const SideTabStrip: React.FC<{
   );
   const backendOf = useCallback(
     (target: SubagentTarget): string | null =>
-      agentTargetBackend(resolveTarget(target), harness.state?.tabs),
-    [harness.state?.tabs, resolveTarget],
+      agentTargetBackend(resolveTarget(target), harness.state?.tabs, columnMessages),
+    [harness.state?.tabs, resolveTarget, columnMessages],
   );
   const [tabMenu, setTabMenu] = useState<TabMenu | null>(null);
   const tabMenuRef = useRef<HTMLDivElement>(null);
-  const stripRef = useRef<HTMLDivElement>(null);
+  const itemKeys = model.items.map((i) => i.key);
+  const { listRef: stripRef, indicator } = useTabIndicator<HTMLDivElement>(
+    `${model.stripActive ?? ''}\0${itemKeys.join('\0')}`,
+    '[data-side-tab-key][data-active]',
+  );
+  useTabStripFlip(stripRef, itemKeys, 'data-side-tab-key');
   const [drag, setDrag] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<{ key: string; after: boolean } | null>(null);
   const [splitHot, setSplitHot] = useState(false);
@@ -140,20 +148,23 @@ export const SideTabStrip: React.FC<{
   useDismiss(!!tabMenu, tabMenuRef, closeTabMenu);
   // 当前标签被挤到可见范围外（标签多、这一栏窄）时滚过去
   const current = model.stripActive;
-  const tabEl = (key: string) =>
-    Array.from(stripRef.current?.querySelectorAll<HTMLElement>('[data-side-tab-key]') ?? []).find(
-      (x) => x.dataset.sideTabKey === key,
-    );
+  const tabEl = useCallback(
+    (key: string) =>
+      Array.from(stripRef.current?.querySelectorAll<HTMLElement>('[data-side-tab-key]') ?? []).find(
+        (x) => x.dataset.sideTabKey === key,
+      ),
+    [stripRef],
+  );
   useEffect(() => {
     if (!current) return;
-    tabEl(current)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-  }, [current]);
+    scrollTabIntoStrip(stripRef.current, tabEl(current), true);
+  }, [current, stripRef, tabEl]);
   useEffect(() => {
     const key = refocus.current;
     if (!key) return;
     refocus.current = null;
     tabEl(key)?.querySelector<HTMLElement>('[role="tab"]')?.focus();
-  }, [model.items]);
+  }, [model.items, tabEl]);
   // 拖动结束（不论落在哪）：恢复悬停卡片
   useEffect(() => {
     if (!drag) return;
@@ -212,6 +223,17 @@ export const SideTabStrip: React.FC<{
           role="tablist"
           aria-label={t('ui.session-workspace.side-tabs-label')}
         >
+          {indicator.visible && !drag && (
+            <span
+              aria-hidden="true"
+              data-animate={indicator.animate ? 'true' : undefined}
+              className={styles.activeBar}
+              style={{
+                width: `${Math.max(16, indicator.width - 16)}px`,
+                transform: `translate3d(${indicator.left + 8}px, 0, 0)`,
+              }}
+            />
+          )}
           {model.items.map((item) => {
             const selected = item.key === model.stripActive;
             const state =
@@ -430,61 +452,65 @@ export const SideTabStrip: React.FC<{
             </button>
           </div>
         )}
-        <div className={styles.actions} data-testid="side-tab-actions">
-          {(sideItem || model.split) && (
-            <span
-              className={styles.dropTarget}
-              data-hot={splitHot || undefined}
-              onDragOver={(e) => {
-                if (!drag) return;
-                e.preventDefault();
-                setSplitHot(true);
-              }}
-              onDragLeave={() => setSplitHot(false)}
-              onDrop={(e) => {
-                if (!drag) return;
-                e.preventDefault();
-                const item = model.items.find((i) => i.key === drag);
-                if (item && !model.split) model.toggleSplit(item);
-                else if (item) model.activate(item);
-                endDrag();
-              }}
-            >
+        <TitlebarContent name="workspace-actions" enabled={actionsInTitlebar && model.open}>
+          <div className={styles.actions} data-testid="side-tab-actions">
+            {(sideItem || model.split) && (
+              <span
+                className={styles.dropTarget}
+                data-hot={splitHot || undefined}
+                onDragOver={(e) => {
+                  if (!drag) return;
+                  e.preventDefault();
+                  setSplitHot(true);
+                }}
+                onDragLeave={() => setSplitHot(false)}
+                onDrop={(e) => {
+                  if (!drag) return;
+                  e.preventDefault();
+                  const item = model.items.find((i) => i.key === drag);
+                  if (item && !model.split) model.toggleSplit(item);
+                  else if (item) model.activate(item);
+                  endDrag();
+                }}
+              >
+                <IconButton
+                  size="sm"
+                  label={t(
+                    model.split
+                      ? 'ui.session-workspace.side-tab-unsplit'
+                      : 'ui.session-workspace.side-tab-split',
+                  )}
+                  icon={<Icon icon={Columns2} size={14} />}
+                  aria-pressed={model.split}
+                  onClick={() => model.toggleSplit(sideItem)}
+                  data-testid="side-tab-split-toggle"
+                />
+              </span>
+            )}
+            {sideItem && model.canDetach(sideItem) && (
               <IconButton
                 size="sm"
-                label={t(
-                  model.split
-                    ? 'ui.session-workspace.side-tab-unsplit'
-                    : 'ui.session-workspace.side-tab-split',
-                )}
-                icon={<Icon icon={Columns2} size={14} />}
-                aria-pressed={model.split}
-                onClick={() => model.toggleSplit(sideItem)}
-                data-testid="side-tab-split-toggle"
+                label={t('ui.session-workspace.side-tab-detach')}
+                icon={<Icon icon={SquareArrowOutUpRight} size={14} />}
+                onClick={() => model.detach(sideItem, label(sideItem))}
+                data-testid="side-tab-popout"
               />
-            </span>
-          )}
-          {sideItem && model.canDetach(sideItem) && (
+            )}
             <IconButton
               size="sm"
-              label={t('ui.session-workspace.side-tab-detach')}
-              icon={<Icon icon={SquareArrowOutUpRight} size={14} />}
-              onClick={() => model.detach(sideItem, label(sideItem))}
-              data-testid="side-tab-popout"
+              label={t(
+                model.maximized
+                  ? 'ui.session-workspace.side-tab-restore'
+                  : 'ui.session-workspace.side-tab-maximize',
+              )}
+              icon={<Icon icon={model.maximized ? Minimize2 : Maximize2} size={14} />}
+              onClick={() =>
+                model.maximized ? model.restore() : model.toggleMaximized(currentItem)
+              }
+              data-testid="side-tab-maximize"
             />
-          )}
-          <IconButton
-            size="sm"
-            label={t(
-              model.maximized
-                ? 'ui.session-workspace.side-tab-restore'
-                : 'ui.session-workspace.side-tab-maximize',
-            )}
-            icon={<Icon icon={model.maximized ? Minimize2 : Maximize2} size={14} />}
-            onClick={() => (model.maximized ? model.restore() : model.toggleMaximized(currentItem))}
-            data-testid="side-tab-maximize"
-          />
-        </div>
+          </div>
+        </TitlebarContent>
       </div>
     </TitlebarContent>
   );

@@ -77,26 +77,29 @@
 }
 @media (prefers-reduced-motion: no-preference) {
   .panel {
-    animation: panelIn 0.18s ease;
+    animation: panelIn 0.22s var(--cd-ease-out);
   }
 }
 .panel[data-closing] {
-  animation: panelOut 0.15s var(--cd-ease) forwards;
+  animation: panelOut 0.2s var(--cd-ease) forwards;
   pointer-events: none;
 }
 @keyframes panelOut {
   to {
     margin-right: calc(-1 * var(--sidebar-panel-w, 260px));
+    translate: -12px 0;
     clip-path: inset(0 100% 0 0);
   }
 }
 @keyframes panelIn {
   from {
     margin-right: calc(-1 * var(--sidebar-panel-w, 260px));
+    translate: -12px 0;
     clip-path: inset(0 100% 0 0);
   }
   to {
     margin-right: 0;
+    translate: 0 0;
     clip-path: inset(0 0 0 0);
   }
 }

@@ -164,3 +164,70 @@ it('keeps session controls above the chat when the files rail opens or closes', 
     expect(controls.closest('.app-titlebar-files')).toBeNull();
   }
 });
+
+it('never lets titlebar-main-left cross left of the sidebar/card edge during transient transform animations and re-syncs when settled', () => {
+  let chatOffset = -16; // 模拟从全屏回到分栏瞬间的 translate3d(-16px, 0, 0) 偏移
+  vi.spyOn(HTMLElement.prototype, 'getClientRects').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return [this.getBoundingClientRect()] as unknown as DOMRectList;
+  });
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    const id = this.dataset.testid;
+    const left =
+      id === 'sidebar-panel'
+        ? 52
+        : id === 'workspace-card'
+          ? 312
+          : id === 'chat-column'
+            ? 312 + chatOffset
+            : id === 'side-workspace'
+              ? 720 + chatOffset
+              : 0;
+    const right =
+      id === 'sidebar-panel'
+        ? 312
+        : id === 'chat-column'
+          ? 720 + chatOffset
+          : id === 'side-workspace'
+            ? 1200
+            : 1200;
+    return {
+      x: left,
+      y: 38,
+      left,
+      right,
+      top: 38,
+      bottom: 800,
+      width: right - left,
+      height: 762,
+      toJSON: () => ({}),
+    };
+  });
+
+  const r = render(
+    <div className="ai-chat-app">
+      <AppTitleBar sidebarCollapsed={false} centerOpen onToggleSidebar={() => {}} />
+      <div data-testid="sidebar-panel" />
+      <div data-testid="workspace-card">
+        <div data-testid="chat-column" />
+        <div data-testid="side-workspace" />
+      </div>
+    </div>,
+  );
+
+  const bar = r.getByTestId('app-titlebar');
+  // 即使动画首帧 chat-column 有 -16px 负偏移，标题左边界也严格对齐卡片/侧栏边缘 312px，绝不向左越界
+  expect(bar.style.getPropertyValue('--titlebar-main-left')).toBe('312px');
+  expect(bar.style.getPropertyValue('--titlebar-center-left')).toBe('704px');
+
+  // 动画结束清掉 transform 并派发 nomi:layout-settled，无需拖动下方分割线即可自动精准归位到 720px
+  chatOffset = 0;
+  act(() => {
+    window.dispatchEvent(new Event('nomi:layout-settled'));
+  });
+  expect(bar.style.getPropertyValue('--titlebar-main-left')).toBe('312px');
+  expect(bar.style.getPropertyValue('--titlebar-center-left')).toBe('720px');
+});

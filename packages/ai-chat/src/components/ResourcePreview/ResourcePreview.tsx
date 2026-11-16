@@ -1,10 +1,14 @@
-import { Icon, t } from '@nomi-ai/ui';
+import { Icon, t, useTabIndicator } from '@nomi-ai/ui';
 import {
   IconMaximize as Expand,
   IconFileCode2 as FileCode2,
+  IconFileText as FileText,
   IconGitCompare as GitCompareArrows,
+  IconLayoutSidebarRightCollapse as SidebarCollapse,
+  IconLayoutSidebarRightExpand as SidebarExpand,
   IconArrowsMinimize as Minimize2,
   IconPencil as Pencil,
+  IconRefresh as RefreshCw,
   IconX as X,
 } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -14,6 +18,11 @@ import {
   type ResourceContextValue,
   type ResourceEntry,
 } from '../../contexts/ResourceContext';
+import {
+  scrollTabIntoStrip,
+  useDirectionalTabMotion,
+  useTabStripFlip,
+} from '../../hooks/useTabMotion';
 import { hostAssetUrl } from '../../services/api';
 import { isExternalResource, openExternalResource } from '../../services/externalResource';
 import { resourcePreviewClient, type PreviewResult } from '../../services/resourcePreviewClient';
@@ -26,7 +35,6 @@ import { dirtyReviewDrafts, dropReviewDrafts } from '../SessionWorkspace/reviewD
 
 import { CodeDocument } from './CodeDocument';
 import { resolveCodeLanguage } from './codeSyntax';
-import { CodeSyntaxSelect } from './CodeSyntaxSelect';
 import { codeViewAt, revealCodeLine } from './codeViewModel';
 import type { DocumentAnchor } from './documentAnchor';
 import type { DocumentNavigation } from './documentNavigation';
@@ -71,7 +79,6 @@ interface ViewState {
   outline: boolean;
   outlineWidth?: number;
   navigationSequence?: number;
-  syntax?: string;
   editing?: boolean;
 }
 const INITIAL: ViewState = { source: false, scroll: 0, sourceScroll: 0, outline: true };
@@ -109,6 +116,10 @@ export const ResourcePreview: React.FC<{
   /** 不是当前标签（隐藏着挂载）：不接管 Esc、不抢焦点 */
   inactive?: boolean;
   controlRef?: React.MutableRefObject<PreviewTabsControl | null>;
+  /** 右侧工作区文件目录栏是否展开 */
+  treeOpen?: boolean;
+  /** 切换显示 / 隐藏右侧工作区文件目录栏 */
+  onToggleTree?: () => void;
 }> = ({
   entries,
   activeKey,
@@ -124,8 +135,27 @@ export const ResourcePreview: React.FC<{
   embedded = false,
   inactive = false,
   controlRef,
+  treeOpen = true,
+  onToggleTree,
 }) => {
   const active = entries.find((e) => e.key === activeKey) ?? entries[entries.length - 1]!;
+  const entryKeys = useMemo(() => entries.map((e) => e.key), [entries]);
+  const fileMotion = useDirectionalTabMotion(entryKeys, active.key);
+  const { listRef: fileTabsRef, indicator: tabIndicator } = useTabIndicator<HTMLDivElement>(
+    `${active.key}\0${entryKeys.join('\0')}\0${hideTabs}`,
+    '[data-preview-tab-key][data-active]',
+  );
+  useTabStripFlip(fileTabsRef, entryKeys, 'data-preview-tab-key');
+  // 新开或切换到视口外的文件标签时，自动横向滚入标签栏可视区（修复图2未聚焦到新文件标签的问题）
+  useLayoutEffect(() => {
+    if (hideTabs || inactive) return;
+    const strip = fileTabsRef.current;
+    if (!strip) return;
+    const targetTab = Array.from(
+      strip.querySelectorAll<HTMLElement>('[data-preview-tab-key]'),
+    ).find((el) => el.dataset.previewTabKey === active.key);
+    scrollTabIntoStrip(strip, targetTab, true);
+  }, [active.key, entryKeys.length, hideTabs, inactive, fileTabsRef]);
   /** 当前是文件的 Diff 标签：内容区换成 Diff，文件视图的工具栏 / 内容只隐藏 */
   const activeDiff = active.diff;
   const [loaded, setLoaded] = useState<{
@@ -135,6 +165,7 @@ export const ResourcePreview: React.FC<{
     edit?: PreviewEditSession;
   } | null>(null);
   const [views, setViews] = useState<Record<string, ViewState>>({});
+  const [reloadNonce, setReloadNonce] = useState(0);
   const sourceRef = useRef<HTMLElement>(null);
   const root = useRef<HTMLElement>(null);
   const sourceViewport = useRef<{ key: string; element: HTMLElement } | null>(null);
@@ -219,17 +250,45 @@ export const ResourcePreview: React.FC<{
       else if (target.web) result = await resourcePreviewClient.web(resourceHref);
       else {
         result = await resourcePreviewClient.open(resourceScope.cwd ?? '', target.path!);
+        const isRelativePath =
+          !/^(?:\/|~[\\/]|…[\\/]|\.{3}[\\/]|[A-Za-z]:[\\/])/.test(target.path!) &&
+          !target.path!.includes('..');
         if (!stale && result.code === 'missing' && resourceScope.fallbackCwds?.length) {
           const base = (resourceScope.cwd ?? '').replace(/\\/g, '/').replace(/\/$/, '');
           const path = target.path!.replace(/\\/g, '/');
-          // Only relocate a file known to be inside the original root. Do not guess outside paths.
-          if (base && path.startsWith(`${base}/`)) {
+          if (isRelativePath) {
+            for (const cwd of resourceScope.fallbackCwds) {
+              if (stale || result.ok || result.code !== 'missing') break;
+              resolvedCwd = cwd;
+              resolvedPath = target.path!;
+              result = await resourcePreviewClient.open(cwd, resolvedPath);
+            }
+          } else if (base && path.startsWith(`${base}/`)) {
+            // Only relocate a file known to be inside the original root. Do not guess outside paths.
             const relative = path.slice(base.length + 1);
             for (const cwd of resourceScope.fallbackCwds) {
               if (stale || result.ok || result.code !== 'missing') break;
               resolvedCwd = cwd;
               resolvedPath = resourceTarget(workspaceFileHref(cwd, relative))!.path!;
               result = await resourcePreviewClient.open(cwd, resolvedPath);
+            }
+          }
+        }
+        // 裸文件名或省略前置子目录的相对路径（如 `wails.go`）：尝试工作区内的唯一后缀解析
+        if (!stale && result.code === 'missing' && isRelativePath) {
+          const suffix = `.../${target.path!.replace(/\\/g, '/').replace(/^\.\//, '')}`;
+          const candidateRoots = [
+            resourceScope.cwd ?? '',
+            ...(resourceScope.fallbackCwds ?? []),
+          ].filter(Boolean);
+          for (const cwd of candidateRoots) {
+            if (stale || result.ok) break;
+            const viaSuffix = await resourcePreviewClient.open(cwd, suffix);
+            if (viaSuffix.ok || (viaSuffix.code && viaSuffix.code !== 'missing')) {
+              resolvedCwd = cwd;
+              resolvedPath = viaSuffix.path ?? suffix;
+              result = viaSuffix;
+              break;
             }
           }
         }
@@ -297,6 +356,7 @@ export const ResourcePreview: React.FC<{
     resourceScope,
     resourceImage,
     resourceIsDiff,
+    reloadNonce,
     onCloseEntry,
     onOpen,
   ]);
@@ -377,8 +437,7 @@ export const ResourcePreview: React.FC<{
     !!edit && result?.kind === 'markdown',
     entries,
   );
-  const detectedSyntax = resolveCodeLanguage(result?.path ?? location?.path ?? '', documentText);
-  const syntax = view.syntax && view.syntax !== 'auto' ? view.syntax : detectedSyntax;
+  const syntax = resolveCodeLanguage(result?.path ?? location?.path ?? '');
   const guarded = (action: () => void) => {
     if (!edit) {
       action();
@@ -387,6 +446,22 @@ export const ResourcePreview: React.FC<{
     void edit.flush().then((ok) => {
       if (ok) action();
     });
+  };
+  const refreshFile = () => {
+    if (edit && (editState.dirty || editState.error)) {
+      void confirmDialog({
+        title: t('ui.session-workspace.preview-discard-draft-title'),
+        message: t('ui.session-workspace.preview-refresh-discard-message'),
+        confirmLabel: t('ui.knowledge-local.refresh'),
+        danger: true,
+      }).then((ok) => {
+        if (!ok || !mounted.current) return;
+        edit.discardDraft();
+        setReloadNonce((n) => n + 1);
+      });
+      return;
+    }
+    setReloadNonce((n) => n + 1);
   };
   const closeEntries = (keys: string[]) => {
     if (closing.current || !keys.length) return;
@@ -485,61 +560,111 @@ export const ResourcePreview: React.FC<{
       data-expanded={expanded}
       hidden={inactive}
     >
-      <div
-        className={styles.tabs}
-        role="tablist"
-        aria-label={t('ui.session-workspace.preview-files')}
-        hidden={hideTabs}
-      >
-        {entries.map((entry) => (
-          <div
-            key={entry.key}
-            className={styles.tab}
-            data-active={entry.key === active.key || undefined}
-            data-preview-tab-key={entry.key}
-            onContextMenu={(event) => {
-              event.preventDefault();
-              const trigger = event.currentTarget.querySelector<HTMLButtonElement>('[role="tab"]')!;
-              setMenu({ key: entry.key, x: event.clientX, y: event.clientY, trigger });
-            }}
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={entry.key === active.key}
-              aria-haspopup="menu"
-              aria-expanded={menu?.key === entry.key}
-              onKeyDown={(event) => {
-                if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
-                event.preventDefault();
-                const rect = event.currentTarget.getBoundingClientRect();
-                setMenu({
-                  key: entry.key,
-                  x: rect.left,
-                  y: rect.bottom,
-                  trigger: event.currentTarget,
-                });
+      <div className={styles.tabBar} data-testid="resource-preview-tabbar" hidden={hideTabs}>
+        <div
+          ref={fileTabsRef}
+          className={styles.tabs}
+          role="tablist"
+          aria-label={t('ui.session-workspace.preview-files')}
+        >
+          {!embedded && tabIndicator.visible && (
+            <span
+              aria-hidden="true"
+              data-animate={tabIndicator.animate ? 'true' : undefined}
+              className={styles.tabIndicator}
+              style={{
+                width: `${Math.max(14, tabIndicator.width - 14)}px`,
+                transform: `translate3d(${tabIndicator.left + 7}px, 0, 0)`,
               }}
-              onClick={() => guarded(() => onActive(entry.key))}
-              aria-label={
-                entry.diff
-                  ? t('ui.session-workspace.diff-tab', basename(entry.diff.path))
-                  : undefined
-              }
-              data-preview-diff-tab={entry.diff ? '' : undefined}
+            />
+          )}
+          {entries.map((entry) => (
+            <div
+              key={entry.key}
+              className={styles.tab}
+              data-active={entry.key === active.key || undefined}
+              data-preview-tab-key={entry.key}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                const trigger =
+                  event.currentTarget.querySelector<HTMLButtonElement>('[role="tab"]')!;
+                setMenu({ key: entry.key, x: event.clientX, y: event.clientY, trigger });
+              }}
             >
-              {entry.diff && <Icon icon={GitCompareArrows} size={12} />}
-              {basename(entry.diff?.path ?? resourceTarget(entry.href)?.path ?? entry.href)}
-            </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={entry.key === active.key}
+                aria-haspopup="menu"
+                aria-expanded={menu?.key === entry.key}
+                onKeyDown={(event) => {
+                  if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10'))
+                    return;
+                  event.preventDefault();
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setMenu({
+                    key: entry.key,
+                    x: rect.left,
+                    y: rect.bottom,
+                    trigger: event.currentTarget,
+                  });
+                }}
+                onClick={() => guarded(() => onActive(entry.key))}
+                aria-label={
+                  entry.diff
+                    ? t('ui.session-workspace.diff-tab', basename(entry.diff.path))
+                    : undefined
+                }
+                data-preview-diff-tab={entry.diff ? '' : undefined}
+              >
+                {entry.diff ? (
+                  <Icon icon={GitCompareArrows} size={13} className={styles.tabFileIcon} />
+                ) : embedded ? (
+                  <Icon icon={FileText} size={13} className={styles.tabFileIcon} />
+                ) : null}
+                <span className={styles.tabName}>
+                  {basename(entry.diff?.path ?? resourceTarget(entry.href)?.path ?? entry.href)}
+                </span>
+              </button>
+              <button
+                type="button"
+                className={styles.tabClose}
+                onClick={() => closeEntries([entry.key])}
+                aria-label={t('ui.session-workspace.preview-close-file')}
+              >
+                <Icon icon={X} size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className={styles.tabBarActions} data-testid="resource-preview-tabbar-actions">
+          {!activeDiff && (
             <button
               type="button"
-              onClick={() => closeEntries([entry.key])}
-              aria-label={t('ui.session-workspace.preview-close-file')}
+              data-testid="resource-preview-refresh"
+              aria-label={t('ui.session-workspace.preview-refresh')}
+              onClick={refreshFile}
             >
-              <Icon icon={X} size={12} />
+              <Icon icon={RefreshCw} size={14} />
             </button>
-          </div>
-        ))}
+          )}
+          {onToggleTree && (
+            <button
+              type="button"
+              data-testid="resource-preview-toggle-tree"
+              data-active={treeOpen || undefined}
+              aria-pressed={!!treeOpen}
+              aria-label={t(
+                treeOpen
+                  ? 'ui.session-workspace.hide-file-tree'
+                  : 'ui.session-workspace.show-file-tree',
+              )}
+              onClick={onToggleTree}
+            >
+              <Icon icon={treeOpen ? SidebarCollapse : SidebarExpand} size={14} />
+            </button>
+          )}
+        </div>
       </div>
       {menu && entries.some((entry) => entry.key === menu.key) && (
         <PreviewTabMenu
@@ -550,7 +675,12 @@ export const ResourcePreview: React.FC<{
         />
       )}
       {activeDiff && (
-        <div className={styles.diffBody} data-preview-diff data-testid="preview-diff">
+        <div
+          className={styles.diffBody}
+          data-preview-diff
+          data-tab-motion={fileMotion}
+          data-testid="preview-diff"
+        >
           <FileReview
             key={active.key}
             draftKey={active.key}
@@ -583,25 +713,23 @@ export const ResourcePreview: React.FC<{
           }}
         />
         <div className={styles.actions} data-testid="preview-floating-actions">
-          {edit && (
-            <span className={styles.saveStatus} role="status" data-testid="preview-save-status">
-              {t(
-                editState.error
-                  ? 'ui.session-workspace.unsaved'
-                  : editState.saving || editState.dirty
-                    ? 'ui.session-workspace.preview-saving'
-                    : 'ui.voice-mascot.saved',
-              )}
-            </span>
-          )}
-          {result?.kind === 'text' && (
-            <CodeSyntaxSelect
-              detected={detectedSyntax}
-              value={view.syntax}
-              onChange={(syntax) => guarded(() => updateView({ syntax }))}
-            />
-          )}
-          {result?.kind === 'text' && edit && (
+          {edit &&
+            (!embedded ||
+              result?.kind === 'markdown' ||
+              editState.dirty ||
+              editState.saving ||
+              editState.error) && (
+              <span className={styles.saveStatus} role="status" data-testid="preview-save-status">
+                {t(
+                  editState.error
+                    ? 'ui.session-workspace.unsaved'
+                    : editState.saving || editState.dirty
+                      ? 'ui.session-workspace.preview-saving'
+                      : 'ui.voice-mascot.saved',
+                )}
+              </span>
+            )}
+          {!embedded && result?.kind === 'text' && edit && (
             <button
               type="button"
               data-testid="resource-preview-edit"
@@ -623,27 +751,57 @@ export const ResourcePreview: React.FC<{
               {t(view.source ? 'ui.foundation.preview' : 'ui.session-workspace.preview-source')}
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => onExpanded(!expanded)}
-            aria-label={t(
-              expanded
-                ? 'ui.session-workspace.preview-collapse'
-                : 'ui.session-workspace.preview-expand',
-            )}
-          >
-            <Icon icon={expanded ? Minimize2 : Expand} size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={() => closeAll.current()}
-            aria-label={t('ui.session-workspace.close-esc')}
-          >
-            <Icon icon={X} size={16} />
-          </button>
+          {hideTabs && (
+            <button
+              type="button"
+              data-testid="resource-preview-refresh"
+              aria-label={t('ui.session-workspace.preview-refresh')}
+              onClick={refreshFile}
+            >
+              <Icon icon={RefreshCw} size={16} />
+            </button>
+          )}
+          {!embedded && (
+            <button
+              type="button"
+              onClick={() => onExpanded(!expanded)}
+              aria-label={t(
+                expanded
+                  ? 'ui.session-workspace.preview-collapse'
+                  : 'ui.session-workspace.preview-expand',
+              )}
+            >
+              <Icon icon={expanded ? Minimize2 : Expand} size={16} />
+            </button>
+          )}
+          {hideTabs && onToggleTree && (
+            <button
+              type="button"
+              data-testid="resource-preview-toggle-tree"
+              data-active={treeOpen || undefined}
+              aria-pressed={!!treeOpen}
+              aria-label={t(
+                treeOpen
+                  ? 'ui.session-workspace.hide-file-tree'
+                  : 'ui.session-workspace.show-file-tree',
+              )}
+              onClick={onToggleTree}
+            >
+              <Icon icon={treeOpen ? SidebarCollapse : SidebarExpand} size={16} />
+            </button>
+          )}
+          {!embedded && (
+            <button
+              type="button"
+              onClick={() => closeAll.current()}
+              aria-label={t('ui.session-workspace.close-esc')}
+            >
+              <Icon icon={X} size={16} />
+            </button>
+          )}
         </div>
       </header>
-      <div className={styles.previewContent} hidden={!!activeDiff}>
+      <div className={styles.previewContent} data-tab-motion={fileMotion} hidden={!!activeDiff}>
         <PreviewFind
           root={root}
           fileKey={active.key}

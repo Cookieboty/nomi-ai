@@ -16,6 +16,7 @@
   z-index: var(--cd-z-chat-content);
   font-size: var(--cd-font-size-md);
   container: resource-preview / inline-size;
+  transition: width var(--cd-duration-smooth) var(--cd-ease-out);
 }
 .expanded {
   width: 100%;
@@ -35,6 +36,7 @@
   position: relative;
   inset: auto;
   width: auto;
+  height: 100%;
   flex: 1 1 0;
   min-height: 0;
   border-inline-start: none;
@@ -48,19 +50,95 @@
   outline: none;
 }
 .panel[hidden],
+.tabBar[hidden],
 .tabs[hidden] {
   display: none;
 }
-.tabs {
-  overflow-x: auto;
-  padding: var(--cd-space-2);
+.tabBar {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  min-width: 0;
   border-bottom: 1px solid var(--cd-panel-border);
 }
+.tabs {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: var(--cd-space-2);
+}
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+.tabBarActions {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-0-5);
+  flex: 0 0 auto;
+  padding-inline: var(--cd-space-1-5);
+  border-inline-start: 1px solid var(--cd-color-border-subtle);
+}
+.tabBarActions:empty {
+  display: none;
+}
+.panel .tabBarActions > button {
+  min-height: var(--cd-control-h-sm);
+  width: var(--cd-control-h-sm);
+  padding: 0;
+  border-radius: var(--cd-radius-sm);
+  color: var(--cd-color-text-muted);
+}
+.panel .tabBarActions > button:hover {
+  color: var(--cd-color-text);
+  background: var(--cd-color-hover);
+}
+.panel .tabBarActions > button[data-active] {
+  color: var(--cd-color-text);
+}
+.tabIndicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-accent-strong);
+  pointer-events: none;
+  z-index: 2;
+}
+.tabIndicator[data-animate='true'] {
+  transition:
+    transform var(--cd-duration-fast) var(--cd-ease-out),
+    width var(--cd-duration-fast) var(--cd-ease-out);
+}
 .tab {
+  position: relative;
   display: flex;
   flex: none;
   align-items: center;
   border-radius: var(--cd-radius-md);
+  transition:
+    background-color var(--cd-duration-press) var(--cd-ease-out),
+    color var(--cd-duration-press) var(--cd-ease-out);
+}
+.tabFileIcon {
+  flex-shrink: 0;
+  opacity: 0.72;
+}
+.tabName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tab[data-tab-entering='true'] {
+  animation: previewTabEnter 0.16s var(--cd-ease-out);
+}
+@keyframes previewTabEnter {
+  from {
+    opacity: 0;
+    transform: translateY(3px) scale(0.95);
+  }
 }
 .tab[data-active] {
   background: var(--cd-color-hover);
@@ -70,6 +148,79 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 工作区二级文件详情标签栏：36px 满高分割格页签，左页签与右侧固定操作区共享同一水平中轴线严格对齐 */
+.embedded .tabBar {
+  height: var(--cd-control-h-md);
+  min-height: var(--cd-control-h-md);
+  box-sizing: border-box;
+  align-items: stretch;
+  background: var(--cd-color-surface-sunken);
+}
+.embedded .tabs {
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+}
+.embedded .tabBarActions {
+  align-items: center;
+  padding: 0 var(--cd-space-1-5);
+  background: var(--cd-color-surface-sunken);
+}
+.embedded .tab {
+  height: 100%;
+  border-radius: 0;
+  border: 0;
+  border-inline-end: 1px solid var(--cd-color-border-subtle);
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+}
+.embedded .tab:hover:not([data-active]) {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.embedded .tab[data-active] {
+  background: var(--cd-workspace-bg);
+  color: var(--cd-color-text);
+  font-weight: var(--cd-font-weight-medium);
+  box-shadow: inset 0 2px 0 var(--cd-color-accent-strong);
+}
+.embedded .tab[data-active] .tabFileIcon {
+  opacity: 0.95;
+  color: var(--cd-color-accent-strong);
+}
+.embedded .tab > button:first-child {
+  height: 100%;
+  min-height: 0;
+  gap: var(--cd-space-1-5);
+  padding: 0 var(--cd-space-1) 0 var(--cd-space-2);
+  border-radius: 0;
+}
+.embedded .tab > button:first-child:hover {
+  background: transparent;
+}
+.panel.embedded .tab > button.tabClose {
+  min-height: 0;
+  height: var(--cd-control-h-2xs);
+  width: var(--cd-control-h-2xs);
+  padding: 0;
+  margin-inline-end: var(--cd-space-1-5);
+  border-radius: var(--cd-radius-xs);
+  opacity: 0.55;
+  transition:
+    opacity var(--cd-duration-press) var(--cd-ease-out),
+    background-color var(--cd-duration-press) var(--cd-ease-out);
+}
+.panel.embedded .tab > button.tabClose > svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+.panel.embedded .tab:hover > button.tabClose,
+.panel.embedded .tab[data-active] > button.tabClose,
+.panel.embedded .tab > button.tabClose:focus-visible {
+  opacity: 0.95;
 }
 .toolbar {
   position: relative;
@@ -84,13 +235,15 @@
 .diffBody {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 1 1 0;
+  height: 100%;
   min-height: 0;
   min-width: 0;
 }
 /* 两个类叠加：盖过 FileReview 自己 .preview 的高度上限与顶边框（样式表顺序不定） */
 .diffBody > .diffReview {
-  flex: 1;
+  flex: 1 1 0;
+  height: 100%;
   min-height: 0;
   max-height: none;
   border-top: 0;
@@ -122,6 +275,9 @@
   box-shadow: var(--cd-shadow-sm);
   pointer-events: auto;
 }
+.actions:empty {
+  display: none;
+}
 .path {
   flex: 1;
   min-width: 0;
@@ -132,8 +288,10 @@
   color: var(--cd-color-text-muted);
 }
 .panel
-  button:not([data-preview-picker-control]):not([role='combobox']):not(:global(.cd-btn)):not(
-    [data-preview-diff] button
+  button:where(
+    :not([data-preview-picker-control]):not([role='combobox']):not(:global(.cd-btn)):not(
+        [data-preview-diff] button
+      )
   ),
 .toolbar a {
   display: inline-flex;
@@ -150,9 +308,14 @@
   cursor: pointer;
   flex-shrink: 0;
 }
-.panel button:not([role='combobox']):not(:global(.cd-btn)):not([data-preview-diff] button):hover,
+.panel
+  button:where(:not([role='combobox']):not(:global(.cd-btn)):not([data-preview-diff] button)):hover,
 .toolbar a:hover {
   background: var(--cd-color-hover);
+}
+.actions button[data-active] {
+  background: var(--cd-control-active-bg);
+  color: var(--cd-color-accent-strong);
 }
 .panel button:not([role='combobox']):not(:global(.cd-btn)):focus-visible,
 .panel a:focus-visible {
@@ -322,9 +485,59 @@
     padding-block-start: calc(var(--preview-controls-space, 0px) + var(--cd-space-3));
   }
 }
+.previewContent[data-tab-motion='right-a'],
+.diffBody[data-tab-motion='right-a'] {
+  animation: previewPaneRightA 0.15s var(--cd-ease-out);
+}
+.previewContent[data-tab-motion='right-b'],
+.diffBody[data-tab-motion='right-b'] {
+  animation: previewPaneRightB 0.15s var(--cd-ease-out);
+}
+.previewContent[data-tab-motion='left-a'],
+.diffBody[data-tab-motion='left-a'] {
+  animation: previewPaneLeftA 0.15s var(--cd-ease-out);
+}
+.previewContent[data-tab-motion='left-b'],
+.diffBody[data-tab-motion='left-b'] {
+  animation: previewPaneLeftB 0.15s var(--cd-ease-out);
+}
+@keyframes previewPaneRightA {
+  from {
+    opacity: 0.5;
+    translate: 7px 0;
+  }
+}
+@keyframes previewPaneRightB {
+  from {
+    opacity: 0.5;
+    translate: 7px 0;
+  }
+}
+@keyframes previewPaneLeftA {
+  from {
+    opacity: 0.5;
+    translate: -7px 0;
+  }
+}
+@keyframes previewPaneLeftB {
+  from {
+    opacity: 0.5;
+    translate: -7px 0;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .panel {
     scroll-behavior: auto;
+    transition: none;
+  }
+  .tab,
+  .tabIndicator[data-animate='true'] {
+    transition: none;
+  }
+  .tab[data-tab-entering='true'],
+  .previewContent[data-tab-motion],
+  .diffBody[data-tab-motion] {
+    animation: none;
   }
 }
 

@@ -15,7 +15,9 @@ import type { SplitWidth } from '../../app/useSplitWidths';
 import { useResourceContext } from '../../contexts/ResourceContext';
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import type { EmbeddedPreviewProps } from '../../hooks/useResourcePreview';
+import { useDirectionalTabMotion } from '../../hooks/useTabMotion';
 import { detachedWindows } from '../../services/detachedWindows';
+import { persistWorkspaceTreeOpen, readWorkspaceTreeOpen } from '../../services/filesRailPrefs';
 import { isMac } from '../../services/shortcuts';
 import { exportSideChat, forgetSideChat, sideChatState } from '../../services/sideChat';
 import type { ConvMessage } from '../../types/conversation';
@@ -42,7 +44,7 @@ import {
   type SideTabItem,
 } from '../../utils/sideTabs';
 import type { PreviewEntry, PreviewTabsControl } from '../ResourcePreview/ResourcePreview';
-import { CenterChangesHost } from '../SessionWorkspace';
+import { CenterChangesHost, useChangesUi } from '../SessionWorkspace';
 import { SideChatPane } from '../SideChat';
 import { SubagentPane, type SubagentPaneActions } from '../SubagentPane';
 import { InTabStripProvider } from '../SubagentPane/chrome';
@@ -61,6 +63,8 @@ export interface SideFiles {
   entries: readonly PreviewEntry[];
   activeKey: string;
   render: (p: EmbeddedPreviewProps) => React.ReactNode;
+  /** 当内部预览组件尚未挂载控制句柄时，直接移除指定预览条目的兜底回调 */
+  closeEntries?: (keys: string[]) => void;
   /** 打开文件 / 变更页右侧文件树的宽度控制。 */
   railSplit: SplitWidth;
 }
@@ -71,9 +75,19 @@ export interface SideFiles {
  */
 export function useSideWorkspace(files: SideFiles) {
   const pane = useSubagentPane();
+  const { closeWorkbench } = useChangesUi();
   // 普通的可变对象（不是 ref）：随 model 往下传给预览区和标签栏
   const [control] = useState<{ current: PreviewTabsControl | null }>(() => ({ current: null }));
   const [diffControl] = useState<{ current: PreviewTabsControl | null }>(() => ({ current: null }));
+  const [treeOpen, setTreeOpen] = useState<boolean>(readWorkspaceTreeOpen);
+  const toggleTree = useCallback(() => {
+    setTreeOpen((prev) => {
+      const next = !prev;
+      persistWorkspaceTreeOpen(next);
+      return next;
+    });
+  }, []);
+  const scope = pane?.scope ?? '';
   const detached = pane?.detached;
   // 弹到独立窗口的文件不在这一侧显示
   const fileKeys = useMemo(
@@ -85,7 +99,11 @@ export function useSideWorkspace(files: SideFiles) {
     [files.entries, detached],
   );
   const hasFiles = fileKeys.length > 0;
-  const hasDiffs = files.entries.some((entry) => !!entry.diff);
+  const diffKeys = useMemo(
+    () => files.entries.filter((entry) => !!entry.diff).map((entry) => entry.key),
+    [files.entries],
+  );
+  const hasDiffs = diffKeys.length > 0;
   const tabs = pane?.tabs;
   const setFilesOpen = pane?.setFilesOpen;
   useEffect(() => {
@@ -96,17 +114,21 @@ export function useSideWorkspace(files: SideFiles) {
     pane.openFileBrowser?.();
   }, [pane, hasFiles, tabs?.pages]);
   // 删除预览区最后一个文件 / Diff 后，先让预览状态移除，再移除对应的空工作区页。
-  // 用前一次状态区分“刚关闭最后一项”和“用户主动打开空页面”，后者要保留。
-  const previousPreview = useRef({ files: hasFiles, diffs: hasDiffs });
+  // 用前一次状态区分“刚关闭最后一项”和“用户主动打开空页面”，后者要保留；
+  // 会话切换时只重置基准快照，绝不把切到无文件会话误判为“关闭最后一项”。
+  const previousPreview = useRef({ scope, files: hasFiles, diffs: hasDiffs });
   useEffect(() => {
     const previous = previousPreview.current;
-    previousPreview.current = { files: hasFiles, diffs: hasDiffs };
+    previousPreview.current = { scope, files: hasFiles, diffs: hasDiffs };
+    if (previous.scope !== scope) return;
     if (!pane || !tabs) return;
     if (previous.files && !hasFiles && tabs.pages.some((p) => p.kind === 'open-file'))
       pane.closeTab(OPEN_FILE_SIDE_TAB);
-    if (previous.diffs && !hasDiffs && tabs.pages.some((p) => p.kind === 'changes'))
+    if (previous.diffs && !hasDiffs && tabs.pages.some((p) => p.kind === 'changes')) {
+      closeWorkbench();
       pane.closeTab(CHANGES_SIDE_TAB);
-  }, [pane, tabs, hasFiles, hasDiffs]);
+    }
+  }, [scope, pane, tabs, hasFiles, hasDiffs, closeWorkbench]);
   const items = useMemo(() => (tabs ? sideTabItems(tabs) : []), [tabs]);
   const maximized = !!tabs && isMaximized(tabs, hasFiles);
   const split = !!tabs && isSplit(tabs, hasFiles);
@@ -123,7 +145,7 @@ export function useSideWorkspace(files: SideFiles) {
     (item: SideTabItem) => {
       if (!pane) return;
       if (item.kind === 'file') {
-        pane.activate(FILES_SIDE_TAB);
+        pane.activate(OPEN_FILE_SIDE_TAB);
         if (item.entryKey) control.current?.activate(item.entryKey);
         return;
       }
@@ -138,16 +160,46 @@ export function useSideWorkspace(files: SideFiles) {
         if (item.entryKey) control.current?.close([item.entryKey]);
         return;
       }
+      // 关闭顶层「打开文件」标签：一并关闭里面打开的所有预览文件（走草稿保存守卫），清空后自动退出标签区
+      if (item.kind === 'open-file') {
+        if (fileKeys.length > 0) {
+          if (control.current) {
+            control.current.close(fileKeys);
+          } else {
+            files.closeEntries?.(fileKeys);
+            pane.closeTab(OPEN_FILE_SIDE_TAB);
+          }
+          return;
+        }
+        pane.closeTab(OPEN_FILE_SIDE_TAB);
+        return;
+      }
+      // 关闭顶层「变更（Diff）」标签：一并关闭里面打开的所有 Diff 预览并清理 workbench，退出标签区
+      if (item.kind === 'changes') {
+        if (diffKeys.length > 0) {
+          if (diffControl.current) {
+            diffControl.current.close(diffKeys);
+          } else {
+            files.closeEntries?.(diffKeys);
+            closeWorkbench();
+            pane.closeTab(CHANGES_SIDE_TAB);
+          }
+          return;
+        }
+        closeWorkbench();
+        pane.closeTab(CHANGES_SIDE_TAB);
+        return;
+      }
       pane.closeTab(item.key);
     },
-    [pane, control],
+    [pane, control, diffControl, fileKeys, diffKeys, files, closeWorkbench],
   );
   const toggleMaximized = useCallback(
     (item?: SideTabItem) => {
       if (!pane) return;
       if (item?.kind === 'file') {
         if (item.entryKey) control.current?.activate(item.entryKey);
-        pane.toggleMaximized(FILES_SIDE_TAB);
+        pane.toggleMaximized(OPEN_FILE_SIDE_TAB);
         return;
       }
       pane.toggleMaximized(item?.key);
@@ -160,7 +212,7 @@ export function useSideWorkspace(files: SideFiles) {
       if (!pane) return;
       if (item?.kind === 'file') {
         if (item.entryKey) control.current?.activate(item.entryKey);
-        pane.toggleSplit(FILES_SIDE_TAB);
+        pane.toggleSplit(OPEN_FILE_SIDE_TAB);
         return;
       }
       pane.toggleSplit(item?.key);
@@ -189,7 +241,6 @@ export function useSideWorkspace(files: SideFiles) {
     },
     [entryOf],
   );
-  const scope = pane?.scope ?? '';
   /** 弹到独立窗口：子任务这一侧先隐藏（窗口关掉后回来）；文件从这一侧移过去 */
   const detach = useCallback(
     (item: SideTabItem, title: string) => {
@@ -244,7 +295,7 @@ export function useSideWorkspace(files: SideFiles) {
     (next: boolean) => {
       if (!pane) return;
       if (next === maximized) return;
-      const target = pane.active === CHANGES_SIDE_TAB ? CHANGES_SIDE_TAB : FILES_SIDE_TAB;
+      const target = pane.active === CHANGES_SIDE_TAB ? CHANGES_SIDE_TAB : OPEN_FILE_SIDE_TAB;
       if (next) pane.toggleMaximized(target);
       else pane.restore();
     },
@@ -265,6 +316,8 @@ export function useSideWorkspace(files: SideFiles) {
     setExpanded,
     control,
     diffControl,
+    treeOpen,
+    toggleTree,
     files,
     split,
     splitRatio,
@@ -322,7 +375,12 @@ export function useSideWorkspaceKeys(model: SideWorkspaceModel) {
         return;
       }
       // 文件标签的 Esc 由预览区自己处理（铺满时先退出铺满）
-      if (e.key === 'Escape' && m.maximized && m.active !== FILES_SIDE_TAB) {
+      if (
+        e.key === 'Escape' &&
+        m.maximized &&
+        m.active !== FILES_SIDE_TAB &&
+        m.active !== OPEN_FILE_SIDE_TAB
+      ) {
         if (shouldIgnoreEscape(e)) return;
         if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
         e.preventDefault();
@@ -349,9 +407,13 @@ export const SideWorkspace: React.FC<{
   busy?: boolean;
   actions?: SubagentPaneActions;
   showStrip: boolean;
-}> = ({ model, messages, cwd, roots, busy, actions, showStrip }) => {
+  /** 收起工作区时的退场动画标记 */
+  closing?: boolean;
+}> = ({ model, messages, cwd, roots, busy, actions, showStrip, closing = false }) => {
   const resource = useResourceContext();
-  if (!model.mounted && !model.open)
+  const orderedKeys = useMemo(() => model.items.map((i) => i.key), [model.items]);
+  const tabMotion = useDirectionalTabMotion(orderedKeys, model.stripActive);
+  if (!model.mounted && !model.open && !closing)
     return <CenterChangesHost messages={messages} cwd={cwd} roots={roots} mode="slot" />;
   const filesActive = model.active === FILES_SIDE_TAB || model.active === OPEN_FILE_SIDE_TAB;
   const kind =
@@ -376,19 +438,24 @@ export const SideWorkspace: React.FC<{
       data-testid="side-workspace"
       data-side-workspace=""
       data-active-kind={kind}
-      hidden={!model.open || undefined}
+      data-closing={closing || undefined}
+      hidden={(!model.open && !closing) || undefined}
     >
       {showStrip && <SideTabStrip model={model} columnMessages={messages} inTitlebar />}
       <InTabStripProvider>
-        <div className={styles.body}>
+        <div className={styles.body} data-tab-motion={tabMotion}>
           <SubagentPane columnMessages={messages} actions={actions} tabbed />
           {model.pages.map((page) => {
             const key = pageKey(page);
-            const hidden = model.active !== key;
+            const scopedPageKey = `${model.scope}\0${key}`;
+            const hidden =
+              page.kind === 'open-file'
+                ? model.active !== key && model.active !== FILES_SIDE_TAB
+                : model.active !== key;
             if (page.kind === 'new-tab')
               return (
                 <NewTabPage
-                  key={key}
+                  key={scopedPageKey}
                   tabKey={key}
                   hidden={hidden}
                   cwd={cwd}
@@ -407,7 +474,7 @@ export const SideWorkspace: React.FC<{
             if (page.kind === 'changes')
               return (
                 <ChangesTab
-                  key={key}
+                  key={scopedPageKey}
                   hidden={hidden}
                   messages={messages}
                   cwd={cwd}
@@ -418,12 +485,14 @@ export const SideWorkspace: React.FC<{
                   onExpanded={model.setExpanded}
                   controlRef={model.diffControl}
                   railSplit={model.files.railSplit}
+                  treeOpen={model.treeOpen}
+                  onToggleTree={model.toggleTree}
                 />
               );
             if (page.kind === 'side-chat')
               return (
                 <SideChatPane
-                  key={key}
+                  key={scopedPageKey}
                   chatId={page.id}
                   cwd={cwd}
                   slot={{ tabKey: key, active: !hidden }}
@@ -433,7 +502,7 @@ export const SideWorkspace: React.FC<{
             if (page.kind === 'open-file')
               return (
                 <OpenFileTab
-                  key={key}
+                  key={scopedPageKey}
                   hidden={hidden}
                   messages={messages}
                   cwd={cwd}
@@ -444,11 +513,13 @@ export const SideWorkspace: React.FC<{
                   onExpanded={model.setExpanded}
                   controlRef={model.control}
                   railSplit={model.files.railSplit}
+                  treeOpen={model.treeOpen}
+                  onToggleTree={model.toggleTree}
                 />
               );
             return (
               <BrowserTab
-                key={key}
+                key={scopedPageKey}
                 tabKey={key}
                 url={page.url}
                 title={page.title}

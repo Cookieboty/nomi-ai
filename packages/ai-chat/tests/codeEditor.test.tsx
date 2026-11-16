@@ -45,7 +45,7 @@ it('keeps Swift tokens live while editing with a virtualized editor and preserve
   expect(view.container.querySelector('script')).toBeNull();
   expect(view.container.querySelector('.token')).toBeNull();
 });
-it('retains the selected language when entering edit mode and keeps editing when the language is changed', async () => {
+it('retains extension-based syntax highlighting when entering edit mode and saving changes', async () => {
   vi.mocked(resourcePreviewClient.open).mockResolvedValue({
     ok: true,
     kind: 'text',
@@ -73,22 +73,19 @@ it('retains the selected language when entering edit mode and keeps editing when
   await waitFor(() =>
     expect(sourceEditable(screen.getByTestId('resource-preview-source'))).toBe(true),
   );
+  expect(screen.queryByTestId('preview-syntax-select')).toBeNull();
+  expect(screen.getByTestId('resource-preview-source').getAttribute('data-code-language')).toBe(
+    'swift',
+  );
   expect(container.querySelector('[data-preview-code-scroll] .token.keyword')?.textContent).toBe(
     'import',
   );
-  fireEvent.change(screen.getByTestId('preview-syntax-select'), { target: { value: 'python' } });
-  await waitFor(() =>
-    expect(screen.getByTestId('resource-preview-source').getAttribute('data-code-language')).toBe(
-      'python',
-    ),
-  );
-  expect(sourceEditable(screen.getByTestId('resource-preview-source'))).toBe(true);
-  changeSource(screen.getByTestId('resource-preview-source'), 'print("saved")');
+  changeSource(screen.getByTestId('resource-preview-source'), 'let saved = "saved"');
   await waitFor(() =>
     expect(resourcePreviewClient.save).toHaveBeenCalledWith(
       '/__nomi/preview/swift',
       'a'.repeat(64),
-      'print("saved")',
+      'let saved = "saved"',
     ),
   );
   expect(container.querySelector('[data-preview-code-scroll] .token.string')?.textContent).toBe(

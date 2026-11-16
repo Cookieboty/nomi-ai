@@ -26,6 +26,8 @@
 
 /* 分段控件（sm 高度）：右栏「变更 · 未提交 · 文件」与中栏「这一轮 · 全部」共用 */
 .seg {
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   gap: var(--cd-space-0-5);
@@ -34,7 +36,25 @@
   background: var(--cd-panel-surface-sunken);
   min-width: 0;
 }
+.segIndicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-panel-surface-raised);
+  box-shadow: var(--cd-shadow-sm);
+}
+.segIndicator[data-animate='true'] {
+  transition:
+    transform var(--cd-duration-fast) var(--cd-ease-out),
+    width var(--cd-duration-fast) var(--cd-ease-out),
+    height var(--cd-duration-fast) var(--cd-ease-out);
+}
 .segBtn {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: var(--cd-space-1);
@@ -62,6 +82,10 @@
   color: var(--cd-color-text);
   font-weight: var(--cd-font-weight-medium);
   box-shadow: var(--cd-shadow-sm);
+}
+.seg[data-sliding='true'] .segBtn[data-active] {
+  background: transparent;
+  box-shadow: none;
 }
 
 :global(html[data-chat-bg]) .seg {
@@ -266,6 +290,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .segBtn,
+  .segIndicator[data-animate='true'],
   .iconBtn,
   .chip {
     transition: none;

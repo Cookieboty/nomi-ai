@@ -16,6 +16,46 @@
   flex-direction: column;
   flex: 1 1 0;
   min-height: 0;
+  overflow: hidden;
+}
+
+/* 标签内容切换：保留 DOM 保活的同时，对新显现的面板做 8px 同向微滑淡入 */
+.body[data-tab-motion='right-a'] > :not([hidden]) {
+  animation: sidePaneFromRightA 0.17s var(--cd-ease-out);
+}
+.body[data-tab-motion='right-b'] > :not([hidden]) {
+  animation: sidePaneFromRightB 0.17s var(--cd-ease-out);
+}
+.body[data-tab-motion='left-a'] > :not([hidden]) {
+  animation: sidePaneFromLeftA 0.17s var(--cd-ease-out);
+}
+.body[data-tab-motion='left-b'] > :not([hidden]) {
+  animation: sidePaneFromLeftB 0.17s var(--cd-ease-out);
+}
+
+@keyframes sidePaneFromRightA {
+  from {
+    opacity: 0.45;
+    translate: 8px 0;
+  }
+}
+@keyframes sidePaneFromRightB {
+  from {
+    opacity: 0.45;
+    translate: 8px 0;
+  }
+}
+@keyframes sidePaneFromLeftA {
+  from {
+    opacity: 0.45;
+    translate: -8px 0;
+  }
+}
+@keyframes sidePaneFromLeftB {
+  from {
+    opacity: 0.45;
+    translate: -8px 0;
+  }
 }
 
 /* 面板在这里不再自己画左边框（整栏已经有） */
@@ -39,6 +79,7 @@
 }
 
 .tabs {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--cd-space-1);
@@ -49,6 +90,22 @@
 }
 .tabs::-webkit-scrollbar {
   display: none;
+}
+
+.activeBar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-accent-strong);
+  pointer-events: none;
+  z-index: 2;
+}
+.activeBar[data-animate='true'] {
+  transition:
+    transform var(--cd-duration-fast) var(--cd-ease-out),
+    width var(--cd-duration-fast) var(--cd-ease-out);
 }
 
 .addTab {
@@ -65,6 +122,7 @@
 }
 
 .tab {
+  position: relative;
   display: flex;
   align-items: center;
   /* 标签多了不挤成只剩图标：保留一段名字，放不下时整排横向滚动 */
@@ -74,6 +132,19 @@
   height: var(--cd-control-h-ms);
   border-radius: var(--cd-radius-md);
   color: var(--cd-color-text-muted);
+  transition:
+    background-color var(--cd-duration-press) var(--cd-ease-out),
+    color var(--cd-duration-press) var(--cd-ease-out),
+    opacity var(--cd-duration-press) var(--cd-ease-out);
+}
+.tab[data-tab-entering='true'] {
+  animation: sideTabEnter 0.17s var(--cd-ease-out);
+}
+@keyframes sideTabEnter {
+  from {
+    opacity: 0;
+    transform: translateY(3px) scale(0.95);
+  }
 }
 .tab:hover {
   background: var(--cd-color-hover);
@@ -98,6 +169,10 @@
   font-size: var(--cd-font-size-sm);
   cursor: pointer;
   user-select: none;
+  transition: transform var(--cd-duration-press) var(--cd-ease-out);
+}
+.tabMain:active {
+  transform: scale(0.975);
 }
 .tab[data-kind='main'] .tabMain {
   padding-inline-end: var(--cd-space-3);
@@ -128,8 +203,20 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .dot {
+  .dot,
+  .tab[data-tab-entering='true'],
+  .body[data-tab-motion] > :not([hidden]),
+  .menu {
     animation: none;
+  }
+  .tab,
+  .tabMain,
+  .close,
+  .activeBar[data-animate='true'] {
+    transition: none;
+  }
+  .tabMain:active {
+    transform: none;
   }
 }
 
@@ -148,6 +235,9 @@
   color: inherit;
   cursor: pointer;
   opacity: 0;
+  transition:
+    opacity var(--cd-duration-press) var(--cd-ease-out),
+    background-color var(--cd-duration-press) var(--cd-ease-out);
 }
 .tab:hover .close,
 .tab[data-active] .close,
@@ -176,6 +266,13 @@
   border-radius: var(--cd-radius-md);
   background: var(--cd-chat-popover-bg);
   box-shadow: var(--cd-shadow-md);
+  animation: sideMenuPop 0.15s var(--cd-ease-out);
+}
+@keyframes sideMenuPop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
 }
 .menu button {
   display: flex;

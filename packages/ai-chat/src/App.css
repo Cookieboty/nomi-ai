@@ -10,7 +10,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background: var(--cd-color-bg-gradient);
   color: var(--cd-color-text);
-  overflow: hidden;
+  overflow: clip;
   isolation: isolate;
 }
 
@@ -35,7 +35,7 @@ body {
   display: flex;
   /* 侧栏、标题栏与卡片外的底色连成一片（Codex 式），对话区是浮在上面的白色圆角卡片 */
   background: var(--cd-panel-bg-subtle);
-  overflow: hidden;
+  overflow: clip;
   position: relative;
   /* 自成层叠上下文：工作台背景层用负 z-index 垫在侧栏 / 主区 / 右栏之下 */
   isolation: isolate;
@@ -97,7 +97,7 @@ html[data-chat-bg] .ai-chat-app::before {
   border-radius: var(--cd-radius-xl) 0 var(--cd-radius-xl) 0;
   background: var(--cd-workspace-bg);
   box-shadow: var(--cd-shadow-workspace);
-  overflow: hidden;
+  overflow: clip;
 }
 html[data-platform] .workspace-card {
   /* 与顶栏直接相接，外阴影透过顶栏的透明背景向上延伸。 */
@@ -176,6 +176,11 @@ html[data-chat-bg] .workspace-card {
   align-self: stretch;
   border-top: none !important;
   border-left: none;
+}
+
+.main-content--with-changes:not(.main-content--side-max)
+  > [data-testid='side-workspace'][data-closing] {
+  pointer-events: none;
 }
 
 /* Codex 整页最右列：已更改文件栏（与 Sidebar / main-content 横排全高；宽度由分割线拖动） */
@@ -477,6 +482,12 @@ html[data-platform='darwin'] .app-window-controls {
   gap: var(--cd-space-2);
   padding: 0 var(--cd-space-2) 0 var(--cd-space-3);
   min-width: 0;
+  transition: left 0.22s var(--cd-ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-titlebar-main {
+    transition: none;
+  }
 }
 .app-titlebar[data-sidebar='collapsed'] {
   --cd-titlebar-main-left: 52px;

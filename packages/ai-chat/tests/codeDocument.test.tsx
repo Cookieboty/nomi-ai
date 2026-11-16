@@ -28,22 +28,26 @@ afterEach(() => {
 it.each([
   ['auth.go', 'go'],
   ['C:\\work\\App.TSX', 'tsx'],
-  ['Dockerfile', 'docker'],
-  ['Dockerfile.prod', 'docker'],
-  ['Makefile', 'makefile'],
-  ['.env.local', 'bash'],
   ['config.yaml', 'yaml'],
   ['code.zig', 'zig'],
   ['package.json', 'json'],
-  ['file.unknown', 'text'],
-  ['README', 'text'],
   ['notes.txt', 'text'],
-])('resolves a safe explicit grammar for %s', (path, language) => {
-  expect(resolveCodeLanguage(path)).toBe(language);
-});
-it('uses shebangs for extensionless scripts and never guesses a grammar from ordinary prose', () => {
-  expect(resolveCodeLanguage('script', '#!/usr/bin/env python3\nprint(1)')).toBe('python');
-  expect(resolveCodeLanguage('notes.data', 'const value = 1')).toBe('text');
+  ['file.unknown', 'text'],
+  ['Dockerfile', 'text'],
+  ['Makefile', 'text'],
+  ['.dockerignore', 'text'],
+  ['README', 'text'],
+  ['', 'text'],
+])(
+  'resolves language strictly from file extension for %s (defaulting to text)',
+  (path, language) => {
+    expect(resolveCodeLanguage(path)).toBe(language);
+  },
+);
+it('never infers language from file contents or shebangs, defaulting extensionless or unnamed files to text', () => {
+  expect(resolveCodeLanguage('script')).toBe('text');
+  expect(resolveCodeLanguage('')).toBe('text');
+  expect(resolveCodeLanguage('notes.data')).toBe('text');
 });
 
 it.each([
@@ -112,7 +116,7 @@ function props(activeKey = 'go') {
   return {
     entries: [
       { key: 'go', href: '/work/auth.go', scope: { id: 'test', cwd: '/work' } },
-      { key: 'unknown', href: '/work/notes.unknown', scope: { id: 'test', cwd: '/work' } },
+      { key: 'unknown', href: '/work/.dockerignore', scope: { id: 'test', cwd: '/work' } },
     ],
     activeKey,
     expanded: true,
@@ -124,26 +128,19 @@ function props(activeKey = 'go') {
     onOpen: vi.fn(),
   };
 }
-it('replaces the text source button with syntax selection, remembers overrides per tab and restores detection', async () => {
+it('recognizes language directly by file extension without rendering a syntax inference selector', async () => {
   vi.mocked(resourcePreviewClient.open).mockImplementation(async (_, path) => ({
     ok: true,
     kind: 'text',
     path,
-    content: 'const answer = 42;',
+    content: 'package main\nconst answer = 42;',
   }));
   const view = render(<ResourcePreview {...props()} />);
-  await screen.findByTestId('preview-syntax-select');
+  await screen.findByTestId('resource-preview-source');
+  expect(screen.queryByTestId('preview-syntax-select')).toBeNull();
+  expect(screen.queryByTestId('resource-preview-mode')).toBeNull();
   expect(screen.getByTestId('resource-preview-source').getAttribute('data-code-language')).toBe(
     'go',
-  );
-  expect(screen.queryByTestId('resource-preview-mode')).toBeNull();
-  fireEvent.change(screen.getByTestId('preview-syntax-select'), {
-    target: { value: 'javascript' },
-  });
-  await waitFor(() =>
-    expect(
-      screen.getByTestId('resource-preview-source').querySelector('.token.keyword')?.textContent,
-    ).toBe('const'),
   );
   view.rerender(<ResourcePreview {...props('unknown')} />);
   await waitFor(() =>
@@ -151,20 +148,7 @@ it('replaces the text source button with syntax selection, remembers overrides p
       'text',
     ),
   );
-  view.rerender(<ResourcePreview {...props()} />);
-  await waitFor(() =>
-    expect(screen.getByTestId('resource-preview-source').getAttribute('data-code-language')).toBe(
-      'javascript',
-    ),
-  );
-  fireEvent.change(screen.getByTestId('preview-syntax-select'), { target: { value: 'text' } });
-  await waitFor(() =>
-    expect(screen.getByTestId('resource-preview-source').querySelector('.token')).toBeNull(),
-  );
-  fireEvent.change(screen.getByTestId('preview-syntax-select'), { target: { value: 'auto' } });
-  expect(screen.getByTestId('resource-preview-source').getAttribute('data-code-language')).toBe(
-    'go',
-  );
+  expect(screen.getByTestId('resource-preview-source').querySelector('.token')).toBeNull();
   expect(resourcePreviewClient.save).not.toHaveBeenCalled();
 });
 

@@ -3,6 +3,8 @@ import { codeLanguages } from './codeLanguages';
 export { codeLanguages } from './codeLanguages';
 const supported = new Set(codeLanguages);
 const extensionLanguages: Record<string, string> = {
+  txt: 'text',
+  text: 'text',
   go: 'go',
   js: 'javascript',
   mjs: 'javascript',
@@ -88,66 +90,18 @@ const extensionLanguages: Record<string, string> = {
   markdown: 'markdown',
   mdx: 'markdown',
 };
-const filenames: Record<string, string> = {
-  dockerfile: 'docker',
-  containerfile: 'docker',
-  makefile: 'makefile',
-  gnumakefile: 'makefile',
-  'cmakelists.txt': 'cmake',
-  gemfile: 'ruby',
-  rakefile: 'ruby',
-  '.bashrc': 'bash',
-  '.bash_profile': 'bash',
-  '.zshrc': 'bash',
-  '.profile': 'bash',
-  '.gitconfig': 'ini',
-  '.npmrc': 'ini',
-  '.editorconfig': 'ini',
-};
-const names: Record<string, string> = {
-  text: 'ui.session-workspace.preview-syntax-text',
-  go: 'Go',
-  javascript: 'JavaScript',
-  typescript: 'TypeScript',
-  jsx: 'JSX',
-  tsx: 'TSX',
-  markup: 'HTML / XML',
-  json: 'JSON',
-  json5: 'JSON5 / JSONC',
-  yaml: 'YAML',
-  css: 'CSS',
-  scss: 'SCSS',
-  sass: 'Sass',
-  sql: 'SQL',
-  graphql: 'GraphQL',
-  bash: 'Shell / Bash',
-  c: 'C',
-  cpp: 'C++',
-  csharp: 'C#',
-  fsharp: 'F#',
-  objectivec: 'Objective-C',
-  powershell: 'PowerShell',
-  php: 'PHP',
-  docker: 'Dockerfile',
-  ini: 'INI',
-  toml: 'TOML',
-};
-export const syntaxName = (language: string) => names[language] ?? language;
-export function resolveCodeLanguage(path: string, content = ''): string {
-  const filename = path.replace(/\\/g, '/').split('/').pop()?.toLowerCase() ?? '';
-  const extension = filename.includes('.') ? (filename.split('.').pop() ?? '') : '';
-  let language =
-    filenames[filename] ??
-    extensionLanguages[extension] ??
-    (supported.has(extension) ? extension : undefined);
-  if (!language && /^dockerfile[.]/.test(filename)) language = 'docker';
-  if (!language && /^\.env(?:\.|$)/.test(filename)) language = 'bash';
-  if (!language) {
-    const first = content.split(/\r?\n/, 1)[0] ?? '';
-    if (/^#!.*\b(?:python[\d.]*|pypy[\d.]*)\b/.test(first)) language = 'python';
-    else if (/^#!.*\b(?:node|nodejs|deno|bun)\b/.test(first)) language = 'javascript';
-    else if (/^#!.*\b(?:bash|sh|zsh)\b/.test(first)) language = 'bash';
-    else if (/^#!.*\bruby\b/.test(first)) language = 'ruby';
-  }
+
+/**
+ * 直接根据文件后缀名识别高亮语言；
+ * 没有文件名、无后缀名（含以 `.` 开头无扩展名的隐藏文件）或未知后缀名，统一默认按 txt 纯文本（'text'）打开，不做内容推断。
+ */
+export function resolveCodeLanguage(path: string): string {
+  const filename = path.replace(/\\/g, '/').split('/').pop()?.trim().toLowerCase() ?? '';
+  if (!filename) return 'text';
+  const dotIndex = filename.lastIndexOf('.');
+  if (dotIndex <= 0 || dotIndex === filename.length - 1) return 'text';
+  const extension = filename.slice(dotIndex + 1);
+  const language =
+    extensionLanguages[extension] ?? (supported.has(extension) ? extension : undefined);
   return language && supported.has(language) ? language : 'text';
 }
