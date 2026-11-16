@@ -1,7 +1,7 @@
 import { BUILTIN_CLI_ORDER, cliName } from '@nomi-ai/cli-catalog';
 /**
  * CLI 标签的来源（docs/development/gateway.md）：Nomi 管理的官方账号 / 第三方（经网关）。
- * 不再有「本机登录」：内置编程助手不用这台电脑上 CLI 自己的登录；没有官方账号能力的（dsh、Gemini）只有第三方。
+ * 有官方账号能力的 CLI 可沿用本机登录或使用 Nomi 管理的账号；dsh、Gemini 保持第三方来源。
  * 侧栏信息卡的「新标签默认」（CliDefaultSource）、模型按钮和斜杠命令 /model、/status 共用这里的数据与切换逻辑。
  */
 import { t, type SelectOption } from '@nomi-ai/ui';
@@ -10,6 +10,7 @@ import { confirmDialog } from '../components/ConfirmDialog';
 import { hasOfficialAccount, thirdPartyOnly } from '../utils/cliCaps';
 
 import type { CliAccount } from './cliAccountClient';
+import { launcherManagesLogin } from './cliLauncherClient';
 import type { ClientId, GatewayState } from './gatewayClient';
 import {
   harnessClient,
@@ -224,8 +225,21 @@ export function defaultSourceSwitch(
   if (target === 'official')
     return {
       target,
-      title: t('ui.models.default-official'),
-      items: [{ id: 'official', label: t('ui.models.switch-to-official') }],
+      title: t(
+        launcherManagesLogin(kind)
+          ? 'ui.chat-settings.cli-launcher-local'
+          : 'ui.models.default-official',
+      ),
+      items: [
+        {
+          id: 'official',
+          label: t(
+            launcherManagesLogin(kind)
+              ? 'ui.chat-settings.cli-launcher-local'
+              : 'ui.models.switch-to-official',
+          ),
+        },
+      ],
     };
   const pid = providerOfRef(main)!;
   return {
@@ -290,6 +304,7 @@ export function newTabSelectValue(client: NewTabCtx['client'], kind: CliKind): s
     const p = providerOfRef(main);
     return p ? `${PROVIDER_PREFIX}${p}` : NEWTAB_NONE;
   }
+  if (launcherManagesLogin(kind)) return NEWTAB_FOLLOW;
   const accountId = client?.newTabAccountId ?? null;
   if (!accountId || isLegacyLocalAccount(accountId)) return NEWTAB_FOLLOW;
   return `${ACCOUNT_PREFIX}${accountId}`;
@@ -301,15 +316,20 @@ export function newTabOptions({ kind, client, gateway, accounts }: NewTabCtx): S
   const official = hasOfficialAccount(kind);
 
   if (official) {
+    const managed = launcherManagesLogin(kind);
     const def = accounts.find((a) => a.active);
     options.push({
       value: NEWTAB_FOLLOW,
       group: t('ui.chat-settings.official-accounts'),
-      label: t('ui.models.follow-the-default-account'),
-      description: def?.label ?? t('ui.models.no-official-account-yet'),
+      label: t(
+        managed ? 'ui.chat-settings.cli-launcher-local' : 'ui.models.follow-the-default-account',
+      ),
+      description: managed
+        ? t('ui.chat-settings.cli-launcher-managed-hint', cliName(kind))
+        : (def?.label ?? t('ui.models.no-official-account-yet')),
     });
     const seen = new Set<string>();
-    for (const a of accounts) {
+    for (const a of managed ? [] : accounts) {
       seen.add(a.id);
       options.push({
         value: `${ACCOUNT_PREFIX}${a.id}`,
@@ -323,7 +343,7 @@ export function newTabOptions({ kind, client, gateway, accounts }: NewTabCtx): S
     }
     // 已指定的账号后来被删掉：补一个禁用项，避免下拉显示空白
     const accountId = client?.newTabAccountId ?? null;
-    if (accountId && !isLegacyLocalAccount(accountId) && !seen.has(accountId)) {
+    if (!managed && accountId && !isLegacyLocalAccount(accountId) && !seen.has(accountId)) {
       options.push({
         value: `${ACCOUNT_PREFIX}${accountId}`,
         group: t('ui.chat-settings.official-accounts'),

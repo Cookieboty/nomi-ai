@@ -732,5 +732,21 @@
   "ui.chat-settings.conversation-nav-demo-prompt-6": "Check whether the hover details are positioned correctly",
   "ui.chat-settings.conversation-nav-demo-prompt-7": "Compare navigation line lengths for short and long messages",
   "ui.chat-settings.conversation-nav-demo-prompt-8": "Summarize the result of this visual adjustment",
-  "ui.chat-settings.conversation-nav-demo-final": "Checked: navigation appears after five rounds and hover widths follow the assistant summary."
+  "ui.chat-settings.conversation-nav-demo-final": "Checked: navigation appears after five rounds and hover widths follow the assistant summary.",
+  "ui.chat-settings.cli-launcher-enable": "Use a custom launch command",
+  "ui.chat-settings.cli-launcher-command": "Launch command",
+  "ui.chat-settings.cli-launcher-command-hint": "For example, {0}. Nomi appends the session arguments. Quote paths containing spaces. Programs and arguments are supported; pipes and variable expansion are not.",
+  "ui.chat-settings.cli-launcher-managed-hint": "Sign in to {0} first. Nomi uses the existing account without adding it again.",
+  "ui.chat-settings.cli-launcher-nomi-hint": "Add and switch official accounts in Nomi, with a separate configuration directory for each account.",
+  "ui.chat-settings.cli-launcher-network-hint": "Enter a command here to use a launch script or configured proxy. The account source option does not enable a proxy.",
+  "ui.chat-settings.cli-launcher-test": "Test launch",
+  "ui.chat-settings.cli-launcher-saved": "Saved. Start a new session to use the new launch settings.",
+  "ui.chat-settings.cli-launcher-test-success": "Launch test passed · version {0}. This does not verify sign-in or model connectivity.",
+  "ui.chat-settings.cli-launcher-custom-active": "Using custom command: {0}. Save changes and start a new session to apply them.",
+  "ui.chat-settings.cli-launcher-title": "Accounts and launch",
+  "ui.chat-settings.cli-launcher-account-source": "Account source",
+  "ui.chat-settings.cli-launcher-local": "Use local sign-in",
+  "ui.chat-settings.cli-launcher-nomi": "Manage multiple accounts in Nomi",
+  "ui.chat-settings.cli-launcher-auto-hint": "Uses the detected {0} by default; no launch command is needed. Start a new session after saving.",
+  "ui.chat-settings.cli-launcher-advanced": "Advanced: custom launch command"
 }

@@ -409,7 +409,7 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 	}
 	want, _ := opts.Get("source").(string)
 	tab.Set("source", o.defaultSource(backend, want))
-	if tab.Get("source") == "official" && isAccountBackend(backend) {
+	if tab.Get("source") == "official" && isAccountBackend(backend) && !cli.LauncherManagesLogin(backend) {
 		var acc *string
 		if truthy(opts.Get("accountId")) {
 			s := jsStr(opts.Get("accountId"))
@@ -769,6 +769,9 @@ func (o *Orchestrator) defaultSource(backend, want string) string {
 
 // hasOfficialAccount：这个编程助手有没有 Nomi 管理的官方账号（账号服务不可用时按有处理，不改来源）
 func (o *Orchestrator) hasOfficialAccount(backend string) bool {
+	if cli.LauncherManagesLogin(backend) {
+		return true
+	}
 	p, ok := o.d.Accounts.(ports.AccountPresence)
 	if !ok || o.d.Accounts == nil {
 		return true
@@ -1079,13 +1082,13 @@ func (o *Orchestrator) ModelCatalogFor(backend string, refresh bool, source stri
 		}
 		deps := cli.ModelDiscoveryDeps{
 			Spawn: func(b string, args []string) clisdk.ChildLike {
-				bin := ResolveHarnessBin(b)
+				bin, prefix := resolveSessionBin(b, true)
 				if bin == "" {
 					return nil
 				}
 				useNode := IsScript(bin)
 				l := o.officialLaunchFor(b, nil)
-				cmd, full := bin, append(append([]string{}, args...), l.args...)
+				cmd, full := bin, append(append(prefix, args...), l.args...)
 				if useNode {
 					cmd, full = nodeExecPath(), append([]string{bin}, full...)
 				}

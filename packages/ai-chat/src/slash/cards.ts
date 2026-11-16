@@ -5,6 +5,7 @@
 import { brand } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 
+import { launcherManagesLogin } from '../services/cliLauncherClient';
 import {
   codingModelChoices,
   refSlashLabel,
@@ -113,6 +114,8 @@ function cliSourceLine(ctx: SlashContext, data: SlashData): CardRow {
   }
   if (thirdPartyOnly(ctx.backend))
     return { label, value: t('ui.models.third-party-no-model-set'), tone: 'warn' };
+  if (launcherManagesLogin(ctx.backend))
+    return { label, value: t('ui.chat-settings.cli-launcher-local') };
   const a = data.cliAccount;
   return a
     ? { label, value: t('ui.chat-settings.official', a.identity?.email ?? a.label) }
@@ -325,9 +328,11 @@ function officialChoices(ctx: SlashContext, data: SlashData, source: TabSource):
 
 function officialChoice(ctx: SlashContext, data: SlashData, source: TabSource): ModelChoice {
   const a = data.cliAccount;
-  const label = a
-    ? t('ui.chat-settings.official', a.identity?.email ?? a.label)
-    : t('ui.models.official');
+  const label = launcherManagesLogin(ctx.backend)
+    ? t('ui.chat-settings.cli-launcher-local')
+    : a
+      ? t('ui.chat-settings.official', a.identity?.email ?? a.label)
+      : t('ui.models.official');
   return {
     label,
     provider: t('ui.models.official'),

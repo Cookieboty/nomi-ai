@@ -6555,6 +6555,155 @@
     ]
    }
   },
+  "cli.launcherGet": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "propertyNames": {
+     "type": "string"
+    },
+    "additionalProperties": {
+     "type": "object",
+     "properties": {
+      "enabled": {
+       "type": "boolean"
+      },
+      "command": {
+       "type": "string",
+       "maxLength": 8192
+      },
+      "accountSource": {
+       "type": "string",
+       "enum": [
+        "local",
+        "nomi"
+       ]
+      }
+     },
+     "required": [
+      "enabled",
+      "command",
+      "accountSource"
+     ],
+     "additionalProperties": false
+    }
+   }
+  },
+  "cli.launcherSet": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "kind": {
+      "type": "string"
+     },
+     "settings": {
+      "type": "object",
+      "properties": {
+       "enabled": {
+        "type": "boolean"
+       },
+       "command": {
+        "type": "string",
+        "maxLength": 8192
+       },
+       "accountSource": {
+        "type": "string",
+        "enum": [
+         "local",
+         "nomi"
+        ]
+       }
+      },
+      "required": [
+       "enabled",
+       "command",
+       "accountSource"
+      ]
+     }
+    },
+    "required": [
+     "kind",
+     "settings"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "enabled": {
+      "type": "boolean"
+     },
+     "command": {
+      "type": "string",
+      "maxLength": 8192
+     },
+     "accountSource": {
+      "type": "string",
+      "enum": [
+       "local",
+       "nomi"
+      ]
+     }
+    },
+    "required": [
+     "enabled",
+     "command",
+     "accountSource"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "cli.launcherTest": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "kind": {
+      "type": "string"
+     },
+     "command": {
+      "type": "string",
+      "maxLength": 8192
+     }
+    },
+    "required": [
+     "kind",
+     "command"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "version": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "version"
+    ],
+    "additionalProperties": false
+   }
+  },
   "cli.registry": {
    "kind": "query",
    "dangerous": false,

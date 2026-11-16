@@ -732,5 +732,21 @@
   "ui.chat-settings.conversation-nav-demo-prompt-6": "再看一下悬停提示的位置是否正确",
   "ui.chat-settings.conversation-nav-demo-prompt-7": "比较短消息和长消息对应的导航线长度",
   "ui.chat-settings.conversation-nav-demo-prompt-8": "最后总结这轮视觉调整的结果",
-  "ui.chat-settings.conversation-nav-demo-final": "已完成检查：导航会在超过五轮时出现，悬停宽度随助手摘要变化。"
+  "ui.chat-settings.conversation-nav-demo-final": "已完成检查：导航会在超过五轮时出现，悬停宽度随助手摘要变化。",
+  "ui.chat-settings.cli-launcher-enable": "使用自定义启动命令",
+  "ui.chat-settings.cli-launcher-command": "启动命令",
+  "ui.chat-settings.cli-launcher-command-hint": "例如 {0}。Nomi 自动追加会话参数；路径含空格时请加双引号。支持程序与参数，不执行管道或变量展开。",
+  "ui.chat-settings.cli-launcher-managed-hint": "先在 {0} 中完成登录，Nomi 直接使用已有账号，无需重复添加。",
+  "ui.chat-settings.cli-launcher-nomi-hint": "在 Nomi 中添加和切换官方账号，每个账号使用独立的配置目录。",
+  "ui.chat-settings.cli-launcher-network-hint": "需要启动脚本或网络转发时，可在这里填写对应命令。账号来源选项本身不会开启代理。",
+  "ui.chat-settings.cli-launcher-test": "测试启动",
+  "ui.chat-settings.cli-launcher-saved": "已保存，请新建会话使用新的启动配置。",
+  "ui.chat-settings.cli-launcher-test-success": "启动测试通过 · 版本 {0}。此测试不验证账号登录或模型连接。",
+  "ui.chat-settings.cli-launcher-custom-active": "当前使用自定义命令：{0}。修改后请保存并新建会话。",
+  "ui.chat-settings.cli-launcher-title": "账号与启动",
+  "ui.chat-settings.cli-launcher-account-source": "账号来源",
+  "ui.chat-settings.cli-launcher-local": "沿用本机登录",
+  "ui.chat-settings.cli-launcher-nomi": "由 Nomi 管理多账号",
+  "ui.chat-settings.cli-launcher-auto-hint": "默认使用检测到的 {0}，无需填写启动命令。保存后请新建会话使用新的配置。",
+  "ui.chat-settings.cli-launcher-advanced": "高级：自定义启动命令"
 }

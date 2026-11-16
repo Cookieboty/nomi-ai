@@ -57,7 +57,15 @@ func derefStr(p *string) string {
 // launchFor 可能 throw。
 func (o *Orchestrator) launchFor(tab *util.Obj) *tabLaunch {
 	if o.sourceOf(tab) == "official" {
-		return o.officialLaunchFor(str(tab, "backend"), strP(tab, "accountId"))
+		l := o.officialLaunchFor(str(tab, "backend"), strP(tab, "accountId"))
+		if isAccountBackend(str(tab, "backend")) {
+			if s := cli.LauncherFor(str(tab, "backend")); s.Enabled || s.AccountSource == "local" {
+				copy := *l
+				copy.sig += ":launcher:" + util.Stringify(s)
+				return &copy
+			}
+		}
+		return l
 	}
 	m := o.effectiveOverrides(tab).model
 	if m == nil || *m == "" {
@@ -238,7 +246,7 @@ func (o *Orchestrator) bindCliSession(tab *util.Obj, sessionID string) {
 	if d, _ := tab.Get("delegation").(*util.Obj); d != nil && d.Get("by") == "nomi" {
 		o.noteDelegatedSession(str(tab, "backend"), sessionID)
 	}
-	if !changed || o.sourceOf(tab) != "official" || !isAccountBackend(str(tab, "backend")) {
+	if !changed || o.sourceOf(tab) != "official" || !isAccountBackend(str(tab, "backend")) || cli.LauncherManagesLogin(str(tab, "backend")) {
 		return
 	}
 	if n, ok := o.d.Accounts.(ports.AccountSessionNoter); ok && o.d.Accounts != nil {
@@ -250,9 +258,12 @@ func (o *Orchestrator) bindCliSession(tab *util.Obj, sessionID string) {
 }
 
 // officialLaunchFor = officialLaunch(backend, accountId)（方法名避开同名变量 OFFICIAL_LAUNCH）。
-// 内置编程助手不再用这台电脑上 CLI 自己的登录：有官方账号的用 Nomi 管理的账号目录，
-// 没有官方账号的（dsh、Gemini）只能经网关用第三方模型。
+// 官方来源按每个 CLI 的账号来源选择本机登录或 Nomi 的独立账号目录。
 func (o *Orchestrator) officialLaunchFor(backend string, accountID *string) *tabLaunch {
+	if cli.LauncherManagesLogin(backend) {
+		// Never create or sync a Nomi account home for an external login.
+		return &tabLaunch{env: util.NewObj(), args: []string{}, strip: []string{}, official: true, sig: "launcher-login"}
+	}
 	if isBuiltin(backend) && !isAccountBackend(backend) {
 		if o.d.Gateway == nil {
 			throw(i18n.T("electron.common.the-model-gateway-isn-t-running-so-third"))

@@ -373,7 +373,7 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 		o.teardownClaudeLive(id)
 	}
 
-	bin := ResolveHarnessBin("claude")
+	bin, prefix := resolveSessionBin("claude", launch.official)
 	if bin == "" {
 		throw(i18n.T("electron.common.claude-code-not-found-set-nomi-use-mock"))
 	}
@@ -405,9 +405,9 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 		sl = spawnLaunch
 	}
 	o.checkCwd(str(tab, "cwd"))
-	cmd, args := bin, argv
+	cmd, args := bin, append(prefix, argv...)
 	if useNode {
-		cmd, args = nodeExecPath(), append([]string{bin}, argv...)
+		cmd, args = nodeExecPath(), append([]string{bin}, args...)
 	}
 	child := gate(o.spawnCLI(tab, cmd, args, str(tab, "cwd"), o.taskEnv(tab, o.childEnv(useNode, sl, nil))))
 	if spawnLaunch != nil {

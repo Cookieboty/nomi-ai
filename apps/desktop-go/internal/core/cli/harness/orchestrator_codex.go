@@ -135,16 +135,16 @@ func (o *Orchestrator) ensureCodexLive(tab *util.Obj, signal *jsrt.AbortSignal) 
 		if err != nil {
 			return nil, err
 		}
-		bin := ResolveHarnessBin("codex")
+		bin, prefix := resolveSessionBin("codex", launch.official)
 		if bin == "" {
 			throw(i18n.T("electron.common.codex-not-found-set-nomi-use-mock-cli"))
 		}
 		useNode := IsScript(bin)
 		o.checkCwd(str(tab, "cwd"))
 		argv := append(append([]string{"app-server"}, launch.args...), o.codexComputerArgs(tab)...)
-		cmd, args := bin, argv
+		cmd, args := bin, append(prefix, argv...)
 		if useNode {
-			cmd, args = nodeExecPath(), append([]string{bin}, argv...)
+			cmd, args = nodeExecPath(), append([]string{bin}, args...)
 		}
 		sandboxed := o.SandboxActive()
 		child := gate(o.spawnCLI(tab, cmd, args, str(tab, "cwd"), o.taskEnv(tab, o.childEnv(useNode, spawnLaunch, nil))))
@@ -575,7 +575,8 @@ func (o *Orchestrator) runCodex(tab *util.Obj, prompt string, staged []cli.Norma
 		if isCompactCommand(prompt) {
 			return nil, errors.New(i18n.T("electron.common.codex-compact-needs-app-server"))
 		}
-		bin := ResolveHarnessBin("codex")
+		launch := o.launchFor(tab)
+		bin, prefix := resolveSessionBin("codex", launch.official)
 		if bin == "" {
 			return nil, errors.New(i18n.T("electron.common.codex-not-found-set-nomi-use-mock-cli"))
 		}
@@ -590,7 +591,6 @@ func (o *Orchestrator) runCodex(tab *util.Obj, prompt string, staged []cli.Norma
 			sandbox = append(sandbox, "-c", "sandbox_workspace_write.writable_roots="+string(roots))
 		}
 		sandbox = append(append([]string{}, sandbox...), o.codexComputerArgs(tab)...)
-		launch := o.launchFor(tab)
 		ov := o.effectiveOverrides(tab)
 		modelArgs := append(append([]string{}, launch.args...), cli.OverrideArgs("codex", ov.model, ptrAny(ov.effort))...)
 		if tab.Get("permissionMode") == "plan" {
@@ -610,9 +610,9 @@ func (o *Orchestrator) runCodex(tab *util.Obj, prompt string, staged []cli.Norma
 			argv = append(append(argv, modelArgs...), "--cd", str(tab, "cwd"))
 			argv = append(append(argv, imgArgs...), prompt)
 		}
-		cmd, args := bin, argv
+		cmd, args := bin, append(prefix, argv...)
 		if useNode {
-			cmd, args = nodeExecPath(), append([]string{bin}, argv...)
+			cmd, args = nodeExecPath(), append([]string{bin}, args...)
 		}
 		return jsrt.Await(o.spawnCollect(tab, collectOpts{cmd: cmd, argv: args, parseLine: codex.ParseLine, kind: "codex", launch: launch, asNode: useNode}))
 	})
