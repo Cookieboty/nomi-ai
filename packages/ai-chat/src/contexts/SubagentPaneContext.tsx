@@ -25,13 +25,13 @@ import {
   createSideChat,
   discardSideChat,
   importSideChat,
+  migrateSideChatsScope,
   sideChatState,
 } from '../services/sideChat';
 import {
   isSideTabsPaneVisible,
   persistSideTabsPanePref,
   panePrefWhenEmpty,
-  readSideTabsPanePref,
   type SideTabsPanePref,
 } from '../services/sideTabsPanePrefs';
 import { detachedKeysFor, parseDetachedId } from '../utils/detachedTabs';
@@ -45,6 +45,7 @@ import {
   hasSideTabs,
   isSideChatKey,
   moveTab,
+  OPEN_FILE_SIDE_TAB,
   openAgent,
   openBrowserTab,
   openChanges,
@@ -105,6 +106,8 @@ interface SubagentPaneValue {
   restore: () => void;
   /** 主列当前会话的键（App 同步进来）：标签区按会话各记一份 */
   setScope: (scope: string | null) => void;
+  /** 编程助手新标签拿到会话 id 后，将临时标签键上的工作区标签平滑迁移到稳定会话键 */
+  migrateScope: (fromScope: string, toScope: string) => void;
   meta: Readonly<Record<string, SideTabMeta>>;
   reportMeta: (key: string, meta: SideTabMeta | null) => void;
   /** 当前会话键（'' = 没有会话 / 弹出窗口里，不落盘） */
@@ -146,19 +149,55 @@ interface SubagentPaneValue {
 
 const Ctx = createContext<SubagentPaneValue | null>(null);
 
-export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const SubagentPaneProvider: React.FC<{
+  scope?: string | null;
+  children: React.ReactNode;
+}> = ({ scope: propScope, children }) => {
   const harnessTabs = useHarnessTabs();
-  const [scope, setScopeState] = useState('');
+  const [scopeState, setScopeState] = useState('');
+  const scope = propScope !== undefined ? (propScope ?? '') : scopeState;
   const [projectId, setProjectId] = useState<string | null>(null);
   // 每个会话一份；只有真实会话（scope 非空）写本地存储，重开应用后恢复
   const [byScope, setByScope] = useState<Record<string, SideTabsState>>(readSideTabsStore);
   const [meta, setMeta] = useState<Record<string, SideTabMeta>>({});
-  const [filesOpen, setFilesOpen] = useState(false);
-  const [panePref, setPanePrefState] = useState<SideTabsPanePref>(readSideTabsPanePref);
-  const setPanePref = useCallback((pref: SideTabsPanePref) => {
-    setPanePrefState(pref);
-    persistSideTabsPanePref(pref);
-  }, []);
+  const [filesOpenByScope, setFilesOpenByScope] = useState<Record<string, boolean>>({});
+  const filesOpen = filesOpenByScope[scope] ?? false;
+  const setFilesOpen = useCallback(
+    (open: boolean) => {
+      setFilesOpenByScope((cur) => {
+        const prev = cur[scope] ?? false;
+        if (prev === open) return cur;
+        if (!open) {
+          if (!(scope in cur)) return cur;
+          const rest = { ...cur };
+          delete rest[scope];
+          return rest;
+        }
+        return { ...cur, [scope]: true };
+      });
+    },
+    [scope],
+  );
+  // 面板显隐偏好按会话隔离：切换会话时跟随新会话自己的标签状态（默认 'auto'），不把上一个会话的展开/收起强加给新会话
+  const [panePrefByScope, setPanePrefByScope] = useState<Record<string, SideTabsPanePref>>({});
+  const panePref: SideTabsPanePref = panePrefByScope[scope] ?? 'auto';
+  const setPanePref = useCallback(
+    (pref: SideTabsPanePref) => {
+      setPanePrefByScope((cur) => {
+        const prev = cur[scope] ?? 'auto';
+        if (prev === pref) return cur;
+        if (pref === 'auto') {
+          if (!(scope in cur)) return cur;
+          const rest = { ...cur };
+          delete rest[scope];
+          return rest;
+        }
+        return { ...cur, [scope]: pref };
+      });
+      persistSideTabsPanePref(pref);
+    },
+    [scope],
+  );
   // 委派标签被关掉、来源标签没了：对应的子任务标签不再显示（读的时候滤掉，下次改动时一并落盘）。
   // 不切换主列的当前标签。
   const liveTabs = harnessTabs.state?.tabs;
@@ -211,14 +250,14 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const tabId = shownTarget?.kind === 'harness' ? shownTarget.tabId : null;
   // 已经弹到独立窗口的：把那个窗口提到最前，不在这一侧再开一份
   const revealPane = useCallback(() => {
-    setPanePrefState((cur) => {
-      if (cur === 'closed') {
+    setPanePrefByScope((cur) => {
+      if (cur[scope] === 'closed') {
         persistSideTabsPanePref('open');
-        return 'open';
+        return { ...cur, [scope]: 'open' };
       }
       return cur;
     });
-  }, []);
+  }, [scope]);
   const open = useCallback(
     (target: SubagentTarget) => {
       const key = agentKey(target);
@@ -259,18 +298,21 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const closeTab = useCallback(
     (key: string) => {
       if (isSideChatKey(key)) discardSideChat(key.slice('side-chat:'.length));
+      // 关闭打开文件页时其内部预览文件一并清空，不应受同一渲染帧尚未刷新的 filesOpen=true 阻塞收起
+      const nextFilesOpen = key === OPEN_FILE_SIDE_TAB ? false : filesOpen;
+      if (key === OPEN_FILE_SIDE_TAB && filesOpen) setFilesOpen(false);
       update((s) => {
-        const next = closeSideTab(s, key);
-        if (
-          panePrefWhenEmpty(panePref, 'close-last-tab') === 'auto' &&
-          !hasSideTabs(next, filesOpen)
-        ) {
-          setPanePref('auto');
+        let next = closeSideTab(s, key);
+        if (!hasSideTabs(next, nextFilesOpen)) {
+          next = { ...next, maximized: false, mainActive: false, split: false };
+          if (panePrefWhenEmpty(panePref, 'close-last-tab') === 'auto') {
+            setPanePref('auto');
+          }
         }
         return next;
       });
     },
-    [update, panePref, filesOpen, setPanePref],
+    [update, panePref, filesOpen, setFilesOpen, setPanePref],
   );
   const closeSubagent = useCallback(() => {
     if (active) closeTab(active);
@@ -328,6 +370,38 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
     [update],
   );
   const setScope = useCallback((next: string | null) => setScopeState(next ?? ''), []);
+  const migrateScope = useCallback((fromScope: string, toScope: string) => {
+    if (!fromScope || !toScope || fromScope === toScope) return;
+    migrateSideChatsScope(fromScope, toScope);
+    setByScope((all) => {
+      const fromState = all[fromScope];
+      if (!fromState) return all;
+      const existing = all[toScope];
+      const merged: SideTabsState =
+        existing && (existing.agents.length > 0 || existing.pages.length > 0)
+          ? existing
+          : fromState;
+      const rest = { ...all };
+      delete rest[fromScope];
+      const out = { ...rest, [toScope]: merged };
+      writeSideTabsStore(out);
+      return out;
+    });
+    setFilesOpenByScope((cur) => {
+      if (!(fromScope in cur)) return cur;
+      const next = { ...cur };
+      if (!(toScope in next)) next[toScope] = cur[fromScope]!;
+      delete next[fromScope];
+      return next;
+    });
+    setPanePrefByScope((cur) => {
+      if (!(fromScope in cur)) return cur;
+      const next = { ...cur };
+      if (!(toScope in next)) next[toScope] = cur[fromScope]!;
+      delete next[fromScope];
+      return next;
+    });
+  }, []);
   const reportMeta = useCallback((key: string, value: SideTabMeta | null) => {
     setMeta((cur) => {
       const old = cur[key];
@@ -344,18 +418,6 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const hasContent = hasSideTabs(tabs, filesOpen);
   const paneVisible = isSideTabsPaneVisible(panePref, hasContent);
-  const didInitPane = useRef(false);
-  useEffect(() => {
-    if (!didInitPane.current) {
-      didInitPane.current = true;
-      if (panePref === 'open' && !hasContent) update((s) => openNewTab(s));
-      return;
-    }
-    // 切到没有标签的会话：保持 open，并补一个新标签页，不要把偏好降回 auto。
-    if (panePrefWhenEmpty(panePref, 'empty-scope') === 'open' && !hasContent) {
-      update((s) => openNewTab(s));
-    }
-  }, [hasContent, panePref, update]);
 
   const showPane = useCallback(() => {
     update((s) => (hasSideTabs(s, filesOpen) ? s : openNewTab(s)));
@@ -422,6 +484,7 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
       toggleMaximized: toggle,
       restore,
       setScope,
+      migrateScope,
       meta,
       reportMeta,
       scope,
@@ -477,6 +540,7 @@ export const SubagentPaneProvider: React.FC<{ children: React.ReactNode }> = ({ 
       toggle,
       restore,
       setScope,
+      migrateScope,
       meta,
       reportMeta,
     ],

@@ -953,6 +953,29 @@ describe('agent identity (icon + name) comes from what the agent really is', () 
     expect(nestedHostTabId(null, [tab('main', 'nomi')])).toBeNull();
     expect(nestedHostTabId(null, [tab('main', 'claude')])).toBe('main');
     expect(nestedHostTabId('t1', [])).toBe('t1');
+
+    // 主标签后来换了后端：历史消息里的子代理仍保留原后端身份，不会误路由到新后端
+    const hist: ConvMessage[] = [
+      {
+        id: 'm1',
+        role: 'assistant',
+        text: '',
+        model: 'claude-code',
+        trace: [{ type: 'tool', id: 'c_claude', name: 'Agent', status: 'done' }],
+      },
+      {
+        id: 'm2',
+        role: 'assistant',
+        text: '',
+        model: 'deepseek-v4.1-flash',
+        trace: [{ type: 'tool', id: 'c_nomi', name: 'Agent', status: 'done' }],
+      },
+    ];
+    expect(nestedOwnerBackend(null, [tab('main', 'nomi')], 'c_claude', hist)).toBe('claude');
+    expect(nestedOwnerBackend(null, [tab('main', 'codex')], 'c_nomi', hist)).toBe('nomi');
+    expect(nestedHostTabId(null, [tab('main', 'codex')], 'c_claude', hist)).toBeNull();
+    expect(nestedHostTabId(null, [tab('main', 'codex')], 'c_nomi', hist)).toBeNull();
+    expect(nestedHostTabId(null, [tab('main', 'claude')], 'c_claude', hist)).toBe('main');
   });
 
   it('session-detail rows: sub-agents use the owner icon, delegations their CLI', () => {

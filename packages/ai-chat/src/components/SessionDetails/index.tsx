@@ -374,7 +374,11 @@ const DetailsPanel: React.FC<
           <AgentRow
             key={a.id}
             agent={a}
-            ownerBackend={ownerBackend}
+            ownerBackend={
+              a.kind === 'subagent'
+                ? nestedOwnerBackend(parentTabId, tabs.state?.tabs, a.id, messages)
+                : ownerBackend
+            }
             target={sessionAgentTarget(a, parentTabId)}
             columnMessages={messages}
             onOpen={

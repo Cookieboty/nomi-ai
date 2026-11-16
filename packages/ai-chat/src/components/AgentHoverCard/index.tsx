@@ -239,7 +239,7 @@ const NestedBody: React.FC<{
   const ex = lastExchange(messages);
   return (
     <CardView
-      backend={nestedOwnerBackend(parentTabId, tabs.state?.tabs)}
+      backend={nestedOwnerBackend(parentTabId, tabs.state?.tabs, callId, columnMessages)}
       preview={{
         name: agent?.label || agent?.agentType || t('ui.usage-tools.subagent'),
         state,

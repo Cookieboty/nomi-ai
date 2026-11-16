@@ -394,7 +394,7 @@ const NestedChat: React.FC<{
   const tabs = useHarnessTabs();
   // 替这个子代理收话的标签：来源标签；父转录是 Nomi 对话时，主标签接在编程助手上（那一轮其实是它跑的）就是主标签。
   // 主标签是 Nomi 时没有（Nomi 自己没有进程内子代理，Nomi 派出去的委派在 PaneBody 里已经换成了它的标签）
-  const parentTabId = nestedHostTabId(sourceTabId, tabs.state?.tabs);
+  const parentTabId = nestedHostTabId(sourceTabId, tabs.state?.tabs, callId, columnMessages);
   const parent = parentTabId ? tabs.state?.tabs.find((t) => t.id === parentTabId) : undefined;
   const raw = useHarnessTabMessages(sourceTabId);
   const parentMessages = useMemo(
@@ -904,9 +904,12 @@ export const SubagentPane: React.FC<{
 };
 
 /** 对话旁的查看区、子任务侧栏、会话详情各自的状态（互不影响） */
-export const WorkspacePanesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+export const WorkspacePanesProvider: React.FC<{
+  scope?: string | null;
+  children: React.ReactNode;
+}> = ({ scope, children }) => (
   <ChangesUiProvider>
-    <SubagentPaneProvider>
+    <SubagentPaneProvider scope={scope}>
       <SubagentOutboxProvider>
         <SessionDetailsProvider>{children}</SessionDetailsProvider>
       </SubagentOutboxProvider>

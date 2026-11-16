@@ -120,6 +120,19 @@ export function useSideChatsIn(scope: string): SideChatState[] {
 }
 const EMPTY_LIST: SideChatState[] = [];
 
+/** 编程助手新标签拿到 cliSessionId 后，把原本挂在临时标签键上的侧边聊天搬到稳定会话键 */
+export function migrateSideChatsScope(fromScope: string, toScope: string): void {
+  if (!fromScope || !toScope || fromScope === toScope) return;
+  let changed = false;
+  let maxSeq = Math.max(0, ...sideChatsIn(toScope).map((c) => c.seq));
+  for (const [id, chat] of chats.entries()) {
+    if (chat.scope !== fromScope) continue;
+    chats.set(id, { ...chat, scope: toScope, seq: ++maxSeq });
+    changed = true;
+  }
+  if (changed) emit();
+}
+
 /** 标签名：「侧边聊天 N」 */
 export function sideChatName(chat: Pick<SideChatState, 'seq'> | undefined): string {
   return chat ? t('ui.session-workspace.side-chat-title-n', String(chat.seq)) : '';
