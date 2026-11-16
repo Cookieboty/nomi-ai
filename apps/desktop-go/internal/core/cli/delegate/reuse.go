@@ -75,3 +75,21 @@ func FindReusableTab(tabs []any, key string, now float64, busy func(taskID strin
 	}
 	return best
 }
+
+// StaleDelegatedTabMs：委派标签闲置多久后自动关掉（同一种委派复用会话只看一小时内的，留一周给对话里的卡片查看）。
+// 出错 / 被停下的标签一样留一周：用户还要在里面「继续」（2.3.16 的出错后继续、子代理接着回复），不能提前关。
+const StaleDelegatedTabMs = 7 * 24 * 60 * 60_000
+
+// DelegatedTabExpired：这个空闲的委派标签闲置到期、可以关掉了（不看任务状态，由调用方另查）。
+// 只看闲置时长：出错（delegation.lastError）不缩短期限。没被 Nomi 委派、被用户接手的不关。
+func DelegatedTabExpired(tab *util.Obj, now float64) bool {
+	if tab == nil || tab.Get("status") != "idle" {
+		return false
+	}
+	d, _ := tab.Get("delegation").(*util.Obj)
+	if d == nil || d.Get("by") != "nomi" || util.Truthy(d.Get("takenOver")) {
+		return false
+	}
+	at, _ := tab.Get("updatedAt").(float64)
+	return now-at >= StaleDelegatedTabMs
+}

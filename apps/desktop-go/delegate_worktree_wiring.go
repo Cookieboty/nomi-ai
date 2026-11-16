@@ -129,13 +129,7 @@ func retiredTaskStatus(s string) bool {
 	return false
 }
 
-// staleDelegatedTabMs：正常完成的委派标签闲置多久后关掉（同一种委派复用会话只看一小时内的，留一周给对话里的卡片查看）
-const staleDelegatedTabMs = 7 * 24 * 60 * 60_000
-
-// failedDelegatedTabMs：最终失败且未被用户接手的委派标签闲置多久后自动关掉（避免失败标签无限堆积）
-const failedDelegatedTabMs = 15 * 60_000
-
-// closeStaleDelegatedTabs：关掉闲置到期、没被用户接手、对应任务已结束的委派标签
+// closeStaleDelegatedTabs：关掉闲置一周（delegate.StaleDelegatedTabMs）、没被用户接手、对应任务已结束的委派标签
 func closeStaleDelegatedTabs(o *harness.Orchestrator) {
 	if o == nil {
 		return
@@ -144,20 +138,11 @@ func closeStaleDelegatedTabs(o *harness.Orchestrator) {
 	tabs, _ := jsrt.Call(o.ListTabs).Get("tabs").([]any)
 	for _, t := range tabs {
 		x, _ := t.(*util.Obj)
-		if x == nil || x.Get("status") != "idle" {
+		// 出错 / 被停下的委派标签和正常完成的一样留一周（用户还要在里面接着说），不再 15 分钟就关
+		if !delegate.DelegatedTabExpired(x, now) {
 			continue
 		}
 		d, _ := x.Get("delegation").(*util.Obj)
-		if d == nil || d.Get("by") != "nomi" || util.Truthy(d.Get("takenOver")) {
-			continue
-		}
-		ttl := float64(staleDelegatedTabMs)
-		if util.Truthy(d.Get("lastError")) {
-			ttl = failedDelegatedTabMs
-		}
-		if at, _ := x.Get("updatedAt").(float64); now-at < ttl {
-			continue
-		}
 		if id := util.Str(d.Get("taskId")); id != "" && taskBusy(id) {
 			continue
 		}
