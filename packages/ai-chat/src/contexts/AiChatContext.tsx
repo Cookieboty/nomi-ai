@@ -4,197 +4,42 @@ import React, {
   createContext,
   useCallback,
   useContext,
-  useReducer,
   useEffect,
   useLayoutEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
   type ReactNode,
 } from 'react';
 
 import { startupBrandIntro } from '../components/BrandIntro/state';
-import { importChatImages } from '../services/chatImages';
-import { injectedMemoryIds, isCompaction } from '../services/compaction';
 import { notifyConversationsChanged } from '../services/conversationStore';
-import {
-  bindNextDelegateConversation,
-  clearTurnPin,
-  consumeNextDelegate,
-  DELEGATE_GOAL_MAX,
-  delegateClient,
-  type DelegateResult,
-} from '../services/delegateClient';
+import { delegateClient, type DelegateResult } from '../services/delegateClient';
 import { delegateResultMessage } from '../services/delegateMessage';
 import { desktopClient } from '../services/desktopClient';
-import { extClient } from '../services/extClient';
-import {
-  harnessClient,
-  MAIN_TAB_ID,
-  type HarnessTraceEvent,
-  type HarnessUsage,
-} from '../services/harnessClient';
-import { imageLinksNote } from '../services/history';
+import { harnessClient } from '../services/harnessClient';
 import { createIPCClient } from '../services/IPCClient';
-import { kbClient } from '../services/kbClient';
-import { ingestConversation, memoryContext } from '../services/memClient';
-import { nomiModelLabel, servedModelLabel } from '../services/nomiModel';
-import { maybeStartNomiSmartTitle } from '../services/nomiSmartTitle';
-import { startReplySpeech, stopReplySpeech, type ReplySpeaker } from '../services/replySpeech';
+import { stopReplySpeech } from '../services/replySpeech';
 import { schedClient } from '../services/schedClient';
-import { screenClient, type ImageAttachment } from '../services/screenClient';
-import { type ChatMessage, type ChatConfig } from '../types/chat';
-import { type IPCClient } from '../types/ipc';
-import { ENDPOINT_NAME } from '../utils/endpointBadge';
-import { closeOpenCalls } from '../utils/toolTrace';
+import type { ImageAttachment } from '../services/screenClient';
+import type { ChatConfig, ChatMessage } from '../types/chat';
 
+import {
+  aiChatReducer,
+  buildInitialState,
+  busyIn,
+  convoKey,
+  errorMessage,
+  type AiChatAction,
+  type AiChatState,
+} from './aiChatState';
 import { AiChatStoreContext, createAiChatStore } from './aiChatStore';
+import { openTurn, upsertById, type ActiveStream, type InflightTurn } from './chatTurn';
 import { compactHistory } from './compactHistory';
-import { attachSteer, useNomiSteer, type SteerableStream } from './nomiSteer';
-
-export interface AiChatState {
-  messages: ChatMessage[];
-  config: ChatConfig;
-  /** 有任意会话在回复（桌面角色的思考姿势、侧栏主标签状态用）；当前会话看 selectBusyHere */
-  isLoading: boolean;
-  /** 有任意会话在流式生成（可中止）；当前会话看 selectStreamingHere */
-  streaming: boolean;
-  /** 正在回复的会话（发起这一轮的会话 id；没有会话 id 的旧实现记为 ''）：不同会话可以同时回复 */
-  busyConvos: string[];
-  /** 正在流式生成、可以停止的会话 */
-  streamingConvos: string[];
-  error?: string;
-  ipcClient: IPCClient;
-  /** messages 当前展示的是哪个会话 */
-  viewConvoId?: string;
-}
-
-export type AiChatAction =
-  /** convoId：这批消息属于哪个会话（切换会话时带上；不带则沿用当前展示的会话） */
-  | { type: 'SET_MESSAGES'; payload: ChatMessage[]; convoId?: string }
-  | { type: 'ADD_MESSAGE'; payload: ChatMessage }
-  | { type: 'UPDATE_MESSAGE'; payload: { id: string; content: string } }
-  /** 按 id 覆盖，不存在则追加（流式期间切走又切回来时，补回这一轮的消息） */
-  | { type: 'UPSERT_MESSAGES'; payload: ChatMessage[] }
-  | { type: 'SET_STREAMING'; payload: boolean; convoId?: string }
-  | { type: 'SET_CONFIG'; payload: ChatConfig }
-  /** convoId：这次忙碌属于哪个会话（切走后别的会话不显示「回复中」） */
-  | { type: 'SET_LOADING'; payload: boolean; convoId?: string }
-  | { type: 'SET_ERROR'; payload: string | undefined }
-  | { type: 'SET_IPC_CLIENT'; payload: IPCClient }
-  | { type: 'CLEAR_MESSAGES'; convoId?: string };
-
-export { compactHistory, type CompactResult } from './compactHistory';
-
-const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
-
-/**
- * 首屏状态。有外层 <AIProvider> 的 client 时直接绑定它：不再另建一个自带 ClientAIClient 的
- * IPCClient（那会在同一窗口多开一个契约会话，见 contract 的 maxSessionsPerSender）。
- */
-const buildInitialState = (client?: ClientAIClient): AiChatState => ({
-  messages: [],
-  config: {
-    theme: 'light',
-    language: 'zh-CN',
-    fontSize: 14,
-    autoSave: true,
-    maxHistoryLength: 1000,
-  },
-  isLoading: false,
-  streaming: false,
-  busyConvos: [],
-  streamingConvos: [],
-  ipcClient: createIPCClient(client),
-});
-
-/** Every field of `patch` is already identical on `cur`. */
-function sameFields(cur: ChatMessage, patch: ChatMessage): boolean {
-  for (const k of Object.keys(patch) as Array<keyof ChatMessage>)
-    if (cur[k] !== patch[k]) return false;
-  return true;
-}
-
-/** 会话 → 回复中列表的键：没有会话 id 的旧实现记为 '' */
-export const convoKey = (convoId: string | undefined): string => convoId ?? '';
-
-function toggleKey(list: string[] | undefined, convoId: string | undefined, on: boolean): string[] {
-  const k = convoKey(convoId);
-  list ??= [];
-  if (on) return list.includes(k) ? list : [...list, k];
-  return list.includes(k) ? list.filter((x) => x !== k) : list;
-}
-
-/** 某个会话是否在回复（'' 表示旧实现没有会话 id，视为当前会话） */
-export function busyIn(
-  s: Pick<AiChatState, 'busyConvos' | 'isLoading'>,
-  convoId: string | undefined,
-): boolean {
-  if (!s.busyConvos) return s.isLoading;
-  return s.busyConvos.includes('') || s.busyConvos.includes(convoKey(convoId));
-}
-
-export function aiChatReducer(state: AiChatState, action: AiChatAction): AiChatState {
-  switch (action.type) {
-    case 'SET_MESSAGES':
-      return {
-        ...state,
-        messages: action.payload,
-        ...('convoId' in action ? { viewConvoId: action.convoId } : {}),
-      };
-    case 'ADD_MESSAGE':
-      return { ...state, messages: [...state.messages, action.payload] };
-    case 'UPDATE_MESSAGE':
-      return {
-        ...state,
-        messages: state.messages.map((msg) =>
-          msg.id === action.payload.id ? { ...msg, content: action.payload.content } : msg,
-        ),
-      };
-    case 'UPSERT_MESSAGES': {
-      let messages = state.messages;
-      for (const m of action.payload) {
-        const i = messages.findIndex((x) => x.id === m.id);
-        if (i >= 0 && sameFields(messages[i]!, m)) continue; // unchanged: keep identity (memoized rows)
-        messages =
-          i < 0 ? [...messages, m] : messages.map((x, idx) => (idx === i ? { ...x, ...m } : x));
-      }
-      return { ...state, messages };
-    }
-    case 'SET_STREAMING': {
-      const streamingConvos = toggleKey(state.streamingConvos, action.convoId, action.payload);
-      return { ...state, streamingConvos, streaming: streamingConvos.length > 0 };
-    }
-    case 'SET_CONFIG':
-      return { ...state, config: action.payload };
-    case 'SET_LOADING':
-      return {
-        ...state,
-        busyConvos: toggleKey(state.busyConvos, action.convoId, action.payload),
-        isLoading: toggleKey(state.busyConvos, action.convoId, action.payload).length > 0,
-        // 一轮总是从当前展示的会话发起：新对话的 id 在发送时才生成（ensureConversationId），
-        // 这时 viewConvoId 还没有，认领它，否则首个对话被当成「别的会话在回复」（没有状态行）
-        ...(action.payload && action.convoId && state.viewConvoId === undefined
-          ? { viewConvoId: action.convoId }
-          : {}),
-      };
-    case 'SET_ERROR':
-      // 同值不换引用：切换会话时每次都会清一次错误，新 state 会让所有选择器重跑
-      if (action.payload === state.error) return state;
-      return { ...state, error: action.payload };
-    case 'SET_IPC_CLIENT':
-      return { ...state, ipcClient: action.payload };
-    case 'CLEAR_MESSAGES':
-      return {
-        ...state,
-        messages: [],
-        ...('convoId' in action ? { viewConvoId: action.convoId } : {}),
-      };
-    default:
-      return state;
-  }
-}
+import { useNomiSteer } from './nomiSteer';
+import { useMemoryIngest } from './useChatMemory';
+import { useChatSends } from './useChatSends';
 
 export interface AiChatActionsValue {
   dispatch: React.Dispatch<AiChatAction>;
@@ -250,61 +95,15 @@ export interface AiChatContextProviderProps {
   client?: ClientAIClient;
 }
 
-/**
- * 固定「一轮对话」所属的会话：流式回复要等很久，期间用户可能切换 / 新建会话，
- * 落盘必须写回发起这一轮的会话，界面更新也只在该会话仍在显示时进行。
- */
-export interface ConversationTurn {
-  convoId: string | undefined;
-  /**
-   * 发起时该会话的项目：和 convoId 一起固定，随请求显式带给内核，
-   * 不在准备结束后再按「当前会话」重新读取（期间用户可能已切到另一个项目的会话）
-   */
-  projectId: string | undefined;
-  /**
-   * 发起这一轮的会话是否仍是当前展示的会话（且仍存在）。
-   * 会话被删除后 store 的 current 可能变成 undefined 或另一个会话，二者都不算 active。
-   */
-  isActive: () => boolean;
-  /** 发起这一轮的会话是否还在 store 里（已删除的会话不应再触发摘要 / 记忆写入） */
-  exists: () => boolean;
-  save: (message: ChatMessage) => Promise<void>;
-}
-
-export function openTurn(client: IPCClient): ConversationTurn {
-  const convoId = client.ensureConversationId?.() ?? client.currentConversationId?.();
-  const meta = convoId ? client.conversationStore?.()?.get(convoId) : undefined;
-  return {
-    convoId,
-    projectId: typeof meta?.projectId === 'string' && meta.projectId ? meta.projectId : undefined,
-    // 有 convoId 时必须 cur === convoId：current 为 undefined 说明会话刚被删光，不能当作仍在显示。
-    // 只有完全没有会话 id 接口的旧实现（convoId 为空）才走无 id 的兜底。
-    isActive: () => !convoId || client.currentConversationId?.() === convoId,
-    exists: () =>
-      !convoId || !client.conversationStore || !!client.conversationStore()?.get(convoId),
-    save: (message) =>
-      convoId && client.saveMessageTo
-        ? client.saveMessageTo(message, convoId)
-        : client.saveMessage(message),
-  };
-}
-
-/** 按 id 覆盖，不存在则追加（顺序保持：新的追加在末尾） */
-function upsertById(list: ChatMessage[], items: readonly ChatMessage[]): ChatMessage[] {
-  let out = list;
-  for (const m of items) {
-    const i = out.findIndex((x) => x.id === m.id);
-    out = i < 0 ? [...out, m] : out.map((x, k) => (k === i ? { ...x, ...m } : x));
-  }
-  return out;
-}
-
-const newReqId = (): string =>
-  `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-
-interface ActiveStream extends SteerableStream {
-  convoId: string | undefined;
-}
+export { compactHistory, type CompactResult } from './compactHistory';
+export {
+  aiChatReducer,
+  busyIn,
+  convoKey,
+  type AiChatAction,
+  type AiChatState,
+} from './aiChatState';
+export { openTurn, type ConversationTurn } from './chatTurn';
 
 export function AiChatContextProvider({ children, client }: AiChatContextProviderProps) {
   const [state, dispatch] = useReducer(aiChatReducer, client, buildInitialState);
@@ -326,9 +125,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
    * 进行中这一轮的消息快照（用户消息 + 已生成的回复）：一轮结束才落盘，
    * 期间切走再切回时 loadChatHistory 从存储读不到它们，要从这里补回
    */
-  const inflight = useRef(
-    new Map<string, { reqId: string; convoId?: string; messages: ChatMessage[] }>(),
-  );
+  const inflight = useRef(new Map<string, InflightTurn>());
   /** 历史加载序号：切换会话时后发起的加载为准，先发起的晚到结果直接丢弃 */
   const historySeq = useRef(0);
 
@@ -350,32 +147,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   }, [ipcClient]);
 
   // 长期记忆：最新消息的引用（窗口隐藏 / 新建会话时拿来做摘要）
-  const ingestCurrent = useCallback((msgs?: ChatMessage[], convoId?: string) => {
-    const s = stateRef.current;
-    ingestConversation(
-      convoId ?? s.ipcClient.currentConversationId?.(),
-      (msgs ?? s.messages)
-        .filter((m) => !m.error && !m.stopped)
-        .map((m) => ({ role: m.role, content: m.content })),
-    );
-  }, []);
-  useEffect(() => {
-    // 对话窗口被隐藏 / 关闭 → 把这段对话整理进记忆（主进程会跳过没有新内容的会话）
-    const onHide = () => document.visibilityState === 'hidden' && ingestCurrent();
-    document.addEventListener('visibilitychange', onHide);
-    window.addEventListener('pagehide', onHide);
-    return () => {
-      document.removeEventListener('visibilitychange', onHide);
-      window.removeEventListener('pagehide', onHide);
-    };
-  }, [ingestCurrent]);
-  /** 每积累 10 条消息自动摘要一次 */
-  const maybeIngest = useCallback(
-    (msgs: ChatMessage[], convoId?: string) => {
-      if (msgs.length >= 4 && msgs.length % 10 < 2) ingestCurrent(msgs, convoId);
-    },
-    [ingestCurrent],
-  );
+  const { ingestCurrent, maybeIngest } = useMemoryIngest(stateRef);
 
   // 卸载时放弃仍在进行的流
   useEffect(
@@ -474,484 +246,14 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     [ipcClient],
   );
 
-  // 发送普通消息
-  const sendMessage = useCallback(
-    async (content: string) => {
-      const s = stateRef.current;
-      const turn = openTurn(s.ipcClient);
-      try {
-        dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
-        dispatch({ type: 'SET_ERROR', payload: undefined });
-
-        const userMessage: ChatMessage = {
-          id: Date.now().toString(),
-          role: 'user',
-          content,
-          timestamp: Date.now(),
-          modelId: nomiModelLabel(),
-        };
-        // 本轮之前的会话消息作为多轮上下文（state.messages 尚未包含本轮 userMessage）
-        const history = s.messages;
-        dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
-        schedClient.activity();
-
-        // CLI 后端：全部转发，禁用 Nomi 工具 / 记忆注入
-        if (harnessClient.available()) {
-          const hs = await harnessClient.state();
-          if (hs.backend !== 'nomi') {
-            const r = await harnessClient.send(content);
-            const aiMessage: ChatMessage = {
-              id: (Date.now() + 1).toString(),
-              role: 'assistant',
-              content: r.text,
-              timestamp: Date.now(),
-              // eslint-disable-next-line nomi/no-cli-literal -- 旧对话里 Claude Code 的模型 id 记作 claude-code（兼容）
-              modelId: hs.backend === 'claude' ? 'claude-code' : hs.backend,
-            };
-            if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
-            await turn.save(userMessage);
-            await turn.save(aiMessage);
-            return;
-          }
-        }
-
-        // 标题与回复并行：不等请求回来（名字仍是默认名时才会真的请求模型）
-        maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
-        const mem = await memoryContext(content, injectedMemoryIds(history));
-        if (mem.text.trim()) userMessage.memory = { text: mem.text, ids: mem.ids };
-        const response = await s.ipcClient.sendMessage(content, history, undefined, mem.text);
-
-        const aiMessage: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: response,
-          timestamp: Date.now(),
-          modelId: nomiModelLabel(),
-          ...(mem.used.length ? { memories: mem.used } : {}),
-        };
-        if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
-
-        await turn.save(userMessage);
-        await turn.save(aiMessage);
-        if (turn.exists()) maybeIngest([...history, userMessage, aiMessage], turn.convoId);
-      } catch (error) {
-        dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
-      } finally {
-        dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId });
-      }
-    },
-    [maybeIngest],
-  );
-
-  // 知识库问答：主进程检索本地索引 → 模型带引用回答
-  const askKnowledge = useCallback(
-    async (content: string, override?: { history: ChatMessage[] }) => {
-      const s = stateRef.current;
-      const turn = openTurn(s.ipcClient);
-      try {
-        dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
-        dispatch({ type: 'SET_ERROR', payload: undefined });
-        const userMessage: ChatMessage = {
-          id: Date.now().toString(),
-          role: 'user',
-          content,
-          timestamp: Date.now(),
-          kb: true,
-        };
-        const history = (override?.history ?? s.messages)
-          .filter((m) => !m.error && (m.role === 'user' || m.role === 'assistant'))
-          .slice(-6)
-          .map((m) => ({ role: m.role, content: m.content }));
-        dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
-        // 标题与检索并行（名字仍是默认名时才会真的请求模型）
-        maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
-        const r = await kbClient.ask(content, history);
-        const aiMessage: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: r.answer,
-          timestamp: Date.now(),
-          modelId: nomiModelLabel(),
-          sources: r.sources,
-          kb: true,
-        };
-        if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
-        await turn.save(userMessage);
-        await turn.save(aiMessage);
-      } catch (error) {
-        dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
-      } finally {
-        dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId });
-      }
-    },
-    [],
-  );
-
-  // 发送流式消息
-  const sendStreamMessage = useCallback(
-    async (content: string, images?: ImageAttachment[], override?: { history: ChatMessage[] }) => {
-      const s = stateRef.current;
-      const client = s.ipcClient;
-      // 发起时固定会话：之后无论用户切到哪个会话，这一轮都写回这里
-      const turn = openTurn(client);
-      const reqId = newReqId();
-      const controller = new AbortController();
-      let owned = false;
-      // 用户发了新消息：正在朗读的上一条回复立即停
-      stopReplySpeech();
-      let speaker: ReplySpeaker | null = null;
-      try {
-        dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
-        dispatch({ type: 'SET_ERROR', payload: undefined });
-
-        // 图片要离开本机前：云端模型首次告知 / 仅本地模式拦截
-        if (images?.length && screenClient.available()) {
-          const r = await screenClient.checkSend();
-          if (r === 'local_only')
-            throw new Error(t('ui.chat-settings.local-models-only-is-on-and-the-current'));
-          if (r === 'user_denied')
-            throw new Error(t('ui.chat-settings.cancelled-the-image-wasn-t-sent-to-the'));
-        }
-
-        // `/agent`：按会话 chip → 按 turnId 钉到主进程；钉住失败则中止发送
-        bindNextDelegateConversation(turn.convoId);
-        let delegateTo: Awaited<ReturnType<typeof consumeNextDelegate>> = null;
-        try {
-          delegateTo = await consumeNextDelegate(reqId);
-        } catch (pinErr) {
-          const msg =
-            pinErr instanceof Error
-              ? pinErr.message
-              : t('ui.slash-commands.couldn-t-pin-the-coding-assistant-the-message');
-          throw Object.assign(new Error(msg), { cause: pinErr });
-        }
-        // 原图存进素材库：消息里记下地址（放大看原图、复制、以此修改 / 作为参考），这一轮也把地址告诉模型
-        const imageUrls = images?.length ? await importChatImages(images, turn.convoId) : [];
-        const userMessage: ChatMessage = {
-          id: Date.now().toString(),
-          role: 'user',
-          content,
-          timestamp: Date.now(),
-          modelId: nomiModelLabel(),
-          ...(images?.length
-            ? {
-                images: images.map((i, k) => ({
-                  thumb: i.thumb,
-                  width: i.width,
-                  height: i.height,
-                  source: i.source,
-                  ...(imageUrls[k] ? { url: imageUrls[k] } : {}),
-                })),
-              }
-            : {}),
-        };
-        // `/agent`：直接派出编程助手。不交给对话模型——模型不调工具时会像已经交出，其实什么都没开始。
-        if (delegateTo) {
-          if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
-          maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
-          // 等确认时可以停止：停止键中止这次调用，内核里的确认随之取消
-          activeStream.current.set(convoKey(turn.convoId), {
-            reqId,
-            convoId: turn.convoId,
-            controller,
-          });
-          owned = true;
-          dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
-          // 附图的地址作为背景交给编程助手（它读不到对话里的缩略图）
-          const linked = imageUrls.filter(Boolean);
-          try {
-            if (content.length > DELEGATE_GOAL_MAX)
-              throw new Error(
-                t('ui.slash-commands.handoff-request-too-long', String(DELEGATE_GOAL_MAX)),
-              );
-            await delegateClient.dispatch(
-              {
-                cli: delegateTo,
-                goal: content,
-                ...(linked.length ? { context: imageLinksNote(linked).slice(0, 8000) } : {}),
-                ...(turn.convoId ? { conversationId: turn.convoId } : {}),
-                ...(turn.projectId ? { projectId: turn.projectId } : {}),
-                turnId: reqId,
-              },
-              controller.signal,
-            );
-            userMessage.delegateTo = delegateTo;
-            const ack: ChatMessage = {
-              id: (Date.now() + 1).toString(),
-              role: 'assistant',
-              content: t(
-                'ui.slash-commands.handed-off-started',
-                t(ENDPOINT_NAME[delegateTo]),
-                content,
-              ),
-              timestamp: Date.now(),
-            };
-            if (turn.isActive()) dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, ack] });
-            await turn.save(userMessage);
-            await turn.save(ack);
-          } catch (err) {
-            const failed: ChatMessage = {
-              id: (Date.now() + 1).toString(),
-              role: 'assistant',
-              content: '',
-              error: t(
-                'ui.slash-commands.handoff-not-dispatched',
-                controller.signal.aborted ? t('ui.chat-settings.stopped') : errorMessage(err),
-              ),
-              timestamp: Date.now(),
-            };
-            if (turn.isActive())
-              dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, failed] });
-            await turn.save(userMessage);
-            await turn.save(failed);
-          }
-          return;
-        }
-        let history = override?.history ?? s.messages;
-        const hs = harnessClient.available() ? await harnessClient.state() : null;
-        // Nomi 对话：这一轮的上下文快到模型输入预算的 95% 时，先把较早的对话压缩成摘要
-        if (!hs || hs.backend === 'nomi') {
-          const c = await compactHistory(client, history, content, turn, false, dispatch);
-          if (c.next) history = c.next;
-        }
-        // 准备期间用户可能已切到别的会话：只有发起会话仍在显示时才上屏
-        if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
-        inflight.current.set(convoKey(turn.convoId), {
-          reqId,
-          convoId: turn.convoId,
-          messages: [userMessage],
-        });
-        schedClient.activity();
-
-        if (hs) {
-          if (hs.backend !== 'nomi') {
-            // 主对话标签切到编程助手：和普通标签同一条路径（能不能附图由主进程按模型能力判断）
-            const r = images?.length
-              ? await harnessClient.sendTab(
-                  MAIN_TAB_ID,
-                  content,
-                  images.map((i, k) => ({
-                    mime: i.mime,
-                    data: i.data,
-                    width: i.width,
-                    height: i.height,
-                    thumb: i.thumb,
-                    source: i.source,
-                    ...(imageUrls[k] ? { url: imageUrls[k] } : {}),
-                  })),
-                )
-              : await harnessClient.send(content);
-            const done: ChatMessage = {
-              id: (Date.now() + 1).toString(),
-              role: 'assistant',
-              content: r.text,
-              timestamp: Date.now(),
-              // eslint-disable-next-line nomi/no-cli-literal -- 旧对话里 Claude Code 的模型 id 记作 claude-code（兼容）
-              modelId: hs.backend === 'claude' ? 'claude-code' : hs.backend,
-              ...(r.trace?.length ? { trace: r.trace } : {}),
-              ...(r.durationMs !== undefined ? { durationMs: r.durationMs } : {}),
-              ...(r.usage ? { usage: r.usage } : {}),
-            };
-            if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: done });
-            await turn.save(userMessage);
-            await turn.save(done);
-            return;
-          }
-        }
-
-        // 标题不等这一轮结束：用户消息已确定，和回复并行生成（长任务不再一直显示「新对话」）
-        maybeStartNomiSmartTitle(client, turn.convoId, userMessage.content);
-
-        // 新召回的记忆跟着本轮用户消息走（存进消息、之后每轮原样带），已在上下文里的不再召回；
-        // 技能目录每轮不变，留在 system
-        const [mem, skills] = await Promise.all([
-          memoryContext(content, injectedMemoryIds(history)),
-          extClient.context(),
-        ]);
-        if (mem.text.trim()) userMessage.memory = { text: mem.text, ids: mem.ids };
-        // 准备期间（压缩 / 记忆召回等）发起会话被删了：不发送（没有地方落盘，也不能借用当前会话）
-        if (!turn.exists()) return;
-        const aiMessageId = (Date.now() + 1).toString();
-        const aiMessage: ChatMessage = {
-          id: aiMessageId,
-          role: 'assistant',
-          content: '',
-          timestamp: Date.now(),
-          modelId: nomiModelLabel(),
-          ...(mem.used.length ? { memories: mem.used } : {}),
-        };
-        // 用户消息一并 upsert：准备期间切走又切回时，用户消息还没上屏（顺序保持「问在前、答在后」）
-        if (turn.isActive())
-          dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, aiMessage] });
-        inflight.current.set(convoKey(turn.convoId), {
-          reqId,
-          convoId: turn.convoId,
-          messages: [userMessage, aiMessage],
-        });
-
-        activeStream.current.set(convoKey(turn.convoId), {
-          reqId,
-          convoId: turn.convoId,
-          controller,
-        });
-        owned = true;
-        // 朗读 AI 回复：只念普通 Nomi 对话（`/agent` 委派给编程助手的这一轮不念）
-        if (!delegateTo) speaker = startReplySpeech(reqId);
-        dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
-        let accumulated = '';
-        let thinking: boolean | undefined;
-        const startedAt = Date.now();
-        const trace: HarnessTraceEvent[] = [];
-        let usage: HarnessUsage | undefined;
-        let steps: string | undefined;
-        // 流式 UI 更新按帧合批：一帧内到达的文本 / 工具事件只 dispatch 一次（逐 chunk dispatch 会让整条消息列表重渲染）
-        let raf = 0;
-        let timer = 0;
-        let traceSnap: HarnessTraceEvent[] | undefined;
-        const traceNow = () => {
-          if (!trace.length) return undefined;
-          if (traceSnap?.length !== trace.length) traceSnap = [...trace];
-          return traceSnap;
-        };
-        const flushUi = () => {
-          if (raf) cancelAnimationFrame(raf);
-          if (timer) window.clearTimeout(timer);
-          raf = 0;
-          timer = 0;
-          const payload = [
-            userMessage,
-            {
-              ...aiMessage,
-              content: accumulated,
-              ...(thinking !== undefined ? { thinking } : {}),
-              ...(trace.length ? { trace: traceNow() } : {}),
-            },
-          ];
-          const f = inflight.current.get(convoKey(turn.convoId));
-          if (f?.reqId === reqId) f.messages = payload;
-          // 用户已切到别的会话：只累积，不动当前界面；回到本会话时由 loadChatHistory 补回整轮消息
-          if (!turn.isActive()) return;
-          dispatch({ type: 'UPSERT_MESSAGES', payload });
-        };
-        const scheduleUi = () => {
-          if (raf || timer) return;
-          raf = requestAnimationFrame(flushUi);
-          timer = window.setTimeout(flushUi, 100);
-        };
-        const stream = activeStream.current.get(convoKey(turn.convoId));
-        if (stream?.reqId === reqId)
-          attachSteer(stream, {
-            trace,
-            textLength: () => accumulated.length,
-            deliver: (id, text) => stateRef.current.ipcClient.steerStream?.(id, text),
-            onChange: scheduleUi,
-          });
-        try {
-          const linked = imageUrls.filter(Boolean);
-          const sent = linked.length ? `${content}\n\n${imageLinksNote(linked)}` : content;
-          await client.sendStreamMessage(
-            sent,
-            (chunk: string) => {
-              accumulated += chunk;
-              if (speaker) {
-                // 已切到别的会话：不再朗读这一轮
-                if (turn.isActive()) speaker.push(chunk);
-                else speaker.stop();
-              }
-              scheduleUi();
-            },
-            history,
-            skills,
-            images?.map((i) => ({ mime: i.mime, data: i.data })),
-            {
-              reqId,
-              memory: mem.text,
-              onSteps: (s) => {
-                steps = s;
-              },
-              signal: controller.signal,
-              conversation: { id: turn.convoId, projectId: turn.projectId },
-              onThinking: (active) => {
-                thinking = active;
-                scheduleUi();
-              },
-              onTrace: (ev) => {
-                trace.push(ev.textAt === undefined ? { ...ev, textAt: accumulated.length } : ev);
-                scheduleUi();
-                if (ev.type === 'tool' && ev.status === 'start')
-                  notifyToolStart(convoKey(turn.convoId));
-              },
-              onUsage: (u) => {
-                usage = { ...usage, ...u };
-              },
-            },
-          );
-        } catch (err) {
-          flushUi();
-          // 还在跑的工具调用不会再有结果：标成已停止，否则时间线一直转圈
-          trace.push(...closeOpenCalls(trace, Date.now(), t('ui.chat-settings.stopped')));
-          // 这一轮失败：保留已生成的部分与轨迹，作为「错误卡片」留在对话里（可重试），不进模型上下文
-          const failed: ChatMessage = {
-            ...aiMessage,
-            content: accumulated,
-            error: errorMessage(err),
-            durationMs: Date.now() - startedAt,
-            ...(usage?.responseModel ? { responseModel: usage.responseModel } : {}),
-            ...(trace.length ? { trace: [...trace] } : {}),
-          };
-          if (turn.isActive())
-            dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, failed] });
-          maybeStartNomiSmartTitle(client, turn.convoId, userMessage.content);
-          await turn.save(userMessage);
-          await turn.save(failed);
-          // 错误已经显示在这一轮的卡片里（含详情 / 重试 / 复制）：不再抛给外层，避免底部再弹一条同样的提示（#78）
-          return;
-        }
-        flushUi();
-        const stopped = controller.signal.aborted;
-        // 停止时还在跑的工具调用（内核已随这一轮中止它们）：标成已停止，否则时间线一直显示运行中
-        trace.push(...closeOpenCalls(trace, Date.now(), t('ui.chat-settings.stopped')));
-        if (stopped) speaker?.stop();
-        else speaker?.finish();
-        const finalAiMessage: ChatMessage = {
-          ...aiMessage,
-          // 故障转移后实际回答的可能是另一家：按网关报回的写
-          ...(usage?.model ? { modelId: servedModelLabel(usage.model) } : {}),
-          ...(usage?.responseModel ? { responseModel: usage.responseModel } : {}),
-          content: accumulated,
-          durationMs: Date.now() - startedAt,
-          ...(trace.length ? { trace: [...trace] } : {}),
-          ...(usage ? { usage } : {}),
-          ...(steps && !stopped ? { steps } : {}),
-          ...(stopped ? { stopped: true } : {}),
-        };
-        if (turn.isActive()) {
-          dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, finalAiMessage] });
-        }
-        maybeStartNomiSmartTitle(client, turn.convoId, userMessage.content);
-        await turn.save(userMessage);
-        await turn.save(finalAiMessage);
-        if (!stopped && turn.exists())
-          maybeIngest(
-            [...history.filter((m) => !isCompaction(m)), userMessage, finalAiMessage],
-            turn.convoId,
-          );
-      } catch (error) {
-        speaker?.stop();
-        dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
-      } finally {
-        // 本轮未委派时清掉主进程 turn pin，避免泄漏到下一轮
-        void clearTurnPin(reqId);
-        const key = convoKey(turn.convoId);
-        if (owned && activeStream.current.get(key)?.reqId === reqId)
-          activeStream.current.delete(key);
-        if (inflight.current.get(key)?.reqId === reqId) inflight.current.delete(key);
-        dispatch({ type: 'SET_STREAMING', payload: false, convoId: turn.convoId });
-        dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId });
-      }
-    },
-    [maybeIngest],
-  );
+  const { sendMessage, askKnowledge, sendStreamMessage } = useChatSends({
+    stateRef,
+    dispatch,
+    activeStream,
+    inflight,
+    maybeIngest,
+    notifyToolStart,
+  });
 
   const resendFrom = useCallback(
     async (userMessageId: string, newText?: string) => {

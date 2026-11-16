@@ -15,12 +15,11 @@ import { gatewayClient } from '../services/gatewayClient';
 import type { ChatMessage } from '../types/chat';
 import type { IPCClient } from '../types/ipc';
 
-import type { AiChatAction, ConversationTurn } from './AiChatContext';
+import type { AiChatAction } from './aiChatState';
+import { errorMessage } from './aiChatState';
+import type { ConversationTurn } from './chatTurn';
 
 const logger = createLogger('AiChat');
-
-const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
 
 /** 摘要模型的预算查不到时（旧主进程）按这个算摘要请求的大小 */
 const FALLBACK_SUMMARY_BUDGET = 96_000;

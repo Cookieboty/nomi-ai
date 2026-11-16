@@ -124,7 +124,7 @@ export interface HarnessTabsCore {
   lastBackend: HarnessBackend;
 }
 
-interface HarnessTabsValue extends HarnessTabsCore {
+export interface HarnessTabsValue extends HarnessTabsCore {
   /** 完整标签状态：任一标签变化都会换引用 */
   state: HarnessTabsState | null;
 }
