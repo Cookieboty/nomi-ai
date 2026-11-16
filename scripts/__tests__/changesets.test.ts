@@ -14,9 +14,10 @@ const files = readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.
 /**
  * 归档上限：待发布的 changeset 由发版步骤消费（见 docs/RELEASE.md）。
  * 这里只拦「没人消费、无限增长」；消费过一批就把它调小。
- * 2.3.16 之前已经累积了 1000+ 条（发版一直在手写 docs/releases/*.md，没跑过消费）。
+ * 2.3.16 消费了此前 1000+ 条积压。单次发版最多见过 44 条（2.3.13 → 2.3.14），
+ * 80 留出一条发版的余量，再涨上去就该先消费。
  */
-const MAX_PENDING_CHANGESETS = 1100;
+const MAX_PENDING_CHANGESETS = 80;
 
 describe('.changeset entries', () => {
   it('has changesets to check', () => {

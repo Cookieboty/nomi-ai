@@ -5,6 +5,12 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ## Unreleased
 
+### Maintenance
+
+- **release:** empty changeset after archiving 2.3.16
+
+## 2.3.16 — 2026-11-16
+
 ### Features
 
 - **a11y:** dialogs trap focus, Esc closes only the top-most dialog and focus returns to the opener; reduced motion calms the VRM rig and the island.
