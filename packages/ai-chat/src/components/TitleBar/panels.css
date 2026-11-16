@@ -1,12 +1,32 @@
 /* 顶栏分区沿用实际内容列的坐标。短线只出现在对应的面板边界。 */
+.app-titlebar {
+  /* 文件栏开关离窗口右边的距离：macOS 只留常规边距；Windows / Linux 排在自绘窗口按钮左边 */
+  --cd-titlebar-rail-toggle-right: var(--cd-space-1);
+}
+html[data-platform]:not([data-platform='darwin']) .app-titlebar {
+  --cd-titlebar-rail-toggle-right: var(--cd-titlebar-window-controls-w, 140px);
+}
+/*
+ * 正文列右边取两者中更靠左的那个：
+ * - 对话列的实际右边（中栏 / 文件栏开着时；离分隔线的 space-2 由下方 [data-files] 的右内边距给）；
+ * - 文件栏开关的左边再隔一个图标按钮间距（space-1），会话详情按钮紧挨着开关。
+ * 两项不叠加：开关本来就在对话列以外时不再额外让位（原来叠加 + 右内边距 space-8，mac 上空出 ~40px）。
+ * Windows / Linux 的开关位置已经含窗口按钮区，所以同一个式子也不会压到最小化 / 最大化 / 关闭。
+ */
 .app-titlebar-main {
   left: var(--titlebar-main-left, calc(52px + var(--sidebar-panel-w)));
-  /* 右侧让出文件栏开关（rail-toggle）的位置，会话详情按钮不再压在它上面 */
-  right: calc(
-    var(--titlebar-main-right, var(--cd-space-0-5)) + var(--cd-titlebar-rail-toggle-w, 0px) +
-      var(--cd-space-1)
+  padding-inline: var(--cd-space-3) 0;
+}
+/* 带平台前缀的一条要盖过 App.css 里 Windows / Linux 的 right（只写 right，不碰 left） */
+.app-titlebar-main,
+html[data-platform]:not([data-platform='darwin']) .app-titlebar-main {
+  right: max(
+    var(--titlebar-main-right, 0px),
+    calc(
+      var(--cd-titlebar-rail-toggle-right) + var(--cd-titlebar-rail-toggle-w, 0px) +
+        var(--cd-space-1)
+    )
   );
-  padding-inline: var(--cd-space-3) var(--cd-space-8);
 }
 .app-titlebar[data-sidebar='collapsed'] .app-titlebar-main {
   left: max(var(--titlebar-main-left, 52px), calc(116px + var(--cd-titlebar-lead-w, 0px)));
@@ -61,12 +81,9 @@
   position: absolute;
   display: flex;
   align-items: center;
-  right: var(--cd-space-1);
+  right: var(--cd-titlebar-rail-toggle-right);
   top: 50%;
   transform: translateY(-50%);
-}
-html[data-platform]:not([data-platform='darwin']) .app-titlebar-rail-toggle {
-  right: var(--cd-titlebar-window-controls-w, 140px);
 }
 .app-titlebar-panel-tools > header,
 .app-titlebar-panel-tools > [data-testid='side-tab-strip'] {
@@ -99,12 +116,6 @@ html[data-platform]:not([data-platform='darwin']) .app-titlebar-rail-toggle {
   gap: var(--cd-space-0-5);
 }
 
-html[data-platform]:not([data-platform='darwin']) .app-titlebar-main {
-  right: calc(
-    max(var(--titlebar-main-right, 0px), var(--cd-titlebar-window-controls-w, 140px)) +
-      var(--cd-titlebar-rail-toggle-w, 0px) + var(--cd-space-1)
-  );
-}
 .app-titlebar-files {
   container-type: inline-size;
   box-sizing: border-box;
