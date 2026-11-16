@@ -401,7 +401,7 @@
   font-size: var(--cd-font-size-sm);
   font-weight: var(--cd-font-weight-medium);
   cursor: pointer;
-  box-shadow: var(--cd-shadow-xs);
+  box-shadow: var(--cd-shadow-sm);
   transition:
     background-color var(--cd-duration-press) var(--cd-ease-out),
     border-color var(--cd-duration-press) var(--cd-ease-out);
