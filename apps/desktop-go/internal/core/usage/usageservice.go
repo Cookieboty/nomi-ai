@@ -401,6 +401,7 @@ type UsageService struct {
 	pricesGen      int
 	settingsPath   string
 	scanner        *UsageLogScanner
+	logRoots       *usageLogRoots
 	scanTimer      *jsrt.Timer
 	pruneTimer     *jsrt.Timer
 	broadcast      *jsrt.Timer
@@ -456,6 +457,7 @@ func NewUsageService(d ServiceDeps) *UsageService {
 	s.settingsPath = filepath.Join(d.Root, "settings.json")
 	s.alertsPath = filepath.Join(d.Root, "alerts.json")
 	s.quotaPath = filepath.Join(d.Root, "quota.json")
+	s.logRoots = loadUsageLogRoots(filepath.Join(d.Root, "log-roots.json"))
 	s.PriceSync = NewPriceSync(PriceSyncDeps{Root: d.Root, Now: d.Now, FetchImpl: d.PriceFetch, Logger: d.Logger,
 		OnData: d.OnModelsData, NeedsFull: d.NeedsFullModelsData})
 	s.load()
@@ -578,7 +580,7 @@ func NewUsageService(d ServiceDeps) *UsageService {
 			})
 		}})
 	s.scanner = NewUsageLogScanner(ScannerDeps{Ledger: s.Ledger, Home: d.Home, DshHome: d.DshHome, Env: d.Env,
-		Now: d.Now, Logger: d.Logger, ZstdDecode: d.ZstdDecode,
+		Now: d.Now, Logger: d.Logger, ZstdDecode: d.ZstdDecode, ClaudeConfigDirs: s.logRoots.claudeDirs,
 		Retention: func() Retention { return s.snapshot().Retention },
 		ClearedAt: func() float64 { return s.snapshot().ClearedAt },
 		RouteBusy: func(src string) bool { s.rmu.Lock(); defer s.rmu.Unlock(); return s.routeInflight[src] > 0 },
@@ -1674,6 +1676,18 @@ func (s *UsageService) Stop() {
 	jsrt.ClearTimeout(s.broadcast)
 	s.broadcast = nil
 	s.Ledger.Close()
+}
+
+// ObserveClaudeConfigDir is called under the runtime lock after CLI initialization.
+// Keep old roots too: changing launchers must not erase previously collected local usage.
+func (s *UsageService) ObserveClaudeConfigDir(dir string) {
+	added, err := s.logRoots.addClaude(dir)
+	if err != nil {
+		s.d.Logger.Warn("usage log root save failed", err.Error())
+	}
+	if added {
+		s.Scan()
+	}
 }
 
 // Scan = scan()

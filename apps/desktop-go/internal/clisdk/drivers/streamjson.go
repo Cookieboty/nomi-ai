@@ -18,15 +18,17 @@ type StreamJsonMessages struct{ Timeout, NotWritable, Exited, Rejected *string }
 
 // StreamJsonDriverOptions：stream-json 驱动选项。
 type StreamJsonDriverOptions struct {
-	Child            clisdk.ChildLike
-	ParseLine        func(line string) []Ev
-	OnLine           func(line string, final bool) bool
-	Messages         StreamJsonMessages
-	ControlTimeoutMs int // 0 = undefined
-	DenyMessage      *string
-	ResumeID         *string
-	Kill             clisdk.KillFn
-	NewID            func() string
+	Child     clisdk.ChildLike
+	ParseLine func(line string) []Ev
+	OnLine    func(line string, final bool) bool
+	// OnControlResponse also observes successful fire-and-forget responses (initialize metadata).
+	OnControlResponse func(response *util.Obj)
+	Messages          StreamJsonMessages
+	ControlTimeoutMs  int // 0 = undefined
+	DenyMessage       *string
+	ResumeID          *string
+	Kill              clisdk.KillFn
+	NewID             func() string
 }
 
 type controlWaiter struct {
@@ -203,6 +205,11 @@ func (d *StreamJsonDriver) onControlResponse(line string) bool {
 		r = O()
 	}
 	requestID, _ := r.Get("request_id").(string)
+	if r.Get("subtype") == "success" && d.o.OnControlResponse != nil {
+		if response, ok := r.Get("response").(*util.Obj); ok {
+			d.o.OnControlResponse(response)
+		}
+	}
 	w := d.controls[requestID]
 	if w == nil {
 		return true

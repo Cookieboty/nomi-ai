@@ -78,3 +78,15 @@ func TestLocalLoginForAccountBackendsNeedsNeitherNomiAccountNorCustomCommand(t *
 		})
 	}
 }
+
+func TestClaudeReportedConfigDir(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "wrapper", "config")
+	if got := claudeReportedConfigDir(util.NewObj("user_output_styles_dir", filepath.Join(root, "output-styles"))); got != root {
+		t.Fatal("CLI configuration directory not detected", got)
+	}
+	for _, p := range []any{nil, "", "relative/output-styles", root, root + "\n", 42} {
+		if got := claudeReportedConfigDir(util.NewObj("user_output_styles_dir", p)); got != "" {
+			t.Fatalf("unrelated/invalid metadata accepted: %v", p)
+		}
+	}
+}

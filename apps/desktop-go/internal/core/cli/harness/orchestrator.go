@@ -70,6 +70,8 @@ type Deps struct {
 	GrokAcp                bool
 	CodexAppServer         bool
 	Complete               CompleteFn
+	// ClaudeConfigDir observes the actual configuration root reported by an official CLI launch.
+	ClaudeConfigDir func(dir string)
 	// CwdCheck：工作目录策略（不能过宽、不能在受保护文件夹里）；返回不能用的原因，"" = 能用。nil = 只查目录存在
 	CwdCheck func(dir string) string
 	// EnvAllow：用户放行、照样交给 CLI 的环境变量名（其余凭据类变量不继承，见 cli.ScrubSecretEnv）
