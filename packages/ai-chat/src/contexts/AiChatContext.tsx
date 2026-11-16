@@ -15,6 +15,7 @@ import React, {
 
 import { startupBrandIntro } from '../components/BrandIntro/state';
 import { notifyConversationsChanged } from '../services/conversationStore';
+import { collectDelegateChanges, reportedFiles } from '../services/delegateChanges';
 import { delegateClient, type DelegateResult } from '../services/delegateClient';
 import { delegateResultMessage } from '../services/delegateMessage';
 import { desktopClient } from '../services/desktopClient';
@@ -185,18 +186,30 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   useEffect(
     () =>
       delegateClient.onCompleted((r: DelegateResult) => {
-        const m = delegateResultMessage(r);
-        const targetId = r.conversationId;
-        if (targetId && ipcClient.saveMessageTo) {
-          // 只在目标会话仍是当前展示时更新 UI，避免污染另一会话（#116）
-          if (ipcClient.currentConversationId?.() === targetId) {
+        const write = (m: ChatMessage) => {
+          const targetId = r.conversationId;
+          if (targetId && ipcClient.saveMessageTo) {
+            // 只在目标会话仍是当前展示时更新 UI，避免污染另一会话（#116）
+            if (ipcClient.currentConversationId?.() === targetId) {
+              dispatch({ type: 'ADD_MESSAGE', payload: m });
+            }
+            void ipcClient.saveMessageTo(m, targetId);
+          } else {
             dispatch({ type: 'ADD_MESSAGE', payload: m });
+            void ipcClient.saveMessage(m);
           }
-          void ipcClient.saveMessageTo(m, targetId);
-        } else {
-          dispatch({ type: 'ADD_MESSAGE', payload: m });
-          void ipcClient.saveMessage(m);
+        };
+        // 没有改动文件：直接写；有改动：先从子任务会话里补上每个文件的 +/− 与 Diff（读不到就只带文件列表）
+        if (!reportedFiles(r).length) {
+          write(delegateResultMessage(r));
+          return;
         }
+        void collectDelegateChanges(r, {
+          tabs: () => harnessClient.tabs(),
+          tabMessages: (id) => harnessClient.tabMessages(id),
+        })
+          .catch(() => null)
+          .then((changes) => write(delegateResultMessage(r, Date.now(), changes)));
       }),
     [ipcClient],
   );

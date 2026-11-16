@@ -5,6 +5,7 @@ package delegate
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -245,6 +246,30 @@ func TestDelegateBackgroundBecomesTask(t *testing.T) {
 	r3 := newTaskEnv(t, util.NewObj("decisions", []any{"denied"}), ft3).call(nil, "delegate_to_cli", delegateRaw("background", true), tools.ExecContext{})
 	if errCode(r3) != "user_denied" || len(ft3.created) != 0 {
 		t.Fatal(util.Stringify(r3))
+	}
+}
+
+// 后台委派（持续任务）结束：这次执行里改文件的工具事件补进改动列表——委派前就有改动的文件（git 前后差集丢掉了）、
+// 失败 / 被停下时没有结果的，也带回来源对话；结果带上子任务标签 id，来源对话据此读 +/− 与 Diff
+func TestDelegateTaskResultIncludesToolEdits(t *testing.T) {
+	ft := newFakeTasks()
+	e := newTaskEnv(t, util.NewObj(), ft)
+	id := util.Str(dataOf(e.call(nil, "delegate_to_cli", delegateRaw("background", true), tools.ExecContext{ConversationID: "c"})).Get("taskId"))
+	cwd := filepath.Join(e.dir, "repo")
+	tab := "tab_" + id
+	Edits.Forget(tab)
+	t.Cleanup(func() { Edits.Forget(tab) })
+	Edits.Note(tab, []string{filepath.Join(cwd, "before.go")}, 50) // 这次执行之前
+	Edits.Note(tab, []string{filepath.Join(cwd, "upstream_protocol.go")}, 150)
+	Edits.Note(tab, []string{filepath.Join(cwd, "upstream_protocol_test.go")}, 160)
+	end := int64(200)
+	ft.advance(id, tasks.StatusFailed, &tasks.Attempt{StartedAt: 100, EndedAt: &end,
+		Carrier: &tasks.Carrier{TabID: &tab, Cwd: &cwd}}, &tasks.TaskError{Code: "executor_failed", Message: "boom"})
+	waitUntil(t, func() bool { return len(e.completed()) == 1 })
+	p := e.completed()[0]
+	if p.Get("status") != "error" || p.Get("tabId") != tab ||
+		util.Stringify(p.Get("changedFiles")) != `["upstream_protocol.go","upstream_protocol_test.go"]` {
+		t.Fatal(util.Stringify(p))
 	}
 }
 

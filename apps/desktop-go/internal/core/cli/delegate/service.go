@@ -291,6 +291,7 @@ func (s *Service) resultFromTask(rec *tasks.Record) *util.Obj {
 	}
 	changed, images := []string{}, []string{}
 	worktree, inGit := "", false
+	res0TabID := ""
 	if attempt != nil {
 		if attempt.Result != nil {
 			for _, a := range attempt.Result.Artifacts {
@@ -305,6 +306,18 @@ func (s *Service) resultFromTask(rec *tasks.Record) *util.Obj {
 		if attempt.Carrier != nil {
 			worktree = ps(attempt.Carrier.Worktree)
 			inGit = ps(attempt.Carrier.GitRoot) != ""
+			// 这次执行里改文件的工具事件：git 前后差集认不出的（委派前就有改动的文件）、
+			// 失败 / 被停下时没有结果的，也把已经改了的带回去
+			if tabID := ps(attempt.Carrier.TabID); tabID != "" && status != "running" {
+				var to float64
+				if attempt.EndedAt != nil {
+					to = float64(*attempt.EndedAt)
+				}
+				changed = mergeFiles(changed, Edits.Since(tabID, ps(attempt.Carrier.Cwd), float64(attempt.StartedAt), to))
+			}
+			if tabID := ps(attempt.Carrier.TabID); tabID != "" {
+				res0TabID = tabID
+			}
 		}
 	}
 	changed = head(changed, 50)
@@ -330,6 +343,10 @@ func (s *Service) resultFromTask(rec *tasks.Record) *util.Obj {
 	res := util.NewObj("taskId", task.ID, "cli", cli, "status", status)
 	if status == "cancelled" {
 		res.Set("cancelledBy", "user")
+	}
+	// 子任务标签：来源对话据此读它的改动（+/− 与 Diff）
+	if res0TabID != "" {
+		res.Set("tabId", res0TabID)
 	}
 	res.Set("summary", summary)
 	if len(changed) > 0 {
@@ -1602,10 +1619,12 @@ func (s *Service) finalize(task *bgTask, status, text, errMsg, errCode string, u
 	if report != nil {
 		rFiles = strList(report.Get("changedFiles"))
 	}
+	// 编程助手的工具事件里改过的文件：委派前就有改动的文件 git 前后都在，按差集会被丢掉
+	edited := Edits.Since(task.id(), util.Str(task.o.Get("cwd")), task.started(), 0)
 	if gitOK {
 		gitList = []string{}
 		for _, f := range after {
-			if !contains(before, f) || (report != nil && contains(rFiles, f)) {
+			if !contains(before, f) || (report != nil && contains(rFiles, f)) || contains(edited, f) {
 				gitList = append(gitList, f)
 			}
 		}
@@ -1615,9 +1634,9 @@ func (s *Service) finalize(task *bgTask, status, text, errMsg, errCode string, u
 	case gitOK:
 		changed = gitList
 	case report != nil:
-		changed = rFiles
+		changed = mergeFiles(rFiles, edited)
 	default:
-		changed = []string{}
+		changed = mergeFiles(nil, edited)
 	}
 	// 落地处理完整的变更集合；只有给模型 / 界面看的列表截到 50 个（#255）
 	isoNote := task.iso.Note
@@ -1673,6 +1692,8 @@ func (s *Service) finalize(task *bgTask, status, text, errMsg, errCode string, u
 	if status == "cancelled" && cancelledBy != "" {
 		res.Set("cancelledBy", cancelledBy)
 	}
+	// 委派标签的 id 就是任务 id：来源对话据此读它的改动（+/− 与 Diff）
+	res.Set("tabId", task.id())
 	if report != nil {
 		res.Set("report", report)
 	}

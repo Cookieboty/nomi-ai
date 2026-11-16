@@ -8,6 +8,7 @@ import { t } from '@nomi-ai/ui';
 import type { ChatMessage } from '../types/chat';
 import { ENDPOINT_NAME } from '../utils/endpointBadge';
 
+import { reportedFiles, type DelegateChanges } from './delegateChanges';
 import type { DelegateResult } from './delegateClient';
 
 /** 去掉交给模型时加的 <cli-output> 边界，只留编程助手原话（与 DelegateCard.plainSummary 一致） */
@@ -64,11 +65,18 @@ export const CHANGED_FILES_SHOWN = 20;
  * 改动的文件：对话里看得到，Nomi 下一轮从历史里也读得到（后台委派的结果不经工具输出回到模型）。
  * 优先用编程助手汇报里的（已按 git 核对），没有汇报时用内核核对出的列表（持续任务的结果只有这个）
  */
-function changedFilesBlock(r: DelegateResult): string {
-  const files = (r.report?.changedFiles?.length ? r.report.changedFiles : r.changedFiles) ?? [];
-  const list = [...new Set(files.filter(Boolean))];
+function changedFilesBlock(r: DelegateResult, changes?: DelegateChanges | null): string {
+  const list = reportedFiles(r);
   if (!list.length) return '';
-  const lines = list.slice(0, CHANGED_FILES_SHOWN).map((f) => `- \`${f}\``);
+  // 子任务会话里认得出的增删行数（只给数字，不放 Diff）：Nomi 下一轮知道每个文件改了多少
+  const stats = new Map((changes?.files ?? []).map((f) => [f.file, f]));
+  const line = (f: string) => {
+    const s = stats.get(f);
+    return s?.added != null && s.removed != null
+      ? `- \`${f}\` (+${s.added} −${s.removed})`
+      : `- \`${f}\``;
+  };
+  const lines = list.slice(0, CHANGED_FILES_SHOWN).map(line);
   if (list.length > CHANGED_FILES_SHOWN) {
     lines.push(
       t('ui.session-workspace.handoff-changed-files-more', list.length - CHANGED_FILES_SHOWN),
@@ -78,7 +86,11 @@ function changedFilesBlock(r: DelegateResult): string {
 }
 
 /** 委派结果 → 来源对话里的一条助手消息（id 形如 delegate-<taskId>-<durationMs>，后续轮次带 -f<时间>） */
-export function delegateResultMessage(r: DelegateResult, now = Date.now()): ChatMessage {
+export function delegateResultMessage(
+  r: DelegateResult,
+  now = Date.now(),
+  changes?: DelegateChanges | null,
+): ChatMessage {
   const name = t(ENDPOINT_NAME[r.cli] ?? r.cli);
   let body: string;
   if (r.status === 'cancelled') {
@@ -94,7 +106,7 @@ export function delegateResultMessage(r: DelegateResult, now = Date.now()): Chat
     body = reportBody(r, name);
   }
   // 子任务产出的东西（生成的图片、改动的文件）都带回对话：出错 / 被停下时已经产出的也列出来，用户和 Nomi 都该知道
-  for (const block of [imagesBlock(r), changedFilesBlock(r)]) {
+  for (const block of [imagesBlock(r), changedFilesBlock(r, changes)]) {
     if (block) body = `${body}\n\n${block}`;
   }
   return {
@@ -103,5 +115,7 @@ export function delegateResultMessage(r: DelegateResult, now = Date.now()): Chat
     content: body,
     timestamp: now,
     origin: 'background',
+    // 对话里用「已编辑 N 个文件」卡片列出子任务的改动，点开看每个文件的 Diff
+    ...(changes?.files.length ? { delegateChanges: changes } : {}),
   };
 }

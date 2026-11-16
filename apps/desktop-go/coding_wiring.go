@@ -214,7 +214,7 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 				if taskID == "" {
 					return
 				}
-				go dlg.ReportFollowUp(taskID, e.Ok, e.Text, e.Error, e.DurationMs)
+				go dlg.ReportFollowUp(taskID, e.TabID, e.Ok, e.Text, e.Error, e.DurationMs)
 			})
 		})
 	}

@@ -45,6 +45,8 @@ func wireDelegateClaims(o *harness.Orchestrator) {
 			if len(paths) == 0 {
 				return
 			}
+			// 记下这个标签什么时候改了哪些文件：委派收尾 / 子任务里接着对话的轮次据此把改动带回来源对话
+			delegate.Edits.Note(tabID, paths, float64(time.Now().UnixMilli()))
 			// 编排器的回调持锁：转到别的 goroutine（Touch 可能插话，插话要进编排器）
 			go func() {
 				if delegateClaims.Active(tabID) {

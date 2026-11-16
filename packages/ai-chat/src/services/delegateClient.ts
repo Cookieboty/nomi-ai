@@ -68,6 +68,8 @@ export interface DelegateResult {
   conversationId?: string;
   /** 委派结束后在子任务里接着跑的一轮（用户接着对话 / 沙箱授权后续跑）的结果 */
   followUp?: boolean;
+  /** 子任务标签：来源对话从它的会话里读改动的 +/− 与 Diff */
+  tabId?: string;
 }
 
 export function delegateKindLabel(k: DelegateKind): string {
