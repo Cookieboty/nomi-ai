@@ -29,6 +29,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import type { SideTabMeta } from '../../contexts/SubagentPaneContext';
 import type { ConvMessage } from '../../types/conversation';
+import { agentTargetBackend } from '../../utils/agentIdentity';
+import { resolveDelegateTarget } from '../../utils/delegateTarget';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { basename, resourceTarget } from '../../utils/resourceLinks';
 import { dropIndex, type SideTabItem, type SubagentTarget } from '../../utils/sideTabs';
@@ -117,14 +119,14 @@ export const SideTabStrip: React.FC<{
   inTitlebar?: boolean;
 }> = ({ model, columnMessages, inTitlebar = false }) => {
   const harness = useHarnessTabs();
+  const resolveTarget = useCallback(
+    (target: SubagentTarget) => resolveDelegateTarget(target, harness.state?.tabs, columnMessages),
+    [harness.state?.tabs, columnMessages],
+  );
   const backendOf = useCallback(
-    (target: SubagentTarget): string | null => {
-      if (target.kind === 'nomi-task' || target.kind === 'side-chat') return 'nomi';
-      if (target.kind === 'harness')
-        return harness.state?.tabs.find((x) => x.id === target.tabId)?.backend ?? null;
-      return null;
-    },
-    [harness.state?.tabs],
+    (target: SubagentTarget): string | null =>
+      agentTargetBackend(resolveTarget(target), harness.state?.tabs),
+    [harness.state?.tabs, resolveTarget],
   );
   const [tabMenu, setTabMenu] = useState<TabMenu | null>(null);
   const tabMenuRef = useRef<HTMLDivElement>(null);
@@ -181,7 +183,13 @@ export const SideTabStrip: React.FC<{
       return entry ? fileLabel(entry) : '';
     }
     const meta: SideTabMeta | undefined = model.meta[item.key];
-    return meta?.name || fallbackName(item.target, item.target ? backendOf(item.target) : null);
+    return (
+      meta?.name ||
+      fallbackName(
+        item.target && resolveTarget(item.target),
+        item.target ? backendOf(item.target) : null,
+      )
+    );
   };
   const currentItem = model.items.find((i) => i.key === model.stripActive);
   const sideItem = currentItem && currentItem.kind !== 'main' ? currentItem : undefined;
@@ -279,7 +287,7 @@ export const SideTabStrip: React.FC<{
                 }
               >
                 <AgentHoverCard
-                  target={item.kind === 'agent' ? item.target : null}
+                  target={item.kind === 'agent' && item.target ? resolveTarget(item.target) : null}
                   disabled={selected || !!drag}
                   columnMessages={columnMessages}
                   onOpen={() => model.activate(item)}

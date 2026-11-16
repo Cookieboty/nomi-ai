@@ -39,9 +39,11 @@ import { tasksApi, type TaskTraceView } from '../../services/tasksClient';
 import { cliTranscriptKey } from '../../services/transcriptView';
 import { useSlashCommands } from '../../slash/useSlashCommands';
 import type { ConvLive, ConvMessage } from '../../types/conversation';
+import { nestedHostTabId } from '../../utils/agentIdentity';
 import { useCliImageSupport } from '../../utils/cliImageSupport';
 import { cliTabPlaceholder } from '../../utils/cliTabPlaceholder';
 import { fromHarnessMessage, tabLiveToConv } from '../../utils/convAdapters';
+import { resolveDelegateTarget } from '../../utils/delegateTarget';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { shouldIgnoreEscape } from '../../utils/keyboard';
 import type { LiveAgent } from '../../utils/liveState';
@@ -386,15 +388,21 @@ const NestedChat: React.FC<{
   columnMessages: readonly ConvMessage[];
   onClose: () => void;
   slot: PaneSlot;
-}> = ({ callId, parentTabId, columnMessages, onClose, slot }) => {
+}> = ({ callId, parentTabId: sourceTabId, columnMessages, onClose, slot }) => {
   const core = useHarnessTabsCore();
   const actions = usePaneActions();
   const tabs = useHarnessTabs();
+  // 替这个子代理收话的标签：来源标签；父转录是 Nomi 对话时，主标签接在编程助手上（那一轮其实是它跑的）就是主标签。
+  // 主标签是 Nomi 时没有（Nomi 自己没有进程内子代理，Nomi 派出去的委派在 PaneBody 里已经换成了它的标签）
+  const parentTabId = nestedHostTabId(sourceTabId, tabs.state?.tabs);
   const parent = parentTabId ? tabs.state?.tabs.find((t) => t.id === parentTabId) : undefined;
-  const raw = useHarnessTabMessages(parentTabId);
+  const raw = useHarnessTabMessages(sourceTabId);
   const parentMessages = useMemo(
-    () => (parent ? raw.map((m) => fromHarnessMessage(m, parent.backend)) : columnMessages),
-    [parent, raw, columnMessages],
+    () =>
+      sourceTabId && parent
+        ? raw.map((m) => fromHarnessMessage(m, parent.backend))
+        : columnMessages,
+    [sourceTabId, parent, raw, columnMessages],
   );
   const live = useHarnessLive((map) => (parentTabId ? map[parentTabId] : undefined));
   const detached = useHarnessDetached((map) => (parentTabId ? map[parentTabId] : undefined));
@@ -838,6 +846,12 @@ const PaneBody: React.FC<{
     return <HarnessChat key={tab.id} tab={tab} onClose={onClose} slot={slot} />;
   }
   if (target.kind === 'nested') {
+    // 按「进程内子代理」打开的其实是 Nomi 的一次委派：就是它的编程助手标签，和委派卡片里打开的同一个会话
+    const resolved = resolveDelegateTarget(target, tabs.state?.tabs, columnMessages);
+    if (resolved.kind === 'harness') {
+      const tab = tabs.state?.tabs.find((item) => item.id === resolved.tabId);
+      if (tab) return <HarnessChat key={tab.id} tab={tab} onClose={onClose} slot={slot} />;
+    }
     return (
       <NestedChat
         key={target.callId}

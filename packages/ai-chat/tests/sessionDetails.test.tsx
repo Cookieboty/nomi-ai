@@ -12,7 +12,10 @@ import {
   collectSessionAgents,
   countRunning,
   pendingDelegateTaskIds,
+  sessionAgentTarget,
   sideChatAgents,
+  sortSessionAgents,
+  type SessionAgent,
 } from '../src/components/SessionDetails/agents';
 import { summarizeGit } from '../src/components/SessionDetails/useWorkspaceChanges';
 import { useChangesUi } from '../src/components/SessionWorkspace';
@@ -21,6 +24,13 @@ import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
 import { createSideChat, resetSideChats } from '../src/services/sideChat';
 import type { ConvMessage } from '../src/types/conversation';
+import {
+  agentTargetBackend,
+  nestedHostTabId,
+  nestedOwnerBackend,
+  sessionAgentIdentity,
+} from '../src/utils/agentIdentity';
+import { resolveDelegateTarget } from '../src/utils/delegateTarget';
 import { agentKey } from '../src/utils/sideTabs';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
@@ -719,5 +729,249 @@ describe('agent list cache', () => {
       'explorer',
       'reviewer',
     ]);
+  });
+});
+
+describe('Agents order: status group first, newest first inside a group', () => {
+  const at = (id: string, status: SessionAgent['status'], t?: number): SessionAgent => ({
+    id,
+    kind: 'subagent',
+    status,
+    ...(t != null ? { at: t } : {}),
+  });
+
+  it('running (incl. waiting) → error → done, newest first; untimed last; ties keep order', () => {
+    const sorted = sortSessionAgents([
+      at('done-old', 'done', 1),
+      at('done-new', 'done', 5),
+      at('err-old', 'error', 2),
+      at('err-new', 'error', 6),
+      at('run', 'running', 3),
+      at('wait', 'waiting', 4),
+      at('stopped', 'stopped', 9),
+      at('done-untimed', 'done'),
+      at('done-tie-a', 'done', 5),
+    ]);
+    expect(sorted.map((a) => a.id)).toEqual([
+      'wait',
+      'run',
+      'err-new',
+      'err-old',
+      'done-new',
+      'done-tie-a',
+      'done-old',
+      'done-untimed',
+      'stopped',
+    ]);
+  });
+
+  it('re-sorts only when a status changes (same input, same order)', () => {
+    const list = [at('a', 'done', 1), at('b', 'running', 2), at('c', 'done', 3)];
+    const first = sortSessionAgents(list).map((a) => a.id);
+    expect(sortSessionAgents(list).map((a) => a.id)).toEqual(first);
+    expect(first).toEqual(['b', 'c', 'a']);
+    const finished = list.map((a) => (a.id === 'b' ? { ...a, status: 'error' as const } : a));
+    expect(sortSessionAgents(finished).map((a) => a.id)).toEqual(['b', 'c', 'a']);
+    const failedA = list.map((a) => (a.id === 'a' ? { ...a, status: 'error' as const } : a));
+    expect(sortSessionAgents(failedA).map((a) => a.id)).toEqual(['b', 'a', 'c']);
+  });
+
+  it('rows take their start time from the call (side chats: the latest question)', () => {
+    const msgs = [
+      {
+        id: 'm',
+        role: 'assistant',
+        content: '',
+        timestamp: 1,
+        trace: [
+          { type: 'tool', name: 'Task', status: 'start', id: 's1', at: 100, input: '{}' },
+          { type: 'tool', name: 'Task', status: 'done', id: 's1', at: 900 },
+        ],
+      },
+    ] as unknown as ConvMessage[];
+    expect(collectSessionAgents(msgs, [], {})[0]).toMatchObject({ id: 's1', at: 100 });
+    expect(
+      sideChatAgents([
+        {
+          id: 'x',
+          name: 'n',
+          running: false,
+          messages: [
+            { role: 'user', text: 'a', at: 10 },
+            { role: 'assistant', text: 'b', at: 11 },
+            { role: 'user', text: 'c', at: 20 },
+            { role: 'assistant', text: 'd', at: 21 },
+          ],
+        },
+      ])[0],
+    ).toMatchObject({ at: 20 });
+  });
+
+  it('the popover lists running → error → done (also behind ⋯)', async () => {
+    const call = (id: string, t: number, end: 'done' | 'error') => [
+      {
+        type: 'tool',
+        name: 'Task',
+        status: 'start',
+        id,
+        at: t,
+        input: JSON.stringify({ subagent_type: id }),
+      },
+      { type: 'tool', name: 'Task', status: end, id, at: t + 0.5 },
+    ];
+    const msgs = [
+      {
+        id: 'm',
+        role: 'assistant',
+        content: '',
+        timestamp: 1,
+        trace: [
+          ...call('done1', 1, 'done'),
+          ...call('done2', 2, 'done'),
+          ...call('err1', 3, 'error'),
+          ...call('err2', 4, 'error'),
+          ...call('done3', 6, 'done'),
+        ],
+      },
+      // 委派 c1 的标签 d1 还在跑（第一条消息里派出，最早，但进行中排最前）
+      ...messages,
+    ] as unknown as ConvMessage[];
+    setup();
+    mount('/w/app', msgs);
+    fireEvent.click(screen.getByTestId('session-details-toggle'));
+    await screen.findByTestId('session-details');
+    await waitFor(() =>
+      expect(screen.getByTestId('session-details-agents-count').textContent).toMatch(/7.*1/),
+    );
+    fireEvent.click(screen.getByTestId('session-details-agents-more'));
+    const names = screen
+      .getAllByTestId('session-details-agent')
+      .map((r) => r.textContent?.match(/(done|err)\d|explorer|修复登录/)?.[0]);
+    expect(names).toEqual(['修复登录', 'err2', 'err1', 'done3', 'done2', 'done1', 'explorer']);
+  });
+});
+
+describe('Nomi delegations stay continuable after their tab was reused', () => {
+  // 同一种委派接着用了 d1：标签上的 callId 已换成新那次（c1），旧的 c0 只剩结果里的 taskId
+  const reused = [
+    {
+      id: 'old',
+      role: 'assistant',
+      content: '',
+      timestamp: 1,
+      trace: [
+        {
+          type: 'tool',
+          name: 'delegate_to_cli',
+          status: 'start',
+          id: 'c0',
+          at: 1,
+          input: JSON.stringify({ goal: '先查一下' }),
+        },
+        {
+          type: 'tool',
+          name: 'delegate_to_cli',
+          status: 'done',
+          id: 'c0',
+          at: 2,
+          output: JSON.stringify({
+            ok: true,
+            data: { taskId: 'd1', cli: 'codex', status: 'done', summary: '查完了' },
+          }),
+        },
+      ],
+    },
+    ...messages,
+  ] as unknown as ConvMessage[];
+
+  it('the old delegation opens its (reused) tab, not a read-only sub-agent', () => {
+    const agents = collectSessionAgents(reused, [delegated], {});
+    const old = agents.find((a) => a.id === 'c0')!;
+    // 状态仍按这一次自己的结果（标签现在在跑的是新那次）
+    expect(old).toMatchObject({ kind: 'delegate', tabId: 'd1', status: 'done', backend: 'codex' });
+    expect(sessionAgentTarget(old, null)).toEqual({ kind: 'harness', tabId: 'd1' });
+    // 标签整个没了：不再掉成「进程内子代理」
+    const gone = collectSessionAgents(reused, [], {}).find((a) => a.id === 'c0')!;
+    expect(sessionAgentTarget(gone, null)).toBeNull();
+  });
+
+  it('a nested target that is really a delegation resolves to its harness tab', () => {
+    expect(
+      resolveDelegateTarget(
+        { kind: 'nested', callId: 'c0', parentTabId: null },
+        [delegated],
+        reused,
+      ),
+    ).toEqual({ kind: 'harness', tabId: 'd1' });
+    // 真正的进程内子代理不动
+    expect(
+      resolveDelegateTarget(
+        { kind: 'nested', callId: 'c2', parentTabId: null },
+        [delegated],
+        reused,
+      ),
+    ).toEqual({ kind: 'nested', callId: 'c2', parentTabId: null });
+  });
+
+  it('clicking the old delegation in the popover opens the coding-agent tab', async () => {
+    setup();
+    mount('/w/app', reused);
+    fireEvent.click(screen.getByTestId('session-details-toggle'));
+    await screen.findByTestId('session-details');
+    const row = await waitFor(() => {
+      const r = screen
+        .getAllByTestId('session-details-agent')
+        .find((x) => x.textContent?.includes('先查一下'));
+      expect(r).toBeTruthy();
+      return r!;
+    });
+    fireEvent.click(row.querySelector('button')!);
+    expect(screen.getByTestId('probe-target').textContent).toBe(
+      agentKey({ kind: 'harness', tabId: 'd1' }),
+    );
+  });
+});
+
+describe('agent identity (icon + name) comes from what the agent really is', () => {
+  const tab = (id: string, backend: HarnessTabMeta['backend']) =>
+    ({ id, backend }) as HarnessTabMeta;
+
+  it('a sub-agent of the Nomi chat is Nomi; of a coding-agent tab, that agent', () => {
+    expect(nestedOwnerBackend(null, [tab('main', 'nomi')])).toBe('nomi');
+    expect(nestedOwnerBackend(null, [])).toBe('nomi');
+    // 主标签切到了编程助手：那一轮是它跑的
+    expect(nestedOwnerBackend(null, [tab('main', 'claude')])).toBe('claude');
+    expect(nestedOwnerBackend('t1', [tab('t1', 'codex')])).toBe('codex');
+    expect(
+      agentTargetBackend({ kind: 'nested', callId: 'x', parentTabId: null }, [tab('main', 'nomi')]),
+    ).toBe('nomi');
+    expect(agentTargetBackend({ kind: 'nomi-task', taskId: 't' }, [])).toBe('nomi');
+    expect(agentTargetBackend({ kind: 'harness', tabId: 'd1' }, [tab('d1', 'grok')])).toBe('grok');
+  });
+
+  it('only a sub-agent whose source can take a message gets a host tab', () => {
+    expect(nestedHostTabId(null, [tab('main', 'nomi')])).toBeNull();
+    expect(nestedHostTabId(null, [tab('main', 'claude')])).toBe('main');
+    expect(nestedHostTabId('t1', [])).toBe('t1');
+  });
+
+  it('session-detail rows: sub-agents use the owner icon, delegations their CLI', () => {
+    expect(sessionAgentIdentity({ kind: 'subagent', label: 'explorer' }, 'nomi')).toEqual({
+      backend: 'nomi',
+      name: 'explorer',
+    });
+    expect(sessionAgentIdentity({ kind: 'delegate', backend: 'codex' }, 'nomi').backend).toBe(
+      'codex',
+    );
+    expect(sessionAgentIdentity({ kind: 'side-chat', label: 's' }, 'claude').backend).toBe('nomi');
+  });
+
+  it('a Nomi-chat sub-agent row shows the Nomi icon, not a Claude one', async () => {
+    setup();
+    mount('/w/app', subagentCalls(1));
+    fireEvent.click(screen.getByTestId('session-details-toggle'));
+    const row = await screen.findByTestId('session-details-agent');
+    expect(row.querySelector('[data-testid="endpoint-icon-nomi"]')).toBeTruthy();
+    expect(row.querySelector('[data-testid="endpoint-icon-claude"]')).toBeNull();
   });
 });

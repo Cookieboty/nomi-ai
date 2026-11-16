@@ -37,6 +37,7 @@ import { replyPermissionRequest } from '../../services/permissionReply';
 import type { ConvMessage } from '../../types/conversation';
 import { canStopSubagent } from '../../utils/cliCaps';
 import { fromHarnessMessage, tabLiveToConv } from '../../utils/convAdapters';
+import { delegateOpenTab } from '../../utils/delegateTarget';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import type { LiveAgent, TabLive } from '../../utils/liveState';
 import { resourceTarget, resolveDocumentHref, workspaceFileHref } from '../../utils/resourceLinks';
@@ -613,6 +614,8 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
   const step = running ? currentStep(v.live) : null;
   const name = v.backend ? t(ENDPOINT_NAME[v.backend]) : t('ui.providers-schedule.coding-agents');
   const tab = v.tab;
+  // 标签被后来的同类委派接着用了：仍能从这张卡片打开它接着说（同一个会话）
+  const openTab = tab ?? delegateOpenTab(call, tabs.state?.tabs, liveResult);
   // 后台委派是持续任务（标签带 taskId）：停止 = 取消任务；直接停标签会让任务以为执行者崩了
   const tabTaskId = tab?.delegation?.taskId;
   // 结束后：从子任务对话里补齐改过的文件；读文件时按目录依次找
@@ -708,8 +711,10 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
           </button>
           {v.backend && <EndpointIcon backend={v.backend} size={16} decorative />}
           <AgentHoverCard
-            target={tab ? { kind: 'harness', tabId: tab.id } : null}
-            onOpen={tab && subagentPane ? () => subagentPane.openSubagent(tab.id) : undefined}
+            target={openTab ? { kind: 'harness', tabId: openTab.id } : null}
+            onOpen={
+              openTab && subagentPane ? () => subagentPane.openSubagent(openTab.id) : undefined
+            }
             fallback={{ lastUser: v.goal }}
             className={styles.title}
           >
@@ -732,13 +737,15 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
               <Icon icon={Square} size={12} />
             </button>
           )}
-          {tab && (
+          {openTab && (
             <button
               type="button"
               className={styles.iconBtn}
               aria-label={t('ui.session-workspace.view-subtask')}
               data-testid="delegate-view"
-              onClick={() => (subagentPane ? subagentPane.openSubagent(tab.id) : setDrawer(true))}
+              onClick={() =>
+                subagentPane ? subagentPane.openSubagent(openTab.id) : setDrawer(true)
+              }
             >
               <Icon icon={ExternalLink} size={13} />
             </button>
