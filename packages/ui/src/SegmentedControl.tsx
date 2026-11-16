@@ -1,7 +1,8 @@
 import React from 'react';
 
 import { cx } from './cx';
-import { t as tr } from './i18n';
+import { t as tr, useLocale } from './i18n';
+import { useTabIndicator } from './useTabIndicator';
 
 export interface SegmentedOption<T extends string = string> {
   value: T;
@@ -53,14 +54,33 @@ export function SegmentedControl<T extends string = string>({
   };
   // 没有选中项时让第一个可用选项可以 Tab 进来
   const focusable = options.some((o) => o.value === value) ? value : enabled[0]?.value;
+  const locale = useLocale();
+  const { listRef, indicator } = useTabIndicator<HTMLDivElement>(
+    `${value ?? ''}\0${locale}\0${options.length}`,
+    '[aria-checked="true"]',
+  );
   return (
     <div
+      ref={listRef}
       role="radiogroup"
+      data-sliding={indicator.visible ? 'true' : undefined}
       className={cx('cd-tabs', 'cd-seg', className)}
       aria-disabled={disabled || undefined}
       onKeyDown={onKey}
       {...rest}
     >
+      {indicator.visible && (
+        <span
+          aria-hidden="true"
+          data-animate={indicator.animate ? 'true' : undefined}
+          className="cd-tabs__indicator"
+          style={{
+            width: `${indicator.width}px`,
+            height: `${indicator.height}px`,
+            transform: `translate3d(${indicator.left}px, ${indicator.top}px, 0)`,
+          }}
+        />
+      )}
       {options.map((o) => (
         <button
           key={o.value}

@@ -12,6 +12,8 @@
   gap: var(--cd-space-2);
 }
 .tabs {
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   flex-wrap: wrap;
   gap: var(--cd-space-0-5);
@@ -22,7 +24,26 @@
   width: fit-content;
   max-width: 100%;
 }
+.tabIndicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+  box-sizing: border-box;
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-accent-soft);
+  border: 1px solid var(--cd-color-accent-strong);
+}
+.tabIndicator[data-animate='true'] {
+  transition:
+    transform var(--cd-duration-fast) var(--cd-ease-out),
+    width var(--cd-duration-fast) var(--cd-ease-out),
+    height var(--cd-duration-fast) var(--cd-ease-out);
+}
 .tab {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: var(--cd-space-1-5);
@@ -50,6 +71,10 @@
   background: var(--cd-color-accent-soft);
   border-color: var(--cd-color-accent-strong);
   color: var(--cd-color-text);
+}
+.tabs[data-sliding='true'] .tabOn {
+  background: transparent;
+  border-color: transparent;
 }
 /* 左右各留一点内边距再用负外边距抵回：滚动区会裁掉卡片阴影与焦点描边 */
 .panel {
@@ -87,8 +112,49 @@
     border-color var(--cd-duration-fast) var(--cd-ease);
 }
 
+.panel[data-tab-motion='right-a'] {
+  animation: sectionPanelRightA 0.16s var(--cd-ease-out);
+}
+.panel[data-tab-motion='right-b'] {
+  animation: sectionPanelRightB 0.16s var(--cd-ease-out);
+}
+.panel[data-tab-motion='left-a'] {
+  animation: sectionPanelLeftA 0.16s var(--cd-ease-out);
+}
+.panel[data-tab-motion='left-b'] {
+  animation: sectionPanelLeftB 0.16s var(--cd-ease-out);
+}
+@keyframes sectionPanelRightA {
+  from {
+    opacity: 0.45;
+    translate: 8px 0;
+  }
+}
+@keyframes sectionPanelRightB {
+  from {
+    opacity: 0.45;
+    translate: 8px 0;
+  }
+}
+@keyframes sectionPanelLeftA {
+  from {
+    opacity: 0.45;
+    translate: -8px 0;
+  }
+}
+@keyframes sectionPanelLeftB {
+  from {
+    opacity: 0.45;
+    translate: -8px 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .tab {
+  .tab,
+  .tabIndicator[data-animate='true'] {
     transition: none;
+  }
+  .panel[data-tab-motion] {
+    animation: none;
   }
 }
