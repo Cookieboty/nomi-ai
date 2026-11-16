@@ -208,6 +208,10 @@ func (h *fakeHarness) CloseTab(id string) error {
 	return nil
 }
 
+func (h *fakeHarness) RecoverTab(id string, dropSession bool) {
+	h.log.add(&h.log.harness, []any{"recoverTab", id, dropSession})
+}
+
 type fakeDesktop struct {
 	sc        *util.Obj
 	base      string

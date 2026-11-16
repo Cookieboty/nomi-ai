@@ -56,7 +56,7 @@ func FindReusableTab(tabs []any, key string, now float64, busy func(taskID strin
 			continue
 		}
 		d, _ := t.Get("delegation").(*util.Obj)
-		if d == nil || d.Get("by") != "nomi" || util.Truthy(d.Get("takenOver")) || util.Str(d.Get("reuseKey")) != key {
+		if d == nil || d.Get("by") != "nomi" || util.Truthy(d.Get("takenOver")) || util.Truthy(d.Get("lastError")) || util.Str(d.Get("reuseKey")) != key {
 			continue
 		}
 		if t.Get("status") != "idle" || util.Str(t.Get("cliSessionId")) == "" {

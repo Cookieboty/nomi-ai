@@ -26,8 +26,14 @@ func TestEditLogSince(t *testing.T) {
 	if got := l.Since("a", cwd, 0, 0); len(got) != 0 {
 		t.Fatal(got)
 	}
+	l.Note("c", []string{"keep.go"}, 100)
+	l.Retain([]string{"c"})
+	if len(l.Since("b", cwd, 0, 0)) != 0 || len(l.Since("c", cwd, 0, 0)) != 1 {
+		t.Fatal("retain failed")
+	}
 	var nilLog *EditLog
 	nilLog.Note("a", []string{"x"}, 1)
+	nilLog.Retain([]string{"a"})
 	if nilLog.Since("a", "", 0, 0) != nil {
 		t.Fatal("nil log")
 	}

@@ -556,6 +556,18 @@ func (o *Orchestrator) finish(tab *util.Obj, ok bool, text string, errStr *strin
 	if background && id != MainTabID {
 		tab.Set("unread", jsToNumber(tab.Get("unread"))+1)
 	}
+	if d, _ := tab.Get("delegation").(*util.Obj); d != nil && d.Get("by") == "nomi" {
+		if ok {
+			d.Delete("lastError")
+		} else {
+			d.Set("lastError", true)
+			// 未被用户接手的委派标签出错：下一拍拆掉常驻子进程释放内存（转录与 cliSessionId 仍在，重试或查看时按需拉起），
+			// 防止报错的 CLI 进程越攒越多拖垮系统内存
+			if !truthy(d.Get("takenOver")) {
+				jsrt.SetTimeout(0, func() { o.RecoverDelegatedTab(id, false) })
+			}
+		}
+	}
 	o.changed()
 	dur := 0.0
 	if msgs := o.messages[id]; len(msgs) > 0 {

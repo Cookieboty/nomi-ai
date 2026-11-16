@@ -50,12 +50,10 @@ func TestReportFollowUpCarriesChangedFiles(t *testing.T) {
 	e.h.tabs = append(e.h.tabs, util.NewObj("id", "tab_1", "cwd", cwd))
 	e.h.mu.Unlock()
 	now := e.svc.d.Now()
-	Edits.Forget("tab_1")
-	t.Cleanup(func() { Edits.Forget("tab_1") })
 	// 更早一轮改的不算；这一轮改的按标签目录转成相对路径
-	Edits.Note("tab_1", []string{filepath.Join(cwd, "old.go")}, now-60_000)
-	Edits.Note("tab_1", []string{filepath.Join(cwd, "internal", "upstream_protocol.go")}, now-2_000)
-	Edits.Note("tab_1", []string{filepath.Join(cwd, "internal", "upstream_protocol_test.go")}, now-1_000)
+	e.edits.Note("tab_1", []string{filepath.Join(cwd, "old.go")}, now-60_000)
+	e.edits.Note("tab_1", []string{filepath.Join(cwd, "internal", "upstream_protocol.go")}, now-2_000)
+	e.edits.Note("tab_1", []string{filepath.Join(cwd, "internal", "upstream_protocol_test.go")}, now-1_000)
 
 	e.svc.ReportFollowUp("t1", "tab_1", true, "改好了，加了测试", nil, 5_000)
 	report := "[nomi-report]\n做了什么：修了协议\n改动的文件：\n- README.md\n[/nomi-report]"

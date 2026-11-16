@@ -235,9 +235,10 @@ func taskCliDeps(d *desktop.Service) tasks.CliDeps {
 			if key == "" || o == nil {
 				return ""
 			}
+			closeStaleDelegatedTabs(o)
 			tabs, _ := jsrt.Call(o.ListTabs).Get("tabs").([]any)
 			id := delegate.FindReusableTab(tabs, key, float64(time.Now().UnixMilli()), func(prev string) bool {
-				return taskBusy(prev)
+				return taskNotReusable(prev)
 			})
 			if id == "" {
 				return ""
@@ -264,6 +265,14 @@ func taskCliDeps(d *desktop.Service) tasks.CliDeps {
 		},
 		Unclaim: func(tabID string, changed []string) ([]string, []string) {
 			return delegateClaims.Finish(tabID).Filter(changed)
+		},
+		EditsSince: func(tabID, cwd string, from, to int64) []string {
+			return delegateEdits.Since(tabID, cwd, float64(from), float64(to))
+		},
+		RecoverTab: func(tabID string, dropSession bool) {
+			if o := harnessOrch; o != nil {
+				_, _ = gilErr(func() bool { return o.RecoverDelegatedTab(tabID, dropSession) })
+			}
 		},
 		GitChanged: delegate.GitChanged,
 		BuildPrompt: func(goal, context, doneWhen, outOfScope string) string {
@@ -355,13 +364,22 @@ func taskReuseKey(t tasks.Task, cwd string) string {
 	return delegate.ReuseKey(*t.Origin.ConversationID, *t.Executor.Cli, cwd, cat, model, effort)
 }
 
-// taskBusy：委派标签上一个任务还没结束（运行中、等验收、要返工……）就不拿来复用
+// taskBusy：委派标签上一个任务还没结束（运行中、等验收、要返工……）
 func taskBusy(id string) bool {
 	if b8Tasks == nil {
 		return true
 	}
 	rec := b8Tasks.Runtime.Get(id)
 	return rec != nil && !retiredTaskStatus(rec.Task.Status)
+}
+
+// taskNotReusable：上一个任务还没结束，或者最终失败了（失败会话不再拿来复用给新任务）
+func taskNotReusable(id string) bool {
+	if b8Tasks == nil {
+		return true
+	}
+	rec := b8Tasks.Runtime.Get(id)
+	return rec != nil && (rec.Task.Status == tasks.StatusFailed || !retiredTaskStatus(rec.Task.Status))
 }
 
 func runeSlice(s string, n int) string {

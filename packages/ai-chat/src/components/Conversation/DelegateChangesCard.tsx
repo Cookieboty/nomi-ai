@@ -8,6 +8,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   matchDelegateChanges,
   messagesInRange,
+  peekPrefetchedTabMessages,
   type DelegateChanges,
 } from '../../services/delegateChanges';
 import { harnessClient, type HarnessTabMessage } from '../../services/harnessClient';
@@ -25,10 +26,13 @@ export const DelegateChangesCard: React.FC<{ messageId: string; changes: Delegat
   messageId,
   changes,
 }) => {
-  const { tabId, cwd, backend, from, to, files } = changes;
-  const [child, setChild] = useState<HarnessTabMessage[] | null>(null);
+  const { tabId, cwd, childCwd, backend, from, to, files } = changes;
+  const [child, setChild] = useState<HarnessTabMessage[] | null>(() =>
+    peekPrefetchedTabMessages(changes),
+  );
   useEffect(() => {
     if (!tabId) return;
+    if (peekPrefetchedTabMessages(changes)) return;
     let alive = true;
     void harnessClient
       .tabMessages(tabId)
@@ -37,7 +41,8 @@ export const DelegateChangesCard: React.FC<{ messageId: string; changes: Delegat
     return () => {
       alive = false;
     };
-  }, [tabId]);
+  }, [tabId, changes]);
+  const matchCwd = childCwd ?? cwd;
   const entries = useMemo<ChangeEntry[]>(() => {
     const listed = files.map((f) => f.file);
     if (child?.length) {
@@ -46,7 +51,7 @@ export const DelegateChangesCard: React.FC<{ messageId: string; changes: Delegat
         from,
         to,
       );
-      const matched = matchDelegateChanges(listed, conv, cwd, messageId).entries;
+      const matched = matchDelegateChanges(listed, conv, matchCwd, messageId).entries;
       // 会话里认不出的文件用消息里记下的计数
       return matched.map((e, i) =>
         e.diff ? e : { ...e, added: files[i]?.added ?? 0, removed: files[i]?.removed ?? 0 },
@@ -59,7 +64,7 @@ export const DelegateChangesCard: React.FC<{ messageId: string; changes: Delegat
       ...statusOf(f.added, f.removed),
       messageId,
     }));
-  }, [child, files, cwd, backend, from, to, messageId]);
+  }, [child, files, matchCwd, backend, from, to, messageId]);
   if (!entries.length) return null;
   return (
     <div data-testid="delegate-changes">

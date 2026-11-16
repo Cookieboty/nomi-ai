@@ -24,13 +24,22 @@ export interface DelegateChangeFile {
 export interface DelegateChanges {
   /** 子任务标签（读它的会话拿行级 Diff） */
   tabId?: string;
-  /** 子任务的工作目录（文件路径相对它） */
+  /** 改动落地所在的工作目录（撤销 / 查看工作区文件针对它；转存新分支或未验收时没有） */
   cwd?: string;
+  /** 子任务自己运行时的目录（worktree 隔离时与 cwd 不同，用来把工具事件路径转成相对路径） */
+  childCwd?: string;
   backend?: string;
   /** 这一次（或接着对话的这一轮）的时间范围：只取这段里子任务会话的改动 */
   from?: number;
   to?: number;
   files: DelegateChangeFile[];
+}
+
+const prefetchedByChanges = new WeakMap<DelegateChanges, HarnessTabMessage[]>();
+
+/** 同一轮 collectDelegateChanges 刚拉过的子任务消息（按结果对象弱引用挂载，不跨实例串扰、自动回收） */
+export function peekPrefetchedTabMessages(changes: DelegateChanges): HarnessTabMessage[] | null {
+  return prefetchedByChanges.get(changes) ?? null;
 }
 
 /** 内核核对出的改动文件：汇报里的优先（已按 git 核对），否则内核列出的 */
@@ -132,9 +141,13 @@ export async function collectDelegateChanges(
     state?.tabs.find((x) => x.id === r.tabId) ??
     state?.tabs.find((x) => x.delegation?.taskId === r.taskId);
   const tabId = tab?.id ?? r.tabId;
+  // 子任务执行目录用来归一化会话里的工具路径；落盘到卡片的 cwd 用真正落地的工作区目录（避免指向已拆毁的 worktree）
+  const childCwd = tab?.cwd ?? (r.cwd || undefined);
+  const landedCwd = r.cwd !== undefined ? r.cwd || undefined : tab?.cwd;
   const base: DelegateChanges = {
     ...(tabId ? { tabId } : {}),
-    ...(tab?.cwd ? { cwd: tab.cwd } : {}),
+    ...(landedCwd ? { cwd: landedCwd } : {}),
+    ...(childCwd && childCwd !== landedCwd ? { childCwd } : {}),
     ...(tab?.backend ? { backend: tab.backend } : {}),
     ...(from != null ? { from } : {}),
     to,
@@ -149,5 +162,10 @@ export async function collectDelegateChanges(
     from,
     to,
   );
-  return { ...base, files: matchDelegateChanges(reported, conv, tab?.cwd, '').files };
+  const out: DelegateChanges = {
+    ...base,
+    files: matchDelegateChanges(reported, conv, childCwd, '').files,
+  };
+  prefetchedByChanges.set(out, raw);
+  return out;
 }

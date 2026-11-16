@@ -83,6 +83,26 @@ func (l *EditLog) Forget(tabID string) {
 	l.mu.Unlock()
 }
 
+// Retain：只保留还开着的标签（编排器标签列表变更时清理已关闭标签的记录）
+func (l *EditLog) Retain(liveIDs []string) {
+	if l == nil {
+		return
+	}
+	keep := make(map[string]bool, len(liveIDs))
+	for _, id := range liveIDs {
+		if id != "" {
+			keep[id] = true
+		}
+	}
+	l.mu.Lock()
+	for id := range l.tabs {
+		if !keep[id] {
+			delete(l.tabs, id)
+		}
+	}
+	l.mu.Unlock()
+}
+
 // relToCwd：cwd 里的绝对路径 → 相对 cwd（统一用 /，与 git status 的列表一致）；相对路径整理一下原样返回
 func relToCwd(cwd, p string) string {
 	p = strings.TrimSpace(p)

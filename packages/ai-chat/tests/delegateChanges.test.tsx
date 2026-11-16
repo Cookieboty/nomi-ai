@@ -241,4 +241,54 @@ describe('delegate changes back in the source chat', () => {
     await waitFor(() => expect(tabMessages).toHaveBeenCalledWith('tab_1'));
     expect(screen.getByTestId('turn-view-changes')).toBeTruthy();
   });
+
+  it('separates child worktree cwd from landed workspace cwd and reuses prefetched messages', async () => {
+    const wt = '/tmp/nomi-wt-1';
+    const wtTabs: HarnessTabsState = {
+      ...TABS,
+      tabs: [{ ...TABS.tabs[0]!, cwd: wt }],
+    };
+    const wtChild: HarnessTabMessage[] = [
+      {
+        id: 'a1',
+        role: 'assistant',
+        content: 'done',
+        timestamp: NOW - 1_000,
+        trace: [edit(`${wt}/internal/upstream_protocol.go`, 'a\n', 'b\nc\n')],
+      } as HarnessTabMessage,
+    ];
+    tabMessages.mockResolvedValue(wtChild);
+    const landed = await collectDelegateChanges(
+      result({ cwd: CWD, changedFiles: ['internal/upstream_protocol.go'] }),
+      {
+        tabs: () => Promise.resolve(wtTabs),
+        tabMessages,
+        now: () => NOW,
+      },
+    );
+    expect(landed).toMatchObject({
+      cwd: CWD,
+      childCwd: wt,
+      files: [{ file: 'internal/upstream_protocol.go', added: 2, removed: 1 }],
+    });
+    expect(tabMessages).toHaveBeenCalledTimes(1);
+
+    // 紧接着挂载卡片直接复用同一实例刚拉过的消息，不再二次 IPC
+    const conv = fromChatMessage(delegateResultMessage(result(), NOW, landed))!;
+    render(<ChangesUiProvider>{nomiSlots.after!(conv)}</ChangesUiProvider>);
+    await screen.findByTestId('turn-edit-summary');
+    expect(tabMessages).toHaveBeenCalledTimes(1);
+
+    // 转存到独立分支（cwd: null）：保留 childCwd 解析 Diff，但不记录落地 cwd
+    const branched = await collectDelegateChanges(
+      result({ cwd: null, changedFiles: ['internal/upstream_protocol.go'] }),
+      {
+        tabs: () => Promise.resolve(wtTabs),
+        tabMessages,
+        now: () => NOW,
+      },
+    );
+    expect(branched?.cwd).toBeUndefined();
+    expect(branched?.childCwd).toBe(wt);
+  });
 });

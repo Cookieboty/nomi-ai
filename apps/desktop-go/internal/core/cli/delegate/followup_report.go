@@ -39,15 +39,15 @@ func (s *Service) ReportFollowUp(taskID, tabID string, ok bool, text string, err
 	if report != nil {
 		changed = strList(report.Get("changedFiles"))
 	}
+	cwd := ""
 	if tabID != "" {
-		cwd := ""
 		if tab := s.findTab(tabID); tab != nil {
 			cwd = util.Str(tab.Get("cwd"))
 		}
 		// 这一轮从用户那条消息算起（多留 1 秒余量）；不知道用时就不认工具事件，免得把更早的轮次算进来
 		if durationMs > 0 {
 			now := s.d.Now()
-			changed = mergeFiles(changed, Edits.Since(tabID, cwd, now-durationMs-1000, now))
+			changed = mergeFiles(changed, s.edits().Since(tabID, cwd, now-durationMs-1000, now))
 		}
 	}
 	changed = head(changed, 50)
@@ -59,6 +59,9 @@ func (s *Service) ReportFollowUp(taskID, tabID string, ok bool, text string, err
 	}
 	if len(changed) > 0 {
 		res.Set("changedFiles", toAnyList(changed))
+		if cwd != "" {
+			res.Set("cwd", cwd)
+		}
 	}
 	res.Set("filesVerified", false)
 	res.Set("approvals", s.approvalsOf(taskID).Clone())

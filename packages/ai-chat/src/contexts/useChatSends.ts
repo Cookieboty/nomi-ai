@@ -178,7 +178,12 @@ function useStreamSend({
 }: SendsOptions) {
   // 发送流式消息
   const sendStreamMessage = useCallback(
-    async (content: string, images?: ImageAttachment[], override?: { history: ChatMessage[] }) => {
+    async (
+      content: string,
+      images?: ImageAttachment[],
+      override?: { history: ChatMessage[]; backgroundFollowUp?: boolean },
+    ) => {
+      const bgFollow = override?.backgroundFollowUp === true;
       const s = stateRef.current;
       const client = s.ipcClient;
       // 发起时固定会话：之后无论用户切到哪个会话，这一轮都写回这里
@@ -187,7 +192,7 @@ function useStreamSend({
       const controller = new AbortController();
       let owned = false;
       // 用户发了新消息：正在朗读的上一条回复立即停
-      stopReplySpeech();
+      if (!bgFollow) stopReplySpeech();
       let speaker: ReplySpeaker | null = null;
       try {
         dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
@@ -202,17 +207,19 @@ function useStreamSend({
             throw new Error(t('ui.chat-settings.cancelled-the-image-wasn-t-sent-to-the'));
         }
 
-        // `/agent`：按会话 chip → 按 turnId 钉到主进程；钉住失败则中止发送
-        bindNextDelegateConversation(turn.convoId);
+        // `/agent`：按会话 chip → 按 turnId 钉到主进程；钉住失败则中止发送（后台自动跟进不消费用户的 pin）
         let delegateTo: Awaited<ReturnType<typeof consumeNextDelegate>> = null;
-        try {
-          delegateTo = await consumeNextDelegate(reqId);
-        } catch (pinErr) {
-          const msg =
-            pinErr instanceof Error
-              ? pinErr.message
-              : t('ui.slash-commands.couldn-t-pin-the-coding-assistant-the-message');
-          throw Object.assign(new Error(msg), { cause: pinErr });
+        if (!bgFollow) {
+          bindNextDelegateConversation(turn.convoId);
+          try {
+            delegateTo = await consumeNextDelegate(reqId);
+          } catch (pinErr) {
+            const msg =
+              pinErr instanceof Error
+                ? pinErr.message
+                : t('ui.slash-commands.couldn-t-pin-the-coding-assistant-the-message');
+            throw Object.assign(new Error(msg), { cause: pinErr });
+          }
         }
         // 原图存进素材库：消息里记下地址（放大看原图、复制、以此修改 / 作为参考），这一轮也把地址告诉模型
         const imageUrls = images?.length ? await importChatImages(images, turn.convoId) : [];
@@ -303,17 +310,18 @@ function useStreamSend({
           const c = await compactHistory(client, history, content, turn, false, dispatch);
           if (c.next) history = c.next;
         }
-        // 准备期间用户可能已切到别的会话：只有发起会话仍在显示时才上屏
-        if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
+        // 准备期间用户可能已切到别的会话：只有发起会话仍在显示时才上屏（后台自动恢复跟进不造假用户气泡）
+        if (!bgFollow && turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
         inflight.current.set(convoKey(turn.convoId), {
           reqId,
           convoId: turn.convoId,
-          messages: [userMessage],
+          messages: bgFollow ? [] : [userMessage],
         });
         schedClient.activity();
 
         if (hs) {
           if (hs.backend !== 'nomi') {
+            if (bgFollow) return;
             // 主对话标签切到编程助手：和普通标签同一条路径（能不能附图由主进程按模型能力判断）
             const r = images?.length
               ? await harnessClient.sendTab(
@@ -349,7 +357,7 @@ function useStreamSend({
         }
 
         // 标题不等这一轮结束：用户消息已确定，和回复并行生成（长任务不再一直显示「新对话」）
-        maybeStartNomiSmartTitle(client, turn.convoId, userMessage.content);
+        if (!bgFollow) maybeStartNomiSmartTitle(client, turn.convoId, userMessage.content);
 
         // 新召回的记忆跟着本轮用户消息走（存进消息、之后每轮原样带），已在上下文里的不再召回；
         // 技能目录每轮不变，留在 system
@@ -357,7 +365,7 @@ function useStreamSend({
           memoryContext(content, injectedMemoryIds(history)),
           extClient.context(),
         ]);
-        if (mem.text.trim()) userMessage.memory = { text: mem.text, ids: mem.ids };
+        if (!bgFollow && mem.text.trim()) userMessage.memory = { text: mem.text, ids: mem.ids };
         // 准备期间（压缩 / 记忆召回等）发起会话被删了：不发送（没有地方落盘，也不能借用当前会话）
         if (!turn.exists()) return;
         const aiMessageId = (Date.now() + 1).toString();
@@ -367,15 +375,16 @@ function useStreamSend({
           content: '',
           timestamp: Date.now(),
           modelId: nomiModelLabel(),
+          ...(bgFollow ? { origin: 'background' as const } : {}),
           ...(mem.used.length ? { memories: mem.used } : {}),
         };
+        const pair = (ai: ChatMessage): ChatMessage[] => (bgFollow ? [ai] : [userMessage, ai]);
         // 用户消息一并 upsert：准备期间切走又切回时，用户消息还没上屏（顺序保持「问在前、答在后」）
-        if (turn.isActive())
-          dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, aiMessage] });
+        if (turn.isActive()) dispatch({ type: 'UPSERT_MESSAGES', payload: pair(aiMessage) });
         inflight.current.set(convoKey(turn.convoId), {
           reqId,
           convoId: turn.convoId,
-          messages: [userMessage, aiMessage],
+          messages: pair(aiMessage),
         });
 
         activeStream.current.set(convoKey(turn.convoId), {
@@ -384,8 +393,8 @@ function useStreamSend({
           controller,
         });
         owned = true;
-        // 朗读 AI 回复：只念普通 Nomi 对话（`/agent` 委派给编程助手的这一轮不念）
-        if (!delegateTo) speaker = startReplySpeech(reqId);
+        // 朗读 AI 回复：只念普通 Nomi 对话（`/agent` 委派或后台自动跟进不念）
+        if (!delegateTo && !bgFollow) speaker = startReplySpeech(reqId);
         dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
         let accumulated = '';
         let thinking: boolean | undefined;
@@ -407,15 +416,12 @@ function useStreamSend({
           if (timer) window.clearTimeout(timer);
           raf = 0;
           timer = 0;
-          const payload = [
-            userMessage,
-            {
-              ...aiMessage,
-              content: accumulated,
-              ...(thinking !== undefined ? { thinking } : {}),
-              ...(trace.length ? { trace: traceNow() } : {}),
-            },
-          ];
+          const payload = pair({
+            ...aiMessage,
+            content: accumulated,
+            ...(thinking !== undefined ? { thinking } : {}),
+            ...(trace.length ? { trace: traceNow() } : {}),
+          });
           const f = inflight.current.get(convoKey(turn.convoId));
           if (f?.reqId === reqId) f.messages = payload;
           // 用户已切到别的会话：只累积，不动当前界面；回到本会话时由 loadChatHistory 补回整轮消息
@@ -487,11 +493,13 @@ function useStreamSend({
             durationMs: Date.now() - startedAt,
             ...(usage?.responseModel ? { responseModel: usage.responseModel } : {}),
             ...(trace.length ? { trace: [...trace] } : {}),
+            ...(steps ? { steps } : {}),
           };
-          if (turn.isActive())
-            dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, failed] });
-          maybeStartNomiSmartTitle(client, turn.convoId, userMessage.content);
-          await turn.save(userMessage);
+          if (turn.isActive()) dispatch({ type: 'UPSERT_MESSAGES', payload: pair(failed) });
+          if (!bgFollow) {
+            maybeStartNomiSmartTitle(client, turn.convoId, userMessage.content);
+            await turn.save(userMessage);
+          }
           await turn.save(failed);
           // 错误已经显示在这一轮的卡片里（含详情 / 重试 / 复制）：不再抛给外层，避免底部再弹一条同样的提示（#78）
           return;
@@ -515,14 +523,19 @@ function useStreamSend({
           ...(stopped ? { stopped: true } : {}),
         };
         if (turn.isActive()) {
-          dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, finalAiMessage] });
+          dispatch({ type: 'UPSERT_MESSAGES', payload: pair(finalAiMessage) });
         }
-        maybeStartNomiSmartTitle(client, turn.convoId, userMessage.content);
-        await turn.save(userMessage);
+        if (!bgFollow) {
+          maybeStartNomiSmartTitle(client, turn.convoId, userMessage.content);
+          await turn.save(userMessage);
+        }
         await turn.save(finalAiMessage);
         if (!stopped && turn.exists())
           maybeIngest(
-            [...history.filter((m) => !isCompaction(m)), userMessage, finalAiMessage],
+            [
+              ...history.filter((m) => !isCompaction(m)),
+              ...(bgFollow ? [finalAiMessage] : [userMessage, finalAiMessage]),
+            ],
             turn.convoId,
           );
       } catch (error) {

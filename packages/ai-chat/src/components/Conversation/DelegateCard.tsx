@@ -467,21 +467,23 @@ const Report: React.FC<{
  */
 const DelegateDrawer: React.FC<{
   v: DelegateView;
+  fallbackTab?: HarnessTabMeta | null;
   elapsed: string | null;
   running: boolean;
   stopping: boolean;
   onStop: () => void;
   onClose: () => void;
-}> = ({ v, elapsed, running, stopping, onStop, onClose }) => {
-  const tabId = v.tab?.id;
-  const messages = useTabMessages(tabId, v.tab?.updatedAt, running);
+}> = ({ v, fallbackTab, elapsed, running, stopping, onStop, onClose }) => {
+  const drawerTab = v.tab ?? fallbackTab ?? null;
+  const tabId = drawerTab?.id;
+  const messages = useTabMessages(tabId, drawerTab?.updatedAt, running);
   const backend = v.backend ?? 'claude';
   const conv = useMemo(
     () => (messages ?? []).map((m) => fromHarnessMessage(m, backend)),
     [messages, backend],
   );
   const live = useMemo(() => tabLiveToConv(v.live), [v.live]);
-  const cwd = v.tab?.cwd ?? null;
+  const cwd = drawerTab?.cwd ?? null;
   const slots = useMemo(() => buildCliSlots({ cwd }), [cwd]);
   const drawerTaskId = v.tab?.delegation?.taskId;
   const onPermission = useCallback(
@@ -624,7 +626,8 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
   // 不手写 useMemo：交给 React Compiler（卡片里的 v / tab 每次渲染新建，手写依赖保不住）
   // A vanished child tab provides no proven cwd: never reinterpret historical
   // relative files in whichever main workspace happens to be active now.
-  const roots = tab?.cwd ? [...new Set([tab.cwd, mainCwd].filter((x): x is string => !!x))] : [];
+  const fileCwd = tab?.cwd ?? openTab?.cwd;
+  const roots = fileCwd ? [...new Set([fileCwd, mainCwd].filter((x): x is string => !!x))] : [];
   const childMessages = useTabMessages(tab?.id, tab?.updatedAt, running, !running && open);
   const backend = v.backend ?? 'claude';
   const childConv = (childMessages ?? []).map((m) => fromHarnessMessage(m, backend));
@@ -638,8 +641,8 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
   const childResource: ResourceContextValue | null = resource
     ? {
         scope: {
-          id: tab ? `cli:${tab.id}` : `delegate:${taskId ?? call.id}`,
-          cwd: tab?.cwd ?? null,
+          id: openTab ? `cli:${openTab.id}` : `delegate:${taskId ?? call.id}`,
+          cwd: fileCwd ?? null,
           source: backend,
           ...(roots.length > 1 ? { fallbackCwds: roots.slice(1) } : {}),
         },
@@ -802,6 +805,7 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
         {drawer && (
           <DelegateDrawer
             v={v}
+            fallbackTab={openTab}
             elapsed={elapsed}
             running={running}
             stopping={stopping}

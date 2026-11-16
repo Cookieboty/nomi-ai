@@ -220,9 +220,10 @@ type liveTool struct {
 }
 
 type nomiExecutor struct {
-	d    NomiDeps
-	mu   sync.Mutex
-	runs map[string]*nomiRun
+	d        NomiDeps
+	mu       sync.Mutex
+	runs     map[string]*nomiRun
+	progress map[string]string
 }
 
 func NewNomiExecutor(d NomiDeps) Executor {
@@ -235,7 +236,7 @@ func NewNomiExecutor(d NomiDeps) Executor {
 	if d.ApprovalTimeout <= 0 {
 		d.ApprovalTimeout = DefaultApprovalTimeout
 	}
-	return &nomiExecutor{d: d, runs: map[string]*nomiRun{}}
+	return &nomiExecutor{d: d, runs: map[string]*nomiRun{}, progress: map[string]string{}}
 }
 
 func shortN(s string, n int) string {
@@ -246,17 +247,24 @@ func shortN(s string, n int) string {
 }
 
 var (
-	transientRE = regexp.MustCompile(`(?i)\b(408|429|5\d\d)\b|rate.?limit|overloaded|timeout|timed out`)
-	networkRE   = regexp.MustCompile(`(?i)ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|network|connection reset|connection refused|no such host`)
+	permanentRE = regexp.MustCompile(`(?i)\b(401|403)\b|unauthorized|invalid[_ -]?api[_ -]?key|authentication[_ -]?(failed|required)|auth_required|not logged in|needs sign-in|please run /login|需要登录|尚未登录|先登录|insufficient[_ -]?quota|credit balance is too low|billing|model[_ -]?not[_ -]?found|untrusted`)
+	transientRE = regexp.MustCompile(`(?i)\b(408|409|425|429|5\d\d)\b|rate.?limit|overloaded|timeout|timed? ?out|too many requests|temporarily unavailable|try again|请求超时`)
+	networkRE   = regexp.MustCompile(`(?i)ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|EPIPE|\bEOF\b|broken pipe|socket hang up|network|connection reset|connection refused|no such host|stream (disconnected|closed|ended)|incomplete chunked|reconnect|rpc connection closed`)
+	cliExecRE   = regexp.MustCompile(`(?i)error_during_execution|error_max_turns|process exited|进程已退出|app-server error|(codex|claude|dsh|grok)-error|(codex|claude|dsh|grok) 出错|turn\.failed|exit code|exited with code|退出码|couldn't start an acp session|无法启动.*acp 会话|acp session ended|会话已结束|internal error|empty_result`)
 )
 
-// ClassifyError：上游 / 网络错误归类成可重试的码
+// ClassifyError：上游 / 网络 / CLI 执行异常归类成可重试的码；确定性的认证 / 账单错误不重试
 func ClassifyError(msg string) TaskError {
+	if permanentRE.MatchString(msg) {
+		return TaskError{Code: "executor_failed", Message: msg}
+	}
 	switch {
 	case transientRE.MatchString(msg):
 		return TaskError{Code: "upstream_transient", Message: msg}
 	case networkRE.MatchString(msg):
 		return TaskError{Code: "network", Message: msg}
+	case cliExecRE.MatchString(msg):
+		return TaskError{Code: "executor_crashed", Message: msg}
 	}
 	return TaskError{Code: "executor_failed", Message: msg}
 }
@@ -483,6 +491,7 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 	// 工具调用进行中（生图、同步等编程助手）流里没有片段：按间隔补心跳，免得被看守判成崩溃
 	var pmu sync.Mutex
 	pending := map[string]bool{}
+	var toolSteps []string
 	stopBeat := e.d.Every(ToolHeartbeatMs, func() {
 		pmu.Lock()
 		n := len(pending)
@@ -496,7 +505,13 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 			e.d.Live(t.ID, a.ID, ev)
 		}
 	}
-	err := e.d.AgentStream(ctx, BuildPrompt(run.ctx, "", e.d.Now(), events), tools,
+	prevProgress := ""
+	if a.Cause.Kind == "retry" || a.Cause.Kind == "resume" {
+		e.mu.Lock()
+		prevProgress = e.progress[t.ID]
+		e.mu.Unlock()
+	}
+	err := e.d.AgentStream(ctx, BuildPrompt(run.ctx, prevProgress, e.d.Now(), events), tools,
 		extra, func(c blm.ChatChunk) {
 			if ctx.Err() != nil {
 				return
@@ -557,9 +572,18 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 					}
 					e.mu.Unlock()
 				}
-				if c.Name != nil && c.Error == nil && c.Output != nil {
+				if c.Name != nil && c.Error == nil {
+					stepLine := "- " + *c.Name
+					if started != nil && started.Input != "" {
+						stepLine += "(" + shortN(started.Input, 120) + ")"
+					}
 					pmu.Lock()
-					arts = addArtifacts(arts, nomiArtifacts(*c.Name, *c.Output))
+					if c.Output != nil {
+						arts = addArtifacts(arts, nomiArtifacts(*c.Name, *c.Output))
+					}
+					if len(toolSteps) < 40 {
+						toolSteps = append(toolSteps, stepLine)
+					}
 					pmu.Unlock()
 				}
 				rep.Heartbeat()
@@ -629,7 +653,38 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 		delete(e.runs, t.ID)
 	}
 	e.mu.Unlock()
+	saveProgress := func() {
+		pmu.Lock()
+		steps := slices.Clone(toolSteps)
+		pmu.Unlock()
+		part := strings.TrimSpace(text.String())
+		if len(steps) == 0 && part == "" {
+			return
+		}
+		var b strings.Builder
+		if len(steps) > 0 {
+			b.WriteString("前次尝试已执行的工具步骤：\n")
+			b.WriteString(strings.Join(steps, "\n"))
+		}
+		if part != "" {
+			if b.Len() > 0 {
+				b.WriteString("\n\n")
+			}
+			b.WriteString("前次尝试已输出内容：\n")
+			b.WriteString(shortN(part, 2000))
+		}
+		e.mu.Lock()
+		if len(e.progress) >= 128 {
+			for k := range e.progress {
+				delete(e.progress, k)
+				break
+			}
+		}
+		e.progress[t.ID] = b.String()
+		e.mu.Unlock()
+	}
 	if err != nil {
+		saveProgress()
 		live(map[string]any{"type": "done", "error": shortN(err.Error(), 400)})
 		rep.Failed(ClassifyError(err.Error()))
 		return
@@ -640,9 +695,13 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 	pmu.Unlock()
 	// 只出了图 / 写了文件、最后没说话的也算做完（东西已经在了，结果里带回去）
 	if summary == "" && len(produced) == 0 {
-		rep.Failed(TaskError{Code: "executor_failed", Message: "empty_result"})
+		saveProgress()
+		rep.Failed(TaskError{Code: "executor_crashed", Message: "empty_result"})
 		return
 	}
+	e.mu.Lock()
+	delete(e.progress, t.ID)
+	e.mu.Unlock()
 	if e.d.Trace != nil {
 		e.d.Trace(t.ID, a.ID, map[string]any{"at": e.d.Now(), "done": shortN(summary, 2000)})
 	}
@@ -676,6 +735,7 @@ func (e *nomiExecutor) Resume(taskID string, gen int, answer Answer) {
 func (e *nomiExecutor) Stop(taskID string, gen int, reason string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	delete(e.progress, taskID)
 	run := e.runs[taskID]
 	if run == nil || run.gen != gen {
 		return
