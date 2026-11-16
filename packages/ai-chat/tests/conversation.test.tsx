@@ -776,14 +776,27 @@ describe('会话窗口起点与跳转加载', () => {
   });
 
   it('部分窗口渲染时第一轮带正确的全局序号', async () => {
+    // 首屏只渲染末尾几条，其余每批一个 setTimeout(0) 往上补（INITIAL_RENDER → +RENDER_STEP），
+    // 到窗口起点（第 25 轮）要五六批，每批都是一次整列重渲染。按墙钟等（waitFor 默认 1 秒）
+    // 在 Windows + 覆盖率统计下补不完，停在第 30 / 33 轮就超时；改为按批推进定时器，与机器快慢无关。
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const { getAllByTestId } = render(
       <CliConversation tab={tab()} messages={manyTurns(40, true)} />,
     );
-    await waitFor(() => {
-      const turns = getAllByTestId('conv-turn');
-      expect(turns.length).toBeGreaterThan(1);
-      expect(turns[0]!.getAttribute('data-turn-index')).toBe('25');
-    });
+    try {
+      // 每批在 act 里落定后，effect 才排下一批的定时器；排空为止（上限只防死循环）
+      for (let batch = 0; batch < 50 && vi.getTimerCount() > 0; batch++) {
+        await act(async () => {
+          await vi.runOnlyPendingTimersAsync();
+        });
+      }
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+    const turns = getAllByTestId('conv-turn');
+    expect(turns.length).toBeGreaterThan(1);
+    expect(turns[0]!.getAttribute('data-turn-index')).toBe('25');
     const indices = getAllByTestId('conv-turn').map((el) => el.getAttribute('data-turn-index'));
     expect(indices[0]).toBe('25');
     expect(indices).not.toContain('0');
