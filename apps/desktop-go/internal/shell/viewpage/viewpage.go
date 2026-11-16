@@ -106,6 +106,28 @@ func widenConnectSrc(html []byte) []byte {
 	return append(out, html[at:]...)
 }
 
+// widenChatFrameSrc：对话窗口内置浏览器（BrowserTab）需通过沙箱 iframe 加载 http(s) 网页；
+// 若嵌入资产仍带旧版 frame-src 'none'，在 /chat/index.html 提供时兜底放宽为 http: https:（桌面角色页不放宽）。
+func widenChatFrameSrc(html []byte) []byte {
+	m := bytes.Index(html, []byte(`http-equiv="Content-Security-Policy"`))
+	if m < 0 {
+		return html
+	}
+	endTag := bytes.IndexByte(html[m:], '>')
+	if endTag < 0 {
+		return html
+	}
+	segment := html[m : m+endTag]
+	replaced := bytes.Replace(segment, []byte("frame-src 'none'"), []byte("frame-src http: https:"), 1)
+	if bytes.Equal(segment, replaced) {
+		return html
+	}
+	out := make([]byte, 0, len(html)+len(replaced)-len(segment))
+	out = append(out, html[:m]...)
+	out = append(out, replaced...)
+	return append(out, html[m+endTag:]...)
+}
+
 // Middleware：pages 里的路径（如 /mascot/index.html，即 assets 里去掉开头 / 的文件）改由这里读出、改写后返回，
 // 其余请求交给 next（嵌入资产、网关、灵动岛页）
 func Middleware(assets fs.FS, pages ...string) func(http.Handler) http.Handler {
@@ -128,6 +150,9 @@ func Middleware(assets fs.FS, pages ...string) func(http.Handler) http.Handler {
 			if err != nil {
 				next.ServeHTTP(w, r)
 				return
+			}
+			if r.URL.Path == "/chat/index.html" {
+				raw = widenChatFrameSrc(raw)
 			}
 			body := Patch(raw, false)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")

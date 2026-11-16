@@ -63,6 +63,26 @@ func TestMiddleware(t *testing.T) {
 	if rec.Body.String() != "next" {
 		t.Fatalf("other paths should fall through: %q", rec.Body.String())
 	}
+
+	// /chat/index.html 自动将旧 frame-src 'none' 放宽为 http: https:，而 /mascot/index.html 保持 'none'
+	withFrameNone := strings.Replace(page, "media-src 'self'", "media-src 'self'; frame-src 'none'", 1)
+	bothAssets := fstest.MapFS{
+		"mascot/index.html": {Data: []byte(withFrameNone)},
+		"chat/index.html":   {Data: []byte(withFrameNone)},
+	}
+	hBoth := Middleware(bothAssets, "/mascot/index.html", "/chat/index.html")(next)
+
+	chatRec := httptest.NewRecorder()
+	hBoth.ServeHTTP(chatRec, httptest.NewRequest("GET", "/chat/index.html", nil))
+	if !strings.Contains(chatRec.Body.String(), "frame-src http: https:") {
+		t.Fatalf("chat frame-src should allow http/https:\n%s", chatRec.Body.String())
+	}
+
+	mascotRec := httptest.NewRecorder()
+	hBoth.ServeHTTP(mascotRec, httptest.NewRequest("GET", "/mascot/index.html", nil))
+	if !strings.Contains(mascotRec.Body.String(), "frame-src 'none'") {
+		t.Fatalf("mascot frame-src must remain 'none':\n%s", mascotRec.Body.String())
+	}
 }
 
 func TestHostScript(t *testing.T) {

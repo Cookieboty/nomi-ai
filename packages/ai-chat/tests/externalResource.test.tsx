@@ -80,7 +80,8 @@ describe('external browser instead of embedded websites', () => {
     for (const path of ['/work/index.html', './page.htm', 'file:///work/page.HTML#L12'])
       expect(isExternalResource(path)).toBe(true);
     expect(isExternalResource('/work/doc.md')).toBe(false);
-    expect(APP_CSP['frame-src']).toEqual(["'none'"]);
+    // 对话窗口 CSP 仅允许标签区浏览器内嵌 http/https，仍禁止 file:/data:/blob:/'self'
+    expect(APP_CSP['frame-src']).toEqual(['http:', 'https:']);
   });
   it('does not open or resize the side preview when website/HTML is clicked, and preserves the draft', async () => {
     render(<Probe />);

@@ -2,7 +2,9 @@ package resourcepreview
 
 import (
 	"context"
+	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -11,18 +13,57 @@ import (
 	gwnet "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
 )
 
+// blocksCrossOriginEmbed 检测目标网页响应头是否明确禁止跨源 iframe 嵌入（X-Frame-Options 或 CSP frame-ancestors）。
+func blocksCrossOriginEmbed(h http.Header) bool {
+	for _, raw := range h.Values("X-Frame-Options") {
+		v := strings.ToUpper(strings.TrimSpace(raw))
+		if v == "DENY" || v == "SAMEORIGIN" || strings.HasPrefix(v, "ALLOW-FROM") {
+			return true
+		}
+	}
+	for _, csp := range h.Values("Content-Security-Policy") {
+		for _, dir := range strings.Split(csp, ";") {
+			fields := strings.Fields(strings.TrimSpace(dir))
+			if len(fields) == 0 || !strings.EqualFold(fields[0], "frame-ancestors") {
+				continue
+			}
+			sources := fields[1:]
+			if len(sources) == 0 {
+				return true
+			}
+			allowsAny := false
+			for _, src := range sources {
+				s := strings.ToLower(strings.Trim(src, " "))
+				if s == "*" || s == "https:" || s == "http:" {
+					allowsAny = true
+					break
+				}
+			}
+			if !allowsAny {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // Web uses the pinned-DNS gateway guard; redirects are checked individually and no credentials are sent.
 // Media gets a short-lived streaming capability, not a multi-megabyte base64 response.
 func (s *Service) Web(raw string) Result {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
 	defer cancel()
 	for redirects := 0; redirects < 5; redirects++ {
 		req, err := http.NewRequestWithContext(ctx, "GET", raw, nil)
 		if err != nil {
 			return fail("network")
 		}
+		req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 		resp, err := gwnet.DefaultUpstreamFetch()(req)
 		if err != nil {
+			var dnsErr *net.DNSError
+			if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+				return fail("dns")
+			}
 			return fail("network")
 		}
 		if resp.StatusCode >= 300 && resp.StatusCode < 400 {
@@ -35,7 +76,11 @@ func (s *Service) Web(raw string) Result {
 			continue
 		}
 		if resp.StatusCode != http.StatusOK {
+			blocked := blocksCrossOriginEmbed(resp.Header)
 			resp.Body.Close()
+			if blocked {
+				return Result{OK: true, Kind: "external", Code: "frame-blocked", Path: raw}
+			}
 			return fail("network")
 		}
 		typ := resp.Header.Get("Content-Type")
@@ -55,7 +100,11 @@ func (s *Service) Web(raw string) Result {
 			kind = "markdown"
 		}
 		if kind == "website" {
+			blocked := blocksCrossOriginEmbed(resp.Header)
 			resp.Body.Close()
+			if blocked {
+				return Result{OK: true, Kind: "external", Code: "frame-blocked", Path: raw}
+			}
 			return Result{OK: true, Kind: "external", Path: raw}
 		}
 		if kind == "image" || kind == "video" || kind == "audio" || kind == "pdf" {

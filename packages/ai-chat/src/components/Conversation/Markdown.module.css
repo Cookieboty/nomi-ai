@@ -80,6 +80,34 @@
   background: var(--cd-chat-markdown-bg);
   border: 1px solid var(--cd-color-border);
 }
+.fileCode {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  vertical-align: baseline;
+  cursor: pointer;
+  color: var(--cd-color-text);
+  border-radius: var(--cd-radius-sm);
+  padding: 1px var(--cd-space-1-5);
+  transition:
+    background-color var(--cd-duration-fast) var(--cd-ease),
+    border-color var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease);
+}
+.fileCode:hover {
+  background: var(--cd-color-hover);
+  border-color: var(--cd-color-accent-strong);
+  color: var(--cd-color-accent-strong);
+}
+.fileCode:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
+.fileCodeIcon {
+  flex-shrink: 0;
+  color: var(--cd-color-accent-strong);
+  opacity: 0.88;
+}
 .codeBlock {
   margin: 0 0 0.8em;
   border: 1px solid var(--cd-color-border);
