@@ -59,6 +59,7 @@ import type { SettingsSection } from '../SettingsView/sections';
 import { SideChatPane } from '../SideChat';
 import { UserQuestionDock } from '../UserQuestionCard/dock';
 
+import { PaneBrief, type PaneNotes, useInTabStrip } from './chrome';
 import {
   agentIdsOfCall,
   applyTaskLiveEvent,
@@ -146,14 +147,17 @@ const OutboxFailure: React.FC<{ error: string | null; retry: () => void }> = ({ 
     </div>
   ) : null;
 
-const PaneHead: React.FC<{
-  name: string;
-  state: 'running' | 'waiting' | 'idle';
-  goal?: string;
-  onClose: () => void;
-  onStop?: () => void;
-}> = ({ name, state, goal, onClose, onStop }) => {
+const PaneHead: React.FC<
+  PaneNotes & {
+    name: string;
+    state: 'running' | 'waiting' | 'idle';
+    onClose: () => void;
+    onStop?: () => void;
+  }
+> = ({ name, state, goal, hint, hintTestId, notice, onClose, onStop }) => {
   const tabbed = React.useContext(TabbedCtx);
+  // 标签区里：名字 / 状态在标签上、关闭在标签的 ×、停止在输入栏，说明收进输入框上方（PaneBrief）
+  if (useInTabStrip()) return null;
   return (
     <>
       <header className={styles.head}>
@@ -185,6 +189,16 @@ const PaneHead: React.FC<{
       {goal && (
         <p className={styles.goal} title={goal}>
           {goal}
+        </p>
+      )}
+      {hint && (
+        <p className={styles.hint} data-testid={hintTestId}>
+          {hint}
+        </p>
+      )}
+      {notice && (
+        <p className={styles.hint} data-testid="subagent-notice" role="status">
+          {notice}
         </p>
       )}
     </>
@@ -246,6 +260,13 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
   const paneState = waiting ? 'waiting' : running ? 'running' : 'idle';
   useReportMeta(slot.tabKey, name, paneState);
   usePaneEscape(slot.active && !slot.maximized, onClose);
+  const inStrip = useInTabStrip();
+  const notes: PaneNotes = {
+    goal: tab.delegation?.goal,
+    hint: running
+      ? t('ui.session-workspace.subagent-hint-running')
+      : t('ui.session-workspace.subagent-hint-idle'),
+  };
   return (
     <section
       className={styles.pane}
@@ -259,15 +280,10 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
       <PaneHead
         name={name}
         state={paneState}
-        goal={tab.delegation?.goal}
+        {...notes}
         onClose={onClose}
         onStop={() => void core.cancelRun(tab.id)}
       />
-      <p className={styles.hint}>
-        {running
-          ? t('ui.session-workspace.subagent-hint-running')
-          : t('ui.session-workspace.subagent-hint-idle')}
-      </p>
       <div className={styles.conv}>
         <CliConversation
           scopeId={tab.id}
@@ -282,7 +298,8 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
           backgroundCount={tab.background}
         />
       </div>
-      <footer className={styles.composer}>
+      <footer className={styles.composer} data-in-strip={inStrip || undefined}>
+        {inStrip && <PaneBrief {...notes} />}
         <UserQuestionDock tabId={tab.id} />
         <PendingDock
           items={pending}
@@ -534,6 +551,17 @@ const NestedChat: React.FC<{
   };
   useReportMeta(slot.tabKey, name, running ? 'running' : 'idle');
   usePaneEscape(slot.active && !slot.maximized, onClose);
+  const inStrip = useInTabStrip();
+  const notes: PaneNotes = {
+    goal: agent?.progress,
+    hint: !parentTabId
+      ? t('ui.session-workspace.subagent-nested-readonly')
+      : relay
+        ? t('ui.session-workspace.subagent-nested-hint')
+        : t('ui.session-workspace.subagent-direct-hint'),
+    hintTestId: 'subagent-hint',
+    notice,
+  };
   return (
     <section
       className={styles.pane}
@@ -547,22 +575,10 @@ const NestedChat: React.FC<{
       <PaneHead
         name={name}
         state={waiting ? 'waiting' : running ? 'running' : 'idle'}
-        goal={agent?.progress}
+        {...notes}
         onClose={onClose}
         onStop={parentTabId && (agent || open || forkRunning) ? stop : undefined}
       />
-      <p className={styles.hint} data-testid="subagent-hint">
-        {!parentTabId
-          ? t('ui.session-workspace.subagent-nested-readonly')
-          : relay
-            ? t('ui.session-workspace.subagent-nested-hint')
-            : t('ui.session-workspace.subagent-direct-hint')}
-      </p>
-      {notice && (
-        <p className={styles.hint} data-testid="subagent-notice" role="status">
-          {notice}
-        </p>
-      )}
       <div className={styles.conv}>
         <ConversationView
           scopeId={`nested:${callId}`}
@@ -578,7 +594,8 @@ const NestedChat: React.FC<{
         />
       </div>
       {parentTabId && parent ? (
-        <footer className={styles.composer}>
+        <footer className={styles.composer} data-in-strip={inStrip || undefined}>
+          {inStrip && <PaneBrief {...notes} />}
           {forkTab && <UserQuestionDock tabId={forkTab.id} />}
           <OutboxFailure error={outbox.error} retry={outbox.retry} />
           <PendingDock
@@ -616,6 +633,11 @@ const NestedChat: React.FC<{
             delegate={false}
             {...panelButtons(actions, true)}
           />
+        </footer>
+      ) : inStrip ? (
+        // 只读（来源是 Nomi 会话）：没有输入栏，说明仍放在底部
+        <footer className={styles.composer} data-in-strip="">
+          <PaneBrief {...notes} />
         </footer>
       ) : null}
     </section>
@@ -716,6 +738,13 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSl
   const name = title || t('ui.usage-tools.subagent');
   const paneState = status === 'waiting_user' ? 'waiting' : running ? 'running' : 'idle';
   useReportMeta(slot.tabKey, name, paneState);
+  const inStrip = useInTabStrip();
+  const notes: PaneNotes = {
+    goal,
+    hint: running
+      ? t('ui.session-workspace.subagent-nomi-hint-running')
+      : t('ui.session-workspace.subagent-nomi-hint'),
+  };
   return (
     <section
       className={styles.pane}
@@ -729,15 +758,10 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSl
       <PaneHead
         name={name}
         state={paneState}
-        goal={goal}
+        {...notes}
         onClose={onClose}
         onStop={running ? stop : undefined}
       />
-      <p className={styles.hint}>
-        {running
-          ? t('ui.session-workspace.subagent-nomi-hint-running')
-          : t('ui.session-workspace.subagent-nomi-hint')}
-      </p>
       <div className={styles.conv}>
         <ConversationView
           scopeId={`nomi-task:${taskId}`}
@@ -746,7 +770,8 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSl
           phase={running ? 'running' : 'idle'}
         />
       </div>
-      <footer className={styles.composer}>
+      <footer className={styles.composer} data-in-strip={inStrip || undefined}>
+        {inStrip && <PaneBrief {...notes} />}
         <OutboxFailure error={outbox.error} retry={outbox.retry} />
         <PendingDock
           items={pending}

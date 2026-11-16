@@ -12,6 +12,7 @@ import {
   type SideFiles,
 } from '../src/components/SideWorkspace';
 import { useSubagentPane, WorkspacePanesProvider } from '../src/components/SubagentPane';
+import { TitlebarPanelsProvider, TitlebarSlot } from '../src/components/TitleBar/panels';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import type { EmbeddedPreviewProps } from '../src/hooks/useResourcePreview';
 import type { HarnessTabsState } from '../src/services/harnessClient';
@@ -482,7 +483,11 @@ describe('side tabs workspace', () => {
       secondKey,
     );
     const visibleSideChat = screen.getAllByTestId('side-chat').find((el) => !el.hidden)!;
-    expect(visibleSideChat.querySelector('[data-testid="side-chat-close"]')).toBeTruthy();
+    // 标签区里不画面板头（名字 / 状态在标签上、关闭在标签的 ×），说明收在输入框上方
+    expect(visibleSideChat.querySelector('header')).toBeNull();
+    expect(visibleSideChat.querySelector('[data-testid="side-chat-close"]')).toBeNull();
+    expect(visibleSideChat.querySelector('[data-testid="subagent-brief"]')).toBeTruthy();
+    expect(visibleSideChat.querySelector('footer')?.hasAttribute('data-in-strip')).toBe(true);
 
     // 点击另一个侧边聊天标签只切换标签，不新建页面。
     fireEvent.click(tabButton(firstKey));
@@ -491,12 +496,90 @@ describe('side tabs workspace', () => {
     );
     fireEvent.click(tabButton(secondKey));
 
-    // 页面自己的关闭按钮只关闭侧边聊天，不影响普通子任务。
-    fireEvent.click(visibleSideChat.querySelector('[data-testid="side-chat-close"]')!);
+    // 标签的关闭按钮只关闭侧边聊天，不影响普通子任务。
+    fireEvent.click(tabByKey(secondKey).querySelector('[data-testid="side-tab-close"]')!);
     expect(sideChatState(second)).toBeUndefined();
     expect(tabKeys()).toEqual(['nomi-task:k1', firstKey]);
     expect(screen.getAllByTestId('side-chat').find((el) => !el.hidden)?.dataset.sideTab).toBe(
       firstKey,
     );
+  });
+
+  describe('aligned with the main chat (no extra rows above the agent conversation)', () => {
+    afterEach(() => {
+      delete document.documentElement.dataset.platform;
+    });
+    const mountWithTitlebar = (ids: string[]) =>
+      render(
+        <HarnessTabsProvider>
+          <WorkspacePanesProvider>
+            <TitlebarPanelsProvider>
+              <div className="app-titlebar" data-testid="titlebar">
+                <TitlebarSlot name="center" className="app-titlebar-slot" />
+              </div>
+              <OpenOnce ids={ids} />
+              <Shell />
+            </TitlebarPanelsProvider>
+          </WorkspacePanesProvider>
+        </HarnessTabsProvider>,
+      );
+
+    it('puts the split-view tab strip in the desktop title bar, inline again when maximized', async () => {
+      document.documentElement.dataset.platform = 'darwin';
+      setup();
+      mountWithTitlebar(['k1']);
+      await waitFor(() => expect(tabKeys()).toEqual(['nomi-task:k1']));
+      const slot = screen.getByTestId('titlebar').querySelector('[data-titlebar-slot="center"]')!;
+      const workspace = screen.getByTestId('side-workspace');
+      // 分栏：标签栏在标题栏那一行，不在右栏顶上再占一行
+      await waitFor(() =>
+        expect(slot.querySelector('[data-testid="side-tab-strip"]')).toBeTruthy(),
+      );
+      expect(workspace.querySelector('[data-testid="side-tab-strip"]')).toBeNull();
+      // 拖动 / 双击 / 悬停这些交互仍在原组件上（portal 只换位置）
+      fireEvent.doubleClick(tabButton('nomi-task:k1'));
+      expect(screen.getByTestId('main-content').dataset.sideMax).toBe('true');
+      // 铺满：标签栏回到整个对话区顶上（主会话也是一个标签），标题栏里没有
+      expect(slot.querySelector('[data-testid="side-tab-strip"]')).toBeNull();
+      expect(
+        screen.getByTestId('main-content').querySelector(':scope > [data-testid="side-tab-strip"]'),
+      ).toBeTruthy();
+      fireEvent.doubleClick(tabButton('nomi-task:k1'));
+      await waitFor(() =>
+        expect(slot.querySelector('[data-testid="side-tab-strip"]')).toBeTruthy(),
+      );
+    });
+
+    it('keeps the strip in the column when there is no desktop title bar (browser preview)', async () => {
+      setup();
+      mountWithTitlebar(['k1']);
+      await waitFor(() => expect(tabKeys()).toEqual(['nomi-task:k1']));
+      expect(
+        screen.getByTestId('side-workspace').querySelector('[data-testid="side-tab-strip"]'),
+      ).toBeTruthy();
+    });
+
+    it('agent panes in tabs draw no head: goal and hint sit above the composer', async () => {
+      setup();
+      mount(['k1']);
+      const pane = await waitFor(() => paneFor('nomi-task:k1'));
+      await waitFor(() =>
+        expect(pane.querySelector('[data-testid="subagent-goal"]')?.textContent).toBe(
+          '整理周报的目标',
+        ),
+      );
+      expect(pane.querySelector('header')).toBeNull();
+      expect(pane.querySelector('[data-testid="subagent-status"]')).toBeNull();
+      expect(pane.querySelector('[data-testid="subagent-stop"]')).toBeNull();
+      // 会话是面板的第一个子元素（和主列一样从顶上开始）；说明在输入栏里、输入框上方
+      const footer = pane.querySelector('footer')!;
+      expect(footer.hasAttribute('data-in-strip')).toBe(true);
+      expect(footer.firstElementChild?.getAttribute('data-testid')).toBe('subagent-brief');
+      expect(pane.firstElementChild?.tagName).toBe('DIV');
+      // 状态仍在标签上，停止仍在输入栏（运行中发送键变成停止）
+      expect(
+        tabByKey('nomi-task:k1').querySelector('[data-testid="side-tab-status"]'),
+      ).toBeTruthy();
+    });
   });
 });

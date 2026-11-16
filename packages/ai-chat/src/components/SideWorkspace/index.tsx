@@ -45,6 +45,7 @@ import type { PreviewEntry, PreviewTabsControl } from '../ResourcePreview/Resour
 import { CenterChangesHost } from '../SessionWorkspace';
 import { SideChatPane } from '../SideChat';
 import { SubagentPane, type SubagentPaneActions } from '../SubagentPane';
+import { InTabStripProvider } from '../SubagentPane/chrome';
 
 import { BrowserTab } from './BrowserTab';
 import { ChangesTab } from './ChangesTab';
@@ -337,7 +338,8 @@ export function useSideWorkspaceKeys(model: SideWorkspaceModel) {
 /**
  * 标签区主体：子任务面板（都挂着，只显示当前的）+ 文件预览（隐藏时不接管 Esc）。
  * 没有标签时退回原来的中栏挂载点（右栏的未提交 / 磁盘文件预览 portal 进来）。
- * showStrip：分栏时标签栏在这一栏顶上；铺满时由 App 画在整个对话区顶上。
+ * showStrip：分栏时标签栏进桌面标题栏的中栏槽位（没有标题栏时在这一栏顶上）；铺满时由 App 画在整个对话区顶上。
+ * 里面的面板不画自己的头（名字 / 状态在标签上），会话顶和输入框底与左边主对话对齐。
  */
 export const SideWorkspace: React.FC<{
   model: SideWorkspaceModel;
@@ -376,85 +378,87 @@ export const SideWorkspace: React.FC<{
       data-active-kind={kind}
       hidden={!model.open || undefined}
     >
-      {showStrip && <SideTabStrip model={model} columnMessages={messages} />}
-      <div className={styles.body}>
-        <SubagentPane columnMessages={messages} actions={actions} tabbed />
-        {model.pages.map((page) => {
-          const key = pageKey(page);
-          const hidden = model.active !== key;
-          if (page.kind === 'new-tab')
+      {showStrip && <SideTabStrip model={model} columnMessages={messages} inTitlebar />}
+      <InTabStripProvider>
+        <div className={styles.body}>
+          <SubagentPane columnMessages={messages} actions={actions} tabbed />
+          {model.pages.map((page) => {
+            const key = pageKey(page);
+            const hidden = model.active !== key;
+            if (page.kind === 'new-tab')
+              return (
+                <NewTabPage
+                  key={key}
+                  tabKey={key}
+                  hidden={hidden}
+                  cwd={cwd}
+                  roots={roots}
+                  onOpenChanges={() => model.openChanges?.({ replace: key })}
+                  onOpenFiles={() => model.openFileBrowser?.({ replace: key })}
+                  onOpenSideChat={() => void model.openSideChat?.({ fresh: true, replace: key })}
+                  onOpenBrowser={(url) => model.openBrowser?.(url, { replace: key })}
+                  onOpenFile={(href, root) => {
+                    // 文件预览归入“打开文件”页面内部；新标签页由打开文件页替换。
+                    model.openFileBrowser?.({ replace: key });
+                    resource?.open(href, { ...resource.scope, cwd: root });
+                  }}
+                />
+              );
+            if (page.kind === 'changes')
+              return (
+                <ChangesTab
+                  key={key}
+                  hidden={hidden}
+                  messages={messages}
+                  cwd={cwd}
+                  roots={roots}
+                  busy={busy}
+                  renderPreview={model.files.render}
+                  expanded={model.maximized}
+                  onExpanded={model.setExpanded}
+                  controlRef={model.diffControl}
+                  railSplit={model.files.railSplit}
+                />
+              );
+            if (page.kind === 'side-chat')
+              return (
+                <SideChatPane
+                  key={key}
+                  chatId={page.id}
+                  cwd={cwd}
+                  slot={{ tabKey: key, active: !hidden }}
+                  onClose={() => model.close({ key, kind: 'side-chat', closable: true, page })}
+                />
+              );
+            if (page.kind === 'open-file')
+              return (
+                <OpenFileTab
+                  key={key}
+                  hidden={hidden}
+                  messages={messages}
+                  cwd={cwd}
+                  roots={roots}
+                  busy={busy}
+                  renderPreview={model.files.render}
+                  expanded={model.maximized}
+                  onExpanded={model.setExpanded}
+                  controlRef={model.control}
+                  railSplit={model.files.railSplit}
+                />
+              );
             return (
-              <NewTabPage
+              <BrowserTab
                 key={key}
                 tabKey={key}
+                url={page.url}
+                title={page.title}
                 hidden={hidden}
-                cwd={cwd}
-                roots={roots}
-                onOpenChanges={() => model.openChanges?.({ replace: key })}
-                onOpenFiles={() => model.openFileBrowser?.({ replace: key })}
-                onOpenSideChat={() => void model.openSideChat?.({ fresh: true, replace: key })}
-                onOpenBrowser={(url) => model.openBrowser?.(url, { replace: key })}
-                onOpenFile={(href, root) => {
-                  // 文件预览归入“打开文件”页面内部；新标签页由打开文件页替换。
-                  model.openFileBrowser?.({ replace: key });
-                  resource?.open(href, { ...resource.scope, cwd: root });
-                }}
+                onNavigate={(url, title) => model.setBrowserUrl?.(key, url, title)}
               />
             );
-          if (page.kind === 'changes')
-            return (
-              <ChangesTab
-                key={key}
-                hidden={hidden}
-                messages={messages}
-                cwd={cwd}
-                roots={roots}
-                busy={busy}
-                renderPreview={model.files.render}
-                expanded={model.maximized}
-                onExpanded={model.setExpanded}
-                controlRef={model.diffControl}
-                railSplit={model.files.railSplit}
-              />
-            );
-          if (page.kind === 'side-chat')
-            return (
-              <SideChatPane
-                key={key}
-                chatId={page.id}
-                cwd={cwd}
-                slot={{ tabKey: key, active: !hidden }}
-                onClose={() => model.close({ key, kind: 'side-chat', closable: true, page })}
-              />
-            );
-          if (page.kind === 'open-file')
-            return (
-              <OpenFileTab
-                key={key}
-                hidden={hidden}
-                messages={messages}
-                cwd={cwd}
-                roots={roots}
-                busy={busy}
-                renderPreview={model.files.render}
-                expanded={model.maximized}
-                onExpanded={model.setExpanded}
-                controlRef={model.control}
-                railSplit={model.files.railSplit}
-              />
-            );
-          return (
-            <BrowserTab
-              key={key}
-              tabKey={key}
-              url={page.url}
-              title={page.title}
-              hidden={hidden}
-              onNavigate={(url, title) => model.setBrowserUrl?.(key, url, title)}
-            />
-          );
-        })}
-      </div>
+          })}
+        </div>
+      </InTabStripProvider>
     </section>
   );
 };

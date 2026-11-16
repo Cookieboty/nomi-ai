@@ -71,3 +71,42 @@
   flex-shrink: 0;
   border-top: 1px solid var(--cd-color-border);
 }
+
+/*
+ * 标签区里（chrome.tsx）：没有面板头，输入区和主列 .input-container 同一套内边距、无分隔线，
+ * 输入框底边与左边主对话的输入框对齐；任务目标 / 提示收在输入框上方一小段。
+ */
+.composer[data-in-strip] {
+  border-top: none;
+  background: transparent;
+  padding: var(--cd-space-4) var(--cd-space-5) var(--cd-space-5);
+}
+@media (max-width: 768px) {
+  .composer[data-in-strip] {
+    padding: var(--cd-space-3) var(--cd-space-4);
+  }
+}
+
+.brief {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+  max-width: var(--cd-chat-content-w);
+  margin: 0 auto var(--cd-space-2);
+  padding: 0 var(--cd-space-1);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+
+.briefGoal,
+.briefHint {
+  margin: 0;
+  min-width: 0;
+}
+
+.briefGoal {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--cd-color-text);
+}
