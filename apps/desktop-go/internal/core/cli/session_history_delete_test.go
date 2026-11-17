@@ -189,3 +189,39 @@ func TestHistoryPermanentDeleteRemovesRecordAndAttachments(t *testing.T) {
 		}
 	})
 }
+
+func TestHistoryDiscoversAndDeletesFromCustomLauncherClaudeDirs(t *testing.T) {
+	home := t.TempDir()
+	customConfig := filepath.Join(t.TempDir(), "custom-claude-config")
+	customFile := filepath.Join(customConfig, "projects", "work", "custom-sess.jsonl")
+	if err := os.MkdirAll(filepath.Dir(customFile), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(customFile, []byte(`{"type":"user","sessionId":"custom-sess","message":{"role":"user","content":"from custom launcher"}}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	jsrt.Run(func() {
+		service := NewSessionHistoryService(SessionHistoryDeps{
+			Home: home, HasHome: true, Env: util.NewObj(),
+			ClaudeConfigDirs: func() []string { return []string{customConfig} },
+			RemovePath: func(path string) *jsrt.Promise[struct{}] {
+				return jsrt.Async(func() (struct{}, error) { return struct{}{}, os.RemoveAll(path) })
+			},
+		})
+		listRes, err := jsrt.Await(service.List("claude", HistoryPageOpts{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		items, _ := listRes.Get("items").([]any)
+		if len(items) != 1 || items[0].(*util.Obj).Get("sessionId") != "custom-sess" {
+			t.Fatalf("expected custom launcher history session, got: %s", util.Stringify(listRes))
+		}
+		delRes, err := jsrt.Await(service.Remove("claude", "custom-sess"))
+		if err != nil || delRes.Get("ok") != true {
+			t.Fatalf("delete custom launcher history failed: res=%v err=%v", delRes, err)
+		}
+		if _, err := os.Stat(customFile); !os.IsNotExist(err) {
+			t.Fatalf("custom launcher session file still exists: %v", err)
+		}
+	})
+}

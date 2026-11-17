@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -91,13 +92,14 @@ type SessionHistoryDeps struct {
 	Hidden    func(backend, sessionID string) bool
 	OpenTitle func(backend, sessionID, title string)
 	// OpenTab 的参数按固定键顺序组装成对象。
-	OpenTab        func(o *util.Obj) HistoryOpenTabResult
-	SessionModel   func(backend, sessionID string) string
-	GatewaySession func(backend, sessionID string) bool
-	AccountLabel   func(backend, accountID string) string
-	SessionAccount func(backend, sessionID string) *HistoryAccount
-	RemovePath     func(p string) *jsrt.Promise[struct{}]
-	CodexThreads   func(file string) *jsrt.Promise[[]*util.Obj]
+	OpenTab          func(o *util.Obj) HistoryOpenTabResult
+	SessionModel     func(backend, sessionID string) string
+	GatewaySession   func(backend, sessionID string) bool
+	AccountLabel     func(backend, accountID string) string
+	SessionAccount   func(backend, sessionID string) *HistoryAccount
+	RemovePath       func(p string) *jsrt.Promise[struct{}]
+	CodexThreads     func(file string) *jsrt.Promise[[]*util.Obj]
+	ClaudeConfigDirs func() []string
 }
 
 type historyFile struct {
@@ -178,6 +180,40 @@ func (s *SessionHistoryService) historyRoot(backend string) string {
 	return filepath.Join(s.dshHome, "sessions")
 }
 
+func shPathKey(p string) string {
+	c := filepath.Clean(p)
+	if runtime.GOOS == "windows" {
+		return strings.ToLower(c)
+	}
+	return c
+}
+
+func (s *SessionHistoryService) historyRoots(backend string) []string {
+	roots := []string{}
+	seen := map[string]bool{}
+	add := func(dir string) {
+		if dir == "" {
+			return
+		}
+		clean := filepath.Clean(dir)
+		key := shPathKey(clean)
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		roots = append(roots, clean)
+	}
+	add(s.historyRoot(backend))
+	if backend == "claude" && s.d.ClaudeConfigDirs != nil {
+		for _, root := range s.d.ClaudeConfigDirs() {
+			if root != "" {
+				add(filepath.Join(root, "projects"))
+			}
+		}
+	}
+	return roots
+}
+
 func shNowMs() float64 { return float64(time.Now().UnixNano()) / 1e6 }
 
 func (s *SessionHistoryService) candidates(backend string, force bool) []historyFile {
@@ -185,8 +221,16 @@ func (s *SessionHistoryService) candidates(backend string, force bool) []history
 		return s.listEnt[backend]
 	}
 	entries := []historyFile{}
-	for _, f := range historyScan(backend).Scan(s.historyRoot(backend)) {
-		entries = append(entries, historyFile{f.Path, f.Mtime, f.Size, f.DirID})
+	seenFiles := map[string]bool{}
+	for _, root := range s.historyRoots(backend) {
+		for _, f := range historyScan(backend).Scan(root) {
+			key := shPathKey(f.Path)
+			if seenFiles[key] {
+				continue
+			}
+			seenFiles[key] = true
+			entries = append(entries, historyFile{f.Path, f.Mtime, f.Size, f.DirID})
+		}
 	}
 	if backend == "codex" {
 		s.refreshCodexIndex(filepath.Join(usage.CodexHomeDir(s.home, s.env()), "state_5.sqlite"))
@@ -1070,7 +1114,7 @@ func (s *SessionHistoryService) deletionTargets(backend string, f historyFile, s
 }
 
 func (s *SessionHistoryService) deletionRoots(backend string) []string {
-	roots := []string{s.historyRoot(backend)}
+	roots := s.historyRoots(backend)
 	if backend == "dsh" {
 		roots = append(roots, filepath.Join(s.dshHome, "storages", "session_projcache"))
 	}

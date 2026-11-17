@@ -255,3 +255,36 @@ func (o *Orchestrator) SetTabAccount(id string, accountID *string) *util.Obj {
 	o.changed()
 	return tab.Clone()
 }
+
+// LauncherChanged applies saved launcher or account-source changes to live state and catalogs.
+func (o *Orchestrator) LauncherChanged(kind string, prev, next cli.LauncherSettings) {
+	if !isAccountBackend(kind) || prev == next {
+		return
+	}
+	if prev.AccountSource == next.AccountSource && prev.Enabled == next.Enabled && (!next.Enabled || prev.Command == next.Command) {
+		return
+	}
+	if prev.AccountSource != next.AccountSource {
+		for _, k := range o.tabs.Keys() {
+			if k == MainTabID {
+				continue
+			}
+			t := o.tab(k)
+			if t == nil || str(t, "backend") != kind || o.sourceOf(t) != "official" {
+				continue
+			}
+			if next.AccountSource == "local" {
+				t.Delete("accountId")
+			} else if next.AccountSource == "nomi" && !truthy(t.Get("accountId")) {
+				o.adoptScope(t)
+			}
+			if t.Get("status") != "running" && (truthy(t.Get("cliSessionId")) || len(o.TabMessages(k)) > 0) {
+				t.Set("cliSessionId", nil)
+				o.setCarried(t, o.TabMessages(k), str(t, "cwd"))
+			}
+		}
+	}
+	o.RecycleBackend(kind, nil)
+	o.changed()
+	o.post("harness.changed", o.State())
+}

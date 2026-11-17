@@ -7,11 +7,15 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodeproc"
 )
 
 // LauncherSettings applies to a CLI's official source, not the model gateway.
@@ -206,6 +210,40 @@ func ParseLauncherCommand(command string) (string, []string, error) {
 	return parts[0], parts[1:], nil
 }
 
+// ResolveExecutable resolves either an explicit executable path or a bare command name on PATH.
+func ResolveExecutable(cmd string, env *util.Obj, platform string) string {
+	if cmd == "" {
+		return ""
+	}
+	if platform == "" {
+		platform = usage.Platform()
+	}
+	if filepath.IsAbs(cmd) || strings.ContainsAny(cmd, `/\`) {
+		found := WindowsExecutable(cmd, platform, nil)
+		if st, err := os.Stat(found); err == nil && !st.IsDir() {
+			return found
+		}
+		return ""
+	}
+	return FindOnPath(cmd, env, platform, nil)
+}
+
+// ResolveLauncherBin returns the resolved binary path when a custom launcher is enabled for kind.
+func ResolveLauncherBin(kind string) string {
+	if !builtin.WithAccounts(kind) {
+		return ""
+	}
+	s := LauncherFor(kind)
+	if !s.Enabled || strings.TrimSpace(s.Command) == "" {
+		return ""
+	}
+	cmd, _, err := ParseLauncherCommand(s.Command)
+	if err != nil {
+		return ""
+	}
+	return ResolveExecutable(cmd, WithCliPath(nil), usage.Platform())
+}
+
 // LauncherInvocation keeps all Nomi protocol arguments after the user prefix.
 func LauncherInvocation(kind, bin string, args []string, official bool) (string, []string, error) {
 	s := LauncherFor(kind)
@@ -221,33 +259,70 @@ func LauncherInvocation(kind, bin string, args []string, official bool) (string,
 
 // TestLauncherVersion probes the full launch chain, not the wrapper's own
 // version. Return only a version number, never arbitrary stdout or credentials.
+// Spawns via ResolveCliLaunch / nodeproc.RunSync so no shell is invoked outside safe Windows .cmd shims.
 func TestLauncherVersion(kind, command string) (string, error) {
 	if !builtin.WithAccounts(kind) {
 		return "", errors.New(i18n.T("electron.common.cli-launcher-invalid"))
 	}
+	var cmd string
+	var prefix []string
 	if strings.TrimSpace(command) == "" {
-		command = ResolveCliBinCached(kind)
-		if command != "" {
-			command = "\"" + command + "\""
+		cmd = ResolveCliBinCached(kind)
+		if cmd == "" {
+			return "", errors.New(i18n.T("electron.common.cli-launcher-test-failed"))
+		}
+	} else {
+		var err error
+		cmd, prefix, err = ParseLauncherCommand(command)
+		if err != nil {
+			return "", err
 		}
 	}
-	cmd, prefix, err := ParseLauncherCommand(command)
-	if err != nil {
-		return "", err
-	}
-	version := offThread(func() string {
+	probe := func() string {
 		env, _ := ScrubSecretEnv(WithCliPath(nil), nil)
 		env.Set("NO_COLOR", "1")
-		if strings.HasSuffix(cmd, ".js") || strings.HasSuffix(cmd, ".mjs") {
-			prefix = append([]string{cmd}, prefix...)
-			cmd = ResolveNodeBin()
+		platform := usage.Platform()
+		resolved := ResolveExecutable(cmd, env, platform)
+		if resolved == "" {
+			return ""
 		}
-		out, runErr := execText(cmd, append(prefix, "--version"), env, 8000, isCmdBat(cmd))
+		args := append(append([]string(nil), prefix...), "--version")
+		lower := strings.ToLower(resolved)
+		if strings.HasSuffix(lower, ".js") || strings.HasSuffix(lower, ".mjs") {
+			node := ResolveNodeBin()
+			if node == "" {
+				return ""
+			}
+			out, runErr := nodeproc.RunSync(node, append([]string{resolved}, args...), nodeproc.Options{Env: usage.EnvSlice(env), IgnoreStdin: true}, 8*time.Second)
+			if runErr != nil {
+				return ""
+			}
+			return semverOnlyRe.FindString(nodeproc.DecodeChunk(out))
+		}
+		launch := usage.ResolveCliLaunch(resolved, args, env, platform, usage.UnwrapCmdDeps{})
+		if launch == nil {
+			return ""
+		}
+		file, runEnv := launch.File, env
+		if launch.Via == usage.ViaNodeScript {
+			runEnv = WithCliPath(env)
+			if !filepath.IsAbs(file) {
+				if n := ResolveNodeBin(); n != "" {
+					file = n
+				}
+			}
+		}
+		out, runErr := nodeproc.RunSync(file, launch.Args, nodeproc.Options{
+			Env:         usage.EnvSlice(runEnv),
+			Verbatim:    launch.Via == usage.ViaCmdShim,
+			IgnoreStdin: true,
+		}, 8*time.Second)
 		if runErr != nil {
 			return ""
 		}
-		return semverOnlyRe.FindString(out)
-	})
+		return semverOnlyRe.FindString(nodeproc.DecodeChunk(out))
+	}
+	version := probe()
 	if version == "" {
 		return "", errors.New(i18n.T("electron.common.cli-launcher-test-failed"))
 	}

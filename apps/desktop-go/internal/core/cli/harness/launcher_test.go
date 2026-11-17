@@ -1,7 +1,10 @@
 package harness
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
@@ -89,4 +92,99 @@ func TestClaudeReportedConfigDir(t *testing.T) {
 			t.Fatalf("unrelated/invalid metadata accepted: %v", p)
 		}
 	}
+}
+
+func TestLauncherChangedRecyclesCatalogAndCarriesIdleTabs(t *testing.T) {
+	cli.ConfigureLaunchers(t.TempDir())
+	t.Cleanup(func() { cli.ConfigureLaunchers("") })
+	o := noLocalOrch(t, filepath.Join(t.TempDir(), "harness"), map[string]bool{})
+	defer jsrt.Run(o.Dispose)
+
+	jsrt.Run(func() {
+		tab := o.CreateTab(util.NewObj(
+			"backend", "claude",
+			"source", "official",
+			"cliSessionId", "sess-old-nomi",
+			"activate", false,
+		))
+		id := str(tab, "id")
+		o.tab(id).Set("accountId", "nomi-acct-1")
+		o.SeedTabMessages(id, []any{util.NewObj("id", "m1", "role", "user", "content", "hi", "timestamp", float64(1))})
+		o.modelCatalogs["claude"] = catalogEntry{at: nowMs(), catalog: util.NewObj("backend", "claude")}
+		prevGen := o.modelCatalogGen["claude"]
+
+		prev := cli.LauncherFor("claude")
+		next := cli.LauncherSettings{AccountSource: "local"}
+		if err := cli.SaveLauncher("claude", next); err != nil {
+			t.Fatal(err)
+		}
+		o.LauncherChanged("claude", prev, next)
+
+		if _, cached := o.modelCatalogs["claude"]; cached {
+			t.Fatal("model catalog cache was not invalidated")
+		}
+		if o.modelCatalogGen["claude"] <= prevGen {
+			t.Fatal("model catalog generation did not advance")
+		}
+		cur := o.tab(id)
+		if cur.Has("accountId") {
+			t.Fatalf("accountId remained after switching to local: %v", cur.Get("accountId"))
+		}
+		if truthy(cur.Get("cliSessionId")) {
+			t.Fatalf("stale cliSessionId remained after switching account source: %v", cur.Get("cliSessionId"))
+		}
+		if !truthy(cur.Get("carriedMessages")) {
+			t.Fatal("idle tab did not retain carriedMessages across account source switch")
+		}
+	})
+}
+
+func TestStateReportsEnabledCustomLauncherBin(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		return
+	}
+	cli.ConfigureLaunchers(t.TempDir())
+	cli.ResetCliBinCache()
+	t.Cleanup(func() {
+		cli.ConfigureLaunchers("")
+		cli.ResetCliBinCache()
+	})
+	t.Setenv("NOMI_USE_MOCK_CLI", "0")
+	t.Setenv("PATH", t.TempDir())
+
+	targetKind := ""
+	for _, k := range []string{"minimax", "kimi", "grok", "codex", "claude"} {
+		if ResolveHarnessBin(k) == "" {
+			targetKind = k
+			break
+		}
+	}
+	if targetKind == "" {
+		return
+	}
+
+	dir := t.TempDir()
+	wrapper := filepath.Join(dir, "custom-wrapper")
+	if err := os.WriteFile(wrapper, []byte("#!/bin/sh\necho 1.0.0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := cli.SaveLauncher(targetKind, cli.LauncherSettings{
+		Enabled:       true,
+		Command:       fmt.Sprintf("%q cli", wrapper),
+		AccountSource: "local",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := ResolveEffectiveHarnessBin(targetKind); got != wrapper {
+		t.Fatalf("ResolveEffectiveHarnessBin(%s) = %q, want %q", targetKind, got, wrapper)
+	}
+
+	o := noLocalOrch(t, filepath.Join(t.TempDir(), "harness"), map[string]bool{})
+	defer jsrt.Run(o.Dispose)
+	jsrt.Run(func() {
+		bins, _ := o.State().Get("bins").(*util.Obj)
+		if bins == nil || bins.Get(targetKind) != wrapper {
+			t.Fatalf("State().bins[%s] = %v, want %s", targetKind, bins.Get(targetKind), wrapper)
+		}
+	})
 }

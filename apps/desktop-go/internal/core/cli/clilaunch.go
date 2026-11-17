@@ -2,6 +2,7 @@ package cli
 
 import (
 	"path/filepath"
+	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -20,7 +21,16 @@ func ResolveHarnessLaunch(command string, args []string, env *util.Obj, platform
 	if platform == "" {
 		platform = usage.Platform()
 	}
-	bin := WindowsExecutable(command, platform, nil)
+	bin := command
+	if bin != "" && !strings.ContainsAny(bin, `/\`) {
+		if resolved := FindOnPath(bin, env, platform, nil); resolved != "" {
+			bin = resolved
+		} else {
+			bin = WindowsExecutable(bin, platform, nil)
+		}
+	} else {
+		bin = WindowsExecutable(bin, platform, nil)
+	}
 	launch := usage.ResolveCliLaunch(bin, args, env, platform, usage.UnwrapCmdDeps{})
 	if launch == nil {
 		return HarnessLaunch{File: bin, Args: args, Env: env}

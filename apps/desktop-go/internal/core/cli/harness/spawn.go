@@ -22,6 +22,17 @@ func ResolveHarnessBin(backend string) string {
 	return cli.ResolveCliBinCached(backend)
 }
 
+// ResolveEffectiveHarnessBin returns the detected CLI binary, or the resolved custom launcher binary if enabled.
+func ResolveEffectiveHarnessBin(backend string) string {
+	if p := ResolveHarnessBin(backend); p != "" {
+		return p
+	}
+	if os.Getenv("NOMI_USE_MOCK_CLI") == "1" {
+		return ""
+	}
+	return cli.ResolveLauncherBin(backend)
+}
+
 func IsScript(bin string) bool {
 	return strings.HasSuffix(bin, ".mjs") || strings.HasSuffix(bin, ".js")
 }

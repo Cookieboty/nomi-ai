@@ -59,10 +59,11 @@ var (
 
 // CodingServices：getter 返回 nil（无类型）= 服务不可用
 type CodingServices struct {
-	Plugins  func() Plugins
-	Updates  func() Updates
-	Delegate func() Delegate
-	History  func() History
+	Plugins         func() Plugins
+	Updates         func() Updates
+	Delegate        func() Delegate
+	History         func() History
+	OnLauncherSaved func(kind string, prev, next cli.LauncherSettings)
 }
 
 func need[T any](get func() T, name string) T {
@@ -160,11 +161,17 @@ func RegisterCoding(r *contract.Router, s CodingServices) {
 	gil(r, "cli.registry", func(in) any { return plugins().Snapshot() })
 	gil(r, "cli.launcherGet", func(in) any { return cli.Launchers() })
 	gil(r, "cli.launcherSet", func(a in) any {
-		s := util.AsObj(a.any("settings"))
-		throwIf(cli.SaveLauncher(a.str("kind"), cli.LauncherSettings{Enabled: util.Truthy(s.Get("enabled")), Command: util.Str(s.Get("command")), AccountSource: util.Str(s.Get("accountSource"))}))
-		return cli.LauncherFor(a.str("kind"))
+		kind := a.str("kind")
+		prev := cli.LauncherFor(kind)
+		st := util.AsObj(a.any("settings"))
+		throwIf(cli.SaveLauncher(kind, cli.LauncherSettings{Enabled: util.Truthy(st.Get("enabled")), Command: util.Str(st.Get("command")), AccountSource: util.Str(st.Get("accountSource"))}))
+		next := cli.LauncherFor(kind)
+		if s.OnLauncherSaved != nil && prev != next {
+			s.OnLauncherSaved(kind, prev, next)
+		}
+		return next
 	})
-	gil(r, "cli.launcherTest", func(a in) any {
+	plain(r, "cli.launcherTest", func(a in) any {
 		version, err := cli.TestLauncherVersion(a.str("kind"), a.str("command"))
 		throwIf(err)
 		return util.NewObj("version", version)

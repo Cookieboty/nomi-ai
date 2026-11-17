@@ -58,4 +58,16 @@ func TestScrubSecretEnv(t *testing.T) {
 	if out, _ := ScrubSecretEnv(off, nil); out.Has("AWS_SECRET_ACCESS_KEY") {
 		t.Fatal("bedrock switched off: AWS keys go")
 	}
+
+	// Kimi Code 和 MiniMax Code 沿用本机登录时保留其模型与供应商密钥
+	localEnvs := util.NewObj(
+		"KIMI_API_KEY", "k",
+		"KIMI_CODE_BASE_URL", "https://kimi.example",
+		"MINIMAX_API_KEY", "m",
+		"MCODE_PROVIDER_API_KEY", "mc",
+		"GITHUB_TOKEN", "gh",
+	)
+	if out, _ := ScrubSecretEnv(localEnvs, nil); !out.Has("KIMI_API_KEY") || !out.Has("MINIMAX_API_KEY") || !out.Has("MCODE_PROVIDER_API_KEY") || out.Has("GITHUB_TOKEN") {
+		t.Fatalf("local kimi/minimax model env scrubbed unexpectedly: %v", out.Keys())
+	}
 }

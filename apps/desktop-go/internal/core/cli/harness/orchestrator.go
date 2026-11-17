@@ -1133,7 +1133,7 @@ func (o *Orchestrator) State() *util.Obj {
 	// bins 现查（命中走缓存；没找到的 10 秒后重查）：装完 CLI 后侧栏再取一次就能看到，不用重启
 	bins := util.NewObj()
 	for _, b := range builtin.Ordered {
-		if p := ResolveHarnessBin(b); p != "" {
+		if p := ResolveEffectiveHarnessBin(b); p != "" {
 			bins.Set(b, p)
 		} else {
 			bins.Set(b, nil)
