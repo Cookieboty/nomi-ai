@@ -1185,6 +1185,67 @@ const (
 	AppIconSetOutputSunset AppIconSetOutput = "sunset"
 )
 
+type BrowserWindowCloseInput struct {
+	Id string `json:"id"`
+}
+
+type BrowserWindowNavigateInput struct {
+	Id  string `json:"id"`
+	Url string `json:"url"`
+}
+
+type BrowserWindowReloadInput struct {
+	Id string `json:"id"`
+}
+
+type BrowserWindowSetRegionInputRegion struct {
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	Width  float64 `json:"width"`
+	Height float64 `json:"height"`
+}
+
+type BrowserWindowSetRegionInput struct {
+	Id      string                            `json:"id"`
+	Region  BrowserWindowSetRegionInputRegion `json:"region"`
+	Visible bool                              `json:"visible"`
+}
+
+type BrowserWindowShowInputRegion struct {
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	Width  float64 `json:"width"`
+	Height float64 `json:"height"`
+}
+
+type BrowserWindowShowInput struct {
+	Id     string                       `json:"id"`
+	Url    string                       `json:"url"`
+	Region BrowserWindowShowInputRegion `json:"region"`
+}
+
+// BrowserWindowShowOutputReason 枚举：unsupported | failed
+type BrowserWindowShowOutputReason = string
+
+const (
+	BrowserWindowShowOutputReasonUnsupported BrowserWindowShowOutputReason = "unsupported"
+	BrowserWindowShowOutputReasonFailed      BrowserWindowShowOutputReason = "failed"
+)
+
+type BrowserWindowShowOutput struct {
+	Ok      bool                           `json:"ok"`
+	Reason  *BrowserWindowShowOutputReason `json:"reason,omitempty"`
+	Message *string                        `json:"message,omitempty"`
+}
+
+type BrowserWindowSyncInput struct {
+	Ids []string `json:"ids"`
+}
+
+type BrowserWindowSyncOutput struct {
+	Closed []string `json:"closed"`
+}
+
 // CharacterAssetsOutputStatus 枚举：idle | checking | downloading | ready | error
 type CharacterAssetsOutputStatus = string
 
@@ -10995,6 +11056,17 @@ type EventAiUserQuestion struct {
 	ExpiresAt      *float64                           `json:"expiresAt,omitempty"`
 }
 
+type EventBrowserWindowClosed struct {
+	Id string `json:"id"`
+}
+
+type EventBrowserWindowLoaded struct {
+	Id      string  `json:"id"`
+	Url     *string `json:"url,omitempty"`
+	Ok      bool    `json:"ok"`
+	Message *string `json:"message,omitempty"`
+}
+
 // EventCharacterAssetsChangedStatus 枚举：idle | checking | downloading | ready | error
 type EventCharacterAssetsChangedStatus = string
 
@@ -12152,6 +12224,34 @@ type AppIconGetOutputT = AppIconGetOutput
 // AppIconSetInputT 是 appIcon.set 的入参
 type AppIconSetInputT = AppIconSetInput
 type AppIconSetOutputT = AppIconSetOutput
+
+// BrowserWindowCloseInputT 是 browserWindow.close 的入参
+type BrowserWindowCloseInputT = BrowserWindowCloseInput
+type BrowserWindowCloseOutputT = bool
+
+// BrowserWindowCloseAllInputT 是 browserWindow.closeAll 的入参
+type BrowserWindowCloseAllInputT = map[string]any
+type BrowserWindowCloseAllOutputT = bool
+
+// BrowserWindowNavigateInputT 是 browserWindow.navigate 的入参
+type BrowserWindowNavigateInputT = BrowserWindowNavigateInput
+type BrowserWindowNavigateOutputT = bool
+
+// BrowserWindowReloadInputT 是 browserWindow.reload 的入参
+type BrowserWindowReloadInputT = BrowserWindowReloadInput
+type BrowserWindowReloadOutputT = bool
+
+// BrowserWindowSetRegionInputT 是 browserWindow.setRegion 的入参
+type BrowserWindowSetRegionInputT = BrowserWindowSetRegionInput
+type BrowserWindowSetRegionOutputT = bool
+
+// BrowserWindowShowInputT 是 browserWindow.show 的入参
+type BrowserWindowShowInputT = BrowserWindowShowInput
+type BrowserWindowShowOutputT = BrowserWindowShowOutput
+
+// BrowserWindowSyncInputT 是 browserWindow.sync 的入参
+type BrowserWindowSyncInputT = BrowserWindowSyncInput
+type BrowserWindowSyncOutputT = BrowserWindowSyncOutput
 
 // CharacterAssetsInputT 是 character.assets 的入参
 type CharacterAssetsInputT = any
@@ -13920,6 +14020,8 @@ type EventAiTtsEndT = EventAiTtsEnd
 type EventAiUserProfileChangedT = EventAiUserProfileChanged
 type EventAiUserQuestionT = EventAiUserQuestion
 type EventAvatarEventT = json.RawMessage
+type EventBrowserWindowClosedT = EventBrowserWindowClosed
+type EventBrowserWindowLoadedT = EventBrowserWindowLoaded
 type EventCharacterAssetsChangedT = EventCharacterAssetsChanged
 type EventChatAssetsChangedT = any
 type EventChatBgChangedT = EventChatBgChanged

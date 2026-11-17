@@ -88,6 +88,9 @@ type Wails struct {
 	notes *notifier
 	// detached：对话标签弹出来的独立窗口（detachedwindow.go），按标签 id
 	detached map[string]*application.WebviewWindow
+	// browsers：内置浏览器窗口（browserwindow.go），按视图定的标签 id
+	browsers     map[string]*browserWin
+	browserTimer *time.Timer
 }
 
 type pageLoad struct {
@@ -98,7 +101,8 @@ type pageLoad struct {
 func New(cfg Config) *Wails {
 	w := &Wails{cfg: cfg, wins: map[shell.WindowKind]*application.WebviewWindow{}, aot: map[shell.WindowKind]bool{}, loads: map[*application.WebviewWindow]*pageLoad{},
 		releases: map[*application.WebviewWindow]func(){}, detached: map[string]*application.WebviewWindow{},
-		notes: newNotifier()}
+		browsers: map[string]*browserWin{},
+		notes:    newNotifier()}
 	w.app = application.New(application.Options{
 		Name:     hostports.GoProductName,
 		Services: w.notes.services(),
@@ -461,6 +465,8 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		win.OnWindowEvent(events.Common.WindowDidMove, func(*application.WindowEvent) { w.notify(k, "moved") })
 	case shell.Chat:
 		w.trackChatBounds(win)
+		// 内置浏览器窗口跟着对话窗口挪 / 缩放 / 最小化（browserwindow.go）
+		w.followChatBrowser(win)
 	}
 	w.mu.Lock()
 	w.wins[k] = win
