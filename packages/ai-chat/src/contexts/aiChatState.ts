@@ -33,7 +33,11 @@ export interface AiChatState {
 export type AiChatAction =
   /** convoId：这批消息属于哪个会话（切换会话时带上；不带则沿用当前展示的会话） */
   | { type: 'SET_MESSAGES'; payload: ChatMessage[]; convoId?: string }
-  | { type: 'ADD_MESSAGE'; payload: ChatMessage }
+  | {
+      type: 'ADD_MESSAGE';
+      payload: ChatMessage;
+      /** 插到这条之前（压缩卡片要盖在刚发的新消息上方） */ beforeId?: string;
+    }
   | { type: 'UPDATE_MESSAGE'; payload: { id: string; content: string } }
   /** 按 id 覆盖，不存在则追加（流式期间切走又切回来时，补回这一轮的消息） */
   | { type: 'UPSERT_MESSAGES'; payload: ChatMessage[] }
@@ -117,8 +121,14 @@ export function aiChatReducer(state: AiChatState, action: AiChatAction): AiChatS
         doneConvos: seen,
       };
     }
-    case 'ADD_MESSAGE':
-      return { ...state, messages: [...state.messages, action.payload] };
+    case 'ADD_MESSAGE': {
+      // beforeId：插到指定消息之前（发送前压缩时，摘要卡不能排到刚发的新消息下面）
+      const at = action.beforeId ? state.messages.findIndex((m) => m.id === action.beforeId) : -1;
+      if (at < 0) return { ...state, messages: [...state.messages, action.payload] };
+      const next = state.messages.slice();
+      next.splice(at, 0, action.payload);
+      return { ...state, messages: next };
+    }
     case 'UPDATE_MESSAGE':
       return {
         ...state,

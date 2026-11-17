@@ -241,9 +241,11 @@ function useStreamSend({
               }
             : {}),
         };
+        // 先上屏：后面的后端探测、压缩摘要、记忆召回都要等，不能让输入框把刚发的话吞进去
+        // （压缩期间用户只看到摘要卡跑几十秒，自己那句话一直不出现）。后台自动恢复跟进不造假用户气泡。
+        if (!bgFollow && turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
         // `/agent`：直接派出编程助手。不交给对话模型——模型不调工具时会像已经交出，其实什么都没开始。
         if (delegateTo) {
-          if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
           maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
           // 等确认时可以停止：停止键中止这次调用，内核里的确认随之取消
           activeStream.current.set(convoKey(turn.convoId), {
@@ -305,13 +307,24 @@ function useStreamSend({
         }
         let history = override?.history ?? s.messages;
         const hs = harnessClient.available() ? await harnessClient.state() : null;
-        // Nomi 对话：这一轮的上下文快到模型输入预算的 95% 时，先把较早的对话压缩成摘要
+        // Nomi 对话：这一轮的上下文快到模型输入预算的 95% 时，先把较早的对话压缩成摘要。
+        // 摘要要跑一次模型（几十秒），所以用户消息已经先上屏了，摘要卡插到它上方。
         if (!hs || hs.backend === 'nomi') {
-          const c = await compactHistory(client, history, content, turn, false, dispatch);
+          const c = await compactHistory(
+            client,
+            history,
+            content,
+            turn,
+            false,
+            dispatch,
+            undefined,
+            userMessage.id,
+          );
           if (c.next) history = c.next;
         }
-        // 准备期间用户可能已切到别的会话：只有发起会话仍在显示时才上屏（后台自动恢复跟进不造假用户气泡）
-        if (!bgFollow && turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
+        // 万一起手时不在这个会话（或已被切回），补一次：按 id upsert，不会重复
+        if (!bgFollow && turn.isActive())
+          dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage] });
         inflight.current.set(convoKey(turn.convoId), {
           reqId,
           convoId: turn.convoId,
