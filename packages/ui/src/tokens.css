@@ -154,7 +154,7 @@
 :root,
 [data-theme='light'] {
   color-scheme: light;
-  /* 色值依据「Nomi 诺米桌面端设计系统 v1.0」：暖白画布 + 陶土红品牌色 */
+  /* 色值依据设计系统文档 v1.0：暖白画布 + 陶土红品牌色 */
   --cd-color-bg: #faf9f6;
   --cd-color-bg-gradient: #faf9f6;
   --cd-color-bg-subtle: #f2f0eb;
