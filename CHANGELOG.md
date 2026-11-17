@@ -7,11 +7,16 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ### Features
 
+- **chat:** 侧栏项目支持跨多 CLI 全局共享与任选端新建会话，新增鼠标悬停项目头右侧详情弹窗（展示聊天总数、全部源文件夹、项目置顶与编辑入口）。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/i18n` patch)
+- **chat:** 新增「极简」会话详细程度模式并设为新环境默认，支持在运行中与完成后点击圆角横条展开查看逐行步骤并在局部区域内独立滚动，收起时仅展示步骤进度、已用时与最终总结；并禁用步骤与状态进度区域的划词工具条触发。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/i18n` patch)
 - **cli:** Claude Code、Codex、Grok、Kimi Code、MiniMax Code 可以各自选择沿用本机登录或 Nomi 管理的账号（默认仍是 Nomi 管理）；默认用检测到的 CLI，高级设置里可选填自定义启动命令；保留协议与续接参数，第三方模型的启动方式不变。 Choose local CLI sign-in or Nomi-managed accounts independently for Claude Code, Codex, Grok, Kimi Code and MiniMax Code (Nomi-managed stays the default). Use detected CLIs by default, with optional custom launch commands under advanced settings. Preserve protocol and resume arguments and keep third-party model launches unchanged. (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
 - **cli:** 新增 `cli.launcherGet` / `cli.launcherSet` / `cli.launcherTest`（仅限对话窗口，设置与测试标为 dangerous）以及本机登录、自定义启动命令的文案。 Add `cli.launcherGet` / `cli.launcherSet` / `cli.launcherTest` (chat window only; set and test are dangerous) and strings for local sign-in and custom launch commands. (`@nomi-ai/contract` patch, `@nomi-ai/i18n` patch)
 
 ### Fixes
 
+- **cli:** 修复本地 CLI 接入测试命令注入风险，补齐自定义启动器配置下的历史会话扫描、Kimi/MiniMax 环境变量放行、可用性探测及账号来源切换刷新 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
+- **delegate:** 后台委派被停止后不再往正在跑的轮次注入结果，时间线里不再出现「你插入了」这条假用户消息；完成与失败仍实时告知模型，但同样不再当作用户插话。 A stopped background handoff is no longer injected into the running turn, and completion or failure reaches the model silently, so the timeline stops showing a fake "you inserted" message. (`@nomi-ai/ai-chat` patch)
+- **session-details:** 会话详情中的子 Agents 与任务悬停卡片改为贴面板左侧外沿展开、跨项移动立即收起并防止浮层点击误关，不再遮挡下方相邻条目。 (`@nomi-ai/ai-chat` patch)
 - **usage:** 自定义启动命令使用单独配置目录时，Claude Code 的每日用量不再缺失：发现并记住 CLI 报告的日志位置，跨账号目录仍按消息去重。 Fix missing daily Claude Code usage when a custom launcher uses a separate configuration directory. Discover and remember the log location reported by the CLI, retaining message deduplication across account directories. (`@nomi-ai/desktop-go` patch)
 
 ### Maintenance
