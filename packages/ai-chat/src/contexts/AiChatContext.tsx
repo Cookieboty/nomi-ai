@@ -205,13 +205,17 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       const completedAt = Date.now();
       const notifyMain = (m: ChatMessage) => {
         if (!r.background || r.followUp) return;
+        // 被停止的委派不再注入：结果消息已经写进对话（模型下一轮从历史里读得到），卡片上也标着「已停止」，
+        // 再 steer 一遍只会让模型以为自己被用户插了句话
+        if (r.status === 'cancelled') return;
         const currentId = ipcClient.currentConversationId?.();
         const targetId = r.conversationId ?? currentId;
         const key = convoKey(targetId);
-        // 1. 主模型正在流式执行中（例如同一轮还在跑其他工具）：经 steer 把后台委派终态注入当前轮，免得主模型盲等
+        // 1. 主模型正在流式执行中（例如同一轮还在跑其他工具）：经 steer 把后台委派终态注入当前轮，免得主模型盲等。
+        //    silent：这是系统状态（委派完成 / 失败），只告诉模型，不在时间线里回显成「你插入了」
         const running = activeStream.current.get(key);
         if (running?.steer && !running.controller.signal.aborted) {
-          void running.steer(`<cli-output>\n${m.content}\n</cli-output>`);
+          void running.steer(`<cli-output>\n${m.content}\n</cli-output>`, { silent: true });
           return;
         }
         // 2. 主会话当前空闲且后台委派经内核 5 次自动重试仍失败：受控唤醒 Nomi 接棒（改派健康 CLI 或自力完成，每轮用户提问最多 2 次）

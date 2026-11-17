@@ -10,8 +10,12 @@ import { hasRunningTool } from '../utils/pendingSends';
 export interface SteerableStream {
   reqId: string;
   controller: AbortController;
-  /** 插入一条用户消息（成功后记进这一轮的轨迹） */
-  steer?: (text: string) => Promise<boolean>;
+  /**
+   * 插入一条用户消息（成功后记进这一轮的轨迹）。
+   * silent：只投给内核，不在轨迹里留 interject —— 系统自己的状态注入（后台委派终态）
+   * 不能回显成「你插入了」，那不是用户说的话。
+   */
+  steer?: (text: string, opts?: { silent?: boolean }) => Promise<boolean>;
   /** 有没结束的工具调用 */
   toolRunning?: () => boolean;
 }
@@ -27,9 +31,10 @@ export function attachSteer(
   },
 ): void {
   stream.toolRunning = () => hasRunningTool(o.trace);
-  stream.steer = async (text) => {
+  stream.steer = async (text, opts) => {
     const ok = (await o.deliver(stream.reqId, text)) === true;
     if (!ok || stream.controller.signal.aborted) return false;
+    if (opts?.silent) return true;
     o.trace.push({ type: 'interject', text, at: Date.now(), textAt: o.textLength() });
     o.onChange();
     return true;

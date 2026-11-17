@@ -74,6 +74,101 @@ describe('CLI 自发的跟进轮次', () => {
     expect(save).toHaveBeenCalledTimes(1);
   });
 
+  it('运行中收到被停止的委派：不注入也不留 interject；完成 / 失败才静默告知模型', async () => {
+    const fake = installFakeApi(() => null);
+    const steerCalls: Array<{ reqId: string; text: string }> = [];
+    let release: (() => void) | null = null;
+    const client = {
+      chat: {
+        agentStream: vi.fn(function () {
+          return (async function* () {
+            await new Promise<void>((r) => {
+              release = r;
+            });
+            yield { type: 'delta', content: '收到' };
+          })();
+        }),
+        stream: vi.fn(),
+        sendMessage: vi.fn(),
+        abort: vi.fn(),
+        steer: vi.fn((reqId: string, text: string) => {
+          steerCalls.push({ reqId, text });
+          return Promise.resolve(true);
+        }),
+      },
+      memory: { userProfile: { get: () => undefined, set: vi.fn() } },
+      dispose: vi.fn(),
+    } as unknown as ClientAIClient;
+    const ref: { api?: ReturnType<typeof useAiChat> } = {};
+    const Probe = () => {
+      ref.api = useAiChat();
+      return null;
+    };
+    render(
+      <AiChatContextProvider client={client}>
+        <Probe />
+      </AiChatContextProvider>,
+    );
+    await act(async () => void (await new Promise((r) => setTimeout(r, 0))));
+
+    let turnDone: Promise<void> | undefined;
+    act(() => {
+      turnDone = ref.api!.actions.sendStreamMessage('review 当前项目');
+    });
+    await act(async () => void (await new Promise((r) => setTimeout(r, 20))));
+
+    // 用户在运行中把 CLI 停下：模型下一轮从历史里读得到，不再 steer 一遍（也不用假装是用户插话）
+    await act(async () => {
+      fake.emit('delegate.completed', {
+        taskId: 't_stop',
+        cli: 'claude',
+        status: 'cancelled',
+        cancelledBy: 'user',
+        summary: '',
+        filesVerified: false,
+        approvals: { asked: 0, denied: 0, timedOut: 0 },
+        durationMs: 30,
+        background: true,
+      });
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(steerCalls).toEqual([]);
+    expect(ref.api!.state.messages.some((m) => m.content.includes('的委派任务已停止'))).toBe(true);
+
+    // 完成 / 失败仍实时告知正在跑的这一轮，但不当作「你插入了」
+    await act(async () => {
+      fake.emit('delegate.completed', {
+        taskId: 't_done',
+        cli: 'claude',
+        status: 'done',
+        summary: '改好了',
+        filesVerified: true,
+        approvals: { asked: 0, denied: 0, timedOut: 0 },
+        durationMs: 40,
+        background: true,
+      });
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(steerCalls.length).toBe(1);
+    expect(steerCalls[0]!.text).toContain('改好了');
+
+    const interjects = () =>
+      ref.api!.state.messages.flatMap((m) => m.trace ?? []).filter((e) => e.type === 'interject');
+    expect(interjects()).toEqual([]);
+
+    // 真用户插话照旧记进轨迹（外显为「你插入了」）
+    await act(async () => {
+      void (await ref.api!.actions.steerStream('顺便看下测试'));
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(interjects().map((e) => (e as { text: string }).text)).toEqual(['顺便看下测试']);
+
+    await act(async () => {
+      release?.();
+      await turnDone;
+    });
+  });
+
   it('后台委派重试耗尽仍失败：空闲时自动唤醒 Nomi 跟进兜底（不插假用户气泡，单轮最多 2 次）', async () => {
     const fake = installFakeApi((name) => {
       if (name === 'harness.state') return { backend: 'nomi', cwd: '/repo', bins: {} };
