@@ -137,6 +137,10 @@
 .epRail .epChip:active:not(:disabled) {
   background: var(--cd-color-nav-pressed);
 }
+/* 悬停提示包装层：跟 .epChip 同尺寸，不撑开竖排间距 */
+.epChipTip {
+  flex: none;
+}
 .top {
   display: flex;
   align-items: center;
@@ -1108,6 +1112,15 @@
 .virtualList {
   scrollbar-gutter: stable both-edges;
   scrollbar-width: thin;
+}
+/*
+ * 虚拟列表容器：吃掉 .threads 里「分区标题等兄弟节点」之后的剩余高度。
+ * flex: 1 + min-height: 0 才能让内部 List 拿到确定高度并在自己内部滚动；
+ * 不能写 height: 100%（会连兄弟节点的高度一起占掉，内容被顶出可视区）。
+ */
+.virtualHost {
+  flex: 1;
+  min-height: 0;
 }
 .virtualList::-webkit-scrollbar {
   width: var(--cd-space-1);
