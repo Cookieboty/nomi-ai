@@ -234,10 +234,20 @@ describe('EndpointControls project for new chats', () => {
     );
   });
 
-  it('已经有 CLI 会话但还没有对话：也直接换项目开新会话，不弹框', async () => {
+  it('已经有 CLI 会话但还没有对话：也直接换项目开新会话，不弹框，且可清除项目绑定', async () => {
     const invoke = mockIpc(state({ cliSessionId: 'sess-1', projectId: 'p_two' }));
     const r = mount();
     await waitFor(() => r.getByTestId('cli-project'));
+    fireEvent.click(r.getByTestId('cli-project-button'));
+    fireEvent.click(await r.findByTestId('cli-project-clear'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('harness.tabProject', {
+        id: 'cx',
+        projectId: null,
+        carry: false,
+      }),
+    );
+
     await pick(r, 0);
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('harness.tabProject', {

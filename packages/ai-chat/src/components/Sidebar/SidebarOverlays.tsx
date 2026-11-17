@@ -5,11 +5,14 @@ import type { Project } from '../../services/projects';
 import { ConversationMenu } from '../ConversationMenu';
 import { ProjectDialog } from '../ProjectDialog';
 
+import type { ProjectGroup } from './projectGrouping';
+import { ProjectPeek, type useProjectPeek } from './ProjectPeek';
 import { SearchDialog } from './SearchDialog';
 import { SessionPeek, type useSessionPeek } from './SessionPeek';
 import type { Meta } from './types';
 
 type Peek = ReturnType<typeof useSessionPeek>['peek'];
+type ProjectPeekVal = ReturnType<typeof useProjectPeek>;
 type Ctx = { x: number; y: number; anchor?: HTMLElement; id: string };
 type HistMenu = { x: number; y: number; anchor?: HTMLElement; h: HistorySession };
 
@@ -29,6 +32,15 @@ interface SidebarOverlaysProps {
   ctxP: { value: Ctx | null; closing: boolean };
   setCtx: (v: Ctx | null) => void;
   listPeek: { peek: Peek; hold: () => void; release: () => void };
+  projectPeek: {
+    peek: ProjectPeekVal['peek'];
+    hold: () => void;
+    release: () => void;
+    hide: () => void;
+  };
+  projectGroups: readonly ProjectGroup[];
+  onToggleProjectPin: (projectId: string) => void;
+  onEditProject: (group: ProjectGroup) => void;
   commitRename: (id: string, name: string | null) => void;
   projectDialog: Project | 'new' | null;
   setProjectDialog: (v: Project | 'new' | null) => void;
@@ -79,6 +91,10 @@ export const SidebarOverlays: React.FC<SidebarOverlaysProps> = ({
   ctxP,
   setCtx,
   listPeek,
+  projectPeek,
+  projectGroups,
+  onToggleProjectPin,
+  onEditProject,
   commitRename,
   projectDialog,
   setProjectDialog,
@@ -151,6 +167,24 @@ export const SidebarOverlays: React.FC<SidebarOverlaysProps> = ({
             onRename={commitRename}
             onHold={listPeek.hold}
             onRelease={listPeek.release}
+          />
+        );
+      })()}
+
+    {!projectDialog &&
+      projectPeek.peek &&
+      (() => {
+        const g = projectGroups.find((x) => x.key === projectPeek.peek?.projectId);
+        if (!g) return null;
+        return (
+          <ProjectPeek
+            group={g}
+            anchor={projectPeek.peek.anchor}
+            onTogglePin={onToggleProjectPin}
+            onEdit={onEditProject}
+            onHold={projectPeek.hold}
+            onRelease={projectPeek.release}
+            onClose={projectPeek.hide}
           />
         );
       })()}

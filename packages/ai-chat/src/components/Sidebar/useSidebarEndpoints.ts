@@ -19,7 +19,7 @@ interface SidebarEndpointsOptions {
   setEndpointFilter: (b: ConversationBackend) => void;
   setView: (v: 'all' | 'by-endpoint') => void;
   counts: Record<ConversationBackend, number>;
-  tabById: Map<string, { status?: string }>;
+  tabById: Map<string, { status?: string; projectId?: string }>;
   histBackends: readonly HistoryBackend[];
   historyItems: (backend?: HistoryBackend) => HistorySession[];
   cliMissing: (b: ConversationBackend) => boolean;
@@ -76,8 +76,12 @@ export function useSidebarEndpoints({
     setEndpointFilter(b);
     setView('by-endpoint');
     // 切到另一个端：打开它正在运行（或排队）的会话；没有就打开列表里第一条；一条都没有就新建一个空对话
-    // （没安装的 CLI 只切筛选）。已经停在这个端的会话上就不动
-    if (navList.find((x) => x.id === highlightId)?.backend === b) return;
+    // （没安装的 CLI 只切筛选），并衔接当前高亮会话所在项目。已经停在这个端的会话上就不动
+    const curMeta = navList.find((x) => x.id === highlightId);
+    if (curMeta?.backend === b) return;
+    const curProjectId = curMeta
+      ? (curMeta.projectId ?? (curMeta.tabId ? tabById.get(curMeta.tabId)?.projectId : undefined))
+      : undefined;
     const items = navList.filter((x) => x.backend === b);
     const busy = (x: (typeof items)[number]) => {
       const st = x.tabId ? tabById.get(x.tabId)?.status : undefined;
@@ -85,7 +89,7 @@ export function useSidebarEndpoints({
     };
     const target = items.find(busy) ?? items[0];
     if (target) void open(target.id);
-    else if (!cliMissing(b)) void createFor(b);
+    else if (!cliMissing(b)) void createFor(b, curProjectId);
   };
 
   // 端点图标的悬停提示：名称 + 对话数 + 本机历史数（只列非 0 的）

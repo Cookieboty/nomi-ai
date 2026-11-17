@@ -107,7 +107,17 @@ function useProjectSwitch() {
     if (!target || next === target.projectId) return;
     await harnessClient.setTabProject(target.id, next, { carry: false }).catch(() => undefined);
   };
-  return { cli, cwd: target?.cwd ?? '', projectId: target?.projectId, changeProject };
+  const clearProject = async () => {
+    if (!target || !target.projectId) return;
+    await harnessClient.setTabProject(target.id, null, { carry: false }).catch(() => undefined);
+  };
+  return {
+    cli,
+    cwd: target?.cwd ?? '',
+    projectId: target?.projectId,
+    changeProject,
+    clearProject,
+  };
 }
 
 /**
@@ -154,7 +164,7 @@ const NomiContextBar: React.FC = () => {
 };
 
 const NewChatContextImpl: React.FC = () => {
-  const { cli, cwd, projectId, changeProject } = useProjectSwitch();
+  const { cli, cwd, projectId, changeProject, clearProject } = useProjectSwitch();
   const { tabs, harness } = useEndpoint();
   const nomiCount = useAiChatSelector(selectMessageCount);
   if (!cli) {
@@ -170,6 +180,7 @@ const NewChatContextImpl: React.FC = () => {
         <ProjectPicker
           value={projectId}
           onChange={changeProject}
+          onClear={clearProject}
           size="sm"
           variant="ghost"
           up

@@ -36,6 +36,7 @@ import { sameMetaList } from './listEquality';
 import { NewChatButton } from './NewChatButton';
 import { useProjectGrouping, projectBackend, pinnedFirst } from './projectGrouping';
 import { NewProjectButton, OrganizeMenu, SECTION_WORKSPACES } from './ProjectGroups';
+import { useProjectPeek } from './ProjectPeek';
 import { SearchIcon } from './searchSupport';
 import { useSessionPeek } from './SessionPeek';
 import { SidebarOverlays } from './SidebarOverlays';
@@ -123,6 +124,8 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     setGroupByWorkspace,
     collapsedWorkspaces,
     setWorkspaceCollapsed,
+    pinnedProjects,
+    toggleProjectPin,
   } = useConversationListView();
   // 普通模式只有 Nomi：视图固定为「全部」，但不改动已保存的选择，切回开发模式即恢复
   const view = isNormal ? 'all' : storedView;
@@ -263,7 +266,14 @@ const SidebarImpl: React.FC<SidebarProps> = ({
 
   // 置顶不单独成组：置顶的会话排在所在项目（或「其他对话」、平铺列表）的最前面
   const ordered = useMemo(() => pinnedFirst(visible), [visible]);
-  const wsGroups = useProjectGrouping(ordered, projects, tabById, groupByWorkspace);
+  const wsGroups = useProjectGrouping(
+    ordered,
+    projects,
+    tabById,
+    groupByWorkspace,
+    navList,
+    pinnedProjects,
+  );
 
   const {
     histBackends,
@@ -343,7 +353,27 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     return () => window.removeEventListener(OPEN_CONVERSATION_EVENT, on);
   }, [open]);
 
+  const listPeek = useSessionPeek(400);
+  const projectPeek = useProjectPeek(220);
+  const { onPeek: onSessionPeek, hide: hideSessionPeek } = listPeek;
+  const { onPeek: onProjectPeek, hide: hideProjectPeek } = projectPeek;
+  const handleSessionPeek = useCallback(
+    (id: string, el: HTMLElement | null) => {
+      if (el) hideProjectPeek();
+      onSessionPeek(id, el);
+    },
+    [hideProjectPeek, onSessionPeek],
+  );
+  const handleProjectPeek = useCallback(
+    (projectId: string, el: HTMLElement | null) => {
+      if (el) hideSessionPeek();
+      onProjectPeek(projectId, el);
+    },
+    [hideSessionPeek, onProjectPeek],
+  );
+
   const handleNewClick = () => {
+    hideProjectPeek();
     if (isNormal) {
       void createFor('nomi');
       return;
@@ -354,8 +384,6 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     }
     setNewMenu((v) => !v);
   };
-
-  const listPeek = useSessionPeek(400);
 
   const cliMissing = (b: ConversationBackend) => b !== 'nomi' && !bins[b];
 
@@ -439,7 +467,14 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   );
 
   // 新建项目（「+」）：打开「创建项目」弹窗，建好后在这个项目里开一个会话（onSaved）
-  const newProjectBtn = <NewProjectButton onClick={() => setProjectDialog('new')} />;
+  const newProjectBtn = (
+    <NewProjectButton
+      onClick={() => {
+        hideProjectPeek();
+        setProjectDialog('new');
+      }}
+    />
+  );
   // 「项目」标题右侧：整理「…」+ 新建项目（「+」），悬停标题时才显示；不分组时（「对话」）只有整理。
   // 新对话在顶行（不放进任何项目）
   const listOpen = !collapsedWorkspaces.includes(SECTION_WORKSPACES);
@@ -466,7 +501,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       onRename: commitRename,
       onPinToggle: togglePin,
       onMore: openMore,
-      onPeek: listPeek.onPeek,
+      onPeek: handleSessionPeek,
       showIcon: isDev && view === 'all',
     }),
     [
@@ -478,8 +513,9 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       onCtx,
       renamingId,
       commitRename,
+      togglePin,
       openMore,
-      listPeek.onPeek,
+      handleSessionPeek,
       isDev,
       view,
     ],
@@ -549,7 +585,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
             className={styles.threads}
             aria-label={t('ui.chat-settings.history')}
             data-testid="conversation-list"
-            onScroll={listPeek.hide}
+            onScroll={() => {
+              hideSessionPeek();
+              hideProjectPeek();
+            }}
           >
             {onOpenSettings && (
               <GettingStarted
@@ -569,15 +608,21 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               wsGroups={wsGroups}
               collapsedWorkspaces={collapsedWorkspaces}
               onToggleCollapsed={setWorkspaceCollapsed}
-              onNewIn={(g) =>
-                void createFor(projectBackend(g, isNormal, view, endpointFilter), g.project.id)
+              onNewIn={(g, b) =>
+                void createFor(b ?? projectBackend(g, isNormal, view, endpointFilter), g.project.id)
               }
-              onEdit={(g) => setProjectDialog(g.project)}
+              onEdit={(g) => {
+                hideProjectPeek();
+                setProjectDialog(g.project);
+              }}
               activeId={rowActiveId}
               rows={rowProps}
               headerActions={listActions}
               isDev={isDev}
               view={view}
+              bins={bins}
+              onProjectPeek={handleProjectPeek}
+              onHideProjectPeek={hideProjectPeek}
               listLabel={t('ui.chat-settings.chats')}
               listOpen={listOpen}
               onToggleList={() => setWorkspaceCollapsed(SECTION_WORKSPACES, listOpen)}
@@ -641,11 +686,27 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         ctxP={ctxP}
         setCtx={setCtx}
         listPeek={listPeek}
+        projectPeek={projectPeek}
+        projectGroups={wsGroups.groups}
+        onToggleProjectPin={toggleProjectPin}
+        onEditProject={(g) => {
+          hideProjectPeek();
+          setProjectDialog(g.project);
+        }}
         commitRename={commitRename}
         projectDialog={projectDialog}
         setProjectDialog={setProjectDialog}
         onProjectSaved={(p) =>
-          void createFor(isNormal ? 'nomi' : view === 'by-endpoint' ? endpointFilter : 'nomi', p.id)
+          void createFor(
+            isNormal
+              ? 'nomi'
+              : view === 'by-endpoint'
+                ? endpointFilter
+                : cliMissing(cardBackend)
+                  ? 'nomi'
+                  : cardBackend,
+            p.id,
+          )
         }
         searchOpen={searchOpen}
         query={query}

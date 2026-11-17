@@ -26,6 +26,9 @@ interface SidebarThreadsProps {
   headerActions: React.ReactNode;
   isDev: boolean;
   view: ConversationListView;
+  bins: Record<string, string | null>;
+  onProjectPeek?: Groups['onProjectPeek'];
+  onHideProjectPeek?: Groups['onHideProjectPeek'];
   listLabel: string;
   listOpen: boolean;
   onToggleList: () => void;
@@ -61,6 +64,9 @@ export const SidebarThreads: React.FC<SidebarThreadsProps> = ({
   headerActions,
   isDev,
   view,
+  bins,
+  onProjectPeek,
+  onHideProjectPeek,
   listLabel,
   listOpen,
   onToggleList,
@@ -93,7 +99,10 @@ export const SidebarThreads: React.FC<SidebarThreadsProps> = ({
         activeId={activeId}
         rows={rows}
         headerActions={headerActions}
-        hideEmpty={isDev && view === 'by-endpoint'}
+        canPickBackend={isDev && view === 'all'}
+        bins={bins}
+        onProjectPeek={onProjectPeek}
+        onHideProjectPeek={onHideProjectPeek}
       />
     )}
     {!grouped && (

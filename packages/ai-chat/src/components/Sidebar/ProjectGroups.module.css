@@ -60,6 +60,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.wsPin {
+  flex: none;
+  margin-left: auto;
+  display: inline-flex;
+  color: var(--cd-color-text-muted);
+  opacity: 0.65;
+}
 /* 「新建」只在悬停 / 键盘焦点时出现，免得每个文件夹都多一个图标 */
 .wsNew {
   flex: none;
