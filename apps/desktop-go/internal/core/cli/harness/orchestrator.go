@@ -770,6 +770,8 @@ func (o *Orchestrator) load() {
 				}
 				restored.Set("status", st)
 				restored.Set("unread", jsNumberOr0(tab.Get("unread")))
+				// 完成点不跨重启：重新打开应用时谁也不想看到一屏「刚完成」
+				restored.Delete("finished")
 				pm, _ := tab.Lookup("permissionMode")
 				if _, has := tab.Lookup("permissionMode"); !has {
 					pm = util.Undefined

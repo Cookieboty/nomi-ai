@@ -75,6 +75,8 @@ export interface AiChatActions {
   stopGeneration: () => void;
   /** 删除会话前调用：若进行中的流属于该会话则中止它（晚到的回调也不会再写回界面 / 记忆） */
   abortConversation: (convoId: string) => void;
+  /** 进过这个会话：行首的「已完成」点消掉 */
+  clearDone: (convoId: string) => void;
   /** 一轮进行中插入用户消息 / 有工具在跑 / 工具开始的订阅（见 contexts/nomiSteer） */
   steerStream: ReturnType<typeof useNomiSteer>['steerStream'];
   nomiToolRunning: ReturnType<typeof useNomiSteer>['nomiToolRunning'];
@@ -391,6 +393,11 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     stateRef.current.ipcClient.abortStream?.(a.reqId);
   }, []);
 
+  /** 点开会话就算看过了：把行首那个「已完成」点去掉（已经在看的会话不会重新加载历史，得单独清） */
+  const clearDone = useCallback((convoId: string) => {
+    dispatch({ type: 'CLEAR_DONE', convoId });
+  }, []);
+
   // 加载对话历史
   const loadChatHistory = useCallback(async () => {
     startupBrandIntro.taskStart('nomi');
@@ -501,6 +508,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       compactConversation,
       stopGeneration,
       abortConversation,
+      clearDone,
       steerStream,
       nomiToolRunning,
       onNomiToolStart,
@@ -518,6 +526,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       compactConversation,
       stopGeneration,
       abortConversation,
+      clearDone,
       steerStream,
       nomiToolRunning,
       onNomiToolStart,

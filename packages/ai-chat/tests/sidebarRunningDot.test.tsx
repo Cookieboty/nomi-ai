@@ -11,13 +11,14 @@ const list = [
 ];
 
 /** Nomi 对话没有 CLI 标签，侧栏只能从 busyConvos 知道它在回复 */
-const busy = vi.hoisted(() => ({ ids: ['chat'] }));
+const busy = vi.hoisted(() => ({ ids: ['chat'], done: [] as string[] }));
 
 vi.mock('../src/contexts/AiChatContext', () => {
   const api = {
     state: {
       messages: [],
       busyConvos: busy.ids,
+      doneConvos: busy.done,
       ipcClient: {
         listConversations: async () => list,
         currentConversationId: () => 'chat',
@@ -50,5 +51,22 @@ describe('Sidebar running dot', () => {
     expect(row('chat').querySelector('[data-testid="thread-live"]')!.textContent).toBe('进行中');
     // 没在回复的会话不画点
     expect(row('idle').querySelector('[data-live="running"]')).toBeNull();
+  });
+
+  it('Nomi rows show the done dot for a turn that just finished', async () => {
+    busy.done.push('idle');
+    const view = render(
+      <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
+    );
+    const row = (id: string) =>
+      view.container.querySelector(`[data-conversation-id="${id}"]`) as HTMLElement;
+    await waitFor(() => expect(row('idle')).toBeTruthy());
+
+    // 跑完一轮但还没点进去：行首一个完成点
+    expect(row('idle').querySelector('[data-live="done"]')).toBeTruthy();
+    expect(row('idle').querySelector('[data-testid="thread-live"]')!.textContent).toBe('已完成');
+    // 还在跑的会话看的是进行中的点，不重复
+    expect(row('chat').querySelector('[data-live="done"]')).toBeNull();
+    busy.done.length = 0;
   });
 });

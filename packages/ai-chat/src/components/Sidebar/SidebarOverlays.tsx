@@ -22,6 +22,8 @@ interface SidebarOverlaysProps {
   navList: Meta[];
   tabById: Map<string, HarnessTabMeta>;
   runningIds: Set<string>;
+  /** 刚跑完一轮、还没点进去看的 Nomi 会话 id */
+  doneIds: Set<string>;
   onForkRequest?: (id: string) => void;
   startRename: (id: string) => void;
   togglePin: (id: string) => void;
@@ -81,6 +83,7 @@ export const SidebarOverlays: React.FC<SidebarOverlaysProps> = ({
   navList,
   tabById,
   runningIds,
+  doneIds,
   onForkRequest,
   startRename,
   togglePin,
@@ -162,6 +165,7 @@ export const SidebarOverlays: React.FC<SidebarOverlaysProps> = ({
             c={c}
             tab={tab}
             running={c.tabId ? undefined : runningIds.has(c.id)}
+            done={c.tabId ? undefined : doneIds.has(c.id)}
             top={top}
             left={left}
             onRename={commitRename}

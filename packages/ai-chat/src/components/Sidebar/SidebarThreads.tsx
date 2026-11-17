@@ -35,6 +35,8 @@ interface SidebarThreadsProps {
   ordered: Meta[];
   tabById: Map<string, HarnessTabMeta>;
   runningIds: Set<string>;
+  /** 刚跑完一轮、还没点进去看的 Nomi 会话 id */
+  doneIds: Set<string>;
   renamingId: string | null;
   showIcon: boolean;
   histVisible: boolean;
@@ -73,6 +75,7 @@ export const SidebarThreads: React.FC<SidebarThreadsProps> = ({
   ordered,
   tabById,
   runningIds,
+  doneIds,
   renamingId,
   showIcon,
   histVisible,
@@ -125,6 +128,7 @@ export const SidebarThreads: React.FC<SidebarThreadsProps> = ({
           active={c.id === activeId}
           tab={c.tabId ? tabById.get(c.tabId) : undefined}
           running={c.tabId ? undefined : runningIds.has(c.id)}
+          done={c.tabId ? undefined : doneIds.has(c.id)}
           onOpen={rows.open}
           onCtx={rows.onCtx}
           renaming={renamingId === c.id}

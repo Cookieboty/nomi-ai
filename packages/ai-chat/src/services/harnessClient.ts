@@ -66,6 +66,11 @@ export interface HarnessTabMeta {
   cliSessionId: string | null;
   status: HarnessTabStatus;
   unread: number;
+  /**
+   * 刚刚成功跑完一轮（侧栏行首的「已完成」点）。进这个会话就清除；
+   * 失败 / 取消不会留，切换轮次时由下一次完成覆盖。
+   */
+  finished?: boolean;
   createdAt: number;
   updatedAt: number;
   lastError?: string;

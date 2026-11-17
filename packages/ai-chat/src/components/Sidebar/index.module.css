@@ -463,6 +463,27 @@
 .dot[data-live='unread'] {
   background: var(--cd-color-success);
 }
+/* 刚跑完一轮（还没点进去看）：比 unread 醒目的实心点 + 光环，点一下会话就消失 */
+.dot[data-live='done'] {
+  background: var(--cd-color-success);
+  box-shadow: 0 0 0 3px var(--cd-color-success-soft);
+  animation: doneIn 0.28s var(--cd-ease-out);
+}
+@keyframes doneIn {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot[data-live='done'] {
+    animation: none;
+  }
+}
 .dot[data-live='error'] {
   background: var(--cd-color-danger);
 }

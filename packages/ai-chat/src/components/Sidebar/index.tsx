@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   selectBusyConvos,
+  selectDoneConvos,
   selectIpcClient,
   selectIsLoading,
   selectMessageCount,
@@ -108,6 +109,12 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const runningIds = useMemo(
     () => new Set((busyConvos ?? []).filter((id) => id !== '')),
     [busyConvos],
+  );
+  // 刚跑完一轮、还没点进去看过的 Nomi 会话：行首留一个绿点，点进会话就消
+  const doneConvos = useAiChatSelector(selectDoneConvos);
+  const doneIds = useMemo(
+    () => new Set((doneConvos ?? []).filter((id) => id !== '')),
+    [doneConvos],
   );
   const tabs = useHarnessTabs();
   const { isDev, isNormal } = useChatMode();
@@ -495,6 +502,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       current: highlightId,
       tabById,
       runningIds,
+      doneIds,
       open,
       onCtx,
       renamingId,
@@ -509,6 +517,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       highlightId,
       tabById,
       runningIds,
+      doneIds,
       open,
       onCtx,
       renamingId,
@@ -629,6 +638,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               ordered={ordered}
               tabById={tabById}
               runningIds={runningIds}
+              doneIds={doneIds}
               renamingId={renamingId}
               showIcon={isDev && view === 'all'}
               histVisible={histVisible}
@@ -676,6 +686,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         navList={navList}
         tabById={tabById}
         runningIds={runningIds}
+        doneIds={doneIds}
         onForkRequest={onForkRequest}
         startRename={startRename}
         togglePin={togglePin}

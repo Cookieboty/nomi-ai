@@ -7,6 +7,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ### Features
 
+- **chat:** 侧栏会话行补上「已完成」的状态点：一轮成功跑完行首留一个带光晕的绿点，点进会话就消失（失败仍是自己的红点，取消不标，重启后不恢复）。 Sidebar rows now show a "just finished" dot after a turn completes, cleared as soon as you open that conversation. (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
 - **chat:** 子任务浮层卡片重做层级：图标 + 名字 + 状态胶囊徽章一行，状态用色点区分（处理中呼吸、等你确认、完成、失败），下面「任务」「最近输出」两个小节，最近一句改成左侧细线引用块，输出整段截断四行，可点时底部多出一条通栏打开动作。 The subagent hover card gained a real hierarchy: icon + name + status pill (with a breathing dot while running), "Task" and "Latest output" sections, the last request as a quote block, and a full-width footer action when clickable. (`@nomi-ai/ai-chat` patch)
 
 - **chat:** 侧栏项目支持跨多 CLI 全局共享与任选端新建会话，新增鼠标悬停项目头右侧详情弹窗（展示聊天总数、全部源文件夹、项目置顶与编辑入口）。 (`@nomi-ai/ai-chat` patch)
