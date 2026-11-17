@@ -48,6 +48,38 @@
 
 static char nomiDelegateKey;
 
+// 键盘焦点还给对话页面。
+//
+// 网页子视图拿走键盘焦点之后（用户在里面打过字、点过输入框），藏掉 / 关掉它时 AppKit 把第一响应者
+// 交给「下一个可接受焦点的视图」或窗口本身，不会交回对话页面的 WKWebView：对话页面上光标看着还在
+// 输入框里，键盘消息却进不去。
+//
+// 只在第一响应者是这个浏览器子视图（或它里面的内容视图）时才动，对话页面自己的焦点一点不碰。
+// 对话页面是 contentView 下面那个不是浏览器子视图的 WKWebView（Wails 把它加在 contentView 里；
+// 我们的浏览器子视图也是 WKWebView，靠 nomiDelegateKey 关联对象区分）。contentView 本身是普通
+// NSView、不接受第一响应者，不能交给它。找不到对话页面时退回 makeFirstResponder:nil（交给窗口）。
+// 只读视图层级、不持有任何对象，不涉及引用计数。
+static WKWebView *nomi_chat_webview(NSView *content) {
+	for (NSView *sub in [content subviews]) {
+		if (![sub isKindOfClass:[WKWebView class]]) continue;
+		if (objc_getAssociatedObject(sub, &nomiDelegateKey) != nil) continue;
+		return (WKWebView *)sub;
+	}
+	return nil;
+}
+
+static void nomi_release_focus(WKWebView *view) {
+	NSWindow *window = [view window];
+	if (window == nil) return;
+	NSView *content = [window contentView];
+	if (content == nil) return;
+	id responder = [window firstResponder];
+	if (![responder isKindOfClass:[NSView class]]) return;
+	if (![(NSView *)responder isDescendantOf:view]) return;
+	WKWebView *chat = nomi_chat_webview(content);
+	if (chat == nil || ![window makeFirstResponder:chat]) [window makeFirstResponder:nil];
+}
+
 void *nomiBrowserCreate(void *nsWindow, int handle, double x, double y, double w, double h, const char *url) {
 	NSWindow *window = (__bridge NSWindow *)nsWindow;
 	NSView *content = [window contentView];
@@ -91,6 +123,8 @@ void nomiBrowserSetRegion(void *handle, double x, double y, double w, double h) 
 void nomiBrowserSetHidden(void *handle, int hidden) {
 	WKWebView *view = (WKWebView *)handle;
 	if (view == nil) return;
+	// 焦点要在藏之前处理：藏起来时 AppKit 已经把第一响应者挪走，就看不出它原来在浏览器里
+	if (hidden != 0) nomi_release_focus(view);
 	[view setHidden:hidden != 0];
 }
 
@@ -111,6 +145,8 @@ void nomiBrowserReload(void *handle) {
 void nomiBrowserClose(void *handle) {
 	WKWebView *view = (WKWebView *)handle;
 	if (view == nil) return;
+	// 同上：移出父视图之前，把焦点还给对话页面
+	nomi_release_focus(view);
 	[view stopLoading];
 	view.navigationDelegate = nil;
 	objc_setAssociatedObject(view, &nomiDelegateKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);

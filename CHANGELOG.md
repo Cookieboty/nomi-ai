@@ -21,9 +21,11 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 ### Fixes
 
 - **chat:** Nomi 对话的用户消息发出就先存进对话记录，不再等这一轮回复结束才一起落盘。之前回复还在跑时应用重启（比如装更新），刚发的那句话会整句消失。现在重开后它还在对话里，后面跟一张「这一轮被重启打断」的卡，点「重试」就从这条消息重新发送。这张卡只在界面上显示，不写进记录。之后带上记忆、委派对象，或中途插进压缩摘要时，按消息 id 再存一次，不会多出一条，顺序也还是「摘要 → 问题 → 回复」。没变化的轮次只追加，不整份重写。智能标题照常生成。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
+- **chat:** 修好「新建会话后输入框打不了字」。关掉或藏起内置浏览器时，如果键盘焦点还在网页里，现在会交还给对话页面。之前 macOS 和 Windows 上光标看着在输入框里，按键却全被藏起来的网页吃掉。新会话不再被上一个会话的文件预览误判成「属于别的会话」而禁掉输入框：会话 id 还没定下来，或工作目录比预览晚到，都不算。真的被挡住时，输入框上方会写明原因，并给出「回到原会话」或「关闭预览」。启动画面淡出时不再拦点击。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
 - **chat:** 修好两个「加载更多 / 更早」点了没反应的问题：侧栏本机历史的「加载更多」不再因为窗口重新聚焦被重置回第一页，被打断的那一页也会正常解锁按钮；长对话里尾部带巨型工具轨迹时，「显示更早」不会再因为体量预算吃满而一步都跨不出去（预算只约束首屏，用户显式要求时按条数加载），并且加载锁一定会复位，不会点一次之后按钮和滚到顶都静默失效。 (`@nomi-ai/ai-chat` patch)
 - **chat:** 压缩上下文 / 召回记忆期间发出的消息会「消失」几十秒 —— 用户消息现在立刻上屏。 (`@nomi-ai/ai-chat` patch)
 - **chat:** 新增「这一轮还没回复完 Nomi 就重启了」的中英文提示文案。Add the zh/en string for the card shown when a reply was interrupted by an app restart. (`@nomi-ai/i18n` patch)
+- **chat:** 新增输入框被文件预览挡住时的中英文说明和「回到原会话」按钮文案。Add the zh/en notice shown when a file preview blocks the composer, and the "Return to conversation" button label. (`@nomi-ai/i18n` patch)
 - **cli:** 「自动」档在 Nomi 里跑不起来，不是端点不支持，是 Nomi 把 auto 的前置状态过滤掉了。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
 - **cli:** 修复本地 CLI 接入测试命令注入风险，补齐自定义启动器配置下的历史会话扫描、Kimi/MiniMax 环境变量放行、可用性探测及账号来源切换刷新 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
 - **cli:** 清单给 Grok 补上「自动」档，映射到 CLI 的 acceptEdits；此前没有这一档，选「自动」会掉回逐项确认。 (`@nomi-ai/cli-catalog` patch)

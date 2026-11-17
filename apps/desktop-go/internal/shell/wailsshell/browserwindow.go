@@ -337,6 +337,40 @@ func browserRect(chat application.Rect, offX, offY int, region shell.BrowserRegi
 	}, true
 }
 
+// browserHoldsKeyboardFocus：浏览器子窗口（含网页内部控件）现在拿着键盘焦点吗（Windows 用）。
+//
+// 子窗口藏掉 / 关掉之后 Windows 不会把焦点交还给对话窗口的 WebView2：对话页面上光标看着还在输入框里，
+// 键盘消息却进不去。所以藏 / 关之前先看焦点在不在它身上，在的话之后显式还回去。
+// （macOS 在 browserwindow_darwin.m 的 nomi_release_focus 里按 superview 链做同样的判断。）
+//
+//   - active：对话窗口是不是前台窗口（别的应用在前台时什么都不该抢）；
+//   - child：浏览器子窗口；focused：现在的焦点控件（GetFocus）；parent：控件的父窗口（GetParent）。
+//
+// 焦点控件是 child 或它的子孙时才返回 true；child / focused 为 0 时不动。
+func browserHoldsKeyboardFocus(active bool, child, focused uintptr, parent func(uintptr) uintptr) bool {
+	if !active || child == 0 || focused == 0 {
+		return false
+	}
+	return focused == child || descendantOf(focused, child, parent)
+}
+
+// browserDescendMaxDepth：父链最多找这么多层（销毁途中父链可能成环）
+const browserDescendMaxDepth = 32
+
+func descendantOf(node, child uintptr, parent func(uintptr) uintptr) bool {
+	for i := 0; i < browserDescendMaxDepth; i++ {
+		next := parent(node)
+		if next == 0 {
+			return false
+		}
+		if next == child {
+			return true
+		}
+		node = next
+	}
+	return false
+}
+
 // browserPopupJS：目标站点的 target=_blank / window.open 点了不该没反应。
 // 容器型平台（Wails 窗口）每次加载完成后注入；mac 的子视图走 WKNavigationDelegate，不需要这段。
 const browserPopupJS = `(function(){

@@ -71,6 +71,17 @@ function withDiff(state: PreviewTabsState, key: string, diff: DiffTabSpec): Prev
   };
 }
 
+/**
+ * 输入框被预览挡着（预览属于别的会话 / 工作区）时的说明：两种文案按 previewId 与 scopeId 是否相同选
+ * （同一个会话换了工作区 / 别的会话）。没有这个说明时输入框不能是禁用的（用户看不出原因）。
+ */
+export interface SendBlockedReason {
+  /** 当前会话键（预览按它分桶） */
+  scopeId: string;
+  /** 挡着输入框的那个预览属于哪个会话 */
+  previewId: string;
+}
+
 /** 在工作区页里怎么画预览；文件 tabs 由 ResourcePreview 自己绘制。 */
 export interface EmbeddedPreviewProps {
   inactive: boolean;
@@ -302,7 +313,15 @@ export function useResourcePreview(
     return () => observer.disconnect();
   }, [isOpen, layout.expanded]);
   const active = entries.find((e) => e.key === activeKey) ?? entries[entries.length - 1];
-  const mismatch = !!active && (active.scope.id !== scope.id || active.scope.cwd !== scope.cwd);
+  // 预览和当前会话对不上 = 属于别的会话，或同一个会话换了工作目录。两种「还没对上」不算：
+  // - 会话标识还没定下来（没有会话 / 新建会话的同一帧里 id 还是空）；
+  // - 预览是在工作目录解析出来之前打开的（刚新建 / 刚换项目，内核还没回 cwd）：它就属于这个会话，
+  //   跟着会话走，不能因为 cwd 后到就把新会话的输入框禁掉。
+  const scopeSettled = !!scopeId;
+  const entryMismatch = (e: ResourceEntry) =>
+    scopeSettled &&
+    (e.scope.id !== scopeId || (e.scope.cwd != null && e.scope.cwd !== (scopeCwd ?? null)));
+  const mismatch = !!active && entryMismatch(active);
   const connectConversation = useCallback(
     (next: ResourceScope) => {
       if (active) setConnected({ key: active.key, scope: { ...next } });
@@ -314,8 +333,12 @@ export function useResourcePreview(
     !(
       connected?.key === active?.key &&
       connected?.scope.id === scope.id &&
-      (connected?.scope.cwd ?? null) === (scope.cwd ?? null)
+      (connected?.scope.cwd ?? null) === (scopeCwd ?? null)
     );
+  /** 输入框被预览挡着不能发时的说明（同一个判断，预览提示与输入框上方共用） */
+  const sendBlocked: SendBlockedReason | undefined = sendMismatch
+    ? { scopeId, previewId: active?.scope.id ?? '' }
+    : undefined;
   const value = useMemo(
     () => ({
       scope: {
@@ -339,9 +362,7 @@ export function useResourcePreview(
           <LazyImage
             key={visibleImageEntry.key}
             entry={visibleImageEntry}
-            mismatch={
-              visibleImageEntry.scope.id !== scope.id || visibleImageEntry.scope.cwd !== scope.cwd
-            }
+            mismatch={entryMismatch(visibleImageEntry)}
             onClose={() => setImageEntry(null)}
           />
         </Suspense>
@@ -404,6 +425,7 @@ export function useResourcePreview(
     renderEmbedded,
     mismatch,
     sendMismatch,
+    sendBlocked,
     connectConversation,
     workspaceCwd: active?.scope.cwd,
     composerRef,
@@ -424,7 +446,7 @@ export function useResourcePreview(
             <LazyImage
               key={imageEntry.key}
               entry={imageEntry}
-              mismatch={imageEntry.scope.id !== scope.id || imageEntry.scope.cwd !== scope.cwd}
+              mismatch={entryMismatch(imageEntry)}
               onClose={() => setImageEntry(null)}
             />
           </Suspense>

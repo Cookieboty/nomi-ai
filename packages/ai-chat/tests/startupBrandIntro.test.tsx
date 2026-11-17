@@ -330,6 +330,20 @@ describe('returning-user startup', () => {
     expect(startupBrandIntro.getSnapshot().phase).toBe('revealing');
   });
 
+  it('the revealing cover lets clicks through and drops its modal semantics', () => {
+    startupBrandIntro.start('app');
+    render(<StartupBrandIntro />);
+    act(() => startupBrandIntro.drawn());
+    for (const task of ['nomi', 'tabs', 'sidebar'] as const)
+      act(() => startupBrandIntro.taskDone(task));
+    act(() => startupBrandIntro.appReady());
+    const cover = screen.getByTestId('startup-brand-intro');
+    expect(cover.dataset.phase).toBe('revealing');
+    // 淡出期间页面已经能点、能打字：遮罩不吃点击，也不再对读屏宣布自己是模态
+    expect(cover.getAttribute('aria-hidden')).toBe('true');
+    expect(cover.hasAttribute('aria-modal')).toBe(false);
+  });
+
   it('keeps a static loading cover for reduced motion, then removes it when ready', () => {
     vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true } as MediaQueryList);
     startupBrandIntro.start('app');

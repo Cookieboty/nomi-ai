@@ -33,7 +33,22 @@ var (
 	procSetParent        = user32.NewProc("SetParent")
 	procSetWindowPos     = user32.NewProc("SetWindowPos")
 	procShowWindow       = user32.NewProc("ShowWindow")
+	procGetParent        = user32.NewProc("GetParent")
+	procGetFocus         = user32.NewProc("GetFocus")
+	procGetForeground    = user32.NewProc("GetForegroundWindow")
 )
+
+// focusedWindow：当前线程的焦点窗口（GetFocus；焦点不在本线程的窗口上时为 0）
+func focusedWindow() uintptr {
+	focused, _, _ := procGetFocus.Call()
+	return focused
+}
+
+// foregroundWindow：系统当前的前台窗口
+func foregroundWindow() uintptr {
+	hwnd, _, _ := procGetForeground.Call()
+	return hwnd
+}
 
 const (
 	gwlStyle = ^uintptr(15) // GWL_STYLE = -16
@@ -155,8 +170,33 @@ func (b *winBrowser) Show() {
 }
 
 func (b *winBrowser) Hide() {
-	if child := uintptr(b.win.NativeWindow()); child != 0 {
-		procShowWindow.Call(child, swHide)
+	child := uintptr(b.win.NativeWindow())
+	if child == 0 {
+		return
+	}
+	b.w.withBrowserFocusReturned(child, func() { procShowWindow.Call(child, swHide) })
+}
+
+// withBrowserFocusReturned：藏 / 关浏览器子窗口；它（或它里面的网页控件）原来拿着键盘焦点时，
+// 之后把焦点还给对话窗口的 WebView2。
+//
+// 子窗口藏起来 / 关掉之后 Windows 不会替我们交还焦点（焦点落在父窗口上或者没有焦点，对话页面
+// 收不到键盘消息）。焦点得在藏之前看：藏完 GetFocus 已经不在子窗口上了，看不出原来在谁身上。
+// GetFocus 只认调用线程的消息队列，所以判断和藏都放在 UI 线程上做；对话窗口自己的页面拿着焦点、
+// 或者别的应用在前台时什么都不动。
+func (w *Wails) withBrowserFocusReturned(child uintptr, hide func()) {
+	chat := w.win(shell.Chat)
+	held := false
+	application.InvokeSync(func() {
+		if chat != nil {
+			parent := uintptr(chat.NativeWindow())
+			held = browserHoldsKeyboardFocus(foregroundWindow() == parent, child, focusedWindow(), parentWindow)
+		}
+		hide()
+	})
+	// Focus 自己会切到 UI 线程，走 WebView2 控制器的 MoveFocus（只 SetFocus 到窗口，页面仍收不到键盘）
+	if held && chat != nil {
+		chat.Focus()
 	}
 }
 
@@ -164,7 +204,16 @@ func (b *winBrowser) Load(target string) { b.win.SetURL(target) }
 
 func (b *winBrowser) Reload() { b.win.Reload() }
 
-func (b *winBrowser) Close() { b.win.Close() }
+func (b *winBrowser) Close() {
+	child := uintptr(b.win.NativeWindow())
+	if child == 0 {
+		b.win.Close()
+		return
+	}
+	// 关之前先藏（并看焦点在不在它身上）：关窗口的过程里焦点控件会失效，之后就看不出原来在谁身上
+	b.w.withBrowserFocusReturned(child, func() { procShowWindow.Call(child, swHide) })
+	b.win.Close()
+}
 
 // followChatBrowser：子窗口跟着父窗口走 / 缩放，不需要额外同步
 func (w *Wails) followChatBrowser(*application.WebviewWindow) {}
@@ -177,4 +226,10 @@ func (w *Wails) closeStrayBrowser(id string) {
 	if win, ok := w.app.Window.Get(browserName(id)); ok && win != nil {
 		win.Close()
 	}
+}
+
+// parentWindow：HWND 的父窗口（GetParent；顶层窗口返回 0）
+func parentWindow(node uintptr) uintptr {
+	parent, _, _ := procGetParent.Call(node)
+	return parent
 }

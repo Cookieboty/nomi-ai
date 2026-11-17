@@ -23,6 +23,7 @@ import { NewChatContext, SessionControls } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { prefetchPanels, SettingsView } from './components/lazyPanels';
 import { MessageInput } from './components/MessageInput';
+import { SendBlockedHint } from './components/MessageInput/SendBlockedHint';
 import { onboardingClient } from './components/Onboarding/client';
 import { OnboardingHost } from './components/Onboarding/host';
 import { PendingDock } from './components/PendingDock';
@@ -348,6 +349,15 @@ const AiChatContent: React.FC = () => {
   useIslandOpenItem(mainPages.openTask, leavePage, (id) => {
     void ipcClient?.switchConversation(id);
   });
+  // 「回到原会话」：切到预览所属的那个 Nomi 会话；预览就属于当前会话（只是工作区换了）或不是 Nomi 会话时，
+  // 切过去也解不开，只能关掉这些对不上的预览
+  const returnToPreviewScope = useCallback(() => {
+    const blocked = resourcePreview.sendBlocked;
+    const id = blocked && blocked.previewId !== blocked.scopeId ? blocked.previewId : '';
+    const conversationId = id.startsWith('nomi:') ? id.slice('nomi:'.length) : '';
+    if (conversationId) void ipcClient?.switchConversation?.(conversationId);
+    else resourcePreview.closeEntries(resourcePreview.entries.map((entry) => entry.key));
+  }, [ipcClient, resourcePreview]);
   const hasOpenWorkspaceInCurrent = side.mounted || resourcePreview.entries.length > 0;
   const handleNewChat = useCallback(
     (opts?: { projectId?: string | null }) => {
@@ -580,6 +590,14 @@ const AiChatContent: React.FC = () => {
                     />
                     {/* 新会话：输入框上方的项目 · 分支，可以自由切换 */}
                     <NewChatContext />
+                    {/* 预览属于别的会话 / 工作区时输入框不能用：必须说明原因，并能一键回到原会话（空会话时贴在输入框下沿） */}
+                    {resourcePreview.sendBlocked && (
+                      <SendBlockedHint
+                        reason={resourcePreview.sendBlocked}
+                        floating={chatEmpty}
+                        onReturn={returnToPreviewScope}
+                      />
+                    )}
                     <MessageInput
                       {...inputModeProps}
                       disabled={resourcePreview.sendMismatch}
