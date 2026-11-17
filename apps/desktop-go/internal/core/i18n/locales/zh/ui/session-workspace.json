@@ -1,7 +1,7 @@
 {
   "ui.session-workspace.agent-card-open": "点击打开",
   "ui.session-workspace.agent-card-running": "处理中",
-  "ui.session-workspace.agent-card-task": "任务",
+  "ui.session-workspace.agent-card-task": "任务说明",
   "ui.session-workspace.agent-card-latest": "最近输出",
   "ui.session-workspace.approval-requests-denied-timed-out": "审批 {0} 次，拒绝 {1} 次，超时 {2} 次",
   "ui.session-workspace.ask-assistant-to-commit": "让助手提交",
