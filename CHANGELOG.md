@@ -5,6 +5,15 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ## Unreleased
 
+### Features
+
+- **cli:** Claude Code、Codex、Grok、Kimi Code、MiniMax Code 可以各自选择沿用本机登录或 Nomi 管理的账号（默认仍是 Nomi 管理）；默认用检测到的 CLI，高级设置里可选填自定义启动命令；保留协议与续接参数，第三方模型的启动方式不变。 Choose local CLI sign-in or Nomi-managed accounts independently for Claude Code, Codex, Grok, Kimi Code and MiniMax Code (Nomi-managed stays the default). Use detected CLIs by default, with optional custom launch commands under advanced settings. Preserve protocol and resume arguments and keep third-party model launches unchanged. (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
+- **cli:** 新增 `cli.launcherGet` / `cli.launcherSet` / `cli.launcherTest`（仅限对话窗口，设置与测试标为 dangerous）以及本机登录、自定义启动命令的文案。 Add `cli.launcherGet` / `cli.launcherSet` / `cli.launcherTest` (chat window only; set and test are dangerous) and strings for local sign-in and custom launch commands. (`@nomi-ai/contract` patch, `@nomi-ai/i18n` patch)
+
+### Fixes
+
+- **usage:** 自定义启动命令使用单独配置目录时，Claude Code 的每日用量不再缺失：发现并记住 CLI 报告的日志位置，跨账号目录仍按消息去重。 Fix missing daily Claude Code usage when a custom launcher uses a separate configuration directory. Discover and remember the log location reported by the CLI, retaining message deduplication across account directories. (`@nomi-ai/desktop-go` patch)
+
 ### Maintenance
 
 - **release:** empty changeset after archiving 2.3.17
@@ -34,6 +43,11 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 ### Maintenance
 
 - **release:** empty changeset after archiving 2.3.16
+
+### Other
+
+- Choose local CLI sign-in or Nomi-managed accounts independently for Claude Code, Codex, Grok, Kimi Code and MiniMax Code. Use detected CLIs by default, with optional custom launch commands under advanced settings. Preserve protocol and resume arguments and keep third-party model launches unchanged. (`nomi` patch)
+- Fix missing daily Claude Code usage when a custom launcher uses a separate configuration directory. Discover and remember the log location reported by the CLI, retaining message deduplication across account directories. (`nomi` patch)
 
 ## 2.3.16 — 2026-11-16
 

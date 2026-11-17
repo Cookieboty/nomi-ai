@@ -1577,6 +1577,62 @@ type ChatWindowHandoffTakeInput struct {
 	Id string `json:"id"`
 }
 
+// CliLauncherGetOutputValueAccountSource 枚举：local | nomi
+type CliLauncherGetOutputValueAccountSource = string
+
+const (
+	CliLauncherGetOutputValueAccountSourceLocal CliLauncherGetOutputValueAccountSource = "local"
+	CliLauncherGetOutputValueAccountSourceNomi  CliLauncherGetOutputValueAccountSource = "nomi"
+)
+
+type CliLauncherGetOutputValue struct {
+	Enabled       bool                                   `json:"enabled"`
+	Command       string                                 `json:"command"`
+	AccountSource CliLauncherGetOutputValueAccountSource `json:"accountSource"`
+}
+
+// CliLauncherSetInputSettingsAccountSource 枚举：local | nomi
+type CliLauncherSetInputSettingsAccountSource = string
+
+const (
+	CliLauncherSetInputSettingsAccountSourceLocal CliLauncherSetInputSettingsAccountSource = "local"
+	CliLauncherSetInputSettingsAccountSourceNomi  CliLauncherSetInputSettingsAccountSource = "nomi"
+)
+
+type CliLauncherSetInputSettings struct {
+	Enabled       bool                                     `json:"enabled"`
+	Command       string                                   `json:"command"`
+	AccountSource CliLauncherSetInputSettingsAccountSource `json:"accountSource"`
+}
+
+type CliLauncherSetInput struct {
+	Kind     string                      `json:"kind"`
+	Settings CliLauncherSetInputSettings `json:"settings"`
+}
+
+// CliLauncherSetOutputAccountSource 枚举：local | nomi
+type CliLauncherSetOutputAccountSource = string
+
+const (
+	CliLauncherSetOutputAccountSourceLocal CliLauncherSetOutputAccountSource = "local"
+	CliLauncherSetOutputAccountSourceNomi  CliLauncherSetOutputAccountSource = "nomi"
+)
+
+type CliLauncherSetOutput struct {
+	Enabled       bool                              `json:"enabled"`
+	Command       string                            `json:"command"`
+	AccountSource CliLauncherSetOutputAccountSource `json:"accountSource"`
+}
+
+type CliLauncherTestInput struct {
+	Kind    string `json:"kind"`
+	Command string `json:"command"`
+}
+
+type CliLauncherTestOutput struct {
+	Version string `json:"version"`
+}
+
 type CliRegistryOutputPluginsItem struct {
 	Id          string   `json:"id"`
 	DisplayName string   `json:"displayName"`
@@ -12176,6 +12232,18 @@ type ChatWindowHandoffPutOutputT = bool
 // ChatWindowHandoffTakeInputT 是 chatWindow.handoffTake 的入参
 type ChatWindowHandoffTakeInputT = ChatWindowHandoffTakeInput
 type ChatWindowHandoffTakeOutputT = string
+
+// CliLauncherGetInputT 是 cli.launcherGet 的入参
+type CliLauncherGetInputT = any
+type CliLauncherGetOutputT = map[string]CliLauncherGetOutputValue
+
+// CliLauncherSetInputT 是 cli.launcherSet 的入参
+type CliLauncherSetInputT = CliLauncherSetInput
+type CliLauncherSetOutputT = CliLauncherSetOutput
+
+// CliLauncherTestInputT 是 cli.launcherTest 的入参
+type CliLauncherTestInputT = CliLauncherTestInput
+type CliLauncherTestOutputT = CliLauncherTestOutput
 
 // CliRegistryInputT 是 cli.registry 的入参
 type CliRegistryInputT = any

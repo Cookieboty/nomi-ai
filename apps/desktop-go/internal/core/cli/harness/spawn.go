@@ -26,6 +26,15 @@ func IsScript(bin string) bool {
 	return strings.HasSuffix(bin, ".mjs") || strings.HasSuffix(bin, ".js")
 }
 
+// resolveSessionBin replaces only the executable prefix, preserving the driver's protocol arguments.
+func resolveSessionBin(backend string, official bool) (string, []string) {
+	bin, prefix, err := cli.LauncherInvocation(backend, ResolveHarnessBin(backend), nil, official)
+	if err != nil {
+		throw(err.Error())
+	}
+	return bin, prefix
+}
+
 // CliTrap：CLI 子进程的 trace 钩子（nil = 无 trace）。
 var CliTrap func(child clisdk.ChildLike, command string, args []string, tabID string)
 

@@ -21,6 +21,7 @@
  *      NOMI_MOCK_PERMISSION_PROMPT（只有内容包含它的那一轮才请求权限）\n *      NOMI_MOCK_EXIT_PLAN_MODE=1（can_use_tool ExitPlanMode → 批准计划）
  */
 import fs, { appendFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 
 /** 可被取消打断的等待：收到取消时立即醒来（与真实 CLI 一样马上结束这一轮，测试不用白等） */
@@ -817,6 +818,9 @@ if (streamIn) {
             subtype: 'success',
             request_id: parsed.j.request_id,
             response: {
+              ...(process.env.CLAUDE_CONFIG_DIR
+                ? { user_output_styles_dir: join(process.env.CLAUDE_CONFIG_DIR, 'output-styles') }
+                : {}),
               commands: [],
               models: [
                 m(

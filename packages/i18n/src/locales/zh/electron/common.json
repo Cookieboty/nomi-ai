@@ -607,5 +607,7 @@
   "electron.common.save-theme-template": "保存主题包模板",
   "electron.common.gemini-needs-auth": "Gemini 没有可用的认证：Google 已不再让 Gemini CLI 用个人 Google 账号登录。请在 ~/.gemini 里配置 API Key（或 Vertex AI、企业版授权），或在「模型」页给 Gemini 选一个第三方模型。",
   "electron.common.no-official-account-yet": "还没有 {0} 官方账号：在设置 →「助手」→ {0} 里添加一个，或在模型按钮里给这个标签换成第三方模型",
-  "electron.common.only-third-party-models": "{0} 只能使用第三方模型：在模型按钮里选一个，或先在「模型」页给它分配"
+  "electron.common.only-third-party-models": "{0} 只能使用第三方模型：在模型按钮里选一个，或先在「模型」页给它分配",
+  "electron.common.cli-launcher-invalid": "请输入程序名和可选参数，例如 claude。路径含空格时请加双引号；不支持 shell 运算符、换行或变量赋值。",
+  "electron.common.cli-launcher-test-failed": "无法获取启动命令的版本。请在终端运行该命令并追加 --version 检查；测试不会执行模型请求。"
 }

@@ -182,7 +182,12 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 			CodexAppServer: os.Getenv("NOMI_CODEX_APP_SERVER") != "0",
 			CwdCheck:       cwdCheck,
 			EnvAllow:       envAllow,
-			Sandbox:        sbx,
+			ClaudeConfigDir: func(dir string) {
+				if s := usageRef.Load(); s != nil {
+					s.ObserveClaudeConfigDir(dir)
+				}
+			},
+			Sandbox: sbx,
 			ProjectRoots: func(id string) (string, []string) {
 				r := projs.Roots(id)
 				return r.Primary, r.Extra

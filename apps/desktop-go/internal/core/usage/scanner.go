@@ -38,19 +38,20 @@ const (
 
 // ScannerDeps = ScannerDeps。ZstdDecode 由装配处注入 cli.ZstdDecode（Go 包 core/cli 依赖本包，不能反向 import）。
 type ScannerDeps struct {
-	Ledger     *UsageLedger
-	Home       *string
-	DshHome    *string
-	GrokHome   *string
-	Env        *util.Obj
-	Now        func() float64
-	Logger     Logger
-	Retention  func() Retention
-	ClearedAt  func() float64
-	RouteBusy  func(source UsageSource) bool
-	OnNew      func(r *UsageRecord)
-	OnQuota    func(q *CodexRateLimits)
-	ZstdDecode func(b []byte) (string, error)
+	Ledger           *UsageLedger
+	Home             *string
+	DshHome          *string
+	GrokHome         *string
+	Env              *util.Obj
+	Now              func() float64
+	Logger           Logger
+	Retention        func() Retention
+	ClearedAt        func() float64
+	RouteBusy        func(source UsageSource) bool
+	OnNew            func(r *UsageRecord)
+	OnQuota          func(q *CodexRateLimits)
+	ZstdDecode       func(b []byte) (string, error)
+	ClaudeConfigDirs func() []string
 }
 
 type found struct {
@@ -316,8 +317,11 @@ func exists(p string) bool { _, err := os.Stat(p); return err == nil }
 func (s *UsageLogScanner) Detected() []UsageSource {
 	h := s.home
 	out := []UsageSource{}
-	if exists(s.claudeDir()) {
-		out = append(out, "claude")
+	for _, dir := range s.claudeDirs() {
+		if exists(dir) {
+			out = append(out, "claude")
+			break
+		}
 	}
 	if exists(s.codexDir()) {
 		out = append(out, "codex")
@@ -352,8 +356,18 @@ func (s *UsageLogScanner) Detected() []UsageSource {
 	return out
 }
 
-func (s *UsageLogScanner) claudeDir() string {
-	return filepath.Join(ClaudeConfigDir(s.home, s.env), "projects")
+func (s *UsageLogScanner) claudeDirs() []string {
+	roots := []string{ClaudeConfigDir(s.home, s.env)}
+	if s.d.ClaudeConfigDirs != nil {
+		roots = append(roots, s.d.ClaudeConfigDirs()...)
+	}
+	dirs := make([]string, 0, len(roots))
+	for _, root := range roots {
+		if root != "" {
+			dirs = append(dirs, filepath.Join(root, "projects"))
+		}
+	}
+	return dirs
 }
 func (s *UsageLogScanner) codexDir() string {
 	return filepath.Join(CodexHomeDir(s.home, s.env), "sessions")
@@ -381,7 +395,9 @@ func (s *UsageLogScanner) find() []found {
 		}
 	}
 	jsonl := func(n, _ string) bool { return strings.HasSuffix(n, ".jsonl") }
-	add("claude", "jsonl", walk(s.claudeDir(), jsonl, 4))
+	for _, dir := range s.claudeDirs() {
+		add("claude", "jsonl", walk(dir, jsonl, 4))
+	}
 	add("codex", "jsonl", walk(s.codexDir(), jsonl, 4))
 	dsh := walk(filepath.Join(s.dshHome, "sessions"), func(n, _ string) bool { return dshName.MatchString(n) }, 3)
 	var plain, z []walkFile

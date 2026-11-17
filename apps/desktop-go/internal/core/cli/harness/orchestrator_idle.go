@@ -246,7 +246,7 @@ func (o *Orchestrator) SetTabAccount(id string, accountID *string) *util.Obj {
 		return tab.Clone()
 	}
 	tab.Set("accountId", next)
-	if sid, _ := tab.Get("cliSessionId").(string); sid != "" && o.sourceOf(tab) == "official" {
+	if sid, _ := tab.Get("cliSessionId").(string); sid != "" && o.sourceOf(tab) == "official" && !cli.LauncherManagesLogin(str(tab, "backend")) {
 		if n, ok := o.d.Accounts.(ports.AccountSessionNoter); ok && o.d.Accounts != nil {
 			n.NoteSession(str(tab, "backend"), sid, strP(tab, "accountId"))
 		}

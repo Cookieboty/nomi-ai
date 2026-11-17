@@ -103,12 +103,12 @@ func (o *Orchestrator) promptImageDir(tabID string) string {
 
 func (o *Orchestrator) runGrok(tab *util.Obj, prompt string, images []cli.NormalizedImage) *jsrt.Promise[*util.Obj] {
 	return jsrt.Async(func() (*util.Obj, error) {
-		bin := ResolveHarnessBin("grok")
+		launch := o.launchFor(tab)
+		bin, prefix := resolveSessionBin("grok", launch.official)
 		if bin == "" {
 			return nil, errors.New(i18n.T("electron.common.grok-not-found-set-nomi-use-mock-cli"))
 		}
 		useNode := IsScript(bin)
-		launch := o.launchFor(tab)
 		var argv []string
 		if len(images) > 0 {
 			a, err := cli.GrokPromptFileArgv(o.promptImageDir(str(tab, "id")), prompt, images)
@@ -131,9 +131,9 @@ func (o *Orchestrator) runGrok(tab *util.Obj, prompt string, images []cli.Normal
 		if cwd := str(tab, "cwd"); cwd != "" {
 			argv = append(argv, "--cwd", cwd)
 		}
-		cmd, args := bin, argv
+		cmd, args := bin, append(prefix, argv...)
 		if useNode {
-			cmd, args = nodeExecPath(), append([]string{bin}, argv...)
+			cmd, args = nodeExecPath(), append([]string{bin}, args...)
 		}
 		return jsrt.Await(o.spawnCollect(tab, collectOpts{cmd: cmd, argv: args, parseLine: grokp.NewParser(), kind: "grok", launch: launch, asNode: useNode}))
 	})

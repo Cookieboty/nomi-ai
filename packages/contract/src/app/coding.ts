@@ -509,8 +509,34 @@ const harnessProcedures = {
   },
 } as const satisfies ProcedureMap;
 
+const CliLauncherSettings = z.object({
+  enabled: z.boolean(),
+  command: z.string().max(8192),
+  accountSource: z.enum(['local', 'nomi']),
+});
+
 const cliProcedures = {
   'cli.registry': { kind: 'query', input: z.void(), output: CliRegistrySnapshot },
+  'cli.launcherGet': {
+    kind: 'query',
+    surfaces: ['chat'],
+    input: z.void(),
+    output: z.record(z.string(), CliLauncherSettings),
+  },
+  'cli.launcherSet': {
+    kind: 'mutation',
+    dangerous: true,
+    surfaces: ['chat'],
+    input: z.object({ kind: cliKind, settings: CliLauncherSettings }),
+    output: CliLauncherSettings,
+  },
+  'cli.launcherTest': {
+    kind: 'mutation',
+    dangerous: true,
+    surfaces: ['chat'],
+    input: z.object({ kind: cliKind, command: z.string().max(8192) }),
+    output: z.object({ version: z.string() }),
+  },
 } as const satisfies ProcedureMap;
 
 const cliAccountProcedures = {

@@ -172,6 +172,66 @@
   display: grid;
   gap: var(--cd-space-4);
 }
+
+.launcherBody {
+  display: grid;
+  gap: var(--cd-space-2);
+  padding: 0 var(--cd-space-4) var(--cd-space-4);
+  min-width: 0;
+}
+.launcherLabel {
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+}
+.launcherActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--cd-space-2);
+  font-size: var(--cd-font-size-sm);
+}
+.accountOptions {
+  display: grid;
+  gap: var(--cd-space-2);
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.accountOptions legend {
+  margin-bottom: var(--cd-space-2);
+}
+.accountOption {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-md);
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+}
+.accountOption[data-selected] {
+  border-color: var(--cd-color-accent-strong);
+  background: var(--cd-panel-surface-raised);
+}
+.accountOption input {
+  accent-color: var(--cd-color-accent-strong);
+}
+.accountOption:focus-within {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+}
+.accountOptionHint {
+  display: block;
+  margin-top: var(--cd-space-1);
+  color: var(--cd-color-text-muted);
+}
+.launcherAdvanced {
+  display: grid;
+  gap: var(--cd-space-2);
+  padding-top: var(--cd-space-2);
+}
 .ver {
   font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-sm);
