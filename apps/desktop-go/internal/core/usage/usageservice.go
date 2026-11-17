@@ -1690,6 +1690,14 @@ func (s *UsageService) ObserveClaudeConfigDir(dir string) {
 	}
 }
 
+// ClaudeConfigDirs returns all remembered Claude Code configuration roots.
+func (s *UsageService) ClaudeConfigDirs() []string {
+	if s == nil || s.logRoots == nil {
+		return nil
+	}
+	return s.logRoots.claudeDirs()
+}
+
 // Scan = scan()
 func (s *UsageService) Scan() *jsrt.Promise[ScanResult] {
 	return jsrt.Async(func() (res ScanResult, err error) {

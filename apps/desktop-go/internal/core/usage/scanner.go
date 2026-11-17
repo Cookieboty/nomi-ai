@@ -362,10 +362,21 @@ func (s *UsageLogScanner) claudeDirs() []string {
 		roots = append(roots, s.d.ClaudeConfigDirs()...)
 	}
 	dirs := make([]string, 0, len(roots))
+	seen := make(map[string]bool, len(roots))
 	for _, root := range roots {
-		if root != "" {
-			dirs = append(dirs, filepath.Join(root, "projects"))
+		if root == "" {
+			continue
 		}
+		clean := filepath.Clean(root)
+		key := clean
+		if runtime.GOOS == "windows" {
+			key = strings.ToLower(key)
+		}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		dirs = append(dirs, filepath.Join(clean, "projects"))
 	}
 	return dirs
 }
