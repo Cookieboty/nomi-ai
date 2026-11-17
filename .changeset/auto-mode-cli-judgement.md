@@ -1,6 +1,5 @@
 ---
 '@nomi-ai/ai-chat': patch
-'@nomi-ai/cli-catalog': patch
 '@nomi-ai/desktop-go': patch
 ---
 
