@@ -16,6 +16,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 - **cli:** 修复本地 CLI 接入测试命令注入风险，补齐自定义启动器配置下的历史会话扫描、Kimi/MiniMax 环境变量放行、可用性探测及账号来源切换刷新 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
 - **delegate:** 后台委派被停止后不再往正在跑的轮次注入结果，时间线里不再出现「你插入了」这条假用户消息；完成与失败仍实时告知模型，但同样不再当作用户插话。 A stopped background handoff is no longer injected into the running turn, and completion or failure reaches the model silently, so the timeline stops showing a fake "you inserted" message. (`@nomi-ai/ai-chat` patch)
+- **models:** 看图能力不再按模型名猜：只认 models.dev 同步的元数据，没写就不提示，明确不支持才提示，并列出你自己已启用的视觉模型供切换（`deepseek-v4.1-flash` 不再被误报）。主流模型补齐内置价格（deepseek / qwen / kimi / 智谱 / MiniMax / Grok / Mistral 等），价格同步加上聚合商兜底、支持基础名命中同族快照。 Vision support now comes from synced models.dev metadata only: no hint when unknown, a hint naming your own vision models when the model is explicitly text-only. Built-in pricing covers the mainstream families, price sync falls back to aggregator data, and a base id matches its snapshot siblings. (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
 - **session-details:** 会话详情中的子 Agents 与任务悬停卡片改为贴面板左侧外沿展开、跨项移动立即收起并防止浮层点击误关，不再遮挡下方相邻条目。 (`@nomi-ai/ai-chat` patch)
 - **usage:** 自定义启动命令使用单独配置目录时，Claude Code 的每日用量不再缺失：发现并记住 CLI 报告的日志位置，跨账号目录仍按消息去重。 Fix missing daily Claude Code usage when a custom launcher uses a separate configuration directory. Discover and remember the log location reported by the CLI, retaining message deduplication across account directories. (`@nomi-ai/desktop-go` patch)
 
