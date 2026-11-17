@@ -17,13 +17,12 @@ import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundL
 import { ChatHeader } from './components/ChatHeader';
 import { ComputerActivityBar } from './components/ComputerActivityBar';
 import { ForkFromMessageContext } from './components/Conversation/forkContext';
-import { PromptCards } from './components/ConversationWelcome/PromptCards';
+import { WelcomeActions } from './components/ConversationWelcome/WelcomeActions';
 import { DesktopConfirmDock } from './components/DesktopConfirmDock';
 import { NewChatContext, SessionControls } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { prefetchPanels, SettingsView } from './components/lazyPanels';
 import { MessageInput } from './components/MessageInput';
-import { ModelSetupHint } from './components/MessageInput/ModelSetupHint';
 import { onboardingClient } from './components/Onboarding/client';
 import { OnboardingHost } from './components/Onboarding/host';
 import { PendingDock } from './components/PendingDock';
@@ -581,39 +580,37 @@ const AiChatContent: React.FC = () => {
                     />
                     {/* 新会话：输入框上方的项目 · 分支，可以自由切换 */}
                     <NewChatContext />
-                    {/* 缺模型时，鼠标移到输入框上浮出引导卡；编程助手的模型不是 Nomi 对话模型，不参与 */}
-                    <ModelSetupHint enabled={!tabs.isCliTab} onOpenModels={panels.openProviders}>
-                      <MessageInput
-                        {...inputModeProps}
-                        disabled={resourcePreview.sendMismatch}
-                        cwd={rail.cwd ?? undefined}
-                        roots={rail.roots}
-                        delegate={slashBackend === 'nomi'}
-                        contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
-                        contextModel={
-                          tabs.isCliTab
-                            ? (tabs.activeTab?.modelOverride ??
-                              liveContext?.model ??
-                              reportedModel(cliConvMessages) ??
-                              tabs.activeTab?.backend)
-                            : undefined
-                        }
-                        slash={slash.bridge}
-                        fill={composerFill}
-                        draftStore={drafts.draftStore}
-                        draftKey={drafts.draftKey}
-                        // 只在编程助手标签里：Nomi 自己的 Skills / MCP 在「扩展」里管理
-                        onPluginsClick={slashBackend !== 'nomi' ? panels.openPlugins : undefined}
-                        onProvidersClick={panels.openProviders}
-                        onSettingsClick={panels.onInputSettings}
-                        onDesktopClick={panels.openDesktop}
-                        onHubClick={panels.openHub}
-                        onExtClick={panels.openExt}
-                        onLocalClick={panels.openLocal}
-                      />
-                    </ModelSetupHint>
-                    {/* 空会话的示例问题：在输入框下方，与输入框同宽居中 */}
-                    {nomiEmpty && <PromptCards />}
+                    <MessageInput
+                      {...inputModeProps}
+                      disabled={resourcePreview.sendMismatch}
+                      cwd={rail.cwd ?? undefined}
+                      roots={rail.roots}
+                      delegate={slashBackend === 'nomi'}
+                      contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
+                      contextModel={
+                        tabs.isCliTab
+                          ? (tabs.activeTab?.modelOverride ??
+                            liveContext?.model ??
+                            reportedModel(cliConvMessages) ??
+                            tabs.activeTab?.backend)
+                          : undefined
+                      }
+                      slash={slash.bridge}
+                      fill={composerFill}
+                      draftStore={drafts.draftStore}
+                      draftKey={drafts.draftKey}
+                      // 只在编程助手标签里：Nomi 自己的 Skills / MCP 在「扩展」里管理
+                      onPluginsClick={slashBackend !== 'nomi' ? panels.openPlugins : undefined}
+                      onProvidersClick={panels.openProviders}
+                      onSettingsClick={panels.onInputSettings}
+                      onDesktopClick={panels.openDesktop}
+                      onHubClick={panels.openHub}
+                      onExtClick={panels.openExt}
+                      onLocalClick={panels.openLocal}
+                    />
+                    {/* 空会话主对话、输入框下方：缺模型时常驻「添加 / 选择模型」引导卡，否则是示例问题卡片；
+                      编程助手标签的模型不是 Nomi 对话模型，不参与 */}
+                    {nomiEmpty && <WelcomeActions onOpenModels={panels.openProviders} />}
                   </footer>
                 </div>
 

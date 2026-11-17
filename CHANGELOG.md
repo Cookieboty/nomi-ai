@@ -7,21 +7,19 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ### Features
 
+- **chat:** 空会话首页整块垂直居中，示例问题卡片移到输入框下方；还没有可用模型时，输入框下方常驻「添加模型 / 选择模型」引导卡（键盘与触屏都能操作）并隐藏示例问题，空会话输入框缺省文案改为「输入 / 查看命令 · 点击 + 添加更多」。 The empty chat home is vertically centered with the quick prompt cards below the composer. Without a usable model, a visible "add / choose a model" card (keyboard and touch accessible) replaces the prompt cards, and the empty composer placeholder now points to / commands and the + menu. (`@nomi-ai/ai-chat` patch)
 - **cli:** Claude Code、Codex、Grok、Kimi Code、MiniMax Code 可以各自选择沿用本机登录或 Nomi 管理的账号（默认仍是 Nomi 管理）；默认用检测到的 CLI，高级设置里可选填自定义启动命令；保留协议与续接参数，第三方模型的启动方式不变。 Choose local CLI sign-in or Nomi-managed accounts independently for Claude Code, Codex, Grok, Kimi Code and MiniMax Code (Nomi-managed stays the default). Use detected CLIs by default, with optional custom launch commands under advanced settings. Preserve protocol and resume arguments and keep third-party model launches unchanged. (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
 - **cli:** 新增 `cli.launcherGet` / `cli.launcherSet` / `cli.launcherTest`（仅限对话窗口，设置与测试标为 dangerous）以及本机登录、自定义启动命令的文案。 Add `cli.launcherGet` / `cli.launcherSet` / `cli.launcherTest` (chat window only; set and test are dangerous) and strings for local sign-in and custom launch commands. (`@nomi-ai/contract` patch, `@nomi-ai/i18n` patch)
+- **ui:** 浅色主题按设计系统对齐色值，工作区背景改为 #FAF9F6，主题色块同步更新。 Light theme colors aligned with the design system, the workspace background set to #FAF9F6, and the light theme swatch updated to match. (`@nomi-ai/ui` patch)
 
 ### Fixes
 
+- **sidebar:** 修复侧栏会话较多（启用虚拟列表）时上方分组被顶出可视区、滚动与点击失效的问题，并为折叠菜单项补上悬浮标题。 Fix the sidebar pushing upper sections out of view, where they could not be scrolled to or clicked, when the virtualized conversation list is active, and add hover titles to collapsed menu items. (`@nomi-ai/ai-chat` patch)
 - **usage:** 自定义启动命令使用单独配置目录时，Claude Code 的每日用量不再缺失：发现并记住 CLI 报告的日志位置，跨账号目录仍按消息去重。 Fix missing daily Claude Code usage when a custom launcher uses a separate configuration directory. Discover and remember the log location reported by the CLI, retaining message deduplication across account directories. (`@nomi-ai/desktop-go` patch)
 
 ### Maintenance
 
 - **release:** empty changeset after archiving 2.3.17
-
-### Other
-
-- 修复侧栏会话较多（启用虚拟列表）时上方分组被顶出可视区、滚动与点击失效的问题，并为折叠菜单项补上悬浮标题。 Fix the sidebar pushing upper sections out of view (breaking scroll and clicks) when the virtualized conversation list is active, and add hover titles to collapsed menu items. (`@nomi-ai/ai-chat` patch)
-- 浅色主题按设计系统对齐色值、工作区背景改为 #FAF9F6，并在空会话首页把示例问题卡片移到输入框下方、未配置模型时改为悬浮输入框提示。 Light theme colors aligned with the design system, workspace background set to #FAF9F6, quick prompt cards moved below the composer, and the missing-model guide shown on composer hover instead of as a permanent card. (`@nomi-ai/ui` patch)
 
 ## 2.3.17 — 2026-11-16
 
