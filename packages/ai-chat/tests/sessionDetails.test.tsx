@@ -998,3 +998,98 @@ describe('agent identity (icon + name) comes from what the agent really is', () 
     expect(row.querySelector('[data-testid="endpoint-icon-claude"]')).toBeNull();
   });
 });
+
+describe('session details agent hover card placement', () => {
+  it('places the hover card to the left of the panel, closes immediately when moving to the next row, and opens on click in dismissible mode', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1200 });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 });
+
+    const origRect = HTMLElement.prototype.getBoundingClientRect;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.dataset?.testid === 'session-details') {
+        return {
+          left: 880,
+          right: 1180,
+          top: 52,
+          bottom: 500,
+          width: 300,
+          height: 448,
+          x: 880,
+          y: 52,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      const li = this.closest?.('[data-testid="session-details-agent"]');
+      if (li) {
+        const list = Array.from(document.querySelectorAll('[data-testid="session-details-agent"]'));
+        const idx = Math.max(0, list.indexOf(li));
+        const top = 180 + idx * 52;
+        return {
+          left: 892,
+          right: 1168,
+          top,
+          bottom: top + 44,
+          width: 276,
+          height: 44,
+          x: 892,
+          y: top,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      return origRect.call(this);
+    });
+
+    setup();
+    const msgsWithChanges = [
+      {
+        ...subagentCalls(2)[0]!,
+        trace: [
+          ...subagentCalls(2)[0]!.trace!,
+          {
+            type: 'tool',
+            name: 'Edit',
+            status: 'done',
+            id: 'e1',
+            input: JSON.stringify({ file_path: '/w/app/a.ts', old_string: 'a', new_string: 'b' }),
+          },
+        ],
+      },
+    ] as unknown as ConvMessage[];
+    mount('/w/app', msgsWithChanges);
+    fireEvent.click(screen.getByTestId('session-details-toggle'));
+    await screen.findByTestId('session-details');
+    // 点开变更以触发自动收起，再用按钮以 dismissible 浮层打开
+    fireEvent.click(screen.getByTestId('session-details-changes'));
+    expect(screen.queryByTestId('session-details')).toBeNull();
+    fireEvent.click(screen.getByTestId('session-details-toggle'));
+    await screen.findByTestId('session-details');
+
+    const rows = screen.getAllByTestId('session-details-agent');
+    expect(rows).toHaveLength(2);
+    const trigger0 = rows[0]!.firstElementChild as HTMLElement;
+    const trigger1 = rows[1]!.firstElementChild as HTMLElement;
+
+    fireEvent.pointerEnter(trigger0, { pointerType: 'mouse', buttons: 0 });
+    const card0 = await screen.findByTestId('agent-hover-card', undefined, { timeout: 2000 });
+    expect(card0.textContent).toContain('第 0 个');
+    const left0 = parseFloat(card0.style.left);
+    const width0 = parseFloat(card0.style.width);
+    expect(left0 + width0).toBeLessThanOrEqual(880);
+    expect(parseFloat(card0.style.top)).toBe(180);
+
+    // 鼠标离开第 1 行并移入第 2 行：旧卡片立即收起，随后出现第 2 行的卡片
+    fireEvent.pointerLeave(trigger0);
+    fireEvent.pointerEnter(trigger1, { pointerType: 'mouse', buttons: 0 });
+    expect(screen.queryByTestId('agent-hover-card')).toBeNull();
+    const card1 = await screen.findByTestId('agent-hover-card', undefined, { timeout: 2000 });
+    expect(card1.textContent).toContain('第 1 个');
+    expect(parseFloat(card1.style.top)).toBe(232);
+
+    // 在 dismissible 浮层模式下点击卡片：不被外部 pointerdown 误关闭，正常打开子任务面板
+    fireEvent.pointerDown(card1);
+    fireEvent.click(card1);
+    await waitFor(() => expect(screen.getByTestId('probe-target').textContent).toBe('nested:s1'));
+  });
+});
