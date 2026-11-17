@@ -1,0 +1,70 @@
+/* 输入框的模型引导：缺模型时鼠标移上去，在输入框上方浮出一张轻量引导卡 */
+.host {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.guide {
+  position: absolute;
+  /* 浮在输入框上方，与输入框同宽居中 */
+  bottom: calc(100% + var(--cd-space-2));
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  width: 100%;
+  max-width: var(--cd-chat-content-w);
+  padding: var(--cd-space-2) var(--cd-space-2) var(--cd-space-2) var(--cd-space-3);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface);
+  box-shadow: var(--cd-shadow-md);
+  box-sizing: border-box;
+  transform: translateX(-50%);
+  /* 只在悬停输入框时出现，不做焦点触发（输入框会自己聚焦，否则首屏一直挂着） */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--cd-duration-fast);
+}
+.host:hover .guide {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+.guideIcon {
+  flex-shrink: 0;
+  color: var(--cd-color-accent);
+}
+.guideCopy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+  min-width: 0;
+}
+.guideTitle {
+  color: var(--cd-color-text);
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+}
+.guideDescription {
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height);
+}
+
+@media (max-width: 480px) {
+  .guide {
+    padding-left: var(--cd-space-2);
+  }
+  .guideDescription {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guide {
+    transition: none;
+  }
+}
