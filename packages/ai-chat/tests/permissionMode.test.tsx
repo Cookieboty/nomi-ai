@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import { BUILTIN_MANIFESTS } from '@nomi-ai/cli-catalog';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -98,9 +99,15 @@ describe('权限模式表', () => {
   it('各端支持的档位与降级与主进程一致；Shift+Tab 跳过「完全放开」', () => {
     expect(supportedModes('dsh')).toEqual(['plan', 'acceptEdits', 'bypass']);
     expect(fallbackMode('dsh', 'manual')).toBe('plan');
-    // Codex / Grok 走长驻会话后都能逐项确认；Grok 没有「自动」
+    // Codex / Grok 走长驻会话后都能逐项确认
     expect(fallbackMode('codex', 'manual')).toBe('manual');
-    expect(fallbackMode('grok', 'auto')).toBe('acceptEdits');
+    // Grok 有「自动」档：原样保留，不再降级（落到 CLI 的 acceptEdits）
+    expect(supportedModes('grok')).toContain('auto');
+    expect(fallbackMode('grok', 'auto')).toBe('auto');
+    expect(
+      BUILTIN_MANIFESTS.grok.capabilities.permissionModes?.find((m) => m.mode === 'auto')?.modeId,
+    ).toBe('acceptEdits');
+    // Gemini 没有「自动」档：降到自动改文件
     expect(fallbackMode('gemini', 'auto')).toBe('acceptEdits');
     expect(nextMode('claude', 'auto')).toBe('plan');
     expect(nextMode('dsh', 'acceptEdits')).toBe('plan');
