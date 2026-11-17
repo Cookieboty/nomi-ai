@@ -1,5 +1,12 @@
 # @nomi-ai/contract
 
+## 0.1.1
+
+### Patch Changes
+
+- 5fe61e1: fix(workspace): 新增浏览器标签原生子视图的 `browserWindow.*` 契约（show / setRegion / navigate / reload / close / closeAll / sync，以及 loaded / closed 事件，仅限对话窗口调用）和相关中英文文案。 Add the `browserWindow.*` contract for the browser tab's native child view (show / setRegion / navigate / reload / close / closeAll / sync, plus loaded / closed events; chat window only) and the related zh/en strings.
+- b27ece0: feat(cli): 新增 `cli.launcherGet` / `cli.launcherSet` / `cli.launcherTest`（仅限对话窗口，设置与测试标为 dangerous）以及本机登录、自定义启动命令的文案。 Add `cli.launcherGet` / `cli.launcherSet` / `cli.launcherTest` (chat window only; set and test are dangerous) and strings for local sign-in and custom launch commands.
+
 ## 0.1.0
 
 ### Minor Changes

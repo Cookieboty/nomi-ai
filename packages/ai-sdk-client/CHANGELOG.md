@@ -1,5 +1,13 @@
 # @nomi-ai/ai-sdk-client
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies [5fe61e1]
+- Updated dependencies [b27ece0]
+  - @nomi-ai/contract@0.1.1
+
 ## 0.0.2
 
 ### Patch Changes

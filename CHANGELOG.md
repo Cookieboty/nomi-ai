@@ -5,6 +5,12 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ## Unreleased
 
+### Maintenance
+
+- **release:** empty changeset after archiving 2.3.18
+
+## 2.3.18 — 2026-11-17
+
 ### Features
 
 - **chat:** 侧栏会话行补上「已完成」的状态点：一轮成功跑完留下一个绿点，点进会话就消失。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)

@@ -1,5 +1,22 @@
 # @nomi-ai/i18n
 
+## 0.2.1
+
+### Patch Changes
+
+- 5fe61e1: fix(workspace): 新增浏览器标签原生子视图的 `browserWindow.*` 契约（show / setRegion / navigate / reload / close / closeAll / sync，以及 loaded / closed 事件，仅限对话窗口调用）和相关中英文文案。 Add the `browserWindow.*` contract for the browser tab's native child view (show / setRegion / navigate / reload / close / closeAll / sync, plus loaded / closed events; chat window only) and the related zh/en strings.
+- b27ece0: feat(cli): 新增 `cli.launcherGet` / `cli.launcherSet` / `cli.launcherTest`（仅限对话窗口，设置与测试标为 dangerous）以及本机登录、自定义启动命令的文案。 Add `cli.launcherGet` / `cli.launcherSet` / `cli.launcherTest` (chat window only; set and test are dangerous) and strings for local sign-in and custom launch commands.
+- 61aa211: fix(chat): 新增「这一轮还没回复完 Nomi 就重启了」的中英文提示文案。Add the zh/en string for the card shown when a reply was interrupted by an app restart.
+- 2958f64: feat(i18n): 补「极简」会话详细程度模式相关的中英文词条。
+
+  zh/en copy for the "minimal" conversation detail mode.
+
+- ebd40bf: fix(chat): 新增输入框被文件预览挡住时的中英文说明和「回到原会话」按钮文案。Add the zh/en notice shown when a file preview blocks the composer, and the "Return to conversation" button label.
+- 1e23f1e: fix(chat): 新增中途插入消息在对话记录里的标记文案（「你加入了」已有；补上重启后跟进的中英文）。Add the zh/en label used when a mid-turn follow-up is recovered after a restart.
+- 2958f64: feat(i18n): 补侧栏项目多 CLI 共享与悬停详情弹窗相关的中英文词条。
+
+  zh/en copy for cross-CLI project sharing and the hover detail popover.
+
 ## 0.2.0
 
 ### Minor Changes
