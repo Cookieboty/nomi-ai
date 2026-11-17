@@ -264,10 +264,12 @@ type Orchestrator struct {
 	recent                                         []string
 	writer                                         *utils.FileWriter
 	sessionModels                                  *cli.SessionModelTable
-	tabFileBytes                                   map[string]int
-	broadcastQueued                                bool
-	disposed                                       bool
-	sbx                                            sbxState
+	// autoMode：哪些端点 + 模型上「自动」档实测跑不通（cli.AutoModeTable）
+	autoMode        *cli.AutoModeTable
+	tabFileBytes    map[string]int
+	broadcastQueued bool
+	disposed        bool
+	sbx             sbxState
 	// turnOrigin：标签当前这一轮是谁发起的（TabFinished.Origin）；nextOrigin：下一次 SendTab 的发起方（沙箱续跑）
 	turnOrigin, nextOrigin map[string]string
 	events                 *emitter
@@ -372,6 +374,7 @@ func New(d Deps) *Orchestrator {
 	o.tabsDir = filepath.Join(d.Root, "tabs")
 	o.recentPath = filepath.Join(d.Root, "recent-cwds.json")
 	o.sessionModels = cli.NewSessionModelTable(d.Root, func(msg string, e error) { d.Logger.Warn(msg, e) })
+	o.autoMode = cli.NewAutoModeTable(d.Root, func(msg string, e error) { d.Logger.Warn(msg, e) })
 	o.writer = utils.NewFileWriter(persistDebounceMs, func(file string, e error) {
 		d.Logger.Warn("harness persist failed", util.NewObj("file", filepath.Base(file), "e", errString(e)))
 	})
