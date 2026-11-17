@@ -19,7 +19,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 ### Fixes
 
 - **chat:** 修好两个「加载更多 / 更早」点了没反应的问题：侧栏本机历史的「加载更多」不再因为窗口重新聚焦被重置回第一页，被打断的那一页也会正常解锁按钮；长对话里尾部带巨型工具轨迹时，「显示更早」不会再因为体量预算吃满而一步都跨不出去（预算只约束首屏，用户显式要求时按条数加载），并且加载锁一定会复位，不会点一次之后按钮和滚到顶都静默失效。 (`@nomi-ai/ai-chat` patch)
-- **cli:** 「自动」档严格按「由 CLI 自行判断哪些操作需要确认」下发；要不要降级只看实测，不看模型叫什么。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
+- **cli:** 「自动」档在 Nomi 里跑不起来，根因是 Nomi 给每个标签单独建配置目录时把 auto 的前置状态过滤掉了（`.claude.json` 只拷 8 个白名单键，CLI 因此判定本 session 跑不了安全检查，而 `-p` 又没人可问），不是端点不支持；现在继承 auto 的 opt-in 标记并在每次启动续期那条 24 小时有效的计费确认，「自动」档仍然严格按「由 CLI 自行判断哪些操作需要确认」下发。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
 - **cli:** 修复本地 CLI 接入测试命令注入风险，补齐自定义启动器配置下的历史会话扫描、Kimi/MiniMax 环境变量放行、可用性探测及账号来源切换刷新 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
 - **cli:** 清单给 Grok 补上「自动」档，映射到 CLI 的 acceptEdits；此前没有这一档，选「自动」会掉回逐项确认。 (`@nomi-ai/cli-catalog` patch)
 - **delegate:** 被停止的后台委派不再往当前轮注入 `<cli-output>`：结果消息已写进对话（模型下一轮从历史里读得到），卡片也标着「已停止」，再 steer 一遍只会让模型以为自己被用户插了句话。完成 / 失败仍然实时告知正在跑的这一轮，但只投给模型，不在时间线里留 interject —— 界面上不再出现「你插入了 \<cli-output\>…」这类假用户消息。 (`@nomi-ai/ai-chat` patch)

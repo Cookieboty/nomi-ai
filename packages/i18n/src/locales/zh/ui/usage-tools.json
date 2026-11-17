@@ -18,7 +18,7 @@
   "ui.usage-tools.all-usage-data-stays-on-this-computer-nothing": "所有用量数据只保存在这台电脑上：不上传、不做云同步，也没有排行榜或分享入口。",
   "ui.usage-tools.and-more": " 等 {0} 个",
   "ui.usage-tools.api-billing-no-subscription-quota": "API 计费，无订阅额度",
-  "ui.usage-tools.auto-mode-cannot-approve": "自动模式校验不了动作，工具调用被拒绕",
+  "ui.usage-tools.auto-mode-cannot-approve": "自动模式校验不了动作，工具调用被拒绝",
   "ui.usage-tools.automatic-setup-is-not-available-on-windows-yet": "暂不支持在 Windows 上自动开启。可以在 Claude Code 的 statusLine 脚本里把 stdin 的 rate_limits 写到本地文件。",
   "ui.usage-tools.best-effort": "尽力而为",
   "ui.usage-tools.body-tracing": "正文追踪",

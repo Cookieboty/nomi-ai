@@ -137,6 +137,7 @@ export type TranslationKey =
   | 'electron.common.audio-url-must-use-http-or-https'
   | 'electron.common.authentication-failed'
   | 'electron.common.auto-mode-cannot-check-actions'
+  | 'electron.common.auto-mode-unavailable-here'
   | 'electron.common.available-skills'
   | 'electron.common.background-tasks-are-still-running-switch-long'
   | 'electron.common.balance-of-speed-and-accuracy-recommended'

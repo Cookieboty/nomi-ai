@@ -37,9 +37,11 @@ export function degradeMode(
  * Claude 的 permission-mode 名（Grok 沿用同一套名字）。
  *
  * `auto` = 由 Claude 自己判断哪些动作需要确认，正是 Nomi「自动」档的语义。
- * 但它的判断是**服务端**安全分类器：请求经第三方网关（Nomi 本地端口、Amux 等）时
- * 分类器不可达，每个要检查的动作都会被拒（auto_mode_no_check_in_session），而且不会回头问 host。
- * 所以只在官方直连时下发 `auto`，其余情况由调用方降级到 `acceptEdits`（见 orchestrator）。
+ * 它的判定跑在**服务端**：随主请求带 `safeguards` + beta `dangerous-tool-use-*`，结果回到响应的
+ * `safeguard_results`。第三方网关只要原样转运就能用——Nomi 自己的网关就是这么做的。
+ * 它真正缺不得的是两份状态：`.claude.json` 里的 auto opt-in 标记，以及那条 24 小时有效的
+ * 「分类器会计费」确认；缺了 CLI 就判定本 session 跑不了检查（auto_mode_no_check_in_session），
+ * 而 `-p` 没人可问，于是每个需要检查的动作硬拒。两份状态由 accounts.EnsureAccountHome 跟着用户配置补齐。
  */
 export const CLAUDE_MODE: Record<HarnessPermissionMode, string> = {
   plan: 'plan',

@@ -2,11 +2,11 @@ package cli
 
 // automode.go：「自动」档在这个端点 + 模型上到底能不能用，靠运行时学，不靠模型名猜。
 //
-// Claude 的 auto 模式由**服务端**分类器判断每个动作要不要确认（beta auto-mode-classifier-*，
-// 走同一个 base URL 的附带请求）。它能不能跑，取决于对端是否提供该能力、以及是否把这个
-// 附带请求透传过去 —— 跟模型叫什么名字无关，换一个供应商、同一个模型换个名字都可能不一样。
-// 所以这里只记录「实测跑不通」，键是端点 + 模型；下次启动同一个组合就直接用降级档，
-// 不必再让用户白白等一轮。
+// Claude 的 auto 判定随每次 /v1/messages 带 safeguards + beta dangerous-tool-use-*，
+// 结果回到响应的 safeguard_results —— 只要网关原样转运就能用，所以「端点不支持」本来
+// 就不是常态（Nomi 自己的网关一直这么转）。真正会让它停摆的是 CLI 侧的 auto 前置状态
+// 缺失，那由 accounts.EnsureAccountHome 补齐；这里只兜真正跑不通的情况：按端点 + 模型
+// 记下实测结果，下次启动同一组合直接走降级档，不必再让用户白白等一轮。
 
 import (
 	"os"
@@ -18,6 +18,10 @@ import (
 )
 
 const autoModeFile = "auto-mode-support.json"
+
+// autoModeTableVersion：表格式版本。根因弄错（把「配置缺状态」当成「端点不支持」）那代的
+// 记录一律作废，否则升级后还会把用户按在降级档上。
+const autoModeTableVersion = 2.0
 
 // AutoModeTable：端点+模型 → 学到的原因（unsupported：auto 在这里用不了）。
 type AutoModeTable struct {
@@ -64,6 +68,9 @@ func (t *AutoModeTable) load() {
 	if !ok {
 		return
 	}
+	if ver, ok := o.Get("version").(float64); !ok || ver != autoModeTableVersion {
+		return
+	}
 	if entries, ok := o.Get("unsupported").(*util.Obj); ok {
 		for _, k := range entries.Keys() {
 			if s := util.Str(entries.Get(k)); s != "" {
@@ -100,7 +107,7 @@ func (t *AutoModeTable) NoteUnsupported(key, reason string) {
 	for k, v := range t.m {
 		entries.Set(k, v)
 	}
-	data := util.Stringify(util.NewObj("version", 1.0, "unsupported", entries))
+	data := util.Stringify(util.NewObj("version", autoModeTableVersion, "unsupported", entries))
 	t.mu.Unlock()
 	if err := utils.WritePrivateFileAtomic(filepath.Join(t.root, autoModeFile), []byte(data)); err != nil {
 		t.warn("auto-mode-support write failed", err)
