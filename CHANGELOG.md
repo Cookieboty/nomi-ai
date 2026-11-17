@@ -9,17 +9,16 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 - **chat:** 侧栏项目支持跨多 CLI 全局共享与任选端新建会话，新增鼠标悬停项目头右侧详情弹窗（展示聊天总数、全部源文件夹、项目置顶与编辑入口）。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/i18n` patch)
 - **chat:** 新增「极简」会话详细程度模式并设为新环境默认，支持在运行中与完成后点击圆角横条展开查看逐行步骤并在局部区域内独立滚动，收起时仅展示步骤进度、已用时与最终总结；并禁用步骤与状态进度区域的划词工具条触发。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/i18n` patch)
+- **chat:** 空会话首页整块垂直居中，示例问题卡片移到输入框下方；还没有可用模型时，输入框下方常驻「添加模型 / 选择模型」引导卡（键盘与触屏都能操作）并隐藏示例问题，空会话输入框缺省文案改为「输入 / 查看命令 · 点击 + 添加更多」。 The empty chat home is vertically centered with the quick prompt cards below the composer. Without a usable model, a visible "add / choose a model" card (keyboard and touch accessible) replaces the prompt cards, and the empty composer placeholder now points to / commands and the + menu. (`@nomi-ai/ai-chat` patch)
 - **cli:** Claude Code、Codex、Grok、Kimi Code、MiniMax Code 可以各自选择沿用本机登录或 Nomi 管理的账号（默认仍是 Nomi 管理）；默认用检测到的 CLI，高级设置里可选填自定义启动命令；保留协议与续接参数，第三方模型的启动方式不变。 Choose local CLI sign-in or Nomi-managed accounts independently for Claude Code, Codex, Grok, Kimi Code and MiniMax Code (Nomi-managed stays the default). Use detected CLIs by default, with optional custom launch commands under advanced settings. Preserve protocol and resume arguments and keep third-party model launches unchanged. (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
 - **cli:** 新增 `cli.launcherGet` / `cli.launcherSet` / `cli.launcherTest`（仅限对话窗口，设置与测试标为 dangerous）以及本机登录、自定义启动命令的文案。 Add `cli.launcherGet` / `cli.launcherSet` / `cli.launcherTest` (chat window only; set and test are dangerous) and strings for local sign-in and custom launch commands. (`@nomi-ai/contract` patch, `@nomi-ai/i18n` patch)
+- **ui:** 浅色主题按设计系统对齐色值，工作区背景改为 #FAF9F6，主题色块同步更新。 Light theme colors aligned with the design system, the workspace background set to #FAF9F6, and the light theme swatch updated to match. (`@nomi-ai/ui` patch)
 
 ### Fixes
 
-- **cli:** 「自动」档严格按「由 CLI 自行判断哪些操作需要确认」下发。Claude 的 `auto` 原样直传，选什么模型、换哪个供应商都照用——它是服务端分类器，能不能跑取决于端点是否透传这项检查，与模型名无关；只有 Claude 自己报出 `auto_mode_no_server_check` / `auto_mode_no_check_in_session` 时，才把这个「端点 + 模型」组合记进 `auto-mode-support.json`、下次自动改用 `acceptEdits` 并说明原因，换回支持的服务商后自动恢复（降级目标是 `acceptEdits`，不是完全放开）。Grok 的 auto 从 `default`（逐次询问）改为 `acceptEdits`；Codex / Gemini / Kimi 保持它们自己的 auto_review / autoEdit / yolo；后台委派一律 `bypass`（无人值守，停下来问就会死）。同时解析 Claude 的 `system/informational` 与 `system/permission_denied`，状态行与失败说明会点名被拒的工具。 Auto mode means "the CLI decides which actions need confirmation": Claude's `auto` is passed through as-is for any model or provider, and only a measured failure (reported by Claude itself) makes Nomi remember that endpoint+model and use `acceptEdits` next time, with an explanation. Grok's auto moves from `default` to `acceptEdits`; Codex, Gemini and Kimi keep their own review tiers; delegation runs with `bypass`. Permission denials and notices are parsed and surfaced. (`@nomi-ai/ai-chat` patch, `@nomi-ai/cli-catalog` patch, `@nomi-ai/desktop-go` patch)
 - **cli:** 修复本地 CLI 接入测试命令注入风险，补齐自定义启动器配置下的历史会话扫描、Kimi/MiniMax 环境变量放行、可用性探测及账号来源切换刷新 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
-- **delegate:** 后台委派被停止后不再往正在跑的轮次注入结果，时间线里不再出现「你插入了」这条假用户消息；完成与失败仍实时告知模型，但同样不再当作用户插话。 A stopped background handoff is no longer injected into the running turn, and completion or failure reaches the model silently, so the timeline stops showing a fake "you inserted" message. (`@nomi-ai/ai-chat` patch)
-- **chat:** 修好两个「加载」点了没反应的问题：侧栏本机历史的「加载更多」不再因为窗口重新聚焦被重置回第一页；长对话尾部带巨型工具轨迹时，「显示更早」不会再一步都跮不出去（体量预算只约束首屏），加载锁也一定复位。 The sidebar's "load more" no longer resets to the first page when the window regains focus, and a long conversation whose tail carries a huge tool trace can still page back through older messages instead of stalling. (`@nomi-ai/ai-chat` patch)
-- **models:** 看图能力不再按模型名猜：只认 models.dev 同步的元数据，没写就不提示，明确不支持才提示，并列出你自己已启用的视觉模型供切换（`deepseek-v4.1-flash` 不再被误报）。主流模型补齐内置价格（deepseek / qwen / kimi / 智谱 / MiniMax / Grok / Mistral 等），价格同步加上聚合商兜底、支持基础名命中同族快照。 Vision support now comes from synced models.dev metadata only: no hint when unknown, a hint naming your own vision models when the model is explicitly text-only. Built-in pricing covers the mainstream families, price sync falls back to aggregator data, and a base id matches its snapshot siblings. (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
 - **session-details:** 会话详情中的子 Agents 与任务悬停卡片改为贴面板左侧外沿展开、跨项移动立即收起并防止浮层点击误关，不再遮挡下方相邻条目。 (`@nomi-ai/ai-chat` patch)
+- **sidebar:** 修复侧栏会话较多（启用虚拟列表）时上方分组被顶出可视区、滚动与点击失效的问题，并为折叠菜单项补上悬浮标题。 Fix the sidebar pushing upper sections out of view, where they could not be scrolled to or clicked, when the virtualized conversation list is active, and add hover titles to collapsed menu items. (`@nomi-ai/ai-chat` patch)
 - **usage:** 自定义启动命令使用单独配置目录时，Claude Code 的每日用量不再缺失：发现并记住 CLI 报告的日志位置，跨账号目录仍按消息去重。 Fix missing daily Claude Code usage when a custom launcher uses a separate configuration directory. Discover and remember the log location reported by the CLI, retaining message deduplication across account directories. (`@nomi-ai/desktop-go` patch)
 
 ### Maintenance
@@ -28,8 +27,10 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ### Other
 
-- 修复侧栏会话较多（启用虚拟列表）时上方分组被顶出可视区、滚动与点击失效的问题，并为折叠菜单项补上悬浮标题。 Fix the sidebar pushing upper sections out of view (breaking scroll and clicks) when the virtualized conversation list is active, and add hover titles to collapsed menu items. (`@nomi-ai/ai-chat` patch)
-- 浅色主题按设计系统对齐色值、工作区背景改为 #FAF9F6，并在空会话首页把示例问题卡片移到输入框下方、未配置模型时改为悬浮输入框提示。 Light theme colors aligned with the design system, workspace background set to #FAF9F6, quick prompt cards moved below the composer, and the missing-model guide shown on composer hover instead of as a permanent card. (`@nomi-ai/ui` patch)
+- 「自动」档严格按「由 CLI 自行判断哪些操作需要确认」下发；要不要降级只看实测，不看模型叫什么。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/cli-catalog` patch, `@nomi-ai/desktop-go` patch)
+- 修好两个「加载更多 / 更早」点了没反应的问题：侧栏本机历史的「加载更多」不再因为窗口重新聚焦被重置回第一页，被打断的那一页也会正常解锁按钮；长对话里尾部带巨型工具轨迹时，「显示更早」不会再因为体量预算吃满而一步都跨不出去（预算只约束首屏，用户显式要求时按条数加载），并且加载锁一定会复位，不会点一次之后按钮和滚到顶都静默失效。 (`@nomi-ai/ai-chat` patch)
+- 看图能力只看模型元数据（models.dev 同步的那份），不再按模型名猜：元数据没写就不提示，元数据明确不支持才提示，并列出你自己已启用的视觉模型供切换。同时补齐主流模型的内置价格（deepseek / qwen / kimi / 智谱 / MiniMax / Grok / Mistral 等），同步范围加上聚合商兜底，价格匹配支持用基础名命中 `-1017` 这类同族快照 —— `deepseek-v4.1-flash` 不再既被判不能看图、又算不出价格。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
+- 被停止的后台委派不再往当前轮注入 `<cli-output>`：结果消息已写进对话（模型下一轮从历史里读得到），卡片也标着「已停止」，再 steer 一遍只会让模型以为自己被用户插了句话。完成 / 失败仍然实时告知正在跑的这一轮，但只投给模型，不在时间线里留 interject —— 界面上不再出现「你插入了 \<cli-output\>…」这类假用户消息。 (`@nomi-ai/ai-chat` patch)
 
 ## 2.3.17 — 2026-11-16
 

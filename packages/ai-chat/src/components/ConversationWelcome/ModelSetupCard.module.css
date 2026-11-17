@@ -1,0 +1,43 @@
+/* 空会话缺模型时的引导卡：输入框下方常驻显示（占示例问题卡片的位置），与输入框同宽居中 */
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  width: 100%;
+  max-width: var(--cd-chat-content-w);
+  margin: var(--cd-space-3) auto 0;
+  padding: var(--cd-space-2) var(--cd-space-2) var(--cd-space-2) var(--cd-space-3);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-settings-card-bg);
+  box-sizing: border-box;
+  text-align: left;
+}
+.icon {
+  flex-shrink: 0;
+  color: var(--cd-color-accent-strong);
+}
+.copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+  min-width: 0;
+}
+.title {
+  color: var(--cd-color-text);
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+}
+.description {
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height);
+}
+
+@media (max-width: 480px) {
+  .card {
+    flex-wrap: wrap;
+    padding-left: var(--cd-space-2);
+  }
+}
