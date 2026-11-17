@@ -38,7 +38,11 @@ describe('appContract · D3 coding', () => {
       expect(name).not.toMatch(/-/);
     }
     for (const [name, d] of Object.entries(codingProcedures as Record<string, Def>)) {
-      if (name.startsWith('harness.preview') || name === 'harness.messageAgent')
+      if (
+        name.startsWith('harness.preview') ||
+        name === 'harness.messageAgent' ||
+        name.startsWith('cli.launcher')
+      )
         expect(d.surfaces).toEqual(['chat']);
       else expect(d.surfaces).toBeUndefined();
     }
@@ -47,6 +51,8 @@ describe('appContract · D3 coding', () => {
       .map(([n]) => n)
       .sort();
     expect(dangerous).toEqual([
+      'cli.launcherSet',
+      'cli.launcherTest',
       'delegate.dispatch',
       'fleet.closeIdle',
       'fleet.pause',
