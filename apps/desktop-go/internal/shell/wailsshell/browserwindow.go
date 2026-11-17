@@ -73,7 +73,7 @@ const (
 // browserName：窗口名（只给容器型平台用，不直接用标签 id：可能很长、带任意字符）
 func browserName(id string) string {
 	sum := sha1.Sum([]byte(id))
-	return "browser-" + hex.EncodeToString(sum[:6])
+	return shell.BrowserWindowPrefix + hex.EncodeToString(sum[:6])
 }
 
 func (w *Wails) browserFor(id string) *browserWin {

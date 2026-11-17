@@ -109,11 +109,17 @@ func New(cfg Config) *Wails {
 		// 退出时在关窗之前跑（等对话窗口排着的会话写入写完，见 main.go）
 		OnShutdown: cfg.OnShutdown,
 		// Bundled：额外提供 /wails/runtime.js（完整运行时：--wails-draggable 拖动窗口、文件拖放；viewpage 插进页面）
-		Assets: application.AssetOptions{Handler: application.BundledAssetFileServer(cfg.Assets), Middleware: cfg.Middleware},
+		// 最外层先挡浏览器标签窗口（外部网页）：它们不能请求应用页面与 /wails/runtime（见 shell.GuardBrowserWindowAssets）
+		Assets: application.AssetOptions{Handler: application.BundledAssetFileServer(cfg.Assets), Middleware: assetMiddleware(cfg.Middleware)},
 		// 页面首帧（renderer 入口 index.tsx 发 nomi:first-paint）：mac 上 Wails 要等 DidFinishNavigation
 		// 才 Show，这里在首帧就显示（ready-to-show）；只接受顶层文档的消息，拒绝内嵌外部 iframe 伪造 nomi:* 信号
 		RawMessageHandler: func(win application.Window, msg string, origin *application.OriginInfo) {
-			if origin != nil && !origin.IsMainFrame {
+			// 浏览器标签窗口里是外部网页：主框架消息也不收（见 shell.AcceptPageMessage）
+			name := ""
+			if win != nil {
+				name = win.Name()
+			}
+			if !shell.AcceptPageMessage(name, origin == nil || origin.IsMainFrame) {
 				return
 			}
 			// 开发态（devviews → viewpage）页面转来的 console 与报错
@@ -890,4 +896,14 @@ func windowsOptions() application.WindowsOptions {
 		opts.WebviewUserDataPath = filepath.Join(hostports.DefaultPaths().UserData(), "webview")
 	}
 	return opts
+}
+
+// assetMiddleware：浏览器标签窗口的拦截放在最外层，再接调用方的中间件
+func assetMiddleware(next func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		if next != nil {
+			h = next(h)
+		}
+		return shell.GuardBrowserWindowAssets(h)
+	}
 }
