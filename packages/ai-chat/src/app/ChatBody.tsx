@@ -22,16 +22,13 @@ import {
 } from '../contexts/aiChatStore';
 import { useHarnessLive, type HarnessTabsCore } from '../contexts/HarnessTabsContext';
 import { useLiveWithGatewayRetry } from '../hooks/useGatewayRetry';
-import { useNomiModelStatus } from '../hooks/useNomiModelStatus';
 import { useTranscriptView } from '../hooks/useTranscriptView';
-import { useUserProfile } from '../hooks/useUserProfile';
 import {
   CONVERSATION_NAV_DEMO_EVENT,
   conversationNavDemoMessages,
 } from '../services/conversationNavDemo';
 import { derivedSwitchTip } from '../services/modelSwitchTip';
 import { nomiModelLabel, useGatewayState } from '../services/nomiModel';
-import { QUICK_PROMPT_TEXT, recommend } from '../services/recommendations';
 import type { TranscriptView } from '../services/transcriptView';
 import type { SlashHook } from '../slash/useSlashCommands';
 import type { ConvMessage } from '../types/conversation';
@@ -111,23 +108,13 @@ const CliBody: React.FC<{
   );
 };
 
-/** Nomi 主对话还没有消息：欢迎屏。还没有模型时快捷问题换成「添加模型」/「选择模型」，免得一点就报错 */
-const NomiWelcome: React.FC<{ onOpenModels: () => void }> = ({ onOpenModels }) => {
-  const { actions } = useAiChatActions();
-  const modelStatus = useNomiModelStatus();
-  // 示例问题按新手引导里选的职业与兴趣推荐
-  const quickPrompts = recommend(useUserProfile()).prompts;
-  const needsModel = modelStatus === 'none' || modelStatus === 'unassigned';
-  return (
-    <ConversationWelcome
-      title={t('ui.foundation.what-would-you-like-to-do-today')}
-      modelStatus={needsModel ? modelStatus : undefined}
-      onOpenModels={onOpenModels}
-      prompts={needsModel ? undefined : quickPrompts}
-      onPrompt={(id) => actions.sendMessage(t(QUICK_PROMPT_TEXT[id].prompt))}
-    />
-  );
-};
+/**
+ * Nomi 主对话还没有消息：欢迎屏（图标 + 标题 + 小标题）。
+ * 示例问题卡片与模型引导都在输入框一侧，由 App 层渲染。
+ */
+const NomiWelcome: React.FC = () => (
+  <ConversationWelcome title={t('ui.foundation.what-would-you-like-to-do-today')} />
+);
 
 export const ChatBody: React.FC<{
   tabs: HarnessTabsCore;
@@ -137,8 +124,7 @@ export const ChatBody: React.FC<{
   cliMessages: ConvMessage[];
   nomiMessages: ConvMessage[];
   slash: SlashHook;
-  onOpenModels: () => void;
-}> = ({ tabs, isDev, sessionKey, cliMessages, nomiMessages, slash, onOpenModels }) => {
+}> = ({ tabs, isDev, sessionKey, cliMessages, nomiMessages, slash }) => {
   const [navDemoSessionKey, setNavDemoSessionKey] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     if (!isDev) return;
@@ -190,8 +176,7 @@ export const ChatBody: React.FC<{
         transcriptView={transcriptView}
       />
     );
-  if (displayNomiMessages.length === 0 && slash.cards.length === 0)
-    return <NomiWelcome onOpenModels={onOpenModels} />;
+  if (displayNomiMessages.length === 0 && slash.cards.length === 0) return <NomiWelcome />;
   return (
     <NomiConversation
       scopeId={sessionKey ?? `nomi:${firstMessageId ?? 'new'}`}

@@ -17,11 +17,13 @@ import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundL
 import { ChatHeader } from './components/ChatHeader';
 import { ComputerActivityBar } from './components/ComputerActivityBar';
 import { ForkFromMessageContext } from './components/Conversation/forkContext';
+import { PromptCards } from './components/ConversationWelcome/PromptCards';
 import { DesktopConfirmDock } from './components/DesktopConfirmDock';
 import { NewChatContext, SessionControls } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { prefetchPanels, SettingsView } from './components/lazyPanels';
 import { MessageInput } from './components/MessageInput';
+import { ModelSetupHint } from './components/MessageInput/ModelSetupHint';
 import { onboardingClient } from './components/Onboarding/client';
 import { OnboardingHost } from './components/Onboarding/host';
 import { PendingDock } from './components/PendingDock';
@@ -311,6 +313,15 @@ const AiChatContent: React.FC = () => {
     nomiMessages,
     panels,
   });
+  /**
+   * 空会话（新窗口 / 当前会话没发过消息）：整块居中（欢迎区 + 聊天框 + 模型引导）。
+   * 口径与 ChatBody 的空态判定保持一致：CLI 标签看标签消息，主对话看 Nomi 消息与斜杠卡。
+   */
+  const chatEmpty =
+    slash.cards.length === 0 &&
+    (tabs.isCliTab ? cliConvMessages.length === 0 : nomiMessages.length === 0);
+  /** 空会话的 Nomi 主对话：示例问题卡片与输入框缺省文案只在它成立时出现（编程助手标签不参与） */
+  const nomiEmpty = chatEmpty && !tabs.isCliTab;
   const commands = useAppCommands({
     actions,
     ipcClient,
@@ -376,7 +387,15 @@ const AiChatContent: React.FC = () => {
             placeholder: cliPlaceholder,
             queue: pending.queueProps,
           }
-        : { queue: pending.queueProps },
+        : {
+            queue: pending.queueProps,
+            // 空会话主对话：把「输入 / 查看命令 · 点击 + 添加更多」当缺省展示值
+            ...(nomiEmpty
+              ? {
+                  placeholder: t('ui.foundation.type-for-commands-for-knowledge-base-voice-models'),
+                }
+              : {}),
+          },
     [
       hasCliActive,
       cliActive,
@@ -386,6 +405,7 @@ const AiChatContent: React.FC = () => {
       cliImages,
       tabSend,
       pending.queueProps,
+      nomiEmpty,
     ],
   );
 
@@ -500,6 +520,8 @@ const AiChatContent: React.FC = () => {
                 <div
                   className="chat-column"
                   data-testid="chat-column"
+                  // 空会话：整块居中（欢迎区 + 输入框），见 App.css 的 [data-empty]
+                  data-empty={chatEmpty && mainShown ? 'true' : undefined}
                   hidden={!mainShown}
                   style={{
                     ...(centerOpen && !sideMax
@@ -539,7 +561,6 @@ const AiChatContent: React.FC = () => {
                         cliMessages={cliConvMessages}
                         nomiMessages={nomiMessages}
                         slash={slash}
-                        onOpenModels={panels.openProviders}
                       />
                     </ForkFromMessageContext.Provider>
                   </main>
@@ -560,34 +581,39 @@ const AiChatContent: React.FC = () => {
                     />
                     {/* 新会话：输入框上方的项目 · 分支，可以自由切换 */}
                     <NewChatContext />
-                    <MessageInput
-                      {...inputModeProps}
-                      disabled={resourcePreview.sendMismatch}
-                      cwd={rail.cwd ?? undefined}
-                      roots={rail.roots}
-                      delegate={slashBackend === 'nomi'}
-                      contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
-                      contextModel={
-                        tabs.isCliTab
-                          ? (tabs.activeTab?.modelOverride ??
-                            liveContext?.model ??
-                            reportedModel(cliConvMessages) ??
-                            tabs.activeTab?.backend)
-                          : undefined
-                      }
-                      slash={slash.bridge}
-                      fill={composerFill}
-                      draftStore={drafts.draftStore}
-                      draftKey={drafts.draftKey}
-                      // 只在编程助手标签里：Nomi 自己的 Skills / MCP 在「扩展」里管理
-                      onPluginsClick={slashBackend !== 'nomi' ? panels.openPlugins : undefined}
-                      onProvidersClick={panels.openProviders}
-                      onSettingsClick={panels.onInputSettings}
-                      onDesktopClick={panels.openDesktop}
-                      onHubClick={panels.openHub}
-                      onExtClick={panels.openExt}
-                      onLocalClick={panels.openLocal}
-                    />
+                    {/* 缺模型时，鼠标移到输入框上浮出引导卡；编程助手的模型不是 Nomi 对话模型，不参与 */}
+                    <ModelSetupHint enabled={!tabs.isCliTab} onOpenModels={panels.openProviders}>
+                      <MessageInput
+                        {...inputModeProps}
+                        disabled={resourcePreview.sendMismatch}
+                        cwd={rail.cwd ?? undefined}
+                        roots={rail.roots}
+                        delegate={slashBackend === 'nomi'}
+                        contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
+                        contextModel={
+                          tabs.isCliTab
+                            ? (tabs.activeTab?.modelOverride ??
+                              liveContext?.model ??
+                              reportedModel(cliConvMessages) ??
+                              tabs.activeTab?.backend)
+                            : undefined
+                        }
+                        slash={slash.bridge}
+                        fill={composerFill}
+                        draftStore={drafts.draftStore}
+                        draftKey={drafts.draftKey}
+                        // 只在编程助手标签里：Nomi 自己的 Skills / MCP 在「扩展」里管理
+                        onPluginsClick={slashBackend !== 'nomi' ? panels.openPlugins : undefined}
+                        onProvidersClick={panels.openProviders}
+                        onSettingsClick={panels.onInputSettings}
+                        onDesktopClick={panels.openDesktop}
+                        onHubClick={panels.openHub}
+                        onExtClick={panels.openExt}
+                        onLocalClick={panels.openLocal}
+                      />
+                    </ModelSetupHint>
+                    {/* 空会话的示例问题：在输入框下方，与输入框同宽居中 */}
+                    {nomiEmpty && <PromptCards />}
                   </footer>
                 </div>
 

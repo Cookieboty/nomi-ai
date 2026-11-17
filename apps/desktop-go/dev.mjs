@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // 开发态（视图热更新）：pnpm dev
 //
-// 1. 构建视图依赖的工作区包（= turbo dev 的 ^build；改了 contract / ui 等包时另开终端 pnpm dev:libs 监听）；
+// 1. 构建视图依赖的工作区包（= turbo dev 的 ^build；ui 包已由本脚本监听重建，其余共享包如 contract 仍要另开终端 pnpm dev:libs）；
 // 2. 用 Vite 开发服务器跑 packages/renderer（/mascot/）与 packages/ai-chat（/chat/）（视图运行时识别 Go 宿主）；
 // 3. 编译并启动 Go 程序，NOMI_DEV_VIEWS 让资产服务器把 /mascot/*、/chat/* 代理到这两个开发服务器
 //    （internal/shell/devviews）。WebView 里仍是 wails:// 同源页面，HMR 由 Vite 客户端直连 ws://127.0.0.1:<端口>。
 //
-// 改视图源码：热更新；改 Go 代码（含内嵌的 locales / json 等）：自动重新编译并重启 Go 程序，视图服务器不动；
+// 改视图源码：热更新；改 packages/ui/src：自动重建 ui 包并让视图整页重载（见下方 rebuildUi）；
+// 改 Go 代码（含内嵌的 locales / json 等）：自动重新编译并重启 Go 程序，视图服务器不动；
 // 编译失败时旧进程照常跑，修好再存一次即可。关掉应用（退出）= 结束开发态。
 // 参数原样传给 Go 程序；--skip-deps 跳过第 1 步。端口见 dev-ports.json（可用 CD_*_PORT 覆盖）。
 import { spawn, spawnSync } from 'node:child_process';
@@ -122,10 +123,12 @@ if (!(await goBuild(bin))) {
 
 let app = null;
 let closing = false;
+let uiWatcher = null;
 async function shutdown(code) {
   if (closing) return;
   closing = true;
   watcher?.close();
+  uiWatcher?.close();
   if (app && app.exitCode === null) app.kill();
   await Promise.allSettled(servers.map((s) => s.close()));
   process.exit(code);
@@ -202,6 +205,52 @@ const watcher = watch(here, { recursive: true }, (_event, file) => {
   clearTimeout(timer);
   timer = setTimeout(() => void rebuild(), 300); // 编辑器一次保存会触发好几次事件
 });
+
+// 视图加载的是 @nomi-ai/ui 的构建产物（dist/styles.css 等），改它的源码不会热更新到页面，
+// 这里自动重建：省掉改完手动 pnpm --filter @nomi-ai/ui build（turbo 会跳过没变的子任务）。
+let uiTimer = null;
+let uiBuilding = false;
+let uiAgain = false;
+async function rebuildUi() {
+  if (uiBuilding) {
+    uiAgain = true;
+    return;
+  }
+  uiBuilding = true;
+  do {
+    uiAgain = false;
+    console.info('== @nomi-ai/ui 有改动，重新构建');
+    await new Promise((resolve) => {
+      const p = spawn(
+        process.execPath,
+        [runBin, 'turbo', 'run', 'build', '--filter=@nomi-ai/ui', '--output-logs=errors-only'],
+        { cwd: root, stdio: 'inherit' },
+      );
+      p.on('error', () => resolve());
+      p.on('exit', (code) => {
+        if (code === 0) {
+          console.info('== @nomi-ai/ui 构建完成，让页面自动刷新');
+          // dist 变了不是 HMR 能感知的（不在 Vite 模块图里），直接让视图整页重载
+          for (const s of servers) s.ws?.send({ type: 'full-reload' });
+        } else {
+          console.info('== @nomi-ai/ui 构建失败，沿用上一次产物');
+        }
+        resolve();
+      });
+    });
+  } while (uiAgain && !closing);
+  uiBuilding = false;
+}
+const uiSrc = path.join(root, 'packages', 'ui', 'src');
+if (existsSync(uiSrc)) {
+  uiWatcher = watch(uiSrc, { recursive: true }, (_event, file) => {
+    if (!file || !/\.(css|ts|tsx|json)$/.test(file)) return;
+    clearTimeout(uiTimer);
+    uiTimer = setTimeout(() => void rebuildUi(), 300);
+  });
+} else {
+  console.warn('== 找不到 packages/ui/src，@nomi-ai/ui 自动构建未启用');
+}
 
 startApp();
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => void shutdown(0));

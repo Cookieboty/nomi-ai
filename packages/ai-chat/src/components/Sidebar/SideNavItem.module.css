@@ -83,3 +83,9 @@
     transition: none;
   }
 }
+
+/* 悬停提示的包装层：.cd-tooltip 默认 inline-flex，会把按钮的满宽 / 居中布局撑坏 */
+.tipHost {
+  display: flex;
+  width: 100%;
+}

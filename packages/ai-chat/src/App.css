@@ -316,6 +316,30 @@ html[data-chat-bg] .workspace-card {
 }
 
 /* 欢迎空态：居中、干净卡片 */
+/*
+ * 空会话（新窗口 / 没发过消息）：欢迎区 + 聊天框 + 示例问题卡片 作为一整块在对话区垂直居中，
+ * 不再是「内容贴顶、输入框钉底」。欢迎区自身在中间，上面是图标 / 标题 / 小标题；
+ * 模型引导是输入框上的悬浮卡片，不占布局。
+ * 发过第一条消息后 data-empty 消失，自动回到「内容滚动 + 输入框钉底」的常规布局。
+ */
+.chat-column[data-empty] .chat-container {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  overflow: visible;
+}
+.chat-column[data-empty] .input-container {
+  flex: 0 1 auto;
+  border-top: none;
+  background: transparent;
+}
+.chat-column[data-empty] {
+  justify-content: center;
+}
+/* 空态下欢迎区不报满：跟输入框同宽同中线 */
+.chat-column[data-empty] .chat-container {
+  padding-bottom: 0;
+}
+
 /* 底部输入区：干净分隔，无发光动画 */
 .input-container {
   background: var(--cd-color-surface);
