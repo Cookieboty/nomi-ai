@@ -172,6 +172,16 @@ export function providerOverrideActive(): boolean {
   return Boolean(lastState?.overrideId);
 }
 
+/**
+ * 当前生效 provider 的 `供应商/模型`（NOMI_PROVIDER 锁定时用来查模型元数据）；未知时 undefined。
+ * 经统一网关时旧存储只知道一个占位 id，ref 由网关的分配给出（services/nomiModel）。
+ */
+export function effectiveProviderRef(): string | undefined {
+  const s = lastState;
+  if (!s?.effectiveProviderId || s.effectiveProviderId === 'nomi-gateway') return undefined;
+  return s.effectiveModel ? `${s.effectiveProviderId}/${s.effectiveModel}` : undefined;
+}
+
 /** 当前生效 provider 的显示名（用于消息标签）；未知时 undefined。 */
 export function effectiveProviderLabel(): string | undefined {
   const s = lastState;

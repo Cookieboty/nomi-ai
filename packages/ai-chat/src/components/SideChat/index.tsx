@@ -14,8 +14,8 @@ import {
 import React, { useEffect, useMemo } from 'react';
 
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';
+import { currentVision, visionOf } from '../../services/modelCapability';
 import { nomiMainRef, splitRef, useGatewayState } from '../../services/nomiModel';
-import { likelyVision } from '../../services/screenClient';
 import {
   editSideChat,
   imagesOf,
@@ -54,18 +54,13 @@ const slots: ConvSlots = {
   },
 };
 
-/** 这个侧边聊天现在用的模型能不能看图（模型元数据写明了就以它为准，否则按名字猜） */
-function useVision(model: string | null): boolean {
+/** 这个侧边聊天现在用的模型能不能看图；元数据没写时 undefined（不提示，也不拦着发） */
+function useVision(model: string | null): boolean | undefined {
   const state = useGatewayState();
   const ref = model ?? nomiMainRef(state);
-  const parts = ref ? splitRef(ref) : null;
-  const meta = parts
-    ? state?.providers
-        .find((p) => p.id === parts.provider)
-        ?.models.find((m) => m.id === parts.model)
-    : undefined;
-  const vision = meta?.effective?.vision ?? meta?.vision;
-  return vision ?? likelyVision(parts?.model);
+  if (!model) return currentVision(state);
+  const parts = splitRef(ref ?? '');
+  return parts ? visionOf(parts.provider, parts.model, state) : undefined;
 }
 
 export const SideChatPane: React.FC<{
@@ -186,7 +181,7 @@ export const SideChatPane: React.FC<{
             )
           }
           busyOverride={running}
-          imageCapability={vision ? 'full' : 'none'}
+          imageCapability={vision === false ? 'none' : 'full'}
           placeholder={t('ui.session-workspace.side-chat-placeholder')}
           queue={{
             onQueue: (text) => void sendSideChat(chatId, text),
