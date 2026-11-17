@@ -1,7 +1,6 @@
 ---
 '@nomi-ai/ai-chat': patch
-'@nomi-ai/contract': patch
-'@nomi-ai/i18n': patch
+'@nomi-ai/desktop-go': patch
 ---
 
 fix(workspace): 标签区的「浏览器」标签把网页嵌成**原生子视图**，既不是 iframe 也不是独立窗口。iframe 会被目标站点的 `X-Frame-Options` / `CSP frame-ancestors` 拒掉（Google、GitHub 这类都拒嵌），自签证书还会被降级成「已阻止此内容」，外部网页根本打不开；而独立窗口有它自己的层级，会浮在对话窗口之上盖住设置页与弹层，位置还得靠前端算屏幕坐标去贴，界面一动就错位。现在 macOS 用 `WKWebView` 作为对话窗口 `contentView` 的子视图，Windows 把 WebView2 窗口 `SetParent` 成子窗口（WS_CHILD）：随窗口移动与缩放、被窗口裁剪、最小化跟着消失。地址栏、刷新、在系统浏览器打开仍在侧栏；DOM 弹层盖不住原生子视图，所以视图改为按屏幕采样上报可见性（被整页视图盖住也算不可见），看不见就收起。关标签改成正向对账：视图随时把「现在开着的窗口 id 全集」报给宿主（`browserWindow.sync`），不在清单里的窗口直接被收；连接断开或整页重载（热更新最常见）时，它名下开过的窗口也一并收掉。只靠一条 `close(id)` 是不够的——视图一旦重建、标签键变了、那条通知打空，宿主侧那个原生视图就再没人认领，永远浮在屏幕上。
