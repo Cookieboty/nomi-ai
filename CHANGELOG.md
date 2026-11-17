@@ -7,6 +7,8 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ### Features
 
+- **chat:** 子任务浮层卡片重做层级：图标 + 名字 + 状态胶囊徽章一行，状态用色点区分（处理中呼吸、等你确认、完成、失败），下面「任务」「最近输出」两个小节，最近一句改成左侧细线引用块，输出整段截断四行，可点时底部多出一条通栏打开动作。 The subagent hover card gained a real hierarchy: icon + name + status pill (with a breathing dot while running), "Task" and "Latest output" sections, the last request as a quote block, and a full-width footer action when clickable. (`@nomi-ai/ai-chat` patch)
+
 - **chat:** 侧栏项目支持跨多 CLI 全局共享与任选端新建会话，新增鼠标悬停项目头右侧详情弹窗（展示聊天总数、全部源文件夹、项目置顶与编辑入口）。 (`@nomi-ai/ai-chat` patch)
 - **chat:** 新增「极简」会话详细程度模式并设为新环境默认，支持在运行中与完成后点击圆角横条展开查看逐行步骤并在局部区域内独立滚动，收起时仅展示步骤进度、已用时与最终总结；并禁用步骤与状态进度区域的划词工具条触发。 (`@nomi-ai/ai-chat` patch)
 - **chat:** 空会话首页整块垂直居中，示例问题卡片移到输入框下方；还没有可用模型时，输入框下方常驻「添加模型 / 选择模型」引导卡（键盘与触屏都能操作）并隐藏示例问题，空会话输入框缺省文案改为「输入 / 查看命令 · 点击 + 添加更多」。 The empty chat home is vertically centered with the quick prompt cards below the composer. Without a usable model, a visible "add / choose a model" card (keyboard and touch accessible) replaces the prompt cards, and the empty composer placeholder now points to / commands and the + menu. (`@nomi-ai/ai-chat` patch)

@@ -5,7 +5,7 @@
  * 内容只在卡片开着时订阅（./preview.ts 取摘录）。
  */
 import { Icon, t } from '@nomi-ai/ui';
-import { IconRobot as Bot, IconLoader2 as Loader2 } from '@tabler/icons-react';
+import { IconRobot as Bot, IconChevronRight } from '@tabler/icons-react';
 import React, {
   useCallback,
   useEffect,
@@ -88,34 +88,38 @@ const CardView: React.FC<{ preview: AgentCardPreview; backend?: string | null }>
     lastUser: raw.lastUser || excerpt(fb?.lastUser, 160),
     lastOutput: raw.lastOutput || excerpt(fb?.lastOutput),
   };
+  const known = !!backend && backend in ENDPOINT_NAME;
   return (
     <>
       <div className={styles.head}>
-        {backend && backend in ENDPOINT_NAME ? (
-          <EndpointIcon backend={backend as keyof typeof ENDPOINT_NAME} size={16} decorative />
-        ) : (
-          <Icon icon={Bot} size={16} />
-        )}
+        <span className={styles.avatar} aria-hidden="true">
+          {known ? (
+            <EndpointIcon backend={backend as keyof typeof ENDPOINT_NAME} size={16} decorative />
+          ) : (
+            <Icon icon={Bot} size={16} />
+          )}
+        </span>
         <span className={styles.name}>{preview.name}</span>
-        {preview.state === 'running' && (
-          <span className={styles.spin} aria-hidden="true">
-            <Icon icon={Loader2} size={14} />
-          </span>
-        )}
-      </div>
-      <div className={styles.state} data-state={preview.state} data-testid="agent-card-state">
-        {t(STATE_LABEL[preview.state])}
+        <span className={styles.badge} data-state={preview.state} data-testid="agent-card-state">
+          {t(STATE_LABEL[preview.state])}
+        </span>
       </div>
       {preview.waitingHint && <div className={styles.waiting}>{preview.waitingHint}</div>}
       {preview.lastUser && (
-        <div className={styles.bubble} data-testid="agent-card-user">
-          {preview.lastUser}
+        <div className={styles.section}>
+          <div className={styles.label}>{t('ui.session-workspace.agent-card-task')}</div>
+          <div className={styles.quote} data-testid="agent-card-user">
+            {preview.lastUser}
+          </div>
         </div>
       )}
-      <div className={styles.output} data-testid="agent-card-output">
-        {preview.lastOutput || (
-          <span className={styles.muted}>{t('ui.session-workspace.no-output-yet')}</span>
-        )}
+      <div className={styles.section}>
+        <div className={styles.label}>{t('ui.session-workspace.agent-card-latest')}</div>
+        <div className={styles.output} data-testid="agent-card-output">
+          {preview.lastOutput || (
+            <span className={styles.muted}>{t('ui.session-workspace.no-output-yet')}</span>
+          )}
+        </div>
       </div>
     </>
   );
@@ -539,7 +543,10 @@ export const AgentHoverCard: React.FC<{
               <CardBody target={target} columnMessages={columnMessages} />
             </FallbackCtx.Provider>
             {onOpen && (
-              <div className={styles.hint}>{t('ui.session-workspace.agent-card-open')}</div>
+              <div className={styles.action}>
+                {t('ui.session-workspace.agent-card-open')}
+                <Icon icon={IconChevronRight} size={12} />
+              </div>
             )}
           </div>,
           document.body,

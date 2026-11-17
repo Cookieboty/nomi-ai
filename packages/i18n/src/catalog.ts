@@ -3569,6 +3569,8 @@ export type TranslationKey =
   | 'ui.providers-schedule.task-auto-judge-no-sandbox'
   | 'ui.session-workspace.agent-card-open'
   | 'ui.session-workspace.agent-card-running'
+  | 'ui.session-workspace.agent-card-task'
+  | 'ui.session-workspace.agent-card-latest'
   | 'ui.session-workspace.approval-requests-denied-timed-out'
   | 'ui.session-workspace.ask-assistant-to-commit'
   | 'ui.session-workspace.assistant-changed-n-files-in-worktree'

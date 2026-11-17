@@ -1,6 +1,8 @@
 {
   "ui.session-workspace.agent-card-open": "Click to open",
   "ui.session-workspace.agent-card-running": "Working",
+  "ui.session-workspace.agent-card-task": "Task",
+  "ui.session-workspace.agent-card-latest": "Latest output",
   "ui.session-workspace.approval-requests-denied-timed-out": "{0} approval requests, {1} denied, {2} timed out",
   "ui.session-workspace.ask-assistant-to-commit": "Ask assistant to commit",
   "ui.session-workspace.assistant-changed-n-files-in-worktree": "The assistant changed {1} files in worktree {0}",
