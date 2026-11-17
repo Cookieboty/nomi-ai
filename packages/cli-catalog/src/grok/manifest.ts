@@ -2,21 +2,26 @@
 import type { CliManifest, HarnessPermissionMode } from '../manifest';
 import { CLAUDE_MODE } from '../shared/permissions';
 
-/** ACP 会话模式只有 plan / default / acceptEdits / bypassPermissions / dontAsk，没有「自动」 */
+/** ACP 会话模式只有 plan / default / acceptEdits / bypassPermissions / dontAsk。
+ * 没有像 Codex auto_review 那样能自己判断风险的档：「自动」落到 acceptEdits（自动接受文件编辑、
+ * 其余动作仍按本地权限逻辑判断），而不是 bypass（那等于完全放开）。 */
 export const GROK_MODES: readonly HarnessPermissionMode[] = [
   'plan',
   'manual',
   'acceptEdits',
+  'auto',
   'bypass',
 ];
 
 /** ACP session/set_mode 的 mode id（1.0.62 实测；不认识的 id 也回 {}，所以只发这里列出的） */
 export const grokModeId = (mode: HarnessPermissionMode): string =>
-  mode === 'manual' || mode === 'auto' ? 'default' : CLAUDE_MODE[mode];
+  mode === 'manual' ? 'default' : mode === 'auto' ? 'acceptEdits' : CLAUDE_MODE[mode];
 
-/** 无头模式的启动参数：完全放开为 --yolo */
+/** 无头模式的启动参数：只有完全放开才是 --yolo */
 export const grokModeArgs = (mode: HarnessPermissionMode): string[] =>
-  mode === 'bypass' ? ['--yolo'] : ['--permission-mode', CLAUDE_MODE[mode]];
+  mode === 'bypass'
+    ? ['--yolo']
+    : ['--permission-mode', mode === 'auto' ? 'acceptEdits' : CLAUDE_MODE[mode]];
 
 export const manifest: CliManifest = {
   id: 'grok',

@@ -8,7 +8,7 @@ import { mergeAssistantText } from './textCursor';
 
 /** 等待 / 恢复状态（来自 CLI 的重试、重连、上下文压缩提示） */
 export interface LiveStatus {
-  kind: 'retry' | 'reconnect' | 'compact';
+  kind: 'retry' | 'reconnect' | 'compact' | 'blocked';
   text?: string;
   attempt?: number;
   max?: number;
@@ -192,6 +192,15 @@ export function applyLiveEvents(
           model: e.model ?? next.context?.model,
           window: e.window ?? next.context?.window,
         };
+        break;
+      case 'permission-denied': {
+        // 自动模式在当前会话里根本校验不了动作：挂到状态行上，
+        // 否则这一轮看起来只是「慢」，实际每个工具都被拒了。
+        next.status = { kind: 'blocked', text: e.tool };
+        break;
+      }
+      case 'notice':
+        // 会话级提示（目前只有自动模式无法校验动作）已由 permission-denied 体现，不单独播。
         break;
       case 'status':
         if (e.kind === 'clear') delete next.status;

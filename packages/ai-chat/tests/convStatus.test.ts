@@ -120,3 +120,26 @@ it('explicit thinking state overrides legacy traces, including status-only event
       ?.kind,
   ).toBe('thinking');
 });
+
+describe('被权限系统拒掉的动作', () => {
+  it('状态行说清楚是被拒，不是「慢」；detail 带上被拒的工具', () => {
+    const st = deriveStatus({
+      phase: 'running',
+      live: { text: '', status: { kind: 'blocked', text: 'Task' } },
+      items: [],
+    })!;
+    expect(st.kind).toBe('blocked');
+    expect(st.label).toContain('校验不了');
+    expect(st.detail).toBe('Task');
+  });
+
+  it('优先级在压缩 / 重试之上，权限确认之下', () => {
+    const st = deriveStatus({
+      phase: 'running',
+      live: { text: '', status: { kind: 'blocked' } },
+      items: [],
+    })!;
+    expect(st.kind).toBe('blocked');
+    expect(st.detail).toBeUndefined();
+  });
+});

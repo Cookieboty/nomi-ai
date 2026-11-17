@@ -12,6 +12,7 @@ export type StatusKind =
   | 'queued'
   | 'permission'
   | 'compact'
+  | 'blocked'
   | 'retry'
   | 'reconnect'
   | 'subagent'
@@ -66,6 +67,12 @@ export function deriveStatus(args: {
           : t('ui.usage-tools.waiting-for-your-confirmation'),
     };
   const st = live?.status;
+  if (st?.kind === 'blocked')
+    return {
+      kind: 'blocked',
+      label: t('ui.usage-tools.auto-mode-cannot-approve'),
+      ...(st.text ? { detail: st.text } : {}),
+    };
   if (st?.kind === 'compact')
     return { kind: 'compact', label: t('ui.usage-tools.compacting-context') };
   if (st?.kind === 'retry')

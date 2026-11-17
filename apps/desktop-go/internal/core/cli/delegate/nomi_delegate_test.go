@@ -117,8 +117,9 @@ func TestChildPermissionMode(t *testing.T) {
 	for _, tc := range []struct {
 		cli, want string
 	}{
-		{"claude", "auto"},
-		{"dsh", "acceptEdits"},
+		{"claude", "bypass"},
+		{"dsh", "bypass"},
+		// minimax 没有全自动档（只有 plan / default），只能取它能给的最高档
 		{"minimax", "manual"},
 	} {
 		if got := ChildPermissionModeFor(tc.cli, "auto", "plan"); got != tc.want {
@@ -127,7 +128,7 @@ func TestChildPermissionMode(t *testing.T) {
 	}
 }
 
-func TestDelegateToCliAutoModePassesAutoPermission(t *testing.T) {
+func TestDelegateToCliAutoModePassesBypass(t *testing.T) {
 	e := newTaskEnv(t, util.NewObj("mode", "auto", "autoApprove", false, "tabDefault", "acceptEdits"), nil)
 	r := e.call(nil, "delegate_to_cli", delegateRaw("background", false, "cli", "claude"), tools.ExecContext{})
 	if r.Get("ok") != true {
@@ -141,8 +142,8 @@ func TestDelegateToCliAutoModePassesAutoPermission(t *testing.T) {
 		t.Fatalf("unexpected harness log: %v", e.log.harness)
 	}
 	opts, ok := created[1].(*util.Obj)
-	if !ok || opts.Get("permissionMode") != "auto" {
-		t.Fatalf("child permission mode = %v, want auto; opts=%s", opts.Get("permissionMode"), util.Stringify(opts))
+	if !ok || opts.Get("permissionMode") != "bypass" {
+		t.Fatalf("child permission mode = %v, want bypass（委派是后台无人值守，不能停下来问）; opts=%s", opts.Get("permissionMode"), util.Stringify(opts))
 	}
 }
 

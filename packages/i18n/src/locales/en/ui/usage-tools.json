@@ -18,6 +18,7 @@
   "ui.usage-tools.all-usage-data-stays-on-this-computer-nothing": "All usage data stays on this computer: nothing is uploaded or synced, and there is no leaderboard or sharing.",
   "ui.usage-tools.and-more": " and {0} more",
   "ui.usage-tools.api-billing-no-subscription-quota": "API billing, no subscription quota",
+  "ui.usage-tools.auto-mode-cannot-approve": "Auto mode can't check actions here; tool calls are being refused",
   "ui.usage-tools.automatic-setup-is-not-available-on-windows-yet": "Automatic setup is not available on Windows yet. You can make your Claude Code statusLine script write the rate_limits from stdin to a local file.",
   "ui.usage-tools.best-effort": "Best effort",
   "ui.usage-tools.body-tracing": "Body tracing",

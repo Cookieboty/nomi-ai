@@ -32,6 +32,16 @@ var nomiModes = func() []string {
 	return out
 }()
 
+// ModeIDFor：Nomi 档位 → CLI 原生 mode id（ok=false = 这个 CLI 没有映射）。
+// 用来判断两个档位在 CLI 上是否落到同一个原生值（回报时区分不了）。
+func ModeIDFor(backend, mode string) (string, bool) {
+	p := permOf(backend)
+	if p == nil || p.ModeID == nil {
+		return "", false
+	}
+	return p.ModeID(mode), true
+}
+
 // SupportedModes = supportedModes。
 func SupportedModes(backend string) []string {
 	if backend == "nomi" {

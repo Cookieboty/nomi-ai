@@ -86,3 +86,31 @@ func TestHomeEnvMatchesPlugin(t *testing.T) {
 		}
 	}
 }
+
+// 「自动」在各 CLI 上都必须是「由 CLI 自己判断哪些动作要确认」，不能退化成完全放开。
+func TestAutoModeIsCliJudgement(t *testing.T) {
+	auto := func(id string) string { return Impl(id).Permissions.ModeID("auto") }
+	// Claude / Grok：acceptEdits（判据是工具类型：编辑自动，命令仍同）；
+	// Grok 没能力自己判风险，也落到 acceptEdits。
+	if got := auto("claude"); got != "auto" {
+		t.Errorf("claude auto → %q, want auto（官方直连用分类器；第三方端点由 orchestrator 降到 acceptEdits）", got)
+	}
+	if got := auto("grok"); got != "acceptEdits" {
+		t.Errorf("grok auto → %q, want acceptEdits", got)
+	}
+	if got := auto("kimi"); got != "yolo" {
+		t.Errorf("kimi auto → %q, want yolo（危险动作仍询问）", got)
+	}
+	if got := auto("gemini"); got != "autoEdit" {
+		t.Errorf("gemini auto → %q, want autoEdit", got)
+	}
+	// 除「完全放开」外，任何档都不能落成 bypassPermissions / yolo
+	for _, id := range []string{"claude", "grok"} {
+		p := Impl(id).Permissions
+		for _, mode := range []string{"manual", "acceptEdits"} {
+			if got := p.ModeID(mode); got == "bypassPermissions" || got == "yolo" {
+				t.Errorf("%s %s → %q 变成了完全放开", id, mode, got)
+			}
+		}
+	}
+}

@@ -24,6 +24,7 @@ const ICONS: Record<StatusKind, IconGlyph> = {
   queued: Clock,
   permission: ShieldAlert,
   compact: Shrink,
+  blocked: ShieldAlert,
   retry: RefreshCw,
   reconnect: Unplug,
   subagent: Bot,
@@ -36,7 +37,7 @@ const ICONS: Record<StatusKind, IconGlyph> = {
 
 /** 这些状态的图标持续旋转 */
 const SPIN = new Set<StatusKind>(['tool', 'working', 'retry', 'reconnect', 'compact']);
-const WARN = new Set<StatusKind>(['permission', 'retry', 'reconnect']);
+const WARN = new Set<StatusKind>(['permission', 'retry', 'reconnect', 'blocked']);
 
 export const isWarnStatus = (kind: StatusKind): boolean => WARN.has(kind);
 

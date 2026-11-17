@@ -63,7 +63,7 @@ export interface ConvLive {
   /** 本轮出现过的子代理（按 id），卡片按 callId 关联到派生它的工具调用 */
   agents?: Record<string, LiveAgent>;
   status?: {
-    kind: 'retry' | 'reconnect' | 'compact';
+    kind: 'retry' | 'reconnect' | 'compact' | 'blocked';
     /** 替换默认的状态文案（如「正在换到 ProvB」） */
     label?: string;
     text?: string;

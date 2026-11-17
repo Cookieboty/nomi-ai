@@ -293,6 +293,11 @@
             "modeId": "acceptEdits"
           },
           {
+            "mode": "auto",
+            "args": ["--permission-mode", "acceptEdits"],
+            "modeId": "acceptEdits"
+          },
+          {
             "mode": "bypass",
             "args": ["--yolo"],
             "modeId": "bypassPermissions"

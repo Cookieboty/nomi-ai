@@ -26,6 +26,7 @@ func launch(mode string, network *bool) ([]string, *util.Obj) {
 	if sandbox == "workspace-write" && (network == nil || *network) {
 		args = append(args, "-c", "sandbox_workspace_write.network_access=true")
 	}
+	// 「自动」= 由 Codex 自己的 auto_review 风险判断哪些操作需要确认（不是完全放开）。
 	if mode == "auto" {
 		args = append(args, "-c", `approval_policy="on-request"`, "-c", `approvals_reviewer="auto_review"`)
 	}

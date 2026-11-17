@@ -33,7 +33,14 @@ export function degradeMode(
   return { mode: next && supported.includes(next) ? next : 'plan', degraded: true };
 }
 
-/** Claude 的 permission-mode 名（Grok 沿用同一套名字） */
+/**
+ * Claude 的 permission-mode 名（Grok 沿用同一套名字）。
+ *
+ * `auto` = 由 Claude 自己判断哪些动作需要确认，正是 Nomi「自动」档的语义。
+ * 但它的判断是**服务端**安全分类器：请求经第三方网关（Nomi 本地端口、Amux 等）时
+ * 分类器不可达，每个要检查的动作都会被拒（auto_mode_no_check_in_session），而且不会回头问 host。
+ * 所以只在官方直连时下发 `auto`，其余情况由调用方降级到 `acceptEdits`（见 orchestrator）。
+ */
 export const CLAUDE_MODE: Record<HarnessPermissionMode, string> = {
   plan: 'plan',
   manual: 'default',

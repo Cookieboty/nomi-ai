@@ -339,6 +339,30 @@ func (o *Orchestrator) ensureClaudeLiveBound(tab *util.Obj) *jsrt.Promise[*claud
 	})
 }
 
+// claudeLaunchMode：Claude 实际要下发的权限档。
+//
+// 用户选「自动」时，Claude 靠**服务端**安全分类器判断哪些动作需要确认 —— 这正是 Nomi
+// 「自动」档的意思（由 CLI 自行判断，不是全放开）。但分类器只在官方直连时可达：请求走
+// 第三方网关（Nomi 本地端口、Amux 等）时它拿不到结果，会把每个要检查的动作一律拒掉
+// （auto_mode_no_check_in_session），而且不会回头问 host —— 一轮空转十几分钟后失败。
+//
+// 所以非官方端点降级到 acceptEdits：仍然是 Claude 自己按规则判断（文件编辑自动笔），
+// 而不是 bypassPermissions（那才是完全放开）。实际下发的档记录在 permissionModeCli，
+// 回报时不把它当用户改档。
+func (o *Orchestrator) claudeLaunchMode(tab *util.Obj, official bool) string {
+	mode := str(tab, "permissionMode")
+	eff := mode
+	if mode == "auto" && !official {
+		eff = "acceptEdits"
+	}
+	if eff != mode {
+		tab.Set("permissionModeCli", eff)
+	} else {
+		tab.Delete("permissionModeCli")
+	}
+	return eff
+}
+
 // reusableClaude：已在运行、且能按这次的注入 / 档位 / 模型复用的 Claude 进程。
 func (o *Orchestrator) reusableClaude(tab *util.Obj, launch *tabLaunch) *claudeLiveSession {
 	existing := o.live.claude[str(tab, "id")]
@@ -383,7 +407,7 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 		"-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose",
 		"--include-partial-messages", "--permission-prompt-tool", "stdio", "--replay-user-messages",
 	}
-	argv = append(argv, cli.PermissionLaunchFor("claude", str(tab, "permissionMode"), nil).Args...)
+	argv = append(argv, cli.PermissionLaunchFor("claude", o.claudeLaunchMode(tab, launch.official), nil).Args...)
 	argv = append(argv, cli.OverrideArgs("claude", ov.model, ptrAny(ov.effort))...)
 	argv = append(argv, launch.args...)
 	argv = append(argv, o.claudeSandboxArgs()...)
