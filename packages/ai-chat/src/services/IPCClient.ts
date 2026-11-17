@@ -354,7 +354,8 @@ export class SdkIPCClient implements IPCClient {
       log.warn('refusing to save a Nomi message into a non-Nomi conversation', conversationId);
       return;
     }
-    this.store.append(message, conversationId);
+    // 按 id 写入：一轮开始时先存了用户消息（应用中途重启也不丢），结束时再存不会多出一条
+    await this.store.upsert(message, conversationId);
   }
 
   ensureConversationId(): string {

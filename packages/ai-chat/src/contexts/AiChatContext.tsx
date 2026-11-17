@@ -36,7 +36,13 @@ import {
   type AiChatState,
 } from './aiChatState';
 import { AiChatStoreContext, createAiChatStore } from './aiChatStore';
-import { openTurn, upsertById, type ActiveStream, type InflightTurn } from './chatTurn';
+import {
+  openTurn,
+  upsertById,
+  withInterruptedReply,
+  type ActiveStream,
+  type InflightTurn,
+} from './chatTurn';
 import { compactHistory } from './compactHistory';
 import { useNomiSteer } from './nomiSteer';
 import { useMemoryIngest } from './useChatMemory';
@@ -415,7 +421,12 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       const convoId = client.currentConversationId?.();
       // 回到正在回复的会话：这一轮还没落盘，把它的用户消息与已生成的部分补回来
       const f = inflight.current.get(convoKey(convoId));
-      const payload = f ? upsertById(history, f.messages) : history;
+      // 不在回复中、却以用户消息结尾：上一轮被重启打断（用户消息发出时就已存下），补一张可重试的卡
+      const payload = f
+        ? upsertById(history, f.messages)
+        : activeStream.current.has(convoKey(convoId)) || busyIn(stateRef.current, convoId)
+          ? history
+          : withInterruptedReply(history);
       dispatch({ type: 'SET_MESSAGES', payload, convoId });
     } catch (error) {
       if (my !== historySeq.current) return;

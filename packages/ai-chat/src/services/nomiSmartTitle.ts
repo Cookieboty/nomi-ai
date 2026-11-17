@@ -1,7 +1,7 @@
 import type { IPCClient } from '../types/ipc';
 
 import { getSmartTitle } from './chatPrefs';
-import { notifyConversationsChanged } from './conversationStore';
+import { firstMessageChatName, notifyConversationsChanged } from './conversationStore';
 import { splitFileAttachments } from './fileAttachments';
 import {
   applyNomiSmartTitle,
@@ -26,7 +26,9 @@ export function maybeStartNomiSmartTitle(
   const store = client.conversationStore?.();
   const meta = store?.get(convoId);
   const text = splitFileAttachments(content).text.trim();
-  if (!text || !meta || !isDefaultChatName(meta.name)) return;
+  // 用户消息发出时就先存了（会话名先取了这句话）：名字还是这句话本身，也算没起过名
+  const autoNamed = meta?.name === firstMessageChatName(content);
+  if (!text || !meta || !(isDefaultChatName(meta.name) || autoNamed)) return;
   if (nomiAutoTitlePending(convoId)) return;
   armNomiAutoTitle(convoId);
   const complete = client.completeChatText.bind(client);

@@ -490,6 +490,7 @@
   "ui.chat-settings.startup-windows": "启动与窗口",
   "ui.chat-settings.stop-subagent": "停止子代理「{0}」",
   "ui.chat-settings.stopped": "已停止",
+  "ui.chat-settings.reply-interrupted-by-restart": "这一轮还没回复完 Nomi 就重启了（比如更新）。你的消息还在，点「重试」重新发送。",
   "ui.chat-settings.stopping": "正在停止…",
   "ui.chat-settings.streaming": "流式",
   "ui.chat-settings.strict-detection": "严格识别",

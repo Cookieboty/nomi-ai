@@ -490,6 +490,7 @@
   "ui.chat-settings.startup-windows": "Startup & windows",
   "ui.chat-settings.stop-subagent": "Stop subagent \"{0}\"",
   "ui.chat-settings.stopped": "Stopped",
+  "ui.chat-settings.reply-interrupted-by-restart": "Nomi restarted (for example, to update) before this reply finished. Your message was kept. Retry to send it again.",
   "ui.chat-settings.stopping": "Stopping…",
   "ui.chat-settings.streaming": "streaming",
   "ui.chat-settings.strict-detection": "Strict detection",

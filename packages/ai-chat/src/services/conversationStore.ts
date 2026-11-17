@@ -152,6 +152,11 @@ const opId = (op: WriteOp): string | undefined => (op.kind === 'pointers' ? unde
 const opName = (op: WriteOp): string => (op.kind === 'call' ? op.name : op.kind);
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/** 会话还叫默认名时，存第一条用户消息顺手起的名字（智能标题关掉时就用它） */
+export function firstMessageChatName(content: string): string {
+  return splitFileAttachments(content).text.replace(/\s+/g, ' ').trim().slice(0, 30);
+}
+
 export class ConversationStore {
   private readonly kernel: ConversationKernel | undefined;
   private readonly now: () => number;
@@ -577,6 +582,30 @@ export class ConversationStore {
     });
   }
 
+  /**
+   * 按 id 写入：已有同 id（且同角色）的消息就去掉旧的、把新的放到末尾（一轮开始时先存的用户消息，结束时带上记忆等再存一次，
+   * 期间插进来的压缩摘要因此仍在它前面）；没有就和 append 一样追加。会话没加载时先读一次再判断，不会追加出两份。
+   */
+  async upsert(message: ChatMessage, id: string | undefined = this.currentId()): Promise<void> {
+    if (!id || !this.get(id)) return;
+    let cached = this.messagesCache.get(id) ?? (this.kernel ? undefined : this.getMessages(id));
+    if (!cached && this.kernel) {
+      try {
+        cached = await this.loadMessages(id);
+      } catch {
+        cached = undefined;
+      }
+      if (!this.get(id)) return;
+    }
+    // id 与角色都相同才算同一条（id 取自时间戳，相邻两条的 id 偶尔会撞上）
+    const same = (m: ChatMessage) => m.id === message.id && m.role === message.role;
+    if (cached?.some(same)) {
+      this.setMessages(id, [...cached.filter((m) => !same(m)), message]);
+      return;
+    }
+    this.append(message, id);
+  }
+
   /** 清空会话消息（会话本身保留） */
   clear(id: string | undefined = this.currentId()): void {
     if (!id) return;
@@ -785,7 +814,7 @@ export class ConversationStore {
       if (c.id !== id) return c;
       const cleaned =
         message && message.role === 'user' && isDefaultChatName(c.name)
-          ? splitFileAttachments(message.content).text.replace(/\s+/g, ' ').trim().slice(0, 30)
+          ? firstMessageChatName(message.content)
           : '';
       const named = cleaned || c.name;
       out = { ...c, name: named, updatedAt: this.now(), modelId: message?.modelId ?? c.modelId };

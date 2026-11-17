@@ -1227,6 +1227,7 @@ export type TranslationKey =
   | 'ui.chat-settings.startup-windows'
   | 'ui.chat-settings.stop-subagent'
   | 'ui.chat-settings.stopped'
+  | 'ui.chat-settings.reply-interrupted-by-restart'
   | 'ui.chat-settings.stopping'
   | 'ui.chat-settings.streaming'
   | 'ui.chat-settings.strict-detection'
