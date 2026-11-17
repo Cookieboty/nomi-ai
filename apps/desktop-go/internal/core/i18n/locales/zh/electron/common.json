@@ -25,7 +25,7 @@
   "electron.common.audio-url-must-not-point-to-localhost-or": "音频 URL 不能指向本机或局域网地址",
   "electron.common.audio-url-must-use-http-or-https": "音频 URL 只允许 http / https",
   "electron.common.authentication-failed": "{0} 鉴权失败：{1}",
-  "electron.common.auto-mode-cannot-check-actions": "自动模式在这个会话里校验不了动作（Claude 的安全检查要走服务端，而请求没有经过官方端点），需要检查的工具调用被全部拒绝，这一轮没能跑完。换一个权限模式再试。",
+  "electron.common.auto-mode-cannot-check-actions": "自动模式在这个会话里校验不了动作：Claude 的安全检查跑在服务端，当前模型不是 Claude（或端点没有透传这项检查），需要检查的工具调用被全部拒绝，这一轮没能跑完。换一个权限模式，或换回 Claude 模型再试。",
   "electron.common.available-skills": "## 可用技能",
   "electron.common.background-tasks-are-still-running-switch-long": "后台任务还在运行，结束后再切换长上下文",
   "electron.common.balance-of-speed-and-accuracy-recommended": "速度与准确率的平衡，推荐。",

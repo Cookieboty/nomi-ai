@@ -16,7 +16,8 @@ import (
 )
 
 // applyCliPermissionMode = applyCliPermissionMode。
-func (o *Orchestrator) applyCliPermissionMode(tabID, raw string) {	tab := o.tab(tabID)
+func (o *Orchestrator) applyCliPermissionMode(tabID, raw string) {
+	tab := o.tab(tabID)
 	if tab == nil || tab.Get("backend") == "nomi" {
 		return
 	}

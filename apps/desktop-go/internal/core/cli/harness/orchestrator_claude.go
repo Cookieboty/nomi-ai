@@ -341,18 +341,24 @@ func (o *Orchestrator) ensureClaudeLiveBound(tab *util.Obj) *jsrt.Promise[*claud
 
 // claudeLaunchMode：Claude 实际要下发的权限档。
 //
-// 用户选「自动」时，Claude 靠**服务端**安全分类器判断哪些动作需要确认 —— 这正是 Nomi
-// 「自动」档的意思（由 CLI 自行判断，不是全放开）。但分类器只在官方直连时可达：请求走
-// 第三方网关（Nomi 本地端口、Amux 等）时它拿不到结果，会把每个要检查的动作一律拒掉
-// （auto_mode_no_check_in_session），而且不会回头问 host —— 一轮空转十几分钟后失败。
+// 「自动」= Claude 自己判断哪些动作需要确认。在官方端点、或第三方端点提供的确实是
+// Claude 模型时，这个判断由服务端分类器（beta auto-mode-classifier-2026-07-16）完成，
+// 原样下发 auto 即可。
 //
-// 所以非官方端点降级到 acceptEdits：仍然是 Claude 自己按规则判断（文件编辑自动笔），
-// 而不是 bypassPermissions（那才是完全放开）。实际下发的档记录在 permissionModeCli，
-// 回报时不把它当用户改档。
-func (o *Orchestrator) claudeLaunchMode(tab *util.Obj, official bool) string {
+// 但分类器是**服务端**跑的，请求要能到达 Anthropic。两种情况下它必定跑不起来：
+//   - 主模型不是 Claude（如 amux/deepseek-v4.1-flash、amux/gpt-6.1-terra）：
+//     分类请求也会被路由到那个非 Claude 模型，拿不到 verdict；
+//   - Nomi 用 `-p` 长驻进程，`attended=false`，Claude 连「退而询问用户」都做不到
+//     （它只在交互式终端里才会退到问你）。
+//
+// 两者叠加的结果是每个要检查的动作都被硬拒，且不弹任何审批卡（实测一轮空转 16 分钟）。
+// 所以只在模型是 Claude 家族时下发 auto；其余情况降为 acceptEdits —— 仍然是 Claude
+// 自己按规则判断（改文件自动过），需要判断其余动作时走 Nomi 的审批卡，而不是 bypass。
+// 实际下发的档记在 permissionModeCli，回报时不把它当用户改档。
+func (o *Orchestrator) claudeLaunchMode(tab *util.Obj, official bool, model *string) string {
 	mode := str(tab, "permissionMode")
 	eff := mode
-	if mode == "auto" && !official {
+	if mode == "auto" && !official && !isClaudeModel(derefStr(model)) {
 		eff = "acceptEdits"
 	}
 	if eff != mode {
@@ -361,6 +367,20 @@ func (o *Orchestrator) claudeLaunchMode(tab *util.Obj, official bool) string {
 		tab.Delete("permissionModeCli")
 	}
 	return eff
+}
+
+// isClaudeModel：模型名（可能带 "provider/" 前缀）是不是 Claude 家族。
+// 空模型名 = 用 CLI 自己的默认（官方登录时就是 Claude），按 Claude 算。
+func isClaudeModel(model string) bool {
+	m := strings.ToLower(strings.TrimSpace(model))
+	if m == "" {
+		return true
+	}
+	if i := strings.LastIndex(m, "/"); i >= 0 {
+		m = m[i+1:]
+	}
+	return strings.HasPrefix(m, "claude") || strings.Contains(m, "anthropic") || strings.Contains(m, "sonnet") ||
+		strings.Contains(m, "opus") || strings.Contains(m, "haiku")
 }
 
 // reusableClaude：已在运行、且能按这次的注入 / 档位 / 模型复用的 Claude 进程。
@@ -407,7 +427,7 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 		"-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose",
 		"--include-partial-messages", "--permission-prompt-tool", "stdio", "--replay-user-messages",
 	}
-	argv = append(argv, cli.PermissionLaunchFor("claude", o.claudeLaunchMode(tab, launch.official), nil).Args...)
+	argv = append(argv, cli.PermissionLaunchFor("claude", o.claudeLaunchMode(tab, launch.official, ov.model), nil).Args...)
 	argv = append(argv, cli.OverrideArgs("claude", ov.model, ptrAny(ov.effort))...)
 	argv = append(argv, launch.args...)
 	argv = append(argv, o.claudeSandboxArgs()...)
