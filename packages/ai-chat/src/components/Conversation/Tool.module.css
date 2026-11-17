@@ -38,6 +38,7 @@
   font-size: var(--conv-ui, 14px);
   text-align: left;
   cursor: pointer;
+  user-select: none;
 }
 .head:hover {
   color: var(--cd-color-text);

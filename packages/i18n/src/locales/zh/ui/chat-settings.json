@@ -530,6 +530,7 @@
   "ui.chat-settings.toggle-knowledge-base-q-a": "知识库问答开关",
   "ui.chat-settings.transcript-view": "会话详细程度",
   "ui.chat-settings.transcript-view-description": "新会话和没有单独设置的会话使用的详细程度；单个会话可以在标题栏的菜单里另选。",
+  "ui.chat-settings.transcript-view-minimal-desc": "隐藏思考与工具过程，运行中只显示当前步骤与用时，完成后只保留最终总结，点击可展开全部步骤。",
   "ui.chat-settings.transcript-view-normal": "精简",
   "ui.chat-settings.transcript-view-normal-desc": "两段回复之间的工具调用按类型各合成一行摘要，点开看每一步；不显示思考。",
   "ui.chat-settings.transcript-view-thinking": "显示思考",

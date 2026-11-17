@@ -32,6 +32,7 @@ import type { SlashCard } from '../../slash/types';
 import type { ConvLive, ConvMessage, ConvPhase } from '../../types/conversation';
 import { deriveStatus } from '../../utils/convStatus';
 import { timeLabels } from '../../utils/convTime';
+import { countLiveSteps } from '../../utils/minimalTurn';
 import { buildTimeline, reduceTraceCached } from '../../utils/toolTrace';
 import { SystemCardView } from '../SystemCards';
 
@@ -46,6 +47,7 @@ import {
   type ConvSlots,
   UserMessage,
 } from './Messages';
+import { MinimalOpenProvider } from './MinimalSteps';
 import { PermissionCard } from './PermissionCard';
 import { StatusLine } from './StatusLine';
 import { TranscriptViewProvider, useTranscriptViewMode } from './transcriptViewContext';
@@ -157,7 +159,12 @@ const BackgroundBar: React.FC<{
   const n = Math.max(count ?? 0, agents?.length ?? 0);
   if (!n) return null;
   return (
-    <div className={styles.bgBar} data-testid="conv-background-bar" aria-live="polite">
+    <div
+      className={styles.bgBar}
+      data-testid="conv-background-bar"
+      data-no-selection-toolbar=""
+      aria-live="polite"
+    >
       <button
         type="button"
         className={styles.bgToggle}
@@ -195,7 +202,11 @@ const PermissionQueue: React.FC<{
   const showExpired = useRecent(expired?.at, 15_000) && !!expired;
   if (!onPermission || (!list.length && !showExpired)) return null;
   return (
-    <div className={styles.permQueue} data-testid="conv-permission-queue">
+    <div
+      className={styles.permQueue}
+      data-testid="conv-permission-queue"
+      data-no-selection-toolbar=""
+    >
       {list.length > 1 && (
         <div className={styles.permCount} aria-live="polite">
           {t('ui.chat-settings.requests-waiting', String(list.length))}
@@ -585,6 +596,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   sandboxRequests,
 }) => {
   const fontSize = useSyncExternalStore(subscribeConversationFontSize, getConversationFontSize);
+  const transcriptView = useTranscriptViewMode();
   const scrollRef = useRef<HTMLDivElement>(null);
   const agentMap = useMemo(() => agentsByCall(live?.agents), [live?.agents]);
   /** 用户是否停在底部：贴底才自动跟随；上滑阅读时不抢滚动条 */
@@ -736,9 +748,18 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   }, [start]);
 
   const liveTrace = live?.trace;
+  const liveEntries = useMemo(
+    () => (liveTrace?.length ? reduceTraceCached(liveTrace) : []),
+    [liveTrace],
+  );
   const liveItems = useMemo(
-    () => (liveTrace?.length ? buildTimeline(reduceTraceCached(liveTrace), running) : []),
-    [liveTrace, running],
+    () => (liveEntries.length ? buildTimeline(liveEntries, running) : []),
+    [liveEntries, running],
+  );
+  const liveStepCount = useMemo(
+    () =>
+      transcriptView === 'minimal' && running ? countLiveSteps(liveEntries, live?.thinking) : 0,
+    [transcriptView, running, liveEntries, live?.thinking],
   );
   const status = deriveStatus({ phase, live, items: liveItems });
 
@@ -888,8 +909,39 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
         return messages[i]!.id;
     return undefined;
   }, [messages]);
+  const lastTurn = turns[turns.length - 1];
+  const doneInLastTurn = lastTurn
+    ? lastTurn.messages.filter((m) => m.role === 'assistant' && m.origin !== 'compaction').length
+    : 0;
+  const liveMinimalKey = lastTurn ? `turn:${lastTurn.key}:${doneInLastTurn}` : 'turn:__head:0';
+  const minimalStepsOwnsStatus = transcriptView === 'minimal' && running && liveStepCount > 0;
   // 定稿消息已到、标签状态还没回到空闲的那一帧：不再画一个空的流式区（状态行会闪一下）
   const showLive = phase !== 'idle' && !(running && !live && last?.role === 'assistant');
+  const liveNode = showLive ? (
+    <div className={styles.assistant} data-testid="conv-live" aria-live="polite">
+      {running && (
+        <AssistantBody
+          text={live?.text ?? ''}
+          trace={live?.trace}
+          breaks={live?.textBreaks}
+          live
+          streaming
+          thinking={live?.thinking}
+          liveStatus={status ? { status, startedAt: live?.startedAt } : undefined}
+          minimalStateKey={liveMinimalKey}
+          extra={<PermissionQueue live={live} onPermission={onPermission} />}
+        />
+      )}
+      {status && !minimalStepsOwnsStatus && (
+        <StatusLine
+          status={status}
+          startedAt={running ? live?.startedAt : undefined}
+          stepCount={liveStepCount > 0 ? liveStepCount : undefined}
+          minimal={transcriptView === 'minimal'}
+        />
+      )}
+    </div>
+  ) : null;
 
   return (
     <AgentsByCallContext.Provider value={agentMap}>
@@ -924,77 +976,48 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
               </button>
             )}
             {start === 0 && renderCards(cardPlan.head)}
-            {turns.map((turn, i) => (
-              <section
-                key={turn.key}
-                // 已完成的轮次（不是最后一轮）：视口外跳过样式 / 布局 / 绘制
-                className={i < turns.length - 1 ? `${styles.turn} ${styles.turnDone}` : styles.turn}
-                data-testid="conv-turn"
-                data-turn-index={allTurnIndexByMessage.get(turn.messages[0]?.id ?? turn.key) ?? i}
-              >
-                {turn.messages.map((m) => (
-                  <React.Fragment key={m.id}>
-                    {m.origin === 'compaction' ? (
-                      <CompactionNote message={m} />
-                    ) : m.role === 'user' ? (
-                      <UserMessage
-                        message={m}
-                        timeLabel={labels.get(m.id)}
-                        canEdit={idle}
-                        onEdit={onEdit}
-                        slots={slots}
-                      />
-                    ) : (
-                      <AssistantMessage
-                        message={m}
-                        timeLabel={labels.get(m.id)}
-                        canRetry={idle && m.id === lastAssistantId}
-                        onRetry={onRetry}
-                        slots={slots}
-                      />
-                    )}
-                    {renderCards(cardPlan.byMsg.get(m.id))}
-                  </React.Fragment>
-                ))}
-                {i === turns.length - 1 && showLive && (
-                  <div className={styles.assistant} data-testid="conv-live" aria-live="polite">
-                    {running && (
-                      <AssistantBody
-                        text={live?.text ?? ''}
-                        trace={live?.trace}
-                        breaks={live?.textBreaks}
-                        live
-                        streaming
-                        extra={<PermissionQueue live={live} onPermission={onPermission} />}
-                      />
-                    )}
-                    {status && (
-                      <StatusLine
-                        status={status}
-                        startedAt={running ? live?.startedAt : undefined}
-                      />
-                    )}
-                  </div>
-                )}
-              </section>
-            ))}
-            {turns.length === 0 && showLive && (
-              <div className={styles.assistant} data-testid="conv-live" aria-live="polite">
-                {running && (
-                  <AssistantBody
-                    text={live?.text ?? ''}
-                    trace={live?.trace}
-                    breaks={live?.textBreaks}
-                    live
-                    streaming
-                    extra={<PermissionQueue live={live} onPermission={onPermission} />}
-                  />
-                )}
-                {status && (
-                  <StatusLine status={status} startedAt={running ? live?.startedAt : undefined} />
-                )}
-              </div>
-            )}
+            {turns.map((turn, i) => {
+              let assistantSeq = 0;
+              return (
+                <section
+                  key={turn.key}
+                  // 已完成的轮次（不是最后一轮）：视口外跳过样式 / 布局 / 绘制
+                  className={
+                    i < turns.length - 1 ? `${styles.turn} ${styles.turnDone}` : styles.turn
+                  }
+                  data-testid="conv-turn"
+                  data-turn-index={allTurnIndexByMessage.get(turn.messages[0]?.id ?? turn.key) ?? i}
+                >
+                  {turn.messages.map((m) => (
+                    <React.Fragment key={m.id}>
+                      {m.origin === 'compaction' ? (
+                        <CompactionNote message={m} />
+                      ) : m.role === 'user' ? (
+                        <UserMessage
+                          message={m}
+                          timeLabel={labels.get(m.id)}
+                          canEdit={idle}
+                          onEdit={onEdit}
+                          slots={slots}
+                        />
+                      ) : (
+                        <AssistantMessage
+                          message={m}
+                          timeLabel={labels.get(m.id)}
+                          canRetry={idle && m.id === lastAssistantId}
+                          onRetry={onRetry}
+                          slots={slots}
+                          minimalStateKey={`turn:${turn.key}:${assistantSeq++}`}
+                        />
+                      )}
+                      {renderCards(cardPlan.byMsg.get(m.id))}
+                    </React.Fragment>
+                  ))}
+                  {i === turns.length - 1 && liveNode}
+                </section>
+              );
+            })}
+            {turns.length === 0 && liveNode}
             {renderCards(cardPlan.tail)}
             {queued?.map((text, i) => (
               <div className={styles.pending} key={`${i}-${text}`} data-testid="conv-queued">
@@ -1019,6 +1042,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
               <div
                 className={styles.modelTip}
                 data-testid="conv-model-switch-tip"
+                data-no-selection-toolbar=""
                 role="note"
                 aria-live="polite"
               >
@@ -1032,7 +1056,12 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
               </div>
             )}
             {dormant && !running && (
-              <div className={styles.dormant} data-testid="conv-dormant" role="status">
+              <div
+                className={styles.dormant}
+                data-testid="conv-dormant"
+                data-no-selection-toolbar=""
+                role="status"
+              >
                 {t('ui.cli-monitor.the-coding-assistant-process-went-dormant-after-being')}
               </div>
             )}
@@ -1075,7 +1104,9 @@ export const ConversationView = React.memo(function ConversationView(props: Conv
   return (
     <ConvHostContext.Provider value={parentTabId}>
       <TranscriptViewProvider value={props.transcriptView ?? inherited}>
-        <ConversationInner key={props.scopeId} {...props} />
+        <MinimalOpenProvider key={props.scopeId}>
+          <ConversationInner key={props.scopeId} {...props} />
+        </MinimalOpenProvider>
       </TranscriptViewProvider>
     </ConvHostContext.Provider>
   );

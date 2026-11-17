@@ -112,6 +112,7 @@
   white-space: nowrap;
   color: var(--cd-color-text-muted);
   font-size: var(--cd-font-size-xs);
+  user-select: none;
 }
 .body {
   display: flex;

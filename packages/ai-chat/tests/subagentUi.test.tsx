@@ -15,7 +15,16 @@ const tool = (e: Partial<Extract<HarnessTraceEvent, { type: 'tool' }>>): Harness
   ({ type: 'tool', name: 'Agent', status: 'start', at: 1, textAt: 0, ...e }) as HarnessTraceEvent;
 
 const view = (live: ConvLive, extra: Partial<React.ComponentProps<typeof ConversationView>> = {}) =>
-  render(<ConversationView scopeId="s" messages={[]} live={live} phase="running" {...extra} />);
+  render(
+    <ConversationView
+      scopeId="s"
+      messages={[]}
+      live={live}
+      phase="running"
+      transcriptView="normal"
+      {...extra}
+    />,
+  );
 
 describe('子代理卡片', () => {
   it('后台子代理：派生调用已返回，但卡片按子代理状态显示运行中、后台标记与进度', () => {

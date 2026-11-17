@@ -23,6 +23,15 @@ interface Shown {
 }
 
 const EDITABLE = 'input, textarea, select, [contenteditable=""], [contenteditable="true"]';
+const NO_SELECTION_TOOLBAR = [
+  EDITABLE,
+  'button',
+  '[data-preview-find-content]',
+  '[data-no-selection-toolbar]',
+].join(', ');
+
+const elementOf = (node: Node | null): Element | null =>
+  node instanceof Element ? node : (node?.parentElement ?? null);
 
 /** 现在的页面选区能不能出工具条；能的话给出引用和位置 */
 export function readSelection(selection: Selection | null, mainLabel: string): Shown | null {
@@ -30,11 +39,18 @@ export function readSelection(selection: Selection | null, mainLabel: string): S
   const text = selection.toString();
   if (!text.trim()) return null;
   const range = selection.getRangeAt(0);
-  const node = range.commonAncestorContainer;
-  const el = node instanceof Element ? node : node.parentElement;
+  const el = elementOf(range.commonAncestorContainer);
   if (!el) return null;
   const scope = el.closest('[data-selection-scope]');
-  if (!scope || el.closest(EDITABLE) || el.closest('[data-preview-find-content]')) return null;
+  const startEl = elementOf(range.startContainer);
+  const endEl = elementOf(range.endContainer);
+  if (
+    !scope ||
+    el.closest(NO_SELECTION_TOOLBAR) ||
+    (!!startEl?.closest(NO_SELECTION_TOOLBAR) && !!endEl?.closest(NO_SELECTION_TOOLBAR))
+  ) {
+    return null;
+  }
   const labelled = el.closest<HTMLElement>('[data-selection-label]');
   const base = labelled?.dataset.selectionLabel || mainLabel;
   const user = !!el.closest('[data-testid="msg-user"], [data-testid="side-chat-user"]');

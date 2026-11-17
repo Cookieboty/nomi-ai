@@ -7,7 +7,9 @@ import {
   getEndpointFilter,
   getEndpointOrder,
   getGroupByWorkspace,
+  getPinnedProjects,
   setGroupByWorkspace as persistGroup,
+  setProjectPinned,
   setWorkspaceCollapsed as persistCollapsed,
   getEndpointVisibility,
   setEndpointFilter as persistFilter,
@@ -21,6 +23,7 @@ import {
 import type { ConversationBackend } from '../types/chat';
 
 const EMPTY: readonly string[] = [];
+const EMPTY_RECORD: Readonly<Record<string, number>> = {};
 
 export function useConversationListView(): {
   view: ConversationListView;
@@ -39,6 +42,9 @@ export function useConversationListView(): {
   /** 折叠起来的工作区分组键 */
   collapsedWorkspaces: readonly string[];
   setWorkspaceCollapsed: (key: string, collapsed: boolean) => void;
+  /** 置顶的项目映射（projectId → 置顶时间戳） */
+  pinnedProjects: Readonly<Record<string, number>>;
+  toggleProjectPin: (projectId: string) => void;
 } {
   const view = useSyncExternalStore(
     subscribeConversationListView,
@@ -85,11 +91,22 @@ export function useConversationListView(): {
     (key: string, collapsed: boolean) => persistCollapsed(key, collapsed),
     [],
   );
+  const pinnedProjects = useSyncExternalStore(
+    subscribeConversationListView,
+    getPinnedProjects,
+    () => EMPTY_RECORD,
+  );
+  const toggleProjectPin = useCallback((projectId: string) => {
+    const pinned = Boolean(getPinnedProjects()[projectId]);
+    setProjectPinned(projectId, !pinned);
+  }, []);
   return {
     groupByWorkspace,
     setGroupByWorkspace,
     collapsedWorkspaces,
     setWorkspaceCollapsed,
+    pinnedProjects,
+    toggleProjectPin,
     view,
     setView,
     endpointFilter,

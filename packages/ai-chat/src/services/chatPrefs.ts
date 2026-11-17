@@ -188,6 +188,60 @@ export function setWorkspaceCollapsed(key: string, collapsed: boolean): void {
   listSubs.forEach((fn) => fn());
 }
 
+// ───── 侧栏项目置顶 ─────
+const PINNED_PROJECTS_KEY = 'ai-chat:pinnedProjects';
+
+let pinnedProjectsCache: {
+  raw: string | null;
+  value: Readonly<Record<string, number>>;
+} = { raw: null, value: {} };
+
+/** 已置顶的项目映射（projectId → 置顶时间戳）；返回稳定引用供 useSyncExternalStore 使用 */
+export function getPinnedProjects(): Readonly<Record<string, number>> {
+  let raw: string | null = null;
+  try {
+    if (typeof window !== 'undefined' && window.localStorage)
+      raw = window.localStorage.getItem(PINNED_PROJECTS_KEY);
+  } catch {
+    raw = null;
+  }
+  if (raw === pinnedProjectsCache.raw) return pinnedProjectsCache.value;
+  const value: Record<string, number> = {};
+  try {
+    const o = raw ? (JSON.parse(raw) as unknown) : null;
+    if (o && typeof o === 'object' && !Array.isArray(o)) {
+      for (const [k, v] of Object.entries(o as Record<string, unknown>)) {
+        if (typeof v === 'number' && Number.isFinite(v) && v > 0) value[k] = v;
+      }
+    }
+  } catch {
+    /* 损坏的值按「无置顶」处理 */
+  }
+  pinnedProjectsCache = { raw, value };
+  return value;
+}
+
+export function setProjectPinned(projectId: string, pinned: boolean, ts = Date.now()): void {
+  const cur = { ...getPinnedProjects() };
+  if (pinned) {
+    cur[projectId] = ts > 0 ? ts : 1;
+    // 只留最近的 200 个，免得已删除项目一直堆在里面
+    const entries = Object.entries(cur);
+    if (entries.length > 200) {
+      entries.sort((a, b) => b[1] - a[1]);
+      const trimmed: Record<string, number> = {};
+      for (const [k, v] of entries.slice(0, 200)) trimmed[k] = v;
+      write(PINNED_PROJECTS_KEY, JSON.stringify(trimmed));
+      listSubs.forEach((fn) => fn());
+      return;
+    }
+  } else {
+    delete cur[projectId];
+  }
+  write(PINNED_PROJECTS_KEY, JSON.stringify(cur));
+  listSubs.forEach((fn) => fn());
+}
+
 // ───── 侧栏端点的排列顺序 ─────
 const ENDPOINT_ORDER_KEY = 'ai-chat:sidebarEndpointOrder';
 

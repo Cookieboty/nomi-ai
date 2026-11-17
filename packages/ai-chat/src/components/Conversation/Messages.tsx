@@ -20,6 +20,7 @@ import { layoutBody, planBody, planLength, sliceBody } from '../../utils/convSeg
 import { formatFullTime, turnSummary } from '../../utils/convTime';
 import { ENDPOINT_NAME, type EndpointKey } from '../../utils/endpointBadge';
 import { isImeComposing } from '../../utils/keyboard';
+import { countLiveSteps, minimalCopyText, splitMinimalTurn } from '../../utils/minimalTurn';
 import {
   entriesFromLegacyTools,
   hasRunning,
@@ -34,7 +35,8 @@ import { ForkRight } from './forkIcon';
 import styles from './index.module.css';
 import { Markdown } from './Markdown';
 import { MessageResourceBoundary } from './MessageResourceBoundary';
-import { ToolTimeline } from './ToolTimeline';
+import { MinimalSteps, type MinimalLiveStatus } from './MinimalSteps';
+import { GeneratedImageBlock, ToolTimeline } from './ToolTimeline';
 import { useTranscriptViewMode } from './transcriptViewContext';
 import { UserMessageLinks } from './UserMessageLinks';
 
@@ -164,8 +166,25 @@ export const AssistantBody: React.FC<{
   live?: boolean;
   streaming?: boolean;
   endedAt?: number;
+  durationMs?: number;
+  thinking?: boolean;
+  liveStatus?: MinimalLiveStatus;
+  minimalStateKey?: string;
   extra?: React.ReactNode;
-}> = ({ text, trace, legacyTools, breaks, live, streaming, endedAt, extra }) => {
+}> = ({
+  text,
+  trace,
+  legacyTools,
+  breaks,
+  live,
+  streaming,
+  endedAt,
+  durationMs,
+  thinking,
+  liveStatus,
+  minimalStateKey,
+  extra,
+}) => {
   const transcriptView = useTranscriptViewMode();
   const entries = useMemo(() => {
     // 已结束的一轮：旧消息里悬空的工具调用按已停止显示（不再一直转圈）
@@ -183,12 +202,68 @@ export const AssistantBody: React.FC<{
   const plan = useMemo(
     () =>
       planBody(layout, len, !!live, endedAt, breaks, {
-        // Verbose：每次工具调用单独成行，不再合并成组
-        groupTools: transcriptView !== 'verbose',
+        // Verbose 与 Minimal：展开列表里每次工具调用单独成行，不再二次合并成组
+        groupTools: transcriptView !== 'verbose' && transcriptView !== 'minimal',
       }),
     [layout, len, live, endedAt, breaks, transcriptView],
   );
   const segments = useMemo(() => sliceBody(text, plan), [text, plan]);
+  const minimalSplit = useMemo(() => {
+    if (transcriptView !== 'minimal') return null;
+    return splitMinimalTurn(
+      segments,
+      live ? { live: true, thinking, startedAt: liveStatus?.startedAt } : { durationMs },
+    );
+  }, [transcriptView, segments, live, thinking, liveStatus?.startedAt, durationMs]);
+
+  if (transcriptView === 'minimal') {
+    if (live) {
+      const liveSteps = countLiveSteps(entries, thinking);
+      if (liveSteps > 0 && minimalSplit) {
+        return (
+          <>
+            <MinimalSteps
+              segments={minimalSplit.collapsed}
+              stepCount={liveSteps}
+              liveStatus={liveStatus}
+              stateKey={minimalStateKey}
+            />
+            {minimalSplit.passthrough.length > 0 && (
+              <ToolTimeline items={minimalSplit.passthrough} rawOrder />
+            )}
+            {minimalSplit.generatedImages.map((c) => (
+              <GeneratedImageBlock key={c.id} call={c} />
+            ))}
+            {extra}
+          </>
+        );
+      }
+    } else if (minimalSplit && minimalSplit.stepCount > 0) {
+      return (
+        <>
+          <MinimalSteps
+            segments={minimalSplit.collapsed}
+            stepCount={minimalSplit.stepCount}
+            workedMs={minimalSplit.workedMs}
+            stateKey={minimalStateKey}
+          />
+          {minimalSplit.passthrough.length > 0 && (
+            <ToolTimeline items={minimalSplit.passthrough} rawOrder />
+          )}
+          {minimalSplit.generatedImages.map((c) => (
+            <GeneratedImageBlock key={c.id} call={c} />
+          ))}
+          {minimalSplit.summaryText && (
+            <div className={styles.segment} data-testid="conv-segment">
+              <Markdown text={minimalSplit.summaryText} settled />
+            </div>
+          )}
+          {extra}
+        </>
+      );
+    }
+  }
+
   if (!segments.length && !extra) return null;
   let lastText = -1;
   let runningAt = -1;
@@ -354,12 +429,14 @@ export const AssistantMessage = memo(function AssistantMessage({
   canRetry,
   onRetry,
   slots,
+  minimalStateKey,
 }: {
   message: ConvMessage;
   timeLabel?: string;
   canRetry: boolean;
   onRetry?: (id: string) => void;
   slots?: ConvSlots;
+  minimalStateKey?: string;
 }) {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
@@ -371,6 +448,25 @@ export const AssistantMessage = memo(function AssistantMessage({
   const body = slots?.body?.(message);
   const retry = canRetry && onRetry ? () => onRetry(message.id) : undefined;
   const forkFrom = useContext(ForkFromMessageContext);
+  const transcriptView = useTranscriptViewMode();
+  const copyText = useMemo(() => {
+    const raw = message.text || message.error || '';
+    if (transcriptView !== 'minimal' || body || !message.text) return raw;
+    const entries = message.trace?.length
+      ? reduceTraceCached(settleTrace(message.trace, t('ui.chat-settings.stopped')))
+      : message.legacyTools?.length
+        ? entriesFromLegacyTools(message.legacyTools)
+        : [];
+    return minimalCopyText(message.text, entries, message.textBreaks) || raw;
+  }, [
+    transcriptView,
+    body,
+    message.text,
+    message.error,
+    message.trace,
+    message.legacyTools,
+    message.textBreaks,
+  ]);
   return (
     <MessageResourceBoundary id={message.id} origin={message.origin}>
       <div className={styles.assistant} data-testid="msg-assistant" data-message-id={message.id}>
@@ -387,6 +483,8 @@ export const AssistantMessage = memo(function AssistantMessage({
           legacyTools={message.legacyTools}
           breaks={body ? undefined : message.textBreaks}
           endedAt={message.at}
+          durationMs={message.durationMs ?? message.usage?.durationMs}
+          minimalStateKey={minimalStateKey ?? `msg:${message.id}`}
         />
         {body}
         {message.error && (
@@ -403,7 +501,7 @@ export const AssistantMessage = memo(function AssistantMessage({
           </div>
         )}
         {slots?.after?.(message)}
-        <div className={styles.meta}>
+        <div className={styles.meta} data-no-selection-toolbar="">
           {message.label && (
             <span className={styles.label} data-testid="conv-agent-label">
               <span className={styles.agentIcon} aria-hidden>
@@ -424,7 +522,7 @@ export const AssistantMessage = memo(function AssistantMessage({
           <span className={styles.spacer} />
           <div className={styles.actions} role="toolbar">
             <span className={styles.fullTime}>{full}</span>
-            <CopyAction text={message.text || message.error || ''} />
+            <CopyAction text={copyText} />
             {retry && !message.error && (
               <ActionButton
                 icon={RefreshCw}
