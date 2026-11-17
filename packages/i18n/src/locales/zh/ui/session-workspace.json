@@ -11,7 +11,7 @@
   "ui.session-workspace.binary-file-cannot-edit-in-preview": "二进制文件，无法在预览中编辑",
   "ui.session-workspace.branches": "分支",
   "ui.session-workspace.browse-workspace-files": "浏览工作区文件",
-  "ui.session-workspace.browser-blocked": "这个网页不允许在应用内打开，可以用系统浏览器查看。",
+  "ui.session-workspace.browser-blocked": "内置浏览器窗口没能打开这个页面，可以用系统浏览器查看。",
   "ui.session-workspace.browser-empty": "输入网址后打开页面。",
   "ui.session-workspace.browser-location": "网页地址",
   "ui.session-workspace.browser-open-external": "在系统浏览器中打开",

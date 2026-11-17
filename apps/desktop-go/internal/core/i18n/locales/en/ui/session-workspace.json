@@ -11,7 +11,7 @@
   "ui.session-workspace.binary-file-cannot-edit-in-preview": "Binary file — cannot edit in preview",
   "ui.session-workspace.branches": "Branches",
   "ui.session-workspace.browse-workspace-files": "Browse workspace files",
-  "ui.session-workspace.browser-blocked": "This page cannot be opened inside the app. You can view it in your system browser.",
+  "ui.session-workspace.browser-blocked": "The built-in browser window could not open this page. You can view it in your system browser.",
   "ui.session-workspace.browser-empty": "Enter a URL to open a page.",
   "ui.session-workspace.browser-location": "Page address",
   "ui.session-workspace.browser-open-external": "Open in system browser",
