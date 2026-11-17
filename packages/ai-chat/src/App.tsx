@@ -265,8 +265,24 @@ const AiChatContent: React.FC = () => {
   );
   // 输入草稿按会话隔离（空会话共用一份，发出后按会话 / 标签各存一份）
   const drafts = useSessionComposerDrafts();
-  // 输入框上方的待发列表（插入 / 排队，见 utils/pendingSends）
-  const pending = useComposerPending(actions, busyHere, firstMessageId);
+  // 输入框上方的待发列表（插入 / 排队，见 utils/pendingSends）：存在当前 Nomi 会话的元信息里，重启后恢复
+  const viewConvoId = useAiChatSelector(selectViewConvoId);
+  const pendingStore = ipcClient.conversationStore?.();
+  const pendingConvoId = useMemo(() => {
+    // 回到空会话 / 正在回复的会话时 viewConvoId 可能还没有：之前的列表归它（发送时才生成 id，之后从 meta 接管）
+    const a = pendingStore?.get?.(viewConvoId);
+    if (viewConvoId && a?.backend === 'nomi' && !a.tabId) return viewConvoId;
+    return viewConvoId === undefined ? nomiSessionId : undefined;
+  }, [pendingStore, viewConvoId, nomiSessionId]);
+  const pendingSource = useCallback(
+    () => ({ store: ipcClient.conversationStore?.(), ipc: ipcClient }),
+    [ipcClient],
+  );
+  const pending = useComposerPending(actions, busyHere, pendingConvoId, {
+    convoId: pendingConvoId,
+    source: pendingSource,
+  });
+
   const { enqueue } = pending.nomiQueue;
   const enqueueNomi = useCallback((text: string) => enqueue(text, { mode: 'queue' }), [enqueue]);
 

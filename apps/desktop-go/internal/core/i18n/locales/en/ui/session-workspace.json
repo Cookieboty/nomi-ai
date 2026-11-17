@@ -1,8 +1,8 @@
 {
+  "ui.session-workspace.agent-card-latest": "Latest output",
   "ui.session-workspace.agent-card-open": "Click to open",
   "ui.session-workspace.agent-card-running": "Working",
   "ui.session-workspace.agent-card-task": "Task",
-  "ui.session-workspace.agent-card-latest": "Latest output",
   "ui.session-workspace.approval-requests-denied-timed-out": "{0} approval requests, {1} denied, {2} timed out",
   "ui.session-workspace.ask-assistant-to-commit": "Ask assistant to commit",
   "ui.session-workspace.assistant-changed-n-files-in-worktree": "The assistant changed {1} files in worktree {0}",
@@ -142,6 +142,7 @@
   "ui.session-workspace.path-outside-workspace-write-denied": "Path outside workspace — write denied",
   "ui.session-workspace.pending-hint": "Enter inserts into this turn · Ctrl/⌘+Enter queues until it ends · Esc in the input stops and sends now",
   "ui.session-workspace.pending-messages": "Pending messages",
+  "ui.session-workspace.follow-up-added-after-restart": "Follow-up added after the restart",
   "ui.session-workspace.permission-reply-failed": "Could not send the approval response. Please try again.",
   "ui.session-workspace.please-commit-the-following-uncommitted-changes-files": "Please commit the following uncommitted changes ({0} files):",
   "ui.session-workspace.preview-ask-selection": "Ask about this passage",

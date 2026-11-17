@@ -75,6 +75,29 @@ export interface IPCClient {
    * 落盘必须落在发起这一轮的会话里。会话已被删除则静默丢弃。
    */
   saveMessageTo?(message: ChatMessage, conversationId: string): Promise<void>;
+  /**
+   * 把一条消息按 id 写进指定会话、排在 `afterId` 那条后面（不存在 `afterId` 时写到末尾；同 id 覆盖不会多一条）。
+   * 用户在一轮中途插入的消息（已交给模型）用它补进对话记录：回复结束前应用被重启时它们还在。
+   */
+  saveMessageAfterTo?(message: ChatMessage, conversationId: string, afterId: string): Promise<void>;
+  /** 按 id 删掉指定会话里的一条（不存在就什么都不做）：插入的消息这一轮结束、进了回复的轨迹后删掉 */
+  removeMessageFrom?(messageId: string, conversationId: string): Promise<void>;
+  /**
+   * 回写指定会话的待发列表（回复期间没交出去的消息，存进会话元信息，重启后恢复；见 services/pendingSendsStore）。
+   * 空数组 = 删掉存下的。会话已被删除则静默丢弃。
+   */
+  savePendingSendsTo?(
+    conversationId: string,
+    items: ReadonlyArray<{ id: string; text: string; mode: 'steer' | 'queue'; kb?: true }>,
+  ): Promise<void>;
+  /**
+   * 回写已经交给这一轮的插入（存进会话元信息；回复结束前重启时再补成用户消息）。
+   * undefined / 空 = 删掉存下的。会话已被删除则静默丢弃。
+   */
+  saveDeliveredSteersTo?(
+    conversationId: string,
+    payload: import('./chat').ChatSession['deliveredSteers'] | undefined,
+  ): Promise<void>;
   /** 取当前会话 id，没有则新建（发起一轮对话时固定下来） */
   ensureConversationId?(): string;
 
