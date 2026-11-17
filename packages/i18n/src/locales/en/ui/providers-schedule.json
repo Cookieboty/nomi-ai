@@ -103,7 +103,7 @@
   "ui.providers-schedule.on": "On",
   "ui.providers-schedule.only-during": "Only during",
   "ui.providers-schedule.only-sessions-whose-files-were-just-written-and": "Only sessions whose files were just written and whose process is still running count, de-duplicated per session. Reads local logs and the process list only — never signs in or scrapes any account.",
-  "ui.providers-schedule.open-file": "Open file",
+  "ui.providers-schedule.open-file": "Browse files",
   "ui.providers-schedule.open-general": "Open General",
   "ui.providers-schedule.open-schedule": "Open schedule ·",
   "ui.providers-schedule.p": "p.",

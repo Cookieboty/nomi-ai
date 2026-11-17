@@ -103,7 +103,7 @@
   "ui.providers-schedule.on": "已开启",
   "ui.providers-schedule.only-during": "只在这个时段",
   "ui.providers-schedule.only-sessions-whose-files-were-just-written-and": "只算「文件刚有写入且进程还在」的会话，按会话去重。只读本地日志与进程列表，不登录、不刮取任何账号。",
-  "ui.providers-schedule.open-file": "打开文件",
+  "ui.providers-schedule.open-file": "文件浏览",
   "ui.providers-schedule.open-general": "去「通用」查看",
   "ui.providers-schedule.open-schedule": "打开日程 ·",
   "ui.providers-schedule.p": "第",
