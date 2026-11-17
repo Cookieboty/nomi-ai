@@ -6,10 +6,12 @@
 import { Button, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import React from 'react';
 
+import { supportsCustomLauncher, useCliLauncher } from '../../services/cliLauncherClient';
 import type { CliKind } from '../../services/cliSource';
 import { hasOfficialAccount } from '../../utils/cliCaps';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
+import { CliLauncherCard } from './CliLauncherCard';
 import { CliVersionCard } from './CliVersionCard';
 import styles from './index.module.css';
 import { NewTabSourceRow } from './NewTabSourceRow';
@@ -18,33 +20,39 @@ import { OfficialAccounts } from './OfficialAccounts';
 export const CliEndpointSection: React.FC<{ kind: CliKind; onOpenModels?: () => void }> = ({
   kind,
   onOpenModels,
-}) => (
-  <div className={styles.section} data-testid={`providers-section-${kind}`}>
-    <CliVersionCard kind={kind} />
+}) => {
+  const launcher = useCliLauncher(kind);
+  const externalLogin = supportsCustomLauncher(kind) && launcher.accountSource === 'local';
+  return (
+    <div className={styles.section} data-testid={`providers-section-${kind}`}>
+      <CliVersionCard kind={kind} />
 
-    {hasOfficialAccount(kind) && <OfficialAccounts kind={kind} />}
+      {supportsCustomLauncher(kind) && <CliLauncherCard key={kind} kind={kind} />}
 
-    {/* 新会话默认用（官方账号 / 第三方供应商）+ 第三方模型入口（在「模型」页统一配置） */}
-    <SettingsGroup data-testid={`cli-third-party-${kind}`}>
-      <NewTabSourceRow kind={kind} />
-      <SettingRow
-        title={t('ui.models.third-party-models')}
-        description={t(
-          'ui.providers-schedule.requests-go-through-the-nomi-gateway-which-converts',
-          ENDPOINT_NAME[kind],
-        )}
-      >
-        {onOpenModels && (
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={onOpenModels}
-            data-testid="cli-open-models"
-          >
-            {t('ui.models.open-models')}
-          </Button>
-        )}
-      </SettingRow>
-    </SettingsGroup>
-  </div>
-);
+      {hasOfficialAccount(kind) && !externalLogin && <OfficialAccounts kind={kind} />}
+
+      {/* 新会话默认用（官方账号 / 第三方供应商）+ 第三方模型入口（在「模型」页统一配置） */}
+      <SettingsGroup data-testid={`cli-third-party-${kind}`}>
+        <NewTabSourceRow kind={kind} />
+        <SettingRow
+          title={t('ui.models.third-party-models')}
+          description={t(
+            'ui.providers-schedule.requests-go-through-the-nomi-gateway-which-converts',
+            ENDPOINT_NAME[kind],
+          )}
+        >
+          {onOpenModels && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={onOpenModels}
+              data-testid="cli-open-models"
+            >
+              {t('ui.models.open-models')}
+            </Button>
+          )}
+        </SettingRow>
+      </SettingsGroup>
+    </div>
+  );
+};

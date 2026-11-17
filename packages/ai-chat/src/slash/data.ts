@@ -1,5 +1,6 @@
 /** 命令执行时按需读取的本机数据（只读主进程缓存 / 账本，不联网、不碰凭据） */
 import { cliAccountClient } from '../services/cliAccountClient';
+import { cliLauncherClient, launcherManagesLogin } from '../services/cliLauncherClient';
 import { cliUpdateClient } from '../services/cliUpdateClient';
 import { gatewayClient, gatewayClientAvailable } from '../services/gatewayClient';
 import { harnessClient } from '../services/harnessClient';
@@ -28,7 +29,9 @@ export async function loadSlashData(
   tabId?: string | null,
 ): Promise<SlashData> {
   const cli = backend !== 'nomi';
-  const accountKind = cli && hasOfficialAccount(backend) ? backend : null;
+  if (cli) await cliLauncherClient.get().catch(() => undefined);
+  const accountKind =
+    cli && hasOfficialAccount(backend) && !launcherManagesLogin(backend) ? backend : null;
   const [clis, usage, quotas, accounts, tabs, nomiProviders, gateway, nomiCtx] = await Promise.all([
     cli && cliUpdateClient.available()
       ? soft(() => cliUpdateClient.inspect(false))

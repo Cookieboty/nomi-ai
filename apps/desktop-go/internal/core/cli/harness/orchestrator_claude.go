@@ -6,6 +6,7 @@ package harness
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -373,7 +374,7 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 		o.teardownClaudeLive(id)
 	}
 
-	bin := ResolveHarnessBin("claude")
+	bin, prefix := resolveSessionBin("claude", launch.official)
 	if bin == "" {
 		throw(i18n.T("electron.common.claude-code-not-found-set-nomi-use-mock"))
 	}
@@ -405,9 +406,9 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 		sl = spawnLaunch
 	}
 	o.checkCwd(str(tab, "cwd"))
-	cmd, args := bin, argv
+	cmd, args := bin, append(prefix, argv...)
 	if useNode {
-		cmd, args = nodeExecPath(), append([]string{bin}, argv...)
+		cmd, args = nodeExecPath(), append([]string{bin}, args...)
 	}
 	child := gate(o.spawnCLI(tab, cmd, args, str(tab, "cwd"), o.taskEnv(tab, o.childEnv(useNode, sl, nil))))
 	if spawnLaunch != nil {
@@ -424,6 +425,13 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 		OnLine: func(line string, final bool) bool {
 			onLine(line, final)
 			return true
+		},
+		OnControlResponse: func(response *util.Obj) {
+			if sl.official && o.d.ClaudeConfigDir != nil {
+				if dir := claudeReportedConfigDir(response); dir != "" {
+					o.d.ClaudeConfigDir(dir)
+				}
+			}
 		},
 		ControlTimeoutMs: int(ctl),
 		Messages: drivers.StreamJsonMessages{
@@ -525,6 +533,20 @@ func (o *Orchestrator) writeClaudeControl(live *claudeLiveSession, request *util
 // requestClaudeControl：发 control_request 并等 control_response。
 func (o *Orchestrator) requestClaudeControl(live *claudeLiveSession, request *util.Obj) *jsrt.Promise[*util.Obj] {
 	return live.driver.Control(request)
+}
+
+// initialize reports this directory even when a wrapper changes CLAUDE_CONFIG_DIR in its child.
+// Older CLIs can omit it; never infer a home from unrelated metadata or read login credentials.
+func claudeReportedConfigDir(response *util.Obj) string {
+	p, _ := response.Get("user_output_styles_dir").(string)
+	if p == "" || strings.ContainsAny(p, "\x00\r\n") || !filepath.IsAbs(p) {
+		return ""
+	}
+	p = filepath.Clean(p)
+	if filepath.Base(p) != "output-styles" {
+		return ""
+	}
+	return filepath.Dir(p)
 }
 
 func (o *Orchestrator) onClaudeLine(tabID string, live *claudeLiveSession, line string, liveEmit bool) {

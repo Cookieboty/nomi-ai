@@ -30,6 +30,11 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 - **release:** empty changeset after archiving 2.3.16
 
+### Other
+
+- Choose local CLI sign-in or Nomi-managed accounts independently for Claude Code, Codex, Grok, Kimi Code and MiniMax Code. Use detected CLIs by default, with optional custom launch commands under advanced settings. Preserve protocol and resume arguments and keep third-party model launches unchanged. (`nomi` patch)
+- Fix missing daily Claude Code usage when a custom launcher uses a separate configuration directory. Discover and remember the log location reported by the CLI, retaining message deduplication across account directories. (`nomi` patch)
+
 ## 2.3.16 — 2026-11-16
 
 ### Features

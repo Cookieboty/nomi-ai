@@ -29,6 +29,7 @@ import {
   type AccountKind,
   type CliAccount,
 } from '../../services/cliAccountClient';
+import { useCliLauncher } from '../../services/cliLauncherClient';
 import {
   codingProviders,
   providerOfRef,
@@ -191,6 +192,8 @@ export function useCliModelEffortSource({
   defaultProviderId = null,
   modelMeta = null,
 }: CliChipInput): ModelEffortSource {
+  const launcher = useCliLauncher(tab.backend);
+  const localLogin = launcher.accountSource === 'local';
   const [accounts, setAccounts] = useState<CliAccount[]>([]);
   const [note, setNote] = useState<string | null>(null);
 
@@ -290,7 +293,7 @@ export function useCliModelEffortSource({
   const sourceName = provider?.name || backendName;
   // 官方来源的标签可以单独选官方账号（多个账号并行）
   const accountKind =
-    !thirdParty && ACCOUNT_KINDS.includes(tab.backend as AccountKind)
+    !thirdParty && !localLogin && ACCOUNT_KINDS.includes(tab.backend as AccountKind)
       ? (tab.backend as AccountKind)
       : null;
   const defaultAccount = useMemo(() => accounts.find((a) => a.active), [accounts]);
@@ -305,7 +308,9 @@ export function useCliModelEffortSource({
   // 第三方标签可切到官方账号时，也读账号列表：「切换到官方账号」后面写上默认账号
   const listKind =
     accountKind ??
-    (sourceSwitch?.target === 'official' && ACCOUNT_KINDS.includes(tab.backend as AccountKind)
+    (sourceSwitch?.target === 'official' &&
+    !localLogin &&
+    ACCOUNT_KINDS.includes(tab.backend as AccountKind)
       ? (tab.backend as AccountKind)
       : null);
   useEffect(() => {

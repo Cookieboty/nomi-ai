@@ -158,6 +158,17 @@ func RegisterCoding(r *contract.Router, s CodingServices) {
 
 	// ── cli：插件注册表 ──
 	gil(r, "cli.registry", func(in) any { return plugins().Snapshot() })
+	gil(r, "cli.launcherGet", func(in) any { return cli.Launchers() })
+	gil(r, "cli.launcherSet", func(a in) any {
+		s := util.AsObj(a.any("settings"))
+		throwIf(cli.SaveLauncher(a.str("kind"), cli.LauncherSettings{Enabled: util.Truthy(s.Get("enabled")), Command: util.Str(s.Get("command")), AccountSource: util.Str(s.Get("accountSource"))}))
+		return cli.LauncherFor(a.str("kind"))
+	})
+	gil(r, "cli.launcherTest", func(a in) any {
+		version, err := cli.TestLauncherVersion(a.str("kind"), a.str("command"))
+		throwIf(err)
+		return util.NewObj("version", version)
+	})
 
 	// ── cliUpdate：安装 / 更新 ──
 	// inspect 的探测在独立 goroutine 里跑，IPC 用 Block 等结果，不经过

@@ -152,8 +152,10 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 		name := acpDisplayName(backend)
 		var bin string
 		var argv []string
+		var prefix []string
 		{
-			found := ResolveHarnessBin(backend)
+			found, leading := resolveSessionBin(backend, launch.official)
+			prefix = leading
 			if found == "" {
 				switch backend {
 				case "grok":
@@ -174,9 +176,9 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 		}
 		useNode := IsScript(bin)
 		o.checkCwd(str(tab, "cwd"))
-		cmd, args := bin, argv
+		cmd, args := bin, append(prefix, argv...)
 		if useNode {
-			cmd, args = nodeExecPath(), append([]string{bin}, argv...)
+			cmd, args = nodeExecPath(), append([]string{bin}, args...)
 		}
 		child := gate(o.spawnCLI(tab, cmd, args, str(tab, "cwd"), o.taskEnv(tab, o.childEnv(useNode, spawnLaunch, nil))))
 		o.watchTabRelease(tab, child)

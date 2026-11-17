@@ -7,6 +7,7 @@ import { createLogger } from '@nomi-ai/ui';
 import { useEffect, useState } from 'react';
 
 import { cliAccountClient, type AccountKind, type CliAccount } from '../services/cliAccountClient';
+import { supportsCustomLauncher, useCliLauncher } from '../services/cliLauncherClient';
 import { hasOfficialAccount } from '../utils/cliCaps';
 
 const log = createLogger('cli-accounts');
@@ -18,7 +19,9 @@ export interface CliAccountsState {
 }
 
 export function useCliAccounts(kind: string | null | undefined): CliAccountsState {
-  const accountKind: AccountKind | null = hasOfficialAccount(kind) ? kind : null;
+  const launcher = useCliLauncher(kind);
+  const localLogin = supportsCustomLauncher(kind) && launcher.accountSource === 'local';
+  const accountKind: AccountKind | null = hasOfficialAccount(kind) && !localLogin ? kind : null;
   const [loaded, setLoaded] = useState<{
     kind: AccountKind;
     list: CliAccount[];
