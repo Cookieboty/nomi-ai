@@ -39,6 +39,9 @@ export function dedupeHistory(list: readonly HistorySession[]): HistorySession[]
 
 const EMPTY: EndpointState = { items: [], nextOffset: null, hasMore: false, loading: false };
 
+/** 主进程每页条数（kernel 的 HistoryPageSize，limit 会被它封顶） */
+const HISTORY_PAGE_SIZE = 20;
+
 export interface CliHistory {
   available: boolean;
   loading: boolean;
@@ -65,6 +68,11 @@ export function useCliHistory(
   );
   const [loaded, setLoaded] = useState(false);
   const seq = useRef(0);
+  /** 最新 state（focus 回调里读，不用重建监听） */
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
   const key = backends.join(',');
   const active = useMemo(
     () => HISTORY_BACKENDS.filter((b) => backends.includes(b)),
@@ -110,7 +118,12 @@ export function useCliHistory(
 
   useEffect(() => {
     if (!available || !enabled) return;
-    const onFocus = () => load(active, true);
+    const onFocus = () => {
+      // 已经点过「加载更多」的列表不因为窗口失焦 / 聚焦被打回第一页（那会让用户觉得点了没反应）：
+      // 只有还在第一页时才真正刷新
+      const expanded = active.some((b) => stateRef.current[b].items.length > HISTORY_PAGE_SIZE);
+      if (!expanded) load(active, true);
+    };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, [available, enabled, active, load]);
@@ -125,7 +138,11 @@ export function useCliHistory(
         void historyClient
           .list(ep, { offset: cur.nextOffset })
           .then((page) => {
-            if (my !== seq.current) return;
+            if (my !== seq.current) {
+              // 期间发生过整页重载：这一页丢弃，但必须解锁，否则按钮一直 disabled =「点了没反应」
+              patch(ep, { loading: false });
+              return;
+            }
             setState((s) => ({
               ...s,
               [ep]: {
@@ -136,9 +153,7 @@ export function useCliHistory(
               },
             }));
           })
-          .catch(() => {
-            if (my === seq.current) patch(ep, { loading: false });
-          });
+          .catch(() => patch(ep, { loading: false }));
       }
     },
     [active, state, patch],

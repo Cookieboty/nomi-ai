@@ -322,7 +322,10 @@ export function windowStart(
   let i = messages.length;
   while (i > 0 && messages.length - i < limit) {
     const w = messageWeight(messages[i - 1]!);
-    if (budget - w < 0 && i < messages.length) break;
+    // 体量预算只约束首屏。用户点过「显示更早」之后按条数放开：
+    // 一条巨大的工具轨迹（trace 上千条）就能把预算吃光，按预算走的话点多少次都跨不过去，
+    // 而 loadingEarlier 的复位又等 start 变——结果就是「点了完全没反应」。
+    if (extra === 0 && budget - w < 0 && i < messages.length) break;
     budget -= w;
     i--;
   }
@@ -794,10 +797,13 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     const el = scrollRef.current;
     if (el && anchorRef.current !== null) {
       el.scrollTop += el.scrollHeight - anchorRef.current;
-      anchorRef.current = null;
-      loadingEarlierRef.current = false;
     }
-  }, [start]);
+    // 无论 start 变没变都要解锁：之前只在 start 变化时置 false，
+    // 一次点击没让 start 变化（预算卡住 / scroller 一时不在）就会让它永久为 true，
+    // 之后点「显示更早」、滚到顶部全部静默失改。
+    anchorRef.current = null;
+    loadingEarlierRef.current = false;
+  }, [extra]);
 
   // 滚轮 / 触控板往上：立即停止跟随（不等 scroll 事件，避免同一帧里的增长又把视口拉回底部）
   const onWheel = useCallback((e: React.WheelEvent) => {
