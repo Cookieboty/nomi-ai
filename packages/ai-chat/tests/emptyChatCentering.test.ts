@@ -1,5 +1,5 @@
 // 空会话首页的布局契约：欢迎区 + 聊天框 + 示例问题卡片 作为一整块垂直居中；
-// 模型引导是输入框上的悬浮卡片，不占布局。
+// 缺模型时输入框下方常驻「添加 / 选择模型」引导卡（替代示例问题卡片），不靠悬停。
 // 说明：happy-dom 不做布局计算，这里对 CSS 源码做契约断言（与 chatLayerOrder.test.ts 同一手法）；
 // 真实视觉效果在 dev 里目视确认。
 import { readFileSync } from 'node:fs';
@@ -12,7 +12,7 @@ const app = read('src/App.css');
 const welcome = read('src/components/ConversationWelcome/index.module.css');
 const appTsx = read('src/App.tsx');
 const chatBody = read('src/app/ChatBody.tsx');
-const hintCss = read('src/components/MessageInput/ModelSetupHint.module.css');
+const guideCss = read('src/components/ConversationWelcome/ModelSetupCard.module.css');
 const cardsCss = read('src/components/ConversationWelcome/PromptCards.module.css');
 
 /** 取某个选择器的规则体（可能有多段，合并后断言） */
@@ -47,23 +47,22 @@ describe('空会话首页：整块居中', () => {
     expect(appTsx).toMatch(/chatEmpty && mainShown \? 'true' : undefined/);
   });
 
-  it('示例问题卡片在输入框下方渲染，且只在空会话的主对话里', () => {
-    // footer 里 <MessageInput> 之后才是示例问题卡片
-    const inputAt = appTsx.indexOf('<ModelSetupHint');
-    const cardsAt = appTsx.indexOf('{nomiEmpty && <PromptCards />}');
+  it('示例问题卡片 / 模型引导在输入框下方渲染，且只在空会话的主对话里', () => {
+    // footer 里 <MessageInput> 之后才是 WelcomeActions（缺模型：引导卡；否则：示例问题卡片）
+    const inputAt = appTsx.indexOf('<MessageInput');
+    const cardsAt = appTsx.indexOf('{nomiEmpty && <WelcomeActions');
     expect(inputAt).toBeGreaterThan(0);
     expect(cardsAt).toBeGreaterThan(inputAt);
     expect(appTsx).toMatch(/const nomiEmpty = chatEmpty && !tabs\.isCliTab/);
   });
 
-  it('模型引导改成输入框上的悬浮卡片，不再占布局位置', () => {
-    expect(appTsx).toMatch(/<ModelSetupHint/);
-    expect(appTsx).not.toMatch(/<ModelSetupGuide/);
-    // 卡片绝对定位 + 默认收起，靠 hover 显示
-    const guide = ruleBody(hintCss, '.guide');
-    expect(guide).toMatch(/position:\s*absolute/);
-    expect(guide).toMatch(/opacity:\s*0/);
-    expect(hintCss).toMatch(/\.host:hover\s+\.guide/);
+  it('模型引导常驻可见、不再是输入框上的悬停浮层', () => {
+    expect(appTsx).not.toMatch(/<ModelSetupHint/);
+    const card = ruleBody(guideCss, '.card');
+    expect(card).not.toMatch(/position:\s*absolute/);
+    expect(card).not.toMatch(/opacity:\s*0/);
+    expect(card).toMatch(/max-width:\s*var\(--cd-chat-content-w\)/);
+    expect(guideCss).not.toMatch(/:hover/);
   });
 });
 

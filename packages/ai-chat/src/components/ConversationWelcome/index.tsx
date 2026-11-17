@@ -1,6 +1,6 @@
 /**
  * 新会话的欢迎区：图标 + 标题 + 小标题。
- * 示例问题卡片（在聊天框下方）与模型引导由调用方处理，见 PromptCards 与 MessageInput/ModelSetupHint。
+ * 示例问题卡片（在聊天框下方）与模型引导由调用方处理，见 WelcomeActions（缺模型时的引导卡 / PromptCards）。
  */
 import { t } from '@nomi-ai/ui';
 import React from 'react';
