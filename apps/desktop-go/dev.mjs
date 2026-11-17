@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // 开发态（视图热更新）：pnpm dev
 //
-// 1. 构建视图依赖的工作区包（= turbo dev 的 ^build；改了 contract / ui 等包时另开终端 pnpm dev:libs 监听）；
+// 1. 构建视图依赖的工作区包（= turbo dev 的 ^build；ui 包已由本脚本监听重建，其余共享包如 contract 仍要另开终端 pnpm dev:libs）；
 // 2. 用 Vite 开发服务器跑 packages/renderer（/mascot/）与 packages/ai-chat（/chat/）（视图运行时识别 Go 宿主）；
 // 3. 编译并启动 Go 程序，NOMI_DEV_VIEWS 让资产服务器把 /mascot/*、/chat/* 代理到这两个开发服务器
 //    （internal/shell/devviews）。WebView 里仍是 wails:// 同源页面，HMR 由 Vite 客户端直连 ws://127.0.0.1:<端口>。
 //
-// 改视图源码：热更新；改 Go 代码（含内嵌的 locales / json 等）：自动重新编译并重启 Go 程序，视图服务器不动；
+// 改视图源码：热更新；改 packages/ui/src：自动重建 ui 包并让视图整页重载（见下方 rebuildUi）；
+// 改 Go 代码（含内嵌的 locales / json 等）：自动重新编译并重启 Go 程序，视图服务器不动；
 // 编译失败时旧进程照常跑，修好再存一次即可。关掉应用（退出）= 结束开发态。
 // 参数原样传给 Go 程序；--skip-deps 跳过第 1 步。端口见 dev-ports.json（可用 CD_*_PORT 覆盖）。
 import { spawn, spawnSync } from 'node:child_process';
