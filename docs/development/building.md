@@ -14,9 +14,9 @@ pnpm install
 ## 开发
 
 ```bash
-pnpm dev          # 先做环境自检，再启动两个视图的 Vite 开发服务器与 Go 程序（视图热更新，改 Go 代码自动重编译重启）
+pnpm dev          # 先做环境自检，再启动两个视图的 Vite 开发服务器与 Go 程序（视图热更新，改 Go 代码自动重编译重启；改 packages/ui/src 自动重建该包并让视图重载）
 pnpm doctor       # 完整环境自检（Node、pnpm、Go、端口）
-pnpm dev:libs     # 另开终端：改 contract / ui 等共享包时监听重建
+pnpm dev:libs     # 另开终端：改 contract 等共享包时监听重建（packages/ui 已由 pnpm dev 自动重建，不必再起）
 ```
 
 细节（参数、`--skip-deps`、开发态的视图代理）见 [apps/desktop-go/README.md](../../apps/desktop-go/README.md)。

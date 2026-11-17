@@ -46,3 +46,7 @@
   outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: -2px;
 }
+/* 收起时悬停提示的包装层：.cd-tooltip 默认 inline-flex，在竖排 flex 里保持不影响对齐 */
+.tipHost {
+  display: inline-flex;
+}

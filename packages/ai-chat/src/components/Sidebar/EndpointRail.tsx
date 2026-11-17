@@ -1,4 +1,4 @@
-import { t } from '@nomi-ai/ui';
+import { t, Tooltip } from '@nomi-ai/ui';
 import React from 'react';
 
 import type { EndpointVisibility, EndpointVisibilityMap } from '../../services/chatPrefs';
@@ -10,7 +10,8 @@ import styles from './index.module.css';
 
 /**
  * 工作台模式：左侧导航栏里竖排的端点，选中后再次点击回到全部会话。
- * 全部显示、只排序；数量与安装状态在悬停提示里；「显示设置」的弹出层向右展开。
+ * 全部显示、只排序；数量与安装状态在悬停提示里（气泡放右侧：侧栏祖先有 overflow: hidden）；
+ * 「显示设置」的弹出层向右展开。
  */
 export const EndpointRail: React.FC<{
   /** 正在看的端点（「按端」时）；「全部」时为 null */
@@ -37,18 +38,19 @@ export const EndpointRail: React.FC<{
       {p.shown.map((b) => {
         const tip = p.tipOf(b);
         return (
-          <button
-            key={b}
-            type="button"
-            className={styles.epChip}
-            aria-pressed={p.active === b}
-            aria-label={tip}
-            disabled={p.isDisabled(b)}
-            data-testid={`endpoint-filter-${b}`}
-            onClick={() => (p.active === b ? p.onAll() : p.onPick(b))}
-          >
-            <EndpointIcon backend={b} size={18} variant="color" decorative />
-          </button>
+          <Tooltip key={b} placement="right" content={tip} className={styles.epChipTip}>
+            <button
+              type="button"
+              className={styles.epChip}
+              aria-pressed={p.active === b}
+              aria-label={tip}
+              disabled={p.isDisabled(b)}
+              data-testid={`endpoint-filter-${b}`}
+              onClick={() => (p.active === b ? p.onAll() : p.onPick(b))}
+            >
+              <EndpointIcon backend={b} size={18} variant="color" decorative />
+            </button>
+          </Tooltip>
         );
       })}
       <EndpointVisibilityMenu

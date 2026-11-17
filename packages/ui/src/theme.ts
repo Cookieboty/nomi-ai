@@ -36,7 +36,7 @@ export const THEMES: ThemeInfo[] = [
     id: 'light',
     name: 'ui.mascot-theme.theme-light',
     desc: 'ui.mascot-theme.theme-light-desc',
-    swatch: ['#f7f7f7', '#ffffff', '#141414', '#c45425'],
+    swatch: ['#faf9f6', '#ffffff', '#211d19', '#9d3f29'],
   },
   {
     id: 'dark',

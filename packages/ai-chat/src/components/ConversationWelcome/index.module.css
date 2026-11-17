@@ -5,19 +5,22 @@
   flex: 1;
   min-height: 0;
   width: 100%;
-  padding: var(--cd-space-6) var(--cd-space-5);
+  padding: var(--cd-space-6) var(--cd-space-5) 0;
   overflow-y: auto;
 }
 .content {
   width: 100%;
   max-width: 480px;
-  margin: auto;
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .mark {
   display: inline-flex;
   margin-bottom: var(--cd-space-4);
-  color: var(--cd-color-text-muted);
-  filter: grayscale(1);
+  /* 图标保留产品原色（不再用 grayscale 滤成灰白），让首页有品牌辨识度 */
 }
 .title {
   margin: 0;
@@ -33,99 +36,8 @@
   font-size: var(--cd-font-size-sm);
   line-height: var(--cd-line-height);
 }
-.setup {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-3);
-  margin-top: var(--cd-space-6);
-  padding: var(--cd-space-3);
-  border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-lg);
-}
-.setupIcon {
-  flex-shrink: 0;
-  color: var(--cd-color-text-subtle);
-}
-.setupCopy {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--cd-space-1);
-  min-width: 0;
-}
-.setupTitle {
-  color: var(--cd-color-text);
-  font-size: var(--cd-font-size-sm);
-  font-weight: var(--cd-font-weight-medium);
-}
-.setupDescription,
-.hint {
-  font-size: var(--cd-font-size-xs);
-  line-height: var(--cd-line-height);
-  color: var(--cd-color-text-subtle);
-}
-.hint {
-  margin: var(--cd-space-4) 0 0;
-}
-.prompts {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--cd-space-2);
-  margin-top: var(--cd-space-6);
-}
-.prompt {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-2);
-  min-width: 0;
-  min-height: var(--cd-control-h-lg);
-  padding: var(--cd-space-2) var(--cd-space-3);
-  border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-lg);
-  background: transparent;
-  color: var(--cd-color-text-muted);
-  font: inherit;
-  font-size: var(--cd-font-size-sm);
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background var(--cd-duration-fast),
-    color var(--cd-duration-fast);
-}
-.prompt > svg {
-  flex-shrink: 0;
-}
-.prompt > span {
-  flex: 1;
-  min-width: 0;
-}
-.promptArrow {
-  color: var(--cd-color-text-subtle);
-}
-.prompt:hover {
-  color: var(--cd-color-text);
-  background: var(--cd-color-hover);
-}
-.prompt:active {
-  background: var(--cd-color-nav-pressed);
-}
-.prompt:focus-visible {
-  outline: 2px solid var(--cd-color-accent-strong);
-  outline-offset: 2px;
-}
 @media (max-width: 480px) {
   .screen {
-    padding: var(--cd-space-5) var(--cd-space-4);
-  }
-  .prompts {
-    grid-template-columns: 1fr;
-  }
-  .setup {
-    flex-wrap: wrap;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .prompt {
-    transition: none;
+    padding: var(--cd-space-5) var(--cd-space-4) 0;
   }
 }
