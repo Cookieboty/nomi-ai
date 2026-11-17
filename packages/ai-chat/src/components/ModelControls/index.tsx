@@ -11,6 +11,7 @@ import { Icon, isImageModel, t, type PickerModel } from '@nomi-ai/ui';
 import { IconRefresh as RefreshCw } from '@tabler/icons-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
+import { useCliLauncher } from '../../services/cliLauncherClient';
 import {
   codingProviders,
   defaultSourceSwitch,
@@ -73,6 +74,7 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
   const source = tabSourceOf(tab);
   const { catalog, refreshing, refresh } = useCatalog(tab.backend, source);
   const gateway = useGatewayState();
+  const launcher = useCliLauncher(tab.backend);
   const [open, setOpen] = useState(false);
   const thirdRef = source === 'thirdParty' ? thirdPartyRefOf(tab, tab.backend, gateway) : null;
   // 聊过的会话：原来的供应商与默认供应商不同时两家都列（全部模型）
@@ -80,7 +82,10 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
     () => (source === 'thirdParty' ? sessionModelGroups(tab, tab.backend, gateway) : null),
     [source, tab, gateway],
   );
-  const sourceSwitch = useMemo(() => defaultSourceSwitch(tab, gateway), [tab, gateway]);
+  const sourceSwitch = useMemo(
+    () => defaultSourceSwitch(tab, gateway, launcher.accountSource),
+    [tab, gateway, launcher.accountSource],
+  );
   // 官方来源：网关里的供应商也按标签列出来，可以直接换过去（与 Nomi 的模型选择器同形）
   const switchProviders = useMemo(
     () =>

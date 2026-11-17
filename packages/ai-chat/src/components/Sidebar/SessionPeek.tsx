@@ -23,6 +23,7 @@ import type { Meta } from './types';
 const LIVE_LABEL: Record<string, string> = {
   running: 'ui.chat-settings.in-progress',
   queued: 'ui.mascot-theme.queued',
+  done: 'ui.foundation.done',
   unread: 'ui.mascot-theme.new-result',
   error: 'ui.chat-settings.error',
   background: 'ui.chat-settings.running-in-background',
@@ -31,8 +32,12 @@ const LIVE_LABEL: Record<string, string> = {
 
 export const sessionName = (c: Meta) => (c.name ? t(c.name) : t('ui.chat-settings.new-chat'));
 
-export const sessionStatus = (tab: HarnessTabMeta | undefined, running?: boolean): string => {
-  const key = LIVE_LABEL[rowLive(tab, running)];
+export const sessionStatus = (
+  tab: HarnessTabMeta | undefined,
+  running?: boolean,
+  done?: boolean,
+): string => {
+  const key = LIVE_LABEL[rowLive(tab, running, done)];
   return key ? t(key) : '';
 };
 
@@ -98,6 +103,8 @@ export const SessionPeek: React.FC<{
   tab: HarnessTabMeta | undefined;
   /** Nomi 对话正在回复（没有标签，状态从 AiChat 的 busyConvos 来） */
   running?: boolean;
+  /** 刚跑完一轮、还没点进去看 */
+  done?: boolean;
   top: number;
   left: number;
   testId?: string;

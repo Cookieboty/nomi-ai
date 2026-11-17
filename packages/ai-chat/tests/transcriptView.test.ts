@@ -14,9 +14,9 @@ import {
 beforeEach(() => resetTranscriptViewsForTest());
 
 describe('Transcript view 的全局默认与会话覆盖', () => {
-  it('新会话默认显示思考（thinking）', () => {
-    expect(getGlobalTranscriptView()).toBe('thinking');
-    expect(getTranscriptView('tab:a')).toBe('thinking');
+  it('新会话默认极简模式（minimal）', () => {
+    expect(getGlobalTranscriptView()).toBe('minimal');
+    expect(getTranscriptView('tab:a')).toBe('minimal');
     expect(getSessionTranscriptView('tab:a')).toBeNull();
   });
 
@@ -43,7 +43,13 @@ describe('Transcript view 的全局默认与会话覆盖', () => {
     expect(getTranscriptView('tab:a')).toBe('thinking');
   });
 
-  it('从 localStorage 读回；无效值按默认处理', () => {
+  it('保留本机 localStorage 已写入的旧全局设置；无效值按默认 minimal 处理', () => {
+    window.localStorage.setItem(
+      'nomi.transcriptView.v1',
+      JSON.stringify({ global: 'thinking', sessions: {} }),
+    );
+    expect(getGlobalTranscriptView()).toBe('thinking');
+
     setGlobalTranscriptView('verbose');
     setTranscriptView('tab:a', 'thinking');
     expect(getGlobalTranscriptView()).toBe('verbose');
@@ -53,8 +59,8 @@ describe('Transcript view 的全局默认与会话覆盖', () => {
       'nomi.transcriptView.v1',
       JSON.stringify({ global: 'bogus', sessions: { 'tab:a': 'bogus', 'tab:b': 'yes' } }),
     );
-    expect(getGlobalTranscriptView()).toBe('thinking');
-    expect(getTranscriptView('tab:a')).toBe('thinking');
+    expect(getGlobalTranscriptView()).toBe('minimal');
+    expect(getTranscriptView('tab:a')).toBe('minimal');
     expect(getSessionTranscriptView('tab:b')).toBeNull();
   });
 

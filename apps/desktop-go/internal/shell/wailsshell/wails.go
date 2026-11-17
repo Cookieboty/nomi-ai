@@ -88,6 +88,9 @@ type Wails struct {
 	notes *notifier
 	// detached：对话标签弹出来的独立窗口（detachedwindow.go），按标签 id
 	detached map[string]*application.WebviewWindow
+	// browsers：内置浏览器窗口（browserwindow.go），按视图定的标签 id
+	browsers     map[string]*browserWin
+	browserTimer *time.Timer
 }
 
 type pageLoad struct {
@@ -98,18 +101,25 @@ type pageLoad struct {
 func New(cfg Config) *Wails {
 	w := &Wails{cfg: cfg, wins: map[shell.WindowKind]*application.WebviewWindow{}, aot: map[shell.WindowKind]bool{}, loads: map[*application.WebviewWindow]*pageLoad{},
 		releases: map[*application.WebviewWindow]func(){}, detached: map[string]*application.WebviewWindow{},
-		notes: newNotifier()}
+		browsers: map[string]*browserWin{},
+		notes:    newNotifier()}
 	w.app = application.New(application.Options{
 		Name:     hostports.GoProductName,
 		Services: w.notes.services(),
 		// 退出时在关窗之前跑（等对话窗口排着的会话写入写完，见 main.go）
 		OnShutdown: cfg.OnShutdown,
 		// Bundled：额外提供 /wails/runtime.js（完整运行时：--wails-draggable 拖动窗口、文件拖放；viewpage 插进页面）
-		Assets: application.AssetOptions{Handler: application.BundledAssetFileServer(cfg.Assets), Middleware: cfg.Middleware},
+		// 最外层先挡浏览器标签窗口（外部网页）：它们不能请求应用页面与 /wails/runtime（见 shell.GuardBrowserWindowAssets）
+		Assets: application.AssetOptions{Handler: application.BundledAssetFileServer(cfg.Assets), Middleware: assetMiddleware(cfg.Middleware)},
 		// 页面首帧（renderer 入口 index.tsx 发 nomi:first-paint）：mac 上 Wails 要等 DidFinishNavigation
 		// 才 Show，这里在首帧就显示（ready-to-show）；只接受顶层文档的消息，拒绝内嵌外部 iframe 伪造 nomi:* 信号
 		RawMessageHandler: func(win application.Window, msg string, origin *application.OriginInfo) {
-			if origin != nil && !origin.IsMainFrame {
+			// 浏览器标签窗口里是外部网页：主框架消息也不收（见 shell.AcceptPageMessage）
+			name := ""
+			if win != nil {
+				name = win.Name()
+			}
+			if !shell.AcceptPageMessage(name, origin == nil || origin.IsMainFrame) {
 				return
 			}
 			// 开发态（devviews → viewpage）页面转来的 console 与报错
@@ -461,6 +471,8 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		win.OnWindowEvent(events.Common.WindowDidMove, func(*application.WindowEvent) { w.notify(k, "moved") })
 	case shell.Chat:
 		w.trackChatBounds(win)
+		// 内置浏览器窗口跟着对话窗口挪 / 缩放 / 最小化（browserwindow.go）
+		w.followChatBrowser(win)
 	}
 	w.mu.Lock()
 	w.wins[k] = win
@@ -884,4 +896,14 @@ func windowsOptions() application.WindowsOptions {
 		opts.WebviewUserDataPath = filepath.Join(hostports.DefaultPaths().UserData(), "webview")
 	}
 	return opts
+}
+
+// assetMiddleware：浏览器标签窗口的拦截放在最外层，再接调用方的中间件
+func assetMiddleware(next func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		if next != nil {
+			h = next(h)
+		}
+		return shell.GuardBrowserWindowAssets(h)
+	}
 }

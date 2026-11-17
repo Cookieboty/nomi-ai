@@ -5,17 +5,45 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ## Unreleased
 
+### Maintenance
+
+- **release:** empty changeset after archiving 2.3.18
+
+## 2.3.18 — 2026-11-17
+
 ### Features
 
+- **chat:** 侧栏会话行补上「已完成」的状态点：一轮成功跑完留下一个绿点，点进会话就消失。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
+- **chat:** 侧栏项目支持跨多 CLI 全局共享与任选端新建会话，新增鼠标悬停项目头右侧详情弹窗（展示聊天总数、全部源文件夹、项目置顶与编辑入口）。 (`@nomi-ai/ai-chat` patch)
+- **chat:** 子任务浮层卡片重做了层级：图标 + 名字 + 状态徽章一行，下面「任务」与「最近输出」两个小节，最近一句改成引用块，输出整段截断四行，可点时底部有一条通栏打开动作。 (`@nomi-ai/ai-chat` patch)
+- **chat:** 新增「极简」会话详细程度模式并设为新环境默认，支持在运行中与完成后点击圆角横条展开查看逐行步骤并在局部区域内独立滚动，收起时仅展示步骤进度、已用时与最终总结；并禁用步骤与状态进度区域的划词工具条触发。 (`@nomi-ai/ai-chat` patch)
 - **chat:** 空会话首页整块垂直居中，示例问题卡片移到输入框下方；还没有可用模型时，输入框下方常驻「添加模型 / 选择模型」引导卡（键盘与触屏都能操作）并隐藏示例问题，空会话输入框缺省文案改为「输入 / 查看命令 · 点击 + 添加更多」。 The empty chat home is vertically centered with the quick prompt cards below the composer. Without a usable model, a visible "add / choose a model" card (keyboard and touch accessible) replaces the prompt cards, and the empty composer placeholder now points to / commands and the + menu. (`@nomi-ai/ai-chat` patch)
 - **cli:** Claude Code、Codex、Grok、Kimi Code、MiniMax Code 可以各自选择沿用本机登录或 Nomi 管理的账号（默认仍是 Nomi 管理）；默认用检测到的 CLI，高级设置里可选填自定义启动命令；保留协议与续接参数，第三方模型的启动方式不变。 Choose local CLI sign-in or Nomi-managed accounts independently for Claude Code, Codex, Grok, Kimi Code and MiniMax Code (Nomi-managed stays the default). Use detected CLIs by default, with optional custom launch commands under advanced settings. Preserve protocol and resume arguments and keep third-party model launches unchanged. (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
 - **cli:** 新增 `cli.launcherGet` / `cli.launcherSet` / `cli.launcherTest`（仅限对话窗口，设置与测试标为 dangerous）以及本机登录、自定义启动命令的文案。 Add `cli.launcherGet` / `cli.launcherSet` / `cli.launcherTest` (chat window only; set and test are dangerous) and strings for local sign-in and custom launch commands. (`@nomi-ai/contract` patch, `@nomi-ai/i18n` patch)
+- **i18n:** 补「极简」会话详细程度模式相关的中英文词条。 (`@nomi-ai/i18n` patch)
+- **i18n:** 补侧栏项目多 CLI 共享与悬停详情弹窗相关的中英文词条。 (`@nomi-ai/i18n` patch)
 - **ui:** 浅色主题按设计系统对齐色值，工作区背景改为 #FAF9F6，主题色块同步更新。 Light theme colors aligned with the design system, the workspace background set to #FAF9F6, and the light theme swatch updated to match. (`@nomi-ai/ui` patch)
 
 ### Fixes
 
+- **chat:** Nomi 对话的用户消息发出就先存进对话记录，不再等这一轮回复结束才一起落盘。之前回复还在跑时应用重启（比如装更新），刚发的那句话会整句消失。现在重开后它还在对话里，后面跟一张「这一轮被重启打断」的卡，点「重试」就从这条消息重新发送。这张卡只在界面上显示，不写进记录。之后带上记忆、委派对象，或中途插进压缩摘要时，按消息 id 再存一次，不会多出一条，顺序也还是「摘要 → 问题 → 回复」。没变化的轮次只追加，不整份重写。智能标题照常生成。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
+- **chat:** 修好「新建会话后输入框打不了字」。关掉或藏起内置浏览器时，如果键盘焦点还在网页里，现在会交还给对话页面。之前 macOS 和 Windows 上光标看着在输入框里，按键却全被藏起来的网页吃掉。新会话不再被上一个会话的文件预览误判成「属于别的会话」而禁掉输入框：会话 id 还没定下来，或工作目录比预览晚到，都不算。真的被挡住时，输入框上方会写明原因，并给出「回到原会话」或「关闭预览」。启动画面淡出时不再拦点击。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
+- **chat:** 修好两个「加载更多 / 更早」点了没反应的问题：侧栏本机历史的「加载更多」不再因为窗口重新聚焦被重置回第一页，被打断的那一页也会正常解锁按钮；长对话里尾部带巨型工具轨迹时，「显示更早」不会再因为体量预算吃满而一步都跨不出去（预算只约束首屏，用户显式要求时按条数加载），并且加载锁一定会复位，不会点一次之后按钮和滚到顶都静默失效。 (`@nomi-ai/ai-chat` patch)
+- **chat:** 压缩上下文 / 召回记忆期间发出的消息会「消失」几十秒 —— 用户消息现在立刻上屏。 (`@nomi-ai/ai-chat` patch)
+- **chat:** 回复还在跑时排队的消息、以及已经插入这一轮的句子，应用重启后不再丢失。待发列表按会话存在元信息和本地，重开后挂回；已经交给模型的插入记在元信息里，打断后补到对话里（可重试，重试仍带着它）。正常结束时它们只留在回复的轨迹里，不会重复出现，也不会把整段对话重写一遍。 (`@nomi-ai/ai-chat` patch)
+- **chat:** 新增「这一轮还没回复完 Nomi 就重启了」的中英文提示文案。Add the zh/en string for the card shown when a reply was interrupted by an app restart. (`@nomi-ai/i18n` patch)
+- **chat:** 新增中途插入消息在对话记录里的标记文案（「你加入了」已有；补上重启后跟进的中英文）。Add the zh/en label used when a mid-turn follow-up is recovered after a restart. (`@nomi-ai/i18n` patch)
+- **chat:** 新增输入框被文件预览挡住时的中英文说明和「回到原会话」按钮文案。Add the zh/en notice shown when a file preview blocks the composer, and the "Return to conversation" button label. (`@nomi-ai/i18n` patch)
+- **cli:** 「自动」档在 Nomi 里跑不起来，不是端点不支持，是 Nomi 把 auto 的前置状态过滤掉了。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
+- **cli:** 修复本地 CLI 接入测试命令注入风险，补齐自定义启动器配置下的历史会话扫描、Kimi/MiniMax 环境变量放行、可用性探测及账号来源切换刷新 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
+- **cli:** 清单给 Grok 补上「自动」档，映射到 CLI 的 acceptEdits；此前没有这一档，选「自动」会掉回逐项确认。 (`@nomi-ai/cli-catalog` patch)
+- **delegate:** 被停止的后台委派不再往当前轮注入 `<cli-output>`：结果消息已写进对话（模型下一轮从历史里读得到），卡片也标着「已停止」，再 steer 一遍只会让模型以为自己被用户插了句话。完成 / 失败仍然实时告知正在跑的这一轮，但只投给模型，不在时间线里留 interject —— 界面上不再出现「你插入了 \<cli-output\>…」这类假用户消息。 (`@nomi-ai/ai-chat` patch)
+- **models:** 看图能力只看模型元数据（models.dev 同步的那份），不再按模型名猜：元数据没写就不提示，元数据明确不支持才提示，并列出你自己已启用的视觉模型供切换。同时补齐主流模型的内置价格（deepseek / qwen / kimi / 智谱 / MiniMax / Grok / Mistral 等），同步范围加上聚合商兜底，价格匹配支持用基础名命中 `-1017` 这类同族快照 —— `deepseek-v4.1-flash` 不再既被判不能看图、又算不出价格。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
+- **session-details:** 会话详情中的子 Agents 与任务悬停卡片改为贴面板左侧外沿展开、跨项移动立即收起并防止浮层点击误关，不再遮挡下方相邻条目。 (`@nomi-ai/ai-chat` patch)
 - **sidebar:** 修复侧栏会话较多（启用虚拟列表）时上方分组被顶出可视区、滚动与点击失效的问题，并为折叠菜单项补上悬浮标题。 Fix the sidebar pushing upper sections out of view, where they could not be scrolled to or clicked, when the virtualized conversation list is active, and add hover titles to collapsed menu items. (`@nomi-ai/ai-chat` patch)
 - **usage:** 自定义启动命令使用单独配置目录时，Claude Code 的每日用量不再缺失：发现并记住 CLI 报告的日志位置，跨账号目录仍按消息去重。 Fix missing daily Claude Code usage when a custom launcher uses a separate configuration directory. Discover and remember the log location reported by the CLI, retaining message deduplication across account directories. (`@nomi-ai/desktop-go` patch)
+- **workspace:** 新增浏览器标签原生子视图的 `browserWindow.*` 契约（show / setRegion / navigate / reload / close / closeAll / sync，以及 loaded / closed 事件，仅限对话窗口调用）和相关中英文文案。 Add the `browserWindow.*` contract for the browser tab's native child view (show / setRegion / navigate / reload / close / closeAll / sync, plus loaded / closed events; chat window only) and the related zh/en strings. (`@nomi-ai/contract` patch, `@nomi-ai/i18n` patch)
+- **workspace:** 标签区的「浏览器」标签把网页嵌成**原生子视图**，既不是 iframe 也不是独立窗口。iframe 会被目标站点的 `X-Frame-Options` / `CSP frame-ancestors` 拒掉（Google、GitHub 这类都拒嵌），自签证书还会被降级成「已阻止此内容」，外部网页根本打不开；而独立窗口有它自己的层级，会浮在对话窗口之上盖住设置页与弹层，位置还得靠前端算屏幕坐标去贴，界面一动就错位。现在 macOS 用 `WKWebView` 作为对话窗口 `contentView` 的子视图，Windows 把 WebView2 窗口 `SetParent` 成子窗口（WS_CHILD）：随窗口移动与缩放、被窗口裁剪、最小化跟着消失。地址栏、刷新、在系统浏览器打开仍在侧栏；DOM 弹层盖不住原生子视图，所以视图改为按屏幕采样上报可见性（被整页视图盖住也算不可见），看不见就收起。关标签改成正向对账：视图随时把「现在开着的窗口 id 全集」报给宿主（`browserWindow.sync`），不在清单里的窗口直接被收；连接断开或整页重载（热更新最常见）时，它名下开过的窗口也一并收掉。只靠一条 `close(id)` 是不够的——视图一旦重建、标签键变了、那条通知打空，宿主侧那个原生视图就再没人认领，永远浮在屏幕上。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
 
 ### Maintenance
 

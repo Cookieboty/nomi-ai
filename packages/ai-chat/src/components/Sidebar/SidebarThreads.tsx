@@ -26,12 +26,17 @@ interface SidebarThreadsProps {
   headerActions: React.ReactNode;
   isDev: boolean;
   view: ConversationListView;
+  bins: Record<string, string | null>;
+  onProjectPeek?: Groups['onProjectPeek'];
+  onHideProjectPeek?: Groups['onHideProjectPeek'];
   listLabel: string;
   listOpen: boolean;
   onToggleList: () => void;
   ordered: Meta[];
   tabById: Map<string, HarnessTabMeta>;
   runningIds: Set<string>;
+  /** 刚跑完一轮、还没点进去看的 Nomi 会话 id */
+  doneIds: Set<string>;
   renamingId: string | null;
   showIcon: boolean;
   histVisible: boolean;
@@ -61,12 +66,16 @@ export const SidebarThreads: React.FC<SidebarThreadsProps> = ({
   headerActions,
   isDev,
   view,
+  bins,
+  onProjectPeek,
+  onHideProjectPeek,
   listLabel,
   listOpen,
   onToggleList,
   ordered,
   tabById,
   runningIds,
+  doneIds,
   renamingId,
   showIcon,
   histVisible,
@@ -93,7 +102,10 @@ export const SidebarThreads: React.FC<SidebarThreadsProps> = ({
         activeId={activeId}
         rows={rows}
         headerActions={headerActions}
-        hideEmpty={isDev && view === 'by-endpoint'}
+        canPickBackend={isDev && view === 'all'}
+        bins={bins}
+        onProjectPeek={onProjectPeek}
+        onHideProjectPeek={onHideProjectPeek}
       />
     )}
     {!grouped && (
@@ -116,6 +128,7 @@ export const SidebarThreads: React.FC<SidebarThreadsProps> = ({
           active={c.id === activeId}
           tab={c.tabId ? tabById.get(c.tabId) : undefined}
           running={c.tabId ? undefined : runningIds.has(c.id)}
+          done={c.tabId ? undefined : doneIds.has(c.id)}
           onOpen={rows.open}
           onCtx={rows.onCtx}
           renaming={renamingId === c.id}

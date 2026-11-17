@@ -3,7 +3,7 @@
  *
  * 本文件只属于 D2：过程、事件、业务错误码都在这里声明，`app/index.ts` 负责汇总。
  * 命名空间：theme、locale、startup、onboarding、providers、gateway、providerLink、usage、quality、updates、diagnostics、appIcon、
- * migration、conversations、chatWindow（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
+ * migration、conversations、chatWindow、browserWindow（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
  *
  * 旧面（迁入后由收尾批次删除）：
  * - `ai:theme:*`、`ai:locale:*`（packages/ui 的 theme.ts / i18n.ts）、`ai:startup:*`、`ai:onboarding:*`
@@ -25,6 +25,7 @@ import { z } from 'zod';
 
 import type { EventMap, ProcedureMap } from '../contract';
 
+import * as BW from './shell/browserWindow';
 import * as S from './shell/schemas';
 
 const v = z.void();
@@ -471,6 +472,65 @@ export const shellProcedures = {
     output: z.string().nullable(),
     surfaces: CHAT,
   },
+  // ---- 内置浏览器窗口（docs/design/side-tabs-workspace.md）----
+  /**
+   * 把 url 打开在贴着 region 的独立原生窗口里（网页是顶层文档，不受 X-Frame-Options / frame-ancestors 限制）。
+   * 同一个 id 已经开着时换地址并重新贴位。ok=false 时视图退到「在系统浏览器打开」。
+   */
+  'browserWindow.show': {
+    kind: 'mutation',
+    input: BW.BrowserWindowShowInput,
+    output: BW.BrowserWindowShowResult,
+    surfaces: CHAT,
+  },
+  /** 更新贴住的区域（视图滚动 / 拖分隔条 / 切标签）；visible=false 时先藏起来 */
+  'browserWindow.setRegion': {
+    kind: 'mutation',
+    input: BW.BrowserWindowRegionInput,
+    output: z.boolean(),
+    surfaces: CHAT,
+  },
+  /** 换地址（同一个 url 等于刷新）；没开着时 ok=false */
+  'browserWindow.navigate': {
+    kind: 'mutation',
+    input: BW.BrowserWindowNavigateInput,
+    output: z.boolean(),
+    surfaces: CHAT,
+  },
+  /** 重新加载当前页：用户可能在窗口里点进别的页面了，地址栏的 url 未必是当前页 */
+  'browserWindow.reload': {
+    kind: 'mutation',
+    input: BW.BrowserWindowIdInput,
+    output: z.boolean(),
+    surfaces: CHAT,
+  },
+  /** 关掉并释放窗口（标签关掉 / 换成别的标签） */
+  'browserWindow.close': {
+    kind: 'mutation',
+    input: BW.BrowserWindowIdInput,
+    output: z.boolean(),
+    surfaces: CHAT,
+  },
+  /**
+   * 收掉所有开着的浏览器窗口。视图卸载 / 整页重载时用（开发态热更新最常碰到）：
+   * 这时逐个 close 未必跑得完，旧窗口会浮在界面上盖住别的内容。
+   */
+  'browserWindow.closeAll': {
+    kind: 'mutation',
+    input: BW.BrowserWindowCloseAllInput,
+    output: z.boolean(),
+    surfaces: CHAT,
+  },
+  /**
+   * 报上「这一侧现在开着的窗口 id 全集」，宿主收掉不在这份清单里的（空清单 = 一个都不留）。
+   * 关标签不再依赖单条 close 能送到：视图重建 / 切会话重挂载留下的旧原生视图，靠这一条收尾。
+   */
+  'browserWindow.sync': {
+    kind: 'mutation',
+    input: BW.BrowserWindowSyncInput,
+    output: BW.BrowserWindowSyncResult,
+    surfaces: CHAT,
+  },
 } as const satisfies ProcedureMap;
 
 export const shellEvents = {
@@ -498,6 +558,10 @@ export const shellEvents = {
   'chatWindow.detachedChanged': z.array(z.string()),
   /** 弹出窗口里点了「放回主窗口」：主窗口切到这个标签 */
   'chatWindow.tabDocked': z.object({ id: z.string() }),
+  /** 内置浏览器窗口里的页面加载完成（视图收掉地址栏进度条） */
+  'browserWindow.loaded': BW.BrowserWindowLoaded,
+  /** 内置浏览器窗口没了（建窗后崩溃 / 被系统关掉）：视图回到回退页 */
+  'browserWindow.closed': BW.BrowserWindowClosed,
 } as const satisfies EventMap;
 
 /** 只推给对话窗口的事件 */
@@ -505,6 +569,8 @@ export const shellEventSurfaces = {
   'conversations.changed': ['chat'],
   'chatWindow.detachedChanged': ['chat'],
   'chatWindow.tabDocked': ['chat'],
+  'browserWindow.loaded': ['chat'],
+  'browserWindow.closed': ['chat'],
 } as const;
 
 /** 业务错误码（UPPER_SNAKE_CASE，不得与其他域重名）；处理函数用 `ctx.fail(code, message)` 抛出 */

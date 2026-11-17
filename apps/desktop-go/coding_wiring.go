@@ -283,6 +283,12 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 				m, _ := o.SessionModel(b, id)
 				return m
 			},
+			ClaudeConfigDirs: func() []string {
+				if s := usageRef.Load(); s != nil {
+					return s.ClaudeConfigDirs()
+				}
+				return nil
+			},
 		})
 	})
 	svc := codinghandlers.CodingServices{
@@ -294,6 +300,11 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 				return nil
 			}
 			return updates
+		},
+		OnLauncherSaved: func(kind string, prev, next cli.LauncherSettings) {
+			if o != nil {
+				o.LauncherChanged(kind, prev, next)
+			}
 		},
 	}
 	codinghandlers.RegisterCoding(router, svc)

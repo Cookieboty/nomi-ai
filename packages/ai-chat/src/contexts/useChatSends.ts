@@ -21,7 +21,7 @@ import {
   type HarnessTraceEvent,
   type HarnessUsage,
 } from '../services/harnessClient';
-import { imageLinksNote } from '../services/history';
+import { imageLinksNote, STEER_TAG } from '../services/history';
 import { kbClient } from '../services/kbClient';
 import { memoryContext } from '../services/memClient';
 import { nomiModelLabel, servedModelLabel } from '../services/nomiModel';
@@ -35,9 +35,15 @@ import { closeOpenCalls } from '../utils/toolTrace';
 
 import { convoKey, errorMessage, type AiChatAction, type AiChatState } from './aiChatState';
 import type { ActiveStream, InflightTurn } from './chatTurn';
-import { newReqId, openTurn } from './chatTurn';
+import {
+  finishDeliveredSteers,
+  newReqId,
+  openTurn,
+  persistDeliveredSteer,
+  userMessageSaver,
+} from './chatTurn';
 import { compactHistory } from './compactHistory';
-import { attachSteer } from './nomiSteer';
+import { attachSteer, finishSteer, type DeliveredSteer, type SteerLedger } from './nomiSteer';
 
 interface SendsOptions {
   stateRef: MutableRefObject<AiChatState>;
@@ -47,6 +53,8 @@ interface SendsOptions {
   maybeIngest: (msgs: ChatMessage[], convoId?: string) => void;
   /** 当前会话这一轮的工具开始订阅（见 contexts/nomiSteer） */
   notifyToolStart: (key: string) => void;
+  /** 这一轮里交给模型的用户插入（按对话键；见 contexts/nomiSteer.DeliveredSteer） */
+  steering: MutableRefObject<SteerLedger>;
 }
 
 /** 普通发送与知识库问答：一次性返回整段回复 */
@@ -70,6 +78,9 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
         // 本轮之前的会话消息作为多轮上下文（state.messages 尚未包含本轮 userMessage）
         const history = s.messages;
         dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
+        // 用户消息先落盘（不等这一轮结束）：中途重启也不丢
+        const user = userMessageSaver(turn, userMessage);
+        await user.early();
         schedClient.activity();
 
         // CLI 后端：全部转发，禁用 Nomi 工具 / 记忆注入
@@ -86,7 +97,7 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
               modelId: hs.backend === 'claude' ? 'claude-code' : hs.backend,
             };
             if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
-            await turn.save(userMessage);
+            await user.final();
             await turn.save(aiMessage);
             return;
           }
@@ -96,6 +107,7 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
         maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
         const mem = await memoryContext(content, injectedMemoryIds(history));
         if (mem.text.trim()) userMessage.memory = { text: mem.text, ids: mem.ids };
+        await user.early();
         const response = await s.ipcClient.sendMessage(content, history, undefined, mem.text);
 
         const aiMessage: ChatMessage = {
@@ -108,7 +120,7 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
         };
         if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
 
-        await turn.save(userMessage);
+        await user.final();
         await turn.save(aiMessage);
         if (turn.exists()) maybeIngest([...history, userMessage, aiMessage], turn.convoId);
       } catch (error) {
@@ -140,6 +152,9 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
           .slice(-6)
           .map((m) => ({ role: m.role, content: m.content }));
         dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
+        // 用户消息先落盘（不等这一轮结束）：中途重启也不丢
+        const user = userMessageSaver(turn, userMessage);
+        await user.early();
         // 标题与检索并行（名字仍是默认名时才会真的请求模型）
         maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
         const r = await kbClient.ask(content, history);
@@ -153,7 +168,7 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
           kb: true,
         };
         if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
-        await turn.save(userMessage);
+        await user.final();
         await turn.save(aiMessage);
       } catch (error) {
         dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
@@ -175,6 +190,7 @@ function useStreamSend({
   inflight,
   maybeIngest,
   notifyToolStart,
+  steering,
 }: SendsOptions) {
   // 发送流式消息
   const sendStreamMessage = useCallback(
@@ -241,9 +257,24 @@ function useStreamSend({
               }
             : {}),
         };
+        // 先上屏：后面的后端探测、压缩摘要、记忆召回都要等，不能让输入框把刚发的话吞进去
+        // （压缩期间用户只看到摘要卡跑几十秒，自己那句话一直不出现）。后台自动恢复跟进不造假用户气泡。
+        if (!bgFollow && turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
+        // 用户消息发出就先落盘（不等这一轮结束）：回复期间应用重启（如更新）时它还在对话里，重开后可重试。
+        // 之后内容有变（记忆、委派对象）或中间存了压缩摘要时按 id 再存一次（放回摘要之后），没变不重复写。
+        const user = userMessageSaver(turn, userMessage);
+        const saveUser = (stage: 'early' | 'final', force = false): Promise<void> =>
+          bgFollow ? Promise.resolve() : stage === 'early' ? user.early(force) : user.final();
+        if (!bgFollow) {
+          inflight.current.set(convoKey(turn.convoId), {
+            reqId,
+            convoId: turn.convoId,
+            messages: [userMessage],
+          });
+          await saveUser('early');
+        }
         // `/agent`：直接派出编程助手。不交给对话模型——模型不调工具时会像已经交出，其实什么都没开始。
         if (delegateTo) {
-          if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
           maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
           // 等确认时可以停止：停止键中止这次调用，内核里的确认随之取消
           activeStream.current.set(convoKey(turn.convoId), {
@@ -283,7 +314,7 @@ function useStreamSend({
               timestamp: Date.now(),
             };
             if (turn.isActive()) dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, ack] });
-            await turn.save(userMessage);
+            await saveUser('final');
             await turn.save(ack);
           } catch (err) {
             const failed: ChatMessage = {
@@ -298,20 +329,35 @@ function useStreamSend({
             };
             if (turn.isActive())
               dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, failed] });
-            await turn.save(userMessage);
+            await saveUser('final');
             await turn.save(failed);
           }
           return;
         }
         let history = override?.history ?? s.messages;
         const hs = harnessClient.available() ? await harnessClient.state() : null;
-        // Nomi 对话：这一轮的上下文快到模型输入预算的 95% 时，先把较早的对话压缩成摘要
+        // Nomi 对话：这一轮的上下文快到模型输入预算的 95% 时，先把较早的对话压缩成摘要。
+        // 摘要要跑一次模型（几十秒），所以用户消息已经先上屏了，摘要卡插到它上方。
         if (!hs || hs.backend === 'nomi') {
-          const c = await compactHistory(client, history, content, turn, false, dispatch);
-          if (c.next) history = c.next;
+          const c = await compactHistory(
+            client,
+            history,
+            content,
+            turn,
+            false,
+            dispatch,
+            undefined,
+            userMessage.id,
+          );
+          if (c.next) {
+            history = c.next;
+            // 摘要存在了先存的用户消息后面：按 id 再存一次，让它回到摘要之后（下一轮的上下文从摘要往后取）
+            await saveUser('early', true);
+          }
         }
-        // 准备期间用户可能已切到别的会话：只有发起会话仍在显示时才上屏（后台自动恢复跟进不造假用户气泡）
-        if (!bgFollow && turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
+        // 万一起手时不在这个会话（或已被切回），补一次：按 id upsert，不会重复
+        if (!bgFollow && turn.isActive())
+          dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage] });
         inflight.current.set(convoKey(turn.convoId), {
           reqId,
           convoId: turn.convoId,
@@ -350,7 +396,7 @@ function useStreamSend({
               ...(r.usage ? { usage: r.usage } : {}),
             };
             if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: done });
-            await turn.save(userMessage);
+            await saveUser('final');
             await turn.save(done);
             return;
           }
@@ -368,6 +414,8 @@ function useStreamSend({
         if (!bgFollow && mem.text.trim()) userMessage.memory = { text: mem.text, ids: mem.ids };
         // 准备期间（压缩 / 记忆召回等）发起会话被删了：不发送（没有地方落盘，也不能借用当前会话）
         if (!turn.exists()) return;
+        // 带上了召回的记忆：开始回复前更新先存的那份（中途重启后重试，记忆也还在）
+        await saveUser('early');
         const aiMessageId = (Date.now() + 1).toString();
         const aiMessage: ChatMessage = {
           id: aiMessageId,
@@ -411,6 +459,35 @@ function useStreamSend({
           if (traceSnap?.length !== trace.length) traceSnap = [...trace];
           return traceSnap;
         };
+        /** 这一轮的对话键 / 交给模型的插入（按它记） */
+        const turnKey = convoKey(turn.convoId);
+        const steerList = () => steering.current.get(turnKey);
+        const markSteerTraced = (text: string) => {
+          for (const x of steerList() ?? [])
+            if (x.text === text || x.text.split('\n\n').some((p) => p.trim() === text.trim()))
+              x.traced = true;
+        };
+        /** 回复的正文 / 轨迹里已经有这一轮的插入了：补进记录的那几条不再需要 */
+        const noteSteersSent = () => {
+          for (const x of steerList() ?? [])
+            if (!x.traced && trace.some((e) => e.type === 'interject' && e.text === x.text))
+              x.traced = true;
+        };
+        /**
+         * 结局时补进回复正文的「你加入了」分节：已经有分节的（重启后再交付时接进了回复的开头）续写在后面；
+         * 没有的在开头加一节。文字里已经有的不重复加。
+         */
+        const fullSteerText = (text: string, done: readonly DeliveredSteer[]): string => {
+          noteSteersSent();
+          const missing = done
+            .filter((x) => !x.traced && !text.includes(`\n\n${STEER_TAG}\n\n${x.text}`))
+            .map((x) => x.text);
+          if (!missing.length) return text;
+          const part = `${STEER_TAG}\n\n${missing.join('\n\n')}`;
+          return text.includes(`\n\n${STEER_TAG}\n\n`)
+            ? `${text}\n\n${missing.join('\n\n')}`
+            : `${part}${text ? `\n\n${text}` : ''}`;
+        };
         const flushUi = () => {
           if (raf) cancelAnimationFrame(raf);
           if (timer) window.clearTimeout(timer);
@@ -439,7 +516,16 @@ function useStreamSend({
             trace,
             textLength: () => accumulated.length,
             deliver: (id, text) => stateRef.current.ipcClient.steerStream?.(id, text),
-            onChange: scheduleUi,
+            onChange: () => {
+              // 刚交给内核的插入记进元信息（中途重启后补成用户消息）。进行中的这一轮它们已经在
+              // 回复轨迹的 interject 里，不再往消息列表插一份，免得和轨迹重复显示。
+              const list = steerList() ?? [];
+              if (list.length) void persistDeliveredSteer(turn, reqId, list, userMessage.id);
+              scheduleUi();
+            },
+            ledger: steering.current,
+            convoKey: turnKey,
+            reqId,
           });
         try {
           const linked = imageUrls.filter(Boolean);
@@ -447,7 +533,11 @@ function useStreamSend({
           await client.sendStreamMessage(
             sent,
             (chunk: string) => {
-              accumulated += chunk;
+              // 重启后再交付时内核把「你加入了」分节带在回复开头（记录里补的那条算进了它）：
+              // 分节留在这条回复里（有序），不在正文里重复一遍
+              if (!accumulated && chunk.startsWith(`${STEER_TAG}\n\n`))
+                accumulated = `${STEER_TAG}\n\n`;
+              else accumulated += chunk;
               if (speaker) {
                 // 已切到别的会话：不再朗读这一轮
                 if (turn.isActive()) speaker.push(chunk);
@@ -471,6 +561,8 @@ function useStreamSend({
                 scheduleUi();
               },
               onTrace: (ev) => {
+                // 插入的消息到了回复的轨迹：补进对话记录的那条记成「已进回复」（结局时按 id 删掉）
+                if (ev.type === 'interject') markSteerTraced(ev.text);
                 trace.push(ev.textAt === undefined ? { ...ev, textAt: accumulated.length } : ev);
                 scheduleUi();
                 if (ev.type === 'tool' && ev.status === 'start')
@@ -486,9 +578,11 @@ function useStreamSend({
           // 还在跑的工具调用不会再有结果：标成已停止，否则时间线一直转圈
           trace.push(...closeOpenCalls(trace, Date.now(), t('ui.chat-settings.stopped')));
           // 这一轮失败：保留已生成的部分与轨迹，作为「错误卡片」留在对话里（可重试），不进模型上下文
+          // 插入的消息已经进了这条（轨迹里 / 正文开头「你加入了」分节）：补进记录的那几条不再需要
+          const done = finishSteer(steering.current, turnKey);
           const failed: ChatMessage = {
             ...aiMessage,
-            content: accumulated,
+            content: fullSteerText(accumulated, done),
             error: errorMessage(err),
             durationMs: Date.now() - startedAt,
             ...(usage?.responseModel ? { responseModel: usage.responseModel } : {}),
@@ -498,9 +592,10 @@ function useStreamSend({
           if (turn.isActive()) dispatch({ type: 'UPSERT_MESSAGES', payload: pair(failed) });
           if (!bgFollow) {
             maybeStartNomiSmartTitle(client, turn.convoId, userMessage.content);
-            await turn.save(userMessage);
+            await saveUser('final');
           }
           await turn.save(failed);
+          await finishDeliveredSteers(turn);
           // 错误已经显示在这一轮的卡片里（含详情 / 重试 / 复制）：不再抛给外层，避免底部再弹一条同样的提示（#78）
           return;
         }
@@ -510,12 +605,15 @@ function useStreamSend({
         trace.push(...closeOpenCalls(trace, Date.now(), t('ui.chat-settings.stopped')));
         if (stopped) speaker?.stop();
         else speaker?.finish();
+        // 中途插入的消息已经进了这条回复（轨迹里的 interject / 正文开头的「你加入了」分节）：
+        // 补进对话记录的那几条按 id 删掉（正常结束时只留轨迹里的一份，不重复显示、不重复进上下文）
+        const doneSteers = finishSteer(steering.current, turnKey);
         const finalAiMessage: ChatMessage = {
           ...aiMessage,
           // 故障转移后实际回答的可能是另一家：按网关报回的写
           ...(usage?.model ? { modelId: servedModelLabel(usage.model) } : {}),
           ...(usage?.responseModel ? { responseModel: usage.responseModel } : {}),
-          content: accumulated,
+          content: fullSteerText(accumulated, doneSteers),
           durationMs: Date.now() - startedAt,
           ...(trace.length ? { trace: [...trace] } : {}),
           ...(usage ? { usage } : {}),
@@ -527,9 +625,10 @@ function useStreamSend({
         }
         if (!bgFollow) {
           maybeStartNomiSmartTitle(client, turn.convoId, userMessage.content);
-          await turn.save(userMessage);
+          await saveUser('final');
         }
         await turn.save(finalAiMessage);
+        await finishDeliveredSteers(turn);
         if (!stopped && turn.exists())
           maybeIngest(
             [
@@ -552,7 +651,7 @@ function useStreamSend({
         dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId });
       }
     },
-    [stateRef, dispatch, activeStream, inflight, maybeIngest, notifyToolStart],
+    [stateRef, dispatch, activeStream, inflight, maybeIngest, notifyToolStart, steering],
   );
 
   return { sendStreamMessage };

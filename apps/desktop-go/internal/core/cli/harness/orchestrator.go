@@ -264,10 +264,12 @@ type Orchestrator struct {
 	recent                                         []string
 	writer                                         *utils.FileWriter
 	sessionModels                                  *cli.SessionModelTable
-	tabFileBytes                                   map[string]int
-	broadcastQueued                                bool
-	disposed                                       bool
-	sbx                                            sbxState
+	// autoMode：哪些端点 + 模型上「自动」档实测跑不通（cli.AutoModeTable）
+	autoMode        *cli.AutoModeTable
+	tabFileBytes    map[string]int
+	broadcastQueued bool
+	disposed        bool
+	sbx             sbxState
 	// turnOrigin：标签当前这一轮是谁发起的（TabFinished.Origin）；nextOrigin：下一次 SendTab 的发起方（沙箱续跑）
 	turnOrigin, nextOrigin map[string]string
 	events                 *emitter
@@ -372,6 +374,7 @@ func New(d Deps) *Orchestrator {
 	o.tabsDir = filepath.Join(d.Root, "tabs")
 	o.recentPath = filepath.Join(d.Root, "recent-cwds.json")
 	o.sessionModels = cli.NewSessionModelTable(d.Root, func(msg string, e error) { d.Logger.Warn(msg, e) })
+	o.autoMode = cli.NewAutoModeTable(d.Root, func(msg string, e error) { d.Logger.Warn(msg, e) })
 	o.writer = utils.NewFileWriter(persistDebounceMs, func(file string, e error) {
 		d.Logger.Warn("harness persist failed", util.NewObj("file", filepath.Base(file), "e", errString(e)))
 	})
@@ -767,6 +770,8 @@ func (o *Orchestrator) load() {
 				}
 				restored.Set("status", st)
 				restored.Set("unread", jsNumberOr0(tab.Get("unread")))
+				// 完成点不跨重启：重新打开应用时谁也不想看到一屏「刚完成」
+				restored.Delete("finished")
 				pm, _ := tab.Lookup("permissionMode")
 				if _, has := tab.Lookup("permissionMode"); !has {
 					pm = util.Undefined
@@ -1133,7 +1138,7 @@ func (o *Orchestrator) State() *util.Obj {
 	// bins 现查（命中走缓存；没找到的 10 秒后重查）：装完 CLI 后侧栏再取一次就能看到，不用重启
 	bins := util.NewObj()
 	for _, b := range builtin.Ordered {
-		if p := ResolveHarnessBin(b); p != "" {
+		if p := ResolveEffectiveHarnessBin(b); p != "" {
 			bins.Set(b, p)
 		} else {
 			bins.Set(b, nil)

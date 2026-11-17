@@ -54,9 +54,16 @@ const NomiConversation: React.FC<Omit<React.ComponentProps<typeof ConversationVi
 };
 
 /** 重新生成 / 重试：找到这条助手消息之前的用户消息，从那里重发 */
-const precedingUser = <T extends { id: string; role: string }>(list: readonly T[], id: string) => {
+const precedingUser = <T extends { id: string; role: string; steer?: boolean }>(
+  list: readonly T[],
+  id: string,
+) => {
   const i = list.findIndex((m) => m.id === id);
-  for (let k = i - 1; k >= 0; k--) if (list[k]!.role === 'user') return list[k]!;
+  // 跳过中途插入的用户消息：重试从这一轮原来的那句开始
+  for (let k = i - 1; k >= 0; k--) {
+    const m = list[k]!;
+    if (m.role === 'user' && !m.steer) return m;
+  }
   return undefined;
 };
 

@@ -12,8 +12,8 @@ import { useComposerDraftBinding } from '../../hooks/useComposerDraftBinding';
 import { useNextDelegate } from '../../hooks/useNextDelegate';
 import { SHARED_UNSENT, createComposerDraftStore } from '../../services/composerDrafts';
 import { delegateClient, setNextDelegate, type DelegateCli } from '../../services/delegateClient';
-import { nomiModelLabel, nomiModelMeta } from '../../services/nomiModel';
-import { likelyVision, type ImageAttachment } from '../../services/screenClient';
+import { currentVision } from '../../services/modelCapability';
+import { type ImageAttachment } from '../../services/screenClient';
 import { useShortcutBindings } from '../../services/shortcuts';
 import { agentArgQuery, filterAgents, type AgentOption } from '../../slash/agentComplete';
 import {
@@ -239,15 +239,12 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     [addFiles, setFiles],
   );
   const dragOver = useDragDrop(takeFiles, takeHostFiles);
-  const chatModel = nomiModelLabel() ?? '';
-  // 模型元数据写明了视觉能力就以它为准，否则按名字猜
-  const visionKnown = nomiModelMeta()?.vision;
+  // 只有元数据明确说不支持看图才提示；没有元数据（undefined）不吓用户，也不按名字猜
+  const visionKnown = currentVision();
   // 编程助手标签由调用方给出发图能力（当前 CLI 模型），不能拿 Nomi 自己的模型去判断
   const visionWarn =
     images.length > 0 &&
-    (imageCapability !== undefined
-      ? imageCapability === 'none'
-      : !(visionKnown ?? likelyVision(chatModel)));
+    (imageCapability !== undefined ? imageCapability === 'none' : visionKnown === false);
 
   const handleSend = createSendHandler(
     {

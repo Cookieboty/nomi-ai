@@ -20,6 +20,10 @@ export interface ProjectGroup {
   /** 悬停提示：项目名 + 全部文件夹 */
   title: string;
   items: Meta[];
+  /** 跨 Nomi 与所有 CLI 的总聊天会话数（不含已归档） */
+  totalChats: number;
+  /** 项目置顶时间戳（有值时排在侧栏项目列表最前） */
+  pinnedAt?: number;
   /** 组内最近一次更新（没有会话时是项目的更新时间） */
   updatedAt: number;
 }
@@ -37,16 +41,28 @@ export function pinnedFirst<T extends Pick<Meta, 'pinnedAt'>>(items: readonly T[
 
 /**
  * items 已按 updatedAt 倒序（置顶的已由 pinnedFirst 排到最前）；projectOf 取会话的项目 id（没有返回 undefined）。
- * 返回的 groups 与 rest 内部都保持原来的先后顺序。
+ * 返回的 groups 与 rest 内部都保持原来的先后顺序；置顶的项目排在最前（后置顶的在上）。
  */
 export function groupByProject(
   items: readonly Meta[],
   projects: readonly Project[],
   projectOf: (m: Meta) => string | undefined,
+  opts?: {
+    allItems?: readonly Meta[];
+    pinnedProjects?: Readonly<Record<string, number>>;
+  },
 ): { groups: ProjectGroup[]; rest: Meta[] } {
   const byKey = new Map<string, ProjectGroup>();
   for (const p of projects) {
-    byKey.set(p.id, { key: p.id, project: p, title: projectTitle(p), items: [], updatedAt: 0 });
+    byKey.set(p.id, {
+      key: p.id,
+      project: p,
+      title: projectTitle(p),
+      items: [],
+      totalChats: 0,
+      pinnedAt: opts?.pinnedProjects?.[p.id],
+      updatedAt: 0,
+    });
   }
   const rest: Meta[] = [];
   for (const m of items) {
@@ -58,8 +74,26 @@ export function groupByProject(
     g.items.push(m);
     if (m.updatedAt > g.updatedAt) g.updatedAt = m.updatedAt;
   }
-  for (const g of byKey.values()) if (!g.items.length) g.updatedAt = g.project.updatedAt;
-  const groups = [...byKey.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+  const allUpdatedAt = new Map<string, number>();
+  if (opts?.allItems) {
+    for (const m of opts.allItems) {
+      const g = byKey.get(projectOf(m) ?? '');
+      if (!g) continue;
+      g.totalChats += 1;
+      if (m.updatedAt > (allUpdatedAt.get(g.key) ?? 0)) allUpdatedAt.set(g.key, m.updatedAt);
+    }
+  } else {
+    for (const g of byKey.values()) g.totalChats = g.items.length;
+  }
+  for (const g of byKey.values()) {
+    if (!g.items.length) g.updatedAt = allUpdatedAt.get(g.key) || g.project.updatedAt;
+  }
+  const groups = [...byKey.values()].sort((a, b) => {
+    if (a.pinnedAt && b.pinnedAt) return b.pinnedAt - a.pinnedAt;
+    if (a.pinnedAt) return -1;
+    if (b.pinnedAt) return 1;
+    return b.updatedAt - a.updatedAt;
+  });
   return { groups, rest };
 }
 
@@ -69,6 +103,8 @@ export function useProjectGrouping(
   projects: readonly Project[],
   tabById: Map<string, HarnessTabMeta>,
   enabled: boolean,
+  allItems?: readonly Meta[],
+  pinnedProjects?: Readonly<Record<string, number>>,
 ): { groups: ProjectGroup[]; rest: Meta[]; grouped: boolean } {
   const r = useMemo(
     () =>
@@ -76,8 +112,9 @@ export function useProjectGrouping(
         visible,
         projects,
         (m) => m.projectId ?? (m.tabId ? tabById.get(m.tabId)?.projectId : undefined),
+        { allItems, pinnedProjects },
       ),
-    [visible, projects, tabById],
+    [visible, projects, tabById, allItems, pinnedProjects],
   );
   return { ...r, grouped: enabled };
 }

@@ -74,6 +74,10 @@
   opacity: 0;
   transition: opacity 150ms linear;
 }
+/* 揭开淡出期间页面已经能点、能打字：只剩动画，不再吃掉点击（拦住的点击会让输入框拿不到焦点） */
+.root[data-phase='revealing'] {
+  pointer-events: none;
+}
 .floating {
   position: absolute;
   top: 0;

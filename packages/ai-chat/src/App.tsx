@@ -23,6 +23,7 @@ import { NewChatContext, SessionControls } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { prefetchPanels, SettingsView } from './components/lazyPanels';
 import { MessageInput } from './components/MessageInput';
+import { SendBlockedHint } from './components/MessageInput/SendBlockedHint';
 import { onboardingClient } from './components/Onboarding/client';
 import { OnboardingHost } from './components/Onboarding/host';
 import { PendingDock } from './components/PendingDock';
@@ -264,8 +265,24 @@ const AiChatContent: React.FC = () => {
   );
   // 输入草稿按会话隔离（空会话共用一份，发出后按会话 / 标签各存一份）
   const drafts = useSessionComposerDrafts();
-  // 输入框上方的待发列表（插入 / 排队，见 utils/pendingSends）
-  const pending = useComposerPending(actions, busyHere, firstMessageId);
+  // 输入框上方的待发列表（插入 / 排队，见 utils/pendingSends）：存在当前 Nomi 会话的元信息里，重启后恢复
+  const viewConvoId = useAiChatSelector(selectViewConvoId);
+  const pendingStore = ipcClient.conversationStore?.();
+  const pendingConvoId = useMemo(() => {
+    // 回到空会话 / 正在回复的会话时 viewConvoId 可能还没有：之前的列表归它（发送时才生成 id，之后从 meta 接管）
+    const a = pendingStore?.get?.(viewConvoId);
+    if (viewConvoId && a?.backend === 'nomi' && !a.tabId) return viewConvoId;
+    return viewConvoId === undefined ? nomiSessionId : undefined;
+  }, [pendingStore, viewConvoId, nomiSessionId]);
+  const pendingSource = useCallback(
+    () => ({ store: ipcClient.conversationStore?.(), ipc: ipcClient }),
+    [ipcClient],
+  );
+  const pending = useComposerPending(actions, busyHere, pendingConvoId, {
+    convoId: pendingConvoId,
+    source: pendingSource,
+  });
+
   const { enqueue } = pending.nomiQueue;
   const enqueueNomi = useCallback((text: string) => enqueue(text, { mode: 'queue' }), [enqueue]);
 
@@ -348,6 +365,15 @@ const AiChatContent: React.FC = () => {
   useIslandOpenItem(mainPages.openTask, leavePage, (id) => {
     void ipcClient?.switchConversation(id);
   });
+  // 「回到原会话」：切到预览所属的那个 Nomi 会话；预览就属于当前会话（只是工作区换了）或不是 Nomi 会话时，
+  // 切过去也解不开，只能关掉这些对不上的预览
+  const returnToPreviewScope = useCallback(() => {
+    const blocked = resourcePreview.sendBlocked;
+    const id = blocked && blocked.previewId !== blocked.scopeId ? blocked.previewId : '';
+    const conversationId = id.startsWith('nomi:') ? id.slice('nomi:'.length) : '';
+    if (conversationId) void ipcClient?.switchConversation?.(conversationId);
+    else resourcePreview.closeEntries(resourcePreview.entries.map((entry) => entry.key));
+  }, [ipcClient, resourcePreview]);
   const hasOpenWorkspaceInCurrent = side.mounted || resourcePreview.entries.length > 0;
   const handleNewChat = useCallback(
     (opts?: { projectId?: string | null }) => {
@@ -580,6 +606,14 @@ const AiChatContent: React.FC = () => {
                     />
                     {/* 新会话：输入框上方的项目 · 分支，可以自由切换 */}
                     <NewChatContext />
+                    {/* 预览属于别的会话 / 工作区时输入框不能用：必须说明原因，并能一键回到原会话（空会话时贴在输入框下沿） */}
+                    {resourcePreview.sendBlocked && (
+                      <SendBlockedHint
+                        reason={resourcePreview.sendBlocked}
+                        floating={chatEmpty}
+                        onReturn={returnToPreviewScope}
+                      />
+                    )}
                     <MessageInput
                       {...inputModeProps}
                       disabled={resourcePreview.sendMismatch}

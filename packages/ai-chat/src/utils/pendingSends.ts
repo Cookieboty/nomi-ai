@@ -20,6 +20,14 @@ export interface PendingSend {
 let seq = 0;
 export const newPendingId = (): string => `p${Date.now().toString(36)}${(seq++).toString(36)}`;
 
+/**
+ * 合成一条（Esc 马上发出 / 交不出去）后的 id：由被合成的那几条决定（`+` 起头，不会和 newPendingId 撞）。
+ * 合成后的那条已经存进会话的待发列表，之后照常第 2 步交出去；重启前就交出去、最后只写进用户消息的，
+ * 同一次交付里只有这一条，重启后从回复的开头（`## You added` 分节）认出它，不再多一条重复的。
+ */
+export const mergePendingKey = (items: readonly Pick<PendingSend, 'id'>[]): string =>
+  `+${items.map((i) => i.id).join('+')}`;
+
 /** 合成一条发送的正文（多条之间空一行） */
 export function mergePending(items: readonly Pick<PendingSend, 'text'>[]): string {
   return items

@@ -71,6 +71,13 @@ export interface ChatMessage {
     /** 原图存进素材库后的地址（chat-asset://images/user-…）：可放大、复制，模型改图 / 参考时引用 */
     url?: string;
   }>;
+  /**
+   * 一轮进行中插入、已经交给模型的消息（Enter 插入，见 contexts/nomiSteer）：界面上只在回复的时间线里
+   * （不另起用户气泡），上下文里跟着回复走。临时补进对话记录的那条：
+   * 回复结束前应用被重启时它在对话里（不丢）；这一轮正常结束时按 id 删掉（它只在回复的轨迹里）。
+   * 正文以「你加入了」标记开头（services/history.STEER_TAG）。
+   */
+  steer?: boolean;
 }
 
 /** 对话所属后端：与 harness 后端一致；侧栏列表按此后端隔离 */
@@ -116,6 +123,21 @@ export interface ChatSession {
   legacyId?: string;
   /** 内核按消息文件重建索引时找回的会话（元信息是按消息补的） */
   recovered?: boolean;
+  /**
+   * 待发列表里还没交出去的消息（回复期间 Enter 插入 / Ctrl+Enter 排队）：存在元信息里（内核原样保存），
+   * 应用中途重启（如更新）后挂回这个会话的待发列表。交出去 / 删除 / 撤回 / 合成发送之后同步改这里；
+   * 空了就删掉这个字段。见 services/pendingSendsStore。
+   */
+  pendingSends?: Array<{ id: string; text: string; mode: 'steer' | 'queue'; kb?: true }>;
+  /**
+   * 已经交给这一轮、回复还没结束的插入消息（存在元信息里，中途重启后补成用户消息）。
+   * 正常结束时清掉，它们只留在回复的轨迹里。见 contexts/chatTurn。
+   */
+  deliveredSteers?: {
+    reqId: string;
+    afterId: string;
+    items: Array<{ id: string; text: string; marker?: string }>;
+  };
 }
 
 export interface StreamResponse {

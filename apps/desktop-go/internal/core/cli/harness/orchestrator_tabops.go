@@ -670,11 +670,15 @@ func (o *Orchestrator) ApplyAutoTitle(id string, title any) *util.Obj {
 func (o *Orchestrator) SetActiveTab(id string) *util.Obj {
 	tab := o.requireTab(id)
 	o.prewarm(str(tab, "id"))
-	if o.activeTabID == str(tab, "id") && jsToNumber(tab.Get("unread")) == 0 {
+	// 已经在这个标签上且没有新结果 / 完成点：无事可做。
+	// 有完成点时也要往下走——用户点一下就是「看到了」，点得消失。
+	pending := jsToNumber(tab.Get("unread")) != 0 || truthy(tab.Get("finished"))
+	if o.activeTabID == str(tab, "id") && !pending {
 		return o.ListTabs()
 	}
 	o.activeTabID = str(tab, "id")
 	tab.Set("unread", 0.0)
+	tab.Delete("finished")
 	o.changed()
 	return o.ListTabs()
 }

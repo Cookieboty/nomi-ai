@@ -45,7 +45,7 @@ describe('cliTranscriptKey', () => {
     migrateTranscriptView('tab:b', 'cli:claude:s2');
     expect(getTranscriptView('cli:claude:s2')).toBe('verbose');
     migrateTranscriptView('tab:none', 'cli:claude:s3');
-    expect(getTranscriptView('cli:claude:s3')).toBe('thinking');
+    expect(getTranscriptView('cli:claude:s3')).toBe('minimal');
   });
 });
 

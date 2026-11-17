@@ -1,6 +1,6 @@
 {
   "name": "@nomi-ai/ai-sdk-client",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": true,
   "description": "视图侧薄客户端：ClientAIClient（应用契约上的 AI 门面）+ React Hooks + 窗口共享的契约传输",
   "type": "module",

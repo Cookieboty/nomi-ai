@@ -9,9 +9,11 @@ import { SECTION_WORKSPACES } from '../src/components/Sidebar/ProjectGroups';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import {
   getCollapsedWorkspaces,
+  getPinnedProjects,
   setChatMode,
   setConversationListView,
   setEndpointFilter,
+  setEndpointVisibility,
   setGroupByWorkspace,
   setWorkspaceCollapsed,
 } from '../src/services/chatPrefs';
@@ -125,7 +127,11 @@ function mockIpc() {
         queued: 0,
       };
     if (ch === 'harness.state')
-      return { backend: 'nomi', cwd: '/w', bins: { claude: '/c', codex: '/x', dsh: null } };
+      return {
+        backend: 'nomi',
+        cwd: '/w',
+        bins: { claude: '/c', codex: '/x', grok: '/g', dsh: null },
+      };
     if (ch === 'harness.recentCwds') return [];
     if (ch === 'history.list') {
       const b = input?.backend;
@@ -327,25 +333,49 @@ describe('sidebar project groups', () => {
         />
       </HarnessTabsProvider>,
     );
-    // api 项目里最近的会话是 Claude Code 的：项目上的「新建」开 Claude Code 标签，这里让它失败
+    // 开发模式「全部」视图下点击项目上的「新建」弹出后端菜单，选 Claude Code 让它失败
     const groups = await r.findAllByTestId('workspace-group');
     const api = groups.find((g) => g.dataset.project === 'p_api')!;
     fireEvent.click(within(api).getByTestId('workspace-new-chat'));
+    const menu = await r.findByTestId('workspace-new-chat-menu');
+    fireEvent.click(within(menu).getByTestId('new-chat-claude'));
     await waitFor(() =>
       expect(onNotice).toHaveBeenCalledWith(expect.stringContaining('disk full')),
     );
   });
 
-  it('只看一个端时不列这个端没有会话的项目；折叠的项目只写当前端的数，0 不写', async () => {
+  it('按端筛选时仍展示全部共享项目；折叠的项目只写当前端的数，0 不写', async () => {
     setConversationListView('by-endpoint');
     setEndpointFilter('nomi');
     setWorkspaceCollapsed('p_app', true);
     const r = mount();
     await waitFor(() =>
-      expect(r.getAllByTestId('workspace-group').map((g) => g.dataset.project)).toEqual(['p_app']),
+      expect(r.getAllByTestId('workspace-group').map((g) => g.dataset.project)).toEqual([
+        'p_app',
+        'p_api',
+        'p_empty',
+      ]),
     );
     const app = r.getAllByTestId('workspace-group')[0]!;
     expect(within(app).getByTestId('workspace-toggle').textContent).toBe('app7');
+    const api = r.getAllByTestId('workspace-group')[1]!;
+    // Nomi 端下 p_api 只有 Claude 会话（Nomi 数为 0），仍展示项目头但不显示数字 0
+    expect(within(api).getByTestId('workspace-toggle').textContent).toBe('api');
+
+    cleanup();
+    // 切到 Codex 端（全部项目在 Codex 端都还没有会话）：项目依然跨端可用，直接点击即可在该项目创建 Codex 会话
+    setEndpointVisibility('codex', 'show');
+    setEndpointFilter('codex');
+    const c = mount();
+    const codexGroups = await c.findAllByTestId('workspace-group');
+    expect(codexGroups.map((g) => g.dataset.project)).toEqual(['p_app', 'p_api', 'p_empty']);
+    fireEvent.click(within(codexGroups[0]!).getByTestId('workspace-new-chat'));
+    await waitFor(() =>
+      expect(calls).toContainEqual([
+        'harness.tabCreate',
+        expect.objectContaining({ backend: 'codex', projectId: 'p_app' }),
+      ]),
+    );
 
     cleanup();
     setConversationListView('all');
@@ -355,6 +385,60 @@ describe('sidebar project groups', () => {
       (g) => g.dataset.project === 'p_empty',
     )!;
     expect(within(empty).getByTestId('workspace-toggle').textContent).toBe('empty');
+  });
+
+  it('开发模式「全部」下同一项目可跨多 CLI 创建会话，并汇总同一分组', async () => {
+    setConversationListView('all');
+    convs = [
+      conv('n1', 'app nomi', 'nomi', 1, { projectId: 'p_app' }),
+      conv('c2', 'app claude', 'claude', 2, { projectId: 'p_app', tabId: 't2' }),
+      conv('x3', 'app codex', 'codex', 3, { projectId: 'p_app', tabId: 't3' }),
+    ];
+    mockIpc();
+    const r = mount();
+    const groups = await r.findAllByTestId('workspace-group');
+    const app = groups.find((g) => g.dataset.project === 'p_app')!;
+    expect(names(app)).toEqual([
+      expect.stringContaining('app nomi'),
+      expect.stringContaining('app claude'),
+      expect.stringContaining('app codex'),
+    ]);
+
+    fireEvent.click(within(app).getByTestId('workspace-new-chat'));
+    const menu1 = await r.findByTestId('workspace-new-chat-menu');
+    expect(within(menu1).queryByTestId('new-chat-project')).toBeNull();
+    fireEvent.click(within(menu1).getByTestId('new-chat-codex'));
+    await waitFor(() =>
+      expect(calls).toContainEqual([
+        'harness.tabCreate',
+        expect.objectContaining({ backend: 'codex', projectId: 'p_app' }),
+      ]),
+    );
+
+    fireEvent.click(within(app).getByTestId('workspace-new-chat'));
+    const menu2 = await r.findByTestId('workspace-new-chat-menu');
+    fireEvent.click(within(menu2).getByTestId('new-chat-claude'));
+    await waitFor(() =>
+      expect(calls).toContainEqual([
+        'harness.tabCreate',
+        expect.objectContaining({ backend: 'claude', projectId: 'p_app' }),
+      ]),
+    );
+  });
+
+  it('切换到尚无会话的新 CLI 端自动建标签时，会衔接当前高亮会话所属项目', async () => {
+    setEndpointVisibility('grok', 'show');
+    convs = [conv('n1', 'active nomi', 'nomi', 1, { projectId: 'p_app' })];
+    mockIpc();
+    const r = mount();
+    const grokChip = await r.findByTestId('endpoint-filter-grok');
+    fireEvent.click(grokChip);
+    await waitFor(() =>
+      expect(calls).toContainEqual([
+        'harness.tabCreate',
+        expect.objectContaining({ backend: 'grok', projectId: 'p_app' }),
+      ]),
+    );
   });
 
   it('进行中的会话只看行首状态点：行尾不写「进行中」，状态文字只给读屏', async () => {
@@ -434,5 +518,105 @@ describe('sidebar pinned sessions', () => {
     await waitFor(() => expect(r.getAllByTestId('history-item').length).toBeGreaterThan(0));
     expect(r.getAllByTestId('history-item')[0]!.textContent).toContain('loose chat');
     expect(r.queryByTestId('pinned-section')).toBeNull();
+  });
+});
+
+describe('project hover peek card & pinning', () => {
+  it('悬停项目头时在右侧弹出项目详情卡片：展示名称、跨端总聊天数、全部文件夹与缺失标记', async () => {
+    __setProjectsForTest([
+      {
+        ...PROJECTS[0]!,
+        missing: ['/work/server'],
+      },
+      PROJECTS[1]!,
+      PROJECTS[2]!,
+    ]);
+    // 切到 claude 单端视图：p_app 下虽然当前视图是 0 条 claude 会话，悬停卡片仍显示全部 7 次聊天
+    setConversationListView('by-endpoint');
+    setEndpointFilter('claude');
+    const r = mount();
+    const groups = await r.findAllByTestId('workspace-group');
+    const app = groups.find((g) => g.dataset.project === 'p_app')!;
+    const head = within(app).getByTestId('workspace-toggle').parentElement!;
+
+    fireEvent.mouseEnter(head);
+    const peek = await r.findByTestId('project-peek');
+    expect(peek.getAttribute('data-project')).toBe('p_app');
+    expect(peek.textContent).toContain('app');
+    expect(within(peek).getByTestId('project-peek-chats').textContent).toBe('7 次聊天');
+
+    const folders = within(peek).getAllByTestId('project-peek-folder');
+    expect(folders.map((f) => f.textContent)).toEqual(['/work/app', '/work/server']);
+    expect(folders[0]!.getAttribute('data-primary')).toBe('true');
+    expect(folders[1]!.getAttribute('data-missing')).toBe('true');
+
+    // 图标按钮禁加原生 title，仅用 aria-label
+    const pinBtn = within(peek).getByTestId('project-peek-pin');
+    expect(pinBtn.getAttribute('title')).toBeNull();
+    expect(pinBtn.getAttribute('aria-label')).toBe('置顶项目');
+
+    // 鼠标移出项目头但进入弹窗卡片时，弹窗保持打开；离开卡片后收起
+    fireEvent.mouseLeave(head);
+    fireEvent.mouseEnter(peek);
+    await new Promise((res) => setTimeout(res, 240));
+    expect(r.queryByTestId('project-peek')).toBeTruthy();
+
+    fireEvent.mouseLeave(peek);
+    await waitFor(() => expect(r.queryByTestId('project-peek')).toBeNull());
+  });
+
+  it('悬停卡片内可点击置顶项目（排到最前）或点击编辑项目（打开弹窗并关闭悬停卡）', async () => {
+    const r = mount();
+    const groups = await r.findAllByTestId('workspace-group');
+    const empty = groups.find((g) => g.dataset.project === 'p_empty')!;
+    const head = within(empty).getByTestId('workspace-toggle').parentElement!;
+
+    fireEvent.mouseEnter(head);
+    const peek = await r.findByTestId('project-peek');
+    fireEvent.click(within(peek).getByTestId('project-peek-pin'));
+
+    await waitFor(() => {
+      const ids = r.getAllByTestId('workspace-group').map((g) => g.dataset.project);
+      expect(ids[0]).toBe('p_empty');
+    });
+    expect(getPinnedProjects().p_empty).toBeGreaterThan(0);
+    const pinnedFirst = r.getAllByTestId('workspace-group')[0]!;
+    expect(pinnedFirst.getAttribute('data-pinned')).toBe('true');
+    expect(within(pinnedFirst).getByTestId('project-pinned')).toBeTruthy();
+
+    // 再点一次取消置顶，恢复按最近活动排序
+    fireEvent.click(within(r.getByTestId('project-peek')).getByTestId('project-peek-pin'));
+    await waitFor(() => {
+      const ids = r.getAllByTestId('workspace-group').map((g) => g.dataset.project);
+      expect(ids).toEqual(['p_app', 'p_api', 'p_empty']);
+    });
+    expect(getPinnedProjects().p_empty).toBeUndefined();
+
+    // 点击「编辑项目」关闭悬停卡片并打开 ProjectDialog
+    fireEvent.click(within(r.getByTestId('project-peek')).getByTestId('project-peek-edit'));
+    await waitFor(() => expect(r.queryByTestId('project-peek')).toBeNull());
+    const dialog = await r.findByTestId('project-dialog');
+    expect(dialog.textContent).toContain('编辑项目');
+  });
+
+  it('按 Escape 关闭项目悬停弹窗；相邻项目头之间切换无闪烁', async () => {
+    const r = mount();
+    const groups = await r.findAllByTestId('workspace-group');
+    const headApp = within(groups[0]!).getByTestId('workspace-toggle').parentElement!;
+    const headApi = within(groups[1]!).getByTestId('workspace-toggle').parentElement!;
+
+    fireEvent.mouseEnter(headApp);
+    const peek1 = await r.findByTestId('project-peek');
+    expect(peek1.getAttribute('data-project')).toBe('p_app');
+
+    // 从当前已显示的项目头滑到相邻项目头：立即更新内容
+    fireEvent.mouseLeave(headApp);
+    fireEvent.mouseEnter(headApi);
+    await waitFor(() =>
+      expect(r.getByTestId('project-peek').getAttribute('data-project')).toBe('p_api'),
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(r.queryByTestId('project-peek')).toBeNull());
   });
 });

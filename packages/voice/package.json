@@ -1,6 +1,6 @@
 {
   "name": "@nomi-ai/voice",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Nomi 语音输入：麦克风采集、Silero VAD、唤醒词匹配、按住说话 / 免按键控制器与 UI",
   "license": "MIT",

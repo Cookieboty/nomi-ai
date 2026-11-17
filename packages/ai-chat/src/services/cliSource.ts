@@ -10,7 +10,7 @@ import { confirmDialog } from '../components/ConfirmDialog';
 import { hasOfficialAccount, thirdPartyOnly } from '../utils/cliCaps';
 
 import type { CliAccount } from './cliAccountClient';
-import { launcherManagesLogin } from './cliLauncherClient';
+import { launcherManagesLogin, supportsCustomLauncher } from './cliLauncherClient';
 import type { ClientId, GatewayState } from './gatewayClient';
 import {
   harnessClient,
@@ -207,6 +207,7 @@ export interface SourceSwitch {
 export function defaultSourceSwitch(
   tab: Pick<HarnessTabMeta, 'backend' | 'source'>,
   s: GatewayState | null,
+  accountSource?: 'local' | 'nomi',
 ): SourceSwitch | null {
   const kind = tab.backend;
   if (!isCliKind(kind)) return null;
@@ -222,25 +223,24 @@ export function defaultSourceSwitch(
       : 'official';
   if (target === tabSourceOf(tab)) return null;
   if (target === 'thirdParty' && !hasMain) return null;
-  if (target === 'official')
+  if (target === 'official') {
+    const localLogin =
+      accountSource !== undefined
+        ? supportsCustomLauncher(kind) && accountSource === 'local'
+        : launcherManagesLogin(kind);
     return {
       target,
-      title: t(
-        launcherManagesLogin(kind)
-          ? 'ui.chat-settings.cli-launcher-local'
-          : 'ui.models.default-official',
-      ),
+      title: t(localLogin ? 'ui.chat-settings.cli-launcher-local' : 'ui.models.default-official'),
       items: [
         {
           id: 'official',
           label: t(
-            launcherManagesLogin(kind)
-              ? 'ui.chat-settings.cli-launcher-local'
-              : 'ui.models.switch-to-official',
+            localLogin ? 'ui.chat-settings.cli-launcher-local' : 'ui.models.switch-to-official',
           ),
         },
       ],
     };
+  }
   const pid = providerOfRef(main)!;
   return {
     target,

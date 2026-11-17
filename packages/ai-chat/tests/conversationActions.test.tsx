@@ -151,8 +151,8 @@ describe('消息操作', () => {
     });
   });
 
-  it('复制：用户与助手消息都有复制按钮，写入正文', async () => {
-    const { getAllByTestId } = render(
+  it('复制：用户与助手消息都有复制按钮，写入正文；极简模式下复制最终总结', async () => {
+    const { getAllByTestId, rerender } = render(
       view({ messages: [user('u', '问题'), asst('a', '**答案**')] }),
     );
     const btns = getAllByTestId('msg-copy');
@@ -161,6 +161,26 @@ describe('消息操作', () => {
       fireEvent.click(btns[1]!);
     });
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('**答案**');
+
+    const intro = '先查一下。';
+    rerender(
+      view({
+        transcriptView: 'minimal',
+        messages: [
+          user('u', '问题'),
+          asst('a2', `${intro}\n\n最终结论。`, {
+            textBreaks: [intro.length + 2],
+            trace: [
+              { type: 'tool', name: 'Read', id: 'r1', status: 'done', at: 1, textAt: intro.length },
+            ],
+          }),
+        ],
+      }),
+    );
+    await act(async () => {
+      fireEvent.click(getAllByTestId('msg-copy')[1]!);
+    });
+    expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith('最终结论。');
   });
 
   it('重新生成只出现在最后一条助手消息，运行中不出现', () => {

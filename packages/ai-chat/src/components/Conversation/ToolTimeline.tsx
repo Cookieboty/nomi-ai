@@ -186,6 +186,7 @@ const Disclosure: React.FC<{
       data-testid={testId}
       data-status={status}
       data-open={open}
+      data-no-selection-toolbar=""
       {...attrs}
     >
       <button
@@ -316,11 +317,14 @@ const CallLabel: React.FC<{ call: ToolCall }> = ({ call }) => {
   );
 };
 
-const ToolCallRowInner: React.FC<{ call: ToolCall }> = ({ call }) => {
+const ToolCallRowInner: React.FC<{ call: ToolCall; hideGeneratedImage?: boolean }> = ({
+  call,
+  hideGeneratedImage,
+}) => {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
   const kind = describeCall(call).kind;
-  const image = generatedImageOf(call);
+  const image = hideGeneratedImage ? null : generatedImageOf(call);
   // Verbose：默认展开每一行工具的参数与输出；Normal / Thinking 保持折叠
   const disclosure = useViewOpen((view) => view === 'verbose');
   const row = (
@@ -343,10 +347,7 @@ const ToolCallRowInner: React.FC<{ call: ToolCall }> = ({ call }) => {
   return (
     <>
       {row}
-      <div className={styles.generatedImage} data-testid="tool-generated-image">
-        <MarkdownImage src={image} alt={generatedImageAlt(call)} />
-        <GeneratedImageCaption call={call} />
-      </div>
+      <GeneratedImageBlock call={call} />
     </>
   );
 };
@@ -359,6 +360,18 @@ export function generatedImageOf(call: ToolCall): string | null {
   if (call.name !== IMAGE_TOOL || call.status !== 'done' || !call.output) return null;
   return GENERATED_IMAGE.exec(call.output)?.[0] ?? null;
 }
+
+/** 生图结果卡片（极简模式在折叠步骤外直接展示，常规模式跟在对应工具行下方） */
+export const GeneratedImageBlock: React.FC<{ call: ToolCall }> = ({ call }) => {
+  const image = generatedImageOf(call);
+  if (!image) return null;
+  return (
+    <div className={styles.generatedImage} data-testid="tool-generated-image">
+      <MarkdownImage src={image} alt={generatedImageAlt(call)} />
+      <GeneratedImageCaption call={call} />
+    </div>
+  );
+};
 
 /** 生图结果里的模型（工具结果的 model / provider / auto） */
 export function generatedImageModel(
@@ -416,7 +429,10 @@ export function sameCall(a: ToolCall, b: ToolCall): boolean {
   );
 }
 
-export const ToolCallRow = memo(ToolCallRowInner, (p, n) => sameCall(p.call, n.call));
+export const ToolCallRow = memo(
+  ToolCallRowInner,
+  (p, n) => sameCall(p.call, n.call) && p.hideGeneratedImage === n.hideGeneratedImage,
+);
 
 const GroupSummaryMeta: React.FC<{ bucket: Bucket; calls: ToolCall[] }> = ({ bucket, calls }) => {
   const s = groupStats(calls);
@@ -435,11 +451,12 @@ const GroupSummaryMeta: React.FC<{ bucket: Bucket; calls: ToolCall[] }> = ({ buc
   );
 };
 
-const ToolGroupInner: React.FC<{ bucket: Bucket; calls: ToolCall[]; id: string }> = ({
-  bucket,
-  calls,
-  id,
-}) => {
+const ToolGroupInner: React.FC<{
+  bucket: Bucket;
+  calls: ToolCall[];
+  id: string;
+  hideGeneratedImage?: boolean;
+}> = ({ bucket, calls, id, hideGeneratedImage }) => {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
   const disclosure = useViewOpen((view) => view === 'verbose');
@@ -463,7 +480,7 @@ const ToolGroupInner: React.FC<{ bucket: Bucket; calls: ToolCall[]; id: string }
     >
       <div className={styles.groupList}>
         {calls.map((c) => (
-          <ToolCallRow key={c.id} call={c} />
+          <ToolCallRow key={c.id} call={c} hideGeneratedImage={hideGeneratedImage} />
         ))}
       </div>
     </Disclosure>
@@ -475,6 +492,7 @@ const ToolGroup = memo(
   (p, n) =>
     p.id === n.id &&
     p.bucket === n.bucket &&
+    p.hideGeneratedImage === n.hideGeneratedImage &&
     p.calls.length === n.calls.length &&
     p.calls.every((c, i) => sameCall(c, n.calls[i]!)),
 );
@@ -501,7 +519,11 @@ function nomiTaskId(output: string | undefined): string | undefined {
   return undefined;
 }
 
-const Subagent: React.FC<{ call: ToolCall; children: TimelineItem[] }> = ({ call, children }) => {
+const Subagent: React.FC<{
+  call: ToolCall;
+  children: TimelineItem[];
+  hideGeneratedImage?: boolean;
+}> = ({ call, children, hideGeneratedImage }) => {
   const o = parseInput(call.input);
   const prompt = typeof o?.prompt === 'string' ? o.prompt : undefined;
   const d = describeCall(call);
@@ -596,7 +618,9 @@ const Subagent: React.FC<{ call: ToolCall; children: TimelineItem[] }> = ({ call
       variant="block"
     >
       {prompt && <div className={styles.subPrompt}>{prompt}</div>}
-      {children.length > 0 && <ToolTimeline items={children} nested />}
+      {children.length > 0 && (
+        <ToolTimeline items={children} nested hideGeneratedImage={hideGeneratedImage} />
+      )}
       {children.length === 0 && NO_INTERNAL_STEPS.has(call.name) && (
         <div className={styles.subPrompt} data-testid="subagent-no-steps">
           {t('ui.chat-settings.this-coding-agent-doesn-t-expose-a-subagent')}
@@ -783,11 +807,12 @@ const ActivityMeta: React.FC<{ calls: ToolCall[]; running: boolean }> = ({ calls
  * 一批步骤合成的一行（normal / thinking）：进行中显示正在做的那一步，结束后是这一批的摘要；
  * 展开是每一步一行，单步再点开看参数与输出
  */
-const ActivityRow: React.FC<{ id: string; bucket?: Bucket; steps: ActivityStep[] }> = ({
-  id,
-  bucket,
-  steps,
-}) => {
+const ActivityRow: React.FC<{
+  id: string;
+  bucket?: Bucket;
+  steps: ActivityStep[];
+  hideGeneratedImage?: boolean;
+}> = ({ id, bucket, steps, hideGeneratedImage }) => {
   // 语言切换时重渲染（#140）
   useLocale();
   const calls = activityCalls(steps);
@@ -845,7 +870,7 @@ const ActivityRow: React.FC<{ id: string; bucket?: Bucket; steps: ActivityStep[]
       <div className={styles.groupList}>
         {steps.map((s) =>
           s.type === 'call' ? (
-            <ToolCallRow key={s.call.id} call={s.call} />
+            <ToolCallRow key={s.call.id} call={s.call} hideGeneratedImage={hideGeneratedImage} />
           ) : (
             <Thinking
               key={s.id}
@@ -906,16 +931,25 @@ const InterjectRow: React.FC<{ text: string }> = ({ text }) => (
 export const ToolTimeline = memo(function ToolTimeline({
   items,
   nested,
+  rawOrder,
+  hideGeneratedImage,
 }: {
   items: TimelineItem[];
   nested?: boolean;
+  /** 极简模式展开详情时保持原始步骤顺序，不再按桶二次聚合 */
+  rawOrder?: boolean;
+  /** 极简模式已在折叠区外单独展示生图结果，展开后不再重复画一张 */
+  hideGeneratedImage?: boolean;
 }) {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
   const view = useTranscriptViewMode();
   const [showAll, setShowAll] = useState(false);
-  // 精简 / 显示思考：两段正文之间的步骤合成一行摘要；详细：每步一行（utils/timelineShape.ts）
-  const shaped = useMemo(() => shapeTimeline(items, view), [items, view]);
+  // 精简 / 显示思考：两段正文之间的步骤合成一行摘要；详细或 rawOrder：按原顺序显示
+  const shaped = useMemo(
+    () => (rawOrder ? items : shapeTimeline(items, view)),
+    [items, rawOrder, view],
+  );
   if (!shaped.length) return null;
   const hidden =
     !nested && !showAll && shaped.length > TIMELINE_WINDOW ? shaped.length - TIMELINE_WINDOW : 0;
@@ -951,18 +985,40 @@ export const ToolTimeline = memo(function ToolTimeline({
               />
             );
           case 'call':
-            return <ToolCallRow key={it.call.id} call={it.call} />;
+            return (
+              <ToolCallRow
+                key={it.call.id}
+                call={it.call}
+                hideGeneratedImage={hideGeneratedImage}
+              />
+            );
           case 'activity':
-            return <ActivityRow key={it.id} id={it.id} bucket={it.bucket} steps={it.steps} />;
+            return (
+              <ActivityRow
+                key={it.id}
+                id={it.id}
+                bucket={it.bucket}
+                steps={it.steps}
+                hideGeneratedImage={hideGeneratedImage}
+              />
+            );
           case 'interject':
             return <InterjectRow key={it.id} text={it.text} />;
           case 'group':
-            return <ToolGroup key={it.id} id={it.id} bucket={it.bucket} calls={it.calls} />;
+            return (
+              <ToolGroup
+                key={it.id}
+                id={it.id}
+                bucket={it.bucket}
+                calls={it.calls}
+                hideGeneratedImage={hideGeneratedImage}
+              />
+            );
           default:
             if (it.call.name === DELEGATE_TOOL)
               return <DelegateCard key={it.call.id} call={it.call} />;
             return (
-              <Subagent key={it.call.id} call={it.call}>
+              <Subagent key={it.call.id} call={it.call} hideGeneratedImage={hideGeneratedImage}>
                 {it.children}
               </Subagent>
             );

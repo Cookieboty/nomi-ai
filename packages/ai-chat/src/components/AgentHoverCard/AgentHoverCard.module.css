@@ -1,4 +1,6 @@
-/* 子任务悬停卡片（参考 Codex 的子智能体浮窗）：名字 + 状态、最近一句（右侧气泡）、最近输出（四行） */
+/* 子任务悬停卡片（参考 Codex 的子智能体浮窗）：
+   图标 + 名字 + 状态徽章一行；下面「任务」「最近输出」两个小节，最近一句用引用块，输出整段截断；
+   可点时底部给出一行打开动作。 */
 .trigger {
   display: inline-flex;
   align-items: center;
@@ -11,19 +13,48 @@
   z-index: var(--cd-z-tooltip);
   display: flex;
   flex-direction: column;
-  gap: var(--cd-space-2);
+  gap: 10px;
   max-width: calc(100vw - 16px);
   padding: var(--cd-space-3);
-  border: 1px solid var(--cd-panel-border);
+  border: 1px solid var(--cd-color-border-subtle);
   border-radius: var(--cd-radius-lg);
   background: var(--cd-chat-popover-bg);
-  box-shadow: var(--cd-shadow-md);
+  box-shadow: var(--cd-shadow-popover), var(--cd-highlight-inset);
   color: var(--cd-color-text);
   font-size: var(--cd-font-size-sm);
+  line-height: var(--cd-line-height-sm);
   cursor: default;
+  animation: agentCardIn var(--cd-duration-fast) var(--cd-ease-out);
 }
 .card[data-clickable='true'] {
   cursor: pointer;
+  transition:
+    border-color var(--cd-duration-fast) var(--cd-ease),
+    box-shadow var(--cd-duration-fast) var(--cd-ease);
+}
+.card[data-clickable='true']:hover {
+  border-color: var(--cd-color-border-strong);
+  box-shadow: var(--cd-shadow-lg), var(--cd-highlight-inset);
+}
+.card[data-clickable='true']:focus-visible {
+  outline: 2px solid var(--cd-color-border-focus);
+  outline-offset: 2px;
+}
+
+@keyframes agentCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+  }
 }
 
 .head {
@@ -33,79 +64,172 @@
   min-width: 0;
 }
 
+/* 图标垫在浅底方块里，跟名字之间有一道视觉停顿 */
+.avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--cd-radius-xs);
+  background: var(--cd-color-surface-sunken);
+  color: var(--cd-color-text-muted);
+}
+
 .name {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+  font-weight: var(--cd-font-weight-bold);
+  letter-spacing: var(--cd-tracking-tight);
 }
 
-.spin {
+/* 状态：色点 + 文案的胶囊，靠颜色区分，不再是一行灰字 */
+.badge {
   display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px 1px 7px;
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-neutral-soft);
   color: var(--cd-color-text-muted);
-  animation: agentCardSpin 1s linear infinite;
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-xs);
+  font-weight: var(--cd-font-weight-medium);
+  white-space: nowrap;
 }
-@keyframes agentCardSpin {
-  to {
-    transform: rotate(360deg);
+.badge::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.badge[data-state='running'] {
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent-strong);
+}
+.badge[data-state='running']::before {
+  animation: agentCardPulse 1.6s var(--cd-ease) infinite;
+}
+.badge[data-state='waiting'] {
+  background: var(--cd-color-warning-soft);
+  color: var(--cd-color-warning);
+}
+.badge[data-state='done'] {
+  background: var(--cd-color-success-soft);
+  color: var(--cd-color-success);
+}
+.badge[data-state='failed'] {
+  background: var(--cd-color-danger-soft);
+  color: var(--cd-color-danger);
+}
+@keyframes agentCardPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.75);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .spin {
+  .badge[data-state='running']::before {
     animation: none;
   }
 }
 
-.state {
-  margin-top: calc(var(--cd-space-1) * -1);
-  color: var(--cd-color-text-muted);
-}
-.state[data-state='waiting'] {
-  color: var(--cd-color-warning);
-}
-.state[data-state='failed'] {
-  color: var(--cd-color-danger);
-}
-
+/* 等确认时具体在等什么：单独一块，别和状态行挤在一起 */
 .waiting {
+  margin-top: calc(var(--cd-space-1) * -1);
+  padding: 6px var(--cd-space-2);
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-color-warning-soft);
   color: var(--cd-color-warning);
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-xs);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.bubble {
-  align-self: flex-end;
-  max-width: 85%;
-  padding: var(--cd-space-2) var(--cd-space-3);
-  border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-hover);
+  overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+  min-width: 0;
+}
+
+.label {
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-xs);
+  letter-spacing: var(--cd-tracking-wide);
+}
+
+/* 最近发给它的一句：左侧细线引用块，比右对齐气泡更贴合卡片左对齐的排布 */
+.quote {
+  position: relative;
+  padding-left: var(--cd-space-2);
+  color: var(--cd-color-text-muted);
   overflow: hidden;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.quote::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--cd-color-accent-3);
 }
 
 .output {
-  color: var(--cd-color-text-muted);
+  color: var(--cd-color-text);
+  line-height: var(--cd-line-height, 1.6);
+  white-space: pre-wrap;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
   line-clamp: 4;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  line-height: 1.5;
 }
 
 .muted {
-  color: var(--cd-color-text-muted);
+  color: var(--cd-color-text-subtle);
 }
 
-.hint {
-  color: var(--cd-color-text-muted);
+/* 底部动作：可点时才有，做成一条通栏 footer */
+.action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  margin: 0 calc(var(--cd-space-3) * -1) calc(var(--cd-space-3) * -1);
+  padding: 8px var(--cd-space-3);
+  border-top: 1px solid var(--cd-color-border-subtle);
+  color: var(--cd-color-text-subtle);
   font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-xs);
+  transition: color var(--cd-duration-fast) var(--cd-ease);
+}
+.card[data-clickable='true']:hover .action {
+  color: var(--cd-color-accent-strong);
 }

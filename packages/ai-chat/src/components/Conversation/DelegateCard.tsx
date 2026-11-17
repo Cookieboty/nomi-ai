@@ -703,7 +703,7 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
         data-phase={v.phase}
         aria-label={t('ui.session-workspace.subtask-for', name, v.goal)}
       >
-        <div className={styles.head}>
+        <div className={styles.head} data-no-selection-toolbar="">
           <button
             type="button"
             className={styles.toggle}
@@ -755,7 +755,12 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
           )}
         </div>
         {step && (
-          <div className={styles.step} data-testid="delegate-step" title={step}>
+          <div
+            className={styles.step}
+            data-testid="delegate-step"
+            data-no-selection-toolbar=""
+            title={step}
+          >
             {t('ui.session-workspace.now', step)}
           </div>
         )}

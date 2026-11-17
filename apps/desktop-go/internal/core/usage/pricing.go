@@ -9,7 +9,7 @@ import (
 
 // 计价
 
-const PricingTableDate = "2026-10-16"
+const PricingTableDate = "2026-11-17"
 
 // nan 表示 undefined 参数
 var und = math.NaN()
@@ -84,6 +84,122 @@ var BuiltinPrices = []PriceEntry{
 	pe("gemini-2-5-pro", 1.25, 10, 0.125, und, tier(200_000, 2.5, 15, 0.25, und)),
 	pe("gemini-2-5-flash-lite", 0.1, 0.4, 0.01, und),
 	pe("gemini-2-5-flash", 0.3, 2.5, 0.03, und),
+	pe("qwen-flash", 0.05, 0.4, 0.01, 0.0625),                         // alibaba
+	pe("qwen-max", 1.6, 6.4, und, und),                                // alibaba
+	pe("qwen-mt-plus", 2.46, 7.37, und, und),                          // alibaba
+	pe("qwen-plus", 0.4, 1.2, 0.08, 0.5),                              // alibaba
+	pe("qwen-plus-character-ja", 0.5, 1.4, und, und),                  // alibaba
+	pe("qwen3-5-122b-a10b", 0.4, 3.2, und, und),                       // alibaba
+	pe("qwen3-5-27b", 0.3, 2.4, und, und),                             // alibaba
+	pe("qwen3-5-35b-a3b", 0.25, 2, und, und),                          // alibaba
+	pe("qwen3-5-397b-a17b", 0.6, 3.6, und, und),                       // alibaba
+	pe("qwen3-5-flash", 0.1, 0.4, 0.01, 0.125),                        // alibaba
+	pe("qwen3-5-plus", 0.4, 2.4, und, und),                            // alibaba
+	pe("qwen3-6-27b", 0.6, 3.6, und, und),                             // alibaba
+	pe("qwen3-6-35b-a3b", 0.375, 2.25, und, und),                      // alibaba
+	pe("qwen3-6-flash", 0.25, 1.5, 0.025, 0.3125),                     // alibaba
+	pe("qwen3-6-plus", 0.5, 3, 0.05, 0.625),                           // alibaba
+	pe("qwen3-7-flash", 0.03, 0.13, 0.006, 0.0375),                    // alibaba
+	pe("qwen3-7-max", 2.5, 7.5, 0.5, 3.125),                           // alibaba
+	pe("qwen3-7-plus", 0.4, 1.6, 0.08, 0.5),                           // alibaba
+	pe("qwen3-8-flash", 0.15, 0.47, 0.016, 0.2),                       // alibaba
+	pe("qwen3-8-max", 2, 6, 0.25, 2.5),                                // alibaba
+	pe("qwen3-8-omni-flash", 0.15, 0.47, 0.016, und),                  // alibaba
+	pe("qwen3-coder-flash", 0.3, 1.5, 0.06, 0.375),                    // alibaba
+	pe("qwen3-omni-flash", 0.43, 1.66, und, und),                      // alibaba
+	pe("qwen3-vl-30b-a3b", 0.2, 0.8, und, und),                        // alibaba
+	pe("qwen3-vl-plus", 0.2, 1.6, 0.04, 0.25),                         // alibaba
+	pe("claude-fable-5-2", 8, 40, 0.2, 10),                            // anthropic
+	pe("claude-haiku-4-5-20251001", 1, 5, 0.1, 1.25),                  // anthropic
+	pe("claude-haiku-5-5", 0.1, 0.5, 0.01, 0.125),                     // anthropic
+	pe("claude-opus-4-5-20251101", 5, 25, 0.5, 6.25),                  // anthropic
+	pe("deepseek-flash", 0.15, 0.6, 0.003, und),                       // deepseek
+	pe("deepseek-v4-pro", 0.66, 1.98, 0.022, und),                     // deepseek
+	pe("deep-research-max-preview-04-2026", 2, 12, 0.2, und),          // google
+	pe("deep-research-preview-04-2026", 2, 12, 0.2, und),              // google
+	pe("gemini-2-5-computer-use-preview-10-2025", 1.25, 10, und, und), // google
+	pe("gemini-3-1-flash-image", 0.5, 3, und, und),                    // google
+	pe("gemini-3-1-flash-lite-image", 0.25, 1.5, und, und),            // google
+	pe("gemini-3-1-flash-live-preview", 0.75, 4.5, und, und),          // google
+	pe("gemini-3-1-pro-preview-customtools", 2, 12, 0.2, und),         // google
+	pe("gemini-3-5-flash", 1.5, 9, 0.15, und),                         // google
+	pe("gemini-3-5-flash-lite", 0.3, 2.5, 0.03, und),                  // google
+	pe("gemini-3-5-live-translate-preview", 3.5, 21, und, und),        // google
+	pe("gemini-3-6-flash", 0.75, 3.75, 0.075, und),                    // google
+	pe("gemini-3-7-flash", 0.75, 3.75, 0.075, und),                    // google
+	pe("gemini-3-8-flash", 0.75, 3.75, 0.075, und),                    // google
+	pe("gemini-3-pro-image", 2, 12, und, und),                         // google
+	pe("gemini-4-argon", 2, 10, 0.1, und),                             // google
+	pe("gemini-4-carbon", 2, 10, 0.1, und),                            // google
+	pe("gemini-4-hydrogen", 1.5, 7.5, 0.075, und),                     // google
+	pe("gemini-flash-latest", 0.75, 3.75, 0.075, und),                 // google
+	pe("gemini-flash-lite-latest", 0.3, 2.5, 0.03, und),               // google
+	pe("gemini-omni-flash-preview", 1.5, 17.5, und, und),              // google
+	pe("gemini-pro-latest", 2, 12, 0.2, und),                          // google
+	pe("minimax-m3", 0.3, 1.2, 0.06, und),                             // minimax
+	pe("minimax-m3-1-flash", 0.15, 0.6, 0.015, und),                   // minimax
+	pe("codestral-2508", 0.3, 0.9, 0.03, und),                         // mistral
+	pe("codestral-latest", 0.3, 0.9, 0.03, und),                       // mistral
+	pe("deepseek-v4-1-flash-1017", 0.3, 1.2, 0.007, und),              // mistral
+	pe("ministral-14b-2512", 0.2, 0.2, 0.02, und),                     // mistral
+	pe("ministral-3b-2512", 0.1, 0.1, 0.01, und),                      // mistral
+	pe("ministral-3b-latest", 0.1, 0.1, 0.01, und),                    // mistral
+	pe("ministral-8b-2512", 0.15, 0.15, 0.015, und),                   // mistral
+	pe("ministral-8b-latest", 0.15, 0.15, 0.015, und),                 // mistral
+	pe("mistral-embed", 0.1, 0, und, und),                             // mistral
+	pe("mistral-large-2512", 0.5, 1.5, 0.05, und),                     // mistral
+	pe("mistral-large-4", 0.7, 2.1, 0.07, und),                        // mistral
+	pe("mistral-large-4-0-8", 0.7, 2.1, 0.07, und),                    // mistral
+	pe("mistral-large-latest", 0.7, 2.1, 0.07, und),                   // mistral
+	pe("mistral-medium-2604", 1.5, 7.5, 0.15, und),                    // mistral
+	pe("mistral-medium-latest", 1.5, 7.5, 0.15, und),                  // mistral
+	pe("mistral-small-2603", 0.15, 0.6, 0.015, und),                   // mistral
+	pe("mistral-small-latest", 0.15, 0.6, 0.015, und),                 // mistral
+	pe("voxtral-small-2507", 0.1, 0.4, und, und),                      // mistral
+	pe("voxtral-small-latest", 0.1, 0.4, und, und),                    // mistral
+	pe("zai-glm-5-3", 1.4, 4.4, 0.14, und),                            // mistral
+	pe("zai-glm-5-3-flash", 0.15, 0.5, 0.03, und),                     // mistral
+	pe("kimi-k2-6", 0.95, 4, 0.16, und),                               // moonshotai
+	pe("kimi-k2-7-code", 0.95, 4, 0.19, und),                          // moonshotai
+	pe("kimi-k2-7-code-highspeed", 1.9, 8, 0.38, und),                 // moonshotai
+	pe("kimi-k3", 3, 15, 0.3, 3),                                      // moonshotai
+	pe("kimi-k3-1-pro", 2, 10, 0.2, 2),                                // moonshotai
+	pe("kimi-k3-1-pro-highspeed", 4, 20, 0.2, 4),                      // moonshotai
+	pe("gpt-4o-2024-08-06", 2.5, 10, 1.25, und),                       // openai
+	pe("gpt-4o-2024-11-20", 2.5, 10, 1.25, und),                       // openai
+	pe("gpt-5-2-pro", 21, 168, und, und),                              // openai
+	pe("gpt-5-3-codex-spark", 1.75, 14, 0.175, und),                   // openai
+	pe("gpt-5-4-pro", 30, 180, und, und),                              // openai
+	pe("gpt-5-5-pro", 30, 180, und, und),                              // openai
+	pe("gpt-5-6", 4, 20, 0.4, 5),                                      // openai
+	pe("gpt-5-pro", 15, 120, und, und),                                // openai
+	pe("gpt-6-1-terra", 1, 5, 0.05, 1.25),                             // openai
+	pe("gpt-daybreak-blue-latest", 4, 20, 0.4, 5),                     // openai
+	pe("gpt-daybreak-red-latest", 12.5, 75, 1.25, 15.625),             // openai
+	pe("o3-pro", 20, 80, und, und),                                    // openai
+	pe("deepseek-v4-1-flash", 0.14, 0.42, 0.0042, und),                // openrouter
+	pe("grok-4-20-0309-non-reasoning", 1.25, 2.5, 0.2, und),           // xai
+	pe("grok-4-20-0309-reasoning", 1.25, 2.5, 0.2, und),               // xai
+	pe("grok-4-20-multi-agent-0309", 1.25, 2.5, 0.2, und),             // xai
+	pe("grok-4-3", 1.25, 2.5, 0.2, und),                               // xai
+	pe("grok-4-5", 2, 6, 0.3, und),                                    // xai
+	pe("grok-4-6", 2, 6, 0.5, und),                                    // xai
+	pe("grok-4-7", 2, 6, 0.5, und),                                    // xai
+	pe("grok-build-0-1", 1, 2, 0.2, und),                              // xai
+	pe("glm-4-5", 0.6, 2.2, 0.11, 0),                                  // zhipuai
+	pe("glm-4-5-air", 0.11952, 0.89637, 0.0239, 0),                    // zhipuai
+	pe("glm-4-5v", 0.29879, 0.89637, 0.05976, 0),                      // zhipuai
+	pe("glm-4-6", 0.6, 2.2, 0.11, 0),                                  // zhipuai
+	pe("glm-4-6v", 0.1494, 0.44819, 0.02988, 0),                       // zhipuai
+	pe("glm-4-7", 0.44819, 2.09153, 0.08964, 0),                       // zhipuai
+	pe("glm-4-7-flashx", 0.0747, 0.44819, 0.01494, 0),                 // zhipuai
+	pe("glm-5", 0.59758, 2.68911, 0.1494, 0),                          // zhipuai
+	pe("glm-5-1", 0.89637, 3.58548, 0.19421, 0),                       // zhipuai
+	pe("glm-5-2", 1.19516, 4.18306, 0.29879, 0),                       // zhipuai
+	pe("glm-5-3", 1.19516, 4.18306, 0.29879, 0),                       // zhipuai
+	pe("glm-5-3-flash", 0.11952, 0.41831, 0.03436, 0),                 // zhipuai
+	pe("glm-5-3-flashx", 0.29879, 1.04577, 0.08516, 0),                // zhipuai
+	pe("glm-5v-turbo", 0.74698, 3.28669, 0.17927, 0),                  // zhipuai
 }
 
 var (
@@ -119,7 +235,11 @@ type PriceMatch struct {
 }
 
 func isMatch(name, key string) bool {
-	return name == key || (strings.HasPrefix(name, key) && VersionSuffix.MatchString(name[len(key):]))
+	if name == key || (strings.HasPrefix(name, key) && VersionSuffix.MatchString(name[len(key):])) {
+		return true
+	}
+	// 同族回退：请求的是基础名（deepseek-v4.1-flash），表里只有带快照后缀的同族价（-1017）
+	return strings.HasPrefix(key, name) && VersionSuffix.MatchString(key[len(name):])
 }
 
 func toMatch(e *PriceEntry, source string) *PriceMatch {
@@ -143,7 +263,7 @@ func FindPrice(model string, custom, synced []PriceEntry) *PriceMatch {
 	if name == "" {
 		return nil
 	}
-	best := func(list []PriceEntry) (*PriceEntry, int) {
+	best := func(list []PriceEntry) (*PriceEntry, int, bool) {
 		var hit *PriceEntry
 		hl := -1
 		for i := range list {
@@ -151,25 +271,30 @@ func FindPrice(model string, custom, synced []PriceEntry) *PriceMatch {
 			if key == "" || !isMatch(name, key) {
 				continue
 			}
+			// 精确命中优先：别让 gpt-4o 被 gpt-4o-2024-11-20 这类快照价抢走
+			if key == name {
+				return &list[i], util.UTF16Len(key), true
+			}
 			if hit == nil || hl < util.UTF16Len(key) {
 				hit, hl = &list[i], util.UTF16Len(key)
 			}
 		}
-		return hit, hl
+		return hit, hl, false
 	}
-	if c, _ := best(custom); c != nil {
+	if c, _, _ := best(custom); c != nil {
 		return toMatch(c, "custom")
 	}
-	var s *PriceEntry
-	sl := 0
+	var s, b *PriceEntry
+	sx, bx := false, false
 	if len(synced) > 0 {
-		s, sl = best(synced)
+		s, _, sx = best(synced)
 	}
-	b, bl := best(BuiltinPrices)
-	if s != nil && (b == nil || sl >= bl) {
+	b, _, bx = best(BuiltinPrices)
+	// 精确命中胜过同族回退（不管是 sync 还是内置）；两边都靠回退时取同步的（更新）
+	switch {
+	case s != nil && (b == nil || sx || !bx):
 		return toMatch(s, "sync")
-	}
-	if b != nil {
+	case b != nil:
 		return toMatch(b, "builtin")
 	}
 	return nil

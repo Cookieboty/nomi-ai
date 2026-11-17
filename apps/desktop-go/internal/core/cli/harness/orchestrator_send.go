@@ -556,6 +556,13 @@ func (o *Orchestrator) finish(tab *util.Obj, ok bool, text string, errStr *strin
 	if background && id != MainTabID {
 		tab.Set("unread", jsToNumber(tab.Get("unread"))+1)
 	}
+	// 完成也在侧栏留一个点：让用户知道「这一轮刚跑完」，进会话就消失。
+	// 失败不标记（它有自己的红点），新的一轮开始后由下一次 finish 覆盖。
+	if ok {
+		tab.Set("finished", true)
+	} else {
+		tab.Delete("finished")
+	}
 	if d, _ := tab.Get("delegation").(*util.Obj); d != nil && d.Get("by") == "nomi" {
 		if ok {
 			d.Delete("lastError")

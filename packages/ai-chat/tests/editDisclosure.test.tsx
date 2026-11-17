@@ -30,6 +30,7 @@ describe('编辑和写入内容默认收起', () => {
       const r = render(
         <ConversationView
           phase="idle"
+          transcriptView="normal"
           messages={[
             { id: 'u', role: 'user', text: '修改文件', at: 0 },
             { id: 'a', role: 'assistant', text: '完成', at: 3, trace },

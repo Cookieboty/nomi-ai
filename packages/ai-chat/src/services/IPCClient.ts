@@ -354,7 +354,65 @@ export class SdkIPCClient implements IPCClient {
       log.warn('refusing to save a Nomi message into a non-Nomi conversation', conversationId);
       return;
     }
-    this.store.append(message, conversationId);
+    // 按 id 写入：一轮开始时先存了用户消息（应用中途重启也不丢），结束时再存不会多出一条
+    await this.store.upsert(message, conversationId);
+  }
+
+  async saveMessageAfterTo(
+    message: ChatMessage,
+    conversationId: string,
+    afterId: string,
+  ): Promise<void> {
+    if (!this.nomiTargetExists(conversationId)) return;
+    await this.store.upsertAfter(message, conversationId, afterId);
+  }
+
+  async removeMessageFrom(messageId: string, conversationId: string): Promise<void> {
+    if (!this.nomiTargetExists(conversationId)) return;
+    await this.store.removeMessage(messageId, conversationId);
+  }
+
+  /** 写进 Nomi 对话的条件（会话还在、不是 CLI 标签的镜像项，见 saveMessageTo） */
+  private nomiTargetExists(conversationId: string): boolean {
+    if (!this.store.get(conversationId)) return false;
+    if (!this.store.isNomi(conversationId)) {
+      log.warn('refusing to save a Nomi message into a non-Nomi conversation', conversationId);
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * 回写这个会话的待发列表（存进元信息，见 services/pendingSendsStore）。只改指名的那个会话：
+   * 元信息按当前索引 + 改动写回（一次只带元信息的 put），别的会话存下的不动。
+   */
+  async savePendingSendsTo?(
+    conversationId: string,
+    items: ReadonlyArray<{ id: string; text: string; mode: 'steer' | 'queue'; kb?: true }>,
+  ): Promise<void> {
+    const meta = this.store.get(conversationId);
+    // 会话已被删（或不是 Nomi 对话）：不再复活它
+    if (!meta || !this.store.isNomi(conversationId)) return;
+    // 不推进 updatedAt：待发列表不是一次活动（重启后不会把空会话顶到列表最前，侧栏的排序不变）
+    this.store.updateMeta(conversationId, {
+      pendingSends: items.length ? [...items] : undefined,
+      updatedAt: meta.updatedAt,
+    });
+  }
+
+  /**
+   * 回写已经交给这一轮的插入（元信息，不推进 updatedAt）。payload 为空则删掉这个字段。
+   */
+  async saveDeliveredSteersTo(
+    conversationId: string,
+    payload: ChatSession['deliveredSteers'] | undefined,
+  ): Promise<void> {
+    const meta = this.store.get(conversationId);
+    if (!meta || !this.store.isNomi(conversationId)) return;
+    this.store.updateMeta(conversationId, {
+      deliveredSteers: payload?.items.length ? payload : undefined,
+      updatedAt: meta.updatedAt,
+    });
   }
 
   ensureConversationId(): string {

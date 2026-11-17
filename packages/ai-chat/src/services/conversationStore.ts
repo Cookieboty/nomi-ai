@@ -152,6 +152,11 @@ const opId = (op: WriteOp): string | undefined => (op.kind === 'pointers' ? unde
 const opName = (op: WriteOp): string => (op.kind === 'call' ? op.name : op.kind);
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/** 会话还叫默认名时，存第一条用户消息顺手起的名字（智能标题关掉时就用它） */
+export function firstMessageChatName(content: string): string {
+  return splitFileAttachments(content).text.replace(/\s+/g, ' ').trim().slice(0, 30);
+}
+
 export class ConversationStore {
   private readonly kernel: ConversationKernel | undefined;
   private readonly now: () => number;
@@ -577,6 +582,121 @@ export class ConversationStore {
     });
   }
 
+  /**
+   * 按 id 写入：已有同 id（且同角色）的消息就去掉旧的、把新的放到末尾（一轮开始时先存的用户消息，结束时带上记忆等再存一次，
+   * 期间插进来的压缩摘要因此仍在它前面）；没有就和 append 一样追加。会话没加载时先读一次再判断，不会追加出两份。
+   */
+  async upsert(message: ChatMessage, id: string | undefined = this.currentId()): Promise<void> {
+    if (!id || !this.get(id)) return;
+    let cached = this.messagesCache.get(id) ?? (this.kernel ? undefined : this.getMessages(id));
+    if (!cached && this.kernel) {
+      try {
+        cached = await this.loadMessages(id);
+      } catch {
+        cached = undefined;
+      }
+      if (!this.get(id)) return;
+    }
+    // id 与角色都相同才算同一条（id 取自时间戳，相邻两条的 id 偶尔会撞上）
+    const same = (m: ChatMessage) => m.id === message.id && m.role === message.role;
+    if (cached?.some(same)) {
+      this.setMessages(id, [...cached.filter((m) => !same(m)), message]);
+      return;
+    }
+    this.append(message, id);
+  }
+
+  /**
+   * 按 id 写入、排到 `afterId` 那条后面（用户在一轮中途插入的消息）：没有同 id 就插在那里，有就覆盖并挪过去；
+   * `afterId` 不在了就追加到末尾。会话没加载时先读一次再判断（和 upsert 一样）。
+   * 只管位置，不改标题 / 更新时间（这条不是新的一轮）。
+   */
+  async upsertAfter(
+    message: ChatMessage,
+    id: string | undefined = this.currentId(),
+    afterId?: string,
+  ): Promise<void> {
+    if (!id || !this.get(id)) return;
+    const cached = await this.cachedOrLoaded(id);
+    // 会话在加载期间被删了
+    if (!cached || !this.get(id)) return;
+    const same = (m: ChatMessage) => m.id === message.id && m.role === message.role;
+    const rest = cached.filter((m) => !same(m));
+    const at = afterId ? rest.findIndex((m) => m.id === afterId) : -1;
+    // 插在当前最后一条后面（回复还没落盘时，先存的用户消息就是最后一条）= 追加，不必整份 replace；
+    // 也不走 append()：那会 touch 更新时间 / 标题，这条不是新的一轮。
+    if (!cached.some(same) && (at < 0 || at === rest.length - 1)) {
+      this.appendQuiet(message, id);
+      return;
+    }
+    const next =
+      at < 0 ? [...rest, message] : [...rest.slice(0, at + 1), message, ...rest.slice(at + 1)];
+    this.replaceMessages(id, next);
+  }
+
+  /** 按 id 删掉一条（不存在什么都不做） */
+  async removeMessage(messageId: string, id: string | undefined = this.currentId()): Promise<void> {
+    if (!id || !this.get(id)) return;
+    const cached = await this.cachedOrLoaded(id);
+    if (!cached || !this.get(id)) return;
+    const next = cached.filter((m) => m.id !== messageId);
+    if (next.length === cached.length) return;
+    this.replaceMessages(id, next);
+  }
+
+  /** 已缓存的消息；没缓存但内核里有就等加载完（会话在期间被删了返回 undefined） */
+  private async cachedOrLoaded(id: string): Promise<ChatMessage[] | undefined> {
+    const cached = this.messagesCache.get(id) ?? (this.kernel ? undefined : this.getMessages(id));
+    if (cached) return cached;
+    if (!this.kernel) return undefined;
+    try {
+      await this.loadMessages(id);
+    } catch {
+      return undefined;
+    }
+    return this.messagesCache.get(id);
+  }
+
+  /** 追加一条但不推进更新时间、不改标题（中途插入的消息不是新的一轮） */
+  private appendQuiet(message: ChatMessage, id: string): void {
+    const cached = this.messagesCache.get(id);
+    let preview: { preview?: string };
+    if (cached) {
+      const next = [...cached, message].slice(-this.maxMessages);
+      const estimate = (this.cacheChars.get(id) ?? 2) + approxJsonLength(message) + 1;
+      this.remember(id, next, estimate);
+      this.counts.set(id, next.length);
+      preview = this.nextPreview(id, next);
+    } else {
+      this.counts.set(id, Math.min(this.maxMessages, (this.counts.get(id) ?? 0) + 1));
+      preview = {};
+    }
+    const meta = this.get(id);
+    this.bump(id);
+    this.enqueue({
+      kind: 'append',
+      id,
+      messages: [message],
+      ...(meta ? { meta } : {}),
+      ...preview,
+      max: this.maxMessages,
+    });
+  }
+
+  /**
+   * 覆盖缓存里的消息并写回内核（不推进更新时间、不改标题）：整份 replace 只在插入 / 删除一条时用，
+   * 普通的一轮只会追加。
+   */
+  private replaceMessages(id: string, messages: ChatMessage[]): void {
+    const next = messages.slice(-this.maxMessages);
+    this.remember(id, next, approxChars(next));
+    this.counts.set(id, next.length);
+    const preview = this.nextPreview(id, next);
+    const meta = this.get(id);
+    this.bump(id);
+    this.enqueue({ kind: 'replace', id, messages: next, ...(meta ? { meta } : {}), ...preview });
+  }
+
   /** 清空会话消息（会话本身保留） */
   clear(id: string | undefined = this.currentId()): void {
     if (!id) return;
@@ -785,7 +905,7 @@ export class ConversationStore {
       if (c.id !== id) return c;
       const cleaned =
         message && message.role === 'user' && isDefaultChatName(c.name)
-          ? splitFileAttachments(message.content).text.replace(/\s+/g, ' ').trim().slice(0, 30)
+          ? firstMessageChatName(message.content)
           : '';
       const named = cleaned || c.name;
       out = { ...c, name: named, updatedAt: this.now(), modelId: message?.modelId ?? c.modelId };

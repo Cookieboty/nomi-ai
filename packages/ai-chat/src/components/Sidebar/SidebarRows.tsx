@@ -26,16 +26,23 @@ export const rel = (ts: number) => {
 
 /**
  * 会话行的状态：CLI 标签看标签自己的状态；Nomi 对话没有标签，
- * 由调用方传 running（该会话在 AiChat 的 busyConvos 里）才显示「进行中」。
+ * 由调用方传 running（该会话在 AiChat 的 busyConvos 里）才显示「进行中」，
+ * 传 done（刚跑完一轮还没点进去）显示「完成」点。
  */
-export function rowLive(tab: HarnessTabMeta | undefined, running?: boolean): string {
-  return liveOf(tab) || (running ? 'running' : '');
+export function rowLive(
+  tab: HarnessTabMeta | undefined,
+  running?: boolean,
+  done?: boolean,
+): string {
+  return liveOf(tab) || (running ? 'running' : done ? 'done' : '');
 }
 
 export function liveOf(tab: HarnessTabMeta | undefined): string {
   if (!tab) return '';
   if (tab.status === 'running' || tab.status === 'queued' || tab.status === 'error')
     return tab.status;
+  // 跑完一轮留下的完成点：点进这个会话就消（取消 / 失败不会留）
+  if (tab.finished) return 'done';
   if (tab.unread > 0) return 'unread';
   if (tab.background) return 'background';
   return tab.dormant ? 'dormant' : '';
@@ -103,6 +110,8 @@ const ThreadItemImpl: React.FC<{
   tab?: HarnessTabMeta;
   /** Nomi 对话正在回复（没有标签，状态从 AiChat 的 busyConvos 来） */
   running?: boolean;
+  /** Nomi 对话刚跑完一轮、还没点进去看（状态从 AiChat 的 doneConvos 来） */
+  done?: boolean;
   onOpen: (id: string) => void;
   onCtx: (id: string, e: React.MouseEvent) => void;
   renaming?: boolean;
@@ -123,6 +132,7 @@ const ThreadItemImpl: React.FC<{
   active,
   tab,
   running,
+  done,
   onOpen,
   onCtx,
   renaming,
@@ -136,7 +146,7 @@ const ThreadItemImpl: React.FC<{
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
   const cls = `${styles.thread} ${active ? styles.threadActive : ''}`;
-  const live = rowLive(tab, running);
+  const live = rowLive(tab, running, done);
   const layout = 'plain';
   const endpointMark = showIcon && c.backend !== 'nomi';
   // 状态点不占列：压在行首内边距里，只有运行 / 新结果 / 出错时才看得见
@@ -199,10 +209,14 @@ const ThreadItemImpl: React.FC<{
         <span className={styles.threadName}>
           {c.name ? t(c.name) : t('ui.chat-settings.new-chat')}
         </span>
-        {/* 不显示时间（悬停卡片里有）；进行中 / 排队只看行首的状态点，不再重复写字，文字只给读屏 */}
-        {(live === 'running' || live === 'queued') && (
+        {/* 不显示时间（悬停卡片里有）；进行中 / 排队 / 完成只看行首的状态点，不再重复写字，文字只给读屏 */}
+        {(live === 'running' || live === 'queued' || live === 'done') && (
           <span className={styles.srOnly} data-live={live} data-testid="thread-live">
-            {live === 'running' ? t('ui.chat-settings.in-progress') : t('ui.mascot-theme.queued')}
+            {live === 'running'
+              ? t('ui.chat-settings.in-progress')
+              : live === 'queued'
+                ? t('ui.mascot-theme.queued')
+                : t('ui.foundation.done')}
           </span>
         )}
         {/* 行尾：置顶标记（置顶的会话排在所在项目最前，没有单独的分组）+ 端点图标；悬停时让位给行内操作 */}
@@ -249,6 +263,8 @@ export type VirtualProps = {
   tabById: Map<string, HarnessTabMeta>;
   /** 正在回复的 Nomi 会话 id（Nomi 对话没有标签，状态只能从这里取） */
   runningIds?: ReadonlySet<string>;
+  /** 刚跑完一轮、还没点进去看的 Nomi 会话 id */
+  doneIds?: ReadonlySet<string>;
   open: (id: string) => void;
   onCtx: (id: string, e: React.MouseEvent) => void;
   renamingId: string | null;
@@ -267,6 +283,7 @@ export const VirtualRow = ({
   current,
   tabById,
   runningIds,
+  doneIds,
   open,
   onCtx,
   renamingId,
@@ -285,6 +302,7 @@ export const VirtualRow = ({
         active={c.id === current}
         tab={c.tabId ? tabById.get(c.tabId) : undefined}
         running={c.tabId ? undefined : runningIds?.has(c.id)}
+        done={c.tabId ? undefined : doneIds?.has(c.id)}
         onOpen={open}
         onCtx={onCtx}
         renaming={renamingId === c.id}

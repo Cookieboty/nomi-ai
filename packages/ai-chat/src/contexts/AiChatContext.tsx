@@ -20,6 +20,7 @@ import { delegateClient, type DelegateResult } from '../services/delegateClient'
 import { delegateResultMessage } from '../services/delegateMessage';
 import { desktopClient } from '../services/desktopClient';
 import { harnessClient } from '../services/harnessClient';
+import { splitSteerContent } from '../services/history';
 import { createIPCClient } from '../services/IPCClient';
 import { stopReplySpeech } from '../services/replySpeech';
 import { schedClient } from '../services/schedClient';
@@ -36,9 +37,17 @@ import {
   type AiChatState,
 } from './aiChatState';
 import { AiChatStoreContext, createAiChatStore } from './aiChatStore';
-import { openTurn, upsertById, type ActiveStream, type InflightTurn } from './chatTurn';
+import {
+  openTurn,
+  recoverSteerMessages,
+  upsertById,
+  withDeliveredSteers,
+  withInterruptedReply,
+  type ActiveStream,
+  type InflightTurn,
+} from './chatTurn';
 import { compactHistory } from './compactHistory';
-import { useNomiSteer } from './nomiSteer';
+import { useNomiSteer, type SteerLedger } from './nomiSteer';
 import { useMemoryIngest } from './useChatMemory';
 import { useChatSends } from './useChatSends';
 
@@ -75,6 +84,8 @@ export interface AiChatActions {
   stopGeneration: () => void;
   /** 删除会话前调用：若进行中的流属于该会话则中止它（晚到的回调也不会再写回界面 / 记忆） */
   abortConversation: (convoId: string) => void;
+  /** 进过这个会话：行首的「已完成」点消掉 */
+  clearDone: (convoId: string) => void;
   /** 一轮进行中插入用户消息 / 有工具在跑 / 工具开始的订阅（见 contexts/nomiSteer） */
   steerStream: ReturnType<typeof useNomiSteer>['steerStream'];
   nomiToolRunning: ReturnType<typeof useNomiSteer>['nomiToolRunning'];
@@ -134,6 +145,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
    * 期间切走再切回时 loadChatHistory 从存储读不到它们，要从这里补回
    */
   const inflight = useRef(new Map<string, InflightTurn>());
+  /** 这一轮里交给模型的用户插入（中途重启时补进对话记录，正常结束时随轨迹删掉，见 nomiSteer） */
+  const steering = useRef<SteerLedger>(new Map());
   /** 历史加载序号：切换会话时后发起的加载为准，先发起的晚到结果直接丢弃 */
   const historySeq = useRef(0);
   /** 只按加载本身计数：新建 / 清空会话也会推进 historySeq，但不能因此让开屏的 nomi 任务永远等不到完成 */
@@ -205,13 +218,17 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       const completedAt = Date.now();
       const notifyMain = (m: ChatMessage) => {
         if (!r.background || r.followUp) return;
+        // 被停止的委派不再注入：结果消息已经写进对话（模型下一轮从历史里读得到），卡片上也标着「已停止」，
+        // 再 steer 一遍只会让模型以为自己被用户插了句话
+        if (r.status === 'cancelled') return;
         const currentId = ipcClient.currentConversationId?.();
         const targetId = r.conversationId ?? currentId;
         const key = convoKey(targetId);
-        // 1. 主模型正在流式执行中（例如同一轮还在跑其他工具）：经 steer 把后台委派终态注入当前轮，免得主模型盲等
+        // 1. 主模型正在流式执行中（例如同一轮还在跑其他工具）：经 steer 把后台委派终态注入当前轮，免得主模型盲等。
+        //    silent：这是系统状态（委派完成 / 失败），只告诉模型，不在时间线里回显成「你插入了」
         const running = activeStream.current.get(key);
         if (running?.steer && !running.controller.signal.aborted) {
-          void running.steer(`<cli-output>\n${m.content}\n</cli-output>`);
+          void running.steer(`<cli-output>\n${m.content}\n</cli-output>`, { silent: true });
           return;
         }
         // 2. 主会话当前空闲且后台委派经内核 5 次自动重试仍失败：受控唤醒 Nomi 接棒（改派健康 CLI 或自力完成，每轮用户提问最多 2 次）
@@ -322,6 +339,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     inflight,
     maybeIngest,
     notifyToolStart,
+    steering,
   });
   useLayoutEffect(() => {
     sendStreamRef.current = sendStreamMessage;
@@ -334,14 +352,29 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       const idx = s.messages.findIndex((m) => m.id === userMessageId && m.role === 'user');
       if (idx < 0) return;
       const target = s.messages[idx]!;
+      // 这一轮被重启打断时，原句后面可能还跟着已经交给模型的插入：重试不能把它们丢下
+      const steers: string[] = [];
+      if (!newText) {
+        for (let i = idx + 1; i < s.messages.length; i++) {
+          const m = s.messages[i]!;
+          if (m.role !== 'user' || !m.steer) break;
+          steers.push(m.content);
+        }
+      }
       const kept = s.messages.slice(0, idx);
       const store = s.ipcClient.conversationStore?.();
       const convoId = s.ipcClient.currentConversationId?.();
       if (store && convoId) store.setMessages(convoId, kept);
       dispatch({ type: 'SET_MESSAGES', payload: kept });
+      const extra = steers
+        .map((c) => splitSteerContent(c).text.trim())
+        .filter((t) => t && t !== (newText ?? target.content).trim());
+      const body = extra.length
+        ? `${newText ?? target.content}\n\n${extra.join('\n\n')}`
+        : (newText ?? target.content);
       // 知识库问答的消息重新生成 / 编辑重发时仍走带引用的问答，不能无提示降级成普通对话
-      if (target.kb) await askKnowledge(newText ?? target.content, { history: kept });
-      else await sendStreamMessage(newText ?? target.content, undefined, { history: kept });
+      if (target.kb) await askKnowledge(body, { history: kept });
+      else await sendStreamMessage(body, undefined, { history: kept });
     },
     [sendStreamMessage, askKnowledge],
   );
@@ -387,6 +420,11 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     stateRef.current.ipcClient.abortStream?.(a.reqId);
   }, []);
 
+  /** 点开会话就算看过了：把行首那个「已完成」点去掉（已经在看的会话不会重新加载历史，得单独清） */
+  const clearDone = useCallback((convoId: string) => {
+    dispatch({ type: 'CLEAR_DONE', convoId });
+  }, []);
+
   // 加载对话历史
   const loadChatHistory = useCallback(async () => {
     startupBrandIntro.taskStart('nomi');
@@ -404,7 +442,36 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       const convoId = client.currentConversationId?.();
       // 回到正在回复的会话：这一轮还没落盘，把它的用户消息与已生成的部分补回来
       const f = inflight.current.get(convoKey(convoId));
-      const payload = f ? upsertById(history, f.messages) : history;
+      const live = !!(
+        f ||
+        activeStream.current.has(convoKey(convoId)) ||
+        busyIn(stateRef.current, convoId)
+      );
+      // 重启后：把元信息里记下的、已经交给这一轮的插入补成用户消息（还在回复则只在轨迹里显示，不重复）。
+      const storedSteers = convoId
+        ? client.conversationStore?.()?.get(convoId)?.deliveredSteers
+        : undefined;
+      const applied = live
+        ? { history, added: [] as const }
+        : withDeliveredSteers(history, storedSteers);
+      if (applied.added.length && convoId) {
+        let afterId = storedSteers?.afterId ?? history[history.length - 1]?.id;
+        for (const msg of applied.added) {
+          if (client.saveMessageAfterTo && afterId)
+            await client.saveMessageAfterTo(msg, convoId, afterId).catch(() => undefined);
+          else if (client.saveMessageTo)
+            await client.saveMessageTo(msg, convoId).catch(() => undefined);
+          afterId = msg.id;
+        }
+        await client.saveDeliveredSteersTo?.(convoId, undefined);
+      }
+      const recovered = recoverSteerMessages(applied.history, live);
+      // 不在回复中、却以用户消息结尾：上一轮被重启打断（用户消息发出时就已存下），补一张可重试的卡
+      const payload = f
+        ? upsertById(recovered, f.messages)
+        : live
+          ? recovered
+          : withInterruptedReply(recovered);
       dispatch({ type: 'SET_MESSAGES', payload, convoId });
     } catch (error) {
       if (my !== historySeq.current) return;
@@ -497,6 +564,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       compactConversation,
       stopGeneration,
       abortConversation,
+      clearDone,
       steerStream,
       nomiToolRunning,
       onNomiToolStart,
@@ -514,6 +582,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       compactConversation,
       stopGeneration,
       abortConversation,
+      clearDone,
       steerStream,
       nomiToolRunning,
       onNomiToolStart,

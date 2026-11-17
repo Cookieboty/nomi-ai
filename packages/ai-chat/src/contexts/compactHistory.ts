@@ -42,6 +42,8 @@ export async function compactHistory(
   dispatch: React.Dispatch<AiChatAction>,
   /** `/compact` 后面带的说明 */
   instructions?: string,
+  /** 插到这条消息之前：发送前压缩时，摘要卡要盖在刚发的新消息上方 */
+  beforeId?: string,
 ): Promise<CompactResult> {
   if (!client.summarize) return { next: null };
   const [chatCtx, sumCtx] = await Promise.all([
@@ -57,7 +59,7 @@ export async function compactHistory(
     content: '',
     timestamp: Date.now(),
   };
-  if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: pending });
+  if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: pending, beforeId });
   try {
     const budget = (sumCtx ?? chatCtx)?.budget ?? FALLBACK_SUMMARY_BUDGET;
     const raw = await client.summarize(compactionRequest(history, budget, instructions));

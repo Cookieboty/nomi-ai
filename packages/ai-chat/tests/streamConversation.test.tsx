@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AiChatContextProvider, useAiChat } from '../src/contexts/AiChatContext';
 import { selectBusyHere, selectStreamingHere } from '../src/contexts/aiChatStore';
+import { INTERRUPTED_REPLY_PREFIX } from '../src/contexts/chatTurn';
 import { bindNextDelegateConversation, setNextDelegate } from '../src/services/delegateClient';
 import { type SdkIPCClient } from '../src/services/IPCClient';
 import { nomiLive, settledNomiMessages } from '../src/utils/convAdapters';
@@ -416,7 +417,14 @@ describe('Nomi 流式回复 · 会话固定与停止生成', () => {
     await act(async () => {
       await p1;
     });
-    await waitFor(() => expect(ref.api.state.messages.map((m) => m.content)).toEqual(['in B']));
+    // B 以用户消息结尾、又没在回复：后面补一张「被重启打断、可重试」的卡（只在界面上），这里只看读回的记录
+    await waitFor(() =>
+      expect(
+        ref.api.state.messages
+          .filter((m) => !m.id.startsWith(INTERRUPTED_REPLY_PREFIX))
+          .map((m) => m.content),
+      ).toEqual(['in B']),
+    );
     spy.mockRestore();
   });
 

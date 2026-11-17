@@ -1,5 +1,5 @@
-/** 运行中的等待态状态行：图标 + 明确文案 + 已用时 */
-import { Icon } from '@nomi-ai/ui';
+/** 运行中的等待态状态行：图标 + 步骤进度 + 明确文案 + 已用时 */
+import { Icon, t } from '@nomi-ai/ui';
 import {
   IconRobot as Bot,
   IconBrain as Brain,
@@ -24,6 +24,7 @@ const ICONS: Record<StatusKind, IconGlyph> = {
   queued: Clock,
   permission: ShieldAlert,
   compact: Shrink,
+  blocked: ShieldAlert,
   retry: RefreshCw,
   reconnect: Unplug,
   subagent: Bot,
@@ -36,12 +37,17 @@ const ICONS: Record<StatusKind, IconGlyph> = {
 
 /** 这些状态的图标持续旋转 */
 const SPIN = new Set<StatusKind>(['tool', 'working', 'retry', 'reconnect', 'compact']);
-const WARN = new Set<StatusKind>(['permission', 'retry', 'reconnect']);
+const WARN = new Set<StatusKind>(['permission', 'retry', 'reconnect', 'blocked']);
 
-export const StatusLine: React.FC<{
+export const isWarnStatus = (kind: StatusKind): boolean => WARN.has(kind);
+
+/** 纯行内状态内容（只含 span 与 Icon，便于 StatusLine 与折叠横条复用） */
+export const StatusLineContent: React.FC<{
   status: StatusInfo;
   startedAt?: number;
-}> = ({ status, startedAt }) => {
+  stepCount?: number;
+  minimal?: boolean;
+}> = ({ status, startedAt, stepCount, minimal }) => {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!startedAt) return;
@@ -49,19 +55,45 @@ export const StatusLine: React.FC<{
     return () => window.clearInterval(id);
   }, [startedAt]);
   const elapsed = startedAt ? Math.max(0, now - startedAt) : undefined;
-  const cls = [styles.status, WARN.has(status.kind) ? styles.statusWarn : ''].join(' ');
+  const showTime =
+    elapsed !== undefined && status.kind !== 'queued' && (minimal || elapsed >= 1000);
   return (
-    <div className={cls} data-testid="conv-status" data-kind={status.kind} role="status">
+    <>
       <span className={`${styles.statusIcon} ${SPIN.has(status.kind) ? styles.statusSpin : ''}`}>
         <Icon icon={ICONS[status.kind]} size={14} />
       </span>
-      <span>{status.label}</span>
-      {status.detail && <span className={styles.statusDetail}>{status.detail}</span>}
-      {elapsed !== undefined && elapsed >= 1000 && status.kind !== 'queued' && (
-        <span className={styles.statusTime}>
-          {formatDuration(Math.floor(elapsed / 1000) * 1000)}
+      {stepCount !== undefined && stepCount > 0 && (
+        <span className={styles.statusStep} data-testid="conv-status-step">
+          {t('ui.usage-tools.step-n', stepCount)}
         </span>
       )}
+      <span className={styles.statusLabel}>{status.label}</span>
+      {status.detail && <span className={styles.statusDetail}>{status.detail}</span>}
+      {showTime && (
+        <span className={styles.statusTime} data-testid="conv-status-time">
+          {elapsed < 1000 ? '0s' : formatDuration(Math.floor(elapsed / 1000) * 1000)}
+        </span>
+      )}
+    </>
+  );
+};
+
+export const StatusLine: React.FC<{
+  status: StatusInfo;
+  startedAt?: number;
+  stepCount?: number;
+  minimal?: boolean;
+}> = (props) => {
+  const cls = [styles.status, isWarnStatus(props.status.kind) ? styles.statusWarn : ''].join(' ');
+  return (
+    <div
+      className={cls}
+      data-testid="conv-status"
+      data-kind={props.status.kind}
+      data-no-selection-toolbar=""
+      role="status"
+    >
+      <StatusLineContent {...props} />
     </div>
   );
 };

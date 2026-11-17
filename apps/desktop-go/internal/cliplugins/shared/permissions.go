@@ -36,6 +36,9 @@ func DegradeMode(supported []string, mode string) (string, bool) {
 	return "plan", true
 }
 
+// ClaudeMode：Nomi 档位 → Claude --permission-mode 名（与 packages/cli-catalog 的 CLAUDE_MODE 一致）。
+// auto = 由 Claude 自己判断哪些动作要确认（Nomi「自动」档的语义）；
+// 但判断跑在服务端，第三方网关下不可达 —— orchestrator 会按端点降级到 acceptEdits。
 var ClaudeMode = map[string]string{"plan": "plan", "manual": "default", "acceptEdits": "acceptEdits", "auto": "auto", "bypass": "bypassPermissions"}
 
 var sepRun = regexp.MustCompile(`[_` + util.JSWhitespace[1:len(util.JSWhitespace)-1] + `]+`)

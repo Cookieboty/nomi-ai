@@ -19,6 +19,7 @@ import type {
   HarnessTabMeta,
   HarnessTraceEvent,
 } from '../src/services/harnessClient';
+import type { TranscriptView } from '../src/services/transcriptView';
 import { fromHarnessMessage, tabLiveToConv } from '../src/utils/convAdapters';
 
 afterEach(cleanup);
@@ -28,6 +29,7 @@ const CliConversation: React.FC<{
   tab: HarnessTabMeta;
   messages: HarnessTabMessage[];
   live?: TabLive;
+  transcriptView?: TranscriptView;
   onPermission?: (
     id: string,
     allow: boolean,
@@ -105,9 +107,28 @@ describe('CliConversation 历史消息', () => {
     ).toBe('先确认表结构，字段名和现有的 migration 写法。');
   });
 
+  it('默认（极简模式）收起思考与工具为顶部步骤行，只展示最终总结，点击可展开全部步骤', () => {
+    const { getByTestId, queryByTestId } = render(
+      <CliConversation tab={tab()} messages={messages} onPermission={() => undefined} />,
+    );
+    expect(queryByTestId('tool-thinking')).toBeNull();
+    expect(queryByTestId('tool-activity')).toBeNull();
+    expect(queryByTestId('tool-row')).toBeNull();
+    expect(getByTestId('markdown').querySelector('h3')?.textContent).toBe('结论');
+    expect(getByTestId('minimal-steps-toggle').textContent).toContain('8 步');
+    fireEvent.click(getByTestId('minimal-steps-toggle'));
+    expect(getByTestId('tool-thinking')).toBeTruthy();
+    expect(getByTestId('tool-subagent')).toBeTruthy();
+  });
+
   it('用户气泡右对齐、助手正文走 Markdown，工具调用不再是纯文本流', () => {
     const { getByTestId, queryByText, container } = render(
-      <CliConversation tab={tab()} messages={messages} onPermission={() => undefined} />,
+      <CliConversation
+        tab={tab()}
+        messages={messages}
+        transcriptView="normal"
+        onPermission={() => undefined}
+      />,
     );
     expect(getByTestId('msg-user').textContent).toContain('检查内存泄漏');
     // Markdown：标题 + 粗体 + 行内代码，没有原始标记
@@ -129,7 +150,12 @@ describe('CliConversation 历史消息', () => {
 
   it('点击一类的摘要展开这一类的每一步（一步一行），再点单行看到参数与输出；耗时 400ms', () => {
     const { container } = render(
-      <CliConversation tab={tab()} messages={messages} onPermission={() => undefined} />,
+      <CliConversation
+        tab={tab()}
+        messages={messages}
+        transcriptView="normal"
+        onPermission={() => undefined}
+      />,
     );
     const group = container.querySelector<HTMLElement>('[data-testid="tool-activity"]')!;
     fireEvent.click(group.querySelector('button')!);
@@ -146,7 +172,12 @@ describe('CliConversation 历史消息', () => {
 
   it('命令行展开显示命令与输出；编辑默认收起，展开后显示 diff（增删着色 + 统计）', () => {
     const { container } = render(
-      <CliConversation tab={tab()} messages={messages} onPermission={() => undefined} />,
+      <CliConversation
+        tab={tab()}
+        messages={messages}
+        transcriptView="normal"
+        onPermission={() => undefined}
+      />,
     );
     const cmd = container.querySelector<HTMLElement>('[data-kind="command"]')!;
     expect(cmd.textContent).toContain('pnpm test');
@@ -208,7 +239,12 @@ describe('CliConversation 历史消息', () => {
       },
     ];
     const { container } = render(
-      <CliConversation tab={tab()} messages={failing} onPermission={() => undefined} />,
+      <CliConversation
+        tab={tab()}
+        messages={failing}
+        transcriptView="normal"
+        onPermission={() => undefined}
+      />,
     );
     expect(container.querySelector('[data-kind="command"]')?.getAttribute('data-status')).toBe(
       'error',
@@ -300,6 +336,7 @@ describe('CliConversation 运行中', () => {
         tab={tab({ status: 'running' })}
         messages={messages.slice(0, 1)}
         live={{ ...liveBase, text: '**粗体**流式' }}
+        transcriptView="normal"
         onPermission={() => undefined}
       />,
     );

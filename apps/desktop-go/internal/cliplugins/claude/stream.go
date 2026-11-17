@@ -15,6 +15,13 @@ type StreamState struct {
 	TextSeen    bool
 	LastContext *float64
 	LastError   string
+	// 权限被拒：Claude 的「自动」靠服务端分类器，请求经第三方网关时分类器不可达，
+	// 每个要检查的动作都会被拒（decision_reason_code=auto_mode_no_check_in_session）。
+	DeniedCode  string
+	DeniedTools []string
+	// 会话级提示（system/informational）：目前只有「auto 模式无法校验动作」带 tag。
+	NoticeCode string
+	NoticeText string
 }
 
 func extractResultErrors(j *util.Obj) string {
@@ -234,6 +241,17 @@ func ParseLine(line string, state *StreamState) []Ev {
 					msg = T("electron.common.claude-error")
 				}
 			}
+			// auto 模式在第三方网关下分类器不可用，所有要检查的动作都被拒 ——
+			// 把真正的原因说清楚，而不是只留一句 error_during_execution。
+			if state != nil && state.DeniedCode == "auto_mode_no_check_in_session" {
+				msg = T("electron.common.auto-mode-cannot-check-actions")
+				if len(state.DeniedTools) > 0 {
+					msg += " (" + strings.Join(state.DeniedTools, ", ") + ")"
+				}
+				state.DeniedCode, state.DeniedTools = "", nil
+			} else if state != nil {
+				state.DeniedTools = nil
+			}
 			// 出错的一轮也带上会话 id：续接靠它（否则下一轮成了新会话）
 			out = append(out, WithOpt(O("type", "error", "message", msg), "sessionId", OptStr(j.Get("session_id"))))
 		} else {
@@ -254,6 +272,45 @@ func ParseLine(line string, state *StreamState) []Ev {
 		}
 		out = append(out, WithOpt(O("type", "status", "kind", "retry"),
 			"attempt", sh.Num(j.Get("attempt")), "max", sh.Num(j.Get("max_retries")), "text", StrOr(j.Get("error"))))
+	case typ == "system" && j.Get("subtype") == "permission_denied":
+		// 权限系统抦了某个动作（auto 模式分类器不可用 / 用户拒绝 / 策略拒绝）。
+		// 以前整个事件被丢掉，用户只看到「跑着跑着失败了」。
+		tool := strings.TrimSpace(util.Str(j.Get("tool_name")))
+		code := strings.TrimSpace(util.Str(j.Get("decision_reason_code")))
+		if state != nil {
+			if code != "" {
+				state.DeniedCode = code
+			}
+			if tool != "" {
+				seen := false
+				for _, t := range state.DeniedTools {
+					if t == tool {
+						seen = true
+						break
+					}
+				}
+				if !seen {
+					state.DeniedTools = append(state.DeniedTools, tool)
+				}
+			}
+		}
+		ev := O("type", "permission-denied", "tool", tool)
+		if code != "" {
+			ev.Set("code", code)
+		}
+		if r := strings.TrimSpace(util.Str(j.Get("decision_reason"))); r != "" {
+			ev.Set("reason", r)
+		}
+		out = append(out, ev)
+	case typ == "system" && j.Get("subtype") == "informational":
+		// 会话级提示（Claude 自己说明，比如 auto 模式无法校验动作）。没有 tag 的是杂项提示，丢掉。
+		if tag := strings.TrimSpace(util.Str(j.Get("tag"))); tag != "" {
+			text := strings.TrimSpace(util.Str(j.Get("content")))
+			if state != nil {
+				state.NoticeCode, state.NoticeText = tag, text
+			}
+			out = append(out, O("type", "notice", "tag", tag, "text", text))
+		}
 	case typ == "system" && j.Get("subtype") == "status":
 		kind := "clear"
 		if j.Get("status") == "compacting" {

@@ -390,14 +390,20 @@ func ChildPermissionMode(nomi, tabDefault string) string {
 	return m
 }
 
-// ChildPermissionModeFor：按具体 CLI 的能力把 Nomi 的「自动」映射到最高非 bypass 档。
-// 例如 Claude 支持 auto 就传 auto，只有 acceptEdits 的 CLI 就传 acceptEdits，
-// 只有 plan / manual 的 CLI 则传 manual，避免通用降级把自动委派错误降到只读。
+// ChildPermissionModeFor：Nomi 处于「自动」时，派出去的编程助手直接落到 bypass。
+// 委派是后台无人值守的：任何「问一下」都没人回答，只会让任务半路死掉
+// （Claude 的 auto 更是会把每个动作都拒掉，跑十几分钟后 error_during_execution）。
+// 其余档位仍按「不超过用户给的档位」降级，永远不会自己升到 bypass。
 func ChildPermissionModeFor(cli, nomi, tabDefault string) string {
 	if nomi != "auto" {
 		return ChildPermissionMode(nomi, tabDefault)
 	}
 	if p := builtin.Impl(cli); p != nil && p.Permissions != nil {
+		if contains(p.Permissions.Supported, "bypass") {
+			return "bypass"
+		}
+		// 没有「完全放开」档的 CLI（minimax）：退而求其次，取它能给的最高档，
+		// 别默默降到只读把任务做成 dry-run。
 		for i := len(modeOrder) - 2; i >= 0; i-- {
 			if contains(p.Permissions.Supported, modeOrder[i]) {
 				return modeOrder[i]

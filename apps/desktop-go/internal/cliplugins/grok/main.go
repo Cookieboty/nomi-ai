@@ -10,11 +10,15 @@ import (
 
 const HomeEnv = "GROK_HOME"
 
-var Modes = []string{"plan", "manual", "acceptEdits", "bypass"}
+// Modes：Grok 没有能自己判断风险的档，「自动」落到 acceptEdits（自动改文件、其余仍按本地权限逻辑）。
+var Modes = []string{"plan", "manual", "acceptEdits", "auto", "bypass"}
 
 func ModeID(mode string) string {
-	if mode == "manual" || mode == "auto" {
+	if mode == "manual" {
 		return "default"
+	}
+	if mode == "auto" {
+		return "acceptEdits"
 	}
 	return sh.ClaudeMode[mode]
 }
@@ -23,7 +27,7 @@ func ModeArgs(mode string) []string {
 	if mode == "bypass" {
 		return []string{"--yolo"}
 	}
-	return []string{"--permission-mode", sh.ClaudeMode[mode]}
+	return []string{"--permission-mode", ModeID(mode)}
 }
 
 func UserHome(env clisdk.Env, home string) string { return sh.CliHome(HomeEnv, ".grok", env, home) }

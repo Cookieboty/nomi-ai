@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -120,5 +122,52 @@ func TestLauncherPersistsAndPreservesProtocolArguments(t *testing.T) {
 	}
 	if !LauncherManagesLogin("claude") {
 		t.Fatal("local login must not depend on a custom command")
+	}
+}
+
+func TestTestLauncherVersionDoesNotInvokeShell(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "with spaces")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(dir, "shell-ran")
+	// Even with a .bat extension on POSIX, quotes/semicolons must never reach /bin/sh -c.
+	injected := fmt.Sprintf("nonexistent.bat \"; touch %s; echo 9.9.9 #\"", marker)
+	if v, err := TestLauncherVersion("claude", injected); err == nil || v != "" {
+		t.Fatalf("injected command succeeded: v=%q err=%v", v, err)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatal("shell injection created marker file")
+	}
+
+	if ResolveNodeBin() != "" {
+		script := filepath.Join(dir, "fake-claude.mjs")
+		if err := os.WriteFile(script, []byte("console.log('2.1.300 (Claude Code)')\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		v, err := TestLauncherVersion("claude", fmt.Sprintf("%q cli", script))
+		if err != nil || v != "2.1.300" {
+			t.Fatalf("mjs launcher test failed: v=%q err=%v", v, err)
+		}
+	}
+
+	if runtime.GOOS != "windows" {
+		exe := filepath.Join(dir, "fake wrapper.cmd")
+		if err := os.WriteFile(exe, []byte("#!/bin/sh\necho 'claude 2.1.301'\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		v, err := TestLauncherVersion("claude", fmt.Sprintf("%q cli", exe))
+		if err != nil || v != "2.1.301" {
+			t.Fatalf("executable script in spaced dir failed: v=%q err=%v", v, err)
+		}
+		root := t.TempDir()
+		ConfigureLaunchers(root)
+		t.Cleanup(func() { ConfigureLaunchers("") })
+		if err := SaveLauncher("claude", LauncherSettings{Enabled: true, Command: fmt.Sprintf("%q cli", exe), AccountSource: "local"}); err != nil {
+			t.Fatal(err)
+		}
+		if got := ResolveLauncherBin("claude"); got != exe {
+			t.Fatalf("ResolveLauncherBin = %q, want %q", got, exe)
+		}
 	}
 }

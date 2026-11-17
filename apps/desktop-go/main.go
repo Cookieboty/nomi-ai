@@ -47,6 +47,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/igtools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/browserwindow"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/character"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/characterassets"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatassets"
@@ -787,6 +788,14 @@ func main() {
 	tabwindows.Register(router, tabwindows.New(func() tabwindows.Opener {
 		if o, ok := sh.(tabwindows.Opener); ok {
 			return o
+		}
+		return nil
+	}, func(event string, data any) { router.EmitTo(event, data, "chat") }))
+	// 内置浏览器窗口（browserWindow.*）：网页放在独立原生窗口里（不是 iframe，见 shell.BrowserHost）；
+	// 外壳没实现时 show 返回 unsupported，视图退到「在系统浏览器打开」
+	browserwindow.Register(router, browserwindow.New(func() shell.BrowserHost {
+		if h, ok := sh.(shell.BrowserHost); ok {
+			return h
 		}
 		return nil
 	}, func(event string, data any) { router.EmitTo(event, data, "chat") }))

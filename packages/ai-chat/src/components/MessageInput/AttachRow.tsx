@@ -3,6 +3,7 @@ import { IconX as X } from '@tabler/icons-react';
 import React from 'react';
 
 import type { FileAttachment } from '../../services/fileAttachments';
+import { visionUnsupportedHint } from '../../services/modelCapability';
 import type { ImageAttachment } from '../../services/screenClient';
 import { FileChip } from '../FileAttachment';
 
@@ -69,7 +70,7 @@ export const AttachRow: React.FC<AttachRowProps> = ({
           {imageCapability === 'none'
             ? (imageUnsupportedReason ??
               tr('ui.session-workspace.the-current-model-doesn-t-support-images-remove'))
-            : tr('ui.knowledge-local.the-current-model-may-not-support-images-consider')}
+            : visionUnsupportedHint()}
         </span>
       ) : images.length ? (
         <span className={styles.attachHint}>

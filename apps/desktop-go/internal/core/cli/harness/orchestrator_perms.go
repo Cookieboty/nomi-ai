@@ -25,7 +25,23 @@ func (o *Orchestrator) applyCliPermissionMode(tabID, raw string) {
 	if mapped == "" || mapped == str(tab, "permissionMode") {
 		return
 	}
+	// 两个档位在这个 CLI 上落到同一个原生值（Kimi 的「自动」与「完全放开」都是 auto）：
+	// 回报值分不出用户选的是哪个，保持原样。
+	if cur := str(tab, "permissionMode"); cur != "" && cur != mapped {
+		backend := str(tab, "backend")
+		a, ok1 := cli.ModeIDFor(backend, cur)
+		b, ok2 := cli.ModeIDFor(backend, mapped)
+		if ok1 && ok2 && a != "" && a == b {
+			return
+		}
+	}
+	// 实际下发的档位跟用户选的不是一个（Claude 的「自动」在第三方端点上降级成 acceptEdits）：
+	// CLI 回报的是我们发下去的那个，不是用户改了档位。
+	if cliMode := str(tab, "permissionModeCli"); cliMode != "" && cliMode == mapped {
+		return
+	}
 	tab.Set("permissionMode", mapped)
+	tab.Delete("permissionModeCli")
 	tab.Delete("permissionModeSource")
 	if live := o.live.claude[tabID]; live != nil && live.modeChange == nil {
 		live.permissionMode = mapped

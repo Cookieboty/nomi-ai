@@ -3,6 +3,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { MinimalSteps } from '../src/components/Conversation/MinimalSteps';
+import { StatusLine } from '../src/components/Conversation/StatusLine';
 import { SelectionToolbar, SELECTION_SETTLE_MS } from '../src/components/SelectionToolbar';
 import { SideChatPane } from '../src/components/SideChat';
 import {
@@ -371,5 +373,113 @@ describe('selection toolbar', () => {
     fireEvent.mouseUp(screen.getByTestId('reply'), { button: 0 });
     await settle();
     expect(screen.queryByTestId('selection-toolbar')).toBeNull();
+  });
+
+  it('ignores selections inside step/status/button areas while keeping reply selectable', async () => {
+    render(
+      <SelectionActionsContext.Provider value={{ addToChat: vi.fn(), askInSideChat: vi.fn() }}>
+        <SelectionToolbar />
+        <div data-selection-scope="">
+          <StatusLine
+            status={{ kind: 'writing', label: '正在生成回复' }}
+            startedAt={Date.now() - 12_000}
+            stepCount={70}
+            minimal
+          />
+          <MinimalSteps
+            stepCount={3}
+            workedMs={5000}
+            segments={[
+              { type: 'text', text: '过程文字步骤说明' },
+              {
+                type: 'activity',
+                items: [
+                  {
+                    type: 'call',
+                    call: {
+                      id: 'c1',
+                      name: 'Read',
+                      status: 'done',
+                      input: JSON.stringify({ file_path: 'a.ts' }),
+                      output: 'ok',
+                    },
+                  },
+                ],
+              },
+            ]}
+          />
+          <div data-no-selection-toolbar="">
+            <span data-testid="step-a">步骤左半段</span>
+            <span data-testid="step-b">步骤右半段</span>
+          </div>
+          <button type="button" data-testid="plain-btn">
+            按钮操作
+          </button>
+          <div data-testid="msg-assistant">
+            <p data-testid="summary-reply">正常总结正文</p>
+          </div>
+        </div>
+      </SelectionActionsContext.Provider>,
+    );
+
+    // 1. 底部状态进度行内的单个节点与跨 span 选区均不触发划词浮窗
+    const statusLabel = screen.getByText('正在生成回复');
+    select(statusLabel);
+    fireEvent.mouseUp(statusLabel, { button: 0 });
+    await settle();
+    expect(screen.queryByTestId('selection-toolbar')).toBeNull();
+
+    const stepSpan = screen.getByTestId('conv-status-step');
+    const timeSpan = screen.getByTestId('conv-status-time');
+    const crossRange = document.createRange();
+    crossRange.setStartBefore(stepSpan);
+    crossRange.setEndAfter(timeSpan);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(crossRange);
+    fireEvent.mouseUp(timeSpan, { button: 0 });
+    await settle();
+    expect(screen.queryByTestId('selection-toolbar')).toBeNull();
+
+    // 2. 极简步骤横条以及展开后的步骤列表均不触发划词浮窗
+    const toggle = screen.getByTestId('minimal-steps-toggle');
+    select(toggle);
+    fireEvent.mouseUp(toggle, { button: 0 });
+    await settle();
+    expect(screen.queryByTestId('selection-toolbar')).toBeNull();
+
+    fireEvent.click(toggle);
+    const stepText = screen.getByTestId('minimal-step-text');
+    select(stepText);
+    fireEvent.mouseUp(stepText, { button: 0 });
+    await settle();
+    expect(screen.queryByTestId('selection-toolbar')).toBeNull();
+
+    const toolRow = screen.getByTestId('tool-row');
+    select(toolRow);
+    fireEvent.mouseUp(toolRow, { button: 0 });
+    await settle();
+    expect(screen.queryByTestId('selection-toolbar')).toBeNull();
+
+    // 3. 显式标记容器内跨子节点选区与普通按钮不触发划词浮窗
+    const noToolbarRange = document.createRange();
+    noToolbarRange.setStartBefore(screen.getByTestId('step-a'));
+    noToolbarRange.setEndAfter(screen.getByTestId('step-b'));
+    sel.removeAllRanges();
+    sel.addRange(noToolbarRange);
+    fireEvent.mouseUp(screen.getByTestId('step-b'), { button: 0 });
+    await settle();
+    expect(screen.queryByTestId('selection-toolbar')).toBeNull();
+
+    select(screen.getByTestId('plain-btn'));
+    fireEvent.mouseUp(screen.getByTestId('plain-btn'), { button: 0 });
+    await settle();
+    expect(screen.queryByTestId('selection-toolbar')).toBeNull();
+
+    // 4. 普通助手回复正文仍正常弹出划词浮窗
+    select(screen.getByTestId('summary-reply'));
+    fireEvent.mouseUp(screen.getByTestId('summary-reply'), { button: 0 });
+    await settle();
+    expect(screen.getByTestId('selection-toolbar')).toBeTruthy();
   });
 });

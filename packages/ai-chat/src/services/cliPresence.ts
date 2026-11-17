@@ -8,6 +8,7 @@ import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
 
 import { setChatMode } from './chatPrefs';
 import { cliUpdateClient, isInspectUpdated, type CliInstallInfo } from './cliUpdateClient';
+import { harnessClient } from './harnessClient';
 
 /** 窗口重新聚焦时最多这么久查一次 */
 const FOCUS_RECHECK_MS = 60_000;
@@ -15,10 +16,25 @@ const FOCUS_RECHECK_MS = 60_000;
 export const anyCliInstalled = (rows: readonly CliInstallInfo[]): boolean =>
   rows.some((r) => isBuiltinCliId(r.kind) && !!r.path);
 
+export const anyHarnessBinPresent = (
+  bins: Record<string, string | null> | undefined | null,
+): boolean => !!bins && Object.entries(bins).some(([k, v]) => isBuiltinCliId(k) && !!v);
+
 async function check(): Promise<void> {
   try {
     const rows = cliUpdateClient.cached() ?? (await cliUpdateClient.inspect(false));
-    setChatMode(anyCliInstalled(rows) ? 'dev' : 'normal');
+    if (anyCliInstalled(rows)) {
+      setChatMode('dev');
+      return;
+    }
+    if (harnessClient.available()) {
+      const st = await harnessClient.state().catch(() => null);
+      if (anyHarnessBinPresent(st?.bins)) {
+        setChatMode('dev');
+        return;
+      }
+    }
+    setChatMode('normal');
   } catch {
     /* 查不到就保持上次的结果 */
   }
@@ -38,6 +54,12 @@ export function watchCliPresence(): () => void {
     cliUpdateClient.resetCache();
     void check();
   });
+  const offHarness = harnessClient.available()
+    ? harnessClient.onChanged((s) => {
+        if (anyHarnessBinPresent(s?.bins)) setChatMode('dev');
+        else void check();
+      })
+    : () => undefined;
   const onFocus = () => {
     if (Date.now() - last < FOCUS_RECHECK_MS) return;
     last = Date.now();
@@ -47,6 +69,7 @@ export function watchCliPresence(): () => void {
   window.addEventListener('focus', onFocus);
   return () => {
     offEvent();
+    offHarness();
     window.removeEventListener('focus', onFocus);
   };
 }

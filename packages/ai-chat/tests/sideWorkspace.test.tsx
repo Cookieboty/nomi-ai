@@ -545,6 +545,9 @@ describe('side tabs workspace', () => {
     const card = await screen.findByTestId('agent-hover-card', undefined, { timeout: 2000 });
     await waitFor(() => expect(card.textContent).toContain('整理周报'));
     expect(screen.getByTestId('agent-card-state').dataset.state).toBe('running');
+    // 卡片是分区结构：「任务」和「最近输出」各有小标题，输出空着也仍是一块
+    expect(card.textContent).toContain('任务');
+    expect(card.textContent).toContain('最近输出');
     expect(screen.getByTestId('agent-card-user').textContent).toContain('整理周报的目标');
     fireEvent.click(card);
     expect(tabButton('nomi-task:k1').getAttribute('aria-selected')).toBe('true');

@@ -141,8 +141,10 @@ export const StartupBrandIntro: React.FC<{ bootState?: BootScreenState }> = ({ b
       data-phase={phase}
       data-mode={mode}
       data-testid="startup-brand-intro"
+      // 揭开淡出时页面已经可用（before 阶段不会淡出）：不能再当模态，读屏要回到下面的对话页面
       role="dialog"
-      aria-modal="true"
+      aria-modal={phase === 'revealing' ? undefined : true}
+      aria-hidden={phase === 'revealing' ? true : undefined}
       aria-label={t('ui.mascot-theme.startup-animation-label', brand.appName)}
       onPointerDown={(e) => {
         if (e.button !== 0) return;

@@ -27,7 +27,7 @@ var secretSuffixes = []string{"DATABASE_URL", "MONGODB_URI", "MONGO_URL", "REDIS
 var modelEnvPrefixes = []string{
 	"ANTHROPIC_", "CLAUDE_", "OPENAI_", "AZURE_OPENAI_", "CODEX_", "GEMINI_", "GOOGLE_GENAI_", "XAI_", "GROK_",
 	"OPENROUTER_", "DEEPSEEK_", "MISTRAL_", "GROQ_", "TOGETHER_", "FIREWORKS_", "DASHSCOPE_", "MOONSHOT_",
-	"ZHIPU_", "SILICONFLOW_", "OLLAMA_", "PERPLEXITY_", "DSH_",
+	"KIMI_", "MINIMAX_", "MCODE_", "ZHIPU_", "SILICONFLOW_", "OLLAMA_", "PERPLEXITY_", "DSH_",
 }
 
 var modelEnvNames = map[string]bool{"GOOGLE_API_KEY": true}

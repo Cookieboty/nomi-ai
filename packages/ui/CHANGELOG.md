@@ -1,5 +1,19 @@
 # @nomi-ai/ui
 
+## 0.2.1
+
+### Patch Changes
+
+- de06bd2: feat(ui): 浅色主题按设计系统对齐色值，工作区背景改为 #FAF9F6，主题色块同步更新。 Light theme colors aligned with the design system, the workspace background set to #FAF9F6, and the light theme swatch updated to match.
+- Updated dependencies [5fe61e1]
+- Updated dependencies [b27ece0]
+- Updated dependencies [61aa211]
+- Updated dependencies [2958f64]
+- Updated dependencies [ebd40bf]
+- Updated dependencies [1e23f1e]
+- Updated dependencies [2958f64]
+  - @nomi-ai/i18n@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes

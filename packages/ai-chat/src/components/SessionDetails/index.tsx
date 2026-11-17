@@ -142,7 +142,8 @@ const AgentRow: React.FC<{
   columnMessages?: readonly ConvMessage[];
   /** 进程内子代理所属的端点（Nomi 对话里的是 Nomi） */
   ownerBackend?: EndpointKey | null;
-}> = ({ agent: a, onOpen, target, columnMessages, ownerBackend }) => {
+  boundaryRef?: React.RefObject<HTMLElement | null>;
+}> = ({ agent: a, onOpen, target, columnMessages, ownerBackend, boundaryRef }) => {
   const { name, backend } = sessionAgentIdentity(a, ownerBackend);
   const body = (
     <>
@@ -167,6 +168,8 @@ const AgentRow: React.FC<{
       <AgentHoverCard
         as="div"
         className={styles.hoverRow}
+        placement="left"
+        boundaryRef={boundaryRef}
         target={target}
         onOpen={onOpen}
         columnMessages={columnMessages}
@@ -224,6 +227,8 @@ const DetailsPanel: React.FC<
       const target = e.target as Node | null;
       if (!target || ref.current?.contains(target)) return;
       if ((target as Element).closest?.('[data-testid="session-details-toggle"]')) return;
+      // 悬停卡片 portal 在 body 上：点卡片去打开子任务时不提前关闭面板
+      if ((target as Element).closest?.('[data-testid="agent-hover-card"]')) return;
       onClose();
     };
     window.addEventListener('pointerdown', onDown, true);
@@ -374,6 +379,7 @@ const DetailsPanel: React.FC<
           <AgentRow
             key={a.id}
             agent={a}
+            boundaryRef={ref}
             ownerBackend={
               a.kind === 'subagent'
                 ? nestedOwnerBackend(parentTabId, tabs.state?.tabs, a.id, messages)
@@ -410,6 +416,8 @@ const DetailsPanel: React.FC<
             <AgentHoverCard
               as="div"
               className={styles.hoverRow}
+              placement="left"
+              boundaryRef={ref}
               target={
                 task.origin?.via === 'delegate' && task.executor.kind === 'nomi'
                   ? { kind: 'nomi-task', taskId: task.id }

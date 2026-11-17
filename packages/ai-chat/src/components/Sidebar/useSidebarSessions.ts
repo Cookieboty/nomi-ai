@@ -91,6 +91,8 @@ export function useSidebarSessions({
         list.find((x) => x.id === id) ?? (await ipc.listConversations()).find((x) => x.id === id);
       if (!meta) return;
       setCtx(null);
+      // 点开就是看过了：先把行首那个「已完成」点去掉（已经在看的会话不会重载历史）
+      actions.clearDone?.(id);
 
       if (meta.backend !== 'nomi' && meta.tabId) {
         const activated = tabs.activate(meta.tabId);

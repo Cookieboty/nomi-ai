@@ -5211,6 +5211,277 @@
     ]
    }
   },
+  "browserWindow.close": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
+  "browserWindow.closeAll": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {}
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
+  "browserWindow.navigate": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+     },
+     "url": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192
+     }
+    },
+    "required": [
+     "id",
+     "url"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
+  "browserWindow.reload": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
+  "browserWindow.setRegion": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+     },
+     "region": {
+      "type": "object",
+      "properties": {
+       "x": {
+        "type": "number"
+       },
+       "y": {
+        "type": "number"
+       },
+       "width": {
+        "type": "number",
+        "minimum": 0
+       },
+       "height": {
+        "type": "number",
+        "minimum": 0
+       }
+      },
+      "required": [
+       "x",
+       "y",
+       "width",
+       "height"
+      ]
+     },
+     "visible": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "id",
+     "region",
+     "visible"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
+  "browserWindow.show": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+     },
+     "url": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192
+     },
+     "region": {
+      "type": "object",
+      "properties": {
+       "x": {
+        "type": "number"
+       },
+       "y": {
+        "type": "number"
+       },
+       "width": {
+        "type": "number",
+        "minimum": 0
+       },
+       "height": {
+        "type": "number",
+        "minimum": 0
+       }
+      },
+      "required": [
+       "x",
+       "y",
+       "width",
+       "height"
+      ]
+     }
+    },
+    "required": [
+     "id",
+     "url",
+     "region"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string",
+      "enum": [
+       "unsupported",
+       "failed"
+      ]
+     },
+     "message": {
+      "type": "string",
+      "maxLength": 500
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "browserWindow.sync": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ids": {
+      "maxItems": 64,
+      "type": "array",
+      "items": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 512
+      }
+     }
+    },
+    "required": [
+     "ids"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "closed": {
+      "maxItems": 64,
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "closed"
+    ],
+    "additionalProperties": false
+   }
+  },
   "character.assets": {
    "kind": "query",
    "dangerous": false,
@@ -37096,6 +37367,43 @@
      "additionalProperties": false
     }
    ]
+  },
+  "browserWindow.closed": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id"
+   ],
+   "additionalProperties": false
+  },
+  "browserWindow.loaded": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "url": {
+     "type": "string"
+    },
+    "ok": {
+     "type": "boolean"
+    },
+    "message": {
+     "type": "string",
+     "maxLength": 500
+    }
+   },
+   "required": [
+    "id",
+    "ok"
+   ],
+   "additionalProperties": false
   },
   "character.assetsChanged": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",

@@ -66,6 +66,11 @@ export interface HarnessTabMeta {
   cliSessionId: string | null;
   status: HarnessTabStatus;
   unread: number;
+  /**
+   * 刚刚成功跑完一轮（侧栏行首的「已完成」点）。进这个会话就清除；
+   * 失败 / 取消不会留，切换轮次时由下一次完成覆盖。
+   */
+  finished?: boolean;
   createdAt: number;
   updatedAt: number;
   lastError?: string;
@@ -269,11 +274,15 @@ export type HarnessLiveEvent =
   | {
       tabId: string;
       type: 'status';
-      kind: 'retry' | 'reconnect' | 'compact' | 'clear';
+      kind: 'retry' | 'reconnect' | 'compact' | 'clear' | 'blocked';
       text?: string;
       attempt?: number;
       max?: number;
     }
+  /** 某个动作被权限系统拒了（自动模式校验不了 / 策略拒绝）；不然这类拒绝会整个消失 */
+  | { tabId: string; type: 'permission-denied'; tool: string; code?: string; reason?: string }
+  /** 会话级提示（Claude 自己说明，如自动模式无法校验动作） */
+  | { tabId: string; type: 'notice'; tag: string; text: string }
   /** 一轮进行中的实时上下文占用（每次主线程请求 / 压缩后）；null = 压缩了但大小未知 */
   | { tabId: string; type: 'context'; tokens: number | null; model?: string; window?: number }
   | { tabId: string; type: 'done'; text: string; sessionId?: string; usage?: HarnessUsage }

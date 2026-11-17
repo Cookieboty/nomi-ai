@@ -28,6 +28,14 @@ import {
   type HarnessTabMeta,
   type HarnessTabsState,
 } from '../services/harnessClient';
+import {
+  mergeRestoredPending,
+  openPendingSends,
+  pendingKey,
+  sentPendingTexts,
+  type PendingSendStore,
+  type PersistWhy,
+} from '../services/pendingSendsStore';
 import { replyPermissionRequest } from '../services/permissionReply';
 import { canSteer } from '../utils/cliCaps';
 import {
@@ -122,6 +130,14 @@ export interface HarnessTabsCore {
   flushPendingFor: (tabId: string) => Promise<boolean>;
   /** 最近使用的编程助手后端（新建标签默认） */
   lastBackend: HarnessBackend;
+  /**
+   * 挂回这个标签的待发列表（存在 localStorage 的 tab:<标签 id>，见 services/pendingSendsStore）：
+   * 启动后调用一次，之后这个标签的每次改动（入列 / 交付 / 删除 / Esc / 发送）都写回那一组；
+   * 标签已经没有（关了）或还在运行时不挂（运行中的列表是当前界面的）。返回有没有挂回（有恢复 / 接管的条目）
+   */
+  restorePending: (key: string) => boolean;
+  /** 这个标签是不是已经挂过待发列表了 */
+  pendingRestored: (tabId: string) => boolean;
 }
 
 export interface HarnessTabsValue extends HarnessTabsCore {
@@ -239,13 +255,31 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   }, [detachedStore, detached]);
   const [queues, setQueues] = useState<Record<string, PendingSend[]>>({});
   const queuesRef = useRef(queues);
-  /** 更新待发列表并同步 ref（交付判断读最新值，不等渲染） */
-  const updateQueues = useCallback(
-    (fn: (cur: Record<string, PendingSend[]>) => Record<string, PendingSend[]>) => {
-      queuesRef.current = fn(queuesRef.current);
-      setQueues(queuesRef.current);
+  /** 各标签的待发列表写回本地的那份（挂回的组，键 = 标签 id）：入列 / 交付 / 发送之后都同步 */
+  const pendingStores = useRef(new Map<string, PendingSendStore>());
+  const knownTabIds = useRef(new Set<string>());
+  const persistTabQueue = useCallback(
+    (tabId: string, list: readonly PendingSend[], why: PersistWhy = 'update') => {
+      const store = pendingStores.current.get(tabId);
+      if (!store) return;
+      store.save(pendingKey('tab', tabId), list);
+      void store.persist(why, list).catch(() => undefined);
     },
     [],
+  );
+  /** 更新待发列表并同步 ref（交付判断读最新值，不等渲染）；挂回的组跟着写回 */
+  const updateQueues = useCallback(
+    (fn: (cur: Record<string, PendingSend[]>) => Record<string, PendingSend[]>) => {
+      const prev = queuesRef.current;
+      const next = fn(prev);
+      queuesRef.current = next;
+      setQueues(next);
+      if (next === prev) return;
+      for (const tabId of new Set([...Object.keys(prev), ...Object.keys(next)]))
+        if (pendingStores.current.has(tabId) && prev[tabId] !== next[tabId])
+          persistTabQueue(tabId, next[tabId] ?? []);
+    },
+    [persistTabQueue],
   );
   /** 正在交付插入消息的标签 */
   const delivering = useRef(new Set<string>());
@@ -412,6 +446,23 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     stateRef.current = state;
   });
 
+  /**
+   * 标签不见了（关了 / 重启后主进程没恢复它）：它挂回的待发列表这份也清掉（没人会再发它）。
+   * 第一次拿到标签列表时不动：那时标签列表可能还没加载全。
+   */
+  useEffect(() => {
+    if (!state) return;
+    const ids = new Set(state.tabs.map((t) => t.id));
+    const known = knownTabIds.current;
+    if (known.size)
+      for (const [id, store] of pendingStores.current)
+        if (!ids.has(id) && known.has(id)) {
+          pendingStores.current.delete(id);
+          void store.persist('clear').catch(() => undefined);
+        }
+    knownTabIds.current = ids;
+  }, [state]);
+
   useEffect(() => {
     if (!state) return;
     const previous = cwdRef.current;
@@ -484,6 +535,10 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       if (!(await confirmStopBackground(stateRef.current?.tabs.find((x) => x.id === id)))) return;
       await harnessClient.closeTab(id);
       dispatching.current.delete(id);
+      // 关标签：它存下的待发列表（重启后才挂回、还在等标签空闲的）不再需要，也不再让别的窗口发
+      const store = pendingStores.current.get(id);
+      pendingStores.current.delete(id);
+      if (store) void store.persist('clear').catch(() => undefined);
       updateQueues((cur) => {
         if (!cur[id]) return cur;
         const next = { ...cur };
@@ -620,6 +675,52 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     (id: string) => removePendingFrom(activeId, id),
     [activeId, removePendingFrom],
   );
+  /**
+   * 挂回这个标签的待发列表（存在本地的 tab:<标签 id>，见 services/pendingSendsStore）：应用在回复中途重启
+   * （如更新）后，重启前还没交出去的消息回来了（按「排队」），标签一开始不在运行态，队列自动发送会把它们发出去。
+   * 标签已经不在了 / 已挂过 / 还在运行时不挂。返回有没有挂上的条目。
+   */
+  const restorePending = useCallback(
+    (key: string) => {
+      const tabId = key.startsWith('tab:') ? key.slice(4) : '';
+      if (!tabId || tabId === MAIN_TAB_ID || pendingStores.current.has(tabId)) return false;
+      const tab = stateRef.current?.tabs.find((x) => x.id === tabId);
+      if (!tab || stateRef.current?.activeTabId !== tabId) return false;
+      const store = openPendingSends({}, key);
+      const stored = store.read(key);
+      // 这一轮已经收到了（重启时内核停得晚了一点，这一轮接着跑）：不是没发出去的话
+      const sent = new Set(sentPendingTexts(stored));
+      const alive = stored.filter((s) => !sent.has(s.text.trim()));
+      if (!alive.length) {
+        // 没有要挂回的：下次启动也不用再挂（这份组键留着，重启后元信息照样能写回去）
+        if (stored.length) store.save(key, []);
+        return false;
+      }
+      pendingStores.current.set(tabId, store);
+      store.save(key, alive);
+      if (tab.status === 'running' || tab.status === 'queued')
+        // 还在运行（重启后主进程恢复了这一轮）：先不塞进列表，等它结束时再说
+        return false;
+      const { items, restored } = mergeRestoredPending(queuesRef.current[tabId] ?? [], alive);
+      updateQueues((cur) => ({ ...cur, [tabId]: items }));
+      if (stored.length !== alive.length) persistTabQueue(tabId, items);
+      return restored.length > 0;
+    },
+    [updateQueues, persistTabQueue],
+  );
+  const pendingRestored = useCallback((tabId: string) => pendingStores.current.has(tabId), []);
+  // 重启时标签还在跑：先记下存下的列表，等它结束再挂回（现在挂上会被自动发送打断这一轮）
+  useEffect(() => {
+    const tabs = state?.tabs ?? [];
+    for (const tab of tabs) {
+      if (tab.status === 'running' || tab.status === 'queued') continue;
+      const store = pendingStores.current.get(tab.id);
+      if (!store) continue;
+      const stored = store.read();
+      const { items, restored } = mergeRestoredPending(queuesRef.current[tab.id] ?? [], stored);
+      if (restored.length) updateQueues((cur) => ({ ...cur, [tab.id]: items }));
+    }
+  }, [state, updateQueues]);
   const flushPendingFor = useCallback(
     async (tabId: string) => {
       const all = queuesRef.current[tabId] ?? [];
@@ -653,13 +754,15 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       if (delivering.current.has(tab.id)) continue;
       dispatching.current.add(tab.id);
       const [next, ...rest] = q;
+      // 发出去、这一轮收到了（挂回的组跟着改：见 pendingSendsStore.settle，重启时不再次发出）
       updateQueues((cur) => ({ ...cur, [tab.id]: rest }));
+      persistTabQueue(tab.id, rest, 'deliver');
       void dispatchSend(tab.id, next!.text).finally(() => {
         dispatching.current.delete(tab.id);
         setTick((n) => n + 1);
       });
     }
-  }, [state, queues, tick, dispatchSend, updateQueues]);
+  }, [state, queues, tick, dispatchSend, updateQueues, persistTabQueue]);
   const cancelRun = useCallback(async (tabId: string) => {
     if (tabId === MAIN_TAB_ID) return;
     const tab = stateRef.current?.tabs.find((x) => x.id === tabId);
@@ -740,6 +843,8 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       removePendingFrom,
       flushPendingFor,
       lastBackend,
+      restorePending,
+      pendingRestored,
     }),
     [
       available,
@@ -768,6 +873,8 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       removePendingFrom,
       flushPendingFor,
       lastBackend,
+      restorePending,
+      pendingRestored,
     ],
   );
   const value = useMemo<HarnessTabsValue>(() => ({ ...core, state }), [core, state]);
@@ -828,6 +935,8 @@ const EMPTY: HarnessTabsValue = {
   removePendingFrom: () => undefined,
   flushPendingFor: async () => false,
   lastBackend: 'claude',
+  restorePending: () => false,
+  pendingRestored: () => false,
 };
 
 /** 完整的标签上下文（含 state）：任一标签变化都会重渲染，只给需要标签列表的组件用 */
