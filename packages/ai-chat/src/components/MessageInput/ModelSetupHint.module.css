@@ -35,7 +35,7 @@
 }
 .guideIcon {
   flex-shrink: 0;
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }
 .guideCopy {
   display: flex;
