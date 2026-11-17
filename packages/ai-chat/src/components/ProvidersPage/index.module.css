@@ -213,7 +213,7 @@
 }
 .accountOption[data-selected] {
   border-color: var(--cd-color-accent-strong);
-  background: var(--cd-color-hover);
+  background: var(--cd-panel-surface-raised);
 }
 .accountOption input {
   accent-color: var(--cd-color-accent-strong);
