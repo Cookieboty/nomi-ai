@@ -4,7 +4,7 @@
 '@nomi-ai/desktop-go': patch
 ---
 
-「自动」档严格按「由 CLI 自行判断哪些操作需要确认」下发；要不要降级只看实测，不看模型叫什么。
+fix(cli): 「自动」档严格按「由 CLI 自行判断哪些操作需要确认」下发；要不要降级只看实测，不看模型叫什么。
 
 - **Claude**：`auto` 就是「Claude 自己判断」，**原样下发** `--permission-mode auto`，你选了什么模型、换了哪个供应商都照用。它的判断由服务端分类器负责（beta `auto-mode-classifier-*`，走同一个 base URL 的附带请求），能不能跑取决于对端是否透传这项检查——**与模型名无关**，所以不再按名字猜。只有当 Claude 自己报出 `auto_mode_no_server_check` / `auto_mode_no_check_in_session`（说明这个端点确实没透传，而 Nomi 的 `-p` 长驻会话又是非交互的，Claude 不会退而询问、只会硬拒每个待检查动作）时，才把这个「端点 + 模型」组合记进 `auto-mode-support.json`，下次启动自动改用 `acceptEdits`（Claude 自己按规则判断、改文件自动过，其余动作走 Nomi 审批卡），并提示你原因；换回支持的服务商后自动恢复。降级目标是 `acceptEdits`，不是 `bypassPermissions`。
 - **Grok**：`auto` 原来降到 `default`（逐项确认，等于把「自动」变成了「每次都问」），改为 `acceptEdits`；同时补上 `auto` 档。

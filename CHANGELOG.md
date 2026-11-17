@@ -16,7 +16,11 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ### Fixes
 
+- **chat:** 修好两个「加载更多 / 更早」点了没反应的问题：侧栏本机历史的「加载更多」不再因为窗口重新聚焦被重置回第一页，被打断的那一页也会正常解锁按钮；长对话里尾部带巨型工具轨迹时，「显示更早」不会再因为体量预算吃满而一步都跨不出去（预算只约束首屏，用户显式要求时按条数加载），并且加载锁一定会复位，不会点一次之后按钮和滚到顶都静默失效。 (`@nomi-ai/ai-chat` patch)
+- **cli:** 「自动」档严格按「由 CLI 自行判断哪些操作需要确认」下发；要不要降级只看实测，不看模型叫什么。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/cli-catalog` patch, `@nomi-ai/desktop-go` patch)
 - **cli:** 修复本地 CLI 接入测试命令注入风险，补齐自定义启动器配置下的历史会话扫描、Kimi/MiniMax 环境变量放行、可用性探测及账号来源切换刷新 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
+- **delegate:** 被停止的后台委派不再往当前轮注入 `<cli-output>`：结果消息已写进对话（模型下一轮从历史里读得到），卡片也标着「已停止」，再 steer 一遍只会让模型以为自己被用户插了句话。完成 / 失败仍然实时告知正在跑的这一轮，但只投给模型，不在时间线里留 interject —— 界面上不再出现「你插入了 \<cli-output\>…」这类假用户消息。 (`@nomi-ai/ai-chat` patch)
+- **models:** 看图能力只看模型元数据（models.dev 同步的那份），不再按模型名猜：元数据没写就不提示，元数据明确不支持才提示，并列出你自己已启用的视觉模型供切换。同时补齐主流模型的内置价格（deepseek / qwen / kimi / 智谱 / MiniMax / Grok / Mistral 等），同步范围加上聚合商兜底，价格匹配支持用基础名命中 `-1017` 这类同族快照 —— `deepseek-v4.1-flash` 不再既被判不能看图、又算不出价格。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
 - **session-details:** 会话详情中的子 Agents 与任务悬停卡片改为贴面板左侧外沿展开、跨项移动立即收起并防止浮层点击误关，不再遮挡下方相邻条目。 (`@nomi-ai/ai-chat` patch)
 - **sidebar:** 修复侧栏会话较多（启用虚拟列表）时上方分组被顶出可视区、滚动与点击失效的问题，并为折叠菜单项补上悬浮标题。 Fix the sidebar pushing upper sections out of view, where they could not be scrolled to or clicked, when the virtualized conversation list is active, and add hover titles to collapsed menu items. (`@nomi-ai/ai-chat` patch)
 - **usage:** 自定义启动命令使用单独配置目录时，Claude Code 的每日用量不再缺失：发现并记住 CLI 报告的日志位置，跨账号目录仍按消息去重。 Fix missing daily Claude Code usage when a custom launcher uses a separate configuration directory. Discover and remember the log location reported by the CLI, retaining message deduplication across account directories. (`@nomi-ai/desktop-go` patch)
@@ -24,13 +28,6 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 ### Maintenance
 
 - **release:** empty changeset after archiving 2.3.17
-
-### Other
-
-- 「自动」档严格按「由 CLI 自行判断哪些操作需要确认」下发；要不要降级只看实测，不看模型叫什么。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/cli-catalog` patch, `@nomi-ai/desktop-go` patch)
-- 修好两个「加载更多 / 更早」点了没反应的问题：侧栏本机历史的「加载更多」不再因为窗口重新聚焦被重置回第一页，被打断的那一页也会正常解锁按钮；长对话里尾部带巨型工具轨迹时，「显示更早」不会再因为体量预算吃满而一步都跨不出去（预算只约束首屏，用户显式要求时按条数加载），并且加载锁一定会复位，不会点一次之后按钮和滚到顶都静默失效。 (`@nomi-ai/ai-chat` patch)
-- 看图能力只看模型元数据（models.dev 同步的那份），不再按模型名猜：元数据没写就不提示，元数据明确不支持才提示，并列出你自己已启用的视觉模型供切换。同时补齐主流模型的内置价格（deepseek / qwen / kimi / 智谱 / MiniMax / Grok / Mistral 等），同步范围加上聚合商兜底，价格匹配支持用基础名命中 `-1017` 这类同族快照 —— `deepseek-v4.1-flash` 不再既被判不能看图、又算不出价格。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/desktop-go` patch)
-- 被停止的后台委派不再往当前轮注入 `<cli-output>`：结果消息已写进对话（模型下一轮从历史里读得到），卡片也标着「已停止」，再 steer 一遍只会让模型以为自己被用户插了句话。完成 / 失败仍然实时告知正在跑的这一轮，但只投给模型，不在时间线里留 interject —— 界面上不再出现「你插入了 \<cli-output\>…」这类假用户消息。 (`@nomi-ai/ai-chat` patch)
 
 ## 2.3.17 — 2026-11-16
 
