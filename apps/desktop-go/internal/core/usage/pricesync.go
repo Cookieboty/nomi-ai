@@ -46,6 +46,11 @@ var psFirstParty = []psProvider{
 	{id: "zhipuai"}, {id: "minimax"}, {id: "xai"}, {id: "mistral"}, {id: "alibaba", only: psAlibabaOnly},
 }
 
+// psFallback：官方没有价的模型（如 deepseek 的 v4.1-flash）从聚合商补；只补 first-party 没产出过的 key
+var psFallback = []psProvider{
+	{id: "openrouter"},
+}
+
 func psObj(v any) *util.Obj { o, _ := v.(*util.Obj); return o }
 
 func psPrice(v any) *float64 {
@@ -184,43 +189,51 @@ func ExtractPrices(api any) ExtractResult {
 	if root == nil {
 		return ExtractResult{Entries: []PriceEntry{}}
 	}
-	for _, prov := range psFirstParty {
-		var models *util.Obj
-		if p := psObj(root.Get(prov.id)); p != nil {
-			models = psObj(p.Get("models"))
-		}
-		if models == nil {
-			continue
-		}
-		for _, id := range models.Keys() {
-			m := psObj(models.Get(id))
-			src := id
-			if m != nil {
-				if s, ok := m.Get("id").(string); ok {
-					src = s
+	// 先 first-party（官方价优先），再 fallback：fallback 只补还没产出过的 key，不覆盖官方价
+	for gi, group := range [][]psProvider{psFirstParty, psFallback} {
+		fallback := gi > 0
+		for _, prov := range group {
+			var models *util.Obj
+			if p := psObj(root.Get(prov.id)); p != nil {
+				models = psObj(p.Get("models"))
+			}
+			if models == nil {
+				continue
+			}
+			for _, id := range models.Keys() {
+				m := psObj(models.Get(id))
+				src := id
+				if m != nil {
+					if s, ok := m.Get("id").(string); ok {
+						src = s
+					}
 				}
-			}
-			key := NormalizeModel(src)
-			if m == nil || key == "" || (prov.only != nil && !prov.only(key)) {
-				continue
-			}
-			cost := ReadModelsDevCost(m.Get("cost"))
-			if cost == nil {
-				skipped++
-				continue
-			}
-			e := PriceEntry{Model: key, ModelPrice: *cost}
-			if s, ok := m.Get("name").(string); ok && s != "" {
-				e.Label = strp(s)
-			}
-			target := live
-			if m.Get("status") == "deprecated" {
-				target = dep
-			}
-			if target.has(key) {
-				skipped++
-			} else {
-				target.set(key, e)
+				key := NormalizeModel(src)
+				if m == nil || key == "" || (prov.only != nil && !prov.only(key)) {
+					continue
+				}
+				// fallback 已经有 first-party 价的不覆盖；deprecated 也只进备用池
+				if fallback && (live.has(key) || dep.has(key)) {
+					continue
+				}
+				cost := ReadModelsDevCost(m.Get("cost"))
+				if cost == nil {
+					skipped++
+					continue
+				}
+				e := PriceEntry{Model: key, ModelPrice: *cost}
+				if s, ok := m.Get("name").(string); ok && s != "" {
+					e.Label = strp(s)
+				}
+				target := live
+				if m.Get("status") == "deprecated" {
+					target = dep
+				}
+				if target.has(key) {
+					skipped++
+				} else {
+					target.set(key, e)
+				}
 			}
 		}
 	}
