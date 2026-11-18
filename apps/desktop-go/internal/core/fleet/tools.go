@@ -144,7 +144,7 @@ func whyNotPausable(st State, id string) map[string]any {
 		}
 		return toolErr("not_pausable", "现在不能暂停（没有在跑的进程）")
 	}
-	return toolErr("unknown_agent", "没有这个 agent："+id+"。先用 list_agents 查")
+	return toolErr("unknown_agent", "没有这个 agents："+id+"。先用 list_agents 查")
 }
 
 // Tools：给 Nomi 的看板工具（Available：没有看板服务时不提供）
@@ -203,7 +203,7 @@ func (s *Service) Tools() []tools.Definition {
 				id := idOf(in)
 				st, err := s.Resume(id)
 				if err != nil {
-					return toolErr("not_paused", "这个 agent 不在暂停中，或不存在。先用 list_agents 查"), nil
+					return toolErr("not_paused", "这个 agents 不在暂停中，或不存在。先用 list_agents 查"), nil
 				}
 				for _, a := range st.Agents {
 					if a.ID == id {

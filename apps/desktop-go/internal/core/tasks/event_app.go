@@ -18,7 +18,7 @@ var AppEvents = []string{"cli.finished", "knowledge.updated"}
 
 type AppFilter struct {
 	Event string `json:"event"`
-	// Backend：cli.finished 只看这个 agent
+	// Backend：cli.finished 只看这个 agents 标签
 	Backend *string `json:"backend,omitempty"`
 }
 

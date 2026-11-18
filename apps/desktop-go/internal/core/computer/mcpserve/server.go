@@ -1,10 +1,10 @@
 // Package mcpserve：把 computer_* 工具以 MCP 暴露给 agents（Claude Code、Codex、Gemini…）。
 //
 // 内核开一个只监听 127.0.0.1 的 HTTP 端点（MCP Streamable HTTP 的最小子集：POST 一条 JSON-RPC，回一条 JSON），
-// 每个 agent 标签一个 token。agents 按 stdio MCP 启动 `<Nomi 可执行文件> --computer-mcp <token 文件>`（Bridge），
+// 每个 agents 标签一个 token。agents 按 stdio MCP 启动 `<Nomi 可执行文件> --computer-mcp <token 文件>`（Bridge），
 // 由它把 stdio 转发到这个端点。token 只在文件里（0600，不进命令行参数、不进 agents 的配置）。
 //
-// 工具执行用这个标签自己的 context：确认卡片标明是哪个 agent，「允许」「始终允许」按标签算一个对话
+// 工具执行用这个标签自己的 context：确认卡片标明是哪个 agents 标签，「允许」「始终允许」按标签算一个对话
 // （点过「允许」后这个标签里的桌面操作自动执行，包括敏感动作和坐标点击）。确认、审计、黑名单与
 // Nomi 自己调用时完全相同：黑名单应用仍然直接拒绝，紧急停止后这个标签的会话一直拒绝，直到标签开始下一轮（Resume）；标签关了就作废 token。
 package mcpserve

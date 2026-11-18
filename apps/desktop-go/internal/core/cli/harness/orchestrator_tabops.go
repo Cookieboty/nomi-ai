@@ -821,7 +821,7 @@ func (o *Orchestrator) defaultSource(backend, want string) string {
 	return "official"
 }
 
-// hasSignedInOfficialAccount：这个 agent 有没有已登录的 Nomi 管理官方账号（账号服务不可用时按有处理，不改来源）。
+// hasSignedInOfficialAccount：有没有已登录的 Nomi 管理官方账号（账号服务不可用时按有处理，不改来源）。
 func (o *Orchestrator) hasSignedInOfficialAccount(backend string) bool {
 	if o.d.Accounts == nil {
 		return true
@@ -846,7 +846,7 @@ func (o *Orchestrator) hasSignedInOfficialAccount(backend string) bool {
 	return has
 }
 
-// hasOfficialAccount：这个 agent 有没有可用的官方/本机登录能力（兼容旧测试调用，LauncherManagesLogin 时视同可用）。
+// hasOfficialAccount：有没有可用的官方/本机登录能力（兼容旧测试调用，LauncherManagesLogin 时视同可用）。
 func (o *Orchestrator) hasOfficialAccount(backend string) bool {
 	if cli.LauncherManagesLogin(backend) {
 		return true
@@ -854,7 +854,7 @@ func (o *Orchestrator) hasOfficialAccount(backend string) bool {
 	return o.hasSignedInOfficialAccount(backend)
 }
 
-// hasLocalLogin：这个 agent 本机环境是否已检测到登录（优先使用测试注入的 o.home，避免读取宿主机真实目录）。
+// hasLocalLogin：本机环境是否已检测到登录（优先使用测试注入的 o.home，避免读取宿主机真实目录）。
 func (o *Orchestrator) hasLocalLogin(backend string) bool {
 	if !isAccountBackend(backend) {
 		return false

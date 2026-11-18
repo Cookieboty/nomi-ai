@@ -190,7 +190,7 @@
   "ui.providers-schedule.task-category-research": "调研",
   "ui.providers-schedule.task-category-review": "审查",
   "ui.providers-schedule.task-clear-observed": "忽略这些",
-  "ui.providers-schedule.task-cli-pick": "选择 agents",
+  "ui.providers-schedule.task-cli-pick": "由哪个 agents 执行",
   "ui.providers-schedule.task-cli-shell": "允许跑命令（L3）",
   "ui.providers-schedule.task-config-give-up": "放弃这个任务",
   "ui.providers-schedule.task-config-retry": "已处理，继续",

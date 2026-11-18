@@ -856,7 +856,7 @@ func (s *Service) Dispatch(sig context.Context, in DispatchInput) (*util.Obj, er
 	} else {
 		cli = ResolveDelegateCli(requested)
 		if cli == "" {
-			return nil, derr("unknown_cli", "不认识这个 agent："+trim(requested))
+			return nil, derr("unknown_cli", "不认识这个 agents："+trim(requested))
 		}
 		if !contains(s.Installed(), cli) {
 			name := requested
@@ -1511,7 +1511,7 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64, dispatchOv *dis
 	if m := ov.Get("model"); m != nil {
 		opts.Set("modelOverride", m)
 	} else if m := s.preselectedModelFor(cli, runner.Source); m != "" {
-		// 没点名模型 / 档位也没配模型时，沿用用户在这个 agent 上预选的模型。
+		// 没点名模型 / 档位也没配模型时，沿用用户给这个 agents 标签预选的模型。
 		// 不传的话标签会落到 CLI 自己的默认模型（Claude 的默认不是用户选的 Opus/等等），
 		// 用户看起来就是「派出去的 agent 没按我选的模型跑」（第三方供应商以前靠网关默认德回，官方登录没这条后路）
 		finalModel = m
@@ -1605,7 +1605,7 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64, dispatchOv *dis
 	return s.runChild(task, prompt, true, c.sig), nil
 }
 
-// preselectedModel：用户在设置 → 模型（侧栏「新标签默认」）里给这个 agent 预选的模型。
+// preselectedModel：用户在设置 → 模型（侧栏「新标签默认」）里给这个 agents 标签预选的模型。
 // 只补官方登录这一档：官方模型 id 要显式带给标签，不然标签落到 CLI 自己的默认模型
 // （Claude 默认不是用户选的 Opus 之类），看起来就是「派出去的 agent 没按我选的模型跑」。
 // 第三方供应商的模型是网关 ref（带 /），标签自己会按来源解出来（effectiveOverrides 有回退），这里不插手。
@@ -1742,7 +1742,7 @@ func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, runner *R
 	if m := util.Str(ov.Get("model")); m != "" {
 		ex.Model = &m
 	} else if m := s.preselectedModelFor(cli, runner.Source); m != "" {
-		// 没点名模型 / 档位也没配模型：沿用用户在这个 agent 上预选的模型。
+		// 没点名模型 / 档位也没配模型：沿用用户给这个 agents 标签预选的模型。
 		// 不传的话任务标签落到 CLI 自己的默认模型，用户看起来就是「我预选了，派出去却不是它」
 		ex.Model = &m
 	}
@@ -2336,7 +2336,7 @@ func (s *Service) followup(taskID, message string, c *execCtx, t0 float64) (*uti
 		Tool: "delegate_followup", Danger: "write",
 		Summary: "向 " + cliName[task.cli()] + " 追问：" + slice(message, 80),
 		Args:    util.NewObj("taskId", taskID, "message", message),
-		// 追问的是用户同意过的那个委派（同一个 agent、同一个目录）：不再逐次确认
+		// 追问的是用户同意过的那个委派（同一个 agents 标签、同一个目录）：不再逐次确认
 		Preview: &preview, Signal: c.sig, Approved: true,
 	})
 	switch decision {
@@ -2386,7 +2386,7 @@ func (s *Service) followupTask(rec *tasks.Record, message string, c *execCtx, t0
 		Tool: "delegate_followup", Danger: "write",
 		Summary: "向 " + cliName[cli] + " 追问：" + slice(message, 80),
 		Args:    util.NewObj("taskId", task.ID, "message", message),
-		// 追问的是用户同意过的那个委派（同一个 agent、同一个目录）：不再逐次确认
+		// 追问的是用户同意过的那个委派（同一个 agents 标签、同一个目录）：不再逐次确认
 		Preview: &preview, Signal: c.sig, Approved: true,
 	})
 	switch decision {

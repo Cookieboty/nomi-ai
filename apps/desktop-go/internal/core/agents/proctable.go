@@ -141,7 +141,7 @@ func (t *ProcTable) TreeRSS(root float64) float64 {
 	return sum
 }
 
-// AgentTree：一个 agent 的进程树。Root 是最上层被认出的 agents 进程（它子孙里再认出的 agents
+// AgentTree：agents 的进程树。Root 是最上层被认出的 agents 进程（它子孙里再认出的 agents
 // 算进同一棵树，避免内存重复计算）；RSS 是整棵树之和；InNomi = 在 Nomi 自己的进程树里。
 type AgentTree struct {
 	Root   AgentProc

@@ -44,7 +44,7 @@ var (
 	}{n: map[string]int{}}
 )
 
-// computerWaitingOf：这个 agent 标签有几个桌面操作在等确认
+// computerWaitingOf：这个 agents 标签有几个桌面操作在等确认
 func computerWaitingOf(tabID string) int {
 	computerWaiting.Lock()
 	defer computerWaiting.Unlock()

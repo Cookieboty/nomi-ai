@@ -1256,7 +1256,7 @@ const islandBridge = `<script>(() => {
   try { (window.webkit && webkit.messageHandlers.external || window.chrome && chrome.webview).postMessage('wails:runtime:ready'); } catch (e) {}
 })();</script>`
 
-// islandListsEndpoint：等你处理的列表里有这个 agent 的条目
+// islandListsEndpoint：等你处理的列表里有这个 agents 标签的条目
 func islandListsEndpoint(isl *island.Service, endpoint string) bool {
 	for _, p := range isl.Pending() {
 		if p.Endpoint == endpoint && endpoint != "" {

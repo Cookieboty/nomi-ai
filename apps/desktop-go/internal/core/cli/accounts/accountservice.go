@@ -30,7 +30,7 @@ const (
 )
 
 // AccountError = AccountError（Code: not-found / in-use / no-account / unsupported / unknown-live / external-busy）。
-// no-account：这个 agent 还没有 Nomi 管理的官方账号（不再退回这台电脑上 CLI 自己的登录）。
+// no-account：还没有 Nomi 管理的官方账号（不再退回这台电脑上 CLI 自己的登录）。
 // external-busy：有 Nomi 之外的 CLI 进程在用这个账号目录（Pids），界面可以让用户选择结束它们再删除。
 type AccountError struct {
 	Code, Message string
@@ -563,7 +563,7 @@ func (s *AccountService) defaultID(kind string) string {
 	return first
 }
 
-// HasAccount：这个 agent 有没有 Nomi 管理的官方账号
+// HasAccount：有没有 Nomi 管理的官方账号
 func (s *AccountService) HasAccount(kind string) (ok bool) {
 	defer func() {
 		if recover() != nil {
@@ -573,7 +573,7 @@ func (s *AccountService) HasAccount(kind string) (ok bool) {
 	return s.defaultID(kind) != ""
 }
 
-// HasSignedInAccount：这个 agent 有没有已登录的 Nomi 官方账号
+// HasSignedInAccount：有没有已登录的 Nomi 官方账号
 func (s *AccountService) HasSignedInAccount(kind string) (ok bool) {
 	defer func() {
 		if recover() != nil {

@@ -290,7 +290,7 @@ func (b *Broker) CancelConversation(conversationID string) {
 	b.cancelWhere(func(w *waiter) bool { return w.ev.ConversationID == conversationID }, false)
 }
 
-// CancelTab：这个 agent 标签上的问题全部取消。sync 为真时 reply 就地调用（调用方已在 jsrt 上）。
+// CancelTab：这个 agents 标签上的问题全部取消。sync 为真时 reply 就地调用（调用方已在 jsrt 上）。
 func (b *Broker) CancelTab(tabID string, sync bool) {
 	if tabID == "" {
 		return

@@ -39,7 +39,7 @@ const proposeSchema = `{"type":"object","properties":{
 "mcp_server":{"type":"string"},"mcp_tool":{"type":"string"},
 "mcp_args":{"type":"object","additionalProperties":{}}},"required":["kind"]},
 "executor":{"type":"string","enum":["nomi","notify","cli"],"description":"nomi = 由 Nomi 自己完成（默认）；notify = 到点只发一条通知；cli = 交给用户装好的 agents 在代码目录里做（改代码这类，用户点名或明显更合适时才用）"},
-"cli":{"type":"string","description":"executor=cli 时用哪个 agent（如 claude、codex）"},
+"cli":{"type":"string","description":"executor=cli 时指定 agents（如 claude、codex）"},
 "cwd":{"type":"string","description":"executor=cli 时的代码目录（绝对路径，要是用户打开过的工作区）"},
 "tools":{"type":"array","items":{"type":"string","enum":["read","web","knowledge_write","memory_write","file_write","shell"]},
 "description":"执行时需要的能力：read 只读、web 联网、file_write 写文件、shell 跑命令等；只要必要的"},

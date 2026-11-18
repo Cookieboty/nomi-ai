@@ -89,7 +89,7 @@ var (
 type requesterKey struct{}
 
 // WithRequester：工具由 agents 经 MCP 调用（label = agents 名）：确认卡片上标明是谁请求的，
-// 界面内容的接收方是这个 agent 的模型（按云端模型做外发检查）
+// 界面内容的接收方是这个 agents 标签的模型（按云端模型做外发检查）
 func WithRequester(ctx context.Context, label string) context.Context {
 	if label == "" {
 		return ctx
