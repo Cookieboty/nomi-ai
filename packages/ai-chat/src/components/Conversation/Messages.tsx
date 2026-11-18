@@ -16,11 +16,21 @@ import React, { memo, useContext, useEffect, useMemo, useRef, useState } from 'r
 import { joinFileAttachments, splitFileAttachments } from '../../services/fileAttachments';
 import { refLabel, useGatewayState } from '../../services/nomiModel';
 import type { ConvMessage } from '../../types/conversation';
-import { layoutBody, planBody, planLength, sliceBody } from '../../utils/convSegments';
+import {
+  layoutBody,
+  planBody,
+  planLength,
+  sliceBody,
+  type BodySegment,
+} from '../../utils/convSegments';
 import { formatFullTime, turnSummary } from '../../utils/convTime';
 import { ENDPOINT_NAME, type EndpointKey } from '../../utils/endpointBadge';
 import { isImeComposing } from '../../utils/keyboard';
-import { countLiveSteps, minimalCopyText, splitMinimalTurn } from '../../utils/minimalTurn';
+import {
+  countActiveLiveSteps,
+  minimalCopyText,
+  splitMinimalTurnSections,
+} from '../../utils/minimalTurn';
 import {
   entriesFromLegacyTools,
   hasRunning,
@@ -157,6 +167,31 @@ export const ErrorCard: React.FC<{
   </div>
 );
 
+function renderMinimalRawSegments(
+  segs: readonly BodySegment[],
+  keyPrefix: string,
+  isLiveSection: boolean,
+  streaming?: boolean,
+) {
+  let lastText = -1;
+  segs.forEach((s, j) => {
+    if (s.type === 'text') lastText = j;
+  });
+  return segs.map((seg, j) =>
+    seg.type === 'text' ? (
+      <div key={`${keyPrefix}-t-${j}`} className={styles.segment} data-testid="conv-segment">
+        <Markdown
+          text={seg.text}
+          settled={!isLiveSection || !streaming || j !== lastText}
+          streaming={isLiveSection && !!streaming && j === lastText}
+        />
+      </div>
+    ) : (
+      <ToolTimeline key={`${keyPrefix}-a-${j}`} items={seg.items} rawOrder />
+    ),
+  );
+}
+
 /** 助手正文：文字段和工具按发生位置穿插，而不是把工具全部堆在最上面 */
 export const AssistantBody: React.FC<{
   text: string;
@@ -208,56 +243,63 @@ export const AssistantBody: React.FC<{
     [layout, len, live, endedAt, breaks, transcriptView],
   );
   const segments = useMemo(() => sliceBody(text, plan), [text, plan]);
-  const minimalSplit = useMemo(() => {
+  const minimalSections = useMemo(() => {
     if (transcriptView !== 'minimal') return null;
-    return splitMinimalTurn(
+    return splitMinimalTurnSections(
       segments,
       live ? { live: true, thinking, startedAt: liveStatus?.startedAt } : { durationMs },
     );
   }, [transcriptView, segments, live, thinking, liveStatus?.startedAt, durationMs]);
 
-  if (transcriptView === 'minimal') {
-    if (live) {
-      const liveSteps = countLiveSteps(entries, thinking);
-      if (liveSteps > 0 && minimalSplit) {
-        return (
-          <>
-            <MinimalSteps
-              segments={minimalSplit.collapsed}
-              stepCount={liveSteps}
-              liveStatus={liveStatus}
-              stateKey={minimalStateKey}
-            />
-            {minimalSplit.passthrough.length > 0 && (
-              <ToolTimeline items={minimalSplit.passthrough} rawOrder />
-            )}
-            {minimalSplit.generatedImages.map((c) => (
-              <GeneratedImageBlock key={c.id} call={c} />
-            ))}
-            {extra}
-          </>
-        );
-      }
-    } else if (minimalSplit && minimalSplit.stepCount > 0) {
+  if (transcriptView === 'minimal' && minimalSections) {
+    const activeLiveSteps = live ? countActiveLiveSteps(entries, thinking) : 0;
+    const hasInterject = minimalSections.length > 1;
+    const hasAnyMinimalSteps = live
+      ? hasInterject || activeLiveSteps > 0
+      : hasInterject
+        ? minimalSections.some((s) => s.split.stepCount > 0)
+        : minimalSections[0]!.split.stepCount > 0;
+    if (hasAnyMinimalSteps) {
       return (
         <>
-          <MinimalSteps
-            segments={minimalSplit.collapsed}
-            stepCount={minimalSplit.stepCount}
-            workedMs={minimalSplit.workedMs}
-            stateKey={minimalStateKey}
-          />
-          {minimalSplit.passthrough.length > 0 && (
-            <ToolTimeline items={minimalSplit.passthrough} rawOrder />
-          )}
-          {minimalSplit.generatedImages.map((c) => (
-            <GeneratedImageBlock key={c.id} call={c} />
-          ))}
-          {minimalSplit.summaryText && (
-            <div className={styles.segment} data-testid="conv-segment">
-              <Markdown text={minimalSplit.summaryText} settled />
-            </div>
-          )}
+          {minimalSections.map((sec, idx) => {
+            const secKey = minimalStateKey
+              ? idx === 0
+                ? minimalStateKey
+                : `${minimalStateKey}:s${idx}`
+              : undefined;
+            const fragKey = sec.interject ? `ij-${sec.interject.id}-${idx}` : `sec-${idx}`;
+            const showSteps = sec.live ? activeLiveSteps > 0 : sec.split.stepCount > 0;
+            return (
+              <React.Fragment key={fragKey}>
+                {sec.interject && <ToolTimeline items={[sec.interject]} rawOrder />}
+                {showSteps ? (
+                  <>
+                    <MinimalSteps
+                      segments={sec.split.collapsed}
+                      stepCount={sec.live ? activeLiveSteps : sec.split.stepCount}
+                      workedMs={sec.live ? undefined : sec.split.workedMs}
+                      liveStatus={sec.live ? liveStatus : undefined}
+                      stateKey={secKey}
+                    />
+                    {sec.split.passthrough.length > 0 && (
+                      <ToolTimeline items={sec.split.passthrough} rawOrder />
+                    )}
+                    {sec.split.generatedImages.map((c) => (
+                      <GeneratedImageBlock key={c.id} call={c} />
+                    ))}
+                    {!sec.live && sec.split.summaryText && (
+                      <div className={styles.segment} data-testid="conv-segment">
+                        <Markdown text={sec.split.summaryText} settled />
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  renderMinimalRawSegments(sec.rawSegments, fragKey, sec.live, streaming)
+                )}
+              </React.Fragment>
+            );
+          })}
           {extra}
         </>
       );

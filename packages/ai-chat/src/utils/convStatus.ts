@@ -122,6 +122,18 @@ export function deriveStatus(args: {
     live?.thinking === undefined
   )
     return { kind: 'first-token', label: t('ui.usage-tools.waiting-for-the-model') };
-  if (live?.text.trim()) return { kind: 'writing', label: t('ui.usage-tools.writing-reply') };
+  let interjectAt: number | undefined;
+  if (live?.trace) {
+    for (let i = live.trace.length - 1; i >= 0; i--) {
+      const ev = live.trace[i]!;
+      if (ev.type === 'interject') {
+        interjectAt = ev.textAt;
+        break;
+      }
+    }
+  }
+  const activeText =
+    interjectAt !== undefined ? live?.text.slice(interjectAt).trim() : live?.text.trim();
+  if (activeText) return { kind: 'writing', label: t('ui.usage-tools.writing-reply') };
   return { kind: 'working', label: t('ui.chat-settings.processing') };
 }

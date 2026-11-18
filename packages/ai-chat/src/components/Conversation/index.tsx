@@ -32,7 +32,7 @@ import type { SlashCard } from '../../slash/types';
 import type { ConvLive, ConvMessage, ConvPhase } from '../../types/conversation';
 import { deriveStatus } from '../../utils/convStatus';
 import { timeLabels } from '../../utils/convTime';
-import { countLiveSteps } from '../../utils/minimalTurn';
+import { activeStageStartedAt, countActiveLiveSteps } from '../../utils/minimalTurn';
 import { buildTimeline, reduceTraceCached } from '../../utils/toolTrace';
 import { SystemCardView } from '../SystemCards';
 
@@ -761,8 +761,14 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   );
   const liveStepCount = useMemo(
     () =>
-      transcriptView === 'minimal' && running ? countLiveSteps(liveEntries, live?.thinking) : 0,
+      transcriptView === 'minimal' && running
+        ? countActiveLiveSteps(liveEntries, live?.thinking)
+        : 0,
     [transcriptView, running, liveEntries, live?.thinking],
+  );
+  const activeStartedAt = useMemo(
+    () => (running ? activeStageStartedAt(liveEntries, live?.startedAt) : undefined),
+    [running, liveEntries, live?.startedAt],
   );
   const status = deriveStatus({ phase, live, items: liveItems });
 
@@ -933,7 +939,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
           live
           streaming
           thinking={live?.thinking}
-          liveStatus={status ? { status, startedAt: live?.startedAt } : undefined}
+          liveStatus={status ? { status, startedAt: activeStartedAt } : undefined}
           minimalStateKey={liveMinimalKey}
           extra={<PermissionQueue live={live} onPermission={onPermission} />}
         />
@@ -941,7 +947,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
       {status && !minimalStepsOwnsStatus && (
         <StatusLine
           status={status}
-          startedAt={running ? live?.startedAt : undefined}
+          startedAt={activeStartedAt}
           stepCount={liveStepCount > 0 ? liveStepCount : undefined}
           minimal={transcriptView === 'minimal'}
         />

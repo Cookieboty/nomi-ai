@@ -499,17 +499,27 @@ function useStreamSend({
               x.traced = true;
         };
         /** 回复的正文 / 轨迹里已经有这一轮的插入了：补进记录的那几条不再需要 */
-        const noteSteersSent = () => {
-          for (const x of steerList() ?? [])
-            if (!x.traced && trace.some((e) => e.type === 'interject' && e.text === x.text))
+        const noteSteersSent = (list: readonly DeliveredSteer[] = steerList() ?? []) => {
+          for (const x of list) {
+            if (x.traced) continue;
+            const want = x.text.trim();
+            if (
+              trace.some(
+                (e) =>
+                  e.type === 'interject' &&
+                  (e.text === x.text || e.text.split('\n\n').some((p) => p.trim() === want)),
+              )
+            ) {
               x.traced = true;
+            }
+          }
         };
         /**
          * 结局时补进回复正文的「你加入了」分节：已经有分节的（重启后再交付时接进了回复的开头）续写在后面；
          * 没有的在开头加一节。文字里已经有的不重复加。
          */
         const fullSteerText = (text: string, done: readonly DeliveredSteer[]): string => {
-          noteSteersSent();
+          noteSteersSent(done);
           const missing = done
             .filter((x) => !x.traced && !text.includes(`\n\n${STEER_TAG}\n\n${x.text}`))
             .map((x) => x.text);
