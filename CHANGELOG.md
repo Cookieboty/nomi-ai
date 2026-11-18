@@ -11,6 +11,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ### Other
 
+- Use the configured CLI launcher for Claude and Codex login detection and subscription quota queries. Preserve local login environments instead of injecting Nomi account directories, avoid inferring wrapper authentication from the native CLI's configuration, and keep launcher diagnostics on stderr from corrupting Claude auth-status JSON. (`nomi` patch)
 - 修复画布色被误加到所有主题的问题：`--cd-workspace-bg` 之前写在了 `:root, [data-theme='light']` 混合选择器里，选择器中的 `:root` 对任何主题都命中且位置靠后，把其余六个主题的画布一并改成了浅色。现改为只作用于浅色主题。 Fix the canvas colour leaking into every theme: `--cd-workspace-bg` was declared inside the `:root, [data-theme='light']` selector, whose bare `:root` matches all themes, repainting the canvas of the other six themes. It is now scoped to the light theme only. (`@nomi-ai/ui` patch)
 
 ## 2.3.18 — 2026-11-17
