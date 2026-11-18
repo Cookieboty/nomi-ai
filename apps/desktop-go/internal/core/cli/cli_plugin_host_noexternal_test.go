@@ -14,7 +14,7 @@ type quietHostLogger struct{}
 func (quietHostLogger) Info(string, any) {}
 func (quietHostLogger) Warn(string, any) {}
 
-// 旧版本「外部 CLI」存下的清单在启动时删掉，注册表里只有内置编程助手。
+// 旧版本「外部 CLI」存下的清单在启动时删掉，注册表里只有内置 agent。
 func TestLegacyExternalCliSpecsAreDropped(t *testing.T) {
 	root := t.TempDir()
 	ext := filepath.Join(root, "external")
@@ -35,7 +35,7 @@ func TestLegacyExternalCliSpecsAreDropped(t *testing.T) {
 	for _, p := range snap.Get("plugins").([]any) {
 		e := util.AsObj(p)
 		if e.Get("builtin") != true || e.Has("external") || e.Get("id") == "my-agent" {
-			t.Fatalf("registry must only list built-in coding assistants: %v", util.Stringify(e))
+			t.Fatalf("registry must only list built-in agents: %v", util.Stringify(e))
 		}
 	}
 }

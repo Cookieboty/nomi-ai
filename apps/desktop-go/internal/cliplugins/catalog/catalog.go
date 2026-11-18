@@ -1,4 +1,4 @@
-// Package catalog：内置编程助手的清单。只在 packages/cli-catalog/src/<id>/manifest.ts 写一份，
+// Package catalog：内置 agent 的清单。只在 packages/cli-catalog/src/<id>/manifest.ts 写一份，
 // 生成到这里的 catalog.json（pnpm -F @nomi-ai/cli-catalog gen:go；那边的测试会查它是否最新）。
 // 这个包只放数据，插件包与注册表（builtin）都从这里取。
 package catalog

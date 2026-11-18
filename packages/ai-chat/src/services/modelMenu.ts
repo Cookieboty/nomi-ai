@@ -1,6 +1,6 @@
 /**
  * 斜杠命令 `/model` 打开输入框上方的模型浮层（与点模型按钮是同一个界面），不往对话里插卡片。
- * 输入框的模型按钮挂载时按 key 登记打开方法：编程助手标签用标签 id，Nomi 对话用 NOMI_MODEL_MENU。
+ * 输入框的模型按钮挂载时按 key 登记打开方法：agent 标签用标签 id，Nomi 对话用 NOMI_MODEL_MENU。
  */
 export const NOMI_MODEL_MENU = 'nomi';
 

@@ -111,18 +111,10 @@ func (h harnessGateway) ReleaseTab(kind, tabID string, generation *float64) {
 	h.g.ReleaseTab(kind, tabID, g)
 }
 
-// updateTab：models = {...store.clients[kind]?.models, main: model}；effort 为空时清掉绑定上的档位
+// updateTab：models = EffectiveClientModels(kind, model)；effort 为空时清掉绑定上的档位
 func (h harnessGateway) UpdateTab(kind, tabID, model string, effort *string) *jsrt.Promise[bool] {
 	return jsrt.Async(func() (bool, error) {
-		mo := util.NewObj()
-		if cl, _ := h.g.Store.View().Snapshot().Get("clients").(*util.Obj); cl != nil { // 锁外读：已发布快照（#195）
-			if c, _ := cl.Get(kind).(*util.Obj); c != nil {
-				if m, _ := c.Get("models").(*util.Obj); m != nil {
-					mo = m.Clone()
-				}
-			}
-		}
-		mo.Set("main", model)
+		mo := h.g.EffectiveClientModels(kind, model)
 		var cm config.ClientModels
 		if err := json.Unmarshal([]byte(util.Stringify(mo)), &cm); err != nil {
 			return false, err

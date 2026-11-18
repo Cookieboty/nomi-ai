@@ -276,7 +276,7 @@ export function useResourcePreview(
     },
     [scoped, activeBucket],
   );
-  /** 编程助手新标签拿到 cliSessionId 后，把已打开的文件 / Diff 预览从临时标签键平滑迁移到稳定会话键 */
+  /** agent 新标签拿到 cliSessionId 后，把已打开的文件 / Diff 预览从临时标签键平滑迁移到稳定会话键 */
   const migrateScope = useCallback((fromId: string, toId: string) => {
     if (!fromId || !toId || fromId === toId) return;
     setTabsByBucket((all) => {

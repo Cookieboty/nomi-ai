@@ -1,9 +1,9 @@
 /**
- * 侧栏「开始使用」清单：刚装好、还没配模型 / 没装编程助手 / 还没开始对话时，告诉新用户下一步做什么。
- * - 每一步按真实状态打勾：模型看第三方供应商的生效状态，编程助手看本机安装检测，对话看侧栏列表；
- * - 模型与编程助手有一个就能用（助手模式先模型，工作台模式先编程助手，另一项标「可选」）；
+ * 侧栏「开始使用」清单：刚装好、还没配模型 / 没装 agent / 还没开始对话时，告诉新用户下一步做什么。
+ * - 每一步按真实状态打勾：模型看第三方供应商的生效状态，agent 看本机安装检测，对话看侧栏列表；
+ * - 模型与 Agents有一个就能用（助手模式先模型，工作台模式先 agent，另一项标「可选」）；
  * - 能用之后再列几个值得知道的功能；有了第一个对话或用户点「×」后不再出现（只记在本机）。
- * - 新手引导里选了职业与兴趣时按它推荐（services/recommendations）：装哪些编程助手、列哪些功能；
+ * - 新手引导里选了职业与兴趣时按它推荐（services/recommendations）：装哪些 agent、列哪些功能；
  *   有了第一个对话后，推荐的还没做完就只留「为你推荐」，点过的功能不再列出。
  */
 import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
@@ -68,7 +68,7 @@ function writeTried(v: RecommendedFeature[]): void {
 }
 
 interface Props {
-  /** 助手（Nomi 对话）或工作台（编程助手） */
+  /** 助手（Nomi 对话）或工作台（agents） */
   mode: 'assistant' | 'workbench';
   /** 侧栏里已经有对话 */
   hasChats: boolean;
@@ -142,7 +142,7 @@ export const GettingStarted: React.FC<Props> = ({ mode, hasChats, onOpenSettings
       <Button
         size="sm"
         variant={mode === 'assistant' ? 'primary' : 'secondary'}
-        onClick={() => onOpenSettings('models')}
+        onClick={() => onOpenSettings('ai', modelStatus === 'unassigned' ? 'routing' : 'providers')}
         data-testid="getting-started-add-model"
       >
         {modelStatus === 'unassigned'
@@ -196,7 +196,7 @@ export const GettingStarted: React.FC<Props> = ({ mode, hasChats, onOpenSettings
     mode === 'workbench' || recs.coding
       ? [cliStep, modelStep, startStep]
       : [modelStep, cliStep, startStep];
-  // 清单已完成、只剩推荐：只留还没装完的编程助手
+  // 清单已完成、只剩推荐：只留还没装完的 agent
   const steps = setupDone ? allSteps.filter((s) => s.id === 'cli' && !s.done) : allSteps;
 
   const FEATURE: Record<RecommendedFeature, { label: string; open: () => void }> = {

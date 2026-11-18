@@ -159,7 +159,7 @@ func RegisterCoding(r *contract.Router, s CodingServices) {
 
 	// ── cli：插件注册表 ──
 	gil(r, "cli.registry", func(in) any { return plugins().Snapshot() })
-	gil(r, "cli.launcherGet", func(in) any { return cli.Launchers() })
+	gil(r, "cli.launcherGet", func(in) any { return cli.LaunchersView() })
 	gil(r, "cli.launcherSet", func(a in) any {
 		kind := a.str("kind")
 		prev := cli.LauncherFor(kind)
@@ -169,7 +169,7 @@ func RegisterCoding(r *contract.Router, s CodingServices) {
 		if s.OnLauncherSaved != nil && prev != next {
 			s.OnLauncherSaved(kind, prev, next)
 		}
-		return next
+		return cli.LauncherViewFor(kind)
 	})
 	plain(r, "cli.launcherTest", func(a in) any {
 		version, err := cli.TestLauncherVersion(a.str("kind"), a.str("command"))
@@ -204,7 +204,11 @@ func RegisterCoding(r *contract.Router, s CodingServices) {
 		return v
 	})
 	plain(r, "delegate.pin", func(a in) any {
-		v, err := dlg().Pin(a.any("cli"), a.any("turnId"))
+		target := a.any("cli")
+		if pid := a.str("presetId"); pid != "" && a.str("cli") == "" {
+			target = "preset:" + pid
+		}
+		v, err := dlg().Pin(target, a.any("turnId"))
 		throwIf(err)
 		if v == "" {
 			return nil
@@ -217,7 +221,9 @@ func RegisterCoding(r *contract.Router, s CodingServices) {
 	})
 	plainCtx(r, "delegate.dispatch", func(ctx context.Context, a in) any {
 		v, err := dlg().Dispatch(ctx, delegate.DispatchInput{
-			Cli: a.str("cli"), Goal: a.str("goal"), Context: a.str("context"),
+			Cli: a.str("cli"), PresetID: a.str("presetId"), Source: a.str("source"),
+			AccountID: a.str("accountId"), Model: a.str("model"), ReasoningEffort: a.str("reasoningEffort"),
+			Goal: a.str("goal"), Context: a.str("context"),
 			ConversationID: a.str("conversationId"), ProjectID: a.str("projectId"), TurnID: a.str("turnId"),
 		})
 		throwIf(err)

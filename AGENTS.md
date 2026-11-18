@@ -1,6 +1,6 @@
 # AGENTS.md
 
-给编程助手的仓库指南。用户文档在 [docs/README.md](docs/README.md)，架构在 [docs/development/architecture.md](docs/development/architecture.md)。
+给 agent 的仓库指南。用户文档在 [docs/README.md](docs/README.md)，架构在 [docs/development/architecture.md](docs/development/architecture.md)。
 
 ## 仓库结构
 
@@ -8,7 +8,7 @@ pnpm 9 + Turborepo monorepo。桌面应用只有 Go 版（`apps/desktop-go`：Go
 
 | 路径                                                 | 内容                                                                                                                                                             |
 | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/desktop-go`                                    | 桌面应用：Go 内核（`internal/*`：AI 运行时与供应商、统一网关、编程助手插件与驱动、记忆、知识库、日程、语音等）+ Wails 壳，见 `apps/desktop-go/README.md`         |
+| `apps/desktop-go`                                    | 桌面应用：Go 内核（`internal/*`：AI 运行时与供应商、统一网关、agent 插件与驱动、记忆、知识库、日程、语音等）+ Wails 壳，见 `apps/desktop-go/README.md`           |
 | `apps/desktop-go/internal/gateway`                   | 统一网关：四种协议的请求 IR 与流式互转，见 `docs/development/gateway.md`                                                                                         |
 | `apps/desktop-go/internal/contract`                  | 契约服务端（回环 WebSocket + 一次性 token），处理函数在 `internal/core/<域>handlers`                                                                             |
 | `apps/desktop-go/assets`、`character-pack-resources` | 应用图标、托盘图标、背景等只读资源（打包进 resources）                                                                                                           |
@@ -18,7 +18,7 @@ pnpm 9 + Turborepo monorepo。桌面应用只有 Go 版（`apps/desktop-go`：Go
 | `packages/ai-sdk-client`                             | 视图侧 AI 客户端（基于 `@nomi-ai/contract/app`）与窗口共享的契约传输（`installGoHostTransport`）                                                                 |
 | `packages/contract`                                  | 视图与内核之间的 API 契约（自研 `defineContract`、类型化 client、WebSocket 传输），Go 侧经 `scripts/go-contract/gen.mjs` 生成，见 `docs/development/contract.md` |
 | `packages/character-contract`                        | 角色包契约：manifest / persona / mapping 的 schema、校验与迁移，见 `docs/character-pack/CONTRACT.md`                                                             |
-| `packages/cli-catalog`                               | 内置编程助手的清单与界面信息（纯数据，视图用）；`BuiltinCliId` 由 `gen:ids` 生成                                                                                 |
+| `packages/cli-catalog`                               | 内置 agent 的清单与界面信息（纯数据，视图用）；`BuiltinCliId` 由 `gen:ids` 生成                                                                                  |
 | `packages/ui`                                        | 设计令牌、主题、组件                                                                                                                                             |
 | `packages/i18n`、`packages/voice`、`packages/types`  | 界面文案与翻译（Go 内核内嵌一份 `internal/core/i18n/locales` 副本）、语音、共享类型                                                                              |
 | `packages/repo-paths`                                | 测试与脚本里拼仓库内路径（`repoPath('characters/nomi')`），不写跨出所在包的 `../`（`scripts/__tests__/repo-paths.test.ts` 会拦）；Go 测试用 `repotest.RepoPath`  |

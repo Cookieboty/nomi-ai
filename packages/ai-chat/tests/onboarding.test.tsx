@@ -29,7 +29,7 @@ let profile: unknown = { role: null, interests: [] };
 /** none：没有模型；unassigned：有模型没选给 Nomi；ready：已选 */
 let model: 'none' | 'unassigned' | 'ready' = 'none';
 let nomiMain = 'p1/m1';
-/** 本机装了哪些编程助手（cliUpdate.inspect） */
+/** 本机装了哪些 agent（cliUpdate.inspect） */
 let installedClis: string[] = ['claude'];
 let fleetOpened = 0;
 const onFleet = () => fleetOpened++;
@@ -171,7 +171,7 @@ const skipTo = async (id: string, n: number) => {
 };
 
 describe('first-launch onboarding', () => {
-  it('walks language & theme → coding assistants → optional model and profile (3 steps)', async () => {
+  it('walks language & theme → agents → optional model and profile (3 steps)', async () => {
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');
     // 盖住主界面，不用装饰插画；不写死官方角色名
@@ -209,7 +209,7 @@ describe('first-launch onboarding', () => {
     fireEvent.click(screen.getByTestId('onboarding-next'));
     expect(calls.some((c) => c[0] === 'startup.set')).toBe(false);
 
-    // AI 能力：编程助手（装了的打勾，没装的给「安装」）和对话模型在同一页
+    // AI 能力：agents（装了的打勾，没装的给「安装」）和对话模型在同一页
     await screen.findByTestId('onboarding-step-ai');
     await screen.findByTestId('onb-agent-claude-installed');
     expect(screen.getByTestId('onb-agent-codex-install').textContent).toContain('Codex');
@@ -247,11 +247,11 @@ describe('first-launch onboarding', () => {
     expect(persona).toContain('我喜欢猫');
     expect(persona).not.toContain('语气');
     expect(persona.match(/<!-- onboarding -->/g)).toHaveLength(1);
-    // 装了编程助手：结束后进看板
+    // 装了 agent：结束后进看板
     expect(fleetOpened).toBe(1);
   });
 
-  it('no coding assistant installed: install runs right away; finishing stays in chat', async () => {
+  it('no agent installed: install runs right away; finishing stays in chat', async () => {
     installedClis = [];
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-welcome');

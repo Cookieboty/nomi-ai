@@ -8,7 +8,7 @@ import {
 } from '../src/utils/cliCaps';
 import { cliImageSupport } from '../src/utils/cliImageSupport';
 
-describe('编程助手能力位（来自插件清单，P9.4）', () => {
+describe('agent 能力位（来自插件清单，P9.4）', () => {
   it('官方账号、图片、斜杠发现按能力位判断', () => {
     expect(hasOfficialAccount('claude')).toBe(true);
     expect(hasOfficialAccount('dsh')).toBe(false);

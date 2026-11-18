@@ -1,6 +1,6 @@
 /**
  * 输入框上方待发列表的接线（App 用）：Nomi 主对话的待发列表（插入走 ai.chat.steer）、
- * 当前会话（Nomi / 编程助手标签）该显示哪份列表，以及撤回修改 / 删除 / Esc 合成发送。
+ * 当前会话（Nomi / agent 标签）该显示哪份列表，以及撤回修改 / 删除 / Esc 合成发送。
  * 规则见 utils/pendingSends。
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
@@ -109,7 +109,7 @@ export function useComposerPending(
     },
     [onRemove, fillComposer],
   );
-  // 输入框的运行中发送：Enter 插入 / Ctrl+Enter 排队 / Esc 停下来马上发（编程助手标签与 Nomi 各走各的列表）
+  // 输入框的运行中发送：Enter 插入 / Ctrl+Enter 排队 / Esc 停下来马上发（agent 标签与 Nomi 各走各的列表）
   const { send: tabSend, cancel: tabCancel, flushPending } = tabs;
   const { enqueue, flush } = nomiQueue;
   const count = items?.length ?? 0;

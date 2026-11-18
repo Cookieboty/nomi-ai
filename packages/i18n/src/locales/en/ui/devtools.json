@@ -16,7 +16,7 @@
   "ui.devtools.model-request": "Model request",
   "ui.devtools.no-body-recorded-for-this-request": "No body for this request: bodies are recorded only while diagnostic logs are on, and kept for 24 hours.",
   "ui.devtools.no-gateway-requests-in-this-turn": "No gateway model requests in this turn.",
-  "ui.devtools.no-gateway-requests-official-accounts-connect-directly": "No gateway model requests in this turn (with an official account, the coding agent connects to the official service directly).",
+  "ui.devtools.no-gateway-requests-official-accounts-connect-directly": "No gateway model requests in this turn (with an official account, the agent connects to the official service directly).",
   "ui.devtools.no-input-or-output-was-kept": "No input or output was kept for this call (older messages keep only an outline).",
   "ui.devtools.no-process-records-in-this-turn": "No process records in this turn.",
   "ui.devtools.no-steps-in-this-turn": "No thinking, tool calls, or gateway requests in this turn.",

@@ -17,18 +17,18 @@
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `path_guard.go`                      | 授权作用域 + 黑名单 + 路径规范化 + realpath 防符号链接逃逸                                                                                                                                                                                                                      |
 | `workspace.go`                       | 项目的文件夹（`Workspace`：主文件夹 + 其余文件夹）作为隐式读写作用域；拒绝过宽的根（家目录、盘符根等）                                                                                                                                                                          |
-| `protected_paths.go`                 | 用户的受保护文件夹（存 realpath）与放行给编程助手的环境变量；`CheckCliWorkspace` 给编程助手标签的工作目录用同一套规则                                                                                                                                                           |
+| `protected_paths.go`                 | 用户的受保护文件夹（存 realpath）与放行给 agent 的环境变量；`CheckCliWorkspace` 给 agent 标签的工作目录用同一套规则                                                                                                                                                             |
 | `permission_broker.go`、`consent.go` | 授权作用域、工具策略、确认请求、云端外发同意；何时需要用户确认                                                                                                                                                                                                                  |
 | `command_class.go`                   | 命令的确定性分类（读凭据、不可逆操作、对外副作用）                                                                                                                                                                                                                              |
 | `command_review.go`                  | `workspace_run` 的命令先交辅助模型判风险：低风险放行，拿不准 / 高风险交给人确认（卡片带等级与理由）；不替用户拒绝。发给审核模型前会打码密钥 / 令牌和本机主目录；审核卡片与设置里写明会发送命令全文。                                                                            |
 | `command_rules.go`                   | 命令白名单：白名单式，只收 `ruleSubcommands` 列出的「程序 + 子命令」与 `ruleProgramsAlone` 里的检查工具，危险参数（`unsafeRuleArgs`）与 `command_class.go` 的分类永不进；读过外部内容的一轮、污染后写过文件（暂停到用户亲手确认一次命令）、`manual` 模式、显式 `ask` 策略都不认 |
-| `outbound_guard.go`                  | 发给云端模型前，按设置挡下或替换附件正文与编程助手输出                                                                                                                                                                                                                          |
+| `outbound_guard.go`                  | 发给云端模型前，按设置挡下或替换附件正文与 agent 输出                                                                                                                                                                                                                           |
 | `audit_log.go`                       | 桌面工具调用审计（`desktop-YYYY-MM.jsonl`，参数脱敏）                                                                                                                                                                                                                           |
 | `undo_journal.go`                    | 可撤销操作的逆操作日志                                                                                                                                                                                                                                                          |
 
-## 编程助手（CLI 子进程）
+## Agents（CLI 子进程）
 
-编程助手以用户身份运行。Nomi 在 `internal/core/cli/harness` 加下面几条，与权限档位无关：
+Agents 以用户身份运行。Nomi 在 `internal/core/cli/harness` 加下面几条，与权限档位无关：
 
 - **工作目录**：`Deps.CwdCheck`（接 `desktop.PermissionBroker.CheckCliWorkspace`，与 Nomi 对话工作区同一套：不能过宽、不能在内置或用户的受保护文件夹里）。
   新建标签、换目录、每次起 CLI 前都查（`spawn.go` 的 `cwdErr`）。
@@ -42,7 +42,7 @@
 
 ### 系统级沙箱（macOS）
 
-**威胁模型**：沙箱防的是编程助手**误操作**与**被提示注入后顺手外泄 / 改坏东西**（读凭据、改用户的配置、写到项目外），不防一个铁了心的恶意进程：
+**威胁模型**：沙箱防的是 agent**误操作**与**被提示注入后顺手外泄 / 改坏东西**（读凭据、改用户的配置、写到项目外），不防一个铁了心的恶意进程：
 它是「默认放行 + 按位置拒绝」的黑名单，网络不限，进程能做的其余事情（起子进程、连非本机的服务）都照常。能把风险降下来的是拒读敏感内容、
 清理环境变量、只放行少数可写位置，以及下面这些不让借道的口子；更严格的隔离（容器、虚拟机）不在这里。
 
@@ -82,20 +82,20 @@
   shell 配置（`~/.oh-my-zsh`、`~/.zsh`、fish / zsh 配置目录、`~/.zshrc` 等启动脚本、`~/.gitconfig`）。
   解析违规时整条消息只能是「拒绝一行 + 标签一行」、路径不能带控制字符，沙箱里的进程拿文件名伪造的标签对不上就丢弃。
   Nomi 数据目录的拒绝只记日志。新的请求同时发 `permission-needed`（`background` 时走桌面角色气泡与系统通知）。
-- 授权请求挂在标签状态的 `sandboxPending` 上（不落盘，同一项只挂一次），编程助手标签、委派卡片与任务详情都显示。`harness.sandboxReply` 回答：
+- 授权请求挂在标签状态的 `sandboxPending` 上（不落盘，同一项只挂一次），agent 标签、委派卡片与任务详情都显示。`harness.sandboxReply` 回答：
   本会话允许（标签内存里）、始终允许（桌面设置 `cliSandboxAllow`：每一条都带 `project` = 工作目录所在 git 根的真实路径，只在这个项目里生效，
   按真实路径比对，符号链接的工作目录借不到别的项目的授权；加载与新增时都校验：类别存在、绝对路径、文件夹不太宽、不在永不授权的位置）、
   不允许（本会话不再问）。允许后 `recycleTab` 淘汰这个标签的旧 CLI（在跑就等这一轮结束），下次由用户发送消息时按新权限启动并续接会话。授权只改变权限，不代替用户发送「请继续」或自动开启下一轮；用户停止后也不会因授权而续跑。
 - 任务预授权：任务授权的 `grant.sandbox`（类别 id），有 GitHub 对外能力时自动加 `ssh`（`tasks.SandboxGrants`）；建标签时写进
   `delegation.sandboxGrants`，`grantedFor` 当作已授权。只有内核自己的委派 / 任务路径能写 `delegation`：契约 `harness.tabCreate`
   只收视图能给的字段（backend、cwd、title、messages、permissionMode），视图带来的 `delegation` 等内部字段一律丢掉。
-- 告诉编程助手它在沙箱里（`prompts/text/cli-sandbox.md`）：Claude 用 `--append-system-prompt`，别的 CLI 在 CLI 会话的第一条消息前带上（`withSandboxNote`）；
+- 告诉 agent 它在沙箱里（`prompts/text/cli-sandbox.md`）：Claude 用 `--append-system-prompt`，别的 CLI 在 CLI 会话的第一条消息前带上（`withSandboxNote`）；
   被拒时停下说明、结束这一轮，不要绕路。说明里也写明 CLI 自己的配置目录（技能、提示词、插件）与 `~/.agents` 可读可执行；
   运行脚本报 "Permission denied" / 退出码 126 是脚本没有执行位，不是沙箱（沙箱拒绝是 "Operation not permitted"），
   改用解释器运行接着做，别当成沙箱拦截停下（`internal/core/cli/sandbox/skills_test.go` 守住各内置 CLI 的技能目录）。
 - 开关（`cliSandboxOff`，缺省开）、受保护文件夹、「始终允许」变了：`watchSandboxPolicy` → `SandboxPolicyChanged` 让常驻 CLI 按新配置重开。
 - 其他平台 `sandbox.Supported()` 为假，CLI 照旧运行（状态 `unsupported`，界面提示）；工作目录检查与环境变量清理照常。
-  **没有系统沙箱时，L3 任务不会切到 auto**：编程助手权限档停在 `acceptEdits`（可自动改文件，命令仍要确认），「按风险自动判断」和前台「全部自动」也不会自动放行命令，保持逐条确认。不要在 Windows / Linux 上静默沿用 macOS 的自动执行。
+  **没有系统沙箱时，L3 任务不会切到 auto**：agent 权限档停在 `acceptEdits`（可自动改文件，命令仍要确认），「按风险自动判断」和前台「全部自动」也不会自动放行命令，保持逐条确认。不要在 Windows / Linux 上静默沿用 macOS 的自动执行。
 
 ## 代码执行沙箱
 
@@ -112,16 +112,16 @@
 
 ## 委派的工作目录
 
-Nomi 用 `delegate_to_cli`（或持续任务的编程助手执行）把任务交给编程助手时（`internal/core/cli/delegate/`）：
+Nomi 用 `delegate_to_cli`（或持续任务的 agent 执行）把任务交给 agent 时（`internal/core/cli/delegate/`）：
 
 1. 默认直接在工作目录里改（`in-place`），不开 worktree。同一个 git 仓库里并行的任务按文件登记谁在改
-   （`claims.go`，来自编程助手改文件类工具事件的入参）；两个任务改到同一个文件时按优先级裁决
+   （`claims.go`，来自 agent 改文件类工具事件的入参）；两个任务改到同一个文件时按优先级裁决
    （urgent > high > medium > low，同级先来的优先），让路的一方收到插话，别再动这个文件；收尾时这个文件算赢的一方的，
    同期别的任务改的文件也不算进自己的改动。跑命令改的文件认不出来，按 git 列出且没人登记的仍算自己的。
 2. 只有明确指定了别的分支做基线（`base_branch`），且那个分支不在当前分支的历史里时，才在 `<cwd>/.nomi-delegate/<id>`
    从它建 detached 的 worktree（`.nomi-delegate/` 写进仓库的 `info/exclude`）。
 3. worktree 做完落地（`LandWorktree`）：改动少（≤ 10 个文件且 ≤ 400 行）拷回当前工作区，目标文件已有改动或在授权外的不覆盖；
-   改动多、以及拷不回去的文件提交到新分支 `nomi/<基线>-<id>`（不跑钩子、不签名），由用户决定是否合并。编程助手自己提交了、
+   改动多、以及拷不回去的文件提交到新分支 `nomi/<基线>-<id>`（不跑钩子、不签名），由用户决定是否合并。agent 自己提交了、
    没有任何分支 / 标签指着的提交（`git status` 干净不等于没有成果）也先建这样一个分支留住。落地后拆掉 worktree；
    留不住（检查或建分支失败）时保留 worktree 并报错。
    同步委派做完就落地；持续任务在验收卡片上「落地改动」，或验收通过时自动落地。
@@ -130,10 +130,10 @@ Nomi 用 `delegate_to_cli`（或持续任务的编程助手执行）把任务交
 5. 非 git 目录在原目录运行，并在结果里提示并行任务会互相改文件。
 6. 同时运行的委派与后台任务合计有上限，由 Agent 看板的调度策略决定（省资源 5 / 均衡 10 / 全速按资源放行；看板没装好时委派默认 3 个，`MaxParallelDelegates`）。
 
-编程助手自带的沙箱（如 Codex 的 Seatbelt）照常生效；这一层只解决并行写同一工作树。
+Agents 自带的沙箱（如 Codex 的 Seatbelt）照常生效；这一层只解决并行写同一工作树。
 
-委派出去的编程助手标签只在 Nomi 里看（对话里的子任务卡片、对话旁的子任务侧栏、任务页）：不进侧栏，委派用过的会话不出现在编程助手的历史里
-（`harness/orchestrator_delegated.go`）。同一个对话里同一种委派（编程助手、目录、任务类型、模型、思考深度都相同）
+委派出去的 agent 标签只在 Nomi 里看（对话里的子任务卡片、对话旁的子任务侧栏、任务页）：不进侧栏，委派用过的会话不出现在 agent 的历史里
+（`harness/orchestrator_delegated.go`）。同一个对话里同一种委派（agents、目录、任务类型、模型、思考深度都相同）
 接着用上一次空闲的会话（一小时内用过的，`reuse.go`），省 token 也更快；在 worktree 里做的不复用。
 委派标签闲置超过一周、对应任务已结束的，应用启动时关掉（用户在侧栏关不到它们）。
 

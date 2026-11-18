@@ -1,5 +1,5 @@
 /**
- * 「编程助手」页：逐个配置各编程助手（CLI），分段标签「助手 / 监视与会话」。
+ * 「Agents」页：逐个配置各 agent（CLI），分段标签「助手 / 监视与会话」。
  * Nomi 自己的设置（权限、委派、工具权限）在设置 →「Nomi」。
  * - 助手：左右两栏。左栏固定的列表：内置助手（带安装状态）、通用；
  *   右栏只显示选中那一项：
@@ -8,7 +8,7 @@
  *   - 通用：运行环境（Node.js / npm）与「全部自动」权限。运行环境有问题时左栏「通用」亮警示点，
  *     助手详情顶部也提示一行。
  *   窄窗口时左栏收成顶部一排（容器查询）。
- * - 监视与会话：本机编程助手进度监视设置 + 活跃会话列表。
+ * - 监视与会话：本机 agent 进度监视设置 + 活跃会话列表。
  * 切换只是换一个视图，不会改任何配置。
  */
 import { Button, Notice, t, Tabs } from '@nomi-ai/ui';
@@ -49,13 +49,14 @@ export const ProvidersPage: React.FC<{
   onOpenedTab?: () => void;
   onOpenNotify?: () => void;
   onOpenModels?: () => void;
-}> = ({ onOpenedTab, onOpenNotify, onOpenModels }) => {
+  hideViewTabs?: boolean;
+}> = ({ onOpenedTab, onOpenNotify, onOpenModels, hideViewTabs = false }) => {
   const [ep, setEp] = useProviderEndpoint();
   const cliOk = harnessClient.available();
   // 「监视与会话」时记住上次看的那一项；旧的「nomi」等选中值落到第一个助手
   const [lastItem, setLastItem] = useState<Item>(() => (isItem(ep) ? ep : CLIS[0]!));
   const item: Item = isItem(ep) ? ep : lastItem;
-  const view = ep === 'monitor' ? ep : 'assistants';
+  const view = hideViewTabs ? 'assistants' : ep === 'monitor' ? ep : 'assistants';
   const pick = (k: Item) => {
     setLastItem(k);
     setEp(k);
@@ -195,23 +196,25 @@ export const ProvidersPage: React.FC<{
 
   return (
     <div className={styles.page} data-testid="providers-page" data-endpoint={ep}>
-      <Tabs
-        aria-label={t('ui.cli-monitor.coding-assistant-sections')}
-        value={view}
-        onChange={(v) => (v === 'monitor' ? setEp(v) : pick(item))}
-        items={[
-          {
-            value: 'assistants',
-            label: t('ui.providers-schedule.assistants'),
-            testId: 'providers-view-assistants',
-          },
-          {
-            value: 'monitor',
-            label: t('ui.cli-monitor.monitor-sessions'),
-            testId: 'providers-endpoint-monitor',
-          },
-        ]}
-      />
+      {!hideViewTabs && (
+        <Tabs
+          aria-label={t('ui.cli-monitor.coding-assistant-sections')}
+          value={view}
+          onChange={(v) => (v === 'monitor' ? setEp(v) : pick(item))}
+          items={[
+            {
+              value: 'assistants',
+              label: t('ui.providers-schedule.assistants'),
+              testId: 'providers-view-assistants',
+            },
+            {
+              value: 'monitor',
+              label: t('ui.cli-monitor.monitor-sessions'),
+              testId: 'providers-endpoint-monitor',
+            },
+          ]}
+        />
+      )}
 
       <div className={styles.body}>
         {view === 'monitor' ? (

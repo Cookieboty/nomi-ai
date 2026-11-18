@@ -141,7 +141,7 @@ func (o *Orchestrator) syncTabProject(k string) {
 	o.teardownAcpLive(k)
 }
 
-// TabCwds：编程助手标签（不含主标签与委派开的）的工作目录，首启迁移建项目用
+// TabCwds：agent 标签（不含主标签与委派开的）的工作目录，首启迁移建项目用
 func (o *Orchestrator) TabCwds() []string {
 	out := []string{}
 	for _, k := range o.tabs.Keys() {

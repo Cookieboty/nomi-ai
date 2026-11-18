@@ -8,7 +8,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// Nomi 自己的编程助手会话：标签用过的 CLI 会话 id（「backend:会话 id」）。
+// Nomi 自己的 agent 会话：标签用过的 CLI 会话 id（「backend:会话 id」）。
 //
 // 本机会话文件里认出的会话，凡是 Nomi 标签用过的都不算「外部」：标签关掉、会话 id 被换掉（出错重开、换目录、
 // 分叉）之后，同一个会话文件仍是 Nomi 派出去的，不能再以「终端 · 只读」出现一次。只看当前开着的标签不够，

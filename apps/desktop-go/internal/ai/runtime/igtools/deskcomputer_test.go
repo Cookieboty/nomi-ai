@@ -277,7 +277,7 @@ func TestComputerAuditSourceForCli(t *testing.T) {
 	}
 	list := e.svc.AuditList(float64(10), float64(0))
 	if !strings.Contains(u.Stringify(list), `"source":"cli:Claude Code"`) {
-		t.Fatalf("audit should record the coding agent: %s", u.Stringify(list))
+		t.Fatalf("audit should record the agent: %s", u.Stringify(list))
 	}
 }
 

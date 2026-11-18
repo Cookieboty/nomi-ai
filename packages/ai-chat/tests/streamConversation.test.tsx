@@ -577,7 +577,7 @@ describe('/agent 钉住后的发送', () => {
     apiMock.invoke = undefined;
   });
 
-  it('直接派出编程助手，不把需求交给对话模型', async () => {
+  it('直接派出 agent，不把需求交给对话模型', async () => {
     apiMock.transport = true;
     const calls: Array<[string, unknown]> = [];
     apiMock.invoke = (name, input) => {
@@ -611,7 +611,7 @@ describe('/agent 钉住后的发送', () => {
     expect(ref.api.state.messages.find((m) => m.role === 'user')?.delegateTo).toBe('claude');
   });
 
-  it('附图的地址作为背景交给编程助手', async () => {
+  it('附图的地址作为背景交给 agent', async () => {
     apiMock.transport = true;
     const calls: Array<[string, unknown]> = [];
     apiMock.invoke = (name, input) => {

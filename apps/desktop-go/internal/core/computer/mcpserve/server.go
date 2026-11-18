@@ -1,10 +1,10 @@
-// Package mcpserve：把 computer_* 工具以 MCP 暴露给编程助手（Claude Code、Codex、Gemini…）。
+// Package mcpserve：把 computer_* 工具以 MCP 暴露给 agent（Claude Code、Codex、Gemini…）。
 //
 // 内核开一个只监听 127.0.0.1 的 HTTP 端点（MCP Streamable HTTP 的最小子集：POST 一条 JSON-RPC，回一条 JSON），
-// 每个编程助手标签一个 token。编程助手按 stdio MCP 启动 `<Nomi 可执行文件> --computer-mcp <token 文件>`（Bridge），
-// 由它把 stdio 转发到这个端点。token 只在文件里（0600，不进命令行参数、不进编程助手的配置）。
+// 每个 agent 标签一个 token。agent 按 stdio MCP 启动 `<Nomi 可执行文件> --computer-mcp <token 文件>`（Bridge），
+// 由它把 stdio 转发到这个端点。token 只在文件里（0600，不进命令行参数、不进 agent 的配置）。
 //
-// 工具执行用这个标签自己的 context：确认卡片标明是哪个编程助手，「允许」「始终允许」按标签算一个对话
+// 工具执行用这个标签自己的 context：确认卡片标明是哪个 agent 标签，「允许」「始终允许」按标签算一个对话
 // （点过「允许」后这个标签里的桌面操作自动执行，包括敏感动作和坐标点击）。确认、审计、黑名单与
 // Nomi 自己调用时完全相同：黑名单应用仍然直接拒绝，紧急停止后这个标签的会话一直拒绝，直到标签开始下一轮（Resume）；标签关了就作废 token。
 package mcpserve
@@ -29,7 +29,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// ServerName：编程助手里看到的 MCP 服务器名（Claude Code 的工具名是 mcp__nomi-computer__computer_click）
+// ServerName：agent 里看到的 MCP 服务器名（Claude Code 的工具名是 mcp__nomi-computer__computer_click）
 const ServerName = "nomi-computer"
 
 const maxBody = 1 << 20
@@ -38,7 +38,7 @@ var protocolVersions = []string{"2025-06-18", "2025-03-26", "2024-11-05"}
 
 // Options：Server 的依赖
 type Options struct {
-	// Dir：token 文件目录（编程助手的沙箱要能读，见 harness/sandbox.go）
+	// Dir：token 文件目录（agent 的沙箱要能读，见 harness/sandbox.go）
 	Dir string
 	// Tools：computer_* 的定义（registerIgTools 之后 SetTools 也行）
 	Tools []tools.Definition
@@ -47,7 +47,7 @@ type Options struct {
 	// Version：serverInfo.version
 	Version string
 	// ReadOnly：这个标签此刻是不是只读（计划模式）：每次 tools/list、tools/call 都问，
-	// 长驻的编程助手进程切了权限模式也立刻跟着变；nil = 用 Launch 时给的 readOnly
+	// 长驻的 agent 进程切了权限模式也立刻跟着变；nil = 用 Launch 时给的 readOnly
 	ReadOnly func(tabID string) bool
 }
 
@@ -143,7 +143,7 @@ func randHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
-// Launch：这个标签的 token 文件（同一标签复用；只读与否变了就换一个）。label 是确认卡片上显示的编程助手名
+// Launch：这个标签的 token 文件（同一标签复用；只读与否变了就换一个）。label 是确认卡片上显示的 agent 名
 func (s *Server) Launch(tabID, label string, readOnly bool) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

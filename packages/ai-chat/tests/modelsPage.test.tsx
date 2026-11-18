@@ -177,7 +177,18 @@ function fakeMain(
         break;
       }
       case 'cliAccount.list':
-        return [];
+        return [
+          {
+            id: 'acct-default',
+            kind: 'grok',
+            label: '默认测试账号',
+            loggedIn: true,
+            identity: null,
+            active: true,
+            inUse: 0,
+            createdAt: 0,
+          },
+        ];
     }
     return undefined;
   });
@@ -1474,7 +1485,7 @@ describe('ModelsPage', () => {
     ).toBe(true);
   });
 
-  describe('编程助手的第三方模型', () => {
+  describe('agent 的第三方模型', () => {
     const seed = (m: ReturnType<typeof fakeMain>) => {
       m.state.providers = [
         {
@@ -1508,7 +1519,7 @@ describe('ModelsPage', () => {
       for (const k of ['claude', 'codex', 'gemini', 'grok', 'dsh'])
         expect(await screen.findByTestId(`cli-row-${k}`)).toBeTruthy();
       expect(screen.getByTestId('models-cli').textContent).not.toContain('安装');
-      // 编程助手只能选支持工具调用的模型
+      // agent 只能选支持工具调用的模型
       const opts = Array.from(
         (screen.getByTestId('cli-main-codex') as HTMLSelectElement).options,
       ).map((o) => o.value);
@@ -1541,7 +1552,7 @@ describe('ModelsPage', () => {
     it('新标签默认用：官方账号（跟随默认或指定账号）/ 第三方供应商两组，没有「本机登录」；选供应商带上模型，清主模型退回官方', async () => {
       const m = fakeMain();
       seed(m);
-      // 「新会话默认用」在「编程助手」页各助手的详情里；主模型仍在「模型」页
+      // 「新会话默认用」在「Agents」页各助手的详情里；主模型仍在「模型」页
       render(
         <>
           <ModelsPage />
@@ -1679,7 +1690,7 @@ describe('ModelsPage', () => {
       );
     });
 
-    it('其它编程助手：「更多」里只有辅助模型，可清回跟随主模型', async () => {
+    it('其它 agent：「更多」里只有辅助模型，可清回跟随主模型', async () => {
       const m = fakeMain();
       seed(m);
       m.state.clients.codex = { models: { main: 'ds/v4', summary: 'ds/flash' } };

@@ -63,7 +63,7 @@ describe('看图能力提示', () => {
     );
   });
 
-  it('编程助手标签能发图时不拿 Nomi 的模型去提示', async () => {
+  it('agent 标签能发图时不拿 Nomi 的模型去提示', async () => {
     visionMock.value = false;
     const r = render(<MessageInput onSend={vi.fn()} busyOverride={false} imageCapability="full" />);
     dropImage();
@@ -71,7 +71,7 @@ describe('看图能力提示', () => {
     expect(r.queryByTestId('vision-warn')).toBeNull();
   });
 
-  it('编程助手标签不能发图时提前显示原因', async () => {
+  it('agent 标签不能发图时提前显示原因', async () => {
     const r = render(
       <MessageInput
         onSend={vi.fn()}

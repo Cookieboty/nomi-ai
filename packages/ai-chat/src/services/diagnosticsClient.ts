@@ -24,7 +24,7 @@ export interface DiagnosticsExportResult {
   error?: string;
 }
 
-/** 编程助手子进程的一条原始收发（logs/cli-*.jsonl 的一行） */
+/** agent 子进程的一条原始收发（logs/cli-*.jsonl 的一行） */
 export interface CliRecord {
   /** ISO 时间 */
   t: string;

@@ -1,8 +1,12 @@
 import { BUILTIN_MANIFESTS } from '@nomi-ai/cli-catalog';
-import { Button, Disclosure, Input, Notice, SettingsGroup, Switch, t } from '@nomi-ai/ui';
+import { Badge, Button, Disclosure, Input, Notice, SettingsGroup, Switch, t } from '@nomi-ai/ui';
 import React, { useId, useState } from 'react';
 
-import { cliLauncherClient, useCliLauncher } from '../../services/cliLauncherClient';
+import {
+  cliLauncherClient,
+  useCliLauncher,
+  useHasLocalLogin,
+} from '../../services/cliLauncherClient';
 import type { CliKind } from '../../services/cliSource';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
@@ -10,6 +14,7 @@ import styles from './index.module.css';
 
 export const CliLauncherCard: React.FC<{ kind: CliKind }> = ({ kind }) => {
   const saved = useCliLauncher(kind);
+  const hasLocal = useHasLocalLogin(kind);
   const [lastSaved, setLastSaved] = useState(saved);
   const [draft, setDraft] = useState(saved);
   const [busy, setBusy] = useState<'save' | 'test' | null>(null);
@@ -48,47 +53,17 @@ export const CliLauncherCard: React.FC<{ kind: CliKind }> = ({ kind }) => {
     }
   };
   return (
-    <SettingsGroup title={t('ui.chat-settings.cli-launcher-title')} data-testid="cli-launcher-card">
+    <SettingsGroup
+      title={t('ui.chat-settings.cli-launcher-local')}
+      actions={
+        <Badge tone={hasLocal ? 'success' : 'neutral'} data-testid={`cli-local-status-${kind}`}>
+          {t(hasLocal ? 'ui.models.local-sign-in-detected' : 'ui.models.local-sign-in-undetected')}
+        </Badge>
+      }
+      data-testid="cli-launcher-card"
+    >
       <div className={styles.launcherBody}>
-        <fieldset className={styles.accountOptions} disabled={busy !== null}>
-          <legend className={styles.launcherLabel}>
-            {t('ui.chat-settings.cli-launcher-account-source')}
-          </legend>
-          {(['nomi', 'local'] as const).map((source) => (
-            <label
-              key={source}
-              className={styles.accountOption}
-              data-selected={draft.accountSource === source || undefined}
-            >
-              <input
-                type="radio"
-                name={`${id}-source`}
-                value={source}
-                checked={draft.accountSource === source}
-                onChange={() => edit({ accountSource: source })}
-                data-testid={`cli-account-source-${source}`}
-                aria-describedby={`${id}-${source}-hint`}
-              />
-              <span>
-                <strong>
-                  {t(
-                    source === 'local'
-                      ? 'ui.chat-settings.cli-launcher-local'
-                      : 'ui.chat-settings.cli-launcher-nomi',
-                  )}
-                </strong>
-                <span id={`${id}-${source}-hint`} className={styles.accountOptionHint}>
-                  {t(
-                    source === 'local'
-                      ? 'ui.chat-settings.cli-launcher-managed-hint'
-                      : 'ui.chat-settings.cli-launcher-nomi-hint',
-                    ENDPOINT_NAME[kind],
-                  )}
-                </span>
-              </span>
-            </label>
-          ))}
-        </fieldset>
+        <p className={styles.sub}>{t('ui.chat-settings.cli-launcher-local-coexist-hint')}</p>
         <p className={styles.sub}>
           {draft.enabled
             ? t('ui.chat-settings.cli-launcher-custom-active', draft.command || automaticCommand)

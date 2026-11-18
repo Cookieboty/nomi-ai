@@ -16,7 +16,7 @@ const catalog: BackendModelCatalog = {
   defaultModel: m('see', true),
 };
 
-describe('编程助手附图：看当前模型的能力', () => {
+describe('agent 附图：看当前模型的能力', () => {
   it('模型明确不支持看图：拦下并说明是哪个模型', () => {
     const r = imageSupportFor({ backend: 'codex', modelOverride: 'blind' }, catalog);
     expect(r.capability).toBe('none');

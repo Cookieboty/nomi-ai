@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-/** 悬停卡片：Nomi 委派出去的编程助手会话写明「由 Nomi 委派给 X」 */
+/** 悬停卡片：Nomi 委派出去的 agent 会话写明「由 Nomi 委派给 X」 */
 import { cleanup, render, screen } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -27,12 +27,12 @@ const tab = (delegation?: unknown) =>
   }) as unknown as HarnessTabMeta;
 
 describe('SessionPeek', () => {
-  it('委派出去的会话写明由谁委派给哪个编程助手', () => {
+  it('委派出去的会话写明由谁委派给哪个 agent', () => {
     render(<SessionPeek c={meta} tab={tab({ by: 'nomi' })} top={0} left={0} />);
     expect(screen.getByTestId('session-peek-delegated').textContent).toBe('由 Nomi 委派给 Codex');
   });
 
-  it('自己开的编程助手会话没有这一行', () => {
+  it('自己开的 agent 会话没有这一行', () => {
     render(<SessionPeek c={meta} tab={tab()} top={0} left={0} />);
     expect(screen.queryByTestId('session-peek-delegated')).toBeNull();
   });

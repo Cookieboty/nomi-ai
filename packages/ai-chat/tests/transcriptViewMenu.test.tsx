@@ -253,6 +253,189 @@ describe('Transcript view 的四种显示模式', () => {
     expect(r.getByTestId('conv-status-time').textContent).toBe('0s');
   });
 
+  it('极简中途插话：运行中与完成后均以「你插入了」分段展现新的 AI 返回状态、折叠步骤与正文', () => {
+    const preText = '正在读取现有文件。';
+    const postIntro = '收到，我按新要求继续执行。';
+    const finalSummary = '针对插话已经完成核对。';
+    const now = Date.now();
+    const baseTrace: HarnessTraceEvent[] = [
+      {
+        type: 'tool',
+        name: 'Read',
+        id: 'r1',
+        status: 'start',
+        at: now - 8000,
+        textAt: preText.length,
+        input: JSON.stringify({ file_path: 'a.ts' }),
+      },
+      {
+        type: 'tool',
+        name: 'Read',
+        id: 'r1',
+        status: 'done',
+        at: now - 5000,
+        textAt: preText.length,
+        output: 'alpha',
+      },
+      {
+        type: 'interject',
+        text: '我目前把所有的 agent 都改成了 agent，这符合要求吗？',
+        at: now - 2000,
+        textAt: preText.length,
+      },
+    ];
+
+    // 1. 运行中刚插话（尚无新步骤）：前置步骤锁定在上方，你插入了正下方立即显示实时状态
+    const r = render(
+      <ConversationView
+        scopeId="s-interject"
+        transcriptView="minimal"
+        phase="running"
+        messages={[{ id: 'u', role: 'user', text: '改一下措辞', at: 0 }]}
+        live={{
+          text: preText,
+          startedAt: now - 9000,
+          firstEventAt: now - 8500,
+          trace: baseTrace,
+        }}
+      />,
+    );
+
+    const stepsAfterInterject = r.getAllByTestId('minimal-steps');
+    expect(stepsAfterInterject).toHaveLength(1);
+    expect(stepsAfterInterject[0]!.getAttribute('data-open')).toBe('false');
+    expect(stepsAfterInterject[0]!.textContent).toContain('1 步');
+    expect(stepsAfterInterject[0]!.querySelector('[data-testid="conv-status"]')).toBeNull();
+
+    const interjectEl = r.getByTestId('trace-interject');
+    const statusEl = r.getByTestId('conv-status');
+    // 实时状态行必须排在「你插入了」气泡之后，且不会误显示插话前正文触发的 writing
+    expect(
+      Boolean(interjectEl.compareDocumentPosition(statusEl) & Node.DOCUMENT_POSITION_FOLLOWING),
+    ).toBe(true);
+    expect(statusEl.getAttribute('data-kind')).toBe('working');
+
+    // 2. 运行中插话后产生了新的工具步骤：在「你插入了」下方出现第二个实时 MinimalSteps，且点击展开在定稿时保留
+    const postTrace: HarnessTraceEvent[] = [
+      ...baseTrace,
+      {
+        type: 'tool',
+        name: 'Bash',
+        id: 'b1',
+        status: 'start',
+        at: now - 1000,
+        textAt: preText.length + 2 + postIntro.length,
+        input: JSON.stringify({ command: 'pnpm test' }),
+      },
+    ];
+    r.rerender(
+      <ConversationView
+        scopeId="s-interject"
+        transcriptView="minimal"
+        phase="running"
+        messages={[{ id: 'u', role: 'user', text: '改一下措辞', at: 0 }]}
+        live={{
+          text: `${preText}\n\n${postIntro}`,
+          textBreaks: [preText.length + 2],
+          startedAt: now - 9000,
+          firstEventAt: now - 8500,
+          trace: postTrace,
+        }}
+      />,
+    );
+
+    const liveTwoSteps = r.getAllByTestId('minimal-steps');
+    expect(liveTwoSteps).toHaveLength(2);
+    expect(
+      Boolean(
+        interjectEl.compareDocumentPosition(liveTwoSteps[1]!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ).toBe(true);
+    expect(liveTwoSteps[1]!.querySelector('[data-testid="conv-status-step"]')?.textContent).toBe(
+      '第 1 步',
+    );
+    fireEvent.click(liveTwoSteps[1]!.querySelector('[data-testid="minimal-steps-toggle"]')!);
+    expect(liveTwoSteps[1]!.getAttribute('data-open')).toBe('true');
+
+    // 3. 定稿完成：前后各自独立折叠步骤 + 独立保留展开状态，并在新阶段下方展示新 AI 回复正文
+    const b1 = preText.length + 2;
+    const b2 = b1 + postIntro.length + 2;
+    r.rerender(
+      <ConversationView
+        scopeId="s-interject"
+        transcriptView="minimal"
+        phase="idle"
+        messages={[
+          { id: 'u', role: 'user', text: '改一下措辞', at: 0 },
+          {
+            id: 'a1',
+            role: 'assistant',
+            text: `${preText}\n\n${postIntro}\n\n${finalSummary}`,
+            textBreaks: [b1, b2],
+            at: now,
+            durationMs: 9000,
+            trace: [
+              ...postTrace,
+              {
+                type: 'tool',
+                name: 'Bash',
+                id: 'b1',
+                status: 'done',
+                at: now - 200,
+                textAt: b1 + postIntro.length,
+                output: 'ok',
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    const doneSteps = r.getAllByTestId('minimal-steps');
+    expect(doneSteps).toHaveLength(2);
+    expect(doneSteps[0]!.getAttribute('data-open')).toBe('false');
+    expect(doneSteps[0]!.textContent).toContain('3s · 1 步');
+    expect(doneSteps[1]!.getAttribute('data-open')).toBe('true');
+    expect(doneSteps[1]!.textContent).toContain('1 步');
+    const segs = r.getAllByTestId('conv-segment');
+    expect(segs).toHaveLength(1);
+    expect(segs[0]!.textContent).toContain(finalSummary);
+    expect(
+      r.getByTestId('trace-interject').compareDocumentPosition(segs[0]!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    // 4. 若插话后无工具直接纯文本回答，新回复正文直接跟在「你插入了」下方外显
+    r.rerender(
+      <ConversationView
+        scopeId="s-interject-text"
+        transcriptView="minimal"
+        phase="idle"
+        messages={[
+          { id: 'u', role: 'user', text: '改一下措辞', at: 0 },
+          {
+            id: 'a2',
+            role: 'assistant',
+            text: `${preText}\n\n${finalSummary}`,
+            textBreaks: [b1],
+            at: now,
+            durationMs: 4000,
+            trace: baseTrace,
+          },
+        ]}
+      />,
+    );
+    expect(r.getAllByTestId('minimal-steps')).toHaveLength(1);
+    const directReply = r.getByTestId('conv-segment');
+    expect(directReply.textContent).toContain(finalSummary);
+    expect(
+      Boolean(
+        r.getByTestId('trace-interject').compareDocumentPosition(directReply) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ).toBe(true);
+  });
+
   it('精简：同类工具调用合成一行摘要，思考不单独显示', () => {
     const r = mountConversation('normal');
     expect(r.queryByTestId('tool-thinking')).toBeNull();

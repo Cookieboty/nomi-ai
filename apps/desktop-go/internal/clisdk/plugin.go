@@ -2,7 +2,7 @@ package clisdk
 
 import "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 
-// plugin.go —— 编程助手插件契约（docs/development/coding-agents.md）。
+// plugin.go —— agent 插件契约（docs/development/coding-agents.md）。
 // 可选方法 = nil 函数字段；Record<string,string> = 保序 *util.Obj（值为 string）；
 // string | null = "" 与 Has 标志按字段注明。
 

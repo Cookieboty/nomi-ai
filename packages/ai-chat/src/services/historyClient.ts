@@ -5,7 +5,7 @@ import { api, hasTransport } from './api';
 import type { HarnessTabMeta } from './harnessClient';
 
 export type HistoryBackend = BuiltinCliId;
-/** 能列出以前会话的编程助手（清单 capabilities.history） */
+/** 能列出以前会话的 agent（清单 capabilities.history） */
 export const HISTORY_BACKENDS: readonly HistoryBackend[] = BUILTIN_CLI_IDS.filter((id) =>
   cliCapability(id, 'history'),
 );

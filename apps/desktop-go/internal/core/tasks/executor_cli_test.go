@@ -342,9 +342,81 @@ func TestCliExecutorReworkReusesTab(t *testing.T) {
 	rt.Command(id, Command{Type: "reject", Feedback: "把测试也补上"})
 	waitFor(t, func() bool { return f.sendCount() == 2 })
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	if f.sendTabs[1] != "tab_1" || !strings.Contains(f.sends[1], "把测试也补上") || f.n != 1 {
+		f.mu.Unlock()
 		t.Fatal(f.sendTabs, f.sends)
+	}
+	f.mu.Unlock()
+}
+
+// 启动前工作区已有的脏文件在首次执行、retry / rework 复用标签后都不应被混入本次任务产出
+func TestCliExecutorReworkExcludesPreexistingDirtyFiles(t *testing.T) {
+	f := newFakeCli(map[string]bool{"claude": true})
+	var mu sync.Mutex
+	dirtyFiles := []string{"CHANGELOG.md", "preexisting.go"}
+	exec := NewCliExecutor(CliDeps{
+		Harness: f,
+		PrepareIsolation: func(cwd, key, _ string) (CliIsolation, error) {
+			return CliIsolation{Kind: "in-place", Cwd: cwd, SourceCwd: cwd, GitRoot: cwd}, nil
+		},
+		GitChanged: func(cwd string) []string {
+			mu.Lock()
+			defer mu.Unlock()
+			out := make([]string, len(dirtyFiles))
+			copy(out, dirtyFiles)
+			return out
+		},
+		BuildPrompt: func(goal, _, _, _ string) string { return goal },
+		ParseReport: func(text string) *CliReport {
+			return &CliReport{Done: "done"}
+		},
+		DirOk: func(d string) bool { return d == "/repo" },
+	})
+	var ids int
+	var idMu sync.Mutex
+	rt := NewRuntime(RuntimeDeps{
+		Store: newMemStoreSafe(), Executors: map[string]Executor{"cli": exec},
+		Now: func() int64 { return 1_800_000_000_000 }, SetTimer: func(func(), int64) func() { return func() {} },
+		NewID: func(p string) string { idMu.Lock(); defer idMu.Unlock(); ids++; return fmt.Sprintf("%s_%d", p, ids) },
+		Log:   &nopLog{},
+	})
+	rt.Start()
+	id := cliTask(rt, 2)
+	rt.Command(id, Command{Type: "runNow"})
+	waitFor(t, func() bool { return f.sendCount() == 1 })
+	mu.Lock()
+	dirtyFiles = append(dirtyFiles, "agent_edited.go")
+	mu.Unlock()
+	f.finish("[nomi-report]\n做了什么：改好了\n[/nomi-report]")
+	waitFor(t, func() bool { return rt.Get(id).Task.Status == StatusAwaitingAccept })
+	rt.Command(id, Command{Type: "reject", Feedback: "顺便改一下另一个文件"})
+	waitFor(t, func() bool { return f.sendCount() == 2 })
+	mu.Lock()
+	dirtyFiles = append(dirtyFiles, "agent_rework.go")
+	mu.Unlock()
+	f.finish("[nomi-report]\n做了什么：返工好了\n[/nomi-report]")
+	waitFor(t, func() bool {
+		rec := rt.Get(id)
+		return len(rec.Attempts) == 2 && rec.Task.Status == StatusAwaitingAccept
+	})
+	rec := rt.Get(id)
+	if len(rec.Attempts) < 2 || rec.Attempts[0].Carrier == nil || len(rec.Attempts[0].Carrier.BeforeFiles) != 2 {
+		t.Fatalf("first attempt should persist BeforeFiles snapshot, got %+v", rec.Attempts[0].Carrier)
+	}
+	last := rec.Attempts[1]
+	if last.Result == nil {
+		t.Fatal("missing result on rework attempt")
+	}
+	refs := []string{}
+	for _, a := range last.Result.Artifacts {
+		refs = append(refs, a.Ref)
+	}
+	got := strings.Join(refs, ",")
+	if strings.Contains(got, "CHANGELOG.md") || strings.Contains(got, "preexisting.go") {
+		t.Fatalf("preexisting dirty files leaked into rework artifacts: %v", refs)
+	}
+	if !strings.Contains(got, "agent_edited.go") || !strings.Contains(got, "agent_rework.go") {
+		t.Fatalf("expected agent changes across initial + rework, got: %v", refs)
 	}
 }
 
@@ -580,7 +652,7 @@ func TestCliReusesTabAndClaims(t *testing.T) {
 		PrepareIsolation: func(cwd, key, _ string) (CliIsolation, error) {
 			return CliIsolation{Kind: "in-place", Cwd: cwd, SourceCwd: cwd, GitRoot: cwd}, nil
 		},
-		ReuseTab: func(t Task, cwd, mode string) string { return "tab_old" },
+		ReuseTab: func(t Task, cwd, mode string, _ *TaskRunSpec) string { return "tab_old" },
 		Claim: func(tabID, root, cwd, priority, label string) {
 			mu.Lock()
 			claimed = append(claimed, tabID+":"+priority)
@@ -727,4 +799,17 @@ func TestCliExecutorL3AutoWithOsSandbox(t *testing.T) {
 	}
 	f.finish("[nomi-report]")
 	waitFor(t, func() bool { return rt.Get(id).Task.Status == "awaiting_accept" })
+}
+
+func TestClassifyErrorTreatsAutoModeBlockedAsRetryable(t *testing.T) {
+	for _, msg := range []string{
+		"自动模式在这个会话里校验不了动作：Claude 的安全检查要跑在服务端",
+		"Auto mode can't check actions in this session: Claude's safety check runs on the server",
+		"auto_mode_no_check_in_session",
+	} {
+		err := ClassifyError(msg)
+		if err.Code != "executor_crashed" || !IsRetryable(err.Code) {
+			t.Fatalf("ClassifyError(%q) = %+v, want retryable executor_crashed", msg, err)
+		}
+	}
 }

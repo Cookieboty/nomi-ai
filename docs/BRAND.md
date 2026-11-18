@@ -24,7 +24,7 @@ Nomi·诺米首先是工作台：先说结果，再给下一步。桌面角色�
 
 ## 2. 语气与口吻
 
-**工作台语气：专业 · 冷静 · 可信。** 句子短，动词开头，面向会用编程助手的人。不要说明书腔，也不要用「简单高效、全方位、赋能、随时随地、一站式、陪你」。
+**工作台语气：专业 · 冷静 · 可信。** 句子短，动词开头，面向会用 agent 的人。不要说明书腔，也不要用「简单高效、全方位、赋能、随时随地、一站式、陪你」。
 
 **角色被打开之后：聪明 · 可靠。** 温暖只放在角色台词里，每条最多一点点。不卖萌、不叠词。
 
@@ -98,16 +98,16 @@ Nomi·诺米首先是工作台：先说结果，再给下一步。桌面角色�
 
 ## 8. 界面文案
 
-工作台文案短、动词开头。界面只有一种形态（没有「对话 / 工坊」切换），装了编程助手才出现相关入口。看板空的时候只留一个主动作：派出 Claude Code 或 Codex。
+工作台文案短、动词开头。界面只有一种形态（没有「对话 / 工坊」切换），装了 agent 才出现相关入口。看板空的时候只留一个主动作：派出 Claude Code 或 Codex。
 
-| 场景   | 中文                                             | English                                                                       |
-| ------ | ------------------------------------------------ | ----------------------------------------------------------------------------- |
-| 口号   | 让每一种 AI 能力，都为你所用。                   | Every AI capability, working for you.                                         |
-| 引导   | 选好语言和主题。装好编程助手，模型可以以后再接。 | Choose a language and a theme. Set up a coding assistant; the model can wait. |
-| 空看板 | 派出 Claude Code 或 Codex。                      | Dispatch Claude Code or Codex.                                                |
-| 模型   | 模型只接一次。官方、第三方或本地都能用。         | Connect a model once: official, third-party, or local.                        |
-| 角色   | 桌面角色，可关。打开之后才会说话。               | Desktop character, optional. It speaks only after you turn it on.             |
-| 隐私   | 对话、记忆和知识库只留在这台电脑上。             | Chats, memories and the knowledge base stay on this computer.                 |
+| 场景   | 中文                                           | English                                                             |
+| ------ | ---------------------------------------------- | ------------------------------------------------------------------- |
+| 口号   | 让每一种 AI 能力，都为你所用。                 | Every AI capability, working for you.                               |
+| 引导   | 选好语言和主题。装好 agent，模型可以以后再接。 | Choose a language and a theme. Set up an agent; the model can wait. |
+| 空看板 | 派出 Claude Code 或 Codex。                    | Dispatch Claude Code or Codex.                                      |
+| 模型   | 模型只接一次。官方、第三方或本地都能用。       | Connect a model once: official, third-party, or local.              |
+| 角色   | 桌面角色，可关。打开之后才会说话。             | Desktop character, optional. It speaks only after you turn it on.   |
+| 隐私   | 对话、记忆和知识库只留在这台电脑上。           | Chats, memories and the knowledge base stay on this computer.       |
 
 ## 9. 品牌锁
 

@@ -1,5 +1,5 @@
 /**
- * @nomi-ai/cli-catalog：内置编程助手的清单与界面信息（docs/development/coding-agents.md）。
+ * @nomi-ai/cli-catalog：内置 agent 的清单与界面信息（docs/development/coding-agents.md）。
  * 只有纯数据与纯函数（清单、界面信息、id、权限档位、终端命令转义），Node 版与 Go 版共用的视图也 import；
  * 内核实现在 apps/desktop-go/internal/cliplugins。
  */
@@ -29,7 +29,7 @@ export * from './shared/permissions';
 export * from './shared/terminal';
 
 /**
- * 编程助手 id：内置的是 BuiltinCliId；外部声明式插件（P10）的 id 也是字符串，
+ * Agents id：内置的是 BuiltinCliId；外部声明式插件（P10）的 id 也是字符串，
  * 所以 CliId 接受任意字符串，同时保留内置 id 的补全。
  */
 export type CliId = BuiltinCliId | (string & {});

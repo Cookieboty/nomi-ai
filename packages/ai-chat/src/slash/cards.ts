@@ -114,8 +114,10 @@ function cliSourceLine(ctx: SlashContext, data: SlashData): CardRow {
   }
   if (thirdPartyOnly(ctx.backend))
     return { label, value: t('ui.models.third-party-no-model-set'), tone: 'warn' };
-  if (launcherManagesLogin(ctx.backend))
-    return { label, value: t('ui.chat-settings.cli-launcher-local') };
+  const isLocal = data.cliTab
+    ? tabSourceOf(data.cliTab) === 'local'
+    : launcherManagesLogin(ctx.backend);
+  if (isLocal) return { label, value: t('ui.chat-settings.cli-launcher-local') };
   const a = data.cliAccount;
   return a
     ? { label, value: t('ui.chat-settings.official', a.identity?.email ?? a.label) }
@@ -320,7 +322,7 @@ const cancelled = (ok: boolean) => {
 
 /**
  * CLI 标签的「官方」一项：改用官方账号（第三方 → 官方且已有对话时会先确认）。
- * 只能用第三方模型的编程助手（dsh、Gemini）没有这一项。
+ * 只能用第三方模型的 agent（dsh、Gemini）没有这一项。
  */
 function officialChoices(ctx: SlashContext, data: SlashData, source: TabSource): ModelChoice[] {
   return thirdPartyOnly(ctx.backend) ? [] : [officialChoice(ctx, data, source)];
@@ -328,7 +330,10 @@ function officialChoices(ctx: SlashContext, data: SlashData, source: TabSource):
 
 function officialChoice(ctx: SlashContext, data: SlashData, source: TabSource): ModelChoice {
   const a = data.cliAccount;
-  const label = launcherManagesLogin(ctx.backend)
+  const isLocal = data.cliTab
+    ? tabSourceOf(data.cliTab) === 'local'
+    : launcherManagesLogin(ctx.backend);
+  const label = isLocal
     ? t('ui.chat-settings.cli-launcher-local')
     : a
       ? t('ui.chat-settings.official', a.identity?.email ?? a.label)
@@ -342,7 +347,7 @@ function officialChoice(ctx: SlashContext, data: SlashData, source: TabSource): 
   };
 }
 
-/** CLI 标签的第三方候选：网关里能给编程助手用的模型，选中即让标签改用第三方的这个模型 */
+/** CLI 标签的第三方候选：网关里能给 agent 用的模型，选中即让标签改用第三方的这个模型 */
 function thirdPartyChoices(ctx: SlashContext, data: SlashData, source: TabSource): ModelChoice[] {
   const cur =
     source === 'thirdParty' ? thirdPartyRefOf(data.cliTab, ctx.backend, data.nomiGateway) : null;

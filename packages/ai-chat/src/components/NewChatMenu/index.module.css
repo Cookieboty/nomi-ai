@@ -50,3 +50,14 @@
   padding: var(--cd-space-1-5) var(--cd-space-1) var(--cd-space-0-5);
   border-top: 1px solid var(--cd-color-border);
 }
+.groupLabel {
+  padding: var(--cd-space-1) var(--cd-space-2) var(--cd-space-0-5);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  font-weight: var(--cd-font-weight-medium);
+}
+.divider {
+  height: 1px;
+  background: var(--cd-color-border);
+  margin: var(--cd-space-1) var(--cd-space-1);
+}

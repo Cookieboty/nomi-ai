@@ -6,7 +6,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/island"
 )
 
-// 等你处理的条目属于哪个会话：编程助手的请求在它的标签，Nomi 的确认 / 提问在主对话，持续任务不属于会话
+// 等你处理的条目属于哪个会话：agent 的请求在它的标签，Nomi 的确认 / 提问在主对话，持续任务不属于会话
 func TestIslandSessionOf(t *testing.T) {
 	for id, want := range map[string]string{
 		"perm\x1ftab_3\x1freq9":        "tab_3",

@@ -6,7 +6,7 @@ import { brand } from '@nomi-ai/types';
 
 import type { ConversationBackend } from '../types/chat';
 
-/** 图标与名称用的端点：对话后端，加上「other」（舰队等处认出的非内置编程助手，统称 CLI、画通用终端图标） */
+/** 图标与名称用的端点：对话后端，加上「other」（舰队等处认出的非内置 agent，统称 CLI、画通用终端图标） */
 export type EndpointKey = ConversationBackend | 'other';
 
 /** 端点名称：统一为 Nomi / Claude Code / Codex / dsh / Grok / Gemini（专有名词不翻译） */

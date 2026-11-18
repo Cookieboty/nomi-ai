@@ -1,6 +1,6 @@
 package main
 
-// 委派与持续任务共用的编程助手工作目录协调：
+// 委派与持续任务共用的 agent 工作目录协调：
 //   - delegateClaims：同一仓库里直接改的并行任务按文件、按优先级裁决（delegate/claims.go）；
 //     编排器的工具事件（改文件类）喂给它，输的一方经 SteerTab 收到插话。
 //   - sweepDelegateWorktrees：启动时清理没人认领的委派 worktree（有改动的先提交到新分支）。

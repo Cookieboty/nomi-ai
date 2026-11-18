@@ -76,7 +76,7 @@ type GuardEnv struct {
 	Platform  string
 	Realpath  func(string) (string, error)
 	DenyRoots []string
-	// UserDeny：用户在设置里加的受保护文件夹（Nomi 与编程助手都不能用）
+	// UserDeny：用户在设置里加的受保护文件夹（Nomi 与 agent 都不能用）
 	UserDeny []string
 }
 

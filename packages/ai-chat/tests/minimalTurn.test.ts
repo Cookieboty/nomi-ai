@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import type { BodySegment } from '../src/utils/convSegments';
 import {
+  activeStageStartedAt,
+  countActiveLiveSteps,
   countLiveSteps,
   formatWorkedDuration,
   minimalCopyText,
   splitMinimalTurn,
+  splitMinimalTurnSections,
 } from '../src/utils/minimalTurn';
 import type { TimelineItem, ToolCall, TraceEntry } from '../src/utils/toolTrace';
 
@@ -205,5 +208,118 @@ describe('minimalCopyText', () => {
     const entries: TraceEntry[] = [{ type: 'tool', call: call('c1'), textAt: '我先看看。'.length }];
     expect(minimalCopyText(text, entries, ['我先看看。'.length + 2])).toBe('最终结论在这里。');
     expect(minimalCopyText(text, [])).toBe(text);
+  });
+
+  it('存在插话分段时按顺序拼接各阶段外显总结', () => {
+    const pre = '先查文件';
+    const stage1 = '前段阶段结论。';
+    const stage2 = '针对插话的新结论。';
+    const text = `${pre}\n\n${stage1}\n\n${stage2}`;
+    const b1 = pre.length + 2;
+    const b2 = pre.length + 2 + stage1.length + 2;
+    const entries: TraceEntry[] = [
+      { type: 'tool', call: call('c1'), textAt: pre.length },
+      { type: 'interject', id: 'ij1', text: '这样改符合要求吗？', at: 5000, textAt: b2 },
+      { type: 'tool', call: call('c2'), textAt: b2 },
+    ];
+    expect(minimalCopyText(text, entries, [b1, b2])).toBe(`${stage1}\n\n${stage2}`);
+  });
+});
+
+describe('splitMinimalTurnSections / countActiveLiveSteps / activeStageStartedAt', () => {
+  it('运行中刚插入 interject（插话后 0 步）与插话后新步骤：前置阶段封存且过渡语不外溢', () => {
+    const ij1: TimelineItem = { type: 'interject', id: 'ij1', text: '顺便看下这里', at: 6000 };
+    const beforeCall = call('c1', 'read_file', { startedAt: 1000 });
+    // 刚插话，后段暂时还没有新步骤
+    const segsJustInterjected: BodySegment[] = [
+      { type: 'text', text: '我先查一下代码。' },
+      { type: 'activity', items: [{ type: 'call', call: beforeCall }, ij1] },
+    ];
+    const s1 = splitMinimalTurnSections(segsJustInterjected, { live: true, startedAt: 500 });
+    expect(s1).toHaveLength(2);
+    expect(s1[0]!.live).toBe(false);
+    expect(s1[0]!.split.stepCount).toBe(1);
+    // 工具之前的开场过渡语留在前置折叠条，不突兀外吐
+    expect(s1[0]!.split.summaryText).toBeNull();
+    expect(s1[0]!.split.workedMs).toBe(5000); // 6000 - 1000 兜底
+    expect(s1[1]!.interject).toEqual(ij1);
+    expect(s1[1]!.live).toBe(true);
+    expect(s1[1]!.split.stepCount).toBe(0);
+
+    // 插话后产生了新的工具步骤
+    const afterCall = call('c2', 'bash', { startedAt: 6500 });
+    const segsWithNewStep: BodySegment[] = [
+      ...segsJustInterjected,
+      { type: 'text', text: '收到，我现在跑一下命令验证。' },
+      { type: 'activity', items: [{ type: 'call', call: afterCall }] },
+    ];
+    const s2 = splitMinimalTurnSections(segsWithNewStep, { live: true, startedAt: 500 });
+    expect(s2).toHaveLength(2);
+    expect(s2[0]!.live).toBe(false);
+    expect(s2[1]!.live).toBe(true);
+    expect(s2[1]!.split.stepCount).toBe(1);
+    expect(s2[1]!.split.collapsed).toHaveLength(2);
+    expect(s2[1]!.split.summaryText).toBeNull();
+  });
+
+  it('完成后包含 1 次或多次 interject：各阶段独立结算步骤、耗时与总结', () => {
+    const ij1: TimelineItem = { type: 'interject', id: 'ij1', text: '插话一', at: 5000 };
+    const ij2: TimelineItem = { type: 'interject', id: 'ij2', text: '插话二', at: 9000 };
+    const segments: BodySegment[] = [
+      {
+        type: 'activity',
+        items: [
+          { type: 'call', call: call('c1', 'read_file', { startedAt: 1000, endedAt: 3000 }) },
+          { type: 'call', call: call('c2', 'read_file', { startedAt: 3000, endedAt: 4500 }) },
+        ],
+      },
+      { type: 'text', text: '前置阶段已得出阶段结论。' },
+      { type: 'activity', items: [ij1] },
+      { type: 'text', text: '按插话一补充回答（无工具）。' },
+      { type: 'activity', items: [ij2] },
+      { type: 'text', text: '先执行验证命令。' },
+      {
+        type: 'activity',
+        items: [{ type: 'call', call: call('c3', 'bash', { startedAt: 9500, endedAt: 12000 }) }],
+      },
+      { type: 'text', text: '最终针对插话二完成修复。' },
+    ];
+    const sections = splitMinimalTurnSections(segments, { durationMs: 20_000 });
+    expect(sections).toHaveLength(3);
+
+    expect(sections[0]!.split.stepCount).toBe(2);
+    expect(sections[0]!.split.workedMs).toBe(3500);
+    expect(sections[0]!.split.summaryText).toBe('前置阶段已得出阶段结论。');
+
+    expect(sections[1]!.interject).toEqual(ij1);
+    expect(sections[1]!.split.stepCount).toBe(0);
+    expect(sections[1]!.rawSegments).toEqual([
+      { type: 'text', text: '按插话一补充回答（无工具）。' },
+    ]);
+
+    expect(sections[2]!.interject).toEqual(ij2);
+    expect(sections[2]!.split.stepCount).toBe(1);
+    expect(sections[2]!.split.workedMs).toBe(2500);
+    expect(sections[2]!.split.summaryText).toBe('最终针对插话二完成修复。');
+  });
+
+  it('countActiveLiveSteps 与 activeStageStartedAt 按最后一次插话切分且跳过跨插话子代理子调用', () => {
+    const entries: TraceEntry[] = [
+      { type: 'thinking', id: 'th0', text: '前置思考', at: 1000 },
+      { type: 'tool', call: call('sub1', 'Agent', { startedAt: 1200, status: 'running' }) },
+      { type: 'interject', id: 'ij1', text: '补充条件', at: 4000, textAt: 0 },
+      // 来自前置 subagent 的子调用不能误计为新阶段顶层步骤
+      { type: 'tool', call: call('child1', 'read_file', { parentId: 'sub1', startedAt: 4100 }) },
+    ];
+    expect(countActiveLiveSteps(entries, false)).toBe(0);
+    expect(countActiveLiveSteps(entries, true)).toBe(1);
+    expect(activeStageStartedAt(entries, 1000)).toBe(4000);
+
+    const withNewStep: TraceEntry[] = [
+      ...entries,
+      { type: 'tool', call: call('c2', 'bash', { startedAt: 4500 }) },
+    ];
+    expect(countActiveLiveSteps(withNewStep, false)).toBe(1);
+    expect(activeStageStartedAt([], 1000)).toBe(1000);
   });
 });

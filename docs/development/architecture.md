@@ -31,24 +31,24 @@ Go 进程（apps/desktop-go）
 
 | 位置                                  | 作用                                                                                                                                                                                                       |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/desktop-go/internal/core`       | 业务模块：编程助手编排、用量、网关供应商存储、桌面能力、知识库、记忆、日程、本机模型、扩展、语音、更新、诊断……与契约处理函数                                                                               |
+| `apps/desktop-go/internal/core`       | 业务模块：agent 编排、用量、网关供应商存储、桌面能力、知识库、记忆、日程、本机模型、扩展、语音、更新、诊断……与契约处理函数                                                                                 |
 | `apps/desktop-go/internal/ai`         | AI 运行时：供应商与路由、LLM 客户端、MCP 桥、AI 门面                                                                                                                                                       |
 | `apps/desktop-go/internal/gateway`    | 统一网关：Messages / Responses / Chat / Gemini 的请求 IR 与流式互转                                                                                                                                        |
-| `apps/desktop-go/internal/clisdk`     | 编程助手插件契约与共享会话驱动 acp / stream-json / app-server / exec，见 `docs/development/coding-agents.md`                                                                                               |
-| `apps/desktop-go/internal/cliplugins` | 内置编程助手插件（claude / codex / gemini / grok / dsh）：启动注入、权限档位、官方账号、历史扫描等                                                                                                         |
+| `apps/desktop-go/internal/clisdk`     | agent 插件契约与共享会话驱动 acp / stream-json / app-server / exec，见 `docs/development/coding-agents.md`                                                                                                 |
+| `apps/desktop-go/internal/cliplugins` | 内置 agent 插件（claude / codex / gemini / grok / dsh）：启动注入、权限档位、官方账号、历史扫描等                                                                                                          |
 | `packages/renderer`                   | 桌面角色窗口壳：透明窗口、气泡、工具栏、右键菜单，以及把契约事件接到 `avatar-runtime` 的薄适配层（`src/avatar`、`src/ai`）                                                                                 |
 | `packages/avatar-runtime`             | 角色引擎（纯浏览器）：Rive / sprite / static 后端、表情与动作驱动、命中区与互动、口型消费，角色包见 [character-pack](../character-pack/README.md)；独立开发页 `pnpm --filter @nomi-ai/avatar-runtime demo` |
 | `packages/ai-chat`                    | 对话窗口：对话、设置、引导与功能面板                                                                                                                                                                       |
 | `packages/ai-sdk-client`              | 视图侧 AI 客户端（`ClientAIClient`）、窗口共享的契约传输与 React Hooks                                                                                                                                     |
 | `packages/contract`                   | 视图与内核之间的 API 契约（过程、事件、schema、版本握手、WebSocket 传输），见 [contract.md](contract.md)                                                                                                   |
 | `packages/character-contract`         | 角色包契约：manifest、persona、mapping、locales 的 schema、校验与迁移，见 [character-pack](../character-pack/CONTRACT.md)                                                                                  |
-| `packages/cli-catalog`                | 内置编程助手的清单与界面信息（纯数据，视图用）                                                                                                                                                             |
+| `packages/cli-catalog`                | 内置 agent 的清单与界面信息（纯数据，视图用）                                                                                                                                                              |
 | `packages/ui`                         | 设计令牌、4 套主题、通用组件与视图语言适配                                                                                                                                                                 |
 | `packages/i18n`（`@nomi-ai/i18n`）    | 统一多语言词典与运行时，按语言 / 项目 / 模块组织（`packages/i18n/src/locales`）；Go 内核内嵌一份副本；`pnpm check:i18n` + `keepZh` 见 [i18n.md](i18n.md)                                                   |
 | `packages/voice`                      | 语音输入、VAD、唤醒词                                                                                                                                                                                      |
 | `packages/types`                      | 共享类型与品牌常量                                                                                                                                                                                         |
 
-## 编程助手与统一网关
+## Agents 与统一网关
 
 细节见 [coding-agents.md](coding-agents.md) 与 [gateway.md](gateway.md)。
 
@@ -79,7 +79,7 @@ flowchart LR
   规范化（`canonical/`，按 `spec/` 的协议规范表补齐与检测结束）、协议桥和客户端适配器（`clients/`）。路由计划在 `route/`。
 - **供应商存储**：第三方供应商与 Key 只存在网关存储（`userData/gateway/store.json`，`internal/core/gwstore`）；Nomi 对话、agent-tools、
   summary 经网关解析模型。
-- **委派**：Nomi 可把任务异步交给编程助手标签（`delegate_to_cli`，默认后台）；默认直接在工作目录里改（同仓库并行按文件、按优先级让路），
+- **委派**：Nomi 可把任务异步交给 agent 标签（`delegate_to_cli`，默认后台）；默认直接在工作目录里改（同仓库并行按文件、按优先级让路），
   指定别的分支做基线时才用 worktree；委派的标签与会话只在 Nomi 里看，同一种委派复用会话。见
   [coding-agents.md](coding-agents.md)、[security.md](security.md)
   （Python OS 沙箱：macOS `sandbox-exec` / Linux `bwrap`）。

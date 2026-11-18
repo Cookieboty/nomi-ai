@@ -32,7 +32,7 @@ afterEach(cleanup);
 const openMenu = (r: ReturnType<typeof render>) => fireEvent.click(r.getByTestId('composer-more'));
 
 describe('「+」菜单', () => {
-  it('Nomi 对话：添加图片或文件 / 交给编程助手；没有供应商与模型、全部设置', () => {
+  it('Nomi 对话：添加图片或文件 / 交给 agent；没有供应商与模型、全部设置', () => {
     const r = render(
       <MessageInput
         onSend={vi.fn()}
@@ -50,7 +50,7 @@ describe('「+」菜单', () => {
     expect(r.queryByTestId('composer-mention')).toBeNull();
   });
 
-  it('CLI 标签：没有「交给编程助手」', () => {
+  it('CLI 标签：没有「交给 agent」', () => {
     const r = render(<MessageInput onSend={vi.fn()} cwd="/w" />);
     openMenu(r);
     expect(r.queryByTestId('composer-delegate')).toBeNull();
@@ -79,7 +79,7 @@ describe('「+」菜单', () => {
     expect(input.value).toBe('看看 @');
   });
 
-  it('交给编程助手：第二层列出已安装的，选了钉住下一条；返回回到上一层', async () => {
+  it('交给 agent：第二层列出已安装的，选了钉住下一条；返回回到上一层', async () => {
     settings.mockResolvedValue({ enabled: true, installed: ['claude', 'codex'] });
     const r = render(<MessageInput onSend={vi.fn()} delegate />);
     openMenu(r);

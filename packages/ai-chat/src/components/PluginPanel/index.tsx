@@ -141,7 +141,7 @@ export const PluginPanel: React.FC<Props> = ({
   const active: Tab = tabs.some((x) => x.value === tab) ? tab : (tabs[0]!.value as Tab);
   const list = rows[active];
   // 没有斜杠发现能力的 CLI（如 dsh）没有可列的命令 / Skills / 插件；
-  // 能力位只描述编程助手，Nomi 自己的 Skills / MCP 目录走上面的 Nomi 数据分支（#143）
+  // 能力位只描述 agent，Nomi 自己的 Skills / MCP 目录走上面的 Nomi 数据分支（#143）
   const unsupported = cli && !hasSlashCommands(backend);
 
   return (

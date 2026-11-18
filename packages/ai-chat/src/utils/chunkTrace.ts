@@ -1,4 +1,4 @@
-/** Nomi 流式 chunk → 与编程助手同构的轨迹事件（工具调用 / 思考），让两边走同一套渲染 */
+/** Nomi 流式 chunk → 与 agent 同构的轨迹事件（工具调用 / 思考），让两边走同一套渲染 */
 import type { ContextBreakdown, HarnessTraceEvent } from '../services/harnessClient';
 
 export interface StreamUsage {

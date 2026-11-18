@@ -31,7 +31,7 @@ export interface ChatMessage {
   /** 用户点了「停止生成」：content 为中止前已生成的部分（可为空），界面追加灰色提示 */
   stopped?: boolean;
   /**
-   * background：编程助手自发的一轮（后台子代理完成后主代理的跟进），不是对某条用户消息的回复；
+   * background：agent 自发的一轮（后台子代理完成后主代理的跟进），不是对某条用户消息的回复；
    * compaction：Nomi 对话的上下文压缩，content 是较早对话的摘要（services/compaction.ts）
    */
   origin?: 'background' | 'compaction';
@@ -47,7 +47,7 @@ export interface ChatMessage {
    * 下一轮原样发回（含工具调用与结果，前缀不变才能命中提示缓存）；没有工具调用时不存
    */
   steps?: string;
-  /** 本轮的工具调用 / 思考轨迹（与编程助手同一数据模型；Nomi 的 MCP / 知识库 / 搜索等工具调用） */
+  /** 本轮的工具调用 / 思考轨迹（与 agent 同一数据模型；Nomi 的 MCP / 知识库 / 搜索等工具调用） */
   trace?: HarnessTraceEvent[];
   /** 仅流式占位消息：模型的思考阶段是否正在执行。定稿消息不保存该状态。 */
   thinking?: boolean;
@@ -55,7 +55,7 @@ export interface ChatMessage {
   durationMs?: number;
   /** 本轮 token 用量（上游返回时才有） */
   usage?: HarnessUsage;
-  /** 用户用 `/cli` 指定这条需求交给哪个编程助手（docs/development/coding-agents.md） */
+  /** 用户用 `/cli` 指定这条需求交给哪个 agent（docs/development/coding-agents.md） */
   delegateTo?: BuiltinCliId;
   /**
    * 委派结果消息（origin background）：子任务改了哪些文件、各增删多少行，
@@ -81,7 +81,7 @@ export interface ChatMessage {
 }
 
 /** 对话所属后端：与 harness 后端一致；侧栏列表按此后端隔离 */
-/** 对话后端：Nomi 自己 + 内置编程助手（id 由 @nomi-ai/cli-catalog 生成） */
+/** 对话后端：Nomi 自己 + 内置 agent（id 由 @nomi-ai/cli-catalog 生成） */
 export type ConversationBackend = 'nomi' | BuiltinCliId;
 
 export const CONVERSATION_BACKENDS: readonly ConversationBackend[] = ['nomi', ...BUILTIN_CLI_ORDER];
@@ -111,7 +111,7 @@ export interface ChatSession {
   cliSessionId?: string;
   /**
    * Nomi 对话所在的项目（只用于 backend 'nomi'；CLI 会话的项目记在标签上）。项目的文件夹由内核实时取：
-   * Nomi 的文件工具在这些文件夹里用、命令在主文件夹里启动，委派的编程助手也在这个项目里开工。
+   * Nomi 的文件工具在这些文件夹里用、命令在主文件夹里启动，委派的 agent 也在这个项目里开工。
    * 缺省 = 没有项目（按已授权文件夹）。
    */
   projectId?: string;

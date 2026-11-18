@@ -262,7 +262,7 @@ export function useAppCommands(opts: {
         id: 'add-provider',
         label: 'ui.foundation.palette-add-provider',
         group: 'ui.foundation.action',
-        run: () => openSettings('models'),
+        run: () => openSettings('ai', 'providers'),
       },
       {
         id: 'open-board',

@@ -26,7 +26,7 @@ function readSummary(cwd: string): Promise<GitSummaryResult> {
 }
 
 /**
- * 会话详情的「变更」：工作区的 git 改动（委派出去的编程助手改的也算）。只取文件数与增删行
+ * 会话详情的「变更」：工作区的 git 改动（委派出去的 agent 改的也算）。只取文件数与增删行
  * （harness.gitSummary，两条 git 命令），不取整份 diff。
  * 换目录、refreshKey 变化（新消息 / 一轮结束）时重读；窗口重新拿到焦点时至多每 5 秒重读一次。
  * 不是 git 仓库或读不到时返回 null，调用方退回本会话的改动。

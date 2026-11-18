@@ -186,10 +186,10 @@ export const MascotAudioBridge: FC = () => {
       const p = raw as DesktopBubble;
       const text = typeof p?.text === 'string' ? p.text : '';
       if (!text) return;
-      // voice=none：只显示气泡；编程助手的定时汇总关闭语音播报时使用此模式。
+      // voice=none：只显示气泡；agent 的定时汇总关闭语音播报时使用此模式。
       if (p.voice === 'none') return;
       const explicit = p.kind ? BUBBLE_KIND_CUE[p.kind] : undefined;
-      // 编程助手提示关闭语音播报时仍保留对应提示音，但不调用 TTS。
+      // agent 提示关闭语音播报时仍保留对应提示音，但不调用 TTS。
       if (p.voice === 'cue') {
         const cue = explicit ?? inferAgentCue(text);
         if (cue) mascotCueService.trigger(cue, { sfxOnly: true });

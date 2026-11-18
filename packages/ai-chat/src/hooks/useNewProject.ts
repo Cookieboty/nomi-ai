@@ -1,6 +1,6 @@
 /**
  * 新建对话 / 分叉时的初始项目：用户在菜单里选过就用选的，否则不指定（Nomi 对话沿用当前对话的项目，
- * 编程助手标签用默认目录）。
+ * Agents 标签用默认目录）。
  */
 import { useCallback, useState } from 'react';
 

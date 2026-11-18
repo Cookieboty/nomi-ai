@@ -1,4 +1,4 @@
-// Package builtin：内置编程助手的注册表——内核里要按 CLI 区分的名单、显示名、能力都从这里取，不在各处写死
+// Package builtin：内置 agent 的注册表——内核里要按 CLI 区分的名单、显示名、能力都从这里取，不在各处写死
 // （docs/development/coding-agents.md「内置助手注册表」）。
 // 数据（清单、顺序、host 信息）只来自 cliplugins/catalog（由 packages/cli-catalog 生成）；这里只登记代码：
 // 每个 CLI 的主进程实现（CreateMain）与会话记录解析。

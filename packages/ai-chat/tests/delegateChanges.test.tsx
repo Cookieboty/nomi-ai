@@ -20,11 +20,14 @@ import type { HarnessTabMessage, HarnessTabsState } from '../src/services/harnes
 import { fromChatMessage } from '../src/utils/convAdapters';
 
 const tabMessages = vi.fn<(id: string) => Promise<HarnessTabMessage[]>>();
+const gitDiff = vi.fn();
+const workspaceRead = vi.fn();
 vi.mock('../src/services/harnessClient', async (original) => ({
   ...((await original()) as object),
   harnessClient: {
     tabMessages: (id: string) => tabMessages(id),
-    workspaceRead: vi.fn(),
+    gitDiff: (cwd: string) => gitDiff(cwd),
+    workspaceRead: (cwd: string, filePath: string) => workspaceRead(cwd, filePath),
     workspaceWrite: vi.fn(),
     workspaceDelete: vi.fn(),
     workspaceGitCheckout: vi.fn(),
@@ -34,6 +37,8 @@ vi.mock('../src/services/harnessClient', async (original) => ({
 afterEach(() => {
   cleanup();
   tabMessages.mockReset();
+  gitDiff.mockReset();
+  workspaceRead.mockReset();
 });
 
 const NOW = 1_000_000;
@@ -285,10 +290,101 @@ describe('delegate changes back in the source chat', () => {
       {
         tabs: () => Promise.resolve(wtTabs),
         tabMessages,
+        gitDiff,
         now: () => NOW,
       },
     );
     expect(branched?.cwd).toBeUndefined();
     expect(branched?.childCwd).toBe(wt);
+    expect(gitDiff).not.toHaveBeenCalled();
+  });
+
+  it('falls back to gitDiff and workspaceRead for shell-modified and untracked files, carrying real counts and line diffs to Nomi and card', async () => {
+    // 仅有 Edit 轨迹的文件在 CHILD 里；另两个分别由脚本生成（已跟踪改动）和新建未跟踪（??）
+    tabMessages.mockResolvedValue(CHILD);
+    const gitRes = {
+      ok: true,
+      gitRoot: CWD,
+      status:
+        ' M apps/desktop-go/internal/core/i18n/locales/en/ui/models.json\n?? .changeset/split-tabs.md\n',
+      stat: '',
+      diff: [
+        'diff --git a/apps/desktop-go/internal/core/i18n/locales/en/ui/models.json b/apps/desktop-go/internal/core/i18n/locales/en/ui/models.json',
+        '--- a/apps/desktop-go/internal/core/i18n/locales/en/ui/models.json',
+        '+++ b/apps/desktop-go/internal/core/i18n/locales/en/ui/models.json',
+        '@@ -1,2 +1,3 @@',
+        '-  "old": "1"',
+        '+  "old": "2",',
+        '+  "new": "3"',
+      ].join('\n'),
+      truncated: false,
+      numstat: {
+        head: {
+          'apps/desktop-go/internal/core/i18n/locales/en/ui/models.json': { added: 2, removed: 1 },
+        },
+        staged: {},
+        unstaged: {},
+      },
+    };
+    gitDiff.mockResolvedValue(gitRes);
+    workspaceRead.mockResolvedValue({ ok: true, content: 'line1\nline2\nline3\n' });
+
+    const r = result({
+      cwd: CWD,
+      changedFiles: [
+        'internal/upstream_protocol.go',
+        'apps/desktop-go/internal/core/i18n/locales/en/ui/models.json',
+        '.changeset/split-tabs.md',
+      ],
+    });
+    const changes = await collectDelegateChanges(r, {
+      tabs: async () => TABS,
+      tabMessages,
+      gitDiff,
+      readFile: workspaceRead,
+      now: () => NOW,
+    });
+    expect(gitDiff).toHaveBeenCalledWith(CWD);
+    expect(workspaceRead).toHaveBeenCalledWith(CWD, '.changeset/split-tabs.md');
+    expect(changes?.files).toEqual([
+      { file: 'internal/upstream_protocol.go', added: 3, removed: 2 },
+      {
+        file: 'apps/desktop-go/internal/core/i18n/locales/en/ui/models.json',
+        added: 2,
+        removed: 1,
+      },
+      { file: '.changeset/split-tabs.md', added: 3, removed: 0 },
+    ]);
+
+    const msg = delegateResultMessage(r, NOW, changes);
+    expect(msg.content).toContain(
+      '- `apps/desktop-go/internal/core/i18n/locales/en/ui/models.json` (+2 −1)',
+    );
+    expect(msg.content).toContain('- `.changeset/split-tabs.md` (+3 −0)');
+
+    // 卡片复用预取的 Git 回退映射展示真实 +X −Y，而不是 +0 −0
+    const conv = fromChatMessage(msg)!;
+    render(<ChangesUiProvider>{nomiSlots.after!(conv)}</ChangesUiProvider>);
+    const card = await screen.findByTestId('turn-edit-summary');
+    expect(card.textContent).toContain('+2');
+    expect(card.textContent).toContain('−1');
+    expect(card.textContent).toContain('+3');
+    expect(card.textContent).not.toContain('+0−0');
+  });
+
+  it('hides +0 −0 when stats cannot be determined from either session trace or gitDiff', async () => {
+    tabMessages.mockResolvedValue([]);
+    gitDiff.mockResolvedValue({ ok: false, status: '', stat: '', diff: '', truncated: false });
+    const changes: DelegateChanges = {
+      cwd: CWD,
+      files: [{ file: 'binary.dat' }],
+    };
+    const msg = delegateResultMessage(result({ changedFiles: ['binary.dat'] }), NOW, changes);
+    const conv = fromChatMessage(msg)!;
+    render(<ChangesUiProvider>{nomiSlots.after!(conv)}</ChangesUiProvider>);
+    const card = await screen.findByTestId('turn-edit-summary');
+    expect(card.textContent).toContain('binary.dat');
+    expect(card.textContent).not.toContain('+0');
+    expect(card.textContent).not.toContain('−0');
   });
 });

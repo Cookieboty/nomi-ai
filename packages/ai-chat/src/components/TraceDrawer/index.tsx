@@ -2,7 +2,7 @@
  * 开发者工具：一轮的执行轨迹（只在工作台模式下，从助手消息操作栏打开）。
  * - 时间线：思考 / 工具调用 / 网关请求的瀑布图，点一行看参数、输出、错误与耗时；
  * - 网关请求：这一轮经过网关的模型请求（模型、供应商、首字、token、结果），可看请求 / 响应正文；
- * - 子进程收发：编程助手子进程的 stdin / stdout / stderr、启动参数与退出码（诊断日志开着时才有）；
+ * - 子进程收发：agent 子进程的 stdin / stdout / stderr、启动参数与退出码（诊断日志开着时才有）；
  * - 原始事件：这条消息落盘的轨迹与用量 JSON。
  * 数据来源：消息自身的轨迹 + `quality.requests`（按标签 / 客户端与时间窗）+ `diagnostics.cliRecords` /
  * `diagnostics.gatewayTrace`。正文与收发在写入时已脱敏。
@@ -34,7 +34,7 @@ import {
   type WaterfallRow,
 } from './model';
 
-/** 这一轮属于哪种会话：编程助手标签（按标签 id 关联）或 Nomi 对话（按客户端 nomi 关联） */
+/** 这一轮属于哪种会话：agent 标签（按标签 id 关联）或 Nomi 对话（按客户端 nomi 关联） */
 export type TraceSource = { kind: 'cli'; tabId: string } | { kind: 'nomi' };
 
 type View = 'timeline' | 'requests' | 'process' | 'raw';
@@ -464,7 +464,7 @@ export const TraceDrawer: React.FC<{
   const [proc, setProc] = useState<CliRecordsResult | null>(null);
   const [procError, setProcError] = useState<string | null>(null);
   const tabId = source.kind === 'cli' ? source.tabId : null;
-  // 缓存命中率：只算 Nomi 自己的（编程助手各家输入口径不一，见 utils/cacheHit）
+  // 缓存命中率：只算 Nomi 自己的（agent 各家输入口径不一，见 utils/cacheHit）
   const hitRate =
     source.kind === 'cli'
       ? undefined

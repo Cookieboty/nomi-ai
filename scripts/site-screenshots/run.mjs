@@ -5,7 +5,7 @@
 // 在 Playwright 的 Chromium 里打开），数据全是演示数据：
 //   - 隔离的 HOME（临时目录）：读不到本机 ~/.claude、~/.codex 的会话历史与用量，截图里不会出现私人内容；
 //   - 模拟模型（mock-llm.mjs，OpenAI 兼容）当「DeepSeek」供应商（名字只是显示，请求都到本机的模拟模型）；
-//   - 编程助手用仓库里的 Mock CLI（NOMI_USE_MOCK_CLI=1），不调用真实的 Claude Code / Codex；
+//   - agent 用仓库里的 Mock CLI（NOMI_USE_MOCK_CLI=1），不调用真实的 Claude Code / Codex；
 //   - 每张截图前做隐私检查：页面文字里出现本机用户名或真实 HOME 路径就中止。
 //
 // 需要 Go 工具链（apps/desktop-go/go.mod）与 Playwright 的 Chromium（pnpm exec playwright install chromium）。
@@ -51,7 +51,7 @@ function parseArgs(argv) {
   return out;
 }
 
-/** 演示项目：编程助手会话的工作目录，一个干净的小 git 仓库 */
+/** 演示项目：agent 会话的工作目录，一个干净的小 git 仓库 */
 function makeDemoProject(home) {
   const dir = path.join(home, 'projects', 'nomi-ai');
   fs.mkdirSync(path.join(dir, 'src', 'cli'), { recursive: true });
@@ -83,7 +83,7 @@ function makeDemoDocs(home) {
   const docs = {
     '2.1 发布说明.md':
       '# Nomi 2.1\n\n- 持续任务：按时间或事件推进\n- 后台派活与素材库\n- 应用与账号\n',
-    '用户访谈纪要.md': '# 用户访谈\n\n1. 希望一个地方管理所有模型\n2. 编程助手的会话要能接着聊\n',
+    '用户访谈纪要.md': '# 用户访谈\n\n1. 希望一个地方管理所有模型\n2. agent 的会话要能接着聊\n',
     '竞品对比.md': '# 竞品对比\n\n| 维度 | Nomi |\n| --- | --- |\n| 本地优先 | 是 |\n',
     '会议记录 10-30.md': '# 周会\n\n- 素材库批量导出排期到下周\n',
   };
@@ -279,7 +279,7 @@ async function main() {
   const project = makeDemoProject(home);
   const docsDir = makeDemoDocs(home);
   // 「创建项目」的「最近」列表：内核启动时从 userData/harness/recent-cwds.json 读。
-  // 第一项是编程助手会话默认的工作目录（~/Documents/nomi）：seed-project 选它建项目，已有会话自动归进去
+  // 第一项是 agent 会话默认的工作目录（~/Documents/nomi）：seed-project 选它建项目，已有会话自动归进去
   const defaultCwd = path.join(home, 'Documents', 'nomi');
   fs.mkdirSync(defaultCwd, { recursive: true });
   const harnessDir = path.join(work, 'data', 'Nomi', 'harness');

@@ -80,7 +80,7 @@ func nomiOwned(pid float64, procs map[float64]ProcRow, self float64) bool {
 	return false
 }
 
-// looksLikeCli：进程名或命令行里带着这个编程助手的名字（会话文件里的 pid 可能已经被别的程序复用）
+// looksLikeCli：进程名或命令行里带着 agent 的名字（会话文件里的 pid 可能已经被别的程序复用）
 func looksLikeCli(kind string, r ProcRow) bool {
 	return strings.Contains(strings.ToLower(r.Name+" "+r.Cmd), strings.ToLower(kind))
 }

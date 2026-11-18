@@ -1,5 +1,5 @@
 /**
- * 派出编程助手：目录里排在前面的两个（Claude Code、Codex）。
+ * 派出 agent：目录里排在前面的两个（Claude Code、Codex）。
  * 一个主按钮，旁边是另一个助手。名字来自清单，不在这里写死 id 名单。
  */
 import { BUILTIN_CLI_ORDER, cliName, type BuiltinCliId } from '@nomi-ai/cli-catalog';

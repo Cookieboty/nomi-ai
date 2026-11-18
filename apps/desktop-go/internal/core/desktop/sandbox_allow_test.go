@@ -38,7 +38,7 @@ func TestNormalizeSandboxAllowValidates(t *testing.T) {
 	}
 }
 
-// 撤销「始终允许」：只删那一条、落盘、通知（编程助手据此按当前记录重开）；删不存在的不通知
+// 撤销「始终允许」：只删那一条、落盘、通知（agent 据此按当前记录重开）；删不存在的不通知
 func TestRemoveCliSandboxAllowNotifies(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {

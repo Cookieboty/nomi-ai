@@ -122,7 +122,7 @@ export { openTurn, type ConversationTurn } from './chatTurn';
 
 // 给模型看的后台委派异常兜底说明（同 services/history.ts 的 CLI_OUTPUT_NOTE，不随界面语言变化）
 const DELEGATE_RECOVERY_PROMPT =
-  'The background coding-assistant delegation failed even after automatic kernel retries (see <cli-output> above for the error and any files already modified). Inspect the error and current workspace state: if another healthy coding assistant is available you may re-delegate, or finish the remaining work directly with your own file/command tools; if user action is required (such as login or quota), explain briefly in the user’s language.';
+  'The background coding-assistant delegation failed even after automatic kernel retries (see <cli-output> above for the error and any files already modified). Inspect the error and current workspace state: if another healthy agent is available you may re-delegate, or finish the remaining work directly with your own file/command tools; if user action is required (such as login or quota), explain briefly in the user’s language.';
 
 export function AiChatContextProvider({ children, client }: AiChatContextProviderProps) {
   const [state, dispatch] = useReducer(aiChatReducer, client, buildInitialState);
@@ -274,6 +274,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       void collectDelegateChanges(r, {
         tabs: () => harnessClient.tabs(),
         tabMessages: (id) => harnessClient.tabMessages(id),
+        gitDiff: (c) => harnessClient.gitDiff(c),
+        readFile: (c, p) => harnessClient.workspaceRead(c, p),
         now: () => completedAt,
       })
         .catch(() => null)
@@ -285,7 +287,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     };
   }, [ipcClient]);
 
-  // 主标签接在编程助手上时，CLI 自发的一轮（后台子代理完成后的跟进）由主进程广播，这里落进当前会话
+  // 主标签接在 agent 上时，CLI 自发的一轮（后台子代理完成后的跟进）由主进程广播，这里落进当前会话
   useEffect(
     () =>
       harnessClient.onTabMessage(({ tabId, message }) => {

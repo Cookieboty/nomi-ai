@@ -57,9 +57,9 @@ export interface EndpointInfoProps {
   running: number;
   /** 该端标签里最近一次活动时间（毫秒） */
   lastTabActivity: number | null;
-  /** 编程助手接入检测到的 CLI 路径：string = 已安装，null = 未找到，undefined = 还没检测（回退到 CLI 版本信息） */
+  /** agent 接入检测到的 CLI 路径：string = 已安装，null = 未找到，undefined = 还没检测（回退到 CLI 版本信息） */
   bin?: string | null;
-  /** 跳转设置：编程助手 / 用量与费用 */
+  /** 跳转设置：agents / 用量与费用 */
   onOpenSettings?: (section: 'coding' | 'usage') => void;
 }
 
@@ -101,7 +101,7 @@ const MiniBars: React.FC<{ windows: UsageQuotaWindow[] }> = ({ windows }) => (
   </div>
 );
 
-/** 安装状态：Nomi 内置；其余优先用编程助手接入的检测结果，没有时看 CLI 版本信息；都没有 = 未知（null） */
+/** 安装状态：Nomi 内置；其余优先用 agent 接入的检测结果，没有时看 CLI 版本信息；都没有 = 未知（null） */
 function installedOf(
   b: ConversationBackend,
   bin: string | null | undefined,
@@ -320,7 +320,7 @@ const EndpointDrawer: React.FC<{
           </div>
         }
       >
-        {/* 这个编程助手以后新开的会话默认用哪个官方账号还是第三方供应商（当前会话在输入框左下角换） */}
+        {/* 这个 agent 以后新开的会话默认用哪个官方账号还是第三方供应商（当前会话在输入框左下角换） */}
         {isCliKind(backend) && installed !== false && (
           <section className={styles.panel} data-testid="endpoint-drawer-default-source">
             <CliDefaultSource backend={backend} />

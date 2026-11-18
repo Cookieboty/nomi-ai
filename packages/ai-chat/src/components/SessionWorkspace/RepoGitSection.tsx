@@ -531,7 +531,7 @@ export const RepoGitSection: React.FC<{
         <>
           {/* 当前分支：改动说的都是这个分支上的工作区 */}
           {branchBar}
-          {/* 同一仓库有多个 worktree（委派任务、编程助手的 --worktree、自己 git worktree add 的）：可以切过去看 */}
+          {/* 同一仓库有多个 worktree（委派任务、agent 的 --worktree、自己 git worktree add 的）：可以切过去看 */}
           {liveWorktrees.length > 1 && viewing ? (
             <div className={styles.branchBar} data-testid="rail-worktree">
               <FolderGit2 size={13} aria-hidden />

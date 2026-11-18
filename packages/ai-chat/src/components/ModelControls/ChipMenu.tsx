@@ -1,5 +1,5 @@
 /**
- * 「模型 · 思考深度」按钮浮层的外壳（编程助手标签与 Nomi 对话共用）：
+ * 「模型 · 思考深度」按钮浮层的外壳（agent 标签与 Nomi 对话共用）：
  * 挂 body、fixed、向上弹，避免输入栏 overflow 裁剪；Esc / 点外面关闭，Esc 后焦点回按钮。
  */
 import React, { useEffect, useLayoutEffect, useState } from 'react';

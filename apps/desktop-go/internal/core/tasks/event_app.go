@@ -1,7 +1,7 @@
 package tasks
 
 // `app` 事件源：应用内部事件，直接推送，不经网络。
-//   - cli.finished：编程助手会话的一轮结束（任务自己开的标签不算，免得任务触发自己）；
+//   - cli.finished：agent 会话的一轮结束（任务自己开的标签不算，免得任务触发自己）；
 //   - knowledge.updated：知识库有变化。
 
 import (
@@ -18,7 +18,7 @@ var AppEvents = []string{"cli.finished", "knowledge.updated"}
 
 type AppFilter struct {
 	Event string `json:"event"`
-	// Backend：cli.finished 只看这个编程助手
+	// Backend：cli.finished 只看这个 agent 标签
 	Backend *string `json:"backend,omitempty"`
 }
 
@@ -30,7 +30,7 @@ type CliFinished struct {
 	TaskTab bool
 }
 
-// AppBus：编程助手一轮结束、知识库更新；回调可能在任意 goroutine 上
+// AppBus：agent 一轮结束、知识库更新；回调可能在任意 goroutine 上
 type AppBus struct {
 	OnCliFinished      func(fn func(CliFinished)) func()
 	OnKnowledgeChanged func(fn func()) func()

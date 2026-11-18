@@ -1,4 +1,4 @@
-// Package cli：编程助手的内核服务（插件宿主、CLI 检测与更新、历史会话、模型发现等）。
+// Package cli：agent 的内核服务（插件宿主、CLI 检测与更新、历史会话、模型发现等）。
 package cli
 
 import (

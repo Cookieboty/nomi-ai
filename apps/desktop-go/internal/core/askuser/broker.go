@@ -290,7 +290,7 @@ func (b *Broker) CancelConversation(conversationID string) {
 	b.cancelWhere(func(w *waiter) bool { return w.ev.ConversationID == conversationID }, false)
 }
 
-// CancelTab：这个编程助手标签上的问题全部取消。sync 为真时 reply 就地调用（调用方已在 jsrt 上）。
+// CancelTab：这个 agent 标签上的问题全部取消。sync 为真时 reply 就地调用（调用方已在 jsrt 上）。
 func (b *Broker) CancelTab(tabID string, sync bool) {
 	if tabID == "" {
 		return
@@ -360,7 +360,7 @@ func (b *Broker) WaitingConversations() map[string]bool {
 	return out
 }
 
-// WaitingTabs：有问题在等的编程助手标签
+// WaitingTabs：有问题在等的 agent 标签
 func (b *Broker) WaitingTabs() map[string]bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()

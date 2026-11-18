@@ -3,7 +3,19 @@ import { t } from '@nomi-ai/ui';
 import React, { useState } from 'react';
 
 import { hostAssetUrl } from '../../services/api';
-import type { HarnessTabMessage } from '../../services/harnessClient';
+import {
+  codingModelChoices,
+  refSlashLabel,
+  switchTabSource,
+  tabSourceOf,
+} from '../../services/cliSource';
+import { presetDisplayLabel, useDelegatePresets } from '../../services/delegateClient';
+import {
+  harnessClient,
+  type HarnessTabMessage,
+  type HarnessTabMeta,
+} from '../../services/harnessClient';
+import { useGatewayState } from '../../services/nomiModel';
 import { aggregateTurnChanges } from '../../utils/sessionChanges';
 import {
   hasRunning,
@@ -113,10 +125,87 @@ const ImageRow: React.FC<{ images: NonNullable<HarnessTabMessage['images']> }> =
   );
 };
 
-export function buildCliSlots(opts?: ConvSlots & { cwd?: string | null }): ConvSlots {
-  const { cwd, ...base } = opts ?? {};
+const QUOTA_ERROR_RE =
+  /\b429\b|rate[-_\s]?limit|quota\s+exceeded|insufficient_quota|usage\s+limit|credit\s+balance|hit\s+your\s+limit|limit\s+reached|too\s+many\s+requests|额度|限流|用量已达上限|次数已用完/i;
+
+export function isQuotaExhaustedError(text: string | undefined | null): boolean {
+  return !!text && QUOTA_ERROR_RE.test(text);
+}
+
+const CliQuotaFallbackAction: React.FC<{
+  tab: HarnessTabMeta;
+  retry?: () => void;
+}> = ({ tab, retry }) => {
+  const gateway = useGatewayState();
+  const presets = useDelegatePresets(true);
+  const choices = codingModelChoices(gateway);
+  const cliTpPresets = presets.filter(
+    (p) =>
+      p.cli === tab.backend &&
+      p.source === 'thirdParty' &&
+      !!p.model &&
+      choices.some((c) => c.ref === p.model),
+  );
+  const matchedPreset =
+    cliTpPresets.find((p) => p.id === 'low' || p.costTier === 'low') ?? cliTpPresets[0];
+  const clientMain =
+    tab.backend !== 'nomi' ? gateway?.clients[tab.backend]?.models.main : undefined;
+  const validMain = clientMain && choices.some((c) => c.ref === clientMain) ? clientMain : null;
+  const targetRef = matchedPreset?.model ?? validMain ?? choices[0]?.ref ?? null;
+  if (!targetRef) return null;
+  const displayRef = refSlashLabel(gateway, targetRef);
+  const targetLabel = matchedPreset
+    ? `${presetDisplayLabel(matchedPreset)} (${displayRef})`
+    : displayRef !== targetRef
+      ? displayRef
+      : t('ui.models.quota-fallback-low-label');
+
+  return (
+    <button
+      type="button"
+      className={styles.errorBtn}
+      data-testid="cli-quota-fallback"
+      onClick={() => {
+        void (async () => {
+          const switched = await switchTabSource(tab, 'thirdParty', {
+            model: targetRef,
+            hasMessages: true,
+          });
+          if (!switched) return;
+          if (matchedPreset?.reasoningEffort) {
+            await harnessClient
+              .setTabEffort(tab.id, matchedPreset.reasoningEffort)
+              .catch(() => undefined);
+          }
+          retry?.();
+        })();
+      }}
+    >
+      {t('ui.models.quota-fallback-continue', targetLabel)}
+    </button>
+  );
+};
+
+export function buildCliSlots(
+  opts?: ConvSlots & { cwd?: string | null; tab?: HarnessTabMeta | null },
+): ConvSlots {
+  const { cwd, tab, ...base } = opts ?? {};
   return {
     ...base,
+    errorActions: (m, ctx) => {
+      const baseActions = base?.errorActions?.(m, ctx) ?? null;
+      const fallback =
+        tab && tabSourceOf(tab) !== 'thirdParty' && isQuotaExhaustedError(m.error) ? (
+          <CliQuotaFallbackAction key={`quota-${m.id}`} tab={tab} retry={ctx.retry} />
+        ) : null;
+      if (!baseActions && !fallback) return null;
+      return (
+        <>
+          {baseActions}
+          {fallback}
+        </>
+      );
+    },
     before: (m) => {
       const raw = rawOf(m);
       const imgs = raw?.images;

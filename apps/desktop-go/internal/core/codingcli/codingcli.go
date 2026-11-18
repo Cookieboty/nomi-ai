@@ -1,7 +1,7 @@
-// Package codingcli：本机现在有没有能委派的编程助手（装了且设置里允许委派）。
+// Package codingcli：本机现在有没有能委派的 agent（装了且设置里允许委派）。
 //
 // 委派服务（cli/delegate）启动时 Set 一个判断函数；提示词（派不派、后台 Nomi、工作区）与工具门控
-// 读 Available：没有编程助手时不提供 delegate_to_cli，提示词改成让 Nomi 自己写代码、跑命令。
+// 读 Available：没有 agent 时不提供 delegate_to_cli，提示词改成让 Nomi 自己写代码、跑命令。
 // 单独成包是为了让 delegate / tasks / desktop 都能读，不互相引用。
 package codingcli
 

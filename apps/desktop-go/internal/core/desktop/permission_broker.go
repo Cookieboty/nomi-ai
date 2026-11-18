@@ -25,11 +25,11 @@ type DesktopSettings struct {
 	CloudAcked []string `json:"cloudAcked"`
 	// CommandRules：命令白名单（command_rules.go），workspace_run 跑这些前缀的命令不再确认
 	CommandRules []string `json:"commandRules,omitempty"`
-	// ProtectedPaths：用户加的受保护文件夹（protected_paths.go），Nomi 与编程助手都不能用
+	// ProtectedPaths：用户加的受保护文件夹（protected_paths.go），Nomi 与 agent 都不能用
 	ProtectedPaths []string `json:"protectedPaths,omitempty"`
-	// CliEnvAllow：放行给编程助手的环境变量名（其余凭据类变量不继承，见 cli.ScrubSecretEnv）
+	// CliEnvAllow：放行给 agent 的环境变量名（其余凭据类变量不继承，见 cli.ScrubSecretEnv）
 	CliEnvAllow []string `json:"cliEnvAllow,omitempty"`
-	// CliSandboxOff：用户关掉了编程助手的系统沙箱（缺省 = 开）
+	// CliSandboxOff：用户关掉了 agent 的系统沙箱（缺省 = 开）
 	CliSandboxOff bool `json:"cliSandboxOff,omitempty"`
 	// CliSandboxAllow：沙箱里「始终允许」的授权（类别 / 文件夹 / 文件）
 	CliSandboxAllow []SandboxAllow `json:"cliSandboxAllow,omitempty"`
@@ -108,7 +108,7 @@ type PermissionBroker struct {
 
 	UI             ConfirmUI
 	PermissionMode func() PermMode
-	// IsKnownWorkspace：dir 在用户的某个项目里（或是编程助手标签正在用的目录）
+	// IsKnownWorkspace：dir 在用户的某个项目里（或是 agent 标签正在用的目录）
 	IsKnownWorkspace func(dir string) bool
 	// ProjectRoots：项目此刻的主文件夹与其余文件夹；项目不在 / 不能用时 primary 为空
 	ProjectRoots func(id string) (primary string, extra []string)
@@ -116,7 +116,7 @@ type PermissionBroker struct {
 	ProjectName         func(id string) string
 	AutoApprove         func() bool
 	OnWorkspaceRejected func(dir, reason string)
-	// AIReview：命令自动审核开关（编程助手服务的权限设置）
+	// AIReview：命令自动审核开关（agent 服务的权限设置）
 	AIReview func() bool
 	// Reviewer：辅助模型审核命令；nil 结果 = 审不了（交给人）
 	Reviewer func(ctx context.Context, i CommandReviewInput) *CommandReview
@@ -1095,9 +1095,9 @@ type BrokerView struct {
 	CommandRules []string `json:"commandRules"`
 	// ProtectedPaths：用户加的受保护文件夹
 	ProtectedPaths []string `json:"protectedPaths"`
-	// CliEnvAllow：放行给编程助手的环境变量名
+	// CliEnvAllow：放行给 agent 的环境变量名
 	CliEnvAllow []string `json:"cliEnvAllow"`
-	// CliSandbox：编程助手的系统沙箱开关；CliSandboxAllow：沙箱里「始终允许」的授权
+	// CliSandbox：agent 的系统沙箱开关；CliSandboxAllow：沙箱里「始终允许」的授权
 	CliSandbox      bool           `json:"cliSandbox"`
 	CliSandboxAllow []SandboxAllow `json:"cliSandboxAllow"`
 }

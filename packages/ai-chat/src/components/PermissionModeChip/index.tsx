@@ -1,6 +1,6 @@
 /**
  * 输入栏的权限模式按钮（docs/development/coding-agents.md）：
- * - 点开下拉选档位；只列当前编程助手支持的档位（不支持的不显示，选了也没意义）；
+ * - 点开下拉选档位；只列当前 agent 支持的档位（不支持的不显示，选了也没意义）；
  * - 输入框里 Shift+Tab 在支持的档位间循环，跳过「完全放开」；
  * - 「完全放开」只能从下拉进入（在下拉里选中即确认，带上当前标签的后端 / 目录供主进程核对）；
  *   之后按钮标红，输入框上方显示提示条（BypassTip），可关掉提示或一键退出；
@@ -292,7 +292,7 @@ export const PermissionModeChip: React.FC<{
                 <kbd className={styles.kbd}>Shift+Tab</kbd>{' '}
                 {t('ui.chat-settings.to-switch-in-the-input-box')}
               </span>
-              {/* 「新标签默认」只对编程助手标签有意义：Nomi 只有一个主对话 */}
+              {/* 「新标签默认」只对 agent 标签有意义：Nomi 只有一个主对话 */}
               {backend !== 'nomi' && mode !== 'bypass' && mode !== defaultMode && (
                 <button
                   type="button"

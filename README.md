@@ -34,17 +34,17 @@
 
 <p align="center">
   <img src="docs/screenshots/agent-board.webp" alt="Agent 看板：谁在干活、做到哪了、占了多少资源" width="49%">
-  <img src="docs/screenshots/workspace.webp" alt="编程助手三栏工作区" width="49%">
+  <img src="docs/screenshots/workspace.webp" alt="agent 三栏工作区" width="49%">
 </p>
 
 ## 工作台里有什么
 
-| 能力         | 在 Nomi 里                                                                                                                                               |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **编程助手** | Claude Code、Codex、Gemini CLI、Grok、dsh、Kimi Code、MiniMax Code，多个会话并行。终端或 IDE 里开着的会话在看板上只读；各 CLI 记下的历史可以在工坊里续接 |
-| **模型**     | 官方、第三方或本地模型，接一次，内置编程助手和 Nomi 都能用。另接的 ACP 助手不走这条网关                                                                  |
-| **工具**     | MCP、技能、浏览器、文件与命令，图形化管理，调用有审计日志                                                                                                |
-| **Nomi**     | 本身就是一个 agent：记忆、知识库、生图、提醒，还会把活派给编程助手                                                                                       |
+| 能力       | 在 Nomi 里                                                                                                                                               |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Agents** | Claude Code、Codex、Gemini CLI、Grok、dsh、Kimi Code、MiniMax Code，多个会话并行。终端或 IDE 里开着的会话在看板上只读；各 CLI 记下的历史可以在工坊里续接 |
+| **模型**   | 官方、第三方或本地模型，接一次，内置 agent 和 Nomi 都能用。另接的 ACP 助手不走这条网关                                                                   |
+| **工具**   | MCP、技能、浏览器、文件与命令，图形化管理，调用有审计日志                                                                                                |
+| **Nomi**   | 本身就是一个 agent：记忆、知识库、生图、提醒，还会把活派给 agent                                                                                         |
 
 它们都在一个 **Agent 工作台**里：谁在干活、做到哪了、占了多少资源、卡在哪，一眼看清。
 
@@ -52,10 +52,10 @@
 
 ### 1. 一张看板，并行跑、一起管
 
-**Agent 看板**把在干活的放在一起：Nomi 的对话与后台运行、派出的和工坊里的编程助手，以及你在终端或 IDE 里自己开的会话（只读）。每张卡片写明状态、来源目录、内存与 CPU，等你授权、等你验收的排在前面。
-内存紧张时，自动暂停 Nomi 派出的编程助手，缓解后从暂停处接着跑；也可以随时手动暂停、继续。标题栏常驻负载指示。
-编程助手会话直接在工作台里开：内置 Claude Code、Codex、Gemini CLI、Grok、dsh、Kimi Code、MiniMax Code，经四种会话驱动接入（ACP、stream-json、Codex app-server、exec），多个会话并行，三栏工作区里看 Diff、提交、撤销。接入层是插件化的，也可以再接 ACP 助手；外部助手不走网关，也不接官方账号。
-→ [编程助手](docs/features/coding-agents.md) · [Agent 看板](docs/development/agent-board.md) · [编程助手接入](docs/development/coding-agents.md)
+**Agent 看板**把在干活的放在一起：Nomi 的对话与后台运行、派出的和工坊里的 agent，以及你在终端或 IDE 里自己开的会话（只读）。每张卡片写明状态、来源目录、内存与 CPU，等你授权、等你验收的排在前面。
+内存紧张时，自动暂停 Nomi 派出的 agent，缓解后从暂停处接着跑；也可以随时手动暂停、继续。标题栏常驻负载指示。
+Agents 会话直接在工作台里开：内置 Claude Code、Codex、Gemini CLI、Grok、dsh、Kimi Code、MiniMax Code，经四种会话驱动接入（ACP、stream-json、Codex app-server、exec），多个会话并行，三栏工作区里看 Diff、提交、撤销。接入层是插件化的，也可以再接 ACP 助手；外部助手不走网关，也不接官方账号。
+→ [agents](docs/features/coding-agents.md) · [Agent 看板](docs/development/agent-board.md) · [agent 接入](docs/development/coding-agents.md)
 
 ### 2. 模型只接一次
 
@@ -67,15 +67,15 @@
 ### 3. 本地优先，不强制云账号
 
 对话、记忆、知识库默认只在本机。要用各 CLI 的官方登录可以，也可以只用你自己的 API Key 或本地模型。
-macOS 上编程助手在**系统沙箱**里运行（默认开）：读不到 SSH 与 Git 凭据、云账号凭据、浏览器数据和 `.env`，只能写项目文件夹；被挡下时在对话里按本会话或「始终允许（只对这个项目）」授权，允许后自动接着做。工作目录只能是项目文件夹，也不继承环境里的令牌和密钥。开着沙箱，可以放心让编程助手全部自动运行。
+macOS 上 agent 在**系统沙箱**里运行（默认开）：读不到 SSH 与 Git 凭据、云账号凭据、浏览器数据和 `.env`，只能写项目文件夹；被挡下时在对话里按本会话或「始终允许（只对这个项目）」授权，允许后自动接着做。工作目录只能是项目文件夹，也不继承环境里的令牌和密钥。开着沙箱，可以放心让 agent 全部自动运行。
 命令执行前先由辅助模型按风险分级：低风险直接跑，高风险交给你确认；**这一轮读过外部内容（网页、MCP 返回、技能文件）后，中风险命令也要你确认**，防止提示注入借 Nomi 的手执行命令。
 对话、记忆、知识库默认只存在本机；发给第三方模型前自动隐藏密钥；API Key 存系统钥匙串。
-→ [隐私与安全](docs/features/privacy-security.md) · [编程助手的本机保护](docs/features/coding-agents.md#本机保护)
+→ [隐私与安全](docs/features/privacy-security.md) · [agent 的本机保护](docs/features/coding-agents.md#本机保护)
 
 ### 4. Nomi 自己也是一个 agent
 
 它能读写文件、跑命令、开浏览器、调 MCP 和技能，记得你说过的事（长期记忆），能在你的文件夹里查资料并给出可点击的引用，还能画图、改图、定提醒。
-写代码这类活，它会委派给编程助手：子任务在对话旁边单独一栏打开，可以插话、停止、接着再做一轮，结果都回到主对话；它也会看着 Agent 看板调度。
+写代码这类活，它会委派给 agent：子任务在对话旁边单独一栏打开，可以插话、停止、接着再做一轮，结果都回到主对话；它也会看着 Agent 看板调度。
 工具按需提供：闲聊时发给模型的工具定义约 2K token，聊到相关的事才展开。
 → [AI 对话](docs/features/chat.md) · [长期记忆](docs/features/memory.md) · [知识库](docs/features/knowledge-base.md)
 
@@ -101,7 +101,7 @@ flowchart LR
   subgraph Core["内核（Go）"]
     Contract["类型化契约<br/>（surfaces / dangerous 判定）"]
     Fleet["Agent 看板 · 内存守护"]
-    Agents["编程助手驱动<br/>ACP · stream-json · app-server · exec"]
+    Agents["agent 驱动<br/>ACP · stream-json · app-server · exec"]
     Tools["工具：文件 · 命令 · 浏览器 · MCP · 技能<br/>命令风险审核 + 外部内容污点"]
     Mem["记忆 · 知识库 · 日程 · 生图"]
     GW["统一网关<br/>Messages ⇄ Responses ⇄ Chat ⇄ Gemini"]
@@ -125,8 +125,8 @@ flowchart LR
 **Agent 工作台**
 
 - **Agent 看板**：看清谁在干活、做到哪了、各占多少内存与 CPU；内存守护自动暂停 / 恢复，标题栏常驻负载指示
-- **编程助手**：七个内置 CLI、多会话并行，三栏工作区看 Diff、提交、撤销；官方账号或第三方模型任选；权限模式，系统沙箱目前在 macOS
-- **任务**：持续任务、定时任务，执行者可以是 Nomi 或编程助手
+- **Agents**：七个内置 CLI、多会话并行，三栏工作区看 Diff、提交、撤销；官方账号或第三方模型任选；权限模式，系统沙箱目前在 macOS
+- **任务**：持续任务、定时任务，执行者可以是 Nomi 或 agent
 
 **模型与工具**
 
@@ -137,7 +137,7 @@ flowchart LR
 
 **Nomi**
 
-- **对话**：读写文件、跑命令、开浏览器，委派编程助手；命令面板与斜杠命令
+- **对话**：读写文件、跑命令、开浏览器，委派 agent；命令面板与斜杠命令
 - **知识库与记忆**：文件夹问答带可点击引用；对话自动整理成长期记忆，可导出
 - **生图**：直接画图、改图、以图生图，自动匹配同一厂商的图片模型；素材库统一管理
 - **语音与提醒**：本地 whisper.cpp 或云端语音输入、语音播报；提醒、免打扰
@@ -145,7 +145,7 @@ flowchart LR
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/screenshots/coding-agent.webp" alt="编程助手对话"><br><sub>编程助手</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/coding-agent.webp" alt="agent 对话"><br><sub>agents</sub></td>
     <td align="center" width="33%"><img src="docs/screenshots/settings-providers.webp" alt="供应商与模型"><br><sub>供应商与模型</sub></td>
     <td align="center" width="33%"><img src="docs/screenshots/mascot.webp" alt="桌面角色"><br><sub>桌面角色（可选）</sub></td>
   </tr>
@@ -178,8 +178,8 @@ flowchart LR
 
 1. 打开 Nomi，完成首次引导（语言和外观、AI 能力、个性化）。桌面角色默认关闭。
 2. 新建一个 Claude Code / Codex 会话，选工作目录。可以用该 CLI 的官方登录，也可以先接模型再选「第三方」。左侧导航栏「Agents」打开看板。
-3. 「设置 → 模型与供应商」添加一次供应商与 API Key，或在「本机模型」下载一个本地模型。官方、第三方或本地都在这里，内置编程助手和 Nomi 都能选。
-4. 把任务交给 Nomi：`Ctrl/⌘+N` 新对话，`Ctrl/⌘+K` 命令面板（派出编程助手、添加供应商、打开看板、新建任务）。写代码的活它可以再派给编程助手。
+3. 「设置 → 模型与供应商」添加一次供应商与 API Key，或在「本机模型」下载一个本地模型。官方、第三方或本地都在这里，内置 agent 和 Nomi 都能选。
+4. 把任务交给 Nomi：`Ctrl/⌘+N` 新对话，`Ctrl/⌘+K` 命令面板（派出 agent、添加供应商、打开看板、新建任务）。写代码的活它可以再派给 agent。
 
 更细的步骤见 [快速上手](docs/getting-started.md)。
 

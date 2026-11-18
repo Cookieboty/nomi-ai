@@ -5,8 +5,8 @@
 
 /**
  * 测量口径：
- * - gateway：经 Nomi 统一网关的请求（Nomi 对话、编程助手的第三方供应商），按 HTTP 请求计，最精确；
- * - cli：Nomi 里运行的编程助手会话（官方账号与第三方都有），按 CLI 输出流的一轮 / 一次模型调用计，
+ * - gateway：经 Nomi 统一网关的请求（Nomi 对话、agent 的第三方供应商），按 HTTP 请求计，最精确；
+ * - cli：Nomi 里运行的 agent 会话（官方账号与第三方都有），按 CLI 输出流的一轮 / 一次模型调用计，
  *   时间含 CLI 自身开销，没有 Key 与 HTTP 细节。
  * 两种口径不直接混算，界面分开显示或标注。
  */
@@ -73,9 +73,9 @@ export interface QualityRecord {
   layer: QualityLayer;
   /** 起点（epoch ms）：网关收到请求 / CLI 这一轮发出 */
   ts: number;
-  /** 客户端：nomi | 内置编程助手的 id（claude | codex | grok | gemini | dsh …） */
+  /** 客户端：nomi | 内置 agent 的 id（claude | codex | grok | gemini | dsh …） */
   client: string;
-  /** 来源：Nomi 对话、编程助手官方账号、编程助手第三方供应商 */
+  /** 来源：Nomi 对话、agent 官方账号、agent 第三方供应商 */
   source: 'nomi' | 'official' | 'thirdParty';
   tabId?: string;
   generation?: number;

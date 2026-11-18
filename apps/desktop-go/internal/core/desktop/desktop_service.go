@@ -561,7 +561,7 @@ type State struct {
 	BrokerView
 	Tools   []ToolState      `json:"tools"`
 	Pending []ConfirmRequest `json:"pending"`
-	// CliSandboxSupported：当前平台能用编程助手的系统沙箱
+	// CliSandboxSupported：当前平台能用 agent 的系统沙箱
 	CliSandboxSupported bool `json:"cliSandboxSupported"`
 }
 
@@ -758,7 +758,7 @@ type ProtectResult struct {
 	State State  `json:"state"`
 }
 
-// SetCliEnvAllow：替换放行给编程助手的环境变量清单，返回最新状态
+// SetCliEnvAllow：替换放行给 agent 的环境变量清单，返回最新状态
 func (s *Service) SetCliEnvAllow(names any) State {
 	if arr, ok := names.([]any); ok {
 		s.Broker.SetCliEnvAllow(arr)
@@ -766,7 +766,7 @@ func (s *Service) SetCliEnvAllow(names any) State {
 	return s.State()
 }
 
-// SetCliSandbox：开关编程助手的系统沙箱，返回最新状态
+// SetCliSandbox：开关 agent 的系统沙箱，返回最新状态
 func (s *Service) SetCliSandbox(enabled any) State {
 	if v, ok := enabled.(bool); ok {
 		s.Broker.SetCliSandboxEnabled(v)

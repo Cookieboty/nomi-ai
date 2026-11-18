@@ -4,6 +4,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ProvidersPage } from '../src/components/ProvidersPage';
+import { cliLauncherClient } from '../src/services/cliLauncherClient';
 import { cliUpdateClient } from '../src/services/cliUpdateClient';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
@@ -59,6 +60,7 @@ beforeEach(() => localStorage.clear());
 afterEach(() => {
   cleanup();
   cliUpdateClient.resetCache();
+  cliLauncherClient.resetCache();
   resetFakeApi();
 });
 
@@ -191,7 +193,7 @@ describe('ProvidersPage', () => {
     },
   );
 
-  it('「沿用终端里的代理」只在「通用」里，各编程助手的官方账号里不再各放一份', async () => {
+  it('「沿用终端里的代理」只在「通用」里，各 agent 的官方账号里不再各放一份', async () => {
     const calls = setup();
     localStorage.setItem('ai-chat:providerEndpoint', 'claude');
     const r = render(<ProvidersPage onOpenModels={() => undefined} />);
@@ -255,5 +257,120 @@ describe('ProvidersPage', () => {
     expect(onNotify).toHaveBeenCalled();
     // 不再混着日程 / 提醒的东西
     expect(r.queryByTestId('sched-panel')).toBeNull();
+  });
+
+  it('hideViewTabs 隐藏二级监视标签；CliLauncherCard 显示本机登录状态徽章', async () => {
+    installFakeApi(async (ch: string) => {
+      if (ch === 'cli.launcherGet') {
+        return {
+          claude: { enabled: false, command: '', accountSource: 'nomi', hasLocalLogin: true },
+        };
+      }
+      if (ch === 'cliAccount.list') return [];
+      if (ch === 'cliUpdate.inspect') return [];
+      if (ch === 'cliUpdate.environment')
+        return {
+          nodeVersion: '22.12.0',
+          nodePath: '/usr/bin/node',
+          npmPath: '/npm',
+          requirements: [],
+        };
+      return {};
+    });
+    localStorage.setItem('ai-chat:providerEndpoint', 'claude');
+    const r = render(<ProvidersPage hideViewTabs onOpenModels={vi.fn()} />);
+    expect(r.queryByTestId('providers-endpoint-monitor')).toBeNull();
+    const badge = await waitFor(() => r.getByTestId('cli-local-status-claude'));
+    expect(badge.textContent).toBe('已检测到本机登录');
+  });
+
+  it('已配第三方供应商时可直接在助手详情选模型且不覆盖官方默认；Claude 展开各档模型；Gemini 不显示重复的新会话来源行', async () => {
+    const calls: Array<[string, unknown]> = [];
+    const gw = {
+      status: { state: 'running', port: 6129, url: 'http://127.0.0.1:6129' },
+      providers: [
+        {
+          id: 'amux',
+          name: 'Amux AI',
+          enabled: true,
+          urls: { chat: 'https://amux.ai' },
+          keys: [],
+          models: [
+            { id: 'gpt-6.1-sol', enabled: true, toolCalling: true },
+            { id: 'gpt-haiku', enabled: true, toolCalling: true },
+          ],
+          source: 'user',
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      ],
+      clients: {
+        claude: { models: {}, newTabSource: 'official' },
+        gemini: { models: {}, newTabSource: 'thirdParty' },
+      },
+      allowedPrivateHosts: [],
+      port: 6129,
+    };
+    installFakeApi(async (ch: string, input?: unknown) => {
+      calls.push([ch, input]);
+      if (ch === 'gateway.state') return gw;
+      if (ch === 'cli.launcherGet') return {};
+      if (ch === 'cliAccount.list') return [];
+      if (ch === 'cliUpdate.inspect') return [];
+      if (ch === 'cliUpdate.environment')
+        return {
+          nodeVersion: '22.12.0',
+          nodePath: '/usr/bin/node',
+          npmPath: '/npm',
+          requirements: [],
+        };
+      return {};
+    });
+
+    localStorage.setItem('ai-chat:providerEndpoint', 'claude');
+    const onOpenModels = vi.fn();
+    const r = render(<ProvidersPage hideViewTabs onOpenModels={onOpenModels} />);
+
+    // Claude 可直接就地选第三方主模型，而不覆盖 newTabSource: 'official'
+    const mainPicker = await waitFor(() => r.getByTestId('cli-main-claude'));
+    expect(r.getByTestId('cli-source-claude')).toBeTruthy();
+    fireEvent.change(mainPicker, { target: { value: 'amux/gpt-6.1-sol' } });
+    await waitFor(() =>
+      expect(calls).toContainEqual([
+        'gateway.setAssignment',
+        { client: 'claude', patch: { models: { main: 'amux/gpt-6.1-sol' } } },
+      ]),
+    );
+
+    // 展开各档模型（Opus/Sonnet/Haiku/Fable、子代理、辅助模型）
+    fireEvent.click(r.getByTestId('cli-tiers-toggle'));
+    expect(r.getByTestId('cli-tier-opus')).toBeTruthy();
+    expect(r.getByTestId('cli-tier-haiku')).toBeTruthy();
+    expect(r.getByTestId('cli-subagent')).toBeTruthy();
+    expect(r.getByTestId('cli-helper-claude')).toBeTruthy();
+
+    // 切到 Gemini：不显示重复的新会话默认行，直接显示第三方模型选择器
+    fireEvent.click(r.getByTestId('providers-endpoint-gemini'));
+    await waitFor(() => expect(r.getByTestId('providers-section-gemini')).toBeTruthy());
+    expect(r.queryByTestId('cli-source-gemini')).toBeNull();
+    const geminiPicker = r.getByTestId('cli-main-gemini');
+    fireEvent.change(geminiPicker, { target: { value: 'amux/gpt-6.1-sol' } });
+    await waitFor(() =>
+      expect(calls).toContainEqual([
+        'gateway.setAssignment',
+        {
+          client: 'gemini',
+          patch: {
+            models: { main: 'amux/gpt-6.1-sol' },
+            newTabSource: 'thirdParty',
+            newTabAccountId: null,
+          },
+        },
+      ]),
+    );
+
+    // 右上角保留「管理供应商」直达入口
+    fireEvent.click(r.getByTestId('cli-open-models'));
+    expect(onOpenModels).toHaveBeenCalledTimes(1);
   });
 });

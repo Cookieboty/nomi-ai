@@ -13,7 +13,7 @@ import (
 )
 
 // CLIENT_IDS.
-// 内置编程助手里能接第三方模型（清单 thirdParty）的才是网关客户端
+// 内置 agent 里能接第三方模型（清单 thirdParty）的才是网关客户端
 var ClientIDs = append([]string{"nomi"}, builtin.Where(builtin.WithThirdParty)...)
 
 // RuntimeKey is RuntimeKey.

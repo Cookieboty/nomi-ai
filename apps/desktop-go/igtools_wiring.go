@@ -111,7 +111,7 @@ func registerIgTools(r tools.Registry, profile *aifacade.ProfileStore, fac **aif
 			deps.ComputerVision = computerVision
 		}
 		defs = append(defs, igtools.DesktopTools(deps)...)
-		// 编程助手经 MCP 用的是同一组定义（确认、审计、黑名单相同）
+		// agent 经 MCP 用的是同一组定义（确认、审计、黑名单相同）
 		if computerSvc != nil && computerMcpSrv != nil {
 			computerMcpSrv.SetTools(igtools.ComputerTools(deps))
 		}
@@ -200,7 +200,7 @@ func markExternalReads(defs []tools.Definition, mark func(context.Context)) []to
 	return defs
 }
 
-// desktopShellEnv = cliChildEnv(false)：工作区命令与编程助手标签同一套环境（凭据类变量同样不继承）
+// desktopShellEnv = cliChildEnv(false)：工作区命令与 agent 标签同一套环境（凭据类变量同样不继承）
 func desktopShellEnv(b *desktop.PermissionBroker) []string {
 	var allow []string
 	if b != nil {

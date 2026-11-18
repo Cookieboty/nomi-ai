@@ -413,7 +413,7 @@ func (d ImageDeps) GenerateAsset(ctx context.Context, req GenerateReq) (Generate
 	if err := os.MkdirAll(d.ImagesDir, 0o700); err != nil {
 		return GenerateResult{}, err
 	}
-	// 前缀 = 来源（素材库按它区分 Nomi / 各编程助手生成的图片）
+	// 前缀 = 来源（素材库按它区分 Nomi / 各 agent 生成的图片）
 	file := fmt.Sprintf("nomi-%s-%s.%s", strconv.FormatInt(now().UnixMilli(), 36),
 		strconv.FormatUint(rand.Uint64(), 36)[:6], ImageExt(b))
 	if err := os.WriteFile(filepath.Join(d.ImagesDir, file), b, 0o600); err != nil {

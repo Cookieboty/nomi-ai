@@ -54,21 +54,21 @@ export const SECTION_HELP: Record<
       desc: 'ui.chat-settings.accessible-folders-available-tools-and-the-action-log',
     },
   ],
-  models: [
+  ai: [
+    {
+      icon: Waypoints,
+      title: 'ui.models.tab-routing',
+      desc: 'ui.models.ai-help-routing-desc',
+    },
+    {
+      icon: AppWindow,
+      title: 'ui.models.tab-assistants',
+      desc: 'ui.models.ai-help-assistants-desc',
+    },
     {
       icon: Boxes,
       title: 'ui.models.third-party-providers',
       desc: 'ui.chat-settings.add-providers-and-keys-nomi-converts-protocols-automatically',
-    },
-    {
-      icon: Waypoints,
-      title: 'ui.models.assignments',
-      desc: 'ui.models.assign-help',
-    },
-    {
-      icon: SquareTerminal,
-      title: 'ui.models.terminal-commands',
-      desc: 'ui.chat-settings.launch-coding-assistants-with-third-party-models-from',
     },
     {
       icon: Cpu,
@@ -101,23 +101,6 @@ export const SECTION_HELP: Record<
       icon: SquareTerminal,
       title: 'ui.providers-schedule.coding-agents',
       desc: 'ui.chat-settings.computer-help-cli',
-    },
-  ],
-  coding: [
-    {
-      icon: AppWindow,
-      title: 'ui.providers-schedule.assistants',
-      desc: 'ui.providers-schedule.pick-the-coding-assistant-to-view-the-picker',
-    },
-    {
-      icon: Download,
-      title: 'ui.chat-settings.version-accounts',
-      desc: 'ui.chat-settings.detect-install-or-update-clis-and-manage-official',
-    },
-    {
-      icon: Activity,
-      title: 'ui.cli-monitor.monitor-sessions',
-      desc: 'ui.chat-settings.progress-monitoring-and-active-sessions-of-local-coding',
     },
   ],
   usage: [

@@ -1,8 +1,8 @@
 package harness
 
-// sandbox.go：编程助手的系统级沙箱（internal/core/cli/sandbox）接到标签上：
+// sandbox.go：agent 的系统级沙箱（internal/core/cli/sandbox）接到标签上：
 // 起 CLI 时包进沙箱（关掉 CLI 自己的沙箱，Seatbelt 不能嵌套）、违规日志 → 标签上的授权请求、
-// 用户授权（本会话 / 始终）后让这个标签的 CLI 在下次启动时应用新权限，不自动发送消息。见 docs/development/security.md「编程助手」。
+// 用户授权（本会话 / 始终）后让这个标签的 CLI 在下次启动时应用新权限，不自动发送消息。见 docs/development/security.md「Agents」。
 
 import (
 	"crypto/rand"
@@ -205,7 +205,7 @@ func (o *Orchestrator) buildSandboxSpec(tab *util.Obj, cwd string, env *util.Obj
 	spec := &sandbox.Spec{
 		Token: token, Home: o.home, Cwd: cwd, CwdWritable: str(tab, "permissionMode") != "plan",
 		NomiData: filepath.Dir(o.d.Root),
-		// 桌面操作 MCP：只放行这个标签自己的 token 文件（编程助手拉起的桥接进程要读）
+		// 桌面操作 MCP：只放行这个标签自己的 token 文件（agent 拉起的桥接进程要读）
 		ReadAllow: append([]string{filepath.Join(o.d.Root, "prompt-images")}, o.computerMcpFiles(tab)...),
 		Granted:   map[string]bool{},
 	}

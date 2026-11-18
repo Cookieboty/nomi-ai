@@ -354,7 +354,7 @@ describe('/model', () => {
     expect(actions.setTabModel).toHaveBeenCalledWith('opus', 'official');
     expect(actions.setTabSource).not.toHaveBeenCalled();
   });
-  it('官方标签：目录后面附上网关里能给编程助手用的第三方模型，选中即切到第三方', async () => {
+  it('官方标签：目录后面附上网关里能给 agent 用的第三方模型，选中即切到第三方', async () => {
     const { ctx, commands, actions } = makeCtx('claude', { data: { nomiGateway: gateway() } });
     actions.tabModels.mockResolvedValue({ catalog: tabCatalog, current: null, source: 'official' });
     const r = await executeSlash('/model', commands, ctx);
@@ -679,7 +679,7 @@ describe('/status /context /cost', () => {
     expect(c.windowSource).toBe('default');
     expect(c.used).toBeGreaterThan(0);
   });
-  it('/context：Nomi 对话显示上一轮回复的缓存命中率，编程助手不算', async () => {
+  it('/context：Nomi 对话显示上一轮回复的缓存命中率，agent 不算', async () => {
     const msgs = [
       user('1', 'hi'),
       asst('2', 'ok', { inputTokens: 10_000, cacheReadTokens: 7_500, contextTokens: 10_200 }),
@@ -687,7 +687,7 @@ describe('/status /context /cost', () => {
     const nomi = cardOf((await run('nomi', '/context', { messages: msgs })).r);
     if (nomi.kind !== 'context') throw new Error('context');
     expect(nomi.notes.some((n) => n.includes('75%'))).toBe(true);
-    // 编程助手各家输入口径不一：不算命中率
+    // agent 各家输入口径不一：不算命中率
     const cli = cardOf(
       (
         await run('claude', '/context', {

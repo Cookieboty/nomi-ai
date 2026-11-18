@@ -10,7 +10,7 @@ import { ENDPOINT_NAME } from './endpointBadge';
 const harnessCache = new WeakMap<HarnessTabMessage, ConvMessage>();
 const chatCache = new WeakMap<ChatMessage, ConvMessage | null>();
 
-/** 编程助手标签消息 */
+/** agent 标签消息 */
 export function fromHarnessMessage(m: HarnessTabMessage, backend: string): ConvMessage {
   const hit = harnessCache.get(m);
   if (hit) return hit;

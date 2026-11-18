@@ -7,7 +7,7 @@ import (
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// 上一轮工具记录里的编程助手输出：不允许发给当前模型时同样替换；允许时记录原样不动（字节不变，前缀缓存不断）
+// 上一轮工具记录里的 agent 输出：不允许发给当前模型时同样替换；允许时记录原样不动（字节不变，前缀缓存不断）
 func TestGuardOutboundScrubsSteps(t *testing.T) {
 	steps := `[{"role":"assistant","content":[{"type":"tool-call","toolCallId":"c1","toolName":"x","input":{"z":1,"a":2}}]},` +
 		`{"role":"tool","content":[{"type":"tool-result","toolCallId":"c1","toolName":"x","output":{"type":"text","value":"<cli-output>\nsecret\n</cli-output>"}}]}]`
@@ -122,7 +122,7 @@ func TestGuardOutboundPlaceholderOnlyNotAsked(t *testing.T) {
 	}
 }
 
-// 附件正文、编程助手输出、读过的文件同时在：一次确认，三样都挡
+// 附件正文、agent 输出、读过的文件同时在：一次确认，三样都挡
 func TestGuardOutboundMixedHistory(t *testing.T) {
 	msgs := []any{
 		map[string]any{"role": "user", "content": "<attached-file name=\"a.txt\">\nATTACHED-SECRET\n</attached-file>"},

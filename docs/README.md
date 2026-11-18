@@ -7,19 +7,19 @@
 ## 中文
 
 Nomi·诺米：让每一种 AI 能力，都为你所用。把 Claude Code、Codex 放到同一张看板上并行。模型只接一次，官方、第三方或本地都能用。不必绑定云账号，也不用改那些 CLI 的全局配置。
-桌面应用（Go + Wails，`apps/desktop-go`）。Nomi 自己也是一个 agent，桌面角色可选。界面是 React（`packages/`）。
+桌面应用（Go + Wails，`apps/desktop-go`）。Nomi 自己也属于 agent，桌面角色可选。界面是 React（`packages/`）。
 
 ### 开始
 
-- [快速上手](getting-started.md)：安装、首次引导、开编程助手会话、添加模型、常用快捷键
+- [快速上手](getting-started.md)：安装、首次引导、开 agent 会话、添加模型、常用快捷键
 
 ### Agent 工作台
 
 | 模块                                       | 说明                                                                                    |
 | ------------------------------------------ | --------------------------------------------------------------------------------------- |
-| [编程助手](features/coding-agents.md)      | Claude Code / Codex / Gemini CLI / Grok / dsh：账号与第三方供应商、权限模式、工坊、会话 |
+| [agents](features/coding-agents.md)        | Claude Code / Codex / Gemini CLI / Grok / dsh：账号与第三方供应商、权限模式、工坊、会话 |
 | [Agent 看板](development/agent-board.md)   | 谁在干活、做到哪了、内存与 CPU；内存守护自动暂停 / 恢复                                 |
-| [编程助手监视](features/agent-monitor.md)  | 本机编程工具的进度提醒                                                                  |
+| [agent 监视](features/agent-monitor.md)    | 本机编程工具的进度提醒                                                                  |
 | [斜杠命令](features/slash-commands.md)     | 输入 `/` 弹出命令，内置命令在界面里执行，其余转给 CLI                                   |
 | [隐私与安全](features/privacy-security.md) | 数据位置、仅本地模式、外发保护、权限确认、导出与清除                                    |
 
@@ -34,15 +34,15 @@ Nomi·诺米：让每一种 AI 能力，都为你所用。把 Claude Code、Code
 
 ### Nomi
 
-| 模块                                          | 说明                                                             |
-| --------------------------------------------- | ---------------------------------------------------------------- |
-| [AI 对话](features/chat.md)                   | 对话与工坊、图片与文件、生成图片与素材库、命令面板、交给编程助手 |
-| [知识库](features/knowledge-base.md)          | 基于你的文件夹回答，并给出引用                                   |
-| [长期记忆](features/memory.md)                | Nomi 记得什么、怎么想起、怎么管理                                |
-| [日程与任务](features/scheduling-calendar.md) | 提醒、定时任务、主动聊天、免打扰、持续任务、应用与账号           |
-| [桌面角色诺米](features/mascot.md)            | 可选，可随时关掉：动作、显示方式、工具栏、大小与互动设置         |
-| [语音](features/voice.md)                     | 语音输入、唤醒词、诺米的声音                                     |
-| [灵动岛通知](features/dynamic-island.md)      | macOS 刘海处的通知                                               |
+| 模块                                          | 说明                                                           |
+| --------------------------------------------- | -------------------------------------------------------------- |
+| [AI 对话](features/chat.md)                   | 对话与工坊、图片与文件、生成图片与素材库、命令面板、交给 agent |
+| [知识库](features/knowledge-base.md)          | 基于你的文件夹回答，并给出引用                                 |
+| [长期记忆](features/memory.md)                | Nomi 记得什么、怎么想起、怎么管理                              |
+| [日程与任务](features/scheduling-calendar.md) | 提醒、定时任务、主动聊天、免打扰、持续任务、应用与账号         |
+| [桌面角色诺米](features/mascot.md)            | 可选，可随时关掉：动作、显示方式、工具栏、大小与互动设置       |
+| [语音](features/voice.md)                     | 语音输入、唤醒词、诺米的声音                                   |
+| [灵动岛通知](features/dynamic-island.md)      | macOS 刘海处的通知                                             |
 
 ### 应用
 
@@ -61,7 +61,7 @@ Nomi·诺米：让每一种 AI 能力，都为你所用。把 Claude Code、Code
 - [架构概览](development/architecture.md)
 - [应用契约](development/contract.md)：视图与内核之间的过程、事件与传输，怎么加一个过程
 - [统一网关](development/gateway.md)：四种协议互转、路由、供应商与模型
-- [编程助手接入](development/coding-agents.md)：插件、会话驱动、编排器、权限档位
+- [agent 接入](development/coding-agents.md)：插件、会话驱动、编排器、权限档位
 - [Agent 看板](development/agent-board.md)：纳管与外部的边界、分列、内存与 CPU 采样
 - [安全边界](development/security.md)：路径授权、命令审核、代码沙箱、委派隔离、网络与密钥
 - [构建与运行](development/building.md) · [测试](development/testing.md) · [CI](development/ci.md)
@@ -79,15 +79,15 @@ Desktop app (Go on Wails, `apps/desktop-go`). Nomi is an agent too, and the desk
 
 ### Getting started
 
-- [Getting started](getting-started.md): install, onboarding, open a coding-agent session, add a model, shortcuts
+- [Getting started](getting-started.md): install, onboarding, open an agent session, add a model, shortcuts
 
 ### Agent workbench
 
 | Module                                             | About                                                                                           |
 | -------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| [Coding agents](features/coding-agents.md)         | Claude Code / Codex / Gemini CLI / Grok / dsh: accounts, providers, permission modes, workbench |
+| [Agents](features/coding-agents.md)                | Claude Code / Codex / Gemini CLI / Grok / dsh: accounts, providers, permission modes, workbench |
 | [Agent board](development/agent-board.md)          | Who is working, how far along, memory and CPU; the memory guard pauses and resumes              |
-| [Coding-agent monitor](features/agent-monitor.md)  | Progress notices for local coding tools                                                         |
+| [Agent monitor](features/agent-monitor.md)         | Progress notices for local coding tools                                                         |
 | [Slash commands](features/slash-commands.md)       | `/` palette; built-ins run in the UI, the rest go to the CLI                                    |
 | [Privacy & security](features/privacy-security.md) | Data location, local-only mode, outbound masking, prompts, export                               |
 
@@ -127,7 +127,7 @@ Desktop app (Go on Wails, `apps/desktop-go`). Nomi is an agent too, and the desk
 ### Development
 
 - [Architecture](development/architecture.md) · [App contract](development/contract.md) · [Unified gateway](development/gateway.md)
-- [Coding-agent integration](development/coding-agents.md) · [Agent board](development/agent-board.md) · [Security boundaries](development/security.md)
+- [Agent integration](development/coding-agents.md) · [Agent board](development/agent-board.md) · [Security boundaries](development/security.md)
 - [Building](development/building.md) · [Testing](development/testing.md) · [CI](development/ci.md)
 - [i18n](development/i18n.md) · [Frontend standards](development/frontend-standards.md) · [Git LFS](development/git-lfs.md)
 - [Release](RELEASE.md) · [Brand](BRAND.md) · [Release notes](releases/)

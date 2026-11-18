@@ -11,7 +11,7 @@ import (
 )
 
 // 受保护的文件夹：用户在设置里加的黑名单，叠加在内置黑名单（path_guard.go）之上。
-// Nomi 自己的文件工具（GuardPath）、对话工作区与编程助手标签的工作目录（CheckWorkspaceRoot）都认它。
+// Nomi 自己的文件工具（GuardPath）、对话工作区与 agent 标签的工作目录（CheckWorkspaceRoot）都认它。
 // 存的是 realpath（选的是符号链接时，按链接目标保护），删除时按存的原样匹配。
 
 // MaxProtectedPaths：受保护文件夹的上限
@@ -89,7 +89,7 @@ func (b *PermissionBroker) workspaceEnv() WorkspaceEnv {
 		DenyRoots: b.envBase.DenyRoots, UserDeny: b.ProtectedPaths()}
 }
 
-// CheckCliWorkspace：编程助手标签的工作目录能不能用（与 Nomi 对话工作区同一套规则：
+// CheckCliWorkspace：agent 标签的工作目录能不能用（与 Nomi 对话工作区同一套规则：
 // 不能是根目录 / 主目录 / 系统目录 / 主目录下的大容器，不能在内置或用户的受保护文件夹里）。
 // 不能用时返回给用户看的原因。
 func (b *PermissionBroker) CheckCliWorkspace(dir string) string {
@@ -163,7 +163,7 @@ func validEnvName(name string) bool {
 	return true
 }
 
-// CliEnvAllow：放行给编程助手的环境变量名
+// CliEnvAllow：放行给 agent 的环境变量名
 func (b *PermissionBroker) CliEnvAllow() []string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -185,7 +185,7 @@ func (b *PermissionBroker) SetCliEnvAllow(names []any) {
 	}
 }
 
-// SandboxAllow：编程助手沙箱里「始终允许」的一项（Kind：category / read / folder / file）。
+// SandboxAllow：agent 沙箱里「始终允许」的一项（Kind：category / read / folder / file）。
 // Project：只在这个项目里生效（读凭据 / 密钥文件按项目记）；空 = 所有项目
 type SandboxAllow struct {
 	Kind    string `json:"kind"`
@@ -238,14 +238,14 @@ func hasControlChar(s string) bool {
 	return false
 }
 
-// CliSandboxEnabled：编程助手的系统沙箱开着（缺省开）
+// CliSandboxEnabled：agent 的系统沙箱开着（缺省开）
 func (b *PermissionBroker) CliSandboxEnabled() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return !b.settings.CliSandboxOff
 }
 
-// SetCliSandboxEnabled：开关编程助手的系统沙箱
+// SetCliSandboxEnabled：开关 agent 的系统沙箱
 func (b *PermissionBroker) SetCliSandboxEnabled(on bool) {
 	b.mu.Lock()
 	changed := b.settings.CliSandboxOff == on

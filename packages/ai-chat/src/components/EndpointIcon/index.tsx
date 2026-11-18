@@ -8,7 +8,7 @@ import React from 'react';
 
 import { ENDPOINT_NAME, type EndpointKey } from '../../utils/endpointBadge';
 
-/** other（非内置的编程助手）用通用终端图标 */
+/** other（非内置的 agent）用通用终端图标 */
 const glyphKey = (b: EndpointKey) => (b === 'other' ? 'external' : b);
 
 export const ENDPOINT_COLOR: Record<EndpointKey, string> = {

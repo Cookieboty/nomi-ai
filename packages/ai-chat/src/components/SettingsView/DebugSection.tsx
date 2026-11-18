@@ -21,7 +21,7 @@ const allow = () => [
   { id: 'deny', label: t('ui.chat-settings.deny') },
 ];
 
-/** 通知样例：每种状态一条，外加编程助手进度与超长文本（看截断） */
+/** 通知样例：每种状态一条，外加 agent 进度与超长文本（看截断） */
 const NOTICES: { key: string; label: string; notice: () => Notice }[] = [
   {
     key: 'message',

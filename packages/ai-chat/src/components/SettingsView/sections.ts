@@ -6,9 +6,8 @@ import { SETTINGS_ICONS } from '../AppIcons';
 export type SettingsSection =
   | 'general'
   | 'nomi'
-  | 'models'
-  | 'coding'
-  /** Computer Use：让 Nomi 和编程助手操作本机应用（执行器 agent-desktop） */
+  | 'ai'
+  /** Computer Use：让 Nomi 和 agent 操作本机应用（执行器 agent-desktop） */
   | 'computer'
   | 'usage'
   | 'knowledge'
@@ -18,6 +17,9 @@ export type SettingsSection =
   | 'about'
   /** 调试：只在开发版（pnpm dev）出现，看灵动岛的各种样式等（DebugSection） */
   | 'debug';
+
+export type LegacySettingsSection = 'models' | 'coding';
+export type SettingsSectionInput = SettingsSection | LegacySettingsSection;
 
 /** 开发版才有的分区（Vite 开发服务器提供视图时 import.meta.env.DEV 为 true；打包版里整段被去掉） */
 export const DEV_SECTIONS = import.meta.env.DEV && import.meta.env.MODE !== 'test';
@@ -47,10 +49,10 @@ export const SETTINGS_SECTIONS: Array<{
     intro: 'ui.chat-settings.nomi-section-intro',
   },
   {
-    id: 'models',
-    icon: SETTINGS_ICONS.models,
-    label: 'ui.chat-settings.models-and-providers',
-    intro: 'ui.models.one-third-party-provider-can-serve-nomi-chat',
+    id: 'ai',
+    icon: SETTINGS_ICONS.ai,
+    label: 'ui.chat-settings.models-and-coding',
+    intro: 'ui.chat-settings.models-and-coding-intro',
   },
   {
     id: 'usage',
@@ -58,12 +60,6 @@ export const SETTINGS_SECTIONS: Array<{
     label: 'ui.chat-settings.usage-and-analytics',
     intro: 'ui.chat-settings.token-usage-cost-and-how-each-provider-performs',
     wide: true,
-  },
-  {
-    id: 'coding',
-    icon: SETTINGS_ICONS.coding,
-    label: 'ui.providers-schedule.coding-agents',
-    intro: 'ui.providers-schedule.manage-versions-and-official-accounts-for-claude-code',
   },
   {
     id: 'computer',
@@ -119,7 +115,7 @@ export const SETTINGS_SECTIONS: Array<{
  */
 export const SETTINGS_NAV_GROUPS: SettingsSection[][] = [
   ['general', 'nomi'],
-  ['models', 'usage', 'coding', 'computer'],
+  ['ai', 'usage', 'computer'],
   ['knowledge', 'ext', 'connections', 'privacy'],
   DEV ? ['about', 'debug'] : ['about'],
 ];
@@ -133,15 +129,19 @@ export const SECTION_TABS = {
     { id: 'notify', label: 'ui.mascot-theme.notifications-island' },
   ],
   nomi: [
-    // 权限与委派合在一个标签下（Nomi 自己做事要不要先问你、派给编程助手怎么派）
+    // 权限与委派合在一个标签下（Nomi 自己做事要不要先问你、派给 agent 怎么派）
     { id: 'permissions', label: 'ui.chat-settings.permissions-and-handoff' },
     { id: 'tools', label: 'ui.chat-settings.desktop-permissions' },
     // 归档的是 Nomi 对话：放在「Nomi」里（以前在「通用」）
     { id: 'archived', label: 'ui.chat-settings.archived-chats' },
   ],
-  models: [
-    { id: 'providers', label: 'ui.models.third-party-providers' },
-    { id: 'local', label: 'ui.knowledge-local.local-models' },
+  ai: [
+    { id: 'routing', label: 'ui.models.tab-routing' },
+    { id: 'assistants', label: 'ui.models.tab-assistants' },
+    // 三方供应商与本地模型分成两个标签（合在一页太长）
+    { id: 'providers', label: 'ui.models.tab-providers' },
+    { id: 'local', label: 'ui.models.tab-local' },
+    { id: 'monitor', label: 'ui.cli-monitor.monitor-sessions' },
   ],
   usage: [
     { id: 'cost', label: 'ui.usage-tools.usage-cost' },
@@ -155,7 +155,7 @@ export const SECTION_TABS = {
     { id: 'schedule', label: 'ui.chat-settings.schedule' },
   ],
   computer: [
-    // 安装、权限、紧急停止、编程助手、视觉兜底放一页；打码、禁止的应用、隔离模式放一页；安全说明在右侧「配置说明」
+    // 安装、权限、紧急停止、agents、视觉兜底放一页；打码、禁止的应用、隔离模式放一页；安全说明在右侧「配置说明」
     { id: 'setup', label: 'ui.chat-settings.computer-tab-setup' },
     { id: 'privacy', label: 'ui.chat-settings.computer-tab-privacy' },
   ],
@@ -170,15 +170,32 @@ export const SECTION_TABS = {
 type TabsOf<S extends keyof typeof SECTION_TABS> = (typeof SECTION_TABS)[S][number]['id'];
 export type GeneralTab = TabsOf<'general'>;
 export type NomiTab = TabsOf<'nomi'>;
-export type ModelsTab = TabsOf<'models'>;
+export type AiTab = TabsOf<'ai'>;
 export type UsageTab = TabsOf<'usage'>;
 export type KnowledgeTab = TabsOf<'knowledge'>;
 export type PrivacyTab = TabsOf<'privacy'>;
 export type ComputerTab = TabsOf<'computer'>;
 
-/** 深链接可指定的标签（属于上面有标签页的分区之一）。 */
+/** 深链接可指定的标签（属于上面有标签页的分区之一；旧 models 分区的 local 现在也是 ai 的标签）。 */
 export type SettingsTab =
-  GeneralTab | NomiTab | ModelsTab | UsageTab | KnowledgeTab | PrivacyTab | ComputerTab;
+  GeneralTab | NomiTab | AiTab | UsageTab | KnowledgeTab | PrivacyTab | ComputerTab;
+
+/** 将旧设置分区名（models / coding）归一化到合并后的 ai 分区对应标签。 */
+export function normalizeSettingsTarget(
+  section: SettingsSectionInput,
+  tab?: string,
+): { section: SettingsSection; tab?: SettingsTab } {
+  if (section === 'coding') {
+    return { section: 'ai', tab: tab === 'monitor' ? 'monitor' : 'assistants' };
+  }
+  if (section === 'models') {
+    return {
+      section: 'ai',
+      tab: tab === 'routing' || tab === 'assistants' || tab === 'local' ? tab : 'providers',
+    };
+  }
+  return { section, tab: tab as SettingsTab | undefined };
+}
 
 /** 某分区下 `tab` 是否是它自己的标签（用于忽略错配的深链接标签）。 */
 export function tabOf<S extends keyof typeof SECTION_TABS>(

@@ -2,15 +2,34 @@
  * 唯一的「新建」菜单：侧栏「新对话」与标签栏「+」共用。
  * 端点（图标 + 名称，未安装置灰）+ 项目（新会话放进哪个项目）。
  */
-import { t } from '@nomi-ai/ui';
+import { Icon, t } from '@nomi-ai/ui';
+import {
+  IconFlame as Flame,
+  IconLayersSubtract as CustomPresetIcon,
+  IconLeaf as Leaf,
+  IconScale as Scale,
+} from '@tabler/icons-react';
 import React, { useEffect, useRef } from 'react';
 
+import {
+  formatRunnerSummary,
+  presetDisplayLabel,
+  type RunnerPreset,
+} from '../../services/delegateClient';
+import type { GatewayState } from '../../services/gatewayClient';
 import type { ConversationBackend } from '../../types/chat';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { EndpointIcon } from '../EndpointIcon';
 import { ProjectPicker } from '../ProjectPicker';
 
 import styles from './index.module.css';
+
+function presetIcon(p: RunnerPreset) {
+  if (p.id === 'high' || p.costTier === 'high') return Flame;
+  if (p.id === 'balanced' || p.costTier === 'medium') return Scale;
+  if (p.id === 'low' || p.costTier === 'low') return Leaf;
+  return CustomPresetIcon;
+}
 
 export interface NewChatMenuProps {
   backends: readonly ConversationBackend[];
@@ -22,6 +41,9 @@ export interface NewChatMenuProps {
   /** 新会话的项目（没选 = 不指定）；不传时不显示项目选择（如侧栏「最近」：新会话不在任何项目里） */
   project?: { chosen: string | undefined; set: (projectId: string) => void };
   onPick: (b: ConversationBackend) => void;
+  presets?: readonly RunnerPreset[];
+  gateway?: GatewayState | null;
+  onPickPreset?: (preset: RunnerPreset) => void;
   testId?: string;
   itemTestId?: (b: ConversationBackend) => string;
   workspaceTestId?: string;
@@ -37,6 +59,9 @@ export const NewChatMenu: React.FC<NewChatMenuProps> = ({
   lastBackend,
   project,
   onPick,
+  presets,
+  gateway,
+  onPickPreset,
   testId = 'new-chat-menu',
   itemTestId = (b) => `new-chat-${b}`,
   workspaceTestId = 'new-chat-project',
@@ -63,6 +88,9 @@ export const NewChatMenu: React.FC<NewChatMenuProps> = ({
     e.preventDefault();
   };
 
+  const presetList = presets && onPickPreset ? presets : [];
+  const hasVisiblePreset = presetList.some((p) => !missing(p.cli));
+
   return (
     <div
       ref={ref}
@@ -73,6 +101,36 @@ export const NewChatMenu: React.FC<NewChatMenuProps> = ({
       data-testid={testId}
       onKeyDown={onKey}
     >
+      {presetList.length > 0 && hasVisiblePreset && (
+        <>
+          <div className={styles.groupLabel} data-testid="new-chat-presets">
+            {t('ui.models.new-chat-by-preset')}
+          </div>
+          {presetList.map((p) => {
+            const disabled = missing(p.cli);
+            return (
+              <button
+                key={p.id}
+                type="button"
+                role="menuitem"
+                className={styles.item}
+                disabled={disabled}
+                data-testid={`new-chat-preset-${p.id}`}
+                onClick={() => onPickPreset?.(p)}
+              >
+                <span className={styles.name}>
+                  <Icon icon={presetIcon(p)} size={15} />
+                  <span>{presetDisplayLabel(p)}</span>
+                </span>
+                <span className={styles.hint}>
+                  {disabled ? t('ui.mascot-theme.not-installed') : formatRunnerSummary(p, gateway)}
+                </span>
+              </button>
+            );
+          })}
+          <div className={styles.divider} role="separator" />
+        </>
+      )}
       {backends.map((b) => (
         <button
           key={b}

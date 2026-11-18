@@ -126,9 +126,10 @@ func (s *Service) HelperRoute(kind, tabModel string) *HelperRoute {
 		return nil
 	}
 	st := s.Store.View()
-	m := asObj(objGet(st.Snapshot(), "clients", kind, "models"))
+	snap := st.Snapshot()
+	m := asObj(objGet(snap, "clients", kind, "models"))
 	cfg := s.gatewayConfig(st)
-	refs := []any{m.Get("summary"), objGet(m, "tiers", "haiku"), m.Get("small"), tabModel, m.Get("main")}
+	refs := []any{m.Get("summary"), objGet(m, "tiers", "haiku"), m.Get("small"), snap.Get("helperModel"), tabModel, m.Get("main")}
 	for _, r := range refs {
 		if !u.Truthy(r) {
 			continue

@@ -8,13 +8,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   matchDelegateChanges,
   messagesInRange,
+  peekPrefetchedGitFallback,
   peekPrefetchedTabMessages,
+  resolveGitFallbackForReported,
   type DelegateChanges,
+  type GitFallbackEntry,
 } from '../../services/delegateChanges';
 import { harnessClient, type HarnessTabMessage } from '../../services/harnessClient';
 import { fromHarnessMessage } from '../../utils/convAdapters';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import type { ChangeEntry } from '../../utils/sessionChanges';
+import { workspaceKey, workspaceRelPath } from '../../utils/workspacePath';
 import { TurnEditSummaryCard } from '../SessionWorkspace/TurnEditSummaryCard';
 
 function statusOf(added?: number, removed?: number): Pick<ChangeEntry, 'status' | 'letter'> {
@@ -30,6 +34,9 @@ export const DelegateChangesCard: React.FC<{ messageId: string; changes: Delegat
   const [child, setChild] = useState<HarnessTabMessage[] | null>(() =>
     peekPrefetchedTabMessages(changes),
   );
+  const [gitFallback, setGitFallback] = useState<ReadonlyMap<string, GitFallbackEntry> | null>(() =>
+    peekPrefetchedGitFallback(changes),
+  );
   useEffect(() => {
     if (!tabId) return;
     if (peekPrefetchedTabMessages(changes)) return;
@@ -43,28 +50,70 @@ export const DelegateChangesCard: React.FC<{ messageId: string; changes: Delegat
     };
   }, [tabId, changes]);
   const matchCwd = childCwd ?? cwd;
+  const conv = useMemo(() => {
+    if (!child?.length) return [];
+    return messagesInRange(
+      child.map((m) => fromHarnessMessage(m, backend ?? 'claude')),
+      from,
+      to,
+    );
+  }, [child, backend, from, to]);
+  const hasMissingLineDiff = useMemo(() => {
+    const listed = files.map((f) => f.file);
+    const matched = matchDelegateChanges(listed, conv, matchCwd, messageId, gitFallback).entries;
+    return matched.some((e) => !e.diff);
+  }, [files, conv, matchCwd, messageId, gitFallback]);
+  useEffect(() => {
+    if (!cwd || !hasMissingLineDiff) return;
+    if (peekPrefetchedGitFallback(changes) || gitFallback) return;
+    if (tabId && child === null) return;
+    let alive = true;
+    const listed = files.map((f) => f.file);
+    const missingKeys = new Set(listed.map((f) => workspaceKey(workspaceRelPath(cwd, f))));
+    void resolveGitFallbackForReported(listed, cwd, missingKeys, {
+      gitDiff: (c) => harnessClient.gitDiff(c),
+      readFile: (c, p) => harnessClient.workspaceRead(c, p),
+    })
+      .then((m) => {
+        if (alive && m) setGitFallback(m);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [cwd, hasMissingLineDiff, changes, gitFallback, tabId, child, files]);
   const entries = useMemo<ChangeEntry[]>(() => {
     const listed = files.map((f) => f.file);
-    if (child?.length) {
-      const conv = messagesInRange(
-        child.map((m) => fromHarnessMessage(m, backend ?? 'claude')),
-        from,
-        to,
-      );
-      const matched = matchDelegateChanges(listed, conv, matchCwd, messageId).entries;
-      // 会话里认不出的文件用消息里记下的计数
-      return matched.map((e, i) =>
-        e.diff ? e : { ...e, added: files[i]?.added ?? 0, removed: files[i]?.removed ?? 0 },
-      );
+    if (conv.length || gitFallback?.size) {
+      const matched = matchDelegateChanges(listed, conv, matchCwd, messageId, gitFallback).entries;
+      // 会话与 Git 里仍认不出的文件：若消息已持久化精确计数则保留（statsKnown: true），否则隐藏 +0 −0
+      return matched.map((e, i) => {
+        if (e.diff || e.statsKnown !== false) return e;
+        const saved = files[i];
+        if (saved?.added != null && saved?.removed != null) {
+          return {
+            ...e,
+            added: saved.added,
+            removed: saved.removed,
+            statsKnown: true,
+            ...statusOf(saved.added, saved.removed),
+          };
+        }
+        return e;
+      });
     }
-    return files.map((f) => ({
-      file: f.file,
-      added: f.added ?? 0,
-      removed: f.removed ?? 0,
-      ...statusOf(f.added, f.removed),
-      messageId,
-    }));
-  }, [child, files, matchCwd, backend, from, to, messageId]);
+    return files.map((f) => {
+      const known = f.added != null && f.removed != null;
+      return {
+        file: f.file,
+        added: f.added ?? 0,
+        removed: f.removed ?? 0,
+        statsKnown: known,
+        ...statusOf(f.added, f.removed),
+        messageId,
+      };
+    });
+  }, [conv, files, matchCwd, messageId, gitFallback]);
   if (!entries.length) return null;
   return (
     <div data-testid="delegate-changes">

@@ -10,7 +10,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// RegisterOpenTerminal：check = 工作目录规则（与编程助手同一套，返回不认的原因；"" = 可以），open = 打开终端
+// RegisterOpenTerminal：check = 工作目录规则（与 agent 同一套，返回不认的原因；"" = 可以），open = 打开终端
 func RegisterOpenTerminal(r *contract.Router, check func(dir string) string, open func(dir string) error) {
 	plain(r, "harness.openTerminal", func(a in) any {
 		dir := util.Str(a.o.Get("cwd"))

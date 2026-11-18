@@ -1,6 +1,6 @@
 /**
  * 对话标签状态：主进程是唯一数据源（标签元数据 + CLI 标签消息），这里只做订阅与缓存。
- * 标签 'main' 为原有对话（消息走 AiChatContext）；其它标签只绑定编程助手后端。
+ * 标签 'main' 为原有对话（消息走 AiChatContext）；其它标签只绑定 agent 后端。
  */
 import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
 import { t } from '@nomi-ai/ui';
@@ -18,6 +18,7 @@ import React, {
 
 import { startupBrandIntro } from '../components/BrandIntro/state';
 import { confirmDialog } from '../components/ConfirmDialog';
+import type { RunnerPreset } from '../services/delegateClient';
 import {
   MAIN_TAB_ID,
   harnessClient,
@@ -72,8 +73,12 @@ export interface HarnessTabsCore {
   /** 当前标签是独立的 CLI 标签（非 main） */
   isCliTab: boolean;
   messages: HarnessTabMessage[];
-  /** projectId：在哪个项目里开；不给 = 默认目录 */
-  create: (backend: HarnessBackend, projectId?: string) => Promise<void>;
+  /** projectId：在哪个项目里开；不给 = 默认目录；preset 可选附带路由档位覆盖 */
+  create: (
+    backend: HarnessBackend,
+    projectId?: string,
+    preset?: Pick<RunnerPreset, 'source' | 'accountId' | 'model' | 'reasoningEffort'>,
+  ) => Promise<void>;
   close: (id: string) => Promise<void>;
   rename: (id: string, title: string) => Promise<void>;
   activate: (id: string) => Promise<void>;
@@ -128,7 +133,7 @@ export interface HarnessTabsCore {
   removePendingFrom: (tabId: string, id: string) => void;
   /** 停止指定标签这一轮，待发列表合成一条马上发出 */
   flushPendingFor: (tabId: string) => Promise<boolean>;
-  /** 最近使用的编程助手后端（新建标签默认） */
+  /** 最近使用的 agent 后端（新建标签默认） */
   lastBackend: HarnessBackend;
   /**
    * 挂回这个标签的待发列表（存在 localStorage 的 tab:<标签 id>，见 services/pendingSendsStore）：
@@ -518,16 +523,34 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     });
   }, [activeId, cache]);
 
-  const create = useCallback(async (backend: HarnessBackend, projectId?: string) => {
-    const tab = await harnessClient.createTab(projectId ? { backend, projectId } : { backend });
-    setCache((cur) => ({ ...cur, [tab.id]: [] }));
-    setLastBackend(backend);
-    try {
-      localStorage.setItem(LAST_BACKEND_KEY, backend);
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  const create = useCallback(
+    async (
+      backend: HarnessBackend,
+      projectId?: string,
+      preset?: Pick<RunnerPreset, 'source' | 'accountId' | 'model' | 'reasoningEffort'>,
+    ) => {
+      const tab = await harnessClient.createTab(projectId ? { backend, projectId } : { backend });
+      if (preset) {
+        await harnessClient.setTabSource(
+          tab.id,
+          preset.source,
+          preset.model ?? undefined,
+          preset.source === 'official' ? (preset.accountId ?? null) : null,
+        );
+        if (preset.reasoningEffort) {
+          await harnessClient.setTabEffort(tab.id, preset.reasoningEffort).catch(() => undefined);
+        }
+      }
+      setCache((cur) => ({ ...cur, [tab.id]: [] }));
+      setLastBackend(backend);
+      try {
+        localStorage.setItem(LAST_BACKEND_KEY, backend);
+      } catch {
+        /* ignore */
+      }
+    },
+    [],
+  );
   const close = useCallback(
     async (id: string) => {
       if (id === MAIN_TAB_ID) return;

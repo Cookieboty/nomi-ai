@@ -30,7 +30,7 @@ var fleetSvc atomic.Pointer[fleet.Service]
 // delegateSvc：委派服务（调度策略调大上限后放行排队的委派）
 var delegateSvc atomic.Pointer[delegate.Service]
 
-// fleetHolding：内存守护正扣着新的编程助手（看板还没装好时不扣）
+// fleetHolding：内存守护正扣着新的 agent（看板还没装好时不扣）
 func fleetHolding() bool {
 	s := fleetSvc.Load()
 	return s != nil && s.Holding()
@@ -63,7 +63,7 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 			}
 		},
 		SelfPid: os.Getpid(),
-		// Mock CLI（演示 / 截图 / E2E）：只看 Nomi 自己的进程，本机真实在跑的编程助手不上看板
+		// Mock CLI（演示 / 截图 / E2E）：只看 Nomi 自己的进程，本机真实在跑的 agent 不上看板
 		OwnProcsOnly: os.Getenv("NOMI_USE_MOCK_CLI") == "1",
 		Cores:        runtime.NumCPU(),
 		TotalMem:     func() float64 { return float64(local.TotalMem()) },
@@ -158,7 +158,7 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 			return r.s, r.cwd, r.sess
 		},
 		Emit: func(st fleet.State) { router.Emit("fleet.changed", st) },
-		// 只给用户手动关闭空闲的外部编程助手进程用（fleet.closeIdle）
+		// 只给用户手动关闭空闲的外部 agent 进程用（fleet.closeIdle）
 		Kill: nodeproc.KillPid,
 		// 内存守护：只动编排器里的标签（纳管的）
 		Pressure:     agents.SystemMemory,
@@ -202,7 +202,7 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 		onAgentsChanged = s.Changed
 	})
 	codinghandlers.RegisterFleet(router, func() codinghandlers.Fleet { return s })
-	// 内存紧张时，编程助手与后台 Nomi 的任务先排着；不再紧张时马上再排一次队
+	// 内存紧张时，agent 与后台 Nomi 的任务先排着；不再紧张时马上再排一次队
 	if ts != nil {
 		ts.Runtime.SetAdmit(s.Admit)
 		s.SetOnRelease(func() { go ts.Runtime.Tick() })
@@ -225,7 +225,7 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 	}
 }
 
-// fleetExternal：编程助手监视的状态 → 外部会话（只要本机会话文件来的；Nomi 标签的会话由标签代表）
+// fleetExternal：agent 监视的状态 → 外部会话（只要本机会话文件来的；Nomi 标签的会话由标签代表）
 func fleetExternal(st *util.Obj) []fleet.ExtSession {
 	out := []fleet.ExtSession{}
 	arr, _ := st.Get("sessions").([]any)

@@ -19,7 +19,7 @@ export const EffortSlider: React.FC<{
   value: string | null;
   onPreview: (e: string | null) => void;
   onCommit: (e: string) => void;
-  /** 档位显示名。缺省用思考深度的文案（与编程助手的滑杆相同） */
+  /** 档位显示名。缺省用思考深度的文案（与 agent 的滑杆相同） */
   labelFor?: (id: string) => string;
 }> = ({ levels, value, onPreview, onCommit, labelFor = thinkingLevelLabel }) => {
   const trackRef = useRef<HTMLDivElement>(null);

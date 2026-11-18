@@ -80,9 +80,9 @@ type Service struct {
 	forced   bool
 	file     string
 	logDir   string
-	// FlushTrace：exportBundle 打包前写完缓冲的编程助手收发记录（= cliTrace.flush）
+	// FlushTrace：exportBundle 打包前写完缓冲的 agent 收发记录（= cliTrace.flush）
 	FlushTrace func()
-	// CliTrace：编程助手子进程收发记录（spawnHarness 经 harness.CliTrap 挂上）
+	// CliTrace：agent 子进程收发记录（spawnHarness 经 harness.CliTrap 挂上）
 	CliTrace *CliTrace
 }
 

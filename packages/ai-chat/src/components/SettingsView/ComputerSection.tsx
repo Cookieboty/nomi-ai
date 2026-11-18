@@ -1,7 +1,7 @@
 /**
- * 设置 → Computer Use：让 Nomi（和编程助手）操作本机应用。
+ * 设置 → Computer Use：让 Nomi（和 agent）操作本机应用。
  * 执行器 agent-desktop（npm 包，不随安装包分发）：安装 / 检查更新 / 更新、系统权限与授权引导、
- * 「允许编程助手使用」开关、紧急停止；视觉兜底 / 打码 / 禁止的应用 / 隔离模式在 ComputerOptions。
+ * 「允许 agent 使用」开关、紧急停止；视觉兜底 / 打码 / 禁止的应用 / 隔离模式在 ComputerOptions。
  * 内核 internal/core/computer（契约 computer.*）。
  */
 import {
@@ -431,7 +431,7 @@ export const ComputerSection: React.FC<{
                 </SettingRow>
               </>
             ) : null}
-            {/* 紧急停止、编程助手、视觉兜底：同一张卡里的几行，不再单独成块 */}
+            {/* 紧急停止、agents、视觉兜底：同一张卡里的几行，不再单独成块 */}
             <ComputerOptions part="rows" state={state} update={update} reload={() => load(false)} />
             {state.wayland ? (
               <Notice tone="info" icon={Info}>

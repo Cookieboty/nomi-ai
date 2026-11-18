@@ -172,7 +172,7 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
     await patch({ cnyPerUsd: n });
   };
   const sync = state.pricing.sync;
-  // 模型目录（上下文、输出上限等，供编程助手注入与「模型」页显示）和价格表是同一次 models.dev 同步
+  // 模型目录（上下文、输出上限等，供 agent 注入与「模型」页显示）和价格表是同一次 models.dev 同步
   const [catalog, setCatalog] = useState<GatewayState['catalog'] | null>(null);
   useEffect(() => {
     let alive = true;

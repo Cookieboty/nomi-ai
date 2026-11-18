@@ -64,7 +64,7 @@ export interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectE
   onOpenChange?: (open: boolean) => void;
   /**
    * 内嵌：没有触发器，菜单（顶栏、搜索、侧栏、列表）直接画在调用方的浮层里，样式与弹层完全相同
-   * （如编程助手「模型 · 思考深度」浮层里的模型页）。选中或 Esc 时 onOpenChange(false)，由调用方关浮层
+   * （如 agent「模型 · 思考深度」浮层里的模型页）。选中或 Esc 时 onOpenChange(false)，由调用方关浮层
    */
   inline?: boolean;
   /** inline：菜单高度上限（px，有顶栏 / 侧栏时就是固定高度），默认 420 */

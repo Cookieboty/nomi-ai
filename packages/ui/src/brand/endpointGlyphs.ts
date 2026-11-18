@@ -1,4 +1,4 @@
-/** Nomi 使用自有品牌路径；编程助手引用共享 LobeHub 产品图标，避免重复维护替代图形。 */
+/** Nomi 使用自有品牌路径；agent 引用共享 LobeHub 产品图标，避免重复维护替代图形。 */
 export type EndpointGlyphKey =
   'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini' | 'kimi' | 'minimax' | 'external';
 

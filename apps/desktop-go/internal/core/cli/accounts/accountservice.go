@@ -30,7 +30,7 @@ const (
 )
 
 // AccountError = AccountError（Code: not-found / in-use / no-account / unsupported / unknown-live / external-busy）。
-// no-account：这个编程助手还没有 Nomi 管理的官方账号（不再退回这台电脑上 CLI 自己的登录）。
+// no-account：还没有 Nomi 管理的官方账号（不再退回这台电脑上 CLI 自己的登录）。
 // external-busy：有 Nomi 之外的 CLI 进程在用这个账号目录（Pids），界面可以让用户选择结束它们再删除。
 type AccountError struct {
 	Code, Message string
@@ -563,7 +563,7 @@ func (s *AccountService) defaultID(kind string) string {
 	return first
 }
 
-// HasAccount：这个编程助手有没有 Nomi 管理的官方账号
+// HasAccount：有没有 Nomi 管理的官方账号
 func (s *AccountService) HasAccount(kind string) (ok bool) {
 	defer func() {
 		if recover() != nil {
@@ -571,6 +571,21 @@ func (s *AccountService) HasAccount(kind string) (ok bool) {
 		}
 	}()
 	return s.defaultID(kind) != ""
+}
+
+// HasSignedInAccount：有没有已登录的 Nomi 官方账号
+func (s *AccountService) HasSignedInAccount(kind string) (ok bool) {
+	defer func() {
+		if recover() != nil {
+			ok = false
+		}
+	}()
+	for _, a := range s.store().accounts {
+		if prop(a, "kind") == kind && truthy(prop(a, "loggedIn")) {
+			return true
+		}
+	}
+	return false
 }
 
 // DefaultID = defaultId.
@@ -615,6 +630,17 @@ func (s *AccountService) inUse(kind string, id any) any {
 	return orElse(s.d.InUse(kind, idS), float64(0))
 }
 
+func isActiveAccount(a any) bool {
+	return truthy(prop(a, "loggedIn")) && !truthy(prop(a, "needsLogin"))
+}
+
+func (s *AccountService) inUseFor(a any) any {
+	if !isActiveAccount(a) {
+		return float64(0)
+	}
+	return s.inUse(kindOf(a), prop(a, "id"))
+}
+
 func (s *AccountService) view(a any) *util.Obj {
 	kind := kindOf(a)
 	dir := dirOf(a)
@@ -629,12 +655,12 @@ func (s *AccountService) view(a any) *util.Obj {
 	}
 	v := util.NewObj("id", prop(a, "id"), "kind", prop(a, "kind"), "label", prop(a, "label"),
 		"identity", prop(a, "identity"),
-		"active", s.defaultID(kind) == prop(a, "id"),
+		"active", isActiveAccount(a) && s.defaultID(kind) == prop(a, "id"),
 		"loggedIn", prop(a, "loggedIn"))
 	if truthy(prop(a, "needsLogin")) {
 		v.Set("needsLogin", true)
 	}
-	v.Set("inUse", s.inUse(kind, prop(a, "id")))
+	v.Set("inUse", s.inUseFor(a))
 	v.Set("duplicateOf", s.duplicateOf(a))
 	if hasDir(dir) {
 		v.Set("terminalCommand", s.terminalCommand(kind, *dir))
@@ -796,7 +822,7 @@ func (s *AccountService) SessionAccount(kind, sessionID string) (v *util.Obj, er
 	}
 	for _, a := range s.store().accounts {
 		if prop(a, "id") == id && prop(a, "kind") == kind {
-			return util.NewObj("id", prop(a, "id"), "label", orElse(opt(prop(a, "identity"), "email"), prop(a, "label"))), nil
+			return util.NewObj("id", prop(a, "id"), "label", orElse(opt(prop(a, "identity"), "name"), orElse(opt(prop(a, "identity"), "email"), prop(a, "label")))), nil
 		}
 	}
 	return nil, nil
@@ -865,7 +891,7 @@ func (s *AccountService) refresh(id string) *util.Obj {
 		}
 		checked := truthy(r.Get("accountIdChecked")) || (same && truthy(opt(prev, "accountIdChecked")))
 		ident := util.NewObj("key", key)
-		for _, f := range []string{"email", "plan", "org"} {
+		for _, f := range []string{"name", "email", "plan", "org"} {
 			if v := r.Get(f); truthy(v) {
 				ident.Set(f, v)
 			}
@@ -874,13 +900,30 @@ func (s *AccountService) refresh(id string) *util.Obj {
 			ident.Set("accountIdChecked", true)
 		}
 		setProp(a, "identity", ident)
-		off := t("electron.common.official-account")
-		if lbl := prop(a, "label"); truthy(prop(a, "dir")) && truthy(r.Get("email")) && (lbl == off || !truthy(lbl)) {
-			setProp(a, "label", r.Get("email"))
+		if truthy(prop(a, "dir")) && isDefaultOfficialLabel(prop(a, "label")) {
+			preferred := strTrim(r.Get("name"))
+			if preferred == "" {
+				preferred = strTrim(r.Get("email"))
+			}
+			if preferred != "" {
+				setProp(a, "label", slice16(preferred, 0, 60))
+			}
 		}
 	}
 	s.save()
 	return s.view(a)
+}
+
+func isDefaultOfficialLabel(lbl any) bool {
+	if !truthy(lbl) {
+		return true
+	}
+	s := util.JSTrim(jsStr(lbl))
+	return s == "" ||
+		s == t("electron.common.official-account") ||
+		s == "官方账号" ||
+		strings.EqualFold(s, "official account") ||
+		strings.EqualFold(s, "official accounts")
 }
 
 // RefreshAll = refreshAll(kind)。
@@ -1084,7 +1127,7 @@ func (s *AccountService) remove(id string, o RemoveOpts) {
 	if !hasDir(dir) {
 		panic(accountErr("not-found", t("electron.common.account-not-found")))
 	}
-	busy := s.inUse(kind, prop(a, "id"))
+	busy := s.inUseFor(a)
 	if f, ok := busy.(float64); ok && f > 0 {
 		panic(accountErr("in-use", t("electron.common.tab-s-still-use-this-account-close-them", jsStr(busy))))
 	}
@@ -1118,6 +1161,7 @@ func (s *AccountService) remove(id string, o RemoveOpts) {
 	s.removeKeychainEntry(a)
 	_ = nodefs.RmForce(*dir)
 	st := s.store()
+	wasDefault := st.getDefault(kind) == id || (isActiveAccount(a) && s.defaultID(kind) == id)
 	kept := []any{}
 	for _, x := range st.accounts {
 		if prop(x, "id") != id {
@@ -1127,13 +1171,11 @@ func (s *AccountService) remove(id string, o RemoveOpts) {
 	st.accounts = kept
 	if st.getDefault(kind) == id {
 		st.deleteDefault(kind)
-		s.save()
-		if s.d.OnDefaultChanged != nil {
-			s.d.OnDefaultChanged(kind)
-		}
-		return
 	}
 	s.save()
+	if wasDefault && s.d.OnDefaultChanged != nil {
+		s.d.OnDefaultChanged(kind)
+	}
 }
 
 func (s *AccountService) removeKeychainEntry(a any) {
@@ -1258,6 +1300,11 @@ func (h HarnessAdapter) Launch(kind ports.AccountBackend, accountID *string) por
 // HasAccount = ports.AccountPresence。
 func (h HarnessAdapter) HasAccount(kind ports.AccountBackend) bool {
 	return h.S.HasAccount(string(kind))
+}
+
+// HasSignedInAccount = ports.AccountSignInPresence。
+func (h HarnessAdapter) HasSignedInAccount(kind ports.AccountBackend) bool {
+	return h.S.HasSignedInAccount(string(kind))
 }
 
 func (h HarnessAdapter) NoteSession(kind ports.AccountBackend, sessionID string, accountID *string) {

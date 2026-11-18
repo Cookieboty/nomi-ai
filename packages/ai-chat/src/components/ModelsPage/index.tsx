@@ -1,9 +1,9 @@
 /**
  * 设置 →「模型」页（docs/development/gateway.md）：第三方供应商与模型分配，数据来自网关（ai:gateway:*）。
- * - 分配：Nomi 对话（main；tools / summary / image 收在「更多用途」里）；各编程助手的第三方模型（标签选「第三方」时用）；
- *   「新会话默认用」在「编程助手」页各助手的详情里；
+ * - 分配：Nomi 对话（main；tools / summary / image 收在「更多用途」里）；各 agent 的第三方模型（标签选「第三方」时用）；
+ *   「新会话默认用」在「Agents」页各助手的详情里；
  * - 「显示协议」「上下文档位」「严格模式」「请求体上限」都在页底的「高级」里；
- * - 官方账号不在这里：仍在「编程助手」页原位置（安装、账号也在那里）。
+ * - 官方账号不在这里：仍在「Agents」页原位置（安装、账号也在那里）。
  */
 import {
   BrandIcon,
@@ -87,10 +87,10 @@ const AUTO_IMAGE = [
 type ModelsPatch = Partial<Omit<Record<keyof ClientModels, string | null>, 'tiers'>> & {
   tiers?: Partial<Record<TierId, string | null>>;
 };
-/** 编程助手一行的设置：第三方模型（部分）与「新标签默认用」 */
+/** agent 一行的设置：第三方模型（部分）与「新标签默认用」 */
 type CliAssignPatch = {
   models?: ModelsPatch;
-  newTabSource?: 'official' | 'thirdParty';
+  newTabSource?: 'local' | 'official' | 'thirdParty';
   newTabAccountId?: string | null;
 };
 type TierId = keyof NonNullable<ClientModels['tiers']>;
@@ -106,12 +106,14 @@ const CLAUDE_TIERS: ReadonlyArray<{ id: TierId; label: string }> = [
   { id: 'fable', label: 'ui.models.fable-tier' },
 ];
 
-export const ModelsPage: React.FC = () => {
+export const ModelsPage: React.FC<{ hideAssignments?: boolean }> = ({
+  hideAssignments = false,
+}) => {
   const state = useGatewayState();
   const [adding, setAdding] = useState(false);
   const [showWire, setShowWire] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  /** 展开了「各档模型 / 更多」的编程助手 */
+  /** 展开了「各档模型 / 更多」的 agent */
   const [openCli, setOpenCli] = useState<CliKind | 'nomi' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revokeSeen, setRevokeSeen] = useState(false);
@@ -150,7 +152,7 @@ export const ModelsPage: React.FC = () => {
   const assign = (patch: Partial<Record<keyof ClientModels, string | null>>) =>
     run(gatewayClient.setAssignment('nomi', { models: patch as ClientModels }));
 
-  /** 编程助手的第三方模型 / 新标签默认用；null 表示清除 */
+  /** agent 的第三方模型 / 新标签默认用；null 表示清除 */
   const assignCli = (kind: CliKind, patch: CliAssignPatch) =>
     run(
       gatewayClient.setAssignment(kind, patch as Parameters<typeof gatewayClient.setAssignment>[1]),
@@ -166,7 +168,7 @@ export const ModelsPage: React.FC = () => {
   const showForm = Boolean(state) && !providers.length;
   const noModels = !picker.length;
   /** 还没有供应商：卡片标题带步骤编号（1 加供应商 → 2 分配）；配好以后不再显示 */
-  const onboarding = Boolean(state) && !providers.length;
+  const onboarding = !hideAssignments && Boolean(state) && !providers.length;
 
   const status = state?.status;
   return (
@@ -288,124 +290,128 @@ export const ModelsPage: React.FC = () => {
         </span>
       </section>
 
-      <section
-        className={`${styles.card} ${noModels ? styles.cardOff : ''}`}
-        aria-labelledby="models-assign"
-        aria-disabled={noModels}
-        data-testid="models-assign"
-        data-state={noModels ? 'disabled' : 'ready'}
-      >
-        <h3 id="models-assign" className={styles.cardTitle}>
-          {onboarding && <span className={styles.stepNo}>2</span>}
-          <Icon icon={Waypoints} size={16} />
-          {t('ui.models.assignments')}
-        </h3>
-        {noModels && (
-          <p className={styles.sub} data-testid="models-assign-off">
-            {t('ui.models.configure-a-provider-first')}
-          </p>
-        )}
-        <p className={styles.sub}>{t('ui.models.assign-hint')}</p>
-        {/* Nomi 与各编程助手一样一张卡片：主模型在卡片上，箭头展开附加用途（Nomi：工具调用 / 摘要 / 图片生成） */}
-        <div className={styles.cliGrid} data-testid="models-cli">
-          <div
-            className={styles.cliCard}
-            data-testid="nomi-card"
-            data-open={openCli === 'nomi' || undefined}
+      {!hideAssignments && (
+        <>
+          <section
+            className={`${styles.card} ${noModels ? styles.cardOff : ''}`}
+            aria-labelledby="models-assign"
+            aria-disabled={noModels}
+            data-testid="models-assign"
+            data-state={noModels ? 'disabled' : 'ready'}
           >
-            <div className={styles.cliCardHead}>
-              <span className={styles.cliName}>
-                <EndpointIcon backend="nomi" size={16} decorative />
-                {t('ui.models.nomi-ai')}
-              </span>
-              <IconButton
-                size="sm"
-                className={styles.expand}
-                aria-expanded={openCli === 'nomi'}
-                label={`${t('ui.models.nomi-ai')} · ${t('ui.voice-mascot.more')}`}
-                data-testid="nomi-more"
-                onClick={() => setOpenCli((x) => (x === 'nomi' ? null : 'nomi'))}
-                icon={<Icon icon={openCli === 'nomi' ? ChevronDown : ChevronRight} size={14} />}
-              />
-            </div>
-            <ModelPicker
-              {...common}
-              className={styles.picker}
-              value={nomi.main ?? null}
-              onChange={(v) => assign({ main: v })}
-              placeholder={
-                picker.length
-                  ? t('ui.models.choose-a-model')
-                  : t('ui.models.add-a-third-party-provider-first')
-              }
-              disabled={!picker.length}
-              aria-label={t('ui.models.model-for-nomi-chat')}
-              data-testid="assign-chat"
-            />
-            {openCli === 'nomi' && (
-              <div className={styles.cliTiers}>
-                <div className={styles.tierField}>
-                  <span className={styles.tierLabel}>{t('ui.models.tool-calls')}</span>
-                  <ModelPicker
-                    {...common}
-                    className={styles.picker}
-                    extraOptions={SAME_AS_CHAT}
-                    value={nomi.tools ?? FOLLOW}
-                    onChange={(v) => assign({ tools: v === FOLLOW ? null : v })}
-                    disabled={!picker.length}
-                    aria-label={t('ui.models.model-for-tool-calls')}
-                    data-testid="assign-tools"
-                  />
-                </div>
-                <div className={styles.tierField}>
-                  <span className={styles.tierLabel}>{t('ui.models.summaries')}</span>
-                  <ModelPicker
-                    {...common}
-                    className={styles.picker}
-                    extraOptions={SAME_AS_CHAT}
-                    value={nomi.summary ?? FOLLOW}
-                    onChange={(v) => assign({ summary: v === FOLLOW ? null : v })}
-                    disabled={!picker.length}
-                    aria-label={t('ui.models.model-for-summaries')}
-                    data-testid="assign-summary"
-                  />
-                </div>
-                <div className={styles.tierField}>
-                  <span className={styles.tierLabel}>{t('ui.models.image-generation')}</span>
-                  <ModelPicker
-                    {...common}
-                    providers={imagePicker}
-                    className={styles.picker}
-                    extraOptions={AUTO_IMAGE}
-                    value={nomi.image ?? UNSET}
-                    onChange={(v) => assign({ image: v === UNSET ? null : v })}
-                    disabled={!imagePicker.length}
-                    placeholder={t('ui.models.no-image-models')}
-                    aria-label={t('ui.models.model-for-image-generation')}
-                    data-testid="assign-image"
-                  />
-                </div>
-              </div>
+            <h3 id="models-assign" className={styles.cardTitle}>
+              {onboarding && <span className={styles.stepNo}>2</span>}
+              <Icon icon={Waypoints} size={16} />
+              {t('ui.models.assignments')}
+            </h3>
+            {noModels && (
+              <p className={styles.sub} data-testid="models-assign-off">
+                {t('ui.models.configure-a-provider-first')}
+              </p>
             )}
-          </div>
-          {CLI_KINDS.map((kind) => (
-            <CliRow
-              key={kind}
-              kind={kind}
-              client={state?.clients[kind]}
-              common={common}
-              disabled={!picker.length}
-              open={openCli === kind}
-              onToggle={() => setOpenCli((x) => (x === kind ? null : kind))}
-              onAssign={(patch) => assignCli(kind, patch)}
-              missing={cli.missing(kind)}
-              installBusy={cli.busy(kind)}
-              onInstall={() => cli.install(kind)}
-            />
-          ))}
-        </div>
-      </section>
-      {cli.dialog}
+            <p className={styles.sub}>{t('ui.models.assign-hint')}</p>
+            {/* Nomi 与各 agent 一样一张卡片：主模型在卡片上，箭头展开附加用途（Nomi：工具调用 / 摘要 / 图片生成） */}
+            <div className={styles.cliGrid} data-testid="models-cli">
+              <div
+                className={styles.cliCard}
+                data-testid="nomi-card"
+                data-open={openCli === 'nomi' || undefined}
+              >
+                <div className={styles.cliCardHead}>
+                  <span className={styles.cliName}>
+                    <EndpointIcon backend="nomi" size={16} decorative />
+                    {t('ui.models.nomi-ai')}
+                  </span>
+                  <IconButton
+                    size="sm"
+                    className={styles.expand}
+                    aria-expanded={openCli === 'nomi'}
+                    label={`${t('ui.models.nomi-ai')} · ${t('ui.voice-mascot.more')}`}
+                    data-testid="nomi-more"
+                    onClick={() => setOpenCli((x) => (x === 'nomi' ? null : 'nomi'))}
+                    icon={<Icon icon={openCli === 'nomi' ? ChevronDown : ChevronRight} size={14} />}
+                  />
+                </div>
+                <ModelPicker
+                  {...common}
+                  className={styles.picker}
+                  value={nomi.main ?? null}
+                  onChange={(v) => assign({ main: v })}
+                  placeholder={
+                    picker.length
+                      ? t('ui.models.choose-a-model')
+                      : t('ui.models.add-a-third-party-provider-first')
+                  }
+                  disabled={!picker.length}
+                  aria-label={t('ui.models.model-for-nomi-chat')}
+                  data-testid="assign-chat"
+                />
+                {openCli === 'nomi' && (
+                  <div className={styles.cliTiers}>
+                    <div className={styles.tierField}>
+                      <span className={styles.tierLabel}>{t('ui.models.tool-calls')}</span>
+                      <ModelPicker
+                        {...common}
+                        className={styles.picker}
+                        extraOptions={SAME_AS_CHAT}
+                        value={nomi.tools ?? FOLLOW}
+                        onChange={(v) => assign({ tools: v === FOLLOW ? null : v })}
+                        disabled={!picker.length}
+                        aria-label={t('ui.models.model-for-tool-calls')}
+                        data-testid="assign-tools"
+                      />
+                    </div>
+                    <div className={styles.tierField}>
+                      <span className={styles.tierLabel}>{t('ui.models.summaries')}</span>
+                      <ModelPicker
+                        {...common}
+                        className={styles.picker}
+                        extraOptions={SAME_AS_CHAT}
+                        value={nomi.summary ?? FOLLOW}
+                        onChange={(v) => assign({ summary: v === FOLLOW ? null : v })}
+                        disabled={!picker.length}
+                        aria-label={t('ui.models.model-for-summaries')}
+                        data-testid="assign-summary"
+                      />
+                    </div>
+                    <div className={styles.tierField}>
+                      <span className={styles.tierLabel}>{t('ui.models.image-generation')}</span>
+                      <ModelPicker
+                        {...common}
+                        providers={imagePicker}
+                        className={styles.picker}
+                        extraOptions={AUTO_IMAGE}
+                        value={nomi.image ?? UNSET}
+                        onChange={(v) => assign({ image: v === UNSET ? null : v })}
+                        disabled={!imagePicker.length}
+                        placeholder={t('ui.models.no-image-models')}
+                        aria-label={t('ui.models.model-for-image-generation')}
+                        data-testid="assign-image"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              {CLI_KINDS.map((kind) => (
+                <CliRow
+                  key={kind}
+                  kind={kind}
+                  client={state?.clients[kind]}
+                  common={common}
+                  disabled={!picker.length}
+                  open={openCli === kind}
+                  onToggle={() => setOpenCli((x) => (x === kind ? null : kind))}
+                  onAssign={(patch) => assignCli(kind, patch)}
+                  missing={cli.missing(kind)}
+                  installBusy={cli.busy(kind)}
+                  onInstall={() => cli.install(kind)}
+                />
+              ))}
+            </div>
+          </section>
+          {cli.dialog}
+        </>
+      )}
 
       <section className={styles.card} data-testid="models-advanced-card">
         <button
@@ -529,7 +535,7 @@ export const ModelsPage: React.FC = () => {
   );
 };
 
-/* ------------------------------ 编程助手一行 ------------------------------ */
+/* ------------------------------ agent 一行 ------------------------------ */
 
 const CliRow: React.FC<{
   kind: CliKind;
@@ -541,7 +547,7 @@ const CliRow: React.FC<{
   onAssign: (patch: CliAssignPatch) => void;
   /** 没安装：整行变灰，只显示「安装」 */
   missing: boolean;
-  /** 这一行的编程助手正在安装（其他行不受影响） */
+  /** 这一行的 agent 正在安装（其他行不受影响） */
   installBusy: boolean;
   onInstall: () => void;
 }> = ({

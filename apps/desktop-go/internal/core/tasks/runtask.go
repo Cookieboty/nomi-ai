@@ -4,7 +4,7 @@ import "context"
 
 type runTaskKey struct{}
 
-// WithRunTask：把正在执行的任务 id 登记到 ctx 上（Nomi 后台运行里委派出去的编程助手据此记下「是谁派的」，
+// WithRunTask：把正在执行的任务 id 登记到 ctx 上（Nomi 后台运行里委派出去的 agent 据此记下「是谁派的」，
 // Agent 看板显示调度树）
 func WithRunTask(ctx context.Context, taskID string) context.Context {
 	if ctx == nil || taskID == "" {

@@ -1,7 +1,7 @@
 // Package projects：项目 = 有名字的一组文件夹（userData/projects.json）。
 //
 // Primary 是主文件夹：会话的工作目录、相对路径的基准、git / worktree / AGENTS.md 的来源；
-// Folders 是其余文件夹（不含 Primary，顺序即显示顺序），Nomi 与编程助手在里面同样能读写。
+// Folders 是其余文件夹（不含 Primary，顺序即显示顺序），Nomi 与 agent 在里面同样能读写。
 // 会话只记 projectId，目录由这里实时取（Roots），改了项目下一轮 / 下次启动起生效。
 //
 // 项目里的文件夹就是用户授权给 agent 的范围：新建 / 编辑时逐个过 Check（过宽的根、受保护目录、

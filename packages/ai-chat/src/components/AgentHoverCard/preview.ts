@@ -1,6 +1,6 @@
 /**
  * 子任务悬停卡片的内容（纯函数，便于单测）：最近发给它的一句、它最近的输出、状态。
- * 数据来自各子任务已有的实时来源（编程助手标签的消息 / 实时进度、后台 Nomi 的 trace、父转录里的子代理），
+ * 数据来自各子任务已有的实时来源（agent 标签的消息 / 实时进度、后台 Nomi 的 trace、父转录里的子代理），
  * 见 ./index.tsx。
  */
 import type { ConvMessage } from '../../types/conversation';
@@ -51,7 +51,7 @@ export function lastExchange(
   };
 }
 
-/** 编程助手标签的状态 */
+/** agent 标签的状态 */
 export function harnessCardState(status: string | undefined, waiting: boolean): AgentCardState {
   if (waiting) return 'waiting';
   if (status === 'running' || status === 'queued') return 'running';

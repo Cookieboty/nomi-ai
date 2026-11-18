@@ -80,7 +80,7 @@ export function useAppSlash(opts: {
     onOpenProviders: panels.openProviders,
     onOpenSettings: () => {
       if (backend !== 'nomi') setProviderEndpoint(backend);
-      panels.openSettings('coding');
+      panels.openSettings('ai', 'assistants');
     },
   });
   return { slash, backend, cwd };

@@ -1,6 +1,6 @@
 package chatassets
 
-// localimage.go：对话里引用的本机图片 → data URL。编程助手 / CLI 常把二维码、截图存成本地文件
+// localimage.go：对话里引用的本机图片 → data URL。agents / CLI 常把二维码、截图存成本地文件
 // （如飞书 CLI 设备授权的 auth-qr.png），回复里写的是本地路径，视图不能直接加载 file:。
 // 只读用户认可的位置里的图片：工作区 / 授权过的文件夹（dirOk 判断）或系统临时目录；按内容嗅探确认是图片，限大小。
 

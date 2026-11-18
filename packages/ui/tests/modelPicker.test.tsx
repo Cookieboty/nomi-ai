@@ -76,7 +76,7 @@ describe('ModelPicker', () => {
     expect(texts.join('|')).not.toContain('Anthropic');
   });
 
-  it('for coding assistants hides models without tool calling and flags unknown limits', async () => {
+  it('for agents hides models without tool calling and flags unknown limits', async () => {
     render(<Harness purpose="coding" />);
     fireEvent.click(screen.getByRole('combobox'));
     const texts = optionTexts();

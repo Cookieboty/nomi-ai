@@ -8,6 +8,8 @@ export interface ChangeEntry {
   file: string;
   added: number;
   removed: number;
+  /** 是否拿到了确切的增删行数统计（缺省为 true；二进制或无法读取 diff 时为 false，界面不渲染 +0 −0） */
+  statsKnown?: boolean;
   changeKind?: string;
   status: 'modified' | 'added' | 'deleted' | 'unknown';
   /** 展示用单字母，贴近 Codex M/A/D */

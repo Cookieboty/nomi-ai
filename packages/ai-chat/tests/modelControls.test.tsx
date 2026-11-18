@@ -10,6 +10,7 @@ import type {
   ReasoningEffort,
 } from '../src/services/harnessClient';
 import { openModelMenu } from '../src/services/modelMenu';
+import { resetGatewayStateCache } from '../src/services/nomiModel';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
@@ -106,6 +107,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   resetFakeApi();
+  resetGatewayStateCache();
 });
 
 describe('ModelControls', () => {
@@ -758,6 +760,19 @@ describe('ModelControls（会话的供应商分组）', () => {
         if (ch === 'gateway.state') return gw;
         if (ch === 'harness.modelCatalog') return cat;
         if (ch === 'harness.tabModel') return { ...tab, modelOverride: String(i?.model) };
+        if (ch === 'cliAccount.list')
+          return [
+            {
+              id: 'acct-1',
+              kind: 'codex',
+              label: 'Default Official',
+              loggedIn: true,
+              identity: null,
+              active: true,
+              inUse: 0,
+              createdAt: 0,
+            },
+          ];
         return {};
       });
       installFakeApi(invoke);
@@ -867,7 +882,7 @@ describe('ModelControls（会话的供应商分组）', () => {
       expect(row.textContent).not.toContain('anthropic/');
       expect(row.textContent).toContain('200K');
       expect(row.getAttribute('data-value')).toBe('mix/anthropic/claude-x');
-      // 生图模型不能给编程助手用，不列
+      // 生图模型不能给 agent 用，不列
       expect(within(menu).queryByTestId('model-mix/openai/gpt-image-2')).toBeNull();
       // 厂商分组标题按左侧图标栏的顺序
       const groups = () =>

@@ -17,6 +17,7 @@ import {
   sortSessionAgents,
   type SessionAgent,
 } from '../src/components/SessionDetails/agents';
+import { resetDelegateResultsCache } from '../src/components/SessionDetails/useDelegateResults';
 import { summarizeGit } from '../src/components/SessionDetails/useWorkspaceChanges';
 import { useChangesUi } from '../src/components/SessionWorkspace';
 import { useSubagentPane, WorkspacePanesProvider } from '../src/components/SubagentPane';
@@ -192,6 +193,7 @@ afterEach(() => {
   aiChatState.messages = [];
   aiChatState.isLoading = false;
   localStorage.clear();
+  resetDelegateResultsCache();
   vi.restoreAllMocks();
   resetFakeApi();
 });
@@ -402,7 +404,7 @@ describe('session details lists', () => {
       ...Array.from({ length: 6 }, (_, i) => task(`t${i + 1}`)),
       task('t9', { status: 'running' }),
       task('x1', { origin: { conversationId: 'other', createdBy: 'nomi', createdAt: 0 } }),
-      // 后台派给编程助手的：在「Agents」里，不在任务里
+      // 后台派给 agent 的：在「Agents」里，不在任务里
       task('d1', {
         origin: { conversationId: 'n1', createdBy: 'nomi', createdAt: 0, via: 'delegate' },
         executor: { kind: 'cli', cli: 'claude', cwd: '/w', isolation: 'shared' },
@@ -851,8 +853,8 @@ describe('Agents order: status group first, newest first inside a group', () => 
   });
 });
 
-describe('Nomi delegations stay continuable after their tab was reused', () => {
-  // 同一种委派接着用了 d1：标签上的 callId 已换成新那次（c1），旧的 c0 只剩结果里的 taskId
+describe('Nomi delegations stay continuable and collapse into one row when reused', () => {
+  // 同一种委派接着用了 d1：标签上的 callId 已换成新那次（c1），旧的 c0 只剩结果里的 taskId 或 prevCallIds
   const reused = [
     {
       id: 'old',
@@ -884,14 +886,31 @@ describe('Nomi delegations stay continuable after their tab was reused', () => {
     ...messages,
   ] as unknown as ConvMessage[];
 
-  it('the old delegation opens its (reused) tab, not a read-only sub-agent', () => {
+  it('merges previous and current delegations on the same reused tab into a single agent row', () => {
     const agents = collectSessionAgents(reused, [delegated], {});
+    const delegates = agents.filter((a) => a.kind === 'delegate');
+    expect(delegates).toHaveLength(1);
+    expect(delegates[0]).toMatchObject({
+      id: 'c1',
+      kind: 'delegate',
+      tabId: 'd1',
+      status: 'running',
+      backend: 'codex',
+      detail: '修复登录 bug',
+    });
+    expect(countRunning(agents)).toBe(1);
+    // 同一个载体只出现 1 条（新任务状态，旧任务不会再残留占成 2 个 agent）
+    expect(agents.find((a) => a.id === 'c0')).toBeUndefined();
+  });
+
+  it('the single old delegation opens its (reused) tab, not a read-only sub-agent', () => {
+    const agents = collectSessionAgents([reused[0]!], [delegated], {});
     const old = agents.find((a) => a.id === 'c0')!;
-    // 状态仍按这一次自己的结果（标签现在在跑的是新那次）
+    // 状态仍按这一次自己的结果（标签现在在跑的是另一轮未带入本集合时的结果）
     expect(old).toMatchObject({ kind: 'delegate', tabId: 'd1', status: 'done', backend: 'codex' });
     expect(sessionAgentTarget(old, null)).toEqual({ kind: 'harness', tabId: 'd1' });
     // 标签整个没了：不再掉成「进程内子代理」
-    const gone = collectSessionAgents(reused, [], {}).find((a) => a.id === 'c0')!;
+    const gone = collectSessionAgents([reused[0]!], [], {}).find((a) => a.id === 'c0')!;
     expect(sessionAgentTarget(gone, null)).toBeNull();
   });
 
@@ -913,18 +932,134 @@ describe('Nomi delegations stay continuable after their tab was reused', () => {
     ).toEqual({ kind: 'nested', callId: 'c2', parentTabId: null });
   });
 
-  it('clicking the old delegation in the popover opens the coding-agent tab', async () => {
+  it('merges background tasks reusing the same agent tab via prevCallIds or result tabId, while keeping distinct tabs separate', () => {
+    const bgMsgs = [
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: '',
+        timestamp: 1,
+        trace: [
+          {
+            type: 'tool',
+            name: 'delegate_to_cli',
+            status: 'done',
+            id: 'call-1',
+            at: 10,
+            input: JSON.stringify({ goal: '全仓库重命名' }),
+            output: JSON.stringify({
+              ok: true,
+              data: { taskId: 'task-1', cli: 'claude', status: 'running', background: true },
+            }),
+          },
+        ],
+      },
+      {
+        id: 'm2',
+        role: 'assistant',
+        content: '',
+        timestamp: 2,
+        trace: [
+          {
+            type: 'tool',
+            name: 'delegate_to_cli',
+            status: 'done',
+            id: 'call-2',
+            at: 20,
+            input: JSON.stringify({ goal: '拆分三方与本地模型标签' }),
+            output: JSON.stringify({
+              ok: true,
+              data: { taskId: 'task-2', cli: 'claude', status: 'running', background: true },
+            }),
+          },
+        ],
+      },
+    ] as unknown as ConvMessage[];
+
+    // 1) 通过标签 delegation.prevCallIds 同步识别复用（无需等异步 results 返回）
+    const reboundTab: HarnessTabMeta = {
+      ...delegated,
+      id: 'tab-claude-1',
+      backend: 'claude',
+      delegation: {
+        by: 'nomi',
+        callId: 'call-2',
+        taskId: 'task-2',
+        prevCallIds: ['call-1'],
+        prevTaskIds: ['task-1'],
+        goal: '拆分三方与本地模型标签',
+        approvals: { asked: 0, denied: 0, timedOut: 0 },
+      },
+    };
+    const synced = collectSessionAgents(bgMsgs, [reboundTab], {});
+    expect(synced).toHaveLength(1);
+    expect(synced[0]).toMatchObject({
+      id: 'call-2',
+      kind: 'delegate',
+      tabId: 'tab-claude-1',
+      status: 'running',
+      detail: '拆分三方与本地模型标签',
+    });
+
+    // 2) 通过 results 中的 tabId 识别复用（即便标签不在了或未带 prevCallIds）
+    const byResult = collectSessionAgents(
+      bgMsgs,
+      [],
+      {},
+      {},
+      {
+        'task-1': {
+          taskId: 'task-1',
+          cli: 'claude',
+          status: 'done',
+          tabId: 'tab-claude-1',
+        } as never,
+        'task-2': {
+          taskId: 'task-2',
+          cli: 'claude',
+          status: 'done',
+          tabId: 'tab-claude-1',
+        } as never,
+      },
+    );
+    expect(byResult).toHaveLength(1);
+    expect(byResult[0]).toMatchObject({
+      id: 'call-2',
+      status: 'done',
+      detail: '拆分三方与本地模型标签',
+    });
+
+    // 3) 真正两个不同标签的任务不合并
+    const twoTabs = collectSessionAgents(
+      bgMsgs,
+      [],
+      {},
+      {},
+      {
+        'task-1': { taskId: 'task-1', cli: 'claude', status: 'done', tabId: 'tab-1' } as never,
+        'task-2': { taskId: 'task-2', cli: 'claude', status: 'running', tabId: 'tab-2' } as never,
+      },
+    );
+    expect(twoTabs).toHaveLength(2);
+  });
+
+  it('clicking the reused agent in the popover shows only 1 delegate row and opens its tab', async () => {
     setup();
     mount('/w/app', reused);
     fireEvent.click(screen.getByTestId('session-details-toggle'));
     await screen.findByTestId('session-details');
-    const row = await waitFor(() => {
-      const r = screen
+    // reused 里 c0 与 c1 复用同一标签 d1，合并为 1 个 delegate（修复登录 bug），加上 explorer 子代理共 2 个
+    await waitFor(() => expect(screen.getAllByTestId('session-details-agent')).toHaveLength(2));
+    expect(screen.getByTestId('session-details-agents-count').textContent).toMatch(/2.*1/);
+    const row = screen
+      .getAllByTestId('session-details-agent')
+      .find((x) => x.textContent?.includes('修复登录 bug'))!;
+    expect(row).toBeTruthy();
+    expect(
+      screen
         .getAllByTestId('session-details-agent')
-        .find((x) => x.textContent?.includes('先查一下'));
-      expect(r).toBeTruthy();
-      return r!;
-    });
+        .some((x) => x.textContent?.includes('先查一下')),
+    ).toBe(false);
     fireEvent.click(row.querySelector('button')!);
     expect(screen.getByTestId('probe-target').textContent).toBe(
       agentKey({ kind: 'harness', tabId: 'd1' }),
@@ -939,7 +1074,7 @@ describe('agent identity (icon + name) comes from what the agent really is', () 
   it('a sub-agent of the Nomi chat is Nomi; of a coding-agent tab, that agent', () => {
     expect(nestedOwnerBackend(null, [tab('main', 'nomi')])).toBe('nomi');
     expect(nestedOwnerBackend(null, [])).toBe('nomi');
-    // 主标签切到了编程助手：那一轮是它跑的
+    // 主标签切到了 agent：那一轮是它跑的
     expect(nestedOwnerBackend(null, [tab('main', 'claude')])).toBe('claude');
     expect(nestedOwnerBackend('t1', [tab('t1', 'codex')])).toBe('codex');
     expect(

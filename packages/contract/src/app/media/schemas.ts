@@ -307,13 +307,13 @@ export const DesktopState = z.looseObject({
   cloudAcked: z.array(z.string()),
   /** 命令白名单：workspace_run 跑这些前缀的命令直接执行（读过外部内容的那一轮除外） */
   commandRules: z.array(z.string()).optional(),
-  /** 用户加的受保护文件夹：Nomi 的文件工具与编程助手（工作目录）都不能用，叠加在内置黑名单之上 */
+  /** 用户加的受保护文件夹：Nomi 的文件工具与 agent（工作目录）都不能用，叠加在内置黑名单之上 */
   protectedPaths: z.array(z.string()).optional(),
-  /** 放行给编程助手的环境变量名：其余令牌 / 密码 / 云凭据类变量不继承（模型服务的凭据照常传） */
+  /** 放行给 agent 的环境变量名：其余令牌 / 密码 / 云凭据类变量不继承（模型服务的凭据照常传） */
   cliEnvAllow: z.array(z.string()).optional(),
-  /** 编程助手的系统沙箱开关（缺省开；当前平台不支持时看 harness 状态里的 sandbox） */
+  /** agent 的系统沙箱开关（缺省开；当前平台不支持时看 harness 状态里的 sandbox） */
   cliSandbox: z.boolean().optional(),
-  /** 当前平台能用编程助手的系统沙箱（目前只有 macOS） */
+  /** 当前平台能用 agent 的系统沙箱（目前只有 macOS） */
   cliSandboxSupported: z.boolean().optional(),
   /** 沙箱里「始终允许」的授权：类别 / 可写文件夹 / 可写文件 */
   cliSandboxAllow: z
@@ -433,7 +433,7 @@ export const NavRequest = z.looseObject({});
 
 /**
  * 灵动岛上点「打开」/ 点岛：对话窗口跳到这一条所在的地方。target：task = 任务详情（id = 任务 id），
- * tab = 编程助手标签（id = 标签 id），nomi = Nomi 主对话（Nomi 自己的确认卡片在那里）
+ * tab = agent 标签（id = 标签 id），nomi = Nomi 主对话（Nomi 自己的确认卡片在那里）
  */
 export const NavOpenItem = z.object({
   target: z.enum(['task', 'tab', 'nomi']),
@@ -452,7 +452,7 @@ export const ChatNavEvent = z.enum([
 // computer：Computer Use（桌面操作，执行器 agent-desktop；Go 内核 internal/core/computer）
 // ---------------------------------------------------------------------------
 
-/** Computer Use 页的状态：agent-desktop 装没装、版本与更新、系统权限、编程助手开关 */
+/** Computer Use 页的状态：agent-desktop 装没装、版本与更新、系统权限、agent 开关 */
 export const ComputerState = z.looseObject({
   platform: z.string(),
   installed: z.boolean(),
@@ -474,11 +474,11 @@ export const ComputerState = z.looseObject({
   permissionApp: z.string(),
   /** Linux Wayland：只支持读界面与按编号操作 */
   wayland: z.boolean(),
-  /** 允许编程助手经 Nomi 的 MCP 使用桌面操作 */
+  /** 允许 agent 经 Nomi 的 MCP 使用桌面操作 */
   cliEnabled: z.boolean(),
   /** 桌面操作自动执行（工具权限都是「始终允许」，包括敏感动作和坐标点击） */
   autoApprove: z.boolean(),
-  /** 正在操作桌面的发起方（Nomi / 编程助手名） */
+  /** 正在操作桌面的发起方（Nomi / agent 名） */
   active: z.array(z.string()),
   /** 视觉兜底用的模型（<供应商 id>/<模型 id>，"" = 不用） */
   visionModel: z.string(),

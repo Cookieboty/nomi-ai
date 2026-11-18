@@ -105,9 +105,9 @@ func BudgetToEffort(budget, maxTokens float64) string {
 // ApplyUserLevel 把用户选的思考深度叠到请求意图上。
 // off / none 关掉；on 只打开（没有档位的开关模型）；其余档位按模型能力写成上游参数。
 //
-// 用户在输入栏选的档位（Nomi 对话的请求头、编程助手第三方标签的绑定）优先于客户端自己带的推理参数：
+// 用户在输入栏选的档位（Nomi 对话的请求头、agent 第三方标签的绑定）优先于客户端自己带的推理参数：
 // Codex 每个请求都带 reasoning.effort、Claude Code 会带 output_config.effort，不覆盖的话用户选的档位
-// 对编程助手永远不生效。只有客户端明确关掉思考（标题生成之类的辅助请求）时保持关闭，不替它打开。
+// 对 agent 永远不生效。只有客户端明确关掉思考（标题生成之类的辅助请求）时保持关闭，不替它打开。
 func ApplyUserLevel(in *Intent, level *string) *Intent {
 	if level == nil {
 		return in

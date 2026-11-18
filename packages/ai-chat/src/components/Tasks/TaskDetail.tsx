@@ -142,7 +142,7 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
         />
       </div>
 
-      {/* 编程助手被沙箱挡下：在这里直接授权（本会话 / 这个项目始终 / 不允许） */}
+      {/* agent 被沙箱挡下：在这里直接授权（本会话 / 这个项目始终 / 不允许） */}
       <TaskSandboxRequests taskId={task.id} />
 
       {/* 需要你：每种情况只给一个明确的动作 */}

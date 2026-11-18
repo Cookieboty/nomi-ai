@@ -1,6 +1,6 @@
 import { BUILTIN_MANIFESTS, byCli } from '@nomi-ai/cli-catalog';
 /**
- * 权限模式（docs/development/coding-agents.md）：编程助手，以及 Nomi 自己的工具
+ * 权限模式（docs/development/coding-agents.md）：agents，以及 Nomi 自己的工具
  * （主进程 desktop/consent.ts；Nomi 没有「完全放开」，「自动」就是 Nomi 的最高档）。
  * 与主进程 cli/permissionMode.ts 的 SUPPORTED / 降级规则保持一致：主进程是最终裁决（返回 degraded），
  * 这里只用来决定下拉里哪些可选、Shift+Tab 怎么循环。

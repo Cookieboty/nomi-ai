@@ -1,11 +1,11 @@
 /**
  * 首次启动引导，三步：
  *   1. 语言和外观；
- *   2. AI 能力：编程助手（检测本机、没装的就地安装，用自己的账号登录）+ 对话模型（第三方供应商，可选）；
+ *   2. AI 能力：agents（检测本机、没装的就地安装，用自己的账号登录）+ 对话模型（第三方供应商，可选）；
  *   3. 个性化：称呼、职业与兴趣、启动方式（都可选）。
  * 职业与兴趣存在主进程，侧栏「开始使用」与欢迎页据此推荐任务（services/recommendations）。
  * 填过的称呼、职业与兴趣在结束时一起保存（「跳过引导」也保存；没改过就不写）。
- * 结束后装了编程助手的进看板，一个都没装的留在对话。右上角「跳过引导」直接结束；
+ * 结束后装了 agent 的进看板，一个都没装的留在对话。右上角「跳过引导」直接结束；
  * 完成后可在「设置 → 通用」重新打开。引导盖住整个窗口；桌面角色只有被打开时才说话。
  */
 import { cliName } from '@nomi-ai/cli-catalog';
@@ -309,7 +309,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   /** 用户改过称呼 / 职业 / 兴趣：结束时（含「跳过引导」）才写，没改过不动已有的 */
   const profileTouched = useRef(false);
   const [cliError, setCliError] = useState('');
-  /** 对话模型那一组默认收起（供应商列表很长，会把编程助手挤出首屏）；已经接好模型的直接展开 */
+  /** 对话模型那一组默认收起（供应商列表很长，会把 agent 挤出首屏）；已经接好模型的直接展开 */
   const [modelOpen, setModelOpen] = useState(false);
   const cli = useCliInstall(setCliError, { layer: 'top' });
   // 启动方式：默认打开工作台，桌面角色关着。点选即写入设置。
@@ -402,7 +402,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
         });
       }
       onDone(skipped);
-      // 装了编程助手：进看板（空看板上就是派出按钮）；一个都没装：留在对话，「开始使用」清单接着引导
+      // 装了 agent：进看板（空看板上就是派出按钮）；一个都没装：留在对话，「开始使用」清单接着引导
       if (opts?.board !== false && cli.anyInstalled) requestOpenFleet();
     },
     [onDone, modelReady, startup, saveProfile, cli.anyInstalled],

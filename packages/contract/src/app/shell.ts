@@ -337,7 +337,7 @@ export const shellProcedures = {
     output: S.DiagnosticsExportResult,
     surfaces: CHAT,
   },
-  /** 开发者工具：一轮里编程助手子进程的原始收发（读 logs/cli-*.jsonl） */
+  /** 开发者工具：一轮里 agent 子进程的原始收发（读 logs/cli-*.jsonl） */
   'diagnostics.cliRecords': {
     kind: 'query',
     input: S.DiagnosticsCliRecordsQuery,

@@ -31,20 +31,20 @@ import (
 // nomiBundleID：packaging/mac/Info.plist.in 的 CFBundleIdentifier
 const nomiBundleID = "com.cookieboty.nomi"
 
-// Computer Use：Nomi 自己的 computer_* 工具、给编程助手的 MCP 端点、设置页（computer.*）共用同一个执行器
+// Computer Use：Nomi 自己的 computer_* 工具、给 agent 的 MCP 端点、设置页（computer.*）共用同一个执行器
 var (
 	computerSvc    *computer.Service
 	computerMcpSrv *mcpserve.Server
 	// computerGW：视觉兜底经网关调视觉模型（网关在 wireComputer 之后才建好，main 里补上）
 	computerGW *gwstore.Service
-	// computerWaiting：编程助手标签经 MCP 调用、正在等用户确认的个数（看板上算「等你处理」）
+	// computerWaiting：agent 标签经 MCP 调用、正在等用户确认的个数（看板上算「等你处理」）
 	computerWaiting = struct {
 		sync.Mutex
 		n map[string]int
 	}{n: map[string]int{}}
 )
 
-// computerWaitingOf：这个编程助手标签有几个桌面操作在等确认
+// computerWaitingOf：这个 agent 标签有几个桌面操作在等确认
 func computerWaitingOf(tabID string) int {
 	computerWaiting.Lock()
 	defer computerWaiting.Unlock()
@@ -107,10 +107,10 @@ var (
 
 // stopComputer：紧急停止（对话窗口的停止条 / 设置页 / 快捷键）：
 //   - 取消正在执行的 agent-desktop 命令；正在操作桌面的那一轮之后的调用都拒绝，直到用户发下一条消息；
-//   - 中止 Nomi 那几轮对话；编程助手：中止标签当前的一轮，它的 MCP 会话一直拒绝到标签开始下一轮；
+//   - 中止 Nomi 那几轮对话；agents：中止标签当前的一轮，它的 MCP 会话一直拒绝到标签开始下一轮；
 //   - 撤掉还在等的桌面操作确认卡
 func stopComputer() {
-	// 紧急停止也收起还在等的问题卡（Nomi 那一轮随对话中止；编程助手的提问在这里拒绝掉）
+	// 紧急停止也收起还在等的问题卡（Nomi 那一轮随对话中止；agent 的提问在这里拒绝掉）
 	if askBroker != nil {
 		askBroker.CancelAll()
 	}
@@ -137,7 +137,7 @@ func stopComputer() {
 	}
 }
 
-// wireComputerHarness：编程助手标签的 MCP 会话跟着标签走：标签关了作废 token；
+// wireComputerHarness：agent 标签的 MCP 会话跟着标签走：标签关了作废 token；
 // 被紧急停止的标签开始下一轮（用户发了新消息，状态从不在跑变成在跑）时解除停止
 func wireComputerHarness(o *harness.Orchestrator) {
 	if o == nil || computerMcpSrv == nil {
@@ -171,7 +171,7 @@ func wireComputerHarness(o *harness.Orchestrator) {
 	})
 }
 
-// runComputerBridge：`<Nomi> --computer-mcp <token 文件>`：编程助手拉起的 stdio MCP 桥接，不起界面
+// runComputerBridge：`<Nomi> --computer-mcp <token 文件>`：agent 拉起的 stdio MCP 桥接，不起界面
 func runComputerBridge() bool {
 	if len(os.Args) < 3 || os.Args[1] != mcpserve.BridgeFlag {
 		return false
@@ -247,7 +247,7 @@ func wireComputer(router *contract.Router, userData string, d *desktop.Service) 
 	return srv.Close
 }
 
-// computerMcpLaunch：harness.Deps.ComputerMcp。没装 agent-desktop、没打开「允许编程助手使用」时不注入
+// computerMcpLaunch：harness.Deps.ComputerMcp。没装 agent-desktop、没打开「允许 agent 使用」时不注入
 func computerMcpLaunch(tabID, label string, readOnly bool) *harness.McpLaunch {
 	if computerSvc == nil || computerMcpSrv == nil || !computerSvc.Settings().CliEnabled || !computerSvc.Available() {
 		return nil

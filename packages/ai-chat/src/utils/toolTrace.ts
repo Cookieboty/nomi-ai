@@ -1,5 +1,5 @@
 /**
- * 编程助手会话的「工具轨迹」模型（纯函数，无 React）：
+ * Agents 会话的「工具轨迹」模型（纯函数，无 React）：
  * 事件流（tool / thinking）→ 工具调用 → 时间线条目（单行 / 分组 / 子代理 / 思考）。
  * 分类、摘要、分组规则都在这里，组件只负责渲染。
  */
@@ -384,7 +384,7 @@ const KIND_TABLE: Record<ToolKind, readonly string[]> = {
     'killshell',
   ],
   subagent: [
-    // Nomi 派给编程助手的子任务（docs/development/coding-agents.md）：时间线里显示成子任务卡片
+    // Nomi 派给 agent 的子任务（docs/development/coding-agents.md）：时间线里显示成子任务卡片
     'delegate_to_cli',
     // 派给后台的 Nomi（docs/features/scheduling-calendar.md）
     'delegate_to_nomi',

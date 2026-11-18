@@ -19,13 +19,13 @@ export const fleetAvailable = () => hasTransport();
 export const fleetApi = {
   state: () => api.fleet.state(),
   archive: (id: string) => api.fleet.archive({ id }),
-  /** 用户手动关闭一个空闲的外部编程助手进程（内核再确认一次，对不上时 FLEET_NOT_IDLE） */
+  /** 用户手动关闭一个空闲的外部 agent 进程（内核再确认一次，对不上时 FLEET_NOT_IDLE） */
   closeIdle: (item: FleetIdleItem) => api.fleet.closeIdle({ pid: item.pid, backend: item.backend }),
   /** 暂停 / 恢复一个纳管的 CLI 标签（冻结进程树；恢复后这一轮从原处接着跑） */
   pause: (id: string) => api.fleet.pause({ id }),
   resume: (id: string) => api.fleet.resume({ id }),
   setAutoPause: (enabled: boolean) => api.fleet.setAutoPause({ enabled }),
-  /** 调度策略：同时跑几个编程助手 / 后台任务（存盘，立即生效） */
+  /** 调度策略：同时跑几个 agent / 后台任务（存盘，立即生效） */
   setPolicy: (mode: FleetPolicyMode) => api.fleet.setPolicy({ mode }),
   onChange: (fn: (s: FleetState) => void) => api.on('fleet.changed', fn),
 };
@@ -93,7 +93,7 @@ export interface FleetSummary {
 }
 
 /**
- * 负载等级：系统报了内存压力就用它（与内存守护同一个依据）；读不到时近似：编程助手与 Nomi 占物理内存的比例、
+ * 负载等级：系统报了内存压力就用它（与内存守护同一个依据）；读不到时近似：agent 与 Nomi 占物理内存的比例、
  * 整机 CPU（0–100）的比例取大的，≥ 50% 告警，≥ 75% 危险。CPU 很高时也会把正常的内存压力提成告警。
  */
 export const LOAD_WARN = 0.5;

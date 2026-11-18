@@ -88,4 +88,15 @@ func TestDelegateExhaustsFiveRetriesAndNeverReusesFailedTab(t *testing.T) {
 	if dataOf(rAuth).Get("status") != "error" || len(eAuth.log.sentSnapshot()) != 1 {
 		t.Fatalf("401 should fail immediately without retrying: sends=%d res=%s", len(eAuth.log.sentSnapshot()), util.Stringify(rAuth))
 	}
+
+	// auto 模式分类器不可用的中英文报错也必须归为可重试自愈错误（executor_crashed）
+	for _, msg := range []string{
+		"自动模式在这个会话里校验不了动作：Claude 的安全检查要跑在服务端",
+		"Auto mode can't check actions in this session: Claude's safety check runs on the server",
+		"auto_mode_no_check_in_session",
+	} {
+		if got := classifyRunError(msg); got != "executor_crashed" || !isRetryableRunError(got) {
+			t.Fatalf("classifyRunError(%q) = %q, want retryable executor_crashed", msg, got)
+		}
+	}
 }

@@ -1,5 +1,5 @@
 /**
- * 对话区主体：编程助手标签（空标签的欢迎语 / 会话）或 Nomi 主对话（欢迎屏 / 会话）。
+ * 对话区主体：agent 标签（空标签的欢迎语 / 会话）或 Nomi 主对话（欢迎屏 / 会话）。
  * Nomi 会话里只有 NomiConversation 订阅流式的最后一轮，其余部分不随每帧重渲染。
  */
 import { t } from '@nomi-ai/ui';
@@ -67,7 +67,7 @@ const precedingUser = <T extends { id: string; role: string; steer?: boolean }>(
   return undefined;
 };
 
-/** 编程助手标签：没有消息时是欢迎语，否则是会话（Gemini 不信任工作目录时错误卡片上有「信任此文件夹」） */
+/** agent 标签：没有消息时是欢迎语，否则是会话（Gemini 不信任工作目录时错误卡片上有「信任此文件夹」） */
 const CliBody: React.FC<{
   tabs: HarnessTabsCore;
   isDev: boolean;
@@ -83,13 +83,14 @@ const CliBody: React.FC<{
     () =>
       buildCliSlots({
         cwd,
+        tab,
         ...(isDev ? traceActions({ kind: 'cli', tabId }) : {}),
         errorActions: (m, { retry }) =>
           m.geminiTrust ? (
             <GeminiTrustAction key={m.id} tabId={tabId} message={m} retry={retry} />
           ) : null,
       }),
-    [tabId, cwd, isDev],
+    [tabId, cwd, tab, isDev],
   );
   if (messages.length === 0 && !hasLive && slash.cards.length === 0 && tab.status === 'idle')
     return (

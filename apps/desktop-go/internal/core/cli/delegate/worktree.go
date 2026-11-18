@@ -468,7 +468,7 @@ func branchAtHead(h *IsolationHandle) (string, error) {
 	return name, nil
 }
 
-// headUnreachable：worktree 的 HEAD 上有任何分支 / 标签 / 远程分支都够不着的提交（编程助手在 detached HEAD
+// headUnreachable：worktree 的 HEAD 上有任何分支 / 标签 / 远程分支都够不着的提交（agent 在 detached HEAD
 // 上提交了、或 CommitToBranch 提交成功但建分支失败）。git status 干净不代表没有成果。查不出来时报错
 func headUnreachable(wt string) (bool, error) {
 	out, err := git(wt, "rev-list", "-n", "1", "HEAD", "--not", "--branches", "--tags", "--remotes")
@@ -496,7 +496,7 @@ func preserveHead(h *IsolationHandle) (string, error) {
 }
 
 // LandWorktree：worktree 的改动落地：改动多（> LandMaxFiles 个文件或 > LandMaxLines 行）→ 整体提交到新分支；
-// 否则拷回当前工作区，拷不回去的（冲突、授权外、复制失败）提交到新分支。编程助手自己提交了、
+// 否则拷回当前工作区，拷不回去的（冲突、授权外、复制失败）提交到新分支。agent 自己提交了、
 // 还没有分支指着的提交，拆之前也留在一个新分支上（status 干净不等于没有成果）。落地成功后拆掉 worktree。
 func LandWorktree(h *IsolationHandle, changed []string, title string, mayWrite func(dest string) bool) LandResult {
 	r := LandResult{Mode: "none", Apply: ApplyResult{Applied: []string{}, Skipped: []string{}, Conflicted: []string{}, Denied: []string{}}}
@@ -548,7 +548,7 @@ func LandWorktree(h *IsolationHandle, changed []string, title string, mayWrite f
 		}
 		r.Branch = b
 	}
-	// 拷回的只是未提交的改动；编程助手自己提交的还要留住
+	// 拷回的只是未提交的改动；agent 自己提交的还要留住
 	if r.Branch == "" {
 		b, err := preserveHead(h)
 		if err != nil {

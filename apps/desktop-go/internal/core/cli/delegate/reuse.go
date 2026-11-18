@@ -1,6 +1,6 @@
 package delegate
 
-// reuse.go：同一种委派接着用上一次的编程助手会话（同一个对话、同一个编程助手、同一个目录、同一种任务、
+// reuse.go：同一种委派接着用上一次的 agent 会话（同一个对话、同一个 agent 标签、同一个目录、同一种任务、
 // 同样的模型与思考深度）：会话里的上下文与提示词缓存都还在，省 token 也更快。
 // 只复用空闲、没被用户接手、已经有会话、最近用过的标签；上一个任务还没结束（等验收、要返工）的不抢。
 // 在 worktree 里做的（别的分支做基线）不复用：worktree 落地后就拆了。
@@ -23,6 +23,24 @@ func ReuseKey(conversationID, cli, cwd, kind, model, effort string) string {
 		kind = "coding"
 	}
 	return strings.Join([]string{conversationID, cli, realPath(cwd), kind, model, effort}, "\x1f")
+}
+
+// ReuseKeyWithSource：在 ReuseKey 基础上附带来源与官方账号，防止同一 CLI 不同配置复用串台。
+func ReuseKeyWithSource(conversationID, cli, source, accountID, cwd, kind, model, effort string) string {
+	if conversationID == "" || cli == "" || cwd == "" {
+		return ""
+	}
+	if source == "" && accountID == "" {
+		return ReuseKey(conversationID, cli, cwd, kind, model, effort)
+	}
+	if kind == "" {
+		kind = "coding"
+	}
+	src := source
+	if src == "" {
+		src = "official"
+	}
+	return strings.Join([]string{conversationID, cli, src + "@" + accountID, realPath(cwd), kind, model, effort}, "\x1f")
 }
 
 // ExpectTaskIDKey：RebindDelegation 的参数里放挑选时看到的上一个任务 id；标签的 taskId 已经变了

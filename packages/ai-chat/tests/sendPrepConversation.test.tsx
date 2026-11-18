@@ -10,7 +10,7 @@ import { type SdkIPCClient } from '../src/services/IPCClient';
 
 import type { ApiMockState } from './helpers/knowledgeApi';
 
-// 契约客户端（services/api）的替身：没有传输，记忆 / 压缩 / 编程助手状态都走缺省
+// 契约客户端（services/api）的替身：没有传输，记忆 / 压缩 / agent 状态都走缺省
 const apiMock = vi.hoisted(() => ({ transport: false }) as ApiMockState);
 vi.mock('../src/services/api', async () =>
   (await import('./helpers/knowledgeApi')).createApiMock(apiMock),

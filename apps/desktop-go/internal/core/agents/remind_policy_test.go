@@ -34,7 +34,7 @@ func TestMaybeRemindOnlyOnFinish(t *testing.T) {
 	})
 }
 
-// 编程助手标签的提醒带上标签 id（你正看着它时不弹）；几个会话合成一条时不再属于某一个
+// agent 标签的提醒带上标签 id（你正看着它时不弹）；几个会话合成一条时不再属于某一个
 func TestNoticeSession(t *testing.T) {
 	a := Notice{Kind: "agent", Status: "done", Title: "A", Session: "tab-a"}
 	if got := MergeNotices([]Notice{a, {Kind: "agent", Status: "done", Title: "A2", Session: "tab-a"}}); got.Session != "tab-a" {

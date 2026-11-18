@@ -491,7 +491,7 @@ func priorityOf(p string) *string {
 }
 
 // CreateDelegated：对话里 delegate_to_cli 后台派出的任务（docs/features/scheduling-calendar.md）：用户已在对话里确认过这次委派；
-// 编程助手默认直接在工作目录里改（指定了别的分支做基线时在 worktree 里），做完自动收下结果（Acceptance 可传 user 改成等你验收）；
+// agent 默认直接在工作目录里改（指定了别的分支做基线时在 worktree 里），做完自动收下结果（Acceptance 可传 user 改成等你验收）；
 // 瞬时错误重试一次；创建后立即排队。
 // 派给 Nomi 的（executor: nomi）：放宽时长与 token、不设每日费用上限，自动验收（结果直接回对话）。
 func (s *Service) CreateDelegated(i DelegatedInput) (Task, error) {

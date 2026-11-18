@@ -96,7 +96,7 @@ export const PriorityBadge: React.FC<{ priority?: TaskPriority | undefined; quie
   );
 };
 
-/** 执行者：编程助手画它的图标，Nomi 画应用图标，只是提醒的画铃铛 */
+/** 执行者：agent 画它的图标，Nomi 画应用图标，只是提醒的画铃铛 */
 export const ExecutorIcon: React.FC<{ ex: ExecutorSpec }> = ({ ex }) => {
   if (ex.kind === 'notify') return <Icon icon={Bell} size={14} />;
   if (ex.kind === 'nomi') return <EndpointIcon backend="nomi" size={16} decorative />;

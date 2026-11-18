@@ -1,4 +1,4 @@
-// cli_plugin_host.go：编程助手插件宿主（CliPluginHost）：
+// cli_plugin_host.go：agent 插件宿主（CliPluginHost）：
 // 加载插件、校验清单、算有效能力（清单 ∩ 版本开关 ∩ 握手）、启停、出错隔离，
 // 并给界面一份注册表快照（cli.registryChanged）。
 package cli

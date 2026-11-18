@@ -88,8 +88,8 @@ var (
 
 type requesterKey struct{}
 
-// WithRequester：工具由编程助手经 MCP 调用（label = 编程助手名）：确认卡片上标明是谁请求的，
-// 界面内容的接收方是这个编程助手的模型（按云端模型做外发检查）
+// WithRequester：工具由 agent 经 MCP 调用（label = agent 名）：确认卡片上标明是谁请求的，
+// 界面内容的接收方是这个 agent 标签的模型（按云端模型做外发检查）
 func WithRequester(ctx context.Context, label string) context.Context {
 	if label == "" {
 		return ctx
@@ -131,7 +131,7 @@ func requesterOf(ctx context.Context) string {
 	return s
 }
 
-// ComputerTools：只有 computer_*（给编程助手的 MCP 端点用；d.Computer 不能为 nil）
+// ComputerTools：只有 computer_*（给 agent 的 MCP 端点用；d.Computer 不能为 nil）
 func ComputerTools(d DeskDeps) []tools.Definition {
 	k := &deskKit{d}
 	if k.d.Platform == "" {
@@ -199,7 +199,7 @@ func (k *deskKit) computerTools() []tools.Definition {
 		}
 		return nil
 	}
-	// screenSend：界面内容交给模型前的外发检查。编程助手调用时接收方是编程助手的模型：按云端模型检查
+	// screenSend：界面内容交给模型前的外发检查。agent 调用时接收方是 agent 的模型：按云端模型检查
 	screenSend := func(ctx context.Context, ec tools.ExecContext) error {
 		if r := requesterOf(ctx); r != "" {
 			return k.checkSend(ctx, []*desktop.Provider{{ID: "cli:" + r, Name: r}})

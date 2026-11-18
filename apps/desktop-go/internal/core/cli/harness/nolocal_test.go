@@ -10,7 +10,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// 没有「本机登录」：内置编程助手只用 Nomi 管理的官方账号或经网关的第三方模型。
+// 没有「本机登录」：内置 agent 只用 Nomi 管理的官方账号或经网关的第三方模型。
 
 type fakeAccounts struct{ has map[string]bool }
 

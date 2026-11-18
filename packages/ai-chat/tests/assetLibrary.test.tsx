@@ -206,7 +206,7 @@ describe('素材库', () => {
     expect(onCompose).toHaveBeenLastCalledWith(expect.stringContaining('参考这张图片'));
   });
 
-  it('编程助手生成的图片（没有提示词）：不能重新生成', async () => {
+  it('agent 生成的图片（没有提示词）：不能重新生成', async () => {
     await open();
     fireEvent.click(screen.getByTestId('asset-grok-a.png'));
     expect(screen.queryByTestId('viewer-regenerate')).toBeNull();

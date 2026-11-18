@@ -27,7 +27,7 @@ const assistant = (over: Partial<ConvMessage> = {}): ConvMessage => ({
 });
 
 describe('助手消息上的模型', () => {
-  it('编程助手消息：端点名 + 主进程记下的模型；旧消息只有端点名', () => {
+  it('agent 消息：端点名 + 主进程记下的模型；旧消息只有端点名', () => {
     const m: HarnessTabMessage = {
       id: 'm1',
       role: 'assistant',
@@ -104,7 +104,7 @@ describe('助手消息上的模型', () => {
 describe('会话中途换模型的弱提示', () => {
   const msgs = [{ role: 'user' }, { role: 'assistant', model: 'gw/main' }];
 
-  it('编程助手：切过模型才提示；切回最后一条助手消息的模型不提示；还没有助手回复不提示', () => {
+  it('agents：切过模型才提示；切回最后一条助手消息的模型不提示；还没有助手回复不提示', () => {
     expect(modelSwitchTipFor(msgs, undefined)).toBeNull();
     expect(modelSwitchTipFor(msgs, 'gw/other')).toBe('gw/other');
     expect(modelSwitchTipFor(msgs, 'gw/main')).toBeNull();

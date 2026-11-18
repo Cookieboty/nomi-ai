@@ -1,0 +1,114 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-4);
+}
+
+.presetGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--cd-space-3);
+  padding: var(--cd-space-3) var(--cd-space-4);
+}
+
+.presetCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-panel-surface-sunken);
+}
+
+.presetHead {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-width: 0;
+}
+
+.presetTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.presetLabelInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.presetMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text);
+}
+
+.presetSub {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.presetFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-2);
+  margin-top: auto;
+  padding-top: var(--cd-space-1);
+}
+
+.presetBadge {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+
+.presetActions {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+}
+
+.routeControl {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+
+.routeOff {
+  opacity: 0.55;
+}
+
+.error {
+  margin: 0;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-danger-text);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-subtle);
+}
+
+.defaultAgentBox {
+  padding: var(--cd-space-3) var(--cd-space-4);
+}
+
+.defaultAgentDesc {
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+  line-height: 1.5;
+}

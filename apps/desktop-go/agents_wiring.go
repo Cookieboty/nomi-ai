@@ -13,7 +13,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// agentsSvc：wireAgents 构造的编程助手监视（Agent 看板读它认出的外部会话）；
+// agentsSvc：wireAgents 构造的 agent 监视（Agent 看板读它认出的外部会话）；
 // onAgentsChanged：它推 agents.changed 时顺带调用（fleet_wiring.go 设置）。两者都只在 GIL 里读写。
 var (
 	agentsSvc       *agents.Service

@@ -1,11 +1,12 @@
 /**
- * 编程助手详情里的「新会话默认用」：新建这个助手的标签时默认用某个官方账号，还是某家第三方供应商
- * （原来在「模型」页的编程助手表格里；那里现在只设第三方模型）。选项与写入规则在 services/cliSource.ts。
+ * Agents 详情里的「新会话默认用」：新建这个助手的标签时默认用某个官方账号，还是某家第三方供应商
+ * （原来在「模型」页的 agent 表格里；那里现在只设第三方模型）。选项与写入规则在 services/cliSource.ts。
  */
 import { Select, SettingRow, t } from '@nomi-ai/ui';
 import React from 'react';
 
 import { useCliAccounts } from '../../hooks/useCliAccounts';
+import { useHasLocalLogin } from '../../services/cliLauncherClient';
 import {
   newTabOptions,
   newTabPatch,
@@ -21,11 +22,12 @@ import styles from './index.module.css';
 export const NewTabSourceRow: React.FC<{ kind: CliKind }> = ({ kind }) => {
   const gateway = useGatewayState();
   const { accounts, error } = useCliAccounts(kind);
+  const localAvailable = useHasLocalLogin(kind);
   const [saveErr, setSaveErr] = React.useState<string | null>(null);
   if (!gateway) return null;
   const name = t(ENDPOINT_NAME[kind]);
   const client = gateway.clients[kind];
-  const ctx = { kind, client, gateway, accounts };
+  const ctx = { kind, client, gateway, accounts, localAvailable };
   const pick = (value: string) => {
     const patch = newTabPatch(value, ctx);
     if (!patch) return;
@@ -52,7 +54,7 @@ export const NewTabSourceRow: React.FC<{ kind: CliKind }> = ({ kind }) => {
       <Select
         size="sm"
         options={newTabOptions(ctx)}
-        value={newTabSelectValue(client, kind)}
+        value={newTabSelectValue(client, kind, ctx)}
         onChange={(e) => pick(e.target.value)}
         aria-label={t('ui.models.new-sessions-use-named', ENDPOINT_NAME[kind])}
         data-testid={`cli-source-${kind}`}

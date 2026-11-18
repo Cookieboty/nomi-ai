@@ -10,7 +10,7 @@ import (
 
 // Settings：Computer Use 的设置（userData/desktop/computer.json）
 type Settings struct {
-	// CliEnabled：允许编程助手（Claude Code、Codex、Gemini…）经 Nomi 的 MCP 使用 computer_* 工具。
+	// CliEnabled：允许 agent（Claude Code、Codex、Gemini…）经 Nomi 的 MCP 使用 computer_* 工具。
 	// 默认开（没装 agent-desktop 时不注入）；每个操作照样要在 Nomi 里确认
 	CliEnabled bool `json:"cliEnabled"`
 	// VisionModel：视觉兜底用的模型（<供应商 id>/<模型 id>）；"" = 不用视觉兜底（computer_locate 不提供）
@@ -154,7 +154,7 @@ func (s *Service) OnSettingsChange(fn func(Settings)) {
 	s.setMu.Unlock()
 }
 
-// SetCliEnabled：打开 / 关闭编程助手使用 computer_*（之后启动的编程助手进程生效）
+// SetCliEnabled：打开 / 关闭 agent 使用 computer_*（之后启动的 agent 进程生效）
 func (s *Service) SetCliEnabled(v bool) error {
 	_, err := s.UpdateSettings(SettingsPatch{CliEnabled: &v})
 	return err

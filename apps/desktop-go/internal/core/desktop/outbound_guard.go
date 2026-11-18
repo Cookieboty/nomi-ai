@@ -130,7 +130,7 @@ func GuardOutboundMessages(messages any, check OutboundCheck) error {
 			}
 			return content
 		}
-		// 上一轮的工具记录（工具结果里也可能有附件正文 / 编程助手输出 / 读过的文件、命令输出、网页）：同样处理，没改动时原样保留
+		// 上一轮的工具记录（工具结果里也可能有附件正文 / agent 输出 / 读过的文件、命令输出、网页）：同样处理，没改动时原样保留
 		if steps, ok := m["steps"].(string); ok && steps != "" {
 			m["steps"] = scrubSteps(steps, scrub)
 		}

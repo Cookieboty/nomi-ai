@@ -1,5 +1,5 @@
 /**
- * D3 · 编程助手（docs/development/architecture.md）。
+ * D3 · agents（docs/development/architecture.md）。
  *
  * 本文件只属于 D3：过程、事件、业务错误码都在这里声明，`app/index.ts` 负责汇总。
  * 命名空间：project、harness、cli、cliAccount、cliUpdate、delegate、agents、history（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
@@ -81,7 +81,7 @@ const carry = { carry: z.boolean().optional() };
 const cliKind = z.string();
 
 /**
- * 项目（core/projects，userData/projects.json）。项目里的文件夹就是 Nomi 与编程助手被授权读写的范围：
+ * 项目（core/projects，userData/projects.json）。项目里的文件夹就是 Nomi 与 agent 被授权读写的范围：
  * 新建 / 编辑时内核逐个校验（拒绝过宽的根、受保护目录、不存在的目录、彼此嵌套），所以算 dangerous。
  * 移除只删记录，不碰磁盘上的文件；引用它的会话变成没有项目。
  */
@@ -278,7 +278,12 @@ const harnessProcedures = {
   },
   'harness.tabSource': {
     kind: 'mutation',
-    input: z.object({ id: z.string(), source: TabSource, model: z.string().optional() }),
+    input: z.object({
+      id: z.string(),
+      source: TabSource,
+      model: z.string().optional(),
+      accountId: z.string().nullable().optional(),
+    }),
     output: HarnessTabMeta,
   },
   'harness.tabModel': {
@@ -482,7 +487,7 @@ const harnessProcedures = {
    * always = 始终允许（记进桌面设置）、deny = 不允许（本会话不再问）；允许后这个标签的 CLI 重开并接着做
    */
   /**
-   * 在 cwd 打开一个新的终端窗口（会话里的「在终端打开当前项目」快捷键）。cwd 由视图带来，内核按编程助手工作目录
+   * 在 cwd 打开一个新的终端窗口（会话里的「在终端打开当前项目」快捷键）。cwd 由视图带来，内核按 agent 工作目录
    * 同一套规则再校验（不能过宽、不能在受保护文件夹里），不认时 TERMINAL_CWD_DENIED；本机找不到终端程序时
    * TERMINAL_NOT_FOUND。只启动终端，不在里面执行任何命令
    */
@@ -512,7 +517,8 @@ const harnessProcedures = {
 const CliLauncherSettings = z.object({
   enabled: z.boolean(),
   command: z.string().max(8192),
-  accountSource: z.enum(['local', 'nomi']),
+  accountSource: z.enum(['local', 'nomi']).optional(),
+  hasLocalLogin: z.boolean().optional(),
 });
 
 const cliProcedures = {
@@ -540,7 +546,7 @@ const cliProcedures = {
 } as const satisfies ProcedureMap;
 
 const cliAccountProcedures = {
-  /** kind 缺省 = 所有编程助手的账号 */
+  /** kind 缺省 = 所有 agent 的账号 */
   'cliAccount.list': {
     kind: 'query',
     input: z.object({ kind: cliKind.optional() }),
@@ -593,7 +599,7 @@ const cliAccountProcedures = {
     input: z.object({ url: z.string() }),
     output: z.boolean(),
   },
-  /** 编程助手是否沿用终端（登录 shell）里的代理变量；shellProxy = 检测到的代理地址（已去掉账号密码） */
+  /** agent 是否沿用终端（登录 shell）里的代理变量；shellProxy = 检测到的代理地址（已去掉账号密码） */
   'cliAccount.networkGet': { kind: 'query', input: z.void(), output: CliNetworkState },
   'cliAccount.networkSet': {
     kind: 'mutation',
@@ -613,7 +619,7 @@ const cliUpdateProcedures = {
     input: z.object({ kind: cliKind, scope: CliInstallScope.optional() }),
     output: CliInstallPlan,
   },
-  /** 安装 / 更新所需的运行环境（Node.js / npm），编程助手页顶部展示 */
+  /** 安装 / 更新所需的运行环境（Node.js / npm），agent 页顶部展示 */
   'cliUpdate.environment': { kind: 'query', input: z.void(), output: CliEnvironment },
   /** 安装 / 更新；进度经事件 `cliUpdate.event` 推给所有订阅的窗口（任务快照见 `cliUpdate.job`） */
   'cliUpdate.run': {
@@ -642,10 +648,14 @@ const delegateProcedures = {
     input: z.object({ settings: z.looseObject({}) }),
     output: DelegateSettings,
   },
-  /** 按 turnId 把下一个需求钉给某个编程助手（cli = null 清除）；名字认不出时报错 */
+  /** 按 turnId 把下一个需求钉给某个 agent（cli = null 且 presetId = null 清除）；名字认不出时报错 */
   'delegate.pin': {
     kind: 'mutation',
-    input: z.object({ cli: z.string().nullable(), turnId: z.string() }),
+    input: z.object({
+      cli: z.string().nullable().optional(),
+      presetId: z.string().nullable().optional(),
+      turnId: z.string(),
+    }),
     output: z.string().nullable(),
   },
   'delegate.clearPin': {
@@ -654,16 +664,21 @@ const delegateProcedures = {
     output: z.boolean(),
   },
   /**
-   * `/agent 名字 需求` 直接派出编程助手（后台任务），不经过对话模型。
+   * `/agent 名字 需求` 直接派出 agent（后台任务），不经过对话模型。
    * 没安装、关了委派、用户拒绝或没有工作目录时失败，调用方要告诉用户没有派出去。
    */
   'delegate.dispatch': {
     kind: 'mutation',
     dangerous: true,
     input: z.object({
-      cli: z.string().min(1),
+      cli: z.string().min(1).optional(),
+      presetId: z.string().min(1).optional(),
+      source: TabSource.optional(),
+      accountId: z.string().nullable().optional(),
+      model: z.string().optional(),
+      reasoningEffort: z.string().optional(),
       goal: z.string().min(1).max(4000),
-      /** 需求之外的背景（如消息附图的地址），交给编程助手 */
+      /** 需求之外的背景（如消息附图的地址），交给 agent */
       context: z.string().max(8000).optional(),
       conversationId: z.string().optional(),
       projectId: z.string().optional(),
@@ -704,7 +719,7 @@ const fleetProcedures = {
     output: FleetState,
   },
   /**
-   * 用户手动关闭一棵空闲的外部编程助手进程树（externalIdle.items 里的）：内核先确认它此刻仍是同一种助手的空闲树、
+   * 用户手动关闭一棵空闲的外部 agent 进程树（externalIdle.items 里的）：内核先确认它此刻仍是同一种助手的空闲树、
    * 不在 Nomi 的进程树里，再 SIGTERM，过几秒还在的 SIGKILL；对不上时 FLEET_NOT_IDLE，没有权限结束时
    * FLEET_CLOSE_DENIED，其他原因结束不了时 FLEET_CLOSE_FAILED；读不到新的进程表、没法确认时 FLEET_CLOSE_UNVERIFIED
    * （一个信号都不发）。调度从不调用。
@@ -803,7 +818,7 @@ export const codingEvents = {
   'fleet.changed': FleetState,
 } as const satisfies EventMap;
 
-/** 事件的订阅白名单：编程助手的会话内容（标签、消息、实时事件）只给对话窗口 */
+/** 事件的订阅白名单：agent 的会话内容（标签、消息、实时事件）只给对话窗口 */
 export const codingEventSurfaces = {
   'project.changed': ['chat', 'settings'],
   'harness.changed': ['chat', 'settings'],
@@ -816,7 +831,7 @@ export const codingEventSurfaces = {
 /**
  * 业务错误码（UPPER_SNAKE_CASE，不得与其他域重名）；处理函数用 `ctx.fail(code, message)` 抛出。
  * 账号操作（AccountError 的 kebab code）：not-found / in-use / unsupported / unknown-live / external-busy。
- * 没有「本机登录」这一项：编程助手只用 Nomi 管理的官方账号或第三方模型。
+ * 没有「本机登录」这一项：agent 只用 Nomi 管理的官方账号或第三方模型。
  */
 export const codingErrors = [
   'ACCOUNT_NOT_FOUND',
@@ -829,7 +844,7 @@ export const codingErrors = [
   'PROJECT_NOT_FOUND',
   /** project.create / update：某个文件夹不能当项目目录（message 里是哪个、为什么） */
   'PROJECT_FOLDER_DENIED',
-  /** fleet.closeIdle：要关的进程已经不是空闲的外部编程助手 */
+  /** fleet.closeIdle：要关的进程已经不是空闲的外部 agent */
   'FLEET_NOT_IDLE',
   /** harness.openTerminal：目录不符合工作目录规则（过宽、受保护、不存在） */
   'TERMINAL_CWD_DENIED',

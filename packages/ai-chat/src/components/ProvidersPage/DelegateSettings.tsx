@@ -1,6 +1,6 @@
 /**
- * 设置 →「编程助手」→「委派」（docs/development/coding-agents.md）：
- * 允许 Nomi 委派编程助手的总开关，以及按任务类型（编程开发 / PRD / 代码审查 / 调研分析）的默认编程助手。
+ * 设置 →「Agents」→「委派」（docs/development/coding-agents.md）：
+ * 允许 Nomi 委派 agent 的总开关，以及按任务类型（编程开发 / PRD / 代码审查 / 调研分析）的默认 agent。
  * 对话里可以用 `/agent 名字` 临时指定，优先于这里的默认。
  */
 import { Input, Select, SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';

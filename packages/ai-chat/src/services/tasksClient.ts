@@ -36,7 +36,19 @@ export type Trigger =
 export type ExecutorSpec =
   | { kind: 'notify'; text: string }
   | { kind: 'nomi'; model?: string; tools: ToolClass[]; scenario?: string }
-  | { kind: 'cli'; cli: string; model?: string; cwd: string; isolation: 'worktree' | 'shared' };
+  | {
+      kind: 'cli';
+      /** 档位模式（presetId）下由内核按触发时的当前档位解析，cli 可省略 */
+      cli?: string;
+      source?: 'local' | 'official' | 'thirdParty';
+      accountId?: string | null;
+      presetId?: string;
+      model?: string;
+      reasoningEffort?: string;
+      cwd: string;
+      isolation: 'worktree' | 'shared';
+      baseBranch?: string;
+    };
 
 export interface Wait {
   kind: 'approval' | 'input' | 'grant' | 'taken_over' | 'config';
@@ -51,7 +63,7 @@ export interface TaskGrant {
   paths: string[];
   connections: { connectionId: string; capabilities: string[]; resources: string[] }[];
   clis?: string[];
-  /** 编程助手沙箱里预先允许的类别 */
+  /** agent 沙箱里预先允许的类别 */
   sandbox?: string[];
   /** 按风险自动判断（默认开；L3 及以上才生效，显式 false = 每条命令都问我） */
   autoJudge?: boolean;
@@ -99,7 +111,7 @@ export interface Attempt {
   usage: { inputTokens: number; outputTokens: number; costUsd?: number; costKnown: boolean };
   result?: { summary: string; artifacts: { kind: string; ref: string }[] };
   error?: { code: string; message: string };
-  /** 执行载体：编程助手的后台标签与 worktree */
+  /** 执行载体：agent 的后台标签与 worktree */
   carrier?: { tabId?: string; cwd?: string; worktree?: string; sourceCwd?: string };
 }
 
@@ -269,7 +281,7 @@ export const CATEGORY_LABEL: Record<TaskCategory, string> = {
   chore: 'ui.providers-schedule.task-category-chore',
 };
 
-/** 类型：没填的按执行者 / 触发器推断（编程助手 → 编程；事件触发 → 盯着某处；其余 → 杂事） */
+/** 类型：没填的按执行者 / 触发器推断（agents → 编程；事件触发 → 盯着某处；其余 → 杂事） */
 export function categoryOf(task: Task): TaskCategory {
   if (task.category) return task.category;
   if (task.executor.kind === 'cli') return 'coding';
@@ -407,7 +419,7 @@ export function executorLabel(ex: ExecutorSpec): string {
     case 'nomi':
       return t('ui.chat-settings.nomi-section');
     case 'cli':
-      return ex.cli;
+      return ex.cli ?? ex.presetId ?? '';
   }
 }
 

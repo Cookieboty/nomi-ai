@@ -1,6 +1,6 @@
 package fleet
 
-// tools.go：给 Nomi 的看板工具：list_agents（看谁在跑、内存压力）、pause_agent / resume_agent（暂停 / 继续纳管的编程助手）。
+// tools.go：给 Nomi 的看板工具：list_agents（看谁在跑、内存压力）、pause_agent / resume_agent（暂停 / 继续纳管的 agent）。
 // 外部的（用户在终端 / IDE 里开的）只读：pause_agent 一律拒绝。
 
 import (
@@ -22,7 +22,7 @@ const (
 )
 
 // gateAgents：对话里说到 agent / 内存 / 卡 / 负载 / 暂停继续 / 派出去的事时才提供这组工具（工具集只增不减）
-var gateAgents = regexp.MustCompile(`agent|代理|内存|卡顿|好卡|太卡|卡死|很慢|变慢|资源|负载|占用|cpu|memory|ram|暂停|继续跑|恢复|看板|进程|谁在跑|在跑什么|在干什么|编程助手|委派|后台|派出|claude|codex|grok|gemini|pause|resume|load|process|background`)
+var gateAgents = regexp.MustCompile(`agent|代理|内存|卡顿|好卡|太卡|卡死|很慢|变慢|资源|负载|占用|cpu|memory|ram|暂停|继续跑|恢复|看板|进程|谁在跑|在跑什么|在干什么|agents|委派|后台|派出|claude|codex|grok|gemini|pause|resume|load|process|background`)
 
 func agentsRelevant(t tools.Turn) bool { return gateAgents.MatchString(t.ConvoText) }
 
@@ -132,7 +132,7 @@ func whyNotPausable(st State, id string) map[string]any {
 		}
 		switch {
 		case a.Scope == "external":
-			return toolErr("read_only", "这是用户自己在终端 / IDE 里开的编程助手，只能看，不能暂停")
+			return toolErr("read_only", "这是用户自己在终端 / IDE 里开的 agent，只能看，不能暂停")
 		case a.Paused != nil:
 			return toolErr("already_paused", "已经在暂停中")
 		case a.Kind == "nomi" && a.TaskID == "":
@@ -160,9 +160,9 @@ func (s *Service) Tools() []tools.Definition {
 		{
 			Name: "list_agents",
 			Description: "看 Agent 看板：系统内存压力（normal / warn / critical）与可用比例、整机 CPU、Nomi 自己的占用，" +
-				"以及所有在干活的 agent（正在回答的对话、后台的 Nomi、派出的与工坊里的编程助手、用户在终端里开的），" +
+				"以及所有在干活的 agent（正在回答的对话、后台的 Nomi、派出的与工坊里的 agent、用户在终端里开的），" +
 				"各自在哪一列（todo / running / paused / done）、占多少内存与 CPU、要不要用户处理。" +
-				"派新的编程助手或后台任务之前、用户说电脑卡 / 慢、问谁在跑时先看这个。readOnly 的是用户自己开的，只能看。",
+				"派新的 agent 或后台任务之前、用户说电脑卡 / 慢、问谁在跑时先看这个。readOnly 的是用户自己开的，只能看。",
 			Input:    schema(listInputSchema),
 			ReadOnly: true,
 			Relevant: agentsRelevant,
@@ -172,7 +172,7 @@ func (s *Service) Tools() []tools.Definition {
 		},
 		{
 			Name: "pause_agent",
-			Description: "暂停一个正在跑的编程助手或后台 Nomi（list_agents 里 pausable 的）。编程助手：冻结它的进程，不占 CPU，" +
+			Description: "暂停一个正在跑的 agent 或后台 Nomi（list_agents 里 pausable 的）。agents：冻结它的进程，不占 CPU，" +
 				"内存由系统回收；之后用 resume_agent 继续，这一轮从暂停处接着跑；内存恢复正常后也会自动继续。" +
 				"后台 Nomi（kind 为 nomi 的后台运行）：停掉它的调度，正在跑的这一轮会跑完，之后不再开始新的一轮；" +
 				"不会自动继续，要用户或 resume_agent 继续。" +
@@ -195,7 +195,7 @@ func (s *Service) Tools() []tools.Definition {
 		},
 		{
 			Name: "resume_agent",
-			Description: "继续一个暂停中的编程助手或后台 Nomi（list_agents 里 pausedBy 有值的）：编程助手这一轮从暂停处接着跑，" +
+			Description: "继续一个暂停中的 agent 或后台 Nomi（list_agents 里 pausedBy 有值的）：agent 这一轮从暂停处接着跑，" +
 				"后台 Nomi 恢复调度。内存还紧张时先别继续。",
 			Input:    schema(agentInputSchema),
 			Relevant: agentsRelevant,

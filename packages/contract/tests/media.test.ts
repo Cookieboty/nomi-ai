@@ -38,7 +38,7 @@ describe('media 契约', () => {
         .map(([n]) => n)
         .sort(),
     ).toEqual([
-      // 运行 npm 安装 / 让编程助手能操作桌面
+      // 运行 npm 安装 / 让 agent 能操作桌面
       'computer.install',
       'computer.updateSettings',
       'desktop.confirmAnswer',

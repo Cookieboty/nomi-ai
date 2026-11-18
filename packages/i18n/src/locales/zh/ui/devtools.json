@@ -16,7 +16,7 @@
   "ui.devtools.model-request": "模型请求",
   "ui.devtools.no-body-recorded-for-this-request": "没有这条请求的正文：正文只在诊断日志开着时记录，保留 24 小时。",
   "ui.devtools.no-gateway-requests-in-this-turn": "这一轮没有经过网关的模型请求。",
-  "ui.devtools.no-gateway-requests-official-accounts-connect-directly": "这一轮没有经过网关的模型请求（用官方账号时编程助手直连官方服务，不经网关）。",
+  "ui.devtools.no-gateway-requests-official-accounts-connect-directly": "这一轮没有经过网关的模型请求（用官方账号时 agent 直连官方服务，不经网关）。",
   "ui.devtools.no-input-or-output-was-kept": "这次调用没有保留参数与输出（较早的消息只保留骨架）。",
   "ui.devtools.no-process-records-in-this-turn": "这一轮没有子进程收发记录。",
   "ui.devtools.no-steps-in-this-turn": "这一轮没有思考、工具调用或网关请求。",

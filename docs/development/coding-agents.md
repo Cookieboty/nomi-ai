@@ -1,4 +1,4 @@
-# 编程助手接入
+# Agents 接入
 
 Nomi 把 Claude Code、Codex、Gemini CLI、Grok、dsh 当作子进程驱动，在对话窗口里以「标签」呈现。用户的功能说明见
 [features/coding-agents.md](../features/coding-agents.md)；本页讲实现。
@@ -21,12 +21,12 @@ Nomi 把 Claude Code、Codex、Gemini CLI、Grok、dsh 当作子进程驱动，�
 | `apps/desktop-go/internal/clisdk`              | 插件契约（清单校验、能力接口、多选项权限回答）、外部 ACP 插件、子进程启动（`launch/`）与 JSON-RPC（`rpc/`） |
 | `apps/desktop-go/internal/clisdk/drivers`      | 四种会话驱动：`acp`、`streamjson`、`appserver`、`exec`                                                      |
 | `apps/desktop-go/internal/cliplugins/<cli>`    | 内置插件：启动注入、权限档位、官方账号目录、历史转录解析、模型目录、斜杠命令；共用部分在 `shared/`          |
-| `apps/desktop-go/internal/core/cli/sandbox`    | 系统级沙箱（macOS Seatbelt）：按标签生成配置、违规日志监听与分类，见 security.md「编程助手」                |
+| `apps/desktop-go/internal/core/cli/sandbox`    | 系统级沙箱（macOS Seatbelt）：按标签生成配置、违规日志监听与分类，见 security.md「Agents」                  |
 | `apps/desktop-go/internal/core/cli/harness`    | 编排器：标签、持久化、来源（官方 / 第三方）、权限队列、插话（steer）、空闲回收、升级重启                    |
 | `apps/desktop-go/internal/core/cli/accounts`   | 官方账号：识别终端里登录的账号、导入、登录、切换（各 CLI 自己的 HOME / 钥匙串）                             |
-| `apps/desktop-go/internal/core/cli/delegate`   | Nomi 把任务交给编程助手（`delegate_to_cli`）：直接改 + 按文件裁决，别的分支做基线时用 worktree，复用会话    |
+| `apps/desktop-go/internal/core/cli/delegate`   | Nomi 把任务交给 agent（`delegate_to_cli`）：直接改 + 按文件裁决，别的分支做基线时用 worktree，复用会话      |
 | `apps/desktop-go/internal/core/cli`（其余）    | CLI 探测与版本、安装 / 更新、历史会话、git 操作（变更面板）、斜杠命令发现、工作区文件                       |
-| `apps/desktop-go/internal/core/codinghandlers` | 编程助手相关的契约过程                                                                                      |
+| `apps/desktop-go/internal/core/codinghandlers` | agent 相关的契约过程                                                                                        |
 
 标签的消息存在 `harness/tabs/<标签>.json`（最多 300 条，写盘有 200 ms 防抖）。内核内存里只留最近读过的 6 个标签
 （`MaxCachedTabMessages`），多出来的在当前同步操作结束后回收；在跑 / 排队的、还有没写盘的、当前标签不回收，再读时从文件加载。
@@ -99,11 +99,11 @@ ACP 助手的权限能力由清单推出（`shared.AcpPermissions`），不在 G
 `folders` 是其余文件夹。模型与 ACP 的 [Additional Directories](https://agentclientprotocol.com/rfds/additional-directories) 一致：
 `cwd` 仍是主目录、相对路径的基准，其余文件夹只扩大读写范围；git、worktree、AGENTS.md 只看主文件夹。
 
-- **会话只记 projectId**：Nomi 对话在会话元信息里，编程助手在标签对象里（`tabs.json`）。目录不存进会话，每次用时由
+- **会话只记 projectId**：Nomi 对话在会话元信息里，agent 在标签对象里（`tabs.json`）。目录不存进会话，每次用时由
   `Store.Roots(id)` 实时取并按工作区根规则再查一遍：主文件夹不能用则整个项目不可用，其余文件夹不能用则跳过。
 - **Nomi**：`desktop.ApplyConversationWorkspace` 按 `extra.projectId` 取 `desktop.Workspace`，把 `extra.cwd` 改写成主文件夹（视图带来的丢掉）；
   文件工具每次调用按 `ExecContext.ProjectID` 重新取（`PermissionBroker.WorkspaceOf`），守卫的作用域是全部文件夹（`Workspace.Scopes`）。
-- **编程助手**：工作目录是主文件夹（委派的 worktree 标签例外），其余文件夹每次启动时由 `Orchestrator.extraDirs` 取：Claude Code `--add-dir`、
+- **Agents**：工作目录是主文件夹（委派的 worktree 标签例外），其余文件夹每次启动时由 `Orchestrator.extraDirs` 取：Claude Code `--add-dir`、
   Codex app-server 每轮 `sandboxPolicy.writableRoots`（exec 回退用 `-c sandbox_workspace_write.writable_roots`）、Gemini `--include-directories`、
   其余 ACP 助手声明 `sessionCapabilities.additionalDirectories` 时在 `session/new` / `session/load` 里带上；Nomi 的系统沙箱也把它们加进可写目录。
   项目改了（`Store.OnChange` → `Orchestrator.ProjectChanged`）：空闲标签断开常驻进程，下一轮按新的文件夹重启接着原会话；主文件夹换了的换工作目录、带上前文。
@@ -134,7 +134,7 @@ Codex 的 exec 回退没有来回通道。Nomi 自己连上的 MCP 不广告 eli
 
 ## 来源与标签令牌
 
-- **官方**：CLI 用 Nomi 管理的官方账号（每个账号一个独立的配置目录，登录由 CLI 自己完成，见 `accounts/`）。不再有「本机登录」：内置编程助手不用这台电脑上 CLI 默认目录里的登录；没有官方账号能力的（dsh、Gemini）只有第三方来源。旧版本存下的 `local-<kind>` 记录在读取时删掉，指向它的标签和「新会话默认用」改为跟随默认官方账号。
+- **官方**：CLI 用 Nomi 管理的官方账号（每个账号一个独立的配置目录，登录由 CLI 自己完成，见 `accounts/`）。不再有「本机登录」：内置 agent 不用这台电脑上 CLI 默认目录里的登录；没有官方账号能力的（dsh、Gemini）只有第三方来源。旧版本存下的 `local-<kind>` 记录在读取时删掉，指向它的标签和「新会话默认用」改为跟随默认官方账号。
 - **第三方**：CLI 指向本机统一网关。启动前编排器签一个 `nomi-tab-` 令牌并登记绑定（标签、代次、模型、思考深度），收到确认才启动；
   换模型、换第三方供应商时重新登记，下一轮生效。
 
@@ -154,7 +154,7 @@ Codex 的 exec 回退没有来回通道。Nomi 自己连上的 MCP 不广告 eli
 
 ## 本机保护
 
-工作目录策略、环境变量清理、Codex 联网默认关、系统级沙箱与按会话授权：见 [security.md「编程助手」](security.md#编程助手cli-子进程)。
+工作目录策略、环境变量清理、Codex 联网默认关、系统级沙箱与按会话授权：见 [security.md「Agents」](security.md#agents cli-子进程)。
 
 ## 测试
 

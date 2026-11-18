@@ -104,7 +104,7 @@ describe('运行中继续输入（排队）', () => {
     expect((getByTestId('chat-input') as HTMLTextAreaElement).disabled).toBe(true);
   });
 
-  it('编程助手标签：busyOverride + queue.onStop 提供停止', () => {
+  it('agent 标签：busyOverride + queue.onStop 提供停止', () => {
     const onStop = vi.fn();
     const { getByTestId } = render(
       <MessageInput busyOverride queue={{ onQueue: vi.fn(), onStop }} />,
@@ -141,7 +141,7 @@ describe('运行中继续输入（排队）', () => {
     expect(input.style.maxHeight).toBe(`${COMPOSER_MAX_HEIGHT_PX}px`);
   });
 
-  it('编程助手标签空闲（busyOverride=false）时即使提供 onStop 也不显示停止键', () => {
+  it('agent 标签空闲（busyOverride=false）时即使提供 onStop 也不显示停止键', () => {
     const onStop = vi.fn();
     const { queryByTestId, getByLabelText } = render(
       <MessageInput busyOverride={false} queue={{ onQueue: vi.fn(), onStop }} />,

@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// 没有编程助手进程时进程表至多每 IdleProcsMs 读一次；有进程时每轮都读
+// 没有 agent 进程时进程表至多每 IdleProcsMs 读一次；有进程时每轮都读
 func TestRefreshProcsBacksOffWhenNoAgents(t *testing.T) {
 	now := 1_000_000.0
 	reads := 0

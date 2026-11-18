@@ -6,10 +6,10 @@ import {
   bindNextDelegateConversation,
   getNextDelegate,
   subscribeNextDelegate,
-  type DelegateCli,
+  type NextDelegatePin,
 } from '../services/delegateClient';
 
-export function useNextDelegate(): DelegateCli | null {
+export function useNextDelegate(): NextDelegatePin | null {
   const ipc = useAiChatSelector(selectIpcClient);
   // 渲染时对齐当前会话，切换对话后 chip 显示该会话自己的钉住
   bindNextDelegateConversation(ipc?.currentConversationId?.());

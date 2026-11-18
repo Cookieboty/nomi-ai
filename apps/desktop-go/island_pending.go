@@ -2,8 +2,8 @@ package main
 
 // 灵动岛上「等你处理的事」（HITL）：把各处在等用户拍板的事汇成一份列表推给灵动岛，岛上的按钮接回各自原来的处理接口
 // （与对话里、任务页里的按钮是同一个入口，处理完各处一起消失）：
-//   - 编程助手标签的权限请求（含批准计划）：harness ReplyPermission / ReplyApprovePlan；
-//   - 编程助手被沙箱拦下：harness SandboxReply（受保护的文件夹只能拒绝）；
+//   - agent 标签的权限请求（含批准计划）：harness ReplyPermission / ReplyApprovePlan；
+//   - agent 被沙箱拦下：harness SandboxReply（受保护的文件夹只能拒绝）；
 //   - 持续任务：等批准 / 预算 / 配置 / 被接手（tasks decide）、等验收（accept）、要核对（reconcile）；
 //     要写字的（补充信息、退回意见）与重新授权只给「打开」；
 //   - Nomi 自己的工具确认（桌面、命令、MCP、委派交接）：desktop AnswerConfirm；强制弹窗的只给「打开」。
@@ -29,7 +29,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// islandBackendName：编程助手的显示名（品牌名，不翻译；内置的取注册表的完整名称）
+// islandBackendName：agent 的显示名（品牌名，不翻译；内置的取注册表的完整名称）
 func islandBackendName(b string) string {
 	if n := builtin.FullName(b); n != "" {
 		return n
@@ -153,7 +153,7 @@ func (h *islandPendingHub) openItem(id string) {
 	h.src.open(target, ref)
 }
 
-// islandNavOf：条目 id → 对话窗口里的去处。编程助手的请求在它的标签里，任务在任务详情，Nomi 的确认在主对话
+// islandNavOf：条目 id → 对话窗口里的去处。agent 的请求在它的标签里，任务在任务详情，Nomi 的确认在主对话
 func islandNavOf(id string) (target, ref string) {
 	parts := strings.Split(id, "\x1f")
 	switch parts[0] {
@@ -178,7 +178,7 @@ func islandNavOf(id string) (target, ref string) {
 }
 
 // islandSessionOf：条目在哪个会话里能处理（你正看着那个会话时它不上岛，见 island.ShouldShow）。
-// 编程助手的请求在它的标签里；Nomi 的确认、提问在主对话；持续任务不属于某个会话
+// agent 的请求在它的标签里；Nomi 的确认、提问在主对话；持续任务不属于某个会话
 func islandSessionOf(id string) string {
 	switch target, ref := islandNavOf(id); target {
 	case "tab":
@@ -287,7 +287,7 @@ func askItemID(ev askuser.Event) string {
 	return "ask\x1fnomi\x1f" + ev.ID
 }
 
-// collectTabs：编程助手标签的权限请求与沙箱拦截
+// collectTabs：agent 标签的权限请求与沙箱拦截
 func (h *islandPendingHub) collectTabs(add func(island.Pending, map[string]func() error)) {
 	o := h.src.orch
 	if o == nil {

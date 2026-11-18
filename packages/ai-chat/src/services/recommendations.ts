@@ -1,5 +1,5 @@
 /**
- * 按新手引导里选的职业与兴趣推荐任务：先装哪个编程助手、「开始使用」里列哪些功能、欢迎页给哪些示例问题。
+ * 按新手引导里选的职业与兴趣推荐任务：先装哪个 agent、「开始使用」里列哪些功能、欢迎页给哪些示例问题。
  * 只是规则表（纯函数，便于单测）；没选过职业与兴趣时保持原来的默认推荐。
  */
 import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
@@ -12,9 +12,9 @@ export type QuickPromptId =
   'hello' | 'code' | 'todo' | 'weekly' | 'spec' | 'write' | 'language' | 'learn';
 
 export interface Recommendations {
-  /** 推荐安装的编程助手，按优先级；最后总有 Codex 兜底（通用，什么职业都用得上） */
+  /** 推荐安装的 agent，按优先级；最后总有 Codex 兜底（通用，什么职业都用得上） */
   clis: BuiltinCliId[];
-  /** 偏编程：助手模式下「安装编程助手」也不标「可选」 */
+  /** 偏编程：助手模式下「安装 agent」也不标「可选」 */
   coding: boolean;
   features: RecommendedFeature[];
   /** 第一个总是「打个招呼」 */
@@ -53,7 +53,7 @@ export const DEFAULT_RECOMMENDATIONS: Recommendations = {
   prompts: ['hello', 'code', 'todo'],
 };
 
-/** 兜底推荐的编程助手：职业规则里没给到时也推荐它 */
+/** 兜底推荐的 agent：职业规则里没给到时也推荐它 */
 const FALLBACK_CLI: BuiltinCliId = 'codex';
 
 const MAX_FEATURES = 3;

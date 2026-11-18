@@ -35,8 +35,8 @@ type Deps struct {
 	TaskSummary func(taskID string) string
 	// ConversationOwns：这个「等你验收」的任务是不是已经交回来源对话处理（tasks.Service.ConversationOwns）；nil = 都不是
 	ConversationOwns func(t tasks.Task) bool
-	// External：编程助手监视认出的外部会话与进程的工作目录（要进 GIL，由 wiring 包好）
-	// External：外部会话、编程助手进程的工作目录（pid → 目录）、登记了会话的进程（pid → 会话 id）
+	// External：agent 监视认出的外部会话与进程的工作目录（要进 GIL，由 wiring 包好）
+	// External：外部会话、agent 进程的工作目录（pid → 目录）、登记了会话的进程（pid → 会话 id）
 	External func() ([]ExtSession, map[float64]string, map[float64]string)
 	Emit     func(State) // fleet.changed
 	// Kill：给进程发信号（"SIGTERM" / "SIGKILL"）；只用于用户手动关闭空闲的外部进程（CloseIdle）
@@ -70,7 +70,7 @@ type Deps struct {
 // CloseIdleGrace：手动关闭空闲进程时，SIGTERM 之后等多久再 SIGKILL
 const CloseIdleGrace = 3 * time.Second
 
-// ErrNotIdle：要关的进程已经不是空闲的外部编程助手（退出了、开始跑会话了、pid 被别的程序复用了）
+// ErrNotIdle：要关的进程已经不是空闲的外部 agent（退出了、开始跑会话了、pid 被别的程序复用了）
 var ErrNotIdle = errors.New("FLEET_NOT_IDLE")
 
 // ErrCloseDenied：没有权限结束它（Windows：以管理员身份运行的终端里开的）；ErrCloseFailed：其他原因结束不了
@@ -298,7 +298,7 @@ func (s *Service) freshState() (st State, table *agents.ProcTable, ok bool) {
 	return
 }
 
-// CloseIdle：用户手动关闭一棵空闲的外部编程助手进程树（只有用户点了才调用，调度从不调用）。
+// CloseIdle：用户手动关闭一棵空闲的外部 agent 进程树（只有用户点了才调用，调度从不调用）。
 // 先重新读进程表，确认 pid 此刻仍是同一种助手的空闲树的根、不在 Nomi 的进程树里，才对整棵树发 SIGTERM
 // （子进程在前），过 KillGrace 还在的再 SIGKILL。读不到新的进程表时不拿旧的那份去核对（那时它可能已经开始跑会话、
 // 或者退出后 pid 被别的程序复用了），返回 ErrCloseUnverified。返回关闭后的看板数据。

@@ -32,11 +32,11 @@ export interface DesktopState {
   cloudAcked: string[];
   /** 命令白名单：workspace_run 跑这些前缀的命令不再确认 */
   commandRules?: string[];
-  /** 用户加的受保护文件夹（Nomi 的文件工具与编程助手都不能用） */
+  /** 用户加的受保护文件夹（Nomi 的文件工具与 agent 都不能用） */
   protectedPaths?: string[];
-  /** 放行给编程助手的环境变量名 */
+  /** 放行给 agent 的环境变量名 */
   cliEnvAllow?: string[];
-  /** 编程助手的系统沙箱开关（缺省开） */
+  /** agent 的系统沙箱开关（缺省开） */
   cliSandbox?: boolean;
   /** 当前平台能用系统沙箱 */
   cliSandboxSupported?: boolean;
@@ -189,7 +189,7 @@ export const desktopClient = {
   /** 桌面角色「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 语音与屏幕 → 语音 */
   onOpenVoiceSettings: (fn: () => void) => onChatNav('nav.voiceSettingsRequested', fn),
   onSummary: (fn: (e: DesktopSummaryEvent) => void) => onDesktopSummary(fn),
-  /** 灵动岛上点「打开」/ 点某一条：跳到任务详情、编程助手标签或 Nomi 主对话 */
+  /** 灵动岛上点「打开」/ 点某一条：跳到任务详情、agent 标签或 Nomi 主对话 */
   onOpenItem: (fn: (e: { target: 'task' | 'tab' | 'nomi'; id: string }) => void) =>
     on(() => api.on('nav.openItemRequested', (p) => fn(p))),
 };

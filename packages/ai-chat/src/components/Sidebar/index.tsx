@@ -30,7 +30,7 @@ import { CONVERSATION_BACKENDS, type ConversationBackend } from '../../types/cha
 import { startupBrandIntro } from '../BrandIntro/state';
 import { EndpointInfoCard } from '../EndpointInfo';
 import { GettingStarted } from '../GettingStarted';
-import type { SettingsSection, SettingsTab } from '../SettingsView/sections';
+import type { SettingsSectionInput, SettingsTab } from '../SettingsView/sections';
 
 import styles from './index.module.css';
 import { sameMetaList } from './listEquality';
@@ -65,7 +65,7 @@ interface SidebarProps {
   /** 打开历史会话失败 / 有提示时 */
   onNotice?: (message: string) => void;
   /** 跳到设置的某个分区 / 标签：「按端」信息卡、「开始使用」清单 */
-  onOpenSettings?: (section: SettingsSection, tab?: SettingsTab) => void;
+  onOpenSettings?: (section: SettingsSectionInput, tab?: SettingsTab) => void;
   /** 侧栏底部的应用级入口（设置 / 知识 / 扩展 / 本机），由 App 传入 */
   footer?: React.ReactNode;
   /** 会话列表上方的固定入口（素材库），由 App 传入 */
@@ -104,7 +104,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const ipc = useAiChatSelector(selectIpcClient);
   const messageCount = useAiChatSelector(selectMessageCount);
   const isLoading = useAiChatSelector(selectIsLoading);
-  // Nomi 对话没有 CLI 标签，行首的状态点只能从「正在回复的会话」里取（与编程助手的 running 一致）
+  // Nomi 对话没有 CLI 标签，行首的状态点只能从「正在回复的会话」里取（与 agent 的 running 一致）
   const busyConvos = useAiChatSelector(selectBusyConvos);
   const runningIds = useMemo(
     () => new Set((busyConvos ?? []).filter((id) => id !== '')),
@@ -470,6 +470,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       bins={bins}
       project={ws}
       onPick={(b) => void createFor(b)}
+      onPickPreset={(p) => void createFor(p.cli, undefined, p)}
     />
   );
 
@@ -617,8 +618,12 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               wsGroups={wsGroups}
               collapsedWorkspaces={collapsedWorkspaces}
               onToggleCollapsed={setWorkspaceCollapsed}
-              onNewIn={(g, b) =>
-                void createFor(b ?? projectBackend(g, isNormal, view, endpointFilter), g.project.id)
+              onNewIn={(g, b, p) =>
+                void createFor(
+                  b ?? projectBackend(g, isNormal, view, endpointFilter),
+                  g.project.id,
+                  p,
+                )
               }
               onEdit={(g) => {
                 hideProjectPeek();

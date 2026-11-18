@@ -52,7 +52,7 @@ func TestToolGates(t *testing.T) {
 		{"task_propose", "每天 9 点看一下 CI，红了告诉我", true, ""},
 		{"task_propose", "帮我盯着这个仓库，有新 issue 就说一声", true, ""},
 		{"task_propose", "下周一帮我整理周报", true, ""},
-		{"task_propose", "等编程助手跑完再帮我审一下", true, ""},
+		{"task_propose", "等 agent 跑完再帮我审一下", true, ""},
 		{"task_propose", "把这件事做成一个任务", true, ""},
 		{"task_propose", "check my inbox every morning", true, ""},
 		{"task_propose", "介绍下你自己", false, "/Users/me/proj"},

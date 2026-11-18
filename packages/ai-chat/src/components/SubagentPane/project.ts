@@ -130,7 +130,7 @@ export function nestedMessages(
   return out;
 }
 
-/** 这次子代理调用的子代理 id：调用输入里的 agents（Codex spawn_agent）或结果里的 agentId（Claude Code） */
+/** 这次子代理调用的子代理 id：调用输入里的 agent（Codex spawn_agent）或结果里的 agentId（Claude Code） */
 export function agentIdsOfCall(
   messages: readonly ConvMessage[],
   callId: string,

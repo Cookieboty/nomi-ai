@@ -27,7 +27,7 @@ var hhmmRE = regexp.MustCompile(`^([01]?\d|2[0-3]):([0-5]\d)$`)
 const proposeSchema = `{"type":"object","properties":{
 "title":{"type":"string","minLength":1,"maxLength":80,"description":"任务的短标题，例如「每天看 CI」"},
 "goal":{"type":"string","minLength":1,"maxLength":4000,"description":"交给执行者的目标说明：用户原话 + 你整理的完成标准，写具体"},
-"when":{"type":"object","description":"何时运行，按 kind 填对应字段：manual 手动；once 填 at（ISO 时间，如 2026-11-03T09:00）；daily / weekdays 填 time（HH:MM）；weekly 填 days（0=周日…6=周六）+ time；interval 填 minutes；event 填 source 及其字段——web：url（RSS / Atom 加 feed=true），网页有变化；github：repo（owner/name）+ watch（issues = issue·PR 动态，ci = CI 跑完，可带 branch）；folder：path（用户打开过的目录的绝对路径），有新文件或改动；app：app_event（cli.finished 编程助手一轮结束，knowledge.updated 知识库更新）；mcp：mcp_server + mcp_tool（只读工具名，不带服务器前缀）+ mcp_args，定时调用户已装 MCP 的只读工具（邮件、日历等），有新条目算一件事",
+"when":{"type":"object","description":"何时运行，按 kind 填对应字段：manual 手动；once 填 at（ISO 时间，如 2026-11-03T09:00）；daily / weekdays 填 time（HH:MM）；weekly 填 days（0=周日…6=周六）+ time；interval 填 minutes；event 填 source 及其字段——web：url（RSS / Atom 加 feed=true），网页有变化；github：repo（owner/name）+ watch（issues = issue·PR 动态，ci = CI 跑完，可带 branch）；folder：path（用户打开过的目录的绝对路径），有新文件或改动；app：app_event（cli.finished agent 一轮结束，knowledge.updated 知识库更新）；mcp：mcp_server + mcp_tool（只读工具名，不带服务器前缀）+ mcp_args，定时调用户已装 MCP 的只读工具（邮件、日历等），有新条目算一件事",
 "properties":{"kind":{"type":"string","enum":["manual","once","daily","weekdays","weekly","interval","event"]},
 "at":{"type":"string"},"time":{"type":"string"},
 "days":{"type":"array","items":{"type":"integer","minimum":0,"maximum":6}},
@@ -38,8 +38,8 @@ const proposeSchema = `{"type":"object","properties":{
 "app_event":{"type":"string","enum":["cli.finished","knowledge.updated"]},
 "mcp_server":{"type":"string"},"mcp_tool":{"type":"string"},
 "mcp_args":{"type":"object","additionalProperties":{}}},"required":["kind"]},
-"executor":{"type":"string","enum":["nomi","notify","cli"],"description":"nomi = 由 Nomi 自己完成（默认）；notify = 到点只发一条通知；cli = 交给用户装好的编程助手在代码目录里做（改代码这类，用户点名或明显更合适时才用）"},
-"cli":{"type":"string","description":"executor=cli 时用哪个编程助手（如 claude、codex）"},
+"executor":{"type":"string","enum":["nomi","notify","cli"],"description":"nomi = 由 Nomi 自己完成（默认）；notify = 到点只发一条通知；cli = 交给用户装好的 agent 在代码目录里做（改代码这类，用户点名或明显更合适时才用）"},
+"cli":{"type":"string","description":"executor=cli 时指定 agent（如 claude、codex）"},
 "cwd":{"type":"string","description":"executor=cli 时的代码目录（绝对路径，要是用户打开过的工作区）"},
 "tools":{"type":"array","items":{"type":"string","enum":["read","web","knowledge_write","memory_write","file_write","shell"]},
 "description":"执行时需要的能力：read 只读、web 联网、file_write 写文件、shell 跑命令等；只要必要的"},
@@ -260,7 +260,7 @@ func decodeInput(in any, v any) error {
 // GithubConn：可用的 GitHub 连接（取第一个可用的）；没有时 nil
 type GithubConn func() (id, label string, ok bool)
 
-// CliEnv：executor=cli 用：已装好的编程助手、目录是否是用户认可的工作区
+// CliEnv：executor=cli 用：已装好的 agent、目录是否是用户认可的工作区
 type CliEnv struct {
 	Installed func() []string
 	DirOk     func(dir string) bool
@@ -284,7 +284,7 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 			DangerousUnset: true,
 			Execute: func(ctx context.Context, input any, ec tools.ExecContext) (any, error) {
 				if ec.CallerTabID != "" {
-					return fail("not_allowed", "编程助手不能创建任务"), nil
+					return fail("not_allowed", "agent 不能创建任务"), nil
 				}
 				var in proposeIn
 				if err := decodeInput(input, &in); err != nil || strings.TrimSpace(in.Title) == "" || strings.TrimSpace(in.Goal) == "" {
@@ -292,6 +292,17 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 				}
 				if in.Executor == "" {
 					in.Executor = "nomi"
+				}
+				if in.Executor == "cli" && strings.TrimSpace(in.Cli) == "" {
+					var installed []string
+					if cli.Installed != nil {
+						installed = cli.Installed()
+					}
+					if len(installed) == 0 {
+						in.Executor = "nomi"
+					} else {
+						in.Cli = installed[0]
+					}
 				}
 				if (in.Priority != "" && !slices.Contains(TaskPriorities, in.Priority)) ||
 					(in.Category != "" && !slices.Contains(TaskCategories, in.Category)) {
@@ -311,7 +322,7 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 						mcpWanted[server] = append(mcpWanted[server], tool)
 					}
 				}
-				// 执行时用的 MCP 工具只给 Nomi 自己执行的任务（编程助手、通知不调 Nomi 的工具）
+				// 执行时用的 MCP 工具只给 Nomi 自己执行的任务（agents、通知不调 Nomi 的工具）
 				mcpIn := in.Mcp
 				if in.Executor != "nomi" {
 					mcpIn = nil
@@ -381,7 +392,7 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 					}
 				}
 				if in.Executor == "cli" {
-					// 编程助手至少要在 worktree 里改文件（L2）；跑命令要 shell（L3）
+					// agent 至少要在 worktree 里改文件（L2）；跑命令要 shell（L3）
 					level = min(3, max(2, level))
 					var installed []string
 					if cli.Installed != nil {
@@ -392,7 +403,7 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 						if names == "" {
 							names = "无"
 						}
-						return fail("cli_unavailable", "可用的编程助手："+names+"；没有就用 executor=nomi"), nil
+						return fail("cli_unavailable", "可用的 agent："+names+"；没有就用 executor=nomi"), nil
 					}
 					if in.Cwd == "" || cli.DirOk == nil || !cli.DirOk(in.Cwd) {
 						return fail("bad_cwd", "cwd 必须是用户打开过的工作区目录"), nil

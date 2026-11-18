@@ -5,7 +5,7 @@ package tasks
 // 等 Resume 送来的回答。
 //
 // 对话里派给 Nomi 的（toolset: conversation）：工具用对话的工具集（去掉 ConversationExcluded），
-// 在发起对话的工作区里做；工具调用期间（生图、同步等编程助手）自己发心跳，不被看守判成崩溃。
+// 在发起对话的工作区里做；工具调用期间（生图、同步等 agent）自己发心跳，不被看守判成崩溃。
 
 import (
 	"context"
@@ -250,7 +250,7 @@ var (
 	permanentRE = regexp.MustCompile(`(?i)\b(401|403)\b|unauthorized|invalid[_ -]?api[_ -]?key|authentication[_ -]?(failed|required)|auth_required|not logged in|needs sign-in|please run /login|需要登录|尚未登录|先登录|insufficient[_ -]?quota|credit balance is too low|billing|model[_ -]?not[_ -]?found|untrusted`)
 	transientRE = regexp.MustCompile(`(?i)\b(408|409|425|429|5\d\d)\b|rate.?limit|overloaded|timeout|timed? ?out|too many requests|temporarily unavailable|try again|请求超时`)
 	networkRE   = regexp.MustCompile(`(?i)ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|EPIPE|\bEOF\b|broken pipe|socket hang up|network|connection reset|connection refused|no such host|stream (disconnected|closed|ended)|incomplete chunked|reconnect|rpc connection closed`)
-	cliExecRE   = regexp.MustCompile(`(?i)error_during_execution|error_max_turns|process exited|进程已退出|app-server error|(codex|claude|dsh|grok)-error|(codex|claude|dsh|grok) 出错|turn\.failed|exit code|exited with code|退出码|couldn't start an acp session|无法启动.*acp 会话|acp session ended|会话已结束|internal error|empty_result`)
+	cliExecRE   = regexp.MustCompile(`(?i)error_during_execution|error_max_turns|process exited|进程已退出|app-server error|(codex|claude|dsh|grok)-error|(codex|claude|dsh|grok) 出错|turn\.failed|exit code|exited with code|退出码|couldn't start an acp session|无法启动.*acp 会话|acp session ended|会话已结束|internal error|empty_result|auto mode can't check actions|自动模式在这个会话里校验不了动作|auto_mode_no_check_in_session`)
 )
 
 // ClassifyError：上游 / 网络 / CLI 执行异常归类成可重试的码；确定性的认证 / 账单错误不重试
@@ -488,7 +488,7 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 	if t.Executor.Kind == "nomi" && t.Executor.Project != nil && *t.Executor.Project != "" {
 		extra["projectId"] = *t.Executor.Project
 	}
-	// 工具调用进行中（生图、同步等编程助手）流里没有片段：按间隔补心跳，免得被看守判成崩溃
+	// 工具调用进行中（生图、同步等 agent）流里没有片段：按间隔补心跳，免得被看守判成崩溃
 	var pmu sync.Mutex
 	pending := map[string]bool{}
 	var toolSteps []string

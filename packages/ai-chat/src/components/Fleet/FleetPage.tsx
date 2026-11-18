@@ -245,7 +245,7 @@ const POLICY_LABEL: Record<FleetPolicyMode, string> = {
 };
 
 /**
- * 底部一栏：调度策略。Nomi 同时派出去跑的编程助手 / 后台任务的上限，三档由内核给出（数值照着写），用户点一档立即生效。
+ * 底部一栏：调度策略。Nomi 同时派出去跑的 agent / 后台任务的上限，三档由内核给出（数值照着写），用户点一档立即生效。
  */
 const PolicyBar: React.FC<{
   state: FleetState;
@@ -302,7 +302,7 @@ const COLUMN_ORDER: Record<FleetColumn, number> = { running: 0, todo: 1, paused:
 
 /**
  * Agent 看板整页：头部是标题、内存守护开关与整机占用；下面按状态筛选、搜索、按助手类型筛选，卡片两列铺开
- * （正在回答的 Nomi 对话、后台 agent、Nomi 派出的与工坊里的 CLI，以及 Nomi 之外的编程助手会话，只读）；
+ * （正在回答的 Nomi 对话、后台 agent、Nomi 派出的与工坊里的 CLI，以及 Nomi 之外的 agent 会话，只读）；
  * 内存守护最近做的事写在头部下面；底部一栏是调度策略（同时跑几个，用户选）。
  */
 export const FleetPage: React.FC<
@@ -316,7 +316,7 @@ export const FleetPage: React.FC<
     idleErrors?: IdleCloseError[];
     onSetAutoPause?: (on: boolean) => void;
     onSetPolicy?: (mode: FleetPolicyMode) => void;
-    /** 还没有会话时的主操作：在工坊里派出一个编程助手 */
+    /** 还没有会话时的主操作：在工坊里派出 agent */
     onDispatch?: (backend: BuiltinCliId) => void;
   } & CardActions
 > = ({

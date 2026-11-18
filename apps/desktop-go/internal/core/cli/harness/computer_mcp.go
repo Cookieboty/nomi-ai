@@ -1,9 +1,9 @@
 package harness
 
-// 编程助手的桌面操作（Computer Use）MCP：Nomi 以 stdio MCP 服务器的形式注入（core/computer/mcpserve），
-// 编程助手启动 `<Nomi 可执行文件> --computer-mcp <token 文件>`。token 文件在 <Root>/computer-mcp 里，
+// agent 的桌面操作（Computer Use）MCP：Nomi 以 stdio MCP 服务器的形式注入（core/computer/mcpserve），
+// agent 启动 `<Nomi 可执行文件> --computer-mcp <token 文件>`。token 文件在 <Root>/computer-mcp 里，
 // 系统沙箱只放行读这个标签自己的那一个文件（sandbox.go）：别的标签（如计划模式只读的）读不到它的 token。
-// 没装 agent-desktop、或用户关了「允许编程助手使用」时不注入。
+// 没装 agent-desktop、或用户关了「允许 agent 使用」时不注入。
 
 import (
 	"encoding/json"

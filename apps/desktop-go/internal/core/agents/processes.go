@@ -1,6 +1,6 @@
 package agents
 
-// processes.go：跨平台列出本机编程助手进程（只读）。
+// processes.go：跨平台列出本机 agent 进程（只读）。
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// AgentProc：编程助手进程（Cwd "" = undefined）。Ppid / RSS 0 = 不知道；RSS 是这个进程自己的常驻内存（字节）。
+// AgentProc：agent 进程（Cwd "" = undefined）。Ppid / RSS 0 = 不知道；RSS 是这个进程自己的常驻内存（字节）。
 type AgentProc struct {
 	Pid  float64
 	Kind AgentKind
@@ -87,7 +87,7 @@ var rules = []struct {
 	}},
 }
 
-// genericRules：上面没有专门规则的内置编程助手：进程名是它的可执行文件名，或命令行里有它的 npm 包 / 可执行文件
+// genericRules：上面没有专门规则的内置 agent：进程名是它的可执行文件名，或命令行里有它的 npm 包 / 可执行文件
 var genericRules = func() []struct {
 	kind AgentKind
 	test func(n, c string) bool
@@ -135,7 +135,7 @@ var genericRules = func() []struct {
 
 var allRules = append(rules[:len(rules):len(rules)], genericRules...)
 
-// Classify：从进程列表里挑出编程助手（排除自身 selfPid）。
+// Classify：从进程列表里挑出 agent（排除自身 selfPid）。
 func Classify(procs []RawProc, selfPid float64) []AgentProc {
 	out := []AgentProc{}
 	for _, p := range procs {
@@ -158,7 +158,7 @@ func Classify(procs []RawProc, selfPid float64) []AgentProc {
 
 // psArgs：ps 的列；rss 单位 KB（macOS 与 Linux 一致）；time 是累计 CPU 时间（macOS「分:秒.百分秒」，
 // Linux「[天-]时:分:秒」，只到秒）。不用 %cpu：macOS 是衰减平均、Linux 是整个生命周期的平均。
-// macOS 的 comm 不在最后一列时截到 16 个字符，所以认编程助手主要靠 args。
+// macOS 的 comm 不在最后一列时截到 16 个字符，所以认 agent 主要靠 args。
 var psArgs = []string{"-A", "-o", "pid=,ppid=,rss=,time=,comm=,args="}
 
 // ParseCPUTime：ps 的 time 列 → 秒（认不出 = 0）。
@@ -358,7 +358,7 @@ func readProcessesNow(platform string) []RawProc {
 	return ParsePs(so)
 }
 
-// ListAgentProcesses：列出编程助手进程（nil = 整体失败/无法判断）。
+// ListAgentProcesses：列出 agent 进程（nil = 整体失败/无法判断）。
 func ListAgentProcesses(platform string) []AgentProc {
 	procs := ReadProcesses(platform)
 	if procs == nil {

@@ -59,7 +59,7 @@ export const ContextUsageBar: React.FC<{
   model?: string | null;
 }> = ({ messages, model }) => {
   const [hover, setHover] = useState(false);
-  // 当前编程助手标签：第三方模型快到标准窗口时，就地提议开启长上下文
+  // 当前 agent 标签：第三方模型快到标准窗口时，就地提议开启长上下文
   const tabs = useHarnessTabsCore();
   const tab = tabs.isCliTab ? tabs.activeTab : null;
   const [longError, setLongError] = useState<string | null>(null);

@@ -18,7 +18,7 @@ characters/*/voice/**
 # 手写的 Rive 换装契约（保留表格与行尾硬换行的原排版）
 # Rive 角色重建流水线（rive/nomi-complete/tools/rebuild）用 json.dump 生成的 JSON，保持生成器输出原样
 rive/nomi-complete/**/*.json
-# 本地编程助手的工作区（不入库）
+# 本地 agents 的工作区（不入库）
 .claude/**
 # Go 版 2.0.4 性能基线（原样保存的对比产物）、生成的供应商预设、内嵌进 Go 程序的终端 runner（字节级与 Node 版一致）
 apps/desktop-go/ci/baseline-*/**

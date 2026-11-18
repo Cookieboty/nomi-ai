@@ -95,3 +95,21 @@ func TestNomiTaskOf(t *testing.T) {
 		t.Fatal("only Nomi-delegated tabs map to a task")
 	}
 }
+
+func TestParseDelegateReportSplitsInlineMultiplePaths(t *testing.T) {
+	text := `[nomi-report]
+做了什么：同步了多语言与词典
+改动的文件：
+packages/i18n/src/locales/zh/ui/models.json packages/i18n/src/locales/en/ui/models.json
+apps/desktop-go/internal/core/i18n/locales/zh/ui/models.json (+1 -1), CHANGELOG.md
+- 无关说明：这行有中文冒号不按空格拆
+[/nomi-report]`
+	r := ParseDelegateReport(text)
+	if r == nil {
+		t.Fatal("expected parsed report")
+	}
+	want := `["packages/i18n/src/locales/zh/ui/models.json","packages/i18n/src/locales/en/ui/models.json","apps/desktop-go/internal/core/i18n/locales/zh/ui/models.json","CHANGELOG.md","无关说明：这行有中文冒号不按空格拆"]`
+	if got := util.Stringify(r.Get("changedFiles")); got != want {
+		t.Fatalf("changedFiles = %s, want %s", got, want)
+	}
+}

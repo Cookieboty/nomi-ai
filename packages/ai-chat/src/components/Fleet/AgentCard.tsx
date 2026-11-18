@@ -67,7 +67,7 @@ export interface CardActions {
   onResume?: (id: string) => void;
   /** Nomi 对话的名称（视图的会话列表里取）；取不到返回空 */
   chatName?: (conversationId: string) => string;
-  /** 调度树：上一级的标题（后台 Nomi 运行派出的编程助手显示「由「…」派出」） */
+  /** 调度树：上一级的标题（后台 Nomi 运行派出的 agent 显示「由「…」派出」） */
   parentTitle?: (id: string) => string;
 }
 

@@ -119,12 +119,39 @@ interface AgentProps {
   onHover: (i: number) => void;
 }
 
-/** `/agent ` 后的编程助手列表：沿用命令面板的样式；没安装的置灰、不可选 */
+/** `/agent ` 后的 agent 与预设档位列表：沿用命令面板的样式；没安装的置灰、不可选 */
 export const AgentPalette: React.FC<AgentProps> = ({ options, active, onPick, onHover }) => {
   const activeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     activeRef.current?.scrollIntoView?.({ block: 'nearest' });
   }, [active, options]);
+  const presetOpts = options.filter((o) => o.kind === 'preset');
+  const cliOpts = options.filter((o) => o.kind !== 'preset');
+  const renderItem = (o: AgentOption, i: number) => {
+    const on = i === active;
+    const preset = o.kind === 'preset';
+    return (
+      <button
+        key={preset ? `preset:${o.id}` : o.id}
+        ref={on ? activeRef : undefined}
+        type="button"
+        role="menuitem"
+        className={`${styles.item} ${on ? styles.on : ''}`}
+        data-testid={preset ? `slash-agent-preset-${o.id}` : `slash-agent-${o.id}`}
+        aria-current={on ? 'true' : undefined}
+        disabled={!o.installed}
+        {...(o.installed ? {} : { 'data-disabled': 'true', 'aria-disabled': true })}
+        onMouseDown={(e) => e.preventDefault()}
+        onMouseMove={() => !on && onHover(i)}
+        onClick={() => o.installed && onPick(o)}
+      >
+        <EndpointIcon backend={o.cli ?? (o.id as never)} size={16} decorative />
+        <span className={styles.name}>{o.name}</span>
+        <span className={styles.desc}>{o.summary ?? o.id}</span>
+        {!o.installed && <span className={styles.kind}>{t('ui.mascot-theme.not-installed')}</span>}
+      </button>
+    );
+  };
   return (
     <div
       className={styles.menu}
@@ -132,38 +159,26 @@ export const AgentPalette: React.FC<AgentProps> = ({ options, active, onPick, on
       data-testid="slash-agent-menu"
       aria-label={t('ui.providers-schedule.coding-agents')}
     >
-      <div className={styles.group}>{t('ui.providers-schedule.coding-agents')}</div>
       {options.length === 0 && (
-        <div className={styles.empty} data-testid="slash-agent-empty">
-          {t('ui.slash-commands.no-matching-coding-agent')}
-        </div>
+        <>
+          <div className={styles.group}>{t('ui.providers-schedule.coding-agents')}</div>
+          <div className={styles.empty} data-testid="slash-agent-empty">
+            {t('ui.slash-commands.no-matching-coding-agent')}
+          </div>
+        </>
       )}
-      {options.map((o, i) => {
-        const on = i === active;
-        return (
-          <button
-            key={o.id}
-            ref={on ? activeRef : undefined}
-            type="button"
-            role="menuitem"
-            className={`${styles.item} ${on ? styles.on : ''}`}
-            data-testid={`slash-agent-${o.id}`}
-            aria-current={on ? 'true' : undefined}
-            disabled={!o.installed}
-            {...(o.installed ? {} : { 'data-disabled': 'true', 'aria-disabled': true })}
-            onMouseDown={(e) => e.preventDefault()}
-            onMouseMove={() => !on && onHover(i)}
-            onClick={() => o.installed && onPick(o)}
-          >
-            <EndpointIcon backend={o.id} size={16} decorative />
-            <span className={styles.name}>{o.name}</span>
-            <span className={styles.desc}>{o.id}</span>
-            {!o.installed && (
-              <span className={styles.kind}>{t('ui.mascot-theme.not-installed')}</span>
-            )}
-          </button>
-        );
-      })}
+      {presetOpts.length > 0 && (
+        <>
+          <div className={styles.group}>{t('ui.slash-commands.preset-tiers')}</div>
+          {presetOpts.map((o) => renderItem(o, options.indexOf(o)))}
+        </>
+      )}
+      {cliOpts.length > 0 && (
+        <>
+          <div className={styles.group}>{t('ui.providers-schedule.coding-agents')}</div>
+          {cliOpts.map((o) => renderItem(o, options.indexOf(o)))}
+        </>
+      )}
       <div className={styles.foot} aria-hidden="true">
         {t('ui.slash-commands.select-enter-tab-choose-esc-close')}
       </div>

@@ -31,7 +31,7 @@ vi.mock('@/services/api', async () => {
 
 type Bubble = { text: string; voice?: string; kind?: string };
 
-describe('MascotAudioBridge: 编程助手气泡的出声方式', () => {
+describe('MascotAudioBridge: agent 气泡的出声方式', () => {
   const tick = () => new Promise((r) => setTimeout(r, 0));
   /** 主进程推一条 desktop:bubble（经事件桥成为契约事件 desktop.bubble），等它送达 */
   const emit = async (p: Bubble) => {

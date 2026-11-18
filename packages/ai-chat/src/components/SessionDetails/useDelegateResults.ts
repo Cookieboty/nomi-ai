@@ -13,16 +13,63 @@ export interface DelegateResults {
   followUps: Record<string, DelegateResult>;
 }
 
+const MAX_CACHED_RESULTS = 500;
+const cachedResults = new Map<string, DelegateResult>();
+const cachedFollowUps = new Map<string, DelegateResult>();
+
+function writeCache(map: Map<string, DelegateResult>, key: string, val: DelegateResult) {
+  if (map.has(key)) map.delete(key);
+  map.set(key, val);
+  if (map.size > MAX_CACHED_RESULTS) {
+    const oldest = map.keys().next().value;
+    if (oldest !== undefined) map.delete(oldest);
+  }
+}
+
+function readFromCache(
+  map: Map<string, DelegateResult>,
+  taskIds: readonly string[],
+): Record<string, DelegateResult> {
+  const out: Record<string, DelegateResult> = {};
+  for (const id of taskIds) {
+    const hit = map.get(id);
+    if (hit) out[id] = hit;
+  }
+  return out;
+}
+
+/** 单测用：清空模块级终态结果缓存 */
+export function resetDelegateResultsCache() {
+  cachedResults.clear();
+  cachedFollowUps.clear();
+}
+
 export function useDelegateResults(taskIds: readonly string[]): DelegateResults {
-  const [results, setResults] = useState<Record<string, DelegateResult>>({});
-  const [followUps, setFollowUps] = useState<Record<string, DelegateResult>>({});
   const key = taskIds.join('\n');
+  const [results, setResults] = useState<Record<string, DelegateResult>>(() =>
+    readFromCache(cachedResults, taskIds),
+  );
+  const [followUps, setFollowUps] = useState<Record<string, DelegateResult>>(() =>
+    readFromCache(cachedFollowUps, taskIds),
+  );
   useEffect(() => {
-    if (!key || !delegateClient.available()) return;
-    const ids = new Set(key.split('\n'));
+    if (!key) return;
+    const idsList = key.split('\n');
+    setResults((prev) => {
+      const fromCache = readFromCache(cachedResults, idsList);
+      return Object.keys(fromCache).length ? { ...fromCache, ...prev } : prev;
+    });
+    setFollowUps((prev) => {
+      const fromCache = readFromCache(cachedFollowUps, idsList);
+      return Object.keys(fromCache).length ? { ...fromCache, ...prev } : prev;
+    });
+    if (!delegateClient.available()) return;
+    const ids = new Set(idsList);
     let alive = true;
     const apply = (r: DelegateResult) => {
       if (!alive || !ids.has(r.taskId) || r.status === 'running') return;
+      const cache = r.followUp ? cachedFollowUps : cachedResults;
+      writeCache(cache, r.taskId, r);
       const set = r.followUp ? setFollowUps : setResults;
       set((m) => (m[r.taskId] === r ? m : { ...m, [r.taskId]: r }));
     };

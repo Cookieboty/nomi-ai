@@ -53,7 +53,7 @@ func TestDelegateToNomiCreatesTask(t *testing.T) {
 	if !strings.Contains(logs, `"authorizeIn"`) || !strings.Contains(logs, `"delegate_to_nomi"`) {
 		t.Fatal(logs)
 	}
-	// 不需要编程助手：没有标签
+	// 不需要 agent：没有标签
 	if len(e.log.harness) != 0 {
 		t.Fatal(e.log.harness)
 	}

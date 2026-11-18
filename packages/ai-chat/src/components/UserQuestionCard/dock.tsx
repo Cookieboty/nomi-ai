@@ -1,5 +1,5 @@
 /**
- * 当前会话的问题卡：Nomi 对话按 conversationId，编程助手标签按 tabId。
+ * 当前会话的问题卡：Nomi 对话按 conversationId，agent 标签按 tabId。
  * 挂载时补拉一次，之后跟 ai.userQuestion 走。
  *
  * - 补拉的快照可能比已收到的事件旧：快照回来之前的事件先攒着，快照装好后按顺序重放；

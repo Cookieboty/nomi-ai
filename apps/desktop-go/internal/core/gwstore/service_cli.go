@@ -1,6 +1,6 @@
 package gwstore
 
-// 编程助手：GatewayService 的 cliDefaults … officialEnv。
+// agents：GatewayService 的 cliDefaults … officialEnv。
 
 import (
 	"encoding/json"
@@ -41,16 +41,53 @@ func (s *Service) CliDefaults(kind string) *u.Obj {
 			model = v
 		}
 	}
-	third := c != nil && c.Get("newTabSource") == "thirdParty"
+	rawSrc, _ := c.Get("newTabSource").(string)
 	source := "official"
-	if third && u.Truthy(model) {
+	if rawSrc == "thirdParty" && u.Truthy(model) {
 		source = "thirdParty"
+	} else if rawSrc == "local" && builtin.WithAccounts(kind) {
+		source = "local"
 	}
 	var account any
-	if !third && c != nil {
+	if source == "official" && c != nil {
 		account = c.Get("newTabAccountId")
 	}
 	return u.NewObj("source", source, "model", model, "accountId", account)
+}
+
+// EffectiveClientModels 合并单 CLI 的模型槽位、标签主模型及全局 helperModel 回退。
+func (s *Service) EffectiveClientModels(kind, tabModel string) *u.Obj {
+	snap := s.Store.View().Snapshot()
+	mo := u.NewObj()
+	if cl, _ := snap.Get("clients").(*u.Obj); cl != nil {
+		if c, _ := cl.Get(kind).(*u.Obj); c != nil {
+			if m, _ := c.Get("models").(*u.Obj); m != nil {
+				mo = m.Clone()
+			}
+		}
+	}
+	if tabModel != "" {
+		mo.Set("main", tabModel)
+	}
+	if helper, _ := snap.Get("helperModel").(string); helper != "" {
+		if !u.Truthy(mo.Get("summary")) {
+			mo.Set("summary", helper)
+		}
+		if !u.Truthy(mo.Get("small")) {
+			mo.Set("small", helper)
+		}
+		var tiers *u.Obj
+		if t, _ := mo.Get("tiers").(*u.Obj); t != nil {
+			tiers = t.Clone()
+		} else {
+			tiers = u.NewObj()
+		}
+		if !u.Truthy(tiers.Get("haiku")) {
+			tiers.Set("haiku", helper)
+		}
+		mo.Set("tiers", tiers)
+	}
+	return mo
 }
 
 func objList(v any) []*u.Obj {
@@ -103,10 +140,7 @@ func (s *Service) CliLaunch(kind, tabID, model string, o CliLaunchOpts) (*agents
 	for _, m := range s.CliModels() {
 		catalog = append(catalog, u.JSString(m.Get("ref")))
 	}
-	models := clientModelsObj(s.clientObj(kind))
-	if models == nil {
-		models = u.NewObj()
-	}
+	models := s.EffectiveClientModels(kind, "")
 	token := ep.Token
 	if o.Token != "" {
 		token = o.Token
@@ -153,11 +187,7 @@ func (s *Service) CliLaunchForTab(kind, tabID, model, effort string, longContext
 	if !s.rt.proc.WhenReady(tabReadyTimeout) {
 		return nil, nil
 	}
-	mo := u.NewObj()
-	if m := clientModelsObj(s.clientObj(kind)); m != nil {
-		mo = m.Clone()
-	}
-	mo.Set("main", model)
+	mo := s.EffectiveClientModels(kind, model)
 	var cm config.ClientModels
 	if err := json.Unmarshal([]byte(u.Stringify(mo)), &cm); err != nil {
 		return nil, err

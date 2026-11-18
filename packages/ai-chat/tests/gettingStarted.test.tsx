@@ -89,7 +89,7 @@ const renderIt = (p: Partial<React.ComponentProps<typeof GettingStarted>> = {}) 
 };
 
 describe('GettingStarted（侧栏「开始使用」清单）', () => {
-  it('新装：助手模式先「添加模型」，编程助手标可选，「开始」不可点；点添加去设置 → 模型', async () => {
+  it('新装：助手模式先「添加模型」，agent 标可选，「开始」不可点；点添加去设置 → 模型', async () => {
     mockIpc({ model: false, installed: [] });
     const { r, onOpenSettings } = renderIt();
     await waitFor(() => r.getByTestId('getting-started'));
@@ -105,10 +105,10 @@ describe('GettingStarted（侧栏「开始使用」清单）', () => {
     expect(r.getByTestId('getting-started-start')).toHaveProperty('disabled', true);
     expect(r.queryByTestId('getting-started-tips')).toBeNull();
     fireEvent.click(r.getByTestId('getting-started-add-model'));
-    expect(onOpenSettings).toHaveBeenCalledWith('models');
+    expect(onOpenSettings).toHaveBeenCalledWith('ai', 'providers');
   });
 
-  it('工作台模式先装编程助手；只列出还没装的；点安装弹出确认框', async () => {
+  it('工作台模式先装 agent；只列出还没装的；点安装弹出确认框', async () => {
     mockIpc({ model: false, installed: ['codex'] });
     const { r } = renderIt({ mode: 'workbench' });
     await waitFor(() => r.getByTestId('getting-started'));
@@ -142,7 +142,7 @@ describe('GettingStarted（侧栏「开始使用」清单）', () => {
     expect(r.getByTestId('getting-started-step-model').getAttribute('data-done')).toBeNull();
     expect(r.getByTestId('getting-started-add-model').textContent).toBe('选择模型');
     fireEvent.click(r.getByTestId('getting-started-add-model'));
-    expect(onOpenSettings).toHaveBeenCalledWith('models');
+    expect(onOpenSettings).toHaveBeenCalledWith('ai', 'routing');
   });
 
   it('能用之后：「开始」可点，出现「还可以试试」，跳到知识库 / 扩展', async () => {
@@ -178,7 +178,7 @@ describe('GettingStarted（侧栏「开始使用」清单）', () => {
     expect(second.queryByTestId('getting-started')).toBeNull();
   });
 
-  it('按职业推荐：开发者在助手模式下也先装编程助手（不标可选），两个可以同时安装', async () => {
+  it('按职业推荐：开发者在助手模式下也先装 agent（不标可选），两个可以同时安装', async () => {
     const invoke = mockIpc({
       model: true,
       installed: [],

@@ -122,7 +122,7 @@ const ThreadItemImpl: React.FC<{
   /** 悬停 / 聚焦：el 为 null 时收起详情卡片 */
   onPeek?: (id: string, el: HTMLElement | null) => void;
   /**
-   * 行尾的端点品牌图标：只在工坊「全部」里给编程助手的会话标出端点；Nomi 是默认，不标。
+   * 行尾的端点品牌图标：只在工坊「全部」里给 agent 的会话标出端点；Nomi 是默认，不标。
    * 行首不画图标，所有标题左对齐（Codex 式）。
    */
   showIcon?: boolean;

@@ -448,7 +448,7 @@ describe('任务页', () => {
     localStorage.clear();
   });
 
-  it('验收卡片：编程助手的 worktree 确认后回填，显示结果', async () => {
+  it('验收卡片：agent 的 worktree 确认后回填，显示结果', async () => {
     await open();
     fireEvent.click(screen.getByTestId('task-task_e'));
     await act(() => fake.settle());
@@ -461,7 +461,7 @@ describe('任务页', () => {
     expect(screen.getByRole('status')).toBeTruthy();
   });
 
-  it('新建：交给已装好的编程助手，选代码目录，L2 起、授权路径是该目录', async () => {
+  it('新建：交给已装好的 agent，选代码目录，L2 起、授权路径是该目录', async () => {
     await open();
     fireEvent.click(screen.getByTestId('tasks-new'));
     await act(() => fake.settle());

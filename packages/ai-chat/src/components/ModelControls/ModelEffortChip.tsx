@@ -1,13 +1,13 @@
 /**
- * 输入栏的「模型 · 思考深度」按钮外壳（编程助手标签与 Nomi 对话共用同一份实现）。
+ * 输入栏的「模型 · 思考深度」按钮外壳（agent 标签与 Nomi 对话共用同一份实现）。
  *
  * 交互参考 Codex：一个胶囊显示「模型 · 档位」，点开一个浮层：
- * - 档位页：思考深度（分档滑杆）+「模型：xxx ›」行（+ 编程助手的官方账号行）；
+ * - 档位页：思考深度（分档滑杆）+「模型：xxx ›」行（+ agent 的官方账号行）；
  * - 模型页：共享的 ModelPicker（inline，跨供应商标签、厂商筛选、搜索）；
- * - 账号页（仅编程助手有）：官方账号。
+ * - 账号页（仅 agent 有）：官方账号。
  *
  * 数据从哪来、改往哪写由使用方的 `ModelEffortSource` 适配器决定
- * （编程助手见 ModelControls/cliSource，Nomi 见 NomiModelSwitch）；这里只管触发器、浮层、
+ * （agent 见 ModelControls/cliSource，Nomi 见 NomiModelSwitch）；这里只管触发器、浮层、
  * 页面切换与 testid 前缀。
  */
 import {
@@ -74,7 +74,7 @@ export interface ModelPageSource {
   wide: boolean;
 }
 
-/** 账号页（仅编程助手有） */
+/** 账号页（仅 agent 有） */
 export interface AccountPageSource extends ModelChoiceSource {
   /** '' = 跟随默认账号 */
   onChange: (id: string | null) => void;
@@ -102,6 +102,8 @@ export interface ModelEffortSource {
   menuCommandView: 'effort' | 'model';
   /** `/model` 命令登记的 key；空串 = 不登记 */
   menuKey: string;
+  /** 浮层顶部额外控制区（如 agent 的三态来源与快捷切档药丸） */
+  topBar?: React.ReactNode;
   effort: EffortPageSource;
   model: ModelPageSource;
   account?: AccountPageSource | null;
@@ -297,6 +299,7 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
           testId={`${prefix}-menu`}
           width={view === 'model' && model.wide ? 380 : 300}
         >
+          {source.topBar}
           {view === 'effort' ? (
             <div className={styles.effortView} data-testid={`${effortPrefix}-view`}>
               {effort.supported ? (

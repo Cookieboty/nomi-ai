@@ -255,7 +255,7 @@ export const mediaProcedures = {
     output: DesktopState,
     dangerous: true,
   },
-  /** 开关编程助手的系统沙箱（关掉 = 放宽），返回最新状态 */
+  /** 开关 agent 的系统沙箱（关掉 = 放宽），返回最新状态 */
   'desktop.setCliSandbox': {
     kind: 'mutation',
     input: z.object({ enabled: z.boolean() }),
@@ -272,7 +272,7 @@ export const mediaProcedures = {
     }),
     output: DesktopState,
   },
-  /** 整体替换放行给编程助手的环境变量名（不合法的名字丢掉），返回最新状态 */
+  /** 整体替换放行给 agent 的环境变量名（不合法的名字丢掉），返回最新状态 */
   'desktop.setCliEnvAllow': {
     kind: 'mutation',
     input: z.object({ names: z.array(z.string()) }),
@@ -378,7 +378,7 @@ export const mediaProcedures = {
     surfaces: ['chat', 'settings'],
   },
   /**
-   * 改设置：编程助手开关（之后启动的编程助手会话生效）、视觉兜底模型、另外禁止的应用、读界面时打码、隔离模式的沙箱。
+   * 改设置：agent 开关（之后启动的 agent 会话生效）、视觉兜底模型、另外禁止的应用、读界面时打码、隔离模式的沙箱。
    * 返回最新状态
    */
   'computer.updateSettings': {
@@ -396,7 +396,7 @@ export const mediaProcedures = {
     surfaces: ['chat', 'settings'],
   },
   /**
-   * 紧急停止：取消正在执行 / 等确认的桌面操作，中止正在操作桌面的那几轮（Nomi 对话、编程助手标签），
+   * 紧急停止：取消正在执行 / 等确认的桌面操作，中止正在操作桌面的那几轮（Nomi 对话、agent 标签），
    * 这几轮之后的桌面操作一律拒绝，直到用户发下一条消息
    */
   'computer.stop': {
@@ -460,7 +460,7 @@ export const mediaEvents = {
   'nav.desktopPanelRequested': NavRequest,
   'nav.scheduleRequested': NavRequest,
   'nav.voiceSettingsRequested': NavRequest,
-  /** 灵动岛上点「打开」：对话窗口跳到那一条（任务详情 / 编程助手标签 / Nomi 主对话） */
+  /** 灵动岛上点「打开」：对话窗口跳到那一条（任务详情 / agent 标签 / Nomi 主对话） */
   'nav.openItemRequested': NavOpenItem,
 } as const satisfies EventMap;
 

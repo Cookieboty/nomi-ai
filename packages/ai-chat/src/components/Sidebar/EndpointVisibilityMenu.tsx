@@ -24,7 +24,7 @@ export const EndpointVisibilityMenu: React.FC<{
   onChange: (b: ConversationBackend, v: EndpointVisibility) => void;
   /** 当前是否为自定义顺序（否则按对话数） */
   customOrder?: boolean;
-  /** 新的编程助手端点顺序；null = 恢复按对话数排序 */
+  /** 新的 agent 端点顺序；null = 恢复按对话数排序 */
   onReorder?: (order: ConversationBackend[] | null) => void;
 }> = ({ backends, visibility, activity, shown, onChange, customOrder = false, onReorder }) => {
   const [open, setOpen] = useState(false);

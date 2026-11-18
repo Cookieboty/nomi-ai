@@ -2,7 +2,7 @@ package agents
 
 // proctable.go：进程表（父子关系 + 常驻内存 + 累计 CPU 时间），给 Agent 看板与负荷调度用：
 // 算一个进程连同子孙进程的内存与 CPU 占用，判断进程在不在 Nomi 的进程树里
-// （在 = 工坊标签、Nomi 派出的编程助手；不在 = 用户自己在终端 / IDE 里开的，只能预警不能干扰）。
+// （在 = 工坊标签、Nomi 派出的 agent；不在 = 用户自己在终端 / IDE 里开的，只能预警不能干扰）。
 
 import (
 	"sort"
@@ -141,7 +141,7 @@ func (t *ProcTable) TreeRSS(root float64) float64 {
 	return sum
 }
 
-// AgentTree：一个编程助手的进程树。Root 是最上层被认出的编程助手进程（它子孙里再认出的编程助手
+// AgentTree：agent 的进程树。Root 是最上层被认出的 agent 进程（它子孙里再认出的 agent
 // 算进同一棵树，避免内存重复计算）；RSS 是整棵树之和；InNomi = 在 Nomi 自己的进程树里。
 type AgentTree struct {
 	Root   AgentProc
@@ -150,7 +150,7 @@ type AgentTree struct {
 	InNomi bool
 }
 
-// AgentTrees：表里的编程助手按进程树归并，按根 pid 排序。selfPid = Nomi 内核进程。
+// AgentTrees：表里的 agent 按进程树归并，按根 pid 排序。selfPid = Nomi 内核进程。
 func AgentTrees(t *ProcTable, selfPid float64) []AgentTree {
 	all := make([]RawProc, 0, len(t.procs))
 	for _, p := range t.procs {

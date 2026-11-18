@@ -32,7 +32,7 @@ const (
 	AppName         = "Nomi" // brand.appName
 )
 
-// labelOf：编程助手的完整名称（「Gemini CLI」）
+// labelOf：agent 的完整名称（「Gemini CLI」）
 func labelOf(k AgentKind) string { return builtin.FullName(string(k)) }
 
 func epLabel(b string) string {
@@ -210,7 +210,7 @@ type inspectedHit struct {
 	cand  candidate
 }
 
-// Service：编程助手进度服务。
+// Service：agent 进度服务。
 type Service struct {
 	d           Deps
 	settings    Settings
@@ -218,7 +218,7 @@ type Service struct {
 	tracked     map[string]*trackedT
 	trackedSig  string
 	timer       *jsrt.Timer
-	// 攒着待合并的编程助手提醒（notify）
+	// 攒着待合并的 agent 提醒（notify）
 	pendingNotices []Notice
 	noticeTimer    *jsrt.Timer
 	// lastRemindAt：上次提醒的时间（State 里给界面看）
@@ -441,7 +441,7 @@ func (s *Service) SetSettings(patch any) (*util.Obj, error) {
 	return s.settings.Obj(), nil
 }
 
-// DetectKinds：本机装了哪些编程助手。
+// DetectKinds：本机装了哪些 agent。
 func (s *Service) DetectKinds() []AgentKind {
 	ex := func(p string) bool { _, err := os.Stat(p); return err == nil }
 	found := []AgentKind{}
@@ -751,7 +751,7 @@ func (s *Service) matchAlive(cands []candidate, procs []AgentProc, procSess map[
 	return res
 }
 
-// IdleProcsMs：上次没找到任何编程助手进程时，进程表至多这么久重读一次（平时随 pollMs 每轮读）。
+// IdleProcsMs：上次没找到任何 agent 进程时，进程表至多这么久重读一次（平时随 pollMs 每轮读）。
 // 读进程表要起 ps / PowerShell，空闲时不必每 8 秒一次；会话文件的扫描仍按 pollMs。
 const IdleProcsMs = 30_000
 
@@ -1137,7 +1137,7 @@ func (s *Service) notify(n Notice) {
 	if s.d.Notify == nil {
 		return
 	}
-	// 编程助手做完 / 出错的提醒先攒一下：几个客户端前后脚结束时合成一条，不连着打扰好几次。
+	// agent 做完 / 出错的提醒先攒一下：几个客户端前后脚结束时合成一条，不连着打扰好几次。
 	// 「等你处理」不合并、马上发：岛上按端点判断它是不是已经在待处理列表里（在就不再弹），合进别家的提醒会连带被吞掉
 	if n.Kind != "agent" || n.Status == "attention" {
 		s.d.Notify(n)
@@ -1149,7 +1149,7 @@ func (s *Service) notify(n Notice) {
 	}
 }
 
-// noticeMergeMs：多久之内的编程助手提醒合成一条
+// noticeMergeMs：多久之内的 agent 提醒合成一条
 const noticeMergeMs = 1500
 
 func (s *Service) flushNotices() {
@@ -1162,7 +1162,7 @@ func (s *Service) flushNotices() {
 	s.d.Notify(MergeNotices(list))
 }
 
-// MergeNotices：几条编程助手提醒合成一条：标题列出各家，正文逐条接上，状态取最要紧的（出错 > 要你看 > 完成 > 其他），
+// MergeNotices：几条 agent 提醒合成一条：标题列出各家，正文逐条接上，状态取最要紧的（出错 > 要你看 > 完成 > 其他），
 // 图标、气泡跟最要紧的那条；一条时原样返回
 func MergeNotices(list []Notice) Notice {
 	if len(list) == 1 {
@@ -1476,7 +1476,7 @@ func (s *Service) ProcSessions() map[float64]string {
 	return out
 }
 
-// ProcCwds：最近一次进程扫描里各编程助手进程的工作目录（pid → 目录；须持 GIL 调用，与 State 一样）。
+// ProcCwds：最近一次进程扫描里各 agent 进程的工作目录（pid → 目录；须持 GIL 调用，与 State 一样）。
 // Agent 看板据此把外部的进程树对到会话上。
 func (s *Service) ProcCwds() map[float64]string {
 	out := make(map[float64]string, len(s.procs))

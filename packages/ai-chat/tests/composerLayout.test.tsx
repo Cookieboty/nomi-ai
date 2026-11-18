@@ -50,7 +50,7 @@ describe('输入框工具栏结构', () => {
     expect(right?.contains(getByTestId('composer-model'))).toBe(true);
   });
 
-  it('插件 / 命令不再单独占按钮：给了 onPluginsClick（编程助手标签）时在「+」菜单里', () => {
+  it('插件 / 命令不再单独占按钮：给了 onPluginsClick（agent 标签）时在「+」菜单里', () => {
     const onPlugins = vi.fn();
     const r = render(<MessageInput onSend={vi.fn()} onPluginsClick={onPlugins} />);
     expect(r.queryByTestId('plugin-panel-open')).toBeNull();

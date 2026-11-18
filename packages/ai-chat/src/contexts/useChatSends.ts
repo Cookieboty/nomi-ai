@@ -13,6 +13,11 @@ import {
   consumeNextDelegate,
   DELEGATE_GOAL_MAX,
   delegateClient,
+  formatRunnerSummary,
+  getNextDelegateMeta,
+  isPresetPin,
+  presetDisplayLabel,
+  type DelegateCli,
 } from '../services/delegateClient';
 import { extClient } from '../services/extClient';
 import {
@@ -24,6 +29,7 @@ import {
 import { imageLinksNote, STEER_TAG } from '../services/history';
 import { kbClient } from '../services/kbClient';
 import { memoryContext } from '../services/memClient';
+import { gatewayStateSnapshot } from '../services/nomiModel';
 import { nomiModelLabel, servedModelLabel } from '../services/nomiModel';
 import { maybeStartNomiSmartTitle } from '../services/nomiSmartTitle';
 import { startReplySpeech, stopReplySpeech, type ReplySpeaker } from '../services/replySpeech';
@@ -44,6 +50,13 @@ import {
 } from './chatTurn';
 import { compactHistory } from './compactHistory';
 import { attachSteer, finishSteer, type DeliveredSteer, type SteerLedger } from './nomiSteer';
+
+let lastMessageId = 0;
+function nextMessageId(): string {
+  const now = Date.now();
+  lastMessageId = now <= lastMessageId && lastMessageId - now < 60_000 ? lastMessageId + 1 : now;
+  return String(lastMessageId);
+}
 
 interface SendsOptions {
   stateRef: MutableRefObject<AiChatState>;
@@ -69,7 +82,7 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
         dispatch({ type: 'SET_ERROR', payload: undefined });
 
         const userMessage: ChatMessage = {
-          id: Date.now().toString(),
+          id: nextMessageId(),
           role: 'user',
           content,
           timestamp: Date.now(),
@@ -89,7 +102,7 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
           if (hs.backend !== 'nomi') {
             const r = await harnessClient.send(content);
             const aiMessage: ChatMessage = {
-              id: (Date.now() + 1).toString(),
+              id: nextMessageId(),
               role: 'assistant',
               content: r.text,
               timestamp: Date.now(),
@@ -111,7 +124,7 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
         const response = await s.ipcClient.sendMessage(content, history, undefined, mem.text);
 
         const aiMessage: ChatMessage = {
-          id: (Date.now() + 1).toString(),
+          id: nextMessageId(),
           role: 'assistant',
           content: response,
           timestamp: Date.now(),
@@ -141,7 +154,7 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
         dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
         dispatch({ type: 'SET_ERROR', payload: undefined });
         const userMessage: ChatMessage = {
-          id: Date.now().toString(),
+          id: nextMessageId(),
           role: 'user',
           content,
           timestamp: Date.now(),
@@ -159,7 +172,7 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
         maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
         const r = await kbClient.ask(content, history);
         const aiMessage: ChatMessage = {
-          id: (Date.now() + 1).toString(),
+          id: nextMessageId(),
           role: 'assistant',
           content: r.answer,
           timestamp: Date.now(),
@@ -240,7 +253,7 @@ function useStreamSend({
         // 原图存进素材库：消息里记下地址（放大看原图、复制、以此修改 / 作为参考），这一轮也把地址告诉模型
         const imageUrls = images?.length ? await importChatImages(images, turn.convoId) : [];
         const userMessage: ChatMessage = {
-          id: Date.now().toString(),
+          id: nextMessageId(),
           role: 'user',
           content,
           timestamp: Date.now(),
@@ -273,7 +286,7 @@ function useStreamSend({
           });
           await saveUser('early');
         }
-        // `/agent`：直接派出编程助手。不交给对话模型——模型不调工具时会像已经交出，其实什么都没开始。
+        // `/agent`：直接派出 agent。不交给对话模型——模型不调工具时会像已经交出，其实什么都没开始。
         if (delegateTo) {
           maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
           // 等确认时可以停止：停止键中止这次调用，内核里的确认随之取消
@@ -284,16 +297,38 @@ function useStreamSend({
           });
           owned = true;
           dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
-          // 附图的地址作为背景交给编程助手（它读不到对话里的缩略图）
+          // 附图的地址作为背景交给 agent（它读不到对话里的缩略图）
           const linked = imageUrls.filter(Boolean);
           try {
             if (content.length > DELEGATE_GOAL_MAX)
               throw new Error(
                 t('ui.slash-commands.handoff-request-too-long', String(DELEGATE_GOAL_MAX)),
               );
+            let dispatchCli: DelegateCli;
+            let dispatchPresetId: string | undefined;
+            let targetLabel: string;
+            if (isPresetPin(delegateTo)) {
+              dispatchPresetId = delegateTo.slice('preset:'.length);
+              const meta = getNextDelegateMeta(delegateTo, turn.convoId);
+              if (meta) {
+                dispatchCli = meta.cli;
+                targetLabel = meta.label;
+              } else {
+                const s = await delegateClient.settings();
+                const p = s.presets?.find((x) => x.id === dispatchPresetId);
+                dispatchCli = (p?.cli ?? s.installed[0] ?? 'claude') as DelegateCli;
+                targetLabel = p
+                  ? `${formatRunnerSummary(p, gatewayStateSnapshot())} (${presetDisplayLabel(p)})`
+                  : dispatchPresetId;
+              }
+            } else {
+              dispatchCli = delegateTo;
+              targetLabel = t(ENDPOINT_NAME[delegateTo]);
+            }
             await delegateClient.dispatch(
               {
-                cli: delegateTo,
+                cli: dispatchCli,
+                ...(dispatchPresetId ? { presetId: dispatchPresetId } : {}),
                 goal: content,
                 ...(linked.length ? { context: imageLinksNote(linked).slice(0, 8000) } : {}),
                 ...(turn.convoId ? { conversationId: turn.convoId } : {}),
@@ -302,15 +337,11 @@ function useStreamSend({
               },
               controller.signal,
             );
-            userMessage.delegateTo = delegateTo;
+            userMessage.delegateTo = dispatchCli;
             const ack: ChatMessage = {
-              id: (Date.now() + 1).toString(),
+              id: nextMessageId(),
               role: 'assistant',
-              content: t(
-                'ui.slash-commands.handed-off-started',
-                t(ENDPOINT_NAME[delegateTo]),
-                content,
-              ),
+              content: t('ui.slash-commands.handed-off-started', targetLabel, content),
               timestamp: Date.now(),
             };
             if (turn.isActive()) dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, ack] });
@@ -318,7 +349,7 @@ function useStreamSend({
             await turn.save(ack);
           } catch (err) {
             const failed: ChatMessage = {
-              id: (Date.now() + 1).toString(),
+              id: nextMessageId(),
               role: 'assistant',
               content: '',
               error: t(
@@ -368,7 +399,7 @@ function useStreamSend({
         if (hs) {
           if (hs.backend !== 'nomi') {
             if (bgFollow) return;
-            // 主对话标签切到编程助手：和普通标签同一条路径（能不能附图由主进程按模型能力判断）
+            // 主对话标签切到 agent：和普通标签同一条路径（能不能附图由主进程按模型能力判断）
             const r = images?.length
               ? await harnessClient.sendTab(
                   MAIN_TAB_ID,
@@ -385,7 +416,7 @@ function useStreamSend({
                 )
               : await harnessClient.send(content);
             const done: ChatMessage = {
-              id: (Date.now() + 1).toString(),
+              id: nextMessageId(),
               role: 'assistant',
               content: r.text,
               timestamp: Date.now(),
@@ -416,7 +447,7 @@ function useStreamSend({
         if (!turn.exists()) return;
         // 带上了召回的记忆：开始回复前更新先存的那份（中途重启后重试，记忆也还在）
         await saveUser('early');
-        const aiMessageId = (Date.now() + 1).toString();
+        const aiMessageId = nextMessageId();
         const aiMessage: ChatMessage = {
           id: aiMessageId,
           role: 'assistant',
@@ -468,17 +499,27 @@ function useStreamSend({
               x.traced = true;
         };
         /** 回复的正文 / 轨迹里已经有这一轮的插入了：补进记录的那几条不再需要 */
-        const noteSteersSent = () => {
-          for (const x of steerList() ?? [])
-            if (!x.traced && trace.some((e) => e.type === 'interject' && e.text === x.text))
+        const noteSteersSent = (list: readonly DeliveredSteer[] = steerList() ?? []) => {
+          for (const x of list) {
+            if (x.traced) continue;
+            const want = x.text.trim();
+            if (
+              trace.some(
+                (e) =>
+                  e.type === 'interject' &&
+                  (e.text === x.text || e.text.split('\n\n').some((p) => p.trim() === want)),
+              )
+            ) {
               x.traced = true;
+            }
+          }
         };
         /**
          * 结局时补进回复正文的「你加入了」分节：已经有分节的（重启后再交付时接进了回复的开头）续写在后面；
          * 没有的在开头加一节。文字里已经有的不重复加。
          */
         const fullSteerText = (text: string, done: readonly DeliveredSteer[]): string => {
-          noteSteersSent();
+          noteSteersSent(done);
           const missing = done
             .filter((x) => !x.traced && !text.includes(`\n\n${STEER_TAG}\n\n${x.text}`))
             .map((x) => x.text);

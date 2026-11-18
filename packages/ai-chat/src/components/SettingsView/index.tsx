@@ -7,17 +7,10 @@ import { ModalHostContext } from '@nomi-ai/ui';
 import { IconChevronLeft as ChevronLeft, IconBulb as Lightbulb } from '@tabler/icons-react';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 
-import { harnessClient } from '../../services/harnessClient';
+import { AiSettingsSection } from '../AiSettingsSection';
 import { AppIcon } from '../AppIcons';
-import {
-  ConnectionsPanel,
-  ExtensionsPanel,
-  LocalPanel,
-  QualityPanel,
-  UsagePanel,
-} from '../lazyPanels';
+import { ConnectionsPanel, ExtensionsPanel, QualityPanel, UsagePanel } from '../lazyPanels';
 import { onboardingClient } from '../Onboarding/client';
-import { ProvidersPage } from '../ProvidersPage';
 import { RestartUpdateButton } from '../RestartUpdateButton';
 
 import { AboutSection } from './AboutSection';
@@ -37,11 +30,13 @@ import { SECTION_HELP } from './sectionHelp';
 import { SectionPage } from './SectionPage';
 import {
   DEV_SECTIONS,
+  normalizeSettingsTarget,
   SECTION_TABS,
   SETTINGS_NAV_GROUPS,
   SETTINGS_SECTIONS,
   tabOf as pickTab,
   type SettingsSection,
+  type SettingsSectionInput,
   type SettingsTab,
 } from './sections';
 import { ShortcutSettings } from './ShortcutSettings';
@@ -60,13 +55,8 @@ const DebugSection = import.meta.env.DEV
   ? React.lazy(() => import('./DebugSection').then((m) => ({ default: m.DebugSection })))
   : null;
 
-/** 「模型」页懒加载 */
-const ModelsPage = React.lazy(() =>
-  import('../ModelsPage').then((m) => ({ default: m.ModelsPage })),
-);
-
 interface Props {
-  section: SettingsSection;
+  section: SettingsSectionInput;
   onSection: (s: SettingsSection) => void;
   onClose: () => void;
   /**
@@ -81,24 +71,29 @@ interface Props {
 type TabState = Partial<Record<keyof typeof SECTION_TABS, string>>;
 
 export const SettingsView: React.FC<Props> = ({
-  section,
+  section: rawSection,
   onSection,
   onClose,
   deepLink,
   collapsed = false,
 }) => {
+  const normalized = normalizeSettingsTarget(rawSection, deepLink?.tab);
+  const section = normalized.section;
+  const linkTab = normalized.tab;
+
   // 宽分区（不显示右侧说明栏）的页头「说明」是否展开
   const [helpOpen, setHelpOpen] = useState(false);
   // 有标签页的分区各自记住当前标签（离开设置页后重置）
   const [tabs, setTabs] = useState<TabState>(() =>
-    deepLink?.tab && section in SECTION_TABS ? { [section]: deepLink.tab } : {},
+    linkTab && section in SECTION_TABS ? { [section]: linkTab } : {},
   );
-  // 新的深链接（App 每次跳转传一个新对象）：在渲染期同步到对应分区的标签
+  // 新的深链接或旧分区重定向：在渲染期同步到对应分区的标签
   const [seenLink, setSeenLink] = useState(deepLink);
-  if (deepLink !== seenLink) {
+  const [seenRawSection, setSeenRawSection] = useState(rawSection);
+  if (deepLink !== seenLink || rawSection !== seenRawSection) {
     setSeenLink(deepLink);
-    if (deepLink?.tab && section in SECTION_TABS)
-      setTabs((p) => ({ ...p, [section]: deepLink.tab }));
+    setSeenRawSection(rawSection);
+    if (linkTab && section in SECTION_TABS) setTabs((p) => ({ ...p, [section]: linkTab }));
   }
   const tabOf = <S extends keyof typeof SECTION_TABS>(s: S) =>
     pickTab(s, tabs[s]) ?? (SECTION_TABS[s][0].id as (typeof SECTION_TABS)[S][number]['id']);
@@ -195,36 +190,21 @@ export const SettingsView: React.FC<Props> = ({
         );
       }
       case 'nomi':
-        return <NomiSection tab={tabOf('nomi')} onTab={(x) => setTab('nomi', x)} />;
-      case 'models':
         return (
-          <SectionPage
-            testId="settings-models-page"
-            tabsLabel="ui.chat-settings.models-and-providers-sections"
-            tabs={SECTION_TABS.models}
-            value={tabOf('models')}
-            onChange={(x) => setTab('models', x)}
-          >
-            {tabOf('models') === 'local' ? (
-              <LocalPanel key="local" isVisible onClose={noop} tabs={['models']} />
-            ) : (
-              <Suspense fallback={null}>
-                <ModelsPage />
-              </Suspense>
-            )}
-          </SectionPage>
-        );
-      case 'coding':
-        return harnessClient.available() ? (
-          <ProvidersPage
-            onOpenedTab={onClose}
-            onOpenNotify={() => go('general', 'notify')}
-            onOpenModels={() => go('models', 'providers')}
+          <NomiSection
+            tab={tabOf('nomi')}
+            onTab={(x) => setTab('nomi', x)}
+            onOpenRouting={() => go('ai', 'routing')}
           />
-        ) : (
-          <p className={styles.note}>
-            {t('ui.cli-monitor.coding-assistant-settings-are-only-available-in-the')}
-          </p>
+        );
+      case 'ai':
+        return (
+          <AiSettingsSection
+            tab={tabOf('ai')}
+            onTab={(x) => setTab('ai', x)}
+            onClose={onClose}
+            go={go}
+          />
         );
       case 'usage': {
         const u = tabOf('usage');

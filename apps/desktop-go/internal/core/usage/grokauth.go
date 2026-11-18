@@ -112,8 +112,36 @@ var (
 	DefaultCliEnv  func() *util.Obj
 )
 
+// GrokAccountProbe：initialize 原始结果 JSON 及同一 ACP 会话顺带读出的身份/订阅元数据（仅内存中转，不写日志不落盘）。
+type GrokAccountProbe struct {
+	Init     string
+	AuthInfo *util.Obj
+	Billing  *util.Obj
+	OK       bool
+}
+
+func grokStrTrim(v any) string {
+	if s, ok := v.(string); ok {
+		return util.JSTrim(s)
+	}
+	return ""
+}
+
 // ReadGrokAuthStatus = readGrokAuthStatus（"" , false = null）。须在 jsrt 线程内 Await。
 func ReadGrokAuthStatus(d GrokAuthReaderDeps) (string, bool) {
+	probe := readGrokProbe(d, false)
+	if !probe.OK {
+		return "", false
+	}
+	return probe.Init, true
+}
+
+// ReadGrokAccountProbe：拉起一次 grok agent stdio，读取登录态并（已登录时）顺带查询 _x.ai/auth/info 与 _x.ai/billing。
+func ReadGrokAccountProbe(d GrokAuthReaderDeps) GrokAccountProbe {
+	return readGrokProbe(d, true)
+}
+
+func readGrokProbe(d GrokAuthReaderDeps, withIdentity bool) GrokAccountProbe {
 	resolve := d.ResolveBin
 	if resolve == nil {
 		resolve = DefaultGrokBin
@@ -123,7 +151,7 @@ func ReadGrokAuthStatus(d GrokAuthReaderDeps) (string, bool) {
 		func() { defer func() { _ = recover() }(); bin, ok = resolve() }()
 	}
 	if !ok || bin == "" {
-		return "", false
+		return GrokAccountProbe{}
 	}
 	root := d.TmpRoot
 	if root == "" {
@@ -145,7 +173,7 @@ func ReadGrokAuthStatus(d GrokAuthReaderDeps) (string, bool) {
 	launch := ResolveCliLaunch(bin, GrokAgentArgs, env, platform, UnwrapCmdDeps{})
 	if launch == nil {
 		_ = nodefs.RmForce(dir)
-		return "", false
+		return GrokAccountProbe{}
 	}
 	spawn := d.SpawnFn
 	if spawn == nil {
@@ -162,36 +190,55 @@ func ReadGrokAuthStatus(d GrokAuthReaderDeps) (string, bool) {
 	}()
 	if child == nil {
 		_ = nodefs.RmForce(dir)
-		return "", false
+		return GrokAccountProbe{}
 	}
 	defer func() {
 		KillTree(child, 200)
 		_ = nodefs.RmForce(dir)
 	}()
-	p := jsrt.NewPromise[*string]()
+	p := jsrt.NewPromise[*GrokAccountProbe]()
 	settled := false
 	bytes := 0
 	buf := ""
-	var timer *jsrt.Timer
-	finish := func(v *string) {
+	gotInit := false
+	initStr := ""
+	gotInfo := false
+	gotBilling := false
+	var authInfo, billing *util.Obj
+	var timer, billingTimer *jsrt.Timer
+	finish := func(v *GrokAccountProbe) {
 		if settled {
 			return
 		}
 		settled = true
 		jsrt.ClearTimeout(timer)
+		jsrt.ClearTimeout(billingTimer)
 		p.Resolve(v)
+	}
+	finishPartialOrNil := func() {
+		if gotInit && initStr != "" {
+			finish(&GrokAccountProbe{Init: initStr, AuthInfo: authInfo, Billing: billing, OK: true})
+			return
+		}
+		finish(nil)
 	}
 	to := d.TimeoutMs
 	if to == 0 {
 		to = GrokAuthTimeoutMs
 	}
-	timer = jsrt.SetTimeout(time.Duration(to)*time.Millisecond, func() { finish(nil) })
-	child.OnError(func(error) { finish(nil) })
-	child.OnClose(func(*int, string) { finish(nil) })
+	timer = jsrt.SetTimeout(time.Duration(to)*time.Millisecond, finishPartialOrNil)
+	child.OnError(func(error) { finishPartialOrNil() })
+	child.OnClose(func(*int, string) { finishPartialOrNil() })
+	send := func(m *util.Obj) bool {
+		if child.Stdin == nil {
+			return false
+		}
+		return child.Stdin.Write(util.Stringify(m) + "\n")
+	}
 	child.OnStdout(func(s string) {
 		bytes += len(s)
 		if bytes > StdoutLimit {
-			finish(nil)
+			finishPartialOrNil()
 			return
 		}
 		buf += s
@@ -206,10 +253,57 @@ func ReadGrokAuthStatus(d GrokAuthReaderDeps) (string, bool) {
 			if err != nil {
 				continue
 			}
-			if o, ok := parsed.(*util.Obj); ok && o != nil {
-				if n, ok := o.Get("id").(float64); ok && n == 1 && util.Truthy(o.Get("result")) {
-					s := util.Stringify(o.Get("result"))
-					finish(&s)
+			o, ok := parsed.(*util.Obj)
+			if !ok || o == nil {
+				continue
+			}
+			id, hasID := o.Get("id").(float64)
+			if !hasID {
+				continue
+			}
+			switch id {
+			case 1:
+				if gotInit {
+					continue
+				}
+				if !util.Truthy(o.Get("result")) {
+					finish(nil)
+					return
+				}
+				gotInit = true
+				initStr = util.Stringify(o.Get("result"))
+				if !withIdentity || ParseGrokAuthStatus(initStr) != AuthSubscription {
+					finish(&GrokAccountProbe{Init: initStr, OK: true})
+					return
+				}
+				send(util.NewObj("jsonrpc", "2.0", "id", float64(2), "method", "_x.ai/auth/info", "params", util.NewObj()))
+				send(util.NewObj("jsonrpc", "2.0", "id", float64(3), "method", "_x.ai/billing", "params", util.NewObj()))
+			case 2:
+				if gotInfo {
+					continue
+				}
+				gotInfo = true
+				if r, ok := o.Get("result").(*util.Obj); ok && r != nil {
+					authInfo = r
+				}
+				hasTier := grokStrTrim(authInfo.Get("subscriptionTier")) != "" || grokStrTrim(authInfo.Get("subscription_tier")) != ""
+				if hasTier || gotBilling {
+					finish(&GrokAccountProbe{Init: initStr, AuthInfo: authInfo, Billing: billing, OK: true})
+					return
+				}
+				billingTimer = jsrt.SetTimeout(1200*time.Millisecond, func() {
+					finish(&GrokAccountProbe{Init: initStr, AuthInfo: authInfo, Billing: billing, OK: true})
+				})
+			case 3:
+				if gotBilling {
+					continue
+				}
+				gotBilling = true
+				if r, ok := o.Get("result").(*util.Obj); ok && r != nil {
+					billing = r
+				}
+				if gotInfo {
+					finish(&GrokAccountProbe{Init: initStr, AuthInfo: authInfo, Billing: billing, OK: true})
 					return
 				}
 			}
@@ -219,16 +313,14 @@ func ReadGrokAuthStatus(d GrokAuthReaderDeps) (string, bool) {
 		util.NewObj("protocolVersion", float64(1),
 			"clientInfo", util.NewObj("name", "nomi_usage", "title", "Nomi", "version", "1.0.0"),
 			"clientCapabilities", util.NewObj()))
-	if child.Stdin == nil || !child.Stdin.Write(util.Stringify(req)+"\n") {
-		if child.Stdin == nil {
-			finish(nil)
-		}
+	if !send(req) && child.Stdin == nil {
+		finish(nil)
 	}
 	r, _ := jsrt.Await(p)
 	if r == nil {
-		return "", false
+		return GrokAccountProbe{}
 	}
-	return *r, true
+	return *r
 }
 
 const mkdtempChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"

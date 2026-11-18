@@ -47,7 +47,7 @@ func TestNativeProcessesMatchPs(t *testing.T) {
 	if !strings.Contains(me.Cmd, os.Args[0]) || me.RSS <= 0 || me.CPU <= 0 {
 		t.Fatalf("self fields: %+v", *me)
 	}
-	// 认出的编程助手进程一样（两次采样之间进程可能起落，只比较两边都有的 pid）
+	// 认出的 agent 进程一样（两次采样之间进程可能起落，只比较两边都有的 pid）
 	agentPids := func(procs []RawProc) map[float64]bool {
 		m := map[float64]bool{}
 		for _, a := range Classify(procs, self) {

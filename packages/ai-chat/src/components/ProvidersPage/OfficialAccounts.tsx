@@ -1,6 +1,6 @@
 import { byCli, cliName } from '@nomi-ai/cli-catalog';
 /**
- * 编程助手的官方账号（docs/development/coding-agents.md）：一个账号 = 一个 CLI 配置目录，
+ * Agents 的官方账号（docs/development/coding-agents.md）：一个账号 = 一个 CLI 配置目录，
  * 登录由 CLI 自己完成，Nomi 不保存凭据。多个账号可以在不同标签里同时使用；「默认账号」给新标签
  * 与跟随默认的标签用。界面只拿得到身份（邮箱 / 套餐）。
  */
@@ -25,6 +25,8 @@ import {
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
+  accountDisplayLabel,
+  accountSubtitle,
   cliAccountClient,
   type AccountKind,
   type CliAccount,
@@ -194,7 +196,7 @@ const LoginDialog: React.FC<{
           <Notice tone="success" data-testid="cli-account-login-done">
             {t(
               'ui.providers-schedule.signed-in-as-you-can-make-it-the',
-              event.account?.identity?.email ?? event.account?.label ?? '',
+              (event.account && accountDisplayLabel(event.account)) || '',
             )}
           </Notice>
         )}
@@ -318,7 +320,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
         setMsg({ tone: 'danger', text: errorText(e) });
       });
   };
-  // 登录被拒时「沿用终端代理并重试」：开关本身在「通用」里（对所有编程助手生效）
+  // 登录被拒时「沿用终端代理并重试」：开关本身在「通用」里（对所有 agent 生效）
   const setUseShellProxy = (on: boolean) =>
     cliAccountClient
       .setNetwork(on)
@@ -371,181 +373,185 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
           {t('ui.chat-settings.some-account-shared-directory-links-failed-common-on')}
         </Notice>
       )}
-      {accounts.map((a) => (
-        <SettingRow
-          key={a.id}
-          data-testid="cli-account-card"
-          data-active={a.active ? '1' : undefined}
-          title={
-            <span className={styles.accountTitle}>
-              <EndpointIcon backend={kind} size={18} decorative />
-              <span>{a.label}</span>
-              {a.identity?.plan && <Badge tone="neutral">{a.identity.plan}</Badge>}
-              {a.active && (
-                <Badge tone="success" data-testid="cli-account-current">
-                  {t('ui.providers-schedule.default')}
-                </Badge>
-              )}
-              {a.needsLogin ? (
-                <Badge tone="warning" data-testid="cli-account-needs-login">
-                  {t('ui.providers-schedule.sign-in-again')}
-                </Badge>
-              ) : (
-                !a.loggedIn && <Badge tone="warning">{t('ui.models.not-signed-in')}</Badge>
-              )}
-              {a.inUse > 0 && (
-                <Badge tone="neutral">
-                  {t('ui.providers-schedule.used-by-tab-s', String(a.inUse))}
-                </Badge>
-              )}
-            </span>
-          }
-          description={
-            <>
-              {[a.identity?.email, a.identity?.org].filter(Boolean).join(' · ') || undefined}
-              {a.duplicateOf && (
-                <Notice tone="warning" data-testid="cli-account-duplicate">
-                  {t(
-                    'ui.providers-schedule.this-identity-is-also-signed-in-under-when',
-                    a.duplicateOf,
-                  )}
-                </Notice>
-              )}
-            </>
-          }
-        >
-          {!a.active && (
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={!!busy}
-              data-testid="cli-account-activate"
-              onClick={() =>
-                void run(
-                  `a:${a.id}`,
-                  () => cliAccountClient.setDefault(kind, a.id),
-                  t(
-                    'ui.providers-schedule.default-account-changed-to-tabs-that-follow-the',
-                    a.label,
-                  ),
-                )
-              }
-            >
-              {busy === `a:${a.id}`
-                ? t('ui.providers-schedule.setting')
-                : t('ui.providers-schedule.make-default')}
-            </Button>
-          )}
-          {(!a.loggedIn || a.needsLogin) && (
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={!!busy || loginBusy}
-              data-testid="cli-account-login"
-              onClick={() => startLogin(a.id)}
-            >
-              {a.needsLogin
-                ? t('ui.providers-schedule.sign-in-again-action')
-                : t('ui.providers-schedule.sign-in')}
-            </Button>
-          )}
-          {a.terminalCommand && (
+      {accounts.map((a) => {
+        const display = accountDisplayLabel(a);
+        const desc = accountSubtitle(a, { includePlan: false });
+        return (
+          <SettingRow
+            key={a.id}
+            data-testid="cli-account-card"
+            data-active={a.active ? '1' : undefined}
+            title={
+              <span className={styles.accountTitle}>
+                <EndpointIcon backend={kind} size={18} decorative />
+                <span>{display}</span>
+                {a.identity?.plan && <Badge tone="neutral">{a.identity.plan}</Badge>}
+                {a.active && (
+                  <Badge tone="success" data-testid="cli-account-current">
+                    {t('ui.providers-schedule.default')}
+                  </Badge>
+                )}
+                {a.needsLogin ? (
+                  <Badge tone="warning" data-testid="cli-account-needs-login">
+                    {t('ui.providers-schedule.sign-in-again')}
+                  </Badge>
+                ) : (
+                  !a.loggedIn && <Badge tone="warning">{t('ui.models.not-signed-in')}</Badge>
+                )}
+                {a.inUse > 0 && (
+                  <Badge tone="neutral">
+                    {t('ui.providers-schedule.used-by-tab-s', String(a.inUse))}
+                  </Badge>
+                )}
+              </span>
+            }
+            description={
+              <>
+                {desc || undefined}
+                {a.duplicateOf && (
+                  <Notice tone="warning" data-testid="cli-account-duplicate">
+                    {t(
+                      'ui.providers-schedule.this-identity-is-also-signed-in-under-when',
+                      a.duplicateOf,
+                    )}
+                  </Notice>
+                )}
+              </>
+            }
+          >
+            {!a.active && (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!!busy}
+                data-testid="cli-account-activate"
+                onClick={() =>
+                  void run(
+                    `a:${a.id}`,
+                    () => cliAccountClient.setDefault(kind, a.id),
+                    t(
+                      'ui.providers-schedule.default-account-changed-to-tabs-that-follow-the',
+                      display,
+                    ),
+                  )
+                }
+              >
+                {busy === `a:${a.id}`
+                  ? t('ui.providers-schedule.setting')
+                  : t('ui.providers-schedule.make-default')}
+              </Button>
+            )}
+            {(!a.loggedIn || a.needsLogin) && (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!!busy || loginBusy}
+                data-testid="cli-account-login"
+                onClick={() => startLogin(a.id)}
+              >
+                {a.needsLogin
+                  ? t('ui.providers-schedule.sign-in-again-action')
+                  : t('ui.providers-schedule.sign-in')}
+              </Button>
+            )}
+            {a.terminalCommand && (
+              <Button
+                size="sm"
+                variant="ghost"
+                data-testid="cli-account-terminal"
+                title={a.terminalCommand}
+                onClick={() =>
+                  void navigator.clipboard?.writeText(a.terminalCommand!).then(() =>
+                    setMsg({
+                      tone: 'success',
+                      text: t(
+                        'ui.providers-schedule.copied-the-terminal-command',
+                        a.terminalCommand!,
+                      ),
+                    }),
+                  )
+                }
+              >
+                <Icon icon={Copy} size={13} />
+                {t('ui.providers-schedule.terminal-command')}
+              </Button>
+            )}
             <Button
               size="sm"
               variant="ghost"
-              data-testid="cli-account-terminal"
-              title={a.terminalCommand}
-              onClick={() =>
-                void navigator.clipboard?.writeText(a.terminalCommand!).then(() =>
-                  setMsg({
-                    tone: 'success',
-                    text: t(
-                      'ui.providers-schedule.copied-the-terminal-command',
-                      a.terminalCommand!,
-                    ),
-                  }),
-                )
-              }
+              disabled={!!busy}
+              onClick={async () => {
+                const next = await promptDialog({
+                  title: t('ui.chat-settings.account-name'),
+                  defaultValue: a.label,
+                });
+                if (next && next.trim() && next.trim() !== a.label)
+                  void run(`r:${a.id}`, () => cliAccountClient.rename(a.id, next.trim()));
+              }}
             >
-              <Icon icon={Copy} size={13} />
-              {t('ui.providers-schedule.terminal-command')}
+              {t('ui.cli-monitor.rename')}
             </Button>
-          )}
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={!!busy}
-            onClick={async () => {
-              const next = await promptDialog({
-                title: t('ui.chat-settings.account-name'),
-                defaultValue: a.label,
-              });
-              if (next && next.trim() && next.trim() !== a.label)
-                void run(`r:${a.id}`, () => cliAccountClient.rename(a.id, next.trim()));
-            }}
-          >
-            {t('ui.cli-monitor.rename')}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={!!busy}
-            data-testid="cli-account-remove"
-            onClick={async () => {
-              if (
-                !(await confirmDialog({
-                  message: t(
-                    'ui.providers-schedule.remove-the-account-will-be-signed-out-in',
-                    a.label,
-                    NAME[kind],
-                  ),
-                  danger: true,
-                }))
-              )
-                return;
-              void run(`d:${a.id}`, async () => {
-                try {
-                  await cliAccountClient.remove(a.id);
-                } catch (e) {
-                  // Nomi 之外还有 CLI 进程在用这个账号：说明是哪些进程，用户确认后由 Nomi 结束它们再删除
-                  if (
-                    (e as { code?: unknown }).code === 'external-busy' &&
-                    (await confirmDialog({
-                      message: t(
-                        'ui.chat-settings.stop-these-cli-processes-and-remove-the-account',
-                        (e as Error).message,
-                        a.label,
-                      ),
-                      confirmLabel: t('ui.chat-settings.stop-processes-and-remove'),
-                      danger: true,
-                    }))
-                  ) {
-                    await cliAccountClient.remove(a.id, { stopExternal: true });
-                    return;
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={!!busy}
+              data-testid="cli-account-remove"
+              onClick={async () => {
+                if (
+                  !(await confirmDialog({
+                    message: t(
+                      'ui.providers-schedule.remove-the-account-will-be-signed-out-in',
+                      display,
+                      NAME[kind],
+                    ),
+                    danger: true,
+                  }))
+                )
+                  return;
+                void run(`d:${a.id}`, async () => {
+                  try {
+                    await cliAccountClient.remove(a.id);
+                  } catch (e) {
+                    // Nomi 之外还有 CLI 进程在用这个账号：说明是哪些进程，用户确认后由 Nomi 结束它们再删除
+                    if (
+                      (e as { code?: unknown }).code === 'external-busy' &&
+                      (await confirmDialog({
+                        message: t(
+                          'ui.chat-settings.stop-these-cli-processes-and-remove-the-account',
+                          (e as Error).message,
+                          display,
+                        ),
+                        confirmLabel: t('ui.chat-settings.stop-processes-and-remove'),
+                        danger: true,
+                      }))
+                    ) {
+                      await cliAccountClient.remove(a.id, { stopExternal: true });
+                      return;
+                    }
+                    // 按错误码判断（文案随语言变）：无法确认 Nomi 之外的 CLI 进程是否在用 → 让用户再确认一次后强制删除
+                    if (
+                      (e as { code?: unknown }).code === 'unknown-live' &&
+                      (await confirmDialog({
+                        message: t(
+                          'ui.chat-settings.nomi-could-not-confirm-whether-a-cli-is',
+                          display,
+                        ),
+                        danger: true,
+                      }))
+                    ) {
+                      await cliAccountClient.remove(a.id, { force: true });
+                      return;
+                    }
+                    throw e;
                   }
-                  // 按错误码判断（文案随语言变）：无法确认 Nomi 之外的 CLI 进程是否在用 → 让用户再确认一次后强制删除
-                  if (
-                    (e as { code?: unknown }).code === 'unknown-live' &&
-                    (await confirmDialog({
-                      message: t(
-                        'ui.chat-settings.nomi-could-not-confirm-whether-a-cli-is',
-                        a.label,
-                      ),
-                      danger: true,
-                    }))
-                  ) {
-                    await cliAccountClient.remove(a.id, { force: true });
-                    return;
-                  }
-                  throw e;
-                }
-              });
-            }}
-          >
-            {t('ui.foundation.delete')}
-          </Button>
-        </SettingRow>
-      ))}
+                });
+              }}
+            >
+              {t('ui.foundation.delete')}
+            </Button>
+          </SettingRow>
+        );
+      })}
       {accounts.length === 0 && (
         <p className={styles.empty} data-testid="cli-accounts-empty">
           <Icon icon={UserRound} size={14} />

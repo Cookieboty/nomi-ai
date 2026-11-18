@@ -111,7 +111,7 @@ type RuntimeDeps struct {
 	MaxStartsPerHour   int
 }
 
-// SetAdmit：开始执行前再问一次能不能开始（Agent 看板的内存守护：内存紧张时编程助手与后台 Nomi 的任务先排着）。
+// SetAdmit：开始执行前再问一次能不能开始（Agent 看板的内存守护：内存紧张时 agent 与后台 Nomi 的任务先排着）。
 // 不放行的留在队列里、顺序不变，之后 Tick 时再问。在持有者里调用，要快、不能回调 Runtime。
 func (r *Runtime) SetAdmit(fn func(t Task) bool) {
 	r.ownerMu.Lock()
@@ -427,7 +427,7 @@ func (r *Runtime) CreateChecked(in CreateInput) (Task, error) {
 		}
 		acc := in.Acceptance
 		if acc == "" {
-			// 做完自动收下（编程助手任务也一样：能自动判断的不再让人逐条点确认）
+			// 做完自动收下（agent 任务也一样：能自动判断的不再让人逐条点确认）
 			acc = "auto"
 		}
 		t := Task{ID: r.d.NewID("task"), Title: in.Title, Goal: in.Goal, Origin: in.Origin, Trigger: in.Trigger,
@@ -941,6 +941,7 @@ func (p *reporter) PermissionResolved(requestID string, approve bool) {
 func (p *reporter) Completed(res AttemptResult) {
 	p.post(Event{Type: "completed", At: p.r.d.Now(), Gen: ptr(p.gen), Result: &res})
 }
+
 func (p *reporter) Failed(e TaskError) {
 	p.post(Event{Type: "failed", At: p.r.d.Now(), Gen: ptr(p.gen), Error: &e})
 }
@@ -967,6 +968,9 @@ func (p *reporter) Carrier(c Carrier) {
 				*f.dst = f.src
 			}
 		}
+		if c.BeforeFiles != nil {
+			merged.BeforeFiles = c.BeforeFiles
+		}
 		next.Carrier = &merged
 		attempts := make([]Attempt, len(rec.Attempts))
 		for i, x := range rec.Attempts {
@@ -975,6 +979,36 @@ func (p *reporter) Carrier(c Carrier) {
 			} else {
 				attempts[i] = x
 			}
+		}
+		_ = p.r.save(Record{Task: rec.Task, Attempts: attempts})
+	})
+}
+
+// setSnapshot：记下这次执行实际用的 agent / 模型（下次续跑时与新档位比对）
+func (p *reporter) setSnapshot(snapshot ExecutionSnapshot) {
+	p.r.ownOrQueue(func() {
+		rec := p.r.recs[p.id]
+		if rec == nil {
+			return
+		}
+		attempts := make([]Attempt, len(rec.Attempts))
+		for i, x := range rec.Attempts {
+			if x.Gen == p.gen {
+				x.Snapshot.Cli = snapshot.Cli
+				if snapshot.Source != nil {
+					x.Snapshot.Source = snapshot.Source
+				}
+				if snapshot.AccountID != nil {
+					x.Snapshot.AccountID = snapshot.AccountID
+				}
+				if snapshot.Model != nil {
+					x.Snapshot.Model = snapshot.Model
+				}
+				if snapshot.ReasoningEffort != nil {
+					x.Snapshot.ReasoningEffort = snapshot.ReasoningEffort
+				}
+			}
+			attempts[i] = x
 		}
 		_ = p.r.save(Record{Task: rec.Task, Attempts: attempts})
 	})

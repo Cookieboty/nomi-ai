@@ -1,5 +1,5 @@
 /**
- * 沙箱挡下的授权请求（编程助手标签）：CLI 读了敏感位置或写了项目外的地方，被 Nomi 的系统沙箱拦下。
+ * 沙箱挡下的授权请求（agent 标签）：CLI 读了敏感位置或写了项目外的地方，被 Nomi 的系统沙箱拦下。
  * 本会话允许 / 始终允许后，内核重开这个标签的 CLI（续接会话）并发一条「请继续」；不允许的这个会话不再问。
  * 受保护的文件夹不能在这里放开，只提示去设置里取消保护。挂在标签状态上，一轮结束后也还在。
  */
@@ -120,7 +120,7 @@ export const SandboxRequests: React.FC<{
   );
 };
 
-/** 某个编程助手标签的沙箱授权卡片（订阅完整标签状态，只有它自己跟着重渲染） */
+/** 某个 agent 标签的沙箱授权卡片（订阅完整标签状态，只有它自己跟着重渲染） */
 export const TabSandboxRequests: React.FC<{ tabId: string }> = ({ tabId }) => {
   const tabs = useHarnessTabs();
   const items = tabs.state?.tabs.find((x) => x.id === tabId)?.sandboxPending;
@@ -132,7 +132,7 @@ export const TabSandboxRequests: React.FC<{ tabId: string }> = ({ tabId }) => {
   return <SandboxRequests items={items} onReply={onReply} />;
 };
 
-/** 某个任务的编程助手标签上挂着的沙箱授权卡片（任务页用：按 delegation.taskId 找标签） */
+/** 某个任务的 agent 标签上挂着的沙箱授权卡片（任务页用：按 delegation.taskId 找标签） */
 export const TaskSandboxRequests: React.FC<{ taskId: string }> = ({ taskId }) => {
   const tabs = useHarnessTabs();
   const tab = tabs.state?.tabs.find(

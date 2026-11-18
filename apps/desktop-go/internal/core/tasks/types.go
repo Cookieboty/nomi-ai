@@ -66,6 +66,10 @@ type ExecutorSpec struct {
 	BaseBranch *string `json:"baseBranch,omitempty"`
 	// ReasoningEffort：cli 的思考深度（委派带过来的）
 	ReasoningEffort *string `json:"reasoningEffort,omitempty"`
+	// Source / AccountID / PresetID：多来源路由信息（local | official | thirdParty）
+	Source    *string `json:"source,omitempty"`
+	AccountID *string `json:"accountId,omitempty"`
+	PresetID  *string `json:"presetId,omitempty"`
 	// Brief：对话里委派过来的任务的完成标准、背景、不要碰的范围（提示词用）
 	Brief *Brief `json:"brief,omitempty"`
 	// AskCommands：跑命令一律问人（Nomi 没开「全部自动」时委派出来的任务）
@@ -103,7 +107,7 @@ type Grant struct {
 	// 只有高风险（破坏性、凭据 / 永不放行类、审核不放行、事件触发读过外部内容）才问人；
 	// 用户在授权卡片上取消勾选时显式写 false = 每条命令都问我（旧数据没有这个字段，按开处理）
 	AutoJudge *bool `json:"autoJudge,omitempty"`
-	// Sandbox：编程助手沙箱里预先允许的类别（ssh / cloud / …），跑的时候不用再问
+	// Sandbox：agent 沙箱里预先允许的类别（ssh / cloud / …），跑的时候不用再问
 	Sandbox   []string `json:"sandbox,omitempty"`
 	GrantedAt int64    `json:"grantedAt"`
 	ExpiresAt *int64   `json:"expiresAt,omitempty"`
@@ -126,13 +130,16 @@ type Wait struct {
 }
 
 type ExecutionSnapshot struct {
-	GrantVersion int     `json:"grantVersion"`
-	ProviderID   *string `json:"providerId,omitempty"`
-	Endpoint     *string `json:"endpoint,omitempty"`
-	Model        *string `json:"model,omitempty"`
-	Cli          *string `json:"cli,omitempty"`
-	Cwd          *string `json:"cwd,omitempty"`
-	Worktree     *string `json:"worktree,omitempty"`
+	GrantVersion    int     `json:"grantVersion"`
+	ProviderID      *string `json:"providerId,omitempty"`
+	Endpoint        *string `json:"endpoint,omitempty"`
+	Model           *string `json:"model,omitempty"`
+	Cli             *string `json:"cli,omitempty"`
+	Source          *string `json:"source,omitempty"`
+	AccountID       *string `json:"accountId,omitempty"`
+	Cwd             *string `json:"cwd,omitempty"`
+	ReasoningEffort *string `json:"reasoningEffort,omitempty"`
+	Worktree        *string `json:"worktree,omitempty"`
 }
 
 type TaskError struct {
@@ -181,12 +188,13 @@ type Usage struct {
 }
 
 type Carrier struct {
-	TabID     *string `json:"tabId,omitempty"`
-	SessionID *string `json:"sessionId,omitempty"`
-	Cwd       *string `json:"cwd,omitempty"`
-	Worktree  *string `json:"worktree,omitempty"`
-	SourceCwd *string `json:"sourceCwd,omitempty"`
-	GitRoot   *string `json:"gitRoot,omitempty"`
+	TabID       *string  `json:"tabId,omitempty"`
+	SessionID   *string  `json:"sessionId,omitempty"`
+	Cwd         *string  `json:"cwd,omitempty"`
+	Worktree    *string  `json:"worktree,omitempty"`
+	SourceCwd   *string  `json:"sourceCwd,omitempty"`
+	GitRoot     *string  `json:"gitRoot,omitempty"`
+	BeforeFiles []string `json:"beforeFiles,omitempty"`
 }
 
 type Attempt struct {

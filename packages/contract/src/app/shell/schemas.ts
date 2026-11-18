@@ -284,7 +284,7 @@ export const GatewaySetAssignmentInput = z.object({
   client: z.string(),
   patch: loose({
     models: z.record(z.string(), z.unknown()).optional(),
-    newTabSource: z.enum(['official', 'thirdParty']).optional(),
+    newTabSource: z.enum(['local', 'official', 'thirdParty']).optional(),
     newTabAccountId: z.string().nullish(),
   }),
 });
@@ -294,6 +294,8 @@ export const GatewayOptionsPatch = z.object({
   maxRequestBodyBytes: z.number().optional(),
   /** 上下文档位。0 = 跟模型（标准窗口，长上下文开着才用满）；128000 / 200000 / 262144 是硬上限 */
   contextTier: z.number().optional(),
+  /** 全局后台辅助轻量模型（网关 'provider/model' ref；null = 清除） */
+  helperModel: z.string().nullable().optional(),
   privacyMode: z.boolean().optional(),
   privacyStrict: z.boolean().optional(),
   privacyLocal: z.boolean().optional(),

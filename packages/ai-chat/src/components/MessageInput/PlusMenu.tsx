@@ -1,12 +1,12 @@
 /**
- * 输入框左下角的「+」：给这条消息加东西 / 决定这条消息怎么处理（附件、@ 引用、交给编程助手、知识库问答）。
- * 去别的页面的入口（模型、设置）不放这里。点外面或 Esc 关闭；「交给编程助手」是第二层。
+ * 输入框左下角的「+」：给这条消息加东西 / 决定这条消息怎么处理（附件、@ 引用、交给 agent、知识库问答）。
+ * 去别的页面的入口（模型、设置）不放这里。点外面或 Esc 关闭；「交给 agent」是第二层。
  */
 import { Icon, t as tr } from '@nomi-ai/ui';
 import { IconPlus as Plus } from '@tabler/icons-react';
 import React, { useEffect, useRef, useState } from 'react';
 
-import type { DelegateCli } from '../../services/delegateClient';
+import type { NextDelegateMeta, NextDelegatePin } from '../../services/delegateClient';
 
 import { DelegateMenu } from './DelegateMenu';
 import styles from './index.module.css';
@@ -30,7 +30,7 @@ export const PlusMenu: React.FC<{
   /** 「添加图片或文件」用的隐藏 file input（由输入框持有，`/attach` 也会点它） */
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onFiles: (files: File[]) => void;
-  onDelegate: (cli: DelegateCli) => void;
+  onDelegate: (target: NextDelegatePin, meta?: NextDelegateMeta) => void;
 }> = ({ open, onOpenChange, items, fileInputRef, onFiles, onDelegate }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<'root' | 'delegate'>('root');
@@ -79,9 +79,9 @@ export const PlusMenu: React.FC<{
           {view === 'delegate' ? (
             <DelegateMenu
               onBack={() => setView('root')}
-              onPick={(cli) => {
+              onPick={(target, meta) => {
                 onOpenChange(false);
-                onDelegate(cli);
+                onDelegate(target, meta);
               }}
             />
           ) : (

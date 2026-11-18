@@ -9,7 +9,7 @@ import { formatCombo, type ShortcutId } from '../../services/shortcuts';
 import { buildRegistry } from '../../slash/registry';
 import type { SlashCommand } from '../../slash/types';
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
-import type { SettingsSection } from '../SettingsView/sections';
+import type { SettingsSectionInput } from '../SettingsView/sections';
 
 export interface SlashCommandItem {
   id: string;
@@ -31,7 +31,7 @@ interface CommandCallbacks {
   onHubClick?: () => void;
   onExtClick?: () => void;
   onLocalClick?: () => void;
-  onSettingsClick?: (section?: SettingsSection) => void;
+  onSettingsClick?: (section?: SettingsSectionInput) => void;
   onPluginsClick?: () => void;
   toggleKb: () => void;
   insertAt: () => void;

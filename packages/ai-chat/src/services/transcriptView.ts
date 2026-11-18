@@ -152,7 +152,7 @@ export function clearTranscriptView(sessionKey: string | null | undefined): void
 }
 
 /**
- * 编程助手标签的会话键（#313）：有 CLI 会话 id 时按「后端 + 会话 id」，关掉标签再从历史
+ * Agents 标签的会话键（#313）：有 CLI 会话 id 时按「后端 + 会话 id」，关掉标签再从历史
  * 打开（新标签 id、同一个会话）仍找得到同一份设置；还没有会话 id（新标签还没发第一条）时先按标签 id，
  * 拿到会话 id 后由 migrateTranscriptView 搬过去。分叉、新会话会得到新的会话 id，各自独立（跟随全局，不继承）。
  */

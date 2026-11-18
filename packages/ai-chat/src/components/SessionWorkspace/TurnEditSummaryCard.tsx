@@ -233,10 +233,12 @@ export const TurnEditSummaryCard: React.FC<{
                     {dir ? <span className={styles.turnDir}>{dir}</span> : null}
                     <span className={styles.turnName}>{name}</span>
                   </span>
-                  <span className={styles.stat}>
-                    <span className={styles.add}>+{e.added}</span>
-                    <span className={styles.del}>−{e.removed}</span>
-                  </span>
+                  {e.statsKnown !== false ? (
+                    <span className={styles.stat}>
+                      <span className={styles.add}>+{e.added}</span>
+                      <span className={styles.del}>−{e.removed}</span>
+                    </span>
+                  ) : null}
                 </button>
                 {openFile && e.diff ? (
                   <div className={styles.turnInlineBody}>
@@ -275,10 +277,12 @@ export const TurnEditSummaryCard: React.FC<{
                       {dir ? <span className={styles.turnDir}>{dir}</span> : null}
                       <span className={styles.turnName}>{name}</span>
                     </span>
-                    <span className={styles.stat}>
-                      <span className={styles.add}>+{e.added}</span>
-                      <span className={styles.del}>−{e.removed}</span>
-                    </span>
+                    {e.statsKnown !== false ? (
+                      <span className={styles.stat}>
+                        <span className={styles.add}>+{e.added}</span>
+                        <span className={styles.del}>−{e.removed}</span>
+                      </span>
+                    ) : null}
                   </button>
                 </li>
               );

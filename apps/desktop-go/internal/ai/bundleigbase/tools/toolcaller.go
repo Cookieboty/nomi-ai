@@ -2,7 +2,7 @@ package tools
 
 import "context"
 
-// 工具调用发起方（编程助手标签）的异步上下文。
+// 工具调用发起方（agent 标签）的异步上下文。
 // 用 context 值传递；宿主以 RunWithToolCaller 包住工具执行。
 type toolCallerKey struct{}
 

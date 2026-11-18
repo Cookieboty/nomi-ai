@@ -1,7 +1,7 @@
 /**
- * 安装 / 更新编程助手时前置检查没通过才弹出（通过时直接执行，不二次确认）：
+ * 安装 / 更新 agent 时前置检查没通过才弹出（通过时直接执行，不二次确认）：
  * 展示确切命令与检查结果（Node / npm / 写权限）；没有写权限时可改用用户目录安装。
- * 「编程助手」页的版本卡片和「模型」页的 CLI 行共用（命令由主进程 cliUpdateClient.preview 给出）。
+ * 「Agents」页的版本卡片和「模型」页的 CLI 行共用（命令由主进程 cliUpdateClient.preview 给出）。
  */
 import { Button, Icon, Modal, Notice, t } from '@nomi-ai/ui';
 import { IconCircleCheck as CircleCheck, IconCircleX as CircleX } from '@tabler/icons-react';

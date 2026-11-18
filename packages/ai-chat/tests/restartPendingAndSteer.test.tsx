@@ -97,7 +97,7 @@ describe('pendingSendsStore', () => {
     store.dispose();
   });
 
-  it('编程助手标签只写 localStorage；另一组的条目互不影响', async () => {
+  it('agent 标签只写 localStorage；另一组的条目互不影响', async () => {
     const kv = memoryKv();
     const tab = openPendingSends({ kv }, pendingKey('tab', 't1'));
     const other = openPendingSends({ kv }, pendingKey('tab', 't2'));
@@ -401,6 +401,7 @@ describe('应用在回复中途重启：插入的那句留在对话里；正常�
     expect(saved.filter((m) => m.steer)).toEqual([]);
     expect(saved.map((m) => m.role)).toEqual(['user', 'assistant']);
     const ai = saved.find((m) => m.role === 'assistant')!;
+    expect(ai.content).toBe('ok');
     expect(ai.trace?.some((e) => e.type === 'interject' && e.text === '中途插入')).toBe(true);
     const out = buildProviderMessages(saved, '下一轮');
     expect(

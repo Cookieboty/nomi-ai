@@ -17,7 +17,7 @@ func mustObj(t *testing.T, js string) *u.Obj {
 	return v.(*u.Obj)
 }
 
-// #195：锁外读（nomiContext / 路由 / 端点 / 编程助手默认值 …）与写（setAssignment / resetToken /
+// #195：锁外读（nomiContext / 路由 / 端点 / agent 默认值 …）与写（setAssignment / resetToken /
 // upsertProvider）并发。修复前读端无锁深拷贝 / 遍历存储里的 map，go test -race 报数据竞争
 // （极端时是 fatal concurrent map read and map write）；修复后读端只读已发布的不可变快照。
 func TestServiceConcurrentReadsAndWrites(t *testing.T) {

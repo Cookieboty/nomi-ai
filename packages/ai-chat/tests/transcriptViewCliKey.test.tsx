@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-/** #313：编程助手会话的 Transcript view 设置跟着 CLI 会话走，关掉标签、从历史重开（新标签 id）仍在 */
+/** #313：agent 会话的 Transcript view 设置跟着 CLI 会话走，关掉标签、从历史重开（新标签 id）仍在 */
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 

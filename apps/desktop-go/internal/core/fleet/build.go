@@ -1,8 +1,8 @@
 // Package fleet：Agent 看板（docs/development/agent-board.md）。把正在回答的 Nomi 对话、Nomi 的后台运行、
-// 编排器里的 CLI 标签（对话委派 / 任务派出 / 工坊里直接用的）和用户在 Nomi 之外开的编程助手会话
+// 编排器里的 CLI 标签（对话委派 / 任务派出 / 工坊里直接用的）和用户在 Nomi 之外开的 agent 会话
 // 拼成一份看板数据；Nomi 本体不进分列，单独给出它的资源占用。
 //
-// 纳管（managed，可暂停）= 在 Nomi 里跑的；外部（external）= Nomi 进程树之外的编程助手会话，只能预警，
+// 纳管（managed，可暂停）= 在 Nomi 里跑的；外部（external）= Nomi 进程树之外的 agent 会话，只能预警，
 // 这里只读它的状态与资源占用，任何控制都不经过这里。
 package fleet
 
@@ -139,7 +139,7 @@ type Nomi struct {
 	Usage *Usage `json:"usage,omitempty"`
 }
 
-// IdleItem：一棵没在跑会话的外部编程助手进程树（用户可以手动关掉，见 Service.CloseIdle）
+// IdleItem：一棵没在跑会话的外部 agent 进程树（用户可以手动关掉，见 Service.CloseIdle）
 type IdleItem struct {
 	Pid        float64 `json:"pid"`
 	Backend    string  `json:"backend"`
@@ -149,7 +149,7 @@ type IdleItem struct {
 	CPUPercent float64 `json:"cpuPercent"`
 }
 
-// Idle：Nomi 之外、对不上正在跑的会话的编程助手进程（空闲的终端 / IDE 里的助手），按内存大的在前
+// Idle：Nomi 之外、对不上正在跑的会话的 agent 进程（空闲的终端 / IDE 里的助手），按内存大的在前
 type Idle struct {
 	Processes int        `json:"processes"`
 	RSSBytes  float64    `json:"rssBytes"`
@@ -196,7 +196,7 @@ type Chat struct {
 	WaitingUser bool
 }
 
-// ExtSession：编程助手监视（agents）认出的、Nomi 之外的会话（不含 Nomi 标签自己的会话）
+// ExtSession：agent 监视（agents）认出的、Nomi 之外的会话（不含 Nomi 标签自己的会话）
 type ExtSession struct {
 	ID, Kind, Title, Cwd, Status string
 	Summary                      string
@@ -208,15 +208,15 @@ type ExtSession struct {
 type Input struct {
 	Now     int64
 	SelfPid float64
-	// OwnProcsOnly：不列 Nomi 进程树之外的编程助手进程（Mock CLI 演示 / 截图环境用，不把本机真实会话的目录带进画面）
+	// OwnProcsOnly：不列 Nomi 进程树之外的 agent 进程（Mock CLI 演示 / 截图环境用，不把本机真实会话的目录带进画面）
 	OwnProcsOnly bool
 	Tabs         []Tab
 	Tasks        []tasks.Task
 	Chats        []Chat
 	External     []ExtSession
-	// ExtCwd：编程助手进程的工作目录（pid → 目录），把外部进程树对到会话上
+	// ExtCwd：agent 进程的工作目录（pid → 目录），把外部进程树对到会话上
 	ExtCwd map[float64]string
-	// ExtSession：登记了当前会话的编程助手进程（pid → 外部会话 id，如 Claude Code 的 ~/.claude/sessions/<pid>.json）。
+	// ExtSession：登记了当前会话的 agent 进程（pid → 外部会话 id，如 Claude Code 的 ~/.claude/sessions/<pid>.json）。
 	// 这些进程树只归对应的会话，不按目录分给别的会话；会话还没出现（刚开、没发消息）就算空闲
 	ExtSession map[float64]string
 	Procs      *agents.ProcTable // nil = 读不到进程表（只是没有资源占用）
@@ -230,7 +230,7 @@ type Input struct {
 	// TaskControl：能暂停 / 继续后台 Nomi（有任务命令入口）；TaskPausedBy：任务 id → 谁在看板上暂停的（没有 = 用户）
 	TaskControl  bool
 	TaskPausedBy map[string]string
-	// Holding：正扣着新的编程助手与后台 Nomi（排队的任务卡片标 QueueReason = memory / cpu）
+	// Holding：正扣着新的 agent 与后台 Nomi（排队的任务卡片标 QueueReason = memory / cpu）
 	Holding bool
 	// HoldReason：扣着的原因（memory 内存 / cpu 整机 CPU，「全速」档才看 CPU）；空 = memory
 	HoldReason string
@@ -272,7 +272,7 @@ func taskColumn(status string) (col, need string, failed, ok bool) {
 	return "", "", false, false
 }
 
-// extColumn：外部会话状态（agents 的 AgentStatus）→ 分列；ok = false 表示不上看板（idle）。
+// extColumn：外部会话状态（agent 的 AgentStatus）→ 分列；ok = false 表示不上看板（idle）。
 // 等用户回话（waiting）= 这一轮已经答完，算已完成。
 func extColumn(s ExtSession) (col, need string, failed, ok bool) {
 	switch s.Status {

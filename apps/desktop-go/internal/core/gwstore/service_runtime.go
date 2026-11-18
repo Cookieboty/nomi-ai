@@ -93,7 +93,7 @@ func (s *Service) AttachRuntime(d RuntimeDeps) {
 					d.OnUsage(e)
 				}
 			},
-			// Nomi 对话等待回复时显示「A 返回 503，正在重试 / 切换到 B」；编程助手有自己的进度，不发
+			// Nomi 对话等待回复时显示「A 返回 503，正在重试 / 切换到 B」；agent 有自己的进度，不发
 			OnRetry: func(e server.RetryEvent) {
 				if e.Client == "nomi" && d.Broadcast != nil {
 					d.Broadcast("gateway.retrying", e)
@@ -427,6 +427,9 @@ func (s *Service) nomiPick(role string) *nomiPicked {
 		ref, _ = ms.Get("tools").(string)
 	case "summary":
 		ref, _ = ms.Get("summary").(string)
+		if ref == "" {
+			ref, _ = st.Snapshot().Get("helperModel").(string)
+		}
 	default:
 		// 侧边聊天换用的 Nomi 模型（"model:<供应商/模型>"，internal/core/sidechat）
 		ref, _ = sidechat.ModelRef(role)

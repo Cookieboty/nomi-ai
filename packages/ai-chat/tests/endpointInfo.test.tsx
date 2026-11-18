@@ -209,12 +209,12 @@ describe('按端信息卡（左下角）', () => {
     const { findByTestId, queryByTestId } = renderCard('codex');
     const card = await findByTestId('endpoint-info-card');
     await waitFor(() => expect(card.textContent).toContain('未安装'));
-    expect(card.textContent).toContain('设置 → 编程助手');
+    expect(card.textContent).toContain('设置 → Agents');
     expect(queryByTestId('endpoint-card-refresh')).toBeNull();
     expect(card.querySelector('[role="progressbar"]')).toBeNull();
   });
 
-  it('安装状态以编程助手接入检测为准（mock / 自定义路径时 CLI 版本信息里没有路径也算已安装）', async () => {
+  it('安装状态以 agent 接入检测为准（mock / 自定义路径时 CLI 版本信息里没有路径也算已安装）', async () => {
     cli = [CLI('codex', { path: null, version: null, updateAvailable: false })];
     const { findByTestId, getByTestId } = renderCard('codex', '/mock/mock-codex.mjs');
     const card = await findByTestId('endpoint-info-card');
@@ -347,7 +347,7 @@ describe('按端详情抽屉', () => {
     );
   });
 
-  it('跳转到编程助手设置', async () => {
+  it('跳转到 agent 设置', async () => {
     const { getByTestId, onOpenSettings } = await openDrawer();
     fireEvent.click(getByTestId('endpoint-open-coding'));
     expect(onOpenSettings).toHaveBeenCalledWith('coding');

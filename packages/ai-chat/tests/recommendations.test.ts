@@ -16,7 +16,7 @@ describe('recommend（按职业与兴趣推荐任务）', () => {
     expect(r.prompts).toEqual(['hello', 'code']);
   });
 
-  it('非开发者但兴趣有编程：也推荐编程助手', () => {
+  it('非开发者但兴趣有编程：也推荐 agent', () => {
     const r = recommend({ role: 'office', interests: ['coding'] });
     expect(r.clis).toEqual(['claude', 'codex']);
     expect(recommend({ role: 'product', interests: [] }).clis).toEqual(['claude', 'codex']);
@@ -29,7 +29,7 @@ describe('recommend（按职业与兴趣推荐任务）', () => {
       role: 'office',
       interests: ['writing', 'language', 'learning', 'productivity', 'automation'],
     });
-    // 没有职业专属的编程助手：Codex 兜底
+    // 没有职业专属的 agent：Codex 兜底
     expect(r.clis).toEqual(['codex']);
     expect(r.coding).toBe(false);
     expect(r.features).toEqual(['schedule', 'kb', 'voice']);

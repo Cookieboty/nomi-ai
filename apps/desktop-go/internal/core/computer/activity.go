@@ -9,7 +9,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 )
 
-// 谁在操作桌面（Nomi / 某个编程助手）与紧急停止。
+// 谁在操作桌面（Nomi / 某个 agent 标签）与紧急停止。
 // 正在执行或 activeFor 内动过的算「在操作」：对话窗口上显示「正在操作桌面 · 停止」。
 // 停止：取消所有正在执行的 agent-desktop 命令；activeFor 内操作过桌面的那几轮（按调用的 context 认）
 // 之后再调用一律返回 stopped，直到用户发下一条消息（新的一轮是新的 context）。装配层再中止这几轮对话、
@@ -25,7 +25,7 @@ const (
 
 type actorKey struct{}
 
-// WithActor：这次调用是谁发起的（编程助手名；没有 = Nomi）
+// WithActor：这次调用是谁发起的（agent 名；没有 = Nomi）
 func WithActor(ctx context.Context, actor string) context.Context {
 	if actor == "" {
 		return ctx
@@ -48,7 +48,7 @@ type activity struct {
 	seq     int64
 	running map[int64]runningCall
 	last    map[string]time.Time
-	// turns：activeFor 内调用过的 context（一轮对话 / 一个编程助手会话）→ 最后一次调用的时间与对话 id
+	// turns：activeFor 内调用过的 context（一轮对话 / 一个 agent 会话）→ 最后一次调用的时间与对话 id
 	turns map[<-chan struct{}]turnInfo
 	// pending：正在走 computer_* 工具（含等用户确认、还没开始执行命令）的那几轮 → 进行中的工具数与对话 id
 	pending map[<-chan struct{}]pendingTurn

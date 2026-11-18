@@ -176,7 +176,7 @@ type body func() (data any, decision string, err error)
 // run = run(tool, args, signal, body)
 func (k *deskKit) run(tool string, args any, b body) *u.Obj { return k.runAs("agent", tool, args, b) }
 
-// runAs：同 run，审计里记下发起方（agent = Nomi；cli:<名字> = 经 MCP 调用的编程助手）
+// runAs：同 run，审计里记下发起方（agent = Nomi；cli:<名字> = 经 MCP 调用的 agent）
 func (k *deskKit) runAs(source, tool string, args any, b body) *u.Obj {
 	t0 := time.Now()
 	data, decision, err := func() (d any, dec string, e error) {
@@ -265,7 +265,7 @@ func (k *deskKit) confirmFor(ctx context.Context, tool, summary string, args any
 	if r := requesterOf(ctx); r != "" {
 		summary = "「" + r + "」请求：" + summary
 	}
-	// 等用户确认期间告诉调用方（编程助手标签在看板上显示「等你处理」）
+	// 等用户确认期间告诉调用方（agent 标签在看板上显示「等你处理」）
 	if h := confirmHookOf(ctx); h != nil {
 		h(true)
 		defer h(false)

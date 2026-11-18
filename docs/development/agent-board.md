@@ -1,7 +1,7 @@
 # Agent 看板
 
-Agent 看板列出「谁在干活」：正在回答的 Nomi 对话、Nomi 的后台运行、Nomi 派出的与工坊里的编程助手，以及用户在 Nomi 之外开的
-编程助手会话，附带内存与 CPU 占用。任务看板回答「事情做到哪了」，Agent 看板回答「谁在干、占了多少资源、卡在哪」，两者互相链接。
+Agent 看板列出「谁在干活」：正在回答的 Nomi 对话、Nomi 的后台运行、Nomi 派出的与工坊里的 agent，以及用户在 Nomi 之外开的
+Agents 会话，附带内存与 CPU 占用。任务看板回答「事情做到哪了」，Agent 看板回答「谁在干、占了多少资源、卡在哪」，两者互相链接。
 
 内核在 `apps/desktop-go/internal/core/fleet`，契约是 `coding` 域的 `fleet.state` / `fleet.archive` 与 `fleet.changed` 事件
 （`packages/contract/src/app/coding.ts`），处理函数在 `internal/core/codinghandlers/fleet.go`，装配在 `fleet_wiring.go`。
@@ -15,19 +15,19 @@ Agent 看板列出「谁在干活」：正在回答的 Nomi 对话、Nomi 的后
 
 ## 纳管边界
 
-| 对象                                                         | scope      | 能做什么               |
-| ------------------------------------------------------------ | ---------- | ---------------------- |
-| Nomi 本体（内核与它跑的命令、本地模型）                      | —          | 不是卡片               |
-| 正在回答的 Nomi 对话                                         | `managed`  | 只观测                 |
-| Nomi 的后台运行（执行者为 `nomi` 的持续任务）                | `managed`  | 可暂停（任务暂停）     |
-| 编排器里的 CLI 标签：对话委派、任务派出、工坊里直接用的      | `managed`  | 可暂停                 |
-| Nomi 进程树之外的编程助手会话（用户自己在终端 / IDE 里开的） | `external` | 只读，只发预警，不干扰 |
+| 对象                                                        | scope      | 能做什么               |
+| ----------------------------------------------------------- | ---------- | ---------------------- |
+| Nomi 本体（内核与它跑的命令、本地模型）                     | —          | 不是卡片               |
+| 正在回答的 Nomi 对话                                        | `managed`  | 只观测                 |
+| Nomi 的后台运行（执行者为 `nomi` 的持续任务）               | `managed`  | 可暂停（任务暂停）     |
+| 编排器里的 CLI 标签：对话委派、任务派出、工坊里直接用的     | `managed`  | 可暂停                 |
+| Nomi 进程树之外的 agent 会话（用户自己在终端 / IDE 里开的） | `external` | 只读，只发预警，不干扰 |
 
-判断依据是进程关系，不是委派标记：标签都在编排器里（工坊里用户自己开的、被用户接手的也算纳管）；外部 = 编程助手监视
+判断依据是进程关系，不是委派标记：标签都在编排器里（工坊里用户自己开的、被用户接手的也算纳管）；外部 = agent 监视
 （`internal/core/agents`）从本机会话文件认出的会话，不含 Nomi 标签自己的会话：标签用过的会话 id 都记下来（`agents/owned.go`，存
 `owned-sessions.json`，30 天没再见到的丢掉；按最后见到算，一直在用的老 id 每小时写回一次盘），标签关掉、出错换了会话 id、重启之后，Nomi 派出去的会话也不会再以「终端 · 只读」出现。外部会话不出现在任何控制接口里，
 以后加暂停 / 停止 / 插话时只接受纳管 id。
-Mock CLI 模式（`NOMI_USE_MOCK_CLI=1`，演示截图与 E2E）下 `OwnProcsOnly` 打开：Nomi 进程树之外的进程不上看板，本机真实在跑的编程助手与它们的目录不会进画面。
+Mock CLI 模式（`NOMI_USE_MOCK_CLI=1`，演示截图与 E2E）下 `OwnProcsOnly` 打开：Nomi 进程树之外的进程不上看板，本机真实在跑的 agent 与它们的目录不会进画面。
 
 「正在回答的对话」来自对话路由（`airouter.Handlers.ActiveChats`）：带 `extra.conversationId` 的流（标题生成等辅助调用不带）；
 标题由视图从会话列表里取。Nomi 只是开着不会出现在「进行中」。
@@ -68,14 +68,14 @@ Mock CLI 模式（`NOMI_USE_MOCK_CLI=1`，演示截图与 E2E）下 `OwnProcsOnl
   PowerShell `Win32_Process`。Linux 用 `ps`。单个 agent 的 CPU = 两次采样的累计时间差 ÷ 间隔（100 = 占满一个核，同活动监视器的「% CPU」列）；
   不用 ps 的 `%cpu`。
 - 进程列表 5 秒内共用一份（`agents.ProcessesShareTTL`）：看板与 Agent 进度监控各自定时读，不各起一次 ps / PowerShell。
-  进度监控（每 8 秒一轮）上次没找到任何编程助手进程时，进程表至多每 30 秒重读一次（`agents.IdleProcsMs`），
+  进度监控（每 8 秒一轮）上次没找到任何 agent 进程时，进程表至多每 30 秒重读一次（`agents.IdleProcsMs`），
   会话文件仍每轮扫描；所以在终端里新开的助手最多晚 30 秒被认出来。
 - 整机 CPU（`system.cpuPercent`，0–100，占全部核的比例，同活动监视器的「系统 + 用户」）读系统计数（`agents.SystemCPU`：
   macOS `host_statistics`、Linux `/proc/stat`、Windows `GetSystemTimes`）；读不到（如不带 cgo 的 macOS 构建）时退回各进程相加
   除以核数，会漏掉采样间隔里退出的进程与 `kernel_task`。
 - 标签的进程：编排器在 `spawnCLI` 里记下每个标签起的进程（`Orchestrator.TabPids`），从进程表展开整棵树；同一个进程只算一次。
 - Nomi 本体 = Nomi 自己的进程树减去各标签的树。Nomi 对话与后台运行跑在内核进程里，单独的占用量不出来，所以没有 `usage`。
-- 外部：编程助手进程按进程树归并（`agents.AgentTrees`，一个助手里又起的助手算进同一棵树）；登记了当前会话的进程
+- 外部：agent 进程按进程树归并（`agents.AgentTrees`，一个助手里又起的助手算进同一棵树）；登记了当前会话的进程
   （Claude Code 的 `~/.claude/sessions/<pid>.json`，`agents.Service.ProcSessions`）只归自己的会话，会话还没有会话文件
   （刚开、没发消息）就算空闲，不按目录去认领别的旧会话；其余的由外部会话认领同种助手、
   同一工作目录（`agents.Service.ProcCwds`）的一棵树，在跑的先认领。认领不到的（终端 / IDE 里开着但没在跑会话的）放进 `externalIdle.items`，
@@ -98,7 +98,7 @@ Mock CLI 模式（`NOMI_USE_MOCK_CLI=1`，演示截图与 E2E）下 `OwnProcsOnl
 
 ## 调度策略
 
-`internal/core/fleet/policy.go`。Nomi 派出去的编程助手与后台任务合计同时运行的上限，用户在看板底部三选一（`fleet.setPolicy`，
+`internal/core/fleet/policy.go`。Nomi 派出去的 agent 与后台任务合计同时运行的上限，用户在看板底部三选一（`fleet.setPolicy`，
 和自动处理开关一起存在 `fleet/settings.json`），立即生效：
 
 | 档位            | 同时运行                                                                   |
@@ -146,16 +146,16 @@ Mock CLI 模式（`NOMI_USE_MOCK_CLI=1`，演示截图与 E2E）下 `OwnProcsOnl
 
 - 工具（`internal/core/fleet/tools.go`，注册进 Nomi 的工具表，说到 agent / 内存 / 卡 / 暂停 / 派出去的事时才提供）：
   `list_agents`（压力、可用比例、整机 CPU、Nomi 自己的占用与所有 agent，外部的标 `readOnly`）、`pause_agent` /
-  `resume_agent`（只对纳管的、可暂停的；外部的、正在回答的对话、等用户处理的都拒绝并说明原因）。Nomi 暂停的编程助手
+  `resume_agent`（只对纳管的、可暂停的；外部的、正在回答的对话、等用户处理的都拒绝并说明原因）。Nomi 暂停的 agent
   （`paused.by: nomi`）与内存守护暂停的一样，内存恢复正常后自动继续，不会被遗忘在暂停里；Nomi 暂停的后台运行等手动继续。
 - 内存紧张（critical）且自动处理开着时，内存守护扣着新的工作：任务运行时开始执行前问 `Admit`
-  （`tasks.Runtime.SetAdmit`），编程助手与后台 Nomi 的任务留在队列里（看板「待进行」标 `queueReason: memory`），只发通知的照常；
+  （`tasks.Runtime.SetAdmit`），agent 与后台 Nomi 的任务留在队列里（看板「待进行」标 `queueReason: memory`），只发通知的照常；
   不再紧张时马上再排一次队（`OnRelease` → `Runtime.Tick`）。同步委派：后台 Nomi 里的等缓解，前台对话里的返回
   `memory_pressure`，让 Nomi 改成后台委派。派活规则的提示词里有一句：电脑卡 / 一次派好几个时先 `list_agents`。
-- 调度树：后台 Nomi 运行的 ctx 上有任务 id（`tasks.WithRunTask`），它里面委派出去的编程助手标签记下 `parentTaskId`，
+- 调度树：后台 Nomi 运行的 ctx 上有任务 id（`tasks.WithRunTask`），它里面委派出去的 agent 标签记下 `parentTaskId`，
   看板卡片上显示「由「…」派出」（`parentId`）。
 
 ## 线程
 
-`fleet.*` 不进 GIL：持续任务的 `Runtime.List` 在 GIL 外读（运行时的持有者可能在等 GIL），读标签与编程助手监视时才
+`fleet.*` 不进 GIL：持续任务的 `Runtime.List` 在 GIL 外读（运行时的持有者可能在等 GIL），读标签与 agent 监视时才
 `jsrt.Call` 进 GIL。对话路由的流开始 / 结束在另一个 goroutine 里通知，不阻塞流。

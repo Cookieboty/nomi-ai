@@ -96,7 +96,7 @@ func TestMarkedNonThinkingSendsNothing(t *testing.T) {
 	}
 }
 
-// 编程助手第三方标签选的档位要压过 CLI 自己带的推理参数（Codex 每个请求都带 reasoning.effort），
+// agent 第三方标签选的档位要压过 CLI 自己带的推理参数（Codex 每个请求都带 reasoning.effort），
 // 否则输入栏里的思考深度对 CLI 不生效；CLI 明确关掉思考的辅助请求保持关闭。
 func TestBindingEffortOverridesClientExplicit(t *testing.T) {
 	p := relay(config.RuntimeModel{ID: "grok-4.20", Enabled: true})

@@ -1,5 +1,5 @@
 /**
- * 编程助手页当前选中的标签（Nomi / Claude Code / Codex / dsh / 监视与会话），持久化在 localStorage。
+ * Agents 页当前选中的标签（Nomi / Claude Code / Codex / dsh / 监视与会话），持久化在 localStorage。
  */
 import { useCallback, useSyncExternalStore } from 'react';
 

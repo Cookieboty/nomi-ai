@@ -1,5 +1,5 @@
 /**
- * 编程助手的能力位（来自内置插件清单，P9.4）：界面按能力决定显示什么，不按 CLI 名字判断。
+ * Agents 的能力位（来自内置插件清单，P9.4）：界面按能力决定显示什么，不按 CLI 名字判断。
  * 只读纯数据（@nomi-ai/cli-catalog），不经 IPC。
  */
 import { BUILTIN_RENDERER, isBuiltinCliId, type CliRendererInfo } from '@nomi-ai/cli-catalog';
@@ -18,8 +18,8 @@ export function hasOfficialAccount<T extends string>(
 }
 
 /**
- * 只能用第三方模型的内置编程助手（没有官方账号能力的 dsh、Gemini）：不再有「用 CLI 自己的登录 / 配置」这一来源。
- * 编程助手只用 Nomi 管理的官方账号或经网关的第三方模型。
+ * 只能用第三方模型的内置 agent（没有官方账号能力的 dsh、Gemini）：不再有「用 CLI 自己的登录 / 配置」这一来源。
+ * Agents 只用 Nomi 管理的官方账号或经网关的第三方模型。
  */
 export function thirdPartyOnly(backend: string | null | undefined): boolean {
   return !!backend && isBuiltinCliId(backend) && !hasOfficialAccount(backend);

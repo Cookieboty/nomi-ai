@@ -1,6 +1,6 @@
-// Package agents：编程助手会话的进度监测（本地会话文件、进程、标签）。
+// Package agents：agent 会话的进度监测（本地会话文件、进程、标签）。
 //
-// parsers.go：解析各编程助手本地会话文件，推断会话身份
+// parsers.go：解析各 agent 本地会话文件，推断会话身份
 // （id / cwd / 标题）与最后状态。字符串字段 "" 即 undefined（str() 永不产出空串）。
 package agents
 
@@ -16,7 +16,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// AgentKind：编程助手种类。
+// AgentKind：agent 种类。
 type AgentKind = string
 
 // AgentStatus：会话状态。

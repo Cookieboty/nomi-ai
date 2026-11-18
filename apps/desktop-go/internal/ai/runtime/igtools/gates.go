@@ -20,8 +20,8 @@ var (
 	gateUndo       = regexp.MustCompile(`撤销|撤回|恢复|还原|改回|回滚|undo|revert|restore`)
 	gatePermission = regexp.MustCompile(`权限|授权|允许|访问|permission|access|allow`)
 	gateFiles      = regexp.MustCompile(`文件|目录|文件夹|桌面|下载|文档|路径|保存|存到|存成|写入|读取|打开|整理|归档|移动|移到|挪|重命名|改名|删除|删掉|新建|创建|废纸篓|回收站|图片|照片|截图|表格|笔记|项目|仓库|~\/|[a-z]:\\|\/users\/|\/home\/|\.(?:md|txt|pdf|docx?|xlsx?|csv|json|png|jpe?g|ts|js|py|go)\b|file|folder|dir|path|desktop|download|document`)
-	gateDelegate   = regexp.MustCompile(`编程助手|委派|代码|编程|开发|项目|仓库|bug|修复|报错|测试|重构|部署|需求|审查|调研|网站|网页|应用|插件|功能|实现|claude|codex|grok|gemini|dsh|github|commit|review|research|code|repo|deploy|feature|fix`)
-	// 派出去的事（编程助手或后台的 Nomi）：问进度、要停下时也提供查询 / 停止
+	gateDelegate   = regexp.MustCompile(`agents|委派|代码|编程|开发|项目|仓库|bug|修复|报错|测试|重构|部署|需求|审查|调研|网站|网页|应用|插件|功能|实现|claude|codex|grok|gemini|dsh|github|commit|review|research|code|repo|deploy|feature|fix`)
+	// 派出去的事（agent 或后台的 Nomi）：问进度、要停下时也提供查询 / 停止
 	gateFollow = regexp.MustCompile(`后台|派|委派|任务|进度|好了没|好了吗|做完|做好|停下|停止|别做|不用做|取消|background|task|progress|status|stop|cancel`)
 	// 持续任务：以后 / 定期 / 某件事发生时再做（宁可多带：漏掉时用户就建不了任务）
 	gateTask = regexp.MustCompile(`每天|每日|每周|每月|每晚|每早|每隔|每小时|每次|每当|定期|定时|周期|持续|长期|以后|之后|往后|将来|到时|到点|稍后|晚点|回头|过会|待会|一旦|只要|发生|出现|变化|变动|更新|有新|新邮件|跑完|结束后|完成后|盯|监控|监视|关注|跟进|留意|看着|通知我|告诉我|提醒|订阅|自动|任务|ci\b|rss|cron|daily|weekly|monthly|every|whenever|later|monitor|watch|notify|recurring|subscribe|task`)
@@ -48,7 +48,7 @@ func writes(t tools.Turn) bool {
 	return orCwd(gateFiles)(t) && gateWrite.MatchString(t.ConvoText)
 }
 
-// DispatchRelevant：派出去（编程助手 / 后台的 Nomi）的工具与「做还是派」的规则：说到编程任务、
+// DispatchRelevant：派出去（agents / 后台的 Nomi）的工具与「做还是派」的规则：说到编程任务、
 // 要做一阵子的事（文档 / 报告 / 一组图……），或问到派出去的事的进度 / 要停下时提供（选了工作区但只是问问题时不带）
 func DispatchRelevant(t tools.Turn) bool {
 	return gateDelegate.MatchString(t.ConvoText) || gateLong.MatchString(t.ConvoText) ||

@@ -11,7 +11,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// 没有「本机登录」：编程助手只用 Nomi 管理的官方账号（各自独立的配置目录）或第三方模型。
+// 没有「本机登录」：agent 只用 Nomi 管理的官方账号（各自独立的配置目录）或第三方模型。
 // 旧版本存下的 local-<kind> 记录、以及指向它的默认账号在读取时删掉；没有账号时不退回 CLI 自己的登录。
 
 func TestLegacyLocalSignInIsDroppedAndNeverUsed(t *testing.T) {
@@ -99,3 +99,74 @@ func TestDefaultFallsBackToLoggedInAccount(t *testing.T) {
 }
 
 func ptr(s string) *string { return &s }
+
+func TestSignedOutAccountIsNeverInUseAndCanBeRemoved(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	inUseCount := float64(3)
+	var defaultChanged []string
+	s, err := NewAccountService(ServiceDeps{
+		Root: root, Home: home, Platform: "linux", Env: util.NewObj("HOME", home),
+		InUse:            func(string, string) any { return inUseCount },
+		LiveProcesses:    func(string, string) (LiveCheck, error) { return LiveCheck{State: "free"}, nil },
+		OnDefaultChanged: func(kind string) { defaultChanged = append(defaultChanged, kind) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	jsrt.Run(func() {
+		created, err := s.Create("codex", undef)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if created.Get("active") != false || created.Get("inUse") != float64(0) {
+			t.Fatalf("signed-out create view: active=%v inUse=%v, want false / 0", created.Get("active"), created.Get("inUse"))
+		}
+		list, err := s.List("codex")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(list) != 1 || prop(list[0], "active") != false || prop(list[0], "inUse") != float64(0) {
+			t.Fatalf("signed-out list = %v, want active=false inUse=0", util.Stringify(list))
+		}
+		if _, err := jsrt.Await(s.Remove(jsStr(created.Get("id")), true)); err != nil {
+			t.Fatalf("remove signed-out account failed: %v", err)
+		}
+		after, err := s.List("codex")
+		if err != nil || len(after) != 0 {
+			t.Fatalf("after remove list = %v (err=%v), want empty", util.Stringify(after), err)
+		}
+
+		// 已登录账号正常统计 inUse，且占用时阻止删除
+		signed, err := s.Create("codex", "work")
+		if err != nil {
+			t.Fatal(err)
+		}
+		sid := jsStr(signed.Get("id"))
+		for _, x := range s.store().accounts {
+			if prop(x, "id") == sid {
+				setProp(x, "loggedIn", true)
+			}
+		}
+		list2, err := s.List("codex")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if prop(list2[0], "active") != true || prop(list2[0], "inUse") != float64(3) {
+			t.Fatalf("logged-in account view = %v, want active=true inUse=3", util.Stringify(list2))
+		}
+		_, err = jsrt.Await(s.Remove(sid, false))
+		var ae *AccountError
+		if !errors.As(err, &ae) || ae.Code != "in-use" {
+			t.Fatalf("remove in-use account err=%v, want AccountError{in-use}", err)
+		}
+
+		// 当占用清零后删除（即使未显式调 SetDefault），仍会触发 OnDefaultChanged("codex")
+		inUseCount = 0
+		if _, err := jsrt.Await(s.Remove(sid, false)); err != nil {
+			t.Fatalf("remove unused logged-in account failed: %v", err)
+		}
+		if len(defaultChanged) != 1 || defaultChanged[0] != "codex" {
+			t.Fatalf("defaultChanged = %v, want [codex]", defaultChanged)
+		}
+	})
+}

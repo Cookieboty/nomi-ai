@@ -52,7 +52,7 @@ func (s *Service) CliModels() []*u.Obj {
 					o.Set("ctx", meta.Ctx)
 				}
 			}
-			// 思考深度与 Nomi 对话同一份能力表（models.ProfileOf）：编程助手第三方标签按它出档位、发请求
+			// 思考深度与 Nomi 对话同一份能力表（models.ProfileOf）：agent 第三方标签按它出档位、发请求
 			if th := models.ProfileOf(mid, m).Obj(); th != nil {
 				o.Set("thinking", th)
 			}

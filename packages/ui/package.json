@@ -1,6 +1,6 @@
 {
   "name": "@nomi-ai/ui",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "Nomi 共享 UI：设计 token（CSS 变量）+ 轻量 React 组件",
   "type": "module",

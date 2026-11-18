@@ -92,9 +92,14 @@ type HarnessOfficialAccounts interface {
 	Launch(kind AccountBackend, accountId *string) AccountLaunch
 }
 
-// AccountPresence = 可选：这个编程助手有没有 Nomi 管理的官方账号（没有时新标签改用第三方模型）。
+// AccountPresence = 可选：能否给 agent 配 Nomi 管理的官方账号（没有时新标签改用第三方模型）。
 type AccountPresence interface {
 	HasAccount(kind AccountBackend) bool
+}
+
+// AccountSignInPresence = 可选：能否给 agent 配已登录的 Nomi 官方账号。
+type AccountSignInPresence interface {
+	HasSignedInAccount(kind AccountBackend) bool
 }
 
 // AccountSessionNoter = 可选的 noteSession。

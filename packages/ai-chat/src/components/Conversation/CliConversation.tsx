@@ -1,5 +1,5 @@
 /**
- * 编程助手标签的会话视图：只有它订阅当前标签的实时进度（流式期间约每帧一次），
+ * Agents 标签的会话视图：只有它订阅当前标签的实时进度（流式期间约每帧一次），
  * App 和其余 useHarnessTabs() 的消费者不跟着重渲染。
  */
 import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';

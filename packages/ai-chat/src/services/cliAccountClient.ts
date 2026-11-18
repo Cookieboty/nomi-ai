@@ -1,16 +1,19 @@
 import type { BuiltinCliId } from '@nomi-ai/cli-catalog';
+import { t } from '@nomi-ai/ui';
+import { useEffect, useSyncExternalStore } from 'react';
 
 import { api, hasTransport } from './api';
 /**
- * 编程助手官方账号（主进程 AccountService / AccountLogin，见 docs/development/coding-agents.md）：
- * 一个账号 = 一个 CLI 配置目录，登录由 CLI 自己完成。这里只有账号身份（邮箱 / 套餐），Nomi 不保存凭据。
+ * Agents 官方账号（主进程 AccountService / AccountLogin，见 docs/development/coding-agents.md）：
+ * 一个账号 = 一个 CLI 配置目录，登录由 CLI 自己完成。这里只有账号身份（用户名 / 邮箱 / 套餐），Nomi 不保存凭据。
  */
-/** 有官方账号的编程助手（dsh 没有官方账号） */
-/** 有官方账号的编程助手（清单 officialAccount）：dsh 与 Gemini 没有 */
+/** 有官方账号的 agent（dsh 没有官方账号） */
+/** 有官方账号的 agent（清单 officialAccount）：dsh 与 Gemini 没有 */
 export type AccountKind = Exclude<BuiltinCliId, 'dsh' | 'gemini'>;
 
 export interface AccountIdentity {
   key: string;
+  name?: string;
   email?: string;
   plan?: string;
   org?: string;
@@ -57,7 +60,7 @@ export interface LoginEvent {
   shellProxy?: string;
 }
 
-/** 编程助手是否沿用终端（如 ~/.zshrc）里的代理变量 */
+/** agent 是否沿用终端（如 ~/.zshrc）里的代理变量 */
 export interface CliNetworkState {
   useShellProxy: boolean;
   shellProxy: string | null;
@@ -86,30 +89,171 @@ async function call<T>(run: () => Promise<unknown>): Promise<T> {
 const on = (subscribe: () => () => void): (() => void) =>
   hasTransport() ? subscribe() : () => undefined;
 
+const EMPTY_LABELS: ReadonlyMap<string, string> = new Map();
+let labelCache: ReadonlyMap<string, string> = EMPTY_LABELS;
+const labelListeners = new Set<() => void>();
+const cacheResetListeners = new Set<() => void>();
+let labelPreheated = false;
+
+export type AccountDisplayFields = Pick<CliAccount, 'label'> & {
+  identity?: AccountIdentity | null;
+};
+
+/** 账号标题仍是系统默认的「官方账号」占位词（中英文）或为空时返回 true */
+export function isDefaultAccountLabel(label: string | null | undefined): boolean {
+  const trimmed = label?.trim() ?? '';
+  if (!trimmed) return true;
+  const lower = trimmed.toLowerCase();
+  return (
+    trimmed === t('ui.chat-settings.official-accounts') ||
+    trimmed === '\u5b98\u65b9\u8d26\u53f7' ||
+    lower === 'official account' ||
+    lower === 'official accounts'
+  );
+}
+
+/** 优先展示用户自定义名称；若仍为默认「官方账号」且拿到了用户名/邮箱，则回退展示用户名或邮箱 */
+export function accountDisplayLabel(acc: AccountDisplayFields | null | undefined): string {
+  if (!acc) return '';
+  const trimmed = acc.label.trim();
+  if (!isDefaultAccountLabel(trimmed)) return trimmed;
+  return acc.identity?.name?.trim() || acc.identity?.email?.trim() || trimmed;
+}
+
+/** 组合账号卡片副标题，并对已作主标题展示的字段去重 */
+export function accountSubtitle(
+  acc: AccountDisplayFields | null | undefined,
+  opts?: { includePlan?: boolean },
+): string {
+  if (!acc) return '';
+  const primary = accountDisplayLabel(acc).toLowerCase();
+  const seen = new Set<string>();
+  const parts: string[] = [];
+  const rawParts = [
+    opts?.includePlan !== false ? acc.identity?.plan : undefined,
+    acc.identity?.name,
+    acc.identity?.email,
+    acc.identity?.org,
+  ];
+  for (const raw of rawParts) {
+    const val = raw?.trim();
+    if (!val) continue;
+    const key = val.toLowerCase();
+    if (key === primary || seen.has(key)) continue;
+    seen.add(key);
+    parts.push(val);
+  }
+  return parts.join(' · ');
+}
+
+function notifyLabelListeners() {
+  labelListeners.forEach((fn) => fn());
+}
+
+function recordAccountLabels(
+  accounts: readonly (Pick<CliAccount, 'id' | 'label'> & { identity?: AccountIdentity | null })[],
+) {
+  if (!accounts.length) return;
+  let next: Map<string, string> | null = null;
+  for (const acc of accounts) {
+    const display = accountDisplayLabel(acc);
+    if (!acc?.id || !display) continue;
+    if (labelCache.get(acc.id) === display) continue;
+    next ??= new Map(labelCache);
+    next.set(acc.id, display);
+  }
+  if (next) {
+    labelCache = next;
+    notifyLabelListeners();
+  }
+}
+
+function dropAccountLabel(id: string) {
+  if (!labelCache.has(id)) return;
+  const next = new Map(labelCache);
+  next.delete(id);
+  labelCache = next;
+  notifyLabelListeners();
+}
+
+export function cachedAccountLabel(id: string | null | undefined): string | undefined {
+  return id ? labelCache.get(id) : undefined;
+}
+
+export function onAccountCacheReset(fn: () => void): () => void {
+  cacheResetListeners.add(fn);
+  return () => {
+    cacheResetListeners.delete(fn);
+  };
+}
+
+export function resetAccountLabelCache(): void {
+  labelCache = EMPTY_LABELS;
+  labelPreheated = false;
+  cacheResetListeners.forEach((fn) => fn());
+}
+
+export function useAccountLabels(): ReadonlyMap<string, string> {
+  const labels = useSyncExternalStore(
+    (fn) => {
+      labelListeners.add(fn);
+      return () => {
+        labelListeners.delete(fn);
+      };
+    },
+    () => labelCache,
+  );
+  useEffect(() => {
+    if (!hasTransport()) return;
+    if (!labelPreheated) {
+      labelPreheated = true;
+      void cliAccountClient.list().catch(() => {
+        labelPreheated = false;
+      });
+    }
+    return cliAccountClient.onChanged(() => {
+      void cliAccountClient.list().catch(() => undefined);
+    });
+  }, []);
+  return labels;
+}
+
 export const cliAccountClient = {
   list: async (kind?: AccountKind) => {
     const r = await call<unknown>(() => api.cliAccount.list({ kind }));
-    return Array.isArray(r) ? (r as CliAccount[]) : [];
+    const list = Array.isArray(r) ? (r as CliAccount[]) : [];
+    recordAccountLabels(list);
+    return list;
   },
   /** 用 CLI 自己的状态命令重新读各账号的身份（不读凭据） */
   refresh: async (kind: AccountKind) => {
     const r = await call<unknown>(() => api.cliAccount.refresh({ kind }));
-    return Array.isArray(r) ? (r as CliAccount[]) : [];
+    const list = Array.isArray(r) ? (r as CliAccount[]) : [];
+    recordAccountLabels(list);
+    return list;
   },
-  /** 设为默认账号：新标签与「跟随默认」的标签用它 */
-  setDefault: (kind: AccountKind, id: string) =>
-    call<CliAccount>(() => api.cliAccount.setDefault({ kind, id })),
-  rename: (id: string, label: string) =>
-    call<CliAccount>(() => api.cliAccount.rename({ id, label })),
+  /** 设为默认账号：新标签与默认未指定账号的会话用它 */
+  setDefault: async (kind: AccountKind, id: string) => {
+    const acc = await call<CliAccount>(() => api.cliAccount.setDefault({ kind, id }));
+    if (acc) recordAccountLabels([acc]);
+    return acc;
+  },
+  rename: async (id: string, label: string) => {
+    const acc = await call<CliAccount>(() => api.cliAccount.rename({ id, label }));
+    if (acc) recordAccountLabels([acc]);
+    return acc;
+  },
   /** stopExternal：先结束 Nomi 之外还在用这个账号的 CLI 进程（external-busy 时用户确认过）再删除 */
-  remove: (id: string, opts?: { force?: boolean; stopExternal?: boolean }) =>
-    call<void>(() =>
+  remove: async (id: string, opts?: { force?: boolean; stopExternal?: boolean }) => {
+    await call<void>(() =>
       api.cliAccount.remove({
         id,
         force: opts?.force === true,
         ...(opts?.stopExternal ? { stopExternal: true } : {}),
       }),
-    ),
+    );
+    dropAccountLabel(id);
+  },
   /** accountId 为空：新建账号并登录；否则在这个账号的目录里（重新）登录 */
   loginStart: (kind: AccountKind, accountId?: string) =>
     call<LoginEvent>(() => api.cliAccount.loginStart({ kind, accountId })),

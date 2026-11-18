@@ -5,7 +5,7 @@
  * nomi/no-icon-title：图标按钮一律不加原生 title（docs/development/frontend-standards.md「无障碍与提示」）。
  * 可访问名用 aria-label；说明用可见文案或 @nomi-ai/ui 的 Tooltip / FloatingTip。
  *
- * nomi/no-cli-literal：视图里不能按内置编程助手的名字分支（`backend === 'claude'`、`case 'codex':`）。
+ * nomi/no-cli-literal：视图里不能按内置 agent 的名字分支（`backend === 'claude'`、`case 'codex':`）。
  * 某个 CLI 的特殊行为应该放进它的插件清单（@nomi-ai/cli-catalog），视图按能力位判断；
  * 这样新增一个 CLI（包括外部插件）时不用到处找 if 分支。确实需要按名字处理的地方登记在
  * scripts/eslint/cli-literal-allowlist.mjs，每一项写明原因。
@@ -34,12 +34,12 @@ const noCliLiteral = {
   meta: {
     type: 'suggestion',
     docs: {
-      description: '核心目录里不按内置编程助手的名字分支；把差异放进插件，按能力位判断',
+      description: '核心目录里不按内置 agent 的名字分支；把差异放进插件，按能力位判断',
     },
     schema: [],
     messages: {
       branch:
-        "不要按编程助手名字 '{{id}}' 分支：把这个差异放进 @nomi-ai/cli-plugins 的插件，核心按能力位判断" +
+        "不要按 agent 名字 '{{id}}' 分支：把这个差异放进 @nomi-ai/cli-plugins 的插件，核心按能力位判断" +
         '（确有必要时登记到 scripts/eslint/cli-literal-allowlist.mjs 并写明原因）',
     },
   },

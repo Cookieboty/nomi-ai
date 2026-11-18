@@ -1,10 +1,10 @@
 /**
  * 统一的模型选择器（docs/development/gateway.md）：所有选第三方模型的地方都用它。
  * - 按供应商分组，模型旁显示能力（推理、视觉、上下文长度）；可选的「最近使用」分组置顶；
- * - 给编程助手选（purpose="coding"）时，不支持工具调用的模型不出现，参数未知的标出来；
+ * - 给 agent 选（purpose="coding"）时，不支持工具调用的模型不出现，参数未知的标出来；
  * - 搜索支持 `provider/` 前缀过滤；键盘与弹层行为沿用 Select；
  * - browse：弹层顶部按供应商分标签、左侧按厂商（OpenAI、Anthropic …）快速筛选（对话输入栏用）；
- * - inline：菜单直接画在调用方的浮层里（编程助手「模型 · 思考深度」浮层的模型页），与 Nomi 对话的下拉同一个组件。
+ * - inline：菜单直接画在调用方的浮层里（agents「模型 · 思考深度」浮层的模型页），与 Nomi 对话的下拉同一个组件。
  * 值的格式是 `providerId/modelId`（模型 id 本身可以含 `/`，供应商 id 不含）。
  */
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -25,7 +25,7 @@ export interface PickerModel {
   ctxStandard?: number;
   reasoning?: boolean;
   vision?: boolean;
-  /** false：不支持工具调用（编程助手不能用） */
+  /** false：不支持工具调用（agent 不能用） */
   toolCalling?: boolean;
   /** false：上下文 / 输出上限是默认值，没有查证过 */
   metaKnown?: boolean;
@@ -38,7 +38,7 @@ export interface PickerProvider {
   name: string;
   /** browse 时供应商标签的悬停说明（如「默认供应商」「会话原来的供应商」） */
   hint?: string;
-  /** false：这个供应商的模型都是同一家（如编程助手自己的官方模型），不显示厂商筛选 */
+  /** false：这个供应商的模型都是同一家（如 agent 自己的官方模型），不显示厂商筛选 */
   vendors?: boolean;
   /** 供应商的品牌图标 id（预设 id）：模型认不出厂商时用它的图标 */
   brand?: string;
@@ -63,7 +63,7 @@ export interface ModelPickerProps extends Pick<
   recent?: string[];
   value: string | null;
   onChange: (ref: string) => void;
-  /** coding：给编程助手选，过滤不支持工具调用的模型 */
+  /** coding：给 agent 选，过滤不支持工具调用的模型 */
   purpose?: 'chat' | 'coding';
   /** 高级显示：右侧带协议标签 */
   showWire?: boolean;
@@ -103,7 +103,7 @@ export function formatContext(tokens: number): string {
   return String(Math.floor(tokens));
 }
 
-/** 能力标签：推理 · 视觉 · 128K；参数未知时给编程助手的提示 */
+/** 能力标签：推理 · 视觉 · 128K；参数未知时给 agent 的提示 */
 function capabilities(m: PickerModel, purpose: 'chat' | 'coding'): string {
   const parts: string[] = [];
   if (m.reasoning) parts.push(t('ui.models.reasoning'));

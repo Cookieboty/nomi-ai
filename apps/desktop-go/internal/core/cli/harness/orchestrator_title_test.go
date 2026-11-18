@@ -188,7 +188,7 @@ func (plainGateway) OfficialEnv(env *util.Obj) *util.Obj { return env }
 func (plainGateway) Models() []ports.GatewayModel        { return nil }
 func (plainGateway) ReleaseAgent(string, string)         {}
 
-// withThirdPartyGateway：没有官方账号的编程助手（Gemini、dsh）的标签要经网关跑
+// withThirdPartyGateway：没有官方账号的 agent（Gemini、dsh）的标签要经网关跑
 func withThirdPartyGateway(o *Orchestrator, backend string) {
 	if isBuiltin(backend) && !isAccountBackend(backend) {
 		o.d.Gateway = plainGateway{}

@@ -1,4 +1,4 @@
-/** 权限请求卡片：编程助手标签的审批队列和 Nomi 派出的子任务卡片共用（注明来源子代理与自动拒绝倒计时） */
+/** 权限请求卡片：agent 标签的审批队列和 Nomi 派出的子任务卡片共用（注明来源子代理与自动拒绝倒计时） */
 import { Icon, t } from '@nomi-ai/ui';
 import { IconShieldExclamation as ShieldAlert } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';

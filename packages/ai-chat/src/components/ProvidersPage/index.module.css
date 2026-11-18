@@ -380,3 +380,32 @@
   margin-top: var(--cd-space-1);
   color: var(--cd-color-danger-text);
 }
+
+/* 单个助手卡片的第三方主模型与展开的各档模型网格 */
+.tpMainCtrl {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-width: 0;
+  max-width: 100%;
+}
+.tpPicker {
+  min-width: 0;
+  max-width: 100%;
+}
+.cliTiers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--cd-space-3);
+  padding: var(--cd-space-3) 0 var(--cd-space-1);
+  border-top: 1px solid var(--cd-color-border-subtle);
+}
+.tierField {
+  display: grid;
+  gap: var(--cd-space-1);
+  min-width: 0;
+}
+.tierLabel {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}

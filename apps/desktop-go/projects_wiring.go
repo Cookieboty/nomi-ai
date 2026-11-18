@@ -44,7 +44,7 @@ func wireProjects(router *contract.Router, userData string, b *desktop.Permissio
 // 还在就说明上次迁移中途失败，启动时整套重来（每一步都可以重复做）
 const migrationPendingFile = "projects-migration.pending"
 
-// migrateToProjects：迁移到项目。以前侧栏按会话的目录分组（Nomi 对话 meta.cwd、编程助手标签的 cwd）：
+// migrateToProjects：迁移到项目。以前侧栏按会话的目录分组（Nomi 对话 meta.cwd、agent 标签的 cwd）：
 // 每个目录建一个单文件夹项目，Nomi 对话的 meta 改成 projectId（去掉 cwd），标签与后台任务补上 projectId。
 //   - 全套（对话 + 标签 + 任务）在 projects.json 还不存在、或上次没做完（有 pending 标记）时跑，全部成功才删标记；
 //   - 对话只在迁上项目后才去掉 cwd。目录此刻不能用（外接盘没挂、网络目录离线）的保留 cwd，

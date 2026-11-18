@@ -1,6 +1,6 @@
 /** 命令执行时按需读取的本机数据（只读主进程缓存 / 账本，不联网、不碰凭据） */
 import { cliAccountClient } from '../services/cliAccountClient';
-import { cliLauncherClient, launcherManagesLogin } from '../services/cliLauncherClient';
+import { cliLauncherClient } from '../services/cliLauncherClient';
 import { cliUpdateClient } from '../services/cliUpdateClient';
 import { gatewayClient, gatewayClientAvailable } from '../services/gatewayClient';
 import { harnessClient } from '../services/harnessClient';
@@ -30,8 +30,7 @@ export async function loadSlashData(
 ): Promise<SlashData> {
   const cli = backend !== 'nomi';
   if (cli) await cliLauncherClient.get().catch(() => undefined);
-  const accountKind =
-    cli && hasOfficialAccount(backend) && !launcherManagesLogin(backend) ? backend : null;
+  const accountKind = cli && hasOfficialAccount(backend) ? backend : null;
   const [clis, usage, quotas, accounts, tabs, nomiProviders, gateway, nomiCtx] = await Promise.all([
     cli && cliUpdateClient.available()
       ? soft(() => cliUpdateClient.inspect(false))
@@ -48,15 +47,21 @@ export async function loadSlashData(
       ? soft(() => gatewayClient.nomiContext('chat'))
       : Promise.resolve(null),
   ]);
+  const cliTab =
+    tabs && Array.isArray(tabs.tabs) ? (tabs.tabs.find((x) => x.id === tabId) ?? null) : null;
+  const cliAccount = Array.isArray(accounts)
+    ? ((cliTab?.accountId
+        ? accounts.find((a) => a.kind === accountKind && a.id === cliTab.accountId)
+        : undefined) ??
+      accounts.find((a) => a.kind === accountKind && a.active) ??
+      null)
+    : null;
   return {
     cli: Array.isArray(clis) ? (clis.find((c) => c.kind === backend) ?? null) : null,
     usage: isEndpoint(usage) ? usage : null,
     quota: Array.isArray(quotas) ? (quotas.find((q) => q.id === backend) ?? null) : null,
-    cliAccount: Array.isArray(accounts)
-      ? (accounts.find((a) => a.kind === accountKind && a.active) ?? null)
-      : null,
-    cliTab:
-      tabs && Array.isArray(tabs.tabs) ? (tabs.tabs.find((x) => x.id === tabId) ?? null) : null,
+    cliAccount,
+    cliTab,
     nomiProviders: nomiProviders && Array.isArray(nomiProviders.providers) ? nomiProviders : null,
     nomiGateway: gateway && Array.isArray(gateway.providers) ? gateway : null,
     nomiWindow: nomiCtx && nomiCtx.window > 0 ? nomiCtx.window : null,

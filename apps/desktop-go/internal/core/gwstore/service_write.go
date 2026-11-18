@@ -264,6 +264,9 @@ func (s *Service) state() *u.Obj {
 	if f, ok := data.Get("contextTier").(float64); ok && AllowedContextTier(f) {
 		out.Set("contextTier", f)
 	}
+	if hm, ok := data.Get("helperModel").(string); ok && hm != "" {
+		out.Set("helperModel", hm)
+	}
 	if u.Truthy(data.Get("migratedFrom")) {
 		out.Set("migratedFrom", data.Get("migratedFrom"))
 	}
@@ -601,13 +604,15 @@ func (s *Service) SetAssignmentFor(client any, patch *u.Obj) error {
 	return s.SetAssignment(c, patch)
 }
 
-// normalizeAssignmentPatch：规整分配 patch（undefined 用 nil 表示）
+// normalizeAssignmentPatch：规整分配 patch（undefined 用 nil 表示）。
+// 各来源作为资源池并存：切回 official / local 不清空 models.main。
 func normalizeAssignmentPatch(client string, patch *u.Obj) *u.Obj {
 	if client == "nomi" {
 		return patch
 	}
 	m := asObj(patch.Get("models"))
 	hasMain := m != nil && m.Has("main")
+	explicitSource, hasSource := strOf(patch.Get("newTabSource"))
 	withMainCleared := func() *u.Obj {
 		nm := u.NewObj()
 		if m != nil {
@@ -616,18 +621,27 @@ func normalizeAssignmentPatch(client string, patch *u.Obj) *u.Obj {
 		nm.Set("main", nil)
 		return nm
 	}
+	out := patch.Clone()
+	changed := false
 	if hasMain {
-		out := patch.Clone()
 		if u.Truthy(m.Get("main")) {
-			out.Set("newTabSource", "thirdParty").Set("newTabAccountId", nil)
-			return out
+			if !hasSource || explicitSource == "" {
+				out.Set("newTabSource", "thirdParty").Set("newTabAccountId", nil)
+				changed = true
+			}
+		} else {
+			out.Set("models", withMainCleared())
+			if !hasSource || explicitSource == "" {
+				out.Set("newTabSource", "official")
+			}
+			changed = true
 		}
-		out.Set("newTabSource", "official").Set("models", withMainCleared())
-		return out
 	}
-	if patch.Get("newTabSource") == "official" {
-		out := patch.Clone()
-		out.Set("models", withMainCleared())
+	if explicitSource == "local" {
+		out.Set("newTabAccountId", nil)
+		changed = true
+	}
+	if changed {
 		return out
 	}
 	return patch
@@ -730,6 +744,16 @@ func (s *Service) SetOptions(patch *u.Obj) (*u.Obj, error) {
 			data.Set(k, true)
 		} else {
 			data.Delete(k)
+		}
+		changed = true
+	}
+	if patch.Has("helperModel") && patch.Get("helperModel") != u.Undefined {
+		hm, _ := patch.Get("helperModel").(string)
+		hm = u.JSTrim(hm)
+		if hm != "" {
+			data.Set("helperModel", hm)
+		} else {
+			data.Delete("helperModel")
 		}
 		changed = true
 	}

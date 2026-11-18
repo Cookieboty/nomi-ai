@@ -7,7 +7,7 @@ import type { ImageAttachment } from '../../services/screenClient';
 import type { SlashBridge } from '../../slash/types';
 import type { ConvMessage } from '../../types/conversation';
 import type { PendingMode } from '../../utils/pendingSends';
-import type { SettingsSection } from '../SettingsView/sections';
+import type { SettingsSectionInput } from '../SettingsView/sections';
 
 export interface MessageInputProps {
   /** CLI 标签可附带图片；第二参仅在有附图时传入 */
@@ -47,7 +47,7 @@ export interface MessageInputProps {
   onExtClick?: () => void;
   onLocalClick?: () => void;
   /** 打开统一设置页的某个分区 */
-  onSettingsClick?: (section?: SettingsSection, endpoint?: string) => void;
+  onSettingsClick?: (section?: SettingsSectionInput, endpoint?: string) => void;
   /** 斜杠命令桥：传入后输入 / 弹出统一命令面板并接管执行；不传则只有输入框自带的界面命令 */
   slash?: SlashBridge;
   /** 打开「插件 / 命令」只读面板 */
@@ -61,7 +61,7 @@ export interface MessageInputProps {
   cwd?: string | null;
   /** All project folders for path completion. */
   roots?: readonly string[] | null;
-  /** Nomi 对话：「+」菜单里有「交给编程助手」（CLI 标签没有） */
+  /** Nomi 对话：「+」菜单里有「交给 agent」（CLI 标签没有） */
   delegate?: boolean;
   /** App 持有的会话草稿 Map；与 draftKey 一起传入时按会话隔离输入 */
   draftStore?: ReturnType<typeof createComposerDraftStore>;

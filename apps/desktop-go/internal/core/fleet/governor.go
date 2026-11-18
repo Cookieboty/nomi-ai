@@ -136,7 +136,7 @@ func (s *Service) SetOnRelease(fn func()) {
 // autoResumable：内存恢复正常后自动继续的（内存守护与 Nomi 暂停的；用户手动暂停的不动）
 func autoResumable(by string) bool { return by == PausedByMemory || by == PausedByNomi }
 
-// Holding：内存守护正扣着新的编程助手与后台 Nomi（自动处理开着、内存紧张）
+// Holding：内存守护正扣着新的 agent 与后台 Nomi（自动处理开着、内存紧张）
 func (s *Service) Holding() bool { return s.HoldReason() != "" }
 
 // HoldReason：为什么扣着（QueueMemory / QueueCPU）；空 = 不扣
@@ -166,7 +166,7 @@ func (s *Service) holdReasonLocked() string {
 	return ""
 }
 
-// Admit：任务运行时开始执行前问一次（tasks.Runtime.SetAdmit）：内存紧张时编程助手与后台 Nomi 先排着，
+// Admit：任务运行时开始执行前问一次（tasks.Runtime.SetAdmit）：内存紧张时 agent 与后台 Nomi 先排着，
 // 只发通知的照常
 func (s *Service) Admit(t tasks.Task) bool {
 	return t.Executor.Kind == "notify" || !s.Holding()

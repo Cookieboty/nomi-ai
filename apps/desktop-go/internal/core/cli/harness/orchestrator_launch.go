@@ -56,7 +56,11 @@ func derefStr(p *string) string {
 
 // launchFor 可能 throw。
 func (o *Orchestrator) launchFor(tab *util.Obj) *tabLaunch {
-	if o.sourceOf(tab) == "official" {
+	src := o.sourceOf(tab)
+	if src == "local" {
+		return o.localLaunchFor(str(tab, "backend"))
+	}
+	if src == "official" {
 		l := o.officialLaunchFor(str(tab, "backend"), strP(tab, "accountId"))
 		if isAccountBackend(str(tab, "backend")) {
 			if s := cli.LauncherFor(str(tab, "backend")); s.Enabled || s.AccountSource == "local" {
@@ -257,6 +261,26 @@ func (o *Orchestrator) bindCliSession(tab *util.Obj, sessionID string) {
 	}
 }
 
+func (o *Orchestrator) requireAccountBackend(backend string) {
+	if isBuiltin(backend) && !isAccountBackend(backend) {
+		if o.d.Gateway == nil {
+			throw(i18n.T("electron.common.the-model-gateway-isn-t-running-so-third"))
+		}
+		throw(i18n.T("electron.common.only-third-party-models", builtin.DisplayName(backend)))
+	}
+}
+
+func (o *Orchestrator) localLaunchFor(backend string) *tabLaunch {
+	o.requireAccountBackend(backend)
+	sig := "local"
+	if isAccountBackend(backend) {
+		if s := cli.LauncherFor(backend); s.Enabled || s.AccountSource == "local" {
+			sig += ":launcher:" + util.Stringify(s)
+		}
+	}
+	return &tabLaunch{env: util.NewObj(), args: []string{}, strip: []string{}, official: true, sig: sig}
+}
+
 // officialLaunchFor = officialLaunch(backend, accountId)（方法名避开同名变量 OFFICIAL_LAUNCH）。
 // 官方来源按每个 CLI 的账号来源选择本机登录或 Nomi 的独立账号目录。
 func (o *Orchestrator) officialLaunchFor(backend string, accountID *string) *tabLaunch {
@@ -264,12 +288,7 @@ func (o *Orchestrator) officialLaunchFor(backend string, accountID *string) *tab
 		// Never create or sync a Nomi account home for an external login.
 		return &tabLaunch{env: util.NewObj(), args: []string{}, strip: []string{}, official: true, sig: "launcher-login"}
 	}
-	if isBuiltin(backend) && !isAccountBackend(backend) {
-		if o.d.Gateway == nil {
-			throw(i18n.T("electron.common.the-model-gateway-isn-t-running-so-third"))
-		}
-		throw(i18n.T("electron.common.only-third-party-models", builtin.DisplayName(backend)))
-	}
+	o.requireAccountBackend(backend)
 	if o.d.Accounts == nil || !isAccountBackend(backend) {
 		return officialLaunch
 	}
@@ -346,7 +365,7 @@ func (o *Orchestrator) inheritSettings(tab *util.Obj, explicitMode bool) {
 	if truthy(s.Get("modelOverride")) {
 		tab.Set("modelOverride", s.Get("modelOverride"))
 	}
-	if truthy(s.Get("reasoningEffort")) && !truthy(tab.Get("modelScope")) {
+	if truthy(s.Get("reasoningEffort")) && !isGatewayScope(strP(tab, "modelScope")) {
 		tab.Set("reasoningEffort", s.Get("reasoningEffort"))
 	}
 }

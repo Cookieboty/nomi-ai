@@ -44,7 +44,7 @@ export function useGlobalTranscriptView(): [TranscriptView, (view: TranscriptVie
 }
 
 /**
- * 编程助手标签拿到 CLI 会话 id 后：把先按标签 id 存的覆盖搬到稳定的会话键（cliTranscriptKey），
+ * Agents 标签拿到 CLI 会话 id 后：把先按标签 id 存的覆盖搬到稳定的会话键（cliTranscriptKey），
  * 之后关掉标签、从历史重开也还在（#313）。覆盖只在当前标签上设，看当前标签就够。
  */
 export function useMigrateCliTranscriptView(

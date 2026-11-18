@@ -128,7 +128,7 @@ describe('schedule panel', () => {
     expect(describeRepeat(undefined)).toBe('不重复');
   });
 
-  it('不再有「编程助手」标签：日程页只剩提醒 / 定时任务 / 主动聊天 / 免打扰', async () => {
+  it('不再有「Agents」标签：日程页只剩提醒 / 定时任务 / 主动聊天 / 免打扰', async () => {
     mockIpc();
     const r = render(<SchedulePanel isVisible onClose={() => undefined} />);
     await waitFor(() => r.getByTestId('quiet-badge'));

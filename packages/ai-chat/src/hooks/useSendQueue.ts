@@ -1,5 +1,5 @@
 /**
- * Nomi 主对话的待发列表（编程助手标签的在 HarnessTabsContext 里按标签维护），规则见 utils/pendingSends：
+ * Nomi 主对话的待发列表（agent 标签的在 HarnessTabsContext 里按标签维护），规则见 utils/pendingSends：
  * - 插入（steer）：等到安全点交给这一轮（下一个工具开始，或入列时正好有工具在跑）；交不出去改为排队；
  * - 排队（queue）：空闲后按顺序自动发送；这一轮结束时还没交出去的插入消息也照此发出；
  * - flush（Esc）：停止这一轮，把整个列表合成一条马上发出。

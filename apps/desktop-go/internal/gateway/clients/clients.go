@@ -106,7 +106,7 @@ func init() {
 }
 
 // RegisterPluginClientSpecs is registerPluginClientSpecs(BUILTIN_GATEWAY_ENTRIES).
-// 能接第三方模型、上面没有专门条目的内置编程助手（Kimi Code、MiniMax Code……）用通用条目：宽松校验，
+// 能接第三方模型、上面没有专门条目的内置 agent（Kimi Code、MiniMax Code……）用通用条目：宽松校验，
 // 不认识的模型名都映射到这个标签绑定的主模型。
 func RegisterPluginClientSpecs() []string {
 	ids := []string{}
@@ -125,7 +125,7 @@ func RegisterPluginClientSpecs() []string {
 	return ids
 }
 
-// GenericSpec：内置编程助手的通用网关条目
+// GenericSpec：内置 agent 的通用网关条目
 func GenericSpec(id string) *Spec {
 	return &Spec{ID: id, Strictness: "lenient", UnknownToMain: true, SessionKey: DefaultSessionKey, Heartbeat: "comment"}
 }

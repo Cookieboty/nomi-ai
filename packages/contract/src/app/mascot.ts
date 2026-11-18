@@ -569,7 +569,7 @@ export const mascotProcedures = {
     input: z.void(),
     output: z.array(ChatAssetItem),
     surfaces: CHAT,
-    description: '素材库：全部生成的图片（Nomi / 各编程助手），新的在前',
+    description: '素材库：全部生成的图片（Nomi / 各 agent），新的在前',
   },
   'chatAssets.remove': {
     kind: 'mutation',

@@ -88,7 +88,7 @@ export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images =
       await h.wait(settleMs);
     },
     async newChat(endpoint) {
-      // 工坊：先在左侧端点栏选中这个编程助手，「新对话」就建在它下面（端点栏没有它时照旧点「新对话」）
+      // 工坊：先在左侧端点栏选中这个 agent，「新对话」就建在它下面（端点栏没有它时照旧点「新对话」）
       const id = { 'Claude Code': 'claude', Codex: 'codex', Gemini: 'gemini' }[endpoint];
       const rail = id && page.getByTestId(`endpoint-filter-${id}`);
       if (rail && (await rail.isVisible().catch(() => false))) {
@@ -138,7 +138,7 @@ export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images =
         .evaluate((el) => el.scrollIntoView({ block: 'start' }));
       await h.wait(500);
     },
-    /** 工坊里打开已有的编程助手会话 */
+    /** 工坊里打开已有的 agent 会话 */
     async openSession(label = /^Claude Code/) {
       await h.mode('工坊');
       // 会话行不再带端点名（行首没有图标）：点左侧导航栏的端点图标，切到这个端正在跑 / 最近的会话
@@ -305,7 +305,7 @@ export const SCENES = [
     name: 'seed-project',
     seed: true,
     async run(h) {
-      // 侧栏要有真实项目名（不是「还没有项目」）：用编程助手默认的工作目录建项目「nomi-ai」；
+      // 侧栏要有真实项目名（不是「还没有项目」）：用 agent 默认的工作目录建项目「nomi-ai」；
       // 后面 seed-agent-sessions 从项目行上新建会话，会话就归进这个项目
       await h.open();
       await h.page.getByTestId('new-project').first().click();
@@ -320,7 +320,7 @@ export const SCENES = [
   },
   {
     name: 'coding-agent',
-    title: '工坊：编程助手会话',
+    title: '工坊：agent 会话',
     async run(h) {
       await h.open();
       await h.mode('工坊');
@@ -334,7 +334,7 @@ export const SCENES = [
   },
   {
     name: 'permission-modes',
-    title: '编程助手的权限模式',
+    title: 'agent 的权限模式',
     async run(h) {
       await h.open();
       await h.openSession();
@@ -363,7 +363,7 @@ export const SCENES = [
     name: 'seed-agent-sessions',
     seed: true,
     async run(h) {
-      // 看板上多几张编程助手卡片（Mock CLI）：Codex 做完；其余提问带「偶尔超时」，
+      // 看板上多几张 agent 卡片（Mock CLI）：Codex 做完；其余提问带「偶尔超时」，
       // 一直停在进行中（run.mjs 的 NOMI_MOCK_SLOW_PROMPT）
       await h.open();
       await h.mode('工坊');
@@ -476,10 +476,10 @@ export const SCENES = [
   },
   {
     name: 'coding-settings',
-    title: '编程助手设置',
+    title: 'agent 设置',
     async run(h) {
       await h.open();
-      await h.settings('编程助手');
+      await h.settings('agents');
     },
   },
   {
@@ -578,7 +578,7 @@ export async function explore(page, h, outDir, guard) {
     'Nomi',
     '模型与供应商',
     '用量与分析',
-    '编程助手',
+    'agents',
     '知识与记忆',
     '扩展 / MCP',
     '应用与账号',

@@ -22,7 +22,7 @@ var efforts = []string{"minimal", "low", "medium", "high", "xhigh", "max"}
 const minStandard = 128_000
 
 // GenericStandard：窗口大于它、又没有自己的标准档（成本分档）时，默认按这个标准窗口用。
-// 长上下文默认关。与 gwstore.DefaultCtx、编程助手注入的默认窗口是同一个数（256 Ki token）。
+// 长上下文默认关。与 gwstore.DefaultCtx、agent 注入的默认窗口是同一个数（256 Ki token）。
 const GenericStandard = 262_144
 
 func obj(v any) *u.Obj {

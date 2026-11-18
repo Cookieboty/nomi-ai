@@ -3,7 +3,7 @@
  * （与托盘、斜杠命令 /model、设置 →「模型」页共享），档位存在会话 meta.reasoningEffort
  * （发请求时由 services/thinkingDepth 带上，没选过时落在该模型档位列表的第二档）。
  *
- * 界面与编程助手标签共用 ModelEffortChip（components/ModelControls/ModelEffortChip），这里只负责
+ * 界面与 agent 标签共用 ModelEffortChip（components/ModelControls/ModelEffortChip），这里只负责
  * 「读哪份数据、改往哪写」。NOMI_PROVIDER 环境变量锁定时网关的分配不生效：只显示一个不可点的胶囊。
  *
  * 侧边聊天（binding）：同一个按钮和浮层（模型 / 第三方模型 / 思考深度），只是模型与档位记在那个侧边聊天上，

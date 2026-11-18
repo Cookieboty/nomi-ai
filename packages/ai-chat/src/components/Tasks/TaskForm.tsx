@@ -1,7 +1,7 @@
 /**
  * 手动新建任务（创建 2）：标题、目标、何时运行、谁来做、能用哪些能力；保存前弹授权卡片，确认后才创建。
  * 授权等级由所选能力推出（取最高），默认 30 天到期。
- * 编程助手执行者（cli）：只列已装好的；在独立 worktree 里改文件（至少 L2，勾「跑命令」到 L3），授权路径是所选代码目录。
+ * Agents 执行者（cli）：只列已装好的；在独立 worktree 里改文件（至少 L2，勾「跑命令」到 L3），授权路径是所选代码目录。
  * 对外动作（L4，docs/features/scheduling-calendar.md）：GitHub 评论 / 开 PR 逐项勾选；本机 MCP 工具逐个勾选（只读之外的算对外动作）。
  */
 import {
@@ -18,9 +18,16 @@ import {
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { api } from '../../services/api';
+import {
+  delegateClient,
+  formatRunnerSummary,
+  presetDisplayLabel,
+  type DelegateSettingsView,
+} from '../../services/delegateClient';
 import { describeRepeat, desktopClient, type RepeatRule } from '../../services/desktopClient';
 import { extClient, type McpServer } from '../../services/extClient';
 import { harnessClient } from '../../services/harnessClient';
+import { gatewayStateSnapshot } from '../../services/nomiModel';
 import {
   CATEGORIES,
   CATEGORY_LABEL,
@@ -38,9 +45,11 @@ import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { confirmDialog } from '../ConfirmDialog';
 import { useConnections } from '../ConnectionsPanel';
 import { SANDBOX_CATEGORY_LABELS } from '../Conversation/SandboxRequests';
+import { RunnerModelPicker, type RunnerSpecValue } from '../RunnerModelPicker';
 import { WorkspacePicker } from '../WorkspacePicker';
 
 import styles from './index.module.css';
+import { buildTaskCliExecutor, resolveTaskCliSelection } from './taskCliHelpers';
 
 type When = 'manual' | 'once' | 'daily' | 'weekdays' | 'interval' | 'event';
 type Source = 'web' | 'github' | 'folder' | 'app' | 'mcp';
@@ -87,10 +96,14 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   // Nomi 读写文件的授权文件夹（grant.paths）：后台任务只能碰这些文件夹（#231）
   const [folders, setFolders] = useState<string[]>([]);
   const [bins, setBins] = useState<Record<string, string | null | undefined>>({});
+  const [delegateState, setDelegateState] = useState<DelegateSettingsView | null>(null);
   const [cliPick, setCli] = useState('');
+  const [cliMode, setCliMode] = useState<'auto' | string>('auto');
+  const [customSpec, setCustomSpec] = useState<RunnerSpecValue | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [cwd, setCwd] = useState('');
   const [cliShell, setCliShell] = useState(false);
-  // 编程助手沙箱里预先允许的类别（grant.sandbox）：跑的时候不用再问
+  // agent 沙箱里预先允许的类别（grant.sandbox）：跑的时候不用再问
   const [sandboxPick, setSandboxPick] = useState<string[]>([]);
   // 事件触发：先只记录
   const [source, setSource] = useState<Source>('web');
@@ -133,6 +146,12 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
         setMcpServers(l.servers.filter((x) => x.transport === 'stdio' && x.status === 'connected')),
       )
       .catch(() => undefined);
+    if (delegateClient.available()) {
+      void delegateClient
+        .settings()
+        .then((v) => setDelegateState(v))
+        .catch(() => undefined);
+    }
   }, []);
   const bare = (server: string, name: string) => name.replace(`${server}__`, '');
   const toolOf = (server: string, tool: string) =>
@@ -153,6 +172,23 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
     }
   // 没选过时默认第一个已装好的
   const cli = cliPick || installed[0] || '';
+  const gateway = gatewayStateSnapshot();
+  const cliSel = useMemo(
+    () =>
+      resolveTaskCliSelection({
+        delegateState,
+        cliMode,
+        cli,
+        installed,
+        defaultClis: CLIS,
+        bins,
+        customSpec,
+        gateway,
+      }),
+    [delegateState, cliMode, cli, installed, bins, customSpec, gateway],
+  );
+  const { presets, hasPresets, scheduledCli, effectiveCliMode, resolvedCli, initialCustomSpec } =
+    cliSel;
   const { items: connections } = useConnections();
   const github = connections?.find((c) => c.status === 'ok') ?? null;
   const repos = repoText
@@ -241,7 +277,11 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
     (when === 'manual' || when === 'event' || !Number.isNaN(new Date(at).getTime())) &&
     eventOk &&
     (ghActions.length === 0 || repos.length > 0) &&
-    (who !== 'cli' || (!!cli && !!bins[cli] && !!cwd));
+    (who !== 'cli' ||
+      (!!resolvedCli &&
+        !!bins[resolvedCli] &&
+        !!cwd &&
+        (effectiveCliMode !== 'custom' || !!customSpec)));
 
   const submit = async () => {
     const trigger =
@@ -278,7 +318,7 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
       who === 'notify'
         ? { kind: 'notify' as const, text: goal.trim() }
         : who === 'cli'
-          ? { kind: 'cli' as const, cli, cwd, isolation: 'worktree' as const }
+          ? buildTaskCliExecutor(cliSel, customSpec, cwd)
           : { kind: 'nomi' as const, tools };
     // 授权卡片：目标、何时、谁来做、能力等级、期限、预算
     const card = [
@@ -298,7 +338,7 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
         who === 'notify'
           ? t('ui.providers-schedule.task-executor-notify')
           : who === 'cli'
-            ? t('ui.providers-schedule.task-card-cli', cliLabel(cli), cwd)
+            ? t('ui.providers-schedule.task-card-cli', cliLabel(resolvedCli), cwd)
             : t('ui.chat-settings.nomi-section'),
       ),
       t('ui.providers-schedule.task-card-level', t(LEVEL_LABEL[level])),
@@ -830,21 +870,76 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
                   </div>
                 </div>
               )}
+              {who === 'cli' && hasPresets && (
+                <label className={styles.field}>
+                  <span>{t('ui.providers-schedule.task-cli-mode')}</span>
+                  <Select
+                    value={effectiveCliMode}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setCliMode(next);
+                      if (next === 'custom') {
+                        if (!customSpec) setCustomSpec(initialCustomSpec);
+                        setPickerOpen(true);
+                      }
+                    }}
+                    options={[
+                      {
+                        value: 'scheduled',
+                        label: t('ui.providers-schedule.task-cli-mode-scheduled'),
+                        disabled: !scheduledCli || !bins[scheduledCli],
+                      },
+                      ...presets.map((p) => ({
+                        value: `preset:${p.id}`,
+                        label: `${presetDisplayLabel(p)} · ${formatRunnerSummary(p, gateway)}`,
+                        disabled: !bins[p.cli],
+                      })),
+                      {
+                        value: 'cli',
+                        label: t('ui.providers-schedule.task-cli-mode-cli'),
+                      },
+                      {
+                        value: 'custom',
+                        label: t('ui.providers-schedule.task-cli-mode-custom'),
+                      },
+                    ]}
+                    data-testid="task-form-cli-mode"
+                  />
+                </label>
+              )}
               {who === 'cli' && (
                 <div className={styles.fieldRow}>
-                  <label className={styles.field}>
-                    <span>{t('ui.providers-schedule.task-cli-pick')}</span>
-                    <Select
-                      value={cli}
-                      onChange={(e) => setCli(e.target.value)}
-                      options={CLIS.map((b) => ({
-                        value: b,
-                        label: cliLabel(b),
-                        disabled: !bins[b],
-                      }))}
-                      data-testid="task-form-cli"
-                    />
-                  </label>
+                  {effectiveCliMode === 'cli' && (
+                    <label className={styles.field}>
+                      <span>{t('ui.providers-schedule.task-cli-pick')}</span>
+                      <Select
+                        value={cli}
+                        onChange={(e) => setCli(e.target.value)}
+                        options={CLIS.map((b) => ({
+                          value: b,
+                          label: cliLabel(b),
+                          disabled: !bins[b],
+                        }))}
+                        data-testid="task-form-cli"
+                      />
+                    </label>
+                  )}
+                  {effectiveCliMode === 'custom' && (
+                    <div className={styles.field}>
+                      <span>{t('ui.providers-schedule.task-cli-pick')}</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        data-testid="task-form-cli-custom-edit"
+                        onClick={() => setPickerOpen(true)}
+                      >
+                        {customSpec
+                          ? formatRunnerSummary(customSpec, gateway)
+                          : t('ui.providers-schedule.task-cli-mode-custom')}
+                      </Button>
+                    </div>
+                  )}
                   <div className={styles.field}>
                     <span>{t('ui.providers-schedule.task-cwd')}</span>
                     <WorkspacePicker
@@ -1000,6 +1095,20 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
           </p>
         )}
       </div>
+      {pickerOpen && (
+        <RunnerModelPicker
+          open
+          value={customSpec ?? initialCustomSpec}
+          installed={delegateState?.installed}
+          localAvailable={delegateState?.localAvailable}
+          gateway={gateway}
+          onConfirm={(spec) => {
+            setCustomSpec(spec);
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </Modal>
   );
 };

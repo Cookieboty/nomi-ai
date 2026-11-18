@@ -2,7 +2,7 @@
  * 项目（契约 `project.*`，内核 core/projects）：有名字的一组文件夹。
  *
  * - primary 是主文件夹：会话的工作目录、相对路径的基准、git / worktree / AGENTS.md 的来源；
- *   folders 是其余文件夹，Nomi 与编程助手在里面同样能读写；
+ *   folders 是其余文件夹，Nomi 与 agent 在里面同样能读写；
  * - 会话（Nomi 对话的 meta、CLI 标签）只记 projectId，目录由内核每次实时取；改了项目，下一轮起生效；
  * - 移除项目只删记录，不碰磁盘；引用它的会话变成没有项目。
  *
@@ -89,7 +89,7 @@ export const projectTitle = (p: Project) =>
   [p.name, ...[p.primary, ...p.folders].map((d, i) => (i === 0 ? `★ ${d}` : `  ${d}`))].join('\n');
 
 /**
- * 会话在哪：有项目时是项目名（悬停看全部文件夹），否则是编程助手标签的工作目录（目录名）。
+ * 会话在哪：有项目时是项目名（悬停看全部文件夹），否则是 agent 标签的工作目录（目录名）。
  * Nomi 对话的项目记在会话上，CLI 会话的记在标签上
  */
 export function sessionPlace(

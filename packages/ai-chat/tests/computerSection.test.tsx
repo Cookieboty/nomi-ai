@@ -105,7 +105,7 @@ describe('设置 → Computer Use', () => {
     await waitFor(() => expect(fake.calls.some(([n]) => n === 'computer.openGuide')).toBe(true));
   });
 
-  it('编程助手开关在「安装与能力」，打码、禁止的应用在「安全与隐私」，都经 updateSettings 保存', async () => {
+  it('agent 开关在「安装与能力」，打码、禁止的应用在「安全与隐私」，都经 updateSettings 保存', async () => {
     let state = { ...base, installed: true, version: '1.3.1' };
     const fake = installFakeApi({
       'computer.state': () => state,

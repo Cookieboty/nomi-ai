@@ -58,7 +58,7 @@ apps\desktop-go\run-dev.cmd   # Windows（不加 -H windowsgui，保留控制台
 | `main.go`、`*_wiring.go`                                                    | 组合根：创建各服务、注册契约过程、启动外壳                                                       |
 | `internal/contract`                                                         | 契约路由、WebSocket 传输；`gen/` 是由 TS 契约生成的过程表与类型（勿手改）                        |
 | `internal/core`                                                             | 业务模块（不依赖 Wails）；契约处理函数在 `<域>handlers`                                          |
-| `internal/ai`、`internal/gateway`、`internal/clisdk`、`internal/cliplugins` | AI 运行时、统一网关、编程助手驱动与插件                                                          |
+| `internal/ai`、`internal/gateway`、`internal/clisdk`、`internal/cliplugins` | AI 运行时、统一网关、agent 驱动与插件                                                            |
 | `internal/shell`                                                            | 外壳接口；`wailsshell/` 是唯一依赖 Wails 的包；`viewpage/`、`devviews/` 是视图页面改写与开发代理 |
 | `internal/migrate`                                                          | 首次启动从旧的 Electron 版迁移用户数据（文件、聊天记录、密钥）                                   |
 | `frontend/`                                                                 | 视图构建脚本与嵌入目录（`dist/` 不入库）                                                         |
@@ -105,7 +105,7 @@ mac 原地替换 Nomi.app 并重新打开（`-mac.zip`，校验签名与 Team ID
 
 开发入口（`pnpm dev`、`run-dev.sh`、`run-dev.cmd`）使用 `nomi_dev` 构建标签，生成 `nomi-dev`。
 开发版数据保存在上表同级的 **`Nomi Dev`** 目录，例如 macOS 的
-`~/Library/Application Support/Nomi Dev`。配置、会话、记忆、知识库、日志、编程助手的应用内配置等
+`~/Library/Application Support/Nomi Dev`。配置、会话、记忆、知识库、日志、agent 的应用内配置等
 均随此目录隔离；首次启动从空白数据开始，不自动复制正式版或旧 Electron 数据。
 开发数据会跨重启保留，模型和 API Key 需要在开发版单独配置。
 
@@ -134,4 +134,4 @@ Linux WebView 存储也通过独立的程序名隔离。委派 worktree 使用�
 | `NOMI_POC_CTL`                             | 测量 / CI 用的本机控制口（`/ctl?op=show-chat` 等，见 `main.go` 文件头） |
 | `WEBKIT_DISABLE_DMABUF_RENDERER`           | Linux 默认设为 `1`（省内存）；显式设置时以设置值为准                    |
 
-编程助手、网关等模块另有 `NOMI_*` 变量（如 `NOMI_CLAUDE_BIN`、`NOMI_GATEWAY_*`、`NOMI_USE_MOCK_CLI`）。
+Agents、网关等模块另有 `NOMI_*` 变量（如 `NOMI_CLAUDE_BIN`、`NOMI_GATEWAY_*`、`NOMI_USE_MOCK_CLI`）。

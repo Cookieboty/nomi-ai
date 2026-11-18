@@ -44,7 +44,7 @@ export async function maybeSmartTitleCliTab(opts: {
   await opts.applyAutoTitle(opts.tab.id, title);
 }
 
-/** 编程助手标签第一次发送后：第三方模型的标签按它的模型后台起标题（官方标签只保留截取的标题） */
+/** agent 标签第一次发送后：第三方模型的标签按它的模型后台起标题（官方标签只保留截取的标题） */
 export function smartTitleOnFirstSend(
   tab: Pick<HarnessTabMeta, 'id' | 'source' | 'modelOverride' | 'lastServedRef' | 'backend'>,
   userText: string,

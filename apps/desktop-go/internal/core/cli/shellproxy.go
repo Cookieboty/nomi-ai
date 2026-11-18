@@ -11,8 +11,8 @@ import (
 )
 
 // 终端里的代理：从 Finder / Dock 启动时，Nomi 拿不到 ~/.zshrc 里 export 的 https_proxy 等变量，
-// 编程助手（登录与对话）就会直连，OpenAI 等对不支持的地区回 403。读登录 shell 的 PATH 时顺带读这些
-// 代理变量，只加进编程助手子进程的环境（WithCliPath），不改 Nomi 自己的进程环境，网关不受影响。
+// agents（登录与对话）就会直连，OpenAI 等对不支持的地区回 403。读登录 shell 的 PATH 时顺带读这些
+// 代理变量，只加进 agent 子进程的环境（WithCliPath），不改 Nomi 自己的进程环境，网关不受影响。
 // 开关（默认打开）存在 userData/cli-network.json。
 
 const (
@@ -20,7 +20,7 @@ const (
 	envEnd   = "__NOMI_ENV_END__"
 )
 
-// ShellProxyKeys：从登录 shell 带给编程助手的代理变量
+// ShellProxyKeys：从登录 shell 带给 agent 的代理变量
 var ShellProxyKeys = []string{
 	"http_proxy", "https_proxy", "all_proxy", "no_proxy",
 	"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
@@ -31,7 +31,7 @@ var proxyTriggerKeys = []string{
 	"http_proxy", "https_proxy", "all_proxy", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
 }
 
-// 本机地址总是不走代理：编程助手连 Nomi 网关（127.0.0.1）不能被送进代理
+// 本机地址总是不走代理：agent 连 Nomi 网关（127.0.0.1）不能被送进代理
 var loopbackNoProxy = []string{"localhost", "127.0.0.1", "::1"}
 
 var (

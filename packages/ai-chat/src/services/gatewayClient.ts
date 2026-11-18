@@ -196,7 +196,7 @@ export interface GatewayState {
       ClientId,
       {
         models: ClientModels;
-        newTabSource?: 'official' | 'thirdParty';
+        newTabSource?: 'local' | 'official' | 'thirdParty';
         /** 官方来源时新标签用的账号 id；缺省 = 跟随默认账号（旧版本的 `local-<cli>` 也按跟随默认） */
         newTabAccountId?: string | null;
       }
@@ -208,6 +208,8 @@ export interface GatewayState {
   strictParams?: boolean;
   /** 上下文档位。缺省 / 0 = 跟模型；128000 / 200000 / 262144 是硬上限 */
   contextTier?: number;
+  /** 全局后台辅助轻量模型（网关 'provider/model' ref） */
+  helperModel?: string | null;
   /** 入站请求体上限（字节）；默认 32 MiB */
   maxRequestBodyBytes?: number;
   /** 隐私模式（默认开）：发往云端第三方供应商前把密钥换成占位符；旧主进程没有这个字段 */
@@ -390,7 +392,7 @@ export const gatewayClient = {
     client: ClientId,
     patch: {
       models?: ClientModelsPatch;
-      newTabSource?: 'official' | 'thirdParty';
+      newTabSource?: 'local' | 'official' | 'thirdParty';
       newTabAccountId?: string | null;
     },
   ) => call<void>(() => api.gateway.setAssignment({ client, patch })),
@@ -403,6 +405,7 @@ export const gatewayClient = {
     strictParams?: boolean;
     maxRequestBodyBytes?: number;
     contextTier?: number;
+    helperModel?: string | null;
     privacyMode?: boolean;
     privacyStrict?: boolean;
     privacyLocal?: boolean;

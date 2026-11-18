@@ -97,7 +97,7 @@ func TestTaskRun(t *testing.T) {
 		"已经读完提交记录", []tasks.SourceEvent{{Summary: "新的 PR", Payload: map[string]any{"n": 1}}}))
 	golden(t, "task-run-resume", run(tasks.ExecutorSpec{Kind: "nomi", Toolset: sp("conversation")},
 		tasks.AttemptCause{Kind: "resume", Answer: &tasks.Answer{Approve: false}}, "", nil))
-	// 本机没有可委派的编程助手：代码由后台的 Nomi 自己写
+	// 本机没有可委派的 agent：代码由后台的 Nomi 自己写
 	codingcli.Set(func() bool { return false })
 	defer codingcli.Set(nil)
 	golden(t, "task-run-conversation-nocli", run(tasks.ExecutorSpec{Kind: "nomi", Toolset: sp("conversation"), Cwd: sp("/work")},

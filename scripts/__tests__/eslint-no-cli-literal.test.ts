@@ -1,5 +1,5 @@
 /**
- * nomi/no-cli-literal（docs/development/coding-agents.md）：核心目录不按内置编程助手名字分支。
+ * nomi/no-cli-literal（docs/development/coding-agents.md）：核心目录不按内置 agent 名字分支。
  */
 import { Linter, RuleTester } from 'eslint';
 import { parser as tsParser } from 'typescript-eslint';

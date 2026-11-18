@@ -271,6 +271,6 @@ export const USAGE_SOURCE_LABEL: Record<string, string> = {
   continue: 'Continue',
   cursor: 'Cursor',
   other: 'ui.usage-tools.other-providers',
-  // 内置编程助手：完整名称
+  // 内置 agent：完整名称
   ...byCli(cliFullName),
 };

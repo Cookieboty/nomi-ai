@@ -19,6 +19,8 @@ const GENERATED_IMAGE = /chat-asset:\/\/images\/[A-Za-z0-9._-]+/;
 export type MinimalCollapsedSegment =
   { type: 'text'; text: string } | { type: 'activity'; items: TimelineItem[] };
 
+export type InterjectItem = Extract<TimelineItem, { type: 'interject' }>;
+
 export interface MinimalTurnSplit {
   /** 内部步骤总数（思考 + 非 delegate_to_cli 的顶层工具调用）；0 表示无内部步骤 */
   stepCount: number;
@@ -30,12 +32,26 @@ export interface MinimalTurnSplit {
   generatedImages: ToolCall[];
   /** 外显的最终总结正文（最后一个 text 段落；无文字时为 null） */
   summaryText: string | null;
-  /** 整轮耗时（毫秒；无有效数据时为 undefined） */
+  /** 整轮或该阶段耗时（毫秒；无有效数据时为 undefined） */
   workedMs?: number;
 }
 
-const isPassthroughItem = (it: TimelineItem): boolean =>
-  it.type === 'interject' || (it.type === 'subagent' && it.call.name === DELEGATE_TOOL);
+export interface MinimalTurnSection {
+  /** 触发该新阶段的插话条目（第 0 阶段为 undefined，后续阶段为对应的 interject） */
+  interject?: InterjectItem;
+  /** 该阶段是否为当前仍在运行中的末尾活跃阶段 */
+  live: boolean;
+  /** 该阶段独立的极简切分（passthrough 仅含 delegate_to_cli 等非 interject 外显项） */
+  split: MinimalTurnSplit;
+  /** 当 split.stepCount === 0 时，按原顺序外显的段落（纯文本及 delegate_to_cli） */
+  rawSegments: BodySegment[];
+}
+
+const isDelegateItem = (it: TimelineItem): boolean =>
+  it.type === 'subagent' && it.call.name === DELEGATE_TOOL;
+
+const isPassthroughItem = (it: TimelineItem, includeInterject = true): boolean =>
+  (includeInterject && it.type === 'interject') || isDelegateItem(it);
 
 const isGeneratedImageCall = (call: ToolCall): boolean =>
   call.name === IMAGE_TOOL && call.status === 'done' && GENERATED_IMAGE.test(call.output ?? '');
@@ -88,6 +104,15 @@ function collectSpans(items: readonly TimelineItem[], starts: number[], ends: nu
   }
 }
 
+function minCollapsedStart(collapsed: readonly MinimalCollapsedSegment[]): number | undefined {
+  const starts: number[] = [];
+  const ends: number[] = [];
+  for (const seg of collapsed) {
+    if (seg.type === 'activity') collectSpans(seg.items, starts, ends);
+  }
+  return starts.length ? Math.min(...starts) : undefined;
+}
+
 function computeWorkedMs(
   collapsed: readonly MinimalCollapsedSegment[],
   durationMs?: number,
@@ -114,10 +139,15 @@ export interface SplitMinimalTurnOptions {
   startedAt?: number;
 }
 
-/** 按极简模式规则切分一轮分段：过程文字/思考/工具入折叠区，末尾正文留作最终总结 */
-export function splitMinimalTurn(
+interface BuildMinimalSplitOptions extends SplitMinimalTurnOptions {
+  includeInterjectInPassthrough: boolean;
+  /** 中间被插话截断的阶段：只把最后一个内部步骤之后的文字段当作阶段外显总结 */
+  summaryAfterLastStep: boolean;
+}
+
+function buildMinimalSplit(
   segments: readonly BodySegment[],
-  opts?: SplitMinimalTurnOptions,
+  opts: BuildMinimalSplitOptions,
 ): MinimalTurnSplit {
   let stepCount = 0;
   const passthrough: TimelineItem[] = [];
@@ -126,7 +156,7 @@ export function splitMinimalTurn(
   for (const seg of segments) {
     if (seg.type !== 'activity') continue;
     for (const it of seg.items) {
-      if (isPassthroughItem(it)) passthrough.push(it);
+      if (isPassthroughItem(it, opts.includeInterjectInPassthrough)) passthrough.push(it);
       else {
         stepCount += itemStepCount(it);
         collectGeneratedImages(it, generatedImages);
@@ -135,7 +165,7 @@ export function splitMinimalTurn(
   }
 
   const liveThinkingItem: TimelineItem | null =
-    opts?.live && stepCount === 0 && opts.thinking === true
+    opts.live && stepCount === 0 && opts.thinking === true
       ? {
           type: 'thinking',
           id: '__live-thinking',
@@ -157,8 +187,21 @@ export function splitMinimalTurn(
   }
 
   let summaryIdx = -1;
-  if (!opts?.live) {
-    for (let i = segments.length - 1; i >= 0; i--) {
+  if (!opts.live) {
+    let minBoundary = -1;
+    if (opts.summaryAfterLastStep) {
+      for (let i = segments.length - 1; i >= 0; i--) {
+        const seg = segments[i]!;
+        if (
+          seg.type === 'activity' &&
+          seg.items.some((it) => !isPassthroughItem(it, opts.includeInterjectInPassthrough))
+        ) {
+          minBoundary = i;
+          break;
+        }
+      }
+    }
+    for (let i = segments.length - 1; i > minBoundary; i--) {
       if (segments[i]!.type === 'text') {
         summaryIdx = i;
         break;
@@ -175,7 +218,9 @@ export function splitMinimalTurn(
       if (i !== summaryIdx) collapsed.push({ type: 'text', text: seg.text });
       continue;
     }
-    const stepItems = seg.items.filter((it) => !isPassthroughItem(it));
+    const stepItems = seg.items.filter(
+      (it) => !isPassthroughItem(it, opts.includeInterjectInPassthrough),
+    );
     if (stepItems.length) collapsed.push({ type: 'activity', items: stepItems });
   }
   if (liveThinkingItem) {
@@ -188,8 +233,96 @@ export function splitMinimalTurn(
     passthrough,
     generatedImages,
     summaryText,
-    workedMs: opts?.live ? undefined : computeWorkedMs(collapsed, opts?.durationMs),
+    workedMs: opts.live ? undefined : computeWorkedMs(collapsed, opts.durationMs),
   };
+}
+
+/** 按极简模式规则切分一轮分段：过程文字/思考/工具入折叠区，末尾正文留作最终总结 */
+export function splitMinimalTurn(
+  segments: readonly BodySegment[],
+  opts?: SplitMinimalTurnOptions,
+): MinimalTurnSplit {
+  return buildMinimalSplit(segments, {
+    ...opts,
+    includeInterjectInPassthrough: true,
+    summaryAfterLastStep: false,
+  });
+}
+
+/**
+ * 按用户中途插话（interject）切分为多个独立 AI 返回阶段：
+ * 每个 interject 之前的阶段已封存结算，interject 之后形成新的 AI 返回阶段（运行中则作为末尾活跃阶段）。
+ */
+export function splitMinimalTurnSections(
+  segments: readonly BodySegment[],
+  opts?: SplitMinimalTurnOptions,
+): MinimalTurnSection[] {
+  const rawSections: { interject?: InterjectItem; segments: BodySegment[] }[] = [];
+  let pendingInterject: InterjectItem | undefined;
+  let currentSegs: BodySegment[] = [];
+
+  for (const seg of segments) {
+    if (seg.type === 'text') {
+      currentSegs.push(seg);
+      continue;
+    }
+    let buf: TimelineItem[] = [];
+    for (const it of seg.items) {
+      if (it.type === 'interject') {
+        if (buf.length) {
+          currentSegs.push({ type: 'activity', items: buf });
+          buf = [];
+        }
+        rawSections.push({
+          ...(pendingInterject ? { interject: pendingInterject } : {}),
+          segments: currentSegs,
+        });
+        pendingInterject = it;
+        currentSegs = [];
+      } else {
+        buf.push(it);
+      }
+    }
+    if (buf.length) currentSegs.push({ type: 'activity', items: buf });
+  }
+  rawSections.push({
+    ...(pendingInterject ? { interject: pendingInterject } : {}),
+    segments: currentSegs,
+  });
+
+  const total = rawSections.length;
+  return rawSections.map((raw, idx) => {
+    const isLast = idx === total - 1;
+    const sectionLive = Boolean(opts?.live && isLast);
+    const sectionStartedAt = raw.interject?.at ?? opts?.startedAt;
+    let split = buildMinimalSplit(raw.segments, {
+      live: sectionLive,
+      thinking: opts?.thinking,
+      startedAt: sectionStartedAt,
+      durationMs: total === 1 ? opts?.durationMs : undefined,
+      includeInterjectInPassthrough: false,
+      summaryAfterLastStep: !isLast,
+    });
+    if (
+      total > 1 &&
+      !sectionLive &&
+      !isLast &&
+      split.stepCount > 0 &&
+      split.workedMs === undefined
+    ) {
+      const nextAt = rawSections[idx + 1]?.interject?.at;
+      const minStart = minCollapsedStart(split.collapsed);
+      if (minStart !== undefined && nextAt !== undefined && nextAt > minStart) {
+        split = { ...split, workedMs: nextAt - minStart };
+      }
+    }
+    return {
+      ...(raw.interject ? { interject: raw.interject } : {}),
+      live: sectionLive,
+      split,
+      rawSegments: split.stepCount === 0 ? raw.segments : [],
+    };
+  });
 }
 
 /** 极简折叠行里的紧凑耗时文本：`<1s` → `400ms`，`15s`，`4m`，`4m 12s` */
@@ -202,12 +335,19 @@ export function formatWorkedDuration(ms: number): string {
   return s === 0 ? `${m}m` : `${m}m ${s}s`;
 }
 
-/** 运行中统计当前已进行的内部步骤数（与 splitMinimalTurn 统计口径一致） */
-export function countLiveSteps(entries: readonly TraceEntry[], thinking?: boolean): number {
+function collectSubagentIds(entries: readonly TraceEntry[]): Set<string> {
   const subIds = new Set<string>();
   for (const e of entries) {
     if (e.type === 'tool' && classifyTool(e.call.name) === 'subagent') subIds.add(e.call.id);
   }
+  return subIds;
+}
+
+function countStepsInSlice(
+  entries: readonly TraceEntry[],
+  subIds: ReadonlySet<string>,
+  thinking?: boolean,
+): number {
   let steps = 0;
   let hasThinking = false;
   for (const e of entries) {
@@ -228,7 +368,40 @@ export function countLiveSteps(entries: readonly TraceEntry[], thinking?: boolea
   return steps;
 }
 
-/** 极简模式下复制按钮优先复制当前外显的最终总结文本 */
+/** 运行中统计当前已进行的内部步骤数（与 splitMinimalTurn 统计口径一致） */
+export function countLiveSteps(entries: readonly TraceEntry[], thinking?: boolean): number {
+  return countStepsInSlice(entries, collectSubagentIds(entries), thinking);
+}
+
+/** 运行中统计最后一次插话之后的活跃阶段内部步骤数；无插话时等同 countLiveSteps */
+export function countActiveLiveSteps(entries: readonly TraceEntry[], thinking?: boolean): number {
+  let lastIdx = -1;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    if (entries[i]!.type === 'interject') {
+      lastIdx = i;
+      break;
+    }
+  }
+  if (lastIdx < 0) return countLiveSteps(entries, thinking);
+  const subIds = collectSubagentIds(entries);
+  return countStepsInSlice(entries.slice(lastIdx + 1), subIds, thinking);
+}
+
+/** 当前活跃阶段的起始时间戳：若存在插话则从最后一次插话时间重新计时 */
+export function activeStageStartedAt(
+  entries: readonly TraceEntry[],
+  fallbackStartedAt?: number,
+): number | undefined {
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i]!;
+    if (e.type === 'interject') {
+      return typeof e.at === 'number' ? e.at : fallbackStartedAt;
+    }
+  }
+  return fallbackStartedAt;
+}
+
+/** 极简模式下复制按钮优先复制各阶段外显的正文总结 */
 export function minimalCopyText(
   text: string,
   entries: readonly TraceEntry[],
@@ -239,6 +412,17 @@ export function minimalCopyText(
   const len = planLength(layout, text.length, breaks);
   const plan = planBody(layout, len, false, undefined, breaks, { groupTools: true });
   const segments = sliceBody(text, plan);
-  const split = splitMinimalTurn(segments);
-  return split.stepCount > 0 && split.summaryText ? split.summaryText : text;
+  const sections = splitMinimalTurnSections(segments);
+  if (!sections.some((s) => s.split.stepCount > 0)) return text;
+  const parts: string[] = [];
+  for (const s of sections) {
+    if (s.split.stepCount > 0) {
+      if (s.split.summaryText) parts.push(s.split.summaryText);
+    } else {
+      for (const seg of s.rawSegments) {
+        if (seg.type === 'text') parts.push(seg.text);
+      }
+    }
+  }
+  return parts.length ? parts.join('\n\n') : text;
 }

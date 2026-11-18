@@ -1,4 +1,4 @@
-// Package sandbox：编程助手子进程的系统级沙箱（docs/development/security.md「编程助手」）。
+// Package sandbox：agent 子进程的系统级沙箱（docs/development/security.md「Agents」）。
 //
 // macOS 用 sandbox-exec + Nomi 生成的 Seatbelt 配置：默认放行，按类别拒读敏感位置的内容
 // （SSH / 云凭据 / 密钥库 / 浏览器 / 个人数据 / 密钥文件、用户的受保护文件夹、Nomi 自己的数据目录），

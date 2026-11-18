@@ -21,7 +21,7 @@ import {
 } from './providerClient';
 
 let cached: GatewayState | null = null;
-const listeners = new Set<(s: GatewayState) => void>();
+const listeners = new Set<(s: GatewayState | null) => void>();
 /** 是否已订阅 `gateway.changed`（窗口共享一个契约客户端，订阅一次即可） */
 let watched = false;
 
@@ -29,6 +29,12 @@ function publish(s: GatewayState): GatewayState {
   cached = s;
   for (const fn of listeners) fn(s);
   return s;
+}
+
+/** 清空内存中的网关状态缓存（单测用例间重置模块单例） */
+export function resetGatewayStateCache(): void {
+  cached = null;
+  for (const fn of listeners) fn(null);
 }
 
 /** 重新拉一次网关状态 */

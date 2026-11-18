@@ -10,9 +10,9 @@
 
 侧栏不再做一套缩小的输入框。它是主对话同一套管线的第二个实例，按会话 id 绑定，而不是认「当前标签」：
 
-- 委派出去的编程助手（Claude Code、Codex、ACP）已经是 harness 标签。侧栏把 `CliConversation` 和 `MessageInput` 绑到这个 `tabId`：发送走 `sendToTab`，权限走 `replyPermissionFor`，停止走 `cancelRun`，待发列表走这份标签自己的队列。模型、权限模式、提问卡、附件、斜杠命令、转录详细程度都跟着这个 id。主列的当前标签不动，所以父对话的输入栏和流式输出照常。
+- 委派出去的 agent（Claude Code、Codex、ACP）已经是 harness 标签。侧栏把 `CliConversation` 和 `MessageInput` 绑到这个 `tabId`：发送走 `sendToTab`，权限走 `replyPermissionFor`，停止走 `cancelRun`，待发列表走这份标签自己的队列。模型、权限模式、提问卡、附件、斜杠命令、转录详细程度都跟着这个 id。主列的当前标签不动，所以父对话的输入栏和流式输出照常。
 - 进程内子代理（`Task` / `Agent`、`spawn_agent`）没有自己的 harness 标签。步骤、思考和它自己说的话挂在父转录里、`parentId` 指向这次调用（或子代理自己的 id）。侧栏用同一个 `ConversationView` 画出任务说明、它的正文和步骤，用同一个 `MessageInput` 直接对这个子代理说话（`harness.messageAgent`，见下面「直接对子代理说话」）。
-- `delegate_to_nomi` 是后台 Nomi 任务，不是编程助手标签。侧栏用 `tasks.trace`（每次执行一轮）画成会话，正在跑的这次由 `tasks.live` 事件实时推送；输入栏插话走 `tasks.steer`，追问走 `tasks.followUp`，停止走 `tasks.cancel`。
+- `delegate_to_nomi` 是后台 Nomi 任务，不是 agent 标签。侧栏用 `tasks.trace`（每次执行一轮）画成会话，正在跑的这次由 `tasks.live` 事件实时推送；输入栏插话走 `tasks.steer`，追问走 `tasks.followUp`，停止走 `tasks.cancel`。
 
 不把子任务嵌进父消息列表当线程：滚动和提问卡会和父对话抢同一条时间线。也不把委派标签 `activate` 成主列：那样父对话就看不见了。
 
@@ -75,10 +75,10 @@ SubagentTarget =
 - 停止：Claude 关联标签在跑就停它；Codex 子线程（包括直接对话后它接着跑的那一轮）用 `stopAgent` 打断它自己的这一轮（`turn/interrupt { threadId: 子线程 }`）；Claude 后台子代理用 `stop_task`；前台子代理是来源这一轮的一部分，停它就是停这一轮。
 - 不支持直接通道时（`unsupported`）：退回原来的做法，正文包一层说明（`ui.session-workspace.subagent-envelope`）经来源标签的 `sendToTab` 发给主代理，由它用自己的工具转给这个子代理；侧栏提示改成「经主代理转达」。
 - 父转录是 Nomi 对话（`parentTabId` 为空）时：
-  - Nomi 派出去的委派（`delegate_to_cli`）按调用 id 打开时（会话详情、旧版本存下的侧栏标签）换成它的编程助手标签（`utils/delegateTarget.ts`），和委派卡片打开的是同一个会话，输入栏照常；同一种委派接着用了上一次的标签（`RebindDelegation` 把标签上的 callId / taskId 换成了新那次）时，旧的委派按它结果里的 `taskId` / `tabId` 找回这个标签。状态仍按这一次自己的结果。
-  - 主标签接在编程助手上（那一轮其实是它跑的）时，子代理按主标签收话，和来源是编程助手标签时一样（直接通道 / 关联标签 / 经主代理转达）。
+  - Nomi 派出去的委派（`delegate_to_cli`）按调用 id 打开时（会话详情、旧版本存下的侧栏标签）换成它的 agent 标签（`utils/delegateTarget.ts`），和委派卡片打开的是同一个会话，输入栏照常；同一种委派接着用了上一次的标签（`RebindDelegation` 把标签上的 callId / taskId 换成了新那次）时，旧的委派按它结果里的 `taskId` / `tabId` 找回这个标签。状态仍按这一次自己的结果。
+  - 主标签接在 agent 上（那一轮其实是它跑的）时，子代理按主标签收话，和来源是 agent 标签时一样（直接通道 / 关联标签 / 经主代理转达）。
   - 都没有（委派的标签已经关掉）时才没有输入栏，提示回主对话说；会话详情里这样的委派不再能点开。
-- 图标与名字（标签、会话详情 Agents、悬停卡片）都按实际来源判断（`utils/agentIdentity.ts`）：编程助手标签按它的后端；后台 Nomi、侧边聊天是 Nomi；进程内子代理按派出它的对话（Nomi 对话的是 Nomi，主标签切到编程助手时是它）。
+- 图标与名字（标签、会话详情 Agents、悬停卡片）都按实际来源判断（`utils/agentIdentity.ts`）：agent 标签按它的后端；后台 Nomi、侧边聊天是 Nomi；进程内子代理按派出它的对话（Nomi 对话的是 Nomi，主标签切到 agent 时是它）。
 - 会话详情的 Agents 先按状态分组（进行中 / 等你批准 → 出错 → 已完成 → 已停止 → 空闲），组内按开始时间新的在前（派出调用的开始时间；侧边聊天是最近一次提问的时间）。不用最近活动时间：流式输出时它一直在变，列表会跳。
 
 ### 追问语义（后台 Nomi）
@@ -92,7 +92,7 @@ SubagentTarget =
 
 ### 主窗口面板
 
-侧栏里 `MessageInput` 的设置、模型、插件、扩展、知识 · 记忆、桌面能力、本地模型这些按钮和输入栏自带的界面命令（`/settings`、`/desktop` …），以及斜杠命令里的 `onOpenPlugins` / `onOpenProviders` / `onOpenSettings`，都接到主窗口的同一组面板（`SubagentPaneActions`，由 `App` 经 `SideColumn` 传入，和主列输入栏是同一组回调）。编程助手的设置会先切到这个子任务的 CLI 再打开。`/new` 在侧栏里不开新标签，免得主列被切走。
+侧栏里 `MessageInput` 的设置、模型、插件、扩展、知识 · 记忆、桌面能力、本地模型这些按钮和输入栏自带的界面命令（`/settings`、`/desktop` …），以及斜杠命令里的 `onOpenPlugins` / `onOpenProviders` / `onOpenSettings`，都接到主窗口的同一组面板（`SubagentPaneActions`，由 `App` 经 `SideColumn` 传入，和主列输入栏是同一组回调）。agent 的设置会先切到这个子任务的 CLI 再打开。`/new` 在侧栏里不开新标签，免得主列被切走。
 
 ## 做不到的
 

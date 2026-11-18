@@ -57,7 +57,7 @@ const absTree = (nodes: readonly ChangeTreeNode[], root: string): ChangeTreeNode
 
 export const SessionChangesPanel: React.FC<{
   messages: readonly ConvMessage[];
-  /** 工作目录（项目的主文件夹 / 编程助手标签的目录） */
+  /** 工作目录（项目的主文件夹 / agent 标签的目录） */
   cwd?: string | null;
   /** 项目的全部文件夹（工作目录在前）；不给 = 只有 cwd */
   roots?: readonly string[] | null;

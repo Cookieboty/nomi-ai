@@ -184,7 +184,7 @@ func (t ToolRefresh) ToObj() *util.Obj {
 	return o
 }
 
-// QuotaToolIDs：能查订阅额度的内置编程助手（清单 usageQuota）
+// QuotaToolIDs：能查订阅额度的内置 agent（清单 usageQuota）
 var QuotaToolIDs = builtin.Where(builtin.WithQuota)
 
 type toolResult struct {
@@ -284,7 +284,7 @@ func (e *SessionUsage) ToObj() *util.Obj {
 
 func newSessionUsage() *SessionUsage { return &SessionUsage{Tokens: num0()} }
 
-// sourceLabel：用量来源的名称（内置编程助手取注册表的完整名称；其余是只读日志的工具）
+// sourceLabel：用量来源的名称（内置 agent 取注册表的完整名称；其余是只读日志的工具）
 var sourceLabel = func() map[string]string {
 	m := map[string]string{
 		"qwen": "Qwen Code", "opencode": "OpenCode", "copilot": "GitHub Copilot CLI", "kimi": "Kimi", "aider": "Aider",

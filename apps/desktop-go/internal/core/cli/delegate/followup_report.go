@@ -65,6 +65,9 @@ func (s *Service) ReportFollowUp(taskID, tabID string, ok bool, text string, err
 	}
 	res.Set("filesVerified", false)
 	res.Set("approvals", s.approvalsOf(taskID).Clone())
+	if durationMs > 0 {
+		res.Set("startedAt", s.d.Now()-durationMs)
+	}
 	res.Set("durationMs", durationMs)
 	if cid, ok := base.Get("conversationId").(string); ok && cid != "" {
 		res.Set("conversationId", cid)

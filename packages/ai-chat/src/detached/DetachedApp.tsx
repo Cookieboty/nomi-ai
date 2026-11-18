@@ -107,7 +107,7 @@ const AgentWindow: React.FC<{ spec: Extract<DetachSpec, { kind: 'agent' }> }> = 
   }, [spec.target, openSubagent, openNested, openNomiTask, openSideChatTab, sideReady]);
   const name = pane?.meta[key]?.name || spec.title;
   useWindowTitle(name);
-  // 编程助手标签 / 来源标签已经关掉了（标签列表读到之后才判断）；侧边聊天：没取到内容
+  // agent 标签 / 来源标签已经关掉了（标签列表读到之后才判断）；侧边聊天：没取到内容
   const harnessLoaded = !!useHarnessTabs().state;
   const gone =
     spec.target.kind === 'side-chat'

@@ -1,6 +1,6 @@
 package fleet
 
-// 调度策略：Nomi 同时派出去跑的编程助手 / 后台任务的上限，三档由用户在 Agent 看板里选（存盘）。
+// 调度策略：Nomi 同时派出去跑的 agent / 后台任务的上限，三档由用户在 Agent 看板里选（存盘）。
 // 省资源、均衡是固定上限：同步委派与持续任务（含后台委派）合计同时运行的个数（两边都设成这个数，
 // 各自判断时把对方在跑的算进来：delegate.Service.SetSharedLoad / tasks.Runtime.SetSharedLoad），
 // 超出的排队（看板「待进行」标 queueReason: slot），不会被拒绝。用户自己开的标签、外部终端 / IDE 里的会话不算。

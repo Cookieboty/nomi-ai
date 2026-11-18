@@ -128,7 +128,7 @@ export default tseslint.config(
     },
   },
 
-  // 编程助手的清单与界面信息（@nomi-ai/cli-catalog）：视图也加载，整个包只能是纯数据与纯函数
+  // agent 的清单与界面信息（@nomi-ai/cli-catalog）：视图也加载，整个包只能是纯数据与纯函数
   {
     files: ['packages/cli-catalog/src/**/*.ts'],
     rules: {
@@ -151,7 +151,7 @@ export default tseslint.config(
       ],
     },
   },
-  // 视图不按内置编程助手名字分支：差异放进插件清单，视图按能力位判断。
+  // 视图不按内置 agent 名字分支：差异放进插件清单，视图按能力位判断。
   {
     files: ['packages/ai-chat/src/**/*.{ts,tsx}'],
     ignores: [...CLI_LITERAL_ALLOWLIST],

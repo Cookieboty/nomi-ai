@@ -1,5 +1,5 @@
 /**
- * 设置 →「编程助手」→「通用」：安装 / 更新编程助手要用的本机 Node.js 与 npm。
+ * 设置 →「Agents」→「通用」：安装 / 更新 agent 要用的本机 Node.js 与 npm。
  * Node 版与 Go 版都调用系统的 npm，所以在点「安装 / 更新」之前就把缺什么、版本够不够摆出来。
  */
 import { BUILTIN_RENDERER } from '@nomi-ai/cli-catalog';

@@ -11,7 +11,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// 第三方模型的编程助手标签：思考深度与 Nomi 对话同一套（网关按模型能力给档位，off 不给选，默认第二档），
+// 第三方模型的 agent 标签：思考深度与 Nomi 对话同一套（网关按模型能力给档位，off 不给选，默认第二档），
 // 档位登记在网关的标签绑定上，由网关写进上游请求。
 
 type effortGateway struct {

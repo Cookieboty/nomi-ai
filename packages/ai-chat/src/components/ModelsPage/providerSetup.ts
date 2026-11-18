@@ -24,7 +24,7 @@ const PROTOCOL_WIRE: Record<Protocol, Wire> = {
   'openai-chat': 'chat',
 };
 
-/** 不能用来对话的模型（图像、向量、语音等）：列出来但默认不启用，也不给编程助手选 */
+/** 不能用来对话的模型（图像、向量、语音等）：列出来但默认不启用，也不给 agent 选 */
 export const NON_CHAT =
   /image|embed|tts|whisper|dall-e|audio|speech|video|seedance|rerank|moderation/i;
 
@@ -104,7 +104,7 @@ export function saveDetectedProvider(input: {
     return {
       id: m.id,
       enabled: enabled.has(m.id),
-      // 预设整理过的元数据（第 2 级）一起存下，编程助手按它注入上下文与输出上限
+      // 预设整理过的元数据（第 2 级）一起存下，agent 按它注入上下文与输出上限
       ...(known
         ? {
             ctx: known.ctx,

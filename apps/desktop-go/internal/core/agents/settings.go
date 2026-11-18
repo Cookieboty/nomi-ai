@@ -5,7 +5,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// Kinds = AgentKind 的固定顺序（settings.tools 键序；内置编程助手）。
+// Kinds = AgentKind 的固定顺序（settings.tools 键序；内置 agent）。
 var Kinds = func() []AgentKind {
 	out := []AgentKind{}
 	for _, id := range builtin.Ordered {
@@ -14,7 +14,7 @@ var Kinds = func() []AgentKind {
 	return out
 }()
 
-// Settings：编程助手进度监测设置。
+// Settings：agent 进度监测设置。
 type Settings struct {
 	Enabled        bool
 	StallMs        float64

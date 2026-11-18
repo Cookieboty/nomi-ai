@@ -102,10 +102,10 @@ const endpointBrands = {
 const ep = Object.fromEntries(Object.entries(endpointBrands).map(([key, id]) => [key, icons[id]]));
 const islandFile = repoPath('apps/desktop-go/internal/core/island/island.html');
 let island = fs.readFileSync(islandFile, 'utf8');
-const start = island.indexOf('      // 编程助手的图标块');
+const start = island.indexOf('      // agent 的图标块');
 const end = island.indexOf('      // 角标：', start);
 if (start < 0 || end < 0) throw new Error('Missing island brand section markers');
-const section = `      // 编程助手的图标块（由 scripts/icons/update-brands.mjs 生成；LobeHub ${version}，MIT）
+const section = `      // agent 的图标块（由 scripts/icons/update-brands.mjs 生成；LobeHub ${version}，MIT）
       const EP = JSON.parse(String.raw\`${JSON.stringify(ep)}\`);
       function epTile(ep) {
         const mark = EP[ep];

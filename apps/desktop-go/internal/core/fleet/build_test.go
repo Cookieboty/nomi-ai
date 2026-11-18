@@ -224,7 +224,7 @@ func TestBuildExternalSessions(t *testing.T) {
 	}
 }
 
-// OwnProcsOnly（Mock CLI 演示环境）：Nomi 进程树之外的编程助手进程不上看板，会话照常列出
+// OwnProcsOnly（Mock CLI 演示环境）：Nomi 进程树之外的 agent 进程不上看板，会话照常列出
 func TestBuildOwnProcsOnly(t *testing.T) {
 	in := baseInput()
 	in.OwnProcsOnly = true
