@@ -1,5 +1,13 @@
 # @nomi-ai/i18n
 
+## 0.2.2
+
+### Patch Changes
+
+- 93daf02: fix(i18n): 统一 agent 的措辞：中文正文、注释与文档一律用 agent（中文名词不分单复数），专有栏目名「Agents」「CLI Agents」「Agents 与账号」保留复数；英文沿用语法单复数，标题用「Agents」、正文用「agents」、指代个体用「each agent」。CLI 分组文案为「CLI Agents」。 Unify the agent wording: Chinese body copy, comments and docs use "agent" throughout (Chinese nouns carry no plural), while proper section names keep the plural ("Agents", "CLI Agents", "Agents & accounts"); English keeps its grammatical number — "Agents" in headings, "agents" in body copy, and natural phrasing such as "each agent" for a single one. The CLI group is labelled "CLI Agents".
+- 9d1f087: fix(i18n): 续跑时执行配置与档位不一致的提示改为通用措辞：不再点名某个 agent、不再带占位符，也不再描述会发送账号或模型；说明已做的工作保留在工作目录、把档位改回上次的配置后点「继续」或新建任务。 Reword the "execution settings changed" message shown when a task resumes: it no longer names a specific agent, carries no placeholders and no longer hints at sending credentials; it says the work is kept and to restore the previous preset settings and choose Continue, or start a new task.
+- 35ca37e: feat(i18n): 新增两条中英文提示：定时任务的执行档位已不存在或读取不到（`electron.common.task-config-preset-unavailable`），以及续跑时任务的执行配置（agent / 来源 / 账号 / 模型 / 思考深度）与上次不一致、不能接着旧标签跑（`electron.common.task-config-carrier-cli-changed`）。 Add two zh/en messages: a scheduled task's preset no longer exists (`electron.common.task-config-preset-unavailable`), and a resumed attempt whose preset now resolves to a different agent / source / account / model / effort than the previous one (`electron.common.task-config-carrier-cli-changed`).
+
 ## 0.2.1
 
 ### Patch Changes
