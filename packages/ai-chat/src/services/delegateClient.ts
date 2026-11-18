@@ -2,7 +2,7 @@ import { BUILTIN_CLI_ORDER, type BuiltinCliId, byCli, cliName } from '@nomi-ai/c
 /**
  * Nomi 把 agents 当子代理调用（docs/development/coding-agents.md）：
  * - 设置：总开关 + 按任务类型的默认 agent；
- * - `/agent`（旧名 `/cli`）：指定下一个需求交给哪个 agent。渲染层按 conversationId 记在
+ * - `/agent`（旧名 `/cli`）：指定下一个需求交给哪个 agents。渲染层按 conversationId 记在
  *   nextDelegatePins 里（输入框上方的 chip），发送时 consumeNextDelegate(turnId) 取出，
  *   经契约 `delegate.pin` 按 turnId 钉到主进程；钉住失败则中止发送。本轮结束 clearTurnPin。
  *   带需求的 `/agent` 和钉住后的下一条消息都走 `delegate.dispatch`，直接开始后台任务，

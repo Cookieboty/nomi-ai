@@ -198,7 +198,7 @@
   "ui.model-quality.upstream-5xx-overloaded": "上游 5xx / 过载",
   "ui.model-quality.view": "视图",
   "ui.model-quality.visible-columns": "显示哪些列",
-  "ui.model-quality.which-models-each-coding-agent-used": "每个 agent 各用了哪些模型",
+  "ui.model-quality.which-models-each-coding-agent-used": "各 agents 分别用了哪些模型",
   "ui.model-quality.which-models-each-provider-served": "每个供应商各提供了哪些模型",
   "ui.model-quality.worse": "（变差）"
 }

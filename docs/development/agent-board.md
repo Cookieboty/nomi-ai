@@ -65,7 +65,7 @@ Mock CLI 模式（`NOMI_USE_MOCK_CLI=1`，演示截图与 E2E）下 `OwnProcsOnl
 - 进程表（`internal/core/agents/proctable.go`）一次读出全部进程的父进程、常驻内存与累计 CPU 时间。macOS 直接调 libproc
   与 `KERN_PROCARGS2`（`procnative_darwin.go`，约 4 ms，不起子进程），Windows 用 Toolhelp 快照加逐个进程的
   `GetProcessTimes` / 内存 / `NtQueryInformationProcess` 命令行（`procnative_windows.go`）；读不到时退回 `ps` /
-  PowerShell `Win32_Process`。Linux 用 `ps`。单个 agent 的 CPU = 两次采样的累计时间差 ÷ 间隔（100 = 占满一个核，同活动监视器的「% CPU」列）；
+  PowerShell `Win32_Process`。Linux 用 `ps`。单个 agents 的 CPU = 两次采样的累计时间差 ÷ 间隔（100 = 占满一个核，同活动监视器的「% CPU」列）；
   不用 ps 的 `%cpu`。
 - 进程列表 5 秒内共用一份（`agents.ProcessesShareTTL`）：看板与 Agent 进度监控各自定时读，不各起一次 ps / PowerShell。
   进度监控（每 8 秒一轮）上次没找到任何 agents 进程时，进程表至多每 30 秒重读一次（`agents.IdleProcsMs`），
@@ -134,7 +134,7 @@ Mock CLI 模式（`NOMI_USE_MOCK_CLI=1`，演示截图与 E2E）下 `OwnProcsOnl
 内存由系统按需压缩换出；恢复（`ThawTab`，子进程在前）后这一轮从原处接着跑，委派与持续任务察觉不到。
 冻结的进程收不到中断、也答不了话，所以停止、关闭、发消息、插话、审批、拆进程之前编排器都先恢复，
 退出时（`Dispose`）恢复全部。卡片上可以手动「暂停 / 继续」（`fleet.pause` / `fleet.resume`）。看板头部下面一行显示
-内存守护最近一次动作（10 分钟内）。Nomi 对话与后台 agent 跑在内核进程里，不能冻结。
+内存守护最近一次动作（10 分钟内）。Nomi 对话与后台 agents 跑在内核进程里，不能冻结。
 
 后台运行的「暂停 / 继续」是任务暂停（`fleet.pause` / `fleet.resume` 对 `run:<taskId>` 转成任务的 `pause` / `resume` 命令，
 和任务看板同一个入口 `tasks.Service.Command`）：停掉调度，正在跑的这一轮跑完（卡片留在「进行中」，标「这一轮跑完后暂停」），

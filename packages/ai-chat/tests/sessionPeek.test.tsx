@@ -27,7 +27,7 @@ const tab = (delegation?: unknown) =>
   }) as unknown as HarnessTabMeta;
 
 describe('SessionPeek', () => {
-  it('委派出去的会话写明由谁委派给哪个 agent', () => {
+  it('委派出去的会话写明由谁委派给哪个 agents', () => {
     render(<SessionPeek c={meta} tab={tab({ by: 'nomi' })} top={0} left={0} />);
     expect(screen.getByTestId('session-peek-delegated').textContent).toBe('由 Nomi 委派给 Codex');
   });

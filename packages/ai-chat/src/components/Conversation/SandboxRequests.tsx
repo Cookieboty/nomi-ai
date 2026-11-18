@@ -120,7 +120,7 @@ export const SandboxRequests: React.FC<{
   );
 };
 
-/** 某个 agent 标签的沙箱授权卡片（订阅完整标签状态，只有它自己跟着重渲染） */
+/** 某个 agents 标签的沙箱授权卡片（订阅完整标签状态，只有它自己跟着重渲染） */
 export const TabSandboxRequests: React.FC<{ tabId: string }> = ({ tabId }) => {
   const tabs = useHarnessTabs();
   const items = tabs.state?.tabs.find((x) => x.id === tabId)?.sandboxPending;

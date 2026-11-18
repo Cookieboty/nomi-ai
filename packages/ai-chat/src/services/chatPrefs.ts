@@ -84,7 +84,7 @@ export function setEndpointFilter(backend: ConversationBackend): void {
 const ENDPOINT_VIS_KEY = 'ai-chat:sidebarEndpoints';
 
 /**
- * 某个 agent 端点在侧栏「按端」里的显示方式：
+ * 某个 agents 端点在侧栏「按端」里的显示方式：
  * auto（默认，没有显式设置）= 有对话 / 标签 / 历史时才显示；show = 总是显示；hide = 不显示。
  * Nomi 总是显示，不参与设置。
  */

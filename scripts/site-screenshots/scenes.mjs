@@ -88,7 +88,7 @@ export function createHelpers(page, { chatPageUrl, llmBaseUrl, project, images =
       await h.wait(settleMs);
     },
     async newChat(endpoint) {
-      // 工坊：先在左侧端点栏选中这个 agent，「新对话」就建在它下面（端点栏没有它时照旧点「新对话」）
+      // 工坊：先在左侧端点栏选中这个 agents，「新对话」就建在它下面（端点栏没有它时照旧点「新对话」）
       const id = { 'Claude Code': 'claude', Codex: 'codex', Gemini: 'gemini' }[endpoint];
       const rail = id && page.getByTestId(`endpoint-filter-${id}`);
       if (rail && (await rail.isVisible().catch(() => false))) {

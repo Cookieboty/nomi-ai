@@ -54,7 +54,7 @@ export function nestedOwnerBackend(
   return known(tabs?.find((x) => x.id === MAIN_TAB_ID)?.backend) ?? 'nomi';
 }
 
-/** 父转录是 Nomi 对话时，能替子代理收话的标签：主标签接在派出它的同一个 agent 上时才是主标签 */
+/** 父转录是 Nomi 对话时，能替子代理收话的标签：主标签接在派出它的同一个 agents 上时才是主标签 */
 export function nestedHostTabId(
   parentTabId: string | null,
   tabs: Tabs,

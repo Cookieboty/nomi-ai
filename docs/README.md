@@ -7,7 +7,7 @@
 ## 中文
 
 Nomi·诺米：让每一种 AI 能力，都为你所用。把 Claude Code、Codex 放到同一张看板上并行。模型只接一次，官方、第三方或本地都能用。不必绑定云账号，也不用改那些 CLI 的全局配置。
-桌面应用（Go + Wails，`apps/desktop-go`）。Nomi 自己也是一个 agent，桌面角色可选。界面是 React（`packages/`）。
+桌面应用（Go + Wails，`apps/desktop-go`）。Nomi 自己也属于 agents，桌面角色可选。界面是 React（`packages/`）。
 
 ### 开始
 

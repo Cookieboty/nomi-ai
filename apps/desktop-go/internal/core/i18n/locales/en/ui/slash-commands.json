@@ -87,7 +87,7 @@
   "ui.slash-commands.no-coding-assistants-installed": "(no agents installed)",
   "ui.slash-commands.no-command-named-enter-will-not-send-it": "No command named /{0}. Enter will not send it to the model; start with // to send plain text.",
   "ui.slash-commands.no-commands-available": "No commands available.",
-  "ui.slash-commands.no-matching-coding-agent": "No matching agent",
+  "ui.slash-commands.no-matching-coding-agent": "No matching agents",
   "ui.slash-commands.no-matching-models": "No matching models.",
   "ui.slash-commands.no-uncommitted-changes": "No uncommitted changes.",
   "ui.slash-commands.nomi-s-own-skills-and-mcp-servers-type": "Nomi's own Skills and MCP servers. Type / to use a Skill directly.",

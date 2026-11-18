@@ -9,7 +9,7 @@
   "ui.providers-schedule.choose-a-coding-assistant": "Choose an agent",
   "ui.providers-schedule.claude-code-codex-dsh-grok-gemini-cli-plus": "Agent CLIs on this machine, plus agent tabs in Nomi.",
   "ui.providers-schedule.close": "Close",
-  "ui.providers-schedule.coding-agents": "Agents (CLI)",
+  "ui.providers-schedule.coding-agents": "CLI Agents",
   "ui.providers-schedule.connection-add": "Connect an app",
   "ui.providers-schedule.connection-add-github": "Connect GitHub",
   "ui.providers-schedule.connection-add-token": "Add with token",

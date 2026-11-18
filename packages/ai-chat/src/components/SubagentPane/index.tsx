@@ -83,7 +83,7 @@ export interface SubagentPaneActions {
   openProviders?: () => void;
   /** 打开统一设置页（输入栏的设置按钮） */
   openSettings?: (section?: SettingsSectionInput, endpoint?: string, tab?: SettingsTab) => void;
-  /** 打开某个 agent 的设置（斜杠命令 /config 之类） */
+  /** 打开某个 agents 的设置（斜杠命令 /config 之类） */
   openCodingSettings?: (backend: string) => void;
   openDesktop?: () => void;
   openHub?: () => void;

@@ -190,7 +190,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const streaming = useAiChatSelector(selectStreamingHere);
   const chatError = useAiChatSelector(selectError);
   // 知识库问答模式（Ctrl/Cmd+Shift+K 切换），记住上次的选择
-  // `/cli 名字`：下一个需求交给哪个 agent（输入栏上的 chip，点 × 取消）
+  // `/cli 名字`：下一个需求交给哪个 agents（输入栏上的 chip，点 × 取消）
   const nextDelegate = useNextDelegate();
   const { kbMode, kbAvailable, toggleKb } = useKnowledgeMode(textareaRef);
 

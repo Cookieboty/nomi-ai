@@ -55,7 +55,7 @@ export interface ChatMessage {
   durationMs?: number;
   /** 本轮 token 用量（上游返回时才有） */
   usage?: HarnessUsage;
-  /** 用户用 `/cli` 指定这条需求交给哪个 agent（docs/development/coding-agents.md） */
+  /** 用户用 `/cli` 指定这条需求交给哪个 agents（docs/development/coding-agents.md） */
   delegateTo?: BuiltinCliId;
   /**
    * 委派结果消息（origin background）：子任务改了哪些文件、各增删多少行，

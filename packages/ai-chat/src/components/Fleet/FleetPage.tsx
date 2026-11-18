@@ -316,7 +316,7 @@ export const FleetPage: React.FC<
     idleErrors?: IdleCloseError[];
     onSetAutoPause?: (on: boolean) => void;
     onSetPolicy?: (mode: FleetPolicyMode) => void;
-    /** 还没有会话时的主操作：在工坊里派出一个 agent */
+    /** 还没有会话时的主操作：在工坊里派出 agents */
     onDispatch?: (backend: BuiltinCliId) => void;
   } & CardActions
 > = ({
