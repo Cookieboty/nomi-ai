@@ -1,8 +1,8 @@
 /**
- * 输入栏的「模型 · 思考深度」按钮（agents 标签：Codex / Claude Code / Grok 等）。
+ * 输入栏的「模型 · 思考深度」按钮（agent 标签：Codex / Claude Code / Grok 等）。
  *
  * 界面与 Nomi 对话共用 ModelEffortChip（components/ModelControls/ModelEffortChip）；这里只做两件事：
- * 取模型目录（useCatalog）、把目录与网关数据交给 agents 的适配器（cliSource）。
+ * 取模型目录（useCatalog）、把目录与网关数据交给 agent 的适配器（cliSource）。
  * 覆盖是标签级的，主进程在每轮启动时以进程级参数注入
  * （codex `-c model=...`、grok `-m ... --reasoning-effort ...`、claude `--model ... --effort ...`），
  * 不改写用户的全局 CLI 配置；每轮新进程的后端下一条消息即生效，Claude 长驻进程空闲时重启复用。
@@ -121,7 +121,7 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
       .filter((p) => has.has(p.id))
       .map((p) => ({ id: p.id, name: p.name, hint: label.get(p.id) }));
   }, [catalog, thirdRef, groups, gateway]);
-  // 第三方目录来自网关：生图模型不能给 agents 用，不列
+  // 第三方目录来自网关：生图模型不能给 agent 用，不列
   const chatCatalog = useMemo(() => {
     if (!catalog || !thirdRef) return catalog;
     const models = catalog.models.filter((m) => !isImageModel(m.id));

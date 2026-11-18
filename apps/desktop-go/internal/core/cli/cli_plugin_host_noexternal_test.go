@@ -14,7 +14,7 @@ type quietHostLogger struct{}
 func (quietHostLogger) Info(string, any) {}
 func (quietHostLogger) Warn(string, any) {}
 
-// 旧版本「外部 CLI」存下的清单在启动时删掉，注册表里只有内置 agents。
+// 旧版本「外部 CLI」存下的清单在启动时删掉，注册表里只有内置 agent。
 func TestLegacyExternalCliSpecsAreDropped(t *testing.T) {
 	root := t.TempDir()
 	ext := filepath.Join(root, "external")

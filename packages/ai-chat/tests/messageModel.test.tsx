@@ -27,7 +27,7 @@ const assistant = (over: Partial<ConvMessage> = {}): ConvMessage => ({
 });
 
 describe('助手消息上的模型', () => {
-  it('agents 消息：端点名 + 主进程记下的模型；旧消息只有端点名', () => {
+  it('agent 消息：端点名 + 主进程记下的模型；旧消息只有端点名', () => {
     const m: HarnessTabMessage = {
       id: 'm1',
       role: 'assistant',

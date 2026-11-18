@@ -320,7 +320,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
         setMsg({ tone: 'danger', text: errorText(e) });
       });
   };
-  // 登录被拒时「沿用终端代理并重试」：开关本身在「通用」里（对所有 agents 生效）
+  // 登录被拒时「沿用终端代理并重试」：开关本身在「通用」里（对所有 agent 生效）
   const setUseShellProxy = (on: boolean) =>
     cliAccountClient
       .setNetwork(on)

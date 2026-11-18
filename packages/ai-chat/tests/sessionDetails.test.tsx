@@ -404,7 +404,7 @@ describe('session details lists', () => {
       ...Array.from({ length: 6 }, (_, i) => task(`t${i + 1}`)),
       task('t9', { status: 'running' }),
       task('x1', { origin: { conversationId: 'other', createdBy: 'nomi', createdAt: 0 } }),
-      // 后台派给 agents 的：在「Agents」里，不在任务里
+      // 后台派给 agent 的：在「Agents」里，不在任务里
       task('d1', {
         origin: { conversationId: 'n1', createdBy: 'nomi', createdAt: 0, via: 'delegate' },
         executor: { kind: 'cli', cli: 'claude', cwd: '/w', isolation: 'shared' },
@@ -899,7 +899,7 @@ describe('Nomi delegations stay continuable and collapse into one row when reuse
       detail: '修复登录 bug',
     });
     expect(countRunning(agents)).toBe(1);
-    // 同一个载体只出现 1 条（新任务状态，旧任务不会再残留占成 2 个 agents）
+    // 同一个载体只出现 1 条（新任务状态，旧任务不会再残留占成 2 个 agent）
     expect(agents.find((a) => a.id === 'c0')).toBeUndefined();
   });
 
@@ -1074,7 +1074,7 @@ describe('agent identity (icon + name) comes from what the agent really is', () 
   it('a sub-agent of the Nomi chat is Nomi; of a coding-agent tab, that agent', () => {
     expect(nestedOwnerBackend(null, [tab('main', 'nomi')])).toBe('nomi');
     expect(nestedOwnerBackend(null, [])).toBe('nomi');
-    // 主标签切到了 agents：那一轮是它跑的
+    // 主标签切到了 agent：那一轮是它跑的
     expect(nestedOwnerBackend(null, [tab('main', 'claude')])).toBe('claude');
     expect(nestedOwnerBackend('t1', [tab('t1', 'codex')])).toBe('codex');
     expect(

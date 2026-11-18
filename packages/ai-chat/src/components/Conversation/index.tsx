@@ -557,11 +557,11 @@ export interface ConversationViewProps {
   /** 斜杠命令的结果卡片：按 afterId 插在对应消息之后（不属于任何一轮模型回复） */
   cards?: readonly SlashCard[];
   onDismissCard?: (id: string) => void;
-  /** agents 进程因空闲被回收：显示提示，发送下一条消息会自动续接 */
+  /** agent 进程因空闲被回收：显示提示，发送下一条消息会自动续接 */
   dormant?: boolean;
   /**
    * 会话中途换了模型、还没发送下一条消息：切换后的模型名（空串 = 默认模型），显示一条弱提示。
-   * 由来源决定（agents 标签看切换记录，Nomi 对话比较最后一条助手消息的模型）
+   * 由来源决定（agent 标签看切换记录，Nomi 对话比较最后一条助手消息的模型）
    */
   modelSwitchTip?: string | null;
   /** 仍在运行的后台子代理（跨轮次）与后台任务总数（docs/development/coding-agents.md） */
@@ -573,7 +573,7 @@ export interface ConversationViewProps {
   }>;
   backgroundCount?: number;
   onStopAgent?: (agentId: string) => void;
-  /** 沙箱挡下、等授权的卡片（agents 标签；一轮结束后也还在） */
+  /** 沙箱挡下、等授权的卡片（agent 标签；一轮结束后也还在） */
   sandboxRequests?: React.ReactNode;
   /** 当前会话的 Transcript view；由 ChatBody 按会话注入；不传则跟随外层会话 */
   transcriptView?: TranscriptView;
@@ -1104,7 +1104,7 @@ export const ConversationView = React.memo(function ConversationView(props: Conv
   useLocale();
   // 没传（委派卡片、子代理面板里嵌的会话）：跟随外层会话的设置
   const inherited = useTranscriptViewMode();
-  // 没有冒号的 scope 是 agents 标签 id。子代理「查看」用它当父转录。
+  // 没有冒号的 scope 是 agent 标签 id。子代理「查看」用它当父转录。
   const parentTabId =
     typeof props.scopeId === 'string' && !props.scopeId.includes(':') ? props.scopeId : null;
   return (

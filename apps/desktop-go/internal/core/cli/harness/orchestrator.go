@@ -1,6 +1,6 @@
 package harness
 
-// Orchestrator：agents 标签的编排器（HarnessOrchestrator）。
+// Orchestrator：agent 标签的编排器（HarnessOrchestrator）。
 // 本文件是状态、构造、持久化、工作目录与 git / 工作区 / 斜杠命令的转发；
 // 标签管理、各后端会话、权限队列在 orchestrator_*.go。所有方法须在 jsrt 线程上调用（单线程语义）。
 // 标签元数据、消息都用 *util.Obj：键序固定，落盘 JSON 逐字节稳定。
@@ -86,8 +86,8 @@ type Deps struct {
 	// ProjectFor：dir 所在项目的 id（嵌套时取最具体的）；不在任何项目里返回 ""。
 	// 从本机历史打开的会话按工作目录归进项目
 	ProjectFor func(dir string) string
-	// ComputerMcp：agents 可用的桌面操作 MCP（computer_mcp.go）；nil 或返回 nil = 不注入。
-	// label 是 agents 名（确认卡片上显示），readOnly = 计划模式（只给读界面的工具）
+	// ComputerMcp：agent 可用的桌面操作 MCP（computer_mcp.go）；nil 或返回 nil = 不注入。
+	// label 是 agent 名（确认卡片上显示），readOnly = 计划模式（只给读界面的工具）
 	ComputerMcp func(tabID, label string, readOnly bool) *McpLaunch
 }
 
@@ -221,7 +221,7 @@ type Orchestrator struct {
 	stopBeforeStart  map[string]bool
 	sendAborts       map[string]*jsrt.AbortController
 	takeoverInFlight map[string]*jsrt.Promise[struct{}]
-	// delegatedSessions：Nomi 委派用过的 agents 会话（backend:sessionId）：不出现在 agents 的历史里（orchestrator_delegated.go）
+	// delegatedSessions：Nomi 委派用过的 agent 会话（backend:sessionId）：不出现在 agent 的历史里（orchestrator_delegated.go）
 	delegatedSessions map[string]bool
 	eventBatcher      *cli.EventBatcher
 	childStage        map[string]string // 直接发给 Codex 子代理的图片暂存目录（标签 + 线程 → 目录），子代理这一轮结束时清掉
@@ -302,7 +302,7 @@ type emitter struct{ ls map[string][]*func(any) }
 
 func (e *emitter) On(ev string, fn func(any)) { e.onOff(ev, fn) }
 
-// OnOff：订阅并返回取消函数（持续任务的 agents 执行者用）
+// OnOff：订阅并返回取消函数（持续任务的 agent 执行者用）
 func (e *emitter) OnOff(ev string, fn func(any)) func() { return e.onOff(ev, fn) }
 
 // onOff = on，返回对应的 off。

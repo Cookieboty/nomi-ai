@@ -1,5 +1,5 @@
 /**
- * D3 · agents 的 DTO schema（docs/development/architecture.md「P1b 实施约定」）。
+ * D3 · agent 的 DTO schema（docs/development/architecture.md「P1b 实施约定」）。
  *
  * 照主进程 `cli/types.ts`、`@nomi-ai/cli-sdk` 的事件类型与 ai-chat 各客户端模块的接口手写：
  * - 输出与事件的对象都用 `z.looseObject`（字段多、会演进；未知字段原样透传，与原 IPC 一致），
@@ -68,10 +68,10 @@ export const HarnessTabsState = loose({
   defaultPermissionMode: z.string().optional(),
   /** Codex 在自动改文件档允许联网 */
   codexNetwork: z.boolean().optional(),
-  /** agents 的系统沙箱：on / off（用户关了）/ unsupported（当前平台不支持） */
+  /** agent 的系统沙箱：on / off（用户关了）/ unsupported（当前平台不支持） */
   sandbox: z.enum(['on', 'off', 'unsupported']).optional(),
   /**
-   * 「全部自动」（默认开）：新标签与 Nomi 委派的 agents 默认完全放开，
+   * 「全部自动」（默认开）：新标签与 Nomi 委派的 agent 默认完全放开，
    * Nomi 对话工作区里的文件 / 命令操作不确认；关掉后回到逐项询问
    */
   autoApprove: z.boolean().optional(),
@@ -176,7 +176,7 @@ export const WorkspaceTreeResult = loose({ ok: z.boolean(), code: z.string().opt
 
 /**
  * 项目。primary 是主文件夹：会话的工作目录、相对路径的基准、git / worktree / AGENTS.md 的来源；
- * folders 是其余文件夹（顺序即显示顺序，不含 primary），Nomi 与 agents 在里面同样能读写。
+ * folders 是其余文件夹（顺序即显示顺序，不含 primary），Nomi 与 agent 在里面同样能读写。
  * missing：此刻不存在或不再允许当项目目录的文件夹（内核每次列出时重新检查），视图标红。
  */
 export const Project = loose({
@@ -215,7 +215,7 @@ export const GeminiTrustResult = loose({
 export const ApprovePlanChoice = z.enum(['acceptEdits', 'manual', 'deny']);
 
 // ---------------------------------------------------------------------------
-// cli：内置 agents 的插件注册表（cli/CliPluginHost.ts）
+// cli：内置 agent 的插件注册表（cli/CliPluginHost.ts）
 // ---------------------------------------------------------------------------
 
 export const CliRegistryEntry = loose({
@@ -274,7 +274,7 @@ export const CliInstallPlan = loose({
   blockers: z.array(z.string()),
 });
 
-/** 安装 / 更新 agents 所需的运行环境：PATH 上的 Node.js / npm，每个 CLI 的最低 Node 主版本与是否满足 */
+/** 安装 / 更新 agent 所需的运行环境：PATH 上的 Node.js / npm，每个 CLI 的最低 Node 主版本与是否满足 */
 export const CliEnvironment = loose({
   nodeVersion: z.string().nullable(),
   nodePath: z.string().nullable(),
@@ -298,7 +298,7 @@ export const CliJob = loose({
 export const CliUpdateEvent = loose({ kind: z.string(), phase: z.string() });
 
 // ---------------------------------------------------------------------------
-// delegate：Nomi 把 agents 当子代理（cli/delegate/DelegateService.ts）
+// delegate：Nomi 把 agent 当子代理（cli/delegate/DelegateService.ts）
 // ---------------------------------------------------------------------------
 
 export const RunnerSource = TabSource;
@@ -372,7 +372,7 @@ export const DelegateResult = loose({
 });
 
 // ---------------------------------------------------------------------------
-// agents：agents 进度监视（agents/AgentProgressService.ts）
+// agents：agent 进度监视（agents/AgentProgressService.ts）
 // ---------------------------------------------------------------------------
 
 export const AgentWatchSettings = loose({
@@ -425,7 +425,7 @@ export const FleetOrigin = z.enum([
 /** 需要用户处理：permission 等授权 / sandbox 沙箱拦下 / accept 等验收 */
 export const FleetNeedsYou = z.enum(['permission', 'sandbox', 'accept', 'question']);
 
-/** 进程树的资源占用（整棵树：agents 连同它起的子进程）；cpuPercent 100 = 占满一个核，第一次采样为 0 */
+/** 进程树的资源占用（整棵树：agent 连同它起的子进程）；cpuPercent 100 = 占满一个核，第一次采样为 0 */
 export const FleetUsage = loose({
   rssBytes: z.number(),
   cpuPercent: z.number(),
@@ -495,7 +495,7 @@ export const FleetGovernor = loose({
 });
 
 /**
- * 调度策略：Nomi 同时派出去跑的 agents / 后台任务的上限（用户在看板里选，存盘）。saver 省资源 / balanced 均衡（默认）/
+ * 调度策略：Nomi 同时派出去跑的 agent / 后台任务的上限（用户在看板里选，存盘）。saver 省资源 / balanced 均衡（默认）/
  * max 全速；maxParallel = 委派与持续任务各自同时运行的上限，超出的排队；0 = 不设上限，按 CPU 与内存放行
  * （内存偏高或整机 CPU 很忙时新的排队，queueReason: memory / cpu）。
  */
@@ -508,7 +508,7 @@ export const FleetPolicy = loose({
 /** Nomi 本体（调度者）：不进分列，只给资源占用（自己的进程树减去各标签的树） */
 export const FleetNomi = loose({ usage: FleetUsage.optional() });
 
-/** Nomi 之外、对不上正在跑的会话的 agents 进程树（空闲的终端 / IDE 里的助手），按内存大的在前；用户可以手动关掉 */
+/** Nomi 之外、对不上正在跑的会话的 agent 进程树（空闲的终端 / IDE 里的助手），按内存大的在前；用户可以手动关掉 */
 export const FleetIdleItem = loose({
   pid: z.number(),
   backend: z.string(),

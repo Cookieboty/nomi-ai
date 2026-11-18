@@ -207,7 +207,7 @@ func TestDispatchStartsBackgroundTask(t *testing.T) {
 	if len(ft.created) != 1 || ft.created[0].Goal != "修复登录 bug" || ft.created[0].ConversationID == nil || *ft.created[0].ConversationID != "conv_9" {
 		t.Fatalf("%+v", ft.created)
 	}
-	// 消息附的图片地址作为背景带给 agents
+	// 消息附的图片地址作为背景带给 agent
 	if b := ft.created[0].Executor.Brief; b == nil || b.Context == nil || *b.Context != "附图：nomi-asset://a.png" {
 		t.Fatalf("%+v", ft.created[0].Executor)
 	}

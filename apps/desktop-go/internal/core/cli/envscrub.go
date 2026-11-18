@@ -6,7 +6,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// agents 子进程的环境变量清理（docs/development/security.md「Agents」）：
+// agent 子进程的环境变量清理（docs/development/security.md「Agents」）：
 // 从用户环境继承来的凭据（令牌、密码、云账号密钥、数据库连接串）不交给 CLI，
 // 模型服务的凭据（CLI 本来就要用）与用户在设置里放行的变量除外。
 // 只清继承来的环境；Nomi 自己注入的（标签令牌、官方账号目录）不受影响。
@@ -23,7 +23,7 @@ var secretSubstrings = []string{"PASSWORD", "SECRET"}
 // secretSuffixes：连接串（常带密码）
 var secretSuffixes = []string{"DATABASE_URL", "MONGODB_URI", "MONGO_URL", "REDIS_URL", "AMQP_URL"}
 
-// modelEnvPrefixes：模型服务的凭据与配置，agents 要用，不清
+// modelEnvPrefixes：模型服务的凭据与配置，agent 要用，不清
 var modelEnvPrefixes = []string{
 	"ANTHROPIC_", "CLAUDE_", "OPENAI_", "AZURE_OPENAI_", "CODEX_", "GEMINI_", "GOOGLE_GENAI_", "XAI_", "GROK_",
 	"OPENROUTER_", "DEEPSEEK_", "MISTRAL_", "GROQ_", "TOGETHER_", "FIREWORKS_", "DASHSCOPE_", "MOONSHOT_",

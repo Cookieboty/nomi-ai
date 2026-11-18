@@ -1,5 +1,5 @@
 /**
- * 界面形态（React 订阅）：装了 agents = dev（显示 agents 相关界面），没装 = normal。
+ * 界面形态（React 订阅）：装了 agent = dev（显示 agent 相关界面），没装 = normal。
  * 由 services/cliPresence 按本机是否装了 CLI 决定，用户不再手动切换。
  */
 import { useSyncExternalStore } from 'react';

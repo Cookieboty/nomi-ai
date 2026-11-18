@@ -5,7 +5,7 @@ package tasks
 // 等 Resume 送来的回答。
 //
 // 对话里派给 Nomi 的（toolset: conversation）：工具用对话的工具集（去掉 ConversationExcluded），
-// 在发起对话的工作区里做；工具调用期间（生图、同步等 agents）自己发心跳，不被看守判成崩溃。
+// 在发起对话的工作区里做；工具调用期间（生图、同步等 agent）自己发心跳，不被看守判成崩溃。
 
 import (
 	"context"
@@ -488,7 +488,7 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 	if t.Executor.Kind == "nomi" && t.Executor.Project != nil && *t.Executor.Project != "" {
 		extra["projectId"] = *t.Executor.Project
 	}
-	// 工具调用进行中（生图、同步等 agents）流里没有片段：按间隔补心跳，免得被看守判成崩溃
+	// 工具调用进行中（生图、同步等 agent）流里没有片段：按间隔补心跳，免得被看守判成崩溃
 	var pmu sync.Mutex
 	pending := map[string]bool{}
 	var toolSteps []string

@@ -1,4 +1,4 @@
-// Package delegate：Nomi 委派 agents（core / worktree / DelegateService）。
+// Package delegate：Nomi 委派 agent（core / worktree / DelegateService）。
 // 选谁、子任务档位、任务说明、汇报解析、worktree 隔离与 DelegateService。
 //
 // 数据形状固定：档位 / 设置 / 结果都是有序 *util.Obj（键顺序固定），
@@ -14,7 +14,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// DelegateClis：可以委派的内置 agents
+// DelegateClis：可以委派的内置 agent
 var DelegateClis = builtin.Ordered
 
 // DelegateKinds：任务类型（设置里按类型配默认 agent）
@@ -977,7 +977,7 @@ func ChildPermissionMode(nomi, tabDefault string) string {
 	return m
 }
 
-// ChildPermissionModeFor：Nomi 处于「自动」时，派出去的 agents 直接落到 bypass。
+// ChildPermissionModeFor：Nomi 处于「自动」时，派出去的 agent 直接落到 bypass。
 // 委派是后台无人值守的：任何「问一下」都没人回答，只会让任务半路死掉
 // （Claude 的 auto 更是会把每个动作都拒掉，跑十几分钟后 error_during_execution）。
 // 其余档位仍按「不超过用户给的档位」降级，永远不会自己升到 bypass。
@@ -1003,7 +1003,7 @@ func ChildPermissionModeFor(cli, nomi, tabDefault string) string {
 // DelegateBrief：任务说明
 type DelegateBrief struct{ Goal, Context, DoneWhen, OutOfScope string }
 
-// BuildDelegatePrompt：发给 agents 的第一条消息（prompts/text/delegate-brief.md；汇报格式的标记与 reportKeys 对应）
+// BuildDelegatePrompt：发给 agent 的第一条消息（prompts/text/delegate-brief.md；汇报格式的标记与 reportKeys 对应）
 func BuildDelegatePrompt(b DelegateBrief) string {
 	return prompts.Render("delegate-brief", DelegateBrief{Goal: trim(b.Goal), Context: trim(b.Context),
 		DoneWhen: trim(b.DoneWhen), OutOfScope: trim(b.OutOfScope)})

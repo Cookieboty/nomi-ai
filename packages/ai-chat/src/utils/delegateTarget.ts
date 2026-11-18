@@ -1,5 +1,5 @@
 /**
- * Nomi 委派出去的 agents（delegate_to_cli）对应哪个标签。
+ * Nomi 委派出去的 agent（delegate_to_cli）对应哪个标签。
  * 委派卡片按调用 id 找标签；同一种委派接着用上一次的标签时（主进程 RebindDelegation 把标签上的
  * callId / taskId 换成了新那次），旧的委派就找不到了——会话详情里点它会掉成「进程内子代理」，
  * 打开一个只读的空会话。这里按结果里的 taskId / tabId 把它找回来：还是同一个 CLI 会话，
@@ -67,7 +67,7 @@ export function findDelegateCall(
 
 /**
  * 侧栏里按「进程内子代理」开着的其实是 Nomi 的一次委派（会话详情 / 旧版本按调用 id 打开的）：
- * 换成它的 agents 标签，和委派卡片打开的是同一个会话。找不到标签时原样返回。
+ * 换成它的 agent 标签，和委派卡片打开的是同一个会话。找不到标签时原样返回。
  */
 export function resolveDelegateTarget(
   target: SubagentTarget,

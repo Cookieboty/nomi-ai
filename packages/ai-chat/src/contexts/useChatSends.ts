@@ -286,7 +286,7 @@ function useStreamSend({
           });
           await saveUser('early');
         }
-        // `/agent`：直接派出 agents。不交给对话模型——模型不调工具时会像已经交出，其实什么都没开始。
+        // `/agent`：直接派出 agent。不交给对话模型——模型不调工具时会像已经交出，其实什么都没开始。
         if (delegateTo) {
           maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, userMessage.content);
           // 等确认时可以停止：停止键中止这次调用，内核里的确认随之取消
@@ -297,7 +297,7 @@ function useStreamSend({
           });
           owned = true;
           dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
-          // 附图的地址作为背景交给 agents（它读不到对话里的缩略图）
+          // 附图的地址作为背景交给 agent（它读不到对话里的缩略图）
           const linked = imageUrls.filter(Boolean);
           try {
             if (content.length > DELEGATE_GOAL_MAX)
@@ -399,7 +399,7 @@ function useStreamSend({
         if (hs) {
           if (hs.backend !== 'nomi') {
             if (bgFollow) return;
-            // 主对话标签切到 agents：和普通标签同一条路径（能不能附图由主进程按模型能力判断）
+            // 主对话标签切到 agent：和普通标签同一条路径（能不能附图由主进程按模型能力判断）
             const r = images?.length
               ? await harnessClient.sendTab(
                   MAIN_TAB_ID,

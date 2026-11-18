@@ -18,10 +18,10 @@
 
 ### Minor Changes
 
-- 2163498: 新增 Gemini CLI agents 端点：通过 ACP 协议长驻对话（同一标签多轮复用一个进程），支持计划 / 手动 / 自动编辑 / 完全放行四种权限模式与界面审批、停止当前轮次、子代理识别；「Agents」页可检测、安装与更新 Gemini CLI。
+- 2163498: 新增 Gemini CLI agent 端点：通过 ACP 协议长驻对话（同一标签多轮复用一个进程），支持计划 / 手动 / 自动编辑 / 完全放行四种权限模式与界面审批、停止当前轮次、子代理识别；「Agents」页可检测、安装与更新 Gemini CLI。
 - 2163498: 新增「关闭主界面时：隐藏到托盘 / 退出 Nomi」（设置 → 通用，紧挨「启动 Nomi 后默认显示」）。默认隐藏到托盘，与之前一致；选「退出 Nomi」后关闭主界面会完全退出（诺米、托盘一起关闭），macOS 上红色按钮与 ⌘W 同样按此处理，⌘Q 始终退出。另外，由系统登录项自动启动且默认界面为主界面时，主界面现在也会到前台并获得焦点，与普通启动一致。
 - 863dad7: 设置 → 外观新增「我的主题」：填强调色、背景、表面、文字 4 个颜色（或一次粘贴一组）即可新建主题，其余颜色自动推导并做对比度修正，编辑时实时预览；可以浅色、深色各配一套跟随系统切换，逐个调整颜色，加背景图；支持导入、导出主题包（`.nomitheme.json`，带背景图时为 `.nomitheme`）。
-- a8eb3da: 模型选择器按供应商分标签、按厂商筛选：对话输入栏与 agents 标签的第三方模型按钮，弹层顶部按供应商分标签，可以直接换到别的供应商的模型（agents 原地续接）；右侧按厂商（OpenAI、Anthropic、DeepSeek、Z.ai …）快速筛选，认不出的归到「其他厂商」。
+- a8eb3da: 模型选择器按供应商分标签、按厂商筛选：对话输入栏与 agent 标签的第三方模型按钮，弹层顶部按供应商分标签，可以直接换到别的供应商的模型（agent 原地续接）；右侧按厂商（OpenAI、Anthropic、DeepSeek、Z.ai …）快速筛选，认不出的归到「其他厂商」。
 - 1922999: 新增 `isImageModel`（按名字识别生图模型）与 `shortModelName`；模型选择器在浏览模式下去掉厂商前缀、按厂商分组并显示上下文长度。见 nomi-image-generation。
 - 8de675f: 整理「日程与日历」「通知 / 灵动岛」「扩展 / MCP」三页：
 
@@ -31,9 +31,9 @@
   - 主动聊天、免打扰与通知、系统日历改为设置行；「显示已结束的提醒」从原生复选框改为开关；日历与 MCP / 技能的工具栏说明可换行、按钮不再被挤到下一行。
   - 技能卡片的「编辑 / 删除」改为卡片右上角的图标按钮，列表里不再每行一个红色实底按钮。
 
-- cd4395d: 设置页按 v1.1.1 视觉稿重排：品牌头与底部标语、统一页头与卡片分组、快捷键「应用内 / 全局」标签、agents 卡片带安装状态，日落橙主题对齐新配色。
+- cd4395d: 设置页按 v1.1.1 视觉稿重排：品牌头与底部标语、统一页头与卡片分组、快捷键「应用内 / 全局」标签、agent 卡片带安装状态，日落橙主题对齐新配色。
 - 2163498: 新增「启动 Nomi 后默认显示」：首次引导增加「启动方式」一步（以诺米方式 / 以控制台（主界面）方式打开），「设置 → 通用」可随时修改。默认仍是诺米（老用户升级后行为不变）；选「软件主界面」后启动直接打开主界面，诺米仍在桌面待命，定时任务和提醒照常播报；再次启动 / 点 Dock / 点 Windows 托盘图标会回到主界面，由系统登录项自动启动时主界面不抢占焦点。
-- 2267792: v1.2.0：agents 会话支持多模态附图（Claude / Codex / Grok / Gemini；dsh 明确拒绝）、上下文占用条、本轮 Changes 与只读 Git 面板。
+- 2267792: v1.2.0：agent 会话支持多模态附图（Claude / Codex / Grok / Gemini；dsh 明确拒绝）、上下文占用条、本轮 Changes 与只读 Git 面板。
 - 8de675f: 按「Nomi 视觉色彩系统规范 v1.0」重做五套主题：日落橙（默认）、奶油、冷雾为浅色，暖墨、石墨为深色。
 
   - 背景、侧栏、表面、文字、边框、选中、主操作（默认 / 悬停 / 按下）全部换成规范的语义色；状态色（成功 / 警告 / 错误 / 信息 / 中性）跨主题一致，深色主题提亮文字、改用半透明浅底。
@@ -106,7 +106,7 @@
 - 2163498: Remove system speech fallback from TTS. TTS failures now stay silent.
 - 2267792: 右栏把「变更」和「未提交」合并为「改动」：git 仓库里以 git 状态为准，分「已暂存 / 未暂存」两组，
   助手本会话改过的文件带标记，可只看本会话；底部「让助手提交 / 提交并推送」把提交指令填进输入框，确认后再发。
-- 系统开启「减少动态效果」时，所有加载转圈、录制红点、进度条和过渡动画都会停下；agents 监视只在会话状态有变化时才通知界面，不再每 8 秒空刷一次，「最后活动」时间由面板自己走时。
+- 系统开启「减少动态效果」时，所有加载转圈、录制红点、进度条和过渡动画都会停下；agent 监视只在会话状态有变化时才通知界面，不再每 8 秒空刷一次，「最后活动」时间由面板自己走时。
 - b82f40f: fix: `Modal` 新增 `layer="top"`（`--cd-z-modal-top`），确认 / 输入框盖在引导等整页浮层之上。命令自动审核：MCP 工具、`memory_search`、`skill_load` / `skill_read_file` 的返回也把本轮标为读过外部内容（之后中风险命令交给人确认）；审核结论逐个解析配平的 JSON 片段，不再用贪婪正则，多段结论取风险最高的。素材库排序用 birthtime 与 mtime 中较早的一个。Node 与 Go 版一致。
 - ab388c2: docs(ui): the generic `>_` endpoint glyph is now described as the icon for non built-in CLIs (see remove-external-cli).
 - 3197adc: feat(contract): 增加对话窗口专用的文件预览、目录、修订保存与外部资源契约，补齐预览与图片操作的主题令牌和中英词条。
@@ -123,7 +123,7 @@
 - 2267792: 删除顶栏左上角的常驻入口（「⋯」菜单与设置里的「常驻入口」）；助手 / 工作台切换移到侧栏 Nomi 标志右侧，搜索、新对话与历史刷新并到列表标题行；本机历史行的第三方供应商标签只显示首字母，不再把时间挤到第二行；设置、知识 · 记忆 · 日程、扩展、本机管理移到侧栏底部（收起时竖排），顶栏只留对话标签与变更栏开关，「+」紧跟最后一个标签；启动时清掉旧版常驻入口留在本机的设置；侧栏收起按钮移到窗口标题栏（macOS 紧跟红绿灯），侧栏顶部的 Nomi 标志与助手 / 工作台切换加大
 - d7938e0: 增加导航状态色令牌，补充 DeepSeek Harness 完整名称，并更新侧栏显示设置说明。
 - d7938e0: fix(ui): 补充品牌图标透明展示的前景色信息，保留品牌色并适配深浅主题。
-- cdfac34: `/cli` 改名为 `/agent`（旧名 `/cli` 仍可用，但不再出现在面板和提示里）；敲 `/agent ` 后列出 agents 供补全：已安装的在前、没安装的置灰不可选，按名字前缀过滤，↑↓ 选择、Enter / Tab 选用、Esc 关闭，输入法组合中不触发。
+- cdfac34: `/cli` 改名为 `/agent`（旧名 `/cli` 仍可用，但不再出现在面板和提示里）；敲 `/agent ` 后列出 agent 供补全：已安装的在前、没安装的置灰不可选，按名字前缀过滤，↑↓ 选择、Enter / Tab 选用、Esc 关闭，输入法组合中不触发。
 - 2163498: fix(chat): results of slash commands that finish asynchronously (skill expansion, /diff, /context and the other cards, error notices) now always go back to the conversation that started them. Switching tabs while a command is running no longer sends the expanded prompt, or shows the card or error, in the other tab or the Nomi chat; if the original tab was closed or reset the result is discarded (with a notice when the conversation still exists). The input box is only cleared when you are still in the conversation that ran the command.
 - 2163498: fix(chat): when two custom slash commands / skills share a name (project vs user, custom vs built-in, or a Grok bundled skill), the one that loses the bare name used to be shown as `/project:foo` but still sent `/foo`, so a different command ran. Claude Code and Grok have no verified syntax to target the other version, so those entries now stay in the menu marked "Unavailable" with the reason, and selecting or typing them shows an explanation instead of sending anything. The winner keeps the bare name, matching the CLI's own precedence. Codex (expanded by Nomi by id) and Nomi are unchanged.
 - d4ebe16: 界面样式修正：诺米「选择角色」卡片在浅色主题下角色名看不清、选中描边不随主题的问题已修复；命令面板等处的高亮颜色跟随主题；
@@ -141,7 +141,7 @@
 - 2163498: 修复「普通 / 开发」切换提示文字溢出、压到侧栏上的问题：较长的提示会按最大宽度换行，贴着左边缘的提示改为左对齐显示。
 - 7ecf142: feat(ui): `Select` 新增无边框的 `variant="bare"`；滚动条滑块平时透明，鼠标移到可滚动区域上才显示（全局只此一条规则）。/ `Select` gains a borderless `variant="bare"`; scrollbar thumbs stay transparent until the scrollable area is hovered (the only global scrollbar rule).
 - cdfac34: 界面渲染优化：模型页的额外选项不再每次渲染都让所有模型选择器重算选项；供应商详情输入 / 勾选、记忆面板筛选只重渲染变化的行；下拉菜单悬停只更新高亮的两行；列表里的日期格式化器复用。
-- 1c1f497: agents 标签的模型选择改用与 Nomi 对话同一个模型下拉（共享的 ModelPicker）：搜索框、供应商标签、厂商筛选、每一行的样式与能力提示都一致，不再是两套各自画的列表；官方账号选择也改用共享的下拉；供应商编辑里「按哪个已知模型处理」同样改用这个模型下拉（行右侧显示标准 / 长上下文窗口）。Node 版与 Go 版一致。
+- 1c1f497: agent 标签的模型选择改用与 Nomi 对话同一个模型下拉（共享的 ModelPicker）：搜索框、供应商标签、厂商筛选、每一行的样式与能力提示都一致，不再是两套各自画的列表；官方账号选择也改用共享的下拉；供应商编辑里「按哪个已知模型处理」同样改用这个模型下拉（行右侧显示标准 / 长上下文窗口）。Node 版与 Go 版一致。
 - 2163498: feat(chat): one shared conversation view for Nomi and every agent — Nomi chat (including its tool calls, reasoning, sources and memories) now renders through the same component as Claude Code / Codex / Grok / dsh. Adds streaming thinking blocks with a timer ("Thought for N s" when done), explicit waiting states (queued, waiting for permission, first token, retry / reconnect, context compaction, sub-agent, interrupted), per-minute message times with full time on hover, per-turn duration / token / cost summary, copy / regenerate / edit-and-resend / stop actions, an error card with retry, long-conversation paging, and a message queue while a turn is running. History transcripts now carry tool arguments, output, duration and usage. Fixes the lag introduced by the previous conversation view (batched live events, memoised rows, incremental Markdown, bounded trace) and treats Claude `result.is_error` as an error instead of a normal reply.
 - 12a9200: 将多语言词典集中到 `@nomi-ai/i18n`，按语言、项目和模块管理稳定 key；移除中文原文 key 与旧兼容映射，并增加缺失翻译、占位符、重复基准文案与死 key 检查。
 - 2163498: fix: pre-release polish. "Fork as new chat" now shows the copy in the sidebar right away (the list used to refresh only when the message count changed); the mascot speech bubble renders Markdown replies as plain text instead of showing raw `**` / backticks / `#`; the voice error pill ("No microphone found") dismisses itself after a few seconds; the chat hands-free tooltip is no longer clipped at the window's right edge and long mascot toolbar tooltips wrap inside the window (they still open to the left of the bar); the largest mascot size keeps a few pixels of slack to the display work area so it cannot end up 1px taller than the screen after DPI rounding on Windows.

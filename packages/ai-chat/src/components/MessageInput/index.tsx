@@ -125,7 +125,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const [modelClosed, setModelClosed] = useState<string | null>(null);
   /** 按 Esc 关掉助手列表时的输入；输入一变就重新出现 */
   const [agentClosed, setAgentClosed] = useState<string | null>(null);
-  /** `/agent ` 补全用的已安装 agents（委派设置里的检测结果）；null = 还没读到 */
+  /** `/agent ` 补全用的已安装 agent（委派设置里的检测结果）；null = 还没读到 */
   const [agentInstalled, setAgentInstalled] = useState<DelegateCli[] | null>(null);
   const [agentPresets, setAgentPresets] = useState<RunnerPreset[]>([]);
   /** @ 路径补全：光标、高亮项、Esc 关闭快照、已缓存的工作区树 */
@@ -190,7 +190,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const streaming = useAiChatSelector(selectStreamingHere);
   const chatError = useAiChatSelector(selectError);
   // 知识库问答模式（Ctrl/Cmd+Shift+K 切换），记住上次的选择
-  // `/cli 名字`：下一个需求交给哪个 agents（输入栏上的 chip，点 × 取消）
+  // `/cli 名字`：下一个需求交给哪个 agent（输入栏上的 chip，点 × 取消）
   const nextDelegate = useNextDelegate();
   const { kbMode, kbAvailable, toggleKb } = useKnowledgeMode(textareaRef);
 
@@ -248,7 +248,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const dragOver = useDragDrop(takeFiles, takeHostFiles);
   // 只有元数据明确说不支持看图才提示；没有元数据（undefined）不吓用户，也不按名字猜
   const visionKnown = currentVision();
-  // agents 标签由调用方给出发图能力（当前 CLI 模型），不能拿 Nomi 自己的模型去判断
+  // agent 标签由调用方给出发图能力（当前 CLI 模型），不能拿 Nomi 自己的模型去判断
   const visionWarn =
     images.length > 0 &&
     (imageCapability !== undefined ? imageCapability === 'none' : visionKnown === false);
@@ -308,7 +308,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     disabled ||
     (busyOverride !== undefined ? (queue ? false : busyOverride) : queue ? false : isLoading);
 
-  // 停止：Nomi 流式生成中，或 agents 标签自带的停止；输入为空才显示（有字时发送键是「排队」）
+  // 停止：Nomi 流式生成中，或 agent 标签自带的停止；输入为空才显示（有字时发送键是「排队」）
   const stopFn =
     busyOverride === undefined ? (streaming ? actions.stopGeneration : undefined) : queue?.onStop;
   // 仅在运行中（busy）才可能出现停止键：排队模式下输入为空才停止（有字时发送键是「排队」）。

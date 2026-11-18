@@ -50,7 +50,7 @@ export interface ReviewFile {
   gitDiff?: FileDiff;
   /**
    * 依次尝试从这些目录读（找不到 / 不在目录里就换下一个）；缺省用组件的 cwd。
-   * 委派的 agents 可能写在 worktree、也可能用绝对路径写回原工作区。
+   * 委派的 agent 可能写在 worktree、也可能用绝对路径写回原工作区。
    */
   cwds?: string[];
 }

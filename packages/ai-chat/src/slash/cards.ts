@@ -322,7 +322,7 @@ const cancelled = (ok: boolean) => {
 
 /**
  * CLI 标签的「官方」一项：改用官方账号（第三方 → 官方且已有对话时会先确认）。
- * 只能用第三方模型的 agents（dsh、Gemini）没有这一项。
+ * 只能用第三方模型的 agent（dsh、Gemini）没有这一项。
  */
 function officialChoices(ctx: SlashContext, data: SlashData, source: TabSource): ModelChoice[] {
   return thirdPartyOnly(ctx.backend) ? [] : [officialChoice(ctx, data, source)];
@@ -347,7 +347,7 @@ function officialChoice(ctx: SlashContext, data: SlashData, source: TabSource): 
   };
 }
 
-/** CLI 标签的第三方候选：网关里能给 agents 用的模型，选中即让标签改用第三方的这个模型 */
+/** CLI 标签的第三方候选：网关里能给 agent 用的模型，选中即让标签改用第三方的这个模型 */
 function thirdPartyChoices(ctx: SlashContext, data: SlashData, source: TabSource): ModelChoice[] {
   const cur =
     source === 'thirdParty' ? thirdPartyRefOf(data.cliTab, ctx.backend, data.nomiGateway) : null;

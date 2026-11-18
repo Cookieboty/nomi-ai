@@ -5688,7 +5688,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 8000,
-      "description": "在同一个 agents 标签里接着问的内容"
+      "description": "在同一个 agent 标签里接着问的内容"
      }
     },
     "required": [

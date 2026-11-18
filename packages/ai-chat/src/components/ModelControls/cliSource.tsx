@@ -67,7 +67,7 @@ const SWITCH = 'switch:';
 /** 第三方模型名去掉厂商前缀（anthropic/claude-fable-5 → claude-fable-5）：左侧已有厂商筛选与分组标题 */
 const shortName = (s: string) => s.slice(s.lastIndexOf('/') + 1);
 
-/** 有官方账号的 agents（清单 officialAccount） */
+/** 有官方账号的 agent（清单 officialAccount） */
 const ACCOUNT_KINDS = BUILTIN_CLI_ORDER.filter((id): id is AccountKind =>
   cliCapability(id, 'officialAccount'),
 );
@@ -179,7 +179,7 @@ export interface CliChipInput {
   hasLocalLogin?: boolean;
 }
 
-/** agents 标签的数据适配器：读 tab / 目录 / 网关，写 harnessClient */
+/** agent 标签的数据适配器：读 tab / 目录 / 网关，写 harnessClient */
 export function useCliModelEffortSource({
   tab,
   catalog,
@@ -339,7 +339,7 @@ export function useCliModelEffortSource({
   /**
    * 模型页用共享的 ModelPicker（与 Nomi 对话的模型下拉同一个组件）：
    * - 第三方：目录里每个供应商一个标签（模型 id 是 `供应商/模型`），左侧按厂商筛选；
-   * - 官方：CLI 自己的模型放在 OWN_TAB 下；网关里有能给 agents 用的供应商时，每个供应商再一个标签。
+   * - 官方：CLI 自己的模型放在 OWN_TAB 下；网关里有能给 agent 用的供应商时，每个供应商再一个标签。
    * toCatalog：选择器里的值 → 目录里的模型 id（官方 CLI 自己的模型）或网关的 `供应商/模型`
    */
   const { pickerList, toCatalog } = useMemo(() => {

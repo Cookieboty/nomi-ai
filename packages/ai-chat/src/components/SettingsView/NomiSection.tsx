@@ -1,6 +1,6 @@
 /**
- * 设置 →「Nomi」：Nomi 自己怎么做事，和 agents（各 CLI 的版本 / 账号 / 新标签默认）分开。
- * 权限 = 工作区文件操作免确认、命令自动审核；委派 = Nomi 把任务交给哪个 agents；
+ * 设置 →「Nomi」：Nomi 自己怎么做事，和 agent（各 CLI 的版本 / 账号 / 新标签默认）分开。
+ * 权限 = 工作区文件操作免确认、命令自动审核；委派 = Nomi 把任务交给哪个 agent；
  * 工具权限 = 授权文件夹、各工具的确认策略、仅本地模型、活动日志（原「隐私与权限 → 桌面权限」）。
  */
 import { Button, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';

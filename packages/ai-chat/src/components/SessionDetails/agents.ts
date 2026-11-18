@@ -1,6 +1,6 @@
 /**
  * 会话详情里的「Agents」：本会话用到的其他 Agents 与状态（纯函数，便于单测）。
- * - 子任务：Nomi 派给 agents 的（delegate_to_cli → 标签 delegation.callId），点开在子任务面板里看；
+ * - 子任务：Nomi 派给 agent 的（delegate_to_cli → 标签 delegation.callId），点开在子任务面板里看；
  * - 子代理：agents / Nomi 自己派生的（Task / Agent 等），状态以实时状态为准。
  * 派给后台 Nomi 的（delegate_to_nomi）是一个持续任务，列在「任务」里，不算 Agents。
  */
@@ -153,7 +153,7 @@ function delegateCarrierKey(
 }
 
 /**
- * messages：当前会话（含进行中的一轮）；tabs：agents 标签；live：标签实时状态；
+ * messages：当前会话（含进行中的一轮）；tabs：agent 标签；live：标签实时状态；
  * liveAgents：当前标签这一轮的子代理（还没出现在消息里的也算）；
  * results：异步委派的最终结果（taskId → 结果；工具输出只是 running 占位，与子任务卡片同一来源）；
  * followUps：委派结束后在子任务里接着跑的那一轮（出错后「继续」等）的最新结果

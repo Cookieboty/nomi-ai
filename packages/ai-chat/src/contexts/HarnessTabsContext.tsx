@@ -1,6 +1,6 @@
 /**
  * 对话标签状态：主进程是唯一数据源（标签元数据 + CLI 标签消息），这里只做订阅与缓存。
- * 标签 'main' 为原有对话（消息走 AiChatContext）；其它标签只绑定 agents 后端。
+ * 标签 'main' 为原有对话（消息走 AiChatContext）；其它标签只绑定 agent 后端。
  */
 import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
 import { t } from '@nomi-ai/ui';
@@ -133,7 +133,7 @@ export interface HarnessTabsCore {
   removePendingFrom: (tabId: string, id: string) => void;
   /** 停止指定标签这一轮，待发列表合成一条马上发出 */
   flushPendingFor: (tabId: string) => Promise<boolean>;
-  /** 最近使用的 agents 后端（新建标签默认） */
+  /** 最近使用的 agent 后端（新建标签默认） */
   lastBackend: HarnessBackend;
   /**
    * 挂回这个标签的待发列表（存在 localStorage 的 tab:<标签 id>，见 services/pendingSendsStore）：

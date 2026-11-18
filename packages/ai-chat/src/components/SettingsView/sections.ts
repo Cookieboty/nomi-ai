@@ -7,7 +7,7 @@ export type SettingsSection =
   | 'general'
   | 'nomi'
   | 'ai'
-  /** Computer Use：让 Nomi 和 agents 操作本机应用（执行器 agent-desktop） */
+  /** Computer Use：让 Nomi 和 agent 操作本机应用（执行器 agent-desktop） */
   | 'computer'
   | 'usage'
   | 'knowledge'
@@ -129,7 +129,7 @@ export const SECTION_TABS = {
     { id: 'notify', label: 'ui.mascot-theme.notifications-island' },
   ],
   nomi: [
-    // 权限与委派合在一个标签下（Nomi 自己做事要不要先问你、派给 agents 怎么派）
+    // 权限与委派合在一个标签下（Nomi 自己做事要不要先问你、派给 agent 怎么派）
     { id: 'permissions', label: 'ui.chat-settings.permissions-and-handoff' },
     { id: 'tools', label: 'ui.chat-settings.desktop-permissions' },
     // 归档的是 Nomi 对话：放在「Nomi」里（以前在「通用」）

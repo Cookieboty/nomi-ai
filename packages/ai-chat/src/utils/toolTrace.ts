@@ -384,7 +384,7 @@ const KIND_TABLE: Record<ToolKind, readonly string[]> = {
     'killshell',
   ],
   subagent: [
-    // Nomi 派给 agents 的子任务（docs/development/coding-agents.md）：时间线里显示成子任务卡片
+    // Nomi 派给 agent 的子任务（docs/development/coding-agents.md）：时间线里显示成子任务卡片
     'delegate_to_cli',
     // 派给后台的 Nomi（docs/features/scheduling-calendar.md）
     'delegate_to_nomi',

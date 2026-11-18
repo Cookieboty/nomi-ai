@@ -104,7 +104,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const ipc = useAiChatSelector(selectIpcClient);
   const messageCount = useAiChatSelector(selectMessageCount);
   const isLoading = useAiChatSelector(selectIsLoading);
-  // Nomi 对话没有 CLI 标签，行首的状态点只能从「正在回复的会话」里取（与 agents 的 running 一致）
+  // Nomi 对话没有 CLI 标签，行首的状态点只能从「正在回复的会话」里取（与 agent 的 running 一致）
   const busyConvos = useAiChatSelector(selectBusyConvos);
   const runningIds = useMemo(
     () => new Set((busyConvos ?? []).filter((id) => id !== '')),

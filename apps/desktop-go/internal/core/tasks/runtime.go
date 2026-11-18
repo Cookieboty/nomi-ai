@@ -111,7 +111,7 @@ type RuntimeDeps struct {
 	MaxStartsPerHour   int
 }
 
-// SetAdmit：开始执行前再问一次能不能开始（Agent 看板的内存守护：内存紧张时 agents 与后台 Nomi 的任务先排着）。
+// SetAdmit：开始执行前再问一次能不能开始（Agent 看板的内存守护：内存紧张时 agent 与后台 Nomi 的任务先排着）。
 // 不放行的留在队列里、顺序不变，之后 Tick 时再问。在持有者里调用，要快、不能回调 Runtime。
 func (r *Runtime) SetAdmit(fn func(t Task) bool) {
 	r.ownerMu.Lock()
@@ -427,7 +427,7 @@ func (r *Runtime) CreateChecked(in CreateInput) (Task, error) {
 		}
 		acc := in.Acceptance
 		if acc == "" {
-			// 做完自动收下（agents 任务也一样：能自动判断的不再让人逐条点确认）
+			// 做完自动收下（agent 任务也一样：能自动判断的不再让人逐条点确认）
 			acc = "auto"
 		}
 		t := Task{ID: r.d.NewID("task"), Title: in.Title, Goal: in.Goal, Origin: in.Origin, Trigger: in.Trigger,

@@ -89,7 +89,7 @@ const renderIt = (p: Partial<React.ComponentProps<typeof GettingStarted>> = {}) 
 };
 
 describe('GettingStarted（侧栏「开始使用」清单）', () => {
-  it('新装：助手模式先「添加模型」，agents 标可选，「开始」不可点；点添加去设置 → 模型', async () => {
+  it('新装：助手模式先「添加模型」，agent 标可选，「开始」不可点；点添加去设置 → 模型', async () => {
     mockIpc({ model: false, installed: [] });
     const { r, onOpenSettings } = renderIt();
     await waitFor(() => r.getByTestId('getting-started'));
@@ -108,7 +108,7 @@ describe('GettingStarted（侧栏「开始使用」清单）', () => {
     expect(onOpenSettings).toHaveBeenCalledWith('ai', 'providers');
   });
 
-  it('工作台模式先装 agents；只列出还没装的；点安装弹出确认框', async () => {
+  it('工作台模式先装 agent；只列出还没装的；点安装弹出确认框', async () => {
     mockIpc({ model: false, installed: ['codex'] });
     const { r } = renderIt({ mode: 'workbench' });
     await waitFor(() => r.getByTestId('getting-started'));
@@ -178,7 +178,7 @@ describe('GettingStarted（侧栏「开始使用」清单）', () => {
     expect(second.queryByTestId('getting-started')).toBeNull();
   });
 
-  it('按职业推荐：开发者在助手模式下也先装 agents（不标可选），两个可以同时安装', async () => {
+  it('按职业推荐：开发者在助手模式下也先装 agent（不标可选），两个可以同时安装', async () => {
     const invoke = mockIpc({
       model: true,
       installed: [],

@@ -61,7 +61,7 @@ export interface MessageInputProps {
   cwd?: string | null;
   /** All project folders for path completion. */
   roots?: readonly string[] | null;
-  /** Nomi 对话：「+」菜单里有「交给 agents」（CLI 标签没有） */
+  /** Nomi 对话：「+」菜单里有「交给 agent」（CLI 标签没有） */
   delegate?: boolean;
   /** App 持有的会话草稿 Map；与 draftKey 一起传入时按会话隔离输入 */
   draftStore?: ReturnType<typeof createComposerDraftStore>;

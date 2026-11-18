@@ -1,6 +1,6 @@
 /**
  * 设置 →「模型」页（docs/development/gateway.md）：第三方供应商与模型分配，数据来自网关（ai:gateway:*）。
- * - 分配：Nomi 对话（main；tools / summary / image 收在「更多用途」里）；各 agents 的第三方模型（标签选「第三方」时用）；
+ * - 分配：Nomi 对话（main；tools / summary / image 收在「更多用途」里）；各 agent 的第三方模型（标签选「第三方」时用）；
  *   「新会话默认用」在「Agents」页各助手的详情里；
  * - 「显示协议」「上下文档位」「严格模式」「请求体上限」都在页底的「高级」里；
  * - 官方账号不在这里：仍在「Agents」页原位置（安装、账号也在那里）。
@@ -87,7 +87,7 @@ const AUTO_IMAGE = [
 type ModelsPatch = Partial<Omit<Record<keyof ClientModels, string | null>, 'tiers'>> & {
   tiers?: Partial<Record<TierId, string | null>>;
 };
-/** agents 一行的设置：第三方模型（部分）与「新标签默认用」 */
+/** agent 一行的设置：第三方模型（部分）与「新标签默认用」 */
 type CliAssignPatch = {
   models?: ModelsPatch;
   newTabSource?: 'local' | 'official' | 'thirdParty';
@@ -113,7 +113,7 @@ export const ModelsPage: React.FC<{ hideAssignments?: boolean }> = ({
   const [adding, setAdding] = useState(false);
   const [showWire, setShowWire] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  /** 展开了「各档模型 / 更多」的 agents */
+  /** 展开了「各档模型 / 更多」的 agent */
   const [openCli, setOpenCli] = useState<CliKind | 'nomi' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revokeSeen, setRevokeSeen] = useState(false);
@@ -152,7 +152,7 @@ export const ModelsPage: React.FC<{ hideAssignments?: boolean }> = ({
   const assign = (patch: Partial<Record<keyof ClientModels, string | null>>) =>
     run(gatewayClient.setAssignment('nomi', { models: patch as ClientModels }));
 
-  /** agents 的第三方模型 / 新标签默认用；null 表示清除 */
+  /** agent 的第三方模型 / 新标签默认用；null 表示清除 */
   const assignCli = (kind: CliKind, patch: CliAssignPatch) =>
     run(
       gatewayClient.setAssignment(kind, patch as Parameters<typeof gatewayClient.setAssignment>[1]),
@@ -310,7 +310,7 @@ export const ModelsPage: React.FC<{ hideAssignments?: boolean }> = ({
               </p>
             )}
             <p className={styles.sub}>{t('ui.models.assign-hint')}</p>
-            {/* Nomi 与各 agents 一样一张卡片：主模型在卡片上，箭头展开附加用途（Nomi：工具调用 / 摘要 / 图片生成） */}
+            {/* Nomi 与各 agent 一样一张卡片：主模型在卡片上，箭头展开附加用途（Nomi：工具调用 / 摘要 / 图片生成） */}
             <div className={styles.cliGrid} data-testid="models-cli">
               <div
                 className={styles.cliCard}
@@ -535,7 +535,7 @@ export const ModelsPage: React.FC<{ hideAssignments?: boolean }> = ({
   );
 };
 
-/* ------------------------------ agents 一行 ------------------------------ */
+/* ------------------------------ agent 一行 ------------------------------ */
 
 const CliRow: React.FC<{
   kind: CliKind;
@@ -547,7 +547,7 @@ const CliRow: React.FC<{
   onAssign: (patch: CliAssignPatch) => void;
   /** 没安装：整行变灰，只显示「安装」 */
   missing: boolean;
-  /** 这一行的 agents 正在安装（其他行不受影响） */
+  /** 这一行的 agent 正在安装（其他行不受影响） */
   installBusy: boolean;
   onInstall: () => void;
 }> = ({

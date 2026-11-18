@@ -193,7 +193,7 @@ describe('ProvidersPage', () => {
     },
   );
 
-  it('「沿用终端里的代理」只在「通用」里，各 agents 的官方账号里不再各放一份', async () => {
+  it('「沿用终端里的代理」只在「通用」里，各 agent 的官方账号里不再各放一份', async () => {
     const calls = setup();
     localStorage.setItem('ai-chat:providerEndpoint', 'claude');
     const r = render(<ProvidersPage onOpenModels={() => undefined} />);

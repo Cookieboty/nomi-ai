@@ -1,7 +1,7 @@
 package harness
 
-// orchestrator_delegated.go：Nomi 委派出去的 agents 标签只在 Nomi 里看（对话里的子任务卡片、任务页），
-// 不进 agents 的会话列表与历史：记下委派用过的会话（backend:sessionId，落盘），历史列表据此跳过。
+// orchestrator_delegated.go：Nomi 委派出去的 agent 标签只在 Nomi 里看（对话里的子任务卡片、任务页），
+// 不进 agent 的会话列表与历史：记下委派用过的会话（backend:sessionId，落盘），历史列表据此跳过。
 // 同一种委派接着用上一次的会话：RebindDelegation 把空闲的委派标签交给新的一次委派。
 
 import (

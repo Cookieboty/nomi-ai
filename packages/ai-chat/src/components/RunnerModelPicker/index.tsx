@@ -1,5 +1,5 @@
 /**
- * 两栏复合执行器选择器：左栏选 agents（CLI），右栏按实际可用来源展示本机/官方账号，
+ * 两栏复合执行器选择器：左栏选 agent（CLI），右栏按实际可用来源展示本机/官方账号，
  * 第三方与本地模型统一复用 @nomi-ai/ui 的 ModelPicker，底部选思考深度。
  */
 import { cliName } from '@nomi-ai/cli-catalog';

@@ -1,7 +1,7 @@
 /**
  * 端点相关的两组控件：
  *
- * - `EndpointControls`（输入栏左侧）：模型（agents 还有权限模式），只留发消息时要用的。
+ * - `EndpointControls`（输入栏左侧）：模型（agent 还有权限模式），只留发消息时要用的。
  *   端点在新建对话时选定，之后不在输入栏切换。
  * - `NewChatContext`（新会话时输入框上方）：项目 · 分支，项目可以自由切换。
  * - `SessionControls`（对话区顶部）：「带上前文」标记。
@@ -40,7 +40,7 @@ function useEndpoint() {
 }
 
 /**
- * 输入栏：模型 + 权限模式（Nomi 的模型走统一网关，与 agents 的模型按钮同位置）。
+ * 输入栏：模型 + 权限模式（Nomi 的模型走统一网关，与 agent 的模型按钮同位置）。
  * part：Codex 式布局里权限模式在左（mode）、模型在右（model）；不传则两个都画。
  */
 export const EndpointControls: React.FC<{
@@ -70,7 +70,7 @@ export const EndpointControls: React.FC<{
   const mode = part !== 'model';
   return (
     <>
-      {/* Nomi 对话与 agents 标签用同一个「模型 · 思考深度」按钮（ModelEffortChip + 各自的适配器） */}
+      {/* Nomi 对话与 agent 标签用同一个「模型 · 思考深度」按钮（ModelEffortChip + 各自的适配器） */}
       {model && !cli && gatewayClientAvailable() && <NomiModelSwitch />}
       {mode && nomiTab && <PermissionModeChip tab={nomiTab} />}
       {model && cli && modeTab && <ModelControls key={`model-${modeTab.backend}`} tab={modeTab} />}

@@ -19,7 +19,7 @@ import { cmd, nativeCommands } from './common';
 const nameOf = (c: DelegateCli) => t(ENDPOINT_NAME[c]);
 
 /**
- * `/agent 名字 [需求]`：指定下一个需求交给哪个 agents（docs/development/coding-agents.md）。
+ * `/agent 名字 [需求]`：指定下一个需求交给哪个 agent（docs/development/coding-agents.md）。
  * 带需求就立即发出（发送时直接派出，不经过对话模型）；只有名字时在输入框上方挂一个
  * 「下一个需求交给 X」，下一条消息发出后自动取消。没安装或派不出去时只出提示，不当成已经交出。
  */

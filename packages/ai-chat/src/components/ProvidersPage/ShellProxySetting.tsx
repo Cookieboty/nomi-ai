@@ -1,6 +1,6 @@
 /**
  * 设置 →「Agents」→「通用」：沿用终端里的代理（https_proxy）。
- * 对所有 agents 生效（登录与对话），所以放在「通用」，不在各 agents 的官方账号里各放一份。
+ * 对所有 agent 生效（登录与对话），所以放在「通用」，不在各 agent 的官方账号里各放一份。
  */
 import { SettingRow, Switch, t } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';

@@ -37,7 +37,7 @@ export interface HarnessDelegation {
   approvals: { asked: number; denied: number; timedOut: number };
 }
 
-/** Nomi 委派出去的标签：只在 Nomi 里看（对话里的子任务卡片、任务页），不进侧栏与 agents 的标签计数 */
+/** Nomi 委派出去的标签：只在 Nomi 里看（对话里的子任务卡片、任务页），不进侧栏与 agent 的标签计数 */
 export const isNomiDelegated = (tab: { delegation?: HarnessDelegation }): boolean =>
   tab.delegation?.by === 'nomi';
 
@@ -77,7 +77,7 @@ export interface HarnessTabMeta {
   createdAt: number;
   updatedAt: number;
   lastError?: string;
-  /** agents 进程因空闲被回收；下一条消息会自动续接会话 */
+  /** agent 进程因空闲被回收；下一条消息会自动续接会话 */
   dormant?: boolean;
   /** 换工作目录 / 分叉后，下一条消息会连同这么多条之前的对话一起发给新会话 */
   carriedMessages?: number;
@@ -123,7 +123,7 @@ export interface HarnessTabsState {
   /** Codex 在自动改文件档允许联网 */
   codexNetwork?: boolean;
   /**
-   * 「全部自动」（默认开）：新标签与 Nomi 委派的 agents 默认完全放开，
+   * 「全部自动」（默认开）：新标签与 Nomi 委派的 agent 默认完全放开，
    * Nomi 对话工作区里的文件操作不确认（命令始终确认）；关掉后回到逐项询问
    */
   autoApprove?: boolean;
@@ -131,7 +131,7 @@ export interface HarnessTabsState {
   aiReview?: boolean;
   /** Nomi 工作区文件操作免确认；缺省 = 跟随 autoApprove（只在单独设过时出现） */
   nomiAutoApprove?: boolean;
-  /** agents 的系统沙箱：on / off（用户关了）/ unsupported（当前平台不支持） */
+  /** agent 的系统沙箱：on / off（用户关了）/ unsupported（当前平台不支持） */
   sandbox?: 'on' | 'off' | 'unsupported';
 }
 
@@ -673,7 +673,7 @@ export const harnessClient = {
     nomiAutoApprove?: boolean;
   }) => call<HarnessTabsState>(() => api.harness.permissionDefaults(o)),
   /**
-   * 模型目录：官方来源从 CLI 读（主进程缓存），第三方来源（source: 'thirdParty'）是网关里能给 agents 用的模型；
+   * 模型目录：官方来源从 CLI 读（主进程缓存），第三方来源（source: 'thirdParty'）是网关里能给 agent 用的模型；
    * 不支持切换模型的后端返回 null；refresh 强制重读
    */
   modelCatalog: (backend: HarnessBackend, opts: { refresh?: boolean; source?: TabSource } = {}) =>

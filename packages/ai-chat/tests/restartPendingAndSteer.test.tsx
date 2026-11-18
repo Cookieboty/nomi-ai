@@ -97,7 +97,7 @@ describe('pendingSendsStore', () => {
     store.dispose();
   });
 
-  it('agents 标签只写 localStorage；另一组的条目互不影响', async () => {
+  it('agent 标签只写 localStorage；另一组的条目互不影响', async () => {
     const kv = memoryKv();
     const tab = openPendingSends({ kv }, pendingKey('tab', 't1'));
     const other = openPendingSends({ kv }, pendingKey('tab', 't2'));

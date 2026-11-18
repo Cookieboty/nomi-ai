@@ -1,6 +1,6 @@
 package main
 
-// 持续任务的 agents 执行（docs/features/scheduling-calendar.md）：tasks.CliHarness ← HarnessOrchestrator，
+// 持续任务的 agent 执行（docs/features/scheduling-calendar.md）：tasks.CliHarness ← HarnessOrchestrator，
 // 注册 cli 执行者（createCliExecutor）。编排器在任务服务启动之后才装好（wireHarness），这里按调用时的
 // harnessOrch 取；还没装好时 Bins 为空 → 准备阶段报「配置变了」。
 // 执行者在自己的 goroutine 上跑，进编排器都拿 GIL；编排器的事件回调本身持锁，转到新 goroutine 再交给执行者（锁不可重入）。
@@ -213,7 +213,7 @@ func (taskCliHarness) IsStopped(err error) bool {
 	return errors.As(err, &s)
 }
 
-// taskCliDeps：agents 执行者的依赖（worktree / git / 委派提示词与汇报格式复用 delegate）
+// taskCliDeps：agent 执行者的依赖（worktree / git / 委派提示词与汇报格式复用 delegate）
 func taskCliDeps(d *desktop.Service) tasks.CliDeps {
 	return tasks.CliDeps{
 		Harness: taskCliHarness{},
@@ -435,7 +435,7 @@ func runeSlice(s string, n int) string {
 	return s
 }
 
-// installedClis：已装好的 agents（task_propose 的 executor=cli 用）
+// installedClis：已装好的 agent（task_propose 的 executor=cli 用）
 func installedClis() []string {
 	out := []string{}
 	for k, ok := range (taskCliHarness{}).Bins() {

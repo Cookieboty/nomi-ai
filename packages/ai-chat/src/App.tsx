@@ -153,9 +153,9 @@ const AiChatContent: React.FC = () => {
   // 当前会话的键：CLI 标签与 Nomi 对话统一使用实时响应的 sessionKey，
   // Transcript view、工作区 Tabs 与文件预览全部按这个键分开保存，切换会话互不影响。
   const { sessionKey, nomiSessionId, activeCliTab } = useActiveSessionInfo();
-  // agents 标签拿到会话 id 后，把按标签存的 Transcript view 覆盖搬到会话键（关标签、从历史重开也在）
+  // agent 标签拿到会话 id 后，把按标签存的 Transcript view 覆盖搬到会话键（关标签、从历史重开也在）
   useMigrateCliTranscriptView(activeCliTab);
-  // ───── 统一会话视图的数据：Nomi 主对话与 agents 标签走同一个 ConversationView ─────
+  // ───── 统一会话视图的数据：Nomi 主对话与 agent 标签走同一个 ConversationView ─────
   const nomiMessages = useMemo(() => nomiConvMessages(settledNomi), [settledNomi]);
   const cliBackend = tabs.activeTab?.backend ?? 'claude';
   const cliConvMessages = useMemo(
@@ -214,7 +214,7 @@ const AiChatContent: React.FC = () => {
       },
     },
   );
-  // agents 新标签拿到 cliSessionId 后，绘制前把已打开的工作区 Tabs 与文件预览平滑迁移到稳定会话键
+  // agent 新标签拿到 cliSessionId 后，绘制前把已打开的工作区 Tabs 与文件预览平滑迁移到稳定会话键
   const migratePaneScope = pane?.migrateScope;
   const migratePreviewScope = resourcePreview.migrateScope;
   const cliTabId = activeCliTab?.id;
@@ -305,9 +305,9 @@ const AiChatContent: React.FC = () => {
     return () => onboardingClient.mascot({ type: 'reply', phase: 'settled' });
   }, [isLoading]);
   useEffect(() => watchNomiModel(), []);
-  // 装了 agents 才显示 agents 相关界面（没有「对话 / 工坊」切换）
+  // 装了 agent 才显示 agent 相关界面（没有「对话 / 工坊」切换）
   useEffect(() => watchCliPresence(), []);
-  // 没有 agents（如被卸载）时若正停在 CLI 标签，回到主对话（后台标签继续跑）
+  // 没有 agent（如被卸载）时若正停在 CLI 标签，回到主对话（后台标签继续跑）
   useEffect(() => {
     if (!isDev && tabs.isCliTab) void tabs.activate('main');
   }, [isDev, tabs.isCliTab, tabs]);
@@ -336,7 +336,7 @@ const AiChatContent: React.FC = () => {
   const chatEmpty =
     slash.cards.length === 0 &&
     (tabs.isCliTab ? cliConvMessages.length === 0 : nomiMessages.length === 0);
-  /** 空会话的 Nomi 主对话：示例问题卡片与输入框缺省文案只在它成立时出现（agents 标签不参与） */
+  /** 空会话的 Nomi 主对话：示例问题卡片与输入框缺省文案只在它成立时出现（agent 标签不参与） */
   const nomiEmpty = chatEmpty && !tabs.isCliTab;
   const commands = useAppCommands({
     actions,
@@ -361,7 +361,7 @@ const AiChatContent: React.FC = () => {
     leavePage();
   }, [closeSettings, leavePage]);
   const mainHidden = openPage !== null;
-  // 灵动岛上点「打开」/ 点某一条：跳到任务详情 / agents 标签 / 主对话
+  // 灵动岛上点「打开」/ 点某一条：跳到任务详情 / agent 标签 / 主对话
   useIslandOpenItem(mainPages.openTask, leavePage, (id) => {
     void ipcClient?.switchConversation(id);
   });
@@ -633,7 +633,7 @@ const AiChatContent: React.FC = () => {
                       fill={composerFill}
                       draftStore={drafts.draftStore}
                       draftKey={drafts.draftKey}
-                      // 只在 agents 标签里：Nomi 自己的 Skills / MCP 在「扩展」里管理
+                      // 只在 agent 标签里：Nomi 自己的 Skills / MCP 在「扩展」里管理
                       onPluginsClick={slashBackend !== 'nomi' ? panels.openPlugins : undefined}
                       onProvidersClick={panels.openProviders}
                       onSettingsClick={panels.onInputSettings}

@@ -93,7 +93,7 @@ func (s *Service) AttachRuntime(d RuntimeDeps) {
 					d.OnUsage(e)
 				}
 			},
-			// Nomi 对话等待回复时显示「A 返回 503，正在重试 / 切换到 B」；agents 有自己的进度，不发
+			// Nomi 对话等待回复时显示「A 返回 503，正在重试 / 切换到 B」；agent 有自己的进度，不发
 			OnRetry: func(e server.RetryEvent) {
 				if e.Client == "nomi" && d.Broadcast != nil {
 					d.Broadcast("gateway.retrying", e)

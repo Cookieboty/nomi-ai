@@ -119,7 +119,7 @@ interface AgentProps {
   onHover: (i: number) => void;
 }
 
-/** `/agent ` 后的 agents 与预设档位列表：沿用命令面板的样式；没安装的置灰、不可选 */
+/** `/agent ` 后的 agent 与预设档位列表：沿用命令面板的样式；没安装的置灰、不可选 */
 export const AgentPalette: React.FC<AgentProps> = ({ options, active, onPick, onHover }) => {
   const activeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {

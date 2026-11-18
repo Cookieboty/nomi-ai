@@ -217,7 +217,7 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 	dd := delegate.Deps{
 		Root: filepath.Join(userData, "delegate"), Harness: delegateHarness{o}, Desktop: delegateDesktop{d},
 		Events: hostEvents{router}, Claims: delegateClaims, Edits: delegateEdits,
-		// 内存守护正扣着新的 agents 时：同步委派等缓解（后台 Nomi 里）或改成后台委派（前台对话里）
+		// 内存守护正扣着新的 agent 时：同步委派等缓解（后台 Nomi 里）或改成后台委派（前台对话里）
 		MemoryCritical:           fleetHolding,
 		HasOfficialAccount:       hasOfficialAcc,
 		DefaultOfficialAccountID: defaultOfficialAcc,
@@ -275,7 +275,7 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 			})
 		})
 	}
-	// 提示词与工具门控按「现在有没有能委派的 agents」走（没有时 Nomi 自己写代码、跑命令）
+	// 提示词与工具门控按「现在有没有能委派的 agent」走（没有时 Nomi 自己写代码、跑命令）
 	codingcli.Set(dlg.CliAvailable)
 	// DesktopToolsPlugin：delegate.tools() 覆盖 registerIgTools 的占位（保持插入位置），dangerous 未声明
 	if reg != nil {

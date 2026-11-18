@@ -41,7 +41,7 @@ interface CurrentSession {
   id: string | undefined;
   tabId: string | undefined;
   name: string;
-  /** 会话在哪（项目名 / agents 标签的目录名）；title 是悬停提示 */
+  /** 会话在哪（项目名 / agent 标签的目录名）；title 是悬停提示 */
   place: { label: string; title: string };
   hasMessages: boolean;
   running: boolean;

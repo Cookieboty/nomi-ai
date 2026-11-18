@@ -14,7 +14,7 @@ export interface StreamSendOptions {
   reqId?: string;
   /** 中止信号：aborted 后尽快结束循环，并通知主进程中止上游请求；已收到的内容照常交给调用方 */
   signal?: AbortSignal;
-  /** 工具调用 / 思考事件（Nomi 自己的 MCP / 知识库 / 搜索等工具）：与 agents 同一种轨迹事件 */
+  /** 工具调用 / 思考事件（Nomi 自己的 MCP / 知识库 / 搜索等工具）：与 agent 同一种轨迹事件 */
   onTrace?: (event: HarnessTraceEvent) => void;
   /** 思考执行状态，独立于明细；开始 / 增量为 true，结束 / 恢复输出为 false。 */
   onThinking?: (active: boolean) => void;

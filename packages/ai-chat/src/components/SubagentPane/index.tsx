@@ -1,6 +1,6 @@
 /**
  * 子任务侧栏：主列留在来源对话，这里用同一套会话视图看子任务。
- * harness 标签（委派的 agents）走 CliConversation + MessageInput，模型、权限、队列、提问都按标签 id 绑定。
+ * harness 标签（委派的 agent）走 CliConversation + MessageInput，模型、权限、队列、提问都按标签 id 绑定。
  * 进程内子代理（Task / spawn_agent）和后台 Nomi（delegate_to_nomi）也用 ConversationView + MessageInput：
  * 步骤与正文实时更新；输入栏和主列一样能发送、插话、排队、停止（语义见 docs/design/subagent-chat-parity.md）。
  * 设置 / 插件 / 模型等按钮打开主窗口的面板（SubagentPaneActions，由 App 传入）。
@@ -83,7 +83,7 @@ export interface SubagentPaneActions {
   openProviders?: () => void;
   /** 打开统一设置页（输入栏的设置按钮） */
   openSettings?: (section?: SettingsSectionInput, endpoint?: string, tab?: SettingsTab) => void;
-  /** 打开某个 agents 的设置（斜杠命令 /config 之类） */
+  /** 打开某个 agent 的设置（斜杠命令 /config 之类） */
   openCodingSettings?: (backend: string) => void;
   openDesktop?: () => void;
   openHub?: () => void;
@@ -207,7 +207,7 @@ const PaneHead: React.FC<
   );
 };
 
-/** 委派的 agents：和主列同一个 CliConversation / MessageInput，只是绑在这个标签上 */
+/** 委派的 agent：和主列同一个 CliConversation / MessageInput，只是绑在这个标签上 */
 const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: PaneSlot }> = ({
   tab,
   onClose,
@@ -392,7 +392,7 @@ const NestedChat: React.FC<{
   const core = useHarnessTabsCore();
   const actions = usePaneActions();
   const tabs = useHarnessTabs();
-  // 替这个子代理收话的标签：来源标签；父转录是 Nomi 对话时，主标签接在 agents 上（那一轮其实是它跑的）就是主标签。
+  // 替这个子代理收话的标签：来源标签；父转录是 Nomi 对话时，主标签接在 agent 上（那一轮其实是它跑的）就是主标签。
   // 主标签是 Nomi 时没有（Nomi 自己没有进程内子代理，Nomi 派出去的委派在 PaneBody 里已经换成了它的标签）
   const parentTabId = nestedHostTabId(sourceTabId, tabs.state?.tabs, callId, columnMessages);
   const parent = parentTabId ? tabs.state?.tabs.find((t) => t.id === parentTabId) : undefined;
@@ -846,7 +846,7 @@ const PaneBody: React.FC<{
     return <HarnessChat key={tab.id} tab={tab} onClose={onClose} slot={slot} />;
   }
   if (target.kind === 'nested') {
-    // 按「进程内子代理」打开的其实是 Nomi 的一次委派：就是它的 agents 标签，和委派卡片里打开的同一个会话
+    // 按「进程内子代理」打开的其实是 Nomi 的一次委派：就是它的 agent 标签，和委派卡片里打开的同一个会话
     const resolved = resolveDelegateTarget(target, tabs.state?.tabs, columnMessages);
     if (resolved.kind === 'harness') {
       const tab = tabs.state?.tabs.find((item) => item.id === resolved.tabId);

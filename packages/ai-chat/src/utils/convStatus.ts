@@ -91,7 +91,7 @@ export function deriveStatus(args: {
   const { call, subagent } = lastRunning(items);
   if (subagent) {
     const d = describeCall(subagent);
-    // Nomi 派给 agents 的子任务（delegate_to_cli）：不是 CLI 自己的子代理
+    // Nomi 派给 agent 的子任务（delegate_to_cli）：不是 CLI 自己的子代理
     const label =
       subagent.name === 'delegate_to_cli'
         ? t('ui.session-workspace.coding-assistant-running')

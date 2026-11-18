@@ -51,7 +51,7 @@ export interface TaskGrant {
   paths: string[];
   connections: { connectionId: string; capabilities: string[]; resources: string[] }[];
   clis?: string[];
-  /** agents 沙箱里预先允许的类别 */
+  /** agent 沙箱里预先允许的类别 */
   sandbox?: string[];
   /** 按风险自动判断（默认开；L3 及以上才生效，显式 false = 每条命令都问我） */
   autoJudge?: boolean;
@@ -99,7 +99,7 @@ export interface Attempt {
   usage: { inputTokens: number; outputTokens: number; costUsd?: number; costKnown: boolean };
   result?: { summary: string; artifacts: { kind: string; ref: string }[] };
   error?: { code: string; message: string };
-  /** 执行载体：agents 的后台标签与 worktree */
+  /** 执行载体：agent 的后台标签与 worktree */
   carrier?: { tabId?: string; cwd?: string; worktree?: string; sourceCwd?: string };
 }
 

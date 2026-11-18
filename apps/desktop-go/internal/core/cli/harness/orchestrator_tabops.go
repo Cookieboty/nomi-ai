@@ -763,7 +763,7 @@ func (o *Orchestrator) SetTabBackend(id string, backendV any) *util.Obj {
 }
 
 // defaultSource = defaultSource(backend, want?)；want "" = undefined。
-// 没有官方账号能力的内置 agents（dsh、Gemini）只有第三方来源；有官方账号能力、但既无已登录官方账号又无本机登录时，
+// 没有官方账号能力的内置 agent（dsh、Gemini）只有第三方来源；有官方账号能力、但既无已登录官方账号又无本机登录时，
 // 若网关存在可用的第三方模型则自动回退第三方来源（有明确指定的模型优先用该模型）。
 func (o *Orchestrator) defaultSource(backend, want string) string {
 	g := o.d.Gateway
@@ -917,7 +917,7 @@ func (o *Orchestrator) defaultThirdPartyModel(backend string) *string {
 }
 
 // migrateLocalSignIn：旧版本的「本机登录」——标签上的 local-<kind> 账号去掉（跟随默认官方账号）；
-// 没有官方账号能力的内置 agents（dsh、Gemini）原来的官方来源就是本机登录，改成第三方来源。返回是否改动。
+// 没有官方账号能力的内置 agent（dsh、Gemini）原来的官方来源就是本机登录，改成第三方来源。返回是否改动。
 func (o *Orchestrator) migrateLocalSignIn(tab *util.Obj) bool {
 	changed := false
 	if a, _ := tab.Get("accountId").(string); strings.HasPrefix(a, "local-") {

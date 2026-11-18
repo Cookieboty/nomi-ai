@@ -103,7 +103,7 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   const [pickerOpen, setPickerOpen] = useState(false);
   const [cwd, setCwd] = useState('');
   const [cliShell, setCliShell] = useState(false);
-  // agents 沙箱里预先允许的类别（grant.sandbox）：跑的时候不用再问
+  // agent 沙箱里预先允许的类别（grant.sandbox）：跑的时候不用再问
   const [sandboxPick, setSandboxPick] = useState<string[]>([]);
   // 事件触发：先只记录
   const [source, setSource] = useState<Source>('web');

@@ -2,13 +2,13 @@
  * 待发列表（输入框上方，见 utils/pendingSends）的落盘：回复期间发出、还没交出去的消息，应用在这一轮中途重启
  * （如更新）后重新挂回这个会话 / 标签的待发列表，而不是悄悄丢掉。
  *
- * 存在 localStorage 的这一组里（Nomi 会话 `nomi:<会话 id>`，agents 标签 `tab:<标签 id>`；建组时把当时内核里的
+ * 存在 localStorage 的这一组里（Nomi 会话 `nomi:<会话 id>`，agent 标签 `tab:<标签 id>`；建组时把当时内核里的
  * 会话 id 一起记下）。每次改（入列 / 交付 / 删除 / 撤回 / Esc 合成）都同步写（localStorage 是同步的：写进就能扛
  * 进程被杀 / 崩溃 / 看门狗重启，不像内核写入那样还要排队、等 IPC 回来）：
  * - Nomi 会话的组在重建（打开、切回会话；卸载时再写一次）时写进会话元信息的 `pendingSends`
  *   （内核把元信息当不透明 JSON 存，看不到的字段原样保留；updateMeta 是一次只带元信息的 put，排在
  *   ConversationStore 的写队列里，不整份重写历史）。打开另一个窗口 / 清了 localStorage 时，元信息里那份仍是备份；
- * - agents 标签：内核只有标签（title / status 等固定字段，不收不透明的元信息），所以只在 localStorage。
+ * - agent 标签：内核只有标签（title / status 等固定字段，不收不透明的元信息），所以只在 localStorage。
  *
  * 规则：切换会话 / 标签时界面上的列表清空（#254），但存的按组分开，别的会话的不动；下次启动时标签已不再运行，
  * 存下的一律按「排队」恢复（可作为新的一轮发出）。条目带上「这一轮已经收到了」（见 storedPendingSends）：

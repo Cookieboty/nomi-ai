@@ -29,7 +29,7 @@ let profile: unknown = { role: null, interests: [] };
 /** none：没有模型；unassigned：有模型没选给 Nomi；ready：已选 */
 let model: 'none' | 'unassigned' | 'ready' = 'none';
 let nomiMain = 'p1/m1';
-/** 本机装了哪些 agents（cliUpdate.inspect） */
+/** 本机装了哪些 agent（cliUpdate.inspect） */
 let installedClis: string[] = ['claude'];
 let fleetOpened = 0;
 const onFleet = () => fleetOpened++;
@@ -247,7 +247,7 @@ describe('first-launch onboarding', () => {
     expect(persona).toContain('我喜欢猫');
     expect(persona).not.toContain('语气');
     expect(persona.match(/<!-- onboarding -->/g)).toHaveLength(1);
-    // 装了 agents：结束后进看板
+    // 装了 agent：结束后进看板
     expect(fleetOpened).toBe(1);
   });
 

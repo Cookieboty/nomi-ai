@@ -90,19 +90,19 @@ export const FEATURE_ICONS = {
   hub: Brain,
   /** 扩展 / MCP：与设置分区同一个图标 */
   ext: SETTINGS_ICONS.ext,
-  /** agents 自己的命令 / Skills / 插件 / MCP / 子代理（只读） */
+  /** agent 自己的命令 / Skills / 插件 / MCP / 子代理（只读） */
   cliPlugins: SquareTerminal,
   /** 「+」：添加图片或文件 */
   attach: Paperclip,
   /** 「+」：引用工作区里的文件（@） */
   mention: AtSign,
-  /** 「+」：下一条交给 agents */
+  /** 「+」：下一条交给 agent */
   delegate: Forward,
   /** 桌面能力（让 Nomi 操作电脑）：屏幕 + 齿轮，不和「隐私」的盾牌混用 */
   desktop: MonitorCog,
   local: Cpu,
   notify: Bell,
-  /** Agents 看板：派出去的 agents */
+  /** Agents 看板：派出去的 agent */
   agents: Bot,
   /** 任务（对话窗口侧栏、桌面角色工具栏的任务看板） */
   tasks: ListChecks,

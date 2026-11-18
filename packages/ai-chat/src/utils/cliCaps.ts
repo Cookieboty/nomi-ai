@@ -18,7 +18,7 @@ export function hasOfficialAccount<T extends string>(
 }
 
 /**
- * 只能用第三方模型的内置 agents（没有官方账号能力的 dsh、Gemini）：不再有「用 CLI 自己的登录 / 配置」这一来源。
+ * 只能用第三方模型的内置 agent（没有官方账号能力的 dsh、Gemini）：不再有「用 CLI 自己的登录 / 配置」这一来源。
  * Agents 只用 Nomi 管理的官方账号或经网关的第三方模型。
  */
 export function thirdPartyOnly(backend: string | null | undefined): boolean {

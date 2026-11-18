@@ -1,6 +1,6 @@
 package tasks
 
-// `cli` 执行者：用户装好、配好的 agents 在后台标签里执行任务（docs/features/scheduling-calendar.md）。
+// `cli` 执行者：用户装好、配好的 agent 在后台标签里执行任务（docs/features/scheduling-calendar.md）。
 // 默认直接在代码目录里改（同仓库并行的任务按文件、按优先级让路）；指定了别的分支做基线时在 worktree 里改，
 // 验收（或验收卡片上的回填）时落地：改动少拷回当前工作区，改动多提交到新分支。
 // 同一种任务接着用上一次的会话；授权等级换算权限档、审批先过确定性命令分类、用户在标签里接手 → takenOver。
@@ -15,7 +15,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
-// osSandboxSupported：系统级 agents 沙箱是否可用（目前仅 macOS 且内置执行文件在）。
+// osSandboxSupported：系统级 agent 沙箱是否可用（目前仅 macOS 且内置执行文件在）。
 // Windows / Linux 为假：L3 不切到 auto，命令保持逐条确认。测试里可替换。
 var osSandboxSupported = sandbox.Supported
 
@@ -106,12 +106,12 @@ type CliPresetSpec struct {
 	ReasoningEffort string
 }
 
-// CliDeps：agents 执行者的依赖（编排器、worktree、git、委派提示词与汇报格式，见 main 里的装配）
+// CliDeps：agent 执行者的依赖（编排器、worktree、git、委派提示词与汇报格式，见 main 里的装配）
 type CliDeps struct {
 	Harness CliHarness
-	// ResolvePreset：按 presetId 解析 agents、来源、账号、模型与思考深度（可为空）
+	// ResolvePreset：按 presetId 解析 agent、来源、账号、模型与思考深度（可为空）
 	ResolvePreset func(presetID string) *CliPresetSpec
-	// AutoAll：读前台 agents 的「全部自动」（nil = 关）：开着时后台标签用 auto 档、跑命令不再逐项问人
+	// AutoAll：读前台 agent 的「全部自动」（nil = 关）：开着时后台标签用 auto 档、跑命令不再逐项问人
 	AutoAll func() bool
 	// NomiAuto：Nomi 主对话当前是「自动」档。该档位明确授权 Nomi 委派的子 agent
 	// 在没有系统沙箱的平台也使用 auto；其它后台任务仍遵守系统沙箱限制。
@@ -224,7 +224,7 @@ func GithubAccess(t Task) bool {
 	return false
 }
 
-// SandboxGrants：agents 沙箱里预先允许的类别：授权里勾的，加上有 GitHub 对外能力时的 SSH 与 Git 凭据（要推代码）
+// SandboxGrants：agent 沙箱里预先允许的类别：授权里勾的，加上有 GitHub 对外能力时的 SSH 与 Git 凭据（要推代码）
 func SandboxGrants(t Task) []string {
 	out := []string{}
 	for _, c := range t.Grant.Sandbox {
@@ -301,7 +301,7 @@ func (e *cliExecutor) decidePermission(t Task, kind, summary string, tainted boo
 	return DecidePermission(t, kind, summary, tainted, e.relaxed(t))
 }
 
-// cliTaskMode：授权等级换成 agents 的权限档。L3 且放松时才用 auto；没有系统沙箱时停在 acceptEdits。
+// cliTaskMode：授权等级换成 agent 的权限档。L3 且放松时才用 auto；没有系统沙箱时停在 acceptEdits。
 func cliTaskMode(t Task, relaxed bool) string {
 	mode := "plan"
 	if t.Grant.Level >= 2 {
@@ -318,7 +318,7 @@ func (e *cliExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
 	if ex.Kind != "cli" || ex.Cli == nil || ex.Cwd == nil {
 		return ExecutionSnapshot{}, &TaskError{Code: "executor_failed", Message: "not a cli task"}
 	}
-	// 用户点名的 agents 不可用：失败并提示，不悄悄换成别的
+	// 用户点名的 agent 不可用：失败并提示，不悄悄换成别的
 	if !e.d.Harness.Bins()[*ex.Cli] {
 		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: configCliUnavailable(*ex.Cli)}
 	}

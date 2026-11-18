@@ -82,7 +82,7 @@ describe('Sidebar rows', () => {
     vi.useRealTimers();
   });
 
-  it('「全部」里只给 agents 的会话在行尾标一个灰色端点图标；Nomi 不标；标题前没有图标', async () => {
+  it('「全部」里只给 agent 的会话在行尾标一个灰色端点图标；Nomi 不标；标题前没有图标', async () => {
     const r = render(
       <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
     );

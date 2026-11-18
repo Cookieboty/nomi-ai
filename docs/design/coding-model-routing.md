@@ -2,7 +2,7 @@
 
 状态：设计定稿（待实施）。
 
-本文设计「模型与 Agents」的统一配置架构、按任务场景与复杂度分流成本的路由引擎，以及各日常入口的交互联动方案。目标是让同一个 agents（例如 Claude Code）同时保持「本机登录」「Nomi 官方多账号」「多家第三方供应商与本地模型」并存就绪，并允许高级任务走高质量订阅额度、低级或高频后台任务走低价第三方模型。
+本文设计「模型与 Agents」的统一配置架构、按任务场景与复杂度分流成本的路由引擎，以及各日常入口的交互联动方案。目标是让同一个 agent（例如 Claude Code）同时保持「本机登录」「Nomi 官方多账号」「多家第三方供应商与本地模型」并存就绪，并允许高级任务走高质量订阅额度、低级或高频后台任务走低价第三方模型。
 
 ## 要解决的问题
 
@@ -98,7 +98,7 @@ export type RouteTarget =
   { mode: 'preset'; presetId: string } | { mode: 'custom'; spec: Omit<RunnerPreset, 'id' | 'label' | 'builtin'> };
 
 export interface TaskRoutingSettings {
-  /** 允许 Nomi 委派 agents 的总开关 */
+  /** 允许 Nomi 委派 agent 的总开关 */
   enabled: boolean;
   /** 按任务复杂度自动升降档（默认开启） */
   autoComplexity: boolean;
@@ -145,7 +145,7 @@ export interface TaskRoutingSettings {
 
 - **Nomi 后台请求**（会话自动摘要、素材库自动分类、命令风险审核，均经 `apps/desktop-go/internal/core/gwstore/service_runtime.go` 的 `nomiPick("summary")` / `NomiRoute("summary")`）：`clients.nomi.models.summary`（显式指定） > 全局 `helperModel` > `clients.nomi.models.main`。
 - **主进程替 CLI 生成智能会话标题**（`gwstore/service_helper.go` 的 `HelperRoute`）：`summary` / `tiers.haiku` / `small` > 全局 `helperModel` > 当前标签或默认主模型。
-- **第三方 agents 会话内辅助请求**（如 Claude Code `haiku` 档 / `small` / `summary`）涉及两条生效链路，需同步接入回退：
+- **第三方 agent 会话内辅助请求**（如 Claude Code `haiku` 档 / `small` / `summary`）涉及两条生效链路，需同步接入回退：
   1. 子进程启动环境变量注入：`gwstore/agents/agents.go`（`claudeTier`）写入 `ANTHROPIC_SMALL_FAST_MODEL` 与 `ANTHROPIC_DEFAULT_HAIKU_MODEL`；
   2. 网关槽位路由映射：`gateway/clients/clients.go` 的 `SlotModel`（由 `gwstore/service_cli.go:CliLaunchForTab` 与 `apps/desktop-go/harness_gateway.go:UpdateTab` 构造 `config.ClientModels` 写入标签绑定）。
      回退顺序：`clients[cli].models.tiers.haiku` / `small` / `summary`（显式指定） > 全局 `helperModel` > 当前标签主模型。
@@ -156,7 +156,7 @@ export interface TaskRoutingSettings {
 
 ### 1. 跨任务 / 多标签同时运行：原生并发隔离
 
-每次新开 agents 标签、每次 Nomi 后台委派子任务、每次定时持续任务，都会生成独立的 `tabId` 并在子进程级别注入各自独立的配置与环境变量，**不修改用户任何全局 CLI 配置文件**：
+每次新开 agent 标签、每次 Nomi 后台委派子任务、每次定时持续任务，都会生成独立的 `tabId` 并在子进程级别注入各自独立的配置与环境变量，**不修改用户任何全局 CLI 配置文件**：
 
 - **`local` 来源标签**：不设置隔离 HOME 变量，执行可选自定义启动前缀，通过 `OfficialEnv` 清理遗留网关环境变量；
 - **`official` 来源标签**：注入该账号的独立 `CLAUDE_CONFIG_DIR` / `CODEX_HOME` / `GROK_HOME`，多账号之间凭据与会话互不干扰；
@@ -222,7 +222,7 @@ export interface TaskRoutingSettings {
 └────────────────────────────────────────────────────────────────────────────────┘
 
 ┌─ 2. 编程任务路由（Nomi 委派与持续任务） ───────────────────────────────────────┐
-│  允许 Nomi 将子任务委派给 agents                                     [ 开启 ] │
+│  允许 Nomi 将子任务委派给 agent                                     [ 开启 ] │
 │  按任务复杂度自动升降档（简单小改自动降轻量档，复杂重构升高级档）     [ 开启 ] │
 │  ───────────────────────────────────────────────────────────────────────────── │
 │  💻 代码开发与重构       [ ⚖️ 日常均衡 (CC · Sonnet 4.6)                 ▾ ]   │
@@ -245,7 +245,7 @@ export interface TaskRoutingSettings {
 
 ```text
 ┌─ 选择执行方式与模型 ───────────────────────────────────────────────────────────┐
-│ 左侧：选择 agents (CLI)   │ 右侧：选择来源通道与模型                          │
+│ 左侧：选择 agent (CLI)   │ 右侧：选择来源通道与模型                          │
 │                            │                                                   │
 │ ● Claude Code       已安装 │ ── 本机与官方账号（订阅额度）──────────────────── │
 │ ○ Codex             已安装 │ ○ 本机终端登录        沿用 ~/.claude 默认配置     │
@@ -294,8 +294,8 @@ export interface TaskRoutingSettings {
 4. **定时 / 持续任务表单（`Tasks/TaskForm.tsx`）**：
    - 执行者选择「Agents」时，提供执行方式下拉：「跟随『定时任务』路由档位（推荐）」/「指定档位预设」/「单独指定 CLI 与模型（打开 `RunnerModelPicker`）」，不再默认裸选 CLI 消耗官方主力额度。
 5. **官方额度 429 耗尽一键降级（`Messages.tsx` / `cliSlots.tsx` & `ErrorHint`）**：
-   - 由于 `packages/ai-chat/src/components/ErrorHint/index.tsx` 在 `MessageInput/index.tsx` 中仅绑定 Nomi 主对话的 `chatError`，agents 标签的运行错误不经过 `ErrorHint`，而是在对话流消息卡片中渲染；
-   - 因此，agents 标签侧在 `packages/ai-chat/src/components/Conversation/Messages.tsx` 的错误卡片操作区通过 `ConvSlots.errorActions`（由 `CliConversation.tsx` 与 `cliSlots.tsx` 的 `buildCliSlots` 注入切换回调）识别 `local` / `official` 标签收到的 429 / 订阅限额错误：若同一 CLI 在 `low` 档或网关中存在可用的第三方模型，渲染快捷按钮 **「切换本会话至 [🌱 轻量省钱档] 继续」**（点击后经跨源 `confirmDialog` 确认，调用 `setTabSource` 携带上下文切到第三方网关模型并重发/提示继续）；Nomi 主对话侧若遇到 429 限额则继续由 `ErrorHint` 承接。
+   - 由于 `packages/ai-chat/src/components/ErrorHint/index.tsx` 在 `MessageInput/index.tsx` 中仅绑定 Nomi 主对话的 `chatError`，agent 标签的运行错误不经过 `ErrorHint`，而是在对话流消息卡片中渲染；
+   - 因此，agent 标签侧在 `packages/ai-chat/src/components/Conversation/Messages.tsx` 的错误卡片操作区通过 `ConvSlots.errorActions`（由 `CliConversation.tsx` 与 `cliSlots.tsx` 的 `buildCliSlots` 注入切换回调）识别 `local` / `official` 标签收到的 429 / 订阅限额错误：若同一 CLI 在 `low` 档或网关中存在可用的第三方模型，渲染快捷按钮 **「切换本会话至 [🌱 轻量省钱档] 继续」**（点击后经跨源 `confirmDialog` 确认，调用 `setTabSource` 携带上下文切到第三方网关模型并重发/提示继续）；Nomi 主对话侧若遇到 429 限额则继续由 `ErrorHint` 承接。
 
 ### 5. 前端与多语言工程规范约束
 

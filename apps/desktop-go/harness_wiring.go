@@ -71,12 +71,12 @@ var harnessAccounts *accounts.AccountService
 
 // wireHarness：构造 HarnessOrchestrator，注册 harness.* 过程。
 // gateway = harnessGateway(gateway)（harness_gateway.go）。
-// cwdCheck / envAllow：agents 的工作目录策略与放行的环境变量（desktop.PermissionBroker）
+// cwdCheck / envAllow：agent 的工作目录策略与放行的环境变量（desktop.PermissionBroker）
 func wireHarness(router *contract.Router, userData, home string, hp hostPorts, gw *gwstore.Service, q *quality.Service,
 	cwdCheck func(dir string) string, envAllow func() []string, sbx *harness.SandboxDeps, projs *projects.Store) (*cli.CliPluginHost, func()) {
 	docs := hostports.Documents()
 	var o *harness.Orchestrator
-	// agents 插件宿主（CliPluginHost）
+	// agent 插件宿主（CliPluginHost）
 	plugins := jsrt.Call(func() *cli.CliPluginHost {
 		return cli.NewCliPluginHost(cli.CliPluginHostDeps{
 			Root: filepath.Join(userData, "cli-plugins"), Logger: stdLogger{}, Events: hostEvents{router},
@@ -231,9 +231,9 @@ func gatewayPort(gw *gwstore.Service) ports.HarnessGateway {
 	return harnessGateway{gw}
 }
 
-// wireNomiBroker：给 desktop.broker 接上 agents 设置。Nomi 对话的权限模式跟输入栏
+// wireNomiBroker：给 desktop.broker 接上 agent 设置。Nomi 对话的权限模式跟输入栏
 // （「完全放开」不适用）；工作区只认用户选过的目录（标签目录 / 最近列表 / 默认目录）；「全部自动」
-// 跟 agents 设置。broker 的调用方（PrepareChat、工具执行）都在 GIL 外，进编排器要拿 GIL。
+// 跟 agent 设置。broker 的调用方（PrepareChat、工具执行）都在 GIL 外，进编排器要拿 GIL。
 func wireNomiBroker(b *desktop.PermissionBroker, o *harness.Orchestrator) {
 	b.PermissionMode = func() desktop.PermMode {
 		m := jsrt.Call(o.MainPermissionMode)
@@ -259,7 +259,7 @@ func wireNomiBroker(b *desktop.PermissionBroker, o *harness.Orchestrator) {
 		return false
 	}
 	mascothandlers.LocalImageDirOk.Store(&dirOk)
-	// Nomi 自己的「工作区文件操作免确认」（没单独设过时跟随 agents 的「全部自动」）。
+	// Nomi 自己的「工作区文件操作免确认」（没单独设过时跟随 agent 的「全部自动」）。
 	// 输入栏切到「自动」时也要同步给工作区提示词与 deskfs，避免模型继续以为需要逐项确认。
 	b.AutoApprove = func() bool {
 		return jsrt.Call(o.NomiAutoApproveEnabled) || jsrt.Call(o.MainPermissionMode) == "auto"
@@ -269,7 +269,7 @@ func wireNomiBroker(b *desktop.PermissionBroker, o *harness.Orchestrator) {
 	}
 }
 
-// sandboxDeps：agents 的系统沙箱设置来自桌面权限（受保护文件夹、开关、「始终允许」）
+// sandboxDeps：agent 的系统沙箱设置来自桌面权限（受保护文件夹、开关、「始终允许」）
 func sandboxDeps(b *desktop.PermissionBroker) *harness.SandboxDeps {
 	return &harness.SandboxDeps{
 		Enabled:   b.CliSandboxEnabled,
@@ -315,7 +315,7 @@ func cliImageDirectoryAllowed(dir string) bool {
 	return false
 }
 
-// accountProcs：本机进程表（agents 监视同一份读取，短时间内复用）→ 账号服务的进程行；读不到 = nil
+// accountProcs：本机进程表（agent 监视同一份读取，短时间内复用）→ 账号服务的进程行；读不到 = nil
 func accountProcs() []accounts.ProcRow {
 	raw := agents.ReadProcesses(usage.Platform())
 	if raw == nil {

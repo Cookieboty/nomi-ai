@@ -1,6 +1,6 @@
 /**
- * 输入框左下角的「+」：给这条消息加东西 / 决定这条消息怎么处理（附件、@ 引用、交给 agents、知识库问答）。
- * 去别的页面的入口（模型、设置）不放这里。点外面或 Esc 关闭；「交给 agents」是第二层。
+ * 输入框左下角的「+」：给这条消息加东西 / 决定这条消息怎么处理（附件、@ 引用、交给 agent、知识库问答）。
+ * 去别的页面的入口（模型、设置）不放这里。点外面或 Esc 关闭；「交给 agent」是第二层。
  */
 import { Icon, t as tr } from '@nomi-ai/ui';
 import { IconPlus as Plus } from '@tabler/icons-react';

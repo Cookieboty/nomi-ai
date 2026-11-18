@@ -1,4 +1,4 @@
-// Package harness：agents 标签的编排器（Orchestrator）及其辅助。
+// Package harness：agent 标签的编排器（Orchestrator）及其辅助。
 package harness
 
 import (

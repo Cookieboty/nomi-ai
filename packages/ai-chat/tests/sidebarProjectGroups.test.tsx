@@ -269,7 +269,7 @@ describe('sidebar project groups', () => {
     setGroupByWorkspace(true);
   });
 
-  it('标题前不画端点图标；工坊「全部」里 agents 的会话在行尾有灰色端点图标，Nomi 没有', async () => {
+  it('标题前不画端点图标；工坊「全部」里 agent 的会话在行尾有灰色端点图标，Nomi 没有', async () => {
     setChatMode('normal');
     const r = mount();
     const app = (await r.findAllByTestId('workspace-group'))[0]!;

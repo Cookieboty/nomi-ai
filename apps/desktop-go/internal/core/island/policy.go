@@ -39,7 +39,7 @@ func Classify(kind, status string) Class {
 	case "attention":
 		switch kind {
 		case "agent":
-			// agents 要权限 / 等你确认
+			// agent 要权限 / 等你确认
 			return ClassActionable
 		case "message":
 			return ClassOther

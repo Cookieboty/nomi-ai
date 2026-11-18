@@ -11,7 +11,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
 
-// 没有「本机登录」：agents 只用 Nomi 管理的官方账号（各自独立的配置目录）或第三方模型。
+// 没有「本机登录」：agent 只用 Nomi 管理的官方账号（各自独立的配置目录）或第三方模型。
 // 旧版本存下的 local-<kind> 记录、以及指向它的默认账号在读取时删掉；没有账号时不退回 CLI 自己的登录。
 
 func TestLegacyLocalSignInIsDroppedAndNeverUsed(t *testing.T) {

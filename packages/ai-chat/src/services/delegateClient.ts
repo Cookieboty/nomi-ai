@@ -1,8 +1,8 @@
 import { BUILTIN_CLI_ORDER, type BuiltinCliId, byCli, cliName } from '@nomi-ai/cli-catalog';
 /**
- * Nomi 把 agents 当子代理调用（docs/development/coding-agents.md）：
+ * Nomi 把 agent 当子代理调用（docs/development/coding-agents.md）：
  * - 设置：总开关 + 按任务类型的默认 agent；
- * - `/agent`（旧名 `/cli`）：指定下一个需求交给哪个 agents。渲染层按 conversationId 记在
+ * - `/agent`（旧名 `/cli`）：指定下一个需求交给哪个 agent。渲染层按 conversationId 记在
  *   nextDelegatePins 里（输入框上方的 chip），发送时 consumeNextDelegate(turnId) 取出，
  *   经契约 `delegate.pin` 按 turnId 钉到主进程；钉住失败则中止发送。本轮结束 clearTurnPin。
  *   带需求的 `/agent` 和钉住后的下一条消息都走 `delegate.dispatch`，直接开始后台任务，
@@ -86,7 +86,7 @@ export interface DelegateSettings {
 }
 
 export interface DelegateSettingsView extends DelegateSettings {
-  /** 已安装、可以委派的 agents */
+  /** 已安装、可以委派的 agent */
   installed: DelegateCli[];
   pinned: DelegateCli | string | null;
   /** 合并后的可用档位 */
@@ -315,7 +315,7 @@ export interface NextDelegateMeta {
   label: string;
 }
 
-/** conversationId → 钉住的 agents 或预设（切换会话互不影响） */
+/** conversationId → 钉住的 agent 或预设（切换会话互不影响） */
 const nextDelegatePins = new Map<string, NextDelegatePin>();
 /** 预设 pin 对应的 CLI 与胶囊摘要（供 ComposerBar 与 dispatch 解析） */
 const nextDelegateMetas = new Map<string, NextDelegateMeta>();

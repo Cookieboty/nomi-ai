@@ -278,7 +278,7 @@ const CardBody: React.FC<{ target: SubagentTarget; columnMessages: readonly Conv
   columnMessages,
 }) => {
   const tabs = useHarnessTabs();
-  // 按「进程内子代理」打开的其实是 Nomi 的一次委派：看它的 agents 标签（和侧栏、标签同一个判断）
+  // 按「进程内子代理」打开的其实是 Nomi 的一次委派：看它的 agent 标签（和侧栏、标签同一个判断）
   const target = resolveDelegateTarget(raw, tabs.state?.tabs, columnMessages);
   if (target.kind === 'harness') return <HarnessBody tabId={target.tabId} />;
   if (target.kind === 'nomi-task') return <NomiTaskBody taskId={target.taskId} />;

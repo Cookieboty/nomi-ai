@@ -7,8 +7,8 @@ import { api, hasTransport } from './api';
  * Agents 官方账号（主进程 AccountService / AccountLogin，见 docs/development/coding-agents.md）：
  * 一个账号 = 一个 CLI 配置目录，登录由 CLI 自己完成。这里只有账号身份（用户名 / 邮箱 / 套餐），Nomi 不保存凭据。
  */
-/** 有官方账号的 agents（dsh 没有官方账号） */
-/** 有官方账号的 agents（清单 officialAccount）：dsh 与 Gemini 没有 */
+/** 有官方账号的 agent（dsh 没有官方账号） */
+/** 有官方账号的 agent（清单 officialAccount）：dsh 与 Gemini 没有 */
 export type AccountKind = Exclude<BuiltinCliId, 'dsh' | 'gemini'>;
 
 export interface AccountIdentity {
@@ -60,7 +60,7 @@ export interface LoginEvent {
   shellProxy?: string;
 }
 
-/** agents 是否沿用终端（如 ~/.zshrc）里的代理变量 */
+/** agent 是否沿用终端（如 ~/.zshrc）里的代理变量 */
 export interface CliNetworkState {
   useShellProxy: boolean;
   shellProxy: string | null;

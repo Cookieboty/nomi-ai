@@ -882,7 +882,7 @@ describe('ModelControls（会话的供应商分组）', () => {
       expect(row.textContent).not.toContain('anthropic/');
       expect(row.textContent).toContain('200K');
       expect(row.getAttribute('data-value')).toBe('mix/anthropic/claude-x');
-      // 生图模型不能给 agents 用，不列
+      // 生图模型不能给 agent 用，不列
       expect(within(menu).queryByTestId('model-mix/openai/gpt-image-2')).toBeNull();
       // 厂商分组标题按左侧图标栏的顺序
       const groups = () =>

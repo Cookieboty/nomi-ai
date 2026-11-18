@@ -287,7 +287,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     };
   }, [ipcClient]);
 
-  // 主标签接在 agents 上时，CLI 自发的一轮（后台子代理完成后的跟进）由主进程广播，这里落进当前会话
+  // 主标签接在 agent 上时，CLI 自发的一轮（后台子代理完成后的跟进）由主进程广播，这里落进当前会话
   useEffect(
     () =>
       harnessClient.onTabMessage(({ tabId, message }) => {

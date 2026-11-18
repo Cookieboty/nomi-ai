@@ -46,7 +46,7 @@ export interface CodingModelChoice {
   model: string;
 }
 
-/** 网关里能给 agents 用的模型（启用的供应商里启用的、不是明确不支持工具调用的） */
+/** 网关里能给 agent 用的模型（启用的供应商里启用的、不是明确不支持工具调用的） */
 export function codingModelChoices(s: GatewayState | null): CodingModelChoice[] {
   if (!s) return [];
   return pickerProviders(s.providers).flatMap((p) =>
@@ -62,7 +62,7 @@ export function codingModelChoices(s: GatewayState | null): CodingModelChoice[] 
   );
 }
 
-/** 网关里能给 agents 用的第三方供应商（按供应商归组的 codingModelChoices） */
+/** 网关里能给 agent 用的第三方供应商（按供应商归组的 codingModelChoices） */
 export interface CodingProvider {
   id: string;
   name: string;
@@ -101,7 +101,7 @@ export function providerLabel(s: GatewayState | null, id: string): string {
 }
 
 /**
- * 换到某个第三方供应商时用哪个模型：当前就在这个供应商下的模型 > 这个 agents 在「模型」页分配的模型
+ * 换到某个第三方供应商时用哪个模型：当前就在这个供应商下的模型 > 这个 agent 在「模型」页分配的模型
  * （属于这个供应商时）> 这个供应商的第一个模型。之后在模型按钮里随时换。
  */
 export function providerEntryRef(
@@ -171,7 +171,7 @@ export interface SessionModelGroup {
 
 /**
  * 聊过的第三方会话在模型按钮里列哪几个供应商：会话原来的供应商（上次用的模型所在）、
- * 当前选中的模型所在的供应商、这个 agents 在「模型」页的默认供应商，去重后按这个顺序。
+ * 当前选中的模型所在的供应商、这个 agent 在「模型」页的默认供应商，去重后按这个顺序。
  * 会话还没聊过（没有 lastServedRef）返回 null。模型按钮用它给供应商标签加说明。
  * 换到默认供应商并聊过一轮后，原来的供应商就是默认供应商，只剩一组。
  */
@@ -211,7 +211,7 @@ export interface SourceSwitch {
 }
 
 /**
- * 标签的来源（官方 / 第三方）与这个 agents 的「新标签默认用」不同时，模型按钮里多一组，
+ * 标签的来源（官方 / 第三方）与这个 agent 的「新标签默认用」不同时，模型按钮里多一组，
  * 一步切到默认来源：默认是官方 → 「切换到官方账号」；默认是第三方 → 默认供应商的全部模型。
  * 来源相同（或网关状态还没到、且目标来源不可用）返回 null。
  */

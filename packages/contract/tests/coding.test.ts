@@ -246,7 +246,7 @@ describe('appContract · D3 coding', () => {
       expect(got).toEqual([tabsState, null]);
       off();
       offNull();
-      // agents 的会话内容只推给对话窗口（契约 eventSurfaces）
+      // agent 的会话内容只推给对话窗口（契约 eventSurfaces）
       expect(canSubscribe(appContract, 'harness.tabsChanged', 'mascot')).toBe(false);
       expect(canSubscribe(appContract, 'agents.changed', 'mascot')).toBe(true);
     } finally {

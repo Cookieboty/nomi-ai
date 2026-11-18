@@ -1,5 +1,5 @@
 /**
- * `/agent 名字` 的参数补全：命令名后敲空格，列出 agents（来自委派设置里的已安装检测）。
+ * `/agent 名字` 的参数补全：命令名后敲空格，列出 agent（来自委派设置里的已安装检测）。
  * 已安装的排前面；没安装的照样列出但不可选。按显示名或 id 前缀过滤（不区分大小写）。
  */
 import { t } from '@nomi-ai/ui';
@@ -18,7 +18,7 @@ import { argPhase } from './parse';
 import { findCommand } from './registry';
 import type { SlashCommand } from './types';
 
-/** 带 agents 补全的命令（真名；旧名 /cli 经 findCommand 的隐藏别名落到它） */
+/** 带 agent 补全的命令（真名；旧名 /cli 经 findCommand 的隐藏别名落到它） */
 export const AGENT_COMMAND = 'agent';
 
 export interface AgentOption {

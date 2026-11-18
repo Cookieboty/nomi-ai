@@ -1485,7 +1485,7 @@ describe('ModelsPage', () => {
     ).toBe(true);
   });
 
-  describe('agents 的第三方模型', () => {
+  describe('agent 的第三方模型', () => {
     const seed = (m: ReturnType<typeof fakeMain>) => {
       m.state.providers = [
         {
@@ -1519,7 +1519,7 @@ describe('ModelsPage', () => {
       for (const k of ['claude', 'codex', 'gemini', 'grok', 'dsh'])
         expect(await screen.findByTestId(`cli-row-${k}`)).toBeTruthy();
       expect(screen.getByTestId('models-cli').textContent).not.toContain('安装');
-      // agents 只能选支持工具调用的模型
+      // agent 只能选支持工具调用的模型
       const opts = Array.from(
         (screen.getByTestId('cli-main-codex') as HTMLSelectElement).options,
       ).map((o) => o.value);
@@ -1690,7 +1690,7 @@ describe('ModelsPage', () => {
       );
     });
 
-    it('其它 agents：「更多」里只有辅助模型，可清回跟随主模型', async () => {
+    it('其它 agent：「更多」里只有辅助模型，可清回跟随主模型', async () => {
       const m = fakeMain();
       seed(m);
       m.state.clients.codex = { models: { main: 'ds/v4', summary: 'ds/flash' } };

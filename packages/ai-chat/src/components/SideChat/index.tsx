@@ -1,6 +1,6 @@
 /**
  * 侧边聊天面板：标签区里的一个标签（和子任务同一套：状态点、悬停卡片、拖动排序、拆分、铺满、弹出窗口）。
- * 只问 Nomi（只读、不委派 agents），内容不保存。对话区和输入栏用主对话同一套组件：
+ * 只问 Nomi（只读、不委派 agent），内容不保存。对话区和输入栏用主对话同一套组件：
  * ConversationView（工具步骤、重新生成、编辑重发）+ MessageInput（引用胶囊、图片 / 文件附件、排队、停止），
  * 模型 / 思考深度是主对话同一个选择器（NomiModelSwitch 的 binding，记在这个侧边聊天上）。
  * 数据在 services/sideChat（按聊天 id）。设计见 docs/design/side-tabs-workspace.md。
