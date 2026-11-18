@@ -61,6 +61,7 @@ func ClaudeUsageEnv(base *util.Obj) *util.Obj {
 
 // ClaudeFetcherDeps = ClaudeFetcherDeps（零值字段 = 默认）。
 type ClaudeFetcherDeps struct {
+	Invocation CliInvocation
 	ResolveBin func() (string, bool)
 	Run        func(cmd string, args []string, o RunOptions) *jsrt.Promise[RunResult]
 	Env        func() *util.Obj
@@ -106,6 +107,14 @@ func (f *ClaudeUsageFetcher) fetch(plan string) (out FetchOutcome) {
 		return FetchOutcome{Kind: "transient", Reason: "unsupported"}
 	}
 	bin := resolveBinSafe(f.d.ResolveBin, DefaultClaudeBin)
+	args := append([]string(nil), ClaudeUsageArgs...)
+	if f.d.Invocation != nil {
+		var err error
+		bin, args, err = f.d.Invocation("claude", bin, args)
+		if err != nil {
+			return FetchOutcome{Kind: "transient", Reason: "spawn-failed"}
+		}
+	}
 	if bin == "" {
 		return FetchOutcome{Kind: "transient", Reason: "not-installed"}
 	}
@@ -141,7 +150,7 @@ func (f *ClaudeUsageFetcher) fetch(plan string) (out FetchOutcome) {
 	if to == 0 {
 		to = ClaudeUsageTimeoutMs
 	}
-	r, err := jsrt.Await(run(bin, ClaudeUsageArgs, RunOptions{Cwd: dir, Env: envFn(), TimeoutMs: to, MaxBytes: StdoutLimit, Platform: f.d.Platform}))
+	r, err := jsrt.Await(run(bin, args, RunOptions{Cwd: dir, Env: envFn(), TimeoutMs: to, MaxBytes: StdoutLimit, Platform: f.d.Platform}))
 	if err != nil {
 		var pf *ProcessFailure
 		if errors.As(err, &pf) {

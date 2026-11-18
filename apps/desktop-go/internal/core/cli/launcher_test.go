@@ -34,6 +34,20 @@ func TestLauncherCommandIsAnArgumentVector(t *testing.T) {
 	}
 }
 
+func TestLauncherProbePreservesAuthAndQuotaArguments(t *testing.T) {
+	ConfigureLaunchers(t.TempDir())
+	t.Cleanup(func() { ConfigureLaunchers("") })
+	if err := SaveLauncher("claude", LauncherSettings{Enabled: true, Command: `"C:\Program Files\Wrapper\wrapper.exe" cli`, AccountSource: "local"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"auth", "status"}, {"-p", "/usage", "--output-format", "json"}} {
+		command, got, err := LauncherProbeInvocation("claude", "native-claude", args)
+		if err != nil || command != `C:\Program Files\Wrapper\wrapper.exe` || !reflect.DeepEqual(got, append([]string{"cli"}, args...)) {
+			t.Fatal("probe bypassed the custom launcher", command, got, err)
+		}
+	}
+}
+
 func TestLauncherMigratesClaudeOnlySettings(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "cli-launcher.json"), []byte(`{"enabled":true,"command":"reclaude cli","manageLogin":true}`), 0o600); err != nil {

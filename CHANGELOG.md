@@ -78,6 +78,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 - Choose local CLI sign-in or Nomi-managed accounts independently for Claude Code, Codex, Grok, Kimi Code and MiniMax Code. Use detected CLIs by default, with optional custom launch commands under advanced settings. Preserve protocol and resume arguments and keep third-party model launches unchanged. (`nomi` patch)
 - Fix missing daily Claude Code usage when a custom launcher uses a separate configuration directory. Discover and remember the log location reported by the CLI, retaining message deduplication across account directories. (`nomi` patch)
+- Use the configured CLI launcher for Claude and Codex login detection and subscription quota queries. Preserve local login environments instead of injecting Nomi account directories, avoid inferring wrapper authentication from the native CLI's configuration, and keep launcher diagnostics on stderr from corrupting Claude auth-status JSON. (`nomi` patch)
 
 ## 2.3.16 — 2026-11-16
 

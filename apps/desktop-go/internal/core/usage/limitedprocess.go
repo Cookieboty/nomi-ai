@@ -25,6 +25,9 @@ type RunResult struct {
 	Code   *int
 }
 
+// CliInvocation lets the composition root apply the same launcher as chat sessions.
+type CliInvocation func(kind, command string, args []string) (string, []string, error)
+
 type RunOptions struct {
 	Cwd       string
 	Env       *util.Obj

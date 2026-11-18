@@ -367,6 +367,8 @@ type AuthDeps struct {
 	HasSubscriptionData func(id string) bool
 	Salt                func() string
 	EnvFor              func(id string) *util.Obj
+	Invocation          CliInvocation
+	PreferCli           func(id string) bool
 }
 
 const authTTLMs = 5 * 60_000
@@ -377,7 +379,7 @@ var DefaultCliBin func(kind string) string
 var cmdBatExtRe = regexp.MustCompile(`(?i)\.(cmd|bat)$`)
 
 // runStatus = runStatus（"" , false = null）。须持锁调用（阻塞部分让出锁）。
-func runStatus(kind string, base *util.Obj) (string, bool) {
+func runStatus(kind string, base *util.Obj, invocation CliInvocation) (string, bool) {
 	if base == nil && DefaultCliEnv != nil {
 		base = DefaultCliEnv()
 	}
@@ -385,26 +387,34 @@ func runStatus(kind string, base *util.Obj) (string, bool) {
 		b := base
 		return ReadGrokAuthStatus(GrokAuthReaderDeps{Env: func() *util.Obj { return b }})
 	}
-	if DefaultCliBin == nil {
-		return "", false
-	}
-	bin := DefaultCliBin(kind)
-	if bin == "" {
-		return "", false
+	bin := ""
+	if DefaultCliBin != nil {
+		bin = DefaultCliBin(kind)
 	}
 	args := []string{"login", "status"}
 	if kind == "claude" {
 		args = []string{"auth", "status"}
 	}
+	if invocation != nil {
+		var err error
+		bin, args, err = invocation(kind, bin, args)
+		if err != nil {
+			return "", false
+		}
+	}
+	if bin == "" {
+		return "", false
+	}
 	env := base.Clone()
 	env.Set("NO_COLOR", "1")
 	file, argv, verbatim := bin, args, false
 	if Platform() == "win32" && cmdBatExtRe.MatchString(bin) {
-		comspec := os.Getenv("comspec")
-		if comspec == "" {
-			comspec = "cmd.exe"
+		var ok bool
+		file, argv, ok = WindowsShimLaunch(bin, args, env)
+		if !ok {
+			return "", false
 		}
-		file, argv, verbatim = comspec, []string{"/d", "/s", "/c", `"` + strings.Join(append([]string{bin}, args...), " ") + `"`}, true
+		verbatim = true
 	}
 	type res struct {
 		out, errb []byte
@@ -416,7 +426,19 @@ func runStatus(kind string, base *util.Obj) (string, bool) {
 		p.Resolve(res{o, e, err})
 	}()
 	r, _ := jsrt.Await(p)
-	out := nodeproc.DecodeChunk(r.out) + "\n" + nodeproc.DecodeChunk(r.errb)
+	stdout := nodeproc.DecodeChunk(r.out)
+	if kind == "claude" {
+		// A launcher can write diagnostics to stderr alongside valid auth-status JSON.
+		// Combining the streams makes that JSON unparsable and loses the logged-in identity.
+		if value, err := util.ParseString(stdout); err == nil {
+			if object, ok := value.(*util.Obj); ok && object != nil {
+				if _, ok := object.Get("authMethod").(string); ok {
+					return stdout, true
+				}
+			}
+		}
+	}
+	out := stdout + "\n" + nodeproc.DecodeChunk(r.errb)
 	if r.err == nil {
 		return out, true
 	}
@@ -623,7 +645,7 @@ func (a *AuthModeDetector) DetectPassive(id string) AuthInfo {
 	if !isAuthTool(id) {
 		return AuthInfo{Mode: AuthUnknown}
 	}
-	if id == "claude" {
+	if id == "claude" && !a.prefersCli(id) {
 		home, env := a.home(), a.envOf(id)
 		if p := ClaudeOAuthPresent(home, env); p != nil && !*p && ClaudeAuthFromConfig(home, env) != AuthAPI {
 			delete(a.cache, id)
@@ -643,7 +665,14 @@ func (a *AuthModeDetector) DetectPassive(id string) AuthInfo {
 	return a.afterCli(id, false)
 }
 
+func (a *AuthModeDetector) prefersCli(id string) bool {
+	return a.d.PreferCli != nil && a.d.PreferCli(id)
+}
+
 func (a *AuthModeDetector) beforeCli(id string) *AuthInfo {
+	if a.prefersCli(id) {
+		return nil // A wrapper may use a different home from the parent process.
+	}
 	home, env := a.home(), a.envOf(id)
 	if id == "claude" && ClaudeAuthFromConfig(home, env) == AuthAPI {
 		return &AuthInfo{Mode: AuthAPI}
@@ -660,10 +689,13 @@ func (a *AuthModeDetector) beforeCli(id string) *AuthInfo {
 func (a *AuthModeDetector) afterCli(id string, signedOut bool) AuthInfo {
 	home, env := a.home(), a.envOf(id)
 	var cfg string
-	switch id {
-	case "claude":
+	preferCli := a.prefersCli(id)
+	switch {
+	case preferCli:
+		// Do not infer the wrapper's identity from the native CLI's configuration.
+	case id == "claude":
 		cfg = ClaudeAuthFromConfig(home, env)
-	case "codex":
+	case id == "codex":
 		cfg = CodexAuthFromConfig(home, env)
 	default:
 		cfg = GrokAuthFromConfig(home, env)
@@ -697,7 +729,7 @@ func (a *AuthModeDetector) probe(id string) AuthInfo {
 		case id != "grok" && a.d.Run != nil:
 			text, ok = a.d.Run(id)
 		default:
-			text, ok = runStatus(id, a.cliEnv(id))
+			text, ok = runStatus(id, a.cliEnv(id), a.d.Invocation)
 		}
 	}()
 	has := ok && text != ""
