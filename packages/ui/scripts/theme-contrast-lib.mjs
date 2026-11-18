@@ -28,16 +28,20 @@ export function parseThemes(cssText) {
     blocks.push({ selector: m[1].trim(), vars });
   }
   const sels = (b) => b.selector.split(',').map((x) => x.trim());
-  // :root = 非颜色令牌 + 默认主题（light）的颜色；按出现顺序合并，与浏览器级联一致
-  const root = Object.assign(
-    {},
-    ...blocks.filter((b) => sels(b).includes(':root')).map((b) => b.vars),
-  );
   const out = {};
   for (const id of THEME_IDS) {
-    const b = blocks.find((x) => sels(x).includes(`[data-theme='${id}']`));
-    if (!b) throw new Error(`theme block missing: ${id}`);
-    out[id] = { ...root, ...b.vars };
+    // 与浏览器级联一致：选择器列表里含 `:root` 的块对「任何」主题都命中（<html> 永远是 root）；
+    // 而 :root 与 [data-theme='x'] 在同一元素上的特异性相同，所以一律按出现顺序合并，后者覆盖前者。
+    // 不能只取第一个匹配的块——`:root, [data-theme='light']` 这种组合选择器之后
+    // 可能还有一个纯 `[data-theme='light']` 块（见 --cd-workspace-bg）。
+    let vars = {};
+    for (const b of blocks) {
+      const s = sels(b);
+      if (s.includes(':root') || s.includes(`[data-theme='${id}']`)) Object.assign(vars, b.vars);
+    }
+    if (!blocks.some((b) => sels(b).includes(`[data-theme='${id}']`)))
+      throw new Error(`theme block missing: ${id}`);
+    out[id] = vars;
   }
   return out;
 }

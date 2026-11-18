@@ -126,6 +126,42 @@ describe('theme.ts swatches stay in sync with tokens.css', () => {
 });
 
 /**
+ * 防回退：主区画布色（--cd-workspace-bg）是「跟随各主题 surface」的默认值，
+ * 只有浅色 light 换成暖白画布 #faf9f6。不能把它写进 `:root, [data-theme='light']` 这种混合选择器——
+ * 选择器里的 :root 对任何主题都命中，且块的位置靠后会覆盖 :root 的默认值，导致所有主题的画布全变成浅色。
+ */
+describe('workspace canvas colour is light-only', () => {
+  const LIGHT_CANVAS = '#faf9f6';
+
+  it('light 用暖白画布', () => {
+    expect(hex('light', '--cd-workspace-bg').toLowerCase()).toBe(LIGHT_CANVAS);
+  });
+
+  it('其余主题的画布跟随各自的 surface，不被浅色污染', () => {
+    for (const id of ids.filter((x) => x !== 'light')) {
+      const bg = hex(id, '--cd-workspace-bg').toLowerCase();
+      const surface = hex(id, '--cd-color-surface').toLowerCase();
+      expect(bg, `${id} 的画布色应跟随 surface`).toBe(surface);
+      expect(bg, `${id} 的画布不应是 light 的暖白色`).not.toBe(LIGHT_CANVAS);
+    }
+  });
+
+  it(':root 里的 --cd-workspace-bg 只能是 var(--cd-color-surface)，不能写死颜色', () => {
+    const css = fs.readFileSync(tokensCss, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const offenders: string[] = [];
+    for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const sels = m[1].split(',').map((s) => s.trim());
+      if (!sels.includes(':root')) continue;
+      const declared = m[2].match(/--cd-workspace-bg\s*:\s*([^;]+);/);
+      if (declared && declared[1].trim() !== 'var(--cd-color-surface)') {
+        offenders.push(`${m[1].trim()} => ${declared[1].trim()}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
+/**
  * 防回退：浅色主题里把 --cd-color-accent / accent-2 直接当文字色（橙 / 浅橙在奶油底上仅 1.5–2:1）。
  * 文字、链接、图标一律用 --cd-color-accent-strong；选中态用 selected-bg + selected-text。
  */
