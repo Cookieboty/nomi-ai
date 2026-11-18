@@ -190,7 +190,14 @@ func wireUsage(router *contract.Router, userData string, desktopSvc *desktop.Ser
 			},
 			OnModelsData:        onData,
 			NeedsFullModelsData: needsFull,
+			CliInvocation:       cli.LauncherProbeInvocation,
+			PreferCliAuth: func(kind string) bool {
+				return (kind == "claude" || kind == "codex") && cli.LauncherFor(kind).Enabled
+			},
 			OfficialAccount: func(kind string, prepare bool) (*usage.OfficialAccount, error) {
+				if cli.LauncherManagesLogin(kind) {
+					return nil, nil // Keep the same local login/network configuration as chat.
+				}
 				a := accountsRef.Load()
 				if a == nil {
 					return nil, errors.New("accounts not ready")

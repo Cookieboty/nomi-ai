@@ -287,6 +287,38 @@ func LauncherInvocation(kind, bin string, args []string, official bool) (string,
 	return cmd, append(prefix, args...), nil
 }
 
+// LauncherProbeInvocation shares chat's executable prefix with auth and quota probes.
+// The launcher prefix is resolved like chat (ResolveHarnessLaunch): a bare name
+// such as "reclaude" becomes the found PATH entry ("reclaude.cmd" on Windows,
+// honoring PATHEXT) so probes can spawn what fd.Options would run.
+func LauncherProbeInvocation(kind, bin string, args []string) (string, []string, error) {
+	return launcherProbeInvocation(kind, bin, args, usage.Platform(), usage.ProcessEnv(), nil)
+}
+
+// launcherProbeInvocation is the testable form of LauncherProbeInvocation.
+func launcherProbeInvocation(kind, bin string, args []string, platform string, env *util.Obj, exists func(string) bool) (string, []string, error) {
+	cmd, argv, err := LauncherInvocation(kind, bin, args, true)
+	if err != nil {
+		return "", nil, err
+	}
+	// Same order as ResolveHarnessLaunch (chat): PATH lookup for bare names, then
+	// Windows extension filling; explicit paths only get the extension filled.
+	if !strings.ContainsAny(cmd, `/\`) {
+		if resolved := FindOnPath(cmd, env, platform, exists); resolved != "" {
+			cmd = resolved
+		} else {
+			cmd = WindowsExecutable(cmd, platform, exists)
+		}
+	} else {
+		cmd = WindowsExecutable(cmd, platform, exists)
+	}
+	if ext := strings.ToLower(filepath.Ext(cmd)); ext == ".js" || ext == ".mjs" {
+		argv = append([]string{cmd}, argv...)
+		cmd = ResolveNodeBin()
+	}
+	return cmd, argv, nil
+}
+
 // TestLauncherVersion probes the full launch chain, not the wrapper's own
 // version. Return only a version number, never arbitrary stdout or credentials.
 // Spawns via ResolveCliLaunch / nodeproc.RunSync so no shell is invoked outside safe Windows .cmd shims.

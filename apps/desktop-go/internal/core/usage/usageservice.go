@@ -145,6 +145,8 @@ type ServiceDeps struct {
 	ProviderName           func(id string) (string, bool)
 	Alert                  func(a UsageAlert) bool
 	AuthRun                func(kind string) (string, bool)
+	CliInvocation          CliInvocation
+	PreferCliAuth          func(kind string) bool
 	Platform               string
 	Env                    *util.Obj
 	ClaudeUsage            *ClaudeFetcherDeps
@@ -469,10 +471,13 @@ func NewUsageService(d ServiceDeps) *UsageService {
 	s.loadQuota()
 	s.claudeCache.SetOnChange(s.saveQuota)
 	s.grokCache.SetOnChange(s.saveQuota)
-	cd := ClaudeFetcherDeps{Now: d.Now, Env: func() *util.Obj { return ClaudeUsageEnv(s.accountLaunch("claude").env) }}
+	cd := ClaudeFetcherDeps{Invocation: d.CliInvocation, Now: d.Now, Env: func() *util.Obj { return ClaudeUsageEnv(s.accountLaunch("claude").env) }}
 	if d.ClaudeUsage != nil {
 		// { now, env, ...d.claudeUsage }：只覆盖调用方给了的字段
 		o := *d.ClaudeUsage
+		if o.Invocation == nil {
+			o.Invocation = cd.Invocation
+		}
 		if o.Now == nil {
 			o.Now = cd.Now
 		}
@@ -482,7 +487,7 @@ func NewUsageService(d ServiceDeps) *UsageService {
 		cd = o
 	}
 	s.claudeFetcher = NewClaudeUsageFetcher(cd)
-	xd := CodexRPCDeps{Now: d.Now, Salt: func() string { return s.salt },
+	xd := CodexRPCDeps{Invocation: d.CliInvocation, Now: d.Now, Salt: func() string { return s.salt },
 		Env: func() *util.Obj { return s.accountLaunch("codex").env }, ExtraArgs: func() []string { return s.accountLaunch("codex").args }}
 	if d.CodexRPC != nil {
 		xd = mergeCodexRPC(xd, *d.CodexRPC)
@@ -506,6 +511,7 @@ func NewUsageService(d ServiceDeps) *UsageService {
 		home = *d.Home
 	}
 	s.auth = NewAuthModeDetector(AuthDeps{Home: home, Env: d.Env, Now: d.Now, Run: d.AuthRun, Salt: func() string { return s.salt },
+		Invocation: d.CliInvocation, PreferCli: d.PreferCliAuth,
 		EnvFor: func(id string) *util.Obj {
 			if s.d.OfficialAccount != nil {
 				return s.accountEnv(id, false)
@@ -593,6 +599,9 @@ func NewUsageService(d ServiceDeps) *UsageService {
 
 // mergeCodexRPC = { ...defaults, ...d.codexRpc }（零值 = 未给）
 func mergeCodexRPC(xd, p CodexRPCDeps) CodexRPCDeps {
+	if p.Invocation == nil {
+		p.Invocation = xd.Invocation
+	}
 	if p.Env != nil {
 		xd.Env = p.Env
 	}

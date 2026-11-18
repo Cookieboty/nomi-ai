@@ -146,6 +146,7 @@ func (e *codexRPCError) Error() string { return e.kind }
 
 // CodexRPCDeps = CodexRpcDeps（零值字段 = 默认；Salt 必填）。
 type CodexRPCDeps struct {
+	Invocation    CliInvocation
 	ResolveBin    func() (string, bool)
 	SpawnFn       func(file string, args []string, o nodeproc.Options) *nodeproc.Child
 	Env           func() *util.Obj
@@ -172,6 +173,18 @@ func (c *CodexRateLimitReader) Fetch() *jsrt.Promise[FetchOutcome] {
 
 func (c *CodexRateLimitReader) fetch() (out FetchOutcome) {
 	bin := resolveBinSafe(c.d.ResolveBin, DefaultCodexBin)
+	var args []string
+	if c.d.ExtraArgs != nil {
+		args = append(args, c.d.ExtraArgs()...)
+	}
+	args = append(args, CodexAppServerArgs...)
+	if c.d.Invocation != nil {
+		var err error
+		bin, args, err = c.d.Invocation("codex", bin, args)
+		if err != nil {
+			return FetchOutcome{Kind: "transient", Reason: "spawn-failed"}
+		}
+	}
 	if bin == "" {
 		return FetchOutcome{Kind: "transient", Reason: "not-installed"}
 	}
@@ -214,11 +227,6 @@ func (c *CodexRateLimitReader) fetch() (out FetchOutcome) {
 		platform = Platform()
 	}
 	file := bin
-	var args []string
-	if c.d.ExtraArgs != nil {
-		args = append(args, c.d.ExtraArgs()...)
-	}
-	args = append(args, CodexAppServerArgs...)
 	if platform == "win32" && cmdBatRe.MatchString(bin) {
 		f, a, ok := WindowsShimLaunch(bin, args, env)
 		if !ok {

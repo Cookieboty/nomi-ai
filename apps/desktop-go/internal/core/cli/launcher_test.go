@@ -6,7 +6,10 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
 func TestLauncherCommandIsAnArgumentVector(t *testing.T) {
@@ -30,6 +33,20 @@ func TestLauncherCommandIsAnArgumentVector(t *testing.T) {
 	for _, bad := range []string{"", `"" cli`, `"unclosed`, `echo hi && claude`, `claude | more`, "claude\nother", "X=secret claude"} {
 		if _, _, err := ParseLauncherCommand(bad); err == nil {
 			t.Fatalf("accepted %q", bad)
+		}
+	}
+}
+
+func TestLauncherProbePreservesAuthAndQuotaArguments(t *testing.T) {
+	ConfigureLaunchers(t.TempDir())
+	t.Cleanup(func() { ConfigureLaunchers("") })
+	if err := SaveLauncher("claude", LauncherSettings{Enabled: true, Command: `"C:\Program Files\Wrapper\wrapper.exe" cli`, AccountSource: "local"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"auth", "status"}, {"-p", "/usage", "--output-format", "json"}} {
+		command, got, err := LauncherProbeInvocation("claude", "native-claude", args)
+		if err != nil || command != `C:\Program Files\Wrapper\wrapper.exe` || !reflect.DeepEqual(got, append([]string{"cli"}, args...)) {
+			t.Fatal("probe bypassed the custom launcher", command, got, err)
 		}
 	}
 }
@@ -169,5 +186,133 @@ func TestTestLauncherVersionDoesNotInvokeShell(t *testing.T) {
 		if got := ResolveLauncherBin("claude"); got != exe {
 			t.Fatalf("ResolveLauncherBin = %q, want %q", got, exe)
 		}
+	}
+}
+
+// Bare launcher names must resolve on a Windows-style PATH search (PATHEXT) so
+// login/quota probes spawn reclaude.cmd / reclaude.bat the way chat launches it.
+// The PATH entry is a host temp dir (no ":") so the host PATH separator is moot.
+func TestLauncherProbeResolvesBareWindowsShimOnPath(t *testing.T) {
+	ConfigureLaunchers(t.TempDir())
+	t.Cleanup(func() { ConfigureLaunchers("") })
+	if err := SaveLauncher("claude", LauncherSettings{Enabled: true, Command: "reclaude cli", AccountSource: "local"}); err != nil {
+		t.Fatal(err)
+	}
+	env := util.NewObj()
+	env.Set("PATHEXT", ".COM;.EXE;.BAT;.CMD")
+	for _, tc := range []struct {
+		name  string
+		want  string // "" = nothing found, keep the parsed bare name
+		files []string
+	}{
+		{"cmd shim", "reclaude.cmd", []string{"reclaude.cmd"}},
+		{"bat shim", "reclaude.bat", []string{"reclaude.bat"}},
+		{"exe wins over shim", "reclaude.exe", []string{"reclaude.cmd", "reclaude.exe"}},
+		{"bare command only", "", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Nested: FindOnPath's case-folding readdir runs against the real dir.
+			dir := filepath.Join(t.TempDir(), "bin")
+			if err := os.MkdirAll(dir, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			for _, f := range tc.files {
+				if err := os.WriteFile(filepath.Join(dir, f), nil, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			env.Set("PATH", dir)
+			// Windows probes reclaude.COM/.EXE/.BAT/.CMD first; a case-sensitive
+			// host FS is case-insensitive there, so match names case-insensitively
+			// against the real entries (and the nested dir keeps readdir out of it).
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			exists := func(p string) bool {
+				base := strings.ToLower(filepath.Base(p))
+				for _, e := range entries {
+					if strings.ToLower(e.Name()) == base {
+						return true
+					}
+				}
+				return false
+			}
+			args := []string{"-p", "--output-format", "json"}
+			cmd, argv, err := launcherProbeInvocation("claude", "native-claude", args, "win32", env, exists)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := "reclaude"
+			if tc.want != "" {
+				want = filepath.Join(dir, tc.want)
+			}
+			if cmd != want {
+				t.Fatalf("command = %q, want %q", cmd, want)
+			}
+			if !reflect.DeepEqual(argv, append([]string{"cli"}, args...)) {
+				t.Fatalf("protocol args must follow the user prefix: %#v", argv)
+			}
+		})
+	}
+}
+
+// Explicit paths stay untouched (only Windows extension filling applies).
+func TestLauncherProbeKeepsExplicitExecutablePaths(t *testing.T) {
+	ConfigureLaunchers(t.TempDir())
+	t.Cleanup(func() { ConfigureLaunchers("") })
+	env := util.NewObj()
+	env.Set("PATH", `C:\Users\me\bin`)
+	env.Set("PATHEXT", ".COM;.EXE;.BAT;.CMD")
+	for _, tc := range []struct {
+		command, want string
+		files         []string
+	}{
+		{`"C:\Tools\reclaude.exe" cli`, `C:\Tools\reclaude.exe`, nil},
+		{`C:\Tools\reclaude.cmd cli`, `C:\Tools\reclaude.cmd`, nil},
+		{`C:\Tools\reclaude cli`, `C:\Tools\reclaude.cmd`, []string{`C:\Tools\reclaude.cmd`}},
+		{`C:\Tools\reclaude cli`, `C:\Tools\reclaude`, nil},
+		{`./reclaude cli`, "./reclaude", nil},
+	} {
+		if err := SaveLauncher("claude", LauncherSettings{Enabled: true, Command: tc.command, AccountSource: "local"}); err != nil {
+			t.Fatal(err)
+		}
+		set := map[string]bool{}
+		for _, f := range tc.files {
+			set[f] = true
+		}
+		args := []string{"auth", "status"}
+		cmd, argv, err := launcherProbeInvocation("claude", "native-claude", args, "win32", env, func(p string) bool { return set[p] })
+		if err != nil || cmd != tc.want {
+			t.Fatalf("%q: got %q %v, want %q", tc.command, cmd, err, tc.want)
+		}
+		if !reflect.DeepEqual(argv, append([]string{"cli"}, args...)) {
+			t.Fatalf("%q: args = %#v", tc.command, argv)
+		}
+	}
+}
+
+// POSIX resolution still finds a bare launcher on PATH without inventing extensions.
+func TestLauncherProbeResolvesBareNameOnPosixPath(t *testing.T) {
+	ConfigureLaunchers(t.TempDir())
+	t.Cleanup(func() { ConfigureLaunchers("") })
+	if err := SaveLauncher("claude", LauncherSettings{Enabled: true, Command: "reclaude cli --org 5862", AccountSource: "local"}); err != nil {
+		t.Fatal(err)
+	}
+	dir := "/opt/bin"
+	env := util.NewObj()
+	env.Set("PATH", "/usr/bin"+string(os.PathListSeparator)+dir)
+	full := filepath.Join(dir, "reclaude")
+	exists := func(p string) bool { return p == full }
+	args := []string{"-p", "/usage", "--output-format", "json"}
+	cmd, argv, err := launcherProbeInvocation("claude", "native-claude", args, "linux", env, exists)
+	if err != nil || cmd != full {
+		t.Fatalf("got %q %v", cmd, err)
+	}
+	if !reflect.DeepEqual(argv, []string{"cli", "--org", "5862", "-p", "/usage", "--output-format", "json"}) {
+		t.Fatalf("args = %#v", argv)
+	}
+	if _, _, err := launcherProbeInvocation("claude", "native-claude", args, "linux", env, nil); err != nil {
+		t.Fatal(err)
 	}
 }
