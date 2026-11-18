@@ -161,8 +161,6 @@
   --cd-color-surface: #ffffff;
   --cd-color-surface-raised: #ffffff;
   --cd-color-surface-sunken: #f7f5f1;
-  /* 主区内容卡片底色改用暖白画布色：#fff 在暖色画布 / 侧栏上显得太白、层次跳 */
-  --cd-workspace-bg: #faf9f6;
   --cd-color-hover: #f2eee6;
   --cd-color-active: #e8e2d6;
   --cd-color-selected-bg: #f2dcd1;
@@ -241,6 +239,16 @@
   --cd-bubble-text: #211d19;
   --cd-bubble-link: #85331f;
   --cd-bubble-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+/*
+ * 主区画布：只有浅色主题换成暖白画布色（#fff 在暖色画布 / 侧栏上显得太白、层次跳）。
+ * 其余主题沿用 :root 里的 --cd-workspace-bg: var(--cd-color-surface)，跟随各自 surface。
+ * 注意：不能写进上面的「:root, [data-theme='light']」块——那里的 :root 对任何主题都命中，
+ * 会把所有主题的画布色一起改掉。
+ */
+[data-theme='light'] {
+  --cd-workspace-bg: #faf9f6;
 }
 
 /* 日落橙 Sunset：暖奶油 + 日落橙的品牌主题 */
