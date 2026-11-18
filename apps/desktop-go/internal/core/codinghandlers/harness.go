@@ -155,12 +155,25 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 	})
 	call("harness.modelCatalog", func(a in) any {
 		src := "official"
-		if a.any("source") == "thirdParty" {
+		switch a.any("source") {
+		case "thirdParty":
 			src = "thirdParty"
+		case "local":
+			src = "local"
 		}
 		return await(h().ModelCatalogFor(a.str("backend"), a.is("refresh"), src))
 	})
-	call("harness.tabSource", func(a in) any { return h().SetTabSource(a.str("id"), a.any("source"), a.strP("model")) })
+	call("harness.tabSource", func(a in) any {
+		res := h().SetTabSource(a.str("id"), a.any("source"), a.strP("model"))
+		if a.any("source") == "official" && a.o.Has("accountId") {
+			accID := a.strP("accountId")
+			if accID != nil && *accID == "" {
+				accID = nil
+			}
+			res = h().SetTabAccount(a.str("id"), accID)
+		}
+		return res
+	})
 	call("harness.tabModel", func(a in) any { return h().SetTabModel(a.str("id"), a.str("model"), a.str("expectSource")) })
 	call("harness.tabAccount", func(a in) any {
 		id := a.strP("accountId")

@@ -13,8 +13,10 @@ export function thirdPartyProviderSource(
 ): ProviderPageSource | null {
   if (!providers.length) return null;
   const current = ref ? splitRef(ref) : null;
+  const fallback = !current?.provider && providers.length === 1 ? providers[0] : undefined;
+  const activeId = current?.provider ?? fallback?.id ?? '';
   const name =
-    providers.find((p) => p.id === current?.provider)?.name ??
+    providers.find((p) => p.id === activeId)?.name ??
     current?.provider ??
     t('ui.providers-schedule.not-configured');
   return {
@@ -22,7 +24,7 @@ export function thirdPartyProviderSource(
     rowLabel: t('ui.models.third-party-providers'),
     rowValue: name,
     rowAriaLabel: t('ui.models.switch-third-party-provider', name),
-    value: current?.provider ?? '',
+    value: activeId,
     options: providers.map((p) => ({
       value: p.id,
       label: p.name,

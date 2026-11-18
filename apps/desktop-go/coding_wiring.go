@@ -10,6 +10,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/runtime/igtools"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/delegate"
@@ -175,11 +176,16 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 		log.Printf("[desktop-go] cliUpdate: %v", err)
 		updates = nil
 	}
+	hasOfficialAcc := func(k string) bool {
+		return acc != nil && jsrt.Call(func() bool { return acc.HasSignedInAccount(k) })
+	}
 	dd := delegate.Deps{
 		Root: filepath.Join(userData, "delegate"), Harness: delegateHarness{o}, Desktop: delegateDesktop{d},
 		Events: hostEvents{router}, Claims: delegateClaims, Edits: delegateEdits,
-		// 内存守护正扣着新的编程助手时：同步委派等缓解（后台 Nomi 里）或改成后台委派（前台对话里）
-		MemoryCritical: fleetHolding,
+		// 内存守护正扣着新的 agents 时：同步委派等缓解（后台 Nomi 里）或改成后台委派（前台对话里）
+		MemoryCritical:     fleetHolding,
+		HasOfficialAccount: hasOfficialAcc,
+		HasLocalLogin:      func(k string) bool { return cli.HasLocalLogin(k, "") },
 	}
 	// 后台委派 = 持续任务（docs/features/scheduling-calendar.md）：排队、重试、重启续跑、验收都走任务
 	if taskSvc != nil {
@@ -188,7 +194,18 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 	var gatewaySession func(backend, sessionID string) bool
 	if gw != nil {
 		dd.Gateway = delegateGateway{gw}
+		dd.ThirdPartyMain = func(k string) string { return util.Str(gw.CliDefaults(k).Get("model")) }
 		gatewaySession = gw.ServedSession
+		// 旧版本「本机登录」在 cli-launcher.json 记作 accountSource:"local"：无损同步到 gwstore.newTabSource="local"
+		for _, kind := range builtin.Ordered {
+			if !builtin.WithAccounts(kind) || cli.LauncherFor(kind).AccountSource != "local" {
+				continue
+			}
+			def := gw.CliDefaults(kind)
+			if def != nil && def.Get("source") == "official" && !util.Truthy(def.Get("accountId")) && !hasOfficialAcc(kind) {
+				_ = gw.SetAssignment(kind, util.NewObj("newTabSource", "local"))
+			}
+		}
 	}
 	dlg := delegate.New(dd)
 	delegateSvc.Store(dlg)
@@ -221,7 +238,7 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 			})
 		})
 	}
-	// 提示词与工具门控按「现在有没有能委派的编程助手」走（没有时 Nomi 自己写代码、跑命令）
+	// 提示词与工具门控按「现在有没有能委派的 agents」走（没有时 Nomi 自己写代码、跑命令）
 	codingcli.Set(dlg.CliAvailable)
 	// DesktopToolsPlugin：delegate.tools() 覆盖 registerIgTools 的占位（保持插入位置），dangerous 未声明
 	if reg != nil {

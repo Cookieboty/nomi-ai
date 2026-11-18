@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ModelControls } from '../src/components/ModelControls';
 import { thirdPartyProviderSource } from '../src/components/ModelControls/providerSource';
 import type { BackendModelCatalog, HarnessTabMeta } from '../src/services/harnessClient';
+import { resetGatewayStateCache } from '../src/services/nomiModel';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
@@ -14,6 +15,7 @@ vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).f
 afterEach(() => {
   cleanup();
   resetFakeApi();
+  resetGatewayStateCache();
 });
 
 function setup(reasoning = true, error?: string) {
@@ -187,5 +189,71 @@ describe('第三方供应商选择', () => {
     expect(source.onChange('a')).toBe('effort');
     expect(onPick).not.toHaveBeenCalled();
     expect(thirdPartyProviderSource([], null, onPick)).toBeNull();
+    const only = thirdPartyProviderSource(
+      [{ id: 'amux', name: 'Amux AI', models: [{ id: 'gpt-4o' }] }],
+      null,
+      onPick,
+    )!;
+    expect(only.value).toBe('amux');
+    expect(only.rowValue).toBe('Amux AI');
+  });
+
+  it('仅有 1 家第三方供应商且未显式分配时，Gemini 默认选中首模型且供应商行显示供应商名而非「未配置」', async () => {
+    const tab: HarnessTabMeta = {
+      id: 'gm',
+      title: 'Gemini',
+      backend: 'gemini',
+      cwd: '/w',
+      cliSessionId: null,
+      status: 'idle',
+      unread: 0,
+      createdAt: 0,
+      updatedAt: 0,
+      source: 'thirdParty',
+      modelOverride: null,
+      reasoningEffort: null,
+    };
+    const providers = [
+      {
+        id: 'amux',
+        name: 'Amux AI',
+        enabled: true,
+        source: 'user',
+        urls: { chat: 'https://example.com' },
+        keys: [],
+        models: [
+          { id: 'gpt-4o', enabled: true, toolCalling: true },
+          { id: 'gpt-6.1-sol', enabled: true, toolCalling: true },
+        ],
+      },
+    ];
+    const catalog: BackendModelCatalog = {
+      backend: 'gemini',
+      provider: { id: 'gateway', name: '第三方模型' },
+      defaultModel: null,
+      models: [
+        { id: 'amux/gpt-4o', label: 'Amux AI / gpt-4o', reasoning: false, efforts: [] },
+        { id: 'amux/gpt-6.1-sol', label: 'Amux AI / gpt-6.1-sol', reasoning: false, efforts: [] },
+      ],
+    };
+    installFakeApi(async (ch: string) => {
+      if (ch === 'gateway.state') {
+        return {
+          providers,
+          clients: { gemini: { models: {} } },
+          status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
+          allowedPrivateHosts: [],
+          port: 1,
+        };
+      }
+      if (ch === 'harness.modelCatalog') return catalog;
+      return {};
+    });
+    const r = render(<ModelControls tab={tab} />);
+    await waitFor(() => expect(r.getByTestId('model-chip').textContent).toContain('gpt-4o'));
+    fireEvent.click(r.getByTestId('model-chip'));
+    const provBtn = await r.findByTestId('model-provider-open');
+    expect(provBtn.textContent).toContain('Amux AI');
+    expect(provBtn.textContent).not.toContain('未配置');
   });
 });

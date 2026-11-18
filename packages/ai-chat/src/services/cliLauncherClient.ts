@@ -9,8 +9,11 @@ export interface CliLauncherSettings {
   accountSource: 'local' | 'nomi';
 }
 
+type RawLauncherSettings = Partial<CliLauncherSettings> & { hasLocalLogin?: boolean };
+
 const DEFAULT: CliLauncherSettings = { enabled: false, command: '', accountSource: 'nomi' };
 let current: Record<string, CliLauncherSettings> = {};
+let localLogins: Record<string, boolean> = {};
 let loaded = false;
 let loading: Promise<Record<string, CliLauncherSettings>> | null = null;
 const listeners = new Set<() => void>();
@@ -19,8 +22,13 @@ const normalize = (value: Partial<CliLauncherSettings> | null): CliLauncherSetti
   command: typeof value?.command === 'string' ? value.command : '',
   accountSource: value?.accountSource === 'local' ? 'local' : 'nomi',
 });
-const publish = (value: Record<string, Partial<CliLauncherSettings>>) => {
+const publish = (value: Record<string, RawLauncherSettings>) => {
   current = Object.fromEntries(Object.entries(value).map(([kind, s]) => [kind, normalize(s)]));
+  const nextLocal: Record<string, boolean> = {};
+  for (const [kind, s] of Object.entries(value)) {
+    nextLocal[kind] = s?.hasLocalLogin === true;
+  }
+  localLogins = nextLocal;
   loaded = true;
   listeners.forEach((fn) => fn());
   return current;
@@ -37,20 +45,27 @@ export const cliLauncherClient = {
     if (loaded || !hasTransport()) return Promise.resolve(current);
     loading ??= api.cli
       .launcherGet()
-      .then(publish)
+      .then((res) => publish(res as Record<string, RawLauncherSettings>))
       .finally(() => {
         loading = null;
       });
     return loading;
   },
   save: async (kind: string, settings: CliLauncherSettings) => {
-    const saved = normalize(await api.cli.launcherSet({ kind, settings }));
-    publish({ ...current, [kind]: saved });
+    const raw = (await api.cli.launcherSet({ kind, settings })) as RawLauncherSettings | null;
+    const saved = normalize(raw);
+    publish({
+      ...Object.fromEntries(
+        Object.entries(current).map(([k, v]) => [k, { ...v, hasLocalLogin: localLogins[k] }]),
+      ),
+      [kind]: { ...saved, hasLocalLogin: raw?.hasLocalLogin === true },
+    });
     return saved;
   },
   test: (kind: string, command: string) => api.cli.launcherTest({ kind, command }),
   resetCache: () => {
     current = {};
+    localLogins = {};
     loaded = false;
     loading = null;
   },
@@ -69,4 +84,12 @@ export function useCliLauncher(kind: string | null | undefined): CliLauncherSett
     void cliLauncherClient.get().catch(() => undefined);
   }, []);
   return settings;
+}
+
+export function useHasLocalLogin(kind: string | null | undefined): boolean {
+  const hasLocal = useSyncExternalStore(subscribe, () => !!(kind && localLogins[kind]));
+  useEffect(() => {
+    void cliLauncherClient.get().catch(() => undefined);
+  }, []);
+  return hasLocal;
 }

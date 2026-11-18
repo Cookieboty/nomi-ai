@@ -85,11 +85,34 @@ func LauncherFor(kind string) LauncherSettings {
 	return LauncherSettings{AccountSource: "nomi"}
 }
 
+// LauncherView 暴露给契约与设置界面的视图快照（含本机默认目录登录探测，不落盘）。
+type LauncherView struct {
+	LauncherSettings
+	HasLocalLogin bool `json:"hasLocalLogin"`
+}
+
+func LauncherViewFor(kind string) LauncherView {
+	return LauncherView{
+		LauncherSettings: LauncherFor(kind),
+		HasLocalLogin:    HasLocalLogin(kind, ""),
+	}
+}
+
 func Launchers() map[string]LauncherSettings {
 	out := map[string]LauncherSettings{}
 	for _, kind := range builtin.IDs {
 		if builtin.WithAccounts(kind) {
 			out[kind] = LauncherFor(kind)
+		}
+	}
+	return out
+}
+
+func LaunchersView() map[string]LauncherView {
+	out := map[string]LauncherView{}
+	for _, kind := range builtin.IDs {
+		if builtin.WithAccounts(kind) {
+			out[kind] = LauncherViewFor(kind)
 		}
 	}
 	return out
@@ -114,6 +137,13 @@ func validLauncher(s LauncherSettings) error {
 func SaveLauncher(kind string, s LauncherSettings) error {
 	if !builtin.WithAccounts(kind) {
 		return errors.New(i18n.T("electron.common.cli-launcher-invalid"))
+	}
+	if s.AccountSource == "" {
+		if prev := LauncherFor(kind).AccountSource; prev == "local" || prev == "nomi" {
+			s.AccountSource = prev
+		} else {
+			s.AccountSource = "nomi"
+		}
 	}
 	s.Command = strings.TrimSpace(s.Command)
 	if err := validLauncher(s); err != nil {
@@ -327,4 +357,71 @@ func TestLauncherVersion(kind, command string) (string, error) {
 		return "", errors.New(i18n.T("electron.common.cli-launcher-test-failed"))
 	}
 	return version, nil
+}
+
+// HasLocalLogin reports whether the CLI's default user home has an existing
+// local login or custom launcher enabled. Only performs fast filesystem checks.
+func HasLocalLogin(kind, home string) bool {
+	if !builtin.WithAccounts(kind) {
+		return false
+	}
+	if LauncherFor(kind).Enabled {
+		return true
+	}
+	var env *util.Obj
+	if home == "" {
+		home = usage.Homedir()
+		env = usage.ProcessEnv()
+	} else {
+		env = util.NewObj()
+	}
+	switch kind {
+	case "claude":
+		dir := usage.ClaudeConfigDir(home, env)
+		if usage.ExistsSync(filepath.Join(dir, ".credentials.json")) {
+			return true
+		}
+		for _, candidate := range []string{filepath.Join(dir, ".claude.json"), filepath.Join(home, ".claude.json")} {
+			if hasClaudeOAuthAccount(candidate) {
+				return true
+			}
+		}
+		return false
+	case "codex":
+		dir := usage.CodexHomeDir(home, env)
+		return usage.ExistsSync(filepath.Join(dir, "auth.json"))
+	case "grok":
+		if usage.HasGrokLocalPresence(home, env) {
+			return true
+		}
+		return usage.ExistsSync(filepath.Join(usage.GrokHomeDir(home, env), "auth.json"))
+	default:
+		impl := builtin.Impl(kind)
+		if impl == nil || impl.Accounts == nil || impl.Accounts.UserHome == nil || impl.Accounts.SignedIn == nil {
+			return false
+		}
+		envMap := map[string]string{}
+		for _, k := range env.Keys() {
+			if s, ok := env.Get(k).(string); ok {
+				envMap[k] = s
+			}
+		}
+		root := impl.Accounts.UserHome(envMap, home)
+		return root != "" && impl.Accounts.SignedIn(root)
+	}
+}
+
+func hasClaudeOAuthAccount(path string) bool {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	var doc struct {
+		OAuthAccount json.RawMessage `json:"oauthAccount"`
+	}
+	if json.Unmarshal(b, &doc) != nil {
+		return false
+	}
+	trimmed := strings.TrimSpace(string(doc.OAuthAccount))
+	return trimmed != "" && trimmed != "null" && trimmed != "{}"
 }

@@ -24,6 +24,17 @@ type StreamState struct {
 	NoticeText string
 }
 
+// isAutoModeBlockedText 检查错误文本或诊断信息是否指示 Claude auto 模式分类器不可用。
+func isAutoModeBlockedText(s string) bool {
+	if s == "" {
+		return false
+	}
+	lower := strings.ToLower(s)
+	return strings.Contains(lower, "auto mode can't check actions in this session") ||
+		strings.Contains(lower, "auto_mode_no_check_in_session") ||
+		strings.Contains(lower, "auto_mode_no_server_check")
+}
+
 func extractResultErrors(j *util.Obj) string {
 	if j == nil {
 		return ""
@@ -243,17 +254,25 @@ func ParseLine(line string, state *StreamState) []Ev {
 			}
 			// auto 模式在第三方网关下分类器不可用，所有要检查的动作都被拒 ——
 			// 把真正的原因说清楚，而不是只留一句 error_during_execution。
-			if state != nil && state.DeniedCode == "auto_mode_no_check_in_session" {
+			blocked := (state != nil && state.DeniedCode == "auto_mode_no_check_in_session") ||
+				isAutoModeBlockedText(msg) || isAutoModeBlockedText(detail)
+			if blocked {
 				msg = T("electron.common.auto-mode-cannot-check-actions")
-				if len(state.DeniedTools) > 0 {
+				if state != nil && len(state.DeniedTools) > 0 {
 					msg += " (" + strings.Join(state.DeniedTools, ", ") + ")"
 				}
-				state.DeniedCode, state.DeniedTools = "", nil
+				if state != nil {
+					state.DeniedCode, state.DeniedTools = "", nil
+				}
 			} else if state != nil {
 				state.DeniedTools = nil
 			}
 			// 出错的一轮也带上会话 id：续接靠它（否则下一轮成了新会话）
-			out = append(out, WithOpt(O("type", "error", "message", msg), "sessionId", OptStr(j.Get("session_id"))))
+			errEv := O("type", "error", "message", msg)
+			if blocked {
+				errEv.Set("code", "auto_mode_no_check_in_session")
+			}
+			out = append(out, WithOpt(errEv, "sessionId", OptStr(j.Get("session_id"))))
 		} else {
 			image := sh.ImageMarkdown(j.Get("result"), true)
 			out = append(out, WithOpt(WithOpt(O("type", "done", "text", sh.TextWithImage(text, image)), "sessionId", StrOr(j.Get("session_id"))), "usage", usage))
@@ -345,6 +364,11 @@ func ParseLine(line string, state *StreamState) []Ev {
 		// error carrying task_id instead of task_notification. Preserve the
 		// child lifecycle event so its card cannot remain stuck in running.
 		if ev := taskEvent(j); ev != nil {
+			rawErr := JSString(Coalesce(j.Get("error"), j.Get("message"), j.Get("summary"), ""))
+			if isAutoModeBlockedText(rawErr) {
+				ev.Set("code", "auto_mode_no_check_in_session")
+				ev.Set("summary", T("electron.common.auto-mode-cannot-check-actions"))
+			}
 			out = append(out, ev)
 			break
 		}
@@ -353,7 +377,12 @@ func ParseLine(line string, state *StreamState) []Ev {
 		if m != nil {
 			msg = JSString(m)
 		}
-		out = append(out, O("type", "error", "message", msg))
+		errEv := O("type", "error", "message", msg)
+		if isAutoModeBlockedText(msg) {
+			errEv.Set("message", T("electron.common.auto-mode-cannot-check-actions"))
+			errEv.Set("code", "auto_mode_no_check_in_session")
+		}
+		out = append(out, errEv)
 	case typ == "control_request":
 		reqID := util.Str(j.Get("request_id"))
 		req := util.AsObj(Coalesce(j.Get("request"), util.NewObj()))
@@ -421,8 +450,13 @@ func ParseLine(line string, state *StreamState) []Ev {
 					if errd {
 						status = "error"
 					}
-					out = append(out, WithOpt(WithOpt(O("type", "tool", "name", "tool", "status", status),
-						"detail", StrOr(c.Get("tool_use_id"))), "output", sh.OutputText(c.Get("content")), "parentId", parent))
+					outText := sh.OutputText(c.Get("content"))
+					ev := WithOpt(WithOpt(O("type", "tool", "name", "tool", "status", status),
+						"detail", StrOr(c.Get("tool_use_id"))), "output", outText, "parentId", parent)
+					if errd && outText != nil && isAutoModeBlockedText(*outText) {
+						ev.Set("code", "auto_mode_no_check_in_session")
+					}
+					out = append(out, ev)
 					out = append(out, sh.ImageEvent(c.Get("content"), true, false)...)
 				}
 			}
@@ -561,11 +595,22 @@ func taskEvent(j *util.Obj) Ev {
 	status, ok := sh.AgentEndStatus[JSString(Coalesce(statusValue, ""))]
 	if (sub == "task_notification" || sub == "task_updated" || sub == "task_progress" || sub == "error") && ok {
 		var sum *string
+		blocked := false
 		if s := OptStr(j.Get("summary")); s != nil {
-			x := Slice0(*s, 2000)
-			sum = &x
+			if isAutoModeBlockedText(*s) {
+				blocked = true
+				x := T("electron.common.auto-mode-cannot-check-actions")
+				sum = &x
+			} else {
+				x := Slice0(*s, 2000)
+				sum = &x
+			}
 		}
-		return WithOpt(O("type", "agent", "op", "end", "id", id, "status", status), "callId", OptStr(j.Get("tool_use_id")), "summary", sum, "usage", usage)
+		ev := WithOpt(O("type", "agent", "op", "end", "id", id, "status", status), "callId", OptStr(j.Get("tool_use_id")), "summary", sum, "usage", usage)
+		if blocked {
+			ev.Set("code", "auto_mode_no_check_in_session")
+		}
+		return ev
 	}
 	return nil
 }

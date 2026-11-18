@@ -1,23 +1,69 @@
-import { BUILTIN_CLI_ORDER, type BuiltinCliId, byCli } from '@nomi-ai/cli-catalog';
+import { BUILTIN_CLI_ORDER, type BuiltinCliId, byCli, cliName } from '@nomi-ai/cli-catalog';
 /**
- * Nomi 把编程助手当子代理调用（docs/development/coding-agents.md）：
- * - 设置：总开关 + 按任务类型的默认编程助手；
- * - `/agent`（旧名 `/cli`）：指定下一个需求交给哪个编程助手。渲染层按 conversationId 记在
+ * Nomi 把 agents 当子代理调用（docs/development/coding-agents.md）：
+ * - 设置：总开关 + 按任务类型的默认 agent；
+ * - `/agent`（旧名 `/cli`）：指定下一个需求交给哪个 agent。渲染层按 conversationId 记在
  *   nextDelegatePins 里（输入框上方的 chip），发送时 consumeNextDelegate(turnId) 取出，
  *   经契约 `delegate.pin` 按 turnId 钉到主进程；钉住失败则中止发送。本轮结束 clearTurnPin。
  *   带需求的 `/agent` 和钉住后的下一条消息都走 `delegate.dispatch`，直接开始后台任务，
  *   不指望对话模型去调工具。
  */
 import { t } from '@nomi-ai/ui';
+import { useEffect, useState } from 'react';
 
 import { api, hasTransport } from './api';
-import type { HarnessUsage } from './harnessClient';
+import {
+  accountDisplayLabel,
+  cachedAccountLabel,
+  isDefaultAccountLabel,
+  type CliAccount,
+} from './cliAccountClient';
+import { refSlashLabel } from './cliSource';
+import type { GatewayState } from './gatewayClient';
+import type { HarnessUsage, ReasoningEffort } from './harnessClient';
 
 export const DELEGATE_CLIS = BUILTIN_CLI_ORDER;
 export type DelegateCli = BuiltinCliId;
 
 export const DELEGATE_KINDS = ['coding', 'prd', 'review', 'research'] as const;
 export type DelegateKind = (typeof DELEGATE_KINDS)[number];
+
+export type RunnerSource = 'local' | 'official' | 'thirdParty';
+export type CostTier = 'high' | 'medium' | 'low';
+export type RunnerEffort = ReasoningEffort;
+
+export interface RunnerPreset {
+  id: string;
+  label: string;
+  cli: DelegateCli;
+  source: RunnerSource;
+  accountId?: string | null;
+  model?: string | null;
+  reasoningEffort?: RunnerEffort | null;
+  costTier?: CostTier;
+}
+
+export const ROUTABLE_TASK_KINDS = [
+  'coding',
+  'review',
+  'research',
+  'prd',
+  'scheduled',
+  'complex',
+  'simple',
+] as const;
+export type RoutableTaskKind = (typeof ROUTABLE_TASK_KINDS)[number];
+
+export type RouteTarget =
+  | { kind: 'preset'; presetId: string }
+  | {
+      kind: 'custom';
+      cli: DelegateCli;
+      source: RunnerSource;
+      accountId?: string | null;
+      model?: string | null;
+      reasoningEffort?: RunnerEffort | null;
+    };
 
 /** 委派模型档位（与主进程 AgentProfile 对齐） */
 export interface AgentProfile {
@@ -34,14 +80,19 @@ export interface DelegateSettings {
   defaultProfileId?: string;
   profiles?: AgentProfile[];
   cheapModel?: string;
+  autoComplexity?: boolean;
+  presets?: RunnerPreset[];
+  routes?: Partial<Record<RoutableTaskKind, RouteTarget>>;
 }
 
 export interface DelegateSettingsView extends DelegateSettings {
-  /** 已安装、可以委派的编程助手 */
+  /** 已安装、可以委派的 agents */
   installed: DelegateCli[];
-  pinned: DelegateCli | null;
+  pinned: DelegateCli | string | null;
   /** 合并后的可用档位 */
   availableProfiles: AgentProfile[];
+  /** 各支持账号的 CLI 在本机默认目录是否已有终端登录 */
+  localAvailable?: Partial<Record<DelegateCli, boolean>>;
 }
 
 /** 主进程 delegate_to_cli 交回 Nomi 的结果（工具调用的 output） */
@@ -61,6 +112,7 @@ export interface DelegateResult {
   filesVerified: boolean;
   approvals: { asked: number; denied: number; timedOut: number };
   error?: string;
+  startedAt?: number;
   durationMs: number;
   usage?: HarnessUsage;
   isolationNote?: string;
@@ -89,6 +141,80 @@ export function delegateKindLabel(k: DelegateKind): string {
   }
 }
 
+export function routableTaskKindLabel(k: RoutableTaskKind): string {
+  switch (k) {
+    case 'complex':
+      return t('ui.chat-settings.route-kind-complex');
+    case 'coding':
+      return t('ui.chat-settings.route-kind-coding');
+    case 'review':
+      return t('ui.slash-commands.code-review');
+    case 'research':
+      return t('ui.chat-settings.route-kind-research');
+    case 'prd':
+      return t('ui.chat-settings.route-kind-prd');
+    case 'simple':
+      return t('ui.chat-settings.route-kind-simple');
+    case 'scheduled':
+      return t('ui.chat-settings.route-kind-scheduled');
+  }
+}
+
+/** 返回档位在界面的国际化展示名（内置三档走前端 i18n，自定义档位按用户命名显示）。 */
+export function presetDisplayLabel(p: Pick<RunnerPreset, 'id' | 'label'>): string {
+  switch (p.id) {
+    case 'high':
+      return t('ui.models.preset-builtin-high');
+    case 'balanced':
+      return t('ui.models.preset-builtin-balanced');
+    case 'low':
+      return t('ui.models.preset-builtin-low');
+    default:
+      return p.label;
+  }
+}
+
+export function formatRunnerSourceLabel(
+  source: RunnerSource,
+  accountId: string | null | undefined,
+  accounts?: CliAccount[],
+): string {
+  if (source === 'local') return t('ui.models.runner-picker-local-label');
+  if (source === 'official') {
+    const officialBase = t('ui.chat-settings.official-accounts');
+    if (accountId) {
+      const acc = accounts?.find((a) => a.id === accountId);
+      const label = acc ? accountDisplayLabel(acc) : cachedAccountLabel(accountId);
+      if (!label) return officialBase;
+      if (isDefaultAccountLabel(label)) return label;
+      return t('ui.models.runner-picker-official-account-label', label);
+    }
+    return officialBase;
+  }
+  return t('ui.cli-monitor.third-party');
+}
+
+export function formatRunnerSummary(
+  spec: {
+    cli: DelegateCli;
+    source: RunnerSource;
+    accountId?: string | null;
+    model?: string | null;
+  },
+  gateway?: GatewayState | null,
+  accounts?: CliAccount[],
+): string {
+  const assistant = cliName(spec.cli);
+  if (spec.source === 'thirdParty') {
+    const modelText = spec.model
+      ? refSlashLabel(gateway ?? null, spec.model)
+      : t('ui.cli-monitor.third-party');
+    return `${assistant} · ${modelText}`;
+  }
+  const srcLabel = formatRunnerSourceLabel(spec.source, spec.accountId, accounts);
+  return spec.model ? `${assistant} · ${srcLabel} · ${spec.model}` : `${assistant} · ${srcLabel}`;
+}
+
 const ALIASES: Record<string, DelegateCli> = {
   ...byCli((id) => id),
   'claude-code': 'claude',
@@ -96,7 +222,7 @@ const ALIASES: Record<string, DelegateCli> = {
   cc: 'claude',
 };
 
-/** `/agent` 后面的名字 → 编程助手 id（不区分大小写，接受别名）；认不出返回 null */
+/** `/agent` 后面的名字 → Agents id（不区分大小写，接受别名）；认不出返回 null */
 export function resolveDelegateCli(name: string): DelegateCli | null {
   return ALIASES[name.trim().toLowerCase().replace(/\s+/g, '-')] ?? null;
 }
@@ -120,17 +246,25 @@ export const delegateClient = {
   settings: () => call<DelegateSettingsView>(() => api.delegate.settings()),
   setSettings: (s: Partial<DelegateSettings>) =>
     call<DelegateSettings>(() => api.delegate.setSettings({ settings: s as never })),
-  /** 按 turnId 钉到主进程；turnId 与本轮 Nomi reqId 对齐 */
-  pin: (cli: DelegateCli | null, turnId: string) =>
-    call<DelegateCli | null>(() => api.delegate.pin({ cli, turnId })),
+  /** 按 turnId 钉到主进程；支持 cli 或 `preset:<id>`；turnId 与本轮 Nomi reqId 对齐 */
+  pin: (target: DelegateCli | string | null, turnId: string) =>
+    call<DelegateCli | string | null>(() =>
+      target && target.startsWith('preset:')
+        ? api.delegate.pin({ presetId: target.slice('preset:'.length), turnId })
+        : api.delegate.pin({ cli: (target as DelegateCli | null) ?? null, turnId }),
+    ),
   clearPin: (turnId: string) => call<boolean>(() => api.delegate.clearPin({ turnId })),
   /**
-   * `/agent 名字 需求`：直接派出，不经过对话模型。`context` 是需求之外的背景（附图地址等）；
-   * `signal` 中止时内核取消还在等的确认。
+   * `/agent 名字 需求` 或按 preset / source 直接派出，不经过对话模型。
    */
   dispatch: (
     input: {
-      cli: DelegateCli;
+      cli?: DelegateCli;
+      presetId?: string;
+      source?: RunnerSource;
+      accountId?: string;
+      model?: string;
+      reasoningEffort?: RunnerEffort;
       goal: string;
       context?: string;
       conversationId?: string;
@@ -148,10 +282,43 @@ export const delegateClient = {
       : () => undefined,
 };
 
+/** 按需读取委派启用状态下的预设档位（菜单/弹窗关闭时不触发请求） */
+export function useDelegatePresets(active = true): RunnerPreset[] {
+  const [presets, setPresets] = useState<RunnerPreset[]>([]);
+  useEffect(() => {
+    if (!active || !hasTransport()) return;
+    let alive = true;
+    void delegateClient
+      .settings()
+      .then((v) => {
+        if (alive) setPresets(v?.enabled && Array.isArray(v.presets) ? v.presets : []);
+      })
+      .catch(() => {
+        if (alive) setPresets([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [active]);
+  return active ? presets : [];
+}
+
 // ───────────────────────── 下一个需求交给谁（按会话；输入框上方的 chip） ─────────────────────────
 
-/** conversationId → 钉住的编程助手（切换会话互不影响） */
-const nextDelegatePins = new Map<string, DelegateCli>();
+export type NextDelegatePin = DelegateCli | `preset:${string}`;
+
+export const isPresetPin = (v: string | null | undefined): v is `preset:${string}` =>
+  !!v && v.startsWith('preset:');
+
+export interface NextDelegateMeta {
+  cli: DelegateCli;
+  label: string;
+}
+
+/** conversationId → 钉住的 agents 或预设（切换会话互不影响） */
+const nextDelegatePins = new Map<string, NextDelegatePin>();
+/** 预设 pin 对应的 CLI 与胶囊摘要（供 ComposerBar 与 dispatch 解析） */
+const nextDelegateMetas = new Map<string, NextDelegateMeta>();
 /** 当前输入框所属会话；未绑定时用 ''（单测 / 未开会话） */
 let activeConversationId = '';
 const listeners = new Set<() => void>();
@@ -168,16 +335,38 @@ export function bindNextDelegateConversation(conversationId: string | null | und
   notify();
 }
 
-export function getNextDelegate(): DelegateCli | null {
+export function getNextDelegate(): NextDelegatePin | null {
   return nextDelegatePins.get(activeConversationId) ?? null;
 }
 
-export function setNextDelegate(cli: DelegateCli | null): void {
+export function getNextDelegateMeta(
+  target?: NextDelegatePin | null,
+  convoId = activeConversationId,
+): NextDelegateMeta | null {
+  if (target && !isPresetPin(target)) {
+    return { cli: target, label: cliName(target) };
+  }
+  return nextDelegateMetas.get(convoId) ?? null;
+}
+
+export function setNextDelegate(target: NextDelegatePin | null, meta?: NextDelegateMeta): void {
   const id = activeConversationId;
   const cur = nextDelegatePins.get(id) ?? null;
-  if (cli === cur) return;
-  if (cli) nextDelegatePins.set(id, cli);
-  else nextDelegatePins.delete(id);
+  const curMeta = nextDelegateMetas.get(id) ?? null;
+  if (
+    target === cur &&
+    (meta?.cli ?? null) === (curMeta?.cli ?? null) &&
+    (meta?.label ?? null) === (curMeta?.label ?? null)
+  )
+    return;
+  if (target) {
+    nextDelegatePins.set(id, target);
+    if (meta) nextDelegateMetas.set(id, meta);
+    else nextDelegateMetas.delete(id);
+  } else {
+    nextDelegatePins.delete(id);
+    nextDelegateMetas.delete(id);
+  }
   notify();
 }
 
@@ -190,14 +379,14 @@ export function subscribeNextDelegate(fn: () => void): () => void {
  * 发送 Nomi 消息时取出并清除本会话的 chip，经 IPC 按 turnId 钉到主进程。
  * 钉住失败抛错：调用方必须中止发送（不要附加「交给 X」继续）。
  */
-export async function consumeNextDelegate(turnId: string): Promise<DelegateCli | null> {
+export async function consumeNextDelegate(turnId: string): Promise<NextDelegatePin | null> {
   const id = activeConversationId;
-  const cli = nextDelegatePins.get(id) ?? null;
-  if (!cli) return null;
-  await delegateClient.pin(cli, turnId);
+  const target = nextDelegatePins.get(id) ?? null;
+  if (!target) return null;
+  await delegateClient.pin(target, turnId);
   nextDelegatePins.delete(id);
   notify();
-  return cli;
+  return target;
 }
 
 /** 本轮结束（无论是否委派）清除主进程该 turn 的钉住 */

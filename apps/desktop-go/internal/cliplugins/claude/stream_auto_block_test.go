@@ -59,3 +59,42 @@ func TestAutoModeBlockedResultExplained(t *testing.T) {
 		t.Fatalf("state should be reset after explaining: %q %v", state.DeniedCode, state.DeniedTools)
 	}
 }
+
+// 即便前置没有收到 system/permission_denied，只要 result/errors、子代理结束事件或 tool_result
+// 里出现了 Claude auto 模式分类器不可用的文本，也应准确翻译并标上 code=auto_mode_no_check_in_session。
+func TestAutoModeBlockedDiagnosticsWithoutPermissionDeniedEvent(t *testing.T) {
+	state := &StreamState{}
+	diag := `[ede_diagnostic] result_type=user last_content_type=n/a stop_reason=tool_use; Auto mode can't check actions in this session, so Claude stopped after a run of responses whose actions were refused. Use another permission mode to continue.`
+	rawResult := fmt.Sprintf(`{"type":"result","subtype":"error_during_execution","is_error":true,"errors":[%q],"session_id":"s1"}`, diag)
+	evs := ParseLine(rawResult, state)
+	var errEvFound bool
+	for _, e := range evs {
+		if e.Get("type") == "error" {
+			errEvFound = true
+			if e.Get("code") != "auto_mode_no_check_in_session" {
+				t.Fatalf("error event should carry auto_mode_no_check_in_session code: %v", e)
+			}
+			msg := fmt.Sprint(e.Get("message"))
+			if strings.Contains(msg, "error_during_execution") || strings.Contains(msg, "ede_diagnostic") {
+				t.Fatalf("error message should be translated cleanly, got: %q", msg)
+			}
+		}
+	}
+	if !errEvFound {
+		t.Fatalf("expected error event from result: %v", evs)
+	}
+
+	// 子代理 task_notification 里的同类文本也应识别并标记
+	subNotif := fmt.Sprintf(`{"type":"system","subtype":"task_notification","task_id":"agent_1","status":"failed","summary":%q}`, diag)
+	evs = ParseLine(subNotif, &StreamState{})
+	if len(evs) != 1 || evs[0].Get("type") != "agent" || evs[0].Get("code") != "auto_mode_no_check_in_session" {
+		t.Fatalf("subagent failure should carry auto_mode_no_check_in_session code: %v", evs)
+	}
+
+	// tool_result 错误文本命中也应标记
+	toolErr := fmt.Sprintf(`{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tu_1","is_error":true,"content":%q}]}}`, diag)
+	evs = ParseLine(toolErr, &StreamState{})
+	if len(evs) != 1 || evs[0].Get("type") != "tool" || evs[0].Get("code") != "auto_mode_no_check_in_session" {
+		t.Fatalf("tool_result error should carry auto_mode_no_check_in_session code: %v", evs)
+	}
+}

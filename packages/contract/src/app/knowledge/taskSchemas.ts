@@ -58,7 +58,11 @@ export const TaskExecutorSpec = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('cli'),
     cli: z.string().min(1),
+    source: z.enum(['local', 'official', 'thirdParty']).optional(),
+    accountId: z.string().nullable().optional(),
+    presetId: z.string().optional(),
     model: z.string().optional(),
+    reasoningEffort: z.string().optional(),
     cwd: z.string().min(1),
     isolation: z.enum(['worktree', 'shared']),
     /** 基线分支：是别的分支（不在当前分支的历史里）时才开 worktree，否则直接在 cwd 里改 */
@@ -78,7 +82,7 @@ export const TaskGrantInput = z.object({
   paths: z.array(z.string()),
   connections: z.array(TaskConnectionGrant),
   clis: z.array(z.string()).optional(),
-  /** 编程助手沙箱里预先允许的类别（ssh / cloud / keys / browser / personal / secret-files）；有 GitHub 对外能力时内核自动加 ssh */
+  /** agents 沙箱里预先允许的类别（ssh / cloud / keys / browser / personal / secret-files）；有 GitHub 对外能力时内核自动加 ssh */
   sandbox: z.array(z.string()).optional(),
   /** 按风险自动判断（默认开；L3 及以上才生效，显式 false = 每条命令都问我）：命令交给命令审核，放行就直接跑，只有高风险才问人 */
   autoJudge: z.boolean().optional(),

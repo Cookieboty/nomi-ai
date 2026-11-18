@@ -121,7 +121,11 @@ export function useSidebarSessions({
   );
 
   /** projectId：指定项目（项目行上的「新建」）；null = 不放进项目；缺省用新建菜单里选的项目 */
-  const createFor = async (backend: ConversationBackend, projectId?: string | null) => {
+  const createFor = async (
+    backend: ConversationBackend,
+    projectId?: string | null,
+    preset?: Parameters<Tabs['create']>[2],
+  ) => {
     setNewMenu(false);
     leaveRef.current?.();
     const pid = projectId === undefined ? (chosenProject ?? null) : projectId;
@@ -138,7 +142,7 @@ export function useSidebarSessions({
         return;
       }
       if (!tabs.available) return;
-      await tabs.create(backend, pid ?? undefined);
+      await tabs.create(backend, pid ?? undefined, preset);
       refresh();
     } catch (e) {
       onNotice?.(t('ui.cli-monitor.new-chat-failed', e instanceof Error ? e.message : String(e)));

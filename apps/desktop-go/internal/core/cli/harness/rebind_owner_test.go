@@ -24,15 +24,29 @@ func TestRebindDelegationChecksExpectedOwner(t *testing.T) {
 			t.Fatalf("setup: %s", util.Stringify(o.tab(id)))
 		}
 		owner := func() string { d, _ := o.tab(id).Get("delegation").(*util.Obj); return util.Str(d.Get("taskId")) }
-		if !o.RebindDelegation(id, util.NewObj("goal", "a", "taskId", "A", "expectTaskId", "prev")) || owner() != "A" {
+		if !o.RebindDelegation(id, util.NewObj("title", "Nomi · 认领 A", "goal", "a", "callId", "call-A", "taskId", "A", "expectTaskId", "prev")) || owner() != "A" {
 			t.Fatal("A should claim the tab")
+		}
+		dA, _ := o.tab(id).Get("delegation").(*util.Obj)
+		if prevTasks, _ := dA.Get("prevTaskIds").([]any); len(prevTasks) != 1 || prevTasks[0] != "prev" {
+			t.Fatalf("prevTaskIds = %v, want [prev]", prevTasks)
+		}
+		if gotTitle := util.Str(o.tab(id).Get("title")); gotTitle != "Nomi · 认领 A" {
+			t.Fatalf("rebound tab title = %q, want Nomi · 认领 A", gotTitle)
 		}
 		if o.RebindDelegation(id, util.NewObj("goal", "b", "taskId", "B", "expectTaskId", "prev")) || owner() != "A" {
 			t.Fatalf("B saw a stale owner and must not overwrite A (owner %q)", owner())
 		}
 		// A 在发出前取消：下一个任务看到的拥有者是 A，照常复用（不会一直被占着）
-		if !o.RebindDelegation(id, util.NewObj("goal", "c", "taskId", "C", "expectTaskId", "A")) || owner() != "C" {
+		if !o.RebindDelegation(id, util.NewObj("goal", "c", "callId", "call-C", "taskId", "C", "expectTaskId", "A")) || owner() != "C" {
 			t.Fatal("C should reuse the tab")
+		}
+		dC, _ := o.tab(id).Get("delegation").(*util.Obj)
+		if prevCalls, _ := dC.Get("prevCallIds").([]any); len(prevCalls) != 1 || prevCalls[0] != "call-A" {
+			t.Fatalf("prevCallIds = %v, want [call-A]", prevCalls)
+		}
+		if prevTasks, _ := dC.Get("prevTaskIds").([]any); len(prevTasks) != 2 || prevTasks[0] != "prev" || prevTasks[1] != "A" {
+			t.Fatalf("prevTaskIds = %v, want [prev A]", prevTasks)
 		}
 		if !o.RebindDelegation(id, util.NewObj("goal", "d", "taskId", "D")) || owner() != "D" {
 			t.Fatal("rebind without an expected owner keeps working")

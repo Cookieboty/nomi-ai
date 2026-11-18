@@ -6857,12 +6857,14 @@
         "local",
         "nomi"
        ]
+      },
+      "hasLocalLogin": {
+       "type": "boolean"
       }
      },
      "required": [
       "enabled",
-      "command",
-      "accountSource"
+      "command"
      ],
      "additionalProperties": false
     }
@@ -6897,12 +6899,14 @@
          "local",
          "nomi"
         ]
+       },
+       "hasLocalLogin": {
+        "type": "boolean"
        }
       },
       "required": [
        "enabled",
-       "command",
-       "accountSource"
+       "command"
       ]
      }
     },
@@ -6928,12 +6932,14 @@
        "local",
        "nomi"
       ]
+     },
+     "hasLocalLogin": {
+      "type": "boolean"
      }
     },
     "required": [
      "enabled",
-     "command",
-     "accountSource"
+     "command"
     ],
     "additionalProperties": false
    }
@@ -9367,6 +9373,30 @@
       "type": "string",
       "minLength": 1
      },
+     "presetId": {
+      "type": "string",
+      "minLength": 1
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "local",
+       "official",
+       "thirdParty"
+      ]
+     },
+     "accountId": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "model": {
+      "type": "string"
+     },
+     "reasoningEffort": {
+      "type": "string"
+     },
      "goal": {
       "type": "string",
       "minLength": 1,
@@ -9387,7 +9417,6 @@
      }
     },
     "required": [
-     "cli",
      "goal"
     ]
    },
@@ -9446,12 +9475,17 @@
        "null"
       ]
      },
+     "presetId": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
      "turnId": {
       "type": "string"
      }
     },
     "required": [
-     "cli",
      "turnId"
     ]
    },
@@ -9496,6 +9530,141 @@
       "additionalProperties": {
        "type": "string"
       }
+     },
+     "autoComplexity": {
+      "type": "boolean"
+     },
+     "presets": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "builtin": {
+         "type": "boolean"
+        },
+        "label": {
+         "type": "string"
+        },
+        "cli": {
+         "type": "string"
+        },
+        "source": {
+         "type": "string",
+         "enum": [
+          "local",
+          "official",
+          "thirdParty"
+         ]
+        },
+        "accountId": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "model": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "reasoningEffort": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "costTier": {
+         "type": "string",
+         "enum": [
+          "high",
+          "medium",
+          "low"
+         ]
+        }
+       },
+       "required": [
+        "id",
+        "label",
+        "cli",
+        "source"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "routes": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "kind": {
+           "type": "string",
+           "const": "preset"
+          },
+          "presetId": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "kind",
+          "presetId"
+         ],
+         "additionalProperties": {}
+        },
+        {
+         "type": "object",
+         "properties": {
+          "kind": {
+           "type": "string",
+           "const": "custom"
+          },
+          "cli": {
+           "type": "string"
+          },
+          "source": {
+           "type": "string",
+           "enum": [
+            "local",
+            "official",
+            "thirdParty"
+           ]
+          },
+          "accountId": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "model": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "reasoningEffort": {
+           "type": [
+            "string",
+            "null"
+           ]
+          }
+         },
+         "required": [
+          "kind",
+          "cli",
+          "source"
+         ],
+         "additionalProperties": {}
+        }
+       ]
+      }
      }
     },
     "required": [
@@ -9539,6 +9708,150 @@
        "string",
        "null"
       ]
+     },
+     "autoComplexity": {
+      "type": "boolean"
+     },
+     "presets": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "builtin": {
+         "type": "boolean"
+        },
+        "label": {
+         "type": "string"
+        },
+        "cli": {
+         "type": "string"
+        },
+        "source": {
+         "type": "string",
+         "enum": [
+          "local",
+          "official",
+          "thirdParty"
+         ]
+        },
+        "accountId": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "model": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "reasoningEffort": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "costTier": {
+         "type": "string",
+         "enum": [
+          "high",
+          "medium",
+          "low"
+         ]
+        }
+       },
+       "required": [
+        "id",
+        "label",
+        "cli",
+        "source"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "routes": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "kind": {
+           "type": "string",
+           "const": "preset"
+          },
+          "presetId": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "kind",
+          "presetId"
+         ],
+         "additionalProperties": {}
+        },
+        {
+         "type": "object",
+         "properties": {
+          "kind": {
+           "type": "string",
+           "const": "custom"
+          },
+          "cli": {
+           "type": "string"
+          },
+          "source": {
+           "type": "string",
+           "enum": [
+            "local",
+            "official",
+            "thirdParty"
+           ]
+          },
+          "accountId": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "model": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "reasoningEffort": {
+           "type": [
+            "string",
+            "null"
+           ]
+          }
+         },
+         "required": [
+          "kind",
+          "cli",
+          "source"
+         ],
+         "additionalProperties": {}
+        }
+       ]
+      }
+     },
+     "localAvailable": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "boolean"
+      }
      }
     },
     "required": [
@@ -18574,6 +18887,7 @@
        "newTabSource": {
         "type": "string",
         "enum": [
+         "local",
          "official",
          "thirdParty"
         ]
@@ -18613,6 +18927,12 @@
      },
      "contextTier": {
       "type": "number"
+     },
+     "helperModel": {
+      "type": [
+       "string",
+       "null"
+      ]
      },
      "privacyMode": {
       "type": "boolean"
@@ -20284,6 +20604,7 @@
      "source": {
       "type": "string",
       "enum": [
+       "local",
        "official",
        "thirdParty"
       ]
@@ -22633,6 +22954,7 @@
      "expectSource": {
       "type": "string",
       "enum": [
+       "local",
        "official",
        "thirdParty"
       ]
@@ -23401,12 +23723,19 @@
      "source": {
       "type": "string",
       "enum": [
+       "local",
        "official",
        "thirdParty"
       ]
      },
      "model": {
       "type": "string"
+     },
+     "accountId": {
+      "type": [
+       "string",
+       "null"
+      ]
      }
     },
     "required": [
@@ -30543,7 +30872,27 @@
           "type": "string",
           "minLength": 1
          },
+         "source": {
+          "type": "string",
+          "enum": [
+           "local",
+           "official",
+           "thirdParty"
+          ]
+         },
+         "accountId": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "presetId": {
+          "type": "string"
+         },
          "model": {
+          "type": "string"
+         },
+         "reasoningEffort": {
           "type": "string"
          },
          "cwd": {

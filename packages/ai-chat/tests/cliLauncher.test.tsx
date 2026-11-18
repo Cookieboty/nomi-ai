@@ -24,10 +24,10 @@ afterEach(() => {
   cliLauncherClient.resetCache();
 });
 
-it('uses local sign-in without a custom command and keeps each CLI independent', async () => {
+it('coexists local sign-in without a custom command and keeps each CLI independent', async () => {
   const settings: Record<string, CliLauncherSettings> = {
     claude: { enabled: true, command: 'reclaude cli', accountSource: 'local' },
-    codex: { enabled: false, command: '', accountSource: 'nomi' },
+    codex: { enabled: false, command: '', accountSource: 'local' },
   };
   const invoke = vi.fn(async (name: string, input?: unknown) => {
     if (name === 'cli.launcherGet') return settings;
@@ -42,19 +42,37 @@ it('uses local sign-in without a custom command and keeps each CLI independent',
   installFakeApi(invoke);
   const r = render(<CliLauncherCard kind="codex" />);
   await waitFor(() => expect(invoke).toHaveBeenCalledWith('cli.launcherGet'));
-  fireEvent.click(r.getByTestId('cli-account-source-local'));
-  fireEvent.click(r.getByTestId('cli-launcher-save'));
-  await waitFor(() => expect(settings.codex.accountSource).toBe('local'));
+  await waitFor(() => expect(launcherManagesLogin('codex')).toBe(true));
   expect(settings.codex.enabled).toBe(false);
   expect(settings.claude.command).toBe('reclaude cli');
-  expect(launcherManagesLogin('codex')).toBe(true);
   expect(launcherManagesLogin('grok')).toBe(false);
   expect(
-    newTabSelectValue({ models: { main: null }, newTabAccountId: 'old-account' } as never, 'codex'),
+    newTabSelectValue({ models: { main: null }, newTabSource: 'local' } as never, 'codex'),
+  ).toBe('local');
+  expect(
+    newTabSelectValue(
+      { models: { main: null }, newTabSource: 'official', newTabAccountId: null } as never,
+      'codex',
+    ),
   ).toBe('follow');
   expect(
-    newTabOptions({ kind: 'codex', accounts: [], client: undefined, gateway: null })[0]?.label,
-  ).not.toContain('默认');
+    newTabOptions({
+      kind: 'codex',
+      accounts: [],
+      localAvailable: true,
+      client: undefined,
+      gateway: null,
+    })[0]?.label,
+  ).toContain('本机登录');
+  expect(
+    newTabOptions({
+      kind: 'codex',
+      accounts: [],
+      localAvailable: false,
+      client: undefined,
+      gateway: null,
+    }).some((o) => o.value === 'local' || o.value === 'follow'),
+  ).toBe(false);
   fireEvent.click(r.getByTestId('cli-launcher-test'));
   await waitFor(() =>
     expect(invoke).toHaveBeenCalledWith('cli.launcherTest', { kind: 'codex', command: '' }),
@@ -74,9 +92,7 @@ it('tests a custom command without saving and preserves login when disabling the
   });
   installFakeApi(invoke);
   const r = render(<CliLauncherCard kind="claude" />);
-  await waitFor(() =>
-    expect((r.getByTestId('cli-account-source-local') as HTMLInputElement).checked).toBe(true),
-  );
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith('cli.launcherGet'));
   fireEvent.click(within(r.getByTestId('cli-launcher-advanced')).getByRole('button'));
   fireEvent.click(r.getByTestId('cli-launcher-enable'));
   fireEvent.change(r.getByTestId('cli-launcher-command'), { target: { value: 'reclaude cli' } });
@@ -154,11 +170,24 @@ it('updates ModelControls sourceSwitch reactively when launcher config loads as 
             models: [{ id: 'gpt-5', enabled: true, toolCalling: true }],
           },
         ],
-        clients: { codex: { models: { main: 'a/gpt-5' }, newTabSource: 'official' } },
+        clients: { codex: { models: { main: 'a/gpt-5' } } },
         status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
         allowedPrivateHosts: [],
         port: 1,
       };
+    if (name === 'cliAccount.list')
+      return [
+        {
+          id: 'acct-1',
+          kind: 'codex',
+          label: 'Work',
+          loggedIn: true,
+          identity: null,
+          active: true,
+          inUse: 0,
+          createdAt: 0,
+        },
+      ];
     if (name === 'harness.modelCatalog')
       return {
         backend: 'codex',
@@ -171,9 +200,10 @@ it('updates ModelControls sourceSwitch reactively when launcher config loads as 
 
   const r = render(<ModelControls tab={tab} />);
   fireEvent.click(await r.findByTestId('model-chip'));
-  const menu = await r.findByTestId('model-menu');
-  expect(menu.textContent).toContain('切换到官方账号');
+  await waitFor(() => expect(r.getByTestId('model-menu').textContent).toContain('切换到官方账号'));
 
-  resolveGet({ codex: { enabled: false, command: '', accountSource: 'local' } });
+  resolveGet({
+    codex: { enabled: false, command: '', accountSource: 'local', hasLocalLogin: true },
+  });
   await waitFor(() => expect(r.getByTestId('model-menu').textContent).toContain('沿用本机登录'));
 });

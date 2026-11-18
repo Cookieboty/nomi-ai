@@ -1647,9 +1647,10 @@ const (
 )
 
 type CliLauncherGetOutputValue struct {
-	Enabled       bool                                   `json:"enabled"`
-	Command       string                                 `json:"command"`
-	AccountSource CliLauncherGetOutputValueAccountSource `json:"accountSource"`
+	Enabled       bool                                    `json:"enabled"`
+	Command       string                                  `json:"command"`
+	AccountSource *CliLauncherGetOutputValueAccountSource `json:"accountSource,omitempty"`
+	HasLocalLogin *bool                                   `json:"hasLocalLogin,omitempty"`
 }
 
 // CliLauncherSetInputSettingsAccountSource 枚举：local | nomi
@@ -1661,9 +1662,10 @@ const (
 )
 
 type CliLauncherSetInputSettings struct {
-	Enabled       bool                                     `json:"enabled"`
-	Command       string                                   `json:"command"`
-	AccountSource CliLauncherSetInputSettingsAccountSource `json:"accountSource"`
+	Enabled       bool                                      `json:"enabled"`
+	Command       string                                    `json:"command"`
+	AccountSource *CliLauncherSetInputSettingsAccountSource `json:"accountSource,omitempty"`
+	HasLocalLogin *bool                                     `json:"hasLocalLogin,omitempty"`
 }
 
 type CliLauncherSetInput struct {
@@ -1680,9 +1682,10 @@ const (
 )
 
 type CliLauncherSetOutput struct {
-	Enabled       bool                              `json:"enabled"`
-	Command       string                            `json:"command"`
-	AccountSource CliLauncherSetOutputAccountSource `json:"accountSource"`
+	Enabled       bool                               `json:"enabled"`
+	Command       string                             `json:"command"`
+	AccountSource *CliLauncherSetOutputAccountSource `json:"accountSource,omitempty"`
+	HasLocalLogin *bool                              `json:"hasLocalLogin,omitempty"`
 }
 
 type CliLauncherTestInput struct {
@@ -2338,13 +2341,27 @@ type DelegateClearPinInput struct {
 	TurnId string `json:"turnId"`
 }
 
+// DelegateDispatchInputSource 枚举：local | official | thirdParty
+type DelegateDispatchInputSource = string
+
+const (
+	DelegateDispatchInputSourceLocal      DelegateDispatchInputSource = "local"
+	DelegateDispatchInputSourceOfficial   DelegateDispatchInputSource = "official"
+	DelegateDispatchInputSourceThirdParty DelegateDispatchInputSource = "thirdParty"
+)
+
 type DelegateDispatchInput struct {
-	Cli            string  `json:"cli"`
-	Goal           string  `json:"goal"`
-	Context        *string `json:"context,omitempty"`
-	ConversationId *string `json:"conversationId,omitempty"`
-	ProjectId      *string `json:"projectId,omitempty"`
-	TurnId         *string `json:"turnId,omitempty"`
+	Cli             *string                      `json:"cli,omitempty"`
+	PresetId        *string                      `json:"presetId,omitempty"`
+	Source          *DelegateDispatchInputSource `json:"source,omitempty"`
+	AccountId       *string                      `json:"accountId,omitempty"`
+	Model           *string                      `json:"model,omitempty"`
+	ReasoningEffort *string                      `json:"reasoningEffort,omitempty"`
+	Goal            string                       `json:"goal"`
+	Context         *string                      `json:"context,omitempty"`
+	ConversationId  *string                      `json:"conversationId,omitempty"`
+	ProjectId       *string                      `json:"projectId,omitempty"`
+	TurnId          *string                      `json:"turnId,omitempty"`
 }
 
 type DelegateDispatchOutput struct {
@@ -2359,24 +2376,92 @@ type DelegateDispatchOutput struct {
 }
 
 type DelegatePinInput struct {
-	Cli    string `json:"cli"`
-	TurnId string `json:"turnId"`
+	Cli      *string `json:"cli,omitempty"`
+	PresetId *string `json:"presetId,omitempty"`
+	TurnId   string  `json:"turnId"`
 }
 
 type DelegateSetSettingsInput struct {
 	Settings map[string]any `json:"settings"`
 }
 
+// DelegateSetSettingsOutputPresetsItemSource 枚举：local | official | thirdParty
+type DelegateSetSettingsOutputPresetsItemSource = string
+
+const (
+	DelegateSetSettingsOutputPresetsItemSourceLocal      DelegateSetSettingsOutputPresetsItemSource = "local"
+	DelegateSetSettingsOutputPresetsItemSourceOfficial   DelegateSetSettingsOutputPresetsItemSource = "official"
+	DelegateSetSettingsOutputPresetsItemSourceThirdParty DelegateSetSettingsOutputPresetsItemSource = "thirdParty"
+)
+
+// DelegateSetSettingsOutputPresetsItemCostTier 枚举：high | medium | low
+type DelegateSetSettingsOutputPresetsItemCostTier = string
+
+const (
+	DelegateSetSettingsOutputPresetsItemCostTierHigh   DelegateSetSettingsOutputPresetsItemCostTier = "high"
+	DelegateSetSettingsOutputPresetsItemCostTierMedium DelegateSetSettingsOutputPresetsItemCostTier = "medium"
+	DelegateSetSettingsOutputPresetsItemCostTierLow    DelegateSetSettingsOutputPresetsItemCostTier = "low"
+)
+
+type DelegateSetSettingsOutputPresetsItem struct {
+	Id              string                                        `json:"id"`
+	Builtin         *bool                                         `json:"builtin,omitempty"`
+	Label           string                                        `json:"label"`
+	Cli             string                                        `json:"cli"`
+	Source          DelegateSetSettingsOutputPresetsItemSource    `json:"source"`
+	AccountId       *string                                       `json:"accountId,omitempty"`
+	Model           *string                                       `json:"model,omitempty"`
+	ReasoningEffort *string                                       `json:"reasoningEffort,omitempty"`
+	CostTier        *DelegateSetSettingsOutputPresetsItemCostTier `json:"costTier,omitempty"`
+}
+
 type DelegateSetSettingsOutput struct {
-	Enabled  bool              `json:"enabled"`
-	Defaults map[string]string `json:"defaults"`
+	Enabled        bool                                   `json:"enabled"`
+	Defaults       map[string]string                      `json:"defaults"`
+	AutoComplexity *bool                                  `json:"autoComplexity,omitempty"`
+	Presets        []DelegateSetSettingsOutputPresetsItem `json:"presets,omitempty"`
+	Routes         map[string]json.RawMessage             `json:"routes,omitempty"`
+}
+
+// DelegateSettingsOutputPresetsItemSource 枚举：local | official | thirdParty
+type DelegateSettingsOutputPresetsItemSource = string
+
+const (
+	DelegateSettingsOutputPresetsItemSourceLocal      DelegateSettingsOutputPresetsItemSource = "local"
+	DelegateSettingsOutputPresetsItemSourceOfficial   DelegateSettingsOutputPresetsItemSource = "official"
+	DelegateSettingsOutputPresetsItemSourceThirdParty DelegateSettingsOutputPresetsItemSource = "thirdParty"
+)
+
+// DelegateSettingsOutputPresetsItemCostTier 枚举：high | medium | low
+type DelegateSettingsOutputPresetsItemCostTier = string
+
+const (
+	DelegateSettingsOutputPresetsItemCostTierHigh   DelegateSettingsOutputPresetsItemCostTier = "high"
+	DelegateSettingsOutputPresetsItemCostTierMedium DelegateSettingsOutputPresetsItemCostTier = "medium"
+	DelegateSettingsOutputPresetsItemCostTierLow    DelegateSettingsOutputPresetsItemCostTier = "low"
+)
+
+type DelegateSettingsOutputPresetsItem struct {
+	Id              string                                     `json:"id"`
+	Builtin         *bool                                      `json:"builtin,omitempty"`
+	Label           string                                     `json:"label"`
+	Cli             string                                     `json:"cli"`
+	Source          DelegateSettingsOutputPresetsItemSource    `json:"source"`
+	AccountId       *string                                    `json:"accountId,omitempty"`
+	Model           *string                                    `json:"model,omitempty"`
+	ReasoningEffort *string                                    `json:"reasoningEffort,omitempty"`
+	CostTier        *DelegateSettingsOutputPresetsItemCostTier `json:"costTier,omitempty"`
 }
 
 type DelegateSettingsOutput struct {
-	Enabled   bool              `json:"enabled"`
-	Defaults  map[string]string `json:"defaults"`
-	Installed []string          `json:"installed"`
-	Pinned    string            `json:"pinned"`
+	Enabled        bool                                `json:"enabled"`
+	Defaults       map[string]string                   `json:"defaults"`
+	Installed      []string                            `json:"installed"`
+	Pinned         string                              `json:"pinned"`
+	AutoComplexity *bool                               `json:"autoComplexity,omitempty"`
+	Presets        []DelegateSettingsOutputPresetsItem `json:"presets,omitempty"`
+	Routes         map[string]json.RawMessage          `json:"routes,omitempty"`
+	LocalAvailable map[string]bool                     `json:"localAvailable,omitempty"`
 }
 
 type DelegateStatusInput struct {
@@ -5573,10 +5658,11 @@ type GatewayResetTokenInput struct {
 	Client string `json:"client"`
 }
 
-// GatewaySetAssignmentInputPatchNewTabSource 枚举：official | thirdParty
+// GatewaySetAssignmentInputPatchNewTabSource 枚举：local | official | thirdParty
 type GatewaySetAssignmentInputPatchNewTabSource = string
 
 const (
+	GatewaySetAssignmentInputPatchNewTabSourceLocal      GatewaySetAssignmentInputPatchNewTabSource = "local"
 	GatewaySetAssignmentInputPatchNewTabSourceOfficial   GatewaySetAssignmentInputPatchNewTabSource = "official"
 	GatewaySetAssignmentInputPatchNewTabSourceThirdParty GatewaySetAssignmentInputPatchNewTabSource = "thirdParty"
 )
@@ -5596,6 +5682,7 @@ type GatewaySetOptionsInput struct {
 	StrictParams        *bool    `json:"strictParams,omitempty"`
 	MaxRequestBodyBytes *float64 `json:"maxRequestBodyBytes,omitempty"`
 	ContextTier         *float64 `json:"contextTier,omitempty"`
+	HelperModel         *string  `json:"helperModel,omitempty"`
 	PrivacyMode         *bool    `json:"privacyMode,omitempty"`
 	PrivacyStrict       *bool    `json:"privacyStrict,omitempty"`
 	PrivacyLocal        *bool    `json:"privacyLocal,omitempty"`
@@ -6018,10 +6105,11 @@ type HarnessMessageAgentOutput struct {
 	TabId   *string `json:"tabId,omitempty"`
 }
 
-// HarnessModelCatalogInputSource 枚举：official | thirdParty
+// HarnessModelCatalogInputSource 枚举：local | official | thirdParty
 type HarnessModelCatalogInputSource = string
 
 const (
+	HarnessModelCatalogInputSourceLocal      HarnessModelCatalogInputSource = "local"
 	HarnessModelCatalogInputSourceOfficial   HarnessModelCatalogInputSource = "official"
 	HarnessModelCatalogInputSourceThirdParty HarnessModelCatalogInputSource = "thirdParty"
 )
@@ -6841,10 +6929,11 @@ type HarnessTabMessagesOutputItem struct {
 	ResponseModel *string `json:"responseModel,omitempty"`
 }
 
-// HarnessTabModelInputExpectSource 枚举：official | thirdParty
+// HarnessTabModelInputExpectSource 枚举：local | official | thirdParty
 type HarnessTabModelInputExpectSource = string
 
 const (
+	HarnessTabModelInputExpectSourceLocal      HarnessTabModelInputExpectSource = "local"
 	HarnessTabModelInputExpectSourceOfficial   HarnessTabModelInputExpectSource = "official"
 	HarnessTabModelInputExpectSourceThirdParty HarnessTabModelInputExpectSource = "thirdParty"
 )
@@ -7135,18 +7224,20 @@ type HarnessTabSendOutput struct {
 	SessionId string `json:"sessionId"`
 }
 
-// HarnessTabSourceInputSource 枚举：official | thirdParty
+// HarnessTabSourceInputSource 枚举：local | official | thirdParty
 type HarnessTabSourceInputSource = string
 
 const (
+	HarnessTabSourceInputSourceLocal      HarnessTabSourceInputSource = "local"
 	HarnessTabSourceInputSourceOfficial   HarnessTabSourceInputSource = "official"
 	HarnessTabSourceInputSourceThirdParty HarnessTabSourceInputSource = "thirdParty"
 )
 
 type HarnessTabSourceInput struct {
-	Id     string                      `json:"id"`
-	Source HarnessTabSourceInputSource `json:"source"`
-	Model  *string                     `json:"model,omitempty"`
+	Id        string                      `json:"id"`
+	Source    HarnessTabSourceInputSource `json:"source"`
+	Model     *string                     `json:"model,omitempty"`
+	AccountId *string                     `json:"accountId,omitempty"`
 }
 
 // HarnessTabSourceOutputSandboxPendingItemKind 枚举：category | read | folder | file | protected

@@ -11,8 +11,14 @@ import {
 import { useComposerDraftBinding } from '../../hooks/useComposerDraftBinding';
 import { useNextDelegate } from '../../hooks/useNextDelegate';
 import { SHARED_UNSENT, createComposerDraftStore } from '../../services/composerDrafts';
-import { delegateClient, setNextDelegate, type DelegateCli } from '../../services/delegateClient';
+import {
+  delegateClient,
+  setNextDelegate,
+  type DelegateCli,
+  type RunnerPreset,
+} from '../../services/delegateClient';
 import { currentVision } from '../../services/modelCapability';
+import { gatewayStateSnapshot } from '../../services/nomiModel';
 import { type ImageAttachment } from '../../services/screenClient';
 import { useShortcutBindings } from '../../services/shortcuts';
 import { agentArgQuery, filterAgents, type AgentOption } from '../../slash/agentComplete';
@@ -119,8 +125,9 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const [modelClosed, setModelClosed] = useState<string | null>(null);
   /** 按 Esc 关掉助手列表时的输入；输入一变就重新出现 */
   const [agentClosed, setAgentClosed] = useState<string | null>(null);
-  /** `/agent ` 补全用的已安装编程助手（委派设置里的检测结果）；null = 还没读到 */
+  /** `/agent ` 补全用的已安装 agents（委派设置里的检测结果）；null = 还没读到 */
   const [agentInstalled, setAgentInstalled] = useState<DelegateCli[] | null>(null);
+  const [agentPresets, setAgentPresets] = useState<RunnerPreset[]>([]);
   /** @ 路径补全：光标、高亮项、Esc 关闭快照、已缓存的工作区树 */
   const [caret, setCaret] = useState(0);
   const [atIdx, setAtIdx] = useState(0);
@@ -183,7 +190,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const streaming = useAiChatSelector(selectStreamingHere);
   const chatError = useAiChatSelector(selectError);
   // 知识库问答模式（Ctrl/Cmd+Shift+K 切换），记住上次的选择
-  // `/cli 名字`：下一个需求交给哪个编程助手（输入栏上的 chip，点 × 取消）
+  // `/cli 名字`：下一个需求交给哪个 agent（输入栏上的 chip，点 × 取消）
   const nextDelegate = useNextDelegate();
   const { kbMode, kbAvailable, toggleKb } = useKnowledgeMode(textareaRef);
 
@@ -241,7 +248,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const dragOver = useDragDrop(takeFiles, takeHostFiles);
   // 只有元数据明确说不支持看图才提示；没有元数据（undefined）不吓用户，也不按名字猜
   const visionKnown = currentVision();
-  // 编程助手标签由调用方给出发图能力（当前 CLI 模型），不能拿 Nomi 自己的模型去判断
+  // agents 标签由调用方给出发图能力（当前 CLI 模型），不能拿 Nomi 自己的模型去判断
   const visionWarn =
     images.length > 0 &&
     (imageCapability !== undefined ? imageCapability === 'none' : visionKnown === false);
@@ -301,7 +308,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     disabled ||
     (busyOverride !== undefined ? (queue ? false : busyOverride) : queue ? false : isLoading);
 
-  // 停止：Nomi 流式生成中，或编程助手标签自带的停止；输入为空才显示（有字时发送键是「排队」）
+  // 停止：Nomi 流式生成中，或 agents 标签自带的停止；输入为空才显示（有字时发送键是「排队」）
   const stopFn =
     busyOverride === undefined ? (streaming ? actions.stopGeneration : undefined) : queue?.onStop;
   // 仅在运行中（busy）才可能出现停止键：排队模式下输入为空才停止（有字时发送键是「排队」）。
@@ -376,7 +383,10 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       : undefined;
   const slashOpen = slashQuery !== null && (slashFlat.length > 0 || (!!slash && slashQuery !== ''));
   const agentQuery = slash ? agentArgQuery(message, registry) : null;
-  const agentOptions = agentQuery === null ? [] : filterAgents(agentInstalled, agentQuery);
+  const agentOptions =
+    agentQuery === null
+      ? []
+      : filterAgents(agentInstalled, agentQuery, agentPresets, gatewayStateSnapshot());
   const agentOpen = agentQuery !== null && agentClosed !== message;
   /** 从助手列表选中：补成 `/agent <id> ` */
   function pickAgent(o: AgentOption) {
@@ -392,7 +402,11 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     let live = true;
     void delegateClient
       .settings()
-      .then((v) => live && setAgentInstalled(Array.isArray(v?.installed) ? v.installed : []))
+      .then((v) => {
+        if (!live) return;
+        setAgentInstalled(Array.isArray(v?.installed) ? v.installed : []);
+        setAgentPresets(v?.enabled && Array.isArray(v?.presets) ? v.presets : []);
+      })
       .catch(() => undefined);
     return () => {
       live = false;
@@ -624,8 +638,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
           onMenuOpenChange={setMenuOpen}
           fileInputRef={fileInputRef}
           onFiles={takeFiles}
-          onDelegate={(cli) => {
-            setNextDelegate(cli);
+          onDelegate={(target, meta) => {
+            setNextDelegate(target, meta);
             requestAnimationFrame(() => textareaRef.current?.focus());
           }}
           kbMode={kbMode}

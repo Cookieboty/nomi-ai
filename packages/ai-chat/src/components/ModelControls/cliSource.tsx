@@ -1,5 +1,5 @@
 /**
- * 编程助手标签的「模型 · 思考深度」数据适配器：原来 ModelChip 里的读取与写回原样搬到这里，
+ * Agents 标签的「模型 · 思考深度」数据适配器：原来 ModelChip 里的读取与写回原样搬到这里，
  * 界面由共用外壳（ModelEffortChip）画。
  *
  * 标签来源是第三方（docs/development/gateway.md）时，同一个按钮列**所有第三方供应商**的模型
@@ -24,21 +24,21 @@ import {
 import { IconRefresh as RefreshCw } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { useCliAccounts } from '../../hooks/useCliAccounts';
+import { accountDisplayLabel, type AccountKind } from '../../services/cliAccountClient';
+import { useHasLocalLogin } from '../../services/cliLauncherClient';
 import {
-  cliAccountClient,
-  type AccountKind,
-  type CliAccount,
-} from '../../services/cliAccountClient';
-import { useCliLauncher } from '../../services/cliLauncherClient';
-import {
+  codingModelChoices,
   codingProviders,
   providerOfRef,
   switchTabSource,
   tabSourceOf,
+  thirdPartyRefOf as tpRefOf,
   type CodingProvider,
   type SessionModelGroup,
   type SourceSwitch,
 } from '../../services/cliSource';
+import { presetDisplayLabel, useDelegatePresets } from '../../services/delegateClient';
 import { gatewayClient, gatewayClientAvailable } from '../../services/gatewayClient';
 import {
   harnessClient,
@@ -51,6 +51,7 @@ import {
 import type { LongContextInfo } from '../../services/longContext';
 import { providerBrand, splitRef, useGatewayState } from '../../services/nomiModel';
 import { resolveThinkingLevel, thinkingProfileOf } from '../../services/thinkingDepth';
+import { hasOfficialAccount } from '../../utils/cliCaps';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
 import { effortLabel, thinkingLevelLabel } from './effortLabel';
@@ -66,7 +67,7 @@ const SWITCH = 'switch:';
 /** 第三方模型名去掉厂商前缀（anthropic/claude-fable-5 → claude-fable-5）：左侧已有厂商筛选与分组标题 */
 const shortName = (s: string) => s.slice(s.lastIndexOf('/') + 1);
 
-/** 有官方账号的编程助手（清单 officialAccount） */
+/** 有官方账号的 agents（清单 officialAccount） */
 const ACCOUNT_KINDS = BUILTIN_CLI_ORDER.filter((id): id is AccountKind =>
   cliCapability(id, 'officialAccount'),
 );
@@ -175,9 +176,10 @@ export interface CliChipInput {
   switchProviders?: CodingProvider[] | null;
   defaultProviderId?: string | null;
   modelMeta?: ReadonlyMap<string, PickerModel> | null;
+  hasLocalLogin?: boolean;
 }
 
-/** 编程助手标签的数据适配器：读 tab / 目录 / 网关，写 harnessClient */
+/** agents 标签的数据适配器：读 tab / 目录 / 网关，写 harnessClient */
 export function useCliModelEffortSource({
   tab,
   catalog,
@@ -191,10 +193,12 @@ export function useCliModelEffortSource({
   switchProviders = null,
   defaultProviderId = null,
   modelMeta = null,
+  hasLocalLogin: hasLocalLoginProp,
 }: CliChipInput): ModelEffortSource {
-  const launcher = useCliLauncher(tab.backend);
-  const localLogin = launcher.accountSource === 'local';
-  const [accounts, setAccounts] = useState<CliAccount[]>([]);
+  const tabSource = tabSourceOf(tab);
+  const presets = useDelegatePresets(open);
+  const hookLocalLogin = useHasLocalLogin(hasLocalLoginProp === undefined ? tab.backend : null);
+  const hasLocalLogin = hasLocalLoginProp ?? hookLocalLogin;
   const [note, setNote] = useState<string | null>(null);
 
   const current = tab.modelOverride?.trim() || sessionRef || null;
@@ -231,7 +235,9 @@ export function useCliModelEffortSource({
   // 档位所依据的模型：选了模型用它；没选用 CLI 告诉我们的默认模型
   const info = current ? currentModel : catalog.defaultModel;
   // 第三方来源：档位来自网关的模型能力（与 Nomi 对话同一个 thinkingProfileOf），不看 CLI 自己的目录
-  const thirdPartyRef = thirdParty ? (current ?? catalog.defaultModel?.id ?? null) : null;
+  const thirdPartyRef = thirdParty
+    ? (current ?? catalog.defaultModel?.id ?? tpRefOf(tab, tab.backend, gateway))
+    : null;
   const thirdPartyProfile = useMemo(
     () => (thirdPartyRef ? thinkingProfileOf(gateway, thirdPartyRef) : null),
     [gateway, thirdPartyRef],
@@ -293,37 +299,27 @@ export function useCliModelEffortSource({
   const sourceName = provider?.name || backendName;
   // 官方来源的标签可以单独选官方账号（多个账号并行）
   const accountKind =
-    !thirdParty && !localLogin && ACCOUNT_KINDS.includes(tab.backend as AccountKind)
+    tabSource === 'official' && ACCOUNT_KINDS.includes(tab.backend as AccountKind)
       ? (tab.backend as AccountKind)
       : null;
-  const defaultAccount = useMemo(() => accounts.find((a) => a.active), [accounts]);
+  // 第三方或本机标签也可能切回官方账号：打开浮层时读账号列表
+  const listKind = ACCOUNT_KINDS.includes(tab.backend as AccountKind)
+    ? (tab.backend as AccountKind)
+    : null;
+  const { accounts, ready: accountsReady } = useCliAccounts(open ? listKind : null);
+  const loggedInAccounts = useMemo(() => accounts.filter((a) => a.loggedIn), [accounts]);
+  const defaultAccount = useMemo(
+    () => loggedInAccounts.find((a) => a.active) ?? accounts.find((a) => a.active),
+    [loggedInAccounts, accounts],
+  );
   const pinnedAccount = tab.accountId ? accounts.find((a) => a.id === tab.accountId) : undefined;
   const accountLabel = tab.accountId
-    ? (pinnedAccount?.label ?? t('ui.models.removed-account'))
-    : t(
-        'ui.models.follow-default',
-        defaultAccount?.label ?? t('ui.models.no-official-account-yet'),
-      );
-
-  // 第三方标签可切到官方账号时，也读账号列表：「切换到官方账号」后面写上默认账号
-  const listKind =
-    accountKind ??
-    (sourceSwitch?.target === 'official' &&
-    !localLogin &&
-    ACCOUNT_KINDS.includes(tab.backend as AccountKind)
-      ? (tab.backend as AccountKind)
-      : null);
-  useEffect(() => {
-    if (!open || !listKind) return;
-    let alive = true;
-    void cliAccountClient
-      .list(listKind)
-      .then((l) => alive && setAccounts(l))
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [open, listKind]);
+    ? pinnedAccount
+      ? accountDisplayLabel(pinnedAccount)
+      : t('ui.models.removed-account')
+    : defaultAccount
+      ? accountDisplayLabel(defaultAccount)
+      : t('ui.chat-settings.official-accounts');
 
   useEffect(() => {
     if (!note) return;
@@ -343,7 +339,7 @@ export function useCliModelEffortSource({
   /**
    * 模型页用共享的 ModelPicker（与 Nomi 对话的模型下拉同一个组件）：
    * - 第三方：目录里每个供应商一个标签（模型 id 是 `供应商/模型`），左侧按厂商筛选；
-   * - 官方：CLI 自己的模型放在 OWN_TAB 下；网关里有能给编程助手用的供应商时，每个供应商再一个标签。
+   * - 官方：CLI 自己的模型放在 OWN_TAB 下；网关里有能给 agents 用的供应商时，每个供应商再一个标签。
    * toCatalog：选择器里的值 → 目录里的模型 id（官方 CLI 自己的模型）或网关的 `供应商/模型`
    */
   const { pickerList, toCatalog } = useMemo(() => {
@@ -619,6 +615,150 @@ export function useCliModelEffortSource({
   /** 只有模型页（第三方模型不能调思考深度时）；否则和 Nomi 对话一样是「模型 · 思考深度」 */
   const modelOnly = provider && !(thirdParty && reasoningSupported) ? provider : null;
 
+  const supportsOfficial = hasOfficialAccount(tab.backend);
+  const tpChoices = useMemo(() => codingModelChoices(gateway), [gateway]);
+  const visibleSources = useMemo(() => {
+    if (!supportsOfficial) return [];
+    const list: Array<{ id: TabSource; label: string; disabled: boolean }> = [];
+    if (hasLocalLogin || tabSource === 'local') {
+      list.push({ id: 'local', label: t('ui.foundation.local'), disabled: false });
+    }
+    if (!accountsReady || loggedInAccounts.length > 0 || tabSource === 'official') {
+      list.push({
+        id: 'official',
+        label: t('ui.chat-settings.official-accounts'),
+        disabled: false,
+      });
+    }
+    if (tpChoices.length > 0 || tabSource === 'thirdParty') {
+      list.push({
+        id: 'thirdParty',
+        label: t('ui.cli-monitor.third-party'),
+        disabled: tpChoices.length === 0,
+      });
+    }
+    return list;
+  }, [
+    supportsOfficial,
+    hasLocalLogin,
+    accountsReady,
+    loggedInAccounts.length,
+    tpChoices.length,
+    tabSource,
+  ]);
+  const showSourceTabs = visibleSources.length >= 2;
+
+  const cliPresets = useMemo(
+    () =>
+      presets.filter((p) => {
+        if (p.cli !== tab.backend) return false;
+        if (p.source === 'local' && !hasLocalLogin && tabSource !== 'local') return false;
+        if (
+          p.source === 'official' &&
+          accountsReady &&
+          loggedInAccounts.length === 0 &&
+          tabSource !== 'official'
+        ) {
+          return false;
+        }
+        return true;
+      }),
+    [presets, tab.backend, hasLocalLogin, accountsReady, loggedInAccounts.length, tabSource],
+  );
+  const topBar =
+    showSourceTabs || cliPresets.length > 0 ? (
+      <div className={menuStyles.topBar}>
+        {showSourceTabs && (
+          <div className={menuStyles.sourceTabs} data-testid="model-source-tabs">
+            {visibleSources.map((src) => {
+              const active = tabSource === src.id;
+              return (
+                <button
+                  key={src.id}
+                  type="button"
+                  className={menuStyles.sourceTab}
+                  aria-pressed={active}
+                  disabled={src.disabled}
+                  data-testid={`model-source-${src.id}`}
+                  onClick={() => {
+                    if (active) return;
+                    const model =
+                      src.id === 'thirdParty'
+                        ? (tpRefOf(tab, tab.backend, gateway) ?? tpChoices[0]?.ref)
+                        : undefined;
+                    void run(() =>
+                      switchTabSource(tab, src.id, {
+                        model,
+                        hasMessages: !!tab.cliSessionId || (tab.carriedMessages ?? 0) > 0,
+                      }),
+                    );
+                  }}
+                >
+                  {src.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {cliPresets.length > 0 && (
+          <div
+            className={menuStyles.presetRow}
+            data-testid="model-preset-pills"
+            aria-label={t('ui.models.quick-switch-preset')}
+          >
+            <span className={menuStyles.topSectionLabel}>{t('ui.models.quick-switch-preset')}</span>
+            {cliPresets.map((p) => {
+              const activeModel = thirdParty ? thirdPartyRef : (tab.modelOverride ?? null);
+              const samePreset =
+                p.source === tabSource &&
+                (p.model ?? null) === (activeModel ?? null) &&
+                (p.source !== 'official' || (p.accountId ?? null) === (tab.accountId ?? null)) &&
+                (!p.reasoningEffort || p.reasoningEffort === effort);
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={menuStyles.presetPill}
+                  aria-pressed={samePreset}
+                  data-testid={`model-preset-pill-${p.id}`}
+                  onClick={() => {
+                    const hasMessages = !!tab.cliSessionId || (tab.carriedMessages ?? 0) > 0;
+                    void run(async () => {
+                      if (p.source !== tabSource) {
+                        const switched = await switchTabSource(tab, p.source, {
+                          model: p.model ?? undefined,
+                          accountId: p.source === 'official' ? (p.accountId ?? null) : null,
+                          hasMessages,
+                        });
+                        if (!switched) return;
+                      } else {
+                        if (
+                          p.source === 'official' &&
+                          (p.accountId ?? null) !== (tab.accountId ?? null)
+                        ) {
+                          await harnessClient.setTabAccount(tab.id, p.accountId ?? null);
+                        }
+                        if ((p.model ?? '') !== (tab.modelOverride ?? '')) {
+                          await harnessClient.setTabModel(tab.id, p.model ?? '', {
+                            expectSource: p.source,
+                          });
+                        }
+                      }
+                      if (p.reasoningEffort) {
+                        await harnessClient.setTabEffort(tab.id, p.reasoningEffort);
+                      }
+                    });
+                  }}
+                >
+                  {presetDisplayLabel(p)}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    ) : undefined;
+
   const modelPage: ModelPageSource = {
     providers: pickerList,
     value: pickerValue,
@@ -653,6 +793,7 @@ export function useCliModelEffortSource({
     initialView: modelOnly ? 'model' : 'effort',
     menuCommandView: 'model',
     menuKey: tab.id,
+    topBar,
     effort: effortPage,
     model: modelPage,
     provider: thirdParty
@@ -674,32 +815,32 @@ export function useCliModelEffortSource({
           },
         )
       : null,
-    account: accountKind
-      ? {
-          title: t('ui.chat-settings.official-accounts'),
-          rowLabel: t('ui.models.account'),
-          rowValue: accountLabel,
-          rowAriaLabel: t('ui.models.switch-official-account', accountLabel),
-          value: tab.accountId ?? '',
-          options: [
-            {
-              value: '',
-              label: t('ui.models.follow-the-default-account'),
-              description: defaultAccount?.label ?? t('ui.models.no-official-account-yet'),
-              testId: 'account-default',
-            },
-            ...accounts.map((a) => ({
-              value: a.id,
-              label: a.label,
-              description: a.loggedIn ? (a.identity?.plan ?? '') : t('ui.models.not-signed-in'),
-              disabled: !a.loggedIn,
-              hint: a.identity?.email,
-              testId: `account-${a.id}`,
-            })),
-          ],
-          onChange: pickAccount,
-        }
-      : null,
+    account:
+      accountKind && loggedInAccounts.length > 1
+        ? {
+            title: t('ui.chat-settings.official-accounts'),
+            rowLabel: t('ui.models.account'),
+            rowValue: accountLabel,
+            rowAriaLabel: t('ui.models.switch-official-account', accountLabel),
+            value:
+              (tab.accountId && loggedInAccounts.some((a) => a.id === tab.accountId)
+                ? tab.accountId
+                : defaultAccount?.id) ?? '',
+            options: loggedInAccounts.map((a) => {
+              const display = accountDisplayLabel(a);
+              return {
+                value: a.id,
+                label: display,
+                description: a.identity?.plan ?? '',
+                hint: [a.identity?.name, a.identity?.email].find(
+                  (x) => x && x.trim().toLowerCase() !== display.toLowerCase(),
+                ),
+                testId: `account-${a.id}`,
+              };
+            }),
+            onChange: pickAccount,
+          }
+        : null,
     modelLabel,
     modelRowAria: t('ui.chat-settings.switch-model', modelLabel),
   };

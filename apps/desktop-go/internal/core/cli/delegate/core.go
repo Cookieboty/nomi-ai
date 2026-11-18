@@ -1,4 +1,4 @@
-// Package delegate：Nomi 委派编程助手（core / worktree / DelegateService）。
+// Package delegate：Nomi 委派 agents（core / worktree / DelegateService）。
 // 选谁、子任务档位、任务说明、汇报解析、worktree 隔离与 DelegateService。
 //
 // 数据形状固定：档位 / 设置 / 结果都是有序 *util.Obj（键顺序固定），
@@ -14,11 +14,29 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// DelegateClis：可以委派的内置编程助手
+// DelegateClis：可以委派的内置 agents
 var DelegateClis = builtin.Ordered
 
-// DelegateKinds：任务类型（设置里按类型配默认编程助手）
+// DelegateKinds：任务类型（设置里按类型配默认 agent）
 var DelegateKinds = []string{"coding", "prd", "review", "research"}
+
+// RoutableTaskKinds：支持配置成本/来源路由的任务类型
+var RoutableTaskKinds = []string{"coding", "review", "research", "prd", "scheduled", "complex", "simple"}
+
+var validRunnerSources = []string{"local", "official", "thirdParty"}
+var validCostTiers = []string{"high", "medium", "low"}
+var validEfforts = []string{"minimal", "low", "medium", "high", "xhigh", "max", "ultra"}
+
+// ResolvedRunner：一次委派/任务路由的解析结果（空字段代表未显式覆盖，沿用全局默认）
+type ResolvedRunner struct {
+	Cli             string
+	By              string
+	PresetID        string
+	Source          string
+	AccountID       string
+	Model           string
+	ReasoningEffort string
+}
 
 // BuiltinAgentProfiles：内置档位（每次返回新对象）
 func BuiltinAgentProfiles() []*util.Obj {
@@ -209,7 +227,416 @@ func SanitizeDelegateSettings(raw any) *util.Obj {
 	if cheap != "" {
 		out.Set("cheapModel", cheap)
 	}
+	if r.Has("autoComplexity") {
+		if b, ok := r.Get("autoComplexity").(bool); ok {
+			out.Set("autoComplexity", b)
+		}
+	}
+	if r.Has("presets") {
+		if rawList := toList(r.Get("presets")); rawList != nil {
+			clean := []any{}
+			seen := map[string]bool{}
+			for _, x := range rawList {
+				if p := sanitizePreset(x); p != nil {
+					pid := util.Str(p.Get("id"))
+					if !seen[pid] {
+						seen[pid] = true
+						clean = append(clean, p)
+					}
+				}
+			}
+			out.Set("presets", clean)
+		}
+	}
+	if r.Has("routes") {
+		if rm, ok := r.Get("routes").(*util.Obj); ok && rm != nil {
+			cleanRoutes := util.NewObj()
+			for _, k := range RoutableTaskKinds {
+				if rt := sanitizeRouteTarget(rm.Get(k)); rt != nil {
+					cleanRoutes.Set(k, rt)
+				}
+			}
+			out.Set("routes", cleanRoutes)
+		}
+	}
 	return out
+}
+
+func normalizeRunnerSourceForCli(cli, src string) string {
+	if !builtin.WithAccounts(cli) {
+		return "thirdParty"
+	}
+	if contains(validRunnerSources, src) {
+		return src
+	}
+	return "official"
+}
+
+func sanitizePreset(raw any) *util.Obj {
+	r, ok := raw.(*util.Obj)
+	if !ok || r == nil {
+		return nil
+	}
+	id := ""
+	if s, ok := strField(r, "id"); ok {
+		id = slice(trim(s), 64)
+	}
+	if id == "" || !profileIDRe.MatchString(id) {
+		return nil
+	}
+	label := ""
+	if s, ok := strField(r, "label"); ok {
+		label = slice(trim(s), 80)
+	}
+	if label == "" {
+		label = id
+	}
+	cli := ResolveDelegateCli(r.Get("cli"))
+	if cli == "" || !IsDelegateCli(cli) {
+		return nil
+	}
+	src := normalizeRunnerSourceForCli(cli, trim(util.Str(r.Get("source"))))
+	out := util.NewObj("id", id, "label", label, "cli", cli, "source", src)
+	if src == "official" {
+		if acc, ok := strField(r, "accountId"); ok {
+			acc = slice(trim(acc), 128)
+			if acc != "" && !strings.HasPrefix(acc, "local-") {
+				out.Set("accountId", acc)
+			}
+		}
+	}
+	if m, ok := strField(r, "model"); ok && trim(m) != "" {
+		out.Set("model", slice(trim(m), 128))
+	}
+	if e, ok := strField(r, "reasoningEffort"); ok && contains(validEfforts, trim(e)) {
+		out.Set("reasoningEffort", trim(e))
+	}
+	if ct, ok := strField(r, "costTier"); ok && contains(validCostTiers, trim(ct)) {
+		out.Set("costTier", trim(ct))
+	}
+	return out
+}
+
+func sanitizeRouteTarget(raw any) *util.Obj {
+	r, ok := raw.(*util.Obj)
+	if !ok || r == nil {
+		return nil
+	}
+	kind := trim(util.Str(r.Get("kind")))
+	switch kind {
+	case "preset":
+		pid := slice(trim(util.Str(r.Get("presetId"))), 64)
+		if pid == "" || !profileIDRe.MatchString(pid) {
+			return nil
+		}
+		return util.NewObj("kind", "preset", "presetId", pid)
+	case "custom":
+		cli := ResolveDelegateCli(r.Get("cli"))
+		if cli == "" || !IsDelegateCli(cli) {
+			return nil
+		}
+		src := normalizeRunnerSourceForCli(cli, trim(util.Str(r.Get("source"))))
+		out := util.NewObj("kind", "custom", "cli", cli, "source", src)
+		if src == "official" {
+			if acc := slice(trim(util.Str(r.Get("accountId"))), 128); acc != "" && !strings.HasPrefix(acc, "local-") {
+				out.Set("accountId", acc)
+			}
+		}
+		if m := slice(trim(util.Str(r.Get("model"))), 128); m != "" {
+			out.Set("model", m)
+		}
+		if e := trim(util.Str(r.Get("reasoningEffort"))); contains(validEfforts, e) {
+			out.Set("reasoningEffort", e)
+		}
+		return out
+	}
+	return nil
+}
+
+// FindPreset 在预设列表中按 id 查找，找不到返回 nil。
+func FindPreset(presets []any, id string) *util.Obj {
+	want := trim(id)
+	if want == "" {
+		return nil
+	}
+	for _, x := range presets {
+		if p, ok := x.(*util.Obj); ok && p != nil && util.Str(p.Get("id")) == want {
+			return p
+		}
+	}
+	return nil
+}
+
+// DeriveEffectiveRouting 生成含默认预设与 7 类路由映射的有效配置。
+func DeriveEffectiveRouting(settings *util.Obj, installed []string, hasOfficial, hasLocal func(string) bool, thirdPartyMain func(string) string, gatewayFallback ...string) (bool, []any, *util.Obj) {
+	if settings == nil {
+		settings = util.NewObj()
+	}
+	fallbackModel := ""
+	if len(gatewayFallback) > 0 {
+		fallbackModel = trim(gatewayFallback[0])
+	}
+	autoComplexity := true
+	if b, ok := settings.Get("autoComplexity").(bool); ok {
+		autoComplexity = b
+	}
+	defaults, _ := settings.Get("defaults").(*util.Obj)
+	primaryCli := ""
+	if defaults != nil {
+		if c := ResolveDelegateCli(defaults.Get("coding")); c != "" && contains(installed, c) {
+			primaryCli = c
+		}
+	}
+	if primaryCli == "" && len(installed) > 0 {
+		primaryCli = installed[0]
+	}
+	if primaryCli == "" && len(DelegateClis) > 0 {
+		primaryCli = DelegateClis[0]
+	}
+
+	pickHighSource := func(c string) (string, string) {
+		if !builtin.WithAccounts(c) {
+			m := ""
+			if thirdPartyMain != nil {
+				m = thirdPartyMain(c)
+			}
+			if m == "" {
+				m = fallbackModel
+			}
+			return "thirdParty", m
+		}
+		if hasOfficial != nil && hasOfficial(c) {
+			return "official", ""
+		}
+		if hasLocal != nil && hasLocal(c) {
+			return "local", ""
+		}
+		if thirdPartyMain != nil {
+			if m := thirdPartyMain(c); m != "" {
+				return "thirdParty", m
+			}
+		}
+		if fallbackModel != "" {
+			return "thirdParty", fallbackModel
+		}
+		return "official", ""
+	}
+
+	var presets []any
+	if rawPresets := toList(settings.Get("presets")); len(rawPresets) > 0 {
+		presets = make([]any, len(rawPresets))
+		for i, x := range rawPresets {
+			if o, ok := x.(*util.Obj); ok && o != nil {
+				presets[i] = o.Clone()
+			}
+		}
+	} else {
+		hiSrc, hiModel := pickHighSource(primaryCli)
+		high := util.NewObj("id", "high", "label", "高质量主力", "cli", primaryCli, "source", hiSrc)
+		if hiModel != "" {
+			high.Set("model", hiModel)
+		}
+		high.Set("reasoningEffort", "high").Set("costTier", "high")
+
+		bal := util.NewObj("id", "balanced", "label", "日常均衡", "cli", primaryCli, "source", hiSrc)
+		if hiModel != "" {
+			bal.Set("model", hiModel)
+		}
+		bal.Set("reasoningEffort", "medium").Set("costTier", "medium")
+
+		lowCli, lowSrc, lowModel := primaryCli, hiSrc, hiModel
+		foundLowTp := false
+		if thirdPartyMain != nil {
+			if m := thirdPartyMain(primaryCli); m != "" {
+				lowSrc, lowModel, foundLowTp = "thirdParty", m, true
+			} else {
+				for _, c := range installed {
+					if m := thirdPartyMain(c); m != "" {
+						lowCli, lowSrc, lowModel, foundLowTp = c, "thirdParty", m, true
+						break
+					}
+				}
+			}
+		}
+		if !foundLowTp && fallbackModel != "" {
+			lowSrc, lowModel = "thirdParty", fallbackModel
+		}
+		low := util.NewObj("id", "low", "label", "轻量省钱", "cli", lowCli, "source", lowSrc)
+		if lowModel != "" {
+			low.Set("model", lowModel)
+		}
+		low.Set("reasoningEffort", "low").Set("costTier", "low")
+		presets = []any{high, bal, low}
+	}
+
+	savedRoutes, _ := settings.Get("routes").(*util.Obj)
+	routes := util.NewObj()
+	fallbackPresetFor := map[string]string{
+		"complex":   "high",
+		"coding":    "balanced",
+		"review":    "balanced",
+		"research":  "low",
+		"prd":       "low",
+		"simple":    "low",
+		"scheduled": "low",
+	}
+	for _, kind := range RoutableTaskKinds {
+		if savedRoutes != nil {
+			if rt, ok := savedRoutes.Get(kind).(*util.Obj); ok && rt != nil {
+				routes.Set(kind, rt.Clone())
+				continue
+			}
+		}
+		// 若旧 defaults 显式指定了不同于主力 CLI 的助手，自动尊重旧配置
+		if defaults != nil && (kind == "coding" || kind == "review" || kind == "research" || kind == "prd") {
+			if dc := ResolveDelegateCli(defaults.Get(kind)); dc != "" && dc != primaryCli {
+				dSrc, dModel := pickHighSource(dc)
+				rt := util.NewObj("kind", "custom", "cli", dc, "source", dSrc)
+				if dModel != "" {
+					rt.Set("model", dModel)
+				}
+				routes.Set(kind, rt)
+				continue
+			}
+		}
+		pid := fallbackPresetFor[kind]
+		if FindPreset(presets, pid) == nil && len(presets) > 0 {
+			if first, ok := presets[0].(*util.Obj); ok && first != nil {
+				pid = util.Str(first.Get("id"))
+			}
+		}
+		routes.Set(kind, util.NewObj("kind", "preset", "presetId", pid))
+	}
+	return autoComplexity, presets, routes
+}
+
+// ResolveInput：ResolveTaskRunner 入参
+type ResolveInput struct {
+	Pinned             string
+	RequestedPreset    string
+	RequestedCli       string
+	RequestedSource    string
+	RequestedAccountID string
+	Kind               string
+	Complexity         string
+	AutoComplexity     bool
+	HasExplicitRouting bool
+	Presets            []any
+	Routes             *util.Obj
+	Defaults           *util.Obj
+	Installed          []string
+}
+
+func runnerFromPresetObj(p *util.Obj, by string) *ResolvedRunner {
+	if p == nil {
+		return nil
+	}
+	return &ResolvedRunner{
+		Cli:             util.Str(p.Get("cli")),
+		By:              by,
+		PresetID:        util.Str(p.Get("id")),
+		Source:          util.Str(p.Get("source")),
+		AccountID:       util.Str(p.Get("accountId")),
+		Model:           util.Str(p.Get("model")),
+		ReasoningEffort: util.Str(p.Get("reasoningEffort")),
+	}
+}
+
+func runnerFromCustomObj(r *util.Obj, by string) *ResolvedRunner {
+	if r == nil {
+		return nil
+	}
+	return &ResolvedRunner{
+		Cli:             util.Str(r.Get("cli")),
+		By:              by,
+		Source:          util.Str(r.Get("source")),
+		AccountID:       util.Str(r.Get("accountId")),
+		Model:           util.Str(r.Get("model")),
+		ReasoningEffort: util.Str(r.Get("reasoningEffort")),
+	}
+}
+
+// ResolveTaskRunner：按照 Pin > preset > explicit cli > complexity/route > PickDelegateCli 选择本次执行的组合。
+func ResolveTaskRunner(i ResolveInput) *ResolvedRunner {
+	okCli := func(c string) bool { return c != "" && contains(i.Installed, c) }
+
+	// 1. Pinned 最高优先级（支持 "preset:<id>" 或 cli id）
+	if strings.HasPrefix(i.Pinned, "preset:") {
+		pid := strings.TrimPrefix(i.Pinned, "preset:")
+		if p := FindPreset(i.Presets, pid); p != nil {
+			if okCli(util.Str(p.Get("cli"))) {
+				return runnerFromPresetObj(p, "pinned")
+			}
+		}
+		return nil
+	}
+	if i.Pinned != "" {
+		if okCli(i.Pinned) {
+			return &ResolvedRunner{Cli: i.Pinned, By: "pinned"}
+		}
+		return nil
+	}
+
+	// 2. 显式指定 preset 参数
+	if pid := trim(i.RequestedPreset); pid != "" {
+		if p := FindPreset(i.Presets, pid); p != nil {
+			if okCli(util.Str(p.Get("cli"))) {
+				return runnerFromPresetObj(p, "preset")
+			}
+		}
+		return nil
+	}
+
+	// 3. 显式指定 cli（及可选 source / accountId）
+	if okCli(i.RequestedCli) {
+		return &ResolvedRunner{
+			Cli:       i.RequestedCli,
+			By:        "requested",
+			Source:    i.RequestedSource,
+			AccountID: i.RequestedAccountID,
+		}
+	}
+
+	// 4. 路由表匹配（启用复杂路由 / 已配新路由表时）
+	if i.HasExplicitRouting || trim(i.Complexity) != "" {
+		routeKey := i.Kind
+		if routeKey == "" {
+			routeKey = "coding"
+		}
+		if i.AutoComplexity {
+			switch trim(i.Complexity) {
+			case "high":
+				routeKey = "complex"
+			case "low":
+				routeKey = "simple"
+			}
+		}
+		if i.Routes != nil {
+			if rt, ok := i.Routes.Get(routeKey).(*util.Obj); ok && rt != nil {
+				switch util.Str(rt.Get("kind")) {
+				case "preset":
+					if p := FindPreset(i.Presets, util.Str(rt.Get("presetId"))); p != nil && okCli(util.Str(p.Get("cli"))) {
+						return runnerFromPresetObj(p, "route:"+routeKey)
+					}
+				case "custom":
+					if okCli(util.Str(rt.Get("cli"))) {
+						return runnerFromCustomObj(rt, "route:"+routeKey)
+					}
+				}
+			}
+		}
+	}
+
+	// 5. 向后兼容默认回退（PickDelegateCli）
+	picked := PickDelegateCli(PickInput{
+		Kind:      i.Kind,
+		Defaults:  i.Defaults,
+		Installed: i.Installed,
+	})
+	if picked == nil {
+		return nil
+	}
+	return &ResolvedRunner{Cli: picked.Cli, By: picked.By}
 }
 
 // OverridesInput：resolveDelegateOverrides 的入参；nil 指针 = undefined/null（Has* 区分 null）
@@ -310,7 +737,7 @@ var aliases = func() map[string]string {
 
 var wsRun = util.JSRe(`\s+`)
 
-// ResolveDelegateCli：名字 → 编程助手 id（不区分大小写，接受别名）；认不出返回 ""
+// ResolveDelegateCli：名字 → Agents id（不区分大小写，接受别名）；认不出返回 ""
 func ResolveDelegateCli(name any) string {
 	s, ok := name.(string)
 	if !ok {
@@ -390,7 +817,7 @@ func ChildPermissionMode(nomi, tabDefault string) string {
 	return m
 }
 
-// ChildPermissionModeFor：Nomi 处于「自动」时，派出去的编程助手直接落到 bypass。
+// ChildPermissionModeFor：Nomi 处于「自动」时，派出去的 agents 直接落到 bypass。
 // 委派是后台无人值守的：任何「问一下」都没人回答，只会让任务半路死掉
 // （Claude 的 auto 更是会把每个动作都拒掉，跑十几分钟后 error_during_execution）。
 // 其余档位仍按「不超过用户给的档位」降级，永远不会自己升到 bypass。
@@ -416,7 +843,7 @@ func ChildPermissionModeFor(cli, nomi, tabDefault string) string {
 // DelegateBrief：任务说明
 type DelegateBrief struct{ Goal, Context, DoneWhen, OutOfScope string }
 
-// BuildDelegatePrompt：发给编程助手的第一条消息（prompts/text/delegate-brief.md；汇报格式的标记与 reportKeys 对应）
+// BuildDelegatePrompt：发给 agents 的第一条消息（prompts/text/delegate-brief.md；汇报格式的标记与 reportKeys 对应）
 func BuildDelegatePrompt(b DelegateBrief) string {
 	return prompts.Render("delegate-brief", DelegateBrief{Goal: trim(b.Goal), Context: trim(b.Context),
 		DoneWhen: trim(b.DoneWhen), OutOfScope: trim(b.OutOfScope)})
@@ -437,6 +864,55 @@ var reportBlockRe = regexp.MustCompile(`(?s)\[nomi-report\](.*?)\[/nomi-report\]
 var crlfRe = regexp.MustCompile(`\r?\n`)
 var bulletRe = util.JSRe(`^[-*•]\s*`)
 var tickRe = regexp.MustCompile("^`|`$")
+var fileLineSepRe = regexp.MustCompile(`[,，、;]+`)
+var fileLineStatsRe = regexp.MustCompile(`\s*\(\s*\+\d+\s*[-−]\d+\s*\)\s*$`)
+
+func looksLikeFilePath(s string) bool {
+	if s == "" || strings.ContainsAny(s, ":：") {
+		return false
+	}
+	if strings.ContainsAny(s, "/\\") || strings.HasPrefix(s, ".") {
+		return true
+	}
+	dot := strings.LastIndexByte(s, '.')
+	return dot > 0 && dot < len(s)-1
+}
+
+// splitReportedFileLine 拆分 [nomi-report] 改动的文件行（支持逗号/顿号，及同一行空格分隔的多条文件路径）。
+func splitReportedFileLine(raw string) []string {
+	cleaned := trim(tickRe.ReplaceAllString(bulletRe.ReplaceAllString(raw, ""), ""))
+	cleaned = trim(fileLineStatsRe.ReplaceAllString(cleaned, ""))
+	if cleaned == "" || noneRe.MatchString(cleaned) {
+		return nil
+	}
+	chunks := fileLineSepRe.Split(cleaned, -1)
+	out := make([]string, 0, len(chunks))
+	for _, c := range chunks {
+		item := trim(tickRe.ReplaceAllString(trim(c), ""))
+		item = trim(fileLineStatsRe.ReplaceAllString(item, ""))
+		if item == "" || noneRe.MatchString(item) {
+			continue
+		}
+		if fields := strings.Fields(item); len(fields) > 1 {
+			allPaths := true
+			stripped := make([]string, 0, len(fields))
+			for _, f := range fields {
+				pf := trim(tickRe.ReplaceAllString(f, ""))
+				if !looksLikeFilePath(pf) {
+					allPaths = false
+					break
+				}
+				stripped = append(stripped, pf)
+			}
+			if allPaths && len(stripped) > 0 {
+				out = append(out, stripped...)
+				continue
+			}
+		}
+		out = append(out, item)
+	}
+	return out
+}
 
 // ParseDelegateReport：解析最后一个 [nomi-report] 块；没有或缺「做了什么」时返回 nil。
 // 结果：{ done, changedFiles, unfinished?, needsUser? }
@@ -481,15 +957,21 @@ func ParseDelegateReport(text string) *util.Obj {
 		return nil
 	}
 	files := []any{}
+	seenFiles := map[string]bool{}
 	for _, l := range parts["changedFiles"] {
-		l = trim(tickRe.ReplaceAllString(bulletRe.ReplaceAllString(l, ""), ""))
-		if l == "" || noneRe.MatchString(l) {
-			continue
+		for _, item := range splitReportedFileLine(l) {
+			if seenFiles[item] {
+				continue
+			}
+			seenFiles[item] = true
+			if len(files) >= 50 {
+				break
+			}
+			files = append(files, slice(item, 200))
 		}
 		if len(files) >= 50 {
 			break
 		}
-		files = append(files, slice(l, 200))
 	}
 	out := util.NewObj("done", done, "changedFiles", files)
 	for _, k := range []string{"unfinished", "needsUser"} {

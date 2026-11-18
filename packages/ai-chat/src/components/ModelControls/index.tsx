@@ -1,8 +1,8 @@
 /**
- * 输入栏的「模型 · 思考深度」按钮（编程助手标签：Codex / Claude Code / Grok 等）。
+ * 输入栏的「模型 · 思考深度」按钮（agents 标签：Codex / Claude Code / Grok 等）。
  *
  * 界面与 Nomi 对话共用 ModelEffortChip（components/ModelControls/ModelEffortChip）；这里只做两件事：
- * 取模型目录（useCatalog）、把目录与网关数据交给编程助手的适配器（cliSource）。
+ * 取模型目录（useCatalog）、把目录与网关数据交给 agents 的适配器（cliSource）。
  * 覆盖是标签级的，主进程在每轮启动时以进程级参数注入
  * （codex `-c model=...`、grok `-m ... --reasoning-effort ...`、claude `--model ... --effort ...`），
  * 不改写用户的全局 CLI 配置；每轮新进程的后端下一条消息即生效，Claude 长驻进程空闲时重启复用。
@@ -11,7 +11,8 @@ import { Icon, isImageModel, t, type PickerModel } from '@nomi-ai/ui';
 import { IconRefresh as RefreshCw } from '@tabler/icons-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
-import { useCliLauncher } from '../../services/cliLauncherClient';
+import { useCliAccounts } from '../../hooks/useCliAccounts';
+import { useCliLauncher, useHasLocalLogin } from '../../services/cliLauncherClient';
 import {
   codingProviders,
   defaultSourceSwitch,
@@ -75,7 +76,10 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
   const { catalog, refreshing, refresh } = useCatalog(tab.backend, source);
   const gateway = useGatewayState();
   const launcher = useCliLauncher(tab.backend);
+  const hasLocalLogin = useHasLocalLogin(tab.backend);
   const [open, setOpen] = useState(false);
+  const { accounts, ready: accountsReady } = useCliAccounts(open ? tab.backend : null);
+  const hasLoggedInOfficial = accountsReady ? accounts.some((a) => a.loggedIn) : undefined;
   const thirdRef = source === 'thirdParty' ? thirdPartyRefOf(tab, tab.backend, gateway) : null;
   // 聊过的会话：原来的供应商与默认供应商不同时两家都列（全部模型）
   const groups = useMemo(
@@ -83,8 +87,12 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
     [source, tab, gateway],
   );
   const sourceSwitch = useMemo(
-    () => defaultSourceSwitch(tab, gateway, launcher.accountSource),
-    [tab, gateway, launcher.accountSource],
+    () =>
+      defaultSourceSwitch(tab, gateway, launcher.accountSource, {
+        local: hasLocalLogin,
+        ...(hasLoggedInOfficial !== undefined ? { official: hasLoggedInOfficial } : {}),
+      }),
+    [tab, gateway, launcher.accountSource, hasLocalLogin, hasLoggedInOfficial],
   );
   // 官方来源：网关里的供应商也按标签列出来，可以直接换过去（与 Nomi 的模型选择器同形）
   const switchProviders = useMemo(
@@ -113,27 +121,31 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
       .filter((p) => has.has(p.id))
       .map((p) => ({ id: p.id, name: p.name, hint: label.get(p.id) }));
   }, [catalog, thirdRef, groups, gateway]);
-  // 第三方目录来自网关：生图模型不能给编程助手用，不列
-  const chatCatalog = useMemo(
-    () =>
-      catalog && thirdRef
-        ? { ...catalog, models: catalog.models.filter((m) => !isImageModel(m.id)) }
-        : catalog,
-    [catalog, thirdRef],
-  );
-  const scoped = useMemo(
-    () =>
-      chatCatalog && thirdRef
-        ? providerTabs && providerTabs.length > 1
-          ? scopeCatalogToProviders(
-              chatCatalog,
-              providerTabs.map((p) => p.id),
-              gateway,
-            )
-          : scopeCatalogToProvider(chatCatalog, thirdRef, gateway)
-        : chatCatalog,
-    [chatCatalog, thirdRef, providerTabs, gateway],
-  );
+  // 第三方目录来自网关：生图模型不能给 agents 用，不列
+  const chatCatalog = useMemo(() => {
+    if (!catalog || !thirdRef) return catalog;
+    const models = catalog.models.filter((m) => !isImageModel(m.id));
+    const defaultModel =
+      catalog.defaultModel && !isImageModel(catalog.defaultModel.id)
+        ? catalog.defaultModel
+        : (models.find((m) => m.id === thirdRef) ?? null);
+    return { ...catalog, models, defaultModel };
+  }, [catalog, thirdRef]);
+  const scoped = useMemo(() => {
+    if (!chatCatalog || !thirdRef) return chatCatalog;
+    if (providerTabs && providerTabs.length > 1) {
+      return scopeCatalogToProviders(
+        chatCatalog,
+        providerTabs.map((p) => p.id),
+        gateway,
+      );
+    }
+    const pid = providerOfRef(thirdRef);
+    if (pid && chatCatalog.models.some((m) => m.id.startsWith(`${pid}/`))) {
+      return scopeCatalogToProvider(chatCatalog, thirdRef, gateway);
+    }
+    return chatCatalog;
+  }, [chatCatalog, thirdRef, providerTabs, gateway]);
   // 适配器只在实际渲染时调用（hook 不能跟在 return 后面）：用占位目录，禁用时也不显示
   const adapter = useCliModelEffortSource({
     tab,
@@ -149,6 +161,7 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
     switchProviders,
     defaultProviderId,
     modelMeta,
+    hasLocalLogin,
   });
   if (scoped === null) return null;
   if (scoped === undefined) return <LoadingChip tab={tab} />;

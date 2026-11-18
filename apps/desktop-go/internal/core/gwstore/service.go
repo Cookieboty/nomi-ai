@@ -101,7 +101,7 @@ func (s *Service) normalizeCliAssignments() bool {
 			changed = true
 		}
 		src := c.Get("newTabSource")
-		if main != "" && src != "thirdParty" {
+		if main != "" && (src == nil || src == "" || src == u.Undefined) {
 			c.Set("newTabSource", "thirdParty")
 			c.Set("newTabAccountId", u.Undefined)
 			changed = true

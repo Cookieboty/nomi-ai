@@ -1,5 +1,5 @@
 /**
- * D3 · 编程助手（app/coding.ts）：过程名 / kind / surfaces / dangerous 的快照、schema 的接受与拒绝、
+ * D3 · agents（app/coding.ts）：过程名 / kind / surfaces / dangerous 的快照、schema 的接受与拒绝、
  * 经 in-process 传输（strict 序列化）的往返。
  */
 
@@ -157,6 +157,39 @@ describe('appContract · D3 coding', () => {
 
   it('往返：经 appContract 的 in-process 传输（strict 序列化），事件推给订阅者', async () => {
     const tabsState = { tabs: [], activeTabId: 'main', running: 0, queued: 0, codexNetwork: true };
+    const delegateSettingsView = {
+      enabled: true,
+      defaults: { coding: 'claude' },
+      installed: ['claude', 'codex'],
+      pinned: null,
+      autoComplexity: true,
+      presets: [
+        {
+          id: 'high',
+          label: '高级攻坚',
+          cli: 'claude',
+          source: 'official' as const,
+          accountId: null,
+          model: null,
+          reasoningEffort: 'high',
+          costTier: 'high' as const,
+        },
+      ],
+      routes: {
+        coding: { kind: 'preset' as const, presetId: 'high' },
+        prd: {
+          kind: 'custom' as const,
+          cli: 'codex',
+          source: 'thirdParty' as const,
+          model: 'deep/deepseek-chat',
+          reasoningEffort: 'low',
+        },
+      },
+      localAvailable: { claude: true, codex: false },
+    };
+    const launchersState = {
+      claude: { enabled: false, command: '', accountSource: 'nomi' as const, hasLocalLogin: true },
+    };
     const { api, router, close } = createTestClient(
       appContract,
       {
@@ -168,11 +201,29 @@ describe('appContract · D3 coding', () => {
           nextOffset: options?.offset ?? null,
           hasMore: false,
         }),
+        'delegate.settings': () => delegateSettingsView,
+        'delegate.setSettings': ({ settings }) => ({
+          enabled: true,
+          defaults: {},
+          ...(settings as Record<string, unknown>),
+        }),
+        'cli.launcherGet': () => launchersState,
       },
       { caller: { surface: 'chat', trusted: true } },
     );
     try {
       expect(await api.harness.tabs()).toEqual(tabsState);
+      expect(await api.delegate.settings()).toEqual(delegateSettingsView);
+      expect(
+        await api.delegate.setSettings({
+          settings: {
+            enabled: true,
+            defaults: {},
+            routes: delegateSettingsView.routes,
+          },
+        }),
+      ).toMatchObject({ routes: delegateSettingsView.routes });
+      expect(await api.cli.launcherGet()).toEqual(launchersState);
       expect(await api.harness.tabSend({ id: 't', prompt: 'hi' })).toEqual({
         text: 't:hi',
         sessionId: null,
@@ -195,7 +246,7 @@ describe('appContract · D3 coding', () => {
       expect(got).toEqual([tabsState, null]);
       off();
       offNull();
-      // 编程助手的会话内容只推给对话窗口（契约 eventSurfaces）
+      // agents 的会话内容只推给对话窗口（契约 eventSurfaces）
       expect(canSubscribe(appContract, 'harness.tabsChanged', 'mascot')).toBe(false);
       expect(canSubscribe(appContract, 'agents.changed', 'mascot')).toBe(true);
     } finally {

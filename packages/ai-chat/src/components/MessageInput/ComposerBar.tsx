@@ -8,7 +8,12 @@ import {
 } from '@tabler/icons-react';
 import React from 'react';
 
-import type { DelegateCli } from '../../services/delegateClient';
+import {
+  getNextDelegateMeta,
+  isPresetPin,
+  type NextDelegateMeta,
+  type NextDelegatePin,
+} from '../../services/delegateClient';
 import type { HarnessTabMeta } from '../../services/harnessClient';
 import type { ConvMessage } from '../../types/conversation';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
@@ -26,11 +31,11 @@ interface ComposerBarProps {
   onMenuOpenChange: (open: boolean) => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onFiles: (files: File[]) => boolean;
-  onDelegate: (cli: DelegateCli | null) => void;
+  onDelegate: (target: NextDelegatePin | null, meta?: NextDelegateMeta) => void;
   kbMode: boolean;
   kbAvailable: boolean;
   toggleKb: () => void;
-  nextDelegate: DelegateCli | null;
+  nextDelegate: NextDelegatePin | null;
   onClearDelegate: () => void;
   compact: boolean;
   modelControl?: React.ReactNode;
@@ -90,21 +95,24 @@ export const ComposerBar: React.FC<ComposerBarProps> = ({
           {tr('ui.foundation.knowledge-base')}
         </button>
       )}
-      {nextDelegate && (
-        <button
-          type="button"
-          className={styles.chip}
-          onClick={onClearDelegate}
-          aria-label={tr(
-            'ui.session-workspace.cancel-next-request-goes-to',
-            tr(ENDPOINT_NAME[nextDelegate]),
-          )}
-          data-testid="next-delegate-chip"
-        >
-          {tr('ui.session-workspace.to', tr(ENDPOINT_NAME[nextDelegate]))}
-          <Icon icon={X} size={12} />
-        </button>
-      )}
+      {nextDelegate &&
+        (() => {
+          const delegateLabel = isPresetPin(nextDelegate)
+            ? (getNextDelegateMeta(nextDelegate)?.label ?? nextDelegate.slice('preset:'.length))
+            : tr(ENDPOINT_NAME[nextDelegate]);
+          return (
+            <button
+              type="button"
+              className={styles.chip}
+              onClick={onClearDelegate}
+              aria-label={tr('ui.session-workspace.cancel-next-request-goes-to', delegateLabel)}
+              data-testid="next-delegate-chip"
+            >
+              {tr('ui.session-workspace.to', delegateLabel)}
+              <Icon icon={X} size={12} />
+            </button>
+          );
+        })()}
       {/* Codex 式：左边是 + 与权限模式，模型放到右边、挨着语音与发送 */}
       {!compact && !modelControl && (
         <div className={styles.modelStatus}>

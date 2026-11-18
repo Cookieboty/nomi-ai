@@ -1,6 +1,8 @@
 import { Icon } from '@nomi-ai/ui';
 import React from 'react';
 
+import { useDelegatePresets, type RunnerPreset } from '../../services/delegateClient';
+import { useGatewayState } from '../../services/nomiModel';
 import { CONVERSATION_BACKENDS, type ConversationBackend } from '../../types/chat';
 import { NewChatMenu } from '../NewChatMenu';
 
@@ -21,6 +23,7 @@ interface NewChatButtonProps {
   bins: Record<string, string | null>;
   project: React.ComponentProps<typeof NewChatMenu>['project'];
   onPick: (backend: ConversationBackend) => void;
+  onPickPreset?: (preset: RunnerPreset) => void;
 }
 
 /** 顶行左侧的「新对话」按钮与它的后端选择菜单 */
@@ -36,33 +39,41 @@ export const NewChatButton: React.FC<NewChatButtonProps> = ({
   bins,
   project,
   onPick,
-}) => (
-  <div className={styles.newWrap} ref={menuRef}>
-    <button
-      ref={newBtnRef}
-      type="button"
-      className={styles.newChatBtn}
-      onClick={onClick}
-      aria-label={label}
-      aria-haspopup={hasMenu ? 'menu' : undefined}
-      aria-expanded={hasMenu ? menuOpen : undefined}
-      data-testid="new-chat"
-    >
-      <Icon icon={SIDEBAR_ICONS.newChat} size={16} />
-      <span className={styles.newChatLabel}>{label}</span>
-    </button>
-    {menuP.value && (
-      <AnchoredPopover anchor={newBtnRef.current} popRef={newPopRef}>
-        <NewChatMenu
-          closing={menuP.closing}
-          className={styles.newMenu}
-          backends={CONVERSATION_BACKENDS}
-          bins={bins}
-          strictBins
-          project={project}
-          onPick={onPick}
-        />
-      </AnchoredPopover>
-    )}
-  </div>
-);
+  onPickPreset,
+}) => {
+  const presets = useDelegatePresets(!!menuP.value);
+  const gateway = useGatewayState();
+  return (
+    <div className={styles.newWrap} ref={menuRef}>
+      <button
+        ref={newBtnRef}
+        type="button"
+        className={styles.newChatBtn}
+        onClick={onClick}
+        aria-label={label}
+        aria-haspopup={hasMenu ? 'menu' : undefined}
+        aria-expanded={hasMenu ? menuOpen : undefined}
+        data-testid="new-chat"
+      >
+        <Icon icon={SIDEBAR_ICONS.newChat} size={16} />
+        <span className={styles.newChatLabel}>{label}</span>
+      </button>
+      {menuP.value && (
+        <AnchoredPopover anchor={newBtnRef.current} popRef={newPopRef}>
+          <NewChatMenu
+            closing={menuP.closing}
+            className={styles.newMenu}
+            backends={CONVERSATION_BACKENDS}
+            bins={bins}
+            strictBins
+            project={project}
+            onPick={onPick}
+            presets={presets}
+            gateway={gateway}
+            onPickPreset={onPickPreset}
+          />
+        </AnchoredPopover>
+      )}
+    </div>
+  );
+};

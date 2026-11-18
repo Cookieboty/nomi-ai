@@ -1,7 +1,7 @@
 /**
  * 会话详情里的「Agents」：本会话用到的其他 Agents 与状态（纯函数，便于单测）。
- * - 子任务：Nomi 派给编程助手的（delegate_to_cli → 标签 delegation.callId），点开在子任务面板里看；
- * - 子代理：编程助手 / Nomi 自己派生的（Task / Agent 等），状态以实时状态为准。
+ * - 子任务：Nomi 派给 agents 的（delegate_to_cli → 标签 delegation.callId），点开在子任务面板里看；
+ * - 子代理：agents / Nomi 自己派生的（Task / Agent 等），状态以实时状态为准。
  * 派给后台 Nomi 的（delegate_to_nomi）是一个持续任务，列在「任务」里，不算 Agents。
  */
 import type { DelegateResult } from '../../services/delegateClient';
@@ -31,7 +31,7 @@ export interface SessionAgent {
   id: string;
   /** side-chat：侧边聊天（只问 Nomi 的临时聊天，和子任务在同一个标签区里） */
   kind: 'delegate' | 'subagent' | 'side-chat';
-  /** 子任务：编程助手；子代理：类型 / 名字（空 = 界面写「子代理」） */
+  /** 子任务：agents；子代理：类型 / 名字（空 = 界面写「子代理」） */
   backend?: HarnessBackend | null;
   label?: string;
   /** 目标 / 描述 */
@@ -138,8 +138,22 @@ export function pendingDelegateTaskIds(messages: readonly ConvMessage[]): string
   return out;
 }
 
+/** 识别本次委派实际落到的 Agent 标签载体（复用同一个标签的多次委派会共享同一载体键） */
+function delegateCarrierKey(
+  call: ToolCall,
+  openTab: HarnessTabMeta | null,
+  result: DelegateResult | undefined,
+): string | undefined {
+  if (openTab?.id) return openTab.id;
+  if (result?.tabId) return result.tabId;
+  const parsed = parseOutput(call.output).result;
+  if (parsed?.tabId) return parsed.tabId;
+  if (parsed && !parsed.background && parsed.taskId) return parsed.taskId;
+  return undefined;
+}
+
 /**
- * messages：当前会话（含进行中的一轮）；tabs：编程助手标签；live：标签实时状态；
+ * messages：当前会话（含进行中的一轮）；tabs：agents 标签；live：标签实时状态；
  * liveAgents：当前标签这一轮的子代理（还没出现在消息里的也算）；
  * results：异步委派的最终结果（taskId → 结果；工具输出只是 running 占位，与子任务卡片同一来源）；
  * followUps：委派结束后在子任务里接着跑的那一轮（出错后「继续」等）的最新结果
@@ -154,6 +168,7 @@ export function collectSessionAgents(
 ): SessionAgent[] {
   const agents: SessionAgent[] = [];
   const seen = new Set<string>();
+  const delegateIndexByCarrier = new Map<string, number>();
   const byCall = new Map<string, LiveAgent>();
   for (const a of Object.values(liveAgents ?? {})) if (a.callId) byCall.set(a.callId, a);
   for (const { call, kind, taskId, type, target } of agentCalls(messages)) {
@@ -165,7 +180,7 @@ export function collectSessionAgents(
       const v = delegateView(withDelegateResult(call, result), tab, tab ? live[tab.id] : undefined);
       // 标签被后来的同类委派接着用了：仍按结果里的 taskId / tabId 打开它（状态还是看这一次自己的结果）
       const openTab = tab ?? delegateOpenTab(call, tabs, result);
-      agents.push({
+      const entry: SessionAgent = {
         id: call.id,
         kind: 'delegate',
         backend: v.backend,
@@ -175,7 +190,24 @@ export function collectSessionAgents(
         ),
         tabId: openTab?.id,
         ...(call.startedAt != null ? { at: call.startedAt } : {}),
-      });
+      };
+      const carrier = delegateCarrierKey(call, openTab, result);
+      if (carrier) {
+        const prevIdx = delegateIndexByCarrier.get(carrier);
+        if (prevIdx !== undefined) {
+          const prev = agents[prevIdx]!;
+          agents[prevIdx] = {
+            ...entry,
+            backend: entry.backend ?? prev.backend,
+            detail: entry.detail ?? prev.detail,
+            tabId: entry.tabId ?? prev.tabId,
+            ...((entry.at ?? prev.at) != null ? { at: entry.at ?? prev.at } : {}),
+          };
+          continue;
+        }
+        delegateIndexByCarrier.set(carrier, agents.length);
+      }
+      agents.push(entry);
       continue;
     }
     seen.add(call.id);

@@ -1,6 +1,6 @@
 package tasks
 
-// `cli` 执行者：用户装好、配好的编程助手在后台标签里执行任务（docs/features/scheduling-calendar.md）。
+// `cli` 执行者：用户装好、配好的 agents 在后台标签里执行任务（docs/features/scheduling-calendar.md）。
 // 默认直接在代码目录里改（同仓库并行的任务按文件、按优先级让路）；指定了别的分支做基线时在 worktree 里改，
 // 验收（或验收卡片上的回填）时落地：改动少拷回当前工作区，改动多提交到新分支。
 // 同一种任务接着用上一次的会话；授权等级换算权限档、审批先过确定性命令分类、用户在标签里接手 → takenOver。
@@ -15,7 +15,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
-// osSandboxSupported：系统级编程助手沙箱是否可用（目前仅 macOS 且内置执行文件在）。
+// osSandboxSupported：系统级 agents 沙箱是否可用（目前仅 macOS 且内置执行文件在）。
 // Windows / Linux 为假：L3 不切到 auto，命令保持逐条确认。测试里可替换。
 var osSandboxSupported = sandbox.Supported
 
@@ -41,6 +41,9 @@ type CliCreateTab struct {
 	Goal           string
 	TaskID         string
 	ModelOverride  string
+	// Source / AccountID：多来源执行参数（local | official | thirdParty；仅 official 传 AccountID）
+	Source    string
+	AccountID string
 	// ReasoningEffort：委派带过来的思考深度
 	ReasoningEffort string
 	// GithubAccess：授权里有 GitHub 对外能力，标签不隔离 gh 登录
@@ -94,10 +97,21 @@ type CliReport struct {
 	NeedsUser    string
 }
 
-// CliDeps：编程助手执行者的依赖（编排器、worktree、git、委派提示词与汇报格式，见 main 里的装配）
+// CliPresetSpec：由 presetId 在任务触发时实时解析出的执行配置
+type CliPresetSpec struct {
+	Cli             string
+	Source          string
+	AccountID       string
+	Model           string
+	ReasoningEffort string
+}
+
+// CliDeps：agents 执行者的依赖（编排器、worktree、git、委派提示词与汇报格式，见 main 里的装配）
 type CliDeps struct {
 	Harness CliHarness
-	// AutoAll：读前台编程助手的「全部自动」（nil = 关）：开着时后台标签用 auto 档、跑命令不再逐项问人
+	// ResolvePreset：按 presetId 解析 agents、来源、账号、模型与思考深度（可为空）
+	ResolvePreset func(presetID string) *CliPresetSpec
+	// AutoAll：读前台 agents 的「全部自动」（nil = 关）：开着时后台标签用 auto 档、跑命令不再逐项问人
 	AutoAll func() bool
 	// NomiAuto：Nomi 主对话当前是「自动」档。该档位明确授权 Nomi 委派的子 agent
 	// 在没有系统沙箱的平台也使用 auto；其它后台任务仍遵守系统沙箱限制。
@@ -210,7 +224,7 @@ func GithubAccess(t Task) bool {
 	return false
 }
 
-// SandboxGrants：编程助手沙箱里预先允许的类别：授权里勾的，加上有 GitHub 对外能力时的 SSH 与 Git 凭据（要推代码）
+// SandboxGrants：agents 沙箱里预先允许的类别：授权里勾的，加上有 GitHub 对外能力时的 SSH 与 Git 凭据（要推代码）
 func SandboxGrants(t Task) []string {
 	out := []string{}
 	for _, c := range t.Grant.Sandbox {
@@ -287,7 +301,7 @@ func (e *cliExecutor) decidePermission(t Task, kind, summary string, tainted boo
 	return DecidePermission(t, kind, summary, tainted, e.relaxed(t))
 }
 
-// cliTaskMode：授权等级换成编程助手的权限档。L3 且放松时才用 auto；没有系统沙箱时停在 acceptEdits。
+// cliTaskMode：授权等级换成 agents 的权限档。L3 且放松时才用 auto；没有系统沙箱时停在 acceptEdits。
 func cliTaskMode(t Task, relaxed bool) string {
 	mode := "plan"
 	if t.Grant.Level >= 2 {
@@ -304,7 +318,7 @@ func (e *cliExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
 	if ex.Kind != "cli" || ex.Cli == nil || ex.Cwd == nil {
 		return ExecutionSnapshot{}, &TaskError{Code: "executor_failed", Message: "not a cli task"}
 	}
-	// 用户点名的编程助手不可用：失败并提示，不悄悄换成别的
+	// 用户点名的 agents 不可用：失败并提示，不悄悄换成别的
 	if !e.d.Harness.Bins()[*ex.Cli] {
 		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: configCliUnavailable(*ex.Cli)}
 	}
@@ -393,10 +407,38 @@ func (e *cliExecutor) Start(ctx AttemptContext) {
 func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 	defer e.endPrep(ctx.Task.ID, p)
 	t, a, rep, prev := ctx.Task, ctx.Attempt, ctx.Report, ctx.Previous
-	if t.Executor.Kind != "cli" || t.Executor.Cli == nil || t.Executor.Cwd == nil {
+	if t.Executor.Kind != "cli" || t.Executor.Cwd == nil || (t.Executor.Cli == nil && t.Executor.PresetID == nil) {
 		return
 	}
 	ex := t.Executor
+	cliName := strOr(ex.Cli)
+	src := strOr(ex.Source)
+	accID := strOr(ex.AccountID)
+	model := strOr(ex.Model)
+	effort := strOr(ex.ReasoningEffort)
+	if pid := strOr(ex.PresetID); pid != "" && e.d.ResolvePreset != nil {
+		if ps := e.d.ResolvePreset(pid); ps != nil {
+			if cliName == "" {
+				cliName = ps.Cli
+			}
+			if src == "" {
+				src = ps.Source
+			}
+			if accID == "" && (src == "" || src == "official") {
+				accID = ps.AccountID
+			}
+			if model == "" {
+				model = ps.Model
+			}
+			if effort == "" {
+				effort = ps.ReasoningEffort
+			}
+		}
+	}
+	if cliName == "" {
+		rep.Failed(TaskError{Code: "prepare_failed", Message: "missing cli"})
+		return
+	}
 	h := e.d.Harness
 	tabID := ""
 	if prev != nil && prev.Carrier != nil && prev.Carrier.TabID != nil {
@@ -404,6 +446,7 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 	}
 	k := a.Cause.Kind
 	reused := tabID != "" && h.HasTab(tabID) && !h.TakenOver(tabID) && k != "manual" && k != "schedule" && k != "event"
+	var before []string
 	var iso *CliIsolation
 	if !reused {
 		var got CliIsolation
@@ -427,18 +470,11 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 			return
 		}
 		iso = &got
+		before = e.d.GitChanged(got.Cwd)
 		// 权限档：L2 起可以改文件；开了「按风险自动判断」或前台「全部自动」且到了 L3、
 		// 并且系统沙箱可用时用 auto（等价 codex 的 full-auto）。Nomi「自动」明确委派的子 agent
 		// 即使没有系统沙箱也用 auto。
 		mode := cliTaskMode(t, e.relaxed(t))
-		model := ""
-		if ex.Model != nil {
-			model = *ex.Model
-		}
-		effort := ""
-		if ex.ReasoningEffort != nil {
-			effort = *ex.ReasoningEffort
-		}
 		// 同一种任务接着用上一次的会话（worktree 里做的不复用）
 		id := ""
 		if got.Kind != "worktree" && e.d.ReuseTab != nil {
@@ -450,7 +486,7 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 				key = e.d.ReuseKey(t, got.Cwd)
 			}
 			var err error
-			id, err = h.CreateTab(CliCreateTab{Backend: *ex.Cli, Cwd: got.Cwd, Project: strOr(ex.Project), Title: runeSlice(t.Title, 60),
+			id, err = h.CreateTab(CliCreateTab{Backend: cliName, Source: src, AccountID: accID, Cwd: got.Cwd, Project: strOr(ex.Project), Title: runeSlice(t.Title, 60),
 				PermissionMode: mode, Goal: runeSlice(t.Goal, 200), TaskID: t.ID, ModelOverride: model, ReasoningEffort: effort,
 				GithubAccess: GithubAccess(t), SandboxGrants: SandboxGrants(t), CallID: strOr(t.Executor.CallID), ReuseKey: key})
 			if err != nil {
@@ -462,7 +498,7 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 			}
 		}
 		tabID = id
-		c := Carrier{TabID: ptr(id), Cwd: ptr(got.Cwd), SourceCwd: ptr(got.SourceCwd)}
+		c := Carrier{TabID: ptr(id), Cwd: ptr(got.Cwd), SourceCwd: ptr(got.SourceCwd), BeforeFiles: before}
 		if got.WorktreePath != "" {
 			c.Worktree = ptr(got.WorktreePath)
 		}
@@ -471,6 +507,15 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 		}
 		rep.Carrier(c)
 	} else {
+		if prev != nil && prev.Carrier != nil && prev.Carrier.BeforeFiles != nil {
+			before = prev.Carrier.BeforeFiles
+		} else {
+			workDir := *ex.Cwd
+			if prev != nil && prev.Carrier != nil && prev.Carrier.Cwd != nil {
+				workDir = *prev.Carrier.Cwd
+			}
+			before = e.d.GitChanged(workDir)
+		}
 		if k == "retry" && e.d.RecoverTab != nil {
 			// 重试前先拆掉可能半残的常驻 CLI 进程；前 2 次带原 cliSessionId 续接，第 3 次起清掉可能已损坏的会话开新会话续跑
 			e.d.RecoverTab(tabID, t.RetryCount >= 3)
@@ -537,10 +582,6 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 			rep.NeedsUser(EventWait{Kind: "approval", RequestID: ptr(ev.ID), Detail: ptr(runeSlice(ev.Summary, 800))})
 		}
 	})
-	var before []string
-	if !reused {
-		before = e.d.GitChanged(iso.Cwd)
-	}
 	e.mu.Lock()
 	stoppedEarly := run.stopped
 	e.mu.Unlock()
@@ -596,7 +637,11 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 	after := e.d.GitChanged(workCwd)
 	var edited []string
 	if e.d.EditsSince != nil {
-		edited = e.d.EditsSince(tabID, workCwd, a.StartedAt, 0)
+		editFrom := a.StartedAt
+		if reused && prev != nil && prev.StartedAt > 0 && prev.StartedAt < editFrom {
+			editFrom = prev.StartedAt
+		}
+		edited = e.d.EditsSince(tabID, workCwd, editFrom, 0)
 	}
 	changed := []string{}
 	if after != nil {

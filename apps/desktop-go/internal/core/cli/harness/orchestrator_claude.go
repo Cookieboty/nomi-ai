@@ -52,6 +52,8 @@ type claudeLiveSession struct {
 	turn           *claudeTurnWaiter
 	cwd            string
 	permissionMode string
+	// launchMode：实际传给 CLI 进程的权限档（如委派任务或学到不可用时降成 acceptEdits）。
+	launchMode string
 	// capKey：这个进程实际连的端点 + 模型（学 auto 能力用，见 cli.AutoModeTable）。
 	capKey           string
 	modeChange       *modeChange
@@ -341,6 +343,22 @@ func (o *Orchestrator) ensureClaudeLiveBound(tab *util.Obj) *jsrt.Promise[*claud
 	})
 }
 
+func (o *Orchestrator) isManagedDelegatedTab(tab *util.Obj) bool {
+	if tab == nil {
+		return false
+	}
+	d, _ := tab.Get("delegation").(*util.Obj)
+	return d != nil && d.Get("by") == "nomi" && !truthy(d.Get("takenOver"))
+}
+
+func (o *Orchestrator) hasManagedTask(tab *util.Obj) bool {
+	if !o.isManagedDelegatedTab(tab) {
+		return false
+	}
+	d, _ := tab.Get("delegation").(*util.Obj)
+	return truthy(d.Get("taskId"))
+}
+
 // claudeLaunchMode：Claude 实际要下发的权限档。
 //
 // 「自动」= Claude 自己判断哪些动作需要确认，就是这个档本身，所以默认**原样下发**。
@@ -349,13 +367,19 @@ func (o *Orchestrator) ensureClaudeLiveBound(tab *util.Obj) *jsrt.Promise[*claud
 // （见 cli.AutoModeTable，从 Claude 自己发出的 auto_mode_no_server_check 学到）才降档，
 // 并且此时会告诉用户为什么，而不是默默换掉他选的模式。
 //
+// 委派 / 持续任务子 agent（takenOver=false）本身由 Nomi 宿主按风险审核命令（stdio），
+// 若再对 Claude 下发 auto 会绕开宿主审批并在分类器不可用时直接拒命令熔断，因此降为 acceptEdits。
 // 降级目标是 acceptEdits（Claude 自己按规则判断、改文件自动过，其余动作走 Nomi 审批卡），
 // 不是 bypassPermissions。实际下发的档记在 permissionModeCli，回报时不把它当用户改档。
 func (o *Orchestrator) claudeLaunchMode(tab *util.Obj, capKey string) string {
 	mode := str(tab, "permissionMode")
 	eff := mode
-	if mode == "auto" && o.autoMode != nil && o.autoMode.Unsupported(capKey) != "" {
-		eff = "acceptEdits"
+	if mode == "auto" {
+		if o.isManagedDelegatedTab(tab) {
+			eff = "acceptEdits"
+		} else if o.autoMode != nil && o.autoMode.Unsupported(capKey) != "" {
+			eff = "acceptEdits"
+		}
 	}
 	if eff != mode {
 		tab.Set("permissionModeCli", eff)
@@ -365,20 +389,30 @@ func (o *Orchestrator) claudeLaunchMode(tab *util.Obj, capKey string) string {
 	return eff
 }
 
+func normalizeAutoModeEndpoint(ep string) string {
+	t := strings.ToLower(strings.TrimSpace(ep))
+	if strings.HasPrefix(t, "http://127.0.0.1:") ||
+		strings.HasPrefix(t, "http://localhost:") ||
+		strings.HasPrefix(t, "http://[::1]:") {
+		return "nomi-gateway"
+	}
+	return strings.TrimSpace(ep)
+}
+
 // claudeCapKey：这个标签实际连的端点 + 模型（学 auto 能力用的键）。
 func claudeCapKey(launch *tabLaunch, ov overrides) string {
 	endpoint := ""
 	if launch != nil && !launch.official {
-		endpoint = util.Str(launch.env.Get("ANTHROPIC_BASE_URL"))
+		endpoint = normalizeAutoModeEndpoint(util.Str(launch.env.Get("ANTHROPIC_BASE_URL")))
 	}
 	return cli.AutoModeKey(endpoint, derefStr(ov.model))
 }
 
 // noteAutoModeBlocked：Claude 说「自动模式在这个会话里校验不了动作」时，把这个
 // 端点 + 模型组合记下来（cli.AutoModeTable），下次启动就不用再白耗一轮；
-// 同时发一条提示告诉用户为什么，而不是默默换掉他选的权限模式。
+// 同时热降级当前仍在跑的 Claude 进程（或在本轮错误结束后回收重拉），并通知用户原因。
 func (o *Orchestrator) noteAutoModeBlocked(tabID string, live *claudeLiveSession, ev *util.Obj) {
-	if live == nil || live.capKey == "" || o.autoMode == nil {
+	if ev == nil {
 		return
 	}
 	tag := jsStr(ev.Get("tag"))
@@ -386,17 +420,27 @@ func (o *Orchestrator) noteAutoModeBlocked(tabID string, live *claudeLiveSession
 	if tag != "auto_mode_no_server_check" && code != "auto_mode_no_check_in_session" {
 		return
 	}
-	if o.autoMode.Unsupported(live.capKey) != "" {
-		return
+	if live != nil && live.capKey != "" && o.autoMode != nil && o.autoMode.Unsupported(live.capKey) == "" {
+		reason := code
+		if reason == "" {
+			reason = tag
+		}
+		o.autoMode.NoteUnsupported(live.capKey, reason)
+		o.emitEvent(tabID, util.NewObj(
+			"type", "notice", "tag", "auto_mode_unavailable", "text", i18n.T("electron.common.auto-mode-unavailable-here"),
+		))
 	}
-	reason := code
-	if reason == "" {
-		reason = tag
+	if live != nil && live.launchMode == "auto" {
+		if tab := o.tab(tabID); tab != nil && str(tab, "permissionMode") == "auto" {
+			tab.Set("permissionModeCli", "acceptEdits")
+		}
+		live.launchMode = "acceptEdits"
+		if ev.Get("type") == "error" {
+			live.recycleAfterTurn = true
+		} else if live.child != nil && live.child.Stdin() != nil && live.child.Stdin().Writable() {
+			o.writeClaudeControl(live, util.NewObj("subtype", "set_permission_mode", "mode", cli.ClaudeModeName("acceptEdits")))
+		}
 	}
-	o.autoMode.NoteUnsupported(live.capKey, reason)
-	o.emitEvent(tabID, util.NewObj(
-		"type", "notice", "tag", "auto_mode_unavailable", "text", i18n.T("electron.common.auto-mode-unavailable-here"),
-	))
 }
 
 // reusableClaude：已在运行、且能按这次的注入 / 档位 / 模型复用的 Claude 进程。
@@ -407,6 +451,7 @@ func (o *Orchestrator) reusableClaude(tab *util.Obj, launch *tabLaunch) *claudeL
 		existing.cwd == str(tab, "cwd") &&
 		existing.launchSig == launch.sig &&
 		existing.permissionMode == str(tab, "permissionMode") &&
+		existing.launchMode == o.claudeLaunchMode(tab, claudeCapKey(launch, ov)) &&
 		existing.modeChange == nil &&
 		((eqStrP(existing.modelOverride, ov.model) &&
 			eqStrP(existing.reasoningEffort, ov.effort) &&
@@ -439,11 +484,13 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 		throw(i18n.T("electron.common.claude-code-not-found-set-nomi-use-mock"))
 	}
 	useNode := IsScript(bin)
+	capKey := claudeCapKey(launch, ov)
+	launchMode := o.claudeLaunchMode(tab, capKey)
 	argv := []string{
 		"-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose",
 		"--include-partial-messages", "--permission-prompt-tool", "stdio", "--replay-user-messages",
 	}
-	argv = append(argv, cli.PermissionLaunchFor("claude", o.claudeLaunchMode(tab, claudeCapKey(launch, ov)), nil).Args...)
+	argv = append(argv, cli.PermissionLaunchFor("claude", launchMode, nil).Args...)
 	argv = append(argv, cli.OverrideArgs("claude", ov.model, ptrAny(ov.effort))...)
 	argv = append(argv, launch.args...)
 	argv = append(argv, o.claudeSandboxArgs()...)
@@ -504,7 +551,7 @@ func (o *Orchestrator) ensureClaudeLive(tab *util.Obj, spawnLaunch *tabLaunch) *
 	})
 	live := &claudeLiveSession{
 		child: child, driver: driver, parseLine: claude.NewParser(), cwd: str(tab, "cwd"),
-		permissionMode: str(tab, "permissionMode"), capKey: claudeCapKey(launch, ov), modelOverride: ov.model, reasoningEffort: ov.effort,
+		permissionMode: str(tab, "permissionMode"), launchMode: launchMode, capKey: capKey, modelOverride: ov.model, reasoningEffort: ov.effort,
 		launchSig: sl.sig, modelSig: sl.modelSig, bgTasks: map[string]bool{}, lastActivityAt: nowMs(),
 	}
 	// 让 CLI 把子代理（Task / Agent）自己说的话和思考也写到 stdout（官方 SDK 的 forwardSubagentText；
@@ -682,7 +729,7 @@ func (o *Orchestrator) onClaudeLine(tabID string, live *claudeLiveSession, line 
 		if ev.Get("type") == "status" && truthy(ev.Get("permissionMode")) {
 			o.applyCliPermissionMode(tabID, jsStr(ev.Get("permissionMode")))
 		}
-		if ev.Get("type") == "notice" || ev.Get("type") == "permission-denied" {
+		if ev.Get("type") == "notice" || ev.Get("type") == "permission-denied" || ev.Get("code") == "auto_mode_no_check_in_session" {
 			o.noteAutoModeBlocked(tabID, live, ev)
 		}
 		if liveEmit {
@@ -711,6 +758,13 @@ func (o *Orchestrator) onClaudeLine(tabID string, live *claudeLiveSession, line 
 			}
 			if pev.Get("kind") == "approve-plan" {
 				notify()
+			} else if !o.bypassInEffect(tabID) && o.hasManagedTask(tab) {
+				reqID := jsStr(pev.Get("id"))
+				jsrt.SetTimeout(120*time.Millisecond, func() {
+					if m := o.pendingPerms.Get(tabID); m != nil && m[reqID] != nil {
+						notify()
+					}
+				})
 			} else {
 				o.allowIfBypass(tabID, jsStr(pev.Get("id")), notify)
 			}

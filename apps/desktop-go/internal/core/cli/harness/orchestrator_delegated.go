@@ -1,13 +1,14 @@
 package harness
 
-// orchestrator_delegated.go：Nomi 委派出去的编程助手标签只在 Nomi 里看（对话里的子任务卡片、任务页），
-// 不进编程助手的会话列表与历史：记下委派用过的会话（backend:sessionId，落盘），历史列表据此跳过。
+// orchestrator_delegated.go：Nomi 委派出去的 agents 标签只在 Nomi 里看（对话里的子任务卡片、任务页），
+// 不进 agents 的会话列表与历史：记下委派用过的会话（backend:sessionId，落盘），历史列表据此跳过。
 // 同一种委派接着用上一次的会话：RebindDelegation 把空闲的委派标签交给新的一次委派。
 
 import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
@@ -91,8 +92,26 @@ func (o *Orchestrator) IsDelegatedSession(backend, sessionID string) bool {
 	return false
 }
 
+func appendBoundedID(list any, id string, maxLen int) []any {
+	arr, _ := list.([]any)
+	out := make([]any, 0, len(arr)+1)
+	for _, x := range arr {
+		if s, ok := x.(string); ok && s != "" && s != id {
+			out = append(out, s)
+		}
+	}
+	if id != "" {
+		out = append(out, id)
+	}
+	if maxLen > 0 && len(out) > maxLen {
+		out = out[len(out)-maxLen:]
+	}
+	return out
+}
+
 // RebindDelegation：把空闲、没被接手的委派标签交给新的一次委派（同一种任务接着用它的会话）：
-// 换上新的 callId / taskId / goal，审批计数清零；del.permissionMode 给了就按它设权限档。不能接手时返回 false。
+// 换上新的 callId / taskId / goal（并把旧的 callId / taskId 留进 prevCallIds / prevTaskIds），
+// 审批计数清零；del.permissionMode 给了就按它设权限档。不能接手时返回 false。
 // del.expectTaskId 给了时，标签当前的 taskId 必须还是它（挑选与改写之间没被别的任务领走）——
 // 比对和改写在同一次调用里（编排器串行），两个并发任务挑中同一个标签时只有一个能领到。
 func (o *Orchestrator) RebindDelegation(id string, del *util.Obj) bool {
@@ -107,6 +126,12 @@ func (o *Orchestrator) RebindDelegation(id string, del *util.Obj) bool {
 	if expect, ok := del.Lookup("expectTaskId"); ok && jsStr(expect) != jsStr(d.Get("taskId")) {
 		return false
 	}
+	if oldCall := jsStr(d.Get("callId")); oldCall != "" && oldCall != jsStr(del.Get("callId")) {
+		d.Set("prevCallIds", appendBoundedID(d.Get("prevCallIds"), oldCall, 64))
+	}
+	if oldTask := jsStr(d.Get("taskId")); oldTask != "" && oldTask != jsStr(del.Get("taskId")) {
+		d.Set("prevTaskIds", appendBoundedID(d.Get("prevTaskIds"), oldTask, 64))
+	}
 	for _, k := range []string{"callId", "taskId"} {
 		if truthy(del.Get(k)) {
 			d.Set(k, del.Get(k))
@@ -114,7 +139,13 @@ func (o *Orchestrator) RebindDelegation(id string, del *util.Obj) bool {
 			d.Delete(k)
 		}
 	}
-	d.Set("goal", clisdk.Slice0(jsStr(del.Get("goal")), 200))
+	goal := jsStr(del.Get("goal"))
+	d.Set("goal", clisdk.Slice0(goal, 200))
+	if t := clisdk.Slice0(util.JSTrim(jsStr(del.Get("title"))), 60); t != "" {
+		tab.Set("title", t)
+	} else if g := clisdk.Slice0(util.JSTrim(goal), 40); g != "" && strings.HasPrefix(str(tab, "title"), "Nomi · ") {
+		tab.Set("title", "Nomi · "+g)
+	}
 	if truthy(del.Get("githubAccess")) {
 		d.Set("githubAccess", true)
 	} else {
@@ -127,7 +158,7 @@ func (o *Orchestrator) RebindDelegation(id string, del *util.Obj) bool {
 	}
 	d.Set("approvals", util.NewObj("asked", 0.0, "denied", 0.0, "timedOut", 0.0))
 	if pm, ok := del.Get("permissionMode").(string); ok && pm != "" && pm != str(tab, "permissionMode") {
-		o.tryWarn("harness rebind permission mode failed", func() { o.SetTabPermissionMode(id, pm, PermOpts{}) })
+		o.tryWarn("harness rebind permission mode failed", func() { o.SetTabPermissionMode(id, pm, PermOpts{Confirmed: true}) })
 	}
 	d.Delete("lastError")
 	o.delegatedUnsent[id] = true

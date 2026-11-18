@@ -14,6 +14,8 @@ import {
 } from '@tabler/icons-react';
 import React, { useEffect, useRef, useState } from 'react';
 
+import { useDelegatePresets, type RunnerPreset } from '../../services/delegateClient';
+import { useGatewayState } from '../../services/nomiModel';
 import { CONVERSATION_BACKENDS, type ConversationBackend } from '../../types/chat';
 import { NewChatMenu } from '../NewChatMenu';
 
@@ -119,7 +121,7 @@ export const ProjectGroups: React.FC<{
   rest: readonly Meta[];
   collapsed: readonly string[];
   onToggleCollapsed: (key: string, collapsed: boolean) => void;
-  onNewIn: (group: ProjectGroup, backend?: ConversationBackend) => void;
+  onNewIn: (group: ProjectGroup, backend?: ConversationBackend, preset?: RunnerPreset) => void;
   onEdit: (group: ProjectGroup) => void;
   activeId: string | undefined;
   /** 与平铺列表共用的行回调（items / current 不用） */
@@ -161,6 +163,8 @@ export const ProjectGroups: React.FC<{
     if (!canPickBackend && newFor) setNewFor(null);
   }
   const newMenuP = usePresence(canPickBackend ? newFor : null);
+  const presets = useDelegatePresets(!!newMenuP.value);
+  const gateway = useGatewayState();
   const newPopRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -305,6 +309,13 @@ export const ProjectGroups: React.FC<{
             strictBins
             lastBackend={newMenuP.value.group.items[0]?.backend}
             testId="workspace-new-chat-menu"
+            presets={presets}
+            gateway={gateway}
+            onPickPreset={(p) => {
+              const target = newMenuP.value!.group;
+              setNewFor(null);
+              onNewIn(target, p.cli, p);
+            }}
             onPick={(b) => {
               const target = newMenuP.value!.group;
               setNewFor(null);

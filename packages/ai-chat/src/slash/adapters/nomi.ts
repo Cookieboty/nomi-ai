@@ -3,10 +3,13 @@ import { t } from '@nomi-ai/ui';
 
 import {
   delegateClient,
+  formatRunnerSummary,
+  presetDisplayLabel,
   resolveDelegateCli,
   setNextDelegate,
   type DelegateCli,
 } from '../../services/delegateClient';
+import { gatewayStateSnapshot } from '../../services/nomiModel';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { notice } from '../cards';
 import type { AdapterInput, SlashActions, SlashCommand, SlashOutcome } from '../types';
@@ -16,7 +19,7 @@ import { cmd, nativeCommands } from './common';
 const nameOf = (c: DelegateCli) => t(ENDPOINT_NAME[c]);
 
 /**
- * `/agent 名字 [需求]`：指定下一个需求交给哪个编程助手（docs/development/coding-agents.md）。
+ * `/agent 名字 [需求]`：指定下一个需求交给哪个 agent（docs/development/coding-agents.md）。
  * 带需求就立即发出（发送时直接派出，不经过对话模型）；只有名字时在输入框上方挂一个
  * 「下一个需求交给 X」，下一条消息发出后自动取消。没安装或派不出去时只出提示，不当成已经交出。
  */
@@ -47,6 +50,19 @@ async function runAgent(raw: string): Promise<SlashOutcome> {
   if (first.toLowerCase() === 'off') {
     setNextDelegate(null);
     return card(title, t('ui.slash-commands.cleared-nomi-will-pick-a-coding-assistant-from'));
+  }
+  const preset = (s.presets ?? []).find((p) => p.id.toLowerCase() === first.toLowerCase());
+  if (preset) {
+    if (!s.installed.includes(preset.cli))
+      return card(
+        title,
+        t('ui.slash-commands.isn-t-installed-you-can-install-it-in', nameOf(preset.cli)),
+        'warn',
+      );
+    const label = `${formatRunnerSummary(preset, gatewayStateSnapshot())} (${presetDisplayLabel(preset)})`;
+    setNextDelegate(`preset:${preset.id}`, { cli: preset.cli, label });
+    const task = rest.join(' ').trim();
+    return task ? { type: 'send', text: task } : { type: 'noop' };
   }
   const cli = resolveDelegateCli(first);
   if (!cli)

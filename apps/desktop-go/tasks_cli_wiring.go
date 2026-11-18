@@ -1,6 +1,6 @@
 package main
 
-// 持续任务的编程助手执行（docs/features/scheduling-calendar.md）：tasks.CliHarness ← HarnessOrchestrator，
+// 持续任务的 agents 执行（docs/features/scheduling-calendar.md）：tasks.CliHarness ← HarnessOrchestrator，
 // 注册 cli 执行者（createCliExecutor）。编排器在任务服务启动之后才装好（wireHarness），这里按调用时的
 // harnessOrch 取；还没装好时 Bins 为空 → 准备阶段报「配置变了」。
 // 执行者在自己的 goroutine 上跑，进编排器都拿 GIL；编排器的事件回调本身持锁，转到新 goroutine 再交给执行者（锁不可重入）。
@@ -67,6 +67,12 @@ func (h taskCliHarness) CreateTab(c tasks.CliCreateTab) (string, error) {
 	}
 	if c.ReuseKey != "" {
 		opts.Get("delegation").(*util.Obj).Set("reuseKey", c.ReuseKey)
+	}
+	if c.Source != "" {
+		opts.Set("source", c.Source)
+	}
+	if c.Source == "official" && c.AccountID != "" {
+		opts.Set("accountId", c.AccountID)
 	}
 	if c.ModelOverride != "" {
 		opts.Set("modelOverride", c.ModelOverride)
@@ -207,10 +213,16 @@ func (taskCliHarness) IsStopped(err error) bool {
 	return errors.As(err, &s)
 }
 
-// taskCliDeps：编程助手执行者的依赖（worktree / git / 委派提示词与汇报格式复用 delegate）
+// taskCliDeps：agents 执行者的依赖（worktree / git / 委派提示词与汇报格式复用 delegate）
 func taskCliDeps(d *desktop.Service) tasks.CliDeps {
 	return tasks.CliDeps{
 		Harness: taskCliHarness{},
+		ResolvePreset: func(presetID string) *tasks.CliPresetSpec {
+			if svc := delegateSvc.Load(); svc != nil {
+				return svc.ResolvePresetForTask(presetID)
+			}
+			return nil
+		},
 		// 前台「全部自动」：后台标签用 auto 档、跑命令不再逐项问人（凭据 / 对外 / 事件触发仍问）
 		AutoAll:  func() bool { return d.Broker.AutoApprove() },
 		NomiAuto: func() bool { return d.Broker.PermissionMode() == "auto" },
@@ -244,7 +256,7 @@ func taskCliDeps(d *desktop.Service) tasks.CliDeps {
 				return ""
 			}
 			// 带上挑选时的拥有者：并发的另一个任务先领走了这个标签时，RebindDelegation 拒绝，这里改为新建
-			del := util.NewObj("goal", runeSlice(t.Goal, 200), "taskId", t.ID, "permissionMode", mode,
+			del := util.NewObj("title", runeSlice(t.Title, 60), "goal", runeSlice(t.Goal, 200), "taskId", t.ID, "permissionMode", mode,
 				delegate.ExpectTaskIDKey, delegate.ReuseOwner(tabs, id))
 			if t.Executor.CallID != nil && *t.Executor.CallID != "" {
 				del.Set("callId", *t.Executor.CallID)
@@ -346,12 +358,21 @@ func isoHandle(iso tasks.CliIsolation) *delegate.IsolationHandle {
 		WorktreePath: iso.WorktreePath, BaseBranch: iso.BaseBranch}
 }
 
-// taskReuseKey：同一种任务的标识：来源对话 + 编程助手 + 目录 + 类型 + 模型 + 思考深度（没有来源对话的不复用）
+// taskReuseKey：同一种任务的标识：来源对话 + agents + 来源/账号 + 目录 + 类型 + 模型 + 思考深度（没有来源对话的不复用）
 func taskReuseKey(t tasks.Task, cwd string) string {
-	if t.Origin.ConversationID == nil || t.Executor.Cli == nil {
+	if t.Origin.ConversationID == nil {
 		return ""
 	}
-	cat, model, effort := "", "", ""
+	cliName, src, accID, cat, model, effort := "", "", "", "", "", ""
+	if t.Executor.Cli != nil {
+		cliName = *t.Executor.Cli
+	}
+	if t.Executor.Source != nil {
+		src = *t.Executor.Source
+	}
+	if t.Executor.AccountID != nil {
+		accID = *t.Executor.AccountID
+	}
 	if t.Category != nil {
 		cat = *t.Category
 	}
@@ -361,7 +382,31 @@ func taskReuseKey(t tasks.Task, cwd string) string {
 	if t.Executor.ReasoningEffort != nil {
 		effort = *t.Executor.ReasoningEffort
 	}
-	return delegate.ReuseKey(*t.Origin.ConversationID, *t.Executor.Cli, cwd, cat, model, effort)
+	if t.Executor.PresetID != nil && *t.Executor.PresetID != "" {
+		if svc := delegateSvc.Load(); svc != nil {
+			if ps := svc.ResolvePresetForTask(*t.Executor.PresetID); ps != nil {
+				if cliName == "" {
+					cliName = ps.Cli
+				}
+				if src == "" {
+					src = ps.Source
+				}
+				if accID == "" && (src == "" || src == "official") {
+					accID = ps.AccountID
+				}
+				if model == "" {
+					model = ps.Model
+				}
+				if effort == "" {
+					effort = ps.ReasoningEffort
+				}
+			}
+		}
+	}
+	if cliName == "" {
+		return ""
+	}
+	return delegate.ReuseKeyWithSource(*t.Origin.ConversationID, cliName, src, accID, cwd, cat, model, effort)
 }
 
 // taskBusy：委派标签上一个任务还没结束（运行中、等验收、要返工……）
@@ -390,7 +435,7 @@ func runeSlice(s string, n int) string {
 	return s
 }
 
-// installedClis：已装好的编程助手（task_propose 的 executor=cli 用）
+// installedClis：已装好的 agents（task_propose 的 executor=cli 用）
 func installedClis() []string {
 	out := []string{}
 	for k, ok := range (taskCliHarness{}).Bins() {

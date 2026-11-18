@@ -24,6 +24,7 @@ const codexAccountTimeoutMs = 15_000
 // CodexAccountInfo = CodexAccountInfo.
 type CodexAccountInfo struct {
 	LoggedIn  bool
+	Name      string
 	Email     string
 	Plan      string
 	AccountID string
@@ -58,7 +59,8 @@ func MapCodexAccount(result any) *CodexAccountInfo {
 		if plan == "unknown" {
 			plan = ""
 		}
-		return &CodexAccountInfo{LoggedIn: true, Email: strTrim(a.Get("email")), Plan: plan}
+		name := firstTrimStr(a, "name", "username", "displayName")
+		return &CodexAccountInfo{LoggedIn: true, Name: name, Email: strTrim(a.Get("email")), Plan: plan}
 	case "apiKey":
 		return &CodexAccountInfo{LoggedIn: true, APIKey: true}
 	}

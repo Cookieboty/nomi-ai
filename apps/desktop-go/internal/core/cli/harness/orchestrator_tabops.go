@@ -357,7 +357,8 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 		}
 	}
 	pm := opts.Get("permissionMode")
-	explicit := cli.IsPermissionMode(pm) && pm != "bypass"
+	internalBypass := opts.Get("delegation") != nil || opts.Get("subagentOf") != nil
+	explicit := cli.IsPermissionMode(pm) && (pm != "bypass" || internalBypass)
 	mode := o.newTabMode()
 	if explicit {
 		mode = pm.(string)
@@ -431,6 +432,14 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 	}
 	if re := opts.Get("reasoningEffort"); truthy(re) && clisdk.IsReasoningEffort(re) {
 		tab.Set("reasoningEffort", re)
+	}
+	if o.sourceOf(tab) == "thirdParty" && o.d.Gateway != nil && !truthy(tab.Get("modelOverride")) && !truthy(tab.Get("lastServedRef")) {
+		d := o.d.Gateway.Defaults(backend)
+		if d.Model == nil || *d.Model == "" {
+			if tp := o.firstThirdPartyModel(backend); tp != "" {
+				tab.Set("modelOverride", tp)
+			}
+		}
 	}
 	id := str(tab, "id")
 	o.tabs.Set(id, tab)
@@ -740,44 +749,93 @@ func (o *Orchestrator) SetTabBackend(id string, backendV any) *util.Obj {
 	if switched {
 		tab.Set("modelOverride", nil)
 		tab.Set("reasoningEffort", nil)
+		if o.sourceOf(tab) == "thirdParty" && o.d.Gateway != nil {
+			d := o.d.Gateway.Defaults(backend)
+			if d.Model == nil || *d.Model == "" {
+				if tp := o.firstThirdPartyModel(backend); tp != "" {
+					tab.Set("modelOverride", tp)
+				}
+			}
+		}
 		o.changed()
 	}
 	return tab.Clone()
 }
 
 // defaultSource = defaultSource(backend, want?)；want "" = undefined。
-// 没有官方账号能力的内置编程助手（dsh、Gemini）只有第三方来源；有官方账号能力、但一个 Nomi 账号都还没有时，
-// 分配了第三方模型就用第三方（否则仍是官方来源，启动时提示添加官方账号或换第三方模型）。
+// 没有官方账号能力的内置 agents（dsh、Gemini）只有第三方来源；有官方账号能力、但既无已登录官方账号又无本机登录时，
+// 若网关存在可用的第三方模型则自动回退第三方来源（有明确指定的模型优先用该模型）。
 func (o *Orchestrator) defaultSource(backend, want string) string {
 	g := o.d.Gateway
-	if g == nil || !isBuiltin(backend) {
+	if !isBuiltin(backend) {
 		return "official"
 	}
 	if !isAccountBackend(backend) {
 		return "thirdParty"
 	}
-	d := g.Defaults(backend)
-	source := want
-	if source == "" {
-		source = d.Source
+	if want == "local" {
+		return "local"
 	}
-	hasModel := d.Model != nil && *d.Model != ""
-	if source == "thirdParty" && (hasModel || want != "") {
+	if want == "thirdParty" && g != nil {
 		return "thirdParty"
 	}
-	if want == "" && hasModel && !o.hasOfficialAccount(backend) {
+	if want == "official" {
+		return "official"
+	}
+	hasOff := o.hasSignedInOfficialAccount(backend)
+	hasLoc := o.hasLocalLogin(backend)
+	if g == nil {
+		if !hasOff && hasLoc {
+			return "local"
+		}
+		return "official"
+	}
+	d := g.Defaults(backend)
+	tpModel := o.firstThirdPartyModel(backend)
+	switch d.Source {
+	case "thirdParty":
+		if tpModel != "" {
+			return "thirdParty"
+		}
+	case "local":
+		if hasLoc {
+			return "local"
+		}
+		if hasOff {
+			return "official"
+		}
+		if tpModel != "" {
+			return "thirdParty"
+		}
+		return "local"
+	}
+	if hasOff && !cli.LauncherManagesLogin(backend) {
+		return "official"
+	}
+	if hasLoc {
+		return "local"
+	}
+	if tpModel != "" {
 		return "thirdParty"
 	}
 	return "official"
 }
 
-// hasOfficialAccount：这个编程助手有没有 Nomi 管理的官方账号（账号服务不可用时按有处理，不改来源）
-func (o *Orchestrator) hasOfficialAccount(backend string) bool {
-	if cli.LauncherManagesLogin(backend) {
+// hasSignedInOfficialAccount：这个 agent 有没有已登录的 Nomi 管理官方账号（账号服务不可用时按有处理，不改来源）。
+func (o *Orchestrator) hasSignedInOfficialAccount(backend string) bool {
+	if o.d.Accounts == nil {
 		return true
 	}
+	if p, ok := o.d.Accounts.(ports.AccountSignInPresence); ok {
+		has := true
+		func() {
+			defer func() { _ = recover() }()
+			has = p.HasSignedInAccount(backend)
+		}()
+		return has
+	}
 	p, ok := o.d.Accounts.(ports.AccountPresence)
-	if !ok || o.d.Accounts == nil {
+	if !ok {
 		return true
 	}
 	has := true
@@ -788,8 +846,78 @@ func (o *Orchestrator) hasOfficialAccount(backend string) bool {
 	return has
 }
 
+// hasOfficialAccount：这个 agent 有没有可用的官方/本机登录能力（兼容旧测试调用，LauncherManagesLogin 时视同可用）。
+func (o *Orchestrator) hasOfficialAccount(backend string) bool {
+	if cli.LauncherManagesLogin(backend) {
+		return true
+	}
+	return o.hasSignedInOfficialAccount(backend)
+}
+
+// hasLocalLogin：这个 agent 本机环境是否已检测到登录（优先使用测试注入的 o.home，避免读取宿主机真实目录）。
+func (o *Orchestrator) hasLocalLogin(backend string) bool {
+	if !isAccountBackend(backend) {
+		return false
+	}
+	if o.home != "" && o.home != usage.Homedir() {
+		return cli.HasLocalLogin(backend, o.home)
+	}
+	return cli.HasLocalLogin(backend, "")
+}
+
+// firstThirdPartyModel：优先返回 CLI 默认绑定的网关模型，否则取网关模型目录首个可用项。
+func (o *Orchestrator) firstThirdPartyModel(backend string) string {
+	g := o.d.Gateway
+	if g == nil {
+		return ""
+	}
+	if d := g.Defaults(backend); d.Model != nil && *d.Model != "" {
+		return *d.Model
+	}
+	for _, m := range g.Models() {
+		if m.Ref != "" {
+			return m.Ref
+		}
+	}
+	return ""
+}
+
+func isGatewayScope(scope *string) bool {
+	return scope != nil && *scope == gatewayScope
+}
+
+// defaultThirdPartyModel：优先返回 CLI 显式绑定的网关默认模型；若未绑定且网关当前恰好只有一家可用的第三方供应商，
+// 直接回退到该供应商的首个可用模型，避免单供应商下仍处于未配置状态。
+func (o *Orchestrator) defaultThirdPartyModel(backend string) *string {
+	g := o.d.Gateway
+	if g == nil {
+		return nil
+	}
+	if m := g.Defaults(backend).Model; m != nil && *m != "" {
+		return m
+	}
+	var onlyProvider, firstRef string
+	for _, m := range g.Models() {
+		idx := strings.IndexByte(m.Ref, '/')
+		if idx <= 0 || idx == len(m.Ref)-1 {
+			continue
+		}
+		pid := m.Ref[:idx]
+		if onlyProvider == "" {
+			onlyProvider = pid
+			firstRef = m.Ref
+		} else if pid != onlyProvider {
+			return nil
+		}
+	}
+	if firstRef == "" {
+		return nil
+	}
+	return &firstRef
+}
+
 // migrateLocalSignIn：旧版本的「本机登录」——标签上的 local-<kind> 账号去掉（跟随默认官方账号）；
-// 没有官方账号能力的内置编程助手（dsh、Gemini）原来的官方来源就是本机登录，改成第三方来源。返回是否改动。
+// 没有官方账号能力的内置 agents（dsh、Gemini）原来的官方来源就是本机登录，改成第三方来源。返回是否改动。
 func (o *Orchestrator) migrateLocalSignIn(tab *util.Obj) bool {
 	changed := false
 	if a, _ := tab.Get("accountId").(string); strings.HasPrefix(a, "local-") {
@@ -831,10 +959,10 @@ func (o *Orchestrator) SetTabSource(id string, source any, model *string) *util.
 	if backend == "nomi" {
 		throw(i18n.T("electron.common.nomi-chat-has-no-source-to-choose"))
 	}
-	if source != "official" && source != "thirdParty" {
+	if source != "local" && source != "official" && source != "thirdParty" {
 		throw(i18n.T("electron.common.unknown-source"))
 	}
-	if source == "official" && isBuiltin(backend) && !isAccountBackend(backend) {
+	if (source == "official" || source == "local") && isBuiltin(backend) && !isAccountBackend(backend) {
 		throw(i18n.T("electron.common.only-third-party-models", builtin.DisplayName(backend)))
 	}
 	if source == "thirdParty" && o.d.Gateway == nil {
@@ -857,20 +985,28 @@ func (o *Orchestrator) SetTabSource(id string, source any, model *string) *util.
 		return tab.Clone()
 	}
 	if source == "thirdParty" && ref == "" {
-		if d := o.d.Gateway.Defaults(backend); d.Model == nil || *d.Model == "" {
+		if m := o.defaultThirdPartyModel(backend); m == nil || *m == "" {
 			throw(i18n.T("electron.common.assign-a-third-party-model-to-this-coding"))
 		}
 	}
+	prevSource := o.sourceOf(tab)
 	hadSession := truthy(tab.Get("cliSessionId")) || len(o.TabMessages(id)) > 0
 	o.teardownClaudeLive(id)
 	o.teardownCodexLive(id)
 	o.teardownAcpLive(id)
 	tab.Set("source", source)
+	if source == "local" || source == "thirdParty" {
+		tab.Delete("accountId")
+	} else if source == "official" && !truthy(tab.Get("accountId")) && isAccountBackend(backend) && !cli.LauncherManagesLogin(backend) {
+		if acc := o.defaultAccountId(backend); acc != nil && *acc != "" {
+			tab.Set("accountId", *acc)
+		}
+	}
 	o.adoptScope(tab)
 	if ref != "" {
 		tab.Set("modelOverride", ref)
 	}
-	if hadSession && (source == "official" || backend == "codex") {
+	if hadSession && (source == "official" || source == "local" || prevSource == "local" || backend == "codex") {
 		tab.Set("cliSessionId", nil)
 		o.setCarried(tab, o.TabMessages(id), str(tab, "cwd"))
 	}
@@ -992,13 +1128,18 @@ func promiseAll(ps []*jsrt.Promise[struct{}]) *jsrt.Promise[struct{}] {
 
 // switchClaudeMode = switchClaudeMode。
 func (o *Orchestrator) switchClaudeMode(id string, live *claudeLiveSession, mode string) {
+	launchMode := mode
+	if tab := o.tab(id); tab != nil {
+		launchMode = o.claudeLaunchMode(tab, live.capKey)
+	}
 	change := &modeChange{mode: mode}
-	req := o.requestClaudeControl(live, util.NewObj("subtype", "set_permission_mode", "mode", cli.ClaudeModeName(mode)))
+	req := o.requestClaudeControl(live, util.NewObj("subtype", "set_permission_mode", "mode", cli.ClaudeModeName(launchMode)))
 	change.done = jsrt.Async(func() (struct{}, error) {
 		_, err := jsrt.Await(req)
 		if err == nil {
 			if o.live.claude[id] == live {
 				live.permissionMode = mode
+				live.launchMode = launchMode
 			}
 			if live.modeChange == change {
 				live.modeChange = nil
@@ -1072,17 +1213,28 @@ func (o *Orchestrator) ModelCatalogFor(backend string, refresh bool, source stri
 			}
 			return nil, nil
 		}
-		if c, ok := o.modelCatalogs[backend]; ok && !refresh && nowMs()-c.at < modelCatalogTTLMs {
+		cacheKey := backend
+		useLocal := source == "local" && isAccountBackend(backend)
+		if useLocal {
+			cacheKey = backend + ":local"
+		}
+		if c, ok := o.modelCatalogs[cacheKey]; ok && !refresh && nowMs()-c.at < modelCatalogTTLMs {
 			return c.catalog, nil
 		}
-		if inflight := o.modelCatalogInflight[backend]; inflight != nil {
+		if inflight := o.modelCatalogInflight[cacheKey]; inflight != nil {
 			return jsrt.Await(inflight)
 		}
-		gen := o.modelCatalogGen[backend]
-		current := func() bool { return o.modelCatalogGen[backend] == gen }
+		gen := o.modelCatalogGen[cacheKey]
+		current := func() bool { return o.modelCatalogGen[cacheKey] == gen }
+		launchFn := func(b string) *tabLaunch {
+			if useLocal && isAccountBackend(b) {
+				return o.localLaunchFor(b)
+			}
+			return o.officialLaunchFor(b, nil)
+		}
 		var claudeEnv *util.Obj
 		if backend == "claude" {
-			claudeEnv = o.childEnv(false, o.officialLaunchFor("claude", nil), nil)
+			claudeEnv = o.childEnv(false, launchFn("claude"), nil)
 		}
 		deps := cli.ModelDiscoveryDeps{
 			Spawn: func(b string, args []string) clisdk.ChildLike {
@@ -1091,7 +1243,7 @@ func (o *Orchestrator) ModelCatalogFor(backend string, refresh bool, source stri
 					return nil
 				}
 				useNode := IsScript(bin)
-				l := o.officialLaunchFor(b, nil)
+				l := launchFn(b)
 				cmd, full := bin, append(append(prefix, args...), l.args...)
 				if useNode {
 					cmd, full = nodeExecPath(), append([]string{bin}, full...)
@@ -1125,19 +1277,19 @@ func (o *Orchestrator) ModelCatalogFor(backend string, refresh bool, source stri
 			}
 			if current() {
 				if truthy(catalog.Get("error")) {
-					delete(o.modelCatalogs, backend)
+					delete(o.modelCatalogs, cacheKey)
 				} else {
-					o.modelCatalogs[backend] = catalogEntry{at: nowMs(), catalog: catalog}
+					o.modelCatalogs[cacheKey] = catalogEntry{at: nowMs(), catalog: catalog}
 				}
 			}
 			jsrt.QueueMicrotask(func() {
-				if o.modelCatalogInflight[backend] == run {
-					delete(o.modelCatalogInflight, backend)
+				if o.modelCatalogInflight[cacheKey] == run {
+					delete(o.modelCatalogInflight, cacheKey)
 				}
 			})
 			return catalog, nil
 		})
-		o.modelCatalogInflight[backend] = run
+		o.modelCatalogInflight[cacheKey] = run
 		return jsrt.Await(run)
 	})
 }
@@ -1163,7 +1315,7 @@ func (o *Orchestrator) gatewayCatalog(backend string) *util.Obj {
 			}
 			models = append(models, x)
 		}
-		def = g.Defaults(backend).Model
+		def = o.defaultThirdPartyModel(backend)
 	}
 	var dm any
 	if def != nil && *def != "" {
@@ -1188,7 +1340,7 @@ func (o *Orchestrator) visionOf(tab *util.Obj) *util.Obj {
 	if o.sourceOf(tab) == "thirdParty" {
 		ref := own
 		if ref == nil && o.d.Gateway != nil {
-			ref = o.d.Gateway.Defaults(backend).Model
+			ref = o.defaultThirdPartyModel(backend)
 		}
 		if ref == nil || *ref == "" || o.d.Gateway == nil {
 			return nil
@@ -1260,6 +1412,15 @@ func (o *Orchestrator) cachedCatalog(backend string) *util.Obj {
 	return nil
 }
 
+func (o *Orchestrator) cachedCatalogFor(backend string, scope *string) *util.Obj {
+	if scope != nil && *scope == "local" {
+		if c, ok := o.modelCatalogs[backend+":local"]; ok {
+			return c.catalog
+		}
+	}
+	return o.cachedCatalog(backend)
+}
+
 // SetTabModel = setTabModel(id, model, {expectSource})；expectSource "" = undefined。
 func (o *Orchestrator) SetTabModel(id, model, expectSource string) *util.Obj {
 	tab := o.requireTab(id)
@@ -1285,7 +1446,7 @@ func (o *Orchestrator) SetTabModel(id, model, expectSource string) *util.Obj {
 	if !clisdk.IsValidModelID(name) {
 		throw(i18n.T("electron.common.invalid-model-name"))
 	}
-	if scope != nil && o.d.Gateway != nil {
+	if isGatewayScope(scope) && o.d.Gateway != nil {
 		found := false
 		for _, m := range o.d.Gateway.Models() {
 			if m.Ref == name {
@@ -1300,14 +1461,14 @@ func (o *Orchestrator) SetTabModel(id, model, expectSource string) *util.Obj {
 	if tab.Get("modelOverride") != name {
 		tab.Set("modelOverride", name)
 		tab.Set("modelScope", anyOf(scope))
-		if scope != nil {
+		if isGatewayScope(scope) {
 			// 第三方：选过的档位换了模型还在新模型的档位里就留着（与 Nomi 对话一致），否则回到新模型的默认档
 			if e, _ := tab.Get("reasoningEffort").(string); e != "" && o.thirdPartyAllows(name, e) {
 				tab.Set("reasoningEffort", e)
 			} else {
 				tab.Set("reasoningEffort", nil)
 			}
-		} else if e := clisdk.SanitizeEffort(o.cachedCatalog(backend), &name, tab.Get("reasoningEffort")); e != "" {
+		} else if e := clisdk.SanitizeEffort(o.cachedCatalogFor(backend, scope), &name, tab.Get("reasoningEffort")); e != "" {
 			tab.Set("reasoningEffort", e)
 		} else {
 			tab.Set("reasoningEffort", nil)
@@ -1336,7 +1497,8 @@ func (o *Orchestrator) SetTabReasoningEffort(id string, effort any) *util.Obj {
 	if !o.canOverride(tab) {
 		throw(i18n.T("electron.common.this-coding-assistant-doesn-t-support-switching-models"))
 	}
-	if o.adoptScope(tab) != nil {
+	scope := o.adoptScope(tab)
+	if isGatewayScope(scope) {
 		// 第三方模型：档位按网关的模型能力（与 Nomi 对话同一份），登记在标签绑定上，由网关写进请求
 		e, _ := effort.(string)
 		model := o.effectiveOverrides(tab).model
@@ -1361,7 +1523,7 @@ func (o *Orchestrator) SetTabReasoningEffort(id string, effort any) *util.Obj {
 	if !clisdk.IsReasoningEffort(effort) {
 		throw(i18n.T("electron.common.unknown-reasoning-effort"))
 	}
-	levels, st := clisdk.EffortsForModel(o.cachedCatalog(backend), strP(tab, "modelOverride"))
+	levels, st := clisdk.EffortsForModel(o.cachedCatalogFor(backend, scope), strP(tab, "modelOverride"))
 	if st == 1 {
 		throw(i18n.T("electron.common.this-model-doesn-t-support-reasoning-effort"))
 	}
@@ -1445,16 +1607,23 @@ func (o *Orchestrator) recycleLiveForOverride(tab *util.Obj) {
 
 // sourceOf = sourceOf。
 func (o *Orchestrator) sourceOf(tab *util.Obj) string {
-	if isBuiltin(str(tab, "backend")) && tab.Get("source") == "thirdParty" && o.d.Gateway != nil {
+	b := str(tab, "backend")
+	if isBuiltin(b) && tab.Get("source") == "thirdParty" && o.d.Gateway != nil {
 		return "thirdParty"
+	}
+	if isAccountBackend(b) && tab.Get("source") == "local" {
+		return "local"
 	}
 	return "official"
 }
 
 // scopeOf：nil = null。
 func (o *Orchestrator) scopeOf(tab *util.Obj) *string {
-	if o.sourceOf(tab) == "thirdParty" {
+	switch o.sourceOf(tab) {
+	case "thirdParty":
 		return sp(gatewayScope)
+	case "local":
+		return sp("local")
 	}
 	return nil
 }
@@ -1538,7 +1707,7 @@ func (o *Orchestrator) sessionRef(tab *util.Obj) *string {
 func (o *Orchestrator) effectiveOverrides(tab *util.Obj) overrides {
 	scope := o.scopeOf(tab)
 	ms := strP(tab, "modelScope")
-	if scope != nil {
+	if isGatewayScope(scope) {
 		var own *string
 		if eqStrP(ms, scope) {
 			own = trimOrNil(tab.Get("modelOverride"))
@@ -1546,10 +1715,8 @@ func (o *Orchestrator) effectiveOverrides(tab *util.Obj) overrides {
 		if own == nil {
 			own = o.sessionRef(tab)
 		}
-		if own == nil && o.d.Gateway != nil {
-			if m := o.d.Gateway.Defaults(str(tab, "backend")).Model; m != nil && *m != "" {
-				own = m
-			}
+		if own == nil {
+			own = o.defaultThirdPartyModel(str(tab, "backend"))
 		}
 		var stored *string
 		if eqStrP(ms, scope) {
@@ -1557,7 +1724,7 @@ func (o *Orchestrator) effectiveOverrides(tab *util.Obj) overrides {
 		}
 		return overrides{model: own, bindEffort: o.thirdPartyLevel(own, stored)}
 	}
-	if ms != nil {
+	if !eqStrP(ms, scope) {
 		return overrides{}
 	}
 	return overrides{model: trimOrNil(tab.Get("modelOverride")), effort: strP(tab, "reasoningEffort")}
