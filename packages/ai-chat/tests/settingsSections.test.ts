@@ -1,15 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
-import { SECTION_TABS, SETTINGS_SECTIONS, tabOf } from '../src/components/SettingsView/sections';
+import {
+  normalizeSettingsTarget,
+  SECTION_TABS,
+  SETTINGS_SECTIONS,
+  tabOf,
+} from '../src/components/SettingsView/sections';
 
 describe('设置分区：合并后的菜单', () => {
-  it('11 个分区；Nomi 自己的设置单独一个分区，紧跟通用', () => {
+  it('10 个分区；Nomi 自己的设置单独一个分区，紧跟通用；模型与 Agents合并为 ai', () => {
     expect(SETTINGS_SECTIONS.map((s) => s.id)).toEqual([
       'general',
       'nomi',
-      'models',
+      'ai',
       'usage',
-      'coding',
       'computer',
       'knowledge',
       'ext',
@@ -22,9 +26,8 @@ describe('设置分区：合并后的菜单', () => {
     expect(SETTINGS_SECTIONS.map((s) => s.label)).toEqual([
       'ui.chat-settings.general',
       'ui.chat-settings.nomi-section',
-      'ui.chat-settings.models-and-providers',
+      'ui.chat-settings.models-and-coding',
       'ui.chat-settings.usage-and-analytics',
-      'ui.providers-schedule.coding-agents',
       'ui.chat-settings.computer-section',
       'ui.chat-settings.knowledge-memory',
       'ui.foundation.extensions-mcp',
@@ -46,7 +49,13 @@ describe('设置分区：合并后的菜单', () => {
       'voice',
       'notify',
     ]);
-    expect(SECTION_TABS.models.map((t) => t.id)).toEqual(['providers', 'local']);
+    expect(SECTION_TABS.ai.map((t) => t.id)).toEqual([
+      'routing',
+      'assistants',
+      'providers',
+      'local',
+      'monitor',
+    ]);
     expect(SECTION_TABS.usage.map((t) => t.id)).toEqual(['cost', 'compare', 'trend', 'requests']);
     expect(SECTION_TABS.knowledge.map((t) => t.id)).toEqual(['kb', 'memory', 'schedule']);
     // 桌面权限从「隐私与权限」挪到「Nomi」（Nomi 自己的工具权限）
@@ -59,5 +68,28 @@ describe('设置分区：合并后的菜单', () => {
     expect(tabOf('knowledge', 'notes')).toBeUndefined();
     expect(tabOf('privacy', 'export')).toBe('export');
     expect(tabOf('privacy', undefined)).toBeUndefined();
+  });
+
+  it('normalizeSettingsTarget：兼容旧 models / coding 深链接归一化到 ai 分区', () => {
+    expect(normalizeSettingsTarget('models', 'local')).toEqual({
+      section: 'ai',
+      tab: 'local',
+    });
+    expect(normalizeSettingsTarget('models', 'providers')).toEqual({
+      section: 'ai',
+      tab: 'providers',
+    });
+    expect(normalizeSettingsTarget('models', 'routing')).toEqual({
+      section: 'ai',
+      tab: 'routing',
+    });
+    expect(normalizeSettingsTarget('coding')).toEqual({
+      section: 'ai',
+      tab: 'assistants',
+    });
+    expect(normalizeSettingsTarget('coding', 'monitor')).toEqual({
+      section: 'ai',
+      tab: 'monitor',
+    });
   });
 });

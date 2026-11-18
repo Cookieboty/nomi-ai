@@ -13,7 +13,7 @@
   "ui.media.edit-this": "Edit this",
   "ui.media.edited-from": "Edited from",
   "ui.media.generated-by": "Made with {0}",
-  "ui.media.no-images-yet": "No generated images yet. Ask Nomi to draw something in chat, or have a coding agent generate an image, and it shows up here.",
+  "ui.media.no-images-yet": "No generated images yet. Ask Nomi to draw something in chat, or have an agent generate an image, and it shows up here.",
   "ui.media.no-prompt": "(no saved prompt)",
   "ui.media.references": "References",
   "ui.media.regenerate-image-body": "This calls the image model again with the same prompt and may cost money.",

@@ -1,5 +1,5 @@
 /**
- * 「模型」页 CLI 行的安装状态与「安装」：复用「编程助手」页版本卡片的 cliUpdateClient
+ * 「模型」页 CLI 行的安装状态与「安装」：复用「Agents」页版本卡片的 cliUpdateClient
  * （inspect 判断是否安装、preview 做前置检查、run 执行），不另写安装命令。
  * 前置检查通过就直接安装；有阻塞原因（Node 太旧、没有写权限等）才弹 CliPlanDialog 说明。
  */
@@ -25,7 +25,7 @@ export interface CliInstallState {
   missing: (kind: CliKind) => boolean;
   /** 主进程明确报告已装（有路径） */
   installed: (kind: CliKind) => boolean;
-  /** 本机是否装了任一编程助手（还没查到结果时为 null） */
+  /** 本机是否装了任一 agent（还没查到结果时为 null） */
   anyInstalled: boolean | null;
   /** 该端点正在安装 / 更新（不同端点可以同时进行） */
   busy: (kind: CliKind) => boolean;

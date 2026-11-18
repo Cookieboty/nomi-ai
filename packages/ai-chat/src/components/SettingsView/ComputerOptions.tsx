@@ -35,7 +35,7 @@ export function formatAccel(accel: string, mac: boolean): string {
 }
 
 interface Props {
-  /** rows：权限卡里的停止快捷键 / 编程助手 / 视觉模型几行；safety：打码 / 禁止的应用 / 隔离模式（安全与隐私页） */
+  /** rows：权限卡里的停止快捷键 / agents / 视觉模型几行；safety：打码 / 禁止的应用 / 隔离模式（安全与隐私页） */
   part: 'rows' | 'safety';
   state: ComputerState;
   update: (patch: ComputerSettingsPatch) => Promise<void>;

@@ -1,58 +1,32 @@
 /**
  * 单个 CLI 端点（Claude Code / Codex / dsh / Grok / Gemini）的分组：版本（检测 / 更新 / 安装）→
- * 官方账号（dsh 没有）→ 新会话默认用 + 第三方模型的入口。
- * 第三方模型统一在设置 →「模型」里配置（docs/development/gateway.md），这里不再有按 CLI 的供应商列表。
+ * 本机环境登录 → 官方账号 → 新会话默认用 + 就地第三方主模型及各档位配置。
  */
-import { Button, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import React from 'react';
 
-import { supportsCustomLauncher, useCliLauncher } from '../../services/cliLauncherClient';
+import { supportsCustomLauncher } from '../../services/cliLauncherClient';
 import type { CliKind } from '../../services/cliSource';
 import { hasOfficialAccount } from '../../utils/cliCaps';
-import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
 import { CliLauncherCard } from './CliLauncherCard';
+import { CliThirdPartyModelsCard } from './CliThirdPartyModelsCard';
 import { CliVersionCard } from './CliVersionCard';
 import styles from './index.module.css';
-import { NewTabSourceRow } from './NewTabSourceRow';
 import { OfficialAccounts } from './OfficialAccounts';
 
 export const CliEndpointSection: React.FC<{ kind: CliKind; onOpenModels?: () => void }> = ({
   kind,
   onOpenModels,
 }) => {
-  const launcher = useCliLauncher(kind);
-  const externalLogin = supportsCustomLauncher(kind) && launcher.accountSource === 'local';
   return (
     <div className={styles.section} data-testid={`providers-section-${kind}`}>
       <CliVersionCard kind={kind} />
 
       {supportsCustomLauncher(kind) && <CliLauncherCard key={kind} kind={kind} />}
 
-      {hasOfficialAccount(kind) && !externalLogin && <OfficialAccounts kind={kind} />}
+      {hasOfficialAccount(kind) && <OfficialAccounts kind={kind} />}
 
-      {/* 新会话默认用（官方账号 / 第三方供应商）+ 第三方模型入口（在「模型」页统一配置） */}
-      <SettingsGroup data-testid={`cli-third-party-${kind}`}>
-        <NewTabSourceRow kind={kind} />
-        <SettingRow
-          title={t('ui.models.third-party-models')}
-          description={t(
-            'ui.providers-schedule.requests-go-through-the-nomi-gateway-which-converts',
-            ENDPOINT_NAME[kind],
-          )}
-        >
-          {onOpenModels && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={onOpenModels}
-              data-testid="cli-open-models"
-            >
-              {t('ui.models.open-models')}
-            </Button>
-          )}
-        </SettingRow>
-      </SettingsGroup>
+      <CliThirdPartyModelsCard kind={kind} onOpenModels={onOpenModels} />
     </div>
   );
 };

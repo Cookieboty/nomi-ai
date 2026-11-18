@@ -1,6 +1,6 @@
 /**
  * 对话窗口的面板与侧栏开关：设置（内容区）、桌面能力 / 扩展（右侧抽屉，「在设置中打开」）、知识中心抽屉、
- * 编程助手插件面板、侧栏收起。托盘、桌面角色、新手引导里的「打开某个面板」也接在这里。
+ * Agents 插件面板、侧栏收起。托盘、桌面角色、新手引导里的「打开某个面板」也接在这里。
  * 回调都保持引用稳定：侧栏、输入框是 memo 组件，换引用会连带整列重渲染。
  */
 import type { ModalHost } from '@nomi-ai/ui';
@@ -8,7 +8,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { AppEntries } from '../components/AppEntries';
 import { OPEN_MODELS_EVENT } from '../components/Onboarding/client';
-import type { SettingsSection, SettingsTab } from '../components/SettingsView/sections';
+import {
+  normalizeSettingsTarget,
+  type SettingsSection,
+  type SettingsSectionInput,
+  type SettingsTab,
+} from '../components/SettingsView/sections';
 import { setProviderEndpoint } from '../services/chatPrefs';
 import { desktopClient } from '../services/desktopClient';
 import { providerClient } from '../services/providerClient';
@@ -30,20 +35,24 @@ export function useAppPanels() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const openSettings = useCallback((sec: SettingsSection = 'general', tab?: SettingsTab) => {
-    setSettingsLink(tab ? { tab } : undefined);
+  const openSettings = useCallback((sec: SettingsSectionInput = 'general', tab?: SettingsTab) => {
+    const target = normalizeSettingsTarget(sec, tab);
+    setSettingsLink(target.tab ? { tab: target.tab } : undefined);
     setShowExt(false);
     setShowDesktop(false);
     setShowHub(false);
-    setSettings(sec);
+    setSettings(target.section);
   }, []);
 
-  // 托盘「桌面能力…」→ 桌面能力面板；托盘「模型设置…」→ 设置 →「模型与供应商」
+  // 托盘「桌面能力…」→ 桌面能力面板；托盘「模型设置…」→ 设置 →「模型与 Agents → 三方模型」
   useEffect(() => desktopClient.onOpenPanel(() => setShowDesktop(true)), []);
-  useEffect(() => providerClient.onOpenPanel(() => openSettings('models')), [openSettings]);
+  useEffect(
+    () => providerClient.onOpenPanel(() => openSettings('ai', 'providers')),
+    [openSettings],
+  );
   // 新手引导里「打开完整模型设置」/「去接上模型」
   useEffect(() => {
-    const open = () => openSettings('models');
+    const open = () => openSettings('ai', 'providers');
     window.addEventListener(OPEN_MODELS_EVENT, open);
     return () => window.removeEventListener(OPEN_MODELS_EVENT, open);
   }, [openSettings]);
@@ -66,13 +75,13 @@ export function useAppPanels() {
     setShowPlugins(false);
     setShowExt(true);
   }, []);
-  const openProviders = useCallback(() => openSettings('models'), [openSettings]);
-  const openLocal = useCallback(() => openSettings('models', 'local'), [openSettings]);
+  const openProviders = useCallback(() => openSettings('ai', 'providers'), [openSettings]);
+  const openLocal = useCallback(() => openSettings('ai', 'local'), [openSettings]);
   const openGeneralSettings = useCallback(() => openSettings(), [openSettings]);
   const onInputSettings = useCallback(
-    (sec?: SettingsSection, endpoint?: unknown) => {
+    (sec?: SettingsSectionInput, endpoint?: unknown, tab?: SettingsTab) => {
       if (isConversationBackend(endpoint)) setProviderEndpoint(endpoint);
-      openSettings(sec);
+      openSettings(sec, tab);
     },
     [openSettings],
   );

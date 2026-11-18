@@ -11,6 +11,10 @@ import {
   type SettingsSection,
   type SettingsTab,
 } from '../src/components/SettingsView';
+import {
+  normalizeSettingsTarget,
+  type SettingsSectionInput,
+} from '../src/components/SettingsView/sections';
 import { AiChatContextProvider } from '../src/contexts/AiChatContext';
 
 afterEach(cleanup);
@@ -21,10 +25,10 @@ const Harness = ({
   deepLink,
 }: {
   onClose: () => void;
-  start?: SettingsSection;
+  start?: SettingsSectionInput;
   deepLink?: { tab?: SettingsTab };
 }) => {
-  const [s, setS] = useState<SettingsSection>(start);
+  const [s, setS] = useState<SettingsSection>(() => normalizeSettingsTarget(start).section);
   return (
     <AiChatContextProvider>
       <SettingsView section={s} onSection={setS} onClose={onClose} deepLink={deepLink} />
@@ -59,11 +63,11 @@ describe('SettingsView 导航收起（跟随对话侧栏）', () => {
       </AiChatContextProvider>,
     );
     expect(r.getByTestId('settings-nav').getAttribute('data-collapsed')).toBe('true');
-    const models = r.getByTestId('settings-nav-models');
-    expect(models.getAttribute('aria-label')).toBe('模型与供应商');
-    expect(models.getAttribute('title')).toBeNull();
-    fireEvent.click(models);
-    expect(onSection).toHaveBeenCalledWith('models');
+    const ai = r.getByTestId('settings-nav-ai');
+    expect(ai.getAttribute('aria-label')).toBe('模型与 Agents');
+    expect(ai.getAttribute('title')).toBeNull();
+    fireEvent.click(ai);
+    expect(onSection).toHaveBeenCalledWith('ai');
     cleanup();
     const open = render(
       <AiChatContextProvider>
@@ -71,7 +75,7 @@ describe('SettingsView 导航收起（跟随对话侧栏）', () => {
       </AiChatContextProvider>,
     );
     expect(open.getByTestId('settings-nav').getAttribute('data-collapsed')).toBeNull();
-    expect(open.getByTestId('settings-nav-models').getAttribute('aria-label')).toBeNull();
+    expect(open.getByTestId('settings-nav-ai').getAttribute('aria-label')).toBeNull();
   });
 });
 
@@ -102,7 +106,7 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.getByTestId('settings-nomi-tab-tools').getAttribute('aria-selected')).toBe('true');
   });
 
-  it('Nomi：默认「权限与委派」（两组在一个标签下），还有「桌面权限」「已归档的对话」', () => {
+  it('Nomi：默认「权限与委派」（精简委派摘要可直达任务与成本路由），还有「桌面权限」「已归档的对话」', () => {
     const r = render(<Harness onClose={() => undefined} start="nomi" />);
     const page = 'settings-nomi';
     expect(r.getByTestId(page).getAttribute('data-tab')).toBe('permissions');
@@ -111,6 +115,9 @@ describe('SettingsView 合并后的标签页分区', () => {
       '桌面权限',
       '已归档的对话',
     ]);
+    fireEvent.click(r.getByTestId('nomi-open-routing'));
+    expect(r.getByTestId('settings-nav-ai').getAttribute('aria-current')).toBe('page');
+    expect(r.getByTestId('settings-ai-page').getAttribute('data-tab')).toBe('routing');
   });
 
   it('外发保护单独一个标签：数据页只留入口，点「去设置」切过去', () => {
@@ -123,7 +130,7 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.queryByTestId('settings-privacy')).toBeNull();
   });
 
-  it('深链接标签：desktop / export / memory / schedule / local / requests 分别落在对应标签', () => {
+  it('深链接标签：desktop / export / memory / schedule / providers / assistants / requests 分别落在对应标签，并兼容旧 models/coding', () => {
     const cases: Array<[SettingsSection, SettingsTab, string]> = [
       ['nomi', 'tools', 'settings-nomi'],
       ['nomi', 'archived', 'settings-nomi'],
@@ -132,7 +139,9 @@ describe('SettingsView 合并后的标签页分区', () => {
       ['knowledge', 'memory', 'settings-knowledge'],
       ['knowledge', 'schedule', 'settings-knowledge'],
       ['general', 'notify', 'settings-general-page'],
-      ['models', 'local', 'settings-models-page'],
+      ['ai', 'providers', 'settings-ai-page'],
+      ['ai', 'local', 'settings-ai-page'],
+      ['ai', 'assistants', 'settings-ai-page'],
       ['usage', 'requests', 'settings-usage-page'],
     ];
     for (const [section, tab, page] of cases) {
@@ -141,6 +150,46 @@ describe('SettingsView 合并后的标签页分区', () => {
       expect(r.getByTestId(page).getAttribute('data-tab')).toBe(tab);
       cleanup();
     }
+    const legacyModels = render(
+      <AiChatContextProvider>
+        <SettingsView
+          section="models"
+          onSection={() => undefined}
+          onClose={() => undefined}
+          deepLink={{ tab: 'local' }}
+        />
+      </AiChatContextProvider>,
+    );
+    expect(legacyModels.getByTestId('settings-ai-page').getAttribute('data-tab')).toBe('local');
+    expect(
+      legacyModels.getByTestId('settings-ai-page-tab-local').getAttribute('aria-selected'),
+    ).toBe('true');
+    cleanup();
+    const legacyCoding = render(
+      <AiChatContextProvider>
+        <SettingsView section="coding" onSection={() => undefined} onClose={() => undefined} />
+      </AiChatContextProvider>,
+    );
+    expect(legacyCoding.getByTestId('settings-ai-page').getAttribute('data-tab')).toBe(
+      'assistants',
+    );
+    expect(
+      legacyCoding.getByTestId('settings-ai-page-tab-assistants').getAttribute('aria-selected'),
+    ).toBe('true');
+    cleanup();
+  });
+
+  it('模型与 Agents：五个标签，三方模型与本地模型分开', () => {
+    const r = render(<Harness onClose={() => undefined} start="ai" />);
+    const page = 'settings-ai-page';
+    expect([...tabs(r, page)].map((x) => x.textContent)).toEqual([
+      '任务与成本路由',
+      'Agents 与账号',
+      '三方模型',
+      '本地模型',
+      '监视与会话',
+    ]);
+    expect(r.getByTestId(page).getAttribute('data-tab')).toBe('routing');
   });
 
   it('知识与记忆：默认第一个标签，点击切换；日程是第三个标签', () => {
@@ -174,10 +223,10 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.queryByTestId('settings-brand')).toBeNull();
     expect(r.getByTestId('settings-back')).toBeTruthy();
     expect(r.queryByTestId('settings-help')).toBeNull();
-    fireEvent.click(r.getByTestId('settings-nav-models'));
+    fireEvent.click(r.getByTestId('settings-nav-ai'));
     const help = r.getByTestId('settings-help');
     const items = help.querySelectorAll('li');
-    expect(items).toHaveLength(SECTION_HELP.models.length);
+    expect(items).toHaveLength(SECTION_HELP.ai.length);
     expect(help.textContent).toContain('第三方供应商');
     for (const s of SETTINGS_SECTIONS)
       if (s.id !== 'general' && s.id !== 'about')
@@ -235,7 +284,7 @@ describe('SettingsView 合并后的标签页分区', () => {
   });
 
   it('「用量与分析」：默认用量与费用，切到「对比」懒加载质量面板（不再有自己的标签条）', async () => {
-    const r = render(<Harness onClose={() => undefined} start="models" />);
+    const r = render(<Harness onClose={() => undefined} start="ai" />);
     fireEvent.click(r.getByTestId('settings-nav-usage'));
     expect(r.getByTestId('settings-nav-usage').getAttribute('aria-current')).toBe('page');
     expect(r.getByTestId('settings-section-title').textContent).toBe('用量与分析');
@@ -260,12 +309,12 @@ describe('SettingsView 合并后的标签页分区', () => {
     fireEvent.click(toggle);
     expect(r.queryByTestId('settings-help-inline')).toBeNull();
     // 普通分区没有这个按钮
-    fireEvent.click(r.getByTestId('settings-nav-models'));
+    fireEvent.click(r.getByTestId('settings-nav-ai'));
     expect(r.queryByTestId('settings-help-toggle')).toBeNull();
     expect(r.getByTestId('settings-help')).toBeTruthy();
   });
 
-  it('菜单有 11 个分区：Nomi 紧跟通用，关于在最后', () => {
+  it('菜单有 10 个分区：Nomi 紧跟通用，模型与 Agents合并为 ai，关于在最后', () => {
     const r = render(<Harness onClose={() => undefined} />);
     const ids = r
       .getAllByTestId(/^settings-nav-/)
@@ -273,9 +322,8 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(ids).toEqual([
       'general',
       'nomi',
-      'models',
+      'ai',
       'usage',
-      'coding',
       'computer',
       'knowledge',
       'ext',
