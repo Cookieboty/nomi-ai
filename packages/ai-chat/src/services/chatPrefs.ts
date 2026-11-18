@@ -1,5 +1,5 @@
 /**
- * 对话 UI 偏好：界面形态（normal = 没装编程助手，dev = 装了；由 services/cliPresence 写入，用户不手动切换）、
+ * 对话 UI 偏好：界面形态（normal = 没装 agents，dev = 装了；由 services/cliPresence 写入，用户不手动切换）、
  * 侧栏「全部|按端」、新对话是否用模型起标题。
  * 持久化在 localStorage（与 ConversationStore 同层）；桌面端无需主进程同步。
  */
@@ -84,7 +84,7 @@ export function setEndpointFilter(backend: ConversationBackend): void {
 const ENDPOINT_VIS_KEY = 'ai-chat:sidebarEndpoints';
 
 /**
- * 某个编程助手端点在侧栏「按端」里的显示方式：
+ * 某个 agent 端点在侧栏「按端」里的显示方式：
  * auto（默认，没有显式设置）= 有对话 / 标签 / 历史时才显示；show = 总是显示；hide = 不显示。
  * Nomi 总是显示，不参与设置。
  */
@@ -250,7 +250,7 @@ let orderCache: { raw: string | null; value: ConversationBackend[] | null } = {
   value: null,
 };
 
-/** 用户拖拽后的编程助手端点顺序；null = 自动（按对话数从多到少）。Nomi 固定在最前，不在其中 */
+/** 用户拖拽后的 agents 端点顺序；null = 自动（按对话数从多到少）。Nomi 固定在最前，不在其中 */
 export function getEndpointOrder(): ConversationBackend[] | null {
   let raw: string | null = null;
   try {
@@ -307,8 +307,8 @@ export function orderEndpoints(
 const PROVIDER_ENDPOINT_KEY = 'ai-chat:providerEndpoint';
 const providerEpSubs = new Set<Listener>();
 
-/** 编程助手页的当前标签：内置编程助手端点之一，或「监视与会话」 */
-/** general = 运行环境与权限（编程助手页左栏）；旧版本存的 external（外部 CLI）不再认，回到默认 */
+/** agents 页的当前标签：内置 agents 端点之一，或「监视与会话」 */
+/** general = 运行环境与权限（agents 页左栏）；旧版本存的 external（外部 CLI）不再认，回到默认 */
 export type CodingTab = ConversationBackend | 'monitor' | 'delegate' | 'general';
 export const isCodingTab = (v: unknown): v is CodingTab =>
   v === 'monitor' || v === 'delegate' || v === 'general' || isConversationBackend(v);

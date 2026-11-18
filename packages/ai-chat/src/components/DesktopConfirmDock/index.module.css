@@ -1,4 +1,4 @@
-/* 授权卡片：输入栏上方，和编程助手标签的权限卡片同一种醒目样式；与输入框同宽（--cd-chat-content-w） */
+/* 授权卡片：输入栏上方，和 agents 标签的权限卡片同一种醒目样式；与输入框同宽（--cd-chat-content-w） */
 .dock {
   display: flex;
   flex-direction: column;

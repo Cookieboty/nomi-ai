@@ -1,6 +1,6 @@
 /**
  * 「会话中途换了模型」的弱提示（发送下一条消息前一直显示）：
- * 编程助手标签在 setTabModel / 带模型的 setTabSource 成功后记一笔，发送时清掉。
+ * Agents 标签在 setTabModel / 带模型的 setTabSource 成功后记一笔，发送时清掉。
  * 只在内存里（不跨重启）；Nomi 对话不用它——直接比较最后一条助手消息的模型与当前模型。
  */
 import { useSyncExternalStore } from 'react';

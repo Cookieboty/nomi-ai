@@ -24,7 +24,7 @@ import { fromHarnessMessage, tabLiveToConv } from '../src/utils/convAdapters';
 
 afterEach(cleanup);
 
-/** 编程助手标签 → 统一会话视图（与 App 里的接线一致） */
+/** agents 标签 → 统一会话视图（与 App 里的接线一致） */
 const CliConversation: React.FC<{
   tab: HarnessTabMeta;
   messages: HarnessTabMessage[];

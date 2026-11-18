@@ -12,7 +12,7 @@
 
 ### Minor Changes
 
-- 4070aab: 运行中可以继续发消息，不会打断这一轮：Enter 把消息插入这一轮（下一个工具步骤交给编程助手 / Nomi），Ctrl/⌘+Enter 排队到这一轮结束再发。消息先显示在输入框上方的待发列表里，交出去之前可以撤回修改或删除；在输入框按 Esc 停止这一轮并把待发消息合成一条马上发出。插入的消息显示在回复中间。Claude Code、Codex、Grok 与 Nomi 对话支持插入，Gemini、dsh 暂时只能排队。Node 版与 Go 版一致。
+- 4070aab: 运行中可以继续发消息，不会打断这一轮：Enter 把消息插入这一轮（下一个工具步骤交给 agents / Nomi），Ctrl/⌘+Enter 排队到这一轮结束再发。消息先显示在输入框上方的待发列表里，交出去之前可以撤回修改或删除；在输入框按 Esc 停止这一轮并把待发消息合成一条马上发出。插入的消息显示在回复中间。Claude Code、Codex、Grok 与 Nomi 对话支持插入，Gemini、dsh 暂时只能排队。Node 版与 Go 版一致。
 - 0cede0d: 移除 Gemini 的官方账号：Google 已不再让 Gemini CLI 用个人 Google 账号登录（Code Assist for individuals）。Gemini 不再提供 Google 账号登录、多账号和切换账号，来源只剩「Gemini 自己的配置」（终端里 `~/.gemini` 配的 API Key、Vertex AI 或企业版授权）和第三方供应商；旧版本保存的 Gemini 账号与 Nomi 账号目录里的登录凭据在升级时删除，终端里的 `~/.gemini` 不动。Gemini 没有可用认证时，提示改配 API Key 或选第三方模型。
 
 ### Patch Changes

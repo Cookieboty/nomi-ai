@@ -11,7 +11,7 @@ import { ENDPOINT_NAME } from '../utils/endpointBadge';
 import { reportedFiles, type DelegateChanges } from './delegateChanges';
 import type { DelegateResult } from './delegateClient';
 
-/** 去掉交给模型时加的 <cli-output> 边界，只留编程助手原话（与 DelegateCard.plainSummary 一致） */
+/** 去掉交给模型时加的 <cli-output> 边界，只留 agents 原话（与 DelegateCard.plainSummary 一致） */
 export function plainSummary(s: string): string {
   const m = /^<cli-output>\n[^\n]*\n([\s\S]*)\n<\/cli-output>$/.exec(s.trim());
   return (m ? m[1]! : s).trim();
@@ -63,7 +63,7 @@ export const CHANGED_FILES_SHOWN = 20;
 
 /**
  * 改动的文件：对话里看得到，Nomi 下一轮从历史里也读得到（后台委派的结果不经工具输出回到模型）。
- * 优先用编程助手汇报里的（已按 git 核对），没有汇报时用内核核对出的列表（持续任务的结果只有这个）
+ * 优先用 agents 汇报里的（已按 git 核对），没有汇报时用内核核对出的列表（持续任务的结果只有这个）
  */
 function changedFilesBlock(r: DelegateResult, changes?: DelegateChanges | null): string {
   const list = reportedFiles(r);

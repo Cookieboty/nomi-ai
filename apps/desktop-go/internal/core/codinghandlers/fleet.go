@@ -32,7 +32,7 @@ func RegisterFleet(r *contract.Router, get func() Fleet) {
 		pid, _ := a.o.Get("pid").(float64)
 		st, err := fl().CloseIdle(pid, util.Str(a.o.Get("backend")))
 		if errors.Is(err, fleet.ErrNotIdle) {
-			panic(&contract.Error{Code: "FLEET_NOT_IDLE", Message: "process is no longer an idle coding agent outside Nomi"})
+			panic(&contract.Error{Code: "FLEET_NOT_IDLE", Message: "process is no longer an idle agent outside Nomi"})
 		}
 		if errors.Is(err, fleet.ErrCloseDenied) {
 			panic(&contract.Error{Code: "FLEET_CLOSE_DENIED", Message: err.Error()})

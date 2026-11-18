@@ -118,7 +118,7 @@ func TestServiceCreateDelegatedAndPriority(t *testing.T) {
 	}
 }
 
-// 派给 Nomi：执行者 nomi，不钉编程助手；不设 token / 时长 / 费用上限；自动验收；类型按派出时给的
+// 派给 Nomi：执行者 nomi，不钉 agents；不设 token / 时长 / 费用上限；自动验收；类型按派出时给的
 func TestServiceCreateDelegatedNomi(t *testing.T) {
 	s := NewService(ServiceDeps{Root: t.TempDir(), Log: &nopLog{}})
 	s.RegisterExecutor("nomi", nopCliExec{})

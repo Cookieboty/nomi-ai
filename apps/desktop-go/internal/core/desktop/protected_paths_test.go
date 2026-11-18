@@ -86,7 +86,7 @@ func TestCheckCliWorkspaceRejectsBroadAndBuiltinDenied(t *testing.T) {
 	}
 	b := protectedBroker(t, filepath.Join(root, "settings.json"), home)
 	if got := b.CheckCliWorkspace(home); got == "" {
-		t.Fatal("home folder is too broad for a coding agent")
+		t.Fatal("home folder is too broad for an agent")
 	}
 	if got := b.CheckCliWorkspace(ssh); got == "" {
 		t.Fatal(".ssh is a built-in protected folder")

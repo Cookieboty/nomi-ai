@@ -78,7 +78,7 @@ export const assetFileOf = (url: string): string | null => ASSET_URL.exec(url)?.
 const assetUrl = (file: string) => `chat-asset://images/${file}`;
 
 const isEndpoint = (s: string): s is ConversationBackend => s in ENDPOINT_NAME;
-/** 来源名：编程助手 / Nomi 用端点名；user = 用户在对话里发送的原图 */
+/** 来源名：agents / Nomi 用端点名；user = 用户在对话里发送的原图 */
 export const sourceName = (s: string) =>
   s === 'assistant'
     ? t('ui.media.source-assistant')

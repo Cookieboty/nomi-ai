@@ -387,7 +387,7 @@ export function useSideWorkspaceKeys(model: SideWorkspaceModel) {
         m.restore();
       }
     };
-    // 捕获阶段：先于全局的 Ctrl+Tab（编程助手标签轮换）
+    // 捕获阶段：先于全局的 Ctrl+Tab（agents 标签轮换）
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, []);

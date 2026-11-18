@@ -1,6 +1,6 @@
 import { byCli } from '@nomi-ai/cli-catalog';
 /**
- * 开发模式侧栏的「编程助手历史会话」：每个端点各自分页（20 条 / 页，「加载更多」），
+ * 开发模式侧栏的「agents 历史会话」：每个端点各自分页（20 条 / 页，「加载更多」），
  * 最多展示最近 100 条，数据来自主进程对本机 CLI 会话文件的增量扫描。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';

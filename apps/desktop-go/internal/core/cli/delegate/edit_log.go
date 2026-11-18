@@ -1,6 +1,6 @@
 package delegate
 
-// edit_log.go：委派标签里改过哪些文件（来自编程助手的工具事件：Edit / Write / apply_patch 的入参），
+// edit_log.go：委派标签里改过哪些文件（来自 agents 的工具事件：Edit / Write / apply_patch 的入参），
 // 带时间记下来。收尾时据此补齐 git 核对不出来的改动：
 //   - 委派之前工作区里就有改动的文件（git 前后都是「已修改」，按前后差集会被丢掉）；
 //   - 委派之后用户在子任务里接着对话的轮次（没有前后快照，原来只回报了文字）；

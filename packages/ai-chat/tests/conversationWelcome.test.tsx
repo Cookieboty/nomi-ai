@@ -17,7 +17,7 @@ describe('新会话欢迎区（图标 + 标题 + 小标题）', () => {
     expect(r.queryByTestId('welcome-prompts')).toBeNull();
   });
 
-  it('编程助手空会话使用对应图标，装饰图形不重复朗读', () => {
+  it('agents 空会话使用对应图标，装饰图形不重复朗读', () => {
     const r = render(
       <ConversationWelcome backend="gemini" title="Gemini" description="开始编程" />,
     );

@@ -34,7 +34,7 @@ export async function importChatImages(
   );
 }
 
-/** 编程助手 sendTab 附图：带上素材库原图地址，气泡预览不再只用 240px 缩略图 */
+/** agents sendTab 附图：带上素材库原图地址，气泡预览不再只用 240px 缩略图 */
 export async function toHarnessImages(
   images: readonly ImageAttachment[],
   conversationId?: string,

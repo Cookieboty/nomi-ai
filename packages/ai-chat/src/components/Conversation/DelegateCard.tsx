@@ -1,10 +1,10 @@
 /**
- * Nomi 派给编程助手的子任务卡片（docs/development/coding-agents.md）：
- * - 标题：编程助手、目标、状态、耗时、「停止」「查看」；
+ * Nomi 派给 agents 的子任务卡片（docs/development/coding-agents.md）：
+ * - 标题：agents、目标、状态、耗时、「停止」「查看」；
  * - 当前一行：所有代理里最近的一个动作（「explorer · 运行 npm test」）；
  * - 审批：子任务的权限请求直接在卡片里答复（标签里也同时显示）；
  * - 子代理：每个一行，Claude 可以单独停止；
- * - 结束后：编程助手的汇报（做了什么、改动的文件、没做完的、需要用户决定的）；
+ * - 结束后：agents 的汇报（做了什么、改动的文件、没做完的、需要用户决定的）；
  *   改动的文件 = 汇报 / git 核对的 + 子任务对话里编辑 / 写入工具改过的，点开共用右侧资源预览（.md 先渲染）。
  * 数据：工具调用 id → 标签（delegation.callId）→ 标签的实时状态；历史消息只有工具输出。
  */
@@ -258,7 +258,7 @@ const Agents: React.FC<{ v: DelegateView }> = ({ v }) => {
   );
 };
 
-/** 交给模型时包的 <cli-output> 边界与说明行去掉，只留编程助手的原话 */
+/** 交给模型时包的 <cli-output> 边界与说明行去掉，只留 agents 的原话 */
 export function plainSummary(s: string): string {
   const m = /^<cli-output>\n[^\n]*\n([\s\S]*)\n<\/cli-output>$/.exec(s.trim());
   return balanceCutFence((m ? m[1]! : s).trim());
@@ -276,7 +276,7 @@ export function balanceCutFence(s: string): string {
 }
 
 /**
- * 编程助手改过的文件。path 只是显示用的短路径（在某个目录里就收成相对路径），
+ * Agents 改过的文件。path 只是显示用的短路径（在某个目录里就收成相对路径），
  * 文件身份是 key = 所在目录 + 相对路径：两个目录里的同名文件是两个文件（#246）。
  */
 export interface DelegateFile {
@@ -391,7 +391,7 @@ const Report: React.FC<{
           )}
         </>
       ) : r.summary ? (
-        // 编程助手没按格式汇报：显示它最后的回复（去掉交给模型时加的边界说明）
+        // agents 没按格式汇报：显示它最后的回复（去掉交给模型时加的边界说明）
         <div className={styles.reportBody} data-testid="delegate-summary">
           <Markdown text={plainSummary(r.summary)} settled />
         </div>

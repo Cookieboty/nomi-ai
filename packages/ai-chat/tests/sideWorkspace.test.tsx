@@ -431,7 +431,7 @@ describe('side tabs workspace', () => {
     )!;
     fireEvent.keyDown(inPane, { key: 'Tab', ctrlKey: true });
     expect(tabButton('nomi-task:k1').getAttribute('aria-selected')).toBe('true');
-    // 焦点在主列：不接管（留给编程助手标签轮换）
+    // 焦点在主列：不接管（留给 agents 标签轮换）
     fireEvent.keyDown(screen.getByTestId('main-input'), { key: 'Tab', ctrlKey: true });
     expect(tabButton('nomi-task:k1').getAttribute('aria-selected')).toBe('true');
     const k1Input = paneFor('nomi-task:k1').querySelector<HTMLTextAreaElement>(

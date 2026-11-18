@@ -483,7 +483,7 @@ func (a *AuthModeDetector) home() string {
 	return Homedir()
 }
 
-// isAuthTool：有订阅额度、要分清官方登录 / API Key 的内置编程助手
+// isAuthTool：有订阅额度、要分清官方登录 / API Key 的内置 agents
 func isAuthTool(id string) bool { return builtin.WithQuota(id) }
 
 // Detect = detect（须持锁；Await）。

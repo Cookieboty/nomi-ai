@@ -2,7 +2,7 @@
  * 对话旁的工作区：子任务和工作区页使用顶层标签栏，文件 tabs 保留在打开文件页内部
  * （见 docs/design/side-tabs-workspace.md）。
  * 子任务有三种会话，都走同一套面板：
- * - harness：委派出去的编程助手标签（完整输入栏，按标签 id 绑定）；
+ * - harness：委派出去的 agents 标签（完整输入栏，按标签 id 绑定）；
  * - nested：进程内子代理（Task / spawn_agent），步骤来自父转录；
  * - nomi-task：delegate_to_nomi 的后台 Nomi 任务；
  * - side-chat：侧边聊天（只问 Nomi 的临时聊天，内容在 services/sideChat 的内存里），作为工作区标签打开。
@@ -106,7 +106,7 @@ interface SubagentPaneValue {
   restore: () => void;
   /** 主列当前会话的键（App 同步进来）：标签区按会话各记一份 */
   setScope: (scope: string | null) => void;
-  /** 编程助手新标签拿到会话 id 后，将临时标签键上的工作区标签平滑迁移到稳定会话键 */
+  /** agents 新标签拿到会话 id 后，将临时标签键上的工作区标签平滑迁移到稳定会话键 */
   migrateScope: (fromScope: string, toScope: string) => void;
   meta: Readonly<Record<string, SideTabMeta>>;
   reportMeta: (key: string, meta: SideTabMeta | null) => void;

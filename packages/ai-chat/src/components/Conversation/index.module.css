@@ -600,7 +600,7 @@
   color: var(--cd-color-text-subtle);
 }
 
-/* 编程助手进程已休眠的提示 */
+/* agents 进程已休眠的提示 */
 /* 会话中途换模型的弱提示：不打断，发送后消失 */
 .modelTip {
   display: flex;

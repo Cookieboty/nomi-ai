@@ -5,7 +5,7 @@
  * - 内容只在内存里：不进会话列表 / 历史，关掉标签就丢掉，关掉应用就没了；弹到独立窗口 / 放回时经宿主内存交接
  *   （chatWindow.handoffPut / handoffTake，不落盘）；
  * - 只用 Nomi 自己：走 ai.chat.agentStream，extra.sideChat = true，内核（internal/core/sidechat）把请求收紧成
- *   Nomi 的模型 + 只读工具（不能委派给 Codex / Claude Code 等编程助手、不能改文件 / 跑命令），不挂会话、不冒气泡；
+ *   Nomi 的模型 + 只读工具（不能委派给 Codex / Claude Code 等 agents、不能改文件 / 跑命令），不挂会话、不冒气泡；
  * - 模型 / 思考深度：和主对话同一个选择器（NomiModelSwitch 的 binding），记在这个侧边聊天上；
  *   请求带 extra.sideChatModel（内核换成 "model:<供应商/模型>" 路由）和 extra.reasoningEffort（同主对话）；
  * - 带上当前会话的项目（extra.projectId）：项目文件夹里只读。
@@ -120,7 +120,7 @@ export function useSideChatsIn(scope: string): SideChatState[] {
 }
 const EMPTY_LIST: SideChatState[] = [];
 
-/** 编程助手新标签拿到 cliSessionId 后，把原本挂在临时标签键上的侧边聊天搬到稳定会话键 */
+/** agents 新标签拿到 cliSessionId 后，把原本挂在临时标签键上的侧边聊天搬到稳定会话键 */
 export function migrateSideChatsScope(fromScope: string, toScope: string): void {
   if (!fromScope || !toScope || fromScope === toScope) return;
   let changed = false;

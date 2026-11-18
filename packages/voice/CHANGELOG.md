@@ -17,7 +17,7 @@
 
 - e03a2e4: fix(voice): cancelling (release / cancel / unmount / stop) while the microphone or VAD is still starting now sticks — a late `getUserMedia` stream is released immediately, no recording starts, and an old start can no longer change the state of a newer one.
 - 843ea26: feat(ui): 图片主题所需的共享主题色、半透明 token、文案与语音面板样式（详见 global-background-image）。
-- cdfac34: 修复词典迁移后残留的裸 key：「助手」模式按钮、语音识别语言、屏幕记忆跳过原因、知识库索引进度、提醒星期按钮、桌面操作确认提示等处不再显示 key；诺米语音不再朗读 key；批准计划后发给编程助手的跟进消息、内置技能文件改为翻译后的正文；屏幕记忆默认排除词与默认唤醒词恢复为中文原词，重新能匹配中文窗口标题与语音。
+- cdfac34: 修复词典迁移后残留的裸 key：「助手」模式按钮、语音识别语言、屏幕记忆跳过原因、知识库索引进度、提醒星期按钮、桌面操作确认提示等处不再显示 key；诺米语音不再朗读 key；批准计划后发给 agents 的跟进消息、内置技能文件改为翻译后的正文；屏幕记忆默认排除词与默认唤醒词恢复为中文原词，重新能匹配中文窗口标题与语音。
 - 7aead16: feat(ui): checkboxes, sliders and number fields are drawn in the app style instead of the system look (new `Checkbox`, `Slider`, `NumberField`; `Input` picks them for `type="checkbox|range|number"`), so they follow the theme on macOS and Windows alike. Number fields get in-app step buttons that appear on hover or focus.
 - d4ebe16: 诺米缩小后「更多」面板不再被截断：面板按窗口大小定位，窗口太小时用紧凑排版并可滚动。
   语音状态 / 错误提示改为与气泡一致的深色样式，窗口窄时换行显示，「去设置」直接打开语音设置；诺米里的文字不再会被拖动选中。

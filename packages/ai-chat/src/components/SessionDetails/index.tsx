@@ -265,7 +265,7 @@ const DetailsPanel: React.FC<
   );
   const pane = useSubagentPane();
   const parentTabId = isDev && tabs.isCliTab ? (tabs.activeTab?.id ?? null) : null;
-  // 进程内子代理属于谁：编程助手标签的子代理是那个助手；Nomi 对话的按主标签当前的后端（默认 Nomi）
+  // 进程内子代理属于谁：agents 标签的子代理是那个助手；Nomi 对话的按主标签当前的后端（默认 Nomi）
   const ownerBackend = nestedOwnerBackend(parentTabId, tabs.state?.tabs);
   const { openWorkbench } = useChangesUi();
   const branch = useGitBranch(cwd);
@@ -273,7 +273,7 @@ const DetailsPanel: React.FC<
     () => summarizeChanges(aggregateSessionChanges(messages)),
     [messages],
   );
-  // git 仓库里以工作区改动为准（委派出去的编程助手改的也算）；不是 git 仓库时退回本会话的改动
+  // git 仓库里以工作区改动为准（委派出去的 agents 改的也算）；不是 git 仓库时退回本会话的改动
   const gitChanges = useWorkspaceChanges(cwd, messages.length);
   const changes = gitChanges ?? sessionChanges;
   const pending = useMemo(() => pendingDelegateTaskIds(agentMessages), [agentMessages]);
@@ -301,7 +301,7 @@ const DetailsPanel: React.FC<
       ]),
     [agentMessages, tabs.state?.tabs, waitingKey, liveAgents, results, followUps, sideChats],
   );
-  // 这个会话的持续任务：Nomi 对话用当前会话 id；编程助手标签用它在会话列表里的镜像项
+  // 这个会话的持续任务：Nomi 对话用当前会话 id；agents 标签用它在会话列表里的镜像项
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
   const store = ipc?.conversationStore?.() as ConversationStore | undefined;
   const conversationId = tabId

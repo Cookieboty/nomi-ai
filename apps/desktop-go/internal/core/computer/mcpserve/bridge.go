@@ -78,7 +78,7 @@ func Bridge(tokenFile string, in io.Reader, out io.Writer, errOut io.Writer) int
 				return
 			}
 			if resp.StatusCode != http.StatusOK {
-				fail(fmt.Sprintf("Nomi 拒绝了请求（HTTP %d）：重启这个编程助手会话后再试", resp.StatusCode))
+				fail(fmt.Sprintf("Nomi 拒绝了请求（HTTP %d）：重启这个 agent 会话后再试", resp.StatusCode))
 				return
 			}
 			write(body)

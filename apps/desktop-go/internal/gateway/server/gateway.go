@@ -792,7 +792,7 @@ func nodeHeaderObj(req *http.Request) *u.Obj {
 	return o
 }
 
-// requestEffort：标签绑定上的档位优先（编程助手）；没有时用 Nomi 对话带来的头。
+// requestEffort：标签绑定上的档位优先（agents）；没有时用 Nomi 对话带来的头。
 // 头只在本机网关读取，上游请求不会带上它。
 func requestEffort(binding *route.TabBinding, header string) *string {
 	if binding != nil && binding.Effort != nil && strings.TrimSpace(*binding.Effort) != "" {
