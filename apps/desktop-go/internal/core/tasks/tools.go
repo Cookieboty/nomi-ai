@@ -293,6 +293,17 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 				if in.Executor == "" {
 					in.Executor = "nomi"
 				}
+				if in.Executor == "cli" && strings.TrimSpace(in.Cli) == "" {
+					var installed []string
+					if cli.Installed != nil {
+						installed = cli.Installed()
+					}
+					if len(installed) == 0 {
+						in.Executor = "nomi"
+					} else {
+						in.Cli = installed[0]
+					}
+				}
 				if (in.Priority != "" && !slices.Contains(TaskPriorities, in.Priority)) ||
 					(in.Category != "" && !slices.Contains(TaskCategories, in.Category)) {
 					return fail("bad_input", "priority / category 不合法"), nil

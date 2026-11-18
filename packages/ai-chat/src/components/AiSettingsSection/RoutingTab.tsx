@@ -1,4 +1,5 @@
 import { cliName } from '@nomi-ai/cli-catalog';
+import { brand } from '@nomi-ai/types';
 import {
   Badge,
   Button,
@@ -25,7 +26,11 @@ import {
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { useAccountLabels } from '../../services/cliAccountClient';
-import { codingModelChoices } from '../../services/cliSource';
+import {
+  codingModelChoices,
+  preferredThirdPartyModelForCli,
+  refSlashLabel,
+} from '../../services/cliSource';
 import {
   DELEGATE_CLIS,
   delegateClient,
@@ -53,6 +58,7 @@ import styles from './index.module.css';
 const BUILTIN_PRESET_IDS = new Set(['high', 'balanced', 'low']);
 const CUSTOM_OPTION = '__custom__';
 const CURRENT_CUSTOM_OPTION = '__current_custom__';
+const DEFAULT_NOMI_OPTION = '__default_nomi__';
 const UNSET = 'unset';
 const FOLLOW = 'follow';
 const UNSET_HELPER_OPTIONS = [{ value: UNSET, label: 'ui.models.helper-unset' }];
@@ -125,13 +131,23 @@ export const RoutingTab: React.FC<{ onOpenProviders: () => void }> = ({ onOpenPr
   const nomiModels = gateway?.clients.nomi?.models ?? {};
 
   const defaultSpecForAdd = useMemo((): RunnerSpecValue => {
+    const first = delegateState?.presets?.[0];
+    if (first) {
+      return {
+        cli: first.cli,
+        source: first.source,
+        accountId: first.accountId ?? null,
+        model: first.model ?? null,
+        reasoningEffort: first.reasoningEffort ?? 'medium',
+      };
+    }
     const cli = (delegateState?.installed?.[0] ?? DELEGATE_CLIS[0]) as DelegateCli;
+    const tp = preferredThirdPartyModelForCli(gateway, cli);
     if (thirdPartyOnly(cli)) {
-      const ref = picker[0]?.models[0] ? `${picker[0].id}/${picker[0].models[0].id}` : null;
-      return { cli, source: 'thirdParty', model: ref, reasoningEffort: 'medium' };
+      return { cli, source: 'thirdParty', model: tp, reasoningEffort: 'medium' };
     }
     return { cli, source: 'official', accountId: null, model: null, reasoningEffort: 'medium' };
-  }, [delegateState, picker]);
+  }, [delegateState, gateway]);
 
   const saveDelegate = (
     next: Partial<
@@ -329,96 +345,111 @@ export const RoutingTab: React.FC<{ onOpenProviders: () => void }> = ({ onOpenPr
               </Button>
             }
           >
-            <div className={styles.presetGrid}>
-              {presets.map((p) => {
-                const isBuiltin = BUILTIN_PRESET_IDS.has(p.id);
-                const PIcon = presetIcon(p);
-                const sourceText = formatRunnerSourceLabel(p.source, p.accountId);
-                const cliMissing =
-                  (delegateState?.installed?.length ?? 0) > 0 &&
-                  !delegateState!.installed.includes(p.cli);
-                const modelMissing =
-                  p.source === 'thirdParty' &&
-                  (!p.model || !tpChoices.some((c) => c.ref === p.model));
-                const warnText = cliMissing
-                  ? t('ui.models.preset-warn-cli-missing')
-                  : modelMissing
-                    ? t('ui.models.preset-warn-model-missing')
-                    : null;
-                return (
-                  <div
-                    key={p.id}
-                    className={styles.presetCard}
-                    data-testid={`routing-preset-${p.id}`}
-                  >
-                    <div className={styles.presetHead}>
-                      <Icon icon={PIcon} size={16} />
-                      {isBuiltin ? (
-                        <span className={styles.presetTitle}>{presetDisplayLabel(p)}</span>
-                      ) : (
-                        <Input
-                          size="sm"
-                          className={styles.presetLabelInput}
-                          defaultValue={p.label}
-                          aria-label={t('ui.chat-settings.routing-preset-label')}
-                          data-testid={`routing-preset-label-${p.id}`}
-                          onBlur={(e) => updatePresetLabel(p.id, e.target.value)}
-                        />
-                      )}
-                      {warnText && (
-                        <Badge tone="warning" data-testid={`routing-preset-warn-${p.id}`}>
-                          {warnText}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className={styles.presetMeta}>
-                      <EndpointIcon backend={p.cli} size={15} decorative />
-                      <span>{cliName(p.cli)}</span>
-                    </div>
-                    <div className={styles.presetSub}>
-                      {p.source === 'thirdParty'
-                        ? formatRunnerSummary(
-                            { cli: p.cli, source: p.source, model: p.model },
-                            gateway,
-                          )
-                        : `${sourceText} · ${p.model || t('ui.models.runner-picker-default-model')}`}
-                    </div>
-                    <div className={styles.presetFoot}>
-                      {(() => {
-                        const effText = presetEffortText(p, gateway);
-                        return effText ? (
-                          <span className={styles.presetBadge}>
-                            {t('ui.chat-settings.reasoning-effort')}: {effText}
-                          </span>
+            {presets.length === 0 ? (
+              <div className={styles.defaultAgentBox} data-testid="routing-preset-nomi-default">
+                <div className={styles.presetCard}>
+                  <div className={styles.presetHead}>
+                    <EndpointIcon backend="nomi" size={16} decorative />
+                    <span className={styles.presetTitle}>
+                      {t('ui.models.routing-default-agent-option', brand.appName)}
+                    </span>
+                  </div>
+                  <p className={styles.defaultAgentDesc}>
+                    {t('ui.models.routing-default-agent-desc', brand.appName)}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.presetGrid}>
+                {presets.map((p) => {
+                  const isBuiltin = BUILTIN_PRESET_IDS.has(p.id);
+                  const PIcon = presetIcon(p);
+                  const sourceText = formatRunnerSourceLabel(p.source, p.accountId);
+                  const cliMissing =
+                    (delegateState?.installed?.length ?? 0) > 0 &&
+                    !delegateState!.installed.includes(p.cli);
+                  const modelMissing =
+                    p.source === 'thirdParty' &&
+                    (!p.model || !tpChoices.some((c) => c.ref === p.model));
+                  const warnText = cliMissing
+                    ? t('ui.models.preset-warn-cli-missing')
+                    : modelMissing
+                      ? t('ui.models.preset-warn-model-missing')
+                      : null;
+                  return (
+                    <div
+                      key={p.id}
+                      className={styles.presetCard}
+                      data-testid={`routing-preset-${p.id}`}
+                    >
+                      <div className={styles.presetHead}>
+                        <Icon icon={PIcon} size={16} />
+                        {isBuiltin ? (
+                          <span className={styles.presetTitle}>{presetDisplayLabel(p)}</span>
                         ) : (
-                          <span />
-                        );
-                      })()}
-                      <span className={styles.presetActions}>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          data-testid={`routing-preset-edit-${p.id}`}
-                          onClick={() => openEditPreset(p)}
-                        >
-                          {t('ui.foundation.edit')}
-                        </Button>
-                        {!isBuiltin && (
-                          <IconButton
+                          <Input
                             size="sm"
-                            label={t('ui.chat-settings.routing-preset-delete')}
-                            data-testid={`routing-preset-delete-${p.id}`}
-                            onClick={() => deleteCustomPreset(p.id)}
-                            icon={<Icon icon={Trash} size={14} />}
+                            className={styles.presetLabelInput}
+                            defaultValue={p.label}
+                            aria-label={t('ui.chat-settings.routing-preset-label')}
+                            data-testid={`routing-preset-label-${p.id}`}
+                            onBlur={(e) => updatePresetLabel(p.id, e.target.value)}
                           />
                         )}
-                      </span>
+                        {warnText && (
+                          <Badge tone="warning" data-testid={`routing-preset-warn-${p.id}`}>
+                            {warnText}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className={styles.presetMeta}>
+                        <EndpointIcon backend={p.cli} size={15} decorative />
+                        <span>{cliName(p.cli)}</span>
+                      </div>
+                      <div className={styles.presetSub}>
+                        {p.source === 'thirdParty'
+                          ? p.model
+                            ? refSlashLabel(gateway, p.model)
+                            : t('ui.cli-monitor.third-party')
+                          : `${sourceText} · ${p.model || t('ui.models.runner-picker-default-model')}`}
+                      </div>
+                      <div className={styles.presetFoot}>
+                        {(() => {
+                          const effText = presetEffortText(p, gateway);
+                          return effText ? (
+                            <span className={styles.presetBadge}>
+                              {t('ui.chat-settings.reasoning-effort')}: {effText}
+                            </span>
+                          ) : (
+                            <span />
+                          );
+                        })()}
+                        <span className={styles.presetActions}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            data-testid={`routing-preset-edit-${p.id}`}
+                            onClick={() => openEditPreset(p)}
+                          >
+                            {t('ui.foundation.edit')}
+                          </Button>
+                          {!isBuiltin && (
+                            <IconButton
+                              size="sm"
+                              label={t('ui.chat-settings.routing-preset-delete')}
+                              data-testid={`routing-preset-delete-${p.id}`}
+                              onClick={() => deleteCustomPreset(p.id)}
+                              icon={<Icon icon={Trash} size={14} />}
+                            />
+                          )}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </SettingsGroup>
 
           <SettingsGroup
@@ -454,7 +485,9 @@ export const RoutingTab: React.FC<{ onOpenProviders: () => void }> = ({ onOpenPr
               const isCustom = target?.kind === 'custom';
               const selectValue = isCustom
                 ? CURRENT_CUSTOM_OPTION
-                : `preset:${target?.kind === 'preset' ? target.presetId : (presets[0]?.id ?? 'balanced')}`;
+                : presets.length === 0
+                  ? DEFAULT_NOMI_OPTION
+                  : `preset:${target?.kind === 'preset' ? target.presetId : presets[0]!.id}`;
               const options = [
                 ...(isCustom
                   ? [
@@ -464,6 +497,14 @@ export const RoutingTab: React.FC<{ onOpenProviders: () => void }> = ({ onOpenPr
                           'ui.chat-settings.routing-custom-summary',
                           formatRunnerSummary(target, gateway),
                         ),
+                      },
+                    ]
+                  : []),
+                ...(presets.length === 0
+                  ? [
+                      {
+                        value: DEFAULT_NOMI_OPTION,
+                        label: t('ui.models.routing-default-agent-option', brand.appName),
                       },
                     ]
                   : []),
@@ -507,6 +548,12 @@ export const RoutingTab: React.FC<{ onOpenProviders: () => void }> = ({ onOpenPr
                         const v = e.target.value;
                         if (v === CUSTOM_OPTION) {
                           openRouteCustomPicker(kind, target);
+                          return;
+                        }
+                        if (v === DEFAULT_NOMI_OPTION) {
+                          const nextRoutes = { ...routes };
+                          delete nextRoutes[kind];
+                          saveDelegate({ routes: nextRoutes });
                           return;
                         }
                         if (v.startsWith('preset:')) {

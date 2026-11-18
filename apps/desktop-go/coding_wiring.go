@@ -179,13 +179,50 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 	hasOfficialAcc := func(k string) bool {
 		return acc != nil && jsrt.Call(func() bool { return acc.HasSignedInAccount(k) })
 	}
+	defaultOfficialAcc := func(k string) string {
+		if acc == nil {
+			return ""
+		}
+		return jsrt.Call(func() string {
+			list, err := acc.List(k)
+			if err != nil {
+				return ""
+			}
+			firstLoggedIn := ""
+			for _, raw := range list {
+				o, _ := raw.(*util.Obj)
+				if o == nil || !util.Truthy(o.Get("loggedIn")) {
+					continue
+				}
+				id := util.Str(o.Get("id"))
+				if id == "" {
+					continue
+				}
+				if util.Truthy(o.Get("active")) {
+					return id
+				}
+				if firstLoggedIn == "" {
+					firstLoggedIn = id
+				}
+			}
+			return firstLoggedIn
+		})
+	}
+	officialModels := func(k, src string) []string {
+		if o == nil {
+			return nil
+		}
+		return jsrt.Call(func() []string { return o.CachedModelIDs(k, src) })
+	}
 	dd := delegate.Deps{
 		Root: filepath.Join(userData, "delegate"), Harness: delegateHarness{o}, Desktop: delegateDesktop{d},
 		Events: hostEvents{router}, Claims: delegateClaims, Edits: delegateEdits,
 		// 内存守护正扣着新的 agents 时：同步委派等缓解（后台 Nomi 里）或改成后台委派（前台对话里）
-		MemoryCritical:     fleetHolding,
-		HasOfficialAccount: hasOfficialAcc,
-		HasLocalLogin:      func(k string) bool { return cli.HasLocalLogin(k, "") },
+		MemoryCritical:           fleetHolding,
+		HasOfficialAccount:       hasOfficialAcc,
+		DefaultOfficialAccountID: defaultOfficialAcc,
+		HasLocalLogin:            func(k string) bool { return cli.HasLocalLogin(k, "") },
+		OfficialModels:           officialModels,
 	}
 	// 后台委派 = 持续任务（docs/features/scheduling-calendar.md）：排队、重试、重启续跑、验收都走任务
 	if taskSvc != nil {

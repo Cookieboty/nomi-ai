@@ -367,59 +367,179 @@ func FindPreset(presets []any, id string) *util.Obj {
 	return nil
 }
 
-// DeriveEffectiveRouting 生成含默认预设与 7 类路由映射的有效配置。
+// RoutingEnv：计算默认预设与有效路由所需的环境快照。
+type RoutingEnv struct {
+	Installed         []string
+	HasOfficial       func(string) bool
+	DefaultOfficialID func(string) string
+	HasLocal          func(string) bool
+	OfficialModels    func(cli, source string) []string
+	ThirdPartyMain    func(string) string
+	GatewayModels     []string
+}
+
+func firstNonEmpty(xs ...string) string {
+	for _, x := range xs {
+		if t := trim(x); t != "" {
+			return t
+		}
+	}
+	return ""
+}
+
+// DeriveEffectiveRouting 生成含默认预设与 7 类路由映射的有效配置（兼容旧签名）。
 func DeriveEffectiveRouting(settings *util.Obj, installed []string, hasOfficial, hasLocal func(string) bool, thirdPartyMain func(string) string, gatewayFallback ...string) (bool, []any, *util.Obj) {
+	var gwModels []string
+	if len(gatewayFallback) > 0 {
+		if fb := trim(gatewayFallback[0]); fb != "" {
+			gwModels = []string{fb}
+		}
+	}
+	return DeriveEffectiveRoutingWithEnv(settings, RoutingEnv{
+		Installed:      installed,
+		HasOfficial:    hasOfficial,
+		HasLocal:       hasLocal,
+		ThirdPartyMain: thirdPartyMain,
+		GatewayModels:  gwModels,
+	})
+}
+
+// DeriveEffectiveRoutingWithEnv 按环境状态生成默认预设与 7 类路由：
+// 1. 未安装任何 CLI（且无自定义预设）时返回空预设与空默认路由，由后台 Nomi 隐式承接；
+// 2. 已安装 CLI 时以已配置主力 CLI 为主，复杂档匹配该 CLI 同族次顶级模型；
+// 3. 仅有第三方网关模型时，轻量/简单档优选高性价比顶级轻量模型（ds4.1 / kimi3 / glm-flash 等）。
+func DeriveEffectiveRoutingWithEnv(settings *util.Obj, env RoutingEnv) (bool, []any, *util.Obj) {
 	if settings == nil {
 		settings = util.NewObj()
-	}
-	fallbackModel := ""
-	if len(gatewayFallback) > 0 {
-		fallbackModel = trim(gatewayFallback[0])
 	}
 	autoComplexity := true
 	if b, ok := settings.Get("autoComplexity").(bool); ok {
 		autoComplexity = b
 	}
 	defaults, _ := settings.Get("defaults").(*util.Obj)
+	installed := env.Installed
+	gwModels := env.GatewayModels
+	fallbackModel := ""
+	if len(gwModels) > 0 {
+		fallbackModel = trim(gwModels[0])
+	}
+
+	hasOff := func(c string) bool {
+		return builtin.WithAccounts(c) && env.HasOfficial != nil && env.HasOfficial(c)
+	}
+	hasLoc := func(c string) bool {
+		return builtin.WithAccounts(c) && env.HasLocal != nil && env.HasLocal(c)
+	}
+	tpMain := func(c string) string {
+		if env.ThirdPartyMain == nil {
+			return ""
+		}
+		return trim(env.ThirdPartyMain(c))
+	}
+	offModels := func(c, src string) []string {
+		if env.OfficialModels == nil {
+			return nil
+		}
+		return env.OfficialModels(c, src)
+	}
+
+	// 挑选主力 CLI：defaults.coding（已安装）> 已接通官方/本地的 CLI > 配了第三方主模型的 CLI > 含原生同族网关模型的 CLI > installed[0]
 	primaryCli := ""
 	if defaults != nil {
 		if c := ResolveDelegateCli(defaults.Get("coding")); c != "" && contains(installed, c) {
 			primaryCli = c
 		}
 	}
+	if primaryCli == "" {
+		for _, c := range installed {
+			if hasOff(c) || hasLoc(c) {
+				primaryCli = c
+				break
+			}
+		}
+	}
+	if primaryCli == "" {
+		for _, c := range installed {
+			if tpMain(c) != "" {
+				primaryCli = c
+				break
+			}
+		}
+	}
+	if primaryCli == "" && len(gwModels) > 0 {
+		for _, c := range installed {
+			if PickSubTopModelForCli(c, gwModels) != "" {
+				primaryCli = c
+				break
+			}
+		}
+	}
 	if primaryCli == "" && len(installed) > 0 {
 		primaryCli = installed[0]
 	}
-	if primaryCli == "" && len(DelegateClis) > 0 {
-		primaryCli = DelegateClis[0]
+
+	pickTpModel := func(c string, balanced bool) string {
+		pool := append([]string(nil), gwModels...)
+		mainRef := tpMain(c)
+		if mainRef != "" && !contains(pool, mainRef) {
+			pool = append(pool, mainRef)
+		}
+		if len(pool) == 0 {
+			return ""
+		}
+		if balanced {
+			if m := PickBalancedModelForCli(c, pool); m != "" {
+				return m
+			}
+		}
+		if m := PickSubTopModelForCli(c, pool); m != "" {
+			return m
+		}
+		return PickFallbackSubTopModel(pool, firstNonEmpty(mainRef, fallbackModel))
 	}
 
-	pickHighSource := func(c string) (string, string) {
+	pickHighSource := func(c string) (source, accountID, model string) {
+		if c == "" {
+			return "", "", ""
+		}
 		if !builtin.WithAccounts(c) {
-			m := ""
-			if thirdPartyMain != nil {
-				m = thirdPartyMain(c)
+			return "thirdParty", "", pickTpModel(c, false)
+		}
+		if hasOff(c) {
+			accID := ""
+			if env.DefaultOfficialID != nil {
+				accID = trim(env.DefaultOfficialID(c))
 			}
-			if m == "" {
-				m = fallbackModel
+			return "official", accID, DefaultOfficialSubTopModel(c, offModels(c, "official"))
+		}
+		if hasLoc(c) {
+			return "local", "", DefaultOfficialSubTopModel(c, offModels(c, "local"))
+		}
+		if m := pickTpModel(c, false); m != "" {
+			return "thirdParty", "", m
+		}
+		return "official", "", ""
+	}
+
+	pickBalancedSource := func(c, hiSrc, hiAcc, hiModel string) (source, accountID, model string) {
+		if c == "" {
+			return "", "", ""
+		}
+		if hiSrc == "thirdParty" {
+			return "thirdParty", "", firstNonEmpty(pickTpModel(c, true), hiModel)
+		}
+		if hiSrc == "official" && hasOff(c) {
+			cached := offModels(c, "official")
+			if m := PickBalancedModelForCli(c, cached); m != "" {
+				return "official", hiAcc, m
 			}
-			return "thirdParty", m
-		}
-		if hasOfficial != nil && hasOfficial(c) {
-			return "official", ""
-		}
-		if hasLocal != nil && hasLocal(c) {
-			return "local", ""
-		}
-		if thirdPartyMain != nil {
-			if m := thirdPartyMain(c); m != "" {
-				return "thirdParty", m
+		} else if hiSrc == "local" && hasLoc(c) {
+			cached := offModels(c, "local")
+			if m := PickBalancedModelForCli(c, cached); m != "" {
+				return "local", "", m
 			}
 		}
-		if fallbackModel != "" {
-			return "thirdParty", fallbackModel
-		}
-		return "official", ""
+		return hiSrc, hiAcc, hiModel
 	}
 
 	var presets []any
@@ -430,38 +550,72 @@ func DeriveEffectiveRouting(settings *util.Obj, installed []string, hasOfficial,
 				presets[i] = o.Clone()
 			}
 		}
+	} else if len(installed) == 0 {
+		// 规则 1：本机未安装任何 CLI 时，不伪造未安装预设，默认由后台 Nomi 隐式承接
+		presets = []any{}
 	} else {
-		hiSrc, hiModel := pickHighSource(primaryCli)
+		hiSrc, hiAcc, hiModel := pickHighSource(primaryCli)
 		high := util.NewObj("id", "high", "label", "高质量主力", "cli", primaryCli, "source", hiSrc)
+		if hiSrc == "official" && hiAcc != "" {
+			high.Set("accountId", hiAcc)
+		}
 		if hiModel != "" {
 			high.Set("model", hiModel)
 		}
 		high.Set("reasoningEffort", "high").Set("costTier", "high")
 
-		bal := util.NewObj("id", "balanced", "label", "日常均衡", "cli", primaryCli, "source", hiSrc)
-		if hiModel != "" {
-			bal.Set("model", hiModel)
+		balSrc, balAcc, balModel := pickBalancedSource(primaryCli, hiSrc, hiAcc, hiModel)
+		bal := util.NewObj("id", "balanced", "label", "日常均衡", "cli", primaryCli, "source", balSrc)
+		if balSrc == "official" && balAcc != "" {
+			bal.Set("accountId", balAcc)
+		}
+		if balModel != "" {
+			bal.Set("model", balModel)
 		}
 		bal.Set("reasoningEffort", "medium").Set("costTier", "medium")
 
-		lowCli, lowSrc, lowModel := primaryCli, hiSrc, hiModel
-		foundLowTp := false
-		if thirdPartyMain != nil {
-			if m := thirdPartyMain(primaryCli); m != "" {
-				lowSrc, lowModel, foundLowTp = "thirdParty", m, true
-			} else {
+		// 规则 3：只要有可用的第三方模型池，简单/低成本档在池中挑选性价比最高的顶级轻量模型（ds4.1 / kimi3 / glm-flash）
+		lowCli, lowSrc, lowAcc, lowModel := primaryCli, hiSrc, hiAcc, hiModel
+		tpPool := append([]string(nil), gwModels...)
+		preferredLowTp := ""
+		if m := tpMain(primaryCli); m != "" {
+			preferredLowTp = m
+			if !contains(tpPool, m) {
+				tpPool = append(tpPool, m)
+			}
+		}
+		for _, c := range installed {
+			if m := tpMain(c); m != "" {
+				if preferredLowTp == "" {
+					preferredLowTp = m
+				}
+				if !contains(tpPool, m) {
+					tpPool = append(tpPool, m)
+				}
+			}
+		}
+		if len(tpPool) > 0 {
+			lowSrc = "thirdParty"
+			lowAcc = ""
+			lowModel = PickBestValueSimpleModel(tpPool, firstNonEmpty(preferredLowTp, fallbackModel))
+			if !builtin.WithThirdParty(lowCli) {
 				for _, c := range installed {
-					if m := thirdPartyMain(c); m != "" {
-						lowCli, lowSrc, lowModel, foundLowTp = c, "thirdParty", m, true
+					if builtin.WithThirdParty(c) {
+						lowCli = c
 						break
 					}
 				}
 			}
+		} else if hiSrc == "official" && hasOff(lowCli) {
+			lowModel = DefaultOfficialLightModel(lowCli, offModels(lowCli, "official"))
+		} else if hiSrc == "local" && hasLoc(lowCli) {
+			lowModel = DefaultOfficialLightModel(lowCli, offModels(lowCli, "local"))
 		}
-		if !foundLowTp && fallbackModel != "" {
-			lowSrc, lowModel = "thirdParty", fallbackModel
-		}
+
 		low := util.NewObj("id", "low", "label", "轻量省钱", "cli", lowCli, "source", lowSrc)
+		if lowSrc == "official" && lowAcc != "" {
+			low.Set("accountId", lowAcc)
+		}
 		if lowModel != "" {
 			low.Set("model", lowModel)
 		}
@@ -487,11 +641,14 @@ func DeriveEffectiveRouting(settings *util.Obj, installed []string, hasOfficial,
 				continue
 			}
 		}
-		// 若旧 defaults 显式指定了不同于主力 CLI 的助手，自动尊重旧配置
+		// 若旧 defaults 显式指定了不同于主力 CLI 的已安装助手，自动尊重旧配置
 		if defaults != nil && (kind == "coding" || kind == "review" || kind == "research" || kind == "prd") {
-			if dc := ResolveDelegateCli(defaults.Get(kind)); dc != "" && dc != primaryCli {
-				dSrc, dModel := pickHighSource(dc)
+			if dc := ResolveDelegateCli(defaults.Get(kind)); dc != "" && dc != primaryCli && contains(installed, dc) {
+				dSrc, dAcc, dModel := pickHighSource(dc)
 				rt := util.NewObj("kind", "custom", "cli", dc, "source", dSrc)
+				if dSrc == "official" && dAcc != "" {
+					rt.Set("accountId", dAcc)
+				}
 				if dModel != "" {
 					rt.Set("model", dModel)
 				}
@@ -499,8 +656,11 @@ func DeriveEffectiveRouting(settings *util.Obj, installed []string, hasOfficial,
 				continue
 			}
 		}
+		if len(presets) == 0 {
+			continue
+		}
 		pid := fallbackPresetFor[kind]
-		if FindPreset(presets, pid) == nil && len(presets) > 0 {
+		if FindPreset(presets, pid) == nil {
 			if first, ok := presets[0].(*util.Obj); ok && first != nil {
 				pid = util.Str(first.Get("id"))
 			}

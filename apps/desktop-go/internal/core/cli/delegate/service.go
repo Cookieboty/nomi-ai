@@ -113,10 +113,12 @@ type Deps struct {
 	// MemoryCritical：系统内存紧张（或「全速」调度策略下 CPU 太忙）、看板在扣着新的 agents（Agent 看板）。后台委派照常建任务（排队，缓解后开始）；
 	// 同步委派：后台 Nomi 里的等缓解，前台对话里的返回 memory_pressure（可空）
 	MemoryCritical func() bool
-	// HasOfficialAccount / HasLocalLogin / ThirdPartyMain：供给预设与路由派生/状态视图使用（可空）
-	HasOfficialAccount func(kind string) bool
-	HasLocalLogin      func(kind string) bool
-	ThirdPartyMain     func(kind string) string
+	// HasOfficialAccount / DefaultOfficialAccountID / HasLocalLogin / OfficialModels / ThirdPartyMain：供给预设与路由派生/状态视图使用（可空）
+	HasOfficialAccount       func(kind string) bool
+	DefaultOfficialAccountID func(kind string) string
+	HasLocalLogin            func(kind string) bool
+	OfficialModels           func(kind, source string) []string
+	ThirdPartyMain           func(kind string) string
 }
 
 func (s *Service) maxRetries() int {
@@ -642,26 +644,58 @@ func (s *Service) thirdPartyMainFor(kind string) string {
 	return ""
 }
 
-func (s *Service) firstGatewayModel() string {
-	if s.d.Gateway == nil {
-		return ""
+func (s *Service) defaultOfficialIDFor(kind string) string {
+	if s.d.DefaultOfficialAccountID != nil {
+		return trim(s.d.DefaultOfficialAccountID(kind))
 	}
-	for _, m := range s.d.Gateway.Models() {
-		if m == nil {
-			continue
-		}
-		if ref := util.Str(m.Get("ref")); ref != "" {
-			return ref
-		}
-		if id := util.Str(m.Get("id")); id != "" {
-			return id
+	if s.d.Gateway != nil {
+		if def := s.d.Gateway.Defaults(kind); def != nil && util.Str(def.Get("source")) == "official" {
+			return trim(util.Str(def.Get("accountId")))
 		}
 	}
 	return ""
 }
 
+func (s *Service) officialModelsFor(kind, source string) []string {
+	if s.d.OfficialModels != nil {
+		return s.d.OfficialModels(kind, source)
+	}
+	return nil
+}
+
+func (s *Service) gatewayModelRefs() []string {
+	if s.d.Gateway == nil {
+		return nil
+	}
+	models := s.d.Gateway.Models()
+	out := make([]string, 0, len(models))
+	seen := map[string]bool{}
+	for _, m := range models {
+		if m == nil {
+			continue
+		}
+		ref := trim(util.Str(m.Get("ref")))
+		if ref == "" {
+			ref = trim(util.Str(m.Get("id")))
+		}
+		if ref != "" && !seen[ref] {
+			seen[ref] = true
+			out = append(out, ref)
+		}
+	}
+	return out
+}
+
 func (s *Service) effectiveRouting(settings *util.Obj) (bool, []any, *util.Obj) {
-	return DeriveEffectiveRouting(settings, s.Installed(), s.hasOfficialFor, s.hasLocalLoginFor, s.thirdPartyMainFor, s.firstGatewayModel())
+	return DeriveEffectiveRoutingWithEnv(settings, RoutingEnv{
+		Installed:         s.Installed(),
+		HasOfficial:       s.hasOfficialFor,
+		DefaultOfficialID: s.defaultOfficialIDFor,
+		HasLocal:          s.hasLocalLoginFor,
+		OfficialModels:    s.officialModelsFor,
+		ThirdPartyMain:    s.thirdPartyMainFor,
+		GatewayModels:     s.gatewayModelRefs(),
+	})
 }
 
 // ResolvePresetForTask：按当前有效配置解析 presetId，供定时任务执行器在触发时使用。
@@ -823,6 +857,34 @@ type dispatchOverride struct {
 	presetID, cli, source, accountID, model, effort string
 }
 
+func isUnmodifiedBuiltinPreset(settings *util.Obj, pid string) bool {
+	if pid != "high" && pid != "balanced" && pid != "low" {
+		return false
+	}
+	if settings != nil {
+		if raw := toList(settings.Get("presets")); len(raw) > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func buildNomiFallbackInput(in *util.Obj) *util.Obj {
+	out := util.NewObj("goal", util.Str(in.Get("goal")), "done_when", util.Str(in.Get("done_when")))
+	if c := trim(util.Str(in.Get("context"))); c != "" {
+		out.Set("context", c)
+	}
+	switch trim(util.Str(in.Get("kind"))) {
+	case "coding", "writing", "review", "research", "chore":
+		out.Set("kind", trim(util.Str(in.Get("kind"))))
+	case "prd":
+		out.Set("kind", "writing")
+	default:
+		out.Set("kind", "coding")
+	}
+	return out
+}
+
 // Dispatch：/agent 名字 需求 或直接按 preset / source 派给 agents（后台任务），不经过对话模型。
 // 指定的助手没安装、委派关着、用户拒绝或没有工作目录时返回错误，调用方必须告诉用户没有派出去。
 // sig 是这次调用的生命周期：用户在确认弹窗前停止这一轮时取消确认；派出的后台任务不受它影响。
@@ -835,18 +897,54 @@ func (s *Service) Dispatch(sig context.Context, in DispatchInput) (*util.Obj, er
 	if goal == "" {
 		return nil, derr("invalid_input", "没有写需求，没有派出去")
 	}
+	s.mu.Lock()
+	enabled := s.settings.Get("enabled") != false
+	settings := s.settings.Clone()
+	s.mu.Unlock()
+	installed := s.Installed()
+	reqLower := strings.ToLower(trim(requested))
+	if len(installed) == 0 && s.d.Tasks != nil && (reqLower == "" || reqLower == "nomi") && (presetID == "" || isUnmodifiedBuiltinPreset(settings, presetID)) {
+		if !enabled {
+			return nil, derr("delegate_disabled", "用户在设置里关闭了「允许 Nomi 委派 agents」")
+		}
+		nomiRaw := util.NewObj("goal", goal, "done_when", "按用户的需求做完", "kind", "coding")
+		if extra := trim(in.Context); extra != "" {
+			nomiRaw.Set("context", extra)
+		}
+		res := s.executeNomi(sig, nomiRaw, tools.ExecContext{
+			ReqID:          trim(turnID),
+			ConversationID: trim(conversationID),
+			ProjectID:      trim(projectID),
+			UserText:       goal,
+		})
+		if res.Get("ok") != true {
+			code, msg := "dispatch_failed", "委派没有发出"
+			if e, ok := res.Get("error").(*util.Obj); ok {
+				if c := util.Str(e.Get("code")); c != "" {
+					code = c
+				}
+				if m := util.Str(e.Get("message")); m != "" {
+					msg = m
+				}
+			}
+			return nil, derr(code, msg)
+		}
+		s.ConsumePin(trim(turnID))
+		data, _ := res.Get("data").(*util.Obj)
+		if data == nil {
+			return nil, derr("internal_error", "委派没有返回结果")
+		}
+		return data, nil
+	}
 	cli := ""
 	if presetID != "" && trim(requested) == "" {
-		s.mu.Lock()
-		settings := s.settings.Clone()
-		s.mu.Unlock()
 		_, presets, _ := s.effectiveRouting(settings)
 		p := FindPreset(presets, presetID)
 		if p == nil {
 			return nil, derr("unknown_preset", "不认识这个执行预设："+presetID)
 		}
 		cli = util.Str(p.Get("cli"))
-		if !contains(s.Installed(), cli) {
+		if !contains(installed, cli) {
 			name := cli
 			if n := cliName[cli]; n != "" {
 				name = n
@@ -858,7 +956,7 @@ func (s *Service) Dispatch(sig context.Context, in DispatchInput) (*util.Obj, er
 		if cli == "" {
 			return nil, derr("unknown_cli", "不认识这个 agents："+trim(requested))
 		}
-		if !contains(s.Installed(), cli) {
+		if !contains(installed, cli) {
 			name := requested
 			if n := cliName[cli]; n != "" {
 				name = n
@@ -1350,6 +1448,20 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64, dispatchOv *dis
 		Installed:          s.Installed(),
 	})
 	if runner == nil {
+		installed := s.Installed()
+		rawCliLower := strings.ToLower(trim(util.Str(in.Get("cli"))))
+		ovCliLower := ""
+		if dispatchOv != nil {
+			ovCliLower = strings.ToLower(trim(dispatchOv.cli))
+		}
+		pinnedIsDefaultPreset := pinned == "" || (strings.HasPrefix(pinned, "preset:") && isUnmodifiedBuiltinPreset(settings, strings.TrimPrefix(pinned, "preset:")))
+		reqPresetIsDefault := reqPreset == "" || isUnmodifiedBuiltinPreset(settings, reqPreset)
+		if len(installed) == 0 && s.d.Tasks != nil && c.ec.CallerTabID == "" && desktop.BackgroundFrom(c.sig) == nil &&
+			(rawCliLower == "" || rawCliLower == "nomi") && (ovCliLower == "" || ovCliLower == "nomi") &&
+			pinnedIsDefaultPreset && reqPresetIsDefault {
+			s.ConsumePin(turnID)
+			return s.delegateToNomi(buildNomiFallbackInput(in), c, t0)
+		}
 		if strings.HasPrefix(pinned, "preset:") {
 			return nil, derr("cli_unavailable", "本轮指定的预设档位关联的 agents 不可用或未安装")
 		}

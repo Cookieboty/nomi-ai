@@ -648,7 +648,7 @@ const delegateProcedures = {
     input: z.object({ settings: z.looseObject({}) }),
     output: DelegateSettings,
   },
-  /** 按 turnId 把下一个需求钉给某个 agent（cli = null 且 presetId = null 清除）；名字认不出时报错 */
+  /** 按 turnId 把下一个需求钉给某个 agents（cli = null 且 presetId = null 清除）；名字认不出时报错 */
   'delegate.pin': {
     kind: 'mutation',
     input: z.object({

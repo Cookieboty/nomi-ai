@@ -259,5 +259,7 @@
   "ui.models.manage-providers": "管理供应商",
   "ui.models.more-purposes": "更多用途",
   "ui.models.preset-warn-cli-missing": "助手未安装",
-  "ui.models.preset-warn-model-missing": "需配置第三方模型"
+  "ui.models.preset-warn-model-missing": "需配置第三方模型",
+  "ui.models.routing-default-agent-desc": "未安装外部 CLI 时，委派任务默认由 {0} 自身在后台承接；安装并配置 CLI 后将自动按助手与任务复杂度生成默认档位。",
+  "ui.models.routing-default-agent-option": "{0}（默认后台承接）"
 }

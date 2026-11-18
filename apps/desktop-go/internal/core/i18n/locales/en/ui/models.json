@@ -238,7 +238,7 @@
   "ui.models.local-sign-in-detected": "Local sign-in detected",
   "ui.models.local-sign-in-undetected": "No local login detected yet (sign in from your terminal first)",
   "ui.models.runner-picker-title": "Choose Assistant & Model",
-  "ui.models.runner-picker-clis": "Agent (CLI)",
+  "ui.models.runner-picker-clis": "Select Agents (CLI)",
   "ui.models.runner-picker-sources": "Source & Model",
   "ui.models.runner-picker-local-official": "Local & Official Accounts (Subscription)",
   "ui.models.runner-picker-third-party-local": "Third-Party Gateway & Local Models",
@@ -259,5 +259,7 @@
   "ui.models.manage-providers": "Manage providers",
   "ui.models.more-purposes": "More uses",
   "ui.models.preset-warn-cli-missing": "Not installed",
-  "ui.models.preset-warn-model-missing": "Model not set"
+  "ui.models.preset-warn-model-missing": "Model not set",
+  "ui.models.routing-default-agent-desc": "When no external CLI is installed, delegated tasks are handled by {0} in the background by default; default tiers are generated automatically once a CLI is installed and configured.",
+  "ui.models.routing-default-agent-option": "{0} (Default background agent)"
 }

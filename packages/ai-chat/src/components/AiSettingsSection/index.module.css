@@ -101,3 +101,14 @@
   font-size: var(--cd-font-size-sm);
   color: var(--cd-color-text-subtle);
 }
+
+.defaultAgentBox {
+  padding: var(--cd-space-3) var(--cd-space-4);
+}
+
+.defaultAgentDesc {
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+  line-height: 1.5;
+}

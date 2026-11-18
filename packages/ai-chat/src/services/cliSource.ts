@@ -1,4 +1,9 @@
-import { BUILTIN_CLI_ORDER, cliName } from '@nomi-ai/cli-catalog';
+import {
+  BUILTIN_CLI_ORDER,
+  BUILTIN_MANIFESTS,
+  cliName,
+  isBuiltinCliId,
+} from '@nomi-ai/cli-catalog';
 /**
  * CLI 标签的来源（docs/development/gateway.md）：Nomi 管理的官方账号 / 第三方（经网关）。
  * 有官方账号能力的 CLI 可沿用本机登录或使用 Nomi 管理的账号；dsh、Gemini 保持第三方来源。
@@ -96,7 +101,7 @@ export function providerLabel(s: GatewayState | null, id: string): string {
 }
 
 /**
- * 换到某个第三方供应商时用哪个模型：当前就在这个供应商下的模型 > 这个 agent 在「模型」页分配的模型
+ * 换到某个第三方供应商时用哪个模型：当前就在这个供应商下的模型 > 这个 agents 在「模型」页分配的模型
  * （属于这个供应商时）> 这个供应商的第一个模型。之后在模型按钮里随时换。
  */
 export function providerEntryRef(
@@ -166,7 +171,7 @@ export interface SessionModelGroup {
 
 /**
  * 聊过的第三方会话在模型按钮里列哪几个供应商：会话原来的供应商（上次用的模型所在）、
- * 当前选中的模型所在的供应商、这个 agent 在「模型」页的默认供应商，去重后按这个顺序。
+ * 当前选中的模型所在的供应商、这个 agents 在「模型」页的默认供应商，去重后按这个顺序。
  * 会话还没聊过（没有 lastServedRef）返回 null。模型按钮用它给供应商标签加说明。
  * 换到默认供应商并聊过一轮后，原来的供应商就是默认供应商，只剩一组。
  */
@@ -206,7 +211,7 @@ export interface SourceSwitch {
 }
 
 /**
- * 标签的来源（官方 / 第三方）与这个 agent 的「新标签默认用」不同时，模型按钮里多一组，
+ * 标签的来源（官方 / 第三方）与这个 agents 的「新标签默认用」不同时，模型按钮里多一组，
  * 一步切到默认来源：默认是官方 → 「切换到官方账号」；默认是第三方 → 默认供应商的全部模型。
  * 来源相同（或网关状态还没到、且目标来源不可用）返回 null。
  */
@@ -543,4 +548,222 @@ export async function switchTabSource(
   return opts.accountId !== undefined
     ? harnessClient.setTabSource(tab.id, source, opts.model, opts.accountId)
     : harnessClient.setTabSource(tab.id, source, opts.model);
+}
+
+const NON_CODING_MODEL_PARTS = [
+  'embed',
+  'rerank',
+  'tts',
+  'whisper',
+  'audio',
+  'realtime',
+  'moderation',
+  'safeguard',
+  'ocr',
+  'lyria',
+  'voxtral',
+  'pixtral',
+  'image',
+  'dall-e',
+  'flux',
+  'live-translate',
+  'live-preview',
+];
+
+function bareLower(raw: string): string {
+  const cut = raw.lastIndexOf('/');
+  const bare = (cut >= 0 ? raw.slice(cut + 1) : raw).trim().toLowerCase();
+  return bare.replace(/:[\w.-]+$/, '');
+}
+
+const VENDOR_MATCHERS: ReadonlyArray<{ vendor: string; match: (bare: string) => boolean }> = [
+  {
+    vendor: 'anthropic',
+    match: (b) =>
+      b.startsWith('claude') || b === 'opus' || b === 'sonnet' || b === 'haiku' || b === 'fable',
+  },
+  {
+    vendor: 'openai',
+    match: (b) =>
+      b.startsWith('gpt-') ||
+      b.startsWith('chatgpt-') ||
+      b.startsWith('o1') ||
+      b.startsWith('o3') ||
+      b.startsWith('o4') ||
+      (b.startsWith('codex') && !b.startsWith('codestral')),
+  },
+  { vendor: 'google', match: (b) => b.startsWith('gemini') },
+  { vendor: 'xai', match: (b) => b.startsWith('grok') },
+  {
+    vendor: 'deepseek',
+    match: (b) =>
+      b.startsWith('deepseek') || b.startsWith('ds-') || b.startsWith('ds4') || b.startsWith('ds3'),
+  },
+  { vendor: 'moonshot', match: (b) => b.startsWith('kimi') || b.startsWith('moonshot') },
+  { vendor: 'minimax', match: (b) => b.startsWith('minimax') || b.startsWith('abab') },
+];
+
+const VENDOR_TIER_SCORERS: Record<string, (bare: string) => number> = {
+  anthropic: (b) => {
+    if (b.includes('fable')) return 4;
+    if (b.includes('opus')) return 3;
+    if (b.includes('sonnet')) return 2;
+    if (b.includes('haiku')) return 1;
+    return 2;
+  },
+  openai: (b) => {
+    if (
+      b.endsWith('-pro') ||
+      b.includes('-pro-') ||
+      b.includes('astra') ||
+      b.includes('daybreak-red')
+    )
+      return 4;
+    if (
+      (b.includes('-mini') && !b.includes('mini-high')) ||
+      b.includes('-nano') ||
+      b.includes('luna') ||
+      b.startsWith('gpt-3.5') ||
+      b.startsWith('gpt-oss')
+    )
+      return 1;
+    if (
+      (b.includes('-sol') && !b.includes('-pro')) ||
+      b.includes('codex-max') ||
+      b.includes('daybreak-blue') ||
+      b === 'o1' ||
+      b.startsWith('gpt-5.5') ||
+      b.startsWith('gpt-5-5') ||
+      b === 'gpt-5.6' ||
+      b === 'gpt-5-6'
+    )
+      return 3;
+    return 2;
+  },
+  google: (b) => {
+    if (b.includes('deep-research-max')) return 4;
+    if (
+      b.includes('pro') ||
+      b.includes('argon') ||
+      b.includes('carbon') ||
+      b.includes('deep-research')
+    )
+      return 3;
+    if (b.includes('flash-lite') || b.includes('lite') || b.includes('2.5-flash')) return 1;
+    return 2;
+  },
+  xai: (b) => {
+    if (b.startsWith('grok-5') && (b.includes('pro') || b.includes('ultra') || b.includes('heavy')))
+      return 4;
+    if (b.includes('non-reasoning') || b.includes('mini') || b.includes('fast')) return 1;
+    if (
+      b.includes('multi-agent') ||
+      b.startsWith('grok-4.7') ||
+      b.startsWith('grok-4-7') ||
+      b.startsWith('grok-5')
+    )
+      return 3;
+    return 2;
+  },
+  deepseek: (b) => {
+    if (b.includes('flash')) return 1;
+    if (b.startsWith('deepseek-v4-pro') || b.startsWith('deepseek-r1') || b.includes('reasoner'))
+      return 3;
+    return 2;
+  },
+  moonshot: (b) => {
+    if (b.includes('highspeed')) return 4;
+    if (b.startsWith('kimi-k3') && b.includes('pro')) return 3;
+    if (b === 'kimi-k2' || b.startsWith('kimi-k2-0')) return 1;
+    return 2;
+  },
+  minimax: (b) => {
+    if (b.includes('flash')) return 1;
+    if (b === 'minimax-m3') return 3;
+    return 2;
+  },
+};
+
+function modelVendor(bare: string): string {
+  return VENDOR_MATCHERS.find((v) => v.match(bare))?.vendor ?? '';
+}
+
+function modelVersionScore(bare: string): [number, number, number, number] {
+  const isLatest = bare.endsWith('-latest') ? 1 : 0;
+  let s = bare.replace(
+    /-(?:\d{8}|\d{4}-\d{2}-\d{2}|\d{2}-\d{4}|(?:24|25|26)\d{2}|(?:0[1-9]|1[0-2])\d{2}|(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))$/g,
+    '',
+  );
+  let penalty = s !== bare ? 1 : 0;
+  for (const suf of ['-exp', '-preview', '-latest']) {
+    if (s.endsWith(suf)) {
+      if (suf !== '-latest') penalty += 1;
+      s = s.slice(0, -suf.length);
+    }
+  }
+  const cleaned = s.replace(/\b\d+(?:\.\d+)?[btk]\b/gi, ' ');
+  let major = 0;
+  let minor = 0;
+  for (const m of cleaned.matchAll(/(?:^|[-vkm.])(\d{1,2})(?:[.-](\d{1,2}))?/gi)) {
+    const maj = Number(m[1] ?? 0);
+    if (maj > 20) continue;
+    const minV = Number(m[2] ?? 0);
+    if (maj > major || (maj === major && minV > minor)) {
+      major = maj;
+      minor = minV;
+    }
+  }
+  return [major, minor, isLatest, penalty];
+}
+
+/** 选出最契合指定 CLI 原生生态的第三方次顶级模型（未分配 main 时优先同族次顶级，其次兼容首个模型）。 */
+export function preferredThirdPartyModelForCli(
+  s: GatewayState | null,
+  kind: CliKind,
+): string | null {
+  const choices = codingModelChoices(s);
+  if (!choices.length) return null;
+  const main = s?.clients[kind]?.models.main;
+  if (main && choices.some((c) => c.ref === main)) return main;
+
+  const targetVendor = isBuiltinCliId(kind) ? BUILTIN_MANIFESTS[kind].host?.vendor : undefined;
+  const scorer = targetVendor ? VENDOR_TIER_SCORERS[targetVendor] : undefined;
+  if (targetVendor && scorer) {
+    const vendorModels = choices
+      .map((c, idx) => {
+        const bare = bareLower(c.model);
+        return { ref: c.ref, bare, vendor: modelVendor(bare), idx };
+      })
+      .filter(
+        (x) =>
+          x.vendor === targetVendor &&
+          x.bare !== 'default' &&
+          !NON_CODING_MODEL_PARTS.some((part) => x.bare.includes(part)),
+      )
+      .map((x) => {
+        const [major, minor, isLatest, penalty] = modelVersionScore(x.bare);
+        return { ...x, tier: scorer(x.bare), major, minor, isLatest, penalty };
+      });
+    if (vendorModels.length > 0) {
+      const sortQuality = (a: (typeof vendorModels)[number], b: (typeof vendorModels)[number]) =>
+        b.major - a.major ||
+        b.minor - a.minor ||
+        a.isLatest - b.isLatest ||
+        a.penalty - b.penalty ||
+        a.idx - b.idx;
+      const tiers = [4, 3, 2]
+        .map((t) => vendorModels.filter((m) => m.tier === t).sort(sortQuality))
+        .filter((arr) => arr.length > 0);
+      if (tiers.length >= 2) return tiers[1]![0]!.ref;
+      if (tiers.length === 1) {
+        const arr = tiers[0]!;
+        if (arr[0]!.tier <= 2 || arr.length === 1) return arr[0]!.ref;
+        const diff = arr.find((m) => m.major !== arr[0]!.major || m.minor !== arr[0]!.minor);
+        return (diff ?? arr[0]!).ref;
+      }
+      const light = vendorModels.filter((m) => m.tier === 1).sort(sortQuality);
+      if (light.length > 0) return light[0]!.ref;
+    }
+  }
+  return codingProviders(s)[0]?.models[0]?.ref ?? choices[0]?.ref ?? null;
 }

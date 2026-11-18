@@ -1421,6 +1421,37 @@ func (o *Orchestrator) cachedCatalogFor(backend string, scope *string) *util.Obj
 	return o.cachedCatalog(backend)
 }
 
+// CachedModelIDs 返回已缓存的官方/本机模型 ID 列表；缓存尚未预热且 CLI 已安装时触发一次异步后台拉取。
+func (o *Orchestrator) CachedModelIDs(backend, source string) []string {
+	var scope *string
+	if source != "" {
+		s := source
+		scope = &s
+	}
+	cat := o.cachedCatalogFor(backend, scope)
+	if cat == nil {
+		if source != "thirdParty" && cli.SupportsModelOverride(backend) {
+			if bins, _ := o.State().Get("bins").(*util.Obj); bins != nil && truthy(bins.Get(backend)) {
+				_ = o.ModelCatalogFor(backend, false, source)
+			}
+		}
+		return nil
+	}
+	raw, _ := cat.Get("models").([]any)
+	if len(raw) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(raw))
+	for _, item := range raw {
+		if m, ok := item.(*util.Obj); ok && m != nil {
+			if id := str(m, "id"); id != "" {
+				out = append(out, id)
+			}
+		}
+	}
+	return out
+}
+
 // SetTabModel = setTabModel(id, model, {expectSource})；expectSource "" = undefined。
 func (o *Orchestrator) SetTabModel(id, model, expectSource string) *util.Obj {
 	tab := o.requireTab(id)

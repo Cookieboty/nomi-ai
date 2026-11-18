@@ -103,6 +103,21 @@ func TestTaskProposeCli(t *testing.T) {
 		task.Grant.Level != 2 || len(task.Grant.Paths) != 1 || task.Grant.Paths[0] != "/repo" {
 		t.Fatalf("%+v %+v", task.Executor, task.Grant)
 	}
+
+	// 本机未安装任何 CLI 且未指定 cli 时，task_propose 自动回退为 nomi 执行
+	noCliTools := map[string]tools.Definition{}
+	for _, d := range CreateTaskTools(s, func(context.Context, string, string, any, string) string { return "allowed" }, nil,
+		CliEnv{Installed: func() []string { return nil }, DirOk: func(dir string) bool { return dir == "/repo" }}) {
+		noCliTools[d.Name] = d
+	}
+	rNoCli := call(t, noCliTools["task_propose"], `{`+base+`,"cwd":"/repo","tools":["read"]}`, tools.ExecContext{})
+	if rNoCli["ok"] != true {
+		t.Fatalf("expected fallback to nomi when no CLI installed, got %v", rNoCli)
+	}
+	noCliTask := s.Get(rNoCli["data"].(map[string]any)["id"].(string)).Task
+	if noCliTask.Executor.Kind != "nomi" {
+		t.Fatalf("expected executor=nomi, got %+v", noCliTask.Executor)
+	}
 }
 
 func TestTaskProposeEventTrigger(t *testing.T) {

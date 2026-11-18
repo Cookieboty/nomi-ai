@@ -18,7 +18,12 @@ import {
   isDefaultAccountLabel,
 } from '../../services/cliAccountClient';
 import { useHasLocalLogin } from '../../services/cliLauncherClient';
-import { CLI_KINDS, codingProviders, refSlashLabel } from '../../services/cliSource';
+import {
+  CLI_KINDS,
+  codingProviders,
+  preferredThirdPartyModelForCli,
+  refSlashLabel,
+} from '../../services/cliSource';
 import type { DelegateCli, RunnerEffort, RunnerSource } from '../../services/delegateClient';
 import type { GatewayState } from '../../services/gatewayClient';
 import {
@@ -228,9 +233,8 @@ export const RunnerModelPicker: React.FC<RunnerModelPickerProps> = ({
   const hasOfficial = supportsOfficial && loggedInAccounts.length > 0;
 
   const defaultTpModel = useCallback(
-    (cli: DelegateCli) =>
-      gateway?.clients[cli]?.models.main ?? providers[0]?.models[0]?.ref ?? null,
-    [gateway, providers],
+    (cli: DelegateCli) => preferredThirdPartyModelForCli(gateway, cli),
+    [gateway],
   );
   const defaultOfficialId = useMemo(
     () => (loggedInAccounts.find((a) => a.active) ?? loggedInAccounts[0])?.id ?? null,

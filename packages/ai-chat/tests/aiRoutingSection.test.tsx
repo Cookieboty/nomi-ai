@@ -528,4 +528,65 @@ describe('AiSettingsSection RoutingTab & RunnerModelPicker & ModelsPage', () => 
       'Grok · 官方账号 · Alice Wang',
     );
   });
+
+  it('无已安装 CLI 时展示默认后台承接卡片，且切至未配主模型的 Codex 自动选 GPT 同族次顶级三方模型', async () => {
+    const gw = {
+      ...sampleGateway(),
+      providers: [
+        {
+          id: 'amux',
+          name: 'Amux AI',
+          presetId: 'custom',
+          enabled: true,
+          urls: { chat: 'https://api.example.com' },
+          keys: [{ label: 'k1', masked: 'sk-***1', enabled: true, decryptable: true }],
+          models: [
+            { id: 'claude-opus-4-6', enabled: true, toolCalling: true },
+            { id: 'gpt-6-astra', enabled: true, toolCalling: true },
+            { id: 'gpt-6.1-sol', enabled: true, toolCalling: true },
+            { id: 'gpt-6.1-terra', enabled: true, toolCalling: true },
+            { id: 'deepseek-v4.1-flash', enabled: true, toolCalling: true },
+          ],
+          source: 'user',
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      ],
+      clients: {
+        nomi: { models: { main: 'amux/deepseek-v4.1-flash' } },
+        claude: { models: {}, newTabSource: 'thirdParty' },
+        codex: { models: {}, newTabSource: 'thirdParty' },
+      },
+    } as unknown as GatewayState;
+    const ds = {
+      enabled: true,
+      defaults: {},
+      installed: [],
+      presets: [],
+      routes: {},
+      pinned: null,
+    };
+    installFakeApi({
+      'gateway.state': () => gw,
+      'delegate.settings': () => ds,
+      'cliAccount.list': () => [],
+      'cli.launcherGet': () => ({}),
+      'usage.state': () => ({ pricing: { builtin: [] } }),
+      'harness.modelCatalog': () => null,
+    });
+
+    const r = render(<RoutingTab onOpenProviders={() => undefined} />);
+    const defaultCard = await r.findByTestId('routing-preset-nomi-default');
+    expect(defaultCard.textContent).toContain('默认后台承接');
+    expect((r.getByTestId('routing-target-complex') as HTMLSelectElement).value).toBe(
+      '__default_nomi__',
+    );
+
+    // 打开新增预设弹窗并切换至 codex：在无主模型时自动优先选中 GPT 次顶级 amux/gpt-6.1-sol
+    fireEvent.click(r.getByTestId('routing-preset-add'));
+    await r.findByTestId('runner-model-picker');
+    fireEvent.click(r.getByTestId('runner-picker-cli-codex'));
+    const selectedBar = await waitFor(() => r.getByTestId('runner-picker-tp-selected'));
+    expect(selectedBar.textContent).toContain('gpt-6.1-sol');
+  });
 });
