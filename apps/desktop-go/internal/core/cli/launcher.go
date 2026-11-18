@@ -257,6 +257,19 @@ func LauncherInvocation(kind, bin string, args []string, official bool) (string,
 	return cmd, append(prefix, args...), nil
 }
 
+// LauncherProbeInvocation shares chat's executable prefix with auth and quota probes.
+func LauncherProbeInvocation(kind, bin string, args []string) (string, []string, error) {
+	cmd, argv, err := LauncherInvocation(kind, bin, args, true)
+	if err != nil {
+		return "", nil, err
+	}
+	if ext := strings.ToLower(filepath.Ext(cmd)); ext == ".js" || ext == ".mjs" {
+		argv = append([]string{cmd}, argv...)
+		cmd = ResolveNodeBin()
+	}
+	return cmd, argv, nil
+}
+
 // TestLauncherVersion probes the full launch chain, not the wrapper's own
 // version. Return only a version number, never arbitrary stdout or credentials.
 // Spawns via ResolveCliLaunch / nodeproc.RunSync so no shell is invoked outside safe Windows .cmd shims.
