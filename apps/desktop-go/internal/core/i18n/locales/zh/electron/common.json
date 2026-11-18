@@ -411,6 +411,8 @@
   "electron.common.task-card-terms": "期限：30 天；预算：每次最多 20 万 token、30 分钟，每天最多 1 美元，用完会停下来问你",
   "electron.common.task-card-when": "何时：{0}",
   "electron.common.task-card-who": "谁来做：{0}",
+  "electron.common.task-config-carrier-cli-changed": "这个任务上次是用「{0}」跑的，现在的执行档位指向「{1}」。继续会越权把新档位的账号或模型发给旧的 agent：请把档位换回去后点「继续」重跑，或新建一个任务。",
+  "electron.common.task-config-preset-unavailable": "执行档位「{0}」已不存在或读取不到。打开「设置 → 模型与 Agents」重新选择档位，或放弃这个任务。",
   "electron.common.task-config-cli-unavailable": "{0} 现在不可用（没装好或已卸载）。装好后点「继续」重跑，或放弃这个任务。",
   "electron.common.task-config-no-model": "还没有可用的模型（供应商被删或没配好）。配好后点「继续」重跑，或放弃。",
   "electron.common.task-config-workspace-unavailable": "工作目录 {0} 不在了，或不再是你授权的工作区。处理好后点「继续」重跑，或放弃。",

@@ -130,13 +130,16 @@ type Wait struct {
 }
 
 type ExecutionSnapshot struct {
-	GrantVersion int     `json:"grantVersion"`
-	ProviderID   *string `json:"providerId,omitempty"`
-	Endpoint     *string `json:"endpoint,omitempty"`
-	Model        *string `json:"model,omitempty"`
-	Cli          *string `json:"cli,omitempty"`
-	Cwd          *string `json:"cwd,omitempty"`
-	Worktree     *string `json:"worktree,omitempty"`
+	GrantVersion    int     `json:"grantVersion"`
+	ProviderID      *string `json:"providerId,omitempty"`
+	Endpoint        *string `json:"endpoint,omitempty"`
+	Model           *string `json:"model,omitempty"`
+	Cli             *string `json:"cli,omitempty"`
+	Source          *string `json:"source,omitempty"`
+	AccountID       *string `json:"accountId,omitempty"`
+	Cwd             *string `json:"cwd,omitempty"`
+	ReasoningEffort *string `json:"reasoningEffort,omitempty"`
+	Worktree        *string `json:"worktree,omitempty"`
 }
 
 type TaskError struct {

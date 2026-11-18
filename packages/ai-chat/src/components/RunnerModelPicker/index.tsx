@@ -212,6 +212,8 @@ export const RunnerModelPicker: React.FC<RunnerModelPickerProps> = ({
   const [draft, setDraft] = useState<RunnerSpecValue>(value);
   const [catalogState, setCatalogState] = useState<{
     cli: DelegateCli;
+    /** 目录按来源缓存：官方与本机登录的模型目录不同 */
+    source: 'official' | 'local';
     catalog: BackendModelCatalog | null;
   } | null>(null);
 
@@ -289,22 +291,29 @@ export const RunnerModelPicker: React.FC<RunnerModelPickerProps> = ({
     }
     let alive = true;
     const cli = draft.cli;
+    // 按草稿当前来源取目录（不是「有没有官方账号」）：两个登录都在时，本机登录与官方账号的模型目录不同
+    const source: 'official' | 'local' = draft.source === 'local' ? 'local' : 'official';
     void harnessClient
-      .modelCatalog(cli, { source: hasOfficial ? 'official' : 'local' })
+      .modelCatalog(cli, { source })
       .then((catalog) => {
-        if (alive) setCatalogState({ cli, catalog });
+        // 期间切了来源或 CLI：迟到的结果丢掉，不覆盖当前草稿的目录
+        if (alive) setCatalogState({ cli, source, catalog });
       })
       .catch(() => {
-        if (alive) setCatalogState({ cli, catalog: null });
+        if (alive) setCatalogState({ cli, source, catalog: null });
       });
     return () => {
       alive = false;
     };
-  }, [open, supportsOfficial, hasLocal, hasOfficial, draft.cli]);
+  }, [open, supportsOfficial, hasLocal, hasOfficial, draft.cli, draft.source]);
 
   const officialModels = useMemo(
-    () => (catalogState?.cli === draft.cli ? (catalogState.catalog?.models ?? []) : []),
-    [catalogState, draft.cli],
+    () =>
+      catalogState?.cli === draft.cli &&
+      catalogState.source === (draft.source === 'local' ? 'local' : 'official')
+        ? (catalogState.catalog?.models ?? [])
+        : [],
+    [catalogState, draft.cli, draft.source],
   );
   const officialModelOptions = useMemo(() => {
     if (!officialModels.length) return [];
@@ -365,7 +374,11 @@ export const RunnerModelPicker: React.FC<RunnerModelPickerProps> = ({
       model: ref,
     }));
 
-  const activeCatalog = catalogState?.cli === draft.cli ? catalogState.catalog : null;
+  const activeCatalog =
+    catalogState?.cli === draft.cli &&
+    catalogState.source === (draft.source === 'local' ? 'local' : 'official')
+      ? catalogState.catalog
+      : null;
   const effortSpec = useMemo(
     () => resolveModelEffortSpec({ draft, gateway, catalog: activeCatalog }),
     [draft, gateway, activeCatalog],

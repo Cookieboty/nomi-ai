@@ -652,7 +652,7 @@ func TestCliReusesTabAndClaims(t *testing.T) {
 		PrepareIsolation: func(cwd, key, _ string) (CliIsolation, error) {
 			return CliIsolation{Kind: "in-place", Cwd: cwd, SourceCwd: cwd, GitRoot: cwd}, nil
 		},
-		ReuseTab: func(t Task, cwd, mode string) string { return "tab_old" },
+		ReuseTab: func(t Task, cwd, mode string, _ *TaskRunSpec) string { return "tab_old" },
 		Claim: func(tabID, root, cwd, priority, label string) {
 			mu.Lock()
 			claimed = append(claimed, tabID+":"+priority)

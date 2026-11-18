@@ -159,19 +159,13 @@ export function buildTaskCliExecutor(
     };
   }
   if (effectiveCliMode.startsWith('preset:') && activePreset) {
-    return {
-      kind: 'cli' as const,
-      cli: activePreset.cli,
-      cwd,
-      isolation: 'worktree' as const,
-      presetId: activePreset.id,
-    };
+    // 档位模式只存 presetId：执行参数以触发时的当前档位为准，不把旧的 cli / 来源 / 账号 / 模型一起落盘
+    return { kind: 'cli' as const, cwd, isolation: 'worktree' as const, presetId: activePreset.id };
   }
   if (effectiveCliMode === 'scheduled') {
     if (scheduledPreset) {
       return {
         kind: 'cli' as const,
-        cli: scheduledPreset.cli,
         cwd,
         isolation: 'worktree' as const,
         presetId: scheduledPreset.id,

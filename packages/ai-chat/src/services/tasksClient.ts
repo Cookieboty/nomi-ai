@@ -36,7 +36,19 @@ export type Trigger =
 export type ExecutorSpec =
   | { kind: 'notify'; text: string }
   | { kind: 'nomi'; model?: string; tools: ToolClass[]; scenario?: string }
-  | { kind: 'cli'; cli: string; model?: string; cwd: string; isolation: 'worktree' | 'shared' };
+  | {
+      kind: 'cli';
+      /** 档位模式（presetId）下由内核按触发时的当前档位解析，cli 可省略 */
+      cli?: string;
+      source?: 'local' | 'official' | 'thirdParty';
+      accountId?: string | null;
+      presetId?: string;
+      model?: string;
+      reasoningEffort?: string;
+      cwd: string;
+      isolation: 'worktree' | 'shared';
+      baseBranch?: string;
+    };
 
 export interface Wait {
   kind: 'approval' | 'input' | 'grant' | 'taken_over' | 'config';
@@ -407,7 +419,7 @@ export function executorLabel(ex: ExecutorSpec): string {
     case 'nomi':
       return t('ui.chat-settings.nomi-section');
     case 'cli':
-      return ex.cli;
+      return ex.cli ?? ex.presetId ?? '';
   }
 }
 

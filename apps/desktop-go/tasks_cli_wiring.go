@@ -216,13 +216,8 @@ func (taskCliHarness) IsStopped(err error) bool {
 // taskCliDeps：agent 执行者的依赖（worktree / git / 委派提示词与汇报格式复用 delegate）
 func taskCliDeps(d *desktop.Service) tasks.CliDeps {
 	return tasks.CliDeps{
-		Harness: taskCliHarness{},
-		ResolvePreset: func(presetID string) *tasks.CliPresetSpec {
-			if svc := delegateSvc.Load(); svc != nil {
-				return svc.ResolvePresetForTask(presetID)
-			}
-			return nil
-		},
+		Harness:       taskCliHarness{},
+		ResolvePreset: taskPresetResolver,
 		// 前台「全部自动」：后台标签用 auto 档、跑命令不再逐项问人（凭据 / 对外 / 事件触发仍问）
 		AutoAll:  func() bool { return d.Broker.AutoApprove() },
 		NomiAuto: func() bool { return d.Broker.PermissionMode() == "auto" },
@@ -240,9 +235,11 @@ func taskCliDeps(d *desktop.Service) tasks.CliDeps {
 		Land: func(iso tasks.CliIsolation, files []string, title string) tasks.WorktreeApply {
 			return taskApplyWorktree(d)(iso, files, title)
 		},
-		ReuseKey: taskReuseKey,
-		ReuseTab: func(t tasks.Task, cwd, mode string) string {
-			key := taskReuseKey(t, cwd)
+		ReuseKey: func(t tasks.Task, cwd string, spec *tasks.TaskRunSpec) string {
+			return taskReuseKey(t, cwd, spec)
+		},
+		ReuseTab: func(t tasks.Task, cwd, mode string, spec *tasks.TaskRunSpec) string {
+			key := taskReuseKey(t, cwd, spec)
 			o := harnessOrch
 			if key == "" || o == nil {
 				return ""
@@ -358,55 +355,39 @@ func isoHandle(iso tasks.CliIsolation) *delegate.IsolationHandle {
 		WorktreePath: iso.WorktreePath, BaseBranch: iso.BaseBranch}
 }
 
+// taskPresetResolver：档位 id → 当前档位的执行配置（执行、就绪快照与复用标识共用同一套解析）
+func taskPresetResolver(presetID string) *tasks.CliPresetSpec {
+	if svc := delegateSvc.Load(); svc != nil {
+		return svc.ResolvePresetForTask(presetID)
+	}
+	return nil
+}
+
 // taskReuseKey：同一种任务的标识：来源对话 + agents + 来源/账号 + 目录 + 类型 + 模型 + 思考深度（没有来源对话的不复用）
-func taskReuseKey(t tasks.Task, cwd string) string {
+// spec：这次执行已经解析好的完整参数（Prepare / Start 用的同一份）；nil = 按任务自己的执行参数（档位已删除时不复用）
+func taskReuseKey(t tasks.Task, cwd string, spec *tasks.TaskRunSpec) string {
 	if t.Origin.ConversationID == nil {
 		return ""
 	}
-	cliName, src, accID, cat, model, effort := "", "", "", "", "", ""
-	if t.Executor.Cli != nil {
-		cliName = *t.Executor.Cli
-	}
-	if t.Executor.Source != nil {
-		src = *t.Executor.Source
-	}
-	if t.Executor.AccountID != nil {
-		accID = *t.Executor.AccountID
-	}
+	cat := ""
 	if t.Category != nil {
 		cat = *t.Category
 	}
-	if t.Executor.Model != nil {
-		model = *t.Executor.Model
-	}
-	if t.Executor.ReasoningEffort != nil {
-		effort = *t.Executor.ReasoningEffort
-	}
-	if t.Executor.PresetID != nil && *t.Executor.PresetID != "" {
-		if svc := delegateSvc.Load(); svc != nil {
-			if ps := svc.ResolvePresetForTask(*t.Executor.PresetID); ps != nil {
-				if cliName == "" {
-					cliName = ps.Cli
-				}
-				if src == "" {
-					src = ps.Source
-				}
-				if accID == "" && (src == "" || src == "official") {
-					accID = ps.AccountID
-				}
-				if model == "" {
-					model = ps.Model
-				}
-				if effort == "" {
-					effort = ps.ReasoningEffort
-				}
-			}
+	var run tasks.TaskRunSpec
+	if spec != nil {
+		run = *spec
+	} else {
+		resolved, ok := tasks.ResolveTaskRunSpec(taskPresetResolver, &t.Executor)
+		if !ok {
+			// 档位已删除：不复用任何旧标签，也不用保存时的旧 cli 拼标识
+			return ""
 		}
+		run = resolved
 	}
-	if cliName == "" {
+	if run.Cli == "" {
 		return ""
 	}
-	return delegate.ReuseKeyWithSource(*t.Origin.ConversationID, cliName, src, accID, cwd, cat, model, effort)
+	return delegate.ReuseKeyWithSource(*t.Origin.ConversationID, run.Cli, run.Source, run.AccountID, cwd, cat, run.Model, run.ReasoningEffort)
 }
 
 // taskBusy：委派标签上一个任务还没结束（运行中、等验收、要返工……）

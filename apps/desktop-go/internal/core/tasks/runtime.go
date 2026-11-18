@@ -941,6 +941,7 @@ func (p *reporter) PermissionResolved(requestID string, approve bool) {
 func (p *reporter) Completed(res AttemptResult) {
 	p.post(Event{Type: "completed", At: p.r.d.Now(), Gen: ptr(p.gen), Result: &res})
 }
+
 func (p *reporter) Failed(e TaskError) {
 	p.post(Event{Type: "failed", At: p.r.d.Now(), Gen: ptr(p.gen), Error: &e})
 }
@@ -978,6 +979,36 @@ func (p *reporter) Carrier(c Carrier) {
 			} else {
 				attempts[i] = x
 			}
+		}
+		_ = p.r.save(Record{Task: rec.Task, Attempts: attempts})
+	})
+}
+
+// setSnapshot：记下这次执行实际用的 agent / 模型（下次续跑时与新档位比对）
+func (p *reporter) setSnapshot(snapshot ExecutionSnapshot) {
+	p.r.ownOrQueue(func() {
+		rec := p.r.recs[p.id]
+		if rec == nil {
+			return
+		}
+		attempts := make([]Attempt, len(rec.Attempts))
+		for i, x := range rec.Attempts {
+			if x.Gen == p.gen {
+				x.Snapshot.Cli = snapshot.Cli
+				if snapshot.Source != nil {
+					x.Snapshot.Source = snapshot.Source
+				}
+				if snapshot.AccountID != nil {
+					x.Snapshot.AccountID = snapshot.AccountID
+				}
+				if snapshot.Model != nil {
+					x.Snapshot.Model = snapshot.Model
+				}
+				if snapshot.ReasoningEffort != nil {
+					x.Snapshot.ReasoningEffort = snapshot.ReasoningEffort
+				}
+			}
+			attempts[i] = x
 		}
 		_ = p.r.save(Record{Task: rec.Task, Attempts: attempts})
 	})

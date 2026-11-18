@@ -55,19 +55,25 @@ export const TaskExecutorSpec = z.discriminatedUnion('kind', [
     tools: z.array(TaskToolClass),
     scenario: z.enum(['coding', 'prd', 'review', 'research']).optional(),
   }),
-  z.object({
-    kind: z.literal('cli'),
-    cli: z.string().min(1),
-    source: z.enum(['local', 'official', 'thirdParty']).optional(),
-    accountId: z.string().nullable().optional(),
-    presetId: z.string().optional(),
-    model: z.string().optional(),
-    reasoningEffort: z.string().optional(),
-    cwd: z.string().min(1),
-    isolation: z.enum(['worktree', 'shared']),
-    /** 基线分支：是别的分支（不在当前分支的历史里）时才开 worktree，否则直接在 cwd 里改 */
-    baseBranch: z.string().min(1).max(200).optional(),
-  }),
+  z
+    .object({
+      kind: z.literal('cli'),
+      /** 档位模式（presetId）下执行参数以触发时的当前档位为准，cli 可省略 */
+      cli: z.string().min(1).optional(),
+      source: z.enum(['local', 'official', 'thirdParty']).optional(),
+      accountId: z.string().nullable().optional(),
+      presetId: z.string().optional(),
+      model: z.string().optional(),
+      reasoningEffort: z.string().optional(),
+      cwd: z.string().min(1),
+      isolation: z.enum(['worktree', 'shared']),
+      /** 基线分支：是别的分支（不在当前分支的历史里）时才开 worktree，否则直接在 cwd 里改 */
+      baseBranch: z.string().min(1).max(200).optional(),
+    })
+    .refine((ex) => ex.cli !== undefined || !!ex.presetId, {
+      path: ['cli'],
+      message: 'cli is required unless presetId is set',
+    }),
 ]);
 
 export const TaskConnectionGrant = z.object({

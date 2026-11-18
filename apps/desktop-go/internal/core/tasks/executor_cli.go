@@ -123,13 +123,14 @@ type CliDeps struct {
 	// Land：worktree 落地（改动少拷回当前工作区、多则提交到新分支）并拆掉；可为空
 	Land func(iso CliIsolation, files []string, title string) WorktreeApply
 	// ReuseKey / ReuseTab：同一种任务接着用上一次的会话；ReuseTab 找到并接管了空闲标签时返回它的 id；可为空
-	ReuseKey func(t Task, cwd string) string
-	ReuseTab func(t Task, cwd, mode string) string
+	// spec 是这次执行已解析好的完整参数（档位按当前档位），标识与挑选旧标签都用它，避免各自再解析出不同结果
+	ReuseKey func(t Task, cwd string, spec *TaskRunSpec) string
+	ReuseTab func(t Task, cwd, mode string, spec *TaskRunSpec) string
 	// Claim / Unclaim：同一仓库里直接改的并行任务按文件、按优先级裁决；Unclaim 返回自己的改动与让出去的文件；可为空
-	Claim       func(tabID, gitRoot, cwd, priority, label string)
-	Unclaim     func(tabID string, changed []string) (mine, yielded []string)
+	Claim   func(tabID, gitRoot, cwd, priority, label string)
+	Unclaim func(tabID string, changed []string) (mine, yielded []string)
 	// EditsSince：标签在 [from, to] 之间工具事件改过的文件（补齐委派前就已 dirty 的文件）；可为空
-	EditsSince  func(tabID, cwd string, from, to int64) []string
+	EditsSince func(tabID, cwd string, from, to int64) []string
 	// RecoverTab：重试前重置标签的常驻进程（dropSession=true 时丢弃已损坏的原生会话并结转前文摘要）；可为空
 	RecoverTab  func(tabID string, dropSession bool)
 	GitChanged  func(cwd string) []string // nil = 不在 git 仓库里
@@ -315,19 +316,24 @@ func cliTaskMode(t Task, relaxed bool) string {
 
 func (e *cliExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
 	ex := t.Executor
-	if ex.Kind != "cli" || ex.Cli == nil || ex.Cwd == nil {
+	if ex.Kind != "cli" || ex.Cwd == nil || (ex.Cli == nil && ex.PresetID == nil) {
 		return ExecutionSnapshot{}, &TaskError{Code: "executor_failed", Message: "not a cli task"}
 	}
+	spec, ok := ResolveTaskRunSpec(e.d.ResolvePreset, &ex)
+	if !ok {
+		// 档位已删除或解析不出：不退回保存时的旧 cli
+		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: presetUnavailable(strOr(ex.PresetID))}
+	}
 	// 用户点名的 agent 不可用：失败并提示，不悄悄换成别的
-	if !e.d.Harness.Bins()[*ex.Cli] {
-		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: configCliUnavailable(*ex.Cli)}
+	if !e.d.Harness.Bins()[spec.Cli] {
+		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: configCliUnavailable(spec.Cli)}
 	}
 	if !e.d.DirOk(*ex.Cwd) {
 		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: configWorkspaceUnavailable(*ex.Cwd)}
 	}
-	snap := ExecutionSnapshot{GrantVersion: t.Grant.Version, Cli: ptr(*ex.Cli), Cwd: ptr(*ex.Cwd)}
-	if ex.Model != nil && *ex.Model != "" {
-		snap.Model = ptr(*ex.Model)
+	snap := ExecutionSnapshot{GrantVersion: t.Grant.Version, Cli: ptr(spec.Cli), Cwd: ptr(*ex.Cwd)}
+	if spec.Model != "" {
+		snap.Model = ptr(spec.Model)
 	}
 	return snap, nil
 }
@@ -411,30 +417,13 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 		return
 	}
 	ex := t.Executor
-	cliName := strOr(ex.Cli)
-	src := strOr(ex.Source)
-	accID := strOr(ex.AccountID)
-	model := strOr(ex.Model)
-	effort := strOr(ex.ReasoningEffort)
-	if pid := strOr(ex.PresetID); pid != "" && e.d.ResolvePreset != nil {
-		if ps := e.d.ResolvePreset(pid); ps != nil {
-			if cliName == "" {
-				cliName = ps.Cli
-			}
-			if src == "" {
-				src = ps.Source
-			}
-			if accID == "" && (src == "" || src == "official") {
-				accID = ps.AccountID
-			}
-			if model == "" {
-				model = ps.Model
-			}
-			if effort == "" {
-				effort = ps.ReasoningEffort
-			}
-		}
+	spec, ok := ResolveTaskRunSpec(e.d.ResolvePreset, &ex)
+	if !ok {
+		// 档位已删除或解析不出：不退回保存时的旧 cli，失败并提示用户重新选档位
+		rep.Failed(TaskError{Code: "config_changed", Message: presetUnavailable(strOr(ex.PresetID))})
+		return
 	}
+	cliName, src, accID, model, effort := spec.Cli, spec.Source, spec.AccountID, spec.Model, spec.ReasoningEffort
 	if cliName == "" {
 		rep.Failed(TaskError{Code: "prepare_failed", Message: "missing cli"})
 		return
@@ -446,9 +435,30 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 	}
 	k := a.Cause.Kind
 	reused := tabID != "" && h.HasTab(tabID) && !h.TakenOver(tabID) && k != "manual" && k != "schedule" && k != "event"
+	if reused && prev != nil {
+		// 接着上一次的标签往下跑：上一次实际用的必须是这次要用的同一个 agent。
+		// 档位在执行前被换成别的 agent 时，旧标签里是另一个 CLI 的会话，配置（账号 / 模型 / 来源）也不一定对得上：
+		// 停下来提示用户，绝不把这次的配置发给旧标签；工作区改动原样保留，用户重试（换回档位或换新标签）再继续。
+		// 快照里有的字段（指针非 nil，含显式空串）都必须与这次要用的配置一致；旧快照没有的字段视为未知、不比。
+		// 思考深度也是档位配置的一部分：只改档位深度就续跑会让旧标签沿用旧值。
+		sameConfig := sameSnapshotValue(prev.Snapshot.Cli, cliName) &&
+			sameSnapshotValue(prev.Snapshot.Source, src) &&
+			sameSnapshotValue(prev.Snapshot.AccountID, accID) &&
+			sameSnapshotValue(prev.Snapshot.Model, model) &&
+			sameSnapshotValue(prev.Snapshot.ReasoningEffort, effort)
+		if !sameConfig {
+			rep.Failed(TaskError{Code: "config_changed", Message: carrierConfigChanged()})
+			return
+		}
+	}
 	var before []string
 	var iso *CliIsolation
 	if !reused {
+		if !h.Bins()[cliName] {
+			// 解析后的 agent 不可用：失败并提示，不悄悄换别的（与 Prepare 的检查一致）
+			rep.Failed(TaskError{Code: "config_changed", Message: configCliUnavailable(cliName)})
+			return
+		}
 		var got CliIsolation
 		var err error
 		if e.d.PrepareIsolation != nil {
@@ -478,12 +488,12 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 		// 同一种任务接着用上一次的会话（worktree 里做的不复用）
 		id := ""
 		if got.Kind != "worktree" && e.d.ReuseTab != nil {
-			id = e.d.ReuseTab(t, got.Cwd, mode)
+			id = e.d.ReuseTab(t, got.Cwd, mode, &spec)
 		}
 		if id == "" {
 			key := ""
 			if got.Kind != "worktree" && e.d.ReuseKey != nil {
-				key = e.d.ReuseKey(t, got.Cwd)
+				key = e.d.ReuseKey(t, got.Cwd, &spec)
 			}
 			var err error
 			id, err = h.CreateTab(CliCreateTab{Backend: cliName, Source: src, AccountID: accID, Cwd: got.Cwd, Project: strOr(ex.Project), Title: runeSlice(t.Title, 60),
@@ -593,6 +603,10 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 		}
 		e.mu.Unlock()
 		return
+	}
+	// 记下这次实际用的 agent / 模型：下一次续跑时快照与当前档位对不上就停下来，不把新配置发给旧标签
+	if rp, ok := rep.(interface{ setSnapshot(ExecutionSnapshot) }); ok {
+		rp.setSnapshot(ExecutionSnapshot{Cli: ptr(cliName), Source: ptr(src), AccountID: ptr(accID), Model: ptr(model), ReasoningEffort: ptr(effort)})
 	}
 	r, err := h.SendTab(tabID, e.promptFor(ctx, reused))
 	off()
@@ -819,6 +833,21 @@ func (e *cliExecutor) Stop(taskID string, gen int, reason string) {
 }
 
 // 配置变了、要用户处理时的说明（任务停到「等你处理」）
+// sameSnapshotValue：快照字段是已知值（指针非 nil）时必须等于当前值；nil = 旧快照没记，未知，不比较
+func sameSnapshotValue(known *string, current string) bool {
+	return known == nil || *known == current
+}
+
+// carrierConfigChanged：续跑时上一次用的 agent / 来源 / 账号 / 模型与这次档位解析出的不一致。
+// 不说「已切换成 X」：首次执行若在 Prepare 后、标签建好前中断，快照也会是旧配置而标签可能已是新的
+func carrierConfigChanged() string {
+	return i18n.T("electron.common.task-config-carrier-cli-changed")
+}
+
+func presetUnavailable(presetID string) string {
+	return i18n.T("electron.common.task-config-preset-unavailable", presetID)
+}
+
 func configCliUnavailable(cli string) string {
 	return i18n.T("electron.common.task-config-cli-unavailable", cli)
 }
@@ -849,4 +878,33 @@ func ctxCarrier(iso *CliIsolation, prev *Attempt, reused bool) carrierInfo {
 		return carrierInfo{gitRoot: strOr(c.GitRoot), cwd: strOr(c.Cwd), worktree: strOr(c.Worktree)}
 	}
 	return carrierInfo{}
+}
+
+// TaskRunSpec：一次执行实际用的 agent 与来源 / 账号 / 模型 / 思考深度（档位模式按当前档位解析）
+type TaskRunSpec struct {
+	Cli             string
+	Source          string
+	AccountID       string
+	Model           string
+	ReasoningEffort string
+}
+
+// ResolveTaskRunSpec：Prepare / Start / 复用标识共用的一套解析，决定这次任务到底用哪个 agent。
+// 档位模式（presetId）一律以当前档位为准，任务里保存的 cli / 来源 / 账号 / 模型只是快照；
+// 返回 false = 指定了档位但已删除或解析不出，调用方必须失败，不能退回旧 cli。
+func ResolveTaskRunSpec(resolve func(string) *CliPresetSpec, ex *ExecutorSpec) (TaskRunSpec, bool) {
+	if ex == nil {
+		return TaskRunSpec{}, true
+	}
+	if pid := strOr(ex.PresetID); pid != "" {
+		if resolve == nil {
+			return TaskRunSpec{}, false
+		}
+		ps := resolve(pid)
+		if ps == nil {
+			return TaskRunSpec{}, false
+		}
+		return TaskRunSpec{Cli: ps.Cli, Source: ps.Source, AccountID: ps.AccountID, Model: ps.Model, ReasoningEffort: ps.ReasoningEffort}, true
+	}
+	return TaskRunSpec{Cli: strOr(ex.Cli), Source: strOr(ex.Source), AccountID: strOr(ex.AccountID), Model: strOr(ex.Model), ReasoningEffort: strOr(ex.ReasoningEffort)}, true
 }

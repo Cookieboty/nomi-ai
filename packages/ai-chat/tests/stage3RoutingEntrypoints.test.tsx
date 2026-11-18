@@ -313,13 +313,15 @@ describe('阶段三：日常高频入口联动', () => {
     fireEvent.click(screen.getByTestId('task-form-submit'));
     await waitFor(() => expect(fake.calls.some(([n]) => n === 'tasks.create')).toBe(true));
     const created = fake.inputs('tasks.create')[0] as { executor: Record<string, unknown> };
+    // 档位模式只存 presetId：执行参数由内核在触发时按当前档位解析，不能再带保存当时的 cli / 来源 / 账号 / 模型
     expect(created.executor).toMatchObject({
       kind: 'cli',
-      cli: 'claude',
       cwd: '/repo',
       isolation: 'worktree',
       presetId: 'low',
     });
+    for (const k of ['cli', 'source', 'accountId', 'model', 'reasoningEffort'])
+      expect(created.executor).not.toHaveProperty(k);
   });
 
   it('5. agents 429 额度耗尽错误展示一键降级按钮，点击切至第三方轻量模型并重发', async () => {

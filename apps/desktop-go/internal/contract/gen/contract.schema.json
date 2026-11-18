@@ -30914,7 +30914,6 @@
         },
         "required": [
          "kind",
-         "cli",
          "cwd",
          "isolation"
         ]
