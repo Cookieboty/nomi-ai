@@ -11,6 +11,8 @@
  * 语义见 docs/design/side-tabs-workspace.md。
  */
 
+import { collectPaneIds, createRootPane, type TerminalPaneNode } from './terminalSplit';
+
 export type SubagentTarget =
   | { kind: 'harness'; tabId: string }
   | { kind: 'nested'; callId: string; parentTabId: string | null }
@@ -27,7 +29,15 @@ export type WorkspacePage =
   | { kind: 'changes' }
   | { kind: 'open-file' }
   | { kind: 'side-chat'; id: string }
-  | { kind: 'browser'; id: string; url: string; title?: string };
+  | { kind: 'browser'; id: string; url: string; title?: string }
+  | {
+      kind: 'terminal';
+      id: string;
+      cwd?: string;
+      title?: string;
+      layout?: TerminalPaneNode;
+      activePaneId?: string;
+    };
 
 export interface SideTabsState {
   /** 开着的子任务（按打开顺序） */
@@ -97,11 +107,14 @@ export function pageKey(page: WorkspacePage): string {
       return `side-chat:${page.id}`;
     case 'browser':
       return `browser:${page.id}`;
+    case 'terminal':
+      return `terminal:${page.id}`;
   }
 }
 
 export const isNewTabKey = (key: string | null | undefined) => !!key?.startsWith('new-tab:');
 export const isBrowserKey = (key: string | null | undefined) => !!key?.startsWith('browser:');
+export const isTerminalKey = (key: string | null | undefined) => !!key?.startsWith('terminal:');
 export const isSideChatPageKey = (key: string | null | undefined) =>
   !!key?.startsWith('side-chat:');
 
@@ -111,6 +124,7 @@ export function isPageKey(key: string | null | undefined): boolean {
     key === OPEN_FILE_SIDE_TAB ||
     isNewTabKey(key) ||
     isBrowserKey(key) ||
+    isTerminalKey(key) ||
     isSideChatPageKey(key)
   );
 }
@@ -234,6 +248,67 @@ export function setBrowserUrl(
       pageKey(p) === key && p.kind === 'browser' ? { ...p, url: href, title: title ?? p.title } : p,
     ),
   };
+}
+
+/** 打开一个新的内置终端标签（支持多开，且支持替换来源的新标签页） */
+export function openTerminalTab(
+  state: SideTabsState,
+  opts?: { replace?: string; cwd?: string; title?: string; id?: string },
+): SideTabsState {
+  return openPage(
+    state,
+    { kind: 'terminal', id: opts?.id ?? newWorkspaceId(), cwd: opts?.cwd, title: opts?.title },
+    opts,
+  );
+}
+
+/** 更新终端标签记录的目录或标题 */
+export function setTerminalMeta(
+  state: SideTabsState,
+  key: string,
+  patch: { cwd?: string; title?: string },
+): SideTabsState {
+  let changed = false;
+  const pages = state.pages.map((p) => {
+    if (pageKey(p) !== key || p.kind !== 'terminal') return p;
+    const nextCwd = patch.cwd !== undefined ? patch.cwd : p.cwd;
+    const nextTitle = patch.title !== undefined ? patch.title : p.title;
+    if (nextCwd === p.cwd && nextTitle === p.title) return p;
+    changed = true;
+    return { ...p, cwd: nextCwd, title: nextTitle };
+  });
+  return changed ? { ...state, pages } : state;
+}
+
+/** 取终端标签页当前有效的分屏二叉树（单窗格时自动构造以 page.id 为根的叶子节点） */
+export function terminalLayoutOf(
+  page: Extract<WorkspacePage, { kind: 'terminal' }>,
+): TerminalPaneNode {
+  return page.layout ?? createRootPane(page.id, page.cwd);
+}
+
+/** 取工作区页下所有分屏窗格 id；非终端页返回空数组 */
+export function terminalPaneIds(page: WorkspacePage): string[] {
+  if (page.kind !== 'terminal') return [];
+  return collectPaneIds(terminalLayoutOf(page));
+}
+
+/** 更新终端标签的分屏树与当前聚焦窗格 id */
+export function setTerminalLayout(
+  state: SideTabsState,
+  key: string,
+  layout: TerminalPaneNode,
+  activePaneId?: string,
+): SideTabsState {
+  let changed = false;
+  const pages = state.pages.map((p) => {
+    if (pageKey(p) !== key || p.kind !== 'terminal') return p;
+    const nextActive = activePaneId !== undefined ? activePaneId : p.activePaneId;
+    if (p.layout === layout && p.activePaneId === nextActive) return p;
+    changed = true;
+    return { ...p, layout, activePaneId: nextActive };
+  });
+  return changed ? { ...state, pages } : state;
 }
 
 /** 打开（或切到已开着的）子任务标签 */
@@ -373,7 +448,15 @@ export function setSplitRatio(state: SideTabsState, ratio: number): SideTabsStat
 }
 
 export type SideTabKind =
-  'main' | 'agent' | 'file' | 'new-tab' | 'changes' | 'open-file' | 'side-chat' | 'browser';
+  | 'main'
+  | 'agent'
+  | 'file'
+  | 'new-tab'
+  | 'changes'
+  | 'open-file'
+  | 'side-chat'
+  | 'browser'
+  | 'terminal';
 
 export interface SideTabItem {
   key: string;
@@ -460,6 +543,7 @@ const isPage = (v: unknown): v is WorkspacePage => {
   if (o.kind === 'side-chat') return typeof o.id === 'string' && !!o.id;
   if (o.kind === 'new-tab') return typeof o.id === 'string' && !!o.id;
   if (o.kind === 'browser') return typeof o.id === 'string' && !!o.id && typeof o.url === 'string';
+  if (o.kind === 'terminal') return typeof o.id === 'string' && !!o.id;
   return false;
 };
 
@@ -482,9 +566,9 @@ export function parseSideTabs(v: unknown): SideTabsState | null {
   if (!v || typeof v !== 'object') return null;
   const o = v as Record<string, unknown>;
   const agents = Array.isArray(o.agents) ? o.agents.filter(isTarget) : [];
-  // 侧边聊天是内存页，旧版本落盘过的 side-chat 页面也不要恢复。
+  // 侧边聊天和内置终端不跨应用重启恢复（避免重开应用拉起无效终端进程）。
   const pages = Array.isArray(o.pages)
-    ? o.pages.filter(isPage).filter((p) => p.kind !== 'side-chat')
+    ? o.pages.filter(isPage).filter((p) => p.kind !== 'side-chat' && p.kind !== 'terminal')
     : [];
   const active = typeof o.active === 'string' ? o.active : null;
   const order = Array.isArray(o.order)
@@ -530,6 +614,17 @@ export function withoutNewTabs(state: SideTabsState): SideTabsState {
   };
 }
 
+/** 去掉内置终端标签（落盘用；终端进程不跨应用重启存活） */
+export function withoutTerminals(state: SideTabsState): SideTabsState {
+  if (!state.pages.some((p) => p.kind === 'terminal')) return state;
+  return {
+    ...state,
+    pages: state.pages.filter((p) => p.kind !== 'terminal'),
+    order: state.order.filter((k) => !isTerminalKey(k)),
+    active: isTerminalKey(state.active) ? null : state.active,
+  };
+}
+
 const STORE_KEY = 'nomi.sideTabs.v1';
 /** 只记最近这么多个会话 */
 export const SIDE_TABS_KEEP = 40;
@@ -555,7 +650,10 @@ export function readSideTabsStore(): Record<string, SideTabsState> {
 export function writeSideTabsStore(all: Record<string, SideTabsState>): void {
   try {
     const entries = Object.entries(all)
-      .map(([scope, s]): [string, SideTabsState] => [scope, withoutNewTabs(withoutSideChats(s))])
+      .map(([scope, s]): [string, SideTabsState] => [
+        scope,
+        withoutTerminals(withoutNewTabs(withoutSideChats(s))),
+      ])
       .filter(
         ([scope, s]) => !!scope && (s.agents.length > 0 || s.pages.length > 0 || s.maximized),
       );

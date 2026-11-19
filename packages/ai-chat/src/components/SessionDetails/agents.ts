@@ -4,9 +4,12 @@
  * - 子代理：agents / Nomi 自己派生的（Task / Agent 等），状态以实时状态为准。
  * 派给后台 Nomi 的（delegate_to_nomi）是一个持续任务，列在「任务」里，不算 Agents。
  */
+import type { Locale } from '@nomi-ai/ui';
+
 import type { DelegateResult } from '../../services/delegateClient';
 import type { HarnessBackend, HarnessTabMeta } from '../../services/harnessClient';
 import type { ConvMessage } from '../../types/conversation';
+import { delegateAlias } from '../../utils/delegateAlias';
 import { delegateOpenTab } from '../../utils/delegateTarget';
 import type { LiveAgent, TabLive } from '../../utils/liveState';
 import type { SubagentTarget } from '../../utils/sideTabs';
@@ -165,6 +168,7 @@ export function collectSessionAgents(
   liveAgents?: Record<string, LiveAgent>,
   results?: Record<string, DelegateResult>,
   followUps?: Record<string, DelegateResult>,
+  locale?: Locale,
 ): SessionAgent[] {
   const agents: SessionAgent[] = [];
   const seen = new Set<string>();
@@ -180,10 +184,19 @@ export function collectSessionAgents(
       const v = delegateView(withDelegateResult(call, result), tab, tab ? live[tab.id] : undefined);
       // 标签被后来的同类委派接着用了：仍按结果里的 taskId / tabId 打开它（状态还是看这一次自己的结果）
       const openTab = tab ?? delegateOpenTab(call, tabs, result);
+      const aliasId = delegateCarrierKey(call, openTab, result) ?? taskId ?? call.id;
       const entry: SessionAgent = {
         id: call.id,
         kind: 'delegate',
         backend: v.backend,
+        ...(v.backend && v.backend !== 'nomi'
+          ? {
+              label: delegateAlias(aliasId, {
+                peers: tabs,
+                ...(locale ? { locale } : {}),
+              }),
+            }
+          : {}),
         detail: v.goal || undefined,
         status: delegateStatus(PHASE_STATUS[v.phase], tab, tab ? live[tab.id] : undefined, () =>
           taskId ? followUps?.[taskId] : undefined,
@@ -199,6 +212,7 @@ export function collectSessionAgents(
           agents[prevIdx] = {
             ...entry,
             backend: entry.backend ?? prev.backend,
+            label: entry.label ?? prev.label,
             detail: entry.detail ?? prev.detail,
             tabId: entry.tabId ?? prev.tabId,
             ...((entry.at ?? prev.at) != null ? { at: entry.at ?? prev.at } : {}),

@@ -58,11 +58,13 @@ describe('buildProviderMessages', () => {
     const history = [
       msg('1', 'user', 'go'),
       msg('delegate-t1-42', 'assistant', 'did it', { origin: 'background' }),
+      msg('delegate-t2-99', 'assistant', 'hidden did it', { origin: 'background', hidden: true }),
       msg('3', 'assistant', 'plain', { origin: 'background' }),
     ];
     const out = buildProviderMessages(history, 'next');
     expect(out[1]!.content).toMatch(/^<cli-output>\n.+\ndid it\n<\/cli-output>$/);
-    expect(out[2]!.content).toBe('plain');
+    expect(out[2]!.content).toMatch(/^<cli-output>\n.+\nhidden did it\n<\/cli-output>$/);
+    expect(out[3]!.content).toBe('plain');
   });
 
   it('drops empty and failed messages; no system prompt when blank', () => {

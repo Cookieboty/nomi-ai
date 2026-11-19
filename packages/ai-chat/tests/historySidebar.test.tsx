@@ -76,8 +76,7 @@ function mockIpc(opts: { openResult?: unknown; codexItems?: HistorySession[] } =
 }
 
 /**
- * 「本机历史」默认折叠：这里的用例都要看历史行，挂载后等界面做完手上的事（untilIdle：按调用是否都已返回判定，
- * 不按时间），再点开一次
+ * 等界面做完手上的事（untilIdle：按调用是否都已返回判定，不按时间），若本机历史处于收起态则展开一次
  */
 async function expandLocalHistory(r: ReturnType<typeof render>) {
   await untilIdle();
@@ -347,16 +346,11 @@ describe('CLI history in the sidebar', () => {
     expect(onNotice).toHaveBeenCalledWith('没有解析到可显示的历史消息');
   });
 
-  it('local history is collapsed by default; expands and collapses; remount is collapsed again', async () => {
+  it('本机历史默认展开，手动收起 / 展开后持久化记忆；滚动触底自动加载下一页', async () => {
     mockIpc();
     const r = await mountIdle();
     const toggle = r.getByTestId('cli-history-toggle');
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(r.queryAllByTestId('history-session-row')).toHaveLength(0);
-
-    fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    await untilIdle();
     expect(r.getAllByTestId('history-session-row').length).toBeGreaterThan(0);
 
     fireEvent.click(toggle);
@@ -364,9 +358,78 @@ describe('CLI history in the sidebar', () => {
     expect(r.queryAllByTestId('history-session-row')).toHaveLength(0);
     expect(r.queryByTestId('cli-history-more')).toBeNull();
 
+    // 收起态在重新挂载后保持
     r.unmount();
     const r2 = await mountIdle();
     const toggle2 = r2.getByTestId('cli-history-toggle');
     expect(toggle2.getAttribute('aria-expanded')).toBe('false');
+
+    // 重新展开后重挂载保持展开
+    fireEvent.click(toggle2);
+    await untilIdle();
+    expect(toggle2.getAttribute('aria-expanded')).toBe('true');
+    r2.unmount();
+    const r3 = await mountIdle();
+    expect(r3.getByTestId('cli-history-toggle').getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('底部哨兵进入可视区时自动加载下一页本机历史（无需点击加载更多）', async () => {
+    localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
+    localStorage.setItem('ai-chat:endpointFilter', 'claude');
+    const calls = mockIpc();
+    const origIo = globalThis.IntersectionObserver;
+    const origCh = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+    const observed: Array<{ cb: IntersectionObserverCallback; el: Element }> = [];
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+      configurable: true,
+      get() {
+        return (this as HTMLElement).dataset?.testid === 'conversation-list' ? 400 : 0;
+      },
+    });
+    globalThis.IntersectionObserver = class MockIO {
+      private cb: IntersectionObserverCallback;
+      constructor(cb: IntersectionObserverCallback) {
+        this.cb = cb;
+      }
+      observe(el: Element) {
+        observed.push({ cb: this.cb, el });
+      }
+      disconnect() {}
+      unobserve() {}
+      takeRecords() {
+        return [];
+      }
+      readonly root = null;
+      readonly rootMargin = '';
+      readonly thresholds = [0];
+    };
+    try {
+      const r = await mountIdle();
+      const moreBtn = r.getByTestId('cli-history-more');
+      expect(r.getAllByTestId('history-session-item')).toHaveLength(2);
+      const entry = observed.find((x) => x.el === moreBtn);
+      expect(entry).toBeTruthy();
+
+      await act(async () => {
+        entry!.cb(
+          [{ isIntersecting: true, target: moreBtn } as IntersectionObserverEntry],
+          {} as IntersectionObserver,
+        );
+      });
+      await untilIdle();
+
+      expect(r.getAllByTestId('history-session-item')).toHaveLength(3);
+      expect(
+        calls.filter(
+          ([c, a]) =>
+            c === 'history.list' && (a.options as { offset?: number } | undefined)?.offset === 50,
+        ),
+      ).toHaveLength(1);
+      expect(r.queryByTestId('cli-history-more')).toBeNull();
+    } finally {
+      globalThis.IntersectionObserver = origIo;
+      if (origCh) Object.defineProperty(HTMLElement.prototype, 'clientHeight', origCh);
+      else delete (HTMLElement.prototype as unknown as Record<string, unknown>).clientHeight;
+    }
   });
 });

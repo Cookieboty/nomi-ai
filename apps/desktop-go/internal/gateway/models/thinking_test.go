@@ -19,6 +19,10 @@ func TestThinkingProfileSecondTier(t *testing.T) {
 		{"o4-mini", "low,medium,high", "medium", "effort"},
 		{"claude-sonnet-4-5", "off,low,medium,high", "low", "budget"},
 		{"claude-opus-4-5", "off,low,medium,high", "low", "adaptive"},
+		{"claude-opus-4-7", "low,medium,high,xhigh,max", "medium", "adaptive"},
+		{"claude-opus-5-5", "low,medium,high,xhigh,max", "medium", "adaptive"},
+		{"claude-sonnet-5-5", "low,medium,high,xhigh,max", "medium", "adaptive"},
+		{"claude-haiku-5-5", "off,low,medium,high,xhigh,max", "low", "adaptive"},
 		{"gemini-2.5-pro", "low,medium,high", "medium", "budget"},
 		{"gemini-2.5-flash", "off,low,medium,high", "low", "budget"},
 		{"gemini-3-flash-preview", "minimal,low,medium,high", "low", "effort"},
@@ -119,5 +123,34 @@ func TestDirectOptionsShape(t *testing.T) {
 	s := u.Stringify(budget)
 	if !strings.Contains(s, `"enable_thinking":true`) || !strings.Contains(s, `"thinking_budget":`) {
 		t.Fatalf("qwen budget: %s", s)
+	}
+}
+
+func TestNativeClientOf(t *testing.T) {
+	cases := []struct {
+		model  string
+		stored *u.Obj
+		want   string
+	}{
+		{"claude-opus-5-5", nil, "claude"},
+		{"anthropic/claude-sonnet-5-5", nil, "claude"},
+		{"gpt-5", nil, "codex"},
+		{"openai/o3", nil, "codex"},
+		{"gpt-5.3-codex", nil, "codex"},
+		{"gemini-2.5-pro", nil, "gemini"},
+		{"grok-4.7", nil, "grok"},
+		{"my-relay-opus", u.NewObj("like", "claude-opus-5-5"), "claude"},
+		{"my-relay-gpt", u.NewObj("like", "openai/gpt-5"), "codex"},
+		{"kimi-k3", nil, "kimi"},
+		{"moonshot-v1-8k", nil, "kimi"},
+		{"minimax-m3.1-flash", nil, "minimax"},
+		{"my-kimi", u.NewObj("like", "kimi-k3"), "kimi"},
+		{"my-minimax", u.NewObj("like", "minimax-m3.1-flash"), "minimax"},
+		{"deepseek-v3.2", nil, ""},
+	}
+	for _, c := range cases {
+		if got := NativeClientOf(c.model, c.stored); got != c.want {
+			t.Errorf("NativeClientOf(%q)=%q, want %q", c.model, got, c.want)
+		}
 	}
 }

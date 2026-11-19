@@ -17,6 +17,7 @@ import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundL
 import { ChatHeader } from './components/ChatHeader';
 import { ComputerActivityBar } from './components/ComputerActivityBar';
 import { ForkFromMessageContext } from './components/Conversation/forkContext';
+import { CliWelcomeActions } from './components/ConversationWelcome/CliWelcomeActions';
 import { WelcomeActions } from './components/ConversationWelcome/WelcomeActions';
 import { DesktopConfirmDock } from './components/DesktopConfirmDock';
 import { NewChatContext, SessionControls } from './components/EndpointControls';
@@ -67,6 +68,7 @@ import { HarnessTabsProvider, useHarnessTabsCore } from './contexts/HarnessTabsC
 import { ResourceScopeProvider } from './contexts/ResourceContext';
 import { SelectionActionsContext } from './contexts/SelectionActionsContext';
 import { useChatMode } from './hooks/useChatMode';
+import { useCliTabReadiness } from './hooks/useCliTabReadiness';
 import { useComposerPending } from './hooks/useComposerPending';
 import { useHarnessState } from './hooks/useHarnessState';
 import { useIslandOpenItem } from './hooks/useIslandOpenItem';
@@ -81,6 +83,7 @@ import { toHarnessImages } from './services/chatImages';
 import { watchCliPresence } from './services/cliPresence';
 import { smartTitleOnFirstSend } from './services/cliSmartTitle';
 import { CONVERSATIONS_CHANGED_EVENT } from './services/conversationStore';
+import { openModelMenu } from './services/modelMenu';
 import { watchNomiModel } from './services/nomiModel';
 import type { ImageAttachment } from './services/screenClient';
 import { cliTranscriptKey } from './services/transcriptView';
@@ -386,6 +389,8 @@ const AiChatContent: React.FC = () => {
 
   // ───── stable props for the memoized composer ─────
   const cliActive = isDev && tabs.isCliTab ? tabs.activeTab : null;
+  const cliReadiness = useCliTabReadiness(cliActive);
+  const cliEmpty = chatEmpty && !!cliActive;
   // 能不能附图看这个会话当前用的模型（dsh 例外：命令行没有图片输入）
   const cliImages = useCliImageSupport(cliActive);
   const tabSend = tabs.send;
@@ -393,18 +398,41 @@ const AiChatContent: React.FC = () => {
   const cliBusy = !!cliActive && (cliActive.status === 'running' || cliActive.status === 'queued');
   const cliPlaceholder = cliActive ? cliTabPlaceholder(cliActive) : undefined;
   const hasCliActive = !!cliActive;
+  const cliReadinessStatus = cliReadiness.status;
+  const cliReadinessReason = cliReadiness.reason;
+  const onCliBeforeSend = useMemo(() => {
+    if (!hasCliActive || !cliTabId) return undefined;
+    return () => {
+      if (cliReadinessStatus === 'needs-model') {
+        openModelMenu(cliTabId);
+        setToast(t('ui.models.cli-pick-model-before-send'));
+        return false;
+      }
+      if (cliReadinessStatus === 'needs-setup') {
+        document.querySelector<HTMLElement>('[data-testid="cli-welcome-configure"]')?.focus();
+        setToast(cliReadinessReason ?? t('ui.models.cli-welcome-setup-title'));
+        return false;
+      }
+      return true;
+    };
+  }, [hasCliActive, cliTabId, cliReadinessStatus, cliReadinessReason, setToast]);
   // First CLI send (no messages yet): arm smart title for third-party gateway models.
   const cliFresh = hasCliActive && tabs.messages.length === 0;
   const inputModeProps = useMemo(
     () =>
       hasCliActive
         ? {
+            onBeforeSend: onCliBeforeSend,
             onSend: (text: string, images?: ImageAttachment[]) => {
               void (async () => {
                 const imgs = images?.length ? await toHarnessImages(images) : undefined;
-                await tabSend(text, imgs);
+                let failed = false;
+                await tabSend(text, imgs, undefined, (msg) => {
+                  failed = true;
+                  setToast(msg);
+                });
+                if (!failed && cliActive && cliFresh) void smartTitleOnFirstSend(cliActive, text);
               })();
-              if (cliActive && cliFresh) void smartTitleOnFirstSend(cliActive, text);
             },
             busyOverride: cliBusy,
             imageCapability: cliImages.capability,
@@ -423,12 +451,14 @@ const AiChatContent: React.FC = () => {
           },
     [
       hasCliActive,
+      onCliBeforeSend,
       cliActive,
       cliFresh,
       cliBusy,
       cliPlaceholder,
       cliImages,
       tabSend,
+      setToast,
       pending.queueProps,
       nomiEmpty,
     ],
@@ -603,6 +633,10 @@ const AiChatContent: React.FC = () => {
                       items={pending.items}
                       onWithdraw={pending.onWithdraw}
                       onRemove={pending.onRemove}
+                      onFlush={pending.canFlush ? pending.onFlush : undefined}
+                      failure={pending.failure}
+                      failedText={pending.failedText}
+                      onRetry={pending.onRetry}
                     />
                     {/* 新会话：输入框上方的项目 · 分支，可以自由切换 */}
                     <NewChatContext />
@@ -643,8 +677,23 @@ const AiChatContent: React.FC = () => {
                       onLocalClick={panels.openLocal}
                     />
                     {/* 空会话主对话、输入框下方：缺模型时常驻「添加 / 选择模型」引导卡，否则是示例问题卡片；
-                      Agents 标签的模型不是 Nomi 对话模型，不参与 */}
+                      Agents 标签未选模型或未配置账号时在对应位置展示引导卡 */}
                     {nomiEmpty && <WelcomeActions onOpenModels={panels.openProviders} />}
+                    {cliEmpty && cliActive && (
+                      <CliWelcomeActions
+                        tab={cliActive}
+                        readiness={cliReadiness}
+                        onPickModel={() => {
+                          if (!openModelMenu(cliActive.id)) {
+                            setToast(t('ui.models.cli-pick-model-before-send'));
+                          }
+                        }}
+                        onOpenSetup={() =>
+                          panels.onInputSettings('ai', cliActive.backend, 'assistants')
+                        }
+                        onOpenProviders={panels.openProviders}
+                      />
+                    )}
                   </footer>
                 </div>
 
@@ -672,6 +721,8 @@ const AiChatContent: React.FC = () => {
                       messages={rail.messages}
                       cwd={rail.cwd}
                       roots={rail.roots}
+                      projectId={rail.projectId}
+                      projectPrimary={rail.projectPrimary}
                       busy={rail.busy}
                       actions={paneActions}
                       showStrip={!sideMax && !centerP.closing && !panels.settings && !mainHidden}
@@ -685,6 +736,8 @@ const AiChatContent: React.FC = () => {
                       messages={rail.messages}
                       cwd={rail.cwd}
                       roots={rail.roots}
+                      projectId={rail.projectId}
+                      projectPrimary={rail.projectPrimary}
                       busy={rail.busy}
                       actions={paneActions}
                       showStrip={false}

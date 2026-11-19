@@ -200,6 +200,7 @@ type GatewayConfig struct {
 	CatalogFile         string                    `json:"catalogFile,omitempty"`
 	TraceDir            string                    `json:"traceDir,omitempty"`
 	StrictParams        bool                      `json:"strictParams,omitempty"`
+	FailoverEnabled     bool                      `json:"failoverEnabled,omitempty"`
 	MaxRequestBodyBytes *float64                  `json:"maxRequestBodyBytes,omitempty"`
 	RoutePlan           string                    `json:"routePlan,omitempty"`
 	Privacy             *PrivacyConfig            `json:"privacy,omitempty"`

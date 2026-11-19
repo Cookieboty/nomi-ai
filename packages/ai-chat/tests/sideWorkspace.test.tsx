@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import React, { useEffect, useRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { resetConfirmDialogForTest } from '../src/components/ConfirmDialog';
 import type { PreviewEntry } from '../src/components/ResourcePreview/ResourcePreview';
 import { SessionDetailsToggle, useSessionDetails } from '../src/components/SessionDetails';
 import {
@@ -28,9 +29,55 @@ import {
   sideChatsIn,
   sideChatState,
 } from '../src/services/sideChat';
+import { resetTerminalStatuses } from '../src/services/sideTerminal';
 import { CHANGES_SIDE_TAB, MAIN_SIDE_TAB, OPEN_FILE_SIDE_TAB } from '../src/utils/sideTabs';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('@xterm/xterm/css/xterm.css', () => ({}));
+vi.mock('@xterm/xterm', () => {
+  class FakeTerminal {
+    cols = 80;
+    rows = 24;
+    options: Record<string, unknown> = {};
+    private textarea: HTMLTextAreaElement | null = null;
+    loadAddon() {}
+    open(container: HTMLElement) {
+      const ta = document.createElement('textarea');
+      ta.className = 'xterm-helper-textarea';
+      container.appendChild(ta);
+      this.textarea = ta;
+    }
+    attachCustomKeyEventHandler() {}
+    onData() {
+      return { dispose: () => undefined };
+    }
+    write() {}
+    clear() {}
+    hasSelection() {
+      return false;
+    }
+    getSelection() {
+      return '';
+    }
+    clearSelection() {}
+    focus() {
+      this.textarea?.focus();
+    }
+    dispose() {
+      this.textarea?.remove();
+    }
+  }
+  return { Terminal: FakeTerminal };
+});
+vi.mock('@xterm/addon-fit', () => ({
+  FitAddon: class {
+    fit() {}
+  },
+}));
+vi.mock('@xterm/addon-web-links', () => ({
+  WebLinksAddon: class {},
+}));
 
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
@@ -62,6 +109,8 @@ vi.mock('../src/contexts/aiChatStore', async (original) => {
 
 afterEach(() => {
   cleanup();
+  resetConfirmDialogForTest();
+  resetTerminalStatuses();
   vi.restoreAllMocks();
   resetFakeApi();
 });
@@ -470,6 +519,34 @@ describe('side tabs workspace', () => {
       effectAllowed: 'move',
       dropEffect: 'move',
     };
+    fireEvent.dragStart(tabByKey('nomi-task:k2'), { dataTransfer });
+    fireEvent.dragOver(tabByKey('nomi-task:k1'), { dataTransfer, clientX: 0 });
+    fireEvent.drop(tabByKey('nomi-task:k1'), { dataTransfer, clientX: 0 });
+    expect(tabKeys()).toEqual(['nomi-task:k2', 'nomi-task:k1']);
+  });
+
+  it('closing a tab is not a drag: the close button is not a drag handle', async () => {
+    setup();
+    mount(['k1', 'k2']);
+    await waitFor(() => expect(tabKeys()).toHaveLength(2));
+    const data = new Map<string, string>();
+    const dataTransfer = {
+      setData: (k: string, v: string) => data.set(k, v),
+      getData: (k: string) => data.get(k) ?? '',
+      effectAllowed: 'move',
+      dropEffect: 'move',
+    };
+    const close = tabByKey('nomi-task:k2').querySelector('[data-testid="side-tab-close"]')!;
+    // 从关闭按钮上按下的拖动不是拖拽：不会把标签带走（手抖也关得掉）
+    fireEvent.pointerDown(close);
+    expect(fireEvent.dragStart(tabByKey('nomi-task:k2'), { dataTransfer })).toBe(false);
+    expect(data.size).toBe(0);
+    expect(tabByKey('nomi-task:k2').dataset.dragging).toBeUndefined();
+    fireEvent.dragOver(tabByKey('nomi-task:k1'), { dataTransfer, clientX: 0 });
+    fireEvent.drop(tabByKey('nomi-task:k1'), { dataTransfer, clientX: 0 });
+    expect(tabKeys()).toEqual(['nomi-task:k1', 'nomi-task:k2']);
+    // 点标签主体才是拖拽：照旧能把标签挪走
+    fireEvent.pointerDown(tabButton('nomi-task:k2'));
     fireEvent.dragStart(tabByKey('nomi-task:k2'), { dataTransfer });
     fireEvent.dragOver(tabByKey('nomi-task:k1'), { dataTransfer, clientX: 0 });
     fireEvent.drop(tabByKey('nomi-task:k1'), { dataTransfer, clientX: 0 });
@@ -948,6 +1025,118 @@ describe('side tabs workspace', () => {
         'file:///xy-token-api/README.md',
       );
       expect(screen.getByTestId('main-content').dataset.sendMismatch).toBeUndefined();
+    });
+  });
+
+  describe('terminal close confirmation & Cmd+W split closing', () => {
+    const setupTerminalFake = () =>
+      setup((name) => {
+        if (name === 'sideTerminal.open') return { ok: true, cwd: '/w', shell: 'zsh' };
+        if (name.startsWith('sideTerminal.')) return true;
+        return undefined;
+      });
+
+    it('prompts confirmDialog before closing a terminal tab with running panes and kills all split PTYs on confirm', async () => {
+      const fake = setupTerminalFake();
+      render(
+        <HarnessTabsProvider>
+          <WorkspacePanesProvider>
+            <Shell />
+          </WorkspacePanesProvider>
+        </HarnessTabsProvider>,
+      );
+
+      let termId = '';
+      act(() => {
+        termId = opener!.openTerminal({ cwd: '/w' });
+      });
+      const tabKey = `terminal:${termId}`;
+      await waitFor(() => expect(screen.getAllByTestId('terminal-pane')).toHaveLength(1));
+
+      // 通过工具栏分成左右两个运行中的窗格
+      fireEvent.click(screen.getByTestId('terminal-split-right'));
+      await waitFor(() => expect(screen.getAllByTestId('terminal-pane')).toHaveLength(2));
+      await waitFor(() => expect(fake.inputs('sideTerminal.open')).toHaveLength(2));
+
+      // 点击标签关闭按钮：因有 2 个运行中终端，必须先弹确认框；点取消后标签与两个窗格均保留
+      fireEvent.click(tabByKey(tabKey).querySelector('[data-testid="side-tab-close"]')!);
+      const dialog = await screen.findByTestId('confirm-dialog');
+      expect(dialog.textContent).toContain('2');
+      fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
+      await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
+      expect(tabKeys()).toEqual([tabKey]);
+      expect(fake.inputs('sideTerminal.close')).toHaveLength(0);
+
+      // 再次关闭并点确认：移除整个终端标签并通知宿主关闭全部分屏 PTY
+      fireEvent.click(tabByKey(tabKey).querySelector('[data-testid="side-tab-close"]')!);
+      await screen.findByTestId('confirm-dialog');
+      fireEvent.click(screen.getByTestId('confirm-dialog-ok'));
+      await waitFor(() => expect(tabKeys()).toEqual([]));
+      await waitFor(() => expect(fake.inputs('sideTerminal.close')).toHaveLength(2));
+    });
+
+    it('closes an exited terminal tab immediately without confirmation dialog', async () => {
+      const fake = setupTerminalFake();
+      render(
+        <HarnessTabsProvider>
+          <WorkspacePanesProvider>
+            <Shell />
+          </WorkspacePanesProvider>
+        </HarnessTabsProvider>,
+      );
+
+      let termId = '';
+      act(() => {
+        termId = opener!.openTerminal({ cwd: '/w' });
+      });
+      const tabKey = `terminal:${termId}`;
+      await waitFor(() => expect(fake.inputs('sideTerminal.open')).toHaveLength(1));
+
+      // 后端推送进程退出事件后，关闭标签不再弹出二次确认
+      await fake.emit('sideTerminal.exit', { id: `term:${termId}`, exitCode: 0 });
+      fireEvent.click(tabByKey(tabKey).querySelector('[data-testid="side-tab-close"]')!);
+      expect(screen.queryByTestId('confirm-dialog')).toBeNull();
+      await waitFor(() => expect(tabKeys()).toEqual([]));
+    });
+
+    it('closes only the active split pane on Cmd+W when split, and closes the tab on the last pane', async () => {
+      vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel');
+      const fake = setupTerminalFake();
+      render(
+        <HarnessTabsProvider>
+          <WorkspacePanesProvider>
+            <Shell />
+          </WorkspacePanesProvider>
+        </HarnessTabsProvider>,
+      );
+
+      let termId = '';
+      act(() => {
+        termId = opener!.openTerminal({ cwd: '/w' });
+      });
+      const tabKey = `terminal:${termId}`;
+      await waitFor(() => expect(screen.getAllByTestId('terminal-pane')).toHaveLength(1));
+
+      // 分出第二个窗格（总共 2 个运行中窗格）
+      const firstInput = screen.getByTestId('terminal-pane').querySelector('textarea')!;
+      fireEvent.keyDown(firstInput, { key: 'd', code: 'KeyD', metaKey: true });
+      await waitFor(() => expect(screen.getAllByTestId('terminal-pane')).toHaveLength(2));
+      await waitFor(() => expect(fake.inputs('sideTerminal.open')).toHaveLength(2));
+
+      // 第 1 次 Cmd+W：只关闭当前聚焦的第二个窗格（确认后标签仍保留，剩下 1 个窗格）
+      const secondInput = screen.getAllByTestId('terminal-pane')[1]!.querySelector('textarea')!;
+      fireEvent.keyDown(secondInput, { key: 'w', code: 'KeyW', metaKey: true });
+      await screen.findByTestId('confirm-dialog');
+      fireEvent.click(screen.getByTestId('confirm-dialog-ok'));
+      await waitFor(() => expect(screen.getAllByTestId('terminal-pane')).toHaveLength(1));
+      expect(tabKeys()).toEqual([tabKey]);
+
+      // 第 2 次 Cmd+W：只剩最后一个窗格时，确认后关闭整个终端标签
+      const remainInput = screen.getByTestId('terminal-pane').querySelector('textarea')!;
+      fireEvent.keyDown(remainInput, { key: 'w', code: 'KeyW', metaKey: true });
+      await screen.findByTestId('confirm-dialog');
+      fireEvent.click(screen.getByTestId('confirm-dialog-ok'));
+      await waitFor(() => expect(tabKeys()).toEqual([]));
     });
   });
 });

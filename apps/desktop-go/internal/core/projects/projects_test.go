@@ -166,3 +166,24 @@ func TestFindContaining(t *testing.T) {
 		t.Fatal("empty dir")
 	}
 }
+
+func TestSeedDeduplicatesSymlink(t *testing.T) {
+	s, dir, _ := newStore(t)
+	target := mk(t, dir, "real-app")
+	link := filepath.Join(dir, "link-app")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	v, err := s.Create("", link, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 已有项目的 Primary 是软链接路径时，Seed 传入真实路径也必须复用该项目而非重复新建
+	m, err := s.Seed([]string{target, link})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m[target] != v.ID || m[link] != v.ID || len(s.List()) != 1 {
+		t.Fatalf("expected symlink & real path to reuse %q, got map=%v list=%d", v.ID, m, len(s.List()))
+	}
+}

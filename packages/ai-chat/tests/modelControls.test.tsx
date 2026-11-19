@@ -455,6 +455,119 @@ describe('ModelControls', () => {
     expect(r.queryByTestId('effort-slider')).toBeNull();
   });
 
+  it('第三方同协议原生模型（claude+claude-opus-5-5 / codex+gpt-5）：未手选时留给 CLI 默认，不拼假档位', async () => {
+    const claudeThinking = {
+      control: 'adaptive',
+      levels: ['low', 'medium', 'high', 'xhigh', 'max'],
+      default: 'medium',
+    };
+    const gptThinking = {
+      control: 'effort',
+      levels: ['minimal', 'low', 'medium', 'high'],
+      default: 'low',
+    };
+    const gw = {
+      status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
+      providers: [
+        {
+          id: 'relay',
+          name: 'Relay',
+          enabled: true,
+          urls: {},
+          keys: [],
+          models: [
+            {
+              id: 'claude-opus-5-5',
+              enabled: true,
+              effective: {
+                ctx: 262_144,
+                maxOutput: 128_000,
+                source: 'catalog',
+                maxOutputSource: 'catalog',
+                thinking: claudeThinking,
+              },
+            },
+            {
+              id: 'gpt-5',
+              enabled: true,
+              effective: {
+                ctx: 262_144,
+                maxOutput: 128_000,
+                source: 'catalog',
+                maxOutputSource: 'catalog',
+                thinking: gptThinking,
+              },
+            },
+          ],
+        },
+      ],
+      clients: { claude: { models: {} }, codex: { models: {} } },
+      allowedPrivateHosts: [],
+      port: 1,
+    };
+
+    for (const tc of [
+      { backend: 'claude' as const, ref: 'relay/claude-opus-5-5', label: 'Claude Code' },
+      { backend: 'codex' as const, ref: 'relay/gpt-5', label: 'Codex' },
+    ]) {
+      let current: HarnessTabMeta = {
+        ...baseTab,
+        backend: tc.backend,
+        source: 'thirdParty',
+        modelOverride: tc.ref,
+      };
+      const invoke = vi.fn(async (ch: string, i?: Record<string, unknown>) => {
+        if (ch === 'gateway.state') return gw;
+        if (ch === 'harness.modelCatalog')
+          return {
+            backend: tc.backend,
+            provider: { id: 'gateway', name: '第三方模型' },
+            defaultModel: null,
+            models: [
+              {
+                id: tc.ref,
+                label: `Relay / ${tc.ref.split('/')[1]}`,
+                reasoning: false,
+                efforts: [],
+              },
+            ],
+          };
+        if (ch === 'harness.tabEffort') {
+          current = { ...current, reasoningEffort: i?.effort as ReasoningEffort | null };
+          return { ...current };
+        }
+        return {};
+      });
+      installFakeApi(invoke);
+      const r = render(<ModelControls tab={current} />);
+      await waitFor(() => expect(invoke).toHaveBeenCalledWith('gateway.state'));
+      await act(async () => {});
+      expect(r.getByTestId('model-chip').textContent).not.toContain('·');
+
+      fireEvent.click(r.getByTestId('model-chip'));
+      const slider = await r.findByTestId('effort-slider');
+      expect(slider.getAttribute('aria-valuenow')).toBeNull();
+      expect(r.getByTestId('effort-default-unknown').textContent).toContain(tc.label);
+
+      fireEvent.keyDown(slider, { key: 'End' });
+      const wantMax = tc.backend === 'claude' ? 'max' : 'high';
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith('harness.tabEffort', { id: 'cx', effort: wantMax }),
+      );
+      r.rerender(<ModelControls tab={current} />);
+      expect(r.getByTestId('model-chip').textContent).toContain('·');
+
+      fireEvent.click(r.getByTestId('effort-default'));
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith('harness.tabEffort', { id: 'cx', effort: null }),
+      );
+      r.rerender(<ModelControls tab={current} />);
+      expect(r.getByTestId('model-chip').textContent).not.toContain('·');
+      cleanup();
+      resetFakeApi();
+    }
+  });
+
   it('长上下文：分档计价的第三方模型在模型页有「标准 / 长上下文」一组，价格写清楚', async () => {
     const ref = 'amux/openai/gpt-6.1-sol';
     const gatewayState = {

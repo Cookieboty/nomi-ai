@@ -4,7 +4,7 @@
  * 运行中同样穿插；贴底自动跟随，上滑不抢滚动条；长对话分页。
  * 消息操作：复制 / 重新生成 / 编辑重发 / 停止；排队中的待发消息。
  */
-import { FloatingTip, Icon, t, useLocale } from '@nomi-ai/ui';
+import { Icon, t, useLocale } from '@nomi-ai/ui';
 import {
   IconArrowDown as ArrowDown,
   IconArrowLeftRight as ArrowLeftRight,
@@ -38,6 +38,11 @@ import { SystemCardView } from '../SystemCards';
 
 import { AgentsByCallContext, agentsByCall } from './agentContext';
 import { ApprovePlanCard } from './ApprovePlanCard';
+import {
+  ConversationQuickNav,
+  firstSentence,
+  summarizeAssistantText,
+} from './ConversationQuickNav';
 import { ConvHostContext } from './convHost';
 import styles from './index.module.css';
 import {
@@ -51,8 +56,37 @@ import { MinimalOpenProvider } from './MinimalSteps';
 import { PermissionCard } from './PermissionCard';
 import { StatusLine } from './StatusLine';
 import { TranscriptViewProvider, useTranscriptViewMode } from './transcriptViewContext';
+import {
+  captureScrollAnchor,
+  extraToReachMessage,
+  groupTurns,
+  INITIAL_RENDER,
+  LOAD_EARLIER_THRESHOLD,
+  LOAD_MORE_STEP,
+  RENDER_STEP,
+  type ScrollAnchor,
+  snapStartToTurn,
+  turnStartMessageIndex,
+  WINDOW_BUDGET,
+  WINDOW_MESSAGES,
+  windowStart,
+} from './windowing';
 
 export type { ConvSlots } from './Messages';
+export {
+  extraToReachMessage,
+  groupTurns,
+  INITIAL_RENDER,
+  LOAD_EARLIER_THRESHOLD,
+  LOAD_MORE_STEP,
+  RENDER_STEP,
+  snapStartToTurn,
+  summarizeAssistantText,
+  turnStartMessageIndex,
+  WINDOW_BUDGET,
+  WINDOW_MESSAGES,
+  windowStart,
+};
 
 /** 距底部不超过该像素视为「贴底」 */
 export const NEAR_BOTTOM_PX = 48;
@@ -247,292 +281,6 @@ const PermissionQueue: React.FC<{
   );
 };
 
-export const WINDOW_MESSAGES = 30;
-export const WINDOW_BUDGET = 400;
-export const LOAD_MORE_STEP = 30;
-export const LOAD_EARLIER_THRESHOLD = 96;
-/** 会话视图首帧渲染的末尾消息条数，以及之后每批往上补多少条 */
-export const INITIAL_RENDER = 3;
-export const RENDER_STEP = 6;
-
-/** 估算一条消息的渲染成本：正文每 400 字符 1，每个轨迹事件 0.5，至少 1 */
-function messageWeight(m: Pick<ConvMessage, 'text' | 'trace' | 'error'>): number {
-  return Math.max(
-    1,
-    ((m.text?.length ?? 0) + (m.error?.length ?? 0)) / 400 + (m.trace?.length ?? 0) * 0.5,
-  );
-}
-
-/**
- * 长对话分页：从末尾往前取，直到条数达到 limit 或体量预算用完（至少 1 条）；返回起始下标。
- * `extra` 为用户点「显示更早的消息」追加的条数。
- */
-/** 一次发送一轮：用户消息领起，随后的助手消息直到下一条用户消息都算这一轮 */
-export function groupTurns(
-  messages: readonly ConvMessage[],
-): { key: string; messages: ConvMessage[] }[] {
-  const turns: { key: string; messages: ConvMessage[] }[] = [];
-  for (const m of messages) {
-    const last = turns[turns.length - 1];
-    if (m.role === 'user' || !last) turns.push({ key: m.id, messages: [m] });
-    else last.messages.push(m);
-  }
-  return turns;
-}
-
-/** 快捷导航只显示助手回复的摘要，避免悬停卡片展开整段 Markdown / 代码内容。 */
-export function summarizeAssistantText(text: string, maxLength = 220): string {
-  const normalized = text.replace(/\r\n?/g, '\n').trim();
-  if (!normalized) return '';
-  const blocks = normalized
-    .split(/\n\s*\n/)
-    .map((block) => block.trim())
-    .filter(Boolean);
-  const block =
-    blocks.find(
-      (candidate) => !candidate.startsWith('```') && !/^#{1,6}\s+[^\n]+$/.test(candidate.trim()),
-    ) ??
-    blocks[0] ??
-    normalized;
-  const summary = block
-    .replace(/^```[^\n]*\n?/, '')
-    .replace(/\n?```$/, '')
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/^\s*[-*+]\s+/gm, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (summary.length <= maxLength) return summary;
-  return `${summary.slice(0, maxLength).trimEnd()}…`;
-}
-
-function firstSentence(text: string): string {
-  const match = text.match(/^(.+?[。！？!?])/);
-  if (match?.[1]) return match[1].trim();
-  const period = text.search(/\.\s/);
-  if (period >= 0) return text.slice(0, period + 1).trim();
-  return text.trim();
-}
-
-export function windowStart(
-  messages: readonly Pick<ConvMessage, 'text' | 'trace' | 'error'>[],
-  extra = 0,
-): number {
-  const limit = WINDOW_MESSAGES + extra;
-  let budget = WINDOW_BUDGET + extra * 10;
-  let i = messages.length;
-  while (i > 0 && messages.length - i < limit) {
-    const w = messageWeight(messages[i - 1]!);
-    // 体量预算只约束首屏。用户点过「显示更早」之后按条数放开：
-    // 一条巨大的工具轨迹（trace 上千条）就能把预算吃光，按预算走的话点多少次都跨不过去，
-    // 而 loadingEarlier 的复位又等 start 变——结果就是「点了完全没反应」。
-    if (extra === 0 && budget - w < 0 && i < messages.length) break;
-    budget -= w;
-    i--;
-  }
-  return i;
-}
-
-/** 窗口起点落在一轮中间时，回退到该轮用户消息，避免第一轮被助手 id 错标成 0。 */
-export function snapStartToTurn(
-  messages: readonly Pick<ConvMessage, 'role'>[],
-  start: number,
-): number {
-  if (start <= 0 || messages.length === 0) return 0;
-  let i = Math.min(start, messages.length - 1);
-  while (i > 0 && messages[i]!.role !== 'user') i--;
-  return i;
-}
-
-/** 第 turnIndex 轮第一条消息在全部消息中的下标（与 groupTurns 同一规则）。 */
-export function turnStartMessageIndex(
-  messages: readonly Pick<ConvMessage, 'role'>[],
-  turnIndex: number,
-): number {
-  let current = -1;
-  for (let i = 0; i < messages.length; i++) {
-    if (messages[i]!.role === 'user' || current < 0) current += 1;
-    if (current === turnIndex) return i;
-  }
-  return 0;
-}
-
-/** 让分页窗口覆盖到 messageIndex 所需的 extra（一次算够，避免跳转时反复 +30）。 */
-export function extraToReachMessage(
-  messages: readonly Pick<ConvMessage, 'text' | 'trace' | 'error'>[],
-  messageIndex: number,
-): number {
-  const target = Math.max(0, Math.min(messageIndex, Math.max(0, messages.length - 1)));
-  if (windowStart(messages, 0) <= target) return 0;
-  let lo = 1;
-  let hi = messages.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (windowStart(messages, mid) <= target) hi = mid;
-    else lo = mid + 1;
-  }
-  return lo;
-}
-
-const HOVER_WIDTHS = [24, 18, 14, 10] as const;
-const HOVER_HEIGHTS = [4, 3, 2, 2] as const;
-
-const ConversationQuickNavItem = React.memo(function ConversationQuickNavItem({
-  item,
-  distance,
-  inView,
-  tabIndex,
-  onNavigate,
-  onHover,
-  onKeyDown,
-}: {
-  item: { turnIndex: number; width: number; title: string; detail: string };
-  distance: number;
-  inView: boolean;
-  tabIndex: number;
-  onNavigate: (index: number) => void;
-  onHover: (index: number, el: HTMLButtonElement) => void;
-  onKeyDown: (index: number, e: React.KeyboardEvent<HTMLButtonElement>) => void;
-}) {
-  const hovered = distance >= 0 && distance <= 3;
-  const style = {
-    '--quick-nav-width': `${item.width}px`,
-    '--quick-nav-sx': hovered ? String(HOVER_WIDTHS[distance]! / item.width) : '1',
-    '--quick-nav-sy': hovered ? String(HOVER_HEIGHTS[distance]! / 2) : '1',
-  } as CSSProperties;
-  return (
-    <button
-      type="button"
-      className={styles.quickNavItem}
-      aria-label={t('ui.chat-settings.jump-to-conversation-turn', String(item.turnIndex + 1))}
-      data-in-view={inView ? 'true' : undefined}
-      data-testid="conversation-quick-nav-item"
-      data-turn-index={item.turnIndex}
-      tabIndex={tabIndex}
-      onMouseEnter={(e) => onHover(item.turnIndex, e.currentTarget)}
-      onFocus={(e) => onHover(item.turnIndex, e.currentTarget)}
-      onKeyDown={(e) => onKeyDown(item.turnIndex, e)}
-      onClick={() => onNavigate(item.turnIndex)}
-    >
-      <span className={styles.quickNavLine} style={style} />
-    </button>
-  );
-});
-
-const ConversationQuickNav: React.FC<{
-  items: readonly { turnIndex: number; width: number; title: string; detail: string }[];
-  visibleIndices: ReadonlySet<number>;
-  onNavigate: (index: number) => void;
-}> = ({ items, visibleIndices, onNavigate }) => {
-  const [hovered, setHovered] = useState<number | null>(null);
-  const [focusIndex, setFocusIndex] = useState<number | null>(null);
-  const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
-  const [viewport, setViewport] = useState<HTMLElement | null>(null);
-  const navRef = useRef<HTMLElement>(null);
-  const onHover = useCallback((turnIndex: number, el: HTMLButtonElement) => {
-    setHovered(turnIndex);
-    setAnchor(el);
-    setViewport(el.closest<HTMLElement>('[data-testid="conversation"]'));
-  }, []);
-  const clearHover = useCallback(() => {
-    setHovered(null);
-    setAnchor(null);
-    setViewport(null);
-  }, []);
-  const onItemKeyDown = useCallback(
-    (turnIndex: number, e: React.KeyboardEvent<HTMLButtonElement>) => {
-      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End')
-        return;
-      e.preventDefault();
-      const pos = items.findIndex((item) => item.turnIndex === turnIndex);
-      if (pos < 0) return;
-      const next =
-        e.key === 'ArrowDown'
-          ? Math.min(items.length - 1, pos + 1)
-          : e.key === 'ArrowUp'
-            ? Math.max(0, pos - 1)
-            : e.key === 'Home'
-              ? 0
-              : items.length - 1;
-      const target = items[next];
-      if (!target) return;
-      setFocusIndex(target.turnIndex);
-      const btn = navRef.current?.querySelector<HTMLButtonElement>(
-        `[data-turn-index="${target.turnIndex}"]`,
-      );
-      btn?.focus();
-      btn?.scrollIntoView({ block: 'nearest' });
-      if (btn) onHover(target.turnIndex, btn);
-    },
-    [items, onHover],
-  );
-  useEffect(() => {
-    if (items.length <= 5) return;
-    const first = [...visibleIndices].sort((a, b) => a - b)[0];
-    if (first == null) return;
-    navRef.current
-      ?.querySelector<HTMLElement>(`[data-turn-index="${first}"]`)
-      ?.scrollIntoView({ block: 'nearest' });
-  }, [visibleIndices, items.length]);
-  if (items.length <= 5) return null;
-  const hoveredPosition =
-    hovered === null ? -1 : items.findIndex((item) => item.turnIndex === hovered);
-  const tabStop =
-    focusIndex != null && items.some((item) => item.turnIndex === focusIndex)
-      ? focusIndex
-      : (items.find((item) => visibleIndices.has(item.turnIndex))?.turnIndex ??
-        items[0]!.turnIndex);
-  const hoveredItem =
-    hovered === null ? undefined : items.find((item) => item.turnIndex === hovered);
-  return (
-    <>
-      <nav
-        ref={navRef}
-        className={styles.quickNav}
-        data-hovered={hovered === null ? undefined : 'true'}
-        aria-label={t('ui.chat-settings.conversation-quick-navigation')}
-        data-testid="conversation-quick-nav"
-        onMouseLeave={clearHover}
-        onBlur={(e) => {
-          if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
-          clearHover();
-        }}
-      >
-        {items.map((item, position) => {
-          const distance =
-            hoveredPosition < 0 ? -1 : Math.min(4, Math.abs(position - hoveredPosition));
-          return (
-            <ConversationQuickNavItem
-              key={item.turnIndex}
-              item={item}
-              distance={distance}
-              inView={visibleIndices.has(item.turnIndex)}
-              tabIndex={item.turnIndex === tabStop ? 0 : -1}
-              onNavigate={onNavigate}
-              onHover={onHover}
-              onKeyDown={onItemKeyDown}
-            />
-          );
-        })}
-      </nav>
-      <FloatingTip
-        anchor={anchor}
-        placement="side"
-        viewport={viewport}
-        className={styles.quickNavTip}
-      >
-        {hoveredItem ? (
-          <>
-            <span className={styles.quickNavTipTitle}>{hoveredItem.title}</span>
-            {hoveredItem.detail ? (
-              <span className={styles.quickNavTipText}>{hoveredItem.detail}</span>
-            ) : null}
-          </>
-        ) : null}
-      </FloatingTip>
-    </>
-  );
-};
-
 export interface ConversationViewProps {
   /** 会话标识：变化即重建视图（滚动 / 展开状态互不串） */
   scopeId: string;
@@ -607,11 +355,90 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   const innerRef = useRef<HTMLDivElement>(null);
   const [away, setAway] = useState(false);
   const running = phase === 'running';
+  const minimal = transcriptView === 'minimal';
   const [extra, setExtra] = useState(0);
-  const fullStart = useMemo(() => windowStart(messages, extra), [messages, extra]);
+  const rawFullStart = useMemo(
+    () => windowStart(messages, extra, { minimal }),
+    [messages, extra, minimal],
+  );
+  const snappedRawFull = useMemo(
+    () => snapStartToTurn(messages, rawFullStart),
+    [messages, rawFullStart],
+  );
   // 切换会话 / 首次挂载：先只渲染末尾几条（首帧尽快出现），其余按帧分批往上补，主线程不会被一次性占满
   const [eagerCount, setEagerCount] = useState(INITIAL_RENDER);
-  const start = snapStartToTurn(messages, Math.max(fullStart, messages.length - eagerCount));
+  // 锁定单会话内窗口上界严格不收缩，防止新消息 / 大 trace 完成瞬间卸载上方已读历史引发跳动
+  const [windowAnchor, setWindowAnchor] = useState<{
+    floor: number;
+    floorId: string | null;
+    len: number;
+    staged: boolean;
+  }>(() => {
+    if (messages.length === 0) return { floor: -1, floorId: null, len: 0, staged: false };
+    const stagedNow =
+      snapStartToTurn(messages, Math.max(snappedRawFull, messages.length - INITIAL_RENDER)) <=
+      snappedRawFull;
+    return {
+      floor: snappedRawFull,
+      floorId: messages[snappedRawFull]?.id ?? null,
+      len: messages.length,
+      staged: stagedNow,
+    };
+  });
+
+  let nextAnchor = windowAnchor;
+  let resetEager = false;
+  if (messages.length === 0) {
+    if (windowAnchor.floor !== -1 || windowAnchor.len !== 0 || windowAnchor.staged) {
+      nextAnchor = { floor: -1, floorId: null, len: 0, staged: false };
+      resetEager = true;
+    }
+  } else if (windowAnchor.floor < 0) {
+    const stagedNow =
+      snapStartToTurn(messages, Math.max(snappedRawFull, messages.length - INITIAL_RENDER)) <=
+      snappedRawFull;
+    nextAnchor = {
+      floor: snappedRawFull,
+      floorId: messages[snappedRawFull]?.id ?? null,
+      len: messages.length,
+      staged: stagedNow,
+    };
+    resetEager = eagerCount !== INITIAL_RENDER || extra !== 0;
+  } else {
+    const truncated =
+      messages.length < windowAnchor.len ||
+      (windowAnchor.floorId !== null && messages[windowAnchor.floor]?.id !== windowAnchor.floorId);
+    const nextFloor = truncated ? snappedRawFull : Math.min(windowAnchor.floor, snappedRawFull);
+    const reachedFloor =
+      snapStartToTurn(messages, Math.max(nextFloor, messages.length - eagerCount)) <= nextFloor;
+    const nextStaged = truncated ? true : windowAnchor.staged || reachedFloor;
+    const nextFloorId = messages[nextFloor]?.id ?? null;
+    if (
+      nextFloor !== windowAnchor.floor ||
+      nextFloorId !== windowAnchor.floorId ||
+      messages.length !== windowAnchor.len ||
+      nextStaged !== windowAnchor.staged
+    ) {
+      nextAnchor = {
+        floor: nextFloor,
+        floorId: nextFloorId,
+        len: messages.length,
+        staged: nextStaged,
+      };
+    }
+  }
+
+  if (nextAnchor !== windowAnchor) setWindowAnchor(nextAnchor);
+  if (resetEager) {
+    if (eagerCount !== INITIAL_RENDER) setEagerCount(INITIAL_RENDER);
+    if (extra !== 0) setExtra(0);
+  }
+
+  const fullStart = nextAnchor.floor < 0 ? 0 : nextAnchor.floor;
+  const staged = nextAnchor.staged;
+  const start = staged
+    ? fullStart
+    : snapStartToTurn(messages, Math.max(fullStart, messages.length - eagerCount));
   // 记住切片：live / 状态变化引起的重渲染（消息没变）不让 groupTurns 重算
   const shown = useMemo(() => (start > 0 ? messages.slice(start) : messages), [messages, start]);
   const turns = useMemo(() => groupTurns(shown), [shown]);
@@ -661,8 +488,10 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   }, [cards, messages]);
   const renderCards = (list: readonly SlashCard[] | undefined) =>
     list?.map((c) => <SystemCardView key={c.id} card={c} onDismiss={onDismissCard} />);
-  /** 点「显示更早」前的 scrollHeight：加载后据此保持视口不跳 */
-  const anchorRef = useRef<number | null>(null);
+  /** 向上加载更早消息前的视口锚点：加载后据此精准保持原阅读位置不跳 */
+  const anchorRef = useRef<ScrollAnchor | null>(null);
+  const topSentinelRef = useRef<HTMLButtonElement | null>(null);
+  const prevStartRef = useRef(start);
   const loadingEarlierRef = useRef(false);
   const [visibleTurns, setVisibleTurns] = useState<ReadonlySet<number>>(new Set());
   const [pendingTurn, setPendingTurn] = useState<number | null>(null);
@@ -712,7 +541,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
       if (!target) {
         setPendingTurn(index);
         const messageIndex = turnStartMessageIndex(messages, index);
-        const needed = extraToReachMessage(messages, messageIndex);
+        const needed = extraToReachMessage(messages, messageIndex, { minimal });
         skipStagingRef.current = true;
         setExtra((value) => Math.max(value, needed));
         setEagerCount(messages.length);
@@ -738,14 +567,14 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
       if (jumpClearRef.current != null) window.clearTimeout(jumpClearRef.current);
       jumpClearRef.current = window.setTimeout(done, 800);
     },
-    [messages, endJump],
+    [messages, minimal, endJump],
   );
 
   const loadEarlier = useCallback(() => {
     if (start <= 0 || loadingEarlierRef.current) return;
     const scroller = scrollRef.current;
     if (!scroller) return;
-    anchorRef.current = scroller.scrollHeight;
+    anchorRef.current = followRef.current ? null : captureScrollAnchor(scroller);
     loadingEarlierRef.current = true;
     setExtra((value) => value + LOAD_MORE_STEP);
   }, [start]);
@@ -772,23 +601,46 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   );
   const status = deriveStatus({ phase, live, items: liveItems });
 
-  // 分批往上补消息时不读 scrollHeight / 不改 scrollTop：每批都强制整列重排，切会话时是主要开销之一。
-  // 内容已经超出一屏时，浏览器的滚动锚定（overflow-anchor）会让视口里的内容保持不动；
-  // 还没超出一屏（scrollTop 为 0，锚定不生效）时才由下面的 effect 补一次贴底。
+  // 分批往上补消息时不读 scrollHeight：待每批提交后在下面的 layoutEffect 中统一处理（贴底同步贴底 / 上滑精准锚定）。
   useEffect(() => {
     if (skipStagingRef.current) {
       skipStagingRef.current = false;
       return;
     }
-    if (start <= fullStart) return;
-    const id = window.setTimeout(() => setEagerCount((n) => n + RENDER_STEP), 0);
+    if (start <= fullStart || staged) return;
+    const id = window.setTimeout(() => {
+      if (!followRef.current && scrollRef.current) {
+        anchorRef.current = captureScrollAnchor(scrollRef.current);
+      }
+      setEagerCount((n) => n + RENDER_STEP);
+    }, 0);
     return () => window.clearTimeout(id);
-  }, [start, fullStart]);
+  }, [start, fullStart, staged]);
 
-  /** 上次贴底时内容是否已超出一屏（超出后由滚动锚定保持位置） */
-  const overflowedRef = useRef(false);
-  /** 上一次看到的 scrollTop：判断这次滚动是不是用户往上滚 */
+  // 顶部哨兵无感向上预加载：当首屏未填满视口+400px，或用户上滑接近顶部时自动展开更早历史
+  useEffect(() => {
+    if (start <= 0 || start !== fullStart) return;
+    const scroller = scrollRef.current;
+    const sentinel = topSentinelRef.current;
+    if (!scroller || !sentinel || typeof IntersectionObserver === 'undefined') return;
+    if (scroller.clientHeight <= 0) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (jumpingRef.current) return;
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        loadEarlier();
+      },
+      { root: scroller, rootMargin: '400px 0px 0px 0px', threshold: 0 },
+    );
+    io.observe(sentinel);
+    return () => io.disconnect();
+  }, [start, fullStart, loadEarlier]);
+
+  /** 上一次看到的滚动条与容器尺寸快照：区分主动滚动与内容高度缩小造成的被动 clamp */
   const lastTopRef = useRef(0);
+  const lastScrollHeightRef = useRef(0);
+  const lastClientHeightRef = useRef(0);
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -796,39 +648,86 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     // 切换会话和贴底跟随均立即定位，不继承外部 CSS 的平滑滚动。
     el.scrollTo({ top: h, behavior: 'instant' });
     lastTopRef.current = el.scrollTop;
-    overflowedRef.current = h > el.clientHeight;
+    lastScrollHeightRef.current = h;
+    lastClientHeightRef.current = el.clientHeight;
   }, []);
 
+  // 顶部窗口向前扩开（分批补齐或自动/手动加载更早消息）后保持阅读位置或同步贴底
   useLayoutEffect(() => {
+    const prevStart = prevStartRef.current;
+    prevStartRef.current = start;
     const el = scrollRef.current;
-    if (el && anchorRef.current !== null) {
-      el.scrollTop += el.scrollHeight - anchorRef.current;
-    }
-    // 无论 start 变没变都要解锁：之前只在 start 变化时置 false，
-    // 一次点击没让 start 变化（预算卡住 / scroller 一时不在）就会让它永久为 true，
-    // 之后点「显示更早」、滚到顶部全部静默失改。
+    const anchor = anchorRef.current;
     anchorRef.current = null;
     loadingEarlierRef.current = false;
-  }, [extra]);
+    if (!el || start >= prevStart) return;
+    if (followRef.current) {
+      scrollToBottom();
+      return;
+    }
+    if (!anchor) return;
+    let adjusted = false;
+    if (anchor.turnIndex !== null) {
+      const target = el.querySelector<HTMLElement>(
+        `[data-testid="conv-turn"][data-turn-index="${anchor.turnIndex}"]`,
+      );
+      const box = el.getBoundingClientRect();
+      const rect = target?.getBoundingClientRect();
+      if (rect && rect.height > 0) {
+        const delta = rect.top - box.top - anchor.offsetTop;
+        if (Math.abs(delta) > 0.5) el.scrollTop += delta;
+        adjusted = true;
+      }
+    }
+    if (!adjusted) {
+      const delta = el.scrollHeight - anchor.scrollHeight;
+      if (delta > 0) el.scrollTop += delta;
+    }
+    lastTopRef.current = el.scrollTop;
+    lastScrollHeightRef.current = el.scrollHeight;
+    lastClientHeightRef.current = el.clientHeight;
+  }, [start, extra, scrollToBottom]);
 
   // 滚轮 / 触控板往上：立即停止跟随（不等 scroll 事件，避免同一帧里的增长又把视口拉回底部）
   const onWheel = useCallback((e: React.WheelEvent) => {
     if (e.deltaY < 0) followRef.current = false;
   }, []);
 
-  // 只有用户往上滚（scrollTop 变小且离开底部）才停止跟随。不能只看「离底部多远」：程序贴底后
-  // scroll 事件要到下一帧才来，这期间内容又长高一大截（大段流式输出、工具 / 权限卡、图片加载完、
-  // 已完成轮次从占位高度换成真实高度）时会误判成用户滚开，从此不再跟随、停在半截。
-  // 内容变高不改 scrollTop，程序贴底只会让它变大；上方内容缩短时滚动锚定会让它变小，但离底距离不变。
+  // 区分用户主动上下滚与内容高度变小导致的被动 clamp：
+  // 1. 运行中长内容 → 完成后极简收起导致高度骤缩时，严禁误将已上滑阅读历史的用户吸回底部，也严禁误断贴底态或误触加载更早。
+  // 2. 内容变高时不改 scrollTop、程序贴底后下一帧才来的 scroll 事件不会误断跟随。
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    if (!jumpingRef.current && el.scrollTop <= LOAD_EARLIER_THRESHOLD) loadEarlier();
+    const top = el.scrollTop;
+    const sh = el.scrollHeight;
+    const ch = el.clientHeight;
+    const prevTop = lastTopRef.current;
+    const prevSh = lastScrollHeightRef.current;
+    const prevCh = lastClientHeightRef.current;
+    lastTopRef.current = top;
+    lastScrollHeightRef.current = sh;
+    lastClientHeightRef.current = ch;
+
+    const heightShrank = sh < prevSh - 1 || ch < prevCh - 1;
     const near = isNearBottom(el);
-    const scrolledUp = el.scrollTop < lastTopRef.current - 1;
-    lastTopRef.current = el.scrollTop;
-    if (near) followRef.current = true;
-    else if (scrolledUp) followRef.current = false;
+    const scrolledUp = top < prevTop - 1;
+    const scrolledDown = top > prevTop + 1;
+
+    if (
+      !jumpingRef.current &&
+      !heightShrank &&
+      top <= LOAD_EARLIER_THRESHOLD &&
+      (scrolledUp || top === 0)
+    ) {
+      loadEarlier();
+    }
+
+    if (followRef.current) {
+      if (!near && scrolledUp && !heightShrank) followRef.current = false;
+    } else if (near && (scrolledDown || (!heightShrank && !scrolledUp))) {
+      followRef.current = true;
+    }
     const away = !followRef.current;
     setAway((v) => (v === away ? v : away));
   }, [loadEarlier]);
@@ -898,11 +797,6 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
       scrollToBottom();
     }
   }, [lastUserId, scrollToBottom]);
-
-  // 分批补上更早的消息：已超出一屏时交给滚动锚定，不再强制重排
-  useLayoutEffect(() => {
-    if (followRef.current && !overflowedRef.current) scrollToBottom();
-  }, [start, scrollToBottom]);
 
   // 新消息 / 队列 / 卡片 / 阶段变化时，贴底则跟随（离散事件，每轮几次）
   useLayoutEffect(() => {
@@ -976,6 +870,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
           <div className={styles.inner} ref={innerRef}>
             {start > 0 && start === fullStart && (
               <button
+                ref={topSentinelRef}
                 type="button"
                 className={styles.earlier}
                 data-testid="conv-load-earlier"

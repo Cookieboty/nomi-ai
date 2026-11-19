@@ -518,7 +518,7 @@
   "electron.common.this-model-doesn-t-support-that-reasoning-effort": "This model doesn't support that reasoning effort",
   "electron.common.this-month-s": "This month's",
   "electron.common.this-session-is-open-in-a-tab-close": "This session is open in a tab. Close the tab before deleting it",
-  "electron.common.this-tab-has-no-third-party-model-yet": "This tab has no third-party model yet. Assign one on the Models page first.",
+  "electron.common.this-tab-has-no-third-party-model-yet": "This session has no model selected yet. Choose a third-party model in the composer first.",
   "electron.common.this-tab-s-backend-or-working-directory-changed": "This tab's backend or working directory changed; confirm “Full access” again",
   "electron.common.this-tab-s-model-source-has-changed-pick": "This tab's model source has changed. Pick the model again.",
   "electron.common.this-task-has-already-cost-about-alert-line": "{0}: this task has already cost about {1} (alert line {2}). Want to take a look?",
@@ -613,5 +613,7 @@
   "electron.common.no-official-account-yet": "No {0} official account yet. Add one in Settings → Assistants → {0}, or switch this tab to a third-party model from the model button",
   "electron.common.only-third-party-models": "{0} only runs on third-party models. Pick one from the model button, or assign one on the Models page first",
   "electron.common.cli-launcher-invalid": "Enter a program and optional arguments, such as claude. Quote paths containing spaces. Shell operators, line breaks and variable assignments are not supported.",
-  "electron.common.cli-launcher-test-failed": "Could not read the launch command’s version. Run it with --version in a terminal to check it. This test does not send model requests."
+  "electron.common.cli-launcher-test-failed": "Could not read the launch command’s version. Run it with --version in a terminal to check it. This test does not send model requests.",
+  "electron.common.no-official-account-signed-in-for": "No official account is signed in for {0}. Sign in or choose a third-party model first.",
+  "electron.common.no-local-login-detected-for": "No local sign-in detected for {0}. Sign in locally or choose a third-party model first."
 }

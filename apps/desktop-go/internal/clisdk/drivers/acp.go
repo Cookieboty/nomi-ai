@@ -69,6 +69,24 @@ func parseOptions(raw any) []any {
 	return out
 }
 
+func parseAvailableModeIDs(modes any) []string {
+	arr, ok := getp(modes, "availableModes").([]any)
+	if !ok || len(arr) == 0 {
+		return nil
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, x := range arr {
+		id, ok := getp(x, "id").(string)
+		if !ok || id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		out = append(out, id)
+	}
+	return out
+}
+
 func parseCommands(raw any) []any {
 	arr, ok := raw.([]any)
 	if !ok {
@@ -105,6 +123,7 @@ type AcpDriver struct {
 	sid               *string
 	exited            bool
 	ModeID            *string
+	AvailableModes    []string
 	AgentCapabilities Json
 }
 
@@ -372,12 +391,15 @@ func (d *AcpDriver) Start(o clisdk.StartOptions) *jsrt.Promise[StartResult] {
 		}
 		var sid *string
 		var modeNow any
+		var availableModes []string
 		resumed := false
 		if o.ResumeID != nil && *o.ResumeID != "" {
 			resumeID := *o.ResumeID
 			r, err := jsrt.Await(d.Conn.Request("session/load", withDirs(O("sessionId", resumeID, "cwd", o.Cwd, "mcpServers", mcp)), opts))
 			if err == nil {
-				modeNow = getp(getp(r, "modes"), "currentModeId")
+				modes := getp(r, "modes")
+				modeNow = getp(modes, "currentModeId")
+				availableModes = parseAvailableModeIDs(modes)
 				resumed = true
 				sid = &resumeID
 			}
@@ -396,12 +418,15 @@ func (d *AcpDriver) Start(o clisdk.StartOptions) *jsrt.Promise[StartResult] {
 					sid = &s // 非字符串真值：转成字符串存入
 				}
 			}
-			modeNow = getp(getp(r, "modes"), "currentModeId")
+			modes := getp(r, "modes")
+			modeNow = getp(modes, "currentModeId")
+			availableModes = parseAvailableModeIDs(modes)
 		}
 		if sid == nil || *sid == "" {
 			return nil, errors.New("ACP agent returned no session")
 		}
 		d.sid = sid
+		d.AvailableModes = availableModes
 		if m, ok := modeNow.(string); ok {
 			d.ModeID = &m
 		}

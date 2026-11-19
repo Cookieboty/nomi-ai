@@ -16,6 +16,7 @@ import {
   ModalHostContext,
   ModelPicker,
   Switch,
+  Tooltip,
   t,
 } from '@nomi-ai/ui';
 import {
@@ -220,6 +221,18 @@ export const ModelsPage: React.FC<{ hideAssignments?: boolean }> = ({
             {t('ui.models.third-party-providers')}
           </h3>
           <span className={styles.headActions}>
+            <Tooltip content={t('ui.models.circuit-breaker-failover-hint')} placement="bottom">
+              <label className={`${styles.inlineSwitch} ${styles.failoverSwitch}`}>
+                <Switch
+                  checked={state?.failoverEnabled === true}
+                  onChange={(v) => run(gatewayClient.setOptions({ failoverEnabled: v }))}
+                  disabled={!state}
+                  aria-label={t('ui.models.circuit-breaker-failover')}
+                  data-testid="models-failover"
+                />
+                <span>{t('ui.models.circuit-breaker-failover')}</span>
+              </label>
+            </Tooltip>
             <Button
               size="sm"
               variant="secondary"
@@ -250,7 +263,11 @@ export const ModelsPage: React.FC<{ hideAssignments?: boolean }> = ({
         {showForm && <ProviderForm idPrefix="models" onSaved={onSaved} />}
         {sortable.length > 1 && (
           <p className={styles.sub} data-testid="providers-order-hint">
-            {t('ui.models.provider-order-hint')}
+            {t(
+              state?.failoverEnabled
+                ? 'ui.models.provider-order-hint'
+                : 'ui.models.provider-order-hint-off',
+            )}
           </p>
         )}
         {providers.map((p) => {

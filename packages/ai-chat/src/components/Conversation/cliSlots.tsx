@@ -187,16 +187,21 @@ const CliQuotaFallbackAction: React.FC<{
 };
 
 export function buildCliSlots(
-  opts?: ConvSlots & { cwd?: string | null; tab?: HarnessTabMeta | null },
+  opts?: ConvSlots & {
+    cwd?: string | null;
+    tab?: HarnessTabMeta | null;
+    getTab?: () => HarnessTabMeta | null;
+  },
 ): ConvSlots {
-  const { cwd, tab, ...base } = opts ?? {};
+  const { cwd, tab, getTab, ...base } = opts ?? {};
   return {
     ...base,
     errorActions: (m, ctx) => {
       const baseActions = base?.errorActions?.(m, ctx) ?? null;
+      const activeTab = getTab ? getTab() : tab;
       const fallback =
-        tab && tabSourceOf(tab) !== 'thirdParty' && isQuotaExhaustedError(m.error) ? (
-          <CliQuotaFallbackAction key={`quota-${m.id}`} tab={tab} retry={ctx.retry} />
+        activeTab && tabSourceOf(activeTab) !== 'thirdParty' && isQuotaExhaustedError(m.error) ? (
+          <CliQuotaFallbackAction key={`quota-${m.id}`} tab={activeTab} retry={ctx.retry} />
         ) : null;
       if (!baseActions && !fallback) return null;
       return (

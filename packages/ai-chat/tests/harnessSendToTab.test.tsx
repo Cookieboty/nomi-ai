@@ -3,7 +3,11 @@ import { act, cleanup, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { HarnessTabsProvider, useHarnessTabs } from '../src/contexts/HarnessTabsContext';
+import {
+  HarnessTabsProvider,
+  useHarnessLive,
+  useHarnessTabs,
+} from '../src/contexts/HarnessTabsContext';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
@@ -37,19 +41,32 @@ const stateOf = (tabs: HarnessTabMeta[], activeTabId: string): HarnessTabsState 
 
 function mockIpc(initial: HarnessTabsState) {
   let state = initial;
-  const sent: Array<{ tabId: string; text: string }> = [];
-  const invoke = vi.fn(async (ch: string, i?: { id?: string; prompt?: string }) => {
-    if (ch === 'harness.tabs') return state;
-    if (ch === 'harness.tabMessages') return [];
-    if (ch === 'harness.tabSend') {
-      sent.push({ tabId: String(i?.id), text: String(i?.prompt) });
-      return { ok: true };
-    }
-    return state;
-  });
+  const sent: Array<{ tabId: string; text: string; images?: unknown[] }> = [];
+  const cancels: string[] = [];
+  const invoke = vi.fn(
+    async (ch: string, i?: { id?: string; prompt?: string; images?: unknown[] }) => {
+      if (ch === 'harness.tabs') return state;
+      if (ch === 'harness.tabMessages') return [];
+      if (ch === 'harness.tabSend') {
+        sent.push({
+          tabId: String(i?.id),
+          text: String(i?.prompt),
+          ...(i?.images ? { images: i.images } : {}),
+        });
+        return { ok: true };
+      }
+      if (ch === 'harness.tabCancel') {
+        cancels.push(String(i?.id));
+        return true;
+      }
+      if (ch === 'chatAssets.import') return { file: 'x.png', url: 'chat-asset://images/x.png' };
+      return state;
+    },
+  );
   const fake = installFakeApi(invoke);
   return {
     sent,
+    cancels,
     push: async (s: HarnessTabsState) => {
       state = s;
       await act(() => fake.emit('harness.tabsChanged', s));
@@ -165,5 +182,143 @@ describe('HarnessTabsContext.sendToTab', () => {
       await ref.current!.send('在 a 上');
     });
     expect(ipc.sent).toEqual([{ tabId: 'a', text: '在 a 上' }]);
+  });
+
+  it('目标运行中发送带图消息：以 queue 入队并在空闲后带着图片发送', async () => {
+    const ipc = mockIpc(stateOf([tab({ id: 'a', status: 'running' })], 'a'));
+    const ref = mount();
+    await waitFor(() => expect(ref.current!.state?.tabs).toHaveLength(2));
+    const img = {
+      mime: 'image/png',
+      data: 'QUJD',
+      width: 10,
+      height: 10,
+      thumb: 'data:image/png;base64,T',
+      source: 'paste',
+    };
+    let ok = false;
+    await act(async () => {
+      ok = await ref.current!.sendToTab('a', '运行中附图', undefined, [img], 'steer');
+    });
+    expect(ok).toBe(true);
+    expect(ipc.sent).toHaveLength(0);
+    expect(ref.current!.queues.a).toHaveLength(1);
+    expect(ref.current!.queues.a![0]!.mode).toBe('queue');
+    expect(ref.current!.queues.a![0]!.images).toEqual([img]);
+
+    await ipc.push(stateOf([tab({ id: 'a', status: 'idle' })], 'a'));
+    await waitFor(() => expect(ipc.sent).toHaveLength(1));
+    expect(ipc.sent[0]).toMatchObject({
+      tabId: 'a',
+      text: '运行中附图',
+      images: [expect.objectContaining({ data: 'QUJD', url: 'chat-asset://images/x.png' })],
+    });
+  });
+
+  it('flushPendingFor 打断当前轮并合并保留图片，空闲后全部发出', async () => {
+    const ipc = mockIpc(stateOf([tab({ id: 'a', status: 'running' })], 'a'));
+    const ref = mount();
+    await waitFor(() => expect(ref.current!.state?.tabs).toHaveLength(2));
+    const img1 = { mime: 'image/png', data: 'QQ==' };
+    const img2 = { mime: 'image/png', data: 'Qg==' };
+    await act(async () => {
+      await ref.current!.sendToTab('a', '第一条', undefined, [img1]);
+      await ref.current!.sendToTab('a', '第二条', undefined, [img2]);
+    });
+    let flushed = false;
+    await act(async () => {
+      flushed = await ref.current!.flushPendingFor('a');
+    });
+    expect(flushed).toBe(true);
+    expect(ipc.cancels).toEqual(['a']);
+    expect(ref.current!.queues.a).toHaveLength(1);
+    expect(ref.current!.queues.a![0]!.text).toBe('第一条\n\n第二条');
+    expect(ref.current!.queues.a![0]!.images).toEqual([img1, img2]);
+
+    await ipc.push(stateOf([tab({ id: 'a', status: 'idle' })], 'a'));
+    await waitFor(() => expect(ipc.sent).toHaveLength(1));
+    expect(ipc.sent[0]!.images).toHaveLength(2);
+  });
+
+  it('sendTab 拒绝（预检失败）时立刻清理 live 占位状态、触发 onError 并返回 false', async () => {
+    const init = stateOf([tab({ id: 'a', source: 'thirdParty' })], 'a');
+    let liveMap: Record<string, unknown> = {};
+    const invoke = vi.fn(async (ch: string) => {
+      if (ch === 'harness.tabs') return init;
+      if (ch === 'harness.tabMessages') return [];
+      if (ch === 'harness.tabSend') {
+        throw new Error('这个会话还没有选择模型，请先在输入栏选择一个第三方模型');
+      }
+      return init;
+    });
+    installFakeApi(invoke);
+    const ref: { current: Tabs | null } = { current: null };
+    const Probe: React.FC = () => {
+      ref.current = useHarnessTabs();
+      liveMap = useHarnessLive((l) => l);
+      return null;
+    };
+    render(
+      <HarnessTabsProvider>
+        <Probe />
+      </HarnessTabsProvider>,
+    );
+    await waitFor(() => expect(ref.current!.state?.tabs).toHaveLength(2));
+
+    const errors: string[] = [];
+    let ok = true;
+    await act(async () => {
+      ok = await ref.current!.sendToTab('a', '你好', undefined, undefined, 'steer', (msg) =>
+        errors.push(msg),
+      );
+    });
+    expect(ok).toBe(false);
+    expect(errors).toEqual(['这个会话还没有选择模型，请先在输入栏选择一个第三方模型']);
+    expect(liveMap.a).toBeUndefined();
+  });
+
+  it('create 不复用新建标签时关闭前一个瞬态空标签；已有错误的旧标签不误删', async () => {
+    const emptyClaude = tab({ id: 'empty-1', backend: 'claude' });
+    const errClaude = tab({ id: 'err-1', backend: 'claude', lastError: 'old err' });
+    let state = stateOf([emptyClaude, errClaude], 'empty-1');
+    const closed: string[] = [];
+    let seq = 0;
+    const invoke = vi.fn(async (ch: string, i?: { id?: string; backend?: 'claude' | 'codex' }) => {
+      if (ch === 'harness.tabs') return state;
+      if (ch === 'harness.tabMessages') return [];
+      if (ch === 'harness.tabCreate') {
+        seq += 1;
+        const created = tab({ id: `new-${seq}`, backend: i?.backend ?? 'codex' });
+        state = { ...state, tabs: [...state.tabs, created], activeTabId: created.id };
+        return created;
+      }
+      if (ch === 'harness.tabClose') {
+        closed.push(String(i?.id));
+        state = {
+          ...state,
+          tabs: state.tabs.filter((t) => t.id !== i?.id),
+        };
+        return state;
+      }
+      return state;
+    });
+    const fake = installFakeApi(invoke);
+    const ref = mount();
+    await waitFor(() => expect(ref.current!.activeTabId).toBe('empty-1'));
+
+    // 1. 当前是瞬态空标签 empty-1，新建 codex 标签后应关闭 empty-1
+    await act(async () => {
+      await ref.current!.create('codex');
+    });
+    await waitFor(() => expect(closed).toEqual(['empty-1']));
+
+    // 2. 切到有 lastError 的 err-1，再新建 gemini 标签时不应关闭 err-1
+    state = { ...state, activeTabId: 'err-1' };
+    await act(() => fake.emit('harness.tabsChanged', state));
+    await waitFor(() => expect(ref.current!.activeTabId).toBe('err-1'));
+    await act(async () => {
+      await ref.current!.create('gemini');
+    });
+    expect(closed).toEqual(['empty-1']);
   });
 });

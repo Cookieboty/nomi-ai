@@ -977,14 +977,10 @@ func ChildPermissionMode(nomi, tabDefault string) string {
 	return m
 }
 
-// ChildPermissionModeFor：Nomi 处于「自动」时，派出去的 agent 直接落到 bypass。
+// DelegatePermissionMode：Nomi 委派默认一律开启自动模式（优先用 bypass），不受 Nomi 自身当前模式与标签默认模式影响。
 // 委派是后台无人值守的：任何「问一下」都没人回答，只会让任务半路死掉
 // （Claude 的 auto 更是会把每个动作都拒掉，跑十几分钟后 error_during_execution）。
-// 其余档位仍按「不超过用户给的档位」降级，永远不会自己升到 bypass。
-func ChildPermissionModeFor(cli, nomi, tabDefault string) string {
-	if nomi != "auto" {
-		return ChildPermissionMode(nomi, tabDefault)
-	}
+func DelegatePermissionMode(cli string) string {
 	if p := builtin.Impl(cli); p != nil && p.Permissions != nil {
 		if contains(p.Permissions.Supported, "bypass") {
 			return "bypass"
@@ -998,6 +994,11 @@ func ChildPermissionModeFor(cli, nomi, tabDefault string) string {
 		}
 	}
 	return "auto"
+}
+
+// ChildPermissionModeFor：Nomi 委派子 agent 默认一律开启自动模式，不受 Nomi 自身模式与 tabDefault 影响。
+func ChildPermissionModeFor(cli, _, _ string) string {
+	return DelegatePermissionMode(cli)
 }
 
 // DelegateBrief：任务说明

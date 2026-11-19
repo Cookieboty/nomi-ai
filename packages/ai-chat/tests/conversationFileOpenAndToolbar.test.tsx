@@ -298,4 +298,97 @@ describe('Conversation file mentions & preview toolbar controls', () => {
     expect(screen.getByTestId('open-file-tree').hidden).toBe(false);
     expect(readWorkspaceTreeOpen()).toBe(true);
   });
+
+  it('strips duplicated workspace root prefix from inline relative file links when indexed', () => {
+    seedWorkspaceFileIndex('/repo/xy-token-api', ['ERRORCODE-ENUM-AUDIT-20261119.md']);
+    const open = vi.fn();
+    const scope = { id: 'nomi:1', cwd: '/repo/xy-token-api' };
+
+    const { container } = render(
+      <ResourceScopeProvider value={{ scope, open }}>
+        <Markdown
+          settled
+          text="审查文档已经保存到文件：`xy-token-api/ERRORCODE-ENUM-AUDIT-20261119.md`。"
+        />
+      </ResourceScopeProvider>,
+    );
+
+    const chip = container.querySelector('code[data-file-code="true"]');
+    expect(chip?.textContent).toBe('xy-token-api/ERRORCODE-ENUM-AUDIT-20261119.md');
+    fireEvent.click(chip!);
+    expect(open).toHaveBeenCalledWith(
+      '/repo/xy-token-api/ERRORCODE-ENUM-AUDIT-20261119.md',
+      scope,
+      { origin: 'assistant' },
+    );
+  });
+
+  it('shows missing (404) instead of ambiguous when relative path and suffix fallback both fail to find a file', async () => {
+    vi.mocked(resourcePreviewClient.open).mockResolvedValue({ ok: false, code: 'missing' });
+
+    render(
+      <ResourcePreview
+        entries={[
+          {
+            key: 'missing-rel',
+            href: 'xy-token-api/ERRORCODE-ENUM-AUDIT-20261119.md',
+            scope: { id: 'nomi:1', cwd: '/repo/xy-token-api', fallbackCwds: ['/repo/extra'] },
+          },
+        ]}
+        activeKey="missing-rel"
+        expanded={false}
+        originMismatch={false}
+        onActive={vi.fn()}
+        onCloseEntry={vi.fn()}
+        onCloseEntries={vi.fn()}
+        onExpanded={vi.fn()}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    await screen.findByText(/文件不存在|does not exist/i);
+    expect(screen.queryByText(/省略路径无法唯一定位|cannot be resolved uniquely/i)).toBeNull();
+  });
+
+  it('continues checking fallbackCwds when the first root suffix lookup reports ambiguous', async () => {
+    vi.mocked(resourcePreviewClient.open).mockImplementation(async (cwd, input) => {
+      if (input === 'shared/note.md') return { ok: false, code: 'missing' };
+      if (cwd === '/repo/a' && input === '.../shared/note.md') {
+        return { ok: false, code: 'ambiguous' };
+      }
+      if (cwd === '/repo/b' && input === '.../shared/note.md') {
+        return {
+          ok: true,
+          kind: 'text',
+          path: '/repo/b/docs/shared/note.md',
+          content: 'resolved from fallback root\n',
+          url: '/__nomi/preview/fallback-hit',
+        };
+      }
+      return { ok: false, code: 'missing' };
+    });
+
+    render(
+      <ResourcePreview
+        entries={[
+          {
+            key: 'ambig-fallback',
+            href: 'shared/note.md',
+            scope: { id: 'nomi:1', cwd: '/repo/a', fallbackCwds: ['/repo/b'] },
+          },
+        ]}
+        activeKey="ambig-fallback"
+        expanded={false}
+        originMismatch={false}
+        onActive={vi.fn()}
+        onCloseEntry={vi.fn()}
+        onCloseEntries={vi.fn()}
+        onExpanded={vi.fn()}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    const source = await screen.findByTestId('resource-preview-source');
+    expect(source.textContent).toContain('resolved from fallback root');
+  });
 });

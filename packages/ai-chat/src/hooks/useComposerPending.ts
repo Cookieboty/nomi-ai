@@ -13,12 +13,13 @@ import {
   type PendingSendStore,
   type PendingSource,
 } from '../services/pendingSendsStore';
-import type { PendingMode, PendingSend } from '../utils/pendingSends';
+import type { ImageAttachment } from '../services/screenClient';
+import { toImageAttachments, type PendingMode, type PendingSend } from '../utils/pendingSends';
 
 import { useSendQueue, type QueueOpts, type SteerChannel } from './useSendQueue';
 
 interface NomiActions {
-  sendStreamMessage: (text: string) => Promise<void>;
+  sendStreamMessage: (text: string, images?: ImageAttachment[]) => Promise<void>;
   askKnowledge: (text: string) => Promise<void>;
   steerStream: (text: string) => Promise<boolean>;
   nomiToolRunning: () => boolean;
@@ -88,9 +89,13 @@ export function useComposerPending(
   // 只有当前会话在回复时才进列表：别的会话在回复不影响这里直接发送
   const nomiQueue = useSendQueue(
     busyHere,
-    // 入队时冻结的意图：知识库问答排的队，出队后仍走带引用的问答
+    // 入队时冻结的意图：带图走流式图文发送，知识库问答排的队仍走带引用的问答
     (text: string, opts?: QueueOpts) =>
-      opts?.kb ? actions.askKnowledge(text) : actions.sendStreamMessage(text),
+      opts?.images?.length
+        ? actions.sendStreamMessage(text, toImageAttachments(opts.images))
+        : opts?.kb
+          ? actions.askKnowledge(text)
+          : actions.sendStreamMessage(text),
     resetKey,
     steer,
     pendingStore,
@@ -105,7 +110,7 @@ export function useComposerPending(
   const onWithdraw = useCallback(
     (item: PendingSend) => {
       onRemove(item.id);
-      fillComposer(item.text);
+      fillComposer(item.text, item.images?.length ? toImageAttachments(item.images) : undefined);
     },
     [onRemove, fillComposer],
   );
@@ -113,12 +118,19 @@ export function useComposerPending(
   const { send: tabSend, cancel: tabCancel, flushPending } = tabs;
   const { enqueue, flush } = nomiQueue;
   const count = items?.length ?? 0;
+  const cliBusy =
+    !!cli && (tabs.activeTab?.status === 'running' || tabs.activeTab?.status === 'queued');
+  const canFlush = cli ? cliBusy : busyHere;
+  const onFlush = useCallback(() => {
+    if (cli) void flushPending();
+    else flush();
+  }, [cli, flushPending, flush]);
   const queueProps = useMemo(
     () =>
       cli
         ? {
-            onQueue: (text: string, o?: { mode?: PendingMode }): void =>
-              void tabSend(text, undefined, o?.mode),
+            onQueue: (text: string, o?: { mode?: PendingMode; images?: ImageAttachment[] }): void =>
+              void tabSend(text, o?.images, o?.mode),
             onStop: (): void => void tabCancel(),
             pending: count,
             onFlush: (): void => void flushPending(),
@@ -126,5 +138,24 @@ export function useComposerPending(
         : { onQueue: enqueue, pending: count, onFlush: flush },
     [cli, tabSend, tabCancel, flushPending, enqueue, flush, count],
   );
-  return { nomiQueue, items, onRemove, onWithdraw, queueProps };
+  // agent 标签自动发送失败的可见提示与「重试」（Nomi 主对话的发送失败另有通道，不在这里）
+  const failure = cli ? tabs.sendFails[cli]?.message : undefined;
+  const failedText = cli ? tabs.sendFails[cli]?.item.text : undefined;
+  const onRetry = useCallback(() => {
+    if (cli) tabs.retryFailedSend(cli);
+  }, [cli, tabs]);
+  const inFlightId = cli ? tabs.inFlight[cli] : undefined;
+  return {
+    nomiQueue,
+    items,
+    onRemove,
+    onWithdraw,
+    onFlush,
+    canFlush,
+    queueProps,
+    failure,
+    failedText,
+    onRetry,
+    inFlightId,
+  };
 }

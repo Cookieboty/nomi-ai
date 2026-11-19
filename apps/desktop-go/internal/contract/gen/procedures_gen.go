@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 490：mutation 346 / query 139 / stream 5
+// 合计 496：mutation 352 / query 139 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -406,6 +406,12 @@ var Procedures = []Procedure{
 	{Name: "sched.toggleTask", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "sched.upsertTask", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "screen.checkSend", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "sideTerminal.close", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "sideTerminal.closeAll", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "sideTerminal.open", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "sideTerminal.resize", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "sideTerminal.sync", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "sideTerminal.write", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "startup.get", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "startup.set", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.accept", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -586,6 +592,8 @@ var Events = []string{
 	"sched.changed",
 	"sched.proactive",
 	"sched.result",
+	"sideTerminal.data",
+	"sideTerminal.exit",
 	"startup.changed",
 	"tasks.changed",
 	"tasks.live",

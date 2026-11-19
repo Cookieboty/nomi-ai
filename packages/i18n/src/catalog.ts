@@ -791,8 +791,6 @@ export type TranslationKey =
   | 'ui.chat-settings.auto-edit-files'
   | 'ui.chat-settings.auto-for-read-only-confirm-others'
   | 'ui.chat-settings.endpoint-visibility-hint'
-  | 'ui.chat-settings.back-to-chat'
-  | 'ui.chat-settings.back-to-chat-esc'
   | 'ui.chat-settings.background'
   | 'ui.chat-settings.background-image-import-failed'
   | 'ui.chat-settings.background-image-too-large'

@@ -253,4 +253,47 @@ describe('第三方供应商（输入框左下角只切供应商，模型在模�
     expect(swLocal?.target).toBe('local');
     expect(swLocal?.items[0]!.label).toBe('沿用本机登录');
   });
+
+  it('有官方账号能力的助手无登录、无默认且多家三方并存时：newTabSelectValue 返回空且不盲选第 0 家', () => {
+    const client = { models: {} };
+    expect(
+      newTabSelectValue(client, 'claude', {
+        accounts: [],
+        localAvailable: false,
+        gateway,
+      }),
+    ).toBe('');
+    const opts = newTabOptions({
+      kind: 'claude',
+      client,
+      gateway,
+      accounts: [],
+      localAvailable: false,
+    });
+    expect(opts.map((o) => o.value)).toEqual(['', 'provider:amux', 'provider:deep']);
+    expect(opts[0]!.disabled).toBe(true);
+    expect(opts[0]!.label).toBe('选一个第三方供应商');
+
+    // 仅 1 家可用第三方供应商时依然默认选中该唯一供应商
+    const singleGw = {
+      ...gateway,
+      providers: [provider('amux', 'Amux AI', ['gpt-x'])],
+      clients: {},
+    } as unknown as GatewayState;
+    expect(
+      newTabSelectValue(client, 'claude', {
+        accounts: [],
+        localAvailable: false,
+        gateway: singleGw,
+      }),
+    ).toBe('provider:amux');
+    const singleOpts = newTabOptions({
+      kind: 'claude',
+      client,
+      gateway: singleGw,
+      accounts: [],
+      localAvailable: false,
+    });
+    expect(singleOpts.map((o) => o.value)).toEqual(['provider:amux']);
+  });
 });

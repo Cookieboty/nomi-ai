@@ -40,3 +40,23 @@ func TestStandardOf(t *testing.T) {
 		t.Fatalf("input small %v %v", s, ok)
 	}
 }
+
+func TestReasoningOfClaudeAdaptive(t *testing.T) {
+	opus55 := objOf(`{"id":"claude-opus-5-5","family":"claude-opus","reasoning":true,"reasoning_options":[{"type":"effort","values":["low","medium","high","xhigh","max"]}]}`)
+	r := reasoningOf(opus55)
+	if r == nil || r.Get("control") != "adaptive" || r.Get("canDisable") != false {
+		t.Fatalf("claude-opus-5-5 reasoning=%s", u.Stringify(r))
+	}
+
+	haiku55 := objOf(`{"id":"claude-haiku-5-5","family":"claude-haiku","reasoning":true,"reasoning_options":[{"type":"effort","values":["low","medium","high","xhigh","max"]},{"type":"toggle"}]}`)
+	rh := reasoningOf(haiku55)
+	if rh == nil || rh.Get("control") != "adaptive" || rh.Get("canDisable") != true {
+		t.Fatalf("claude-haiku-5-5 reasoning=%s", u.Stringify(rh))
+	}
+
+	opus45 := objOf(`{"id":"claude-opus-4-5","family":"claude-opus","reasoning":true,"reasoning_options":[{"type":"effort","values":["low","medium","high"]},{"type":"budget_tokens","min":1024}]}`)
+	r45 := reasoningOf(opus45)
+	if r45 == nil || r45.Get("control") != "adaptive" || r45.Has("canDisable") {
+		t.Fatalf("claude-opus-4-5 reasoning=%s", u.Stringify(r45))
+	}
+}

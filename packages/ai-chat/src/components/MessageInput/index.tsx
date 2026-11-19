@@ -69,6 +69,7 @@ export const COMPOSER_MIN_HEIGHT_PX = 44;
 export const COMPOSER_MAX_HEIGHT_PX = 240;
 
 const MessageInputImpl: React.FC<MessageInputProps> = ({
+  onBeforeSend,
   onSend,
   busyOverride,
   imageCapability,
@@ -174,7 +175,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   useEffect(() => {
     if (!fill || fill.nonce === seenFill.current) return;
     seenFill.current = fill.nonce;
-    linkedDraft.append(fill.text);
+    if (fill.text) linkedDraft.append(fill.text);
+    if (fill.images?.length) addImages(fill.images);
     requestAnimationFrame(() => {
       const el = textareaRef.current;
       if (!el) return;
@@ -256,6 +258,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const handleSend = createSendHandler(
     {
       actions,
+      onBeforeSend,
       onSend,
       busyOverride,
       imageCapability,
@@ -325,7 +328,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   }, [isDisabled, busy]);
   const onVoiceText = useCallback(
     (text: string, autoSend: boolean) => {
-      if (autoSend && !busyRef.current) {
+      if (autoSend && !busyRef.current && (!onBeforeSend || onBeforeSend())) {
         void (onSend
           ? Promise.resolve(onSend(text))
           : kbMode && kbAvailable
@@ -336,7 +339,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       setMessage((m) => (m ? `${m} ${text}` : text));
       requestAnimationFrame(() => textareaRef.current?.focus());
     },
-    [onSend, actions, kbMode, kbAvailable],
+    [onBeforeSend, onSend, actions, kbMode, kbAvailable],
   );
   const cv = useChatVoice({ disabled, onText: onVoiceText });
 

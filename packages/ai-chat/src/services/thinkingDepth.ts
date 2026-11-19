@@ -49,6 +49,35 @@ export function resolveThinkingLevel(
   return profile.default;
 }
 
+const GPT_NATIVE_RE = /^(?:gpt(?:[-.]|$)|chatgpt(?:[-.]|$)|o[134](?:[-.]|$)|codex(?:[-.]|$))/;
+
+/**
+ * 判断第三方模型是否天然属于当前 CLI 家族（支持通过 model.like 识别中转改名模型）。
+ * 同协议原生组合在未显式选档时与官方模式一致，保持透传。
+ */
+export function isNativeThirdPartyModel(
+  backend: string,
+  state: GatewayState | null,
+  ref: string | null,
+): boolean {
+  if (!backend || !ref) return false;
+  const parts = splitRef(ref);
+  if (!parts) return false;
+  const model = state?.providers
+    .find((p) => p.id === parts.provider)
+    ?.models.find((m) => m.id === parts.model);
+  const lookup = model?.like?.trim() || model?.id || parts.model;
+  const bare = lookup.slice(lookup.lastIndexOf('/') + 1).toLowerCase();
+  let native = '';
+  if (bare.startsWith('claude')) native = 'claude';
+  else if (GPT_NATIVE_RE.test(bare)) native = 'codex';
+  else if (bare.startsWith('gemini')) native = 'gemini';
+  else if (bare.startsWith('grok')) native = 'grok';
+  else if (bare.startsWith('kimi') || bare.startsWith('moonshot')) native = 'kimi';
+  else if (bare.startsWith('minimax') || bare.startsWith('abab')) native = 'minimax';
+  return native === backend;
+}
+
 /** 当前 Nomi 对话模型上，这一轮应该发出的档位。 */
 export function currentNomiThinking(stored?: string): string | undefined {
   const state = gatewayStateSnapshot();

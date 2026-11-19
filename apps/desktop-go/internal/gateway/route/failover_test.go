@@ -66,7 +66,7 @@ func TestFailoverTargets(t *testing.T) {
 	}
 }
 
-// 停用的供应商自己不出候选：显式请求与客户端分配都直接回退到同一个模型的下一家
+// 停用的供应商自己不出候选：默认关闭熔断降级时不回退，打开后自动回退到同一个模型的下一家
 func TestDisabledProviderFailsOver(t *testing.T) {
 	on := config.RuntimeModel{ID: "m", Enabled: true}
 	a := fp("a", "https://a.example/v1", false, on)
@@ -84,13 +84,30 @@ func TestDisabledProviderFailsOver(t *testing.T) {
 		}
 		return out
 	}
+	// 默认不开启 FailoverEnabled：即使有提供同模型的 b，停用的 a 也不自动回退
+	if r := ResolveCandidates(cfg, "claude", "old-a/m", "chat", nil); r.OK || r.Status != 400 || !strings.Contains(r.Message, "已停用") {
+		t.Fatalf("expected disabled error when failover off, got %+v", r)
+	}
+	if r := ResolveCandidates(cfg, "claude", "", "chat", nil); r.OK || r.Status != 400 || !strings.Contains(r.Message, "已停用") {
+		t.Fatalf("expected mapped disabled error when failover off, got %+v", r)
+	}
+	// 即便 a 处于启用状态，关闭熔断降级时也不会把 b 放入候选
+	cfgEnabled := *cfg
+	cfgEnabled.Providers = []config.RuntimeProvider{fp("a", "https://a.example/v1", true, on), b}
+	cfgEnabled.Providers[0].Keys = a.Keys
+	if r := ResolveCandidates(&cfgEnabled, "claude", "a/m", "chat", nil); !r.OK || !reflect.DeepEqual(pub(r), []string{"a/m"}) {
+		t.Fatalf("expected only a/m when failover off, got %+v", r)
+	}
+
+	// 开启 FailoverEnabled：停用与候选列表均自动回退到 b/m
+	cfg.FailoverEnabled = true
 	if r := ResolveCandidates(cfg, "claude", "old-a/m", "chat", nil); !r.OK || !reflect.DeepEqual(pub(r), []string{"b/m"}) {
 		t.Fatalf("explicit: %+v", r)
 	}
 	if r := ResolveCandidates(cfg, "claude", "", "chat", nil); !r.OK || !reflect.DeepEqual(pub(r), []string{"b/m"}) {
 		t.Fatalf("mapped: %+v", r)
 	}
-	only := &config.GatewayConfig{Providers: []config.RuntimeProvider{a}}
+	only := &config.GatewayConfig{Providers: []config.RuntimeProvider{a}, FailoverEnabled: true}
 	if r := ResolveCandidates(only, "claude", "a/m", "chat", nil); r.OK || r.Status != 400 || !strings.Contains(r.Message, "已停用") {
 		t.Fatalf("none: %+v", r)
 	}

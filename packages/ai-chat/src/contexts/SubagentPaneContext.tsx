@@ -34,6 +34,7 @@ import {
   panePrefWhenEmpty,
   type SideTabsPanePref,
 } from '../services/sideTabsPanePrefs';
+import { sideTerminalHost, sideTerminalIdFor, syncLiveTerminals } from '../services/sideTerminal';
 import { detachedKeysFor, parseDetachedId } from '../utils/detachedTabs';
 import type { SelectionQuote } from '../utils/selectionQuote';
 import {
@@ -42,9 +43,12 @@ import {
   closeAgent,
   closeSideTab,
   EMPTY_SIDE_TABS,
+  findPage,
   hasSideTabs,
   isSideChatKey,
+  isTerminalKey,
   moveTab,
+  newWorkspaceId,
   OPEN_FILE_SIDE_TAB,
   openAgent,
   openBrowserTab,
@@ -52,12 +56,16 @@ import {
   openFileBrowser,
   openNewTab,
   openSideChatPage,
+  openTerminalTab,
   pageKey,
   pruneAgents,
   readSideTabsStore,
   resolveActive,
   setBrowserUrl as setBrowserUrlState,
   setSplitRatio,
+  setTerminalLayout as setTerminalLayoutState,
+  setTerminalMeta as setTerminalMetaState,
+  terminalPaneIds,
   toggleMaximized,
   toggleSplit,
   writeSideTabsStore,
@@ -66,6 +74,7 @@ import {
   type SubagentTarget,
   type WorkspacePage,
 } from '../utils/sideTabs';
+import type { TerminalPaneNode } from '../utils/terminalSplit';
 
 import { useHarnessTabs } from './HarnessTabsContext';
 
@@ -145,6 +154,10 @@ interface SubagentPaneValue {
   /** 打开浏览器标签（同一 URL 已开着则切过去） */
   openBrowser: (url: string, opts?: { replace?: string; title?: string }) => void;
   setBrowserUrl: (key: string, url: string, title?: string) => void;
+  /** 新建内置终端标签（支持多开与替换来源的新标签页） */
+  openTerminal: (opts?: { replace?: string; cwd?: string; title?: string }) => string;
+  setTerminalMeta: (key: string, patch: { cwd?: string; title?: string }) => void;
+  setTerminalLayout: (key: string, layout: TerminalPaneNode, activePaneId?: string) => void;
 }
 
 const Ctx = createContext<SubagentPaneValue | null>(null);
@@ -159,6 +172,10 @@ export const SubagentPaneProvider: React.FC<{
   const [projectId, setProjectId] = useState<string | null>(null);
   // 每个会话一份；只有真实会话（scope 非空）写本地存储，重开应用后恢复
   const [byScope, setByScope] = useState<Record<string, SideTabsState>>(readSideTabsStore);
+  const byScopeRef = useRef(byScope);
+  useEffect(() => {
+    byScopeRef.current = byScope;
+  });
   const [meta, setMeta] = useState<Record<string, SideTabMeta>>({});
   const [filesOpenByScope, setFilesOpenByScope] = useState<Record<string, boolean>>({});
   const filesOpen = filesOpenByScope[scope] ?? false;
@@ -294,10 +311,18 @@ export const SubagentPaneProvider: React.FC<{
   );
   const split = useCallback((key?: string) => update((s) => toggleSplit(s, key)), [update]);
   const ratio = useCallback((r: number) => update((s) => setSplitRatio(s, r)), [update]);
-  // 关掉侧边聊天标签：聊天内容一并丢掉（它本来就是临时的）
+  // 关掉侧边聊天标签：聊天内容一并丢掉（它本来就是临时的）；关掉终端标签：通知宿主结束该标签下全部分屏 PTY
   const closeTab = useCallback(
     (key: string) => {
       if (isSideChatKey(key)) discardSideChat(key.slice('side-chat:'.length));
+      if (isTerminalKey(key)) {
+        const curState = byScopeRef.current[scope] ?? EMPTY_SIDE_TABS;
+        const page = findPage(curState, key);
+        const paneIds = page ? terminalPaneIds(page) : [key.slice('terminal:'.length)];
+        for (const pid of paneIds) {
+          sideTerminalHost.close(sideTerminalIdFor(pid));
+        }
+      }
       // 关闭打开文件页时其内部预览文件一并清空，不应受同一渲染帧尚未刷新的 filesOpen=true 阻塞收起
       const nextFilesOpen = key === OPEN_FILE_SIDE_TAB ? false : filesOpen;
       if (key === OPEN_FILE_SIDE_TAB && filesOpen) setFilesOpen(false);
@@ -312,7 +337,7 @@ export const SubagentPaneProvider: React.FC<{
         return next;
       });
     },
-    [update, panePref, filesOpen, setFilesOpen, setPanePref],
+    [update, panePref, filesOpen, setFilesOpen, setPanePref, scope],
   );
   const closeSubagent = useCallback(() => {
     if (active) closeTab(active);
@@ -465,6 +490,61 @@ export const SubagentPaneProvider: React.FC<{
       update((s) => setBrowserUrlState(s, key, url, title)),
     [update],
   );
+  const addTerminal = useCallback(
+    (opts?: { replace?: string; cwd?: string; title?: string }) => {
+      const id = newWorkspaceId();
+      revealPane();
+      update((s) => openTerminalTab(s, { ...opts, id }));
+      return id;
+    },
+    [update, revealPane],
+  );
+  const patchTerminalMeta = useCallback(
+    (key: string, patch: { cwd?: string; title?: string }) =>
+      update((s) => setTerminalMetaState(s, key, patch)),
+    [update],
+  );
+  const patchTerminalLayout = useCallback(
+    (key: string, layout: TerminalPaneNode, activePaneId?: string) =>
+      update((s) => setTerminalLayoutState(s, key, layout, activePaneId)),
+    [update],
+  );
+
+  // 汇总全部会话里仍开着的终端 id，去抖同步给宿主防孤儿进程；页面卸载时清理全部终端
+  const liveTerminalIds = useMemo(() => {
+    const ids: string[] = [];
+    for (const s of Object.values(byScope)) {
+      for (const p of s.pages) {
+        if (p.kind !== 'terminal') continue;
+        for (const pid of terminalPaneIds(p)) {
+          ids.push(sideTerminalIdFor(pid));
+        }
+      }
+    }
+    return ids;
+  }, [byScope]);
+  const prevLiveKeyRef = useRef<string | null>(null);
+  const hadTerminalsRef = useRef(false);
+  useEffect(() => {
+    if (liveTerminalIds.length > 0) hadTerminalsRef.current = true;
+    if (!hadTerminalsRef.current) return;
+    const key = liveTerminalIds.join('\0');
+    if (prevLiveKeyRef.current === key) return;
+    prevLiveKeyRef.current = key;
+    syncLiveTerminals(liveTerminalIds);
+  }, [liveTerminalIds]);
+  useEffect(() => {
+    const closeIfNeeded = () => {
+      if (hadTerminalsRef.current) sideTerminalHost.closeAll();
+    };
+    window.addEventListener('pagehide', closeIfNeeded);
+    window.addEventListener('beforeunload', closeIfNeeded);
+    return () => {
+      window.removeEventListener('pagehide', closeIfNeeded);
+      window.removeEventListener('beforeunload', closeIfNeeded);
+      closeIfNeeded();
+    };
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -506,6 +586,9 @@ export const SubagentPaneProvider: React.FC<{
       openFileBrowser: addFileBrowser,
       openBrowser: addBrowser,
       setBrowserUrl: patchBrowserUrl,
+      openTerminal: addTerminal,
+      setTerminalMeta: patchTerminalMeta,
+      setTerminalLayout: patchTerminalLayout,
     }),
     [
       openSideChat,
@@ -515,6 +598,9 @@ export const SubagentPaneProvider: React.FC<{
       addFileBrowser,
       addBrowser,
       patchBrowserUrl,
+      addTerminal,
+      patchTerminalMeta,
+      patchTerminalLayout,
       paneVisible,
       panePref,
       showPane,

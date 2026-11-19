@@ -256,4 +256,84 @@ describe('第三方供应商选择', () => {
     expect(provBtn.textContent).toContain('Amux AI');
     expect(provBtn.textContent).not.toContain('未配置');
   });
+
+  it('多供应商无默认且处于 thirdParty 待选态时：按钮显示「选择模型」，打开直接列全供应商标签并隐藏「默认模型」', async () => {
+    const tab: HarnessTabMeta = {
+      id: 'c-pending',
+      title: 'Claude Code',
+      backend: 'claude',
+      cwd: '/w',
+      cliSessionId: null,
+      status: 'idle',
+      unread: 0,
+      createdAt: 0,
+      updatedAt: 0,
+      source: 'thirdParty',
+      modelOverride: null,
+      reasoningEffort: null,
+    };
+    const providers = [
+      {
+        id: 'amux',
+        name: 'Amux AI',
+        enabled: true,
+        source: 'user',
+        urls: { chat: 'https://example.com' },
+        keys: [],
+        models: [{ id: 'gpt-4o', enabled: true, toolCalling: true }],
+      },
+      {
+        id: 'deep',
+        name: 'DeepSeek',
+        enabled: true,
+        source: 'user',
+        urls: { chat: 'https://api.deepseek.com' },
+        keys: [],
+        models: [{ id: 'ds-v4', enabled: true, toolCalling: true }],
+      },
+    ];
+    const catalog: BackendModelCatalog = {
+      backend: 'claude',
+      provider: { id: 'gateway', name: '第三方模型' },
+      defaultModel: null,
+      models: [
+        { id: 'amux/gpt-4o', label: 'Amux AI / gpt-4o', reasoning: false, efforts: [] },
+        { id: 'deep/ds-v4', label: 'DeepSeek / ds-v4', reasoning: false, efforts: [] },
+      ],
+    };
+    const invoke = vi.fn(async (ch: string, input?: Record<string, unknown>) => {
+      if (ch === 'gateway.state') {
+        return {
+          providers,
+          clients: { claude: { models: {} } },
+          status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
+          allowedPrivateHosts: [],
+          port: 1,
+        };
+      }
+      if (ch === 'cli.launcherGet') return {};
+      if (ch === 'cliAccount.list') return [];
+      if (ch === 'harness.modelCatalog') return catalog;
+      if (ch === 'harness.tabModel') {
+        return { ...tab, modelOverride: String(input?.model) };
+      }
+      return {};
+    });
+    installFakeApi(invoke);
+    const r = render(<ModelControls tab={tab} />);
+    await waitFor(() => expect(r.getByTestId('model-chip').textContent).toBe('选择模型'));
+    fireEvent.click(r.getByTestId('model-chip'));
+    await waitFor(() => expect(r.getByTestId('model-picker-tab-amux')).toBeTruthy());
+    expect(r.getByTestId('model-picker-tab-amux').getAttribute('aria-selected')).toBe('true');
+    expect(r.getByTestId('model-picker-tab-deep')).toBeTruthy();
+    expect(r.queryByTestId('model-default')).toBeNull();
+    fireEvent.click(r.getByTestId('model-amux/gpt-4o'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('harness.tabModel', {
+        id: 'c-pending',
+        model: 'amux/gpt-4o',
+        expectSource: 'thirdParty',
+      }),
+    );
+  });
 });

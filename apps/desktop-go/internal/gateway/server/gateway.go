@@ -1130,7 +1130,7 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 	if sticky != nil && (len(r.Candidates) == 0 || sticky.ProviderID != r.Candidates[0].Provider.ID) {
 		sticky = nil
 	}
-	queue := g.ordered(g.withSuppression(cfg, r.Candidates, ingress.Wire), sticky)
+	queue := g.ordered(cfg, g.withSuppression(cfg, r.Candidates, ingress.Wire), sticky)
 	learnRetries := 0
 	// 重连（retry.go）：同一个 Key 退避重连几次、同一家累计失败几次
 	keysOf := map[string]map[string]bool{}
@@ -1289,7 +1289,7 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 		retried := keyRetries[keyID]
 		failed := last
 		coolDown := func() {
-			if upstream.CoolsDown(failed.network, ups) && !aborted() {
+			if cfg.FailoverEnabled && upstream.CoolsDown(failed.network, ups) && !aborted() {
 				g.cool.Fail(c, upstream.Failure{UpstreamStatus: ups, RetryAfter: failed.retryAfter, Message: strp(failed.message)})
 			}
 		}
@@ -1632,13 +1632,14 @@ func (g *GatewayServer) withSuppression(cfg *config.GatewayConfig, cands []*cand
 	return append(head, tail...)
 }
 
-// ordered: sticky first, demoted then cooling last.
-func (g *GatewayServer) ordered(cands []*cand.Candidate, sticky *AffinityTarget) []*cand.Candidate {
+// ordered: sticky first, and only applies cooldown/demotion when FailoverEnabled is on.
+func (g *GatewayServer) ordered(cfg *config.GatewayConfig, cands []*cand.Candidate, sticky *AffinityTarget) []*cand.Candidate {
 	var first, rest, demoted, cooling []*cand.Candidate
-	adaptive := AdaptiveRouteEnabled()
+	failover := cfg != nil && cfg.FailoverEnabled
+	adaptive := failover && AdaptiveRouteEnabled()
 	for _, c := range cands {
 		switch {
-		case g.cool.IsCooling(c):
+		case failover && g.cool.IsCooling(c):
 			cooling = append(cooling, c)
 		case adaptive && g.Metrics.ShouldDemote(c.Provider.ID, c.Key.ID, c.Wire):
 			demoted = append(demoted, c)

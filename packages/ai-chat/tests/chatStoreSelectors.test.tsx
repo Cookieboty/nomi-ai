@@ -18,7 +18,10 @@ import {
 } from '../src/contexts/aiChatStore';
 import type { ChatMessage } from '../src/types/chat';
 import {
+  fromChatMessage,
+  nomiConvMessages,
   nomiLive,
+  nomiLiveTrace,
   sameLive,
   settledNomiMessages,
   splitNomiMessages,
@@ -149,5 +152,38 @@ describe('chat store selectors: streaming frames rerender only the live turn', (
     expect(settledNomiMessages(msgs, true)).toEqual([user]);
     expect(settledNomiMessages(msgs, false)).toEqual(msgs);
     expect(nomiLive(msgs, false)).toBeUndefined();
+  });
+
+  it('hides hidden messages and preserves live tail even if delegate-* messages sit at the tail', () => {
+    const u: ChatMessage = { id: 'u1', role: 'user', content: '查一下', timestamp: 1 };
+    const hiddenDelegate: ChatMessage = {
+      id: 'delegate-t0-10',
+      role: 'assistant',
+      content: '静默结果',
+      timestamp: 2,
+      origin: 'background',
+      hidden: true,
+    };
+    const streaming: ChatMessage = {
+      id: 'a_live',
+      role: 'assistant',
+      content: '正在流式',
+      timestamp: 3,
+      trace: [{ type: 'thinking', text: '分析中', startedAt: 3 }],
+    };
+    const trailingDelegate: ChatMessage = {
+      id: 'delegate-t1-20',
+      role: 'assistant',
+      content: '图生成好了',
+      timestamp: 4,
+      origin: 'background',
+    };
+    const list = [u, hiddenDelegate, streaming, trailingDelegate];
+
+    expect(fromChatMessage(hiddenDelegate)).toBeNull();
+    expect(nomiConvMessages(list).map((m) => m.id)).toEqual(['u1', 'a_live', 'delegate-t1-20']);
+    expect(settledNomiMessages(list, true).map((m) => m.id)).toEqual(['u1', 'delegate-t1-20']);
+    expect(nomiLive(list, true)?.text).toBe('正在流式');
+    expect(nomiLiveTrace(list, true)).toBe(streaming.trace);
   });
 });

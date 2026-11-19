@@ -231,6 +231,27 @@ func spread(v any) *u.Obj {
 	return u.NewObj()
 }
 
+func needsAdaptiveRewrite(body any, m *u.Obj) bool {
+	o, ok := body.(*u.Obj)
+	if !ok || o == nil {
+		return false
+	}
+	th, _ := o.Get("thinking").(*u.Obj)
+	if th == nil {
+		return false
+	}
+	typ, _ := th.Get("type").(string)
+	control, _ := at(m, "reasoning", "control").(string)
+	isEffortControl := control == "adaptive" || control == "effort"
+	if isEffortControl && at(m, "reasoning", "budget") == nil && typ == "enabled" {
+		return true
+	}
+	if isEffortControl && at(m, "reasoning", "canDisable") == false && typ == "disabled" {
+		return true
+	}
+	return false
+}
+
 // Body is upstreamBody; the error is UnsupportedParamError (strict models).
 func Body(ingress string, c *cand.Candidate, body any, opts BodyOpts) (any, error) {
 	var out any
@@ -251,9 +272,10 @@ func Body(ingress string, c *cand.Candidate, body any, opts BodyOpts) (any, erro
 		}
 		unsupported := in != nil && in.Source == "explicit" && in.Effort != "" && len(efforts) > 0 &&
 			mreq.FitLevel(in.Effort, efforts) != in.Effort
+		legacyThinking := c.Wire == "messages" && needsAdaptiveRewrite(out, m)
 		if bound != nil && bound.Source == "binding" {
 			out = mreq.RenderReasoning(c.Wire, out, bound, m, opts.Notes).Body
-		} else if unsupported {
+		} else if in != nil && (unsupported || legacyThinking) {
 			out = mreq.RenderReasoning(c.Wire, out, in, m, opts.Notes).Body
 		}
 		if c.CustomToolsAsFunctions && c.Wire == "responses" {

@@ -206,6 +206,8 @@ export interface GatewayState {
   port: number;
   /** 严格模式（默认关）：模型不支持的参数直接报错，而不是丢弃并记录 */
   strictParams?: boolean;
+  /** 熔断降级（默认关）：打开后启用失败冷却熔断、健康度自适应降级与跨供应商自动回退 */
+  failoverEnabled?: boolean;
   /** 上下文档位。缺省 / 0 = 跟模型；128000 / 200000 / 262144 是硬上限 */
   contextTier?: number;
   /** 全局后台辅助轻量模型（网关 'provider/model' ref） */
@@ -403,6 +405,7 @@ export const gatewayClient = {
   retry: () => call<void>(() => api.gateway.retry()),
   setOptions: (patch: {
     strictParams?: boolean;
+    failoverEnabled?: boolean;
     maxRequestBodyBytes?: number;
     contextTier?: number;
     helperModel?: string | null;

@@ -28,6 +28,12 @@ export interface StoredPendingSend {
   kb?: true;
   /** 这一轮启动前已经收到（见本文件开头）：补成用户消息，不再当待发 */
   sent?: true;
+  /**
+   * 自动发送失败、还留在队首的那条带图消息：图片（base64）按现有策略不写进 localStorage / 元信息，
+   * 重启后这份只剩正文——标上「附件缺失」，恢复时不自动发出、提示重新附上图片，避免把不完整的话当成
+   * 原消息发出去（见 HarnessTabsContext 的失败提示）。
+   */
+  attachmentsMissing?: true;
 }
 
 /** 写存下的待发列表的原因（决定「这一轮收到了」那份怎么并进去） */
@@ -53,6 +59,21 @@ export const PENDING_GROUP_PREFIX = 'nomi.pendingGroup:';
 
 const pickKb = (i: PendingSend) => (i.kb ? { kb: true as const } : {});
 
+/**
+ * 标「附件缺失」的那条：图片按现有策略不落盘，重写存下的那份只剩正文——保留标记，重启后提示重新附上，
+ * 不把不完整的正文当成原消息自动发出去（见 HarnessTabsContext.failQueuedSend）。
+ *
+ * 标记可能刚打在传进来的这条上（failQueuedSend 先把带图失败的那条按「只留正文」埋进列表再 save），
+ * 也可能只存在于已存下的那份（old，读回后再写）；两处都认。重新附上图片之后清掉——附件齐了就不是残缺的。
+ */
+const keepMissing = (i: PendingSend, old: StoredPendingSend | undefined) => {
+  if (i.images?.length) return {};
+  const marked =
+    (i as { attachmentsMissing?: unknown }).attachmentsMissing === true ||
+    old?.attachmentsMissing === true;
+  return marked ? { attachmentsMissing: true as const } : {};
+};
+
 /** 写进存下那份的（清洗过：去掉空条、截断超长正文、多余字段）；sent 的照原样留（重写时不变） */
 export function storedPendingSends(
   items: readonly PendingSend[],
@@ -71,6 +92,7 @@ export function storedPendingSends(
       mode: i.mode,
       ...pickKb(i),
       ...(old?.sent && old.text === text ? { sent: true as const } : {}),
+      ...keepMissing(i, old),
     });
     if (out.length >= STORED_PENDING_MAX) break;
   }
@@ -91,6 +113,7 @@ export function readStoredPendingSends(raw: unknown): StoredPendingSend[] {
       mode: r.mode === 'steer' ? 'steer' : 'queue',
       ...(r.kb === true ? { kb: true } : {}),
       ...(r.sent === true ? { sent: true } : {}),
+      ...(r.attachmentsMissing === true ? { attachmentsMissing: true } : {}),
     });
     if (out.length >= STORED_PENDING_MAX) break;
   }
@@ -280,6 +303,7 @@ const sameStored = (a: readonly StoredPendingSend[], b: readonly StoredPendingSe
       x.text === y.text &&
       x.mode === y.mode &&
       !!x.kb === !!y.kb &&
-      !!x.sent === !!y.sent
+      !!x.sent === !!y.sent &&
+      !!x.attachmentsMissing === !!y.attachmentsMissing
     );
   });

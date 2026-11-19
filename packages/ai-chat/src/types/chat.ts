@@ -35,6 +35,8 @@ export interface ChatMessage {
    * compaction：Nomi 对话的上下文压缩，content 是较早对话的摘要（services/compaction.ts）
    */
   origin?: 'background' | 'compaction';
+  /** 仅保留给下一轮模型上下文读取（如已有卡片展示结果的后台委派终态），不在对话消息流中渲染成气泡 */
+  hidden?: boolean;
   /** 回答时参考了哪些长期记忆 */
   memories?: Array<{ id: string; kind: 'episode' | 'fact'; title: string }>;
   /**

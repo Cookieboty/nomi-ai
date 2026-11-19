@@ -91,6 +91,12 @@ func (o *Orchestrator) SendTab(id, prompt string, images []any, userInitiated bo
 			o.adoptScope(current)
 			o.changed()
 		}
+		if o.reconcileEmptyTabSource(current) {
+			o.changed()
+		}
+		if msg := o.tabPreflightError(current); msg != "" {
+			throw(msg)
+		}
 		modelOf := o.turnModelResolver(current)
 		var servedRef *string
 		if o.sourceOf(current) == "thirdParty" {

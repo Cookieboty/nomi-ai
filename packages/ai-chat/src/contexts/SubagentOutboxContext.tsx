@@ -83,7 +83,11 @@ function Delivery({ entry, boxKey, outbox }: { entry: Entry; boxKey: string; out
         const rec = await tasksApi.get(target.taskId);
         if (!rec) throw new Error('not_found');
         if (ACTIVE_TASK.has(rec.task.status)) return false;
-        const result = await tasksApi.followUp(target.taskId, text, images);
+        const result = await tasksApi.followUp(
+          target.taskId,
+          text,
+          images.length ? images.map(({ mime, data }) => ({ mime, data })) : undefined,
+        );
         if (result.ok) return true;
         if (result.reason === 'busy') return false;
         throw new Error(result.reason || 'error');

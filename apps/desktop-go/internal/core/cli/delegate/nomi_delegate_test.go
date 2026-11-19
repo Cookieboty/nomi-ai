@@ -115,15 +115,27 @@ func TestChildPermissionMode(t *testing.T) {
 		}
 	}
 	for _, tc := range []struct {
-		cli, want string
+		cli, nomi, tabDefault, want string
 	}{
-		{"claude", "bypass"},
-		{"dsh", "bypass"},
-		// minimax 没有全自动档（只有 plan / default），只能取它能给的最高档
-		{"minimax", "manual"},
+		{"claude", "auto", "plan", "bypass"},
+		{"claude", "manual", "plan", "bypass"},
+		{"claude", "acceptEdits", "manual", "bypass"},
+		{"claude", "plan", "manual", "bypass"},
+		{"codex", "manual", "plan", "bypass"},
+		{"grok", "manual", "plan", "bypass"},
+		{"grok", "acceptEdits", "manual", "bypass"},
+		{"gemini", "manual", "plan", "bypass"},
+		{"dsh", "manual", "plan", "bypass"},
+		{"kimi", "manual", "plan", "bypass"},
+		// minimax 没有全自动档（只有 plan / default），无论 Nomi 是什么模式都只能取它能给的最高档
+		{"minimax", "auto", "plan", "manual"},
+		{"minimax", "manual", "plan", "manual"},
 	} {
-		if got := ChildPermissionModeFor(tc.cli, "auto", "plan"); got != tc.want {
-			t.Errorf("ChildPermissionModeFor(%q, auto, plan) = %q, want %q", tc.cli, got, tc.want)
+		if got := ChildPermissionModeFor(tc.cli, tc.nomi, tc.tabDefault); got != tc.want {
+			t.Errorf("ChildPermissionModeFor(%q, %q, %q) = %q, want %q", tc.cli, tc.nomi, tc.tabDefault, got, tc.want)
+		}
+		if got := DelegatePermissionMode(tc.cli); got != tc.want {
+			t.Errorf("DelegatePermissionMode(%q) = %q, want %q", tc.cli, got, tc.want)
 		}
 	}
 }
@@ -144,6 +156,39 @@ func TestDelegateToCliAutoModePassesBypass(t *testing.T) {
 	opts, ok := created[1].(*util.Obj)
 	if !ok || opts.Get("permissionMode") != "bypass" {
 		t.Fatalf("child permission mode = %v, want bypass（委派是后台无人值守，不能停下来问）; opts=%s", opts.Get("permissionMode"), util.Stringify(opts))
+	}
+}
+
+func TestDelegateToCliAlwaysAutoRegardlessOfNomiMode(t *testing.T) {
+	for _, nomiMode := range []string{"manual", "acceptEdits", "auto"} {
+		for _, autoApprove := range []bool{false, true} {
+			for _, tc := range []struct {
+				cli, want string
+			}{
+				{"grok", "bypass"},
+				{"claude", "bypass"},
+				{"codex", "bypass"},
+				{"gemini", "bypass"},
+				{"dsh", "bypass"},
+				{"kimi", "bypass"},
+				{"minimax", "manual"},
+			} {
+				e := newTaskEnv(t, util.NewObj("mode", nomiMode, "autoApprove", autoApprove, "tabDefault", "plan"), nil)
+				e.h.sc.Set("installed", []any{tc.cli})
+				r := e.call(nil, "delegate_to_cli", delegateRaw("background", false, "cli", tc.cli), tools.ExecContext{})
+				if r.Get("ok") != true {
+					t.Fatalf("nomi=%s autoApprove=%v cli=%s err=%s", nomiMode, autoApprove, tc.cli, util.Stringify(r))
+				}
+				created, ok := e.log.harness[0].([]any)
+				if !ok || len(created) != 2 || created[0] != "createTab" {
+					t.Fatalf("unexpected harness log: %v", e.log.harness)
+				}
+				opts := created[1].(*util.Obj)
+				if got := opts.Get("permissionMode"); got != tc.want {
+					t.Fatalf("nomi=%s autoApprove=%v cli=%s: child permissionMode=%v, want %s", nomiMode, autoApprove, tc.cli, got, tc.want)
+				}
+			}
+		}
 	}
 }
 

@@ -77,7 +77,7 @@ func userData(m *config.RuntimeModel) (*u.Obj, []string) {
 	if len(m.Efforts) > 0 {
 		r, _ := data.Get("reasoning").(*u.Obj)
 		if r == nil {
-			r = u.NewObj("control", "effort")
+			r = u.NewObj()
 		} else {
 			r = r.Clone()
 		}
@@ -109,7 +109,7 @@ func learnedData(l *config.LearnedModel, proto bool, now float64) *u.Obj {
 	}
 	d := u.NewObj()
 	if len(l.Efforts) > 0 {
-		d.Set("reasoning", u.NewObj("control", "effort", "efforts", strs(l.Efforts)))
+		d.Set("reasoning", u.NewObj("efforts", strs(l.Efforts)))
 	}
 	if l.Temperature != nil && !*l.Temperature {
 		d.Set("sampling", u.NewObj("temperature", false))
@@ -205,6 +205,17 @@ func EffectiveModel(p *config.RuntimeProvider, model string, learned *config.Lea
 	if len(set) > 0 {
 		data = Merge(data, ud)
 		sources = append(sources, "user")
+	}
+	if r, _ := data.Get("reasoning").(*u.Obj); r != nil && r.Has("efforts") && !contains(set, "reasoning") {
+		if ctrl, _ := r.Get("control").(string); ctrl == "" || ctrl == "none" {
+			rc := r.Clone()
+			if NativeClientOf(id, nil) == "claude" {
+				rc.Set("control", "adaptive")
+			} else {
+				rc.Set("control", "effort")
+			}
+			data.Set("reasoning", rc)
+		}
 	}
 	strict := false
 	if m := p.Model(model); m != nil && m.Strict != nil {

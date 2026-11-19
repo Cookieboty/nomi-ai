@@ -41,4 +41,13 @@ describe('长对话分页：windowStart', () => {
     }
     expect(prev).toBeGreaterThan(0);
   });
+
+  it('极简模式下尾部有巨型工具轨迹时，首屏窗口仍保留完整最近消息（不会被裁成 1 条）', () => {
+    const messages = [
+      ...Array.from({ length: 20 }, (_, i) => light(i)),
+      ...Array.from({ length: 4 }, (_, i) => heavy(i)),
+    ];
+    expect(windowStart(messages, 0)).toBe(23);
+    expect(windowStart(messages, 0, { minimal: true })).toBe(0);
+  });
 });

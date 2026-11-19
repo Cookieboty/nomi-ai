@@ -4,6 +4,7 @@
  */
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
+import type { ImageAttachment } from '../../services/screenClient';
 import type { ChangeEntry } from '../../utils/sessionChanges';
 
 export interface WorkbenchOpen {
@@ -34,11 +35,12 @@ interface ChangesUiValue {
   setPreviewSlot: (el: HTMLElement | null) => void;
   /** 右栏请求把一段文字填进输入框（nonce 区分重复请求） */
   composerFill: ComposerFill | null;
-  fillComposer: (text: string) => void;
+  fillComposer: (text: string, images?: ImageAttachment[]) => void;
 }
 
 export interface ComposerFill {
   text: string;
+  images?: ImageAttachment[];
   nonce: number;
 }
 
@@ -51,7 +53,12 @@ export const ChangesUiProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [previewSlot, setPreviewSlot] = useState<HTMLElement | null>(null);
   const [composerFill, setComposerFill] = useState<ComposerFill | null>(null);
   const fillComposer = useCallback(
-    (text: string) => setComposerFill((prev) => ({ text, nonce: (prev?.nonce ?? 0) + 1 })),
+    (text: string, images?: ImageAttachment[]) =>
+      setComposerFill((prev) => ({
+        text,
+        ...(images?.length ? { images } : {}),
+        nonce: (prev?.nonce ?? 0) + 1,
+      })),
     [],
   );
   const openWorkbench = useCallback((o: WorkbenchOpen = {}) => setWorkbench(o), []);

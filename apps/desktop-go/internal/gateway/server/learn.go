@@ -52,7 +52,7 @@ type Failure struct {
 var optionalParams = []string{
 	"service_tier", "metadata", "parallel_tool_calls", "store", "prompt_cache_key", "safety_identifier",
 	"user", "seed", "logprobs", "top_logprobs", "stream_options", "reasoning_effort", "reasoning",
-	"thinking", "include", "prediction", "modalities", "verbosity", "top_k", "frequency_penalty",
+	"thinking", "output_config", "include", "prediction", "modalities", "verbosity", "top_k", "frequency_penalty",
 	"presence_penalty", "logit_bias", "response_format", "truncation", "background",
 }
 

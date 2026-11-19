@@ -281,15 +281,27 @@ export const ResourcePreview: React.FC<{
             resourceScope.cwd ?? '',
             ...(resourceScope.fallbackCwds ?? []),
           ].filter(Boolean);
+          let ambiguousHit: { cwd: string; path: string; result: PreviewResult } | null = null;
           for (const cwd of candidateRoots) {
             if (stale || result.ok) break;
             const viaSuffix = await resourcePreviewClient.open(cwd, suffix);
-            if (viaSuffix.ok || (viaSuffix.code && viaSuffix.code !== 'missing')) {
+            if (
+              viaSuffix.ok ||
+              (viaSuffix.code && viaSuffix.code !== 'missing' && viaSuffix.code !== 'ambiguous')
+            ) {
               resolvedCwd = cwd;
               resolvedPath = viaSuffix.path ?? suffix;
               result = viaSuffix;
               break;
             }
+            if (viaSuffix.code === 'ambiguous' && !ambiguousHit) {
+              ambiguousHit = { cwd, path: viaSuffix.path ?? suffix, result: viaSuffix };
+            }
+          }
+          if (!stale && !result.ok && result.code === 'missing' && ambiguousHit) {
+            resolvedCwd = ambiguousHit.cwd;
+            resolvedPath = ambiguousHit.path;
+            result = ambiguousHit.result;
           }
         }
         if (!stale && result.code === 'authorization') {

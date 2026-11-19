@@ -89,7 +89,9 @@ export function sessionAgentIdentity(
     const backend = known(a.backend);
     return {
       backend,
-      name: backend ? t(ENDPOINT_NAME[backend]) : a.backend || t('ui.usage-tools.subagent'),
+      name:
+        a.label ||
+        (backend ? t(ENDPOINT_NAME[backend]) : a.backend || t('ui.usage-tools.subagent')),
     };
   }
   if (a.kind === 'side-chat')

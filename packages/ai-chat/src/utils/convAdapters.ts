@@ -51,7 +51,7 @@ export function fromChatMessage(m: ChatMessage): ConvMessage | null {
 }
 
 function buildChat(m: ChatMessage): ConvMessage | null {
-  if (m.role === 'system') return null;
+  if (m.role === 'system' || m.hidden) return null;
   return {
     id: m.id,
     role: m.role,
@@ -85,27 +85,38 @@ export function tabLiveToConv(l: TabLive | undefined): ConvLive | undefined {
   };
 }
 
+const isVisibleChat = (m: ChatMessage): boolean => m.role !== 'system' && !m.hidden;
+
+const isStreamingAssistant = (m: ChatMessage): boolean =>
+  m.role === 'assistant' && !m.error && !m.stopped && m.durationMs === undefined;
+
 /**
- * Nomi 会话：流式中的最后一条助手占位消息拆出来作为「运行中的一轮」，
- * 其余消息正常展示；没有内容的占位在首个 chunk 到达前不渲染（由状态行显示「等待模型响应」）。
+ * 找到正在流式中的主回复索引；跳过已完成的后台委派结果消息（delegate-*），
+ * 避免后台消息插在尾部时误判流式尾或导致主回复提前定稿。
  */
-/** The streaming assistant tail is still being written (shown as the live turn, not a message). */
-function liveTail(list: readonly ChatMessage[], running: boolean): ChatMessage | undefined {
-  if (!running) return undefined;
-  const last = list[list.length - 1];
-  return last?.role === 'assistant' && !last.error && !last.stopped ? last : undefined;
+function liveTailIndex(list: readonly ChatMessage[], running: boolean): number {
+  if (!running) return -1;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const m = list[i]!;
+    if (m.id.startsWith('delegate-')) continue;
+    return isStreamingAssistant(m) ? i : -1;
+  }
+  return -1;
 }
 
 /**
- * The settled (non-system) messages: everything except a streaming assistant tail. Element
- * identity is preserved, so a shallow comparison is stable while a reply streams.
+ * The settled (non-system, non-hidden) messages: everything except a streaming assistant tail.
+ * Element identity is preserved, so a shallow comparison is stable while a reply streams.
  */
 export function settledNomiMessages(
   messages: readonly ChatMessage[],
   running: boolean,
 ): ChatMessage[] {
-  const list = messages.filter((m) => m.role !== 'system');
-  return liveTail(list, running) ? list.slice(0, -1) : list;
+  const list = messages.filter(isVisibleChat);
+  const idx = liveTailIndex(list, running);
+  if (idx < 0) return list;
+  if (idx === list.length - 1) return list.slice(0, -1);
+  return [...list.slice(0, idx), ...list.slice(idx + 1)];
 }
 
 /**
@@ -119,10 +130,8 @@ export function nomiLiveTrace(
   if (!running) return undefined;
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i]!;
-    if (m.role === 'system') continue;
-    return m.role === 'assistant' && !m.error && !m.stopped && m.trace?.length
-      ? m.trace
-      : undefined;
+    if (!isVisibleChat(m) || m.id.startsWith('delegate-')) continue;
+    return isStreamingAssistant(m) && m.trace?.length ? m.trace : undefined;
   }
   return undefined;
 }
@@ -130,14 +139,17 @@ export function nomiLiveTrace(
 /** The live turn while running (streamed text / trace of the tail), else undefined. */
 export function nomiLive(messages: readonly ChatMessage[], running: boolean): ConvLive | undefined {
   if (!running) return undefined;
-  const list = messages.filter((m) => m.role !== 'system');
+  const list = messages.filter(isVisibleChat);
+  const idx = liveTailIndex(list, running);
+  const last = idx >= 0 ? list[idx] : undefined;
+  const anchor = idx >= 0 ? idx - 1 : list.length - 1;
   let lastUser: ChatMessage | undefined;
-  for (let i = list.length - 1; i >= 0; i--)
+  for (let i = anchor; i >= 0; i--) {
     if (list[i]!.role === 'user') {
       lastUser = list[i];
       break;
     }
-  const last = liveTail(list, running);
+  }
   if (!last) return { text: '', startedAt: lastUser?.timestamp ?? Date.now() };
   return {
     text: last.content ?? '',

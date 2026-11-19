@@ -319,6 +319,9 @@ func (o *Orchestrator) allowIfBypass(tabID, requestID string, notify func()) {
 		return
 	}
 	jsrt.QueueMicrotask(func() {
+		if m := o.pendingPerms.Get(tabID); m == nil || m[requestID] == nil {
+			return
+		}
 		if !o.replyPermission(tabID, requestID, true) {
 			notify()
 		}

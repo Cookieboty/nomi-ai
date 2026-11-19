@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -101,26 +102,97 @@ func platform() string {
 	return runtime.GOOS
 }
 
+var (
+	errSuffixMissing   = errors.New("suffix not found")
+	errSuffixAmbiguous = errors.New("suffix ambiguous")
+	errScanLimit       = errors.New("scan limit")
+)
+
+func isRegularFile(p string) bool {
+	st, err := os.Stat(p)
+	return err == nil && st.Mode().IsRegular()
+}
+
+// stripLeadingRootName 尝试剥除与 cwd 末段目录名重复的首段前缀（如工作区 .../xy-token-api 下
+// 点击 xy-token-api/foo.md -> foo.md）；不处理含 .. 或绝对路径。
+func stripLeadingRootName(cwd, rel string) (string, bool) {
+	if cwd == "" || rel == "" {
+		return "", false
+	}
+	base := filepath.Base(filepath.Clean(cwd))
+	if base == "" || base == "." || base == string(filepath.Separator) {
+		return "", false
+	}
+	clean := filepath.ToSlash(strings.ReplaceAll(strings.TrimSpace(rel), "\\", "/"))
+	clean = strings.TrimPrefix(clean, "./")
+	if clean == "" || clean == "." || strings.HasPrefix(clean, "/") || clean == ".." || strings.HasPrefix(clean, "../") {
+		return "", false
+	}
+	first, rest, ok := strings.Cut(clean, "/")
+	if !ok || rest == "" {
+		return "", false
+	}
+	same := first == base
+	if !same && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+		same = strings.EqualFold(first, base)
+	}
+	if !same {
+		return "", false
+	}
+	return filepath.FromSlash(rest), true
+}
+
+// isGitWorktreeDir 判断目录是否为嵌套的 git worktree（.git 为普通文件且含 worktrees 引用）。
+func isGitWorktreeDir(dir string) bool {
+	gitFile := filepath.Join(dir, ".git")
+	st, err := os.Lstat(gitFile)
+	if err != nil || !st.Mode().IsRegular() {
+		return false
+	}
+	f, err := os.Open(gitFile)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	var buf [256]byte
+	n, _ := io.ReadFull(f, buf[:])
+	head := string(buf[:n])
+	return strings.Contains(head, "gitdir:") &&
+		(strings.Contains(head, "/worktrees/") || strings.Contains(head, `\worktrees\`))
+}
+
 // Open never grants a directory. Outside a known workspace, the UI must request explicit file consent.
 func (s *Service) Open(cwd, input, home string, allowOutside bool, source ...bool) Result {
 	p := strings.TrimSpace(input)
 	if strings.ContainsRune(p, 0) || p == "" {
 		return fail("invalid")
 	}
-	if strings.HasPrefix(p, "~/") || strings.HasPrefix(p, `~\`) {
+	isHome := strings.HasPrefix(p, "~/") || strings.HasPrefix(p, `~\`)
+	isElided := strings.HasPrefix(p, ".../") || strings.HasPrefix(p, "…/")
+	if isHome {
 		p = filepath.Join(home, p[2:])
 	}
-	if strings.HasPrefix(p, ".../") || strings.HasPrefix(p, "…/") {
+	if isElided {
+		if cwd == "" {
+			return fail("workspace")
+		}
 		suffix := strings.TrimPrefix(strings.TrimPrefix(p, ".../"), "…/")
 		found, err := uniqueSuffix(cwd, suffix)
 		if err != nil {
-			return fail("ambiguous")
+			if errors.Is(err, errSuffixAmbiguous) {
+				return fail("ambiguous")
+			}
+			return fail("missing")
 		}
 		p = found
 	}
+	rawRel := ""
 	if !filepath.IsAbs(p) {
 		if cwd == "" {
 			return fail("workspace")
+		}
+		if !isElided && !isHome && !strings.Contains(p, "..") {
+			rawRel = p
 		}
 		p = filepath.Join(cwd, p)
 	}
@@ -129,6 +201,16 @@ func (s *Service) Open(cwd, input, home string, allowOutside bool, source ...boo
 		return fail("invalid")
 	}
 	real, err := filepath.EvalSymlinks(p)
+	if err != nil && errors.Is(err, os.ErrNotExist) && rawRel != "" {
+		if stripped, ok := stripLeadingRootName(cwd, rawRel); ok {
+			alt := filepath.Join(cwd, stripped)
+			if altAbs, absErr := filepath.Abs(alt); absErr == nil {
+				if altReal, symErr := filepath.EvalSymlinks(altAbs); symErr == nil {
+					p, real, err = altAbs, altReal, nil
+				}
+			}
+		}
+	}
 	if err != nil {
 		return fail("missing")
 	}
@@ -254,29 +336,58 @@ func skipSuffixDir(name string) bool {
 }
 
 func uniqueSuffix(root, suffix string) (string, error) {
-	if root == "" || strings.Contains(suffix, "..") {
-		return "", fmt.Errorf("invalid suffix")
+	norm := strings.ReplaceAll(strings.TrimSpace(suffix), "\\", "/")
+	norm = strings.TrimPrefix(filepath.ToSlash(norm), "./")
+	if root == "" || norm == "" || norm == "." || strings.Contains(norm, "..") || strings.HasPrefix(norm, "/") {
+		return "", errSuffixMissing
 	}
+	// 优先 O(1) 直拼当前工作区根（及剥除重复根目录名后的路径），高于深层子目录匹配。
+	direct := filepath.Join(root, filepath.FromSlash(norm))
+	if isRegularFile(direct) {
+		return direct, nil
+	}
+	if stripped, ok := stripLeadingRootName(root, norm); ok {
+		alt := filepath.Join(root, stripped)
+		if isRegularFile(alt) {
+			return alt, nil
+		}
+	}
+
 	var matches []string
 	count := 0
 	err := filepath.WalkDir(root, func(p string, d os.DirEntry, e error) error {
 		if e != nil {
 			return nil
 		}
-		if d.IsDir() && p != root && skipSuffixDir(d.Name()) {
+		if d.IsDir() && p != root && (skipSuffixDir(d.Name()) || isGitWorktreeDir(p)) {
 			return filepath.SkipDir
 		}
 		count++
 		if count > 30000 {
-			return fmt.Errorf("scan limit")
+			return errScanLimit
 		}
-		if !d.IsDir() && strings.HasSuffix(filepath.ToSlash(p), "/"+filepath.ToSlash(suffix)) {
+		if !d.IsDir() && strings.HasSuffix(filepath.ToSlash(p), "/"+norm) {
 			matches = append(matches, p)
+			if len(matches) > 1 {
+				return errSuffixAmbiguous
+			}
 		}
 		return nil
 	})
-	if err != nil || len(matches) != 1 {
-		return "", fmt.Errorf("not unique")
+	if errors.Is(err, errSuffixAmbiguous) {
+		return "", errSuffixAmbiguous
+	}
+	if errors.Is(err, errScanLimit) {
+		if len(matches) == 0 {
+			return "", errSuffixMissing
+		}
+		return "", errSuffixAmbiguous
+	}
+	if err != nil || len(matches) == 0 {
+		return "", errSuffixMissing
+	}
+	if len(matches) > 1 {
+		return "", errSuffixAmbiguous
 	}
 	return matches[0], nil
 }

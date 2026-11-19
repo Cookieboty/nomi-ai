@@ -93,3 +93,11 @@ export function useHasLocalLogin(kind: string | null | undefined): boolean {
   }, []);
   return hasLocal;
 }
+
+export function useCliLauncherReady(): boolean {
+  const ready = useSyncExternalStore(subscribe, () => loaded || !hasTransport());
+  useEffect(() => {
+    void cliLauncherClient.get().catch(() => undefined);
+  }, []);
+  return ready;
+}

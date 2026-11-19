@@ -180,13 +180,13 @@
   flex: none;
 }
 
-/* 卡片：宽屏两列，窄屏一列 */
+/* 卡片：宽屏多列，卡片内元素不溢出，窄屏单列 */
 .grid {
   margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(calc(var(--cd-space-8) * 10), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--cd-space-8) * 11)), 1fr));
   gap: var(--cd-space-3);
 }
 .empty {
@@ -351,8 +351,10 @@
   display: inline-flex;
   align-items: center;
   gap: var(--cd-space-1);
+  min-width: 0;
   color: var(--cd-color-text-muted);
   font-size: var(--cd-font-size-xs);
+  overflow-wrap: anywhere;
 }
 .note[data-tone='warning'] {
   color: var(--cd-color-warning);
@@ -426,13 +428,15 @@
 }
 .foot {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--cd-space-3);
+  gap: var(--cd-space-1-5) var(--cd-space-3);
   min-width: 0;
 }
 .updated {
-  flex: 1;
+  flex: 1 0 auto;
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   color: var(--cd-color-text-subtle);
   font-size: var(--cd-font-size-xs);
@@ -440,10 +444,13 @@
   white-space: nowrap;
 }
 .usage {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--cd-space-3);
+  gap: var(--cd-space-1) var(--cd-space-2);
   color: var(--cd-color-text-subtle);
   font-size: var(--cd-font-size-xs);
   font-variant-numeric: tabular-nums;
@@ -452,6 +459,12 @@
   display: inline-flex;
   align-items: center;
   gap: var(--cd-space-1);
+  white-space: nowrap;
+}
+.closeBtn {
+  flex: none;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 /* ---- 底部：调度策略（三档单选，选中的用主题色） ---- */

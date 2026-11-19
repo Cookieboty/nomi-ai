@@ -116,6 +116,8 @@ function mockIpc() {
           {
             id: 't1',
             backend: 'claude',
+            // 已经在用的标签（有 CLI 会话）：新建时不会当作空标签复用
+            cliSessionId: 'sess-1',
             cwd: '/work/api',
             projectId: 'p_api',
             status: tabStatus,

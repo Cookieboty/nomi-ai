@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/config"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/models"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -38,8 +39,10 @@ func TestThinkingLevelReachesUpstream(t *testing.T) {
 		{"gpt-5", "responses", "low", []string{`"effort":"low"`}, []string{`"reasoning_effort"`}},
 		{"o3", "chat", "medium", []string{`"reasoning_effort":"medium"`}, nil},
 		{"claude-sonnet-4-5", "messages", "low", []string{`"type":"enabled"`, `"budget_tokens":`}, []string{`"temperature"`}},
-		// 非官方中转会去掉 output_config（Anthropic 专有）。思考类型仍是 adaptive。
-		{"claude-opus-4-5", "messages", "low", []string{`"type":"adaptive"`}, []string{`"temperature"`, `"budget_tokens"`}},
+		// Claude 中转保留 output_config.effort，以支持 adaptive thinking
+		{"claude-opus-4-5", "messages", "low", []string{`"type":"adaptive"`, `"output_config":{"effort":"low"}`}, []string{`"temperature"`, `"budget_tokens"`}},
+		{"claude-opus-5-5", "messages", "high", []string{`"type":"adaptive"`, `"output_config":{"effort":"high"}`}, []string{`"temperature"`, `"budget_tokens"`}},
+		{"claude-opus-5-5", "messages", "off", nil, []string{`"thinking"`, `"budget_tokens"`, `"disabled"`}},
 		{"claude-sonnet-4-5", "messages", "off", []string{`"type":"disabled"`}, []string{`"budget_tokens"`}},
 		{"gemini-2.5-pro", "gemini", "medium", []string{`"thinkingBudget":`, `"includeThoughts":true`}, []string{`"thinkingLevel"`}},
 		{"gemini-2.5-flash", "gemini", "off", []string{`"thinkingBudget":0`}, []string{`"includeThoughts"`}},
@@ -144,5 +147,75 @@ func TestCustomModelLevelFromStoredProfile(t *testing.T) {
 	got = mapLevel(t, "my-model", "chat", "high", config.RuntimeModel{Like: &like, Reasoning: &no})
 	if strings.Contains(got, `"reasoning_effort"`) {
 		t.Fatalf("reasoning=false must not send a level: %s", got)
+	}
+}
+
+func TestClaudeSameWirePassthroughAndLegacyUpgrade(t *testing.T) {
+	p := relay(
+		config.RuntimeModel{ID: "claude-opus-5-5", Enabled: true},
+		config.RuntimeModel{ID: "claude-opus-4-5", Enabled: true, Efforts: []string{"low", "medium", "high"}},
+		config.RuntimeModel{ID: "deepseek-v3.2", Enabled: true},
+	)
+	// 无 BindingEffort 时客户端的 adaptive 请求原样透传
+	adaptiveBody := u.NewObj("model", "m", "thinking", u.NewObj("type", "adaptive"), "output_config", u.NewObj("effort", "high"),
+		"messages", []any{u.NewObj("role", "user", "content", "hi")})
+	out, err := Body("messages", candOf(p, "claude-opus-5-5", "messages"), adaptiveBody, BodyOpts{Client: "claude"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := u.Stringify(out)
+	if !strings.Contains(s, `"type":"adaptive"`) || !strings.Contains(s, `"output_config":{"effort":"high"}`) {
+		t.Fatalf("same-wire adaptive passthrough: %s", s)
+	}
+
+	// 外部旧客户端带了 budget_tokens 打到纯 adaptive 模型时自动升级为 adaptive
+	legacyBody := u.NewObj("model", "m", "temperature", 0.5, "thinking", u.NewObj("type", "enabled", "budget_tokens", 16000.0),
+		"messages", []any{u.NewObj("role", "user", "content", "hi")})
+	upgraded, err := Body("messages", candOf(p, "claude-opus-5-5", "messages"), legacyBody, BodyOpts{Client: "claude"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	us := u.Stringify(upgraded)
+	if !strings.Contains(us, `"type":"adaptive"`) || !strings.Contains(us, `"output_config":{"effort":"high"}`) || strings.Contains(us, `"budget_tokens"`) || strings.Contains(us, `"temperature"`) {
+		t.Fatalf("legacy budget_tokens should upgrade to adaptive: %s", us)
+	}
+
+	// 外部客户端发 disabled 打到禁止禁用的 adaptive 模型时自动省略 thinking
+	disabledBody := u.NewObj("model", "m", "thinking", u.NewObj("type", "disabled"),
+		"messages", []any{u.NewObj("role", "user", "content", "hi")})
+	omitted, err := Body("messages", candOf(p, "claude-opus-5-5", "messages"), disabledBody, BodyOpts{Client: "claude"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if os := u.Stringify(omitted); strings.Contains(os, `"thinking"`) {
+		t.Fatalf("canDisable=false adaptive model should omit thinking: %s", os)
+	}
+
+	// 自定义 efforts / learned efforts 不会把 Claude adaptive 模型退化成 budget_tokens
+	level := "medium"
+	kept45, err := Body("messages", candOf(p, "claude-opus-4-5", "messages"), chatBody(), BodyOpts{BindingEffort: &level})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ks := u.Stringify(kept45); !strings.Contains(ks, `"type":"adaptive"`) || strings.Contains(ks, `"budget_tokens"`) {
+		t.Fatalf("efforts override must keep adaptive: %s", ks)
+	}
+	learned := &config.LearnedState{Models: map[string]config.LearnedModel{
+		"claude-opus-5-5": {Efforts: []string{"low", "medium", "high"}, At: 1e18, CatalogVersion: models.CatalogVersion},
+	}}
+	effSpec := models.EffectiveModel(p, "claude-opus-5-5", learned, models.EffectiveOpts{})
+	if c := effSpec.Get("reasoning").(*u.Obj).Get("control"); c != "adaptive" {
+		t.Fatalf("learned efforts should keep adaptive control, got %v", c)
+	}
+
+	// 非 Claude 模型走非官方 messages 仍然去掉 output_config
+	nonClaudeBody := u.NewObj("model", "m", "output_config", u.NewObj("effort", "high"),
+		"messages", []any{u.NewObj("role", "user", "content", "hi")})
+	dsOut, err := Body("messages", candOf(p, "deepseek-v3.2", "messages"), nonClaudeBody, BodyOpts{Client: "claude"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ds := u.Stringify(dsOut); strings.Contains(ds, `"output_config"`) {
+		t.Fatalf("non-Claude messages upstream should still strip output_config: %s", ds)
 	}
 }

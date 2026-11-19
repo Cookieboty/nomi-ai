@@ -8,7 +8,7 @@
  *   改动的文件 = 汇报 / git 核对的 + 子任务对话里编辑 / 写入工具改过的，点开共用右侧资源预览（.md 先渲染）。
  * 数据：工具调用 id → 标签（delegation.callId）→ 标签的实时状态；历史消息只有工具输出。
  */
-import { Button, Icon, Modal, ModalHostContext, t } from '@nomi-ai/ui';
+import { Button, Icon, Modal, ModalHostContext, t, useLocale } from '@nomi-ai/ui';
 import {
   IconChevronDown as ChevronDown,
   IconChevronRight as ChevronRight,
@@ -37,6 +37,7 @@ import { replyPermissionRequest } from '../../services/permissionReply';
 import type { ConvMessage } from '../../types/conversation';
 import { canStopSubagent } from '../../utils/cliCaps';
 import { fromHarnessMessage, tabLiveToConv } from '../../utils/convAdapters';
+import { delegateAlias } from '../../utils/delegateAlias';
 import { delegateOpenTab } from '../../utils/delegateTarget';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import type { LiveAgent, TabLive } from '../../utils/liveState';
@@ -467,13 +468,14 @@ const Report: React.FC<{
  */
 const DelegateDrawer: React.FC<{
   v: DelegateView;
+  name: string;
   fallbackTab?: HarnessTabMeta | null;
   elapsed: string | null;
   running: boolean;
   stopping: boolean;
   onStop: () => void;
   onClose: () => void;
-}> = ({ v, fallbackTab, elapsed, running, stopping, onStop, onClose }) => {
+}> = ({ v, name, fallbackTab, elapsed, running, stopping, onStop, onClose }) => {
   const drawerTab = v.tab ?? fallbackTab ?? null;
   const tabId = drawerTab?.id;
   const messages = useTabMessages(tabId, drawerTab?.updatedAt, running);
@@ -497,7 +499,6 @@ const DelegateDrawer: React.FC<{
     },
     [tabId, drawerTaskId],
   );
-  const name = v.backend ? t(ENDPOINT_NAME[v.backend]) : t('ui.providers-schedule.coding-agents');
   const host = useMemo(
     () => ({
       mode: 'drawer' as const,
@@ -563,6 +564,7 @@ const DelegateDrawer: React.FC<{
 };
 
 const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
+  const locale = useLocale();
   const tabs = useHarnessTabs();
   const resource = useResourceContext();
   const tabMeta = delegateTab(call, tabs.state?.tabs);
@@ -614,10 +616,16 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
         : (call.endedAt ?? call.startedAt),
   );
   const step = running ? currentStep(v.live) : null;
-  const name = v.backend ? t(ENDPOINT_NAME[v.backend]) : t('ui.providers-schedule.coding-agents');
   const tab = v.tab;
   // 标签被后来的同类委派接着用了：仍能从这张卡片打开它接着说（同一个会话）
   const openTab = tab ?? delegateOpenTab(call, tabs.state?.tabs, liveResult);
+  const aliasId = openTab?.id ?? liveResult?.tabId ?? parsed.result?.tabId ?? taskId ?? call.id;
+  const name =
+    v.backend && v.backend !== 'nomi'
+      ? delegateAlias(aliasId, { peers: tabs.state?.tabs, locale })
+      : v.backend
+        ? t(ENDPOINT_NAME[v.backend])
+        : t('ui.providers-schedule.coding-agents');
   // 后台委派是持续任务（标签带 taskId）：停止 = 取消任务；直接停标签会让任务以为执行者崩了
   const tabTaskId = tab?.delegation?.taskId;
   // 结束后：从子任务对话里补齐改过的文件；读文件时按目录依次找
@@ -810,6 +818,7 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
         {drawer && (
           <DelegateDrawer
             v={v}
+            name={name}
             fallbackTab={openTab}
             elapsed={elapsed}
             running={running}

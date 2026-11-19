@@ -235,6 +235,20 @@ const KNOWN_FILE_EXTS = new Set([
 const UNAMBIGUOUS_BASENAME =
   /^(?:package\.json|tsconfig(?:\.[\w-]+)?\.json|go\.(?:mod|sum|work)|Cargo\.(?:toml|lock)|Makefile|Dockerfile|[\w.-]+\.(?:test|spec)\.[jt]sx?|[\w.-]+_test\.go|[\w.-]+\.module\.(?:css|scss|less)|[\w.-]+\.config\.[cm]?[jt]s|vite\.config\.[cm]?[jt]s)$/i;
 
+function stripRootPrefix(root: string, rel: string): string | null {
+  const base = root.replace(/\\/g, '/').replace(/\/+$/, '').split('/').pop();
+  if (!base) return null;
+  const prefix = `${base}/`;
+  if (rel.startsWith(prefix) && rel.length > prefix.length) {
+    return rel.slice(prefix.length);
+  }
+  const lowerPrefix = prefix.toLowerCase();
+  if (rel.length > prefix.length && rel.slice(0, prefix.length).toLowerCase() === lowerPrefix) {
+    return rel.slice(prefix.length);
+  }
+  return null;
+}
+
 function appendLocation(href: string, line?: number, lineEnd?: number, fragment?: string): string {
   if (line !== undefined) {
     return `${href}#L${line}${lineEnd !== undefined ? `-L${lineEnd}` : ''}`;
@@ -293,6 +307,18 @@ export function resolveConversationFile(
           return {
             href: appendLocation(
               workspaceFileHref(entry.root, rel),
+              target.line,
+              target.lineEnd,
+              target.fragment,
+            ),
+            scope: { ...scope, cwd: entry.root },
+          };
+        }
+        const stripped = stripRootPrefix(entry.root, rel);
+        if (stripped && entry.exact.has(stripped)) {
+          return {
+            href: appendLocation(
+              workspaceFileHref(entry.root, stripped),
               target.line,
               target.lineEnd,
               target.fragment,

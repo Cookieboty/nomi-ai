@@ -319,16 +319,12 @@ describe('全局背景层', () => {
 
   it('设置和文件栏控件的 hover 使用透明蒙版、平滑过渡，减少动态效果时取消动画', () => {
     const settings = read('src/components/SettingsView/index.module.css');
-    for (const selector of [
-      '.back:hover,\n.navItem:hover',
-      '.iconOpt:hover',
-      '.helpToggle:hover',
-    ]) {
+    for (const selector of ['.navItem:hover', '.iconOpt:hover', '.helpToggle:hover']) {
       expect(ruleBody(settings, selector)).toContain(
-        selector.startsWith('.back') ? '--cd-color-nav-bg' : '--cd-chat-hover-overlay',
+        selector === '.navItem:hover' ? '--cd-color-nav-bg' : '--cd-chat-hover-overlay',
       );
     }
-    expect(ruleBody(settings, '.back,\n.navItem,\n.iconOpt,\n.helpToggle')).toContain(
+    expect(ruleBody(settings, '.navItem,\n.iconOpt,\n.helpToggle')).toContain(
       'background-color var(--cd-duration-fast) var(--cd-ease)',
     );
     const pane = read('src/components/SessionWorkspace/WorkspacePane.module.css');

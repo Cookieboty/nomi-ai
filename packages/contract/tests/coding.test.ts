@@ -208,6 +208,7 @@ describe('appContract · D3 coding', () => {
           ...(settings as Record<string, unknown>),
         }),
         'cli.launcherGet': () => launchersState,
+        'project.remove': () => undefined,
       },
       { caller: { surface: 'chat', trusted: true } },
     );
@@ -224,6 +225,7 @@ describe('appContract · D3 coding', () => {
         }),
       ).toMatchObject({ routes: delegateSettingsView.routes });
       expect(await api.cli.launcherGet()).toEqual(launchersState);
+      expect(await api.project.remove({ id: 'p_1' })).toBeUndefined();
       expect(await api.harness.tabSend({ id: 't', prompt: 'hi' })).toEqual({
         text: 't:hi',
         sessionId: null,

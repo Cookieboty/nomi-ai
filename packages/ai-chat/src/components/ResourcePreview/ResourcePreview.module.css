@@ -184,7 +184,8 @@
   background: var(--cd-workspace-bg);
   color: var(--cd-color-text);
   font-weight: var(--cd-font-weight-medium);
-  box-shadow: inset 0 2px 0 var(--cd-color-accent-strong);
+  /* 选中指示放在下沿：跟内容区那片亮色长得最接近的边界，看着最稳 */
+  box-shadow: inset 0 -2px 0 var(--cd-color-accent-strong);
 }
 .embedded .tab[data-active] .tabFileIcon {
   opacity: 0.95;

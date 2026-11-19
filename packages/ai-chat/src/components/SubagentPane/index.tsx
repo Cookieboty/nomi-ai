@@ -5,7 +5,7 @@
  * 步骤与正文实时更新；输入栏和主列一样能发送、插话、排队、停止（语义见 docs/design/subagent-chat-parity.md）。
  * 设置 / 插件 / 模型等按钮打开主窗口的面板（SubagentPaneActions，由 App 传入）。
  */
-import { Button, Icon, IconButton, t } from '@nomi-ai/ui';
+import { Button, Icon, IconButton, t, useLocale } from '@nomi-ai/ui';
 import { IconSquare as Square, IconX as X } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 
@@ -31,10 +31,12 @@ import {
 } from '../../services/composerDrafts';
 import {
   harnessClient,
+  isNomiDelegated,
   type HarnessImageInput,
   type HarnessTabMeta,
   type MessageAgentResult,
 } from '../../services/harnessClient';
+import type { ImageAttachment } from '../../services/screenClient';
 import { tasksApi, type TaskTraceView } from '../../services/tasksClient';
 import { cliTranscriptKey } from '../../services/transcriptView';
 import { useSlashCommands } from '../../slash/useSlashCommands';
@@ -43,11 +45,12 @@ import { nestedHostTabId } from '../../utils/agentIdentity';
 import { useCliImageSupport } from '../../utils/cliImageSupport';
 import { cliTabPlaceholder } from '../../utils/cliTabPlaceholder';
 import { fromHarnessMessage, tabLiveToConv } from '../../utils/convAdapters';
+import { delegateAlias } from '../../utils/delegateAlias';
 import { resolveDelegateTarget } from '../../utils/delegateTarget';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { shouldIgnoreEscape } from '../../utils/keyboard';
 import type { LiveAgent } from '../../utils/liveState';
-import { type PendingMode, type PendingSend } from '../../utils/pendingSends';
+import { toImageAttachments, type PendingMode, type PendingSend } from '../../utils/pendingSends';
 import { agentKey } from '../../utils/sideTabs';
 import { CliConversation } from '../Conversation/CliConversation';
 import { buildCliSlots } from '../Conversation/cliSlots';
@@ -56,7 +59,7 @@ import { TabSandboxRequests } from '../Conversation/SandboxRequests';
 import { MessageInput } from '../MessageInput';
 import { PendingDock } from '../PendingDock';
 import { SessionDetailsProvider } from '../SessionDetails';
-import { CenterChangesHost, ChangesUiProvider } from '../SessionWorkspace';
+import { CenterChangesHost, ChangesUiProvider, type ComposerFill } from '../SessionWorkspace';
 import type { SettingsSectionInput, SettingsTab } from '../SettingsView/sections';
 import { SideChatPane } from '../SideChat';
 import { UserQuestionDock } from '../UserQuestionCard/dock';
@@ -207,12 +210,29 @@ const PaneHead: React.FC<
   );
 };
 
+const withdrawFill = (item: PendingSend, prev: ComposerFill | null): ComposerFill => ({
+  text: item.text,
+  ...(item.images?.length ? { images: toImageAttachments(item.images) } : {}),
+  nonce: (prev?.nonce ?? 0) + 1,
+});
+
+const toTaskImages = async (imgs: readonly ImageAttachment[]) =>
+  (await toHarnessImages(imgs)).map((i) => ({
+    mime: i.mime,
+    data: i.data,
+    ...(i.thumb ? { thumb: i.thumb } : {}),
+    ...(i.width !== undefined ? { width: i.width } : {}),
+    ...(i.height !== undefined ? { height: i.height } : {}),
+  }));
+
 /** 委派的 agent：和主列同一个 CliConversation / MessageInput，只是绑在这个标签上 */
 const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: PaneSlot }> = ({
   tab,
   onClose,
   slot,
 }) => {
+  const locale = useLocale();
+  const harnessTabs = useHarnessTabs();
   const core = useHarnessTabsCore();
   const actions = usePaneActions();
   const raw = useHarnessTabMessages(tab.id);
@@ -225,7 +245,7 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
   const waiting = !!(live?.permissions?.length || tab.sandboxPending?.length);
   const slots = useMemo(() => buildCliSlots({ cwd: tab.cwd, tab }), [tab]);
   const [draftStore] = useState(createComposerDraftStore);
-  const [fill, setFill] = useState<{ text: string; nonce: number } | null>(null);
+  const [fill, setFill] = useState<ComposerFill | null>(null);
   const pending = core.queues[tab.id] ?? [];
   const slash = useSlashCommands({
     backend: tab.backend === 'nomi' ? 'claude' : tab.backend,
@@ -258,7 +278,9 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
       else actions.openSettings?.('ai', undefined, 'assistants');
     },
   });
-  const name = t(ENDPOINT_NAME[tab.backend] ?? tab.backend);
+  const name = isNomiDelegated(tab)
+    ? delegateAlias(tab.id, { peers: harnessTabs.state?.tabs, locale })
+    : t(ENDPOINT_NAME[tab.backend] ?? tab.backend);
   const paneState = waiting ? 'waiting' : running ? 'running' : 'idle';
   useReportMeta(slot.tabKey, name, paneState);
   usePaneEscape(slot.active && !slot.maximized, onClose);
@@ -308,8 +330,9 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
           onRemove={(id) => core.removePendingFrom(tab.id, id)}
           onWithdraw={(item) => {
             core.removePendingFrom(tab.id, item.id);
-            setFill((prev) => ({ text: item.text, nonce: (prev?.nonce ?? 0) + 1 }));
+            setFill((prev) => withdrawFill(item, prev));
           }}
+          onFlush={running ? () => void core.flushPendingFor(tab.id) : undefined}
         />
         <MessageInput
           onSend={(text, imgs) => {
@@ -324,7 +347,7 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
           placeholder={cliTabPlaceholder(tab)}
           queue={{
             onQueue: (text, opts) =>
-              void core.sendToTab(tab.id, text, undefined, undefined, opts?.mode),
+              void core.sendToTab(tab.id, text, undefined, opts?.images, opts?.mode),
             onStop: () => void core.cancelRun(tab.id),
             pending: pending.length,
             onFlush: () => void core.flushPendingFor(tab.id),
@@ -446,7 +469,7 @@ const NestedChat: React.FC<{
   const parentBusy = parent?.status === 'running' || parent?.status === 'queued';
   const images = useCliImageSupport(forkTab ?? parent);
   const [draftStore] = useState(createComposerDraftStore);
-  const [fill, setFill] = useState<{ text: string; nonce: number } | null>(null);
+  const [fill, setFill] = useState<ComposerFill | null>(null);
   // relay：这个 CLI 没有直接通道，改经主代理转达；notice：最近一次直接发送的结果提示
   const [relay, setRelay] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -502,7 +525,7 @@ const NestedChat: React.FC<{
         ...(agentIds[0] ? { agentId: agentIds[0] } : {}),
         text,
         ...(images?.length ? { images } : {}),
-        mode: mode === 'queue' ? 'queue' : 'steer',
+        mode: images?.length || mode === 'queue' ? 'queue' : 'steer',
       })
       .catch((e: unknown) => ({ ok: false, reason: 'error', message: String(e) }));
     if (r.ok) {
@@ -556,6 +579,11 @@ const NestedChat: React.FC<{
         return;
       if (open) await core.cancelRun(parentTabId);
     })();
+  };
+  const flushNested = () => {
+    if (relay && parentTabId) void core.flushPendingFor(parentTabId);
+    else if (forkTab) void core.flushPendingFor(forkTab.id);
+    else stop();
   };
   useReportMeta(slot.tabKey, name, running ? 'running' : 'idle');
   usePaneEscape(slot.active && !slot.maximized, onClose);
@@ -611,8 +639,9 @@ const NestedChat: React.FC<{
             onRemove={removePending}
             onWithdraw={(item) => {
               removePending(item.id);
-              setFill((prev) => ({ text: item.text, nonce: (prev?.nonce ?? 0) + 1 }));
+              setFill((prev) => withdrawFill(item, prev));
             }}
+            onFlush={running || (relay && parentBusy) ? flushNested : undefined}
           />
           <MessageInput
             onSend={(text, imgs) => send(text, undefined, imgs)}
@@ -621,14 +650,10 @@ const NestedChat: React.FC<{
             imageUnsupportedReason={images.reason}
             placeholder={t('ui.session-workspace.subagent-nested-placeholder', name)}
             queue={{
-              onQueue: (text, opts) => send(text, opts?.mode),
+              onQueue: (text, opts) => send(text, opts?.mode, opts?.images),
               onStop: stop,
               pending: pending.length,
-              onFlush: () => {
-                if (relay) void core.flushPendingFor(parentTabId);
-                else if (forkTab) void core.flushPendingFor(forkTab.id);
-                else stop();
-              },
+              onFlush: flushNested,
             }}
             cwd={parent.cwd}
             fill={fill}
@@ -676,7 +701,7 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSl
   const outbox = useSubagentOutbox({ kind: 'nomi-task', taskId });
   const pending = outbox.items;
   const [draftStore] = useState(createComposerDraftStore);
-  const [fill, setFill] = useState<{ text: string; nonce: number } | null>(null);
+  const [fill, setFill] = useState<ComposerFill | null>(null);
   const running = TASK_ACTIVE.has(status);
   React.useEffect(() => {
     let alive = true;
@@ -786,15 +811,14 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSl
           onRemove={outbox.remove}
           onWithdraw={(item) => {
             outbox.remove(item.id);
-            setFill((prev) => ({ text: item.text, nonce: (prev?.nonce ?? 0) + 1 }));
+            setFill((prev) => withdrawFill(item, prev));
           }}
+          onFlush={running ? stop : undefined}
         />
         <MessageInput
           onSend={(text, imgs) => {
             void (async () => {
-              const images = imgs?.length
-                ? (await toHarnessImages(imgs)).map((i) => ({ mime: i.mime, data: i.data }))
-                : undefined;
+              const images = imgs?.length ? await toTaskImages(imgs) : undefined;
               enqueue(text, images);
             })();
           }}
@@ -802,6 +826,13 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSl
           placeholder={t('ui.session-workspace.subagent-nomi-placeholder')}
           queue={{
             onQueue: (text, opts) => {
+              if (opts?.images?.length) {
+                void (async () => {
+                  const images = await toTaskImages(opts.images!);
+                  enqueue(text, images);
+                })();
+                return;
+              }
               if (opts?.mode === 'queue') {
                 enqueue(text);
                 return;

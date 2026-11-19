@@ -141,6 +141,12 @@ describe('shell · 过程表', () => {
       'browserWindow.close': 'mutation surfaces=chat',
       'browserWindow.closeAll': 'mutation surfaces=chat',
       'browserWindow.sync': 'mutation surfaces=chat',
+      'sideTerminal.open': 'mutation surfaces=chat',
+      'sideTerminal.write': 'mutation surfaces=chat',
+      'sideTerminal.resize': 'mutation surfaces=chat',
+      'sideTerminal.close': 'mutation surfaces=chat',
+      'sideTerminal.closeAll': 'mutation surfaces=chat',
+      'sideTerminal.sync': 'mutation surfaces=chat',
     });
   });
 
@@ -164,6 +170,8 @@ describe('shell · 过程表', () => {
       'chatWindow.tabDocked',
       'browserWindow.loaded',
       'browserWindow.closed',
+      'sideTerminal.data',
+      'sideTerminal.exit',
     ]);
   });
 
@@ -185,6 +193,7 @@ describe('shell · 过程表', () => {
       'conversations',
       'chatWindow',
       'browserWindow',
+      'sideTerminal',
     ]);
     for (const name of [...Object.keys(shellProcedures), ...Object.keys(shellEvents)]) {
       expect(ns.has(name.split('.')[0]!)).toBe(true);

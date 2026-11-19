@@ -99,7 +99,7 @@ const projectProcedures = {
     input: ProjectUpdateInput,
     output: Project,
   },
-  'project.remove': { kind: 'mutation', input: byId, output: z.null() },
+  'project.remove': { kind: 'mutation', input: byId, output: z.void() },
 } as const satisfies ProcedureMap;
 
 const PreviewResult = z.looseObject({

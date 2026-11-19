@@ -56,6 +56,9 @@ func (s *Service) CliModels() []*u.Obj {
 			if th := models.ProfileOf(mid, m).Obj(); th != nil {
 				o.Set("thinking", th)
 			}
+			if nc := models.NativeClientOf(mid, m); nc != "" {
+				o.Set("nativeClient", nc)
+			}
 			out = append(out, o)
 		}
 	}
@@ -110,13 +113,17 @@ func (s *Service) AgentMeta(ref string, longContext *bool) *agents.ModelMeta {
 		}
 	}
 	label := ref[i+1:]
+	like := ""
 	if m != nil {
 		if l, ok := m.Get("label").(string); ok {
 			label = l
 		}
+		if lk, ok := m.Get("like").(string); ok {
+			like = strings.TrimSpace(lk)
+		}
 	}
 	ctx := ApplyContextTier(meta.Ctx, s.ContextTier())
-	out := &agents.ModelMeta{Label: &label, Ctx: &ctx, MaxOutput: &meta.MaxOutput, Reasoning: meta.Reasoning, Vision: meta.Vision}
+	out := &agents.ModelMeta{Label: &label, Ctx: &ctx, MaxOutput: &meta.MaxOutput, Reasoning: meta.Reasoning, Vision: meta.Vision, NativeClient: models.NativeClientOf(ref[i+1:], m), Like: like}
 	if p != nil {
 		if n, ok := p.Get("name").(string); ok {
 			out.Provider = &n

@@ -1,5 +1,16 @@
 # @nomi-ai/contract
 
+## 0.2.0
+
+### Minor Changes
+
+- c6854cb: feat(side-workspace): 新契约过程 `sideTerminal.open / write / resize / sync / close / closeAll`（按标签 id 建交互式 PTY，`write` 上限 65536 字节）；终端分屏、清屏、切换目录、重启、关闭确认等界面文案新增中英文案。/ New contract procedures `sideTerminal.open / write / resize / sync / close / closeAll` for the built-in terminal (one interactive PTY per tab id, `write` capped at 65536 bytes); the terminal UI strings (split, clear, change directory, restart, close confirmation) gain their zh/en entries.
+
+### Patch Changes
+
+- c6854cb: feat(gateway): 熔断降级开关进入契约：`gateway.setOptions` 接受 `failoverEnabled`，`gateway.state()` 返回它；「三方供应商」卡片右上角的开关、说明与「开启熔断降级后才会自动换供应商」提示新增中英文案。/ The circuit-breaker switch becomes part of the contract: `gateway.setOptions` accepts `failoverEnabled` and `gateway.state()` reports it; the switch in the Third-Party Providers card header, its tooltip and the updated provider-order hint gain their zh/en strings.
+- c6854cb: fix(contract): `project.remove` 的输出改为无返回值（以前声明 `null`），Go 侧同步补了契约输出与二次删除的用例。/ `project.remove` now declares no output instead of `null`; the Go side gains contract-output and double-remove tests.
+
 ## 0.1.2
 
 ### Patch Changes

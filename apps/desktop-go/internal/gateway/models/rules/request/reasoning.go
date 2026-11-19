@@ -143,6 +143,11 @@ func RenderReasoning(wire string, body any, in *intent.Intent, m *u.Obj, notes *
 		return Rendered{Body: body, Losses: []string{"reasoning-control"}}
 	}
 	if mode == "disabled" && control != "" && at(m, "reasoning", "canDisable") == false {
+		if wire == "messages" && (control == "adaptive" || control == "effort") {
+			o.Delete("thinking")
+			push(notes, "推理：请求 "+describe(in)+" → 发出 省略 thinking（reasoning-disable）")
+			return Rendered{Body: o, Sent: "省略 thinking", Losses: []string{"reasoning-disable"}}
+		}
 		losses = append(losses, "reasoning-disable")
 		mode = "enabled"
 	}
@@ -208,7 +213,7 @@ func RenderReasoning(wire string, body any, in *intent.Intent, m *u.Obj, notes *
 		if mode == "disabled" {
 			o.Set("thinking", u.NewObj("type", "disabled"))
 			sent = "thinking=disabled"
-		} else if control == "adaptive" {
+		} else if control == "adaptive" || control == "effort" {
 			effort := fit(effortOf(in, numZ(o.Get("max_tokens"))))
 			o.Set("thinking", u.NewObj("type", "adaptive"))
 			oc := u.NewObj()
@@ -218,6 +223,7 @@ func RenderReasoning(wire string, body any, in *intent.Intent, m *u.Obj, notes *
 			o.Set("output_config", oc.Set("effort", effort))
 			o.Delete("temperature")
 			o.Delete("top_k")
+			o.Delete("top_p")
 			sent = "thinking=adaptive output_config.effort=" + effort
 		} else {
 			ceiling, hasCeil := isNumber(at(m, "limits", "maxOutput"))

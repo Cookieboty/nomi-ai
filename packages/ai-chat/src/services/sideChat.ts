@@ -60,7 +60,10 @@ export const sideChatDraftKey = (id: string) => `${SIDE_CHAT_PREFIX}${id}`;
 /** 所有侧边聊天输入栏的草稿（文字 / 图片 / 附件）：按聊天分开，切标签、重挂载都还在 */
 export const sideChatDrafts = createComposerDraftStore();
 
+type QueuedSideChatImages = Array<SideChatImage & { data: string }>;
+
 const chats = new Map<string, SideChatState>();
+const queuedImagesMap = new Map<string, QueuedSideChatImages[]>();
 const listeners = new Set<() => void>();
 const aborts = new Map<string, AbortController>();
 const mounted = new Map<string, number>();
@@ -203,30 +206,70 @@ export function setSideChatEffort(id: string, effort: string | undefined): void 
 export function discardSideChat(id: string): void {
   stopSideChat(id);
   sideChatDrafts.dropPrivate(sideChatDraftKey(id));
+  queuedImagesMap.delete(id);
   if (chats.delete(id)) emit();
 }
 
-/** 停下这一轮：已生成的部分留下，标成已停止；排队的问题不再发 */
-export function stopSideChat(id: string): void {
+function abortTurn(id: string, nextQueued: string[], nextQueuedImgs: QueuedSideChatImages[]): void {
   const cur = chats.get(id);
   const running = cur?.running;
   aborts.get(id)?.abort();
   aborts.delete(id);
   if (running && hasTransport())
     void api.ai.chat.abort({ reqId: running.reqId }).catch(() => undefined);
+  if (nextQueuedImgs.length) queuedImagesMap.set(id, nextQueuedImgs);
+  else queuedImagesMap.delete(id);
   set(id, (s) => {
-    if (!s.running) return s.queued.length ? { ...s, queued: [] } : s;
+    if (!s.running) return s.queued.length || nextQueued.length ? { ...s, queued: nextQueued } : s;
     const msg = finishedMessage(s.running.live, { stopped: true }, s.model);
     return {
       ...s,
       messages: msg ? [...s.messages, msg] : s.messages,
       running: null,
-      queued: [],
+      queued: nextQueued,
     };
   });
 }
 
+/** 停下这一轮：已生成的部分留下，标成已停止；排队的问题不再发 */
+export function stopSideChat(id: string): void {
+  abortTurn(id, [], []);
+}
+
+/** 打断这一轮并把排队的消息合并（按单轮图片上限分批）后马上发出第一批 */
+export function flushSideChat(id: string): void {
+  const cur = chats.get(id);
+  if (!cur?.running || !cur.queued.length) return;
+  const queuedTexts = cur.queued;
+  const queuedImgs = queuedImagesMap.get(id) ?? [];
+  const maxImages = 6;
+  let split = 0;
+  let imgCount = 0;
+  while (split < queuedTexts.length) {
+    const n = queuedImgs[split]?.length ?? 0;
+    if (split > 0 && imgCount + n > maxImages) break;
+    imgCount += n;
+    split += 1;
+  }
+  const firstText = queuedTexts
+    .slice(0, split)
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .join('\n\n');
+  const firstImgs = queuedImgs.slice(0, split).flat();
+  const restTexts = queuedTexts.slice(split);
+  const restImgs = queuedImgs.slice(split);
+  abortTurn(id, restTexts, restImgs);
+  void sendSideChat(id, firstText, firstImgs.length ? firstImgs : undefined);
+}
+
 export function removeSideChatQueued(id: string, index: number): void {
+  const imgs = queuedImagesMap.get(id);
+  if (imgs && index >= 0 && index < imgs.length) {
+    const nextImgs = imgs.filter((_, i) => i !== index);
+    if (nextImgs.length) queuedImagesMap.set(id, nextImgs);
+    else queuedImagesMap.delete(id);
+  }
   set(id, (s) =>
     index >= 0 && index < s.queued.length
       ? { ...s, queued: s.queued.filter((_, i) => i !== index) }
@@ -330,8 +373,12 @@ async function runTurn(id: string, user: ConvMessage, history: ConvMessage[]): P
     // 排队的下一条
     const next = chats.get(id)?.queued[0];
     if (next !== undefined) {
+      const nextImgs = queuedImagesMap.get(id)?.[0];
+      const restImgs = (queuedImagesMap.get(id) ?? []).slice(1);
+      if (restImgs.length) queuedImagesMap.set(id, restImgs);
+      else queuedImagesMap.delete(id);
       set(id, (s) => ({ ...s, queued: s.queued.slice(1) }));
-      void sendSideChat(id, next);
+      void sendSideChat(id, next, nextImgs?.length ? nextImgs : undefined);
     }
   };
   try {
@@ -408,14 +455,17 @@ export async function sendSideChat(
   const chat = chats.get(id);
   const body = text.trim();
   if (!chat || (!body && !images?.length)) return;
+  const effectiveBody = body || t('ui.knowledge-local.please-take-a-look-at-this-image');
   if (chat.running) {
-    if (body) set(id, (s) => ({ ...s, queued: [...s.queued, body] }));
+    const imgs = images?.length ? images.map((i) => ({ ...i })) : [];
+    queuedImagesMap.set(id, [...(queuedImagesMap.get(id) ?? []), imgs]);
+    set(id, (s) => ({ ...s, queued: [...s.queued, effectiveBody] }));
     return;
   }
   const user: ConvMessage = {
     id: newId('u'),
     role: 'user',
-    text: body,
+    text: effectiveBody,
     at: Date.now(),
     ...(images?.length
       ? {
@@ -516,6 +566,7 @@ export function importSideChat(raw: string | null | undefined): string | null {
       queued: [],
       fill: null,
     };
+    queuedImagesMap.delete(chat.id);
     chats.set(chat.id, chat);
     if (typeof v.draft?.text === 'string' || Array.isArray(v.draft?.files))
       sideChatDrafts.write(sideChatDraftKey(chat.id), {
@@ -534,6 +585,7 @@ export function importSideChat(raw: string | null | undefined): string | null {
 /** 交出去之后这一侧不再持有（不停正在跑的：交接前已确认没在跑） */
 export function forgetSideChat(id: string): void {
   sideChatDrafts.dropPrivate(sideChatDraftKey(id));
+  queuedImagesMap.delete(id);
   if (chats.delete(id)) emit();
 }
 
@@ -541,6 +593,7 @@ export function forgetSideChat(id: string): void {
 export function resetSideChats(): void {
   for (const c of aborts.values()) c.abort();
   aborts.clear();
+  queuedImagesMap.clear();
   chats.clear();
   mounted.clear();
   byScopeCache.clear();

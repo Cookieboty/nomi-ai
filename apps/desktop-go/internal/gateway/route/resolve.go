@@ -339,17 +339,22 @@ func ResolveCandidates(cfg *config.GatewayConfig, client, requested, ingress str
 		}
 		return &ResolveResult{Status: 404, Message: msg, Suggestions: s}
 	}
-	// 停用的供应商自己不出候选：直接从同一个模型的下一家开始
+	// 停用的供应商自己不出候选：开启熔断降级时才从同一个模型的下一家开始回退
 	var cs []*cand.Candidate
 	if !off {
 		cs = expand(cfg, tp, tm, ingress)
 	}
-	// 首选的 Key 都不行时：同一个模型，按供应商列表顺序换供应商
-	for _, fb := range FailoverTargets(cfg, tp, tm) {
-		cs = append(cs, expand(cfg, fb.Provider, fb.Model, ingress)...)
+	if cfg.FailoverEnabled {
+		// 首选的 Key 都不行或已停用时：同一个模型，按供应商列表顺序换供应商
+		for _, fb := range FailoverTargets(cfg, tp, tm) {
+			cs = append(cs, expand(cfg, fb.Provider, fb.Model, ingress)...)
+		}
 	}
 	if len(cs) == 0 {
 		if off {
+			if !cfg.FailoverEnabled {
+				return &ResolveResult{Status: 400, Message: "Nomi 网关：供应商「" + tp.Name + "」已停用"}
+			}
 			return &ResolveResult{Status: 400, Message: "Nomi 网关：供应商「" + tp.Name + "」已停用，也没有其它启用的供应商提供 `" + tm + "`"}
 		}
 		return &ResolveResult{Status: 400, Message: "Nomi 网关：供应商「" + tp.Name + "」没有可用的 Key 或协议地址"}

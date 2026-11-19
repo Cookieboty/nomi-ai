@@ -116,6 +116,8 @@ type CliDeps struct {
 	// NomiAuto：Nomi 主对话当前是「自动」档。该档位明确授权 Nomi 委派的子 agent
 	// 在没有系统沙箱的平台也使用 auto；其它后台任务仍遵守系统沙箱限制。
 	NomiAuto func() bool
+	// DelegateMode：Nomi 委派任务默认给子 agent 的权限档；nil 时回退 "bypass"。
+	DelegateMode func(cli string) string
 	// PrepareIsolation：baseBranch 是别的分支时开 worktree，否则直接在 sourceCwd 里改（in-place / shared-cwd）
 	PrepareIsolation func(sourceCwd, key, baseBranch string) (CliIsolation, error)
 	// ReleaseIsolation：拆掉 worktree：准备好但没用上（准备期间被取消），或任务结束后；可为空
@@ -284,16 +286,25 @@ func autoJudge(t Task) bool {
 // autoAll：前台「全部自动」开着（没有这个开关时为关）
 func (e *cliExecutor) autoAll() bool { return e.d.AutoAll != nil && e.d.AutoAll() }
 
+func isDelegatedCliTask(t Task) bool {
+	return t.Origin.Via != nil && *t.Origin.Via == "delegate"
+}
+
 // relaxed：自动判断 / 全部自动：命令不再逐项问人（破坏性、凭据、对外、事件触发仍问）。
-// 没有系统沙箱时，只有 Nomi 明确切到「自动」才放松；其它后台任务仍保持逐条确认。
+// Nomi 委派任务默认一律放松，不受 Nomi 自身权限模式或系统沙箱影响；
+// 其它后台任务在没有系统沙箱时，只有 Nomi 明确切到「自动」才放松。
 func (e *cliExecutor) relaxed(t Task) bool {
+	if isDelegatedCliTask(t) {
+		return true
+	}
 	nomiAuto := e.d.NomiAuto != nil && e.d.NomiAuto()
 	return (osSandboxSupported() || nomiAuto) && (autoJudge(t) || e.autoAll() || nomiAuto)
 }
 
-// decidePermission：没有系统沙箱时，即便授权里勾了「按风险自动判断」，也按「每条命令都问」处理。
+// decidePermission：非委派后台任务没有系统沙箱时，即便授权里勾了「按风险自动判断」，也按「每条命令都问」处理；
+// Nomi 委派任务即使没有系统沙箱也默认开启自动判断，不受 Nomi 所选模式影响。
 func (e *cliExecutor) decidePermission(t Task, kind, summary string, tainted bool) string {
-	if !osSandboxSupported() {
+	if !isDelegatedCliTask(t) && !osSandboxSupported() {
 		off := false
 		g := t.Grant
 		g.AutoJudge = &off
@@ -481,10 +492,16 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 		}
 		iso = &got
 		before = e.d.GitChanged(got.Cwd)
-		// 权限档：L2 起可以改文件；开了「按风险自动判断」或前台「全部自动」且到了 L3、
-		// 并且系统沙箱可用时用 auto（等价 codex 的 full-auto）。Nomi「自动」明确委派的子 agent
-		// 即使没有系统沙箱也用 auto。
+		// 权限档：Nomi 委派任务默认一律开启自动模式（由 DelegateMode 映射到 CLI 支持的 bypass/最高自动档），
+		// 不受 Nomi 自身当前模式或系统沙箱限制影响；普通后台任务仍按授权等级与系统沙箱换算。
 		mode := cliTaskMode(t, e.relaxed(t))
+		if isDelegatedCliTask(t) {
+			if e.d.DelegateMode != nil {
+				mode = e.d.DelegateMode(cliName)
+			} else {
+				mode = "bypass"
+			}
+		}
 		// 同一种任务接着用上一次的会话（worktree 里做的不复用）
 		id := ""
 		if got.Kind != "worktree" && e.d.ReuseTab != nil {

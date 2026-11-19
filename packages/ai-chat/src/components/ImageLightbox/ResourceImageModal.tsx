@@ -41,15 +41,26 @@ export function ResourceImageModal({
         let cwd = entry.scope.cwd ?? '';
         let path = target.path!;
         result = await resourcePreviewClient.open(cwd, path);
+        const isRelativePath =
+          !/^(?:\/|~[\\/]|…[\\/]|\.{3}[\\/]|[A-Za-z]:[\\/])/.test(path) && !path.includes('..');
         const base = cwd.replace(/\\/g, '/').replace(/\/$/, '');
         const original = path.replace(/\\/g, '/');
-        if (base && original.startsWith(`${base}/`)) {
-          const relative = original.slice(base.length + 1);
-          for (const fallback of entry.scope.fallbackCwds ?? []) {
-            if (stale || result.code !== 'missing') break;
-            cwd = fallback;
-            path = resourceTarget(workspaceFileHref(cwd, relative))!.path!;
-            result = await resourcePreviewClient.open(cwd, path);
+        if (!stale && result.code === 'missing' && entry.scope.fallbackCwds?.length) {
+          if (isRelativePath) {
+            for (const fallback of entry.scope.fallbackCwds) {
+              if (stale || result.code !== 'missing') break;
+              cwd = fallback;
+              path = target.path!;
+              result = await resourcePreviewClient.open(cwd, path);
+            }
+          } else if (base && original.startsWith(`${base}/`)) {
+            const relative = original.slice(base.length + 1);
+            for (const fallback of entry.scope.fallbackCwds) {
+              if (stale || result.code !== 'missing') break;
+              cwd = fallback;
+              path = resourceTarget(workspaceFileHref(cwd, relative))!.path!;
+              result = await resourcePreviewClient.open(cwd, path);
+            }
           }
         }
         if (!stale && result.code === 'authorization') {

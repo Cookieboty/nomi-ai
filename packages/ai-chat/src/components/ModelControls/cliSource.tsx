@@ -50,7 +50,11 @@ import {
 } from '../../services/harnessClient';
 import type { LongContextInfo } from '../../services/longContext';
 import { providerBrand, splitRef, useGatewayState } from '../../services/nomiModel';
-import { resolveThinkingLevel, thinkingProfileOf } from '../../services/thinkingDepth';
+import {
+  isNativeThirdPartyModel,
+  resolveThinkingLevel,
+  thinkingProfileOf,
+} from '../../services/thinkingDepth';
 import { hasOfficialAccount } from '../../utils/cliCaps';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
@@ -265,28 +269,42 @@ export function useCliModelEffortSource({
         : null
       : storedEffort
     : null;
-  // null 表示沿用默认，界面仍应把默认档位显示在对应位置（第三方：模型的第二档，和 Nomi 对话一样，
-  // 也是网关实际发出的那一档）。
+  const nativeThirdParty =
+    thirdParty && isNativeThirdPartyModel(tab.backend, gateway, thirdPartyRef);
+  // null 表示沿用默认：官方模式与第三方同协议原生模型默认留给 CLI 决定，其余第三方模型落在第二档。
   const defaultEffort = thirdParty
-    ? ((resolveThinkingLevel(undefined, thirdPartyProfile) ?? null) as ReasoningEffort | null)
+    ? nativeThirdParty
+      ? null
+      : ((resolveThinkingLevel(undefined, thirdPartyProfile) ?? null) as ReasoningEffort | null)
     : reasoningSupported && info?.defaultEffort && levels.includes(info.defaultEffort)
       ? info.defaultEffort
       : null;
 
+  const needsThirdPartyPick = thirdParty && !current && !catalog.defaultModel;
+  const officialNeedsPick =
+    !thirdParty &&
+    !current &&
+    !catalog.defaultModel &&
+    catalog.models.length === 0 &&
+    !!catalog.error &&
+    !!officialTabs;
+  const needsModelPick = needsThirdPartyPick || officialNeedsPick;
+
   const defaultLabel = catalog.defaultModel?.label ?? catalog.defaultModel?.id;
   // 没选模型时显示 CLI 默认用的那个模型名（浮层里再标「默认」）
-  // 第三方供应商单独成行；按钮和「模型」行只显示模型名。
+  // 第三方供应商单独成行；按钮和「模型」行只显示模型名；待选模型态显示「选择模型」。
   const selectedModel = current ? currentModel : catalog.defaultModel;
   const selectedLabel = selectedModel?.label;
   const providerPrefix = selectedLabel?.indexOf(' / ') ?? -1;
-  const modelLabel =
-    thirdParty && selectedModel
+  const modelLabel = needsModelPick
+    ? t('ui.models.choose-a-model')
+    : thirdParty && selectedModel
       ? providerPrefix >= 0
         ? selectedLabel!.slice(providerPrefix + 3)
         : (selectedLabel ?? splitRef(selectedModel.id)?.model ?? selectedModel.id)
       : (selectedLabel ?? current ?? defaultLabel ?? t('ui.providers-schedule.default-model'));
   // 没有显式覆盖时也显示 CLI 的实际默认档位，让底部按钮直接反映当前设置。
-  const chipEffort = effort ?? defaultEffort;
+  const chipEffort = needsModelPick ? null : (effort ?? defaultEffort);
   const shortLabel = chipEffort
     ? `${modelLabel} · ${thirdParty ? thinkingLevelLabel(chipEffort) : effortLabel(chipEffort)}`
     : modelLabel;
@@ -426,8 +444,8 @@ export function useCliModelEffortSource({
   );
   const extraOptions = useMemo<SelectOption[]>(
     () => [
-      // 聊过的第三方会话：清掉选择回到的是会话上次的模型，不是「模型」页的默认，不列「默认模型」
-      ...(!sessionRef
+      // 聊过的第三方会话，或第三方未配置默认模型时：不列「默认模型」，以免点回空态
+      ...(!sessionRef && !(thirdParty && !catalog.defaultModel)
         ? [
             {
               value: '',
@@ -450,7 +468,7 @@ export function useCliModelEffortSource({
           ]
         : []),
     ],
-    [sessionRef, defaultLabel, thirdParty, sourceName, current, currentModel],
+    [sessionRef, defaultLabel, thirdParty, catalog.defaultModel, sourceName, current, currentModel],
   );
   const tailOptions = useMemo<SelectOption[]>(
     () =>
@@ -599,7 +617,7 @@ export function useCliModelEffortSource({
     value: chipEffort,
     explicit: !!effort,
     defaultUnknownNote:
-      !thirdParty && !effort && !defaultEffort
+      (!thirdParty || nativeThirdParty) && !effort && !defaultEffort
         ? t('ui.chat-settings.effort-default-set-by-cli', backendName || tab.backend)
         : null,
     unavailableHint: backendBlocksEffort
@@ -770,7 +788,11 @@ export function useCliModelEffortSource({
     // 第三方模型能调思考深度时和 Nomi 对话一样有「‹ 模型」返回行（回到档位页）
     showBack: !hasProvider || (thirdParty && reasoningSupported),
     footer: long ? <LongContextRow long={long} onPick={pickLong} /> : null,
-    focusProvider: thirdParty ? (providerOfRef(catalog.defaultModel?.id) ?? undefined) : OWN_TAB,
+    focusProvider: thirdParty
+      ? (providerOfRef(current ?? catalog.defaultModel?.id) ?? thirdPartyTabs?.[0]?.id ?? undefined)
+      : officialNeedsPick
+        ? (defaultProviderId ?? switchProviders?.[0]?.id ?? OWN_TAB)
+        : OWN_TAB,
     purpose: 'coding',
     optionTestId,
     onPick,
@@ -779,7 +801,7 @@ export function useCliModelEffortSource({
 
   return {
     label: shortLabel,
-    muted: !current && !chipEffort,
+    muted: needsModelPick || (!current && !chipEffort),
     brand: chipBrand,
     ariaLabel: modelOnly
       ? t('ui.chat-settings.model', modelOnly.name, shortLabel)
@@ -789,8 +811,8 @@ export function useCliModelEffortSource({
       : t('ui.chat-settings.model-and-reasoning-effort-label'),
     note,
     longBadge: !!long?.on,
-    // 第三方：能调档位时和 Nomi 对话一样先停在档位页；不能调直接列模型
-    initialView: modelOnly ? 'model' : 'effort',
+    // 第三方：能调档位时和 Nomi 对话一样先停在档位页；不能调或尚未选模型时直接列模型
+    initialView: modelOnly || needsModelPick ? 'model' : 'effort',
     menuCommandView: 'model',
     menuKey: tab.id,
     topBar,

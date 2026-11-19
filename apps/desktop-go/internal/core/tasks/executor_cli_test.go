@@ -813,3 +813,104 @@ func TestClassifyErrorTreatsAutoModeBlockedAsRetryable(t *testing.T) {
 		}
 	}
 }
+
+func TestDelegatedCliTaskAlwaysAutoRegardlessOfNomiModeAndSandbox(t *testing.T) {
+	orig := osSandboxSupported
+	t.Cleanup(func() { osSandboxSupported = orig })
+	osSandboxSupported = func() bool { return false }
+
+	delegated := Task{
+		Origin: Origin{CreatedBy: "nomi", Via: sp("delegate")},
+		Grant:  Grant{Level: 3, Paths: []string{"/repo"}},
+	}
+	e := &cliExecutor{d: CliDeps{
+		AutoAll:  func() bool { return false },
+		NomiAuto: func() bool { return false },
+	}}
+	if !e.relaxed(delegated) {
+		t.Fatal("Nomi 委派任务即使在 Nomi 非自动且无系统沙箱时也应放松权限")
+	}
+	if got := e.decidePermission(delegated, "", "Bash: npm test", false); got != "allow" {
+		t.Fatalf("decidePermission = %q, want allow", got)
+	}
+
+	// 启动路径（通过 DelegateMode 映射并与 CreateTab 对接）
+	f := newFakeCli(map[string]bool{"grok": true, "minimax": true})
+	exec := NewCliExecutor(CliDeps{
+		Harness:  f,
+		AutoAll:  func() bool { return false },
+		NomiAuto: func() bool { return false },
+		DelegateMode: func(cli string) string {
+			if cli == "minimax" {
+				return "manual"
+			}
+			return "bypass"
+		},
+		PrepareIsolation: func(cwd, key, _ string) (CliIsolation, error) {
+			return CliIsolation{Kind: "in-place", Cwd: cwd, SourceCwd: cwd, GitRoot: cwd}, nil
+		},
+		GitChanged:  func(string) []string { return nil },
+		BuildPrompt: func(goal, _, _, _ string) string { return goal },
+		ParseReport: func(text string) *CliReport { return &CliReport{Done: text} },
+		DirOk:       func(d string) bool { return d == "/repo" },
+	})
+	var idMu sync.Mutex
+	var ids int
+	rt := NewRuntime(RuntimeDeps{
+		Store:     newMemStoreSafe(),
+		Executors: map[string]Executor{"cli": exec},
+		Now:       func() int64 { return 1_800_000_000_000 },
+		SetTimer:  func(func(), int64) func() { return func() {} },
+		NewID: func(p string) string {
+			idMu.Lock()
+			defer idMu.Unlock()
+			ids++
+			return fmt.Sprintf("%s_%d", p, ids)
+		},
+		Log: &nopLog{},
+	})
+	rt.Start()
+
+	via := "delegate"
+	for _, tc := range []struct {
+		cli, want string
+	}{
+		{"grok", "bypass"},
+		{"minimax", "manual"},
+	} {
+		tid := rt.Create(CreateInput{
+			Title: "委派 " + tc.cli, Goal: "g", Trigger: Trigger{Kind: "manual"},
+			Origin:   Origin{CreatedBy: "nomi", CreatedAt: 1_800_000_000_000, Via: &via},
+			Executor: ExecutorSpec{Kind: "cli", Cli: sp(tc.cli), Cwd: sp("/repo")},
+			Grant:    Grant{Level: 3, Paths: []string{"/repo"}},
+		}).ID
+		rt.Command(tid, Command{Type: "runNow"})
+		waitFor(t, func() bool { return f.sendCount() > 0 })
+		f.mu.Lock()
+		lastTabID := f.sendTabs[len(f.sendTabs)-1]
+		gotMode := f.tabs[lastTabID].mode
+		f.mu.Unlock()
+		if gotMode != tc.want {
+			t.Fatalf("delegated cli=%s mode=%q, want %q", tc.cli, gotMode, tc.want)
+		}
+		// 无 OS 沙箱时普通命令也不进入 waiting_user，而是直接放行
+		prevReplies := func() int { f.mu.Lock(); defer f.mu.Unlock(); return len(f.replies) }()
+		f.emit(CliTabEvent{TabID: lastTabID, Type: "permission", ID: "perm_" + tc.cli, Summary: "Bash: go test ./..."})
+		waitFor(t, func() bool {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			return len(f.replies) > prevReplies
+		})
+		f.mu.Lock()
+		lastReply := f.replies[len(f.replies)-1]
+		f.mu.Unlock()
+		if lastReply != lastTabID+"/perm_"+tc.cli+"/true" {
+			t.Fatalf("expected auto-allow reply for %s, got %q", tc.cli, lastReply)
+		}
+		f.finish("done")
+		waitFor(t, func() bool { return rt.Get(tid).Task.Status == StatusDone })
+		f.mu.Lock()
+		f.sends = nil
+		f.mu.Unlock()
+	}
+}

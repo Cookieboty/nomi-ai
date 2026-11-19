@@ -11,6 +11,7 @@ type PendingMode = 'steer' | 'queue';
 
 interface SendContext {
   actions: AiChatActionsValue['actions'];
+  onBeforeSend?: () => boolean;
   onSend?: (text: string, images?: ImageAttachment[]) => void | Promise<void>;
   busyOverride?: boolean;
   imageCapability?: 'full' | 'partial' | 'none';
@@ -18,7 +19,12 @@ interface SendContext {
   kbMode: boolean;
   kbAvailable: boolean;
   busy: boolean;
-  queue?: { onQueue: (text: string, opts: { kb?: boolean; mode: PendingMode }) => void };
+  queue?: {
+    onQueue: (
+      text: string,
+      opts: { kb?: boolean; mode: PendingMode; images?: ImageAttachment[] },
+    ) => void;
+  };
   slash?: {
     scope?: () => string | undefined;
     run: (cmd: string, registry: SlashCommand[]) => Promise<{ handled: boolean; text?: string }>;
@@ -59,18 +65,33 @@ export function createSendHandler(
       if (r.text !== undefined) trimmedMessage = r.text;
     }
 
+    if (ctx.onBeforeSend && !ctx.onBeforeSend()) return;
+
     // 文件附件拼在正文末尾，随文字一起走（排队也带上）
     const sendFiles = files;
     const typed = trimmedMessage;
     trimmedMessage = joinFileAttachments(trimmedMessage, sendFiles);
 
     if (ctx.busy) {
-      // 运行中：文字消息进队列（带图片的消息不排队，等当前轮结束再发）
-      if (ctx.queue && !images.length) {
-        // 入队时冻结知识库模式：排队期间切换开关不改变这条消息的去向
-        if (ctx.kbMode && ctx.kbAvailable) ctx.queue.onQueue(trimmedMessage, { kb: true, mode });
-        else ctx.queue.onQueue(trimmedMessage, { mode });
+      if (images.length && ctx.imageCapability === 'none') {
+        ctx.setImgErr(
+          ctx.imageUnsupportedReason ??
+            tr('ui.session-workspace.the-current-model-doesn-t-support-images-remove'),
+        );
+        return;
+      }
+      // 运行中：纯文字可按 mode 插入或排队；带图片先排队（保留图片附件），本轮结束后自动发送
+      if (ctx.queue) {
+        const opts: { kb?: boolean; mode: PendingMode; images?: ImageAttachment[] } = { mode };
+        if (images.length) {
+          opts.images = images;
+        } else if (ctx.kbMode && ctx.kbAvailable) {
+          // 入队时冻结知识库模式：排队期间切换开关不改变这条消息的去向
+          opts.kb = true;
+        }
+        ctx.queue.onQueue(trimmedMessage, opts);
         ctx.clearActive();
+        ctx.setImgErr('');
       }
       return;
     }

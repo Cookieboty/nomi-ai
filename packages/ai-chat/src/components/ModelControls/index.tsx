@@ -14,6 +14,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useCliAccounts } from '../../hooks/useCliAccounts';
 import { useCliLauncher, useHasLocalLogin } from '../../services/cliLauncherClient';
 import {
+  codingModelChoices,
   codingProviders,
   defaultSourceSwitch,
   isCliKind,
@@ -80,7 +81,15 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
   const [open, setOpen] = useState(false);
   const { accounts, ready: accountsReady } = useCliAccounts(open ? tab.backend : null);
   const hasLoggedInOfficial = accountsReady ? accounts.some((a) => a.loggedIn) : undefined;
-  const thirdRef = source === 'thirdParty' ? thirdPartyRefOf(tab, tab.backend, gateway) : null;
+  const rawThirdRef = source === 'thirdParty' ? thirdPartyRefOf(tab, tab.backend, gateway) : null;
+  const thirdRef = useMemo(() => {
+    if (!rawThirdRef) return null;
+    if (!gateway) return rawThirdRef;
+    const gwModels = codingModelChoices(gateway);
+    if (gwModels.some((m) => m.ref === rawThirdRef)) return rawThirdRef;
+    if (catalog?.models.some((m) => m.id === rawThirdRef)) return rawThirdRef;
+    return null;
+  }, [rawThirdRef, gateway, catalog]);
   // 聊过的会话：原来的供应商与默认供应商不同时两家都列（全部模型）
   const groups = useMemo(
     () => (source === 'thirdParty' ? sessionModelGroups(tab, tab.backend, gateway) : null),
@@ -114,25 +123,27 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
     : null;
   // 第三方：列所有供应商的模型，按供应商分标签；组（原来的 / 默认供应商）的说明放到标签上
   const providerTabs = useMemo(() => {
-    if (!catalog || !thirdRef) return null;
+    if (!catalog || source !== 'thirdParty') return null;
     const has = new Set(catalog.models.map((m) => providerOfRef(m.id)));
     const label = new Map(groups?.map((g) => [g.id, g.label]));
     return codingProviders(gateway)
       .filter((p) => has.has(p.id))
       .map((p) => ({ id: p.id, name: p.name, hint: label.get(p.id) }));
-  }, [catalog, thirdRef, groups, gateway]);
+  }, [catalog, source, groups, gateway]);
   // 第三方目录来自网关：生图模型不能给 agent 用，不列
   const chatCatalog = useMemo(() => {
-    if (!catalog || !thirdRef) return catalog;
+    if (!catalog || source !== 'thirdParty') return catalog;
     const models = catalog.models.filter((m) => !isImageModel(m.id));
     const defaultModel =
       catalog.defaultModel && !isImageModel(catalog.defaultModel.id)
         ? catalog.defaultModel
-        : (models.find((m) => m.id === thirdRef) ?? null);
+        : thirdRef
+          ? (models.find((m) => m.id === thirdRef) ?? null)
+          : null;
     return { ...catalog, models, defaultModel };
-  }, [catalog, thirdRef]);
+  }, [catalog, source, thirdRef]);
   const scoped = useMemo(() => {
-    if (!chatCatalog || !thirdRef) return chatCatalog;
+    if (!chatCatalog || source !== 'thirdParty') return chatCatalog;
     if (providerTabs && providerTabs.length > 1) {
       return scopeCatalogToProviders(
         chatCatalog,
@@ -140,12 +151,15 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
         gateway,
       );
     }
+    if (providerTabs && providerTabs.length === 1) {
+      return scopeCatalogToProviders(chatCatalog, [providerTabs[0]!.id], gateway);
+    }
     const pid = providerOfRef(thirdRef);
     if (pid && chatCatalog.models.some((m) => m.id.startsWith(`${pid}/`))) {
       return scopeCatalogToProvider(chatCatalog, thirdRef, gateway);
     }
     return chatCatalog;
-  }, [chatCatalog, thirdRef, providerTabs, gateway]);
+  }, [chatCatalog, source, thirdRef, providerTabs, gateway]);
   // 适配器只在实际渲染时调用（hook 不能跟在 return 后面）：用占位目录，禁用时也不显示
   const adapter = useCliModelEffortSource({
     tab,

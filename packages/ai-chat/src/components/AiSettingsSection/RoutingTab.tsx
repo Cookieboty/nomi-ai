@@ -47,7 +47,7 @@ import {
 } from '../../services/delegateClient';
 import { gatewayClient, type ClientModels, type GatewayState } from '../../services/gatewayClient';
 import { pickerProviders, useGatewayState } from '../../services/nomiModel';
-import { thinkingProfileOf } from '../../services/thinkingDepth';
+import { isNativeThirdPartyModel, thinkingProfileOf } from '../../services/thinkingDepth';
 import { thirdPartyOnly } from '../../utils/cliCaps';
 import { EndpointIcon } from '../EndpointIcon';
 import { thinkingLevelLabel } from '../ModelControls/effortLabel';
@@ -90,8 +90,10 @@ function presetEffortText(p: RunnerPreset, gateway: GatewayState | null): string
     if (!prof) return null;
     const eff =
       p.reasoningEffort && prof.levels.includes(p.reasoningEffort) ? p.reasoningEffort : null;
-    return eff
-      ? thinkingLevelLabel(eff)
+    if (eff) return thinkingLevelLabel(eff);
+    const native = isNativeThirdPartyModel(p.cli, gateway, p.model ?? null);
+    return native
+      ? t('ui.providers-schedule.default')
       : `${t('ui.providers-schedule.default')} (${thinkingLevelLabel(prof.default)})`;
   }
   if (NO_REASONING_BACKENDS.has(p.cli)) return null;
