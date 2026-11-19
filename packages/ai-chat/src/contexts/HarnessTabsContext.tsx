@@ -57,7 +57,7 @@ import {
   type PendingMode,
   type PendingSend,
 } from '../utils/pendingSends';
-import { findReusableTab } from '../utils/reusableTab';
+import { findReusableTab, isEmptyTab } from '../utils/reusableTab';
 import { shareTabsState } from '../utils/shareTabsState';
 
 /** 内存里最多缓存几个标签的消息（含当前）：其余切走后丢弃，回来时重新从主进程读取 */
@@ -89,7 +89,12 @@ export interface HarnessTabsCore {
   cycle: (dir: 1 | -1) => void;
   selectIndex: (i: number) => void;
   /** 发送；当前标签正在运行 / 排队时改为进队列（含附图，不走 steer 丢图），当前轮结束后自动发送。 */
-  send: (text: string, images?: readonly PendingImage[], mode?: PendingMode) => Promise<void>;
+  send: (
+    text: string,
+    images?: readonly PendingImage[],
+    mode?: PendingMode,
+    onError?: (message: string) => void,
+  ) => Promise<void>;
   /**
    * 向指定标签发送（与当前激活的标签无关）：异步结果（如斜杠命令展开）要回到发起它的标签。
    * 目标运行 / 排队中时进该标签的队列（支持带图）；标签不存在 / 已关闭、是 main、或后端 / 目录与 `expect` 不符
@@ -102,6 +107,7 @@ export interface HarnessTabsCore {
     images?: readonly PendingImage[],
     /** 标签在运行时：steer（Enter，默认，仅纯文本）插入这一轮 / queue（Ctrl+Enter 或带图）排队到这一轮结束 */
     mode?: PendingMode,
+    onError?: (message: string) => void,
   ) => Promise<boolean>;
   /** 标签是否仍存在（读最新状态，不依赖渲染闭包） */
   hasTab: (tabId: string) => boolean;
@@ -588,10 +594,26 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       projectId?: string,
       preset?: Pick<RunnerPreset, 'source' | 'accountId' | 'model' | 'reasoningEffort'>,
     ) => {
+      const prevActive = stateRef.current?.tabs.find((t) => t.id === stateRef.current?.activeTabId);
       const reusable = findReusableTab(stateRef.current?.tabs, backend, projectId);
       const tab =
         reusable ??
         (await harnessClient.createTab(projectId ? { backend, projectId } : { backend }));
+      const shouldClosePrevEmpty =
+        !reusable &&
+        !!prevActive &&
+        prevActive.id !== MAIN_TAB_ID &&
+        prevActive.id !== tab.id &&
+        isEmptyTab(prevActive) &&
+        !(prevActive.carriedMessages ?? 0) &&
+        !prevActive.finished &&
+        !prevActive.lastError &&
+        !prevActive.subagentOf &&
+        !(cacheStore.get()[prevActive.id]?.length ?? 0) &&
+        !(queuesRef.current[prevActive.id]?.length ?? 0);
+      if (shouldClosePrevEmpty) {
+        void harnessClient.closeTab(prevActive.id).catch(() => undefined);
+      }
       if (preset) {
         await harnessClient.setTabSource(
           tab.id,
@@ -613,7 +635,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       // 复用的是已经存在的空标签：它多半不是当前标签，切过去
       if (reusable) await activate(tab.id);
     },
-    [activate],
+    [activate, cacheStore],
   );
   // 只在标签增删 / 重排时换引用：cycle / selectIndex 不随后台标签的状态广播变化
   const idsKey = state?.tabs.map((t) => t.id).join('\u0000') ?? '';
@@ -634,11 +656,26 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     [ids, activate],
   );
   const dispatchSend = useCallback(
-    async (tabId: string, text: string, images?: readonly PendingImage[]) => {
+    async (
+      tabId: string,
+      text: string,
+      images?: readonly PendingImage[],
+    ): Promise<string | null> => {
       setLive((cur) => ({ ...cur, [tabId]: { text: '', startedAt: Date.now() } }));
-      const harnessImages = images?.length ? await ensureHarnessImages(images) : undefined;
-      // 结果经 tab-message 事件进入缓存；这里只吞掉错误（错误也会作为消息写入标签）
-      await harnessClient.sendTab(tabId, text, harnessImages).catch(() => undefined);
+      try {
+        const harnessImages = images?.length ? await ensureHarnessImages(images) : undefined;
+        // 结果经 tab-message 事件进入缓存；发送前预检等错误在此捕获并立刻清理占位 live 状态
+        await harnessClient.sendTab(tabId, text, harnessImages);
+        return null;
+      } catch (err) {
+        setLive((cur) => {
+          if (!(tabId in cur)) return cur;
+          const next = { ...cur };
+          delete next[tabId];
+          return next;
+        });
+        return err instanceof Error ? err.message : String(err);
+      }
     },
     [],
   );
@@ -649,6 +686,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       expect?: { backend?: HarnessBackend; cwd?: string },
       images?: readonly PendingImage[],
       mode: PendingMode = 'steer',
+      onError?: (message: string) => void,
     ): Promise<boolean> => {
       if (tabId === MAIN_TAB_ID) return false;
       const tab = stateRef.current?.tabs.find((t) => t.id === tabId);
@@ -674,12 +712,16 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       }
       dispatching.current.add(tabId);
       try {
-        await dispatchSend(tabId, text, images);
+        const sendErr = await dispatchSend(tabId, text, images);
+        if (sendErr) {
+          onError?.(sendErr);
+          return false;
+        }
+        return true;
       } finally {
         dispatching.current.delete(tabId);
         setTick((n) => n + 1);
       }
-      return true;
     },
     [dispatchSend, updateQueues, deliverSteer, liveStore],
   );
@@ -688,9 +730,14 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     [],
   );
   const send = useCallback(
-    async (text: string, images?: readonly PendingImage[], mode?: PendingMode) => {
+    async (
+      text: string,
+      images?: readonly PendingImage[],
+      mode?: PendingMode,
+      onError?: (message: string) => void,
+    ) => {
       if (!isCliTab) return;
-      await sendToTab(activeId, text, undefined, images, mode);
+      await sendToTab(activeId, text, undefined, images, mode, onError);
     },
     [isCliTab, activeId, sendToTab],
   );

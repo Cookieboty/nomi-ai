@@ -3,7 +3,11 @@ import { act, cleanup, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { HarnessTabsProvider, useHarnessTabs } from '../src/contexts/HarnessTabsContext';
+import {
+  HarnessTabsProvider,
+  useHarnessLive,
+  useHarnessTabs,
+} from '../src/contexts/HarnessTabsContext';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
@@ -234,5 +238,87 @@ describe('HarnessTabsContext.sendToTab', () => {
     await ipc.push(stateOf([tab({ id: 'a', status: 'idle' })], 'a'));
     await waitFor(() => expect(ipc.sent).toHaveLength(1));
     expect(ipc.sent[0]!.images).toHaveLength(2);
+  });
+
+  it('sendTab 拒绝（预检失败）时立刻清理 live 占位状态、触发 onError 并返回 false', async () => {
+    const init = stateOf([tab({ id: 'a', source: 'thirdParty' })], 'a');
+    let liveMap: Record<string, unknown> = {};
+    const invoke = vi.fn(async (ch: string) => {
+      if (ch === 'harness.tabs') return init;
+      if (ch === 'harness.tabMessages') return [];
+      if (ch === 'harness.tabSend') {
+        throw new Error('这个会话还没有选择模型，请先在输入栏选择一个第三方模型');
+      }
+      return init;
+    });
+    installFakeApi(invoke);
+    const ref: { current: Tabs | null } = { current: null };
+    const Probe: React.FC = () => {
+      ref.current = useHarnessTabs();
+      liveMap = useHarnessLive((l) => l);
+      return null;
+    };
+    render(
+      <HarnessTabsProvider>
+        <Probe />
+      </HarnessTabsProvider>,
+    );
+    await waitFor(() => expect(ref.current!.state?.tabs).toHaveLength(2));
+
+    const errors: string[] = [];
+    let ok = true;
+    await act(async () => {
+      ok = await ref.current!.sendToTab('a', '你好', undefined, undefined, 'steer', (msg) =>
+        errors.push(msg),
+      );
+    });
+    expect(ok).toBe(false);
+    expect(errors).toEqual(['这个会话还没有选择模型，请先在输入栏选择一个第三方模型']);
+    expect(liveMap.a).toBeUndefined();
+  });
+
+  it('create 不复用新建标签时关闭前一个瞬态空标签；已有错误的旧标签不误删', async () => {
+    const emptyClaude = tab({ id: 'empty-1', backend: 'claude' });
+    const errClaude = tab({ id: 'err-1', backend: 'claude', lastError: 'old err' });
+    let state = stateOf([emptyClaude, errClaude], 'empty-1');
+    const closed: string[] = [];
+    let seq = 0;
+    const invoke = vi.fn(async (ch: string, i?: { id?: string; backend?: 'claude' | 'codex' }) => {
+      if (ch === 'harness.tabs') return state;
+      if (ch === 'harness.tabMessages') return [];
+      if (ch === 'harness.tabCreate') {
+        seq += 1;
+        const created = tab({ id: `new-${seq}`, backend: i?.backend ?? 'codex' });
+        state = { ...state, tabs: [...state.tabs, created], activeTabId: created.id };
+        return created;
+      }
+      if (ch === 'harness.tabClose') {
+        closed.push(String(i?.id));
+        state = {
+          ...state,
+          tabs: state.tabs.filter((t) => t.id !== i?.id),
+        };
+        return state;
+      }
+      return state;
+    });
+    const fake = installFakeApi(invoke);
+    const ref = mount();
+    await waitFor(() => expect(ref.current!.activeTabId).toBe('empty-1'));
+
+    // 1. 当前是瞬态空标签 empty-1，新建 codex 标签后应关闭 empty-1
+    await act(async () => {
+      await ref.current!.create('codex');
+    });
+    await waitFor(() => expect(closed).toEqual(['empty-1']));
+
+    // 2. 切到有 lastError 的 err-1，再新建 gemini 标签时不应关闭 err-1
+    state = { ...state, activeTabId: 'err-1' };
+    await act(() => fake.emit('harness.tabsChanged', state));
+    await waitFor(() => expect(ref.current!.activeTabId).toBe('err-1'));
+    await act(async () => {
+      await ref.current!.create('gemini');
+    });
+    expect(closed).toEqual(['empty-1']);
   });
 });

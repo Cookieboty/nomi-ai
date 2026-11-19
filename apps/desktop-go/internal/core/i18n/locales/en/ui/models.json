@@ -264,5 +264,11 @@
   "ui.models.preset-warn-cli-missing": "Not installed",
   "ui.models.preset-warn-model-missing": "Model not set",
   "ui.models.routing-default-agent-desc": "When no external CLI is installed, delegated tasks are handled by {0} in the background by default; default tiers are generated automatically once a CLI is installed and configured.",
-  "ui.models.routing-default-agent-option": "{0} (Default background agent)"
+  "ui.models.routing-default-agent-option": "{0} (Default background agent)",
+  "ui.models.cli-welcome-select-model-desc": "No official account is signed in and multiple third-party providers are available. Pick a model for {0} first.",
+  "ui.models.cli-welcome-setup-title": "Connect an account or model to start",
+  "ui.models.cli-welcome-setup-desc": "{0} has no usable official account or enabled third-party models yet. Sign in or add a third-party provider first.",
+  "ui.models.cli-welcome-setup-desc-tp-only": "{0} has no enabled third-party models yet. Add a third-party provider and enable a model first.",
+  "ui.models.cli-welcome-configure": "Configure",
+  "ui.models.cli-pick-model-before-send": "Choose a model in the composer before sending"
 }

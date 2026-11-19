@@ -342,9 +342,8 @@ export function newTabSelectValue(
     return p ? `${PROVIDER_PREFIX}${p}` : NEWTAB_NONE;
   }
 
-  const providers = availability?.gateway ? codingProviders(availability.gateway) : [];
   const fallbackTp = () => {
-    const p = providerOfRef(main) ?? providers[0]?.id;
+    const p = providerOfRef(main) ?? singleCodingProvider(availability?.gateway ?? null)?.id;
     return p ? `${PROVIDER_PREFIX}${p}` : NEWTAB_NONE;
   };
   const hasLocal = availability ? Boolean(availability.localAvailable) : true;
@@ -432,11 +431,12 @@ export function newTabOptions({
         description: existing ? t('ui.models.not-signed-in') : t('ui.models.removed-account'),
       });
     }
-  } else if (currentSelect === NEWTAB_NONE) {
+  }
+  if (currentSelect === NEWTAB_NONE) {
     options.push({
       value: NEWTAB_NONE,
       label: t('ui.models.pick-a-third-party-provider'),
-      description: t('ui.models.only-third-party-models', cliName(kind)),
+      ...(official ? {} : { description: t('ui.models.only-third-party-models', cliName(kind)) }),
       disabled: true,
     });
   }

@@ -11,6 +11,7 @@ type PendingMode = 'steer' | 'queue';
 
 interface SendContext {
   actions: AiChatActionsValue['actions'];
+  onBeforeSend?: () => boolean;
   onSend?: (text: string, images?: ImageAttachment[]) => void | Promise<void>;
   busyOverride?: boolean;
   imageCapability?: 'full' | 'partial' | 'none';
@@ -63,6 +64,8 @@ export function createSendHandler(
       }
       if (r.text !== undefined) trimmedMessage = r.text;
     }
+
+    if (ctx.onBeforeSend && !ctx.onBeforeSend()) return;
 
     // 文件附件拼在正文末尾，随文字一起走（排队也带上）
     const sendFiles = files;

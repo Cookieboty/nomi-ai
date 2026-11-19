@@ -10,6 +10,8 @@ import type { PendingMode } from '../../utils/pendingSends';
 import type { SettingsSectionInput } from '../SettingsView/sections';
 
 export interface MessageInputProps {
+  /** 发送前守卫（返回 false 时中止发送并保留草稿；不拦截斜杠命令） */
+  onBeforeSend?: () => boolean;
   /** CLI 标签可附带图片；第二参仅在有附图时传入 */
   onSend?: (message: string, images?: ImageAttachment[]) => void;
   /** 独立于 Nomi 对话的忙碌状态（CLI 标签）；设置后不再看 Nomi 的 isLoading / 模型 */

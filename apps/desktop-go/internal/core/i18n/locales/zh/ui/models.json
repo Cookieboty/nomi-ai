@@ -264,5 +264,11 @@
   "ui.models.preset-warn-cli-missing": "助手未安装",
   "ui.models.preset-warn-model-missing": "需配置第三方模型",
   "ui.models.routing-default-agent-desc": "未安装外部 CLI 时，委派任务默认由 {0} 自身在后台承接；安装并配置 CLI 后将自动按助手与任务复杂度生成默认档位。",
-  "ui.models.routing-default-agent-option": "{0}（默认后台承接）"
+  "ui.models.routing-default-agent-option": "{0}（默认后台承接）",
+  "ui.models.cli-welcome-select-model-desc": "当前未登录官方账号，且有多个可用三方供应商，请先为 {0} 选择一个模型。",
+  "ui.models.cli-welcome-setup-title": "配置账号或模型，开始对话",
+  "ui.models.cli-welcome-setup-desc": "{0} 还没有可用的官方账号或已启用三方模型。请先登录账号或添加三方供应商。",
+  "ui.models.cli-welcome-setup-desc-tp-only": "{0} 还没有已启用的三方模型。请先配置三方供应商并启用模型。",
+  "ui.models.cli-welcome-configure": "去配置",
+  "ui.models.cli-pick-model-before-send": "请先在输入栏选择一个模型再发送"
 }
