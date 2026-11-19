@@ -226,7 +226,7 @@
   "ui.models.pick-a-third-party-provider": "Pick a third-party provider",
   "ui.models.only-third-party-models": "{0} only uses third-party models",
   "ui.models.tab-routing": "Task & Cost Routing",
-  "ui.models.tab-providers": "Third-Party Models",
+  "ui.models.tab-providers": "Third-Party Providers",
   "ui.models.tab-local": "Local Models",
   "ui.models.ai-help-routing-desc": "Assign agents and models across high, balanced, and low-cost presets, plus a global lightweight helper model",
   "ui.models.ai-help-assistants-desc": "Install or update CLIs, manage multiple official accounts, configure launchers, and monitor sessions",

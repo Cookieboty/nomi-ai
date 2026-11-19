@@ -179,13 +179,13 @@ describe('SettingsView 合并后的标签页分区', () => {
     cleanup();
   });
 
-  it('模型与 Agents：五个标签，三方模型与本地模型分开', () => {
+  it('模型与 Agents：五个标签，三方供应商与本地模型分开', () => {
     const r = render(<Harness onClose={() => undefined} start="ai" />);
     const page = 'settings-ai-page';
     expect([...tabs(r, page)].map((x) => x.textContent)).toEqual([
       '任务与成本路由',
       'Agents 与账号',
-      '三方模型',
+      '三方供应商',
       '本地模型',
       '监视与会话',
     ]);
