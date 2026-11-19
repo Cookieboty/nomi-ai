@@ -381,6 +381,9 @@ func TestRealPTYReadWriteAndClose(t *testing.T) {
 		// 产品里的 xterm.js 会应答这些查询；这里不是终端仿真器，所以只对实际见到的查询做最小应答，
 		// 并等启动画面落地后再写命令，避免输入与启动重绘交叠。
 		waitWindowsStartup(t, mgr, "real-1", snapshot, 5*time.Second, 300*time.Millisecond)
+		// 直接写 os.Stdout（t.Log 要到测试结束才输出）：若 PS 提示符此刻已经出现在父进程
+		// 控制台上，说明子进程的标准输出没有走 ConPTY 管道，CI 日志里就能直接看出来。
+		fmt.Fprintf(os.Stdout, "\nNOMI_PTY_CONSOLE_PROBE after-paint\n")
 		cmdLine = "echo " + token + "\r\nexit 0\r\n"
 		cmdDeadline = 8 * time.Second
 	}
@@ -398,6 +401,14 @@ func TestRealPTYReadWriteAndClose(t *testing.T) {
 		time.Sleep(25 * time.Millisecond)
 	}
 	if !found {
+		if runtime.GOOS == "windows" {
+			fmt.Fprintf(os.Stdout, "\nNOMI_PTY_CONSOLE_PROBE before-fail\n")
+			select {
+			case code := <-exitCh:
+				t.Logf("real PTY already exited with code %d before token was read", code)
+			default:
+			}
+		}
 		got := snapshot()
 		t.Fatalf("timed out waiting for token in real PTY output, sawPrompt=%t got=%q", strings.Contains(got, "PS "), got)
 	}

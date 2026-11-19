@@ -131,6 +131,18 @@ func startPTY(opts StartOptions) (PTY, error) {
 	var si windows.StartupInfoEx
 	si.Cb = uint32(unsafe.Sizeof(si))
 	si.ProcThreadAttributeList = attrList.List()
+	// 与 microsoft/terminal 的 ConPTY 功能测试（src/winconpty/ft_pty/ConPtyTests.cpp，
+	// AttachPseudoConsole）保持一致：STARTF_USESTDHANDLES 且三个标准句柄留空。
+	// 父进程（go test / CI）本身已有控制台时，若子进程继承父进程的标准句柄，
+	// 它会把普通 stdout/stderr 直接写到父控制台而绕过 ConPTY——管道上只剩 ConPTY
+	// 自己生成的 VT（清屏、标题），真实输出（如 PS 提示符）落在父控制台上。
+	// 留空后子进程的标准句柄由伪控制台提供。MSDN 要求 STARTF_USESTDHANDLES 时
+	// bInheritHandles 必须为 TRUE；我们的管道句柄以 nil 安全属性创建、不可继承，
+	// ConPTY 也已复制好 PTY 端，所以这里不会有额外的句柄被泄露给子进程。
+	si.Flags = windows.STARTF_USESTDHANDLES
+	si.StdInput = 0
+	si.StdOutput = 0
+	si.StdErr = 0
 
 	var pi windows.ProcessInformation
 	flags := uint32(windows.EXTENDED_STARTUPINFO_PRESENT | windows.CREATE_UNICODE_ENVIRONMENT)
@@ -139,7 +151,7 @@ func startPTY(opts StartOptions) (PTY, error) {
 		cmdLinePtr,
 		nil,
 		nil,
-		false,
+		true,
 		flags,
 		&envBlock[0],
 		dirPtr,
