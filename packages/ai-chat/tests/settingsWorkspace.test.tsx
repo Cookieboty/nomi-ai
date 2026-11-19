@@ -28,7 +28,9 @@ it('在工作台内容区打开设置，返回后保留原来的草稿和会话�
   expect(input.value).toBe('尚未发送的草稿');
   expect(r.getByTestId('sidebar-panel').hidden).toBe(false);
   fireEvent.click(r.getByTestId('open-settings'));
-  fireEvent.click(await r.findByTestId('settings-back'));
+  await r.findByTestId('settings-view');
+  // 侧栏不再有「返回对话」按钮，Esc 是关闭设置的入口
+  fireEvent.keyDown(window, { key: 'Escape' });
   await waitFor(() => expect(r.queryByTestId('settings-view')).toBeNull());
   expect(r.getByTestId('chat-input')).toBe(input);
   expect(input.value).toBe('尚未发送的草稿');

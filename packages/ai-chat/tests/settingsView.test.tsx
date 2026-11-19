@@ -201,10 +201,10 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(k.getByTestId('settings-schedule')).toBeTruthy();
   });
 
-  it('设置目录顶部直接展示返回；每个分区都有标题 + 说明', () => {
+  it('设置目录不再有「返回对话」入口；每个分区都有标题 + 说明', () => {
     const r = render(<Harness onClose={() => undefined} start="general" />);
     expect(r.queryByTestId('settings-brand')).toBeNull();
-    expect(r.getByTestId('settings-nav').firstElementChild).toBe(r.getByTestId('settings-back'));
+    expect(r.queryByTestId('settings-back')).toBeNull();
     expect(r.queryByTestId('settings-sidebar-foot')).toBeNull();
     expect(r.queryByTestId('settings-banner')).toBeNull();
     for (const s of SETTINGS_SECTIONS) {
@@ -217,11 +217,11 @@ describe('SettingsView 合并后的标签页分区', () => {
     }
   });
 
-  it('右侧「配置说明」：非通用分区按 SECTION_HELP 列出卡片说明，通用页没有；侧栏保留返回入口', async () => {
+  it('右侧「配置说明」：非通用分区按 SECTION_HELP 列出卡片说明，通用页没有', async () => {
     const { SECTION_HELP } = await import('../src/components/SettingsView/sectionHelp');
     const r = render(<Harness onClose={() => undefined} start="general" />);
     expect(r.queryByTestId('settings-brand')).toBeNull();
-    expect(r.getByTestId('settings-back')).toBeTruthy();
+    expect(r.queryByTestId('settings-back')).toBeNull();
     expect(r.queryByTestId('settings-help')).toBeNull();
     fireEvent.click(r.getByTestId('settings-nav-ai'));
     const help = r.getByTestId('settings-help');

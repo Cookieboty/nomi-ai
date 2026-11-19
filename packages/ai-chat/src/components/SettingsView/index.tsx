@@ -4,7 +4,7 @@
  */
 import { Button, Icon, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import { ModalHostContext } from '@nomi-ai/ui';
-import { IconChevronLeft as ChevronLeft, IconBulb as Lightbulb } from '@tabler/icons-react';
+import { IconBulb as Lightbulb } from '@tabler/icons-react';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { AiSettingsSection } from '../AiSettingsSection';
@@ -260,17 +260,6 @@ export const SettingsView: React.FC<Props> = ({
         aria-label={t('ui.chat-settings.settings-sections')}
         data-testid="settings-nav"
       >
-        <button
-          type="button"
-          className={styles.back}
-          onClick={onClose}
-          data-testid="settings-back"
-          // 收起时只剩箭头图标：无障碍名带上 Esc 快捷键（图标按钮不写原生 title）
-          aria-label={collapsed ? t('ui.chat-settings.back-to-chat-esc') : undefined}
-        >
-          <Icon icon={ChevronLeft} />
-          <span className={styles.navLabel}>{t('ui.chat-settings.back-to-chat')}</span>
-        </button>
         {SETTINGS_NAV_GROUPS.map((group, gi) => (
           <div key={gi} className={styles.navSection}>
             {group

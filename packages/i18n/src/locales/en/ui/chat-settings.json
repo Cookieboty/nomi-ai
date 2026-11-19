@@ -54,8 +54,6 @@
   "ui.chat-settings.auto-edit-files": "Auto-edit files",
   "ui.chat-settings.auto-for-read-only-confirm-others": "Auto for read-only, confirm others",
   "ui.chat-settings.endpoint-visibility-hint": "Shown by default when installed or used. Toggle the eye to show or hide. Drag to reorder.",
-  "ui.chat-settings.back-to-chat": "Back to chat",
-  "ui.chat-settings.back-to-chat-esc": "Back to chat (Esc)",
   "ui.chat-settings.background": "Background",
   "ui.chat-settings.background-image-import-failed": "Couldn't import the image. Please try again.",
   "ui.chat-settings.background-image-too-large": "Image is over {0} MB. Pick a smaller one.",

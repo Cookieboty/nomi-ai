@@ -54,8 +54,6 @@
   "ui.chat-settings.auto-edit-files": "自动改文件",
   "ui.chat-settings.auto-for-read-only-confirm-others": "只读自动，其它确认",
   "ui.chat-settings.endpoint-visibility-hint": "默认按安装与会话记录显示，点击眼睛切换显示或隐藏，拖动可排序。",
-  "ui.chat-settings.back-to-chat": "返回对话",
-  "ui.chat-settings.back-to-chat-esc": "返回对话 (Esc)",
   "ui.chat-settings.background": "后台",
   "ui.chat-settings.background-image-import-failed": "图片导入失败，请重试",
   "ui.chat-settings.background-image-too-large": "图片超过 {0} MB，请换一张小一点的",
