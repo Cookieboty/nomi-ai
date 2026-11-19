@@ -142,10 +142,16 @@
   gap: var(--cd-space-3);
   min-width: 0;
 }
-/* 已完成的轮次：视口外不做样式 / 布局 / 绘制；auto 记住上次真实高度，滚回来不跳 */
+/* 已完成的轮次：先隔离布局与样式；仅在支持滚动锚定（overflow-anchor）的引擎启用 content-visibility，
+   避免 WKWebView（Safari）无滚动锚定时因 400px 估算高度与真实高度差导致视口跳动 */
 .turnDone {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 400px;
+  contain: layout style;
+}
+@supports (overflow-anchor: auto) {
+  .turnDone {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 400px;
+  }
 }
 
 .user {

@@ -3,7 +3,7 @@
  * Nomi 会话里只有 NomiConversation 订阅流式的最后一轮，其余部分不随每帧重渲染。
  */
 import { t } from '@nomi-ai/ui';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { ConversationView } from '../components/Conversation';
 import { CliConversation } from '../components/Conversation/CliConversation';
@@ -78,20 +78,27 @@ const CliBody: React.FC<{
   const tab = tabs.activeTab!;
   const tabId = tab.id;
   const cwd = tab.cwd;
+  const tabBackend = tab.backend;
+  const tabSource = tab.source;
+  const tabRef = useRef(tab);
+  useLayoutEffect(() => {
+    tabRef.current = tab;
+  });
+  const getTab = useCallback(() => tabRef.current, []);
   const hasLive = useHarnessLive((l) => !!l[tabId]);
-  const slots = useMemo<ConvSlots>(
-    () =>
-      buildCliSlots({
-        cwd,
-        tab,
-        ...(isDev ? traceActions({ kind: 'cli', tabId }) : {}),
-        errorActions: (m, { retry }) =>
-          m.geminiTrust ? (
-            <GeminiTrustAction key={m.id} tabId={tabId} message={m} retry={retry} />
-          ) : null,
-      }),
-    [tabId, cwd, tab, isDev],
-  );
+  const slots = useMemo<ConvSlots>(() => {
+    void tabBackend;
+    void tabSource;
+    return buildCliSlots({
+      cwd,
+      getTab,
+      ...(isDev ? traceActions({ kind: 'cli', tabId }) : {}),
+      errorActions: (m, { retry }) =>
+        m.geminiTrust ? (
+          <GeminiTrustAction key={m.id} tabId={tabId} message={m} retry={retry} />
+        ) : null,
+    });
+  }, [tabId, cwd, isDev, tabBackend, tabSource, getTab]);
   if (messages.length === 0 && !hasLive && slash.cards.length === 0 && tab.status === 'idle')
     return (
       <ConversationWelcome
