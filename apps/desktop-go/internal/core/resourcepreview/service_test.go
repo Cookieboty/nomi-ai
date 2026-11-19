@@ -191,3 +191,69 @@ func TestUniqueSuffixSkipsIgnoredDirectories(t *testing.T) {
 		t.Fatalf("expected unique suffix match in apps/shell/wails.go, got %+v", res)
 	}
 }
+
+func TestPreviewRelativePathStripsDuplicateRootName(t *testing.T) {
+	parent := t.TempDir()
+	work := filepath.Join(parent, "xy-token-api")
+	if err := os.MkdirAll(filepath.Join(work, "xy-token-api"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	rootDoc := filepath.Join(work, "ERRORCODE-ENUM-AUDIT-20261119.md")
+	nestedSameName := filepath.Join(work, "xy-token-api", "a.md")
+	if err := os.WriteFile(rootDoc, []byte("# audit\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(nestedSameName, []byte("# nested real\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	s := New()
+	// 1. 首段与工作区根目录名重复时，直拼不到则剥除首段再拼当前工作区
+	res := s.Open(work, "xy-token-api/ERRORCODE-ENUM-AUDIT-20261119.md", "/nonexistent-home", false)
+	if !res.OK || res.Content != "# audit\n" {
+		t.Fatalf("expected duplicate root prefix to resolve root doc, got %+v", res)
+	}
+	// 2. 若真实存在同名子目录文件，仍优先命中直拼结果
+	realRes := s.Open(work, "xy-token-api/a.md", "/nonexistent-home", false)
+	if !realRes.OK || realRes.Content != "# nested real\n" {
+		t.Fatalf("expected real nested dir file to take priority, got %+v", realRes)
+	}
+	// 3. 剥除后依然不存在的文件应返回 missing
+	missingRes := s.Open(work, "xy-token-api/nonexistent.md", "/nonexistent-home", false)
+	if missingRes.OK || missingRes.Code != "missing" {
+		t.Fatalf("expected missing for absent file, got %+v", missingRes)
+	}
+}
+
+func TestPreviewElidedPathMissingVsAmbiguous(t *testing.T) {
+	home := t.TempDir()
+	work := filepath.Join(home, "repo")
+	mainHandler := filepath.Join(work, "internal", "handler.go")
+	wtHandler := filepath.Join(work, "tmp", "wt", "wt1", "internal", "handler.go")
+	if err := os.MkdirAll(filepath.Dir(mainHandler), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(wtHandler), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(mainHandler, []byte("package internal\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(wtHandler, []byte("package internal_wt\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	wtGit := filepath.Join(work, "tmp", "wt", "wt1", ".git")
+	if err := os.WriteFile(wtGit, []byte("gitdir: /tmp/repo/.git/worktrees/wt1\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	s := New()
+	// 1. 0 匹配的省略路径应返回 missing，而不是 ambiguous
+	if r := s.Open(work, ".../does-not-exist.md", home, false); r.Code != "missing" {
+		t.Fatalf("expected missing for absent elided path, got %+v", r)
+	}
+	// 2. 跳过嵌套 git worktree 副本后，主仓唯一文件能唯一命中
+	if r := s.Open(work, ".../internal/handler.go", home, false); !r.OK || r.Content != "package internal\n" {
+		t.Fatalf("expected unique main repo file skipping worktree, got %+v", r)
+	}
+}
