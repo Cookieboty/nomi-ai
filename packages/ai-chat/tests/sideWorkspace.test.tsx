@@ -476,6 +476,34 @@ describe('side tabs workspace', () => {
     expect(tabKeys()).toEqual(['nomi-task:k2', 'nomi-task:k1']);
   });
 
+  it('closing a tab is not a drag: the close button is not a drag handle', async () => {
+    setup();
+    mount(['k1', 'k2']);
+    await waitFor(() => expect(tabKeys()).toHaveLength(2));
+    const data = new Map<string, string>();
+    const dataTransfer = {
+      setData: (k: string, v: string) => data.set(k, v),
+      getData: (k: string) => data.get(k) ?? '',
+      effectAllowed: 'move',
+      dropEffect: 'move',
+    };
+    const close = tabByKey('nomi-task:k2').querySelector('[data-testid="side-tab-close"]')!;
+    // 从关闭按钮上按下的拖动不是拖拽：不会把标签带走（手抖也关得掉）
+    fireEvent.pointerDown(close);
+    expect(fireEvent.dragStart(tabByKey('nomi-task:k2'), { dataTransfer })).toBe(false);
+    expect(data.size).toBe(0);
+    expect(tabByKey('nomi-task:k2').dataset.dragging).toBeUndefined();
+    fireEvent.dragOver(tabByKey('nomi-task:k1'), { dataTransfer, clientX: 0 });
+    fireEvent.drop(tabByKey('nomi-task:k1'), { dataTransfer, clientX: 0 });
+    expect(tabKeys()).toEqual(['nomi-task:k1', 'nomi-task:k2']);
+    // 点标签主体才是拖拽：照旧能把标签挪走
+    fireEvent.pointerDown(tabButton('nomi-task:k2'));
+    fireEvent.dragStart(tabByKey('nomi-task:k2'), { dataTransfer });
+    fireEvent.dragOver(tabByKey('nomi-task:k1'), { dataTransfer, clientX: 0 });
+    fireEvent.drop(tabByKey('nomi-task:k1'), { dataTransfer, clientX: 0 });
+    expect(tabKeys()).toEqual(['nomi-task:k2', 'nomi-task:k1']);
+  });
+
   it('split right shows the main chat and the tab side by side; unsplit stays maximized', async () => {
     setup();
     mount(['k1', 'k2']);

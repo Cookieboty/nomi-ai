@@ -7,7 +7,7 @@
  * - 鼠标停在不在看的子任务标签上：悬停卡片（AgentHoverCard）；
  * - 「+」：新侧边聊天 / 浏览文件。
  */
-import { Icon, IconButton, t } from '@nomi-ai/ui';
+import { Icon, IconButton, t, useLocale, type Locale } from '@nomi-ai/ui';
 import {
   IconAppWindow as AppWindow,
   IconRobot as Bot,
@@ -29,8 +29,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import type { SideTabMeta } from '../../contexts/SubagentPaneContext';
 import { scrollTabIntoStrip, useTabStripFlip } from '../../hooks/useTabMotion';
+import { isNomiDelegated, type HarnessTabMeta } from '../../services/harnessClient';
 import type { ConvMessage } from '../../types/conversation';
 import { agentTargetBackend } from '../../utils/agentIdentity';
+import { delegateAlias } from '../../utils/delegateAlias';
 import { resolveDelegateTarget } from '../../utils/delegateTarget';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { basename, resourceTarget } from '../../utils/resourceLinks';
@@ -69,9 +71,18 @@ const TabIcon: React.FC<{
   return <Icon icon={Bot} size={14} />;
 };
 
-const fallbackName = (target: SubagentTarget | undefined, backend: string | null) => {
-  if (target?.kind === 'harness' && backend && backend in ENDPOINT_NAME)
-    return t(ENDPOINT_NAME[backend as keyof typeof ENDPOINT_NAME]);
+const fallbackName = (
+  target: SubagentTarget | undefined,
+  backend: string | null,
+  tabs: readonly HarnessTabMeta[] | undefined,
+  locale: Locale,
+) => {
+  if (target?.kind === 'harness') {
+    const tab = tabs?.find((x) => x.id === target.tabId);
+    if (tab && isNomiDelegated(tab)) return delegateAlias(tab.id, { peers: tabs, locale });
+    if (backend && backend in ENDPOINT_NAME)
+      return t(ENDPOINT_NAME[backend as keyof typeof ENDPOINT_NAME]);
+  }
   if (target?.kind === 'side-chat') return t('ui.session-workspace.side-chat-title');
   return t('ui.usage-tools.subagent');
 };
@@ -79,6 +90,10 @@ const fallbackName = (target: SubagentTarget | undefined, backend: string | null
 /** 松手时指针在窗口外（拖出窗口） */
 const outsideWindow = (e: React.DragEvent) =>
   e.clientX < 0 || e.clientY < 0 || e.clientX > window.innerWidth || e.clientY > window.innerHeight;
+
+/** 拖拽起点是否落在标签的关闭按钮上（关闭按钮不属于拖拽句柄） */
+const isCloseButton = (target: EventTarget | null) =>
+  target instanceof Element && !!target.closest('[data-testid="side-tab-close"]');
 
 /** 点外面 / Esc 收起菜单 */
 function useDismiss(open: boolean, ref: React.RefObject<HTMLElement | null>, close: () => void) {
@@ -121,6 +136,7 @@ export const SideTabStrip: React.FC<{
   /** 操作按钮（拆分 / 弹出 / 全屏）是否固定到桌面标题栏右侧槽位（设置页或整页隐藏主内容时禁用） */
   actionsInTitlebar?: boolean;
 }> = ({ model, columnMessages, inTitlebar = false, actionsInTitlebar = true }) => {
+  const locale = useLocale();
   const harness = useHarnessTabs();
   const resolveTarget = useCallback(
     (target: SubagentTarget) => resolveDelegateTarget(target, harness.state?.tabs, columnMessages),
@@ -138,6 +154,8 @@ export const SideTabStrip: React.FC<{
   const stripRef = useRef<HTMLDivElement>(null);
   useTabStripFlip(stripRef, itemKeys, 'data-side-tab-key');
   const [drag, setDrag] = useState<string | null>(null);
+  // 这次拖拽是否从关闭按钮上按下的（dragstart 的 target 总是整个 tab，只能靠 pointerdown 记起点）
+  const dragFromClose = useRef(false);
   const [dropAt, setDropAt] = useState<{ key: string; after: boolean } | null>(null);
   const [splitHot, setSplitHot] = useState(false);
   // 键盘排序后焦点跟着标签走（排好后的下一次渲染里聚焦）
@@ -197,6 +215,8 @@ export const SideTabStrip: React.FC<{
       fallbackName(
         item.target && resolveTarget(item.target),
         item.target ? backendOf(item.target) : null,
+        harness.state?.tabs,
+        locale,
       )
     );
   };
@@ -208,6 +228,7 @@ export const SideTabStrip: React.FC<{
     model.move(item.key, index + dir);
   };
   const endDrag = () => {
+    dragFromClose.current = false;
     setDrag(null);
     setDropAt(null);
     setSplitHot(false);
@@ -242,8 +263,17 @@ export const SideTabStrip: React.FC<{
                 data-testid="side-tab"
                 data-side-tab-key={item.key}
                 draggable={movable}
+                onPointerDown={(e) => {
+                  dragFromClose.current = isCloseButton(e.target);
+                }}
                 onDragStart={(e) => {
                   if (!movable) return;
+                  // 从关闭按钮上开始的不算拖拽：否则点关闭时手一抖就变成拖标签，关不掉
+                  if (dragFromClose.current) {
+                    dragFromClose.current = false;
+                    e.preventDefault();
+                    return;
+                  }
                   e.dataTransfer.setData(DRAG_TYPE, item.key);
                   e.dataTransfer.effectAllowed = 'move';
                   setDrag(item.key);
@@ -366,6 +396,8 @@ export const SideTabStrip: React.FC<{
                     className={styles.close}
                     aria-label={t('ui.session-workspace.side-tab-close', name)}
                     data-testid="side-tab-close"
+                    // 关闭按钮不是拖拽句柄：拖标签请拖标签主体
+                    draggable={false}
                     onClick={() => model.close(item)}
                   >
                     <Icon icon={X} size={12} />
