@@ -12,9 +12,10 @@ import (
 var EffortOrder = []string{"minimal", "low", "medium", "high", "xhigh", "max"}
 
 var (
-	budgetWords = regexp.MustCompile(`(?i)budget_tokens|thinking[._ ]budget|thinkingbudget|thinking budget`)
-	effortWords = regexp.MustCompile(`(?i)effort|thinking_?level|thinkinglevel`)
-	badValue    = u.JSRe(`(?i)invalid|not\s+supported|unsupported|must\s+be|one\s+of|allowed\s+values|expected|greater|less\s+than|exceed|at\s+least|range|不支持|无效`)
+	budgetWords   = regexp.MustCompile(`(?i)budget_tokens|thinking[._ ]budget|thinkingbudget|thinking budget`)
+	effortWords   = regexp.MustCompile(`(?i)effort|thinking_?level|thinkinglevel`)
+	adaptiveWords = regexp.MustCompile(`(?i)adaptive\s+thinking|thinking\.type\s*=\s*adaptive|budget[-_ ]based\s+thinking`)
+	badValue      = u.JSRe(`(?i)invalid|not\s+supported|unsupported|must\s+be|one\s+of|allowed\s+values|expected|greater|less\s+than|exceed|at\s+least|range|不支持|无效`)
 )
 
 func idx(e string) int {
@@ -58,6 +59,19 @@ func sentBudget(body any) bool {
 		isNum(at(o, "generationConfig", "thinkingConfig", "thinkingBudget"))
 }
 
+func sentLegacyMessagesThinking(body any) bool {
+	o := obj(body)
+	if o == nil {
+		return false
+	}
+	th := obj(o.Get("thinking"))
+	if th == nil {
+		return false
+	}
+	t := th.Get("type")
+	return t == "enabled" || t == "disabled"
+}
+
 // Rectify is the rectifierFor result.
 type Rectify struct {
 	Fix      string
@@ -82,6 +96,9 @@ func RectifierForBeta(status int, text string, sent any, sentBeta bool) *Rectify
 	}
 	if sentBeta && betaWords.MatchString(text) {
 		return &Rectify{Fix: "beta"}
+	}
+	if adaptiveWords.MatchString(text) && sentLegacyMessagesThinking(sent) {
+		return &Rectify{Fix: "adaptive"}
 	}
 	if !badValue.MatchString(text) {
 		return nil
@@ -128,6 +145,40 @@ func ApplyRectifiers(wire string, body any, fixes []string, maxOutput *float64, 
 	o := src.Clone()
 	push := func(s string) { *notes = append(*notes, s) }
 	f := u.FormatNumber
+	if has(fixes, "adaptive") && wire == "messages" {
+		if th := obj(o.Get("thinking")); th != nil {
+			switch th.Get("type") {
+			case "disabled":
+				o.Delete("thinking")
+				push("修正重试：thinking 已省略（模型要求自适应思考）")
+			case "enabled":
+				o.Set("thinking", u.NewObj("type", "adaptive"))
+				o.Delete("temperature")
+				o.Delete("top_k")
+				o.Delete("top_p")
+				oc := obj(o.Get("output_config"))
+				hasEffort := oc != nil && pickEffort(oc.Get("effort")) != ""
+				if !hasEffort {
+					if bt, ok := th.Get("budget_tokens").(float64); ok && bt > 0 {
+						mt, _ := o.Get("max_tokens").(float64)
+						if mt == 0 && maxOutput != nil {
+							mt = *maxOutput
+						}
+						eff := intent.BudgetToEffort(bt, mt)
+						if eff == "xhigh" {
+							eff = "high"
+						}
+						nextOC := u.NewObj()
+						if oc != nil {
+							nextOC = oc.Clone()
+						}
+						o.Set("output_config", nextOC.Set("effort", eff))
+					}
+				}
+				push("修正重试：thinking 改为 adaptive（模型不支持旧式固定预算思考）")
+			}
+		}
+	}
 	if has(fixes, "budget") {
 		th := obj(o.Get("thinking"))
 		gc := obj(o.Get("generationConfig"))

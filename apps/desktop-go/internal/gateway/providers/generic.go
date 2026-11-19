@@ -269,6 +269,35 @@ func mergeSystemMessages(o *u.Obj, notes *[]string) {
 
 var anthropicOnlyFields = []string{"output_config", "context_management"}
 
+func isClaudeCandidate(c *cand.Candidate) bool {
+	if c == nil {
+		return false
+	}
+	bareHasClaude := func(s string) bool {
+		if i := strings.LastIndex(s, "/"); i >= 0 {
+			s = s[i+1:]
+		}
+		return strings.HasPrefix(strings.ToLower(s), "claude")
+	}
+	if c.Model != nil {
+		if fam, ok := c.Model.Get("family").(string); ok && strings.HasPrefix(strings.ToLower(fam), "claude") {
+			return true
+		}
+	}
+	if c.Provider != nil {
+		for i := range c.Provider.Models {
+			m := &c.Provider.Models[i]
+			if c.Provider.ID+"/"+m.ID == c.PublicModel && m.Like != nil && *m.Like != "" {
+				if bareHasClaude(*m.Like) {
+					return true
+				}
+				break
+			}
+		}
+	}
+	return bareHasClaude(c.UpstreamModel)
+}
+
 var (
 	ctx1m = regexp.MustCompile(`(?i)^context-1m-`)
 	ctxMg = regexp.MustCompile(`(?i)^context-management-`)
@@ -294,7 +323,11 @@ func GenericRequest(wire string, o *u.Obj, ctx *Context) {
 	if wire == "messages" && ctx.Native != "anthropic" {
 		mergeSystemMessages(o, ctx.Notes)
 		dropServerTools(o, ctx.Notes)
+		claudeUpstream := isClaudeCandidate(ctx.Candidate)
 		for _, k := range anthropicOnlyFields {
+			if k == "output_config" && claudeUpstream {
+				continue
+			}
 			if o.Has(k) {
 				o.Delete(k)
 				*ctx.Notes = append(*ctx.Notes, k+" 已去掉（上游不是 Anthropic 官方）")

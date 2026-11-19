@@ -103,7 +103,7 @@ func reasoningOf(m *u.Obj) *u.Obj {
 	var control string
 	switch {
 	case effort != nil && len(effs) > 0:
-		if budget != nil && claudeRe.MatchString(family) {
+		if claudeRe.MatchString(family) {
 			control = "adaptive"
 		} else {
 			control = "effort"
@@ -133,6 +133,8 @@ func reasoningOf(m *u.Obj) *u.Obj {
 	}
 	if toggle || contains(values, "none") {
 		r.Set("canDisable", true)
+	} else if control == "adaptive" && budget == nil {
+		r.Set("canDisable", false)
 	}
 	if field, ok := str(get(obj(m.Get("interleaved")), "field")); ok {
 		r.Set("passback", "required")

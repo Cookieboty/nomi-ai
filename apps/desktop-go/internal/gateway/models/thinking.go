@@ -1,11 +1,50 @@
 package models
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/intent"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
+
+var reGPTNative = regexp.MustCompile(`^(?:gpt(?:[-.]|$)|chatgpt(?:[-.]|$)|o[134](?:[-.]|$)|codex(?:[-.]|$))`)
+
+// NativeClientOf 返回模型天然对应的内置 CLI（"claude" / "codex" / "gemini" / "grok" / "kimi" / "minimax"），
+// 认不出则返回 ""。支持从 stored.like 与内置目录 family 识别中转改名模型。
+func NativeClientOf(modelID string, stored *u.Obj) string {
+	lookup := modelID
+	if stored != nil {
+		if lk, ok := stored.Get("like").(string); ok && strings.TrimSpace(lk) != "" {
+			lookup = strings.TrimSpace(lk)
+		}
+	}
+	bare := BareModelID(lookup)
+	catFam := ""
+	if cat := CatalogEntry(bare); cat != nil {
+		if f, ok := cat.Get("family").(string); ok {
+			catFam = strings.ToLower(f)
+		}
+	}
+	switch {
+	case strings.HasPrefix(bare, "claude") || strings.HasPrefix(catFam, "claude"):
+		return "claude"
+	case reGPTNative.MatchString(bare) || reGPTNative.MatchString(catFam):
+		return "codex"
+	case strings.HasPrefix(bare, "gemini") || strings.HasPrefix(catFam, "gemini"):
+		return "gemini"
+	case strings.HasPrefix(bare, "grok") || strings.HasPrefix(catFam, "grok"):
+		return "grok"
+	case strings.HasPrefix(bare, "kimi") || strings.HasPrefix(bare, "moonshot") ||
+		strings.HasPrefix(catFam, "kimi") || strings.HasPrefix(catFam, "moonshot"):
+		return "kimi"
+	case strings.HasPrefix(bare, "minimax") || strings.HasPrefix(bare, "abab") ||
+		strings.HasPrefix(catFam, "minimax") || strings.HasPrefix(catFam, "abab"):
+		return "minimax"
+	default:
+		return ""
+	}
+}
 
 // ReasoningEffortHeader 是 Nomi 对话带给本机网关的思考深度。
 // 网关按模型能力写成上游认识的参数；不支持的模型不转发这个头。
@@ -206,7 +245,11 @@ func reasoningSpec(modelID string, stored *u.Obj) *u.Obj {
 		spec = spec.Clone()
 	}
 	if spec.Get("control") == nil || spec.Get("control") == "" || spec.Get("control") == "none" {
-		spec.Set("control", "effort")
+		if NativeClientOf(id, nil) == "claude" {
+			spec.Set("control", "adaptive")
+		} else {
+			spec.Set("control", "effort")
+		}
 	}
 	anyEff := make([]any, len(efforts))
 	for i, e := range efforts {
