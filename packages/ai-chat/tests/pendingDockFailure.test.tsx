@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 /** 待发列表里自动发送失败的可见提示与「重试」（不是只在 state 里记着） */
+import { t } from '@nomi-ai/ui';
 import { cleanup, fireEvent, render } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -29,8 +30,13 @@ describe('PendingDock failure', () => {
     );
     const alert = getByTestId('pending-send-error');
     expect(alert.getAttribute('role')).toBe('alert');
-    // key 与原因都在提示里（文案随语言切换，这里只认 key 与原因不丢）
-    expect(alert.textContent).toContain('ui.session-workspace.pending-send-failed');
+    // 提示标题随语言切换：与组件同样的拼法——词典加载时 t() 插好原因，
+    // 词典没加载时 t() 原样返回 key（没有 {0}），组件把原因补在后面
+    const failure = '这个会话还没有选择模型';
+    const lead = String(t('ui.session-workspace.pending-send-failed', failure));
+    const heading =
+      lead === 'ui.session-workspace.pending-send-failed' ? `${lead}：${failure}` : lead;
+    expect(alert.textContent).toContain(heading);
     expect(alert.textContent).toContain('这个会话还没有选择模型');
     expect(alert.textContent).toContain('第一条');
     // 失败的那条仍排在最前，后面的那条也在（不丢、不乱序）
