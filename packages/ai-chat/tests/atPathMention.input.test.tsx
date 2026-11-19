@@ -17,6 +17,22 @@ const workspaceList = vi.fn(async () => ({
   ],
 }));
 
+const workspaceMentionPaths = vi.fn(async (_cwd: string, query: string) => {
+  if (!query) {
+    return {
+      ok: true,
+      entries: [{ path: 'node_modules', kind: 'dir' as const, name: 'node_modules' }],
+    };
+  }
+  if (query.toLowerCase().includes('index')) {
+    return {
+      ok: true,
+      entries: [{ path: 'node_modules/pkg/index.js', kind: 'file' as const, name: 'index.js' }],
+    };
+  }
+  return { ok: true, entries: [] };
+});
+
 vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 
 vi.mock('../src/services/harnessClient', async (importOriginal) => {
@@ -27,6 +43,8 @@ vi.mock('../src/services/harnessClient', async (importOriginal) => {
       ...actual.harnessClient,
       available: () => true,
       workspaceList: (...args: unknown[]) => workspaceList(...(args as [string])),
+      workspaceMentionPaths: (...args: unknown[]) =>
+        workspaceMentionPaths(...(args as [string, string, number?])),
     },
   };
 });
@@ -48,6 +66,7 @@ afterEach(() => {
   cleanup();
   resetFakeApi();
   workspaceList.mockClear();
+  workspaceMentionPaths.mockClear();
 });
 
 function typeAt(ta: HTMLTextAreaElement, value: string) {
@@ -120,5 +139,18 @@ describe('MessageInput @ path mention', () => {
     await new Promise((x) => setTimeout(x, 50));
     expect(r.queryByTestId('at-path-menu')).toBeNull();
     expect(workspaceList).not.toHaveBeenCalled();
+    expect(workspaceMentionPaths).not.toHaveBeenCalled();
+  });
+
+  it('can mention paths under skip dirs after the mention query returns', async () => {
+    const r = render(<MessageInput cwd="/tmp/proj" onSend={vi.fn()} />);
+    const ta = r.getByTestId('chat-input') as HTMLTextAreaElement;
+    typeAt(ta, '@index');
+    await waitFor(() => expect(workspaceMentionPaths).toHaveBeenCalled());
+    await waitFor(() => expect(r.getByText('node_modules/pkg/index.js')).toBeTruthy(), {
+      timeout: 1000,
+    });
+    fireEvent.keyDown(ta, { key: 'Enter' });
+    expect(ta.value).toContain('@node_modules/pkg/index.js');
   });
 });

@@ -238,6 +238,9 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 	call("harness.gitSuggestMessage", func(a in) any { return h().SuggestCommitMessage(a.any("cwd"), a.any("paths")) })
 	call("harness.gitWorktrees", func(a in) any { return h().ListWorktrees(a.any("cwd")) })
 	call("harness.workspaceList", func(a in) any { return h().WorkspaceListIn(a.any("cwd")) })
+	call("harness.workspaceMentionPaths", func(a in) any {
+		return h().WorkspaceMentionPathsIn(a.any("cwd"), a.any("query"), a.any("limit"))
+	})
 	call("harness.workspaceRead", func(a in) any { return h().WorkspaceReadIn(a.any("cwd"), a.any("path")) })
 	call("harness.workspaceWrite", func(a in) any {
 		return h().WorkspaceWriteIn(a.any("cwd"), a.any("path"), a.any("content"))

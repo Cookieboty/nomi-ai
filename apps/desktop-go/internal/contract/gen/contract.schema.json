@@ -24126,6 +24126,76 @@
     "additionalProperties": {}
    }
   },
+  "harness.workspaceMentionPaths": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cwd": {
+      "type": "string"
+     },
+     "query": {
+      "type": "string"
+     },
+     "limit": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "cwd",
+     "query"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "entries": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "path": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "file",
+          "dir"
+         ]
+        },
+        "name": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "path",
+        "kind",
+        "name"
+       ],
+       "additionalProperties": {}
+      }
+     },
+     "error": {
+      "type": "string"
+     },
+     "code": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "harness.workspaceRead": {
    "kind": "query",
    "dangerous": false,

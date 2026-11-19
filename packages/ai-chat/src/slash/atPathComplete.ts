@@ -94,3 +94,46 @@ export function formatAtPathInsert(option: AtPathOption): string {
   const p = option.path.replace(/\\/g, '/').replace(/\/+$/, '');
   return option.kind === 'dir' ? `@${p}/` : `@${p}`;
 }
+
+export interface MentionPathEntry {
+  path: string;
+  kind: 'file' | 'dir';
+  name: string;
+}
+
+/** 把 @ 补全接口返回的短列表转成候选，多根规则与 flattenWorkspacePaths 相同 */
+export function mentionPathsToOptions(
+  entries: readonly MentionPathEntry[],
+  folder?: { root: string; name: string },
+): AtPathOption[] {
+  const root = folder?.root.replace(/\\/g, '/').replace(/\/+$/, '');
+  return entries.map((n) => {
+    const rel = n.path.replace(/\\/g, '/');
+    return folder
+      ? {
+          path: `${root}/${rel}`,
+          kind: n.kind,
+          label: n.name,
+          display: `${folder.name}/${rel}`,
+        }
+      : { path: rel, kind: n.kind, label: n.name };
+  });
+}
+
+/** 按插入路径去重后，用 filterAtPathOptions 的打分排序并截到 limit */
+export function mergeAtPathOptions(
+  groups: readonly (readonly AtPathOption[])[],
+  query: string,
+  limit = 50,
+): AtPathOption[] {
+  const seen = new Set<string>();
+  const all: AtPathOption[] = [];
+  for (const g of groups) {
+    for (const o of g) {
+      if (seen.has(o.path)) continue;
+      seen.add(o.path);
+      all.push(o);
+    }
+  }
+  return filterAtPathOptions(all, query, limit);
+}

@@ -24,7 +24,6 @@ import { useShortcutBindings } from '../../services/shortcuts';
 import { agentArgQuery, filterAgents, type AgentOption } from '../../slash/agentComplete';
 import {
   atPathToken,
-  filterAtPathOptions,
   formatAtPathInsert,
   replaceAtPathToken,
   type AtPathOption,
@@ -441,8 +440,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const atToken = atPathToken(message, caret);
   const atOpen =
     !!cwd && atToken !== null && !slashOpen && !agentOpen && !modelOpen && atClosed !== message;
-  const atPaths = useAtPathOptions(atOpen, cwd, roots);
-  const atOptions = atToken ? filterAtPathOptions(atPaths.options, atToken.query) : [];
+  const atPaths = useAtPathOptions(atOpen, cwd, roots, atToken?.query ?? '');
+  const atOptions = atToken ? atPaths.options : [];
 
   function pickAtPath(o: AtPathOption) {
     const token = atPathToken(message, caret);
