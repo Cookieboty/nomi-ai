@@ -28658,8 +28658,7 @@
     ]
    },
    "output": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "null"
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
    }
   },
   "project.update": {

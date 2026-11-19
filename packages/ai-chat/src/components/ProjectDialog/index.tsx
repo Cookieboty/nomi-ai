@@ -243,7 +243,7 @@ export const ProjectDialog: React.FC<ProjectDialogProps> = ({ project, onClose, 
   };
 
   const removeProject = async () => {
-    if (!project) return;
+    if (!project || busy) return;
     const ok = await confirmDialog({
       title: t('ui.cli-monitor.project-remove-confirm-title', project.name),
       message: t('ui.cli-monitor.project-remove-confirm-body'),
@@ -251,18 +251,27 @@ export const ProjectDialog: React.FC<ProjectDialogProps> = ({ project, onClose, 
       danger: true,
     });
     if (!ok) return;
+    setBusy(true);
+    setError('');
     try {
       await projectsClient.remove(project.id);
       onClose();
     } catch (e) {
       setError(errText(e));
+    } finally {
+      setBusy(false);
     }
   };
 
   const footer = (
     <div className={styles.footer}>
       {editing && (
-        <Button variant="danger" onClick={() => void removeProject()} data-testid="project-remove">
+        <Button
+          variant="danger"
+          disabled={busy}
+          onClick={() => void removeProject()}
+          data-testid="project-remove"
+        >
           {t('ui.cli-monitor.project-remove')}
         </Button>
       )}
