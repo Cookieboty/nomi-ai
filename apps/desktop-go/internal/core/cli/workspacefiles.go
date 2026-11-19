@@ -245,8 +245,12 @@ var (
 	wsJunk      = map[string]bool{".DS_Store": true, "Thumbs.db": true, "desktop.ini": true}
 )
 
+func wsSkipDepOrCache(n string) bool {
+	return wsDepDirs[n] || wsCacheDirs[n] || wsNextCache.MatchString(n)
+}
+
 func wsSkipDir(n string) bool {
-	return wsDepDirs[n] || wsVcsDirs[n] || wsCacheDirs[n] || wsNextCache.MatchString(n)
+	return wsSkipDepOrCache(n) || wsVcsDirs[n]
 }
 
 func listGitIgnored(root string) map[string]bool {

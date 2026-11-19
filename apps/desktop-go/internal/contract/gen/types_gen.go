@@ -7380,6 +7380,33 @@ type HarnessWorkspaceListOutput struct {
 	Code *string `json:"code,omitempty"`
 }
 
+type HarnessWorkspaceMentionPathsInput struct {
+	Cwd   string   `json:"cwd"`
+	Query string   `json:"query"`
+	Limit *float64 `json:"limit,omitempty"`
+}
+
+// HarnessWorkspaceMentionPathsOutputEntriesItemKind 枚举：file | dir
+type HarnessWorkspaceMentionPathsOutputEntriesItemKind = string
+
+const (
+	HarnessWorkspaceMentionPathsOutputEntriesItemKindFile HarnessWorkspaceMentionPathsOutputEntriesItemKind = "file"
+	HarnessWorkspaceMentionPathsOutputEntriesItemKindDir  HarnessWorkspaceMentionPathsOutputEntriesItemKind = "dir"
+)
+
+type HarnessWorkspaceMentionPathsOutputEntriesItem struct {
+	Path string                                            `json:"path"`
+	Kind HarnessWorkspaceMentionPathsOutputEntriesItemKind `json:"kind"`
+	Name string                                            `json:"name"`
+}
+
+type HarnessWorkspaceMentionPathsOutput struct {
+	Ok      bool                                            `json:"ok"`
+	Entries []HarnessWorkspaceMentionPathsOutputEntriesItem `json:"entries,omitempty"`
+	Error   *string                                         `json:"error,omitempty"`
+	Code    *string                                         `json:"code,omitempty"`
+}
+
 type HarnessWorkspaceReadInput struct {
 	Cwd  string `json:"cwd"`
 	Path string `json:"path"`
@@ -13211,6 +13238,10 @@ type HarnessWorkspaceGitCheckoutOutputT = HarnessWorkspaceGitCheckoutOutput
 // HarnessWorkspaceListInputT 是 harness.workspaceList 的入参
 type HarnessWorkspaceListInputT = HarnessWorkspaceListInput
 type HarnessWorkspaceListOutputT = HarnessWorkspaceListOutput
+
+// HarnessWorkspaceMentionPathsInputT 是 harness.workspaceMentionPaths 的入参
+type HarnessWorkspaceMentionPathsInputT = HarnessWorkspaceMentionPathsInput
+type HarnessWorkspaceMentionPathsOutputT = HarnessWorkspaceMentionPathsOutput
 
 // HarnessWorkspaceReadInputT 是 harness.workspaceRead 的入参
 type HarnessWorkspaceReadInputT = HarnessWorkspaceReadInput

@@ -1268,6 +1268,9 @@ func (o *Orchestrator) WorkspaceGitCheckoutIn(cwd, p any) *util.Obj {
 func (o *Orchestrator) WorkspaceListIn(cwd any) *util.Obj {
 	return cli.ListWorkspaceTree(o.KnownDir(cwd))
 }
+func (o *Orchestrator) WorkspaceMentionPathsIn(cwd, query, limit any) *util.Obj {
+	return cli.ListWorkspaceMentionPaths(o.KnownDir(cwd), jsStr(query), cli.MentionLimit(limit))
+}
 
 // ───────────────────────── 模块级小函数 ─────────────────────────
 

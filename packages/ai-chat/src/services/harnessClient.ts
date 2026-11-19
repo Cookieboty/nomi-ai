@@ -554,6 +554,19 @@ export interface WorkspaceTreeResult {
   code?: WorkspaceFileResult['code'];
 }
 
+export interface WorkspaceMentionPath {
+  path: string;
+  kind: 'file' | 'dir';
+  name: string;
+}
+
+export interface WorkspaceMentionPathsResult {
+  ok: boolean;
+  entries?: WorkspaceMentionPath[];
+  error?: string;
+  code?: WorkspaceFileResult['code'];
+}
+
 export const harnessClient = {
   available: () => hasTransport(),
   state: () => call<HarnessState>(() => api.harness.state()),
@@ -613,6 +626,10 @@ export const harnessClient = {
     call<WorkspaceFileResult>(() => api.harness.workspaceGitCheckout({ cwd, path: filePath })),
   workspaceList: (cwd: string) =>
     call<WorkspaceTreeResult>(() => api.harness.workspaceList({ cwd })),
+  workspaceMentionPaths: (cwd: string, query: string, limit?: number) =>
+    call<WorkspaceMentionPathsResult>(() =>
+      api.harness.workspaceMentionPaths({ cwd, query, limit }),
+    ),
   /** Claude 标签：从 CLI 自己的会话记录读当前上下文（最近一次请求 / 压缩后），没有时 null */
   tabContext: (tabId: string) =>
     call<{

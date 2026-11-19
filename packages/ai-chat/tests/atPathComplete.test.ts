@@ -6,6 +6,8 @@ import {
   filterAtPathOptions,
   flattenWorkspacePaths,
   formatAtPathInsert,
+  mentionPathsToOptions,
+  mergeAtPathOptions,
   replaceAtPathToken,
 } from '../src/slash/atPathComplete';
 
@@ -96,5 +98,55 @@ describe('multi-folder projects', () => {
     ]);
     expect(filterAtPathOptions(opts, 'api/cmd')).toHaveLength(1);
     expect(formatAtPathInsert(opts[0]!)).toBe('@/w/api/cmd/main.go');
+  });
+});
+
+describe('mentionPathsToOptions', () => {
+  it('uses the same multi-root insert and display paths as flattenWorkspacePaths', () => {
+    const cwd = mentionPathsToOptions([
+      { path: 'node_modules', kind: 'dir', name: 'node_modules' },
+      { path: 'node_modules/pkg/index.js', kind: 'file', name: 'index.js' },
+    ]);
+    expect(cwd).toEqual([
+      { path: 'node_modules', kind: 'dir', label: 'node_modules' },
+      { path: 'node_modules/pkg/index.js', kind: 'file', label: 'index.js' },
+    ]);
+    const other = mentionPathsToOptions(
+      [{ path: 'node_modules/pkg/index.js', kind: 'file', name: 'index.js' }],
+      { root: '/w/api/', name: 'api' },
+    );
+    expect(other).toEqual([
+      {
+        path: '/w/api/node_modules/pkg/index.js',
+        kind: 'file',
+        label: 'index.js',
+        display: 'api/node_modules/pkg/index.js',
+      },
+    ]);
+    expect(formatAtPathInsert(other[0]!)).toBe('@/w/api/node_modules/pkg/index.js');
+  });
+});
+
+describe('mergeAtPathOptions', () => {
+  it('dedupes by insert path, prefers basename hits, and caps at 50', () => {
+    const flat = flattenWorkspacePaths(tree);
+    const tops: ReturnType<typeof mentionPathsToOptions> = [
+      { path: 'node_modules', kind: 'dir', label: 'node_modules' },
+      { path: 'src/App.tsx', kind: 'file', label: 'App.tsx' },
+    ];
+    const hits = mentionPathsToOptions([
+      { path: 'node_modules/pkg/index.js', kind: 'file', name: 'index.js' },
+    ]);
+    const merged = mergeAtPathOptions([flat, tops, hits], 'app');
+    expect(merged.filter((o) => o.path === 'src/App.tsx')).toHaveLength(1);
+    expect(merged[0]?.path).toBe('src/App.tsx');
+    expect(mergeAtPathOptions([tops, hits], '').some((o) => o.path === 'node_modules')).toBe(true);
+
+    const many = Array.from({ length: 80 }, (_, i) => ({
+      path: `f${String(i).padStart(3, '0')}.ts`,
+      kind: 'file' as const,
+      label: `f${String(i).padStart(3, '0')}.ts`,
+    }));
+    expect(mergeAtPathOptions([many], 'f', 50)).toHaveLength(50);
   });
 });

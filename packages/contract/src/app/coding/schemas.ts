@@ -170,6 +170,19 @@ export const GitWorktreeList = loose({
 export const WorkspaceFileResult = loose({ ok: z.boolean(), code: z.string().optional() });
 export const WorkspaceTreeResult = loose({ ok: z.boolean(), code: z.string().optional() });
 
+/** 输入框 @ 路径补全：依赖 / 缓存目录及其内部匹配项的短列表（不是整棵文件树） */
+export const WorkspaceMentionPath = loose({
+  path: z.string(),
+  kind: z.enum(['file', 'dir']),
+  name: z.string(),
+});
+export const WorkspaceMentionPathsResult = loose({
+  ok: z.boolean(),
+  entries: z.array(WorkspaceMentionPath).optional(),
+  error: z.string().optional(),
+  code: z.string().optional(),
+});
+
 // ---------------------------------------------------------------------------
 // 项目（core/projects）：有名字的一组文件夹，会话只引用 projectId，目录由内核实时解析
 // ---------------------------------------------------------------------------

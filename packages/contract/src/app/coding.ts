@@ -69,6 +69,7 @@ import {
   TabContext,
   TabSource,
   WorkspaceFileResult,
+  WorkspaceMentionPathsResult,
   WorkspaceTreeResult,
 } from './coding/schemas';
 
@@ -445,6 +446,19 @@ const harnessProcedures = {
 
   // 工作区文件（cli/workspaceFiles.ts）
   'harness.workspaceList': { kind: 'query', input: cwd, output: WorkspaceTreeResult },
+  /**
+   * 输入框 @ 路径补全：在 workspaceList 会跳过的依赖 / 缓存 / .next 目录里查找可引用路径
+   *（含这些目录节点本身）。不递归版本库目录，不跟随符号链接目录；结果是短列表，不是整棵树。
+   */
+  'harness.workspaceMentionPaths': {
+    kind: 'query',
+    input: z.object({
+      cwd: z.string(),
+      query: z.string(),
+      limit: z.number().optional(),
+    }),
+    output: WorkspaceMentionPathsResult,
+  },
   'harness.workspaceRead': { kind: 'query', input: cwdFile, output: WorkspaceFileResult },
   'harness.workspaceWrite': {
     kind: 'mutation',

@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 490：mutation 346 / query 139 / stream 5
+// 合计 491：mutation 346 / query 140 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -284,6 +284,7 @@ var Procedures = []Procedure{
 	{Name: "harness.workspaceDelete", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.workspaceGitCheckout", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.workspaceList", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "harness.workspaceMentionPaths", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.workspaceRead", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.workspaceWrite", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "history.delete", Kind: "mutation", Dangerous: false, Surfaces: nil},
