@@ -1594,7 +1594,6 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64, dispatchOv *dis
 		return nil, err
 	}
 
-	nomiMode := b.PermissionMode()
 	opts := util.NewObj("backend", cli, "cwd", cwd, "title", "Nomi · "+slice(trim(goal), 40))
 	if runner.Source != "" {
 		opts.Set("source", runner.Source)
@@ -1605,9 +1604,7 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64, dispatchOv *dis
 	if !ws.Empty() {
 		opts.Set("projectId", ws.ProjectID)
 	}
-	if !(h.AutoApproveEnabled() && nomiMode != "plan" && nomiMode != "manual") {
-		opts.Set("permissionMode", ChildPermissionModeFor(cli, nomiMode, util.Str(h.ListTabs().Get("defaultPermissionMode"))))
-	}
+	opts.Set("permissionMode", DelegatePermissionMode(cli))
 	opts.Set("activate", false)
 	del := util.NewObj()
 	if c.ec.ToolCallID != "" {
