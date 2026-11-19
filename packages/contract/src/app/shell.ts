@@ -3,7 +3,7 @@
  *
  * 本文件只属于 D2：过程、事件、业务错误码都在这里声明，`app/index.ts` 负责汇总。
  * 命名空间：theme、locale、startup、onboarding、providers、gateway、providerLink、usage、quality、updates、diagnostics、appIcon、
- * migration、conversations、chatWindow、browserWindow（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
+ * migration、conversations、chatWindow、browserWindow、sideTerminal（过程 / 事件名 `<命名空间>.<方法>`，驼峰，不用连字符）。
  *
  * 旧面（迁入后由收尾批次删除）：
  * - `ai:theme:*`、`ai:locale:*`（packages/ui 的 theme.ts / i18n.ts）、`ai:startup:*`、`ai:onboarding:*`
@@ -27,6 +27,7 @@ import type { EventMap, ProcedureMap } from '../contract';
 
 import * as BW from './shell/browserWindow';
 import * as S from './shell/schemas';
+import * as ST from './shell/sideTerminal';
 
 const v = z.void();
 
@@ -531,6 +532,49 @@ export const shellProcedures = {
     output: BW.BrowserWindowSyncResult,
     surfaces: CHAT,
   },
+  // ---- 侧边工作区内置终端（sideTerminal.*）----
+  /** 打开（或复用）一个内置交互式终端 PTY */
+  'sideTerminal.open': {
+    kind: 'mutation',
+    input: ST.SideTerminalOpenInput,
+    output: ST.SideTerminalOpenResult,
+    surfaces: CHAT,
+  },
+  /** 向内置终端写入键盘输入 */
+  'sideTerminal.write': {
+    kind: 'mutation',
+    input: ST.SideTerminalWriteInput,
+    output: z.boolean(),
+    surfaces: CHAT,
+  },
+  /** 同步内置终端行列尺寸 */
+  'sideTerminal.resize': {
+    kind: 'mutation',
+    input: ST.SideTerminalResizeInput,
+    output: z.boolean(),
+    surfaces: CHAT,
+  },
+  /** 关闭并释放内置终端进程 */
+  'sideTerminal.close': {
+    kind: 'mutation',
+    input: ST.SideTerminalIdInput,
+    output: z.boolean(),
+    surfaces: CHAT,
+  },
+  /** 收掉当前全部内置终端进程（页面重载 / 热更新兜底） */
+  'sideTerminal.closeAll': {
+    kind: 'mutation',
+    input: ST.SideTerminalCloseAllInput,
+    output: z.boolean(),
+    surfaces: CHAT,
+  },
+  /** 报上当前仍开着的终端 id 全集，宿主回收不在此清单中的孤儿进程 */
+  'sideTerminal.sync': {
+    kind: 'mutation',
+    input: ST.SideTerminalSyncInput,
+    output: ST.SideTerminalSyncResult,
+    surfaces: CHAT,
+  },
 } as const satisfies ProcedureMap;
 
 export const shellEvents = {
@@ -562,6 +606,10 @@ export const shellEvents = {
   'browserWindow.loaded': BW.BrowserWindowLoaded,
   /** 内置浏览器窗口没了（建窗后崩溃 / 被系统关掉）：视图回到回退页 */
   'browserWindow.closed': BW.BrowserWindowClosed,
+  /** 内置终端输出字节流（Base64） */
+  'sideTerminal.data': ST.SideTerminalData,
+  /** 内置终端进程退出 */
+  'sideTerminal.exit': ST.SideTerminalExit,
 } as const satisfies EventMap;
 
 /** 只推给对话窗口的事件 */
@@ -571,6 +619,8 @@ export const shellEventSurfaces = {
   'chatWindow.tabDocked': ['chat'],
   'browserWindow.loaded': ['chat'],
   'browserWindow.closed': ['chat'],
+  'sideTerminal.data': ['chat'],
+  'sideTerminal.exit': ['chat'],
 } as const;
 
 /** 业务错误码（UPPER_SNAKE_CASE，不得与其他域重名）；处理函数用 `ctx.fail(code, message)` 抛出 */

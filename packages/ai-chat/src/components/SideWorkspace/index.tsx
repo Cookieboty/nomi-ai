@@ -20,6 +20,7 @@ import { detachedWindows } from '../../services/detachedWindows';
 import { persistWorkspaceTreeOpen, readWorkspaceTreeOpen } from '../../services/filesRailPrefs';
 import { isMac } from '../../services/shortcuts';
 import { exportSideChat, forgetSideChat, sideChatState } from '../../services/sideChat';
+import { countRunningTerminals, sideTerminalIdFor } from '../../services/sideTerminal';
 import type { ConvMessage } from '../../types/conversation';
 import {
   canDetachTarget,
@@ -28,6 +29,7 @@ import {
   type DetachSpec,
 } from '../../utils/detachedTabs';
 import { isImeComposing, shouldIgnoreEscape } from '../../utils/keyboard';
+import { aggregateSessionChanges } from '../../utils/sessionChanges';
 import {
   cycleTabKey,
   CHANGES_SIDE_TAB,
@@ -35,14 +37,18 @@ import {
   fileTabKey,
   isMaximized,
   isSplit,
+  isTerminalKey,
   pageKey,
   OPEN_FILE_SIDE_TAB,
   MAIN_SIDE_TAB,
   SPLIT_RATIO_MAX,
   SPLIT_RATIO_MIN,
   sideTabItems,
+  terminalPaneIds,
   type SideTabItem,
 } from '../../utils/sideTabs';
+import type { TerminalTabController } from '../../utils/terminalSplit';
+import { confirmDialog } from '../ConfirmDialog';
 import type { PreviewEntry, PreviewTabsControl } from '../ResourcePreview/ResourcePreview';
 import { CenterChangesHost, useChangesUi } from '../SessionWorkspace';
 import { SideChatPane } from '../SideChat';
@@ -55,6 +61,8 @@ import { NewTabPage } from './NewTabPage';
 import { OpenFileTab } from './OpenFileTab';
 import styles from './SideWorkspace.module.css';
 import { SideTabStrip } from './TabStrip';
+
+const LazyTerminalTab = React.lazy(() => import('./TerminalTab'));
 
 export { SideTabStrip };
 
@@ -79,6 +87,15 @@ export function useSideWorkspace(files: SideFiles) {
   // 普通的可变对象（不是 ref）：随 model 往下传给预览区和标签栏
   const [control] = useState<{ current: PreviewTabsControl | null }>(() => ({ current: null }));
   const [diffControl] = useState<{ current: PreviewTabsControl | null }>(() => ({ current: null }));
+  const [terminalControls] = useState(() => new Map<string, TerminalTabController>());
+  const closingTerminalsRef = useRef<Set<string>>(new Set());
+  const registerTerminalControl = useCallback(
+    (key: string, ctrl: TerminalTabController | null) => {
+      if (ctrl) terminalControls.set(key, ctrl);
+      else terminalControls.delete(key);
+    },
+    [terminalControls],
+  );
   const [treeOpen, setTreeOpen] = useState<boolean>(readWorkspaceTreeOpen);
   const toggleTree = useCallback(() => {
     setTreeOpen((prev) => {
@@ -190,9 +207,36 @@ export function useSideWorkspace(files: SideFiles) {
         pane.closeTab(CHANGES_SIDE_TAB);
         return;
       }
+      if (item.kind === 'terminal') {
+        if (closingTerminalsRef.current.has(item.key)) return;
+        const page = tabs?.pages.find((p) => pageKey(p) === item.key) ?? item.page;
+        const paneIds = page ? terminalPaneIds(page) : [item.key.slice('terminal:'.length)];
+        const runningCount = countRunningTerminals(paneIds.map(sideTerminalIdFor));
+        if (runningCount <= 0) {
+          pane.closeTab(item.key);
+          return;
+        }
+        closingTerminalsRef.current.add(item.key);
+        void confirmDialog({
+          title: t('ui.session-workspace.terminal-close-confirm-title'),
+          message:
+            runningCount === 1
+              ? t('ui.session-workspace.terminal-close-confirm-message')
+              : t('ui.session-workspace.terminal-close-confirm-message-many', runningCount),
+          confirmLabel: t('ui.session-workspace.terminal-close-confirm-action'),
+          danger: true,
+        })
+          .then((ok) => {
+            if (ok) pane.closeTab(item.key);
+          })
+          .finally(() => {
+            closingTerminalsRef.current.delete(item.key);
+          });
+        return;
+      }
       pane.closeTab(item.key);
     },
-    [pane, control, diffControl, fileKeys, diffKeys, files, closeWorkbench],
+    [pane, tabs?.pages, control, diffControl, fileKeys, diffKeys, files, closeWorkbench],
   );
   const toggleMaximized = useCallback(
     (item?: SideTabItem) => {
@@ -336,6 +380,11 @@ export function useSideWorkspace(files: SideFiles) {
     mounted,
     openBrowser: pane ? pane.openBrowser : undefined,
     setBrowserUrl: pane ? pane.setBrowserUrl : undefined,
+    openTerminal: pane ? pane.openTerminal : undefined,
+    setTerminalMeta: pane ? pane.setTerminalMeta : undefined,
+    setTerminalLayout: pane ? pane.setTerminalLayout : undefined,
+    terminalControls,
+    registerTerminalControl,
     openSideChat: pane ? pane.openSideChat : undefined,
   };
 }
@@ -368,18 +417,29 @@ export function useSideWorkspaceKeys(model: SideWorkspaceModel) {
       const mod = isMac() ? e.metaKey : e.ctrlKey;
       if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'w') {
         if (!inside) return;
+        // 非 macOS 下焦点在终端内时，Ctrl+W 留给终端 shell 处理（如删词）
+        if (!isMac() && target?.closest('[data-terminal-surface]')) return;
         const item = m.items.find((i) => i.key === m.stripActive);
         if (!item?.closable) return;
         e.preventDefault();
+        if (item.kind === 'terminal') {
+          const ctrl = m.terminalControls.get(item.key);
+          if (ctrl && ctrl.paneCount() > 1) {
+            ctrl.closeActivePane();
+            return;
+          }
+        }
         m.close(item);
         return;
       }
-      // 文件标签的 Esc 由预览区自己处理（铺满时先退出铺满）
+      // 文件标签和内置终端的 Esc 由各自面板处理，不抢先退出铺满
       if (
         e.key === 'Escape' &&
         m.maximized &&
         m.active !== FILES_SIDE_TAB &&
-        m.active !== OPEN_FILE_SIDE_TAB
+        m.active !== OPEN_FILE_SIDE_TAB &&
+        !isTerminalKey(m.active) &&
+        !target?.closest('[data-terminal-surface]')
       ) {
         if (shouldIgnoreEscape(e)) return;
         if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
@@ -404,15 +464,29 @@ export const SideWorkspace: React.FC<{
   messages: readonly ConvMessage[];
   cwd?: string | null;
   roots?: readonly string[] | null;
+  projectId?: string | null;
+  projectPrimary?: string | null;
   busy?: boolean;
   actions?: SubagentPaneActions;
   showStrip: boolean;
   /** 收起工作区时的退场动画标记 */
   closing?: boolean;
-}> = ({ model, messages, cwd, roots, busy, actions, showStrip, closing = false }) => {
+}> = ({
+  model,
+  messages,
+  cwd,
+  roots,
+  projectId,
+  projectPrimary,
+  busy,
+  actions,
+  showStrip,
+  closing = false,
+}) => {
   const resource = useResourceContext();
   const orderedKeys = useMemo(() => model.items.map((i) => i.key), [model.items]);
   const tabMotion = useDirectionalTabMotion(orderedKeys, model.stripActive);
+  const changesCount = useMemo(() => aggregateSessionChanges(messages).length, [messages]);
   if (!model.mounted && !model.open && !closing)
     return <CenterChangesHost messages={messages} cwd={cwd} roots={roots} mode="slot" />;
   const filesActive = model.active === FILES_SIDE_TAB || model.active === OPEN_FILE_SIDE_TAB;
@@ -431,7 +505,9 @@ export const SideWorkspace: React.FC<{
                 ? 'open-file'
                 : model.active?.startsWith('browser:')
                   ? 'browser'
-                  : 'agent';
+                  : model.active?.startsWith('terminal:')
+                    ? 'terminal'
+                    : 'agent';
   return (
     <section
       className={styles.workspace}
@@ -460,10 +536,18 @@ export const SideWorkspace: React.FC<{
                   hidden={hidden}
                   cwd={cwd}
                   roots={roots}
+                  projectPrimary={projectPrimary}
+                  changesCount={changesCount}
                   onOpenChanges={() => model.openChanges?.({ replace: key })}
                   onOpenFiles={() => model.openFileBrowser?.({ replace: key })}
                   onOpenSideChat={() => void model.openSideChat?.({ fresh: true, replace: key })}
                   onOpenBrowser={(url) => model.openBrowser?.(url, { replace: key })}
+                  onOpenTerminal={() =>
+                    model.openTerminal?.({
+                      replace: key,
+                      cwd: projectPrimary ?? cwd ?? undefined,
+                    })
+                  }
                   onOpenFile={(href, root) => {
                     // 文件预览归入“打开文件”页面内部；新标签页由打开文件页替换。
                     model.openFileBrowser?.({ replace: key });
@@ -516,6 +600,32 @@ export const SideWorkspace: React.FC<{
                   treeOpen={model.treeOpen}
                   onToggleTree={model.toggleTree}
                 />
+              );
+            if (page.kind === 'terminal')
+              return (
+                <React.Suspense
+                  key={scopedPageKey}
+                  fallback={<div className={styles.terminalLoading} hidden={hidden} />}
+                >
+                  <LazyTerminalTab
+                    tabKey={key}
+                    pageId={page.id}
+                    projectId={projectId}
+                    defaultCwd={projectPrimary ?? cwd ?? null}
+                    cwd={page.cwd}
+                    layout={page.layout}
+                    activePaneId={page.activePaneId}
+                    hidden={hidden}
+                    onMeta={(patch) => model.setTerminalMeta?.(key, patch)}
+                    onLayoutChange={(nextLayout, nextActivePaneId) =>
+                      model.setTerminalLayout?.(key, nextLayout, nextActivePaneId)
+                    }
+                    onRequestCloseTab={() =>
+                      model.close({ key, kind: 'terminal', closable: true, page })
+                    }
+                    registerControl={(ctrl) => model.registerTerminalControl(key, ctrl)}
+                  />
+                </React.Suspense>
               );
             return (
               <BrowserTab

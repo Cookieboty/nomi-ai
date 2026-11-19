@@ -9115,6 +9115,59 @@ const (
 	ScreenCheckSendOutputUserDenied ScreenCheckSendOutput = "user_denied"
 )
 
+type SideTerminalCloseInput struct {
+	Id string `json:"id"`
+}
+
+type SideTerminalOpenInput struct {
+	Id          string  `json:"id"`
+	ProjectId   *string `json:"projectId,omitempty"`
+	Cwd         *string `json:"cwd,omitempty"`
+	ExplicitCwd *bool   `json:"explicitCwd,omitempty"`
+	Cols        *int64  `json:"cols,omitempty"`
+	Rows        *int64  `json:"rows,omitempty"`
+}
+
+// SideTerminalOpenOutputReason 枚举：unsupported | denied | limit | failed
+type SideTerminalOpenOutputReason = string
+
+const (
+	SideTerminalOpenOutputReasonUnsupported SideTerminalOpenOutputReason = "unsupported"
+	SideTerminalOpenOutputReasonDenied      SideTerminalOpenOutputReason = "denied"
+	SideTerminalOpenOutputReasonLimit       SideTerminalOpenOutputReason = "limit"
+	SideTerminalOpenOutputReasonFailed      SideTerminalOpenOutputReason = "failed"
+)
+
+type SideTerminalOpenOutput struct {
+	Ok       bool                          `json:"ok"`
+	Cwd      *string                       `json:"cwd,omitempty"`
+	Shell    *string                       `json:"shell,omitempty"`
+	Replay   *string                       `json:"replay,omitempty"`
+	Exited   *bool                         `json:"exited,omitempty"`
+	ExitCode *int64                        `json:"exitCode,omitempty"`
+	Reason   *SideTerminalOpenOutputReason `json:"reason,omitempty"`
+	Message  *string                       `json:"message,omitempty"`
+}
+
+type SideTerminalResizeInput struct {
+	Id   string `json:"id"`
+	Cols int64  `json:"cols"`
+	Rows int64  `json:"rows"`
+}
+
+type SideTerminalSyncInput struct {
+	Ids []string `json:"ids"`
+}
+
+type SideTerminalSyncOutput struct {
+	Closed []string `json:"closed"`
+}
+
+type SideTerminalWriteInput struct {
+	Id   string `json:"id"`
+	Data string `json:"data"`
+}
+
 // StartupGetOutputDefaultView 枚举：mascot | main
 type StartupGetOutputDefaultView = string
 
@@ -11951,6 +12004,18 @@ type EventSchedResult struct {
 	CatchUp *bool   `json:"catchUp,omitempty"`
 }
 
+type EventSideTerminalData struct {
+	Id   string `json:"id"`
+	Data string `json:"data"`
+}
+
+type EventSideTerminalExit struct {
+	Id       string  `json:"id"`
+	ExitCode *int64  `json:"exitCode,omitempty"`
+	Signal   *string `json:"signal,omitempty"`
+	Message  *string `json:"message,omitempty"`
+}
+
 // EventStartupChangedDefaultView 枚举：mascot | main
 type EventStartupChangedDefaultView = string
 
@@ -13700,6 +13765,30 @@ type SchedUpsertTaskOutputT = SchedUpsertTaskOutput
 type ScreenCheckSendInputT = any
 type ScreenCheckSendOutputT = ScreenCheckSendOutput
 
+// SideTerminalCloseInputT 是 sideTerminal.close 的入参
+type SideTerminalCloseInputT = SideTerminalCloseInput
+type SideTerminalCloseOutputT = bool
+
+// SideTerminalCloseAllInputT 是 sideTerminal.closeAll 的入参
+type SideTerminalCloseAllInputT = map[string]any
+type SideTerminalCloseAllOutputT = bool
+
+// SideTerminalOpenInputT 是 sideTerminal.open 的入参
+type SideTerminalOpenInputT = SideTerminalOpenInput
+type SideTerminalOpenOutputT = SideTerminalOpenOutput
+
+// SideTerminalResizeInputT 是 sideTerminal.resize 的入参
+type SideTerminalResizeInputT = SideTerminalResizeInput
+type SideTerminalResizeOutputT = bool
+
+// SideTerminalSyncInputT 是 sideTerminal.sync 的入参
+type SideTerminalSyncInputT = SideTerminalSyncInput
+type SideTerminalSyncOutputT = SideTerminalSyncOutput
+
+// SideTerminalWriteInputT 是 sideTerminal.write 的入参
+type SideTerminalWriteInputT = SideTerminalWriteInput
+type SideTerminalWriteOutputT = bool
+
 // StartupGetInputT 是 startup.get 的入参
 type StartupGetInputT = any
 type StartupGetOutputT = StartupGetOutput
@@ -14172,6 +14261,8 @@ type EventQualityChangedT = any
 type EventSchedChangedT = any
 type EventSchedProactiveT = EventSchedProactive
 type EventSchedResultT = EventSchedResult
+type EventSideTerminalDataT = EventSideTerminalData
+type EventSideTerminalExitT = EventSideTerminalExit
 type EventStartupChangedT = EventStartupChanged
 type EventTasksChangedT = EventTasksChanged
 type EventTasksLiveT = EventTasksLive

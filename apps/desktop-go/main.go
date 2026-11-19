@@ -64,6 +64,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/security"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/sidechat"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/sideterminal"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/startup"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tabwindows"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
@@ -799,6 +800,19 @@ func main() {
 		}
 		return nil
 	}, func(event string, data any) { router.EmitTo(event, data, "chat") }))
+	sideTermMgr := sideterminal.New(sideterminal.Deps{
+		ProjectPrimary: func(id string) string { return projs.Roots(id).Primary },
+		FindProjectPrimary: func(dir string) string {
+			if p, ok := projs.FindContaining(dir); ok {
+				return projs.Roots(p.ID).Primary
+			}
+			return ""
+		},
+		IsDeniedDir: desktopSvc.Broker.CheckProtectedDir,
+		Emit:        func(event string, data any) { router.EmitTo(event, data, "chat") },
+	})
+	defer sideTermMgr.CloseAll()
+	sideterminal.Register(router, sideTermMgr)
 	log.Printf("[desktop-go] %d contract procedures stubbed (not implemented yet)", procs.Install(router))
 
 	ctl := os.Getenv("NOMI_POC_CTL")

@@ -1,27 +1,48 @@
 /**
- * 新标签页：搜索文件或输入网址，并用磁贴打开浏览器 / 文件 / 变更 / 侧边会话。
+ * 新标签页（方案 A：分组命令台 + 紧凑横向功能卡）：
+ * 顶部上下文与统一搜索栏 + 按分组排列的横向功能卡（未来新模块可直接往 sections 注册）。
  */
 import { Icon, t } from '@nomi-ai/ui';
 import {
   IconFileText as FileText,
+  IconFolder as Folder,
   IconGitCompare as GitCompareArrows,
   IconWorld as Globe,
   IconMessageCirclePlus as MessageCirclePlus,
   IconSearch as Search,
+  IconTerminal2 as TerminalIcon,
 } from '@tabler/icons-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { harnessClient, type WorkspaceTreeNode } from '../../services/harnessClient';
 import { rankItems } from '../../utils/fuzzy';
-import { workspaceFileHref } from '../../utils/resourceLinks';
+import { basename, workspaceFileHref } from '../../utils/resourceLinks';
 import { parseBrowserUrl } from '../../utils/sideTabs';
 
-import styles from './WorkspacePages.module.css';
+import styles from './NewTabPage.module.css';
 
 export interface FileHit {
   name: string;
   path: string;
   root: string;
+}
+
+interface NewTabAction {
+  id: string;
+  testId: string;
+  icon: React.ComponentProps<typeof Icon>['icon'];
+  label: string;
+  description: string;
+  tone?: 'accent' | 'neutral';
+  badge?: number;
+  disabled?: boolean;
+  onClick: () => void;
+}
+
+interface NewTabSection {
+  id: string;
+  title: string;
+  actions: readonly NewTabAction[];
 }
 
 const flatten = (
@@ -40,20 +61,26 @@ export const NewTabPage: React.FC<{
   hidden?: boolean;
   cwd?: string | null;
   roots?: readonly string[] | null;
+  projectPrimary?: string | null;
+  changesCount?: number;
   onOpenChanges: () => void;
   onOpenFiles: () => void;
   onOpenSideChat: () => void;
   onOpenBrowser: (url: string) => void;
+  onOpenTerminal: () => void;
   onOpenFile: (href: string, root: string) => void;
 }> = ({
   tabKey,
   hidden,
   cwd,
   roots,
+  projectPrimary,
+  changesCount,
   onOpenChanges,
   onOpenFiles,
   onOpenSideChat,
   onOpenBrowser,
+  onOpenTerminal,
   onOpenFile,
 }) => {
   const [query, setQuery] = useState('');
@@ -128,116 +155,207 @@ export const NewTabPage: React.FC<{
     if (query.trim()) setNoMatch(true);
   };
 
+  const displayRoot = (projectPrimary || cwd || '').trim();
+  const rootName = displayRoot ? basename(displayRoot.replace(/[\\/]+$/, '')) || displayRoot : '';
+  const hasWorkspace = Boolean(cwd);
+
+  const sections: readonly NewTabSection[] = [
+    {
+      id: 'workspace',
+      title: t('ui.session-workspace.new-tab-section-workspace'),
+      actions: [
+        {
+          id: 'terminal',
+          testId: 'new-tab-open-terminal',
+          icon: TerminalIcon,
+          label: t('ui.cli-monitor.fleet-origin-terminal'),
+          description: t('ui.session-workspace.new-tab-desc-terminal'),
+          tone: 'accent',
+          onClick: onOpenTerminal,
+        },
+        {
+          id: 'files',
+          testId: 'new-tab-open-files',
+          icon: FileText,
+          label: t('ui.knowledge-local.files'),
+          description: hasWorkspace
+            ? t('ui.session-workspace.new-tab-desc-files')
+            : t('ui.session-workspace.new-tab-need-workspace'),
+          tone: 'accent',
+          disabled: !hasWorkspace,
+          onClick: onOpenFiles,
+        },
+        {
+          id: 'changes',
+          testId: 'new-tab-open-changes',
+          icon: GitCompareArrows,
+          label: t('ui.session-workspace.changed'),
+          description: hasWorkspace
+            ? t('ui.session-workspace.new-tab-desc-changes')
+            : t('ui.session-workspace.new-tab-need-workspace'),
+          tone: 'accent',
+          badge: changesCount && changesCount > 0 ? changesCount : undefined,
+          disabled: !hasWorkspace,
+          onClick: onOpenChanges,
+        },
+      ],
+    },
+    {
+      id: 'tools',
+      title: t('ui.session-workspace.new-tab-section-tools'),
+      actions: [
+        {
+          id: 'browser',
+          testId: 'new-tab-open-browser',
+          icon: Globe,
+          label: t('ui.session-workspace.open-browser'),
+          description: t('ui.session-workspace.new-tab-desc-browser'),
+          tone: 'neutral',
+          onClick: () => onOpenBrowser(''),
+        },
+        {
+          id: 'side-chat',
+          testId: 'new-tab-open-side-chat',
+          icon: MessageCirclePlus,
+          label: t('ui.session-workspace.open-side-chat'),
+          description: t('ui.session-workspace.new-tab-desc-side-chat'),
+          tone: 'neutral',
+          onClick: onOpenSideChat,
+        },
+      ],
+    },
+  ];
+
   return (
     <div className={styles.page} hidden={hidden} data-testid="new-tab-page" data-tab-key={tabKey}>
-      <div className={styles.hero}>
-        <div className={styles.heroInner}>
-          <form
-            className={styles.searchWrap}
-            onSubmit={(e) => {
-              e.preventDefault();
-              submit();
-            }}
-          >
-            <Icon icon={Search} size={16} className={styles.searchIcon} />
-            <input
-              ref={inputRef}
-              className={styles.search}
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setActive(0);
-                setNoMatch(false);
+      <div className={styles.scroll}>
+        <div className={styles.inner}>
+          {displayRoot ? (
+            <div className={styles.contextBar} data-testid="new-tab-context">
+              <Icon icon={Folder} size={14} className={styles.contextIcon} />
+              <span className={styles.contextName}>{rootName}</span>
+              <span className={styles.contextPath} title={displayRoot}>
+                {displayRoot}
+              </span>
+            </div>
+          ) : null}
+
+          <div>
+            <form
+              className={styles.searchWrap}
+              onSubmit={(e) => {
+                e.preventDefault();
+                submit();
               }}
-              onKeyDown={(e) => {
-                if (!hits.length) return;
-                if (e.key === 'ArrowDown') {
-                  e.preventDefault();
-                  setActive((i) => (i + 1) % hits.length);
-                } else if (e.key === 'ArrowUp') {
-                  e.preventDefault();
-                  setActive((i) => (i - 1 + hits.length) % hits.length);
-                }
-              }}
-              placeholder={t('ui.session-workspace.new-tab-search')}
-              aria-label={t('ui.session-workspace.new-tab-search')}
-              data-testid="new-tab-search"
-            />
-            {hits.length > 0 && (
-              <ul className={styles.suggest} role="listbox" data-testid="new-tab-file-hits">
-                {hits.map((hit, i) => (
-                  <li key={`${hit.root}:${hit.path}`}>
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={i === active}
-                      data-active={i === active || undefined}
-                      onMouseEnter={() => setActive(i)}
-                      onClick={() => submit(i)}
-                    >
-                      <Icon icon={FileText} size={14} />
-                      <span>{hit.name}</span>
-                      <span className={styles.suggestPath}>{hit.path}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            >
+              <Icon icon={Search} size={16} className={styles.searchIcon} />
+              <input
+                ref={inputRef}
+                className={styles.search}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setActive(0);
+                  setNoMatch(false);
+                }}
+                onKeyDown={(e) => {
+                  if (!hits.length) return;
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setActive((i) => (i + 1) % hits.length);
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setActive((i) => (i - 1 + hits.length) % hits.length);
+                  }
+                }}
+                placeholder={t('ui.session-workspace.new-tab-search')}
+                aria-label={t('ui.session-workspace.new-tab-search')}
+                data-testid="new-tab-search"
+              />
+              <kbd className={styles.searchHint} aria-hidden="true">
+                ↵
+              </kbd>
+              {hits.length > 0 && (
+                <ul className={styles.suggest} role="listbox" data-testid="new-tab-file-hits">
+                  {hits.map((hit, i) => (
+                    <li key={`${hit.root}:${hit.path}`}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={i === active}
+                        data-active={i === active || undefined}
+                        onMouseEnter={() => setActive(i)}
+                        onClick={() => submit(i)}
+                      >
+                        <Icon icon={FileText} size={14} />
+                        <span>{hit.name}</span>
+                        <span className={styles.suggestPath}>{hit.path}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </form>
             {noMatch && (
               <p className={styles.emptyHint} role="status" data-testid="new-tab-no-match">
                 {t('ui.foundation.no-matching-files')}
               </p>
             )}
-          </form>
-          <div>
-            <div className={styles.tiles}>
-              <button
-                type="button"
-                className={styles.tile}
-                data-testid="new-tab-open-browser"
-                onClick={() => onOpenBrowser('')}
-              >
-                <span className={styles.tileIcon}>
-                  <Icon icon={Globe} size={19} />
-                </span>
-                <span className={styles.tileLabel}>{t('ui.session-workspace.open-browser')}</span>
-              </button>
-              <button
-                type="button"
-                className={styles.tile}
-                data-testid="new-tab-open-files"
-                disabled={!cwd}
-                onClick={onOpenFiles}
-              >
-                <span className={styles.tileIcon}>
-                  <Icon icon={FileText} size={19} />
-                </span>
-                <span className={styles.tileLabel}>{t('ui.knowledge-local.files')}</span>
-              </button>
-              <button
-                type="button"
-                className={styles.tile}
-                data-testid="new-tab-open-changes"
-                disabled={!cwd}
-                onClick={onOpenChanges}
-              >
-                <span className={styles.tileIcon}>
-                  <Icon icon={GitCompareArrows} size={19} />
-                </span>
-                <span className={styles.tileLabel}>{t('ui.session-workspace.changed')}</span>
-              </button>
-              <button
-                type="button"
-                className={styles.tile}
-                data-testid="new-tab-open-side-chat"
-                onClick={onOpenSideChat}
-              >
-                <span className={styles.tileIcon}>
-                  <Icon icon={MessageCirclePlus} size={19} />
-                </span>
-                <span className={styles.tileLabel}>{t('ui.session-workspace.open-side-chat')}</span>
-              </button>
-            </div>
+          </div>
+
+          <div className={styles.sections}>
+            {sections.map((section) => {
+              const titleId = `new-tab-sec-${tabKey}-${section.id}`;
+              return (
+                <section
+                  key={section.id}
+                  className={styles.section}
+                  data-testid="new-tab-section"
+                  data-section-id={section.id}
+                  aria-labelledby={titleId}
+                >
+                  <h2 id={titleId} className={styles.sectionTitle}>
+                    {section.title}
+                  </h2>
+                  <div className={styles.grid}>
+                    {section.actions.map((action) => (
+                      <button
+                        key={action.id}
+                        type="button"
+                        className={styles.card}
+                        data-testid={action.testId}
+                        disabled={action.disabled}
+                        onClick={action.onClick}
+                      >
+                        <span
+                          className={styles.cardIcon}
+                          data-tone={action.tone ?? 'accent'}
+                          aria-hidden="true"
+                        >
+                          <Icon icon={action.icon} size={18} />
+                        </span>
+                        <span className={styles.cardBody}>
+                          <span className={styles.cardHead}>
+                            <span className={styles.cardTitle}>{action.label}</span>
+                            {action.badge !== undefined && action.badge > 0 ? (
+                              <span
+                                className={styles.cardBadge}
+                                data-testid={
+                                  action.id === 'changes' ? 'new-tab-changes-badge' : undefined
+                                }
+                              >
+                                {action.badge}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className={styles.cardDesc}>{action.description}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         </div>
       </div>

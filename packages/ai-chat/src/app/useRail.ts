@@ -78,7 +78,9 @@ export function useRail(opts: {
   /** 当前会话所属的项目（侧边聊天按它带项目上下文） */
   const projectId =
     (cliTab ? tabs.activeTab?.projectId : nomiOnMain ? nomiProjectId : undefined) ?? null;
-  return { cwd, roots, messages, busy, centerOpen, open, toggle, close, projectId };
+  /** 项目主文件夹优先（即便是 worktree 里的 CLI 标签，默认终端也落到主工程路径） */
+  const projectPrimary = project?.primary ?? cwd ?? null;
+  return { cwd, roots, messages, busy, centerOpen, open, toggle, close, projectId, projectPrimary };
 }
 
 export type RailState = ReturnType<typeof useRail>;

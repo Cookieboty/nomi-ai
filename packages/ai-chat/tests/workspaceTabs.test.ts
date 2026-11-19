@@ -17,11 +17,14 @@ import {
   openChanges,
   openFileBrowser,
   openNewTab,
+  openTerminalTab,
   parseBrowserUrl,
   parseSideTabs,
   resolveActive,
+  setTerminalMeta,
   sideTabItems,
   withoutNewTabs,
+  withoutTerminals,
   writeSideTabsStore,
   readSideTabsStore,
 } from '../src/utils/sideTabs';
@@ -129,5 +132,46 @@ describe('parseSideTabs', () => {
       { kind: 'changes' },
       { kind: 'browser', id: 'b1', url: 'https://a.test/' },
     ]);
+  });
+
+  it('supports multiple terminal tabs, meta updates, closing, and skips persistence', () => {
+    let s = openNewTab(EMPTY_SIDE_TABS, 'nt1');
+    s = openTerminalTab(s, { replace: 'new-tab:nt1', id: 'term-1', cwd: '/repo' });
+    s = openTerminalTab(s, { id: 'term-2', cwd: '/repo/sub' });
+    expect(s.pages.map((p) => p.kind)).toEqual(['terminal', 'terminal']);
+    expect(s.active).toBe('terminal:term-2');
+
+    const updated = setTerminalMeta(s, 'terminal:term-2', {
+      cwd: '/other/path',
+      title: 'path',
+    });
+    expect(updated.pages[1]).toMatchObject({
+      kind: 'terminal',
+      id: 'term-2',
+      cwd: '/other/path',
+      title: 'path',
+    });
+    expect(setTerminalMeta(updated, 'terminal:term-2', { cwd: '/other/path', title: 'path' })).toBe(
+      updated,
+    );
+
+    const closed = closeSideTab(updated, 'terminal:term-2');
+    expect(closed.pages.map((p) => p.kind)).toEqual(['terminal']);
+    expect(closed.active).toBe('terminal:term-1');
+
+    // 终端标签不跨应用重启落盘，parseSideTabs 也会过滤历史持久化里的 terminal 项
+    const stripped = withoutTerminals(updated);
+    expect(stripped.pages).toEqual([]);
+    expect(stripped.active).toBeNull();
+
+    writeSideTabsStore({ s1: openChanges(updated) });
+    expect(readSideTabsStore().s1?.pages.map((p) => p.kind)).toEqual(['changes']);
+
+    const parsed = parseSideTabs({
+      agents: [],
+      pages: [{ kind: 'changes' }, { kind: 'terminal', id: 'stale-term', cwd: '/repo' }],
+      maximized: false,
+    });
+    expect(parsed?.pages).toEqual([{ kind: 'changes' }]);
   });
 });

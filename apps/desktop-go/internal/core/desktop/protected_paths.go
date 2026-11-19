@@ -100,6 +100,31 @@ func (b *PermissionBroker) CheckCliWorkspace(dir string) string {
 	return WorkspaceReasonText(r.Reason)
 }
 
+// CheckProtectedDir：内置终端目录守卫（只拦受保护目录与非法路径，不因主目录/根目录过于宽泛而拦截；
+// 这样未绑定项目的会话也能在用户主目录开交互式终端，同时仍尊重内置与用户的受保护目录黑名单）。
+func (b *PermissionBroker) CheckProtectedDir(dir string) string {
+	env := b.workspaceEnv()
+	P := lib(env.Platform)
+	if dir == "" || !P.IsAbsolute(dir) {
+		return tr.T("electron.common.invalid-working-directory")
+	}
+	if d := DenyReasonWith(dir, env.Platform, env.DenyRoots, env.UserDeny); d != "" {
+		return d
+	}
+	rp := env.Realpath
+	if rp == nil {
+		rp = RealpathNative
+	}
+	real, err := rp(dir)
+	if err != nil {
+		return tr.T("electron.common.invalid-working-directory")
+	}
+	if d := DenyReasonWith(real, env.Platform, env.DenyRoots, env.UserDeny); d != "" {
+		return d
+	}
+	return ""
+}
+
 // CheckProjectFolder：能不能当项目文件夹（与工作区根同一套规则）。可以时返回 realpath，否则给用户看的原因
 func (b *PermissionBroker) CheckProjectFolder(dir string) (real string, reason string) {
 	r := CheckWorkspaceRoot(dir, b.workspaceEnv())

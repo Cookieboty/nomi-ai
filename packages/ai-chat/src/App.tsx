@@ -673,6 +673,8 @@ const AiChatContent: React.FC = () => {
                       messages={rail.messages}
                       cwd={rail.cwd}
                       roots={rail.roots}
+                      projectId={rail.projectId}
+                      projectPrimary={rail.projectPrimary}
                       busy={rail.busy}
                       actions={paneActions}
                       showStrip={!sideMax && !centerP.closing && !panels.settings && !mainHidden}
@@ -686,6 +688,8 @@ const AiChatContent: React.FC = () => {
                       messages={rail.messages}
                       cwd={rail.cwd}
                       roots={rail.roots}
+                      projectId={rail.projectId}
+                      projectPrimary={rail.projectPrimary}
                       busy={rail.busy}
                       actions={paneActions}
                       showStrip={false}

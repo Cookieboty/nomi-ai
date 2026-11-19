@@ -12,11 +12,12 @@ vi.mock('../src/services/harnessClient', () => ({
 afterEach(() => cleanup());
 
 describe('NewTabPage', () => {
-  it('opens browser, files, changes, and side chat from the tiles and search field', () => {
+  it('opens browser, files, changes, side chat, and terminal from the tiles and search field', () => {
     const onOpenChanges = vi.fn();
     const onOpenFiles = vi.fn();
     const onOpenSideChat = vi.fn();
     const onOpenBrowser = vi.fn();
+    const onOpenTerminal = vi.fn();
     const onOpenFile = vi.fn();
     render(
       <NewTabPage
@@ -27,6 +28,7 @@ describe('NewTabPage', () => {
         onOpenFiles={onOpenFiles}
         onOpenSideChat={onOpenSideChat}
         onOpenBrowser={onOpenBrowser}
+        onOpenTerminal={onOpenTerminal}
         onOpenFile={onOpenFile}
       />,
     );
@@ -35,10 +37,12 @@ describe('NewTabPage', () => {
     fireEvent.click(screen.getByTestId('new-tab-open-files'));
     fireEvent.click(screen.getByTestId('new-tab-open-changes'));
     fireEvent.click(screen.getByTestId('new-tab-open-side-chat'));
+    fireEvent.click(screen.getByTestId('new-tab-open-terminal'));
     expect(onOpenBrowser).toHaveBeenCalledWith('');
     expect(onOpenFiles).toHaveBeenCalledTimes(1);
     expect(onOpenChanges).toHaveBeenCalledTimes(1);
     expect(onOpenSideChat).toHaveBeenCalledTimes(1);
+    expect(onOpenTerminal).toHaveBeenCalledTimes(1);
 
     const search = screen.getByTestId('new-tab-search');
     fireEvent.change(search, { target: { value: 'https://example.com/docs' } });
@@ -56,6 +60,7 @@ describe('NewTabPage', () => {
         onOpenFiles={() => {}}
         onOpenSideChat={() => {}}
         onOpenBrowser={() => {}}
+        onOpenTerminal={() => {}}
         onOpenFile={() => {}}
       />,
     );
@@ -73,6 +78,7 @@ describe('NewTabPage', () => {
         onOpenFiles={() => {}}
         onOpenSideChat={() => {}}
         onOpenBrowser={() => {}}
+        onOpenTerminal={() => {}}
         onOpenFile={() => {}}
       />,
     );
@@ -82,5 +88,34 @@ describe('NewTabPage', () => {
       false,
     );
     expect((screen.getByTestId('new-tab-open-browser') as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByTestId('new-tab-open-terminal') as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByTestId('new-tab-context')).toBeNull();
+  });
+
+  it('renders grouped sections, project context bar, and changes badge', () => {
+    render(
+      <NewTabPage
+        tabKey="new-tab:4"
+        cwd="/repo/worktree-a"
+        projectPrimary="/repo/xy-token-api"
+        changesCount={4}
+        onOpenChanges={() => {}}
+        onOpenFiles={() => {}}
+        onOpenSideChat={() => {}}
+        onOpenBrowser={() => {}}
+        onOpenTerminal={() => {}}
+        onOpenFile={() => {}}
+      />,
+    );
+
+    const sections = screen.getAllByTestId('new-tab-section');
+    expect(sections.map((el) => el.getAttribute('data-section-id'))).toEqual([
+      'workspace',
+      'tools',
+    ]);
+    const contextBar = screen.getByTestId('new-tab-context');
+    expect(contextBar.textContent).toContain('xy-token-api');
+    expect(contextBar.textContent).toContain('/repo/xy-token-api');
+    expect(screen.getByTestId('new-tab-changes-badge').textContent).toBe('4');
   });
 });

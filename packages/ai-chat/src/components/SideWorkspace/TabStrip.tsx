@@ -22,6 +22,7 @@ import {
   IconArrowsMinimize as Minimize2,
   IconPlus as Plus,
   IconExternalLink as SquareArrowOutUpRight,
+  IconTerminal2 as TerminalIcon,
   IconX as X,
 } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -62,6 +63,7 @@ const TabIcon: React.FC<{
   if (item.kind === 'open-file') return <Icon icon={FolderOpen} size={14} />;
   if (item.kind === 'side-chat') return <Icon icon={MessageCirclePlus} size={14} />;
   if (item.kind === 'browser') return <Icon icon={Globe} size={14} />;
+  if (item.kind === 'terminal') return <Icon icon={TerminalIcon} size={14} />;
   if (item.target?.kind === 'side-chat') return <Icon icon={MessageCirclePlus} size={14} />;
   if (item.kind === 'file')
     return <Icon icon={entry?.diff ? GitCompareArrows : FileText} size={14} />;
@@ -204,6 +206,12 @@ export const SideTabStrip: React.FC<{
         }
       }
       return t('ui.session-workspace.open-browser');
+    }
+    if (item.kind === 'terminal') {
+      const page = item.page && item.page.kind === 'terminal' ? item.page : undefined;
+      if (page?.title) return page.title;
+      if (page?.cwd) return basename(page.cwd) || page.cwd;
+      return t('ui.cli-monitor.fleet-origin-terminal');
     }
     if (item.kind === 'file') {
       const entry = model.entryOf(item);
@@ -414,6 +422,16 @@ export const SideTabStrip: React.FC<{
               icon={<Icon icon={Plus} size={14} />}
               onClick={() => model.openNewTab?.()}
               data-testid="side-tab-add"
+            />
+          )}
+          {model.openTerminal && (
+            <IconButton
+              size="sm"
+              className={styles.addTab}
+              label={t('ui.session-workspace.new-terminal')}
+              icon={<Icon icon={TerminalIcon} size={14} />}
+              onClick={() => model.openTerminal?.()}
+              data-testid="side-tab-add-terminal"
             />
           )}
         </div>
