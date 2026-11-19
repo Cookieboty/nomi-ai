@@ -7,7 +7,7 @@
  * - 鼠标停在不在看的子任务标签上：悬停卡片（AgentHoverCard）；
  * - 「+」：新侧边聊天 / 浏览文件。
  */
-import { Icon, IconButton, t, useTabIndicator } from '@nomi-ai/ui';
+import { Icon, IconButton, t } from '@nomi-ai/ui';
 import {
   IconAppWindow as AppWindow,
   IconRobot as Bot,
@@ -134,10 +134,8 @@ export const SideTabStrip: React.FC<{
   const [tabMenu, setTabMenu] = useState<TabMenu | null>(null);
   const tabMenuRef = useRef<HTMLDivElement>(null);
   const itemKeys = model.items.map((i) => i.key);
-  const { listRef: stripRef, indicator } = useTabIndicator<HTMLDivElement>(
-    `${model.stripActive ?? ''}\0${itemKeys.join('\0')}`,
-    '[data-side-tab-key][data-active]',
-  );
+  // 选中标签只靠背景色区分，不画下划线指示条（和下面一层的文件标签分工，减少视觉杂讯）
+  const stripRef = useRef<HTMLDivElement>(null);
   useTabStripFlip(stripRef, itemKeys, 'data-side-tab-key');
   const [drag, setDrag] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<{ key: string; after: boolean } | null>(null);
@@ -223,17 +221,6 @@ export const SideTabStrip: React.FC<{
           role="tablist"
           aria-label={t('ui.session-workspace.side-tabs-label')}
         >
-          {indicator.visible && !drag && (
-            <span
-              aria-hidden="true"
-              data-animate={indicator.animate ? 'true' : undefined}
-              className={styles.activeBar}
-              style={{
-                width: `${Math.max(16, indicator.width - 16)}px`,
-                transform: `translate3d(${indicator.left + 8}px, 0, 0)`,
-              }}
-            />
-          )}
           {model.items.map((item) => {
             const selected = item.key === model.stripActive;
             const state =

@@ -79,7 +79,6 @@
 }
 
 .tabs {
-  position: relative;
   display: flex;
   align-items: center;
   gap: var(--cd-space-1);
@@ -90,22 +89,6 @@
 }
 .tabs::-webkit-scrollbar {
   display: none;
-}
-
-.activeBar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  border-radius: var(--cd-radius-full);
-  background: var(--cd-color-accent-strong);
-  pointer-events: none;
-  z-index: 2;
-}
-.activeBar[data-animate='true'] {
-  transition:
-    transform var(--cd-duration-fast) var(--cd-ease-out),
-    width var(--cd-duration-fast) var(--cd-ease-out);
 }
 
 .addTab {
@@ -211,8 +194,7 @@
   }
   .tab,
   .tabMain,
-  .close,
-  .activeBar[data-animate='true'] {
+  .close {
     transition: none;
   }
   .tabMain:active {
