@@ -470,7 +470,11 @@ func (s *Store) Seed(dirs []string) (map[string]string, error) {
 		}
 		found := ""
 		for _, p := range s.list {
-			if same(p.Primary, d) || same(p.Primary, real) {
+			if same(p.Primary, d) || (real != "" && same(p.Primary, real)) {
+				found = p.ID
+				break
+			}
+			if pr, r := s.check(p.Primary); r == "" && real != "" && same(pr, real) {
 				found = p.ID
 				break
 			}
