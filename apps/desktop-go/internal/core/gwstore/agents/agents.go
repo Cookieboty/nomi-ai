@@ -33,6 +33,8 @@ type ModelMeta struct {
 	Label, Provider   *string
 	Ctx, MaxOutput    *float64
 	Reasoning, Vision *bool
+	NativeClient      string
+	Like              string
 }
 
 // LaunchContext = LaunchContext；Models = ClientModels 对象（可为 nil）
@@ -89,8 +91,6 @@ var STRIP = map[string][]string{
 var tiers = []string{"opus", "sonnet", "haiku", "fable"}
 
 func numStr(f float64) string { return u.FormatNumber(f) }
-
-func thinkingBudget(maxOutput float64) float64 { return math.Min(16_000, math.Floor(maxOutput/2)) }
 
 func capabilities(m *ModelMeta) string {
 	if m != nil && m.Reasoning != nil && *m.Reasoning {
@@ -175,10 +175,6 @@ func claude(c *LaunchContext) (*AgentLaunch, error) {
 	}
 	meta := c.meta(c.Model)
 	ctx, maxOutput := ctxOf(meta), maxOutOf(meta)
-	think := 0.0
-	if meta != nil && meta.Reasoning != nil && *meta.Reasoning {
-		think = thinkingBudget(maxOutput)
-	}
 	env := u.NewObj(
 		"CLAUDE_CONFIG_DIR", c.Dir,
 		"ANTHROPIC_BASE_URL", c.URL,
@@ -186,7 +182,6 @@ func claude(c *LaunchContext) (*AgentLaunch, error) {
 		"ANTHROPIC_SMALL_FAST_MODEL", claudeTier(c, "haiku"),
 		"CLAUDE_CODE_MAX_CONTEXT_TOKENS", numStr(ctx),
 		"CLAUDE_CODE_MAX_OUTPUT_TOKENS", numStr(maxOutput),
-		"MAX_THINKING_TOKENS", numStr(think),
 		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "1",
 		"CLAUDE_CODE_DISABLE_AGENT_VIEW", "1",
 	)
@@ -195,7 +190,9 @@ func claude(c *LaunchContext) (*AgentLaunch, error) {
 		m := c.meta(ref)
 		key := "ANTHROPIC_DEFAULT_" + strings.ToUpper(tier) + "_MODEL"
 		env.Set(key, ref)
-		env.Set(key+"_SUPPORTED_CAPABILITIES", capabilities(m))
+		if !((m != nil && m.NativeClient == "claude") || models.NativeClientOf(ref, nil) == "claude") {
+			env.Set(key+"_SUPPORTED_CAPABILITIES", capabilities(m))
+		}
 		if m != nil && m.Label != nil && *m.Label != "" {
 			env.Set(key+"_NAME", *m.Label)
 		}
@@ -213,6 +210,11 @@ func claude(c *LaunchContext) (*AgentLaunch, error) {
 func q(s string) string {
 	return `"` + strings.ReplaceAll(strings.ReplaceAll(s, `\`, `\\`), `"`, `\"`) + `"`
 }
+
+var (
+	codexTagRe  = regexp.MustCompile(`:[\w.-]+$`)
+	codexDateRe = regexp.MustCompile(`-\d{8}$|-latest$`)
+)
 
 func codexCatalog(c *LaunchContext) (string, error) {
 	home := envTrim("CODEX_HOME")
@@ -240,6 +242,36 @@ func codexCatalog(c *LaunchContext) (string, error) {
 	if !ok {
 		return "", nil
 	}
+	bySlug := map[string]*u.Obj{}
+	for _, rawItem := range list {
+		if item, ok := rawItem.(*u.Obj); ok && item != nil {
+			if slug, ok := item.Get("slug").(string); ok && slug != "" {
+				key := models.BareModelID(slug)
+				if _, exists := bySlug[key]; !exists {
+					bySlug[key] = item
+				}
+			}
+		}
+	}
+	pickTemplate := func(ref string, m *ModelMeta) *u.Obj {
+		lookup := ref
+		if m != nil && m.Like != "" {
+			lookup = m.Like
+		}
+		bare := models.BareModelID(lookup)
+		if t := bySlug[bare]; t != nil {
+			return t
+		}
+		noTag := codexTagRe.ReplaceAllString(bare, "")
+		if t := bySlug[noTag]; t != nil {
+			return t
+		}
+		base := codexDateRe.ReplaceAllString(noTag, "")
+		if t := bySlug[base]; t != nil {
+			return t
+		}
+		return template
+	}
 	refs := []string{}
 	seen := map[string]bool{}
 	for _, r := range append([]string{c.Model}, c.Catalog...) {
@@ -252,7 +284,8 @@ func codexCatalog(c *LaunchContext) (string, error) {
 	for i, ref := range refs {
 		m := c.meta(ref)
 		ctx := ctxOf(m)
-		o := template.Clone()
+		tpl := pickTemplate(ref, m)
+		o := tpl.Clone()
 		o.Set("slug", ref)
 		disp := ref
 		if m != nil && m.Label != nil && *m.Label != "" {
@@ -271,7 +304,7 @@ func codexCatalog(c *LaunchContext) (string, error) {
 		o.Set("max_context_window", ctx)
 		if m != nil && m.Vision != nil && !*m.Vision {
 			o.Set("input_modalities", []any{"text"})
-		} else if v := template.Get("input_modalities"); v != nil {
+		} else if v := tpl.Get("input_modalities"); v != nil {
 			o.Set("input_modalities", v)
 		} else {
 			o.Set("input_modalities", []any{"text"})
