@@ -273,6 +273,7 @@
   "ui.session-workspace.staged-parens": " (staged)",
   "ui.session-workspace.stages-and-commits-the-n-listed-files": "Stages and commits the {0} listed files",
   "ui.session-workspace.stop-all": "Stop all",
+  "ui.session-workspace.stop-and-send-now": "Stop & send",
   "ui.session-workspace.stop-this-subtask": "Stop this subtask",
   "ui.session-workspace.subagent-direct-failed": "Not sent: {0}",
   "ui.session-workspace.subagent-direct-hint": "This subagent's steps and messages update live here. What you send goes straight to this subagent, not through the main agent: into its current step if it's running, or continuing its own session if it has finished.",

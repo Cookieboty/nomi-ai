@@ -16,8 +16,10 @@ import React, { useEffect, useMemo } from 'react';
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import { currentVision, visionOf } from '../../services/modelCapability';
 import { nomiMainRef, splitRef, useGatewayState } from '../../services/nomiModel';
+import type { ImageAttachment } from '../../services/screenClient';
 import {
   editSideChat,
+  flushSideChat,
   imagesOf,
   markSideChatComposer,
   regenerateSideChat,
@@ -62,6 +64,15 @@ function useVision(model: string | null): boolean | undefined {
   const parts = splitRef(ref ?? '');
   return parts ? visionOf(parts.provider, parts.model, state) : undefined;
 }
+
+const toSideChatImages = (images?: readonly ImageAttachment[]) =>
+  images?.map((i) => ({
+    mime: i.mime,
+    data: i.data,
+    thumb: i.thumb,
+    width: i.width,
+    height: i.height,
+  }));
 
 export const SideChatPane: React.FC<{
   chatId: string;
@@ -167,25 +178,16 @@ export const SideChatPane: React.FC<{
       <footer className={paneStyles.composer} data-in-strip={inStrip || undefined}>
         {inStrip && <PaneBrief {...notes} />}
         <MessageInput
-          onSend={(text, images) =>
-            void sendSideChat(
-              chatId,
-              text,
-              images?.map((i) => ({
-                mime: i.mime,
-                data: i.data,
-                thumb: i.thumb,
-                width: i.width,
-                height: i.height,
-              })),
-            )
-          }
+          onSend={(text, images) => void sendSideChat(chatId, text, toSideChatImages(images))}
           busyOverride={running}
           imageCapability={vision === false ? 'none' : 'full'}
           placeholder={t('ui.session-workspace.side-chat-placeholder')}
           queue={{
-            onQueue: (text) => void sendSideChat(chatId, text),
+            onQueue: (text, opts) =>
+              void sendSideChat(chatId, text, toSideChatImages(opts?.images)),
             onStop: () => stopSideChat(chatId),
+            pending: chat.queued.length,
+            onFlush: () => flushSideChat(chatId),
           }}
           fill={chat.fill}
           cwd={cwd}

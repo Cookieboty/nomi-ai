@@ -5,6 +5,7 @@
  */
 import { Icon, t, useLocale } from '@nomi-ai/ui';
 import {
+  IconBolt as Bolt,
   IconCornerDownRight as CornerDownRight,
   IconListTree as ListEnd,
   IconPencil as Pencil,
@@ -20,11 +21,14 @@ export const PendingDock = memo(function PendingDock({
   items,
   onWithdraw,
   onRemove,
+  onFlush,
 }: {
   items: readonly PendingSend[] | undefined;
-  /** 撤回修改：文字退回输入框，并从列表里移除 */
+  /** 撤回修改：文字与附图退回输入框，并从列表里移除 */
   onWithdraw: (item: PendingSend) => void;
   onRemove: (id: string) => void;
+  /** 打断当前轮并立刻发送待发列表 */
+  onFlush?: () => void;
 }) {
   useLocale();
   if (!items?.length) return null;
@@ -35,44 +39,71 @@ export const PendingDock = memo(function PendingDock({
       data-testid="pending-dock"
     >
       <ul className={styles.list}>
-        {items.map((item) => (
-          <li
-            key={item.id}
-            className={styles.item}
-            data-mode={item.mode}
-            data-testid="pending-item"
-          >
-            <span className={styles.tag}>
-              <Icon icon={item.mode === 'steer' ? CornerDownRight : ListEnd} size={12} />
-              {item.mode === 'steer'
-                ? t('ui.session-workspace.inserted')
-                : t('ui.usage-tools.queued')}
-            </span>
-            <span className={styles.text} title={item.text}>
-              {item.text}
-            </span>
-            <button
-              type="button"
-              className={styles.action}
-              aria-label={t('ui.session-workspace.withdraw-and-edit')}
-              data-testid="pending-withdraw"
-              onClick={() => onWithdraw(item)}
+        {items.map((item) => {
+          const imgs = item.images;
+          const first = imgs?.[0];
+          return (
+            <li
+              key={item.id}
+              className={styles.item}
+              data-mode={item.mode}
+              data-testid="pending-item"
             >
-              <Icon icon={Pencil} size={13} />
-            </button>
-            <button
-              type="button"
-              className={styles.action}
-              aria-label={t('ui.foundation.delete')}
-              data-testid="pending-remove"
-              onClick={() => onRemove(item.id)}
-            >
-              <Icon icon={X} size={13} />
-            </button>
-          </li>
-        ))}
+              <span className={styles.tag}>
+                <Icon icon={item.mode === 'steer' ? CornerDownRight : ListEnd} size={12} />
+                {item.mode === 'steer'
+                  ? t('ui.session-workspace.inserted')
+                  : t('ui.usage-tools.queued')}
+              </span>
+              {first && (
+                <span className={styles.images} data-testid="pending-images">
+                  <img
+                    src={first.thumb || `data:${first.mime};base64,${first.data}`}
+                    alt={t('ui.knowledge-local.attached-image')}
+                    className={styles.thumb}
+                  />
+                  {imgs.length > 1 && <span className={styles.moreCount}>+{imgs.length - 1}</span>}
+                </span>
+              )}
+              <span className={styles.text} title={item.text}>
+                {item.text}
+              </span>
+              <button
+                type="button"
+                className={styles.action}
+                aria-label={t('ui.session-workspace.withdraw-and-edit')}
+                data-testid="pending-withdraw"
+                onClick={() => onWithdraw(item)}
+              >
+                <Icon icon={Pencil} size={13} />
+              </button>
+              <button
+                type="button"
+                className={styles.action}
+                aria-label={t('ui.foundation.delete')}
+                data-testid="pending-remove"
+                onClick={() => onRemove(item.id)}
+              >
+                <Icon icon={X} size={13} />
+              </button>
+            </li>
+          );
+        })}
       </ul>
-      <p className={styles.hint}>{t('ui.session-workspace.pending-hint')}</p>
+      <div className={styles.footer}>
+        <p className={styles.hint}>{t('ui.session-workspace.pending-hint')}</p>
+        {onFlush && (
+          <button
+            type="button"
+            className={styles.flushAction}
+            data-testid="pending-flush"
+            onClick={onFlush}
+          >
+            <Icon icon={Bolt} size={12} />
+            {t('ui.session-workspace.stop-and-send-now')}
+          </button>
+        )}
+      </div>
     </section>
   );
 });

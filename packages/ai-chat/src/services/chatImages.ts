@@ -5,23 +5,29 @@
  */
 import { createLogger } from '@nomi-ai/ui';
 
+import type { PendingImage } from '../utils/pendingSends';
+
 import { api, hasTransport } from './api';
 import type { HarnessImageInput } from './harnessClient';
 import type { ImageAttachment } from './screenClient';
 
 const log = createLogger('chat-images');
 
+type ImportMime = ImageAttachment['mime'];
+const IMPORT_MIMES = new Set<string>(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
 /** 返回与 images 一一对应的地址（存不进去的是空串） */
 export async function importChatImages(
-  images: readonly ImageAttachment[],
+  images: readonly Pick<PendingImage, 'mime' | 'data'>[],
   conversationId: string | undefined,
 ): Promise<string[]> {
   if (!hasTransport()) return images.map(() => '');
   return Promise.all(
     images.map(async (i) => {
+      if (!IMPORT_MIMES.has(i.mime)) return '';
       try {
         const r = await api.chatAssets.import({
-          mime: i.mime,
+          mime: i.mime as ImportMime,
           data: i.data,
           ...(conversationId ? { conversationId } : {}),
         });
@@ -34,19 +40,33 @@ export async function importChatImages(
   );
 }
 
+/** 为缺少 url 的图片补存素材库并转为 HarnessImageInput[]，已有 url 的直接复用 */
+export async function ensureHarnessImages(
+  images: readonly PendingImage[],
+  conversationId?: string,
+): Promise<HarnessImageInput[]> {
+  if (!images.length) return [];
+  const missing = images.filter((i) => !i.url);
+  const imported = missing.length ? await importChatImages(missing, conversationId) : [];
+  let cursor = 0;
+  return images.map((i) => {
+    const url = i.url || imported[cursor++] || '';
+    return {
+      mime: i.mime,
+      data: i.data,
+      ...(i.width !== undefined ? { width: i.width } : {}),
+      ...(i.height !== undefined ? { height: i.height } : {}),
+      ...(i.thumb !== undefined ? { thumb: i.thumb } : {}),
+      ...(i.source !== undefined ? { source: i.source } : {}),
+      ...(url ? { url } : {}),
+    };
+  });
+}
+
 /** agents sendTab 附图：带上素材库原图地址，气泡预览不再只用 240px 缩略图 */
 export async function toHarnessImages(
   images: readonly ImageAttachment[],
   conversationId?: string,
 ): Promise<HarnessImageInput[]> {
-  const urls = await importChatImages(images, conversationId);
-  return images.map((i, k) => ({
-    mime: i.mime,
-    data: i.data,
-    width: i.width,
-    height: i.height,
-    thumb: i.thumb,
-    source: i.source,
-    ...(urls[k] ? { url: urls[k] } : {}),
-  }));
+  return ensureHarnessImages(images, conversationId);
 }

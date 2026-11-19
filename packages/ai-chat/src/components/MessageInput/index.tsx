@@ -174,7 +174,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   useEffect(() => {
     if (!fill || fill.nonce === seenFill.current) return;
     seenFill.current = fill.nonce;
-    linkedDraft.append(fill.text);
+    if (fill.text) linkedDraft.append(fill.text);
+    if (fill.images?.length) addImages(fill.images);
     requestAnimationFrame(() => {
       const el = textareaRef.current;
       if (!el) return;

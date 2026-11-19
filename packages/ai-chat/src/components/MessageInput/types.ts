@@ -29,7 +29,10 @@ export interface MessageInputProps {
    * 输入为空时发送键变成「停止」。不传则保持原行为（运行中禁用输入）。
    */
   queue?: {
-    onQueue: (text: string, opts?: { kb?: boolean; mode?: PendingMode }) => void;
+    onQueue: (
+      text: string,
+      opts?: { kb?: boolean; mode?: PendingMode; images?: ImageAttachment[] },
+    ) => void;
     onStop?: () => void;
     /** 待发列表里有几条（Esc 据此决定要不要停下来马上发） */
     pending?: number;
@@ -55,8 +58,8 @@ export interface MessageInputProps {
   /** 发送钮旁上下文占用环的数据源 */
   contextMessages?: readonly ConvMessage[];
   contextModel?: string | null;
-  /** 外部（如右栏「让助手提交」）请求填入的文字：接在已有草稿后面并聚焦，不自动发送 */
-  fill?: { text: string; nonce: number } | null;
+  /** 外部（如右栏「让助手提交」）请求填入的文字与附图：接在已有草稿后面并聚焦，不自动发送 */
+  fill?: { text: string; images?: ImageAttachment[]; nonce: number } | null;
   /** 会话工作区 cwd（files rail）；有值时输入 @ 可路径补全 */
   cwd?: string | null;
   /** All project folders for path completion. */

@@ -273,6 +273,7 @@
   "ui.session-workspace.staged-parens": "（已暂存）",
   "ui.session-workspace.stages-and-commits-the-n-listed-files": "暂存并提交列表里的 {0} 个文件",
   "ui.session-workspace.stop-all": "全部停止",
+  "ui.session-workspace.stop-and-send-now": "停止并发送",
   "ui.session-workspace.stop-this-subtask": "停止这个子任务",
   "ui.session-workspace.subagent-direct-failed": "没有发出去：{0}",
   "ui.session-workspace.subagent-direct-hint": "这个子代理的步骤和它说的话在这里实时更新。在这里发的话直接交给这个子代理本身，不经主代理转述：它在跑就插进它这一步，已经结束就接着它自己的会话继续。",

@@ -17,6 +17,7 @@ import {
   discardSideChat,
   editSideChat,
   exportSideChat,
+  flushSideChat,
   forgetSideChat,
   importSideChat,
   regenerateSideChat,
@@ -191,6 +192,38 @@ describe('side chat service (several chats per conversation)', () => {
     stopSideChat(id);
     expect(sideChatState(id)!.running).toBeNull();
     expect(texts(id).at(-1)).toEqual(['user', 'q3']);
+  });
+
+  it('queues image attachments while answering and flushSideChat interrupts to send with images', async () => {
+    const id = createSideChat('s');
+    let open!: () => void;
+    gate = new Promise<void>((r) => (open = r));
+    chunks = [{ type: 'delta', content: '第一轮' }];
+    const img1 = { mime: 'image/png', thumb: 'data:t1', width: 10, height: 10, data: 'IMG1' };
+    const first = sendSideChat(id, 'q1');
+    await Promise.resolve();
+    await sendSideChat(id, '', [img1]);
+    expect(sideChatState(id)!.queued).toEqual(['请看看这张图片。']);
+    open();
+    await first;
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
+    const req2 = sent[1]!.messages as Array<{ images?: unknown[] }>;
+    expect(req2.at(-1)?.images).toEqual([{ mime: 'image/png', data: 'IMG1' }]);
+
+    let openSecond!: () => void;
+    gate = new Promise<void>((r) => (openSecond = r));
+    const img2 = { mime: 'image/png', thumb: 'data:t2', width: 10, height: 10, data: 'IMG2' };
+    void sendSideChat(id, 'running');
+    await vi.waitFor(() => expect(sent).toHaveLength(3));
+    await sendSideChat(id, '插队带图', [img2]);
+    flushSideChat(id);
+    openSecond();
+    await vi.waitFor(() => expect(sent).toHaveLength(4));
+    const req4 = sent[3]!.messages as Array<{ content: string; images?: unknown[] }>;
+    expect(req4.at(-1)).toMatchObject({
+      content: '插队带图',
+      images: [{ mime: 'image/png', data: 'IMG2' }],
+    });
   });
 
   it('quotes go into the draft before the composer mounts', () => {

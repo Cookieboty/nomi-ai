@@ -16,13 +16,17 @@ import {
 } from '../services/pendingSendsStore';
 import {
   mergePending,
-  mergePendingKey,
+  mergePendingBatches,
   newPendingId,
   requeue,
   takeSteer,
+  type PendingImage,
   type PendingMode,
   type PendingSend,
 } from '../utils/pendingSends';
+
+/** Nomi 单轮最多带 6 张图（与 Go 侧 aisdk/provider.go maxImages 一致） */
+const NOMI_FLUSH_MAX_IMAGES = 6;
 
 /** 入队时冻结的发送意图：之后切换模式不改变已排队消息的去向 */
 export interface QueueOpts {
@@ -30,6 +34,8 @@ export interface QueueOpts {
   kb?: boolean;
   /** Enter = 插入（默认），Ctrl+Enter = 排队 */
   mode?: PendingMode;
+  /** 随消息排队的图片附件 */
+  images?: readonly PendingImage[];
 }
 
 /** 插入这一轮的通道（没有 = 只能排队） */
@@ -178,22 +184,27 @@ export function useSendQueue(
     // 自动发出的：存下的那份去掉它，并记下「这一轮收到了」（见 pendingSendsStore.settle）
     commit(rest);
     void persistNow('deliver');
-    void Promise.resolve(sendRef.current(next!.text, next!.kb ? { kb: true } : undefined)).finally(
-      () => {
-        inflight.current = false;
-        setTick((n) => n + 1);
-      },
-    );
+    const sendOpts: QueueOpts | undefined = next!.images?.length
+      ? { images: next!.images }
+      : next!.kb
+        ? { kb: true }
+        : undefined;
+    void Promise.resolve(sendRef.current(next!.text, sendOpts)).finally(() => {
+      inflight.current = false;
+      setTick((n) => n + 1);
+    });
   }, [busy, items, tick, commit, persistNow]);
 
   const enqueue = useCallback(
     (text: string, opts?: QueueOpts) => {
-      const mode: PendingMode = opts?.mode === 'queue' || !steerRef.current ? 'queue' : 'steer';
+      const hasImages = !!opts?.images?.length;
+      const mode: PendingMode =
+        hasImages || opts?.mode === 'queue' || !steerRef.current ? 'queue' : 'steer';
       const item: PendingSend = {
         id: newPendingId(),
         text,
         mode,
-        ...(opts?.kb ? { kb: true } : {}),
+        ...(hasImages ? { images: [...opts.images!] } : opts?.kb ? { kb: true } : {}),
       };
       commit([...itemsRef.current, item]);
       void persistNow('update');
@@ -210,17 +221,11 @@ export function useSendQueue(
     },
     [commit, persistNow],
   );
-  /** Esc：停止这一轮，整个列表合成一条，停下后马上发出 */
+  /** Esc / 停止并发送：停止这一轮，整个列表合成并按图片上限分批，停下后马上发出 */
   const flush = useCallback(() => {
     const all = itemsRef.current;
     if (!all.length) return false;
-    const merged: PendingSend = {
-      id: mergePendingKey(all),
-      text: mergePending(all),
-      mode: 'queue',
-      ...(all.some((i) => i.kb) ? { kb: true } : {}),
-    };
-    commit([merged]);
+    commit(mergePendingBatches(all, NOMI_FLUSH_MAX_IMAGES));
     void persistNow('update');
     steerRef.current?.stop();
     return true;

@@ -18,12 +18,12 @@ import React, {
 
 import { startupBrandIntro } from '../components/BrandIntro/state';
 import { confirmDialog } from '../components/ConfirmDialog';
+import { ensureHarnessImages } from '../services/chatImages';
 import type { RunnerPreset } from '../services/delegateClient';
 import {
   MAIN_TAB_ID,
   harnessClient,
   type HarnessBackend,
-  type HarnessImageInput,
   type HarnessLiveEvent,
   type HarnessTabMessage,
   type HarnessTabMeta,
@@ -48,9 +48,11 @@ import {
 import {
   hasRunningTool,
   mergePending,
+  mergePendingBatches,
   newPendingId,
   requeue,
   takeSteer,
+  type PendingImage,
   type PendingMode,
   type PendingSend,
 } from '../utils/pendingSends';
@@ -85,19 +87,19 @@ export interface HarnessTabsCore {
   activate: (id: string) => Promise<void>;
   cycle: (dir: 1 | -1) => void;
   selectIndex: (i: number) => void;
-  /** 发送；当前标签正在运行 / 排队时改为进队列，当前轮结束后自动发送。附图仅空闲直发（排队不带图）。 */
-  send: (text: string, images?: HarnessImageInput[], mode?: PendingMode) => Promise<void>;
+  /** 发送；当前标签正在运行 / 排队时改为进队列（含附图，不走 steer 丢图），当前轮结束后自动发送。 */
+  send: (text: string, images?: readonly PendingImage[], mode?: PendingMode) => Promise<void>;
   /**
    * 向指定标签发送（与当前激活的标签无关）：异步结果（如斜杠命令展开）要回到发起它的标签。
-   * 目标运行 / 排队中时进该标签的队列；标签不存在 / 已关闭、是 main、或后端 / 目录与 `expect` 不符
+   * 目标运行 / 排队中时进该标签的队列（支持带图）；标签不存在 / 已关闭、是 main、或后端 / 目录与 `expect` 不符
    * （说明已被重置）时返回 false，什么都不发。
    */
   sendToTab: (
     tabId: string,
     text: string,
     expect?: { backend?: HarnessBackend; cwd?: string },
-    images?: HarnessImageInput[],
-    /** 标签在运行时：steer（Enter，默认）插入这一轮 / queue（Ctrl+Enter）排队到这一轮结束 */
+    images?: readonly PendingImage[],
+    /** 标签在运行时：steer（Enter，默认，仅纯文本）插入这一轮 / queue（Ctrl+Enter 或带图）排队到这一轮结束 */
     mode?: PendingMode,
   ) => Promise<boolean>;
   /** 标签是否仍存在（读最新状态，不依赖渲染闭包） */
@@ -624,10 +626,11 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     [ids, activate],
   );
   const dispatchSend = useCallback(
-    async (tabId: string, text: string, images?: HarnessImageInput[]) => {
+    async (tabId: string, text: string, images?: readonly PendingImage[]) => {
       setLive((cur) => ({ ...cur, [tabId]: { text: '', startedAt: Date.now() } }));
+      const harnessImages = images?.length ? await ensureHarnessImages(images) : undefined;
       // 结果经 tab-message 事件进入缓存；这里只吞掉错误（错误也会作为消息写入标签）
-      await harnessClient.sendTab(tabId, text, images).catch(() => undefined);
+      await harnessClient.sendTab(tabId, text, harnessImages).catch(() => undefined);
     },
     [],
   );
@@ -636,7 +639,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       tabId: string,
       text: string,
       expect?: { backend?: HarnessBackend; cwd?: string },
-      images?: HarnessImageInput[],
+      images?: readonly PendingImage[],
       mode: PendingMode = 'steer',
     ): Promise<boolean> => {
       if (tabId === MAIN_TAB_ID) return false;
@@ -645,11 +648,16 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       if (expect?.backend !== undefined && tab.backend !== expect.backend) return false;
       if (expect?.cwd !== undefined && tab.cwd !== expect.cwd) return false;
       if (tab.status === 'running' || tab.status === 'queued' || dispatching.current.has(tabId)) {
-        // 排队不带图：有附图时拒绝入队，避免静默丢图
-        if (images?.length) return false;
-        // 后端不能中途插入（Gemini / dsh）：一律排队
-        const m: PendingMode = mode === 'steer' && canSteer(tab.backend) ? 'steer' : 'queue';
-        const item: PendingSend = { id: newPendingId(), text, mode: m };
+        const hasImages = !!images?.length;
+        // 后端不能中途插入（Gemini / dsh）或带有图片附件（避免纯文本 steer 丢图）：一律排队
+        const m: PendingMode =
+          !hasImages && mode === 'steer' && canSteer(tab.backend) ? 'steer' : 'queue';
+        const item: PendingSend = {
+          id: newPendingId(),
+          text,
+          mode: m,
+          ...(hasImages ? { images: [...images] } : {}),
+        };
         updateQueues((cur) => ({ ...cur, [tabId]: [...(cur[tabId] ?? []), item] }));
         // 正好有工具在跑：现在交出去，这个工具的结果回给模型时一起带上
         if (m === 'steer' && hasRunningTool(liveStore.get()[tabId]?.trace))
@@ -672,7 +680,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     [],
   );
   const send = useCallback(
-    async (text: string, images?: HarnessImageInput[], mode?: PendingMode) => {
+    async (text: string, images?: readonly PendingImage[], mode?: PendingMode) => {
       if (!isCliTab) return;
       await sendToTab(activeId, text, undefined, images, mode);
     },
@@ -759,10 +767,10 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       const all = queuesRef.current[tabId] ?? [];
       if (tabId === MAIN_TAB_ID || !all.length) return false;
       if (!stateRef.current?.tabs.some((t) => t.id === tabId)) return false;
-      // 合成一条排在最前：停下来后队列自动发送马上发出它
+      // 合成按后端图片上限分批排在最前：停下来后队列自动发送马上发出
       updateQueues((cur) => ({
         ...cur,
-        [tabId]: [{ id: newPendingId(), text: mergePending(all), mode: 'queue' }],
+        [tabId]: mergePendingBatches(all, 8),
       }));
       await harnessClient.cancelTab(tabId);
       return true;
@@ -790,7 +798,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       // 发出去、这一轮收到了（挂回的组跟着改：见 pendingSendsStore.settle，重启时不再次发出）
       updateQueues((cur) => ({ ...cur, [tab.id]: rest }));
       persistTabQueue(tab.id, rest, 'deliver');
-      void dispatchSend(tab.id, next!.text).finally(() => {
+      void dispatchSend(tab.id, next!.text, next!.images).finally(() => {
         dispatching.current.delete(tab.id);
         setTick((n) => n + 1);
       });
