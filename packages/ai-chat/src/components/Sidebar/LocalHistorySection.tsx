@@ -1,6 +1,6 @@
 import { Icon, t } from '@nomi-ai/ui';
 import { IconRefresh as RefreshCw } from '@tabler/icons-react';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import type { HistorySession } from '../../services/historyClient';
 
@@ -8,7 +8,10 @@ import styles from './index.module.css';
 import { SectionHeader } from './SectionHeader';
 import { HistoryRow } from './SidebarRows';
 
-/** 侧栏「本机历史」：磁盘上的 CLI 会话，默认折叠（点标题展开；不记住） */
+/** 「本机历史」整个分区收起时记在折叠记录里的键（与项目 id 不会重名） */
+export const SECTION_LOCAL_HISTORY = '\u0000section:local-history';
+
+/** 侧栏「本机历史」：磁盘上的 CLI 会话，默认展开（手动收起后记住）；滚到底部自动加载下一页 */
 export const LocalHistorySection: React.FC<{
   items: readonly HistorySession[];
   scanning: boolean;
@@ -20,8 +23,66 @@ export const LocalHistorySection: React.FC<{
   onLoadMore: () => void;
   /** 标题右侧的「刷新」：重新扫描各 CLI 的本机历史 */
   onRefresh?: () => void;
-}> = ({ items, scanning, openingKey, onOpen, onMenu, hasMore, loading, onLoadMore, onRefresh }) => {
-  const [open, setOpen] = useState(false);
+  /** 受控展开态；未传时默认展开并由组件内部维护 */
+  open?: boolean;
+  onToggle?: () => void;
+}> = ({
+  items,
+  scanning,
+  openingKey,
+  onOpen,
+  onMenu,
+  hasMore,
+  loading,
+  onLoadMore,
+  onRefresh,
+  open: controlledOpen,
+  onToggle,
+}) => {
+  const [localOpen, setLocalOpen] = useState(true);
+  const open = controlledOpen ?? localOpen;
+  const toggle = () => {
+    if (onToggle) onToggle();
+    else setLocalOpen((v) => !v);
+  };
+
+  const moreRef = useRef<HTMLButtonElement | null>(null);
+  const onLoadMoreRef = useRef(onLoadMore);
+  const loadingRef = useRef(loading);
+  const itemsLenRef = useRef(items.length);
+  const lastAutoLenRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    onLoadMoreRef.current = onLoadMore;
+    loadingRef.current = loading;
+  });
+
+  useEffect(() => {
+    itemsLenRef.current = items.length;
+    lastAutoLenRef.current = null;
+  }, [items.length]);
+
+  useEffect(() => {
+    if (!open || !hasMore || typeof IntersectionObserver === 'undefined') return;
+    const target = moreRef.current;
+    if (!target) return;
+    const root = target.closest<HTMLElement>('[data-testid="conversation-list"]') ?? null;
+    // 无布局环境（如 happy-dom 未模拟滚区高度）不自动触发，保留手动点「加载更多」的行为
+    if (root && root.clientHeight <= 0) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        if (loadingRef.current) return;
+        if (lastAutoLenRef.current === itemsLenRef.current) return;
+        lastAutoLenRef.current = itemsLenRef.current;
+        onLoadMoreRef.current();
+      },
+      { root, rootMargin: '0px 0px 160px 0px', threshold: 0 },
+    );
+    io.observe(target);
+    return () => io.disconnect();
+  }, [open, hasMore, items.length]);
+
   const label = open
     ? t('ui.cli-monitor.collapse-local-history')
     : t('ui.cli-monitor.expand-local-history');
@@ -31,7 +92,7 @@ export const LocalHistorySection: React.FC<{
         label={t('ui.cli-monitor.local-history')}
         title={label}
         open={open}
-        onToggle={() => setOpen((v) => !v)}
+        onToggle={toggle}
         testId="cli-history-toggle"
         actions={
           onRefresh && (
@@ -63,9 +124,13 @@ export const LocalHistorySection: React.FC<{
         ))}
       {open && hasMore && (
         <button
+          ref={moreRef}
           type="button"
           className={styles.histMore}
-          onClick={onLoadMore}
+          onClick={() => {
+            lastAutoLenRef.current = null;
+            onLoadMore();
+          }}
           disabled={loading}
           data-testid="cli-history-more"
         >
