@@ -8,7 +8,11 @@ import { setChatMode } from '../src/services/chatPrefs';
 import type { HarnessTabsState } from '../src/services/harnessClient';
 import { openModelMenu } from '../src/services/modelMenu';
 import type { ProviderState } from '../src/services/providerClient';
-import { resolveThinkingLevel, type ThinkingProfile } from '../src/services/thinkingDepth';
+import {
+  isNativeThirdPartyModel,
+  resolveThinkingLevel,
+  type ThinkingProfile,
+} from '../src/services/thinkingDepth';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
@@ -65,6 +69,52 @@ describe('resolveThinkingLevel', () => {
     expect(resolveThinkingLevel('high', p)).toBe('high');
     expect(resolveThinkingLevel('xhigh', p)).toBe('medium');
     expect(resolveThinkingLevel(undefined, null)).toBeUndefined();
+  });
+});
+
+describe('isNativeThirdPartyModel', () => {
+  it('识别同协议原生模型以及通过 like 标注的中转别名', () => {
+    const state = {
+      status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
+      providers: [
+        {
+          id: 'relay',
+          name: 'Relay',
+          enabled: true,
+          urls: {},
+          keys: [],
+          models: [
+            { id: 'claude-opus-5-5', enabled: true },
+            { id: 'my-opus', enabled: true, like: 'claude-opus-5-5' },
+            { id: 'gpt-5', enabled: true },
+            { id: 'o3', enabled: true },
+            { id: 'kimi-k3', enabled: true },
+            { id: 'minimax-m3.1-flash', enabled: true },
+            { id: 'my-kimi', enabled: true, like: 'kimi-k3' },
+            { id: 'my-minimax', enabled: true, like: 'minimax-m3.1-flash' },
+            { id: 'ds-v4', enabled: true },
+          ],
+          source: 'user',
+        },
+      ],
+      clients: {},
+      allowedPrivateHosts: [],
+      port: 1,
+    } as unknown as Parameters<typeof isNativeThirdPartyModel>[1];
+
+    expect(isNativeThirdPartyModel('claude', state, 'relay/claude-opus-5-5')).toBe(true);
+    expect(isNativeThirdPartyModel('claude', state, 'relay/my-opus')).toBe(true);
+    expect(isNativeThirdPartyModel('codex', state, 'relay/gpt-5')).toBe(true);
+    expect(isNativeThirdPartyModel('codex', state, 'relay/o3')).toBe(true);
+    expect(isNativeThirdPartyModel('kimi', state, 'relay/kimi-k3')).toBe(true);
+    expect(isNativeThirdPartyModel('kimi', state, 'relay/my-kimi')).toBe(true);
+    expect(isNativeThirdPartyModel('minimax', state, 'relay/minimax-m3.1-flash')).toBe(true);
+    expect(isNativeThirdPartyModel('minimax', state, 'relay/my-minimax')).toBe(true);
+    expect(isNativeThirdPartyModel('claude', state, 'relay/gpt-5')).toBe(false);
+    expect(isNativeThirdPartyModel('claude', state, 'relay/kimi-k3')).toBe(false);
+    expect(isNativeThirdPartyModel('codex', state, 'relay/claude-opus-5-5')).toBe(false);
+    expect(isNativeThirdPartyModel('claude', state, 'relay/ds-v4')).toBe(false);
+    expect(isNativeThirdPartyModel('codex', state, 'relay/ds-v4')).toBe(false);
   });
 });
 

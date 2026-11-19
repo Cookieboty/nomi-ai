@@ -56,6 +56,16 @@ func effortTestOrch(t *testing.T) (*Orchestrator, *effortGateway) {
 		{Ref: "maas/glm-5.3", Provider: "MAAS", Label: "glm-5.3",
 			Thinking: &ports.GatewayThinking{Levels: []string{"off", "on"}, Default: "on"}},
 		{Ref: "maas/plain", Provider: "MAAS", Label: "plain"},
+		{Ref: "relay/claude-opus-5-5", Provider: "Relay", Label: "claude-opus-5-5", NativeClient: "claude",
+			Thinking: &ports.GatewayThinking{Levels: []string{"low", "medium", "high", "xhigh", "max"}, Default: "medium"}},
+		{Ref: "relay/my-opus", Provider: "Relay", Label: "my-opus", NativeClient: "claude",
+			Thinking: &ports.GatewayThinking{Levels: []string{"low", "medium", "high", "xhigh", "max"}, Default: "medium"}},
+		{Ref: "relay/gpt-5", Provider: "Relay", Label: "gpt-5", NativeClient: "codex",
+			Thinking: &ports.GatewayThinking{Levels: []string{"minimal", "low", "medium", "high"}, Default: "low"}},
+		{Ref: "relay/kimi-k3", Provider: "Relay", Label: "kimi-k3", NativeClient: "kimi",
+			Thinking: &ports.GatewayThinking{Levels: []string{"low", "high", "max"}, Default: "high"}},
+		{Ref: "relay/minimax-m3.1-flash", Provider: "Relay", Label: "minimax-m3.1-flash", NativeClient: "minimax",
+			Thinking: &ports.GatewayThinking{Levels: []string{"low", "medium", "high", "xhigh", "max"}, Default: "medium"}},
 	}}
 	o := New(Deps{
 		Root:             filepath.Join(tmp, "harness"),
@@ -140,5 +150,51 @@ func TestThirdPartyTabEffortFollowsGatewayCapabilities(t *testing.T) {
 	jsrt.Run(func() {})
 	if last := gw.updates[len(gw.updates)-1]; !strings.HasSuffix(last, "|medium") {
 		t.Fatalf("restore default: last update %q want medium", last)
+	}
+}
+
+func TestThirdPartyNativeModelPassthroughByDefault(t *testing.T) {
+	o, gw := effortTestOrch(t)
+	defer jsrt.Run(o.Dispose)
+
+	for _, tc := range []struct {
+		backend, model string
+	}{
+		{"claude", "relay/claude-opus-5-5"},
+		{"claude", "relay/my-opus"},
+		{"codex", "relay/gpt-5"},
+		{"kimi", "relay/kimi-k3"},
+		{"minimax", "relay/minimax-m3.1-flash"},
+	} {
+		tab := jsrt.Call(func() *util.Obj {
+			return o.CreateTab(util.NewObj("backend", tc.backend, "source", "thirdParty"))
+		})
+		id := str(tab, "id")
+		jsrt.Run(func() { o.SetTabModel(id, tc.model, "thirdParty") })
+		// 同协议原生组合未手动选档时，不注入默认 bindEffort
+		if got := bindEffortOf(o, id); got != "" {
+			t.Fatalf("%s + %s default bindEffort=%q, want empty", tc.backend, tc.model, got)
+		}
+		// 跑起来后手动选 high，写入并同步绑定
+		jsrt.Run(func() {
+			o.tabBindings[id] = &tabBinding{generation: 1, model: tc.model, effort: ""}
+		})
+		jsrt.Run(func() { o.SetTabReasoningEffort(id, "high") })
+		jsrt.Run(func() {})
+		if got := bindEffortOf(o, id); got != "high" {
+			t.Fatalf("%s + %s after set high: bindEffort=%q", tc.backend, tc.model, got)
+		}
+		if len(gw.updates) == 0 || gw.updates[len(gw.updates)-1] != tc.model+"|high" {
+			t.Fatalf("updates=%v want last %s|high", gw.updates, tc.model)
+		}
+		// 恢复默认：清空绑定档位，UpdateTab 传空串
+		jsrt.Run(func() { o.SetTabReasoningEffort(id, nil) })
+		jsrt.Run(func() {})
+		if got := bindEffortOf(o, id); got != "" {
+			t.Fatalf("%s + %s after restore: bindEffort=%q want empty", tc.backend, tc.model, got)
+		}
+		if last := gw.updates[len(gw.updates)-1]; last != tc.model+"|" {
+			t.Fatalf("restore native default: last update %q want %s|", last, tc.model)
+		}
 	}
 }

@@ -32,7 +32,7 @@ import {
   type ReasoningEffort,
 } from '../../services/harnessClient';
 import { pickerProviders } from '../../services/nomiModel';
-import { thinkingProfileOf } from '../../services/thinkingDepth';
+import { isNativeThirdPartyModel, thinkingProfileOf } from '../../services/thinkingDepth';
 import { hasOfficialAccount, thirdPartyOnly } from '../../utils/cliCaps';
 import { EndpointIcon } from '../EndpointIcon';
 import { thinkingLevelLabel } from '../ModelControls/effortLabel';
@@ -96,10 +96,11 @@ function resolveModelEffortSpec(params: {
         hint: t('ui.chat-settings.this-model-has-no-reasoning-effort'),
       };
     }
+    const native = isNativeThirdPartyModel(draft.cli, gateway, draft.model);
     return {
       supported: true,
       levels: profile.levels as RunnerEffort[],
-      defaultLevel: profile.default as RunnerEffort,
+      defaultLevel: native ? null : (profile.default as RunnerEffort),
       hint: null,
     };
   }

@@ -59,6 +59,9 @@ func (h harnessGateway) Models() []ports.GatewayModel {
 		if v, ok := m.Get("vision").(bool); ok {
 			gm.Vision = &v
 		}
+		if nc, ok := m.Get("nativeClient").(string); ok {
+			gm.NativeClient = nc
+		}
 		gm.Thinking = thinkingOf(m.Get("thinking"))
 		out = append(out, gm)
 	}

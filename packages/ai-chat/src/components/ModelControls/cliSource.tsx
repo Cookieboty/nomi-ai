@@ -50,7 +50,11 @@ import {
 } from '../../services/harnessClient';
 import type { LongContextInfo } from '../../services/longContext';
 import { providerBrand, splitRef, useGatewayState } from '../../services/nomiModel';
-import { resolveThinkingLevel, thinkingProfileOf } from '../../services/thinkingDepth';
+import {
+  isNativeThirdPartyModel,
+  resolveThinkingLevel,
+  thinkingProfileOf,
+} from '../../services/thinkingDepth';
 import { hasOfficialAccount } from '../../utils/cliCaps';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
@@ -265,10 +269,13 @@ export function useCliModelEffortSource({
         : null
       : storedEffort
     : null;
-  // null 表示沿用默认，界面仍应把默认档位显示在对应位置（第三方：模型的第二档，和 Nomi 对话一样，
-  // 也是网关实际发出的那一档）。
+  const nativeThirdParty =
+    thirdParty && isNativeThirdPartyModel(tab.backend, gateway, thirdPartyRef);
+  // null 表示沿用默认：官方模式与第三方同协议原生模型默认留给 CLI 决定，其余第三方模型落在第二档。
   const defaultEffort = thirdParty
-    ? ((resolveThinkingLevel(undefined, thirdPartyProfile) ?? null) as ReasoningEffort | null)
+    ? nativeThirdParty
+      ? null
+      : ((resolveThinkingLevel(undefined, thirdPartyProfile) ?? null) as ReasoningEffort | null)
     : reasoningSupported && info?.defaultEffort && levels.includes(info.defaultEffort)
       ? info.defaultEffort
       : null;
@@ -599,7 +606,7 @@ export function useCliModelEffortSource({
     value: chipEffort,
     explicit: !!effort,
     defaultUnknownNote:
-      !thirdParty && !effort && !defaultEffort
+      (!thirdParty || nativeThirdParty) && !effort && !defaultEffort
         ? t('ui.chat-settings.effort-default-set-by-cli', backendName || tab.backend)
         : null,
     unavailableHint: backendBlocksEffort

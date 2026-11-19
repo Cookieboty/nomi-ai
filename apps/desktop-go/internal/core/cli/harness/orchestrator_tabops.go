@@ -18,6 +18,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/ports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/models"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
@@ -1761,7 +1762,7 @@ func (o *Orchestrator) effectiveOverrides(tab *util.Obj) overrides {
 		if eqStrP(ms, scope) {
 			stored = strP(tab, "reasoningEffort")
 		}
-		return overrides{model: own, bindEffort: o.thirdPartyLevel(own, stored)}
+		return overrides{model: own, bindEffort: o.thirdPartyLevel(str(tab, "backend"), own, stored)}
 	}
 	if !eqStrP(ms, scope) {
 		return overrides{}
@@ -1803,9 +1804,25 @@ func (o *Orchestrator) thirdPartyAllows(ref, level string) bool {
 	return th != nil && level != "" && containsString(th.Levels, level)
 }
 
-// thirdPartyLevel：第三方标签这一轮发出的档位 = 选过且还有效的档位，否则模型的默认档；模型不能调 = nil。
-// 与 Nomi 对话的 resolveThinkingLevel 同一规则：界面上显示哪一档，请求就带哪一档。
-func (o *Orchestrator) thirdPartyLevel(model, stored *string) *string {
+// isNativeThirdPartyModel：这个第三方模型天然属于当前 CLI 家族（Claude 跑 Claude、Codex 跑 GPT/Codex 等）。
+// 同协议原生组合在用户未显式设置思考档位时保持透传，不强插默认网关绑定。
+func (o *Orchestrator) isNativeThirdPartyModel(backend, ref string) bool {
+	if backend == "" || ref == "" {
+		return false
+	}
+	if o.d.Gateway != nil {
+		for _, m := range o.d.Gateway.Models() {
+			if m.Ref == ref && m.NativeClient != "" {
+				return m.NativeClient == backend
+			}
+		}
+	}
+	return models.NativeClientOf(ref, nil) == backend
+}
+
+// thirdPartyLevel：第三方标签这一轮发出的档位 = 选过且还有效的档位；未选时同协议原生模型返回 nil（透传 CLI 默认），
+// 跨家族模型返回模型默认档；模型不能调 = nil。
+func (o *Orchestrator) thirdPartyLevel(backend string, model, stored *string) *string {
 	if model == nil || *model == "" {
 		return nil
 	}
@@ -1816,6 +1833,9 @@ func (o *Orchestrator) thirdPartyLevel(model, stored *string) *string {
 	if stored != nil && containsString(th.Levels, *stored) {
 		v := *stored
 		return &v
+	}
+	if o.isNativeThirdPartyModel(backend, *model) {
+		return nil
 	}
 	v := th.Default
 	return &v
