@@ -4,8 +4,12 @@ package harness
 
 import (
 	"errors"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"regexp"
+	"slices"
+	"strings"
+	"time"
+
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
@@ -40,11 +44,12 @@ type acpLiveSession struct {
 	perms            map[string]func(allow *bool)
 	permOrder        []string
 	questions        map[string]func(*util.Obj, bool)
-	lastActivityAt   float64
-	ready            *jsrt.Promise[struct{}]
-	modeChange       *modeChange
-	recycleAfterTurn bool
-	used             bool
+	lastActivityAt     float64
+	ready              *jsrt.Promise[struct{}]
+	modeChange         *modeChange
+	unsupportedModeIDs map[string]bool
+	recycleAfterTurn   bool
+	used               bool
 }
 
 func (l *acpLiveSession) setPerm(id string, f func(*bool)) {
@@ -206,8 +211,8 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 		live := &acpLiveSession{
 			backend: backend, launchSig: spawnLaunch.sig, child: child, driver: driver, cwd: str(tab, "cwd"),
 			permissionMode: str(tab, "permissionMode"), perms: map[string]func(*bool){},
-			questions: map[string]func(*util.Obj, bool){}, lastActivityAt: nowMs(),
-			ready: jsrt.Resolved(struct{}{}),
+			questions: map[string]func(*util.Obj, bool){}, unsupportedModeIDs: map[string]bool{},
+			lastActivityAt: nowMs(), ready: jsrt.Resolved(struct{}{}),
 		}
 		driver.On(func(e clisdk.SessionEvent) {
 			live.lastActivityAt = nowMs()
@@ -327,15 +332,18 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 					}
 				}
 			}
-			want := cli.AcpModeID(backend, initMode)
-			if want != "" && !adoptedHistoryMode && modeNow != want {
-				if _, e := jsrt.Await(driver.SetPermissionModeSignal(want, signal)); e != nil {
+			if adoptedHistoryMode {
+				tab.Delete("permissionModeCli")
+			} else if want := cli.AcpModeID(backend, initMode); want != "" {
+				appliedModeID, e := jsrt.Await(o.applyAcpSessionMode(live, initMode, modeNow, signal))
+				if e != nil {
 					why := rpc.InnermostMessage(e.Error())
 					if backend == "gemini" && gemini.IsUntrustedModeError(e.Error()) {
 						return struct{}{}, gemini.NewUntrustedError(str(tab, "cwd"), e)
 					}
 					return struct{}{}, withCause(i18n.T("electron.common.cli-did-not-confirm-the-permission-mode-so", name, why), e)
 				}
+				updateAcpPermissionModeCli(tab, backend, initMode, appliedModeID)
 			}
 			live.permissionMode = initMode
 			return struct{}{}, nil
@@ -366,6 +374,78 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			return nil, e
 		}
 		return jsrt.Await(o.confirmAcpMode(tab, live))
+	})
+}
+
+// isUnsupportedAcpModeError：ACP 对端因不支持目标 modeId 返回了 Invalid params(-32602) 或同类提示。
+func isUnsupportedAcpModeError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var re *rpc.Error
+	if errors.As(err, &re) && util.JSString(re.Code) == "-32602" {
+		return true
+	}
+	lower := strings.ToLower(err.Error())
+	return strings.Contains(lower, "unknown mode id") ||
+		strings.Contains(lower, "unsupported mode") ||
+		strings.Contains(lower, "invalid mode")
+}
+
+// updateAcpPermissionModeCli：当实际下发给 ACP 的模式退回到 default（对应 manual）而标签处于更高档位时，
+// 在 permissionModeCli 里记下实际下发档，防止对端推回 current_mode_update 时把标签的 permissionMode 顶掉。
+func updateAcpPermissionModeCli(tab *util.Obj, backend, tabMode, appliedModeID string) {
+	if tab == nil {
+		return
+	}
+	if appliedModeID == "" || appliedModeID == cli.AcpModeID(backend, tabMode) {
+		tab.Delete("permissionModeCli")
+		return
+	}
+	if mapped := cli.FromCliPermissionMode(backend, appliedModeID); mapped != "" && mapped != tabMode {
+		tab.Set("permissionModeCli", mapped)
+		return
+	}
+	tab.Delete("permissionModeCli")
+}
+
+// applyAcpSessionMode：下发 ACP session/set_mode；非只读（非 plan）且非 default 模式遇到不支持的 modeId
+// （如 Grok 1.0.89 仅接受 plan/default/agent/ask 而拒收 bypassPermissions/acceptEdits）时回退到 default
+// （非 bypass 工具权限由宿主审批回调接管）。plan 档绝不降级。
+func (o *Orchestrator) applyAcpSessionMode(live *acpLiveSession, mode string, modeNow any, signal *jsrt.AbortSignal) *jsrt.Promise[string] {
+	return jsrt.Async(func() (string, error) {
+		want := cli.AcpModeID(live.backend, mode)
+		if want == "" {
+			return "", nil
+		}
+		if modeNow == want {
+			return want, nil
+		}
+		canFallback := mode != "plan" && want != "default"
+		shouldFallbackDirectly := canFallback && (live.unsupportedModeIDs[want] ||
+			(len(live.driver.AvailableModes) > 0 &&
+				!slices.Contains(live.driver.AvailableModes, want) &&
+				slices.Contains(live.driver.AvailableModes, "default")))
+		if !shouldFallbackDirectly {
+			if _, e := jsrt.Await(live.driver.SetPermissionModeSignal(want, signal)); e == nil {
+				return want, nil
+			} else {
+				if live.backend == "gemini" && gemini.IsUntrustedModeError(e.Error()) {
+					return "", e
+				}
+				if !canFallback || !isUnsupportedAcpModeError(e) {
+					return "", e
+				}
+				live.unsupportedModeIDs[want] = true
+			}
+		}
+		if modeNow != "default" {
+			if _, e := jsrt.Await(live.driver.SetPermissionModeSignal("default", signal)); e != nil {
+				return "", e
+			}
+		}
+		o.d.Logger.Warn("harness acp mode unsupported, fell back to default", util.NewObj("backend", live.backend, "mode", mode, "want", want))
+		return "default", nil
 	})
 }
 
@@ -429,6 +509,13 @@ func (o *Orchestrator) onAcpEvents(tabID string, live *acpLiveSession, evs []*ut
 			}
 			if pev.Get("kind") == "approve-plan" {
 				notify()
+			} else if !o.bypassInEffect(tabID) && o.hasManagedTask(tab) {
+				reqID := jsStr(pev.Get("id"))
+				jsrt.SetTimeout(120*time.Millisecond, func() {
+					if m := o.pendingPerms.Get(tabID); m != nil && m[reqID] != nil {
+						notify()
+					}
+				})
 			} else {
 				o.allowIfBypass(tabID, jsStr(pev.Get("id")), notify)
 			}

@@ -1163,14 +1163,22 @@ func (o *Orchestrator) switchAcpMode(id string, gl *acpLiveSession, mode string)
 	modeID := cli.AcpModeID(gl.backend, mode)
 	if modeID == "" {
 		gl.permissionMode = mode
+		if tab := o.tab(id); tab != nil {
+			tab.Delete("permissionModeCli")
+		}
 		return
 	}
 	change := &modeChange{mode: mode}
-	req := gl.driver.SetPermissionMode(modeID)
+	var modeNow any
+	if gl.driver.ModeID != nil {
+		modeNow = *gl.driver.ModeID
+	}
+	req := o.applyAcpSessionMode(gl, mode, modeNow, nil)
 	change.done = jsrt.Async(func() (struct{}, error) {
-		_, err := jsrt.Await(req)
+		appliedModeID, err := jsrt.Await(req)
 		if err == nil {
 			if o.live.acp[id] == gl {
+				updateAcpPermissionModeCli(o.tab(id), gl.backend, mode, appliedModeID)
 				gl.permissionMode = mode
 			}
 			if gl.modeChange == change {

@@ -104,11 +104,15 @@ if (args[0] === 'agent' && args[1] === 'stdio') {
     ],
   };
   const MODES = ['plan', 'default', 'acceptEdits', 'bypassPermissions', 'dontAsk'];
+  const strictModes = process.env.NOMI_MOCK_GROK_STRICT_MODES === '1';
+  const STRICT_MODES = ['plan', 'default', 'agent', 'ask'];
   const currentMode = process.env.NOMI_MOCK_GROK_MODE;
   const modeState = () =>
-    currentMode
-      ? { currentModeId: currentMode, availableModes: MODES.map((id) => ({ id, name: id })) }
-      : { availableModes: MODES.map((id) => ({ id, name: id })) };
+    strictModes
+      ? undefined
+      : currentMode
+        ? { currentModeId: currentMode, availableModes: MODES.map((id) => ({ id, name: id })) }
+        : { availableModes: MODES.map((id) => ({ id, name: id })) };
   const resumed = new Set();
   const cancelled = new Set();
   const waiting = new Map();
@@ -267,26 +271,45 @@ if (args[0] === 'agent' && args[1] === 'stdio') {
     switch (j.method) {
       case 'initialize':
         return reply(j.id, { protocolVersion: 1, agentCapabilities: { loadSession: true } });
-      case 'session/new':
-        return reply(j.id, {
+      case 'session/new': {
+        const res = {
           sessionId: process.env.NOMI_MOCK_SESSION || 'session-mock-grok-1',
           models,
-          modes: modeState(),
-        });
-      case 'session/load':
+        };
+        const m = modeState();
+        if (m) res.modes = m;
+        return reply(j.id, res);
+      }
+      case 'session/load': {
         if (p.sessionId === 'session-unknown') return fail(j.id, 'session not found');
         resumed.add(p.sessionId);
-        return reply(j.id, {
-          models,
-          modes: modeState(),
-        });
-      case 'session/set_mode':
+        const res = { models };
+        const m = modeState();
+        if (m) res.modes = m;
+        return reply(j.id, res);
+      }
+      case 'session/set_mode': {
         if (process.env.NOMI_MOCK_GROK_SET_MODE === 'error')
           return fail(j.id, 'mode rejected (mock)');
+        if (strictModes) {
+          if (!STRICT_MODES.includes(p.modeId))
+            return send({
+              id: j.id,
+              error: {
+                code: -32602,
+                message: 'Invalid params',
+                data: `unknown mode id: ${p.modeId}`,
+              },
+            });
+          reply(j.id, {});
+          update(p.sessionId, { sessionUpdate: 'current_mode_update', currentModeId: p.modeId });
+          return;
+        }
         reply(j.id, {});
         if (MODES.includes(p.modeId))
           update(p.sessionId, { sessionUpdate: 'current_mode_update', currentModeId: p.modeId });
         return;
+      }
       case 'session/set_model':
         if (process.env.NOMI_MOCK_GROK_SET_MODEL === 'error')
           return fail(j.id, 'unknown model (mock)');
