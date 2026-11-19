@@ -7,6 +7,7 @@ import { t } from '@nomi-ai/ui';
 
 import type { ChatMessage } from '../types/chat';
 import { ENDPOINT_NAME } from '../utils/endpointBadge';
+import { baseToolName } from '../utils/toolTrace';
 
 import { reportedFiles, type DelegateChanges } from './delegateChanges';
 import type { DelegateResult } from './delegateClient';
@@ -118,4 +119,26 @@ export function delegateResultMessage(
     // 对话里用「已编辑 N 个文件」卡片列出子任务的改动，点开看每个文件的 Diff
     ...(changes?.files.length ? { delegateChanges: changes } : {}),
   };
+}
+
+function outputTaskId(output: string | undefined): string | undefined {
+  if (!output) return undefined;
+  try {
+    const o = JSON.parse(output) as { ok?: boolean; data?: { taskId?: unknown } };
+    return o?.ok && typeof o.data?.taskId === 'string' ? o.data.taskId : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** 会话里是否已有该 taskId 对应的原位委派卡片（delegate_to_cli 工具调用已直接呈现状态与结果） */
+export function hasDelegateCardForTask(messages: readonly ChatMessage[], taskId: string): boolean {
+  if (!taskId) return false;
+  for (const m of messages) {
+    for (const ev of m.trace ?? []) {
+      if (ev.type !== 'tool' || baseToolName(ev.name) !== 'delegate_to_cli') continue;
+      if (outputTaskId(ev.output) === taskId) return true;
+    }
+  }
+  return false;
 }

@@ -17,7 +17,8 @@ import { startupBrandIntro } from '../components/BrandIntro/state';
 import { notifyConversationsChanged } from '../services/conversationStore';
 import { collectDelegateChanges, reportedFiles } from '../services/delegateChanges';
 import { delegateClient, type DelegateResult } from '../services/delegateClient';
-import { delegateResultMessage } from '../services/delegateMessage';
+import { delegateResultMessage, hasDelegateCardForTask } from '../services/delegateMessage';
+import { emitDelegateNotice } from '../services/delegateNotice';
 import { desktopClient } from '../services/desktopClient';
 import { harnessClient } from '../services/harnessClient';
 import { splitSteerContent } from '../services/history';
@@ -26,6 +27,7 @@ import { stopReplySpeech } from '../services/replySpeech';
 import { schedClient } from '../services/schedClient';
 import type { ImageAttachment } from '../services/screenClient';
 import type { ChatConfig, ChatMessage } from '../types/chat';
+import { ENDPOINT_NAME } from '../utils/endpointBadge';
 
 import {
   aiChatReducer,
@@ -202,7 +204,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     [ipcClient],
   );
 
-  // 异步委派完成 → 写进当前对话；运行中经 steer 实时告知主模型，空闲且后台委派最终出错时受控唤醒 Nomi 接手兜底
+  // 异步委派完成：已停止仅弹短暂轻提示，完成/失败按场景静默注入或更新上下文，不再往会话底部堆积无意义气泡
   const autoRecoverRef = useRef(new Map<string, { userId: string; count: number }>());
   const sendStreamRef = useRef<
     | ((
@@ -214,61 +216,122 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   >(null);
   useEffect(() => {
     let alive = true;
+    const streamingBeforeId = (targetId: string | undefined): string | undefined =>
+      inflight.current.get(convoKey(targetId))?.messages[0]?.id;
+    const messagesForConvo = (targetId: string | undefined): readonly ChatMessage[] => {
+      const currentId = ipcClient.currentConversationId?.();
+      if (!targetId || targetId === currentId) return stateRef.current.messages;
+      return ipcClient.conversationStore?.()?.getMessages(targetId) ?? [];
+    };
     const off = delegateClient.onCompleted((r: DelegateResult) => {
       const completedAt = Date.now();
-      const notifyMain = (m: ChatMessage) => {
-        if (!r.background || r.followUp) return;
-        // 被停止的委派不再注入：结果消息已经写进对话（模型下一轮从历史里读得到），卡片上也标着「已停止」，
-        // 再 steer 一遍只会让模型以为自己被用户插了句话
-        if (r.status === 'cancelled') return;
-        const currentId = ipcClient.currentConversationId?.();
-        const targetId = r.conversationId ?? currentId;
-        const key = convoKey(targetId);
-        // 1. 主模型正在流式执行中（例如同一轮还在跑其他工具）：经 steer 把后台委派终态注入当前轮，免得主模型盲等。
-        //    silent：这是系统状态（委派完成 / 失败），只告诉模型，不在时间线里回显成「你插入了」
-        const running = activeStream.current.get(key);
-        if (running?.steer && !running.controller.signal.aborted) {
-          void running.steer(`<cli-output>\n${m.content}\n</cli-output>`, { silent: true });
-          return;
+      const targetId = r.conversationId;
+      const currentId = ipcClient.currentConversationId?.();
+      const isCurrent = !targetId || currentId === targetId;
+      const agentName = t(ENDPOINT_NAME[r.cli] ?? r.cli);
+
+      // 1. 被停止的委派：卡片已显示「已停止」，绝不再塞会话消息与落盘，只发短暂轻提示（连续停止自动聚合）
+      if (r.status === 'cancelled') {
+        if (isCurrent) {
+          emitDelegateNotice({
+            kind: 'stopped',
+            agentName,
+            ...(r.cancelledBy ? { cancelledBy: r.cancelledBy } : {}),
+          });
         }
-        // 2. 主会话当前空闲且后台委派经内核 5 次自动重试仍失败：受控唤醒 Nomi 接棒（改派健康 CLI 或自力完成，每轮用户提问最多 2 次）
-        if (r.status !== 'error') return;
-        if (
-          (r.conversationId && r.conversationId !== currentId) ||
-          busyIn(stateRef.current, targetId)
-        )
-          return;
-        const msgs = stateRef.current.messages;
-        const lastUser = [...msgs].reverse().find((x) => x.role === 'user');
-        if (!lastUser) return;
-        const rec = autoRecoverRef.current.get(key);
-        const used = rec?.userId === lastUser.id ? rec.count : 0;
-        if (used >= 2) return;
-        autoRecoverRef.current.set(key, { userId: lastUser.id, count: used + 1 });
-        const nextHistory = [...msgs, m];
-        void sendStreamRef.current?.(DELEGATE_RECOVERY_PROMPT, undefined, {
-          history: nextHistory,
-          backgroundFollowUp: true,
-        });
-      };
-      const write = (m: ChatMessage) => {
+        return;
+      }
+
+      // 2. 同步委派：结果已直接交回当前轮模型并在卡片展示，不再重复塞后台跟进消息
+      if (!r.background && !r.followUp) return;
+
+      const deliver = async (m: ChatMessage) => {
         if (!alive) return;
-        const targetId = r.conversationId;
-        if (targetId && ipcClient.saveMessageTo) {
-          // 只在目标会话仍是当前展示时更新 UI，避免污染另一会话（#116）
-          if (ipcClient.currentConversationId?.() === targetId) {
-            dispatch({ type: 'ADD_MESSAGE', payload: m });
+        const liveCurrentId = ipcClient.currentConversationId?.();
+        const liveIsCurrent = !targetId || liveCurrentId === targetId;
+        const key = convoKey(targetId ?? liveCurrentId);
+        const beforeId = streamingBeforeId(targetId ?? liveCurrentId);
+        const persist = (msg: ChatMessage) => {
+          if (!alive) return;
+          const addOpts = !msg.hidden && beforeId ? { beforeId } : undefined;
+          if (targetId && ipcClient.saveMessageTo) {
+            // 只在目标会话仍是当前展示时更新 UI，避免污染另一会话（#116）
+            if (ipcClient.currentConversationId?.() === targetId) {
+              dispatch({ type: 'ADD_MESSAGE', payload: msg, ...addOpts });
+            }
+            void ipcClient.saveMessageTo(msg, targetId);
+          } else {
+            dispatch({ type: 'ADD_MESSAGE', payload: msg, ...addOpts });
+            void ipcClient.saveMessage(msg);
           }
-          void ipcClient.saveMessageTo(m, targetId);
-        } else {
-          dispatch({ type: 'ADD_MESSAGE', payload: m });
-          void ipcClient.saveMessage(m);
+        };
+
+        // 3a. 主模型正在流式执行中：静默 steer 实时告知当前轮模型（无图片产出则不再往会话流插气泡，只发轻提示）
+        const running = r.background && !r.followUp ? activeStream.current.get(key) : undefined;
+        if (running?.steer && !running.controller.signal.aborted) {
+          const steered = await running
+            .steer(`<cli-output>\n${m.content}\n</cli-output>`, { silent: true })
+            .catch(() => false);
+          if (!alive) return;
+          if (steered) {
+            if (r.images?.length) {
+              persist(m);
+            } else if (liveIsCurrent) {
+              emitDelegateNotice({
+                kind: r.status === 'error' ? 'failed' : 'done',
+                agentName,
+              });
+            }
+            return;
+          }
         }
-        notifyMain(m);
+
+        // 3b. 主会话空闲（或 steer 未能注入、或 followUp）
+        const msgs = messagesForConvo(targetId);
+        const canAutoRecover =
+          r.background &&
+          !r.followUp &&
+          r.status === 'error' &&
+          (!r.conversationId || r.conversationId === liveCurrentId) &&
+          !busyIn(stateRef.current, targetId ?? liveCurrentId);
+        if (canAutoRecover) {
+          const lastUser = [...msgs].reverse().find((x) => x.role === 'user');
+          if (lastUser) {
+            const rec = autoRecoverRef.current.get(key);
+            const used = rec?.userId === lastUser.id ? rec.count : 0;
+            if (used < 2) {
+              autoRecoverRef.current.set(key, { userId: lastUser.id, count: used + 1 });
+              persist({ ...m, hidden: true });
+              if (liveIsCurrent) emitDelegateNotice({ kind: 'failed', agentName });
+              void sendStreamRef.current?.(DELEGATE_RECOVERY_PROMPT, undefined, {
+                history: [...msgs, m],
+                backgroundFollowUp: true,
+              });
+              return;
+            }
+          }
+        }
+
+        // 原位已有 DelegateCard 实时展示状态/总结/改动且无图片产出：写静默上下文留给下一轮模型，不在底部堆气泡
+        const hasCard = !r.followUp && !r.images?.length && hasDelegateCardForTask(msgs, r.taskId);
+        if (hasCard) {
+          persist({ ...m, hidden: true });
+          if (liveIsCurrent) {
+            emitDelegateNotice({
+              kind: r.status === 'error' ? 'failed' : 'done',
+              agentName,
+            });
+          }
+          return;
+        }
+
+        // 无原位卡片（如 `/agent` 直接派出）、followUp 续聊或有生成图片：作为可见消息写入，确保产出不丢失
+        persist(m);
       };
-      // 没有改动文件：直接写；有改动：先从子任务会话里补上每个文件的 +/− 与 Diff（读不到就只带文件列表）
+
+      // 没有改动文件：直接处理；有改动：先从子任务会话里补上每个文件的 +/− 与 Diff（读不到就只带文件列表）
       if (!reportedFiles(r).length) {
-        write(delegateResultMessage(r, completedAt));
+        void deliver(delegateResultMessage(r, completedAt));
         return;
       }
       void collectDelegateChanges(r, {
@@ -279,7 +342,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         now: () => completedAt,
       })
         .catch(() => null)
-        .then((changes) => write(delegateResultMessage(r, completedAt, changes)));
+        .then((changes) => deliver(delegateResultMessage(r, completedAt, changes)));
     });
     return () => {
       alive = false;
@@ -305,7 +368,9 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           ...(message.trace?.length ? { trace: message.trace } : {}),
           ...(message.durationMs !== undefined ? { durationMs: message.durationMs } : {}),
         };
-        dispatch({ type: 'ADD_MESSAGE', payload: m });
+        const beforeId = inflight.current.get(convoKey(ipcClient.currentConversationId?.()))
+          ?.messages[0]?.id;
+        dispatch({ type: 'ADD_MESSAGE', payload: m, ...(beforeId ? { beforeId } : {}) });
         void ipcClient.saveMessage(m);
       }),
     [ipcClient],

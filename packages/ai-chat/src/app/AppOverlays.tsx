@@ -3,7 +3,7 @@
  * 知识中心抽屉、分叉目标选择框与底部的短提示。
  */
 import { ModalHostContext } from '@nomi-ai/ui';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { CommandPalette } from '../components/CommandPalette';
 import { ForkDialog } from '../components/ForkMenu';
@@ -11,23 +11,67 @@ import { HubDrawer } from '../components/HubDrawer';
 import { DesktopPanel, ExtensionsPanel } from '../components/lazyPanels';
 import { PluginPanel } from '../components/PluginPanel';
 import { useConversationWriteNotice } from '../hooks/useConversationWriteNotice';
+import {
+  DELEGATE_NOTICE_DURATION_MS,
+  DELEGATE_NOTICE_EVENT,
+  formatDelegateNotice,
+  type DelegateNoticeDetail,
+  type DelegateNoticeKind,
+} from '../services/delegateNotice';
 import type { SlashHook } from '../slash/useSlashCommands';
 import type { ConversationBackend } from '../types/chat';
 
 import type { useAppCommands } from './useAppCommands';
 import type { AppPanels } from './useAppPanels';
 
-/** 底部的短提示（分叉结果、写入失败等），2.4 秒后消失 */
+interface ToastState {
+  text: string;
+  seq: number;
+  durationMs: number;
+}
+
+/** 底部的短提示（分叉结果、写入失败、后台委派终态聚合等），到期自动消失 */
 export function useToast(): [string | null, (msg: string | null) => void] {
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const seqRef = useRef(0);
+  const groupRef = useRef<{ kind: DelegateNoticeKind; count: number } | null>(null);
+
   useEffect(() => {
     if (!toast) return;
-    const tid = window.setTimeout(() => setToast(null), 2400);
+    const tid = window.setTimeout(() => {
+      groupRef.current = null;
+      setToast(null);
+    }, toast.durationMs);
     return () => window.clearTimeout(tid);
   }, [toast]);
-  const set = useCallback((msg: string | null) => setToast(msg), []);
+
+  useEffect(() => {
+    const onDelegateNotice = (e: Event) => {
+      const detail = (e as CustomEvent<DelegateNoticeDetail | undefined>).detail;
+      if (!detail) return;
+      const prev = groupRef.current;
+      const count = prev?.kind === detail.kind ? prev.count + 1 : 1;
+      groupRef.current = { kind: detail.kind, count };
+      setToast({
+        text: formatDelegateNotice(detail, count),
+        seq: ++seqRef.current,
+        durationMs: DELEGATE_NOTICE_DURATION_MS,
+      });
+    };
+    window.addEventListener(DELEGATE_NOTICE_EVENT, onDelegateNotice);
+    return () => window.removeEventListener(DELEGATE_NOTICE_EVENT, onDelegateNotice);
+  }, []);
+
+  const set = useCallback((msg: string | null) => {
+    groupRef.current = null;
+    if (!msg) {
+      setToast(null);
+      return;
+    }
+    setToast({ text: msg, seq: ++seqRef.current, durationMs: 2400 });
+  }, []);
   useConversationWriteNotice(set);
-  return [toast, set];
+  return [toast?.text ?? null, set];
 }
 
 export const AppOverlays: React.FC<{
@@ -76,6 +120,8 @@ export const AppOverlays: React.FC<{
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 120,
+          maxWidth: 'min(420px, calc(100vw - 32px))',
+          pointerEvents: 'none',
           padding: 'var(--cd-space-2) var(--cd-space-3)',
           borderRadius: 'var(--cd-radius-md)',
           background: 'var(--cd-color-surface-raised)',
