@@ -437,8 +437,8 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 	if o.sourceOf(tab) == "thirdParty" && o.d.Gateway != nil && !truthy(tab.Get("modelOverride")) && !truthy(tab.Get("lastServedRef")) {
 		d := o.d.Gateway.Defaults(backend)
 		if d.Model == nil || *d.Model == "" {
-			if tp := o.firstThirdPartyModel(backend); tp != "" {
-				tab.Set("modelOverride", tp)
+			if tp := o.defaultThirdPartyModel(backend); tp != nil && *tp != "" {
+				tab.Set("modelOverride", *tp)
 			}
 		}
 	}
@@ -678,12 +678,21 @@ func (o *Orchestrator) ApplyAutoTitle(id string, title any) *util.Obj {
 
 // SetActiveTab = setActiveTab。
 func (o *Orchestrator) SetActiveTab(id string) *util.Obj {
+	prev := o.activeTabID
 	tab := o.requireTab(id)
+	dirty := false
+	if prev != "" && prev != id && o.isTransientEmptyTab(o.tab(prev)) {
+		o.discardEmptyTab(prev)
+		dirty = true
+	}
+	if o.reconcileEmptyTabSource(tab) {
+		dirty = true
+	}
 	o.prewarm(str(tab, "id"))
-	// 已经在这个标签上且没有新结果 / 完成点：无事可做。
+	// 已经在这个标签上且没有新结果 / 完成点：无事可做（刚清理或纠偏过仍须通知视图）。
 	// 有完成点时也要往下走——用户点一下就是「看到了」，点得消失。
 	pending := jsToNumber(tab.Get("unread")) != 0 || truthy(tab.Get("finished"))
-	if o.activeTabID == str(tab, "id") && !pending {
+	if o.activeTabID == str(tab, "id") && !pending && !dirty {
 		return o.ListTabs()
 	}
 	o.activeTabID = str(tab, "id")
@@ -753,8 +762,8 @@ func (o *Orchestrator) SetTabBackend(id string, backendV any) *util.Obj {
 		if o.sourceOf(tab) == "thirdParty" && o.d.Gateway != nil {
 			d := o.d.Gateway.Defaults(backend)
 			if d.Model == nil || *d.Model == "" {
-				if tp := o.firstThirdPartyModel(backend); tp != "" {
-					tab.Set("modelOverride", tp)
+				if tp := o.defaultThirdPartyModel(backend); tp != nil && *tp != "" {
+					tab.Set("modelOverride", *tp)
 				}
 			}
 		}
@@ -765,7 +774,7 @@ func (o *Orchestrator) SetTabBackend(id string, backendV any) *util.Obj {
 
 // defaultSource = defaultSource(backend, want?)；want "" = undefined。
 // 没有官方账号能力的内置 agent（dsh、Gemini）只有第三方来源；有官方账号能力、但既无已登录官方账号又无本机登录时，
-// 若网关存在可用的第三方模型则自动回退第三方来源（有明确指定的模型优先用该模型）。
+// 若网关存在可用的第三方模型则自动回退第三方来源（无默认且多家供应商时进入待选态）。
 func (o *Orchestrator) defaultSource(backend, want string) string {
 	g := o.d.Gateway
 	if !isBuiltin(backend) {
@@ -792,10 +801,10 @@ func (o *Orchestrator) defaultSource(backend, want string) string {
 		return "official"
 	}
 	d := g.Defaults(backend)
-	tpModel := o.firstThirdPartyModel(backend)
+	hasTp := o.hasThirdPartyModelFor(backend)
 	switch d.Source {
 	case "thirdParty":
-		if tpModel != "" {
+		if hasTp {
 			return "thirdParty"
 		}
 	case "local":
@@ -805,7 +814,7 @@ func (o *Orchestrator) defaultSource(backend, want string) string {
 		if hasOff {
 			return "official"
 		}
-		if tpModel != "" {
+		if hasTp {
 			return "thirdParty"
 		}
 		return "local"
@@ -816,7 +825,7 @@ func (o *Orchestrator) defaultSource(backend, want string) string {
 	if hasLoc {
 		return "local"
 	}
-	if tpModel != "" {
+	if hasTp {
 		return "thirdParty"
 	}
 	return "official"
@@ -866,55 +875,313 @@ func (o *Orchestrator) hasLocalLogin(backend string) bool {
 	return cli.HasLocalLogin(backend, "")
 }
 
-// firstThirdPartyModel：优先返回 CLI 默认绑定的网关模型，否则取网关模型目录首个可用项。
-func (o *Orchestrator) firstThirdPartyModel(backend string) string {
-	g := o.d.Gateway
-	if g == nil {
-		return ""
+var nonCodingModelParts = []string{
+	"embed", "rerank", "tts", "whisper", "audio", "realtime",
+	"moderation", "safeguard", "ocr", "lyria", "voxtral", "pixtral",
+	"image", "dall-e", "flux", "video", "seedance",
+}
+
+func isNonCodingThirdPartyRef(ref string) bool {
+	bare := ref
+	if i := strings.IndexByte(ref, '/'); i >= 0 {
+		bare = ref[i+1:]
 	}
-	if d := g.Defaults(backend); d.Model != nil && *d.Model != "" {
-		return *d.Model
-	}
-	for _, m := range g.Models() {
-		if m.Ref != "" {
-			return m.Ref
+	bare = strings.ToLower(strings.TrimSpace(bare))
+	for _, part := range nonCodingModelParts {
+		if strings.Contains(bare, part) {
+			return true
 		}
 	}
-	return ""
+	return false
+}
+
+// hasThirdPartyModelFor：网关当前是否存在至少一个可用第三方模型（优先检查编码模型，全为非编码时退回任意可用模型；
+// Models() 为空时仅在 Defaults(backend).Model 已配置时视同可用以兼容精简测试桩）。
+func (o *Orchestrator) hasThirdPartyModelFor(backend string) bool {
+	g := o.d.Gateway
+	if g == nil {
+		return false
+	}
+	ms := g.Models()
+	if len(ms) == 0 {
+		if backend != "" {
+			if d := g.Defaults(backend); d.Model != nil && *d.Model != "" {
+				return true
+			}
+		}
+		return false
+	}
+	for _, m := range ms {
+		if m.Ref != "" && !isNonCodingThirdPartyRef(m.Ref) {
+			return true
+		}
+	}
+	for _, m := range ms {
+		if m.Ref != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func isGatewayScope(scope *string) bool {
 	return scope != nil && *scope == gatewayScope
 }
 
-// defaultThirdPartyModel：优先返回 CLI 显式绑定的网关默认模型；若未绑定且网关当前恰好只有一家可用的第三方供应商，
-// 直接回退到该供应商的首个可用模型，避免单供应商下仍处于未配置状态。
+// defaultThirdPartyModel：优先返回 CLI 显式绑定的网关默认模型（且仍在目录中）；若未绑定且网关当前恰好只有一家
+// 可用的第三方供应商，直接回退到该供应商的首个可用编码模型；多供应商无默认时返回 nil（进入显式待选态）。
 func (o *Orchestrator) defaultThirdPartyModel(backend string) *string {
 	g := o.d.Gateway
 	if g == nil {
 		return nil
 	}
-	if m := g.Defaults(backend).Model; m != nil && *m != "" {
+	if m := g.Defaults(backend).Model; m != nil && *m != "" && o.gatewayHasModel(*m) {
 		return m
 	}
-	var onlyProvider, firstRef string
-	for _, m := range g.Models() {
-		idx := strings.IndexByte(m.Ref, '/')
-		if idx <= 0 || idx == len(m.Ref)-1 {
-			continue
+	singleOf := func(skipNonCoding bool) *string {
+		var onlyProvider, firstRef string
+		for _, m := range g.Models() {
+			if skipNonCoding && isNonCodingThirdPartyRef(m.Ref) {
+				continue
+			}
+			idx := strings.IndexByte(m.Ref, '/')
+			if idx <= 0 || idx == len(m.Ref)-1 {
+				continue
+			}
+			pid := m.Ref[:idx]
+			if onlyProvider == "" {
+				onlyProvider = pid
+				firstRef = m.Ref
+			} else if pid != onlyProvider {
+				return nil
+			}
 		}
-		pid := m.Ref[:idx]
-		if onlyProvider == "" {
-			onlyProvider = pid
-			firstRef = m.Ref
-		} else if pid != onlyProvider {
+		if firstRef == "" {
 			return nil
 		}
+		return &firstRef
 	}
-	if firstRef == "" {
+	if ref := singleOf(true); ref != nil {
+		return ref
+	}
+	hasCoding := false
+	for _, m := range g.Models() {
+		if !isNonCodingThirdPartyRef(m.Ref) {
+			idx := strings.IndexByte(m.Ref, '/')
+			if idx > 0 && idx < len(m.Ref)-1 {
+				hasCoding = true
+				break
+			}
+		}
+	}
+	if hasCoding {
 		return nil
 	}
-	return &firstRef
+	return singleOf(false)
+}
+
+// isTransientEmptyTab：判断标签是否仍是未发过任何消息、无状态痕迹的瞬态空标签（只读无副作用）。
+func (o *Orchestrator) isTransientEmptyTab(tab *util.Obj) bool {
+	if tab == nil {
+		return false
+	}
+	id := str(tab, "id")
+	if id == "" || id == MainTabID {
+		return false
+	}
+	if truthy(tab.Get("cliSessionId")) || truthy(tab.Get("delegation")) || truthy(tab.Get("subagentOf")) {
+		return false
+	}
+	st := str(tab, "status")
+	if st == "running" || st == "queued" || st == "error" || truthy(tab.Get("lastError")) {
+		return false
+	}
+	if truthy(tab.Get("carriedMessages")) || truthy(tab.Get("finished")) || o.delegatedUnsent[id] {
+		return false
+	}
+	if list, ok := o.messages[id]; ok {
+		if len(list) > 0 {
+			return false
+		}
+	} else if len(o.readMessagesFile(id)) > 0 {
+		return false
+	}
+	if _, err := os.Stat(o.carryPath(id)); err == nil {
+		return false
+	}
+	return true
+}
+
+// discardEmptyTab：静默清理瞬态空标签及其进程与临时文件，不修改 o.activeTabID / 不触发 changed。
+func (o *Orchestrator) discardEmptyTab(id string) {
+	if id == "" || id == MainTabID {
+		return
+	}
+	tab := o.tab(id)
+	if tab == nil {
+		return
+	}
+	if send := o.sendAborts[id]; send != nil {
+		send.Abort()
+	}
+	delete(o.live.claudeStarting, id)
+	o.teardownClaudeLive(id)
+	o.teardownCodexLive(id)
+	o.teardownAcpLive(id)
+	if child := o.children.Get(id); child != nil {
+		killTree(child)
+		o.children.Delete(id)
+	}
+	for _, child := range o.tabProcs[id] {
+		if procAlive(child) {
+			killTree(child)
+		}
+	}
+	delete(o.tabProcs, id)
+	o.clearPermissionTimeouts(id)
+	o.forgetSandbox(id)
+	o.tabs.Delete(id)
+	delete(o.messages, id)
+	delete(o.migratedImgTabs, id)
+	delete(o.delegatedUnsent, id)
+	delete(o.stopBeforeStart, id)
+	delete(o.tabFileBytes, id)
+	delete(o.progress, id)
+	delete(o.autoTitlePending, id)
+	o.writer.Cancel(o.messagesPath(id))
+	_ = os.RemoveAll(o.messagesPath(id))
+	_ = os.RemoveAll(o.carryPath(id))
+	if b := str(tab, "backend"); isBuiltin(b) {
+		o.dropTabBinding(tab)
+		if o.d.Gateway != nil {
+			o.d.Gateway.ReleaseAgent(b, id)
+		}
+	}
+}
+
+// reconcileEmptyTabSource：对尚未说话的空标签纠偏不可用来源或失效第三方模型；返回是否有改动。
+func (o *Orchestrator) reconcileEmptyTabSource(tab *util.Obj) bool {
+	if !o.isTransientEmptyTab(tab) {
+		return false
+	}
+	backend := str(tab, "backend")
+	if !isBuiltin(backend) {
+		return false
+	}
+	id := str(tab, "id")
+	src := o.sourceOf(tab)
+	teardown := func() {
+		o.teardownClaudeLive(id)
+		o.teardownCodexLive(id)
+		o.teardownAcpLive(id)
+		o.dropTabBinding(tab)
+	}
+	syncThirdPartyModel := func() bool {
+		changed := false
+		if o.d.Gateway != nil {
+			if mo := trimOrNil(tab.Get("modelOverride")); mo != nil && !o.gatewayHasModel(*mo) {
+				tab.Set("modelOverride", nil)
+				changed = true
+			}
+			if !truthy(tab.Get("modelOverride")) && !truthy(tab.Get("lastServedRef")) {
+				d := o.d.Gateway.Defaults(backend)
+				if d.Model == nil || *d.Model == "" || !o.gatewayHasModel(*d.Model) {
+					if def := o.defaultThirdPartyModel(backend); def != nil && *def != "" {
+						tab.Set("modelOverride", *def)
+						changed = true
+					}
+				}
+			}
+		}
+		return changed
+	}
+	switch src {
+	case "official":
+		if !isAccountBackend(backend) || cli.LauncherManagesLogin(backend) || o.d.Accounts == nil || o.hasSignedInOfficialAccount(backend) {
+			return false
+		}
+		if o.hasLocalLogin(backend) {
+			teardown()
+			tab.Set("source", "local")
+			tab.Delete("accountId")
+			o.adoptScope(tab)
+			return true
+		}
+		if o.hasThirdPartyModelFor(backend) {
+			teardown()
+			tab.Set("source", "thirdParty")
+			tab.Delete("accountId")
+			o.adoptScope(tab)
+			syncThirdPartyModel()
+			return true
+		}
+		return false
+	case "local":
+		if o.hasLocalLogin(backend) {
+			return false
+		}
+		if !cli.LauncherManagesLogin(backend) && o.d.Accounts != nil && o.hasSignedInOfficialAccount(backend) {
+			teardown()
+			tab.Set("source", "official")
+			if acc := o.defaultAccountId(backend); acc != nil && *acc != "" {
+				tab.Set("accountId", *acc)
+			}
+			o.adoptScope(tab)
+			return true
+		}
+		if o.hasThirdPartyModelFor(backend) {
+			teardown()
+			tab.Set("source", "thirdParty")
+			tab.Delete("accountId")
+			o.adoptScope(tab)
+			syncThirdPartyModel()
+			return true
+		}
+		return false
+	case "thirdParty":
+		if isAccountBackend(backend) && !o.hasThirdPartyModelFor(backend) {
+			if !cli.LauncherManagesLogin(backend) && o.d.Accounts != nil && o.hasSignedInOfficialAccount(backend) {
+				teardown()
+				tab.Set("source", "official")
+				if acc := o.defaultAccountId(backend); acc != nil && *acc != "" {
+					tab.Set("accountId", *acc)
+				} else {
+					tab.Delete("accountId")
+				}
+				o.adoptScope(tab)
+				return true
+			}
+			if o.hasLocalLogin(backend) {
+				teardown()
+				tab.Set("source", "local")
+				tab.Delete("accountId")
+				o.adoptScope(tab)
+				return true
+			}
+		}
+		if syncThirdPartyModel() {
+			teardown()
+			return true
+		}
+		return false
+	}
+	return false
+}
+
+// ReconcileEmptyTabs：账号或网关供应商变化后，自动纠偏仍为空白的标签来源与失效模型。
+func (o *Orchestrator) ReconcileEmptyTabs() {
+	if o == nil || o.disposed {
+		return
+	}
+	moved := false
+	for _, k := range o.tabs.Keys() {
+		if o.reconcileEmptyTabSource(o.tab(k)) {
+			moved = true
+		}
+	}
+	if moved {
+		o.changed()
+	}
 }
 
 // migrateLocalSignIn：旧版本的「本机登录」——标签上的 local-<kind> 账号去掉（跟随默认官方账号）；
@@ -986,7 +1253,7 @@ func (o *Orchestrator) SetTabSource(id string, source any, model *string) *util.
 		return tab.Clone()
 	}
 	if source == "thirdParty" && ref == "" {
-		if m := o.defaultThirdPartyModel(backend); m == nil || *m == "" {
+		if !o.hasThirdPartyModelFor(backend) {
 			throw(i18n.T("electron.common.assign-a-third-party-model-to-this-coding"))
 		}
 	}
@@ -1006,6 +1273,10 @@ func (o *Orchestrator) SetTabSource(id string, source any, model *string) *util.
 	o.adoptScope(tab)
 	if ref != "" {
 		tab.Set("modelOverride", ref)
+	} else if source == "thirdParty" {
+		if mo := trimOrNil(tab.Get("modelOverride")); mo != nil && !o.gatewayHasModel(*mo) {
+			tab.Set("modelOverride", nil)
+		}
 	}
 	if hadSession && (source == "official" || source == "local" || prevSource == "local" || backend == "codex") {
 		tab.Set("cliSessionId", nil)
@@ -1226,6 +1497,26 @@ func (o *Orchestrator) ModelCatalogFor(backend string, refresh bool, source stri
 		useLocal := source == "local" && isAccountBackend(backend)
 		if useLocal {
 			cacheKey = backend + ":local"
+		}
+		if isAccountBackend(backend) {
+			if useLocal && !o.hasLocalLogin(backend) {
+				delete(o.modelCatalogs, cacheKey)
+				return util.NewObj(
+					"backend", backend,
+					"models", []any{},
+					"defaultModel", nil,
+					"error", i18n.T("electron.common.no-local-login-detected-for", builtin.DisplayName(backend)),
+				), nil
+			}
+			if !useLocal && !cli.LauncherManagesLogin(backend) && o.d.Accounts != nil && !o.hasSignedInOfficialAccount(backend) {
+				delete(o.modelCatalogs, cacheKey)
+				return util.NewObj(
+					"backend", backend,
+					"models", []any{},
+					"defaultModel", nil,
+					"error", i18n.T("electron.common.no-official-account-signed-in-for", builtin.DisplayName(backend)),
+				), nil
+			}
 		}
 		if c, ok := o.modelCatalogs[cacheKey]; ok && !refresh && nowMs()-c.at < modelCatalogTTLMs {
 			return c.catalog, nil

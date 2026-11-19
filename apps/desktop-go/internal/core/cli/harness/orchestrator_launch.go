@@ -348,6 +348,63 @@ func (o *Orchestrator) RouteModels(backend string) []string {
 	return out
 }
 
+func (o *Orchestrator) gatewayHasModel(ref string) bool {
+	if o.d.Gateway == nil || ref == "" {
+		return false
+	}
+	ms := o.d.Gateway.Models()
+	if len(ms) == 0 {
+		// 兼容未填充 Models() 的测试桩（如 plainGateway）
+		return true
+	}
+	for _, m := range ms {
+		if m.Ref == ref {
+			return true
+		}
+	}
+	return false
+}
+
+// tabPreflightError 返回启动 / 发送前发现的配置缺失原因；可启动时返回 ""。
+func (o *Orchestrator) tabPreflightError(tab *util.Obj) string {
+	if tab == nil {
+		return ""
+	}
+	backend := str(tab, "backend")
+	if backend == "" || backend == "nomi" {
+		return ""
+	}
+	switch o.sourceOf(tab) {
+	case "thirdParty":
+		if o.d.Gateway == nil {
+			return i18n.T("electron.common.the-model-gateway-isn-t-running-so-third")
+		}
+		m := o.effectiveOverrides(tab).model
+		if m == nil || *m == "" || !o.gatewayHasModel(*m) {
+			return i18n.T("electron.common.this-tab-has-no-third-party-model-yet")
+		}
+	case "local":
+		if isBuiltin(backend) && !isAccountBackend(backend) {
+			return i18n.T("electron.common.only-third-party-models", builtin.DisplayName(backend))
+		}
+		if !o.hasLocalLogin(backend) {
+			return i18n.T("electron.common.no-local-login-detected-for", builtin.DisplayName(backend))
+		}
+	case "official":
+		if isBuiltin(backend) && !isAccountBackend(backend) {
+			return i18n.T("electron.common.only-third-party-models", builtin.DisplayName(backend))
+		}
+		if !cli.LauncherManagesLogin(backend) && o.d.Accounts != nil && !o.hasSignedInOfficialAccount(backend) {
+			return i18n.T("electron.common.no-official-account-signed-in-for", builtin.DisplayName(backend))
+		}
+	}
+	return ""
+}
+
+func (o *Orchestrator) isTabReady(tab *util.Obj) bool {
+	return o.tabPreflightError(tab) == ""
+}
+
 // inheritSettings = inheritSettings。
 func (o *Orchestrator) inheritSettings(tab *util.Obj, explicitMode bool) {
 	tab.Set("modelScope", anyOf(o.scopeOf(tab)))
@@ -362,8 +419,10 @@ func (o *Orchestrator) inheritSettings(tab *util.Obj, explicitMode bool) {
 	if !o.canOverride(tab) || s.Get("modelScope") != tab.Get("modelScope") {
 		return
 	}
-	if truthy(s.Get("modelOverride")) {
-		tab.Set("modelOverride", s.Get("modelOverride"))
+	if mo, ok := s.Get("modelOverride").(string); ok && util.JSTrim(mo) != "" {
+		if !isGatewayScope(strP(tab, "modelScope")) || o.gatewayHasModel(mo) {
+			tab.Set("modelOverride", mo)
+		}
 	}
 	if truthy(s.Get("reasoningEffort")) && !isGatewayScope(strP(tab, "modelScope")) {
 		tab.Set("reasoningEffort", s.Get("reasoningEffort"))
@@ -376,7 +435,7 @@ func (o *Orchestrator) prewarm(id string) {
 		return
 	}
 	tab := o.tab(id)
-	if tab == nil || tab.Get("status") == "running" || tab.Get("status") == "queued" {
+	if tab == nil || tab.Get("status") == "running" || tab.Get("status") == "queued" || !o.isTabReady(tab) {
 		return
 	}
 	backend := str(tab, "backend")

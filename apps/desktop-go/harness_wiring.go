@@ -127,7 +127,14 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 				}
 				return n
 			},
-			OnChanged: func() { acc.BroadcastChanged() },
+			OnChanged: func() {
+				acc.BroadcastChanged()
+				jsrt.Go(func() {
+					if o != nil {
+						o.ReconcileEmptyTabs()
+					}
+				})
+			},
 			// 删除账号时认「Nomi 之外的进程」：去掉 Nomi 自己拉起的（登录、额度读取、标签），以及会话文件残留后被复用的 pid
 			Procs: accountProcs,
 			// 用户确认「结束这些进程再删除」时才用
@@ -209,10 +216,17 @@ func wireHarness(router *contract.Router, userData, home string, hp hostPorts, g
 		o.RepairTabTitles()
 	})
 	projs.OnChange(func(id string) { jsrt.Run(func() { o.ProjectChanged(id) }) })
+	var offGw func()
+	if gw != nil {
+		offGw = gw.OnChange(func() { jsrt.Go(func() { o.ReconcileEmptyTabs() }) })
+	}
 	codinghandlers.RegisterHarness(router, func() *harness.Orchestrator { return o })
 	codinghandlers.RegisterOpenTerminal(router, cwdCheck, terminal.OpenAt)
 	jsrt.Go(func() { plugins.Start() })
 	return plugins, func() {
+		if offGw != nil {
+			offGw()
+		}
 		jsrt.Run(func() {
 			// lifecycle 'cli-account-login'：退出时结束还在进行的登录
 			if login != nil {

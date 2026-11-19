@@ -795,9 +795,14 @@ func (o *Orchestrator) load() {
 		}
 	}
 	o.main().Set("permissionMode", o.restoredMode(str(o.main(), "backend"), mainMode))
-	// 旧版本的「本机登录」：标签改为跟随默认官方账号，dsh / Gemini 改为第三方来源
+	// 旧版本的「本机登录」：标签改为跟随默认官方账号，dsh / Gemini 改为第三方来源；
+	// 尚未说话的空标签同步纠偏不可用来源或已失效的模型覆盖。
 	for _, k := range o.tabs.Keys() {
-		if o.migrateLocalSignIn(o.tab(k)) {
+		tab := o.tab(k)
+		if o.migrateLocalSignIn(tab) {
+			migrated = true
+		}
+		if o.reconcileEmptyTabSource(tab) {
 			migrated = true
 		}
 	}
@@ -869,12 +874,21 @@ func (o *Orchestrator) sessionSnapshot() *util.Obj {
 
 func (o *Orchestrator) tabsSnapshot() *util.Obj {
 	tabs := []any{}
+	activeID := o.activeTabID
 	for _, k := range o.tabs.Keys() {
-		if k != MainTabID {
-			tabs = append(tabs, o.tab(k))
+		if k == MainTabID {
+			continue
 		}
+		tab := o.tab(k)
+		if o.isTransientEmptyTab(tab) {
+			if activeID == k {
+				activeID = MainTabID
+			}
+			continue
+		}
+		tabs = append(tabs, tab)
 	}
-	snap := util.NewObj("activeTabId", o.activeTabID, "defaultPermissionMode", o.defaultPermMode,
+	snap := util.NewObj("activeTabId", activeID, "defaultPermissionMode", o.defaultPermMode,
 		"codexNetworkAllowed", o.codexNetwork, "autoApprove", o.autoApprove)
 	if o.aiReviewOff {
 		snap.Set("aiReview", false)
