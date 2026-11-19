@@ -56,7 +56,7 @@ type GatewayModel struct {
 	Vision               *bool
 	// Thinking：网关按模型能力给出的思考深度（与 Nomi 对话同一份 models.ProfileOf）；nil = 不能调
 	Thinking *GatewayThinking
-	// NativeClient：该模型天然所属的内置 CLI（"claude" / "codex" / "gemini" / "grok" / "kimi" / "minimax"），空串表示跨家族或未识别
+	// NativeClient：该模型天然所属的内置 CLI（取自 builtin 注册表里的 ID），空串表示跨家族或未识别
 	NativeClient string
 }
 

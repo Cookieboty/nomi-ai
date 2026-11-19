@@ -10,8 +10,8 @@ import (
 
 var reGPTNative = regexp.MustCompile(`^(?:gpt(?:[-.]|$)|chatgpt(?:[-.]|$)|o[134](?:[-.]|$)|codex(?:[-.]|$))`)
 
-// NativeClientOf 返回模型天然对应的内置 CLI（"claude" / "codex" / "gemini" / "grok" / "kimi" / "minimax"），
-// 认不出则返回 ""。支持从 stored.like 与内置目录 family 识别中转改名模型。
+// NativeClientOf 返回模型天然对应的内置 CLI（即 builtin 注册表里的某个内置 CLI ID），
+// 空串表示跨家族或认不出。支持从 stored.like 与内置目录 family 识别中转改名模型。
 func NativeClientOf(modelID string, stored *u.Obj) string {
 	lookup := modelID
 	if stored != nil {
