@@ -1,5 +1,23 @@
 # @nomi-ai/i18n
 
+## 0.3.0
+
+### Minor Changes
+
+- c6854cb: feat(i18n): Agent 空会话的就地引导新增中英文案：输入框上方的引导卡片（「选择模型」/「去配置」）、模型按钮待选态与发送守卫提示。/ New zh/en strings for the inline guidance on an empty Agent conversation: the card above the composer ("Choose a model" / "Set up"), the model button's pending state and the send guard notice.
+- c6854cb: feat(side-workspace): 新契约过程 `sideTerminal.open / write / resize / sync / close / closeAll`（按标签 id 建交互式 PTY，`write` 上限 65536 字节）；终端分屏、清屏、切换目录、重启、关闭确认等界面文案新增中英文案。/ New contract procedures `sideTerminal.open / write / resize / sync / close / closeAll` for the built-in terminal (one interactive PTY per tab id, `write` capped at 65536 bytes); the terminal UI strings (split, clear, change directory, restart, close confirmation) gain their zh/en entries.
+
+### Patch Changes
+
+- c6854cb: feat(i18n): 后台委派结束的轻提示新增中英文案（「某某的委派任务已停止」/「N 个委派任务已停止」）。/ New zh/en strings for the brief notice raised when a background delegation is cancelled, including the merged "N delegations stopped" form.
+- c6854cb: feat(gateway): 熔断降级开关进入契约：`gateway.setOptions` 接受 `failoverEnabled`，`gateway.state()` 返回它；「三方供应商」卡片右上角的开关、说明与「开启熔断降级后才会自动换供应商」提示新增中英文案。/ The circuit-breaker switch becomes part of the contract: `gateway.setOptions` accepts `failoverEnabled` and `gateway.state()` reports it; the switch in the Third-Party Providers card header, its tooltip and the updated provider-order hint gain their zh/en strings.
+- c6ec11b: fix(harness): 空会话的来源与模型自动纠偏，发送前先做配置预检。还没说过话的 Agent 标签会在账号登录、供应商配置或模型目录变化后自己回到可用的来源（官方账号 → 本机登录 → 第三方模型，反向也可），已失效的第三方模型选择会被清掉并顺手换成新的默认；多供应商又没有默认模型时进入显式待选态，不再盲选第一家，也不再为它预热进程。真正发消息前统一预检一次，缺账号 / 缺本机登录 / 没选模型会直接给出可读原因（新增两条文案）而不是把请求发出去撞墙。切标签时顺手清掉上一条从未使用过的瞬态空标签（连同进程与临时文件），标签快照里也不再出现它。/ Empty Agent tabs now reconcile their own source and model after sign-in, provider or catalog changes (official → local sign-in → third-party and back), drop third-party picks that no longer exist, and wait for an explicit model choice instead of silently taking the first provider when several are configured without a default — those tabs are no longer prewarmed. Sending runs a preflight first and reports a readable reason (two new messages) when an account, local login or model is missing, and switching tabs silently discards the previous never-used empty tab along with its process and temp files.
+- 6ad9c12: chore(i18n): 设置「模型与 Agents」里的「三方模型」标签改称「三方供应商」（英文 Third-Party Providers）。这一页实际管的是供应商、Key 与模型，和旁边的「本地模型」并列时两边不再是「模型 / 模型」；模型选择器里「尚未在『三方模型』或『本地模型』中启用任何模型」的提示同步改词。/ The "Third-Party Models" tab under Settings → Models & Agents is now "Third-Party Providers": the page manages providers, keys and models, and the sibling "Local Models" tab no longer reads as a duplicate, with the matching empty-state hint updated too.
+- c6854cb: feat(i18n): 待发列表的图片缩略图说明与「停止并发送」按钮新增中英文案。/ New zh/en strings for the image thumbnails shown on pending messages and the "Stop and send" action.
+- c6854cb: fix(i18n): 待发消息没发出去时的提示（带原因）与「重试」按钮新增中英文案。/ New zh/en string for the notice shown when a queued message could not be sent, with its reason (the retry button reuses the existing Retry label).
+- c6854cb: chore(i18n): 移除变成死 key 的 `ui.chat-settings.back-to-chat` 与 `back-to-chat-esc`（关闭设置仍可用 Esc）。/ Drop the now-dead `ui.chat-settings.back-to-chat` and `back-to-chat-esc` keys (Esc still closes settings).
+- c6854cb: fix(i18n): 内置终端键盘输入没能完整送达时的可见提示新增中英文案。/ New zh/en string for the visible notice shown when terminal keyboard input could not be fully delivered.
+
 ## 0.2.2
 
 ### Patch Changes
