@@ -5,6 +5,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FleetNav } from '../src/components/Fleet';
+import board from '../src/components/Fleet/Board.module.css';
 import { FleetIndicator } from '../src/components/Fleet/FleetIndicator';
 import { FleetPage } from '../src/components/Fleet/FleetPage';
 import { useFleet } from '../src/components/Fleet/useFleet';
@@ -338,6 +339,37 @@ describe('FleetPage', () => {
     expect(screen.queryByTestId('fleet-close-tab-tab:a')).toBeNull();
     fireEvent.click(screen.getByTestId('fleet-close-tab-tab:b'));
     expect(onCloseTab).toHaveBeenCalledWith(expect.objectContaining({ id: 'tab:b' }));
+  });
+
+  it('done tabs with full CPU/memory/process usage render closeBtn without layout break', () => {
+    const onCloseTab = vi.fn();
+    const fullUsageState: FleetState = {
+      ...state,
+      agents: [
+        {
+          id: 'tab:busy-done',
+          kind: 'cli',
+          backend: 'claude',
+          scope: 'managed',
+          origin: 'conversation',
+          title: '补齐状态栏测试并修复错位问题',
+          column: 'done',
+          tabId: 'busy-done',
+          cwd: '/Users/me/very-long-workspace-folder-name',
+          usage: usage(210 * MB, 0, 2),
+          updatedAt: T0 - 150_000,
+        },
+      ],
+    };
+    render(
+      <FleetPage active state={fullUsageState} onBack={() => undefined} onCloseTab={onCloseTab} />,
+    );
+    const card = screen.getByTestId('fleet-card-tab:busy-done');
+    expect(card.textContent).toContain('2 个进程');
+    const closeBtn = screen.getByTestId('fleet-close-tab-tab:busy-done');
+    expect(closeBtn.className).toContain(board.closeBtn);
+    fireEvent.click(closeBtn);
+    expect(onCloseTab).toHaveBeenCalledWith(expect.objectContaining({ id: 'tab:busy-done' }));
   });
 
   it('archives only done items', () => {

@@ -121,7 +121,9 @@ const CardUsage: React.FC<{ a: FleetAgent }> = ({ a }) => {
         {t('ui.cli-monitor.fleet-memory', formatBytes(a.usage.rssBytes))}
       </span>
       {a.usage.processes > 1 && (
-        <span>{t('ui.cli-monitor.fleet-processes', a.usage.processes)}</span>
+        <span className={board.usageItem}>
+          {t('ui.cli-monitor.fleet-processes', a.usage.processes)}
+        </span>
       )}
     </span>
   );
@@ -376,6 +378,7 @@ export const AgentCard: React.FC<{ a: FleetAgent } & CardActions> = ({
           <Button
             size="sm"
             variant="ghost"
+            className={board.closeBtn}
             onClick={() => onCloseTab!(a)}
             aria-label={t('ui.cli-monitor.fleet-close-tab', agentTitle(a, chatName))}
             data-testid={`fleet-close-tab-${a.id}`}
