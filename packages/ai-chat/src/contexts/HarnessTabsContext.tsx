@@ -54,6 +54,7 @@ import {
   type PendingMode,
   type PendingSend,
 } from '../utils/pendingSends';
+import { findReusableTab } from '../utils/reusableTab';
 import { shareTabsState } from '../utils/shareTabsState';
 
 /** 内存里最多缓存几个标签的消息（含当前）：其余切走后丢弃，回来时重新从主进程读取 */
@@ -523,34 +524,6 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     });
   }, [activeId, cache]);
 
-  const create = useCallback(
-    async (
-      backend: HarnessBackend,
-      projectId?: string,
-      preset?: Pick<RunnerPreset, 'source' | 'accountId' | 'model' | 'reasoningEffort'>,
-    ) => {
-      const tab = await harnessClient.createTab(projectId ? { backend, projectId } : { backend });
-      if (preset) {
-        await harnessClient.setTabSource(
-          tab.id,
-          preset.source,
-          preset.model ?? undefined,
-          preset.source === 'official' ? (preset.accountId ?? null) : null,
-        );
-        if (preset.reasoningEffort) {
-          await harnessClient.setTabEffort(tab.id, preset.reasoningEffort).catch(() => undefined);
-        }
-      }
-      setCache((cur) => ({ ...cur, [tab.id]: [] }));
-      setLastBackend(backend);
-      try {
-        localStorage.setItem(LAST_BACKEND_KEY, backend);
-      } catch {
-        /* ignore */
-      }
-    },
-    [],
-  );
   const close = useCallback(
     async (id: string) => {
       if (id === MAIN_TAB_ID) return;
@@ -595,6 +568,43 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       throw error;
     }
   }, []);
+  /**
+   * 新建会话：这个项目里这个端已经有还没说话的空标签就切过去，不再新开
+   * （与 Nomi 主对话的 newConversation 一致，免得侧栏堆一串空会话、每个还占一个 CLI 进程）。
+   */
+  const create = useCallback(
+    async (
+      backend: HarnessBackend,
+      projectId?: string,
+      preset?: Pick<RunnerPreset, 'source' | 'accountId' | 'model' | 'reasoningEffort'>,
+    ) => {
+      const reusable = findReusableTab(stateRef.current?.tabs, backend, projectId);
+      const tab =
+        reusable ??
+        (await harnessClient.createTab(projectId ? { backend, projectId } : { backend }));
+      if (preset) {
+        await harnessClient.setTabSource(
+          tab.id,
+          preset.source,
+          preset.model ?? undefined,
+          preset.source === 'official' ? (preset.accountId ?? null) : null,
+        );
+        if (preset.reasoningEffort) {
+          await harnessClient.setTabEffort(tab.id, preset.reasoningEffort).catch(() => undefined);
+        }
+      }
+      setCache((cur) => ({ ...cur, [tab.id]: cur[tab.id] ?? [] }));
+      setLastBackend(backend);
+      try {
+        localStorage.setItem(LAST_BACKEND_KEY, backend);
+      } catch {
+        /* ignore */
+      }
+      // 复用的是已经存在的空标签：它多半不是当前标签，切过去
+      if (reusable) await activate(tab.id);
+    },
+    [activate],
+  );
   // 只在标签增删 / 重排时换引用：cycle / selectIndex 不随后台标签的状态广播变化
   const idsKey = state?.tabs.map((t) => t.id).join('\u0000') ?? '';
   const ids = useMemo(() => (idsKey ? idsKey.split('\u0000') : []), [idsKey]);
