@@ -110,7 +110,8 @@ vi.mock('../src/services/sideTerminal', async (original) => {
         xtermState.runningIds.add(input.id);
         return { ok: true, cwd: input.cwd || '/repo', shell: 'zsh' };
       }),
-      write: vi.fn(),
+      write: vi.fn(async () => undefined),
+      resetInput: vi.fn(),
       resize: vi.fn(),
       close: vi.fn((id: string) => {
         xtermState.closeCalls.push(id);

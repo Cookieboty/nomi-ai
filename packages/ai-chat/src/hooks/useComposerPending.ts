@@ -138,5 +138,24 @@ export function useComposerPending(
         : { onQueue: enqueue, pending: count, onFlush: flush },
     [cli, tabSend, tabCancel, flushPending, enqueue, flush, count],
   );
-  return { nomiQueue, items, onRemove, onWithdraw, onFlush, canFlush, queueProps };
+  // agent 标签自动发送失败的可见提示与「重试」（Nomi 主对话的发送失败另有通道，不在这里）
+  const failure = cli ? tabs.sendFails[cli]?.message : undefined;
+  const failedText = cli ? tabs.sendFails[cli]?.item.text : undefined;
+  const onRetry = useCallback(() => {
+    if (cli) tabs.retryFailedSend(cli);
+  }, [cli, tabs]);
+  const inFlightId = cli ? tabs.inFlight[cli] : undefined;
+  return {
+    nomiQueue,
+    items,
+    onRemove,
+    onWithdraw,
+    onFlush,
+    canFlush,
+    queueProps,
+    failure,
+    failedText,
+    onRetry,
+    inFlightId,
+  };
 }

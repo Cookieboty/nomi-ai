@@ -1,5 +1,4 @@
 ---
-'@nomi-ai/contract': patch
 '@nomi-ai/ai-chat': patch
 ---
 

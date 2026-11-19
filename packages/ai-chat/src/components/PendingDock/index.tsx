@@ -2,6 +2,7 @@
  * 输入框上方的待发列表：运行中发出、还没交出去的消息（见 utils/pendingSends）。
  * 每条标「插入」（Enter，下一步并进这一轮）或「排队」（Ctrl+Enter，这一轮结束后发出），
  * 可以撤回修改（文字退回输入框）或删除。
+ * 自动发送失败的那条留在最前面，带可见的原因与「重试」按钮（图片一并保留，见 HarnessTabsContext）。
  */
 import { Icon, t, useLocale } from '@nomi-ai/ui';
 import {
@@ -22,6 +23,9 @@ export const PendingDock = memo(function PendingDock({
   onWithdraw,
   onRemove,
   onFlush,
+  failure,
+  failedText,
+  onRetry,
 }: {
   items: readonly PendingSend[] | undefined;
   /** 撤回修改：文字与附图退回输入框，并从列表里移除 */
@@ -29,8 +33,18 @@ export const PendingDock = memo(function PendingDock({
   onRemove: (id: string) => void;
   /** 打断当前轮并立刻发送待发列表 */
   onFlush?: () => void;
+  /** 自动发送失败（队首那一条还没发出去）的原因；提示里带「重试」（不自动重试） */
+  failure?: string;
+  /** 失败的那条（提示用它的正文；与列表第一条一致） */
+  failedText?: string;
+  onRetry?: () => void;
 }) {
   useLocale();
+  // 词典没加载 / 查不到时 t() 原样返回 key（里面没有 {0}），原因插不进去：这时把原因补在后面，
+  // 失败原因必须出现在这条 alert 里（生产有词典时仍是「待发消息没发出去：{原因}」，不重复）
+  const lead = failure ? String(t('ui.session-workspace.pending-send-failed', failure)) : '';
+  const heading =
+    lead === 'ui.session-workspace.pending-send-failed' ? `${lead}：${failure}` : lead;
   if (!items?.length) return null;
   return (
     <section
@@ -38,6 +52,24 @@ export const PendingDock = memo(function PendingDock({
       aria-label={t('ui.session-workspace.pending-messages')}
       data-testid="pending-dock"
     >
+      {failure && (
+        <div className={styles.failure} role="alert" data-testid="pending-send-error">
+          <span className={styles.failureText}>
+            {heading}
+            {failedText ? `「${failedText}」` : ''}
+          </span>
+          {onRetry && (
+            <button
+              type="button"
+              className={styles.failureRetry}
+              data-testid="pending-retry"
+              onClick={onRetry}
+            >
+              {t('ui.foundation.retry')}
+            </button>
+          )}
+        </div>
+      )}
       <ul className={styles.list}>
         {items.map((item) => {
           const imgs = item.images;
@@ -47,6 +79,7 @@ export const PendingDock = memo(function PendingDock({
               key={item.id}
               className={styles.item}
               data-mode={item.mode}
+              data-state={failure && item.id === items[0]?.id ? 'failed' : undefined}
               data-testid="pending-item"
             >
               <span className={styles.tag}>

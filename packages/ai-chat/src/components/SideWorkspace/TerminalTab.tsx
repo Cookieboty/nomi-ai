@@ -32,6 +32,7 @@ import {
   sideTerminalHost,
   sideTerminalIdFor,
   subscribeSideTerminal,
+  subscribeSideTerminalInputErrors,
   type SideTerminalExitEvent,
 } from '../../services/sideTerminal';
 import { isImeComposing } from '../../utils/keyboard';
@@ -254,6 +255,8 @@ const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [noticeMsg, setNoticeMsg] = useState<string | null>(null);
     const [exitInfo, setExitInfo] = useState<SideTerminalExitEvent | null>(null);
+    /** 键盘输入没写进终端（分块写入失败 / 被拒）：可见提示，不自动重试（见 services/terminalInput） */
+    const [inputError, setInputError] = useState<string | null>(null);
 
     const activeCwdRef = useRef(activeCwd);
     const explicitCwdRef = useRef(explicitCwdFlag);
@@ -309,6 +312,10 @@ const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
     useEffect(() => {
       const container = hostRef.current;
       if (!container || !hostAvailable) return;
+
+      // 重新打开（restartWithDir / 关掉重开后重挂）换代：上一代残留的失败提示与未发出的输入作废
+      sideTerminalHost.resetInput(termId);
+      setInputError(null);
 
       let alive = true;
       let streamReady = false;
@@ -398,8 +405,13 @@ const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
         }
       }
 
+      // 一段粘贴可能远超契约上限：交给 sideTerminalHost 分块、串行写入（顺序保持，失败可见）
       const disposeInput = term.onData((data) => {
-        sideTerminalHost.write(termId, data);
+        void sideTerminalHost.write(termId, data);
+      });
+      const unsubscribeInputErrors = subscribeSideTerminalInputErrors(termId, () => {
+        if (!alive) return;
+        setInputError(t('ui.session-workspace.terminal-input-failed'));
       });
 
       // 先订阅流式输出再 open，避免首行提示符丢失
@@ -496,6 +508,7 @@ const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
         ro?.disconnect();
         mo.disconnect();
         disposeInput.dispose();
+        unsubscribeInputErrors();
         unsubscribe();
         term.dispose();
         if (termRef.current === term) termRef.current = null;
@@ -588,6 +601,25 @@ const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
             <div ref={hostRef} className={styles.terminalHost} data-testid="terminal-xterm-host" />
           </div>
         )}
+
+        {inputError && !displayError ? (
+          <div
+            className={styles.banner}
+            data-tone="danger"
+            role="alert"
+            data-testid="terminal-input-error"
+          >
+            <span>{inputError}</span>
+            <button
+              type="button"
+              className={styles.bannerBtn}
+              aria-label={t('ui.foundation.dismiss-error')}
+              onClick={() => setInputError(null)}
+            >
+              {t('ui.providers-schedule.close')}
+            </button>
+          </div>
+        ) : null}
 
         {noticeMsg ? (
           <div className={styles.banner} data-tone="danger" role="status">

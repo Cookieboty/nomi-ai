@@ -634,6 +634,9 @@ const AiChatContent: React.FC = () => {
                       onWithdraw={pending.onWithdraw}
                       onRemove={pending.onRemove}
                       onFlush={pending.canFlush ? pending.onFlush : undefined}
+                      failure={pending.failure}
+                      failedText={pending.failedText}
+                      onRetry={pending.onRetry}
                     />
                     {/* 新会话：输入框上方的项目 · 分支，可以自由切换 */}
                     <NewChatContext />
