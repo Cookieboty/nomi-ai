@@ -6,7 +6,7 @@
  * - 任务：从这个会话建的持续任务与状态，点开到任务页。
  * 两个列表最多先显示 5 个，「更多」展开其余的。开关与自动收起见 ./context。
  */
-import { Icon, t, Tooltip, usePresence } from '@nomi-ai/ui';
+import { Icon, t, Tooltip, useLocale, usePresence } from '@nomi-ai/ui';
 import {
   IconFileDiff as FileDiff,
   IconRobot as Bot,
@@ -263,6 +263,7 @@ const DetailsPanel: React.FC<
       .sort()
       .join('\n'),
   );
+  const locale = useLocale();
   const pane = useSubagentPane();
   const parentTabId = isDev && tabs.isCliTab ? (tabs.activeTab?.id ?? null) : null;
   // 进程内子代理属于谁：agent 标签的子代理是那个助手；Nomi 对话的按主标签当前的后端（默认 Nomi）
@@ -289,6 +290,7 @@ const DetailsPanel: React.FC<
           liveAgents ?? {},
           results,
           followUps,
+          locale,
         ),
         ...sideChatAgents(
           sideChats.map((c) => ({
@@ -299,7 +301,16 @@ const DetailsPanel: React.FC<
           })),
         ),
       ]),
-    [agentMessages, tabs.state?.tabs, waitingKey, liveAgents, results, followUps, sideChats],
+    [
+      agentMessages,
+      tabs.state?.tabs,
+      waitingKey,
+      liveAgents,
+      results,
+      followUps,
+      locale,
+      sideChats,
+    ],
   );
   // 这个会话的持续任务：Nomi 对话用当前会话 id；agent 标签用它在会话列表里的镜像项
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;

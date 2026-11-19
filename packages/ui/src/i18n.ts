@@ -41,12 +41,19 @@ const subs = new Set<() => void>();
 export const format = formatMessage;
 
 const translate = createTranslator(() => locale);
+const translateZh = createTranslator(() => 'zh-CN');
+const translateEn = createTranslator(() => 'en');
 
 /** 翻译稳定 key；非字符串（ReactNode / undefined）原样返回，便于在渲染处直接包裹。 */
 export function t(key: string, ...args: unknown[]): string;
 export function t<T>(key: T): T;
 export function t(key: unknown, ...args: unknown[]): unknown {
   return translate(key, ...args);
+}
+
+/** 按指定语言翻译稳定 key */
+export function tIn(targetLocale: Locale, key: string, ...args: unknown[]): string {
+  return String((targetLocale === 'en' ? translateEn : translateZh)(key, ...args));
 }
 
 /**

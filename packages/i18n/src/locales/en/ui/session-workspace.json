@@ -46,6 +46,7 @@
   "ui.session-workspace.current-branch": "Current branch: {0}",
   "ui.session-workspace.current-context": "Current context {0} / {1}",
   "ui.session-workspace.current-context-over-the-window": "Current context {0} / {1} · over the window",
+  "ui.session-workspace.delegate-alias-pool": "Atlas,Nova,Orion,Lyra,Echo,Sage,Vega,Koda,Milo,Aria,Bolt,Cove,Dawn,Fable,Glen,Halo,Iris,Juno,Kite,Lark,Moss,Onyx,Opal,Peak,Quill,Reed,Skye,Tide,Vale,Wren,Zephyr,Amber,Birch,Cedar,Drift,Ember,Flint,Grove,Haven,Ivory,Jade,Kelp,Lotus,Maple,North,Olive,Pine,Quartz,River,Solar,Terra,Umber,Vivid,Wave,Yarrow,Zenith,Brook,Cliff,Dune,Fern,Gust,Heath,Inlet,Jasper",
   "ui.session-workspace.delegate-notice-done": "{0} finished the handoff",
   "ui.session-workspace.delegate-notice-done-many": "{0} handoffs finished",
   "ui.session-workspace.delegate-notice-failed": "{0}’s handoff failed",

@@ -4,7 +4,7 @@
  * 内容跟着实时更新；点卡片打开 / 切到这个子任务的标签。移到卡片上不收起，移开 / Esc 收起；拖动标签时不出。
  * 内容只在卡片开着时订阅（./preview.ts 取摘录）。
  */
-import { Icon, t } from '@nomi-ai/ui';
+import { Icon, t, useLocale } from '@nomi-ai/ui';
 import { IconRobot as Bot, IconChevronRight } from '@tabler/icons-react';
 import React, {
   useCallback,
@@ -23,11 +23,13 @@ import {
   useHarnessTabMessages,
   useHarnessTabs,
 } from '../../contexts/HarnessTabsContext';
+import { isNomiDelegated } from '../../services/harnessClient';
 import { sideChatName, useSideChat } from '../../services/sideChat';
 import { tasksApi, type TaskTraceView } from '../../services/tasksClient';
 import type { ConvMessage } from '../../types/conversation';
 import { nestedOwnerBackend } from '../../utils/agentIdentity';
 import { fromHarnessMessage } from '../../utils/convAdapters';
+import { delegateAlias } from '../../utils/delegateAlias';
 import { resolveDelegateTarget } from '../../utils/delegateTarget';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import type { LiveAgent } from '../../utils/liveState';
@@ -129,6 +131,7 @@ const EMPTY: readonly ConvMessage[] = [];
 const EMPTY_AGENTS: Record<string, LiveAgent> = {};
 
 const HarnessBody: React.FC<{ tabId: string }> = ({ tabId }) => {
+  const locale = useLocale();
   const tabs = useHarnessTabs();
   const tab = tabs.state?.tabs.find((x) => x.id === tabId);
   const raw = useHarnessTabMessages(tabId);
@@ -140,7 +143,12 @@ const HarnessBody: React.FC<{ tabId: string }> = ({ tabId }) => {
   const ex = lastExchange(messages, running ? live?.text : undefined);
   const permission = live?.permissions?.[0]?.summary ?? tab?.sandboxPending?.[0]?.path;
   const waiting = !!(live?.permissions?.length || tab?.sandboxPending?.length);
-  const name = backend ? t(ENDPOINT_NAME[backend] ?? backend) : t('ui.usage-tools.subagent');
+  const name =
+    tab && isNomiDelegated(tab)
+      ? delegateAlias(tab.id, { peers: tabs.state?.tabs, locale })
+      : backend
+        ? t(ENDPOINT_NAME[backend] ?? backend)
+        : t('ui.usage-tools.subagent');
   return (
     <CardView
       backend={backend}

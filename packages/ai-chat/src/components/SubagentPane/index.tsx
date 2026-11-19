@@ -5,7 +5,7 @@
  * 步骤与正文实时更新；输入栏和主列一样能发送、插话、排队、停止（语义见 docs/design/subagent-chat-parity.md）。
  * 设置 / 插件 / 模型等按钮打开主窗口的面板（SubagentPaneActions，由 App 传入）。
  */
-import { Button, Icon, IconButton, t } from '@nomi-ai/ui';
+import { Button, Icon, IconButton, t, useLocale } from '@nomi-ai/ui';
 import { IconSquare as Square, IconX as X } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 
@@ -31,6 +31,7 @@ import {
 } from '../../services/composerDrafts';
 import {
   harnessClient,
+  isNomiDelegated,
   type HarnessImageInput,
   type HarnessTabMeta,
   type MessageAgentResult,
@@ -44,6 +45,7 @@ import { nestedHostTabId } from '../../utils/agentIdentity';
 import { useCliImageSupport } from '../../utils/cliImageSupport';
 import { cliTabPlaceholder } from '../../utils/cliTabPlaceholder';
 import { fromHarnessMessage, tabLiveToConv } from '../../utils/convAdapters';
+import { delegateAlias } from '../../utils/delegateAlias';
 import { resolveDelegateTarget } from '../../utils/delegateTarget';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { shouldIgnoreEscape } from '../../utils/keyboard';
@@ -229,6 +231,8 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
   onClose,
   slot,
 }) => {
+  const locale = useLocale();
+  const harnessTabs = useHarnessTabs();
   const core = useHarnessTabsCore();
   const actions = usePaneActions();
   const raw = useHarnessTabMessages(tab.id);
@@ -274,7 +278,9 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
       else actions.openSettings?.('ai', undefined, 'assistants');
     },
   });
-  const name = t(ENDPOINT_NAME[tab.backend] ?? tab.backend);
+  const name = isNomiDelegated(tab)
+    ? delegateAlias(tab.id, { peers: harnessTabs.state?.tabs, locale })
+    : t(ENDPOINT_NAME[tab.backend] ?? tab.backend);
   const paneState = waiting ? 'waiting' : running ? 'running' : 'idle';
   useReportMeta(slot.tabKey, name, paneState);
   usePaneEscape(slot.active && !slot.maximized, onClose);

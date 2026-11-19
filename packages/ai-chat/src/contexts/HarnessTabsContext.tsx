@@ -39,6 +39,7 @@ import {
 } from '../services/pendingSendsStore';
 import { replyPermissionRequest } from '../services/permissionReply';
 import { canSteer } from '../utils/cliCaps';
+import { syncDelegateAliases } from '../utils/delegateAlias';
 import {
   applyDetachedEvents,
   applyLiveEvents,
@@ -336,10 +337,14 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     }
     void harnessClient
       .tabs()
-      .then((s) => setState((cur) => shareTabsState(cur, s)))
+      .then((s) => {
+        syncDelegateAliases(s.tabs);
+        setState((cur) => shareTabsState(cur, s));
+      })
       .catch(() => startupBrandIntro.taskDone('tabs'));
     let flushPending: () => void = () => undefined;
     const off1 = harnessClient.onTabs((s) => {
+      syncDelegateAliases(s.tabs);
       // 先落下已入队的实时事件（主进程保证它们先于本次标签状态到达），再清理已结束的标签
       flushPending();
       // 结构共享：没变的标签沿用旧对象，整份没变时 setState 拿到同一引用直接跳过
@@ -565,7 +570,10 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     } catch (error) {
       void harnessClient
         .tabs()
-        .then((s) => setState((cur) => shareTabsState(cur, s)))
+        .then((s) => {
+          syncDelegateAliases(s.tabs);
+          setState((cur) => shareTabsState(cur, s));
+        })
         .catch(() => undefined);
       throw error;
     }

@@ -1,6 +1,6 @@
 import { isBuiltinCliId, type BuiltinCliId } from '@nomi-ai/cli-catalog';
 import { brand } from '@nomi-ai/types';
-import { Button, Checkbox, EmptyState, Icon, Select, Switch, t } from '@nomi-ai/ui';
+import { Button, Checkbox, EmptyState, Icon, Select, Switch, t, useLocale } from '@nomi-ai/ui';
 import {
   IconFolder as Folder,
   IconSearch as Search,
@@ -22,6 +22,7 @@ import {
   type FleetPolicyMode,
   type FleetState,
 } from '../../services/fleetClient';
+import { delegateAlias, fleetAgentAliasId, fleetDelegatedPeers } from '../../utils/delegateAlias';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { FEATURE_ICONS } from '../AppIcons';
 import { DispatchCli } from '../DispatchCli';
@@ -330,6 +331,7 @@ export const FleetPage: React.FC<
   onDispatch,
   ...actions
 }) => {
+  const locale = useLocale();
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
   const [backend, setBackend] = useState('all');
@@ -349,6 +351,7 @@ export const FleetPage: React.FC<
   };
 
   const agents = useMemo(() => state?.agents ?? [], [state]);
+  const delegatedPeers = useMemo(() => fleetDelegatedPeers(agents), [agents]);
   const counts = useMemo(() => {
     const m: Record<Filter, number> = {
       all: agents.length,
@@ -367,16 +370,22 @@ export const FleetPage: React.FC<
     return agents
       .filter((a) => filter === 'all' || a.column === filter)
       .filter((a) => backend === 'all' || iconBackend(a) === backend)
-      .filter(
-        (a) =>
-          !q ||
-          [agentTitle(a, actions.chatName), t(ENDPOINT_NAME[iconBackend(a)]), a.cwd ?? '']
-            .join(' ')
-            .toLowerCase()
-            .includes(q),
-      )
+      .filter((a) => {
+        if (!q) return true;
+        const aliasId = fleetAgentAliasId(a);
+        const aliasName = aliasId ? delegateAlias(aliasId, { peers: delegatedPeers, locale }) : '';
+        return [
+          agentTitle(a, actions.chatName),
+          t(ENDPOINT_NAME[iconBackend(a)]),
+          aliasName,
+          a.cwd ?? '',
+        ]
+          .join(' ')
+          .toLowerCase()
+          .includes(q);
+      })
       .sort((a, b) => COLUMN_ORDER[a.column] - COLUMN_ORDER[b.column] || byAttention(a, b));
-  }, [agents, filter, backend, query, actions.chatName]);
+  }, [agents, filter, backend, query, actions.chatName, delegatedPeers, locale]);
 
   return (
     <section
@@ -474,7 +483,13 @@ export const FleetPage: React.FC<
         ) : visible.length ? (
           <ul className={board.grid} data-testid="fleet-grid">
             {visible.map((a) => (
-              <AgentCard key={a.id} a={a} {...actions} parentTitle={titleOf} />
+              <AgentCard
+                key={a.id}
+                a={a}
+                {...actions}
+                parentTitle={titleOf}
+                peers={delegatedPeers}
+              />
             ))}
           </ul>
         ) : (

@@ -27,6 +27,7 @@ import { stopReplySpeech } from '../services/replySpeech';
 import { schedClient } from '../services/schedClient';
 import type { ImageAttachment } from '../services/screenClient';
 import type { ChatConfig, ChatMessage } from '../types/chat';
+import { delegateAlias } from '../utils/delegateAlias';
 import { ENDPOINT_NAME } from '../utils/endpointBadge';
 
 import {
@@ -228,7 +229,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       const targetId = r.conversationId;
       const currentId = ipcClient.currentConversationId?.();
       const isCurrent = !targetId || currentId === targetId;
-      const agentName = t(ENDPOINT_NAME[r.cli] ?? r.cli);
+      const agentName =
+        r.cli !== 'nomi' && r.tabId ? delegateAlias(r.tabId) : t(ENDPOINT_NAME[r.cli] ?? r.cli);
 
       // 1. 被停止的委派：卡片已显示「已停止」，绝不再塞会话消息与落盘，只发短暂轻提示（连续停止自动聚合）
       if (r.status === 'cancelled') {

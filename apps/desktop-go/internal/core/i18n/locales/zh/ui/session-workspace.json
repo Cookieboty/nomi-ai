@@ -46,6 +46,7 @@
   "ui.session-workspace.current-branch": "当前分支：{0}",
   "ui.session-workspace.current-context": "当前上下文 {0} / {1}",
   "ui.session-workspace.current-context-over-the-window": "当前上下文 {0} / {1} · 已超窗口",
+  "ui.session-workspace.delegate-alias-pool": "青岚,星河,松风,云帆,知秋,明月,流云,听雨,墨白,山川,朝露,扶光,栖梧,清泉,星野,林深,竹影,微风,初晴,远山,景行,沧海,凌云,鹤鸣,疏影,寒江,归舟,望舒,扶摇,长风,翠微,晓月,霜叶,晴川,烟波,惊鸿,飞羽,玉衡,瑶光,天枢,开阳,北辰,南风,东篱,西洲,暮雪,晨星,澄明,朗月,舒云,轻舟,碧落,苍穹,琼林,沧浪,浮光,素心,怀瑾,兰亭,霁月,锦瑟,惊蛰,谷雨,白露",
   "ui.session-workspace.delegate-notice-done": "{0} 已完成委派",
   "ui.session-workspace.delegate-notice-done-many": "{0} 个委派任务已完成",
   "ui.session-workspace.delegate-notice-failed": "{0} 的委派任务失败",

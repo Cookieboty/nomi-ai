@@ -1,5 +1,5 @@
 import { brand } from '@nomi-ai/types';
-import { Button, Icon, IconButton, t } from '@nomi-ai/ui';
+import { Button, Icon, IconButton, t, useLocale } from '@nomi-ai/ui';
 import {
   IconAlertTriangle as AlertTriangle,
   IconAlertCircle as CircleAlert,
@@ -25,6 +25,11 @@ import {
   ORIGIN_LABEL,
   type FleetAgent,
 } from '../../services/fleetClient';
+import {
+  delegateAlias,
+  fleetAgentAliasId,
+  type DelegateAliasPeer,
+} from '../../utils/delegateAlias';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { fmtAgo } from '../../utils/relativeTime';
 import { EndpointIcon } from '../EndpointIcon';
@@ -212,8 +217,11 @@ function statusOf(a: FleetAgent): { tone: string; label: string } {
   return { tone: a.column, label: t(COLUMN_LABEL[a.column]) };
 }
 
-export const AgentCard: React.FC<{ a: FleetAgent } & CardActions> = ({
+export const AgentCard: React.FC<
+  { a: FleetAgent; peers?: readonly DelegateAliasPeer[] } & CardActions
+> = ({
   a,
+  peers,
   onOpenTab,
   onOpenTask,
   onOpenChat,
@@ -224,8 +232,11 @@ export const AgentCard: React.FC<{ a: FleetAgent } & CardActions> = ({
   chatName,
   parentTitle,
 }) => {
+  const locale = useLocale();
   const backend = iconBackend(a);
   const backendName = t(ENDPOINT_NAME[backend]);
+  const aliasId = fleetAgentAliasId(a);
+  const displayName = aliasId ? delegateAlias(aliasId, { peers, locale }) : backendName;
   const external = a.scope === 'external';
   const status = statusOf(a);
   const parent = a.parentId ? parentTitle?.(a.parentId) : '';
@@ -274,7 +285,9 @@ export const AgentCard: React.FC<{ a: FleetAgent } & CardActions> = ({
     >
       <div className={board.cardHead}>
         <EndpointIcon backend={backend} size={32} decorative />
-        <span className={board.name}>{backendName}</span>
+        <span className={board.name} title={aliasId ? backendName : undefined}>
+          {displayName}
+        </span>
         <span className={board.status} data-tone={status.tone}>
           <span className={board.dot} aria-hidden />
           {status.label}
