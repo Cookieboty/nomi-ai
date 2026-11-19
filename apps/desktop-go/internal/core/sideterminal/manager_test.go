@@ -267,6 +267,62 @@ func TestManagerLimit(t *testing.T) {
 	}
 }
 
+// waitWindowsStartup 等 ConPTY 的启动画面落地，并按需最小应答 shell/xterm 的查询。
+// 只对实际见到的序列各应答一次：DA1（ESC[c / ESC[0c）、CPR（ESC[6n）、焦点事件（ESC[?1004h → ESC[I）。
+// 同时等待“显示光标（ESC[?25h）或 OSC 标题”在之后出现、且其后 quiet 毫秒内没有新输出；
+// 超时也不失败，只记录已经观察到的状态；后续 token 断言保持严格，由它给出 got= 失败信息。
+func waitWindowsStartup(t *testing.T, mgr *Manager, id string, snapshot func() string, timeout, quiet time.Duration) {
+	t.Helper()
+	const (
+		seenDA          = 1 << iota // ESC[c / ESC[0c
+		seenCPR                     // ESC[6n
+		seenFocusEvents             // ESC[?1004h，ConPTY 启动时默认开启
+		seenPaint                   // ESC[?25h（显示光标）或 OSC 标题：启动画面已落地
+	)
+	seen := 0
+	deadline := time.Now().Add(timeout)
+	lastLen := -1
+	var lastChange time.Time
+
+	reply := func(seq, why string) {
+		if !mgr.Write(id, seq) {
+			t.Fatalf("real PTY reply to %s failed", why)
+		}
+	}
+
+	for {
+		got := snapshot()
+		if len(got) != lastLen {
+			lastLen = len(got)
+			lastChange = time.Now()
+			if seen&seenDA == 0 && (strings.Contains(got, "\x1b[c") || strings.Contains(got, "\x1b[0c")) {
+				seen |= seenDA
+				reply("\x1b[?61;4c", "DA1")
+			}
+			if seen&seenCPR == 0 && strings.Contains(got, "\x1b[6n") {
+				seen |= seenCPR
+				reply("\x1b[1;1R", "CPR")
+			}
+			if seen&seenFocusEvents == 0 && strings.Contains(got, "\x1b[?1004h") {
+				seen |= seenFocusEvents
+				reply("\x1b[I", "focus events")
+			}
+			if strings.Contains(got, "\x1b[?25h") || strings.Contains(got, "\x1b]0;") {
+				seen |= seenPaint
+			}
+		}
+		quietNow := time.Since(lastChange)
+		if seen&seenPaint != 0 && quietNow >= quiet {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Logf("windows startup paint not confirmed within %s (seen bits=%04b, quiet=%s, bytes=%d); continuing", timeout, seen, quietNow, lastLen)
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
 func TestRealPTYReadWriteAndClose(t *testing.T) {
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" && runtime.GOOS != "windows" {
 		t.Skip("unsupported OS")
@@ -311,32 +367,39 @@ func TestRealPTYReadWriteAndClose(t *testing.T) {
 		t.Fatal("real PTY resize failed")
 	}
 
+	snapshot := func() string {
+		mu.Lock()
+		defer mu.Unlock()
+		return out.String()
+	}
+
 	token := "NOMI_SIDE_PTY_OK_9182"
 	cmdLine := "echo " + token + " && exit 0\r"
+	cmdDeadline := 6 * time.Second
 	if runtime.GOOS == "windows" {
+		// ConPTY 启动时先发一段 VT：清屏、隐藏光标、按尺寸重绘、OSC 标题、焦点事件与设备查询。
+		// 产品里的 xterm.js 会应答这些查询；这里不是终端仿真器，所以只对实际见到的查询做最小应答，
+		// 并等启动画面落地后再写命令，避免输入与启动重绘交叠。
+		waitWindowsStartup(t, mgr, "real-1", snapshot, 5*time.Second, 300*time.Millisecond)
 		cmdLine = "echo " + token + "\r\nexit 0\r\n"
+		cmdDeadline = 8 * time.Second
 	}
 	if !mgr.Write("real-1", cmdLine) {
 		t.Fatal("real PTY write failed")
 	}
 
-	deadline := time.Now().Add(6 * time.Second)
+	deadline := time.Now().Add(cmdDeadline)
 	found := false
 	for time.Now().Before(deadline) {
-		mu.Lock()
-		got := out.String()
-		mu.Unlock()
-		if strings.Contains(got, token) {
+		if strings.Contains(snapshot(), token) {
 			found = true
 			break
 		}
 		time.Sleep(25 * time.Millisecond)
 	}
 	if !found {
-		mu.Lock()
-		got := out.String()
-		mu.Unlock()
-		t.Fatalf("timed out waiting for token in real PTY output, got=%q", got)
+		got := snapshot()
+		t.Fatalf("timed out waiting for token in real PTY output, sawPrompt=%t got=%q", strings.Contains(got, "PS "), got)
 	}
 
 	select {
