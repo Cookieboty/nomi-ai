@@ -18922,6 +18922,9 @@
      "strictParams": {
       "type": "boolean"
      },
+     "failoverEnabled": {
+      "type": "boolean"
+     },
      "maxRequestBodyBytes": {
       "type": "number"
      },

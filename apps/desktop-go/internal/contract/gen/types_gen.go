@@ -5680,6 +5680,7 @@ type GatewaySetAssignmentInput struct {
 
 type GatewaySetOptionsInput struct {
 	StrictParams        *bool    `json:"strictParams,omitempty"`
+	FailoverEnabled     *bool    `json:"failoverEnabled,omitempty"`
 	MaxRequestBodyBytes *float64 `json:"maxRequestBodyBytes,omitempty"`
 	ContextTier         *float64 `json:"contextTier,omitempty"`
 	HelperModel         *string  `json:"helperModel,omitempty"`

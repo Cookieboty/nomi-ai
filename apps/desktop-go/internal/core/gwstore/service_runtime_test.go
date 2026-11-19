@@ -42,4 +42,29 @@ func TestServiceRuntimeStartsGateway(t *testing.T) {
 	if rc := s.RuntimeConfig(); rc.Get("routePlan") != "active" || rc.Get("sessionsFile") == nil {
 		t.Fatalf("runtimeConfig %s", rc)
 	}
+
+	// 熔断降级默认关闭；通过 SetOptions 开启并关闭后同步反映到 State 与 RuntimeConfig
+	stDefault := s.State()
+	if stDefault.Get("failoverEnabled") != false {
+		t.Fatalf("expected default failoverEnabled=false, got %v", stDefault.Get("failoverEnabled"))
+	}
+	if s.RuntimeConfig().Get("failoverEnabled") != nil {
+		t.Fatalf("expected runtimeConfig failoverEnabled unset by default, got %v", s.RuntimeConfig().Get("failoverEnabled"))
+	}
+	stOn, err := s.SetOptions(mustObj(t, `{"failoverEnabled":true}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stOn.Get("failoverEnabled") != true || s.RuntimeConfig().Get("failoverEnabled") != true {
+		t.Fatalf("expected failoverEnabled=true in state and runtime, got state=%v runtime=%v",
+			stOn.Get("failoverEnabled"), s.RuntimeConfig().Get("failoverEnabled"))
+	}
+	stOff, err := s.SetOptions(mustObj(t, `{"failoverEnabled":false}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stOff.Get("failoverEnabled") != false || s.RuntimeConfig().Get("failoverEnabled") != nil {
+		t.Fatalf("expected failoverEnabled=false after toggle off, got state=%v runtime=%v",
+			stOff.Get("failoverEnabled"), s.RuntimeConfig().Get("failoverEnabled"))
+	}
 }

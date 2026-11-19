@@ -1,0 +1,7 @@
+---
+'@nomi-ai/ai-chat': patch
+'@nomi-ai/contract': patch
+'@nomi-ai/i18n': patch
+---
+
+feat(gateway): 熔断降级改成可开关，默认关。关着时网关不再自作主张换供应商：停用的供应商直接报「供应商已停用」；上游失败只在被请求的那家的 Key 之间重试 / 换 Key，不给 Key 记冷却、不打红，也不按健康度把候选降级——请求失败就如实报错。打开后恢复原行为：失败或限流的上游进入冷却（遵守 Retry-After），并按供应商列表顺序降级到提供同一模型的下一家，自适应降级同时生效。开关在「模型与 Agents → 三方供应商」卡片右上角（悬停有说明），状态随网关配置持久化（`gateway.setOptions({ failoverEnabled })` / `gateway.state().failoverEnabled`）；关着时下方的供应商排序提示改成「开启熔断降级后才会自动换供应商」。/ Circuit breaking and failover are now opt-in per gateway: a new `failoverEnabled` option (off by default) keeps requests on the provider you asked for — a disabled provider just reports it is disabled, failed keys are not cooled down or flagged, candidates are not demoted by health, and the error is surfaced as-is. Turning it on restores the previous behaviour: failing or rate-limited upstreams enter cooldown (honouring Retry-After) and requests walk down the provider list to another provider offering the same model, with adaptive demotion enabled. The switch sits in the header of Settings → Models & Agents → Third-Party Providers with an explanatory tooltip, its state persists in the gateway config, and the provider-order hint below it explains that automatic switching only happens once the switch is on.

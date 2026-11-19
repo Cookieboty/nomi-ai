@@ -182,6 +182,9 @@ func (s *Store) RuntimeConfig(extra RuntimeExtra) *u.Obj {
 	if u.Truthy(d.Get("strictParams")) {
 		out.Set("strictParams", true)
 	}
+	if u.Truthy(d.Get("failoverEnabled")) {
+		out.Set("failoverEnabled", true)
+	}
 	if n, ok := d.Get("maxRequestBodyBytes").(float64); ok {
 		out.Set("maxRequestBodyBytes", float64(config.ClampMaxRequestBodyBytes(&n)))
 	}

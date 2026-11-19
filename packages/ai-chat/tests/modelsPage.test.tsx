@@ -195,7 +195,7 @@ function fakeMain(
   const fake = installFakeApi(invoke);
   // 网关状态变了：推 gateway.changed（不等送达，界面再拉 gateway.state）
   const changed = () => fake.publish('gateway.changed', null);
-  return { state, calls };
+  return { state, calls, changed };
 }
 
 beforeEach(() => {
@@ -1330,6 +1330,39 @@ describe('ModelsPage', () => {
     await waitFor(() =>
       expect(m.calls).toContainEqual(['gateway.setOptions', { strictParams: true }]),
     );
+  });
+
+  it('circuit breaker & failover switch sits before Add button, is off by default, and toggles via setOptions', async () => {
+    const m = fakeMain({
+      extra: {
+        'gateway.setOptions': (patch) => {
+          const p = patch as { failoverEnabled?: boolean };
+          if (typeof p.failoverEnabled === 'boolean') m.state.failoverEnabled = p.failoverEnabled;
+          m.changed();
+          return structuredClone(m.state);
+        },
+      },
+    });
+    m.state.providers = [kimi(), { ...kimi(), id: 'ds', name: 'DeepSeek' }];
+    render(<ModelsPage />);
+    const sw = await screen.findByTestId('models-failover');
+    const addBtn = screen.getByTestId('add-provider');
+    await waitFor(() => expect((sw as HTMLButtonElement).disabled).toBe(false));
+    expect(sw.getAttribute('aria-checked')).toBe('false');
+    // 开关位于「+ 添加」按钮之前
+    expect(sw.compareDocumentPosition(addBtn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.click(sw);
+    await waitFor(() =>
+      expect(m.calls).toContainEqual(['gateway.setOptions', { failoverEnabled: true }]),
+    );
+    await waitFor(() => expect(sw.getAttribute('aria-checked')).toBe('true'));
+
+    fireEvent.click(sw);
+    await waitFor(() =>
+      expect(m.calls).toContainEqual(['gateway.setOptions', { failoverEnabled: false }]),
+    );
+    await waitFor(() => expect(sw.getAttribute('aria-checked')).toBe('false'));
   });
 
   it('context tier defaults to the model window and saves a hard cap', async () => {

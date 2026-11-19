@@ -291,6 +291,7 @@ export const GatewaySetAssignmentInput = z.object({
 export const GatewayClientInput = z.object({ client: z.string() });
 export const GatewayOptionsPatch = z.object({
   strictParams: z.boolean().optional(),
+  failoverEnabled: z.boolean().optional(),
   maxRequestBodyBytes: z.number().optional(),
   /** 上下文档位。0 = 跟模型（标准窗口，长上下文开着才用满）；128000 / 200000 / 262144 是硬上限 */
   contextTier: z.number().optional(),

@@ -250,6 +250,7 @@ func (s *Service) state() *u.Obj {
 		"allowedPrivateHosts", data.Get("allowedPrivateHosts"),
 		"port", data.Get("port"),
 		"strictParams", data.Get("strictParams") == true,
+		"failoverEnabled", data.Get("failoverEnabled") == true,
 		"maxRequestBodyBytes", float64(config.ClampMaxRequestBodyBytes(mrb)),
 		"privacyMode", data.Get("privacyMode") != false,
 		"privacy", u.NewObj(
@@ -711,6 +712,14 @@ func (s *Service) SetOptions(patch *u.Obj) (*u.Obj, error) {
 			data.Set("strictParams", true)
 		} else {
 			data.Delete("strictParams")
+		}
+		changed = true
+	}
+	if b, ok := patch.Get("failoverEnabled").(bool); ok {
+		if b {
+			data.Set("failoverEnabled", true)
+		} else {
+			data.Delete("failoverEnabled")
 		}
 		changed = true
 	}

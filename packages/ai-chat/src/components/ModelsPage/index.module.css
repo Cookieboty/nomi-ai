@@ -105,13 +105,20 @@
 
 .cardHeadRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: var(--cd-space-2);
 }
 .headActions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--cd-space-2);
+}
+.failoverSwitch {
+  margin-right: var(--cd-space-1);
+  cursor: pointer;
 }
 
 .picker {
