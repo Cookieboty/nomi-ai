@@ -291,7 +291,7 @@ func (s *Service) announceTask(id string) {
 }
 
 func isDelegateTask(rec *tasks.Record) bool {
-	return rec.Task.Origin.Via != nil && *rec.Task.Origin.Via == "delegate"
+	return tasks.IsConversationBacked(rec.Task)
 }
 
 // taskRecord：对话里委派出去的持续任务；不是返回 nil

@@ -3,6 +3,7 @@ package knowledgehandlers
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"testing"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
@@ -38,8 +39,61 @@ func TestTaskHandlersRoundTrip(t *testing.T) {
 	if r := call("tasks.decide", `{"id":"`+id+`","approve":true}`).(tasks.CmdResult); r.OK || r.Reason != "illegal" {
 		t.Fatal(r)
 	}
+	if r := call("tasks.archive", `{"id":"`+id+`"}`).(tasks.CmdResult); !r.OK {
+		t.Fatal(r)
+	}
+	if r := call("tasks.unarchive", `{"id":"`+id+`"}`).(tasks.CmdResult); !r.OK {
+		t.Fatal(r)
+	}
+	resArch := call("tasks.archiveAllEnded", `null`).(map[string]int)
+	if resArch["archived"] != 1 {
+		t.Fatalf("expected archived=1, got %+v", resArch)
+	}
 	if !call("tasks.remove", `{"id":"`+id+`"}`).(bool) {
 		t.Fatal("remove")
+	}
+
+	// 验证 tasks.update(goal/doneWhen/acceptance), tasks.appendQueued, tasks.followUp(updateGoal), tasks.handoffFromChat
+	abortedReq := ""
+	gate := make(chan struct{})
+	stub := &slowStubExec{gate: gate}
+	svc.RegisterExecutor("nomi", stub)
+	t.Cleanup(func() {
+		close(gate)
+		stub.wg.Wait()
+	})
+	hsExt := taskHandlers(Services{
+		Tasks:        func() *tasks.Service { return svc },
+		AbortChatReq: func(reqID string) { abortedReq = reqID },
+		ResolveWorkspace: func(projectID any) (string, []string) {
+			if projectID == "proj_1" {
+				return "/repo", []string{"/repo"}
+			}
+			return "", nil
+		},
+	})
+	svc.Runtime.SetMaxConcurrent(1)
+	tBusy := call("tasks.create", `{"title":"busy","goal":"g","trigger":{"kind":"manual"},
+		"executor":{"kind":"nomi","tools":["read"]},"grant":{"level":1,"paths":[],"connections":[]}}`).(tasks.Task)
+	call("tasks.runNow", `{"id":"`+tBusy.ID+`"}`)
+	tQueued := call("tasks.create", `{"title":"q","goal":"orig goal","trigger":{"kind":"manual"},
+		"executor":{"kind":"nomi","tools":["read"]},"grant":{"level":1,"paths":[],"connections":[]}}`).(tasks.Task)
+	call("tasks.runNow", `{"id":"`+tQueued.ID+`"}`)
+	rApp, err := hsExt["tasks.appendQueued"](context.Background(), json.RawMessage(`{"id":"`+tQueued.ID+`","text":"加一条说明"}`))
+	if err != nil || !rApp.(tasks.CmdResult).OK {
+		t.Fatalf("appendQueued failed: %+v err=%v", rApp, err)
+	}
+	uVal, err := hsExt["tasks.update"](context.Background(), json.RawMessage(`{"id":"`+tQueued.ID+`","goal":"new goal","doneWhen":"done text","acceptance":"auto"}`))
+	if err != nil || uVal.(*tasks.Task).Goal != "new goal" || uVal.(*tasks.Task).Acceptance != "auto" {
+		t.Fatalf("update goal/doneWhen/acceptance failed: %+v err=%v", uVal, err)
+	}
+	hVal, err := hsExt["tasks.handoffFromChat"](context.Background(), json.RawMessage(`{"reqId":"req_1","conversationId":"conv_9","projectId":"proj_1","userGoal":"帮我查全仓问题","partialContent":"已查了一半"}`))
+	if err != nil || abortedReq != "req_1" {
+		t.Fatalf("handoffFromChat failed: err=%v aborted=%q", err, abortedReq)
+	}
+	ht := hVal.(tasks.Task)
+	if ht.Origin.Via == nil || *ht.Origin.Via != "handoff" || ht.Executor.Cwd == nil || *ht.Executor.Cwd != "/repo" {
+		t.Fatalf("unexpected handoff task: %+v", ht)
 	}
 	if _, err := hs["tasks.update"](context.Background(), json.RawMessage(`{"id":"task_x","title":"y"}`)); err == nil ||
 		err.(*contract.Error).Code != "TASKS_NOT_FOUND" {
@@ -110,3 +164,25 @@ func TestTaskHandlersBadGrant(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+type slowStubExec struct {
+	gate chan struct{}
+	wg   sync.WaitGroup
+}
+
+func (e *slowStubExec) Prepare(t tasks.Task) (tasks.ExecutionSnapshot, *tasks.TaskError) {
+	return tasks.ExecutionSnapshot{GrantVersion: t.Grant.Version}, nil
+}
+
+func (e *slowStubExec) Start(ctx tasks.AttemptContext) {
+	e.wg.Add(1)
+	go func() {
+		defer e.wg.Done()
+		<-e.gate
+		ctx.Report.Completed(tasks.AttemptResult{Summary: "ok"})
+	}()
+}
+
+func (e *slowStubExec) Resume(string, int, tasks.Answer) {}
+
+func (e *slowStubExec) Stop(string, int, string) {}

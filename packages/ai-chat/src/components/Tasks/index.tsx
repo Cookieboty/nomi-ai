@@ -14,7 +14,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { selectFirstMessageId, useAiChatSelector } from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
-import { groupOf, OPEN_TASK_EVENT, tasksAvailable } from '../../services/tasksClient';
+import {
+  groupOf,
+  needsUserAttention,
+  OPEN_TASK_EVENT,
+  tasksAvailable,
+} from '../../services/tasksClient';
 import { OPEN_TASKS_PAGE_EVENT } from '../../services/workbenchNav';
 import { lazyComponent } from '../lazyPanels';
 import { SIDEBAR_ICONS } from '../Sidebar/icons';
@@ -60,8 +65,9 @@ export function useTasksHost(collapsed: boolean, onOpenSchedule?: () => void) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { data } = useTasks(tasksAvailable());
-  const needsYou = (data?.tasks ?? []).filter((x) => groupOf(x) === 'needs_you').length;
-  const running = (data?.tasks ?? []).filter((x) => groupOf(x) === 'running').length;
+  const activeTasks = (data?.tasks ?? []).filter((x) => x.archivedAt == null);
+  const needsYou = activeTasks.filter((x) => needsUserAttention(x)).length;
+  const running = activeTasks.filter((x) => groupOf(x) === 'running').length;
   const show = useCallback(() => {
     setOpen(true);
     setMounted(true);

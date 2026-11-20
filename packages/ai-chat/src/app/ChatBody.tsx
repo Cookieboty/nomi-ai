@@ -203,6 +203,7 @@ export const ChatBody: React.FC<{
       slots={isDev ? nomiTraceSlots : nomiSlots}
       cards={slash.cards}
       onDismissCard={slash.dismissCard}
+      onHandoffToBackground={actions.handoffCurrentToBackground}
     />
   );
 };

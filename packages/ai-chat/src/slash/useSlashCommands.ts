@@ -60,6 +60,8 @@ export interface SlashHookParams {
   compactNomi?: (
     instructions?: string,
   ) => Promise<{ status: 'done' | 'nothing' | 'busy' | 'failed'; error?: string }>;
+  /** Nomi 主对话的 `/bg`（AiChatContext.sendAsBackgroundTask） */
+  sendBackgroundNomi?: (text: string) => Promise<string | null>;
   onOpenPlugins: () => void;
   onOpenProviders: () => void;
   onOpenSettings: () => void;
@@ -320,6 +322,10 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
         // 只压缩发起命令时显示的那个 Nomi 对话
         if (target.scopeKey !== latest.current.scopeKey) return { status: 'nothing' as const };
         return (await latest.current.compactNomi?.(instructions)) ?? { status: 'nothing' as const };
+      },
+      sendBackgroundNomi: async (text: string) => {
+        if (target.scopeKey !== latest.current.scopeKey) return null;
+        return (await latest.current.sendBackgroundNomi?.(text)) ?? null;
       },
     }),
     [deliver],

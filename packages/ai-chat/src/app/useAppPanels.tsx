@@ -17,6 +17,7 @@ import {
 import { setProviderEndpoint } from '../services/chatPrefs';
 import { desktopClient } from '../services/desktopClient';
 import { providerClient } from '../services/providerClient';
+import { requestOpenTasksPage } from '../services/workbenchNav';
 import { isConversationBackend } from '../types/chat';
 
 export function useAppPanels() {
@@ -62,8 +63,15 @@ export function useAppPanels() {
     [openSettings],
   );
   useEffect(
-    () => desktopClient.onOpenSchedule(() => openSettings('knowledge', 'schedule')),
-    [openSettings],
+    () =>
+      desktopClient.onOpenSchedule(() => {
+        setSettings(null);
+        setShowPlugins(false);
+        setShowExt(false);
+        setShowDesktop(false);
+        requestOpenTasksPage();
+      }),
+    [],
   );
 
   const closeSettings = useCallback(() => setSettings(null), []);

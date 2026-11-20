@@ -67,7 +67,7 @@ func newLiveHarness(t *testing.T, script func(ctx context.Context, n int, emit f
 func (h *liveHarness) task() string {
 	tools := []string{"read"}
 	return h.rt.Create(CreateInput{Title: "整理", Goal: "整理文档", Trigger: Trigger{Kind: "manual"},
-		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools}, Grant: Grant{Level: 1}}).ID
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools}, Grant: Grant{Level: 1}, Acceptance: "auto"}).ID
 }
 
 func TestNomiLiveEventsAndSnapshot(t *testing.T) {

@@ -3,9 +3,10 @@
  * 这些是 Nomi 独有的数据（ChatMessage.raw），视图本身只认统一的 ConvMessage。
  */
 import { Disclosure, t } from '@nomi-ai/ui';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import type { KbSource } from '../../services/kbClient';
+import { requestOpenTask, tasksApi, tasksAvailable, type Task } from '../../services/tasksClient';
 import type { ChatMessage } from '../../types/chat';
 import type { ConvMessage } from '../../types/conversation';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
@@ -51,6 +52,69 @@ const CitedBody: React.FC<{ message: ChatMessage }> = ({ message }) => {
   );
 };
 
+const handoffStatusDesc = (status?: Task['status']): string => {
+  switch (status) {
+    case 'queued':
+      return t('ui.providers-schedule.task-handoff-queued');
+    case 'done':
+    case 'awaiting_accept':
+      return t('ui.providers-schedule.task-handoff-done');
+    case 'failed':
+    case 'expired':
+      return t('ui.providers-schedule.task-handoff-failed');
+    case 'cancelled':
+      return t('ui.providers-schedule.task-handoff-cancelled');
+    default:
+      return t('ui.providers-schedule.task-handoff-running');
+  }
+};
+
+/** 对话里由「转后台」或 `/bg` 产生的任务状态摘要卡：实时跟进任务看板状态并可一键直达 */
+const HandoffTaskCard: React.FC<{ taskId: string }> = ({ taskId }) => {
+  const [task, setTask] = useState<Task | null>(null);
+
+  useEffect(() => {
+    if (!tasksAvailable()) return;
+    let alive = true;
+    const load = () => {
+      void tasksApi
+        .get(taskId)
+        .then((next) => {
+          if (alive && next?.task) setTask(next.task);
+        })
+        .catch(() => undefined);
+    };
+    load();
+    const off = tasksApi.onChange(() => {
+      load();
+    });
+    return () => {
+      alive = false;
+      off();
+    };
+  }, [taskId]);
+
+  const status = task?.status ?? 'running';
+  return (
+    <div className={styles.handoffCard} data-testid="handoff-task-card" data-status={status}>
+      <div className={styles.handoffCardMain}>
+        <span className={styles.handoffCardTitle}>
+          {t('ui.providers-schedule.task-handoff-card-title')}
+        </span>
+        <span className={styles.handoffCardDesc}>{handoffStatusDesc(task?.status)}</span>
+      </div>
+      <button
+        type="button"
+        className={styles.handoffCardBtn}
+        onClick={() => requestOpenTask(taskId)}
+        data-testid="handoff-open-task"
+      >
+        {t('ui.providers-schedule.task-view-in-board')}
+      </button>
+    </div>
+  );
+};
+
 export const nomiSlots: ConvSlots = {
   before: (m) => {
     const raw = rawOf(m);
@@ -92,6 +156,7 @@ export const nomiSlots: ConvSlots = {
   after: (m) => {
     const raw = rawOf(m);
     if (m.role !== 'assistant' || !raw) return null;
+    if (raw.handoffTaskId) return <HandoffTaskCard taskId={raw.handoffTaskId} />;
     // 委派结果：子任务改的文件（+/− 与每个文件的 Diff），和子任务面板里同一张卡片
     if (raw.delegateChanges?.files.length)
       return <DelegateChangesCard messageId={m.id} changes={raw.delegateChanges} />;

@@ -325,7 +325,7 @@ describe('任务页', () => {
     });
   });
 
-  it('新建：验收默认自动收下；按风险自动判断默认开，取消勾选才写 false', async () => {
+  it('新建：非通知任务默认人工验收；按风险自动判断默认开，取消勾选才写 false', async () => {
     await open();
     fireEvent.click(screen.getByTestId('tasks-new'));
     fireEvent.change(screen.getByTestId('task-form-title'), { target: { value: '看 CI' } });
@@ -335,15 +335,16 @@ describe('任务页', () => {
     fireEvent.click(screen.getByTestId('task-form-tool-shell'));
     // 默认勾上：缺省就按风险自动判断，创建入参里不带这个键（老任务同样按开处理）
     expect((screen.getByTestId('task-form-auto-judge') as HTMLInputElement).checked).toBe(true);
-    fireEvent.change(screen.getByTestId('task-form-acceptance'), { target: { value: 'user' } });
+    expect((screen.getByTestId('task-form-acceptance') as HTMLSelectElement).value).toBe('user');
+    fireEvent.change(screen.getByTestId('task-form-acceptance'), { target: { value: 'auto' } });
     window.confirm = vi.fn(() => true);
     fireEvent.click(screen.getByTestId('task-form-submit'));
     await waitFor(() => expect(fake.calls.some(([n]) => n === 'tasks.create')).toBe(true));
     const [, input] = fake.calls.find(([n]) => n === 'tasks.create')!;
-    expect(input).toMatchObject({ acceptance: 'user', grant: { level: 3 } });
+    expect(input).toMatchObject({ acceptance: 'auto', grant: { level: 3 } });
     expect((input as { grant: Record<string, unknown> }).grant.autoJudge).toBeUndefined();
 
-    // 取消勾选 = 每条命令都问我
+    // 默认不改验收方式时应传 'user'；取消勾选 autoJudge = 每条命令都问我
     cleanup();
     await open();
     fireEvent.click(screen.getByTestId('tasks-new'));
@@ -354,7 +355,7 @@ describe('任务页', () => {
     fireEvent.click(screen.getByTestId('task-form-submit'));
     await waitFor(() => expect(fake.calls.filter(([n]) => n === 'tasks.create').length).toBe(2));
     const [, second] = fake.calls.filter(([n]) => n === 'tasks.create')[1]!;
-    expect(second).toMatchObject({ grant: { level: 3, autoJudge: false } });
+    expect(second).toMatchObject({ acceptance: 'user', grant: { level: 3, autoJudge: false } });
   });
 
   it('新建：勾 MCP 工具；非只读工具是对外动作，等级 L4，授权按工具逐个列出', async () => {

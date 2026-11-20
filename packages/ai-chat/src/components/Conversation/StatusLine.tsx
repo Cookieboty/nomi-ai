@@ -1,6 +1,7 @@
 /** 运行中的等待态状态行：图标 + 步骤进度 + 明确文案 + 已用时 */
 import { Icon, t } from '@nomi-ai/ui';
 import {
+  IconArrowForwardUp as ArrowForwardUp,
   IconRobot as Bot,
   IconBrain as Brain,
   IconClock as Clock,
@@ -78,12 +79,58 @@ export const StatusLineContent: React.FC<{
   );
 };
 
+export const HandoffTriggerButton: React.FC<{
+  startedAt?: number;
+  forceShow?: boolean;
+  blocked?: boolean;
+  onHandoff: () => Promise<unknown> | void;
+}> = ({ startedAt, forceShow, blocked, onHandoff }) => {
+  const [elapsedReached, setElapsedReached] = useState(
+    () => startedAt !== undefined && Date.now() - startedAt >= 10_000,
+  );
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (forceShow || startedAt === undefined) return;
+    const delay = Math.max(0, startedAt + 10_000 - Date.now());
+    const id = window.setTimeout(() => setElapsedReached(true), delay);
+    return () => window.clearTimeout(id);
+  }, [startedAt, forceShow]);
+
+  if (blocked || (!forceShow && !elapsedReached)) return null;
+
+  return (
+    <button
+      type="button"
+      className={styles.handoffBtn}
+      disabled={busy}
+      onClick={() => {
+        setBusy(true);
+        void Promise.resolve(onHandoff()).finally(() => setBusy(false));
+      }}
+      data-testid="conv-handoff-bg"
+    >
+      <Icon icon={ArrowForwardUp} size={12} />
+      {t(
+        busy
+          ? 'ui.providers-schedule.task-handoff-moving'
+          : 'ui.providers-schedule.task-handoff-button',
+      )}
+    </button>
+  );
+};
+
 export const StatusLine: React.FC<{
   status: StatusInfo;
   startedAt?: number;
   stepCount?: number;
   minimal?: boolean;
-}> = (props) => {
+  handoff?: {
+    forceShow?: boolean;
+    blocked?: boolean;
+    onHandoff: () => Promise<unknown> | void;
+  };
+}> = ({ handoff, ...props }) => {
   const cls = [styles.status, isWarnStatus(props.status.kind) ? styles.statusWarn : ''].join(' ');
   return (
     <div
@@ -94,6 +141,14 @@ export const StatusLine: React.FC<{
       role="status"
     >
       <StatusLineContent {...props} />
+      {handoff && (
+        <HandoffTriggerButton
+          startedAt={props.startedAt}
+          forceShow={handoff.forceShow}
+          blocked={handoff.blocked}
+          onHandoff={handoff.onHandoff}
+        />
+      )}
     </div>
   );
 };

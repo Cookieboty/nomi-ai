@@ -80,6 +80,8 @@ export interface ChatMessage {
    * 正文以「你加入了」标记开头（services/history.STEER_TAG）。
    */
   steer?: boolean;
+  /** 后台长程交接任务 id：用户在流式期间主动「转后台」或 `/bg` 直接建后台任务时关联展示状态卡片 */
+  handoffTaskId?: string;
 }
 
 /** 对话所属后端：与 harness 后端一致；侧栏列表按此后端隔离 */

@@ -1,17 +1,38 @@
 /**
- * 任务详情（右侧）：目标、触发、执行者、授权、预算、执行历史；按状态给出唯一明确的动作（批准、补充、验收、核对），
- * 以及立即运行、暂停 / 恢复、取消、撤销授权、删除。撤销、取消、删除先用应用内确认框确认。
+ * 任务详情（右侧双 Tab 抽屉）：
+ * - Sticky 顶栏（展开/收起、上下文跳转、快捷归档/还原）与行动横幅（批准、补充、验收、核对、知道了）；
+ * - Tab 1「进度与对话」：实时/回放执行流与状态自适应交互输入栏（插话/排队补充/退回/追问）；
+ * - Tab 2「规则与设置」：内联编辑标题、目标、完成标准、验收方式、重要程度、分类，及授权/事件/执行历史/日志。
  */
-import { Button, Disclosure, Icon, IconButton, Select, t, Textarea } from '@nomi-ai/ui';
-import { IconX as X } from '@tabler/icons-react';
+import {
+  Button,
+  Disclosure,
+  Icon,
+  IconButton,
+  Input,
+  Select,
+  t,
+  Tabs,
+  Textarea,
+} from '@nomi-ai/ui';
+import {
+  IconArchive as Archive,
+  IconArchiveOff as ArchiveRestore,
+  IconExternalLink as ExternalLink,
+  IconArrowsMaximize as Maximize2,
+  IconArrowsMinimize as Minimize2,
+  IconX as X,
+} from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 
+import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { api } from '../../services/api';
+import { requestOpenConversation } from '../../services/conversationStore';
+import { harnessClient } from '../../services/harnessClient';
 import {
   attemptStatusLabel,
   CATEGORIES,
   CATEGORY_LABEL,
-  categoryOf,
   executorLabel,
   fmtDateTime,
   fmtTime,
@@ -28,15 +49,124 @@ import {
   type Task,
   type TaskCategory,
   type TaskPriority,
+  type TaskQueueInfo,
 } from '../../services/tasksClient';
+import { requestOpenFleet } from '../../services/workbenchNav';
 import { confirmDialog } from '../ConfirmDialog';
 import { TaskSandboxRequests } from '../Conversation/SandboxRequests';
 
+import { canAckFailure, canArchiveTask, LastRunBadge, OriginBadge } from './Board';
 import styles from './index.module.css';
+import { TaskConversation } from './TaskConversation';
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task, onClose }) => {
+type DetailTab = 'conversation' | 'settings';
+
+/** 内联规则与设置编辑表单：通过外部传 key 随任务版本自动同步，避免在 effect 里同步 setState */
+const TaskRulesEditor: React.FC<{
+  task: Task;
+  busy: boolean;
+  savedNotice: boolean;
+  onSave: (patch: {
+    title: string;
+    goal: string;
+    doneWhen?: string;
+    acceptance?: 'auto' | 'user';
+  }) => void;
+}> = ({ task, busy, savedNotice, onSave }) => {
+  const [title, setTitle] = useState(task.title);
+  const [goal, setGoal] = useState(task.goal);
+  const [doneWhen, setDoneWhen] = useState(
+    task.executor.kind === 'notify' ? '' : (task.executor.brief?.doneWhen ?? ''),
+  );
+  const [acceptance, setAcceptance] = useState<'auto' | 'user'>(task.acceptance);
+
+  const handleSave = () => {
+    const cleanTitle = title.trim();
+    const cleanGoal = goal.trim();
+    if (!cleanTitle || !cleanGoal) return;
+    onSave({
+      title: cleanTitle,
+      goal: cleanGoal,
+      ...(task.executor.kind !== 'notify' ? { doneWhen: doneWhen.trim(), acceptance } : {}),
+    });
+  };
+
+  return (
+    <section className={styles.editBlock} data-testid="task-edit-rules">
+      <label className={styles.field}>
+        <span>{t('ui.providers-schedule.task-title')}</span>
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          disabled={busy}
+          data-testid="task-edit-title"
+        />
+      </label>
+      <label className={styles.field}>
+        <span>{t('ui.providers-schedule.task-goal')}</span>
+        <textarea
+          className={styles.textarea}
+          value={goal}
+          onChange={(e) => setGoal(e.target.value)}
+          disabled={busy}
+          data-testid="task-edit-goal"
+        />
+      </label>
+      {task.executor.kind !== 'notify' && (
+        <>
+          <label className={styles.field}>
+            <span>{t('ui.providers-schedule.task-edit-done-when-label')}</span>
+            <Input
+              value={doneWhen}
+              onChange={(e) => setDoneWhen(e.target.value)}
+              placeholder={t('ui.providers-schedule.task-edit-done-when-placeholder')}
+              disabled={busy}
+              data-testid="task-edit-done-when"
+            />
+          </label>
+          <label className={styles.field}>
+            <span>{t('ui.providers-schedule.task-acceptance')}</span>
+            <Select
+              size="sm"
+              value={acceptance}
+              onChange={(e) => setAcceptance(e.target.value as 'auto' | 'user')}
+              disabled={busy}
+              options={[
+                { value: 'auto', label: t('ui.providers-schedule.task-acceptance-auto') },
+                { value: 'user', label: t('ui.providers-schedule.task-acceptance-user') },
+              ]}
+              data-testid="task-edit-acceptance"
+            />
+          </label>
+        </>
+      )}
+      <div className={styles.actionRow}>
+        {savedNotice && (
+          <span className={styles.savedTip} role="status">
+            {t('ui.providers-schedule.task-saved-feedback')}
+          </span>
+        )}
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={busy || !title.trim() || !goal.trim()}
+          onClick={handleSave}
+          data-testid="task-save-rules"
+        >
+          {t('ui.providers-schedule.task-save-changes')}
+        </Button>
+      </div>
+    </section>
+  );
+};
+
+export const TaskDetail: React.FC<{
+  task: Task;
+  queueInfo?: TaskQueueInfo;
+  onClose: () => void;
+}> = ({ task, queueInfo, onClose }) => {
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [journal, setJournal] = useState<JournalEntry[]>([]);
   const [pending, setPending] = useState<JournalEntry[]>([]);
@@ -44,6 +174,15 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
+  const [tab, setTab] = useState<DetailTab>('conversation');
+  const [wide, setWide] = useState(false);
+  const [savedNotice, setSavedNotice] = useState(false);
+  const [seenTaskId, setSeenTaskId] = useState(task.id);
+  if (seenTaskId !== task.id) {
+    setSeenTaskId(task.id);
+    setSavedNotice(false);
+  }
+
   const isEvent = task.trigger.kind === 'event';
   const mode = task.trigger.kind === 'event' ? task.trigger.mode : null;
   const [events, setEvents] = useState<{
@@ -55,14 +194,16 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
   useEffect(() => {
     let live = true;
     const load = Promise.all([tasksApi.get(task.id), tasksApi.journal(task.id)]);
-    void load.then(([r, j]) => {
-      if (!live) return;
-      setAttempts([...(r?.attempts ?? [])].reverse());
-      setJournal([...j].reverse().slice(0, 50));
-      const list = r?.attempts ?? [];
-      const last = list[list.length - 1];
-      setPending(last ? pendingExternal(j, last.id) : []);
-    });
+    void load
+      .then(([r, j]) => {
+        if (!live) return;
+        setAttempts([...(r?.attempts ?? [])].reverse());
+        setJournal([...j].reverse().slice(0, 50));
+        const list = r?.attempts ?? [];
+        const lastAttempt = list[list.length - 1];
+        setPending(lastAttempt ? pendingExternal(j, lastAttempt.id) : []);
+      })
+      .catch(() => undefined);
     if (isEvent)
       void api.tasks
         .events({ id: task.id })
@@ -72,6 +213,14 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
       live = false;
     };
   }, [task.id, task.updatedAt, isEvent]);
+
+  const harnessTabs = useHarnessTabs();
+  const last = attempts[0];
+  const liveCliTabId = (() => {
+    const tid = attempts.find((a) => a.carrier?.tabId)?.carrier?.tabId;
+    if (!tid) return null;
+    return harnessTabs.state?.tabs?.some((x) => x.id === tid) ? tid : null;
+  })();
 
   const run = (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -90,62 +239,125 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
     if (await confirmDialog({ message, danger })) run(fn);
   };
 
+  const handleSaveRules = (patch: {
+    title: string;
+    goal: string;
+    doneWhen?: string;
+    acceptance?: 'auto' | 'user';
+  }) => {
+    setSavedNotice(false);
+    run(async () => {
+      await tasksApi.update({
+        id: task.id,
+        ...patch,
+      });
+      setSavedNotice(true);
+    });
+  };
+
   const id = task.id;
-  const last = attempts[0];
   const ended = ['done', 'failed', 'cancelled', 'expired'].includes(task.status);
+  const ackable = canAckFailure(task);
+  const archivable = canArchiveTask(task);
 
   return (
-    <aside className={styles.detail} aria-label={task.title} data-testid="task-detail">
+    <aside
+      className={styles.detail}
+      data-wide={wide ? 'true' : undefined}
+      aria-label={task.title}
+      data-testid="task-detail"
+    >
       <header className={styles.detailHead}>
         <h3 className={styles.detailTitle}>{task.title}</h3>
         <IconButton
+          icon={<Icon icon={wide ? Minimize2 : Maximize2} size={14} />}
+          label={t(
+            wide
+              ? 'ui.providers-schedule.task-drawer-collapse'
+              : 'ui.providers-schedule.task-drawer-expand',
+          )}
           size="sm"
-          label={t('ui.providers-schedule.close')}
+          variant="ghost"
+          onClick={() => setWide((w) => !w)}
+          data-testid="task-detail-expand"
+        />
+        <IconButton
           icon={<Icon icon={X} size={14} />}
+          label={t('ui.providers-schedule.close')}
+          size="sm"
+          variant="ghost"
           onClick={onClose}
           data-testid="task-detail-close"
         />
       </header>
-      <p className={styles.status} data-testid="task-status">
-        {statusLabel(task)}
-      </p>
-      <div className={styles.picks}>
-        <Select
-          size="sm"
-          variant="ghost"
-          className={styles.pick}
-          value={task.priority ?? 'none'}
-          onChange={(e) => {
-            const v = e.target.value;
-            run(() =>
-              api.tasks.update({ id, priority: v === 'none' ? null : (v as TaskPriority) }),
-            );
-          }}
-          aria-label={t('ui.providers-schedule.task-priority')}
-          options={[...PRIORITIES, 'none' as const].map((p) => ({
-            value: p,
-            label: t(PRIORITY_LABEL[p]),
-          }))}
-          data-testid="task-priority"
-        />
-        <Select
-          size="sm"
-          variant="ghost"
-          className={styles.pick}
-          value={categoryOf(task)}
-          onChange={(e) =>
-            run(() => api.tasks.update({ id, category: e.target.value as TaskCategory }))
-          }
-          aria-label={t('ui.providers-schedule.task-category')}
-          options={CATEGORIES.map((c) => ({ value: c, label: t(CATEGORY_LABEL[c]) }))}
-          data-testid="task-category"
-        />
+      <p className={styles.status}>{statusLabel(task)}</p>
+
+      <div className={styles.detailLinks}>
+        <OriginBadge task={task} />
+        <LastRunBadge task={task} />
+        {task.origin.conversationId && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => requestOpenConversation(task.origin.conversationId!)}
+            data-testid="task-open-source-chat"
+          >
+            <Icon icon={ExternalLink} size={12} />
+            {t('ui.providers-schedule.task-open-source-chat')}
+          </Button>
+        )}
+        {liveCliTabId && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              void harnessClient.activateTab(liveCliTabId).catch(() => undefined);
+            }}
+            data-testid="task-open-cli-tab"
+          >
+            <Icon icon={ExternalLink} size={12} />
+            {t('ui.providers-schedule.task-open-cli-tab')}
+          </Button>
+        )}
+        {task.executor.kind !== 'notify' && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => requestOpenFleet()}
+            data-testid="task-open-fleet"
+          >
+            <Icon icon={ExternalLink} size={12} />
+            {t('ui.cli-monitor.fleet-board')}
+          </Button>
+        )}
+        {task.archivedAt != null && (
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={busy}
+            onClick={() => run(() => tasksApi.unarchive(id))}
+            data-testid="task-unarchive"
+          >
+            <Icon icon={ArchiveRestore} size={12} />
+            {t('ui.providers-schedule.task-unarchive')}
+          </Button>
+        )}
+        {archivable && (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => run(() => tasksApi.archive(id))}
+            data-testid="task-archive"
+          >
+            <Icon icon={Archive} size={12} />
+            {t('ui.cli-monitor.archive-chat')}
+          </Button>
+        )}
       </div>
 
-      {/* agent 被沙箱挡下：在这里直接授权（本会话 / 这个项目始终 / 不允许） */}
-      <TaskSandboxRequests taskId={task.id} />
-
-      {/* 需要你：每种情况只给一个明确的动作 */}
+      {/* Sticky 行动区：不放进滚动区内，有操作待处理时一眼看到 */}
+      <TaskSandboxRequests taskId={id} />
       {task.status === 'waiting_user' && task.wait && (
         <div className={styles.action} data-testid="task-needs-you">
           {task.wait.detail && <p className={styles.waitDetail}>{task.wait.detail}</p>}
@@ -154,7 +366,7 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
               value={text}
               onChange={(e) => setText(e.target.value)}
               aria-label={t('ui.providers-schedule.task-input-label')}
-              rows={3}
+              rows={2}
             />
           )}
           {task.wait.kind === 'grant' ? (
@@ -353,8 +565,24 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
           </div>
         </div>
       )}
-      {(task.status === 'failed' || task.status === 'expired') && task.lastError && (
-        <p className={styles.error}>{task.lastError.message}</p>
+      {(task.status === 'failed' || task.status === 'expired') && (
+        <div className={styles.action} data-testid="task-failed-card">
+          {task.lastError && <p className={styles.error}>{task.lastError.message}</p>}
+          {ackable && (
+            <div className={styles.actionRow}>
+              <span className={styles.waitDetail}>{t('ui.providers-schedule.task-ack-hint')}</span>
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={busy}
+                onClick={() => run(() => tasksApi.ack(id))}
+                data-testid="task-ack"
+              >
+                {t('ui.models.got-it')}
+              </Button>
+            </div>
+          )}
+        </div>
       )}
       {error && (
         <p className={styles.error} role="alert">
@@ -362,248 +590,325 @@ export const TaskDetail: React.FC<{ task: Task; onClose: () => void }> = ({ task
         </p>
       )}
 
-      {isEvent && events && (
-        <section
-          className={styles.action}
-          aria-label={t('ui.providers-schedule.task-observed-title', events.observed.length)}
-          data-testid="task-observed"
-        >
-          <h4 className={styles.detailTitle}>
-            {t('ui.providers-schedule.task-observed-title', events.observed.length)}
-          </h4>
-          {!events.observed.length && (
-            <p className={styles.waitDetail}>{t('ui.providers-schedule.task-observed-empty')}</p>
-          )}
-          <ul className={styles.journal}>
-            {events.observed.slice(-20).map((e) => (
-              <li key={e.key}>{e.summary}</li>
-            ))}
-          </ul>
-          {events.lastPollAt && (
-            <p className={styles.waitDetail}>
-              {t('ui.providers-schedule.task-last-poll', fmtDateTime(events.lastPollAt))}
-            </p>
-          )}
-          {events.lastError && (
-            <p className={styles.error}>
-              {t('ui.providers-schedule.task-poll-error', events.lastError)}
-            </p>
-          )}
-          <div className={styles.actionRow}>
-            {events.observed.length > 0 && (
-              <>
-                <Button
-                  size="sm"
-                  variant="primary"
-                  disabled={busy}
-                  onClick={() => run(() => api.tasks.processObserved({ id }))}
-                  data-testid="task-process-observed"
-                >
-                  {t('ui.providers-schedule.task-process-observed')}
-                </Button>
+      <Tabs
+        items={[
+          {
+            value: 'conversation',
+            label: t('ui.providers-schedule.task-tab-conversation'),
+            testId: 'task-tab-conversation',
+          },
+          {
+            value: 'settings',
+            label: t('ui.providers-schedule.task-tab-settings'),
+            testId: 'task-tab-settings',
+          },
+        ]}
+        value={tab}
+        onChange={(v) => setTab(v as DetailTab)}
+        aria-label={t('ui.providers-schedule.tasks')}
+      />
+
+      <div className={styles.detailConvHost} hidden={tab !== 'conversation'}>
+        {tab === 'conversation' && (
+          <TaskConversation task={task} attempts={attempts} queueInfo={queueInfo} />
+        )}
+      </div>
+
+      <div className={styles.detailBody} hidden={tab !== 'settings'}>
+        <div className={styles.picks}>
+          <Select
+            size="sm"
+            variant="ghost"
+            className={styles.pick}
+            value={task.priority ?? 'none'}
+            disabled={busy}
+            aria-label={t('ui.providers-schedule.task-priority')}
+            onChange={(e) => {
+              const v = e.target.value;
+              run(() =>
+                api.tasks.update({ id, priority: v === 'none' ? null : (v as TaskPriority) }),
+              );
+            }}
+            options={[
+              { value: 'none', label: t('ui.providers-schedule.task-priority') },
+              ...PRIORITIES.map((p) => ({ value: p, label: t(PRIORITY_LABEL[p]) })),
+            ]}
+            data-testid="task-priority"
+          />
+          <Select
+            size="sm"
+            variant="ghost"
+            className={styles.pick}
+            value={task.category ?? 'auto'}
+            disabled={busy}
+            aria-label={t('ui.providers-schedule.task-category')}
+            onChange={(e) => {
+              const v = e.target.value;
+              run(() =>
+                api.tasks.update({ id, category: v === 'auto' ? null : (v as TaskCategory) }),
+              );
+            }}
+            options={[
+              { value: 'auto', label: t('ui.providers-schedule.task-category-auto') },
+              ...CATEGORIES.map((c) => ({ value: c, label: t(CATEGORY_LABEL[c]) })),
+            ]}
+            data-testid="task-category"
+          />
+        </div>
+
+        <TaskRulesEditor
+          key={`${task.id}:${task.updatedAt}`}
+          task={task}
+          busy={busy}
+          savedNotice={savedNotice}
+          onSave={handleSaveRules}
+        />
+
+        {isEvent && events && (
+          <section
+            className={styles.action}
+            aria-label={t('ui.providers-schedule.task-observed-title', events.observed.length)}
+            data-testid="task-observed"
+          >
+            <h4 className={styles.detailTitle}>
+              {t('ui.providers-schedule.task-observed-title', events.observed.length)}
+            </h4>
+            {!events.observed.length && (
+              <p className={styles.waitDetail}>{t('ui.providers-schedule.task-observed-empty')}</p>
+            )}
+            <ul className={styles.journal}>
+              {events.observed.slice(-20).map((e) => (
+                <li key={e.key}>{e.summary}</li>
+              ))}
+            </ul>
+            {events.lastPollAt && (
+              <p className={styles.waitDetail}>
+                {t('ui.providers-schedule.task-last-poll', fmtDateTime(events.lastPollAt))}
+              </p>
+            )}
+            {events.lastError && (
+              <p className={styles.error}>
+                {t('ui.providers-schedule.task-poll-error', events.lastError)}
+              </p>
+            )}
+            <div className={styles.actionRow}>
+              {events.observed.length > 0 && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    disabled={busy}
+                    onClick={() => run(() => api.tasks.processObserved({ id }))}
+                    data-testid="task-process-observed"
+                  >
+                    {t('ui.providers-schedule.task-process-observed')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={busy}
+                    onClick={() => run(() => api.tasks.clearObserved({ id }))}
+                    data-testid="task-clear-observed"
+                  >
+                    {t('ui.providers-schedule.task-clear-observed')}
+                  </Button>
+                </>
+              )}
+              {mode === 'observe' ? (
                 <Button
                   size="sm"
                   variant="secondary"
                   disabled={busy}
-                  onClick={() => run(() => api.tasks.clearObserved({ id }))}
-                  data-testid="task-clear-observed"
+                  onClick={() =>
+                    void confirmThen(
+                      t('ui.providers-schedule.task-mode-act-confirm'),
+                      () => api.tasks.setMode({ id, mode: 'act' }),
+                      false,
+                    )
+                  }
+                  data-testid="task-mode-act"
                 >
-                  {t('ui.providers-schedule.task-clear-observed')}
+                  {t('ui.providers-schedule.task-mode-act')}
                 </Button>
-              </>
-            )}
-            {mode === 'observe' ? (
+              ) : (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => run(() => api.tasks.setMode({ id, mode: 'observe' }))}
+                  data-testid="task-mode-observe"
+                >
+                  {t('ui.providers-schedule.task-mode-observe')}
+                </Button>
+              )}
+            </div>
+          </section>
+        )}
+
+        <dl className={styles.facts}>
+          <dt>{t('ui.providers-schedule.task-goal')}</dt>
+          <dd className={styles.goal}>{task.goal}</dd>
+          <dt>{t('ui.providers-schedule.task-trigger')}</dt>
+          <dd>
+            {triggerLabel(task.trigger)}
+            {task.nextRunAt && task.enabled && !ended
+              ? ` · ${t('ui.providers-schedule.task-next-run', fmtTime(task.nextRunAt))}`
+              : ''}
+          </dd>
+          <dt>{t('ui.providers-schedule.task-executor')}</dt>
+          <dd>
+            {executorLabel(task.executor)}
+            {task.executor.kind === 'nomi' && task.executor.tools.length > 0
+              ? ` · ${task.executor.tools.map((x) => t(TOOL_LABEL[x])).join('、')}`
+              : ''}
+          </dd>
+          <dt>{t('ui.providers-schedule.task-grant')}</dt>
+          <dd>
+            {t(LEVEL_LABEL[task.grant.level])}
+            {task.grant.clis?.length ? ` · ${task.grant.clis.join('、')}` : ''}
+            {task.grant.level >= 3 && task.grant.autoJudge !== false
+              ? ` · ${t('ui.providers-schedule.task-auto-judge')}`
+              : ''}
+            {task.grant.expiresAt
+              ? ` · ${t('ui.providers-schedule.task-grant-until', fmtTime(task.grant.expiresAt))}`
+              : ''}
+            {task.grant.revokedAt ? ` · ${t('ui.providers-schedule.task-grant-revoked')}` : ''}
+          </dd>
+        </dl>
+
+        <div className={styles.actionRow}>
+          {!ended &&
+            task.status !== 'running' &&
+            task.status !== 'queued' &&
+            task.status !== 'waiting_user' && (
               <Button
                 size="sm"
                 variant="secondary"
-                disabled={busy}
-                onClick={() =>
-                  void confirmThen(
-                    t('ui.providers-schedule.task-mode-act-confirm'),
-                    () => api.tasks.setMode({ id, mode: 'act' }),
-                    false,
-                  )
-                }
-                data-testid="task-mode-act"
+                disabled={busy || !task.enabled}
+                onClick={() => run(() => api.tasks.runNow({ id }))}
+                data-testid="task-run-now"
               >
-                {t('ui.providers-schedule.task-mode-act')}
+                {t('ui.providers-schedule.run-now')}
+              </Button>
+            )}
+          {ended && task.status !== 'expired' && (
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => run(() => api.tasks.runNow({ id }))}
+              data-testid="task-run-again"
+            >
+              {t('ui.providers-schedule.task-run-again')}
+            </Button>
+          )}
+          {!ended &&
+            (task.enabled ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => run(() => api.tasks.pause({ id }))}
+                data-testid="task-pause"
+              >
+                {t('ui.providers-schedule.task-pause')}
               </Button>
             ) : (
               <Button
                 size="sm"
-                variant="secondary"
+                variant="ghost"
                 disabled={busy}
-                onClick={() => run(() => api.tasks.setMode({ id, mode: 'observe' }))}
-                data-testid="task-mode-observe"
+                onClick={() => run(() => api.tasks.resume({ id }))}
+                data-testid="task-resume"
               >
-                {t('ui.providers-schedule.task-mode-observe')}
+                {t('ui.providers-schedule.task-resume')}
               </Button>
-            )}
-          </div>
-        </section>
-      )}
-
-      <dl className={styles.facts}>
-        <dt>{t('ui.providers-schedule.task-goal')}</dt>
-        <dd className={styles.goal}>{task.goal}</dd>
-        <dt>{t('ui.providers-schedule.task-trigger')}</dt>
-        <dd>
-          {triggerLabel(task.trigger)}
-          {task.nextRunAt && task.enabled && !ended
-            ? ` · ${t('ui.providers-schedule.task-next-run', fmtTime(task.nextRunAt))}`
-            : ''}
-        </dd>
-        <dt>{t('ui.providers-schedule.task-executor')}</dt>
-        <dd>
-          {executorLabel(task.executor)}
-          {task.executor.kind === 'nomi' && task.executor.tools.length > 0
-            ? ` · ${task.executor.tools.map((x) => t(TOOL_LABEL[x])).join('、')}`
-            : ''}
-        </dd>
-        <dt>{t('ui.providers-schedule.task-grant')}</dt>
-        <dd>
-          {t(LEVEL_LABEL[task.grant.level])}
-          {task.grant.clis?.length ? ` · ${task.grant.clis.join('、')}` : ''}
-          {task.grant.level >= 3 && task.grant.autoJudge !== false
-            ? ` · ${t('ui.providers-schedule.task-auto-judge')}`
-            : ''}
-          {task.grant.expiresAt
-            ? ` · ${t('ui.providers-schedule.task-grant-until', fmtTime(task.grant.expiresAt))}`
-            : ''}
-          {task.grant.revokedAt ? ` · ${t('ui.providers-schedule.task-grant-revoked')}` : ''}
-        </dd>
-      </dl>
-
-      <div className={styles.actionRow}>
-        {!ended &&
-          task.status !== 'running' &&
-          task.status !== 'queued' &&
-          task.status !== 'waiting_user' && (
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={busy || !task.enabled}
-              onClick={() => run(() => api.tasks.runNow({ id }))}
-              data-testid="task-run-now"
-            >
-              {t('ui.providers-schedule.run-now')}
-            </Button>
-          )}
-        {ended && task.status !== 'expired' && (
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={busy}
-            onClick={() => run(() => api.tasks.runNow({ id }))}
-            data-testid="task-run-again"
-          >
-            {t('ui.providers-schedule.task-run-again')}
-          </Button>
-        )}
-        {!ended &&
-          (task.enabled ? (
+            ))}
+          {!ended && !task.grant.revokedAt && (
             <Button
               size="sm"
               variant="ghost"
               disabled={busy}
-              onClick={() => run(() => api.tasks.pause({ id }))}
-              data-testid="task-pause"
+              onClick={() =>
+                void confirmThen(t('ui.providers-schedule.task-revoke-confirm'), () =>
+                  api.tasks.revoke({ id }),
+                )
+              }
+              data-testid="task-revoke"
             >
-              {t('ui.providers-schedule.task-pause')}
+              {t('ui.foundation.revoke')}
+            </Button>
+          )}
+          {!ended ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() =>
+                void confirmThen(t('ui.providers-schedule.task-cancel-confirm'), () =>
+                  api.tasks.cancel({ id }),
+                )
+              }
+              data-testid="task-cancel"
+            >
+              {t('ui.providers-schedule.task-cancel')}
             </Button>
           ) : (
             <Button
               size="sm"
               variant="ghost"
               disabled={busy}
-              onClick={() => run(() => api.tasks.resume({ id }))}
-              data-testid="task-resume"
+              onClick={() =>
+                void confirmThen(t('ui.providers-schedule.task-remove-confirm'), async () => {
+                  await api.tasks.remove({ id });
+                  onClose();
+                })
+              }
+              data-testid="task-remove"
             >
-              {t('ui.providers-schedule.task-resume')}
+              {t('ui.foundation.delete')}
             </Button>
-          ))}
-        {!ended && !task.grant.revokedAt && (
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={busy}
-            onClick={() =>
-              void confirmThen(t('ui.providers-schedule.task-revoke-confirm'), () =>
-                api.tasks.revoke({ id }),
-              )
-            }
-            data-testid="task-revoke"
-          >
-            {t('ui.foundation.revoke')}
-          </Button>
-        )}
-        {!ended ? (
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={busy}
-            onClick={() =>
-              void confirmThen(t('ui.providers-schedule.task-cancel-confirm'), () =>
-                api.tasks.cancel({ id }),
-              )
-            }
-            data-testid="task-cancel"
-          >
-            {t('ui.providers-schedule.task-cancel')}
-          </Button>
-        ) : (
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={busy}
-            onClick={() =>
-              void confirmThen(t('ui.providers-schedule.task-remove-confirm'), async () => {
-                await api.tasks.remove({ id });
-                onClose();
-              })
-            }
-            data-testid="task-remove"
-          >
-            {t('ui.foundation.delete')}
-          </Button>
-        )}
-      </div>
+          )}
+        </div>
 
-      <Disclosure
-        summary={t('ui.providers-schedule.task-history', attempts.length)}
-        defaultOpen={attempts.length > 0}
-      >
-        <ul className={styles.attempts} data-testid="task-attempts">
-          {attempts.map((a) => (
-            <li key={a.id} className={styles.attempt}>
-              <span className={styles.attemptHead}>
-                {fmtTime(a.startedAt)} · {attemptStatusLabel(a.status)}
-                {a.usage.inputTokens + a.usage.outputTokens > 0
-                  ? ` · ${t(
-                      'ui.providers-schedule.task-usage',
-                      a.usage.inputTokens + a.usage.outputTokens,
-                      a.usage.costKnown && a.usage.costUsd !== undefined
-                        ? `$${a.usage.costUsd.toFixed(4)}`
-                        : t('ui.providers-schedule.task-cost-unknown'),
-                    )}`
-                  : ''}
-              </span>
-              {a.result?.summary && <span className={styles.attemptBody}>{a.result.summary}</span>}
-              {a.error && <span className={styles.attemptError}>{a.error.message}</span>}
-            </li>
-          ))}
-        </ul>
-      </Disclosure>
-      <Disclosure summary={t('ui.providers-schedule.task-journal')}>
-        <ul className={styles.journal} data-testid="task-journal">
-          {journal.map((e, i) => (
-            <li key={`${e.at}-${i}`}>
-              <time>{fmtTime(e.at)}</time>{' '}
-              {e.t === 'state' ? `${e.event}: ${e.from} → ${e.to}` : (e.msg ?? e.action ?? e.t)}
-            </li>
-          ))}
-        </ul>
-      </Disclosure>
+        <Disclosure
+          summary={t('ui.providers-schedule.task-history', attempts.length)}
+          defaultOpen={attempts.length > 0}
+        >
+          <ul className={styles.attempts} data-testid="task-attempts">
+            {attempts.map((a) => (
+              <li key={a.id} className={styles.attempt}>
+                <span className={styles.attemptHead}>
+                  {fmtTime(a.startedAt)} · {attemptStatusLabel(a.status)}
+                  {(a.usage?.inputTokens ?? 0) + (a.usage?.outputTokens ?? 0) > 0
+                    ? ` · ${t(
+                        'ui.providers-schedule.task-usage',
+                        (a.usage?.inputTokens ?? 0) + (a.usage?.outputTokens ?? 0),
+                        a.usage?.costKnown && a.usage?.costUsd !== undefined
+                          ? `$${a.usage.costUsd.toFixed(4)}`
+                          : t('ui.providers-schedule.task-cost-unknown'),
+                      )}`
+                    : ''}
+                </span>
+                {a.result?.summary && (
+                  <span className={styles.attemptBody}>{a.result.summary}</span>
+                )}
+                {a.error && <span className={styles.attemptError}>{a.error.message}</span>}
+              </li>
+            ))}
+          </ul>
+        </Disclosure>
+        <Disclosure summary={t('ui.providers-schedule.task-journal')}>
+          <ul className={styles.journal} data-testid="task-journal">
+            {journal.map((e, i) => (
+              <li key={`${e.at}-${i}`}>
+                <time>{fmtTime(e.at)}</time>{' '}
+                {e.t === 'state' ? `${e.event}: ${e.from} → ${e.to}` : (e.msg ?? e.action ?? e.t)}
+              </li>
+            ))}
+          </ul>
+        </Disclosure>
+      </div>
     </aside>
   );
 };

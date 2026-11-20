@@ -79,6 +79,9 @@ type Bundle struct {
 	N     int
 	// ApplyWorktree：main 在编排器 / 桌面服务就绪后接上（tasks.applyWorktree）
 	ApplyWorktree func(iso tasks.CliIsolation, files []string, title string) tasks.WorktreeApply
+	// AbortChatReq / ResolveWorkspace：main 在聊天路由与桌面服务就绪后接上（tasks.handoffFromChat）
+	AbortChatReq     func(reqID string)
+	ResolveWorkspace func(projectID any) (cwd string, paths []string)
 
 	kbMu        sync.Mutex
 	kbListeners map[int]func()
@@ -181,6 +184,17 @@ func Wire(d WireDeps) *Bundle {
 				return tasks.WorktreeApply{Applied: []string{}, Skipped: []string{}, Conflicted: []string{}, Denied: append([]string{}, files...)}
 			}
 			return b.ApplyWorktree(iso, files, title)
+		},
+		AbortChatReq: func(reqID string) {
+			if b.AbortChatReq != nil {
+				b.AbortChatReq(reqID)
+			}
+		},
+		ResolveWorkspace: func(projectID any) (string, []string) {
+			if b.ResolveWorkspace != nil {
+				return b.ResolveWorkspace(projectID)
+			}
+			return "", nil
 		},
 		KB: func() *knowledge.Service { return b.KB }, Mem: func() *memory.Service { return b.Mem },
 		Sched: func() *schedule.Service { return b.Sched }, Local: func() *local.Service { return b.Local },

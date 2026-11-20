@@ -304,6 +304,7 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 		"Resume":       cause.Kind == "resume" || cause.Kind == "retry",
 		"Rework":       cause.Kind == "rework" && cause.Note != nil,
 		"FollowUp":     cause.Kind == "followup" && cause.Note != nil,
+		"Handoff":      t.Origin.Via != nil && *t.Origin.Via == "handoff" && cause.Kind != "rework" && cause.Kind != "followup",
 		"Previous":     "",
 		"Progress":     "",
 		"Events":       EventsSection(events),
@@ -339,9 +340,9 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 		{Role: "user", Content: t.Goal, Images: followUpImages(cause)}}
 }
 
-// followUpImages：追问带的图片（读不回来的跳过）
+// followUpImages：追问或排队补充带的图片（读不回来的跳过）
 func followUpImages(c AttemptCause) []blm.ChatImage {
-	if (c.Kind != "followup" && c.FollowUp == nil) || len(c.Images) == 0 {
+	if len(c.Images) == 0 {
 		return nil
 	}
 	out := []blm.ChatImage{}

@@ -73,6 +73,7 @@ export function makeCtx(
       async () =>
         ({ status: 'done' }) as { status: 'done' | 'nothing' | 'busy' | 'failed'; error?: string },
     ),
+    sendBackgroundNomi: vi.fn(async (_text: string) => 't_bg_1' as string | null),
   };
   const commands = buildRegistry(
     adapterFor(backend, { backend, discovered: over.discovered ?? null }),

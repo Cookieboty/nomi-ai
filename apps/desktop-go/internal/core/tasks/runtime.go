@@ -194,6 +194,8 @@ type Runtime struct {
 	// sharedLoad：同一个上限里别处在跑的（同步委派）；onFreed：名额空出来时通知别处再排一次队
 	sharedLoad atomic.Pointer[func() int]
 	onFreed    atomic.Pointer[func()]
+	// holdReason：资源守护扣着新任务的原因（memory | cpu | ""），供 QueueSnapshot 透出给看板
+	holdReason atomic.Pointer[func() string]
 }
 
 // SetSharedLoad：持续任务与委派共用一个同时运行上限（调度策略）；f 返回委派那边在跑的个数，须不拿锁
@@ -201,6 +203,9 @@ func (r *Runtime) SetSharedLoad(f func() int) { r.sharedLoad.Store(&f) }
 
 // SetOnFreed：任务的名额空出来时调（放行委派那边排队的）；在新的 goroutine 里调
 func (r *Runtime) SetOnFreed(f func()) { r.onFreed.Store(&f) }
+
+// SetHoldReason：设置当前队列放行拦截原因（memory | cpu | ""）；须无锁或极快
+func (r *Runtime) SetHoldReason(f func() string) { r.holdReason.Store(&f) }
 
 // Load：占着名额的任务数（不拿锁）
 func (r *Runtime) Load() int { return int(r.running.Load()) }
@@ -427,8 +432,12 @@ func (r *Runtime) CreateChecked(in CreateInput) (Task, error) {
 		}
 		acc := in.Acceptance
 		if acc == "" {
-			// 做完自动收下（agent 任务也一样：能自动判断的不再让人逐条点确认）
-			acc = "auto"
+			// 一次性对话委派 / 前台转后台 / 纯通知不需要看板验收（auto）；其余独立与持续任务默认等你验收（user）
+			if in.Executor.Kind == "notify" || (in.Origin.Via != nil && (*in.Origin.Via == "delegate" || *in.Origin.Via == "handoff")) {
+				acc = "auto"
+			} else {
+				acc = "user"
+			}
 		}
 		t := Task{ID: r.d.NewID("task"), Title: in.Title, Goal: in.Goal, Origin: in.Origin, Trigger: in.Trigger,
 			Executor: in.Executor, Grant: g, Budget: b, Acceptance: acc, Status: StatusIdle, Enabled: true,
@@ -491,11 +500,14 @@ func (r *Runtime) Command(id string, c Command) CmdResult {
 	return res
 }
 
-// Patch：改标题、触发器、预算、重要程度、类型（不碰授权与状态）
+// Patch：改标题、目标、完成标准、验收方式、触发器、预算、重要程度、类型（不碰授权与状态）
 type Patch struct {
-	Title   *string      `json:"title,omitempty"`
-	Trigger *Trigger     `json:"trigger,omitempty"`
-	Budget  *BudgetInput `json:"budget,omitempty"`
+	Title      *string      `json:"title,omitempty"`
+	Goal       *string      `json:"goal,omitempty"`
+	DoneWhen   *string      `json:"doneWhen,omitempty"`
+	Acceptance *string      `json:"acceptance,omitempty"`
+	Trigger    *Trigger     `json:"trigger,omitempty"`
+	Budget     *BudgetInput `json:"budget,omitempty"`
 	// Priority / Category：没给 = 不改；null = 清除
 	Priority NullableString `json:"priority"`
 	Category NullableString `json:"category"`
@@ -560,9 +572,27 @@ func (r *Runtime) Patch(id string, p Patch) *Task {
 				t.Budget.MaxRetries = *p.Budget.MaxRetries
 			}
 		}
-		if p.Title != nil {
+		if p.Title != nil && strings.TrimSpace(*p.Title) != "" {
 			keys = append(keys, "title")
 			t.Title = *p.Title
+		}
+		if p.Goal != nil && strings.TrimSpace(*p.Goal) != "" {
+			keys = append(keys, "goal")
+			t.Goal = *p.Goal
+		}
+		if p.DoneWhen != nil && (t.Executor.Kind == "nomi" || t.Executor.Kind == "cli") {
+			keys = append(keys, "doneWhen")
+			if t.Executor.Brief == nil {
+				t.Executor.Brief = &Brief{DoneWhen: *p.DoneWhen}
+			} else {
+				b := *t.Executor.Brief
+				b.DoneWhen = *p.DoneWhen
+				t.Executor.Brief = &b
+			}
+		}
+		if p.Acceptance != nil && (*p.Acceptance == "auto" || *p.Acceptance == "user") {
+			keys = append(keys, "acceptance")
+			t.Acceptance = *p.Acceptance
 		}
 		if p.Priority.Set {
 			keys = append(keys, "priority")
@@ -594,7 +624,7 @@ func (r *Runtime) Remove(id string) bool {
 	ok := false
 	r.own(func() {
 		rec := r.recs[id]
-		if rec == nil || !IsTerminal(rec.Task.Status) {
+		if rec == nil || (!IsTerminal(rec.Task.Status) && rec.Task.ArchivedAt == nil) {
 			return
 		}
 		if ret, ok := r.executor(rec.Task).(Retirer); ok {
@@ -1140,7 +1170,7 @@ func (r *Runtime) watch(now int64) {
 	}
 }
 
-// Tick：定时器醒来——看守、到点的定时、出队
+// Tick：定时器醒来——看守、到点的定时、出队、到期自动归档
 func (r *Runtime) Tick() { r.own(r.tickLocked) }
 
 func (r *Runtime) tickLocked() {
@@ -1148,7 +1178,125 @@ func (r *Runtime) tickLocked() {
 	r.watch(now)
 	r.runDueSchedules(now)
 	r.pump()
+	r.autoArchiveDue(now)
 	r.arm()
+}
+
+// autoArchiveDue：一次性终态任务满 24h 自动折叠进已归档；无人值守独立任务未确认失败不自动归档
+func (r *Runtime) autoArchiveDue(now int64) {
+	for _, id := range append([]string(nil), r.order...) {
+		rec := r.recs[id]
+		if rec == nil {
+			continue
+		}
+		t := rec.Task
+		if t.ArchivedAt != nil || IsRecurring(&t) || !IsTerminal(t.Status) {
+			continue
+		}
+		if (t.Status == StatusFailed || t.Status == StatusExpired) && !IsConversationBacked(t) && t.AckedAt == nil {
+			continue
+		}
+		ended := t.UpdatedAt
+		if t.EndedAt != nil {
+			ended = *t.EndedAt
+		}
+		if now-ended >= AutoArchiveAfterMs {
+			r.dispatch(id, Event{Type: "archive", At: now, Outcome: "auto_24h"})
+		}
+	}
+}
+
+// QueueSnapshot：计算所有处于 StatusQueued 任务的等待原因与队列顺位
+func (r *Runtime) QueueSnapshot() map[string]QueueInfo {
+	r.ownerMu.Lock()
+	defer r.ownerMu.Unlock()
+	now := r.d.Now()
+	maxStarts := r.d.MaxStartsPerHour
+	if maxStarts <= 0 {
+		maxStarts = DefaultMaxStartsPerHour
+	}
+	recentStarts := 0
+	for _, ts := range r.starts {
+		if now-ts < 3600_000 {
+			recentStarts++
+		}
+	}
+	hold := ""
+	if fn := r.holdReason.Load(); fn != nil && *fn != nil {
+		hold = (*fn)()
+	}
+	maxConc := r.max()
+	if maxConc >= 1<<29 {
+		maxConc = 0
+	}
+	active := len(r.slots) + r.shared()
+
+	// 复制并按与 pump 一致的规则排序，算出可信顺位
+	qCopy := append([]queued(nil), r.queue...)
+	sort.SliceStable(qCopy, func(i, j int) bool {
+		if qCopy[i].notBefore != qCopy[j].notBefore {
+			return qCopy[i].notBefore < qCopy[j].notBefore
+		}
+		return qCopy[i].seq < qCopy[j].seq
+	})
+	out := map[string]QueueInfo{}
+	pos := 0
+	for _, q := range qCopy {
+		rec := r.recs[q.id]
+		if rec == nil || rec.Task.Status != StatusQueued {
+			continue
+		}
+		t := rec.Task
+		pos++
+		info := QueueInfo{
+			Reason:        "slot",
+			Position:      pos,
+			ActiveCount:   active,
+			MaxConcurrent: maxConc,
+		}
+		if q.notBefore > now {
+			nb := q.notBefore
+			info.Reason = "retry"
+			info.RetryAt = &nb
+		} else if t.Executor.Kind != "notify" && hold != "" {
+			info.Reason = hold
+		} else if t.Executor.Kind != "notify" && r.admit != nil && !r.admit(t) {
+			info.Reason = "memory"
+		} else if recentStarts >= maxStarts {
+			info.Reason = "rate_limit"
+		}
+		out[q.id] = info
+	}
+	// 兜底：如果有任务状态为 queued 但尚未在 r.queue 中（如异常/测试构造），仍给出默认信息
+	for _, id := range r.order {
+		rec := r.recs[id]
+		if rec == nil || rec.Task.Status != StatusQueued {
+			continue
+		}
+		if _, exists := out[id]; exists {
+			continue
+		}
+		pos++
+		reason := "slot"
+		if rec.Task.Pending != nil && rec.Task.Pending.NotBefore != nil && *rec.Task.Pending.NotBefore > now {
+			reason = "retry"
+		} else if rec.Task.Executor.Kind != "notify" && hold != "" {
+			reason = hold
+		}
+		var retryAt *int64
+		if rec.Task.Pending != nil && rec.Task.Pending.NotBefore != nil && *rec.Task.Pending.NotBefore > now {
+			nb := *rec.Task.Pending.NotBefore
+			retryAt = &nb
+		}
+		out[id] = QueueInfo{
+			Reason:        reason,
+			Position:      pos,
+			RetryAt:       retryAt,
+			ActiveCount:   active,
+			MaxConcurrent: maxConc,
+		}
+	}
+	return out
 }
 
 func (r *Runtime) arm() {
@@ -1164,6 +1312,19 @@ func (r *Runtime) arm() {
 		rec := r.recs[id]
 		if rec.Task.Enabled && rec.Task.NextRunAt != nil && *rec.Task.NextRunAt < wake {
 			wake = *rec.Task.NextRunAt
+		}
+		t := rec.Task
+		if t.ArchivedAt == nil && !IsRecurring(&t) && IsTerminal(t.Status) {
+			if (t.Status == StatusFailed || t.Status == StatusExpired) && !IsConversationBacked(t) && t.AckedAt == nil {
+				continue
+			}
+			ended := t.UpdatedAt
+			if t.EndedAt != nil {
+				ended = *t.EndedAt
+			}
+			if due := ended + AutoArchiveAfterMs; due < wake {
+				wake = due
+			}
 		}
 	}
 	for _, q := range r.queue {

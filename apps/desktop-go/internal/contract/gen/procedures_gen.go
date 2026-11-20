@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 496：mutation 352 / query 139 / stream 5
+// 合计 502：mutation 358 / query 139 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -415,7 +415,11 @@ var Procedures = []Procedure{
 	{Name: "startup.get", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "startup.set", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.accept", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.ack", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.appendQueued", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.applyWorktree", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "tasks.archive", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.archiveAllEnded", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.cancel", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.clearObserved", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.create", Kind: "mutation", Dangerous: true, Surfaces: nil},
@@ -424,6 +428,7 @@ var Procedures = []Procedure{
 	{Name: "tasks.followUp", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.get", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.grant", Kind: "mutation", Dangerous: true, Surfaces: nil},
+	{Name: "tasks.handoffFromChat", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.inbox", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.journal", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.list", Kind: "query", Dangerous: false, Surfaces: nil},
@@ -438,6 +443,7 @@ var Procedures = []Procedure{
 	{Name: "tasks.setMode", Kind: "mutation", Dangerous: true, Surfaces: nil},
 	{Name: "tasks.steer", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.trace", Kind: "query", Dangerous: false, Surfaces: nil},
+	{Name: "tasks.unarchive", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "tasks.update", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "theme.customDelete", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "theme.customExport", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},

@@ -35,6 +35,7 @@ import { maybeStartNomiSmartTitle } from '../services/nomiSmartTitle';
 import { startReplySpeech, stopReplySpeech, type ReplySpeaker } from '../services/replySpeech';
 import { schedClient } from '../services/schedClient';
 import { screenClient, type ImageAttachment } from '../services/screenClient';
+import { tasksApi } from '../services/tasksClient';
 import type { ChatMessage } from '../types/chat';
 import { ENDPOINT_NAME } from '../utils/endpointBadge';
 import { closeOpenCalls } from '../utils/toolTrace';
@@ -466,21 +467,38 @@ function useStreamSend({
           messages: pair(aiMessage),
         });
 
-        activeStream.current.set(convoKey(turn.convoId), {
-          reqId,
-          convoId: turn.convoId,
-          controller,
-        });
-        owned = true;
-        // 朗读 AI 回复：只念普通 Nomi 对话（`/agent` 委派或后台自动跟进不念）
-        if (!delegateTo && !bgFollow) speaker = startReplySpeech(reqId);
-        dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
         let accumulated = '';
         let thinking: boolean | undefined;
         const startedAt = Date.now();
         const trace: HarnessTraceEvent[] = [];
         let usage: HarnessUsage | undefined;
         let steps: string | undefined;
+
+        const streamEntry: ActiveStream = {
+          reqId,
+          convoId: turn.convoId,
+          projectId: turn.projectId,
+          userGoal: userMessage.content,
+          controller,
+          getHandoffSnapshot: () => ({
+            partialContent: accumulated,
+            progressSummary: trace
+              .filter((x) => x.type === 'tool')
+              .slice(-15)
+              .map((x) => `${x.name ?? 'tool'}(${x.status ?? 'start'})`)
+              .join(' -> '),
+            historyContext: history
+              .filter((m) => !isCompaction(m) && !m.hidden && m.content.trim())
+              .slice(-4)
+              .map((m) => `${m.role}: ${m.content.slice(0, 300)}`)
+              .join('\n'),
+          }),
+        };
+        activeStream.current.set(convoKey(turn.convoId), streamEntry);
+        owned = true;
+        // 朗读 AI 回复：只念普通 Nomi 对话（`/agent` 委派或后台自动跟进不念）
+        if (!delegateTo && !bgFollow) speaker = startReplySpeech(reqId);
+        dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
         // 流式 UI 更新按帧合批：一帧内到达的文本 / 工具事件只 dispatch 一次（逐 chunk dispatch 会让整条消息列表重渲染）
         let raf = 0;
         let timer = 0;
@@ -568,6 +586,31 @@ function useStreamSend({
             convoKey: turnKey,
             reqId,
           });
+        const finishAsHandoff = async (): Promise<boolean> => {
+          if (!streamEntry.handoffPromise) return false;
+          const handoffId = await streamEntry.handoffPromise.catch(() => null);
+          if (!handoffId) return false;
+          speaker?.stop();
+          const doneSteers = finishSteer(steering.current, turnKey);
+          const handoffMsg: ChatMessage = {
+            ...aiMessage,
+            ...(usage?.model ? { modelId: servedModelLabel(usage.model) } : {}),
+            ...(usage?.responseModel ? { responseModel: usage.responseModel } : {}),
+            content: fullSteerText(accumulated, doneSteers),
+            handoffTaskId: handoffId,
+            durationMs: Date.now() - startedAt,
+            ...(trace.length ? { trace: [...trace] } : {}),
+            ...(usage ? { usage } : {}),
+          };
+          if (turn.isActive()) dispatch({ type: 'UPSERT_MESSAGES', payload: pair(handoffMsg) });
+          if (!bgFollow) {
+            maybeStartNomiSmartTitle(client, turn.convoId, userMessage.content);
+            await saveUser('final');
+          }
+          await turn.save(handoffMsg);
+          await finishDeliveredSteers(turn);
+          return true;
+        };
         try {
           const linked = imageUrls.filter(Boolean);
           const sent = linked.length ? `${content}\n\n${imageLinksNote(linked)}` : content;
@@ -618,6 +661,7 @@ function useStreamSend({
           flushUi();
           // 还在跑的工具调用不会再有结果：标成已停止，否则时间线一直转圈
           trace.push(...closeOpenCalls(trace, Date.now(), t('ui.chat-settings.stopped')));
+          if (await finishAsHandoff()) return;
           // 这一轮失败：保留已生成的部分与轨迹，作为「错误卡片」留在对话里（可重试），不进模型上下文
           // 插入的消息已经进了这条（轨迹里 / 正文开头「你加入了」分节）：补进记录的那几条不再需要
           const done = finishSteer(steering.current, turnKey);
@@ -641,9 +685,10 @@ function useStreamSend({
           return;
         }
         flushUi();
-        const stopped = controller.signal.aborted;
         // 停止时还在跑的工具调用（内核已随这一轮中止它们）：标成已停止，否则时间线一直显示运行中
         trace.push(...closeOpenCalls(trace, Date.now(), t('ui.chat-settings.stopped')));
+        if (await finishAsHandoff()) return;
+        const stopped = controller.signal.aborted;
         if (stopped) speaker?.stop();
         else speaker?.finish();
         // 中途插入的消息已经进了这条回复（轨迹里的 interject / 正文开头的「你加入了」分节）：
@@ -695,12 +740,99 @@ function useStreamSend({
     [stateRef, dispatch, activeStream, inflight, maybeIngest, notifyToolStart, steering],
   );
 
-  return { sendStreamMessage };
+  const handoffCurrentToBackground = useCallback(async (): Promise<string | null> => {
+    const s = stateRef.current;
+    const key = convoKey(s.ipcClient.currentConversationId?.());
+    const stream = activeStream.current.get(key);
+    if (!stream) return null;
+    if (stream.handoffPromise) return stream.handoffPromise;
+    const snap = stream.getHandoffSnapshot?.();
+    const p = tasksApi
+      .handoffFromChat({
+        reqId: stream.reqId,
+        conversationId: stream.convoId ?? 'default',
+        ...(stream.projectId ? { projectId: stream.projectId } : {}),
+        userGoal: stream.userGoal ?? '',
+        ...(snap?.partialContent ? { partialContent: snap.partialContent } : {}),
+        ...(snap?.progressSummary ? { progressSummary: snap.progressSummary } : {}),
+        ...(snap?.historyContext ? { historyContext: snap.historyContext } : {}),
+      })
+      .then((task) => task.id)
+      .catch(() => null);
+    stream.handoffPromise = p;
+    const taskId = await p;
+    if (taskId && !stream.controller.signal.aborted) {
+      stream.controller.abort();
+    }
+    return taskId;
+  }, [stateRef, activeStream]);
+
+  const sendAsBackgroundTask = useCallback(
+    async (text: string): Promise<string | null> => {
+      const trimmed = text.trim();
+      if (!trimmed) return null;
+      const s = stateRef.current;
+      const turn = openTurn(s.ipcClient);
+      const userMessage: ChatMessage = {
+        id: nextMessageId(),
+        role: 'user',
+        content: trimmed,
+        timestamp: Date.now(),
+        modelId: nomiModelLabel(),
+      };
+      dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
+      const userSaver = userMessageSaver(turn, userMessage);
+      await userSaver.early();
+      schedClient.activity();
+      try {
+        const task = await tasksApi.handoffFromChat({
+          conversationId: turn.convoId ?? 'default',
+          ...(turn.projectId ? { projectId: turn.projectId } : {}),
+          userGoal: trimmed,
+        });
+        await userSaver.final();
+        maybeStartNomiSmartTitle(s.ipcClient, turn.convoId, trimmed);
+        const aiMessage: ChatMessage = {
+          id: nextMessageId(),
+          role: 'assistant',
+          content: t('ui.providers-schedule.task-handoff-initial-reply'),
+          timestamp: Date.now(),
+          modelId: nomiModelLabel(),
+          handoffTaskId: task.id,
+        };
+        if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
+        await turn.save(aiMessage);
+        return task.id;
+      } catch (e) {
+        await userSaver.final();
+        const errMsg: ChatMessage = {
+          id: nextMessageId(),
+          role: 'assistant',
+          content: '',
+          error: errorMessage(e),
+          timestamp: Date.now(),
+        };
+        if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: errMsg });
+        await turn.save(errMsg);
+        return null;
+      }
+    },
+    [stateRef, dispatch],
+  );
+
+  return { sendStreamMessage, handoffCurrentToBackground, sendAsBackgroundTask };
 }
 
 /** 发送相关的全部动作 */
 export function useChatSends(options: SendsOptions) {
   const { sendMessage, askKnowledge } = usePlainSends(options);
-  const { sendStreamMessage } = useStreamSend(options);
-  return { sendMessage, askKnowledge, sendStreamMessage };
+  const { sendStreamMessage, handoffCurrentToBackground, sendAsBackgroundTask } =
+    useStreamSend(options);
+  return {
+    sendMessage,
+    askKnowledge,
+    sendStreamMessage,
+    handoffCurrentToBackground,
+    sendAsBackgroundTask,
+  };
 }

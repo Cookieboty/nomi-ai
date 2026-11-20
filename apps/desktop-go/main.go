@@ -622,6 +622,11 @@ func main() {
 	// 事件源：web / folder / github / app；agent 的 tab-finished 在 wireHarness 之后接上
 	registerTaskSources(b8)
 	b8.ApplyWorktree = taskApplyWorktree(desktopSvc)
+	b8.AbortChatReq = chatHandlers.Abort
+	b8.ResolveWorkspace = func(projectID any) (string, []string) {
+		ws := desktopSvc.Broker.WorkspaceOf(projectID)
+		return ws.Primary, ws.Roots()
+	}
 	// AI 运行时与门面就绪后再启动（记忆启动时把事实与摘要同步给门面）
 	b8.Start()
 	defer b8.Stop()

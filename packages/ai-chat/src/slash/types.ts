@@ -241,6 +241,8 @@ export interface SlashActions {
     status: 'done' | 'nothing' | 'busy' | 'failed';
     error?: string;
   }>;
+  /** Nomi：`/bg` 直接把任务发往后台任务看板队列 */
+  sendBackgroundNomi?: (text: string) => Promise<string | null>;
 }
 
 export interface AdapterInput {

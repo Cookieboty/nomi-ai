@@ -35,7 +35,14 @@ export type Trigger =
 
 export type ExecutorSpec =
   | { kind: 'notify'; text: string }
-  | { kind: 'nomi'; model?: string; tools: ToolClass[]; scenario?: string }
+  | {
+      kind: 'nomi';
+      model?: string;
+      tools: ToolClass[];
+      scenario?: string;
+      toolset?: string;
+      brief?: { doneWhen: string; context?: string; outOfScope?: string };
+    }
   | {
       kind: 'cli';
       /** 档位模式（presetId）下由内核按触发时的当前档位解析，cli 可省略 */
@@ -48,6 +55,7 @@ export type ExecutorSpec =
       cwd: string;
       isolation: 'worktree' | 'shared';
       baseBranch?: string;
+      brief?: { doneWhen: string; context?: string; outOfScope?: string };
     };
 
 export interface Wait {
@@ -72,6 +80,16 @@ export interface TaskGrant {
   revokedAt?: number;
 }
 
+export type QueueReason = 'slot' | 'memory' | 'cpu' | 'retry' | 'rate_limit';
+
+export interface TaskQueueInfo {
+  reason: QueueReason;
+  position: number;
+  retryAt?: number;
+  activeCount: number;
+  maxConcurrent: number;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -80,7 +98,7 @@ export interface Task {
     conversationId?: string;
     createdBy: 'user' | 'nomi';
     createdAt: number;
-    via?: 'delegate';
+    via?: 'delegate' | 'handoff' | string;
   };
   trigger: Trigger;
   executor: ExecutorSpec;
@@ -95,10 +113,99 @@ export interface Task {
   enabled: boolean;
   gen: number;
   wait?: Wait;
+  pending?: {
+    cause: string;
+    note?: string;
+    notBefore?: number;
+  };
+  lastAttemptId?: string;
   nextRunAt?: number;
   lastError?: { code: string; message: string };
+  endedAt?: number;
+  archivedAt?: number;
+  archiveReason?: 'user' | 'auto_24h';
+  ackedAt?: number;
+  lastRunStatus?: 'succeeded' | 'failed' | 'cancelled';
+  lastRunAt?: number;
   consecutiveFailures: number;
   updatedAt: number;
+}
+
+export const AUTO_ARCHIVE_AFTER_MS = 24 * 3600_000;
+
+export function isRecurringTask(task: Task): boolean {
+  return (
+    task.trigger.kind === 'event' ||
+    (task.trigger.kind === 'schedule' && task.trigger.repeat !== undefined)
+  );
+}
+
+export function isConversationBacked(task: Task): boolean {
+  return task.origin.via === 'delegate' || task.origin.via === 'handoff';
+}
+
+export function isTerminalStatus(status: TaskStatus): boolean {
+  return status === 'done' || status === 'failed' || status === 'cancelled' || status === 'expired';
+}
+
+export function needsUserAttention(task: Task): boolean {
+  if (task.archivedAt != null) return false;
+  switch (task.status) {
+    case 'waiting_user':
+    case 'needs_reconcile':
+    case 'awaiting_accept':
+      return true;
+    case 'failed':
+    case 'expired':
+      return !isConversationBacked(task) && task.ackedAt == null;
+    default:
+      return false;
+  }
+}
+
+export type TaskTrack = 'run' | 'automation';
+
+export function taskTrack(task: Task): TaskTrack {
+  return isRecurringTask(task) ? 'automation' : 'run';
+}
+
+export function autoArchiveRemainingHours(task: Task, now = Date.now()): number | null {
+  if (task.archivedAt != null || isRecurringTask(task) || !isTerminalStatus(task.status)) {
+    return null;
+  }
+  if (
+    (task.status === 'failed' || task.status === 'expired') &&
+    !isConversationBacked(task) &&
+    task.ackedAt == null
+  ) {
+    return null;
+  }
+  const ended = task.endedAt ?? task.updatedAt;
+  const remainMs = ended + AUTO_ARCHIVE_AFTER_MS - now;
+  return remainMs > 0 ? Math.ceil(remainMs / 3600_000) : 0;
+}
+
+export function formatQueueReason(info: TaskQueueInfo, now = Date.now()): string {
+  switch (info.reason) {
+    case 'memory':
+      return t('ui.providers-schedule.task-queue-reason-memory');
+    case 'cpu':
+      return t('ui.providers-schedule.task-queue-reason-cpu');
+    case 'rate_limit':
+      return t('ui.providers-schedule.task-queue-reason-rate-limit');
+    case 'retry': {
+      const waitSec = info.retryAt ? Math.max(0, Math.ceil((info.retryAt - now) / 1000)) : 0;
+      const countdown = waitSec >= 60 ? `${Math.ceil(waitSec / 60)}m` : `${waitSec}s`;
+      return t('ui.providers-schedule.task-queue-reason-retry', countdown);
+    }
+    case 'slot':
+    default:
+      return t(
+        'ui.providers-schedule.task-queue-reason-slot',
+        info.activeCount,
+        info.maxConcurrent,
+      );
+  }
 }
 
 export interface Attempt {
@@ -227,24 +334,78 @@ export interface TaskLivePayload {
 }
 
 export const tasksApi = {
-  list: async () => (await api.tasks.list()) as unknown as { tasks: Task[]; legacy: LegacyItem[] },
+  list: async () =>
+    (await api.tasks.list()) as unknown as {
+      tasks: Task[];
+      legacy: LegacyItem[];
+      queue?: Record<string, TaskQueueInfo>;
+    },
   get: async (id: string) =>
     (await api.tasks.get({ id })) as unknown as { task: Task; attempts: Attempt[] } | null,
   journal: async (id: string) => (await api.tasks.journal({ id })) as unknown as JournalEntry[],
   trace: async (id: string) => (await api.tasks.trace({ id })) as TaskTraceView,
   /** 后台任务正在跑时插话（下一步并进上下文）；不在跑 / 这一步不收时 false */
   steer: async (id: string, text: string) => (await api.tasks.steer({ id, text })) === true,
-  /** 上一次执行结束后带着这句话再跑一次（结果照常写回来源对话） */
-  /** 追问；images：base64 图片（最多 8 张），可以只带图片 */
-  followUp: async (id: string, text: string, images?: Array<{ mime: string; data: string }>) =>
-    (await api.tasks.followUp({ id, text, ...(images?.length ? { images } : {}) })) as {
+  /** 上一次执行结束后带着这句话再跑一次（结果照常写回来源对话）；updateGoal=true 时同步把新调整并入长期目标 */
+  followUp: async (
+    id: string,
+    text: string,
+    images?: Array<{ mime: string; data: string }>,
+    updateGoal?: boolean,
+  ) =>
+    (await api.tasks.followUp({
+      id,
+      text,
+      ...(updateGoal ? { updateGoal: true } : {}),
+      ...(images?.length ? { images } : {}),
+    })) as {
       ok: boolean;
       reason?: string;
     },
+  /** 任务还在排队中时追加本次启动要求 */
+  appendQueued: async (id: string, text: string, images?: Array<{ mime: string; data: string }>) =>
+    (await api.tasks.appendQueued({
+      id,
+      text,
+      ...(images?.length ? { images } : {}),
+    })) as {
+      ok: boolean;
+      reason?: string;
+    },
+  /** 更新任务标题 / 目标 / 完成标准 / 验收方式 / 触发器 / 预算 / 重要程度 / 分类 */
+  update: (patch: {
+    id: string;
+    title?: string;
+    goal?: string;
+    doneWhen?: string;
+    acceptance?: 'auto' | 'user';
+    trigger?: Trigger;
+    budget?: { maxRetries?: number };
+    priority?: TaskPriority | null;
+    category?: TaskCategory | null;
+  }) => api.tasks.update(patch) as unknown as Promise<Task>,
+  /** 前台长程任务主动转后台（并可中断当前前台请求） */
+  handoffFromChat: (input: {
+    reqId?: string;
+    conversationId: string;
+    projectId?: string;
+    title?: string;
+    userGoal: string;
+    partialContent?: string;
+    progressSummary?: string;
+    historyContext?: string;
+  }) => api.tasks.handoffFromChat(input) as unknown as Promise<Task>,
   /** 正在跑的这次执行的实时事件 */
   onLive: (fn: (payload: TaskLivePayload) => void) =>
     api.on('tasks.live', (p) => fn(p as TaskLivePayload)),
   cancel: (id: string) => api.tasks.cancel({ id }),
+  accept: (id: string) => api.tasks.accept({ id }),
+  reject: (id: string, feedback: string) => api.tasks.reject({ id, feedback }),
+  archive: (id: string) => api.tasks.archive({ id }),
+  unarchive: (id: string) => api.tasks.unarchive({ id }),
+  ack: (id: string) => api.tasks.ack({ id }),
+  archiveAllEnded: () => api.tasks.archiveAllEnded() as unknown as Promise<{ archived: number }>,
+  remove: (id: string) => api.tasks.remove({ id }),
   onChange: (fn: () => void) => api.on('tasks.changed', fn),
   /** 看板卡片上的快捷操作（结果随 tasks.changed 刷新） */
   runNow: (id: string) => api.tasks.runNow({ id }),
@@ -296,18 +457,10 @@ export function categoryOf(task: Task): TaskCategory {
 export type TaskStage = 'todo' | 'in_progress' | 'needs_you' | 'done';
 export const STAGES: readonly TaskStage[] = ['todo', 'in_progress', 'needs_you', 'done'];
 export function stageOf(task: Task): TaskStage {
-  switch (task.status) {
-    case 'idle':
-      return 'todo';
-    case 'queued':
-    case 'running':
-      return 'in_progress';
-    case 'done':
-    case 'cancelled':
-      return 'done';
-    default:
-      return 'needs_you';
-  }
+  if (needsUserAttention(task)) return 'needs_you';
+  if (task.status === 'running') return 'in_progress';
+  if (task.status === 'idle' || task.status === 'queued') return 'todo';
+  return 'done';
 }
 
 export const STAGE_LABEL: Record<TaskStage, string> = {
@@ -338,7 +491,7 @@ export const attemptStatusLabel = (status: string) =>
 /** 列表分组：第一条匹配的胜出，互斥且覆盖全部状态（references） */
 export type TaskGroup = 'needs_you' | 'running' | 'waiting_trigger' | 'ended';
 export function groupOf(task: Task): TaskGroup {
-  if (INBOX.includes(task.status)) return 'needs_you';
+  if (needsUserAttention(task)) return 'needs_you';
   if (task.status === 'running' || task.status === 'queued') return 'running';
   if (task.status === 'idle') return 'waiting_trigger';
   return 'ended';

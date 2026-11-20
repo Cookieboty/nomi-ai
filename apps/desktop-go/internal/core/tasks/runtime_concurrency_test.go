@@ -69,7 +69,7 @@ func TestRuntimeSyncReportInStart(t *testing.T) {
 	rt := newTestRuntime(ex)
 	rt.Start()
 	for i := 0; i < 5; i++ {
-		id := rt.Create(CreateInput{Title: "t", Trigger: Trigger{Kind: "manual"}, Executor: ExecutorSpec{Kind: "nomi"}}).ID
+		id := rt.Create(CreateInput{Title: "t", Trigger: Trigger{Kind: "manual"}, Executor: ExecutorSpec{Kind: "nomi"}, Acceptance: "auto"}).ID
 		if r := rt.Command(id, Command{Type: "runNow"}); !r.OK {
 			t.Fatal(r)
 		}
@@ -88,7 +88,7 @@ func TestRuntimeConcurrentReports(t *testing.T) {
 	rt.Start()
 	ids := []string{}
 	for i := 0; i < 20; i++ {
-		ids = append(ids, rt.Create(CreateInput{Title: "t", Trigger: Trigger{Kind: "manual"}, Executor: ExecutorSpec{Kind: "nomi"}}).ID)
+		ids = append(ids, rt.Create(CreateInput{Title: "t", Trigger: Trigger{Kind: "manual"}, Executor: ExecutorSpec{Kind: "nomi"}, Acceptance: "auto"}).ID)
 	}
 	var cwg sync.WaitGroup
 	for _, id := range ids {

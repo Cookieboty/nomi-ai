@@ -323,10 +323,24 @@ export const knowledgeProcedures = {
     output: z.boolean(),
   },
   /**
-   * 子任务侧栏里追问：上一次执行结束后带着这句话把同一件事再跑一次（结果照常写回来源对话）。只支持 Nomi 执行者。
-   * 可以只带图片（text 为空）；图片最多 8 张，base64（可带 data: 前缀）
+   * 子任务侧栏 / 任务详情里追问：上一次执行结束后带着这句话把同一件事再跑一次（支持 Nomi 与 CLI，结果照常写回来源对话；仅拒绝 notify）。
+   * 可以只带图片（text 为空）；图片最多 8 张，base64（可带 data: 前缀）；updateGoal=true 时同步把补充调整并入长期目标。
    */
   'tasks.followUp': {
+    kind: 'mutation',
+    input: z.object({
+      id: z.string(),
+      text: z.string().max(8000),
+      updateGoal: z.boolean().optional(),
+      images: z
+        .array(z.object({ mime: z.string(), data: z.string() }))
+        .max(8)
+        .optional(),
+    }),
+    output: TaskCmdResult,
+  },
+  /** 任务还在排队中（queued）时追加本次运行的补充要求或图片，保持队位不变 */
+  'tasks.appendQueued': {
     kind: 'mutation',
     input: z.object({
       id: z.string(),
@@ -338,14 +352,32 @@ export const knowledgeProcedures = {
     }),
     output: TaskCmdResult,
   },
+  /** 将前台进行中的长程对话主动转入后台持续执行（中断前台流并生成 via=handoff 的后台任务） */
+  'tasks.handoffFromChat': {
+    kind: 'mutation',
+    input: z.object({
+      reqId: z.string().optional(),
+      conversationId: z.string().min(1),
+      projectId: z.string().optional(),
+      title: z.string().max(200).optional(),
+      userGoal: z.string().min(1).max(8000),
+      partialContent: z.string().max(20000).optional(),
+      progressSummary: z.string().max(8000).optional(),
+      historyContext: z.string().max(12000).optional(),
+    }),
+    output: TaskView,
+  },
   /** 用户在表单或授权卡片上确认后创建 */
   'tasks.create': { kind: 'mutation', input: TaskCreateInput, output: TaskView, dangerous: true },
-  /** 改标题、触发器、预算（不改授权；收窄授权用 tasks.grant） */
+  /** 改标题、目标、完成标准、验收方式、触发器、预算（不改授权；收窄授权用 tasks.grant） */
   'tasks.update': {
     kind: 'mutation',
     input: z.object({
       id: z.string(),
       title: z.string().min(1).max(200).optional(),
+      goal: z.string().min(1).max(8000).optional(),
+      doneWhen: z.string().max(4000).optional(),
+      acceptance: z.enum(['auto', 'user']).optional(),
       trigger: TaskTrigger.optional(),
       budget: TaskBudgetInput.optional(),
       /** null = 清除 */
@@ -387,11 +419,24 @@ export const knowledgeProcedures = {
     input: z.object({ id: z.string(), feedback: z.string().min(1).max(8000) }),
     output: TaskCmdResult,
   },
+  /** 拒绝 / 取消 / 核对 / 归档与确认 */
   /** 核对重启前不确定的对外动作 */
   'tasks.reconcile': {
     kind: 'mutation',
     input: z.object({ id: z.string(), outcome: z.enum(['applied', 'not_applied', 'abandon']) }),
     output: TaskCmdResult,
+  },
+  /** 手动归档任务（折叠出活跃看板） */
+  'tasks.archive': { kind: 'mutation', input: id, output: TaskCmdResult },
+  /** 从已归档还原回活跃看板 */
+  'tasks.unarchive': { kind: 'mutation', input: id, output: TaskCmdResult },
+  /** 确认已知晓独立失败/过期任务（移出「需要你」） */
+  'tasks.ack': { kind: 'mutation', input: id, output: TaskCmdResult },
+  /** 一键归档所有已结束的一次性任务 */
+  'tasks.archiveAllEnded': {
+    kind: 'mutation',
+    input: none,
+    output: z.object({ archived: z.number().int() }),
   },
   /** 删除（只有结束的任务可以删） */
   'tasks.remove': { kind: 'mutation', input: id, output: ok },

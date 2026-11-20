@@ -9228,6 +9228,31 @@ type TasksAcceptOutput struct {
 	Reason *string `json:"reason,omitempty"`
 }
 
+type TasksAckInput struct {
+	Id string `json:"id"`
+}
+
+type TasksAckOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+type TasksAppendQueuedInputImagesItem struct {
+	Mime string `json:"mime"`
+	Data string `json:"data"`
+}
+
+type TasksAppendQueuedInput struct {
+	Id     string                             `json:"id"`
+	Text   string                             `json:"text"`
+	Images []TasksAppendQueuedInputImagesItem `json:"images,omitempty"`
+}
+
+type TasksAppendQueuedOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
 type TasksApplyWorktreeInput struct {
 	Id string `json:"id"`
 }
@@ -9238,6 +9263,19 @@ type TasksApplyWorktreeOutput struct {
 	Conflicted []string `json:"conflicted"`
 	Denied     []string `json:"denied"`
 	Branch     *string  `json:"branch,omitempty"`
+}
+
+type TasksArchiveInput struct {
+	Id string `json:"id"`
+}
+
+type TasksArchiveOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+type TasksArchiveAllEndedOutput struct {
+	Archived int64 `json:"archived"`
 }
 
 type TasksCancelInput struct {
@@ -9332,6 +9370,21 @@ const (
 	TasksCreateOutputStatusExpired        TasksCreateOutputStatus = "expired"
 )
 
+// TasksCreateOutputAcceptance 枚举：auto | user
+type TasksCreateOutputAcceptance = string
+
+const (
+	TasksCreateOutputAcceptanceAuto TasksCreateOutputAcceptance = "auto"
+	TasksCreateOutputAcceptanceUser TasksCreateOutputAcceptance = "user"
+)
+
+type TasksCreateOutputOrigin struct {
+	ConversationId *string `json:"conversationId,omitempty"`
+	CreatedBy      string  `json:"createdBy"`
+	CreatedAt      float64 `json:"createdAt"`
+	Via            *string `json:"via,omitempty"`
+}
+
 type TasksCreateOutputTrigger struct {
 	Kind string `json:"kind"`
 }
@@ -9345,17 +9398,42 @@ type TasksCreateOutputGrant struct {
 	Level   float64 `json:"level"`
 }
 
+// TasksCreateOutputArchiveReason 枚举：user | auto_24h
+type TasksCreateOutputArchiveReason = string
+
+const (
+	TasksCreateOutputArchiveReasonUser    TasksCreateOutputArchiveReason = "user"
+	TasksCreateOutputArchiveReasonAuto24h TasksCreateOutputArchiveReason = "auto_24h"
+)
+
+// TasksCreateOutputLastRunStatus 枚举：succeeded | failed | cancelled
+type TasksCreateOutputLastRunStatus = string
+
+const (
+	TasksCreateOutputLastRunStatusSucceeded TasksCreateOutputLastRunStatus = "succeeded"
+	TasksCreateOutputLastRunStatusFailed    TasksCreateOutputLastRunStatus = "failed"
+	TasksCreateOutputLastRunStatusCancelled TasksCreateOutputLastRunStatus = "cancelled"
+)
+
 type TasksCreateOutput struct {
-	Id        string                    `json:"id"`
-	Title     string                    `json:"title"`
-	Goal      string                    `json:"goal"`
-	Status    TasksCreateOutputStatus   `json:"status"`
-	Enabled   bool                      `json:"enabled"`
-	Gen       float64                   `json:"gen"`
-	Trigger   TasksCreateOutputTrigger  `json:"trigger"`
-	Executor  TasksCreateOutputExecutor `json:"executor"`
-	Grant     TasksCreateOutputGrant    `json:"grant"`
-	UpdatedAt float64                   `json:"updatedAt"`
+	Id            string                          `json:"id"`
+	Title         string                          `json:"title"`
+	Goal          string                          `json:"goal"`
+	Status        TasksCreateOutputStatus         `json:"status"`
+	Enabled       bool                            `json:"enabled"`
+	Gen           float64                         `json:"gen"`
+	Acceptance    *TasksCreateOutputAcceptance    `json:"acceptance,omitempty"`
+	Origin        *TasksCreateOutputOrigin        `json:"origin,omitempty"`
+	Trigger       TasksCreateOutputTrigger        `json:"trigger"`
+	Executor      TasksCreateOutputExecutor       `json:"executor"`
+	Grant         TasksCreateOutputGrant          `json:"grant"`
+	EndedAt       *float64                        `json:"endedAt,omitempty"`
+	ArchivedAt    *float64                        `json:"archivedAt,omitempty"`
+	ArchiveReason *TasksCreateOutputArchiveReason `json:"archiveReason,omitempty"`
+	AckedAt       *float64                        `json:"ackedAt,omitempty"`
+	LastRunStatus *TasksCreateOutputLastRunStatus `json:"lastRunStatus,omitempty"`
+	LastRunAt     *float64                        `json:"lastRunAt,omitempty"`
+	UpdatedAt     float64                         `json:"updatedAt"`
 }
 
 type TasksDecideInput struct {
@@ -9395,9 +9473,10 @@ type TasksFollowUpInputImagesItem struct {
 }
 
 type TasksFollowUpInput struct {
-	Id     string                         `json:"id"`
-	Text   string                         `json:"text"`
-	Images []TasksFollowUpInputImagesItem `json:"images,omitempty"`
+	Id         string                         `json:"id"`
+	Text       string                         `json:"text"`
+	UpdateGoal *bool                          `json:"updateGoal,omitempty"`
+	Images     []TasksFollowUpInputImagesItem `json:"images,omitempty"`
 }
 
 type TasksFollowUpOutput struct {
@@ -9425,6 +9504,21 @@ const (
 	TasksGetOutputTaskStatusExpired        TasksGetOutputTaskStatus = "expired"
 )
 
+// TasksGetOutputTaskAcceptance 枚举：auto | user
+type TasksGetOutputTaskAcceptance = string
+
+const (
+	TasksGetOutputTaskAcceptanceAuto TasksGetOutputTaskAcceptance = "auto"
+	TasksGetOutputTaskAcceptanceUser TasksGetOutputTaskAcceptance = "user"
+)
+
+type TasksGetOutputTaskOrigin struct {
+	ConversationId *string `json:"conversationId,omitempty"`
+	CreatedBy      string  `json:"createdBy"`
+	CreatedAt      float64 `json:"createdAt"`
+	Via            *string `json:"via,omitempty"`
+}
+
 type TasksGetOutputTaskTrigger struct {
 	Kind string `json:"kind"`
 }
@@ -9438,17 +9532,42 @@ type TasksGetOutputTaskGrant struct {
 	Level   float64 `json:"level"`
 }
 
+// TasksGetOutputTaskArchiveReason 枚举：user | auto_24h
+type TasksGetOutputTaskArchiveReason = string
+
+const (
+	TasksGetOutputTaskArchiveReasonUser    TasksGetOutputTaskArchiveReason = "user"
+	TasksGetOutputTaskArchiveReasonAuto24h TasksGetOutputTaskArchiveReason = "auto_24h"
+)
+
+// TasksGetOutputTaskLastRunStatus 枚举：succeeded | failed | cancelled
+type TasksGetOutputTaskLastRunStatus = string
+
+const (
+	TasksGetOutputTaskLastRunStatusSucceeded TasksGetOutputTaskLastRunStatus = "succeeded"
+	TasksGetOutputTaskLastRunStatusFailed    TasksGetOutputTaskLastRunStatus = "failed"
+	TasksGetOutputTaskLastRunStatusCancelled TasksGetOutputTaskLastRunStatus = "cancelled"
+)
+
 type TasksGetOutputTask struct {
-	Id        string                     `json:"id"`
-	Title     string                     `json:"title"`
-	Goal      string                     `json:"goal"`
-	Status    TasksGetOutputTaskStatus   `json:"status"`
-	Enabled   bool                       `json:"enabled"`
-	Gen       float64                    `json:"gen"`
-	Trigger   TasksGetOutputTaskTrigger  `json:"trigger"`
-	Executor  TasksGetOutputTaskExecutor `json:"executor"`
-	Grant     TasksGetOutputTaskGrant    `json:"grant"`
-	UpdatedAt float64                    `json:"updatedAt"`
+	Id            string                           `json:"id"`
+	Title         string                           `json:"title"`
+	Goal          string                           `json:"goal"`
+	Status        TasksGetOutputTaskStatus         `json:"status"`
+	Enabled       bool                             `json:"enabled"`
+	Gen           float64                          `json:"gen"`
+	Acceptance    *TasksGetOutputTaskAcceptance    `json:"acceptance,omitempty"`
+	Origin        *TasksGetOutputTaskOrigin        `json:"origin,omitempty"`
+	Trigger       TasksGetOutputTaskTrigger        `json:"trigger"`
+	Executor      TasksGetOutputTaskExecutor       `json:"executor"`
+	Grant         TasksGetOutputTaskGrant          `json:"grant"`
+	EndedAt       *float64                         `json:"endedAt,omitempty"`
+	ArchivedAt    *float64                         `json:"archivedAt,omitempty"`
+	ArchiveReason *TasksGetOutputTaskArchiveReason `json:"archiveReason,omitempty"`
+	AckedAt       *float64                         `json:"ackedAt,omitempty"`
+	LastRunStatus *TasksGetOutputTaskLastRunStatus `json:"lastRunStatus,omitempty"`
+	LastRunAt     *float64                         `json:"lastRunAt,omitempty"`
+	UpdatedAt     float64                          `json:"updatedAt"`
 }
 
 type TasksGetOutputAttemptsItem struct {
@@ -9489,6 +9608,99 @@ type TasksGrantOutput struct {
 	Reason *string `json:"reason,omitempty"`
 }
 
+type TasksHandoffFromChatInput struct {
+	ReqId           *string `json:"reqId,omitempty"`
+	ConversationId  string  `json:"conversationId"`
+	ProjectId       *string `json:"projectId,omitempty"`
+	Title           *string `json:"title,omitempty"`
+	UserGoal        string  `json:"userGoal"`
+	PartialContent  *string `json:"partialContent,omitempty"`
+	ProgressSummary *string `json:"progressSummary,omitempty"`
+	HistoryContext  *string `json:"historyContext,omitempty"`
+}
+
+// TasksHandoffFromChatOutputStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired
+type TasksHandoffFromChatOutputStatus = string
+
+const (
+	TasksHandoffFromChatOutputStatusIdle           TasksHandoffFromChatOutputStatus = "idle"
+	TasksHandoffFromChatOutputStatusQueued         TasksHandoffFromChatOutputStatus = "queued"
+	TasksHandoffFromChatOutputStatusRunning        TasksHandoffFromChatOutputStatus = "running"
+	TasksHandoffFromChatOutputStatusWaitingUser    TasksHandoffFromChatOutputStatus = "waiting_user"
+	TasksHandoffFromChatOutputStatusNeedsReconcile TasksHandoffFromChatOutputStatus = "needs_reconcile"
+	TasksHandoffFromChatOutputStatusAwaitingAccept TasksHandoffFromChatOutputStatus = "awaiting_accept"
+	TasksHandoffFromChatOutputStatusDone           TasksHandoffFromChatOutputStatus = "done"
+	TasksHandoffFromChatOutputStatusFailed         TasksHandoffFromChatOutputStatus = "failed"
+	TasksHandoffFromChatOutputStatusCancelled      TasksHandoffFromChatOutputStatus = "cancelled"
+	TasksHandoffFromChatOutputStatusExpired        TasksHandoffFromChatOutputStatus = "expired"
+)
+
+// TasksHandoffFromChatOutputAcceptance 枚举：auto | user
+type TasksHandoffFromChatOutputAcceptance = string
+
+const (
+	TasksHandoffFromChatOutputAcceptanceAuto TasksHandoffFromChatOutputAcceptance = "auto"
+	TasksHandoffFromChatOutputAcceptanceUser TasksHandoffFromChatOutputAcceptance = "user"
+)
+
+type TasksHandoffFromChatOutputOrigin struct {
+	ConversationId *string `json:"conversationId,omitempty"`
+	CreatedBy      string  `json:"createdBy"`
+	CreatedAt      float64 `json:"createdAt"`
+	Via            *string `json:"via,omitempty"`
+}
+
+type TasksHandoffFromChatOutputTrigger struct {
+	Kind string `json:"kind"`
+}
+
+type TasksHandoffFromChatOutputExecutor struct {
+	Kind string `json:"kind"`
+}
+
+type TasksHandoffFromChatOutputGrant struct {
+	Version float64 `json:"version"`
+	Level   float64 `json:"level"`
+}
+
+// TasksHandoffFromChatOutputArchiveReason 枚举：user | auto_24h
+type TasksHandoffFromChatOutputArchiveReason = string
+
+const (
+	TasksHandoffFromChatOutputArchiveReasonUser    TasksHandoffFromChatOutputArchiveReason = "user"
+	TasksHandoffFromChatOutputArchiveReasonAuto24h TasksHandoffFromChatOutputArchiveReason = "auto_24h"
+)
+
+// TasksHandoffFromChatOutputLastRunStatus 枚举：succeeded | failed | cancelled
+type TasksHandoffFromChatOutputLastRunStatus = string
+
+const (
+	TasksHandoffFromChatOutputLastRunStatusSucceeded TasksHandoffFromChatOutputLastRunStatus = "succeeded"
+	TasksHandoffFromChatOutputLastRunStatusFailed    TasksHandoffFromChatOutputLastRunStatus = "failed"
+	TasksHandoffFromChatOutputLastRunStatusCancelled TasksHandoffFromChatOutputLastRunStatus = "cancelled"
+)
+
+type TasksHandoffFromChatOutput struct {
+	Id            string                                   `json:"id"`
+	Title         string                                   `json:"title"`
+	Goal          string                                   `json:"goal"`
+	Status        TasksHandoffFromChatOutputStatus         `json:"status"`
+	Enabled       bool                                     `json:"enabled"`
+	Gen           float64                                  `json:"gen"`
+	Acceptance    *TasksHandoffFromChatOutputAcceptance    `json:"acceptance,omitempty"`
+	Origin        *TasksHandoffFromChatOutputOrigin        `json:"origin,omitempty"`
+	Trigger       TasksHandoffFromChatOutputTrigger        `json:"trigger"`
+	Executor      TasksHandoffFromChatOutputExecutor       `json:"executor"`
+	Grant         TasksHandoffFromChatOutputGrant          `json:"grant"`
+	EndedAt       *float64                                 `json:"endedAt,omitempty"`
+	ArchivedAt    *float64                                 `json:"archivedAt,omitempty"`
+	ArchiveReason *TasksHandoffFromChatOutputArchiveReason `json:"archiveReason,omitempty"`
+	AckedAt       *float64                                 `json:"ackedAt,omitempty"`
+	LastRunStatus *TasksHandoffFromChatOutputLastRunStatus `json:"lastRunStatus,omitempty"`
+	LastRunAt     *float64                                 `json:"lastRunAt,omitempty"`
+	UpdatedAt     float64                                  `json:"updatedAt"`
+}
+
 // TasksInboxOutputItemStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired
 type TasksInboxOutputItemStatus = string
 
@@ -9505,6 +9717,21 @@ const (
 	TasksInboxOutputItemStatusExpired        TasksInboxOutputItemStatus = "expired"
 )
 
+// TasksInboxOutputItemAcceptance 枚举：auto | user
+type TasksInboxOutputItemAcceptance = string
+
+const (
+	TasksInboxOutputItemAcceptanceAuto TasksInboxOutputItemAcceptance = "auto"
+	TasksInboxOutputItemAcceptanceUser TasksInboxOutputItemAcceptance = "user"
+)
+
+type TasksInboxOutputItemOrigin struct {
+	ConversationId *string `json:"conversationId,omitempty"`
+	CreatedBy      string  `json:"createdBy"`
+	CreatedAt      float64 `json:"createdAt"`
+	Via            *string `json:"via,omitempty"`
+}
+
 type TasksInboxOutputItemTrigger struct {
 	Kind string `json:"kind"`
 }
@@ -9518,17 +9745,42 @@ type TasksInboxOutputItemGrant struct {
 	Level   float64 `json:"level"`
 }
 
+// TasksInboxOutputItemArchiveReason 枚举：user | auto_24h
+type TasksInboxOutputItemArchiveReason = string
+
+const (
+	TasksInboxOutputItemArchiveReasonUser    TasksInboxOutputItemArchiveReason = "user"
+	TasksInboxOutputItemArchiveReasonAuto24h TasksInboxOutputItemArchiveReason = "auto_24h"
+)
+
+// TasksInboxOutputItemLastRunStatus 枚举：succeeded | failed | cancelled
+type TasksInboxOutputItemLastRunStatus = string
+
+const (
+	TasksInboxOutputItemLastRunStatusSucceeded TasksInboxOutputItemLastRunStatus = "succeeded"
+	TasksInboxOutputItemLastRunStatusFailed    TasksInboxOutputItemLastRunStatus = "failed"
+	TasksInboxOutputItemLastRunStatusCancelled TasksInboxOutputItemLastRunStatus = "cancelled"
+)
+
 type TasksInboxOutputItem struct {
-	Id        string                       `json:"id"`
-	Title     string                       `json:"title"`
-	Goal      string                       `json:"goal"`
-	Status    TasksInboxOutputItemStatus   `json:"status"`
-	Enabled   bool                         `json:"enabled"`
-	Gen       float64                      `json:"gen"`
-	Trigger   TasksInboxOutputItemTrigger  `json:"trigger"`
-	Executor  TasksInboxOutputItemExecutor `json:"executor"`
-	Grant     TasksInboxOutputItemGrant    `json:"grant"`
-	UpdatedAt float64                      `json:"updatedAt"`
+	Id            string                             `json:"id"`
+	Title         string                             `json:"title"`
+	Goal          string                             `json:"goal"`
+	Status        TasksInboxOutputItemStatus         `json:"status"`
+	Enabled       bool                               `json:"enabled"`
+	Gen           float64                            `json:"gen"`
+	Acceptance    *TasksInboxOutputItemAcceptance    `json:"acceptance,omitempty"`
+	Origin        *TasksInboxOutputItemOrigin        `json:"origin,omitempty"`
+	Trigger       TasksInboxOutputItemTrigger        `json:"trigger"`
+	Executor      TasksInboxOutputItemExecutor       `json:"executor"`
+	Grant         TasksInboxOutputItemGrant          `json:"grant"`
+	EndedAt       *float64                           `json:"endedAt,omitempty"`
+	ArchivedAt    *float64                           `json:"archivedAt,omitempty"`
+	ArchiveReason *TasksInboxOutputItemArchiveReason `json:"archiveReason,omitempty"`
+	AckedAt       *float64                           `json:"ackedAt,omitempty"`
+	LastRunStatus *TasksInboxOutputItemLastRunStatus `json:"lastRunStatus,omitempty"`
+	LastRunAt     *float64                           `json:"lastRunAt,omitempty"`
+	UpdatedAt     float64                            `json:"updatedAt"`
 }
 
 type TasksJournalInput struct {
@@ -9556,6 +9808,21 @@ const (
 	TasksListOutputTasksItemStatusExpired        TasksListOutputTasksItemStatus = "expired"
 )
 
+// TasksListOutputTasksItemAcceptance 枚举：auto | user
+type TasksListOutputTasksItemAcceptance = string
+
+const (
+	TasksListOutputTasksItemAcceptanceAuto TasksListOutputTasksItemAcceptance = "auto"
+	TasksListOutputTasksItemAcceptanceUser TasksListOutputTasksItemAcceptance = "user"
+)
+
+type TasksListOutputTasksItemOrigin struct {
+	ConversationId *string `json:"conversationId,omitempty"`
+	CreatedBy      string  `json:"createdBy"`
+	CreatedAt      float64 `json:"createdAt"`
+	Via            *string `json:"via,omitempty"`
+}
+
 type TasksListOutputTasksItemTrigger struct {
 	Kind string `json:"kind"`
 }
@@ -9569,17 +9836,42 @@ type TasksListOutputTasksItemGrant struct {
 	Level   float64 `json:"level"`
 }
 
+// TasksListOutputTasksItemArchiveReason 枚举：user | auto_24h
+type TasksListOutputTasksItemArchiveReason = string
+
+const (
+	TasksListOutputTasksItemArchiveReasonUser    TasksListOutputTasksItemArchiveReason = "user"
+	TasksListOutputTasksItemArchiveReasonAuto24h TasksListOutputTasksItemArchiveReason = "auto_24h"
+)
+
+// TasksListOutputTasksItemLastRunStatus 枚举：succeeded | failed | cancelled
+type TasksListOutputTasksItemLastRunStatus = string
+
+const (
+	TasksListOutputTasksItemLastRunStatusSucceeded TasksListOutputTasksItemLastRunStatus = "succeeded"
+	TasksListOutputTasksItemLastRunStatusFailed    TasksListOutputTasksItemLastRunStatus = "failed"
+	TasksListOutputTasksItemLastRunStatusCancelled TasksListOutputTasksItemLastRunStatus = "cancelled"
+)
+
 type TasksListOutputTasksItem struct {
-	Id        string                           `json:"id"`
-	Title     string                           `json:"title"`
-	Goal      string                           `json:"goal"`
-	Status    TasksListOutputTasksItemStatus   `json:"status"`
-	Enabled   bool                             `json:"enabled"`
-	Gen       float64                          `json:"gen"`
-	Trigger   TasksListOutputTasksItemTrigger  `json:"trigger"`
-	Executor  TasksListOutputTasksItemExecutor `json:"executor"`
-	Grant     TasksListOutputTasksItemGrant    `json:"grant"`
-	UpdatedAt float64                          `json:"updatedAt"`
+	Id            string                                 `json:"id"`
+	Title         string                                 `json:"title"`
+	Goal          string                                 `json:"goal"`
+	Status        TasksListOutputTasksItemStatus         `json:"status"`
+	Enabled       bool                                   `json:"enabled"`
+	Gen           float64                                `json:"gen"`
+	Acceptance    *TasksListOutputTasksItemAcceptance    `json:"acceptance,omitempty"`
+	Origin        *TasksListOutputTasksItemOrigin        `json:"origin,omitempty"`
+	Trigger       TasksListOutputTasksItemTrigger        `json:"trigger"`
+	Executor      TasksListOutputTasksItemExecutor       `json:"executor"`
+	Grant         TasksListOutputTasksItemGrant          `json:"grant"`
+	EndedAt       *float64                               `json:"endedAt,omitempty"`
+	ArchivedAt    *float64                               `json:"archivedAt,omitempty"`
+	ArchiveReason *TasksListOutputTasksItemArchiveReason `json:"archiveReason,omitempty"`
+	AckedAt       *float64                               `json:"ackedAt,omitempty"`
+	LastRunStatus *TasksListOutputTasksItemLastRunStatus `json:"lastRunStatus,omitempty"`
+	LastRunAt     *float64                               `json:"lastRunAt,omitempty"`
+	UpdatedAt     float64                                `json:"updatedAt"`
 }
 
 // TasksListOutputLegacyItemSource 枚举：reminder | schedule
@@ -9600,9 +9892,29 @@ type TasksListOutputLegacyItem struct {
 	LastStatus *string                         `json:"lastStatus,omitempty"`
 }
 
+// TasksListOutputQueueValueReason 枚举：slot | memory | cpu | retry | rate_limit
+type TasksListOutputQueueValueReason = string
+
+const (
+	TasksListOutputQueueValueReasonSlot      TasksListOutputQueueValueReason = "slot"
+	TasksListOutputQueueValueReasonMemory    TasksListOutputQueueValueReason = "memory"
+	TasksListOutputQueueValueReasonCpu       TasksListOutputQueueValueReason = "cpu"
+	TasksListOutputQueueValueReasonRetry     TasksListOutputQueueValueReason = "retry"
+	TasksListOutputQueueValueReasonRateLimit TasksListOutputQueueValueReason = "rate_limit"
+)
+
+type TasksListOutputQueueValue struct {
+	Reason        TasksListOutputQueueValueReason `json:"reason"`
+	Position      int64                           `json:"position"`
+	RetryAt       *float64                        `json:"retryAt,omitempty"`
+	ActiveCount   int64                           `json:"activeCount"`
+	MaxConcurrent int64                           `json:"maxConcurrent"`
+}
+
 type TasksListOutput struct {
-	Tasks  []TasksListOutputTasksItem  `json:"tasks"`
-	Legacy []TasksListOutputLegacyItem `json:"legacy"`
+	Tasks  []TasksListOutputTasksItem           `json:"tasks"`
+	Legacy []TasksListOutputLegacyItem          `json:"legacy"`
+	Queue  map[string]TasksListOutputQueueValue `json:"queue,omitempty"`
 }
 
 type TasksPauseInput struct {
@@ -9712,6 +10024,21 @@ const (
 	TasksSetModeOutputStatusExpired        TasksSetModeOutputStatus = "expired"
 )
 
+// TasksSetModeOutputAcceptance 枚举：auto | user
+type TasksSetModeOutputAcceptance = string
+
+const (
+	TasksSetModeOutputAcceptanceAuto TasksSetModeOutputAcceptance = "auto"
+	TasksSetModeOutputAcceptanceUser TasksSetModeOutputAcceptance = "user"
+)
+
+type TasksSetModeOutputOrigin struct {
+	ConversationId *string `json:"conversationId,omitempty"`
+	CreatedBy      string  `json:"createdBy"`
+	CreatedAt      float64 `json:"createdAt"`
+	Via            *string `json:"via,omitempty"`
+}
+
 type TasksSetModeOutputTrigger struct {
 	Kind string `json:"kind"`
 }
@@ -9725,17 +10052,42 @@ type TasksSetModeOutputGrant struct {
 	Level   float64 `json:"level"`
 }
 
+// TasksSetModeOutputArchiveReason 枚举：user | auto_24h
+type TasksSetModeOutputArchiveReason = string
+
+const (
+	TasksSetModeOutputArchiveReasonUser    TasksSetModeOutputArchiveReason = "user"
+	TasksSetModeOutputArchiveReasonAuto24h TasksSetModeOutputArchiveReason = "auto_24h"
+)
+
+// TasksSetModeOutputLastRunStatus 枚举：succeeded | failed | cancelled
+type TasksSetModeOutputLastRunStatus = string
+
+const (
+	TasksSetModeOutputLastRunStatusSucceeded TasksSetModeOutputLastRunStatus = "succeeded"
+	TasksSetModeOutputLastRunStatusFailed    TasksSetModeOutputLastRunStatus = "failed"
+	TasksSetModeOutputLastRunStatusCancelled TasksSetModeOutputLastRunStatus = "cancelled"
+)
+
 type TasksSetModeOutput struct {
-	Id        string                     `json:"id"`
-	Title     string                     `json:"title"`
-	Goal      string                     `json:"goal"`
-	Status    TasksSetModeOutputStatus   `json:"status"`
-	Enabled   bool                       `json:"enabled"`
-	Gen       float64                    `json:"gen"`
-	Trigger   TasksSetModeOutputTrigger  `json:"trigger"`
-	Executor  TasksSetModeOutputExecutor `json:"executor"`
-	Grant     TasksSetModeOutputGrant    `json:"grant"`
-	UpdatedAt float64                    `json:"updatedAt"`
+	Id            string                           `json:"id"`
+	Title         string                           `json:"title"`
+	Goal          string                           `json:"goal"`
+	Status        TasksSetModeOutputStatus         `json:"status"`
+	Enabled       bool                             `json:"enabled"`
+	Gen           float64                          `json:"gen"`
+	Acceptance    *TasksSetModeOutputAcceptance    `json:"acceptance,omitempty"`
+	Origin        *TasksSetModeOutputOrigin        `json:"origin,omitempty"`
+	Trigger       TasksSetModeOutputTrigger        `json:"trigger"`
+	Executor      TasksSetModeOutputExecutor       `json:"executor"`
+	Grant         TasksSetModeOutputGrant          `json:"grant"`
+	EndedAt       *float64                         `json:"endedAt,omitempty"`
+	ArchivedAt    *float64                         `json:"archivedAt,omitempty"`
+	ArchiveReason *TasksSetModeOutputArchiveReason `json:"archiveReason,omitempty"`
+	AckedAt       *float64                         `json:"ackedAt,omitempty"`
+	LastRunStatus *TasksSetModeOutputLastRunStatus `json:"lastRunStatus,omitempty"`
+	LastRunAt     *float64                         `json:"lastRunAt,omitempty"`
+	UpdatedAt     float64                          `json:"updatedAt"`
 }
 
 type TasksSteerInput struct {
@@ -9805,6 +10157,23 @@ type TasksTraceOutput struct {
 	Live      *TasksTraceOutputLive          `json:"live,omitempty"`
 }
 
+type TasksUnarchiveInput struct {
+	Id string `json:"id"`
+}
+
+type TasksUnarchiveOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+// TasksUpdateInputAcceptance 枚举：auto | user
+type TasksUpdateInputAcceptance = string
+
+const (
+	TasksUpdateInputAcceptanceAuto TasksUpdateInputAcceptance = "auto"
+	TasksUpdateInputAcceptanceUser TasksUpdateInputAcceptance = "user"
+)
+
 type TasksUpdateInputBudget struct {
 	MaxRetries *int64 `json:"maxRetries,omitempty"`
 }
@@ -9832,12 +10201,15 @@ const (
 )
 
 type TasksUpdateInput struct {
-	Id       string                    `json:"id"`
-	Title    *string                   `json:"title,omitempty"`
-	Trigger  json.RawMessage           `json:"trigger,omitempty"`
-	Budget   *TasksUpdateInputBudget   `json:"budget,omitempty"`
-	Priority *TasksUpdateInputPriority `json:"priority,omitempty"`
-	Category *TasksUpdateInputCategory `json:"category,omitempty"`
+	Id         string                      `json:"id"`
+	Title      *string                     `json:"title,omitempty"`
+	Goal       *string                     `json:"goal,omitempty"`
+	DoneWhen   *string                     `json:"doneWhen,omitempty"`
+	Acceptance *TasksUpdateInputAcceptance `json:"acceptance,omitempty"`
+	Trigger    json.RawMessage             `json:"trigger,omitempty"`
+	Budget     *TasksUpdateInputBudget     `json:"budget,omitempty"`
+	Priority   *TasksUpdateInputPriority   `json:"priority,omitempty"`
+	Category   *TasksUpdateInputCategory   `json:"category,omitempty"`
 }
 
 // TasksUpdateOutputStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired
@@ -9856,6 +10228,21 @@ const (
 	TasksUpdateOutputStatusExpired        TasksUpdateOutputStatus = "expired"
 )
 
+// TasksUpdateOutputAcceptance 枚举：auto | user
+type TasksUpdateOutputAcceptance = string
+
+const (
+	TasksUpdateOutputAcceptanceAuto TasksUpdateOutputAcceptance = "auto"
+	TasksUpdateOutputAcceptanceUser TasksUpdateOutputAcceptance = "user"
+)
+
+type TasksUpdateOutputOrigin struct {
+	ConversationId *string `json:"conversationId,omitempty"`
+	CreatedBy      string  `json:"createdBy"`
+	CreatedAt      float64 `json:"createdAt"`
+	Via            *string `json:"via,omitempty"`
+}
+
 type TasksUpdateOutputTrigger struct {
 	Kind string `json:"kind"`
 }
@@ -9869,17 +10256,42 @@ type TasksUpdateOutputGrant struct {
 	Level   float64 `json:"level"`
 }
 
+// TasksUpdateOutputArchiveReason 枚举：user | auto_24h
+type TasksUpdateOutputArchiveReason = string
+
+const (
+	TasksUpdateOutputArchiveReasonUser    TasksUpdateOutputArchiveReason = "user"
+	TasksUpdateOutputArchiveReasonAuto24h TasksUpdateOutputArchiveReason = "auto_24h"
+)
+
+// TasksUpdateOutputLastRunStatus 枚举：succeeded | failed | cancelled
+type TasksUpdateOutputLastRunStatus = string
+
+const (
+	TasksUpdateOutputLastRunStatusSucceeded TasksUpdateOutputLastRunStatus = "succeeded"
+	TasksUpdateOutputLastRunStatusFailed    TasksUpdateOutputLastRunStatus = "failed"
+	TasksUpdateOutputLastRunStatusCancelled TasksUpdateOutputLastRunStatus = "cancelled"
+)
+
 type TasksUpdateOutput struct {
-	Id        string                    `json:"id"`
-	Title     string                    `json:"title"`
-	Goal      string                    `json:"goal"`
-	Status    TasksUpdateOutputStatus   `json:"status"`
-	Enabled   bool                      `json:"enabled"`
-	Gen       float64                   `json:"gen"`
-	Trigger   TasksUpdateOutputTrigger  `json:"trigger"`
-	Executor  TasksUpdateOutputExecutor `json:"executor"`
-	Grant     TasksUpdateOutputGrant    `json:"grant"`
-	UpdatedAt float64                   `json:"updatedAt"`
+	Id            string                          `json:"id"`
+	Title         string                          `json:"title"`
+	Goal          string                          `json:"goal"`
+	Status        TasksUpdateOutputStatus         `json:"status"`
+	Enabled       bool                            `json:"enabled"`
+	Gen           float64                         `json:"gen"`
+	Acceptance    *TasksUpdateOutputAcceptance    `json:"acceptance,omitempty"`
+	Origin        *TasksUpdateOutputOrigin        `json:"origin,omitempty"`
+	Trigger       TasksUpdateOutputTrigger        `json:"trigger"`
+	Executor      TasksUpdateOutputExecutor       `json:"executor"`
+	Grant         TasksUpdateOutputGrant          `json:"grant"`
+	EndedAt       *float64                        `json:"endedAt,omitempty"`
+	ArchivedAt    *float64                        `json:"archivedAt,omitempty"`
+	ArchiveReason *TasksUpdateOutputArchiveReason `json:"archiveReason,omitempty"`
+	AckedAt       *float64                        `json:"ackedAt,omitempty"`
+	LastRunStatus *TasksUpdateOutputLastRunStatus `json:"lastRunStatus,omitempty"`
+	LastRunAt     *float64                        `json:"lastRunAt,omitempty"`
+	UpdatedAt     float64                         `json:"updatedAt"`
 }
 
 type ThemeCustomDeleteInput struct {
@@ -13802,9 +14214,25 @@ type StartupSetOutputT = StartupSetOutput
 type TasksAcceptInputT = TasksAcceptInput
 type TasksAcceptOutputT = TasksAcceptOutput
 
+// TasksAckInputT 是 tasks.ack 的入参
+type TasksAckInputT = TasksAckInput
+type TasksAckOutputT = TasksAckOutput
+
+// TasksAppendQueuedInputT 是 tasks.appendQueued 的入参
+type TasksAppendQueuedInputT = TasksAppendQueuedInput
+type TasksAppendQueuedOutputT = TasksAppendQueuedOutput
+
 // TasksApplyWorktreeInputT 是 tasks.applyWorktree 的入参
 type TasksApplyWorktreeInputT = TasksApplyWorktreeInput
 type TasksApplyWorktreeOutputT = *TasksApplyWorktreeOutput
+
+// TasksArchiveInputT 是 tasks.archive 的入参
+type TasksArchiveInputT = TasksArchiveInput
+type TasksArchiveOutputT = TasksArchiveOutput
+
+// TasksArchiveAllEndedInputT 是 tasks.archiveAllEnded 的入参
+type TasksArchiveAllEndedInputT = any
+type TasksArchiveAllEndedOutputT = TasksArchiveAllEndedOutput
 
 // TasksCancelInputT 是 tasks.cancel 的入参
 type TasksCancelInputT = TasksCancelInput
@@ -13837,6 +14265,10 @@ type TasksGetOutputT = *TasksGetOutput
 // TasksGrantInputT 是 tasks.grant 的入参
 type TasksGrantInputT = TasksGrantInput
 type TasksGrantOutputT = TasksGrantOutput
+
+// TasksHandoffFromChatInputT 是 tasks.handoffFromChat 的入参
+type TasksHandoffFromChatInputT = TasksHandoffFromChatInput
+type TasksHandoffFromChatOutputT = TasksHandoffFromChatOutput
 
 // TasksInboxInputT 是 tasks.inbox 的入参
 type TasksInboxInputT = any
@@ -13893,6 +14325,10 @@ type TasksSteerOutputT = bool
 // TasksTraceInputT 是 tasks.trace 的入参
 type TasksTraceInputT = TasksTraceInput
 type TasksTraceOutputT = TasksTraceOutput
+
+// TasksUnarchiveInputT 是 tasks.unarchive 的入参
+type TasksUnarchiveInputT = TasksUnarchiveInput
+type TasksUnarchiveOutputT = TasksUnarchiveOutput
 
 // TasksUpdateInputT 是 tasks.update 的入参
 type TasksUpdateInputT = TasksUpdateInput

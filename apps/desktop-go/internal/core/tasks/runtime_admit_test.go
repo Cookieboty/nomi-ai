@@ -13,7 +13,7 @@ func TestRuntimeAdmit(t *testing.T) {
 	var open atomic.Bool
 	rt.SetAdmit(func(Task) bool { return open.Load() })
 	rt.Start()
-	id := rt.Create(CreateInput{Title: "t", Trigger: Trigger{Kind: "manual"}, Executor: ExecutorSpec{Kind: "nomi"}}).ID
+	id := rt.Create(CreateInput{Title: "t", Trigger: Trigger{Kind: "manual"}, Executor: ExecutorSpec{Kind: "nomi"}, Acceptance: "auto"}).ID
 	if r := rt.Command(id, Command{Type: "runNow"}); !r.OK {
 		t.Fatal(r)
 	}

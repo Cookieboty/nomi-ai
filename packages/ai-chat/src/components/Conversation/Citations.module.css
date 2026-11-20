@@ -167,3 +167,58 @@
   max-height: 50vh;
   overflow: auto;
 }
+.handoffCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-3);
+  margin-top: var(--cd-space-2);
+  padding: var(--cd-space-2) var(--cd-space-3);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-sunken);
+}
+.handoffCard[data-status='done'],
+.handoffCard[data-status='awaiting_accept'] {
+  border-color: var(--cd-color-accent);
+}
+.handoffCard[data-status='failed'],
+.handoffCard[data-status='expired'] {
+  border-color: var(--cd-color-danger-text);
+}
+.handoffCardMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+  min-width: 0;
+}
+.handoffCardTitle {
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  color: var(--cd-color-text);
+}
+.handoffCardDesc {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.handoffCardBtn {
+  flex: none;
+  height: var(--cd-control-h-sm);
+  padding: 0 var(--cd-space-3);
+  border-radius: var(--cd-radius-sm);
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface);
+  color: var(--cd-color-text);
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-medium);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.handoffCardBtn:hover {
+  background: var(--cd-color-hover);
+  border-color: var(--cd-color-border-strong);
+}
+.handoffCardBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+}

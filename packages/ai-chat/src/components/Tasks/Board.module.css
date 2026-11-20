@@ -273,6 +273,91 @@
   bottom: var(--cd-space-3);
   border-radius: var(--cd-radius-full);
 }
+.queueGroupHead {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  padding: var(--cd-space-1) var(--cd-space-2);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent-strong);
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-medium);
+}
+.dividerHead {
+  margin-top: var(--cd-space-1);
+  padding: 0 var(--cd-space-1);
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-medium);
+}
+.queueBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  padding: var(--cd-space-1) var(--cd-space-2);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent-strong);
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-xs);
+}
+.queuePos {
+  flex: none;
+  font-weight: var(--cd-font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+.pendingNote {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+}
+.badgeMuted,
+.badgeInfo,
+.badgeSuccess,
+.badgeDanger {
+  flex: none;
+  padding: 0 var(--cd-space-1-5);
+  border-radius: var(--cd-radius-sm);
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-sm);
+}
+.badgeMuted {
+  background: var(--cd-color-neutral-soft);
+  color: var(--cd-color-text-muted);
+}
+.badgeInfo {
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent-strong);
+}
+.badgeSuccess {
+  background: var(--cd-color-success-soft);
+  color: var(--cd-color-success);
+}
+.badgeDanger {
+  background: var(--cd-color-danger-soft);
+  color: var(--cd-color-danger);
+}
+.cardSubRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  min-width: 0;
+  font-size: var(--cd-font-size-xs);
+}
+.archiveTimer {
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+}
+.textAction {
+  position: absolute;
+  right: var(--cd-space-3);
+  bottom: var(--cd-space-3);
+  z-index: 1;
+}
 
 /* 重要程度：图标 + 字，只有「紧急」带底色 */
 .priority {

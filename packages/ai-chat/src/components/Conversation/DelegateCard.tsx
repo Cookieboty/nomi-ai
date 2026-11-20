@@ -13,6 +13,7 @@ import {
   IconChevronDown as ChevronDown,
   IconChevronRight as ChevronRight,
   IconExternalLink as ExternalLink,
+  IconListCheck as ListChecks,
   IconSquare as Square,
 } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -34,6 +35,7 @@ import {
   type HarnessTabMeta,
 } from '../../services/harnessClient';
 import { replyPermissionRequest } from '../../services/permissionReply';
+import { requestOpenTask } from '../../services/tasksClient';
 import type { ConvMessage } from '../../types/conversation';
 import { canStopSubagent } from '../../utils/cliCaps';
 import { fromHarnessMessage, tabLiveToConv } from '../../utils/convAdapters';
@@ -746,6 +748,17 @@ const DelegateCardImpl: React.FC<{ call: ToolCall }> = ({ call }) => {
               onClick={stop}
             >
               <Icon icon={Square} size={12} />
+            </button>
+          )}
+          {tabTaskId && (
+            <button
+              type="button"
+              className={styles.iconBtn}
+              aria-label={t('ui.providers-schedule.task-view-in-board')}
+              data-testid="delegate-open-task"
+              onClick={() => requestOpenTask(tabTaskId)}
+            >
+              <Icon icon={ListChecks} size={13} />
             </button>
           )}
           {openTab && (

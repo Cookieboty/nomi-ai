@@ -133,6 +133,20 @@
   align-items: center;
   gap: var(--cd-space-2);
 }
+.trackRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.archiveNote {
+  padding: var(--cd-space-2) var(--cd-space-3);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-panel-surface-sunken);
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+}
 /* 下拉按内容宽度，不占满整行 */
 .toolbar .filter {
   width: auto;
@@ -182,9 +196,9 @@
 /* 右侧详情 */
 .detail {
   flex: 0 0 auto;
-  width: 360px;
-  max-width: 45%;
-  overflow-y: auto;
+  width: 460px;
+  max-width: 55%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: var(--cd-space-3);
@@ -193,16 +207,77 @@
   border-radius: var(--cd-radius-lg);
   background: var(--cd-panel-surface-raised);
 }
+.detail[data-wide='true'] {
+  width: 680px;
+  max-width: 72%;
+}
 .detailHead {
+  flex: none;
   display: flex;
   align-items: center;
   gap: var(--cd-space-2);
 }
 .detailTitle {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   margin: 0;
   font-size: var(--cd-font-size-md);
   font-weight: var(--cd-font-weight-bold);
+}
+.detailLinks {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+}
+.detailBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-3);
+  scrollbar-width: thin;
+}
+.detailConvHost {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.editBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-panel-surface-sunken);
+}
+.textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 64px;
+  padding: var(--cd-space-2);
+  border: 1px solid var(--cd-panel-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-panel-surface-raised);
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  resize: vertical;
+}
+.textarea:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -1px;
+}
+.savedTip {
+  color: var(--cd-color-success);
+  font-size: var(--cd-font-size-xs);
 }
 .status {
   margin: 0;

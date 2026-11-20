@@ -91,6 +91,9 @@ type Services struct {
 	Conns func() *connections.Service
 	// ApplyWorktree：tasks.applyWorktree 的实际拷贝（main 里接 delegate.ApplyWorktreeToMain + broker 写授权）
 	ApplyWorktree func(iso tasks.CliIsolation, files []string, title string) tasks.WorktreeApply
+	// AbortChatReq / ResolveWorkspace：tasks.handoffFromChat 中止当前流并解析会话项目工作区
+	AbortChatReq     func(reqID string)
+	ResolveWorkspace func(projectID any) (cwd string, paths []string)
 }
 
 func unavailable(name string) error {
