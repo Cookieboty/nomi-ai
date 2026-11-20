@@ -314,7 +314,7 @@ describe('Tabs & workspace fullscreen motion', () => {
     outerApp.remove();
   });
 
-  it('slides side workspace in and out with width-conserving margin push-pull', () => {
+  it('slides side workspace in and out with width-conserving margin push-pull without erasing flexShrink', () => {
     vi.useFakeTimers();
     mockMotionPreference(true);
 
@@ -326,11 +326,21 @@ describe('Tabs & workspace fullscreen motion', () => {
         split: false,
         open,
         closing,
-        chatWidth: 500,
+        chatRatio: 0.5,
       });
       return (
         <div ref={ref} data-testid="main">
-          <div data-testid="chat-column" />
+          <div
+            data-testid="chat-column"
+            style={
+              open
+                ? {
+                    minWidth: 'var(--cd-chat-col-min)',
+                    flexShrink: 1,
+                  }
+                : undefined
+            }
+          />
           {(open || closing) && <section data-testid="side-workspace" />}
         </div>
       );
@@ -338,11 +348,13 @@ describe('Tabs & workspace fullscreen motion', () => {
 
     const { rerender } = render(<SlideHarness open={false} closing={false} />);
     const main = screen.getByTestId('main');
-    Object.defineProperty(main, 'clientWidth', { value: 1005, configurable: true });
+    const chat = screen.getByTestId('chat-column');
+    Object.defineProperty(main, 'clientWidth', { value: 2001, configurable: true });
 
-    // 展开工作区：用负右边距推拉进场，完成后清空临时内联宽度
+    // 默认比例 0.5：2001px 主区（扣 1px 分割线）首次滑入目标宽精确为一半 1000px，完成后恢复 flexShrink: 1
     rerender(<SlideHarness open closing={false} />);
     const ws = screen.getByTestId('side-workspace');
+    expect(ws.style.width).toBe('1000px');
     expect(ws.style.transition).toContain('margin-inline-end');
     expect(ws.style.marginInlineEnd).toBe('0px');
     act(() => {
@@ -350,10 +362,61 @@ describe('Tabs & workspace fullscreen motion', () => {
     });
     expect(ws.style.width).toBe('');
     expect(ws.style.transition).toBe('');
+    expect(chat.style.flexShrink).toBe('1');
 
     // 收起工作区：推拉滑向负右边距
     rerender(<SlideHarness open={false} closing />);
     expect(ws.style.transition).toContain('margin-inline-end');
     expect(ws.style.marginInlineEnd).toMatch(/^-\d+px$/);
+  });
+
+  it('clamps slide-in workspace width to computed min-width on narrow screens', () => {
+    vi.useFakeTimers();
+    mockMotionPreference(true);
+
+    function NarrowSlideHarness({ open }: { open: boolean }) {
+      const ref = useRef<HTMLDivElement>(null);
+      useWorkspaceLayoutMotion({
+        mainRef: ref,
+        maximized: false,
+        split: false,
+        open,
+        closing: false,
+        chatRatio: 0.8,
+      });
+      return (
+        <div ref={ref} data-testid="main">
+          <div data-testid="chat-column" />
+          {open && <section data-testid="side-workspace" />}
+        </div>
+      );
+    }
+
+    const origGetComputedStyle = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation(
+      (el: Element, pseudo?: string | null) => {
+        if (el instanceof HTMLElement) {
+          if (el.dataset.testid === 'side-workspace') {
+            return { minWidth: '240px' } as CSSStyleDeclaration;
+          }
+          if (el.dataset.testid === 'chat-column') {
+            return { minWidth: '250px' } as CSSStyleDeclaration;
+          }
+        }
+        return origGetComputedStyle(el, pseudo);
+      },
+    );
+
+    const { rerender } = render(<NarrowSlideHarness open={false} />);
+    Object.defineProperty(screen.getByTestId('main'), 'clientWidth', {
+      value: 600,
+      configurable: true,
+    });
+
+    rerender(<NarrowSlideHarness open />);
+    const ws = screen.getByTestId('side-workspace');
+    // totalW=600, chatRatio=0.8 (目标右栏 120px) -> clamp 到侧工作区最小宽度 240px
+    expect(ws.style.width).toBe('240px');
+    expect(ws.style.marginInlineEnd).toBe('0px');
   });
 });

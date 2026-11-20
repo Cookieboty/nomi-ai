@@ -88,10 +88,11 @@ import { watchNomiModel } from './services/nomiModel';
 import type { ImageAttachment } from './services/screenClient';
 import { cliTranscriptKey } from './services/transcriptView';
 import { reportedModel } from './slash/tokens';
-import { CHAT_COL_W_MAX, CHAT_COL_W_MIN } from './utils/chatColumnWidth';
+import { CHAT_COL_RATIO_MAX, CHAT_COL_RATIO_MIN } from './utils/chatColumnWidth';
 import { useCliImageSupport } from './utils/cliImageSupport';
 import { cliTabPlaceholder } from './utils/cliTabPlaceholder';
 import { fromHarnessMessage, nomiConvMessages, settledNomiMessages } from './utils/convAdapters';
+import { CHAT_DROP_FILE_PATH_EVENT } from './utils/filePathDrag';
 import { CHANGES_SIDE_TAB, MAIN_SIDE_TAB, OPEN_FILE_SIDE_TAB } from './utils/sideTabs';
 import './App.css';
 import './components/TitleBar/panels.css';
@@ -364,6 +365,10 @@ const AiChatContent: React.FC = () => {
     leavePage();
   }, [closeSettings, leavePage]);
   const mainHidden = openPage !== null;
+  const setHostSuspended = pane?.setHostSuspended;
+  useEffect(() => {
+    setHostSuspended?.(mainHidden || !!panels.settings);
+  }, [setHostSuspended, mainHidden, panels.settings]);
   // 灵动岛上点「打开」/ 点某一条：跳到任务详情 / agent 标签 / 主对话
   useIslandOpenItem(mainPages.openTask, leavePage, (id) => {
     void ipcClient?.switchConversation(id);
@@ -493,13 +498,14 @@ const AiChatContent: React.FC = () => {
     />
   );
   const mainContentRef = useRef<HTMLDivElement>(null);
+  const chatColumnRef = useRef<HTMLDivElement>(null);
   useWorkspaceLayoutMotion({
     mainRef: mainContentRef,
     maximized: sideMax,
     split: sideSplit,
     open: centerOpen,
     closing: centerP.closing,
-    chatWidth: split.chatColumn.width,
+    chatRatio: split.chatColumn.ratio,
   });
   return (
     <SelectionActionsContext.Provider value={selectionActions}>
@@ -511,7 +517,7 @@ const AiChatContent: React.FC = () => {
           <AppTitleBar
             sidebarCollapsed={panels.sidebarCollapsed}
             filesOpen={!panels.settings && !mainHidden && rail.open}
-            centerOpen={!panels.settings && !mainHidden && centerOpen}
+            centerOpen={!panels.settings && !mainHidden && centerOpen && !sideMax}
             layoutKey={`${panels.settings}:${openPage}:${sideMax}:${sideSplit}:${details?.visible}`}
             onToggleSidebar={panels.toggleSidebar}
             title={
@@ -560,7 +566,12 @@ const AiChatContent: React.FC = () => {
                 style={
                   sideSplit
                     ? ({ '--side-split': `${side.splitRatio * 100}%` } as React.CSSProperties)
-                    : undefined
+                    : centerRendered && !sideMax
+                      ? ({
+                          '--chat-col-grow': split.chatColumn.ratio,
+                          '--side-pane-grow': 1 - split.chatColumn.ratio,
+                        } as React.CSSProperties)
+                      : undefined
                 }
                 hidden={mainHidden}
               >
@@ -573,6 +584,7 @@ const AiChatContent: React.FC = () => {
                   />
                 )}
                 <div
+                  ref={chatColumnRef}
                   className="chat-column"
                   data-testid="chat-column"
                   // 空会话：整块居中（欢迎区 + 输入框），见 App.css 的 [data-empty]
@@ -581,12 +593,8 @@ const AiChatContent: React.FC = () => {
                   style={{
                     ...(centerOpen && !sideMax
                       ? {
-                          width: split.chatColumn.width,
-                          // 窗口窄时最小宽度随窗口收缩（App.css 的 --cd-chat-col-min），宽屏仍是 CHAT_COL_W_MIN
+                          // 窗口窄时最小宽度随窗口收缩（App.css 的 --cd-chat-col-min）
                           minWidth: 'var(--cd-chat-col-min)',
-                          maxWidth: CHAT_COL_W_MAX,
-                          // 窗口不够时先压对话列（到最小宽度），不把中栏挤没
-                          flexShrink: 1,
                         }
                       : {}),
                   }}
@@ -665,6 +673,8 @@ const AiChatContent: React.FC = () => {
                       }
                       slash={slash.bridge}
                       fill={composerFill}
+                      dropZoneRef={chatColumnRef}
+                      dropEvent={CHAT_DROP_FILE_PATH_EVENT}
                       draftStore={drafts.draftStore}
                       draftKey={drafts.draftKey}
                       // 只在 agent 标签里：Nomi 自己的 Skills / MCP 在「扩展」里管理
@@ -709,9 +719,9 @@ const AiChatContent: React.FC = () => {
                       data-testid="center-changes-splitter"
                       role="separator"
                       aria-orientation="vertical"
-                      aria-valuenow={split.chatColumn.width}
-                      aria-valuemin={CHAT_COL_W_MIN}
-                      aria-valuemax={CHAT_COL_W_MAX}
+                      aria-valuenow={Math.round(split.chatColumn.ratio * 100)}
+                      aria-valuemin={Math.round(CHAT_COL_RATIO_MIN * 100)}
+                      aria-valuemax={Math.round(CHAT_COL_RATIO_MAX * 100)}
                       onPointerDown={split.chatColumn.onPointerDown}
                       onDoubleClick={split.chatColumn.onDoubleClick}
                       title={t('ui.session-workspace.drag-to-resize-chat-and-diff-double-click')}

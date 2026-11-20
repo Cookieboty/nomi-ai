@@ -102,11 +102,14 @@ export function usePanelColumns(ref: RefObject<HTMLDivElement | null>, key: stri
       // 主会话标题左边界绝不越过侧栏右边缘或对话卡片左边缘（防动画首帧或 transform 负偏移越界）
       const mainLeft = Math.max(main.left, bounds.left, panelEdge);
       const centerLeft = middle ? Math.max(middle.left, bounds.left) : main.right;
+      const centerWidth = middle
+        ? Math.max(0, Math.min(middle.width, bounds.right - centerLeft))
+        : 0;
       if (bar.dataset.columnsSynced !== 'true') bar.dataset.columnsSynced = 'true';
       setVar('--titlebar-main-left', `${mainLeft}px`);
       setVar('--titlebar-main-right', `${window.innerWidth - main.right}px`);
       setVar('--titlebar-center-left', `${centerLeft}px`);
-      setVar('--titlebar-center-w', `${middle?.width ?? 0}px`);
+      setVar('--titlebar-center-w', `${centerWidth}px`);
       setVar('--titlebar-files-left', `${right?.left ?? bounds.right}px`);
       setVar('--titlebar-files-w', `${right?.width ?? 0}px`);
       setVar('--cd-titlebar-rail-toggle-w', `${railToggle?.offsetWidth ?? 0}px`);
@@ -147,6 +150,10 @@ export function usePanelColumns(ref: RefObject<HTMLDivElement | null>, key: stri
       if (prop && !LAYOUT_TRANSITION_PROPS.has(prop)) return;
       sync();
       trackFor(50);
+    };
+    const onAnimationStart = (e: Event) => {
+      if (!isLayoutMotionTarget(e.target)) return;
+      trackFor(320);
     };
     const onAnimationEnd = (e: Event) => {
       if (!isLayoutMotionTarget(e.target)) return;
@@ -210,6 +217,7 @@ export function usePanelColumns(ref: RefObject<HTMLDivElement | null>, key: stri
     app.addEventListener('transitionstart', onTransitionStart, true);
     app.addEventListener('transitionend', onTransitionDone, true);
     app.addEventListener('transitioncancel', onTransitionDone, true);
+    app.addEventListener('animationstart', onAnimationStart, true);
     app.addEventListener('animationend', onAnimationEnd, true);
     window.addEventListener(LAYOUT_SETTLED_EVENT, onSettled);
     window.addEventListener('resize', sync);
@@ -222,6 +230,7 @@ export function usePanelColumns(ref: RefObject<HTMLDivElement | null>, key: stri
       app.removeEventListener('transitionstart', onTransitionStart, true);
       app.removeEventListener('transitionend', onTransitionDone, true);
       app.removeEventListener('transitioncancel', onTransitionDone, true);
+      app.removeEventListener('animationstart', onAnimationStart, true);
       app.removeEventListener('animationend', onAnimationEnd, true);
       window.removeEventListener(LAYOUT_SETTLED_EVENT, onSettled);
       window.removeEventListener('resize', sync);
