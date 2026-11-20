@@ -81,7 +81,8 @@ func (s *Service) Dismiss() {
 func (s *Service) OpenItem(id string) {
 	s.mu.Lock()
 	open := s.opener
-	known := slices.ContainsFunc(s.all, func(p Pending) bool { return p.ID == id })
+	known := slices.ContainsFunc(s.all, func(p Pending) bool { return p.ID == id }) ||
+		slices.Contains(s.noticeOpens, id)
 	s.mu.Unlock()
 	if open != nil && known && !strings.HasPrefix(id, DebugPrefix) {
 		open(id)

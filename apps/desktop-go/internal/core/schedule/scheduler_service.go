@@ -804,7 +804,7 @@ func (s *Service) MaybeProactive(ctx context.Context, force bool) (string, error
 	s.data.Proactive = proactiveState{Day: DayKey(now), Count: c + 1, LastAt: now}
 	s.saveLocked()
 	s.mu.Unlock()
-	s.d.Desktop.Notify(deps.Notice{Kind: "message", Title: s.d.AppName, Text: text})
+	s.d.Desktop.Notify(deps.Notice{Kind: "message", Title: s.d.AppName, Text: text, OpenID: "nomi"})
 	deps.AvatarEmotion(s.d.Events, "happy")
 	deps.AvatarGesture(s.d.Events, "wave")
 	s.broadcast("sched.proactive", map[string]any{"text": text, "at": now})

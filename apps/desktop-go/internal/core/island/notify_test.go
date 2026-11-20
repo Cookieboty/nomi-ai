@@ -117,3 +117,38 @@ func TestIslandNoticeTruncation(t *testing.T) {
 		t.Fatalf("truncation: %d %d %d", len([]rune(n.Title)), len(n.Body), len(n.Endpoint))
 	}
 }
+
+func TestIslandNoticeOpenTarget(t *testing.T) {
+	s := New(filepath.Join(t.TempDir(), "island.json"), "darwin")
+	r := &recHost{}
+	s.SetHost(r.host())
+	var opened []string
+	s.SetOpener(func(id string) { opened = append(opened, id) })
+
+	if !s.Notify(Notice{Kind: "agent", Title: "Codex", Session: "tab_3"}, false) {
+		t.Fatal("notify rejected")
+	}
+	waitFor(t, func() bool { return len(r.shown) == 1 })
+	if r.shown[0].OpenID != "tab\x1ftab_3" {
+		t.Fatalf("expected OpenID tab\\x1ftab_3, got %q", r.shown[0].OpenID)
+	}
+
+	// Opened() 正在展示带 OpenID 的通知时直接跳转 opener
+	s.Opened()
+	if len(opened) != 1 || opened[0] != "tab\x1ftab_3" || r.opened != 0 {
+		t.Fatalf("Opened() with currentOpen: opened=%v chatOpened=%d", opened, r.opened)
+	}
+
+	// 即便点击触发 dismiss 导致 Hidden() 先到，OpenItem 仍能命中最近记忆的 noticeOpens
+	s.Hidden()
+	s.OpenItem("tab\x1ftab_3")
+	if len(opened) != 2 || opened[1] != "tab\x1ftab_3" {
+		t.Fatalf("OpenItem after Hidden(): opened=%v", opened)
+	}
+
+	// 无当前通知或通知无 OpenID 时，Opened() 回退 OpenChat
+	s.Opened()
+	if r.opened != 1 {
+		t.Fatalf("Opened() without showing notice should open chat, got %d", r.opened)
+	}
+}

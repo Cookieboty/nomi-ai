@@ -6,16 +6,18 @@ import "testing"
 // 桌面角色在桌面上时仍是她的气泡（不经过这个判断）
 func TestNotifyRespectsNoticeAllowed(t *testing.T) {
 	var islands, systems []string
-	var seen []IslandNotice
+	var seen, opened []IslandNotice
+	var clicks []func()
 	allowed := false
 	islandOK := true
 	s := CreateService(t.TempDir(), Ports{
 		NotifySupported:  func() bool { return true },
-		ShowNotification: func(title, _ string, _ func()) { systems = append(systems, title) },
+		ShowNotification: func(title, _ string, onClick func()) { systems = append(systems, title); clicks = append(clicks, onClick) },
 	}, func(string, any, string) bool { return true })
 	s.AttachWindows(&Windows{
 		Main:         func() bool { return false },
 		MascotHidden: func() bool { return true },
+		OpenNotice:   func(n IslandNotice) { opened = append(opened, n) },
 		Island: func(n IslandNotice) bool {
 			islands = append(islands, n.Title)
 			return islandOK
@@ -39,7 +41,11 @@ func TestNotifyRespectsNoticeAllowed(t *testing.T) {
 		t.Fatalf("allowed notice via %q islands=%v", via, islands)
 	}
 	islandOK = false
-	if via := s.Notify(DesktopNotice{Kind: "agent", Status: "failed", Title: "fallback"}); via != "notification" || len(systems) != 1 {
+	if via := s.Notify(DesktopNotice{Kind: "agent", Status: "failed", Title: "fallback", Session: "tab-b", OpenID: "tab\x1ftab-b"}); via != "notification" || len(systems) != 1 {
 		t.Fatalf("allowed notice falls back to the system notification: via %q systems=%v", via, systems)
+	}
+	clicks[0]()
+	if len(opened) != 1 || opened[0].Session != "tab-b" || opened[0].OpenID != "tab\x1ftab-b" {
+		t.Fatalf("fallback system notification click = %+v", opened)
 	}
 }

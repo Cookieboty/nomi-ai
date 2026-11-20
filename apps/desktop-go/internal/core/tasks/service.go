@@ -23,11 +23,12 @@ import (
 )
 
 type ServiceDeps struct {
-	Root   string
-	Log    Logger
-	Emit   func(event string, payload any)
-	Notify NotifyFunc
-	T      i18n.Translate
+	Root       string
+	Log        Logger
+	Emit       func(event string, payload any)
+	Notify     NotifyFunc
+	NotifyTask NotifyTaskFunc
+	T          i18n.Translate
 	// 旧的提醒 / 定时代理任务（只读并入任务页）；缺省不列
 	LegacyReminders func() []LegacyReminder
 	LegacySched     func() []LegacySchedTask
@@ -157,6 +158,29 @@ func NewService(d ServiceDeps) *Service {
 			}
 			return nil
 		},
+		SendBatch: func(items []OutboxItem, title, text string) (err error) {
+			defer func() {
+				if p := recover(); p != nil {
+					err = fmt.Errorf("%v", p)
+				}
+			}()
+			taskID := ""
+			if len(items) > 0 {
+				taskID = items[0].TaskID
+				for _, x := range items[1:] {
+					if x.TaskID != taskID {
+						taskID = ""
+						break
+					}
+				}
+			}
+			if d.NotifyTask != nil {
+				d.NotifyTask(taskID, title, text)
+			} else if d.Notify != nil {
+				d.Notify(title, text)
+			}
+			return nil
+		},
 		MergedText: func(items []OutboxItem) (string, string) {
 			ids, titles := map[string]bool{}, []string{}
 			seen := map[string]bool{}
@@ -176,7 +200,9 @@ func NewService(d ServiceDeps) *Service {
 			}
 		},
 	})
-	if d.Notify != nil {
+	if d.NotifyTask != nil {
+		s.exec["notify"] = NewNotifyExecutorWithTask(d.NotifyTask)
+	} else if d.Notify != nil {
 		s.exec["notify"] = NewNotifyExecutor(d.Notify)
 	}
 	s.Runtime = NewRuntime(RuntimeDeps{

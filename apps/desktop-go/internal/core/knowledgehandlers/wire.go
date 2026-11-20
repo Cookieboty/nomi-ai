@@ -155,11 +155,17 @@ func Wire(d WireDeps) *Bundle {
 	b.Ext = extensions.New(extensions.Deps{Root: ud("extensions"), SkillsRoot: ud("skills"), Logger: deps.StdLogger{Prefix: "[ext]"}, Desktop: d.Desktop, Ports: d.Ports, Events: ev, Secrets: d.Secrets, Confirm: d.Confirm, OpenExternal: d.OpenExternal})
 	b.Hub = local.NewHub(local.HubDeps{Root: ud("local"), UserData: d.UserData, Desktop: d.Desktop, Ports: d.Ports, Events: ev})
 	b.Local = local.New(local.Deps{Root: ud("local"), Desktop: asLocalDesktop(d.Desktop), Gateway: d.Gateway, Events: ev})
+	notifyTask := func(taskID, title, text string) {
+		openID := ""
+		if taskID != "" {
+			openID = "task\x1f" + taskID
+		}
+		// 提醒与持续任务的产出是你要求的通知：按「报警」类处理，工作台在屏幕上时也弹（island.ShouldShow）
+		d.Desktop.Notify(deps.Notice{Kind: "reminder", Status: "attention", Title: title, Text: text, Body: text, OpenID: openID})
+	}
 	b.Tasks = tasks.NewService(tasks.ServiceDeps{Root: ud("tasks"), Log: deps.StdLogger{Prefix: "[tasks]"}, Emit: d.Router.Emit, T: d.T,
-		Notify: func(title, text string) {
-			// 提醒与持续任务的产出是你要求的通知：按「报警」类处理，工作台在屏幕上时也弹（island.ShouldShow）
-			d.Desktop.Notify(deps.Notice{Kind: "reminder", Status: "attention", Title: title, Text: text, Body: text})
-		},
+		Notify:     func(title, text string) { notifyTask("", title, text) },
+		NotifyTask: notifyTask,
 		LegacyReminders: d.LegacyReminders,
 		QuietUntil: func() *int64 {
 			if !b.Sched.IsQuiet() {

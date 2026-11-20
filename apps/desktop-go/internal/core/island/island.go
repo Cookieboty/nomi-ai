@@ -90,9 +90,11 @@ type Service struct {
 	platform string
 	s        Settings
 	// 通知管线（notify.go）：宿主能力、排队中的通知、是否正在显示
-	host    Host
-	queue   []Notice
-	showing bool
+	host        Host
+	queue       []Notice
+	showing     bool
+	currentOpen string   // 当前正在展示的通知目标 id
+	noticeOpens []string // 最近展示过的通知目标 id（上限 16，防止收起与点击并发到达时丢失目标）
 	// 等你处理的事（pending.go）：最近一次的完整列表与处理它们的函数
 	pending  []Pending
 	raw      []Pending // 装配层推来的原样（开关打开时据此恢复）

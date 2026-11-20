@@ -9,6 +9,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codinghandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/island"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 )
@@ -35,8 +36,12 @@ func wireAgents(router *contract.Router, userData string, d *desktop.Service) fu
 				}
 			}),
 			Notify: func(n agents.Notice) {
+				openSession := n.Session
+				if openSession == "" {
+					openSession = n.OpenSession
+				}
 				d.Notify(desktop.DesktopNotice{Kind: n.Kind, Title: n.Title, Text: n.Text, Body: n.Body, Status: n.Status,
-					Endpoint: n.Endpoint, Session: n.Session, Passive: n.Passive, Bubble: n.Bubble})
+					Endpoint: n.Endpoint, Session: n.Session, OpenID: island.NoticeOpenID(openSession), Passive: n.Passive, Bubble: n.Bubble})
 			},
 			IsQuiet:  func() bool { return d.NotifyPolicy != nil && d.NotifyPolicy.Quiet() },
 			UsageOf:  agentsUsageOf,

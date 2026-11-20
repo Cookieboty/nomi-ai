@@ -1,6 +1,8 @@
 package island
 
 import (
+	"slices"
+	"strings"
 	"unicode/utf16"
 )
 
@@ -12,6 +14,20 @@ type Notice struct {
 	DurationMs *int   `json:"durationMs,omitempty"`
 	Endpoint   string `json:"endpoint,omitempty"`
 	Status     string `json:"status,omitempty"` // done | failed | attention | running
+	Session    string `json:"-"`
+	OpenID     string `json:"openId,omitempty"`
+}
+
+// NoticeOpenID：把通知所属会话（标签 id 或 MainSession）换算成与 islandNavOf 一致的打开 id
+func NoticeOpenID(session string) string {
+	switch session {
+	case "":
+		return ""
+	case MainSession:
+		return "nomi"
+	default:
+		return "tab\x1f" + session
+	}
 }
 
 // Host：岛窗口的宿主能力
@@ -84,10 +100,24 @@ func sliceUTF16(s string, n int) string {
 	return string(utf16.Decode(u[:n]))
 }
 
+const maxNoticeOpenMemory = 16
+
+func (s *Service) rememberNoticeOpenLocked(id string) {
+	s.noticeOpens = slices.DeleteFunc(s.noticeOpens, func(x string) bool { return x == id })
+	s.noticeOpens = append(s.noticeOpens, id)
+	if len(s.noticeOpens) > maxNoticeOpenMemory {
+		s.noticeOpens = slices.Clone(s.noticeOpens[len(s.noticeOpens)-maxNoticeOpenMemory:])
+	}
+}
+
 // Notify = notify(n, force)：过滤、截断、排队去重（最多 5 条）后逐条显示；返回是否接受
 func (s *Service) Notify(n Notice, force bool) bool {
 	if !s.Accepts(n, force) {
 		return false
+	}
+	openID := n.OpenID
+	if openID == "" {
+		openID = NoticeOpenID(n.Session)
 	}
 	clean := Notice{
 		Kind:       n.Kind,
@@ -95,6 +125,8 @@ func (s *Service) Notify(n Notice, force bool) bool {
 		Body:       sliceUTF16(n.Body, 160),
 		DurationMs: n.DurationMs,
 		Status:     n.Status,
+		Session:    n.Session,
+		OpenID:     openID,
 	}
 	if n.Endpoint != "" {
 		clean.Endpoint = sliceUTF16(n.Endpoint, 24)
@@ -102,7 +134,7 @@ func (s *Service) Notify(n Notice, force bool) bool {
 	s.mu.Lock()
 	dup := false
 	for _, q := range s.queue {
-		if q.Title == clean.Title && q.Body == clean.Body {
+		if q.Title == clean.Title && q.Body == clean.Body && q.OpenID == clean.OpenID {
 			dup = true
 			break
 		}
@@ -128,11 +160,16 @@ func (s *Service) pump() {
 	next := s.queue[0]
 	s.queue = s.queue[1:]
 	s.showing = true
+	s.currentOpen = next.OpenID
+	if next.OpenID != "" {
+		s.rememberNoticeOpenLocked(next.OpenID)
+	}
 	present, warn := s.host.Present, s.host.Warn
 	s.mu.Unlock()
 	if err := present(next); err != nil {
 		s.mu.Lock()
 		s.showing = false
+		s.currentOpen = ""
 		s.mu.Unlock()
 		if warn != nil {
 			warn("island notify failed", err)
@@ -146,6 +183,7 @@ func (s *Service) Hidden() {
 	s.mu.Lock()
 	hide := s.host.Hide
 	s.showing = false
+	s.currentOpen = ""
 	keep := len(s.pending) > 0
 	s.mu.Unlock()
 	if hide != nil && !keep {
@@ -154,11 +192,20 @@ func (s *Service) Hidden() {
 	go s.pump()
 }
 
-// Opened：点击岛（location.hash = '#open-…'）→ 打开对话窗口
+// Opened：点击岛（nomi:island:open）→ 打开对话窗口（有当前通知目标时跳到对应会话）
 func (s *Service) Opened() {
 	s.mu.Lock()
 	open := s.host.OpenChat
+	opener := s.opener
+	cur := ""
+	if s.showing {
+		cur = s.currentOpen
+	}
 	s.mu.Unlock()
+	if opener != nil && cur != "" && !strings.HasPrefix(cur, DebugPrefix) {
+		opener(cur)
+		return
+	}
 	if open != nil {
 		open()
 	}
@@ -169,6 +216,7 @@ func (s *Service) destroyWindow() {
 	s.mu.Lock()
 	destroy := s.host.Destroy
 	s.showing = false
+	s.currentOpen = ""
 	s.mu.Unlock()
 	if destroy != nil {
 		destroy()

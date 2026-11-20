@@ -82,7 +82,11 @@ import { useWindowEvent } from './hooks/useWindowEvent';
 import { toHarnessImages } from './services/chatImages';
 import { watchCliPresence } from './services/cliPresence';
 import { smartTitleOnFirstSend } from './services/cliSmartTitle';
-import { CONVERSATIONS_CHANGED_EVENT } from './services/conversationStore';
+import {
+  CONVERSATIONS_CHANGED_EVENT,
+  notifyConversationsChanged,
+  type ConversationStore,
+} from './services/conversationStore';
 import { openModelMenu } from './services/modelMenu';
 import { watchNomiModel } from './services/nomiModel';
 import type { ImageAttachment } from './services/screenClient';
@@ -359,20 +363,54 @@ const AiChatContent: React.FC = () => {
     closeSettings,
     !!panels.settings,
   );
-  const { openPage, leave: leavePage } = mainPages;
+  const { openPage, leave: leavePage, openTask } = mainPages;
   const leaveSettingsPage = useCallback(() => {
     closeSettings();
     leavePage();
   }, [closeSettings, leavePage]);
+  const openIslandTask = useCallback(
+    (id: string) => {
+      closeSettings();
+      openTask?.(id);
+    },
+    [closeSettings, openTask],
+  );
+  const openIslandConversation = useCallback(
+    (id: string) => {
+      actions.clearDone?.(id);
+      const switched =
+        id !== ipcClient.currentConversationId?.()
+          ? ipcClient.switchConversation(id).then(() => actions.loadChatHistory())
+          : Promise.resolve();
+      void switched
+        .then(() => {
+          notifyConversationsChanged();
+        })
+        .catch(() => undefined);
+    },
+    [actions, ipcClient],
+  );
+  const openIslandTab = useCallback(
+    (tabId: string) => {
+      const store = ipcClient.conversationStore?.() as ConversationStore | undefined;
+      const meta = store?.list().find((c) => c.tabId === tabId);
+      if (!meta || meta.id === ipcClient.currentConversationId?.()) return;
+      void ipcClient
+        .switchConversation(meta.id)
+        .then(() => {
+          notifyConversationsChanged();
+        })
+        .catch(() => undefined);
+    },
+    [ipcClient],
+  );
   const mainHidden = openPage !== null;
   const setHostSuspended = pane?.setHostSuspended;
   useEffect(() => {
     setHostSuspended?.(mainHidden || !!panels.settings);
   }, [setHostSuspended, mainHidden, panels.settings]);
-  // 灵动岛上点「打开」/ 点某一条：跳到任务详情 / agent 标签 / 主对话
-  useIslandOpenItem(mainPages.openTask, leavePage, (id) => {
-    void ipcClient?.switchConversation(id);
-  });
+  // 灵动岛上点「打开」/ 点某一条：跳到任务详情 / agent 标签 / 主对话（含指定会话）
+  useIslandOpenItem(openIslandTask, leaveSettingsPage, openIslandConversation, openIslandTab);
   // 「回到原会话」：切到预览所属的那个 Nomi 会话；预览就属于当前会话（只是工作区换了）或不是 Nomi 会话时，
   // 切过去也解不开，只能关掉这些对不上的预览
   const returnToPreviewScope = useCallback(() => {
@@ -644,7 +682,9 @@ const AiChatContent: React.FC = () => {
                       onFlush={pending.canFlush ? pending.onFlush : undefined}
                       failure={pending.failure}
                       failedText={pending.failedText}
+                      failedId={pending.failedId}
                       onRetry={pending.onRetry}
+                      onSendTextOnly={pending.onSendTextOnly}
                     />
                     {/* 新会话：输入框上方的项目 · 分支，可以自由切换 */}
                     <NewChatContext />

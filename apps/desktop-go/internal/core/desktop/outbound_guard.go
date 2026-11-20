@@ -198,4 +198,6 @@ type IslandNotice struct {
 	Status     string `json:"status,omitempty"` // done | failed | attention | running
 	// Session：通知所属的会话（标签 id，主对话 "main"；不属于会话为 ""），决定显示与否用（island.ShouldShow）
 	Session string `json:"-"`
+	// OpenID：点击通知时打开的目标（如 tab:<tabId> / task:<taskId> / nomi:<convId>）
+	OpenID string `json:"-"`
 }

@@ -51,6 +51,8 @@ type Notice struct {
 	Text  string `json:"text"`
 	// Status：done | failed | attention | ""（灵动岛按它分类，见 island.Classify）
 	Status string `json:"status,omitempty"`
+	// OpenID：点击通知时打开的目标（如 task:<id>、nomi:<id>），不序列化进普通 payload
+	OpenID string `json:"-"`
 }
 
 // Reminder：desktop.reminders.today() 的条目（只用到这两个字段）
