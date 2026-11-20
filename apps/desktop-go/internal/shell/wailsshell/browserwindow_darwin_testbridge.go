@@ -7,9 +7,12 @@ package wailsshell
 #cgo LDFLAGS: -framework Cocoa -framework WebKit
 #import <Cocoa/Cocoa.h>
 #import <WebKit/WebKit.h>
+#include <string.h>
+#include <stdlib.h>
 
 extern void *nomiBrowserCreate(void *nsWindow, int handle, double x, double y, double w, double h, const char *url);
 extern void nomiBrowserLoad(void *view, const char *url);
+extern void nomiBrowserSetHidden(void *view, int hidden);
 extern void nomiBrowserClose(void *view);
 extern int nomiBrowserURLAllowed(const char *raw);
 
@@ -29,12 +32,16 @@ extern int nomiBrowserURLAllowed(const char *raw);
 @end
 
 static void nomiBridgeInitApp(void) {
-	[NSApplication sharedApplication];
+	NSApplication *app = [NSApplication sharedApplication];
+	[app setActivationPolicy:NSApplicationActivationPolicyRegular];
+	[app finishLaunching];
 }
 
 static void nomiBridgePumpRunLoop(double seconds) {
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	NSDate *until = [NSDate dateWithTimeIntervalSinceNow:seconds];
 	[[NSRunLoop mainRunLoop] runMode:NSDefaultRunLoopMode beforeDate:until];
+	[pool release];
 }
 
 static void *nomiBridgeNewWindow(void) {
@@ -50,6 +57,14 @@ static void *nomiBridgeNewWindow(void) {
 static void nomiBridgeCloseWindow(void *w) {
 	NSWindow *win = (NSWindow *)w;
 	if (win != nil) [win close];
+}
+
+// 测试里要把窗口和子视图亮出来：生产路径会在首次加载完成后 Show()。
+// 一直 orderOut + hidden 时，macOS 15 上 WKWebView 的 JS 执行 / 同源链接点击不会跑起来。
+static void nomiBridgeRevealWindow(void *w) {
+	NSWindow *win = (NSWindow *)w;
+	if (win == nil) return;
+	[win makeKeyAndOrderFront:nil];
 }
 
 static int nomiBridgeDelegatesBound(void *v) {
@@ -78,9 +93,16 @@ static void nomiBridgeReleaseView(void *v) {
 }
 
 static const char *nomiBridgeWebViewURL(void *v) {
+	static char buf[8192];
+	buf[0] = '\0';
 	WKWebView *view = (WKWebView *)v;
-	if (view == nil || view.URL == nil) return "";
-	return [view.URL.absoluteString UTF8String];
+	if (view == nil || view.URL == nil) return buf;
+	const char *raw = [view.URL.absoluteString UTF8String];
+	if (raw != NULL) {
+		strncpy(buf, raw, sizeof(buf) - 1);
+		buf[sizeof(buf) - 1] = '\0';
+	}
+	return buf;
 }
 
 static void nomiBridgeClickPoint(void *w, void *v, double x, double y) {
@@ -110,10 +132,28 @@ static void nomiBridgeClickPoint(void *w, void *v, double x, double y) {
 	[win sendEvent:up];
 }
 
-static void nomiBridgeEvalJS(void *v, const char *js) {
+// 同步执行 JS，返回错误信息（堆上，调用方 free）；成功返回 NULL。
+static char *nomiBridgeEvalJS(void *v, const char *js) {
 	WKWebView *view = (WKWebView *)v;
+	if (view == nil) return strdup("nil webview");
 	NSString *code = [NSString stringWithUTF8String:js];
-	[view evaluateJavaScript:code completionHandler:nil];
+	__block char *result = NULL;
+	__block BOOL done = NO;
+	[view evaluateJavaScript:code completionHandler:^(id val, NSError *err) {
+		if (err != nil) {
+			const char *msg = [[err localizedDescription] UTF8String];
+			result = strdup(msg != NULL ? msg : "evaluateJavaScript failed");
+		}
+		done = YES;
+	}];
+	NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:5.0];
+	while (!done && [deadline timeIntervalSinceNow] > 0) {
+		NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+		[[NSRunLoop mainRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.02]];
+		[pool release];
+	}
+	if (!done) return strdup("evaluateJavaScript timed out");
+	return result;
 }
 
 static int nomiBridgeInvokeCreateWebView(void *v, const char *rawURL) {
@@ -191,10 +231,20 @@ func darwinClickPointForTest(win, view unsafe.Pointer, x, y float64) {
 	C.nomiBridgeClickPoint(win, view, C.double(x), C.double(y))
 }
 
-func darwinEvalJSForTest(view unsafe.Pointer, js string) {
+func darwinRevealBrowserForTest(win, view unsafe.Pointer) {
+	C.nomiBrowserSetHidden(view, 0)
+	C.nomiBridgeRevealWindow(win)
+}
+
+func darwinEvalJSForTest(view unsafe.Pointer, js string) string {
 	cstr := C.CString(js)
 	defer C.free(unsafe.Pointer(cstr))
-	C.nomiBridgeEvalJS(view, cstr)
+	err := C.nomiBridgeEvalJS(view, cstr)
+	if err == nil {
+		return ""
+	}
+	defer C.free(unsafe.Pointer(err))
+	return C.GoString(err)
 }
 
 func darwinInvokeCreateWebViewForTest(view unsafe.Pointer, rawURL string) bool {

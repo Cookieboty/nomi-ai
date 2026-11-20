@@ -136,6 +136,11 @@ func TestBrowserDarwinUIDelegateBindingAndNewWindowNavigation(t *testing.T) {
 	runOnMain(func() {
 		nsWin = darwinNewWindowForTest()
 		view = darwinCreateBrowserForTest(nsWin, int32(handle), indexURL)
+		if view != nil {
+			// 与生产路径一致：首次加载后会 Show()。一直 hidden + orderOut 时
+			// macOS 15 上 evaluateJavaScript / 同源 <a> 点击不会执行。
+			darwinRevealBrowserForTest(nsWin, view)
+		}
 	})
 	if view == nil {
 		t.Fatal("nomiBrowserCreate returned nil")
@@ -159,30 +164,41 @@ func TestBrowserDarwinUIDelegateBindingAndNewWindowNavigation(t *testing.T) {
 
 	waitLoaded := func(wantSuffix string) {
 		t.Helper()
+		var lastLoad loadEvent
+		var hasLoad bool
 		ok := pumpOnMainUntil(5*time.Second, func() bool {
-			return strings.HasSuffix(darwinWebViewURLForTest(view), wantSuffix)
-		})
-		if !ok {
-			var cur string
-			runOnMain(func() { cur = darwinWebViewURLForTest(view) })
-			t.Fatalf("timed out waiting for URL suffix %q, current=%q", wantSuffix, cur)
-		}
-		_ = pumpOnMainUntil(1*time.Second, func() bool {
+			if !strings.HasSuffix(darwinWebViewURLForTest(view), wantSuffix) {
+				return false
+			}
 			select {
 			case ev := <-loadCh:
+				lastLoad = ev
+				hasLoad = true
 				return ev.ok
 			default:
 				return false
 			}
 		})
+		if !ok {
+			var cur string
+			runOnMain(func() { cur = darwinWebViewURLForTest(view) })
+			if hasLoad && !lastLoad.ok {
+				t.Fatalf("load failed for %q: %s, current=%q", wantSuffix, lastLoad.msg, cur)
+			}
+			t.Fatalf("timed out waiting for URL suffix %q and didFinishNavigation, current=%q", wantSuffix, cur)
+		}
 	}
 
 	waitLoaded("/index")
 
 	// 1. 普通链接点击导航（DOM click）
+	var clickErr string
 	runOnMain(func() {
-		darwinEvalJSForTest(view, `document.getElementById('normal').click()`)
+		clickErr = darwinEvalJSForTest(view, `(function(){ var a = document.getElementById('normal'); if (!a) throw new Error('missing #normal'); a.click(); })()`)
 	})
+	if clickErr != "" {
+		t.Fatalf("click #normal: %s", clickErr)
+	}
 	waitLoaded("/normal")
 
 	// 回到 /index
