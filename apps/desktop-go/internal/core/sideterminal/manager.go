@@ -41,38 +41,63 @@ type OpenInput struct {
 	ExplicitCwd bool   `json:"explicitCwd,omitempty"`
 	Cols        int    `json:"cols,omitempty"`
 	Rows        int    `json:"rows,omitempty"`
+	Replace     bool   `json:"replace,omitempty"`
 }
 
 // OpenResult 对应契约 sideTerminal.open 的返回结果。
 type OpenResult struct {
-	OK       bool    `json:"ok"`
-	Cwd      string  `json:"cwd,omitempty"`
-	Shell    string  `json:"shell,omitempty"`
-	Replay   string  `json:"replay,omitempty"`
-	Exited   bool    `json:"exited,omitempty"`
-	ExitCode *int    `json:"exitCode,omitempty"`
-	Reason   *string `json:"reason,omitempty"`
-	Message  *string `json:"message,omitempty"`
+	OK           bool    `json:"ok"`
+	Cwd          string  `json:"cwd,omitempty"`
+	Shell        string  `json:"shell,omitempty"`
+	Replay       string  `json:"replay,omitempty"`
+	Generation   int64   `json:"generation,omitempty"`
+	ReplayOffset *int64  `json:"replayOffset,omitempty"`
+	Exited       bool    `json:"exited,omitempty"`
+	ExitCode     *int    `json:"exitCode,omitempty"`
+	Reason       *string `json:"reason,omitempty"`
+	Message      *string `json:"message,omitempty"`
 }
 
 // Manager 管理所有活跃的侧边内置终端会话及其生命周期。
 type Manager struct {
 	deps Deps
 
-	mu       sync.Mutex
-	sessions map[string]*session
+	mu      sync.Mutex
+	nextGen int64
+	slots   map[string]*termSlot
 
 	watchMu sync.Mutex
 	watched map[int]bool
 }
 
+type termSlot struct {
+	current  *session
+	starting *pendingStart
+}
+
+type pendingStart struct {
+	gen      int64
+	owner    int
+	canceled bool
+	doneOnce sync.Once
+	done     chan struct{}
+}
+
+func (p *pendingStart) finish() {
+	p.doneOnce.Do(func() {
+		close(p.done)
+	})
+}
+
 type session struct {
-	id     string
-	cwd    string
-	shell  string
-	pty    PTY
-	owner  int
-	closed bool
+	id         string
+	generation int64
+	cwd        string
+	shell      string
+	pty        PTY
+	owner      int
+	closed     bool
+	closeOnce  sync.Once
 
 	outMu    sync.Mutex
 	replay   *ringBuffer
@@ -82,9 +107,20 @@ type session struct {
 	readDone chan struct{}
 }
 
+func (s *session) closePTY() {
+	if s == nil {
+		return
+	}
+	s.closeOnce.Do(func() {
+		_ = s.pty.Close()
+	})
+}
+
 type ringBuffer struct {
-	cap int
-	buf []byte
+	cap        int
+	buf        []byte
+	totalBytes int64
+	truncated  bool
 }
 
 func newRingBuffer(capacity int) *ringBuffer {
@@ -95,25 +131,38 @@ func (r *ringBuffer) write(p []byte) {
 	if len(p) == 0 || r.cap <= 0 {
 		return
 	}
+	r.totalBytes += int64(len(p))
 	if len(p) >= r.cap {
+		if len(p) > r.cap || len(r.buf) > 0 {
+			r.truncated = true
+		}
 		r.buf = append(r.buf[:0], p[len(p)-r.cap:]...)
 		return
 	}
 	overflow := len(r.buf) + len(p) - r.cap
 	if overflow > 0 {
+		r.truncated = true
 		copy(r.buf, r.buf[overflow:])
 		r.buf = r.buf[:len(r.buf)-overflow]
 	}
 	r.buf = append(r.buf, p...)
 }
 
-func (r *ringBuffer) snapshot() []byte {
+func (r *ringBuffer) snapshot() ([]byte, int64) {
 	if len(r.buf) == 0 {
-		return nil
+		return nil, r.totalBytes
 	}
-	cp := make([]byte, len(r.buf))
-	copy(cp, r.buf)
-	return cp
+	start := 0
+	// 环形缓冲发生头部截断时，最多跳过开头的 3 个孤立 UTF-8 续字节（10xxxxxx），避免首字符乱码；
+	// 末尾累计字节偏移 totalBytes 保持不变，保证后续实时流按偏移严格衔接。
+	if r.truncated {
+		for start < len(r.buf) && start < 3 && (r.buf[start]&0xc0) == 0x80 {
+			start++
+		}
+	}
+	cp := make([]byte, len(r.buf)-start)
+	copy(cp, r.buf[start:])
+	return cp, r.totalBytes
 }
 
 // New 创建内置终端管理器。
@@ -128,9 +177,9 @@ func New(deps Deps) *Manager {
 		}
 	}
 	return &Manager{
-		deps:     deps,
-		sessions: map[string]*session{},
-		watched:  map[int]bool{},
+		deps:    deps,
+		slots:   map[string]*termSlot{},
+		watched: map[int]bool{},
 	}
 }
 
@@ -224,58 +273,200 @@ func (m *Manager) resolveDir(projectID, requestedCwd string, explicitCwd bool) (
 	return "", "failed", "no valid working directory available"
 }
 
+func int64Ptr(v int64) *int64 { return &v }
+
+func (m *Manager) slotLocked(id string) *termSlot {
+	slot := m.slots[id]
+	if slot == nil {
+		slot = &termSlot{}
+		m.slots[id] = slot
+	}
+	return slot
+}
+
+func (m *Manager) pruneSlotLocked(id string, slot *termSlot) {
+	if slot != nil && slot.current == nil && slot.starting == nil {
+		delete(m.slots, id)
+	}
+}
+
+func (m *Manager) activeCountLocked() int {
+	n := 0
+	for _, slot := range m.slots {
+		if slot.current != nil || (slot.starting != nil && !slot.starting.canceled) {
+			n++
+		}
+	}
+	return n
+}
+
+func (m *Manager) reuseSessionResult(sess *session, cols, rows int) (OpenResult, bool) {
+	if cols > 0 && rows > 0 {
+		c, r := clampSize(cols, rows)
+		_ = sess.pty.Resize(c, r)
+	}
+	m.mu.Lock()
+	slot := m.slots[sess.id]
+	stillValid := slot != nil && slot.current == sess && !sess.closed
+	if !stillValid {
+		m.mu.Unlock()
+		return OpenResult{}, false
+	}
+	sess.outMu.Lock()
+	replayBytes, replayOffset := sess.replay.snapshot()
+	exited := sess.exited
+	exitCode := sess.exitCode
+	sess.outMu.Unlock()
+	gen := sess.generation
+	cwd := sess.cwd
+	shell := sess.shell
+	m.mu.Unlock()
+
+	var replayB64 string
+	if len(replayBytes) > 0 {
+		replayB64 = base64.StdEncoding.EncodeToString(replayBytes)
+	}
+	return OpenResult{
+		OK:           true,
+		Cwd:          cwd,
+		Shell:        shell,
+		Replay:       replayB64,
+		Generation:   gen,
+		ReplayOffset: int64Ptr(replayOffset),
+		Exited:       exited,
+		ExitCode:     exitCode,
+	}, true
+}
+
 // Open 打开（或复用）一个终端会话。
 func (m *Manager) Open(in OpenInput) OpenResult {
-	return m.OpenOwned(in, 0)
+	return m.OpenOwnedContext(context.Background(), in, 0)
 }
 
 // OpenOwned 打开（或复用）归属指定连接 owner 的终端会话；若已存在则重绑 owner 并回放近期输出。
 func (m *Manager) OpenOwned(in OpenInput, owner int) OpenResult {
+	return m.OpenOwnedContext(context.Background(), in, owner)
+}
+
+// OpenOwnedContext 打开（或复用/替换）归属 owner 的终端会话；支持启动前取消登记与按身份+代次串行化。
+func (m *Manager) OpenOwnedContext(ctx context.Context, in OpenInput, owner int) OpenResult {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if in.ID == "" || len(in.ID) > maxID {
 		return openErr("failed", "invalid terminal id")
 	}
 
+	var oldToClose []*session
+	defer func() {
+		for _, s := range oldToClose {
+			s.closePTY()
+		}
+	}()
+
+	var pending *pendingStart
+	var slot *termSlot
+	for {
+		if ctx.Err() != nil {
+			return openErr("failed", ctx.Err().Error())
+		}
+		m.mu.Lock()
+		slot = m.slots[in.ID]
+		if !in.Replace && slot != nil {
+			if existing := slot.current; existing != nil && !existing.closed {
+				if owner > 0 {
+					existing.owner = owner
+				}
+				m.mu.Unlock()
+				if res, ok := m.reuseSessionResult(existing, in.Cols, in.Rows); ok {
+					return res
+				}
+				// Resize 期间被并发关闭，重新进入调度
+				continue
+			}
+			if inFlight := slot.starting; inFlight != nil && !inFlight.canceled {
+				waitCh := inFlight.done
+				m.mu.Unlock()
+				select {
+				case <-waitCh:
+					continue
+				case <-ctx.Done():
+					return openErr("failed", ctx.Err().Error())
+				}
+			}
+		}
+
+		if in.Replace && slot != nil {
+			if slot.current != nil {
+				old := slot.current
+				old.closed = true
+				slot.current = nil
+				oldToClose = append(oldToClose, old)
+			}
+			if prevStart := slot.starting; prevStart != nil {
+				prevStart.canceled = true
+				slot.starting = nil
+				prevStart.finish()
+			}
+		}
+
+		if m.activeCountLocked() >= maxTerminals {
+			if slot != nil {
+				m.pruneSlotLocked(in.ID, slot)
+			}
+			m.mu.Unlock()
+			return openErr("limit", "too many terminals")
+		}
+
+		m.nextGen++
+		gen := m.nextGen
+		pending = &pendingStart{
+			gen:   gen,
+			owner: owner,
+			done:  make(chan struct{}),
+		}
+		slot = m.slotLocked(in.ID)
+		slot.starting = pending
+		m.mu.Unlock()
+		break
+	}
+
+	// 启动前先行回收被 Replace 摘除的旧会话，确保旧 PTY 释放后再启动新会话
+	for _, s := range oldToClose {
+		s.closePTY()
+	}
+	oldToClose = nil
+
+	clearPending := func() {
+		m.mu.Lock()
+		if curSlot := m.slots[in.ID]; curSlot != nil && curSlot.starting == pending {
+			curSlot.starting = nil
+			m.pruneSlotLocked(in.ID, curSlot)
+		}
+		m.mu.Unlock()
+		pending.finish()
+	}
+
 	m.mu.Lock()
-	existing := m.sessions[in.ID]
-	if existing != nil {
-		if owner > 0 {
-			existing.owner = owner
-		}
-		m.mu.Unlock()
-
-		if in.Cols > 0 && in.Rows > 0 {
-			c, r := clampSize(in.Cols, in.Rows)
-			_ = existing.pty.Resize(c, r)
-		}
-		existing.outMu.Lock()
-		replayBytes := existing.replay.snapshot()
-		exited := existing.exited
-		exitCode := existing.exitCode
-		existing.outMu.Unlock()
-
-		var replayB64 string
-		if len(replayBytes) > 0 {
-			replayB64 = base64.StdEncoding.EncodeToString(replayBytes)
-		}
-		return OpenResult{
-			OK:       true,
-			Cwd:      existing.cwd,
-			Shell:    existing.shell,
-			Replay:   replayB64,
-			Exited:   exited,
-			ExitCode: exitCode,
-		}
-	}
-
-	if len(m.sessions) >= maxTerminals {
-		m.mu.Unlock()
-		return openErr("limit", "too many terminals")
-	}
+	preCanceled := pending.canceled || ctx.Err() != nil
 	m.mu.Unlock()
+	if preCanceled {
+		clearPending()
+		return openErr("failed", "terminal open cancelled")
+	}
 
 	dir, reason, msg := m.resolveDir(in.ProjectID, in.Cwd, in.ExplicitCwd)
 	if reason != "" {
+		clearPending()
 		return openErr(reason, msg)
+	}
+
+	m.mu.Lock()
+	preCanceled = pending.canceled || ctx.Err() != nil
+	m.mu.Unlock()
+	if preCanceled {
+		clearPending()
+		return openErr("failed", "terminal open cancelled")
 	}
 
 	cols, rows := clampSize(in.Cols, in.Rows)
@@ -285,6 +476,7 @@ func (m *Manager) OpenOwned(in OpenInput, owner int) OpenResult {
 		Rows: rows,
 	})
 	if err != nil {
+		clearPending()
 		if errors.Is(err, ErrUnsupported) {
 			return openErr("unsupported", err.Error())
 		}
@@ -292,57 +484,43 @@ func (m *Manager) OpenOwned(in OpenInput, owner int) OpenResult {
 	}
 
 	sess := &session{
-		id:       in.ID,
-		cwd:      dir,
-		shell:    p.Shell(),
-		pty:      p,
-		owner:    owner,
-		replay:   newRingBuffer(replayBufSize),
-		readDone: make(chan struct{}),
+		id:         in.ID,
+		generation: pending.gen,
+		cwd:        dir,
+		shell:      p.Shell(),
+		pty:        p,
+		owner:      pending.owner,
+		replay:     newRingBuffer(replayBufSize),
+		readDone:   make(chan struct{}),
 	}
 
 	m.mu.Lock()
-	// 并发打开同一个 id 时的二次检查：若已有胜出者，关掉后启动的这一份并复用已存在的。
-	if winner := m.sessions[in.ID]; winner != nil {
-		if owner > 0 {
-			winner.owner = owner
+	curSlot := m.slots[in.ID]
+	if pending.canceled || ctx.Err() != nil || curSlot == nil || curSlot.starting != pending {
+		if curSlot != nil && curSlot.starting == pending {
+			curSlot.starting = nil
+			m.pruneSlotLocked(in.ID, curSlot)
 		}
 		m.mu.Unlock()
+		pending.finish()
 		_ = p.Close()
+		return openErr("failed", "terminal closed during startup")
+	}
 
-		winner.outMu.Lock()
-		replayBytes := winner.replay.snapshot()
-		exited := winner.exited
-		exitCode := winner.exitCode
-		winner.outMu.Unlock()
-		var replayB64 string
-		if len(replayBytes) > 0 {
-			replayB64 = base64.StdEncoding.EncodeToString(replayBytes)
-		}
-		return OpenResult{
-			OK:       true,
-			Cwd:      winner.cwd,
-			Shell:    winner.shell,
-			Replay:   replayB64,
-			Exited:   exited,
-			ExitCode: exitCode,
-		}
-	}
-	if len(m.sessions) >= maxTerminals {
-		m.mu.Unlock()
-		_ = p.Close()
-		return openErr("limit", "too many terminals")
-	}
-	m.sessions[in.ID] = sess
+	curSlot.starting = nil
+	curSlot.current = sess
 	m.mu.Unlock()
+	pending.finish()
 
 	go m.pumpOutput(sess)
 	go m.waitExit(sess)
 
 	return OpenResult{
-		OK:    true,
-		Cwd:   sess.cwd,
-		Shell: sess.shell,
+		OK:           true,
+		Cwd:          sess.cwd,
+		Shell:        sess.shell,
+		Generation:   sess.generation,
+		ReplayOffset: int64Ptr(0),
 	}
 }
 
@@ -385,16 +563,20 @@ func (m *Manager) pumpOutput(sess *session) {
 		pending = nil
 
 		sess.outMu.Lock()
+		startOffset := sess.replay.totalBytes
 		sess.replay.write(data)
 		sess.outMu.Unlock()
 
 		m.mu.Lock()
-		closed := sess.closed
+		slot := m.slots[sess.id]
+		closed := sess.closed || slot == nil || slot.current != sess
 		m.mu.Unlock()
 		if !closed && m.deps.Emit != nil {
 			m.deps.Emit("sideTerminal.data", map[string]any{
-				"id":   sess.id,
-				"data": base64.StdEncoding.EncodeToString(data),
+				"id":         sess.id,
+				"generation": sess.generation,
+				"offset":     startOffset,
+				"data":       base64.StdEncoding.EncodeToString(data),
 			})
 		}
 	}
@@ -436,7 +618,8 @@ func (m *Manager) waitExit(sess *session) {
 
 	m.mu.Lock()
 	closed := sess.closed
-	stillTracked := m.sessions[sess.id] == sess
+	slot := m.slots[sess.id]
+	stillTracked := slot != nil && slot.current == sess
 	m.mu.Unlock()
 
 	sess.outMu.Lock()
@@ -451,7 +634,10 @@ func (m *Manager) waitExit(sess *session) {
 		return
 	}
 
-	payload := map[string]any{"id": sess.id}
+	payload := map[string]any{
+		"id":         sess.id,
+		"generation": sess.generation,
+	}
 	if sig != "" {
 		payload["signal"] = sig
 	} else {
@@ -467,16 +653,31 @@ func (m *Manager) waitExit(sess *session) {
 	m.deps.Emit("sideTerminal.exit", payload)
 }
 
+func (m *Manager) sessionFor(id string, gen int64) *session {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	slot := m.slots[id]
+	if slot == nil || slot.current == nil || slot.current.closed {
+		return nil
+	}
+	if gen > 0 && slot.current.generation != gen {
+		return nil
+	}
+	return slot.current
+}
+
 // Write 向指定终端写入数据。
 func (m *Manager) Write(id, data string) bool {
+	return m.WriteGeneration(id, data, 0)
+}
+
+// WriteGeneration 向指定代次的终端写入数据；gen > 0 且不匹配当前代次时拒绝写入。
+func (m *Manager) WriteGeneration(id, data string, gen int64) bool {
 	if id == "" || len(id) > maxID || data == "" || len(data) > maxWriteBytes {
 		return false
 	}
-	m.mu.Lock()
-	sess := m.sessions[id]
-	closed := sess == nil || sess.closed
-	m.mu.Unlock()
-	if closed {
+	sess := m.sessionFor(id, gen)
+	if sess == nil {
 		return false
 	}
 	_, err := sess.pty.Write([]byte(data))
@@ -485,40 +686,61 @@ func (m *Manager) Write(id, data string) bool {
 
 // Resize 同步指定终端的行列尺寸。
 func (m *Manager) Resize(id string, cols, rows int) bool {
+	return m.ResizeGeneration(id, cols, rows, 0)
+}
+
+// ResizeGeneration 同步指定代次终端的行列尺寸；gen > 0 且不匹配时忽略。
+func (m *Manager) ResizeGeneration(id string, cols, rows int, gen int64) bool {
 	if id == "" || len(id) > maxID {
 		return false
 	}
-	m.mu.Lock()
-	sess := m.sessions[id]
-	closed := sess == nil || sess.closed
-	m.mu.Unlock()
-	if closed {
+	sess := m.sessionFor(id, gen)
+	if sess == nil {
 		return false
 	}
 	c, r := clampSize(cols, rows)
 	return sess.pty.Resize(c, r) == nil
 }
 
-// Close 关闭并移除指定终端会话。
+// Close 关闭并移除指定终端会话（含启动中可取消槽位）。
 func (m *Manager) Close(id string) bool {
+	return m.CloseGeneration(id, 0)
+}
+
+// CloseGeneration 按代次关闭并移除终端：gen > 0 时只清理 generation <= gen 的已上线或启动中会话，绝不误杀新代次。
+func (m *Manager) CloseGeneration(id string, gen int64) bool {
 	if id == "" || len(id) > maxID {
 		return false
 	}
 	m.mu.Lock()
-	sess := m.sessions[id]
-	if sess != nil {
-		sess.closed = true
-		delete(m.sessions, id)
-	}
-	m.mu.Unlock()
-	if sess == nil {
+	slot := m.slots[id]
+	if slot == nil {
+		m.mu.Unlock()
 		return false
 	}
-	_ = sess.pty.Close()
-	return true
+	var toClose *session
+	acted := false
+	if slot.current != nil && (gen <= 0 || slot.current.generation <= gen) {
+		slot.current.closed = true
+		toClose = slot.current
+		slot.current = nil
+		acted = true
+	}
+	if slot.starting != nil && (gen <= 0 || slot.starting.gen <= gen) {
+		slot.starting.canceled = true
+		slot.starting.finish()
+		slot.starting = nil
+		acted = true
+	}
+	m.pruneSlotLocked(id, slot)
+	m.mu.Unlock()
+	if toClose != nil {
+		toClose.closePTY()
+	}
+	return acted
 }
 
-// Sync 对账 owner 名下存活的终端 id，清理不在此清单中的孤儿进程。
+// Sync 对账 owner 名下存活的终端 id，清理不在此清单中的孤儿进程及启动中会话。
 func (m *Manager) Sync(owner int, ids []string) []string {
 	want := make(map[string]struct{}, len(ids))
 	for _, id := range ids {
@@ -528,23 +750,33 @@ func (m *Manager) Sync(owner int, ids []string) []string {
 	}
 	m.mu.Lock()
 	var gone []*session
-	for id, sess := range m.sessions {
+	closedSet := map[string]struct{}{}
+	for id, slot := range m.slots {
 		if _, keep := want[id]; keep {
 			continue
 		}
-		if owner > 0 && sess.owner != owner {
-			continue
+		if sess := slot.current; sess != nil && (owner <= 0 || sess.owner == owner) {
+			sess.closed = true
+			slot.current = nil
+			gone = append(gone, sess)
+			closedSet[id] = struct{}{}
 		}
-		sess.closed = true
-		delete(m.sessions, id)
-		gone = append(gone, sess)
+		if st := slot.starting; st != nil && (owner <= 0 || st.owner == owner) {
+			st.canceled = true
+			st.finish()
+			slot.starting = nil
+			closedSet[id] = struct{}{}
+		}
+		m.pruneSlotLocked(id, slot)
 	}
 	m.mu.Unlock()
 
-	closedIDs := make([]string, 0, len(gone))
 	for _, sess := range gone {
-		_ = sess.pty.Close()
-		closedIDs = append(closedIDs, sess.id)
+		sess.closePTY()
+	}
+	closedIDs := make([]string, 0, len(closedSet))
+	for id := range closedSet {
+		closedIDs = append(closedIDs, id)
 	}
 	return closedIDs
 }
@@ -558,18 +790,24 @@ func (m *Manager) CloseOwner(owner int) {
 	m.Sync(owner, nil)
 }
 
-// CloseAll 关闭并回收所有活跃终端进程（应用退出或整页重载兜底）。
+// CloseAll 关闭并回收所有活跃及启动中的终端进程（应用退出或整页重载兜底）。
 func (m *Manager) CloseAll() {
 	m.mu.Lock()
-	all := make([]*session, 0, len(m.sessions))
-	for _, sess := range m.sessions {
-		sess.closed = true
-		all = append(all, sess)
+	all := make([]*session, 0, len(m.slots))
+	for _, slot := range m.slots {
+		if slot.current != nil {
+			slot.current.closed = true
+			all = append(all, slot.current)
+		}
+		if slot.starting != nil {
+			slot.starting.canceled = true
+			slot.starting.finish()
+		}
 	}
-	m.sessions = map[string]*session{}
+	m.slots = map[string]*termSlot{}
 	m.mu.Unlock()
 	for _, sess := range all {
-		_ = sess.pty.Close()
+		sess.closePTY()
 	}
 }
 
@@ -595,43 +833,46 @@ func (m *Manager) watch(c contract.Caller) {
 
 // Register 把 sideTerminal.* 契约过程挂到 Router。
 func Register(r *contract.Router, m *Manager) {
-	r.Call("sideTerminal.open", func(_ context.Context, c contract.Caller, raw json.RawMessage) (any, error) {
+	r.Call("sideTerminal.open", func(ctx context.Context, c contract.Caller, raw json.RawMessage) (any, error) {
 		var in OpenInput
 		if err := json.Unmarshal(raw, &in); err != nil {
 			return nil, bad("input")
 		}
 		m.watch(c)
-		return m.OpenOwned(in, c.ID), nil
+		return m.OpenOwnedContext(ctx, in, c.ID), nil
 	})
 	r.Call("sideTerminal.write", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		var in struct {
-			ID   string `json:"id"`
-			Data string `json:"data"`
+			ID         string `json:"id"`
+			Data       string `json:"data"`
+			Generation int64  `json:"generation,omitempty"`
 		}
 		if err := json.Unmarshal(raw, &in); err != nil {
 			return nil, bad("input")
 		}
-		return m.Write(in.ID, in.Data), nil
+		return m.WriteGeneration(in.ID, in.Data, in.Generation), nil
 	})
 	r.Call("sideTerminal.resize", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		var in struct {
-			ID   string `json:"id"`
-			Cols int    `json:"cols"`
-			Rows int    `json:"rows"`
+			ID         string `json:"id"`
+			Cols       int    `json:"cols"`
+			Rows       int    `json:"rows"`
+			Generation int64  `json:"generation,omitempty"`
 		}
 		if err := json.Unmarshal(raw, &in); err != nil {
 			return nil, bad("input")
 		}
-		return m.Resize(in.ID, in.Cols, in.Rows), nil
+		return m.ResizeGeneration(in.ID, in.Cols, in.Rows, in.Generation), nil
 	})
 	r.Call("sideTerminal.close", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		var in struct {
-			ID string `json:"id"`
+			ID         string `json:"id"`
+			Generation int64  `json:"generation,omitempty"`
 		}
 		if err := json.Unmarshal(raw, &in); err != nil {
 			return nil, bad("input")
 		}
-		return m.Close(in.ID), nil
+		return m.CloseGeneration(in.ID, in.Generation), nil
 	})
 	r.Call("sideTerminal.closeAll", func(_ context.Context, c contract.Caller, _ json.RawMessage) (any, error) {
 		m.watch(c)

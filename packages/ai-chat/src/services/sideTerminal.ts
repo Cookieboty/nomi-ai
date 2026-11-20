@@ -22,6 +22,7 @@ export type SideTerminalOpenInput = {
   explicitCwd?: boolean;
   cols?: number;
   rows?: number;
+  replace?: boolean;
 };
 
 export type SideTerminalOpenResult = {
@@ -29,14 +30,23 @@ export type SideTerminalOpenResult = {
   cwd?: string;
   shell?: string;
   replay?: string;
+  generation?: number;
+  replayOffset?: number;
   exited?: boolean;
   exitCode?: number;
   reason?: 'unsupported' | 'denied' | 'limit' | 'failed';
   message?: string;
 };
 
+export type SideTerminalDataChunk = {
+  bytes: Uint8Array;
+  generation?: number;
+  offset?: number;
+};
+
 export type SideTerminalExitEvent = {
   id: string;
+  generation?: number;
   exitCode?: number;
   signal?: string;
   message?: string;
@@ -56,7 +66,34 @@ const statusListeners = new Set<() => void>();
 let offGlobalExit: (() => void) | null = null;
 let openSeq = 0;
 const latestOpenEpoch = new Map<string, number>();
-const exitedBeforeOpenReply = new Set<string>();
+const activeGenerations = new Map<string, number>();
+const exitedBeforeOpenReply = new Map<string, Set<number | undefined>>();
+const pendingClose = new Map<string, Promise<void>>();
+let pendingCloseAll: Promise<void> | null = null;
+
+function recordEarlyExit(id: string, generation?: number): void {
+  let set = exitedBeforeOpenReply.get(id);
+  if (!set) {
+    set = new Set();
+    exitedBeforeOpenReply.set(id, set);
+  }
+  set.add(generation);
+}
+
+function consumeEarlyExit(id: string, generation?: number): boolean {
+  const set = exitedBeforeOpenReply.get(id);
+  if (!set) return false;
+  if (generation !== undefined) {
+    const hit = set.has(generation);
+    set.delete(generation);
+    if (set.size === 0) exitedBeforeOpenReply.delete(id);
+    return hit;
+  }
+  const hit = set.has(undefined);
+  set.delete(undefined);
+  if (set.size === 0) exitedBeforeOpenReply.delete(id);
+  return hit;
+}
 
 function notifyStatusListeners(): void {
   statusVersion += 1;
@@ -101,8 +138,13 @@ function ensureExitStatusListener(): void {
   if (offGlobalExit || !hasTransport()) return;
   offGlobalExit = api.on('sideTerminal.exit', (ev) => {
     if (!ev.id) return;
+    const activeGen = activeGenerations.get(ev.id);
+    // 旧代次的延迟退出事件不得把新代次标成已退出
+    if (activeGen !== undefined && ev.generation !== undefined && ev.generation !== activeGen) {
+      return;
+    }
     setTerminalStatus(ev.id, 'exited');
-    exitedBeforeOpenReply.add(ev.id);
+    recordEarlyExit(ev.id, ev.generation);
   });
 }
 
@@ -125,9 +167,82 @@ export function countRunningTerminals(ids: readonly string[]): number {
 export function resetTerminalStatuses(): void {
   clearTerminalStatuses();
   latestOpenEpoch.clear();
+  activeGenerations.clear();
   exitedBeforeOpenReply.clear();
+  pendingClose.clear();
+  pendingCloseAll = null;
   offGlobalExit?.();
   offGlobalExit = null;
+}
+
+/**
+ * 终端输出流游标：在 open 握手前后与握手完成后的实时流之间保持同代次与字节偏移连续性：
+ * 1. 先按 generation 隔离跨代输出；
+ * 2. 若后端给出 replayOffset，则全程（含 earlyChunks 与 streamReady 之后）严格按 [offset, offset + bytes.length) 去重与部分切片衔接；
+ * 3. 兼容未提供 replayOffset 的旧 mock，回退 mergeReplayWithEarlyChunks。
+ */
+export function createTerminalStreamCursor(): {
+  push: (chunk: SideTerminalDataChunk) => Uint8Array | null;
+  applyOpen: (
+    replay: Uint8Array,
+    meta: { generation?: number; replayOffset?: number },
+  ) => Uint8Array[];
+} {
+  let activeGen: number | undefined;
+  let cursorOffset: number | null = null;
+  let streamReady = false;
+  const earlyChunks: SideTerminalDataChunk[] = [];
+
+  const acceptChunk = (chunk: SideTerminalDataChunk): Uint8Array | null => {
+    if (!chunk.bytes.length) return null;
+    if (activeGen !== undefined && chunk.generation !== undefined && chunk.generation !== activeGen) {
+      return null;
+    }
+    if (cursorOffset !== null && typeof chunk.offset === 'number') {
+      const end = chunk.offset + chunk.bytes.length;
+      if (end <= cursorOffset) return null;
+      if (chunk.offset < cursorOffset) {
+        const sliced = chunk.bytes.subarray(cursorOffset - chunk.offset);
+        cursorOffset = end;
+        return sliced.length > 0 ? sliced : null;
+      }
+      cursorOffset = end;
+    }
+    return chunk.bytes;
+  };
+
+  return {
+    push(chunk) {
+      if (!chunk.bytes.length) return null;
+      if (!streamReady) {
+        earlyChunks.push(chunk);
+        return null;
+      }
+      return acceptChunk(chunk);
+    },
+    applyOpen(replay, meta) {
+      activeGen = meta.generation;
+      const pending = earlyChunks.splice(0);
+      streamReady = true;
+
+      if (typeof meta.replayOffset === 'number') {
+        cursorOffset = meta.replayOffset;
+        const out: Uint8Array[] = [];
+        if (replay.length > 0) out.push(replay);
+        for (const chunk of pending) {
+          const accepted = acceptChunk(chunk);
+          if (accepted && accepted.length > 0) out.push(accepted);
+        }
+        return out;
+      }
+
+      cursorOffset = null;
+      const sameGenBytes = pending
+        .filter((c) => activeGen === undefined || c.generation === undefined || c.generation === activeGen)
+        .map((c) => c.bytes);
+      return mergeReplayWithEarlyChunks(replay, sameGenBytes).filter((c) => c.length > 0);
+    },
+  };
 }
 
 /**
@@ -228,7 +343,10 @@ const bumpEpoch = (id: string): void => {
 const writeTerminal: TerminalWriter = (id, data) => {
   if (!hasTransport()) return Promise.resolve(false);
   const epoch = terminalEpoch.get(id) ?? 0;
-  return Promise.resolve(api.sideTerminal.write({ id, data })).then(
+  const gen = activeGenerations.get(id);
+  return Promise.resolve(
+    api.sideTerminal.write(gen !== undefined ? { id, data, generation: gen } : { id, data }),
+  ).then(
     (ok) => ok === true && (terminalEpoch.get(id) ?? 0) === epoch,
     (err) => {
       log.debug('sideTerminal.write rejected', err);
@@ -248,6 +366,21 @@ function fire<T>(call: Promise<T> | undefined): void {
   });
 }
 
+async function waitPendingCloses(id: string, epoch: number): Promise<boolean> {
+  while (true) {
+    const closeTask = pendingClose.get(id);
+    const closeAllTask = pendingCloseAll;
+    if (!closeTask && !closeAllTask) {
+      return latestOpenEpoch.get(id) === epoch;
+    }
+    if (closeTask) await closeTask;
+    if (closeAllTask) await closeAllTask;
+    if (latestOpenEpoch.get(id) !== epoch) {
+      return false;
+    }
+  }
+}
+
 export const sideTerminalHost = {
   available: () => hasTransport(),
 
@@ -260,22 +393,41 @@ export const sideTerminalHost = {
     terminalInput.reset(input.id);
     const epoch = ++openSeq;
     latestOpenEpoch.set(input.id, epoch);
-    exitedBeforeOpenReply.delete(input.id);
+
+    if (!(await waitPendingCloses(input.id, epoch))) {
+      return { ok: false, reason: 'failed', message: 'superseded by newer terminal action' };
+    }
+    // 清理未带代次的旧 early-exit 残留（带代次的由 generation 区分，不可误删）
+    const oldSet = exitedBeforeOpenReply.get(input.id);
+    if (oldSet) {
+      oldSet.delete(undefined);
+      if (oldSet.size === 0) exitedBeforeOpenReply.delete(input.id);
+    }
+
     try {
       const res = (await api.sideTerminal.open(input)) ?? unavailableResult;
       if (latestOpenEpoch.get(input.id) === epoch) {
         if (!res.ok) {
+          activeGenerations.delete(input.id);
           setTerminalStatus(input.id, 'error');
-        } else if (res.exited || exitedBeforeOpenReply.has(input.id)) {
-          setTerminalStatus(input.id, 'exited');
         } else {
-          setTerminalStatus(input.id, 'running');
+          if (typeof res.generation === 'number') {
+            activeGenerations.set(input.id, res.generation);
+          } else {
+            activeGenerations.delete(input.id);
+          }
+          if (res.exited || consumeEarlyExit(input.id, res.generation)) {
+            setTerminalStatus(input.id, 'exited');
+          } else {
+            setTerminalStatus(input.id, 'running');
+          }
         }
       }
       return res;
     } catch (err) {
       log.warn('sideTerminal.open failed', err);
       if (latestOpenEpoch.get(input.id) === epoch) {
+        activeGenerations.delete(input.id);
         setTerminalStatus(input.id, 'error');
       }
       return {
@@ -303,18 +455,40 @@ export const sideTerminalHost = {
 
   resize(id: string, cols: number, rows: number): void {
     if (!hasTransport() || !id || cols < 10 || rows < 4) return;
-    fire(api.sideTerminal.resize({ id, cols: Math.round(cols), rows: Math.round(rows) }));
+    const gen = activeGenerations.get(id);
+    fire(
+      api.sideTerminal.resize({
+        id,
+        cols: Math.round(cols),
+        rows: Math.round(rows),
+        ...(gen !== undefined ? { generation: gen } : {}),
+      }),
+    );
   },
 
-  close(id: string): void {
-    if (!id) return;
+  close(id: string, generation?: number): Promise<boolean> {
+    if (!id) return Promise.resolve(false);
     bumpEpoch(id);
     terminalInput.close(id);
     deleteTerminalStatus(id);
     latestOpenEpoch.delete(id);
+    activeGenerations.delete(id);
     exitedBeforeOpenReply.delete(id);
-    if (!hasTransport()) return;
-    fire(api.sideTerminal.close({ id }));
+    if (!hasTransport()) return Promise.resolve(false);
+    const payload = generation !== undefined && generation > 0 ? { id, generation } : { id };
+    const rpc = Promise.resolve(api.sideTerminal.close(payload));
+    const settled = rpc
+      .then(() => undefined)
+      .catch((err) => {
+        log.debug('sideTerminal.close failed', err);
+      })
+      .finally(() => {
+        if (pendingClose.get(id) === settled) {
+          pendingClose.delete(id);
+        }
+      });
+    pendingClose.set(id, settled);
+    return rpc.catch(() => false);
   },
 
   closeAll(): void {
@@ -325,13 +499,24 @@ export const sideTerminalHost = {
     latestLiveIds = [];
     clearTerminalStatuses();
     latestOpenEpoch.clear();
+    activeGenerations.clear();
     exitedBeforeOpenReply.clear();
     if (syncTimer !== null && typeof window !== 'undefined') {
       window.clearTimeout(syncTimer);
       syncTimer = null;
     }
     if (!hasTransport()) return;
-    fire(api.sideTerminal.closeAll({}));
+    const settled = Promise.resolve(api.sideTerminal.closeAll({}))
+      .then(() => undefined)
+      .catch((err) => {
+        log.debug('sideTerminal.closeAll failed', err);
+      })
+      .finally(() => {
+        if (pendingCloseAll === settled) {
+          pendingCloseAll = null;
+        }
+      });
+    pendingCloseAll = settled;
   },
 
   sync(ids: readonly string[]): void {
@@ -341,6 +526,7 @@ export const sideTerminalHost = {
       if (!keep.has(id)) {
         if (terminalStatusMap.delete(id)) changed = true;
         latestOpenEpoch.delete(id);
+        activeGenerations.delete(id);
         exitedBeforeOpenReply.delete(id);
       }
     }
@@ -368,7 +554,7 @@ export function syncLiveTerminals(ids: readonly string[]): void {
 export function subscribeSideTerminal(
   id: string,
   handlers: {
-    onData?: (bytes: Uint8Array) => void;
+    onData?: (chunk: SideTerminalDataChunk) => void;
     onExit?: (event: SideTerminalExitEvent) => void;
   },
 ): () => void {
@@ -376,12 +562,20 @@ export function subscribeSideTerminal(
   ensureExitStatusListener();
   const offData = api.on('sideTerminal.data', (ev) => {
     if (ev.id !== id) return;
-    handlers.onData?.(decodeTerminalBytes(ev.data));
+    handlers.onData?.({
+      bytes: decodeTerminalBytes(ev.data),
+      generation: ev.generation,
+      offset: ev.offset,
+    });
   });
   const offExit = api.on('sideTerminal.exit', (ev) => {
     if (ev.id !== id) return;
+    const activeGen = activeGenerations.get(id);
+    if (activeGen !== undefined && ev.generation !== undefined && ev.generation !== activeGen) {
+      return;
+    }
     setTerminalStatus(id, 'exited');
-    exitedBeforeOpenReply.add(id);
+    recordEarlyExit(id, ev.generation);
     handlers.onExit?.(ev);
   });
   return () => {

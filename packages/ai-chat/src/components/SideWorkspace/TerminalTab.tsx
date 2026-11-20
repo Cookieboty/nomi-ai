@@ -19,17 +19,16 @@ import {
 } from '@tabler/icons-react';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import { Terminal, type ITheme } from '@xterm/xterm';
+import { Terminal } from '@xterm/xterm';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
 import { openProjectTerminal } from '../../services/openProjectTerminal';
-import { resourcePreviewClient } from '../../services/resourcePreviewClient';
 import { isMac } from '../../services/shortcuts';
 import {
+  createTerminalStreamCursor,
   decodeTerminalBytes,
   isTerminalRunning,
-  mergeReplayWithEarlyChunks,
   sideTerminalHost,
   sideTerminalIdFor,
   subscribeSideTerminal,
@@ -55,7 +54,6 @@ import {
   updatePaneLeaf,
   type DividerBox,
   type NormalizedRect,
-  type PaneNavDirection,
   type SplitDirection,
   type TerminalPaneLeaf,
   type TerminalPaneNode,
@@ -63,136 +61,16 @@ import {
 } from '../../utils/terminalSplit';
 import { confirmDialog } from '../ConfirmDialog';
 
+import {
+  formatTerminalErrorReason,
+  isSplitDownShortcut,
+  isSplitRightShortcut,
+  matchCycleDirection,
+  matchNavDirection,
+  openTerminalUri,
+  readXtermTheme,
+} from './terminalHelpers';
 import styles from './TerminalTab.module.css';
-
-function isDarkTheme(): boolean {
-  const el = document.documentElement;
-  const theme = el.getAttribute('data-theme');
-  if (theme === 'ink' || theme === 'graphite') return true;
-  if (theme === 'light' || theme === 'sunset' || theme === 'cream' || theme === 'mist')
-    return false;
-  const scheme = getComputedStyle(el).colorScheme;
-  return scheme.includes('dark');
-}
-
-function readXtermTheme(): { theme: ITheme; fontFamily: string } {
-  const css = getComputedStyle(document.documentElement);
-  const getVar = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
-
-  const dark = isDarkTheme();
-  const background = getVar('--cd-color-surface', dark ? '#18181b' : '#ffffff');
-  const foreground = getVar('--cd-color-text', dark ? '#ececf1' : '#211d19');
-  const cursor = getVar('--cd-color-accent-strong', dark ? '#e58f65' : '#9d3f29');
-  const selectionBackground = getVar(
-    '--cd-color-selected-bg',
-    dark ? 'rgba(255,255,255,0.18)' : 'rgba(157,63,41,0.18)',
-  );
-  const fontFamily = getVar('--cd-font-mono', 'ui-monospace, Menlo, Consolas, monospace');
-
-  const theme: ITheme = dark
-    ? {
-        background,
-        foreground,
-        cursor,
-        cursorAccent: background,
-        selectionBackground,
-        black: '#27272a',
-        red: '#f87171',
-        green: '#4ade80',
-        yellow: '#facc15',
-        blue: '#60a5fa',
-        magenta: '#c084fc',
-        cyan: '#22d3ee',
-        white: '#e4e4e7',
-        brightBlack: '#71717a',
-        brightRed: '#fca5a5',
-        brightGreen: '#86efac',
-        brightYellow: '#fde047',
-        brightBlue: '#93c5fd',
-        brightMagenta: '#d8b4fe',
-        brightCyan: '#67e8f9',
-        brightWhite: '#fafafa',
-      }
-    : {
-        background,
-        foreground,
-        cursor,
-        cursorAccent: background,
-        selectionBackground,
-        black: '#211d19',
-        red: '#b8382f',
-        green: '#21734b',
-        yellow: '#8f5a17',
-        blue: '#2454a4',
-        magenta: '#824096',
-        cyan: '#176d7c',
-        white: '#e5e0d7',
-        brightBlack: '#685e55',
-        brightRed: '#c9493f',
-        brightGreen: '#288959',
-        brightYellow: '#a86b1a',
-        brightBlue: '#2e66c2',
-        brightMagenta: '#9c52b3',
-        brightCyan: '#1c8597',
-        brightWhite: '#faf9f6',
-      };
-
-  return { theme, fontFamily };
-}
-
-function openTerminalUri(uri: string): void {
-  void resourcePreviewClient
-    .external('', uri)
-    .then((res) => {
-      if (!res.ok) window.open(uri, '_blank', 'noopener,noreferrer');
-    })
-    .catch(() => {
-      window.open(uri, '_blank', 'noopener,noreferrer');
-    });
-}
-
-function formatErrorReason(reason: string | undefined, message: string | undefined): string {
-  if (reason === 'unsupported') return t('ui.session-workspace.terminal-unsupported');
-  if (reason === 'limit') return t('ui.session-workspace.terminal-limit');
-  return t('ui.session-workspace.terminal-failed', message || reason || 'error');
-}
-
-function isKeyD(e: KeyboardEvent): boolean {
-  return e.code === 'KeyD' || e.key.toLowerCase() === 'd';
-}
-
-function isSplitRightShortcut(e: KeyboardEvent, mac: boolean): boolean {
-  if (!isKeyD(e)) return false;
-  return mac
-    ? e.metaKey && !e.shiftKey && !e.ctrlKey && !e.altKey
-    : e.ctrlKey && e.shiftKey && !e.metaKey && !e.altKey;
-}
-
-function isSplitDownShortcut(e: KeyboardEvent, mac: boolean): boolean {
-  if (!isKeyD(e)) return false;
-  return mac
-    ? e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey
-    : e.altKey && e.shiftKey && !e.metaKey && !e.ctrlKey;
-}
-
-function matchNavDirection(e: KeyboardEvent, mac: boolean): PaneNavDirection | null {
-  const mods = mac
-    ? e.metaKey && e.altKey && !e.ctrlKey && !e.shiftKey
-    : e.ctrlKey && e.altKey && !e.metaKey && !e.shiftKey;
-  if (!mods) return null;
-  if (e.key === 'ArrowLeft') return 'left';
-  if (e.key === 'ArrowRight') return 'right';
-  if (e.key === 'ArrowUp') return 'up';
-  if (e.key === 'ArrowDown') return 'down';
-  return null;
-}
-
-function matchCycleDirection(e: KeyboardEvent, mac: boolean): -1 | 1 | null {
-  if (!mac || !e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return null;
-  if (e.code === 'BracketLeft' || e.key === '[') return -1;
-  if (e.code === 'BracketRight' || e.key === ']') return 1;
-  return null;
-}
 
 interface PaneRuntimeState {
   cwd: string;
@@ -261,8 +139,14 @@ const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
 
     const activeCwdRef = useRef(activeCwd);
     const explicitCwdRef = useRef(explicitCwdFlag);
+    const activeGenRef = useRef<number | undefined>(undefined);
     const lastSizeRef = useRef<{ cols: number; rows: number }>({ cols: 0, rows: 0 });
-    const initialReqRef = useRef<{ projectId?: string; cwd?: string; explicitCwd?: boolean }>({
+    const initialReqRef = useRef<{
+      projectId?: string;
+      cwd?: string;
+      explicitCwd?: boolean;
+      replace?: boolean;
+    }>({
       projectId: projectId ?? undefined,
       cwd: leaf.cwd || defaultCwd || undefined,
       explicitCwd: Boolean(leaf.explicitCwd || (leaf.cwd && leaf.cwd !== defaultCwd)),
@@ -320,7 +204,8 @@ const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
 
       let alive = true;
       let streamReady = false;
-      const earlyChunks: Uint8Array[] = [];
+      let activeGen: number | undefined;
+      const cursor = createTerminalStreamCursor();
       let pendingExit: SideTerminalExitEvent | null = null;
       lastSizeRef.current = { cols: 0, rows: 0 };
 
@@ -417,16 +302,16 @@ const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
 
       // 先订阅流式输出再 open，避免首行提示符丢失
       const unsubscribe = subscribeSideTerminal(termId, {
-        onData: (bytes) => {
-          if (!alive || !bytes.length) return;
-          if (!streamReady) {
-            earlyChunks.push(bytes);
-            return;
-          }
-          term.write(bytes);
+        onData: (chunk) => {
+          if (!alive || !chunk.bytes.length) return;
+          const out = cursor.push(chunk);
+          if (out && out.length > 0) term.write(out);
         },
         onExit: (ev) => {
           if (!alive) return;
+          if (activeGen !== undefined && ev.generation !== undefined && ev.generation !== activeGen) {
+            return;
+          }
           if (!streamReady) {
             pendingExit = ev;
             return;
@@ -436,6 +321,7 @@ const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
       });
 
       const req = initialReqRef.current;
+      initialReqRef.current = { ...req, replace: false };
       void sideTerminalHost
         .open({
           id: termId,
@@ -444,29 +330,44 @@ const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
           explicitCwd: req.explicitCwd,
           cols: initialCols,
           rows: initialRows,
+          ...(req.replace ? { replace: true } : {}),
         })
         .then((res) => {
           if (!alive) return;
           if (!res.ok) {
-            setErrorMsg(formatErrorReason(res.reason, res.message));
+            setErrorMsg(formatTerminalErrorReason(res.reason, res.message));
             return;
           }
+          activeGen = res.generation;
+          activeGenRef.current = res.generation;
           if (res.cwd) {
             setActiveCwd(res.cwd);
           }
           if (res.shell) setShellName(res.shell);
 
           const replayBytes = res.replay ? decodeTerminalBytes(res.replay) : new Uint8Array(0);
-          for (const chunk of mergeReplayWithEarlyChunks(replayBytes, earlyChunks)) {
+          for (const chunk of cursor.applyOpen(replayBytes, {
+            generation: res.generation,
+            replayOffset: res.replayOffset,
+          })) {
             if (chunk.length > 0) term.write(chunk);
           }
-          earlyChunks.length = 0;
           streamReady = true;
 
           if (res.exited) {
-            setExitInfo({ id: termId, exitCode: res.exitCode });
+            setExitInfo({
+              id: termId,
+              generation: res.generation,
+              exitCode: res.exitCode,
+            });
           } else if (pendingExit) {
-            setExitInfo(pendingExit);
+            if (
+              activeGen === undefined ||
+              pendingExit.generation === undefined ||
+              pendingExit.generation === activeGen
+            ) {
+              setExitInfo(pendingExit);
+            }
             pendingExit = null;
           }
 
@@ -527,7 +428,9 @@ const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
 
     const restartWithDir = useCallback(
       (nextCwd: string | undefined, explicit: boolean) => {
-        sideTerminalHost.close(termId);
+        const closingGen = activeGenRef.current;
+        activeGenRef.current = undefined;
+        void sideTerminalHost.close(termId, closingGen);
         setErrorMsg(null);
         setNoticeMsg(null);
         setExitInfo(null);
@@ -537,6 +440,7 @@ const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
           projectId: explicit ? undefined : (projectId ?? undefined),
           cwd: nextCwd,
           explicitCwd: explicit,
+          replace: true,
         };
         setRunSeq((n) => n + 1);
       },

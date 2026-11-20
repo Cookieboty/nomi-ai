@@ -25,6 +25,10 @@ import { useResourcePreview, type EmbeddedPreviewProps } from '../src/hooks/useR
 import { CONVERSATIONS_CHANGED_EVENT } from '../src/services/conversationStore';
 import type { HarnessTabsState } from '../src/services/harnessClient';
 import {
+  createSideChat,
+  exportSideChat,
+  forgetSideChat,
+  resetSideChats,
   sideChatDraftKey,
   sideChatDrafts,
   sideChatsIn,
@@ -35,6 +39,7 @@ import { CHANGES_SIDE_TAB, MAIN_SIDE_TAB, OPEN_FILE_SIDE_TAB } from '../src/util
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
+const terminalWrites = vi.hoisted(() => ({ log: [] as Uint8Array[] }));
 vi.mock('@xterm/xterm/css/xterm.css', () => ({}));
 vi.mock('@xterm/xterm', () => {
   class FakeTerminal {
@@ -53,7 +58,11 @@ vi.mock('@xterm/xterm', () => {
     onData() {
       return { dispose: () => undefined };
     }
-    write() {}
+    write(data: Uint8Array | string) {
+      terminalWrites.log.push(
+        typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data),
+      );
+    }
     clear() {}
     hasSelection() {
       return false;
@@ -1250,6 +1259,239 @@ describe('side tabs workspace', () => {
         expect(fake.inputs('sideTerminal.close')).toEqual([{ id: sideTerminalIdFor(termId) }]),
       );
       expect(opener!.pages).toHaveLength(0);
+    });
+
+    it('renders replay, mid-open stream, and post-open stream each exactly once without gaps or duplication', async () => {
+      terminalWrites.log.length = 0;
+      const enc = (s: string) => new TextEncoder().encode(s);
+      const b64 = (s: string) => btoa(String.fromCharCode(...enc(s)));
+
+      let resolveOpen!: (v: unknown) => void;
+      const fake = setup((name) => {
+        if (name === 'sideTerminal.open') {
+          return new Promise((r) => {
+            resolveOpen = r;
+          });
+        }
+        if (name.startsWith('sideTerminal.')) return true;
+        return undefined;
+      });
+      render(
+        <HarnessTabsProvider>
+          <WorkspacePanesProvider>
+            <Shell />
+          </WorkspacePanesProvider>
+        </HarnessTabsProvider>,
+      );
+
+      let termId = '';
+      act(() => {
+        termId = opener!.openTerminal({ cwd: '/w' });
+      });
+      const tid = sideTerminalIdFor(termId);
+      await waitFor(() => expect(fake.inputs('sideTerminal.open')).toHaveLength(1));
+
+      // open 响应返回前到达：快照前末尾同内容的段 1 重播 + 快照后新增的段 2
+      await fake.emit('sideTerminal.data', {
+        id: tid,
+        generation: 1,
+        offset: 0,
+        data: b64('SAME\n'),
+      });
+      await fake.emit('sideTerminal.data', {
+        id: tid,
+        generation: 1,
+        offset: 5,
+        data: b64('SAME\n'),
+      });
+
+      await act(async () => {
+        resolveOpen({
+          ok: true,
+          cwd: '/w',
+          shell: 'zsh',
+          generation: 1,
+          replay: b64('SAME\n'),
+          replayOffset: 5,
+        });
+        await Promise.resolve();
+      });
+
+      // open 返回后到达：迟到的段 1 重传、旧/错代次噪声、以及真正的段 3
+      await fake.emit('sideTerminal.data', {
+        id: tid,
+        generation: 1,
+        offset: 0,
+        data: b64('SAME\n'),
+      });
+      await fake.emit('sideTerminal.data', {
+        id: tid,
+        generation: 99,
+        offset: 0,
+        data: b64('WRONG_GEN'),
+      });
+      await fake.emit('sideTerminal.data', {
+        id: tid,
+        generation: 1,
+        offset: 10,
+        data: b64('AFTER\n'),
+      });
+
+      const joined = terminalWrites.log.map((c) => new TextDecoder().decode(c)).join('');
+      expect(joined).toBe('SAME\nSAME\nAFTER\n');
+    });
+
+    it('restarts terminal with replace=true only after close finishes and ignores stale generation exit', async () => {
+      let resolveClose!: (v: boolean) => void;
+      const callOrder: string[] = [];
+      const fake = setup((name, input) => {
+        if (name === 'sideTerminal.open') {
+          callOrder.push(`open:${(input as { replace?: boolean }).replace ? 'replace' : 'normal'}`);
+          return { ok: true, cwd: '/w', shell: 'zsh', generation: callOrder.filter((c) => c.startsWith('open:')).length, replayOffset: 0 };
+        }
+        if (name === 'sideTerminal.close') {
+          callOrder.push('close');
+          return new Promise<boolean>((r) => {
+            resolveClose = r;
+          });
+        }
+        if (name.startsWith('sideTerminal.')) return true;
+        return undefined;
+      });
+      render(
+        <HarnessTabsProvider>
+          <WorkspacePanesProvider>
+            <Shell />
+          </WorkspacePanesProvider>
+        </HarnessTabsProvider>,
+      );
+
+      let termId = '';
+      act(() => {
+        termId = opener!.openTerminal({ cwd: '/w' });
+      });
+      const tid = sideTerminalIdFor(termId);
+      await waitFor(() => expect(fake.inputs('sideTerminal.open')).toHaveLength(1));
+
+      fireEvent.click(screen.getByTestId('terminal-restart'));
+      await waitFor(() => expect(fake.inputs('sideTerminal.close')).toHaveLength(1));
+      // close 未 resolve 前第二次 open 绝不提前发出
+      expect(fake.inputs('sideTerminal.open')).toHaveLength(1);
+
+      await act(async () => {
+        resolveClose(true);
+        await Promise.resolve();
+      });
+      await waitFor(() => expect(fake.inputs('sideTerminal.open')).toHaveLength(2));
+      expect(callOrder).toEqual(['open:normal', 'close', 'open:replace']);
+
+      // 第 1 代迟到的 exit 事件不得把第 2 代标为 exited
+      await fake.emit('sideTerminal.exit', { id: tid, generation: 1, exitCode: 0 });
+      expect(screen.queryByTestId('terminal-exited-banner')).toBeNull();
+    });
+  });
+
+  describe('side-chat multi-window detach & two-phase dock handoff', () => {
+    it('detaches a side-chat page, hides it from tabs, restores snapshot on dockRequest, and cleans closed tabs without snapshots', async () => {
+      resetSideChats();
+      const handoff = new Map<string, string>();
+      const fake = setup((name, input) => {
+        if (name === 'chatWindow.registerHost') return true;
+        if (name === 'chatWindow.dockAck') return true;
+        if (name === 'chatWindow.handoffPut') {
+          const i = input as { id: string; data: string; direction?: string };
+          handoff.set(`${i.direction ?? ''}:${i.id}`, i.data);
+          return true;
+        }
+        if (name === 'chatWindow.handoffTake') {
+          const i = input as { id: string; direction?: string };
+          const k = `${i.direction ?? ''}:${i.id}`;
+          const v = handoff.get(k) ?? null;
+          return v;
+        }
+        return undefined;
+      });
+      render(
+        <HarnessTabsProvider>
+          <WorkspacePanesProvider scope="nomi:c1">
+            <Shell />
+          </WorkspacePanesProvider>
+        </HarnessTabsProvider>,
+      );
+
+      let sc1 = '';
+      let sc2 = '';
+      act(() => {
+        sc1 = opener!.openSideChat({ fresh: true });
+        sc2 = opener!.openSideChat({ fresh: true });
+      });
+      await waitFor(() => expect(tabKeys()).toEqual([`side-chat:${sc1}`, `side-chat:${sc2}`]));
+
+      // 弹出第 1 个侧边聊天页面：走 detach 方向快照并在本地隐藏该工作区页
+      fireEvent.contextMenu(tabByKey(`side-chat:${sc1}`));
+      fireEvent.click(screen.getByTestId('side-tab-detach'));
+      await waitFor(() => expect(fake.inputs('chatWindow.detachTab')).toHaveLength(1));
+      const d1 = fake.inputs('chatWindow.detachTab')[0] as { id: string; spec: string };
+      expect(handoff.has(`detach:${d1.id}`)).toBe(true);
+      await waitFor(() => expect(sideChatState(sc1)).toBeUndefined());
+
+      await fake.emit('chatWindow.detachedChanged', [d1.id]);
+      await waitFor(() => expect(tabKeys()).toEqual([`side-chat:${sc2}`]));
+
+      // 准备带草稿图片的放回快照并发起两阶段 dockRequest
+      createSideChat('nomi:c1');
+      const snapChatId = sc1;
+      forgetSideChat(snapChatId);
+      const backRaw = exportSideChat(sc2)!;
+      const parsedBack = JSON.parse(backRaw) as {
+        v: number;
+        chat: { id: string; scope: string; seq: number };
+      };
+      parsedBack.chat.id = snapChatId;
+      parsedBack.chat.seq = 1;
+      const dockPayload = JSON.stringify({
+        v: 1,
+        chat: parsedBack.chat,
+        queuedImages: [],
+        draft: {
+          text: '带回草稿',
+          images: [
+            {
+              id: 'img-back',
+              mime: 'image/png',
+              data: 'BACK_IMG',
+              width: 8,
+              height: 8,
+              thumb: 'data:tb',
+              source: 'paste',
+            },
+          ],
+          files: [],
+        },
+      });
+      handoff.set(`dock:${d1.id}`, dockPayload);
+
+      await fake.emit('chatWindow.dockRequest', { id: d1.id, transferId: 'tr-host-1' });
+      await waitFor(() =>
+        expect(fake.inputs('chatWindow.dockAck')).toEqual([
+          { id: d1.id, transferId: 'tr-host-1', ok: true },
+        ]),
+      );
+      await fake.emit('chatWindow.detachedChanged', []);
+      await waitFor(() => expect(tabKeys()).toEqual([`side-chat:${sc1}`, `side-chat:${sc2}`]));
+      expect(sideChatDrafts.read(sideChatDraftKey(sc1)).images[0]?.data).toBe('BACK_IMG');
+
+      // 无快照关闭第 2 个弹出窗口时，用 closeSideTab 清掉 pages 里对应的标签
+      fireEvent.contextMenu(tabByKey(`side-chat:${sc2}`));
+      fireEvent.click(screen.getByTestId('side-tab-detach'));
+      await waitFor(() => expect(fake.inputs('chatWindow.detachTab')).toHaveLength(2));
+      const d2 = fake.inputs('chatWindow.detachTab')[1] as { id: string };
+      handoff.clear();
+      await fake.emit('chatWindow.detachedChanged', [d2.id]);
+      await waitFor(() => expect(tabKeys()).toEqual([`side-chat:${sc1}`]));
+      await fake.emit('chatWindow.detachedChanged', []);
+      await waitFor(() => expect(tabKeys()).toEqual([`side-chat:${sc1}`]));
+      resetSideChats();
     });
   });
 });
