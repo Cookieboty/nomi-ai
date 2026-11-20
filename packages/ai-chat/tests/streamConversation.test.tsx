@@ -15,7 +15,7 @@ import type { ApiMockState } from './helpers/knowledgeApi';
 
 // 契约客户端（services/api）的替身：默认没有传输（与没有 window.aiIPC 时一致），用到的用例再打开
 const apiMock = vi.hoisted(() => ({ transport: false }) as ApiMockState);
-// 附图存进素材库：测试里直接给地址（真实导入要桌面端）
+// 附图存到本地图片目录：测试里直接给地址（真实导入要桌面端）
 vi.mock('../src/services/chatImages', async (orig) => ({
   ...(await orig<typeof import('../src/services/chatImages')>()),
   importChatImages: async (images: readonly unknown[]) => images.map(() => 'nomi-asset://shot.png'),

@@ -1,6 +1,7 @@
 /**
- * 用户发的图片存进素材库（chatAssets.import）：消息里记下 chat-asset 地址，气泡里可放大看原图、复制、
- * 「以此修改 / 作为参考」；地址也附在发给模型的消息里，Nomi 改图 / 参考时交给 image_generate。
+ * 用户发的图片原图存到本地（chatAssets.import，文件名前缀 user-）：消息里记下 chat-asset 地址，气泡里可
+ * 放大看原图、复制、「以此修改 / 作为参考」；地址也附在发给模型的消息里，Nomi 改图 / 参考时交给 image_generate。
+ * 素材库只收生成的图片，这些原图不进素材库列表（文件仍在 userData/chat/images）。
  * 存不进去不挡发送：这张图照常发给模型，只是消息里没有原图地址。
  */
 import { createLogger } from '@nomi-ai/ui';
@@ -33,14 +34,14 @@ export async function importChatImages(
         });
         return typeof r?.url === 'string' ? r.url : '';
       } catch (e) {
-        log.warn('图片没能存进素材库', e);
+        log.warn('图片没能存到本地', e);
         return '';
       }
     }),
   );
 }
 
-/** 为缺少 url 的图片补存素材库并转为 HarnessImageInput[]，已有 url 的直接复用 */
+/** 为缺少 url 的图片补存原图并转为 HarnessImageInput[]，已有 url 的直接复用 */
 export async function ensureHarnessImages(
   images: readonly PendingImage[],
   conversationId?: string,
@@ -63,7 +64,7 @@ export async function ensureHarnessImages(
   });
 }
 
-/** agents sendTab 附图：带上素材库原图地址，气泡预览不再只用 240px 缩略图 */
+/** agents sendTab 附图：带上本地原图地址，气泡预览不再只用 240px 缩略图 */
 export async function toHarnessImages(
   images: readonly ImageAttachment[],
   conversationId?: string,

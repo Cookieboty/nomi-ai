@@ -70,7 +70,7 @@ export interface ChatMessage {
     width: number;
     height: number;
     source?: string;
-    /** 原图存进素材库后的地址（chat-asset://images/user-…）：可放大、复制，模型改图 / 参考时引用 */
+    /** 原图存在本地聊天目录后的地址（chat-asset://images/user-…，不进素材库）：可放大、复制，模型改图 / 参考时引用 */
     url?: string;
   }>;
   /**

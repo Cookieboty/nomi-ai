@@ -157,7 +157,7 @@ var (
 	importGIF  = []byte("GIF89a\x01\x00")
 )
 
-// 用户发送的原图：写进图片目录（来源 user），记下会话，通知视图，列表里能看到
+// 用户发送的原图：写进图片目录（来源 user），记下会话，通知视图；素材库列表里不列（只收生成的图片）
 func TestImportImage(t *testing.T) {
 	l, _, _, _, changed, images := setup(t)
 	it, err := l.ImportImage(ImportReq{Mime: "image/png", Data: base64.StdEncoding.EncodeToString(importPNG), ConversationID: "c1"})
@@ -175,8 +175,12 @@ func TestImportImage(t *testing.T) {
 	if st, _ := os.Stat(filepath.Join(images, it.File)); runtime.GOOS != "windows" && st.Mode().Perm() != 0o600 {
 		t.Fatal(st.Mode())
 	}
-	if items := l.List(); len(items) != 1 || items[0].File != it.File || items[0].Source != "user" {
+	// 素材库不收集用户发出的图片：列表为空，但文件在 images 目录里（气泡里照样能打开）
+	if items := l.List(); len(items) != 0 {
 		t.Fatalf("%+v", items)
+	}
+	if all := l.list(true); len(all) != 1 || all[0].File != it.File || all[0].Source != "user" {
+		t.Fatalf("%+v", all)
 	}
 	var exts []string
 	for _, c := range []struct {

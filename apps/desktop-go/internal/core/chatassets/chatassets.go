@@ -1,6 +1,7 @@
 // Package chatassets：素材库（全部生成的图片）。
-// 图片在 userData/chat/images，来源写在文件名前缀里（nomi- / 早期 gen- 算 Nomi、grok- / codex- …、
-// user- = 用户在对话里发送的原图，经 chatAssets.import 存进来）；
+// 图片在 userData/chat/images，来源写在文件名前缀里（nomi- / 早期 gen- 算 Nomi、grok- / codex- …）；
+// user- = 用户在对话里发送的原图，经 chatAssets.import 存进同一目录，只为对话气泡能看原图 / 下载 /
+// 「以此修改 · 作为参考」——素材库只收生成的图片，列表里不列它们（见 List）。
 // 对话背景（<stem>.<uuid>.ext、panel-bg.jpg）不列。模型 / 提示词 / 会话另存 userData/chat/assets.json。
 // 删除移到系统废纸篓；「在文件夹中显示」经宿主。
 package chatassets
@@ -28,8 +29,12 @@ var assetFile = regexp.MustCompile(`(?i)^([a-z][a-z0-9]*)-[A-Za-z0-9._-]+\.(png|
 
 var legacySource = map[string]string{"gen": "nomi"}
 
-// Sources = ASSET_SOURCES
+// Sources：认得的文件前缀（= ASSET_SOURCES）；user 也在里面，只是不进素材库列表
 var Sources = []string{"nomi", "grok", "codex", "claude", "gemini", "dsh", "qwen", "kimi", "opencode", "copilot", "user"}
+
+// userSource：用户在对话里发送的原图（ImportImage 按这个前缀存）。素材库只收生成的图片，List 不列它，
+// 但文件照旧留在 images 目录：对话气泡要能看原图、下载、「以此修改 / 作为参考」。
+const userSource = "user"
 
 type Meta struct {
 	Model          string   `json:"model,omitempty"`
@@ -133,7 +138,7 @@ func (l *Library) writeMeta(m map[string]Meta) {
 // 重新生成发的就是首次生成时的全文（#225）
 const AssetPromptMax = 4000
 
-// Record：生成了一张图（Nomi 的 image_generate）
+// Record：记下一张图（Nomi 的 image_generate 生成的，或用户发送的原图）
 func (l *Library) Record(file string, meta Meta) {
 	if SourceOf(file) == "" {
 		return
@@ -161,8 +166,11 @@ func (l *Library) Record(file string, meta Meta) {
 	}
 }
 
-// List：全部生成的图片，新的在前
-func (l *Library) List() []Item {
+// List：素材库里的图片（生成的），新的在前；用户发送的原图（user-）不列
+func (l *Library) List() []Item { return l.list(false) }
+
+// list：includeUser = true 时连用户发送的原图一起列（只有 ImportImage 取自己刚存的那张用）
+func (l *Library) list(includeUser bool) []Item {
 	ents, err := os.ReadDir(l.imagesDir())
 	if err != nil {
 		return []Item{}
@@ -174,7 +182,7 @@ func (l *Library) List() []Item {
 	out := []Item{}
 	for _, e := range ents {
 		src := SourceOf(e.Name())
-		if src == "" || e.IsDir() {
+		if src == "" || (src == userSource && !includeUser) || e.IsDir() {
 			continue
 		}
 		info, err := e.Info()
@@ -317,7 +325,8 @@ type ImportReq struct {
 	ConversationID string `json:"conversationId,omitempty"`
 }
 
-// ImportImage = importImage：用户在对话里发送的图片，原图存进素材库（来源 user），返回素材项。
+// ImportImage = importImage：用户在对话里发送的图片，原图存进 images 目录（前缀 user-），返回素材项
+// （带 chat-asset 地址，对话里看原图 / 下载 / 以此修改要用）。素材库只收生成的图片，列表里不列它。
 // 解码后超过 20 MB、或文件头与 mime 不符的拒绝；对话 id 记进说明。
 func (l *Library) ImportImage(req ImportReq) (Item, error) {
 	maxMb := ImportMaxBytes / 1024 / 1024
@@ -358,7 +367,7 @@ func (l *Library) ImportImage(req ImportReq) (Item, error) {
 	}
 	// Record 会通知视图（chatAssets.changed）
 	l.Record(file, Meta{ConversationID: req.ConversationID})
-	for _, it := range l.List() {
+	for _, it := range l.list(true) {
 		if it.File == file {
 			return it, nil
 		}

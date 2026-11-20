@@ -63,7 +63,7 @@ function mockIpc(
         const how = behavior();
         if (how === 'reject')
           throw new Error('这个会话还没有选择模型，请先在输入栏选择一个第三方模型');
-        if (how === 'image-import') throw new Error('图片导入失败：素材库暂时不可用');
+        if (how === 'image-import') throw new Error('图片导入失败：本地图片目录暂时不可用');
         sent.push({
           tabId: String(i?.id),
           text: String(i?.prompt),
