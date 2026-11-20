@@ -254,3 +254,33 @@ func TestPosixPathSkipsDirectoriesAndNonExecutables(t *testing.T) {
 		t.Fatalf("explicit .mjs should stay supported, got %q", got)
 	}
 }
+
+// POSIX 查找大小写敏感：同一目录里只有大小写不同的可执行文件（ReClaude-Path）时，
+// 查找 reclaude-path 必须落空，不能像 Windows 那样折叠。仅在大小写敏感的宿主上成立。
+func TestPosixFindOnPathDoesNotCaseFold(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX lookup is case-sensitive; Windows folds PATHEXT case on purpose")
+	}
+	ConfigureLaunchers(t.TempDir())
+	t.Cleanup(func() { ConfigureLaunchers("") })
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "ReClaude-Path"), []byte("#!/bin/sh\necho ok\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// 大小写不敏感的文件系统（如 macOS 默认 APFS）会把 reclaude-path 当成同一个文件，
+	// os.Stat 能命中说明是宿主文件系统折叠了大小写，而不是生产代码。
+	if _, err := os.Stat(filepath.Join(dir, "reclaude-path")); err == nil {
+		t.Skip("host filesystem is case-insensitive")
+	}
+	env := util.NewObj()
+	env.Set("PATH", dir)
+
+	if got := FindOnPath("reclaude-path", env, "linux", nil); got != "" {
+		t.Fatalf("posix find on PATH must not case-fold, want empty, got %q", got)
+	}
+	// 同一目录下的真实名字仍应解析成功，确保上面的空结果不是因为目录不可读。
+	if got := FindOnPath("ReClaude-Path", env, "linux", nil); got != filepath.Join(dir, "ReClaude-Path") {
+		t.Fatalf("FindOnPath(ReClaude-Path) = %q, want the on-disk name", got)
+	}
+}
