@@ -240,6 +240,23 @@ func ParseLauncherCommand(command string) (string, []string, error) {
 	return parts[0], parts[1:], nil
 }
 
+// resolveCommandBin 统一裸命令 PATH 搜索与显式路径 Windows 扩展名补全，聊天与探测共用。
+func resolveCommandBin(cmd string, env *util.Obj, platform string, exists func(string) bool) string {
+	if cmd == "" {
+		return ""
+	}
+	if platform == "" {
+		platform = usage.Platform()
+	}
+	if !strings.ContainsAny(cmd, `/\`) {
+		if resolved := FindOnPath(cmd, env, platform, exists); resolved != "" {
+			return resolved
+		}
+		return WindowsExecutable(cmd, platform, exists)
+	}
+	return WindowsExecutable(cmd, platform, exists)
+}
+
 // ResolveExecutable resolves either an explicit executable path or a bare command name on PATH.
 func ResolveExecutable(cmd string, env *util.Obj, platform string) string {
 	if cmd == "" {
@@ -249,8 +266,8 @@ func ResolveExecutable(cmd string, env *util.Obj, platform string) string {
 		platform = usage.Platform()
 	}
 	if filepath.IsAbs(cmd) || strings.ContainsAny(cmd, `/\`) {
-		found := WindowsExecutable(cmd, platform, nil)
-		if st, err := os.Stat(found); err == nil && !st.IsDir() {
+		found := resolveCommandBin(cmd, env, platform, nil)
+		if isProbeCandidate(found, platform) {
 			return found
 		}
 		return ""
@@ -287,12 +304,12 @@ func LauncherInvocation(kind, bin string, args []string, official bool) (string,
 	return cmd, append(prefix, args...), nil
 }
 
-// LauncherProbeInvocation shares chat's executable prefix with auth and quota probes.
+// LauncherProbeInvocation shares chat's executable prefix and discovered CLI PATH with auth and quota probes.
 // The launcher prefix is resolved like chat (ResolveHarnessLaunch): a bare name
 // such as "reclaude" becomes the found PATH entry ("reclaude.cmd" on Windows,
 // honoring PATHEXT) so probes can spawn what fd.Options would run.
 func LauncherProbeInvocation(kind, bin string, args []string) (string, []string, error) {
-	return launcherProbeInvocation(kind, bin, args, usage.Platform(), usage.ProcessEnv(), nil)
+	return launcherProbeInvocation(kind, bin, args, usage.Platform(), WithCliPath(nil), nil)
 }
 
 // launcherProbeInvocation is the testable form of LauncherProbeInvocation.
@@ -301,17 +318,7 @@ func launcherProbeInvocation(kind, bin string, args []string, platform string, e
 	if err != nil {
 		return "", nil, err
 	}
-	// Same order as ResolveHarnessLaunch (chat): PATH lookup for bare names, then
-	// Windows extension filling; explicit paths only get the extension filled.
-	if !strings.ContainsAny(cmd, `/\`) {
-		if resolved := FindOnPath(cmd, env, platform, exists); resolved != "" {
-			cmd = resolved
-		} else {
-			cmd = WindowsExecutable(cmd, platform, exists)
-		}
-	} else {
-		cmd = WindowsExecutable(cmd, platform, exists)
-	}
+	cmd = resolveCommandBin(cmd, env, platform, exists)
 	if ext := strings.ToLower(filepath.Ext(cmd)); ext == ".js" || ext == ".mjs" {
 		argv = append([]string{cmd}, argv...)
 		cmd = ResolveNodeBin()

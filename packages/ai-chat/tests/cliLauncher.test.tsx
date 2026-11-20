@@ -207,3 +207,84 @@ it('updates ModelControls sourceSwitch reactively when launcher config loads as 
   });
   await waitFor(() => expect(r.getByTestId('model-menu').textContent).toContain('沿用本机登录'));
 });
+
+it('syncs cli.launcherChanged events across windows and rejects stale in-flight GETs (#404)', async () => {
+  let resolveGet!: (v: Record<string, CliLauncherSettings>) => void;
+  const tab: HarnessTabMeta = {
+    id: 'cx2',
+    title: 'Chat',
+    backend: 'codex',
+    cwd: '/w',
+    cliSessionId: null,
+    status: 'idle',
+    unread: 0,
+    createdAt: 0,
+    updatedAt: 0,
+    source: 'thirdParty',
+    modelOverride: 'a/gpt-5',
+  };
+  const fake = installFakeApi(async (name: string) => {
+    if (name === 'cli.launcherGet')
+      return await new Promise<Record<string, CliLauncherSettings>>((resolve) => {
+        resolveGet = resolve;
+      });
+    if (name === 'gateway.state')
+      return {
+        providers: [
+          {
+            id: 'a',
+            name: 'A',
+            enabled: true,
+            source: 'user',
+            urls: { chat: 'https://example.com' },
+            keys: [],
+            models: [{ id: 'gpt-5', enabled: true, toolCalling: true }],
+          },
+        ],
+        clients: { codex: { models: { main: 'a/gpt-5' } } },
+        status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
+        allowedPrivateHosts: [],
+        port: 1,
+      };
+    if (name === 'cliAccount.list')
+      return [
+        {
+          id: 'acct-1',
+          kind: 'codex',
+          label: 'Work',
+          loggedIn: true,
+          identity: null,
+          active: true,
+          inUse: 0,
+          createdAt: 0,
+        },
+      ];
+    if (name === 'harness.modelCatalog')
+      return {
+        backend: 'codex',
+        provider: { id: 'gateway', name: 'Third-party models' },
+        defaultModel: { id: 'a/gpt-5', label: 'A / gpt-5', reasoning: false, efforts: [] },
+        models: [{ id: 'a/gpt-5', label: 'A / gpt-5', reasoning: false, efforts: [] }],
+      };
+    return {};
+  });
+
+  const r = render(<ModelControls tab={tab} />);
+  fireEvent.click(await r.findByTestId('model-chip'));
+  await waitFor(() => expect(r.getByTestId('model-menu').textContent).toContain('切换到官方账号'));
+
+  // 另一个窗口先修改并收到广播事件：立即变为本机登录态
+  await fake.emit('cli.launcherChanged', {
+    codex: { enabled: false, command: '', accountSource: 'local', hasLocalLogin: true },
+  });
+  await waitFor(() => expect(r.getByTestId('model-menu').textContent).toContain('沿用本机登录'));
+  expect(launcherManagesLogin('codex')).toBe(true);
+
+  // 早先发出的慢 GET 返回旧的 nomi 状态，不可覆盖刚刚推送的最新事件
+  resolveGet({
+    codex: { enabled: false, command: '', accountSource: 'nomi', hasLocalLogin: true },
+  });
+  await new Promise((res) => setTimeout(res, 20));
+  expect(launcherManagesLogin('codex')).toBe(true);
+  expect(r.getByTestId('model-menu').textContent).toContain('沿用本机登录');
+});

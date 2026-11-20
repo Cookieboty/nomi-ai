@@ -319,17 +319,78 @@ func splitNonEmpty(s, sep string) []string {
 	return out
 }
 
+func pathListSeparator(platform string) string {
+	if platform == "win32" {
+		return ";"
+	}
+	return ":"
+}
+
+func envLookupCI(env *util.Obj, name string) (string, bool) {
+	if env == nil {
+		return "", false
+	}
+	for _, k := range env.Keys() {
+		if util.JSLower(k) == util.JSLower(name) {
+			if v, ok := env.Lookup(k); ok {
+				if _, u := v.(util.JSUndefined); !u && v != nil {
+					return util.JSString(v), true
+				}
+			}
+		}
+	}
+	return "", false
+}
+
+func isRegularFile(p string) bool {
+	st, err := os.Stat(p)
+	return err == nil && !st.IsDir()
+}
+
+func isNodeScript(p string) bool {
+	ext := strings.ToLower(filepath.Ext(p))
+	return ext == ".js" || ext == ".mjs"
+}
+
+func isExecutableFor(p, platform string) bool {
+	st, err := os.Stat(p)
+	if err != nil || st.IsDir() {
+		return false
+	}
+	if platform == "win32" {
+		return true
+	}
+	return st.Mode()&0o111 != 0
+}
+
+func isProbeCandidate(p, platform string) bool {
+	if isExecutableFor(p, platform) {
+		return true
+	}
+	return isNodeScript(p) && isRegularFile(p)
+}
+
 // WithCliPath = withCliPath（base nil = process.env）。
 func WithCliPath(base *util.Obj) *util.Obj {
+	return withCliPathFor(base, usage.Platform(), nil)
+}
+
+func withCliPathFor(base *util.Obj, platform string, exists func(string) bool) *util.Obj {
 	if base == nil {
 		base = usage.ProcessEnv()
 	}
+	if platform == "" {
+		platform = usage.Platform()
+	}
+	if exists == nil {
+		exists = usage.ExistsSync
+	}
 	key := pathKey(base)
-	delim := string(os.PathListSeparator)
+	delim := pathListSeparator(platform)
 	cur := splitNonEmpty(envStr(base, key), delim)
 	home := orDefault(util.JSTrim(envStr(base, "USERPROFILE")), orDefault(util.JSTrim(envStr(base, "HOME")), usage.Homedir()))
 	all := append([]string{}, cur...)
-	for _, d := range CliSearchDirs(home, usage.Platform(), base) {
+	for _, d := range CliSearchDirs(home, platform, base) {
 		in := false
 		for _, c := range cur {
 			if c == d {
@@ -337,7 +398,7 @@ func WithCliPath(base *util.Obj) *util.Obj {
 				break
 			}
 		}
-		if !in && usage.ExistsSync(d) {
+		if !in && exists(d) {
 			all = append(all, d)
 		}
 	}
@@ -351,13 +412,13 @@ var (
 	hasExtRe = regexp.MustCompile(`(?i)\.[a-z0-9]+$`)
 )
 
-// WindowsExecutable = windowsExecutable（exists nil = fs.existsSync）。
+// WindowsExecutable = windowsExecutable（exists nil = 平台可执行文件校验）。
 func WindowsExecutable(bin, platform string, exists func(string) bool) string {
 	if platform == "" {
 		platform = usage.Platform()
 	}
 	if exists == nil {
-		exists = usage.ExistsSync
+		exists = func(p string) bool { return isExecutableFor(p, platform) }
 	}
 	if platform != "win32" || winExeRe.MatchString(bin) {
 		return bin
@@ -414,9 +475,9 @@ func FindOnPath(cmd string, env *util.Obj, platform string, exists func(string) 
 		platform = usage.Platform()
 	}
 	if exists == nil {
-		exists = usage.ExistsSync
+		exists = func(p string) bool { return isExecutableFor(p, platform) }
 	}
-	dirs := splitNonEmpty(envStr(env, pathKey(env)), string(os.PathListSeparator))
+	dirs := splitNonEmpty(envStr(env, pathKey(env)), pathListSeparator(platform))
 	if len(dirs) == 0 {
 		return ""
 	}
@@ -426,10 +487,8 @@ func FindOnPath(cmd string, env *util.Obj, platform string, exists func(string) 
 			names = append(names, cmd)
 		} else {
 			pathext := ".COM;.EXE;.BAT;.CMD"
-			if v, ok := env.Lookup("PATHEXT"); ok {
-				if _, u := v.(util.JSUndefined); !u && v != nil {
-					pathext = util.JSString(v)
-				}
+			if v, ok := envLookupCI(env, "PATHEXT"); ok {
+				pathext = v
 			}
 			for _, raw := range strings.Split(pathext, ";") {
 				ext := util.JSTrim(raw)
@@ -584,8 +643,9 @@ func pickedBin(raw string) string {
 	if e == "" {
 		return ""
 	}
-	chosen := WindowsExecutable(e, "", nil)
-	if usage.ExistsSync(chosen) {
+	platform := usage.Platform()
+	chosen := WindowsExecutable(e, platform, nil)
+	if isProbeCandidate(chosen, platform) {
 		return chosen
 	}
 	return ""
@@ -617,10 +677,11 @@ func probe(kind string, whichFn func(string) string) string {
 			return p
 		}
 	}
-	for _, dir := range CliSearchDirs("", "", nil) {
+	platform := usage.Platform()
+	for _, dir := range CliSearchDirs("", platform, nil) {
 		for _, c := range fallbackNames(kind) {
 			p := filepath.Join(dir, c)
-			if usage.ExistsSync(p) {
+			if isProbeCandidate(p, platform) {
 				return p
 			}
 		}

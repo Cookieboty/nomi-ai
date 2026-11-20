@@ -169,6 +169,9 @@ func RegisterCoding(r *contract.Router, s CodingServices) {
 		if s.OnLauncherSaved != nil && prev != next {
 			s.OnLauncherSaved(kind, prev, next)
 		}
+		if prev != next {
+			r.EmitTo("cli.launcherChanged", cli.LaunchersView(), "chat")
+		}
 		return cli.LauncherViewFor(kind)
 	})
 	plain(r, "cli.launcherTest", func(a in) any {
