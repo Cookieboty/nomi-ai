@@ -650,6 +650,83 @@ describe('ModelControls', () => {
     );
   });
 
+  it('同时支持思考深度与长上下文的第三方 CLI 模型在首屏档位页直接提供长上下文开关', async () => {
+    const ref = 'maas/deepseek-v4.1-flash';
+    const gatewayState = {
+      status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
+      providers: [
+        {
+          id: 'maas',
+          name: 'MAAS',
+          enabled: true,
+          urls: {},
+          keys: [],
+          models: [
+            {
+              id: 'deepseek-v4.1-flash',
+              enabled: true,
+              effective: {
+                ctx: 262_144,
+                maxOutput: 128_000,
+                source: 'catalog',
+                maxOutputSource: 'catalog',
+                thinking: { control: 'effort', levels: ['low', 'high', 'max'], default: 'high' },
+                longContext: {
+                  standard: 262_144,
+                  full: 1_048_576,
+                  on: false,
+                },
+              },
+            },
+          ],
+        },
+      ],
+      clients: { codex: { models: {} } },
+      allowedPrivateHosts: [],
+      port: 1,
+    };
+    let current: HarnessTabMeta = { ...baseTab, source: 'thirdParty', modelOverride: ref };
+    const invoke = vi.fn(async (ch: string, i?: Record<string, unknown>) => {
+      if (ch === 'gateway.state') return gatewayState;
+      if (ch === 'harness.modelCatalog')
+        return {
+          backend: 'codex',
+          provider: { id: 'maas', name: 'MAAS' },
+          defaultModel: null,
+          models: [{ id: ref, label: 'deepseek-v4.1-flash', reasoning: true, efforts: [] }],
+        };
+      if (ch === 'harness.tabLongContext') {
+        const on = i?.on as boolean | null;
+        current = { ...current, longContext: on === null ? null : { model: ref, on } };
+        return { ...current };
+      }
+      return {};
+    });
+    installFakeApi(invoke);
+    const r = render(<ModelControls tab={current} />);
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('gateway.state'));
+    await act(async () => {});
+    fireEvent.click(await r.findByTestId('model-chip'));
+
+    const row = await r.findByTestId('model-long-context');
+    expect(row.textContent).toContain('262K → 1M');
+    const sw = r.getByTestId('model-long-context-switch');
+    expect(sw.getAttribute('aria-checked')).toBe('false');
+
+    fireEvent.click(sw);
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('harness.tabLongContext', { id: 'cx', on: true }),
+    );
+    r.rerender(<ModelControls tab={current} />);
+    expect((await r.findByTestId('model-chip-long')).textContent).toBe('长');
+    expect(r.getByTestId('model-long-context-switch').getAttribute('aria-checked')).toBe('true');
+
+    fireEvent.click(r.getByTestId('model-long-context-switch'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('harness.tabLongContext', { id: 'cx', on: null }),
+    );
+  });
+
   it('模型多于 8 个时模型页有搜索：按 id / 名称过滤，回车选第一个，Esc 先清空搜索词', async () => {
     const models = Array.from({ length: 12 }, (_, i) => ({
       id: `anthropic/claude-${i}`,

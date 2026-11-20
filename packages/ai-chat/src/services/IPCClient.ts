@@ -14,6 +14,7 @@ import { chunkToTrace, chunkToUsage } from '../utils/chunkTrace';
 import { api, hasTransport } from './api';
 import { createConversationStore } from './conversationBoot';
 import { buildProviderMessages, type ProviderMessage } from './history';
+import { nomiLongContextOverride } from './longContext';
 import { currentNomiThinking } from './thinkingDepth';
 import { upstreamErrorText } from './upstreamErrorText';
 
@@ -224,6 +225,7 @@ export class SdkIPCClient implements IPCClient {
       const reasoningEffort = conversationId
         ? currentNomiThinking(meta?.reasoningEffort)
         : undefined;
+      const longContext = conversationId ? nomiLongContextOverride(meta?.longContext) : undefined;
       const opts = {
         messages: await this.buildMessages(
           message,
@@ -239,6 +241,7 @@ export class SdkIPCClient implements IPCClient {
                 conversationId,
                 ...(projectId ? { projectId } : {}),
                 ...(reasoningEffort ? { reasoningEffort } : {}),
+                ...(longContext !== undefined ? { longContext } : {}),
               },
             }
           : {}),

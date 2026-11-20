@@ -63,13 +63,16 @@ func (s *Service) ContextTier() float64 {
 }
 
 // NomiContext = GatewayService.nomiContext(role)：没配模型时 nil
-func (s *Service) NomiContext(role string) *u.Obj {
+func (s *Service) NomiContext(role string) *u.Obj { return s.NomiContextWith(role, nil) }
+
+// NomiContextWith：同 NomiContext，但支持会话级长上下文覆盖（nil = 跟随模型默认）。
+func (s *Service) NomiContextWith(role string, longContext *bool) *u.Obj {
 	picked := s.nomiPick(role)
 	if picked == nil {
 		return nil
 	}
 	ctx, maxOut, src := float64(DefaultCtx), float64(DefaultMaxOutput), "default"
-	if m := s.ModelMetaOf(picked.PublicModel, nil); m != nil {
+	if m := s.ModelMetaOf(picked.PublicModel, longContext); m != nil {
 		ctx, maxOut, src = m.Ctx, m.MaxOutput, m.Source
 	}
 	ctx = ApplyContextTier(ctx, s.ContextTier())
@@ -88,15 +91,33 @@ func ChatRoleOf(role any, method string) string {
 	return "chat"
 }
 
+// ExtraLongContext 读取请求 extra.longContext（bool）；缺省或非布尔时返回 nil。
+func ExtraLongContext(options map[string]any) *bool {
+	extra, _ := options["extra"].(map[string]any)
+	if extra == nil {
+		return nil
+	}
+	b, ok := extra["longContext"].(bool)
+	if !ok {
+		return nil
+	}
+	return &b
+}
+
 // ApplyNomiContext = applyNomiContext(options, method, contextOf)：没带预算、也没指定 provider 时就地写入
 func ApplyNomiContext(options map[string]any, method string, contextOf func(role string) *u.Obj) {
+	ApplyNomiContextWith(options, method, func(role string, _ *bool) *u.Obj { return contextOf(role) })
+}
+
+// ApplyNomiContextWith：同 ApplyNomiContext，但把请求 extra.longContext 传给 contextOf。
+func ApplyNomiContextWith(options map[string]any, method string, contextOf func(role string, longContext *bool) *u.Obj) {
 	if _, ok := options["context"]; ok {
 		return
 	}
 	if p, ok := options["provider"]; ok && u.Truthy(p) {
 		return
 	}
-	info := contextOf(ChatRoleOf(options["role"], method))
+	info := contextOf(ChatRoleOf(options["role"], method), ExtraLongContext(options))
 	if info == nil {
 		return
 	}

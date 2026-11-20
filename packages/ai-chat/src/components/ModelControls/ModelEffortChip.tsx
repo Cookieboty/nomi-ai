@@ -12,8 +12,10 @@
  */
 import {
   BrandIcon,
+  formatContext,
   Icon,
   ModelPicker,
+  Switch,
   t,
   type PickerProvider,
   type SelectOption,
@@ -85,6 +87,16 @@ export interface ProviderPageSource extends ModelChoiceSource {
   onChange: (id: string) => 'effort' | 'model' | 'close';
 }
 
+/** 档位页里的长上下文开关 */
+export interface LongContextControl {
+  standard: number;
+  full: number;
+  on: boolean;
+  note?: string;
+  hint?: string;
+  onChange: (on: boolean) => void;
+}
+
 export interface ModelEffortSource {
   /** 触发器上的名字（含档位，或只有模型名） */
   label: string;
@@ -96,6 +108,7 @@ export interface ModelEffortSource {
   menuLabel: string;
   note?: string | null;
   longBadge?: boolean;
+  longContext?: LongContextControl | null;
   /** 点触发器打开时停在哪一页 */
   initialView: 'effort' | 'model';
   /** `/model` 命令打开时停在哪一页 */
@@ -254,7 +267,7 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
     else setView(next ?? 'effort');
   };
 
-  const { effort, model, account, provider } = source;
+  const { effort, model, account, provider, longContext } = source;
   const providerRow = provider && (
     <ModelChoiceRow
       source={provider}
@@ -351,6 +364,31 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
                   >
                     {effort.unavailableHint}
                   </p>
+                </div>
+              )}
+              {longContext && (
+                <div
+                  className={styles.longContextRow}
+                  title={longContext.hint}
+                  data-testid={`${prefix}-long-context`}
+                >
+                  <div className={styles.longContextHead}>
+                    <span className={styles.longContextTitle}>
+                      <span className={styles.modelRowLabel}>{t('ui.models.long-context')}</span>
+                      <span className={styles.longContextRange}>
+                        {formatContext(longContext.standard)} → {formatContext(longContext.full)}
+                      </span>
+                    </span>
+                    <Switch
+                      checked={longContext.on}
+                      onChange={longContext.onChange}
+                      aria-label={t('ui.models.long-context')}
+                      data-testid={`${prefix}-long-context-switch`}
+                    />
+                  </div>
+                  <span className={styles.longContextNote}>
+                    {longContext.note ?? t('ui.models.long-context-costs-more')}
+                  </span>
                 </div>
               )}
               <button

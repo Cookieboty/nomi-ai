@@ -109,6 +109,8 @@ export interface ChatSession {
    * 模型不支持时选择器不出现，请求也不带这个字段。
    */
   reasoningEffort?: string;
+  /** Nomi 对话的长上下文覆盖（按模型记录；缺省跟随「模型」页的默认设置） */
+  longContext?: { model: string; on: boolean };
   /** CLI 标签 id：有值时消息在 harness，侧栏只存元信息 */
   tabId?: string;
   /** CLI 原生会话 id：用于与本机历史按 backend + sessionId 去重 */

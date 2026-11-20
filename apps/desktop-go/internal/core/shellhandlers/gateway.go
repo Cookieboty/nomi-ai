@@ -72,7 +72,11 @@ func InstallGateway(r *contract.Router, svc *gwstore.Service) {
 		if role == "" {
 			role = "chat"
 		}
-		if o := svc.NomiContext(role); o != nil {
+		var longContext *bool
+		if b, ok := in.Get("longContext").(bool); ok {
+			longContext = &b
+		}
+		if o := svc.NomiContextWith(role, longContext); o != nil {
 			return o, nil
 		}
 		return nil, nil

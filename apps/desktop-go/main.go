@@ -465,7 +465,7 @@ func main() {
 			side := sidechat.Apply(options)
 			// 上下文预算：按路由到的模型的窗口算（gwstore nomicontext），不再用固定的 8K
 			if gatewaySvc != nil {
-				gwstore.ApplyNomiContext(options, method, gatewaySvc.NomiContext)
+				gwstore.ApplyNomiContextWith(options, method, gatewaySvc.NomiContextWith)
 			}
 			prep := desktopSvc.ChatPrep()
 			// 用户对话（带工具的一轮）：追加「现在做还是派出去」的判断规则（docs/features/scheduling-calendar.md）

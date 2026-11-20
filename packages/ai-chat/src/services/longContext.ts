@@ -1,6 +1,6 @@
 /**
  * 第三方模型的长上下文（docs/development/gateway.md）：按长度分档计价的模型默认按标准窗口
- * （超过它加价）压缩，用户可按标签开启长上下文，或在「模型」页按模型设默认。
+ * （超过它加价）压缩，用户可按标签 / Nomi 会话开启长上下文，或在「模型」页按模型设默认。
  * 输入栏模型菜单与上下文环共用这里的判断。
  */
 import { formatContext, t } from '@nomi-ai/ui';
@@ -8,7 +8,7 @@ import { formatContext, t } from '@nomi-ai/ui';
 import { tabSourceOf, thirdPartyRefOf } from './cliSource';
 import type { GatewayState } from './gatewayClient';
 import type { HarnessTabMeta } from './harnessClient';
-import { splitRef } from './nomiModel';
+import { gatewayStateSnapshot, nomiMainRef, splitRef } from './nomiModel';
 
 export interface LongContextInfo {
   /** 标签当前的第三方模型（供应商/模型） */
@@ -16,7 +16,7 @@ export interface LongContextInfo {
   /** 标准窗口 / 最大输入（token） */
   standard: number;
   full: number;
-  /** 这个标签现在是否开着长上下文（标签的选择优先，否则跟随模型默认） */
+  /** 这个标签 / 会话现在是否开着长上下文（标签/会话的选择优先，否则跟随模型默认） */
   on: boolean;
   /** 模型的默认（「模型」页设置） */
   modelDefault: boolean;
@@ -27,21 +27,28 @@ export interface LongContextInfo {
 /** 美元单价按价格表原样显示（表里本就是精确值，如 4、0.2） */
 const usd = (n: number) => `$${n}`;
 
-/** 标签当前模型的长上下文信息；不是第三方标签、或模型没有长上下文可开时为 null */
-export function longContextFor(
-  tab: HarnessTabMeta,
+/** 读取会话 / 标签对当前模型的显式长上下文选择；未对当前模型设置时为 undefined */
+export function longContextChoiceFor(
+  stored: { model: string; on: boolean } | null | undefined,
+  ref: string | null | undefined,
+): boolean | undefined {
+  return ref && stored?.model === ref ? stored.on : undefined;
+}
+
+/** 根据「供应商/模型」引用、可选会话覆盖与网关状态计算长上下文信息；模型不支持时为 null */
+export function longContextForRef(
+  ref: string | null | undefined,
+  choice: boolean | undefined,
   gateway: GatewayState | null,
 ): LongContextInfo | null {
-  if (tabSourceOf(tab) !== 'thirdParty' || !gateway) return null;
-  const ref = thirdPartyRefOf(tab, tab.backend, gateway);
-  const r = ref ? splitRef(ref) : null;
-  if (!ref || !r) return null;
+  if (!gateway || !ref) return null;
+  const r = splitRef(ref);
+  if (!r) return null;
   const m = gateway.providers
     .find((p) => p.id === r.provider)
     ?.models.find((x) => x.id === r.model);
   const lc = m?.effective?.longContext;
   if (!lc) return null;
-  const choice = tab.longContext?.model === ref ? tab.longContext.on : undefined;
   const p = lc.price;
   return {
     ref,
@@ -60,6 +67,28 @@ export function longContextFor(
         }
       : {}),
   };
+}
+
+/** 标签当前模型的长上下文信息；不是第三方标签、或模型没有长上下文可开时为 null */
+export function longContextFor(
+  tab: HarnessTabMeta,
+  gateway: GatewayState | null,
+): LongContextInfo | null {
+  if (tabSourceOf(tab) !== 'thirdParty' || !gateway) return null;
+  const ref = thirdPartyRefOf(tab, tab.backend, gateway);
+  return longContextForRef(ref, longContextChoiceFor(tab.longContext, ref), gateway);
+}
+
+/** Nomi 主对话 / 侧边聊天当前模型要带给内核的会话级长上下文覆盖（仅在当前模型支持分档时生效） */
+export function nomiLongContextOverride(
+  stored: { model: string; on: boolean } | null | undefined,
+  ref?: string | null,
+  gateway: GatewayState | null = gatewayStateSnapshot(),
+): boolean | undefined {
+  const target = ref ?? nomiMainRef(gateway);
+  const choice = longContextChoiceFor(stored, target);
+  if (choice === undefined) return undefined;
+  return longContextForRef(target, choice, gateway) ? choice : undefined;
 }
 
 /**

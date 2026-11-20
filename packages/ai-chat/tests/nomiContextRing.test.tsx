@@ -8,6 +8,8 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ContextUsageBar } from '../src/components/SessionWorkspace/ContextUsageBar';
+import { AiChatStoreContext, createAiChatStore } from '../src/contexts/aiChatStore';
+import { resetGatewayStateCache } from '../src/services/nomiModel';
 import type { ConvMessage } from '../src/types/conversation';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
@@ -55,6 +57,7 @@ function setup(ctx: { window: number; source: string } | null) {
 afterEach(() => {
   cleanup();
   resetFakeApi();
+  resetGatewayStateCache();
 });
 
 describe('上下文环 · Nomi 对话的窗口', () => {
@@ -81,5 +84,79 @@ describe('上下文环 · Nomi 对话的窗口', () => {
     const text = r.getByTestId('context-usage-detail').textContent ?? '';
     expect(text).toContain('/ 262K');
     expect(text).toContain('未识别模型');
+  });
+
+  it('会话开启长上下文后，上下文环将覆盖值传给 gateway.nomiContext', async () => {
+    const gw = {
+      ...gatewayState,
+      providers: [
+        {
+          id: 'amux',
+          name: 'Amux',
+          enabled: true,
+          urls: {},
+          keys: [],
+          models: [
+            {
+              id: 'openai/gpt-6-astra',
+              enabled: true,
+              effective: {
+                ctx: 262_144,
+                maxOutput: 128_000,
+                source: 'catalog',
+                maxOutputSource: 'catalog',
+                longContext: { standard: 262_144, full: 1_048_576, on: false },
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const convo = {
+      id: 'c1',
+      backend: 'nomi',
+      longContext: { model: 'amux/openai/gpt-6-astra', on: true },
+    };
+    const store = createAiChatStore({
+      messages: [],
+      ipcClient: {
+        currentConversationId: () => 'c1',
+        conversationStore: () => ({ get: (id: string) => (id === 'c1' ? convo : undefined) }),
+      },
+    } as never);
+    const invoke = vi.fn(async (ch: string, input?: { longContext?: boolean }) => {
+      if (ch === 'gateway.state') return gw;
+      if (ch === 'gateway.nomiContext') {
+        const w = input?.longContext ? 1_048_576 : 262_144;
+        return {
+          model: 'amux/openai/gpt-6-astra',
+          window: w,
+          outputReserve: 32_000,
+          budget: w - 32_000,
+          compactAt: Math.floor((w - 32_000) * 0.95),
+          source: 'catalog',
+        };
+      }
+      return {};
+    });
+    installFakeApi(invoke);
+    const r = render(
+      <AiChatStoreContext.Provider
+        value={{ store, actions: {} as never, dispatch: () => undefined }}
+      >
+        <ContextUsageBar messages={messages} />
+      </AiChatStoreContext.Provider>,
+    );
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('gateway.nomiContext', {
+        role: 'chat',
+        longContext: true,
+      }),
+    );
+    await act(async () => {});
+    fireEvent.mouseEnter(r.getByTestId('context-usage-bar'));
+    await waitFor(() =>
+      expect(r.getByTestId('context-usage-detail').textContent).toContain('/ 1M'),
+    );
   });
 });

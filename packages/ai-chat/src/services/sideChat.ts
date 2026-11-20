@@ -21,6 +21,7 @@ import { closeOpenCalls } from '../utils/toolTrace';
 import { api, hasTransport } from './api';
 import { createComposerDraftStore } from './composerDrafts';
 import type { HarnessTraceEvent } from './harnessClient';
+import { nomiLongContextOverride } from './longContext';
 import { gatewayStateSnapshot, nomiMainRef, refLabel } from './nomiModel';
 import { resolveThinkingLevel, thinkingProfileOf } from './thinkingDepth';
 
@@ -47,6 +48,8 @@ export interface SideChatState {
   model: string | null;
   /** 选的思考深度；undefined = 这个模型的默认档 */
   effort?: string;
+  /** 长上下文覆盖（按模型记录；undefined = 跟随模型默认） */
+  longContext?: { model: string; on: boolean };
   /** 正在回答的一轮 */
   running: { reqId: string; live: ConvLive } | null;
   /** 正在回答时排队的问题（这一轮结束后依次发出） */
@@ -200,6 +203,17 @@ export function setSideChatModel(id: string, model: string | null): void {
 
 export function setSideChatEffort(id: string, effort: string | undefined): void {
   set(id, (s) => (s.effort === effort ? s : { ...s, effort }));
+}
+
+export function setSideChatLongContext(
+  id: string,
+  longContext: { model: string; on: boolean } | undefined,
+): void {
+  set(id, (s) =>
+    s.longContext?.model === longContext?.model && s.longContext?.on === longContext?.on
+      ? s
+      : { ...s, longContext },
+  );
 }
 
 /** 关掉标签：停下正在回答的一轮，内容丢掉 */
@@ -393,6 +407,7 @@ async function runTurn(id: string, user: ConvMessage, history: ConvMessage[]): P
     const chat = chats.get(id);
     if (!chat || ctrl.signal.aborted) return;
     const effort = sideChatEffort(chat);
+    const longContext = nomiLongContextOverride(chat.longContext, chat.model);
     const stream = api.ai.chat.agentStream({
       reqId,
       role: 'chat',
@@ -401,6 +416,7 @@ async function runTurn(id: string, user: ConvMessage, history: ConvMessage[]): P
         sideChat: true,
         ...(chat.model ? { sideChatModel: chat.model } : {}),
         ...(effort ? { reasoningEffort: effort } : {}),
+        ...(longContext !== undefined ? { longContext } : {}),
         ...(chat.projectId ? { projectId: chat.projectId } : {}),
       },
     });
@@ -562,6 +578,11 @@ export function importSideChat(raw: string | null | undefined): string | null {
       ),
       model: typeof c.model === 'string' ? c.model : null,
       ...(typeof c.effort === 'string' ? { effort: c.effort } : {}),
+      ...(c.longContext &&
+      typeof c.longContext.model === 'string' &&
+      typeof c.longContext.on === 'boolean'
+        ? { longContext: { model: c.longContext.model, on: c.longContext.on } }
+        : {}),
       running: null,
       queued: [],
       fill: null,

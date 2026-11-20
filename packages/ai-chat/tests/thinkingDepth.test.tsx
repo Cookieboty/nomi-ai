@@ -20,7 +20,12 @@ vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).f
 
 /** Nomi 会话：档位存在会话 meta.reasoningEffort（与消息一起保存，切换会话后各自独立） */
 const session = vi.hoisted(() => {
-  const convo: { id: string; backend: string; reasoningEffort?: string } = {
+  const convo: {
+    id: string;
+    backend: string;
+    reasoningEffort?: string;
+    longContext?: { model: string; on: boolean };
+  } = {
     id: 'c1',
     backend: 'nomi',
   };
@@ -219,6 +224,7 @@ const modelOption = (ref: string) => document.querySelector<HTMLElement>(`[data-
 beforeEach(() => {
   setChatMode('dev');
   session.convo.reasoningEffort = undefined;
+  session.convo.longContext = undefined;
   session.updateMeta.mockClear();
 });
 afterEach(() => {
@@ -398,5 +404,45 @@ describe('Nomi model chip', () => {
       expect(opened).toBe(true);
     });
     await waitFor(() => expect(r.getByTestId('nomi-model-picker-menu')).toBeTruthy());
+  });
+
+  it('Nomi 模型支持长上下文时：档位页直接提供开关，写入会话 meta.longContext 且不显示于普通模型', async () => {
+    const plain = setup();
+    await plain.open();
+    expect(plain.queryByTestId('nomi-model-long-context')).toBeNull();
+    cleanup();
+
+    const stateWithLong = gateway();
+    (stateWithLong.providers[0]!.models[0]!.effective as Record<string, unknown>).longContext = {
+      standard: 262_144,
+      full: 1_048_576,
+      on: false,
+      price: { size: 262_144, input: 0.14, output: 0.42, tierInput: 0.28, tierOutput: 0.84 },
+    };
+    const r = setup(undefined, { gatewayState: stateWithLong });
+    await r.open();
+    const row = r.getByTestId('nomi-model-long-context');
+    expect(row.textContent).toContain('262K → 1M');
+    expect(row.textContent).toContain('超过 262K 的请求按输入 $0.28/M（标准 $0.14/M）计费');
+    const sw = r.getByTestId('nomi-model-long-context-switch');
+    expect(sw.getAttribute('aria-checked')).toBe('false');
+
+    fireEvent.click(sw);
+    await waitFor(() =>
+      expect(session.updateMeta).toHaveBeenCalledWith('c1', {
+        longContext: { model: 'amux/gpt-5', on: true },
+      }),
+    );
+    expect(r.getByTestId('nomi-model-chip-long').textContent).toBe('长');
+    expect(r.getByTestId('nomi-model-long-context-switch').getAttribute('aria-checked')).toBe(
+      'true',
+    );
+
+    // 再点关闭：与模型默认(false)相同时清掉覆盖
+    fireEvent.click(r.getByTestId('nomi-model-long-context-switch'));
+    await waitFor(() =>
+      expect(session.updateMeta).toHaveBeenCalledWith('c1', { longContext: undefined }),
+    );
+    expect(r.queryByTestId('nomi-model-chip-long')).toBeNull();
   });
 });
