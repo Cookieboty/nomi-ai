@@ -490,13 +490,19 @@ func (w *Wails) create(k shell.WindowKind, at *shell.Rect) *application.WebviewW
 		if k == shell.Chat {
 			placeTrafficLights(win)
 		}
-		if k == shell.Mascot {
-			// mac：不是活动窗口时第一下点击也交给网页，按住角色直接就能拖
+		if needsFirstMouse(k) {
+			// mac：非激活浮窗不是活动窗口时，第一下点击也交给网页
 			acceptFirstMouse(win)
 		}
 		w.notify(k, "created")
 	})
 	return win
+}
+
+// needsFirstMouse：mac 上非激活浮窗（桌面角色 / 灵动岛）不是 key window 时，
+// 第一下点击也直接交给 WKWebView，避免第一下只激活面板、要点两次才响应
+func needsFirstMouse(k shell.WindowKind) bool {
+	return k == shell.Mascot || k == shell.Island
 }
 
 // mediaPolicy = Application.setupPermissions：只放行麦克风（语音），摄像头 / 定位 / 网页通知 / 读剪贴板一律拒绝，

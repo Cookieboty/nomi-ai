@@ -3,6 +3,7 @@ package wailsshell
 import (
 	"testing"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/shell"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -27,5 +28,14 @@ func TestIslandIsATransientNonActivatingNotificationPanel(t *testing.T) {
 		application.MacWindowCollectionBehaviorFullScreenPrimary
 	if options.CollectionBehavior&forbidden != 0 {
 		t.Fatalf("a notification must not become a main/fullscreen window or combine conflicting behavior groups: %d", options.CollectionBehavior)
+	}
+}
+
+func TestIslandAcceptsFirstMouseOnInactivePanel(t *testing.T) {
+	if !needsFirstMouse(shell.Island) || !needsFirstMouse(shell.Mascot) {
+		t.Fatal("non-activating panels (island & mascot) must accept first mouse click without prior activation")
+	}
+	if needsFirstMouse(shell.Chat) {
+		t.Fatal("chat window must keep default first-mouse behavior")
 	}
 }

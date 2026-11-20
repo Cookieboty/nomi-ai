@@ -176,11 +176,13 @@ async function main() {
   let app = null;
   let closing = false;
   let uiWatcher = null;
+  let uiChild = null;
   async function shutdown(code) {
     if (closing) return;
     closing = true;
     watcher?.close();
     uiWatcher?.close();
+    if (uiChild && uiChild.exitCode === null) uiChild.kill();
     if (app && app.exitCode === null) app.kill();
     await Promise.allSettled(servers.map((s) => s.close()));
     process.exit(code);
@@ -278,8 +280,14 @@ async function main() {
           [runBin, 'turbo', 'run', 'build', '--filter=@nomi-ai/ui', '--output-logs=errors-only'],
           { cwd: root, stdio: 'inherit' },
         );
-        p.on('error', () => resolve());
+        uiChild = p;
+        p.on('error', (err) => {
+          if (uiChild === p) uiChild = null;
+          console.warn('== @nomi-ai/ui 构建启动失败，沿用上一次产物:', err);
+          resolve();
+        });
         p.on('exit', (code) => {
+          if (uiChild === p) uiChild = null;
           if (code === 0) {
             console.info('== @nomi-ai/ui 构建完成，让页面自动刷新');
             // dist 变了不是 HMR 能感知的（不在 Vite 模块图里），直接让视图整页重载

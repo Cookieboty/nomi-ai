@@ -10,9 +10,27 @@
 #include "_cgo_export.h"
 
 // 导航事件回传给 Go（Go 侧按 handle 找到对应的 browser）
-@interface NomiBrowserDelegate : NSObject <WKNavigationDelegate>
+@interface NomiBrowserDelegate : NSObject <WKNavigationDelegate, WKUIDelegate>
 @property(nonatomic, assign) int handle;
 @end
+
+static BOOL nomi_browser_url_allowed(NSURL *url) {
+	if (url == nil) return NO;
+	NSString *scheme = [[url scheme] lowercaseString];
+	if (![scheme isEqualToString:@"http"] && ![scheme isEqualToString:@"https"]) return NO;
+	if (url.host.length == 0) return NO;
+	if (url.absoluteString.length > 8192) return NO;
+	return YES;
+}
+
+int nomiBrowserURLAllowed(const char *raw) {
+	if (raw == NULL) return 0;
+	NSString *text = [[NSString stringWithUTF8String:raw]
+		stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+	if (text == nil || text.length == 0) return 0;
+	NSURL *url = [NSURL URLWithString:text];
+	return nomi_browser_url_allowed(url) ? 1 : 0;
+}
 
 @implementation NomiBrowserDelegate
 
@@ -34,13 +52,21 @@
 	[self reportFinished:NO error:error];
 }
 
-// target=_blank / window.open：在当前视图里导航，不弹新窗口（弹出来就没法嵌回来了）
+// target=_blank / window.open：按内置浏览器导航策略在当前视图里导航，不弹新窗口（弹出来就没法嵌回来了）
 - (WKWebView *)webView:(WKWebView *)view
 	createWebViewWithConfiguration:(WKWebViewConfiguration *)configuration
 			   forNavigationAction:(WKNavigationAction *)action
 					windowFeatures:(WKWindowFeatures *)features {
-	NSURL *target = action.request.URL;
-	if (target != nil) [view loadRequest:[NSURLRequest requestWithURL:target]];
+	if (action.targetFrame == nil || !action.targetFrame.isMainFrame) {
+		NSURL *target = action.request.URL;
+		if (nomi_browser_url_allowed(target)) {
+			if (action.request != nil) {
+				[view loadRequest:action.request];
+			} else {
+				[view loadRequest:[NSURLRequest requestWithURL:target]];
+			}
+		}
+	}
 	return nil;
 }
 
@@ -88,6 +114,8 @@ void *nomiBrowserCreate(void *nsWindow, int handle, double x, double y, double w
 	WKWebViewConfiguration *config = [[WKWebViewConfiguration alloc] init];
 	// 和普通浏览器一样共享同一份 cookie / 站点数据（登录态能留住）
 	config.websiteDataStore = [WKWebsiteDataStore defaultDataStore];
+	// 仅响应用户主动触发的新窗口导航，拦截页面脚本后台自动弹窗
+	config.preferences.javaScriptCanOpenWindowsAutomatically = NO;
 
 	NomiBrowserDelegate *delegate = [[NomiBrowserDelegate alloc] init];
 	delegate.handle = handle;
@@ -95,8 +123,9 @@ void *nomiBrowserCreate(void *nsWindow, int handle, double x, double y, double w
 	WKWebView *view = [[WKWebView alloc] initWithFrame:NSMakeRect(x, y, w, h) configuration:config];
 	[config release];
 
-	// navigationDelegate 是弱引用，delegate 由关联对象持有，跟着 view 一起释放
+	// navigationDelegate / UIDelegate 均为弱引用，delegate 由关联对象持有，跟着 view 一起释放
 	view.navigationDelegate = delegate;
+	view.UIDelegate = delegate;
 	objc_setAssociatedObject(view, &nomiDelegateKey, delegate, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 	[delegate release];
 
@@ -109,7 +138,7 @@ void *nomiBrowserCreate(void *nsWindow, int handle, double x, double y, double w
 	if (url != NULL) {
 		NSString *text = [NSString stringWithUTF8String:url];
 		NSURL *target = text != nil ? [NSURL URLWithString:text] : nil;
-		if (target != nil) [view loadRequest:[NSURLRequest requestWithURL:target]];
+		if (nomi_browser_url_allowed(target)) [view loadRequest:[NSURLRequest requestWithURL:target]];
 	}
 	return (void *)view;
 }
@@ -133,7 +162,7 @@ void nomiBrowserLoad(void *handle, const char *url) {
 	if (view == nil || url == NULL) return;
 	NSString *text = [NSString stringWithUTF8String:url];
 	NSURL *target = text != nil ? [NSURL URLWithString:text] : nil;
-	if (target != nil) [view loadRequest:[NSURLRequest requestWithURL:target]];
+	if (nomi_browser_url_allowed(target)) [view loadRequest:[NSURLRequest requestWithURL:target]];
 }
 
 void nomiBrowserReload(void *handle) {
@@ -149,6 +178,7 @@ void nomiBrowserClose(void *handle) {
 	nomi_release_focus(view);
 	[view stopLoading];
 	view.navigationDelegate = nil;
+	view.UIDelegate = nil;
 	objc_setAssociatedObject(view, &nomiDelegateKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 	[view removeFromSuperview];
 	[view release];
