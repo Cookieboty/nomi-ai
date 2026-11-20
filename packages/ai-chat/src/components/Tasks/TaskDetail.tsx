@@ -21,9 +21,10 @@ import {
   IconExternalLink as ExternalLink,
   IconArrowsMaximize as Maximize2,
   IconArrowsMinimize as Minimize2,
+  IconRoute as RouteIcon,
   IconX as X,
 } from '@tabler/icons-react';
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { api } from '../../services/api';
@@ -40,6 +41,7 @@ import {
   pendingExternal,
   PRIORITIES,
   PRIORITY_LABEL,
+  stageOf,
   statusLabel,
   tasksApi,
   TOOL_LABEL,
@@ -59,9 +61,26 @@ import { canAckFailure, canArchiveTask, LastRunBadge, OriginBadge } from './Boar
 import styles from './index.module.css';
 import { TaskConversation } from './TaskConversation';
 
+const LazyTraceModal = lazy(() =>
+  import('../TraceDrawer').then((m) => ({ default: m.TraceModal })),
+);
+
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 type DetailTab = 'conversation' | 'settings';
+
+function statusToneOf(task: Task): 'running' | 'attention' | 'done' | 'failed' | 'neutral' {
+  switch (stageOf(task)) {
+    case 'in_progress':
+      return 'running';
+    case 'needs_you':
+      return task.status === 'failed' || task.status === 'expired' ? 'failed' : 'attention';
+    case 'done':
+      return task.status === 'done' ? 'done' : 'neutral';
+    default:
+      return 'neutral';
+  }
+}
 
 /** 内联规则与设置编辑表单：通过外部传 key 随任务版本自动同步，避免在 effect 里同步 setState */
 const TaskRulesEditor: React.FC<{
@@ -176,11 +195,15 @@ export const TaskDetail: React.FC<{
   const [notice, setNotice] = useState<string | null>(null);
   const [tab, setTab] = useState<DetailTab>('conversation');
   const [wide, setWide] = useState(false);
+  const [traceOpen, setTraceOpen] = useState(false);
+  const [goalExpanded, setGoalExpanded] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
   const [seenTaskId, setSeenTaskId] = useState(task.id);
   if (seenTaskId !== task.id) {
     setSeenTaskId(task.id);
     setSavedNotice(false);
+    setGoalExpanded(false);
+    setTraceOpen(false);
   }
 
   const isEvent = task.trigger.kind === 'event';
@@ -259,6 +282,16 @@ export const TaskDetail: React.FC<{
   const ended = ['done', 'failed', 'cancelled', 'expired'].includes(task.status);
   const ackable = canAckFailure(task);
   const archivable = canArchiveTask(task);
+  const tone = statusToneOf(task);
+  const doneWhen = task.executor.kind === 'notify' ? '' : (task.executor.brief?.doneWhen ?? '');
+  const hasLongGoal = task.goal.length > 110 || task.goal.includes('\n') || Boolean(doneWhen);
+  const hasLinks = Boolean(
+    task.origin.conversationId ||
+    liveCliTabId ||
+    task.executor.kind !== 'notify' ||
+    task.archivedAt != null ||
+    archivable,
+  );
 
   return (
     <aside
@@ -267,346 +300,419 @@ export const TaskDetail: React.FC<{
       aria-label={task.title}
       data-testid="task-detail"
     >
-      <header className={styles.detailHead}>
-        <h3 className={styles.detailTitle}>{task.title}</h3>
-        <IconButton
-          icon={<Icon icon={wide ? Minimize2 : Maximize2} size={14} />}
-          label={t(
-            wide
-              ? 'ui.providers-schedule.task-drawer-collapse'
-              : 'ui.providers-schedule.task-drawer-expand',
-          )}
-          size="sm"
-          variant="ghost"
-          onClick={() => setWide((w) => !w)}
-          data-testid="task-detail-expand"
-        />
-        <IconButton
-          icon={<Icon icon={X} size={14} />}
-          label={t('ui.providers-schedule.close')}
-          size="sm"
-          variant="ghost"
-          onClick={onClose}
-          data-testid="task-detail-close"
-        />
-      </header>
-      <p className={styles.status}>{statusLabel(task)}</p>
-
-      <div className={styles.detailLinks}>
-        <OriginBadge task={task} />
-        <LastRunBadge task={task} />
-        {task.origin.conversationId && (
-          <Button
+      <div className={styles.detailTop}>
+        <header className={styles.detailHead}>
+          <h3 className={styles.detailTitle} title={task.title}>
+            {task.title}
+          </h3>
+          <IconButton
+            icon={<Icon icon={wide ? Minimize2 : Maximize2} size={14} />}
+            label={t(
+              wide
+                ? 'ui.providers-schedule.task-drawer-collapse'
+                : 'ui.providers-schedule.task-drawer-expand',
+            )}
             size="sm"
             variant="ghost"
-            onClick={() => requestOpenConversation(task.origin.conversationId!)}
-            data-testid="task-open-source-chat"
-          >
-            <Icon icon={ExternalLink} size={12} />
-            {t('ui.providers-schedule.task-open-source-chat')}
-          </Button>
-        )}
-        {liveCliTabId && (
-          <Button
+            onClick={() => setWide((w) => !w)}
+            data-testid="task-detail-expand"
+          />
+          <IconButton
+            icon={<Icon icon={X} size={14} />}
+            label={t('ui.providers-schedule.close')}
             size="sm"
             variant="ghost"
-            onClick={() => {
-              void harnessClient.activateTab(liveCliTabId).catch(() => undefined);
-            }}
-            data-testid="task-open-cli-tab"
-          >
-            <Icon icon={ExternalLink} size={12} />
-            {t('ui.providers-schedule.task-open-cli-tab')}
-          </Button>
-        )}
-        {task.executor.kind !== 'notify' && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => requestOpenFleet()}
-            data-testid="task-open-fleet"
-          >
-            <Icon icon={ExternalLink} size={12} />
-            {t('ui.cli-monitor.fleet-board')}
-          </Button>
-        )}
-        {task.archivedAt != null && (
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={busy}
-            onClick={() => run(() => tasksApi.unarchive(id))}
-            data-testid="task-unarchive"
-          >
-            <Icon icon={ArchiveRestore} size={12} />
-            {t('ui.providers-schedule.task-unarchive')}
-          </Button>
-        )}
-        {archivable && (
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={busy}
-            onClick={() => run(() => tasksApi.archive(id))}
-            data-testid="task-archive"
-          >
-            <Icon icon={Archive} size={12} />
-            {t('ui.cli-monitor.archive-chat')}
-          </Button>
+            onClick={onClose}
+            data-testid="task-detail-close"
+          />
+        </header>
+        <div className={styles.detailMeta}>
+          <span className={styles.statusBadge} data-tone={tone}>
+            <span className={styles.statusDot} aria-hidden />
+            {statusLabel(task)}
+          </span>
+          <OriginBadge task={task} />
+          <LastRunBadge task={task} />
+          <span className={styles.metaSep} aria-hidden>
+            ·
+          </span>
+          <span className={styles.metaChip}>{executorLabel(task.executor)}</span>
+          <span className={styles.metaSep} aria-hidden>
+            ·
+          </span>
+          <span className={styles.metaChip}>{triggerLabel(task.trigger)}</span>
+        </div>
+        {hasLinks && (
+          <div className={styles.detailLinks}>
+            {task.origin.conversationId && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => requestOpenConversation(task.origin.conversationId!)}
+                data-testid="task-open-source-chat"
+              >
+                <Icon icon={ExternalLink} size={12} />
+                {t('ui.providers-schedule.task-open-source-chat')}
+              </Button>
+            )}
+            {liveCliTabId && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  void harnessClient.activateTab(liveCliTabId).catch(() => undefined);
+                }}
+                data-testid="task-open-cli-tab"
+              >
+                <Icon icon={ExternalLink} size={12} />
+                {t('ui.providers-schedule.task-open-cli-tab')}
+              </Button>
+            )}
+            {task.executor.kind !== 'notify' && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => requestOpenFleet()}
+                data-testid="task-open-fleet"
+              >
+                <Icon icon={ExternalLink} size={12} />
+                {t('ui.cli-monitor.fleet-board')}
+              </Button>
+            )}
+            {task.executor.kind !== 'notify' && (attempts.length > 0 || task.status === 'running') && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setTraceOpen(true)}
+                data-testid="task-open-trace"
+              >
+                <Icon icon={RouteIcon} size={12} />
+                {t('ui.devtools.session-trace')}
+              </Button>
+            )}
+            <div className={styles.detailLinksEnd}>
+              {task.archivedAt != null && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => run(() => tasksApi.unarchive(id))}
+                  data-testid="task-unarchive"
+                >
+                  <Icon icon={ArchiveRestore} size={12} />
+                  {t('ui.providers-schedule.task-unarchive')}
+                </Button>
+              )}
+              {archivable && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => run(() => tasksApi.archive(id))}
+                  data-testid="task-archive"
+                >
+                  <Icon icon={Archive} size={12} />
+                  {t('ui.cli-monitor.archive-chat')}
+                </Button>
+              )}
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Sticky 行动区：不放进滚动区内，有操作待处理时一眼看到 */}
-      <TaskSandboxRequests taskId={id} />
-      {task.status === 'waiting_user' && task.wait && (
-        <div className={styles.action} data-testid="task-needs-you">
-          {task.wait.detail && <p className={styles.waitDetail}>{task.wait.detail}</p>}
-          {task.wait.kind === 'input' && (
+      {task.goal && (
+        <section className={styles.goalCard} data-testid="task-detail-goal">
+          <div className={styles.goalHead}>
+            <span className={styles.goalLabel}>{t('ui.providers-schedule.task-goal')}</span>
+            {hasLongGoal && (
+              <button
+                type="button"
+                className={styles.goalToggle}
+                onClick={() => setGoalExpanded((v) => !v)}
+                data-testid="task-goal-toggle"
+              >
+                {t(
+                  goalExpanded
+                    ? 'ui.knowledge-local.collapse'
+                    : 'ui.knowledge-local.view-full-text',
+                )}
+              </button>
+            )}
+          </div>
+          <p className={styles.goalText} data-expanded={goalExpanded ? 'true' : undefined}>
+            {task.goal}
+          </p>
+          {doneWhen && goalExpanded && (
+            <p className={styles.goalDoneWhen}>
+              {t('ui.providers-schedule.task-edit-done-when-label')}：{doneWhen}
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* Sticky 行动区：不放进滚动区内，有操作待处理时一眼看到；无待处理时靠 CSS :empty 自动隐藏 */}
+      <div className={styles.detailAlerts}>
+        <TaskSandboxRequests taskId={id} />
+        {task.status === 'waiting_user' && task.wait && (
+          <div className={styles.action} data-testid="task-needs-you">
+            {task.wait.detail && <p className={styles.waitDetail}>{task.wait.detail}</p>}
+            {task.wait.kind === 'input' && (
+              <Textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                aria-label={t('ui.providers-schedule.task-input-label')}
+                rows={2}
+              />
+            )}
+            {task.wait.kind === 'grant' ? (
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={busy}
+                onClick={() =>
+                  void confirmThen(
+                    t(
+                      'ui.providers-schedule.task-regrant-confirm',
+                      t(LEVEL_LABEL[task.grant.level]),
+                    ),
+                    () =>
+                      api.tasks.grant({
+                        id,
+                        grant: {
+                          level: task.grant.level,
+                          paths: task.grant.paths,
+                          connections: task.grant.connections,
+                          ...(task.grant.clis ? { clis: task.grant.clis } : {}),
+                          ...(task.grant.autoJudge === false ? { autoJudge: false } : {}),
+                        },
+                      }),
+                    false,
+                  )
+                }
+                data-testid="task-regrant"
+              >
+                {t('ui.providers-schedule.task-regrant')}
+              </Button>
+            ) : (
+              <div className={styles.actionRow}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={busy || (task.wait.kind === 'input' && !text.trim())}
+                  onClick={() =>
+                    run(() =>
+                      api.tasks.decide({
+                        id,
+                        gen: task.gen,
+                        ...(task.wait?.requestId ? { requestId: task.wait.requestId } : {}),
+                        approve: true,
+                        ...(text.trim() ? { input: text.trim() } : {}),
+                      }),
+                    )
+                  }
+                  data-testid="task-approve"
+                >
+                  {task.wait.kind === 'taken_over'
+                    ? t('ui.providers-schedule.task-mark-done')
+                    : task.wait.kind === 'config'
+                      ? t('ui.providers-schedule.task-config-retry')
+                      : task.wait.kind === 'input'
+                        ? t('ui.knowledge-local.send')
+                        : t('ui.providers-schedule.task-approve')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() =>
+                    run(() =>
+                      api.tasks.decide({
+                        id,
+                        gen: task.gen,
+                        ...(task.wait?.requestId ? { requestId: task.wait.requestId } : {}),
+                        approve: false,
+                      }),
+                    )
+                  }
+                  data-testid="task-deny"
+                >
+                  {task.wait.kind === 'taken_over'
+                    ? t('ui.providers-schedule.task-hand-back')
+                    : task.wait.kind === 'config'
+                      ? t('ui.providers-schedule.task-config-give-up')
+                      : t('ui.chat-settings.deny')}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+        {task.status === 'awaiting_accept' && (
+          <div className={styles.action} data-testid="task-accept-card">
+            {last?.result?.summary && <p className={styles.result}>{last.result.summary}</p>}
             <Textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              aria-label={t('ui.providers-schedule.task-input-label')}
+              aria-label={t('ui.providers-schedule.task-feedback-label')}
+              placeholder={t('ui.providers-schedule.task-feedback-placeholder')}
               rows={2}
             />
-          )}
-          {task.wait.kind === 'grant' ? (
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={busy}
-              onClick={() =>
-                void confirmThen(
-                  t('ui.providers-schedule.task-regrant-confirm', t(LEVEL_LABEL[task.grant.level])),
-                  () =>
-                    api.tasks.grant({
-                      id,
-                      grant: {
-                        level: task.grant.level,
-                        paths: task.grant.paths,
-                        connections: task.grant.connections,
-                        ...(task.grant.clis ? { clis: task.grant.clis } : {}),
-                        ...(task.grant.autoJudge === false ? { autoJudge: false } : {}),
-                      },
-                    }),
-                  false,
-                )
-              }
-              data-testid="task-regrant"
-            >
-              {t('ui.providers-schedule.task-regrant')}
-            </Button>
-          ) : (
             <div className={styles.actionRow}>
               <Button
+                size="sm"
                 variant="primary"
-                size="sm"
-                disabled={busy || (task.wait.kind === 'input' && !text.trim())}
-                onClick={() =>
-                  run(() =>
-                    api.tasks.decide({
-                      id,
-                      gen: task.gen,
-                      ...(task.wait?.requestId ? { requestId: task.wait.requestId } : {}),
-                      approve: true,
-                      ...(text.trim() ? { input: text.trim() } : {}),
-                    }),
-                  )
-                }
-                data-testid="task-approve"
+                disabled={busy}
+                onClick={() => run(() => api.tasks.accept({ id }))}
+                data-testid="task-accept"
               >
-                {task.wait.kind === 'taken_over'
-                  ? t('ui.providers-schedule.task-mark-done')
-                  : task.wait.kind === 'config'
-                    ? t('ui.providers-schedule.task-config-retry')
-                    : task.wait.kind === 'input'
-                      ? t('ui.knowledge-local.send')
-                      : t('ui.providers-schedule.task-approve')}
+                {t('ui.providers-schedule.task-accept')}
               </Button>
               <Button
                 size="sm"
                 variant="secondary"
-                disabled={busy}
-                onClick={() =>
-                  run(() =>
-                    api.tasks.decide({
-                      id,
-                      gen: task.gen,
-                      ...(task.wait?.requestId ? { requestId: task.wait.requestId } : {}),
-                      approve: false,
-                    }),
-                  )
-                }
-                data-testid="task-deny"
+                disabled={busy || !text.trim()}
+                onClick={() => run(() => api.tasks.reject({ id, feedback: text.trim() }))}
+                data-testid="task-reject"
               >
-                {task.wait.kind === 'taken_over'
-                  ? t('ui.providers-schedule.task-hand-back')
-                  : task.wait.kind === 'config'
-                    ? t('ui.providers-schedule.task-config-give-up')
-                    : t('ui.chat-settings.deny')}
+                {t('ui.providers-schedule.task-reject')}
               </Button>
+              {last?.carrier?.worktree && last.carrier.sourceCwd && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() =>
+                    void (async () => {
+                      if (
+                        !(await confirmDialog({
+                          message: t(
+                            'ui.providers-schedule.task-apply-worktree-confirm',
+                            last.carrier!.sourceCwd!,
+                          ),
+                        }))
+                      )
+                        return;
+                      run(async () => {
+                        const r = await api.tasks.applyWorktree({ id });
+                        if (r)
+                          setNotice(
+                            [
+                              t(
+                                'ui.providers-schedule.task-applied',
+                                r.applied.length,
+                                r.conflicted.length,
+                                r.denied.length,
+                              ),
+                              r.branch && t('ui.providers-schedule.task-applied-branch', r.branch),
+                            ]
+                              .filter(Boolean)
+                              .join(' · '),
+                          );
+                      });
+                    })()
+                  }
+                  data-testid="task-apply-worktree"
+                >
+                  {t('ui.providers-schedule.task-apply-worktree')}
+                </Button>
+              )}
             </div>
-          )}
-        </div>
-      )}
-      {task.status === 'awaiting_accept' && (
-        <div className={styles.action} data-testid="task-accept-card">
-          {last?.result?.summary && <p className={styles.result}>{last.result.summary}</p>}
-          <Textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            aria-label={t('ui.providers-schedule.task-feedback-label')}
-            placeholder={t('ui.providers-schedule.task-feedback-placeholder')}
-            rows={2}
-          />
-          <div className={styles.actionRow}>
-            <Button
-              size="sm"
-              variant="primary"
-              disabled={busy}
-              onClick={() => run(() => api.tasks.accept({ id }))}
-              data-testid="task-accept"
-            >
-              {t('ui.providers-schedule.task-accept')}
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={busy || !text.trim()}
-              onClick={() => run(() => api.tasks.reject({ id, feedback: text.trim() }))}
-              data-testid="task-reject"
-            >
-              {t('ui.providers-schedule.task-reject')}
-            </Button>
-            {last?.carrier?.worktree && last.carrier.sourceCwd && (
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={busy}
-                onClick={() =>
-                  void (async () => {
-                    if (
-                      !(await confirmDialog({
-                        message: t(
-                          'ui.providers-schedule.task-apply-worktree-confirm',
-                          last.carrier!.sourceCwd!,
-                        ),
-                      }))
-                    )
-                      return;
-                    run(async () => {
-                      const r = await api.tasks.applyWorktree({ id });
-                      if (r)
-                        setNotice(
-                          [
-                            t(
-                              'ui.providers-schedule.task-applied',
-                              r.applied.length,
-                              r.conflicted.length,
-                              r.denied.length,
-                            ),
-                            r.branch && t('ui.providers-schedule.task-applied-branch', r.branch),
-                          ]
-                            .filter(Boolean)
-                            .join(' · '),
-                        );
-                    });
-                  })()
-                }
-                data-testid="task-apply-worktree"
-              >
-                {t('ui.providers-schedule.task-apply-worktree')}
-              </Button>
+            {notice && (
+              <p className={styles.waitDetail} role="status">
+                {notice}
+              </p>
             )}
           </div>
-          {notice && (
-            <p className={styles.waitDetail} role="status">
-              {notice}
-            </p>
-          )}
-        </div>
-      )}
-      {task.status === 'needs_reconcile' && (
-        <div className={styles.action} data-testid="task-reconcile-card">
-          <p className={styles.waitDetail}>{t('ui.providers-schedule.task-reconcile-hint')}</p>
-          {pending.length > 0 && (
-            <ul className={styles.journal} data-testid="task-reconcile-pending">
-              {pending.map((e) => (
-                <li key={e.seq}>
-                  <time>{fmtDateTime(e.at)}</time> {e.summary ?? e.action}
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className={styles.actionRow}>
-            <Button
-              size="sm"
-              variant="primary"
-              disabled={busy}
-              onClick={() => run(() => api.tasks.reconcile({ id, outcome: 'applied' }))}
-            >
-              {t('ui.providers-schedule.task-reconcile-applied')}
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={busy}
-              onClick={() => run(() => api.tasks.reconcile({ id, outcome: 'not_applied' }))}
-            >
-              {t('ui.providers-schedule.task-reconcile-not-applied')}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={busy}
-              onClick={() => run(() => api.tasks.reconcile({ id, outcome: 'abandon' }))}
-            >
-              {t('ui.providers-schedule.task-reconcile-abandon')}
-            </Button>
-          </div>
-        </div>
-      )}
-      {(task.status === 'failed' || task.status === 'expired') && (
-        <div className={styles.action} data-testid="task-failed-card">
-          {task.lastError && <p className={styles.error}>{task.lastError.message}</p>}
-          {ackable && (
+        )}
+        {task.status === 'needs_reconcile' && (
+          <div className={styles.action} data-testid="task-reconcile-card">
+            <p className={styles.waitDetail}>{t('ui.providers-schedule.task-reconcile-hint')}</p>
+            {pending.length > 0 && (
+              <ul className={styles.journal} data-testid="task-reconcile-pending">
+                {pending.map((e) => (
+                  <li key={e.seq}>
+                    <time>{fmtDateTime(e.at)}</time> {e.summary ?? e.action}
+                  </li>
+                ))}
+              </ul>
+            )}
             <div className={styles.actionRow}>
-              <span className={styles.waitDetail}>{t('ui.providers-schedule.task-ack-hint')}</span>
               <Button
                 size="sm"
                 variant="primary"
                 disabled={busy}
-                onClick={() => run(() => tasksApi.ack(id))}
-                data-testid="task-ack"
+                onClick={() => run(() => api.tasks.reconcile({ id, outcome: 'applied' }))}
               >
-                {t('ui.models.got-it')}
+                {t('ui.providers-schedule.task-reconcile-applied')}
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => run(() => api.tasks.reconcile({ id, outcome: 'not_applied' }))}
+              >
+                {t('ui.providers-schedule.task-reconcile-not-applied')}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => run(() => api.tasks.reconcile({ id, outcome: 'abandon' }))}
+              >
+                {t('ui.providers-schedule.task-reconcile-abandon')}
               </Button>
             </div>
+          </div>
+        )}
+        {(task.status === 'failed' || task.status === 'expired') &&
+          (ackable || Boolean(task.lastError)) && (
+            <div className={styles.action} data-tone="danger" data-testid="task-failed-card">
+              {task.lastError && <p className={styles.error}>{task.lastError.message}</p>}
+              {ackable && (
+                <div className={styles.actionRow}>
+                  <span className={styles.waitDetail}>
+                    {t('ui.providers-schedule.task-ack-hint')}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    disabled={busy}
+                    onClick={() => run(() => tasksApi.ack(id))}
+                    data-testid="task-ack"
+                  >
+                    {t('ui.models.got-it')}
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
-        </div>
-      )}
-      {error && (
-        <p className={styles.error} role="alert">
-          {error}
-        </p>
-      )}
+        {error && (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        )}
+      </div>
 
-      <Tabs
-        items={[
-          {
-            value: 'conversation',
-            label: t('ui.providers-schedule.task-tab-conversation'),
-            testId: 'task-tab-conversation',
-          },
-          {
-            value: 'settings',
-            label: t('ui.providers-schedule.task-tab-settings'),
-            testId: 'task-tab-settings',
-          },
-        ]}
-        value={tab}
-        onChange={(v) => setTab(v as DetailTab)}
-        aria-label={t('ui.providers-schedule.tasks')}
-      />
+      <div className={styles.detailTabsWrap}>
+        <Tabs
+          variant="underline"
+          className={styles.detailTabs}
+          items={[
+            {
+              value: 'conversation',
+              label: t('ui.providers-schedule.task-tab-conversation'),
+              testId: 'task-tab-conversation',
+            },
+            {
+              value: 'settings',
+              label: t('ui.providers-schedule.task-tab-settings'),
+              testId: 'task-tab-settings',
+            },
+          ]}
+          value={tab}
+          onChange={(v) => setTab(v as DetailTab)}
+          aria-label={t('ui.providers-schedule.tasks')}
+        />
+      </div>
 
       <div className={styles.detailConvHost} hidden={tab !== 'conversation'}>
         {tab === 'conversation' && (
@@ -745,36 +851,38 @@ export const TaskDetail: React.FC<{
           </section>
         )}
 
-        <dl className={styles.facts}>
-          <dt>{t('ui.providers-schedule.task-goal')}</dt>
-          <dd className={styles.goal}>{task.goal}</dd>
-          <dt>{t('ui.providers-schedule.task-trigger')}</dt>
-          <dd>
-            {triggerLabel(task.trigger)}
-            {task.nextRunAt && task.enabled && !ended
-              ? ` · ${t('ui.providers-schedule.task-next-run', fmtTime(task.nextRunAt))}`
-              : ''}
-          </dd>
-          <dt>{t('ui.providers-schedule.task-executor')}</dt>
-          <dd>
-            {executorLabel(task.executor)}
-            {task.executor.kind === 'nomi' && task.executor.tools.length > 0
-              ? ` · ${task.executor.tools.map((x) => t(TOOL_LABEL[x])).join('、')}`
-              : ''}
-          </dd>
-          <dt>{t('ui.providers-schedule.task-grant')}</dt>
-          <dd>
-            {t(LEVEL_LABEL[task.grant.level])}
-            {task.grant.clis?.length ? ` · ${task.grant.clis.join('、')}` : ''}
-            {task.grant.level >= 3 && task.grant.autoJudge !== false
-              ? ` · ${t('ui.providers-schedule.task-auto-judge')}`
-              : ''}
-            {task.grant.expiresAt
-              ? ` · ${t('ui.providers-schedule.task-grant-until', fmtTime(task.grant.expiresAt))}`
-              : ''}
-            {task.grant.revokedAt ? ` · ${t('ui.providers-schedule.task-grant-revoked')}` : ''}
-          </dd>
-        </dl>
+        <div className={styles.factsCard}>
+          <dl className={styles.facts}>
+            <dt>{t('ui.providers-schedule.task-goal')}</dt>
+            <dd className={styles.goal}>{task.goal}</dd>
+            <dt>{t('ui.providers-schedule.task-trigger')}</dt>
+            <dd>
+              {triggerLabel(task.trigger)}
+              {task.nextRunAt && task.enabled && !ended
+                ? ` · ${t('ui.providers-schedule.task-next-run', fmtTime(task.nextRunAt))}`
+                : ''}
+            </dd>
+            <dt>{t('ui.providers-schedule.task-executor')}</dt>
+            <dd>
+              {executorLabel(task.executor)}
+              {task.executor.kind === 'nomi' && task.executor.tools.length > 0
+                ? ` · ${task.executor.tools.map((x) => t(TOOL_LABEL[x])).join('、')}`
+                : ''}
+            </dd>
+            <dt>{t('ui.providers-schedule.task-grant')}</dt>
+            <dd>
+              {t(LEVEL_LABEL[task.grant.level])}
+              {task.grant.clis?.length ? ` · ${task.grant.clis.join('、')}` : ''}
+              {task.grant.level >= 3 && task.grant.autoJudge !== false
+                ? ` · ${t('ui.providers-schedule.task-auto-judge')}`
+                : ''}
+              {task.grant.expiresAt
+                ? ` · ${t('ui.providers-schedule.task-grant-until', fmtTime(task.grant.expiresAt))}`
+                : ''}
+              {task.grant.revokedAt ? ` · ${t('ui.providers-schedule.task-grant-revoked')}` : ''}
+            </dd>
+          </dl>
+        </div>
 
         <div className={styles.actionRow}>
           {!ended &&
@@ -909,6 +1017,11 @@ export const TaskDetail: React.FC<{
           </ul>
         </Disclosure>
       </div>
+      {traceOpen && (
+        <Suspense fallback={null}>
+          <LazyTraceModal target={{ kind: 'task', task, attempts }} onClose={() => setTraceOpen(false)} />
+        </Suspense>
+      )}
     </aside>
   );
 };

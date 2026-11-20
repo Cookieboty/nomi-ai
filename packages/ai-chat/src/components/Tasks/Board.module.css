@@ -1,12 +1,14 @@
 /*
- * 任务看板：横向分列（宽屏时列平分铺满，窄屏横向滚动），列内纵向滚动。
- * 列是中性泳道；颜色只放在列头色点、类型图标块（主题色）、重要程度与已结束卡片的左边线上。
+ * 任务看板：横向分列（宽屏等宽铺满，窄屏保持最小列宽横向滚动），列内纵向滚动。
+ * 列是中性泳道；颜色只放在列头色点、类型图标块（主题色）、重要程度与已结束卡片的内嵌左边线上。
  */
 .board {
   flex: 1;
   min-width: 0;
   min-height: 0;
-  display: flex;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(240px, 1fr);
   align-items: stretch;
   gap: var(--cd-space-3);
   overflow-x: auto;
@@ -14,19 +16,21 @@
   padding-bottom: var(--cd-space-1);
   scrollbar-width: thin;
 }
+.board[data-single] {
+  grid-auto-columns: minmax(280px, 480px);
+}
 .column {
-  flex: 1 0 calc(var(--cd-space-8) * 8);
-  max-width: calc(var(--cd-space-8) * 12);
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--cd-panel-border);
   border-radius: var(--cd-radius-xl);
-  background: var(--cd-panel-surface-sunken);
+  background: var(--cd-panel-surface);
+  overflow: hidden;
 }
-/* 空列收窄：只有一两个任务时，有任务的列都在屏内（不让「已结束」挤到屏外，用户以为任务丢了） */
 .column[data-empty] {
-  flex: 0 0 calc(var(--cd-space-8) * 5);
+  background: var(--cd-panel-surface-sunken);
 }
 .columnHead {
   flex: none;
@@ -35,6 +39,7 @@
   gap: var(--cd-space-2);
   height: var(--cd-control-h-lg);
   padding: 0 var(--cd-space-4);
+  border-bottom: 1px solid var(--cd-panel-border);
 }
 .columnDot {
   flex: none;
@@ -71,8 +76,17 @@
   font-weight: var(--cd-font-weight-medium);
 }
 .count {
+  margin-left: auto;
+  min-width: var(--cd-control-h-2xs);
+  height: var(--cd-control-h-2xs);
+  padding: 0 var(--cd-space-1-5);
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-neutral-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--cd-color-text-subtle);
-  font-size: var(--cd-font-size-sm);
+  font-size: var(--cd-font-size-xs);
   font-variant-numeric: tabular-nums;
 }
 .cards {
@@ -80,7 +94,7 @@
   min-height: 0;
   overflow-y: auto;
   margin: 0;
-  padding: 0 var(--cd-space-3) var(--cd-space-3);
+  padding: var(--cd-space-3);
   list-style: none;
   display: flex;
   flex-direction: column;
@@ -91,7 +105,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: calc(var(--cd-space-8) * 2);
+  padding: var(--cd-space-6) var(--cd-space-3);
+  border: 1px dashed var(--cd-panel-border);
+  border-radius: var(--cd-radius-lg);
   color: var(--cd-color-text-subtle);
   font-size: var(--cd-font-size-xs);
 }
@@ -110,6 +126,7 @@
   border-radius: var(--cd-radius-lg);
   background: var(--cd-panel-surface-raised);
   box-shadow: var(--cd-shadow-sm);
+  overflow: hidden;
   color: var(--cd-color-text);
   font: inherit;
   text-align: left;
@@ -130,13 +147,23 @@
 .card[data-stage='needs_you'] {
   border-color: var(--cd-color-warning-border);
 }
-/* 已结束：紧凑一行，左侧一条 success；取消 / 失败的不带颜色 */
+/* 已结束：紧凑一行，左侧内嵌色条保持圆角平滑无切口；取消灰条、失败红条 */
 .card[data-compact] {
   gap: var(--cd-space-1-5);
-  border-left: 3px solid var(--cd-color-success);
+  box-shadow:
+    inset 3px 0 0 var(--cd-color-success),
+    var(--cd-shadow-sm);
 }
 .card[data-compact][data-status='cancelled'] {
-  border-left-color: var(--cd-color-border-strong);
+  box-shadow:
+    inset 3px 0 0 var(--cd-color-border-strong),
+    var(--cd-shadow-sm);
+}
+.card[data-compact][data-status='failed'],
+.card[data-compact][data-status='expired'] {
+  box-shadow:
+    inset 3px 0 0 var(--cd-color-danger),
+    var(--cd-shadow-sm);
 }
 .card[data-compact] .cardTitle {
   color: var(--cd-color-text-muted);
@@ -223,7 +250,7 @@
 }
 /* 右下角留给快捷操作按钮 */
 .cardFoot[data-has-action] {
-  padding-right: calc(var(--cd-control-h-sm) + var(--cd-space-2));
+  padding-right: calc(var(--cd-control-h-sm) + var(--cd-space-3));
 }
 .executor {
   flex: none;
@@ -266,6 +293,11 @@
 .pill[data-status='cancelled'] {
   background: var(--cd-color-neutral-soft);
   color: var(--cd-color-text-muted);
+}
+.pill[data-status='failed'],
+.pill[data-status='expired'] {
+  background: var(--cd-color-danger-soft);
+  color: var(--cd-color-danger);
 }
 .action {
   position: absolute;

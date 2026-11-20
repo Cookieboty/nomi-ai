@@ -437,7 +437,12 @@ export const TaskBoard: React.FC<{
   }, [tasks, group, stages, queue]);
 
   return (
-    <div className={styles.board} data-testid="tasks-board" data-group={group}>
+    <div
+      className={styles.board}
+      data-testid="tasks-board"
+      data-group={group}
+      data-single={columns.length === 1 ? '' : undefined}
+    >
       {columns.map(({ key, tasks: list }) => {
         const label =
           group === 'stage'

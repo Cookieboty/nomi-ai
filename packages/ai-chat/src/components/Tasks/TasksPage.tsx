@@ -219,6 +219,8 @@ export const TasksPage: React.FC<{
       </header>
       <div className={styles.trackRow}>
         <Tabs
+          variant="underline"
+          className={styles.trackTabs}
           items={[
             {
               value: 'all',
@@ -247,103 +249,108 @@ export const TasksPage: React.FC<{
           onChange={(v) => setTrack(v as TrackFilter)}
           aria-label={t('ui.providers-schedule.tasks')}
         />
-        <span className={styles.spacer} />
-        {track !== 'archived' && archivableCount > 0 && (
-          <Button
+        <div className={styles.trackActions}>
+          {track !== 'archived' && archivableCount > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={archivingAll}
+              onClick={() => {
+                void handleArchiveAllEnded();
+              }}
+              data-testid="tasks-archive-all"
+            >
+              <Icon icon={Archive} size={14} />
+              {t('ui.providers-schedule.task-archive-all-ended')}
+            </Button>
+          )}
+          {track !== 'archived' && (
+            <Tabs
+              items={[
+                {
+                  value: 'list',
+                  label: t('ui.providers-schedule.task-view-list'),
+                  testId: 'tasks-view-list',
+                },
+                {
+                  value: 'board',
+                  label: t('ui.providers-schedule.task-view-board'),
+                  testId: 'tasks-view-board',
+                },
+              ]}
+              value={layout.view}
+              onChange={(view) => changeLayout({ view })}
+              aria-label={t('ui.model-quality.view')}
+            />
+          )}
+        </div>
+      </div>
+      {track !== 'archived' && activeTasks.length > 0 && (
+        <div className={styles.toolbar}>
+          <div
+            className={styles.chips}
+            role="group"
+            aria-label={t('ui.providers-schedule.task-stage-filter')}
+          >
+            {(['all', ...STAGES] as const).map((k) => {
+              const count = k === 'all' ? tasks.length : (stageCounts.get(k) ?? 0);
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  className={styles.chip}
+                  aria-pressed={stage === k}
+                  data-zero={count === 0 ? '' : undefined}
+                  onClick={() => setStage(k)}
+                  data-testid={`tasks-stage-${k}`}
+                >
+                  {k === 'all' ? t('ui.providers-schedule.all') : t(STAGE_LABEL[k])}
+                  <span className={styles.chipCount}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+          <span className={styles.spacer} />
+          {layout.view === 'board' && (
+            <Select
+              size="sm"
+              variant="ghost"
+              className={styles.filter}
+              value={layout.group}
+              onChange={(e) => changeLayout({ group: e.target.value as BoardGroup })}
+              aria-label={t('ui.providers-schedule.task-board-group')}
+              options={[
+                { value: 'stage', label: t('ui.providers-schedule.task-board-by-stage') },
+                { value: 'priority', label: t('ui.providers-schedule.task-board-by-priority') },
+              ]}
+              data-testid="tasks-board-group"
+            />
+          )}
+          <Select
             size="sm"
             variant="ghost"
-            disabled={archivingAll}
-            onClick={() => {
-              void handleArchiveAllEnded();
-            }}
-            data-testid="tasks-archive-all"
-          >
-            <Icon icon={Archive} size={14} />
-            {t('ui.providers-schedule.task-archive-all-ended')}
-          </Button>
-        )}
-      </div>
-      {track !== 'archived' && (
-        <div className={styles.toolbar}>
-          <Tabs
-            items={[
-              {
-                value: 'list',
-                label: t('ui.providers-schedule.task-view-list'),
-                testId: 'tasks-view-list',
-              },
-              {
-                value: 'board',
-                label: t('ui.providers-schedule.task-view-board'),
-                testId: 'tasks-view-board',
-              },
+            className={styles.filter}
+            value={category}
+            onChange={(e) => setCategory(e.target.value as TaskCategory | 'all')}
+            aria-label={t('ui.providers-schedule.task-category')}
+            options={[
+              { value: 'all', label: t('ui.providers-schedule.task-category-all') },
+              ...CATEGORIES.map((c) => ({ value: c, label: t(CATEGORY_LABEL[c]) })),
             ]}
-            value={layout.view}
-            onChange={(view) => changeLayout({ view })}
-            aria-label={t('ui.model-quality.view')}
+            data-testid="tasks-category"
           />
-          {activeTasks.length > 0 && (
-            <>
-              <div
-                className={styles.chips}
-                role="group"
-                aria-label={t('ui.providers-schedule.task-stage-filter')}
-              >
-                {(['all', ...STAGES] as const).map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    className={styles.chip}
-                    aria-pressed={stage === k}
-                    onClick={() => setStage(k)}
-                    data-testid={`tasks-stage-${k}`}
-                  >
-                    {k === 'all' ? t('ui.providers-schedule.all') : t(STAGE_LABEL[k])}
-                    <span className={styles.chipCount}>
-                      {k === 'all' ? tasks.length : (stageCounts.get(k) ?? 0)}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              {layout.view === 'board' && (
-                <Select
-                  size="sm"
-                  variant="ghost"
-                  className={styles.filter}
-                  value={layout.group}
-                  onChange={(e) => changeLayout({ group: e.target.value as BoardGroup })}
-                  aria-label={t('ui.providers-schedule.task-board-group')}
-                  options={[
-                    { value: 'stage', label: t('ui.providers-schedule.task-board-by-stage') },
-                    { value: 'priority', label: t('ui.providers-schedule.task-board-by-priority') },
-                  ]}
-                  data-testid="tasks-board-group"
-                />
-              )}
-              <Select
-                size="sm"
-                variant="ghost"
-                className={styles.filter}
-                value={category}
-                onChange={(e) => setCategory(e.target.value as TaskCategory | 'all')}
-                aria-label={t('ui.providers-schedule.task-category')}
-                options={[
-                  { value: 'all', label: t('ui.providers-schedule.task-category-all') },
-                  ...CATEGORIES.map((c) => ({ value: c, label: t(CATEGORY_LABEL[c]) })),
-                ]}
-                data-testid="tasks-category"
-              />
-              <span className={styles.spacer} />
-              <span className={styles.count}>
-                {t('ui.providers-schedule.task-count', tasks.length)}
-              </span>
-            </>
-          )}
+          <span className={styles.count}>
+            {t('ui.providers-schedule.task-count', tasks.length)}
+          </span>
         </div>
       )}
       {track === 'archived' && (
         <div className={styles.archiveNote} data-testid="tasks-archive-note">
-          {t('ui.providers-schedule.task-archive-hint')}
+          <span>{t('ui.providers-schedule.task-archive-hint')}</span>
+          <span className={styles.spacer} />
+          <span className={styles.count}>
+            {t('ui.providers-schedule.task-count', tasks.length)}
+          </span>
         </div>
       )}
       <div className={styles.body}>

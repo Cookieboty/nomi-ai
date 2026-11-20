@@ -274,7 +274,7 @@ export const OPEN_TASK_EVENT = 'nomi:open-task';
 export const requestOpenTask = (id: string) =>
   window.dispatchEvent(new CustomEvent<string>(OPEN_TASK_EVENT, { detail: id }));
 
-/** tasks.trace 的一行：工具结果、插话（user）或收尾文字（done） */
+/** tasks.trace 的一行：工具结果、思考、插话（user）或收尾文字（done） */
 export interface TaskTraceLine {
   at?: number;
   tool?: string;
@@ -284,6 +284,7 @@ export interface TaskTraceLine {
   error?: string;
   startedAt?: number;
   textAt?: number;
+  thinking?: string;
   user?: string;
   done?: string;
 }

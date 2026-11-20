@@ -88,7 +88,7 @@ const id = z.object({ id: z.string() });
 const name = z.object({ name: z.string() });
 const ok = z.boolean();
 
-/** 后台 Nomi 运行轨迹的一行：工具结果（tool / output / error，带 id、input、textAt）、插话（user）或收尾文字（done） */
+/** 后台 Nomi 运行轨迹的一行：工具结果（tool / output / error，带 id、input、textAt）、思考（thinking）、插话（user）或收尾文字（done） */
 const TaskTraceLine = z.looseObject({
   at: z.number().optional(),
   tool: z.string().optional(),
@@ -99,6 +99,8 @@ const TaskTraceLine = z.looseObject({
   startedAt: z.number().optional(),
   /** 发生时正文的字符下标（UTF-16），步骤按它插在正文中间 */
   textAt: z.number().optional(),
+  /** 模型思考片段（按段汇总落盘） */
+  thinking: z.string().optional(),
   /** 用户在侧栏里插的话 */
   user: z.string().optional(),
   done: z.string().optional(),

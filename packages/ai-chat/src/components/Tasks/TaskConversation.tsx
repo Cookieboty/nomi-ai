@@ -25,6 +25,7 @@ import type { ConvLive, ConvMessage } from '../../types/conversation';
 import { fromHarnessMessage } from '../../utils/convAdapters';
 import { ConversationView } from '../Conversation';
 import { CliConversation } from '../Conversation/CliConversation';
+import { nomiTraceSlots, traceActions } from '../Conversation/TraceAction';
 import {
   applyTaskLiveEvent,
   liveFromView,
@@ -54,17 +55,10 @@ function resolveInputMode(task: Task): InputMode {
   }
 }
 
-function cliAttemptsToMessages(task: Task, attempts: readonly Attempt[]): ConvMessage[] {
+function cliAttemptsToMessages(attempts: readonly Attempt[]): ConvMessage[] {
   if (attempts.length === 0) return [];
   const asc = [...attempts].reverse();
-  const out: ConvMessage[] = [
-    {
-      id: `cli-task-goal-${task.id}`,
-      role: 'user',
-      text: task.goal,
-      at: asc[0]?.startedAt ?? task.updatedAt,
-    },
-  ];
+  const out: ConvMessage[] = [];
   asc.forEach((a, idx) => {
     if ((a.cause.kind === 'followup' || a.cause.kind === 'rework') && a.cause.note) {
       out.push({
@@ -195,8 +189,12 @@ export const TaskConversation: React.FC<{
     return rawTabMsgs.map((m) => fromHarnessMessage(m, backend));
   }, [liveTab, rawTabMsgs]);
   const cliFallbackMessages = useMemo(
-    () => (isCli ? cliAttemptsToMessages(task, attempts) : []),
-    [isCli, task, attempts],
+    () => (isCli ? cliAttemptsToMessages(attempts) : []),
+    [isCli, attempts],
+  );
+  const cliTraceSlots = useMemo(
+    () => (liveTab ? traceActions({ kind: 'cli', tabId: liveTab.id }) : undefined),
+    [liveTab],
   );
 
   // --- 输入区与状态控制 ---
@@ -283,6 +281,7 @@ export const TaskConversation: React.FC<{
             messages={nomiMessages}
             live={convLive}
             phase={task.status === 'running' ? 'running' : 'idle'}
+            slots={nomiTraceSlots}
           />
         )}
         {isCli && hasLiveCliStream && liveTab && (
@@ -290,6 +289,7 @@ export const TaskConversation: React.FC<{
             scopeId={liveTab.id}
             messages={cliLiveMessages}
             phase={liveTab.status === 'running' ? 'running' : 'idle'}
+            slots={cliTraceSlots}
           />
         )}
         {isCli && !hasLiveCliStream && cliFallbackMessages.length > 0 && (
