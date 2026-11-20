@@ -123,6 +123,59 @@ func TestLauncherProbeUsesDiscoveredCliPath(t *testing.T) {
 	}
 }
 
+// Windows 的文件系统大小写不敏感：PATHEXT 常写成大写（.COM;.EXE;.BAT;.CMD），而 npm
+// 生成的 shim 是小写的 reclaude.cmd。在大小写敏感的宿主（Linux CI）上按 PATHEXT 原样
+// 拼出的 reclaude.CMD 并不存在，必须按目录里的真实名字折叠匹配。这里走真实文件系统。
+func TestFindOnPathWin32FoldsPATHEXTCase(t *testing.T) {
+	ConfigureLaunchers(t.TempDir())
+	t.Cleanup(func() { ConfigureLaunchers("") })
+
+	root := t.TempDir()
+	pathDir := filepath.Join(root, "path-bin")
+	npmDir := filepath.Join(root, "Roaming", "npm")
+	for _, d := range []string{pathDir, npmDir} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	appCmd := filepath.Join(npmDir, "reclaude.cmd")
+	pathCmd := filepath.Join(pathDir, "reclaude-path.cmd")
+	exe := filepath.Join(pathDir, "reclaude-exe.exe")
+	for _, f := range []string{appCmd, pathCmd, exe} {
+		if err := os.WriteFile(f, []byte("@echo off\r\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	env := util.NewObj()
+	env.Set("PATH", strings.Join([]string{npmDir, pathDir}, ";"))
+	env.Set("PATHEXT", ".COM;.EXE;.BAT;.CMD")
+
+	if got := FindOnPath("reclaude", env, "win32", nil); got != appCmd {
+		t.Fatalf("FindOnPath(reclaude) = %q, want %q (lowercase .cmd vs uppercase PATHEXT)", got, appCmd)
+	}
+	if got := FindOnPath("reclaude-path", env, "win32", nil); got != pathCmd {
+		t.Fatalf("FindOnPath(reclaude-path) = %q, want %q", got, pathCmd)
+	}
+	// PATHEXT 顺序依旧优先：.EXE 排在 .CMD 之前（并非小写优先挑选）。
+	if err := os.WriteFile(filepath.Join(pathDir, "reclaude-both.cmd"), []byte("@echo off\r\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pathDir, "reclaude-both.exe"), []byte("MZ"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := FindOnPath("reclaude-both", env, "win32", nil); got != filepath.Join(pathDir, "reclaude-both.exe") {
+		t.Fatalf("FindOnPath(reclaude-both) = %q, want .exe by PATHEXT order", got)
+	}
+	// 大小写折叠不能把不存在的文件当成存在。
+	if got := FindOnPath("missing", env, "win32", nil); got != "" {
+		t.Fatalf("FindOnPath(missing) = %q, want empty", got)
+	}
+	if got := FindOnPath("reclaude-path", env, "linux", nil); got != "" {
+		t.Fatalf("posix lookup must not case-fold: got %q", got)
+	}
+}
+
 func TestPosixPathSkipsDirectoriesAndNonExecutables(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX executable permission bits test")

@@ -446,22 +446,39 @@ func ResolveNpmBin() string {
 	return which("npm")
 }
 
-func onDiskCase(file string) string {
-	dir, base := filepath.Dir(file), filepath.Base(file)
+// foldWinPath 把目录里存在的名字按大小写不敏感匹配到 path 上（Windows 语义：
+// reclaude.CMD 命中磁盘上的 reclaude.cmd）。只有大小写不同且映射唯一时才算命中，
+// 避免在大小写敏感的宿主上伪造出不存在的文件。ok=false 表示没有匹配。
+func foldWinPath(path string) (string, bool) {
+	dir, base := filepath.Dir(path), filepath.Base(path)
 	names, err := readdirNames(dir)
 	if err != nil {
-		return file
+		return path, false
 	}
 	for _, n := range names {
 		if n == base {
-			return file
+			return path, true
 		}
 	}
 	lower := util.JSLower(base)
+	match := ""
 	for _, n := range names {
 		if util.JSLower(n) == lower {
-			return filepath.Join(dir, n)
+			if match != "" && match != n {
+				return path, false // 同名不同大小写的多个条目（理论上仅大小写敏感 FS）
+			}
+			match = n
 		}
+	}
+	if match == "" {
+		return path, false
+	}
+	return filepath.Join(dir, match), true
+}
+
+func onDiskCase(file string) string {
+	if folded, ok := foldWinPath(file); ok {
+		return folded
 	}
 	return file
 }
@@ -508,6 +525,11 @@ func FindOnPath(cmd string, env *util.Obj, platform string, exists func(string) 
 	for _, dir := range dirs {
 		for _, name := range names {
 			c := filepath.Join(dir, name)
+			if platform == "win32" {
+				// PATHEXT 常写成大写（.CMD），而磁盘上是小写 shim；Windows 的
+				// 文件系统大小写不敏感，在大小写敏感的宿主上先按真实名字折叠再判断。
+				c = onDiskCase(c)
+			}
 			if !exists(c) {
 				continue
 			}
