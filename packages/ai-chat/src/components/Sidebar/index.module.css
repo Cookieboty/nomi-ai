@@ -76,13 +76,41 @@
   margin-top: 0;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .panel {
+  .panel:not(.panelFloating) {
     animation: panelIn 0.22s var(--cd-ease-out);
+  }
+  .panelFloating {
+    animation: panelFloatIn 0.16s var(--cd-ease-out);
+  }
+  .panel:not(.panelFloating)[data-closing] {
+    animation: panelOut 0.2s var(--cd-ease) forwards;
+  }
+  .panelFloating[data-closing] {
+    animation: panelFloatOut 0.16s var(--cd-ease) forwards;
   }
 }
 .panel[data-closing] {
-  animation: panelOut 0.2s var(--cd-ease) forwards;
   pointer-events: none;
+}
+@keyframes panelFloatIn {
+  from {
+    opacity: 0;
+    transform: translate3d(-8px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+@keyframes panelFloatOut {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(-8px, 0, 0);
+  }
 }
 @keyframes panelOut {
   to {

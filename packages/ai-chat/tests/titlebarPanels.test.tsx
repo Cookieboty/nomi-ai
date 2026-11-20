@@ -231,3 +231,135 @@ it('never lets titlebar-main-left cross left of the sidebar/card edge during tra
   expect(bar.style.getPropertyValue('--titlebar-main-left')).toBe('312px');
   expect(bar.style.getPropertyValue('--titlebar-center-left')).toBe('720px');
 });
+
+it('ignores floating sidebar-panel when computing titlebar-main-left', async () => {
+  vi.spyOn(HTMLElement.prototype, 'getClientRects').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return [this.getBoundingClientRect()] as unknown as DOMRectList;
+  });
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    const id = this.dataset.testid;
+    const left = 52;
+    const right = id === 'sidebar-panel' ? 312 : 1160;
+    return {
+      x: left,
+      y: 38,
+      left,
+      right,
+      top: 38,
+      bottom: 800,
+      width: right - left,
+      height: 762,
+      toJSON: () => ({}),
+    };
+  });
+
+  const r = render(
+    <div className="ai-chat-app">
+      <AppTitleBar sidebarCollapsed onToggleSidebar={() => {}} />
+      <aside data-testid="chat-sidebar" />
+      <div data-testid="workspace-card">
+        <div data-testid="chat-column" />
+      </div>
+    </div>,
+  );
+  const bar = r.getByTestId('app-titlebar');
+  expect(bar.style.getPropertyValue('--titlebar-main-left')).toBe('52px');
+
+  const floating = document.createElement('div');
+  floating.dataset.testid = 'sidebar-panel';
+  floating.dataset.floating = 'true';
+  await act(async () => {
+    r.getByTestId('chat-sidebar').append(floating);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(bar.style.getPropertyValue('--titlebar-main-left')).toBe('52px');
+
+  await act(async () => {
+    floating.remove();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(bar.style.getPropertyValue('--titlebar-main-left')).toBe('52px');
+});
+
+it('skips layout measurement on non-layout transitions and chat/floating DOM mutations', async () => {
+  vi.spyOn(HTMLElement.prototype, 'getClientRects').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return [this.getBoundingClientRect()] as unknown as DOMRectList;
+  });
+  const rectSpy = vi
+    .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+    .mockImplementation(() => ({
+      x: 52,
+      y: 38,
+      left: 52,
+      right: 1160,
+      top: 38,
+      bottom: 800,
+      width: 1108,
+      height: 762,
+      toJSON: () => ({}),
+    }));
+
+  const r = render(
+    <div className="ai-chat-app">
+      <AppTitleBar sidebarCollapsed onToggleSidebar={() => {}} />
+      <aside data-testid="chat-sidebar" />
+      <div data-testid="workspace-card">
+        <div data-testid="chat-column">
+          <div className="chat-container" />
+          <button type="button">Tip target</button>
+        </div>
+      </div>
+    </div>,
+  );
+
+  // 等待首帧 rAF 校对完成后清零计数
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  });
+  rectSpy.mockClear();
+
+  // 1. 聊天区流式追加消息、浮层挂载与子元素增删都不应触发测量
+  const floating = document.createElement('div');
+  floating.dataset.testid = 'sidebar-panel';
+  floating.dataset.floating = 'true';
+  await act(async () => {
+    r.container.querySelector('.chat-container')!.append(document.createElement('div'));
+    r.getByTestId('chat-sidebar').append(floating);
+    floating.append(document.createElement('div'));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(rectSpy).not.toHaveBeenCalled();
+
+  // 2. 非布局元素的 transition / animation 事件不应触发测量
+  const btn = r.getByRole('button', { name: 'Tip target' });
+  act(() => {
+    const startEv = new Event('transitionstart', { bubbles: true }) as Event & {
+      propertyName?: string;
+    };
+    startEv.propertyName = 'transform';
+    btn.dispatchEvent(startEv);
+    const endEv = new Event('transitionend', { bubbles: true }) as Event & {
+      propertyName?: string;
+    };
+    endEv.propertyName = 'transform';
+    btn.dispatchEvent(endEv);
+    floating.dispatchEvent(new Event('animationend', { bubbles: true }));
+  });
+  expect(rectSpy).not.toHaveBeenCalled();
+
+  // 3. 真实布局节点（如 chat-column）的过渡结束事件应正常触发同步
+  act(() => {
+    const endEv = new Event('transitionend', { bubbles: true }) as Event & {
+      propertyName?: string;
+    };
+    endEv.propertyName = 'transform';
+    r.getByTestId('chat-column').dispatchEvent(endEv);
+  });
+  expect(rectSpy).toHaveBeenCalled();
+});
