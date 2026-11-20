@@ -5,6 +5,12 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ## Unreleased
 
+### Maintenance
+
+- **release:** empty changeset after archiving 2.4.2
+
+## 2.4.2 — 2026-11-20
+
 ### Features
 
 - **files:** 文件路径可以直接拖进输入框
