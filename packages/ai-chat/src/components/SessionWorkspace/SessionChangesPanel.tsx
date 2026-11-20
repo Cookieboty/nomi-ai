@@ -489,6 +489,7 @@ export const SessionChangesPanel: React.FC<{
         onPick={pickFile}
         filter={treeFilter}
         testIdPrefix="rail"
+        baseCwd={primary ?? cwd}
         defaultOpen={changesActive}
         messageIdByFile={Object.fromEntries(changes.map((c) => [c.file, c.messageId]))}
         onLocate={(_file, messageId) => {

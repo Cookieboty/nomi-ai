@@ -7,7 +7,7 @@
  */
 import { Button, Icon, IconButton, t, useLocale } from '@nomi-ai/ui';
 import { IconSquare as Square, IconX as X } from '@tabler/icons-react';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 
 import {
   useHarnessDetached,
@@ -246,6 +246,7 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
   const slots = useMemo(() => buildCliSlots({ cwd: tab.cwd, tab }), [tab]);
   const [draftStore] = useState(createComposerDraftStore);
   const [fill, setFill] = useState<ComposerFill | null>(null);
+  const paneRef = useRef<HTMLElement>(null);
   const pending = core.queues[tab.id] ?? [];
   const slash = useSlashCommands({
     backend: tab.backend === 'nomi' ? 'claude' : tab.backend,
@@ -293,6 +294,7 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
   };
   return (
     <section
+      ref={paneRef}
       className={styles.pane}
       hidden={!slot.active}
       data-testid="subagent-pane"
@@ -353,6 +355,7 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
             onFlush: () => void core.flushPendingFor(tab.id),
           }}
           cwd={tab.cwd}
+          dropZoneRef={paneRef}
           endpointTab={tab}
           contextMessages={messages}
           contextModel={tab.modelOverride ?? tab.backend}
@@ -470,6 +473,7 @@ const NestedChat: React.FC<{
   const images = useCliImageSupport(forkTab ?? parent);
   const [draftStore] = useState(createComposerDraftStore);
   const [fill, setFill] = useState<ComposerFill | null>(null);
+  const paneRef = useRef<HTMLElement>(null);
   // relay：这个 CLI 没有直接通道，改经主代理转达；notice：最近一次直接发送的结果提示
   const [relay, setRelay] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -600,6 +604,7 @@ const NestedChat: React.FC<{
   };
   return (
     <section
+      ref={paneRef}
       className={styles.pane}
       hidden={!slot.active}
       data-testid="subagent-pane"
@@ -656,6 +661,7 @@ const NestedChat: React.FC<{
               onFlush: flushNested,
             }}
             cwd={parent.cwd}
+            dropZoneRef={paneRef}
             fill={fill}
             draftStore={draftStore}
             draftKey={draftKey({
@@ -702,6 +708,7 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSl
   const pending = outbox.items;
   const [draftStore] = useState(createComposerDraftStore);
   const [fill, setFill] = useState<ComposerFill | null>(null);
+  const paneRef = useRef<HTMLElement>(null);
   const running = TASK_ACTIVE.has(status);
   React.useEffect(() => {
     let alive = true;
@@ -780,6 +787,7 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSl
   };
   return (
     <section
+      ref={paneRef}
       className={styles.pane}
       hidden={!slot.active}
       data-testid="subagent-pane"
@@ -850,6 +858,7 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSl
             onFlush: stop,
           }}
           fill={fill}
+          dropZoneRef={paneRef}
           draftStore={draftStore}
           draftKey={draftKey({
             kind: 'tab',

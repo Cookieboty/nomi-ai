@@ -143,6 +143,9 @@
 .tab[data-active] {
   background: var(--cd-color-hover);
 }
+.tab[data-dragging='true'] {
+  opacity: 0.55;
+}
 .tab > button:first-child {
   max-width: 18rem;
   overflow: hidden;

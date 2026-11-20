@@ -14,6 +14,7 @@ import {
   type PreviewDirectoryEntry,
   type PreviewDirectoryResult,
 } from '../../services/resourcePreviewClient';
+import { clearFilePathDrag, startFilePathDrag } from '../../utils/filePathDrag';
 import { workspaceFileHref } from '../../utils/resourceLinks';
 
 import styles from './PreviewFilePicker.module.css';
@@ -214,6 +215,14 @@ export function PreviewFilePicker({
                   aria-haspopup="dialog"
                   aria-expanded={open && activeCrumb === index}
                   data-testid={file ? 'preview-file-picker' : undefined}
+                  draggable={!!crumb.path}
+                  onDragStart={(e) => {
+                    startFilePathDrag(e.dataTransfer, {
+                      path: crumb.path,
+                      kind: file ? 'file' : 'dir',
+                    });
+                  }}
+                  onDragEnd={() => clearFilePathDrag()}
                   onClick={(event) => {
                     if (open && trigger.current === event.currentTarget) {
                       close();

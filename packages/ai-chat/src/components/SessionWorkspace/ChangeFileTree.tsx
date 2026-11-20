@@ -7,6 +7,7 @@ import {
 } from '@tabler/icons-react';
 import React, { useState } from 'react';
 
+import { clearFilePathDrag, resolveDragPath, startFilePathDrag } from '../../utils/filePathDrag';
 import type { ChangeTreeNode } from '../../utils/sessionChanges';
 
 import styles from './SessionWorkspace.module.css';
@@ -18,6 +19,7 @@ export const ChangeFileTree: React.FC<{
   onPick: (file: string) => void;
   filter?: string;
   testIdPrefix?: string;
+  baseCwd?: string | null;
   /** 可选：定位到会话中的编辑步骤 */
   onLocate?: (file: string, messageId?: string) => void;
   messageIdByFile?: Record<string, string>;
@@ -30,6 +32,7 @@ export const ChangeFileTree: React.FC<{
   onPick,
   filter = '',
   testIdPrefix = 'wb',
+  baseCwd,
   onLocate,
   messageIdByFile,
   defaultOpen = true,
@@ -49,6 +52,7 @@ export const ChangeFileTree: React.FC<{
             });
           if (!any) return null;
           const isOpen = open[n.path] ?? (n.open || defaultOpen || !!q);
+          const dirDragPath = n.path ? resolveDragPath(n.path, baseCwd) : null;
           return (
             <div
               key={n.path || n.name}
@@ -59,6 +63,12 @@ export const ChangeFileTree: React.FC<{
                 type="button"
                 className={styles.wbTreeDirHead}
                 style={{ paddingLeft: 8 + depth * 12 }}
+                draggable={!!dirDragPath}
+                onDragStart={(event) => {
+                  if (!dirDragPath) return;
+                  startFilePathDrag(event.dataTransfer, { path: dirDragPath, kind: 'dir' });
+                }}
+                onDragEnd={() => clearFilePathDrag()}
                 onClick={() => setOpen((o) => ({ ...o, [n.path]: !isOpen }))}
               >
                 {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -74,6 +84,7 @@ export const ChangeFileTree: React.FC<{
                   onPick={onPick}
                   filter={filter}
                   testIdPrefix={testIdPrefix}
+                  baseCwd={baseCwd}
                   onLocate={onLocate}
                   messageIdByFile={messageIdByFile}
                   defaultOpen={defaultOpen}
@@ -87,6 +98,7 @@ export const ChangeFileTree: React.FC<{
         const changed = !!e;
         // 工作区全树里节点是相对路径、变更是原路径：选中 / 高亮统一用变更的原路径
         const id = e?.file ?? n.path;
+        const fileDragPath = resolveDragPath(id, baseCwd);
         return (
           <div
             key={n.path}
@@ -105,6 +117,12 @@ export const ChangeFileTree: React.FC<{
               data-changed={changed || undefined}
               data-testid={`${testIdPrefix}-file`}
               data-file={n.path}
+              draggable={!!fileDragPath}
+              onDragStart={(event) => {
+                if (!fileDragPath) return;
+                startFilePathDrag(event.dataTransfer, { path: fileDragPath, kind: 'file' });
+              }}
+              onDragEnd={() => clearFilePathDrag()}
               onClick={() => onPick(id)}
             >
               <FileCode2 size={14} className={styles.wbFileIcon} />

@@ -17,6 +17,7 @@ import {
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
+import { clearFilePathDrag, resolveDragPath, startFilePathDrag } from '../../utils/filePathDrag';
 import { shouldIgnoreEscape } from '../../utils/keyboard';
 import type { ChangeEntry } from '../../utils/sessionChanges';
 import type { FileDiff } from '../../utils/toolTrace';
@@ -592,33 +593,42 @@ export const FileReview: React.FC<{
 
       {!hideFileTabs && (
         <div className={styles.fileTabs} role="tablist" data-testid="preview-file-tabs">
-          {files.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              role="tab"
-              aria-selected={f.key === active.key}
-              data-active={f.key === active.key || undefined}
-              className={styles.fileTab}
-              onClick={() => {
-                persistView();
-                onActiveKey(f.key);
-              }}
-            >
-              {f.letter ? (
-                <span className={styles.letter} data-letter={f.letter}>
-                  {f.letter}
-                </span>
-              ) : null}
-              <span className={styles.fileTabName}>{f.path.split(/[/\\]/).pop()}</span>
-              {f.added || f.removed ? (
-                <span className={styles.stat}>
-                  {f.added ? <span className={styles.add}>+{f.added}</span> : null}
-                  {f.removed ? <span className={styles.del}>−{f.removed}</span> : null}
-                </span>
-              ) : null}
-            </button>
-          ))}
+          {files.map((f) => {
+            const dragPath = resolveDragPath(f.path, f.cwds?.[0] ?? cwd);
+            return (
+              <button
+                key={f.key}
+                type="button"
+                role="tab"
+                aria-selected={f.key === active.key}
+                data-active={f.key === active.key || undefined}
+                className={styles.fileTab}
+                draggable={!!dragPath}
+                onDragStart={(e) => {
+                  if (!dragPath) return;
+                  startFilePathDrag(e.dataTransfer, { path: dragPath, kind: 'file' });
+                }}
+                onDragEnd={() => clearFilePathDrag()}
+                onClick={() => {
+                  persistView();
+                  onActiveKey(f.key);
+                }}
+              >
+                {f.letter ? (
+                  <span className={styles.letter} data-letter={f.letter}>
+                    {f.letter}
+                  </span>
+                ) : null}
+                <span className={styles.fileTabName}>{f.path.split(/[/\\]/).pop()}</span>
+                {f.added || f.removed ? (
+                  <span className={styles.stat}>
+                    {f.added ? <span className={styles.add}>+{f.added}</span> : null}
+                    {f.removed ? <span className={styles.del}>−{f.removed}</span> : null}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
         </div>
       )}
 

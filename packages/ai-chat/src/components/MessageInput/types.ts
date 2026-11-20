@@ -82,4 +82,8 @@ export interface MessageInputProps {
    * 不传 = 按 endpointTab / 当前标签显示。
    */
   modelControl?: React.ReactNode;
+  /** 接收工作区文件路径拖放的容器区域（如整个 chat-column 或侧栏聊天面板） */
+  dropZoneRef?: React.RefObject<HTMLElement | null>;
+  /** 铺满模式下经标签拖放触发主对话插入路径的自定义事件名 */
+  dropEvent?: string;
 }

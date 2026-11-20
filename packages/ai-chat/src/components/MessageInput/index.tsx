@@ -34,6 +34,11 @@ import { argPhase, paletteQuery } from '../../slash/parse';
 import { findCommand, flattenGroups, searchCommands } from '../../slash/registry';
 import type { ModelArgOption, SlashCommand } from '../../slash/types';
 import { useAtPathOptions } from '../../slash/useAtPathOptions';
+import {
+  formatDroppedFilePath,
+  insertPathToken,
+  type FilePathDragPayload,
+} from '../../utils/filePathDrag';
 import { PermissionTip } from '../EndpointControls';
 import { ErrorHint } from '../ErrorHint';
 import { ComposerChangesPill } from '../SessionWorkspace/ComposerChangesPill';
@@ -60,6 +65,7 @@ import { useAutoHeight } from './useAutoHeight';
 import { useCompactComposerLayout } from './useCompactComposerLayout';
 import { useComposing } from './useComposing';
 import { useDragDrop } from './useDragDrop';
+import { useFilePathDrop } from './useFilePathDrop';
 import { useKnowledgeMode } from './useKnowledgeMode';
 import { useReferenceDraft } from './useReferenceDraft';
 import { useUncontrolledValue } from './useUncontrolledValue';
@@ -97,6 +103,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   draftKey,
   endpointTab,
   modelControl,
+  dropZoneRef,
+  dropEvent,
 }) => {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
@@ -134,6 +142,11 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const [atIdx, setAtIdx] = useState(0);
   const [atClosed, setAtClosed] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const userCaretTouchedRef = useRef(false);
+  useEffect(() => {
+    userCaretTouchedRef.current = false;
+  }, [activeDraftKey]);
   const multiline = useCompactComposerLayout(textareaRef, message, compact && floating);
 
   // 组字状态（IME）：组字期间不写文本、不量高度；漏 compositionend 时能自愈。
@@ -175,7 +188,10 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   useEffect(() => {
     if (!fill || fill.nonce === seenFill.current) return;
     seenFill.current = fill.nonce;
-    if (fill.text) linkedDraft.append(fill.text);
+    if (fill.text) {
+      linkedDraft.append(fill.text);
+      userCaretTouchedRef.current = true;
+    }
     if (fill.images?.length) addImages(fill.images);
     requestAnimationFrame(() => {
       const el = textareaRef.current;
@@ -294,6 +310,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     }
     // 确认不是组字：标记还挂着（漏了 compositionend）就顺手清掉，输入框不会一直哑着。
     clearComposing(e.target);
+    userCaretTouchedRef.current = true;
     setMessage(e.target.value);
     setCaret(e.target.selectionStart ?? e.target.value.length);
     setSlashIdx(0);
@@ -310,6 +327,38 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const isDisabled =
     disabled ||
     (busyOverride !== undefined ? (queue ? false : busyOverride) : queue ? false : isLoading);
+
+  const insertDroppedFilePath = (payload: FilePathDragPayload) => {
+    const token = formatDroppedFilePath(payload, cwd);
+    if (!token) return;
+    const el = textareaRef.current;
+    const current = el ? el.value : message;
+    const useCursor = !!el && (document.activeElement === el || userCaretTouchedRef.current);
+    const start = useCursor ? (el.selectionStart ?? current.length) : current.length;
+    const end = useCursor ? (el.selectionEnd ?? start) : current.length;
+    const next = insertPathToken(current, token, start, end);
+    if (el) clearComposing(el);
+    userCaretTouchedRef.current = true;
+    newlineCaret.current = next.caret;
+    setMessage(next.text);
+    setCaret(next.caret);
+    setAtIdx(0);
+    setAtClosed(next.text);
+    requestAnimationFrame(() => {
+      const ta = textareaRef.current;
+      if (!ta) return;
+      ta.focus();
+      ta.setSelectionRange(next.caret, next.caret);
+      if (next.caret === ta.value.length) ta.scrollTop = ta.scrollHeight;
+    });
+  };
+
+  const pathDragOver = useFilePathDrop({
+    zoneRef: dropZoneRef ?? containerRef,
+    disabled: isDisabled,
+    onDrop: insertDroppedFilePath,
+    eventName: dropEvent,
+  });
 
   // 停止：Nomi 流式生成中，或 agent 标签自带的停止；输入为空才显示（有字时发送键是「排队」）
   const stopFn =
@@ -543,7 +592,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   });
 
   return (
-    <div className={styles.messageInputContainer}>
+    <div ref={containerRef} className={styles.messageInputContainer}>
       {chatError && (
         <ErrorHint
           error={chatError}
@@ -560,9 +609,14 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       )}
       {contextMessages?.length ? <ComposerChangesPill messages={contextMessages} /> : null}
       <div
-        className={`${styles.inputWrapper} ${compact ? styles.compact : ''} ${floating ? styles.floating : ''} ${multiline ? styles.multiline : ''} ${dragOver ? styles.dragOver : ''}`}
+        className={`${styles.inputWrapper} ${compact ? styles.compact : ''} ${floating ? styles.floating : ''} ${multiline ? styles.multiline : ''} ${dragOver || pathDragOver ? styles.dragOver : ''}`}
         data-compact={compact || undefined}
       >
+        {pathDragOver && (
+          <div className={styles.pathDropHint} data-testid="chat-path-drop-hint" aria-live="polite">
+            {tr('ui.session-workspace.drop-path-to-insert')}
+          </div>
+        )}
         <ComposerPalettes
           slashOpen={slashOpen}
           slashGroups={slashGroups}
@@ -611,8 +665,18 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onSelect={syncCaret}
-          onKeyUp={syncCaret}
-          onClick={syncCaret}
+          onFocus={() => {
+            userCaretTouchedRef.current = true;
+            syncCaret();
+          }}
+          onKeyUp={() => {
+            userCaretTouchedRef.current = true;
+            syncCaret();
+          }}
+          onClick={() => {
+            userCaretTouchedRef.current = true;
+            syncCaret();
+          }}
           onCompositionStart={onCompositionStart}
           onCompositionEnd={onCompositionEnd}
           onBlur={(e) => clearComposing(e.currentTarget)}

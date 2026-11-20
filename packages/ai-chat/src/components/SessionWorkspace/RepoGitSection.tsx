@@ -23,6 +23,7 @@ import { useGitBranch } from '../../hooks/useGitBranch';
 import { useGitSync, useGitWorktrees } from '../../hooks/useGitSync';
 import { harnessClient, type GitDiffResult } from '../../services/harnessClient';
 import { buildCommitPrompt } from '../../utils/commitPrompt';
+import { clearFilePathDrag, resolveDragPath, startFilePathDrag } from '../../utils/filePathDrag';
 import { onWindowFocus } from '../../utils/focusRefresh';
 import {
   isNotGitRepoError,
@@ -82,6 +83,7 @@ const GitRow: React.FC<{
   area: GitArea;
   added?: number;
   removed?: number;
+  dragPath?: string | null;
   /** 本会话助手改过这个文件 */
   session?: ChangeEntry;
   selected: boolean;
@@ -97,6 +99,7 @@ const GitRow: React.FC<{
   area,
   added,
   removed,
+  dragPath,
   session,
   selected,
   onSelect,
@@ -112,7 +115,17 @@ const GitRow: React.FC<{
     data-session={session ? true : undefined}
     data-file={entry.path}
   >
-    <button type="button" className={styles.rowHead} onClick={onSelect}>
+    <button
+      type="button"
+      className={styles.rowHead}
+      draggable={!!dragPath}
+      onDragStart={(e) => {
+        if (!dragPath) return;
+        startFilePathDrag(e.dataTransfer, { path: dragPath, kind: 'file' });
+      }}
+      onDragEnd={() => clearFilePathDrag()}
+      onClick={onSelect}
+    >
       <span className={styles.letter} data-letter={letter} title={`${entry.index}${entry.work}`}>
         {letter}
       </span>
@@ -628,6 +641,7 @@ export const RepoGitSection: React.FC<{
                         area={r.area}
                         added={r.added}
                         removed={r.removed}
+                        dragPath={resolveDragPath(r.entry.path, gitCwd)}
                         session={changeByRel.get(r.entry.path)}
                         selected={
                           previewKey?.startsWith('g:')

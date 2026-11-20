@@ -24,11 +24,13 @@ const actions: { action: PreviewTabAction; label: string }[] = [
 export function PreviewTabMenu({
   target,
   entries,
+  copyPath,
   onDismiss,
   onCloseEntries,
 }: {
   target: PreviewTabMenuTarget;
   entries: PreviewEntry[];
+  copyPath?: string | null;
   onDismiss: (restoreFocus?: boolean) => void;
   onCloseEntries: (keys: string[]) => void;
 }) {
@@ -108,6 +110,20 @@ export function PreviewTabMenu({
           </button>
         );
       })}
+      <div role="separator" className={styles.separator} />
+      <button
+        type="button"
+        role="menuitem"
+        className={styles.item}
+        disabled={!copyPath}
+        data-testid="preview-tab-copy-path"
+        onClick={() => {
+          if (copyPath) void navigator.clipboard?.writeText(copyPath).catch(() => undefined);
+          onDismiss(true);
+        }}
+      >
+        {t('ui.session-workspace.preview-tab-copy-path')}
+      </button>
     </div>,
     document.body,
   );
