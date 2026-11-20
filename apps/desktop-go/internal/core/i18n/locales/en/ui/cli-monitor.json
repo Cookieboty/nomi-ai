@@ -292,7 +292,7 @@
   "ui.cli-monitor.project-primary": "Primary",
   "ui.cli-monitor.project-primary-hint": "The primary folder is the session's working directory; git, branches and AGENTS.md come from it. The other folders are readable and writable too.",
   "ui.cli-monitor.project-remove": "Remove project",
-  "ui.cli-monitor.project-remove-confirm-body": "The project is only hidden; no files on disk are deleted. Its chats move to Recent.",
+  "ui.cli-monitor.project-remove-confirm-body": "The project is only hidden; no files on disk are deleted. Its chats move to Other chats.",
   "ui.cli-monitor.project-remove-confirm-title": "Remove project “{0}”?",
   "ui.cli-monitor.project-search": "Search projects",
   "ui.cli-monitor.project-set-primary": "Set as primary",

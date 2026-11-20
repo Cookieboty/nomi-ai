@@ -7,6 +7,7 @@
  * - 移除项目只删记录，不碰磁盘；引用它的会话变成没有项目。
  *
  * 这里是视图侧的同步门面：第一次用时拉一次列表，之后跟着 `project.changed` 更新。
+ * 先订阅事件再拉列表，迟到的快照只要中间改过本地状态就丢掉（否则会把刚移除的项目写回来）。
  */
 import { useSyncExternalStore } from 'react';
 
@@ -26,6 +27,8 @@ export interface Project {
 let projects: readonly Project[] = [];
 let byId = new Map<string, Project>();
 let started = false;
+/** 本地列表改过的次数：拉列表的结果回来时据此判断这份快照是不是已经过期 */
+let rev = 0;
 const subs = new Set<() => void>();
 
 const norm = (list: readonly unknown[]): Project[] =>
@@ -35,6 +38,7 @@ const norm = (list: readonly unknown[]): Project[] =>
   });
 
 function set(list: readonly unknown[]): void {
+  rev += 1;
   projects = norm(list);
   byId = new Map(projects.map((p) => [p.id, p]));
   subs.forEach((f) => f());
@@ -44,12 +48,18 @@ function start(): void {
   if (started) return;
   started = true;
   if (!hasTransport()) return;
-  void api.project
-    .list()
-    .then((l) => set(l))
-    .catch(() => undefined);
+  // 先订阅再拉列表：请求还在路上时到达的 project.changed 不能丢
   const off = api.on('project.changed', (l) => set(l));
   import.meta.hot?.dispose(off);
+  // 列表只是首帧快照。拉的过程中只要来过事件或本地改过（增删改、移除），rev 就变了，
+  // 这份旧快照直接丢掉——否则迟到的结果会把刚移除的项目写回侧栏（要删两次才消失）。
+  const at = rev;
+  void api.project
+    .list()
+    .then((l) => {
+      if (rev === at) set(l);
+    })
+    .catch(() => undefined);
 }
 
 const subscribe = (fn: () => void) => {
@@ -130,4 +140,13 @@ export const projectsClient = {
 export function __setProjectsForTest(list: Project[]): void {
   started = true;
   set(list);
+}
+
+/** 测试用：回到「还没开始同步」的状态（给定本地已有的列表），用来演一遍首次拉列表 */
+export function __resetProjectsForTest(list: Project[] = []): void {
+  started = false;
+  rev = 0;
+  subs.clear();
+  projects = norm(list);
+  byId = new Map(projects.map((p) => [p.id, p]));
 }
