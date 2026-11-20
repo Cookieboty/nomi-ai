@@ -340,6 +340,7 @@ type responded struct {
 	errorKind      string
 	cancelPhase    string
 	responseModel  string
+	fingerprint    StreamFingerprint
 	firstContentAt *float64
 	firstTextAt    *float64
 	lastContentAt  *float64
@@ -1552,6 +1553,9 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 	if out.responseModel != "" {
 		e.Set("responseModel", out.responseModel)
 	}
+	if !out.fingerprint.IsEmpty() {
+		e.Set("fingerprint", out.fingerprint.ToObj())
+	}
 	if firstContentMs != nil {
 		e.Set("firstByteMs", *firstContentMs)
 	}
@@ -1824,6 +1828,12 @@ func (g *GatewayServer) respond(res *gwRes, ingress *upstream.Ingress, c *cand.C
 	}
 	stamp := func(r responded) responded {
 		r.responseModel = responseModel
+		if r.fingerprint.ResponseModel == "" && responseModel != "" {
+			r.fingerprint.ResponseModel = responseModel
+		}
+		if hdrs := ExtractFingerprintHeaders(up.Header); len(hdrs) > 0 {
+			r.fingerprint.Headers = hdrs
+		}
 		return r
 	}
 	if !res.sent() {
@@ -1907,7 +1917,7 @@ func (g *GatewayServer) respond(res *gwRes, ingress *upstream.Ingress, c *cand.C
 			arm()
 			if res.destroyed() {
 				publish(tap.Model)
-				return stamp(timing(responded{usage: tap.Usage, outcome: "client-cancel", cancelPhase: "during", streamed: true}))
+				return stamp(timing(responded{usage: tap.Usage, outcome: "client-cancel", cancelPhase: "during", streamed: true, fingerprint: tap.Fingerprint()}))
 			}
 			text := dec.Decode(chunk)
 			tap.Push(text)
@@ -1997,7 +2007,7 @@ func (g *GatewayServer) respond(res *gwRes, ingress *upstream.Ingress, c *cand.C
 			res.end("")
 		}
 		usage := tap.End()
-		r := responded{usage: usage, outcome: outcome, errorKind: errorKind, streamed: true}
+		r := responded{usage: usage, outcome: outcome, errorKind: errorKind, streamed: true, fingerprint: tap.Fingerprint()}
 		if outcome == "client-cancel" {
 			r.cancelPhase = "during"
 		}
@@ -2051,12 +2061,14 @@ func (g *GatewayServer) respond(res *gwRes, ingress *upstream.Ingress, c *cand.C
 		parsed = v
 	}
 	usage := events.StreamUsage{}
+	var jsonFP StreamFingerprint
 	if _, isStr := parsed.(string); !isStr {
 		switch parsed.(type) {
 		case float64, bool:
 		default:
 			usage = UsageOfJSON(c.Wire, parsed)
-			publish(ResponseModelOf(c.Wire, parsed))
+			jsonFP = FingerprintOfJSON(c.Wire, parsed)
+			publish(jsonFP.ResponseModel)
 		}
 	}
 	pm := BridgeMode("convert")
@@ -2087,7 +2099,7 @@ func (g *GatewayServer) respond(res *gwRes, ingress *upstream.Ingress, c *cand.C
 			sendJSON(res, out.Status, out.JSON)
 		}
 	}
-	return stamp(responded{usage: usage, outcome: "ok", streamed: false, firstContentAt: fp(bodyAt), lastContentAt: fp(bodyAt), firstTextAt: fp(bodyAt)})
+	return stamp(responded{usage: usage, outcome: "ok", streamed: false, fingerprint: jsonFP, firstContentAt: fp(bodyAt), lastContentAt: fp(bodyAt), firstTextAt: fp(bodyAt)})
 }
 
 // countTokens: forward when both sides are Messages, else estimate.

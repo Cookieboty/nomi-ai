@@ -5446,7 +5446,8 @@ const (
 )
 
 type GatewayNomiContextInput struct {
-	Role *GatewayNomiContextInputRole `json:"role,omitempty"`
+	Role        *GatewayNomiContextInputRole `json:"role,omitempty"`
+	LongContext *bool                        `json:"longContext,omitempty"`
 }
 
 type GatewayNomiContextOutput struct {
@@ -10108,6 +10109,7 @@ type TasksTraceOutputLinesItem struct {
 	Error     *string  `json:"error,omitempty"`
 	StartedAt *float64 `json:"startedAt,omitempty"`
 	TextAt    *float64 `json:"textAt,omitempty"`
+	Thinking  *string  `json:"thinking,omitempty"`
 	User      *string  `json:"user,omitempty"`
 	Done      *string  `json:"done,omitempty"`
 }
@@ -10121,6 +10123,7 @@ type TasksTraceOutputAttemptsItemLinesItem struct {
 	Error     *string  `json:"error,omitempty"`
 	StartedAt *float64 `json:"startedAt,omitempty"`
 	TextAt    *float64 `json:"textAt,omitempty"`
+	Thinking  *string  `json:"thinking,omitempty"`
 	User      *string  `json:"user,omitempty"`
 	Done      *string  `json:"done,omitempty"`
 }

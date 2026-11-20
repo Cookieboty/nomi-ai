@@ -23,6 +23,7 @@ export type {
   QualityDist,
   QualityFacet,
   QualityFacets,
+  QualityFingerprint,
   QualityExportResult,
   QualityLayer,
   QualityOutcome,
