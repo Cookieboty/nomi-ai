@@ -182,5 +182,9 @@
   "ui.slash-commands.nothing-to-compact-yet": "There's nothing to compact yet.",
   "ui.slash-commands.last-reply-cache-hit-rate": "Cache hits on the last reply: {0} ({1} read from cache). Higher is cheaper and faster.",
   "ui.slash-commands.compact-hint": "[optional: what to focus on]",
-  "ui.slash-commands.preset-tiers": "Preset tiers"
+  "ui.slash-commands.preset-tiers": "Preset tiers",
+  "ui.slash-commands.bg-command-desc": "Send this request directly to the background task queue without blocking chat",
+  "ui.slash-commands.bg-command-hint": "<background task goal>",
+  "ui.slash-commands.bg-usage-title": "Background task (/bg)",
+  "ui.slash-commands.bg-usage-body": "Usage: /bg <task description>. Creates a background task immediately and posts the result back into this chat once done."
 }

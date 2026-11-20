@@ -182,5 +182,9 @@
   "ui.slash-commands.nothing-to-compact-yet": "还没有可以压缩的对话。",
   "ui.slash-commands.last-reply-cache-hit-rate": "上一轮回复的缓存命中 {0}（缓存读 {1}）：命中越高，越省钱、越快。",
   "ui.slash-commands.compact-hint": "[可选：重点保留什么]",
-  "ui.slash-commands.preset-tiers": "预设档位"
+  "ui.slash-commands.preset-tiers": "预设档位",
+  "ui.slash-commands.bg-command-desc": "直接将本条任务交到后台任务队列异步执行，不占用当前前台对话流",
+  "ui.slash-commands.bg-command-hint": "<后台任务内容>",
+  "ui.slash-commands.bg-usage-title": "后台任务 (/bg)",
+  "ui.slash-commands.bg-usage-body": "用法：/bg 任务描述。例如：/bg 扫描全仓注释并输出整理报告。发出后任务会立刻进入任务看板队列，完成后结果自动回传本对话。"
 }
