@@ -22,6 +22,8 @@ Nomi·诺米的桌面应用：本地优先的 Agent 工作台。Go 内核 + [Wai
 ```bash
 pnpm dev                 # Vite 开发服务器 + Go 程序；改 renderer / ai-chat 源码即热更新
 pnpm dev --skip-deps     # 跳过构建视图依赖的工作区包；改了这些包时另开终端 pnpm dev:libs
+pnpm dev:prod            # 开发模式（视图热更新 + Go 监听重编译），但使用正式版配置与数据目录（先退出正式版）
+pnpm dev:prod --skip-deps
 ```
 
 改 Go 代码（含内嵌的 locales / json）会自动重新编译并重启 Go 程序（视图服务器不动）；编译失败时旧进程继续跑。
@@ -118,6 +120,7 @@ Linux WebView 存储也通过独立的程序名隔离。委派 worktree 使用�
 开发数据目录内的 `cli-inherited/<助手 id>`，并清除该助手继承的生产路由凭据，不会复制生产账号数据。
 自定义开发路径时请使用单独目录；显式选取的项目工作区、系统安装的 CLI 及其自身账号仍属于用户共享环境。
 直接执行 `go run .` 不会启用隔离；手动开发构建需加 `-tags nomi_dev`（macOS 再加 `private_mac_apis`）。
+如果需要在开发态直接使用正式版的配置与数据目录，可以运行 `pnpm dev:prod`（即 `dev.mjs --prod`，不加 `nomi_dev` 构建标签，生成 `nomi`；因共享单实例标识与数据目录，请先退出正式版）。
 打包脚本不启用此标签，正式版的目录、身份及迁移行为保持原样。
 
 正式版与旧 Electron 版的目录（`@nomi-ai/electron`）分开。首次启动时把旧版的数据**复制**过来（不改、不删原目录）；

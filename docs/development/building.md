@@ -15,6 +15,7 @@ pnpm install
 
 ```bash
 pnpm dev          # 先做环境自检，再启动两个视图的 Vite 开发服务器与 Go 程序（视图热更新，改 Go 代码自动重编译重启；改 packages/ui/src 自动重建该包并让视图重载）
+pnpm dev:prod     # 同 pnpm dev，但省略 nomi_dev 隔离标签以复用正式版配置与数据目录（不可与正式版同时运行）
 pnpm doctor       # 完整环境自检（Node、pnpm、Go、端口）
 pnpm dev:libs     # 另开终端：改 contract 等共享包时监听重建（packages/ui 已由 pnpm dev 自动重建，不必再起）
 ```

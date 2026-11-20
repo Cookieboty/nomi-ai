@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/doctor.mjs --quick && node apps/desktop-go/dev.mjs",
+    "dev:prod": "node scripts/doctor.mjs --quick && node apps/desktop-go/dev.mjs --prod",
     "dev:libs": "node scripts/run-bin.mjs turbo run dev --filter=./packages/* --filter=!@nomi-ai/renderer --filter=!@nomi-ai/ai-chat --concurrency=20",
     "build": "node scripts/run-bin.mjs turbo run build",
     "build:stand-in": "node scripts/character/build-stand-in.mjs",
