@@ -301,8 +301,10 @@ func TestLauncherProbeResolvesBareNameOnPosixPath(t *testing.T) {
 	}
 	dir := "/opt/bin"
 	env := util.NewObj()
-	env.Set("PATH", "/usr/bin"+string(os.PathListSeparator)+dir)
-	full := filepath.Join(dir, "reclaude")
+	// PATH 列表分隔符和拼接都按目标 linux，不走宿主 os.PathListSeparator / filepath.Join
+	//（Windows 宿主上后者会得到 \opt\bin\reclaude，查找对不上）。
+	env.Set("PATH", "/usr/bin:"+dir)
+	full := "/opt/bin/reclaude"
 	exists := func(p string) bool { return p == full }
 	args := []string{"-p", "/usage", "--output-format", "json"}
 	cmd, argv, err := launcherProbeInvocation("claude", "native-claude", args, "linux", env, exists)

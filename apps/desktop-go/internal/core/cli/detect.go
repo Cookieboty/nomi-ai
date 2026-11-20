@@ -4,6 +4,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"math"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -326,6 +327,16 @@ func pathListSeparator(platform string) string {
 	return ":"
 }
 
+// joinSearchPath 按目标平台拼接 PATH 目录和命令名。win32 仍走宿主 filepath.Join，
+// 以便现有磁盘 PATHEXT 折叠和用真实临时目录的 Windows 测试保持不变；POSIX 目标
+// 始终用斜杠拼接，避免在 Windows 宿主上把 /opt/bin 拼成 \opt\bin。
+func joinSearchPath(dir, name, platform string) string {
+	if platform == "win32" {
+		return filepath.Join(dir, name)
+	}
+	return path.Join(dir, name)
+}
+
 func envLookupCI(env *util.Obj, name string) (string, bool) {
 	if env == nil {
 		return "", false
@@ -524,7 +535,7 @@ func FindOnPath(cmd string, env *util.Obj, platform string, exists func(string) 
 	}
 	for _, dir := range dirs {
 		for _, name := range names {
-			c := filepath.Join(dir, name)
+			c := joinSearchPath(dir, name, platform)
 			if platform == "win32" {
 				// PATHEXT 常写成大写（.CMD），而磁盘上是小写 shim；Windows 的
 				// 文件系统大小写不敏感，在大小写敏感的宿主上先按真实名字折叠再判断。

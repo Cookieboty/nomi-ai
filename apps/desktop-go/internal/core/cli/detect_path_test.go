@@ -284,3 +284,30 @@ func TestPosixFindOnPathDoesNotCaseFold(t *testing.T) {
 		t.Fatalf("FindOnPath(ReClaude-Path) = %q, want the on-disk name", got)
 	}
 }
+
+// 目标 POSIX 查找必须按 POSIX 斜杠拼接，且 PATH 用冒号分隔，不依赖宿主分隔符。
+// 在 Windows 上也要跑：这正是 TestLauncherProbeResolvesBareNameOnPosixPath 在 CI 上挂掉的契约。
+func TestFindOnPathTargetPOSIXUsesPOSIXSeparators(t *testing.T) {
+	env := util.NewObj()
+	env.Set("PATH", "/usr/bin:/opt/bin")
+	exists := func(p string) bool { return p == "/opt/bin/reclaude" }
+
+	for _, platform := range []string{"linux", "darwin"} {
+		got := FindOnPath("reclaude", env, platform, exists)
+		if got != "/opt/bin/reclaude" {
+			t.Fatalf("FindOnPath(%s) = %q, want /opt/bin/reclaude", platform, got)
+		}
+		if strings.Contains(got, `\`) {
+			t.Fatalf("target POSIX path must not use host backslashes: %q", got)
+		}
+	}
+
+	// 误用宿主 PATH 列表分隔符时，linux 查找不能把整段当成一个目录而误命中。
+	hostSep := util.NewObj()
+	hostSep.Set("PATH", "/usr/bin"+string(os.PathListSeparator)+"/opt/bin")
+	if os.PathListSeparator != ':' {
+		if got := FindOnPath("reclaude", hostSep, "linux", exists); got != "" {
+			t.Fatalf("linux lookup must split on ':', not host separator; got %q", got)
+		}
+	}
+}
