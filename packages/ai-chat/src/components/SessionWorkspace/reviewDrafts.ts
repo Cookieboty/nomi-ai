@@ -56,6 +56,17 @@ export function dropReviewDrafts(keys: readonly string[]): void {
   for (const key of keys) stores.delete(key);
 }
 
+/** 将已保存或未保存的 Diff 编辑草稿从旧标签 key 平滑迁移到新标签 key */
+export function migrateReviewDraft(fromKey: string, toKey: string): void {
+  if (!fromKey || !toKey || fromKey === toKey) return;
+  const fromStore = stores.get(fromKey);
+  if (!fromStore) return;
+  if (!stores.has(toKey)) {
+    stores.set(toKey, fromStore);
+  }
+  stores.delete(fromKey);
+}
+
 /** Manual saves only: compare the original baseline, then let the kernel compare
  * and save its revision atomically. Never fall back to an unconditional write. */
 export async function saveReviewDraft(

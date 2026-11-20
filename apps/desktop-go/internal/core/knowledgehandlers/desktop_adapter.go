@@ -20,7 +20,7 @@ func (a DesktopAdapter) Append(e deps.AuditEntry) {
 }
 
 func (a DesktopAdapter) Notify(n deps.Notice) {
-	a.S.Notify(desktop.DesktopNotice{Kind: n.Kind, Title: n.Title, Text: n.Text, Body: n.Body, Status: n.Status})
+	a.S.Notify(desktop.DesktopNotice{Kind: n.Kind, Title: n.Title, Text: n.Text, Body: n.Body, Status: n.Status, OpenID: n.OpenID})
 }
 
 type notifyPolicy struct{ p deps.NotifyPolicy }

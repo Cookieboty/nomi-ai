@@ -213,11 +213,12 @@ func (h *fakeHarness) RecoverTab(id string, dropSession bool) {
 }
 
 type fakeDesktop struct {
-	sc        *util.Obj
-	base      string
-	log       *envLog
-	mu        sync.Mutex
-	decisions []string
+	sc         *util.Obj
+	base       string
+	log        *envLog
+	mu         sync.Mutex
+	decisions  []string
+	authInputs []desktop.AuthorizeInput
 }
 
 func (d *fakeDesktop) sub(s string) string { return strings.ReplaceAll(s, sbTok, d.base) }
@@ -280,11 +281,17 @@ func (d *fakeDesktop) decide() string {
 }
 
 func (d *fakeDesktop) Authorize(i desktop.AuthorizeInput) desktop.Decision {
+	d.mu.Lock()
+	d.authInputs = append(d.authInputs, i)
+	d.mu.Unlock()
 	d.log.add(&d.log.desktop, []any{"authorize", authObj(i)})
 	return d.decide()
 }
 
 func (d *fakeDesktop) AuthorizeIn(i desktop.AuthorizeInput) desktop.Decision {
+	d.mu.Lock()
+	d.authInputs = append(d.authInputs, i)
+	d.mu.Unlock()
 	d.log.add(&d.log.desktop, []any{"authorizeIn", authObj(i)})
 	return d.decide()
 }

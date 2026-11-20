@@ -157,10 +157,15 @@ func (h *islandPendingHub) openItem(id string) {
 func islandNavOf(id string) (target, ref string) {
 	parts := strings.Split(id, "\x1f")
 	switch parts[0] {
-	case "perm", "sbx":
+	case "perm", "sbx", "tab":
 		if len(parts) > 1 {
 			return "tab", parts[1]
 		}
+	case "nomi":
+		if len(parts) > 1 {
+			return "nomi", parts[1]
+		}
+		return "nomi", ""
 	case "ask":
 		if len(parts) >= 3 && parts[1] == "tab" {
 			return "tab", parts[2]

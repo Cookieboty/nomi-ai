@@ -11,7 +11,7 @@ import {
   IconSquare as Square,
   IconX as X,
 } from '@tabler/icons-react';
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import { currentVision, visionOf } from '../../services/modelCapability';
@@ -26,6 +26,7 @@ import {
   removeSideChatQueued,
   sendSideChat,
   setSideChatEffort,
+  setSideChatLongContext,
   setSideChatModel,
   sideChatDraftKey,
   sideChatDrafts,
@@ -92,14 +93,18 @@ export const SideChatPane: React.FC<{
   useEffect(() => () => report?.(slot.tabKey, null), [report, slot.tabKey]);
   useEffect(() => markSideChatComposer(chatId), [chatId]);
   const vision = useVision(chat?.model ?? null);
+  const paneRef = useRef<HTMLElement>(null);
   const binding = useMemo(
     () =>
       chat
         ? {
             model: chat.model,
             effort: chat.effort,
+            longContext: chat.longContext,
             onModel: (ref: string) => setSideChatModel(chatId, ref),
             onEffort: (level: string | undefined) => setSideChatEffort(chatId, level),
+            onLongContext: (next: { model: string; on: boolean } | undefined) =>
+              setSideChatLongContext(chatId, next),
             menuKey: sideChatDraftKey(chatId),
             testPrefix: 'side-chat',
           }
@@ -111,6 +116,7 @@ export const SideChatPane: React.FC<{
   const notes: PaneNotes = { hint: t('ui.session-workspace.side-chat-only-nomi') };
   return (
     <section
+      ref={paneRef}
       className={paneStyles.pane}
       hidden={!slot.active}
       data-testid="side-chat"
@@ -191,6 +197,7 @@ export const SideChatPane: React.FC<{
           }}
           fill={chat.fill}
           cwd={cwd}
+          dropZoneRef={paneRef}
           draftStore={sideChatDrafts}
           draftKey={sideChatDraftKey(chatId)}
           delegate={false}

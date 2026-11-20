@@ -23,11 +23,12 @@ import (
 )
 
 type ServiceDeps struct {
-	Root   string
-	Log    Logger
-	Emit   func(event string, payload any)
-	Notify NotifyFunc
-	T      i18n.Translate
+	Root       string
+	Log        Logger
+	Emit       func(event string, payload any)
+	Notify     NotifyFunc
+	NotifyTask NotifyTaskFunc
+	T          i18n.Translate
 	// 旧的提醒 / 定时代理任务（只读并入任务页）；缺省不列
 	LegacyReminders func() []LegacyReminder
 	LegacySched     func() []LegacySchedTask
@@ -108,8 +109,9 @@ func (e *GrantError) Error() string { return e.Msg }
 func (e *GrantError) Code() string { return "bad_grant" }
 
 type ListResult struct {
-	Tasks  []Task       `json:"tasks"`
-	Legacy []LegacyItem `json:"legacy"`
+	Tasks  []Task               `json:"tasks"`
+	Legacy []LegacyItem         `json:"legacy"`
+	Queue  map[string]QueueInfo `json:"queue,omitempty"`
 }
 
 const shortLen = 90
@@ -156,6 +158,29 @@ func NewService(d ServiceDeps) *Service {
 			}
 			return nil
 		},
+		SendBatch: func(items []OutboxItem, title, text string) (err error) {
+			defer func() {
+				if p := recover(); p != nil {
+					err = fmt.Errorf("%v", p)
+				}
+			}()
+			taskID := ""
+			if len(items) > 0 {
+				taskID = items[0].TaskID
+				for _, x := range items[1:] {
+					if x.TaskID != taskID {
+						taskID = ""
+						break
+					}
+				}
+			}
+			if d.NotifyTask != nil {
+				d.NotifyTask(taskID, title, text)
+			} else if d.Notify != nil {
+				d.Notify(title, text)
+			}
+			return nil
+		},
 		MergedText: func(items []OutboxItem) (string, string) {
 			ids, titles := map[string]bool{}, []string{}
 			seen := map[string]bool{}
@@ -175,7 +200,9 @@ func NewService(d ServiceDeps) *Service {
 			}
 		},
 	})
-	if d.Notify != nil {
+	if d.NotifyTask != nil {
+		s.exec["notify"] = NewNotifyExecutorWithTask(d.NotifyTask)
+	} else if d.Notify != nil {
 		s.exec["notify"] = NewNotifyExecutor(d.Notify)
 	}
 	s.Runtime = NewRuntime(RuntimeDeps{
@@ -259,7 +286,11 @@ func (s *Service) List() ListResult {
 	if s.d.LegacySched != nil {
 		ss = s.d.LegacySched()
 	}
-	return ListResult{Tasks: ts, Legacy: LegacyItems(rs, ss)}
+	q := s.Runtime.QueueSnapshot()
+	if len(q) == 0 {
+		q = nil
+	}
+	return ListResult{Tasks: ts, Legacy: LegacyItems(rs, ss), Queue: q}
 }
 
 func (s *Service) Get(id string) *Record { return s.Runtime.Get(id) }
@@ -267,15 +298,26 @@ func (s *Service) Get(id string) *Record { return s.Runtime.Get(id) }
 func (s *Service) Inbox() []Task {
 	out := []Task{}
 	for _, t := range s.Runtime.List() {
-		for _, st := range InboxStatuses {
-			if t.Status == st {
-				out = append(out, t)
-				break
-			}
+		if NeedsUserAction(t, s.ConversationOwns(t)) {
+			out = append(out, t)
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].UpdatedAt > out[j].UpdatedAt })
 	return out
+}
+
+// ArchiveAllEnded：一键归档所有已结束（且不需用户处理）的任务，返回本次归档数量
+func (s *Service) ArchiveAllEnded() int {
+	n := 0
+	for _, t := range s.Runtime.List() {
+		if t.ArchivedAt != nil || !IsTerminal(t.Status) || NeedsUserAction(t, s.ConversationOwns(t)) {
+			continue
+		}
+		if res := s.Runtime.Command(t.ID, Command{Type: "archive", Outcome: "user"}); res.OK {
+			n++
+		}
+	}
+	return n
 }
 
 func (s *Service) Journal(id string) []JournalEntry {
@@ -343,14 +385,19 @@ type FollowUpImage struct {
 const MaxFollowUpImages = 8
 
 // FollowUp 是契约 tasks.followUp：上一次执行结束后，带着用户的追问（和图片）把同一件事再跑一次（新的一次执行，
-// 结果照常写回来源对话）。只支持 Nomi 执行者；正在跑时返回 busy。
+// 结果照常写回来源对话）。支持 Nomi 与 CLI 执行者（仅拒绝 notify）；正在跑或排队中时返回 busy。
 func (s *Service) FollowUp(id, text string, images ...FollowUpImage) CmdResult {
+	return s.FollowUpWithOptions(id, text, false, images...)
+}
+
+// FollowUpWithOptions：支持持续自动化任务选择同步更新长期目标（updateGoal=true 时合并追加进 Task.Goal）
+func (s *Service) FollowUpWithOptions(id, text string, updateGoal bool, images ...FollowUpImage) CmdResult {
 	body := strings.TrimSpace(text)
 	rec := s.Get(id)
 	if rec == nil {
 		return CmdResult{Reason: "not_found"}
 	}
-	if rec.Task.Executor.Kind != "nomi" || (body == "" && len(images) == 0) {
+	if rec.Task.Executor.Kind == "notify" || (body == "" && len(images) == 0) {
 		return CmdResult{Reason: "illegal"}
 	}
 	if body == "" {
@@ -366,7 +413,43 @@ func (s *Service) FollowUp(id, text string, images ...FollowUpImage) CmdResult {
 		}
 		return CmdResult{Reason: "illegal"}
 	}
-	res := s.Runtime.Command(id, Command{Type: "follow_up", Feedback: body, Images: files})
+	outcome := ""
+	if updateGoal && strings.TrimSpace(text) != "" {
+		outcome = "update_goal"
+	}
+	res := s.Runtime.Command(id, Command{Type: "follow_up", Feedback: body, Images: files, Outcome: outcome})
+	if !res.OK {
+		for _, f := range files {
+			_ = os.Remove(f)
+		}
+	}
+	return res
+}
+
+// AppendQueued：任务处于排队中（queued）时追加本次运行补充指令与图片，不重置排队位置，也不破坏 FollowUp 的 busy 语义
+func (s *Service) AppendQueued(id, text string, images ...FollowUpImage) CmdResult {
+	body := strings.TrimSpace(text)
+	rec := s.Get(id)
+	if rec == nil {
+		return CmdResult{Reason: "not_found"}
+	}
+	if rec.Task.Executor.Kind == "notify" || rec.Task.Status != StatusQueued || (body == "" && len(images) == 0) {
+		return CmdResult{Reason: "illegal"}
+	}
+	if body == "" && len(images) > 0 {
+		body = "(see the attached images)"
+		if s.d.T != nil {
+			body = s.d.T("electron.common.task-follow-up-images-only")
+		}
+	}
+	files, err := s.saveFollowUpImages(id, images)
+	if err != nil {
+		if s.d.Log != nil {
+			s.d.Log.Warn("tasks appendQueued images", err.Error())
+		}
+		return CmdResult{Reason: "illegal"}
+	}
+	res := s.Runtime.Command(id, Command{Type: "update_pending_note", Feedback: body, Images: files})
 	if !res.OK {
 		for _, f := range files {
 			_ = os.Remove(f)
@@ -527,6 +610,102 @@ func (s *Service) CreateDelegated(i DelegatedInput) (Task, error) {
 		Grant:      Grant{Level: i.Level, Paths: paths, Connections: []ConnectionGrant{}, Clis: &clis},
 		Budget:     budget,
 		Acceptance: acceptance,
+	})
+	if err != nil {
+		return Task{}, err
+	}
+	s.Runtime.Command(task.ID, Command{Type: "runNow"})
+	if rec := s.Runtime.Get(task.ID); rec != nil {
+		return rec.Task, nil
+	}
+	return task, nil
+}
+
+// HandoffInput：前台长程对话主动转后台的任务入参
+type HandoffInput struct {
+	ConversationID  string
+	ProjectID       string
+	Title           string
+	UserGoal        string
+	PartialContent  string
+	ProgressSummary string
+	HistoryContext  string
+	Cwd             string
+	Paths           []string
+}
+
+// CreateHandoff：把前台进行中的长程任务转入后台异步继续执行（via: "handoff"）。
+// 完成后通过 delegate.completed 回写来源对话，并进入自动验收与 24h 自动归档轨道。
+func (s *Service) CreateHandoff(in HandoffInput) (Task, error) {
+	goal := strings.TrimSpace(in.UserGoal)
+	if goal == "" {
+		goal = strings.TrimSpace(in.Title)
+	}
+	if goal == "" {
+		return Task{}, fmt.Errorf("handoff userGoal is required")
+	}
+	title := strings.TrimSpace(in.Title)
+	if title == "" {
+		runes := []rune(goal)
+		if len(runes) > 36 {
+			title = string(runes[:36]) + "…"
+		} else {
+			title = goal
+		}
+	}
+	var ctxParts []string
+	if hc := strings.TrimSpace(in.HistoryContext); hc != "" {
+		ctxParts = append(ctxParts, "【转入前对话上下文】\n"+hc)
+	}
+	if ps := strings.TrimSpace(in.ProgressSummary); ps != "" {
+		ctxParts = append(ctxParts, "【转入前已执行的工具与步骤摘要】\n"+ps)
+	}
+	if pc := strings.TrimSpace(in.PartialContent); pc != "" {
+		ctxParts = append(ctxParts, "【转入前已生成给用户的部分正文（勿重复复述，继续完成后续部分即可）】\n"+pc)
+	}
+	var ctxPtr *string
+	if len(ctxParts) > 0 {
+		joined := strings.Join(ctxParts, "\n\n")
+		ctxPtr = &joined
+	}
+	toolset := "conversation"
+	ex := ExecutorSpec{
+		Kind:    "nomi",
+		Tools:   &[]string{},
+		Toolset: &toolset,
+		Brief: &Brief{
+			DoneWhen: "沿着转入前进度完成用户原始目标，并给出完整清晰的最终结果。",
+			Context:  ctxPtr,
+		},
+	}
+	if in.Cwd != "" {
+		cwd := in.Cwd
+		ex.Cwd = &cwd
+	}
+	if in.ProjectID != "" {
+		pid := in.ProjectID
+		ex.Project = &pid
+	}
+	paths := append([]string(nil), in.Paths...)
+	if paths == nil {
+		paths = []string{}
+	}
+	var convPtr *string
+	if strings.TrimSpace(in.ConversationID) != "" {
+		cid := strings.TrimSpace(in.ConversationID)
+		convPtr = &cid
+	}
+	via := "handoff"
+	budget := &BudgetInput{MaxRetries: ptr(DelegatedMaxRetries)}
+	task, err := s.Runtime.CreateChecked(CreateInput{
+		Title:      title,
+		Goal:       goal,
+		Origin:     Origin{ConversationID: convPtr, CreatedBy: "user", CreatedAt: s.d.Now(), Via: &via},
+		Trigger:    Trigger{Kind: "manual"},
+		Executor:   ex,
+		Grant:      Grant{Level: 4, Paths: paths, Connections: []ConnectionGrant{}},
+		Budget:     budget,
+		Acceptance: "auto",
 	})
 	if err != nil {
 		return Task{}, err

@@ -12,6 +12,10 @@ import {
   previewTabCloseKeys,
   removePreviewTabs,
 } from '../src/components/ResourcePreview/previewTabs';
+import {
+  ResourcePreview,
+  type PreviewEntry,
+} from '../src/components/ResourcePreview/ResourcePreview';
 import { useResourcePreview } from '../src/hooks/useResourcePreview';
 import { resourcePreviewClient } from '../src/services/resourcePreviewClient';
 
@@ -126,7 +130,7 @@ describe('preview tab context menu', () => {
       menu('b');
       expect(screen.getByRole('tab', { name: 'c.txt' }).getAttribute('aria-selected')).toBe('true');
       expect(resourcePreviewClient.open).toHaveBeenCalledTimes(calls);
-      expect(screen.getAllByRole('menuitem')).toHaveLength(5);
+      expect(screen.getAllByRole('menuitem')).toHaveLength(6);
       select(action as string);
       expect(tabs()).toEqual(remaining);
       expect(screen.queryByRole('menu')).toBeNull();
@@ -184,13 +188,15 @@ describe('preview tab context menu', () => {
     fireEvent.keyDown(tab, { key: 'F10', shiftKey: true });
     expect(document.activeElement).toBe(screen.getByTestId('preview-tab-close'));
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(screen.getByTestId('preview-tab-copy-path'));
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowUp' });
     expect(document.activeElement).toBe(screen.getByTestId('preview-tab-right'));
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowUp' });
     expect(document.activeElement).toBe(screen.getByTestId('preview-tab-others'));
     fireEvent.keyDown(document.activeElement!, { key: 'Home' });
     expect(document.activeElement).toBe(screen.getByTestId('preview-tab-close'));
     fireEvent.keyDown(document.activeElement!, { key: 'End' });
-    expect(document.activeElement).toBe(screen.getByTestId('preview-tab-right'));
+    expect(document.activeElement).toBe(screen.getByTestId('preview-tab-copy-path'));
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();
     expect(screen.getByTestId('resource-preview')).toBeTruthy();
@@ -349,6 +355,74 @@ describe('preview tab context menu', () => {
         }),
       ),
     );
+  });
+  it('copies the target tab path without switching or closing tabs, and restores focus', async () => {
+    const writeText = vi.fn(async () => undefined);
+    const prevClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    try {
+      render(<Probe />);
+      await open('a', 'b', 'c');
+      const tabB = screen.getByRole('tab', { name: 'b.txt' });
+      menu('b');
+      select('copy-path');
+      expect(writeText).toHaveBeenCalledWith('/work/b.txt');
+      expect(screen.queryByRole('menu')).toBeNull();
+      expect(tabs()).toEqual(['a.txt', 'b.txt', 'c.txt']);
+      expect(screen.getByRole('tab', { name: 'c.txt' }).getAttribute('aria-selected')).toBe('true');
+      expect(document.activeElement).toBe(tabB);
+    } finally {
+      if (prevClipboard) Object.defineProperty(navigator, 'clipboard', prevClipboard);
+      else delete (navigator as { clipboard?: unknown }).clipboard;
+    }
+  });
+  it('copies the resolved absolute path for diff tabs', async () => {
+    const writeText = vi.fn(async () => undefined);
+    const prevClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    try {
+      const entries: PreviewEntry[] = [
+        { key: 'f1', href: '/work/wt/README.md', scope: { id: 'nomi:1', cwd: '/work/wt' } },
+        {
+          key: 'd1',
+          href: 'src/a.ts',
+          scope: { id: 'nomi:1', cwd: '/work/proj' },
+          diff: {
+            key: 'g:u:src/a.ts',
+            path: 'src/a.ts',
+            cwd: '/work/wt',
+            file: { key: 'u:src/a.ts', path: 'src/a.ts' },
+          },
+        },
+      ];
+      render(
+        <ResourcePreview
+          entries={entries}
+          activeKey="f1"
+          expanded={false}
+          originMismatch={false}
+          onActive={vi.fn()}
+          onCloseEntry={vi.fn()}
+          onCloseEntries={vi.fn()}
+          onExpanded={vi.fn()}
+          onOpen={vi.fn()}
+        />,
+      );
+      await screen.findByTestId('resource-preview-source');
+      const diffTabEl = document.querySelector<HTMLElement>('[data-preview-tab-key="d1"]')!;
+      fireEvent.contextMenu(diffTabEl, { clientX: 120, clientY: 50 });
+      select('copy-path');
+      expect(writeText).toHaveBeenCalledWith('/work/wt/src/a.ts');
+    } finally {
+      if (prevClipboard) Object.defineProperty(navigator, 'clipboard', prevClipboard);
+      else delete (navigator as { clipboard?: unknown }).clipboard;
+    }
   });
 });
 

@@ -27,6 +27,10 @@ export function useFloatingPanel(collapsed: boolean) {
   }, [cancelHide]);
 
   const floating = collapsed && open;
+  if (!collapsed && open) setOpen(false);
+  useEffect(() => {
+    if (!collapsed) cancelHide();
+  }, [collapsed, cancelHide]);
   useEffect(() => {
     if (!floating) return;
     const onKey = (e: KeyboardEvent) => {

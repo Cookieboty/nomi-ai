@@ -233,8 +233,39 @@ type Origin struct {
 	ConversationID *string `json:"conversationId,omitempty"`
 	CreatedBy      string  `json:"createdBy"`
 	CreatedAt      int64   `json:"createdAt"`
-	// Via："delegate" = 对话里 delegate_to_cli 后台派出的（完成后结果回到来源对话）
+	// Via："delegate" = 对话里 delegate_to_cli/nomi 后台派出的；"handoff" = 前台长程任务主动转后台（完成后结果回到来源对话）
 	Via *string `json:"via,omitempty"`
+}
+
+// QueueInfo：任务在队列中的等待原因与顺位（运行时实时计算，不落盘）
+type QueueInfo struct {
+	Reason        string `json:"reason"`
+	Position      int    `json:"position"`
+	RetryAt       *int64 `json:"retryAt,omitempty"`
+	ActiveCount   int    `json:"activeCount"`
+	MaxConcurrent int    `json:"maxConcurrent"`
+}
+
+// IsConversationBacked：从对话发起的一次性后台任务（delegate / handoff），结果直接回传来源对话，无需看板检验
+func IsConversationBacked(t Task) bool {
+	return t.Origin.Via != nil && (*t.Origin.Via == "delegate" || *t.Origin.Via == "handoff")
+}
+
+// NeedsUserAction：是否需要用户在任务看板处理（计入待处理收件箱与角标）
+func NeedsUserAction(t Task, conversationOwns bool) bool {
+	if t.ArchivedAt != nil {
+		return false
+	}
+	switch t.Status {
+	case StatusWaitingUser, StatusNeedsReconcile:
+		return true
+	case StatusAwaitingAccept:
+		return !conversationOwns
+	case StatusFailed, StatusExpired:
+		return !IsConversationBacked(t) && t.AckedAt == nil
+	default:
+		return false
+	}
 }
 
 type Task struct {
@@ -259,6 +290,12 @@ type Task struct {
 	LastAttemptID       *string      `json:"lastAttemptId,omitempty"`
 	NextRunAt           *int64       `json:"nextRunAt,omitempty"`
 	LastError           *TaskError   `json:"lastError,omitempty"`
+	EndedAt             *int64       `json:"endedAt,omitempty"`
+	ArchivedAt          *int64       `json:"archivedAt,omitempty"`
+	ArchiveReason       *string      `json:"archiveReason,omitempty"`
+	AckedAt             *int64       `json:"ackedAt,omitempty"`
+	LastRunStatus       *string      `json:"lastRunStatus,omitempty"`
+	LastRunAt           *int64       `json:"lastRunAt,omitempty"`
 	UpdatedAt           int64        `json:"updatedAt"`
 	SchemaVersion       int          `json:"schemaVersion"`
 }

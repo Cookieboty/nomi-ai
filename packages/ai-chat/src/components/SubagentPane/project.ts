@@ -154,7 +154,7 @@ export function agentIdsOfCall(
   return out;
 }
 
-/** 轨迹行 → 时间线事件：工具（开始 + 结束）、插话 */
+/** 轨迹行 → 时间线事件：工具（开始 + 结束）、思考、插话 */
 export function traceLineEvents(
   lines: readonly TaskTraceLine[],
   prefix: string,
@@ -168,6 +168,15 @@ export function traceLineEvents(
         at: line.at,
         ...(line.textAt !== undefined ? { textAt: line.textAt } : {}),
       });
+      return;
+    }
+    if (line.thinking && line.thinking.trim()) {
+      const textAt = line.textAt !== undefined ? { textAt: line.textAt } : {};
+      const start = line.startedAt ?? line.at;
+      out.push({ type: 'thinking', text: line.thinking, at: start, ...textAt });
+      if (line.startedAt !== undefined && line.at !== undefined && line.at > line.startedAt) {
+        out.push({ type: 'thinking', text: '', at: line.at, ...textAt });
+      }
       return;
     }
     if (!line.tool) return;

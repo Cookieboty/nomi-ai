@@ -7,6 +7,7 @@
  *   Esc 合成发送会清掉旧提示、解开挂起；
  * - 挂回：应用在这一轮中途重启后把存下的列表挂回（带图但图没落盘的标「附件缺失」，不自动发出）。
  */
+import { t as tr } from '@nomi-ai/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ensureHarnessImages } from '../services/chatImages';
@@ -14,14 +15,17 @@ import {
   MAIN_TAB_ID,
   harnessClient,
   type HarnessBackend,
+  type HarnessTabMeta,
   type HarnessTabsState,
 } from '../services/harnessClient';
 import {
+  matchesTabIdentity,
   mergeRestoredPending,
   openPendingSends,
   pendingKey,
   sentPendingTexts,
   type PendingSendStore,
+  type PendingTabIdentity,
   type PersistWhy,
 } from '../services/pendingSendsStore';
 import { canSteer } from '../utils/cliCaps';
@@ -38,15 +42,18 @@ import {
 } from '../utils/pendingSends';
 
 import type { LiveMap, LiveStore } from './harnessLiveEvents';
-import {
-  attachmentsMissingFailure,
-  markAttachmentsMissing,
-  sameFailedSend,
-  type PendingSendFailure,
-} from './harnessTabsHelpers';
+import { sameFailedSend, type PendingSendFailure } from './harnessTabsHelpers';
 
 /** Esc「停止并马上发送」时合成的一条最多带几张图（按后端图片上限分批的同一批上限） */
 const FLUSH_MAX_IMAGES = 8;
+
+const tabIdentityOf = (tab: HarnessTabMeta): PendingTabIdentity => ({
+  tabId: tab.id,
+  backend: tab.backend,
+  cwd: tab.cwd,
+  cliSessionId: tab.cliSessionId ?? null,
+  createdAt: tab.createdAt,
+});
 
 /** 待发列表 / 发送相关的操作与状态（HarnessTabsCore 的一部分） */
 export interface HarnessPendingQueueApi {
@@ -56,6 +63,7 @@ export interface HarnessPendingQueueApi {
     images?: readonly PendingImage[],
     mode?: PendingMode,
     onError?: (message: string) => void,
+    imageOnly?: boolean,
   ) => Promise<void>;
   /**
    * 向指定标签发送（与当前激活的标签无关）：异步结果（如斜杠命令展开）要回到发起它的标签。
@@ -70,6 +78,7 @@ export interface HarnessPendingQueueApi {
     /** 标签在运行时：steer（Enter，默认，仅纯文本）插入这一轮 / queue（Ctrl+Enter 或带图）排队到这一轮结束 */
     mode?: PendingMode,
     onError?: (message: string) => void,
+    imageOnly?: boolean,
   ) => Promise<boolean>;
   /** 各标签运行中发出、还没交出去的消息（输入框上方的待发列表，见 utils/pendingSends） */
   queues: Record<string, PendingSend[]>;
@@ -77,6 +86,8 @@ export interface HarnessPendingQueueApi {
   removePending: (id: string) => void;
   /** 从指定标签的待发列表删掉一条 */
   removePendingFrom: (tabId: string, id: string) => void;
+  /** 重启后丢失图片的有文条目：用户确认「仅发送文字」后去掉缺失标记恢复自动发送 */
+  sendPendingTextOnly: (tabId: string, id: string) => void;
   /** Esc：停止当前标签这一轮，待发列表合成一条马上发出；列表为空时 false */
   flushPending: () => Promise<boolean>;
   /** 停止指定标签这一轮，待发列表合成一条马上发出 */
@@ -128,9 +139,19 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
   const { stateRef, state, activeId, isCliTab, liveStore, setLive } = options;
   const [queues, setQueues] = useState<Record<string, PendingSend[]>>({});
   const queuesRef = useRef(queues);
-  /** 各标签的待发列表写回本地的那份（挂回的组，键 = 标签 id）：入列 / 交付 / 发送之后都同步 */
+  /** 各标签的待发列表写回本地的那份（挂回或首次入队创建的组，键 = 标签 id）：入列 / 交付 / 发送之后都同步 */
   const pendingStores = useRef(new Map<string, PendingSendStore>());
+  const tabIdentitiesRef = useRef(new Map<string, PendingTabIdentity>());
   const knownTabIds = useRef(new Set<string>());
+  const ensureTabStore = useCallback((tab: HarnessTabMeta): PendingSendStore => {
+    const existing = pendingStores.current.get(tab.id);
+    if (existing) return existing;
+    const identity = tabIdentityOf(tab);
+    const store = openPendingSends({}, pendingKey('tab', tab.id), { tabIdentity: identity });
+    pendingStores.current.set(tab.id, store);
+    tabIdentitiesRef.current.set(tab.id, identity);
+    return store;
+  }, []);
   const persistTabQueue = useCallback(
     (tabId: string, list: readonly PendingSend[], why: PersistWhy = 'update') => {
       const store = pendingStores.current.get(tabId);
@@ -176,23 +197,27 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
       }));
       try {
         const ok = await harnessClient.steerTab(tabId, mergePending(picked));
-        if (!ok) updateQueues((cur) => ({ ...cur, [tabId]: requeue(cur[tabId] ?? [], picked) }));
+        if (!ok && stateRef.current?.tabs.some((t) => t.id === tabId)) {
+          updateQueues((cur) => ({ ...cur, [tabId]: requeue(cur[tabId] ?? [], picked) }));
+        }
       } finally {
         delivering.current.delete(tabId);
         setTick((n) => n + 1);
       }
     },
-    [updateQueues],
+    [stateRef, updateQueues],
   );
   const deliverRef = useRef(deliverSteer);
   useEffect(() => {
     deliverRef.current = deliverSteer;
   }, [deliverSteer]);
   /**
-   * 已派发、尚未观察到标签进入运行态的标签（值为派发时的那次尝试）：防止在状态更新前重复派发队列。
+   * 已派发、尚未观察到标签进入运行态的标签（值为派发 token）：防止在状态更新前重复派发队列。
    * 同一代里只派发一次；自动发送失败并提示后，下次点发送 / 明确重试才再派发（不自动重试、不循环）。
    */
-  const dispatching = useRef(new Set<string>());
+  const dispatchSeq = useRef(0);
+  const activeDispatch = useRef(new Map<string, { token: number; itemId: string }>());
+  const dispatching = useRef(new Map<string, number>());
   /**
    * 手动替代失败队首、等标签开始跑这次请求的标签：挂起队列自动发送（见 parkQueues）。
    * 值是派发时标签已经进入运行态的次数：之后的运行态才是这次派发自己开的。
@@ -232,48 +257,28 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
     [],
   );
 
-  /**
-   * 标签不见了（关了 / 重启后主进程没恢复它）：它挂回的待发列表这份也清掉（没人会再发它）。
-   * 第一次拿到标签列表时不动：那时标签列表可能还没加载全。
-   */
-  useEffect(() => {
-    if (!state) return;
-    const ids = new Set(state.tabs.map((t) => t.id));
-    const known = knownTabIds.current;
-    if (known.size)
-      for (const [id, store] of pendingStores.current)
-        if (!ids.has(id) && known.has(id)) {
-          pendingStores.current.delete(id);
-          void store.persist('clear').catch(() => undefined);
-        }
-    knownTabIds.current = ids;
-  }, [state]);
+  /** 让指定标签（或指定待发项）当前在途派发失效，防止删掉/撤回后晚到的失败回调复活它 */
+  const invalidateDispatch = useCallback((tabId: string, onlyItemId?: string) => {
+    const act = activeDispatch.current.get(tabId);
+    if (act && (!onlyItemId || act.itemId === onlyItemId)) {
+      activeDispatch.current.delete(tabId);
+    }
+    if (!onlyItemId || act?.itemId === onlyItemId) {
+      dispatching.current.delete(tabId);
+      setInFlight((cur) => {
+        if (!(tabId in cur)) return cur;
+        if (onlyItemId && cur[tabId] !== onlyItemId) return cur;
+        const copy = { ...cur };
+        delete copy[tabId];
+        return copy;
+      });
+    }
+    const ack = ackedSends.current.get(tabId);
+    if (ack && (!onlyItemId || ack.id === onlyItemId)) {
+      ackedSends.current.delete(tabId);
+    }
+  }, []);
 
-  /** 派发一条（先占住这个标签的实时进度，发送前预检等错误在这里捕获并立刻清理它） */
-  const dispatchSend = useCallback(
-    async (
-      tabId: string,
-      text: string,
-      images?: readonly PendingImage[],
-    ): Promise<string | null> => {
-      setLive((cur) => ({ ...cur, [tabId]: { text: '', startedAt: Date.now() } }));
-      try {
-        const harnessImages = images?.length ? await ensureHarnessImages(images) : undefined;
-        // 结果经 tab-message 事件进入缓存；发送前预检等错误在此捕获并立刻清理占位 live 状态
-        await harnessClient.sendTab(tabId, text, harnessImages);
-        return null;
-      } catch (err) {
-        setLive((cur) => {
-          if (!(tabId in cur)) return cur;
-          const next = { ...cur };
-          delete next[tabId];
-          return next;
-        });
-        return err instanceof Error ? err.message : String(err);
-      }
-    },
-    [setLive],
-  );
   /** 标签的自动发送失败提示（可见失败：正文还没发出去，排在待发列表最前面） */
   const clearSendError = useCallback(
     (tabId: string) => {
@@ -295,6 +300,86 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
   );
   /** 叫醒队列自动发送（状态 / 列表 / 失败提示都没变时 effect 不会自己重跑） */
   const resumeQueues = useCallback(() => setTick((n) => n + 1), []);
+
+  /**
+   * 标签不见了（关了 / 重启后主进程没恢复它）或同一标签id 对应的会话身份变了（换后端/目录/新建或重置CLI会话）：
+   * 立即失效在途派发并清除旧存储，绝不串到新会话。
+   */
+  useEffect(() => {
+    if (!state) return;
+    const tabMap = new Map(state.tabs.map((t) => [t.id, t]));
+    const known = knownTabIds.current;
+    if (known.size) {
+      for (const [id, store] of pendingStores.current) {
+        if (!tabMap.has(id) && known.has(id)) {
+          pendingStores.current.delete(id);
+          tabIdentitiesRef.current.delete(id);
+          invalidateDispatch(id);
+          clearSendError(id);
+          parkedTabs.current.delete(id);
+          manualRetry.current.delete(id);
+          runningAcked.current.delete(id);
+          void store.persist('clear').catch(() => undefined);
+        }
+      }
+    }
+    for (const tab of state.tabs) {
+      if (tab.id === MAIN_TAB_ID) continue;
+      const nextId = tabIdentityOf(tab);
+      const prevId = tabIdentitiesRef.current.get(tab.id);
+      if (prevId && !matchesTabIdentity(prevId, nextId)) {
+        invalidateDispatch(tab.id);
+        clearSendError(tab.id);
+        parkedTabs.current.delete(tab.id);
+        manualRetry.current.delete(tab.id);
+        runningAcked.current.delete(tab.id);
+        const oldStore = pendingStores.current.get(tab.id);
+        pendingStores.current.delete(tab.id);
+        if (oldStore) void oldStore.persist('clear').catch(() => undefined);
+        tabIdentitiesRef.current.set(tab.id, nextId);
+        updateQueues((cur) => {
+          if (!cur[tab.id]) return cur;
+          const copy = { ...cur };
+          delete copy[tab.id];
+          return copy;
+        });
+        continue;
+      }
+      tabIdentitiesRef.current.set(tab.id, nextId);
+      pendingStores.current.get(tab.id)?.updateTabIdentity?.(nextId);
+    }
+    knownTabIds.current = new Set(tabMap.keys());
+  }, [state, invalidateDispatch, clearSendError, updateQueues]);
+
+  /** 派发一条（先占住这个标签的实时进度，发送前预检等错误在这里捕获并立刻清理它） */
+  const dispatchSend = useCallback(
+    async (
+      tabId: string,
+      text: string,
+      images?: readonly PendingImage[],
+    ): Promise<string | null> => {
+      setLive((cur) => ({ ...cur, [tabId]: { text: '', startedAt: Date.now() } }));
+      try {
+        const harnessImages = images?.length ? await ensureHarnessImages(images) : undefined;
+        const actualText =
+          !text.trim() && images?.length
+            ? tr('ui.knowledge-local.please-take-a-look-at-this-image')
+            : text;
+        // 结果经 tab-message 事件进入缓存；发送前预检等错误在此捕获并立刻清理占位 live 状态
+        await harnessClient.sendTab(tabId, actualText, harnessImages);
+        return null;
+      } catch (err) {
+        setLive((cur) => {
+          if (!(tabId in cur)) return cur;
+          const next = { ...cur };
+          delete next[tabId];
+          return next;
+        });
+        return err instanceof Error ? err.message : String(err);
+      }
+    },
+    [setLive],
+  );
   /**
    * 派发已确认（回执成功）：记下「收下的是这条」。标签开始跑的那次运行态若还属这条标签之前空闲时的轮次
    * （同一个标签上先手发了别的消息），不能当成它——见 enterRunning。
@@ -311,35 +396,25 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
     parkedTabs.current.set(tabId, runEpoch.current[tabId] ?? 0);
   }, []);
   /**
-   * 自动发送（排队 / 挂回的消息）队首失败：整条放回列表最前面，正文与图片都保留。
-   * 带图的那条在落盘的队列里只留得下正文（图按现有策略不落盘）：同步标成「附件缺失」，重启后提示重新附图、
-   * 不把不完整的正文当成原消息自动发出。
+   * 自动发送（排队 / 挂回的消息）队首失败：只有标签与条目仍在队列中时才记失败提示（防止被删 / 撤回的条目因
+   * 晚到失败回调而复活）。
    */
   const failQueuedSend = useCallback(
     (tabId: string, item: PendingSend, message: string) => {
-      updateQueues((cur) => {
-        const q = cur[tabId] ?? [];
-        if (q.some((i) => i.id === item.id)) return cur;
-        return { ...cur, [tabId]: [item, ...q] };
-      });
-      const store = pendingStores.current.get(tabId);
-      if (store && item.images?.length) {
-        // 带图的那一条落盘时只留得下正文：标「附件缺失」（keepMissing 认传进来的条目上也认已存下的那份），
-        // 立刻写稳 localStorage（persist('update')）——重启后 restorePending 只从这里看得见这个标记。
-        // 只标真正失败的这一条：后面排着的别条（含要下轮的纯文字）不许挂上这个标记
-        store.save(
-          pendingKey('tab', tabId),
-          store.read().map((s) => (s.id === item.id ? markAttachmentsMissing(s) : s)),
-        );
-        void store.persist('update', queuesRef.current[tabId] ?? [item]).catch(() => undefined);
+      if (!stateRef.current?.tabs.some((t) => t.id === tabId)) return;
+      const current = queuesRef.current[tabId] ?? [];
+      const matched = current.find((i) => i.id === item.id);
+      if (!matched) return;
+      if (pendingStores.current.has(tabId)) {
+        persistTabQueue(tabId, current);
       }
-      markSendError(tabId, item, message);
+      markSendError(tabId, matched, message);
     },
-    [updateQueues, markSendError],
+    [stateRef, persistTabQueue, markSendError],
   );
 
   /**
-   * 队列自动发送一条（标签空闲）：成功才从列表移除；失败整条挂回队首并给出可见原因（不自动重试）。
+   * 队列自动发送一条（标签空闲）：成功才从列表移除；失败留在队首并给出可见原因（不自动重试）。
    * 用 ref 调，连着派发出去的几条都拿到最新的一份（不用等失败登记的渲染）。
    */
   const failQueuedSendRef = useRef(failQueuedSend);
@@ -354,6 +429,7 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
       images?: readonly PendingImage[],
       mode: PendingMode = 'steer',
       onError?: (message: string) => void,
+      imageOnly?: boolean,
     ): Promise<boolean> => {
       if (tabId === MAIN_TAB_ID) return false;
       const tab = stateRef.current?.tabs.find((t) => t.id === tabId);
@@ -361,6 +437,7 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
       if (expect?.backend !== undefined && tab.backend !== expect.backend) return false;
       if (expect?.cwd !== undefined && tab.cwd !== expect.cwd) return false;
       if (tab.status === 'running' || tab.status === 'queued' || dispatching.current.has(tabId)) {
+        ensureTabStore(tab);
         const hasImages = !!images?.length;
         // 队首有自动发送失败的条目 / 正在自动发送时，新消息不能插入这一轮：按原顺序排到队尾，
         // 否则会被自动发送先于失败的队首发出（乱序）
@@ -373,7 +450,9 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
           id: newPendingId(),
           text,
           mode: m,
-          ...(hasImages ? { images: [...images] } : {}),
+          ...(hasImages
+            ? { images: [...images], ...(imageOnly ? { imageOnly: true as const } : {}) }
+            : {}),
         };
         updateQueues((cur) => ({ ...cur, [tabId]: [...(cur[tabId] ?? []), item] }));
         // 正好有工具在跑：现在交出去，这个工具的结果回给模型时一起带上
@@ -392,13 +471,13 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
       // 判定时的那一份（图片不可变）：commit 里用它从列表里移除 / 挂回，别在派发期间被改掉的列表上判断
       const replaceId = entry?.id;
       // 回执之后立刻提交（不在早退路径之前就 return，失败也要提交）：成功才移除原失败项、撤掉提示；
-      // 失败时原条目留在 / 回到队首并重新记上原因
+      // 失败时只有条目仍在队列里才重记原因（等待期间已被删 / 撤回则绝不复活）
       const commit = (err: string | null): void => {
         if (err && replaceId) {
-          // 手动重发又失败：原条目回到队首（已经在那就不重复），失败提示重新记上——原因不丢，不静默吞掉。
-          // 派发前为防成功后抢发后面几条而挂起的，这次没成功，要解除，否则提示清掉后自动发送也被挡住。
           parkedTabs.current.delete(tabId);
-          failQueuedSend(tabId, entry, err);
+          const stillQueued = (queuesRef.current[tabId] ?? []).some((i) => i.id === replaceId);
+          if (stillQueued) failQueuedSend(tabId, entry, err);
+          else if (failRef.current[tabId]?.item.id === replaceId) clearSendError(tabId);
         } else if (!err && replaceId) {
           // 成功确认后才移除原失败项并撤掉失败提示；队列里那些原条目只管新的派发结果（或用户的删改）
           updateQueues((cur) => ({
@@ -416,14 +495,17 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
       // 队列自动发送的 effect 会先跑起来把后面那条当队首发出去。只有替代才挂起（用户必须先有过失败动作），
       // 再次失败时原条目回到队首（失败提示挡着）；成功时由标签开始跑这次请求解除挂起
       if (replaceId) parkQueues(tabId);
-      dispatching.current.add(tabId);
+      const token = ++dispatchSeq.current;
+      dispatching.current.set(tabId, token);
       let sendErr: string | null;
       try {
         sendErr = await dispatchSend(tabId, text, images);
       } catch (err) {
         sendErr = err instanceof Error ? err.message : String(err);
       } finally {
-        dispatching.current.delete(tabId);
+        if (dispatching.current.get(tabId) === token) {
+          dispatching.current.delete(tabId);
+        }
       }
       commit(sendErr);
       if (sendErr) {
@@ -433,6 +515,8 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
       return true;
     },
     [
+      stateRef,
+      ensureTabStore,
       dispatchSend,
       updateQueues,
       deliverSteer,
@@ -449,8 +533,8 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
     (tabId: string) => {
       const failed = sendFails[tabId];
       if (!failed) return;
-      // 已经不在列表里（被删 / 撤回）：只撤掉提示
-      if (!(queuesRef.current[tabId] ?? []).some((i) => i.id === failed.item.id)) {
+      const head = (queuesRef.current[tabId] ?? []).find((i) => i.id === failed.item.id);
+      if (!head || head.attachmentsMissing) {
         clearSendError(tabId);
         return;
       }
@@ -464,7 +548,7 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
         manualRetry.current.add(tabId);
       setTick((n) => n + 1);
     },
-    [sendFails, clearSendError],
+    [sendFails, clearSendError, stateRef],
   );
   const send = useCallback(
     async (
@@ -472,20 +556,50 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
       images?: readonly PendingImage[],
       mode?: PendingMode,
       onError?: (message: string) => void,
+      imageOnly?: boolean,
     ) => {
       if (!isCliTab) return;
-      await sendToTab(activeId, text, undefined, images, mode, onError);
+      await sendToTab(activeId, text, undefined, images, mode, onError, imageOnly);
     },
     [isCliTab, activeId, sendToTab],
   );
   const removePendingFrom = useCallback(
-    (tabId: string, id: string) =>
+    (tabId: string, id: string) => {
+      let removed = false;
       updateQueues((cur) => {
         const q = cur[tabId];
         if (!q?.some((i) => i.id === id)) return cur;
+        removed = true;
         return { ...cur, [tabId]: q.filter((i) => i.id !== id) };
-      }),
-    [updateQueues],
+      });
+      if (!removed) return;
+      invalidateDispatch(tabId, id);
+      if (failRef.current[tabId]?.item.id === id) clearSendError(tabId);
+      resumeQueues();
+    },
+    [updateQueues, invalidateDispatch, clearSendError, resumeQueues],
+  );
+  const sendPendingTextOnly = useCallback(
+    (tabId: string, id: string) => {
+      const q = queuesRef.current[tabId];
+      const target = q?.find((i) => i.id === id);
+      if (!target || !target.attachmentsMissing || target.imageOnly || !target.text.trim()) return;
+      if (failRef.current[tabId]?.item.id === id) clearSendError(tabId);
+      updateQueues((cur) => {
+        const list = cur[tabId];
+        if (!list) return cur;
+        return {
+          ...cur,
+          [tabId]: list.map((i) => {
+            if (i.id !== id) return i;
+            const { attachmentsMissing: _m, images: _imgs, imageOnly: _io, ...clean } = i;
+            return clean;
+          }),
+        };
+      });
+      resumeQueues();
+    },
+    [clearSendError, updateQueues, resumeQueues],
   );
   const removePending = useCallback(
     (id: string) => removePendingFrom(activeId, id),
@@ -494,7 +608,7 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
   /**
    * 挂回这个标签的待发列表（存在本地的 tab:<标签 id>，见 services/pendingSendsStore）：应用在回复中途重启
    * （如更新）后，重启前还没交出去的消息回来了（按「排队」），标签一开始不在运行态，队列自动发送会把它们发出去。
-   * 标签已经不在了 / 已挂过 / 还在运行时不挂。返回有没有挂上的条目。
+   * 即使当前暂无存下的数据，只要标签仍存在也提前把它的组挂进 pendingStores 以便后续入队即时落盘。
    */
   const restorePending = useCallback(
     (key: string) => {
@@ -502,24 +616,21 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
       if (!tabId || tabId === MAIN_TAB_ID || pendingStores.current.has(tabId)) return false;
       const tab = stateRef.current?.tabs.find((x) => x.id === tabId);
       if (!tab || stateRef.current?.activeTabId !== tabId) return false;
-      const store = openPendingSends({}, key);
+      const identity = tabIdentityOf(tab);
+      const store = openPendingSends({}, key, { tabIdentity: identity });
       const stored = store.read(key);
-      // 重启前自动发送失败、还带着图的那条：图片不落盘，这里只剩正文——恢复后不自动发出，提示重新附图
-      const missing = stored.filter((s) => s.attachmentsMissing && !s.sent);
-      // 自动发送失败、带图的那条不落图：这里的提示理由只在本轮生效（用户重新附上后再发）
-      if (missing.length) {
-        const failure = attachmentsMissingFailure(missing[0]!);
-        setSendFails((cur) => ({ ...cur, [tabId]: failure }));
-      }
       // 这一轮已经收到了（重启时内核停得晚了一点，这一轮接着跑）：不是没发出去的话
       const sent = new Set(sentPendingTexts(stored));
-      const alive = stored.filter((s) => !sent.has(s.text.trim()));
+      const alive = stored.filter((s) => !(s.text.trim() && sent.has(s.text.trim())));
+      pendingStores.current.set(tabId, store);
+      tabIdentitiesRef.current.set(tabId, identity);
       if (!alive.length) {
-        // 没有要挂回的：下次启动也不用再挂（这份组键留着，重启后元信息照样能写回去）
-        if (stored.length) store.save(key, []);
+        if (stored.length) {
+          store.save(key, []);
+          void store.persist('update', []).catch(() => undefined);
+        }
         return false;
       }
-      pendingStores.current.set(tabId, store);
       store.save(key, alive);
       if (tab.status === 'running' || tab.status === 'queued')
         // 还在运行（重启后主进程恢复了这一轮）：先不塞进列表，等它结束时再说
@@ -529,7 +640,7 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
       if (stored.length !== alive.length) persistTabQueue(tabId, items);
       return restored.length > 0;
     },
-    [updateQueues, persistTabQueue],
+    [stateRef, updateQueues, persistTabQueue],
   );
   const pendingRestored = useCallback((tabId: string) => pendingStores.current.has(tabId), []);
   /**
@@ -552,10 +663,11 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
     async (tabId: string) => {
       const all = queuesRef.current[tabId] ?? [];
       if (tabId === MAIN_TAB_ID || !all.length) return false;
+      if (all.some((i) => i.attachmentsMissing)) return false;
       if (!stateRef.current?.tabs.some((t) => t.id === tabId)) return false;
       // 合成按后端图片上限分批排在最前：停下来后队列自动发送马上发出。
-      // 用户明确「停止并马上发送」：原来队首的失败提示不再适用（条目已合并成新的），
-      // 先前挂起也要解开，否则停下来回到空闲时自动发送被挡住，合并后的那条发不出去。
+      // 用户明确「停止并马上发送」：原来队首的失败提示与在途派发不再算数，先失效再合并。
+      invalidateDispatch(tabId);
       clearSendError(tabId);
       parkedTabs.current.delete(tabId);
       updateQueues((cur) => ({
@@ -565,7 +677,7 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
       await harnessClient.cancelTab(tabId);
       return true;
     },
-    [updateQueues, clearSendError],
+    [stateRef, invalidateDispatch, updateQueues, clearSendError],
   );
   const flushPending = useCallback(async () => {
     if (!isCliTab) return false;
@@ -602,42 +714,55 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
       dispatching.current.delete(tab.id);
     }
   }, [state, sendFails, queues, tick]);
-  /** 队列自动发送一条（标签空闲）：成功才从列表移除；失败整条挂回队首并给出可见原因（不自动重试） */
+  /** 队列自动发送一条（标签空闲）：成功才从列表移除；失败留在队首并给出可见原因（不自动重试） */
   const autoSend = useCallback(
     (tabId: string, next: PendingSend) => {
       // 锁同步打上（不等 inFlight 的渲染，也不等回执）：同一轮里 effect 再跑（流式 / StrictMode 的重复执行）
-      // 也派发不了第二次；只有这一次的回执（成功 / 失败）才解除它
-      dispatching.current.add(tabId);
+      // 也派发不了第二次；只有这一次的回执或主动取消才解除它
+      const token = ++dispatchSeq.current;
+      activeDispatch.current.set(tabId, { token, itemId: next.id });
+      dispatching.current.set(tabId, token);
       setInFlight((cur) => ({ ...cur, [tabId]: next.id }));
       const done = () => {
+        if (activeDispatch.current.get(tabId)?.token === token) {
+          activeDispatch.current.delete(tabId);
+        }
+        if (dispatching.current.get(tabId) === token) {
+          dispatching.current.delete(tabId);
+        }
         setInFlight((cur) => {
           if (cur[tabId] !== next.id) return cur;
+          const act = activeDispatch.current.get(tabId);
+          if (act && act.token !== token) return cur;
           const copy = { ...cur };
           delete copy[tabId];
           return copy;
         });
-        dispatching.current.delete(tabId);
         resumeQueues();
       };
       void dispatchSend(tabId, next.text, next.images)
         .then((err) => {
-          // 回执晚到期间这条可能已被删 / 撤 / Esc 合成：按 id 移除，别动那之后的列表
+          // 若派发中途被删除 / 撤回 / 合成 / 切走，这次结果不再算数
+          if (activeDispatch.current.get(tabId)?.token !== token) return;
+          const stillQueued = (queuesRef.current[tabId] ?? []).some((i) => i.id === next.id);
+          if (!stillQueued) return;
           if (err) {
-            // 每次自动派发前都先挡住了「已派发 / 有失败提示」，所以这里的失败只有这一次自己能看到：
-            // 整条（正文 + 图片）挂回队首并提示，不自动重试（手动发送 / 重试会解除 dispatching 再派发一次）
             failQueuedSendRef.current(tabId, next, err);
             return;
           }
-          const already = !(queuesRef.current[tabId] ?? []).some((i) => i.id === next.id);
           updateQueues((cur) => ({
             ...cur,
             [tabId]: (cur[tabId] ?? []).filter((i) => i.id !== next.id),
           }));
           // 发出去、这一轮收到了（挂回的组跟着改：见 pendingSendsStore.settle，重启时不再次发出）
-          if (!already) persistTabQueue(tabId, queuesRef.current[tabId] ?? [], 'deliver');
+          persistTabQueue(tabId, queuesRef.current[tabId] ?? [], 'deliver');
           ackDispatch(tabId, next.id);
         })
-        .catch((err: unknown) => failQueuedSendRef.current(tabId, next, String(err)))
+        .catch((err: unknown) => {
+          if (activeDispatch.current.get(tabId)?.token !== token) return;
+          if (!(queuesRef.current[tabId] ?? []).some((i) => i.id === next.id)) return;
+          failQueuedSendRef.current(tabId, next, String(err));
+        })
         .finally(done);
     },
     [dispatchSend, updateQueues, persistTabQueue, resumeQueues, ackDispatch],
@@ -669,6 +794,8 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
       const q = queues[tab.id];
       // 派发还在途中（等到回执或失败 / 手动重发失败队首）就不动队首：期间标签先回到空闲也不能重发同一条
       if (!q?.length || dispatching.current.has(tab.id) || inFlight[tab.id]) continue;
+      // 重启后图片附件丢失的队首：整条队列暂停自动发送，等待用户重新附图 / 仅发文字 / 删除
+      if (q[0]?.attachmentsMissing) continue;
       // 挂起的：等它开始跑这次请求（上面的运行态分支收下后才清掉标记接着发）
       if (parkedTabs.current.has(tab.id)) continue;
       if (delivering.current.has(tab.id)) continue;
@@ -677,10 +804,16 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
       if (failRef.current[tab.id]) continue;
       void autoSend(tab.id, q[0]!);
     }
-  }, [state, queues, inFlight, sendFails, autoSend, enterRunning]);
+  }, [state, queues, inFlight, sendFails, tick, autoSend, enterRunning]);
   const dropTab = useCallback(
     (tabId: string) => {
       // 关标签：它存下的待发列表（重启后才挂回、还在等标签空闲的）不再需要，也不再让别的窗口发
+      invalidateDispatch(tabId);
+      clearSendError(tabId);
+      parkedTabs.current.delete(tabId);
+      manualRetry.current.delete(tabId);
+      runningAcked.current.delete(tabId);
+      tabIdentitiesRef.current.delete(tabId);
       const store = pendingStores.current.get(tabId);
       pendingStores.current.delete(tabId);
       if (store) void store.persist('clear').catch(() => undefined);
@@ -691,7 +824,7 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
         return next;
       });
     },
-    [updateQueues],
+    [invalidateDispatch, clearSendError, updateQueues],
   );
   const hasQueued = useCallback((tabId: string) => (queuesRef.current[tabId]?.length ?? 0) > 0, []);
   return {
@@ -700,6 +833,7 @@ export function useHarnessPendingQueue(options: Options): UseHarnessPendingQueue
     sendToTab,
     removePending,
     removePendingFrom,
+    sendPendingTextOnly,
     flushPending,
     flushPendingFor,
     sendFails,

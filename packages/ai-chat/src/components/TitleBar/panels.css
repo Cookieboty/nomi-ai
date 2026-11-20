@@ -69,6 +69,8 @@ html[data-platform]:not([data-platform='darwin']) .app-titlebar-main {
 .app-titlebar-center {
   left: var(--titlebar-center-left);
   width: var(--titlebar-center-w);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 .app-titlebar-files {
   left: var(--titlebar-files-left);
@@ -92,6 +94,7 @@ html[data-platform]:not([data-platform='darwin']) .app-titlebar-main {
 }
 .app-titlebar-rail-toggle {
   position: absolute;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: var(--cd-space-0-5);

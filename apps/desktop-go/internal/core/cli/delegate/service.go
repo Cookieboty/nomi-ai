@@ -27,6 +27,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/harness"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/sandbox"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	tr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
@@ -119,6 +120,30 @@ type Deps struct {
 	HasLocalLogin            func(kind string) bool
 	OfficialModels           func(kind, source string) []string
 	ThirdPartyMain           func(kind string) string
+	// SandboxStatus：返回当前 agent 系统沙箱状态（"on" | "off" | "unsupported"，可空）
+	SandboxStatus func() string
+}
+
+func (s *Service) sandboxStatus() string {
+	if s != nil && s.d.SandboxStatus != nil {
+		if got := trim(s.d.SandboxStatus()); got != "" {
+			return got
+		}
+	}
+	if sandbox.Supported() {
+		return "on"
+	}
+	return "unsupported"
+}
+
+func (s *Service) delegateConfirmMeta(cli, mode string) *desktop.DelegateConfirmMeta {
+	return &desktop.DelegateConfirmMeta{
+		Cli:            cli,
+		PermissionMode: mode,
+		SandboxStatus:  s.sandboxStatus(),
+		WorkspaceGuard: true,
+		EnvScrub:       true,
+	}
 }
 
 func (s *Service) maxRetries() int {
@@ -291,7 +316,7 @@ func (s *Service) announceTask(id string) {
 }
 
 func isDelegateTask(rec *tasks.Record) bool {
-	return rec.Task.Origin.Via != nil && *rec.Task.Origin.Via == "delegate"
+	return tasks.IsConversationBacked(rec.Task)
 }
 
 // taskRecord：对话里委派出去的持续任务；不是返回 nil
@@ -1474,6 +1499,7 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64, dispatchOv *dis
 		return nil, derr("cli_unavailable", "本机没有可用的 agent（支持：claude / codex / grok / gemini / dsh）")
 	}
 	if dispatchOv != nil {
+		origSource, origAccount := runner.Source, runner.AccountID
 		if dispatchOv.source != "" {
 			runner.Source = dispatchOv.source
 			if dispatchOv.source == "local" || dispatchOv.source == "thirdParty" {
@@ -1483,6 +1509,9 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64, dispatchOv *dis
 			}
 		} else if dispatchOv.accountID != "" && (runner.Source == "" || runner.Source == "official") {
 			runner.AccountID = dispatchOv.accountID
+		}
+		if runner.Source != origSource || runner.AccountID != origAccount {
+			runner.PresetID = ""
 		}
 		if dispatchOv.model != "" {
 			runner.Model = dispatchOv.model
@@ -1566,15 +1595,18 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64, dispatchOv *dis
 	goal := util.Str(in.Get("goal"))
 	brief := DelegateBrief{Goal: goal, Context: optStr(in, "context"), DoneWhen: optStr(in, "done_when"), OutOfScope: optStr(in, "out_of_scope")}
 	preview := BuildDelegatePrompt(brief)
+	effMode := DelegatePermissionMode(cli)
 	authorize := b.Authorize
 	if !ws.Empty() {
 		authorize = b.AuthorizeIn
 	}
 	decision := authorize(desktop.AuthorizeInput{
 		Tool: "delegate_to_cli", Danger: "write",
-		Summary: "让 " + cliName[cli] + " 在 " + sourceCwd + " 里：" + slice(goal, 80),
-		Args:    util.NewObj("cli", cli, "cwd", sourceCwd, "goal", goal, "isolation", iso.Kind),
-		Preview: &preview, Signal: c.sig,
+		Summary:  "让 " + cliName[cli] + " 在 " + sourceCwd + " 里：" + slice(goal, 80),
+		Args:     util.NewObj("cli", cli, "cwd", sourceCwd, "goal", goal, "isolation", iso.Kind, "permissionMode", effMode),
+		Preview:  &preview,
+		Signal:   c.sig,
+		Delegate: s.delegateConfirmMeta(cli, effMode),
 	})
 	if decision == "blocked" || decision == "denied" || decision == "timeout" {
 		ReleaseIsolation(iso, nil)
@@ -1604,7 +1636,7 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64, dispatchOv *dis
 	if !ws.Empty() {
 		opts.Set("projectId", ws.ProjectID)
 	}
-	opts.Set("permissionMode", DelegatePermissionMode(cli))
+	opts.Set("permissionMode", effMode)
 	opts.Set("activate", false)
 	del := util.NewObj()
 	if c.ec.ToolCallID != "" {
@@ -1747,15 +1779,24 @@ func (s *Service) overridesFor(cli string, in, settings *util.Obj) (*util.Obj, e
 }
 
 func (s *Service) resolveRunnerOverrides(cli string, runner *ResolvedRunner, in, settings *util.Obj) (*util.Obj, error) {
+	baseOv := ResolveDelegateOverrides(OverridesInput{
+		Model:           in.Get("model"),
+		ReasoningEffort: in.Get("reasoning_effort"),
+		Profile:         in.Get("profile"),
+		Settings:        settings,
+	})
+	if baseOv.Get("ok") != true {
+		return s.overridesWithSource(cli, runner.Source, in, settings)
+	}
+	fillModel := runner.Model != "" && util.Str(baseOv.Get("model")) == ""
+	fillEffort := runner.ReasoningEffort != "" && !baseOv.Has("reasoningEffort")
 	effIn := in
-	needClone := (runner.Model != "" && in.Get("model") == nil && in.Get("profile") == nil) ||
-		(runner.ReasoningEffort != "" && in.Get("reasoning_effort") == nil && in.Get("profile") == nil)
-	if needClone {
+	if fillModel || fillEffort {
 		effIn = in.Clone()
-		if runner.Model != "" && in.Get("model") == nil && in.Get("profile") == nil {
+		if fillModel {
 			effIn.Set("model", runner.Model)
 		}
-		if runner.ReasoningEffort != "" && in.Get("reasoning_effort") == nil && in.Get("profile") == nil {
+		if fillEffort {
 			effIn.Set("reasoning_effort", runner.ReasoningEffort)
 		}
 	}
@@ -1803,15 +1844,18 @@ func (s *Service) delegateAsTask(in *util.Obj, c *execCtx, t0 float64, runner *R
 	goal := util.Str(in.Get("goal"))
 	brief := DelegateBrief{Goal: goal, Context: optStr(in, "context"), DoneWhen: optStr(in, "done_when"), OutOfScope: optStr(in, "out_of_scope")}
 	preview := BuildDelegatePrompt(brief)
+	effMode := DelegatePermissionMode(cli)
 	authorize := b.Authorize
 	if !ws.Empty() {
 		authorize = b.AuthorizeIn
 	}
 	decision := authorize(desktop.AuthorizeInput{
 		Tool: "delegate_to_cli", Danger: "write",
-		Summary: "让 " + cliName[cli] + " 在 " + sourceCwd + " 里：" + slice(goal, 80),
-		Args:    util.NewObj("cli", cli, "cwd", sourceCwd, "goal", goal, "isolation", isoKindFor(sourceCwd, optStr(in, "base_branch")), "background", true),
-		Preview: &preview, Signal: c.sig,
+		Summary:  "让 " + cliName[cli] + " 在 " + sourceCwd + " 里：" + slice(goal, 80),
+		Args:     util.NewObj("cli", cli, "cwd", sourceCwd, "goal", goal, "isolation", isoKindFor(sourceCwd, optStr(in, "base_branch")), "background", true, "permissionMode", effMode),
+		Preview:  &preview,
+		Signal:   c.sig,
+		Delegate: s.delegateConfirmMeta(cli, effMode),
 	})
 	switch decision {
 	case "blocked":

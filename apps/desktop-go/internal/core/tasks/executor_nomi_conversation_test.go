@@ -107,7 +107,7 @@ func TestNomiConversationElevated(t *testing.T) {
 			return nil
 		})
 	id := h.rt.Create(CreateInput{Title: "x", Goal: "g", Trigger: Trigger{Kind: "manual"},
-		Executor: conversationExecutor(), Grant: Grant{Level: 4, Paths: []string{"/work/deck"}}}).ID
+		Executor: conversationExecutor(), Grant: Grant{Level: 4, Paths: []string{"/work/deck"}}, Acceptance: "auto"}).ID
 	h.rt.Command(id, Command{Type: "runNow"})
 	waitFor(t, func() bool { return h.rt.Get(id).Task.Status == StatusDone })
 	h.mu.Lock()
@@ -131,7 +131,7 @@ func TestNomiPlainTaskNotElevated(t *testing.T) {
 		return nil
 	})
 	id := h.rt.Create(CreateInput{Title: "x", Goal: "g", Trigger: Trigger{Kind: "manual"},
-		Executor: ExecutorSpec{Kind: "nomi", Tools: &[]string{"read"}}, Grant: Grant{Level: 2}}).ID
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &[]string{"read"}}, Grant: Grant{Level: 2}, Acceptance: "auto"}).ID
 	h.rt.Command(id, Command{Type: "runNow"})
 	waitFor(t, func() bool { return h.rt.Get(id).Task.Status == StatusDone })
 	h.mu.Lock()

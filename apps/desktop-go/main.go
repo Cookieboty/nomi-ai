@@ -53,6 +53,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatassets"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/chatbg"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/harness"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/island"
@@ -288,7 +289,7 @@ func main() {
 			}
 		}}, router.EmitTo)
 	// = Application desktopWindows（桌面角色窗口、对话窗口、临时召回、灵动岛）；外壳建好后才有窗口
-	desktopSvc.AttachWindows(desktopWindows(&sh, bundle.Startup, isl))
+	desktopSvc.AttachWindows(desktopWindows(&sh, router, bundle.Startup, isl))
 	desktop.Register(router, desktopSvc)
 	closeComputer := wireComputer(router, userData, desktopSvc)
 	defer closeComputer()
@@ -465,7 +466,7 @@ func main() {
 			side := sidechat.Apply(options)
 			// 上下文预算：按路由到的模型的窗口算（gwstore nomicontext），不再用固定的 8K
 			if gatewaySvc != nil {
-				gwstore.ApplyNomiContext(options, method, gatewaySvc.NomiContext)
+				gwstore.ApplyNomiContextWith(options, method, gatewaySvc.NomiContextWith)
 			}
 			prep := desktopSvc.ChatPrep()
 			// 用户对话（带工具的一轮）：追加「现在做还是派出去」的判断规则（docs/features/scheduling-calendar.md）
@@ -622,6 +623,11 @@ func main() {
 	// 事件源：web / folder / github / app；agent 的 tab-finished 在 wireHarness 之后接上
 	registerTaskSources(b8)
 	b8.ApplyWorktree = taskApplyWorktree(desktopSvc)
+	b8.AbortChatReq = chatHandlers.Abort
+	b8.ResolveWorkspace = func(projectID any) (string, []string) {
+		ws := desktopSvc.Broker.WorkspaceOf(projectID)
+		return ws.Primary, ws.Roots()
+	}
 	// AI 运行时与门面就绪后再启动（记忆启动时把事实与摘要同步给门面）
 	b8.Start()
 	defer b8.Stop()
@@ -786,12 +792,14 @@ func main() {
 	wireScreenAndPending(router, userData, rootLog, desktopSvc)
 	defer disposeHarness()
 	// 对话标签弹到独立窗口（chatWindow.*）：外壳在后面才建，按需取
-	tabwindows.Register(router, tabwindows.New(func() tabwindows.Opener {
+	tw := tabwindows.New(func() tabwindows.Opener {
 		if o, ok := sh.(tabwindows.Opener); ok {
 			return o
 		}
 		return nil
-	}, func(event string, data any) { router.EmitTo(event, data, "chat") }))
+	}, func(event string, data any) { router.EmitTo(event, data, "chat") })
+	tw.SetCallerEmitter(router.EmitToCaller)
+	tabwindows.Register(router, tw)
 	// 内置浏览器窗口（browserWindow.*）：网页放在独立原生窗口里（不是 iframe，见 shell.BrowserHost）；
 	// 外壳没实现时 show 返回 unsupported，视图退到「在系统浏览器打开」
 	browserwindow.Register(router, browserwindow.New(func() shell.BrowserHost {
@@ -1320,8 +1328,23 @@ func revealChat(sh shell.Shell) {
 	sh.Show(shell.Chat)
 }
 
-// islandOpenItem：灵动岛上点「打开」/ 点某一条：激活对话窗口，页面加载好后跳到那一条（nav.openItemRequested）
+// islandOpenItem：灵动岛上点「打开」/ 点某一条：激活对话窗口，先预切标签再在页面加载好后通知跳转（nav.openItemRequested）
 func islandOpenItem(sh shell.Shell, router *contract.Router, target, id string) {
+	if harnessOrch != nil {
+		if target == "tab" && id != "" {
+			jsrt.Run(func() {
+				if harnessOrch.HasTab(id) {
+					harnessOrch.SetActiveTab(id)
+				}
+			})
+		} else if target == "nomi" {
+			jsrt.Run(func() {
+				if harnessOrch.HasTab(harness.MainTabID) {
+					harnessOrch.SetActiveTab(harness.MainTabID)
+				}
+			})
+		}
+	}
 	revealChat(sh)
 	emit := func() { router.EmitTo("nav.openItemRequested", map[string]any{"target": target, "id": id}, "chat") }
 	if l, ok := sh.(interface {
@@ -1438,7 +1461,7 @@ func islandHost(sh shell.Shell, desktopSvc *desktop.Service, isl *island.Service
 
 // desktopWindows = Application 的 desktopWindows：main = 桌面角色窗口；mascotHidden = startup.showMascot 关闭；
 // summon / release = 桌面角色关着时临时建出窗口（桌面工具确认框需要宿主），用完仍是关闭状态就再释放
-func desktopWindows(shp *shell.Shell, st *startup.Service, isl *island.Service) *desktop.Windows {
+func desktopWindows(shp *shell.Shell, router *contract.Router, st *startup.Service, isl *island.Service) *desktop.Windows {
 	var summoned atomic.Bool
 	sh := func() shell.Shell { return *shp }
 	return &desktop.Windows{
@@ -1453,7 +1476,19 @@ func desktopWindows(shp *shell.Shell, st *startup.Service, isl *island.Service) 
 			return sh().Visible(shell.Mascot)
 		},
 		ShowInactive: func() { sh().Show(shell.Mascot) },
-		OpenChat:     func() { sh().Show(shell.Chat) },
+		OpenChat:     func() { revealChat(sh()) },
+		OpenNotice: func(n desktop.IslandNotice) {
+			openID := n.OpenID
+			if openID == "" {
+				openID = island.NoticeOpenID(n.Session)
+			}
+			if openID != "" {
+				target, ref := islandNavOf(openID)
+				islandOpenItem(sh(), router, target, ref)
+				return
+			}
+			revealChat(sh())
+		},
 		// 工作台（对话窗口）在屏幕上（可见、没最小化）：确认请求只发给它
 		ChatOpen: func() bool { return chatOnScreen(sh()) },
 		// 工作台在屏幕上时只弹要你处理的与报警；你正看着的会话什么都不弹（island.ShouldShow）
@@ -1474,7 +1509,7 @@ func desktopWindows(shp *shell.Shell, st *startup.Service, isl *island.Service) 
 		},
 		Island: func(n desktop.IslandNotice) bool {
 			notice := island.Notice{Kind: n.Kind, Title: n.Title, Body: n.Body, DurationMs: n.DurationMs,
-				Endpoint: n.Endpoint, Status: n.Status}
+				Endpoint: n.Endpoint, Status: n.Status, Session: n.Session, OpenID: n.OpenID}
 			// agent 要权限：岛上「等你处理」的列表里会有这一条（带允许 / 拒绝），不再弹一条提醒。
 			// 列表稍后才刷新（合并 150ms），等一下再看
 			if n.Kind == "agent" && n.Status == "attention" && n.Endpoint != "" && isl.Accepts(notice, false) {

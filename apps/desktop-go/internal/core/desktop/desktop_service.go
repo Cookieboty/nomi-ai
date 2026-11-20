@@ -43,6 +43,7 @@ type Windows struct {
 	IsVisible     func() bool
 	ShowInactive  func()
 	OpenChat      func()
+	OpenNotice    func(n IslandNotice)
 	MascotHidden  func() bool
 	SummonMascot  func()
 	ReleaseMascot func()
@@ -75,6 +76,8 @@ type DesktopNotice struct {
 	Kind, Title, Text, Body, Status, Endpoint string
 	// Session：通知所属的会话（标签 id；主对话 "main"；不属于会话为 ""）
 	Session string
+	// OpenID：点击通知时打开的目标（如 tab:<tabId> / task:<taskId> / nomi:<convId>）
+	OpenID  string
 	Passive bool
 	// Bubble = n.bubble（DesktopBubble 去掉 text：kind / voice …，按键序并入气泡负载）；nil = 无。
 	Bubble *util.Obj
@@ -316,7 +319,7 @@ func (s *Service) Notify(n DesktopNotice) string {
 	if body == "" {
 		body = n.Text
 	}
-	in := IslandNotice{Kind: n.Kind, Title: n.Title, Body: body, Status: n.Status, Endpoint: n.Endpoint, Session: n.Session}
+	in := IslandNotice{Kind: n.Kind, Title: n.Title, Body: body, Status: n.Status, Endpoint: n.Endpoint, Session: n.Session, OpenID: n.OpenID}
 	// 工作台在屏幕上 / 你就在这个会话里：普通通知不弹，也不退回成系统通知
 	if s.windows != nil && s.windows.NoticeAllowed != nil && !s.windows.NoticeAllowed(in) {
 		return "none"
@@ -342,7 +345,14 @@ func (s *Service) Notify(n DesktopNotice) string {
 		return "none"
 	}
 	s.ports.ShowNotification(n.Title, body, func() {
-		if s.windows != nil && s.windows.OpenChat != nil {
+		if s.windows == nil {
+			return
+		}
+		if s.windows.OpenNotice != nil {
+			s.windows.OpenNotice(in)
+			return
+		}
+		if s.windows.OpenChat != nil {
 			s.windows.OpenChat()
 		}
 	})

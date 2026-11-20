@@ -79,6 +79,9 @@ type Bundle struct {
 	N     int
 	// ApplyWorktree：main 在编排器 / 桌面服务就绪后接上（tasks.applyWorktree）
 	ApplyWorktree func(iso tasks.CliIsolation, files []string, title string) tasks.WorktreeApply
+	// AbortChatReq / ResolveWorkspace：main 在聊天路由与桌面服务就绪后接上（tasks.handoffFromChat）
+	AbortChatReq     func(reqID string)
+	ResolveWorkspace func(projectID any) (cwd string, paths []string)
 
 	kbMu        sync.Mutex
 	kbListeners map[int]func()
@@ -152,11 +155,17 @@ func Wire(d WireDeps) *Bundle {
 	b.Ext = extensions.New(extensions.Deps{Root: ud("extensions"), SkillsRoot: ud("skills"), Logger: deps.StdLogger{Prefix: "[ext]"}, Desktop: d.Desktop, Ports: d.Ports, Events: ev, Secrets: d.Secrets, Confirm: d.Confirm, OpenExternal: d.OpenExternal})
 	b.Hub = local.NewHub(local.HubDeps{Root: ud("local"), UserData: d.UserData, Desktop: d.Desktop, Ports: d.Ports, Events: ev})
 	b.Local = local.New(local.Deps{Root: ud("local"), Desktop: asLocalDesktop(d.Desktop), Gateway: d.Gateway, Events: ev})
+	notifyTask := func(taskID, title, text string) {
+		openID := ""
+		if taskID != "" {
+			openID = "task\x1f" + taskID
+		}
+		// 提醒与持续任务的产出是你要求的通知：按「报警」类处理，工作台在屏幕上时也弹（island.ShouldShow）
+		d.Desktop.Notify(deps.Notice{Kind: "reminder", Status: "attention", Title: title, Text: text, Body: text, OpenID: openID})
+	}
 	b.Tasks = tasks.NewService(tasks.ServiceDeps{Root: ud("tasks"), Log: deps.StdLogger{Prefix: "[tasks]"}, Emit: d.Router.Emit, T: d.T,
-		Notify: func(title, text string) {
-			// 提醒与持续任务的产出是你要求的通知：按「报警」类处理，工作台在屏幕上时也弹（island.ShouldShow）
-			d.Desktop.Notify(deps.Notice{Kind: "reminder", Status: "attention", Title: title, Text: text, Body: text})
-		},
+		Notify:     func(title, text string) { notifyTask("", title, text) },
+		NotifyTask: notifyTask,
 		LegacyReminders: d.LegacyReminders,
 		QuietUntil: func() *int64 {
 			if !b.Sched.IsQuiet() {
@@ -181,6 +190,17 @@ func Wire(d WireDeps) *Bundle {
 				return tasks.WorktreeApply{Applied: []string{}, Skipped: []string{}, Conflicted: []string{}, Denied: append([]string{}, files...)}
 			}
 			return b.ApplyWorktree(iso, files, title)
+		},
+		AbortChatReq: func(reqID string) {
+			if b.AbortChatReq != nil {
+				b.AbortChatReq(reqID)
+			}
+		},
+		ResolveWorkspace: func(projectID any) (string, []string) {
+			if b.ResolveWorkspace != nil {
+				return b.ResolveWorkspace(projectID)
+			}
+			return "", nil
 		},
 		KB: func() *knowledge.Service { return b.KB }, Mem: func() *memory.Service { return b.Mem },
 		Sched: func() *schedule.Service { return b.Sched }, Local: func() *local.Service { return b.Local },

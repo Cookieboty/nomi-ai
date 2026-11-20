@@ -9,7 +9,10 @@ import {
   createSideChat,
   exportSideChat,
   forgetSideChat,
+  resetSideChats,
   setSideChatModel,
+  sideChatDraftKey,
+  sideChatDrafts,
   sideChatState,
 } from '../src/services/sideChat';
 import type { DetachSpec } from '../src/utils/detachedTabs';
@@ -21,6 +24,7 @@ vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).f
 afterEach(() => {
   cleanup();
   resetFakeApi();
+  resetSideChats();
 });
 
 function setup(extra?: (name: string, input: unknown) => unknown) {
@@ -71,8 +75,12 @@ describe('detached tab window', () => {
     await waitFor(() => expect(document.title).toBe('整理周报 — Nomi'));
     fireEvent.click(screen.getByTestId('detached-dock'));
     await waitFor(() =>
-      expect(fake.inputs('chatWindow.dockTab')).toEqual([{ id: '["nomi:c1","nomi-task:k1"]' }]),
+      expect(fake.inputs('chatWindow.dockTab')).toEqual([
+        { id: '["nomi:c1","nomi-task:k1"]', transferId: expect.any(String), requireAck: true },
+      ]),
     );
+    expect(fake.inputs('chatWindow.registerHost')).toHaveLength(0);
+    expect(fake.inputs('chatWindow.detachedTabs')).toHaveLength(0);
   });
 
   it('a popped-out side chat takes its content from the host, hands it back, and docks', async () => {
@@ -81,17 +89,33 @@ describe('detached tab window', () => {
     const raw = exportSideChat(id)!;
     forgetSideChat(id);
     const key = JSON.stringify(['nomi:c1', `side-chat:${id}`]);
-    const store = new Map([[key, raw]]);
+    const handoffKey = (idVal: string, dir?: string) => `${dir ?? ''}:${idVal}`;
+    const store = new Map<string, { data: string; transferId?: string; keepUntilAck?: boolean }>([
+      [handoffKey(key, 'detach'), { data: raw }],
+    ]);
     const fake = setup((name, input) => {
       if (name === 'chatWindow.handoffTake') {
-        const k = (input as { id: string }).id;
-        const v = store.get(k) ?? null;
-        store.delete(k);
-        return v;
+        const i = input as { id: string; direction?: string; transferId?: string };
+        const hk = handoffKey(i.id, i.direction);
+        const entry = store.get(hk);
+        if (!entry) return null;
+        if (i.transferId && entry.transferId !== i.transferId) return null;
+        if (!entry.keepUntilAck) store.delete(hk);
+        return entry.data;
       }
       if (name === 'chatWindow.handoffPut') {
-        const i = input as { id: string; data: string };
-        store.set(i.id, i.data);
+        const i = input as {
+          id: string;
+          data: string;
+          direction?: string;
+          transferId?: string;
+          keepUntilAck?: boolean;
+        };
+        store.set(handoffKey(i.id, i.direction), {
+          data: i.data,
+          transferId: i.transferId,
+          keepUntilAck: i.keepUntilAck,
+        });
         return true;
       }
       return undefined;
@@ -107,11 +131,71 @@ describe('detached tab window', () => {
     const pane = await screen.findByTestId('side-chat');
     expect(pane.hidden).toBe(false);
     expect(sideChatState(id)?.model).toBe('p/m');
-    // 取到之后马上交回一份（窗口刷新 / 关掉后主窗口还能取回）
-    await waitFor(() => expect(store.has(key)).toBe(true));
+    // 取到之后马上按 dock 方向交回一份（窗口关闭兜底）
+    await waitFor(() => expect(store.has(handoffKey(key, 'dock'))).toBe(true));
+
+    // 输入草稿图片应同步到 dock 快照
+    sideChatDrafts.write(sideChatDraftKey(id), {
+      text: '草稿文字',
+      images: [
+        {
+          id: 'img1',
+          mime: 'image/png',
+          data: 'DRAFT_IMG',
+          width: 4,
+          height: 4,
+          thumb: 'data:t',
+          source: 'paste',
+        },
+      ],
+      files: [],
+    });
+    await waitFor(() =>
+      expect(store.get(handoffKey(key, 'dock'))?.data).toContain('DRAFT_IMG'),
+    );
+
     fireEvent.click(screen.getByTestId('detached-dock'));
-    await waitFor(() => expect(fake.inputs('chatWindow.dockTab')).toEqual([{ id: key }]));
-    expect(JSON.parse(store.get(key)!).chat.id).toBe(id);
+    await waitFor(() =>
+      expect(fake.inputs('chatWindow.dockTab')).toEqual([
+        { id: key, transferId: expect.any(String), requireAck: true },
+      ]),
+    );
+    const dockEntry = store.get(handoffKey(key, 'dock'))!;
+    expect(dockEntry.keepUntilAck).toBe(true);
+    expect(dockEntry.transferId).toEqual(expect.any(String));
+    expect(JSON.parse(dockEntry.data).chat.id).toBe(id);
+    expect(JSON.parse(dockEntry.data).draft.images[0].data).toBe('DRAFT_IMG');
+  });
+
+  it('keeps local side chat state intact when handoffPut or dockTab fails', async () => {
+    const id = createSideChat('nomi:c1');
+    const raw = exportSideChat(id)!;
+    forgetSideChat(id);
+    setup((name, input) => {
+      if (name === 'chatWindow.handoffTake') return raw;
+      if (name === 'chatWindow.handoffPut') {
+        return !(input as { keepUntilAck?: boolean }).keepUntilAck;
+      }
+      if (name === 'chatWindow.dockTab') return false;
+      return undefined;
+    });
+    render(
+      <DetachedApp
+        spec={{
+          v: 1,
+          kind: 'agent',
+          scope: 'nomi:c1',
+          target: { kind: 'side-chat', chatId: id },
+          title: '侧边聊天 1',
+        }}
+      />,
+    );
+    await screen.findByTestId('side-chat');
+    fireEvent.click(screen.getByTestId('detached-dock'));
+    await waitFor(() =>
+      expect((screen.getByTestId('detached-dock') as HTMLButtonElement).disabled).toBe(false),
+    );
+    expect(sideChatState(id)?.id).toBe(id);
   });
 
   it('shows the closed state when there is nothing to take', async () => {

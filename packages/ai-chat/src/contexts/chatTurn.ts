@@ -233,8 +233,18 @@ export function upsertById(list: ChatMessage[], items: readonly ChatMessage[]): 
 export const newReqId = (): string =>
   `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
+export interface HandoffSnapshot {
+  partialContent: string;
+  progressSummary: string;
+  historyContext: string;
+}
+
 export interface ActiveStream extends SteerableStream {
   convoId: string | undefined;
+  projectId?: string;
+  userGoal?: string;
+  getHandoffSnapshot?: () => HandoffSnapshot;
+  handoffPromise?: Promise<string | null>;
 }
 
 /** 进行中这一轮的消息快照（用户消息 + 已生成的回复）：回复一轮结束才落盘（用户消息发出时就已先存） */

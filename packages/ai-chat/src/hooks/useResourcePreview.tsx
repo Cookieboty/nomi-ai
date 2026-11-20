@@ -16,7 +16,7 @@ import {
   type PreviewTabsState,
 } from '../components/ResourcePreview/previewTabs';
 import type { PreviewTabsControl } from '../components/ResourcePreview/ResourcePreview';
-import { dirtyReviewDrafts } from '../components/SessionWorkspace/reviewDrafts';
+import { dirtyReviewDrafts, migrateReviewDraft } from '../components/SessionWorkspace/reviewDrafts';
 import type {
   DiffTabSpec,
   ResourceScope,
@@ -59,7 +59,8 @@ const LazyPreview = lazy(() =>
     default: m.ResourcePreview,
   })),
 );
-const diffEntryKey = (diff: DiffTabSpec) => `diff\u0000${diff.key}`;
+const diffEntryKey = (diff: DiffTabSpec, scopeId: string, scoped: boolean): string =>
+  scoped && scopeId ? `diff\u0000${scopeId}\u0000${diff.key}` : `diff\u0000${diff.key}`;
 /** 已开着的 Diff 标签换成最新的改动；没开着原样返回（不触发重渲染） */
 function withDiff(state: PreviewTabsState, key: string, diff: DiffTabSpec): PreviewTabsState {
   if (!state.entries.some((entry) => entry.key === key)) return state;
@@ -69,6 +70,35 @@ function withDiff(state: PreviewTabsState, key: string, diff: DiffTabSpec): Prev
       entry.key === key ? { ...entry, href: diff.path, diff: { ...diff } } : entry,
     ),
   };
+}
+/** 同步某个前缀下所有已开着的 Diff 标签：仍在列表的更新为最新改动，已消失的清空 gitDiff */
+function syncDiffsInState(
+  state: PreviewTabsState,
+  prefix: string,
+  byKey: ReadonlyMap<string, DiffTabSpec>,
+): PreviewTabsState {
+  if (!state.entries.some((entry) => entry.diff && entry.diff.key.startsWith(prefix))) return state;
+  let changed = false;
+  const entries = state.entries.map((entry) => {
+    if (!entry.diff || !entry.diff.key.startsWith(prefix)) return entry;
+    const next = byKey.get(entry.diff.key);
+    if (next) {
+      changed = true;
+      return { ...entry, href: next.path, diff: { ...next } };
+    }
+    if (entry.diff.file.gitDiff || entry.diff.file.added || entry.diff.file.removed) {
+      changed = true;
+      return {
+        ...entry,
+        diff: {
+          ...entry.diff,
+          file: { ...entry.diff.file, gitDiff: undefined, added: 0, removed: 0 },
+        },
+      };
+    }
+    return entry;
+  });
+  return changed ? { ...state, entries } : state;
 }
 
 /**
@@ -214,7 +244,7 @@ export function useResourcePreview(
         resetLayout();
         setConnected(null);
       }
-      const key = diffEntryKey(diff);
+      const key = diffEntryKey(diff, scopeId, scoped);
       updateBucket(activeBucket, (old) =>
         openPreviewTab(
           withDiff(old, key, diff),
@@ -239,6 +269,7 @@ export function useResourcePreview(
       resetLayout,
       activeBucket,
       updateBucket,
+      scoped,
       scopeId,
       scopeCwd,
       scopeSource,
@@ -247,62 +278,98 @@ export function useResourcePreview(
   );
   const updateDiff = useCallback(
     (diff: DiffTabSpec) =>
-      updateBucket(activeBucket, (old) => withDiff(old, diffEntryKey(diff), diff)),
-    [activeBucket, updateBucket],
+      updateBucket(activeBucket, (old) => withDiff(old, diffEntryKey(diff, scopeId, scoped), diff)),
+    [activeBucket, updateBucket, scopeId, scoped],
   );
+  const syncDiffs = useCallback((prefix: string, diffs: readonly DiffTabSpec[]) => {
+    const byKey = new Map(diffs.map((d) => [d.key, d]));
+    setTabsByBucket((all) => {
+      let changed = false;
+      const out: Record<string, PreviewTabsState> = {};
+      for (const [bucket, state] of Object.entries(all)) {
+        const next = syncDiffsInState(state, prefix, byKey);
+        if (next !== state) changed = true;
+        out[bucket] = next;
+      }
+      return changed ? out : all;
+    });
+  }, []);
   const closeEntries = useCallback(
-    (keys: string[]) => {
+    (keys: string[], targetScopeId?: string) => {
       if (keys.length === 0) return;
+      const bucket = scoped ? (targetScopeId ?? activeBucket) : SINGLE_BUCKET;
       setTabsByBucket((all) => {
-        if (!scoped) {
-          const prev = all[SINGLE_BUCKET] ?? EMPTY_PREVIEW_TABS;
-          const next = removePreviewTabs(prev, keys);
-          if (next === prev) return all;
-          return next.entries.length === 0 ? {} : { [SINGLE_BUCKET]: next };
+        const prev = all[bucket];
+        if (!prev) return all;
+        const next = removePreviewTabs(prev, keys);
+        if (next === prev) return all;
+        if (next.entries.length === 0 && !next.activeKey) {
+          const rest = { ...all };
+          delete rest[bucket];
+          return rest;
         }
-        let changed = false;
-        const out: Record<string, PreviewTabsState> = {};
-        for (const [bucket, state] of Object.entries(all)) {
-          const next =
-            bucket === activeBucket || state.entries.some((e) => keys.includes(e.key))
-              ? removePreviewTabs(state, keys)
-              : state;
-          if (next !== state) changed = true;
-          if (next.entries.length > 0) out[bucket] = next;
-        }
-        return changed ? out : all;
+        return { ...all, [bucket]: next };
       });
-      setConnected((old) => (old && keys.includes(old.key) ? null : old));
+      setConnected((old) =>
+        old && (!scoped || old.scope.id === bucket) && keys.includes(old.key) ? null : old,
+      );
     },
     [scoped, activeBucket],
   );
+  const closeEntriesForActive = useCallback(
+    (keys: string[]) => closeEntries(keys, activeBucket),
+    [closeEntries, activeBucket],
+  );
+  const closeEntryForActive = useCallback(
+    (key: string) => closeEntries([key], activeBucket),
+    [closeEntries, activeBucket],
+  );
   /** agent 新标签拿到 cliSessionId 后，把已打开的文件 / Diff 预览从临时标签键平滑迁移到稳定会话键 */
-  const migrateScope = useCallback((fromId: string, toId: string) => {
-    if (!fromId || !toId || fromId === toId) return;
-    setTabsByBucket((all) => {
-      const fromState = all[fromId];
-      if (!fromState || fromState.entries.length === 0) return all;
-      const migratedEntries = fromState.entries.map((entry) =>
-        entry.scope.id === fromId ? { ...entry, scope: { ...entry.scope, id: toId } } : entry,
+  const migrateScope = useCallback(
+    (fromId: string, toId: string) => {
+      if (!fromId || !toId || fromId === toId) return;
+      const draftMigrations: Array<[string, string]> = [];
+      setTabsByBucket((all) => {
+        const fromState = all[fromId];
+        if (!fromState || fromState.entries.length === 0) return all;
+        const existing = all[toId];
+        const existingKeys = new Set(existing?.entries.map((e) => e.key) ?? []);
+        let nextActiveKey = fromState.activeKey;
+        const migratedEntries = fromState.entries.map((entry) => {
+          const updatedScope =
+            entry.scope.id === fromId ? { ...entry.scope, id: toId } : entry.scope;
+          let nextKey = entry.key;
+          if (entry.diff && scoped && entry.key === diffEntryKey(entry.diff, fromId, true)) {
+            const candidate = diffEntryKey(entry.diff, toId, true);
+            if (!existingKeys.has(candidate)) {
+              nextKey = candidate;
+              draftMigrations.push([entry.key, candidate]);
+              if (fromState.activeKey === entry.key) nextActiveKey = candidate;
+            }
+          }
+          if (updatedScope === entry.scope && nextKey === entry.key) return entry;
+          return { ...entry, key: nextKey, scope: updatedScope };
+        });
+        const mergedEntries = existing
+          ? [...migratedEntries.filter((e) => !existingKeys.has(e.key)), ...existing.entries]
+          : migratedEntries;
+        const mergedActiveKey = existing?.activeKey || nextActiveKey;
+        const rest = { ...all };
+        delete rest[fromId];
+        return {
+          ...rest,
+          [toId]: { entries: mergedEntries, activeKey: mergedActiveKey },
+        };
+      });
+      for (const [oldKey, newKey] of draftMigrations) {
+        migrateReviewDraft(oldKey, newKey);
+      }
+      setImageEntry((cur) =>
+        cur && cur.scope.id === fromId ? { ...cur, scope: { ...cur.scope, id: toId } } : cur,
       );
-      const existing = all[toId];
-      const existingKeys = new Set(existing?.entries.map((e) => e.key) ?? []);
-      const mergedEntries = existing
-        ? [...migratedEntries.filter((e) => !existingKeys.has(e.key)), ...existing.entries]
-        : migratedEntries;
-      const mergedActiveKey = existing?.activeKey || fromState.activeKey;
-      const rest = { ...all };
-      delete rest[fromId];
-      return {
-        ...rest,
-        [toId]: { entries: mergedEntries, activeKey: mergedActiveKey },
-      };
-    });
-    setImageEntry((cur) =>
-      cur && cur.scope.id === fromId ? { ...cur, scope: { ...cur.scope, id: toId } } : cur,
-    );
-  }, []);
-  const closeEntry = useCallback((key: string) => closeEntries([key]), [closeEntries]);
+    },
+    [scoped],
+  );
   useLayoutEffect(() => {
     if (!isOpen || !composerRef.current) return;
     const el = composerRef.current;
@@ -350,8 +417,9 @@ export function useResourcePreview(
       open,
       openDiff,
       updateDiff,
+      syncDiffs,
     }),
-    [scopeId, scopeCwd, scopeSource, scopeFallbacks, open, openDiff, updateDiff],
+    [scopeId, scopeCwd, scopeSource, scopeFallbacks, open, openDiff, updateDiff, syncDiffs],
   );
   const visibleImageEntry =
     imageEntry && (!scoped || imageEntry.scope.id === scope.id) ? imageEntry : null;
@@ -399,8 +467,8 @@ export function useResourcePreview(
           originMismatch={mismatch}
           conversationConnected={mismatch && !sendMismatch}
           onActive={setActiveKey}
-          onCloseEntry={closeEntry}
-          onCloseEntries={closeEntries}
+          onCloseEntry={closeEntryForActive}
+          onCloseEntries={closeEntriesForActive}
           onExpanded={p.onExpanded}
           onOpen={open}
           hideTabs={!p.showTabs}
@@ -470,8 +538,8 @@ export function useResourcePreview(
                 originMismatch={mismatch}
                 conversationConnected={mismatch && !sendMismatch}
                 onActive={setActiveKey}
-                onCloseEntry={closeEntry}
-                onCloseEntries={closeEntries}
+                onCloseEntry={closeEntryForActive}
+                onCloseEntries={closeEntriesForActive}
                 onExpanded={layout.onExpanded}
                 onOpen={open}
               />

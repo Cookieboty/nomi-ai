@@ -1,18 +1,19 @@
 /**
- * 任务看板：按进度（待开始 / 进行中 / 需要你 / 待验收 / 已结束）或按重要程度分列；卡片写清类型、
- * 重要程度、执行者与下一步。点卡片在右侧看详情（与列表视图同一个详情面板）。
- * 进度由任务状态决定，不能拖动改；重要程度在详情里改。卡片右下角的快捷操作只做不用再确认的：
- * 待开始的立即运行 / 恢复，进行中的暂停；其余都在详情里。
- * 颜色只用主题令牌：列头一个色点（进行中用主题色），已结束的卡片左侧一条 success。
+ * 任务看板：按进度（待开始 / 进行中 / 需要你 / 已结束）或按重要程度分列；
+ * 排队中（queued）的任务置顶在「待开始」列的高亮「排队等待中」分区里，并透出具体等待原因与顺位。
+ * 图标按钮不使用原生 title，只用 aria-label 或可见文案。
  */
 import { isBuiltinCliId } from '@nomi-ai/cli-catalog';
-import { createLogger, Icon, IconButton, t } from '@nomi-ai/ui';
+import { Button, createLogger, Icon, IconButton, t } from '@nomi-ai/ui';
 import {
   IconAlertTriangle as AlertTriangle,
+  IconArchive as Archive,
   IconBell as Bell,
   IconBook2 as BookOpen,
+  IconCalendarClock as CalendarClock,
   IconChevronDown as ChevronDown,
   IconChevronsUp as ChevronsUp,
+  IconClock as Clock,
   IconCode as Code2,
   IconEqual as Equal,
   IconEye as Eye,
@@ -26,11 +27,18 @@ import {
 } from '@tabler/icons-react';
 import React, { useMemo } from 'react';
 
+import { describeRepeat } from '../../services/desktopClient';
 import {
+  autoArchiveRemainingHours,
   CATEGORY_LABEL,
   categoryOf,
   executorLabel,
   fmtTime,
+  formatQueueReason,
+  isConversationBacked,
+  isRecurringTask,
+  isTerminalStatus,
+  needsUserAttention,
   PRIORITIES,
   PRIORITY_LABEL,
   STAGE_LABEL,
@@ -40,9 +48,11 @@ import {
   tasksApi,
   triggerLabel,
   type ExecutorSpec,
+  type LegacyItem,
   type Task,
   type TaskCategory,
   type TaskPriority,
+  type TaskQueueInfo,
   type TaskStage,
 } from '../../services/tasksClient';
 import { fmtAgo } from '../../utils/relativeTime';
@@ -74,7 +84,7 @@ export const CATEGORY_ICON: Record<TaskCategory, IconGlyph> = {
   chore: ListTodo,
 };
 
-/** 同一列里：重要的在前，其次最近更新的 */
+/** 同一列里：排队中的在前（按队列顺位），其次按重要程度和最近更新时间 */
 const PRIORITY_RANK: Record<PriorityKey, number> = {
   urgent: 0,
   high: 1,
@@ -103,6 +113,75 @@ export const ExecutorIcon: React.FC<{ ex: ExecutorSpec }> = ({ ex }) => {
   return <EndpointIcon backend={isBuiltinCliId(ex.cli) ? ex.cli : 'other'} size={16} decorative />;
 };
 
+/** 任务来源 / 性质徽章 */
+export const OriginBadge: React.FC<{ task: Task }> = ({ task }) => {
+  if (task.origin.via === 'delegate') {
+    return (
+      <span className={styles.badgeInfo} data-testid={`task-origin-${task.id}`}>
+        {t('ui.cli-monitor.fleet-origin-conversation')}
+      </span>
+    );
+  }
+  if (task.origin.via === 'handoff') {
+    return (
+      <span className={styles.badgeInfo} data-testid={`task-origin-${task.id}`}>
+        {t('ui.providers-schedule.task-origin-handoff')}
+      </span>
+    );
+  }
+  if (isRecurringTask(task)) {
+    return (
+      <span className={styles.badgeMuted} data-testid={`task-origin-${task.id}`}>
+        {t('ui.providers-schedule.task-origin-recurring')}
+      </span>
+    );
+  }
+  return (
+    <span className={styles.badgeMuted} data-testid={`task-origin-${task.id}`}>
+      {t('ui.providers-schedule.task-origin-standalone')}
+    </span>
+  );
+};
+
+/** 持续自动化任务的上次执行结果徽章 */
+export const LastRunBadge: React.FC<{ task: Task }> = ({ task }) => {
+  if (!isRecurringTask(task) || !task.lastRunStatus) return null;
+  const cls =
+    task.lastRunStatus === 'succeeded'
+      ? styles.badgeSuccess
+      : task.lastRunStatus === 'failed'
+        ? styles.badgeDanger
+        : styles.badgeMuted;
+  const key =
+    task.lastRunStatus === 'succeeded'
+      ? 'ui.providers-schedule.task-last-run-succeeded'
+      : task.lastRunStatus === 'failed'
+        ? 'ui.providers-schedule.task-last-run-failed'
+        : 'ui.providers-schedule.task-last-run-cancelled';
+  return <span className={cls}>{t(key)}</span>;
+};
+
+export function autoArchiveLabel(task: Task): string | null {
+  const hours = autoArchiveRemainingHours(task);
+  if (hours === null) return null;
+  return hours <= 0
+    ? t('ui.providers-schedule.task-auto-archive-soon')
+    : t('ui.providers-schedule.task-auto-archive-hours', hours);
+}
+
+export function canAckFailure(task: Task): boolean {
+  return (
+    task.archivedAt == null &&
+    (task.status === 'failed' || task.status === 'expired') &&
+    !isConversationBacked(task) &&
+    task.ackedAt == null
+  );
+}
+
+export function canArchiveTask(task: Task): boolean {
+  return task.archivedAt == null && isTerminalStatus(task.status) && !needsUserAttention(task);
+}
+
 /** 卡片上的快捷操作：只做不用再确认的 */
 export function quickAction(
   task: Task,
@@ -129,10 +208,11 @@ export function quickAction(
 
 const Card: React.FC<{
   task: Task;
+  queueInfo?: TaskQueueInfo;
   group: BoardGroup;
   selected: boolean;
   onSelect: () => void;
-}> = ({ task, group, selected, onSelect }) => {
+}> = ({ task, queueInfo, group, selected, onSelect }) => {
   const stage = stageOf(task);
   const category = categoryOf(task);
   const next =
@@ -140,8 +220,11 @@ const Card: React.FC<{
       ? t('ui.providers-schedule.task-next-run', fmtTime(task.nextRunAt))
       : '';
   const action = quickAction(task);
+  const ackable = canAckFailure(task);
+  const archivable = canArchiveTask(task);
+  const archiveHint = autoArchiveLabel(task);
 
-  // 已结束的收成一行：类型图标、标题、结果、多久前
+  // 已结束的收成紧凑卡片，展示归档倒计时与快捷归档操作
   if (stage === 'done') {
     return (
       <li className={styles.item}>
@@ -164,14 +247,33 @@ const Card: React.FC<{
               {statusLabel(task)}
             </span>
           </span>
-          <span className={styles.cardFoot}>
+          {(archiveHint || task.origin.via) && (
+            <span className={styles.cardSubRow}>
+              <OriginBadge task={task} />
+              {archiveHint && <span className={styles.archiveTimer}>{archiveHint}</span>}
+            </span>
+          )}
+          <span className={styles.cardFoot} data-has-action={archivable ? '' : undefined}>
             <span className={styles.executor}>
               <ExecutorIcon ex={task.executor} />
               {executorLabel(task.executor)}
             </span>
-            <span className={styles.ago}>{fmtAgo(task.updatedAt)}</span>
+            <span className={styles.ago}>{fmtAgo(task.endedAt ?? task.updatedAt)}</span>
           </span>
         </button>
+        {archivable && (
+          <IconButton
+            size="sm"
+            variant="ghost"
+            className={styles.action}
+            icon={<Icon icon={Archive} size={14} />}
+            label={`${t('ui.cli-monitor.archive-chat')} · ${task.title}`}
+            onClick={() => {
+              void tasksApi.archive(task.id).catch((e: unknown) => log.warn('archive failed', e));
+            }}
+            data-testid={`board-archive-${task.id}`}
+          />
+        )}
       </li>
     );
   }
@@ -189,7 +291,6 @@ const Card: React.FC<{
         data-testid={`board-card-${task.id}`}
       >
         <span className={styles.cardHead}>
-          {/* 图标只是装饰：同一张卡片下面已经写着分类名，读屏不再重复一遍 */}
           <span className={styles.tile} aria-hidden>
             <Icon icon={CATEGORY_ICON[category]} size={14} />
           </span>
@@ -199,12 +300,29 @@ const Card: React.FC<{
         {task.goal && task.goal !== task.title && (
           <span className={styles.cardGoal}>{task.goal}</span>
         )}
+        {task.status === 'queued' && (
+          <span className={styles.queueBanner} data-testid={`board-queue-${task.id}`}>
+            {queueInfo && (
+              <span className={styles.queuePos}>
+                {t('ui.providers-schedule.task-queue-pos', queueInfo.position)}
+              </span>
+            )}
+            <span>{queueInfo ? formatQueueReason(queueInfo) : t('ui.mascot-theme.queued')}</span>
+          </span>
+        )}
+        {task.status === 'queued' && task.pending?.note && (
+          <span className={styles.pendingNote}>
+            {t('ui.providers-schedule.task-pending-note-prefix', task.pending.note)}
+          </span>
+        )}
         <span className={styles.cardMeta}>
           <span className={styles.tag}>{t(CATEGORY_LABEL[category])}</span>
+          <OriginBadge task={task} />
+          <LastRunBadge task={task} />
           <span className={styles.trigger}>{triggerLabel(task.trigger)}</span>
         </span>
         {stage === 'in_progress' && <span className={styles.track} aria-hidden />}
-        <span className={styles.cardFoot} data-has-action={action ? '' : undefined}>
+        <span className={styles.cardFoot} data-has-action={action || ackable ? '' : undefined}>
           <span className={styles.executor}>
             <ExecutorIcon ex={task.executor} />
             {executorLabel(task.executor)}
@@ -227,18 +345,72 @@ const Card: React.FC<{
           data-testid={`board-action-${task.id}`}
         />
       )}
+      {!action && ackable && (
+        <Button
+          size="sm"
+          variant="secondary"
+          className={styles.textAction}
+          onClick={() => {
+            void tasksApi.ack(task.id).catch((e: unknown) => log.warn('ack failed', e));
+          }}
+          data-testid={`board-ack-${task.id}`}
+        >
+          {t('ui.models.got-it')}
+        </Button>
+      )}
     </li>
   );
 };
 
+const LegacyBoardCard: React.FC<{ item: LegacyItem; onOpen?: () => void }> = ({
+  item: x,
+  onOpen,
+}) => (
+  <li className={styles.item}>
+    <button
+      type="button"
+      className={styles.card}
+      onClick={onOpen}
+      data-testid={`board-legacy-${x.id}`}
+    >
+      <span className={styles.cardHead}>
+        <span className={styles.tile} aria-hidden>
+          <Icon icon={x.source === 'reminder' ? Bell : CalendarClock} size={14} />
+        </span>
+        <span className={styles.cardTitle}>{x.title}</span>
+        <span className={styles.badgeMuted}>
+          {x.enabled
+            ? x.repeat
+              ? describeRepeat(x.repeat)
+              : t('ui.providers-schedule.task-once')
+            : t('ui.providers-schedule.task-paused')}
+        </span>
+      </span>
+      <span className={styles.cardFoot}>
+        <span className={styles.executor}>
+          {t(
+            x.source === 'reminder'
+              ? 'ui.foundation.reminders'
+              : 'ui.providers-schedule.tasks-group-scheduled',
+          )}
+        </span>
+        <span className={styles.cardStatus}>{x.nextRunAt ? fmtTime(x.nextRunAt) : ''}</span>
+      </span>
+    </button>
+  </li>
+);
+
 export const TaskBoard: React.FC<{
   tasks: Task[];
+  queue?: Record<string, TaskQueueInfo>;
+  legacy?: LegacyItem[];
   group: BoardGroup;
   /** 按进度分列时只显示这些列（顶部的进度筛选）；不给就全显示 */
   stages?: readonly TaskStage[];
   selected: string | null;
   onSelect: (id: string) => void;
-}> = ({ tasks, group, stages, selected, onSelect }) => {
+  onOpenSchedule?: () => void;
+}> = ({ tasks, queue = {}, legacy = [], group, stages, selected, onSelect, onOpenSchedule }) => {
   const columns = useMemo(() => {
     const keys: ColumnKey[] = group === 'stage' ? [...(stages ?? STAGES)] : [...PRIORITIES, 'none'];
     const m = new Map<ColumnKey, Task[]>(keys.map((k) => [k, []]));
@@ -247,28 +419,49 @@ export const TaskBoard: React.FC<{
       m.get(k)?.push(task);
     }
     for (const list of m.values())
-      list.sort(
-        (a, b) =>
+      list.sort((a, b) => {
+        const aq = a.status === 'queued' ? 0 : 1;
+        const bq = b.status === 'queued' ? 0 : 1;
+        if (aq !== bq) return aq - bq;
+        if (aq === 0 && bq === 0) {
+          const ap = queue[a.id]?.position ?? Number.MAX_SAFE_INTEGER;
+          const bp = queue[b.id]?.position ?? Number.MAX_SAFE_INTEGER;
+          if (ap !== bp) return ap - bp;
+        }
+        return (
           PRIORITY_RANK[a.priority ?? 'none'] - PRIORITY_RANK[b.priority ?? 'none'] ||
-          b.updatedAt - a.updatedAt,
-      );
+          b.updatedAt - a.updatedAt
+        );
+      });
     return keys.map((k) => ({ key: k, tasks: m.get(k)! }));
-  }, [tasks, group, stages]);
+  }, [tasks, group, stages, queue]);
 
   return (
-    <div className={styles.board} data-testid="tasks-board" data-group={group}>
+    <div
+      className={styles.board}
+      data-testid="tasks-board"
+      data-group={group}
+      data-single={columns.length === 1 ? '' : undefined}
+    >
       {columns.map(({ key, tasks: list }) => {
         const label =
           group === 'stage'
             ? t(STAGE_LABEL[key as TaskStage])
             : t(PRIORITY_LABEL[key as PriorityKey]);
+        const queuedInTodo =
+          group === 'stage' && key === 'todo' ? list.filter((x) => x.status === 'queued') : [];
+        const restInTodo =
+          group === 'stage' && key === 'todo' ? list.filter((x) => x.status !== 'queued') : list;
+        const showLegacyInCol = group === 'stage' && key === 'todo' && legacy.length > 0;
+        const totalCount = list.length + (showLegacyInCol ? legacy.length : 0);
+
         return (
           <section
             key={key}
             className={styles.column}
             data-column={key}
-            data-empty={list.length ? undefined : true}
-            aria-label={`${label} ${list.length}`}
+            data-empty={totalCount ? undefined : true}
+            aria-label={`${label} ${totalCount}`}
             data-testid={`board-column-${key}`}
           >
             <header className={styles.columnHead}>
@@ -280,19 +473,47 @@ export const TaskBoard: React.FC<{
                 </span>
               )}
               <span className={styles.columnLabel}>{label}</span>
-              <span className={styles.count}>{list.length}</span>
+              <span className={styles.count}>{totalCount}</span>
             </header>
             <ul className={styles.cards}>
-              {list.map((task) => (
+              {queuedInTodo.length > 0 && (
+                <>
+                  <li className={styles.queueGroupHead} data-testid="board-queued-group">
+                    <Icon icon={Clock} size={13} />
+                    {t('ui.providers-schedule.task-queued-group-title', queuedInTodo.length)}
+                  </li>
+                  {queuedInTodo.map((task) => (
+                    <Card
+                      key={task.id}
+                      task={task}
+                      queueInfo={queue[task.id]}
+                      group={group}
+                      selected={selected === task.id}
+                      onSelect={() => onSelect(task.id)}
+                    />
+                  ))}
+                  {restInTodo.length > 0 && (
+                    <li className={styles.dividerHead}>
+                      {t('ui.providers-schedule.task-waiting-trigger')}
+                    </li>
+                  )}
+                </>
+              )}
+              {restInTodo.map((task) => (
                 <Card
                   key={task.id}
                   task={task}
+                  queueInfo={queue[task.id]}
                   group={group}
                   selected={selected === task.id}
                   onSelect={() => onSelect(task.id)}
                 />
               ))}
-              {!list.length && (
+              {showLegacyInCol &&
+                legacy.map((x) => (
+                  <LegacyBoardCard key={`${x.source}:${x.id}`} item={x} onOpen={onOpenSchedule} />
+                ))}
+              {!totalCount && (
                 <li className={styles.columnEmpty}>
                   {t('ui.providers-schedule.task-board-empty')}
                 </li>

@@ -22,7 +22,7 @@ interface SendContext {
   queue?: {
     onQueue: (
       text: string,
-      opts: { kb?: boolean; mode: PendingMode; images?: ImageAttachment[] },
+      opts: { kb?: boolean; mode: PendingMode; images?: ImageAttachment[]; imageOnly?: boolean },
     ) => void;
   };
   slash?: {
@@ -44,6 +44,7 @@ export function createSendHandler(
   files: FileAttachment[],
 ) {
   return async (mode: PendingMode = 'steer') => {
+    const hasUserText = Boolean(linkedDraft.serialized.trim() || files.length);
     let trimmedMessage =
       linkedDraft.serialized.trim() ||
       (images.length
@@ -82,9 +83,15 @@ export function createSendHandler(
       }
       // 运行中：纯文字可按 mode 插入或排队；带图片先排队（保留图片附件），本轮结束后自动发送
       if (ctx.queue) {
-        const opts: { kb?: boolean; mode: PendingMode; images?: ImageAttachment[] } = { mode };
+        const opts: {
+          kb?: boolean;
+          mode: PendingMode;
+          images?: ImageAttachment[];
+          imageOnly?: boolean;
+        } = { mode };
         if (images.length) {
           opts.images = images;
+          if (!hasUserText) opts.imageOnly = true;
         } else if (ctx.kbMode && ctx.kbAvailable) {
           // 入队时冻结知识库模式：排队期间切换开关不改变这条消息的去向
           opts.kb = true;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { List } from 'react-window';
 
+import type { ConvoOutcome } from '../../contexts/aiChatState';
 import type { ConversationListView } from '../../services/chatPrefs';
 import type { HarnessTabMeta } from '../../services/harnessClient';
 import type { HistoryBackend, HistorySession } from '../../services/historyClient';
@@ -37,6 +38,8 @@ interface SidebarThreadsProps {
   runningIds: Set<string>;
   /** 刚跑完一轮、还没点进去看的 Nomi 会话 id */
   doneIds: Set<string>;
+  /** Nomi 会话最近一轮结束状态 */
+  outcomes?: Readonly<Record<string, ConvoOutcome>>;
   renamingId: string | null;
   showIcon: boolean;
   histVisible: boolean;
@@ -76,6 +79,7 @@ export const SidebarThreads: React.FC<SidebarThreadsProps> = ({
   tabById,
   runningIds,
   doneIds,
+  outcomes,
   renamingId,
   showIcon,
   histVisible,
@@ -131,6 +135,7 @@ export const SidebarThreads: React.FC<SidebarThreadsProps> = ({
             tab={c.tabId ? tabById.get(c.tabId) : undefined}
             running={c.tabId ? undefined : runningIds.has(c.id)}
             done={c.tabId ? undefined : doneIds.has(c.id)}
+            outcome={c.tabId ? undefined : outcomes?.[c.id]}
             onOpen={rows.open}
             onCtx={rows.onCtx}
             renaming={renamingId === c.id}

@@ -4,8 +4,9 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EndpointInfoCard } from '../src/components/EndpointInfo';
-import { configPathsOf } from '../src/hooks/useEndpointInfo';
+import { configPathsOf, resetEndpointInfoMemo } from '../src/hooks/useEndpointInfo';
 import { resetToolQuotaMemo } from '../src/hooks/useToolQuota';
+import { cliUpdateClient } from '../src/services/cliUpdateClient';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
@@ -103,6 +104,8 @@ let endpointFail = false;
 beforeEach(() => {
   localStorage.removeItem('cd.sidebar.endpointCardCollapsed');
   resetToolQuotaMemo();
+  resetEndpointInfoMemo();
+  cliUpdateClient.resetCache();
   calls = [];
   quota = [QUOTA('codex'), { id: 'dsh', label: 'dsh', status: 'api', auth: 'api', windows: [] }];
   cli = [CLI('codex'), CLI('dsh', { version: '0.2.0-rc.1', updateAvailable: false })];

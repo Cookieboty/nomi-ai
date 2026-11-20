@@ -9,6 +9,7 @@ import {
   IconArrowsMinimize as Minimize2,
   IconPencil as Pencil,
   IconRefresh as RefreshCw,
+  IconSearch as Search,
   IconX as X,
 } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -26,6 +27,11 @@ import {
 import { hostAssetUrl } from '../../services/api';
 import { isExternalResource, openExternalResource } from '../../services/externalResource';
 import { resourcePreviewClient, type PreviewResult } from '../../services/resourcePreviewClient';
+import {
+  clearFilePathDrag,
+  previewEntryFilePath,
+  startFilePathDrag,
+} from '../../utils/filePathDrag';
 import { isImeComposing, shouldIgnoreEscape } from '../../utils/keyboard';
 import { basename, dirname, resourceTarget, workspaceFileHref } from '../../utils/resourceLinks';
 import { confirmDialog } from '../ConfirmDialog';
@@ -38,6 +44,7 @@ import { resolveCodeLanguage } from './codeSyntax';
 import { codeViewAt, revealCodeLine } from './codeViewModel';
 import type { DocumentAnchor } from './documentAnchor';
 import type { DocumentNavigation } from './documentNavigation';
+import type { MarkdownReplaceHandle } from './EditableMarkdown';
 import { MarkdownDocument } from './MarkdownDocument';
 import {
   acquirePreviewEdit,
@@ -48,7 +55,7 @@ import {
   type PreviewEditSession,
 } from './previewEdits';
 import { PreviewFilePicker } from './PreviewFilePicker';
-import { PreviewFind } from './PreviewFind';
+import { PreviewFind, type PreviewFindHandle } from './PreviewFind';
 import { PreviewRenderBoundary } from './PreviewRenderBoundary';
 import { usePreviewSelectionMenu } from './PreviewSelectionMenu';
 import { PreviewTabMenu, type PreviewTabMenuTarget } from './PreviewTabMenu';
@@ -168,6 +175,8 @@ export const ResourcePreview: React.FC<{
   const [reloadNonce, setReloadNonce] = useState(0);
   const sourceRef = useRef<HTMLElement>(null);
   const root = useRef<HTMLElement>(null);
+  const markdownReplaceRef = useRef<MarkdownReplaceHandle | null>(null);
+  const findControlRef = useRef<PreviewFindHandle | null>(null);
   const sourceViewport = useRef<{ key: string; element: HTMLElement } | null>(null);
   const location = resourceTarget(active.href);
   const fragment = location?.fragment;
@@ -196,6 +205,9 @@ export const ResourcePreview: React.FC<{
   );
   const located = useRef(new Set<string>());
   const [menu, setMenu] = useState<PreviewTabMenuTarget | null>(null);
+  const [draggingKey, setDraggingKey] = useState<string | null>(null);
+  const dragFromClose = useRef(false);
+  const [resolvedPaths, setResolvedPaths] = useState<Record<string, string>>({});
   /** 外面的标签栏右键：打开同一个关闭菜单 */
   const openMenuRef = useRef(setMenu);
   const menuRef = useRef(menu);
@@ -350,6 +362,12 @@ export const ResourcePreview: React.FC<{
       const edit = acquirePreviewEdit(resourceKey, result);
       if (edit && result.path) edit.noteOrigin(resolvedCwd, result.path, allowOutside);
       acquired = !!edit;
+      if (result.ok && result.path) {
+        const resolved = result.path;
+        setResolvedPaths((prev) =>
+          prev[resourceKey] === resolved ? prev : { ...prev, [resourceKey]: resolved },
+        );
+      }
       setLoaded({ key: resourceKey, result, cwd: resolvedCwd, edit });
     };
     void run().catch(() => {
@@ -559,6 +577,14 @@ export const ResourcePreview: React.FC<{
     enabled: !!result?.ok && ['text', 'markdown'].includes(result.kind ?? ''),
     canAsk: !originMismatch || conversationConnected,
   });
+  const menuEntry = menu ? entries.find((entry) => entry.key === menu.key) : undefined;
+  const menuCopyPath = menuEntry
+    ? (previewEntryFilePath(menuEntry, resolvedPaths[menuEntry.key]) ??
+      menuEntry.diff?.path ??
+      resourceTarget(menuEntry.href)?.path ??
+      menuEntry.href ??
+      null)
+    : null;
   return (
     <aside
       ref={root}
@@ -590,75 +616,112 @@ export const ResourcePreview: React.FC<{
               }}
             />
           )}
-          {entries.map((entry) => (
-            <div
-              key={entry.key}
-              className={styles.tab}
-              data-active={entry.key === active.key || undefined}
-              data-preview-tab-key={entry.key}
-              onContextMenu={(event) => {
-                event.preventDefault();
-                const trigger =
-                  event.currentTarget.querySelector<HTMLButtonElement>('[role="tab"]')!;
-                setMenu({ key: entry.key, x: event.clientX, y: event.clientY, trigger });
-              }}
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={entry.key === active.key}
-                aria-haspopup="menu"
-                aria-expanded={menu?.key === entry.key}
-                onKeyDown={(event) => {
-                  if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10'))
-                    return;
-                  event.preventDefault();
-                  const rect = event.currentTarget.getBoundingClientRect();
-                  setMenu({
-                    key: entry.key,
-                    x: rect.left,
-                    y: rect.bottom,
-                    trigger: event.currentTarget,
-                  });
+          {entries.map((entry) => {
+            const dragPath = previewEntryFilePath(entry, resolvedPaths[entry.key]);
+            return (
+              <div
+                key={entry.key}
+                className={styles.tab}
+                data-active={entry.key === active.key || undefined}
+                data-dragging={draggingKey === entry.key || undefined}
+                data-preview-tab-key={entry.key}
+                draggable={!!dragPath}
+                onPointerDown={(event) => {
+                  dragFromClose.current =
+                    event.target instanceof Element &&
+                    !!event.target.closest('[data-preview-tab-close]');
                 }}
-                onClick={() => guarded(() => onActive(entry.key))}
-                aria-label={
-                  entry.diff
-                    ? t('ui.session-workspace.diff-tab', basename(entry.diff.path))
-                    : undefined
-                }
-                data-preview-diff-tab={entry.diff ? '' : undefined}
+                onDragStart={(event) => {
+                  if (!dragPath) return;
+                  if (dragFromClose.current) {
+                    dragFromClose.current = false;
+                    event.preventDefault();
+                    return;
+                  }
+                  startFilePathDrag(event.dataTransfer, { path: dragPath, kind: 'file' });
+                  setDraggingKey(entry.key);
+                }}
+                onDragEnd={() => {
+                  dragFromClose.current = false;
+                  setDraggingKey(null);
+                  clearFilePathDrag();
+                }}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  const trigger =
+                    event.currentTarget.querySelector<HTMLButtonElement>('[role="tab"]')!;
+                  setMenu({ key: entry.key, x: event.clientX, y: event.clientY, trigger });
+                }}
               >
-                {entry.diff ? (
-                  <Icon icon={GitCompareArrows} size={13} className={styles.tabFileIcon} />
-                ) : embedded ? (
-                  <Icon icon={FileText} size={13} className={styles.tabFileIcon} />
-                ) : null}
-                <span className={styles.tabName}>
-                  {basename(entry.diff?.path ?? resourceTarget(entry.href)?.path ?? entry.href)}
-                </span>
-              </button>
-              <button
-                type="button"
-                className={styles.tabClose}
-                onClick={() => closeEntries([entry.key])}
-                aria-label={t('ui.session-workspace.preview-close-file')}
-              >
-                <Icon icon={X} size={12} />
-              </button>
-            </div>
-          ))}
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={entry.key === active.key}
+                  aria-haspopup="menu"
+                  aria-expanded={menu?.key === entry.key}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10'))
+                      return;
+                    event.preventDefault();
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setMenu({
+                      key: entry.key,
+                      x: rect.left,
+                      y: rect.bottom,
+                      trigger: event.currentTarget,
+                    });
+                  }}
+                  onClick={() => guarded(() => onActive(entry.key))}
+                  aria-label={
+                    entry.diff
+                      ? t('ui.session-workspace.diff-tab', basename(entry.diff.path))
+                      : undefined
+                  }
+                  data-preview-diff-tab={entry.diff ? '' : undefined}
+                >
+                  {entry.diff ? (
+                    <Icon icon={GitCompareArrows} size={13} className={styles.tabFileIcon} />
+                  ) : embedded ? (
+                    <Icon icon={FileText} size={13} className={styles.tabFileIcon} />
+                  ) : null}
+                  <span className={styles.tabName}>
+                    {basename(entry.diff?.path ?? resourceTarget(entry.href)?.path ?? entry.href)}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.tabClose}
+                  data-preview-tab-close=""
+                  draggable={false}
+                  onClick={() => closeEntries([entry.key])}
+                  aria-label={t('ui.session-workspace.preview-close-file')}
+                >
+                  <Icon icon={X} size={12} />
+                </button>
+              </div>
+            );
+          })}
         </div>
         <div className={styles.tabBarActions} data-testid="resource-preview-tabbar-actions">
           {!activeDiff && (
-            <button
-              type="button"
-              data-testid="resource-preview-refresh"
-              aria-label={t('ui.session-workspace.preview-refresh')}
-              onClick={refreshFile}
-            >
-              <Icon icon={RefreshCw} size={14} />
-            </button>
+            <>
+              <button
+                type="button"
+                data-testid="resource-preview-find"
+                aria-label={t('ui.session-workspace.preview-find')}
+                onClick={() => findControlRef.current?.open(false)}
+              >
+                <Icon icon={Search} size={14} />
+              </button>
+              <button
+                type="button"
+                data-testid="resource-preview-refresh"
+                aria-label={t('ui.session-workspace.preview-refresh')}
+                onClick={refreshFile}
+              >
+                <Icon icon={RefreshCw} size={14} />
+              </button>
+            </>
           )}
           {onToggleTree && (
             <button
@@ -678,10 +741,11 @@ export const ResourcePreview: React.FC<{
           )}
         </div>
       </div>
-      {menu && entries.some((entry) => entry.key === menu.key) && (
+      {menu && menuEntry && (
         <PreviewTabMenu
           target={menu}
           entries={entries}
+          copyPath={menuCopyPath}
           onDismiss={dismissMenu}
           onCloseEntries={closeEntries}
         />
@@ -697,6 +761,7 @@ export const ResourcePreview: React.FC<{
             key={active.key}
             draftKey={active.key}
             hideFileTabs
+            inactive={inactive}
             className={styles.diffReview}
             files={[activeDiff.file]}
             activeKey={activeDiff.file.key}
@@ -704,6 +769,7 @@ export const ResourcePreview: React.FC<{
             onActiveKey={noop}
             onClose={() => closeEntries([active.key])}
             onSaved={activeDiff.onSaved}
+            onRefresh={activeDiff.onRefresh}
           />
         </div>
       )}
@@ -763,15 +829,25 @@ export const ResourcePreview: React.FC<{
               {t(view.source ? 'ui.foundation.preview' : 'ui.session-workspace.preview-source')}
             </button>
           )}
-          {hideTabs && (
-            <button
-              type="button"
-              data-testid="resource-preview-refresh"
-              aria-label={t('ui.session-workspace.preview-refresh')}
-              onClick={refreshFile}
-            >
-              <Icon icon={RefreshCw} size={16} />
-            </button>
+          {hideTabs && !activeDiff && (
+            <>
+              <button
+                type="button"
+                data-testid="resource-preview-find"
+                aria-label={t('ui.session-workspace.preview-find')}
+                onClick={() => findControlRef.current?.open(false)}
+              >
+                <Icon icon={Search} size={16} />
+              </button>
+              <button
+                type="button"
+                data-testid="resource-preview-refresh"
+                aria-label={t('ui.session-workspace.preview-refresh')}
+                onClick={refreshFile}
+              >
+                <Icon icon={RefreshCw} size={16} />
+              </button>
+            </>
           )}
           {!embedded && (
             <button
@@ -817,6 +893,7 @@ export const ResourcePreview: React.FC<{
         <PreviewFind
           root={root}
           fileKey={active.key}
+          inactive={inactive || !!activeDiff}
           mode={
             activeDiff || !result?.ok
               ? 'unavailable'
@@ -826,7 +903,19 @@ export const ResourcePreview: React.FC<{
                   : 'document'
                 : 'unavailable'
           }
+          canReplace={
+            !activeDiff &&
+            !!result?.ok &&
+            !!edit &&
+            (isSource
+              ? view.source || result.kind === 'text'
+                ? result.kind === 'markdown' || !!view.editing
+                : result.kind === 'markdown'
+              : false)
+          }
           text={documentText}
+          markdownReplaceRef={markdownReplaceRef}
+          controlRef={findControlRef}
         />
         {editState.error && (
           <p className={styles.saveError} role="alert" data-testid="preview-save-error">
@@ -911,6 +1000,7 @@ export const ResourcePreview: React.FC<{
               editable={!!edit}
               onChange={edit?.change}
               editHistory={editHistory}
+              replaceHandleRef={markdownReplaceRef}
               context={context}
               documentDir={result.path ? dirname(result.path) : (active.scope.cwd ?? undefined)}
               documentPath={result.path}

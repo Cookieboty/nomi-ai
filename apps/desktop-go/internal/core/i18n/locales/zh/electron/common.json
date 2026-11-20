@@ -409,6 +409,7 @@
   "electron.common.task-card-summary": "创建持续任务「{0}」",
   "electron.common.task-card-task": "任务：{0}",
   "electron.common.task-card-terms": "期限：30 天；预算：每次最多 20 万 token、30 分钟，每天最多 1 美元，用完会停下来问你",
+  "electron.common.task-card-acceptance-user": "验收：完成后停在「需要你」等你确认（可在任务设置改为自动完成）",
   "electron.common.task-card-when": "何时：{0}",
   "electron.common.task-card-who": "谁来做：{0}",
   "electron.common.task-config-carrier-cli-changed": "这个任务上次的执行配置（agent、来源、账号、模型或思考深度）和现在的执行档位不一致，不能接着上一次的标签继续跑。已做的工作都保留在工作目录里：把执行档位改回与上次一致后点「继续」重跑；或者新建一个任务，从当前档位重新开始。",

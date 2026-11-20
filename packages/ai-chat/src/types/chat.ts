@@ -70,7 +70,7 @@ export interface ChatMessage {
     width: number;
     height: number;
     source?: string;
-    /** 原图存进素材库后的地址（chat-asset://images/user-…）：可放大、复制，模型改图 / 参考时引用 */
+    /** 原图存在本地聊天目录后的地址（chat-asset://images/user-…，不进素材库）：可放大、复制，模型改图 / 参考时引用 */
     url?: string;
   }>;
   /**
@@ -80,6 +80,8 @@ export interface ChatMessage {
    * 正文以「你加入了」标记开头（services/history.STEER_TAG）。
    */
   steer?: boolean;
+  /** 后台长程交接任务 id：用户在流式期间主动「转后台」或 `/bg` 直接建后台任务时关联展示状态卡片 */
+  handoffTaskId?: string;
 }
 
 /** 对话所属后端：与 harness 后端一致；侧栏列表按此后端隔离 */
@@ -107,6 +109,8 @@ export interface ChatSession {
    * 模型不支持时选择器不出现，请求也不带这个字段。
    */
   reasoningEffort?: string;
+  /** Nomi 对话的长上下文覆盖（按模型记录；缺省跟随「模型」页的默认设置） */
+  longContext?: { model: string; on: boolean };
   /** CLI 标签 id：有值时消息在 harness，侧栏只存元信息 */
   tabId?: string;
   /** CLI 原生会话 id：用于与本机历史按 backend + sessionId 去重 */
@@ -130,7 +134,14 @@ export interface ChatSession {
    * 应用中途重启（如更新）后挂回这个会话的待发列表。交出去 / 删除 / 撤回 / 合成发送之后同步改这里；
    * 空了就删掉这个字段。见 services/pendingSendsStore。
    */
-  pendingSends?: Array<{ id: string; text: string; mode: 'steer' | 'queue'; kb?: true }>;
+  pendingSends?: Array<{
+    id: string;
+    text: string;
+    mode: 'steer' | 'queue';
+    kb?: true;
+    attachmentsMissing?: true;
+    imageOnly?: true;
+  }>;
   /**
    * 已经交给这一轮、回复还没结束的插入消息（存在元信息里，中途重启后补成用户消息）。
    * 正常结束时清掉，它们只留在回复的轨迹里。见 contexts/chatTurn。

@@ -39,6 +39,7 @@ import React, {
 } from 'react';
 
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';
+import { requestOpenTask } from '../../services/tasksClient';
 import type { TranscriptView } from '../../services/transcriptView';
 import { thoughtLabel } from '../../utils/convTime';
 import type { LiveAgent } from '../../utils/liveState';
@@ -540,8 +541,12 @@ const Subagent: React.FC<{
     pane.openNested(call.id, parentTabId);
   };
   // 悬停卡片：后台 Nomi 看任务，其余看父转录里的这个子代理
-  const isNomiTask = baseToolName(call.name) === 'delegate_to_nomi';
-  const taskId = isNomiTask ? nomiTaskId(call.output) : undefined;
+  const baseTool = baseToolName(call.name);
+  const isNomiTask = baseTool === 'delegate_to_nomi';
+  const taskId =
+    baseTool === 'delegate_to_nomi' || baseTool === 'delegate_to_cli'
+      ? nomiTaskId(call.output)
+      : undefined;
   const hoverTarget: SubagentTarget | null = isNomiTask
     ? taskId
       ? { kind: 'nomi-task', taskId }
@@ -580,6 +585,19 @@ const Subagent: React.FC<{
           }}
         >
           {t('ui.session-workspace.view-subtask')}
+        </button>
+      )}
+      {taskId && (
+        <button
+          type="button"
+          className={styles.subCount}
+          data-testid="subagent-open-task"
+          onClick={(e) => {
+            e.stopPropagation();
+            requestOpenTask(taskId);
+          }}
+        >
+          {t('ui.providers-schedule.task-view-in-board')}
         </button>
       )}
       {children.length > 0 ? (

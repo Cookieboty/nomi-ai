@@ -3,6 +3,7 @@ import { cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Sidebar } from '../src/components/Sidebar';
+import type { ConvoOutcome } from '../src/contexts/aiChatState';
 import { setChatMode } from '../src/services/chatPrefs';
 
 const list = [
@@ -11,7 +12,11 @@ const list = [
 ];
 
 /** Nomi 对话没有 CLI 标签，侧栏只能从 busyConvos 知道它在回复 */
-const busy = vi.hoisted(() => ({ ids: ['chat'], done: [] as string[] }));
+const busy = vi.hoisted(() => ({
+  ids: ['chat'],
+  done: [] as string[],
+  outcomes: {} as Record<string, ConvoOutcome>,
+}));
 
 vi.mock('../src/contexts/AiChatContext', () => {
   const api = {
@@ -19,6 +24,7 @@ vi.mock('../src/contexts/AiChatContext', () => {
       messages: [],
       busyConvos: busy.ids,
       doneConvos: busy.done,
+      convoOutcomes: busy.outcomes,
       ipcClient: {
         listConversations: async () => list,
         currentConversationId: () => 'chat',
@@ -68,5 +74,29 @@ describe('Sidebar running dot', () => {
     // 还在跑的会话看的是进行中的点，不重复
     expect(row('chat').querySelector('[data-live="done"]')).toBeNull();
     busy.done.length = 0;
+  });
+
+  it('Nomi 失败与主动停止渲染 error / stopped 点而不渲染 done 绿点 (#408)', async () => {
+    busy.outcomes.idle = 'error';
+    const r1 = render(
+      <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
+    );
+    const row1 = (id: string) =>
+      r1.container.querySelector(`[data-conversation-id="${id}"]`) as HTMLElement;
+    await waitFor(() => expect(row1('idle')).toBeTruthy());
+    expect(row1('idle').querySelector('[data-live="error"]')).toBeTruthy();
+    expect(row1('idle').querySelector('[data-live="done"]')).toBeNull();
+    cleanup();
+
+    busy.outcomes.idle = 'stopped';
+    const r2 = render(
+      <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
+    );
+    const row2 = (id: string) =>
+      r2.container.querySelector(`[data-conversation-id="${id}"]`) as HTMLElement;
+    await waitFor(() => expect(row2('idle')).toBeTruthy());
+    expect(row2('idle').querySelector('[data-live="stopped"]')).toBeTruthy();
+    expect(row2('idle').querySelector('[data-live="done"]')).toBeNull();
+    delete busy.outcomes.idle;
   });
 });

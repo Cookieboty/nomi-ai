@@ -627,7 +627,7 @@ func TestCliRetireLandsOnAutoAccept(t *testing.T) {
 	rt.Start()
 	id := rt.Create(CreateInput{Title: "修 bug", Goal: "g", Trigger: Trigger{Kind: "manual"},
 		Executor: ExecutorSpec{Kind: "cli", Cli: sp("claude"), Cwd: sp("/repo"), Isolation: sp("worktree")},
-		Grant:    Grant{Level: 2, Paths: []string{"/repo"}}}).ID
+		Grant:    Grant{Level: 2, Paths: []string{"/repo"}}, Acceptance: "auto"}).ID
 	rt.Command(id, Command{Type: "runNow"})
 	waitFor(t, func() bool { return f.sendCount() == 1 })
 	f.finish("done")

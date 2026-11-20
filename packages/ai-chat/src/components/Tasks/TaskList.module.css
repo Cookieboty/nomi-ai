@@ -261,3 +261,32 @@
   background: var(--cd-color-accent-soft);
   color: var(--cd-color-accent-strong);
 }
+.badgesRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  font-size: var(--cd-font-size-xs);
+}
+.queueBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  padding: var(--cd-space-1) var(--cd-space-2);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent-strong);
+  font-size: var(--cd-font-size-xs);
+}
+.pendingNote {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+}
+.actionsInline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+}

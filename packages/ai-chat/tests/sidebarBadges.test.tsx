@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Sidebar } from '../src/components/Sidebar';
+import sidebarStyles from '../src/components/Sidebar/index.module.css';
 import { setChatMode, visibleEndpoints } from '../src/services/chatPrefs';
 
 // 会话面板的收回动画比通用退出动画长（Sidebar 里 usePresence(…, 220)，和 .panel[data-closing] 的 0.2s 对齐）
@@ -64,6 +65,7 @@ describe('Sidebar rows', () => {
     expect(view.queryByTestId('sidebar-panel')).toBeNull();
     fireEvent.mouseEnter(view.getByTestId('nav-chats'));
     expect(view.getByTestId('sidebar-panel').getAttribute('data-floating')).toBe('true');
+    expect(view.getByTestId('chat-sidebar').classList.contains(sidebarStyles.collapsed)).toBe(true);
     // 移出侧栏稍等一下才收起；中途回来不收
     fireEvent.mouseLeave(view.getByTestId('chat-sidebar'));
     fireEvent.mouseEnter(view.getByTestId('chat-sidebar'));
@@ -71,8 +73,10 @@ describe('Sidebar rows', () => {
     expect(view.getByTestId('sidebar-panel')).toBeTruthy();
     fireEvent.mouseLeave(view.getByTestId('chat-sidebar'));
     act(() => void vi.advanceTimersByTime(400));
-    // 收起时先放完收回动画再卸载
+    // 收起退场期间必须保持浮层定位与 52px 侧栏宽度，绝不掉回文档流挤动右侧卡片
     expect(view.getByTestId('sidebar-panel').hasAttribute('data-closing')).toBe(true);
+    expect(view.getByTestId('sidebar-panel').getAttribute('data-floating')).toBe('true');
+    expect(view.getByTestId('chat-sidebar').classList.contains(sidebarStyles.collapsed)).toBe(true);
     act(() => void vi.advanceTimersByTime(PANEL_EXIT_MS));
     expect(view.queryByTestId('sidebar-panel')).toBeNull();
     fireEvent.mouseEnter(view.getByTestId('nav-chats'));
@@ -80,6 +84,40 @@ describe('Sidebar rows', () => {
     act(() => void vi.advanceTimersByTime(PANEL_EXIT_MS));
     expect(view.queryByTestId('sidebar-panel')).toBeNull();
     vi.useRealTimers();
+  });
+
+  it('floating state resets when sidebar expands, so collapsing again cleanly unmounts the panel', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const props = { onToggle: () => undefined, onNewChat: () => undefined };
+    const view = render(<Sidebar {...props} collapsed />);
+    fireEvent.mouseEnter(view.getByTestId('nav-chats'));
+    expect(view.getByTestId('sidebar-panel').getAttribute('data-floating')).toBe('true');
+
+    // 浮层打开时展开侧栏，切为停靠面板
+    view.rerender(<Sidebar {...props} collapsed={false} />);
+    expect(view.getByTestId('sidebar-panel').hasAttribute('data-floating')).toBe(false);
+
+    // 再次收起后应正常退场并卸载，不残留上次的浮层 open 状态
+    view.rerender(<Sidebar {...props} collapsed />);
+    expect(view.getByTestId('sidebar-panel').hasAttribute('data-closing')).toBe(true);
+    act(() => void vi.advanceTimersByTime(PANEL_EXIT_MS));
+    expect(view.queryByTestId('sidebar-panel')).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('floating panel uses GPU-only keyframes without margin-right or clip-path', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const css = readFileSync(
+      resolve(__dirname, '../src/components/Sidebar/index.module.css'),
+      'utf8',
+    );
+    const floatIn = /@keyframes panelFloatIn\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? '';
+    const floatOut = /@keyframes panelFloatOut\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? '';
+    expect(floatIn).toContain('transform');
+    expect(floatOut).toContain('transform');
+    expect(floatIn).not.toMatch(/margin-right|clip-path/);
+    expect(floatOut).not.toMatch(/margin-right|clip-path/);
   });
 
   it('「全部」里只给 agent 的会话在行尾标一个灰色端点图标；Nomi 不标；标题前没有图标', async () => {

@@ -5,7 +5,13 @@ package tasks
 // 输入不被修改（结构体按值复制，指针字段只替换不改写）。
 // 用例：testdata/tasks-machine.json
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
+
+// AutoArchiveAfterMs：一次性终态任务（已完成 / 已取消 / 已确认失败）多久后自动折叠进已归档
+const AutoArchiveAfterMs = int64(24 * 3600_000)
 
 // Event：TaskEvent 判别联合（按 Type 区分，字段按需使用）
 type Event struct {
@@ -109,6 +115,8 @@ func releaseIfHeld(t *Task, gen int, fx *[]Effect) {
 func settle(t Task, at int64, fx *[]Effect) Task {
 	t.Wait, t.Pending = nil, nil
 	t.ConsecutiveFailures, t.RetryCount = 0, 0
+	t.LastRunStatus, t.LastRunAt = ptr("succeeded"), ptr(at)
+	t.AckedAt = nil
 	t.UpdatedAt = at
 	if IsRecurring(&t) {
 		if t.Enabled {
@@ -117,6 +125,7 @@ func settle(t Task, at int64, fx *[]Effect) Task {
 		t.Status = StatusIdle
 		return t
 	}
+	t.EndedAt = ptr(at)
 	t.Status = StatusDone
 	return t
 }
@@ -127,8 +136,11 @@ func giveUp(t Task, at int64, e TaskError, fx *[]Effect, countFailure bool) Task
 	t.LastError = &e
 	t.Wait, t.Pending = nil, nil
 	t.RetryCount = 0
+	t.LastRunStatus, t.LastRunAt = ptr("failed"), ptr(at)
+	t.AckedAt = nil
 	t.UpdatedAt = at
 	if !IsRecurring(&t) {
+		t.EndedAt = ptr(at)
 		t.Status = StatusFailed
 		return t
 	}
@@ -213,11 +225,12 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 		}
 		if grantExpired(&task, at) {
 			fx = append(fx, deliver("expired", nil))
-			t.Status, t.UpdatedAt = StatusExpired, at
+			t.Status, t.EndedAt, t.UpdatedAt = StatusExpired, ptr(at), at
 			return ok(t, attempt, fx)
 		}
 		pending := PendingRun{Cause: ev.Cause, EventKey: ev.EventKey}
 		t.RetryCount = 0
+		t.ArchivedAt, t.ArchiveReason, t.EndedAt, t.AckedAt = nil, nil, nil, nil
 		return ok(enqueue(t, at, pending, &fx), attempt, fx)
 
 	case "slot_acquired":
@@ -232,7 +245,7 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 		}
 		if grantExpired(&task, at) {
 			fx = append(fx, deliver("expired", nil))
-			t.Status, t.Pending, t.UpdatedAt = StatusExpired, nil, at
+			t.Status, t.Pending, t.EndedAt, t.UpdatedAt = StatusExpired, nil, ptr(at), at
 			return ok(t, attempt, fx)
 		}
 		gen := task.Gen + 1
@@ -458,7 +471,40 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 			return reject(task, attempt, "grant")
 		}
 		t.RetryCount, t.LastError = 0, nil
+		t.ArchivedAt, t.ArchiveReason, t.EndedAt, t.AckedAt = nil, nil, nil, nil
+		if ev.Outcome == "update_goal" && ev.Feedback != "" {
+			if strings.TrimSpace(t.Goal) == "" {
+				t.Goal = ev.Feedback
+			} else if !strings.Contains(t.Goal, ev.Feedback) {
+				t.Goal = t.Goal + "\n\n" + ev.Feedback
+			}
+		}
 		return ok(enqueue(t, at, PendingRun{Cause: "followup", Note: ptr(ev.Feedback), Images: ev.Images}, &fx), attempt, fx)
+
+	case "update_pending_note":
+		// 排队中补充本次执行指令：合并到 Pending.Note / Pending.Images，保持队列顺序不变
+		if task.Status != StatusQueued || (ev.Feedback == "" && len(ev.Images) == 0) {
+			return reject(task, attempt, "illegal")
+		}
+		p := PendingRun{Cause: "manual"}
+		if task.Pending != nil {
+			p = *task.Pending
+		}
+		if ev.Feedback != "" {
+			if p.Note != nil && *p.Note != "" {
+				merged := *p.Note + "\n" + ev.Feedback
+				p.Note = &merged
+			} else {
+				note := ev.Feedback
+				p.Note = &note
+			}
+		}
+		if len(ev.Images) > 0 {
+			p.Images = append(slices.Clone(p.Images), ev.Images...)
+		}
+		t.Pending = &p
+		t.UpdatedAt = at
+		return ok(t, attempt, fx)
 
 	case "cancel":
 		if IsTerminal(task.Status) {
@@ -472,6 +518,8 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 			a.Status = "cancelled"
 		}
 		t.Status, t.Gen, t.Wait, t.Pending, t.UpdatedAt = StatusCancelled, task.Gen+1, nil, nil, at
+		t.EndedAt, t.LastRunStatus, t.LastRunAt = ptr(at), ptr("cancelled"), ptr(at)
+		t.AckedAt = nil
 		return ok(t, a, fx)
 
 	case "pause":
@@ -609,7 +657,8 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 			gen++
 		}
 		fx = append(fx, deliver("expired", nil))
-		t.Status, t.Gen, t.Wait, t.Pending, t.UpdatedAt = StatusExpired, gen, nil, nil, at
+		t.Status, t.Gen, t.Wait, t.Pending, t.EndedAt, t.UpdatedAt = StatusExpired, gen, nil, nil, ptr(at), at
+		t.AckedAt = nil
 		return ok(t, a, fx)
 
 	case "grant_updated":
@@ -622,6 +671,7 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 				fx = append(fx, Effect{Kind: "schedule_next"})
 			}
 			t.Status, t.UpdatedAt = StatusIdle, at
+			t.ArchivedAt, t.ArchiveReason, t.EndedAt, t.AckedAt = nil, nil, nil, nil
 			return ok(t, attempt, fx)
 		}
 		if IsTerminal(task.Status) {
@@ -647,6 +697,44 @@ func Transition(task Task, attempt *Attempt, ev Event) Result {
 			return ok(t, attempt, fx)
 		}
 		t.UpdatedAt = at
+		return ok(t, attempt, fx)
+
+	case "archive":
+		if !IsTerminal(task.Status) && !(task.Status == StatusIdle && !task.Enabled) {
+			return reject(task, attempt, "illegal")
+		}
+		if task.ArchivedAt != nil {
+			return ok(t, attempt, fx)
+		}
+		reason := ev.Outcome
+		if reason == "" {
+			reason = "user"
+		}
+		t.ArchivedAt, t.ArchiveReason, t.UpdatedAt = ptr(at), ptr(reason), at
+		if (task.Status == StatusFailed || task.Status == StatusExpired) && task.AckedAt == nil {
+			t.AckedAt = ptr(at)
+		}
+		return ok(t, attempt, fx)
+
+	case "unarchive":
+		if task.ArchivedAt == nil {
+			return reject(task, attempt, "illegal")
+		}
+		t.ArchivedAt, t.ArchiveReason, t.UpdatedAt = nil, nil, at
+		// 从已归档还原回活跃看板时重置终态计时，防止下一个 tick 立刻又触发 24h 自动归档
+		if IsTerminal(t.Status) {
+			t.EndedAt = ptr(at)
+		}
+		return ok(t, attempt, fx)
+
+	case "ack":
+		if (task.Status != StatusFailed && task.Status != StatusExpired) || task.AckedAt != nil {
+			return reject(task, attempt, "illegal")
+		}
+		t.AckedAt, t.UpdatedAt = ptr(at), at
+		if t.EndedAt == nil {
+			t.EndedAt = ptr(at)
+		}
 		return ok(t, attempt, fx)
 	}
 	return reject(task, attempt, "illegal")

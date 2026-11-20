@@ -25,7 +25,9 @@ export const PendingDock = memo(function PendingDock({
   onFlush,
   failure,
   failedText,
+  failedId,
   onRetry,
+  onSendTextOnly,
 }: {
   items: readonly PendingSend[] | undefined;
   /** 撤回修改：文字与附图退回输入框，并从列表里移除 */
@@ -37,7 +39,11 @@ export const PendingDock = memo(function PendingDock({
   failure?: string;
   /** 失败的那条（提示用它的正文；与列表第一条一致） */
   failedText?: string;
+  /** 指定失败项 id（避免与附件缺失条目或其他项混淆） */
+  failedId?: string;
   onRetry?: () => void;
+  /** 重启后丢失图片的有文条目：仅发送文字 */
+  onSendTextOnly?: (id: string) => void;
 }) {
   useLocale();
   // 词典没加载 / 查不到时 t() 原样返回 key（里面没有 {0}），原因插不进去：这时把原因补在后面，
@@ -46,40 +52,90 @@ export const PendingDock = memo(function PendingDock({
   const heading =
     lead === 'ui.session-workspace.pending-send-failed' ? `${lead}：${failure}` : lead;
   if (!items?.length) return null;
+  const missingHead = items[0]?.attachmentsMissing ? items[0] : undefined;
+  const missingImageOnly = Boolean(
+    missingHead && (missingHead.imageOnly || !missingHead.text.trim()),
+  );
   return (
     <section
       className={styles.dock}
       aria-label={t('ui.session-workspace.pending-messages')}
       data-testid="pending-dock"
     >
-      {failure && (
-        <div className={styles.failure} role="alert" data-testid="pending-send-error">
-          <span className={styles.failureText}>
-            {heading}
-            {failedText ? `「${failedText}」` : ''}
+      {missingHead ? (
+        <div className={styles.missing} role="alert" data-testid="pending-attachments-missing">
+          <span className={styles.missingText}>
+            {missingImageOnly
+              ? t('ui.session-workspace.pending-send-image-only-missing')
+              : t('ui.session-workspace.pending-send-attachments-missing')}
           </span>
-          {onRetry && (
+          <div className={styles.missingActions}>
             <button
               type="button"
-              className={styles.failureRetry}
-              data-testid="pending-retry"
-              onClick={onRetry}
+              className={styles.missingAction}
+              data-testid="pending-reattach"
+              onClick={() => onWithdraw(missingHead)}
             >
-              {t('ui.foundation.retry')}
+              {t('ui.session-workspace.pending-reattach')}
             </button>
-          )}
+            {!missingImageOnly && onSendTextOnly && (
+              <button
+                type="button"
+                className={styles.missingAction}
+                data-testid="pending-send-text-only"
+                onClick={() => onSendTextOnly(missingHead.id)}
+              >
+                {t('ui.session-workspace.pending-send-text-only')}
+              </button>
+            )}
+            <button
+              type="button"
+              className={styles.missingAction}
+              data-testid="pending-missing-remove"
+              onClick={() => onRemove(missingHead.id)}
+            >
+              {t('ui.foundation.delete')}
+            </button>
+          </div>
         </div>
+      ) : (
+        failure && (
+          <div className={styles.failure} role="alert" data-testid="pending-send-error">
+            <span className={styles.failureText}>
+              {heading}
+              {failedText ? `「${failedText}」` : ''}
+            </span>
+            {onRetry && (
+              <button
+                type="button"
+                className={styles.failureRetry}
+                data-testid="pending-retry"
+                onClick={onRetry}
+              >
+                {t('ui.foundation.retry')}
+              </button>
+            )}
+          </div>
+        )
       )}
       <ul className={styles.list}>
         {items.map((item) => {
           const imgs = item.images;
           const first = imgs?.[0];
+          const isMissing = Boolean(item.attachmentsMissing);
+          const isFailed =
+            !isMissing &&
+            Boolean(failure && (failedId ? item.id === failedId : item.id === items[0]?.id));
+          const displayText =
+            item.imageOnly && !item.text.trim()
+              ? t('ui.session-workspace.pending-image-only-placeholder')
+              : item.text;
           return (
             <li
               key={item.id}
               className={styles.item}
               data-mode={item.mode}
-              data-state={failure && item.id === items[0]?.id ? 'failed' : undefined}
+              data-state={isMissing ? 'attachments-missing' : isFailed ? 'failed' : undefined}
               data-testid="pending-item"
             >
               <span className={styles.tag}>
@@ -98,8 +154,8 @@ export const PendingDock = memo(function PendingDock({
                   {imgs.length > 1 && <span className={styles.moreCount}>+{imgs.length - 1}</span>}
                 </span>
               )}
-              <span className={styles.text} title={item.text}>
-                {item.text}
+              <span className={styles.text} title={displayText}>
+                {displayText}
               </span>
               <button
                 type="button"

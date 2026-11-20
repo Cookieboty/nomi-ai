@@ -95,6 +95,7 @@ describe('运行中带图片发送与撤回回填', () => {
       expect(onQueue).toHaveBeenCalledWith('请看看这张图片。', {
         mode: 'steer',
         images: [fakeImg],
+        imageOnly: true,
       }),
     );
     expect(r.queryByTestId('attach-open')).toBeNull();

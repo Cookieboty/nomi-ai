@@ -67,7 +67,7 @@ func newLiveHarness(t *testing.T, script func(ctx context.Context, n int, emit f
 func (h *liveHarness) task() string {
 	tools := []string{"read"}
 	return h.rt.Create(CreateInput{Title: "整理", Goal: "整理文档", Trigger: Trigger{Kind: "manual"},
-		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools}, Grant: Grant{Level: 1}}).ID
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools}, Grant: Grant{Level: 1}, Acceptance: "auto"}).ID
 }
 
 func TestNomiLiveEventsAndSnapshot(t *testing.T) {
@@ -229,5 +229,37 @@ func TestFollowUpImagesReachTheModel(t *testing.T) {
 	im := msgs[len(msgs)-1].Images
 	if len(im) != 1 || im[0].Mime != "image/jpeg" || im[0].Data != "/9j/" {
 		t.Fatalf("%+v", im)
+	}
+}
+
+func TestNomiPersistsThinkingSegmentsInTrace(t *testing.T) {
+	h := newLiveHarness(t, func(_ context.Context, _ int, emit func(blm.ChatChunk)) error {
+		emit(blm.ChatChunk{Type: "reasoning", Content: "先分析"})
+		emit(blm.ChatChunk{Type: "reasoning", Content: "需求"})
+		emit(blm.ChatChunk{Type: "tool_call.delta", ID: sp("c1"), Name: sp("fs_read_text"), ArgumentsJSON: sp(`{"path":"a.md"}`)})
+		emit(blm.ChatChunk{Type: "tool_call.result", ID: sp("c1"), Name: sp("fs_read_text"), Output: sp("内容")})
+		emit(blm.ChatChunk{Type: "reasoning", Content: "准备回复"})
+		emit(blm.ChatChunk{Type: "delta", Content: "处理完成。"})
+		return nil
+	})
+	id := h.task()
+	h.rt.Command(id, Command{Type: "runNow"})
+	waitFor(t, func() bool { return h.rt.Get(id).Task.Status == StatusDone })
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var thoughts []map[string]any
+	for _, l := range h.traces {
+		if l["thinking"] != nil {
+			thoughts = append(thoughts, l)
+		}
+	}
+	if len(thoughts) != 2 {
+		t.Fatalf("expected 2 thinking segments, got %d: %+v", len(thoughts), h.traces)
+	}
+	if thoughts[0]["thinking"] != "先分析需求" || thoughts[0]["startedAt"] == nil || thoughts[0]["textAt"] != 0 {
+		t.Fatalf("unexpected first thinking line: %+v", thoughts[0])
+	}
+	if thoughts[1]["thinking"] != "准备回复" || thoughts[1]["startedAt"] == nil {
+		t.Fatalf("unexpected second thinking line: %+v", thoughts[1])
 	}
 }

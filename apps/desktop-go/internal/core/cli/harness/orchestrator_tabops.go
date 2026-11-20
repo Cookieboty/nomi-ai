@@ -676,6 +676,11 @@ func (o *Orchestrator) ApplyAutoTitle(id string, title any) *util.Obj {
 	return tab.Clone()
 }
 
+// HasTab 判断指定标签是否存在
+func (o *Orchestrator) HasTab(id string) bool {
+	return o.tab(id) != nil
+}
+
 // SetActiveTab = setActiveTab。
 func (o *Orchestrator) SetActiveTab(id string) *util.Obj {
 	prev := o.activeTabID

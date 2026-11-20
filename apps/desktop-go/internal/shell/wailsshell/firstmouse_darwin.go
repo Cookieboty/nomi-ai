@@ -9,10 +9,10 @@ package wailsshell
 #import <WebKit/WebKit.h>
 #import <objc/runtime.h>
 
-// 桌面角色窗口不是活动窗口时（在别的应用里、或对话窗口在前），macOS 把第一下点击只用来激活窗口，
-// 不交给网页：WKWebView 只有点在链接 / 图片这类可拖的元素上才接 first mouse。于是按住角色拖不动，
-// 得先点一下再拖。这里让打了标记的窗口（只有桌面角色窗口）里的 WKWebView 接收第一下点击；
-// 其它窗口（对话窗口）走原来的判断，不受影响。
+// 非激活浮窗（桌面角色、灵动岛）不是活动窗口时，macOS 默认把第一下点击只用来激活窗口，
+// 不交给网页：WKWebView 只有点在链接 / 图片这类可拖的元素上才接 first mouse。于是按住角色拖不动、
+// 点灵动岛通知需要点两次才触发 click。这里让打了标记的非激活浮窗里的 WKWebView 接收第一下点击；
+// 其它窗口（如对话窗口）走原来的判断，不受影响。
 static char nomiFirstMouseKey;
 static BOOL (*nomiOrigAcceptsFirstMouse)(id, SEL, NSEvent *);
 
@@ -45,7 +45,7 @@ import "C"
 
 import "github.com/wailsapp/wails/v3/pkg/application"
 
-// acceptFirstMouse：窗口不是活动窗口时，第一下点击也交给网页（桌面角色窗口：不用先点一下才能拖）
+// acceptFirstMouse：非激活浮窗（桌面角色 / 灵动岛）不是活动窗口时，第一下点击也直接交给网页
 func acceptFirstMouse(win *application.WebviewWindow) {
 	application.InvokeAsync(func() {
 		if p := win.NativeWindow(); p != nil {

@@ -29,6 +29,7 @@ pnpm 9 + Turborepo monorepo。桌面应用只有 Go 版（`apps/desktop-go`：Go
 ```bash
 pnpm install
 pnpm dev                 # 开发：Vite 开发服务器（renderer 6127、chat 6128，见 dev-ports.json）+ Go 程序，视图热更新，改 Go 代码自动重编译重启
+pnpm dev:prod            # 开发（使用生产配置）：同 pnpm dev，但省略 nomi_dev 隔离标签以复用正式版配置与数据目录（先退出正式版）
 pnpm build               # 构建视图与共享包
 pnpm typecheck && pnpm lint   # lint 覆盖全部包
 pnpm format:check

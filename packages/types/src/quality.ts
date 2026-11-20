@@ -54,6 +54,26 @@ export interface QualityTokens {
   reasoning?: number;
 }
 
+/** 一次请求 / 一轮捕捉到的无敏感模型指纹（核验实际后端与协议是否一致） */
+export interface QualityFingerprint {
+  /** 上游响应原样返回的模型名（不论是否与请求一致，便于区分「已验证一致」与「未上报」） */
+  responseModel?: string;
+  /** 上游响应对象 ID（如 chatcmpl- / resp_ / msg_ / UUID 等协议格式指纹） */
+  responseId?: string;
+  /** OpenAI 兼容协议的 system_fingerprint */
+  systemFingerprint?: string;
+  /** 上游返回的 service_tier（如 default / priority / flex） */
+  serviceTier?: string;
+  /** 是否观测到加密思考签名（Anthropic signature / Gemini thoughtSignature） */
+  hasThinkSig?: boolean;
+  /** 是否观测到密封推理内容（Responses encrypted_content / Anthropic redacted_thinking） */
+  hasSealedReasoning?: boolean;
+  /** 是否观测到思考文本输出 */
+  hasReasoningText?: boolean;
+  /** 白名单无敏感信息的上游特征响应头 */
+  headers?: Record<string, string>;
+}
+
 /** 网关层：每个候选一次尝试（供应商 / Key 视角按尝试计数） */
 export interface QualityAttempt {
   provider: string;
@@ -124,6 +144,8 @@ export interface QualityRecord {
   losses?: string[];
   /** RoutePlan 质量档（网关层；字段名避开 outcome） */
   routeQuality?: 'lossless' | 'good' | 'degraded';
+  /** 上游无敏感模型指纹（响应 ID / system_fingerprint / 特征响应头 / 推理签名等） */
+  fingerprint?: QualityFingerprint;
 }
 
 /** 请求明细的一行：记录本身 + 主进程补的展示名（不落盘） */

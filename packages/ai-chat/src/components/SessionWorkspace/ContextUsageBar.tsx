@@ -4,18 +4,26 @@
  * 用量优先取 CLI 最近一轮真实 usage，否则本地估算（界面标明）。
  */
 import { formatContext, t } from '@nomi-ai/ui';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 
+import { AiChatStoreContext } from '../../contexts/aiChatStore';
 import { useHarnessTabsCore } from '../../contexts/HarnessTabsContext';
+import {
+  CONVERSATIONS_CHANGED_EVENT,
+  notifyConversationsChanged,
+  type ConversationStore,
+} from '../../services/conversationStore';
 import { gatewayClient, type GatewayState } from '../../services/gatewayClient';
 import { harnessClient } from '../../services/harnessClient';
 import {
   injectedWindowFor,
   LONG_CONTEXT_HINT_RATIO,
+  longContextChoiceFor,
   longContextFor,
+  longContextForRef,
   reportedMatchesInjected,
 } from '../../services/longContext';
-import { useGatewayState } from '../../services/nomiModel';
+import { nomiMainRef, useGatewayState } from '../../services/nomiModel';
 import {
   contextWindowFor,
   fitContextWindow,
@@ -24,6 +32,7 @@ import {
   reportedContextWindow,
 } from '../../slash/tokens';
 import type { ConvMessage } from '../../types/conversation';
+import type { IPCClient } from '../../types/ipc';
 
 import styles from './SessionWorkspace.module.css';
 
@@ -38,19 +47,20 @@ const C = 2 * Math.PI * R;
 function useNomiContextWindow(
   enabled: boolean,
   gateway: GatewayState | null,
+  longContext?: boolean,
 ): { size: number; source: string } | null {
   const [win, setWin] = useState<{ size: number; source: string } | null>(null);
   useEffect(() => {
     if (!enabled) return;
     let alive = true;
-    void gatewayClient.nomiContext('chat').then((r) => {
+    void gatewayClient.nomiContext('chat', longContext).then((r) => {
       if (alive)
         setWin(r && r.window > 0 ? { size: r.window, source: r.source ?? 'default' } : null);
     });
     return () => {
       alive = false;
     };
-  }, [enabled, gateway]);
+  }, [enabled, gateway, longContext]);
   return enabled ? win : null;
 }
 
@@ -64,11 +74,29 @@ export const ContextUsageBar: React.FC<{
   const tab = tabs.isCliTab ? tabs.activeTab : null;
   const [longError, setLongError] = useState<string | null>(null);
   const gateway = useGatewayState();
+  const storeCtx = useContext(AiChatStoreContext);
+  const [convTick, setConvTick] = useState(0);
+  useEffect(() => {
+    const bump = () => setConvTick((n) => n + 1);
+    window.addEventListener(CONVERSATIONS_CHANGED_EVENT, bump);
+    return () => window.removeEventListener(CONVERSATIONS_CHANGED_EVENT, bump);
+  }, []);
+  void convTick;
+  const ipc = storeCtx?.store.get().ipcClient as IPCClient | undefined;
+  const convStore = ipc?.conversationStore?.() as ConversationStore | undefined;
+  const convId = ipc?.currentConversationId?.();
+  const nomiMeta =
+    convId && convStore?.get(convId)?.backend === 'nomi' ? convStore.get(convId) : undefined;
+  const nomiRef = !tabs.isCliTab ? nomiMainRef(gateway) : null;
+  const nomiChoice = longContextChoiceFor(nomiMeta?.longContext, nomiRef);
+  const nomiLong = longContextForRef(nomiRef, nomiChoice, gateway);
+  const nomiLongOverride = nomiLong ? nomiChoice : undefined;
+
   const long = tab ? longContextFor(tab, gateway) : null;
   const injected = tab ? injectedWindowFor(tab, gateway) : null;
   // Nomi 对话：窗口取内核按路由到的模型算的预算（与自动压缩同一份，gateway.nomiContext），
   // 不再走按模型名猜的经验表——网关模型名（如 openai/gpt-6-astra）经验表认不出会落到 128K
-  const nomiWin = useNomiContextWindow(!tabs.isCliTab, gateway);
+  const nomiWin = useNomiContextWindow(!tabs.isCliTab, gateway, nomiLongOverride);
   const baseWin = useMemo(() => {
     const reported = reportedContextWindow(messages);
     // 第三方标签：上报的窗口来自换模型 / 切长上下文之前（与这次要注入的对不上）时已过期，
@@ -123,15 +151,29 @@ export const ContextUsageBar: React.FC<{
       )
     : t('ui.session-workspace.current-context', formatTokens(est.used), formatTokens(win.size));
   const dash = (pct / 100) * C;
-  // 快到标准窗口（CLI 将自动压缩）且这个模型能开长上下文：提议开启，而不是只看着它被压缩
+  // 快到标准窗口（将自动压缩）且这个模型能开长上下文：提议开启，而不是只看着它被压缩
+  const activeLong = tab ? long : nomiLong;
   const offerLong =
-    !!tab && !!long && !long.on && est.used >= long.standard * LONG_CONTEXT_HINT_RATIO;
+    !!activeLong && !activeLong.on && est.used >= activeLong.standard * LONG_CONTEXT_HINT_RATIO;
   const enableLong = () => {
-    if (!tab) return;
-    setLongError(null);
-    harnessClient
-      .setTabLongContext(tab.id, true)
-      .catch((e: unknown) => setLongError(e instanceof Error ? e.message : String(e)));
+    if (tab) {
+      setLongError(null);
+      harnessClient
+        .setTabLongContext(tab.id, true)
+        .catch((e: unknown) => setLongError(e instanceof Error ? e.message : String(e)));
+      return;
+    }
+    if (nomiLong && convStore) {
+      const target =
+        convId && convStore.get(convId)?.backend === 'nomi'
+          ? convId
+          : ipc?.ensureConversationId?.();
+      if (!target) return;
+      convStore.updateMeta(target, {
+        longContext: nomiLong.modelDefault ? undefined : { model: nomiLong.ref, on: true },
+      });
+      notifyConversationsChanged();
+    }
   };
 
   return (
@@ -209,7 +251,7 @@ export const ContextUsageBar: React.FC<{
               </div>
             ))}
           </div>
-          {offerLong && long ? (
+          {offerLong && activeLong ? (
             <div className={styles.contextRingOffer} data-testid="long-context-offer">
               <div>{t('ui.session-workspace.near-the-standard-window-cli-will-compact')}</div>
               <button
@@ -218,10 +260,10 @@ export const ContextUsageBar: React.FC<{
                 data-testid="long-context-enable"
                 onClick={enableLong}
               >
-                {t('ui.models.enable-long-context', formatContext(long.full))}
+                {t('ui.models.enable-long-context', formatContext(activeLong.full))}
               </button>
-              {long.priceNote ? (
-                <div className={styles.contextRingTipRow}>{long.priceNote}</div>
+              {activeLong.priceNote ? (
+                <div className={styles.contextRingTipRow}>{activeLong.priceNote}</div>
               ) : null}
               {longError ? (
                 <div className={styles.contextRingOfferError} role="alert">

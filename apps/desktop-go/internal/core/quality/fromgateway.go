@@ -367,6 +367,9 @@ func FromGateway(e *u.Obj, id string, cost CostFn) *u.Obj {
 	if rq, ok := CleanRouteQuality(get(e, "routeQuality")); ok {
 		rec.Set("routeQuality", rq)
 	}
+	if fp := CleanFingerprint(get(e, "fingerprint")); fp != nil {
+		rec.Set("fingerprint", fp)
+	}
 	if s, ok := strOf(get(e, "tabId")); ok && reTabID.MatchString(s) {
 		rec.Set("tabId", s)
 	}
@@ -435,6 +438,13 @@ func SanitizeRecord(v any) *u.Obj {
 			r.Delete("losses")
 		}
 	}
+	if r.Has("fingerprint") {
+		if fp := CleanFingerprint(r.Get("fingerprint")); fp != nil {
+			r.Set("fingerprint", fp)
+		} else {
+			r.Delete("fingerprint")
+		}
+	}
 	return r
 }
 
@@ -493,4 +503,65 @@ func CleanRouteQuality(v any) (string, bool) {
 		return s, true
 	}
 	return "", false
+}
+
+var allowedFingerprintHeaders = func() map[string]bool {
+	m := make(map[string]bool, len(server.FingerprintHeaderNames))
+	for _, k := range server.FingerprintHeaderNames {
+		m[k] = true
+	}
+	return m
+}()
+
+// CleanFingerprint normalizes and strips non-whitelist / secret values from model identity signals.
+func CleanFingerprint(v any) *u.Obj {
+	o := obj(v)
+	if o == nil {
+		return nil
+	}
+	out := u.NewObj()
+	if s, ok := str(o.Get("responseModel"), 200); ok {
+		out.Set("responseModel", s)
+	}
+	if s, ok := str(o.Get("responseId"), 120); ok {
+		out.Set("responseId", s)
+	}
+	if s, ok := str(o.Get("systemFingerprint"), 120); ok {
+		out.Set("systemFingerprint", s)
+	}
+	if s, ok := str(o.Get("serviceTier"), 40); ok {
+		out.Set("serviceTier", s)
+	}
+	for _, bk := range []string{"hasThinkSig", "hasSealedReasoning", "hasReasoningText"} {
+		if b, ok := o.Get(bk).(bool); ok && b {
+			out.Set(bk, true)
+		}
+	}
+	if hdrs := obj(o.Get("headers")); hdrs != nil {
+		cleanHdrs := u.NewObj()
+		count := 0
+		for _, k := range hdrs.Keys() {
+			if count >= 12 {
+				break
+			}
+			lk := u.JSLower(u.JSTrim(k))
+			if !allowedFingerprintHeaders[lk] {
+				continue
+			}
+			if raw, ok := str(hdrs.Get(k), 120); ok {
+				val := u.JSTrim(u.UTF16Slice0(server.RedactText(raw, nil), 120))
+				if val != "" {
+					cleanHdrs.Set(lk, val)
+					count++
+				}
+			}
+		}
+		if cleanHdrs.Len() > 0 {
+			out.Set("headers", cleanHdrs)
+		}
+	}
+	if out.Len() == 0 {
+		return nil
+	}
+	return out
 }

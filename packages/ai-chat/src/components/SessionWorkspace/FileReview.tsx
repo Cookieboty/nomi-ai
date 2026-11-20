@@ -10,6 +10,7 @@ import {
   IconLayoutSidebarRightCollapse as SidebarCollapse,
   IconLayoutSidebarRightExpand as SidebarExpand,
   IconRefresh as RefreshCw,
+  IconSearch as Search,
   IconArrowBackUp as Undo2,
   IconDeviceFloppy as Save,
   IconX as X,
@@ -17,13 +18,17 @@ import {
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
+import { clearFilePathDrag, resolveDragPath, startFilePathDrag } from '../../utils/filePathDrag';
+import { parseGitStatus, splitUnifiedDiff } from '../../utils/gitStatusParse';
 import { shouldIgnoreEscape } from '../../utils/keyboard';
+import { diffAllAdded, parsePatch } from '../../utils/lineDiff';
 import type { ChangeEntry } from '../../utils/sessionChanges';
 import type { FileDiff } from '../../utils/toolTrace';
 import { undoErrorText, undoTurnChanges } from '../../utils/undoTurnChanges';
 import { workspaceRelPath } from '../../utils/workspacePath';
 import { confirmDialog } from '../ConfirmDialog';
 import { DiffView } from '../Conversation/DiffView';
+import { PreviewFind, type PreviewFindHandle } from '../ResourcePreview/PreviewFind';
 
 import {
   rememberReviewMode,
@@ -62,6 +67,10 @@ export const FileReview: React.FC<{
   onActiveKey: (key: string) => void;
   onClose: () => void;
   onSaved?: () => void;
+  /** 刷新 Diff 内容（由外层重拉 git diff / 变更） */
+  onRefresh?: () => void | Promise<void>;
+  /** 所在工作区标签页处于隐藏状态时为 true：不抢占全局快捷键 */
+  inactive?: boolean;
   /** 旁边已有文件列表（右栏）时不再显示文件标签条 */
   hideFileTabs?: boolean;
   /** 根节点额外的类（放进抽屉时撑满高度） */
@@ -82,6 +91,8 @@ export const FileReview: React.FC<{
   onActiveKey,
   onClose,
   onSaved,
+  onRefresh,
+  inactive = false,
   hideFileTabs = false,
   className,
   draftKey,
@@ -100,10 +111,18 @@ export const FileReview: React.FC<{
     };
   }, [store]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [disk, setDisk] = useState<string>('');
   const [binary, setBinary] = useState(false);
   const [saving, setSaving] = useState(false);
+  /** 手动刷新静态变更 Diff 时缓存的最新 git diff（或 null 表示已无改动） */
+  const [liveDiff, setLiveDiff] = useState<{
+    key: string;
+    baseGit?: FileDiff;
+    baseChange?: FileDiff;
+    diff: FileDiff | null;
+  } | null>(null);
   /** 应用内确认「丢弃本轮变更」（取代 window.confirm） */
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   /** 每个文件的草稿 / 是否有未保存改动（保存按钮要用，所以放 state；滚动 / 选区留在 viewState） */
@@ -121,17 +140,32 @@ export const FileReview: React.FC<{
   const viewState = useRef<Map<string, FileViewState>>(store.views);
   const bodyRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const findControlRef = useRef<PreviewFindHandle | null>(null);
+  const diffReqRef = useRef(0);
+  const [editorRevision, setEditorRevision] = useState(0);
   const idx = Math.max(
     0,
     files.findIndex((f) => f.key === activeKey),
   );
   const active = files[idx] ?? files[0];
+  if (
+    liveDiff &&
+    (liveDiff.key !== active?.key ||
+      liveDiff.baseGit !== active?.gitDiff ||
+      liveDiff.baseChange !== active?.change?.diff)
+  ) {
+    setLiveDiff(null);
+  }
+  const effectiveDiff =
+    liveDiff && liveDiff.key === active?.key
+      ? liveDiff.diff
+      : (active?.change?.diff ?? active?.gitDiff ?? null);
 
   // 换文件时：有 diff 先看 Diff，没有就直接编辑。只看文件和有没有 diff，
   // 列表刷新（窗口重新聚焦会刷新 git）不打断正在编辑 / 预览的文件。
   // 在渲染期就把模式 / 待确认丢弃重置好（而不是等 effect 之后再来一次渲染）：
   // 读盘 effect 只会看到最终的模式，切文件不会为旧模式多读一次盘
-  const activeHasDiff = !!(active?.change?.diff || active?.gitDiff);
+  const activeHasDiff = !!effectiveDiff;
   const initialMode: ReviewMode = activeHasDiff ? 'diff' : 'file';
   // 从外部草稿恢复时回到上次的模式（切走时正在编辑就还在编辑）
   const [mode, setMode] = useState<ReviewMode>(() => store.mode ?? initialMode);
@@ -280,6 +314,7 @@ export const FileReview: React.FC<{
       setDisk(st.baseline ?? r.content ?? '');
       // 读取期间编辑框被卸载：等它重新渲染出来再写回草稿与滚动 / 选区（见下方 layout effect）
       pendingRestore.current = { key: activeFileKey, disk: r.content ?? '' };
+      setEditorRevision((v) => v + 1);
     } catch (e) {
       if (request === generation.current) setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -302,11 +337,15 @@ export const FileReview: React.FC<{
     return () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       generation.current++;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      diffReqRef.current++;
     };
   }, [activeFileKey, mode, loadDisk]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || inactive || rootRef.current?.closest('[hidden]')) return;
+      if (e.target instanceof Element && e.target.closest('[data-testid="preview-find"]')) return;
       const tag = (e.target as HTMLElement)?.tagName;
       if (e.key === 'Escape') {
         // 聊天输入框等预览之外的输入控件里按 Esc 不关预览；预览自己的编辑框仍可 Esc 关闭
@@ -332,7 +371,7 @@ export const FileReview: React.FC<{
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [go, onClose]);
+  }, [go, inactive, onClose]);
 
   const saveRoot = active?.cwds?.length ? readRoot : cwd;
   const save = async () => {
@@ -409,11 +448,113 @@ export const FileReview: React.FC<{
     }
   };
 
+  const refreshDiff = useCallback(async () => {
+    if (!active) return;
+    const req = ++diffReqRef.current;
+    setRefreshing(true);
+    setErr(null);
+    try {
+      if (onRefresh) await onRefresh();
+      if (req !== diffReqRef.current) return;
+      const diffCwd = cwd || active.cwds?.[0] || '';
+      if (
+        (!onRefresh || (!active.gitDiff && !!active.change)) &&
+        diffCwd &&
+        typeof harnessClient.gitDiff === 'function'
+      ) {
+        const g = await harnessClient.gitDiff(diffCwd);
+        if (req !== diffReqRef.current) return;
+        if (g?.ok) {
+          const rel = workspaceRelPath(diffCwd, active.path)
+            .replace(/\\/g, '/')
+            .replace(/^\.\//, '');
+          const isStagedKey = /(?:^|:|\|)s:/.test(active.key);
+          const isUnstagedKey = /(?:^|:|\|)u:/.test(active.key);
+          const rawDiff = isStagedKey
+            ? (g.staged ?? g.diff ?? '')
+            : isUnstagedKey
+              ? (g.unstaged ?? g.diff ?? '')
+              : (g.diff ?? '');
+          const matched = splitUnifiedDiff(rawDiff).find((d) => d.file === rel);
+          if (matched) {
+            setLiveDiff({
+              key: active.key,
+              baseGit: active.gitDiff,
+              baseChange: active.change?.diff,
+              diff: { file: matched.file, diff: parsePatch(matched.body) },
+            });
+          } else {
+            const entry = parseGitStatus(g.status ?? '').find((item) => item.path === rel);
+            if (
+              !isStagedKey &&
+              entry?.untracked &&
+              typeof harnessClient.workspaceRead === 'function'
+            ) {
+              const readRes = await harnessClient.workspaceRead(diffCwd, rel);
+              if (req !== diffReqRef.current) return;
+              setLiveDiff({
+                key: active.key,
+                baseGit: active.gitDiff,
+                baseChange: active.change?.diff,
+                diff: readRes?.ok ? { file: rel, diff: diffAllAdded(readRes.content ?? '') } : null,
+              });
+            } else {
+              setLiveDiff({
+                key: active.key,
+                baseGit: active.gitDiff,
+                baseChange: active.change?.diff,
+                diff: null,
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      if (req === diffReqRef.current) setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      if (req === diffReqRef.current) setRefreshing(false);
+    }
+  }, [active, cwd, onRefresh]);
+
+  const replaceTextareaContent = useCallback(
+    (nextText: string, selStart: number, selEnd: number) => {
+      const ta = taRef.current;
+      if (!ta || !active) return;
+      ta.value = nextText;
+      try {
+        ta.setSelectionRange(selStart, selEnd);
+      } catch {
+        /* ignore */
+      }
+      const st = viewState.current.get(active.key) ?? {
+        scrollTop: ta.scrollTop,
+        selStart,
+        selEnd,
+      };
+      st.draft = nextText;
+      st.dirty = nextText !== (st.baseline ?? disk);
+      st.selStart = selStart;
+      st.selEnd = selEnd;
+      viewState.current.set(active.key, st);
+      commitMeta(active.key, st.draft, !!st.dirty);
+      setEditorRevision((v) => v + 1);
+    },
+    [active, commitMeta, disk],
+  );
+
   if (!active) return null;
 
-  const hasDiff = !!(active.change?.diff || active.gitDiff);
+  const hasDiff = !!effectiveDiff;
   const dirty = !!(store.views.get(active.key)?.dirty ?? meta[active.key]?.dirty);
   const busy = saving || !!store.views.get(active.key)?.saving;
+  const storedView = store.views.get(active.key);
+  const initialEditorValue =
+    storedView?.dirty && storedView.draft != null
+      ? storedView.draft
+      : (storedView?.baseline ?? disk);
+  const activeEditorText =
+    meta[active.key]?.dirty && meta[active.key]?.draft != null ? meta[active.key]!.draft! : disk;
+  void editorRevision;
 
   return (
     <div
@@ -532,11 +673,24 @@ export const FileReview: React.FC<{
           <button
             type="button"
             className={styles.iconBtn}
-            disabled={busy || loading}
+            aria-label={t('ui.session-workspace.preview-find')}
+            data-testid="preview-find-trigger"
+            onClick={() => findControlRef.current?.open(false)}
+          >
+            <Search size={14} />
+          </button>
+          <button
+            type="button"
+            className={styles.iconBtn}
+            disabled={busy || loading || refreshing}
             aria-label={t('ui.session-workspace.preview-refresh')}
             data-testid="preview-refresh"
             onClick={() => {
-              if (meta[active.key]?.dirty) {
+              if (mode === 'diff') {
+                void refreshDiff();
+                return;
+              }
+              if (dirty) {
                 void confirmDialog({
                   title: t('ui.session-workspace.preview-discard-draft-title'),
                   message: t('ui.session-workspace.preview-refresh-discard-message'),
@@ -550,14 +704,14 @@ export const FileReview: React.FC<{
                     st.draft = undefined;
                   }
                   commitMeta(active.key, undefined, false);
-                  void loadDisk();
+                  void Promise.all([loadDisk(), refreshDiff()]);
                 });
                 return;
               }
-              void loadDisk();
+              void Promise.all([loadDisk(), refreshDiff()]);
             }}
           >
-            <RefreshCw size={14} />
+            <RefreshCw size={14} className={refreshing ? styles.spin : undefined} />
           </button>
           {onToggleTree && (
             <button
@@ -592,33 +746,42 @@ export const FileReview: React.FC<{
 
       {!hideFileTabs && (
         <div className={styles.fileTabs} role="tablist" data-testid="preview-file-tabs">
-          {files.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              role="tab"
-              aria-selected={f.key === active.key}
-              data-active={f.key === active.key || undefined}
-              className={styles.fileTab}
-              onClick={() => {
-                persistView();
-                onActiveKey(f.key);
-              }}
-            >
-              {f.letter ? (
-                <span className={styles.letter} data-letter={f.letter}>
-                  {f.letter}
-                </span>
-              ) : null}
-              <span className={styles.fileTabName}>{f.path.split(/[/\\]/).pop()}</span>
-              {f.added || f.removed ? (
-                <span className={styles.stat}>
-                  {f.added ? <span className={styles.add}>+{f.added}</span> : null}
-                  {f.removed ? <span className={styles.del}>−{f.removed}</span> : null}
-                </span>
-              ) : null}
-            </button>
-          ))}
+          {files.map((f) => {
+            const dragPath = resolveDragPath(f.path, f.cwds?.[0] ?? cwd);
+            return (
+              <button
+                key={f.key}
+                type="button"
+                role="tab"
+                aria-selected={f.key === active.key}
+                data-active={f.key === active.key || undefined}
+                className={styles.fileTab}
+                draggable={!!dragPath}
+                onDragStart={(e) => {
+                  if (!dragPath) return;
+                  startFilePathDrag(e.dataTransfer, { path: dragPath, kind: 'file' });
+                }}
+                onDragEnd={() => clearFilePathDrag()}
+                onClick={() => {
+                  persistView();
+                  onActiveKey(f.key);
+                }}
+              >
+                {f.letter ? (
+                  <span className={styles.letter} data-letter={f.letter}>
+                    {f.letter}
+                  </span>
+                ) : null}
+                <span className={styles.fileTabName}>{f.path.split(/[/\\]/).pop()}</span>
+                {f.added || f.removed ? (
+                  <span className={styles.stat}>
+                    {f.added ? <span className={styles.add}>+{f.added}</span> : null}
+                    {f.removed ? <span className={styles.del}>−{f.removed}</span> : null}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -656,62 +819,87 @@ export const FileReview: React.FC<{
         </p>
       ) : null}
 
-      {mode === 'diff' ? (
-        <div
-          ref={bodyRef}
-          className={styles.previewBody}
-          data-testid="preview-diff-body"
-          onScroll={() => persistView()}
-        >
-          {active.change?.diff ? (
-            <DiffView diff={active.change.diff} cwd={cwd} fill split="auto" />
-          ) : active.gitDiff ? (
-            <DiffView diff={active.gitDiff} cwd={cwd} fill split="auto" />
-          ) : (
-            <p className={styles.empty}>
-              {t('ui.session-workspace.no-diff-switch-to-file-to-view-disk')}
-            </p>
-          )}
-        </div>
-      ) : (
-        <div
-          className={`${styles.previewBody} ${styles.previewEditorBody}`}
-          data-testid="preview-file-body"
-        >
-          {loading ? (
-            <p className={styles.empty}>{t('ui.session-workspace.reading')}</p>
-          ) : binary ? (
-            <p className={styles.empty}>
-              {t('ui.session-workspace.binary-file-cannot-edit-in-preview')}
-            </p>
-          ) : (
-            <textarea
-              ref={taRef}
-              className={styles.editor}
-              defaultValue={disk}
-              spellCheck={false}
-              data-testid="preview-editor"
-              aria-label={t('ui.session-workspace.edit-file')}
-              onChange={(e) => {
-                const st = viewState.current.get(active.key) ?? {
-                  scrollTop: 0,
-                  selStart: 0,
-                  selEnd: 0,
-                };
-                st.draft = e.target.value;
-                st.dirty = e.target.value !== (st.baseline ?? disk);
-                viewState.current.set(active.key, st);
-                commitMeta(active.key, st.draft, !!st.dirty);
-              }}
-              onScroll={() => persistView()}
-              onSelect={() => persistView()}
-            />
-          )}
-          {dirty ? (
-            <span className={styles.dirtyHint}>{t('ui.session-workspace.unsaved')}</span>
-          ) : null}
-        </div>
-      )}
+      <div className={styles.previewStage}>
+        <PreviewFind
+          root={rootRef}
+          fileKey={active.key}
+          inactive={inactive}
+          mode={
+            mode === 'diff'
+              ? effectiveDiff
+                ? 'document'
+                : 'unavailable'
+              : binary || loading
+                ? 'unavailable'
+                : 'textarea'
+          }
+          canReplace={mode === 'file' && !binary && !loading}
+          text={
+            mode === 'file'
+              ? activeEditorText
+              : `${effectiveDiff?.file ?? ''}:${effectiveDiff?.diff.lines.length ?? 0}`
+          }
+          textareaRef={taRef}
+          onReplaceTextarea={replaceTextareaContent}
+          controlRef={findControlRef}
+        />
+        {mode === 'diff' ? (
+          <div
+            ref={bodyRef}
+            className={styles.previewBody}
+            data-preview-find-content=""
+            data-testid="preview-diff-body"
+            onScroll={() => persistView()}
+          >
+            {effectiveDiff ? (
+              <DiffView diff={effectiveDiff} cwd={cwd} fill split="auto" />
+            ) : (
+              <p className={styles.empty}>
+                {t('ui.session-workspace.no-diff-switch-to-file-to-view-disk')}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div
+            className={`${styles.previewBody} ${styles.previewEditorBody}`}
+            data-testid="preview-file-body"
+          >
+            {loading ? (
+              <p className={styles.empty}>{t('ui.session-workspace.reading')}</p>
+            ) : binary ? (
+              <p className={styles.empty}>
+                {t('ui.session-workspace.binary-file-cannot-edit-in-preview')}
+              </p>
+            ) : (
+              <textarea
+                ref={taRef}
+                className={styles.editor}
+                defaultValue={initialEditorValue}
+                spellCheck={false}
+                data-testid="preview-editor"
+                aria-label={t('ui.session-workspace.edit-file')}
+                onChange={(e) => {
+                  const st = viewState.current.get(active.key) ?? {
+                    scrollTop: 0,
+                    selStart: 0,
+                    selEnd: 0,
+                  };
+                  st.draft = e.target.value;
+                  st.dirty = e.target.value !== (st.baseline ?? disk);
+                  viewState.current.set(active.key, st);
+                  commitMeta(active.key, st.draft, !!st.dirty);
+                  setEditorRevision((v) => v + 1);
+                }}
+                onScroll={() => persistView()}
+                onSelect={() => persistView()}
+              />
+            )}
+            {dirty ? (
+              <span className={styles.dirtyHint}>{t('ui.session-workspace.unsaved')}</span>
+            ) : null}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

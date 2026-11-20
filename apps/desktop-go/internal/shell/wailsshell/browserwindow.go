@@ -372,7 +372,7 @@ func descendantOf(node, child uintptr, parent func(uintptr) uintptr) bool {
 }
 
 // browserPopupJS：目标站点的 target=_blank / window.open 点了不该没反应。
-// 容器型平台（Wails 窗口）每次加载完成后注入；mac 的子视图走 WKNavigationDelegate，不需要这段。
+// 容器型平台（Wails 窗口）每次加载完成后注入；mac 的子视图走 WKUIDelegate，不需要这段。
 const browserPopupJS = `(function(){
   try {
     var go = function(u){ try { if (typeof u === "string" && /^https?:\/\//i.test(u)) { location.href = u; return true; } } catch (e) {} return false; };

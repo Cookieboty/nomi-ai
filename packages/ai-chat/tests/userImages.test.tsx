@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-/** 用户消息里的图片：点开看大图、复制；原图存进素材库的可以「以此修改 / 作为参考」填进输入框 */
+/** 用户消息里的图片：点开看大图、复制；存下了原图的可以「以此修改 / 作为参考」填进输入框 */
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -94,7 +94,7 @@ describe('importChatImages', () => {
     source: 'paste',
   });
 
-  it('逐张存进素材库，返回地址；存不进去的是空串（不挡发送）', async () => {
+  it('逐张存到本地，返回地址；存不进去的是空串（不挡发送）', async () => {
     const calls: unknown[] = [];
     installFakeApi({
       'chatAssets.import': (input: { data: string }) => {

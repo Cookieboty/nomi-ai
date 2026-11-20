@@ -23,6 +23,7 @@ import { useGitBranch } from '../../hooks/useGitBranch';
 import { useGitSync, useGitWorktrees } from '../../hooks/useGitSync';
 import { harnessClient, type GitDiffResult } from '../../services/harnessClient';
 import { buildCommitPrompt } from '../../utils/commitPrompt';
+import { clearFilePathDrag, resolveDragPath, startFilePathDrag } from '../../utils/filePathDrag';
 import { onWindowFocus } from '../../utils/focusRefresh';
 import {
   isNotGitRepoError,
@@ -82,6 +83,7 @@ const GitRow: React.FC<{
   area: GitArea;
   added?: number;
   removed?: number;
+  dragPath?: string | null;
   /** 本会话助手改过这个文件 */
   session?: ChangeEntry;
   selected: boolean;
@@ -97,6 +99,7 @@ const GitRow: React.FC<{
   area,
   added,
   removed,
+  dragPath,
   session,
   selected,
   onSelect,
@@ -112,7 +115,17 @@ const GitRow: React.FC<{
     data-session={session ? true : undefined}
     data-file={entry.path}
   >
-    <button type="button" className={styles.rowHead} onClick={onSelect}>
+    <button
+      type="button"
+      className={styles.rowHead}
+      draggable={!!dragPath}
+      onDragStart={(e) => {
+        if (!dragPath) return;
+        startFilePathDrag(e.dataTransfer, { path: dragPath, kind: 'file' });
+      }}
+      onDragEnd={() => clearFilePathDrag()}
+      onClick={onSelect}
+    >
       <span className={styles.letter} data-letter={letter} title={`${entry.index}${entry.work}`}>
         {letter}
       </span>
@@ -419,15 +432,23 @@ export const RepoGitSection: React.FC<{
       file: f,
       cwd: gitCwd,
       onSaved: () => void refreshGit(),
+      onRefresh: () => refreshGit(),
     }),
     [gitCwd, refreshGit],
   );
-  // git 刷新后，已经开着的 Diff 标签换成最新的改动
+  // git 刷新后，已经开着的 Diff 标签换成最新的改动（包括改动消失时清空旧 diff）
   const updateDiff = resource?.updateDiff;
+  const syncDiffs = resource?.syncDiffs;
+  const gitOk = !!git?.ok;
   useEffect(() => {
+    if (!gitOk) return;
+    if (syncDiffs) {
+      syncDiffs(`git\u0000${gitCwd}\u0000${keyPrefix}`, previewFiles.map(diffTabOf));
+      return;
+    }
     if (!updateDiff) return;
     for (const f of previewFiles) updateDiff(diffTabOf(f));
-  }, [previewFiles, diffTabOf, updateDiff]);
+  }, [gitOk, gitCwd, keyPrefix, previewFiles, diffTabOf, syncDiffs, updateDiff]);
 
   if (report.state !== 'git' || show === 'none') return null;
 
@@ -628,6 +649,7 @@ export const RepoGitSection: React.FC<{
                         area={r.area}
                         added={r.added}
                         removed={r.removed}
+                        dragPath={resolveDragPath(r.entry.path, gitCwd)}
                         session={changeByRel.get(r.entry.path)}
                         selected={
                           previewKey?.startsWith('g:')
@@ -671,6 +693,7 @@ export const RepoGitSection: React.FC<{
               onActiveKey={setPreviewKey}
               onClose={() => setPreviewKey(null)}
               onSaved={() => void refreshGit()}
+              onRefresh={() => refreshGit()}
             />,
             previewSlot,
           )

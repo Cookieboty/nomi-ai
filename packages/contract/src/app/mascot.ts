@@ -569,7 +569,7 @@ export const mascotProcedures = {
     input: z.void(),
     output: z.array(ChatAssetItem),
     surfaces: CHAT,
-    description: '素材库：全部生成的图片（Nomi / 各 agent），新的在前',
+    description: '素材库：全部生成的图片（Nomi / 各 agent），新的在前；用户发送的原图不进素材库',
   },
   'chatAssets.remove': {
     kind: 'mutation',
@@ -609,7 +609,7 @@ export const mascotProcedures = {
     output: ChatAssetItem,
     surfaces: CHAT,
     description:
-      '素材库：保存用户在对话里发送的原图（来源 user），返回素材项；模型可把它的 chat-asset 地址传给 image_generate',
+      '对话：保存用户在对话里发送的原图（文件名前缀 user-，不进素材库列表），返回素材项；模型可把它的 chat-asset 地址传给 image_generate',
   },
   'chatAssets.localImage': {
     kind: 'query',

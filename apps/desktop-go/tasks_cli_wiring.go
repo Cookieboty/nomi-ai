@@ -148,6 +148,19 @@ func (h taskCliHarness) CancelTab(id string) {
 	}
 }
 
+func (h taskCliHarness) SteerTab(id, text string) bool {
+	o := h.orch()
+	if o == nil {
+		return false
+	}
+	p, err := gilErr(func() *jsrt.Promise[bool] { return o.SteerTab(id, text) })
+	if err != nil {
+		return false
+	}
+	ok, err := jsrt.Block(p)
+	return err == nil && ok
+}
+
 func (h taskCliHarness) ReplyPermission(tabID, requestID string, allow bool) bool {
 	o := h.orch()
 	if o == nil {

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-/** CLI 用户附图灯箱：有素材库原图地址时预览走原图，不用 240px 缩略图 */
+/** CLI 用户附图灯箱：有本地原图地址时预览走原图，不用 240px 缩略图 */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';

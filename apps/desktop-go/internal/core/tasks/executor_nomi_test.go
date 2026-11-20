@@ -82,7 +82,7 @@ func status(h *nomiHarness, id string) string { return h.rt.Get(id).Task.Status 
 
 func nomiTask(h *nomiHarness, tools []string, level int, b *BudgetInput) string {
 	return h.rt.Create(CreateInput{Title: "看 CI", Goal: "g", Trigger: Trigger{Kind: "manual"},
-		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools}, Grant: Grant{Level: level}, Budget: b}).ID
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools}, Grant: Grant{Level: level}, Budget: b, Acceptance: "auto"}).ID
 }
 
 func TestNomiExecutorCompletes(t *testing.T) {
@@ -268,7 +268,7 @@ func TestNomiExecutorRetriesCarryProgressAndRecoverEmptyResult(t *testing.T) {
 	tools := []string{"read"}
 	id := rt.Create(CreateInput{
 		Title: "长程分析", Goal: "分析全项目", Trigger: Trigger{Kind: "manual"},
-		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools}, Grant: Grant{Level: 1},
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools}, Grant: Grant{Level: 1}, Acceptance: "auto",
 	}).ID
 	if got := rt.Get(id).Task.Budget.MaxRetries; got != 5 {
 		t.Fatalf("expected DefaultMaxRetries=5, got %d", got)
@@ -325,7 +325,7 @@ func TestNomiExecutorRoutedModelSnapshot(t *testing.T) {
 	rt.Start()
 	tools := []string{"read"}
 	id := rt.Create(CreateInput{Title: "t", Goal: "g", Trigger: Trigger{Kind: "manual"},
-		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools, Model: sp("model-a")}, Grant: Grant{Level: 1}}).ID
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools, Model: sp("model-a")}, Grant: Grant{Level: 1}, Acceptance: "auto"}).ID
 	rt.Command(id, Command{Type: "runNow"})
 	waitFor(t, func() bool { return rt.Get(id).Task.Status == StatusDone })
 	rec := rt.Get(id)

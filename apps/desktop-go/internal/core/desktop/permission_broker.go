@@ -35,6 +35,15 @@ type DesktopSettings struct {
 	CliSandboxAllow []SandboxAllow `json:"cliSandboxAllow,omitempty"`
 }
 
+// DelegateConfirmMeta：Nomi 委派给 agent 时的实际权限档与适用宿主保护（确认卡在批准前展示）
+type DelegateConfirmMeta struct {
+	Cli            string `json:"cli"`
+	PermissionMode string `json:"permissionMode"`
+	SandboxStatus  string `json:"sandboxStatus"`
+	WorkspaceGuard bool   `json:"workspaceGuard"`
+	EnvScrub       bool   `json:"envScrub"`
+}
+
 type ConfirmRequest struct {
 	ID           string  `json:"id"`
 	Tool         string  `json:"tool"`
@@ -58,6 +67,8 @@ type ConfirmRequest struct {
 	RememberGroup string `json:"rememberGroup,omitempty"`
 	// SessionCommand：跑命令的确认：可以「本会话始终执行」当前工作目录里的普通命令
 	SessionCommand string `json:"sessionCommand,omitempty"`
+	// Delegate：Nomi 委派确认时的实际 CLI 权限档与适用宿主保护
+	Delegate *DelegateConfirmMeta `json:"delegate,omitempty"`
 }
 
 // ScopeDecision：allowed | pick | denied | timeout（pick = 用户要自己另选文件夹）
@@ -411,6 +422,8 @@ type AuthorizeInput struct {
 	// Approved：用户已经同意过的那件事的延续（如向已同意的委派追问），不再问；
 	// 「计划」照样拦、「逐项确认」与给这个工具设了「每次都询问」照样问
 	Approved bool
+	// Delegate：委派确认时附加的实际权限档与宿主保护说明
+	Delegate *DelegateConfirmMeta
 }
 
 // AuthorizeIn：工作区里的操作要不要确认。「计划」档拦下写；Nomi「自动」档直接放行；
@@ -613,7 +626,7 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	if args == nil {
 		args = map[string]any{}
 	}
-	req := ConfirmRequest{Tool: i.Tool, Danger: i.Danger, Summary: i.Summary, ArgsJSON: u16slice(prettyJSON(args), 0, 4000), Dialog: d.Dialog, Rememberable: d.Rememberable, Reason: d.Reason}
+	req := ConfirmRequest{Tool: i.Tool, Danger: i.Danger, Summary: i.Summary, ArgsJSON: u16slice(prettyJSON(args), 0, 4000), Dialog: d.Dialog, Rememberable: d.Rememberable, Reason: d.Reason, Delegate: i.Delegate}
 	if grantable {
 		req.Rememberable, req.RememberGroup = true, publicGroup(group)
 	}

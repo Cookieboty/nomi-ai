@@ -205,6 +205,30 @@ export function scrollTabIntoStrip(
   }
 }
 
+const parseMinPx = (el: HTMLElement, fallback: number) => {
+  const n = parseFloat(getComputedStyle(el).minWidth);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+};
+
+const computeSlideWidth = (
+  totalW: number,
+  opts: { chatRatio?: number; chatWidth?: number },
+  chatEl: HTMLElement,
+  wsEl: HTMLElement,
+) => {
+  if (totalW <= 0) return 480;
+  const centerMin = parseMinPx(wsEl, 360);
+  const chatMin = parseMinPx(chatEl, 360);
+  const splitterW = 1; // .center-changes-splitter: width 5px + margin 0 -2px
+  const avail = Math.max(0, totalW - splitterW);
+  const maxSideW = Math.max(centerMin, avail - chatMin);
+  const desiredSide =
+    opts.chatWidth !== undefined && opts.chatRatio === undefined
+      ? avail - opts.chatWidth
+      : Math.round(avail * (1 - (opts.chatRatio ?? 0.5)));
+  return Math.min(maxSideW, Math.max(centerMin, desiredSide));
+};
+
 /**
  * 工作区「分栏 ↔ 双击全屏铺满 ↔ 向右拆分」以及「整栏滑入 ↔ 滑出」的空间连续过渡。
  * 动画结束后立即清除内联 transform，避免改变内部 fixed 浮层的定位包含块。
@@ -215,9 +239,10 @@ export function useWorkspaceLayoutMotion(opts: {
   split: boolean;
   open: boolean;
   closing?: boolean;
+  chatRatio?: number;
   chatWidth?: number;
 }): void {
-  const { mainRef, maximized, split, open, closing = false, chatWidth = 520 } = opts;
+  const { mainRef, maximized, split, open, closing = false, chatRatio, chatWidth } = opts;
   const prevRef = useRef<{
     maximized: boolean;
     split: boolean;
@@ -240,13 +265,17 @@ export function useWorkspaceLayoutMotion(opts: {
     // 1. 分栏态展开右侧工作区：宽度守恒推拉（右栏固定目标宽并从负右边距滑入，左栏同步从 100% 平滑收窄）
     if (!prev.open && open && !maximized && chatEl && workspaceEl) {
       const totalW = host.clientWidth;
-      const sideW = totalW > 0 ? Math.max(360, totalW - chatWidth - 5) : 480;
+      const sideW = computeSlideWidth(totalW, { chatRatio, chatWidth }, chatEl, workspaceEl);
       const savedChat = {
-        flex: chatEl.style.flex,
+        flexGrow: chatEl.style.flexGrow,
+        flexShrink: chatEl.style.flexShrink,
+        flexBasis: chatEl.style.flexBasis,
         width: chatEl.style.width,
         maxWidth: chatEl.style.maxWidth,
       };
-      chatEl.style.flex = '1 1 0';
+      chatEl.style.flexGrow = '1';
+      chatEl.style.flexShrink = '1';
+      chatEl.style.flexBasis = '0px';
       chatEl.style.width = 'auto';
       chatEl.style.maxWidth = 'none';
       workspaceEl.style.flex = `0 0 ${sideW}px`;
@@ -257,7 +286,9 @@ export function useWorkspaceLayoutMotion(opts: {
       workspaceEl.style.transition = 'margin-inline-end 0.24s var(--cd-ease-out)';
       workspaceEl.style.marginInlineEnd = '0px';
       const clearSlideIn = (settled = true) => {
-        chatEl.style.flex = savedChat.flex;
+        chatEl.style.flexGrow = savedChat.flexGrow;
+        chatEl.style.flexShrink = savedChat.flexShrink;
+        chatEl.style.flexBasis = savedChat.flexBasis;
         chatEl.style.width = savedChat.width;
         chatEl.style.maxWidth = savedChat.maxWidth;
         workspaceEl.style.flex = '';
@@ -276,8 +307,19 @@ export function useWorkspaceLayoutMotion(opts: {
       const measuredW = workspaceEl.getBoundingClientRect().width;
       const totalW = host.clientWidth;
       const sideW =
-        measuredW > 0 ? measuredW : totalW > 0 ? Math.max(360, totalW - chatWidth - 5) : 480;
-      chatEl.style.flex = '1 1 0';
+        measuredW > 0
+          ? measuredW
+          : computeSlideWidth(totalW, { chatRatio, chatWidth }, chatEl, workspaceEl);
+      const savedChat = {
+        flexGrow: chatEl.style.flexGrow,
+        flexShrink: chatEl.style.flexShrink,
+        flexBasis: chatEl.style.flexBasis,
+        width: chatEl.style.width,
+        maxWidth: chatEl.style.maxWidth,
+      };
+      chatEl.style.flexGrow = '1';
+      chatEl.style.flexShrink = '1';
+      chatEl.style.flexBasis = '0px';
       chatEl.style.width = 'auto';
       chatEl.style.maxWidth = 'none';
       workspaceEl.style.flex = `0 0 ${sideW}px`;
@@ -288,9 +330,11 @@ export function useWorkspaceLayoutMotion(opts: {
       workspaceEl.style.transition = 'margin-inline-end 0.2s var(--cd-ease)';
       workspaceEl.style.marginInlineEnd = `-${sideW}px`;
       const clearSlideOut = (settled = true) => {
-        chatEl.style.flex = '';
-        chatEl.style.width = '';
-        chatEl.style.maxWidth = '';
+        chatEl.style.flexGrow = savedChat.flexGrow;
+        chatEl.style.flexShrink = savedChat.flexShrink;
+        chatEl.style.flexBasis = savedChat.flexBasis;
+        chatEl.style.width = savedChat.width;
+        chatEl.style.maxWidth = savedChat.maxWidth;
         workspaceEl.style.flex = '';
         workspaceEl.style.width = '';
         workspaceEl.style.transition = '';
@@ -334,5 +378,5 @@ export function useWorkspaceLayoutMotion(opts: {
     return () => {
       for (const fn of cleanups) fn();
     };
-  }, [mainRef, maximized, split, open, closing, chatWidth]);
+  }, [mainRef, maximized, split, open, closing, chatRatio, chatWidth]);
 }

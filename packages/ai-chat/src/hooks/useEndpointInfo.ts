@@ -61,10 +61,17 @@ export function configPathsOf(
   return path ? [{ label: path.slice(path.lastIndexOf('/') + 1), path }] : [];
 }
 
+const usageMemo: Record<string, UsageEndpointInfo> = {};
+
+/** 测试用：清掉用量内存缓存 */
+export function resetEndpointInfoMemo(): void {
+  for (const k of Object.keys(usageMemo)) delete usageMemo[k];
+}
+
 export function useEndpointInfo(backend: ConversationBackend, enabled = true): EndpointInfo {
   const q = useToolQuota({ poll: false });
-  const [cli, setCli] = useState<CliInstallInfo[] | null>(null);
-  const [usage, setUsage] = useState<Record<string, UsageEndpointInfo>>({});
+  const [cli, setCli] = useState<CliInstallInfo[] | null>(() => cliUpdateClient.cached());
+  const [usage, setUsage] = useState<Record<string, UsageEndpointInfo>>(() => ({ ...usageMemo }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -81,7 +88,11 @@ export function useEndpointInfo(backend: ConversationBackend, enabled = true): E
     (b: ConversationBackend) =>
       usageClient
         .endpoint(b)
-        .then((u) => alive.current && isEndpointInfo(u) && setUsage((m) => ({ ...m, [b]: u })))
+        .then((u) => {
+          if (!alive.current || !isEndpointInfo(u)) return;
+          usageMemo[b] = u;
+          setUsage((m) => ({ ...m, [b]: u }));
+        })
         .catch((e: unknown) => {
           if (alive.current) setError(e instanceof Error ? e.message : String(e));
         }),

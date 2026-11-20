@@ -298,6 +298,16 @@ export const DesktopConfirmRequest = z.looseObject({
   sessionCommand: z.string().optional(),
   /** 勾「记住」= 这个对话里这类操作不再问：files 改文件 / delegate 委派与追问 / tool 这个工具 */
   rememberGroup: z.enum(['files', 'delegate', 'computer', 'tool']).optional(),
+  /** Nomi 委派确认时的实际 CLI 权限档与适用宿主保护 */
+  delegate: z
+    .looseObject({
+      cli: z.string(),
+      permissionMode: z.enum(['plan', 'manual', 'acceptEdits', 'auto', 'bypass']),
+      sandboxStatus: z.enum(['on', 'off', 'unsupported']),
+      workspaceGuard: z.boolean(),
+      envScrub: z.boolean(),
+    })
+    .optional(),
 });
 
 export const DesktopState = z.looseObject({

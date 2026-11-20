@@ -54,6 +54,8 @@ export interface DiffTabSpec {
   cwd?: string | null;
   /** 在 Diff 里保存了文件之后（刷新 git） */
   onSaved?: () => void;
+  /** 刷新这份 Diff（重新拉取 git diff / 变更） */
+  onRefresh?: () => void | Promise<void>;
 }
 export interface ResourceContextValue {
   scope: ResourceScope;
@@ -62,6 +64,8 @@ export interface ResourceContextValue {
   openDiff?: (diff: DiffTabSpec) => void;
   /** 已经开着的 Diff 标签换成最新的改动（没开着不打开） */
   updateDiff?: (diff: DiffTabSpec) => void;
+  /** 同步某仓库/前缀下所有已打开的 Diff 标签：仍在列表中的更新为最新改动，已消失的清空其 gitDiff */
+  syncDiffs?: (prefix: string, diffs: readonly DiffTabSpec[]) => void;
 }
 export const ResourceContext = createContext<ResourceContextValue | null>(null);
 export const useResourceContext = () => useContext(ResourceContext);

@@ -9,12 +9,14 @@ import {
   IconGitCompare as GitCompareArrows,
   IconWorld as Globe,
   IconMessageCirclePlus as MessageCirclePlus,
+  IconRoute as RouteIcon,
   IconSearch as Search,
   IconTerminal2 as TerminalIcon,
 } from '@tabler/icons-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { harnessClient, type WorkspaceTreeNode } from '../../services/harnessClient';
+import { clearFilePathDrag, resolveDragPath, startFilePathDrag } from '../../utils/filePathDrag';
 import { rankItems } from '../../utils/fuzzy';
 import { basename, workspaceFileHref } from '../../utils/resourceLinks';
 import { parseBrowserUrl } from '../../utils/sideTabs';
@@ -63,9 +65,11 @@ export const NewTabPage: React.FC<{
   roots?: readonly string[] | null;
   projectPrimary?: string | null;
   changesCount?: number;
+  hasSessionTrace?: boolean;
   onOpenChanges: () => void;
   onOpenFiles: () => void;
   onOpenSideChat: () => void;
+  onOpenTrace?: () => void;
   onOpenBrowser: (url: string) => void;
   onOpenTerminal: () => void;
   onOpenFile: (href: string, root: string) => void;
@@ -76,9 +80,11 @@ export const NewTabPage: React.FC<{
   roots,
   projectPrimary,
   changesCount,
+  hasSessionTrace = false,
   onOpenChanges,
   onOpenFiles,
   onOpenSideChat,
+  onOpenTrace,
   onOpenBrowser,
   onOpenTerminal,
   onOpenFile,
@@ -222,6 +228,20 @@ export const NewTabPage: React.FC<{
           tone: 'neutral',
           onClick: onOpenSideChat,
         },
+        ...(onOpenTrace
+          ? [
+              {
+                id: 'trace',
+                testId: 'new-tab-open-trace',
+                icon: RouteIcon,
+                label: t('ui.devtools.session-trace'),
+                description: t('ui.session-workspace.new-tab-desc-trace'),
+                tone: 'neutral' as const,
+                disabled: !hasSessionTrace,
+                onClick: onOpenTrace,
+              },
+            ]
+          : []),
       ],
     },
   ];
@@ -277,22 +297,31 @@ export const NewTabPage: React.FC<{
               </kbd>
               {hits.length > 0 && (
                 <ul className={styles.suggest} role="listbox" data-testid="new-tab-file-hits">
-                  {hits.map((hit, i) => (
-                    <li key={`${hit.root}:${hit.path}`}>
-                      <button
-                        type="button"
-                        role="option"
-                        aria-selected={i === active}
-                        data-active={i === active || undefined}
-                        onMouseEnter={() => setActive(i)}
-                        onClick={() => submit(i)}
-                      >
-                        <Icon icon={FileText} size={14} />
-                        <span>{hit.name}</span>
-                        <span className={styles.suggestPath}>{hit.path}</span>
-                      </button>
-                    </li>
-                  ))}
+                  {hits.map((hit, i) => {
+                    const dragPath = resolveDragPath(hit.path, hit.root);
+                    return (
+                      <li key={`${hit.root}:${hit.path}`}>
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={i === active}
+                          data-active={i === active || undefined}
+                          draggable={!!dragPath}
+                          onDragStart={(e) => {
+                            if (!dragPath) return;
+                            startFilePathDrag(e.dataTransfer, { path: dragPath, kind: 'file' });
+                          }}
+                          onDragEnd={() => clearFilePathDrag()}
+                          onMouseEnter={() => setActive(i)}
+                          onClick={() => submit(i)}
+                        >
+                          <Icon icon={FileText} size={14} />
+                          <span>{hit.name}</span>
+                          <span className={styles.suggestPath}>{hit.path}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </form>

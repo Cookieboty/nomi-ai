@@ -673,6 +673,45 @@
   font-variant-numeric: tabular-nums;
   color: var(--cd-color-text-subtle);
 }
+.handoffBtn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  height: var(--cd-control-h-xs);
+  padding: 0 var(--cd-space-2);
+  border-radius: var(--cd-radius-full);
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface);
+  font-size: var(--conv-meta);
+  font-weight: var(--cd-font-weight-medium);
+  color: var(--cd-color-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background var(--cd-duration-fast) var(--cd-ease),
+    color var(--cd-duration-fast) var(--cd-ease),
+    border-color var(--cd-duration-fast) var(--cd-ease);
+}
+.handoffBtn:hover:not(:disabled) {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+  border-color: var(--cd-color-border-strong);
+}
+.handoffBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+}
+.handoffBtn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.minimalHandoffRow {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  margin-top: var(--cd-space-1);
+}
 @media (prefers-reduced-motion: reduce) {
   .statusSpin > svg {
     animation: none;

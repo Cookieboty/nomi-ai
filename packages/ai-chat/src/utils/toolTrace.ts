@@ -337,7 +337,22 @@ export function entriesFromLegacyTools(tools: readonly string[]): TraceEntry[] {
 // ───────────────────────── 分类 / 摘要 ─────────────────────────
 
 const KIND_TABLE: Record<ToolKind, readonly string[]> = {
-  read: ['read', 'read_file', 'readfile', 'view', 'view_file', 'cat', 'open_file', 'notebookread'],
+  read: [
+    'read',
+    'read_file',
+    'readfile',
+    'view',
+    'view_file',
+    'cat',
+    'open_file',
+    'notebookread',
+    'fs_read_text',
+    'fs_stat',
+    'fs_summarize',
+    'clipboard_read',
+    'skill_read',
+    'skill_read_ref',
+  ],
   search: [
     'grep',
     'glob',
@@ -350,8 +365,23 @@ const KIND_TABLE: Record<ToolKind, readonly string[]> = {
     'codebase_search',
     'grep_search',
     'search_code',
+    'fs_search',
+    'knowledge_search',
+    'memory_search',
+    'memory_recall',
   ],
-  list: ['ls', 'list_dir', 'list_directory', 'list_files', 'listdir', 'tree', 'read_dir'],
+  list: [
+    'ls',
+    'list_dir',
+    'list_directory',
+    'list_files',
+    'listdir',
+    'tree',
+    'read_dir',
+    'fs_list',
+    'computer_list_apps',
+    'reminder_list',
+  ],
   edit: [
     'edit',
     'multiedit',
@@ -366,8 +396,22 @@ const KIND_TABLE: Record<ToolKind, readonly string[]> = {
     'file_change',
     'replace',
     'replace_in_file',
+    'fs_edit',
+    'fs_move',
+    'fs_copy',
+    'fs_trash',
+    'undo_last',
   ],
-  write: ['write', 'write_file', 'writefile', 'create_file', 'create'],
+  write: [
+    'write',
+    'write_file',
+    'writefile',
+    'create_file',
+    'create',
+    'fs_write_text',
+    'fs_mkdir',
+    'clipboard_write',
+  ],
   command: [
     'bash',
     'shell',
@@ -382,6 +426,8 @@ const KIND_TABLE: Record<ToolKind, readonly string[]> = {
     'local_shell',
     'bashoutput',
     'killshell',
+    'workspace_run',
+    'code_run',
   ],
   subagent: [
     // Nomi 派给 agent 的子任务（docs/development/coding-agents.md）：时间线里显示成子任务卡片
@@ -397,7 +443,20 @@ const KIND_TABLE: Record<ToolKind, readonly string[]> = {
     'spawn_agent',
     'dispatch_agent',
   ],
-  web: ['websearch', 'web_search', 'webfetch', 'web_fetch', 'fetch', 'fetch_url', 'browser'],
+  web: [
+    'websearch',
+    'web_search',
+    'webfetch',
+    'web_fetch',
+    'fetch',
+    'fetch_url',
+    'browser',
+    'browser_open',
+    'browser_read',
+    'browser_click',
+    'browser_type',
+    'browser_close',
+  ],
   todo: ['todowrite', 'todo_write', 'todo', 'update_plan', 'plan', 'exitplanmode'],
   other: [],
 };
@@ -467,9 +526,12 @@ const PATH_KEYS = [
   'notebook_path',
   'directory',
   'dir',
+  'root',
+  'from',
+  'to',
 ] as const;
-const PATTERN_KEYS = ['pattern', 'query', 'regex', 'q', 'search', 'glob', 'text'] as const;
-const COMMAND_KEYS = ['command', 'cmd', 'script'] as const;
+const PATTERN_KEYS = ['pattern', 'query', 'regex', 'q', 'search', 'glob', 'text', 'contains', 'name'] as const;
+const COMMAND_KEYS = ['command', 'cmd', 'script', 'code'] as const;
 
 /** 过长路径只保留末尾几段 */
 export function shortPath(p: string, max = 56): string {
@@ -539,13 +601,20 @@ export function describeCall(call: ToolCall): CallDescription {
     }
     case 'web': {
       const url = firstString(o, ['url']);
-      return url
-        ? { kind, verb: t('ui.usage-tools.open'), target: trimTarget(url, 100) }
-        : {
-            kind,
-            verb: t('ui.usage-tools.search-the-web'),
-            target: pattern ? trimTarget(pattern, 80) : undefined,
-          };
+      if (url) return { kind, verb: t('ui.usage-tools.open'), target: trimTarget(url, 100) };
+      if (baseToolName(call.name).startsWith('browser_')) {
+        const selector = firstString(o, ['selector', 'text']);
+        return {
+          kind,
+          verb: t('ui.usage-tools.open'),
+          target: selector ? `${call.name} · ${trimTarget(firstLine(selector), 80)}` : call.name,
+        };
+      }
+      return {
+        kind,
+        verb: t('ui.usage-tools.search-the-web'),
+        target: pattern ? trimTarget(pattern, 80) : undefined,
+      };
     }
     case 'todo':
       return { kind, verb: t('ui.usage-tools.update-task-list') };
@@ -690,7 +759,12 @@ function computeDiffs(call: ToolCall): FileDiff[] {
     });
     return [{ file, diff: merged }];
   }
-  const content = typeof o.content === 'string' ? o.content : undefined;
+  const content =
+    typeof o.content === 'string'
+      ? o.content
+      : typeof o.text === 'string'
+        ? o.text
+        : undefined;
   if (content !== undefined && kind === 'write') return [{ file, diff: diffAllAdded(content) }];
   return [];
 }

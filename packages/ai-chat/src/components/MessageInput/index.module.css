@@ -226,6 +226,24 @@
   outline-offset: 2px;
 }
 
+.pathDropHint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + var(--cd-space-2));
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: var(--cd-z-chat-input);
+  white-space: nowrap;
+  padding: var(--cd-space-1) var(--cd-space-3);
+  border-radius: var(--cd-radius-full);
+  border: 1px solid var(--cd-color-accent);
+  background: var(--cd-color-surface-raised);
+  color: var(--cd-color-accent-strong);
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-medium);
+  box-shadow: var(--cd-shadow-sm);
+}
+
 /* ===== Codex 风格精简输入框：文本区 + 底部一行（＋菜单 · 模型 · 语音 · 发送） ===== */
 .inputWrapper {
   flex-direction: column;

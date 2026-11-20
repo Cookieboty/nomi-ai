@@ -2,8 +2,10 @@ import { byCli } from '@nomi-ai/cli-catalog';
 import { t, useLocale, usePresence } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import type { ConvoOutcome } from '../../contexts/aiChatState';
 import {
   selectBusyConvos,
+  selectConvoOutcomes,
   selectDoneConvos,
   selectIpcClient,
   selectIsLoading,
@@ -110,12 +112,23 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     () => new Set((busyConvos ?? []).filter((id) => id !== '')),
     [busyConvos],
   );
-  // 刚跑完一轮、还没点进去看过的 Nomi 会话：行首留一个绿点，点进会话就消
+  // 刚跑完一轮、还没点进去看过的 Nomi 会话：只有 outcome === 'done' 才亮绿点，失败 / 停止显示各自状态
   const doneConvos = useAiChatSelector(selectDoneConvos);
+  const convoOutcomes = useAiChatSelector(selectConvoOutcomes);
   const doneIds = useMemo(
     () => new Set((doneConvos ?? []).filter((id) => id !== '')),
     [doneConvos],
   );
+  const outcomes = useMemo(() => {
+    const out: Record<string, ConvoOutcome> = {};
+    for (const id of doneIds) out[id] = 'done';
+    if (convoOutcomes) {
+      for (const [id, v] of Object.entries(convoOutcomes)) {
+        if (id !== '') out[id] = v;
+      }
+    }
+    return out;
+  }, [doneIds, convoOutcomes]);
   const tabs = useHarnessTabs();
   const { isDev, isNormal } = useChatMode();
   const {
@@ -237,8 +250,14 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   const rowActiveId = pageOpen ? undefined : highlightId;
   const float = useFloatingPanel(collapsed);
   const resize = useSidebarResize(!collapsed);
-  // 会话面板收起时先放完收回动画再卸载
-  const panelP = usePresence(!collapsed || float.floating, 220);
+  // 会话面板收起时先放完收回动画再卸载，同时记住收起前是停靠还是浮层
+  const panelMode: 'docked' | 'floating' | null = !collapsed
+    ? 'docked'
+    : float.floating
+      ? 'floating'
+      : null;
+  const panelP = usePresence(panelMode, 220);
+  const isFloating = panelP.value === 'floating';
   // 浮层里选了会话 / 新建了会话（高亮换了）：收起浮层
   const [floatFor, setFloatFor] = useState(highlightId);
   if (floatFor !== highlightId) {
@@ -504,6 +523,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       tabById,
       runningIds,
       doneIds,
+      outcomes,
       open,
       onCtx,
       renamingId,
@@ -519,6 +539,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       tabById,
       runningIds,
       doneIds,
+      outcomes,
       open,
       onCtx,
       renamingId,
@@ -530,8 +551,8 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       view,
     ],
   );
-  // 收起退场动画（panelP.closing）期间不要立即把外层锁成 52px，否则右侧卡片会 0ms 硬跳盖住退场抽屉
-  const railOnly = !panelP.value || float.floating || panelHidden;
+  // 收起退场动画（panelP.closing）期间，停靠面板保持宽位放推拉退场；浮层始终保持 rail 52px 宽度
+  const railOnly = !panelP.value || isFloating || panelHidden;
   return (
     <aside
       className={`${styles.sidebar} ${railOnly ? styles.collapsed : ''}`}
@@ -570,10 +591,10 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       />
       {panelP.value && (
         <div
-          className={`${styles.panel} ${float.floating ? styles.panelFloating : ''}`}
+          className={`${styles.panel} ${isFloating ? styles.panelFloating : ''}`}
           data-testid="sidebar-panel"
           hidden={panelHidden}
-          data-floating={float.floating || undefined}
+          data-floating={isFloating || undefined}
           data-closing={panelP.closing || undefined}
           aria-hidden={panelP.closing || undefined}
         >
@@ -644,6 +665,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               tabById={tabById}
               runningIds={runningIds}
               doneIds={doneIds}
+              outcomes={outcomes}
               renamingId={renamingId}
               showIcon={isDev && view === 'all'}
               histVisible={histVisible}
@@ -692,6 +714,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         tabById={tabById}
         runningIds={runningIds}
         doneIds={doneIds}
+        outcomes={outcomes}
         onForkRequest={onForkRequest}
         startRename={startRename}
         togglePin={togglePin}

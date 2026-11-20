@@ -4,6 +4,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"math"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -319,17 +320,88 @@ func splitNonEmpty(s, sep string) []string {
 	return out
 }
 
+func pathListSeparator(platform string) string {
+	if platform == "win32" {
+		return ";"
+	}
+	return ":"
+}
+
+// joinSearchPath 按目标平台拼接 PATH 目录和命令名。win32 仍走宿主 filepath.Join，
+// 以便现有磁盘 PATHEXT 折叠和用真实临时目录的 Windows 测试保持不变；POSIX 目标
+// 始终用斜杠拼接，避免在 Windows 宿主上把 /opt/bin 拼成 \opt\bin。
+func joinSearchPath(dir, name, platform string) string {
+	if platform == "win32" {
+		return filepath.Join(dir, name)
+	}
+	return path.Join(dir, name)
+}
+
+func envLookupCI(env *util.Obj, name string) (string, bool) {
+	if env == nil {
+		return "", false
+	}
+	for _, k := range env.Keys() {
+		if util.JSLower(k) == util.JSLower(name) {
+			if v, ok := env.Lookup(k); ok {
+				if _, u := v.(util.JSUndefined); !u && v != nil {
+					return util.JSString(v), true
+				}
+			}
+		}
+	}
+	return "", false
+}
+
+func isRegularFile(p string) bool {
+	st, err := os.Stat(p)
+	return err == nil && !st.IsDir()
+}
+
+func isNodeScript(p string) bool {
+	ext := strings.ToLower(filepath.Ext(p))
+	return ext == ".js" || ext == ".mjs"
+}
+
+func isExecutableFor(p, platform string) bool {
+	st, err := os.Stat(p)
+	if err != nil || st.IsDir() {
+		return false
+	}
+	if platform == "win32" {
+		return true
+	}
+	return st.Mode()&0o111 != 0
+}
+
+func isProbeCandidate(p, platform string) bool {
+	if isExecutableFor(p, platform) {
+		return true
+	}
+	return isNodeScript(p) && isRegularFile(p)
+}
+
 // WithCliPath = withCliPath（base nil = process.env）。
 func WithCliPath(base *util.Obj) *util.Obj {
+	return withCliPathFor(base, usage.Platform(), nil)
+}
+
+func withCliPathFor(base *util.Obj, platform string, exists func(string) bool) *util.Obj {
 	if base == nil {
 		base = usage.ProcessEnv()
 	}
+	if platform == "" {
+		platform = usage.Platform()
+	}
+	if exists == nil {
+		exists = usage.ExistsSync
+	}
 	key := pathKey(base)
-	delim := string(os.PathListSeparator)
+	delim := pathListSeparator(platform)
 	cur := splitNonEmpty(envStr(base, key), delim)
 	home := orDefault(util.JSTrim(envStr(base, "USERPROFILE")), orDefault(util.JSTrim(envStr(base, "HOME")), usage.Homedir()))
 	all := append([]string{}, cur...)
-	for _, d := range CliSearchDirs(home, usage.Platform(), base) {
+	for _, d := range CliSearchDirs(home, platform, base) {
 		in := false
 		for _, c := range cur {
 			if c == d {
@@ -337,7 +409,7 @@ func WithCliPath(base *util.Obj) *util.Obj {
 				break
 			}
 		}
-		if !in && usage.ExistsSync(d) {
+		if !in && exists(d) {
 			all = append(all, d)
 		}
 	}
@@ -351,13 +423,13 @@ var (
 	hasExtRe = regexp.MustCompile(`(?i)\.[a-z0-9]+$`)
 )
 
-// WindowsExecutable = windowsExecutable（exists nil = fs.existsSync）。
+// WindowsExecutable = windowsExecutable（exists nil = 平台可执行文件校验）。
 func WindowsExecutable(bin, platform string, exists func(string) bool) string {
 	if platform == "" {
 		platform = usage.Platform()
 	}
 	if exists == nil {
-		exists = usage.ExistsSync
+		exists = func(p string) bool { return isExecutableFor(p, platform) }
 	}
 	if platform != "win32" || winExeRe.MatchString(bin) {
 		return bin
@@ -385,22 +457,39 @@ func ResolveNpmBin() string {
 	return which("npm")
 }
 
-func onDiskCase(file string) string {
-	dir, base := filepath.Dir(file), filepath.Base(file)
+// foldWinPath 把目录里存在的名字按大小写不敏感匹配到 path 上（Windows 语义：
+// reclaude.CMD 命中磁盘上的 reclaude.cmd）。只有大小写不同且映射唯一时才算命中，
+// 避免在大小写敏感的宿主上伪造出不存在的文件。ok=false 表示没有匹配。
+func foldWinPath(path string) (string, bool) {
+	dir, base := filepath.Dir(path), filepath.Base(path)
 	names, err := readdirNames(dir)
 	if err != nil {
-		return file
+		return path, false
 	}
 	for _, n := range names {
 		if n == base {
-			return file
+			return path, true
 		}
 	}
 	lower := util.JSLower(base)
+	match := ""
 	for _, n := range names {
 		if util.JSLower(n) == lower {
-			return filepath.Join(dir, n)
+			if match != "" && match != n {
+				return path, false // 同名不同大小写的多个条目（理论上仅大小写敏感 FS）
+			}
+			match = n
 		}
+	}
+	if match == "" {
+		return path, false
+	}
+	return filepath.Join(dir, match), true
+}
+
+func onDiskCase(file string) string {
+	if folded, ok := foldWinPath(file); ok {
+		return folded
 	}
 	return file
 }
@@ -414,9 +503,9 @@ func FindOnPath(cmd string, env *util.Obj, platform string, exists func(string) 
 		platform = usage.Platform()
 	}
 	if exists == nil {
-		exists = usage.ExistsSync
+		exists = func(p string) bool { return isExecutableFor(p, platform) }
 	}
-	dirs := splitNonEmpty(envStr(env, pathKey(env)), string(os.PathListSeparator))
+	dirs := splitNonEmpty(envStr(env, pathKey(env)), pathListSeparator(platform))
 	if len(dirs) == 0 {
 		return ""
 	}
@@ -426,10 +515,8 @@ func FindOnPath(cmd string, env *util.Obj, platform string, exists func(string) 
 			names = append(names, cmd)
 		} else {
 			pathext := ".COM;.EXE;.BAT;.CMD"
-			if v, ok := env.Lookup("PATHEXT"); ok {
-				if _, u := v.(util.JSUndefined); !u && v != nil {
-					pathext = util.JSString(v)
-				}
+			if v, ok := envLookupCI(env, "PATHEXT"); ok {
+				pathext = v
 			}
 			for _, raw := range strings.Split(pathext, ";") {
 				ext := util.JSTrim(raw)
@@ -448,7 +535,12 @@ func FindOnPath(cmd string, env *util.Obj, platform string, exists func(string) 
 	}
 	for _, dir := range dirs {
 		for _, name := range names {
-			c := filepath.Join(dir, name)
+			c := joinSearchPath(dir, name, platform)
+			if platform == "win32" {
+				// PATHEXT 常写成大写（.CMD），而磁盘上是小写 shim；Windows 的
+				// 文件系统大小写不敏感，在大小写敏感的宿主上先按真实名字折叠再判断。
+				c = onDiskCase(c)
+			}
 			if !exists(c) {
 				continue
 			}
@@ -584,8 +676,9 @@ func pickedBin(raw string) string {
 	if e == "" {
 		return ""
 	}
-	chosen := WindowsExecutable(e, "", nil)
-	if usage.ExistsSync(chosen) {
+	platform := usage.Platform()
+	chosen := WindowsExecutable(e, platform, nil)
+	if isProbeCandidate(chosen, platform) {
 		return chosen
 	}
 	return ""
@@ -617,10 +710,11 @@ func probe(kind string, whichFn func(string) string) string {
 			return p
 		}
 	}
-	for _, dir := range CliSearchDirs("", "", nil) {
+	platform := usage.Platform()
+	for _, dir := range CliSearchDirs("", platform, nil) {
 		for _, c := range fallbackNames(kind) {
 			p := filepath.Join(dir, c)
-			if usage.ExistsSync(p) {
+			if isProbeCandidate(p, platform) {
 				return p
 			}
 		}

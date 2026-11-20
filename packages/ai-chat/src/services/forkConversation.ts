@@ -165,6 +165,12 @@ export async function forkSameBackend(
     messages: kept,
     ...(opts.projectId ? { projectId: opts.projectId } : {}),
   });
+  if (opts.inheritSettings && (meta.reasoningEffort || meta.longContext)) {
+    store.updateMeta(forked.id, {
+      ...(meta.reasoningEffort ? { reasoningEffort: meta.reasoningEffort } : {}),
+      ...(meta.longContext ? { longContext: meta.longContext } : {}),
+    });
+  }
   if (harnessClient.available()) {
     await harnessClient.activateTab(MAIN_TAB_ID).catch(() => undefined);
     await harnessClient.setBackend('nomi').catch(() => undefined);

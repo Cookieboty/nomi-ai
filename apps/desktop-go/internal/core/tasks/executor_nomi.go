@@ -304,6 +304,7 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 		"Resume":       cause.Kind == "resume" || cause.Kind == "retry",
 		"Rework":       cause.Kind == "rework" && cause.Note != nil,
 		"FollowUp":     cause.Kind == "followup" && cause.Note != nil,
+		"Handoff":      t.Origin.Via != nil && *t.Origin.Via == "handoff" && cause.Kind != "rework" && cause.Kind != "followup",
 		"Previous":     "",
 		"Progress":     "",
 		"Events":       EventsSection(events),
@@ -339,9 +340,9 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 		{Role: "user", Content: t.Goal, Images: followUpImages(cause)}}
 }
 
-// followUpImages：追问带的图片（读不回来的跳过）
+// followUpImages：追问或排队补充带的图片（读不回来的跳过）
 func followUpImages(c AttemptCause) []blm.ChatImage {
-	if (c.Kind != "followup" && c.FollowUp == nil) || len(c.Images) == 0 {
+	if len(c.Images) == 0 {
 		return nil
 	}
 	out := []blm.ChatImage{}
@@ -511,6 +512,21 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 		prevProgress = e.progress[t.ID]
 		e.mu.Unlock()
 	}
+	var segReasoning strings.Builder
+	var segReasonStart int64
+	var segReasonTextAt int
+	flushReasoning := func() {
+		if strings.TrimSpace(segReasoning.String()) != "" && e.d.Trace != nil {
+			e.d.Trace(t.ID, a.ID, map[string]any{
+				"at":        e.d.Now(),
+				"startedAt": segReasonStart,
+				"thinking":  shortN(segReasoning.String(), 8000),
+				"textAt":    segReasonTextAt,
+			})
+		}
+		segReasoning.Reset()
+		segReasonStart = 0
+	}
 	err := e.d.AgentStream(ctx, BuildPrompt(run.ctx, prevProgress, e.d.Now(), events), tools,
 		extra, func(c blm.ChatChunk) {
 			if ctx.Err() != nil {
@@ -518,6 +534,7 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 			}
 			switch c.Type {
 			case "delta":
+				flushReasoning()
 				text.WriteString(c.Content)
 				e.mu.Lock()
 				run.live.text.WriteString(c.Content)
@@ -526,6 +543,11 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 				rep.Heartbeat()
 			case "reasoning":
 				if c.Content != "" {
+					if segReasonStart == 0 {
+						segReasonStart = e.d.Now()
+						segReasonTextAt = util.UTF16Len(text.String())
+					}
+					segReasoning.WriteString(c.Content)
 					e.mu.Lock()
 					run.live.reasoning.WriteString(c.Content)
 					e.mu.Unlock()
@@ -539,6 +561,7 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 					pending[*c.ID] = true
 					pmu.Unlock()
 					if fresh {
+						flushReasoning()
 						tool := liveTool{ID: *c.ID, At: e.d.Now()}
 						if c.Name != nil {
 							tool.Name = *c.Name
@@ -653,6 +676,7 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 		delete(e.runs, t.ID)
 	}
 	e.mu.Unlock()
+	flushReasoning()
 	saveProgress := func() {
 		pmu.Lock()
 		steps := slices.Clone(toolSteps)

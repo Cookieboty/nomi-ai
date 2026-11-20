@@ -7,6 +7,7 @@ import {
 import React from 'react';
 import { type RowComponentProps } from 'react-window';
 
+import type { ConvoOutcome } from '../../contexts/aiChatState';
 import type { HarnessTabMeta } from '../../services/harnessClient';
 import type { HistorySession } from '../../services/historyClient';
 import { isImeComposing } from '../../utils/keyboard';
@@ -33,8 +34,10 @@ export function rowLive(
   tab: HarnessTabMeta | undefined,
   running?: boolean,
   done?: boolean,
+  outcome?: ConvoOutcome,
 ): string {
-  return liveOf(tab) || (running ? 'running' : done ? 'done' : '');
+  const resolved = outcome ?? (done ? 'done' : undefined);
+  return liveOf(tab) || (running ? 'running' : (resolved ?? ''));
 }
 
 export function liveOf(tab: HarnessTabMeta | undefined): string {
@@ -112,6 +115,8 @@ const ThreadItemImpl: React.FC<{
   running?: boolean;
   /** Nomi 对话刚跑完一轮、还没点进去看（状态从 AiChat 的 doneConvos 来） */
   done?: boolean;
+  /** 最近一轮结束的结果（done / error / stopped） */
+  outcome?: ConvoOutcome;
   onOpen: (id: string) => void;
   onCtx: (id: string, e: React.MouseEvent) => void;
   renaming?: boolean;
@@ -133,6 +138,7 @@ const ThreadItemImpl: React.FC<{
   tab,
   running,
   done,
+  outcome,
   onOpen,
   onCtx,
   renaming,
@@ -146,7 +152,7 @@ const ThreadItemImpl: React.FC<{
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
   const cls = `${styles.thread} ${active ? styles.threadActive : ''}`;
-  const live = rowLive(tab, running, done);
+  const live = rowLive(tab, running, done, outcome);
   const layout = 'plain';
   const endpointMark = showIcon && c.backend !== 'nomi';
   // 状态点不占列：压在行首内边距里，只有运行 / 新结果 / 出错时才看得见
@@ -209,14 +215,22 @@ const ThreadItemImpl: React.FC<{
         <span className={styles.threadName}>
           {c.name ? t(c.name) : t('ui.chat-settings.new-chat')}
         </span>
-        {/* 不显示时间（悬停卡片里有）；进行中 / 排队 / 完成只看行首的状态点，不再重复写字，文字只给读屏 */}
-        {(live === 'running' || live === 'queued' || live === 'done') && (
+        {/* 不显示时间（悬停卡片里有）；进行中 / 排队 / 完成 / 失败 / 已停止只看行首的状态点，不再重复写字，文字只给读屏 */}
+        {(live === 'running' ||
+          live === 'queued' ||
+          live === 'done' ||
+          live === 'error' ||
+          live === 'stopped') && (
           <span className={styles.srOnly} data-live={live} data-testid="thread-live">
             {live === 'running'
               ? t('ui.chat-settings.in-progress')
               : live === 'queued'
                 ? t('ui.mascot-theme.queued')
-                : t('ui.foundation.done')}
+                : live === 'error'
+                  ? t('ui.chat-settings.error')
+                  : live === 'stopped'
+                    ? t('ui.chat-settings.stopped')
+                    : t('ui.foundation.done')}
           </span>
         )}
         {/* 行尾：置顶标记（置顶的会话排在所在项目最前，没有单独的分组）+ 端点图标；悬停时让位给行内操作 */}
@@ -265,6 +279,8 @@ export type VirtualProps = {
   runningIds?: ReadonlySet<string>;
   /** 刚跑完一轮、还没点进去看的 Nomi 会话 id */
   doneIds?: ReadonlySet<string>;
+  /** Nomi 会话最近一轮结束状态 */
+  outcomes?: Readonly<Record<string, ConvoOutcome>>;
   open: (id: string) => void;
   onCtx: (id: string, e: React.MouseEvent) => void;
   renamingId: string | null;
@@ -284,6 +300,7 @@ export const VirtualRow = ({
   tabById,
   runningIds,
   doneIds,
+  outcomes,
   open,
   onCtx,
   renamingId,
@@ -303,6 +320,7 @@ export const VirtualRow = ({
         tab={c.tabId ? tabById.get(c.tabId) : undefined}
         running={c.tabId ? undefined : runningIds?.has(c.id)}
         done={c.tabId ? undefined : doneIds?.has(c.id)}
+        outcome={c.tabId ? undefined : outcomes?.[c.id]}
         onOpen={open}
         onCtx={onCtx}
         renaming={renamingId === c.id}

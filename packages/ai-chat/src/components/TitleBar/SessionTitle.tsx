@@ -14,6 +14,7 @@ import {
   useAiChatSelector,
 } from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
+import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import {
   CONVERSATIONS_CHANGED_EVENT,
@@ -217,11 +218,13 @@ export const SessionTools: React.FC<{
   hideDetails?: boolean;
 }> = ({ messages, rail, hideDetails = false }) => {
   const s = useCurrentSession();
+  const pane = useSubagentPane();
+  const hasTerminals = !!pane?.pages.some((p) => p.kind === 'terminal');
   const count = useMemo(() => aggregateSessionChanges(messages).length, [messages]);
   return (
     <>
       <TitlebarContent name="session">
-        {!hideDetails && s?.hasMessages && (
+        {!hideDetails && (s?.hasMessages || hasTerminals) && (
           <SessionDetailsToggle
             railOpen={!!rail?.open}
             bubbleClassName={chatHeaderStyles.actionsTipBubble}

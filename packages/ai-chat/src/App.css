@@ -114,8 +114,8 @@ html[data-chat-bg] .workspace-card {
   background: transparent;
 }
 
-/* Codex 四栏：有变更 Diff 时 main-content 内横排 chat-column | Diff（全高）。
-   chat 默认占主要宽度（见 chatColumnWidth），Diff flex:1 吃剩余。 */
+/* Codex 四栏：打开工作区时 main-content 内横排 chat-column | 旁列（全高）。
+   默认各占一半（50% : 50%），拖动分割线按比例调节（见 chatColumnWidth）。 */
 .main-content--with-changes {
   flex-direction: row;
   align-items: stretch;
@@ -136,8 +136,19 @@ html[data-chat-bg] .workspace-card {
   position: relative;
 }
 
+.chat-column[data-file-path-drop-active='true']::after {
+  content: '';
+  position: absolute;
+  inset: var(--cd-space-2);
+  border: 2px dashed var(--cd-color-accent);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-accent-soft);
+  pointer-events: none;
+  z-index: var(--cd-z-chat-input);
+}
+
 .main-content--with-changes .chat-column {
-  flex: 0 0 auto;
+  flex: var(--chat-col-grow, 1) 1 0;
   border-right: none;
 }
 
@@ -164,11 +175,11 @@ html[data-chat-bg] .workspace-card {
   inset: 0 2px;
 }
 
-/* Diff 旁列：占满剩余宽度与全高（不压在对话/输入下面） */
+/* 旁列：按比例与对话列分栏（默认各占一半），最小宽度兜底防过窄 */
 .main-content--with-changes [data-testid='center-changes-pane'],
 .main-content--with-changes [data-testid='center-preview-pane'],
 .main-content--with-changes [data-testid='side-workspace'] {
-  flex: 1 1 0;
+  flex: var(--side-pane-grow, 1) 1 0;
   min-width: var(--cd-center-pane-min);
   min-height: 0;
   height: 100%;
@@ -413,6 +424,7 @@ html[data-platform='darwin'] .app-titlebar {
   left: var(--cd-space-2);
   top: 50%;
   transform: translateY(-50%);
+  z-index: 2;
   width: var(--cd-control-h-ms);
   height: var(--cd-control-h-ms);
   display: inline-flex;
@@ -449,6 +461,7 @@ html[data-platform='darwin'] .app-titlebar-toggle {
   left: calc(var(--cd-space-2) + var(--cd-control-h-ms) + var(--cd-space-1));
   top: 50%;
   transform: translateY(-50%);
+  z-index: 2;
   display: flex;
   align-items: center;
 }

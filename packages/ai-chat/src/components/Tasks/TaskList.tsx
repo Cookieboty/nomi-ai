@@ -1,14 +1,16 @@
 /**
- * 任务的列表视图：与 Agent 看板同样的结构（面板、两列卡片）；样式单独一份（TaskList.module.css，从 Agent 看板复制，各自演进）。
- * 卡片：类型图标块 · 类型 · 状态胶囊 · 快捷操作 → 标题 → 目标 → 执行者 / 重要程度 / 触发 → 状态条 → 多久前有动静 · 下次运行。
+ * 任务的列表视图：与 Agent 看板共用卡片质感，补齐排队原因、来源徽章、自动归档倒计时与归档列表动作。
  * 整张卡片点开右侧详情（卡片里铺一个透明按钮，快捷操作按钮叠在上面，不嵌套）。
- * 旧的提醒 / 定时作为同样的卡片排在后面，点开进日程面板。
  */
-import { createLogger, Icon, IconButton, t } from '@nomi-ai/ui';
+import { Button, createLogger, Icon, IconButton, t } from '@nomi-ai/ui';
 import {
+  IconArchive as Archive,
+  IconArchiveOff as ArchiveRestore,
   IconBell as Bell,
   IconCalendarClock as CalendarClock,
   IconClock as Clock,
+  IconPlayerPlay as Play,
+  IconTrash as Trash2,
 } from '@tabler/icons-react';
 import React from 'react';
 
@@ -18,15 +20,30 @@ import {
   categoryOf,
   executorLabel,
   fmtTime,
+  formatQueueReason,
   stageOf,
   statusLabel,
+  tasksApi,
   triggerLabel,
   type LegacyItem,
   type Task,
+  type TaskQueueInfo,
 } from '../../services/tasksClient';
 import { fmtAgo } from '../../utils/relativeTime';
+import { confirmDialog } from '../ConfirmDialog';
 
-import { CATEGORY_ICON, ExecutorIcon, PriorityBadge, quickAction } from './Board';
+import {
+  autoArchiveLabel,
+  canAckFailure,
+  canArchiveTask,
+  CATEGORY_ICON,
+  ExecutorIcon,
+  LastRunBadge,
+  OriginBadge,
+  PriorityBadge,
+  quickAction,
+} from './Board';
+import boardStyles from './Board.module.css';
 import styles from './TaskList.module.css';
 
 const log = createLogger('tasks-list');
@@ -45,7 +62,7 @@ function toneOf(task: Task): string {
   }
 }
 
-/** 状态条：进行中流动的主题色、完成整条 success、暂停 warning，其余只有底槽（不是完成度） */
+/** 状态条 */
 function trackOf(task: Task): string {
   const tone = toneOf(task);
   return tone === 'done'
@@ -57,18 +74,34 @@ function trackOf(task: Task): string {
         : '';
 }
 
-const TaskCard: React.FC<{ task: Task; selected: boolean; onSelect: () => void }> = ({
-  task,
-  selected,
-  onSelect,
-}) => {
+const TaskCard: React.FC<{
+  task: Task;
+  queueInfo?: TaskQueueInfo;
+  archivedMode?: boolean;
+  selected: boolean;
+  onSelect: () => void;
+}> = ({ task, queueInfo, archivedMode, selected, onSelect }) => {
   const category = categoryOf(task);
   const tone = toneOf(task);
-  const action = quickAction(task);
+  const action = archivedMode ? null : quickAction(task);
+  const ackable = !archivedMode && canAckFailure(task);
+  const archivable = !archivedMode && canArchiveTask(task);
+  const archiveHint = archivedMode ? null : autoArchiveLabel(task);
   const next =
-    task.nextRunAt && task.status === 'idle' && task.enabled
+    !archivedMode && task.nextRunAt && task.status === 'idle' && task.enabled
       ? t('ui.providers-schedule.task-next-run', fmtTime(task.nextRunAt))
       : '';
+
+  const handleDeleteArchived = async () => {
+    const ok = await confirmDialog({
+      title: t('ui.providers-schedule.task-remove-confirm'),
+      danger: true,
+    });
+    if (ok) {
+      await tasksApi.remove(task.id).catch((e: unknown) => log.warn('remove failed', e));
+    }
+  };
+
   return (
     <li
       className={styles.card}
@@ -94,24 +127,103 @@ const TaskCard: React.FC<{ task: Task; selected: boolean; onSelect: () => void }
           {statusLabel(task)}
         </span>
         <span className={styles.headSpacer} />
-        {action && (
-          <IconButton
-            size="sm"
-            variant="ghost"
-            className={styles.above}
-            icon={<Icon icon={action.icon} size={14} />}
-            label={`${action.label} · ${task.title}`}
-            onClick={() => {
-              void action.run().catch((e: unknown) => log.warn('quick action failed', e));
-            }}
-            data-testid={`list-action-${task.id}`}
-          />
+        {archivedMode ? (
+          <span className={`${styles.above} ${styles.actionsInline}`}>
+            <IconButton
+              size="sm"
+              variant="ghost"
+              icon={<Icon icon={ArchiveRestore} size={14} />}
+              label={`${t('ui.providers-schedule.task-unarchive')} · ${task.title}`}
+              onClick={() => {
+                void tasksApi
+                  .unarchive(task.id)
+                  .catch((e: unknown) => log.warn('unarchive failed', e));
+              }}
+              data-testid={`list-unarchive-${task.id}`}
+            />
+            <IconButton
+              size="sm"
+              variant="ghost"
+              icon={<Icon icon={Play} size={14} />}
+              label={`${t('ui.providers-schedule.task-run-again')} · ${task.title}`}
+              onClick={() => {
+                void tasksApi.runNow(task.id).catch((e: unknown) => log.warn('runNow failed', e));
+              }}
+              data-testid={`list-rerun-${task.id}`}
+            />
+            <IconButton
+              size="sm"
+              variant="ghost"
+              icon={<Icon icon={Trash2} size={14} />}
+              label={`${t('ui.foundation.delete')} · ${task.title}`}
+              onClick={() => {
+                void handleDeleteArchived();
+              }}
+              data-testid={`list-delete-${task.id}`}
+            />
+          </span>
+        ) : (
+          <span className={`${styles.above} ${styles.actionsInline}`}>
+            {ackable && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  void tasksApi.ack(task.id).catch((e: unknown) => log.warn('ack failed', e));
+                }}
+                data-testid={`list-ack-${task.id}`}
+              >
+                {t('ui.models.got-it')}
+              </Button>
+            )}
+            {archivable && (
+              <IconButton
+                size="sm"
+                variant="ghost"
+                icon={<Icon icon={Archive} size={14} />}
+                label={`${t('ui.cli-monitor.archive-chat')} · ${task.title}`}
+                onClick={() => {
+                  void tasksApi
+                    .archive(task.id)
+                    .catch((e: unknown) => log.warn('archive failed', e));
+                }}
+                data-testid={`list-archive-${task.id}`}
+              />
+            )}
+            {action && (
+              <IconButton
+                size="sm"
+                variant="ghost"
+                icon={<Icon icon={action.icon} size={14} />}
+                label={`${action.label} · ${task.title}`}
+                onClick={() => {
+                  void action.run().catch((e: unknown) => log.warn('quick action failed', e));
+                }}
+                data-testid={`list-action-${task.id}`}
+              />
+            )}
+          </span>
         )}
       </div>
       <span className={styles.title} title={task.title}>
         {task.title}
       </span>
       {task.goal && task.goal !== task.title && <span className={styles.summary}>{task.goal}</span>}
+      {!archivedMode && task.status === 'queued' && (
+        <span className={styles.queueBanner} data-testid={`list-queue-${task.id}`}>
+          {queueInfo && (
+            <span className={boardStyles.queuePos}>
+              {t('ui.providers-schedule.task-queue-pos', queueInfo.position)}
+            </span>
+          )}
+          <span>{queueInfo ? formatQueueReason(queueInfo) : t('ui.mascot-theme.queued')}</span>
+        </span>
+      )}
+      {!archivedMode && task.status === 'queued' && task.pending?.note && (
+        <span className={styles.pendingNote}>
+          {t('ui.providers-schedule.task-pending-note-prefix', task.pending.note)}
+        </span>
+      )}
       <span className={styles.meta}>
         <span className={styles.metaItem}>
           <ExecutorIcon ex={task.executor} />
@@ -120,10 +232,22 @@ const TaskCard: React.FC<{ task: Task; selected: boolean; onSelect: () => void }
         {task.priority && <PriorityBadge priority={task.priority} />}
         <span className={styles.metaItem}>{triggerLabel(task.trigger)}</span>
       </span>
+      <span className={styles.badgesRow}>
+        <OriginBadge task={task} />
+        <LastRunBadge task={task} />
+        {archivedMode && (
+          <span className={boardStyles.badgeMuted}>
+            {task.archiveReason === 'auto_24h'
+              ? t('ui.providers-schedule.task-archived-auto-badge')
+              : t('ui.providers-schedule.task-archived-manual-badge')}
+          </span>
+        )}
+        {archiveHint && <span className={boardStyles.archiveTimer}>{archiveHint}</span>}
+      </span>
       <span className={styles.track} data-column={trackOf(task) || undefined} aria-hidden />
       <span className={styles.foot}>
         <span className={styles.updated}>
-          {t('ui.cli-monitor.fleet-updated', fmtAgo(task.updatedAt))}
+          {t('ui.cli-monitor.fleet-updated', fmtAgo(task.archivedAt ?? task.updatedAt))}
         </span>
         {next && (
           <span className={styles.usage}>
@@ -182,11 +306,13 @@ const LegacyCard: React.FC<{ item: LegacyItem; onOpen?: () => void }> = ({ item:
 export const TaskList: React.FC<{
   tasks: Task[];
   legacy: LegacyItem[];
+  queue?: Record<string, TaskQueueInfo>;
+  archivedMode?: boolean;
   selected: string | null;
   onSelect: (id: string) => void;
   onOpenSchedule?: () => void;
   empty: string;
-}> = ({ tasks, legacy, selected, onSelect, onOpenSchedule, empty }) => {
+}> = ({ tasks, legacy, queue = {}, archivedMode, selected, onSelect, onOpenSchedule, empty }) => {
   if (!tasks.length && !legacy.length) {
     return (
       <div className={styles.panel}>
@@ -203,6 +329,8 @@ export const TaskList: React.FC<{
           <TaskCard
             key={task.id}
             task={task}
+            queueInfo={queue[task.id]}
+            archivedMode={archivedMode}
             selected={selected === task.id}
             onSelect={() => onSelect(task.id)}
           />

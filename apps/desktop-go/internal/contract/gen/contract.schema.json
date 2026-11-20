@@ -6742,6 +6742,41 @@
     }
    }
   },
+  "chatWindow.dockAck": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+     },
+     "transferId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+     },
+     "ok": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "id",
+     "transferId",
+     "ok"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
   "chatWindow.dockTab": {
    "kind": "mutation",
    "dangerous": false,
@@ -6756,6 +6791,14 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 2048
+     },
+     "transferId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+     },
+     "requireAck": {
+      "type": "boolean"
      }
     },
     "required": [
@@ -6786,6 +6829,21 @@
       "type": "string",
       "minLength": 2,
       "maxLength": 8388608
+     },
+     "transferId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+     },
+     "direction": {
+      "type": "string",
+      "enum": [
+       "detach",
+       "dock"
+      ]
+     },
+     "keepUntilAck": {
+      "type": "boolean"
      }
     },
     "required": [
@@ -6812,6 +6870,18 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 2048
+     },
+     "transferId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+     },
+     "direction": {
+      "type": "string",
+      "enum": [
+       "detach",
+       "dock"
+      ]
      }
     },
     "required": [
@@ -6824,6 +6894,20 @@
      "string",
      "null"
     ]
+   }
+  },
+  "chatWindow.registerHost": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
    }
   },
   "cli.launcherGet": {
@@ -10466,6 +10550,46 @@
               "computer",
               "tool"
              ]
+            },
+            "delegate": {
+             "type": "object",
+             "properties": {
+              "cli": {
+               "type": "string"
+              },
+              "permissionMode": {
+               "type": "string",
+               "enum": [
+                "plan",
+                "manual",
+                "acceptEdits",
+                "auto",
+                "bypass"
+               ]
+              },
+              "sandboxStatus": {
+               "type": "string",
+               "enum": [
+                "on",
+                "off",
+                "unsupported"
+               ]
+              },
+              "workspaceGuard": {
+               "type": "boolean"
+              },
+              "envScrub": {
+               "type": "boolean"
+              }
+             },
+             "required": [
+              "cli",
+              "permissionMode",
+              "sandboxStatus",
+              "workspaceGuard",
+              "envScrub"
+             ],
+             "additionalProperties": {}
             }
            },
            "required": [
@@ -11349,6 +11473,46 @@
           "computer",
           "tool"
          ]
+        },
+        "delegate": {
+         "type": "object",
+         "properties": {
+          "cli": {
+           "type": "string"
+          },
+          "permissionMode": {
+           "type": "string",
+           "enum": [
+            "plan",
+            "manual",
+            "acceptEdits",
+            "auto",
+            "bypass"
+           ]
+          },
+          "sandboxStatus": {
+           "type": "string",
+           "enum": [
+            "on",
+            "off",
+            "unsupported"
+           ]
+          },
+          "workspaceGuard": {
+           "type": "boolean"
+          },
+          "envScrub": {
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "cli",
+          "permissionMode",
+          "sandboxStatus",
+          "workspaceGuard",
+          "envScrub"
+         ],
+         "additionalProperties": {}
         }
        },
        "required": [
@@ -11680,6 +11844,46 @@
           "computer",
           "tool"
          ]
+        },
+        "delegate": {
+         "type": "object",
+         "properties": {
+          "cli": {
+           "type": "string"
+          },
+          "permissionMode": {
+           "type": "string",
+           "enum": [
+            "plan",
+            "manual",
+            "acceptEdits",
+            "auto",
+            "bypass"
+           ]
+          },
+          "sandboxStatus": {
+           "type": "string",
+           "enum": [
+            "on",
+            "off",
+            "unsupported"
+           ]
+          },
+          "workspaceGuard": {
+           "type": "boolean"
+          },
+          "envScrub": {
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "cli",
+          "permissionMode",
+          "sandboxStatus",
+          "workspaceGuard",
+          "envScrub"
+         ],
+         "additionalProperties": {}
         }
        },
        "required": [
@@ -12059,6 +12263,46 @@
           "computer",
           "tool"
          ]
+        },
+        "delegate": {
+         "type": "object",
+         "properties": {
+          "cli": {
+           "type": "string"
+          },
+          "permissionMode": {
+           "type": "string",
+           "enum": [
+            "plan",
+            "manual",
+            "acceptEdits",
+            "auto",
+            "bypass"
+           ]
+          },
+          "sandboxStatus": {
+           "type": "string",
+           "enum": [
+            "on",
+            "off",
+            "unsupported"
+           ]
+          },
+          "workspaceGuard": {
+           "type": "boolean"
+          },
+          "envScrub": {
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "cli",
+          "permissionMode",
+          "sandboxStatus",
+          "workspaceGuard",
+          "envScrub"
+         ],
+         "additionalProperties": {}
         }
        },
        "required": [
@@ -12390,6 +12634,46 @@
           "computer",
           "tool"
          ]
+        },
+        "delegate": {
+         "type": "object",
+         "properties": {
+          "cli": {
+           "type": "string"
+          },
+          "permissionMode": {
+           "type": "string",
+           "enum": [
+            "plan",
+            "manual",
+            "acceptEdits",
+            "auto",
+            "bypass"
+           ]
+          },
+          "sandboxStatus": {
+           "type": "string",
+           "enum": [
+            "on",
+            "off",
+            "unsupported"
+           ]
+          },
+          "workspaceGuard": {
+           "type": "boolean"
+          },
+          "envScrub": {
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "cli",
+          "permissionMode",
+          "sandboxStatus",
+          "workspaceGuard",
+          "envScrub"
+         ],
+         "additionalProperties": {}
         }
        },
        "required": [
@@ -12758,6 +13042,46 @@
           "computer",
           "tool"
          ]
+        },
+        "delegate": {
+         "type": "object",
+         "properties": {
+          "cli": {
+           "type": "string"
+          },
+          "permissionMode": {
+           "type": "string",
+           "enum": [
+            "plan",
+            "manual",
+            "acceptEdits",
+            "auto",
+            "bypass"
+           ]
+          },
+          "sandboxStatus": {
+           "type": "string",
+           "enum": [
+            "on",
+            "off",
+            "unsupported"
+           ]
+          },
+          "workspaceGuard": {
+           "type": "boolean"
+          },
+          "envScrub": {
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "cli",
+          "permissionMode",
+          "sandboxStatus",
+          "workspaceGuard",
+          "envScrub"
+         ],
+         "additionalProperties": {}
         }
        },
        "required": [
@@ -13196,6 +13520,46 @@
           "computer",
           "tool"
          ]
+        },
+        "delegate": {
+         "type": "object",
+         "properties": {
+          "cli": {
+           "type": "string"
+          },
+          "permissionMode": {
+           "type": "string",
+           "enum": [
+            "plan",
+            "manual",
+            "acceptEdits",
+            "auto",
+            "bypass"
+           ]
+          },
+          "sandboxStatus": {
+           "type": "string",
+           "enum": [
+            "on",
+            "off",
+            "unsupported"
+           ]
+          },
+          "workspaceGuard": {
+           "type": "boolean"
+          },
+          "envScrub": {
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "cli",
+          "permissionMode",
+          "sandboxStatus",
+          "workspaceGuard",
+          "envScrub"
+         ],
+         "additionalProperties": {}
         }
        },
        "required": [
@@ -17652,6 +18016,9 @@
        "agent-tools",
        "summary"
       ]
+     },
+     "longContext": {
+      "type": "boolean"
      }
     }
    },
@@ -30411,6 +30778,11 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 512
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
      }
     },
     "required": [
@@ -30473,6 +30845,9 @@
       "type": "integer",
       "minimum": 4,
       "maximum": 200
+     },
+     "replace": {
+      "type": "boolean"
      }
     },
     "required": [
@@ -30496,6 +30871,16 @@
      },
      "replay": {
       "type": "string"
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+     },
+     "replayOffset": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
      },
      "exited": {
       "type": "boolean"
@@ -30549,6 +30934,11 @@
       "type": "integer",
       "minimum": 4,
       "maximum": 200
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
      }
     },
     "required": [
@@ -30622,6 +31012,11 @@
      "data": {
       "type": "string",
       "maxLength": 65536
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
      }
     },
     "required": [
@@ -30753,6 +31148,96 @@
     "additionalProperties": false
    }
   },
+  "tasks.ack": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "tasks.appendQueued": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "text": {
+      "type": "string",
+      "maxLength": 8000
+     },
+     "images": {
+      "maxItems": 8,
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "mime": {
+         "type": "string"
+        },
+        "data": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "mime",
+        "data"
+       ]
+      }
+     }
+    },
+    "required": [
+     "id",
+     "text"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
   "tasks.applyWorktree": {
    "kind": "mutation",
    "dangerous": true,
@@ -30815,6 +31300,62 @@
       "type": "null"
      }
     ]
+   }
+  },
+  "tasks.archive": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "tasks.archiveAllEnded": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "archived": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     }
+    },
+    "required": [
+     "archived"
+    ],
+    "additionalProperties": false
    }
   },
   "tasks.cancel": {
@@ -31325,6 +31866,35 @@
      "gen": {
       "type": "number"
      },
+     "acceptance": {
+      "type": "string",
+      "enum": [
+       "auto",
+       "user"
+      ]
+     },
+     "origin": {
+      "type": "object",
+      "properties": {
+       "conversationId": {
+        "type": "string"
+       },
+       "createdBy": {
+        "type": "string"
+       },
+       "createdAt": {
+        "type": "number"
+       },
+       "via": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "createdBy",
+       "createdAt"
+      ],
+      "additionalProperties": {}
+     },
      "trigger": {
       "type": "object",
       "properties": {
@@ -31364,6 +31934,33 @@
        "level"
       ],
       "additionalProperties": {}
+     },
+     "endedAt": {
+      "type": "number"
+     },
+     "archivedAt": {
+      "type": "number"
+     },
+     "archiveReason": {
+      "type": "string",
+      "enum": [
+       "user",
+       "auto_24h"
+      ]
+     },
+     "ackedAt": {
+      "type": "number"
+     },
+     "lastRunStatus": {
+      "type": "string",
+      "enum": [
+       "succeeded",
+       "failed",
+       "cancelled"
+      ]
+     },
+     "lastRunAt": {
+      "type": "number"
      },
      "updatedAt": {
       "type": "number"
@@ -31513,6 +32110,9 @@
       "type": "string",
       "maxLength": 8000
      },
+     "updateGoal": {
+      "type": "boolean"
+     },
      "images": {
       "maxItems": 8,
       "type": "array",
@@ -31610,6 +32210,35 @@
          "gen": {
           "type": "number"
          },
+         "acceptance": {
+          "type": "string",
+          "enum": [
+           "auto",
+           "user"
+          ]
+         },
+         "origin": {
+          "type": "object",
+          "properties": {
+           "conversationId": {
+            "type": "string"
+           },
+           "createdBy": {
+            "type": "string"
+           },
+           "createdAt": {
+            "type": "number"
+           },
+           "via": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "createdBy",
+           "createdAt"
+          ],
+          "additionalProperties": {}
+         },
          "trigger": {
           "type": "object",
           "properties": {
@@ -31649,6 +32278,33 @@
            "level"
           ],
           "additionalProperties": {}
+         },
+         "endedAt": {
+          "type": "number"
+         },
+         "archivedAt": {
+          "type": "number"
+         },
+         "archiveReason": {
+          "type": "string",
+          "enum": [
+           "user",
+           "auto_24h"
+          ]
+         },
+         "ackedAt": {
+          "type": "number"
+         },
+         "lastRunStatus": {
+          "type": "string",
+          "enum": [
+           "succeeded",
+           "failed",
+           "cancelled"
+          ]
+         },
+         "lastRunAt": {
+          "type": "number"
          },
          "updatedAt": {
           "type": "number"
@@ -31828,6 +32484,200 @@
     "additionalProperties": false
    }
   },
+  "tasks.handoffFromChat": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "reqId": {
+      "type": "string"
+     },
+     "conversationId": {
+      "type": "string",
+      "minLength": 1
+     },
+     "projectId": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string",
+      "maxLength": 200
+     },
+     "userGoal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8000
+     },
+     "partialContent": {
+      "type": "string",
+      "maxLength": 20000
+     },
+     "progressSummary": {
+      "type": "string",
+      "maxLength": 8000
+     },
+     "historyContext": {
+      "type": "string",
+      "maxLength": 12000
+     }
+    },
+    "required": [
+     "conversationId",
+     "userGoal"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string"
+     },
+     "goal": {
+      "type": "string"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "idle",
+       "queued",
+       "running",
+       "waiting_user",
+       "needs_reconcile",
+       "awaiting_accept",
+       "done",
+       "failed",
+       "cancelled",
+       "expired"
+      ]
+     },
+     "enabled": {
+      "type": "boolean"
+     },
+     "gen": {
+      "type": "number"
+     },
+     "acceptance": {
+      "type": "string",
+      "enum": [
+       "auto",
+       "user"
+      ]
+     },
+     "origin": {
+      "type": "object",
+      "properties": {
+       "conversationId": {
+        "type": "string"
+       },
+       "createdBy": {
+        "type": "string"
+       },
+       "createdAt": {
+        "type": "number"
+       },
+       "via": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "createdBy",
+       "createdAt"
+      ],
+      "additionalProperties": {}
+     },
+     "trigger": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind"
+      ],
+      "additionalProperties": {}
+     },
+     "executor": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind"
+      ],
+      "additionalProperties": {}
+     },
+     "grant": {
+      "type": "object",
+      "properties": {
+       "version": {
+        "type": "number"
+       },
+       "level": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "version",
+       "level"
+      ],
+      "additionalProperties": {}
+     },
+     "endedAt": {
+      "type": "number"
+     },
+     "archivedAt": {
+      "type": "number"
+     },
+     "archiveReason": {
+      "type": "string",
+      "enum": [
+       "user",
+       "auto_24h"
+      ]
+     },
+     "ackedAt": {
+      "type": "number"
+     },
+     "lastRunStatus": {
+      "type": "string",
+      "enum": [
+       "succeeded",
+       "failed",
+       "cancelled"
+      ]
+     },
+     "lastRunAt": {
+      "type": "number"
+     },
+     "updatedAt": {
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "goal",
+     "status",
+     "enabled",
+     "gen",
+     "trigger",
+     "executor",
+     "grant",
+     "updatedAt"
+    ],
+    "additionalProperties": {}
+   }
+  },
   "tasks.inbox": {
    "kind": "query",
    "dangerous": false,
@@ -31871,6 +32721,35 @@
       "gen": {
        "type": "number"
       },
+      "acceptance": {
+       "type": "string",
+       "enum": [
+        "auto",
+        "user"
+       ]
+      },
+      "origin": {
+       "type": "object",
+       "properties": {
+        "conversationId": {
+         "type": "string"
+        },
+        "createdBy": {
+         "type": "string"
+        },
+        "createdAt": {
+         "type": "number"
+        },
+        "via": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "createdBy",
+        "createdAt"
+       ],
+       "additionalProperties": {}
+      },
       "trigger": {
        "type": "object",
        "properties": {
@@ -31910,6 +32789,33 @@
         "level"
        ],
        "additionalProperties": {}
+      },
+      "endedAt": {
+       "type": "number"
+      },
+      "archivedAt": {
+       "type": "number"
+      },
+      "archiveReason": {
+       "type": "string",
+       "enum": [
+        "user",
+        "auto_24h"
+       ]
+      },
+      "ackedAt": {
+       "type": "number"
+      },
+      "lastRunStatus": {
+       "type": "string",
+       "enum": [
+        "succeeded",
+        "failed",
+        "cancelled"
+       ]
+      },
+      "lastRunAt": {
+       "type": "number"
       },
       "updatedAt": {
        "type": "number"
@@ -32014,6 +32920,35 @@
         "gen": {
          "type": "number"
         },
+        "acceptance": {
+         "type": "string",
+         "enum": [
+          "auto",
+          "user"
+         ]
+        },
+        "origin": {
+         "type": "object",
+         "properties": {
+          "conversationId": {
+           "type": "string"
+          },
+          "createdBy": {
+           "type": "string"
+          },
+          "createdAt": {
+           "type": "number"
+          },
+          "via": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "createdBy",
+          "createdAt"
+         ],
+         "additionalProperties": {}
+        },
         "trigger": {
          "type": "object",
          "properties": {
@@ -32053,6 +32988,33 @@
           "level"
          ],
          "additionalProperties": {}
+        },
+        "endedAt": {
+         "type": "number"
+        },
+        "archivedAt": {
+         "type": "number"
+        },
+        "archiveReason": {
+         "type": "string",
+         "enum": [
+          "user",
+          "auto_24h"
+         ]
+        },
+        "ackedAt": {
+         "type": "number"
+        },
+        "lastRunStatus": {
+         "type": "string",
+         "enum": [
+          "succeeded",
+          "failed",
+          "cancelled"
+         ]
+        },
+        "lastRunAt": {
+         "type": "number"
         },
         "updatedAt": {
          "type": "number"
@@ -32186,6 +33148,52 @@
         "id",
         "title",
         "enabled"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "queue": {
+      "type": "object",
+      "propertyNames": {
+       "type": "string"
+      },
+      "additionalProperties": {
+       "type": "object",
+       "properties": {
+        "reason": {
+         "type": "string",
+         "enum": [
+          "slot",
+          "memory",
+          "cpu",
+          "retry",
+          "rate_limit"
+         ]
+        },
+        "position": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
+        "retryAt": {
+         "type": "number"
+        },
+        "activeCount": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
+        "maxConcurrent": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        }
+       },
+       "required": [
+        "reason",
+        "position",
+        "activeCount",
+        "maxConcurrent"
        ],
        "additionalProperties": false
       }
@@ -32525,6 +33533,35 @@
        "gen": {
         "type": "number"
        },
+       "acceptance": {
+        "type": "string",
+        "enum": [
+         "auto",
+         "user"
+        ]
+       },
+       "origin": {
+        "type": "object",
+        "properties": {
+         "conversationId": {
+          "type": "string"
+         },
+         "createdBy": {
+          "type": "string"
+         },
+         "createdAt": {
+          "type": "number"
+         },
+         "via": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "createdBy",
+         "createdAt"
+        ],
+        "additionalProperties": {}
+       },
        "trigger": {
         "type": "object",
         "properties": {
@@ -32564,6 +33601,33 @@
          "level"
         ],
         "additionalProperties": {}
+       },
+       "endedAt": {
+        "type": "number"
+       },
+       "archivedAt": {
+        "type": "number"
+       },
+       "archiveReason": {
+        "type": "string",
+        "enum": [
+         "user",
+         "auto_24h"
+        ]
+       },
+       "ackedAt": {
+        "type": "number"
+       },
+       "lastRunStatus": {
+        "type": "string",
+        "enum": [
+         "succeeded",
+         "failed",
+         "cancelled"
+        ]
+       },
+       "lastRunAt": {
+        "type": "number"
        },
        "updatedAt": {
         "type": "number"
@@ -32671,6 +33735,9 @@
         "textAt": {
          "type": "number"
         },
+        "thinking": {
+         "type": "string"
+        },
         "user": {
          "type": "string"
         },
@@ -32732,6 +33799,9 @@
            },
            "textAt": {
             "type": "number"
+           },
+           "thinking": {
+            "type": "string"
            },
            "user": {
             "type": "string"
@@ -32819,6 +33889,39 @@
     "additionalProperties": false
    }
   },
+  "tasks.unarchive": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "ok": {
+      "type": "boolean"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "additionalProperties": false
+   }
+  },
   "tasks.update": {
    "kind": "mutation",
    "dangerous": false,
@@ -32834,6 +33937,22 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 200
+     },
+     "goal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8000
+     },
+     "doneWhen": {
+      "type": "string",
+      "maxLength": 4000
+     },
+     "acceptance": {
+      "type": "string",
+      "enum": [
+       "auto",
+       "user"
+      ]
      },
      "trigger": {
       "oneOf": [
@@ -33066,6 +34185,35 @@
      "gen": {
       "type": "number"
      },
+     "acceptance": {
+      "type": "string",
+      "enum": [
+       "auto",
+       "user"
+      ]
+     },
+     "origin": {
+      "type": "object",
+      "properties": {
+       "conversationId": {
+        "type": "string"
+       },
+       "createdBy": {
+        "type": "string"
+       },
+       "createdAt": {
+        "type": "number"
+       },
+       "via": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "createdBy",
+       "createdAt"
+      ],
+      "additionalProperties": {}
+     },
      "trigger": {
       "type": "object",
       "properties": {
@@ -33105,6 +34253,33 @@
        "level"
       ],
       "additionalProperties": {}
+     },
+     "endedAt": {
+      "type": "number"
+     },
+     "archivedAt": {
+      "type": "number"
+     },
+     "archiveReason": {
+      "type": "string",
+      "enum": [
+       "user",
+       "auto_24h"
+      ]
+     },
+     "ackedAt": {
+      "type": "number"
+     },
+     "lastRunStatus": {
+      "type": "string",
+      "enum": [
+       "succeeded",
+       "failed",
+       "cancelled"
+      ]
+     },
+     "lastRunAt": {
+      "type": "number"
      },
      "updatedAt": {
       "type": "number"
@@ -38082,6 +39257,23 @@
     "type": "string"
    }
   },
+  "chatWindow.dockRequest": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "transferId": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "transferId"
+   ],
+   "additionalProperties": false
+  },
   "chatWindow.tabDocked": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -38094,6 +39286,40 @@
     "id"
    ],
    "additionalProperties": false
+  },
+  "cli.launcherChanged": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "propertyNames": {
+    "type": "string"
+   },
+   "additionalProperties": {
+    "type": "object",
+    "properties": {
+     "enabled": {
+      "type": "boolean"
+     },
+     "command": {
+      "type": "string",
+      "maxLength": 8192
+     },
+     "accountSource": {
+      "type": "string",
+      "enum": [
+       "local",
+       "nomi"
+      ]
+     },
+     "hasLocalLogin": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "enabled",
+     "command"
+    ],
+    "additionalProperties": false
+   }
   },
   "cli.registryChanged": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -38608,6 +39834,46 @@
          "computer",
          "tool"
         ]
+       },
+       "delegate": {
+        "type": "object",
+        "properties": {
+         "cli": {
+          "type": "string"
+         },
+         "permissionMode": {
+          "type": "string",
+          "enum": [
+           "plan",
+           "manual",
+           "acceptEdits",
+           "auto",
+           "bypass"
+          ]
+         },
+         "sandboxStatus": {
+          "type": "string",
+          "enum": [
+           "on",
+           "off",
+           "unsupported"
+          ]
+         },
+         "workspaceGuard": {
+          "type": "boolean"
+         },
+         "envScrub": {
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "cli",
+         "permissionMode",
+         "sandboxStatus",
+         "workspaceGuard",
+         "envScrub"
+        ],
+        "additionalProperties": {}
        }
       },
       "required": [
@@ -38733,6 +39999,46 @@
       "computer",
       "tool"
      ]
+    },
+    "delegate": {
+     "type": "object",
+     "properties": {
+      "cli": {
+       "type": "string"
+      },
+      "permissionMode": {
+       "type": "string",
+       "enum": [
+        "plan",
+        "manual",
+        "acceptEdits",
+        "auto",
+        "bypass"
+       ]
+      },
+      "sandboxStatus": {
+       "type": "string",
+       "enum": [
+        "on",
+        "off",
+        "unsupported"
+       ]
+      },
+      "workspaceGuard": {
+       "type": "boolean"
+      },
+      "envScrub": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "cli",
+      "permissionMode",
+      "sandboxStatus",
+      "workspaceGuard",
+      "envScrub"
+     ],
+     "additionalProperties": {}
     }
    },
    "required": [
@@ -40343,6 +41649,16 @@
     },
     "data": {
      "type": "string"
+    },
+    "generation": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 9007199254740991
+    },
+    "offset": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
     }
    },
    "required": [
@@ -40357,6 +41673,11 @@
    "properties": {
     "id": {
      "type": "string"
+    },
+    "generation": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 9007199254740991
     },
     "exitCode": {
      "type": "integer",

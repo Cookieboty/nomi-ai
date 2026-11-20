@@ -3,10 +3,15 @@ package tasks
 // notify 执行者：到点发一条通知，通知本身就是结果。
 
 type NotifyFunc func(title, text string)
+type NotifyTaskFunc func(taskID, title, text string)
 
-type notifyExecutor struct{ notify NotifyFunc }
+type notifyExecutor struct {
+	notify     NotifyFunc
+	notifyTask NotifyTaskFunc
+}
 
-func NewNotifyExecutor(n NotifyFunc) Executor { return &notifyExecutor{notify: n} }
+func NewNotifyExecutor(n NotifyFunc) Executor         { return &notifyExecutor{notify: n} }
+func NewNotifyExecutorWithTask(n NotifyTaskFunc) Executor { return &notifyExecutor{notifyTask: n} }
 
 func (e *notifyExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
 	return ExecutionSnapshot{GrantVersion: t.Grant.Version}, nil
@@ -22,7 +27,11 @@ func (e *notifyExecutor) Start(ctx AttemptContext) {
 			ctx.Report.Failed(TaskError{Code: "executor_failed", Message: "notify failed"})
 		}
 	}()
-	e.notify(ctx.Task.Title, text)
+	if e.notifyTask != nil {
+		e.notifyTask(ctx.Task.ID, ctx.Task.Title, text)
+	} else if e.notify != nil {
+		e.notify(ctx.Task.Title, text)
+	}
 	ctx.Report.Completed(AttemptResult{Summary: text, Artifacts: []Artifact{}})
 }
 

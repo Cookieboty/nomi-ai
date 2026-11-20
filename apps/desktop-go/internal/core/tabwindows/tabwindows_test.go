@@ -1,12 +1,15 @@
 package tabwindows
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"reflect"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 )
@@ -191,7 +194,7 @@ func TestRegister(t *testing.T) {
 	m, _, _ := setup()
 	Register(r, m)
 	reg := r.Registered()
-	for _, n := range []string{"chatWindow.detachTab", "chatWindow.detachedTabs", "chatWindow.dockTab", "chatWindow.handoffPut", "chatWindow.handoffTake"} {
+	for _, n := range []string{"chatWindow.detachTab", "chatWindow.detachedTabs", "chatWindow.registerHost", "chatWindow.dockTab", "chatWindow.dockAck", "chatWindow.handoffPut", "chatWindow.handoffTake"} {
 		if _, ok := reg[n]; !ok {
 			t.Errorf("missing %s", n)
 		}
@@ -229,5 +232,212 @@ func TestHandoff(t *testing.T) {
 	}
 	if _, ok := m.Take(fmt.Sprintf("k%d", maxHandoffCount+2)); !ok {
 		t.Fatal("newest kept")
+	}
+}
+
+func TestRegisterHostAndDirectionIsolation(t *testing.T) {
+	m := New(func() Opener { return nil }, nil)
+	done1 := make(chan struct{})
+	host1 := contract.Caller{Surface: "chat", ID: 10, Done: done1}
+	peer := contract.Caller{Surface: "chat", ID: 20}
+
+	if m.RegisterHost(contract.Caller{Surface: "chat", ID: 0}) {
+		t.Fatal("zero callerID should not register host")
+	}
+	if !m.RegisterHost(host1) {
+		t.Fatal("expected host1 registration")
+	}
+
+	if err := m.PutWithOptions(host1, HandoffPutInput{ID: "tab1", Data: `{"dir":"detach"}`, Direction: "detach"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.PutWithOptions(peer, HandoffPutInput{ID: "tab1", Data: `{"dir":"dock"}`, Direction: "dock"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// 同 id 方向隔离，且非 host 不能窃取或删除 dock 快照
+	if got, ok := m.TakeWithOptions(peer, HandoffTakeInput{ID: "tab1", Direction: "dock"}); ok || got != "" {
+		t.Fatalf("peer unexpectedly stole dock snapshot: %q", got)
+	}
+	if got, ok := m.TakeWithOptions(peer, HandoffTakeInput{ID: "tab1"}); ok || got != "" {
+		t.Fatalf("peer unexpectedly stole dock snapshot via untyped take: %q", got)
+	}
+	if got, ok := m.TakeWithOptions(peer, HandoffTakeInput{ID: "tab1", Direction: "detach"}); !ok || got != `{"dir":"detach"}` {
+		t.Fatalf("detach take = %q %v", got, ok)
+	}
+	if got, ok := m.TakeWithOptions(host1, HandoffTakeInput{ID: "tab1", Direction: "dock"}); !ok || got != `{"dir":"dock"}` {
+		t.Fatalf("host dock take = %q %v", got, ok)
+	}
+
+	// host 断开后自动清理 hostCallerID
+	close(done1)
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		m.mu.Lock()
+		hid := m.hostCallerID
+		m.mu.Unlock()
+		if hid == 0 {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("hostCallerID was not cleared after caller.Done closed")
+}
+
+func TestTwoPhaseDockSuccessAndConcurrent(t *testing.T) {
+	m, _, events := setup()
+	hostDone := make(chan struct{})
+	defer close(hostDone)
+	host := contract.Caller{Surface: "chat", ID: 100, Done: hostDone}
+	win1 := contract.Caller{Surface: "chat", ID: 201}
+	win2 := contract.Caller{Surface: "chat", ID: 202}
+	if !m.RegisterHost(host) {
+		t.Fatal("registerHost")
+	}
+
+	reqCh := make(chan map[string]string, 4)
+	m.SetCallerEmitter(func(callerID int, event string, data any) bool {
+		if callerID != host.ID || event != EventDockRequest {
+			return false
+		}
+		raw, _ := json.Marshal(data)
+		var p map[string]string
+		_ = json.Unmarshal(raw, &p)
+		reqCh <- p
+		return true
+	})
+
+	if _, err := m.Detach(DetachInput{ID: "w1", Title: "W1", Spec: spec}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Detach(DetachInput{ID: "w2", Title: "W2", Spec: spec}); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.PutWithOptions(win1, HandoffPutInput{
+		ID: "w1", Data: `{"chat":"w1"}`, TransferID: "tr-1", Direction: "dock", KeepUntilAck: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.PutWithOptions(win2, HandoffPutInput{
+		ID: "w2", Data: `{"chat":"w2"}`, TransferID: "tr-2", Direction: "dock", KeepUntilAck: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	res := make([]bool, 2)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		res[0] = m.DockWithOptions(context.Background(), win1, DockInput{ID: "w1", TransferID: "tr-1", RequireAck: true})
+	}()
+	go func() {
+		defer wg.Done()
+		res[1] = m.DockWithOptions(context.Background(), win2, DockInput{ID: "w2", TransferID: "tr-2", RequireAck: true})
+	}()
+
+	for i := 0; i < 2; i++ {
+		req := <-reqCh
+		id, tr := req["id"], req["transferId"]
+		// 非 host 偷取与非 host ACK 都被拒
+		if got, ok := m.TakeWithOptions(win2, HandoffTakeInput{ID: id, Direction: "dock", TransferID: tr}); ok || got != "" {
+			t.Fatalf("peer stole pending dock %s", id)
+		}
+		if m.DockAck(win2, DockAckInput{ID: id, TransferID: tr, OK: true}) {
+			t.Fatalf("peer ack must fail for %s", id)
+		}
+		// keepUntilAck=true：主窗口读取后仍保留，直到 dockAck(ok=true)
+		got1, ok1 := m.TakeWithOptions(host, HandoffTakeInput{ID: id, Direction: "dock", TransferID: tr})
+		got2, ok2 := m.TakeWithOptions(host, HandoffTakeInput{ID: id, Direction: "dock", TransferID: tr})
+		if !ok1 || !ok2 || got1 != got2 {
+			t.Fatalf("keepUntilAck failed for %s: %v %v %q", id, ok1, ok2, got1)
+		}
+		if !m.DockAck(host, DockAckInput{ID: id, TransferID: tr, OK: true}) {
+			t.Fatalf("host dockAck failed for %s", id)
+		}
+	}
+	wg.Wait()
+
+	if !res[0] || !res[1] {
+		t.Fatalf("concurrent docks failed: %+v", res)
+	}
+	if len(m.List()) != 0 {
+		t.Fatalf("all windows should close after ack, got %v", m.List())
+	}
+	if _, ok := m.TakeWithOptions(host, HandoffTakeInput{ID: "w1", Direction: "dock"}); ok {
+		t.Fatal("w1 dock snapshot should be cleaned after ok ACK")
+	}
+	dockedCount := 0
+	for _, ev := range *events {
+		if ev.event == EventDocked {
+			dockedCount++
+		}
+	}
+	if dockedCount != 2 {
+		t.Fatalf("expected 2 EventDocked, got %d", dockedCount)
+	}
+}
+
+func TestTwoPhaseDockFailuresPreserveWindowAndSnapshot(t *testing.T) {
+	m, _, _ := setup()
+	m.SetAckTimeout(30 * time.Millisecond)
+	win := contract.Caller{Surface: "chat", ID: 301}
+	if _, err := m.Detach(DetachInput{ID: "w1", Title: "W1", Spec: spec}); err != nil {
+		t.Fatal(err)
+	}
+
+	// 无 host 在线时拒绝关闭窗口
+	if m.DockWithOptions(context.Background(), win, DockInput{ID: "w1", TransferID: "t0", RequireAck: true}) {
+		t.Fatal("expected dock fail without registered host")
+	}
+	if len(m.List()) != 1 {
+		t.Fatal("window must remain open when no host")
+	}
+
+	host := contract.Caller{Surface: "chat", ID: 100}
+	m.RegisterHost(host)
+	// emitCaller 返回 false（host 未订阅）
+	m.SetCallerEmitter(func(int, string, any) bool { return false })
+	if err := m.PutWithOptions(win, HandoffPutInput{ID: "w1", Data: `{"k":1}`, TransferID: "t1", Direction: "dock", KeepUntilAck: true}); err != nil {
+		t.Fatal(err)
+	}
+	if m.DockWithOptions(context.Background(), win, DockInput{ID: "w1", TransferID: "t1", RequireAck: true}) {
+		t.Fatal("expected fail when emitCaller false")
+	}
+	if len(m.List()) != 1 {
+		t.Fatal("window closed on failed emit")
+	}
+	if got, ok := m.TakeWithOptions(host, HandoffTakeInput{ID: "w1", Direction: "dock"}); !ok || got != `{"k":1}` {
+		t.Fatalf("snapshot lost after failed emit: %q %v", got, ok)
+	}
+
+	// host 显式拒绝 (dockAck ok=false) 时保持窗口打开且保留快照
+	m.SetCallerEmitter(func(int, string, any) bool {
+		go m.DockAck(host, DockAckInput{ID: "w1", TransferID: "t2", OK: false})
+		return true
+	})
+	if err := m.PutWithOptions(win, HandoffPutInput{ID: "w1", Data: `{"k":2}`, TransferID: "t2", Direction: "dock", KeepUntilAck: true}); err != nil {
+		t.Fatal(err)
+	}
+	if m.DockWithOptions(context.Background(), win, DockInput{ID: "w1", TransferID: "t2", RequireAck: true}) {
+		t.Fatal("expected fail when host nacks")
+	}
+	if len(m.List()) != 1 {
+		t.Fatal("window must stay open on ok=false ack")
+	}
+	if got, ok := m.TakeWithOptions(host, HandoffTakeInput{ID: "w1", Direction: "dock"}); !ok || got != `{"k":2}` {
+		t.Fatalf("snapshot lost after nack: %q %v", got, ok)
+	}
+
+	// ACK 超时保持窗口打开
+	m.SetCallerEmitter(func(int, string, any) bool { return true })
+	if err := m.PutWithOptions(win, HandoffPutInput{ID: "w1", Data: `{"k":3}`, TransferID: "t3", Direction: "dock", KeepUntilAck: true}); err != nil {
+		t.Fatal(err)
+	}
+	if m.DockWithOptions(context.Background(), win, DockInput{ID: "w1", TransferID: "t3", RequireAck: true}) {
+		t.Fatal("expected timeout failure")
+	}
+	if len(m.List()) != 1 {
+		t.Fatal("window must stay open on ack timeout")
 	}
 }

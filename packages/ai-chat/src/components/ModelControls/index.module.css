@@ -392,6 +392,38 @@
   font-size: var(--cd-font-size-xs);
   line-height: 1.5;
 }
+.longContextRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+  width: calc(100% + 16px);
+  margin: 0 -8px;
+  padding: 9px var(--cd-space-2);
+  border-top: 1px solid var(--cd-color-border);
+}
+.longContextHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-2);
+}
+.longContextTitle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--cd-space-1-5);
+  min-width: 0;
+}
+.longContextRange {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.longContextNote {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  line-height: 1.35;
+}
 
 .topBar {
   display: flex;

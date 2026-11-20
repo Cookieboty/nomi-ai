@@ -292,7 +292,7 @@
   "ui.cli-monitor.project-primary": "主文件夹",
   "ui.cli-monitor.project-primary-hint": "主文件夹是会话的工作目录，git、分支和 AGENTS.md 以它为准；其余文件夹同样能读写。",
   "ui.cli-monitor.project-remove": "移除项目",
-  "ui.cli-monitor.project-remove-confirm-body": "只是不再显示这个项目，磁盘上的文件不会删除。项目里的对话会移到「最近」。",
+  "ui.cli-monitor.project-remove-confirm-body": "只是不再显示这个项目，磁盘上的文件不会删除。项目里的对话会移到「其他对话」。",
   "ui.cli-monitor.project-remove-confirm-title": "移除项目「{0}」？",
   "ui.cli-monitor.project-search": "搜索项目",
   "ui.cli-monitor.project-set-primary": "设为主文件夹",

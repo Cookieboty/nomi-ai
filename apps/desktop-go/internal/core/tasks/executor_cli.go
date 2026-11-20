@@ -359,6 +359,17 @@ func (e *cliExecutor) promptFor(ctx AttemptContext, reused bool) string {
 			}
 			return "用户退回了上次的结果，意见：" + note + "\n请按意见修改，完成后照原格式汇报。"
 		}
+		if c.Kind == "followup" || c.FollowUp != nil {
+			note := ""
+			if c.FollowUp != nil && c.FollowUp.Text != "" {
+				note = c.FollowUp.Text
+			} else if c.Note != nil {
+				note = *c.Note
+			}
+			if note != "" {
+				return "用户看过上一次结果后发来新的追问与调整指令：\n" + note + "\n请基于工作目录中已有改动继续修改，不要从头重做，完成后照原格式汇报。"
+			}
+		}
 		if c.Answer != nil {
 			yes := "不同意"
 			if c.Answer.Approve {
@@ -377,11 +388,34 @@ func (e *cliExecutor) promptFor(ctx AttemptContext, reused bool) string {
 		}
 		return "上次执行被中断了（应用重启或出错）。先检查工作目录与 git 状态，确认哪些已经做过，不要重复对外动作；然后接着完成任务，照原格式汇报。"
 	}
+	extraCtx := ""
+	if c.Kind == "followup" || c.FollowUp != nil {
+		note := ""
+		prevSummary := ""
+		if c.FollowUp != nil {
+			note = c.FollowUp.Text
+			prevSummary = c.FollowUp.PreviousSummary
+		} else if c.Note != nil {
+			note = *c.Note
+		}
+		if prevSummary == "" && ctx.Previous != nil && ctx.Previous.Result != nil {
+			prevSummary = ctx.Previous.Result.Summary
+		}
+		if prevSummary != "" {
+			extraCtx += "\n\n【上一次执行结果摘要】\n" + shortN(prevSummary, 4000)
+		}
+		if note != "" {
+			extraCtx += "\n\n【用户的追问与调整指令（请在已有工作基础上继续，不要从头重做）】\n" + note
+		}
+	} else if c.Kind != "rework" && c.Note != nil && *c.Note != "" {
+		extraCtx += "\n\n【本次运行开始前用户补充的要求】\n" + *c.Note
+	}
 	if b := ctx.Task.Executor.Brief; ctx.Task.Executor.Kind == "cli" && b != nil {
 		bc, oos := "", ""
 		if b.Context != nil {
 			bc = *b.Context
 		}
+		bc += extraCtx
 		if b.OutOfScope != nil {
 			oos = *b.OutOfScope
 		}
@@ -393,7 +427,30 @@ func (e *cliExecutor) promptFor(ctx AttemptContext, reused bool) string {
 			context += "\n" + ev
 		}
 	}
+	context += extraCtx
 	return e.d.BuildPrompt(ctx.Task.Goal, context, "目标里写的结果达成；做不到时说明原因", "")
+}
+
+// Steer：向正在运行中的 CLI 任务标签插入一条用户指令（不中断当前轮次）
+func (e *cliExecutor) Steer(taskID, text string) bool {
+	body := strings.TrimSpace(text)
+	if body == "" {
+		return false
+	}
+	e.mu.Lock()
+	r := e.runs[taskID]
+	tabID := ""
+	if r != nil && !r.stopped {
+		tabID = r.tabID
+	}
+	e.mu.Unlock()
+	if tabID == "" {
+		return false
+	}
+	if st, ok := e.d.Harness.(interface{ SteerTab(id, text string) bool }); ok {
+		return st.SteerTab(tabID, body)
+	}
+	return false
 }
 
 func runeSlice(s string, n int) string {
@@ -491,7 +548,9 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 			return
 		}
 		iso = &got
-		before = e.d.GitChanged(got.Cwd)
+		if e.d.GitChanged != nil {
+			before = e.d.GitChanged(got.Cwd)
+		}
 		// 权限档：Nomi 委派任务默认一律开启自动模式（由 DelegateMode 映射到 CLI 支持的 bypass/最高自动档），
 		// 不受 Nomi 自身当前模式或系统沙箱限制影响；普通后台任务仍按授权等级与系统沙箱换算。
 		mode := cliTaskMode(t, e.relaxed(t))
@@ -541,7 +600,9 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 			if prev != nil && prev.Carrier != nil && prev.Carrier.Cwd != nil {
 				workDir = *prev.Carrier.Cwd
 			}
-			before = e.d.GitChanged(workDir)
+			if e.d.GitChanged != nil {
+				before = e.d.GitChanged(workDir)
+			}
 		}
 		if k == "retry" && e.d.RecoverTab != nil {
 			// 重试前先拆掉可能半残的常驻 CLI 进程；前 2 次带原 cliSessionId 续接，第 3 次起清掉可能已损坏的会话开新会话续跑
@@ -907,7 +968,7 @@ type TaskRunSpec struct {
 }
 
 // ResolveTaskRunSpec：Prepare / Start / 复用标识共用的一套解析，决定这次任务到底用哪个 agent。
-// 档位模式（presetId）一律以当前档位为准，任务里保存的 cli / 来源 / 账号 / 模型只是快照；
+// 档位模式（presetId）以当前档位为基础，但任务里显式指定的模型 / 思考深度在同一 CLI 下覆盖预设字段；
 // 返回 false = 指定了档位但已删除或解析不出，调用方必须失败，不能退回旧 cli。
 func ResolveTaskRunSpec(resolve func(string) *CliPresetSpec, ex *ExecutorSpec) (TaskRunSpec, bool) {
 	if ex == nil {
@@ -921,7 +982,24 @@ func ResolveTaskRunSpec(resolve func(string) *CliPresetSpec, ex *ExecutorSpec) (
 		if ps == nil {
 			return TaskRunSpec{}, false
 		}
-		return TaskRunSpec{Cli: ps.Cli, Source: ps.Source, AccountID: ps.AccountID, Model: ps.Model, ReasoningEffort: ps.ReasoningEffort}, true
+		spec := TaskRunSpec{
+			Cli:             ps.Cli,
+			Source:          ps.Source,
+			AccountID:       ps.AccountID,
+			Model:           ps.Model,
+			ReasoningEffort: ps.ReasoningEffort,
+		}
+		// 统一同步与后台优先规则：显式值仅覆盖存在的字段，未指定时使用预设；
+		// 预设被编辑切换成另一 CLI 时不沿用旧 CLI 的模型。
+		if exCli := strOr(ex.Cli); exCli == "" || exCli == ps.Cli {
+			if m := strOr(ex.Model); m != "" {
+				spec.Model = m
+			}
+			if e := strOr(ex.ReasoningEffort); e != "" {
+				spec.ReasoningEffort = e
+			}
+		}
+		return spec, true
 	}
 	return TaskRunSpec{Cli: strOr(ex.Cli), Source: strOr(ex.Source), AccountID: strOr(ex.AccountID), Model: strOr(ex.Model), ReasoningEffort: strOr(ex.ReasoningEffort)}, true
 }

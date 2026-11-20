@@ -101,9 +101,15 @@ func taskHandlers(sv Services) map[string]H {
 		"tasks.revoke": cmd(tasks.Command{Type: "revoke"}),
 		"tasks.pause":  cmd(tasks.Command{Type: "pause"}),
 		"tasks.resume": cmd(tasks.Command{Type: "resume"}),
-		"tasks.cancel": cmd(tasks.Command{Type: "cancel"}),
-		"tasks.runNow": cmd(tasks.Command{Type: "runNow"}),
-		"tasks.accept": cmd(tasks.Command{Type: "accept"}),
+		"tasks.cancel":          cmd(tasks.Command{Type: "cancel"}),
+		"tasks.runNow":          cmd(tasks.Command{Type: "runNow"}),
+		"tasks.accept":          cmd(tasks.Command{Type: "accept"}),
+		"tasks.archive":         cmd(tasks.Command{Type: "archive", Outcome: "user"}),
+		"tasks.unarchive":       cmd(tasks.Command{Type: "unarchive"}),
+		"tasks.ack":             cmd(tasks.Command{Type: "ack"}),
+		"tasks.archiveAllEnded": on(get, func(_ context.Context, s *T, _ json.RawMessage) (any, error) {
+			return map[string]int{"archived": s.ArchiveAllEnded()}, nil
+		}),
 		"tasks.decide": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
 			var in struct {
 				ID string `json:"id"`
@@ -137,6 +143,18 @@ func taskHandlers(sv Services) map[string]H {
 		}),
 		"tasks.followUp": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
 			var in struct {
+				ID         string                `json:"id"`
+				Text       string                `json:"text"`
+				UpdateGoal bool                  `json:"updateGoal"`
+				Images     []tasks.FollowUpImage `json:"images"`
+			}
+			if err := decode(raw, &in); err != nil {
+				return nil, err
+			}
+			return s.FollowUpWithOptions(in.ID, in.Text, in.UpdateGoal, in.Images...), nil
+		}),
+		"tasks.appendQueued": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
+			var in struct {
 				ID     string                `json:"id"`
 				Text   string                `json:"text"`
 				Images []tasks.FollowUpImage `json:"images"`
@@ -144,7 +162,45 @@ func taskHandlers(sv Services) map[string]H {
 			if err := decode(raw, &in); err != nil {
 				return nil, err
 			}
-			return s.FollowUp(in.ID, in.Text, in.Images...), nil
+			return s.AppendQueued(in.ID, in.Text, in.Images...), nil
+		}),
+		"tasks.handoffFromChat": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
+			var in struct {
+				ReqID           string `json:"reqId"`
+				ConversationID  string `json:"conversationId"`
+				ProjectID       string `json:"projectId"`
+				Title           string `json:"title"`
+				UserGoal        string `json:"userGoal"`
+				PartialContent  string `json:"partialContent"`
+				ProgressSummary string `json:"progressSummary"`
+				HistoryContext  string `json:"historyContext"`
+			}
+			if err := decode(raw, &in); err != nil {
+				return nil, err
+			}
+			if in.ReqID != "" && sv.AbortChatReq != nil {
+				sv.AbortChatReq(in.ReqID)
+			}
+			var cwd string
+			var paths []string
+			if sv.ResolveWorkspace != nil && in.ProjectID != "" {
+				cwd, paths = sv.ResolveWorkspace(in.ProjectID)
+			}
+			task, err := s.CreateHandoff(tasks.HandoffInput{
+				ConversationID:  in.ConversationID,
+				ProjectID:       in.ProjectID,
+				Title:           in.Title,
+				UserGoal:        in.UserGoal,
+				PartialContent:  in.PartialContent,
+				ProgressSummary: in.ProgressSummary,
+				HistoryContext:  in.HistoryContext,
+				Cwd:             cwd,
+				Paths:           paths,
+			})
+			if err != nil {
+				return nil, &contract.Error{Code: "BAD_INPUT", Message: err.Error()}
+			}
+			return task, nil
 		}),
 		"tasks.reconcile": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
 			var in struct {

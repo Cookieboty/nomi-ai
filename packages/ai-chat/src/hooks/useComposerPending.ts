@@ -3,7 +3,7 @@
  * 当前会话（Nomi / agent 标签）该显示哪份列表，以及撤回修改 / 删除 / Esc 合成发送。
  * 规则见 utils/pendingSends。
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useChangesUi } from '../components/SessionWorkspace/ChangesUiContext';
 import { useHarnessTabsCore } from '../contexts/HarnessTabsContext';
@@ -74,18 +74,15 @@ export function useComposerPending(
     [actions.steerStream, actions.nomiToolRunning, actions.onNomiToolStart, actions.stopGeneration],
   );
   const cli = tabs.isCliTab && tabs.activeTab ? tabs.activeTab.id : null;
-  // 当前会话在哪个组（nomi:<会话 id> / tab:<标签 id>；标签一开始不在运行时还没有 CLI 组）
-  const pendingKeyNow = cli
-    ? pendingKey('tab', cli)
-    : pendingTarget?.convoId
-      ? pendingKey('nomi', pendingTarget.convoId)
-      : undefined;
-  const pendingStore = useNomiPendingStore(pendingTarget?.source, pendingKeyNow);
-  // CLI 标签的待发列表：挂回（重启前没交出去的），列表还归 HarnessTabsContext 维护，
-  // 这里记下当前标签组的键，它的每次改动写回那一组（见 HarnessTabsContext.restorePending）
-  useLayoutEffect(() => {
-    if (cli) tabs.restorePending(pendingKey('tab', cli));
-  }, [cli, tabs]);
+  // Nomi 待发持久化组只绑定 Nomi 会话，绝不传入 tab:<cli>
+  const nomiStoreKey =
+    !cli && pendingTarget?.convoId ? pendingKey('nomi', pendingTarget.convoId) : undefined;
+  const pendingStore = useNomiPendingStore(pendingTarget?.source, nomiStoreKey);
+  const cliTabReady = Boolean(cli && tabs.activeTabId === cli);
+  // CLI 标签的待发列表由 HarnessTabsContext 维护；在 provider 的 layout effect 提交后再恢复
+  useEffect(() => {
+    if (cli && cliTabReady) tabs.restorePending(pendingKey('tab', cli));
+  }, [cli, cliTabReady, tabs]);
   // 只有当前会话在回复时才进列表：别的会话在回复不影响这里直接发送
   const nomiQueue = useSendQueue(
     busyHere,
@@ -96,13 +93,13 @@ export function useComposerPending(
         : opts?.kb
           ? actions.askKnowledge(text)
           : actions.sendStreamMessage(text),
-    resetKey,
+    cli ? undefined : resetKey,
     steer,
     pendingStore,
   );
   const items: readonly PendingSend[] | undefined = cli ? tabs.queues[cli] : nomiQueue.items;
-  const { removePending } = tabs;
-  const { remove: removeNomi } = nomiQueue;
+  const { removePending, sendPendingTextOnly } = tabs;
+  const { remove: removeNomi, sendTextOnly: sendNomiTextOnly } = nomiQueue;
   const onRemove = useCallback(
     (id: string) => (cli ? removePending(id) : removeNomi(id)),
     [cli, removePending, removeNomi],
@@ -110,17 +107,28 @@ export function useComposerPending(
   const onWithdraw = useCallback(
     (item: PendingSend) => {
       onRemove(item.id);
-      fillComposer(item.text, item.images?.length ? toImageAttachments(item.images) : undefined);
+      fillComposer(
+        item.imageOnly ? '' : item.text,
+        item.images?.length ? toImageAttachments(item.images) : undefined,
+      );
     },
     [onRemove, fillComposer],
+  );
+  const onSendTextOnly = useCallback(
+    (id: string) => {
+      if (cli) sendPendingTextOnly(cli, id);
+      else sendNomiTextOnly(id);
+    },
+    [cli, sendPendingTextOnly, sendNomiTextOnly],
   );
   // 输入框的运行中发送：Enter 插入 / Ctrl+Enter 排队 / Esc 停下来马上发（agent 标签与 Nomi 各走各的列表）
   const { send: tabSend, cancel: tabCancel, flushPending } = tabs;
   const { enqueue, flush } = nomiQueue;
   const count = items?.length ?? 0;
+  const hasMissing = Boolean(items?.some((i) => i.attachmentsMissing));
   const cliBusy =
     !!cli && (tabs.activeTab?.status === 'running' || tabs.activeTab?.status === 'queued');
-  const canFlush = cli ? cliBusy : busyHere;
+  const canFlush = (cli ? cliBusy : busyHere) && !hasMissing;
   const onFlush = useCallback(() => {
     if (cli) void flushPending();
     else flush();
@@ -129,8 +137,10 @@ export function useComposerPending(
     () =>
       cli
         ? {
-            onQueue: (text: string, o?: { mode?: PendingMode; images?: ImageAttachment[] }): void =>
-              void tabSend(text, o?.images, o?.mode),
+            onQueue: (
+              text: string,
+              o?: { mode?: PendingMode; images?: ImageAttachment[]; imageOnly?: boolean },
+            ): void => void tabSend(text, o?.images, o?.mode, undefined, o?.imageOnly),
             onStop: (): void => void tabCancel(),
             pending: count,
             onFlush: (): void => void flushPending(),
@@ -141,6 +151,7 @@ export function useComposerPending(
   // agent 标签自动发送失败的可见提示与「重试」（Nomi 主对话的发送失败另有通道，不在这里）
   const failure = cli ? tabs.sendFails[cli]?.message : undefined;
   const failedText = cli ? tabs.sendFails[cli]?.item.text : undefined;
+  const failedId = cli ? tabs.sendFails[cli]?.item.id : undefined;
   const onRetry = useCallback(() => {
     if (cli) tabs.retryFailedSend(cli);
   }, [cli, tabs]);
@@ -150,11 +161,13 @@ export function useComposerPending(
     items,
     onRemove,
     onWithdraw,
+    onSendTextOnly,
     onFlush,
     canFlush,
     queueProps,
     failure,
     failedText,
+    failedId,
     onRetry,
     inFlightId,
   };

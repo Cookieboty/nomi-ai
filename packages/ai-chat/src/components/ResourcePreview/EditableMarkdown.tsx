@@ -75,6 +75,60 @@ function previousTableCell(target: HTMLElement) {
   return undefined;
 }
 
+export interface MarkdownReplaceHandle {
+  replaceRange: (range: Range, replacement: string) => boolean;
+  replaceRanges: (items: ReadonlyArray<{ range: Range; replacement: string }>) => number;
+}
+
+function containsReadonlyAtomic(editor: HTMLElement, range: Range): boolean {
+  const checkNode = (node: Node) => {
+    const el = node.nodeType === Node.ELEMENT_NODE ? (node as HTMLElement) : node.parentElement;
+    const atomic = el?.closest<HTMLElement>('[contenteditable="false"]');
+    return !!atomic && editor.contains(atomic) && atomic !== editor;
+  };
+  if (checkNode(range.startContainer) || checkNode(range.endContainer)) return true;
+  const common = range.commonAncestorContainer;
+  const container =
+    common.nodeType === Node.ELEMENT_NODE ? (common as HTMLElement) : common.parentElement;
+  if (!container) return false;
+  return Array.from(container.querySelectorAll<HTMLElement>('[contenteditable="false"]')).some(
+    (atomic) => atomic !== editor && range.intersectsNode(atomic),
+  );
+}
+
+function applyDomRangeReplace(
+  editor: HTMLElement,
+  range: Range,
+  replacement: string,
+  ctx: { root: HTMLElement; source: string; patches: Map<number, MarkdownPatch> },
+): { blocks: HTMLElement[]; patched: boolean } | null {
+  if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) return null;
+  if (containsReadonlyAtomic(editor, range)) return null;
+  const startBlock = selectedBlock(editor, range.startContainer);
+  const endBlock = selectedBlock(editor, range.endContainer);
+  if (!startBlock || !endBlock) return null;
+  if (
+    range.startContainer === range.endContainer &&
+    range.startContainer.nodeType === Node.TEXT_NODE
+  ) {
+    (range.startContainer as Text).replaceData(
+      range.startOffset,
+      range.endOffset - range.startOffset,
+      replacement,
+    );
+    return { blocks: [startBlock], patched: false };
+  }
+  if (startBlock === endBlock) {
+    range.deleteContents();
+    if (replacement) {
+      range.insertNode(document.createTextNode(replacement));
+    }
+    return { blocks: [startBlock], patched: false };
+  }
+  if (!replaceMarkdownSelection(ctx, range, replacement)) return null;
+  return { blocks: [], patched: true };
+}
+
 /** One editing host permits continuous selection. Source transactions preserve untouched
  * Markdown; typing keeps stable DOM, and undo restores source and rendered structure together. */
 export const EditableMarkdown = React.memo(function EditableMarkdown({
@@ -82,11 +136,13 @@ export const EditableMarkdown = React.memo(function EditableMarkdown({
   editable,
   onChange,
   editHistory,
+  replaceHandleRef,
 }: {
   text: string;
   editable: boolean;
   onChange: (text: string) => void;
   editHistory?: MarkdownEditHistory;
+  replaceHandleRef?: React.MutableRefObject<MarkdownReplaceHandle | null>;
 }) {
   const [base, setBase] = useState(text);
   const [renderVersion, setRenderVersion] = useState(0);
@@ -536,6 +592,54 @@ export const EditableMarkdown = React.memo(function EditableMarkdown({
     editor.addEventListener('beforeinput', beforeInput);
     return () => editor.removeEventListener('beforeinput', beforeInput);
   }, [base, editable, emit, replaceSelection, caret, restoreHistory, demoteHeading]);
+  useLayoutEffect(() => {
+    if (!replaceHandleRef) return;
+    if (!editable) {
+      replaceHandleRef.current = null;
+      return;
+    }
+    replaceHandleRef.current = {
+      replaceRange: (range, replacement) => {
+        const editor = root.current;
+        const ctx = context();
+        if (!editor || !ctx) return false;
+        const res = applyDomRangeReplace(editor, range, replacement, ctx);
+        if (!res) return false;
+        for (const block of res.blocks) {
+          if (block.closest('[hidden]')) continue;
+          putMarkdownPatch(patches.current, blockMarkdown(block, base));
+          highlightCode(block);
+        }
+        publish();
+        return true;
+      },
+      replaceRanges: (items) => {
+        const editor = root.current;
+        const ctx = context();
+        if (!editor || !ctx || !items.length) return 0;
+        const touched = new Set<HTMLElement>();
+        let count = 0;
+        for (let i = items.length - 1; i >= 0; i--) {
+          const item = items[i]!;
+          const res = applyDomRangeReplace(editor, item.range, item.replacement, ctx);
+          if (!res) continue;
+          count++;
+          for (const block of res.blocks) touched.add(block);
+        }
+        if (!count) return 0;
+        for (const block of touched) {
+          if (block.closest('[hidden]')) continue;
+          putMarkdownPatch(patches.current, blockMarkdown(block, base));
+          highlightCode(block);
+        }
+        publish();
+        return count;
+      },
+    };
+    return () => {
+      replaceHandleRef.current = null;
+    };
+  }, [replaceHandleRef, editable, context, base, publish, highlightCode]);
   const pointer = useRef({ x: 0, y: 0, dragged: false });
   return (
     <div

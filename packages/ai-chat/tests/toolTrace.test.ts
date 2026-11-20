@@ -454,3 +454,53 @@ describe('subagent-only events stay out of the main timeline', () => {
     expect(entries.map((e) => (e.type === 'thinking' ? e.text : e.type))).toEqual(['main']);
   });
 });
+
+describe('Nomi builtin tools classification, description and diffs', () => {
+  it('classifies and describes workspace_run, fs_*, code_run and browser_* tools', () => {
+    expect(describeCall(call('workspace_run', { command: 'git status' }))).toMatchObject({
+      kind: 'command',
+      verb: '运行命令',
+      target: 'git status',
+    });
+    expect(describeCall(call('code_run', { language: 'python', code: 'print(1)\nprint(2)' }))).toMatchObject({
+      kind: 'command',
+      verb: '运行命令',
+      target: 'print(1)',
+    });
+    expect(describeCall(call('fs_read_text', { path: 'packages/ai-chat/src/App.tsx' }))).toMatchObject({
+      kind: 'read',
+      verb: '读取',
+      target: 'packages/ai-chat/src/App.tsx',
+    });
+    expect(describeCall(call('fs_search', { root: '/repo', contains: 'TraceDrawer' }))).toMatchObject({
+      kind: 'search',
+      verb: '搜索',
+      target: 'TraceDrawer',
+    });
+    expect(describeCall(call('fs_list', { path: '/repo/src' }))).toMatchObject({
+      kind: 'list',
+      verb: '列出',
+      target: '/repo/src',
+    });
+    expect(describeCall(call('browser_open', { url: 'https://example.com' }))).toMatchObject({
+      kind: 'web',
+      verb: '访问',
+      target: 'https://example.com',
+    });
+  });
+
+  it('extracts diffs from fs_edit and fs_write_text', () => {
+    const edited = call('fs_edit', {
+      path: 'src/a.ts',
+      edits: [{ oldText: 'const a = 1;', newText: 'const a = 2;' }],
+    });
+    expect(diffStats(edited)).toEqual({ added: 1, removed: 1, files: 1 });
+
+    const written = call('fs_write_text', {
+      path: 'src/b.ts',
+      text: 'line1\nline2',
+      mode: 'create',
+    });
+    expect(diffStats(written)).toEqual({ added: 2, removed: 0, files: 1 });
+  });
+});

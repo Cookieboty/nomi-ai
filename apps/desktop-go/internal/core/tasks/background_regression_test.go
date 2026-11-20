@@ -130,10 +130,10 @@ func TestNomiFollowUpRetryRetainsContext(t *testing.T) {
 
 func TestRecurringCliAutoAcceptanceLandsWorktree(t *testing.T) {
 	for _, kind := range []string{"schedule", "event"} {
-		for _, acceptance := range []string{"", "user"} {
-			label := acceptance
-			if label == "" {
-				label = "default-auto"
+		for _, acceptance := range []string{"", "auto"} {
+			label := "explicit-" + acceptance
+			if acceptance == "" {
+				label = "default-user"
 			}
 			t.Run(kind+"/"+label, func(t *testing.T) {
 				f := newFakeCli(map[string]bool{"claude": true})
@@ -180,8 +180,8 @@ func TestRecurringCliAutoAcceptanceLandsWorktree(t *testing.T) {
 					Title: "repeat", Goal: "generate result", Trigger: trigger, Acceptance: acceptance,
 					Executor: ExecutorSpec{Kind: "cli", Cli: sp("claude"), Cwd: sp("/repo"), BaseBranch: sp("other")}, Grant: Grant{Level: 3},
 				}).ID
-				if acceptance == "" && rt.Get(id).Task.Acceptance != "auto" {
-					t.Fatal("not default auto")
+				if acceptance == "" && rt.Get(id).Task.Acceptance != "user" {
+					t.Fatalf("expected default acceptance user, got %q", rt.Get(id).Task.Acceptance)
 				}
 				previousWorktree := ""
 				for round := 1; round <= 2; round++ {
@@ -190,7 +190,7 @@ func TestRecurringCliAutoAcceptanceLandsWorktree(t *testing.T) {
 					}
 					waitFor(t, func() bool { return f.sendCount() == round })
 					f.finish("done")
-					if acceptance == "user" {
+					if rt.Get(id).Task.Acceptance == "user" {
 						waitFor(t, func() bool { return rt.Get(id).Task.Status == StatusAwaitingAccept })
 						select {
 						case got := <-retired:

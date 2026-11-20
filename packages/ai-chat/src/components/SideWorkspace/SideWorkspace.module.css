@@ -295,6 +295,9 @@
 .tab[data-dragging] {
   opacity: 0.5;
 }
+.tab[data-file-drop] {
+  box-shadow: 0 0 0 2px var(--cd-color-accent-strong);
+}
 .tab[data-drop='before'] {
   box-shadow: inset 2px 0 0 var(--cd-color-accent-strong);
 }

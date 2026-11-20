@@ -124,9 +124,24 @@ export const TaskView = z.looseObject({
   status: TaskStatus,
   enabled: z.boolean(),
   gen: z.number(),
+  acceptance: z.enum(['auto', 'user']).optional(),
+  origin: z
+    .looseObject({
+      conversationId: z.string().optional(),
+      createdBy: z.string(),
+      createdAt: z.number(),
+      via: z.string().optional(),
+    })
+    .optional(),
   trigger: z.looseObject({ kind: z.string() }),
   executor: z.looseObject({ kind: z.string() }),
   grant: z.looseObject({ version: z.number(), level: z.number() }),
+  endedAt: z.number().optional(),
+  archivedAt: z.number().optional(),
+  archiveReason: z.enum(['user', 'auto_24h']).optional(),
+  ackedAt: z.number().optional(),
+  lastRunStatus: z.enum(['succeeded', 'failed', 'cancelled']).optional(),
+  lastRunAt: z.number().optional(),
   updatedAt: z.number(),
 });
 
@@ -153,9 +168,19 @@ export const LegacyTaskItem = z.object({
   lastStatus: z.string().optional(),
 });
 
+/** 排队任务的等待原因与顺位 */
+export const TaskQueueInfo = z.object({
+  reason: z.enum(['slot', 'memory', 'cpu', 'retry', 'rate_limit']),
+  position: z.number().int(),
+  retryAt: z.number().optional(),
+  activeCount: z.number().int(),
+  maxConcurrent: z.number().int(),
+});
+
 export const TaskListResult = z.object({
   tasks: z.array(TaskView),
   legacy: z.array(LegacyTaskItem),
+  queue: z.record(z.string(), TaskQueueInfo).optional(),
 });
 
 export const TaskJournalEntry = z.looseObject({ t: z.string(), at: z.number() });

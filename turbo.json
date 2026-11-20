@@ -28,7 +28,14 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", "build/**", ".turbo/**"],
-      "inputs": ["$TURBO_DEFAULT$", "!README.md", "!CHANGELOG.md", "!coverage/**", "!dist/**"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!README.md",
+        "!CHANGELOG.md",
+        "!coverage/**",
+        "!dist/**",
+        "!.tmp/**"
+      ]
     },
     "@nomi-ai/i18n#build": {
       "dependsOn": ["^build"],

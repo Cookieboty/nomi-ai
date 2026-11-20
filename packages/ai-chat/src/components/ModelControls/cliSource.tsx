@@ -811,6 +811,16 @@ export function useCliModelEffortSource({
       : t('ui.chat-settings.model-and-reasoning-effort-label'),
     note,
     longBadge: !!long?.on,
+    longContext: long
+      ? {
+          standard: long.standard,
+          full: long.full,
+          on: long.on,
+          note: long.priceNote,
+          hint: t('ui.models.switching-restarts-this-tab-s-assistant'),
+          onChange: pickLong,
+        }
+      : null,
     // 第三方：能调档位时和 Nomi 对话一样先停在档位页；不能调或尚未选模型时直接列模型
     initialView: modelOnly || needsModelPick ? 'model' : 'effort',
     menuCommandView: 'model',

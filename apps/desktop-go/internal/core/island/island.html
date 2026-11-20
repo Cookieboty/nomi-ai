@@ -637,11 +637,18 @@
         const text = h('div', 'text');
         text.append(h('div', 'title', String(it.title || '')), h('div', 'body', String(it.body || '')));
         r.append(av, text);
-        // 等你处理的一条：点这一行（按钮以外）= 打开对话窗口并跳到它
+        // 等你处理的一条：点这一行（按钮以外）= 打开对话窗口并跳到它；通知行同理带上 openId
         if (!isNotice && it.id) {
           r.addEventListener('click', (e) => {
             e.stopPropagation();
             post('nomi:island:open:' + JSON.stringify(it.id));
+          });
+        } else if (isNotice) {
+          r.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (it.openId) post('nomi:island:open:' + JSON.stringify(it.openId));
+            else post('nomi:island:open');
+            dismissNotice();
           });
         }
         const acts = h('div', 'acts');
@@ -781,7 +788,11 @@
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') { e.preventDefault(); closeAll(); }
       });
-      el.addEventListener('click', () => { post('nomi:island:open'); if (!pending.length) dismissNotice(); });
+      el.addEventListener('click', () => {
+        if (notice && notice.openId) post('nomi:island:open:' + JSON.stringify(notice.openId));
+        else post('nomi:island:open');
+        if (!pending.length) dismissNotice();
+      });
       el.addEventListener('mouseenter', () => { hovered = true; clearTimeout(timer); });
       el.addEventListener('mouseleave', () => { hovered = false; if (notice) timer = setTimeout(dismissNotice, 1500); });
     </script>

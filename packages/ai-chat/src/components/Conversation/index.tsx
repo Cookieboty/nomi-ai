@@ -54,7 +54,7 @@ import {
 } from './Messages';
 import { MinimalOpenProvider } from './MinimalSteps';
 import { PermissionCard } from './PermissionCard';
-import { StatusLine } from './StatusLine';
+import { HandoffTriggerButton, StatusLine } from './StatusLine';
 import { TranscriptViewProvider, useTranscriptViewMode } from './transcriptViewContext';
 import {
   captureScrollAnchor,
@@ -325,6 +325,8 @@ export interface ConversationViewProps {
   sandboxRequests?: React.ReactNode;
   /** 当前会话的 Transcript view；由 ChatBody 按会话注入；不传则跟随外层会话 */
   transcriptView?: TranscriptView;
+  /** 前台长程 Nomi 对话流支持「主动转后台」时的回调 */
+  onHandoffToBackground?: () => Promise<unknown> | void;
 }
 
 const ConversationInner: React.FC<ConversationViewProps> = ({
@@ -345,6 +347,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   backgroundCount,
   onStopAgent,
   sandboxRequests,
+  onHandoffToBackground,
 }) => {
   const fontSize = useSyncExternalStore(subscribeConversationFontSize, getConversationFontSize);
   const transcriptView = useTranscriptViewMode();
@@ -821,6 +824,12 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     : 0;
   const liveMinimalKey = lastTurn ? `turn:${lastTurn.key}:${doneInLastTurn}` : 'turn:__head:0';
   const minimalStepsOwnsStatus = transcriptView === 'minimal' && running && liveStepCount > 0;
+  const handoffForceShow = liveItems.length > 0 || !!live?.trace?.some((x) => x.type === 'tool');
+  const handoffBlocked =
+    !running ||
+    status?.kind === 'permission' ||
+    status?.kind === 'blocked' ||
+    status?.kind === 'queued';
   // 定稿消息已到、标签状态还没回到空闲的那一帧：不再画一个空的流式区（状态行会闪一下）
   const showLive = phase !== 'idle' && !(running && !live && last?.role === 'assistant');
   const liveNode = showLive ? (
@@ -844,7 +853,27 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
           startedAt={activeStartedAt}
           stepCount={liveStepCount > 0 ? liveStepCount : undefined}
           minimal={transcriptView === 'minimal'}
+          handoff={
+            onHandoffToBackground
+              ? {
+                  forceShow: handoffForceShow,
+                  blocked: handoffBlocked,
+                  onHandoff: onHandoffToBackground,
+                }
+              : undefined
+          }
         />
+      )}
+      {status && minimalStepsOwnsStatus && onHandoffToBackground && !handoffBlocked && (
+        <div className={styles.minimalHandoffRow}>
+          <HandoffTriggerButton
+            key={activeStartedAt ?? 'none'}
+            startedAt={activeStartedAt}
+            forceShow={handoffForceShow}
+            blocked={handoffBlocked}
+            onHandoff={onHandoffToBackground}
+          />
+        </div>
       )}
     </div>
   ) : null;
@@ -910,6 +939,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
                       ) : (
                         <AssistantMessage
                           message={m}
+                          userPrompt={turn.messages.find((x) => x.role === 'user')?.text}
                           timeLabel={labels.get(m.id)}
                           canRetry={idle && m.id === lastAssistantId}
                           onRetry={onRetry}

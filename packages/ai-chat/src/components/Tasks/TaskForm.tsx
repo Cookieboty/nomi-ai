@@ -86,8 +86,8 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
   const [priority, setPriority] = useState<TaskPriority | 'none'>('none');
   // 不选 = 按执行者 / 触发器推断
   const [category, setCategory] = useState<TaskCategory | 'auto'>('auto');
-  // 做完怎么算收下：auto = 直接收下（结果回对话 / 卡片上给「查看改动」）；user = 等你验收
-  const [acceptance, setAcceptance] = useState<'auto' | 'user'>('auto');
+  // 做完怎么算收下：独立与持续任务默认等你验收（user）；纯通知任务自动设为 auto
+  const [acceptance, setAcceptance] = useState<'auto' | 'user'>('user');
   // 按风险自动判断（默认开，L3 及以上才生效）：命令交给命令审核，放行就直接跑，只有高风险才问人
   const [autoJudge, setAutoJudge] = useState(true);
   // 没有系统沙箱（Windows / Linux）时自动判断不会真正自动跑命令
@@ -320,6 +320,7 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
         : who === 'cli'
           ? buildTaskCliExecutor(cliSel, customSpec, cwd)
           : { kind: 'nomi' as const, tools };
+    const effectiveAcceptance = who === 'notify' ? 'auto' : acceptance;
     // 授权卡片：目标、何时、谁来做、能力等级、期限、预算
     const card = [
       t('ui.providers-schedule.task-card-goal', goal.trim()),
@@ -343,12 +344,16 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
       ),
       t('ui.providers-schedule.task-card-level', t(LEVEL_LABEL[level])),
       ...(level >= 3 && autoJudge ? [t('ui.providers-schedule.task-card-auto-judge')] : []),
-      t(
-        'ui.providers-schedule.task-card-acceptance',
-        acceptance === 'auto'
-          ? t('ui.providers-schedule.task-acceptance-auto')
-          : t('ui.providers-schedule.task-acceptance-user'),
-      ),
+      ...(who === 'notify'
+        ? []
+        : [
+            t(
+              'ui.providers-schedule.task-card-acceptance',
+              effectiveAcceptance === 'auto'
+                ? t('ui.providers-schedule.task-acceptance-auto')
+                : t('ui.providers-schedule.task-acceptance-user'),
+            ),
+          ]),
       ...(who === 'nomi' && usesFiles
         ? [
             folders.length
@@ -425,7 +430,7 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
           ...(level >= 3 && !autoJudge ? { autoJudge: false } : {}),
           expiresAt: Date.now() + days * 86_400_000,
         },
-        acceptance,
+        acceptance: effectiveAcceptance,
         ...(priority !== 'none' ? { priority } : {}),
         ...(category !== 'auto' ? { category } : {}),
       })) as { id: string };
@@ -750,18 +755,20 @@ export const TaskForm: React.FC<{ onClose: () => void; onCreated: (id: string) =
                   data-testid="task-form-category"
                 />
               </label>
-              <label className={styles.field}>
-                <span>{t('ui.providers-schedule.task-acceptance')}</span>
-                <Select
-                  value={acceptance}
-                  onChange={(e) => setAcceptance(e.target.value as 'auto' | 'user')}
-                  options={[
-                    { value: 'auto', label: t('ui.providers-schedule.task-acceptance-auto') },
-                    { value: 'user', label: t('ui.providers-schedule.task-acceptance-user') },
-                  ]}
-                  data-testid="task-form-acceptance"
-                />
-              </label>
+              {who !== 'notify' && (
+                <label className={styles.field}>
+                  <span>{t('ui.providers-schedule.task-acceptance')}</span>
+                  <Select
+                    value={acceptance}
+                    onChange={(e) => setAcceptance(e.target.value as 'auto' | 'user')}
+                    options={[
+                      { value: 'auto', label: t('ui.providers-schedule.task-acceptance-auto') },
+                      { value: 'user', label: t('ui.providers-schedule.task-acceptance-user') },
+                    ]}
+                    data-testid="task-form-acceptance"
+                  />
+                </label>
+              )}
               {level >= 3 && (
                 <label className={styles.check}>
                   <Checkbox

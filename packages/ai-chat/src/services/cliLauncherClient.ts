@@ -16,6 +16,8 @@ let current: Record<string, CliLauncherSettings> = {};
 let localLogins: Record<string, boolean> = {};
 let loaded = false;
 let loading: Promise<Record<string, CliLauncherSettings>> | null = null;
+let epoch = 0;
+let unsub: (() => void) | null = null;
 const listeners = new Set<() => void>();
 const normalize = (value: Partial<CliLauncherSettings> | null): CliLauncherSettings => ({
   enabled: value?.enabled === true,
@@ -33,7 +35,15 @@ const publish = (value: Record<string, RawLauncherSettings>) => {
   listeners.forEach((fn) => fn());
   return current;
 };
+const ensureSubscribed = () => {
+  if (unsub || !hasTransport() || typeof api.on !== 'function') return;
+  unsub = api.on('cli.launcherChanged', (val) => {
+    epoch += 1;
+    publish((val ?? {}) as Record<string, RawLauncherSettings>);
+  });
+};
 const subscribe = (fn: () => void) => {
+  ensureSubscribed();
   listeners.add(fn);
   return () => {
     listeners.delete(fn);
@@ -42,18 +52,24 @@ const subscribe = (fn: () => void) => {
 
 export const cliLauncherClient = {
   get: () => {
+    ensureSubscribed();
     if (loaded || !hasTransport()) return Promise.resolve(current);
+    const startEpoch = epoch;
     loading ??= api.cli
       .launcherGet()
-      .then((res) => publish(res as Record<string, RawLauncherSettings>))
+      .then((res) =>
+        startEpoch === epoch ? publish(res as Record<string, RawLauncherSettings>) : current,
+      )
       .finally(() => {
         loading = null;
       });
     return loading;
   },
   save: async (kind: string, settings: CliLauncherSettings) => {
+    ensureSubscribed();
     const raw = (await api.cli.launcherSet({ kind, settings })) as RawLauncherSettings | null;
     const saved = normalize(raw);
+    epoch += 1;
     publish({
       ...Object.fromEntries(
         Object.entries(current).map(([k, v]) => [k, { ...v, hasLocalLogin: localLogins[k] }]),
@@ -64,6 +80,9 @@ export const cliLauncherClient = {
   },
   test: (kind: string, command: string) => api.cli.launcherTest({ kind, command }),
   resetCache: () => {
+    unsub?.();
+    unsub = null;
+    epoch += 1;
     current = {};
     localLogins = {};
     loaded = false;

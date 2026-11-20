@@ -63,8 +63,13 @@ describe('全局背景层', () => {
     expect(ruleBody(tasks, ':global(html[data-chat-bg]) .page')).toContain('--cd-panel-bg');
     expect(ruleBody(tasks, '.detail')).toContain('--cd-panel-surface-raised');
     const board = read('src/components/Tasks/Board.module.css');
-    expect(ruleBody(board, '.column')).toContain('--cd-panel-surface-sunken');
-    expect(ruleBody(board, '.card')).toContain('--cd-panel-surface-raised');
+    // 列是中性泳道：有任务的列用 surface，空列下沉一档用 sunken；卡片浮在列上用 raised
+    expect(ruleBody(board, '.column')).toContain('background: var(--cd-panel-surface)');
+    expect(ruleBody(board, '.column')).toContain('--cd-panel-border');
+    expect(ruleBody(board, '.column[data-empty]')).toContain(
+      'background: var(--cd-panel-surface-sunken)',
+    );
+    expect(ruleBody(board, '.card')).toContain('background: var(--cd-panel-surface-raised)');
     const assets = read('src/components/AssetLibrary/index.module.css');
     expect(ruleBody(assets, ':global(html[data-chat-bg]) .page')).toContain('--cd-panel-bg');
     expect(ruleBody(assets, '.frame')).toContain('--cd-panel-surface-sunken');

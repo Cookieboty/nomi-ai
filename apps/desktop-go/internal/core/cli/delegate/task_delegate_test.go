@@ -419,3 +419,31 @@ func TestDelegateSyncQueuesForSlot(t *testing.T) {
 		}
 	}
 }
+
+func TestHandoffTaskAnnouncesCompleted(t *testing.T) {
+	ft := newFakeTasks()
+	e := newTaskEnv(t, util.NewObj(), ft)
+	via := "handoff"
+	cid := "conv_handoff"
+	ft.mu.Lock()
+	ft.recs["task_h1"] = &tasks.Record{
+		Task: tasks.Task{
+			ID:     "task_h1",
+			Title:  "后台接力任务",
+			Origin: tasks.Origin{ConversationID: &cid, CreatedBy: "user", Via: &via},
+			Executor: tasks.ExecutorSpec{
+				Kind: "nomi",
+			},
+		},
+	}
+	ft.mu.Unlock()
+	ft.advance("task_h1", tasks.StatusDone, &tasks.Attempt{
+		Result: &tasks.AttemptResult{Summary: "已完成转后台的全部检索并整理输出"},
+	}, nil)
+	waitUntil(t, func() bool { return len(e.completed()) == 1 })
+	p := e.completed()[0]
+	if p.Get("taskId") != "task_h1" || p.Get("conversationId") != "conv_handoff" || p.Get("status") != "done" ||
+		p.Get("cli") != "nomi" || !strings.Contains(util.Str(p.Get("summary")), "已完成转后台的全部检索") {
+		t.Fatalf("unexpected handoff completion payload: %v", util.Stringify(p))
+	}
+}

@@ -11,7 +11,9 @@ import {
   restoreBlock,
   shouldCompact,
 } from '../services/compaction';
+import type { ConversationStore } from '../services/conversationStore';
 import { gatewayClient } from '../services/gatewayClient';
+import { nomiLongContextOverride } from '../services/longContext';
 import type { ChatMessage } from '../types/chat';
 import type { IPCClient } from '../types/ipc';
 
@@ -46,8 +48,12 @@ export async function compactHistory(
   beforeId?: string,
 ): Promise<CompactResult> {
   if (!client.summarize) return { next: null };
+  const convoId = turn.convoId ?? client.currentConversationId?.();
+  const store = client.conversationStore?.() as ConversationStore | undefined;
+  const meta = convoId && store?.get(convoId)?.backend === 'nomi' ? store.get(convoId) : undefined;
+  const longContext = nomiLongContextOverride(meta?.longContext);
   const [chatCtx, sumCtx] = await Promise.all([
-    gatewayClient.nomiContext('chat'),
+    gatewayClient.nomiContext('chat', longContext),
     gatewayClient.nomiContext('summary'),
   ]);
   if (force ? !canCompact(history) : !chatCtx || !shouldCompact(history, nextContent, chatCtx))

@@ -1,11 +1,23 @@
 /* 子任务侧栏：全高。上面是状态，中间是和主列同一套会话，下面是输入栏（仅 harness 标签）。 */
 .pane {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
   height: 100%;
   background: var(--cd-color-surface);
   border-left: 1px solid var(--cd-color-border);
+}
+
+.pane[data-file-path-drop-active='true']::after {
+  content: '';
+  position: absolute;
+  inset: var(--cd-space-2);
+  border: 2px dashed var(--cd-color-accent);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-accent-soft);
+  pointer-events: none;
+  z-index: var(--cd-z-chat-input);
 }
 
 .head {

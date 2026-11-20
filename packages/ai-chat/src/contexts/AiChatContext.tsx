@@ -38,6 +38,7 @@ import {
   errorMessage,
   type AiChatAction,
   type AiChatState,
+  type ConvoOutcome,
 } from './aiChatState';
 import { AiChatStoreContext, createAiChatStore } from './aiChatStore';
 import {
@@ -70,6 +71,10 @@ export interface AiChatActions {
     images?: ImageAttachment[],
     override?: { history: ChatMessage[] },
   ) => Promise<void>;
+  /** 将正在进行中的前台 Nomi 长程流主动转入后台持续执行 */
+  handoffCurrentToBackground: () => Promise<string | null>;
+  /** 直接发送一条任务到后台持续执行（如 `/bg` 命令） */
+  sendAsBackgroundTask: (text: string) => Promise<string | null>;
   /**
    * 从某条用户消息重新来过（重新生成 / 编辑重发）：丢弃它及之后的消息，
    * 用原文（或 newText）重新发送；运行中无操作。
@@ -120,6 +125,7 @@ export {
   convoKey,
   type AiChatAction,
   type AiChatState,
+  type ConvoOutcome,
 } from './aiChatState';
 export { openTurn, type ConversationTurn } from './chatTurn';
 
@@ -401,7 +407,13 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     [ipcClient],
   );
 
-  const { sendMessage, askKnowledge, sendStreamMessage } = useChatSends({
+  const {
+    sendMessage,
+    askKnowledge,
+    sendStreamMessage,
+    handoffCurrentToBackground,
+    sendAsBackgroundTask,
+  } = useChatSends({
     stateRef,
     dispatch,
     activeStream,
@@ -453,6 +465,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     if (busyIn(s, s.ipcClient.currentConversationId?.())) return { status: 'busy' as const };
     const turn = openTurn(s.ipcClient);
     dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
+    let outcome: ConvoOutcome = 'done';
     try {
       const r = await compactHistory(
         s.ipcClient,
@@ -463,10 +476,16 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         dispatch,
         instructions,
       );
-      if (r.error) return { status: 'failed' as const, error: r.error };
+      if (r.error) {
+        outcome = 'error';
+        return { status: 'failed' as const, error: r.error };
+      }
       return { status: r.next ? ('done' as const) : ('nothing' as const) };
+    } catch (err) {
+      outcome = 'error';
+      throw err;
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId });
+      dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId, outcome });
     }
   }, []);
 
@@ -629,6 +648,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     () => ({
       sendMessage,
       sendStreamMessage,
+      handoffCurrentToBackground,
+      sendAsBackgroundTask,
       resendFrom,
       compactConversation,
       stopGeneration,
@@ -647,6 +668,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     [
       sendMessage,
       sendStreamMessage,
+      handoffCurrentToBackground,
+      sendAsBackgroundTask,
       resendFrom,
       compactConversation,
       stopGeneration,

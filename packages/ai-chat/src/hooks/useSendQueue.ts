@@ -6,6 +6,7 @@
  * 列表同时存进会话（services/pendingSendsStore）：应用在这一轮中途重启（如更新）后恢复，不悄悄丢；
  * 交出去 / 删除 / 撤回 / 合成之后同步改存下的那份。
  */
+import { t as tr } from '@nomi-ai/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
@@ -36,6 +37,8 @@ export interface QueueOpts {
   mode?: PendingMode;
   /** 随消息排队的图片附件 */
   images?: readonly PendingImage[];
+  /** 仅带图入队（用户未填写正文） */
+  imageOnly?: boolean;
 }
 
 /** 插入这一轮的通道（没有 = 只能排队） */
@@ -94,9 +97,9 @@ export function useSendQueue(
   steerRef.current = steer;
   /** 换成另一个会话 / 标签的组（第一次挂上也算）时读回：内核（或本地）里存下的那份并进当前列表 */
   const adoptStore = useCallback((next: PendingSendStore | undefined) => {
+    storeRef.current = next;
     if (!next) return;
     const restored = mergeStored(itemsRef.current, next.read(keyRef.current));
-    storeRef.current = next;
     if (restored.length !== itemsRef.current.length) {
       itemsRef.current = restored;
       setItems(restored);
@@ -179,6 +182,8 @@ export function useSendQueue(
       return;
     }
     if (!items.length || inflight.current || delivering.current) return;
+    // 重启后图片附件丢失的条目暂停自动发送：等用户重新附上、删除或明确选择「仅发文字」
+    if (items[0]?.attachmentsMissing) return;
     inflight.current = true;
     const [next, ...rest] = items;
     // 自动发出的：存下的那份去掉它，并记下「这一轮收到了」（见 pendingSendsStore.settle）
@@ -189,7 +194,11 @@ export function useSendQueue(
       : next!.kb
         ? { kb: true }
         : undefined;
-    void Promise.resolve(sendRef.current(next!.text, sendOpts)).finally(() => {
+    const sendText =
+      !next!.text.trim() && next!.images?.length
+        ? tr('ui.knowledge-local.please-take-a-look-at-this-image')
+        : next!.text;
+    void Promise.resolve(sendRef.current(sendText, sendOpts)).finally(() => {
       inflight.current = false;
       setTick((n) => n + 1);
     });
@@ -204,7 +213,11 @@ export function useSendQueue(
         id: newPendingId(),
         text,
         mode,
-        ...(hasImages ? { images: [...opts.images!] } : opts?.kb ? { kb: true } : {}),
+        ...(hasImages
+          ? { images: [...opts.images!], ...(opts.imageOnly ? { imageOnly: true as const } : {}) }
+          : opts?.kb
+            ? { kb: true }
+            : {}),
       };
       commit([...itemsRef.current, item]);
       void persistNow('update');
@@ -221,10 +234,27 @@ export function useSendQueue(
     },
     [commit, persistNow],
   );
+  /** 重启后丢失图片的有文条目：用户确认「仅发文字」后清掉缺失标记，恢复队列自动发送 */
+  const sendTextOnly = useCallback(
+    (id: string) => {
+      const cur = itemsRef.current;
+      const target = cur.find((i) => i.id === id);
+      if (!target || !target.attachmentsMissing || target.imageOnly || !target.text.trim()) return;
+      const next = cur.map((i) => {
+        if (i.id !== id) return i;
+        const { attachmentsMissing: _m, images: _imgs, imageOnly: _io, ...clean } = i;
+        return clean;
+      });
+      commit(next);
+      void persistNow('update');
+      setTick((n) => n + 1);
+    },
+    [commit, persistNow],
+  );
   /** Esc / 停止并发送：停止这一轮，整个列表合成并按图片上限分批，停下后马上发出 */
   const flush = useCallback(() => {
     const all = itemsRef.current;
-    if (!all.length) return false;
+    if (!all.length || all.some((i) => i.attachmentsMissing)) return false;
     commit(mergePendingBatches(all, NOMI_FLUSH_MAX_IMAGES));
     void persistNow('update');
     steerRef.current?.stop();
@@ -234,5 +264,5 @@ export function useSendQueue(
   // 之后再换这个组件时（新的一个）按组键读回
   const unload = useCallback(() => void persistNow('unload'), [persistNow]);
   useEffect(() => unload, [unload]);
-  return { items, enqueue, remove, flush, unload };
+  return { items, enqueue, remove, sendTextOnly, flush, unload };
 }

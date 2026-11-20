@@ -15,6 +15,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/delegate"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/harness"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/sandbox"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codingcli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codinghandlers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
@@ -223,6 +224,18 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 		DefaultOfficialAccountID: defaultOfficialAcc,
 		HasLocalLogin:            func(k string) bool { return cli.HasLocalLogin(k, "") },
 		OfficialModels:           officialModels,
+		SandboxStatus: func() string {
+			if harnessOrch != nil {
+				return jsrt.Call(harnessOrch.SandboxStatus)
+			}
+			if !sandbox.Supported() {
+				return "unsupported"
+			}
+			if d != nil && d.Broker.CliSandboxEnabled() {
+				return "on"
+			}
+			return "off"
+		},
 	}
 	// 后台委派 = 持续任务（docs/features/scheduling-calendar.md）：排队、重试、重启续跑、验收都走任务
 	if taskSvc != nil {

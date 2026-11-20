@@ -1625,17 +1625,46 @@ type ChatWindowDetachTabOutput struct {
 	Focused bool `json:"focused"`
 }
 
-type ChatWindowDockTabInput struct {
-	Id string `json:"id"`
+type ChatWindowDockAckInput struct {
+	Id         string `json:"id"`
+	TransferId string `json:"transferId"`
+	Ok         bool   `json:"ok"`
 }
+
+type ChatWindowDockTabInput struct {
+	Id         string  `json:"id"`
+	TransferId *string `json:"transferId,omitempty"`
+	RequireAck *bool   `json:"requireAck,omitempty"`
+}
+
+// ChatWindowHandoffPutInputDirection 枚举：detach | dock
+type ChatWindowHandoffPutInputDirection = string
+
+const (
+	ChatWindowHandoffPutInputDirectionDetach ChatWindowHandoffPutInputDirection = "detach"
+	ChatWindowHandoffPutInputDirectionDock   ChatWindowHandoffPutInputDirection = "dock"
+)
 
 type ChatWindowHandoffPutInput struct {
-	Id   string `json:"id"`
-	Data string `json:"data"`
+	Id           string                              `json:"id"`
+	Data         string                              `json:"data"`
+	TransferId   *string                             `json:"transferId,omitempty"`
+	Direction    *ChatWindowHandoffPutInputDirection `json:"direction,omitempty"`
+	KeepUntilAck *bool                               `json:"keepUntilAck,omitempty"`
 }
 
+// ChatWindowHandoffTakeInputDirection 枚举：detach | dock
+type ChatWindowHandoffTakeInputDirection = string
+
+const (
+	ChatWindowHandoffTakeInputDirectionDetach ChatWindowHandoffTakeInputDirection = "detach"
+	ChatWindowHandoffTakeInputDirectionDock   ChatWindowHandoffTakeInputDirection = "dock"
+)
+
 type ChatWindowHandoffTakeInput struct {
-	Id string `json:"id"`
+	Id         string                               `json:"id"`
+	TransferId *string                              `json:"transferId,omitempty"`
+	Direction  *ChatWindowHandoffTakeInputDirection `json:"direction,omitempty"`
 }
 
 // CliLauncherGetOutputValueAccountSource 枚举：local | nomi
@@ -2597,6 +2626,34 @@ const (
 	DesktopProtectFolderOutputStatePendingItemRememberGroupTool     DesktopProtectFolderOutputStatePendingItemRememberGroup = "tool"
 )
 
+// DesktopProtectFolderOutputStatePendingItemDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type DesktopProtectFolderOutputStatePendingItemDelegatePermissionMode = string
+
+const (
+	DesktopProtectFolderOutputStatePendingItemDelegatePermissionModePlan        DesktopProtectFolderOutputStatePendingItemDelegatePermissionMode = "plan"
+	DesktopProtectFolderOutputStatePendingItemDelegatePermissionModeManual      DesktopProtectFolderOutputStatePendingItemDelegatePermissionMode = "manual"
+	DesktopProtectFolderOutputStatePendingItemDelegatePermissionModeAcceptEdits DesktopProtectFolderOutputStatePendingItemDelegatePermissionMode = "acceptEdits"
+	DesktopProtectFolderOutputStatePendingItemDelegatePermissionModeAuto        DesktopProtectFolderOutputStatePendingItemDelegatePermissionMode = "auto"
+	DesktopProtectFolderOutputStatePendingItemDelegatePermissionModeBypass      DesktopProtectFolderOutputStatePendingItemDelegatePermissionMode = "bypass"
+)
+
+// DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatus 枚举：on | off | unsupported
+type DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatus = string
+
+const (
+	DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatusOn          DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatus = "on"
+	DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatusOff         DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatus = "off"
+	DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatusUnsupported DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatus = "unsupported"
+)
+
+type DesktopProtectFolderOutputStatePendingItemDelegate struct {
+	Cli            string                                                           `json:"cli"`
+	PermissionMode DesktopProtectFolderOutputStatePendingItemDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                                             `json:"workspaceGuard"`
+	EnvScrub       bool                                                             `json:"envScrub"`
+}
+
 type DesktopProtectFolderOutputStatePendingItem struct {
 	Id             string                                                   `json:"id"`
 	Tool           string                                                   `json:"tool"`
@@ -2615,6 +2672,7 @@ type DesktopProtectFolderOutputStatePendingItem struct {
 	RememberRule   *string                                                  `json:"rememberRule,omitempty"`
 	SessionCommand *string                                                  `json:"sessionCommand,omitempty"`
 	RememberGroup  *DesktopProtectFolderOutputStatePendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *DesktopProtectFolderOutputStatePendingItemDelegate      `json:"delegate,omitempty"`
 }
 
 type DesktopProtectFolderOutputState struct {
@@ -2818,6 +2876,34 @@ const (
 	DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroupTool     DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroup = "tool"
 )
 
+// DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionMode = string
+
+const (
+	DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionModePlan        DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionMode = "plan"
+	DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionModeManual      DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionMode = "manual"
+	DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionModeAcceptEdits DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionMode = "acceptEdits"
+	DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionModeAuto        DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionMode = "auto"
+	DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionModeBypass      DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionMode = "bypass"
+)
+
+// DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatus 枚举：on | off | unsupported
+type DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatus = string
+
+const (
+	DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatusOn          DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatus = "on"
+	DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatusOff         DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatus = "off"
+	DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatusUnsupported DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatus = "unsupported"
+)
+
+type DesktopRemoveCliSandboxAllowOutputPendingItemDelegate struct {
+	Cli            string                                                              `json:"cli"`
+	PermissionMode DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                                                `json:"workspaceGuard"`
+	EnvScrub       bool                                                                `json:"envScrub"`
+}
+
 type DesktopRemoveCliSandboxAllowOutputPendingItem struct {
 	Id             string                                                      `json:"id"`
 	Tool           string                                                      `json:"tool"`
@@ -2836,6 +2922,7 @@ type DesktopRemoveCliSandboxAllowOutputPendingItem struct {
 	RememberRule   *string                                                     `json:"rememberRule,omitempty"`
 	SessionCommand *string                                                     `json:"sessionCommand,omitempty"`
 	RememberGroup  *DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *DesktopRemoveCliSandboxAllowOutputPendingItemDelegate      `json:"delegate,omitempty"`
 }
 
 type DesktopRemoveCliSandboxAllowOutput struct {
@@ -2922,6 +3009,34 @@ const (
 	DesktopRemoveCommandRuleOutputPendingItemRememberGroupTool     DesktopRemoveCommandRuleOutputPendingItemRememberGroup = "tool"
 )
 
+// DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionMode = string
+
+const (
+	DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionModePlan        DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionMode = "plan"
+	DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionModeManual      DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionMode = "manual"
+	DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionModeAcceptEdits DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionMode = "acceptEdits"
+	DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionModeAuto        DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionMode = "auto"
+	DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionModeBypass      DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionMode = "bypass"
+)
+
+// DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatus 枚举：on | off | unsupported
+type DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatus = string
+
+const (
+	DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatusOn          DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatus = "on"
+	DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatusOff         DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatus = "off"
+	DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatusUnsupported DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatus = "unsupported"
+)
+
+type DesktopRemoveCommandRuleOutputPendingItemDelegate struct {
+	Cli            string                                                          `json:"cli"`
+	PermissionMode DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                                            `json:"workspaceGuard"`
+	EnvScrub       bool                                                            `json:"envScrub"`
+}
+
 type DesktopRemoveCommandRuleOutputPendingItem struct {
 	Id             string                                                  `json:"id"`
 	Tool           string                                                  `json:"tool"`
@@ -2940,6 +3055,7 @@ type DesktopRemoveCommandRuleOutputPendingItem struct {
 	RememberRule   *string                                                 `json:"rememberRule,omitempty"`
 	SessionCommand *string                                                 `json:"sessionCommand,omitempty"`
 	RememberGroup  *DesktopRemoveCommandRuleOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *DesktopRemoveCommandRuleOutputPendingItemDelegate      `json:"delegate,omitempty"`
 }
 
 type DesktopRemoveCommandRuleOutput struct {
@@ -3030,6 +3146,34 @@ const (
 	DesktopSetCliEnvAllowOutputPendingItemRememberGroupTool     DesktopSetCliEnvAllowOutputPendingItemRememberGroup = "tool"
 )
 
+// DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionMode = string
+
+const (
+	DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionModePlan        DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionMode = "plan"
+	DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionModeManual      DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionMode = "manual"
+	DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionModeAcceptEdits DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionMode = "acceptEdits"
+	DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionModeAuto        DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionMode = "auto"
+	DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionModeBypass      DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionMode = "bypass"
+)
+
+// DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatus 枚举：on | off | unsupported
+type DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatus = string
+
+const (
+	DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatusOn          DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatus = "on"
+	DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatusOff         DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatus = "off"
+	DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatusUnsupported DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatus = "unsupported"
+)
+
+type DesktopSetCliEnvAllowOutputPendingItemDelegate struct {
+	Cli            string                                                       `json:"cli"`
+	PermissionMode DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                                         `json:"workspaceGuard"`
+	EnvScrub       bool                                                         `json:"envScrub"`
+}
+
 type DesktopSetCliEnvAllowOutputPendingItem struct {
 	Id             string                                               `json:"id"`
 	Tool           string                                               `json:"tool"`
@@ -3048,6 +3192,7 @@ type DesktopSetCliEnvAllowOutputPendingItem struct {
 	RememberRule   *string                                              `json:"rememberRule,omitempty"`
 	SessionCommand *string                                              `json:"sessionCommand,omitempty"`
 	RememberGroup  *DesktopSetCliEnvAllowOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *DesktopSetCliEnvAllowOutputPendingItemDelegate      `json:"delegate,omitempty"`
 }
 
 type DesktopSetCliEnvAllowOutput struct {
@@ -3134,6 +3279,34 @@ const (
 	DesktopSetCliSandboxOutputPendingItemRememberGroupTool     DesktopSetCliSandboxOutputPendingItemRememberGroup = "tool"
 )
 
+// DesktopSetCliSandboxOutputPendingItemDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type DesktopSetCliSandboxOutputPendingItemDelegatePermissionMode = string
+
+const (
+	DesktopSetCliSandboxOutputPendingItemDelegatePermissionModePlan        DesktopSetCliSandboxOutputPendingItemDelegatePermissionMode = "plan"
+	DesktopSetCliSandboxOutputPendingItemDelegatePermissionModeManual      DesktopSetCliSandboxOutputPendingItemDelegatePermissionMode = "manual"
+	DesktopSetCliSandboxOutputPendingItemDelegatePermissionModeAcceptEdits DesktopSetCliSandboxOutputPendingItemDelegatePermissionMode = "acceptEdits"
+	DesktopSetCliSandboxOutputPendingItemDelegatePermissionModeAuto        DesktopSetCliSandboxOutputPendingItemDelegatePermissionMode = "auto"
+	DesktopSetCliSandboxOutputPendingItemDelegatePermissionModeBypass      DesktopSetCliSandboxOutputPendingItemDelegatePermissionMode = "bypass"
+)
+
+// DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatus 枚举：on | off | unsupported
+type DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatus = string
+
+const (
+	DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatusOn          DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatus = "on"
+	DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatusOff         DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatus = "off"
+	DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatusUnsupported DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatus = "unsupported"
+)
+
+type DesktopSetCliSandboxOutputPendingItemDelegate struct {
+	Cli            string                                                      `json:"cli"`
+	PermissionMode DesktopSetCliSandboxOutputPendingItemDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                                        `json:"workspaceGuard"`
+	EnvScrub       bool                                                        `json:"envScrub"`
+}
+
 type DesktopSetCliSandboxOutputPendingItem struct {
 	Id             string                                              `json:"id"`
 	Tool           string                                              `json:"tool"`
@@ -3152,6 +3325,7 @@ type DesktopSetCliSandboxOutputPendingItem struct {
 	RememberRule   *string                                             `json:"rememberRule,omitempty"`
 	SessionCommand *string                                             `json:"sessionCommand,omitempty"`
 	RememberGroup  *DesktopSetCliSandboxOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *DesktopSetCliSandboxOutputPendingItemDelegate      `json:"delegate,omitempty"`
 }
 
 type DesktopSetCliSandboxOutput struct {
@@ -3243,6 +3417,34 @@ const (
 	DesktopStateOutputPendingItemRememberGroupTool     DesktopStateOutputPendingItemRememberGroup = "tool"
 )
 
+// DesktopStateOutputPendingItemDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type DesktopStateOutputPendingItemDelegatePermissionMode = string
+
+const (
+	DesktopStateOutputPendingItemDelegatePermissionModePlan        DesktopStateOutputPendingItemDelegatePermissionMode = "plan"
+	DesktopStateOutputPendingItemDelegatePermissionModeManual      DesktopStateOutputPendingItemDelegatePermissionMode = "manual"
+	DesktopStateOutputPendingItemDelegatePermissionModeAcceptEdits DesktopStateOutputPendingItemDelegatePermissionMode = "acceptEdits"
+	DesktopStateOutputPendingItemDelegatePermissionModeAuto        DesktopStateOutputPendingItemDelegatePermissionMode = "auto"
+	DesktopStateOutputPendingItemDelegatePermissionModeBypass      DesktopStateOutputPendingItemDelegatePermissionMode = "bypass"
+)
+
+// DesktopStateOutputPendingItemDelegateSandboxStatus 枚举：on | off | unsupported
+type DesktopStateOutputPendingItemDelegateSandboxStatus = string
+
+const (
+	DesktopStateOutputPendingItemDelegateSandboxStatusOn          DesktopStateOutputPendingItemDelegateSandboxStatus = "on"
+	DesktopStateOutputPendingItemDelegateSandboxStatusOff         DesktopStateOutputPendingItemDelegateSandboxStatus = "off"
+	DesktopStateOutputPendingItemDelegateSandboxStatusUnsupported DesktopStateOutputPendingItemDelegateSandboxStatus = "unsupported"
+)
+
+type DesktopStateOutputPendingItemDelegate struct {
+	Cli            string                                              `json:"cli"`
+	PermissionMode DesktopStateOutputPendingItemDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  DesktopStateOutputPendingItemDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                                `json:"workspaceGuard"`
+	EnvScrub       bool                                                `json:"envScrub"`
+}
+
 type DesktopStateOutputPendingItem struct {
 	Id             string                                      `json:"id"`
 	Tool           string                                      `json:"tool"`
@@ -3261,6 +3463,7 @@ type DesktopStateOutputPendingItem struct {
 	RememberRule   *string                                     `json:"rememberRule,omitempty"`
 	SessionCommand *string                                     `json:"sessionCommand,omitempty"`
 	RememberGroup  *DesktopStateOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *DesktopStateOutputPendingItemDelegate      `json:"delegate,omitempty"`
 }
 
 type DesktopStateOutput struct {
@@ -3367,6 +3570,34 @@ const (
 	DesktopUnprotectPathOutputPendingItemRememberGroupTool     DesktopUnprotectPathOutputPendingItemRememberGroup = "tool"
 )
 
+// DesktopUnprotectPathOutputPendingItemDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type DesktopUnprotectPathOutputPendingItemDelegatePermissionMode = string
+
+const (
+	DesktopUnprotectPathOutputPendingItemDelegatePermissionModePlan        DesktopUnprotectPathOutputPendingItemDelegatePermissionMode = "plan"
+	DesktopUnprotectPathOutputPendingItemDelegatePermissionModeManual      DesktopUnprotectPathOutputPendingItemDelegatePermissionMode = "manual"
+	DesktopUnprotectPathOutputPendingItemDelegatePermissionModeAcceptEdits DesktopUnprotectPathOutputPendingItemDelegatePermissionMode = "acceptEdits"
+	DesktopUnprotectPathOutputPendingItemDelegatePermissionModeAuto        DesktopUnprotectPathOutputPendingItemDelegatePermissionMode = "auto"
+	DesktopUnprotectPathOutputPendingItemDelegatePermissionModeBypass      DesktopUnprotectPathOutputPendingItemDelegatePermissionMode = "bypass"
+)
+
+// DesktopUnprotectPathOutputPendingItemDelegateSandboxStatus 枚举：on | off | unsupported
+type DesktopUnprotectPathOutputPendingItemDelegateSandboxStatus = string
+
+const (
+	DesktopUnprotectPathOutputPendingItemDelegateSandboxStatusOn          DesktopUnprotectPathOutputPendingItemDelegateSandboxStatus = "on"
+	DesktopUnprotectPathOutputPendingItemDelegateSandboxStatusOff         DesktopUnprotectPathOutputPendingItemDelegateSandboxStatus = "off"
+	DesktopUnprotectPathOutputPendingItemDelegateSandboxStatusUnsupported DesktopUnprotectPathOutputPendingItemDelegateSandboxStatus = "unsupported"
+)
+
+type DesktopUnprotectPathOutputPendingItemDelegate struct {
+	Cli            string                                                      `json:"cli"`
+	PermissionMode DesktopUnprotectPathOutputPendingItemDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  DesktopUnprotectPathOutputPendingItemDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                                        `json:"workspaceGuard"`
+	EnvScrub       bool                                                        `json:"envScrub"`
+}
+
 type DesktopUnprotectPathOutputPendingItem struct {
 	Id             string                                              `json:"id"`
 	Tool           string                                              `json:"tool"`
@@ -3385,6 +3616,7 @@ type DesktopUnprotectPathOutputPendingItem struct {
 	RememberRule   *string                                             `json:"rememberRule,omitempty"`
 	SessionCommand *string                                             `json:"sessionCommand,omitempty"`
 	RememberGroup  *DesktopUnprotectPathOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *DesktopUnprotectPathOutputPendingItemDelegate      `json:"delegate,omitempty"`
 }
 
 type DesktopUnprotectPathOutput struct {
@@ -5446,7 +5678,8 @@ const (
 )
 
 type GatewayNomiContextInput struct {
-	Role *GatewayNomiContextInputRole `json:"role,omitempty"`
+	Role        *GatewayNomiContextInputRole `json:"role,omitempty"`
+	LongContext *bool                        `json:"longContext,omitempty"`
 }
 
 type GatewayNomiContextOutput struct {
@@ -9117,7 +9350,8 @@ const (
 )
 
 type SideTerminalCloseInput struct {
-	Id string `json:"id"`
+	Id         string `json:"id"`
+	Generation *int64 `json:"generation,omitempty"`
 }
 
 type SideTerminalOpenInput struct {
@@ -9127,6 +9361,7 @@ type SideTerminalOpenInput struct {
 	ExplicitCwd *bool   `json:"explicitCwd,omitempty"`
 	Cols        *int64  `json:"cols,omitempty"`
 	Rows        *int64  `json:"rows,omitempty"`
+	Replace     *bool   `json:"replace,omitempty"`
 }
 
 // SideTerminalOpenOutputReason 枚举：unsupported | denied | limit | failed
@@ -9140,20 +9375,23 @@ const (
 )
 
 type SideTerminalOpenOutput struct {
-	Ok       bool                          `json:"ok"`
-	Cwd      *string                       `json:"cwd,omitempty"`
-	Shell    *string                       `json:"shell,omitempty"`
-	Replay   *string                       `json:"replay,omitempty"`
-	Exited   *bool                         `json:"exited,omitempty"`
-	ExitCode *int64                        `json:"exitCode,omitempty"`
-	Reason   *SideTerminalOpenOutputReason `json:"reason,omitempty"`
-	Message  *string                       `json:"message,omitempty"`
+	Ok           bool                          `json:"ok"`
+	Cwd          *string                       `json:"cwd,omitempty"`
+	Shell        *string                       `json:"shell,omitempty"`
+	Replay       *string                       `json:"replay,omitempty"`
+	Generation   *int64                        `json:"generation,omitempty"`
+	ReplayOffset *int64                        `json:"replayOffset,omitempty"`
+	Exited       *bool                         `json:"exited,omitempty"`
+	ExitCode     *int64                        `json:"exitCode,omitempty"`
+	Reason       *SideTerminalOpenOutputReason `json:"reason,omitempty"`
+	Message      *string                       `json:"message,omitempty"`
 }
 
 type SideTerminalResizeInput struct {
-	Id   string `json:"id"`
-	Cols int64  `json:"cols"`
-	Rows int64  `json:"rows"`
+	Id         string `json:"id"`
+	Cols       int64  `json:"cols"`
+	Rows       int64  `json:"rows"`
+	Generation *int64 `json:"generation,omitempty"`
 }
 
 type SideTerminalSyncInput struct {
@@ -9165,8 +9403,9 @@ type SideTerminalSyncOutput struct {
 }
 
 type SideTerminalWriteInput struct {
-	Id   string `json:"id"`
-	Data string `json:"data"`
+	Id         string `json:"id"`
+	Data       string `json:"data"`
+	Generation *int64 `json:"generation,omitempty"`
 }
 
 // StartupGetOutputDefaultView 枚举：mascot | main
@@ -9228,6 +9467,31 @@ type TasksAcceptOutput struct {
 	Reason *string `json:"reason,omitempty"`
 }
 
+type TasksAckInput struct {
+	Id string `json:"id"`
+}
+
+type TasksAckOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+type TasksAppendQueuedInputImagesItem struct {
+	Mime string `json:"mime"`
+	Data string `json:"data"`
+}
+
+type TasksAppendQueuedInput struct {
+	Id     string                             `json:"id"`
+	Text   string                             `json:"text"`
+	Images []TasksAppendQueuedInputImagesItem `json:"images,omitempty"`
+}
+
+type TasksAppendQueuedOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
 type TasksApplyWorktreeInput struct {
 	Id string `json:"id"`
 }
@@ -9238,6 +9502,19 @@ type TasksApplyWorktreeOutput struct {
 	Conflicted []string `json:"conflicted"`
 	Denied     []string `json:"denied"`
 	Branch     *string  `json:"branch,omitempty"`
+}
+
+type TasksArchiveInput struct {
+	Id string `json:"id"`
+}
+
+type TasksArchiveOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+type TasksArchiveAllEndedOutput struct {
+	Archived int64 `json:"archived"`
 }
 
 type TasksCancelInput struct {
@@ -9332,6 +9609,21 @@ const (
 	TasksCreateOutputStatusExpired        TasksCreateOutputStatus = "expired"
 )
 
+// TasksCreateOutputAcceptance 枚举：auto | user
+type TasksCreateOutputAcceptance = string
+
+const (
+	TasksCreateOutputAcceptanceAuto TasksCreateOutputAcceptance = "auto"
+	TasksCreateOutputAcceptanceUser TasksCreateOutputAcceptance = "user"
+)
+
+type TasksCreateOutputOrigin struct {
+	ConversationId *string `json:"conversationId,omitempty"`
+	CreatedBy      string  `json:"createdBy"`
+	CreatedAt      float64 `json:"createdAt"`
+	Via            *string `json:"via,omitempty"`
+}
+
 type TasksCreateOutputTrigger struct {
 	Kind string `json:"kind"`
 }
@@ -9345,17 +9637,42 @@ type TasksCreateOutputGrant struct {
 	Level   float64 `json:"level"`
 }
 
+// TasksCreateOutputArchiveReason 枚举：user | auto_24h
+type TasksCreateOutputArchiveReason = string
+
+const (
+	TasksCreateOutputArchiveReasonUser    TasksCreateOutputArchiveReason = "user"
+	TasksCreateOutputArchiveReasonAuto24h TasksCreateOutputArchiveReason = "auto_24h"
+)
+
+// TasksCreateOutputLastRunStatus 枚举：succeeded | failed | cancelled
+type TasksCreateOutputLastRunStatus = string
+
+const (
+	TasksCreateOutputLastRunStatusSucceeded TasksCreateOutputLastRunStatus = "succeeded"
+	TasksCreateOutputLastRunStatusFailed    TasksCreateOutputLastRunStatus = "failed"
+	TasksCreateOutputLastRunStatusCancelled TasksCreateOutputLastRunStatus = "cancelled"
+)
+
 type TasksCreateOutput struct {
-	Id        string                    `json:"id"`
-	Title     string                    `json:"title"`
-	Goal      string                    `json:"goal"`
-	Status    TasksCreateOutputStatus   `json:"status"`
-	Enabled   bool                      `json:"enabled"`
-	Gen       float64                   `json:"gen"`
-	Trigger   TasksCreateOutputTrigger  `json:"trigger"`
-	Executor  TasksCreateOutputExecutor `json:"executor"`
-	Grant     TasksCreateOutputGrant    `json:"grant"`
-	UpdatedAt float64                   `json:"updatedAt"`
+	Id            string                          `json:"id"`
+	Title         string                          `json:"title"`
+	Goal          string                          `json:"goal"`
+	Status        TasksCreateOutputStatus         `json:"status"`
+	Enabled       bool                            `json:"enabled"`
+	Gen           float64                         `json:"gen"`
+	Acceptance    *TasksCreateOutputAcceptance    `json:"acceptance,omitempty"`
+	Origin        *TasksCreateOutputOrigin        `json:"origin,omitempty"`
+	Trigger       TasksCreateOutputTrigger        `json:"trigger"`
+	Executor      TasksCreateOutputExecutor       `json:"executor"`
+	Grant         TasksCreateOutputGrant          `json:"grant"`
+	EndedAt       *float64                        `json:"endedAt,omitempty"`
+	ArchivedAt    *float64                        `json:"archivedAt,omitempty"`
+	ArchiveReason *TasksCreateOutputArchiveReason `json:"archiveReason,omitempty"`
+	AckedAt       *float64                        `json:"ackedAt,omitempty"`
+	LastRunStatus *TasksCreateOutputLastRunStatus `json:"lastRunStatus,omitempty"`
+	LastRunAt     *float64                        `json:"lastRunAt,omitempty"`
+	UpdatedAt     float64                         `json:"updatedAt"`
 }
 
 type TasksDecideInput struct {
@@ -9395,9 +9712,10 @@ type TasksFollowUpInputImagesItem struct {
 }
 
 type TasksFollowUpInput struct {
-	Id     string                         `json:"id"`
-	Text   string                         `json:"text"`
-	Images []TasksFollowUpInputImagesItem `json:"images,omitempty"`
+	Id         string                         `json:"id"`
+	Text       string                         `json:"text"`
+	UpdateGoal *bool                          `json:"updateGoal,omitempty"`
+	Images     []TasksFollowUpInputImagesItem `json:"images,omitempty"`
 }
 
 type TasksFollowUpOutput struct {
@@ -9425,6 +9743,21 @@ const (
 	TasksGetOutputTaskStatusExpired        TasksGetOutputTaskStatus = "expired"
 )
 
+// TasksGetOutputTaskAcceptance 枚举：auto | user
+type TasksGetOutputTaskAcceptance = string
+
+const (
+	TasksGetOutputTaskAcceptanceAuto TasksGetOutputTaskAcceptance = "auto"
+	TasksGetOutputTaskAcceptanceUser TasksGetOutputTaskAcceptance = "user"
+)
+
+type TasksGetOutputTaskOrigin struct {
+	ConversationId *string `json:"conversationId,omitempty"`
+	CreatedBy      string  `json:"createdBy"`
+	CreatedAt      float64 `json:"createdAt"`
+	Via            *string `json:"via,omitempty"`
+}
+
 type TasksGetOutputTaskTrigger struct {
 	Kind string `json:"kind"`
 }
@@ -9438,17 +9771,42 @@ type TasksGetOutputTaskGrant struct {
 	Level   float64 `json:"level"`
 }
 
+// TasksGetOutputTaskArchiveReason 枚举：user | auto_24h
+type TasksGetOutputTaskArchiveReason = string
+
+const (
+	TasksGetOutputTaskArchiveReasonUser    TasksGetOutputTaskArchiveReason = "user"
+	TasksGetOutputTaskArchiveReasonAuto24h TasksGetOutputTaskArchiveReason = "auto_24h"
+)
+
+// TasksGetOutputTaskLastRunStatus 枚举：succeeded | failed | cancelled
+type TasksGetOutputTaskLastRunStatus = string
+
+const (
+	TasksGetOutputTaskLastRunStatusSucceeded TasksGetOutputTaskLastRunStatus = "succeeded"
+	TasksGetOutputTaskLastRunStatusFailed    TasksGetOutputTaskLastRunStatus = "failed"
+	TasksGetOutputTaskLastRunStatusCancelled TasksGetOutputTaskLastRunStatus = "cancelled"
+)
+
 type TasksGetOutputTask struct {
-	Id        string                     `json:"id"`
-	Title     string                     `json:"title"`
-	Goal      string                     `json:"goal"`
-	Status    TasksGetOutputTaskStatus   `json:"status"`
-	Enabled   bool                       `json:"enabled"`
-	Gen       float64                    `json:"gen"`
-	Trigger   TasksGetOutputTaskTrigger  `json:"trigger"`
-	Executor  TasksGetOutputTaskExecutor `json:"executor"`
-	Grant     TasksGetOutputTaskGrant    `json:"grant"`
-	UpdatedAt float64                    `json:"updatedAt"`
+	Id            string                           `json:"id"`
+	Title         string                           `json:"title"`
+	Goal          string                           `json:"goal"`
+	Status        TasksGetOutputTaskStatus         `json:"status"`
+	Enabled       bool                             `json:"enabled"`
+	Gen           float64                          `json:"gen"`
+	Acceptance    *TasksGetOutputTaskAcceptance    `json:"acceptance,omitempty"`
+	Origin        *TasksGetOutputTaskOrigin        `json:"origin,omitempty"`
+	Trigger       TasksGetOutputTaskTrigger        `json:"trigger"`
+	Executor      TasksGetOutputTaskExecutor       `json:"executor"`
+	Grant         TasksGetOutputTaskGrant          `json:"grant"`
+	EndedAt       *float64                         `json:"endedAt,omitempty"`
+	ArchivedAt    *float64                         `json:"archivedAt,omitempty"`
+	ArchiveReason *TasksGetOutputTaskArchiveReason `json:"archiveReason,omitempty"`
+	AckedAt       *float64                         `json:"ackedAt,omitempty"`
+	LastRunStatus *TasksGetOutputTaskLastRunStatus `json:"lastRunStatus,omitempty"`
+	LastRunAt     *float64                         `json:"lastRunAt,omitempty"`
+	UpdatedAt     float64                          `json:"updatedAt"`
 }
 
 type TasksGetOutputAttemptsItem struct {
@@ -9489,6 +9847,99 @@ type TasksGrantOutput struct {
 	Reason *string `json:"reason,omitempty"`
 }
 
+type TasksHandoffFromChatInput struct {
+	ReqId           *string `json:"reqId,omitempty"`
+	ConversationId  string  `json:"conversationId"`
+	ProjectId       *string `json:"projectId,omitempty"`
+	Title           *string `json:"title,omitempty"`
+	UserGoal        string  `json:"userGoal"`
+	PartialContent  *string `json:"partialContent,omitempty"`
+	ProgressSummary *string `json:"progressSummary,omitempty"`
+	HistoryContext  *string `json:"historyContext,omitempty"`
+}
+
+// TasksHandoffFromChatOutputStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired
+type TasksHandoffFromChatOutputStatus = string
+
+const (
+	TasksHandoffFromChatOutputStatusIdle           TasksHandoffFromChatOutputStatus = "idle"
+	TasksHandoffFromChatOutputStatusQueued         TasksHandoffFromChatOutputStatus = "queued"
+	TasksHandoffFromChatOutputStatusRunning        TasksHandoffFromChatOutputStatus = "running"
+	TasksHandoffFromChatOutputStatusWaitingUser    TasksHandoffFromChatOutputStatus = "waiting_user"
+	TasksHandoffFromChatOutputStatusNeedsReconcile TasksHandoffFromChatOutputStatus = "needs_reconcile"
+	TasksHandoffFromChatOutputStatusAwaitingAccept TasksHandoffFromChatOutputStatus = "awaiting_accept"
+	TasksHandoffFromChatOutputStatusDone           TasksHandoffFromChatOutputStatus = "done"
+	TasksHandoffFromChatOutputStatusFailed         TasksHandoffFromChatOutputStatus = "failed"
+	TasksHandoffFromChatOutputStatusCancelled      TasksHandoffFromChatOutputStatus = "cancelled"
+	TasksHandoffFromChatOutputStatusExpired        TasksHandoffFromChatOutputStatus = "expired"
+)
+
+// TasksHandoffFromChatOutputAcceptance 枚举：auto | user
+type TasksHandoffFromChatOutputAcceptance = string
+
+const (
+	TasksHandoffFromChatOutputAcceptanceAuto TasksHandoffFromChatOutputAcceptance = "auto"
+	TasksHandoffFromChatOutputAcceptanceUser TasksHandoffFromChatOutputAcceptance = "user"
+)
+
+type TasksHandoffFromChatOutputOrigin struct {
+	ConversationId *string `json:"conversationId,omitempty"`
+	CreatedBy      string  `json:"createdBy"`
+	CreatedAt      float64 `json:"createdAt"`
+	Via            *string `json:"via,omitempty"`
+}
+
+type TasksHandoffFromChatOutputTrigger struct {
+	Kind string `json:"kind"`
+}
+
+type TasksHandoffFromChatOutputExecutor struct {
+	Kind string `json:"kind"`
+}
+
+type TasksHandoffFromChatOutputGrant struct {
+	Version float64 `json:"version"`
+	Level   float64 `json:"level"`
+}
+
+// TasksHandoffFromChatOutputArchiveReason 枚举：user | auto_24h
+type TasksHandoffFromChatOutputArchiveReason = string
+
+const (
+	TasksHandoffFromChatOutputArchiveReasonUser    TasksHandoffFromChatOutputArchiveReason = "user"
+	TasksHandoffFromChatOutputArchiveReasonAuto24h TasksHandoffFromChatOutputArchiveReason = "auto_24h"
+)
+
+// TasksHandoffFromChatOutputLastRunStatus 枚举：succeeded | failed | cancelled
+type TasksHandoffFromChatOutputLastRunStatus = string
+
+const (
+	TasksHandoffFromChatOutputLastRunStatusSucceeded TasksHandoffFromChatOutputLastRunStatus = "succeeded"
+	TasksHandoffFromChatOutputLastRunStatusFailed    TasksHandoffFromChatOutputLastRunStatus = "failed"
+	TasksHandoffFromChatOutputLastRunStatusCancelled TasksHandoffFromChatOutputLastRunStatus = "cancelled"
+)
+
+type TasksHandoffFromChatOutput struct {
+	Id            string                                   `json:"id"`
+	Title         string                                   `json:"title"`
+	Goal          string                                   `json:"goal"`
+	Status        TasksHandoffFromChatOutputStatus         `json:"status"`
+	Enabled       bool                                     `json:"enabled"`
+	Gen           float64                                  `json:"gen"`
+	Acceptance    *TasksHandoffFromChatOutputAcceptance    `json:"acceptance,omitempty"`
+	Origin        *TasksHandoffFromChatOutputOrigin        `json:"origin,omitempty"`
+	Trigger       TasksHandoffFromChatOutputTrigger        `json:"trigger"`
+	Executor      TasksHandoffFromChatOutputExecutor       `json:"executor"`
+	Grant         TasksHandoffFromChatOutputGrant          `json:"grant"`
+	EndedAt       *float64                                 `json:"endedAt,omitempty"`
+	ArchivedAt    *float64                                 `json:"archivedAt,omitempty"`
+	ArchiveReason *TasksHandoffFromChatOutputArchiveReason `json:"archiveReason,omitempty"`
+	AckedAt       *float64                                 `json:"ackedAt,omitempty"`
+	LastRunStatus *TasksHandoffFromChatOutputLastRunStatus `json:"lastRunStatus,omitempty"`
+	LastRunAt     *float64                                 `json:"lastRunAt,omitempty"`
+	UpdatedAt     float64                                  `json:"updatedAt"`
+}
+
 // TasksInboxOutputItemStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired
 type TasksInboxOutputItemStatus = string
 
@@ -9505,6 +9956,21 @@ const (
 	TasksInboxOutputItemStatusExpired        TasksInboxOutputItemStatus = "expired"
 )
 
+// TasksInboxOutputItemAcceptance 枚举：auto | user
+type TasksInboxOutputItemAcceptance = string
+
+const (
+	TasksInboxOutputItemAcceptanceAuto TasksInboxOutputItemAcceptance = "auto"
+	TasksInboxOutputItemAcceptanceUser TasksInboxOutputItemAcceptance = "user"
+)
+
+type TasksInboxOutputItemOrigin struct {
+	ConversationId *string `json:"conversationId,omitempty"`
+	CreatedBy      string  `json:"createdBy"`
+	CreatedAt      float64 `json:"createdAt"`
+	Via            *string `json:"via,omitempty"`
+}
+
 type TasksInboxOutputItemTrigger struct {
 	Kind string `json:"kind"`
 }
@@ -9518,17 +9984,42 @@ type TasksInboxOutputItemGrant struct {
 	Level   float64 `json:"level"`
 }
 
+// TasksInboxOutputItemArchiveReason 枚举：user | auto_24h
+type TasksInboxOutputItemArchiveReason = string
+
+const (
+	TasksInboxOutputItemArchiveReasonUser    TasksInboxOutputItemArchiveReason = "user"
+	TasksInboxOutputItemArchiveReasonAuto24h TasksInboxOutputItemArchiveReason = "auto_24h"
+)
+
+// TasksInboxOutputItemLastRunStatus 枚举：succeeded | failed | cancelled
+type TasksInboxOutputItemLastRunStatus = string
+
+const (
+	TasksInboxOutputItemLastRunStatusSucceeded TasksInboxOutputItemLastRunStatus = "succeeded"
+	TasksInboxOutputItemLastRunStatusFailed    TasksInboxOutputItemLastRunStatus = "failed"
+	TasksInboxOutputItemLastRunStatusCancelled TasksInboxOutputItemLastRunStatus = "cancelled"
+)
+
 type TasksInboxOutputItem struct {
-	Id        string                       `json:"id"`
-	Title     string                       `json:"title"`
-	Goal      string                       `json:"goal"`
-	Status    TasksInboxOutputItemStatus   `json:"status"`
-	Enabled   bool                         `json:"enabled"`
-	Gen       float64                      `json:"gen"`
-	Trigger   TasksInboxOutputItemTrigger  `json:"trigger"`
-	Executor  TasksInboxOutputItemExecutor `json:"executor"`
-	Grant     TasksInboxOutputItemGrant    `json:"grant"`
-	UpdatedAt float64                      `json:"updatedAt"`
+	Id            string                             `json:"id"`
+	Title         string                             `json:"title"`
+	Goal          string                             `json:"goal"`
+	Status        TasksInboxOutputItemStatus         `json:"status"`
+	Enabled       bool                               `json:"enabled"`
+	Gen           float64                            `json:"gen"`
+	Acceptance    *TasksInboxOutputItemAcceptance    `json:"acceptance,omitempty"`
+	Origin        *TasksInboxOutputItemOrigin        `json:"origin,omitempty"`
+	Trigger       TasksInboxOutputItemTrigger        `json:"trigger"`
+	Executor      TasksInboxOutputItemExecutor       `json:"executor"`
+	Grant         TasksInboxOutputItemGrant          `json:"grant"`
+	EndedAt       *float64                           `json:"endedAt,omitempty"`
+	ArchivedAt    *float64                           `json:"archivedAt,omitempty"`
+	ArchiveReason *TasksInboxOutputItemArchiveReason `json:"archiveReason,omitempty"`
+	AckedAt       *float64                           `json:"ackedAt,omitempty"`
+	LastRunStatus *TasksInboxOutputItemLastRunStatus `json:"lastRunStatus,omitempty"`
+	LastRunAt     *float64                           `json:"lastRunAt,omitempty"`
+	UpdatedAt     float64                            `json:"updatedAt"`
 }
 
 type TasksJournalInput struct {
@@ -9556,6 +10047,21 @@ const (
 	TasksListOutputTasksItemStatusExpired        TasksListOutputTasksItemStatus = "expired"
 )
 
+// TasksListOutputTasksItemAcceptance 枚举：auto | user
+type TasksListOutputTasksItemAcceptance = string
+
+const (
+	TasksListOutputTasksItemAcceptanceAuto TasksListOutputTasksItemAcceptance = "auto"
+	TasksListOutputTasksItemAcceptanceUser TasksListOutputTasksItemAcceptance = "user"
+)
+
+type TasksListOutputTasksItemOrigin struct {
+	ConversationId *string `json:"conversationId,omitempty"`
+	CreatedBy      string  `json:"createdBy"`
+	CreatedAt      float64 `json:"createdAt"`
+	Via            *string `json:"via,omitempty"`
+}
+
 type TasksListOutputTasksItemTrigger struct {
 	Kind string `json:"kind"`
 }
@@ -9569,17 +10075,42 @@ type TasksListOutputTasksItemGrant struct {
 	Level   float64 `json:"level"`
 }
 
+// TasksListOutputTasksItemArchiveReason 枚举：user | auto_24h
+type TasksListOutputTasksItemArchiveReason = string
+
+const (
+	TasksListOutputTasksItemArchiveReasonUser    TasksListOutputTasksItemArchiveReason = "user"
+	TasksListOutputTasksItemArchiveReasonAuto24h TasksListOutputTasksItemArchiveReason = "auto_24h"
+)
+
+// TasksListOutputTasksItemLastRunStatus 枚举：succeeded | failed | cancelled
+type TasksListOutputTasksItemLastRunStatus = string
+
+const (
+	TasksListOutputTasksItemLastRunStatusSucceeded TasksListOutputTasksItemLastRunStatus = "succeeded"
+	TasksListOutputTasksItemLastRunStatusFailed    TasksListOutputTasksItemLastRunStatus = "failed"
+	TasksListOutputTasksItemLastRunStatusCancelled TasksListOutputTasksItemLastRunStatus = "cancelled"
+)
+
 type TasksListOutputTasksItem struct {
-	Id        string                           `json:"id"`
-	Title     string                           `json:"title"`
-	Goal      string                           `json:"goal"`
-	Status    TasksListOutputTasksItemStatus   `json:"status"`
-	Enabled   bool                             `json:"enabled"`
-	Gen       float64                          `json:"gen"`
-	Trigger   TasksListOutputTasksItemTrigger  `json:"trigger"`
-	Executor  TasksListOutputTasksItemExecutor `json:"executor"`
-	Grant     TasksListOutputTasksItemGrant    `json:"grant"`
-	UpdatedAt float64                          `json:"updatedAt"`
+	Id            string                                 `json:"id"`
+	Title         string                                 `json:"title"`
+	Goal          string                                 `json:"goal"`
+	Status        TasksListOutputTasksItemStatus         `json:"status"`
+	Enabled       bool                                   `json:"enabled"`
+	Gen           float64                                `json:"gen"`
+	Acceptance    *TasksListOutputTasksItemAcceptance    `json:"acceptance,omitempty"`
+	Origin        *TasksListOutputTasksItemOrigin        `json:"origin,omitempty"`
+	Trigger       TasksListOutputTasksItemTrigger        `json:"trigger"`
+	Executor      TasksListOutputTasksItemExecutor       `json:"executor"`
+	Grant         TasksListOutputTasksItemGrant          `json:"grant"`
+	EndedAt       *float64                               `json:"endedAt,omitempty"`
+	ArchivedAt    *float64                               `json:"archivedAt,omitempty"`
+	ArchiveReason *TasksListOutputTasksItemArchiveReason `json:"archiveReason,omitempty"`
+	AckedAt       *float64                               `json:"ackedAt,omitempty"`
+	LastRunStatus *TasksListOutputTasksItemLastRunStatus `json:"lastRunStatus,omitempty"`
+	LastRunAt     *float64                               `json:"lastRunAt,omitempty"`
+	UpdatedAt     float64                                `json:"updatedAt"`
 }
 
 // TasksListOutputLegacyItemSource 枚举：reminder | schedule
@@ -9600,9 +10131,29 @@ type TasksListOutputLegacyItem struct {
 	LastStatus *string                         `json:"lastStatus,omitempty"`
 }
 
+// TasksListOutputQueueValueReason 枚举：slot | memory | cpu | retry | rate_limit
+type TasksListOutputQueueValueReason = string
+
+const (
+	TasksListOutputQueueValueReasonSlot      TasksListOutputQueueValueReason = "slot"
+	TasksListOutputQueueValueReasonMemory    TasksListOutputQueueValueReason = "memory"
+	TasksListOutputQueueValueReasonCpu       TasksListOutputQueueValueReason = "cpu"
+	TasksListOutputQueueValueReasonRetry     TasksListOutputQueueValueReason = "retry"
+	TasksListOutputQueueValueReasonRateLimit TasksListOutputQueueValueReason = "rate_limit"
+)
+
+type TasksListOutputQueueValue struct {
+	Reason        TasksListOutputQueueValueReason `json:"reason"`
+	Position      int64                           `json:"position"`
+	RetryAt       *float64                        `json:"retryAt,omitempty"`
+	ActiveCount   int64                           `json:"activeCount"`
+	MaxConcurrent int64                           `json:"maxConcurrent"`
+}
+
 type TasksListOutput struct {
-	Tasks  []TasksListOutputTasksItem  `json:"tasks"`
-	Legacy []TasksListOutputLegacyItem `json:"legacy"`
+	Tasks  []TasksListOutputTasksItem           `json:"tasks"`
+	Legacy []TasksListOutputLegacyItem          `json:"legacy"`
+	Queue  map[string]TasksListOutputQueueValue `json:"queue,omitempty"`
 }
 
 type TasksPauseInput struct {
@@ -9712,6 +10263,21 @@ const (
 	TasksSetModeOutputStatusExpired        TasksSetModeOutputStatus = "expired"
 )
 
+// TasksSetModeOutputAcceptance 枚举：auto | user
+type TasksSetModeOutputAcceptance = string
+
+const (
+	TasksSetModeOutputAcceptanceAuto TasksSetModeOutputAcceptance = "auto"
+	TasksSetModeOutputAcceptanceUser TasksSetModeOutputAcceptance = "user"
+)
+
+type TasksSetModeOutputOrigin struct {
+	ConversationId *string `json:"conversationId,omitempty"`
+	CreatedBy      string  `json:"createdBy"`
+	CreatedAt      float64 `json:"createdAt"`
+	Via            *string `json:"via,omitempty"`
+}
+
 type TasksSetModeOutputTrigger struct {
 	Kind string `json:"kind"`
 }
@@ -9725,17 +10291,42 @@ type TasksSetModeOutputGrant struct {
 	Level   float64 `json:"level"`
 }
 
+// TasksSetModeOutputArchiveReason 枚举：user | auto_24h
+type TasksSetModeOutputArchiveReason = string
+
+const (
+	TasksSetModeOutputArchiveReasonUser    TasksSetModeOutputArchiveReason = "user"
+	TasksSetModeOutputArchiveReasonAuto24h TasksSetModeOutputArchiveReason = "auto_24h"
+)
+
+// TasksSetModeOutputLastRunStatus 枚举：succeeded | failed | cancelled
+type TasksSetModeOutputLastRunStatus = string
+
+const (
+	TasksSetModeOutputLastRunStatusSucceeded TasksSetModeOutputLastRunStatus = "succeeded"
+	TasksSetModeOutputLastRunStatusFailed    TasksSetModeOutputLastRunStatus = "failed"
+	TasksSetModeOutputLastRunStatusCancelled TasksSetModeOutputLastRunStatus = "cancelled"
+)
+
 type TasksSetModeOutput struct {
-	Id        string                     `json:"id"`
-	Title     string                     `json:"title"`
-	Goal      string                     `json:"goal"`
-	Status    TasksSetModeOutputStatus   `json:"status"`
-	Enabled   bool                       `json:"enabled"`
-	Gen       float64                    `json:"gen"`
-	Trigger   TasksSetModeOutputTrigger  `json:"trigger"`
-	Executor  TasksSetModeOutputExecutor `json:"executor"`
-	Grant     TasksSetModeOutputGrant    `json:"grant"`
-	UpdatedAt float64                    `json:"updatedAt"`
+	Id            string                           `json:"id"`
+	Title         string                           `json:"title"`
+	Goal          string                           `json:"goal"`
+	Status        TasksSetModeOutputStatus         `json:"status"`
+	Enabled       bool                             `json:"enabled"`
+	Gen           float64                          `json:"gen"`
+	Acceptance    *TasksSetModeOutputAcceptance    `json:"acceptance,omitempty"`
+	Origin        *TasksSetModeOutputOrigin        `json:"origin,omitempty"`
+	Trigger       TasksSetModeOutputTrigger        `json:"trigger"`
+	Executor      TasksSetModeOutputExecutor       `json:"executor"`
+	Grant         TasksSetModeOutputGrant          `json:"grant"`
+	EndedAt       *float64                         `json:"endedAt,omitempty"`
+	ArchivedAt    *float64                         `json:"archivedAt,omitempty"`
+	ArchiveReason *TasksSetModeOutputArchiveReason `json:"archiveReason,omitempty"`
+	AckedAt       *float64                         `json:"ackedAt,omitempty"`
+	LastRunStatus *TasksSetModeOutputLastRunStatus `json:"lastRunStatus,omitempty"`
+	LastRunAt     *float64                         `json:"lastRunAt,omitempty"`
+	UpdatedAt     float64                          `json:"updatedAt"`
 }
 
 type TasksSteerInput struct {
@@ -9756,6 +10347,7 @@ type TasksTraceOutputLinesItem struct {
 	Error     *string  `json:"error,omitempty"`
 	StartedAt *float64 `json:"startedAt,omitempty"`
 	TextAt    *float64 `json:"textAt,omitempty"`
+	Thinking  *string  `json:"thinking,omitempty"`
 	User      *string  `json:"user,omitempty"`
 	Done      *string  `json:"done,omitempty"`
 }
@@ -9769,6 +10361,7 @@ type TasksTraceOutputAttemptsItemLinesItem struct {
 	Error     *string  `json:"error,omitempty"`
 	StartedAt *float64 `json:"startedAt,omitempty"`
 	TextAt    *float64 `json:"textAt,omitempty"`
+	Thinking  *string  `json:"thinking,omitempty"`
 	User      *string  `json:"user,omitempty"`
 	Done      *string  `json:"done,omitempty"`
 }
@@ -9805,6 +10398,23 @@ type TasksTraceOutput struct {
 	Live      *TasksTraceOutputLive          `json:"live,omitempty"`
 }
 
+type TasksUnarchiveInput struct {
+	Id string `json:"id"`
+}
+
+type TasksUnarchiveOutput struct {
+	Ok     bool    `json:"ok"`
+	Reason *string `json:"reason,omitempty"`
+}
+
+// TasksUpdateInputAcceptance 枚举：auto | user
+type TasksUpdateInputAcceptance = string
+
+const (
+	TasksUpdateInputAcceptanceAuto TasksUpdateInputAcceptance = "auto"
+	TasksUpdateInputAcceptanceUser TasksUpdateInputAcceptance = "user"
+)
+
 type TasksUpdateInputBudget struct {
 	MaxRetries *int64 `json:"maxRetries,omitempty"`
 }
@@ -9832,12 +10442,15 @@ const (
 )
 
 type TasksUpdateInput struct {
-	Id       string                    `json:"id"`
-	Title    *string                   `json:"title,omitempty"`
-	Trigger  json.RawMessage           `json:"trigger,omitempty"`
-	Budget   *TasksUpdateInputBudget   `json:"budget,omitempty"`
-	Priority *TasksUpdateInputPriority `json:"priority,omitempty"`
-	Category *TasksUpdateInputCategory `json:"category,omitempty"`
+	Id         string                      `json:"id"`
+	Title      *string                     `json:"title,omitempty"`
+	Goal       *string                     `json:"goal,omitempty"`
+	DoneWhen   *string                     `json:"doneWhen,omitempty"`
+	Acceptance *TasksUpdateInputAcceptance `json:"acceptance,omitempty"`
+	Trigger    json.RawMessage             `json:"trigger,omitempty"`
+	Budget     *TasksUpdateInputBudget     `json:"budget,omitempty"`
+	Priority   *TasksUpdateInputPriority   `json:"priority,omitempty"`
+	Category   *TasksUpdateInputCategory   `json:"category,omitempty"`
 }
 
 // TasksUpdateOutputStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired
@@ -9856,6 +10469,21 @@ const (
 	TasksUpdateOutputStatusExpired        TasksUpdateOutputStatus = "expired"
 )
 
+// TasksUpdateOutputAcceptance 枚举：auto | user
+type TasksUpdateOutputAcceptance = string
+
+const (
+	TasksUpdateOutputAcceptanceAuto TasksUpdateOutputAcceptance = "auto"
+	TasksUpdateOutputAcceptanceUser TasksUpdateOutputAcceptance = "user"
+)
+
+type TasksUpdateOutputOrigin struct {
+	ConversationId *string `json:"conversationId,omitempty"`
+	CreatedBy      string  `json:"createdBy"`
+	CreatedAt      float64 `json:"createdAt"`
+	Via            *string `json:"via,omitempty"`
+}
+
 type TasksUpdateOutputTrigger struct {
 	Kind string `json:"kind"`
 }
@@ -9869,17 +10497,42 @@ type TasksUpdateOutputGrant struct {
 	Level   float64 `json:"level"`
 }
 
+// TasksUpdateOutputArchiveReason 枚举：user | auto_24h
+type TasksUpdateOutputArchiveReason = string
+
+const (
+	TasksUpdateOutputArchiveReasonUser    TasksUpdateOutputArchiveReason = "user"
+	TasksUpdateOutputArchiveReasonAuto24h TasksUpdateOutputArchiveReason = "auto_24h"
+)
+
+// TasksUpdateOutputLastRunStatus 枚举：succeeded | failed | cancelled
+type TasksUpdateOutputLastRunStatus = string
+
+const (
+	TasksUpdateOutputLastRunStatusSucceeded TasksUpdateOutputLastRunStatus = "succeeded"
+	TasksUpdateOutputLastRunStatusFailed    TasksUpdateOutputLastRunStatus = "failed"
+	TasksUpdateOutputLastRunStatusCancelled TasksUpdateOutputLastRunStatus = "cancelled"
+)
+
 type TasksUpdateOutput struct {
-	Id        string                    `json:"id"`
-	Title     string                    `json:"title"`
-	Goal      string                    `json:"goal"`
-	Status    TasksUpdateOutputStatus   `json:"status"`
-	Enabled   bool                      `json:"enabled"`
-	Gen       float64                   `json:"gen"`
-	Trigger   TasksUpdateOutputTrigger  `json:"trigger"`
-	Executor  TasksUpdateOutputExecutor `json:"executor"`
-	Grant     TasksUpdateOutputGrant    `json:"grant"`
-	UpdatedAt float64                   `json:"updatedAt"`
+	Id            string                          `json:"id"`
+	Title         string                          `json:"title"`
+	Goal          string                          `json:"goal"`
+	Status        TasksUpdateOutputStatus         `json:"status"`
+	Enabled       bool                            `json:"enabled"`
+	Gen           float64                         `json:"gen"`
+	Acceptance    *TasksUpdateOutputAcceptance    `json:"acceptance,omitempty"`
+	Origin        *TasksUpdateOutputOrigin        `json:"origin,omitempty"`
+	Trigger       TasksUpdateOutputTrigger        `json:"trigger"`
+	Executor      TasksUpdateOutputExecutor       `json:"executor"`
+	Grant         TasksUpdateOutputGrant          `json:"grant"`
+	EndedAt       *float64                        `json:"endedAt,omitempty"`
+	ArchivedAt    *float64                        `json:"archivedAt,omitempty"`
+	ArchiveReason *TasksUpdateOutputArchiveReason `json:"archiveReason,omitempty"`
+	AckedAt       *float64                        `json:"ackedAt,omitempty"`
+	LastRunStatus *TasksUpdateOutputLastRunStatus `json:"lastRunStatus,omitempty"`
+	LastRunAt     *float64                        `json:"lastRunAt,omitempty"`
+	UpdatedAt     float64                         `json:"updatedAt"`
 }
 
 type ThemeCustomDeleteInput struct {
@@ -11239,8 +11892,28 @@ type EventChatBgChanged struct {
 	Opacity  float64 `json:"opacity"`
 }
 
+type EventChatWindowDockRequest struct {
+	Id         string `json:"id"`
+	TransferId string `json:"transferId"`
+}
+
 type EventChatWindowTabDocked struct {
 	Id string `json:"id"`
+}
+
+// EventCliLauncherChangedValueAccountSource 枚举：local | nomi
+type EventCliLauncherChangedValueAccountSource = string
+
+const (
+	EventCliLauncherChangedValueAccountSourceLocal EventCliLauncherChangedValueAccountSource = "local"
+	EventCliLauncherChangedValueAccountSourceNomi  EventCliLauncherChangedValueAccountSource = "nomi"
+)
+
+type EventCliLauncherChangedValue struct {
+	Enabled       bool                                       `json:"enabled"`
+	Command       string                                     `json:"command"`
+	AccountSource *EventCliLauncherChangedValueAccountSource `json:"accountSource,omitempty"`
+	HasLocalLogin *bool                                      `json:"hasLocalLogin,omitempty"`
 }
 
 type EventCliRegistryChangedPluginsItem struct {
@@ -11359,6 +12032,34 @@ const (
 	EventDesktopChangedPendingItemRememberGroupTool     EventDesktopChangedPendingItemRememberGroup = "tool"
 )
 
+// EventDesktopChangedPendingItemDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type EventDesktopChangedPendingItemDelegatePermissionMode = string
+
+const (
+	EventDesktopChangedPendingItemDelegatePermissionModePlan        EventDesktopChangedPendingItemDelegatePermissionMode = "plan"
+	EventDesktopChangedPendingItemDelegatePermissionModeManual      EventDesktopChangedPendingItemDelegatePermissionMode = "manual"
+	EventDesktopChangedPendingItemDelegatePermissionModeAcceptEdits EventDesktopChangedPendingItemDelegatePermissionMode = "acceptEdits"
+	EventDesktopChangedPendingItemDelegatePermissionModeAuto        EventDesktopChangedPendingItemDelegatePermissionMode = "auto"
+	EventDesktopChangedPendingItemDelegatePermissionModeBypass      EventDesktopChangedPendingItemDelegatePermissionMode = "bypass"
+)
+
+// EventDesktopChangedPendingItemDelegateSandboxStatus 枚举：on | off | unsupported
+type EventDesktopChangedPendingItemDelegateSandboxStatus = string
+
+const (
+	EventDesktopChangedPendingItemDelegateSandboxStatusOn          EventDesktopChangedPendingItemDelegateSandboxStatus = "on"
+	EventDesktopChangedPendingItemDelegateSandboxStatusOff         EventDesktopChangedPendingItemDelegateSandboxStatus = "off"
+	EventDesktopChangedPendingItemDelegateSandboxStatusUnsupported EventDesktopChangedPendingItemDelegateSandboxStatus = "unsupported"
+)
+
+type EventDesktopChangedPendingItemDelegate struct {
+	Cli            string                                               `json:"cli"`
+	PermissionMode EventDesktopChangedPendingItemDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  EventDesktopChangedPendingItemDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                                 `json:"workspaceGuard"`
+	EnvScrub       bool                                                 `json:"envScrub"`
+}
+
 type EventDesktopChangedPendingItem struct {
 	Id             string                                       `json:"id"`
 	Tool           string                                       `json:"tool"`
@@ -11377,6 +12078,7 @@ type EventDesktopChangedPendingItem struct {
 	RememberRule   *string                                      `json:"rememberRule,omitempty"`
 	SessionCommand *string                                      `json:"sessionCommand,omitempty"`
 	RememberGroup  *EventDesktopChangedPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *EventDesktopChangedPendingItemDelegate      `json:"delegate,omitempty"`
 }
 
 type EventDesktopChanged struct {
@@ -11427,6 +12129,34 @@ const (
 	EventDesktopConfirmRequestRememberGroupTool     EventDesktopConfirmRequestRememberGroup = "tool"
 )
 
+// EventDesktopConfirmRequestDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type EventDesktopConfirmRequestDelegatePermissionMode = string
+
+const (
+	EventDesktopConfirmRequestDelegatePermissionModePlan        EventDesktopConfirmRequestDelegatePermissionMode = "plan"
+	EventDesktopConfirmRequestDelegatePermissionModeManual      EventDesktopConfirmRequestDelegatePermissionMode = "manual"
+	EventDesktopConfirmRequestDelegatePermissionModeAcceptEdits EventDesktopConfirmRequestDelegatePermissionMode = "acceptEdits"
+	EventDesktopConfirmRequestDelegatePermissionModeAuto        EventDesktopConfirmRequestDelegatePermissionMode = "auto"
+	EventDesktopConfirmRequestDelegatePermissionModeBypass      EventDesktopConfirmRequestDelegatePermissionMode = "bypass"
+)
+
+// EventDesktopConfirmRequestDelegateSandboxStatus 枚举：on | off | unsupported
+type EventDesktopConfirmRequestDelegateSandboxStatus = string
+
+const (
+	EventDesktopConfirmRequestDelegateSandboxStatusOn          EventDesktopConfirmRequestDelegateSandboxStatus = "on"
+	EventDesktopConfirmRequestDelegateSandboxStatusOff         EventDesktopConfirmRequestDelegateSandboxStatus = "off"
+	EventDesktopConfirmRequestDelegateSandboxStatusUnsupported EventDesktopConfirmRequestDelegateSandboxStatus = "unsupported"
+)
+
+type EventDesktopConfirmRequestDelegate struct {
+	Cli            string                                           `json:"cli"`
+	PermissionMode EventDesktopConfirmRequestDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  EventDesktopConfirmRequestDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                             `json:"workspaceGuard"`
+	EnvScrub       bool                                             `json:"envScrub"`
+}
+
 type EventDesktopConfirmRequest struct {
 	Id             string                                   `json:"id"`
 	Tool           string                                   `json:"tool"`
@@ -11445,6 +12175,7 @@ type EventDesktopConfirmRequest struct {
 	RememberRule   *string                                  `json:"rememberRule,omitempty"`
 	SessionCommand *string                                  `json:"sessionCommand,omitempty"`
 	RememberGroup  *EventDesktopConfirmRequestRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *EventDesktopConfirmRequestDelegate      `json:"delegate,omitempty"`
 }
 
 type EventDesktopP2Changed struct {
@@ -12006,15 +12737,18 @@ type EventSchedResult struct {
 }
 
 type EventSideTerminalData struct {
-	Id   string `json:"id"`
-	Data string `json:"data"`
+	Id         string `json:"id"`
+	Data       string `json:"data"`
+	Generation *int64 `json:"generation,omitempty"`
+	Offset     *int64 `json:"offset,omitempty"`
 }
 
 type EventSideTerminalExit struct {
-	Id       string  `json:"id"`
-	ExitCode *int64  `json:"exitCode,omitempty"`
-	Signal   *string `json:"signal,omitempty"`
-	Message  *string `json:"message,omitempty"`
+	Id         string  `json:"id"`
+	Generation *int64  `json:"generation,omitempty"`
+	ExitCode   *int64  `json:"exitCode,omitempty"`
+	Signal     *string `json:"signal,omitempty"`
+	Message    *string `json:"message,omitempty"`
 }
 
 // EventStartupChangedDefaultView 枚举：mascot | main
@@ -12478,6 +13212,10 @@ type ChatWindowDetachTabOutputT = ChatWindowDetachTabOutput
 type ChatWindowDetachedTabsInputT = any
 type ChatWindowDetachedTabsOutputT = []string
 
+// ChatWindowDockAckInputT 是 chatWindow.dockAck 的入参
+type ChatWindowDockAckInputT = ChatWindowDockAckInput
+type ChatWindowDockAckOutputT = bool
+
 // ChatWindowDockTabInputT 是 chatWindow.dockTab 的入参
 type ChatWindowDockTabInputT = ChatWindowDockTabInput
 type ChatWindowDockTabOutputT = bool
@@ -12489,6 +13227,10 @@ type ChatWindowHandoffPutOutputT = bool
 // ChatWindowHandoffTakeInputT 是 chatWindow.handoffTake 的入参
 type ChatWindowHandoffTakeInputT = ChatWindowHandoffTakeInput
 type ChatWindowHandoffTakeOutputT = string
+
+// ChatWindowRegisterHostInputT 是 chatWindow.registerHost 的入参
+type ChatWindowRegisterHostInputT = any
+type ChatWindowRegisterHostOutputT = bool
 
 // CliLauncherGetInputT 是 cli.launcherGet 的入参
 type CliLauncherGetInputT = any
@@ -13802,9 +14544,25 @@ type StartupSetOutputT = StartupSetOutput
 type TasksAcceptInputT = TasksAcceptInput
 type TasksAcceptOutputT = TasksAcceptOutput
 
+// TasksAckInputT 是 tasks.ack 的入参
+type TasksAckInputT = TasksAckInput
+type TasksAckOutputT = TasksAckOutput
+
+// TasksAppendQueuedInputT 是 tasks.appendQueued 的入参
+type TasksAppendQueuedInputT = TasksAppendQueuedInput
+type TasksAppendQueuedOutputT = TasksAppendQueuedOutput
+
 // TasksApplyWorktreeInputT 是 tasks.applyWorktree 的入参
 type TasksApplyWorktreeInputT = TasksApplyWorktreeInput
 type TasksApplyWorktreeOutputT = *TasksApplyWorktreeOutput
+
+// TasksArchiveInputT 是 tasks.archive 的入参
+type TasksArchiveInputT = TasksArchiveInput
+type TasksArchiveOutputT = TasksArchiveOutput
+
+// TasksArchiveAllEndedInputT 是 tasks.archiveAllEnded 的入参
+type TasksArchiveAllEndedInputT = any
+type TasksArchiveAllEndedOutputT = TasksArchiveAllEndedOutput
 
 // TasksCancelInputT 是 tasks.cancel 的入参
 type TasksCancelInputT = TasksCancelInput
@@ -13837,6 +14595,10 @@ type TasksGetOutputT = *TasksGetOutput
 // TasksGrantInputT 是 tasks.grant 的入参
 type TasksGrantInputT = TasksGrantInput
 type TasksGrantOutputT = TasksGrantOutput
+
+// TasksHandoffFromChatInputT 是 tasks.handoffFromChat 的入参
+type TasksHandoffFromChatInputT = TasksHandoffFromChatInput
+type TasksHandoffFromChatOutputT = TasksHandoffFromChatOutput
 
 // TasksInboxInputT 是 tasks.inbox 的入参
 type TasksInboxInputT = any
@@ -13893,6 +14655,10 @@ type TasksSteerOutputT = bool
 // TasksTraceInputT 是 tasks.trace 的入参
 type TasksTraceInputT = TasksTraceInput
 type TasksTraceOutputT = TasksTraceOutput
+
+// TasksUnarchiveInputT 是 tasks.unarchive 的入参
+type TasksUnarchiveInputT = TasksUnarchiveInput
+type TasksUnarchiveOutputT = TasksUnarchiveOutput
 
 // TasksUpdateInputT 是 tasks.update 的入参
 type TasksUpdateInputT = TasksUpdateInput
@@ -14207,7 +14973,9 @@ type EventCharacterAssetsChangedT = EventCharacterAssetsChanged
 type EventChatAssetsChangedT = any
 type EventChatBgChangedT = EventChatBgChanged
 type EventChatWindowDetachedChangedT = []string
+type EventChatWindowDockRequestT = EventChatWindowDockRequest
 type EventChatWindowTabDockedT = EventChatWindowTabDocked
+type EventCliLauncherChangedT = map[string]EventCliLauncherChangedValue
 type EventCliRegistryChangedT = EventCliRegistryChanged
 type EventCliAccountChangedT = any
 type EventCliAccountLoginT = EventCliAccountLogin

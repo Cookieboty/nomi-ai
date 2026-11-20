@@ -16,8 +16,11 @@ import {
   IconGitBranch as GitBranch,
   IconListCheck as ListChecks,
   IconMessageCirclePlus as MessageCirclePlus,
+  IconRoute as RouteIcon,
+  IconTerminal2 as TerminalIcon,
+  IconX as CloseIcon,
 } from '@tabler/icons-react';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { AiChatState } from '../../contexts/AiChatContext';
 import { selectBusyHere, selectIpcClient, useAiChatSelector } from '../../contexts/aiChatStore';
@@ -32,6 +35,7 @@ import { useGitBranch } from '../../hooks/useGitBranch';
 import type { ConversationStore } from '../../services/conversationStore';
 import type { HarnessTraceEvent } from '../../services/harnessClient';
 import { sideChatName, useSideChatsIn } from '../../services/sideChat';
+import { getTerminalStatus, useTerminalStatusVersion } from '../../services/sideTerminal';
 import { groupOf, requestOpenTask, statusLabel, type TaskGroup } from '../../services/tasksClient';
 import type { ConvMessage } from '../../types/conversation';
 import type { IPCClient } from '../../types/ipc';
@@ -45,10 +49,12 @@ import {
   summarizeChanges,
 } from '../../utils/sessionChanges';
 import type { SubagentTarget } from '../../utils/sideTabs';
+import { reduceTraceCached } from '../../utils/toolTrace';
 import { AgentHoverCard } from '../AgentHoverCard';
 import { EndpointIcon } from '../EndpointIcon';
 import { useChangesUi } from '../SessionWorkspace/ChangesUiContext';
 import { useTasks } from '../Tasks';
+import { useSessionTraceTarget } from '../TraceDrawer/useSessionTraceTarget';
 
 import {
   collectSessionAgents,
@@ -63,6 +69,11 @@ import {
 import { useSessionDetails } from './context';
 import styles from './index.module.css';
 import { countActiveTasks, sessionTasks } from './tasks';
+import {
+  collectSessionTerminals,
+  countRunningSessionTerminals,
+  type SessionTerminalStatus,
+} from './terminals';
 import { useDelegateResults } from './useDelegateResults';
 import { useWorkspaceChanges } from './useWorkspaceChanges';
 
@@ -75,6 +86,12 @@ const STATUS_KEY: Record<SessionAgentStatus, string> = {
   error: 'ui.chat-settings.error',
   stopped: 'ui.chat-settings.stopped',
   idle: 'ui.mascot-theme.idle',
+};
+
+const TERMINAL_STATUS_KEY: Record<SessionTerminalStatus, string> = {
+  running: 'ui.knowledge-local.running',
+  exited: 'ui.session-workspace.terminal-status-exited',
+  error: 'ui.chat-settings.error',
 };
 
 const TASK_STATE: Record<TaskGroup, string> = {
@@ -216,9 +233,27 @@ function waitingLive(key: string): Record<string, TabLive> {
   return out;
 }
 
+const LazyTraceModal = lazy(() =>
+  import('../TraceDrawer').then((m) => ({ default: m.TraceModal })),
+);
+
+const SessionTraceModal: React.FC<{
+  messages: readonly ConvMessage[];
+  onClose: () => void;
+}> = ({ messages, onClose }) => {
+  const target = useSessionTraceTarget(messages);
+  return <LazyTraceModal target={target} onClose={onClose} />;
+};
+
 const DetailsPanel: React.FC<
-  Props & { onClose: () => void; floating?: boolean; dismissible?: boolean; closing?: boolean }
-> = ({ messages, cwd, onClose, floating, dismissible, closing }) => {
+  Props & {
+    onClose: () => void;
+    onOpenTrace?: () => void;
+    floating?: boolean;
+    dismissible?: boolean;
+    closing?: boolean;
+  }
+> = ({ messages, cwd, onClose, onOpenTrace, floating, dismissible, closing }) => {
   const ref = useRef<HTMLElement>(null);
   // 自动收起后手动打开的浮层：点在浮层和标题栏按钮以外的地方就收回
   useEffect(() => {
@@ -229,6 +264,8 @@ const DetailsPanel: React.FC<
       if ((target as Element).closest?.('[data-testid="session-details-toggle"]')) return;
       // 悬停卡片 portal 在 body 上：点卡片去打开子任务时不提前关闭面板
       if ((target as Element).closest?.('[data-testid="agent-hover-card"]')) return;
+      // 应用内确认弹窗（关闭运行中终端时弹出）：操作弹窗时不收起浮层
+      if ((target as Element).closest?.('[role="dialog"][aria-modal="true"]')) return;
       onClose();
     };
     window.addEventListener('pointerdown', onDown, true);
@@ -323,6 +360,20 @@ const DetailsPanel: React.FC<
     () => sessionTasks(data?.tasks ?? [], conversationId),
     [data, conversationId],
   );
+  useTerminalStatusVersion();
+  const terminals = collectSessionTerminals(pane?.pages ?? [], getTerminalStatus);
+  const turnCount = useMemo(
+    () => agentMessages.filter((m) => m.role === 'assistant').length,
+    [agentMessages],
+  );
+  const toolCount = useMemo(() => {
+    let n = 0;
+    for (const m of agentMessages) {
+      if (!m.trace?.length) continue;
+      for (const e of reduceTraceCached(m.trace)) if (e.type === 'tool') n += 1;
+    }
+    return n;
+  }, [agentMessages]);
 
   return (
     <aside
@@ -377,6 +428,27 @@ const DetailsPanel: React.FC<
             <span className={styles.muted}>{t('ui.session-workspace.details-no-changes')}</span>
           </div>
         ))}
+      {messages.length > 0 && onOpenTrace && (
+        <button
+          type="button"
+          className={styles.row}
+          data-testid="session-details-trace"
+          onClick={onOpenTrace}
+        >
+          <Icon icon={RouteIcon} size="nav" className={styles.rowIcon} />
+          <span className={styles.rowLabel}>{t('ui.devtools.session-trace')}</span>
+          <span className={styles.muted}>
+            {agents.length > 0
+              ? t(
+                  'ui.devtools.session-trace-summary-agents',
+                  String(turnCount),
+                  String(toolCount),
+                  String(agents.length),
+                )
+              : t('ui.devtools.session-trace-summary', String(turnCount), String(toolCount))}
+          </span>
+        </button>
+      )}
       <Section
         id="agents"
         title={t('ui.cli-monitor.fleet')}
@@ -411,6 +483,50 @@ const DetailsPanel: React.FC<
                 : undefined
             }
           />
+        )}
+      />
+      <Section
+        id="terminals"
+        title={t('ui.cli-monitor.fleet-origin-terminal')}
+        count={t(
+          'ui.session-workspace.details-terminals-count',
+          String(terminals.length),
+          String(countRunningSessionTerminals(terminals)),
+        )}
+        items={terminals}
+        render={(term) => (
+          <li key={term.id} className={styles.terminalRow} data-testid="session-details-terminal">
+            <button
+              type="button"
+              className={styles.row}
+              data-testid="session-details-terminal-open"
+              onClick={() => pane?.focusTerminal(term.id)}
+            >
+              <Icon icon={TerminalIcon} size={16} className={styles.rowIcon} />
+              <span className={styles.itemText}>
+                <span className={styles.itemName} title={term.name}>
+                  {term.name}
+                </span>
+                {term.detail && (
+                  <span className={styles.itemDetail} title={term.cwd ?? term.detail}>
+                    {term.detail}
+                  </span>
+                )}
+              </span>
+              <span className={styles.itemStatus} data-state={term.status}>
+                {t(TERMINAL_STATUS_KEY[term.status])}
+              </span>
+            </button>
+            <button
+              type="button"
+              className={styles.rowCloseBtn}
+              aria-label={t('ui.session-workspace.terminal-close-action', term.name)}
+              data-testid="session-details-terminal-close"
+              onClick={() => void pane?.requestCloseTerminal(term.tabKey)}
+            >
+              <Icon icon={CloseIcon} size={14} />
+            </button>
+          </li>
         )}
       />
       <Section
@@ -506,23 +622,45 @@ export const SessionDetailsDock: React.FC<Props & { overlay?: boolean }> = ({
   ...props
 }) => {
   const v = useSessionDetails();
+  const pane = useSubagentPane();
+  const [traceOpen, setTraceOpen] = useState(false);
+  const hasTerminals = !!pane?.pages.some((p) => p.kind === 'terminal');
   const close = useCallback(() => {
     // 浮层只收回（还是自动收起的状态）；平时的一栏是用户关掉
     if (v?.dismissible) v.dismiss();
     else v?.close();
     document.querySelector<HTMLElement>('[data-testid="session-details-toggle"]')?.focus();
   }, [v]);
-  const show = !!v?.visible && props.messages.length > 0 && overlay === v.floating;
+  const show =
+    !!v?.visible && (props.messages.length > 0 || hasTerminals) && overlay === v.floating;
   // 收起时先放完滑出动画再卸载（值用字符串，渲染间保持稳定）
   const mode = usePresence(show ? (v!.dismissible ? 'dismissible' : 'shown') : null);
-  if (!mode.value) return null;
+  const openTrace = useCallback(() => {
+    if (pane?.hasHost) {
+      const title = t('ui.devtools.session-trace');
+      pane.openTrace({ kind: 'session', title }, { dedupeKey: 'session', title });
+      if (v?.dismissible) v.dismiss();
+      return;
+    }
+    setTraceOpen(true);
+  }, [pane, v]);
   return (
-    <DetailsPanel
-      {...props}
-      onClose={close}
-      floating={overlay}
-      dismissible={mode.value === 'dismissible' && !mode.closing}
-      closing={mode.closing}
-    />
+    <>
+      {mode.value && (
+        <DetailsPanel
+          {...props}
+          onClose={close}
+          onOpenTrace={openTrace}
+          floating={overlay}
+          dismissible={mode.value === 'dismissible' && !mode.closing}
+          closing={mode.closing}
+        />
+      )}
+      {traceOpen && (
+        <Suspense fallback={null}>
+          <SessionTraceModal messages={props.messages} onClose={() => setTraceOpen(false)} />
+        </Suspense>
+      )}
+    </>
   );
 };

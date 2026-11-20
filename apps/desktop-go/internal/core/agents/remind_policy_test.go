@@ -40,8 +40,8 @@ func TestNoticeSession(t *testing.T) {
 	if got := MergeNotices([]Notice{a, {Kind: "agent", Status: "done", Title: "A2", Session: "tab-a"}}); got.Session != "tab-a" {
 		t.Fatalf("same-session merge keeps the session: %+v", got)
 	}
-	if got := MergeNotices([]Notice{a, {Kind: "agent", Status: "failed", Title: "B", Session: "tab-b"}}); got.Session != "" {
-		t.Fatalf("cross-session merge drops the session: %+v", got)
+	if got := MergeNotices([]Notice{a, {Kind: "agent", Status: "failed", Title: "B", Session: "tab-b"}}); got.Session != "" || got.OpenSession != "tab-b" {
+		t.Fatalf("cross-session merge drops the session but keeps priority open target: %+v", got)
 	}
 	jsrt.Run(func() {
 		s, sent := remindSvc(t)

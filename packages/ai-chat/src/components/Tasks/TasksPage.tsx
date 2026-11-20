@@ -1,6 +1,7 @@
-/** 任务页主体（列表 / 看板、详情、新建）：首次打开任务页时才加载（见 index.tsx 的 useTasksHost） */
-import { Button, EmptyState, Icon, Select, t, Tabs } from '@nomi-ai/ui';
+/** 任务页主体（双轨分流 + 归档视图 + 列表 / 看板 + 详情抽屉 + 新建）：首次打开任务页时才加载（见 index.tsx 的 useTasksHost） */
+import { Button, createLogger, EmptyState, Icon, Select, t, Tabs } from '@nomi-ai/ui';
 import {
+  IconArchive as Archive,
   IconListCheck as ListChecks,
   IconPlus as Plus,
   IconSearch as Search,
@@ -11,11 +12,16 @@ import {
   CATEGORIES,
   CATEGORY_LABEL,
   categoryOf,
+  isTerminalStatus,
+  needsUserAttention,
   STAGE_LABEL,
   STAGES,
   stageOf,
+  tasksApi,
+  taskTrack,
   type TaskCategory,
   type TaskStage,
+  type TaskTrack,
 } from '../../services/tasksClient';
 
 import { TaskBoard, type BoardGroup } from './Board';
@@ -25,7 +31,10 @@ import { TaskForm } from './TaskForm';
 import { TaskList } from './TaskList';
 import { useTasks } from './useTasks';
 
+const log = createLogger('tasks-page');
+
 type View = 'list' | 'board';
+type TrackFilter = 'all' | TaskTrack | 'archived';
 const VIEW_KEY = 'nomi.tasks.view';
 
 /** 本机记住的视图选择（读不到就用默认，private window 等情况下 localStorage 会抛错） */
@@ -57,14 +66,13 @@ export const TasksPage: React.FC<{
   onBack: () => void;
   /** 旧的提醒 / 定时：打开原有的日程面板 */
   onOpenSchedule?: () => void;
-  /** 从搜索打开某个任务：打开后选中它（nonce 变了就再选一次） */
+  /** 从搜索或通知打开某个任务：打开后选中它（nonce 变了就再选一次） */
   focus?: { id: string; nonce: number } | null;
   /** 命令面板「新建任务」：nonce 变了就再打开一次表单 */
   createNonce?: number;
 }> = ({ active, onBack, onOpenSchedule, focus, createNonce = 0 }) => {
   const { data } = useTasks(active);
   const [selected, setSelected] = useState<string | null>(null);
-  // 已处理到的 nonce 从 0 / 无开始：任务页第一次挂载时带着的请求（首次从搜索打开、首次「新建任务」）也要处理
   const [focusSeen, setFocusSeen] = useState<number | undefined>(undefined);
   if (focus && focus.nonce !== focusSeen) {
     setFocusSeen(focus.nonce);
@@ -77,38 +85,86 @@ export const TasksPage: React.FC<{
     if (active && createNonce > 0) setCreating(true);
   }
   const [layout, setLayout] = useState(loadView);
+  const [track, setTrack] = useState<TrackFilter>('all');
   const [category, setCategory] = useState<TaskCategory | 'all'>('all');
   const [query, setQuery] = useState('');
   /** 进度筛选（列表与看板共用）：all 或某一档 */
   const [stage, setStage] = useState<TaskStage | 'all'>('all');
+  const [archivingAll, setArchivingAll] = useState(false);
+
   const changeLayout = (patch: Partial<typeof layout>) => {
     const next = { ...layout, ...patch };
     setLayout(next);
     saveView(next);
   };
+
   const allTasks = useMemo(() => data?.tasks ?? [], [data]);
+  const queue = useMemo(() => data?.queue ?? {}, [data]);
+
+  const activeTasks = useMemo(() => allTasks.filter((x) => x.archivedAt == null), [allTasks]);
+  const archivedTasks = useMemo(() => allTasks.filter((x) => x.archivedAt != null), [allTasks]);
+  const archivableCount = useMemo(
+    () => activeTasks.filter((x) => isTerminalStatus(x.status) && !needsUserAttention(x)).length,
+    [activeTasks],
+  );
+
+  // 如果聚焦选中了一个已归档的任务，首次命中时自动切到已归档轨道让用户看得到卡片
+  const [trackFocusKey, setTrackFocusKey] = useState<string>('');
+  const currentFocusKey = focus ? `${focus.id}:${focus.nonce}` : '';
+  if (focus?.id && currentFocusKey !== trackFocusKey) {
+    const hit = allTasks.find((x) => x.id === focus.id);
+    if (hit) {
+      setTrackFocusKey(currentFocusKey);
+      if (hit.archivedAt != null && track !== 'archived') setTrack('archived');
+    }
+  }
+
+  const trackFiltered = useMemo(() => {
+    if (track === 'archived') return archivedTasks;
+    if (track === 'run' || track === 'automation') {
+      return activeTasks.filter((x) => taskTrack(x) === track);
+    }
+    return activeTasks;
+  }, [track, activeTasks, archivedTasks]);
+
   /** 类型与搜索（标题、目标）筛过的；列表与看板共用 */
   const tasks = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return allTasks.filter(
+    return trackFiltered.filter(
       (x) =>
         (category === 'all' || categoryOf(x) === category) &&
         (!q || `${x.title} ${x.goal}`.toLowerCase().includes(q)),
     );
-  }, [allTasks, category, query]);
+  }, [trackFiltered, category, query]);
+
   const stageCounts = useMemo(() => {
     const m = new Map<TaskStage, number>();
     for (const x of tasks) m.set(stageOf(x), (m.get(stageOf(x)) ?? 0) + 1);
     return m;
   }, [tasks]);
+
   const boardTasks = useMemo(
-    () => (stage === 'all' ? tasks : tasks.filter((x) => stageOf(x) === stage)),
-    [tasks, stage],
+    () =>
+      track === 'archived' || stage === 'all' ? tasks : tasks.filter((x) => stageOf(x) === stage),
+    [tasks, stage, track],
   );
+
   const legacy = data?.legacy ?? [];
-  // 旧的提醒 / 定时：只在「全部」与「待开始」里列出（只读，点开进日程面板）
-  const shownLegacy = stage === 'all' || stage === 'todo' ? legacy : [];
+  // 旧的提醒 / 定时属于持续自动化轨道：仅在活跃「全部 / 持续自动化」且未筛选其他阶段时并入
+  const shownLegacy =
+    track !== 'archived' && track !== 'run' && (stage === 'all' || stage === 'todo') ? legacy : [];
   const current = allTasks.find((x) => x.id === selected) ?? null;
+
+  const handleArchiveAllEnded = async () => {
+    setArchivingAll(true);
+    try {
+      await tasksApi.archiveAllEnded();
+    } catch (e) {
+      log.warn('archiveAllEnded failed', e);
+    } finally {
+      setArchivingAll(false);
+    }
+  };
 
   useEffect(() => {
     if (!active) return;
@@ -116,7 +172,6 @@ export const TasksPage: React.FC<{
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       if (creating) setCreating(false);
       else if (selected) setSelected(null);
-      // 回对话：导航栏的「对话」，或者什么都没开时按 Esc
       else onBack();
     };
     window.addEventListener('keydown', onKey);
@@ -162,120 +217,204 @@ export const TasksPage: React.FC<{
           {t('ui.providers-schedule.new-task')}
         </Button>
       </header>
-      <div className={styles.toolbar}>
+      <div className={styles.trackRow}>
         <Tabs
+          variant="underline"
+          className={styles.trackTabs}
           items={[
             {
-              value: 'list',
-              label: t('ui.providers-schedule.task-view-list'),
-              testId: 'tasks-view-list',
+              value: 'all',
+              label: t('ui.providers-schedule.all'),
+              testId: 'tasks-track-all',
             },
             {
-              value: 'board',
-              label: t('ui.providers-schedule.task-view-board'),
-              testId: 'tasks-view-board',
+              value: 'run',
+              label: t('ui.providers-schedule.task-track-run'),
+              testId: 'tasks-track-run',
+            },
+            {
+              value: 'automation',
+              label: t('ui.providers-schedule.task-track-automation'),
+              testId: 'tasks-track-automation',
+            },
+            {
+              value: 'archived',
+              label: archivedTasks.length
+                ? t('ui.providers-schedule.task-track-archived-count', archivedTasks.length)
+                : t('ui.providers-schedule.task-track-archived'),
+              testId: 'tasks-track-archived',
             },
           ]}
-          value={layout.view}
-          onChange={(view) => changeLayout({ view })}
-          aria-label={t('ui.model-quality.view')}
+          value={track}
+          onChange={(v) => setTrack(v as TrackFilter)}
+          aria-label={t('ui.providers-schedule.tasks')}
         />
-        {allTasks.length > 0 && (
-          <>
-            <div
-              className={styles.chips}
-              role="group"
-              aria-label={t('ui.providers-schedule.task-stage-filter')}
+        <div className={styles.trackActions}>
+          {track !== 'archived' && archivableCount > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={archivingAll}
+              onClick={() => {
+                void handleArchiveAllEnded();
+              }}
+              data-testid="tasks-archive-all"
             >
-              {(['all', ...STAGES] as const).map((k) => (
+              <Icon icon={Archive} size={14} />
+              {t('ui.providers-schedule.task-archive-all-ended')}
+            </Button>
+          )}
+          {track !== 'archived' && (
+            <Tabs
+              items={[
+                {
+                  value: 'list',
+                  label: t('ui.providers-schedule.task-view-list'),
+                  testId: 'tasks-view-list',
+                },
+                {
+                  value: 'board',
+                  label: t('ui.providers-schedule.task-view-board'),
+                  testId: 'tasks-view-board',
+                },
+              ]}
+              value={layout.view}
+              onChange={(view) => changeLayout({ view })}
+              aria-label={t('ui.model-quality.view')}
+            />
+          )}
+        </div>
+      </div>
+      {track !== 'archived' && activeTasks.length > 0 && (
+        <div className={styles.toolbar}>
+          <div
+            className={styles.chips}
+            role="group"
+            aria-label={t('ui.providers-schedule.task-stage-filter')}
+          >
+            {(['all', ...STAGES] as const).map((k) => {
+              const count = k === 'all' ? tasks.length : (stageCounts.get(k) ?? 0);
+              return (
                 <button
                   key={k}
                   type="button"
                   className={styles.chip}
                   aria-pressed={stage === k}
+                  data-zero={count === 0 ? '' : undefined}
                   onClick={() => setStage(k)}
                   data-testid={`tasks-stage-${k}`}
                 >
                   {k === 'all' ? t('ui.providers-schedule.all') : t(STAGE_LABEL[k])}
-                  <span className={styles.chipCount}>
-                    {k === 'all' ? tasks.length : (stageCounts.get(k) ?? 0)}
-                  </span>
+                  <span className={styles.chipCount}>{count}</span>
                 </button>
-              ))}
-            </div>
-            {layout.view === 'board' && (
-              <Select
-                size="sm"
-                variant="ghost"
-                className={styles.filter}
-                value={layout.group}
-                onChange={(e) => changeLayout({ group: e.target.value as BoardGroup })}
-                aria-label={t('ui.providers-schedule.task-board-group')}
-                options={[
-                  { value: 'stage', label: t('ui.providers-schedule.task-board-by-stage') },
-                  { value: 'priority', label: t('ui.providers-schedule.task-board-by-priority') },
-                ]}
-                data-testid="tasks-board-group"
-              />
-            )}
+              );
+            })}
+          </div>
+          <span className={styles.spacer} />
+          {layout.view === 'board' && (
             <Select
               size="sm"
               variant="ghost"
               className={styles.filter}
-              value={category}
-              onChange={(e) => setCategory(e.target.value as TaskCategory | 'all')}
-              aria-label={t('ui.providers-schedule.task-category')}
+              value={layout.group}
+              onChange={(e) => changeLayout({ group: e.target.value as BoardGroup })}
+              aria-label={t('ui.providers-schedule.task-board-group')}
               options={[
-                { value: 'all', label: t('ui.providers-schedule.task-category-all') },
-                ...CATEGORIES.map((c) => ({ value: c, label: t(CATEGORY_LABEL[c]) })),
+                { value: 'stage', label: t('ui.providers-schedule.task-board-by-stage') },
+                { value: 'priority', label: t('ui.providers-schedule.task-board-by-priority') },
               ]}
-              data-testid="tasks-category"
+              data-testid="tasks-board-group"
             />
-            <span className={styles.spacer} />
-            <span className={styles.count}>
-              {t('ui.providers-schedule.task-count', tasks.length)}
-            </span>
-          </>
-        )}
-      </div>
+          )}
+          <Select
+            size="sm"
+            variant="ghost"
+            className={styles.filter}
+            value={category}
+            onChange={(e) => setCategory(e.target.value as TaskCategory | 'all')}
+            aria-label={t('ui.providers-schedule.task-category')}
+            options={[
+              { value: 'all', label: t('ui.providers-schedule.task-category-all') },
+              ...CATEGORIES.map((c) => ({ value: c, label: t(CATEGORY_LABEL[c]) })),
+            ]}
+            data-testid="tasks-category"
+          />
+          <span className={styles.count}>
+            {t('ui.providers-schedule.task-count', tasks.length)}
+          </span>
+        </div>
+      )}
+      {track === 'archived' && (
+        <div className={styles.archiveNote} data-testid="tasks-archive-note">
+          <span>{t('ui.providers-schedule.task-archive-hint')}</span>
+          <span className={styles.spacer} />
+          <span className={styles.count}>
+            {t('ui.providers-schedule.task-count', tasks.length)}
+          </span>
+        </div>
+      )}
       <div className={styles.body}>
-        {layout.view === 'board' && data && !allTasks.length && (
-          <EmptyState
-            className={styles.boardEmpty}
-            icon={ListChecks}
-            title={t('ui.providers-schedule.tasks-empty')}
-            action={
-              <Button size="sm" variant="primary" onClick={() => setCreating(true)}>
-                <Icon icon={Plus} size={14} />
-                {t('ui.providers-schedule.new-task')}
-              </Button>
-            }
-            data-testid="tasks-board-empty"
-          />
-        )}
-        {layout.view === 'board' && allTasks.length > 0 && (
-          <TaskBoard
-            tasks={boardTasks}
-            group={layout.group}
-            stages={stage === 'all' ? undefined : [stage]}
-            selected={selected}
-            onSelect={setSelected}
-          />
-        )}
-        <div className={styles.list} data-testid="tasks-list" hidden={layout.view === 'board'}>
+        {track !== 'archived' &&
+          layout.view === 'board' &&
+          data &&
+          !activeTasks.length &&
+          !shownLegacy.length && (
+            <EmptyState
+              className={styles.boardEmpty}
+              icon={ListChecks}
+              title={t('ui.providers-schedule.tasks-empty')}
+              action={
+                <Button size="sm" variant="primary" onClick={() => setCreating(true)}>
+                  <Icon icon={Plus} size={14} />
+                  {t('ui.providers-schedule.new-task')}
+                </Button>
+              }
+              data-testid="tasks-board-empty"
+            />
+          )}
+        {track !== 'archived' &&
+          layout.view === 'board' &&
+          (activeTasks.length > 0 || shownLegacy.length > 0) && (
+            <TaskBoard
+              tasks={boardTasks}
+              queue={queue}
+              legacy={shownLegacy}
+              group={layout.group}
+              stages={stage === 'all' ? undefined : [stage]}
+              selected={selected}
+              onSelect={setSelected}
+              onOpenSchedule={onOpenSchedule}
+            />
+          )}
+        <div
+          className={styles.list}
+          data-testid="tasks-list"
+          hidden={track !== 'archived' && layout.view === 'board'}
+        >
           {data && (
             <TaskList
               tasks={boardTasks}
               legacy={shownLegacy}
+              queue={queue}
+              archivedMode={track === 'archived'}
               selected={selected}
               onSelect={setSelected}
               onOpenSchedule={onOpenSchedule}
-              empty={t('ui.providers-schedule.tasks-empty')}
+              empty={
+                track === 'archived'
+                  ? t('ui.providers-schedule.task-unarchive-empty-hint')
+                  : t('ui.providers-schedule.tasks-empty')
+              }
             />
           )}
         </div>
         {current && (
-          <TaskDetail key={current.id} task={current} onClose={() => setSelected(null)} />
+          <TaskDetail
+            key={current.id}
+            task={current}
+            queueInfo={queue[current.id]}
+            onClose={() => setSelected(null)}
+          />
         )}
       </div>
       {creating && (
@@ -290,5 +429,3 @@ export const TasksPage: React.FC<{
     </section>
   );
 };
-
-/** App 用：侧栏入口 + 主区整页；切会话 / 标签时回到对话 */

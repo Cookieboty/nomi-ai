@@ -15,6 +15,8 @@ export const SideTerminalOpenInput = z.object({
   explicitCwd: z.boolean().optional(),
   cols: z.number().int().min(10).max(500).optional(),
   rows: z.number().int().min(4).max(200).optional(),
+  /** 重启或切换目录时显式替换当前会话，不复用已有 PTY */
+  replace: z.boolean().optional(),
 });
 
 /** sideTerminal.open 的结果 */
@@ -23,6 +25,10 @@ export const SideTerminalOpenResult = z.object({
   cwd: z.string().max(4096).optional(),
   shell: z.string().max(256).optional(),
   replay: z.string().optional(),
+  /** 后端单调分配的会话代次，用于隔离跨代实时事件与关闭操作 */
+  generation: z.number().int().min(1).optional(),
+  /** 本次 replay 快照末尾对应的累计原始字节偏移 */
+  replayOffset: z.number().int().min(0).optional(),
   exited: z.boolean().optional(),
   exitCode: z.number().int().optional(),
   reason: z.enum(['unsupported', 'denied', 'limit', 'failed']).optional(),
@@ -33,6 +39,7 @@ export const SideTerminalOpenResult = z.object({
 export const SideTerminalWriteInput = z.object({
   id: SideTerminalId,
   data: z.string().max(65536),
+  generation: z.number().int().min(1).optional(),
 });
 
 /** sideTerminal.resize：同步终端行列尺寸 */
@@ -40,10 +47,14 @@ export const SideTerminalResizeInput = z.object({
   id: SideTerminalId,
   cols: z.number().int().min(10).max(500),
   rows: z.number().int().min(4).max(200),
+  generation: z.number().int().min(1).optional(),
 });
 
 /** sideTerminal.close 的入参 */
-export const SideTerminalIdInput = z.object({ id: SideTerminalId });
+export const SideTerminalIdInput = z.object({
+  id: SideTerminalId,
+  generation: z.number().int().min(1).optional(),
+});
 
 /** sideTerminal.closeAll：关闭当前全部内置终端进程 */
 export const SideTerminalCloseAllInput = z.object({});
@@ -62,11 +73,14 @@ export const SideTerminalSyncResult = z.object({
 export const SideTerminalData = z.object({
   id: z.string(),
   data: z.string(),
+  generation: z.number().int().min(1).optional(),
+  offset: z.number().int().min(0).optional(),
 });
 
 /** sideTerminal.exit：终端 shell 进程退出 */
 export const SideTerminalExit = z.object({
   id: z.string(),
+  generation: z.number().int().min(1).optional(),
   exitCode: z.number().int().optional(),
   signal: z.string().max(64).optional(),
   message: z.string().max(500).optional(),

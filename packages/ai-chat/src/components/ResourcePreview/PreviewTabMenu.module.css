@@ -41,3 +41,9 @@
   color: var(--cd-color-text-subtle);
   cursor: default;
 }
+.separator {
+  height: 1px;
+  margin: var(--cd-space-1) 0;
+  background: var(--cd-color-border-subtle);
+  flex-shrink: 0;
+}

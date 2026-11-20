@@ -122,3 +122,17 @@
 .reviewNotice {
   flex-basis: 100%;
 }
+/* 委派确认：批准前展示实际权限档与适用的宿主保护 */
+.delegate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.delegateRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+}

@@ -3,19 +3,31 @@
  * 一个调用对应一个正在显示的会话（Nomi 主对话或某个 CLI 标签）。
  */
 import { createLogger, t } from '@nomi-ai/ui';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
+import { AiChatStoreContext } from '../contexts/aiChatStore';
 import { switchTabSource, tabSourceOf } from '../services/cliSource';
+import type { ConversationStore } from '../services/conversationStore';
 import { extClient } from '../services/extClient';
 import {
   harnessClient,
   type HarnessTabMeta,
   type SlashDiscoveryEntry,
 } from '../services/harnessClient';
+import { nomiLongContextOverride } from '../services/longContext';
 import { NOMI_MODEL_MENU, openModelMenu } from '../services/modelMenu';
 import { setNomiModel } from '../services/nomiModel';
 import type { ConversationBackend } from '../types/chat';
 import type { ConvMessage } from '../types/conversation';
+import type { IPCClient } from '../types/ipc';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
 
 import { adapterFor, scopeOrderFor } from './adapters';
@@ -60,6 +72,8 @@ export interface SlashHookParams {
   compactNomi?: (
     instructions?: string,
   ) => Promise<{ status: 'done' | 'nothing' | 'busy' | 'failed'; error?: string }>;
+  /** Nomi 主对话的 `/bg`（AiChatContext.sendAsBackgroundTask） */
+  sendBackgroundNomi?: (text: string) => Promise<string | null>;
   onOpenPlugins: () => void;
   onOpenProviders: () => void;
   onOpenSettings: () => void;
@@ -104,9 +118,12 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
   const discovered = found?.key === dKey ? found.entries : null;
   const [nomiSkills, setNomiSkills] = useState<Array<{ name: string; description: string }>>([]);
   const [byScope, setByScope] = useState<Record<string, SlashCard[]>>({});
+  const storeCtx = useContext(AiChatStoreContext);
+  const storeRef = useRef(storeCtx);
   const latest = useRef(p);
   useLayoutEffect(() => {
     latest.current = p;
+    storeRef.current = storeCtx;
   });
 
   // 发现：CLI 端读项目 / 用户目录（主进程只读文件名与 frontmatter）；Nomi 读自带 Skills
@@ -321,6 +338,10 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
         if (target.scopeKey !== latest.current.scopeKey) return { status: 'nothing' as const };
         return (await latest.current.compactNomi?.(instructions)) ?? { status: 'nothing' as const };
       },
+      sendBackgroundNomi: async (text: string) => {
+        if (target.scopeKey !== latest.current.scopeKey) return null;
+        return (await latest.current.sendBackgroundNomi?.(text)) ?? null;
+      },
     }),
     [deliver],
   );
@@ -368,7 +389,20 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
         messages: L.messages,
         session: L.session,
         commands: () => all,
-        load: () => loadSlashData(target.backend, target.tabId),
+        load: () => {
+          let nomiLong: boolean | undefined;
+          if (target.backend === 'nomi') {
+            const ipc = storeRef.current?.store.get().ipcClient as IPCClient | undefined;
+            const convId = ipc?.currentConversationId?.();
+            const convStore = ipc?.conversationStore?.() as ConversationStore | undefined;
+            const meta =
+              convId && convStore?.get(convId)?.backend === 'nomi'
+                ? convStore.get(convId)
+                : undefined;
+            nomiLong = nomiLongContextOverride(meta?.longContext);
+          }
+          return loadSlashData(target.backend, target.tabId, nomiLong);
+        },
         actions: makeActions(target),
       };
       return { target, ctx };

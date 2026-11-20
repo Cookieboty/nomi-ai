@@ -372,10 +372,12 @@ export const gatewayClient = {
    */
   nomiContext: async (
     role: 'chat' | 'agent-tools' | 'summary' = 'chat',
+    longContext?: boolean,
   ): Promise<NomiContextInfo | null> => {
     if (!hasTransport()) return null;
     try {
-      const r = await call<NomiContextInfo | null>(() => api.gateway.nomiContext({ role }));
+      const input = longContext === undefined ? { role } : { role, longContext };
+      const r = await call<NomiContextInfo | null>(() => api.gateway.nomiContext(input));
       return r && r.budget > 0 && r.compactAt > 0 ? r : null;
     } catch {
       return null;

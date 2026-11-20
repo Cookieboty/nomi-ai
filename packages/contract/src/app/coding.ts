@@ -804,6 +804,8 @@ export const codingEvents = {
   'harness.tabMessage': z.looseObject({ tabId: z.string(), message: HarnessTabMessage }),
   /** 插件注册表变化（ai:cli:registry-changed） */
   'cli.registryChanged': CliRegistrySnapshot,
+  /** CLI 启动与账号源设置变化（主窗与独立弹窗实时同步） */
+  'cli.launcherChanged': z.record(z.string(), CliLauncherSettings),
   /** 账号列表变化，不带数据（ai:cli-account:changed） */
   'cliAccount.changed': z.null(),
   /** 登录进度（ai:cli-account:login） */
@@ -825,6 +827,7 @@ export const codingEventSurfaces = {
   'harness.tabsChanged': ['chat', 'settings'],
   'harness.events': ['chat', 'settings'],
   'harness.tabMessage': ['chat', 'settings'],
+  'cli.launcherChanged': ['chat'],
   'fleet.changed': ['chat', 'settings'],
 } as const satisfies Partial<Record<keyof typeof codingEvents, readonly Surface[]>>;
 

@@ -205,6 +205,7 @@ func wireFleet(router *contract.Router, userData string, ts *tasks.Service, chat
 	// 内存紧张时，agent 与后台 Nomi 的任务先排着；不再紧张时马上再排一次队
 	if ts != nil {
 		ts.Runtime.SetAdmit(s.Admit)
+		ts.Runtime.SetHoldReason(s.HoldReason)
 		s.SetOnRelease(func() { go ts.Runtime.Tick() })
 	}
 	// 给 Nomi 的看板工具：list_agents / pause_agent / resume_agent

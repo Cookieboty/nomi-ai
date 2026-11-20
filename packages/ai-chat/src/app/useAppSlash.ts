@@ -76,6 +76,7 @@ export function useAppSlash(opts: {
       else void actions.newConversation();
     },
     compactNomi: (instructions?: string) => actions.compactConversation(instructions),
+    sendBackgroundNomi: (text: string) => actions.sendAsBackgroundTask(text),
     onOpenPlugins: panels.openPlugins,
     onOpenProviders: panels.openProviders,
     onOpenSettings: () => {

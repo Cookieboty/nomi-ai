@@ -437,6 +437,9 @@ func Build(in Input) State {
 	}
 
 	for _, t := range in.Tasks {
+		if t.ArchivedAt != nil {
+			continue
+		}
 		col, need, failed, ok := taskColumn(t.Status)
 		// 暂停了的后台 Nomi（任务停了调度）：空闲 / 排队的进「已暂停」；这一轮还在跑、等用户的留在原列，标着暂停
 		paused := taskPaused(t)

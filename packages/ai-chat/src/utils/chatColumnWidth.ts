@@ -61,3 +61,37 @@ export function persistChatColumnWidth(w: number): void {
     /* ignore */
   }
 }
+
+/** 分栏比例持久化键（0~1，表示对话列占主区可用宽度的比例） */
+export const CHAT_COL_RATIO_KEY = 'nomi.chatColumnRatio';
+
+/** 首次打开默认各占一半（50% : 50%） */
+export const CHAT_COL_RATIO_DEFAULT = 0.5;
+
+/** 拖动比例下限 / 上限 */
+export const CHAT_COL_RATIO_MIN = 0.2;
+export const CHAT_COL_RATIO_MAX = 0.8;
+
+export function clampChatColumnRatio(n: number): number {
+  const clamped = Math.min(CHAT_COL_RATIO_MAX, Math.max(CHAT_COL_RATIO_MIN, n));
+  return Math.round(clamped * 10000) / 10000;
+}
+
+export function readChatColumnRatio(): number {
+  try {
+    const raw = localStorage.getItem(CHAT_COL_RATIO_KEY);
+    const n = raw === null || raw.trim() === '' ? NaN : Number(raw);
+    if (Number.isFinite(n)) return clampChatColumnRatio(n);
+  } catch {
+    /* ignore */
+  }
+  return CHAT_COL_RATIO_DEFAULT;
+}
+
+export function persistChatColumnRatio(r: number): void {
+  try {
+    localStorage.setItem(CHAT_COL_RATIO_KEY, String(clampChatColumnRatio(r)));
+  } catch {
+    /* ignore */
+  }
+}

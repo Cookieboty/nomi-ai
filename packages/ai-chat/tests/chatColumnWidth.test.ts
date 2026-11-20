@@ -2,14 +2,21 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  CHAT_COL_RATIO_DEFAULT,
+  CHAT_COL_RATIO_KEY,
+  CHAT_COL_RATIO_MAX,
+  CHAT_COL_RATIO_MIN,
   CHAT_COL_W_DEFAULT,
   CHAT_COL_W_KEY,
   CHAT_COL_W_MAX,
   CHAT_COL_W_MIN,
   CHAT_COL_W_LEGACY_DEFAULT,
   CHAT_COL_W_USER_KEY,
+  clampChatColumnRatio,
   clampChatColumnWidth,
+  persistChatColumnRatio,
   persistChatColumnWidth,
+  readChatColumnRatio,
   readChatColumnWidth,
 } from '../src/utils/chatColumnWidth';
 
@@ -69,5 +76,41 @@ describe('chatColumnWidth', () => {
     expect(Number(localStorage.getItem(CHAT_COL_W_KEY))).toBe(CHAT_COL_W_MIN);
     persistChatColumnWidth(99999);
     expect(Number(localStorage.getItem(CHAT_COL_W_KEY))).toBe(CHAT_COL_W_MAX);
+  });
+});
+
+describe('chatColumnRatio', () => {
+  afterEach(() => {
+    try {
+      localStorage.removeItem(CHAT_COL_RATIO_KEY);
+      localStorage.removeItem(CHAT_COL_W_KEY);
+    } catch {
+      /* ignore */
+    }
+  });
+
+  it('defaults to 0.5 (50% : 50%) even if legacy pixel width exists', () => {
+    expect(CHAT_COL_RATIO_DEFAULT).toBe(0.5);
+    expect(readChatColumnRatio()).toBe(0.5);
+    localStorage.setItem(CHAT_COL_W_KEY, '400');
+    expect(readChatColumnRatio()).toBe(0.5);
+  });
+
+  it('falls back to 0.5 on empty or invalid values', () => {
+    localStorage.setItem(CHAT_COL_RATIO_KEY, '');
+    expect(readChatColumnRatio()).toBe(0.5);
+    localStorage.setItem(CHAT_COL_RATIO_KEY, 'abc');
+    expect(readChatColumnRatio()).toBe(0.5);
+  });
+
+  it('persists and clamps ratio into [MIN, MAX]', () => {
+    expect(clampChatColumnRatio(0.05)).toBe(CHAT_COL_RATIO_MIN);
+    expect(clampChatColumnRatio(0.95)).toBe(CHAT_COL_RATIO_MAX);
+    persistChatColumnRatio(0.625);
+    expect(readChatColumnRatio()).toBe(0.625);
+    persistChatColumnRatio(0.01);
+    expect(readChatColumnRatio()).toBe(CHAT_COL_RATIO_MIN);
+    persistChatColumnRatio(0.99);
+    expect(readChatColumnRatio()).toBe(CHAT_COL_RATIO_MAX);
   });
 });

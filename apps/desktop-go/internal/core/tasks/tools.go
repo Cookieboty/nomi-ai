@@ -517,6 +517,9 @@ func CreateTaskTools(s *Service, authorize Authorizer, github GithubConn, cli Cl
 					card += "\n" + T(key, connections.McpServerOf(g.ConnectionID), strings.Join(g.Resources, ", "))
 				}
 				card += "\n" + T("electron.common.task-card-terms")
+				if in.Executor != "notify" {
+					card += "\n" + T("electron.common.task-card-acceptance-user")
+				}
 				d := authorize(ctx, "task_propose", T("electron.common.task-card-summary", in.Title), in, card)
 				if d != "allowed" && d != "auto" {
 					return fail("user_denied", "用户没有授权这个任务"), nil

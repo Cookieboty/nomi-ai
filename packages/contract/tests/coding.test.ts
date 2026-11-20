@@ -250,7 +250,10 @@ describe('appContract · D3 coding', () => {
       offNull();
       // agent 的会话内容只推给对话窗口（契约 eventSurfaces）
       expect(canSubscribe(appContract, 'harness.tabsChanged', 'mascot')).toBe(false);
+      expect(canSubscribe(appContract, 'cli.launcherChanged', 'chat')).toBe(true);
+      expect(canSubscribe(appContract, 'cli.launcherChanged', 'mascot')).toBe(false);
       expect(canSubscribe(appContract, 'agents.changed', 'mascot')).toBe(true);
+      expect(codingEvents['cli.launcherChanged'].safeParse(launchersState).success).toBe(true);
     } finally {
       close();
     }

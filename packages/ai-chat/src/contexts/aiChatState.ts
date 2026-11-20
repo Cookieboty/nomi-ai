@@ -8,6 +8,9 @@ import { createIPCClient } from '../services/IPCClient';
 import type { ChatConfig, ChatMessage } from '../types/chat';
 import type { IPCClient } from '../types/ipc';
 
+/** 这一轮结束时的结果：只有 `'done'` 在侧栏显示绿色完成点，失败与手动停止不显示绿点 */
+export type ConvoOutcome = 'done' | 'error' | 'stopped';
+
 export interface AiChatState {
   messages: ChatMessage[];
   config: ChatConfig;
@@ -20,10 +23,12 @@ export interface AiChatState {
   /** 正在流式生成、可以停止的会话 */
   streamingConvos: string[];
   /**
-   * 刚跑完一轮、还没进去看过的会话（侧栏行首的绿点）。
+   * 刚成功跑完一轮、还没进去看过的会话（侧栏行首的绿点；仅限 outcome === 'done'）。
    * 与 unread 不同：它不分前后台，正看着的会话跑完了也会亮一个，点进会话就消。
    */
   doneConvos: string[];
+  /** 最近一轮结束但尚未查看的会话结果（done / error / stopped），点进会话或开始新轮时清除 */
+  convoOutcomes?: Record<string, ConvoOutcome>;
   error?: string;
   ipcClient: IPCClient;
   /** messages 当前展示的是哪个会话 */
@@ -43,11 +48,11 @@ export type AiChatAction =
   | { type: 'UPSERT_MESSAGES'; payload: ChatMessage[] }
   | { type: 'SET_STREAMING'; payload: boolean; convoId?: string }
   | { type: 'SET_CONFIG'; payload: ChatConfig }
-  /** convoId：这次忙碌属于哪个会话（切走后别的会话不显示「回复中」） */
-  | { type: 'SET_LOADING'; payload: boolean; convoId?: string }
+  /** convoId：这次忙碌属于哪个会话（切走后别的会话不显示「回复中」）；结束时附带 outcome */
+  | { type: 'SET_LOADING'; payload: boolean; convoId?: string; outcome?: ConvoOutcome }
   | { type: 'SET_ERROR'; payload: string | undefined }
   | { type: 'SET_IPC_CLIENT'; payload: IPCClient }
-  /** 进过这个会话了：行首的「已完成」点去摸 */
+  /** 进过这个会话了：行首的「已完成 / 失败 / 已停止」状态点去摸 */
   | { type: 'CLEAR_DONE'; convoId: string }
   | { type: 'CLEAR_MESSAGES'; convoId?: string };
 
@@ -72,6 +77,7 @@ export const buildInitialState = (client?: ClientAIClient): AiChatState => ({
   busyConvos: [],
   streamingConvos: [],
   doneConvos: [],
+  convoOutcomes: {},
   ipcClient: createIPCClient(client),
 });
 
@@ -99,6 +105,25 @@ function markDone(list: string[] | undefined, convoId: string): string[] {
   return list.includes(k) ? list : [...list, k];
 }
 
+function setOutcome(
+  map: Record<string, ConvoOutcome> | undefined,
+  convoId: string | undefined,
+  outcome: ConvoOutcome | undefined,
+): Record<string, ConvoOutcome> | undefined {
+  if (!convoId) return map;
+  const k = convoKey(convoId);
+  if (!k) return map;
+  const cur = map ?? {};
+  if (outcome === undefined) {
+    if (!(k in cur)) return map;
+    const next = { ...cur };
+    delete next[k];
+    return next;
+  }
+  if (cur[k] === outcome) return map;
+  return { ...cur, [k]: outcome };
+}
+
 /** 某个会话是否在回复（'' 表示旧实现没有会话 id，视为当前会话） */
 export function busyIn(
   s: Pick<AiChatState, 'busyConvos' | 'isLoading'>,
@@ -113,12 +138,16 @@ export function aiChatReducer(state: AiChatState, action: AiChatAction): AiChatS
     case 'SET_MESSAGES': {
       const done = state.doneConvos ?? [];
       const seen = action.convoId ? done.filter((id) => id !== action.convoId) : done;
+      const outcomes = state.convoOutcomes
+        ? setOutcome(state.convoOutcomes, action.convoId, undefined)
+        : undefined;
       return {
         ...state,
         messages: action.payload,
         ...('convoId' in action ? { viewConvoId: action.convoId } : {}),
         // 进了这个会话就是看过了
         doneConvos: seen,
+        ...(outcomes ? { convoOutcomes: outcomes } : {}),
       };
     }
     case 'ADD_MESSAGE': {
@@ -154,20 +183,44 @@ export function aiChatReducer(state: AiChatState, action: AiChatAction): AiChatS
       return { ...state, config: action.payload };
     case 'SET_LOADING': {
       const next = toggleKey(state.busyConvos, action.convoId, action.payload);
+      if (action.payload) {
+        const k = action.convoId ? convoKey(action.convoId) : '';
+        const nextDone =
+          k && (state.doneConvos ?? []).includes(k)
+            ? (state.doneConvos ?? []).filter((id) => id !== k)
+            : state.doneConvos;
+        const nextOutcomes = setOutcome(state.convoOutcomes, action.convoId, undefined);
+        return {
+          ...state,
+          busyConvos: next,
+          isLoading: next.length > 0,
+          doneConvos: nextDone,
+          ...(nextOutcomes !== undefined ? { convoOutcomes: nextOutcomes } : {}),
+          // 一轮总是从当前展示的会话发起：新对话的 id 在发送时才生成（ensureConversationId），
+          // 这时 viewConvoId 还没有，认领它，否则首个对话被当成「别的会话在回复」（没有状态行）
+          ...(action.convoId && state.viewConvoId === undefined
+            ? { viewConvoId: action.convoId }
+            : {}),
+        };
+      }
+      const outcome: ConvoOutcome | undefined = action.convoId
+        ? (action.outcome ?? (state.error ? 'error' : 'done'))
+        : undefined;
+      const doneConvos =
+        outcome === 'done' && action.convoId
+          ? markDone(state.doneConvos, action.convoId)
+          : action.convoId
+            ? (state.doneConvos ?? []).filter((id) => id !== convoKey(action.convoId))
+            : state.doneConvos;
+      const nextOutcomes = outcome
+        ? setOutcome(state.convoOutcomes ?? {}, action.convoId, outcome)
+        : state.convoOutcomes;
       return {
         ...state,
         busyConvos: next,
         isLoading: next.length > 0,
-        // 这一轮结束（且没出错）就留一个「刚完成」的点；出错有自己的红点，不重复标
-        doneConvos:
-          !action.payload && action.convoId && !state.error
-            ? markDone(state.doneConvos, action.convoId)
-            : state.doneConvos,
-        // 一轮总是从当前展示的会话发起：新对话的 id 在发送时才生成（ensureConversationId），
-        // 这时 viewConvoId 还没有，认领它，否则首个对话被当成「别的会话在回复」（没有状态行）
-        ...(action.payload && action.convoId && state.viewConvoId === undefined
-          ? { viewConvoId: action.convoId }
-          : {}),
+        doneConvos,
+        ...(nextOutcomes !== undefined ? { convoOutcomes: nextOutcomes } : {}),
       };
     }
     case 'SET_ERROR':
@@ -179,10 +232,19 @@ export function aiChatReducer(state: AiChatState, action: AiChatAction): AiChatS
     case 'CLEAR_DONE': {
       const k = convoKey(action.convoId);
       const done = state.doneConvos ?? [];
-      if (!done.includes(k)) return state;
-      return { ...state, doneConvos: done.filter((id) => id !== k) };
+      const hasDone = done.includes(k);
+      const hasOutcome = Boolean(state.convoOutcomes && k in state.convoOutcomes);
+      if (!hasDone && !hasOutcome) return state;
+      return {
+        ...state,
+        doneConvos: hasDone ? done.filter((id) => id !== k) : done,
+        ...(hasOutcome ? { convoOutcomes: setOutcome(state.convoOutcomes, k, undefined) } : {}),
+      };
     }
-    case 'CLEAR_MESSAGES':
+    case 'CLEAR_MESSAGES': {
+      const nextOutcomes = state.convoOutcomes
+        ? setOutcome(state.convoOutcomes, action.convoId, undefined)
+        : undefined;
       return {
         ...state,
         messages: [],
@@ -190,7 +252,9 @@ export function aiChatReducer(state: AiChatState, action: AiChatAction): AiChatS
         doneConvos: action.convoId
           ? (state.doneConvos ?? []).filter((id) => id !== action.convoId)
           : (state.doneConvos ?? []),
+        ...(nextOutcomes ? { convoOutcomes: nextOutcomes } : {}),
       };
+    }
     default:
       return state;
   }

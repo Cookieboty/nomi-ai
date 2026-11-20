@@ -2,6 +2,7 @@ package sideterminal
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -10,21 +11,25 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 type fakePTY struct {
-	mu      sync.Mutex
-	pr      *io.PipeReader
-	pw      *io.PipeWriter
-	writes  bytes.Buffer
-	cols    uint16
-	rows    uint16
-	shell   string
-	closed  bool
-	exitCh  chan int
-	waitErr error
+	mu         sync.Mutex
+	pr         *io.PipeReader
+	pw         *io.PipeWriter
+	writes     bytes.Buffer
+	cols       uint16
+	rows       uint16
+	shell      string
+	dir        string
+	closed     bool
+	closeCalls atomic.Int32
+	exitCh     chan int
+	waitErr    error
 }
 
 func newFakePTY(opts StartOptions) *fakePTY {
@@ -35,6 +40,7 @@ func newFakePTY(opts StartOptions) *fakePTY {
 		cols:   opts.Cols,
 		rows:   opts.Rows,
 		shell:  "zsh",
+		dir:    opts.Dir,
 		exitCh: make(chan int, 1),
 	}
 }
@@ -60,6 +66,7 @@ func (f *fakePTY) Wait() (int, string, error) {
 	return code, "", f.waitErr
 }
 func (f *fakePTY) Close() error {
+	f.closeCalls.Add(1)
 	f.mu.Lock()
 	wasClosed := f.closed
 	f.closed = true
@@ -410,4 +417,445 @@ func TestRealPTYReadWriteAndClose(t *testing.T) {
 			t.Fatal("expected Close to return true")
 		}
 	}
+}
+
+func TestReplayBufferCapacity256KB(t *testing.T) {
+	dir := t.TempDir()
+	var mu sync.Mutex
+	var fp *fakePTY
+	var receivedBytes int
+
+	mgr := New(Deps{
+		HomeDir: func() string { return dir },
+		Emit: func(name string, data any) {
+			if name != "sideTerminal.data" {
+				return
+			}
+			m := data.(map[string]any)
+			if b64, ok := m["data"].(string); ok {
+				if raw, err := base64.StdEncoding.DecodeString(b64); err == nil {
+					mu.Lock()
+					receivedBytes += len(raw)
+					mu.Unlock()
+				}
+			}
+		},
+		StartPTY: func(opts StartOptions) (PTY, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			fp = newFakePTY(opts)
+			return fp, nil
+		},
+	})
+	defer mgr.CloseAll()
+
+	res := mgr.OpenOwned(OpenInput{ID: "term-256k", Cols: 80, Rows: 24}, 1)
+	if !res.OK {
+		t.Fatalf("open failed: %+v", res)
+	}
+
+	head := "HEAD_MARKER_"
+	tail := "_TAIL_MARKER"
+	payloadLen := 128 * 1024 // 128KB，超过旧的 64KB 限制
+	payload := make([]byte, payloadLen)
+	for i := range payload {
+		payload[i] = 'a'
+	}
+	copy(payload, head)
+	copy(payload[len(payload)-len(tail):], tail)
+
+	if _, err := fp.pw.Write(payload); err != nil {
+		t.Fatalf("write payload failed: %v", err)
+	}
+
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		n := receivedBytes
+		mu.Unlock()
+		if n >= payloadLen {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	reused := mgr.OpenOwned(OpenInput{ID: "term-256k", Cols: 100, Rows: 30}, 2)
+	if !reused.OK {
+		t.Fatalf("reuse failed: %+v", reused)
+	}
+	rawReplay, err := base64.StdEncoding.DecodeString(reused.Replay)
+	if err != nil {
+		t.Fatalf("decode replay failed: %v", err)
+	}
+	if len(rawReplay) != payloadLen {
+		t.Fatalf("expected replay length %d, got %d", payloadLen, len(rawReplay))
+	}
+	if !strings.HasPrefix(string(rawReplay), head) || !strings.HasSuffix(string(rawReplay), tail) {
+		t.Fatalf("expected replay head and tail preserved")
+	}
+}
+
+func TestManagerCloseCancelsInFlightStartupAndRecoversOnce(t *testing.T) {
+	dir := t.TempDir()
+	entered := make(chan struct{}, 1)
+	release := make(chan struct{})
+	var mu sync.Mutex
+	var created []*fakePTY
+
+	mgr := New(Deps{
+		HomeDir: func() string { return dir },
+		StartPTY: func(opts StartOptions) (PTY, error) {
+			fp := newFakePTY(opts)
+			mu.Lock()
+			created = append(created, fp)
+			idx := len(created)
+			mu.Unlock()
+			if idx == 1 {
+				entered <- struct{}{}
+				<-release
+			}
+			return fp, nil
+		},
+	})
+	defer mgr.CloseAll()
+
+	openDone := make(chan OpenResult, 1)
+	go func() {
+		openDone <- mgr.OpenOwned(OpenInput{ID: "t-start", Cwd: dir, ExplicitCwd: true}, 1)
+	}()
+
+	<-entered
+	// 启动过程中调用 Close 必须立即返回且不死锁，并作废在途启动
+	if !mgr.Close("t-start") {
+		t.Fatal("expected Close to cancel in-flight startup")
+	}
+	close(release)
+
+	res := <-openDone
+	if res.OK {
+		t.Fatalf("cancelled startup should not succeed, got %+v", res)
+	}
+	if len(created) != 1 || created[0].closeCalls.Load() != 1 {
+		t.Fatalf("expected in-flight fake PTY closed exactly once, got count=%d calls=%d", len(created), created[0].closeCalls.Load())
+	}
+	if mgr.Write("t-start", "echo nope\r") {
+		t.Fatal("cancelled terminal must not accept writes")
+	}
+
+	// 再次打开可以恢复为健康可写会话
+	res2 := mgr.OpenOwned(OpenInput{ID: "t-start", Cwd: dir, ExplicitCwd: true}, 1)
+	if !res2.OK || res2.Generation < 2 {
+		t.Fatalf("expected healthy reopen, got %+v", res2)
+	}
+	if !mgr.Write("t-start", "ok\r") {
+		t.Fatal("expected reopened terminal to be writable")
+	}
+}
+
+func TestManagerWindowCloseCancelsInFlightStartup(t *testing.T) {
+	dir := t.TempDir()
+	entered := make(chan struct{}, 1)
+	release := make(chan struct{})
+	var mu sync.Mutex
+	var created []*fakePTY
+
+	mgr := New(Deps{
+		HomeDir: func() string { return dir },
+		StartPTY: func(opts StartOptions) (PTY, error) {
+			fp := newFakePTY(opts)
+			mu.Lock()
+			created = append(created, fp)
+			mu.Unlock()
+			entered <- struct{}{}
+			<-release
+			return fp, nil
+		},
+	})
+	defer mgr.CloseAll()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	openDone := make(chan OpenResult, 1)
+	go func() {
+		openDone <- mgr.OpenOwnedContext(ctx, OpenInput{ID: "t-win", Cwd: dir, ExplicitCwd: true}, 77)
+	}()
+
+	<-entered
+	cancel()
+	mgr.CloseOwner(77)
+	close(release)
+
+	res := <-openDone
+	if res.OK {
+		t.Fatalf("expected window-closed open to fail, got %+v", res)
+	}
+	if len(created) != 1 || created[0].closeCalls.Load() != 1 {
+		t.Fatalf("expected single close on cancelled window PTY, got %d", created[0].closeCalls.Load())
+	}
+}
+
+func TestManagerRestartAndChangeDirInterleaving(t *testing.T) {
+	dir1 := t.TempDir()
+	dir2 := t.TempDir()
+	dir3 := t.TempDir()
+
+	var mu sync.Mutex
+	var ptys []*fakePTY
+	gate2Entered := make(chan struct{}, 1)
+	gate2Release := make(chan struct{})
+	gate3Entered := make(chan struct{}, 1)
+	gate3Release := make(chan struct{})
+
+	mgr := New(Deps{
+		HomeDir: func() string { return dir1 },
+		StartPTY: func(opts StartOptions) (PTY, error) {
+			fp := newFakePTY(opts)
+			mu.Lock()
+			ptys = append(ptys, fp)
+			mu.Unlock()
+			switch opts.Dir {
+			case dir2:
+				gate2Entered <- struct{}{}
+				<-gate2Release
+			case dir3:
+				gate3Entered <- struct{}{}
+				<-gate3Release
+			}
+			return fp, nil
+		},
+	})
+	defer mgr.CloseAll()
+
+	// 第 1 代会话在 dir1 启动
+	r1 := mgr.Open(OpenInput{ID: "t-dir", Cwd: dir1, ExplicitCwd: true})
+	if !r1.OK || r1.Generation != 1 || r1.Cwd != dir1 {
+		t.Fatalf("unexpected r1: %+v", r1)
+	}
+
+	// 交错 1：发起 Replace 到 dir2（启动过程中先到），并发一次针对第 1 代的迟到 CloseGeneration
+	r2Done := make(chan OpenResult, 1)
+	go func() {
+		r2Done <- mgr.Open(OpenInput{ID: "t-dir", Cwd: dir2, ExplicitCwd: true, Replace: true})
+	}()
+	<-gate2Entered
+	// 迟到的旧代次关闭请求（gen=1）不得误杀正在启动的 gen=2
+	if mgr.CloseGeneration("t-dir", r1.Generation) {
+		t.Fatal("stale CloseGeneration(gen=1) must not cancel gen=2")
+	}
+
+	// 交错 2：dir2 尚未返回时又紧接着换目录到 dir3，且 dir3 先返回、dir2 后返回
+	r3Done := make(chan OpenResult, 1)
+	go func() {
+		r3Done <- mgr.Open(OpenInput{ID: "t-dir", Cwd: dir3, ExplicitCwd: true, Replace: true})
+	}()
+	<-gate3Entered
+	close(gate3Release)
+	r3 := <-r3Done
+	if !r3.OK || r3.Cwd != dir3 || r3.Generation <= r1.Generation {
+		t.Fatalf("unexpected r3: %+v", r3)
+	}
+
+	// 再放行落后的 dir2：必须立刻失败并回收 dir2 的 PTY，绝不覆盖 dir3
+	close(gate2Release)
+	r2 := <-r2Done
+	if r2.OK {
+		t.Fatalf("superseded dir2 open should not win, got %+v", r2)
+	}
+
+	if !mgr.WriteGeneration("t-dir", "pwd\r", r3.Generation) {
+		t.Fatal("expected final gen3 session to remain writable")
+	}
+	if mgr.WriteGeneration("t-dir", "stale\r", r1.Generation) {
+		t.Fatal("stale generation write must be rejected")
+	}
+	if ptys[0].closeCalls.Load() != 1 || ptys[1].closeCalls.Load() != 1 || ptys[2].closeCalls.Load() != 0 {
+		t.Fatalf("unexpected closeCounts: p1=%d p2=%d p3=%d",
+			ptys[0].closeCalls.Load(), ptys[1].closeCalls.Load(), ptys[2].closeCalls.Load())
+	}
+	if !mgr.Close("t-dir") || ptys[2].closeCalls.Load() != 1 {
+		t.Fatalf("final Close should reclaim p3 exactly once, got %d", ptys[2].closeCalls.Load())
+	}
+}
+
+func TestManagerConcurrentOpenDeduplicatesAndSyncCancelsPending(t *testing.T) {
+	dir := t.TempDir()
+	entered := make(chan struct{}, 1)
+	release := make(chan struct{})
+	var starts atomic.Int32
+	var mu sync.Mutex
+	var ptys []*fakePTY
+
+	mgr := New(Deps{
+		HomeDir: func() string { return dir },
+		StartPTY: func(opts StartOptions) (PTY, error) {
+			n := starts.Add(1)
+			fp := newFakePTY(opts)
+			mu.Lock()
+			ptys = append(ptys, fp)
+			mu.Unlock()
+			if n == 1 {
+				entered <- struct{}{}
+				<-release
+			}
+			return fp, nil
+		},
+	})
+	defer mgr.CloseAll()
+
+	// 两个非替换并发 Open：只应启动 1 个 PTY，两者拿同一代次
+	ch1 := make(chan OpenResult, 1)
+	ch2 := make(chan OpenResult, 1)
+	go func() { ch1 <- mgr.OpenOwned(OpenInput{ID: "dup", Cwd: dir, ExplicitCwd: true}, 5) }()
+	<-entered
+	go func() { ch2 <- mgr.OpenOwned(OpenInput{ID: "dup", Cwd: dir, ExplicitCwd: true}, 5) }()
+	time.Sleep(15 * time.Millisecond)
+	close(release)
+	res1, res2 := <-ch1, <-ch2
+	if !res1.OK || !res2.OK || res1.Generation != res2.Generation || starts.Load() != 1 {
+		t.Fatalf("expected deduplicated open: res1=%+v res2=%+v starts=%d", res1, res2, starts.Load())
+	}
+
+	// 启动第二个终端时 Sync 空清单：运行中和启动中的均恰好回收 1 次
+	release2 := make(chan struct{})
+	mgr.deps.StartPTY = func(opts StartOptions) (PTY, error) {
+		fp := newFakePTY(opts)
+		mu.Lock()
+		ptys = append(ptys, fp)
+		mu.Unlock()
+		entered <- struct{}{}
+		<-release2
+		return fp, nil
+	}
+	chPending := make(chan OpenResult, 1)
+	go func() { chPending <- mgr.OpenOwned(OpenInput{ID: "pend", Cwd: dir, ExplicitCwd: true}, 5) }()
+	<-entered
+	closed := mgr.Sync(5, nil)
+	close(release2)
+	resPend := <-chPending
+	if resPend.OK || len(closed) != 2 {
+		t.Fatalf("expected Sync to close both live and pending, closed=%v resPend=%+v", closed, resPend)
+	}
+	for i, p := range ptys {
+		if p.closeCalls.Load() != 1 {
+			t.Fatalf("pty[%d] closeCalls=%d, want 1", i, p.closeCalls.Load())
+		}
+	}
+}
+
+func TestManagerGenerationAndByteOffsetsAcrossReplayAndLiveStream(t *testing.T) {
+	dir := t.TempDir()
+	var mu sync.Mutex
+	var events []emittedEvent
+	var fp *fakePTY
+
+	mgr := New(Deps{
+		HomeDir: func() string { return dir },
+		Emit: func(name string, data any) {
+			if name != "sideTerminal.data" {
+				return
+			}
+			mu.Lock()
+			events = append(events, emittedEvent{name: name, data: data.(map[string]any)})
+			mu.Unlock()
+		},
+		StartPTY: func(opts StartOptions) (PTY, error) {
+			fp = newFakePTY(opts)
+			return fp, nil
+		},
+	})
+	defer mgr.CloseAll()
+
+	r1 := mgr.Open(OpenInput{ID: "off-1", Cwd: dir, ExplicitCwd: true})
+	if !r1.OK || r1.Generation != 1 || r1.ReplayOffset == nil || *r1.ReplayOffset != 0 {
+		t.Fatalf("unexpected initial open: %+v", r1)
+	}
+
+	// 段 1 与 段 2 字节内容完全相同（测试连续相同文本不能依赖启发式去重）
+	seg1 := []byte("DUP_LINE\n中")
+	if _, err := fp.pw.Write(seg1); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		n := len(events)
+		mu.Unlock()
+		if n >= 1 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	reused := mgr.Open(OpenInput{ID: "off-1"})
+	if !reused.OK || reused.Generation != 1 || reused.ReplayOffset == nil || *reused.ReplayOffset != int64(len(seg1)) {
+		t.Fatalf("unexpected reuse offsets: %+v (want %d)", reused, len(seg1))
+	}
+
+	// 段 2（同内容）和 段 3（增量）
+	seg2 := []byte("DUP_LINE\n文")
+	if _, err := fp.pw.Write(seg2); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(40 * time.Millisecond)
+	seg3 := []byte("TAIL_END\n")
+	if _, err := fp.pw.Write(seg3); err != nil {
+		t.Fatal(err)
+	}
+	deadline = time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		gotBytes := 0
+		for _, ev := range events {
+			raw, _ := base64.StdEncoding.DecodeString(ev.data["data"].(string))
+			gotBytes += len(raw)
+		}
+		mu.Unlock()
+		if gotBytes >= len(seg1)+len(seg2)+len(seg3) {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	mu.Lock()
+	var rebuilt []byte
+	var expectedOffset int64
+	for _, ev := range events {
+		if ev.data["generation"].(int64) != 1 {
+			t.Fatalf("unexpected generation in data event: %+v", ev.data)
+		}
+		off := ev.data["offset"].(int64)
+		if off != expectedOffset {
+			t.Fatalf("non-contiguous offset: got %d, want %d", off, expectedOffset)
+		}
+		raw, _ := base64.StdEncoding.DecodeString(ev.data["data"].(string))
+		rebuilt = append(rebuilt, raw...)
+		expectedOffset += int64(len(raw))
+	}
+	mu.Unlock()
+	if string(rebuilt) != string(seg1)+string(seg2)+string(seg3) {
+		t.Fatalf("rebuilt mismatch: got %q", string(rebuilt))
+	}
+
+	// 验证超过 256KB 的 UTF-8 多字节文本溢出截断时首部不会残缺且末尾 ReplayOffset == totalBytes
+	chunk := bytes.Repeat([]byte("汉"), 300*1024/3) // 300KB 多字节汉字，必然在 256KB 处跨字符切分
+	// 故意错开 1 字节边界让 262144 落进汉字中间
+	if _, err := fp.pw.Write(append([]byte{'X'}, chunk...)); err != nil {
+		t.Fatal(err)
+	}
+	expectedTotal := int64(len(seg1)+len(seg2)+len(seg3)+1) + int64(len(chunk))
+	deadline = time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		snap := mgr.Open(OpenInput{ID: "off-1"})
+		if snap.ReplayOffset != nil && *snap.ReplayOffset == expectedTotal {
+			raw, err := base64.StdEncoding.DecodeString(snap.Replay)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !utf8.Valid(raw) {
+				t.Fatalf("truncated replay must trim orphaned leading UTF-8 continuation bytes")
+			}
+			return
+		}
+		time.Sleep(15 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for total offset %d", expectedTotal)
 }

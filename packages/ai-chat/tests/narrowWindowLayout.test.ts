@@ -15,6 +15,10 @@ import {
 } from '../src/utils/sidebarWidth';
 
 const css = readFileSync(resolve(__dirname, '../src/App.css'), 'utf8');
+const sideWsCss = readFileSync(
+  resolve(__dirname, '../src/components/SideWorkspace/SideWorkspace.module.css'),
+  'utf8',
+);
 // 对话列在 App.tsx，右栏在 app/FilesRail.tsx
 const app = ['../src/App.tsx', '../src/app/FilesRail.tsx']
   .map((f) => readFileSync(resolve(__dirname, f), 'utf8'))
@@ -103,6 +107,58 @@ describe('窄窗口四栏不横向溢出', () => {
     // 不再有写死的 360 / 200 最小宽度
     expect(css).not.toMatch(/min-width:\s*360px/);
     expect(css).not.toMatch(/\.files-rail\s*\{[^}]*min-width:\s*200px/s);
+  });
+
+  it('首次打开按 50% : 50% 均分，双侧正权重比例分栏在小屏触及 min-width 时另一侧自动吸收剩余空间不溢出', () => {
+    expect(css).toMatch(
+      /\.main-content--with-changes \.chat-column\s*\{[^}]*flex:\s*var\(--chat-col-grow, 1\) 1 0;/s,
+    );
+    expect(css).toMatch(
+      /\.main-content--with-changes[\s\S]*?\[data-testid='side-workspace'\]\s*\{[^}]*flex:\s*var\(--side-pane-grow, 1\) 1 0;/s,
+    );
+    expect(sideWsCss).toMatch(/\.workspace\s*\{[^}]*flex:\s*1 1 0;/s);
+
+    // 按 CSS Flexbox §9.7 模拟双侧正权重（basis = 0）：ratio 与 (1 - ratio) 按 min-width 钳制分配
+    for (const userPanel of [SIDEBAR_WIDTH_DEFAULT, SIDEBAR_WIDTH_MAX]) {
+      for (const ratio of [0.5, 0.2, 0.8]) {
+        for (let vw = MIN_WINDOW; vw <= 2560; vw += 20) {
+          const panelW = panelOf(userPanel, vw);
+          const chatMin = minOf('--cd-chat-col-min', vw, userPanel);
+          const centerMin = minOf('--cd-center-pane-min', vw, userPanel);
+          const cardW = vw - 52 - panelW - 2;
+          const availMain = cardW - 1; // 扣 1px .center-changes-splitter
+          const rawChat = availMain * ratio;
+          const rawSide = availMain * (1 - ratio);
+          let resolvedChat = rawChat;
+          let resolvedSide = rawSide;
+          if (rawChat < chatMin) {
+            resolvedChat = chatMin;
+            resolvedSide = Math.max(centerMin, availMain - chatMin);
+          } else if (rawSide < centerMin) {
+            resolvedSide = centerMin;
+            resolvedChat = Math.max(chatMin, availMain - centerMin);
+          }
+          if (ratio === 0.5) {
+            expect(
+              Math.abs(resolvedChat - resolvedSide),
+              `50/50 split vw=${vw}, panel=${userPanel}`,
+            ).toBeLessThan(0.01);
+          }
+          expect(
+            resolvedChat,
+            `vw=${vw}, panel=${userPanel}, ratio=${ratio}`,
+          ).toBeGreaterThanOrEqual(chatMin - 0.01);
+          expect(
+            resolvedSide,
+            `vw=${vw}, panel=${userPanel}, ratio=${ratio}`,
+          ).toBeGreaterThanOrEqual(centerMin - 0.01);
+          expect(
+            resolvedChat + resolvedSide,
+            `vw=${vw}, panel=${userPanel}, ratio=${ratio}`,
+          ).toBeLessThanOrEqual(availMain + 0.01);
+        }
+      }
+    }
   });
 });
 

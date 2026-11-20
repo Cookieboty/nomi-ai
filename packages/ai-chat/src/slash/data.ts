@@ -27,6 +27,7 @@ const isEndpoint = (u: unknown): u is UsageEndpointInfo => {
 export async function loadSlashData(
   backend: ConversationBackend,
   tabId?: string | null,
+  nomiLongContext?: boolean,
 ): Promise<SlashData> {
   const cli = backend !== 'nomi';
   if (cli) await cliLauncherClient.get().catch(() => undefined);
@@ -44,7 +45,7 @@ export async function loadSlashData(
     !cli ? soft(() => providerClient.state()) : Promise.resolve(null),
     gatewayClientAvailable() ? soft(() => gatewayClient.state()) : Promise.resolve(null),
     !cli && gatewayClientAvailable()
-      ? soft(() => gatewayClient.nomiContext('chat'))
+      ? soft(() => gatewayClient.nomiContext('chat', nomiLongContext))
       : Promise.resolve(null),
   ]);
   const cliTab =

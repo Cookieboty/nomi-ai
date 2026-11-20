@@ -264,6 +264,60 @@ describe('side chat service (several chats per conversation)', () => {
     // 独立窗口关掉时带上已经写出来的部分
     expect(JSON.parse(exportSideChat(id, { settle: true })!).chat.running).toBeNull();
   });
+
+  it('preserves draft images/files and queued prompts/images on handoff while still stripping sent originals', async () => {
+    const id = createSideChat('nomi:c1');
+    let release!: () => void;
+    gate = new Promise<void>((r) => (release = r));
+    chunks = [{ type: 'delta', content: 'first-part' }];
+    void sendSideChat(id, '已发提问', [
+      { mime: 'image/png', thumb: 'data:t-sent', width: 2, height: 2, data: 'BIG' },
+    ]);
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+
+    const qImg = { mime: 'image/png', thumb: 'data:t-q', width: 3, height: 3, data: 'Q_ORIG' };
+    await sendSideChat(id, '排队消息', [qImg]);
+    sideChatDrafts.write(sideChatDraftKey(id), {
+      text: '草稿文字',
+      images: [
+        {
+          id: 'd-img',
+          mime: 'image/png',
+          data: 'DRAFT_ORIG',
+          width: 4,
+          height: 4,
+          thumb: 'data:t-d',
+          source: 'paste',
+        },
+      ],
+      files: [{ id: 'f1', name: 'note.md', path: '/tmp/note.md', size: 12 }],
+    });
+
+    const raw = exportSideChat(id, { settle: true })!;
+    expect(raw).not.toContain('BIG');
+    forgetSideChat(id);
+    expect(importSideChat(raw)).toBe(id);
+
+    const restored = sideChatState(id)!;
+    expect(restored.queued).toEqual(['排队消息']);
+    const draft = sideChatDrafts.read(sideChatDraftKey(id));
+    expect(draft.text).toBe('草稿文字');
+    expect(draft.images).toHaveLength(1);
+    expect(draft.images[0]?.data).toBe('DRAFT_ORIG');
+    expect(draft.files).toEqual([{ id: 'f1', name: 'note.md', path: '/tmp/note.md', size: 12 }]);
+
+    // 放回结算为非 running 时，flushSideChat 也能发出残留队列与排队图片
+    release();
+    gate = Promise.resolve();
+    chunks = [{ type: 'delta', content: 'queued-done' }];
+    flushSideChat(id);
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
+    const reqMsgs = sent[1]!.messages as Array<{ content: string; images?: unknown[] }>;
+    expect(reqMsgs.at(-1)).toMatchObject({
+      content: '排队消息',
+      images: [{ mime: 'image/png', data: 'Q_ORIG' }],
+    });
+  });
 });
 
 describe('side chat panel', () => {
@@ -514,5 +568,75 @@ describe('selection toolbar', () => {
     fireEvent.mouseUp(screen.getByTestId('summary-reply'), { button: 0 });
     await settle();
     expect(screen.getByTestId('selection-toolbar')).toBeTruthy();
+  });
+
+  it('freezes requested model at turn start and prefers served model when reported (#409)', async () => {
+    const id = createSideChat('nomi:c-freeze');
+    setSideChatModel(id, 'amux/gpt-x');
+    let open!: () => void;
+    gate = new Promise<void>((r) => (open = r));
+    chunks = [{ type: 'delta', content: '回答一' }];
+
+    const turn1 = sendSideChat(id, '第一问');
+    // 发送发起后立刻切换到另一个模型，不应影响进行中这一轮的归属
+    setSideChatModel(id, 'amux/kimi-k3');
+    await Promise.resolve();
+    open();
+    await turn1;
+    const msg1 = sideChatState(id)!.messages.at(-1)!;
+    expect(msg1.model).toBe('Amux · gpt-x');
+    expect(sent.at(-1)?.extra).toMatchObject({ sideChatModel: 'amux/gpt-x' });
+
+    // 第二轮流式返回实际服务模型（故障转移）与 responseModel 时优先归属实际提供服务的模型
+    let open2!: () => void;
+    gate = new Promise<void>((r) => (open2 = r));
+    chunks = [
+      { type: 'delta', content: '回答二' },
+      {
+        type: 'usage',
+        usage: { promptTokens: 5, completionTokens: 5 },
+        model: 'amux/kimi-k3',
+        responseModel: 'kimi-k3-0520',
+      },
+    ];
+    setSideChatModel(id, 'amux/gpt-x');
+    const turn2 = sendSideChat(id, '第二问');
+    setSideChatModel(id, null);
+    await Promise.resolve();
+    open2();
+    await turn2;
+    const msg2 = sideChatState(id)!.messages.at(-1)!;
+    expect(msg2.model).toBe('Amux · kimi-k3');
+    expect(msg2.responseModel).toBe('kimi-k3-0520');
+
+    // 第三轮中断时也沿用冻结的模型而不是当前选中的 model（此刻是 null）
+    let open3!: () => void;
+    gate = Promise.resolve();
+    const holdAfterDelta = new Promise<void>((r) => (open3 = r));
+    chunks = [{ type: 'delta', content: '半截回答' }];
+    const apiMod = (await import('../src/services/api')).api as unknown as {
+      ai: { chat: { agentStream: (i: Record<string, unknown>) => AsyncGenerator<Record<string, unknown>> } };
+    };
+    const origAgentStream = apiMod.ai.chat.agentStream;
+    apiMod.ai.chat.agentStream = (input) => {
+      sent.push(input);
+      return (async function* () {
+        yield { type: 'delta', content: '半截回答' };
+        await holdAfterDelta;
+      })();
+    };
+    try {
+      setSideChatModel(id, 'amux/kimi-k3');
+      void sendSideChat(id, '第三问');
+      await vi.waitFor(() => expect(sideChatState(id)!.running?.live.text).toBe('半截回答'));
+      setSideChatModel(id, 'amux/gpt-x');
+      stopSideChat(id);
+      const msg3 = sideChatState(id)!.messages.at(-1)!;
+      expect(msg3.stopped).toBe(true);
+      expect(msg3.model).toBe('Amux · kimi-k3');
+    } finally {
+      open3();
+      apiMod.ai.chat.agentStream = origAgentStream;
+    }
   });
 });

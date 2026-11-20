@@ -67,3 +67,96 @@ func TestApplyNomiContext(t *testing.T) {
 		t.Fatal("ChatRoleOf")
 	}
 }
+
+func TestExtraLongContextAndApplyWith(t *testing.T) {
+	if got := ExtraLongContext(map[string]any{}); got != nil {
+		t.Fatalf("missing extra: %v", *got)
+	}
+	if got := ExtraLongContext(map[string]any{"extra": map[string]any{"longContext": "yes"}}); got != nil {
+		t.Fatalf("non-bool longContext: %v", *got)
+	}
+	if got := ExtraLongContext(map[string]any{"extra": map[string]any{"longContext": true}}); got == nil || !*got {
+		t.Fatalf("expected true, got %v", got)
+	}
+	if got := ExtraLongContext(map[string]any{"extra": map[string]any{"longContext": false}}); got == nil || *got {
+		t.Fatalf("expected false, got %v", got)
+	}
+
+	var gotRole string
+	var gotLong *bool
+	o := map[string]any{
+		"messages": []any{},
+		"extra":    map[string]any{"longContext": true},
+	}
+	ApplyNomiContextWith(o, "agentStream", func(r string, lc *bool) *u.Obj {
+		gotRole = r
+		gotLong = lc
+		return u.NewObj("budget", float64(900_000))
+	})
+	if gotRole != "agent-tools" || gotLong == nil || !*gotLong {
+		t.Fatalf("forwarded role=%q long=%v", gotRole, gotLong)
+	}
+	ctx, _ := o["context"].(map[string]any)
+	if ctx["maxTokens"] != float64(900_000) {
+		t.Fatalf("context budget = %v", ctx["maxTokens"])
+	}
+}
+
+func TestServiceNomiContextWithLongContext(t *testing.T) {
+	dir := t.TempDir()
+	s := NewServiceForUserData(dir, nil, nil)
+	s.AttachRuntime(RuntimeDeps{Root: dir, Lazy: true, Env: map[string]string{},
+		Fork: func() GatewayChild { return &syncChild{} }})
+	if err := s.Init(); err != nil {
+		t.Fatal(err)
+	}
+	s.Start()
+	defer s.Dispose()
+
+	// deepseek-v4.1-flash 在目录里分档：standard=262144, context=1048576
+	saved, err := s.UpsertProvider(mustObj(t, `{
+		"name":"MAAS","urls":{"chat":"https://maas.example.com/v1"},
+		"newKeys":[{"value":"sk-test-1234567890"}],
+		"models":[{"id":"deepseek-v4.1-flash","enabled":true}]
+	}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, _ := saved.Get("id").(string)
+	if err := s.SetAssignment("nomi", mustObj(t, `{"models":{"main":"`+pid+`/deepseek-v4.1-flash"}}`)); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := s.NomiContextWith("chat", nil); got == nil || got.Get("window") != float64(262_144) {
+		t.Fatalf("default window = %v", got)
+	}
+	tr, fl := true, false
+	if got := s.NomiContextWith("chat", &tr); got == nil || got.Get("window") != float64(1_048_576) {
+		t.Fatalf("longContext=true window = %v", got)
+	}
+	if got := s.NomiContextWith("chat", &fl); got == nil || got.Get("window") != float64(262_144) {
+		t.Fatalf("longContext=false window = %v", got)
+	}
+
+	// 模型默认开启长上下文时，nil 跟随默认(1M)，false 仍强制回标准窗口(262144)
+	if _, err := s.UpsertProvider(mustObj(t, `{
+		"id":"`+pid+`","name":"MAAS","urls":{"chat":"https://maas.example.com/v1"},
+		"models":[{"id":"deepseek-v4.1-flash","enabled":true,"longContext":true}]
+	}`)); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.NomiContextWith("chat", nil); got == nil || got.Get("window") != float64(1_048_576) {
+		t.Fatalf("model default long window = %v", got)
+	}
+	if got := s.NomiContextWith("chat", &fl); got == nil || got.Get("window") != float64(262_144) {
+		t.Fatalf("override false over default = %v", got)
+	}
+
+	// 即使开启长上下文，仍受全局 contextTier 上限约束
+	if _, err := s.SetOptions(mustObj(t, `{"contextTier":200000}`)); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.NomiContextWith("chat", &tr); got == nil || got.Get("window") != float64(200_000) {
+		t.Fatalf("capped window = %v", got)
+	}
+}

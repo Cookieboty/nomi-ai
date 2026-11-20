@@ -626,3 +626,17 @@ func TestBuildWaitingForQuestion(t *testing.T) {
 		t.Fatalf("tab = %+v", a)
 	}
 }
+
+func TestBuildSkipsArchivedTasks(t *testing.T) {
+	in := baseInput()
+	archivedAt := in.Now - 1000
+	for i := range in.Tasks {
+		if in.Tasks[i].ID == "t-accept" {
+			in.Tasks[i].ArchivedAt = &archivedAt
+		}
+	}
+	m := byID(Build(in))
+	if _, ok := m["run:t-accept"]; ok {
+		t.Fatal("archived task must not appear on agent fleet board")
+	}
+}

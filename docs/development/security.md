@@ -95,7 +95,7 @@ Agents 以用户身份运行。Nomi 在 `internal/core/cli/harness` 加下面几
   改用解释器运行接着做，别当成沙箱拦截停下（`internal/core/cli/sandbox/skills_test.go` 守住各内置 CLI 的技能目录）。
 - 开关（`cliSandboxOff`，缺省开）、受保护文件夹、「始终允许」变了：`watchSandboxPolicy` → `SandboxPolicyChanged` 让常驻 CLI 按新配置重开。
 - 其他平台 `sandbox.Supported()` 为假，CLI 照旧运行（状态 `unsupported`，界面提示）；工作目录检查与环境变量清理照常。
-  **没有系统沙箱时，L3 任务不会切到 auto**：agent 权限档停在 `acceptEdits`（可自动改文件，命令仍要确认），「按风险自动判断」和前台「全部自动」也不会自动放行命令，保持逐条确认。不要在 Windows / Linux 上静默沿用 macOS 的自动执行。
+  **没有系统沙箱时，普通（非委派）L3 后台任务不会切到 auto**：agent 权限档停在 `acceptEdits`（可自动改文件，命令仍要确认），「按风险自动判断」和前台「全部自动」也不会自动放行命令，保持逐条确认（不要在 Windows / Linux 上静默沿用 macOS 的自动执行）。对于 **Nomi 对话委派的子 agent**，同步与后台均按 `DelegatePermissionMode(cli)` 取该 CLI 支持的最高档（通常为 `bypass`），且必须在批准确认卡上直接展示实际权限档与当前适用的宿主保护（系统沙箱开启/关闭/不支持、工作目录校验与环境变量清理）。
 
 ## 代码执行沙箱
 

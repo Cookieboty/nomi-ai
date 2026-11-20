@@ -293,6 +293,7 @@ export const SessionChangesPanel: React.FC<{
       file: f,
       cwd,
       onSaved: () => setNonce((n) => n + 1),
+      onRefresh: () => setNonce((n) => n + 1),
     }),
     [cwd],
   );
@@ -489,6 +490,7 @@ export const SessionChangesPanel: React.FC<{
         onPick={pickFile}
         filter={treeFilter}
         testIdPrefix="rail"
+        baseCwd={primary ?? cwd}
         defaultOpen={changesActive}
         messageIdByFile={Object.fromEntries(changes.map((c) => [c.file, c.messageId]))}
         onLocate={(_file, messageId) => {
@@ -732,6 +734,7 @@ export const SessionChangesPanel: React.FC<{
               onActiveKey={setPreviewKey}
               onClose={() => setPreviewKey(null)}
               onSaved={() => setNonce((n) => n + 1)}
+              onRefresh={() => setNonce((n) => n + 1)}
             />,
             previewSlot,
           )

@@ -88,7 +88,14 @@ export interface IPCClient {
    */
   savePendingSendsTo?(
     conversationId: string,
-    items: ReadonlyArray<{ id: string; text: string; mode: 'steer' | 'queue'; kb?: true }>,
+    items: ReadonlyArray<{
+      id: string;
+      text: string;
+      mode: 'steer' | 'queue';
+      kb?: true;
+      attachmentsMissing?: true;
+      imageOnly?: true;
+    }>,
   ): Promise<void>;
   /**
    * 回写已经交给这一轮的插入（存进会话元信息；回复结束前重启时再补成用户消息）。

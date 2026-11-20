@@ -14,14 +14,17 @@ import { createLogger, t } from '@nomi-ai/ui';
 import { useSyncExternalStore } from 'react';
 
 import type { ConvLive, ConvMessage } from '../types/conversation';
-import { chunkToTrace } from '../utils/chunkTrace';
+import { chunkToTrace, chunkToUsage } from '../utils/chunkTrace';
 import { quoteMarkdown, type SelectionQuote } from '../utils/selectionQuote';
 import { closeOpenCalls } from '../utils/toolTrace';
 
 import { api, hasTransport } from './api';
 import { createComposerDraftStore } from './composerDrafts';
+import type { FileAttachment } from './fileAttachments';
 import type { HarnessTraceEvent } from './harnessClient';
+import { nomiLongContextOverride } from './longContext';
 import { gatewayStateSnapshot, nomiMainRef, refLabel } from './nomiModel';
+import type { ImageAttachment } from './screenClient';
 import { resolveThinkingLevel, thinkingProfileOf } from './thinkingDepth';
 
 const log = createLogger('side-chat');
@@ -47,8 +50,16 @@ export interface SideChatState {
   model: string | null;
   /** 选的思考深度；undefined = 这个模型的默认档 */
   effort?: string;
+  /** 长上下文覆盖（按模型记录；undefined = 跟随模型默认） */
+  longContext?: { model: string; on: boolean };
   /** 正在回答的一轮 */
-  running: { reqId: string; live: ConvLive } | null;
+  running: {
+    reqId: string;
+    live: ConvLive;
+    requestedModel?: string | null;
+    servedModel?: string | null;
+    responseModel?: string | null;
+  } | null;
   /** 正在回答时排队的问题（这一轮结束后依次发出） */
   queued: string[];
   /** 「在侧边聊天中提问」：往已挂着的输入栏里填的引用（按 nonce 触发） */
@@ -202,6 +213,17 @@ export function setSideChatEffort(id: string, effort: string | undefined): void 
   set(id, (s) => (s.effort === effort ? s : { ...s, effort }));
 }
 
+export function setSideChatLongContext(
+  id: string,
+  longContext: { model: string; on: boolean } | undefined,
+): void {
+  set(id, (s) =>
+    s.longContext?.model === longContext?.model && s.longContext?.on === longContext?.on
+      ? s
+      : { ...s, longContext },
+  );
+}
+
 /** 关掉标签：停下正在回答的一轮，内容丢掉 */
 export function discardSideChat(id: string): void {
   stopSideChat(id);
@@ -221,7 +243,12 @@ function abortTurn(id: string, nextQueued: string[], nextQueuedImgs: QueuedSideC
   else queuedImagesMap.delete(id);
   set(id, (s) => {
     if (!s.running) return s.queued.length || nextQueued.length ? { ...s, queued: nextQueued } : s;
-    const msg = finishedMessage(s.running.live, { stopped: true }, s.model);
+    const msg = finishedMessage(
+      s.running.live,
+      { stopped: true },
+      resolveTurnModel(s.running),
+      s.running.responseModel,
+    );
     return {
       ...s,
       messages: msg ? [...s.messages, msg] : s.messages,
@@ -239,7 +266,7 @@ export function stopSideChat(id: string): void {
 /** 打断这一轮并把排队的消息合并（按单轮图片上限分批）后马上发出第一批 */
 export function flushSideChat(id: string): void {
   const cur = chats.get(id);
-  if (!cur?.running || !cur.queued.length) return;
+  if (!cur || !cur.queued.length) return;
   const queuedTexts = cur.queued;
   const queuedImgs = queuedImagesMap.get(id) ?? [];
   const maxImages = 6;
@@ -277,16 +304,18 @@ export function removeSideChatQueued(id: string, index: number): void {
   );
 }
 
-const modelLabel = (model: string | null): string | undefined => {
-  const state = gatewayStateSnapshot();
-  const ref = model ?? nomiMainRef(state);
-  return ref ? refLabel(state, ref) : undefined;
+const resolveTurnModel = (
+  running: Pick<NonNullable<SideChatState['running']>, 'requestedModel' | 'servedModel'>,
+): string | undefined => {
+  const ref = running.servedModel || running.requestedModel;
+  return ref ? refLabel(gatewayStateSnapshot(), ref) : undefined;
 };
 
 function finishedMessage(
   live: ConvLive,
   patch: Partial<ConvMessage>,
-  model: string | null,
+  model: string | undefined,
+  responseModel?: string | null,
 ): ConvMessage | null {
   const text = live.text.trim();
   const trace = live.trace?.length
@@ -300,7 +329,8 @@ function finishedMessage(
     text: live.text,
     at: now,
     label: 'Nomi',
-    ...(modelLabel(model) ? { model: modelLabel(model) } : {}),
+    ...(model ? { model } : {}),
+    ...(responseModel ? { responseModel } : {}),
     ...(live.startedAt ? { durationMs: now - live.startedAt } : {}),
     ...(trace ? { trace } : {}),
     ...patch,
@@ -351,23 +381,36 @@ export function sideChatEffort(chat: Pick<SideChatState, 'model' | 'effort'>): s
 async function runTurn(id: string, user: ConvMessage, history: ConvMessage[]): Promise<void> {
   const reqId = newId('side');
   const startedAt = Date.now();
+  const startChat = chats.get(id);
+  const reqModel = startChat?.model ?? null;
+  const reqEffort = startChat ? sideChatEffort(startChat) : undefined;
+  const reqLongContext = startChat
+    ? nomiLongContextOverride(startChat.longContext, reqModel)
+    : undefined;
+  const reqProjectId = startChat?.projectId ?? null;
+  const requestedModel = reqModel ?? nomiMainRef(gatewayStateSnapshot()) ?? null;
   set(id, (s) => ({
     ...s,
     messages: [...history, user],
-    running: { reqId, live: { text: '', trace: [], startedAt } },
+    running: { reqId, live: { text: '', trace: [], startedAt }, requestedModel },
   }));
   const ctrl = new AbortController();
   aborts.set(id, ctrl);
   const patchLive = (fn: (l: ConvLive) => ConvLive) =>
     set(id, (s) =>
-      s.running?.reqId === reqId ? { ...s, running: { reqId, live: fn(s.running.live) } } : s,
+      s.running?.reqId === reqId ? { ...s, running: { ...s.running, live: fn(s.running.live) } } : s,
     );
   const finish = (patch: Partial<ConvMessage>) => {
     if (aborts.get(id) !== ctrl) return;
     aborts.delete(id);
     set(id, (s) => {
       if (s.running?.reqId !== reqId) return s;
-      const msg = finishedMessage(s.running.live, patch, s.model);
+      const msg = finishedMessage(
+        s.running.live,
+        patch,
+        resolveTurnModel(s.running),
+        s.running.responseModel,
+      );
       return { ...s, messages: msg ? [...s.messages, msg] : s.messages, running: null };
     });
     // 排队的下一条
@@ -390,18 +433,17 @@ async function runTurn(id: string, user: ConvMessage, history: ConvMessage[]): P
     } catch (e) {
       log.warn('system prompt unavailable', e);
     }
-    const chat = chats.get(id);
-    if (!chat || ctrl.signal.aborted) return;
-    const effort = sideChatEffort(chat);
+    if (!chats.has(id) || ctrl.signal.aborted) return;
     const stream = api.ai.chat.agentStream({
       reqId,
       role: 'chat',
       messages: sideChatRequestMessages(system, history, user),
       extra: {
         sideChat: true,
-        ...(chat.model ? { sideChatModel: chat.model } : {}),
-        ...(effort ? { reasoningEffort: effort } : {}),
-        ...(chat.projectId ? { projectId: chat.projectId } : {}),
+        ...(reqModel ? { sideChatModel: reqModel } : {}),
+        ...(reqEffort ? { reasoningEffort: reqEffort } : {}),
+        ...(reqLongContext !== undefined ? { longContext: reqLongContext } : {}),
+        ...(reqProjectId ? { projectId: reqProjectId } : {}),
       },
     });
     for await (const raw of stream) {
@@ -409,6 +451,31 @@ async function runTurn(id: string, user: ConvMessage, history: ConvMessage[]): P
       const c = raw as Chunk;
       if (!c || typeof c !== 'object') continue;
       const now = Date.now();
+      const u = chunkToUsage(c);
+      const chunkModel =
+        u?.model ??
+        (c.type === 'done' && typeof c.model === 'string' && c.model.trim()
+          ? c.model.trim()
+          : undefined);
+      const chunkResponseModel =
+        u?.responseModel ??
+        (c.type === 'done' && typeof c.responseModel === 'string' && c.responseModel.trim()
+          ? c.responseModel.trim()
+          : undefined);
+      if (chunkModel || chunkResponseModel) {
+        set(id, (s) =>
+          s.running?.reqId === reqId
+            ? {
+                ...s,
+                running: {
+                  ...s.running,
+                  ...(chunkModel ? { servedModel: chunkModel } : {}),
+                  ...(chunkResponseModel ? { responseModel: chunkResponseModel } : {}),
+                },
+              }
+            : s,
+        );
+      }
       if (c.type === 'delta' && typeof c.content === 'string') {
         const delta = c.content;
         patchLive((l) => ({
@@ -513,13 +580,45 @@ export async function editSideChat(id: string, userId: string, text: string): Pr
 
 // ---- 弹到独立窗口 / 放回：经宿主内存交接（不落盘）----
 
-/** 交接快照（不含正在跑的一轮、不含原图）。正在回答时不交接。 */
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object';
+
+const isSideChatImageWithData = (v: unknown): v is SideChatImage & { data: string } =>
+  isRecord(v) &&
+  typeof v.mime === 'string' &&
+  typeof v.thumb === 'string' &&
+  typeof v.width === 'number' &&
+  typeof v.height === 'number' &&
+  typeof v.data === 'string';
+
+const isDraftImage = (v: unknown): v is ImageAttachment =>
+  isRecord(v) &&
+  typeof v.id === 'string' &&
+  typeof v.mime === 'string' &&
+  typeof v.data === 'string' &&
+  typeof v.width === 'number' &&
+  typeof v.height === 'number' &&
+  typeof v.thumb === 'string' &&
+  typeof v.source === 'string';
+
+const isDraftFile = (v: unknown): v is FileAttachment =>
+  isRecord(v) &&
+  typeof v.id === 'string' &&
+  typeof v.name === 'string' &&
+  typeof v.path === 'string' &&
+  typeof v.size === 'number';
+
+/** 交接快照（不含正在跑的一轮与已发消息原图，保留草稿图片/附件与排队问题/图片）。正在回答时不交接。 */
 export function exportSideChat(id: string, opts?: { settle?: boolean }): string | null {
   const chat = chats.get(id);
   if (!chat || (chat.running && !opts?.settle)) return null;
   // settle：正在回答也导出，已经写出来的部分按「已停止」收进记录（独立窗口关掉 / 放回时用）
   const partial = chat.running
-    ? finishedMessage(chat.running.live, { stopped: true }, chat.model)
+    ? finishedMessage(
+        chat.running.live,
+        { stopped: true },
+        resolveTurnModel(chat.running),
+        chat.running.responseModel,
+      )
     : null;
   const all = partial ? [...chat.messages, partial] : chat.messages;
   const messages = all.map((m) => {
@@ -529,10 +628,13 @@ export function exportSideChat(id: string, opts?: { settle?: boolean }): string 
       : m;
   });
   const draft = sideChatDrafts.read(sideChatDraftKey(id));
+  const queued = [...chat.queued];
+  const queuedImages = (queuedImagesMap.get(id) ?? []).map((imgs) => imgs.map((img) => ({ ...img })));
   return JSON.stringify({
     v: 1,
-    chat: { ...chat, messages, running: null, fill: null },
-    draft: { text: draft.text, files: draft.files },
+    chat: { ...chat, messages, queued, running: null, fill: null },
+    queuedImages,
+    draft: { text: draft.text, images: draft.images, files: draft.files },
   });
 }
 
@@ -543,11 +645,15 @@ export function importSideChat(raw: string | null | undefined): string | null {
     const v = JSON.parse(raw) as {
       v?: number;
       chat?: Partial<SideChatState>;
-      draft?: { text?: string; files?: unknown[] };
+      queuedImages?: unknown[];
+      draft?: { text?: string; images?: unknown[]; files?: unknown[] };
     };
     const c = v?.chat;
     if (v?.v !== 1 || !c || typeof c.id !== 'string' || !c.id || !Array.isArray(c.messages))
       return null;
+    const queued = Array.isArray(c.queued)
+      ? c.queued.filter((item): item is string => typeof item === 'string')
+      : [];
     const chat: SideChatState = {
       id: c.id,
       scope: typeof c.scope === 'string' ? c.scope : '',
@@ -562,18 +668,41 @@ export function importSideChat(raw: string | null | undefined): string | null {
       ),
       model: typeof c.model === 'string' ? c.model : null,
       ...(typeof c.effort === 'string' ? { effort: c.effort } : {}),
+      ...(c.longContext &&
+      typeof c.longContext.model === 'string' &&
+      typeof c.longContext.on === 'boolean'
+        ? { longContext: { model: c.longContext.model, on: c.longContext.on } }
+        : {}),
       running: null,
-      queued: [],
+      queued,
       fill: null,
     };
-    queuedImagesMap.delete(chat.id);
+    const restoredQueuedImgs: QueuedSideChatImages[] =
+      Array.isArray(v.queuedImages) && queued.length > 0
+        ? queued.map((_, idx) => {
+            const entry = v.queuedImages![idx];
+            return Array.isArray(entry) ? entry.filter(isSideChatImageWithData) : [];
+          })
+        : [];
+    if (restoredQueuedImgs.some((imgs) => imgs.length > 0)) {
+      queuedImagesMap.set(chat.id, restoredQueuedImgs);
+    } else {
+      queuedImagesMap.delete(chat.id);
+    }
     chats.set(chat.id, chat);
-    if (typeof v.draft?.text === 'string' || Array.isArray(v.draft?.files))
+    const draftImages = Array.isArray(v.draft?.images) ? v.draft.images.filter(isDraftImage) : [];
+    const draftFiles = Array.isArray(v.draft?.files) ? v.draft.files.filter(isDraftFile) : [];
+    if (
+      typeof v.draft?.text === 'string' ||
+      draftImages.length > 0 ||
+      draftFiles.length > 0
+    ) {
       sideChatDrafts.write(sideChatDraftKey(chat.id), {
         text: typeof v.draft?.text === 'string' ? v.draft.text : '',
-        images: [],
-        files: (Array.isArray(v.draft?.files) ? v.draft.files : []) as never[],
+        images: draftImages,
+        files: draftFiles,
       });
+    }
     emit();
     return chat.id;
   } catch (error) {

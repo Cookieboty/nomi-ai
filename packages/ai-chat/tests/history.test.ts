@@ -15,7 +15,7 @@ const msg = (
 ) => ({ id, role, content, timestamp: Number(id), ...extra }) as ChatMessage;
 
 describe('buildProviderMessages', () => {
-  it('上一轮生成的图片、用户存进素材库的图片：以地址附在消息后面，下一轮能拿来改图', () => {
+  it('上一轮生成的图片、用户存在本地的原图：以地址附在消息后面，下一轮能拿来改图', () => {
     const gen = (url: string) => ({
       type: 'tool' as const,
       name: 'image_generate',

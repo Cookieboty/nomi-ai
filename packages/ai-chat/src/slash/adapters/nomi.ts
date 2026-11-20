@@ -149,6 +149,28 @@ export function nomiAdapter(input: AdapterInput): SlashCommand[] {
       hint: t('ui.slash-commands.compact-hint'),
       run: (a, ctx) => runCompact(ctx.actions, a),
     }),
+    cmd({
+      name: 'bg',
+      label: '/bg',
+      description: t('ui.slash-commands.bg-command-desc'),
+      source: 'builtin',
+      kind: 'native',
+      hint: t('ui.slash-commands.bg-command-hint'),
+      run: async (a, ctx) => {
+        const text = a.trim();
+        if (!text) {
+          return {
+            type: 'card',
+            card: notice(
+              t('ui.slash-commands.bg-usage-title'),
+              t('ui.slash-commands.bg-usage-body'),
+            ),
+          };
+        }
+        await ctx.actions.sendBackgroundNomi?.(text);
+        return { type: 'noop' };
+      },
+    }),
     ...skills,
   ];
 }

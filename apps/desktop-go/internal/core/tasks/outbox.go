@@ -29,6 +29,7 @@ type OutboxDeps struct {
 	SetTimer   func(fn func(), ms int64) func()
 	NewID      func() string
 	Send       func(title, text string) error
+	SendBatch  func(items []OutboxItem, title, text string) error
 	QuietUntil func() *int64
 	MergedText func(items []OutboxItem) (title, text string)
 	Delivered  func(items []OutboxItem)
@@ -164,7 +165,12 @@ func (o *Outbox) Flush() {
 	if len(batch) > 1 {
 		title, text = o.d.MergedText(batch)
 	}
-	err := o.d.Send(title, text)
+	var err error
+	if o.d.SendBatch != nil {
+		err = o.d.SendBatch(batch, title, text)
+	} else if o.d.Send != nil {
+		err = o.d.Send(title, text)
+	}
 	o.mu.Lock()
 	if err != nil {
 		o.failures++

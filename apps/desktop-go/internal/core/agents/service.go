@@ -77,8 +77,10 @@ type Notice struct {
 	Kind, Endpoint, Status, Title, Body, Text string
 	// Session：所属的 Nomi 标签（你正看着它时不弹，见 island.ShouldShow）；外部终端里的会话为 ""
 	Session string
-	Bubble  *util.Obj
-	Passive bool
+	// OpenSession：跨会话合并后用于点击通知跳转的优先会话（不影响 Session 与 ShouldShow）
+	OpenSession string
+	Bubble      *util.Obj
+	Passive     bool
 }
 
 // Obj：测试 / 日志用的 JSON 形状。
@@ -1198,10 +1200,20 @@ func MergeNotices(list []Notice) Notice {
 		passive = passive && n.Passive
 	}
 	out := top
+	openSession := top.Session
+	if openSession == "" {
+		for _, n := range list {
+			if n.Session != "" {
+				openSession = n.Session
+				break
+			}
+		}
+	}
 	// 几个会话的合在一起：不再属于某一个会话（不会因为你正看着其中一个就把别家的也吞掉）
 	for _, n := range list {
 		if n.Session != top.Session {
 			out.Session = ""
+			out.OpenSession = openSession
 			break
 		}
 	}
