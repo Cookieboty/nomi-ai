@@ -9,6 +9,7 @@ import {
   IconArrowsMinimize as Minimize2,
   IconPencil as Pencil,
   IconRefresh as RefreshCw,
+  IconSearch as Search,
   IconX as X,
 } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -43,6 +44,7 @@ import { resolveCodeLanguage } from './codeSyntax';
 import { codeViewAt, revealCodeLine } from './codeViewModel';
 import type { DocumentAnchor } from './documentAnchor';
 import type { DocumentNavigation } from './documentNavigation';
+import type { MarkdownReplaceHandle } from './EditableMarkdown';
 import { MarkdownDocument } from './MarkdownDocument';
 import {
   acquirePreviewEdit,
@@ -53,7 +55,7 @@ import {
   type PreviewEditSession,
 } from './previewEdits';
 import { PreviewFilePicker } from './PreviewFilePicker';
-import { PreviewFind } from './PreviewFind';
+import { PreviewFind, type PreviewFindHandle } from './PreviewFind';
 import { PreviewRenderBoundary } from './PreviewRenderBoundary';
 import { usePreviewSelectionMenu } from './PreviewSelectionMenu';
 import { PreviewTabMenu, type PreviewTabMenuTarget } from './PreviewTabMenu';
@@ -173,6 +175,8 @@ export const ResourcePreview: React.FC<{
   const [reloadNonce, setReloadNonce] = useState(0);
   const sourceRef = useRef<HTMLElement>(null);
   const root = useRef<HTMLElement>(null);
+  const markdownReplaceRef = useRef<MarkdownReplaceHandle | null>(null);
+  const findControlRef = useRef<PreviewFindHandle | null>(null);
   const sourceViewport = useRef<{ key: string; element: HTMLElement } | null>(null);
   const location = resourceTarget(active.href);
   const fragment = location?.fragment;
@@ -700,14 +704,24 @@ export const ResourcePreview: React.FC<{
         </div>
         <div className={styles.tabBarActions} data-testid="resource-preview-tabbar-actions">
           {!activeDiff && (
-            <button
-              type="button"
-              data-testid="resource-preview-refresh"
-              aria-label={t('ui.session-workspace.preview-refresh')}
-              onClick={refreshFile}
-            >
-              <Icon icon={RefreshCw} size={14} />
-            </button>
+            <>
+              <button
+                type="button"
+                data-testid="resource-preview-find"
+                aria-label={t('ui.session-workspace.preview-find')}
+                onClick={() => findControlRef.current?.open(false)}
+              >
+                <Icon icon={Search} size={14} />
+              </button>
+              <button
+                type="button"
+                data-testid="resource-preview-refresh"
+                aria-label={t('ui.session-workspace.preview-refresh')}
+                onClick={refreshFile}
+              >
+                <Icon icon={RefreshCw} size={14} />
+              </button>
+            </>
           )}
           {onToggleTree && (
             <button
@@ -747,6 +761,7 @@ export const ResourcePreview: React.FC<{
             key={active.key}
             draftKey={active.key}
             hideFileTabs
+            inactive={inactive}
             className={styles.diffReview}
             files={[activeDiff.file]}
             activeKey={activeDiff.file.key}
@@ -754,6 +769,7 @@ export const ResourcePreview: React.FC<{
             onActiveKey={noop}
             onClose={() => closeEntries([active.key])}
             onSaved={activeDiff.onSaved}
+            onRefresh={activeDiff.onRefresh}
           />
         </div>
       )}
@@ -813,15 +829,25 @@ export const ResourcePreview: React.FC<{
               {t(view.source ? 'ui.foundation.preview' : 'ui.session-workspace.preview-source')}
             </button>
           )}
-          {hideTabs && (
-            <button
-              type="button"
-              data-testid="resource-preview-refresh"
-              aria-label={t('ui.session-workspace.preview-refresh')}
-              onClick={refreshFile}
-            >
-              <Icon icon={RefreshCw} size={16} />
-            </button>
+          {hideTabs && !activeDiff && (
+            <>
+              <button
+                type="button"
+                data-testid="resource-preview-find"
+                aria-label={t('ui.session-workspace.preview-find')}
+                onClick={() => findControlRef.current?.open(false)}
+              >
+                <Icon icon={Search} size={16} />
+              </button>
+              <button
+                type="button"
+                data-testid="resource-preview-refresh"
+                aria-label={t('ui.session-workspace.preview-refresh')}
+                onClick={refreshFile}
+              >
+                <Icon icon={RefreshCw} size={16} />
+              </button>
+            </>
           )}
           {!embedded && (
             <button
@@ -867,6 +893,7 @@ export const ResourcePreview: React.FC<{
         <PreviewFind
           root={root}
           fileKey={active.key}
+          inactive={inactive || !!activeDiff}
           mode={
             activeDiff || !result?.ok
               ? 'unavailable'
@@ -876,7 +903,19 @@ export const ResourcePreview: React.FC<{
                   : 'document'
                 : 'unavailable'
           }
+          canReplace={
+            !activeDiff &&
+            !!result?.ok &&
+            !!edit &&
+            (isSource
+              ? view.source || result.kind === 'text'
+                ? result.kind === 'markdown' || !!view.editing
+                : result.kind === 'markdown'
+              : false)
+          }
           text={documentText}
+          markdownReplaceRef={markdownReplaceRef}
+          controlRef={findControlRef}
         />
         {editState.error && (
           <p className={styles.saveError} role="alert" data-testid="preview-save-error">
@@ -961,6 +1000,7 @@ export const ResourcePreview: React.FC<{
               editable={!!edit}
               onChange={edit?.change}
               editHistory={editHistory}
+              replaceHandleRef={markdownReplaceRef}
               context={context}
               documentDir={result.path ? dirname(result.path) : (active.scope.cwd ?? undefined)}
               documentPath={result.path}

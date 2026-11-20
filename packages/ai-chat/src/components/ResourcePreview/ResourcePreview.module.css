@@ -293,9 +293,9 @@
 }
 .panel
   button:where(
-    :not([data-preview-picker-control]):not([role='combobox']):not(:global(.cd-btn)):not(
-        [data-preview-diff] button
-      )
+    :not([data-preview-picker-control]):not([data-preview-find-control]):not([role='combobox']):not(
+        :global(.cd-btn)
+      ):not([data-preview-diff] button)
   ),
 .toolbar a {
   display: inline-flex;
@@ -313,7 +313,11 @@
   flex-shrink: 0;
 }
 .panel
-  button:where(:not([role='combobox']):not(:global(.cd-btn)):not([data-preview-diff] button)):hover,
+  button:where(
+    :not([data-preview-find-control]):not([role='combobox']):not(:global(.cd-btn)):not(
+        [data-preview-diff] button
+      )
+  ):hover,
 .toolbar a:hover {
   background: var(--cd-color-hover);
 }

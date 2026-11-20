@@ -1,19 +1,23 @@
 // @vitest-environment happy-dom
+import { t } from '@nomi-ai/ui';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { confirmDialog } from '../src/components/ConfirmDialog';
 import { FileReview, type ReviewFile } from '../src/components/SessionWorkspace/FileReview';
 import { harnessClient } from '../src/services/harnessClient';
 import { resourcePreviewClient } from '../src/services/resourcePreviewClient';
 import type { FileDiff } from '../src/utils/toolTrace';
 
+vi.mock('../src/components/ConfirmDialog', () => ({ confirmDialog: vi.fn(async () => true) }));
 vi.mock('../src/services/harnessClient', () => ({
   harnessClient: {
     workspaceRead: vi.fn(),
     workspaceWrite: vi.fn(),
     workspaceDelete: vi.fn(),
     workspaceGitCheckout: vi.fn(),
+    gitDiff: vi.fn(),
   },
 }));
 
@@ -66,6 +70,14 @@ beforeEach(() => {
     content: 'head\nnew\ntail\n',
   });
   vi.mocked(harnessClient.workspaceWrite).mockResolvedValue({ ok: true });
+  vi.mocked(harnessClient.gitDiff).mockResolvedValue({
+    ok: true,
+    status: '',
+    stat: '',
+    diff: '',
+    truncated: false,
+  });
+  vi.mocked(confirmDialog).mockResolvedValue(true);
   vi.mocked(resourcePreviewClient.open).mockResolvedValue({
     ok: true,
     editable: true,
@@ -156,5 +168,112 @@ describe('FileReview 丢弃本轮变更', () => {
     const err = await screen.findByTestId('preview-error');
     expect(err.textContent).toContain('无法安全撤销');
     expect(harnessClient.workspaceWrite).not.toHaveBeenCalled();
+  });
+});
+
+describe('FileReview 刷新 Diff', () => {
+  it('Diff 模式下点击刷新调用 onRefresh 并更新显示最新 git diff', async () => {
+    const initialGitFile: ReviewFile = {
+      key: 'u:src/a.ts',
+      path: 'src/a.ts',
+      gitDiff: {
+        file: 'src/a.ts',
+        diff: {
+          added: 1,
+          removed: 1,
+          lines: [
+            { type: 'del', text: 'before', oldNo: 1 },
+            { type: 'add', text: 'first-edit', newNo: 1 },
+          ],
+        },
+      },
+    };
+    const nextGitFile: ReviewFile = {
+      ...initialGitFile,
+      gitDiff: {
+        file: 'src/a.ts',
+        diff: {
+          added: 1,
+          removed: 1,
+          lines: [
+            { type: 'del', text: 'before', oldNo: 1 },
+            { type: 'add', text: 'second-edit', newNo: 1 },
+          ],
+        },
+      },
+    };
+    function Harness() {
+      const [current, setCurrent] = React.useState(initialGitFile);
+      return (
+        <FileReview
+          files={[current]}
+          activeKey="u:src/a.ts"
+          cwd="/w"
+          onActiveKey={() => undefined}
+          onClose={() => undefined}
+          onRefresh={() => setCurrent(nextGitFile)}
+        />
+      );
+    }
+    render(<Harness />);
+    expect(screen.getByText('first-edit')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('preview-refresh'));
+    await waitFor(() => expect(screen.getByText('second-edit')).toBeTruthy());
+    expect(screen.queryByText('first-edit')).toBeNull();
+  });
+
+  it('静态本会话变更在 Diff 模式下点刷新会重读 gitDiff，改动消失后清空旧 Diff', async () => {
+    vi.mocked(harnessClient.gitDiff).mockResolvedValueOnce({
+      ok: true,
+      status: ' M src/a.ts',
+      stat: '',
+      diff: 'diff --git a/src/a.ts b/src/a.ts\n--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1 @@\n-old\n+updated-on-disk\n',
+      truncated: false,
+    });
+    renderPreview();
+    expect(screen.getByText('new')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('preview-refresh'));
+    await waitFor(() => expect(screen.getByText('updated-on-disk')).toBeTruthy());
+    expect(screen.queryByText('new')).toBeNull();
+
+    vi.mocked(harnessClient.gitDiff).mockResolvedValueOnce({
+      ok: true,
+      status: '',
+      stat: '',
+      diff: '',
+      truncated: false,
+    });
+    fireEvent.click(screen.getByTestId('preview-refresh'));
+    await waitFor(() =>
+      expect(
+        screen.getByText(t('ui.session-workspace.no-diff-switch-to-file-to-view-disk')),
+      ).toBeTruthy(),
+    );
+  });
+
+  it('编辑模式下有未保存改动时点刷新确认后丢弃草稿并同时刷新磁盘与 Diff', async () => {
+    const onRefresh = vi.fn();
+    render(
+      <FileReview
+        files={[file]}
+        activeKey="k1"
+        cwd="/w"
+        onActiveKey={() => undefined}
+        onClose={() => undefined}
+        onRefresh={onRefresh}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('preview-mode-file'));
+    const ta = (await screen.findByTestId('preview-editor')) as HTMLTextAreaElement;
+    await waitFor(() => expect(ta.value).toBe('head\nnew\ntail\n'));
+    fireEvent.change(ta, { target: { value: 'unsaved draft' } });
+    vi.mocked(harnessClient.workspaceRead).mockResolvedValueOnce({
+      ok: true,
+      content: 'head\ndisk-v2\ntail\n',
+    });
+    fireEvent.click(screen.getByTestId('preview-refresh'));
+    await waitFor(() => expect(confirmDialog).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(ta.value).toBe('head\ndisk-v2\ntail\n'));
+    expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 });

@@ -175,7 +175,7 @@ const LineText: React.FC<{ l: DiffLine }> = ({ l }) => {
 };
 
 const UnifiedLine: React.FC<{ l: DiffLine }> = ({ l }) => (
-  <div className={styles.diffLine} data-type={l.type} role="row">
+  <div className={styles.diffLine} data-type={l.type} data-preview-find-line="true" role="row">
     <span className={styles.diffNo} aria-hidden>
       {l.oldNo ?? ''}
     </span>
@@ -191,7 +191,7 @@ const UnifiedLine: React.FC<{ l: DiffLine }> = ({ l }) => (
 
 const SplitSide: React.FC<{ l?: DiffLine; side: 'old' | 'new' }> = ({ l, side }) =>
   l ? (
-    <div className={styles.splitSide} data-type={l.type} role="cell">
+    <div className={styles.splitSide} data-type={l.type} data-preview-find-line="true" role="cell">
       <span className={styles.diffNo} aria-hidden>
         {(side === 'old' ? l.oldNo : l.newNo) ?? ''}
       </span>
@@ -208,7 +208,13 @@ const SplitLines: React.FC<{ lines: readonly DiffLine[] }> = ({ lines }) => (
   <>
     {pairSplitLines(lines).map((p, i) =>
       p.kind === 'hunk' ? (
-        <div key={i} className={styles.diffLine} data-type="hunk" role="row">
+        <div
+          key={i}
+          className={styles.diffLine}
+          data-type="hunk"
+          data-preview-find-line="true"
+          role="row"
+        >
           <span className={styles.diffText}>{p.line.text}</span>
         </div>
       ) : (
@@ -290,7 +296,7 @@ export const DiffView: React.FC<{
         data-layout={sideBySide ? 'split' : 'unified'}
         data-testid="tool-diff"
       >
-        <div className={styles.diffHead}>
+        <div className={styles.diffHead} data-preview-find-ignore>
           <span className={styles.diffFile} title={diff.file}>
             {diff.file ? workspaceRelPath(cwd, diff.file) : t('ui.usage-tools.unnamed-file')}
           </span>

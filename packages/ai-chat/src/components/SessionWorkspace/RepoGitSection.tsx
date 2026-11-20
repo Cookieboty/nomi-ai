@@ -432,15 +432,23 @@ export const RepoGitSection: React.FC<{
       file: f,
       cwd: gitCwd,
       onSaved: () => void refreshGit(),
+      onRefresh: () => refreshGit(),
     }),
     [gitCwd, refreshGit],
   );
-  // git 刷新后，已经开着的 Diff 标签换成最新的改动
+  // git 刷新后，已经开着的 Diff 标签换成最新的改动（包括改动消失时清空旧 diff）
   const updateDiff = resource?.updateDiff;
+  const syncDiffs = resource?.syncDiffs;
+  const gitOk = !!git?.ok;
   useEffect(() => {
+    if (!gitOk) return;
+    if (syncDiffs) {
+      syncDiffs(`git\u0000${gitCwd}\u0000${keyPrefix}`, previewFiles.map(diffTabOf));
+      return;
+    }
     if (!updateDiff) return;
     for (const f of previewFiles) updateDiff(diffTabOf(f));
-  }, [previewFiles, diffTabOf, updateDiff]);
+  }, [gitOk, gitCwd, keyPrefix, previewFiles, diffTabOf, syncDiffs, updateDiff]);
 
   if (report.state !== 'git' || show === 'none') return null;
 
@@ -685,6 +693,7 @@ export const RepoGitSection: React.FC<{
               onActiveKey={setPreviewKey}
               onClose={() => setPreviewKey(null)}
               onSaved={() => void refreshGit()}
+              onRefresh={() => refreshGit()}
             />,
             previewSlot,
           )

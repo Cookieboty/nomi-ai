@@ -353,12 +353,21 @@
 
 /* —— 多文件预览 —— */
 .preview {
+  position: relative;
   border-top: 1px solid var(--cd-color-border, #333);
   display: flex;
   flex-direction: column;
   max-height: 260px;
   min-height: 140px;
   background: var(--cd-color-surface-sunken, #111);
+}
+.previewStage {
+  flex: 1 1 0;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .panel[data-rail] .preview {
   max-height: none;

@@ -293,6 +293,7 @@ export const SessionChangesPanel: React.FC<{
       file: f,
       cwd,
       onSaved: () => setNonce((n) => n + 1),
+      onRefresh: () => setNonce((n) => n + 1),
     }),
     [cwd],
   );
@@ -733,6 +734,7 @@ export const SessionChangesPanel: React.FC<{
               onActiveKey={setPreviewKey}
               onClose={() => setPreviewKey(null)}
               onSaved={() => setNonce((n) => n + 1)}
+              onRefresh={() => setNonce((n) => n + 1)}
             />,
             previewSlot,
           )

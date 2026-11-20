@@ -5,7 +5,7 @@ import { ResourceScopeProvider, type ResourceContextValue } from '../../contexts
 import { captureDocumentAnchor, type DocumentAnchor } from './documentAnchor';
 import type { DocumentNavigation } from './documentNavigation';
 import { DocumentOutline } from './DocumentOutline';
-import { EditableMarkdown } from './EditableMarkdown';
+import { EditableMarkdown, type MarkdownReplaceHandle } from './EditableMarkdown';
 import type { MarkdownEditHistory } from './markdownEditHistory';
 import { PreviewDocumentContext } from './PreviewDocumentContext';
 import { PreviewMarkdown } from './PreviewMarkdown';
@@ -30,6 +30,7 @@ export const MarkdownDocument: React.FC<{
   editable?: boolean;
   onChange?: (text: string) => void;
   editHistory?: MarkdownEditHistory;
+  replaceHandleRef?: React.MutableRefObject<MarkdownReplaceHandle | null>;
 }> = ({
   text,
   context,
@@ -48,6 +49,7 @@ export const MarkdownDocument: React.FC<{
   editable = false,
   onChange,
   editHistory,
+  replaceHandleRef,
 }) => {
   const { root, headings, active, pick, syncScroll } = useDocumentScrollspy(
     text,
@@ -91,6 +93,7 @@ export const MarkdownDocument: React.FC<{
                 editable
                 onChange={onChange}
                 editHistory={editHistory}
+                replaceHandleRef={replaceHandleRef}
               />
             ) : (
               <PreviewMarkdown text={text} className={styles.markdown} />
