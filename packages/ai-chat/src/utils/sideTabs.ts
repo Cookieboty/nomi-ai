@@ -35,6 +35,7 @@ export type WorkspacePage =
       id: string;
       cwd?: string;
       title?: string;
+      shell?: string;
       layout?: TerminalPaneNode;
       activePaneId?: string;
     };
@@ -262,20 +263,21 @@ export function openTerminalTab(
   );
 }
 
-/** 更新终端标签记录的目录或标题 */
+/** 更新终端标签记录的目录、标题或 shell */
 export function setTerminalMeta(
   state: SideTabsState,
   key: string,
-  patch: { cwd?: string; title?: string },
+  patch: { cwd?: string; title?: string; shell?: string },
 ): SideTabsState {
   let changed = false;
   const pages = state.pages.map((p) => {
     if (pageKey(p) !== key || p.kind !== 'terminal') return p;
     const nextCwd = patch.cwd !== undefined ? patch.cwd : p.cwd;
     const nextTitle = patch.title !== undefined ? patch.title : p.title;
-    if (nextCwd === p.cwd && nextTitle === p.title) return p;
+    const nextShell = patch.shell !== undefined ? patch.shell : p.shell;
+    if (nextCwd === p.cwd && nextTitle === p.title && nextShell === p.shell) return p;
     changed = true;
-    return { ...p, cwd: nextCwd, title: nextTitle };
+    return { ...p, cwd: nextCwd, title: nextTitle, shell: nextShell };
   });
   return changed ? { ...state, pages } : state;
 }

@@ -18,7 +18,7 @@ const (
 	maxID          = 512
 	maxTerminals   = 32
 	maxWriteBytes  = 65536
-	replayBufSize  = 65536
+	replayBufSize  = 262144
 	flushInterval  = 12 * time.Millisecond
 	flushChunkSize = 16384
 )

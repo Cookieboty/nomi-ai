@@ -411,3 +411,79 @@ func TestRealPTYReadWriteAndClose(t *testing.T) {
 		}
 	}
 }
+
+func TestReplayBufferCapacity256KB(t *testing.T) {
+	dir := t.TempDir()
+	var mu sync.Mutex
+	var fp *fakePTY
+	var receivedBytes int
+
+	mgr := New(Deps{
+		HomeDir: func() string { return dir },
+		Emit: func(name string, data any) {
+			if name != "sideTerminal.data" {
+				return
+			}
+			m := data.(map[string]any)
+			if b64, ok := m["data"].(string); ok {
+				if raw, err := base64.StdEncoding.DecodeString(b64); err == nil {
+					mu.Lock()
+					receivedBytes += len(raw)
+					mu.Unlock()
+				}
+			}
+		},
+		StartPTY: func(opts StartOptions) (PTY, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			fp = newFakePTY(opts)
+			return fp, nil
+		},
+	})
+	defer mgr.CloseAll()
+
+	res := mgr.OpenOwned(OpenInput{ID: "term-256k", Cols: 80, Rows: 24}, 1)
+	if !res.OK {
+		t.Fatalf("open failed: %+v", res)
+	}
+
+	head := "HEAD_MARKER_"
+	tail := "_TAIL_MARKER"
+	payloadLen := 128 * 1024 // 128KB，超过旧的 64KB 限制
+	payload := make([]byte, payloadLen)
+	for i := range payload {
+		payload[i] = 'a'
+	}
+	copy(payload, head)
+	copy(payload[len(payload)-len(tail):], tail)
+
+	if _, err := fp.pw.Write(payload); err != nil {
+		t.Fatalf("write payload failed: %v", err)
+	}
+
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		n := receivedBytes
+		mu.Unlock()
+		if n >= payloadLen {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	reused := mgr.OpenOwned(OpenInput{ID: "term-256k", Cols: 100, Rows: 30}, 2)
+	if !reused.OK {
+		t.Fatalf("reuse failed: %+v", reused)
+	}
+	rawReplay, err := base64.StdEncoding.DecodeString(reused.Replay)
+	if err != nil {
+		t.Fatalf("decode replay failed: %v", err)
+	}
+	if len(rawReplay) != payloadLen {
+		t.Fatalf("expected replay length %d, got %d", payloadLen, len(rawReplay))
+	}
+	if !strings.HasPrefix(string(rawReplay), head) || !strings.HasSuffix(string(rawReplay), tail) {
+		t.Fatalf("expected replay head and tail preserved")
+	}
+}

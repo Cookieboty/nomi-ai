@@ -9,6 +9,7 @@
  * 可以同时开好几个子任务标签；每个会话（主列的会话键）各记一份开着的标签、当前标签、是否铺满。
  * 文件标签来自预览区（App 的 useResourcePreview），这里只记「当前看的是文件」。
  */
+import { t } from '@nomi-ai/ui';
 import React, {
   createContext,
   useCallback,
@@ -19,6 +20,11 @@ import React, {
   useState,
 } from 'react';
 
+import { confirmDialog } from '../components/ConfirmDialog';
+import {
+  CONVERSATIONS_CHANGED_EVENT,
+  type ConversationsChangedDetail,
+} from '../services/conversationStore';
 import { detachedWindows, useDetachedIds } from '../services/detachedWindows';
 import {
   addSideChatQuote,
@@ -34,7 +40,13 @@ import {
   panePrefWhenEmpty,
   type SideTabsPanePref,
 } from '../services/sideTabsPanePrefs';
-import { sideTerminalHost, sideTerminalIdFor, syncLiveTerminals } from '../services/sideTerminal';
+import {
+  countRunningTerminals,
+  sideTerminalHost,
+  sideTerminalIdFor,
+  syncLiveTerminals,
+} from '../services/sideTerminal';
+import { cliTranscriptKey } from '../services/transcriptView';
 import { detachedKeysFor, parseDetachedId } from '../utils/detachedTabs';
 import type { SelectionQuote } from '../utils/selectionQuote';
 import {
@@ -156,7 +168,11 @@ interface SubagentPaneValue {
   setBrowserUrl: (key: string, url: string, title?: string) => void;
   /** 新建内置终端标签（支持多开与替换来源的新标签页） */
   openTerminal: (opts?: { replace?: string; cwd?: string; title?: string }) => string;
-  setTerminalMeta: (key: string, patch: { cwd?: string; title?: string }) => void;
+  /** 展开右侧工作区并切到已存在的内置终端标签 */
+  focusTerminal: (pageId: string) => void;
+  /** 关闭终端标签（若仍有运行中的分屏进程，先弹应用内确认框） */
+  requestCloseTerminal: (key: string) => Promise<boolean>;
+  setTerminalMeta: (key: string, patch: { cwd?: string; title?: string; shell?: string }) => void;
   setTerminalLayout: (key: string, layout: TerminalPaneNode, activePaneId?: string) => void;
 }
 
@@ -342,6 +358,40 @@ export const SubagentPaneProvider: React.FC<{
   const closeSubagent = useCallback(() => {
     if (active) closeTab(active);
   }, [closeTab, active]);
+  const closingTerminalsRef = useRef<Set<string>>(new Set());
+  const requestCloseTerminal = useCallback(
+    async (key: string): Promise<boolean> => {
+      const tabKey = isTerminalKey(key) ? key : `terminal:${key}`;
+      if (closingTerminalsRef.current.has(tabKey)) return false;
+      const curState = byScopeRef.current[scope] ?? EMPTY_SIDE_TABS;
+      const page = findPage(curState, tabKey);
+      if (!page || page.kind !== 'terminal') return false;
+      const paneIds = terminalPaneIds(page);
+      const runningCount = countRunningTerminals(paneIds.map(sideTerminalIdFor));
+      if (runningCount <= 0) {
+        closeTab(tabKey);
+        return true;
+      }
+      closingTerminalsRef.current.add(tabKey);
+      try {
+        const ok = await confirmDialog({
+          title: t('ui.session-workspace.terminal-close-confirm-title'),
+          message:
+            runningCount === 1
+              ? t('ui.session-workspace.terminal-close-confirm-message')
+              : t('ui.session-workspace.terminal-close-confirm-message-many', runningCount),
+          confirmLabel: t('ui.session-workspace.terminal-close-confirm-action'),
+          danger: true,
+        });
+        if (!ok) return false;
+        closeTab(tabKey);
+        return true;
+      } finally {
+        closingTerminalsRef.current.delete(tabKey);
+      }
+    },
+    [closeTab, scope],
+  );
   const openSideChatTab = useCallback(
     (chatId: string) => {
       if (!chatId) return;
@@ -499,8 +549,19 @@ export const SubagentPaneProvider: React.FC<{
     },
     [update, revealPane],
   );
+  const focusTerminal = useCallback(
+    (pageId: string) => {
+      if (!pageId) return;
+      const key = `terminal:${pageId}`;
+      const curState = byScopeRef.current[scope];
+      if (!curState || !findPage(curState, key)) return;
+      revealPane();
+      update((s) => activateTab(s, key));
+    },
+    [scope, revealPane, update],
+  );
   const patchTerminalMeta = useCallback(
-    (key: string, patch: { cwd?: string; title?: string }) =>
+    (key: string, patch: { cwd?: string; title?: string; shell?: string }) =>
       update((s) => setTerminalMetaState(s, key, patch)),
     [update],
   );
@@ -509,6 +570,102 @@ export const SubagentPaneProvider: React.FC<{
       update((s) => setTerminalLayoutState(s, key, layout, activePaneId)),
     [update],
   );
+
+  // 删除会话或关闭 CLI 会话标签时，回收该会话下的所有内置终端 PTY 与标签状态
+  const dropScopes = useCallback((scopes: readonly string[]) => {
+    const targets = [...new Set(scopes.filter(Boolean))];
+    if (!targets.length) return;
+    const snapshot = byScopeRef.current;
+    const toClosePanes = new Set<string>();
+    for (const s of targets) {
+      const cur = snapshot[s];
+      if (!cur) continue;
+      for (const p of cur.pages) {
+        if (p.kind !== 'terminal') continue;
+        for (const pid of terminalPaneIds(p)) {
+          toClosePanes.add(pid);
+        }
+      }
+    }
+    for (const pid of toClosePanes) {
+      sideTerminalHost.close(sideTerminalIdFor(pid));
+    }
+    setByScope((all) => {
+      let changed = false;
+      const next = { ...all };
+      for (const s of targets) {
+        if (!(s in next)) continue;
+        delete next[s];
+        changed = true;
+      }
+      if (!changed) return all;
+      writeSideTabsStore(next);
+      return next;
+    });
+    setFilesOpenByScope((cur) => {
+      let changed = false;
+      const next = { ...cur };
+      for (const s of targets) {
+        if (s in next) {
+          delete next[s];
+          changed = true;
+        }
+      }
+      return changed ? next : cur;
+    });
+    setPanePrefByScope((cur) => {
+      let changed = false;
+      const next = { ...cur };
+      for (const s of targets) {
+        if (s in next) {
+          delete next[s];
+          changed = true;
+        }
+      }
+      return changed ? next : cur;
+    });
+  }, []);
+
+  useEffect(() => {
+    const onConversationsChanged = (ev: Event) => {
+      const removed = (ev as CustomEvent<ConversationsChangedDetail>).detail?.removed;
+      if (!removed?.length) return;
+      const goneScopes: string[] = [];
+      for (const g of removed) {
+        if (g.id) goneScopes.push(`nomi:${g.id}`);
+        if (g.tabId) goneScopes.push(`tab:${g.tabId}`);
+      }
+      if (goneScopes.length > 0) dropScopes(goneScopes);
+    };
+    window.addEventListener(CONVERSATIONS_CHANGED_EVENT, onConversationsChanged);
+    return () => window.removeEventListener(CONVERSATIONS_CHANGED_EVENT, onConversationsChanged);
+  }, [dropScopes]);
+
+  const prevLiveTabsRef = useRef<typeof liveTabs>(undefined);
+  useEffect(() => {
+    const prev = prevLiveTabsRef.current;
+    prevLiveTabsRef.current = liveTabs;
+    if (!prev || !liveTabs) return;
+    const activeIds = new Set(liveTabs.map((tab) => tab.id));
+    const activeKeys = new Set(liveTabs.map((tab) => cliTranscriptKey(tab)));
+    const goneScopes: string[] = [];
+    for (const old of prev) {
+      if (activeIds.has(old.id)) continue;
+      goneScopes.push(`tab:${old.id}`);
+      const tk = cliTranscriptKey(old);
+      if (!activeKeys.has(tk)) goneScopes.push(tk);
+    }
+    if (goneScopes.length > 0) {
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (!cancelled) dropScopes(goneScopes);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+    return undefined;
+  }, [liveTabs, dropScopes]);
 
   // 汇总全部会话里仍开着的终端 id，去抖同步给宿主防孤儿进程；页面卸载时清理全部终端
   const liveTerminalIds = useMemo(() => {
@@ -587,6 +744,8 @@ export const SubagentPaneProvider: React.FC<{
       openBrowser: addBrowser,
       setBrowserUrl: patchBrowserUrl,
       openTerminal: addTerminal,
+      focusTerminal,
+      requestCloseTerminal,
       setTerminalMeta: patchTerminalMeta,
       setTerminalLayout: patchTerminalLayout,
     }),
@@ -599,6 +758,8 @@ export const SubagentPaneProvider: React.FC<{
       addBrowser,
       patchBrowserUrl,
       addTerminal,
+      focusTerminal,
+      requestCloseTerminal,
       patchTerminalMeta,
       patchTerminalLayout,
       paneVisible,

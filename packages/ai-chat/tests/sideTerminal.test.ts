@@ -58,11 +58,15 @@ import {
   countRunningTerminals,
   decodeTerminalBytes,
   getTerminalStatus,
+  getTerminalStatusVersion,
   isTerminalRunning,
+  mergeReplayWithEarlyChunks,
   resetTerminalStatuses,
   sideTerminalHost,
   sideTerminalIdFor,
+  subscribeTerminalStatus,
   syncLiveTerminals,
+  useTerminalStatusVersion,
 } from '../src/services/sideTerminal';
 
 describe('sideTerminal service', () => {
@@ -161,6 +165,74 @@ describe('sideTerminal service', () => {
     sideTerminalHost.closeAll();
     expect(getTerminalStatus('term:run-1')).toBeUndefined();
     expect(countRunningTerminals(['term:run-1', 'term:run-2', 'term:run-3'])).toBe(0);
+  });
+
+  it('notifies status subscribers on status transitions without redundant emits', async () => {
+    const listener = vi.fn();
+    const unsub = subscribeTerminalStatus(listener);
+    const { result } = renderHook(() => useTerminalStatusVersion());
+    const initialVer = result.current;
+    expect(initialVer).toBe(getTerminalStatusVersion());
+
+    apiMock.sideTerminal.open
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ok: true });
+
+    await sideTerminalHost.open({ id: 'term:sub-1' });
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(result.current).toBe(initialVer + 1);
+
+    // 重复打开且仍是 running 时不重复通知
+    await sideTerminalHost.open({ id: 'term:sub-1' });
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    // 收到 exit 事件时触发状态通知
+    for (const cb of exitHandlers) cb({ id: 'term:sub-1', exitCode: 0 });
+    expect(listener).toHaveBeenCalledTimes(2);
+    // 重复收到 exit 不重复通知
+    for (const cb of exitHandlers) cb({ id: 'term:sub-1', exitCode: 0 });
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    // sync 移除未包含的终端时触发通知；再次 sync 空变化不通知
+    await sideTerminalHost.open({ id: 'term:sub-2' });
+    expect(listener).toHaveBeenCalledTimes(3);
+    sideTerminalHost.sync(['term:sub-1']);
+    expect(listener).toHaveBeenCalledTimes(4);
+    sideTerminalHost.sync(['term:sub-1']);
+    expect(listener).toHaveBeenCalledTimes(4);
+
+    // close 和 closeAll 触发通知
+    sideTerminalHost.close('term:sub-1');
+    expect(listener).toHaveBeenCalledTimes(5);
+    await sideTerminalHost.open({ id: 'term:sub-3' });
+    expect(listener).toHaveBeenCalledTimes(6);
+    sideTerminalHost.closeAll();
+    expect(listener).toHaveBeenCalledTimes(7);
+
+    unsub();
+  });
+
+  it('merges replay snapshot with earlyChunks and deduplicates overlapping prefix chunks', () => {
+    const enc = (s: string) => new TextEncoder().encode(s);
+    const dec = (chunks: Uint8Array[]) => chunks.map((c) => new TextDecoder().decode(c)).join('');
+
+    // 1. replay 为空时保留全部 earlyChunks
+    expect(dec(mergeReplayWithEarlyChunks(new Uint8Array(0), [enc('a'), enc('b')]))).toBe('ab');
+
+    // 2. earlyChunks 全部包含在 replay 尾部时不重复写入
+    expect(dec(mergeReplayWithEarlyChunks(enc('hello world'), [enc('lo '), enc('world')]))).toBe(
+      'hello world',
+    );
+
+    // 3. 前半部分重叠在 replay 尾部、后半部分为新增输出时只追加新增块
+    expect(
+      dec(mergeReplayWithEarlyChunks(enc('prompt$ ls\n'), [enc('ls\n'), enc('file.txt\n')])),
+    ).toBe('prompt$ ls\nfile.txt\n');
+
+    // 4. 全部为新增输出时完整保留
+    expect(dec(mergeReplayWithEarlyChunks(enc('old '), [enc('new1 '), enc('new2')]))).toBe(
+      'old new1 new2',
+    );
   });
 });
 

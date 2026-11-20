@@ -7,6 +7,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { resetConfirmDialogForTest } from '../src/components/ConfirmDialog';
 import { SessionDetailsDock, SessionDetailsToggle } from '../src/components/SessionDetails';
 import {
   collectSessionAgents,
@@ -21,9 +22,15 @@ import { resetDelegateResultsCache } from '../src/components/SessionDetails/useD
 import { summarizeGit } from '../src/components/SessionDetails/useWorkspaceChanges';
 import { useChangesUi } from '../src/components/SessionWorkspace';
 import { useSubagentPane, WorkspacePanesProvider } from '../src/components/SubagentPane';
+import { SessionTools } from '../src/components/TitleBar/SessionTitle';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
 import { createSideChat, resetSideChats } from '../src/services/sideChat';
+import {
+  resetTerminalStatuses,
+  sideTerminalHost,
+  sideTerminalIdFor,
+} from '../src/services/sideTerminal';
 import type { ConvMessage } from '../src/types/conversation';
 import {
   agentTargetBackend,
@@ -33,6 +40,7 @@ import {
 } from '../src/utils/agentIdentity';
 import { resolveDelegateTarget } from '../src/utils/delegateTarget';
 import { agentKey } from '../src/utils/sideTabs';
+import { createRootPane, splitPane } from '../src/utils/terminalSplit';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
@@ -148,15 +156,21 @@ function setup() {
     if (ch === 'harness.gitBranch') return { branch: 'release/2.3.3' };
     if (ch === 'tasks.list') return { tasks, legacy: [] };
     if (ch === 'harness.gitSummary') return gitSummary;
+    if (ch === 'sideTerminal.open') return { ok: true, cwd: '/w/app', shell: 'zsh' };
+    if (ch.startsWith('sideTerminal.')) return true;
     return true;
   });
   fake = installFakeApi(invoke);
   return invoke;
 }
 let fake: ReturnType<typeof installFakeApi>;
+let latestPane: ReturnType<typeof useSubagentPane> = null;
 
 const Probe: React.FC = () => {
   const pane = useSubagentPane();
+  React.useEffect(() => {
+    latestPane = pane;
+  }, [pane]);
   const { workbench } = useChangesUi();
   return (
     <>
@@ -190,9 +204,12 @@ const mount = (cwd: string | null = '/w/app', msgs: ConvMessage[] = messages, ra
 
 afterEach(() => {
   cleanup();
+  latestPane = null;
   aiChatState.messages = [];
   aiChatState.isLoading = false;
   localStorage.clear();
+  resetConfirmDialogForTest();
+  resetTerminalStatuses();
   resetDelegateResultsCache();
   vi.restoreAllMocks();
   resetFakeApi();
@@ -1226,5 +1243,142 @@ describe('session details agent hover card placement', () => {
     fireEvent.pointerDown(card1);
     fireEvent.click(card1);
     await waitFor(() => expect(screen.getByTestId('probe-target').textContent).toBe('nested:s1'));
+  });
+});
+
+describe('会话详情：终端区块与后台保活', () => {
+  it('renders terminals section below agents and above tasks, tracks live exit after hiding tabs, and refocuses on click', async () => {
+    tasks = [task('t1')];
+    setup();
+    mount();
+
+    fireEvent.click(screen.getByTestId('session-details-toggle'));
+    await screen.findByTestId('session-details');
+    expect(screen.queryByTestId('session-details-terminals')).toBeNull();
+
+    // 打开两个终端：一个单窗格运行中，一个多分屏后退出
+    let term1 = '';
+    let term2 = '';
+    await act(async () => {
+      term1 = latestPane!.openTerminal({ cwd: '/w/app', title: 'dev-server' });
+      term2 = latestPane!.openTerminal({ cwd: '/w/api', title: 'api-shell' });
+      const layout2 = splitPane(createRootPane(term2, '/w/api'), term2, 'horizontal', 'pane-2b', {
+        cwd: '/w/api',
+      });
+      latestPane!.setTerminalLayout(`terminal:${term2}`, layout2, term2);
+      await sideTerminalHost.open({ id: sideTerminalIdFor(term1) });
+      await sideTerminalHost.open({ id: sideTerminalIdFor(term2) });
+      await sideTerminalHost.open({ id: sideTerminalIdFor('pane-2b') });
+    });
+
+    const agentsSec = screen.getByTestId('session-details-agents');
+    const terminalsSec = screen.getByTestId('session-details-terminals');
+    const tasksSec = screen.getByTestId('session-details-tasks');
+    expect(agentsSec.compareDocumentPosition(terminalsSec)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(terminalsSec.compareDocumentPosition(tasksSec)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+    expect(screen.getByTestId('session-details-terminals-count').textContent).toMatch(/2.*2/);
+    const rows = screen.getAllByTestId('session-details-terminal');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.textContent).toContain('dev-server');
+    expect(rows[1]!.textContent).toContain('api-shell');
+    expect(rows[1]!.textContent).toContain('2');
+
+    // 收起右侧大标签区：不杀终端 PTY，两个终端仍在会话详情里展示
+    act(() => {
+      latestPane!.hidePane();
+    });
+    expect(latestPane!.paneVisible).toBe(false);
+    expect(fake.inputs('sideTerminal.close')).toHaveLength(0);
+    expect(screen.getAllByTestId('session-details-terminal')).toHaveLength(2);
+
+    // 后台收到 term2 全部窗格的退出事件：计数和行状态实时刷新为已退出，仍保留在列表中（选项 B）
+    await fake.emit('sideTerminal.exit', { id: sideTerminalIdFor(term2), exitCode: 0 });
+    await fake.emit('sideTerminal.exit', { id: sideTerminalIdFor('pane-2b'), exitCode: 0 });
+    await waitFor(() =>
+      expect(screen.getByTestId('session-details-terminals-count').textContent).toMatch(/2.*1/),
+    );
+    expect(rows[1]!.querySelector('[data-state="exited"]')).toBeTruthy();
+
+    // 点击第一个终端行：自动重新展开大标签区并切换到对应终端
+    fireEvent.click(rows[0]!.querySelector('[data-testid="session-details-terminal-open"]')!);
+    expect(latestPane!.paneVisible).toBe(true);
+    expect(latestPane!.active).toBe(`terminal:${term1}`);
+  });
+
+  it('closes terminal from row close button (confirming only when running)', async () => {
+    setup();
+    mount();
+    fireEvent.click(screen.getByTestId('session-details-toggle'));
+    await screen.findByTestId('session-details');
+
+    let termRun = '';
+    let termDone = '';
+    await act(async () => {
+      termRun = latestPane!.openTerminal({ cwd: '/w/app', title: 'run-term' });
+      termDone = latestPane!.openTerminal({ cwd: '/w/app', title: 'done-term' });
+      await sideTerminalHost.open({ id: sideTerminalIdFor(termRun) });
+      await sideTerminalHost.open({ id: sideTerminalIdFor(termDone) });
+    });
+    await fake.emit('sideTerminal.exit', { id: sideTerminalIdFor(termDone), exitCode: 0 });
+
+    // 图标按钮不能有原生 title，只能用 aria-label
+    const closeBtns = screen.getAllByTestId('session-details-terminal-close');
+    expect(closeBtns[0]!.getAttribute('title')).toBeNull();
+    expect(closeBtns[0]!.getAttribute('aria-label')).toContain('run-term');
+
+    // 点已退出终端的关闭按钮：直接移除并清理，不弹确认框
+    fireEvent.click(closeBtns[1]!);
+    expect(screen.queryByTestId('confirm-dialog')).toBeNull();
+    await waitFor(() => expect(screen.getAllByTestId('session-details-terminal')).toHaveLength(1));
+    expect(fake.inputs('sideTerminal.close')).toEqual([{ id: sideTerminalIdFor(termDone) }]);
+
+    // 点运行中终端的关闭按钮：先弹确认框；点取消保留
+    fireEvent.click(screen.getByTestId('session-details-terminal-close'));
+    await screen.findByTestId('confirm-dialog');
+    fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('confirm-dialog')).toBeNull());
+    expect(screen.getAllByTestId('session-details-terminal')).toHaveLength(1);
+    expect(fake.inputs('sideTerminal.close')).toHaveLength(1);
+
+    // 再次点击并确认：真正关闭 PTY 并移除条目
+    fireEvent.click(screen.getByTestId('session-details-terminal-close'));
+    await screen.findByTestId('confirm-dialog');
+    fireEvent.click(screen.getByTestId('confirm-dialog-ok'));
+    await waitFor(() => expect(screen.queryByTestId('session-details-terminals')).toBeNull());
+    expect(fake.inputs('sideTerminal.close')).toEqual([
+      { id: sideTerminalIdFor(termDone) },
+      { id: sideTerminalIdFor(termRun) },
+    ]);
+  });
+
+  it('shows SessionDetailsToggle and SessionDetailsDock in an empty session when a terminal exists', async () => {
+    setup();
+    render(
+      <HarnessTabsProvider>
+        <WorkspacePanesProvider>
+          <SessionTools messages={[]} rail={null} />
+          <SessionDetailsDock overlay messages={[]} cwd="/w/app" />
+          <Probe />
+        </WorkspacePanesProvider>
+      </HarnessTabsProvider>,
+    );
+
+    // 既没消息又没终端：按钮与卡片都不显示
+    expect(screen.queryByTestId('session-details-toggle')).toBeNull();
+    expect(screen.queryByTestId('session-details')).toBeNull();
+
+    // 在空会话中新建终端后：顶栏详情开关可见，点击展开且收起工作区后可查看终端
+    await act(async () => {
+      const id = latestPane!.openTerminal({ cwd: '/w/app', title: 'empty-session-term' });
+      await sideTerminalHost.open({ id: sideTerminalIdFor(id) });
+      latestPane!.hidePane();
+    });
+
+    const toggle = screen.getByTestId('session-details-toggle');
+    expect(toggle).toBeTruthy();
+    fireEvent.click(toggle);
+    const panel = await screen.findByTestId('session-details');
+    expect(panel.textContent).toContain('empty-session-term');
   });
 });

@@ -20,7 +20,6 @@ import { detachedWindows } from '../../services/detachedWindows';
 import { persistWorkspaceTreeOpen, readWorkspaceTreeOpen } from '../../services/filesRailPrefs';
 import { isMac } from '../../services/shortcuts';
 import { exportSideChat, forgetSideChat, sideChatState } from '../../services/sideChat';
-import { countRunningTerminals, sideTerminalIdFor } from '../../services/sideTerminal';
 import type { ConvMessage } from '../../types/conversation';
 import {
   canDetachTarget,
@@ -44,11 +43,9 @@ import {
   SPLIT_RATIO_MAX,
   SPLIT_RATIO_MIN,
   sideTabItems,
-  terminalPaneIds,
   type SideTabItem,
 } from '../../utils/sideTabs';
 import type { TerminalTabController } from '../../utils/terminalSplit';
-import { confirmDialog } from '../ConfirmDialog';
 import type { PreviewEntry, PreviewTabsControl } from '../ResourcePreview/ResourcePreview';
 import { CenterChangesHost, useChangesUi } from '../SessionWorkspace';
 import { SideChatPane } from '../SideChat';
@@ -88,7 +85,6 @@ export function useSideWorkspace(files: SideFiles) {
   const [control] = useState<{ current: PreviewTabsControl | null }>(() => ({ current: null }));
   const [diffControl] = useState<{ current: PreviewTabsControl | null }>(() => ({ current: null }));
   const [terminalControls] = useState(() => new Map<string, TerminalTabController>());
-  const closingTerminalsRef = useRef<Set<string>>(new Set());
   const registerTerminalControl = useCallback(
     (key: string, ctrl: TerminalTabController | null) => {
       if (ctrl) terminalControls.set(key, ctrl);
@@ -208,35 +204,12 @@ export function useSideWorkspace(files: SideFiles) {
         return;
       }
       if (item.kind === 'terminal') {
-        if (closingTerminalsRef.current.has(item.key)) return;
-        const page = tabs?.pages.find((p) => pageKey(p) === item.key) ?? item.page;
-        const paneIds = page ? terminalPaneIds(page) : [item.key.slice('terminal:'.length)];
-        const runningCount = countRunningTerminals(paneIds.map(sideTerminalIdFor));
-        if (runningCount <= 0) {
-          pane.closeTab(item.key);
-          return;
-        }
-        closingTerminalsRef.current.add(item.key);
-        void confirmDialog({
-          title: t('ui.session-workspace.terminal-close-confirm-title'),
-          message:
-            runningCount === 1
-              ? t('ui.session-workspace.terminal-close-confirm-message')
-              : t('ui.session-workspace.terminal-close-confirm-message-many', runningCount),
-          confirmLabel: t('ui.session-workspace.terminal-close-confirm-action'),
-          danger: true,
-        })
-          .then((ok) => {
-            if (ok) pane.closeTab(item.key);
-          })
-          .finally(() => {
-            closingTerminalsRef.current.delete(item.key);
-          });
+        void pane.requestCloseTerminal(item.key);
         return;
       }
       pane.closeTab(item.key);
     },
-    [pane, tabs?.pages, control, diffControl, fileKeys, diffKeys, files, closeWorkbench],
+    [pane, control, diffControl, fileKeys, diffKeys, files, closeWorkbench],
   );
   const toggleMaximized = useCallback(
     (item?: SideTabItem) => {

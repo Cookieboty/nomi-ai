@@ -71,13 +71,15 @@ export const SessionDetailsProvider: React.FC<{ children: React.ReactNode }> = (
   const { workbench, previewOpen } = useChangesUi();
   const pane = useSubagentPane();
   const subagent = pane?.target ?? null;
-  // 标签区开着（子任务或文件标签）就算占了对话旁那一栏
-  const subagentOpen = (pane?.targets.length ?? 0) > 0 || !!pane?.filesOpen;
+  // 标签区可见且有内容时才算占了对话旁那一栏（收起工作区时允许窄屏恢复会话详情）
+  const subagentOpen =
+    !!pane?.paneVisible &&
+    ((pane.targets.length ?? 0) > 0 || !!pane.filesOpen || (pane.pages.length ?? 0) > 0);
   const subKey = subagent ? agentKey(subagent) : '';
   const small = useMedia(SESSION_DETAILS_SMALL);
   const crowded = !!workbench || previewOpen || (small && (railOpen || subagentOpen));
   // 那几栏开关有变化（含子任务换了一个）：清掉手动打开，重新按自动规则（渲染期比对，不在 effect 里 setState）
-  const layoutKey = `${small}|${railOpen}|${!!workbench}|${previewOpen}|${subKey}`;
+  const layoutKey = `${small}|${railOpen}|${!!workbench}|${previewOpen}|${!!pane?.paneVisible}|${subKey}`;
   const [prevKey, setPrevKey] = useState(layoutKey);
   if (prevKey !== layoutKey) {
     setPrevKey(layoutKey);

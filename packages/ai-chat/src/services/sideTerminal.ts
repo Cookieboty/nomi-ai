@@ -4,6 +4,7 @@
  * 键盘输入经 TerminalInputWriter 按 UTF-8 字节安全分块、逐块等待内核回执（见 terminalInput.ts）。
  */
 import { createLogger } from '@nomi-ai/ui';
+import { useSyncExternalStore } from 'react';
 
 import { api, hasTransport } from './api';
 import {
@@ -50,16 +51,57 @@ const unavailableResult: SideTerminalOpenResult = {
 };
 
 const terminalStatusMap = new Map<string, SideTerminalStatus>();
+let statusVersion = 0;
+const statusListeners = new Set<() => void>();
 let offGlobalExit: (() => void) | null = null;
 let openSeq = 0;
 const latestOpenEpoch = new Map<string, number>();
 const exitedBeforeOpenReply = new Set<string>();
 
+function notifyStatusListeners(): void {
+  statusVersion += 1;
+  for (const listener of [...statusListeners]) {
+    listener();
+  }
+}
+
+function setTerminalStatus(id: string, status: SideTerminalStatus): void {
+  if (terminalStatusMap.get(id) === status) return;
+  terminalStatusMap.set(id, status);
+  notifyStatusListeners();
+}
+
+function deleteTerminalStatus(id: string): void {
+  if (!terminalStatusMap.delete(id)) return;
+  notifyStatusListeners();
+}
+
+function clearTerminalStatuses(): void {
+  if (terminalStatusMap.size === 0) return;
+  terminalStatusMap.clear();
+  notifyStatusListeners();
+}
+
+export function subscribeTerminalStatus(listener: () => void): () => void {
+  statusListeners.add(listener);
+  return () => {
+    statusListeners.delete(listener);
+  };
+}
+
+export function getTerminalStatusVersion(): number {
+  return statusVersion;
+}
+
+export function useTerminalStatusVersion(): number {
+  return useSyncExternalStore(subscribeTerminalStatus, getTerminalStatusVersion, () => 0);
+}
+
 function ensureExitStatusListener(): void {
   if (offGlobalExit || !hasTransport()) return;
   offGlobalExit = api.on('sideTerminal.exit', (ev) => {
     if (!ev.id) return;
-    terminalStatusMap.set(ev.id, 'exited');
+    setTerminalStatus(ev.id, 'exited');
     exitedBeforeOpenReply.add(ev.id);
   });
 }
@@ -81,11 +123,47 @@ export function countRunningTerminals(ids: readonly string[]): number {
 }
 
 export function resetTerminalStatuses(): void {
-  terminalStatusMap.clear();
+  clearTerminalStatuses();
   latestOpenEpoch.clear();
   exitedBeforeOpenReply.clear();
   offGlobalExit?.();
   offGlobalExit = null;
+}
+
+/**
+ * 合并 open 返回的 replay 快照与 open 请求在途期间收到的 earlyChunks：
+ * 若 earlyChunks 的前 k 个块恰好与 replay 尾部字节逐字节重叠，则跳过这 k 个已包含块，保留之后新增的输出块。
+ */
+export function mergeReplayWithEarlyChunks(
+  replay: Uint8Array,
+  earlyChunks: readonly Uint8Array[],
+): Uint8Array[] {
+  if (replay.length === 0) return [...earlyChunks];
+  if (earlyChunks.length === 0) return [replay];
+
+  let bestSkip = 0;
+  let totalLen = 0;
+  for (let skip = 1; skip <= earlyChunks.length; skip += 1) {
+    totalLen += earlyChunks[skip - 1]!.length;
+    if (totalLen > replay.length) break;
+    const start = replay.length - totalLen;
+    let offset = start;
+    let match = true;
+    for (let i = 0; i < skip; i += 1) {
+      const chunk = earlyChunks[i]!;
+      for (let j = 0; j < chunk.length; j += 1) {
+        if (replay[offset + j] !== chunk[j]) {
+          match = false;
+          break;
+        }
+      }
+      if (!match) break;
+      offset += chunk.length;
+    }
+    if (match) bestSkip = skip;
+  }
+
+  return [replay, ...earlyChunks.slice(bestSkip)];
 }
 
 /** 页面 id -> Go 侧终端会话 id（不包含 scope，切会话或新建会话迁移时不重建） */
@@ -187,18 +265,18 @@ export const sideTerminalHost = {
       const res = (await api.sideTerminal.open(input)) ?? unavailableResult;
       if (latestOpenEpoch.get(input.id) === epoch) {
         if (!res.ok) {
-          terminalStatusMap.set(input.id, 'error');
+          setTerminalStatus(input.id, 'error');
         } else if (res.exited || exitedBeforeOpenReply.has(input.id)) {
-          terminalStatusMap.set(input.id, 'exited');
+          setTerminalStatus(input.id, 'exited');
         } else {
-          terminalStatusMap.set(input.id, 'running');
+          setTerminalStatus(input.id, 'running');
         }
       }
       return res;
     } catch (err) {
       log.warn('sideTerminal.open failed', err);
       if (latestOpenEpoch.get(input.id) === epoch) {
-        terminalStatusMap.set(input.id, 'error');
+        setTerminalStatus(input.id, 'error');
       }
       return {
         ok: false,
@@ -232,7 +310,7 @@ export const sideTerminalHost = {
     if (!id) return;
     bumpEpoch(id);
     terminalInput.close(id);
-    terminalStatusMap.delete(id);
+    deleteTerminalStatus(id);
     latestOpenEpoch.delete(id);
     exitedBeforeOpenReply.delete(id);
     if (!hasTransport()) return;
@@ -245,7 +323,7 @@ export const sideTerminalHost = {
       terminalInput.close(id);
     }
     latestLiveIds = [];
-    terminalStatusMap.clear();
+    clearTerminalStatuses();
     latestOpenEpoch.clear();
     exitedBeforeOpenReply.clear();
     if (syncTimer !== null && typeof window !== 'undefined') {
@@ -258,13 +336,15 @@ export const sideTerminalHost = {
 
   sync(ids: readonly string[]): void {
     const keep = new Set(ids);
+    let changed = false;
     for (const id of [...terminalStatusMap.keys()]) {
       if (!keep.has(id)) {
-        terminalStatusMap.delete(id);
+        if (terminalStatusMap.delete(id)) changed = true;
         latestOpenEpoch.delete(id);
         exitedBeforeOpenReply.delete(id);
       }
     }
+    if (changed) notifyStatusListeners();
     if (!hasTransport()) return;
     fire(api.sideTerminal.sync({ ids: [...ids] }));
   },
@@ -300,7 +380,7 @@ export function subscribeSideTerminal(
   });
   const offExit = api.on('sideTerminal.exit', (ev) => {
     if (ev.id !== id) return;
-    terminalStatusMap.set(id, 'exited');
+    setTerminalStatus(id, 'exited');
     exitedBeforeOpenReply.add(id);
     handlers.onExit?.(ev);
   });

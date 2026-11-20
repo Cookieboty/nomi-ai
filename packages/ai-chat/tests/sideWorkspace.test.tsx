@@ -22,6 +22,7 @@ import {
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { ResourceScopeProvider } from '../src/contexts/ResourceContext';
 import { useResourcePreview, type EmbeddedPreviewProps } from '../src/hooks/useResourcePreview';
+import { CONVERSATIONS_CHANGED_EVENT } from '../src/services/conversationStore';
 import type { HarnessTabsState } from '../src/services/harnessClient';
 import {
   sideChatDraftKey,
@@ -29,7 +30,7 @@ import {
   sideChatsIn,
   sideChatState,
 } from '../src/services/sideChat';
-import { resetTerminalStatuses } from '../src/services/sideTerminal';
+import { resetTerminalStatuses, sideTerminalIdFor } from '../src/services/sideTerminal';
 import { CHANGES_SIDE_TAB, MAIN_SIDE_TAB, OPEN_FILE_SIDE_TAB } from '../src/utils/sideTabs';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
@@ -1137,6 +1138,118 @@ describe('side tabs workspace', () => {
       await screen.findByTestId('confirm-dialog');
       fireEvent.click(screen.getByTestId('confirm-dialog-ok'));
       await waitFor(() => expect(tabKeys()).toEqual([]));
+    });
+
+    it('keeps terminal alive across hidePane/focusTerminal and keeps it in sideTerminal.sync', async () => {
+      vi.useFakeTimers();
+      try {
+        const fake = setupTerminalFake();
+        render(
+          <HarnessTabsProvider>
+            <WorkspacePanesProvider>
+              <Shell />
+            </WorkspacePanesProvider>
+          </HarnessTabsProvider>,
+        );
+
+        let termId = '';
+        act(() => {
+          termId = opener!.openTerminal({ cwd: '/w' });
+        });
+        const expectedTermId = sideTerminalIdFor(termId);
+        await act(async () => {
+          await Promise.resolve();
+          vi.advanceTimersByTime(100);
+        });
+        expect(fake.inputs('sideTerminal.open')).toHaveLength(1);
+        expect(fake.inputs('sideTerminal.sync')).toEqual([{ ids: [expectedTermId] }]);
+
+        // 收起整个大标签区（隐藏工作区）：不关闭终端 PTY，也不把它从 sync 剔除
+        act(() => {
+          opener!.hidePane();
+        });
+        await act(async () => {
+          vi.advanceTimersByTime(100);
+        });
+        expect(screen.getByTestId('side-workspace').hidden).toBe(true);
+        expect(fake.inputs('sideTerminal.close')).toHaveLength(0);
+        expect(opener!.pages.some((p) => p.kind === 'terminal' && p.id === termId)).toBe(true);
+
+        // 重新聚焦终端：恢复工作区可见性并复用原终端，不创建新终端 id
+        act(() => {
+          opener!.focusTerminal(termId);
+        });
+        expect(screen.getByTestId('side-workspace').hidden).toBe(false);
+        expect(opener!.active).toBe(`terminal:${termId}`);
+        expect(
+          fake
+            .inputs('sideTerminal.open')
+            .every((req) => (req as { id: string }).id === expectedTermId),
+        ).toBe(true);
+      } finally {
+        localStorage.clear();
+        vi.useRealTimers();
+      }
+    });
+
+    it('shows "End terminal" in terminal tab context menu and closes PTY on confirm', async () => {
+      const fake = setupTerminalFake();
+      render(
+        <HarnessTabsProvider>
+          <WorkspacePanesProvider>
+            <Shell />
+          </WorkspacePanesProvider>
+        </HarnessTabsProvider>,
+      );
+
+      let termId = '';
+      act(() => {
+        termId = opener!.openTerminal({ cwd: '/w' });
+      });
+      const tabKey = `terminal:${termId}`;
+      await waitFor(() => expect(fake.inputs('sideTerminal.open')).toHaveLength(1));
+
+      fireEvent.contextMenu(tabByKey(tabKey));
+      const endItem = await screen.findByTestId('side-tab-terminate-terminal');
+      expect(endItem.textContent).toContain('结束终端');
+      fireEvent.click(endItem);
+
+      await screen.findByTestId('confirm-dialog');
+      fireEvent.click(screen.getByTestId('confirm-dialog-ok'));
+      await waitFor(() => expect(tabKeys()).toEqual([]));
+      await waitFor(() =>
+        expect(fake.inputs('sideTerminal.close')).toEqual([{ id: sideTerminalIdFor(termId) }]),
+      );
+    });
+
+    it('closes session terminals when conversation is removed via CONVERSATIONS_CHANGED_EVENT', async () => {
+      const fake = setupTerminalFake();
+      render(
+        <HarnessTabsProvider>
+          <WorkspacePanesProvider scope="nomi:conv-del">
+            <Shell />
+          </WorkspacePanesProvider>
+        </HarnessTabsProvider>,
+      );
+
+      let termId = '';
+      act(() => {
+        termId = opener!.openTerminal({ cwd: '/w' });
+      });
+      await waitFor(() => expect(fake.inputs('sideTerminal.open')).toHaveLength(1));
+
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent(CONVERSATIONS_CHANGED_EVENT, {
+            detail: { removed: [{ id: 'conv-del' }] },
+          }),
+        );
+      });
+
+      await waitFor(() =>
+        expect(fake.inputs('sideTerminal.close')).toEqual([{ id: sideTerminalIdFor(termId) }]),
+      );
+      expect(opener!.pages).toHaveLength(0);
     });
   });
 });

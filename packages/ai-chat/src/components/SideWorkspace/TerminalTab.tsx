@@ -29,6 +29,7 @@ import { isMac } from '../../services/shortcuts';
 import {
   decodeTerminalBytes,
   isTerminalRunning,
+  mergeReplayWithEarlyChunks,
   sideTerminalHost,
   sideTerminalIdFor,
   subscribeSideTerminal,
@@ -455,12 +456,9 @@ const TerminalPane: React.FC<TerminalPaneProps> = React.memo(
           }
           if (res.shell) setShellName(res.shell);
 
-          if (res.replay) {
-            term.write(decodeTerminalBytes(res.replay));
-          } else {
-            for (const chunk of earlyChunks) {
-              term.write(chunk);
-            }
+          const replayBytes = res.replay ? decodeTerminalBytes(res.replay) : new Uint8Array(0);
+          for (const chunk of mergeReplayWithEarlyChunks(replayBytes, earlyChunks)) {
+            if (chunk.length > 0) term.write(chunk);
           }
           earlyChunks.length = 0;
           streamReady = true;
@@ -765,7 +763,7 @@ export interface TerminalTabProps {
   layout?: TerminalPaneNode;
   activePaneId?: string;
   hidden?: boolean;
-  onMeta: (patch: { cwd?: string; title?: string }) => void;
+  onMeta: (patch: { cwd?: string; title?: string; shell?: string }) => void;
   onLayoutChange?: (layout: TerminalPaneNode, activePaneId?: string) => void;
   onRequestCloseTab?: () => void;
   registerControl?: (ctrl: TerminalTabController | null) => void;
@@ -881,6 +879,7 @@ const TerminalTab: React.FC<TerminalTabProps> = ({
     onMetaRef.current({
       cwd: activeCwd,
       title: basename(activeCwd) || activeShell || undefined,
+      shell: activeShell,
     });
   }, [activeCwd, activeShell]);
 

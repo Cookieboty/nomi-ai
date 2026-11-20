@@ -479,13 +479,18 @@ export const SideTabStrip: React.FC<{
             <button
               type="button"
               role="menuitem"
+              data-testid={
+                tabMenu.item.kind === 'terminal' ? 'side-tab-terminate-terminal' : undefined
+              }
               onClick={() => {
                 setTabMenu(null);
                 model.close(tabMenu.item);
               }}
             >
               <Icon icon={X} size={14} />
-              {t('ui.session-workspace.side-tab-close', label(tabMenu.item))}
+              {tabMenu.item.kind === 'terminal'
+                ? t('ui.session-workspace.terminal-terminate')
+                : t('ui.session-workspace.side-tab-close', label(tabMenu.item))}
             </button>
           </div>
         )}
