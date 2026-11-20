@@ -1625,17 +1625,46 @@ type ChatWindowDetachTabOutput struct {
 	Focused bool `json:"focused"`
 }
 
-type ChatWindowDockTabInput struct {
-	Id string `json:"id"`
+type ChatWindowDockAckInput struct {
+	Id         string `json:"id"`
+	TransferId string `json:"transferId"`
+	Ok         bool   `json:"ok"`
 }
+
+type ChatWindowDockTabInput struct {
+	Id         string  `json:"id"`
+	TransferId *string `json:"transferId,omitempty"`
+	RequireAck *bool   `json:"requireAck,omitempty"`
+}
+
+// ChatWindowHandoffPutInputDirection 枚举：detach | dock
+type ChatWindowHandoffPutInputDirection = string
+
+const (
+	ChatWindowHandoffPutInputDirectionDetach ChatWindowHandoffPutInputDirection = "detach"
+	ChatWindowHandoffPutInputDirectionDock   ChatWindowHandoffPutInputDirection = "dock"
+)
 
 type ChatWindowHandoffPutInput struct {
-	Id   string `json:"id"`
-	Data string `json:"data"`
+	Id           string                              `json:"id"`
+	Data         string                              `json:"data"`
+	TransferId   *string                             `json:"transferId,omitempty"`
+	Direction    *ChatWindowHandoffPutInputDirection `json:"direction,omitempty"`
+	KeepUntilAck *bool                               `json:"keepUntilAck,omitempty"`
 }
 
+// ChatWindowHandoffTakeInputDirection 枚举：detach | dock
+type ChatWindowHandoffTakeInputDirection = string
+
+const (
+	ChatWindowHandoffTakeInputDirectionDetach ChatWindowHandoffTakeInputDirection = "detach"
+	ChatWindowHandoffTakeInputDirectionDock   ChatWindowHandoffTakeInputDirection = "dock"
+)
+
 type ChatWindowHandoffTakeInput struct {
-	Id string `json:"id"`
+	Id         string                               `json:"id"`
+	TransferId *string                              `json:"transferId,omitempty"`
+	Direction  *ChatWindowHandoffTakeInputDirection `json:"direction,omitempty"`
 }
 
 // CliLauncherGetOutputValueAccountSource 枚举：local | nomi
@@ -2597,6 +2626,34 @@ const (
 	DesktopProtectFolderOutputStatePendingItemRememberGroupTool     DesktopProtectFolderOutputStatePendingItemRememberGroup = "tool"
 )
 
+// DesktopProtectFolderOutputStatePendingItemDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type DesktopProtectFolderOutputStatePendingItemDelegatePermissionMode = string
+
+const (
+	DesktopProtectFolderOutputStatePendingItemDelegatePermissionModePlan        DesktopProtectFolderOutputStatePendingItemDelegatePermissionMode = "plan"
+	DesktopProtectFolderOutputStatePendingItemDelegatePermissionModeManual      DesktopProtectFolderOutputStatePendingItemDelegatePermissionMode = "manual"
+	DesktopProtectFolderOutputStatePendingItemDelegatePermissionModeAcceptEdits DesktopProtectFolderOutputStatePendingItemDelegatePermissionMode = "acceptEdits"
+	DesktopProtectFolderOutputStatePendingItemDelegatePermissionModeAuto        DesktopProtectFolderOutputStatePendingItemDelegatePermissionMode = "auto"
+	DesktopProtectFolderOutputStatePendingItemDelegatePermissionModeBypass      DesktopProtectFolderOutputStatePendingItemDelegatePermissionMode = "bypass"
+)
+
+// DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatus 枚举：on | off | unsupported
+type DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatus = string
+
+const (
+	DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatusOn          DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatus = "on"
+	DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatusOff         DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatus = "off"
+	DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatusUnsupported DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatus = "unsupported"
+)
+
+type DesktopProtectFolderOutputStatePendingItemDelegate struct {
+	Cli            string                                                           `json:"cli"`
+	PermissionMode DesktopProtectFolderOutputStatePendingItemDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  DesktopProtectFolderOutputStatePendingItemDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                                             `json:"workspaceGuard"`
+	EnvScrub       bool                                                             `json:"envScrub"`
+}
+
 type DesktopProtectFolderOutputStatePendingItem struct {
 	Id             string                                                   `json:"id"`
 	Tool           string                                                   `json:"tool"`
@@ -2615,6 +2672,7 @@ type DesktopProtectFolderOutputStatePendingItem struct {
 	RememberRule   *string                                                  `json:"rememberRule,omitempty"`
 	SessionCommand *string                                                  `json:"sessionCommand,omitempty"`
 	RememberGroup  *DesktopProtectFolderOutputStatePendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *DesktopProtectFolderOutputStatePendingItemDelegate      `json:"delegate,omitempty"`
 }
 
 type DesktopProtectFolderOutputState struct {
@@ -2818,6 +2876,34 @@ const (
 	DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroupTool     DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroup = "tool"
 )
 
+// DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionMode = string
+
+const (
+	DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionModePlan        DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionMode = "plan"
+	DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionModeManual      DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionMode = "manual"
+	DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionModeAcceptEdits DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionMode = "acceptEdits"
+	DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionModeAuto        DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionMode = "auto"
+	DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionModeBypass      DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionMode = "bypass"
+)
+
+// DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatus 枚举：on | off | unsupported
+type DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatus = string
+
+const (
+	DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatusOn          DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatus = "on"
+	DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatusOff         DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatus = "off"
+	DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatusUnsupported DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatus = "unsupported"
+)
+
+type DesktopRemoveCliSandboxAllowOutputPendingItemDelegate struct {
+	Cli            string                                                              `json:"cli"`
+	PermissionMode DesktopRemoveCliSandboxAllowOutputPendingItemDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  DesktopRemoveCliSandboxAllowOutputPendingItemDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                                                `json:"workspaceGuard"`
+	EnvScrub       bool                                                                `json:"envScrub"`
+}
+
 type DesktopRemoveCliSandboxAllowOutputPendingItem struct {
 	Id             string                                                      `json:"id"`
 	Tool           string                                                      `json:"tool"`
@@ -2836,6 +2922,7 @@ type DesktopRemoveCliSandboxAllowOutputPendingItem struct {
 	RememberRule   *string                                                     `json:"rememberRule,omitempty"`
 	SessionCommand *string                                                     `json:"sessionCommand,omitempty"`
 	RememberGroup  *DesktopRemoveCliSandboxAllowOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *DesktopRemoveCliSandboxAllowOutputPendingItemDelegate      `json:"delegate,omitempty"`
 }
 
 type DesktopRemoveCliSandboxAllowOutput struct {
@@ -2922,6 +3009,34 @@ const (
 	DesktopRemoveCommandRuleOutputPendingItemRememberGroupTool     DesktopRemoveCommandRuleOutputPendingItemRememberGroup = "tool"
 )
 
+// DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionMode = string
+
+const (
+	DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionModePlan        DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionMode = "plan"
+	DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionModeManual      DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionMode = "manual"
+	DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionModeAcceptEdits DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionMode = "acceptEdits"
+	DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionModeAuto        DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionMode = "auto"
+	DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionModeBypass      DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionMode = "bypass"
+)
+
+// DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatus 枚举：on | off | unsupported
+type DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatus = string
+
+const (
+	DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatusOn          DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatus = "on"
+	DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatusOff         DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatus = "off"
+	DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatusUnsupported DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatus = "unsupported"
+)
+
+type DesktopRemoveCommandRuleOutputPendingItemDelegate struct {
+	Cli            string                                                          `json:"cli"`
+	PermissionMode DesktopRemoveCommandRuleOutputPendingItemDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  DesktopRemoveCommandRuleOutputPendingItemDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                                            `json:"workspaceGuard"`
+	EnvScrub       bool                                                            `json:"envScrub"`
+}
+
 type DesktopRemoveCommandRuleOutputPendingItem struct {
 	Id             string                                                  `json:"id"`
 	Tool           string                                                  `json:"tool"`
@@ -2940,6 +3055,7 @@ type DesktopRemoveCommandRuleOutputPendingItem struct {
 	RememberRule   *string                                                 `json:"rememberRule,omitempty"`
 	SessionCommand *string                                                 `json:"sessionCommand,omitempty"`
 	RememberGroup  *DesktopRemoveCommandRuleOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *DesktopRemoveCommandRuleOutputPendingItemDelegate      `json:"delegate,omitempty"`
 }
 
 type DesktopRemoveCommandRuleOutput struct {
@@ -3030,6 +3146,34 @@ const (
 	DesktopSetCliEnvAllowOutputPendingItemRememberGroupTool     DesktopSetCliEnvAllowOutputPendingItemRememberGroup = "tool"
 )
 
+// DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionMode = string
+
+const (
+	DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionModePlan        DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionMode = "plan"
+	DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionModeManual      DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionMode = "manual"
+	DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionModeAcceptEdits DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionMode = "acceptEdits"
+	DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionModeAuto        DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionMode = "auto"
+	DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionModeBypass      DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionMode = "bypass"
+)
+
+// DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatus 枚举：on | off | unsupported
+type DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatus = string
+
+const (
+	DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatusOn          DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatus = "on"
+	DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatusOff         DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatus = "off"
+	DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatusUnsupported DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatus = "unsupported"
+)
+
+type DesktopSetCliEnvAllowOutputPendingItemDelegate struct {
+	Cli            string                                                       `json:"cli"`
+	PermissionMode DesktopSetCliEnvAllowOutputPendingItemDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  DesktopSetCliEnvAllowOutputPendingItemDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                                         `json:"workspaceGuard"`
+	EnvScrub       bool                                                         `json:"envScrub"`
+}
+
 type DesktopSetCliEnvAllowOutputPendingItem struct {
 	Id             string                                               `json:"id"`
 	Tool           string                                               `json:"tool"`
@@ -3048,6 +3192,7 @@ type DesktopSetCliEnvAllowOutputPendingItem struct {
 	RememberRule   *string                                              `json:"rememberRule,omitempty"`
 	SessionCommand *string                                              `json:"sessionCommand,omitempty"`
 	RememberGroup  *DesktopSetCliEnvAllowOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *DesktopSetCliEnvAllowOutputPendingItemDelegate      `json:"delegate,omitempty"`
 }
 
 type DesktopSetCliEnvAllowOutput struct {
@@ -3134,6 +3279,34 @@ const (
 	DesktopSetCliSandboxOutputPendingItemRememberGroupTool     DesktopSetCliSandboxOutputPendingItemRememberGroup = "tool"
 )
 
+// DesktopSetCliSandboxOutputPendingItemDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type DesktopSetCliSandboxOutputPendingItemDelegatePermissionMode = string
+
+const (
+	DesktopSetCliSandboxOutputPendingItemDelegatePermissionModePlan        DesktopSetCliSandboxOutputPendingItemDelegatePermissionMode = "plan"
+	DesktopSetCliSandboxOutputPendingItemDelegatePermissionModeManual      DesktopSetCliSandboxOutputPendingItemDelegatePermissionMode = "manual"
+	DesktopSetCliSandboxOutputPendingItemDelegatePermissionModeAcceptEdits DesktopSetCliSandboxOutputPendingItemDelegatePermissionMode = "acceptEdits"
+	DesktopSetCliSandboxOutputPendingItemDelegatePermissionModeAuto        DesktopSetCliSandboxOutputPendingItemDelegatePermissionMode = "auto"
+	DesktopSetCliSandboxOutputPendingItemDelegatePermissionModeBypass      DesktopSetCliSandboxOutputPendingItemDelegatePermissionMode = "bypass"
+)
+
+// DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatus 枚举：on | off | unsupported
+type DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatus = string
+
+const (
+	DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatusOn          DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatus = "on"
+	DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatusOff         DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatus = "off"
+	DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatusUnsupported DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatus = "unsupported"
+)
+
+type DesktopSetCliSandboxOutputPendingItemDelegate struct {
+	Cli            string                                                      `json:"cli"`
+	PermissionMode DesktopSetCliSandboxOutputPendingItemDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  DesktopSetCliSandboxOutputPendingItemDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                                        `json:"workspaceGuard"`
+	EnvScrub       bool                                                        `json:"envScrub"`
+}
+
 type DesktopSetCliSandboxOutputPendingItem struct {
 	Id             string                                              `json:"id"`
 	Tool           string                                              `json:"tool"`
@@ -3152,6 +3325,7 @@ type DesktopSetCliSandboxOutputPendingItem struct {
 	RememberRule   *string                                             `json:"rememberRule,omitempty"`
 	SessionCommand *string                                             `json:"sessionCommand,omitempty"`
 	RememberGroup  *DesktopSetCliSandboxOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *DesktopSetCliSandboxOutputPendingItemDelegate      `json:"delegate,omitempty"`
 }
 
 type DesktopSetCliSandboxOutput struct {
@@ -3243,6 +3417,34 @@ const (
 	DesktopStateOutputPendingItemRememberGroupTool     DesktopStateOutputPendingItemRememberGroup = "tool"
 )
 
+// DesktopStateOutputPendingItemDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type DesktopStateOutputPendingItemDelegatePermissionMode = string
+
+const (
+	DesktopStateOutputPendingItemDelegatePermissionModePlan        DesktopStateOutputPendingItemDelegatePermissionMode = "plan"
+	DesktopStateOutputPendingItemDelegatePermissionModeManual      DesktopStateOutputPendingItemDelegatePermissionMode = "manual"
+	DesktopStateOutputPendingItemDelegatePermissionModeAcceptEdits DesktopStateOutputPendingItemDelegatePermissionMode = "acceptEdits"
+	DesktopStateOutputPendingItemDelegatePermissionModeAuto        DesktopStateOutputPendingItemDelegatePermissionMode = "auto"
+	DesktopStateOutputPendingItemDelegatePermissionModeBypass      DesktopStateOutputPendingItemDelegatePermissionMode = "bypass"
+)
+
+// DesktopStateOutputPendingItemDelegateSandboxStatus 枚举：on | off | unsupported
+type DesktopStateOutputPendingItemDelegateSandboxStatus = string
+
+const (
+	DesktopStateOutputPendingItemDelegateSandboxStatusOn          DesktopStateOutputPendingItemDelegateSandboxStatus = "on"
+	DesktopStateOutputPendingItemDelegateSandboxStatusOff         DesktopStateOutputPendingItemDelegateSandboxStatus = "off"
+	DesktopStateOutputPendingItemDelegateSandboxStatusUnsupported DesktopStateOutputPendingItemDelegateSandboxStatus = "unsupported"
+)
+
+type DesktopStateOutputPendingItemDelegate struct {
+	Cli            string                                              `json:"cli"`
+	PermissionMode DesktopStateOutputPendingItemDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  DesktopStateOutputPendingItemDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                                `json:"workspaceGuard"`
+	EnvScrub       bool                                                `json:"envScrub"`
+}
+
 type DesktopStateOutputPendingItem struct {
 	Id             string                                      `json:"id"`
 	Tool           string                                      `json:"tool"`
@@ -3261,6 +3463,7 @@ type DesktopStateOutputPendingItem struct {
 	RememberRule   *string                                     `json:"rememberRule,omitempty"`
 	SessionCommand *string                                     `json:"sessionCommand,omitempty"`
 	RememberGroup  *DesktopStateOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *DesktopStateOutputPendingItemDelegate      `json:"delegate,omitempty"`
 }
 
 type DesktopStateOutput struct {
@@ -3367,6 +3570,34 @@ const (
 	DesktopUnprotectPathOutputPendingItemRememberGroupTool     DesktopUnprotectPathOutputPendingItemRememberGroup = "tool"
 )
 
+// DesktopUnprotectPathOutputPendingItemDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type DesktopUnprotectPathOutputPendingItemDelegatePermissionMode = string
+
+const (
+	DesktopUnprotectPathOutputPendingItemDelegatePermissionModePlan        DesktopUnprotectPathOutputPendingItemDelegatePermissionMode = "plan"
+	DesktopUnprotectPathOutputPendingItemDelegatePermissionModeManual      DesktopUnprotectPathOutputPendingItemDelegatePermissionMode = "manual"
+	DesktopUnprotectPathOutputPendingItemDelegatePermissionModeAcceptEdits DesktopUnprotectPathOutputPendingItemDelegatePermissionMode = "acceptEdits"
+	DesktopUnprotectPathOutputPendingItemDelegatePermissionModeAuto        DesktopUnprotectPathOutputPendingItemDelegatePermissionMode = "auto"
+	DesktopUnprotectPathOutputPendingItemDelegatePermissionModeBypass      DesktopUnprotectPathOutputPendingItemDelegatePermissionMode = "bypass"
+)
+
+// DesktopUnprotectPathOutputPendingItemDelegateSandboxStatus 枚举：on | off | unsupported
+type DesktopUnprotectPathOutputPendingItemDelegateSandboxStatus = string
+
+const (
+	DesktopUnprotectPathOutputPendingItemDelegateSandboxStatusOn          DesktopUnprotectPathOutputPendingItemDelegateSandboxStatus = "on"
+	DesktopUnprotectPathOutputPendingItemDelegateSandboxStatusOff         DesktopUnprotectPathOutputPendingItemDelegateSandboxStatus = "off"
+	DesktopUnprotectPathOutputPendingItemDelegateSandboxStatusUnsupported DesktopUnprotectPathOutputPendingItemDelegateSandboxStatus = "unsupported"
+)
+
+type DesktopUnprotectPathOutputPendingItemDelegate struct {
+	Cli            string                                                      `json:"cli"`
+	PermissionMode DesktopUnprotectPathOutputPendingItemDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  DesktopUnprotectPathOutputPendingItemDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                                        `json:"workspaceGuard"`
+	EnvScrub       bool                                                        `json:"envScrub"`
+}
+
 type DesktopUnprotectPathOutputPendingItem struct {
 	Id             string                                              `json:"id"`
 	Tool           string                                              `json:"tool"`
@@ -3385,6 +3616,7 @@ type DesktopUnprotectPathOutputPendingItem struct {
 	RememberRule   *string                                             `json:"rememberRule,omitempty"`
 	SessionCommand *string                                             `json:"sessionCommand,omitempty"`
 	RememberGroup  *DesktopUnprotectPathOutputPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *DesktopUnprotectPathOutputPendingItemDelegate      `json:"delegate,omitempty"`
 }
 
 type DesktopUnprotectPathOutput struct {
@@ -9118,7 +9350,8 @@ const (
 )
 
 type SideTerminalCloseInput struct {
-	Id string `json:"id"`
+	Id         string `json:"id"`
+	Generation *int64 `json:"generation,omitempty"`
 }
 
 type SideTerminalOpenInput struct {
@@ -9128,6 +9361,7 @@ type SideTerminalOpenInput struct {
 	ExplicitCwd *bool   `json:"explicitCwd,omitempty"`
 	Cols        *int64  `json:"cols,omitempty"`
 	Rows        *int64  `json:"rows,omitempty"`
+	Replace     *bool   `json:"replace,omitempty"`
 }
 
 // SideTerminalOpenOutputReason 枚举：unsupported | denied | limit | failed
@@ -9141,20 +9375,23 @@ const (
 )
 
 type SideTerminalOpenOutput struct {
-	Ok       bool                          `json:"ok"`
-	Cwd      *string                       `json:"cwd,omitempty"`
-	Shell    *string                       `json:"shell,omitempty"`
-	Replay   *string                       `json:"replay,omitempty"`
-	Exited   *bool                         `json:"exited,omitempty"`
-	ExitCode *int64                        `json:"exitCode,omitempty"`
-	Reason   *SideTerminalOpenOutputReason `json:"reason,omitempty"`
-	Message  *string                       `json:"message,omitempty"`
+	Ok           bool                          `json:"ok"`
+	Cwd          *string                       `json:"cwd,omitempty"`
+	Shell        *string                       `json:"shell,omitempty"`
+	Replay       *string                       `json:"replay,omitempty"`
+	Generation   *int64                        `json:"generation,omitempty"`
+	ReplayOffset *int64                        `json:"replayOffset,omitempty"`
+	Exited       *bool                         `json:"exited,omitempty"`
+	ExitCode     *int64                        `json:"exitCode,omitempty"`
+	Reason       *SideTerminalOpenOutputReason `json:"reason,omitempty"`
+	Message      *string                       `json:"message,omitempty"`
 }
 
 type SideTerminalResizeInput struct {
-	Id   string `json:"id"`
-	Cols int64  `json:"cols"`
-	Rows int64  `json:"rows"`
+	Id         string `json:"id"`
+	Cols       int64  `json:"cols"`
+	Rows       int64  `json:"rows"`
+	Generation *int64 `json:"generation,omitempty"`
 }
 
 type SideTerminalSyncInput struct {
@@ -9166,8 +9403,9 @@ type SideTerminalSyncOutput struct {
 }
 
 type SideTerminalWriteInput struct {
-	Id   string `json:"id"`
-	Data string `json:"data"`
+	Id         string `json:"id"`
+	Data       string `json:"data"`
+	Generation *int64 `json:"generation,omitempty"`
 }
 
 // StartupGetOutputDefaultView 枚举：mascot | main
@@ -11654,8 +11892,28 @@ type EventChatBgChanged struct {
 	Opacity  float64 `json:"opacity"`
 }
 
+type EventChatWindowDockRequest struct {
+	Id         string `json:"id"`
+	TransferId string `json:"transferId"`
+}
+
 type EventChatWindowTabDocked struct {
 	Id string `json:"id"`
+}
+
+// EventCliLauncherChangedValueAccountSource 枚举：local | nomi
+type EventCliLauncherChangedValueAccountSource = string
+
+const (
+	EventCliLauncherChangedValueAccountSourceLocal EventCliLauncherChangedValueAccountSource = "local"
+	EventCliLauncherChangedValueAccountSourceNomi  EventCliLauncherChangedValueAccountSource = "nomi"
+)
+
+type EventCliLauncherChangedValue struct {
+	Enabled       bool                                       `json:"enabled"`
+	Command       string                                     `json:"command"`
+	AccountSource *EventCliLauncherChangedValueAccountSource `json:"accountSource,omitempty"`
+	HasLocalLogin *bool                                      `json:"hasLocalLogin,omitempty"`
 }
 
 type EventCliRegistryChangedPluginsItem struct {
@@ -11774,6 +12032,34 @@ const (
 	EventDesktopChangedPendingItemRememberGroupTool     EventDesktopChangedPendingItemRememberGroup = "tool"
 )
 
+// EventDesktopChangedPendingItemDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type EventDesktopChangedPendingItemDelegatePermissionMode = string
+
+const (
+	EventDesktopChangedPendingItemDelegatePermissionModePlan        EventDesktopChangedPendingItemDelegatePermissionMode = "plan"
+	EventDesktopChangedPendingItemDelegatePermissionModeManual      EventDesktopChangedPendingItemDelegatePermissionMode = "manual"
+	EventDesktopChangedPendingItemDelegatePermissionModeAcceptEdits EventDesktopChangedPendingItemDelegatePermissionMode = "acceptEdits"
+	EventDesktopChangedPendingItemDelegatePermissionModeAuto        EventDesktopChangedPendingItemDelegatePermissionMode = "auto"
+	EventDesktopChangedPendingItemDelegatePermissionModeBypass      EventDesktopChangedPendingItemDelegatePermissionMode = "bypass"
+)
+
+// EventDesktopChangedPendingItemDelegateSandboxStatus 枚举：on | off | unsupported
+type EventDesktopChangedPendingItemDelegateSandboxStatus = string
+
+const (
+	EventDesktopChangedPendingItemDelegateSandboxStatusOn          EventDesktopChangedPendingItemDelegateSandboxStatus = "on"
+	EventDesktopChangedPendingItemDelegateSandboxStatusOff         EventDesktopChangedPendingItemDelegateSandboxStatus = "off"
+	EventDesktopChangedPendingItemDelegateSandboxStatusUnsupported EventDesktopChangedPendingItemDelegateSandboxStatus = "unsupported"
+)
+
+type EventDesktopChangedPendingItemDelegate struct {
+	Cli            string                                               `json:"cli"`
+	PermissionMode EventDesktopChangedPendingItemDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  EventDesktopChangedPendingItemDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                                 `json:"workspaceGuard"`
+	EnvScrub       bool                                                 `json:"envScrub"`
+}
+
 type EventDesktopChangedPendingItem struct {
 	Id             string                                       `json:"id"`
 	Tool           string                                       `json:"tool"`
@@ -11792,6 +12078,7 @@ type EventDesktopChangedPendingItem struct {
 	RememberRule   *string                                      `json:"rememberRule,omitempty"`
 	SessionCommand *string                                      `json:"sessionCommand,omitempty"`
 	RememberGroup  *EventDesktopChangedPendingItemRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *EventDesktopChangedPendingItemDelegate      `json:"delegate,omitempty"`
 }
 
 type EventDesktopChanged struct {
@@ -11842,6 +12129,34 @@ const (
 	EventDesktopConfirmRequestRememberGroupTool     EventDesktopConfirmRequestRememberGroup = "tool"
 )
 
+// EventDesktopConfirmRequestDelegatePermissionMode 枚举：plan | manual | acceptEdits | auto | bypass
+type EventDesktopConfirmRequestDelegatePermissionMode = string
+
+const (
+	EventDesktopConfirmRequestDelegatePermissionModePlan        EventDesktopConfirmRequestDelegatePermissionMode = "plan"
+	EventDesktopConfirmRequestDelegatePermissionModeManual      EventDesktopConfirmRequestDelegatePermissionMode = "manual"
+	EventDesktopConfirmRequestDelegatePermissionModeAcceptEdits EventDesktopConfirmRequestDelegatePermissionMode = "acceptEdits"
+	EventDesktopConfirmRequestDelegatePermissionModeAuto        EventDesktopConfirmRequestDelegatePermissionMode = "auto"
+	EventDesktopConfirmRequestDelegatePermissionModeBypass      EventDesktopConfirmRequestDelegatePermissionMode = "bypass"
+)
+
+// EventDesktopConfirmRequestDelegateSandboxStatus 枚举：on | off | unsupported
+type EventDesktopConfirmRequestDelegateSandboxStatus = string
+
+const (
+	EventDesktopConfirmRequestDelegateSandboxStatusOn          EventDesktopConfirmRequestDelegateSandboxStatus = "on"
+	EventDesktopConfirmRequestDelegateSandboxStatusOff         EventDesktopConfirmRequestDelegateSandboxStatus = "off"
+	EventDesktopConfirmRequestDelegateSandboxStatusUnsupported EventDesktopConfirmRequestDelegateSandboxStatus = "unsupported"
+)
+
+type EventDesktopConfirmRequestDelegate struct {
+	Cli            string                                           `json:"cli"`
+	PermissionMode EventDesktopConfirmRequestDelegatePermissionMode `json:"permissionMode"`
+	SandboxStatus  EventDesktopConfirmRequestDelegateSandboxStatus  `json:"sandboxStatus"`
+	WorkspaceGuard bool                                             `json:"workspaceGuard"`
+	EnvScrub       bool                                             `json:"envScrub"`
+}
+
 type EventDesktopConfirmRequest struct {
 	Id             string                                   `json:"id"`
 	Tool           string                                   `json:"tool"`
@@ -11860,6 +12175,7 @@ type EventDesktopConfirmRequest struct {
 	RememberRule   *string                                  `json:"rememberRule,omitempty"`
 	SessionCommand *string                                  `json:"sessionCommand,omitempty"`
 	RememberGroup  *EventDesktopConfirmRequestRememberGroup `json:"rememberGroup,omitempty"`
+	Delegate       *EventDesktopConfirmRequestDelegate      `json:"delegate,omitempty"`
 }
 
 type EventDesktopP2Changed struct {
@@ -12421,15 +12737,18 @@ type EventSchedResult struct {
 }
 
 type EventSideTerminalData struct {
-	Id   string `json:"id"`
-	Data string `json:"data"`
+	Id         string `json:"id"`
+	Data       string `json:"data"`
+	Generation *int64 `json:"generation,omitempty"`
+	Offset     *int64 `json:"offset,omitempty"`
 }
 
 type EventSideTerminalExit struct {
-	Id       string  `json:"id"`
-	ExitCode *int64  `json:"exitCode,omitempty"`
-	Signal   *string `json:"signal,omitempty"`
-	Message  *string `json:"message,omitempty"`
+	Id         string  `json:"id"`
+	Generation *int64  `json:"generation,omitempty"`
+	ExitCode   *int64  `json:"exitCode,omitempty"`
+	Signal     *string `json:"signal,omitempty"`
+	Message    *string `json:"message,omitempty"`
 }
 
 // EventStartupChangedDefaultView 枚举：mascot | main
@@ -12893,6 +13212,10 @@ type ChatWindowDetachTabOutputT = ChatWindowDetachTabOutput
 type ChatWindowDetachedTabsInputT = any
 type ChatWindowDetachedTabsOutputT = []string
 
+// ChatWindowDockAckInputT 是 chatWindow.dockAck 的入参
+type ChatWindowDockAckInputT = ChatWindowDockAckInput
+type ChatWindowDockAckOutputT = bool
+
 // ChatWindowDockTabInputT 是 chatWindow.dockTab 的入参
 type ChatWindowDockTabInputT = ChatWindowDockTabInput
 type ChatWindowDockTabOutputT = bool
@@ -12904,6 +13227,10 @@ type ChatWindowHandoffPutOutputT = bool
 // ChatWindowHandoffTakeInputT 是 chatWindow.handoffTake 的入参
 type ChatWindowHandoffTakeInputT = ChatWindowHandoffTakeInput
 type ChatWindowHandoffTakeOutputT = string
+
+// ChatWindowRegisterHostInputT 是 chatWindow.registerHost 的入参
+type ChatWindowRegisterHostInputT = any
+type ChatWindowRegisterHostOutputT = bool
 
 // CliLauncherGetInputT 是 cli.launcherGet 的入参
 type CliLauncherGetInputT = any
@@ -14646,7 +14973,9 @@ type EventCharacterAssetsChangedT = EventCharacterAssetsChanged
 type EventChatAssetsChangedT = any
 type EventChatBgChangedT = EventChatBgChanged
 type EventChatWindowDetachedChangedT = []string
+type EventChatWindowDockRequestT = EventChatWindowDockRequest
 type EventChatWindowTabDockedT = EventChatWindowTabDocked
+type EventCliLauncherChangedT = map[string]EventCliLauncherChangedValue
 type EventCliRegistryChangedT = EventCliRegistryChanged
 type EventCliAccountChangedT = any
 type EventCliAccountLoginT = EventCliAccountLogin

@@ -59,7 +59,6 @@ import type { SelectionQuote } from '../utils/selectionQuote';
 import {
   activateTab,
   agentKey,
-  closeAgent,
   closeSideTab,
   EMPTY_SIDE_TABS,
   findPage,
@@ -197,14 +196,19 @@ interface SubagentPaneValue {
 }
 
 const Ctx = createContext<SubagentPaneValue | null>(null);
+const EMPTY_DETACHED: ReadonlySet<string> = new Set();
 
 export const SubagentPaneProvider: React.FC<{
   scope?: string | null;
+  detached?: boolean;
   children: React.ReactNode;
-}> = ({ scope: propScope, children }) => {
+}> = ({ scope: propScope, detached: isDetached = false, children }) => {
   const harnessTabs = useHarnessTabs();
   const [scopeState, setScopeState] = useState('');
   const scope = propScope !== undefined ? (propScope ?? '') : scopeState;
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+  const settledDocksRef = useRef(new Set<string>());
   const [projectId, setProjectId] = useState<string | null>(null);
   // 每个会话一份；只有真实会话（scope 非空）写本地存储，重开应用后恢复
   const [byScope, setByScope] = useState<Record<string, SideTabsState>>(readSideTabsStore);
@@ -265,16 +269,26 @@ export const SubagentPaneProvider: React.FC<{
           : true;
   }, [liveTabs]);
   const raw = byScope[scope] ?? EMPTY_SIDE_TABS;
-  const detachedIds = useDetachedIds();
-  const detached = useMemo(() => detachedKeysFor(detachedIds, scope), [detachedIds, scope]);
+  const detachedIds = useDetachedIds(!isDetached);
+  const detached = useMemo(
+    () => (isDetached ? EMPTY_DETACHED : detachedKeysFor(detachedIds, scope)),
+    [isDetached, detachedIds, scope],
+  );
   // 显示用：去掉没了的和弹出去的（弹出去的仍记在本地存储里，窗口关掉后回到标签栏）
-  const tabs = useMemo(
-    () =>
+  const tabs = useMemo(() => {
+    const prunedAgents =
       alive || detached.size
         ? pruneAgents(raw, (a) => (!alive || alive(a)) && !detached.has(agentKey(a)))
-        : raw,
-    [raw, alive, detached],
-  );
+        : raw;
+    if (!detached.size) return prunedAgents;
+    const pages = prunedAgents.pages.filter(
+      (p) => !(p.kind === 'side-chat' && detached.has(pageKey(p))),
+    );
+    if (pages.length === prunedAgents.pages.length) return prunedAgents;
+    const nextActive =
+      prunedAgents.active && detached.has(prunedAgents.active) ? null : prunedAgents.active;
+    return { ...prunedAgents, pages, active: nextActive };
+  }, [raw, alive, detached]);
   const active = resolveActive(tabs, filesOpen);
 
   const update = useCallback(
@@ -416,10 +430,15 @@ export const SubagentPaneProvider: React.FC<{
   const openSideChatTab = useCallback(
     (chatId: string) => {
       if (!chatId) return;
+      const key = `side-chat:${chatId}`;
+      if (!isDetached && detached.has(key)) {
+        detachedWindows.focus(scope, key);
+        return;
+      }
       revealPane();
       update((s) => openSideChatPage(s, chatId));
     },
-    [revealPane, update],
+    [detached, isDetached, revealPane, scope, update],
   );
   const openSideChat = useCallback(
     (opts: { fresh?: boolean; quote?: SelectionQuote; replace?: string } = {}) => {
@@ -436,29 +455,106 @@ export const SubagentPaneProvider: React.FC<{
     },
     [active, update, revealPane, scope, projectId],
   );
-  // 弹出去的侧边聊天回来了（窗口关掉 / 放回）：收下那个窗口交接的内容；没有内容（窗口里关掉了）就关标签。
+  // 主窗口独占登记为弹出窗口放回接收者，并在两阶段 dockRequest 时完成接收再发送 dockAck
+  useEffect(() => {
+    if (isDetached) return;
+    void detachedWindows.registerHost();
+    return detachedWindows.onDockRequest(({ id, transferId }) => {
+      const p = parseDetachedId(id);
+      if (!p) {
+        void detachedWindows.dockAck(id, transferId, false);
+        return;
+      }
+      if (isSideChatKey(p.key)) {
+        const chatId = p.key.slice('side-chat:'.length);
+        void detachedWindows
+          .take(id, { direction: 'dock', transferId })
+          .then((data) => {
+            const ok = importSideChat(data) === chatId || !!sideChatState(chatId);
+            if (!ok) {
+              void detachedWindows.dockAck(id, transferId, false);
+              return;
+            }
+            settledDocksRef.current.add(id);
+            setByScope((all) => {
+              const cur = all[p.scope] ?? EMPTY_SIDE_TABS;
+              const next = openSideChatPage(cur, chatId);
+              if (next === all[p.scope]) return all;
+              const rest = { ...all };
+              delete rest[p.scope];
+              const out = { ...rest, [p.scope]: next };
+              if (p.scope) writeSideTabsStore(out);
+              return out;
+            });
+            if (p.scope === scopeRef.current) revealPane();
+            void detachedWindows.dockAck(id, transferId, true);
+          })
+          .catch(() => {
+            void detachedWindows.dockAck(id, transferId, false);
+          });
+        return;
+      }
+      settledDocksRef.current.add(id);
+      if (!p.key.startsWith('file:')) {
+        setByScope((all) => {
+          const cur = all[p.scope];
+          if (!cur) return all;
+          const next = activateTab(cur, p.key);
+          if (next === cur) return all;
+          const rest = { ...all };
+          delete rest[p.scope];
+          const out = { ...rest, [p.scope]: next };
+          if (p.scope) writeSideTabsStore(out);
+          return out;
+        });
+      }
+      if (p.scope === scopeRef.current) revealPane();
+      void detachedWindows.dockAck(id, transferId, true);
+    });
+  }, [isDetached, revealPane]);
+  // 弹出去的侧边聊天直接关窗口（非两阶段放回）：收下交接内容并恢复页面；没有内容（窗口里关掉了）就关标签。
   // 按宿主的整份 id 列表比较（切换会话不算「回来」）
   const prevIds = useRef(detachedIds);
   useEffect(() => {
+    if (isDetached) return;
     const before = prevIds.current;
     prevIds.current = detachedIds;
     if (before === detachedIds) return;
     const now = new Set(detachedIds);
     for (const id of before) {
-      const p = now.has(id) ? null : parseDetachedId(id);
+      if (now.has(id)) continue;
+      if (settledDocksRef.current.delete(id)) continue;
+      const p = parseDetachedId(id);
       if (!p || !isSideChatKey(p.key)) continue;
       const chatId = p.key.slice('side-chat:'.length);
-      void detachedWindows.take(id).then((data) => {
-        if (importSideChat(data) || sideChatState(chatId)) return;
+      void detachedWindows.take(id, { direction: 'dock' }).then((data) => {
+        if (importSideChat(data) === chatId || sideChatState(chatId)) {
+          setByScope((all) => {
+            const cur = all[p.scope] ?? EMPTY_SIDE_TABS;
+            if (cur.pages.some((pg) => pg.kind === 'side-chat' && pg.id === chatId)) return all;
+            const next = openSideChatPage(cur, chatId);
+            const rest = { ...all };
+            delete rest[p.scope];
+            const out = { ...rest, [p.scope]: next };
+            if (p.scope) writeSideTabsStore(out);
+            return out;
+          });
+          return;
+        }
         setByScope((all) => {
           const cur = all[p.scope];
           if (!cur) return all;
-          const next = closeAgent(cur, p.key);
-          return next === cur ? all : { ...all, [p.scope]: next };
+          const next = closeSideTab(cur, p.key);
+          if (next === cur) return all;
+          const rest = { ...all };
+          delete rest[p.scope];
+          const out = { ...rest, [p.scope]: next };
+          if (p.scope) writeSideTabsStore(out);
+          return out;
         });
       });
     }
-  }, [detachedIds]);
+  }, [isDetached, detachedIds]);
   const activate = useCallback((key: string) => update((s) => activateTab(s, key)), [update]);
   const toggle = useCallback((key?: string) => update((s) => toggleMaximized(s, key)), [update]);
   const restore = useCallback(

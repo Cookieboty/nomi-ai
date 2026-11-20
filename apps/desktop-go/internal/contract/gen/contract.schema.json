@@ -6742,6 +6742,41 @@
     }
    }
   },
+  "chatWindow.dockAck": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+     },
+     "transferId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+     },
+     "ok": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "id",
+     "transferId",
+     "ok"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
   "chatWindow.dockTab": {
    "kind": "mutation",
    "dangerous": false,
@@ -6756,6 +6791,14 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 2048
+     },
+     "transferId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+     },
+     "requireAck": {
+      "type": "boolean"
      }
     },
     "required": [
@@ -6786,6 +6829,21 @@
       "type": "string",
       "minLength": 2,
       "maxLength": 8388608
+     },
+     "transferId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+     },
+     "direction": {
+      "type": "string",
+      "enum": [
+       "detach",
+       "dock"
+      ]
+     },
+     "keepUntilAck": {
+      "type": "boolean"
      }
     },
     "required": [
@@ -6812,6 +6870,18 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 2048
+     },
+     "transferId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+     },
+     "direction": {
+      "type": "string",
+      "enum": [
+       "detach",
+       "dock"
+      ]
      }
     },
     "required": [
@@ -6824,6 +6894,20 @@
      "string",
      "null"
     ]
+   }
+  },
+  "chatWindow.registerHost": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
    }
   },
   "cli.launcherGet": {
@@ -10466,6 +10550,46 @@
               "computer",
               "tool"
              ]
+            },
+            "delegate": {
+             "type": "object",
+             "properties": {
+              "cli": {
+               "type": "string"
+              },
+              "permissionMode": {
+               "type": "string",
+               "enum": [
+                "plan",
+                "manual",
+                "acceptEdits",
+                "auto",
+                "bypass"
+               ]
+              },
+              "sandboxStatus": {
+               "type": "string",
+               "enum": [
+                "on",
+                "off",
+                "unsupported"
+               ]
+              },
+              "workspaceGuard": {
+               "type": "boolean"
+              },
+              "envScrub": {
+               "type": "boolean"
+              }
+             },
+             "required": [
+              "cli",
+              "permissionMode",
+              "sandboxStatus",
+              "workspaceGuard",
+              "envScrub"
+             ],
+             "additionalProperties": {}
             }
            },
            "required": [
@@ -11349,6 +11473,46 @@
           "computer",
           "tool"
          ]
+        },
+        "delegate": {
+         "type": "object",
+         "properties": {
+          "cli": {
+           "type": "string"
+          },
+          "permissionMode": {
+           "type": "string",
+           "enum": [
+            "plan",
+            "manual",
+            "acceptEdits",
+            "auto",
+            "bypass"
+           ]
+          },
+          "sandboxStatus": {
+           "type": "string",
+           "enum": [
+            "on",
+            "off",
+            "unsupported"
+           ]
+          },
+          "workspaceGuard": {
+           "type": "boolean"
+          },
+          "envScrub": {
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "cli",
+          "permissionMode",
+          "sandboxStatus",
+          "workspaceGuard",
+          "envScrub"
+         ],
+         "additionalProperties": {}
         }
        },
        "required": [
@@ -11680,6 +11844,46 @@
           "computer",
           "tool"
          ]
+        },
+        "delegate": {
+         "type": "object",
+         "properties": {
+          "cli": {
+           "type": "string"
+          },
+          "permissionMode": {
+           "type": "string",
+           "enum": [
+            "plan",
+            "manual",
+            "acceptEdits",
+            "auto",
+            "bypass"
+           ]
+          },
+          "sandboxStatus": {
+           "type": "string",
+           "enum": [
+            "on",
+            "off",
+            "unsupported"
+           ]
+          },
+          "workspaceGuard": {
+           "type": "boolean"
+          },
+          "envScrub": {
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "cli",
+          "permissionMode",
+          "sandboxStatus",
+          "workspaceGuard",
+          "envScrub"
+         ],
+         "additionalProperties": {}
         }
        },
        "required": [
@@ -12059,6 +12263,46 @@
           "computer",
           "tool"
          ]
+        },
+        "delegate": {
+         "type": "object",
+         "properties": {
+          "cli": {
+           "type": "string"
+          },
+          "permissionMode": {
+           "type": "string",
+           "enum": [
+            "plan",
+            "manual",
+            "acceptEdits",
+            "auto",
+            "bypass"
+           ]
+          },
+          "sandboxStatus": {
+           "type": "string",
+           "enum": [
+            "on",
+            "off",
+            "unsupported"
+           ]
+          },
+          "workspaceGuard": {
+           "type": "boolean"
+          },
+          "envScrub": {
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "cli",
+          "permissionMode",
+          "sandboxStatus",
+          "workspaceGuard",
+          "envScrub"
+         ],
+         "additionalProperties": {}
         }
        },
        "required": [
@@ -12390,6 +12634,46 @@
           "computer",
           "tool"
          ]
+        },
+        "delegate": {
+         "type": "object",
+         "properties": {
+          "cli": {
+           "type": "string"
+          },
+          "permissionMode": {
+           "type": "string",
+           "enum": [
+            "plan",
+            "manual",
+            "acceptEdits",
+            "auto",
+            "bypass"
+           ]
+          },
+          "sandboxStatus": {
+           "type": "string",
+           "enum": [
+            "on",
+            "off",
+            "unsupported"
+           ]
+          },
+          "workspaceGuard": {
+           "type": "boolean"
+          },
+          "envScrub": {
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "cli",
+          "permissionMode",
+          "sandboxStatus",
+          "workspaceGuard",
+          "envScrub"
+         ],
+         "additionalProperties": {}
         }
        },
        "required": [
@@ -12758,6 +13042,46 @@
           "computer",
           "tool"
          ]
+        },
+        "delegate": {
+         "type": "object",
+         "properties": {
+          "cli": {
+           "type": "string"
+          },
+          "permissionMode": {
+           "type": "string",
+           "enum": [
+            "plan",
+            "manual",
+            "acceptEdits",
+            "auto",
+            "bypass"
+           ]
+          },
+          "sandboxStatus": {
+           "type": "string",
+           "enum": [
+            "on",
+            "off",
+            "unsupported"
+           ]
+          },
+          "workspaceGuard": {
+           "type": "boolean"
+          },
+          "envScrub": {
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "cli",
+          "permissionMode",
+          "sandboxStatus",
+          "workspaceGuard",
+          "envScrub"
+         ],
+         "additionalProperties": {}
         }
        },
        "required": [
@@ -13196,6 +13520,46 @@
           "computer",
           "tool"
          ]
+        },
+        "delegate": {
+         "type": "object",
+         "properties": {
+          "cli": {
+           "type": "string"
+          },
+          "permissionMode": {
+           "type": "string",
+           "enum": [
+            "plan",
+            "manual",
+            "acceptEdits",
+            "auto",
+            "bypass"
+           ]
+          },
+          "sandboxStatus": {
+           "type": "string",
+           "enum": [
+            "on",
+            "off",
+            "unsupported"
+           ]
+          },
+          "workspaceGuard": {
+           "type": "boolean"
+          },
+          "envScrub": {
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "cli",
+          "permissionMode",
+          "sandboxStatus",
+          "workspaceGuard",
+          "envScrub"
+         ],
+         "additionalProperties": {}
         }
        },
        "required": [
@@ -30414,6 +30778,11 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 512
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
      }
     },
     "required": [
@@ -30476,6 +30845,9 @@
       "type": "integer",
       "minimum": 4,
       "maximum": 200
+     },
+     "replace": {
+      "type": "boolean"
      }
     },
     "required": [
@@ -30499,6 +30871,16 @@
      },
      "replay": {
       "type": "string"
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+     },
+     "replayOffset": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
      },
      "exited": {
       "type": "boolean"
@@ -30552,6 +30934,11 @@
       "type": "integer",
       "minimum": 4,
       "maximum": 200
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
      }
     },
     "required": [
@@ -30625,6 +31012,11 @@
      "data": {
       "type": "string",
       "maxLength": 65536
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
      }
     },
     "required": [
@@ -38865,6 +39257,23 @@
     "type": "string"
    }
   },
+  "chatWindow.dockRequest": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "transferId": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "transferId"
+   ],
+   "additionalProperties": false
+  },
   "chatWindow.tabDocked": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -38877,6 +39286,40 @@
     "id"
    ],
    "additionalProperties": false
+  },
+  "cli.launcherChanged": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "propertyNames": {
+    "type": "string"
+   },
+   "additionalProperties": {
+    "type": "object",
+    "properties": {
+     "enabled": {
+      "type": "boolean"
+     },
+     "command": {
+      "type": "string",
+      "maxLength": 8192
+     },
+     "accountSource": {
+      "type": "string",
+      "enum": [
+       "local",
+       "nomi"
+      ]
+     },
+     "hasLocalLogin": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "enabled",
+     "command"
+    ],
+    "additionalProperties": false
+   }
   },
   "cli.registryChanged": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -39391,6 +39834,46 @@
          "computer",
          "tool"
         ]
+       },
+       "delegate": {
+        "type": "object",
+        "properties": {
+         "cli": {
+          "type": "string"
+         },
+         "permissionMode": {
+          "type": "string",
+          "enum": [
+           "plan",
+           "manual",
+           "acceptEdits",
+           "auto",
+           "bypass"
+          ]
+         },
+         "sandboxStatus": {
+          "type": "string",
+          "enum": [
+           "on",
+           "off",
+           "unsupported"
+          ]
+         },
+         "workspaceGuard": {
+          "type": "boolean"
+         },
+         "envScrub": {
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "cli",
+         "permissionMode",
+         "sandboxStatus",
+         "workspaceGuard",
+         "envScrub"
+        ],
+        "additionalProperties": {}
        }
       },
       "required": [
@@ -39516,6 +39999,46 @@
       "computer",
       "tool"
      ]
+    },
+    "delegate": {
+     "type": "object",
+     "properties": {
+      "cli": {
+       "type": "string"
+      },
+      "permissionMode": {
+       "type": "string",
+       "enum": [
+        "plan",
+        "manual",
+        "acceptEdits",
+        "auto",
+        "bypass"
+       ]
+      },
+      "sandboxStatus": {
+       "type": "string",
+       "enum": [
+        "on",
+        "off",
+        "unsupported"
+       ]
+      },
+      "workspaceGuard": {
+       "type": "boolean"
+      },
+      "envScrub": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "cli",
+      "permissionMode",
+      "sandboxStatus",
+      "workspaceGuard",
+      "envScrub"
+     ],
+     "additionalProperties": {}
     }
    },
    "required": [
@@ -41126,6 +41649,16 @@
     },
     "data": {
      "type": "string"
+    },
+    "generation": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 9007199254740991
+    },
+    "offset": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
     }
    },
    "required": [
@@ -41140,6 +41673,11 @@
    "properties": {
     "id": {
      "type": "string"
+    },
+    "generation": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 9007199254740991
     },
     "exitCode": {
      "type": "integer",

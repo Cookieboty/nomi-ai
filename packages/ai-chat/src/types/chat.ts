@@ -134,7 +134,14 @@ export interface ChatSession {
    * 应用中途重启（如更新）后挂回这个会话的待发列表。交出去 / 删除 / 撤回 / 合成发送之后同步改这里；
    * 空了就删掉这个字段。见 services/pendingSendsStore。
    */
-  pendingSends?: Array<{ id: string; text: string; mode: 'steer' | 'queue'; kb?: true }>;
+  pendingSends?: Array<{
+    id: string;
+    text: string;
+    mode: 'steer' | 'queue';
+    kb?: true;
+    attachmentsMissing?: true;
+    imageOnly?: true;
+  }>;
   /**
    * 已经交给这一轮、回复还没结束的插入消息（存在元信息里，中途重启后补成用户消息）。
    * 正常结束时清掉，它们只留在回复的轨迹里。见 contexts/chatTurn。

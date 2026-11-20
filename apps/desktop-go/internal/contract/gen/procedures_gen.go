@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 502：mutation 358 / query 139 / stream 5
+// 合计 504：mutation 360 / query 139 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -84,9 +84,11 @@ var Procedures = []Procedure{
 	{Name: "chatBg.set", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatWindow.detachTab", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatWindow.detachedTabs", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "chatWindow.dockAck", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatWindow.dockTab", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatWindow.handoffPut", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "chatWindow.handoffTake", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "chatWindow.registerHost", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "cli.launcherGet", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "cli.launcherSet", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "cli.launcherTest", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
@@ -543,7 +545,9 @@ var Events = []string{
 	"chatAssets.changed",
 	"chatBg.changed",
 	"chatWindow.detachedChanged",
+	"chatWindow.dockRequest",
 	"chatWindow.tabDocked",
+	"cli.launcherChanged",
 	"cli.registryChanged",
 	"cliAccount.changed",
 	"cliAccount.login",
