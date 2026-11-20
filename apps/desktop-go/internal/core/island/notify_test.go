@@ -152,9 +152,10 @@ func TestIslandNoticeOpenTarget(t *testing.T) {
 	}
 
 	// Opened() 正在展示带 OpenID 的通知时直接跳转 opener
+	// 失败路径也要走加锁的快照：直接在 Fatalf 参数里读 r.opened 会和 host() 的 OpenChat 抢
 	s.Opened()
-	if len(opened) != 1 || opened[0] != "tab\x1ftab_3" || r.openedCount() != 0 {
-		t.Fatalf("Opened() with currentOpen: opened=%v chatOpened=%d", opened, r.opened)
+	if chatOpened := r.openedCount(); len(opened) != 1 || opened[0] != "tab\x1ftab_3" || chatOpened != 0 {
+		t.Fatalf("Opened() with currentOpen: opened=%v chatOpened=%d", opened, chatOpened)
 	}
 
 	// 即便点击触发 dismiss 导致 Hidden() 先到，OpenItem 仍能命中最近记忆的 noticeOpens
