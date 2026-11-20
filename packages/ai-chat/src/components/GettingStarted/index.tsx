@@ -86,8 +86,27 @@ interface Step {
   action?: React.ReactNode;
 }
 
-export const GettingStarted: React.FC<Props> = ({ mode, hasChats, onOpenSettings, onStart }) => {
+export const GettingStarted: React.FC<Props> = (props) => {
   const [dismissed, setDismissed] = useState(readDismissed);
+  if (dismissed) return null;
+  return (
+    <GettingStartedBody
+      {...props}
+      onDismiss={() => {
+        writeDismissed();
+        setDismissed(true);
+      }}
+    />
+  );
+};
+
+const GettingStartedBody: React.FC<Props & { onDismiss: () => void }> = ({
+  mode,
+  hasChats,
+  onOpenSettings,
+  onStart,
+  onDismiss,
+}) => {
   const [tried, setTried] = useState(readTried);
   const modelStatus = useNomiModelStatus();
   const profile = useUserProfile();
@@ -99,7 +118,7 @@ export const GettingStarted: React.FC<Props> = ({ mode, hasChats, onOpenSettings
     modelStatus === null ||
     (cliUpdateClient.available() && cli.anyInstalled === null) ||
     (onboardingClient.available() && profile === null);
-  if (dismissed || checking) return null;
+  if (checking) return null;
   if (modelStatus === undefined && !cliUpdateClient.available()) return null;
 
   const personalized = !!profile && hasUserProfile(profile);
@@ -244,10 +263,7 @@ export const GettingStarted: React.FC<Props> = ({ mode, hasChats, onOpenSettings
           size="sm"
           label={t('ui.chat-settings.hide')}
           icon={<Icon icon={X} size={14} />}
-          onClick={() => {
-            writeDismissed();
-            setDismissed(true);
-          }}
+          onClick={onDismiss}
           data-testid="getting-started-dismiss"
         />
       </div>
