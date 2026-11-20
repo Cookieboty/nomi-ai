@@ -46,6 +46,13 @@ import {
   sideTerminalIdFor,
   syncLiveTerminals,
 } from '../services/sideTerminal';
+import {
+  discardSideTrace,
+  discardSideTracesInScope,
+  migrateSideTracesScope,
+  registerSideTrace,
+  type SideTraceSpec,
+} from '../services/sideTrace';
 import { cliTranscriptKey } from '../services/transcriptView';
 import { detachedKeysFor, parseDetachedId } from '../utils/detachedTabs';
 import type { SelectionQuote } from '../utils/selectionQuote';
@@ -59,6 +66,7 @@ import {
   hasSideTabs,
   isSideChatKey,
   isTerminalKey,
+  isTraceKey,
   moveTab,
   newWorkspaceId,
   OPEN_FILE_SIDE_TAB,
@@ -69,6 +77,7 @@ import {
   openNewTab,
   openSideChatPage,
   openTerminalTab,
+  openTraceTab,
   pageKey,
   pruneAgents,
   readSideTabsStore,
@@ -90,7 +99,7 @@ import type { TerminalPaneNode } from '../utils/terminalSplit';
 
 import { useHarnessTabs } from './HarnessTabsContext';
 
-export type { SubagentTarget };
+export type { SideTraceSpec, SubagentTarget };
 
 /** 标签上显示的名字和状态（由各子任务面板报上来） */
 export interface SideTabMeta {
@@ -174,6 +183,17 @@ interface SubagentPaneValue {
   requestCloseTerminal: (key: string) => Promise<boolean>;
   setTerminalMeta: (key: string, patch: { cwd?: string; title?: string; shell?: string }) => void;
   setTerminalLayout: (key: string, layout: TerminalPaneNode, activePaneId?: string) => void;
+  /** 当前窗口是否存在活跃且未被整页遮挡的工作区 Tabs 宿主 */
+  hasHost: boolean;
+  /** SideWorkspace 挂载期注册为宿主（返回注销函数） */
+  registerHost: () => () => void;
+  /** App 在设置页或整页看板盖住会话时暂时挂起宿主标记 */
+  setHostSuspended: (suspended: boolean) => void;
+  /** 在工作区 Tabs 中打开（或复用同 dedupeKey 的）运行轨迹标签 */
+  openTrace: (
+    spec: SideTraceSpec,
+    opts?: { dedupeKey?: string; replace?: string; title?: string },
+  ) => string;
 }
 
 const Ctx = createContext<SubagentPaneValue | null>(null);
@@ -327,10 +347,11 @@ export const SubagentPaneProvider: React.FC<{
   );
   const split = useCallback((key?: string) => update((s) => toggleSplit(s, key)), [update]);
   const ratio = useCallback((r: number) => update((s) => setSplitRatio(s, r)), [update]);
-  // 关掉侧边聊天标签：聊天内容一并丢掉（它本来就是临时的）；关掉终端标签：通知宿主结束该标签下全部分屏 PTY
+  // 关掉侧边聊天标签：聊天内容一并丢掉（它本来就是临时的）；关掉终端标签：通知宿主结束该标签下全部分屏 PTY；关掉轨迹标签：释放内存载荷
   const closeTab = useCallback(
     (key: string) => {
       if (isSideChatKey(key)) discardSideChat(key.slice('side-chat:'.length));
+      if (isTraceKey(key)) discardSideTrace(key.slice('trace:'.length));
       if (isTerminalKey(key)) {
         const curState = byScopeRef.current[scope] ?? EMPTY_SIDE_TABS;
         const page = findPage(curState, key);
@@ -448,6 +469,7 @@ export const SubagentPaneProvider: React.FC<{
   const migrateScope = useCallback((fromScope: string, toScope: string) => {
     if (!fromScope || !toScope || fromScope === toScope) return;
     migrateSideChatsScope(fromScope, toScope);
+    migrateSideTracesScope(fromScope, toScope);
     setByScope((all) => {
       const fromState = all[fromScope];
       if (!fromState) return all;
@@ -571,13 +593,48 @@ export const SubagentPaneProvider: React.FC<{
     [update],
   );
 
-  // 删除会话或关闭 CLI 会话标签时，回收该会话下的所有内置终端 PTY 与标签状态
+  const [hostCount, setHostCount] = useState(0);
+  const [hostSuspended, setHostSuspended] = useState(false);
+  const registerHost = useCallback(() => {
+    setHostCount((c) => c + 1);
+    return () => setHostCount((c) => Math.max(0, c - 1));
+  }, []);
+  const hasHost = hostCount > 0 && !hostSuspended;
+
+  const openTrace = useCallback(
+    (spec: SideTraceSpec, opts?: { dedupeKey?: string; replace?: string; title?: string }) => {
+      const curState = byScopeRef.current[scope] ?? EMPTY_SIDE_TABS;
+      const existing = opts?.dedupeKey
+        ? curState.pages.find(
+            (p): p is Extract<WorkspacePage, { kind: 'trace' }> =>
+              p.kind === 'trace' && p.dedupeKey === opts.dedupeKey,
+          )
+        : undefined;
+      const id = existing ? existing.id : newWorkspaceId();
+      registerSideTrace(scope, spec, id);
+      revealPane();
+      const title = opts?.title ?? spec.title;
+      update((s) =>
+        openTraceTab(s, {
+          id,
+          title,
+          dedupeKey: opts?.dedupeKey,
+          replace: opts?.replace,
+        }),
+      );
+      return id;
+    },
+    [scope, revealPane, update],
+  );
+
+  // 删除会话或关闭 CLI 会话标签时，回收该会话下的所有内置终端 PTY、内存轨迹与标签状态
   const dropScopes = useCallback((scopes: readonly string[]) => {
     const targets = [...new Set(scopes.filter(Boolean))];
     if (!targets.length) return;
     const snapshot = byScopeRef.current;
     const toClosePanes = new Set<string>();
     for (const s of targets) {
+      discardSideTracesInScope(s);
       const cur = snapshot[s];
       if (!cur) continue;
       for (const p of cur.pages) {
@@ -748,6 +805,10 @@ export const SubagentPaneProvider: React.FC<{
       requestCloseTerminal,
       setTerminalMeta: patchTerminalMeta,
       setTerminalLayout: patchTerminalLayout,
+      hasHost,
+      registerHost,
+      setHostSuspended,
+      openTrace,
     }),
     [
       openSideChat,
@@ -762,6 +823,10 @@ export const SubagentPaneProvider: React.FC<{
       requestCloseTerminal,
       patchTerminalMeta,
       patchTerminalLayout,
+      hasHost,
+      registerHost,
+      setHostSuspended,
+      openTrace,
       paneVisible,
       panePref,
       showPane,

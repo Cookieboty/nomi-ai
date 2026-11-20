@@ -30,6 +30,7 @@ export type WorkspacePage =
   | { kind: 'open-file' }
   | { kind: 'side-chat'; id: string }
   | { kind: 'browser'; id: string; url: string; title?: string }
+  | { kind: 'trace'; id: string; title?: string; dedupeKey?: string }
   | {
       kind: 'terminal';
       id: string;
@@ -108,6 +109,8 @@ export function pageKey(page: WorkspacePage): string {
       return `side-chat:${page.id}`;
     case 'browser':
       return `browser:${page.id}`;
+    case 'trace':
+      return `trace:${page.id}`;
     case 'terminal':
       return `terminal:${page.id}`;
   }
@@ -115,6 +118,7 @@ export function pageKey(page: WorkspacePage): string {
 
 export const isNewTabKey = (key: string | null | undefined) => !!key?.startsWith('new-tab:');
 export const isBrowserKey = (key: string | null | undefined) => !!key?.startsWith('browser:');
+export const isTraceKey = (key: string | null | undefined) => !!key?.startsWith('trace:');
 export const isTerminalKey = (key: string | null | undefined) => !!key?.startsWith('terminal:');
 export const isSideChatPageKey = (key: string | null | undefined) =>
   !!key?.startsWith('side-chat:');
@@ -125,6 +129,7 @@ export function isPageKey(key: string | null | undefined): boolean {
     key === OPEN_FILE_SIDE_TAB ||
     isNewTabKey(key) ||
     isBrowserKey(key) ||
+    isTraceKey(key) ||
     isTerminalKey(key) ||
     isSideChatPageKey(key)
   );
@@ -249,6 +254,42 @@ export function setBrowserUrl(
       pageKey(p) === key && p.kind === 'browser' ? { ...p, url: href, title: title ?? p.title } : p,
     ),
   };
+}
+
+/** 打开（或切到同 dedupeKey 已开着的）运行轨迹工作区标签 */
+export function openTraceTab(
+  state: SideTabsState,
+  opts?: { id?: string; title?: string; dedupeKey?: string; replace?: string },
+): SideTabsState {
+  if (opts?.dedupeKey) {
+    const existing = state.pages.find(
+      (p): p is Extract<WorkspacePage, { kind: 'trace' }> =>
+        p.kind === 'trace' && p.dedupeKey === opts.dedupeKey,
+    );
+    if (existing) {
+      const updated: Extract<WorkspacePage, { kind: 'trace' }> =
+        opts.title !== undefined && opts.title !== existing.title
+          ? { ...existing, title: opts.title }
+          : existing;
+      const pages =
+        updated === existing
+          ? state.pages
+          : state.pages.map((p) => (p === existing ? updated : p));
+      return openPage(pages === state.pages ? state : { ...state, pages }, updated, {
+        replace: opts.replace,
+      });
+    }
+  }
+  return openPage(
+    state,
+    {
+      kind: 'trace',
+      id: opts?.id ?? newWorkspaceId(),
+      ...(opts?.title ? { title: opts.title } : {}),
+      ...(opts?.dedupeKey ? { dedupeKey: opts.dedupeKey } : {}),
+    },
+    opts,
+  );
 }
 
 /** 打开一个新的内置终端标签（支持多开，且支持替换来源的新标签页） */
@@ -458,6 +499,7 @@ export type SideTabKind =
   | 'open-file'
   | 'side-chat'
   | 'browser'
+  | 'trace'
   | 'terminal';
 
 export interface SideTabItem {
@@ -545,6 +587,7 @@ const isPage = (v: unknown): v is WorkspacePage => {
   if (o.kind === 'side-chat') return typeof o.id === 'string' && !!o.id;
   if (o.kind === 'new-tab') return typeof o.id === 'string' && !!o.id;
   if (o.kind === 'browser') return typeof o.id === 'string' && !!o.id && typeof o.url === 'string';
+  if (o.kind === 'trace') return typeof o.id === 'string' && !!o.id;
   if (o.kind === 'terminal') return typeof o.id === 'string' && !!o.id;
   return false;
 };
@@ -568,9 +611,11 @@ export function parseSideTabs(v: unknown): SideTabsState | null {
   if (!v || typeof v !== 'object') return null;
   const o = v as Record<string, unknown>;
   const agents = Array.isArray(o.agents) ? o.agents.filter(isTarget) : [];
-  // 侧边聊天和内置终端不跨应用重启恢复（避免重开应用拉起无效终端进程）。
+  // 侧边聊天、运行轨迹和内置终端不跨应用重启恢复（内容只在内存里或需重新打开终端）。
   const pages = Array.isArray(o.pages)
-    ? o.pages.filter(isPage).filter((p) => p.kind !== 'side-chat' && p.kind !== 'terminal')
+    ? o.pages
+        .filter(isPage)
+        .filter((p) => p.kind !== 'side-chat' && p.kind !== 'terminal' && p.kind !== 'trace')
     : [];
   const active = typeof o.active === 'string' ? o.active : null;
   const order = Array.isArray(o.order)
@@ -627,6 +672,17 @@ export function withoutTerminals(state: SideTabsState): SideTabsState {
   };
 }
 
+/** 去掉运行轨迹标签（落盘用；轨迹标签载荷只在内存里） */
+export function withoutTraces(state: SideTabsState): SideTabsState {
+  if (!state.pages.some((p) => p.kind === 'trace')) return state;
+  return {
+    ...state,
+    pages: state.pages.filter((p) => p.kind !== 'trace'),
+    order: state.order.filter((k) => !isTraceKey(k)),
+    active: isTraceKey(state.active) ? null : state.active,
+  };
+}
+
 const STORE_KEY = 'nomi.sideTabs.v1';
 /** 只记最近这么多个会话 */
 export const SIDE_TABS_KEEP = 40;
@@ -654,7 +710,7 @@ export function writeSideTabsStore(all: Record<string, SideTabsState>): void {
     const entries = Object.entries(all)
       .map(([scope, s]): [string, SideTabsState] => [
         scope,
-        withoutTerminals(withoutNewTabs(withoutSideChats(s))),
+        withoutTraces(withoutTerminals(withoutNewTabs(withoutSideChats(s)))),
       ])
       .filter(
         ([scope, s]) => !!scope && (s.agents.length > 0 || s.pages.length > 0 || s.maximized),

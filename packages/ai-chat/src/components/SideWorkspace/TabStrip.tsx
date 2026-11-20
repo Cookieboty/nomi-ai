@@ -21,6 +21,7 @@ import {
   IconMessage as MessageSquare,
   IconArrowsMinimize as Minimize2,
   IconPlus as Plus,
+  IconRoute as RouteIcon,
   IconExternalLink as SquareArrowOutUpRight,
   IconTerminal2 as TerminalIcon,
   IconX as X,
@@ -36,6 +37,14 @@ import { agentTargetBackend } from '../../utils/agentIdentity';
 import { delegateAlias } from '../../utils/delegateAlias';
 import { resolveDelegateTarget } from '../../utils/delegateTarget';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import {
+  clearFilePathDrag,
+  dispatchChatDropFilePath,
+  hasFilePathDrag,
+  previewEntryFilePath,
+  readFilePathDrag,
+  startFilePathDrag,
+} from '../../utils/filePathDrag';
 import { basename, resourceTarget } from '../../utils/resourceLinks';
 import { dropIndex, type SideTabItem, type SubagentTarget } from '../../utils/sideTabs';
 import { AgentHoverCard, setHoverCardsSuppressed } from '../AgentHoverCard';
@@ -63,6 +72,7 @@ const TabIcon: React.FC<{
   if (item.kind === 'open-file') return <Icon icon={FolderOpen} size={14} />;
   if (item.kind === 'side-chat') return <Icon icon={MessageCirclePlus} size={14} />;
   if (item.kind === 'browser') return <Icon icon={Globe} size={14} />;
+  if (item.kind === 'trace') return <Icon icon={RouteIcon} size={14} />;
   if (item.kind === 'terminal') return <Icon icon={TerminalIcon} size={14} />;
   if (item.target?.kind === 'side-chat') return <Icon icon={MessageCirclePlus} size={14} />;
   if (item.kind === 'file')
@@ -160,6 +170,7 @@ export const SideTabStrip: React.FC<{
   const dragFromClose = useRef(false);
   const [dropAt, setDropAt] = useState<{ key: string; after: boolean } | null>(null);
   const [splitHot, setSplitHot] = useState(false);
+  const [mainDropHot, setMainDropHot] = useState(false);
   // 键盘排序后焦点跟着标签走（排好后的下一次渲染里聚焦）
   const refocus = useRef<string | null>(null);
   const closeTabMenu = useCallback(() => setTabMenu(null), []);
@@ -189,6 +200,16 @@ export const SideTabStrip: React.FC<{
     setHoverCardsSuppressed(true);
     return () => setHoverCardsSuppressed(false);
   }, [drag]);
+  useEffect(() => {
+    if (!mainDropHot) return;
+    const reset = () => setMainDropHot(false);
+    window.addEventListener('dragend', reset);
+    window.addEventListener('drop', reset);
+    return () => {
+      window.removeEventListener('dragend', reset);
+      window.removeEventListener('drop', reset);
+    };
+  }, [mainDropHot]);
   const label = (item: SideTabItem): string => {
     if (item.kind === 'main') return t('ui.session-workspace.side-tab-main');
     if (item.kind === 'new-tab') return t('ui.session-workspace.new-tab');
@@ -206,6 +227,10 @@ export const SideTabStrip: React.FC<{
         }
       }
       return t('ui.session-workspace.open-browser');
+    }
+    if (item.kind === 'trace') {
+      const page = item.page && item.page.kind === 'trace' ? item.page : undefined;
+      return page?.title || t('ui.devtools.session-trace');
     }
     if (item.kind === 'terminal') {
       const page = item.page && item.page.kind === 'terminal' ? item.page : undefined;
@@ -240,6 +265,7 @@ export const SideTabStrip: React.FC<{
     setDrag(null);
     setDropAt(null);
     setSplitHot(false);
+    setMainDropHot(false);
   };
   return (
     <TitlebarContent name="center" enabled={inTitlebar}>
@@ -258,6 +284,8 @@ export const SideTabStrip: React.FC<{
                 : undefined;
             const name = label(item);
             const movable = item.kind !== 'main';
+            const fileDragPath =
+              item.kind === 'file' ? previewEntryFilePath(model.entryOf(item)) : null;
             return (
               <div
                 key={item.key}
@@ -265,6 +293,7 @@ export const SideTabStrip: React.FC<{
                 data-active={selected || undefined}
                 data-kind={item.kind}
                 data-dragging={drag === item.key || undefined}
+                data-file-drop={(item.kind === 'main' && mainDropHot) || undefined}
                 data-drop={
                   dropAt?.key === item.key ? (dropAt.after ? 'after' : 'before') : undefined
                 }
@@ -283,10 +312,24 @@ export const SideTabStrip: React.FC<{
                     return;
                   }
                   e.dataTransfer.setData(DRAG_TYPE, item.key);
-                  e.dataTransfer.effectAllowed = 'move';
+                  if (fileDragPath) {
+                    startFilePathDrag(
+                      e.dataTransfer,
+                      { path: fileDragPath, kind: 'file' },
+                      { effectAllowed: 'copyMove' },
+                    );
+                  } else {
+                    e.dataTransfer.effectAllowed = 'move';
+                  }
                   setDrag(item.key);
                 }}
                 onDragOver={(e) => {
+                  if (item.kind === 'main' && hasFilePathDrag(e.dataTransfer)) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                    setMainDropHot(true);
+                    return;
+                  }
                   if (!drag || drag === item.key) return;
                   e.preventDefault();
                   e.dataTransfer.dropEffect = 'move';
@@ -295,10 +338,28 @@ export const SideTabStrip: React.FC<{
                   if (dropAt?.key !== item.key || dropAt.after !== after)
                     setDropAt({ key: item.key, after });
                 }}
-                onDragLeave={() => {
+                onDragLeave={(e) => {
                   if (dropAt?.key === item.key) setDropAt(null);
+                  if (
+                    item.kind === 'main' &&
+                    (!(e.relatedTarget instanceof Node) ||
+                      !e.currentTarget.contains(e.relatedTarget))
+                  ) {
+                    setMainDropHot(false);
+                  }
                 }}
                 onDrop={(e) => {
+                  if (item.kind === 'main' && hasFilePathDrag(e.dataTransfer)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const payload = readFilePathDrag(e.dataTransfer);
+                    clearFilePathDrag();
+                    endDrag();
+                    if (!payload) return;
+                    model.activate(item);
+                    dispatchChatDropFilePath(payload);
+                    return;
+                  }
                   if (!drag) return;
                   e.preventDefault();
                   const box = e.currentTarget.getBoundingClientRect();
@@ -310,6 +371,7 @@ export const SideTabStrip: React.FC<{
                   // 拖出窗口松手：弹到独立窗口
                   if (drag && e.dataTransfer.dropEffect === 'none' && outsideWindow(e))
                     model.detach(item, name);
+                  clearFilePathDrag();
                   endDrag();
                 }}
                 onContextMenu={

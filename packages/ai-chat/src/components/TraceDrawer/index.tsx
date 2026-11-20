@@ -1,340 +1,51 @@
 /**
- * 开发者工具：一轮的执行轨迹（只在工作台模式下，从助手消息操作栏打开）。
- * - 时间线：思考 / 工具调用 / 网关请求的瀑布图，点一行看参数、输出、错误与耗时；
- * - 网关请求：这一轮经过网关的模型请求（模型、供应商、首字、token、结果），可看请求 / 响应正文；
- * - 子进程收发：agent 子进程的 stdin / stdout / stderr、启动参数与退出码（诊断日志开着时才有）；
- * - 原始事件：这条消息落盘的轨迹与用量 JSON。
- * 数据来源：消息自身的轨迹 + `quality.requests`（按标签 / 客户端与时间窗）+ `diagnostics.cliRecords` /
- * `diagnostics.gatewayTrace`。正文与收发在写入时已脱敏。
+ * 运行轨迹工作台（Trace Explorer）：
+ * - 不透明实底宽屏工作台（左主画布/列表 + 右检查器 Master-Detail），消除半透明透底与底部折行拥挤；
+ * - 四个核心视角：类 DSH 运行轨迹图（默认）、双比例尺时间线、思考脉络、网关请求 / 子进程 IO / 原始事件；
+ * - 支持全文检索、按类型/状态/慢步骤/代理泳道筛选，以及在图/时间线/思考/检查器之间联动定位；
+ * - 统一支撑单轮消息（TraceDrawer 向后兼容）、会话详情全景轨迹、任务详情轨迹三个入口。
  */
-import { Badge, Button, Modal, ModalHostContext, Tabs, t } from '@nomi-ai/ui';
-import React, { useEffect, useMemo, useState } from 'react';
-
+import { Badge, Button, Icon, Modal, Select, Tabs, Tooltip, t } from '@nomi-ai/ui';
 import {
-  diagnosticsClient,
-  type CliRecord,
-  type CliRecordsResult,
-  type GatewayTraceResult,
-} from '../../services/diagnosticsClient';
-import { qualityClient, type QualityRequestItem } from '../../services/qualityClient';
+  IconChevronDown as ChevronDown,
+  IconChevronUp as ChevronUp,
+  IconLayoutSidebarRight as SidebarRightIcon,
+  IconSearch as SearchIcon,
+  IconX as X,
+} from '@tabler/icons-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import type { CliRecord, CliRecordsResult } from '../../services/diagnosticsClient';
+import type { QualityRequestItem } from '../../services/qualityClient';
 import type { ConvMessage } from '../../types/conversation';
-import { cacheHitRate, formatHitRate } from '../../utils/cacheHit';
-import { callDuration, formatDuration } from '../../utils/toolTrace';
+import { formatHitRate } from '../../utils/cacheHit';
+import { formatDuration } from '../../utils/toolTrace';
 import { formatMs, outcomeLabel, outcomeTone } from '../QualityPanel/format';
 import { formatTokens } from '../UsagePanel/format';
 
 import styles from './index.module.css';
 import {
-  barOf,
+  filterTraceDocument,
   offsetLabel,
-  prettyJson,
-  turnWindow,
-  waterfallRows,
-  waterfallSpan,
-  type WaterfallRow,
+  type TraceKindFilter,
+  type TraceScope,
 } from './model';
+import { useTraceData, type TraceSource, type TraceTarget } from './sessionLoader';
+import { AuditBadge, Block, CopyButton, RequestDetail } from './shared';
+import { TraceGraph } from './TraceGraph';
+import { TraceInspector } from './TraceInspector';
+import { TraceModelAuditView } from './TraceModelAuditView';
+import { TraceThinkingView } from './TraceThinkingView';
+import { TraceTimeline } from './TraceTimeline';
 
-/** 这一轮属于哪种会话：agent 标签（按标签 id 关联）或 Nomi 对话（按客户端 nomi 关联） */
-export type TraceSource = { kind: 'cli'; tabId: string } | { kind: 'nomi' };
+export type { TraceSource, TraceTarget };
 
-type View = 'timeline' | 'requests' | 'process' | 'raw';
+type View = 'graph' | 'timeline' | 'thinking' | 'models' | 'requests' | 'process' | 'raw';
 
-const REQUEST_LIMIT = 200;
-/** 右侧抽屉（与子任务抽屉同一种宿主） */
-const DRAWER_HOST = { mode: 'drawer' as const };
-
-/** 复制按钮：复制后短暂显示「已复制」 */
-const CopyButton: React.FC<{ text: string; testId?: string }> = ({ text, testId }) => {
-  const [done, setDone] = useState(false);
-  useEffect(() => {
-    if (!done) return;
-    const id = window.setTimeout(() => setDone(false), 1500);
-    return () => window.clearTimeout(id);
-  }, [done]);
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      data-testid={testId}
-      onClick={() => {
-        void navigator.clipboard
-          ?.writeText(text)
-          .then(() => setDone(true))
-          .catch(() => undefined);
-      }}
-    >
-      {done ? t('ui.usage-tools.copied') : t('ui.knowledge-local.copy')}
-    </Button>
-  );
-};
-
-const Block: React.FC<{ label: string; text?: string; testId?: string }> = ({
-  label,
-  text,
-  testId,
-}) =>
-  text ? (
-    <section className={styles.block} data-testid={testId}>
-      <header className={styles.blockHead}>
-        <span>{label}</span>
-        <CopyButton text={text} />
-      </header>
-      <pre className={styles.pre}>{text}</pre>
-    </section>
-  ) : null;
-
-const Fact: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) =>
-  value === undefined || value === null || value === '' ? null : (
-    <>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </>
-  );
-
-const statusTone = (s: 'running' | 'done' | 'error'): 'accent' | 'success' | 'danger' =>
-  s === 'error' ? 'danger' : s === 'running' ? 'accent' : 'success';
-
-const statusLabel = (s: 'running' | 'done' | 'error'): string =>
-  s === 'error'
-    ? t('ui.foundation.failed')
-    : s === 'running'
-      ? t('ui.devtools.unfinished')
-      : t('ui.usage-tools.done');
-
-function rowTitle(row: WaterfallRow): string {
-  if (row.kind === 'thinking') return t('ui.devtools.thinking');
-  if (row.kind === 'tool') return row.call.name;
-  if (row.kind === 'interject') return row.text;
-  return row.req.display ?? row.req.model ?? t('ui.devtools.model-request');
-}
-
-/** 网关请求的正文（按需加载） */
-const RequestBody: React.FC<{ traceId?: string }> = ({ traceId }) => {
-  const [state, setState] = useState<GatewayTraceResult | 'loading' | { error: string } | null>(
-    null,
-  );
-  if (!traceId)
-    return <p className={styles.hint}>{t('ui.devtools.no-body-recorded-for-this-request')}</p>;
-  if (state === null)
-    return (
-      <Button
-        variant="secondary"
-        size="sm"
-        data-testid="trace-load-body"
-        onClick={() => {
-          setState('loading');
-          diagnosticsClient
-            .gatewayTrace(traceId)
-            .then(setState)
-            .catch((e: unknown) => setState({ error: (e as Error).message }));
-        }}
-      >
-        {t('ui.devtools.view-request-and-response-body')}
-      </Button>
-    );
-  if (state === 'loading') return <p className={styles.hint}>{t('ui.mascot-theme.loading')}</p>;
-  if ('error' in state) return <p className={styles.error}>{state.error}</p>;
-  if (!state.found || !state.text)
-    return <p className={styles.hint}>{t('ui.devtools.no-body-recorded-for-this-request')}</p>;
-  return (
-    <>
-      {state.truncated && <p className={styles.hint}>{t('ui.devtools.content-truncated')}</p>}
-      <Block label={t('ui.devtools.request-and-response')} text={state.text} testId="trace-body" />
-    </>
-  );
-};
-
-const RequestDetail: React.FC<{ req: QualityRequestItem }> = ({ req }) => {
-  const tk = req.tokens;
-  return (
-    <div className={styles.detail} data-testid="trace-request-detail">
-      <dl className={styles.facts}>
-        <Fact label={t('ui.foundation.model')} value={req.display ?? req.model} />
-        <Fact label={t('ui.devtools.upstream-model')} value={req.upstreamModel} />
-        <Fact label={t('ui.devtools.returned-model')} value={req.responseModel} />
-        <Fact
-          label={t('ui.providers-schedule.provider')}
-          value={req.providerName ?? req.provider}
-        />
-        <Fact label={t('ui.provider-link.key')} value={req.keyName ?? req.keyId} />
-        <Fact
-          label={t('ui.foundation.result')}
-          value={<Badge tone={outcomeTone(req.outcome)}>{outcomeLabel(req.outcome)}</Badge>}
-        />
-        <Fact label={t('ui.devtools.http-status')} value={req.status} />
-        <Fact label={t('ui.devtools.error-kind')} value={req.errorKind} />
-        <Fact
-          label={t('ui.model-quality.protocol')}
-          value={[req.ingress, req.wire].filter(Boolean).join(' → ')}
-        />
-        <Fact label={t('ui.devtools.mode')} value={req.mode} />
-        <Fact label={t('ui.devtools.first-content')} value={formatMs(req.timing.firstContentMs)} />
-        <Fact label={t('ui.devtools.total-time')} value={formatMs(req.timing.endMs)} />
-        <Fact
-          label={t('ui.devtools.tokens')}
-          value={[
-            tk.input !== undefined && `${t('ui.usage-tools.input')} ${formatTokens(tk.input)}`,
-            tk.output !== undefined && `${t('ui.usage-tools.output')} ${formatTokens(tk.output)}`,
-            tk.cacheRead !== undefined &&
-              `${t('ui.usage-tools.cache-read')} ${formatTokens(tk.cacheRead)}`,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        />
-        <Fact label={t('ui.model-quality.trace-id')} value={req.traceId} />
-      </dl>
-      {!!req.attempts?.length && (
-        <Block
-          label={t('ui.model-quality.attempts-per-candidate')}
-          text={JSON.stringify(req.attempts, null, 2)}
-        />
-      )}
-      {!!req.notes?.length && (
-        <Block label={t('ui.model-quality.gateway-adjustments')} text={req.notes.join('\n')} />
-      )}
-      <RequestBody traceId={req.traceId} />
-    </div>
-  );
-};
-
-const RowDetail: React.FC<{ row: WaterfallRow }> = ({ row }) => {
-  if (row.kind === 'request') return <RequestDetail req={row.req} />;
-  if (row.kind === 'interject')
-    return (
-      <div className={styles.detail}>
-        <Block label={t('ui.session-workspace.you-added')} text={row.text} />
-      </div>
-    );
-  if (row.kind === 'thinking')
-    return (
-      <div className={styles.detail}>
-        <Block label={t('ui.devtools.thinking')} text={row.text} />
-      </div>
-    );
-  const c = row.call;
-  return (
-    <div className={styles.detail} data-testid="trace-tool-detail">
-      <dl className={styles.facts}>
-        <Fact label={t('ui.foundation.tool')} value={c.name} />
-        <Fact
-          label={t('ui.cli-monitor.status')}
-          value={<Badge tone={statusTone(c.status)}>{statusLabel(c.status)}</Badge>}
-        />
-        <Fact
-          label={t('ui.devtools.elapsed')}
-          value={formatDuration(callDuration(c)) || undefined}
-        />
-        <Fact label={t('ui.devtools.call-id')} value={c.id} />
-        <Fact label={t('ui.devtools.parent-call')} value={c.parentId} />
-      </dl>
-      <Block
-        label={t('ui.usage-tools.input')}
-        text={prettyJson(c.input)}
-        testId="trace-tool-input"
-      />
-      <Block
-        label={c.status === 'error' ? t('ui.model-quality.error') : t('ui.usage-tools.output')}
-        text={c.output}
-        testId="trace-tool-output"
-      />
-      {!c.input && !c.output && (
-        <p className={styles.hint}>{t('ui.devtools.no-input-or-output-was-kept')}</p>
-      )}
-    </div>
-  );
-};
-
-const Timeline: React.FC<{
-  rows: WaterfallRow[];
-  from: number;
-  to: number;
-}> = ({ rows, from, to }) => {
-  const [pick, setPick] = useState<string | null>(null);
-  const span = useMemo(() => waterfallSpan({ from, to }, rows), [from, to, rows]);
-  if (!rows.length) return <p className={styles.hint}>{t('ui.devtools.no-steps-in-this-turn')}</p>;
-  const picked = rows.find((r) => r.id === pick);
-  return (
-    <div className={styles.timeline}>
-      <div className={styles.scale} aria-hidden>
-        <span>{offsetLabel(span.from, span.from)}</span>
-        <span>{offsetLabel(span.to, span.from)}</span>
-      </div>
-      <ul className={styles.rows} role="listbox" aria-label={t('ui.model-quality.timeline')}>
-        {rows.map((r) => {
-          const bar = barOf(r, span);
-          const status =
-            r.kind === 'tool'
-              ? r.call.status
-              : r.kind === 'request'
-                ? r.req.outcome === 'ok'
-                  ? 'done'
-                  : 'error'
-                : 'done';
-          const dur =
-            r.kind === 'request'
-              ? formatMs(r.req.timing.endMs)
-              : r.end !== undefined && !Number.isNaN(r.start)
-                ? formatDuration(r.end - r.start)
-                : '';
-          return (
-            <li key={r.id}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={pick === r.id}
-                className={styles.row}
-                data-kind={r.kind}
-                data-status={status}
-                data-testid="trace-row"
-                onClick={() => setPick(pick === r.id ? null : r.id)}
-              >
-                <span
-                  className={styles.rowName}
-                  style={
-                    r.kind === 'tool' ? { paddingInlineStart: `${r.depth * 12}px` } : undefined
-                  }
-                >
-                  <span className={styles.kind}>
-                    {r.kind === 'request'
-                      ? t('ui.slash-commands.requests')
-                      : r.kind === 'thinking'
-                        ? t('ui.devtools.thinking')
-                        : r.kind === 'interject'
-                          ? t('ui.session-workspace.inserted')
-                          : t('ui.foundation.tool')}
-                  </span>
-                  <span className={styles.rowTitle}>{rowTitle(r)}</span>
-                </span>
-                <span className={styles.track}>
-                  {bar && (
-                    <span
-                      className={styles.bar}
-                      style={{ left: `${bar.left}%`, width: `${bar.width}%` }}
-                    />
-                  )}
-                  {r.kind === 'request' && r.firstAt !== undefined && (
-                    <span
-                      className={styles.marker}
-                      style={{
-                        left: `${((r.firstAt - span.from) / (span.to - span.from)) * 100}%`,
-                      }}
-                      title={t('ui.devtools.first-content')}
-                    />
-                  )}
-                </span>
-                <span className={styles.rowDur}>{dur}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      {picked ? (
-        <RowDetail row={picked} />
-      ) : (
-        <p className={styles.hint}>{t('ui.devtools.click-a-row-to-see-details')}</p>
-      )}
-    </div>
-  );
+const SCOPE_KEY: Record<TraceScope, string> = {
+  turn: 'ui.devtools.scope-turn',
+  session: 'ui.devtools.scope-session',
+  task: 'ui.devtools.scope-task',
 };
 
 const RequestList: React.FC<{
@@ -345,7 +56,7 @@ const RequestList: React.FC<{
   const [open, setOpen] = useState<string | null>(null);
   if (error) return <p className={styles.error}>{error}</p>;
   if (!requests) return <p className={styles.hint}>{t('ui.mascot-theme.loading')}</p>;
-  if (!requests.length)
+  if (!requests.length) {
     return (
       <p className={styles.hint}>
         {source.kind === 'cli'
@@ -353,6 +64,7 @@ const RequestList: React.FC<{
           : t('ui.devtools.no-gateway-requests-in-this-turn')}
       </p>
     );
+  }
   return (
     <ul className={styles.list}>
       {requests.map((r) => (
@@ -452,71 +164,165 @@ const ProcessLog: React.FC<{
   );
 };
 
-export const TraceDrawer: React.FC<{
-  message: ConvMessage;
-  source: TraceSource;
-  onClose: () => void;
-}> = ({ message, source, onClose }) => {
-  const [view, setView] = useState<View>('timeline');
-  const win = useMemo(() => turnWindow(message), [message]);
-  const [requests, setRequests] = useState<QualityRequestItem[] | null>(null);
-  const [reqError, setReqError] = useState<string | null>(null);
-  const [proc, setProc] = useState<CliRecordsResult | null>(null);
-  const [procError, setProcError] = useState<string | null>(null);
-  const tabId = source.kind === 'cli' ? source.tabId : null;
-  // 缓存命中率：只算 Nomi 自己的（agent 各家输入口径不一，见 utils/cacheHit）
-  const hitRate =
-    source.kind === 'cli'
-      ? undefined
-      : cacheHitRate(message.usage?.inputTokens, message.usage?.cacheReadTokens);
+export interface TraceWorkbenchProps {
+  target: TraceTarget;
+  /** 嵌入到 SideWorkspace 标签卡时渲染铺满面板，不再套 Modal */
+  embedded?: boolean;
+  /** 切走其他标签卡时通过 hidden 保活 DOM 与视图状态 */
+  hidden?: boolean;
+  onTitleChange?: (title: string) => void;
+}
+
+export const TraceWorkbench: React.FC<TraceWorkbenchProps> = ({
+  target,
+  embedded = false,
+  hidden = false,
+  onTitleChange,
+}) => {
+  const { doc, source, requests, reqError, proc, procError, loadingDetails, rawJson } =
+    useTraceData(target);
 
   useEffect(() => {
-    let alive = true;
-    // 网关记账在请求结束后才落，起点稍往前、终点稍往后，免得漏掉边上的请求
-    qualityClient
-      .requests({
-        from: win.from - 2000,
-        to: win.to + 2000,
-        layer: 'gateway',
-        limit: REQUEST_LIMIT,
-        ...(tabId ? { tabId } : { filters: { client: ['nomi'] } }),
-      })
-      .then((p) => alive && setRequests([...p.items].sort((a, b) => a.ts - b.ts)))
-      .catch((e: unknown) => alive && setReqError((e as Error).message));
-    if (tabId)
-      diagnosticsClient
-        .cliRecords({ tabId, from: win.from, to: win.to })
-        .then((r) => alive && setProc(r))
-        .catch((e: unknown) => alive && setProcError((e as Error).message));
-    return () => {
-      alive = false;
-    };
-  }, [win.from, win.to, tabId]);
+    onTitleChange?.(doc.title);
+  }, [doc.title, onTitleChange]);
 
-  const rows = useMemo(() => waterfallRows(message, requests ?? []), [message, requests]);
-  const tools = rows.filter((r) => r.kind === 'tool');
-  const failed = tools.filter((r) => r.kind === 'tool' && r.call.status === 'error').length;
-  const raw = useMemo(
+  const [view, setView] = useState<View>('graph');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [kindFilter, setKindFilter] = useState<TraceKindFilter>('all');
+  const [laneFilter, setLaneFilter] = useState<string>('all');
+  const [modelFilter, setModelFilter] = useState<string>('all');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [matchCursor, setMatchCursor] = useState(0);
+  const [focusState, setFocusState] = useState<{ id: string | null; nonce: number }>({
+    id: null,
+    nonce: 0,
+  });
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const filterResult = useMemo(
     () =>
-      JSON.stringify(
-        {
-          id: message.id,
-          at: new Date(message.at).toISOString(),
-          durationMs: message.durationMs,
-          model: message.model,
-          usage: message.usage,
-          error: message.error,
-          stopped: message.stopped,
-          trace: message.trace ?? [],
-        },
-        null,
-        2,
-      ),
-    [message],
+      filterTraceDocument(doc, {
+        query: searchQuery,
+        kind: kindFilter,
+        laneId: laneFilter,
+        model: modelFilter,
+      }),
+    [doc, searchQuery, kindFilter, laneFilter, modelFilter],
   );
 
+  const applyFilterReset = useCallback(
+    (nextQuery: string, nextKind: TraceKindFilter, nextLane: string, nextModel: string) => {
+      const res = filterTraceDocument(doc, {
+        query: nextQuery,
+        kind: nextKind,
+        laneId: nextLane,
+        model: nextModel,
+      });
+      setMatchCursor(0);
+      if (res.active && res.orderedMatches.length > 0) {
+        const first = res.orderedMatches[0]!;
+        setSelectedId(first);
+        setFocusState((s) => ({ id: first, nonce: s.nonce + 1 }));
+      }
+    },
+    [doc],
+  );
+
+  const updateSearchQuery = useCallback(
+    (next: string) => {
+      setSearchQuery(next);
+      applyFilterReset(next, kindFilter, laneFilter, modelFilter);
+    },
+    [applyFilterReset, kindFilter, laneFilter, modelFilter],
+  );
+
+  const updateKindFilter = useCallback(
+    (next: TraceKindFilter) => {
+      setKindFilter(next);
+      applyFilterReset(searchQuery, next, laneFilter, modelFilter);
+    },
+    [applyFilterReset, searchQuery, laneFilter, modelFilter],
+  );
+
+  const updateLaneFilter = useCallback(
+    (next: string) => {
+      setLaneFilter(next);
+      applyFilterReset(searchQuery, kindFilter, next, modelFilter);
+    },
+    [applyFilterReset, searchQuery, kindFilter, modelFilter],
+  );
+
+  const updateModelFilter = useCallback(
+    (next: string) => {
+      setModelFilter(next);
+      applyFilterReset(searchQuery, kindFilter, laneFilter, next);
+    },
+    [applyFilterReset, searchQuery, kindFilter, laneFilter],
+  );
+
+  const jumpMatch = useCallback(
+    (dir: -1 | 1) => {
+      const list = filterResult.orderedMatches;
+      if (!list.length) return;
+      const next = (matchCursor + dir + list.length) % list.length;
+      const id = list[next]!;
+      setMatchCursor(next);
+      setSelectedId(id);
+      setInspectorOpen(true);
+      setFocusState((s) => ({ id, nonce: s.nonce + 1 }));
+    },
+    [filterResult.orderedMatches, matchCursor],
+  );
+
+  const handleSelect = useCallback((id: string | null) => {
+    setSelectedId(id);
+    if (id) setInspectorOpen(true);
+  }, []);
+
+  const handleStep = useCallback(
+    (dir: -1 | 1) => {
+      const pool = filterResult.active ? filterResult.orderedMatches : doc.orderedNodeIds;
+      if (!pool.length) return;
+      const idx = selectedId ? pool.indexOf(selectedId) : -1;
+      const nextIdx =
+        idx < 0 ? 0 : (idx + dir + pool.length) % pool.length;
+      const nextId = pool[nextIdx]!;
+      setSelectedId(nextId);
+      setFocusState((s) => ({ id: nextId, nonce: s.nonce + 1 }));
+    },
+    [filterResult, doc.orderedNodeIds, selectedId],
+  );
+
+  const handleLocateInGraph = useCallback((id: string) => {
+    setView('graph');
+    setSelectedId(id);
+    setInspectorOpen(true);
+    setFocusState((s) => ({ id, nonce: s.nonce + 1 }));
+  }, []);
+
+  const handleQuickSearch = useCallback(
+    (term: string) => {
+      setSearchQuery(term);
+      setKindFilter('all');
+      applyFilterReset(term, 'all', laneFilter, modelFilter);
+    },
+    [applyFilterReset, laneFilter, modelFilter],
+  );
+
+  const tabId = source.kind === 'cli' ? source.tabId : null;
+  const modelSummary = doc.modelAnalysis.summary;
   const items: { value: View; label: string }[] = [
+    { value: 'graph', label: t('ui.devtools.trace-graph') },
     { value: 'timeline', label: t('ui.model-quality.timeline') },
+    { value: 'thinking', label: t('ui.devtools.thinking-flow') },
+    {
+      value: 'models',
+      label:
+        modelSummary.mismatchCount > 0
+          ? `${t('ui.devtools.model-audit')} (${modelSummary.mismatchCount})`
+          : t('ui.devtools.model-audit'),
+    },
     {
       value: 'requests',
       label: requests
@@ -536,44 +342,135 @@ export const TraceDrawer: React.FC<{
     { value: 'raw', label: t('ui.devtools.raw-events') },
   ];
 
-  return (
-    <ModalHostContext.Provider value={DRAWER_HOST}>
-      <Modal
-        open
-        onClose={onClose}
-        size="lg"
-        title={t('ui.devtools.execution-trace')}
-        bodyClassName={styles.body}
-        data-testid="trace-drawer"
-      >
-        <div className={styles.root}>
-          <dl className={styles.summary}>
-            <Fact
-              label={t('ui.model-quality.start')}
-              value={new Date(win.from).toLocaleTimeString()}
-            />
-            <Fact label={t('ui.devtools.elapsed')} value={formatDuration(win.to - win.from)} />
-            <Fact label={t('ui.foundation.model')} value={message.model} />
-            <Fact label={t('ui.models.tool-calls')} value={String(tools.length)} />
-            {failed > 0 && <Fact label={t('ui.devtools.failed-calls')} value={String(failed)} />}
-            {message.usage?.inputTokens !== undefined && (
-              <Fact
-                label={t('ui.devtools.tokens')}
-                value={`${formatTokens(message.usage.inputTokens)} / ${formatTokens(message.usage.outputTokens ?? 0)}`}
-              />
-            )}
-            {hitRate !== undefined && (
-              <Fact
-                label={t('ui.model-quality.cache-hit')}
-                value={t(
+  const chips: Array<{ value: TraceKindFilter; label: string; count?: number; danger?: boolean }> = [
+    { value: 'all', label: t('ui.providers-schedule.all') },
+    { value: 'thinking', label: t('ui.voice-mascot.think'), count: doc.stats.thinkingCount },
+    { value: 'tool', label: t('ui.foundation.tool'), count: doc.stats.toolCount },
+    ...(doc.stats.subagentCount > 0
+      ? [{ value: 'subagent' as const, label: t('ui.usage-tools.subagent'), count: doc.stats.subagentCount }]
+      : []),
+    ...(doc.stats.requestCount > 0
+      ? [{ value: 'request' as const, label: t('ui.devtools.gateway-requests'), count: doc.stats.requestCount }]
+      : []),
+    ...(doc.stats.modelAnomalyCount > 0
+      ? [
+          {
+            value: 'mismatch' as const,
+            label: t('ui.devtools.filter-model-anomalies'),
+            count: doc.stats.modelAnomalyCount,
+            danger: modelSummary.mismatchCount > 0,
+          },
+        ]
+      : []),
+    ...(doc.stats.failedCount > 0
+      ? [
+          {
+            value: 'error' as const,
+            label: t('ui.devtools.filter-errors-only'),
+            count: doc.stats.failedCount,
+            danger: true,
+          },
+        ]
+      : []),
+    ...(doc.stats.slowCount > 0
+      ? [
+          {
+            value: 'slow' as const,
+            label: t('ui.devtools.filter-slow-steps'),
+            count: doc.stats.slowCount,
+          },
+        ]
+      : []),
+  ];
+
+  const splitActive = view === 'graph' || view === 'timeline' || view === 'thinking';
+
+  const content = (
+    <div className={styles.root}>
+      {/* 紧凑一行 KPI 汇总条 */}
+        <div className={styles.kpiStrip} data-testid="trace-kpi-strip">
+          <Badge tone="accent">{t(SCOPE_KEY[doc.scope])}</Badge>
+          <span className={styles.kpiItem}>
+            <span className={styles.kpiLabel}>{t('ui.model-quality.start')}</span>
+            <span className={styles.kpiVal}>{new Date(doc.from).toLocaleTimeString()}</span>
+          </span>
+          <span className={styles.kpiItem}>
+            <span className={styles.kpiLabel}>{t('ui.devtools.elapsed')}</span>
+            <span className={styles.kpiVal}>{formatDuration(doc.to - doc.from)}</span>
+          </span>
+          <span className={styles.kpiItem}>
+            <span className={styles.kpiLabel}>{t('ui.devtools.turns-count')}</span>
+            <span className={styles.kpiVal}>{doc.stats.turns}</span>
+          </span>
+          <span className={styles.kpiItem}>
+            <span className={styles.kpiLabel}>{t('ui.devtools.thinking-count')}</span>
+            <span className={styles.kpiVal}>{doc.stats.thinkingCount}</span>
+          </span>
+          <span className={styles.kpiItem}>
+            <span className={styles.kpiLabel}>{t('ui.models.tool-calls')}</span>
+            <span className={styles.kpiVal}>{doc.stats.toolCount}</span>
+          </span>
+          {doc.lanes.length > 1 && (
+            <span className={styles.kpiItem}>
+              <span className={styles.kpiLabel}>{t('ui.devtools.agents-count')}</span>
+              <span className={styles.kpiVal}>{doc.lanes.length}</span>
+            </span>
+          )}
+          {modelSummary.distinctModels.length > 0 && (
+            <span className={styles.kpiItem}>
+              <span className={styles.kpiLabel}>{t('ui.foundation.model')}</span>
+              <span className={styles.kpiVal}>
+                {t('ui.models.models', String(modelSummary.distinctModels.length))}
+                {modelSummary.switchCount > 0
+                  ? ` · ${t('ui.devtools.model-switches-count', String(modelSummary.switchCount))}`
+                  : ''}
+              </span>
+            </span>
+          )}
+          {modelSummary.totalAuditedRequests > 0 && (
+            <button
+              type="button"
+              className={styles.kpiAuditBtn}
+              data-testid="trace-kpi-audit"
+              onClick={() => setView('models')}
+            >
+              <AuditBadge verdict={modelSummary.overallVerdict} />
+            </button>
+          )}
+          {doc.stats.failedCount > 0 && (
+            <span className={styles.kpiItem} data-danger="true">
+              <span className={styles.kpiLabel}>{t('ui.devtools.failed-calls')}</span>
+              <span className={styles.kpiVal}>{doc.stats.failedCount}</span>
+            </span>
+          )}
+          {doc.stats.inputTokens > 0 && (
+            <span className={styles.kpiItem}>
+              <span className={styles.kpiLabel}>{t('ui.devtools.tokens')}</span>
+              <span className={styles.kpiVal}>
+                {formatTokens(doc.stats.inputTokens)} / {formatTokens(doc.stats.outputTokens)}
+              </span>
+            </span>
+          )}
+          {doc.stats.hitRate !== undefined && (
+            <span className={styles.kpiItem}>
+              <span className={styles.kpiLabel}>{t('ui.model-quality.cache-hit')}</span>
+              <span className={styles.kpiVal}>
+                {t(
                   'ui.devtools.cache-hit-rate-value',
-                  formatHitRate(hitRate),
-                  formatTokens(message.usage!.cacheReadTokens!),
+                  formatHitRate(doc.stats.hitRate),
+                  formatTokens(doc.stats.cacheReadTokens),
                 )}
-              />
-            )}
-          </dl>
-          {message.error && <p className={styles.error}>{message.error}</p>}
+              </span>
+            </span>
+          )}
+          {doc.subtitle && <span className={styles.kpiSubtitle} title={doc.subtitle}>{doc.subtitle}</span>}
+          {loadingDetails && (
+            <span className={styles.kpiLoading}>{t('ui.devtools.loading-subagents')}</span>
+          )}
+        </div>
+
+        {/* 视图切换与搜索筛选工具栏 */}
+        <div className={styles.navBar}>
           <Tabs
             variant="underline"
             items={items}
@@ -581,20 +478,278 @@ export const TraceDrawer: React.FC<{
             onChange={setView}
             aria-label={t('ui.devtools.execution-trace')}
           />
-          <div className={styles.pane}>
-            {view === 'timeline' && <Timeline rows={rows} from={win.from} to={win.to} />}
-            {view === 'requests' && (
-              <RequestList requests={requests} error={reqError} source={source} />
-            )}
-            {view === 'process' && <ProcessLog result={proc} error={procError} from={win.from} />}
-            {view === 'raw' && (
-              <Block label={t('ui.devtools.raw-events')} text={raw} testId="trace-raw" />
+          <div className={styles.navRight}>
+            {splitActive && (
+              <Tooltip content={t('ui.devtools.toggle-inspector')}>
+                <Button
+                  size="sm"
+                  variant={inspectorOpen ? 'secondary' : 'ghost'}
+                  aria-label={t('ui.devtools.toggle-inspector')}
+                  aria-pressed={inspectorOpen}
+                  onClick={() => setInspectorOpen((v) => !v)}
+                  data-testid="trace-toggle-inspector"
+                >
+                  <Icon icon={SidebarRightIcon} size={14} />
+                </Button>
+              </Tooltip>
             )}
           </div>
         </div>
-      </Modal>
-    </ModalHostContext.Provider>
+
+        {splitActive && (
+          <div className={styles.filterBar}>
+            <div className={styles.searchBox}>
+              <Icon icon={SearchIcon} size={14} className={styles.searchIcon} />
+              <input
+                ref={searchRef}
+                type="text"
+                className={styles.searchInput}
+                value={searchQuery}
+                onChange={(e) => updateSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    jumpMatch(e.shiftKey ? -1 : 1);
+                  } else if (e.key === 'Escape' && searchQuery) {
+                    e.stopPropagation();
+                    updateSearchQuery('');
+                  }
+                }}
+                placeholder={t('ui.devtools.search-placeholder')}
+                aria-label={t('ui.devtools.search-placeholder')}
+                data-testid="trace-search-input"
+              />
+              {searchQuery && (
+                <>
+                  <span className={styles.matchCount} data-testid="trace-search-count">
+                    {filterResult.orderedMatches.length > 0
+                      ? t(
+                          'ui.devtools.matched-counter',
+                          String(matchCursor + 1),
+                          String(filterResult.orderedMatches.length),
+                        )
+                      : t('ui.session-workspace.preview-find-empty')}
+                  </span>
+                  <Tooltip content={t('ui.devtools.prev-match')}>
+                    <button
+                      type="button"
+                      className={styles.searchStepBtn}
+                      aria-label={t('ui.devtools.prev-match')}
+                      disabled={!filterResult.orderedMatches.length}
+                      onClick={() => jumpMatch(-1)}
+                      data-testid="trace-search-prev"
+                    >
+                      <Icon icon={ChevronUp} size={13} />
+                    </button>
+                  </Tooltip>
+                  <Tooltip content={t('ui.devtools.next-match')}>
+                    <button
+                      type="button"
+                      className={styles.searchStepBtn}
+                      aria-label={t('ui.devtools.next-match')}
+                      disabled={!filterResult.orderedMatches.length}
+                      onClick={() => jumpMatch(1)}
+                      data-testid="trace-search-next"
+                    >
+                      <Icon icon={ChevronDown} size={13} />
+                    </button>
+                  </Tooltip>
+                  <Tooltip content={t('ui.cli-monitor.clear-search')}>
+                    <button
+                      type="button"
+                      className={styles.searchStepBtn}
+                      aria-label={t('ui.cli-monitor.clear-search')}
+                      onClick={() => updateSearchQuery('')}
+                      data-testid="trace-search-clear"
+                    >
+                      <Icon icon={X} size={13} />
+                    </button>
+                  </Tooltip>
+                </>
+              )}
+            </div>
+
+            <div className={styles.chipRow}>
+              {chips.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  className={styles.filterChip}
+                  aria-pressed={kindFilter === c.value}
+                  data-danger={c.danger || undefined}
+                  data-testid={`trace-filter-${c.value}`}
+                  onClick={() => updateKindFilter(c.value)}
+                >
+                  <span>{c.label}</span>
+                  {c.count !== undefined && (
+                    <span className={styles.chipBadge}>{c.count}</span>
+                  )}
+                </button>
+              ))}
+              {doc.lanes.length > 1 && (
+                <Select
+                  size="sm"
+                  variant="chip"
+                  value={laneFilter}
+                  aria-label={t('ui.devtools.filter-all-agents')}
+                  onChange={(e) => updateLaneFilter(e.target.value)}
+                  options={[
+                    { value: 'all', label: t('ui.devtools.filter-all-agents') },
+                    ...doc.lanes.map((l) => ({
+                      value: l.id,
+                      label: `${l.name} (${l.stepCount})`,
+                    })),
+                  ]}
+                  data-testid="trace-lane-filter"
+                />
+              )}
+              {modelSummary.distinctModels.length > 1 && (
+                <Select
+                  size="sm"
+                  variant="chip"
+                  value={modelFilter}
+                  aria-label={t('ui.usage-tools.all-models')}
+                  onChange={(e) => updateModelFilter(e.target.value)}
+                  options={[
+                    { value: 'all', label: t('ui.usage-tools.all-models') },
+                    ...modelSummary.distinctModels.map((m) => ({
+                      value: m.key,
+                      label: m.name,
+                    })),
+                  ]}
+                  data-testid="trace-model-filter"
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 主分栏体 */}
+        <div className={styles.workspace} data-split={splitActive && inspectorOpen ? 'true' : undefined}>
+          <div className={styles.mainPane}>
+            {view === 'graph' && (
+              <TraceGraph
+                doc={doc}
+                filter={filterResult}
+                searchQuery={searchQuery}
+                selectedId={selectedId}
+                focusNodeId={focusState.id}
+                focusNonce={focusState.nonce}
+                onSelect={handleSelect}
+              />
+            )}
+            {view === 'timeline' && (
+              <TraceTimeline
+                doc={doc}
+                filter={filterResult}
+                searchQuery={searchQuery}
+                selectedId={selectedId}
+                inspectorOpen={inspectorOpen}
+                onSelect={handleSelect}
+              />
+            )}
+            {view === 'thinking' && (
+              <TraceThinkingView
+                doc={doc}
+                filter={filterResult}
+                searchQuery={searchQuery}
+                selectedId={selectedId}
+                onSelect={handleSelect}
+                onLocateInGraph={handleLocateInGraph}
+              />
+            )}
+            {view === 'models' && (
+              <TraceModelAuditView
+                doc={doc}
+                activeModelFilter={modelFilter}
+                onSelectModelFilter={updateModelFilter}
+                onLocateInGraph={handleLocateInGraph}
+              />
+            )}
+            {view === 'requests' && (
+              <div className={styles.scrollPane}>
+                <RequestList requests={requests} error={reqError} source={source} />
+              </div>
+            )}
+            {view === 'process' && (
+              <div className={styles.scrollPane}>
+                <ProcessLog result={proc} error={procError} from={doc.from} />
+              </div>
+            )}
+            {view === 'raw' && (
+              <div className={styles.scrollPane}>
+                <Block label={t('ui.devtools.raw-events')} text={rawJson} testId="trace-raw" />
+              </div>
+            )}
+          </div>
+
+          {splitActive && inspectorOpen && (
+            <TraceInspector
+              doc={doc}
+              selectedId={selectedId}
+              onSelect={handleSelect}
+              onStep={handleStep}
+              onLocateInGraph={handleLocateInGraph}
+              onQuickSearch={handleQuickSearch}
+              onOpenModelAudit={() => setView('models')}
+              onClose={() => setInspectorOpen(false)}
+            />
+          )}
+      </div>
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <section
+        className={styles.embedded}
+        data-testid="trace-workbench"
+        hidden={hidden || undefined}
+      >
+        {content}
+      </section>
+    );
+  }
+  return content;
+};
+
+function defaultModalTitle(target: TraceTarget): string {
+  if (target.kind === 'session') return target.title;
+  if (target.kind === 'task') return target.task.title;
+  return t('ui.devtools.scope-turn');
+}
+
+export const TraceModal: React.FC<{
+  target: TraceTarget;
+  onClose: () => void;
+}> = ({ target, onClose }) => {
+  const [title, setTitle] = useState(() => defaultModalTitle(target));
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      closeOnOverlay={false}
+      className={styles.modal}
+      bodyClassName={styles.body}
+      title={title}
+      data-testid="trace-drawer"
+    >
+      <TraceWorkbench target={target} onTitleChange={setTitle} />
+    </Modal>
   );
 };
+
+export const TraceDrawer: React.FC<{
+  message: ConvMessage;
+  source: TraceSource;
+  userPrompt?: string;
+  allMessages?: readonly ConvMessage[];
+  onClose: () => void;
+}> = ({ message, source, userPrompt, allMessages, onClose }) => (
+  <TraceModal
+    target={{ kind: 'turn', message, source, userPrompt, allMessages }}
+    onClose={onClose}
+  />
+);
 
 export default TraceDrawer;

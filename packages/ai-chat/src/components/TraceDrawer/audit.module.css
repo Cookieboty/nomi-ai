@@ -1,0 +1,405 @@
+/* 模型分析（模型切换轨迹、分模型质量对比、逐请求指纹核验）与局部证据列表样式 */
+
+.scrollRoot {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-3);
+  padding: var(--cd-space-1) var(--cd-space-1) var(--cd-space-3);
+}
+
+.emptyWrap {
+  flex: 1;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cd-space-2);
+  color: var(--cd-color-text-subtle);
+  text-align: center;
+  padding: var(--cd-space-6);
+}
+
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-2) var(--cd-space-3);
+  padding: var(--cd-space-3) var(--cd-space-4);
+  border-radius: var(--cd-radius-md);
+  border: 1px solid var(--cd-color-border-subtle);
+  background: var(--cd-color-surface-sunken);
+}
+
+.banner[data-verdict='verified'] {
+  border-color: var(--cd-color-success-border);
+  background: var(--cd-color-success-soft);
+}
+
+.banner[data-verdict='mismatch'] {
+  border-color: var(--cd-color-danger-border);
+  background: var(--cd-color-danger-soft);
+}
+
+.banner[data-verdict='suspect'] {
+  border-color: var(--cd-color-warning-border);
+  background: var(--cd-color-warning-soft);
+}
+
+.bannerIcon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.banner[data-verdict='verified'] .bannerIcon {
+  color: var(--cd-color-success);
+}
+
+.banner[data-verdict='mismatch'] .bannerIcon {
+  color: var(--cd-color-danger-text);
+}
+
+.banner[data-verdict='suspect'] .bannerIcon {
+  color: var(--cd-color-warning);
+}
+
+.bannerBody {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bannerTitleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  flex-wrap: wrap;
+}
+
+.bannerStats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--cd-space-3);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-color-border-subtle);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-2);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-text-muted);
+}
+
+/* 模型切换时间线 */
+.segStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--cd-space-2);
+}
+
+.segWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+
+.segCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: var(--cd-space-2) var(--cd-space-3);
+  border-radius: var(--cd-radius-md);
+  border: 1px solid var(--cd-color-border-subtle);
+  background: var(--cd-color-surface-sunken);
+  color: var(--cd-color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.segCard:hover {
+  background: var(--cd-color-hover);
+}
+
+.segCard[data-active='true'] {
+  border-color: var(--cd-color-accent-strong);
+}
+
+.segCard[data-verdict='mismatch'] {
+  border-color: var(--cd-color-danger-border);
+}
+
+.segCard[data-verdict='suspect'] {
+  border-color: var(--cd-color-warning-border);
+}
+
+.segCard:focus-visible,
+.modelCardBtn:focus-visible,
+.reqSummary:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -1px;
+}
+
+.segHead {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+}
+
+.segModel {
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-text);
+}
+
+.segMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+}
+
+.segActual {
+  font-family: var(--cd-font-mono);
+  color: var(--cd-color-danger-text);
+}
+
+.switchArrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cd-color-text-subtle);
+}
+
+/* 分模型质量对比矩阵 */
+.compareGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--cd-space-2);
+}
+
+.modelCardBtn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-3);
+  border-radius: var(--cd-radius-md);
+  border: 1px solid var(--cd-color-border-subtle);
+  background: var(--cd-color-surface-sunken);
+  color: var(--cd-color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.modelCardBtn:hover {
+  background: var(--cd-color-hover);
+}
+
+.modelCardBtn[data-active='true'] {
+  border-color: var(--cd-color-accent-strong);
+  background: var(--cd-color-accent-soft);
+}
+
+.modelCardTop {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  width: 100%;
+}
+
+.modelCardTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-bold);
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cd-space-1-5) var(--cd-space-2);
+  width: 100%;
+}
+
+.metricCell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.metricLabel {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+}
+
+.metricVal {
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.observedNote {
+  width: 100%;
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-danger-text);
+  overflow-wrap: anywhere;
+}
+
+/* 逐请求指纹明细 */
+.reqList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+}
+
+.reqCard {
+  border: 1px solid var(--cd-color-border-subtle);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-sunken);
+  overflow: hidden;
+}
+
+.reqCard[data-verdict='mismatch'] {
+  border-color: var(--cd-color-danger-border);
+}
+
+.reqCard[data-verdict='suspect'] {
+  border-color: var(--cd-color-warning-border);
+}
+
+.reqHead {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-2) var(--cd-space-3);
+  flex-wrap: wrap;
+}
+
+.reqSummary {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  flex-wrap: wrap;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.reqModels {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-medium);
+}
+
+.reqBody {
+  border-top: 1px solid var(--cd-color-border-subtle);
+  padding: var(--cd-space-2) var(--cd-space-3) var(--cd-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  background: var(--cd-color-surface);
+}
+
+.fpGrid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px var(--cd-space-3);
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+}
+
+.fpGrid dt {
+  color: var(--cd-color-text-subtle);
+  white-space: nowrap;
+}
+
+.fpGrid dd {
+  margin: 0;
+  font-family: var(--cd-font-mono);
+  overflow-wrap: anywhere;
+  color: var(--cd-color-text);
+}
+
+.evidenceList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.evidenceRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cd-space-1-5);
+  font-size: var(--cd-font-size-xs);
+  line-height: 1.45;
+  color: var(--cd-color-text-muted);
+}
+
+.evidenceRow[data-status='pass'] {
+  color: var(--cd-color-success);
+}
+
+.evidenceRow[data-status='fail'] {
+  color: var(--cd-color-danger-text);
+}
+
+.evidenceRow[data-status='warn'] {
+  color: var(--cd-color-warning);
+}
+
+.mono {
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+}

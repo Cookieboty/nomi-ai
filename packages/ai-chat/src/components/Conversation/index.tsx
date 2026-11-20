@@ -939,6 +939,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
                       ) : (
                         <AssistantMessage
                           message={m}
+                          userPrompt={turn.messages.find((x) => x.role === 'user')?.text}
                           timeLabel={labels.get(m.id)}
                           canRetry={idle && m.id === lastAssistantId}
                           onRetry={onRetry}

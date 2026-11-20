@@ -4,15 +4,19 @@ import {
   activateTab,
   agentKey,
   closeAgent,
+  closeSideTab,
   cycleTabKey,
   dropIndex,
   EMPTY_SIDE_TABS,
   FILES_SIDE_TAB,
   isMaximized,
   isSplit,
+  isTraceKey,
   MAIN_SIDE_TAB,
   moveTab,
   openAgent,
+  openNewTab,
+  openTraceTab,
   parseSideTabs,
   pruneAgents,
   readSideTabsStore,
@@ -21,6 +25,7 @@ import {
   sideTabItems,
   toggleMaximized,
   toggleSplit,
+  withoutTraces,
   writeSideTabsStore,
   type SideTabsState,
   type SubagentTarget,
@@ -253,5 +258,47 @@ describe('side tabs: split', () => {
     const r = setSplitRatio(s, 0.35);
     writeSideTabsStore({ 'nomi:c': r });
     expect(readSideTabsStore()['nomi:c']).toMatchObject({ split: true, splitRatio: 0.35 });
+  });
+});
+
+describe('side tabs: trace pages', () => {
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it('opens unique trace tabs per dedupeKey, activates existing, and replaces new-tab', () => {
+    let s = openNewTab(EMPTY_SIDE_TABS, 'nt1');
+    s = openTraceTab(s, {
+      id: 'tr1',
+      title: '运行轨迹',
+      dedupeKey: 'session',
+      replace: 'new-tab:nt1',
+    });
+    expect(s.pages).toEqual([{ kind: 'trace', id: 'tr1', title: '运行轨迹', dedupeKey: 'session' }]);
+    expect(s.active).toBe('trace:tr1');
+    expect(isTraceKey(s.active)).toBe(true);
+
+    // 同一 dedupeKey 再次打开时复用并只更新标题
+    s = openTraceTab(s, { id: 'tr2', title: '会话轨迹', dedupeKey: 'session' });
+    expect(s.pages).toHaveLength(1);
+    expect(s.pages[0]).toMatchObject({ kind: 'trace', id: 'tr1', title: '会话轨迹' });
+
+    // 不同 dedupeKey 打开第二个轨迹标签并支持关闭
+    s = openTraceTab(s, { id: 'tr3', title: '单轮轨迹', dedupeKey: 'turn:m1' });
+    expect(s.pages).toHaveLength(2);
+    expect(sideTabItems(s).map((i) => i.kind)).toEqual(['trace', 'trace']);
+
+    s = closeSideTab(s, 'trace:tr3');
+    expect(s.pages).toHaveLength(1);
+    expect(s.active).toBe('trace:tr1');
+  });
+
+  it('strips trace tabs on persistence and parse', () => {
+    const s = openTraceTab(withAll(), { id: 'tr1', title: '运行轨迹', dedupeKey: 'session' });
+    expect(withoutTraces(s).pages).toHaveLength(0);
+    expect(withoutTraces(s).active).toBeNull();
+    writeSideTabsStore({ 'nomi:trace-test': s });
+    expect(readSideTabsStore()['nomi:trace-test']?.pages).toEqual([]);
+    expect(parseSideTabs(s)?.pages).toEqual([]);
   });
 });

@@ -60,7 +60,7 @@ export interface ConvSlots {
   /** 错误卡片里额外的操作按钮（如「信任此文件夹」）；retry 只在这一轮可以重试时提供 */
   errorActions?: (m: ConvMessage, ctx: { retry?: () => void }) => React.ReactNode;
   /** 助手消息操作栏里额外的按钮（工作台的「执行轨迹」） */
-  actions?: (m: ConvMessage) => React.ReactNode;
+  actions?: (m: ConvMessage, ctx?: { prompt?: string }) => React.ReactNode;
 }
 
 export const ActionButton: React.FC<{
@@ -467,6 +467,7 @@ export const CompactionNote = memo(function CompactionNote({ message }: { messag
 
 export const AssistantMessage = memo(function AssistantMessage({
   message,
+  userPrompt,
   timeLabel,
   canRetry,
   onRetry,
@@ -474,6 +475,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   minimalStateKey,
 }: {
   message: ConvMessage;
+  userPrompt?: string;
   timeLabel?: string;
   canRetry: boolean;
   onRetry?: (id: string) => void;
@@ -581,7 +583,7 @@ export const AssistantMessage = memo(function AssistantMessage({
                 onClick={() => forkFrom(message.id)}
               />
             )}
-            {slots?.actions?.(message)}
+            {slots?.actions?.(message, userPrompt ? { prompt: userPrompt } : undefined)}
           </div>
         </div>
       </div>

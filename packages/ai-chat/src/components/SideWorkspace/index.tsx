@@ -60,6 +60,7 @@ import styles from './SideWorkspace.module.css';
 import { SideTabStrip } from './TabStrip';
 
 const LazyTerminalTab = React.lazy(() => import('./TerminalTab'));
+const LazyTraceTab = React.lazy(() => import('./TraceTab'));
 
 export { SideTabStrip };
 
@@ -81,6 +82,8 @@ export interface SideFiles {
 export function useSideWorkspace(files: SideFiles) {
   const pane = useSubagentPane();
   const { closeWorkbench } = useChangesUi();
+  const registerHost = pane?.registerHost;
+  useEffect(() => registerHost?.(), [registerHost]);
   // 普通的可变对象（不是 ref）：随 model 往下传给预览区和标签栏
   const [control] = useState<{ current: PreviewTabsControl | null }>(() => ({ current: null }));
   const [diffControl] = useState<{ current: PreviewTabsControl | null }>(() => ({ current: null }));
@@ -359,6 +362,7 @@ export function useSideWorkspace(files: SideFiles) {
     terminalControls,
     registerTerminalControl,
     openSideChat: pane ? pane.openSideChat : undefined,
+    openTrace: pane ? pane.openTrace : undefined,
   };
 }
 
@@ -480,7 +484,9 @@ export const SideWorkspace: React.FC<{
                   ? 'browser'
                   : model.active?.startsWith('terminal:')
                     ? 'terminal'
-                    : 'agent';
+                    : model.active?.startsWith('trace:')
+                      ? 'trace'
+                      : 'agent';
   return (
     <section
       className={styles.workspace}
@@ -511,9 +517,20 @@ export const SideWorkspace: React.FC<{
                   roots={roots}
                   projectPrimary={projectPrimary}
                   changesCount={changesCount}
+                  hasSessionTrace={messages.length > 0}
                   onOpenChanges={() => model.openChanges?.({ replace: key })}
                   onOpenFiles={() => model.openFileBrowser?.({ replace: key })}
                   onOpenSideChat={() => void model.openSideChat?.({ fresh: true, replace: key })}
+                  onOpenTrace={() =>
+                    void model.openTrace?.(
+                      { kind: 'session', title: t('ui.devtools.session-trace') },
+                      {
+                        dedupeKey: 'session',
+                        replace: key,
+                        title: t('ui.devtools.session-trace'),
+                      },
+                    )
+                  }
                   onOpenBrowser={(url) => model.openBrowser?.(url, { replace: key })}
                   onOpenTerminal={() =>
                     model.openTerminal?.({
@@ -597,6 +614,20 @@ export const SideWorkspace: React.FC<{
                       model.close({ key, kind: 'terminal', closable: true, page })
                     }
                     registerControl={(ctrl) => model.registerTerminalControl(key, ctrl)}
+                  />
+                </React.Suspense>
+              );
+            if (page.kind === 'trace')
+              return (
+                <React.Suspense
+                  key={scopedPageKey}
+                  fallback={<div className={styles.terminalLoading} hidden={hidden} />}
+                >
+                  <LazyTraceTab
+                    pageId={page.id}
+                    title={page.title}
+                    hidden={hidden}
+                    messages={messages}
                   />
                 </React.Suspense>
               );
