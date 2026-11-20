@@ -99,6 +99,15 @@ export interface MascotScaleState {
   window: { width: number; height: number };
 }
 
+/** Nomi 委派给 agent 时的实际权限档与适用宿主保护 */
+export interface DelegateConfirmMeta {
+  cli: string;
+  permissionMode: 'plan' | 'manual' | 'acceptEdits' | 'auto' | 'bypass';
+  sandboxStatus: 'on' | 'off' | 'unsupported';
+  workspaceGuard: boolean;
+  envScrub: boolean;
+}
+
 /** 桌面能力确认请求（主进程 PermissionBroker → 对话窗口或桌面角色窗口） */
 export interface DesktopConfirmRequest {
   id: string;
@@ -124,6 +133,8 @@ export interface DesktopConfirmRequest {
   sessionCommand?: string;
   /** 勾「记住」= 这个对话里这类操作不再问：files 改文件 / delegate 委派与追问 / tool 这个工具 */
   rememberGroup?: 'files' | 'delegate' | 'computer' | 'tool';
+  /** Nomi 委派确认时的实际 CLI 权限档与适用宿主保护 */
+  delegate?: DelegateConfirmMeta;
 }
 
 /**

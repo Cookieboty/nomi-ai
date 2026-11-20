@@ -269,3 +269,83 @@ func TestDelegateFromBackgroundForcesSync(t *testing.T) {
 		t.Fatal(e.log.sent)
 	}
 }
+
+func TestDelegateConfirmationCarriesEffectiveModeAndHostProtections(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		cli         string
+		wantMode    string
+		sandbox     string
+		background  bool
+	}{
+		{"claude sync sandbox on", "claude", "bypass", "on", false},
+		{"minimax sync sandbox off", "minimax", "manual", "off", false},
+		{"claude bg sandbox unsupported", "claude", "bypass", "unsupported", true},
+		{"minimax bg sandbox on", "minimax", "manual", "on", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			sc := util.NewObj(
+				"installed", []any{"claude", "minimax"},
+				"granted", []any{dir},
+				"recent", []any{dir},
+			)
+			log := &envLog{}
+			h := &fakeHarness{sc: sc, base: dir, log: log, cancelCh: make(chan struct{}, 4)}
+			dk := &fakeDesktop{sc: sc, base: dir, log: log}
+			var ft *fakeTasks
+			deps := Deps{
+				Root:          t.TempDir(),
+				Harness:       h,
+				Desktop:       dk,
+				Events:        fakeEvents{log},
+				Edits:         NewEditLog(),
+				SandboxStatus: func() string { return tc.sandbox },
+			}
+			if tc.background {
+				ft = newFakeTasks()
+				deps.Tasks = ft
+			}
+			svc := New(deps)
+			defs := map[string]tools.Definition{}
+			for _, x := range svc.Tools() {
+				defs[x.Name] = x
+			}
+			res, err := defs["delegate_to_cli"].Execute(context.Background(), util.NewObj(
+				"goal", "检查权限档展示",
+				"done_when", "完成",
+				"cli", tc.cli,
+				"cwd", dir,
+				"background", tc.background,
+			), tools.ExecContext{ReqID: "req-confirm", ConversationID: "conv-confirm"})
+			if err != nil || res.(*util.Obj).Get("ok") != true {
+				t.Fatalf("delegate failed: err=%v res=%s", err, util.Stringify(res))
+			}
+
+			if len(dk.authInputs) != 1 || dk.authInputs[0].Delegate == nil {
+				t.Fatalf("expected AuthorizeInput.Delegate metadata, got %+v", dk.authInputs)
+			}
+			gotMeta := dk.authInputs[0].Delegate
+			if gotMeta.Cli != tc.cli || gotMeta.PermissionMode != tc.wantMode ||
+				gotMeta.SandboxStatus != tc.sandbox || !gotMeta.WorkspaceGuard || !gotMeta.EnvScrub {
+				t.Fatalf("unexpected DelegateConfirmMeta: %+v", gotMeta)
+			}
+			if !tc.background {
+				// 同步路径核对 CreateTab 实际传出的 permissionMode 与确认卡显示一致
+				var created *util.Obj
+				for _, ev := range log.harness {
+					arr := ev.([]any)
+					if arr[0] == "createTab" {
+						created = arr[1].(*util.Obj)
+						break
+					}
+				}
+				if created == nil || util.Str(created.Get("permissionMode")) != tc.wantMode {
+					t.Fatalf("CreateTab permissionMode = %v, want %q", created, tc.wantMode)
+				}
+			} else if got := DelegatePermissionMode(tc.cli); got != tc.wantMode {
+				t.Fatalf("DelegatePermissionMode(%q) = %q, want %q", tc.cli, got, tc.wantMode)
+			}
+		})
+	}
+}

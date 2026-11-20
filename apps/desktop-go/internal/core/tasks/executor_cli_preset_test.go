@@ -298,3 +298,103 @@ func TestCliPresetResolvedCliUnavailable(t *testing.T) {
 func presetOnlyTask() Task {
 	return Task{ID: "t1", Goal: "g", Executor: ExecutorSpec{Kind: "cli", PresetID: sp("balanced"), Cwd: sp("/repo")}}
 }
+
+// 后台任务使用预设且显式指定了模型或思考深度时：显式字段覆盖预设，未指定字段保留预设值；
+// 若预设被编辑切换到另一 CLI，则不把旧 CLI 的模型误用到新 CLI 上。
+func TestCliPresetExplicitModelAndEffortOverrides(t *testing.T) {
+	presets := map[string]*CliPresetSpec{
+		"high": {
+			Cli:             "claude",
+			Source:          "official",
+			AccountID:       "acc-1",
+			Model:           "claude-opus-4-6",
+			ReasoningEffort: "high",
+		},
+	}
+
+	cases := []struct {
+		name       string
+		ex         ExecutorSpec
+		wantCli    string
+		wantModel  string
+		wantEffort string
+	}{
+		{
+			name:       "preset + explicit model only",
+			ex:         ExecutorSpec{Kind: "cli", Cli: sp("claude"), PresetID: sp("high"), Cwd: sp("/repo"), Model: sp("claude-sonnet-4-6")},
+			wantCli:    "claude",
+			wantModel:  "claude-sonnet-4-6",
+			wantEffort: "high",
+		},
+		{
+			name:       "preset + explicit reasoningEffort only",
+			ex:         ExecutorSpec{Kind: "cli", Cli: sp("claude"), PresetID: sp("high"), Cwd: sp("/repo"), ReasoningEffort: sp("low")},
+			wantCli:    "claude",
+			wantModel:  "claude-opus-4-6",
+			wantEffort: "low",
+		},
+		{
+			name:       "preset + explicit model and reasoningEffort",
+			ex:         ExecutorSpec{Kind: "cli", Cli: sp("claude"), PresetID: sp("high"), Cwd: sp("/repo"), Model: sp("claude-sonnet-4-6"), ReasoningEffort: sp("low")},
+			wantCli:    "claude",
+			wantModel:  "claude-sonnet-4-6",
+			wantEffort: "low",
+		},
+		{
+			name:       "preset only follows preset",
+			ex:         ExecutorSpec{Kind: "cli", PresetID: sp("high"), Cwd: sp("/repo")},
+			wantCli:    "claude",
+			wantModel:  "claude-opus-4-6",
+			wantEffort: "high",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			e, f := presetExecutor(t, map[string]bool{"claude": true, "codex": true}, presets, nil)
+			snap, err := e.Prepare(Task{ID: "t1", Goal: "g", Executor: tc.ex})
+			if err != nil {
+				t.Fatalf("Prepare error: %+v", err)
+			}
+			if snap.Cli == nil || *snap.Cli != tc.wantCli ||
+				snap.Model == nil || *snap.Model != tc.wantModel {
+				t.Fatalf("Prepare snapshot = (%v, %v), want (%s, %s)",
+					snap.Cli, snap.Model, tc.wantCli, tc.wantModel)
+			}
+
+			rep := &failReporter{beatReporter: beatReporter{completed: make(chan AttemptResult, 4)}}
+			e.Start(AttemptContext{Task: Task{ID: "t1", Goal: "g", Executor: tc.ex}, Attempt: Attempt{ID: "att1", TaskID: "t1", Gen: 1}, Report: rep})
+			deadline := time.Now().Add(2 * time.Second)
+			for time.Now().Before(deadline) && f.sendCount() == 0 {
+				time.Sleep(2 * time.Millisecond)
+			}
+			tabs := f.createdTabs()
+			if len(tabs) != 1 {
+				t.Fatalf("expected 1 created tab, got %d (failed=%v)", len(tabs), rep.failed)
+			}
+			if tabs[0].Backend != tc.wantCli || tabs[0].ModelOverride != tc.wantModel || tabs[0].ReasoningEffort != tc.wantEffort {
+				t.Fatalf("CreateTab = %+v, want backend=%s model=%s effort=%s", tabs[0], tc.wantCli, tc.wantModel, tc.wantEffort)
+			}
+			f.finish("done")
+		})
+	}
+
+	// 预设从 claude 改成了 codex：旧 claude 快照上的 model/effort 不应错配到 codex
+	presets["high"] = &CliPresetSpec{
+		Cli:             "codex",
+		Source:          "official",
+		AccountID:       "acc-codex",
+		Model:           "gpt-5.4",
+		ReasoningEffort: "medium",
+	}
+	spec, ok := ResolveTaskRunSpec(func(id string) *CliPresetSpec { return presets[id] }, &ExecutorSpec{
+		Kind:            "cli",
+		Cli:             sp("claude"),
+		PresetID:        sp("high"),
+		Model:           sp("claude-sonnet-4-6"),
+		ReasoningEffort: sp("low"),
+	})
+	if !ok || spec.Cli != "codex" || spec.Model != "gpt-5.4" || spec.ReasoningEffort != "medium" {
+		t.Fatalf("changed preset CLI should not inherit stale explicit overrides: %+v ok=%v", spec, ok)
+	}
+}

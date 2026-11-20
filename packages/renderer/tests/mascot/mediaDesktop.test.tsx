@@ -97,6 +97,37 @@ describe('DesktopConfirm', () => {
     const { container } = render(<DesktopConfirm />);
     expect(container.innerHTML).toBe('');
   });
+
+  it('委派确认在气泡里直接显示实际权限档与宿主保护', async () => {
+    const t = install({});
+    render(<DesktopConfirm />);
+    await act(tick);
+    await act(async () => {
+      t.router.events.publish('desktop.confirmRequest', {
+        id: 'del-1',
+        tool: 'delegate_to_cli',
+        danger: 'write',
+        summary: '让 Codex 在 /repo 里：跑测试',
+        argsJson: '{}',
+        dialog: false,
+        rememberable: false,
+        reason: 'policy',
+        expiresAt: Date.now() + 60_000,
+        delegate: {
+          cli: 'codex',
+          permissionMode: 'bypass',
+          sandboxStatus: 'off',
+          workspaceGuard: true,
+          envScrub: true,
+        },
+      });
+      await tick();
+    });
+    const el = screen.getByTestId('desktop-confirm-delegate');
+    expect(el.textContent).toContain('完全放开');
+    expect(el.textContent).toContain('系统沙箱已关闭');
+    expect(el.textContent).toContain('工作目录检查');
+  });
 });
 
 describe('ReminderCard', () => {

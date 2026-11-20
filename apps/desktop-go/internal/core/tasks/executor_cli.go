@@ -968,7 +968,7 @@ type TaskRunSpec struct {
 }
 
 // ResolveTaskRunSpec：Prepare / Start / 复用标识共用的一套解析，决定这次任务到底用哪个 agent。
-// 档位模式（presetId）一律以当前档位为准，任务里保存的 cli / 来源 / 账号 / 模型只是快照；
+// 档位模式（presetId）以当前档位为基础，但任务里显式指定的模型 / 思考深度在同一 CLI 下覆盖预设字段；
 // 返回 false = 指定了档位但已删除或解析不出，调用方必须失败，不能退回旧 cli。
 func ResolveTaskRunSpec(resolve func(string) *CliPresetSpec, ex *ExecutorSpec) (TaskRunSpec, bool) {
 	if ex == nil {
@@ -982,7 +982,24 @@ func ResolveTaskRunSpec(resolve func(string) *CliPresetSpec, ex *ExecutorSpec) (
 		if ps == nil {
 			return TaskRunSpec{}, false
 		}
-		return TaskRunSpec{Cli: ps.Cli, Source: ps.Source, AccountID: ps.AccountID, Model: ps.Model, ReasoningEffort: ps.ReasoningEffort}, true
+		spec := TaskRunSpec{
+			Cli:             ps.Cli,
+			Source:          ps.Source,
+			AccountID:       ps.AccountID,
+			Model:           ps.Model,
+			ReasoningEffort: ps.ReasoningEffort,
+		}
+		// 统一同步与后台优先规则：显式值仅覆盖存在的字段，未指定时使用预设；
+		// 预设被编辑切换成另一 CLI 时不沿用旧 CLI 的模型。
+		if exCli := strOr(ex.Cli); exCli == "" || exCli == ps.Cli {
+			if m := strOr(ex.Model); m != "" {
+				spec.Model = m
+			}
+			if e := strOr(ex.ReasoningEffort); e != "" {
+				spec.ReasoningEffort = e
+			}
+		}
+		return spec, true
 	}
 	return TaskRunSpec{Cli: strOr(ex.Cli), Source: strOr(ex.Source), AccountID: strOr(ex.AccountID), Model: strOr(ex.Model), ReasoningEffort: strOr(ex.ReasoningEffort)}, true
 }

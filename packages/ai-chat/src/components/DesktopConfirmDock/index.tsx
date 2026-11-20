@@ -51,6 +51,53 @@ const RISK: Record<
   critical: { label: 'ui.chat-settings.risk-critical', tone: 'danger' },
 };
 
+type DelegateMeta = NonNullable<DesktopConfirmRequest['delegate']>;
+
+const DELEGATE_MODE: Record<
+  DelegateMeta['permissionMode'],
+  { label: string; tone: 'neutral' | 'warning' | 'danger' }
+> = {
+  plan: { label: 'ui.chat-settings.plan', tone: 'neutral' },
+  manual: { label: 'ui.chat-settings.ask-each-time', tone: 'neutral' },
+  acceptEdits: { label: 'ui.chat-settings.auto-edit-files', tone: 'warning' },
+  auto: { label: 'ui.foundation.auto', tone: 'warning' },
+  bypass: { label: 'ui.chat-settings.full-access', tone: 'danger' },
+};
+
+const DELEGATE_SANDBOX: Record<DelegateMeta['sandboxStatus'], string> = {
+  on: 'ui.chat-settings.delegate-protection-sandbox-on',
+  off: 'ui.chat-settings.delegate-protection-sandbox-off',
+  unsupported: 'ui.chat-settings.delegate-protection-sandbox-unsupported',
+};
+
+/** 委派确认卡批准前可见的实际权限档与宿主保护状态 */
+const DelegateNote: React.FC<{ meta: DelegateMeta }> = ({ meta }) => {
+  const mode = DELEGATE_MODE[meta.permissionMode] ?? DELEGATE_MODE.manual;
+  const protections: string[] = [t(DELEGATE_SANDBOX[meta.sandboxStatus] ?? DELEGATE_SANDBOX.unsupported)];
+  if (meta.workspaceGuard || meta.envScrub) {
+    protections.push(t('ui.chat-settings.delegate-protection-workspace-env'));
+  }
+  return (
+    <div
+      className={styles.delegate}
+      data-testid="desktop-confirm-delegate"
+      data-mode={meta.permissionMode}
+      data-sandbox={meta.sandboxStatus}
+    >
+      <div className={styles.delegateRow}>
+        <span className={styles.reviewLabel}>{t('ui.chat-settings.delegate-permission-label')}</span>
+        <Badge tone={mode.tone} data-testid="desktop-confirm-delegate-mode">
+          {t(mode.label)}
+        </Badge>
+      </div>
+      <div className={styles.delegateRow} data-testid="desktop-confirm-delegate-protections">
+        <span className={styles.reviewLabel}>{t('ui.chat-settings.delegate-host-protections')}</span>
+        <span>{protections.join(' · ')}</span>
+      </div>
+    </div>
+  );
+};
+
 /** 辅助模型审核过但没放行：为什么还要你确认 */
 const ReviewNote: React.FC<{ review: NonNullable<DesktopConfirmRequest['review']> }> = ({
   review,
@@ -210,6 +257,7 @@ const ToolCard: React.FC<{ req: DesktopConfirmRequest }> = ({ req }) => {
         <Badge tone={d.tone}>{t(d.label)}</Badge>
         <Timer req={req} />
       </div>
+      {req.delegate && <DelegateNote meta={req.delegate} />}
       {req.review && <ReviewNote review={req.review} />}
       {REASON[req.reason] && <p className={styles.hint}>{t(REASON[req.reason]!)}</p>}
       {detail && (

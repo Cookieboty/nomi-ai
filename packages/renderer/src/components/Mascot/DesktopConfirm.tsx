@@ -54,6 +54,51 @@ const REASON: Record<string, string> = {
   policy: '',
 };
 
+type DelegateMeta = NonNullable<DesktopConfirmRequest['delegate']>;
+
+const DELEGATE_MODE: Record<
+  DelegateMeta['permissionMode'],
+  { label: string; tone: 'neutral' | 'warning' | 'danger' }
+> = {
+  plan: { label: 'ui.chat-settings.plan', tone: 'neutral' },
+  manual: { label: 'ui.chat-settings.ask-each-time', tone: 'neutral' },
+  acceptEdits: { label: 'ui.chat-settings.auto-edit-files', tone: 'warning' },
+  auto: { label: 'ui.foundation.auto', tone: 'warning' },
+  bypass: { label: 'ui.chat-settings.full-access', tone: 'danger' },
+};
+
+const DELEGATE_SANDBOX: Record<DelegateMeta['sandboxStatus'], string> = {
+  on: 'ui.chat-settings.delegate-protection-sandbox-on',
+  off: 'ui.chat-settings.delegate-protection-sandbox-off',
+  unsupported: 'ui.chat-settings.delegate-protection-sandbox-unsupported',
+};
+
+const DelegateNote: React.FC<{ meta: DelegateMeta }> = ({ meta }) => {
+  const mode = DELEGATE_MODE[meta.permissionMode] ?? DELEGATE_MODE.manual;
+  const protections: string[] = [tr(DELEGATE_SANDBOX[meta.sandboxStatus] ?? DELEGATE_SANDBOX.unsupported)];
+  if (meta.workspaceGuard || meta.envScrub) {
+    protections.push(tr('ui.chat-settings.delegate-protection-workspace-env'));
+  }
+  return (
+    <div
+      className={styles.delegate}
+      data-testid="desktop-confirm-delegate"
+      data-mode={meta.permissionMode}
+      data-sandbox={meta.sandboxStatus}
+    >
+      <div className={styles.delegateRow}>
+        <span>{tr('ui.chat-settings.delegate-permission-label')}</span>
+        <Badge tone={mode.tone} data-testid="desktop-confirm-delegate-mode">
+          {tr(mode.label)}
+        </Badge>
+      </div>
+      <div className={styles.delegateRow} data-testid="desktop-confirm-delegate-protections">
+        <span>{protections.join(' · ')}</span>
+      </div>
+    </div>
+  );
+};
+
 /**
  * 桌面工具确认：先在桌面角色气泡里问一句；详情对话框显示工具名、参数 JSON 与干跑预览。
  * 破坏性操作只能在对话框里确认，且确认按钮在打开后 1 秒内不可点（防误触）。120 秒未答复由主进程自动拒绝。
@@ -210,6 +255,7 @@ export const DesktopConfirm: React.FC = () => {
         data-tool={cur.tool}
       >
         <div className={styles.text}>{tr(cur.summary)}</div>
+        {cur.delegate && <DelegateNote meta={cur.delegate} />}
         <div className={styles.meta}>
           <Badge tone={d.tone}>{tr(d.label)}</Badge>
           <span>
@@ -254,6 +300,7 @@ export const DesktopConfirm: React.FC = () => {
               <code>{cur.tool}</code>
             </div>
             <p className={styles.text}>{tr(cur.summary)}</p>
+            {cur.delegate && <DelegateNote meta={cur.delegate} />}
             {REASON[cur.reason] && <p className={styles.hint}>{tr(REASON[cur.reason])}</p>}
             {cur.preview && (
               <>

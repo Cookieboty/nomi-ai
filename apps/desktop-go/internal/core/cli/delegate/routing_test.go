@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/tools"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -278,5 +279,119 @@ func TestSanitizeDelegateSettingsPreservesAllModelEffortLevels(t *testing.T) {
 	}
 	if util.Str(routes.Get("complex").(*util.Obj).Get("reasoningEffort")) != "ultra" {
 		t.Fatalf("custom route reasoningEffort=ultra lost: %s", util.Stringify(got))
+	}
+}
+
+func TestDelegateSyncAndBackgroundShareOverridePrecedence(t *testing.T) {
+	gw := &routingFakeGateway{source: "official", models: []string{}}
+	tp := newFakeTasks()
+	svc, defs, _, log, dir := newRoutingTestEnv(t, gw, tp)
+
+	settingsIn := util.NewObj(
+		"presets", []any{
+			util.NewObj(
+				"id", "high",
+				"label", "主力档位",
+				"cli", "claude",
+				"source", "official",
+				"accountId", "acc-pro",
+				"model", "claude-opus-4-6",
+				"reasoningEffort", "high",
+				"costTier", "high",
+			),
+		},
+	)
+	if _, err := svc.SetSettings(settingsIn); err != nil {
+		t.Fatalf("SetSettings: %v", err)
+	}
+
+	resolvePreset := func(id string) *tasks.CliPresetSpec { return svc.ResolvePresetForTask(id) }
+
+	cases := []struct {
+		name       string
+		model      string
+		effort     string
+		wantModel  string
+		wantEffort string
+	}{
+		{
+			name:       "preset + explicit model",
+			model:      "claude-sonnet-4-6",
+			wantModel:  "claude-sonnet-4-6",
+			wantEffort: "high",
+		},
+		{
+			name:       "preset + explicit reasoning_effort",
+			effort:     "low",
+			wantModel:  "claude-opus-4-6",
+			wantEffort: "low",
+		},
+		{
+			name:       "preset + explicit model and reasoning_effort",
+			model:      "claude-sonnet-4-6",
+			effort:     "low",
+			wantModel:  "claude-sonnet-4-6",
+			wantEffort: "low",
+		},
+	}
+
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// 1. 同步委派（background: false）
+			syncArgs := util.NewObj("goal", "同步任务", "done_when", "完成", "cwd", dir, "preset", "high", "background", false)
+			if tc.model != "" {
+				syncArgs.Set("model", tc.model)
+			}
+			if tc.effort != "" {
+				syncArgs.Set("reasoning_effort", tc.effort)
+			}
+			beforeCreate := len(log.harness)
+			syncRes, err := defs["delegate_to_cli"].Execute(context.Background(), syncArgs, tools.ExecContext{
+				ReqID:          "req-sync-" + string(rune('a'+i)),
+				ConversationID: "conv-sync",
+			})
+			if err != nil || syncRes.(*util.Obj).Get("ok") != true {
+				t.Fatalf("sync delegate failed: err=%v res=%s", err, util.Stringify(syncRes))
+			}
+			var syncCreateOpts *util.Obj
+			for _, ev := range log.harness[beforeCreate:] {
+				arr := ev.([]any)
+				if arr[0] == "createTab" {
+					syncCreateOpts = arr[1].(*util.Obj)
+					break
+				}
+			}
+			if syncCreateOpts == nil {
+				t.Fatal("expected createTab call for sync delegate")
+			}
+			if util.Str(syncCreateOpts.Get("modelOverride")) != tc.wantModel || util.Str(syncCreateOpts.Get("reasoningEffort")) != tc.wantEffort {
+				t.Fatalf("sync CreateTab got model=%q effort=%q, want (%q, %q)",
+					syncCreateOpts.Get("modelOverride"), syncCreateOpts.Get("reasoningEffort"), tc.wantModel, tc.wantEffort)
+			}
+
+			// 2. 后台委派（background: true）：验证保存的 ExecutorSpec 经 ResolveTaskRunSpec 解析出完全一致的参数
+			bgArgs := util.NewObj("goal", "后台任务", "done_when", "完成", "cwd", dir, "preset", "high", "background", true)
+			if tc.model != "" {
+				bgArgs.Set("model", tc.model)
+			}
+			if tc.effort != "" {
+				bgArgs.Set("reasoning_effort", tc.effort)
+			}
+			bgRes, err := defs["delegate_to_cli"].Execute(context.Background(), bgArgs, tools.ExecContext{
+				ReqID:          "req-bg-" + string(rune('a'+i)),
+				ConversationID: "conv-bg",
+			})
+			if err != nil || bgRes.(*util.Obj).Get("ok") != true {
+				t.Fatalf("bg delegate failed: err=%v res=%s", err, util.Stringify(bgRes))
+			}
+			ex := tp.created[len(tp.created)-1].Executor
+			spec, ok := tasks.ResolveTaskRunSpec(resolvePreset, &ex)
+			if !ok {
+				t.Fatalf("ResolveTaskRunSpec returned ok=false for %+v", ex)
+			}
+			if spec.Model != tc.wantModel || spec.ReasoningEffort != tc.wantEffort {
+				t.Fatalf("bg ResolveTaskRunSpec got (%q, %q), want (%q, %q)", spec.Model, spec.ReasoningEffort, tc.wantModel, tc.wantEffort)
+			}
+		})
 	}
 }

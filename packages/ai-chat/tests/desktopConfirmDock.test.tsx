@@ -195,4 +195,46 @@ describe('DesktopConfirmDock', () => {
       { id: 'c1', allow: true, remember: true, pick: false },
     ]);
   });
+
+  it('委派确认卡批准前直接显示实际 CLI 权限档与适用的宿主保护', async () => {
+    pending = [
+      req({
+        id: 'd1',
+        tool: 'delegate_to_cli',
+        danger: 'write',
+        summary: '让 Claude Code 在 /repo 里：修好测试',
+        delegate: {
+          cli: 'claude',
+          permissionMode: 'bypass',
+          sandboxStatus: 'on',
+          workspaceGuard: true,
+          envScrub: true,
+        },
+      }),
+      req({
+        id: 'd2',
+        tool: 'delegate_to_cli',
+        danger: 'write',
+        summary: '让 MiniMax Code 在 /repo 里：检查代码',
+        delegate: {
+          cli: 'minimax',
+          permissionMode: 'manual',
+          sandboxStatus: 'unsupported',
+          workspaceGuard: true,
+          envScrub: true,
+        },
+      }),
+    ];
+    await mount();
+    expect(screen.queryByTestId('desktop-confirm-detail')).toBeNull();
+    const blocks = screen.getAllByTestId('desktop-confirm-delegate');
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0]!.getAttribute('data-mode')).toBe('bypass');
+    expect(blocks[0]!.textContent).toContain('完全放开');
+    expect(blocks[0]!.textContent).toContain('系统沙箱已开启');
+    expect(blocks[0]!.textContent).toContain('工作目录检查');
+    expect(blocks[1]!.getAttribute('data-mode')).toBe('manual');
+    expect(blocks[1]!.textContent).toContain('逐项确认');
+    expect(blocks[1]!.textContent).toContain('当前系统不支持系统沙箱');
+  });
 });
