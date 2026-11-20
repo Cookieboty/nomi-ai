@@ -1,3 +1,4 @@
+import type { ConvoOutcome } from '../../contexts/aiChatState';
 import { MAX_RESULTS } from '../../hooks/useHistorySearchIndex';
 import type { HarnessTabMeta } from '../../services/harnessClient';
 import type { HistorySession } from '../../services/historyClient';
@@ -24,6 +25,8 @@ interface SidebarOverlaysProps {
   runningIds: Set<string>;
   /** 刚跑完一轮、还没点进去看的 Nomi 会话 id */
   doneIds: Set<string>;
+  /** Nomi 会话最近一轮结束状态 */
+  outcomes?: Readonly<Record<string, ConvoOutcome>>;
   onForkRequest?: (id: string) => void;
   startRename: (id: string) => void;
   togglePin: (id: string) => void;
@@ -84,6 +87,7 @@ export const SidebarOverlays: React.FC<SidebarOverlaysProps> = ({
   tabById,
   runningIds,
   doneIds,
+  outcomes,
   onForkRequest,
   startRename,
   togglePin,
@@ -166,6 +170,7 @@ export const SidebarOverlays: React.FC<SidebarOverlaysProps> = ({
             tab={tab}
             running={c.tabId ? undefined : runningIds.has(c.id)}
             done={c.tabId ? undefined : doneIds.has(c.id)}
+            outcome={c.tabId ? undefined : outcomes?.[c.id]}
             top={top}
             left={left}
             onRename={commitRename}

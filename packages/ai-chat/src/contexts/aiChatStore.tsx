@@ -123,6 +123,8 @@ export const selectBusyHere = (s: AiChatState) =>
 export const selectBusyConvos = (s: AiChatState) => s.busyConvos;
 /** 刚跑完一轮、还没进去看过的会话（侧栏行首的「完成」点） */
 export const selectDoneConvos = (s: AiChatState) => s.doneConvos;
+/** 最近一轮结束的结果（done / error / stopped） */
+export const selectConvoOutcomes = (s: AiChatState) => s.convoOutcomes;
 /** 有任意会话在流式生成 */
 export const selectStreaming = (s: AiChatState) => s.streaming;
 /** 当前展示的会话正在流式生成（可以停止）：别的会话在回复时，这里的停止键不出现 */

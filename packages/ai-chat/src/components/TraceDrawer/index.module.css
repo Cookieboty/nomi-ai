@@ -662,6 +662,26 @@
   color: var(--cd-color-text);
 }
 
+.rawPane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: var(--cd-space-3);
+}
+
+.rawBlock {
+  flex: 1;
+  min-height: 0;
+}
+
+.rawBlock .pre {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
 .markdownCard {
   padding: var(--cd-space-2) var(--cd-space-3);
   border-radius: var(--cd-radius-sm);

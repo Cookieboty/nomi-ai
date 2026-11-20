@@ -50,6 +50,7 @@ const Rows: React.FC<{ items: readonly Meta[]; activeId?: string; rows: VirtualP
         tab={c.tabId ? rows.tabById.get(c.tabId) : undefined}
         running={c.tabId ? undefined : rows.runningIds?.has(c.id)}
         done={c.tabId ? undefined : rows.doneIds?.has(c.id)}
+        outcome={c.tabId ? undefined : rows.outcomes?.[c.id]}
         onOpen={rows.open}
         onCtx={rows.onCtx}
         renaming={rows.renamingId === c.id}

@@ -2,8 +2,10 @@ import { byCli } from '@nomi-ai/cli-catalog';
 import { t, useLocale, usePresence } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import type { ConvoOutcome } from '../../contexts/aiChatState';
 import {
   selectBusyConvos,
+  selectConvoOutcomes,
   selectDoneConvos,
   selectIpcClient,
   selectIsLoading,
@@ -110,12 +112,23 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     () => new Set((busyConvos ?? []).filter((id) => id !== '')),
     [busyConvos],
   );
-  // 刚跑完一轮、还没点进去看过的 Nomi 会话：行首留一个绿点，点进会话就消
+  // 刚跑完一轮、还没点进去看过的 Nomi 会话：只有 outcome === 'done' 才亮绿点，失败 / 停止显示各自状态
   const doneConvos = useAiChatSelector(selectDoneConvos);
+  const convoOutcomes = useAiChatSelector(selectConvoOutcomes);
   const doneIds = useMemo(
     () => new Set((doneConvos ?? []).filter((id) => id !== '')),
     [doneConvos],
   );
+  const outcomes = useMemo(() => {
+    const out: Record<string, ConvoOutcome> = {};
+    for (const id of doneIds) out[id] = 'done';
+    if (convoOutcomes) {
+      for (const [id, v] of Object.entries(convoOutcomes)) {
+        if (id !== '') out[id] = v;
+      }
+    }
+    return out;
+  }, [doneIds, convoOutcomes]);
   const tabs = useHarnessTabs();
   const { isDev, isNormal } = useChatMode();
   const {
@@ -510,6 +523,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       tabById,
       runningIds,
       doneIds,
+      outcomes,
       open,
       onCtx,
       renamingId,
@@ -525,6 +539,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       tabById,
       runningIds,
       doneIds,
+      outcomes,
       open,
       onCtx,
       renamingId,
@@ -650,6 +665,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
               tabById={tabById}
               runningIds={runningIds}
               doneIds={doneIds}
+              outcomes={outcomes}
               renamingId={renamingId}
               showIcon={isDev && view === 'all'}
               histVisible={histVisible}
@@ -698,6 +714,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         tabById={tabById}
         runningIds={runningIds}
         doneIds={doneIds}
+        outcomes={outcomes}
         onForkRequest={onForkRequest}
         startRename={startRename}
         togglePin={togglePin}

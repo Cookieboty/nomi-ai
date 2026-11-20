@@ -677,8 +677,13 @@ export const TraceWorkbench: React.FC<TraceWorkbenchProps> = ({
               </div>
             )}
             {view === 'raw' && (
-              <div className={styles.scrollPane}>
-                <Block label={t('ui.devtools.raw-events')} text={rawJson} testId="trace-raw" />
+              <div className={styles.rawPane}>
+                <Block
+                  label={t('ui.devtools.raw-events')}
+                  text={rawJson}
+                  testId="trace-raw"
+                  className={styles.rawBlock}
+                />
               </div>
             )}
           </div>

@@ -36,4 +36,20 @@ describe('SessionPeek', () => {
     render(<SessionPeek c={meta} tab={tab()} top={0} left={0} />);
     expect(screen.queryByTestId('session-peek-delegated')).toBeNull();
   });
+
+  it('Nomi 会话按 done / outcome 显示对应状态文字，失败与停止不误显示已完成 (#408)', () => {
+    const nomi = { ...meta, backend: 'nomi' } as never;
+    const { rerender } = render(
+      <SessionPeek c={nomi} tab={undefined} done outcome="done" top={0} left={0} />,
+    );
+    expect(screen.getByText('已完成')).toBeTruthy();
+
+    rerender(<SessionPeek c={nomi} tab={undefined} outcome="error" top={0} left={0} />);
+    expect(screen.getByText('出错')).toBeTruthy();
+    expect(screen.queryByText('已完成')).toBeNull();
+
+    rerender(<SessionPeek c={nomi} tab={undefined} outcome="stopped" top={0} left={0} />);
+    expect(screen.getByText('已停止')).toBeTruthy();
+    expect(screen.queryByText('已完成')).toBeNull();
+  });
 });

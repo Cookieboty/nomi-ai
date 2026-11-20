@@ -9,6 +9,7 @@ import { IconFolder as Folder } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import type { ConvoOutcome } from '../../contexts/aiChatState';
 import type { HarnessTabMeta } from '../../services/harnessClient';
 import { sessionPlace } from '../../services/projects';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
@@ -26,6 +27,7 @@ const LIVE_LABEL: Record<string, string> = {
   done: 'ui.foundation.done',
   unread: 'ui.mascot-theme.new-result',
   error: 'ui.chat-settings.error',
+  stopped: 'ui.chat-settings.stopped',
   background: 'ui.chat-settings.running-in-background',
   dormant: 'ui.cli-monitor.dormant',
 };
@@ -36,8 +38,9 @@ export const sessionStatus = (
   tab: HarnessTabMeta | undefined,
   running?: boolean,
   done?: boolean,
+  outcome?: ConvoOutcome,
 ): string => {
-  const key = LIVE_LABEL[rowLive(tab, running, done)];
+  const key = LIVE_LABEL[rowLive(tab, running, done, outcome)];
   return key ? t(key) : '';
 };
 
@@ -105,6 +108,8 @@ export const SessionPeek: React.FC<{
   running?: boolean;
   /** 刚跑完一轮、还没点进去看 */
   done?: boolean;
+  /** 最近一轮结束的结果（done / error / stopped） */
+  outcome?: ConvoOutcome;
   top: number;
   left: number;
   testId?: string;
@@ -112,10 +117,22 @@ export const SessionPeek: React.FC<{
   onRename?: (id: string, name: string | null) => void;
   onHold?: () => void;
   onRelease?: () => void;
-}> = ({ c, tab, running, top, left, testId = 'session-peek', onRename, onHold, onRelease }) => {
+}> = ({
+  c,
+  tab,
+  running,
+  done,
+  outcome,
+  top,
+  left,
+  testId = 'session-peek',
+  onRename,
+  onHold,
+  onRelease,
+}) => {
   useLocale();
   const [editing, setEditing] = useState(false);
-  const status = sessionStatus(tab, running);
+  const status = sessionStatus(tab, running, done, outcome);
   const place = sessionPlace(c, tab);
   const name = sessionName(c);
   const commit = (v: string | null) => {

@@ -51,5 +51,42 @@ describe('doneConvos', () => {
     s = aiChatReducer(s, { type: 'SET_LOADING', payload: false, convoId: 'c1' });
     s = aiChatReducer(s, { type: 'SET_MESSAGES', payload: [], convoId: 'c1' });
     expect(s.doneConvos).toEqual([]);
+    expect(s.convoOutcomes).toEqual({});
+  });
+
+  it('显式失败 / 主动停止（即使未写 global error）不进 doneConvos 并记录真实结果 (#408)', () => {
+    let s = idle();
+    // 1. 流内报错只写消息卡片、未设 state.error：不能标成 done 绿点
+    s = aiChatReducer(s, { type: 'SET_LOADING', payload: true, convoId: 'c1' });
+    s = aiChatReducer(s, { type: 'SET_LOADING', payload: false, convoId: 'c1', outcome: 'error' });
+    expect(s.doneConvos).toEqual([]);
+    expect(s.convoOutcomes).toEqual({ c1: 'error' });
+
+    // 2. 用户主动停止：不标 done 绿点，记为 stopped
+    s = aiChatReducer(s, { type: 'SET_LOADING', payload: true, convoId: 'c2' });
+    s = aiChatReducer(s, {
+      type: 'SET_LOADING',
+      payload: false,
+      convoId: 'c2',
+      outcome: 'stopped',
+    });
+    expect(s.doneConvos).toEqual([]);
+    expect(s.convoOutcomes).toEqual({ c1: 'error', c2: 'stopped' });
+
+    // 3. 重新开始新轮时先清掉旧状态，再失败时同样不残留绿点
+    s = aiChatReducer(s, { type: 'SET_LOADING', payload: true, convoId: 'c3' });
+    s = aiChatReducer(s, { type: 'SET_LOADING', payload: false, convoId: 'c3', outcome: 'done' });
+    expect(s.doneConvos).toEqual(['c3']);
+    s = aiChatReducer(s, { type: 'SET_LOADING', payload: true, convoId: 'c3' });
+    expect(s.doneConvos).toEqual([]);
+    s = aiChatReducer(s, { type: 'SET_LOADING', payload: false, convoId: 'c3', outcome: 'stopped' });
+    expect(s.doneConvos).toEqual([]);
+    expect(s.convoOutcomes?.c3).toBe('stopped');
+
+    // 4. 点进会话或 CLEAR_DONE 后结果态一起清除
+    s = aiChatReducer(s, { type: 'CLEAR_DONE', convoId: 'c1' });
+    expect(s.convoOutcomes?.c1).toBeUndefined();
+    s = aiChatReducer(s, { type: 'SET_MESSAGES', payload: [], convoId: 'c2' });
+    expect(s.convoOutcomes?.c2).toBeUndefined();
   });
 });
