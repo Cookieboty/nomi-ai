@@ -38,6 +38,7 @@ import {
   errorMessage,
   type AiChatAction,
   type AiChatState,
+  type ConvoOutcome,
 } from './aiChatState';
 import { AiChatStoreContext, createAiChatStore } from './aiChatStore';
 import {
@@ -124,6 +125,7 @@ export {
   convoKey,
   type AiChatAction,
   type AiChatState,
+  type ConvoOutcome,
 } from './aiChatState';
 export { openTurn, type ConversationTurn } from './chatTurn';
 
@@ -463,6 +465,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     if (busyIn(s, s.ipcClient.currentConversationId?.())) return { status: 'busy' as const };
     const turn = openTurn(s.ipcClient);
     dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
+    let outcome: ConvoOutcome = 'done';
     try {
       const r = await compactHistory(
         s.ipcClient,
@@ -473,10 +476,16 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         dispatch,
         instructions,
       );
-      if (r.error) return { status: 'failed' as const, error: r.error };
+      if (r.error) {
+        outcome = 'error';
+        return { status: 'failed' as const, error: r.error };
+      }
       return { status: r.next ? ('done' as const) : ('nothing' as const) };
+    } catch (err) {
+      outcome = 'error';
+      throw err;
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId });
+      dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId, outcome });
     }
   }, []);
 

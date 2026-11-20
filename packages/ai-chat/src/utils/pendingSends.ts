@@ -30,6 +30,10 @@ export interface PendingSend {
   kb?: boolean;
   /** 随消息排队的图片附件（仅内存持有，不写 localStorage / 会话元信息） */
   images?: readonly PendingImage[];
+  /** 重启后仅内存的图片已丢失：队列暂停自动发送，等待重新附图 / 仅发文字 / 删除 */
+  attachmentsMissing?: true;
+  /** 仅带图入队（用户未输入文字）：落盘与撤回时保持空正文，避免把默认提示语当成正文发出 */
+  imageOnly?: true;
 }
 
 let seq = 0;
@@ -79,7 +83,7 @@ export function mergePendingBatches(
   maxImages: number,
 ): PendingSend[] {
   if (!items.length) return [];
-  if (!items.some((i) => i.images?.length)) {
+  if (!items.some((i) => i.images?.length || i.attachmentsMissing)) {
     return [
       {
         id: mergePendingKey(items),
@@ -95,11 +99,25 @@ export function mergePendingBatches(
   const flushBatch = () => {
     if (!current.length) return;
     const images = mergePendingImages(current);
+    const hasMissing = current.some((i) => i.attachmentsMissing);
+    const allImageOnly = current.length > 0 && current.every((i) => i.imageOnly);
     batches.push({
       id: mergePendingKey(current),
       text: mergePending(current),
       mode: 'queue',
-      ...(images.length ? { images } : current.some((i) => i.kb) ? { kb: true } : {}),
+      ...(images.length
+        ? {
+            images,
+            ...(allImageOnly ? { imageOnly: true as const } : {}),
+          }
+        : hasMissing
+          ? {
+              attachmentsMissing: true as const,
+              ...(allImageOnly ? { imageOnly: true as const } : {}),
+            }
+          : current.some((i) => i.kb)
+            ? { kb: true }
+            : {}),
     });
     current = [];
     imgCount = 0;
@@ -158,7 +176,8 @@ export function takeSteer(list: readonly PendingSend[]): {
 } {
   const steer: PendingSend[] = [];
   const rest: PendingSend[] = [];
-  for (const i of list) (i.mode === 'steer' && !i.images?.length ? steer : rest).push(i);
+  for (const i of list)
+    (i.mode === 'steer' && !i.images?.length && !i.attachmentsMissing ? steer : rest).push(i);
   return { steer, rest };
 }
 

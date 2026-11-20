@@ -56,5 +56,58 @@ describe('PendingDock failure', () => {
     );
     expect(queryByTestId('pending-send-error')).toBeNull();
     expect(queryByTestId('pending-retry')).toBeNull();
+    expect(queryByTestId('pending-attachments-missing')).toBeNull();
+  });
+
+  it('队首带附件缺失标记（含正文）：展示重新附上 / 仅发文字 / 删除，不显示重试', () => {
+    const onWithdraw = vi.fn();
+    const onRemove = vi.fn();
+    const onSendTextOnly = vi.fn();
+    const { getByTestId, queryByTestId, getAllByTestId } = render(
+      <PendingDock
+        items={[
+          { id: 'p1', text: '附带截图看看', mode: 'queue', attachmentsMissing: true },
+          { id: 'p2', text: '后续条目', mode: 'queue' },
+        ]}
+        onWithdraw={onWithdraw}
+        onRemove={onRemove}
+        onSendTextOnly={onSendTextOnly}
+      />,
+    );
+    const alert = getByTestId('pending-attachments-missing');
+    expect(alert.getAttribute('role')).toBe('alert');
+    expect(queryByTestId('pending-send-error')).toBeNull();
+    expect(queryByTestId('pending-retry')).toBeNull();
+    expect(getAllByTestId('pending-item')[0]!.getAttribute('data-state')).toBe(
+      'attachments-missing',
+    );
+
+    fireEvent.click(getByTestId('pending-send-text-only'));
+    expect(onSendTextOnly).toHaveBeenCalledWith('p1');
+    fireEvent.click(getByTestId('pending-reattach'));
+    expect(onWithdraw).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1' }));
+    fireEvent.click(getByTestId('pending-missing-remove'));
+    expect(onRemove).toHaveBeenCalledWith('p1');
+  });
+
+  it('纯图片条目附件缺失：不提供「仅发文字」，列表显示纯图片占位', () => {
+    const { getByTestId, queryByTestId, getAllByTestId } = render(
+      <PendingDock
+        items={[
+          { id: 'p1', text: '', mode: 'queue', attachmentsMissing: true, imageOnly: true },
+        ]}
+        onWithdraw={vi.fn()}
+        onRemove={vi.fn()}
+        onSendTextOnly={vi.fn()}
+      />,
+    );
+    expect(getByTestId('pending-attachments-missing')).toBeTruthy();
+    expect(queryByTestId('pending-send-text-only')).toBeNull();
+    expect(getAllByTestId('pending-item')[0]!.getAttribute('data-state')).toBe(
+      'attachments-missing',
+    );
+    expect(getAllByTestId('pending-item')[0]!.textContent).toContain(
+      String(t('ui.session-workspace.pending-image-only-placeholder')),
+    );
   });
 });

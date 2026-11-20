@@ -28,6 +28,10 @@ export function draftKey(ref: DraftSessionRef | null): string {
 
 export function createComposerDraftStore(initial?: Map<string, ComposerDraft>) {
   const map = initial ?? new Map<string, ComposerDraft>();
+  const listeners = new Set<(key: string) => void>();
+  const emit = (key: string) => {
+    for (const fn of listeners) fn(key);
+  };
   return {
     read(key: string): ComposerDraft {
       const cur = map.get(key);
@@ -44,13 +48,21 @@ export function createComposerDraftStore(initial?: Map<string, ComposerDraft>) {
         images: [...draft.images],
         files: [...draft.files],
       });
+      emit(key);
     },
     clear(key: string): void {
       map.set(key, { text: '', images: [], files: [] });
+      emit(key);
     },
     dropPrivate(key: string): void {
       if (key === SHARED_UNSENT) return;
-      map.delete(key);
+      if (map.delete(key)) emit(key);
+    },
+    subscribe(fn: (key: string) => void): () => void {
+      listeners.add(fn);
+      return () => {
+        listeners.delete(fn);
+      };
     },
   };
 }

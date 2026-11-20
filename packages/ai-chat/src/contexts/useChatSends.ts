@@ -40,7 +40,13 @@ import type { ChatMessage } from '../types/chat';
 import { ENDPOINT_NAME } from '../utils/endpointBadge';
 import { closeOpenCalls } from '../utils/toolTrace';
 
-import { convoKey, errorMessage, type AiChatAction, type AiChatState } from './aiChatState';
+import {
+  convoKey,
+  errorMessage,
+  type AiChatAction,
+  type AiChatState,
+  type ConvoOutcome,
+} from './aiChatState';
 import type { ActiveStream, InflightTurn } from './chatTurn';
 import {
   finishDeliveredSteers,
@@ -58,6 +64,8 @@ function nextMessageId(): string {
   lastMessageId = now <= lastMessageId && lastMessageId - now < 60_000 ? lastMessageId + 1 : now;
   return String(lastMessageId);
 }
+
+const isAbortError = (err: unknown): boolean => err instanceof Error && err.name === 'AbortError';
 
 interface SendsOptions {
   stateRef: MutableRefObject<AiChatState>;
@@ -78,6 +86,7 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
     async (content: string) => {
       const s = stateRef.current;
       const turn = openTurn(s.ipcClient);
+      let outcome: ConvoOutcome = 'done';
       try {
         dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
         dispatch({ type: 'SET_ERROR', payload: undefined });
@@ -138,9 +147,10 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
         await turn.save(aiMessage);
         if (turn.exists()) maybeIngest([...history, userMessage, aiMessage], turn.convoId);
       } catch (error) {
+        outcome = isAbortError(error) ? 'stopped' : 'error';
         dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
       } finally {
-        dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId });
+        dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId, outcome });
       }
     },
     [stateRef, dispatch, maybeIngest],
@@ -151,6 +161,7 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
     async (content: string, override?: { history: ChatMessage[] }) => {
       const s = stateRef.current;
       const turn = openTurn(s.ipcClient);
+      let outcome: ConvoOutcome = 'done';
       try {
         dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
         dispatch({ type: 'SET_ERROR', payload: undefined });
@@ -185,9 +196,10 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
         await user.final();
         await turn.save(aiMessage);
       } catch (error) {
+        outcome = isAbortError(error) ? 'stopped' : 'error';
         dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
       } finally {
-        dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId });
+        dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId, outcome });
       }
     },
     [stateRef, dispatch],
@@ -221,6 +233,7 @@ function useStreamSend({
       const reqId = newReqId();
       const controller = new AbortController();
       let owned = false;
+      let outcome: ConvoOutcome = 'done';
       // 用户发了新消息：正在朗读的上一条回复立即停
       if (!bgFollow) stopReplySpeech();
       let speaker: ReplySpeaker | null = null;
@@ -349,13 +362,15 @@ function useStreamSend({
             await saveUser('final');
             await turn.save(ack);
           } catch (err) {
+            const stoppedDelegate = controller.signal.aborted || isAbortError(err);
+            outcome = stoppedDelegate ? 'stopped' : 'error';
             const failed: ChatMessage = {
               id: nextMessageId(),
               role: 'assistant',
               content: '',
               error: t(
                 'ui.slash-commands.handoff-not-dispatched',
-                controller.signal.aborted ? t('ui.chat-settings.stopped') : errorMessage(err),
+                stoppedDelegate ? t('ui.chat-settings.stopped') : errorMessage(err),
               ),
               timestamp: Date.now(),
             };
@@ -445,7 +460,10 @@ function useStreamSend({
         ]);
         if (!bgFollow && mem.text.trim()) userMessage.memory = { text: mem.text, ids: mem.ids };
         // 准备期间（压缩 / 记忆召回等）发起会话被删了：不发送（没有地方落盘，也不能借用当前会话）
-        if (!turn.exists()) return;
+        if (!turn.exists()) {
+          outcome = 'stopped';
+          return;
+        }
         // 带上了召回的记忆：开始回复前更新先存的那份（中途重启后重试，记忆也还在）
         await saveUser('early');
         const aiMessageId = nextMessageId();
@@ -661,7 +679,11 @@ function useStreamSend({
           flushUi();
           // 还在跑的工具调用不会再有结果：标成已停止，否则时间线一直转圈
           trace.push(...closeOpenCalls(trace, Date.now(), t('ui.chat-settings.stopped')));
-          if (await finishAsHandoff()) return;
+          if (await finishAsHandoff()) {
+            outcome = 'stopped';
+            return;
+          }
+          outcome = controller.signal.aborted || isAbortError(err) ? 'stopped' : 'error';
           // 这一轮失败：保留已生成的部分与轨迹，作为「错误卡片」留在对话里（可重试），不进模型上下文
           // 插入的消息已经进了这条（轨迹里 / 正文开头「你加入了」分节）：补进记录的那几条不再需要
           const done = finishSteer(steering.current, turnKey);
@@ -687,10 +709,15 @@ function useStreamSend({
         flushUi();
         // 停止时还在跑的工具调用（内核已随这一轮中止它们）：标成已停止，否则时间线一直显示运行中
         trace.push(...closeOpenCalls(trace, Date.now(), t('ui.chat-settings.stopped')));
-        if (await finishAsHandoff()) return;
+        if (await finishAsHandoff()) {
+          outcome = 'stopped';
+          return;
+        }
         const stopped = controller.signal.aborted;
-        if (stopped) speaker?.stop();
-        else speaker?.finish();
+        if (stopped) {
+          outcome = 'stopped';
+          speaker?.stop();
+        } else speaker?.finish();
         // 中途插入的消息已经进了这条回复（轨迹里的 interject / 正文开头的「你加入了」分节）：
         // 补进对话记录的那几条按 id 删掉（正常结束时只留轨迹里的一份，不重复显示、不重复进上下文）
         const doneSteers = finishSteer(steering.current, turnKey);
@@ -724,6 +751,7 @@ function useStreamSend({
             turn.convoId,
           );
       } catch (error) {
+        outcome = controller.signal.aborted || isAbortError(error) ? 'stopped' : 'error';
         speaker?.stop();
         dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
       } finally {
@@ -734,7 +762,7 @@ function useStreamSend({
           activeStream.current.delete(key);
         if (inflight.current.get(key)?.reqId === reqId) inflight.current.delete(key);
         dispatch({ type: 'SET_STREAMING', payload: false, convoId: turn.convoId });
-        dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId });
+        dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId, outcome });
       }
     },
     [stateRef, dispatch, activeStream, inflight, maybeIngest, notifyToolStart, steering],

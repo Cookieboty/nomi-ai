@@ -33,7 +33,7 @@ export interface MessageInputProps {
   queue?: {
     onQueue: (
       text: string,
-      opts?: { kb?: boolean; mode?: PendingMode; images?: ImageAttachment[] },
+      opts?: { kb?: boolean; mode?: PendingMode; images?: ImageAttachment[]; imageOnly?: boolean },
     ) => void;
     onStop?: () => void;
     /** 待发列表里有几条（Esc 据此决定要不要停下来马上发） */

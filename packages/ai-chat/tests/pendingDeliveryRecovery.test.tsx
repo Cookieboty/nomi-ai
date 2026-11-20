@@ -445,3 +445,115 @@ describe('手动发送失败队首的替代', () => {
     expect(ref.current!.sendFails.a?.item.id).toBe(failed.id);
   });
 });
+
+describe('#395 / #396 / #406 队列持久化、晚到回调与会话隔离回归', () => {
+  it('#395：CLI 带图消息在重启前未发生过失败，重启恢复后暂停自动发送，仅发文字后恢复顺序发出', async () => {
+    const ipc1 = mockIpc(stateOf([tab({ id: 'a', status: 'running' })], 'a'));
+    const ref1 = mount();
+    await waitFor(() => expect(ref1.current!.state?.tabs).toHaveLength(2));
+    await act(async () => {
+      await ref1.current!.sendToTab('a', '带图看问题', undefined, [img('QUJD')]);
+      await ref1.current!.sendToTab('a', '紧随其后');
+    });
+    cleanup();
+
+    // 模拟重启：重新挂载并恢复
+    const ipc2 = mockIpc(stateOf([tab({ id: 'a', status: 'idle' })], 'a'));
+    const ref2 = mount();
+    await waitFor(() => expect(ref2.current!.state?.tabs).toHaveLength(2));
+    let restored = false;
+    await act(async () => {
+      restored = ref2.current!.restorePending(pendingKey('tab', 'a'));
+    });
+    expect(restored).toBe(true);
+    await act(() => new Promise((r) => setTimeout(r, 40)));
+    // 队首缺失图片，标签虽空闲但整个队列暂停（不跳过队首去发第二条）
+    expect(ipc2.sent).toHaveLength(0);
+    expect(ref2.current!.sendFails.a).toBeUndefined();
+    const head = ref2.current!.queues.a![0]!;
+    expect(head.attachmentsMissing).toBe(true);
+    expect(await ref2.current!.flushPendingFor('a')).toBe(false);
+
+    // 用户选择「仅发文字」后按原顺序发完两条
+    await act(async () => {
+      ref2.current!.sendPendingTextOnly('a', head.id);
+    });
+    await waitFor(() =>
+      expect(ipc2.sent.map((s) => s.text)).toEqual(['带图看问题', '紧随其后']),
+    );
+    await waitFor(() => expect(ref2.current!.queues.a ?? []).toHaveLength(0));
+  });
+
+  it('#396：自动发送等待回执期间删除条目，晚到失败不复活它且后一条正常发出', async () => {
+    let rejectFirst!: (err: Error) => void;
+    const firstHold = new Map<string, Promise<void>>([
+      [
+        '要被删的',
+        new Promise<void>((_, rej) => {
+          rejectFirst = rej;
+        }),
+      ],
+    ]);
+    const sentPrompts: string[] = [];
+    const customInvoke = vi.fn(
+      async (ch: string, i?: { id?: string; prompt?: string; images?: unknown[] }) => {
+        if (ch === 'harness.tabs') return stateOf([tab({ id: 'a', status: 'running' })], 'a');
+        if (ch === 'harness.tabMessages') return [];
+        if (ch === 'harness.tabSend') {
+          const p = String(i?.prompt ?? '');
+          const gate = firstHold.get(p);
+          if (gate) await gate;
+          sentPrompts.push(p);
+          return { ok: true };
+        }
+        return undefined;
+      },
+    );
+    const customFake = installFakeApi(customInvoke);
+    const ref = mount();
+    await waitFor(() => expect(ref.current!.state?.tabs).toHaveLength(2));
+    await act(async () => {
+      await ref.current!.sendToTab('a', '要被删的');
+      await ref.current!.sendToTab('a', '第二条');
+    });
+    const firstId = ref.current!.queues.a![0]!.id;
+
+    // 切为空闲开始自动派发「要被删的」，它在 customInvoke 里等待 firstHold
+    await act(async () => {
+      await customFake.emit('harness.tabsChanged', stateOf([tab({ id: 'a', status: 'idle' })], 'a'));
+    });
+    await waitFor(() => expect(ref.current!.inFlight.a).toBe(firstId));
+
+    // 回执还没到时，用户删掉「要被删的」：立即唤醒并发送「第二条」
+    await act(async () => {
+      ref.current!.removePendingFrom('a', firstId);
+    });
+    await waitFor(() => expect(sentPrompts).toEqual(['第二条']));
+
+    // 触发「要被删的」晚到失败：绝不能复活到队列，也不能挂失败提示
+    await act(async () => {
+      rejectFirst(new Error('late network error'));
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(ref.current!.queues.a ?? []).toHaveLength(0);
+    expect(ref.current!.sendFails.a).toBeUndefined();
+    expect(sentPrompts).toEqual(['第二条']);
+  });
+
+  it('#406：新建 CLI 标签首条入队立即持久化；同 id 更换工作目录或会话身份时隔离清空', async () => {
+    const ipc = mockIpc(stateOf([tab({ id: 'a', status: 'running', cwd: '/w1', createdAt: 1 })], 'a'));
+    const ref = mount();
+    await waitFor(() => expect(ref.current!.state?.tabs).toHaveLength(2));
+    await act(async () => {
+      await ref.current!.sendToTab('a', '新标签第一条');
+    });
+    // 未显式调过 restorePending 也能立即落盘
+    const raw = localStorage.getItem(pendingKey('tab', 'a'));
+    expect(raw).toContain('新标签第一条');
+
+    // 同 id 若换了目录（例如标签重连到了别的工作区）：队列与持久化立即清空
+    await ipc.push(stateOf([tab({ id: 'a', status: 'idle', cwd: '/w2', createdAt: 1 })], 'a'));
+    expect(ref.current!.queues.a ?? []).toHaveLength(0);
+    expect(localStorage.getItem(pendingKey('tab', 'a'))).toBeNull();
+  });
+});

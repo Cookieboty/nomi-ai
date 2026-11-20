@@ -211,7 +211,7 @@ const PaneHead: React.FC<
 };
 
 const withdrawFill = (item: PendingSend, prev: ComposerFill | null): ComposerFill => ({
-  text: item.text,
+  text: item.imageOnly ? '' : item.text,
   ...(item.images?.length ? { images: toImageAttachments(item.images) } : {}),
   nonce: (prev?.nonce ?? 0) + 1,
 });
@@ -248,6 +248,8 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
   const [fill, setFill] = useState<ComposerFill | null>(null);
   const paneRef = useRef<HTMLElement>(null);
   const pending = core.queues[tab.id] ?? [];
+  const hasMissing = pending.some((i) => i.attachmentsMissing);
+  const fail = core.sendFails[tab.id];
   const slash = useSlashCommands({
     backend: tab.backend === 'nomi' ? 'claude' : tab.backend,
     cwd: tab.cwd,
@@ -334,7 +336,12 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
             core.removePendingFrom(tab.id, item.id);
             setFill((prev) => withdrawFill(item, prev));
           }}
-          onFlush={running ? () => void core.flushPendingFor(tab.id) : undefined}
+          onFlush={running && !hasMissing ? () => void core.flushPendingFor(tab.id) : undefined}
+          failure={fail?.message}
+          failedText={fail?.item.text}
+          failedId={fail?.item.id}
+          onRetry={() => core.retryFailedSend(tab.id)}
+          onSendTextOnly={(id) => core.sendPendingTextOnly(tab.id, id)}
         />
         <MessageInput
           onSend={(text, imgs) => {
@@ -349,7 +356,15 @@ const HarnessChat: React.FC<{ tab: HarnessTabMeta; onClose: () => void; slot: Pa
           placeholder={cliTabPlaceholder(tab)}
           queue={{
             onQueue: (text, opts) =>
-              void core.sendToTab(tab.id, text, undefined, opts?.images, opts?.mode),
+              void core.sendToTab(
+                tab.id,
+                text,
+                undefined,
+                opts?.images,
+                opts?.mode,
+                undefined,
+                opts?.imageOnly,
+              ),
             onStop: () => void core.cancelRun(tab.id),
             pending: pending.length,
             onFlush: () => void core.flushPendingFor(tab.id),
@@ -946,10 +961,11 @@ export const SubagentPane: React.FC<{
 /** 对话旁的查看区、子任务侧栏、会话详情各自的状态（互不影响） */
 export const WorkspacePanesProvider: React.FC<{
   scope?: string | null;
+  detached?: boolean;
   children: React.ReactNode;
-}> = ({ scope, children }) => (
+}> = ({ scope, detached, children }) => (
   <ChangesUiProvider>
-    <SubagentPaneProvider scope={scope}>
+    <SubagentPaneProvider scope={scope} detached={detached}>
       <SubagentOutboxProvider>
         <SessionDetailsProvider>{children}</SessionDetailsProvider>
       </SubagentOutboxProvider>

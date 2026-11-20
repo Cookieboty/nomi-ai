@@ -409,3 +409,54 @@ describe('应用在回复中途重启：插入的那句留在对话里；正常�
     ).toHaveLength(1);
   });
 });
+
+describe('Nomi 待发队列带图重启暂停与仅发文字恢复 (#395)', () => {
+  it('带图消息入队后未发完即重启：恢复后带 attachmentsMissing 暂停发送、flush 返回 false、仅发文字后继续发送', async () => {
+    const kernel = createMemoryConversationKernel();
+    const store = new ConversationStore({ kernel });
+    const id = store.create().id;
+    const kv = memoryKv();
+    const src = { store, ipc: pendingIpc(store), kv };
+    const key = pendingKey('nomi', id);
+    const first = openPendingSends(src, key, id);
+    const send = vi.fn();
+    const hook1 = renderHook(({ st, busy }) => useSendQueue(busy, send, key, undefined, st), {
+      initialProps: { st: first, busy: true },
+    });
+    act(() => {
+      hook1.result.current.enqueue('带着这张图分析', {
+        mode: 'queue',
+        images: [{ mime: 'image/png', data: 'QUJD', width: 4, height: 4, source: 'paste' }],
+      });
+    });
+    await act(async () => {
+      await first.persist('update', hook1.result.current.items);
+    });
+    await store.flush();
+    hook1.unmount();
+
+    // 重启后以空闲态（busy: false）挂回：绝不能自动把残缺正文发出去
+    const again = openPendingSends(src, key, id);
+    const send2 = vi.fn();
+    const hook2 = renderHook(() => useSendQueue(false, send2, key, undefined, again));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(send2).not.toHaveBeenCalled();
+    expect(hook2.result.current.items[0]?.attachmentsMissing).toBe(true);
+    expect(hook2.result.current.flush()).toBe(false);
+    expect(send2).not.toHaveBeenCalled();
+
+    // 选择「仅发文字」后恢复自动发送，且落盘同步清除
+    act(() => {
+      hook2.result.current.sendTextOnly(hook2.result.current.items[0]!.id);
+    });
+    expect(send2).toHaveBeenCalledWith('带着这张图分析', undefined);
+    await act(async () => {
+      await again.persist('update', hook2.result.current.items);
+    });
+    expect(openPendingSends(src, key, id).read()).toEqual([]);
+    hook2.unmount();
+    store.dispose();
+  });
+});
