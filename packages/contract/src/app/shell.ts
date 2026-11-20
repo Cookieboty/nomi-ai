@@ -453,16 +453,30 @@ export const shellProcedures = {
     output: z.array(z.string()),
     surfaces: CHAT,
   },
-  /** 弹出窗口里「放回主窗口」：关掉这个窗口，并通知主窗口切到这个标签（chatWindow.tabDocked） */
+  /** 主窗口登记为弹出标签放回接收者（排他，按连接生命周期清理） */
+  'chatWindow.registerHost': {
+    kind: 'mutation',
+    input: v,
+    output: z.boolean(),
+    surfaces: CHAT,
+  },
+  /** 弹出窗口里「放回主窗口」：请求主窗口接收并 ACK 后再关掉这个窗口 */
   'chatWindow.dockTab': {
     kind: 'mutation',
-    input: z.object({ id: z.string().min(1).max(2048) }),
+    input: S.DockTabInput,
+    output: z.boolean(),
+    surfaces: CHAT,
+  },
+  /** 主窗口确认已收下放回标签与交接快照（ok=true 时宿主清理临时交接内容并关闭弹出窗口） */
+  'chatWindow.dockAck': {
+    kind: 'mutation',
+    input: S.DockAckInput,
     output: z.boolean(),
     surfaces: CHAT,
   },
   /**
    * 交接一个只在界面内存里的标签（侧边聊天）的内容：弹出 / 放回 / 关窗口时，当前持有它的窗口把快照放在宿主内存里，
-   * 另一个窗口取走（取一次就删）。宿主不解析、不落盘，关掉应用就没了。
+   * 另一个窗口取走（取一次就删，或 keepUntilAck 等 dockAck 后删）。宿主不解析、不落盘，关掉应用就没了。
    */
   'chatWindow.handoffPut': {
     kind: 'mutation',
@@ -472,7 +486,7 @@ export const shellProcedures = {
   },
   'chatWindow.handoffTake': {
     kind: 'mutation',
-    input: z.object({ id: z.string().min(1).max(2048) }),
+    input: S.HandoffTakeInput,
     output: z.string().nullable(),
     surfaces: CHAT,
   },
@@ -603,6 +617,8 @@ export const shellEvents = {
   'conversations.changed': S.ConversationsChanged,
   /** 弹出窗口开 / 关之后的整份 id 列表 */
   'chatWindow.detachedChanged': z.array(z.string()),
+  /** 弹出窗口里点了「放回主窗口」：宿主请求唯一主窗口接收交接并返回 dockAck */
+  'chatWindow.dockRequest': S.DockRequestEvent,
   /** 弹出窗口里点了「放回主窗口」：主窗口切到这个标签 */
   'chatWindow.tabDocked': z.object({ id: z.string() }),
   /** 内置浏览器窗口里的页面加载完成（视图收掉地址栏进度条） */
@@ -619,6 +635,7 @@ export const shellEvents = {
 export const shellEventSurfaces = {
   'conversations.changed': ['chat'],
   'chatWindow.detachedChanged': ['chat'],
+  'chatWindow.dockRequest': ['chat'],
   'chatWindow.tabDocked': ['chat'],
   'browserWindow.loaded': ['chat'],
   'browserWindow.closed': ['chat'],

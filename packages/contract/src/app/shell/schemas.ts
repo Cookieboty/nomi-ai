@@ -726,6 +726,8 @@ export const ConversationsChanged = loose({
   index: z.boolean(),
 });
 
+export const HandoffDirection = z.enum(['detach', 'dock']);
+
 /** chatWindow.detachTab：id = 视图定的标签身份（会话 + 标签键），title = 窗口标题，spec = 新窗口要打开什么（不透明 JSON） */
 export const DetachTabInput = z.object({
   id: z.string().min(1).max(2048),
@@ -740,4 +742,26 @@ export const HandoffPutInput = z.object({
     .string()
     .min(2)
     .max(8 * 1024 * 1024),
+  transferId: z.string().min(1).max(256).optional(),
+  direction: HandoffDirection.optional(),
+  keepUntilAck: z.boolean().optional(),
+});
+export const HandoffTakeInput = z.object({
+  id: z.string().min(1).max(2048),
+  transferId: z.string().min(1).max(256).optional(),
+  direction: HandoffDirection.optional(),
+});
+export const DockTabInput = z.object({
+  id: z.string().min(1).max(2048),
+  transferId: z.string().min(1).max(256).optional(),
+  requireAck: z.boolean().optional(),
+});
+export const DockAckInput = z.object({
+  id: z.string().min(1).max(2048),
+  transferId: z.string().min(1).max(256),
+  ok: z.boolean(),
+});
+export const DockRequestEvent = z.object({
+  id: z.string(),
+  transferId: z.string(),
 });

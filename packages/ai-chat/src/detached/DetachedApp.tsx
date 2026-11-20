@@ -10,7 +10,7 @@ import type { ClientAIClient } from '@nomi-ai/ai-sdk-client';
 import * as AISdkReact from '@nomi-ai/ai-sdk-client/react';
 import { Button, Icon, t } from '@nomi-ai/ui';
 import { IconArrowBackUp as Undo2 } from '@tabler/icons-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { ChatBackgroundLayer } from '../components/ChatBackground/ChatBackgroundLayer';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -23,7 +23,13 @@ import { HarnessTabsProvider, useHarnessTabs } from '../contexts/HarnessTabsCont
 import { ResourceScopeProvider } from '../contexts/ResourceContext';
 import { useResourcePreview } from '../hooks/useResourcePreview';
 import { detachedWindows } from '../services/detachedWindows';
-import { exportSideChat, importSideChat, subscribeSideChat } from '../services/sideChat';
+import {
+  exportSideChat,
+  importSideChat,
+  sideChatDraftKey,
+  sideChatDrafts,
+  subscribeSideChat,
+} from '../services/sideChat';
 import { detachedId, detachSpecKey, type DetachSpec } from '../utils/detachedTabs';
 import { agentKey } from '../utils/sideTabs';
 import '../App.css';
@@ -43,11 +49,21 @@ function useWindowTitle(name: string) {
   }, [name]);
 }
 
-const Bar: React.FC<{ title: string; onDock?: () => void }> = ({ title, onDock }) => (
+const Bar: React.FC<{ title: string; onDock?: () => void; docking?: boolean }> = ({
+  title,
+  onDock,
+  docking,
+}) => (
   <header className={styles.bar} data-testid="detached-bar">
     <span className={styles.title}>{title}</span>
     {onDock && (
-      <Button size="sm" variant="ghost" onClick={onDock} data-testid="detached-dock">
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={onDock}
+        disabled={docking}
+        data-testid="detached-dock"
+      >
         <Icon icon={Undo2} size={14} />
         {t('ui.session-workspace.side-tab-dock')}
       </Button>
@@ -57,7 +73,10 @@ const Bar: React.FC<{ title: string; onDock?: () => void }> = ({ title, onDock }
 );
 
 /** 侧边聊天：取走主窗口交过来的内容；之后每次变化（停顿一下）都交回一份，关窗口 / 放回后主窗口取走 */
-function useSideChatHandoff(spec: Extract<DetachSpec, { kind: 'agent' }>): boolean | null {
+function useSideChatHandoff(
+  spec: Extract<DetachSpec, { kind: 'agent' }>,
+  dockingRef: React.RefObject<boolean>,
+): boolean | null {
   const chatId = spec.target.kind === 'side-chat' ? spec.target.chatId : null;
   const id = detachedId(spec.scope, agentKey(spec.target));
   const [ready, setReady] = useState<boolean | null>(chatId ? null : true);
@@ -66,19 +85,26 @@ function useSideChatHandoff(spec: Extract<DetachSpec, { kind: 'agent' }>): boole
     let alive = true;
     let timer: number | undefined;
     const save = () => {
+      if (dockingRef.current) return;
       const data = exportSideChat(chatId, { settle: true });
-      if (data) void detachedWindows.put(id, data);
+      if (data) void detachedWindows.put(id, data, { direction: 'dock' });
     };
-    let off = () => {};
-    void detachedWindows.take(id).then((data) => {
+    const scheduleSave = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(save, 150);
+    };
+    let offChat = () => {};
+    let offDraft = () => {};
+    void detachedWindows.take(id, { direction: 'detach' }).then((data) => {
       if (!alive) return;
       const ok = importSideChat(data) === chatId;
       setReady(ok);
       if (!ok) return;
       save();
-      off = subscribeSideChat(() => {
-        window.clearTimeout(timer);
-        timer = window.setTimeout(save, 150);
+      offChat = subscribeSideChat(scheduleSave);
+      const draftKey = sideChatDraftKey(chatId);
+      offDraft = sideChatDrafts.subscribe((k) => {
+        if (k === draftKey) scheduleSave();
       });
     });
     window.addEventListener('pagehide', save);
@@ -86,9 +112,10 @@ function useSideChatHandoff(spec: Extract<DetachSpec, { kind: 'agent' }>): boole
       alive = false;
       window.clearTimeout(timer);
       window.removeEventListener('pagehide', save);
-      off();
+      offChat();
+      offDraft();
     };
-  }, [chatId, id]);
+  }, [chatId, id, dockingRef]);
   return ready;
 }
 
@@ -96,7 +123,16 @@ const AgentWindow: React.FC<{ spec: Extract<DetachSpec, { kind: 'agent' }> }> = 
   const pane = useSubagentPane();
   const key = agentKey(spec.target);
   const { openSubagent, openNested, openNomiTask, openSideChatTab } = pane ?? {};
-  const sideReady = useSideChatHandoff(spec);
+  const dockingRef = useRef(false);
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
+  const [docking, setDocking] = useState(false);
+  const sideReady = useSideChatHandoff(spec, dockingRef);
   useEffect(() => {
     const target = spec.target;
     if (target.kind === 'harness') openSubagent?.(target.tabId);
@@ -114,20 +150,33 @@ const AgentWindow: React.FC<{ spec: Extract<DetachSpec, { kind: 'agent' }> }> = 
       ? sideReady === false
       : !!pane && pane.targets.length === 0 && spec.target.kind !== 'nomi-task' && harnessLoaded;
   const dock = () => {
-    // 放回前先把最新的内容交回去（主窗口在窗口关掉后取走）
-    if (spec.target.kind === 'side-chat') {
-      const data = exportSideChat(spec.target.chatId, { settle: true });
-      const id = detachedId(spec.scope, key);
-      void (data ? detachedWindows.put(id, data) : Promise.resolve(true)).then(() =>
-        detachedWindows.dock(spec.scope, key),
-      );
-      return;
-    }
-    void detachedWindows.dock(spec.scope, key);
+    if (dockingRef.current) return;
+    dockingRef.current = true;
+    setDocking(true);
+    const run = async () => {
+      const transferId = detachedWindows.newTransferId();
+      if (spec.target.kind === 'side-chat') {
+        const data = exportSideChat(spec.target.chatId, { settle: true });
+        const id = detachedId(spec.scope, key);
+        if (data) {
+          const putOk = await detachedWindows.put(id, data, {
+            transferId,
+            direction: 'dock',
+            keepUntilAck: true,
+          });
+          if (!putOk) return;
+        }
+      }
+      await detachedWindows.dock(spec.scope, key, { transferId, requireAck: true });
+    };
+    void run().finally(() => {
+      dockingRef.current = false;
+      if (aliveRef.current) setDocking(false);
+    });
   };
   return (
     <>
-      <Bar title={name} onDock={dock} />
+      <Bar title={name} onDock={dock} docking={docking} />
       <main className={styles.body} data-testid="detached-agent">
         {spec.target.kind === 'side-chat' ? (
           <SideChatPane
@@ -195,7 +244,7 @@ export function DetachedApp({ spec }: { spec: DetachSpec }) {
     <ErrorBoundary>
       <AiChatContextProvider client={client}>
         <HarnessTabsProvider>
-          <WorkspacePanesProvider>
+          <WorkspacePanesProvider detached>
             <div className={styles.app} data-detached-tab={key}>
               <ChatBackgroundLayer />
               {spec.kind === 'agent' ? <AgentWindow spec={spec} /> : <FileWindow spec={spec} />}

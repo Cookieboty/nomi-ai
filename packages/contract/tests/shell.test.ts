@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import type { ProcedureDef } from '../src';
 import { appContract, shellEvents, shellProcedures } from '../src/app';
 import * as S from '../src/app/shell/schemas';
+import * as ST from '../src/app/shell/sideTerminal';
 import { createTestClient } from '../src/testing';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -131,7 +132,9 @@ describe('shell · 过程表', () => {
       'conversations.markMigrated': 'mutation surfaces=chat',
       'chatWindow.detachTab': 'mutation surfaces=chat',
       'chatWindow.detachedTabs': 'query surfaces=chat',
+      'chatWindow.registerHost': 'mutation surfaces=chat',
       'chatWindow.dockTab': 'mutation surfaces=chat',
+      'chatWindow.dockAck': 'mutation surfaces=chat',
       'chatWindow.handoffPut': 'mutation surfaces=chat',
       'chatWindow.handoffTake': 'mutation surfaces=chat',
       'browserWindow.show': 'mutation surfaces=chat',
@@ -167,6 +170,7 @@ describe('shell · 过程表', () => {
       'updates.changed',
       'conversations.changed',
       'chatWindow.detachedChanged',
+      'chatWindow.dockRequest',
       'chatWindow.tabDocked',
       'browserWindow.loaded',
       'browserWindow.closed',
@@ -499,5 +503,66 @@ describe('conversation id（与 Go convstore.ValidID 同一条规则）', () => 
       expect(S.ConversationId.safeParse(id).success, id).toBe(false);
     }
     expect(isValidConversationId(42)).toBe(false);
+  });
+});
+
+describe('sideTerminal · 代次与偏移契约校验', () => {
+  it('校验合法与非法的 generation / offset / replayOffset / replace 字段', () => {
+    expect(ST.SideTerminalOpenInput.safeParse({ id: 't1', replace: true }).success).toBe(true);
+    expect(ST.SideTerminalOpenInput.safeParse({ id: 't1', replace: 'yes' }).success).toBe(false);
+
+    expect(
+      ST.SideTerminalOpenResult.safeParse({ ok: true, generation: 1, replayOffset: 0 }).success,
+    ).toBe(true);
+    expect(ST.SideTerminalOpenResult.safeParse({ ok: true, generation: 0 }).success).toBe(false);
+    expect(ST.SideTerminalOpenResult.safeParse({ ok: true, replayOffset: -1 }).success).toBe(false);
+
+    expect(ST.SideTerminalIdInput.safeParse({ id: 't1', generation: 2 }).success).toBe(true);
+    expect(ST.SideTerminalIdInput.safeParse({ id: 't1', generation: 0 }).success).toBe(false);
+
+    expect(
+      ST.SideTerminalData.safeParse({ id: 't1', data: 'aGk=', generation: 1, offset: 0 }).success,
+    ).toBe(true);
+    expect(
+      ST.SideTerminalData.safeParse({ id: 't1', data: 'aGk=', generation: 1, offset: -5 }).success,
+    ).toBe(false);
+
+    expect(ST.SideTerminalExit.safeParse({ id: 't1', generation: 3, exitCode: 0 }).success).toBe(
+      true,
+    );
+    expect(ST.SideTerminalExit.safeParse({ id: 't1', generation: 0 }).success).toBe(false);
+  });
+});
+
+describe('chatWindow · 多窗口交接与两阶段放回契约校验', () => {
+  it('校验 handoff / dockTab / dockAck / dockRequest 的新字段', () => {
+    expect(
+      S.HandoffPutInput.safeParse({
+        id: 'w1',
+        data: '{}',
+        transferId: 't1',
+        direction: 'dock',
+        keepUntilAck: true,
+      }).success,
+    ).toBe(true);
+    expect(
+      S.HandoffPutInput.safeParse({
+        id: 'w1',
+        data: '{}',
+        direction: 'other',
+      }).success,
+    ).toBe(false);
+
+    expect(
+      S.HandoffTakeInput.safeParse({ id: 'w1', transferId: 't1', direction: 'detach' }).success,
+    ).toBe(true);
+    expect(S.HandoffTakeInput.safeParse({ id: '' }).success).toBe(false);
+
+    expect(S.DockTabInput.safeParse({ id: 'w1', transferId: 't1', requireAck: true }).success).toBe(
+      true,
+    );
+    expect(S.DockAckInput.safeParse({ id: 'w1', transferId: 't1', ok: true }).success).toBe(true);
+    expect(S.DockAckInput.safeParse({ id: 'w1', transferId: '', ok: true }).success).toBe(false);
+    expect(S.DockRequestEvent.safeParse({ id: 'w1', transferId: 't1' }).success).toBe(true);
   });
 });

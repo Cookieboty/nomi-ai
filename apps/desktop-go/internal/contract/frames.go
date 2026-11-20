@@ -176,6 +176,33 @@ func (r *Router) EmitTo(event string, data any, surface string) bool {
 	return delivered
 }
 
+// EmitToCaller 只推给指定 callerID 且订阅了该事件的连接；返回是否有人收到。
+func (r *Router) EmitToCaller(callerID int, event string, data any) bool {
+	if callerID <= 0 {
+		return false
+	}
+	r.subMu.Lock()
+	ss := make([]*Session, 0, len(r.sessions))
+	for s := range r.sessions {
+		ss = append(ss, s)
+	}
+	r.subMu.Unlock()
+	delivered := false
+	for _, s := range ss {
+		if s.caller.ID != callerID {
+			continue
+		}
+		s.mu.Lock()
+		ok := s.subs[event]
+		s.mu.Unlock()
+		if ok {
+			delivered = true
+			s.send(ServerFrame{T: "event", Event: event, Data: data})
+		}
+	}
+	return delivered
+}
+
 func (r *Router) allowed(name, surface string) bool {
 	ss := r.surfaces[name]
 	if len(ss) == 0 {
