@@ -8,6 +8,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 ### Maintenance
 
 - **release:** empty changeset after archiving 2.4.2
+- add storage-independent conversation runtime handoff foundations for 2.5.0 (`@nomi-ai/desktop-go` patch)
 
 ## 2.4.2 — 2026-11-20
 
