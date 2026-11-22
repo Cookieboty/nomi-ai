@@ -1,6 +1,7 @@
 package shellhandlers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -23,6 +24,8 @@ func runtimeFail(err error) error {
 		code = "CONVERSATION_NOT_FOUND"
 	case errors.Is(err, cr.ErrBusy):
 		code = "RUNTIME_BUSY"
+	case errors.Is(err, cr.ErrUnresolved):
+		code = "RUNTIME_UNRESOLVED"
 	case errors.Is(err, cr.ErrStaleEvent), errors.Is(err, cr.ErrStaleBinding):
 		code = "RUNTIME_STALE"
 	case errors.Is(err, cr.ErrBadEdit), errors.Is(err, cr.ErrPermission), errors.Is(err, convstore.ErrBadID):
@@ -69,22 +72,40 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 		}
 		router.EmitTo("conversations.changed", map[string]any{"source": "runtime", "ids": []string{id}, "index": true}, "chat")
 	})
-	router.Call("conversations.runtimeCapabilities", func(context.Context, contract.Caller, json.RawMessage) (any, error) {
+	router.Call("conversations.runtimeCapabilities", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+		var in struct{ ID string }
+		if len(bytes.TrimSpace(raw)) > 0 && string(raw) != "null" {
+			if err := json.Unmarshal(raw, &in); err != nil {
+				return nil, badInput(err)
+			}
+		}
 		detail := "Experimental explicit opt-in; API mode is text-only; installed CLI backends have unverified login and declared capability limits"
 		if !convstore.ManagedSupported() {
 			detail = "Managed runtime persistence is unsupported on this platform; existing API conversations remain available"
 		}
-		return map[string]any{"supported": convstore.ManagedSupported(), "backends": registry.Available(), "detail": detail}, nil
+		choices := registry.Choices(in.ID)
+		if choices == nil {
+			choices = []mainchat.RuntimeChoice{}
+		}
+		out := []map[string]any{}
+		for _, c := range choices {
+			degraded := c.Degraded
+			if degraded == nil {
+				degraded = []string{}
+			}
+			out = append(out, map[string]any{"id": c.ID, "available": c.Available, "status": c.Status, "detail": c.Detail, "login": c.Login, "requiresProject": c.RequiresProject, "degraded": degraded})
+		}
+		return map[string]any{"supported": convstore.ManagedSupported(), "backends": registry.Available(), "detail": detail, "choices": out}, nil
 	})
-	for _, name := range []string{"State", "Adopt", "Select", "Send", "Cancel", "Approve", "Edit", "Release"} {
+	for _, name := range []string{"State", "Adopt", "Select", "Send", "Cancel", "Approve", "Edit", "Release", "Resolve"} {
 		op := name
 		router.Call("conversations.runtime"+op, func(ctx context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 			var in struct {
-				ID, Backend, MessageID, TurnID, Text, ApprovalID string
-				ExpectedGeneration                               uint64
-				BeforeGeneration                                 *uint64
-				Confirm, Retry, Allow                            bool
-				Token                                            struct {
+				ID, Backend, MessageID, TurnID, Text, ApprovalID, Decision string
+				ExpectedGeneration                                         uint64
+				BeforeGeneration                                           *uint64
+				Confirm, Retry, Allow                                      bool
+				Token                                                      struct {
 					ConversationID, AttemptID string
 					Generation                uint64
 				}
@@ -120,6 +141,12 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 				err = registry.Edit(in.ID, in.MessageID, in.Text)
 			case "Release":
 				return nil, registry.Release(in.ID)
+			case "Resolve":
+				if !bytes.Contains(raw, []byte("expectedGeneration")) {
+					return nil, badInput(errors.New("expectedGeneration required"))
+				}
+				g := in.ExpectedGeneration
+				err = registry.Resolve(in.ID, in.Decision, in.Confirm, &g)
 			}
 			if err != nil {
 				return nil, runtimeFail(err)

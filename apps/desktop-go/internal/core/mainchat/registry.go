@@ -31,6 +31,7 @@ type Registry struct {
 	notify    func(string)
 	releases  map[string]func(string)
 	releasing map[string]chan struct{}
+	probe     func(string) []RuntimeChoice
 }
 
 func New(s *convstore.Store, notify func(string)) *Registry {
@@ -53,6 +54,27 @@ func (r *Registry) RegisterOwned(name string, f Factory, release func(string)) {
 		r.factories[name] = f
 		r.releases[name] = release
 	}
+}
+
+type RuntimeChoice struct {
+	ID, Status, Detail, Login  string
+	Available, RequiresProject bool
+	Degraded                   []string
+}
+
+func (r *Registry) SetProbe(probe func(string) []RuntimeChoice) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.probe = probe
+}
+func (r *Registry) Choices(id string) []RuntimeChoice {
+	r.mu.Lock()
+	probe := r.probe
+	r.mu.Unlock()
+	if probe == nil {
+		return nil
+	}
+	return probe(id)
 }
 func (r *Registry) Available() []string {
 	r.mu.Lock()
@@ -157,6 +179,29 @@ func (r *Registry) Adopt(id, name string, confirm bool) error {
 	r.changed(id)
 	return nil
 }
+func (r *Registry) Resolve(id, decision string, confirm bool, expected *uint64) error {
+	if !confirm || decision != "new-native" {
+		return cr.ErrPermission
+	}
+	a, err := r.get(id)
+	if err != nil {
+		return err
+	}
+	if a.session.NeedsRuntime() {
+		name := a.session.Checkpoint().Selected.Identity.DriverID
+		t, e := r.target(id, name)
+		if e != nil {
+			return e
+		}
+		if e = a.session.Reattach(t); e != nil {
+			return e
+		}
+	}
+	err = a.session.ResolveUnprovenResume(expected)
+	r.changed(id)
+	return err
+}
+
 func (r *Registry) Select(id, name string) error {
 	a, err := r.get(id)
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -55,5 +56,48 @@ func TestManagedClaudeMissingExecutableNotAdvertised(t *testing.T) {
 	wireManagedClaude(r, s, migrationStore(t.TempDir()))
 	if slices.Contains(r.Available(), "claude") {
 		t.Fatal("missing CLI advertised as installed")
+	}
+}
+
+func TestManagedClaudeChoicesAreAccurateWithoutLoginProbe(t *testing.T) {
+	missing := t.TempDir()
+	t.Setenv("PATH", missing)
+	s := convstore.New(t.TempDir())
+	r := mainchat.New(s, nil)
+	defer r.Close()
+	p := migrationStore(t.TempDir())
+	putConv(t, s, map[string]any{"id": "c", "backend": "nomi"})
+	wireManagedClaude(r, s, p)
+	choices := r.Choices("c")
+	if slices.Contains(r.Available(), "claude") {
+		t.Fatal("missing CLI advertised as installed")
+	}
+	if len(choices) != 1 || choices[0].ID != "claude" || choices[0].Available || choices[0].Status != "missing-executable" {
+		t.Fatalf("missing executable choice: %+v", choices)
+	}
+	if choices[0].Login != "not-advertised" || strings.Contains(strings.ToLower(choices[0].Detail), "logged in") {
+		t.Fatal("missing executable was advertised as logged in", choices[0])
+	}
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "claude"), []byte("#!/bin/sh\nexit 19\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	t.Setenv("HOME", dir)
+	r2 := mainchat.New(convstore.New(t.TempDir()), nil)
+	defer r2.Close()
+	store := convstore.New(t.TempDir())
+	putConv(t, store, map[string]any{"id": "no-project", "backend": "nomi"})
+	wireManagedClaude(r2, store, migrationStore(t.TempDir()))
+	none := r2.Choices("no-project")
+	if !slices.Contains(r2.Available(), "claude") {
+		t.Fatal("present executable should be registered")
+	}
+	if len(none) != 1 || none[0].Status != "no-project" || none[0].Available {
+		t.Fatalf("no-project choice: %+v", none)
+	}
+	if none[0].Login != "not-advertised" {
+		t.Fatal("no-project advertised a login", none[0])
 	}
 }

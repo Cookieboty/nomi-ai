@@ -49,6 +49,7 @@ type Session struct {
 	queue          []Request
 	completed      map[string]int
 	attempted      map[string]bool
+	held           map[string]bool
 	preferred      map[string]string
 	work           Activity
 }
@@ -59,7 +60,7 @@ func NewSession(id string, history []Entry) (*Session, error) {
 	if strings.TrimSpace(id) == "" {
 		return nil, fmt.Errorf("%w: empty conversation ID", ErrBadEdit)
 	}
-	c := &Session{id: id, ledger: NewLedger(), bindings: NewBindingStore(), preferred: map[string]string{}, completed: map[string]int{}, attempted: map[string]bool{}, work: Activity{Known: true}}
+	c := &Session{id: id, ledger: NewLedger(), bindings: NewBindingStore(), preferred: map[string]string{}, completed: map[string]int{}, attempted: map[string]bool{}, held: map[string]bool{}, work: Activity{Known: true}}
 	for i, e := range history {
 		if e.Revision > 1 || e.Revision < 0 || (e.Order != 0 && e.Order != int64(i+1)) {
 			return nil, fmt.Errorf("%w: seed is not an unrevisioned ordered fixture; use RestoreCheckpoint", ErrBadEdit)

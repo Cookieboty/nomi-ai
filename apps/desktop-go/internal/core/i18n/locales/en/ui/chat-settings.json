@@ -773,5 +773,18 @@
   "ui.chat-settings.managed-ingress": "Use the managed conversation runtime ingress",
   "ui.chat-settings.managed-unsupported": "Managed attachments, rewinds, knowledge bridges and background tasks are not supported yet",
   "ui.chat-settings.managed-observation-timeout": "Runtime observation timed out; inspect recovery state. Do not retry automatically.",
-  "ui.chat-settings.managed-view-write": "This conversation is managed by its runtime; view writes are not allowed"
+  "ui.chat-settings.managed-view-write": "This conversation is managed by its runtime; view writes are not allowed",
+  "ui.chat-settings.managed-runtime-title": "Local runtime",
+  "ui.chat-settings.managed-first-use": "No model provider is required. You can use the official Claude Code already logged in on this computer.",
+  "ui.chat-settings.managed-missing-executable": "Claude Code is not installed on PATH. Install and sign in with the official CLI. Finding or missing the executable is not treated as a login.",
+  "ui.chat-settings.managed-login-unverified": "Login is not verified here. The official CLI will use its own local login when you send.",
+  "ui.chat-settings.managed-no-project": "This experimental Claude path needs a project selected for the conversation. The home directory is not used automatically.",
+  "ui.chat-settings.managed-unsupported-platform": "Managed local CLI persistence is not available on this platform. Existing API conversations stay readable and usable.",
+  "ui.chat-settings.managed-requires-provider": "Experimental API text-only mode needs a configured provider. It does not replace the existing unmanaged API tool route.",
+  "ui.chat-settings.managed-recovery-unknown": "The previous Claude session could not be proven resumed. No request was sent. Choose a new Claude session to continue with a full history handoff, or wait — nothing is retried automatically.",
+  "ui.chat-settings.managed-new-native": "Start a new Claude session",
+  "ui.chat-settings.managed-idle-only": "Runtime can be changed only when this conversation is idle.",
+  "ui.chat-settings.managed-use-claude": "Use local Claude Code",
+  "ui.chat-settings.managed-use-api": "Use API text mode",
+  "ui.chat-settings.managed-current": "Current runtime: {0}"
 }

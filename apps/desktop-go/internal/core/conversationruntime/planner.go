@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -161,7 +162,7 @@ func resumeProblem(in PlanInput) string {
 func deltaCandidates(snap []Entry, in PlanInput, cur string) []candidate {
 	out := []candidate{}
 	for _, e := range snap {
-		if e.Tombstone || e.ID == cur || (in.HistoryBeforeOrder > 0 && e.Order >= in.HistoryBeforeOrder) {
+		if e.Tombstone || e.ID == cur || in.HoldIDs[e.ID] || (in.HistoryBeforeOrder > 0 && e.Order >= in.HistoryBeforeOrder) {
 			continue
 		}
 		cand := candidate{
@@ -268,6 +269,14 @@ func planID(in PlanInput, p Plan) string {
 	for _, o := range p.Omitted {
 		put("omit", o.ID, fmt.Sprint(o.Rev), o.Reason)
 	}
+	holds := make([]string, 0, len(in.HoldIDs))
+	for id, yes := range in.HoldIDs {
+		if yes {
+			holds = append(holds, id)
+		}
+	}
+	sort.Strings(holds)
+	put(append([]string{"hold"}, holds...)...)
 	put("payload", p.Payload)
 	sum := sha256.Sum256([]byte(b.String()))
 	return "pl2_" + hex.EncodeToString(sum[:12])

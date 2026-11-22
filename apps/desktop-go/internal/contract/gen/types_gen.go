@@ -2537,10 +2537,45 @@ type ConversationsRuntimeCancelOutput struct {
 	Capabilities ConversationsRuntimeCancelOutputCapabilities `json:"capabilities"`
 }
 
+type ConversationsRuntimeCapabilitiesInput struct {
+	Id *string `json:"id,omitempty"`
+}
+
+// ConversationsRuntimeCapabilitiesOutputChoicesItemStatus 枚举：ready | missing-executable | no-project | unsupported-platform | requires-provider
+type ConversationsRuntimeCapabilitiesOutputChoicesItemStatus = string
+
+const (
+	ConversationsRuntimeCapabilitiesOutputChoicesItemStatusReady               ConversationsRuntimeCapabilitiesOutputChoicesItemStatus = "ready"
+	ConversationsRuntimeCapabilitiesOutputChoicesItemStatusMissingExecutable   ConversationsRuntimeCapabilitiesOutputChoicesItemStatus = "missing-executable"
+	ConversationsRuntimeCapabilitiesOutputChoicesItemStatusNoProject           ConversationsRuntimeCapabilitiesOutputChoicesItemStatus = "no-project"
+	ConversationsRuntimeCapabilitiesOutputChoicesItemStatusUnsupportedPlatform ConversationsRuntimeCapabilitiesOutputChoicesItemStatus = "unsupported-platform"
+	ConversationsRuntimeCapabilitiesOutputChoicesItemStatusRequiresProvider    ConversationsRuntimeCapabilitiesOutputChoicesItemStatus = "requires-provider"
+)
+
+// ConversationsRuntimeCapabilitiesOutputChoicesItemLogin 枚举：unverified | not-advertised | not-applicable
+type ConversationsRuntimeCapabilitiesOutputChoicesItemLogin = string
+
+const (
+	ConversationsRuntimeCapabilitiesOutputChoicesItemLoginUnverified    ConversationsRuntimeCapabilitiesOutputChoicesItemLogin = "unverified"
+	ConversationsRuntimeCapabilitiesOutputChoicesItemLoginNotAdvertised ConversationsRuntimeCapabilitiesOutputChoicesItemLogin = "not-advertised"
+	ConversationsRuntimeCapabilitiesOutputChoicesItemLoginNotApplicable ConversationsRuntimeCapabilitiesOutputChoicesItemLogin = "not-applicable"
+)
+
+type ConversationsRuntimeCapabilitiesOutputChoicesItem struct {
+	Id              string                                                  `json:"id"`
+	Available       bool                                                    `json:"available"`
+	Status          ConversationsRuntimeCapabilitiesOutputChoicesItemStatus `json:"status"`
+	Detail          string                                                  `json:"detail"`
+	Login           ConversationsRuntimeCapabilitiesOutputChoicesItemLogin  `json:"login"`
+	RequiresProject bool                                                    `json:"requiresProject"`
+	Degraded        []string                                                `json:"degraded"`
+}
+
 type ConversationsRuntimeCapabilitiesOutput struct {
-	Supported bool     `json:"supported"`
-	Backends  []string `json:"backends"`
-	Detail    string   `json:"detail"`
+	Supported bool                                                `json:"supported"`
+	Backends  []string                                            `json:"backends"`
+	Detail    string                                              `json:"detail"`
+	Choices   []ConversationsRuntimeCapabilitiesOutputChoicesItem `json:"choices"`
 }
 
 type ConversationsRuntimeEditInput struct {
@@ -2606,6 +2641,68 @@ type ConversationsRuntimeEditOutput struct {
 
 type ConversationsRuntimeReleaseInput struct {
 	Id string `json:"id"`
+}
+
+type ConversationsRuntimeResolveInput struct {
+	Id                 string `json:"id"`
+	Decision           string `json:"decision"`
+	Confirm            bool   `json:"confirm"`
+	ExpectedGeneration int64  `json:"expectedGeneration"`
+}
+
+// ConversationsRuntimeResolveOutputPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
+type ConversationsRuntimeResolveOutputPhase = string
+
+const (
+	ConversationsRuntimeResolveOutputPhaseIdle            ConversationsRuntimeResolveOutputPhase = "idle"
+	ConversationsRuntimeResolveOutputPhasePreparing       ConversationsRuntimeResolveOutputPhase = "preparing"
+	ConversationsRuntimeResolveOutputPhaseRunning         ConversationsRuntimeResolveOutputPhase = "running"
+	ConversationsRuntimeResolveOutputPhaseCompleted       ConversationsRuntimeResolveOutputPhase = "completed"
+	ConversationsRuntimeResolveOutputPhaseFailedPreSubmit ConversationsRuntimeResolveOutputPhase = "failed-pre-submit"
+	ConversationsRuntimeResolveOutputPhaseCanceling       ConversationsRuntimeResolveOutputPhase = "canceling"
+	ConversationsRuntimeResolveOutputPhaseCanceled        ConversationsRuntimeResolveOutputPhase = "canceled"
+	ConversationsRuntimeResolveOutputPhaseUncertain       ConversationsRuntimeResolveOutputPhase = "uncertain"
+)
+
+type ConversationsRuntimeResolveOutputToken struct {
+	ConversationId string `json:"conversationId"`
+	AttemptId      string `json:"attemptId"`
+	Generation     int64  `json:"generation"`
+}
+
+// ConversationsRuntimeResolveOutputRecovery 枚举：none | resumed | new | fallback | unknown | error
+type ConversationsRuntimeResolveOutputRecovery = string
+
+const (
+	ConversationsRuntimeResolveOutputRecoveryNone     ConversationsRuntimeResolveOutputRecovery = "none"
+	ConversationsRuntimeResolveOutputRecoveryResumed  ConversationsRuntimeResolveOutputRecovery = "resumed"
+	ConversationsRuntimeResolveOutputRecoveryNew      ConversationsRuntimeResolveOutputRecovery = "new"
+	ConversationsRuntimeResolveOutputRecoveryFallback ConversationsRuntimeResolveOutputRecovery = "fallback"
+	ConversationsRuntimeResolveOutputRecoveryUnknown  ConversationsRuntimeResolveOutputRecovery = "unknown"
+	ConversationsRuntimeResolveOutputRecoveryError    ConversationsRuntimeResolveOutputRecovery = "error"
+)
+
+type ConversationsRuntimeResolveOutputCapabilities struct {
+	Resume          bool     `json:"resume"`
+	Cancel          bool     `json:"cancel"`
+	Approval        bool     `json:"approval"`
+	Attachments     bool     `json:"attachments"`
+	PermissionModes []string `json:"permissionModes"`
+	Degraded        []string `json:"degraded"`
+}
+
+type ConversationsRuntimeResolveOutput struct {
+	Id           string                                        `json:"id"`
+	Backend      string                                        `json:"backend"`
+	Generation   int64                                         `json:"generation"`
+	Phase        ConversationsRuntimeResolveOutputPhase        `json:"phase"`
+	Queued       int64                                         `json:"queued"`
+	Partial      string                                        `json:"partial"`
+	Detail       string                                        `json:"detail"`
+	Approvals    []string                                      `json:"approvals"`
+	Token        *ConversationsRuntimeResolveOutputToken       `json:"token,omitempty"`
+	Recovery     ConversationsRuntimeResolveOutputRecovery     `json:"recovery"`
+	Capabilities ConversationsRuntimeResolveOutputCapabilities `json:"capabilities"`
 }
 
 type ConversationsRuntimeSelectInput struct {
@@ -13864,7 +13961,7 @@ type ConversationsRuntimeCancelInputT = ConversationsRuntimeCancelInput
 type ConversationsRuntimeCancelOutputT = ConversationsRuntimeCancelOutput
 
 // ConversationsRuntimeCapabilitiesInputT 是 conversations.runtimeCapabilities 的入参
-type ConversationsRuntimeCapabilitiesInputT = any
+type ConversationsRuntimeCapabilitiesInputT = ConversationsRuntimeCapabilitiesInput
 type ConversationsRuntimeCapabilitiesOutputT = ConversationsRuntimeCapabilitiesOutput
 
 // ConversationsRuntimeEditInputT 是 conversations.runtimeEdit 的入参
@@ -13874,6 +13971,10 @@ type ConversationsRuntimeEditOutputT = ConversationsRuntimeEditOutput
 // ConversationsRuntimeReleaseInputT 是 conversations.runtimeRelease 的入参
 type ConversationsRuntimeReleaseInputT = ConversationsRuntimeReleaseInput
 type ConversationsRuntimeReleaseOutputT = any
+
+// ConversationsRuntimeResolveInputT 是 conversations.runtimeResolve 的入参
+type ConversationsRuntimeResolveInputT = ConversationsRuntimeResolveInput
+type ConversationsRuntimeResolveOutputT = ConversationsRuntimeResolveOutput
 
 // ConversationsRuntimeSelectInputT 是 conversations.runtimeSelect 的入参
 type ConversationsRuntimeSelectInputT = ConversationsRuntimeSelectInput

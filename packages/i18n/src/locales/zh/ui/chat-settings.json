@@ -773,5 +773,18 @@
   "ui.chat-settings.managed-ingress": "请使用托管对话运行时入口",
   "ui.chat-settings.managed-unsupported": "托管运行时暂不支持附件、回退、知识库桥接和后台任务",
   "ui.chat-settings.managed-observation-timeout": "运行时观察超时，请查看恢复状态，不要自动重试。",
-  "ui.chat-settings.managed-view-write": "此对话由运行时管理，视图不可直接写入"
+  "ui.chat-settings.managed-view-write": "此对话由运行时管理，视图不可直接写入",
+  "ui.chat-settings.managed-runtime-title": "本机运行时",
+  "ui.chat-settings.managed-first-use": "不必先配置模型供应商。可直接使用本机已登录的官方 Claude Code。",
+  "ui.chat-settings.managed-missing-executable": "未在 PATH 中找到 Claude Code。请先用官方 CLI 安装并登录；找到或找不到可执行文件都不代表已登录。",
+  "ui.chat-settings.managed-login-unverified": "此处不验证登录。发送时由官方 CLI 自行使用本机登录。",
+  "ui.chat-settings.managed-no-project": "该实验性 Claude 路径需要会话已选择项目，不会自动使用主目录。",
+  "ui.chat-settings.managed-unsupported-platform": "此平台暂不支持托管本地 CLI 持久化。现有 API 对话仍可阅读和使用。",
+  "ui.chat-settings.managed-requires-provider": "实验性 API 纯文本模式需要已配置的供应商，不会替换现有未托管 API 工具路径。",
+  "ui.chat-settings.managed-recovery-unknown": "无法证明已恢复先前的 Claude 会话，本次没有发送请求。请选择新建 Claude 会话并做全量历史交接；不会自动重试。",
+  "ui.chat-settings.managed-new-native": "新建 Claude 会话",
+  "ui.chat-settings.managed-idle-only": "仅在对话空闲时才能切换运行时。",
+  "ui.chat-settings.managed-use-claude": "使用本机 Claude Code",
+  "ui.chat-settings.managed-use-api": "使用 API 纯文本模式",
+  "ui.chat-settings.managed-current": "当前运行时：{0}"
 }

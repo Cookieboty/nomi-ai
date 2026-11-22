@@ -45,6 +45,7 @@ type Checkpoint struct {
 	Receipts       map[string]string
 	Completed      map[string]int
 	Attempted      map[string]bool
+	Held           map[string]bool `json:"held,omitempty"`
 	Queue          []Request
 	Work           Activity
 	Selected       TargetState
@@ -85,6 +86,14 @@ func (c *Session) snapshotLocked() Checkpoint {
 	}
 	for k, v := range c.attempted {
 		out.Attempted[k] = v
+	}
+	for k, v := range c.held {
+		if v {
+			if out.Held == nil {
+				out.Held = map[string]bool{}
+			}
+			out.Held[k] = true
+		}
 	}
 	out.Queue = append([]Request(nil), c.queue...)
 	for i := range out.Queue {
@@ -130,6 +139,7 @@ func restoreCheckpoint(in Checkpoint, restart bool) (*Session, error) {
 	c.preferred = cp.Preferred
 	c.completed = cp.Completed
 	c.attempted = cp.Attempted
+	c.held = cp.Held
 	c.queue = cp.Queue
 	if c.preferred == nil {
 		c.preferred = map[string]string{}
@@ -139,6 +149,9 @@ func restoreCheckpoint(in Checkpoint, restart bool) (*Session, error) {
 	}
 	if c.attempted == nil {
 		c.attempted = map[string]bool{}
+	}
+	if c.held == nil {
+		c.held = map[string]bool{}
 	}
 	c.target.Identity, c.target.Env = cp.Selected.Identity, cp.Selected.Env
 	c.caps = cp.Selected.Capabilities.clone()
@@ -248,7 +261,7 @@ func (c *Session) persistLocked() error {
 		}
 		restored, restoreErr := restoreCheckpoint(c.lastCheckpoint, false)
 		if restoreErr == nil {
-			c.ledger, c.bindings, c.preferred, c.completed, c.attempted, c.queue = restored.ledger, restored.bindings, restored.preferred, restored.completed, restored.attempted, restored.queue
+			c.ledger, c.bindings, c.preferred, c.completed, c.attempted, c.held, c.queue = restored.ledger, restored.bindings, restored.preferred, restored.completed, restored.attempted, restored.held, restored.queue
 			c.active = restored.active
 			c.pendingSwitch, c.target, c.caps = restored.pendingSwitch, restored.target, restored.caps
 		}

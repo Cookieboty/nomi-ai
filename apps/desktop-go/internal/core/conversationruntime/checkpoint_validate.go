@@ -114,6 +114,11 @@ func ValidateCheckpoint(c Checkpoint) error {
 			return bad("attempted request")
 		}
 	}
+	for id, yes := range c.Held {
+		if !yes || latest[id].Role != "user" {
+			return bad("held request")
+		}
+	}
 	for id, receipt := range c.Receipts {
 		var r struct {
 			Kind            DeliveryKind

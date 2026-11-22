@@ -85,7 +85,7 @@ func (c *Session) launch(a *activeAttempt) error {
 		target = TargetResume
 	}
 	plan, err := c.ledger.Plan(PlanInput{AttemptID: a.token.AttemptID, Binding: a.binding, Identity: a.target.Identity, Env: a.target.Env, Target: target,
-		RequestText: a.request.Text, CurrentEntryID: a.request.MessageID, CurrentTurnID: a.request.TurnID, RequestInLedger: true, Budget: a.caps.Budget, Wrapper: a.caps.Wrapper})
+		RequestText: a.request.Text, CurrentEntryID: a.request.MessageID, CurrentTurnID: a.request.TurnID, RequestInLedger: true, Budget: a.caps.Budget, Wrapper: a.caps.Wrapper, HoldIDs: copyHeld(c.held)})
 	if err != nil || plan.Strategy == StrategyBlocked {
 		// No turn has been submitted. Recovery itself must not execute user tools.
 		a.phase = PhaseFailed
@@ -243,3 +243,16 @@ func (c *Session) handle(e Event) error {
 
 // AcceptRuntimeEvent is an adapter-only ingress, not a view/IPC mutation.
 func (c *Session) AcceptRuntimeEvent(e Event) error { return c.handle(e) }
+
+func copyHeld(in map[string]bool) map[string]bool {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]bool, len(in))
+	for id, yes := range in {
+		if yes {
+			out[id] = true
+		}
+	}
+	return out
+}

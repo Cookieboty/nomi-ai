@@ -127,6 +127,10 @@ type PlanInput struct {
 	// RequestInLedger asserts RequestText is the current entry text; planning
 	// then fails if the entry is missing (never a silent guess).
 	RequestInLedger bool
+	// HoldIDs are ledger entries kept after an explicit new-native decision
+	// following RecoveryUnknown. They stay readable for Retry but are not
+	// historical handoff unless they are the current request.
+	HoldIDs map[string]bool
 	// Attachments of the current request. B1 cannot hand them to a CLI, so any
 	// attachment refuses the request before execution.
 	Attachments []string

@@ -42,8 +42,29 @@ const chat = ['chat'] as const;
 export const managedConversationProcedures = {
   'conversations.runtimeCapabilities': {
     kind: 'query',
-    input: z.void(),
-    output: z.object({ supported: z.boolean(), backends: z.array(z.string()), detail: z.string() }),
+    input: z.object({ id: ConversationId.optional() }).optional(),
+    output: z.object({
+      supported: z.boolean(),
+      backends: z.array(z.string()),
+      detail: z.string(),
+      choices: z.array(
+        z.object({
+          id: z.string().min(1).max(64),
+          available: z.boolean(),
+          status: z.enum([
+            'ready',
+            'missing-executable',
+            'no-project',
+            'unsupported-platform',
+            'requires-provider',
+          ]),
+          detail: z.string(),
+          login: z.enum(['unverified', 'not-advertised', 'not-applicable']),
+          requiresProject: z.boolean(),
+          degraded: z.array(z.string()),
+        }),
+      ),
+    }),
     surfaces: chat,
   },
   'conversations.runtimeAdopt': {
@@ -57,6 +78,17 @@ export const managedConversationProcedures = {
   'conversations.runtimeSelect': {
     kind: 'mutation',
     input: id.extend({ backend }),
+    output: RuntimeState,
+    surfaces: chat,
+    dangerous: true,
+  },
+  'conversations.runtimeResolve': {
+    kind: 'mutation',
+    input: id.extend({
+      decision: z.literal('new-native'),
+      confirm: z.literal(true),
+      expectedGeneration: z.number().int().nonnegative(),
+    }),
     output: RuntimeState,
     surfaces: chat,
     dangerous: true,

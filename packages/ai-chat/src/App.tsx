@@ -23,6 +23,7 @@ import { DesktopConfirmDock } from './components/DesktopConfirmDock';
 import { NewChatContext, SessionControls } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { prefetchPanels, SettingsView } from './components/lazyPanels';
+import { ManagedRuntimeDock } from './components/ManagedRuntimeDock';
 import { MessageInput } from './components/MessageInput';
 import { SendBlockedHint } from './components/MessageInput/SendBlockedHint';
 import { onboardingClient } from './components/Onboarding/client';
@@ -688,6 +689,7 @@ const AiChatContent: React.FC = () => {
                     />
                     {/* 新会话：输入框上方的项目 · 分支，可以自由切换 */}
                     <NewChatContext />
+                    <ManagedRuntimeDock conversationId={nomiSessionId} hidden={tabs.isCliTab} />
                     {/* 预览属于别的会话 / 工作区时输入框不能用：必须说明原因，并能一键回到原会话（空会话时贴在输入框下沿） */}
                     {resourcePreview.sendBlocked && (
                       <SendBlockedHint

@@ -126,6 +126,7 @@ describe('shell · 过程表', () => {
       'conversations.runtimeAdopt': 'mutation surfaces=chat dangerous',
       'conversations.runtimeState': 'query surfaces=chat',
       'conversations.runtimeSelect': 'mutation surfaces=chat dangerous',
+      'conversations.runtimeResolve': 'mutation surfaces=chat dangerous',
       'conversations.runtimeSend': 'mutation surfaces=chat dangerous',
       'conversations.runtimeCancel': 'mutation surfaces=chat',
       'conversations.runtimeApprove': 'mutation surfaces=chat dangerous',

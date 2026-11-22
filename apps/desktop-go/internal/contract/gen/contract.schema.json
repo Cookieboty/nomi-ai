@@ -9832,7 +9832,14 @@
     "chat"
    ],
    "input": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     }
+    }
    },
    "output": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -9849,12 +9856,69 @@
      },
      "detail": {
       "type": "string"
+     },
+     "choices": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 64
+        },
+        "available": {
+         "type": "boolean"
+        },
+        "status": {
+         "type": "string",
+         "enum": [
+          "ready",
+          "missing-executable",
+          "no-project",
+          "unsupported-platform",
+          "requires-provider"
+         ]
+        },
+        "detail": {
+         "type": "string"
+        },
+        "login": {
+         "type": "string",
+         "enum": [
+          "unverified",
+          "not-advertised",
+          "not-applicable"
+         ]
+        },
+        "requiresProject": {
+         "type": "boolean"
+        },
+        "degraded": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        }
+       },
+       "required": [
+        "id",
+        "available",
+        "status",
+        "detail",
+        "login",
+        "requiresProject",
+        "degraded"
+       ],
+       "additionalProperties": false
+      }
      }
     },
     "required": [
      "supported",
      "backends",
-     "detail"
+     "detail",
+     "choices"
     ],
     "additionalProperties": false
    }
@@ -10042,6 +10106,175 @@
    },
    "output": {
     "$schema": "https://json-schema.org/draft/2020-12/schema"
+   }
+  },
+  "conversations.runtimeResolve": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "decision": {
+      "type": "string",
+      "const": "new-native"
+     },
+     "confirm": {
+      "type": "boolean",
+      "const": true
+     },
+     "expectedGeneration": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     }
+    },
+    "required": [
+     "id",
+     "decision",
+     "confirm",
+     "expectedGeneration"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "backend": {
+      "type": "string"
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "phase": {
+      "type": "string",
+      "enum": [
+       "idle",
+       "preparing",
+       "running",
+       "completed",
+       "failed-pre-submit",
+       "canceling",
+       "canceled",
+       "uncertain"
+      ]
+     },
+     "queued": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "partial": {
+      "type": "string"
+     },
+     "detail": {
+      "type": "string"
+     },
+     "approvals": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "token": {
+      "type": "object",
+      "properties": {
+       "conversationId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+       },
+       "attemptId": {
+        "type": "string"
+       },
+       "generation": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "conversationId",
+       "attemptId",
+       "generation"
+      ],
+      "additionalProperties": false
+     },
+     "recovery": {
+      "type": "string",
+      "enum": [
+       "none",
+       "resumed",
+       "new",
+       "fallback",
+       "unknown",
+       "error"
+      ]
+     },
+     "capabilities": {
+      "type": "object",
+      "properties": {
+       "resume": {
+        "type": "boolean"
+       },
+       "cancel": {
+        "type": "boolean"
+       },
+       "approval": {
+        "type": "boolean"
+       },
+       "attachments": {
+        "type": "boolean"
+       },
+       "permissionModes": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "degraded": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "resume",
+       "cancel",
+       "approval",
+       "attachments",
+       "permissionModes",
+       "degraded"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "required": [
+     "id",
+     "backend",
+     "generation",
+     "phase",
+     "queued",
+     "partial",
+     "detail",
+     "approvals",
+     "recovery",
+     "capabilities"
+    ],
+    "additionalProperties": false
    }
   },
   "conversations.runtimeSelect": {

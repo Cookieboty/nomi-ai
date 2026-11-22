@@ -1,0 +1,26 @@
+.dock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 12px 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-muted, rgba(127, 127, 127, 0.35));
+  border-radius: 8px;
+  background: var(--bg-elevated, transparent);
+}
+.title,
+.current,
+.guidance,
+.error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.actions button {
+  font-size: 12px;
+}

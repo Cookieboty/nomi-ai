@@ -474,3 +474,94 @@ func TestClaudeOfficialSubprocessChunkedUnicodePreservesText(t *testing.T) {
 		t.Fatalf("native chunk boundary corrupted Unicode: %+v %v", doc.State.History, err)
 	}
 }
+
+func TestClaudeOfficialSubprocessExplicitNewNativeAfterUnknownIsFull(t *testing.T) {
+	s, r, c := fixtureIngress(t, t.TempDir())
+	f, dir := claudeFixture(t, "success")
+	r.RegisterOwned("claude", f.Target, f.Release)
+	seedIngress(t, c)
+	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"claude","confirm":true}`))
+	requireOK(t, sendIngress(t, c, "one"))
+	awaitClaude(t, c, cr.PhaseCompleted)
+	first, err := s.ReadManaged("c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	requireOK(t, c.call("conversations.runtimeRelease", `{"id":"c"}`))
+	if sendIngress(t, c, "cold").T != "err" {
+		t.Fatal("unproven cold resumption accepted")
+	}
+	st := awaitClaude(t, c, cr.PhaseUncertain)
+	if st.Recovery != cr.RecoveryUnknown {
+		t.Fatal(st)
+	}
+	if got := c.call("conversations.runtimeResolve", `{"id":"c","decision":"new-native","confirm":true}`); got.T != "err" {
+		t.Fatal("resolve without generation was accepted")
+	}
+	if got := c.call("conversations.runtimeSelect", `{"id":"c","backend":"claude"}`); got.T != "err" {
+		t.Fatal("idle-only select allowed during unknown recovery")
+	}
+	if got := c.call("conversations.runtimeResolve", fmt.Sprintf(`{"id":"c","decision":"new-native","confirm":false,"expectedGeneration":%d}`, st.Generation)); got.T != "err" {
+		t.Fatal("unconfirmed resolve accepted")
+	}
+	requireOK(t, c.call("conversations.runtimeResolve", fmt.Sprintf(`{"id":"c","decision":"new-native","confirm":true,"expectedGeneration":%d}`, st.Generation)))
+	idle := awaitClaude(t, c, cr.PhaseIdle)
+	if sendIngress(t, c, "after-new").T == "err" {
+		t.Fatal("explicit new-native still blocked send")
+	}
+	done := awaitClaude(t, c, cr.PhaseCompleted)
+	if done.Recovery != cr.RecoveryNew {
+		t.Fatalf("expected RecoveryNew after explicit decision, got %+v", done)
+	}
+	doc, err := s.ReadManaged("c")
+	if err != nil || len(doc.State.Bindings) != 2 {
+		t.Fatalf("old binding should be preserved beside the new native: %+v %v", doc.State.Bindings, err)
+	}
+	var oldKept, newID bool
+	for _, b := range doc.State.Bindings {
+		if b.NativeSessionID == first.State.Bindings[0].NativeSessionID && b.Status == cr.StatusStale {
+			oldKept = true
+		}
+		if b.NativeSessionID != "" && b.NativeSessionID != first.State.Bindings[0].NativeSessionID && b.Status.Safe() {
+			newID = true
+		}
+	}
+	if !oldKept || !newID {
+		t.Fatalf("native identity isolation failed: %+v", doc.State.Bindings)
+	}
+	frames := []string{}
+	resumes, usersAfterResolve := 0, 0
+	for _, e := range readClaudeWire(t, dir) {
+		var q map[string]any
+		_ = json.Unmarshal(e.Data, &q)
+		if e.Kind == "launch" && strings.Contains(fmt.Sprint(q["args"]), "--resume") {
+			resumes++
+		}
+		if e.Kind == "input" && q["type"] == "user" {
+			frames = append(frames, q["message"].(map[string]any)["content"].(string))
+			if strings.Contains(fmt.Sprint(q), "after-new") {
+				usersAfterResolve++
+			}
+		}
+	}
+	// one original success, no user frame on the unknown resume, one full payload after resolve
+	if len(frames) != 2 || resumes != 1 || usersAfterResolve != 1 || !strings.Contains(frames[1], "retained API history") || !strings.Contains(frames[1], "request one") || strings.Count(frames[1], "request after-new") != 1 || strings.Contains(frames[1], "request cold") {
+		t.Fatalf("explicit new-native was not a full unique current request: frames=%q resumes=%d", frames, resumes)
+	}
+	_ = idle
+}
+
+func TestClaudeOfficialSubprocessLateEventsAfterResolveCannotMutate(t *testing.T) {
+	_, r, c := fixtureIngress(t, t.TempDir())
+	f, _ := claudeFixture(t, "no-echo-hang")
+	r.RegisterOwned("claude", f.Target, f.Release)
+	seedIngress(t, c)
+	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"claude","confirm":true}`))
+	requireOK(t, sendIngress(t, c, "one"))
+	awaitClaude(t, c, cr.PhaseRunning)
+	requireOK(t, c.call("conversations.runtimeCancel", `{"id":"c"}`))
+	awaitClaude(t, c, cr.PhaseCanceled)
+	if got := c.call("conversations.runtimeResolve", `{"id":"c","decision":"new-native","confirm":true,"expectedGeneration":1}`); got.T != "err" {
+		t.Fatal("canceled-not-unknown resolve accepted")
+	}
+}
