@@ -9,8 +9,8 @@ import (
 // session (e.g. its final assistant reply). The adapter must have observed the
 // reply on that session; this is NOT an inferred acknowledgement or a search
 // for matching text. No credentials, reasoning or tool state belong here.
-// Product append and native confirmation are separate in-memory calls in B1;
-// durable atomicity is deliberately a later integration gate.
+// Session groups product append and native confirmation into one checkpoint
+// when a durable Committer is attached. Direct Ledger calls remain in-memory.
 func (l *Ledger) ConfirmNative(store *BindingStore, bindingID, nativeID, entryID string, rev int, digest string) error {
 	if l == nil || store == nil {
 		return errors.New("conversationruntime: nil ledger or store")

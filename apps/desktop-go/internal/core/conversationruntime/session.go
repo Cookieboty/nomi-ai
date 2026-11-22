@@ -27,29 +27,33 @@ type activeAttempt struct {
 	detail    string
 }
 
-// Session is an IN-MEMORY behavior harness for one stable product conversation.
-// All product writes and event acceptance are serialized here. No CLI, model,
-// disk, credentials or production ingress is connected. It must gain durable
-// ownership/commit semantics before it can be used with production adapters.
+// Session serializes one stable product conversation. With an attached
+// Committer every authority transition is durable before external dispatch;
+// without one it is a pure in-memory harness. Production ingress and real
+// runtime adapters are not connected yet.
 type Session struct {
-	mu          sync.Mutex
-	id          string
-	generation  uint64
-	cancelRound uint64
-	target      Target
-	caps        Capabilities
-	ledger      *Ledger
-	bindings    *BindingStore
-	active      *activeAttempt
-	queue       []Request
-	completed   map[string]int
-	attempted   map[string]bool
-	preferred   map[string]string
-	work        Activity
+	pendingSwitch  *SwitchState
+	committer      Committer
+	lastCheckpoint Checkpoint
+	storageErr     error
+	mu             sync.Mutex
+	id             string
+	generation     uint64
+	cancelRound    uint64
+	target         Target
+	caps           Capabilities
+	ledger         *Ledger
+	bindings       *BindingStore
+	active         *activeAttempt
+	queue          []Request
+	completed      map[string]int
+	attempted      map[string]bool
+	preferred      map[string]string
+	work           Activity
 }
 
 // NewSession seeds ordered, unrevisioned fixtures only. It is deliberately not
-// a durable restore API; B2 must restore versions/attempt ownership losslessly.
+// a durable restore API; use RestoreCheckpoint for persisted revisions/fences.
 func NewSession(id string, history []Entry) (*Session, error) {
 	if strings.TrimSpace(id) == "" {
 		return nil, fmt.Errorf("%w: empty conversation ID", ErrBadEdit)
@@ -57,7 +61,7 @@ func NewSession(id string, history []Entry) (*Session, error) {
 	c := &Session{id: id, ledger: NewLedger(), bindings: NewBindingStore(), preferred: map[string]string{}, completed: map[string]int{}, attempted: map[string]bool{}, work: Activity{Known: true}}
 	for i, e := range history {
 		if e.Revision > 1 || e.Revision < 0 || (e.Order != 0 && e.Order != int64(i+1)) {
-			return nil, fmt.Errorf("%w: seed is not an unrevisioned ordered fixture; durable restore is not implemented", ErrBadEdit)
+			return nil, fmt.Errorf("%w: seed is not an unrevisioned ordered fixture; use RestoreCheckpoint", ErrBadEdit)
 		}
 		if _, err := c.ledger.Append(e); err != nil {
 			return nil, err
@@ -114,7 +118,7 @@ func (c *Session) Select(target Target) error {
 	}
 	c.generation++
 	c.target, c.caps = target, caps
-	return nil
+	return c.persistLocked()
 }
 
 func (c *Session) State() SessionState {
@@ -122,8 +126,16 @@ func (c *Session) State() SessionState {
 	defer c.mu.Unlock()
 	c.refreshLocked()
 	s := SessionState{ConversationID: c.id, Generation: c.generation, Phase: PhaseIdle, Capabilities: c.caps.clone(), Work: c.work, Queued: len(c.queue)}
+	if c.storageErr != nil {
+		s.Detail = c.storageErr.Error()
+		s.Phase = PhaseUncertain
+	}
 	if a := c.active; a != nil {
 		s.Phase, s.Token, s.Recovery, s.Partial, s.Detail = a.phase, a.token, a.recovery, a.text, a.detail
+		if c.storageErr != nil {
+			s.Phase = PhaseUncertain
+			s.Detail = c.storageErr.Error()
+		}
 		for id := range a.approvals {
 			s.Approvals = append(s.Approvals, id)
 		}
@@ -140,6 +152,9 @@ func (c *Session) Edit(id, text string) error {
 		return ErrBusy
 	}
 	_, err := c.ledger.Edit(c.bindings, id, text)
+	if err == nil {
+		err = c.persistLocked()
+	}
 	return err
 }
 
@@ -157,7 +172,7 @@ func (c *Session) Enqueue(r Request) error {
 		}
 	}
 	c.queue = append(c.queue, r)
-	return nil
+	return c.persistLocked()
 }
 func (c *Session) StartNext(ctx context.Context) (AttemptToken, error) {
 	c.mu.Lock()
@@ -169,6 +184,7 @@ func (c *Session) StartNext(ctx context.Context) (AttemptToken, error) {
 	a, err := c.beginLocked(ctx, r, true)
 	if err == nil {
 		c.queue = c.queue[1:]
+		err = c.persistLocked()
 	}
 	c.mu.Unlock()
 	if err != nil {
@@ -179,6 +195,9 @@ func (c *Session) StartNext(ctx context.Context) (AttemptToken, error) {
 func (c *Session) Start(ctx context.Context, r Request) (AttemptToken, error) {
 	c.mu.Lock()
 	a, err := c.beginLocked(ctx, r, false)
+	if err == nil {
+		err = c.persistLocked()
+	}
 	c.mu.Unlock()
 	if err != nil {
 		return AttemptToken{}, err
@@ -187,6 +206,9 @@ func (c *Session) Start(ctx context.Context, r Request) (AttemptToken, error) {
 }
 
 func (c *Session) validateRequestLocked(r Request) error {
+	if c.storageErr != nil {
+		return c.storageErr
+	}
 	if strings.TrimSpace(r.MessageID) == "" || strings.TrimSpace(r.TurnID) == "" || !utf8OK(r.Text) || !utf8OK(r.MessageID) || !utf8OK(r.TurnID) {
 		return ErrBadEdit
 	}
@@ -243,6 +265,9 @@ func (c *Session) beginLocked(ctx context.Context, r Request, queued bool) (*act
 }
 func (c *Session) idleLocked(ignoreQueue bool) bool {
 	c.refreshLocked()
+	if c.storageErr != nil || c.pendingSwitch != nil {
+		return false
+	}
 	if !ignoreQueue && len(c.queue) > 0 {
 		return false
 	}
@@ -261,7 +286,7 @@ func (c *Session) idleLocked(ignoreQueue bool) bool {
 	return true
 }
 func (c *Session) ownerLocked(a *activeAttempt) bool {
-	return c.active == a && a.token.Generation == c.generation
+	return c.storageErr == nil && c.active == a && a.token.Generation == c.generation
 }
 func (c *Session) refreshLocked() {
 	if a := c.active; a != nil && (a.phase == PhaseRunning || a.phase == PhasePreparing || (a.phase == PhaseCompleted && !c.work.Idle())) && a.ctx.Err() != nil {
@@ -278,6 +303,7 @@ func (c *Session) uncertainLocked(a *activeAttempt, why string) {
 	a.approvals = map[string]bool{}
 	c.work = Activity{}
 	c.invalidateBindingLocked(a)
+	_ = c.persistLocked()
 }
 func (c *Session) invalidateBindingLocked(a *activeAttempt) {
 	c.bindings.mu.Lock()
@@ -301,10 +327,13 @@ func ungate(a *activeAttempt) { <-a.gate }
 func (c *Session) DropQueued(messageID string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.storageErr != nil {
+		return c.storageErr
+	}
 	for i, r := range c.queue {
 		if r.MessageID == messageID {
 			c.queue = append(c.queue[:i], c.queue[i+1:]...)
-			return nil
+			return c.persistLocked()
 		}
 	}
 	return ErrUnknownEntry

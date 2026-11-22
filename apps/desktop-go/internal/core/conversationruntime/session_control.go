@@ -10,7 +10,16 @@ func (c *Session) Cancel(ctx context.Context) (CancelResult, error) {
 		return CancelResult{}, ErrBadEdit
 	}
 	c.mu.Lock()
+	if c.storageErr != nil {
+		err := c.storageErr
+		c.mu.Unlock()
+		return CancelResult{Kind: CancelUnknown}, err
+	}
 	a := c.active
+	if c.pendingSwitch != nil {
+		c.mu.Unlock()
+		return CancelResult{Kind: CancelUnknown, Detail: "interrupted multi-target switch needs explicit recovery"}, ErrUnknownState
+	}
 	if a == nil {
 		c.mu.Unlock()
 		return CancelResult{}, ErrUnknownEntry
@@ -18,6 +27,11 @@ func (c *Session) Cancel(ctx context.Context) (CancelResult, error) {
 	if c.idleLocked(true) {
 		c.mu.Unlock()
 		return CancelResult{Kind: CancelStopped, Work: Activity{Known: true}, Detail: "already quiescent"}, nil
+	}
+	if c.storageErr != nil {
+		err := c.storageErr
+		c.mu.Unlock()
+		return CancelResult{Kind: CancelUnknown}, err
 	}
 	c.generation++
 	c.cancelRound++
@@ -27,9 +41,13 @@ func (c *Session) Cancel(ctx context.Context) (CancelResult, error) {
 	a.approvals = map[string]bool{}
 	c.work = Activity{}
 	c.invalidateBindingLocked(a)
+	if err := c.persistLocked(); err != nil {
+		c.mu.Unlock()
+		return CancelResult{Kind: CancelUnknown}, err
+	}
 	c.mu.Unlock()
 	result := CancelResult{Kind: CancelUnknown, Detail: "runtime cannot prove cancellation"}
-	if a.caps.Cancel {
+	if a.caps.Cancel && a.target.Runtime != nil {
 		if err := gate(ctx, a); err != nil {
 			c.finishCancel(a, round, result)
 			return result, err
@@ -48,11 +66,12 @@ func (c *Session) finishCancel(a *activeAttempt, round uint64, r CancelResult) e
 	if r.Kind != CancelStopped || !r.Work.Idle() {
 		a.phase, a.detail = PhaseUncertain, r.Detail
 		c.work = Activity{}
+		_ = c.persistLocked()
 		return ErrUnknownState
 	}
 	a.phase, a.detail = PhaseCanceled, r.Detail
 	c.work = r.Work
-	return nil
+	return c.persistLocked()
 }
 
 // Approve routes only an explicit decision on the active generation. No
@@ -80,6 +99,10 @@ func (c *Session) Approve(ctx context.Context, token AttemptToken, id string, al
 		return ErrStaleEvent
 	}
 	nativeID := a.recovery.NativeSessionID
+	if err := c.persistLocked(); err != nil {
+		c.mu.Unlock()
+		return err
+	}
 	c.mu.Unlock()
 	operationCtx, cancel := context.WithCancel(ctx)
 	stop := context.AfterFunc(a.ctx, cancel)
@@ -95,5 +118,5 @@ func (c *Session) Approve(ctx context.Context, token AttemptToken, id string, al
 		return err
 	}
 	delete(a.approvals, id)
-	return nil
+	return c.persistLocked()
 }

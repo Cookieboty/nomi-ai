@@ -46,6 +46,7 @@ func (c *Session) launch(a *activeAttempt) error {
 		a.phase, a.detail = PhaseFailed, recovered.Detail
 		c.work = Activity{Known: true}
 		a.cancel()
+		_ = c.persistLocked()
 		c.mu.Unlock()
 		return fmt.Errorf("%w: recovery failed: %s", ErrUnconfirmed, recovered.Detail)
 	case RecoveryUnknown:
@@ -87,6 +88,7 @@ func (c *Session) launch(a *activeAttempt) error {
 		a.phase = PhaseFailed
 		c.work = Activity{Known: true}
 		a.cancel()
+		_ = c.persistLocked()
 		c.mu.Unlock()
 		if err != nil {
 			return err
@@ -95,6 +97,10 @@ func (c *Session) launch(a *activeAttempt) error {
 	}
 	a.plan = plan
 	a.phase = PhaseRunning
+	if err := c.persistLocked(); err != nil {
+		c.mu.Unlock()
+		return err
+	}
 	request := RuntimeRequest{Token: a.token, NativeSessionID: recovered.NativeSessionID, Plan: clonePlan(plan)}
 	c.mu.Unlock()
 	// The per-attempt gate prevents a late Start racing AFTER a confirmed Cancel.
@@ -120,6 +126,9 @@ func (c *Session) launch(a *activeAttempt) error {
 		a.phase, a.detail = PhaseFailed, result.Detail
 		c.work = Activity{Known: true}
 		a.cancel()
+		if err := c.persistLocked(); err != nil {
+			return err
+		}
 		return ErrUnconfirmed
 	default:
 		c.uncertainLocked(a, "submission result unknown: "+result.Detail)
@@ -155,7 +164,7 @@ func (c *Session) handle(e Event) error {
 		if e.Work.Idle() {
 			a.cancel()
 		}
-		return nil // explicit late quiescence of this generation only
+		return c.persistLocked() // explicit late quiescence of this generation only
 	}
 	if a.phase != PhaseRunning {
 		return ErrStaleEvent
@@ -178,7 +187,7 @@ func (c *Session) handle(e Event) error {
 			return ErrUnknownState
 		}
 		c.preferred[a.binding.CompatKey] = a.binding.ID
-		return nil
+		return c.persistLocked()
 	case EventText:
 		if !a.delivered {
 			return fmt.Errorf("%w: text before proven full delivery", ErrProtocol)
@@ -187,17 +196,17 @@ func (c *Session) handle(e Event) error {
 			return ErrInvalidUTF8
 		}
 		a.text += e.Text
-		return nil
+		return c.persistLocked()
 	case EventApproval:
 		if !a.caps.Approval || e.ApprovalID == "" {
 			c.uncertainLocked(a, "unsupported approval capability; no automatic decision sent")
 			return ErrPermission
 		}
 		a.approvals[e.ApprovalID] = true
-		return nil
+		return c.persistLocked()
 	case EventActivity:
 		c.work = e.Work
-		return nil
+		return c.persistLocked()
 	case EventCompleted:
 		if !a.delivered || len(a.approvals) > 0 {
 			c.uncertainLocked(a, "completion without full delivery or with unresolved approval")
@@ -219,7 +228,7 @@ func (c *Session) handle(e Event) error {
 		if e.Work.Idle() {
 			a.cancel()
 		}
-		return nil
+		return c.persistLocked()
 	case EventFailed:
 		// An event arrives after submission, so it can never assert safe replay.
 		c.uncertainLocked(a, e.Detail)
@@ -228,3 +237,6 @@ func (c *Session) handle(e Event) error {
 		return ErrProtocol
 	}
 }
+
+// AcceptRuntimeEvent is an adapter-only ingress, not a view/IPC mutation.
+func (c *Session) AcceptRuntimeEvent(e Event) error { return c.handle(e) }

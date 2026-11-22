@@ -25,6 +25,7 @@ import (
 // Attachments is omitted with ReasonAttachment. Lists are never shared with
 // callers (defensive copies on ingest and on read).
 type Entry struct {
+	Raw         []byte   `json:"raw,omitempty"` // exact legacy payload retained, never transferred to CLI
 	ID          string   `json:"id"`
 	Revision    int      `json:"revision"`
 	Order       int64    `json:"order"`
@@ -152,6 +153,7 @@ func (l *Ledger) Len() int {
 }
 
 func copyEntry(e Entry) Entry {
+	e.Raw = append([]byte(nil), e.Raw...)
 	if e.Attachments != nil {
 		e.Attachments = append([]string(nil), e.Attachments...)
 	}
