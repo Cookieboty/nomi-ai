@@ -118,8 +118,12 @@ type PlanInput struct {
 	RequestText   string
 	CurrentTurnID string
 	// CurrentEntryID is the stable logical ID of the request entry when it is
-	// already in the ledger; it and its turn are never handed off.
+	// already in the ledger; this logical entry is never handed off as history.
 	CurrentEntryID string
+	// HistoryBeforeOrder is an explicit rewind/branch view, NEW session only.
+	// Zero includes all live history except the current logical request, even
+	// when that request is an older failed message being explicitly retried.
+	HistoryBeforeOrder int64
 	// RequestInLedger asserts RequestText is the current entry text; planning
 	// then fails if the entry is missing (never a silent guess).
 	RequestInLedger bool
@@ -228,3 +232,16 @@ func CheckArgvText(arg string, limit ArgvBudget) error {
 // ErrInvalidUTF8 rejects text whose JSON size could not represent the
 // original bytes.
 var ErrInvalidUTF8 = errors.New("conversationruntime: text is not valid UTF-8")
+
+func clonePlan(p Plan) Plan {
+	p.Selections = append([]Selection(nil), p.Selections...)
+	for i := range p.Selections {
+		p.Selections[i].Ranges = append([]ByteRange(nil), p.Selections[i].Ranges...)
+	}
+	p.Omitted = append([]Omission(nil), p.Omitted...)
+	if p.Lineage != nil {
+		lineage := *p.Lineage
+		p.Lineage = &lineage
+	}
+	return p
+}

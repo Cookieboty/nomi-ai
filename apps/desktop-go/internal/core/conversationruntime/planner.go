@@ -24,6 +24,9 @@ func (l *Ledger) Plan(in PlanInput) (Plan, error) {
 	if len(in.Attachments) > 0 {
 		return Plan{}, fmt.Errorf("conversationruntime: current request attachments unsupported; remove them or select a supporting runtime")
 	}
+	if in.HistoryBeforeOrder < 0 || (in.HistoryBeforeOrder > 0 && in.Target != TargetNew) {
+		return Plan{}, fmt.Errorf("%w: explicit history cutoff requires a new native session", ErrStaleBinding)
+	}
 	snap := l.Snapshot()
 	// Treat malformed imported coverage conservatively; in particular a byte
 	// span inside an emoji must never lead to slicing invalid UTF-8.
@@ -111,6 +114,13 @@ func (l *Ledger) Plan(in PlanInput) (Plan, error) {
 
 // resumeProblem explains why in cannot resume; "" means exactly resumable.
 func resumeProblem(in PlanInput) string {
+	for _, field := range []string{in.Identity.DriverID, in.Identity.Transport, in.Identity.DriverVersion, in.Identity.ResumeProtocol,
+		in.Identity.Executable, in.Identity.Source, in.Identity.AccountID, in.Identity.ConfigDir, in.Identity.Cwd, in.Identity.LaunchFingerprint,
+		in.Env.Model, in.Env.Effort, in.Env.PermissionMode} {
+		if !utf8OK(field) {
+			return "native identity/configuration is not valid UTF-8"
+		}
+	}
 	for _, field := range []string{in.Identity.DriverID, in.Identity.Transport, in.Identity.DriverVersion,
 		in.Identity.ResumeProtocol, in.Identity.Executable, in.Identity.Source, in.Identity.ConfigDir, in.Identity.Cwd} {
 		if strings.TrimSpace(field) == "" {
@@ -150,9 +160,8 @@ func resumeProblem(in PlanInput) string {
 // attachments are omitted, never absorbed.
 func deltaCandidates(snap []Entry, in PlanInput, cur string) []candidate {
 	out := []candidate{}
-	cut := find(snap, cur)
 	for _, e := range snap {
-		if e.Tombstone || (cur != "" && e.Order >= cut.Order) {
+		if e.Tombstone || e.ID == cur || (in.HistoryBeforeOrder > 0 && e.Order >= in.HistoryBeforeOrder) {
 			continue
 		}
 		cand := candidate{
@@ -245,7 +254,7 @@ func planID(in PlanInput, p Plan) string {
 		in.Identity.Executable, fmt.Sprint(in.Identity.ExecutableSize), fmt.Sprint(in.Identity.ExecutableMtimeMS),
 		in.Identity.Source, in.Identity.AccountID, in.Identity.ConfigDir, fmt.Sprint(in.Identity.ConfigGen),
 		in.Identity.Cwd, in.Identity.LaunchFingerprint, in.Env.Model, in.Env.Effort, in.Env.PermissionMode,
-		"attempt", in.AttemptID, "target", fmt.Sprint(in.Target), in.CurrentEntryID, in.CurrentTurnID,
+		"attempt", in.AttemptID, "cutoff", fmt.Sprint(in.HistoryBeforeOrder), "target", fmt.Sprint(in.Target), in.CurrentEntryID, in.CurrentTurnID,
 		"request", fmt.Sprint(p.TargetRev), p.TargetDigest, p.RequestBody, in.Wrapper.Prefix, in.Wrapper.Suffix)
 	if p.Lineage != nil {
 		put("lineage", p.Lineage.ID, fmt.Sprint(p.Lineage.Rev), p.Lineage.Digest)

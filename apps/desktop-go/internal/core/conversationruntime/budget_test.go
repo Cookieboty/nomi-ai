@@ -142,6 +142,7 @@ func TestCurrentIdentityValidationAndHistoryCut(t *testing.T) {
 	appendMsg(t, l, "later", "t1", "assistant", "future answer")
 	in := newSession(fakeIdent(), cur.Text, cur.TurnID, cur.ID)
 	in.RequestInLedger = true
+	in.HistoryBeforeOrder = cur.Order // Explicit branch/rewind, not an implicit retry cutoff.
 	p := mustPlan(t, l, in)
 	if ids := selectedIDs(p); len(ids) != 1 || ids[0] != "old" {
 		t.Fatalf("current identity or future cutoff wrong: %v", ids)
@@ -172,5 +173,16 @@ func TestStoredCurrentAttachmentsCannotBeSilentlyDropped(t *testing.T) {
 	// The caller forgetting Attachments does not make a stored image disappear.
 	if _, err := l.Plan(in); err == nil {
 		t.Fatal("stored attachment silently discarded")
+	}
+}
+
+func TestHistoryCutoffCannotPretendExistingNativeWasRewound(t *testing.T) {
+	l, s := NewLedger(), NewBindingStore()
+	e := appendMsg(t, l, "m", "old", "user", "old text")
+	b := newBinding(t, s, "b", fakeIdent(), fakeEnv())
+	in := resume(b, fakeIdent(), "new request", "new", "")
+	in.HistoryBeforeOrder = e.Order
+	if _, err := l.Plan(in); err == nil {
+		t.Fatal("cutoff silently treated resumed native as rewound")
 	}
 }
