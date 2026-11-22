@@ -6,6 +6,12 @@ import "context"
 // cancel or unproven background termination leaves the session uncertain. A
 // later explicit Cancel can resolve stop, but never automatically retries a turn.
 func (c *Session) Cancel(ctx context.Context) (CancelResult, error) {
+	return c.cancelTurn(ctx, "", nil)
+}
+func (c *Session) CancelTurn(ctx context.Context, turn string, before uint64) (CancelResult, error) {
+	return c.cancelTurn(ctx, turn, &before)
+}
+func (c *Session) cancelTurn(ctx context.Context, turn string, before *uint64) (CancelResult, error) {
 	if ctx == nil {
 		return CancelResult{}, ErrBadEdit
 	}
@@ -14,6 +20,18 @@ func (c *Session) Cancel(ctx context.Context) (CancelResult, error) {
 		err := c.storageErr
 		c.mu.Unlock()
 		return CancelResult{Kind: CancelUnknown}, err
+	}
+	if before != nil {
+		if c.generation == *before && c.idleLocked(false) {
+			c.generation++
+			err := c.persistLocked()
+			c.mu.Unlock()
+			return CancelResult{Kind: CancelStopped, Work: Activity{Known: true}}, err
+		}
+		if c.active == nil || c.active.request.TurnID != turn || c.active.token.Generation != *before+1 {
+			c.mu.Unlock()
+			return CancelResult{Kind: CancelUnknown}, ErrStaleEvent
+		}
 	}
 	a := c.active
 	if c.pendingSwitch != nil {

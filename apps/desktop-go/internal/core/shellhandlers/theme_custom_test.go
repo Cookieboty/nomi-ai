@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,10 +18,13 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/procs"
 )
 
+var themeCallSequence atomic.Uint64
+
 // 调一个过程，返回线上编码后的结果帧（与视图收到的一致）
 func call(t *testing.T, s *contract.Session, ch chan contract.ServerFrame, name, input string) map[string]json.RawMessage {
 	t.Helper()
-	req := `{"t":"req","id":"1","kind":"call","name":"` + name + `"`
+	// Match real clients: never reuse an ID while server response cleanup may still run.
+	req := `{"t":"req","id":"` + strconv.FormatUint(themeCallSequence.Add(1), 10) + `","kind":"call","name":"` + name + `"`
 	if input != "" {
 		req += `,"input":` + input
 	}

@@ -769,5 +769,9 @@
   "ui.chat-settings.delegate-protection-sandbox-on": "系统沙箱已开启（限制敏感位置读取与跨目录写入）",
   "ui.chat-settings.delegate-protection-sandbox-off": "系统沙箱已关闭",
   "ui.chat-settings.delegate-protection-sandbox-unsupported": "当前系统不支持系统沙箱",
-  "ui.chat-settings.delegate-protection-workspace-env": "工作目录检查 + 环境变量清理"
+  "ui.chat-settings.delegate-protection-workspace-env": "工作目录检查 + 环境变量清理",
+  "ui.chat-settings.managed-ingress": "请使用托管对话运行时入口",
+  "ui.chat-settings.managed-unsupported": "托管运行时暂不支持附件、回退、知识库桥接和后台任务",
+  "ui.chat-settings.managed-observation-timeout": "运行时观察超时，请查看恢复状态，不要自动重试。",
+  "ui.chat-settings.managed-view-write": "此对话由运行时管理，视图不可直接写入"
 }

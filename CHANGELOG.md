@@ -14,6 +14,8 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 ### Other
 
 - 为主对话 CLI 运行时增加默认未启用的 convstore S1 持久化基础：单个版本化会话提交单元保存完整转录修订、原生绑定、交付覆盖、attempt/generation、队列及原始迁移数据；先持久化再执行，异常重启保守进入 uncertain，不自动重放。增加逐写入边界失败、磁盘满、真实测试子进程重启和旧 API 回归测试。仅通过临时目录 fixtures 验证，尚未接入真实主对话、CLI 或用户数据；Windows 的 v2 持久写入显式拒绝，等待实现可验证的耐久替换原语。 (`@nomi-ai/desktop-go` patch)
+- 为显式启用的托管主对话接通单写者会话、租约与 IPC：发送、切换、停止、审批、恢复状态和删除均保留同一对话身份；视图不再重复保存消息。新增实验性 API 纯文本适配，未管理的 API 对话保持原行为。CLI 官方驱动和首用选择界面尚未开放，Windows 在耐久写入实现完成前明确禁用托管模式。 (`@nomi-ai/desktop-go` patch, `@nomi-ai/ai-chat` patch)
+- 增加仅聊天窗口可用的托管对话契约、generation/turn 定向停止、运行时状态事件和明确的能力降级文案；发送、切换、迁移与审批保留危险操作权限检查。 (`@nomi-ai/contract` patch, `@nomi-ai/i18n` patch)
 
 ## 2.4.2 — 2026-11-20
 

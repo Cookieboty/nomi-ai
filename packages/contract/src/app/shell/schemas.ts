@@ -650,6 +650,7 @@ const ConversationMessages = z.array(opaqueObject);
 const ConversationSource = z.string().max(64).optional();
 
 export const ConversationsState = loose({
+  managed: z.array(ConversationId).optional(),
   /** 按视图的顺序（新建的在末尾） */
   conversations: z.array(z.looseObject({ id: z.string() })),
   /** 第一条用户消息的预览（侧栏搜索用） */

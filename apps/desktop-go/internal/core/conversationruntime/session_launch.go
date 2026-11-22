@@ -1,6 +1,9 @@
 package conversationruntime
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 func (c *Session) launch(a *activeAttempt) error {
 	if err := gate(a.ctx, a); err != nil {
@@ -213,7 +216,7 @@ func (c *Session) handle(e Event) error {
 			return ErrProtocol
 		}
 		id := a.replyID
-		entry, err := c.ledger.Append(Entry{ID: id, TurnID: a.request.TurnID, Role: "assistant", Origin: a.target.Identity.DriverID, Text: a.text})
+		entry, err := c.ledger.Append(Entry{ID: id, TurnID: a.request.TurnID, Role: "assistant", Origin: a.target.Identity.DriverID, Timestamp: time.Now().UnixMilli(), Text: a.text})
 		if err != nil {
 			c.uncertainLocked(a, err.Error())
 			return err

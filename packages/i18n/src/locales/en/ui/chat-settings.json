@@ -769,5 +769,9 @@
   "ui.chat-settings.delegate-protection-sandbox-on": "System sandbox on (blocks sensitive reads & outside writes)",
   "ui.chat-settings.delegate-protection-sandbox-off": "System sandbox off",
   "ui.chat-settings.delegate-protection-sandbox-unsupported": "System sandbox unsupported on this OS",
-  "ui.chat-settings.delegate-protection-workspace-env": "Workspace guard + env secret scrubbing"
+  "ui.chat-settings.delegate-protection-workspace-env": "Workspace guard + env secret scrubbing",
+  "ui.chat-settings.managed-ingress": "Use the managed conversation runtime ingress",
+  "ui.chat-settings.managed-unsupported": "Managed attachments, rewinds, knowledge bridges and background tasks are not supported yet",
+  "ui.chat-settings.managed-observation-timeout": "Runtime observation timed out; inspect recovery state. Do not retry automatically.",
+  "ui.chat-settings.managed-view-write": "This conversation is managed by its runtime; view writes are not allowed"
 }

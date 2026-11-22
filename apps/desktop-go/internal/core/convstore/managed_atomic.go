@@ -35,6 +35,7 @@ func (ops managedIO) point(stage string) error {
 	}
 	return nil
 }
+func ManagedSupported() bool { return runtime.GOOS != "windows" }
 func syncDirectory(path string) error {
 	// Do not claim Unix fsync semantics on Windows. No production cutover there
 	// until a tested durable replacement primitive is implemented.

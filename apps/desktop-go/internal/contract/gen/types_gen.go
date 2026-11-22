@@ -2347,6 +2347,401 @@ type ConversationsReplaceInput struct {
 	Preview  *string                        `json:"preview,omitempty"`
 }
 
+type ConversationsRuntimeAdoptInput struct {
+	Id      string `json:"id"`
+	Backend string `json:"backend"`
+	Confirm bool   `json:"confirm"`
+}
+
+// ConversationsRuntimeAdoptOutputPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
+type ConversationsRuntimeAdoptOutputPhase = string
+
+const (
+	ConversationsRuntimeAdoptOutputPhaseIdle            ConversationsRuntimeAdoptOutputPhase = "idle"
+	ConversationsRuntimeAdoptOutputPhasePreparing       ConversationsRuntimeAdoptOutputPhase = "preparing"
+	ConversationsRuntimeAdoptOutputPhaseRunning         ConversationsRuntimeAdoptOutputPhase = "running"
+	ConversationsRuntimeAdoptOutputPhaseCompleted       ConversationsRuntimeAdoptOutputPhase = "completed"
+	ConversationsRuntimeAdoptOutputPhaseFailedPreSubmit ConversationsRuntimeAdoptOutputPhase = "failed-pre-submit"
+	ConversationsRuntimeAdoptOutputPhaseCanceling       ConversationsRuntimeAdoptOutputPhase = "canceling"
+	ConversationsRuntimeAdoptOutputPhaseCanceled        ConversationsRuntimeAdoptOutputPhase = "canceled"
+	ConversationsRuntimeAdoptOutputPhaseUncertain       ConversationsRuntimeAdoptOutputPhase = "uncertain"
+)
+
+type ConversationsRuntimeAdoptOutputToken struct {
+	ConversationId string `json:"conversationId"`
+	AttemptId      string `json:"attemptId"`
+	Generation     int64  `json:"generation"`
+}
+
+// ConversationsRuntimeAdoptOutputRecovery 枚举：none | resumed | new | fallback | unknown | error
+type ConversationsRuntimeAdoptOutputRecovery = string
+
+const (
+	ConversationsRuntimeAdoptOutputRecoveryNone     ConversationsRuntimeAdoptOutputRecovery = "none"
+	ConversationsRuntimeAdoptOutputRecoveryResumed  ConversationsRuntimeAdoptOutputRecovery = "resumed"
+	ConversationsRuntimeAdoptOutputRecoveryNew      ConversationsRuntimeAdoptOutputRecovery = "new"
+	ConversationsRuntimeAdoptOutputRecoveryFallback ConversationsRuntimeAdoptOutputRecovery = "fallback"
+	ConversationsRuntimeAdoptOutputRecoveryUnknown  ConversationsRuntimeAdoptOutputRecovery = "unknown"
+	ConversationsRuntimeAdoptOutputRecoveryError    ConversationsRuntimeAdoptOutputRecovery = "error"
+)
+
+type ConversationsRuntimeAdoptOutputCapabilities struct {
+	Resume          bool     `json:"resume"`
+	Cancel          bool     `json:"cancel"`
+	Approval        bool     `json:"approval"`
+	Attachments     bool     `json:"attachments"`
+	PermissionModes []string `json:"permissionModes"`
+	Degraded        []string `json:"degraded"`
+}
+
+type ConversationsRuntimeAdoptOutput struct {
+	Id           string                                      `json:"id"`
+	Backend      string                                      `json:"backend"`
+	Generation   int64                                       `json:"generation"`
+	Phase        ConversationsRuntimeAdoptOutputPhase        `json:"phase"`
+	Queued       int64                                       `json:"queued"`
+	Partial      string                                      `json:"partial"`
+	Detail       string                                      `json:"detail"`
+	Approvals    []string                                    `json:"approvals"`
+	Token        *ConversationsRuntimeAdoptOutputToken       `json:"token,omitempty"`
+	Recovery     ConversationsRuntimeAdoptOutputRecovery     `json:"recovery"`
+	Capabilities ConversationsRuntimeAdoptOutputCapabilities `json:"capabilities"`
+}
+
+type ConversationsRuntimeApproveInputToken struct {
+	ConversationId string `json:"conversationId"`
+	AttemptId      string `json:"attemptId"`
+	Generation     int64  `json:"generation"`
+}
+
+type ConversationsRuntimeApproveInput struct {
+	Id         string                                `json:"id"`
+	Token      ConversationsRuntimeApproveInputToken `json:"token"`
+	ApprovalId string                                `json:"approvalId"`
+	Allow      bool                                  `json:"allow"`
+}
+
+// ConversationsRuntimeApproveOutputPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
+type ConversationsRuntimeApproveOutputPhase = string
+
+const (
+	ConversationsRuntimeApproveOutputPhaseIdle            ConversationsRuntimeApproveOutputPhase = "idle"
+	ConversationsRuntimeApproveOutputPhasePreparing       ConversationsRuntimeApproveOutputPhase = "preparing"
+	ConversationsRuntimeApproveOutputPhaseRunning         ConversationsRuntimeApproveOutputPhase = "running"
+	ConversationsRuntimeApproveOutputPhaseCompleted       ConversationsRuntimeApproveOutputPhase = "completed"
+	ConversationsRuntimeApproveOutputPhaseFailedPreSubmit ConversationsRuntimeApproveOutputPhase = "failed-pre-submit"
+	ConversationsRuntimeApproveOutputPhaseCanceling       ConversationsRuntimeApproveOutputPhase = "canceling"
+	ConversationsRuntimeApproveOutputPhaseCanceled        ConversationsRuntimeApproveOutputPhase = "canceled"
+	ConversationsRuntimeApproveOutputPhaseUncertain       ConversationsRuntimeApproveOutputPhase = "uncertain"
+)
+
+type ConversationsRuntimeApproveOutputToken struct {
+	ConversationId string `json:"conversationId"`
+	AttemptId      string `json:"attemptId"`
+	Generation     int64  `json:"generation"`
+}
+
+// ConversationsRuntimeApproveOutputRecovery 枚举：none | resumed | new | fallback | unknown | error
+type ConversationsRuntimeApproveOutputRecovery = string
+
+const (
+	ConversationsRuntimeApproveOutputRecoveryNone     ConversationsRuntimeApproveOutputRecovery = "none"
+	ConversationsRuntimeApproveOutputRecoveryResumed  ConversationsRuntimeApproveOutputRecovery = "resumed"
+	ConversationsRuntimeApproveOutputRecoveryNew      ConversationsRuntimeApproveOutputRecovery = "new"
+	ConversationsRuntimeApproveOutputRecoveryFallback ConversationsRuntimeApproveOutputRecovery = "fallback"
+	ConversationsRuntimeApproveOutputRecoveryUnknown  ConversationsRuntimeApproveOutputRecovery = "unknown"
+	ConversationsRuntimeApproveOutputRecoveryError    ConversationsRuntimeApproveOutputRecovery = "error"
+)
+
+type ConversationsRuntimeApproveOutputCapabilities struct {
+	Resume          bool     `json:"resume"`
+	Cancel          bool     `json:"cancel"`
+	Approval        bool     `json:"approval"`
+	Attachments     bool     `json:"attachments"`
+	PermissionModes []string `json:"permissionModes"`
+	Degraded        []string `json:"degraded"`
+}
+
+type ConversationsRuntimeApproveOutput struct {
+	Id           string                                        `json:"id"`
+	Backend      string                                        `json:"backend"`
+	Generation   int64                                         `json:"generation"`
+	Phase        ConversationsRuntimeApproveOutputPhase        `json:"phase"`
+	Queued       int64                                         `json:"queued"`
+	Partial      string                                        `json:"partial"`
+	Detail       string                                        `json:"detail"`
+	Approvals    []string                                      `json:"approvals"`
+	Token        *ConversationsRuntimeApproveOutputToken       `json:"token,omitempty"`
+	Recovery     ConversationsRuntimeApproveOutputRecovery     `json:"recovery"`
+	Capabilities ConversationsRuntimeApproveOutputCapabilities `json:"capabilities"`
+}
+
+type ConversationsRuntimeCancelInput struct {
+	Id               string  `json:"id"`
+	TurnId           *string `json:"turnId,omitempty"`
+	BeforeGeneration *int64  `json:"beforeGeneration,omitempty"`
+}
+
+// ConversationsRuntimeCancelOutputPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
+type ConversationsRuntimeCancelOutputPhase = string
+
+const (
+	ConversationsRuntimeCancelOutputPhaseIdle            ConversationsRuntimeCancelOutputPhase = "idle"
+	ConversationsRuntimeCancelOutputPhasePreparing       ConversationsRuntimeCancelOutputPhase = "preparing"
+	ConversationsRuntimeCancelOutputPhaseRunning         ConversationsRuntimeCancelOutputPhase = "running"
+	ConversationsRuntimeCancelOutputPhaseCompleted       ConversationsRuntimeCancelOutputPhase = "completed"
+	ConversationsRuntimeCancelOutputPhaseFailedPreSubmit ConversationsRuntimeCancelOutputPhase = "failed-pre-submit"
+	ConversationsRuntimeCancelOutputPhaseCanceling       ConversationsRuntimeCancelOutputPhase = "canceling"
+	ConversationsRuntimeCancelOutputPhaseCanceled        ConversationsRuntimeCancelOutputPhase = "canceled"
+	ConversationsRuntimeCancelOutputPhaseUncertain       ConversationsRuntimeCancelOutputPhase = "uncertain"
+)
+
+type ConversationsRuntimeCancelOutputToken struct {
+	ConversationId string `json:"conversationId"`
+	AttemptId      string `json:"attemptId"`
+	Generation     int64  `json:"generation"`
+}
+
+// ConversationsRuntimeCancelOutputRecovery 枚举：none | resumed | new | fallback | unknown | error
+type ConversationsRuntimeCancelOutputRecovery = string
+
+const (
+	ConversationsRuntimeCancelOutputRecoveryNone     ConversationsRuntimeCancelOutputRecovery = "none"
+	ConversationsRuntimeCancelOutputRecoveryResumed  ConversationsRuntimeCancelOutputRecovery = "resumed"
+	ConversationsRuntimeCancelOutputRecoveryNew      ConversationsRuntimeCancelOutputRecovery = "new"
+	ConversationsRuntimeCancelOutputRecoveryFallback ConversationsRuntimeCancelOutputRecovery = "fallback"
+	ConversationsRuntimeCancelOutputRecoveryUnknown  ConversationsRuntimeCancelOutputRecovery = "unknown"
+	ConversationsRuntimeCancelOutputRecoveryError    ConversationsRuntimeCancelOutputRecovery = "error"
+)
+
+type ConversationsRuntimeCancelOutputCapabilities struct {
+	Resume          bool     `json:"resume"`
+	Cancel          bool     `json:"cancel"`
+	Approval        bool     `json:"approval"`
+	Attachments     bool     `json:"attachments"`
+	PermissionModes []string `json:"permissionModes"`
+	Degraded        []string `json:"degraded"`
+}
+
+type ConversationsRuntimeCancelOutput struct {
+	Id           string                                       `json:"id"`
+	Backend      string                                       `json:"backend"`
+	Generation   int64                                        `json:"generation"`
+	Phase        ConversationsRuntimeCancelOutputPhase        `json:"phase"`
+	Queued       int64                                        `json:"queued"`
+	Partial      string                                       `json:"partial"`
+	Detail       string                                       `json:"detail"`
+	Approvals    []string                                     `json:"approvals"`
+	Token        *ConversationsRuntimeCancelOutputToken       `json:"token,omitempty"`
+	Recovery     ConversationsRuntimeCancelOutputRecovery     `json:"recovery"`
+	Capabilities ConversationsRuntimeCancelOutputCapabilities `json:"capabilities"`
+}
+
+type ConversationsRuntimeCapabilitiesOutput struct {
+	Supported bool     `json:"supported"`
+	Backends  []string `json:"backends"`
+	Detail    string   `json:"detail"`
+}
+
+type ConversationsRuntimeEditInput struct {
+	Id        string `json:"id"`
+	MessageId string `json:"messageId"`
+	Text      string `json:"text"`
+}
+
+// ConversationsRuntimeEditOutputPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
+type ConversationsRuntimeEditOutputPhase = string
+
+const (
+	ConversationsRuntimeEditOutputPhaseIdle            ConversationsRuntimeEditOutputPhase = "idle"
+	ConversationsRuntimeEditOutputPhasePreparing       ConversationsRuntimeEditOutputPhase = "preparing"
+	ConversationsRuntimeEditOutputPhaseRunning         ConversationsRuntimeEditOutputPhase = "running"
+	ConversationsRuntimeEditOutputPhaseCompleted       ConversationsRuntimeEditOutputPhase = "completed"
+	ConversationsRuntimeEditOutputPhaseFailedPreSubmit ConversationsRuntimeEditOutputPhase = "failed-pre-submit"
+	ConversationsRuntimeEditOutputPhaseCanceling       ConversationsRuntimeEditOutputPhase = "canceling"
+	ConversationsRuntimeEditOutputPhaseCanceled        ConversationsRuntimeEditOutputPhase = "canceled"
+	ConversationsRuntimeEditOutputPhaseUncertain       ConversationsRuntimeEditOutputPhase = "uncertain"
+)
+
+type ConversationsRuntimeEditOutputToken struct {
+	ConversationId string `json:"conversationId"`
+	AttemptId      string `json:"attemptId"`
+	Generation     int64  `json:"generation"`
+}
+
+// ConversationsRuntimeEditOutputRecovery 枚举：none | resumed | new | fallback | unknown | error
+type ConversationsRuntimeEditOutputRecovery = string
+
+const (
+	ConversationsRuntimeEditOutputRecoveryNone     ConversationsRuntimeEditOutputRecovery = "none"
+	ConversationsRuntimeEditOutputRecoveryResumed  ConversationsRuntimeEditOutputRecovery = "resumed"
+	ConversationsRuntimeEditOutputRecoveryNew      ConversationsRuntimeEditOutputRecovery = "new"
+	ConversationsRuntimeEditOutputRecoveryFallback ConversationsRuntimeEditOutputRecovery = "fallback"
+	ConversationsRuntimeEditOutputRecoveryUnknown  ConversationsRuntimeEditOutputRecovery = "unknown"
+	ConversationsRuntimeEditOutputRecoveryError    ConversationsRuntimeEditOutputRecovery = "error"
+)
+
+type ConversationsRuntimeEditOutputCapabilities struct {
+	Resume          bool     `json:"resume"`
+	Cancel          bool     `json:"cancel"`
+	Approval        bool     `json:"approval"`
+	Attachments     bool     `json:"attachments"`
+	PermissionModes []string `json:"permissionModes"`
+	Degraded        []string `json:"degraded"`
+}
+
+type ConversationsRuntimeEditOutput struct {
+	Id           string                                     `json:"id"`
+	Backend      string                                     `json:"backend"`
+	Generation   int64                                      `json:"generation"`
+	Phase        ConversationsRuntimeEditOutputPhase        `json:"phase"`
+	Queued       int64                                      `json:"queued"`
+	Partial      string                                     `json:"partial"`
+	Detail       string                                     `json:"detail"`
+	Approvals    []string                                   `json:"approvals"`
+	Token        *ConversationsRuntimeEditOutputToken       `json:"token,omitempty"`
+	Recovery     ConversationsRuntimeEditOutputRecovery     `json:"recovery"`
+	Capabilities ConversationsRuntimeEditOutputCapabilities `json:"capabilities"`
+}
+
+type ConversationsRuntimeReleaseInput struct {
+	Id string `json:"id"`
+}
+
+type ConversationsRuntimeSelectInput struct {
+	Id      string `json:"id"`
+	Backend string `json:"backend"`
+}
+
+// ConversationsRuntimeSelectOutputPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
+type ConversationsRuntimeSelectOutputPhase = string
+
+const (
+	ConversationsRuntimeSelectOutputPhaseIdle            ConversationsRuntimeSelectOutputPhase = "idle"
+	ConversationsRuntimeSelectOutputPhasePreparing       ConversationsRuntimeSelectOutputPhase = "preparing"
+	ConversationsRuntimeSelectOutputPhaseRunning         ConversationsRuntimeSelectOutputPhase = "running"
+	ConversationsRuntimeSelectOutputPhaseCompleted       ConversationsRuntimeSelectOutputPhase = "completed"
+	ConversationsRuntimeSelectOutputPhaseFailedPreSubmit ConversationsRuntimeSelectOutputPhase = "failed-pre-submit"
+	ConversationsRuntimeSelectOutputPhaseCanceling       ConversationsRuntimeSelectOutputPhase = "canceling"
+	ConversationsRuntimeSelectOutputPhaseCanceled        ConversationsRuntimeSelectOutputPhase = "canceled"
+	ConversationsRuntimeSelectOutputPhaseUncertain       ConversationsRuntimeSelectOutputPhase = "uncertain"
+)
+
+type ConversationsRuntimeSelectOutputToken struct {
+	ConversationId string `json:"conversationId"`
+	AttemptId      string `json:"attemptId"`
+	Generation     int64  `json:"generation"`
+}
+
+// ConversationsRuntimeSelectOutputRecovery 枚举：none | resumed | new | fallback | unknown | error
+type ConversationsRuntimeSelectOutputRecovery = string
+
+const (
+	ConversationsRuntimeSelectOutputRecoveryNone     ConversationsRuntimeSelectOutputRecovery = "none"
+	ConversationsRuntimeSelectOutputRecoveryResumed  ConversationsRuntimeSelectOutputRecovery = "resumed"
+	ConversationsRuntimeSelectOutputRecoveryNew      ConversationsRuntimeSelectOutputRecovery = "new"
+	ConversationsRuntimeSelectOutputRecoveryFallback ConversationsRuntimeSelectOutputRecovery = "fallback"
+	ConversationsRuntimeSelectOutputRecoveryUnknown  ConversationsRuntimeSelectOutputRecovery = "unknown"
+	ConversationsRuntimeSelectOutputRecoveryError    ConversationsRuntimeSelectOutputRecovery = "error"
+)
+
+type ConversationsRuntimeSelectOutputCapabilities struct {
+	Resume          bool     `json:"resume"`
+	Cancel          bool     `json:"cancel"`
+	Approval        bool     `json:"approval"`
+	Attachments     bool     `json:"attachments"`
+	PermissionModes []string `json:"permissionModes"`
+	Degraded        []string `json:"degraded"`
+}
+
+type ConversationsRuntimeSelectOutput struct {
+	Id           string                                       `json:"id"`
+	Backend      string                                       `json:"backend"`
+	Generation   int64                                        `json:"generation"`
+	Phase        ConversationsRuntimeSelectOutputPhase        `json:"phase"`
+	Queued       int64                                        `json:"queued"`
+	Partial      string                                       `json:"partial"`
+	Detail       string                                       `json:"detail"`
+	Approvals    []string                                     `json:"approvals"`
+	Token        *ConversationsRuntimeSelectOutputToken       `json:"token,omitempty"`
+	Recovery     ConversationsRuntimeSelectOutputRecovery     `json:"recovery"`
+	Capabilities ConversationsRuntimeSelectOutputCapabilities `json:"capabilities"`
+}
+
+type ConversationsRuntimeSendInput struct {
+	Id                 string `json:"id"`
+	ExpectedGeneration int64  `json:"expectedGeneration"`
+	MessageId          string `json:"messageId"`
+	TurnId             string `json:"turnId"`
+	Text               string `json:"text"`
+	Retry              *bool  `json:"retry,omitempty"`
+}
+
+type ConversationsRuntimeSendOutput struct {
+	ConversationId string `json:"conversationId"`
+	AttemptId      string `json:"attemptId"`
+	Generation     int64  `json:"generation"`
+}
+
+type ConversationsRuntimeStateInput struct {
+	Id string `json:"id"`
+}
+
+// ConversationsRuntimeStateOutputPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
+type ConversationsRuntimeStateOutputPhase = string
+
+const (
+	ConversationsRuntimeStateOutputPhaseIdle            ConversationsRuntimeStateOutputPhase = "idle"
+	ConversationsRuntimeStateOutputPhasePreparing       ConversationsRuntimeStateOutputPhase = "preparing"
+	ConversationsRuntimeStateOutputPhaseRunning         ConversationsRuntimeStateOutputPhase = "running"
+	ConversationsRuntimeStateOutputPhaseCompleted       ConversationsRuntimeStateOutputPhase = "completed"
+	ConversationsRuntimeStateOutputPhaseFailedPreSubmit ConversationsRuntimeStateOutputPhase = "failed-pre-submit"
+	ConversationsRuntimeStateOutputPhaseCanceling       ConversationsRuntimeStateOutputPhase = "canceling"
+	ConversationsRuntimeStateOutputPhaseCanceled        ConversationsRuntimeStateOutputPhase = "canceled"
+	ConversationsRuntimeStateOutputPhaseUncertain       ConversationsRuntimeStateOutputPhase = "uncertain"
+)
+
+type ConversationsRuntimeStateOutputToken struct {
+	ConversationId string `json:"conversationId"`
+	AttemptId      string `json:"attemptId"`
+	Generation     int64  `json:"generation"`
+}
+
+// ConversationsRuntimeStateOutputRecovery 枚举：none | resumed | new | fallback | unknown | error
+type ConversationsRuntimeStateOutputRecovery = string
+
+const (
+	ConversationsRuntimeStateOutputRecoveryNone     ConversationsRuntimeStateOutputRecovery = "none"
+	ConversationsRuntimeStateOutputRecoveryResumed  ConversationsRuntimeStateOutputRecovery = "resumed"
+	ConversationsRuntimeStateOutputRecoveryNew      ConversationsRuntimeStateOutputRecovery = "new"
+	ConversationsRuntimeStateOutputRecoveryFallback ConversationsRuntimeStateOutputRecovery = "fallback"
+	ConversationsRuntimeStateOutputRecoveryUnknown  ConversationsRuntimeStateOutputRecovery = "unknown"
+	ConversationsRuntimeStateOutputRecoveryError    ConversationsRuntimeStateOutputRecovery = "error"
+)
+
+type ConversationsRuntimeStateOutputCapabilities struct {
+	Resume          bool     `json:"resume"`
+	Cancel          bool     `json:"cancel"`
+	Approval        bool     `json:"approval"`
+	Attachments     bool     `json:"attachments"`
+	PermissionModes []string `json:"permissionModes"`
+	Degraded        []string `json:"degraded"`
+}
+
+type ConversationsRuntimeStateOutput struct {
+	Id           string                                      `json:"id"`
+	Backend      string                                      `json:"backend"`
+	Generation   int64                                       `json:"generation"`
+	Phase        ConversationsRuntimeStateOutputPhase        `json:"phase"`
+	Queued       int64                                       `json:"queued"`
+	Partial      string                                      `json:"partial"`
+	Detail       string                                      `json:"detail"`
+	Approvals    []string                                    `json:"approvals"`
+	Token        *ConversationsRuntimeStateOutputToken       `json:"token,omitempty"`
+	Recovery     ConversationsRuntimeStateOutputRecovery     `json:"recovery"`
+	Capabilities ConversationsRuntimeStateOutputCapabilities `json:"capabilities"`
+}
+
 type ConversationsSetPointersInput struct {
 	Source   *string `json:"source,omitempty"`
 	Current  *string `json:"current,omitempty"`
@@ -2358,6 +2753,7 @@ type ConversationsStateOutputConversationsItem struct {
 }
 
 type ConversationsStateOutput struct {
+	Managed       []string                                    `json:"managed,omitempty"`
 	Conversations []ConversationsStateOutputConversationsItem `json:"conversations"`
 	Previews      map[string]string                           `json:"previews"`
 	Counts        map[string]int64                            `json:"counts"`
@@ -11950,6 +12346,61 @@ type EventConversationsChanged struct {
 	Index  bool     `json:"index"`
 }
 
+// EventConversationsRuntimeChangedPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
+type EventConversationsRuntimeChangedPhase = string
+
+const (
+	EventConversationsRuntimeChangedPhaseIdle            EventConversationsRuntimeChangedPhase = "idle"
+	EventConversationsRuntimeChangedPhasePreparing       EventConversationsRuntimeChangedPhase = "preparing"
+	EventConversationsRuntimeChangedPhaseRunning         EventConversationsRuntimeChangedPhase = "running"
+	EventConversationsRuntimeChangedPhaseCompleted       EventConversationsRuntimeChangedPhase = "completed"
+	EventConversationsRuntimeChangedPhaseFailedPreSubmit EventConversationsRuntimeChangedPhase = "failed-pre-submit"
+	EventConversationsRuntimeChangedPhaseCanceling       EventConversationsRuntimeChangedPhase = "canceling"
+	EventConversationsRuntimeChangedPhaseCanceled        EventConversationsRuntimeChangedPhase = "canceled"
+	EventConversationsRuntimeChangedPhaseUncertain       EventConversationsRuntimeChangedPhase = "uncertain"
+)
+
+type EventConversationsRuntimeChangedToken struct {
+	ConversationId string `json:"conversationId"`
+	AttemptId      string `json:"attemptId"`
+	Generation     int64  `json:"generation"`
+}
+
+// EventConversationsRuntimeChangedRecovery 枚举：none | resumed | new | fallback | unknown | error
+type EventConversationsRuntimeChangedRecovery = string
+
+const (
+	EventConversationsRuntimeChangedRecoveryNone     EventConversationsRuntimeChangedRecovery = "none"
+	EventConversationsRuntimeChangedRecoveryResumed  EventConversationsRuntimeChangedRecovery = "resumed"
+	EventConversationsRuntimeChangedRecoveryNew      EventConversationsRuntimeChangedRecovery = "new"
+	EventConversationsRuntimeChangedRecoveryFallback EventConversationsRuntimeChangedRecovery = "fallback"
+	EventConversationsRuntimeChangedRecoveryUnknown  EventConversationsRuntimeChangedRecovery = "unknown"
+	EventConversationsRuntimeChangedRecoveryError    EventConversationsRuntimeChangedRecovery = "error"
+)
+
+type EventConversationsRuntimeChangedCapabilities struct {
+	Resume          bool     `json:"resume"`
+	Cancel          bool     `json:"cancel"`
+	Approval        bool     `json:"approval"`
+	Attachments     bool     `json:"attachments"`
+	PermissionModes []string `json:"permissionModes"`
+	Degraded        []string `json:"degraded"`
+}
+
+type EventConversationsRuntimeChanged struct {
+	Id           string                                       `json:"id"`
+	Backend      string                                       `json:"backend"`
+	Generation   int64                                        `json:"generation"`
+	Phase        EventConversationsRuntimeChangedPhase        `json:"phase"`
+	Queued       int64                                        `json:"queued"`
+	Partial      string                                       `json:"partial"`
+	Detail       string                                       `json:"detail"`
+	Approvals    []string                                     `json:"approvals"`
+	Token        *EventConversationsRuntimeChangedToken       `json:"token,omitempty"`
+	Recovery     EventConversationsRuntimeChangedRecovery     `json:"recovery"`
+	Capabilities EventConversationsRuntimeChangedCapabilities `json:"capabilities"`
+}
+
 type EventDelegateCompleted struct {
 	TaskId     string  `json:"taskId"`
 	Cli        string  `json:"cli"`
@@ -13399,6 +13850,42 @@ type ConversationsPutOutputT = any
 // ConversationsReplaceInputT 是 conversations.replace 的入参
 type ConversationsReplaceInputT = ConversationsReplaceInput
 type ConversationsReplaceOutputT = any
+
+// ConversationsRuntimeAdoptInputT 是 conversations.runtimeAdopt 的入参
+type ConversationsRuntimeAdoptInputT = ConversationsRuntimeAdoptInput
+type ConversationsRuntimeAdoptOutputT = ConversationsRuntimeAdoptOutput
+
+// ConversationsRuntimeApproveInputT 是 conversations.runtimeApprove 的入参
+type ConversationsRuntimeApproveInputT = ConversationsRuntimeApproveInput
+type ConversationsRuntimeApproveOutputT = ConversationsRuntimeApproveOutput
+
+// ConversationsRuntimeCancelInputT 是 conversations.runtimeCancel 的入参
+type ConversationsRuntimeCancelInputT = ConversationsRuntimeCancelInput
+type ConversationsRuntimeCancelOutputT = ConversationsRuntimeCancelOutput
+
+// ConversationsRuntimeCapabilitiesInputT 是 conversations.runtimeCapabilities 的入参
+type ConversationsRuntimeCapabilitiesInputT = any
+type ConversationsRuntimeCapabilitiesOutputT = ConversationsRuntimeCapabilitiesOutput
+
+// ConversationsRuntimeEditInputT 是 conversations.runtimeEdit 的入参
+type ConversationsRuntimeEditInputT = ConversationsRuntimeEditInput
+type ConversationsRuntimeEditOutputT = ConversationsRuntimeEditOutput
+
+// ConversationsRuntimeReleaseInputT 是 conversations.runtimeRelease 的入参
+type ConversationsRuntimeReleaseInputT = ConversationsRuntimeReleaseInput
+type ConversationsRuntimeReleaseOutputT = any
+
+// ConversationsRuntimeSelectInputT 是 conversations.runtimeSelect 的入参
+type ConversationsRuntimeSelectInputT = ConversationsRuntimeSelectInput
+type ConversationsRuntimeSelectOutputT = ConversationsRuntimeSelectOutput
+
+// ConversationsRuntimeSendInputT 是 conversations.runtimeSend 的入参
+type ConversationsRuntimeSendInputT = ConversationsRuntimeSendInput
+type ConversationsRuntimeSendOutputT = ConversationsRuntimeSendOutput
+
+// ConversationsRuntimeStateInputT 是 conversations.runtimeState 的入参
+type ConversationsRuntimeStateInputT = ConversationsRuntimeStateInput
+type ConversationsRuntimeStateOutputT = ConversationsRuntimeStateOutput
 
 // ConversationsSetPointersInputT 是 conversations.setPointers 的入参
 type ConversationsSetPointersInputT = ConversationsSetPointersInput
@@ -14984,6 +15471,7 @@ type EventComputerActivityT = EventComputerActivity
 type EventComputerChangedT = map[string]any
 type EventConnectionsChangedT = any
 type EventConversationsChangedT = EventConversationsChanged
+type EventConversationsRuntimeChangedT = EventConversationsRuntimeChanged
 type EventDelegateCompletedT = EventDelegateCompleted
 type EventDesktopBubbleT = EventDesktopBubble
 type EventDesktopChangedT = EventDesktopChanged

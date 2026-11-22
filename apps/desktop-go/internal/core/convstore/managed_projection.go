@@ -35,6 +35,9 @@ func projectManaged(d ManagedDocument, limit int) ([]json.RawMessage, error) {
 		obj["id"], _ = json.Marshal(e.ID)
 		obj["role"], _ = json.Marshal(e.Role)
 		obj["content"], _ = json.Marshal(e.Text)
+		if e.Timestamp != 0 {
+			obj["timestamp"], _ = json.Marshal(e.Timestamp)
+		}
 		b, err := json.Marshal(obj)
 		if err != nil {
 			return nil, err
@@ -64,6 +67,29 @@ func (s *Store) overlayManaged(st *State) error {
 			return err
 		}
 		id := d.State.ConversationID
+		if d.Deleted {
+			kept := st.Conversations[:0]
+			for _, m := range st.Conversations {
+				if metaID(m) != id {
+					kept = append(kept, m)
+				}
+			}
+			st.Conversations = kept
+			pos = map[string]int{}
+			for i, m := range kept {
+				pos[metaID(m)] = i
+			}
+			delete(st.Counts, id)
+			delete(st.Previews, id)
+			if st.Current == id {
+				st.Current = ""
+			}
+			if st.LastNomi == id {
+				st.LastNomi = ""
+			}
+			continue
+		}
+		st.Managed = append(st.Managed, id)
 		messages, err := projectManaged(d, 0)
 		if err != nil {
 			return err

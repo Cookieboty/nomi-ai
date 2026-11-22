@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 type activeAttempt struct {
@@ -125,7 +126,7 @@ func (c *Session) State() SessionState {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.refreshLocked()
-	s := SessionState{ConversationID: c.id, Generation: c.generation, Phase: PhaseIdle, Capabilities: c.caps.clone(), Work: c.work, Queued: len(c.queue)}
+	s := SessionState{Backend: c.target.Identity.DriverID, ConversationID: c.id, Generation: c.generation, Phase: PhaseIdle, Capabilities: c.caps.clone(), Work: c.work, Queued: len(c.queue)}
 	if c.storageErr != nil {
 		s.Detail = c.storageErr.Error()
 		s.Phase = PhaseUncertain
@@ -193,7 +194,17 @@ func (c *Session) StartNext(ctx context.Context) (AttemptToken, error) {
 	return a.token, c.launch(a)
 }
 func (c *Session) Start(ctx context.Context, r Request) (AttemptToken, error) {
+	return c.startAt(ctx, r, nil)
+}
+func (c *Session) StartAt(ctx context.Context, r Request, generation uint64) (AttemptToken, error) {
+	return c.startAt(ctx, r, &generation)
+}
+func (c *Session) startAt(ctx context.Context, r Request, expected *uint64) (AttemptToken, error) {
 	c.mu.Lock()
+	if expected != nil && *expected != c.generation {
+		c.mu.Unlock()
+		return AttemptToken{}, ErrStaleEvent
+	}
 	a, err := c.beginLocked(ctx, r, false)
 	if err == nil {
 		err = c.persistLocked()
@@ -249,7 +260,7 @@ func (c *Session) beginLocked(ctx context.Context, r Request, queued bool) (*act
 		return nil, &ErrBudget{Need: jsonLen(r.Text), Limit: int(c.caps.Budget), What: "current request"}
 	}
 	if _, ok := c.ledger.Latest(r.MessageID); !ok {
-		if _, err := c.ledger.Append(Entry{ID: r.MessageID, TurnID: r.TurnID, Role: "user", Origin: "user", Text: r.Text}); err != nil {
+		if _, err := c.ledger.Append(Entry{ID: r.MessageID, TurnID: r.TurnID, Role: "user", Origin: "user", Timestamp: time.Now().UnixMilli(), Text: r.Text}); err != nil {
 			return nil, err
 		}
 	}

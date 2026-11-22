@@ -24,6 +24,7 @@ type LegacyArchive struct {
 	SourceDigest                   string
 }
 type ManagedDocument struct {
+	Deleted  bool `json:"Deleted,omitempty"`
 	Version  int
 	Sequence uint64
 	Meta     []byte
@@ -96,6 +97,10 @@ func (s *Store) OpenManaged(id string) (*ManagedLease, error) {
 		unlock()
 		return nil, err
 	}
+	if d.Deleted {
+		unlock()
+		return nil, ErrNotFound
+	}
 	return &ManagedLease{store: s, id: id, sequence: d.Sequence, unlock: unlock, ops: defaultManagedIO()}, nil
 }
 func (l *ManagedLease) Close() error {
@@ -107,7 +112,9 @@ func (l *ManagedLease) Close() error {
 	}
 	return nil
 }
-func (l *ManagedLease) Commit(state cr.Checkpoint) error {
+func (l *ManagedLease) Commit(state cr.Checkpoint) error { return l.commit(state, false) }
+func (l *ManagedLease) Retire(state cr.Checkpoint) error { return l.commit(state, true) }
+func (l *ManagedLease) commit(state cr.Checkpoint, deleted bool) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.closed {
@@ -128,6 +135,9 @@ func (l *ManagedLease) Commit(state cr.Checkpoint) error {
 	if err != nil {
 		return err
 	}
+	if old.Deleted {
+		return ErrNotFound
+	}
 	if old.Sequence != l.sequence || old.Sequence == ^uint64(0) {
 		return ErrManagedConflict
 	}
@@ -139,6 +149,7 @@ func (l *ManagedLease) Commit(state cr.Checkpoint) error {
 	}
 	old.Sequence++
 	old.State = state
+	old.Deleted = deleted
 	old.Checksum = documentSum(old)
 	b, err := json.Marshal(old)
 	if err != nil {
@@ -226,4 +237,11 @@ func compatibleSuccessor(old, next cr.Checkpoint) bool {
 		}
 	}
 	return true
+}
+
+func (s *Store) IsManaged(id string) bool {
+	if !ValidID(id) {
+		return false
+	}
+	return s.legacyWritable(id) != nil
 }

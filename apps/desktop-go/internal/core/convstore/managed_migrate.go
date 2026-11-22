@@ -51,6 +51,9 @@ func (s *Store) AdoptManaged(id string) (MigrationReport, error) {
 	}
 	defer done()
 	if d, err := readManaged(s.managedPath(id)); err == nil {
+		if d.Deleted {
+			return report, ErrNotFound
+		}
 		report.Already = true
 		report.Archive = d.Legacy
 		report.Mappings = append([]IDMapping(nil), d.Mappings...)

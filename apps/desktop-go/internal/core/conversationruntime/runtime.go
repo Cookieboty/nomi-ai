@@ -172,6 +172,7 @@ type Request struct {
 }
 
 type SessionState struct {
+	Backend        string
 	ConversationID string
 	Generation     uint64
 	Phase          Phase

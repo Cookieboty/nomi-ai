@@ -9315,6 +9315,1117 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema"
    }
   },
+  "conversations.runtimeAdopt": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "backend": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+     },
+     "confirm": {
+      "type": "boolean",
+      "const": true
+     }
+    },
+    "required": [
+     "id",
+     "backend",
+     "confirm"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "backend": {
+      "type": "string"
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "phase": {
+      "type": "string",
+      "enum": [
+       "idle",
+       "preparing",
+       "running",
+       "completed",
+       "failed-pre-submit",
+       "canceling",
+       "canceled",
+       "uncertain"
+      ]
+     },
+     "queued": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "partial": {
+      "type": "string"
+     },
+     "detail": {
+      "type": "string"
+     },
+     "approvals": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "token": {
+      "type": "object",
+      "properties": {
+       "conversationId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+       },
+       "attemptId": {
+        "type": "string"
+       },
+       "generation": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "conversationId",
+       "attemptId",
+       "generation"
+      ],
+      "additionalProperties": false
+     },
+     "recovery": {
+      "type": "string",
+      "enum": [
+       "none",
+       "resumed",
+       "new",
+       "fallback",
+       "unknown",
+       "error"
+      ]
+     },
+     "capabilities": {
+      "type": "object",
+      "properties": {
+       "resume": {
+        "type": "boolean"
+       },
+       "cancel": {
+        "type": "boolean"
+       },
+       "approval": {
+        "type": "boolean"
+       },
+       "attachments": {
+        "type": "boolean"
+       },
+       "permissionModes": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "degraded": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "resume",
+       "cancel",
+       "approval",
+       "attachments",
+       "permissionModes",
+       "degraded"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "required": [
+     "id",
+     "backend",
+     "generation",
+     "phase",
+     "queued",
+     "partial",
+     "detail",
+     "approvals",
+     "recovery",
+     "capabilities"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "conversations.runtimeApprove": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "token": {
+      "type": "object",
+      "properties": {
+       "conversationId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+       },
+       "attemptId": {
+        "type": "string"
+       },
+       "generation": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "conversationId",
+       "attemptId",
+       "generation"
+      ]
+     },
+     "approvalId": {
+      "type": "string",
+      "minLength": 1
+     },
+     "allow": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "id",
+     "token",
+     "approvalId",
+     "allow"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "backend": {
+      "type": "string"
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "phase": {
+      "type": "string",
+      "enum": [
+       "idle",
+       "preparing",
+       "running",
+       "completed",
+       "failed-pre-submit",
+       "canceling",
+       "canceled",
+       "uncertain"
+      ]
+     },
+     "queued": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "partial": {
+      "type": "string"
+     },
+     "detail": {
+      "type": "string"
+     },
+     "approvals": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "token": {
+      "type": "object",
+      "properties": {
+       "conversationId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+       },
+       "attemptId": {
+        "type": "string"
+       },
+       "generation": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "conversationId",
+       "attemptId",
+       "generation"
+      ],
+      "additionalProperties": false
+     },
+     "recovery": {
+      "type": "string",
+      "enum": [
+       "none",
+       "resumed",
+       "new",
+       "fallback",
+       "unknown",
+       "error"
+      ]
+     },
+     "capabilities": {
+      "type": "object",
+      "properties": {
+       "resume": {
+        "type": "boolean"
+       },
+       "cancel": {
+        "type": "boolean"
+       },
+       "approval": {
+        "type": "boolean"
+       },
+       "attachments": {
+        "type": "boolean"
+       },
+       "permissionModes": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "degraded": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "resume",
+       "cancel",
+       "approval",
+       "attachments",
+       "permissionModes",
+       "degraded"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "required": [
+     "id",
+     "backend",
+     "generation",
+     "phase",
+     "queued",
+     "partial",
+     "detail",
+     "approvals",
+     "recovery",
+     "capabilities"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "conversations.runtimeCancel": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "turnId": {
+      "type": "string"
+     },
+     "beforeGeneration": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "backend": {
+      "type": "string"
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "phase": {
+      "type": "string",
+      "enum": [
+       "idle",
+       "preparing",
+       "running",
+       "completed",
+       "failed-pre-submit",
+       "canceling",
+       "canceled",
+       "uncertain"
+      ]
+     },
+     "queued": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "partial": {
+      "type": "string"
+     },
+     "detail": {
+      "type": "string"
+     },
+     "approvals": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "token": {
+      "type": "object",
+      "properties": {
+       "conversationId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+       },
+       "attemptId": {
+        "type": "string"
+       },
+       "generation": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "conversationId",
+       "attemptId",
+       "generation"
+      ],
+      "additionalProperties": false
+     },
+     "recovery": {
+      "type": "string",
+      "enum": [
+       "none",
+       "resumed",
+       "new",
+       "fallback",
+       "unknown",
+       "error"
+      ]
+     },
+     "capabilities": {
+      "type": "object",
+      "properties": {
+       "resume": {
+        "type": "boolean"
+       },
+       "cancel": {
+        "type": "boolean"
+       },
+       "approval": {
+        "type": "boolean"
+       },
+       "attachments": {
+        "type": "boolean"
+       },
+       "permissionModes": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "degraded": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "resume",
+       "cancel",
+       "approval",
+       "attachments",
+       "permissionModes",
+       "degraded"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "required": [
+     "id",
+     "backend",
+     "generation",
+     "phase",
+     "queued",
+     "partial",
+     "detail",
+     "approvals",
+     "recovery",
+     "capabilities"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "conversations.runtimeCapabilities": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "supported": {
+      "type": "boolean"
+     },
+     "backends": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "detail": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "supported",
+     "backends",
+     "detail"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "conversations.runtimeEdit": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "messageId": {
+      "type": "string",
+      "minLength": 1
+     },
+     "text": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "messageId",
+     "text"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "backend": {
+      "type": "string"
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "phase": {
+      "type": "string",
+      "enum": [
+       "idle",
+       "preparing",
+       "running",
+       "completed",
+       "failed-pre-submit",
+       "canceling",
+       "canceled",
+       "uncertain"
+      ]
+     },
+     "queued": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "partial": {
+      "type": "string"
+     },
+     "detail": {
+      "type": "string"
+     },
+     "approvals": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "token": {
+      "type": "object",
+      "properties": {
+       "conversationId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+       },
+       "attemptId": {
+        "type": "string"
+       },
+       "generation": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "conversationId",
+       "attemptId",
+       "generation"
+      ],
+      "additionalProperties": false
+     },
+     "recovery": {
+      "type": "string",
+      "enum": [
+       "none",
+       "resumed",
+       "new",
+       "fallback",
+       "unknown",
+       "error"
+      ]
+     },
+     "capabilities": {
+      "type": "object",
+      "properties": {
+       "resume": {
+        "type": "boolean"
+       },
+       "cancel": {
+        "type": "boolean"
+       },
+       "approval": {
+        "type": "boolean"
+       },
+       "attachments": {
+        "type": "boolean"
+       },
+       "permissionModes": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "degraded": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "resume",
+       "cancel",
+       "approval",
+       "attachments",
+       "permissionModes",
+       "degraded"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "required": [
+     "id",
+     "backend",
+     "generation",
+     "phase",
+     "queued",
+     "partial",
+     "detail",
+     "approvals",
+     "recovery",
+     "capabilities"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "conversations.runtimeRelease": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
+   }
+  },
+  "conversations.runtimeSelect": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "backend": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+     }
+    },
+    "required": [
+     "id",
+     "backend"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "backend": {
+      "type": "string"
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "phase": {
+      "type": "string",
+      "enum": [
+       "idle",
+       "preparing",
+       "running",
+       "completed",
+       "failed-pre-submit",
+       "canceling",
+       "canceled",
+       "uncertain"
+      ]
+     },
+     "queued": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "partial": {
+      "type": "string"
+     },
+     "detail": {
+      "type": "string"
+     },
+     "approvals": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "token": {
+      "type": "object",
+      "properties": {
+       "conversationId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+       },
+       "attemptId": {
+        "type": "string"
+       },
+       "generation": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "conversationId",
+       "attemptId",
+       "generation"
+      ],
+      "additionalProperties": false
+     },
+     "recovery": {
+      "type": "string",
+      "enum": [
+       "none",
+       "resumed",
+       "new",
+       "fallback",
+       "unknown",
+       "error"
+      ]
+     },
+     "capabilities": {
+      "type": "object",
+      "properties": {
+       "resume": {
+        "type": "boolean"
+       },
+       "cancel": {
+        "type": "boolean"
+       },
+       "approval": {
+        "type": "boolean"
+       },
+       "attachments": {
+        "type": "boolean"
+       },
+       "permissionModes": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "degraded": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "resume",
+       "cancel",
+       "approval",
+       "attachments",
+       "permissionModes",
+       "degraded"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "required": [
+     "id",
+     "backend",
+     "generation",
+     "phase",
+     "queued",
+     "partial",
+     "detail",
+     "approvals",
+     "recovery",
+     "capabilities"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "conversations.runtimeSend": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "expectedGeneration": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "messageId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+     },
+     "turnId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+     },
+     "text": {
+      "type": "string",
+      "maxLength": 1048576
+     },
+     "retry": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "id",
+     "expectedGeneration",
+     "messageId",
+     "turnId",
+     "text"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "conversationId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "attemptId": {
+      "type": "string"
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     }
+    },
+    "required": [
+     "conversationId",
+     "attemptId",
+     "generation"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "conversations.runtimeState": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "backend": {
+      "type": "string"
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "phase": {
+      "type": "string",
+      "enum": [
+       "idle",
+       "preparing",
+       "running",
+       "completed",
+       "failed-pre-submit",
+       "canceling",
+       "canceled",
+       "uncertain"
+      ]
+     },
+     "queued": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "partial": {
+      "type": "string"
+     },
+     "detail": {
+      "type": "string"
+     },
+     "approvals": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "token": {
+      "type": "object",
+      "properties": {
+       "conversationId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+       },
+       "attemptId": {
+        "type": "string"
+       },
+       "generation": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "conversationId",
+       "attemptId",
+       "generation"
+      ],
+      "additionalProperties": false
+     },
+     "recovery": {
+      "type": "string",
+      "enum": [
+       "none",
+       "resumed",
+       "new",
+       "fallback",
+       "unknown",
+       "error"
+      ]
+     },
+     "capabilities": {
+      "type": "object",
+      "properties": {
+       "resume": {
+        "type": "boolean"
+       },
+       "cancel": {
+        "type": "boolean"
+       },
+       "approval": {
+        "type": "boolean"
+       },
+       "attachments": {
+        "type": "boolean"
+       },
+       "permissionModes": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "degraded": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "resume",
+       "cancel",
+       "approval",
+       "attachments",
+       "permissionModes",
+       "degraded"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "required": [
+     "id",
+     "backend",
+     "generation",
+     "phase",
+     "queued",
+     "partial",
+     "detail",
+     "approvals",
+     "recovery",
+     "capabilities"
+    ],
+    "additionalProperties": false
+   }
+  },
   "conversations.setPointers": {
    "kind": "mutation",
    "dangerous": false,
@@ -9370,6 +10481,13 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "properties": {
+     "managed": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "pattern": "^[A-Za-z0-9_-]{1,128}$"
+      }
+     },
      "conversations": {
       "type": "array",
       "items": {
@@ -39463,6 +40581,139 @@
    ],
    "additionalProperties": {}
   },
+  "conversations.runtimeChanged": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_-]{1,128}$"
+    },
+    "backend": {
+     "type": "string"
+    },
+    "generation": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "phase": {
+     "type": "string",
+     "enum": [
+      "idle",
+      "preparing",
+      "running",
+      "completed",
+      "failed-pre-submit",
+      "canceling",
+      "canceled",
+      "uncertain"
+     ]
+    },
+    "queued": {
+     "type": "integer",
+     "minimum": -9007199254740991,
+     "maximum": 9007199254740991
+    },
+    "partial": {
+     "type": "string"
+    },
+    "detail": {
+     "type": "string"
+    },
+    "approvals": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "token": {
+     "type": "object",
+     "properties": {
+      "conversationId": {
+       "type": "string",
+       "pattern": "^[A-Za-z0-9_-]{1,128}$"
+      },
+      "attemptId": {
+       "type": "string"
+      },
+      "generation": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      }
+     },
+     "required": [
+      "conversationId",
+      "attemptId",
+      "generation"
+     ],
+     "additionalProperties": false
+    },
+    "recovery": {
+     "type": "string",
+     "enum": [
+      "none",
+      "resumed",
+      "new",
+      "fallback",
+      "unknown",
+      "error"
+     ]
+    },
+    "capabilities": {
+     "type": "object",
+     "properties": {
+      "resume": {
+       "type": "boolean"
+      },
+      "cancel": {
+       "type": "boolean"
+      },
+      "approval": {
+       "type": "boolean"
+      },
+      "attachments": {
+       "type": "boolean"
+      },
+      "permissionModes": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "degraded": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     },
+     "required": [
+      "resume",
+      "cancel",
+      "approval",
+      "attachments",
+      "permissionModes",
+      "degraded"
+     ],
+     "additionalProperties": false
+    }
+   },
+   "required": [
+    "id",
+    "backend",
+    "generation",
+    "phase",
+    "queued",
+    "partial",
+    "detail",
+    "approvals",
+    "recovery",
+    "capabilities"
+   ],
+   "additionalProperties": false
+  },
   "delegate.completed": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "type": "object",
@@ -42178,6 +43429,11 @@
  },
  "errors": [
   "UNAVAILABLE",
+  "CONVERSATION_MANAGED",
+  "RUNTIME_UNAVAILABLE",
+  "RUNTIME_BUSY",
+  "RUNTIME_STALE",
+  "RUNTIME_FAILED",
   "PROVIDER_LINK_FAILED",
   "CONVERSATION_NOT_FOUND",
   "ACCOUNT_NOT_FOUND",

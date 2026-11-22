@@ -15,6 +15,7 @@ import { api, hasTransport } from './api';
 import { createConversationStore } from './conversationBoot';
 import { buildProviderMessages, type ProviderMessage } from './history';
 import { nomiLongContextOverride } from './longContext';
+import { sendManagedConversation as sendManaged } from './managedMainChat';
 import { currentNomiThinking } from './thinkingDepth';
 import { upstreamErrorText } from './upstreamErrorText';
 
@@ -184,10 +185,14 @@ export class SdkIPCClient implements IPCClient {
     history?: ChatMessage[],
     extraSystem?: string,
     memory?: string,
+    conversation?: { id: string },
   ): Promise<string> {
     try {
+      const id = conversation?.id ?? this.currentConversationId();
+      if (id && this.store.isManaged(id)) throw new Error(t('ui.chat-settings.managed-ingress'));
       const resp = await this.chat.sendMessage({
         messages: await this.buildMessages(message, history, extraSystem, undefined, memory),
+        ...(id ? { extra: { conversationId: id } } : {}),
       });
       return typeof resp?.content === 'string' ? resp.content : '';
     } catch (error) {
@@ -215,6 +220,8 @@ export class SdkIPCClient implements IPCClient {
     try {
       const fixed = streamOpts?.conversation;
       const conversationId = fixed ? fixed.id : this.currentConversationId();
+      if (conversationId && this.store.isManaged(conversationId))
+        throw new Error(t('ui.chat-settings.managed-ingress'));
       // 固定会话在准备期间被删了：不发送，更不能落到别的会话上
       if (fixed?.id && !this.store.get(fixed.id))
         throw new Error(t('ui.chat-settings.conversation-deleted-message-not-sent'));
@@ -348,6 +355,22 @@ export class SdkIPCClient implements IPCClient {
     this.store.append(message, this.store.nomiTarget());
   }
 
+  isManagedConversation(id: string): boolean {
+    return this.store.isManaged(id);
+  }
+  async sendManagedConversation(
+    id: string,
+    text: string,
+    onUpdate: (messages: ChatMessage[]) => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    await this.store.flush();
+    try {
+      await sendManaged(api, id, text, onUpdate, signal);
+    } finally {
+      await this.store.refreshManaged(id);
+    }
+  }
   async saveMessageTo(message: ChatMessage, conversationId: string): Promise<void> {
     this.store.maxMessages = (await this.getConfig()).maxHistoryLength;
     // 会话在流式期间被删除：不要复活它，也不要把消息写进别的会话

@@ -25,6 +25,7 @@ import (
 // Attachments is omitted with ReasonAttachment. Lists are never shared with
 // callers (defensive copies on ingest and on read).
 type Entry struct {
+	Timestamp   int64    `json:"timestamp,omitempty"`
 	Raw         []byte   `json:"raw,omitempty"` // exact legacy payload retained, never transferred to CLI
 	ID          string   `json:"id"`
 	Revision    int      `json:"revision"`

@@ -90,6 +90,15 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
       try {
         dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
         dispatch({ type: 'SET_ERROR', payload: undefined });
+        if (turn.convoId && s.ipcClient.isManagedConversation?.(turn.convoId)) {
+          if (!s.ipcClient.sendManagedConversation)
+            throw new Error(t('ui.chat-settings.managed-ingress'));
+          await s.ipcClient.sendManagedConversation(turn.convoId, content, (messages) => {
+            if (turn.isActive())
+              dispatch({ type: 'SET_MESSAGES', payload: messages, convoId: turn.convoId });
+          });
+          return;
+        }
 
         const userMessage: ChatMessage = {
           id: nextMessageId(),
@@ -131,7 +140,13 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
         const mem = await memoryContext(content, injectedMemoryIds(history));
         if (mem.text.trim()) userMessage.memory = { text: mem.text, ids: mem.ids };
         await user.early();
-        const response = await s.ipcClient.sendMessage(content, history, undefined, mem.text);
+        const response = await s.ipcClient.sendMessage(
+          content,
+          history,
+          undefined,
+          mem.text,
+          turn.convoId ? { id: turn.convoId } : undefined,
+        );
 
         const aiMessage: ChatMessage = {
           id: nextMessageId(),
@@ -165,6 +180,8 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
       try {
         dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
         dispatch({ type: 'SET_ERROR', payload: undefined });
+        if (turn.convoId && s.ipcClient.isManagedConversation?.(turn.convoId))
+          throw new Error(t('ui.chat-settings.managed-unsupported'));
         const userMessage: ChatMessage = {
           id: nextMessageId(),
           role: 'user',
@@ -236,10 +253,34 @@ function useStreamSend({
       let outcome: ConvoOutcome = 'done';
       // 用户发了新消息：正在朗读的上一条回复立即停
       if (!bgFollow) stopReplySpeech();
+      const managed = !!(turn.convoId && client.isManagedConversation?.(turn.convoId));
       let speaker: ReplySpeaker | null = null;
       try {
         dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
         dispatch({ type: 'SET_ERROR', payload: undefined });
+        if (turn.convoId && managed) {
+          if (images?.length || override)
+            throw new Error(t('ui.chat-settings.managed-unsupported'));
+          if (!client.sendManagedConversation)
+            throw new Error(t('ui.chat-settings.managed-ingress'));
+          activeStream.current.set(convoKey(turn.convoId), {
+            reqId,
+            convoId: turn.convoId,
+            controller,
+          });
+          owned = true;
+          dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
+          await client.sendManagedConversation(
+            turn.convoId,
+            content,
+            (messages) => {
+              if (turn.isActive())
+                dispatch({ type: 'SET_MESSAGES', payload: messages, convoId: turn.convoId });
+            },
+            controller.signal,
+          );
+          return;
+        }
 
         // 图片要离开本机前：云端模型首次告知 / 仅本地模式拦截
         if (images?.length && screenClient.available()) {
@@ -756,7 +797,8 @@ function useStreamSend({
         dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
       } finally {
         // 本轮未委派时清掉主进程 turn pin，避免泄漏到下一轮
-        void clearTurnPin(reqId);
+        if (!managed) void clearTurnPin(reqId);
+        if (controller.signal.aborted && outcome === 'done') outcome = 'stopped';
         const key = convoKey(turn.convoId);
         if (owned && activeStream.current.get(key)?.reqId === reqId)
           activeStream.current.delete(key);
@@ -770,6 +812,8 @@ function useStreamSend({
 
   const handoffCurrentToBackground = useCallback(async (): Promise<string | null> => {
     const s = stateRef.current;
+    if (s.ipcClient.isManagedConversation?.(s.ipcClient.currentConversationId?.() ?? ''))
+      return null;
     const key = convoKey(s.ipcClient.currentConversationId?.());
     const stream = activeStream.current.get(key);
     if (!stream) return null;
@@ -801,6 +845,10 @@ function useStreamSend({
       if (!trimmed) return null;
       const s = stateRef.current;
       const turn = openTurn(s.ipcClient);
+      if (turn.convoId && s.ipcClient.isManagedConversation?.(turn.convoId)) {
+        dispatch({ type: 'SET_ERROR', payload: t('ui.chat-settings.managed-unsupported') });
+        return null;
+      }
       const userMessage: ChatMessage = {
         id: nextMessageId(),
         role: 'user',

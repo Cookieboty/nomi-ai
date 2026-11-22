@@ -102,6 +102,7 @@ type indexDoc struct {
 // State 是 conversations.state 的返回值
 type State struct {
 	Conversations []json.RawMessage `json:"conversations"`
+	Managed       []string          `json:"managed,omitempty"`
 	Previews      map[string]string `json:"previews"`
 	Counts        map[string]int    `json:"counts"`
 	Current       string            `json:"current,omitempty"`
@@ -439,6 +440,9 @@ func (s *Store) Messages(id string, limit int) ([]json.RawMessage, error) {
 	}
 	defer done()
 	if d, err := readManaged(s.managedPath(id)); err == nil {
+		if d.Deleted {
+			return nil, ErrNotFound
+		}
 		return projectManaged(d, limit)
 	} else if !os.IsNotExist(err) {
 		return nil, err

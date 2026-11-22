@@ -460,7 +460,7 @@ func main() {
 			}
 			return resp.Content, nil
 		}))
-	chatHandlers := airouter.New(airouter.Options{Chat: chatFacade, Logger: deps.StdLogger{Prefix: "[ai-runtime]"},
+	chatHandlers := airouter.New(airouter.Options{IsManaged: bundle.Conversations.IsManaged, Chat: chatFacade, Logger: deps.StdLogger{Prefix: "[ai-runtime]"},
 		PrepareChat: func(options map[string]any, method string, signal <-chan struct{}) error {
 			// 侧边聊天：只用 Nomi 的模型与只读工具、不挂会话（internal/core/sidechat）
 			side := sidechat.Apply(options)
@@ -487,6 +487,8 @@ func main() {
 			return prep.PrepareChat(options, method, signal)
 		}})
 	chatHandlers.Register(router)
+	bundle.ConversationRuntime.Register("api", chatHandlers.ManagedTextTarget)
+	defer bundle.ConversationRuntime.Close()
 	computerChats = chatHandlers
 	shellhandlers.OnConversationDeleted = func(id string) {
 		chatHandlers.AbortConversation(id)
@@ -896,6 +898,7 @@ func main() {
 	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, Pages: pages, MascotSize: mascotCtl.WindowSize, MascotPos: mascotCtl.WindowPosition, OnWindow: onWindow,
 		// 退出：关窗之前等对话窗口排着的会话写入写完（最多 1.5 秒；最近没写过的立刻返回）
 		OnShutdown: func() {
+			bundle.ConversationRuntime.Close()
 			if !bundle.ConversationWrites.WaitIdle(1500*time.Millisecond, 200*time.Millisecond) {
 				log.Printf("[conversations] quit before pending writes finished")
 			}
