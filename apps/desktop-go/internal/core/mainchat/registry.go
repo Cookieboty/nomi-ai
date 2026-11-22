@@ -29,16 +29,29 @@ type Registry struct {
 	actors    map[string]*actor
 	closed    bool
 	notify    func(string)
+	releases  map[string]func(string)
+	releasing map[string]chan struct{}
 }
 
 func New(s *convstore.Store, notify func(string)) *Registry {
-	return &Registry{store: s, factories: map[string]Factory{}, actors: map[string]*actor{}, notify: notify}
+	return &Registry{store: s, factories: map[string]Factory{}, actors: map[string]*actor{}, notify: notify, releases: map[string]func(string){}, releasing: map[string]chan struct{}{}}
 }
 func (r *Registry) Register(name string, f Factory) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if !r.closed && f != nil {
 		r.factories[name] = f
+	}
+}
+
+// RegisterOwned releases cached native processes even when another backend is
+// currently selected. The callback runs outside registry/session locks.
+func (r *Registry) RegisterOwned(name string, f Factory, release func(string)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.closed && f != nil {
+		r.factories[name] = f
+		r.releases[name] = release
 	}
 }
 func (r *Registry) Available() []string {
@@ -84,6 +97,9 @@ func (r *Registry) get(id string) (*actor, error) {
 	defer r.mu.Unlock()
 	if r.closed {
 		return nil, ErrClosed
+	}
+	if r.releasing[id] != nil {
+		return nil, ErrUnavailable
 	}
 	if a := r.actors[id]; a != nil {
 		return a, nil
@@ -131,6 +147,10 @@ func (r *Registry) Adopt(id, name string, confirm bool) error {
 	if err != nil {
 		return err
 	}
+	t, err = r.target(id, name)
+	if err != nil {
+		return err
+	}
 	if err = a.session.Select(t); err != nil {
 		return err
 	}
@@ -138,11 +158,11 @@ func (r *Registry) Adopt(id, name string, confirm bool) error {
 	return nil
 }
 func (r *Registry) Select(id, name string) error {
-	t, err := r.target(id, name)
+	a, err := r.get(id)
 	if err != nil {
 		return err
 	}
-	a, err := r.get(id)
+	t, err := r.target(id, name)
 	if err != nil {
 		return err
 	}
@@ -223,13 +243,37 @@ func (r *Registry) Edit(id, message, text string) error {
 }
 func (r *Registry) Release(id string) error {
 	r.mu.Lock()
+	if done := r.releasing[id]; done != nil {
+		r.mu.Unlock()
+		<-done
+		return nil
+	}
 	a := r.actors[id]
+	if a == nil {
+		r.mu.Unlock()
+		return nil
+	}
+	done := make(chan struct{})
+	r.releasing[id] = done
 	delete(r.actors, id)
+	hooks := []func(string){}
+	for _, release := range r.releases {
+		if release != nil {
+			hooks = append(hooks, release)
+		}
+	}
+	r.mu.Unlock()
 	if a != nil {
 		a.cancel()
 		a.session.Interrupt("application owner released; no automatic replay")
 		_ = a.lease.Close()
 	}
+	for _, release := range hooks {
+		release(id)
+	}
+	r.mu.Lock()
+	delete(r.releasing, id)
+	close(done)
 	r.mu.Unlock()
 	return nil
 }
@@ -254,6 +298,9 @@ func (r *Registry) Close() {
 	r.closed = true
 	ids := []string{}
 	for id := range r.actors {
+		ids = append(ids, id)
+	}
+	for id := range r.releasing {
 		ids = append(ids, id)
 	}
 	r.mu.Unlock()

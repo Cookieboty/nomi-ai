@@ -70,7 +70,7 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 		router.EmitTo("conversations.changed", map[string]any{"source": "runtime", "ids": []string{id}, "index": true}, "chat")
 	})
 	router.Call("conversations.runtimeCapabilities", func(context.Context, contract.Caller, json.RawMessage) (any, error) {
-		detail := "Experimental opt-in; native CLI adapters are not installed"
+		detail := "Experimental explicit opt-in; API mode is text-only; installed CLI backends have unverified login and declared capability limits"
 		if !convstore.ManagedSupported() {
 			detail = "Managed runtime persistence is unsupported on this platform; existing API conversations remain available"
 		}

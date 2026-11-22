@@ -11,7 +11,7 @@ import (
 // must propagate the supplied token on every event and honor cancellation.
 // Capabilities is metadata-only: it must not start processes or inspect login
 // secrets. Native capabilities do not imply shared product bridges.
-// There are no real adapters here yet: this is exercised only with fakes.
+// Official adapters live in application packages; this package tests with fakes.
 type Runtime interface {
 	Capabilities() Capabilities
 	Recover(context.Context, RecoveryRequest) RecoveryResult

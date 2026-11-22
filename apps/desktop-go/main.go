@@ -713,6 +713,7 @@ func main() {
 	gatewayRequestsRef.Store(gatewayRequests)
 	defer gatewayRequests.Dispose()
 	projs := wireProjects(router, userData, desktopSvc.Broker)
+	wireManagedClaude(bundle.ConversationRuntime, bundle.Conversations, projs)
 	previewResources := resourcepreview.New(userData)
 	previewResources.ProtectedPaths = desktopSvc.Broker.ProtectedPaths
 	previewResources.ProjectRoots = projectRootsOf(projs)
