@@ -53,6 +53,12 @@ func (c *Session) launch(a *activeAttempt) error {
 		c.mu.Unlock()
 		return fmt.Errorf("%w: recovery failed: %s", ErrUnconfirmed, recovered.Detail)
 	case RecoveryUnknown:
+		// The adapter never fabricates a native identity for unproven
+		// recovery; empty, other, wrong and unanswered resumes stay Unknown
+		// with every binding untouched so the user must decide explicitly.
+		if recovered.Lost && recovered.NativeSessionID == "" {
+			c.markLostLocked(key, recovered.Detail)
+		}
 		c.uncertainLocked(a, recovered.Detail)
 		c.mu.Unlock()
 		return ErrUnknownState
@@ -65,6 +71,13 @@ func (c *Session) launch(a *activeAttempt) error {
 	if recovered.Kind == RecoveryResumed {
 		a.binding = old
 	} else {
+		if recovered.Kind == RecoveryFallback {
+			// Proven missing session (exact official "thread not found"):
+			// preserve the old native identity and its coverage, but mark it
+			// stale exactly as an explicit new-native decision does, so it is
+			// never resumed again and the fresh native is preferred.
+			c.markLostLocked(key, "official thread/resume reported the native session missing")
+		}
 		// A fresh native identity must never be confused with any prior binding.
 		for _, b := range c.bindings.All() {
 			if b.CompatKey == key && b.NativeSessionID == recovered.NativeSessionID && b.NativeSessionID != "" {
@@ -139,6 +152,29 @@ func (c *Session) launch(a *activeAttempt) error {
 	}
 }
 
+// markLostLocked records proven native loss without a usable identity: the
+// old native session is never resumed implicitly again and its retained
+// history is stale, but the binding, its ID, native identity and coverage are
+// preserved for audit. An explicit new-native decision is still required,
+// because a stale old context is not a fresh one either.
+func (c *Session) markLostLocked(key, detail string) {
+	if key == "" {
+		return // no usable compatibility key: never stale unrelated bindings
+	}
+	if detail == "" {
+		detail = "official native session reported missing"
+	}
+	c.bindings.mu.Lock()
+	for id, b := range c.bindings.b {
+		if b.CompatKey == key && b.Status.Safe() {
+			b.Status, b.StaleReason = StatusStale, detail
+			c.bindings.b[id] = b
+		}
+	}
+	c.bindings.mu.Unlock()
+	delete(c.preferred, key)
+}
+
 func validRecovery(old Binding, r RecoveryResult) bool {
 	if r.NativeSessionID == "" || !utf8OK(r.NativeSessionID) {
 		return false
@@ -176,6 +212,22 @@ func (c *Session) handle(e Event) error {
 	case EventDelivered:
 		if e.Delivery.NativeSessionID != a.recovery.NativeSessionID || e.Delivery.PlanID != a.plan.ID {
 			return ErrReceipt
+		}
+		// Recovery time already proved native loss (exact official "thread not
+		// found" AND the explicit thread/start refused before any user frame).
+		// A failed-delivery fact confirming that refusal is then a SAFE
+		// pre-input failure: it keeps the old native identity stale instead of
+		// pretending a new one exists. Every other unconfirmed delivery stays
+		// uncertain.
+		if e.Delivery.Kind == DeliveredPreSubmitFailed && a.recovery.Kind == RecoveryError && a.recovery.Lost {
+			if err := c.ledger.Commit(c.bindings, a.plan, e.Delivery); err != nil {
+				return err
+			}
+			a.phase, a.detail = PhaseFailed, "native submission refused before any user frame; no replay"
+			c.work = Activity{Known: true}
+			a.cancel()
+			c.markLostLocked(a.binding.CompatKey, "proven native loss; submission refused before user input")
+			return c.persistLocked()
 		}
 		if e.Delivery.Kind == DeliveredUnknown || e.Delivery.Kind == DeliveredPreSubmitFailed {
 			c.uncertainLocked(a, "delivery is unconfirmed after submission")

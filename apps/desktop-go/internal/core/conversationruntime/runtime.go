@@ -74,6 +74,11 @@ type RecoveryResult struct {
 	Kind            RecoveryKind
 	NativeSessionID string
 	Detail          string
+	// Lost is proven native-session loss (exact "thread not found") that left
+	// NO usable native identity behind. The product keeps the old native
+	// identity and its history, but that context is stale, so it demands an
+	// explicit new native session instead of resuming it implicitly.
+	Lost bool
 }
 
 type RuntimeRequest struct {

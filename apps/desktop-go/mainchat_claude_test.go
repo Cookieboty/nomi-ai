@@ -72,11 +72,12 @@ func TestManagedClaudeChoicesAreAccurateWithoutLoginProbe(t *testing.T) {
 	if slices.Contains(r.Available(), "claude") {
 		t.Fatal("missing CLI advertised as installed")
 	}
-	if len(choices) != 1 || choices[0].ID != "claude" || choices[0].Available || choices[0].Status != "missing-executable" {
+	claude := namedChoice(t, choices, "claude")
+	if claude.Available || claude.Status != "missing-executable" {
 		t.Fatalf("missing executable choice: %+v", choices)
 	}
-	if choices[0].Login != "not-advertised" || strings.Contains(strings.ToLower(choices[0].Detail), "logged in") {
-		t.Fatal("missing executable was advertised as logged in", choices[0])
+	if claude.Login != "not-advertised" || strings.Contains(strings.ToLower(claude.Detail), "logged in") {
+		t.Fatal("missing executable was advertised as logged in", claude)
 	}
 
 	dir := t.TempDir()
@@ -94,10 +95,24 @@ func TestManagedClaudeChoicesAreAccurateWithoutLoginProbe(t *testing.T) {
 	if !slices.Contains(r2.Available(), "claude") {
 		t.Fatal("present executable should be registered")
 	}
-	if len(none) != 1 || none[0].Status != "no-project" || none[0].Available {
+	claudeNone := namedChoice(t, none, "claude")
+	if claudeNone.Status != "no-project" || claudeNone.Available {
 		t.Fatalf("no-project choice: %+v", none)
 	}
-	if none[0].Login != "not-advertised" {
-		t.Fatal("no-project advertised a login", none[0])
+	if claudeNone.Login != "not-advertised" {
+		t.Fatal("no-project advertised a login", claudeNone)
 	}
+}
+
+// namedChoice finds one backend among several official choices without
+// assuming a fixed order or count.
+func namedChoice(t *testing.T, choices []mainchat.RuntimeChoice, id string) mainchat.RuntimeChoice {
+	t.Helper()
+	for _, c := range choices {
+		if c.ID == id {
+			return c
+		}
+	}
+	t.Fatalf("choice %q missing from %+v", id, choices)
+	return mainchat.RuntimeChoice{}
 }

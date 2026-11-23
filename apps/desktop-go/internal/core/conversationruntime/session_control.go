@@ -51,6 +51,14 @@ func (c *Session) cancelTurn(ctx context.Context, turn string, before *uint64) (
 		c.mu.Unlock()
 		return CancelResult{Kind: CancelUnknown}, err
 	}
+	// A confirmed native-process stop is cancel evidence, NEVER proof that the
+	// interrupted preparation had resumed/resolved the old native session. It
+	// is established durably HERE, before the adapter is asked to stop, so a
+	// late preparation outcome can never fabricate a result after the fence.
+	interrupted := a.phase == PhasePreparing && a.recovery.Kind != RecoveryError
+	if interrupted {
+		a.recovery = RecoveryResult{Kind: RecoveryUnknown, Detail: "preparation interrupted by confirmed cancellation; resume not proven"}
+	}
 	c.generation++
 	c.cancelRound++
 	round := c.cancelRound
@@ -73,7 +81,13 @@ func (c *Session) cancelTurn(ctx context.Context, turn string, before *uint64) (
 		result = a.target.Runtime.Cancel(ctx, a.token)
 		ungate(a)
 	}
-	return result, c.finishCancel(a, round, result)
+	if err := c.finishCancel(a, round, result); err != nil {
+		return result, err
+	}
+	if interrupted {
+		return result, ErrUnknownState
+	}
+	return result, nil
 }
 func (c *Session) finishCancel(a *activeAttempt, round uint64, r CancelResult) error {
 	c.mu.Lock()

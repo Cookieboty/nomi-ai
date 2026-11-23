@@ -20,3 +20,13 @@ func (o *observedRuntime) Start(ctx context.Context, request cr.RuntimeRequest, 
 		return err
 	})
 }
+
+// Recover publishes an authority-changing resolution (proven native loss)
+// exactly like an event would; unproven preparation does not notify.
+func (o *observedRuntime) Recover(ctx context.Context, q cr.RecoveryRequest) cr.RecoveryResult {
+	r := o.Runtime.Recover(ctx, q)
+	if r.Lost {
+		o.notify()
+	}
+	return r
+}
