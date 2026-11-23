@@ -36,6 +36,11 @@ it.each([
   ['Dockerfile', 'docker'],
   ['Containerfile', 'docker'],
   ['Dockerfile.dev', 'docker'],
+  ['Containerfile.prod', 'docker'],
+  ['Dockerfile.md', 'markdown'],
+  ['Dockerfile.json', 'json'],
+  ['Dockerfile.txt', 'text'],
+  ['Dockerfile.', 'text'],
   ['Makefile', 'makefile'],
   ['GNUmakefile', 'makefile'],
   ['CMakeLists.txt', 'cmake'],
@@ -51,12 +56,9 @@ it.each([
   ['.gitconfig', 'editorconfig'],
   ['README', 'text'],
   ['', 'text'],
-])(
-  'resolves language strictly from file extension for %s (defaulting to text)',
-  (path, language) => {
-    expect(resolveCodeLanguage(path)).toBe(language);
-  },
-);
+])('resolves language from filename or extension for %s (defaulting to text)', (path, language) => {
+  expect(resolveCodeLanguage(path)).toBe(language);
+});
 it('never infers language from file contents or shebangs, defaulting extensionless or unnamed files to text', () => {
   expect(resolveCodeLanguage('script')).toBe('text');
   expect(resolveCodeLanguage('')).toBe('text');
@@ -100,6 +102,52 @@ it('highlights YAML keys and unquoted values like markdown code blocks do', () =
   expect(container.querySelector('.token.comment')?.textContent).toContain('# note');
 });
 
+it('limits propertyName highlighting to config and style languages instead of polluting code', () => {
+  const jsonDoc = render(
+    <CodeDocument
+      text={'{"name": "demo"}'}
+      language="json"
+      viewportRef={vi.fn()}
+      onRendered={vi.fn()}
+      onScroll={vi.fn()}
+    />,
+  );
+  expect(jsonDoc.container.querySelector('.token.property')?.textContent).toBe('"name"');
+
+  const cssDoc = render(
+    <CodeDocument
+      text={'.box { font-size: 14px; }'}
+      language="css"
+      viewportRef={vi.fn()}
+      onRendered={vi.fn()}
+      onScroll={vi.fn()}
+    />,
+  );
+  expect(cssDoc.container.querySelector('.token.property')?.textContent).toBe('font-size');
+
+  const tsDoc = render(
+    <CodeDocument
+      text={'const obj = { foo: 1 };\nobj.foo = 2;'}
+      language="typescript"
+      viewportRef={vi.fn()}
+      onRendered={vi.fn()}
+      onScroll={vi.fn()}
+    />,
+  );
+  expect(tsDoc.container.querySelector('.token.property')).toBeNull();
+
+  const goDoc = render(
+    <CodeDocument
+      text={'package main\nfunc main() { fmt.Println(s.Name) }'}
+      language="go"
+      viewportRef={vi.fn()}
+      onRendered={vi.fn()}
+      onScroll={vi.fn()}
+    />,
+  );
+  expect(goDoc.container.querySelector('.token.property')).toBeNull();
+});
+
 it('highlights ignore files: comments, negation and wildcards', () => {
   const text = '# deps\nnode_modules/\n!keep.env\n*.log';
   const { container } = render(
@@ -116,7 +164,7 @@ it('highlights ignore files: comments, negation and wildcards', () => {
   expect(container.querySelector('.token.string')?.textContent).toBe('node_modules/');
 });
 
-it('highlights .editorconfig sections, keys, values and comments', () => {
+it('highlights .editorconfig and .gitconfig sections, keys, values and inline comments cleanly', () => {
   const text = 'root = true\n\n[*]\nindent_style = space\n# note';
   const { container } = render(
     <CodeDocument
@@ -127,10 +175,35 @@ it('highlights .editorconfig sections, keys, values and comments', () => {
       onScroll={vi.fn()}
     />,
   );
-  expect(container.querySelector('.token.tag')?.textContent?.trim()).toBe('root');
+  expect(container.querySelector('.token.tag')?.textContent).toBe('root');
   expect(container.querySelector('.token.string')?.textContent).toBe('true');
   expect(container.querySelector('.token.keyword')?.textContent).toBe('[*]');
   expect(container.querySelector('.token.comment')?.textContent).toBe('# note');
+
+  const gitconfig = '[core] # sec comment\n\tname = Cookie # inline\n\tcolor = "#ff0000" # red';
+  const gitDoc = render(
+    <CodeDocument
+      text={gitconfig}
+      language="editorconfig"
+      viewportRef={vi.fn()}
+      onRendered={vi.fn()}
+      onScroll={vi.fn()}
+    />,
+  );
+  expect(
+    Array.from(gitDoc.container.querySelectorAll('.token.keyword'))
+      .map((el) => el.textContent)
+      .join(''),
+  ).toBe('[core]');
+  expect(
+    Array.from(gitDoc.container.querySelectorAll('.token.tag')).map((el) => el.textContent),
+  ).toEqual(['name', 'color']);
+  expect(
+    Array.from(gitDoc.container.querySelectorAll('.token.string')).map((el) => el.textContent),
+  ).toEqual(['Cookie', '"#ff0000"']);
+  expect(
+    Array.from(gitDoc.container.querySelectorAll('.token.comment')).map((el) => el.textContent),
+  ).toEqual(['# sec comment', '# inline', '# red']);
 });
 
 it('highlights nginx.conf with the bundled grammar', () => {
@@ -144,6 +217,11 @@ it('highlights nginx.conf with the bundled grammar', () => {
       onScroll={vi.fn()}
     />,
   );
+  const keywords = Array.from(container.querySelectorAll('.token.keyword')).map(
+    (el) => el.textContent,
+  );
+  expect(keywords).toContain('worker_processes');
+  expect(keywords).toContain('server');
   expect(container.querySelector('.token.comment')?.textContent).toBe('# note');
 });
 
@@ -252,6 +330,23 @@ it('scrolls the file tab strip horizontally with a vertical mouse wheel', async 
   strip.dispatchEvent(horizontal);
   expect(strip.scrollLeft).toBe(120);
   expect(horizontal.defaultPrevented).toBe(false);
+  // Shift+滚轮不拦截（happy-dom 的 WheelEvent 继承自 UIEvent，需显式定义 shiftKey）
+  const shiftWheel = new WheelEvent('wheel', {
+    deltaY: 120,
+    cancelable: true,
+    bubbles: true,
+  });
+  Object.defineProperty(shiftWheel, 'shiftKey', { value: true });
+  strip.dispatchEvent(shiftWheel);
+  expect(strip.scrollLeft).toBe(120);
+  expect(shiftWheel.defaultPrevented).toBe(false);
+  // 未溢出时不拦截
+  Object.defineProperty(strip, 'scrollWidth', { configurable: true, value: 100 });
+  strip.scrollLeft = 0;
+  const noOverflow = new WheelEvent('wheel', { deltaY: 120, cancelable: true, bubbles: true });
+  strip.dispatchEvent(noOverflow);
+  expect(strip.scrollLeft).toBe(0);
+  expect(noOverflow.defaultPrevented).toBe(false);
 });
 
 it('keeps the document and syntax tree when scroll handlers or host layout update', () => {

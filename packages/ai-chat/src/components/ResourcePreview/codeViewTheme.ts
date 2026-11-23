@@ -12,8 +12,6 @@ export const codeViewHighlight = syntaxHighlighting(
       tag: [tags.function(tags.variableName), tags.function(tags.propertyName)],
       class: 'token function',
     },
-    // 键名（YAML 键、JSON 键、CSS 属性名）；function(propertyName) 更具体，仍走 token function。
-    { tag: tags.propertyName, class: 'token property' },
     { tag: [tags.typeName, tags.className, tags.namespace], class: 'token class-name' },
     { tag: [tags.tagName, tags.attributeName], class: 'token tag' },
     { tag: tags.operator, class: 'token operator' },

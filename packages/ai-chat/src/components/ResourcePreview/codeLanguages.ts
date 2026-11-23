@@ -50,12 +50,24 @@ import { hcl } from 'codemirror-lang-hcl';
 import { makefile } from 'codemirror-lang-makefile';
 import { zig } from 'codemirror-lang-zig';
 
-const stream = (parser: StreamParser<unknown>) => () => StreamLanguage.define(parser);
+const stream =
+  <State>(parser: StreamParser<State>) =>
+  () =>
+    StreamLanguage.define(parser);
+/** 仅给配置与样式语言（YAML / JSON / CSS / TOML / HCL 等）的键与属性名上色，
+ * 不放进全局主题，避免把 Go（含 fmt.Println）/ JS / TS / Python / Rust 的成员属性
+ * 全部染成关键字强调色。 */
+const propertyNameHighlight = syntaxHighlighting(
+  HighlightStyle.define([{ tag: tags.propertyName, class: 'token property' }]),
+);
 /** YAML 语法把未加引号的标量（含数字与布尔）标成 content，全局主题不为 content 着色：
- * 它还会命中 XML 文本等其它语法，影响面太大。这里只随 YAML 语法补一条规则，裸值按
- * 字符串色显示，与 Markdown 代码块里的 YAML 观感一致。 */
-const yamlContentHighlight = syntaxHighlighting(
-  HighlightStyle.define([{ tag: tags.content, class: 'token string' }]),
+ * 它还会命中 XML 文本等其它语法，影响面太大。这里只随 YAML 语法补齐键名与裸值规则，
+ * 裸值按字符串色显示，与 Markdown 代码块里的 YAML 观感一致。 */
+const yamlHighlight = syntaxHighlighting(
+  HighlightStyle.define([
+    { tag: tags.propertyName, class: 'token property' },
+    { tag: tags.content, class: 'token string' },
+  ]),
 );
 /** 忽略文件（.gitignore / .dockerignore 等）没有官方语法包，规则很小，自己分词：
  * 行首 # 是注释、行首 ! 是取反、* ? [...] 是通配符，其余按路径（字符串色）。 */
@@ -73,22 +85,88 @@ const ignoreStream: StreamParser<null> = {
     return null;
   },
 };
-/** .editorconfig 是 INI 形状（[节] + 键 = 值），properties 旧模式只给注释上色，
- * 节名与键名在主题里没有颜色，所以单独分词：注释灰色、节名与键名强调色、值字符串色。 */
-const editorconfigStream: StreamParser<null> = {
+interface IniStreamState {
+  phase: 'start' | 'afterSection' | 'afterKey' | 'value';
+}
+/** .editorconfig / .gitconfig / .gitmodules 是 INI 形状（[节] + 键 = 值），properties 旧模式只给注释上色，
+ * 节名与键名在主题里没有颜色，所以单独分词：注释灰色、节名与键名强调色、值字符串色；
+ * 跳过首尾空白并识别 [节] 后与值后（引号外）的 # / ; 行尾注释。 */
+const editorconfigStream: StreamParser<IniStreamState> = {
   name: 'editorconfig',
-  token(stream: StringStream) {
-    if (stream.sol()) {
-      stream.match(/^\s*/); // 跳过行首空白
+  startState: () => ({ phase: 'start' }),
+  copyState: (state) => ({ phase: state.phase }),
+  token(stream: StringStream, state: IniStreamState) {
+    if (stream.sol()) state.phase = 'start';
+    if (state.phase === 'start') {
+      if (stream.eatSpace()) return null;
       if (stream.peek() === '#' || stream.peek() === ';') {
         stream.skipToEnd();
         return 'comment';
       }
-      if (stream.match(/^\[[^\]]*\]/)) return 'keyword';
-      if (stream.match(/^[^\s=:#;][^=:\n]*/)) return 'attribute';
+      if (stream.match(/^\[[^\]]*\]/)) {
+        state.phase = 'afterSection';
+        return 'keyword';
+      }
+      if (stream.match(/^[^\s=:#;]+(?:[ \t]+[^\s=:#;]+)*/)) {
+        state.phase = 'afterKey';
+        return 'attribute';
+      }
+      stream.next();
+      return null;
     }
-    if (stream.match(/^\s*[=:]\s*/)) return null;
-    if (stream.match(/^[^\n]+/)) return 'string';
+    if (state.phase === 'afterSection') {
+      if (stream.eatSpace()) return null;
+      if (stream.peek() === '#' || stream.peek() === ';') {
+        stream.skipToEnd();
+        return 'comment';
+      }
+      stream.skipToEnd();
+      return null;
+    }
+    if (state.phase === 'afterKey') {
+      if (stream.eatSpace()) return null;
+      if (stream.peek() === '=' || stream.peek() === ':') {
+        stream.next();
+        state.phase = 'value';
+        return null;
+      }
+      if (stream.peek() === '#' || stream.peek() === ';') {
+        stream.skipToEnd();
+        return 'comment';
+      }
+      stream.skipToEnd();
+      return null;
+    }
+    if (stream.eatSpace()) return null;
+    if (stream.peek() === '#' || stream.peek() === ';') {
+      stream.skipToEnd();
+      return 'comment';
+    }
+    let quote: string | null = null;
+    const start = stream.pos;
+    while (!stream.eol()) {
+      const ch = stream.peek()!;
+      if (quote) {
+        stream.next();
+        if (ch === '\\' && !stream.eol()) stream.next();
+        else if (ch === quote) quote = null;
+        continue;
+      }
+      if (ch === '"' || ch === "'") {
+        quote = ch;
+        stream.next();
+        continue;
+      }
+      if (ch === '#' || ch === ';') break;
+      stream.next();
+    }
+    while (
+      stream.pos > start &&
+      (stream.string[stream.pos - 1] === ' ' || stream.string[stream.pos - 1] === '\t')
+    ) {
+      stream.backUp(1);
+    }
+    if (stream.pos > start) return 'string';
     stream.next();
     return null;
   },
@@ -101,7 +179,7 @@ const languages: Record<string, () => Extension> = {
   typescript: () => javascript({ typescript: true }),
   jsx: () => javascript({ jsx: true }),
   tsx: () => javascript({ jsx: true, typescript: true }),
-  json,
+  json: () => [json(), propertyNameHighlight],
   json5: () => javascript(),
   python,
   rust,
@@ -111,15 +189,15 @@ const languages: Record<string, () => Extension> = {
   php,
   markup: html,
   xml,
-  css,
-  scss: sass,
-  sass: () => sass({ indented: true }),
-  less,
+  css: () => [css(), propertyNameHighlight],
+  scss: () => [sass(), propertyNameHighlight],
+  sass: () => [sass({ indented: true }), propertyNameHighlight],
+  less: () => [less(), propertyNameHighlight],
   vue,
   sql,
   markdown,
-  yaml: () => [yaml(), yamlContentHighlight],
-  hcl,
+  yaml: () => [yaml(), yamlHighlight],
+  hcl: () => [hcl(), propertyNameHighlight],
   makefile,
   zig,
   swift: stream(swift),
@@ -138,7 +216,7 @@ const languages: Record<string, () => Extension> = {
   nginx: stream(nginx),
   ini: stream(properties),
   properties: stream(properties),
-  toml: stream(toml),
+  toml: () => [StreamLanguage.define(toml), propertyNameHighlight],
   protobuf: stream(protobuf),
   graphql: stream(gql),
   lua: stream(lua),
