@@ -163,6 +163,24 @@ export const ResourcePreview: React.FC<{
     ).find((el) => el.dataset.previewTabKey === active.key);
     scrollTabIntoStrip(strip, targetTab, true);
   }, [active.key, entryKeys.length, hideTabs, inactive, fileTabsRef]);
+  // 普通鼠标滚轮的竖向滚动映射为标签栏横向滚动（原生只支持触控板横滑与 Shift+滚轮）；
+  // 没溢出或已滚到两端时不拦截，把滚动留给外层。React 的 onWheel 是被动监听，拦默认行为要原生注册。
+  useEffect(() => {
+    if (hideTabs) return;
+    const strip = fileTabsRef.current;
+    if (!strip) return;
+    const onWheel = (event: WheelEvent) => {
+      if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
+      if (Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+      if (strip.scrollWidth <= strip.clientWidth) return;
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? strip.clientWidth : 1;
+      const before = strip.scrollLeft;
+      strip.scrollLeft += event.deltaY * unit;
+      if (strip.scrollLeft !== before) event.preventDefault();
+    };
+    strip.addEventListener('wheel', onWheel, { passive: false });
+    return () => strip.removeEventListener('wheel', onWheel);
+  }, [fileTabsRef, hideTabs]);
   /** 当前是文件的 Diff 标签：内容区换成 Diff，文件视图的工具栏 / 内容只隐藏 */
   const activeDiff = active.diff;
   const [loaded, setLoaded] = useState<{

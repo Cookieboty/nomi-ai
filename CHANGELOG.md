@@ -8,6 +8,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 ### Features
 
 - **preview:** 常见配置文件与隐藏文件按文件名识别高亮
+- **preview:** 文件标签栏支持鼠标滚轮横向滚动
 
 ### Fixes
 
