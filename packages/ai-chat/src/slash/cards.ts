@@ -17,7 +17,7 @@ import type { BackendModelCatalog, TabSource } from '../services/harnessClient';
 import { nomiMainRef, nomiModelChoices, splitRef } from '../services/nomiModel';
 import { providerDisplayName } from '../services/providerClient';
 import { cacheHitRate, formatHitRate } from '../utils/cacheHit';
-import { thirdPartyOnly } from '../utils/cliCaps';
+import { localOnly, thirdPartyOnly } from '../utils/cliCaps';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
 import { rankItems } from '../utils/fuzzy';
 
@@ -106,6 +106,9 @@ export function currentModel(ctx: SlashContext, data: SlashData): ModelInfo {
 /** CLI 标签的来源，给 /status 的「供应商」一行：官方账号 /「供应商 / 模型」 */
 function cliSourceLine(ctx: SlashContext, data: SlashData): CardRow {
   const label = t('ui.providers-schedule.provider');
+  if (localOnly(ctx.backend)) {
+    return { label, value: t('ui.chat-settings.cli-launcher-local') };
+  }
   if (tabSourceOf(data.cliTab) === 'thirdParty') {
     const ref = thirdPartyRefOf(data.cliTab, ctx.backend, data.nomiGateway);
     return ref
@@ -325,6 +328,17 @@ const cancelled = (ok: boolean) => {
  * 只能用第三方模型的 agent（dsh、Gemini）没有这一项。
  */
 function officialChoices(ctx: SlashContext, data: SlashData, source: TabSource): ModelChoice[] {
+  if (localOnly(ctx.backend)) {
+    return [
+      {
+        label: t('ui.chat-settings.cli-launcher-local'),
+        provider: t('ui.chat-settings.cli-launcher-local'),
+        model: 'local',
+        active: source === 'local' || source === 'official',
+        run: async () => cancelled(await ctx.actions.setTabSource('local')),
+      },
+    ];
+  }
   return thirdPartyOnly(ctx.backend) ? [] : [officialChoice(ctx, data, source)];
 }
 
@@ -349,6 +363,7 @@ function officialChoice(ctx: SlashContext, data: SlashData, source: TabSource): 
 
 /** CLI 标签的第三方候选：网关里能给 agent 用的模型，选中即让标签改用第三方的这个模型 */
 function thirdPartyChoices(ctx: SlashContext, data: SlashData, source: TabSource): ModelChoice[] {
+  if (localOnly(ctx.backend)) return [];
   const cur =
     source === 'thirdParty' ? thirdPartyRefOf(data.cliTab, ctx.backend, data.nomiGateway) : null;
   return codingModelChoices(data.nomiGateway).map((c) => ({

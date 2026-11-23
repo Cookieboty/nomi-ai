@@ -103,6 +103,7 @@ describe('ProvidersPage', () => {
       'providers-endpoint-gemini',
       'providers-endpoint-kimi',
       'providers-endpoint-minimax',
+      'providers-endpoint-antigravity',
       'providers-endpoint-general',
     ]);
     await waitFor(() => expect(r.getByTestId('providers-section-claude')).toBeTruthy());
@@ -148,7 +149,7 @@ describe('ProvidersPage', () => {
     expect(r.queryByTestId('providers-section-claude')).toBeNull();
     // 上下键在左栏里切换
     fireEvent.keyDown(r.getByTestId('providers-endpoint-tabs'), { key: 'ArrowUp' });
-    await waitFor(() => r.getByTestId('providers-section-minimax'));
+    await waitFor(() => r.getByTestId('providers-section-antigravity'));
   });
 
   it('不再有「外部 CLI」：旧版本存下的选中值落到第一个助手', async () => {
@@ -372,5 +373,40 @@ describe('ProvidersPage', () => {
     // 右上角保留「管理供应商」直达入口
     fireEvent.click(r.getByTestId('cli-open-models'));
     expect(onOpenModels).toHaveBeenCalledTimes(1);
+  });
+
+  it('antigravity（仅本机登录且非 npm）：展示本机说明与官方安装命令提示，不显示官方账号与第三方模型卡片', async () => {
+    installFakeApi(async (ch: string) => {
+      if (ch === 'cliAccount.list') return [];
+      if (ch === 'cliUpdate.inspect')
+        return [
+          {
+            kind: 'antigravity',
+            path: null,
+            version: null,
+            latest: null,
+            updateAvailable: false,
+            updateSupported: false,
+            installSupported: false,
+          },
+        ];
+      if (ch === 'cliUpdate.environment')
+        return {
+          nodeVersion: '22.12.0',
+          nodePath: '/usr/bin/node',
+          npmPath: '/usr/bin/npm',
+          requirements: [],
+        };
+      return {};
+    });
+    localStorage.setItem('ai-chat:providerEndpoint', 'antigravity');
+    const r = render(<ProvidersPage hideViewTabs onOpenModels={vi.fn()} />);
+    await waitFor(() => expect(r.getByTestId('providers-section-antigravity')).toBeTruthy());
+    expect(r.getByTestId('cli-local-only-antigravity')).toBeTruthy();
+    expect(r.queryByTestId('cli-accounts-antigravity')).toBeNull();
+    expect(r.queryByTestId('cli-third-party-antigravity')).toBeNull();
+    expect(r.queryByTestId('cli-version-action-antigravity')).toBeNull();
+    const guide = await waitFor(() => r.getByTestId('cli-install-guide-antigravity'));
+    expect(guide.textContent).toContain('antigravity.google/cli/install.sh');
   });
 });

@@ -187,5 +187,6 @@ it('resolves display names for all builtin CLIs', () => {
   expect(backendName('grok')).toBe('Grok');
   expect(backendName('kimi')).toBe('Kimi Code');
   expect(backendName('minimax')).toBe('MiniMax Code');
+  expect(backendName('antigravity')).toBe('Antigravity CLI');
   expect(backendName('dsh')).toBe('DeepSeek Harness');
 });

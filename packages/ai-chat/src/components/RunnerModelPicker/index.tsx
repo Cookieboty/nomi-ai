@@ -33,7 +33,7 @@ import {
 } from '../../services/harnessClient';
 import { pickerProviders } from '../../services/nomiModel';
 import { isNativeThirdPartyModel, thinkingProfileOf } from '../../services/thinkingDepth';
-import { hasOfficialAccount, thirdPartyOnly } from '../../utils/cliCaps';
+import { hasOfficialAccount, hasThirdParty, localOnly, thirdPartyOnly } from '../../utils/cliCaps';
 import { EndpointIcon } from '../EndpointIcon';
 import { thinkingLevelLabel } from '../ModelControls/effortLabel';
 
@@ -224,13 +224,16 @@ export const RunnerModelPicker: React.FC<RunnerModelPickerProps> = ({
 
   const providers = useMemo(() => codingProviders(gateway), [gateway]);
   const picker = useMemo(() => pickerProviders(gateway?.providers ?? []), [gateway]);
+  const isLocalOnly = localOnly(draft.cli);
+  const supportsTp = hasThirdParty(draft.cli);
   const supportsOfficial = hasOfficialAccount(draft.cli);
-  const launcherLocal = useHasLocalLogin(open ? draft.cli : null);
+  const launcherLocal = useHasLocalLogin(open && supportsOfficial ? draft.cli : null);
   const hasLocal =
-    supportsOfficial &&
-    (localAvailable && draft.cli in localAvailable
-      ? Boolean(localAvailable[draft.cli])
-      : launcherLocal);
+    isLocalOnly ||
+    (supportsOfficial &&
+      (localAvailable && draft.cli in localAvailable
+        ? Boolean(localAvailable[draft.cli])
+        : launcherLocal));
   const { accounts, ready: accountsReady } = useCliAccounts(open ? draft.cli : null);
   const loggedInAccounts = useMemo(() => accounts.filter((a) => a.loggedIn), [accounts]);
   const hasOfficial = supportsOfficial && loggedInAccounts.length > 0;
@@ -245,8 +248,12 @@ export const RunnerModelPicker: React.FC<RunnerModelPickerProps> = ({
   );
 
   useEffect(() => {
-    if (!open || !accountsReady) return;
+    if (!open || (!isLocalOnly && !accountsReady)) return;
     setDraft((prev) => {
+      if (localOnly(prev.cli)) {
+        if (prev.source === 'local' && prev.accountId == null && prev.model == null) return prev;
+        return { ...prev, source: 'local', accountId: null, model: null };
+      }
       const tpFallback = defaultTpModel(prev.cli);
       if (!supportsOfficial || (!hasLocal && !hasOfficial)) {
         const nextModel = (prev.source === 'thirdParty' ? prev.model : null) || tpFallback;
@@ -274,6 +281,7 @@ export const RunnerModelPicker: React.FC<RunnerModelPickerProps> = ({
     });
   }, [
     open,
+    isLocalOnly,
     accountsReady,
     supportsOfficial,
     hasLocal,
@@ -330,6 +338,16 @@ export const RunnerModelPicker: React.FC<RunnerModelPickerProps> = ({
 
   const switchCli = (nextCli: DelegateCli) => {
     if (nextCli === draft.cli) return;
+    if (localOnly(nextCli)) {
+      setDraft((d) => ({
+        ...d,
+        cli: nextCli,
+        source: 'local',
+        accountId: null,
+        model: null,
+      }));
+      return;
+    }
     if (thirdPartyOnly(nextCli)) {
       setDraft((d) => ({
         ...d,
@@ -486,10 +504,16 @@ export const RunnerModelPicker: React.FC<RunnerModelPickerProps> = ({
                         {t('ui.chat-settings.cli-launcher-local')}
                       </span>
                       <span className={styles.optionHint}>
-                        {t('ui.models.local-sign-in-detected')}
+                        {isLocalOnly
+                          ? t('ui.models.runner-picker-local-label')
+                          : t('ui.models.local-sign-in-detected')}
                       </span>
                     </span>
-                    <span className={styles.okBadge}>{t('ui.models.local-sign-in-detected')}</span>
+                    {!isLocalOnly && (
+                      <span className={styles.okBadge}>
+                        {t('ui.models.local-sign-in-detected')}
+                      </span>
+                    )}
                     {draft.source === 'local' && <Icon icon={Check} size={14} />}
                   </button>
                 )}
@@ -564,57 +588,64 @@ export const RunnerModelPicker: React.FC<RunnerModelPickerProps> = ({
               </div>
             )}
 
-            <div className={styles.group}>
-              <div className={styles.groupTitle}>
-                {t('ui.models.runner-picker-third-party-local')}
-              </div>
-              {picker.length === 0 ? (
-                <div className={styles.emptyBox}>
-                  <p className={styles.emptyNote}>{t('ui.models.runner-picker-no-third-party')}</p>
-                  {onOpenProviders && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      data-testid="runner-picker-add-provider"
-                      onClick={onOpenProviders}
-                    >
-                      {t('ui.models.add-third-party-provider')}
-                    </Button>
-                  )}
+            {supportsTp && (
+              <div className={styles.group}>
+                <div className={styles.groupTitle}>
+                  {t('ui.models.runner-picker-third-party-local')}
                 </div>
-              ) : (
-                <div className={styles.tpPickerBox} data-selected={isThirdParty || undefined}>
-                  {isThirdParty && draft.model && (
-                    <div className={styles.tpSelectedHead}>
-                      <div className={styles.tpSelectedBar} data-testid="runner-picker-tp-selected">
-                        <Icon icon={Check} size={14} />
-                        <span className={styles.tpSelectedText}>
-                          {refSlashLabel(gateway, draft.model)}
-                        </span>
+                {picker.length === 0 ? (
+                  <div className={styles.emptyBox}>
+                    <p className={styles.emptyNote}>
+                      {t('ui.models.runner-picker-no-third-party')}
+                    </p>
+                    {onOpenProviders && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        data-testid="runner-picker-add-provider"
+                        onClick={onOpenProviders}
+                      >
+                        {t('ui.models.add-third-party-provider')}
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className={styles.tpPickerBox} data-selected={isThirdParty || undefined}>
+                    {isThirdParty && draft.model && (
+                      <div className={styles.tpSelectedHead}>
+                        <div
+                          className={styles.tpSelectedBar}
+                          data-testid="runner-picker-tp-selected"
+                        >
+                          <Icon icon={Check} size={14} />
+                          <span className={styles.tpSelectedText}>
+                            {refSlashLabel(gateway, draft.model)}
+                          </span>
+                        </div>
+                        <ModelEffortRow
+                          spec={effortSpec}
+                          value={effectiveEffort}
+                          onChange={(next) => setDraft((d) => ({ ...d, reasoningEffort: next }))}
+                        />
                       </div>
-                      <ModelEffortRow
-                        spec={effortSpec}
-                        value={effectiveEffort}
-                        onChange={(next) => setDraft((d) => ({ ...d, reasoningEffort: next }))}
-                      />
-                    </div>
-                  )}
-                  <ModelPicker
-                    inline
-                    browse
-                    purpose="coding"
-                    inlineMaxHeight={showAccountGroup ? 240 : 320}
-                    providers={picker}
-                    value={isThirdParty ? (draft.model ?? null) : null}
-                    onChange={selectThirdParty}
-                    optionTestId={(ref) => `runner-picker-tp-${ref}`}
-                    aria-label={t('ui.models.runner-picker-third-party-local')}
-                    data-testid="runner-picker-tp-picker"
-                  />
-                </div>
-              )}
-            </div>
+                    )}
+                    <ModelPicker
+                      inline
+                      browse
+                      purpose="coding"
+                      inlineMaxHeight={showAccountGroup ? 240 : 320}
+                      providers={picker}
+                      value={isThirdParty ? (draft.model ?? null) : null}
+                      onChange={selectThirdParty}
+                      optionTestId={(ref) => `runner-picker-tp-${ref}`}
+                      aria-label={t('ui.models.runner-picker-third-party-local')}
+                      data-testid="runner-picker-tp-picker"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </Modal>

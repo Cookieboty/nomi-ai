@@ -22,6 +22,7 @@ describe('EndpointIcon', () => {
         gemini: 'Gemini',
         kimi: 'Kimi Code',
         minimax: 'MiniMax Code',
+        antigravity: 'Antigravity',
       }[b];
       expect(icon.getAttribute('role')).toBe('img');
       expect(icon.getAttribute('aria-label')).toBe(name);
@@ -66,6 +67,7 @@ describe('EndpointIcon', () => {
       gemini: 'gemini',
       kimi: 'kimi',
       minimax: 'minimax',
+      antigravity: 'antigravity',
     } as const;
     for (const [endpoint, brand] of Object.entries(productMarks)) {
       const r = render(<EndpointIcon backend={endpoint as keyof typeof productMarks} />);

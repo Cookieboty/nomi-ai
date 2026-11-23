@@ -132,6 +132,7 @@ describe('端点排序与「更多」', () => {
       'grok',
       'kimi',
       'minimax',
+      'antigravity',
     ]);
     await waitFor(() =>
       expect(shownIds(r)).toEqual(['nomi', 'gemini', 'codex', 'claude', 'dsh', 'grok']),
@@ -149,6 +150,7 @@ describe('端点排序与「更多」', () => {
       'grok',
       'kimi',
       'minimax',
+      'antigravity',
     ]);
     fireEvent.click(r.getByTestId('endpoint-order-reset'));
     expect(getEndpointOrder()).toBeNull();

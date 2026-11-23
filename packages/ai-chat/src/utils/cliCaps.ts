@@ -17,12 +17,26 @@ export function hasOfficialAccount<T extends string>(
   return cliInfo(backend)?.capabilities.officialAccount === true;
 }
 
+/** 是否支持经 Nomi 网关使用第三方模型 */
+export function hasThirdParty(backend: string | null | undefined): boolean {
+  return cliInfo(backend)?.capabilities.thirdParty === true;
+}
+
+/** 仅使用本机 CLI 登录与配置（既没有官方多账号能力，也不支持网关第三方模型） */
+export function localOnly(backend: string | null | undefined): boolean {
+  return (
+    !!backend && isBuiltinCliId(backend) && !hasOfficialAccount(backend) && !hasThirdParty(backend)
+  );
+}
+
 /**
- * 只能用第三方模型的内置 agent（没有官方账号能力的 dsh、Gemini）：不再有「用 CLI 自己的登录 / 配置」这一来源。
+ * 只能用第三方模型的内置 agent（没有官方账号能力且支持第三方的 dsh、Gemini）：不再有「用 CLI 自己的登录 / 配置」这一来源。
  * Agents 只用 Nomi 管理的官方账号或经网关的第三方模型。
  */
 export function thirdPartyOnly(backend: string | null | undefined): boolean {
-  return !!backend && isBuiltinCliId(backend) && !hasOfficialAccount(backend);
+  return (
+    !!backend && isBuiltinCliId(backend) && !hasOfficialAccount(backend) && hasThirdParty(backend)
+  );
 }
 
 /** CLI 本身能不能收图（不看模型）；Nomi 自己与未知后端按能收处理 */
