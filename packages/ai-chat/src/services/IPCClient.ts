@@ -15,7 +15,7 @@ import { api, hasTransport } from './api';
 import { createConversationStore } from './conversationBoot';
 import { buildProviderMessages, type ProviderMessage } from './history';
 import { nomiLongContextOverride } from './longContext';
-import { sendManagedConversation as sendManaged } from './managedMainChat';
+import { sendManagedConversation as sendManaged, type ManagedSendOptions } from './managedMainChat';
 import { currentNomiThinking } from './thinkingDepth';
 import { upstreamErrorText } from './upstreamErrorText';
 
@@ -363,10 +363,11 @@ export class SdkIPCClient implements IPCClient {
     text: string,
     onUpdate: (messages: ChatMessage[]) => void,
     signal?: AbortSignal,
+    options?: ManagedSendOptions,
   ): Promise<void> {
     await this.store.flush();
     try {
-      await sendManaged(api, id, text, onUpdate, signal);
+      await sendManaged(api, id, text, onUpdate, signal, options);
     } finally {
       await this.store.refreshManaged(id);
     }

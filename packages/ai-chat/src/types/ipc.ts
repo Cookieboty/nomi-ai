@@ -39,6 +39,7 @@ export interface IPCClient {
     text: string,
     onUpdate: (messages: ChatMessage[]) => void,
     signal?: AbortSignal,
+    options?: { images?: string[]; retry?: { messageId: string; turnId: string } },
   ): Promise<void>;
   // 消息相关：history 为本轮之前的会话消息，与本轮输入一起发给模型（多轮上下文）
   /** memory：这一轮新召回的长期记忆（放在本轮用户原话前面发） */

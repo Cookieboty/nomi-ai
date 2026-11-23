@@ -29,10 +29,10 @@ const messages = [
   { id: 'user', role: 'user', content: 'once', timestamp: 1 },
   { id: 'assistant', role: 'assistant', content: 'answer', timestamp: 2 },
 ];
-function fixture(mode: 'fast' | 'pending' | 'never' = 'fast', hangReconcile = false) {
+function fixture(mode: 'fast' | 'pending' | 'admitted' | 'never' = 'fast', hangReconcile = false) {
   let state: Record<string, unknown> = { ...base };
   let reads = 0;
-  let release!: (value: typeof token) => void;
+  let release: ((value: typeof token) => void) | undefined;
   const calls = { send: vi.fn(), cancel: vi.fn(), append: vi.fn() };
   const client: ReturnType<typeof createTestClient<typeof appContract>> = createTestClient(
     appContract,
@@ -46,6 +46,10 @@ function fixture(mode: 'fast' | 'pending' | 'never' = 'fast', hangReconcile = fa
         if (mode === 'fast') {
           state = { ...base, generation: 5, phase: 'completed', token, recovery: 'new' };
           client.router.events.publish('conversations.runtimeChanged', state as never);
+          return token;
+        }
+        if (mode === 'admitted') {
+          state = { ...base, generation: 5, phase: 'running', token };
           return token;
         }
         return new Promise<typeof token>((resolve) => {
@@ -66,7 +70,7 @@ function fixture(mode: 'fast' | 'pending' | 'never' = 'fast', hangReconcile = fa
     complete: () => {
       state = { ...base, generation: 5, phase: 'completed', token };
       client.router.events.publish('conversations.runtimeChanged', state as never);
-      release(token);
+      release?.(token);
     },
     publish: (extra: Record<string, unknown>) =>
       client.router.events.publish('conversations.runtimeChanged', {
@@ -147,6 +151,39 @@ it('observed completion is not blocked by a hung reconciliation query', async ()
     await sendManagedConversation(f.client.api, 'c', 'once', vi.fn());
     expect(f.calls.send).toHaveBeenCalledTimes(1);
   } finally {
+    f.client.close();
+  }
+});
+
+it('forwards current-turn images, preserves retry ids, and renders tool trace drafts', async () => {
+  const f = fixture('admitted');
+  const update = vi.fn();
+  const task = sendManagedConversation(f.client.api, 'c', 'retry me', update, undefined, {
+    images: ['data:image/png;base64,AAA'],
+    retry: { messageId: 'm-orig', turnId: 't-orig' },
+  });
+  try {
+    await vi.waitFor(() => expect(f.calls.send).toHaveBeenCalledTimes(1));
+    expect(f.calls.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'c',
+        messageId: 'm-orig',
+        turnId: 't-orig',
+        retry: true,
+        images: ['data:image/png;base64,AAA'],
+      }),
+    );
+    f.publish({
+      phase: 'running',
+      partial: 'working',
+      trace: [{ id: 'tr1', kind: 'tool', tool: 'fs_read_text', status: 'running', at: 1 }],
+    });
+    await vi.waitFor(() => expect(JSON.stringify(update.mock.calls)).toContain('fs_read_text'));
+    f.complete();
+    await task;
+    expect(update).toHaveBeenLastCalledWith(messages);
+  } finally {
+    await task.catch(() => undefined);
     f.client.close();
   }
 });

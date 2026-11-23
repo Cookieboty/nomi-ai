@@ -4,7 +4,30 @@ import { t } from '@nomi-ai/ui';
 import type { ChatMessage } from '../types/chat';
 
 type Port = Pick<AppClient, 'conversations' | 'on'>;
-type State = Awaited<ReturnType<Port['conversations']['runtimeState']>>;
+export type ManagedRuntimeState = Awaited<ReturnType<Port['conversations']['runtimeState']>>;
+export type ManagedSendOptions = {
+  images?: string[];
+  retry?: { messageId: string; turnId: string };
+};
+
+export function formatManagedRuntimeError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (msg.includes('RUNTIME_BUSY')) return t('ui.chat-settings.managed-error-busy');
+  if (msg.includes('RUNTIME_STALE')) return t('ui.chat-settings.managed-error-stale');
+  if (msg.includes('RUNTIME_UNAVAILABLE')) return t('ui.chat-settings.managed-error-unavailable');
+  return msg;
+}
+
+function formatTraceSummary(trace: ManagedRuntimeState['trace']): string {
+  if (!trace?.length) return '';
+  const latest = trace[trace.length - 1]!;
+  const label = latest.tool || latest.summary || latest.kind;
+  if (!label) return '';
+  return latest.status === 'running' || latest.status === 'start'
+    ? t('ui.chat-settings.managed-trace-running', label)
+    : t('ui.chat-settings.managed-trace-done', label);
+}
+
 /** Reads only authoritative projection. Never upserts user/assistant view copies. */
 export async function sendManagedConversation(
   api: Port,
@@ -12,13 +35,16 @@ export async function sendManagedConversation(
   text: string,
   onUpdate: (messages: ChatMessage[]) => void,
   signal?: AbortSignal,
+  options?: ManagedSendOptions,
 ): Promise<void> {
   const initial = await api.conversations.runtimeState({ id });
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-  const messageId = `m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
-  const turnId = `turn_${messageId}`;
+  const messageId =
+    options?.retry?.messageId ??
+    `m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+  const turnId = options?.retry?.turnId ?? `turn_${messageId}`;
   let token: Awaited<ReturnType<Port['conversations']['runtimeSend']>> | undefined;
-  let events: State[] = [];
+  let events: ManagedRuntimeState[] = [];
   let revision = 0;
   let settled = false;
   let terminalSeen = false;
@@ -30,7 +56,7 @@ export async function sendManagedConversation(
   });
   // Attach a rejection handler before an IPC response can race a fast event.
   void done.catch(() => undefined);
-  const accept = async (state: State): Promise<void> => {
+  const accept = async (state: ManagedRuntimeState): Promise<void> => {
     if (state.id !== id) return;
     if (!token) {
       events.push(state);
@@ -53,14 +79,19 @@ export async function sendManagedConversation(
     const result = await api.conversations.messages({ id });
     if (own !== revision || settled) return;
     const messages = result.messages as unknown as ChatMessage[];
+    const traceSummary = formatTraceSummary(state.trace);
+    const draftContent = state.partial || traceSummary;
     onUpdate(
-      state.phase === 'running' && state.partial
+      state.phase === 'running' && draftContent
         ? [
             ...messages,
             {
               id: `draft_${token.attemptId}`,
               role: 'assistant',
-              content: state.partial,
+              content:
+                state.partial && traceSummary
+                  ? `${state.partial}\n\n_${traceSummary}_`
+                  : draftContent,
               timestamp: Date.now(),
             },
           ]
@@ -74,7 +105,7 @@ export async function sendManagedConversation(
       reject(new Error(state.detail || state.phase));
     }
   };
-  const update = (state: State): void => {
+  const update = (state: ManagedRuntimeState): void => {
     void accept(state).catch(reject);
   };
   const off = api.on('conversations.runtimeChanged', update);
@@ -96,6 +127,8 @@ export async function sendManagedConversation(
         turnId,
         text,
         expectedGeneration: initial.generation,
+        ...(options?.images?.length ? { images: options.images } : {}),
+        ...(options?.retry ? { retry: true } : {}),
       }),
       done.then((): never => {
         throw new Error(t('ui.chat-settings.managed-observation-timeout'));
@@ -114,4 +147,18 @@ export async function sendManagedConversation(
     signal?.removeEventListener('abort', cancel);
     off();
   }
+}
+
+export async function switchManagedRuntime(
+  api: Pick<AppClient, 'conversations'>,
+  input: Parameters<Port['conversations']['runtimeSwitch']>[0],
+): Promise<ManagedRuntimeState> {
+  return api.conversations.runtimeSwitch(input);
+}
+
+export async function resolveManagedRuntime(
+  api: Pick<AppClient, 'conversations'>,
+  input: Parameters<Port['conversations']['runtimeResolve']>[0],
+): Promise<ManagedRuntimeState> {
+  return api.conversations.runtimeResolve(input);
 }

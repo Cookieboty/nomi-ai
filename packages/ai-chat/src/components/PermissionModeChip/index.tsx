@@ -98,10 +98,58 @@ export type PermissionTab = Pick<
   'id' | 'backend' | 'cwd' | 'title' | 'permissionMode'
 >;
 
+export interface ManagedPermissionOverride {
+  backend: string;
+  mode: string;
+  modes: readonly string[];
+  disabled?: boolean;
+  onChange: (mode: string) => void;
+}
+
+function toUiPermissionMode(raw: string | undefined): PermissionMode {
+  switch (raw) {
+    case 'deny':
+      return 'plan';
+    case 'ask':
+      return 'manual';
+    case 'acceptEdits':
+      return 'acceptEdits';
+    case 'bypass':
+      return 'bypass';
+    default:
+      return 'manual';
+  }
+}
+
+function toManagedPermissionMode(mode: PermissionMode): string {
+  switch (mode) {
+    case 'plan':
+      return 'deny';
+    case 'manual':
+      return 'ask';
+    case 'acceptEdits':
+      return 'acceptEdits';
+    case 'bypass':
+      return 'bypass';
+    case 'auto':
+      return 'acceptEdits';
+  }
+}
+
+function mapManagedSupportedModes(modes: readonly string[]): PermissionMode[] {
+  const out: PermissionMode[] = [];
+  for (const raw of modes) {
+    const mapped = toUiPermissionMode(raw);
+    if (!out.includes(mapped)) out.push(mapped);
+  }
+  return out.length ? out : ['manual'];
+}
+
 export const PermissionModeChip: React.FC<{
   tab: PermissionTab;
   defaultMode?: PermissionMode;
-}> = ({ tab, defaultMode }) => {
+  managedOverride?: ManagedPermissionOverride;
+}> = ({ tab, defaultMode, managedOverride }) => {
   const [open, setOpen] = useState(false);
   // 收起时先放完淡出动画再卸载
   const menuP = usePresence(open);
@@ -121,10 +169,12 @@ export const PermissionModeChip: React.FC<{
     setPos({ left, bottom: window.innerHeight - r.top + 6 });
   }, [open]);
   const backend = tab.backend;
-  const mode: PermissionMode = tab.permissionMode ?? 'acceptEdits';
+  const managedMode = managedOverride ? toUiPermissionMode(managedOverride.mode) : undefined;
+  const mode: PermissionMode = managedMode ?? tab.permissionMode ?? 'acceptEdits';
+  const managedDisabled = Boolean(managedOverride?.disabled);
   useEffect(() => {
     let alive = true;
-    if (backend === 'nomi') {
+    if (managedOverride || backend === 'nomi') {
       setCliModes(null);
       return;
     }
@@ -139,12 +189,21 @@ export const PermissionModeChip: React.FC<{
     return () => {
       alive = false;
     };
-  }, [backend]);
-  const supported = cliModes ?? supportedModes(backend);
+  }, [backend, managedOverride]);
+  const supported = managedOverride
+    ? mapManagedSupportedModes(managedOverride.modes)
+    : (cliModes ?? supportedModes(backend));
+  const hintBackend: HarnessBackend =
+    managedOverride?.backend === 'api' || backend === 'nomi' ? 'nomi' : backend;
   const name = backend === 'nomi' ? '' : ENDPOINT_NAME[backend];
 
   /** target：「完全放开」确认时冻结的标签；主进程再核对一次后端 / 目录，变了就拒绝 */
   const apply = async (next: PermissionMode, target?: BypassTarget) => {
+    if (managedOverride) {
+      if (managedOverride.disabled) return;
+      managedOverride.onChange(toManagedPermissionMode(next));
+      return;
+    }
     const tabId = target?.tabId ?? tab.id;
     setNote(null);
     try {
@@ -173,7 +232,11 @@ export const PermissionModeChip: React.FC<{
   const pick = (m: PermissionMode) => {
     setOpen(false);
     btnRef.current?.focus();
-    if (m === mode) return;
+    if (m === mode || managedDisabled) return;
+    if (managedOverride) {
+      void apply(m);
+      return;
+    }
     // 在下拉里点「完全放开」就是确认；绑定此刻的标签，主进程再核对后端 / 目录
     if (m === 'bypass')
       void apply('bypass', { tabId: tab.id, backend: tab.backend, cwd: tab.cwd, title: tab.title });
@@ -186,6 +249,16 @@ export const PermissionModeChip: React.FC<{
   // 此时按下的 Shift+Tab 无人处理（慢机器上稳定复现）。
   const cycleRef = useRef<() => boolean>(() => false);
   cycleRef.current = () => {
+    if (managedOverride) {
+      if (managedDisabled) return false;
+      const ring = supported.filter((m) => m !== 'bypass');
+      if (ring.length <= 1) return false;
+      const i = ring.indexOf(mode === 'bypass' ? ring[0]! : mode);
+      const next = ring[(i + 1) % ring.length];
+      if (!next || next === mode) return false;
+      void apply(next);
+      return true;
+    }
     const next = nextMode(backend, mode === 'bypass' ? 'acceptEdits' : mode);
     if (!next) return false;
     void apply(next);
@@ -236,6 +309,7 @@ export const PermissionModeChip: React.FC<{
         ref={btnRef}
         type="button"
         className={`${styles.chip} ${danger ? styles.danger : ''}`}
+        disabled={managedDisabled}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('ui.chat-settings.permission-mode', modeLabel(mode))}
@@ -278,7 +352,7 @@ export const PermissionModeChip: React.FC<{
                 </span>
                 <span className={styles.itemText}>
                   <span className={styles.itemLabel}>{modeLabel(m)}</span>
-                  <span className={styles.itemHint}>{modeHint(m, backend)}</span>
+                  <span className={styles.itemHint}>{modeHint(m, hintBackend)}</span>
                 </span>
                 {mode === m && (
                   <span className={styles.itemCheck}>
@@ -293,28 +367,31 @@ export const PermissionModeChip: React.FC<{
                 {t('ui.chat-settings.to-switch-in-the-input-box')}
               </span>
               {/* 「新标签默认」只对 agent 标签有意义：Nomi 只有一个主对话 */}
-              {backend !== 'nomi' && mode !== 'bypass' && mode !== defaultMode && (
-                <button
-                  type="button"
-                  className={styles.link}
-                  data-testid="permission-mode-make-default"
-                  onClick={() => {
-                    setOpen(false);
-                    const tabId = tab.id;
-                    void harnessClient
-                      .setPermissionDefaults({ defaultPermissionMode: mode })
-                      .then(() =>
-                        setNote({
-                          tabId,
-                          text: t('ui.chat-settings.new-tabs-now-default-to', modeLabel(mode)),
-                        }),
-                      )
-                      .catch(() => undefined);
-                  }}
-                >
-                  {t('ui.chat-settings.make-default-for-new-tabs')}
-                </button>
-              )}
+              {!managedOverride &&
+                backend !== 'nomi' &&
+                mode !== 'bypass' &&
+                mode !== defaultMode && (
+                  <button
+                    type="button"
+                    className={styles.link}
+                    data-testid="permission-mode-make-default"
+                    onClick={() => {
+                      setOpen(false);
+                      const tabId = tab.id;
+                      void harnessClient
+                        .setPermissionDefaults({ defaultPermissionMode: mode })
+                        .then(() =>
+                          setNote({
+                            tabId,
+                            text: t('ui.chat-settings.new-tabs-now-default-to', modeLabel(mode)),
+                          }),
+                        )
+                        .catch(() => undefined);
+                    }}
+                  >
+                    {t('ui.chat-settings.make-default-for-new-tabs')}
+                  </button>
+                )}
             </div>
           </div>,
           document.body,

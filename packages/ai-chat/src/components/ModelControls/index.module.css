@@ -215,9 +215,19 @@
   text-align: left;
   cursor: pointer;
 }
-.modelRow:hover,
-.modelRow:focus-visible {
+.modelRow:hover:not(:disabled),
+.modelRow:focus-visible:not(:disabled) {
   background: var(--cd-color-hover);
+}
+.modelRow:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.modelRowTop {
+  border-top: none;
+  border-bottom: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-sm) var(--cd-radius-sm) 0 0;
+  margin-top: calc(-1 * var(--cd-space-2));
 }
 .modelRow > svg {
   flex: none;
@@ -492,4 +502,68 @@
 }
 .presetPill:hover {
   background: var(--cd-color-hover);
+}
+.detailsFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-2);
+  width: calc(100% + 16px);
+  margin: 0 -8px calc(-1 * var(--cd-space-0-5));
+  padding: var(--cd-space-1-5) var(--cd-space-2);
+  border-top: 1px solid var(--cd-color-border);
+}
+.detailsNote {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.detailsLink {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--cd-space-0-5);
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  font: inherit;
+  font-size: var(--cd-font-size-xs);
+  cursor: pointer;
+  padding: var(--cd-space-0-5) var(--cd-space-1);
+}
+.detailsLink:hover,
+.detailsLink:focus-visible {
+  color: var(--cd-color-text);
+  background: var(--cd-color-hover);
+}
+.detailsBody {
+  padding: var(--cd-space-2);
+}
+.runtimeInlineBar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1-5);
+  padding: var(--cd-space-2);
+  margin: var(--cd-space-1) 0;
+  border-radius: var(--cd-radius-md);
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface-sunken);
+}
+.runtimeInlineHint {
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  line-height: 1.4;
+}
+.runtimePageFoot {
+  padding: var(--cd-space-1-5) var(--cd-space-2) var(--cd-space-1);
+  border-top: 1px solid var(--cd-color-border);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+  line-height: 1.4;
 }

@@ -13,6 +13,7 @@ import React from 'react';
 
 import { selectMessageCount, useAiChatSelector } from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
+import { useManagedRuntime } from '../../contexts/ManagedRuntimeContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { useGitBranch } from '../../hooks/useGitBranch';
 import { useHarnessState } from '../../hooks/useHarnessState';
@@ -50,6 +51,7 @@ export const EndpointControls: React.FC<{
 }> = ({ part, tab: forced }) => {
   const endpoint = useEndpoint();
   const { tabs, harness } = endpoint;
+  const managed = useManagedRuntime();
   const tab = forced === undefined ? endpoint.tab : forced;
   const cli = forced ? (forced.backend !== 'nomi' ? forced.backend : null) : endpoint.cli;
   // 主对话标签切到 CLI 后端时也有权限模式（主进程里它同样是一个标签）
@@ -66,13 +68,49 @@ export const EndpointControls: React.FC<{
           permissionMode: harness.permissionMode,
         }
       : null;
+
+  const managedActive = !forced && !cli && Boolean(managed?.isManagedActive && managed.view);
+  const managedView = managedActive ? managed!.view! : null;
+  const managedChoice = managedView?.choices.find((c) => c.id === managedView.backend);
+  const managedModes =
+    managedView?.capabilities?.permissionModes ?? managedChoice?.permissionModes ?? [];
+  const managedTab: PermissionTab | null = managedView
+    ? {
+        id: MAIN_TAB_ID,
+        backend:
+          managedView.backend && managedView.backend !== 'api'
+            ? (managedView.backend as HarnessTabMeta['backend'])
+            : 'nomi',
+        cwd: harness?.cwd ?? '',
+        title: '',
+        permissionMode: harness?.permissionMode,
+      }
+    : null;
+  const managedOverride =
+    managedView && managedModes.length > 0
+      ? {
+          backend: managedView.backend,
+          mode: managedView.permissionMode || managedModes[0]!,
+          modes: managedModes,
+          disabled: !managed!.idle,
+          onChange: (nextMode: string) => {
+            void managed!.updateConfig({ permissionMode: nextMode });
+          },
+        }
+      : undefined;
+
   const model = part !== 'mode';
   const mode = part !== 'model';
+  const showNomiModel =
+    model && !cli && (gatewayClientAvailable() || Boolean(managed?.view?.supported));
+  const modeDisplayTab = managedOverride ? (managedTab ?? nomiTab) : nomiTab;
   return (
     <>
       {/* Nomi 对话与 agent 标签用同一个「模型 · 思考深度」按钮（ModelEffortChip + 各自的适配器） */}
-      {model && !cli && gatewayClientAvailable() && <NomiModelSwitch />}
-      {mode && nomiTab && <PermissionModeChip tab={nomiTab} />}
+      {showNomiModel && <NomiModelSwitch />}
+      {mode && modeDisplayTab && (
+        <PermissionModeChip tab={modeDisplayTab} managedOverride={managedOverride} />
+      )}
       {model && cli && modeTab && <ModelControls key={`model-${modeTab.backend}`} tab={modeTab} />}
       {mode && cli && modeTab && (
         <PermissionModeChip tab={modeTab} defaultMode={tabs.state?.defaultPermissionMode} />

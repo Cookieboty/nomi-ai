@@ -120,16 +120,18 @@ export const HandoffTriggerButton: React.FC<{
   );
 };
 
+export interface HandoffAction {
+  forceShow?: boolean;
+  blocked?: boolean;
+  onHandoff: () => Promise<unknown> | void;
+}
+
 export const StatusLine: React.FC<{
   status: StatusInfo;
   startedAt?: number;
   stepCount?: number;
   minimal?: boolean;
-  handoff?: {
-    forceShow?: boolean;
-    blocked?: boolean;
-    onHandoff: () => Promise<unknown> | void;
-  };
+  handoff?: HandoffAction;
 }> = ({ handoff, ...props }) => {
   const cls = [styles.status, isWarnStatus(props.status.kind) ? styles.statusWarn : ''].join(' ');
   return (

@@ -18,7 +18,12 @@ import { formatWorkedDuration, type MinimalCollapsedSegment } from '../../utils/
 
 import styles from './index.module.css';
 import { Markdown } from './Markdown';
-import { isWarnStatus, StatusLineContent } from './StatusLine';
+import {
+  type HandoffAction,
+  HandoffTriggerButton,
+  isWarnStatus,
+  StatusLineContent,
+} from './StatusLine';
 import { ToolTimeline } from './ToolTimeline';
 import { TranscriptViewProvider } from './transcriptViewContext';
 
@@ -62,6 +67,7 @@ export const MinimalOpenProvider: React.FC<{ children: React.ReactNode }> = ({ c
 export interface MinimalLiveStatus {
   status: StatusInfo;
   startedAt?: number;
+  handoff?: HandoffAction;
 }
 
 export const MinimalSteps: React.FC<{
@@ -142,33 +148,44 @@ export const MinimalSteps: React.FC<{
       data-open={open}
       data-no-selection-toolbar=""
     >
-      <button
-        type="button"
-        className={styles.minimalToggle}
-        aria-expanded={open}
-        aria-controls={bodyId}
-        data-testid="minimal-steps-toggle"
-        onClick={toggleOpen}
-      >
-        {liveStatus ? (
-          <span
-            className={`${styles.minimalLiveStatus} ${isWarnStatus(liveStatus.status.kind) ? styles.statusWarn : ''}`}
-            data-testid="conv-status"
-            data-kind={liveStatus.status.kind}
-            role="status"
-          >
-            <StatusLineContent
-              status={liveStatus.status}
-              startedAt={liveStatus.startedAt}
-              stepCount={stepCount}
-              minimal
-            />
-          </span>
-        ) : (
-          <span className={styles.minimalLabel}>{label}</span>
+      <div className={styles.minimalHeader}>
+        <button
+          type="button"
+          className={styles.minimalToggle}
+          aria-expanded={open}
+          aria-controls={bodyId}
+          data-testid="minimal-steps-toggle"
+          onClick={toggleOpen}
+        >
+          {liveStatus ? (
+            <span
+              className={`${styles.minimalLiveStatus} ${isWarnStatus(liveStatus.status.kind) ? styles.statusWarn : ''}`}
+              data-testid="conv-status"
+              data-kind={liveStatus.status.kind}
+              role="status"
+            >
+              <StatusLineContent
+                status={liveStatus.status}
+                startedAt={liveStatus.startedAt}
+                stepCount={stepCount}
+                minimal
+              />
+            </span>
+          ) : (
+            <span className={styles.minimalLabel}>{label}</span>
+          )}
+          <Icon icon={ChevronRight} size={13} className={styles.minimalChevron} />
+        </button>
+        {liveStatus?.handoff && (
+          <HandoffTriggerButton
+            key={liveStatus.startedAt ?? 'none'}
+            startedAt={liveStatus.startedAt}
+            forceShow={liveStatus.handoff.forceShow}
+            blocked={liveStatus.handoff.blocked}
+            onHandoff={liveStatus.handoff.onHandoff}
+          />
         )}
-        <Icon icon={ChevronRight} size={13} className={styles.minimalChevron} />
-      </button>
+      </div>
       {open && (
         <TranscriptViewProvider value="thinking">
           <div

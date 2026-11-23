@@ -14,6 +14,8 @@ import { modelBrandOf, t } from '@nomi-ai/ui';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { selectIpcClient, useAiChatSelector } from '../../contexts/aiChatStore';
+import { useManagedRuntime } from '../../contexts/ManagedRuntimeContext';
+import { useNomiProject } from '../../hooks/useNomiProject';
 import {
   CONVERSATIONS_CHANGED_EVENT,
   notifyConversationsChanged,
@@ -40,6 +42,8 @@ import type { IPCClient } from '../../types/ipc';
 import { thinkingLevelLabel } from '../ModelControls/effortLabel';
 import { ModelEffortChip, type ModelEffortSource } from '../ModelControls/ModelEffortChip';
 import { thirdPartyProviderSource } from '../ModelControls/providerSource';
+
+import { buildCliManagedSource, buildRuntimePageSource } from './managedAdapter';
 
 type LongContextChoice = { model: string; on: boolean };
 
@@ -96,6 +100,10 @@ export interface NomiModelBinding {
 
 export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ binding }) => {
   const state = useGatewayState();
+  const managedFromCtx = useManagedRuntime();
+  const managed = binding ? null : managedFromCtx;
+  const nomiProject = useNomiProject();
+  const activeProjectId = managed ? nomiProject.projectId : undefined;
   const providers = useMemo(() => pickerProviders(state?.providers ?? []), [state]);
   // NOMI_PROVIDER 环境变量锁定时，网关的分配不生效
   const [override, setOverride] = useState<string | null>(null);
@@ -138,18 +146,51 @@ export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ bind
     [override, activeRef, storedLong, state],
   );
   const usable = !override && providers.length > 0;
+  const hasGateway = gatewayClientAvailable() && Boolean(state);
+  const runtimeSource = useMemo(
+    () =>
+      managed
+        ? buildRuntimePageSource({
+            managed,
+            hasApiProviders: providers.length > 0,
+            projectId: activeProjectId,
+          })
+        : null,
+    [managed, providers.length, activeProjectId],
+  );
 
-  if (!gatewayClientAvailable() || !state) return null;
+  if (!hasGateway && !managed?.view?.supported) return null;
 
-  const parts = activeRef ? splitRef(activeRef) : null;
-  const provider = parts ? state.providers.find((p) => p.id === parts.provider) : undefined;
+  if (managed?.isCliBackend && managed.view && runtimeSource) {
+    const cliSource = buildCliManagedSource({
+      managed,
+      runtime: runtimeSource,
+      menuKey: binding?.menuKey ?? NOMI_MODEL_MENU,
+    });
+    return (
+      <ModelEffortChip
+        prefix={`${binding?.testPrefix ?? 'nomi'}-model`}
+        effortPrefix={`${binding?.testPrefix ?? 'nomi'}-effort`}
+        wrapTestId={`${binding?.testPrefix ?? 'nomi'}-model-switch`}
+        source={cliSource}
+        onOpenChange={(open) => {
+          if (!open) managed.clearPendingProject();
+        }}
+      />
+    );
+  }
+
+  const parts = activeRef && state ? splitRef(activeRef) : null;
+  const provider =
+    parts && state ? state.providers.find((p) => p.id === parts.provider) : undefined;
   const modelName = parts
     ? (provider?.models.find((m) => m.id === parts.model)?.label ?? parts.model)
     : '';
   const modelLabel = parts ? modelName : (legacyModel ?? t('ui.models.choose-a-model'));
   const chipLabel = level ? `${modelLabel} · ${thinkingLevelLabel(level)}` : modelLabel;
   // 与 CLI 一致：优先模型厂商图标，认不出再回退到供应商品牌 / 通用芯片图标。
-  const brand = parts ? modelBrandOf(parts.model, providerBrand(state, parts.provider)) : undefined;
+  const brand =
+    parts && state ? modelBrandOf(parts.model, providerBrand(state, parts.provider)) : undefined;
 
   const pickModel = (ref: string): 'effort' | 'close' => {
     if (binding) binding.onModel(ref);
@@ -157,7 +198,7 @@ export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ bind
       setPick({ ref, base: current });
       if (ref !== current) void setNomiModel(ref).catch(() => undefined);
     }
-    return thinkingProfileOf(state, ref) ? 'effort' : 'close';
+    return state && thinkingProfileOf(state, ref) ? 'effort' : 'close';
   };
 
   const pickLong = (on: boolean) => {
@@ -165,13 +206,17 @@ export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ bind
     saveLong(on === long.modelDefault ? undefined : { model: long.ref, on });
   };
 
+  const fallbackCliOnly = !usable && !override && Boolean(runtimeSource);
+
   const source: ModelEffortSource = {
-    label: chipLabel,
-    muted: !level && !parts,
+    label: fallbackCliOnly ? t('ui.models.choose-a-model') : chipLabel,
+    muted: fallbackCliOnly || (!level && !parts),
     brand,
-    ariaLabel: level
-      ? t('ui.chat-settings.model-and-reasoning-effort', chipLabel)
-      : t('ui.models.model-for-nomi-chat'),
+    ariaLabel: fallbackCliOnly
+      ? t('ui.models.model-for-nomi-chat')
+      : level
+        ? t('ui.chat-settings.model-and-reasoning-effort', chipLabel)
+        : t('ui.models.model-for-nomi-chat'),
     menuLabel: t('ui.chat-settings.model-and-reasoning-effort-label'),
     longBadge: !!long?.on,
     longContext:
@@ -184,9 +229,11 @@ export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ bind
             onChange: pickLong,
           }
         : null,
-    initialView: 'effort',
-    menuCommandView: 'model',
+    initialView: fallbackCliOnly ? 'runtime' : 'effort',
+    menuCommandView: fallbackCliOnly ? 'runtime' : 'model',
     menuKey: binding?.menuKey ?? NOMI_MODEL_MENU,
+    runtime: runtimeSource,
+    showModelRow: !fallbackCliOnly,
     effort: {
       supported: !!profile,
       levels: profile?.levels ?? [],
@@ -209,10 +256,12 @@ export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ bind
       optionTestId: (ref) => `${binding?.testPrefix ?? 'nomi'}-model-${ref}`,
       onPick: pickModel,
     },
-    provider: thirdPartyProviderSource(providers, activeRef, pickModel),
+    provider: fallbackCliOnly ? null : thirdPartyProviderSource(providers, activeRef, pickModel),
     modelLabel,
     modelRowAria: t('ui.chat-settings.switch-model', modelLabel),
   };
+
+  const lockDisabled = !usable && !fallbackCliOnly;
 
   return (
     <ModelEffortChip
@@ -221,12 +270,14 @@ export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ bind
       wrapTestId={`${binding?.testPrefix ?? 'nomi'}-model-switch`}
       source={source}
       onOpenChange={(open) => {
-        if (!open) setPick(null);
+        if (!open) {
+          setPick(null);
+          managed?.clearPendingProject();
+        }
       }}
       disabled={
-        usable
-          ? null
-          : {
+        lockDisabled
+          ? {
               label: override
                 ? (legacyModel ?? t('ui.providers-schedule.not-configured'))
                 : t('ui.providers-schedule.not-configured'),
@@ -234,6 +285,7 @@ export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ bind
                 ? t('ui.providers-schedule.locked-by-nomi-provider')
                 : t('ui.models.model-for-nomi-chat'),
             }
+          : null
       }
     />
   );

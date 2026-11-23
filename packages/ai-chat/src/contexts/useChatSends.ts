@@ -5,6 +5,7 @@
 import { t } from '@nomi-ai/ui';
 import { useCallback, type Dispatch, type MutableRefObject } from 'react';
 
+import { api, hasTransport } from '../services/api';
 import { importChatImages } from '../services/chatImages';
 import { injectedMemoryIds, isCompaction } from '../services/compaction';
 import {
@@ -259,10 +260,20 @@ function useStreamSend({
         dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
         dispatch({ type: 'SET_ERROR', payload: undefined });
         if (turn.convoId && managed) {
-          if (images?.length || override)
-            throw new Error(t('ui.chat-settings.managed-unsupported'));
+          if (override) throw new Error(t('ui.chat-settings.managed-unsupported'));
           if (!client.sendManagedConversation)
             throw new Error(t('ui.chat-settings.managed-ingress'));
+          let encodedImages: string[] | undefined;
+          if (images?.length) {
+            if (!hasTransport()) throw new Error(t('ui.chat-settings.managed-unsupported'));
+            const runtime = await api.conversations.runtimeState({ id: turn.convoId });
+            if (!runtime.capabilities.attachments) {
+              throw new Error(
+                t('ui.chat-settings.managed-attachments-unsupported', runtime.backend || 'runtime'),
+              );
+            }
+            encodedImages = images.map((img) => `data:${img.mime};base64,${img.data}`);
+          }
           activeStream.current.set(convoKey(turn.convoId), {
             reqId,
             convoId: turn.convoId,
@@ -270,15 +281,28 @@ function useStreamSend({
           });
           owned = true;
           dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
-          await client.sendManagedConversation(
-            turn.convoId,
-            content,
-            (messages) => {
-              if (turn.isActive())
-                dispatch({ type: 'SET_MESSAGES', payload: messages, convoId: turn.convoId });
-            },
-            controller.signal,
-          );
+          if (encodedImages?.length) {
+            await client.sendManagedConversation(
+              turn.convoId,
+              content,
+              (messages) => {
+                if (turn.isActive())
+                  dispatch({ type: 'SET_MESSAGES', payload: messages, convoId: turn.convoId });
+              },
+              controller.signal,
+              { images: encodedImages },
+            );
+          } else {
+            await client.sendManagedConversation(
+              turn.convoId,
+              content,
+              (messages) => {
+                if (turn.isActive())
+                  dispatch({ type: 'SET_MESSAGES', payload: messages, convoId: turn.convoId });
+              },
+              controller.signal,
+            );
+          }
           return;
         }
 

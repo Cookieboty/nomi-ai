@@ -54,7 +54,7 @@ import {
 } from './Messages';
 import { MinimalOpenProvider } from './MinimalSteps';
 import { PermissionCard } from './PermissionCard';
-import { HandoffTriggerButton, StatusLine } from './StatusLine';
+import { StatusLine } from './StatusLine';
 import { TranscriptViewProvider, useTranscriptViewMode } from './transcriptViewContext';
 import {
   captureScrollAnchor,
@@ -830,6 +830,13 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     status?.kind === 'permission' ||
     status?.kind === 'blocked' ||
     status?.kind === 'queued';
+  const handoffAction = onHandoffToBackground
+    ? {
+        forceShow: handoffForceShow,
+        blocked: handoffBlocked,
+        onHandoff: onHandoffToBackground,
+      }
+    : undefined;
   // 定稿消息已到、标签状态还没回到空闲的那一帧：不再画一个空的流式区（状态行会闪一下）
   const showLive = phase !== 'idle' && !(running && !live && last?.role === 'assistant');
   const liveNode = showLive ? (
@@ -842,7 +849,9 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
           live
           streaming
           thinking={live?.thinking}
-          liveStatus={status ? { status, startedAt: activeStartedAt } : undefined}
+          liveStatus={
+            status ? { status, startedAt: activeStartedAt, handoff: handoffAction } : undefined
+          }
           minimalStateKey={liveMinimalKey}
           extra={<PermissionQueue live={live} onPermission={onPermission} />}
         />
@@ -853,27 +862,8 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
           startedAt={activeStartedAt}
           stepCount={liveStepCount > 0 ? liveStepCount : undefined}
           minimal={transcriptView === 'minimal'}
-          handoff={
-            onHandoffToBackground
-              ? {
-                  forceShow: handoffForceShow,
-                  blocked: handoffBlocked,
-                  onHandoff: onHandoffToBackground,
-                }
-              : undefined
-          }
+          handoff={handoffAction}
         />
-      )}
-      {status && minimalStepsOwnsStatus && onHandoffToBackground && !handoffBlocked && (
-        <div className={styles.minimalHandoffRow}>
-          <HandoffTriggerButton
-            key={activeStartedAt ?? 'none'}
-            startedAt={activeStartedAt}
-            forceShow={handoffForceShow}
-            blocked={handoffBlocked}
-            onHandoff={onHandoffToBackground}
-          />
-        </div>
       )}
     </div>
   ) : null;

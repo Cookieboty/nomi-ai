@@ -46,9 +46,16 @@ export function useNomiProject(): NomiProject {
 
   const store = ipc?.conversationStore?.() as ConversationStore | undefined;
   const id = ipc?.currentConversationId?.();
-  const meta = id && store?.isNomi(id) ? store.get(id) : undefined;
+  const isNomiStore = store && typeof store.isNomi === 'function';
+  const meta = id && isNomiStore && store.isNomi(id) ? store.get(id) : undefined;
   // 还没有会话：显示新会话会用的项目
-  const projectId = meta ? meta.projectId : id ? undefined : store?.defaultNomiProject();
+  const projectId = meta
+    ? meta.projectId
+    : id
+      ? undefined
+      : store && typeof store.defaultNomiProject === 'function'
+        ? store.defaultNomiProject()
+        : undefined;
   // signature / tick 只用来在切换会话、会话列表变化后重新读取
   void signature;
   void tick;
@@ -56,7 +63,10 @@ export function useNomiProject(): NomiProject {
   const write = useCallback(
     (next: string | undefined) => {
       if (!store) return;
-      const target = id && store.isNomi(id) ? id : ipc?.ensureConversationId?.();
+      const target =
+        id && typeof store.isNomi === 'function' && store.isNomi(id)
+          ? id
+          : ipc?.ensureConversationId?.();
       if (!target) return;
       store.updateMeta(target, { projectId: next });
       notifyConversationsChanged();

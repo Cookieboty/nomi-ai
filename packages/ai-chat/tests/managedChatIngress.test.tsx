@@ -6,11 +6,9 @@ import type { AiChatState } from '../src/contexts/aiChatState';
 import { useChatSends } from '../src/contexts/useChatSends';
 import type { IPCClient } from '../src/types/ipc';
 
-import type { ApiMockState } from './helpers/knowledgeApi';
-const apiMock = vi.hoisted(() => ({ transport: false }) as ApiMockState);
-vi.mock('../src/services/api', async () =>
-  (await import('./helpers/knowledgeApi')).createApiMock(apiMock),
-);
+import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
+
+vi.mock('../src/services/api', async () => (await import('./helpers/fakeApi')).fakeApiModule());
 const forbidden = () =>
   vi.fn(() => {
     throw new Error('legacy route must not execute');
@@ -49,7 +47,10 @@ function setup() {
   );
   return { hook, save, legacy, ingest, managed, dispatch, activeStream };
 }
-afterEach(cleanup);
+afterEach(() => {
+  resetFakeApi();
+  cleanup();
+});
 it.each(['sendMessage', 'sendStreamMessage'] as const)(
   'actual %s hook uses managed ingress before view saves, legacy API and memory',
   async (method) => {
@@ -81,5 +82,31 @@ it('unsupported attachment and knowledge bridge reject before any view or execut
   expect(f.legacy).not.toHaveBeenCalled();
   expect(f.dispatch.mock.calls.filter(([a]) => a.type === 'SET_ERROR' && a.payload)).toHaveLength(
     2,
+  );
+});
+
+it('forwards encoded image attachments when active managed backend advertises attachment bridge', async () => {
+  const fake = installFakeApi({
+    'conversations.runtimeState': () => ({
+      backend: 'api',
+      capabilities: { attachments: true },
+    }),
+  });
+  const f = setup();
+  await act(async () => {
+    await f.hook.result.current.sendStreamMessage('describe', [
+      { mime: 'image/png', data: 'iVBOR' },
+    ] as never);
+  });
+  expect(fake.inputs('conversations.runtimeState')).toEqual([{ id: 'c' }]);
+  expect(f.managed).toHaveBeenCalledWith(
+    'c',
+    'describe',
+    expect.any(Function),
+    expect.any(AbortSignal),
+    { images: ['data:image/png;base64,iVBOR'] },
+  );
+  expect(f.dispatch.mock.calls.filter(([a]) => a.type === 'SET_ERROR' && a.payload)).toHaveLength(
+    0,
   );
 });

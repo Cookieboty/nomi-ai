@@ -8,6 +8,7 @@ import { Button, Icon, t } from '@nomi-ai/ui';
 import { IconArrowUpRight, IconSparkles } from '@tabler/icons-react';
 import React from 'react';
 
+import { useManagedRuntime } from '../../contexts/ManagedRuntimeContext';
 import { useNomiModelStatus, type NomiModelStatus } from '../../hooks/useNomiModelStatus';
 
 import styles from './ModelSetupCard.module.css';
@@ -53,7 +54,9 @@ export const WelcomeActions: React.FC<{
   status?: NomiModelStatus | null;
 }> = ({ onOpenModels, status: injected }) => {
   const fromGateway = useNomiModelStatus();
+  const managed = useManagedRuntime();
   const status = injected !== undefined ? injected : fromGateway;
+  if (managed?.isCliBackend) return <PromptCards />;
   if (status === 'none' || status === 'unassigned')
     return <ModelSetupCard status={status} onOpenModels={onOpenModels} />;
   return <PromptCards />;

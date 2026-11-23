@@ -5,13 +5,22 @@
  */
 import { Icon, t } from '@nomi-ai/ui';
 import { IconCircleCheck as CheckCircle2 } from '@tabler/icons-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
+import { api, hasTransport } from '../../services/api';
 import { gatewayClient, type GatewayState } from '../../services/gatewayClient';
 import { nomiMainRef, refreshNomiModel, useGatewayState } from '../../services/nomiModel';
+import { backendName } from '../ManagedRuntimeDock/panel';
 import { ProviderForm } from '../ModelsPage/ProviderForm';
 
 import styles from './ProviderSetup.module.css';
+
+type LocalCliChoice = {
+  id: string;
+  available: boolean;
+  status: string;
+  requiresProject: boolean;
+};
 
 /** 已配置、可用于对话的供应商（启用且至少有一个启用的对话模型） */
 export function usableProviders(s: GatewayState | null) {
@@ -27,6 +36,31 @@ export const ProviderSetup: React.FC<{ onOpenModels: () => void }> = ({ onOpenMo
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
+  const [localClis, setLocalClis] = useState<LocalCliChoice[]>([]);
+
+  useEffect(() => {
+    if (!hasTransport() || typeof api.conversations?.runtimeCapabilities !== 'function') return;
+    let canceled = false;
+    void api.conversations
+      .runtimeCapabilities()
+      .then((res) => {
+        if (canceled || !res.supported) return;
+        setLocalClis(
+          res.choices
+            .filter((c) => c.requiresProject)
+            .map((c) => ({
+              id: c.id,
+              available: c.available,
+              status: c.status,
+              requiresProject: c.requiresProject,
+            })),
+        );
+      })
+      .catch(() => undefined);
+    return () => {
+      canceled = true;
+    };
+  }, []);
 
   // 第 2 段列哪个供应商：刚配好的 > 当前 Nomi 用的 > 第一个可用的
   const providerId =
@@ -142,6 +176,29 @@ export const ProviderSetup: React.FC<{ onOpenModels: () => void }> = ({ onOpenMo
         </button>{' '}
         {t('ui.mascot-theme.open-full-model-settings-hint')}
       </p>
+
+      {localClis.length > 0 && (
+        <section className={styles.subStep} data-testid="onb-cli-first-use">
+          <div className={styles.subStepHead}>
+            <span className={styles.subStepTitle}>{t('ui.chat-settings.onb-cli-card-title')}</span>
+          </div>
+          <p className={styles.note}>{t('ui.chat-settings.onb-cli-card-desc')}</p>
+          <div className={styles.chips}>
+            {localClis.map((cli) => (
+              <span
+                key={cli.id}
+                className={`${styles.chip} ${cli.available || cli.status === 'no-project' ? styles.chipOn : ''}`}
+                data-testid={`onb-cli-${cli.id}`}
+              >
+                {backendName(cli.id)}:{' '}
+                {cli.available || cli.status === 'no-project'
+                  ? t('ui.chat-settings.onb-cli-status-ready')
+                  : t('ui.chat-settings.onb-cli-status-missing')}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
     </>
   );
 };

@@ -1,126 +1,107 @@
-import { t } from '@nomi-ai/ui';
+import { cliFullName, isBuiltinCliId } from '@nomi-ai/cli-catalog';
+import { Icon, t } from '@nomi-ai/ui';
+import { IconX as X } from '@tabler/icons-react';
 import React from 'react';
 
+import { ApprovalCard } from './ApprovalCard';
 import styles from './index.module.css';
+import { RecoveryBanner } from './RecoveryBanner';
+import { backendLabelKey, type FailedRequestView, type ManagedRuntimeView } from './types';
 
-export type RuntimeChoiceView = {
-  id: string;
-  available: boolean;
-  status:
-    'ready' | 'missing-executable' | 'no-project' | 'unsupported-platform' | 'requires-provider';
-  detail: string;
-  login: 'unverified' | 'not-advertised' | 'not-applicable';
-  requiresProject: boolean;
-  degraded: string[];
+export type {
+  ApprovalDetailView,
+  CapabilityBridgesView,
+  FailedRequestView,
+  ManagedRuntimeView,
+  ManagedSwitchInput,
+  RuntimeChoiceView,
+  TraceEntryView,
+} from './types';
+
+export const backendName = (id: string): string => {
+  const key = backendLabelKey(id);
+  if (key) return t(key);
+  if (isBuiltinCliId(id)) return cliFullName(id);
+  return id || t('ui.chat-settings.managed-backend-claude');
 };
 
-export type ManagedRuntimeView = {
-  supported: boolean;
-  managed: boolean;
-  backend: string;
-  phase: string;
-  recovery: string;
-  generation: number;
-  detail: string;
-  choices: RuntimeChoiceView[];
-  busy: boolean;
-  error?: string;
-};
-
-const guidanceKey: Record<RuntimeChoiceView['status'], string> = {
-  ready: 'ui.chat-settings.managed-login-unverified',
-  'missing-executable': 'ui.chat-settings.managed-missing-executable',
-  'no-project': 'ui.chat-settings.managed-no-project',
-  'unsupported-platform': 'ui.chat-settings.managed-unsupported-platform',
-  'requires-provider': 'ui.chat-settings.managed-requires-provider',
-};
+function hasRecoveryBanner(view: ManagedRuntimeView): boolean {
+  if (!view.managed) return false;
+  return Boolean(
+    (view.phase === 'uncertain' && view.recovery === 'unknown') ||
+    view.pendingSwitch ||
+    view.failedRequest ||
+    view.phase === 'failed-pre-submit' ||
+    view.recovery === 'error',
+  );
+}
 
 export const ManagedRuntimePanel: React.FC<{
   view: ManagedRuntimeView;
-  onAdopt: (backend: string) => void;
-  onSelect: (backend: string) => void;
-  onResolve: () => void;
-}> = ({ view, onAdopt, onSelect, onResolve }) => {
-  const primary = view.choices[0];
+  onResolve: (decision?: 'new-native' | 'rollback-switch' | 'abandon') => void;
+  onApprove?: (approvalId: string, allow: boolean) => void;
+  onRetry?: (request: FailedRequestView) => void;
+  onDismissError?: () => void;
+}> = ({ view, onResolve, onApprove, onRetry, onDismissError }) => {
+  const activeName = backendName(view.backend || '');
   const unknown = view.managed && view.phase === 'uncertain' && view.recovery === 'unknown';
-  const idle =
-    !view.busy &&
-    (!view.managed ||
-      view.phase === 'idle' ||
-      view.phase === 'completed' ||
-      view.phase === 'canceled' ||
-      view.phase === 'failed-pre-submit');
-  const guidance = unknown
-    ? t('ui.chat-settings.managed-recovery-unknown')
-    : t(guidanceKey[primary?.status ?? 'missing-executable']);
-  const runtimeLabel = (id: string) =>
-    t(
-      (
-        {
-          claude: 'ui.chat-settings.managed-use-claude',
-          api: 'ui.chat-settings.managed-use-api',
-        } as const
-      )[id] ?? 'ui.chat-settings.managed-use-claude',
-    );
+  const latestTrace = view.trace?.length ? view.trace[view.trace.length - 1] : undefined;
+  const activeTrace =
+    view.busy && latestTrace && (latestTrace.status === 'running' || latestTrace.status === 'start')
+      ? latestTrace
+      : undefined;
+  const hasApprovals = Boolean(
+    onApprove && view.approvalDetails && view.approvalDetails.length > 0,
+  );
+  const showRecovery = hasRecoveryBanner(view);
+  const showUnknownGuidance = unknown && !view.pendingSwitch;
+
+  if (!hasApprovals && !showRecovery && !view.error && !activeTrace) {
+    return null;
+  }
+
   return (
     <section
       className={styles.dock}
       data-testid="managed-runtime-dock"
       aria-label={t('ui.chat-settings.managed-runtime-title')}
     >
-      <p className={styles.title}>{t('ui.chat-settings.managed-runtime-title')}</p>
-      {!view.managed && (
-        <p className={styles.guidance}>{t('ui.chat-settings.managed-first-use')}</p>
-      )}
-      {view.managed && (
-        <p className={styles.current} data-testid="managed-runtime-current">
-          {t('ui.chat-settings.managed-current', view.backend || '—')}
+      {showUnknownGuidance && (
+        <p className={styles.guidance} data-testid="managed-runtime-guidance">
+          {t('ui.chat-settings.managed-recovery-unknown', activeName)}
         </p>
       )}
-      <p className={styles.guidance} data-testid="managed-runtime-guidance">
-        {guidance}
-      </p>
-      {!idle && !unknown && (
-        <p className={styles.guidance}>{t('ui.chat-settings.managed-idle-only')}</p>
+      {activeTrace && (
+        <p className={styles.traceLine} data-testid="managed-runtime-trace">
+          {t('ui.chat-settings.managed-trace-running', activeTrace.tool || activeTrace.kind)}
+        </p>
       )}
       {view.error && (
-        <p className={styles.error} data-testid="managed-runtime-error">
-          {view.error}
-        </p>
-      )}
-      <div className={styles.actions}>
-        {unknown && (
-          <button type="button" data-testid="managed-runtime-new-native" onClick={onResolve}>
-            {t('ui.chat-settings.managed-new-native')}
-          </button>
-        )}
-        {!view.managed &&
-          view.choices.map((choice) => (
+        <div className={styles.errorRow}>
+          <p className={styles.error} data-testid="managed-runtime-error">
+            {view.error}
+          </p>
+          {onDismissError && (
             <button
-              key={`adopt-${choice.id}`}
               type="button"
-              data-testid={`managed-runtime-adopt-${choice.id}`}
-              disabled={!choice.available || !view.supported}
-              onClick={() => onAdopt(choice.id)}
+              className={styles.dismissBtn}
+              aria-label={t('ui.mascot-theme.dismiss')}
+              data-testid="managed-runtime-error-dismiss"
+              onClick={onDismissError}
             >
-              {runtimeLabel(choice.id)}
+              <Icon icon={X} size={12} />
             </button>
-          ))}
-        {view.managed &&
-          view.choices
-            .filter((choice) => choice.id !== view.backend)
-            .map((choice) => (
-              <button
-                key={`select-${choice.id}`}
-                type="button"
-                data-testid={`managed-runtime-select-${choice.id}`}
-                disabled={!idle || !choice.available}
-                onClick={() => onSelect(choice.id)}
-              >
-                {runtimeLabel(choice.id)}
-              </button>
-            ))}
-      </div>
+          )}
+        </div>
+      )}
+      <RecoveryBanner view={view} activeName={activeName} onResolve={onResolve} onRetry={onRetry} />
+      {hasApprovals && onApprove && view.approvalDetails && (
+        <ApprovalCard
+          approvals={view.approvalDetails}
+          disabled={view.phase !== 'running'}
+          onApprove={onApprove}
+        />
+      )}
     </section>
   );
 };
