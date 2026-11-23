@@ -97,4 +97,8 @@ export const BRAND_ICONS: Readonly<Record<string, BrandSvg>> = {
     mono: true,
     svg: '<svg fill="currentColor" viewBox="4 -3 120 120" xmlns="http://www.w3.org/2000/svg"><path d="M4 96 C4 96, 24 12, 64 12 C104 12, 124 96, 124 96 Q124 102, 118 102 C94 102, 92 64, 64 64 C36 64, 34 102, 10 102 Q4 102, 4 96 Z"></path></svg>',
   },
+  antigravity: {
+    mono: false,
+    svg: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="nomi-antigravity-grad" x1="3" y1="21" x2="21" y2="3" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#4285F4"/><stop offset="55%" stop-color="#3186FF"/><stop offset="100%" stop-color="#00BFA5"/></linearGradient></defs><path d="M12 2.5C9.6 2.5 7.8 4.4 6.5 7.6L2.4 18.2C1.9 19.5 2.7 21 4.1 21C5.2 21 6.1 20.3 6.6 19.2C7.9 16.4 9.8 14.5 12 14.5C14.2 14.5 16.1 16.4 17.4 19.2C17.9 20.3 18.8 21 19.9 21C21.3 21 22.1 19.5 21.6 18.2L17.5 7.6C16.2 4.4 14.4 2.5 12 2.5ZM12 6.8C12.9 6.8 13.7 7.6 14.4 9.4L15.7 12.7C14.6 11.9 13.3 11.4 12 11.4C10.7 11.4 9.4 11.9 8.3 12.7L9.6 9.4C10.3 7.6 11.1 6.8 12 6.8Z" fill="url(#nomi-antigravity-grad)" fill-rule="evenodd"/></svg>',
+  },
 };

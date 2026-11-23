@@ -1,6 +1,15 @@
 /** Nomi 使用自有品牌路径；agent 引用共享 LobeHub 产品图标，避免重复维护替代图形。 */
 export type EndpointGlyphKey =
-  'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini' | 'kimi' | 'minimax' | 'external';
+  | 'nomi'
+  | 'claude'
+  | 'codex'
+  | 'dsh'
+  | 'grok'
+  | 'gemini'
+  | 'kimi'
+  | 'minimax'
+  | 'antigravity'
+  | 'external';
 
 export interface GlyphPath {
   d: string;
@@ -57,6 +66,7 @@ export const ENDPOINT_GLYPHS: Readonly<Record<EndpointGlyphKey, EndpointGlyph>> 
   gemini: { brand: 'geminicli', colorBrand: 'gemini', tile: 'transparent', paths: [] },
   kimi: { brand: 'kimi', tile: 'transparent', paths: [] },
   minimax: { brand: 'minimax', tile: 'transparent', paths: [] },
+  antigravity: { brand: 'antigravity', tile: 'transparent', paths: [] },
   external: {
     tile: '#5b6472',
     paths: [
@@ -76,5 +86,6 @@ export const ENDPOINT_COLOR: Readonly<Record<EndpointGlyphKey, string>> = {
   gemini: '#2f5bd3',
   kimi: '#1783FF',
   minimax: '#F23F5D',
+  antigravity: '#4285F4',
   external: '#5b6472',
 };
