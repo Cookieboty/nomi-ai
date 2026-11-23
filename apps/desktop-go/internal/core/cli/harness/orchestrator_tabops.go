@@ -786,6 +786,9 @@ func (o *Orchestrator) defaultSource(backend, want string) string {
 		return "official"
 	}
 	if !isAccountBackend(backend) {
+		if builtin.LocalOnly(backend) {
+			return "local"
+		}
 		return "thirdParty"
 	}
 	if want == "local" {
@@ -1198,6 +1201,17 @@ func (o *Orchestrator) migrateLocalSignIn(tab *util.Obj) bool {
 		changed = true
 	}
 	b := str(tab, "backend")
+	if builtin.LocalOnly(b) {
+		if tab.Get("source") != "local" {
+			tab.Set("source", "local")
+			tab.Set("modelOverride", nil)
+			tab.Set("reasoningEffort", nil)
+			tab.Delete("modelByScope")
+			tab.Set("modelScope", anyOf(o.scopeOf(tab)))
+			changed = true
+		}
+		return changed
+	}
 	if isBuiltin(b) && !isAccountBackend(b) && tab.Get("source") != "thirdParty" {
 		tab.Set("source", "thirdParty")
 		tab.Set("modelOverride", nil)
@@ -1235,7 +1249,11 @@ func (o *Orchestrator) SetTabSource(id string, source any, model *string) *util.
 	if source != "local" && source != "official" && source != "thirdParty" {
 		throw(i18n.T("electron.common.unknown-source"))
 	}
-	if (source == "official" || source == "local") && isBuiltin(backend) && !isAccountBackend(backend) {
+	if builtin.LocalOnly(backend) {
+		if source != "local" {
+			throw(i18n.T("electron.common.cli-local-only", builtin.DisplayName(backend)))
+		}
+	} else if (source == "official" || source == "local") && isBuiltin(backend) && !isAccountBackend(backend) {
 		throw(i18n.T("electron.common.only-third-party-models", builtin.DisplayName(backend)))
 	}
 	if source == "thirdParty" && o.d.Gateway == nil {
@@ -1944,6 +1962,9 @@ func (o *Orchestrator) recycleLiveForOverride(tab *util.Obj) {
 // sourceOf = sourceOf。
 func (o *Orchestrator) sourceOf(tab *util.Obj) string {
 	b := str(tab, "backend")
+	if builtin.LocalOnly(b) {
+		return "local"
+	}
 	if isBuiltin(b) && tab.Get("source") == "thirdParty" && o.d.Gateway != nil {
 		return "thirdParty"
 	}

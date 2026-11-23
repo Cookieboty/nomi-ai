@@ -58,11 +58,14 @@ func UpdateRecipes(kind, bin, method, scope string) []UpdateRecipe {
 	if bin != "" && (su == "always" || su == "native" && (method == "native" || method == "unknown")) {
 		recipes = append(recipes, UpdateRecipe{Kind: kind, Via: "self", Argv: []string{bin, "update"}})
 	}
-	argv := []string{npmCommand(), "install", "-g", NpmPkg[kind] + "@latest"}
-	if scope == "user" {
-		argv = append(argv, "--prefix", UserPrefix())
+	if pkg := NpmPkg[kind]; pkg != "" {
+		argv := []string{npmCommand(), "install", "-g", pkg + "@latest"}
+		if scope == "user" {
+			argv = append(argv, "--prefix", UserPrefix())
+		}
+		recipes = append(recipes, UpdateRecipe{Kind: kind, Via: "npm", Argv: argv})
 	}
-	return append(recipes, UpdateRecipe{Kind: kind, Via: "npm", Argv: argv})
+	return recipes
 }
 
 var cmdSuffixRe = regexp.MustCompile(`(?i)\.cmd$`)
@@ -472,6 +475,9 @@ func (s *CliUpdateService) Environment() *util.Obj {
 	reqs := []any{}
 	for _, k := range builtin.Ordered {
 		need := CliMinNodeMajor[k]
+		if need <= 0 {
+			continue
+		}
 		reqs = append(reqs, util.NewObj("kind", k, "minNode", float64(need), "ok", isFinite(major) && major >= float64(need)))
 	}
 	return util.NewObj("nodeVersion", nz(nodeV), "nodePath", nz(nodeBin), "npmPath", nz(npm), "requirements", reqs)
@@ -588,7 +594,11 @@ func (s *CliUpdateService) refreshLatest() *jsrt.Promise[struct{}] {
 		for i, k := range latestKinds {
 			pkg := NpmPkg[k]
 			pr := jsrt.NewPromise[string]()
-			go func() { pr.Resolve(s.fetchLatest(pkg, 0)) }()
+			if pkg == "" {
+				pr.Resolve("")
+			} else {
+				go func() { pr.Resolve(s.fetchLatest(pkg, 0)) }()
+			}
 			vals[i] = pr
 		}
 		got := make([]string, len(vals))
@@ -731,9 +741,11 @@ func dshProblemObj(p *DshProblem) any {
 func emptyInspectRows() []*util.Obj {
 	out := make([]*util.Obj, 0, len(inspectKinds))
 	for _, kind := range inspectKinds {
+		hasNpm := NpmPkg[kind] != ""
+		installSup := IsUpdatable(kind) && hasNpm
 		out = append(out, util.NewObj("kind", kind, "path", nil, "version", nil, "latest", nil,
 			"installMethod", "unknown", "updateAvailable", false,
-			"updateSupported", IsUpdatable(kind), "installSupported", IsUpdatable(kind)))
+			"updateSupported", installSup, "installSupported", installSup))
 	}
 	return out
 }
@@ -761,18 +773,22 @@ func (s *CliUpdateService) rowsFromLocal(local []localProbe) ([]*util.Obj, error
 		if r.kind == "dsh" && r.bin != "" {
 			method = "npm"
 		}
-		sup := IsUpdatable(r.kind)
+		hasNpm := NpmPkg[r.kind] != ""
+		updatable := IsUpdatable(r.kind)
+		installSup := updatable && hasNpm
+		sup := updatable && (hasNpm || (r.bin != "" && builtin.SelfUpdate(r.kind) != ""))
 		ls, _ := lv.(string)
 		avail := sup && r.version != "" && ls != "" && IsNewer(ls, r.version)
 		// 假 CLI（2.0.0-mock）比正式版号旧，但不能拿 npm 安装盖掉它
 		if MockCliUpdate(r.bin, r.version) {
 			sup = false
+			installSup = false
 			avail = false
 			lv = nil
 		}
 		out = append(out, util.NewObj("kind", r.kind, "runtimeWarning", dshProblemObj(r.runtimeWarning),
 			"path", nz(r.bin), "version", nz(r.version), "latest", lv, "installMethod", method,
-			"updateAvailable", avail, "updateSupported", sup, "installSupported", sup))
+			"updateAvailable", avail, "updateSupported", sup, "installSupported", installSup))
 	}
 	return out, nil
 }
@@ -1036,6 +1052,22 @@ type cuPlanned struct {
 	recipes []UpdateRecipe
 }
 
+func cliInstallScript(kind string) string {
+	m := builtin.Manifest(kind)
+	if m == nil {
+		return ""
+	}
+	b, _ := m.Get("binary").(*util.Obj)
+	if b == nil {
+		return ""
+	}
+	in, _ := b.Get("install").(*util.Obj)
+	if in == nil {
+		return ""
+	}
+	return util.Str(in.Get("script"))
+}
+
 func (s *CliUpdateService) plan(kind, scope string) cuPlanned {
 	bin := ResolveCliBinAsync(kind)
 	mode := "install"
@@ -1047,6 +1079,15 @@ func (s *CliUpdateService) plan(kind, scope string) cuPlanned {
 		method = "npm"
 	}
 	recipes := UpdateRecipes(kind, bin, method, scope)
+	if len(recipes) == 0 {
+		blocker := i18n.T("ui.cli-monitor.install-via-official-script")
+		if script := cliInstallScript(kind); script != "" {
+			blocker += " " + script
+		}
+		plan := util.NewObj("kind", kind, "mode", mode, "scope", scope, "argv", []any{},
+			"command", "", "requirements", []any{}, "blockers", cuStrs([]string{blocker}))
+		return cuPlanned{plan: plan, argv: []string{}, command: "", mode: mode, blocks: []string{blocker}, recipes: recipes}
+	}
 	first := recipes[0]
 	checks := cuChecks{requirements: []any{}}
 	if first.Via == "npm" {

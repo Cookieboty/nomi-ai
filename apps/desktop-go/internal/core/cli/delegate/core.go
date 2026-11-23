@@ -263,6 +263,9 @@ func SanitizeDelegateSettings(raw any) *util.Obj {
 }
 
 func normalizeRunnerSourceForCli(cli, src string) string {
+	if builtin.LocalOnly(cli) {
+		return "local"
+	}
 	if !builtin.WithAccounts(cli) {
 		return "thirdParty"
 	}
@@ -501,6 +504,9 @@ func DeriveEffectiveRoutingWithEnv(settings *util.Obj, env RoutingEnv) (bool, []
 	pickHighSource := func(c string) (source, accountID, model string) {
 		if c == "" {
 			return "", "", ""
+		}
+		if builtin.LocalOnly(c) {
+			return "local", "", ""
 		}
 		if !builtin.WithAccounts(c) {
 			return "thirdParty", "", pickTpModel(c, false)

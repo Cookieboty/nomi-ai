@@ -116,3 +116,57 @@ func namedChoice(t *testing.T, choices []mainchat.RuntimeChoice, id string) main
 	t.Fatalf("choice %q missing from %+v", id, choices)
 	return mainchat.RuntimeChoice{}
 }
+
+func TestManagedAntigravityRegistrationAndChoice(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell executable LookPath fixture")
+	}
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "MUST-NOT-EXECUTE")
+	exe := filepath.Join(dir, "agy")
+	if err := os.WriteFile(exe, []byte("#!/bin/sh\necho executed > '"+marker+"'\nexit 19\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	t.Setenv("HOME", dir)
+	s := convstore.New(t.TempDir())
+	r := mainchat.New(s, nil)
+	defer r.Close()
+	p := migrationStore(t.TempDir())
+	project, err := p.Create("test", dir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	putConv(t, s, map[string]any{"id": "c", "backend": "nomi", "projectId": project.ID})
+	putConv(t, s, map[string]any{"id": "no-project", "backend": "nomi"})
+	wireManagedClaude(r, s, p)
+	if !slices.Contains(r.Available(), "antigravity") {
+		t.Fatal("installed agy executable not registered as antigravity managed runtime")
+	}
+	ready := namedChoice(t, r.Choices("c"), "antigravity")
+	if !ready.Available || ready.Status != "ready" {
+		t.Fatalf("antigravity ready choice = %+v", ready)
+	}
+	noProj := namedChoice(t, r.Choices("no-project"), "antigravity")
+	if noProj.Available || noProj.Status != "no-project" {
+		t.Fatalf("antigravity no-project choice = %+v", noProj)
+	}
+	if err := r.Adopt("c", "antigravity", true); err != nil {
+		t.Fatalf("adopt antigravity: %v", err)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatal("antigravity registration/adoption executed agy binary")
+	}
+
+	// 支持通过 NOMI_ANTIGRAVITY_BIN 显式定位（即使 PATH 为空）
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("NOMI_ANTIGRAVITY_BIN", exe)
+	s2 := convstore.New(t.TempDir())
+	r2 := mainchat.New(s2, nil)
+	defer r2.Close()
+	putConv(t, s2, map[string]any{"id": "c2", "backend": "nomi", "projectId": project.ID})
+	wireManagedClaude(r2, s2, p)
+	if !slices.Contains(r2.Available(), "antigravity") {
+		t.Fatal("antigravity not registered via NOMI_ANTIGRAVITY_BIN")
+	}
+}

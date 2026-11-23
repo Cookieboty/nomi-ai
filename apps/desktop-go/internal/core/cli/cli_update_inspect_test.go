@@ -347,3 +347,64 @@ func TestInspectKeepsProbeSnapshotWhenUpdateFinishes(t *testing.T) {
 		t.Fatalf("next inspect version = %v, want fresh probe 2.0.0", got)
 	}
 }
+
+func TestAntigravityNonNpmUpdateAndInspect(t *testing.T) {
+	// 1. 未安装时：无 UpdateRecipes，plan 不 panic 且返回官方脚本指引 blocker；Inspect 不支持自动安装/更新
+	if got := UpdateRecipes("antigravity", "", "unknown", "global"); len(got) != 0 {
+		t.Fatalf("missing antigravity recipes = %#v, want empty", got)
+	}
+	stubInspectBins(t, map[string]string{}, map[string]string{})
+	fetchNpmLatest = func(pkg string, _ int) string {
+		if pkg == "" {
+			t.Fatal("fetchNpmLatest called with empty pkg for non-npm CLI")
+		}
+		return "1.0.0"
+	}
+	s, err := NewCliUpdateService(CliUpdateOptions{Root: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	planned := jsrt.Call(func() cuPlanned { return s.plan("antigravity", "global") })
+	if len(planned.blocks) == 0 || !strings.Contains(planned.blocks[0], "antigravity.google/cli/install.sh") {
+		t.Fatalf("missing antigravity plan blockers = %v, want install script hint", planned.blocks)
+	}
+	rows := runInspect(t, s, false)
+	row := rowByKind(t, rows, "antigravity")
+	if row.Get("installSupported") != false || row.Get("updateSupported") != false {
+		t.Fatalf("missing antigravity installSupported=%v updateSupported=%v, want false/false",
+			row.Get("installSupported"), row.Get("updateSupported"))
+	}
+
+	// 2. 已安装时：UpdateRecipes 仅包含 `<bin> update` 自更新且在白名单内；Inspect 返回 updateSupported=true
+	recipes := UpdateRecipes("antigravity", "/usr/local/bin/agy", "native", "global")
+	if len(recipes) != 1 || recipes[0].Via != "self" || len(recipes[0].Argv) != 2 ||
+		recipes[0].Argv[0] != "/usr/local/bin/agy" || recipes[0].Argv[1] != "update" {
+		t.Fatalf("installed antigravity recipes = %#v, want single [agy update]", recipes)
+	}
+	if !IsAllowedUpdateArgv(recipes[0].Argv) {
+		t.Fatalf("expected %v to be allowed update argv", recipes[0].Argv)
+	}
+	stubInspectBins(t,
+		map[string]string{"antigravity": "/usr/local/bin/agy"},
+		map[string]string{"/usr/local/bin/agy": "1.2.3"},
+	)
+	s2, err := NewCliUpdateService(CliUpdateOptions{Root: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows2 := runInspect(t, s2, false)
+	row2 := rowByKind(t, rows2, "antigravity")
+	if row2.Get("installSupported") != false || row2.Get("updateSupported") != true {
+		t.Fatalf("installed antigravity installSupported=%v updateSupported=%v, want false/true",
+			row2.Get("installSupported"), row2.Get("updateSupported"))
+	}
+
+	// 3. 运行环境检测不将非 npm 原生 CLI 计入 Node.js 版本依赖
+	env := jsrt.Call(func() *util.Obj { return s2.Environment() })
+	reqs, _ := env.Get("requirements").([]any)
+	for _, r := range reqs {
+		if o, ok := r.(*util.Obj); ok && o.Get("kind") == "antigravity" {
+			t.Fatalf("non-npm antigravity should not appear in Node requirements: %v", util.Stringify(env))
+		}
+	}
+}

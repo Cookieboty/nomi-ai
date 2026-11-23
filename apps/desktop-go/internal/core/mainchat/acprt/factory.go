@@ -44,7 +44,15 @@ func DefaultConfig(backendID, cwd string) (Config, error) {
 		return Config{}, fmt.Errorf("%q is not a builtin ACP CLI", backendID)
 	}
 	var executable string
+	if envBin := strings.TrimSpace(os.Getenv(builtin.BinEnv(backendID))); envBin != "" {
+		if st, err := os.Stat(envBin); err == nil && !st.IsDir() {
+			executable = envBin
+		}
+	}
 	for _, bin := range builtin.Binaries(backendID) {
+		if executable != "" {
+			break
+		}
 		if bin == "" {
 			continue
 		}

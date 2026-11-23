@@ -32,19 +32,19 @@ type acpTurn struct {
 
 // acpLiveSession = AcpLiveSession。
 type acpLiveSession struct {
-	launchSig        string
-	backend          string // gemini | grok | 其余内置 ACP 助手
-	model, effort    *string
-	child            *gatedChild
-	driver           *drivers.AcpDriver
-	sessionID        *string
-	resumed          *bool
-	cwd              string
-	permissionMode   string
-	turn             *acpTurn
-	perms            map[string]func(allow *bool)
-	permOrder        []string
-	questions        map[string]func(*util.Obj, bool)
+	launchSig          string
+	backend            string // gemini | grok | 其余内置 ACP 助手
+	model, effort      *string
+	child              *gatedChild
+	driver             *drivers.AcpDriver
+	sessionID          *string
+	resumed            *bool
+	cwd                string
+	permissionMode     string
+	turn               *acpTurn
+	perms              map[string]func(allow *bool)
+	permOrder          []string
+	questions          map[string]func(*util.Obj, bool)
 	lastActivityAt     float64
 	ready              *jsrt.Promise[struct{}]
 	modeChange         *modeChange
@@ -295,6 +295,13 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 				// 没登录（ACP 的 auth_required）：内置的告诉用户去哪里登录，别只给一句英文报错
 				if acpAuthRequiredRe.MatchString(err.Error()) && builtin.WithAccounts(backend) {
 					return struct{}{}, errors.New(i18n.T("electron.common.cli-needs-sign-in", name))
+				}
+				if acpAuthRequiredRe.MatchString(err.Error()) && builtin.LocalOnly(backend) {
+					binName := backend
+					if bins := builtin.Binaries(backend); len(bins) > 0 && bins[0] != "" {
+						binName = bins[0]
+					}
+					return struct{}{}, errors.New(i18n.T("electron.common.cli-local-needs-sign-in", name, binName))
 				}
 				// Gemini 没有官方账号（Google 不再让 Gemini CLI 用个人账号登录）：指给能用的路
 				if acpAuthRequiredRe.MatchString(err.Error()) && backend == "gemini" {
