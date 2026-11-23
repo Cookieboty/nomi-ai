@@ -71,6 +71,22 @@ it.each([
   },
 );
 
+it('highlights YAML keys and unquoted values like markdown code blocks do', () => {
+  const text = 'name: demo\nruns:\n  using: node20\n  main: dist/index.js\n# note';
+  const { container } = render(
+    <CodeDocument
+      text={text}
+      language="yaml"
+      viewportRef={vi.fn()}
+      onRendered={vi.fn()}
+      onScroll={vi.fn()}
+    />,
+  );
+  expect(container.querySelector('.token.property')?.textContent).toBe('name');
+  expect(container.querySelector('.token.string')?.textContent).toBe('demo');
+  expect(container.querySelector('.token.comment')?.textContent).toContain('# note');
+});
+
 it('uses the real third-party Go grammar and preserves line ranges and searchable source text', async () => {
   const text = 'package main\n\nfunc main() {\n\tprintln("hello")\n}';
   const onRendered = vi.fn();

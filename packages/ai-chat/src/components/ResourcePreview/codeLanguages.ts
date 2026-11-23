@@ -15,7 +15,12 @@ import { sql } from '@codemirror/lang-sql';
 import { vue } from '@codemirror/lang-vue';
 import { xml } from '@codemirror/lang-xml';
 import { yaml } from '@codemirror/lang-yaml';
-import { StreamLanguage, type StreamParser } from '@codemirror/language';
+import {
+  HighlightStyle,
+  StreamLanguage,
+  syntaxHighlighting,
+  type StreamParser,
+} from '@codemirror/language';
 import { csharp, dart, kotlin, objectiveC, scala } from '@codemirror/legacy-modes/mode/clike';
 import { clojure } from '@codemirror/legacy-modes/mode/clojure';
 import { cmake } from '@codemirror/legacy-modes/mode/cmake';
@@ -38,11 +43,18 @@ import { stex } from '@codemirror/legacy-modes/mode/stex';
 import { swift } from '@codemirror/legacy-modes/mode/swift';
 import { toml } from '@codemirror/legacy-modes/mode/toml';
 import type { Extension } from '@codemirror/state';
+import { tags } from '@lezer/highlight';
 import { hcl } from 'codemirror-lang-hcl';
 import { makefile } from 'codemirror-lang-makefile';
 import { zig } from 'codemirror-lang-zig';
 
 const stream = (parser: StreamParser<unknown>) => () => StreamLanguage.define(parser);
+/** YAML 语法把未加引号的标量（含数字与布尔）标成 content，全局主题不为 content 着色：
+ * 它还会命中 XML 文本等其它语法，影响面太大。这里只随 YAML 语法补一条规则，裸值按
+ * 字符串色显示，与 Markdown 代码块里的 YAML 观感一致。 */
+const yamlContentHighlight = syntaxHighlighting(
+  HighlightStyle.define([{ tag: tags.content, class: 'token string' }]),
+);
 /** Grammars are bundled with this isolated preview module. Parsing and DOM drawing
  * remain incremental; switching workspaces or editor mode never fetches a grammar. */
 const languages: Record<string, () => Extension> = {
@@ -68,7 +80,7 @@ const languages: Record<string, () => Extension> = {
   vue,
   sql,
   markdown,
-  yaml,
+  yaml: () => [yaml(), yamlContentHighlight],
   hcl,
   makefile,
   zig,
