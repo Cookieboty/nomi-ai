@@ -5,6 +5,10 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ## Unreleased
 
+### Features
+
+- **preview:** 文件标签栏支持鼠标滚轮横向滚动
+
 ### Maintenance
 
 - **release:** empty changeset after archiving 2.4.2

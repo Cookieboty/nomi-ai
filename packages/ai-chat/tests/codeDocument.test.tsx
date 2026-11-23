@@ -152,6 +152,32 @@ it('recognizes language directly by file extension without rendering a syntax in
   expect(resourcePreviewClient.save).not.toHaveBeenCalled();
 });
 
+it('scrolls the file tab strip horizontally with a vertical mouse wheel', async () => {
+  vi.mocked(resourcePreviewClient.open).mockImplementation(async (_, path) => ({
+    ok: true,
+    kind: 'text',
+    path,
+    content: 'hello',
+  }));
+  render(<ResourcePreview {...props()} />);
+  await screen.findByTestId('resource-preview-source');
+  const strip = screen
+    .getByTestId('resource-preview-tabbar')
+    .querySelector<HTMLElement>('[role="tablist"]')!;
+  Object.defineProperty(strip, 'scrollWidth', { configurable: true, value: 400 });
+  Object.defineProperty(strip, 'clientWidth', { configurable: true, value: 100 });
+  strip.scrollLeft = 0;
+  const vertical = new WheelEvent('wheel', { deltaY: 120, cancelable: true, bubbles: true });
+  strip.dispatchEvent(vertical);
+  expect(strip.scrollLeft).toBe(120);
+  expect(vertical.defaultPrevented).toBe(true);
+  // 横向手势走原生滚动，不拦截
+  const horizontal = new WheelEvent('wheel', { deltaX: 120, cancelable: true, bubbles: true });
+  strip.dispatchEvent(horizontal);
+  expect(strip.scrollLeft).toBe(120);
+  expect(horizontal.defaultPrevented).toBe(false);
+});
+
 it('keeps the document and syntax tree when scroll handlers or host layout update', () => {
   const input = {
     text: 'package main\nfunc main() {}',
