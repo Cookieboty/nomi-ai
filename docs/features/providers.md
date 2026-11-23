@@ -10,7 +10,7 @@
 
 不用选协议：
 
-1. **选来源**：搜索预设（模型厂商、中转平台、本机服务，如 DeepSeek、Kimi、智谱 GLM、通义千问、MiniMax、OpenRouter、Ollama、LM Studio），或「自定义地址」。
+1. **选来源**：搜索预设（模型厂商、中转平台、本机服务，如 DeepSeek、Kimi、智谱 GLM、通义千问、MiniMax、OpenRouter、OpenCode Go、Ollama、LM Studio），或「自定义地址」。
 2. **填凭据**：可以一次粘贴多个 Key（每行一个，第一个是主 Key，其余按顺序作为备用）。自定义地址贴根地址、`/v1` 或完整的 `/v1/chat/completions` 都可以。服务不提供模型列表时，填一个测试用的模型。
 3. **检测并保存**：Nomi 同时检测 Anthropic Messages、OpenAI Responses、Chat Completions、Gemini 四种协议，逐条显示结果和失败原因，至少一种可用才能保存。拉到的模型默认启用预设推荐的那些，不能对话的模型（向量、语音等）列出来但不启用。
 

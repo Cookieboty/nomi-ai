@@ -18,6 +18,7 @@
   "ai-runtime.providers.preset-minimax": "MiniMax",
   "ai-runtime.providers.preset-xai": "xAI Grok",
   "ai-runtime.providers.preset-openrouter": "OpenRouter",
+  "ai-runtime.providers.preset-opencode-go": "OpenCode Go",
   "ai-runtime.providers.preset-siliconflow": "SiliconFlow 硅基流动",
   "ai-runtime.providers.preset-amux": "Amux AI",
   "ai-runtime.providers.preset-ollama": "Ollama（本地）",
@@ -27,6 +28,7 @@
   "ai-runtime.providers.hint-qwen": "请把 {WorkspaceId} 换成你的业务空间 ID",
   "ai-runtime.providers.hint-coding-plan": "编程套餐专用 Key",
   "ai-runtime.providers.hint-openrouter": "openrouter.ai · 用「获取模型」选择",
+  "ai-runtime.providers.hint-opencode-go": "opencode.ai/console · 需订阅 OpenCode Go，用「获取模型」选择",
   "ai-runtime.providers.hint-amux": "amux.ai · 用「获取模型」选择（ID 形如 vendor/model）",
   "ai-runtime.providers.hint-ollama": "本地服务 · 用「获取模型」列出已下载的模型",
   "ai-runtime.providers.hint-lmstudio": "本地服务 · 用「获取模型」列出已加载的模型"

@@ -530,6 +530,44 @@
     "checkedAt": "2026-10-21"
   },
   {
+    "id": "opencode-go",
+    "name": "ai-runtime.providers.preset-opencode-go",
+    "category": "platform",
+    "protocol": "openai-chat",
+    "baseURL": "https://opencode.ai/inference/go/openai/v1",
+    "defaultModel": "",
+    "models": [],
+    "requiresApiKey": true,
+    "websiteUrl": "https://opencode.ai/console/go",
+    "apiKeyUrl": "https://opencode.ai/console",
+    "docsUrl": "https://opencode.ai/docs/console/go",
+    "modelsEndpoint": true,
+    "verified": true,
+    "icon": "opencode",
+    "hint": "ai-runtime.providers.hint-opencode-go",
+    "keywords": ["opencode", "go", "zen"],
+    "urls": {
+      "chat": "https://opencode.ai/inference/go/openai/v1",
+      "responses": "https://opencode.ai/inference/go/openai/v1",
+      "messages": "https://opencode.ai/inference/go/anthropic/v1"
+    },
+    "modelMeta": [
+      {
+        "id": "kimi-k3"
+      },
+      {
+        "id": "glm-5.3"
+      },
+      {
+        "id": "minimax-m3"
+      }
+    ],
+    "quirks": {
+      "sessionHeader": "x-opencode-session"
+    },
+    "checkedAt": "2026-11-23"
+  },
+  {
     "id": "siliconflow",
     "name": "ai-runtime.providers.preset-siliconflow",
     "category": "platform",
