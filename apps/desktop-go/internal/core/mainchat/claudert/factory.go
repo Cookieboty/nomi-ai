@@ -24,6 +24,14 @@ type Config struct {
 	Model                      string
 	Effort                     string
 	PermissionMode             string
+	Source                     string
+	AccountID                  string
+	ExtraEnv                   map[string]string
+	StripEnv                   []string
+	ExtraArgs                  []string
+	ModelInConfig              bool
+	LaunchSig                  string
+	OnRelease                  func()
 	ComputerMcp                *ComputerMcpConfig
 }
 type Factory struct {
@@ -86,7 +94,25 @@ func (f *Factory) Target(id string) (cr.Target, error) {
 	if cfg.ComputerMcp != nil && cfg.ComputerMcp.Name != "" {
 		fingerprint += ":mcp:" + cfg.ComputerMcp.Name
 	}
-	identity := cr.NativeIdentity{DriverID: "claude", Transport: "official-stream-json", DriverVersion: "contract-2.1.318-v1", ResumeProtocol: "confirmed-warm-only-v1", Executable: cfg.Executable, Source: "official-default-login-unverified", AccountID: "config-source:" + cfg.ConfigDir, ConfigDir: cfg.ConfigDir, Cwd: cfg.Cwd, ConfigGen: 1, ExecutableSize: bin.Size(), ExecutableMtimeMS: bin.ModTime().UnixMilli(), LaunchFingerprint: fingerprint}
+	if cfg.LaunchSig != "" {
+		fingerprint += ":" + cfg.LaunchSig
+	}
+	source := cfg.Source
+	if source == "" {
+		source = "official-default-login-unverified"
+	}
+	accountID := "config-source:" + cfg.ConfigDir
+	switch cfg.Source {
+	case "official":
+		if cfg.AccountID != "" {
+			accountID = cfg.AccountID
+		}
+	case "thirdParty":
+		accountID = "thirdParty"
+	case "local":
+		accountID = "local"
+	}
+	identity := cr.NativeIdentity{DriverID: "claude", Transport: "official-stream-json", DriverVersion: "contract-2.1.318-v1", ResumeProtocol: "confirmed-warm-only-v1", Executable: cfg.Executable, Source: source, AccountID: accountID, ConfigDir: cfg.ConfigDir, Cwd: cfg.Cwd, ConfigGen: 1, ExecutableSize: bin.Size(), ExecutableMtimeMS: bin.ModTime().UnixMilli(), LaunchFingerprint: fingerprint}
 	// Executable replacement is a different compatibility key, never a native-ID overwrite.
 	identity.DriverVersion += fmt.Sprintf(":%d:%d", bin.Size(), bin.ModTime().UnixNano())
 	mode := cfg.PermissionMode
@@ -117,5 +143,8 @@ func (f *Factory) Release(id string) {
 	f.mu.Unlock()
 	for _, r := range runtimes {
 		r.close()
+		if r.config.OnRelease != nil {
+			r.config.OnRelease()
+		}
 	}
 }

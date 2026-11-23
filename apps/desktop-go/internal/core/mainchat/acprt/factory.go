@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -20,6 +21,84 @@ type Config struct {
 	BackendID, Executable, Cwd, ConfigDir string
 	Model                                 string
 	Effort                                string
+	PermissionMode                        string
+	Source                                string
+	AccountID                             string
+	ExtraEnv                              map[string]string
+	StripEnv                              []string
+	ExtraArgs                             []string
+	ModelInConfig                         bool
+	LaunchSig                             string
+	OnRelease                             func()
+}
+
+// PermissionModes 返回指定 ACP 底座支持的产品侧权限模式列表。
+func PermissionModes(backendID string) []string {
+	impl := builtin.Impl(backendID)
+	if impl == nil || impl.Permissions == nil || len(impl.Permissions.Supported) == 0 {
+		return []string{"ask"}
+	}
+	seen := make(map[string]struct{}, len(impl.Permissions.Supported))
+	modes := make([]string, 0, len(impl.Permissions.Supported))
+	for _, raw := range impl.Permissions.Supported {
+		mode := toManagedPermissionMode(raw)
+		if mode == "" {
+			continue
+		}
+		if _, ok := seen[mode]; ok {
+			continue
+		}
+		seen[mode] = struct{}{}
+		modes = append(modes, mode)
+	}
+	if len(modes) == 0 {
+		return []string{"ask"}
+	}
+	return modes
+}
+
+func toManagedPermissionMode(cliMode string) string {
+	switch cliMode {
+	case "plan", "deny":
+		return "deny"
+	case "manual", "ask":
+		return "ask"
+	case "acceptEdits":
+		return "acceptEdits"
+	case "auto":
+		return "auto"
+	case "bypass":
+		return "bypass"
+	default:
+		return ""
+	}
+}
+
+func toCliPermissionMode(managedMode string) string {
+	switch managedMode {
+	case "deny", "plan":
+		return "plan"
+	case "ask", "manual", "":
+		return "manual"
+	case "acceptEdits":
+		return "acceptEdits"
+	case "auto":
+		return "auto"
+	case "bypass":
+		return "bypass"
+	default:
+		return "manual"
+	}
+}
+
+func defaultPermissionMode(backendID string) string {
+	supported := PermissionModes(backendID)
+	for _, m := range supported {
+		if m == "ask" {
+			return "ask"
+		}
+	}
+	return supported[0]
 }
 
 type Factory struct {
@@ -49,6 +128,7 @@ func DefaultConfig(backendID, cwd string) (Config, error) {
 			executable = envBin
 		}
 	}
+	home, homeErr := os.UserHomeDir()
 	for _, bin := range builtin.Binaries(backendID) {
 		if executable != "" {
 			break
@@ -59,6 +139,34 @@ func DefaultConfig(backendID, cwd string) (Config, error) {
 		if p, err := exec.LookPath(bin); err == nil {
 			executable = p
 			break
+		}
+		if homeErr == nil && home != "" {
+			var candidates []string
+			if runtime.GOOS == "windows" {
+				localAppData := strings.TrimSpace(os.Getenv("LOCALAPPDATA"))
+				if localAppData == "" {
+					localAppData = filepath.Join(home, "AppData", "Local")
+				}
+				winDir := filepath.Join(localAppData, "agy", "bin")
+				candidates = []string{
+					filepath.Join(winDir, bin+".exe"),
+					filepath.Join(winDir, bin+".cmd"),
+					filepath.Join(winDir, bin),
+				}
+			} else {
+				candidates = []string{filepath.Join(home, ".local", "bin", bin)}
+			}
+			for _, candidate := range candidates {
+				st, err := os.Stat(candidate)
+				if err != nil || st.IsDir() {
+					continue
+				}
+				if runtime.GOOS != "windows" && st.Mode()&0o111 == 0 {
+					continue
+				}
+				executable = candidate
+				break
+			}
 		}
 	}
 	if executable == "" {
@@ -135,8 +243,13 @@ func (f *Factory) runtime(id string) (*Runtime, error) {
 	if err != nil || !dir.IsDir() {
 		return nil, fmt.Errorf("%s working directory unavailable", builtin.FullName(cfg.BackendID))
 	}
+	permMode := cfg.PermissionMode
+	if permMode == "" {
+		permMode = defaultPermissionMode(cfg.BackendID)
+	}
+	cfg.PermissionMode = permMode
 	identity := identityFor(cfg, bin, dir)
-	env := cr.CompatibilityKey{Model: cfg.Model, PermissionMode: "ask"}
+	env := cr.CompatibilityKey{Model: cfg.Model, PermissionMode: permMode}
 	if env.Model == "" {
 		env.Model = "cli-default"
 	}
@@ -156,14 +269,32 @@ func (f *Factory) runtime(id string) (*Runtime, error) {
 
 func identityFor(cfg Config, bin, dir os.FileInfo) cr.NativeIdentity {
 	fp := "acp-managed-v1:" + strings.Join(builtin.AcpArgs(cfg.BackendID), ",") + ":" + directoryIdentity(cfg.Cwd, dir)
+	if cfg.LaunchSig != "" {
+		fp += ":" + cfg.LaunchSig
+	}
+	source := cfg.Source
+	if source == "" {
+		source = "official-default-login-unverified"
+	}
+	accountID := "config-source:" + cfg.ConfigDir
+	switch cfg.Source {
+	case "official":
+		if cfg.AccountID != "" {
+			accountID = cfg.AccountID
+		}
+	case "thirdParty":
+		accountID = "thirdParty"
+	case "local":
+		accountID = "local"
+	}
 	identity := cr.NativeIdentity{
 		DriverID:          cfg.BackendID,
 		Transport:         "official-acp",
 		DriverVersion:     fmt.Sprintf("official-acp-adapter-v1:%d:%d", bin.Size(), bin.ModTime().UnixNano()),
 		ResumeProtocol:    "acp-session-load-exact-v1",
 		Executable:        cfg.Executable,
-		Source:            "official-default-login-unverified",
-		AccountID:         "config-source:" + cfg.ConfigDir,
+		Source:            source,
+		AccountID:         accountID,
 		ConfigDir:         cfg.ConfigDir,
 		Cwd:               cfg.Cwd,
 		ConfigGen:         1,
@@ -182,5 +313,8 @@ func (f *Factory) Release(id string) {
 	f.mu.Unlock()
 	for _, r := range runtimes {
 		r.close()
+		if r.config.OnRelease != nil {
+			r.config.OnRelease()
+		}
 	}
 }

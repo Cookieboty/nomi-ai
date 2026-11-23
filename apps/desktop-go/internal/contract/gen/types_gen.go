@@ -2347,11 +2347,33 @@ type ConversationsReplaceInput struct {
 	Preview  *string                        `json:"preview,omitempty"`
 }
 
+// ConversationsRuntimeAdoptInputSource 枚举：local | official | thirdParty
+type ConversationsRuntimeAdoptInputSource = string
+
+const (
+	ConversationsRuntimeAdoptInputSourceLocal      ConversationsRuntimeAdoptInputSource = "local"
+	ConversationsRuntimeAdoptInputSourceOfficial   ConversationsRuntimeAdoptInputSource = "official"
+	ConversationsRuntimeAdoptInputSourceThirdParty ConversationsRuntimeAdoptInputSource = "thirdParty"
+)
+
 type ConversationsRuntimeAdoptInput struct {
-	Id      string `json:"id"`
-	Backend string `json:"backend"`
-	Confirm bool   `json:"confirm"`
+	Id        string                                `json:"id"`
+	Backend   string                                `json:"backend"`
+	Confirm   bool                                  `json:"confirm"`
+	Source    *ConversationsRuntimeAdoptInputSource `json:"source,omitempty"`
+	Model     *string                               `json:"model,omitempty"`
+	Effort    *string                               `json:"effort,omitempty"`
+	AccountId *string                               `json:"accountId,omitempty"`
 }
+
+// ConversationsRuntimeAdoptOutputSource 枚举：local | official | thirdParty
+type ConversationsRuntimeAdoptOutputSource = string
+
+const (
+	ConversationsRuntimeAdoptOutputSourceLocal      ConversationsRuntimeAdoptOutputSource = "local"
+	ConversationsRuntimeAdoptOutputSourceOfficial   ConversationsRuntimeAdoptOutputSource = "official"
+	ConversationsRuntimeAdoptOutputSourceThirdParty ConversationsRuntimeAdoptOutputSource = "thirdParty"
+)
 
 // ConversationsRuntimeAdoptOutputPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
 type ConversationsRuntimeAdoptOutputPhase = string
@@ -2581,6 +2603,7 @@ type ConversationsRuntimeAdoptOutputCapabilities struct {
 type ConversationsRuntimeAdoptOutput struct {
 	Id              string                                               `json:"id"`
 	Backend         string                                               `json:"backend"`
+	Source          *ConversationsRuntimeAdoptOutputSource               `json:"source,omitempty"`
 	Generation      int64                                                `json:"generation"`
 	Phase           ConversationsRuntimeAdoptOutputPhase                 `json:"phase"`
 	Queued          int64                                                `json:"queued"`
@@ -2613,6 +2636,15 @@ type ConversationsRuntimeApproveInput struct {
 	ApprovalId string                                `json:"approvalId"`
 	Allow      bool                                  `json:"allow"`
 }
+
+// ConversationsRuntimeApproveOutputSource 枚举：local | official | thirdParty
+type ConversationsRuntimeApproveOutputSource = string
+
+const (
+	ConversationsRuntimeApproveOutputSourceLocal      ConversationsRuntimeApproveOutputSource = "local"
+	ConversationsRuntimeApproveOutputSourceOfficial   ConversationsRuntimeApproveOutputSource = "official"
+	ConversationsRuntimeApproveOutputSourceThirdParty ConversationsRuntimeApproveOutputSource = "thirdParty"
+)
 
 // ConversationsRuntimeApproveOutputPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
 type ConversationsRuntimeApproveOutputPhase = string
@@ -2842,6 +2874,7 @@ type ConversationsRuntimeApproveOutputCapabilities struct {
 type ConversationsRuntimeApproveOutput struct {
 	Id              string                                                 `json:"id"`
 	Backend         string                                                 `json:"backend"`
+	Source          *ConversationsRuntimeApproveOutputSource               `json:"source,omitempty"`
 	Generation      int64                                                  `json:"generation"`
 	Phase           ConversationsRuntimeApproveOutputPhase                 `json:"phase"`
 	Queued          int64                                                  `json:"queued"`
@@ -2867,6 +2900,15 @@ type ConversationsRuntimeCancelInput struct {
 	TurnId           *string `json:"turnId,omitempty"`
 	BeforeGeneration *int64  `json:"beforeGeneration,omitempty"`
 }
+
+// ConversationsRuntimeCancelOutputSource 枚举：local | official | thirdParty
+type ConversationsRuntimeCancelOutputSource = string
+
+const (
+	ConversationsRuntimeCancelOutputSourceLocal      ConversationsRuntimeCancelOutputSource = "local"
+	ConversationsRuntimeCancelOutputSourceOfficial   ConversationsRuntimeCancelOutputSource = "official"
+	ConversationsRuntimeCancelOutputSourceThirdParty ConversationsRuntimeCancelOutputSource = "thirdParty"
+)
 
 // ConversationsRuntimeCancelOutputPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
 type ConversationsRuntimeCancelOutputPhase = string
@@ -3096,6 +3138,7 @@ type ConversationsRuntimeCancelOutputCapabilities struct {
 type ConversationsRuntimeCancelOutput struct {
 	Id              string                                                `json:"id"`
 	Backend         string                                                `json:"backend"`
+	Source          *ConversationsRuntimeCancelOutputSource               `json:"source,omitempty"`
 	Generation      int64                                                 `json:"generation"`
 	Phase           ConversationsRuntimeCancelOutputPhase                 `json:"phase"`
 	Queued          int64                                                 `json:"queued"`
@@ -3276,6 +3319,7 @@ type ConversationsRuntimeCapabilitiesOutputChoicesItem struct {
 	Accounts        []ConversationsRuntimeCapabilitiesOutputChoicesItemAccountsItem `json:"accounts,omitempty"`
 	Models          []ConversationsRuntimeCapabilitiesOutputChoicesItemModelsItem   `json:"models,omitempty"`
 	PermissionModes []string                                                        `json:"permissionModes,omitempty"`
+	HasLocalLogin   *bool                                                           `json:"hasLocalLogin,omitempty"`
 	Bridges         *ConversationsRuntimeCapabilitiesOutputChoicesItemBridges       `json:"bridges,omitempty"`
 }
 
@@ -3291,6 +3335,15 @@ type ConversationsRuntimeEditInput struct {
 	MessageId string `json:"messageId"`
 	Text      string `json:"text"`
 }
+
+// ConversationsRuntimeEditOutputSource 枚举：local | official | thirdParty
+type ConversationsRuntimeEditOutputSource = string
+
+const (
+	ConversationsRuntimeEditOutputSourceLocal      ConversationsRuntimeEditOutputSource = "local"
+	ConversationsRuntimeEditOutputSourceOfficial   ConversationsRuntimeEditOutputSource = "official"
+	ConversationsRuntimeEditOutputSourceThirdParty ConversationsRuntimeEditOutputSource = "thirdParty"
+)
 
 // ConversationsRuntimeEditOutputPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
 type ConversationsRuntimeEditOutputPhase = string
@@ -3520,6 +3573,7 @@ type ConversationsRuntimeEditOutputCapabilities struct {
 type ConversationsRuntimeEditOutput struct {
 	Id              string                                              `json:"id"`
 	Backend         string                                              `json:"backend"`
+	Source          *ConversationsRuntimeEditOutputSource               `json:"source,omitempty"`
 	Generation      int64                                               `json:"generation"`
 	Phase           ConversationsRuntimeEditOutputPhase                 `json:"phase"`
 	Queued          int64                                               `json:"queued"`
@@ -3559,6 +3613,15 @@ type ConversationsRuntimeResolveInput struct {
 	Confirm            bool                                     `json:"confirm"`
 	ExpectedGeneration int64                                    `json:"expectedGeneration"`
 }
+
+// ConversationsRuntimeResolveOutputSource 枚举：local | official | thirdParty
+type ConversationsRuntimeResolveOutputSource = string
+
+const (
+	ConversationsRuntimeResolveOutputSourceLocal      ConversationsRuntimeResolveOutputSource = "local"
+	ConversationsRuntimeResolveOutputSourceOfficial   ConversationsRuntimeResolveOutputSource = "official"
+	ConversationsRuntimeResolveOutputSourceThirdParty ConversationsRuntimeResolveOutputSource = "thirdParty"
+)
 
 // ConversationsRuntimeResolveOutputPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
 type ConversationsRuntimeResolveOutputPhase = string
@@ -3788,6 +3851,7 @@ type ConversationsRuntimeResolveOutputCapabilities struct {
 type ConversationsRuntimeResolveOutput struct {
 	Id              string                                                 `json:"id"`
 	Backend         string                                                 `json:"backend"`
+	Source          *ConversationsRuntimeResolveOutputSource               `json:"source,omitempty"`
 	Generation      int64                                                  `json:"generation"`
 	Phase           ConversationsRuntimeResolveOutputPhase                 `json:"phase"`
 	Queued          int64                                                  `json:"queued"`
@@ -3812,6 +3876,15 @@ type ConversationsRuntimeSelectInput struct {
 	Id      string `json:"id"`
 	Backend string `json:"backend"`
 }
+
+// ConversationsRuntimeSelectOutputSource 枚举：local | official | thirdParty
+type ConversationsRuntimeSelectOutputSource = string
+
+const (
+	ConversationsRuntimeSelectOutputSourceLocal      ConversationsRuntimeSelectOutputSource = "local"
+	ConversationsRuntimeSelectOutputSourceOfficial   ConversationsRuntimeSelectOutputSource = "official"
+	ConversationsRuntimeSelectOutputSourceThirdParty ConversationsRuntimeSelectOutputSource = "thirdParty"
+)
 
 // ConversationsRuntimeSelectOutputPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
 type ConversationsRuntimeSelectOutputPhase = string
@@ -4041,6 +4114,7 @@ type ConversationsRuntimeSelectOutputCapabilities struct {
 type ConversationsRuntimeSelectOutput struct {
 	Id              string                                                `json:"id"`
 	Backend         string                                                `json:"backend"`
+	Source          *ConversationsRuntimeSelectOutputSource               `json:"source,omitempty"`
 	Generation      int64                                                 `json:"generation"`
 	Phase           ConversationsRuntimeSelectOutputPhase                 `json:"phase"`
 	Queued          int64                                                 `json:"queued"`
@@ -4080,6 +4154,15 @@ type ConversationsRuntimeSendOutput struct {
 type ConversationsRuntimeStateInput struct {
 	Id string `json:"id"`
 }
+
+// ConversationsRuntimeStateOutputSource 枚举：local | official | thirdParty
+type ConversationsRuntimeStateOutputSource = string
+
+const (
+	ConversationsRuntimeStateOutputSourceLocal      ConversationsRuntimeStateOutputSource = "local"
+	ConversationsRuntimeStateOutputSourceOfficial   ConversationsRuntimeStateOutputSource = "official"
+	ConversationsRuntimeStateOutputSourceThirdParty ConversationsRuntimeStateOutputSource = "thirdParty"
+)
 
 // ConversationsRuntimeStateOutputPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
 type ConversationsRuntimeStateOutputPhase = string
@@ -4309,6 +4392,7 @@ type ConversationsRuntimeStateOutputCapabilities struct {
 type ConversationsRuntimeStateOutput struct {
 	Id              string                                               `json:"id"`
 	Backend         string                                               `json:"backend"`
+	Source          *ConversationsRuntimeStateOutputSource               `json:"source,omitempty"`
 	Generation      int64                                                `json:"generation"`
 	Phase           ConversationsRuntimeStateOutputPhase                 `json:"phase"`
 	Queued          int64                                                `json:"queued"`
@@ -4329,17 +4413,36 @@ type ConversationsRuntimeStateOutput struct {
 	Capabilities    ConversationsRuntimeStateOutputCapabilities          `json:"capabilities"`
 }
 
+// ConversationsRuntimeSwitchInputSource 枚举：local | official | thirdParty
+type ConversationsRuntimeSwitchInputSource = string
+
+const (
+	ConversationsRuntimeSwitchInputSourceLocal      ConversationsRuntimeSwitchInputSource = "local"
+	ConversationsRuntimeSwitchInputSourceOfficial   ConversationsRuntimeSwitchInputSource = "official"
+	ConversationsRuntimeSwitchInputSourceThirdParty ConversationsRuntimeSwitchInputSource = "thirdParty"
+)
+
 type ConversationsRuntimeSwitchInput struct {
-	Id                 string  `json:"id"`
-	Backend            string  `json:"backend"`
-	Confirm            bool    `json:"confirm"`
-	ConfirmUnsafe      *bool   `json:"confirmUnsafe,omitempty"`
-	ExpectedGeneration *int64  `json:"expectedGeneration,omitempty"`
-	Model              *string `json:"model,omitempty"`
-	Effort             *string `json:"effort,omitempty"`
-	PermissionMode     *string `json:"permissionMode,omitempty"`
-	AccountId          *string `json:"accountId,omitempty"`
+	Id                 string                                 `json:"id"`
+	Backend            string                                 `json:"backend"`
+	Confirm            bool                                   `json:"confirm"`
+	ConfirmUnsafe      *bool                                  `json:"confirmUnsafe,omitempty"`
+	ExpectedGeneration *int64                                 `json:"expectedGeneration,omitempty"`
+	Source             *ConversationsRuntimeSwitchInputSource `json:"source,omitempty"`
+	Model              *string                                `json:"model,omitempty"`
+	Effort             *string                                `json:"effort,omitempty"`
+	PermissionMode     *string                                `json:"permissionMode,omitempty"`
+	AccountId          *string                                `json:"accountId,omitempty"`
 }
+
+// ConversationsRuntimeSwitchOutputSource 枚举：local | official | thirdParty
+type ConversationsRuntimeSwitchOutputSource = string
+
+const (
+	ConversationsRuntimeSwitchOutputSourceLocal      ConversationsRuntimeSwitchOutputSource = "local"
+	ConversationsRuntimeSwitchOutputSourceOfficial   ConversationsRuntimeSwitchOutputSource = "official"
+	ConversationsRuntimeSwitchOutputSourceThirdParty ConversationsRuntimeSwitchOutputSource = "thirdParty"
+)
 
 // ConversationsRuntimeSwitchOutputPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
 type ConversationsRuntimeSwitchOutputPhase = string
@@ -4569,6 +4672,7 @@ type ConversationsRuntimeSwitchOutputCapabilities struct {
 type ConversationsRuntimeSwitchOutput struct {
 	Id              string                                                `json:"id"`
 	Backend         string                                                `json:"backend"`
+	Source          *ConversationsRuntimeSwitchOutputSource               `json:"source,omitempty"`
 	Generation      int64                                                 `json:"generation"`
 	Phase           ConversationsRuntimeSwitchOutputPhase                 `json:"phase"`
 	Queued          int64                                                 `json:"queued"`
@@ -14193,6 +14297,15 @@ type EventConversationsChanged struct {
 	Index  bool     `json:"index"`
 }
 
+// EventConversationsRuntimeChangedSource 枚举：local | official | thirdParty
+type EventConversationsRuntimeChangedSource = string
+
+const (
+	EventConversationsRuntimeChangedSourceLocal      EventConversationsRuntimeChangedSource = "local"
+	EventConversationsRuntimeChangedSourceOfficial   EventConversationsRuntimeChangedSource = "official"
+	EventConversationsRuntimeChangedSourceThirdParty EventConversationsRuntimeChangedSource = "thirdParty"
+)
+
 // EventConversationsRuntimeChangedPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
 type EventConversationsRuntimeChangedPhase = string
 
@@ -14421,6 +14534,7 @@ type EventConversationsRuntimeChangedCapabilities struct {
 type EventConversationsRuntimeChanged struct {
 	Id              string                                                `json:"id"`
 	Backend         string                                                `json:"backend"`
+	Source          *EventConversationsRuntimeChangedSource               `json:"source,omitempty"`
 	Generation      int64                                                 `json:"generation"`
 	Phase           EventConversationsRuntimeChangedPhase                 `json:"phase"`
 	Queued          int64                                                 `json:"queued"`

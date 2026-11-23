@@ -37,16 +37,33 @@ type worker struct {
 // go before it. Nothing enables computer use, writable roots or auto review.
 func officialArgs(cfg Config) []string {
 	model := cfg.Model
+	if model == "cli-default" {
+		model = ""
+	}
+	if cfg.Source == "thirdParty" {
+		args := append([]string{}, OfficialAppServerArgs[:len(OfficialAppServerArgs)-1]...)
+		args = append(args, cfg.ExtraArgs...)
+		if model != "" && !cfg.ModelInConfig {
+			args = append(args, "-c", `model="`+model+`"`)
+		}
+		args = append(args, OfficialAppServerArgs[len(OfficialAppServerArgs)-1])
+		return args
+	}
 	var modelPtr *string
 	if model != "" {
 		modelPtr = &model
 	}
-	launch := codex.OfficialLaunch(clisdk.LaunchContext{Cwd: cfg.Cwd, PermissionMode: "manual", Model: modelPtr, AccountDir: &cfg.ConfigDir})
+	var accountDir *string
+	if cfg.Source != "local" && cfg.ConfigDir != "" {
+		accountDir = &cfg.ConfigDir
+	}
+	launch := codex.OfficialLaunch(clisdk.LaunchContext{Cwd: cfg.Cwd, PermissionMode: "manual", Model: modelPtr, AccountDir: accountDir})
 	args := append([]string{}, OfficialAppServerArgs[:len(OfficialAppServerArgs)-1]...)
 	if cfg.Effort != "" {
 		args = append(args, "-c", `model_reasoning_effort="`+cfg.Effort+`"`)
 	}
 	args = append(args, launch.Args...)
+	args = append(args, cfg.ExtraArgs...)
 	args = append(args, OfficialAppServerArgs[len(OfficialAppServerArgs)-1])
 	return args
 }
@@ -58,21 +75,43 @@ var strippedEnv = []string{"OPENAI_API_KEY", "OPENAI_BASE_URL", "CODEX_API_KEY",
 // officialEnv is the child environment: host env minus stripped keys, plus
 // the OfficialLaunch env (CODEX_HOME = the bound config dir).
 func officialEnv(cfg Config) []string {
-	model := cfg.Model
-	var modelPtr *string
-	if model != "" {
-		modelPtr = &model
-	}
-	launch := codex.OfficialLaunch(clisdk.LaunchContext{Cwd: cfg.Cwd, PermissionMode: "manual", Model: modelPtr, AccountDir: &cfg.ConfigDir})
 	drop := map[string]bool{}
-	for _, k := range strippedEnv {
+	for _, k := range cfg.StripEnv {
 		drop[k] = true
 	}
-	for _, k := range launch.Strip {
+	for k := range cfg.ExtraEnv {
 		drop[k] = true
 	}
-	for _, k := range launch.Env.Keys() {
-		drop[k] = true
+	var launchEnv *util.Obj
+	if cfg.Source != "thirdParty" {
+		model := cfg.Model
+		if model == "cli-default" {
+			model = ""
+		}
+		var modelPtr *string
+		if model != "" {
+			modelPtr = &model
+		}
+		var accountDir *string
+		if cfg.Source != "local" && cfg.ConfigDir != "" {
+			accountDir = &cfg.ConfigDir
+		}
+		launch := codex.OfficialLaunch(clisdk.LaunchContext{Cwd: cfg.Cwd, PermissionMode: "manual", Model: modelPtr, AccountDir: accountDir})
+		for _, k := range strippedEnv {
+			if cfg.Source == "local" && k == "CODEX_HOME" {
+				continue
+			}
+			drop[k] = true
+		}
+		for _, k := range launch.Strip {
+			drop[k] = true
+		}
+		if launch.Env != nil {
+			for _, k := range launch.Env.Keys() {
+				drop[k] = true
+			}
+			launchEnv = launch.Env
+		}
 	}
 	env := []string{}
 	for _, entry := range os.Environ() {
@@ -81,8 +120,15 @@ func officialEnv(cfg Config) []string {
 			env = append(env, entry)
 		}
 	}
-	for _, k := range launch.Env.Keys() {
-		env = append(env, k+"="+util.Str(launch.Env.Get(k)))
+	if launchEnv != nil {
+		for _, k := range launchEnv.Keys() {
+			if _, over := cfg.ExtraEnv[k]; !over {
+				env = append(env, k+"="+util.Str(launchEnv.Get(k)))
+			}
+		}
+	}
+	for k, v := range cfg.ExtraEnv {
+		env = append(env, k+"="+v)
 	}
 	return env
 }

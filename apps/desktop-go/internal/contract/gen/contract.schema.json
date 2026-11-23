@@ -9337,6 +9337,29 @@
      "confirm": {
       "type": "boolean",
       "const": true
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "local",
+       "official",
+       "thirdParty"
+      ]
+     },
+     "model": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+     },
+     "effort": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+     },
+     "accountId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
      }
     },
     "required": [
@@ -9355,6 +9378,14 @@
      },
      "backend": {
       "type": "string"
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "local",
+       "official",
+       "thirdParty"
+      ]
      },
      "generation": {
       "type": "integer",
@@ -9915,6 +9946,14 @@
      "backend": {
       "type": "string"
      },
+     "source": {
+      "type": "string",
+      "enum": [
+       "local",
+       "official",
+       "thirdParty"
+      ]
+     },
      "generation": {
       "type": "integer",
       "minimum": 0,
@@ -10449,6 +10488,14 @@
      },
      "backend": {
       "type": "string"
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "local",
+       "official",
+       "thirdParty"
+      ]
      },
      "generation": {
       "type": "integer",
@@ -11066,6 +11113,9 @@
           "type": "string"
          }
         },
+        "hasLocalLogin": {
+         "type": "boolean"
+        },
         "bridges": {
          "type": "object",
          "properties": {
@@ -11289,6 +11339,14 @@
      },
      "backend": {
       "type": "string"
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "local",
+       "official",
+       "thirdParty"
+      ]
      },
      "generation": {
       "type": "integer",
@@ -11860,6 +11918,14 @@
      "backend": {
       "type": "string"
      },
+     "source": {
+      "type": "string",
+      "enum": [
+       "local",
+       "official",
+       "thirdParty"
+      ]
+     },
      "generation": {
       "type": "integer",
       "minimum": 0,
@@ -12392,6 +12458,14 @@
      },
      "backend": {
       "type": "string"
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "local",
+       "official",
+       "thirdParty"
+      ]
      },
      "generation": {
       "type": "integer",
@@ -12998,6 +13072,14 @@
      "backend": {
       "type": "string"
      },
+     "source": {
+      "type": "string",
+      "enum": [
+       "local",
+       "official",
+       "thirdParty"
+      ]
+     },
      "generation": {
       "type": "integer",
       "minimum": 0,
@@ -13526,6 +13608,14 @@
       "minimum": 0,
       "maximum": 9007199254740991
      },
+     "source": {
+      "type": "string",
+      "enum": [
+       "local",
+       "official",
+       "thirdParty"
+      ]
+     },
      "model": {
       "type": "string",
       "minLength": 1,
@@ -13563,6 +13653,14 @@
      },
      "backend": {
       "type": "string"
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "local",
+       "official",
+       "thirdParty"
+      ]
      },
      "generation": {
       "type": "integer",
@@ -44226,6 +44324,14 @@
     },
     "backend": {
      "type": "string"
+    },
+    "source": {
+     "type": "string",
+     "enum": [
+      "local",
+      "official",
+      "thirdParty"
+     ]
     },
     "generation": {
      "type": "integer",

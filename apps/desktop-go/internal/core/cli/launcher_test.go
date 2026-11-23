@@ -318,3 +318,112 @@ func TestLauncherProbeResolvesBareNameOnPosixPath(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestDetectLocalLoginAllBuiltins(t *testing.T) {
+	// 1. 全空临时主目录下，所有内置 CLI 均应返回 false，不误读宿主机环境变量
+	emptyHome := t.TempDir()
+	for _, kind := range []string{"claude", "codex", "grok", "kimi", "minimax", "gemini", "dsh", "antigravity", "unknown"} {
+		if DetectLocalLogin(kind, emptyHome) {
+			t.Fatalf("empty home DetectLocalLogin(%q) = true, want false", kind)
+		}
+	}
+
+	// 2. Gemini：只有 settings.json 不视为已登录；oauth_creds.json / active google_accounts.json / 非空 .env 才视为已登录
+	gemHome := t.TempDir()
+	gemDir := filepath.Join(gemHome, ".gemini")
+	if err := os.MkdirAll(gemDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(gemDir, "settings.json"), []byte(`{"theme":"dark"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if DetectLocalLogin("gemini", gemHome) {
+		t.Fatal("gemini settings.json alone must not be detected as logged in")
+	}
+	if err := os.WriteFile(filepath.Join(gemDir, "oauth_creds.json"), []byte(`{}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if DetectLocalLogin("gemini", gemHome) {
+		t.Fatal("gemini empty oauth_creds.json must not be detected as logged in")
+	}
+	if err := os.WriteFile(filepath.Join(gemDir, "oauth_creds.json"), []byte(`{"access_token":"ok"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !DetectLocalLogin("gemini", gemHome) {
+		t.Fatal("gemini non-empty oauth_creds.json should be detected as logged in")
+	}
+
+	gemAccountsHome := t.TempDir()
+	gemAccDir := filepath.Join(gemAccountsHome, ".gemini")
+	if err := os.MkdirAll(gemAccDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(gemAccDir, "google_accounts.json"), []byte(`{"active":"user@example.com"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !DetectLocalLogin("gemini", gemAccountsHome) {
+		t.Fatal("gemini active google_accounts.json should be detected as logged in")
+	}
+
+	gemEnvHome := t.TempDir()
+	gemEnvDir := filepath.Join(gemEnvHome, ".gemini")
+	if err := os.MkdirAll(gemEnvDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(gemEnvDir, ".env"), []byte("# comment\nexport GEMINI_API_KEY=\"\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if DetectLocalLogin("gemini", gemEnvHome) {
+		t.Fatal("gemini blank .env value must not be detected as logged in")
+	}
+	if err := os.WriteFile(filepath.Join(gemEnvDir, ".env"), []byte("export GEMINI_API_KEY=\"AIza-test\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !DetectLocalLogin("gemini", gemEnvHome) {
+		t.Fatal("gemini populated .env key should be detected as logged in")
+	}
+
+	// 3. dsh：仅注释/空数组 `[]` 的 cordis.patch.yml 为 false；auth.json 或实质 patch 内容为 true
+	dshHome := t.TempDir()
+	dshDir := filepath.Join(dshHome, ".dsh")
+	if err := os.MkdirAll(dshDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dshDir, "cordis.patch.yml"), []byte("# empty\n[]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if DetectLocalLogin("dsh", dshHome) {
+		t.Fatal("dsh empty [] cordis.patch.yml must not be detected as logged in")
+	}
+	if err := os.WriteFile(filepath.Join(dshDir, "cordis.patch.yml"), []byte("- id: agent-default-model\n  config:\n    provider: deepseek\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !DetectLocalLogin("dsh", dshHome) {
+		t.Fatal("dsh non-empty cordis.patch.yml should be detected as logged in")
+	}
+
+	dshAuthHome := t.TempDir()
+	dshAuthDir := filepath.Join(dshAuthHome, ".dsh")
+	if err := os.MkdirAll(dshAuthDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dshAuthDir, "auth.json"), []byte(`{"token":"ds-tok"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !DetectLocalLogin("dsh", dshAuthHome) {
+		t.Fatal("dsh non-empty auth.json should be detected as logged in")
+	}
+
+	// 4. Antigravity：自身凭据目录（或回退到 Gemini 凭据）存在 oauth_creds.json 时为 true
+	agyHome := t.TempDir()
+	agyCliDir := filepath.Join(agyHome, ".gemini", "antigravity-cli")
+	if err := os.MkdirAll(agyCliDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(agyCliDir, "oauth_creds.json"), []byte(`{"refresh_token":"agy-rt"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !DetectLocalLogin("antigravity", agyHome) {
+		t.Fatal("antigravity non-empty oauth_creds.json should be detected as logged in")
+	}
+}

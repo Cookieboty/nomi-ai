@@ -30,11 +30,13 @@ type worker struct {
 func (r *Runtime) spawn(sid string, resume bool) *worker {
 	cfg := r.config
 	model := cfg.Model
+	if model == "cli-default" {
+		model = ""
+	}
 	var modelPtr *string
 	if model != "" {
 		modelPtr = &model
 	}
-	launch := claude.OfficialLaunch(clisdk.LaunchContext{Cwd: cfg.Cwd, PermissionMode: "manual", Model: modelPtr, AccountDir: &cfg.ConfigDir})
 	// --bare would DISABLE subscription login, so it must NOT be used here.
 	// These documented flags preserve official login while removing discovery
 	// and limiting the native loop. No allowedTools/bypass permissions are added.
@@ -47,21 +49,44 @@ func (r *Runtime) spawn(sid string, resume bool) *worker {
 		})
 		args = []string{"-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--permission-prompt-tool", "stdio", "--replay-user-messages", "--safe-mode", "--restricted", "--disable-slash-commands", "--setting-sources", "", "--settings", `{"disableAllHooks":true}`, "--tools", "Read,Glob,Grep", "--strict-mcp-config", "--mcp-config", string(mcpCfg), "--allowedTools", "mcp__" + cfg.ComputerMcp.Name}
 	}
-	if cfg.Effort != "" {
-		args = append(args, "--effort", cfg.Effort)
+	stripped := map[string]bool{}
+	for _, k := range cfg.StripEnv {
+		stripped[k] = true
 	}
-	args = append(args, launch.Args...)
+	for k := range cfg.ExtraEnv {
+		stripped[k] = true
+	}
+	var launchEnv *util.Obj
+	if cfg.Source == "thirdParty" {
+		args = append(args, cfg.ExtraArgs...)
+		if model != "" && !cfg.ModelInConfig {
+			args = append(args, "--model", model)
+		}
+	} else {
+		var accountDir *string
+		if cfg.Source != "local" && cfg.ConfigDir != "" {
+			accountDir = &cfg.ConfigDir
+		}
+		launch := claude.OfficialLaunch(clisdk.LaunchContext{Cwd: cfg.Cwd, PermissionMode: "manual", Model: modelPtr, AccountDir: accountDir})
+		if cfg.Effort != "" {
+			args = append(args, "--effort", cfg.Effort)
+		}
+		args = append(args, launch.Args...)
+		args = append(args, cfg.ExtraArgs...)
+		for _, k := range launch.Strip {
+			stripped[k] = true
+		}
+		if launch.Env != nil {
+			for _, k := range launch.Env.Keys() {
+				stripped[k] = true
+			}
+			launchEnv = launch.Env
+		}
+	}
 	if resume {
 		args = append(args, "--resume", sid)
 	} else {
 		args = append(args, "--session-id", sid)
-	}
-	stripped := map[string]bool{}
-	for _, k := range launch.Strip {
-		stripped[k] = true
-	}
-	for _, k := range launch.Env.Keys() {
-		stripped[k] = true
 	}
 	env := []string{}
 	for _, entry := range os.Environ() {
@@ -70,8 +95,15 @@ func (r *Runtime) spawn(sid string, resume bool) *worker {
 			env = append(env, entry)
 		}
 	}
-	for _, k := range launch.Env.Keys() {
-		env = append(env, k+"="+util.Str(launch.Env.Get(k)))
+	if launchEnv != nil {
+		for _, k := range launchEnv.Keys() {
+			if _, over := cfg.ExtraEnv[k]; !over {
+				env = append(env, k+"="+util.Str(launchEnv.Get(k)))
+			}
+		}
+	}
+	for k, v := range cfg.ExtraEnv {
+		env = append(env, k+"="+v)
 	}
 	w := &worker{sid: sid, closed: make(chan struct{})}
 	w.child = nodeproc.Spawn(cfg.Executable, args, nodeproc.Options{Cwd: cfg.Cwd, Env: env, Detached: true})

@@ -49,7 +49,7 @@ func (r *Runtime) Capabilities() cr.Capabilities {
 		Resume:          false,
 		Cancel:          true,
 		Approval:        false,
-		PermissionModes: []string{"deny"},
+		PermissionModes: PermissionModes(r.config.BackendID),
 		Budget:          60000,
 		Degraded: []string{
 			"Experimental headless " + name + " profile: executable present; version and provider configuration not probed",
@@ -98,24 +98,39 @@ func leadSpace(p string) string {
 
 func execEnv(cfg Config) []string {
 	homeEnv := builtin.HomeEnv(cfg.BackendID)
+	drop := map[string]bool{"DSH_PERMISSION_MODE": true}
+	if homeEnv != "" && cfg.Source != "local" {
+		drop[homeEnv] = true
+	}
+	for _, k := range cfg.StripEnv {
+		drop[k] = true
+	}
+	for k := range cfg.ExtraEnv {
+		drop[k] = true
+	}
 	env := []string{}
 	for _, entry := range os.Environ() {
 		key, _, _ := strings.Cut(entry, "=")
-		if key == "DSH_PERMISSION_MODE" || (homeEnv != "" && key == homeEnv) {
+		if drop[key] {
 			continue
 		}
 		env = append(env, entry)
 	}
-	env = append(env, "DSH_PERMISSION_MODE=read-only")
-	if homeEnv != "" && cfg.ConfigDir != "" {
-		env = append(env, homeEnv+"="+cfg.ConfigDir)
+	env = append(env, "DSH_PERMISSION_MODE="+dshPermissionEnv(cfg.PermissionMode))
+	if homeEnv != "" && cfg.ConfigDir != "" && cfg.Source != "thirdParty" && cfg.Source != "local" {
+		if _, ok := cfg.ExtraEnv[homeEnv]; !ok {
+			env = append(env, homeEnv+"="+cfg.ConfigDir)
+		}
+	}
+	for k, v := range cfg.ExtraEnv {
+		env = append(env, k+"="+v)
 	}
 	return env
 }
 
 func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr.Event) error) cr.SubmitResult {
 	cfg := r.config
-	args := []string{"--profile", "headless", "--json", leadSpace(q.Plan.Payload)}
+	args := append(append([]string{"--profile", "headless"}, cfg.ExtraArgs...), "--json", leadSpace(q.Plan.Payload))
 	env := execEnv(cfg)
 	var w *worker
 	events := make(chan cr.Event, 32)

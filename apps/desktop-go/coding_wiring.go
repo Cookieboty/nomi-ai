@@ -153,10 +153,14 @@ var _ delegate.Harness = delegateHarness{}
 // 账号（AccountService）提供 history 的 accountLabel / sessionAccount；网关提供 delegate 的 harnessGateway（defaults / models）
 // 与 history 的 gatewaySession = gateway.servedSession（gw 为 nil 时依赖为空，可选）；
 // history.delete permanently removes validated native session files after process exit.
-func wireCoding(router *contract.Router, userData string, plugins *cli.CliPluginHost, d *desktop.Service, gw *gwstore.Service, reg tools.Registry, taskSvc *tasks.Service) {
+func wireCoding(router *contract.Router, userData string, plugins *cli.CliPluginHost, d *desktop.Service, gw *gwstore.Service, reg tools.Registry, taskSvc *tasks.Service, onCliUpdated ...func(string)) {
 	o, acc := harnessOrch, harnessAccounts
 	var updates *cli.CliUpdateService
 	var err error
+	var refreshManaged func(string)
+	if len(onCliUpdated) > 0 {
+		refreshManaged = onCliUpdated[0]
+	}
 	jsrt.Run(func() {
 		updates, err = cli.NewCliUpdateService(cli.CliUpdateOptions{
 			Root: filepath.Join(userData, "cli-update"), Logger: stdLogger{}, Events: hostEvents{router},
@@ -170,7 +174,12 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 					return o.BusyTurns(kind), nil
 				})
 			},
-			OnUpdated: func(string, string) { plugins.RefreshVersions() },
+			OnUpdated: func(kind, _ string) {
+				plugins.RefreshVersions()
+				if refreshManaged != nil {
+					refreshManaged(kind)
+				}
+			},
 		})
 	})
 	if err != nil {

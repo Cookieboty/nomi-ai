@@ -234,7 +234,7 @@ func validateTargetState(t TargetState) error {
 	supported := false
 	for _, mode := range t.Capabilities.PermissionModes {
 		switch mode {
-		case "ask", "acceptEdits", "deny", "bypass":
+		case "ask", "acceptEdits", "auto", "deny", "bypass":
 		default:
 			return ErrPermission
 		}

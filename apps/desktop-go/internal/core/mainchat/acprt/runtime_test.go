@@ -79,12 +79,27 @@ func TestHelperAcpProcess(t *testing.T) {
 				continue
 			}
 			counter++
+			availModes := []any{map[string]any{"id": "default"}}
+			if mode == "set_mode_grok" {
+				availModes = []any{
+					map[string]any{"id": "default"},
+					map[string]any{"id": "acceptEdits"},
+					map[string]any{"id": "bypassPermissions"},
+					map[string]any{"id": "plan"},
+				}
+			}
 			send(map[string]any{
 				"jsonrpc": "2.0",
 				"id":      req.ID,
-				"result":  map[string]any{"sessionId": fmt.Sprintf("acp-sess-%d", counter), "modes": map[string]any{"currentModeId": "default", "availableModes": []any{map[string]any{"id": "default"}}}},
+				"result":  map[string]any{"sessionId": fmt.Sprintf("acp-sess-%d", counter), "modes": map[string]any{"currentModeId": "default", "availableModes": availModes}},
 			})
-		case "session/set_mode", "session/set_model", "session/set_config_option":
+		case "session/set_mode":
+			if logPath := os.Getenv("GO_ACP_SET_MODE_LOG"); logPath != "" {
+				modeID, _ := req.Params["modeId"].(string)
+				_ = os.WriteFile(logPath, []byte(modeID), 0o600)
+			}
+			send(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": map[string]any{}})
+		case "session/set_model", "session/set_config_option":
 			send(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": map[string]any{}})
 		case "session/prompt":
 			sid, _ := req.Params["sessionId"].(string)
@@ -339,5 +354,67 @@ func TestStartTraceApprovalAndCancel(t *testing.T) {
 			t.Fatalf("cancel=%+v", res)
 		}
 		<-done
+	})
+
+	t.Run("set_mode_from_permission_mode", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("POSIX shell wrapper fixture")
+		}
+		exe, err := os.Executable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		dir := t.TempDir()
+		proj := filepath.Join(dir, "proj")
+		cfg := filepath.Join(dir, "cfg")
+		logPath := filepath.Join(dir, "set_mode.txt")
+		for _, d := range []string{proj, cfg} {
+			if err := os.MkdirAll(d, 0o700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		t.Setenv("GO_ACP_HELPER_MODE", "set_mode_grok")
+		t.Setenv("GO_ACP_SET_MODE_LOG", logPath)
+		wrapper := filepath.Join(dir, "acp-cli")
+		script := fmt.Sprintf("#!/bin/sh\nexec %q -test.run=^TestHelperAcpProcess$\n", exe)
+		if err := os.WriteFile(wrapper, []byte(script), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		f := New("grok", func(string) (Config, error) {
+			return Config{BackendID: "grok", Executable: wrapper, Cwd: proj, ConfigDir: cfg, PermissionMode: "auto"}, nil
+		})
+		defer f.Release("conv-mode")
+		target, err := f.Target("conv-mode")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := target.Runtime.(*Runtime)
+		tok := cr.AttemptToken{ConversationID: "conv-mode", AttemptID: "t4", Generation: 1}
+		rec := r.Recover(ctx, cr.RecoveryRequest{Token: tok})
+		if rec.Kind != cr.RecoveryNew {
+			t.Fatalf("recover=%+v", rec)
+		}
+		done := make(chan cr.Event, 1)
+		r.Start(ctx, cr.RuntimeRequest{
+			Token:           tok,
+			NativeSessionID: rec.NativeSessionID,
+			Plan:            cr.Plan{ID: "p4", Payload: "hello"},
+		}, func(e cr.Event) error {
+			if e.Kind == cr.EventCompleted || e.Kind == cr.EventFailed {
+				done <- e
+			}
+			return nil
+		})
+		last := <-done
+		if last.Kind != cr.EventCompleted {
+			t.Fatalf("last=%+v", last)
+		}
+		raw, err := os.ReadFile(logPath)
+		if err != nil {
+			t.Fatalf("expected session/set_mode to be invoked: %v", err)
+		}
+		if string(raw) != "acceptEdits" {
+			t.Fatalf("session/set_mode modeId = %q, want acceptEdits", string(raw))
+		}
 	})
 }

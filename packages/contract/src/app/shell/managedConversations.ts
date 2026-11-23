@@ -4,6 +4,7 @@ import { ConversationId } from './schemas';
 
 const id = z.object({ id: ConversationId });
 const backend = z.string().min(1).max(64);
+export const RuntimeSource = z.enum(['local', 'official', 'thirdParty']);
 export const RuntimeToken = z.object({
   conversationId: ConversationId,
   attemptId: z.string(),
@@ -72,6 +73,7 @@ export const LastSwitchSummary = z.object({
 export const RuntimeState = z.object({
   id: ConversationId,
   backend: z.string(),
+  source: RuntimeSource.optional(),
   generation: z.number().int().nonnegative(),
   phase: z.enum([
     'idle',
@@ -135,6 +137,7 @@ export const managedConversationProcedures = {
           accounts: z.array(RuntimeOptionItem).optional(),
           models: z.array(RuntimeOptionItem).optional(),
           permissionModes: z.array(z.string()).optional(),
+          hasLocalLogin: z.boolean().optional(),
           bridges: CapabilityBridges.optional(),
         }),
       ),
@@ -143,7 +146,14 @@ export const managedConversationProcedures = {
   },
   'conversations.runtimeAdopt': {
     kind: 'mutation',
-    input: id.extend({ backend, confirm: z.literal(true) }),
+    input: id.extend({
+      backend,
+      confirm: z.literal(true),
+      source: RuntimeSource.optional(),
+      model: z.string().min(1).max(128).optional(),
+      effort: z.string().min(1).max(64).optional(),
+      accountId: z.string().min(1).max(128).optional(),
+    }),
     output: RuntimeState,
     surfaces: chat,
     dangerous: true,
@@ -163,6 +173,7 @@ export const managedConversationProcedures = {
       confirm: z.literal(true),
       confirmUnsafe: z.boolean().optional(),
       expectedGeneration: z.number().int().nonnegative().optional(),
+      source: RuntimeSource.optional(),
       model: z.string().min(1).max(128).optional(),
       effort: z.string().min(1).max(64).optional(),
       permissionMode: z.string().min(1).max(64).optional(),

@@ -2,7 +2,10 @@ package main
 
 import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/convstore"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mainchat"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mainchat/acprt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -168,5 +171,174 @@ func TestManagedAntigravityRegistrationAndChoice(t *testing.T) {
 	wireManagedClaude(r2, s2, p)
 	if !slices.Contains(r2.Available(), "antigravity") {
 		t.Fatal("antigravity not registered via NOMI_ANTIGRAVITY_BIN")
+	}
+}
+
+func TestManagedAntigravityLocalBinDiscoveryAndHotReload(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX ~/.local/bin fixture")
+	}
+	home := t.TempDir()
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("NOMI_ANTIGRAVITY_BIN", "")
+	t.Setenv("HOME", home)
+
+	s := convstore.New(t.TempDir())
+	r := mainchat.New(s, nil)
+	defer r.Close()
+	p := migrationStore(t.TempDir())
+	proj, err := p.Create("test", home, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	putConv(t, s, map[string]any{"id": "c-hot", "backend": "nomi", "projectId": proj.ID})
+
+	// 安装前：PATH 和 ~/.local/bin 都没有 agy，不注册
+	refreshCLI := wireManagedCLIs(r, s, p, managedDeps{})
+	if slices.Contains(r.Available(), "antigravity") {
+		t.Fatal("antigravity should not be registered before installation")
+	}
+
+	// 安装到 ~/.local/bin/agy 后触发热刷新，无需重启即可发现并切换到 antigravity
+	localBinDir := filepath.Join(home, ".local", "bin")
+	if err := os.MkdirAll(localBinDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	agyPath := filepath.Join(localBinDir, "agy")
+	if err := os.WriteFile(agyPath, []byte("#!/bin/sh\nexit 19\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := acprt.DefaultConfig("antigravity", home)
+	if err != nil {
+		t.Fatalf("acprt.DefaultConfig failed to discover ~/.local/bin/agy: %v", err)
+	}
+	if cfg.Executable != agyPath {
+		t.Fatalf("acprt.DefaultConfig Executable=%q, want %q", cfg.Executable, agyPath)
+	}
+
+	refreshCLI("antigravity")
+	if !slices.Contains(r.Available(), "antigravity") {
+		t.Fatal("antigravity not hot-registered after installation")
+	}
+	if err := r.Adopt("c-hot", "antigravity", true); err != nil {
+		t.Fatalf("adopt hot-reloaded antigravity: %v", err)
+	}
+}
+
+func TestManagedChoicesHasLocalLoginAndDefaultSourceFallback(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX HOME fixture")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	for _, k := range []string{
+		"GEMINI_API_KEY", "GOOGLE_API_KEY", "DEEPSEEK_API_KEY",
+		"GEMINI_CLI_HOME", "DSH_HOME", "ANTIGRAVITY_CLI_HOME",
+		"CLAUDE_CONFIG_DIR", "CODEX_HOME", "GROK_HOME",
+	} {
+		t.Setenv(k, "")
+	}
+
+	s := convstore.New(t.TempDir())
+	p := migrationStore(t.TempDir())
+	proj, err := p.Create("test", home, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	putConv(t, s, map[string]any{"id": "c-local", "backend": "nomi", "projectId": proj.ID})
+	r := mainchat.New(s, nil)
+	defer r.Close()
+
+	// 1. 空主目录下 HasLocalLogin 应全部填充为 false
+	before := managedChoices(s, p, r, "c-local")
+	gemBefore := namedChoice(t, before, "gemini")
+	if gemBefore.HasLocalLogin == nil || *gemBefore.HasLocalLogin {
+		t.Fatalf("expected gemini HasLocalLogin=false without credentials, got %+v", gemBefore.HasLocalLogin)
+	}
+	dshBefore := namedChoice(t, before, "dsh")
+	if dshBefore.HasLocalLogin == nil || *dshBefore.HasLocalLogin {
+		t.Fatalf("expected dsh HasLocalLogin=false without credentials, got %+v", dshBefore.HasLocalLogin)
+	}
+
+	// 2. 写入 Gemini 本机凭据后 HasLocalLogin 变为 true
+	gemDir := filepath.Join(home, ".gemini")
+	if err := os.MkdirAll(gemDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(gemDir, "oauth_creds.json"), []byte(`{"access_token":"tok"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	after := managedChoices(s, p, r, "c-local")
+	gemAfter := namedChoice(t, after, "gemini")
+	if gemAfter.HasLocalLogin == nil || !*gemAfter.HasLocalLogin {
+		t.Fatalf("expected gemini HasLocalLogin=true with oauth_creds.json, got %+v", gemAfter.HasLocalLogin)
+	}
+
+	// 3. 网关配有可用第三方供应商、且 dsh 无本机登录时：默认来源回退到 thirdParty
+	ud := t.TempDir()
+	port := 0
+	gw := gwstore.NewServiceForUserData(ud, nil, nil)
+	gw.AttachRuntime(gwstore.RuntimeDeps{
+		Root: filepath.Join(ud, "gateway"),
+		Port: &port,
+		Lazy: true,
+		Env:  map[string]string{},
+	})
+	if err := gw.Init(); err != nil {
+		t.Fatal(err)
+	}
+	gw.Start()
+	defer gw.Dispose()
+
+	rawProv, err := util.Parse([]byte(`{"name":"Amux","urls":{"chat":"https://amux.example.com/v1","anthropic":"https://amux.example.com/anthropic"},"newKeys":[{"value":"sk-test-1234567890"}],"models":[{"id":"gpt-5","enabled":true}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := gw.UpsertProvider(rawProv.(*util.Obj)); err != nil {
+		t.Fatal(err)
+	}
+	_ = gw.Endpoint("dsh")
+
+	if got := defaultManagedSource("dsh", managedDeps{Gateway: gw}); got != "thirdParty" {
+		t.Fatalf("defaultManagedSource(dsh) = %q, want thirdParty", got)
+	}
+	res, err := applyManagedSource("dsh", "c-local", home, mainchat.RuntimeConfig{}, managedDeps{Gateway: gw}, newManagedLaunchCache(gw))
+	if err != nil {
+		t.Fatalf("applyManagedSource(dsh): %v", err)
+	}
+	if res.Source != "thirdParty" || res.Model != "amux/gpt-5" {
+		t.Fatalf("applyManagedSource(dsh) = {Source:%q Model:%q}, want thirdParty + amux/gpt-5", res.Source, res.Model)
+	}
+	acpCfg, err := acpConfigFor(s, p, acprt.Config{BackendID: "grok"}, mainchat.RuntimeConfig{PermissionMode: "auto"}, "c-local", managedDeps{Gateway: gw}, newManagedLaunchCache(gw))
+	if err != nil {
+		t.Fatalf("acpConfigFor(grok): %v", err)
+	}
+	if acpCfg.PermissionMode != "auto" {
+		t.Fatalf("acpConfigFor(grok) PermissionMode = %q, want auto", acpCfg.PermissionMode)
+	}
+}
+
+func TestManagedChoicesGrokPermissionModes(t *testing.T) {
+	s := convstore.New(t.TempDir())
+	p := migrationStore(t.TempDir())
+	projDir := t.TempDir()
+	proj, err := p.Create("test", projDir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	putConv(t, s, map[string]any{"id": "c-grok", "backend": "nomi", "projectId": proj.ID})
+	r := mainchat.New(s, nil)
+	defer r.Close()
+
+	choices := managedChoices(s, p, r, "c-grok")
+	grok := namedChoice(t, choices, "grok")
+	want := []string{"deny", "ask", "acceptEdits", "auto", "bypass"}
+	if len(grok.PermissionModes) != len(want) {
+		t.Fatalf("grok PermissionModes = %v, want %v", grok.PermissionModes, want)
+	}
+	for i := range want {
+		if grok.PermissionModes[i] != want[i] {
+			t.Fatalf("grok PermissionModes[%d] = %q, want %q", i, grok.PermissionModes[i], want[i])
+		}
 	}
 }

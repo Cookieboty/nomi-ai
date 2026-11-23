@@ -718,7 +718,6 @@ func main() {
 	gatewayRequestsRef.Store(gatewayRequests)
 	defer gatewayRequests.Dispose()
 	projs := wireProjects(router, userData, desktopSvc.Broker)
-	wireManagedClaude(bundle.ConversationRuntime, bundle.Conversations, projs)
 	previewResources := resourcepreview.New(userData)
 	previewResources.ProjectRoots = projectRootsOf(projs)
 	previewResources.OpenExternal = ports.OpenExternal
@@ -731,6 +730,7 @@ func main() {
 	defer previewResources.Shutdown()
 	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc, shellP.Quality,
 		desktopSvc.Broker.CheckCliWorkspace, desktopSvc.Broker.CliEnvAllow, sandboxDeps(desktopSvc.Broker), projs)
+	refreshManagedCLI := wireManagedCLIs(bundle.ConversationRuntime, bundle.Conversations, projs, managedDeps{Gateway: gatewaySvc, Accounts: harnessAccounts})
 	jsrt.Run(func() { harnessOrch.AttachPreview(previewResources) })
 	wireNomiBroker(desktopSvc.Broker, harnessOrch)
 	wireComputerHarness(harnessOrch)
@@ -790,7 +790,7 @@ func main() {
 	desktopSvc.Broker.OnReviewed = func(tool string, r *desktop.CommandReview) {
 		log.Printf("[desktop] command reviewed tool=%s risk=%s authorization=%s outcome=%s", tool, r.Risk, r.Authorization, r.Outcome)
 	}
-	wireCoding(router, userData, cliPlugins, desktopSvc, gatewaySvc, toolRegistry, b8.Tasks)
+	wireCoding(router, userData, cliPlugins, desktopSvc, gatewaySvc, toolRegistry, b8.Tasks, refreshManagedCLI)
 	defer wireAgents(router, userData, desktopSvc)()
 	defer wireFleet(router, userData, b8.Tasks, chatHandlers, toolRegistry)()
 	defer wireIslandPending(isl, islandPendingSources{orch: harnessOrch, tasks: b8.Tasks, desktop: desktopSvc,

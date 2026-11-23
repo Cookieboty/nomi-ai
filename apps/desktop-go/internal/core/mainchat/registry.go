@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"strings"
 	"sync"
 
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
@@ -23,6 +24,7 @@ type actor struct {
 	cancel  context.CancelFunc
 }
 type RuntimeConfig struct {
+	Source         string `json:"source,omitempty"`
 	Model          string `json:"model,omitempty"`
 	AccountID      string `json:"accountId,omitempty"`
 	PermissionMode string `json:"permissionMode,omitempty"`
@@ -77,6 +79,7 @@ type RuntimeModelOption struct {
 type RuntimeChoice struct {
 	ID, Status, Detail, Login  string
 	Available, RequiresProject bool
+	HasLocalLogin              *bool
 	Degraded                   []string
 	Accounts                   []RuntimeAccountOption
 	Models                     []RuntimeModelOption
@@ -184,39 +187,99 @@ func (r *Registry) get(id string) (*actor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	a := &actor{session: c, lease: l, ctx: ctx, cancel: cancel}
 	r.actors[id] = a
+	cp := c.Checkpoint()
+	if drv := cp.Selected.Identity.DriverID; drv != "" && drv != "api" {
+		if r.configs == nil {
+			r.configs = map[string]map[string]RuntimeConfig{}
+		}
+		if r.configs[id] == nil {
+			r.configs[id] = map[string]RuntimeConfig{}
+		}
+		if _, exists := r.configs[id][drv]; !exists {
+			src := cp.Selected.Identity.Source
+			switch src {
+			case "local", "official", "thirdParty":
+			case "official-default-login-unverified":
+				src = "local"
+			default:
+				src = ""
+			}
+			accID := cp.Selected.Identity.AccountID
+			if src != "official" || accID == "local" || accID == "thirdParty" || accID == "default" || strings.HasPrefix(accID, "config-source:") {
+				accID = ""
+			}
+			model := cp.Selected.Env.Model
+			if model == "cli-default" {
+				model = ""
+			}
+			r.configs[id][drv] = RuntimeConfig{
+				Source:         src,
+				Model:          model,
+				AccountID:      accID,
+				PermissionMode: cp.Selected.Env.PermissionMode,
+				Effort:         cp.Selected.Effort,
+			}
+		}
+	}
 	return a, nil
 }
 
 // Adopt must be explicitly confirmed and must resolve a supported target BEFORE
 // publishing ownership. In particular Windows and missing CLIs cannot adopt.
 func (r *Registry) Adopt(id, name string, confirm bool) error {
+	return r.AdoptWithOptions(id, name, confirm, SwitchOptions{})
+}
+
+func (r *Registry) AdoptWithOptions(id, name string, confirm bool, opts SwitchOptions) error {
 	if !confirm {
 		return cr.ErrPermission
 	}
 	if !convstore.ManagedSupported() {
 		return convstore.ErrDurabilityUnsupported
 	}
+	prevCfg := r.ConfigFor(id, name)
+	hasCustom := opts.Source != "" || opts.Model != "" || opts.Effort != "" || opts.PermissionMode != "" || opts.AccountID != ""
+	if hasCustom {
+		r.SetConfig(id, name, mergeRuntimeConfig(prevCfg, opts))
+	}
+	rollback := func() {
+		if hasCustom {
+			r.SetConfig(id, name, prevCfg)
+		}
+	}
 	t, err := r.target(id, name)
 	if err != nil {
+		rollback()
 		return err
+	}
+	if hasCustom {
+		applyConfigToTarget(&t, r.ConfigFor(id, name))
 	}
 	// Validate metadata/permissions without executing or migrating anything.
 	probe, _ := cr.NewSession(id, nil)
 	if err = probe.Select(t); err != nil {
+		rollback()
 		return err
 	}
 	if _, err = r.store.AdoptManaged(id); err != nil {
+		rollback()
 		return err
 	}
 	a, err := r.get(id)
 	if err != nil {
+		rollback()
 		return err
 	}
 	t, err = r.target(id, name)
 	if err != nil {
+		rollback()
 		return err
 	}
+	if hasCustom {
+		applyConfigToTarget(&t, r.ConfigFor(id, name))
+	}
 	if err = a.session.Select(t); err != nil {
+		rollback()
 		return err
 	}
 	r.changed(id)
@@ -225,6 +288,7 @@ func (r *Registry) Adopt(id, name string, confirm bool) error {
 
 type SwitchOptions struct {
 	Backend            string
+	Source             string
 	Model              string
 	Effort             string
 	PermissionMode     string
@@ -266,6 +330,50 @@ func (r *Registry) Resolve(id, decision string, confirm bool, expected *uint64) 
 	return err
 }
 
+func mergeRuntimeConfig(prev RuntimeConfig, opts SwitchOptions) RuntimeConfig {
+	next := prev
+	if opts.Source != "" && opts.Source != prev.Source {
+		next.Source = opts.Source
+		next.Model = ""
+		next.AccountID = ""
+		next.Effort = ""
+	}
+	if opts.Model == "cli-default" {
+		next.Model = ""
+	} else if opts.Model != "" {
+		next.Model = opts.Model
+	}
+	if opts.PermissionMode != "" {
+		next.PermissionMode = opts.PermissionMode
+	}
+	if opts.AccountID == "default" {
+		next.AccountID = ""
+	} else if opts.AccountID != "" {
+		next.AccountID = opts.AccountID
+	}
+	if opts.Effort == "default" {
+		next.Effort = ""
+	} else if opts.Effort != "" {
+		next.Effort = opts.Effort
+	}
+	return next
+}
+
+func applyConfigToTarget(t *cr.Target, cfg RuntimeConfig) {
+	if t.Env.Model == "" && cfg.Model != "" {
+		t.Env.Model = cfg.Model
+	}
+	if t.Env.PermissionMode == "" && cfg.PermissionMode != "" {
+		t.Env.PermissionMode = cfg.PermissionMode
+	}
+	if t.Identity.AccountID == "" && cfg.AccountID != "" {
+		t.Identity.AccountID = cfg.AccountID
+	}
+	if t.Effort == "" && cfg.Effort != "" {
+		t.Effort = cfg.Effort
+	}
+}
+
 func (r *Registry) Switch(ctx context.Context, id string, opts SwitchOptions) (cr.SwitchOutcome, error) {
 	if !opts.Confirm {
 		return cr.SwitchOutcome{}, cr.ErrPermission
@@ -275,39 +383,14 @@ func (r *Registry) Switch(ctx context.Context, id string, opts SwitchOptions) (c
 		return cr.SwitchOutcome{}, err
 	}
 	prevCfg := r.ConfigFor(id, opts.Backend)
-	nextCfg := prevCfg
-	if opts.Model != "" {
-		nextCfg.Model = opts.Model
-	}
-	if opts.PermissionMode != "" {
-		nextCfg.PermissionMode = opts.PermissionMode
-	}
-	if opts.AccountID != "" {
-		nextCfg.AccountID = opts.AccountID
-	}
-	if opts.Effort == "default" {
-		nextCfg.Effort = ""
-	} else if opts.Effort != "" {
-		nextCfg.Effort = opts.Effort
-	}
+	nextCfg := mergeRuntimeConfig(prevCfg, opts)
 	r.SetConfig(id, opts.Backend, nextCfg)
 	t, err := r.target(id, opts.Backend)
 	if err != nil {
 		r.SetConfig(id, opts.Backend, prevCfg)
 		return cr.SwitchOutcome{}, err
 	}
-	if nextCfg.Model != "" {
-		t.Env.Model = nextCfg.Model
-	}
-	if nextCfg.PermissionMode != "" {
-		t.Env.PermissionMode = nextCfg.PermissionMode
-	}
-	if nextCfg.AccountID != "" {
-		t.Identity.AccountID = nextCfg.AccountID
-	}
-	if nextCfg.Effort != "" {
-		t.Effort = nextCfg.Effort
-	}
+	applyConfigToTarget(&t, nextCfg)
 	if opts.ConfirmUnsafe {
 		t.ConfirmUnsafe = true
 	}

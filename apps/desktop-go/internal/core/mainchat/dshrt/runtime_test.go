@@ -155,3 +155,55 @@ func TestHeadlessExecutionAndCancel(t *testing.T) {
 		<-done
 	})
 }
+
+func TestDshPermissionModesAndEnv(t *testing.T) {
+	want := []string{"deny", "acceptEdits", "bypass"}
+	got := PermissionModes("dsh")
+	if len(got) != len(want) {
+		t.Fatalf("PermissionModes(dsh) = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("PermissionModes(dsh)[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+
+	envCases := map[string]string{
+		"deny":        "read-only",
+		"acceptEdits": "workspace-write",
+		"bypass":      "danger-full-access",
+	}
+	for mode, wantEnv := range envCases {
+		if env := dshPermissionEnv(mode); env != wantEnv {
+			t.Fatalf("dshPermissionEnv(%q) = %q, want %q", mode, env, wantEnv)
+		}
+	}
+
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "dsh")
+	if err := os.WriteFile(exe, []byte("#!/bin/sh\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	permMode := ""
+	f := New("dsh", func(string) (Config, error) {
+		return Config{BackendID: "dsh", Executable: exe, Cwd: dir, ConfigDir: dir, PermissionMode: permMode}, nil
+	})
+	defer f.Release("c")
+
+	tDefault, err := f.Target("c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tDefault.Env.PermissionMode != "deny" {
+		t.Fatalf("empty PermissionMode should default to deny, got %q", tDefault.Env.PermissionMode)
+	}
+
+	permMode = "bogus"
+	tBogus, err := f.Target("c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tBogus.Env.PermissionMode != "bogus" {
+		t.Fatalf("explicit bogus PermissionMode must be preserved for session rejection, got %q", tBogus.Env.PermissionMode)
+	}
+}

@@ -19,6 +19,78 @@ type Config struct {
 	BackendID, Executable, Cwd, ConfigDir string
 	Model                                 string
 	Effort                                string
+	PermissionMode                        string
+	Source                                string
+	AccountID                             string
+	ExtraEnv                              map[string]string
+	StripEnv                              []string
+	ExtraArgs                             []string
+	ModelInConfig                         bool
+	LaunchSig                             string
+	OnRelease                             func()
+}
+
+// PermissionModes 返回指定 DSH 底座支持的产品侧权限模式列表。
+func PermissionModes(backendID string) []string {
+	impl := builtin.Impl(backendID)
+	if impl == nil || impl.Permissions == nil || len(impl.Permissions.Supported) == 0 {
+		return []string{"deny"}
+	}
+	seen := make(map[string]struct{}, len(impl.Permissions.Supported))
+	modes := make([]string, 0, len(impl.Permissions.Supported))
+	for _, raw := range impl.Permissions.Supported {
+		mode := toManagedPermissionMode(raw)
+		if mode == "" {
+			continue
+		}
+		if _, ok := seen[mode]; ok {
+			continue
+		}
+		seen[mode] = struct{}{}
+		modes = append(modes, mode)
+	}
+	if len(modes) == 0 {
+		return []string{"deny"}
+	}
+	return modes
+}
+
+func toManagedPermissionMode(cliMode string) string {
+	switch cliMode {
+	case "plan", "deny":
+		return "deny"
+	case "manual", "ask":
+		return "ask"
+	case "acceptEdits":
+		return "acceptEdits"
+	case "auto":
+		return "auto"
+	case "bypass":
+		return "bypass"
+	default:
+		return ""
+	}
+}
+
+func defaultPermissionMode(backendID string) string {
+	supported := PermissionModes(backendID)
+	for _, m := range supported {
+		if m == "deny" {
+			return "deny"
+		}
+	}
+	return supported[0]
+}
+
+func dshPermissionEnv(mode string) string {
+	switch mode {
+	case "acceptEdits":
+		return "workspace-write"
+	case "bypass":
+		return "danger-full-access"
+	default:
+		return "read-only"
+	}
 }
 
 type Factory struct {
@@ -124,22 +196,46 @@ func (f *Factory) runtime(id string) (*Runtime, error) {
 	if err != nil || !dir.IsDir() {
 		return nil, fmt.Errorf("%s working directory unavailable", builtin.FullName(cfg.BackendID))
 	}
+	fp := "dsh-read-only-headless-v1:" + directoryIdentity(cfg.Cwd, dir)
+	if cfg.LaunchSig != "" {
+		fp += ":" + cfg.LaunchSig
+	}
+	source := cfg.Source
+	if source == "" {
+		source = "official-default-login-unverified"
+	}
+	accountID := "config-source:" + cfg.ConfigDir
+	switch cfg.Source {
+	case "official":
+		if cfg.AccountID != "" {
+			accountID = cfg.AccountID
+		}
+	case "thirdParty":
+		accountID = "thirdParty"
+	case "local":
+		accountID = "local"
+	}
 	identity := cr.NativeIdentity{
 		DriverID:          cfg.BackendID,
 		Transport:         "official-headless-exec",
 		DriverVersion:     fmt.Sprintf("official-headless-exec-v1:%d:%d", bin.Size(), bin.ModTime().UnixNano()),
 		ResumeProtocol:    "stateless-bounded-handoff-v1",
 		Executable:        cfg.Executable,
-		Source:            "official-default-login-unverified",
-		AccountID:         "config-source:" + cfg.ConfigDir,
+		Source:            source,
+		AccountID:         accountID,
 		ConfigDir:         cfg.ConfigDir,
 		Cwd:               cfg.Cwd,
 		ConfigGen:         1,
 		ExecutableSize:    bin.Size(),
 		ExecutableMtimeMS: bin.ModTime().UnixMilli(),
-		LaunchFingerprint: "dsh-read-only-headless-v1:" + directoryIdentity(cfg.Cwd, dir),
+		LaunchFingerprint: fp,
 	}
-	env := cr.CompatibilityKey{Model: cfg.Model, PermissionMode: "deny"}
+	permMode := cfg.PermissionMode
+	if permMode == "" {
+		permMode = defaultPermissionMode(cfg.BackendID)
+	}
+	cfg.PermissionMode = permMode
+	env := cr.CompatibilityKey{Model: cfg.Model, PermissionMode: permMode}
 	if env.Model == "" {
 		env.Model = "cli-default"
 	}
@@ -164,5 +260,8 @@ func (f *Factory) Release(id string) {
 	f.mu.Unlock()
 	for _, r := range runtimes {
 		r.close()
+		if r.config.OnRelease != nil {
+			r.config.OnRelease()
+		}
 	}
 }

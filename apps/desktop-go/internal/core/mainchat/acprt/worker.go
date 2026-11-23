@@ -33,7 +33,7 @@ func officialLaunchFor(cfg Config) clisdk.AgentLaunch {
 		return clisdk.AgentLaunch{Env: util.NewObj(), Strip: []string{}}
 	}
 	var accountDir *string
-	if builtin.WithAccounts(cfg.BackendID) && cfg.ConfigDir != "" {
+	if cfg.Source != "local" && (cfg.Source == "official" || builtin.WithAccounts(cfg.BackendID)) && cfg.ConfigDir != "" {
 		dir := cfg.ConfigDir
 		accountDir = &dir
 	}
@@ -44,25 +44,39 @@ func officialLaunchFor(cfg Config) clisdk.AgentLaunch {
 	}
 	return impl.Launch.Official(clisdk.LaunchContext{
 		Cwd:            cfg.Cwd,
-		PermissionMode: "manual",
+		PermissionMode: toCliPermissionMode(cfg.PermissionMode),
 		Model:          modelPtr,
 		AccountDir:     accountDir,
 	})
 }
 
 func officialArgs(cfg Config) []string {
-	return append([]string{}, builtin.AcpArgs(cfg.BackendID)...)
+	args := append([]string{}, builtin.AcpArgs(cfg.BackendID)...)
+	if len(cfg.ExtraArgs) > 0 {
+		args = append(args, cfg.ExtraArgs...)
+	}
+	return args
 }
 
 func officialEnv(cfg Config) []string {
-	launch := officialLaunchFor(cfg)
 	drop := map[string]bool{}
-	for _, k := range launch.Strip {
+	for _, k := range cfg.StripEnv {
 		drop[k] = true
 	}
-	if launch.Env != nil {
-		for _, k := range launch.Env.Keys() {
+	for k := range cfg.ExtraEnv {
+		drop[k] = true
+	}
+	var launchEnv *util.Obj
+	if cfg.Source != "thirdParty" {
+		launch := officialLaunchFor(cfg)
+		for _, k := range launch.Strip {
 			drop[k] = true
+		}
+		if launch.Env != nil {
+			for _, k := range launch.Env.Keys() {
+				drop[k] = true
+			}
+			launchEnv = launch.Env
 		}
 	}
 	env := []string{}
@@ -72,10 +86,15 @@ func officialEnv(cfg Config) []string {
 			env = append(env, entry)
 		}
 	}
-	if launch.Env != nil {
-		for _, k := range launch.Env.Keys() {
-			env = append(env, k+"="+util.Str(launch.Env.Get(k)))
+	if launchEnv != nil {
+		for _, k := range launchEnv.Keys() {
+			if _, over := cfg.ExtraEnv[k]; !over {
+				env = append(env, k+"="+util.Str(launchEnv.Get(k)))
+			}
 		}
+	}
+	for k, v := range cfg.ExtraEnv {
+		env = append(env, k+"="+v)
 	}
 	return env
 }

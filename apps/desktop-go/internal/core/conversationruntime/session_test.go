@@ -255,3 +255,29 @@ func TestSessionNoResumeCapabilityUsesNewFullWithoutLosingBindings(t *testing.T)
 		t.Fatal("unsupported resume faked success or discarded old binding")
 	}
 }
+
+func TestSessionCapabilitiesAcceptsAutoPermissionMode(t *testing.T) {
+	f := newFakeRuntime("r")
+	f.mu.Lock()
+	f.caps.PermissionModes = append(f.caps.PermissionModes, "auto")
+	f.mu.Unlock()
+	c := testSession(t, f, nil)
+	target := sessionTarget(f, "claude")
+	target.Env.PermissionMode = "auto"
+	expectErrIs(t, c.Select(target), nil)
+	state := c.State()
+	hasAuto := false
+	for _, m := range state.Capabilities.PermissionModes {
+		if m == "auto" {
+			hasAuto = true
+		}
+	}
+	if !hasAuto {
+		t.Fatalf("expected auto in capabilities PermissionModes, got %+v", state.Capabilities.PermissionModes)
+	}
+	for _, d := range state.Capabilities.Degraded {
+		if d == "unsupported product permission mode: auto" {
+			t.Fatalf("auto permission mode should not degrade: %+v", state.Capabilities.Degraded)
+		}
+	}
+}

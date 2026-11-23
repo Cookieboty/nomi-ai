@@ -29,6 +29,14 @@ type Config struct {
 	Executable, Cwd, ConfigDir string
 	Model                      string
 	Effort                     string
+	Source                     string
+	AccountID                  string
+	ExtraEnv                   map[string]string
+	StripEnv                   []string
+	ExtraArgs                  []string
+	ModelInConfig              bool
+	LaunchSig                  string
+	OnRelease                  func()
 }
 type Factory struct {
 	mu        sync.Mutex
@@ -121,7 +129,26 @@ func (f *Factory) runtime(id string) (*Runtime, error) {
 }
 
 func identityFor(cfg Config, bin, dir os.FileInfo) cr.NativeIdentity {
-	identity := cr.NativeIdentity{DriverID: "codex", Transport: "official-app-server", DriverVersion: "official-app-server-adapter-v1", ResumeProtocol: "thread-resume-exact-id-v1", Executable: cfg.Executable, Source: "official-default-login-unverified", AccountID: "config-source:" + cfg.ConfigDir, ConfigDir: cfg.ConfigDir, Cwd: cfg.Cwd, ConfigGen: 1, ExecutableSize: bin.Size(), ExecutableMtimeMS: bin.ModTime().UnixMilli(), LaunchFingerprint: "read-only-never-approve-v1:" + directoryIdentity(cfg.Cwd, dir)}
+	fp := "read-only-never-approve-v1:" + directoryIdentity(cfg.Cwd, dir)
+	if cfg.LaunchSig != "" {
+		fp += ":" + cfg.LaunchSig
+	}
+	source := cfg.Source
+	if source == "" {
+		source = "official-default-login-unverified"
+	}
+	accountID := "config-source:" + cfg.ConfigDir
+	switch cfg.Source {
+	case "official":
+		if cfg.AccountID != "" {
+			accountID = cfg.AccountID
+		}
+	case "thirdParty":
+		accountID = "thirdParty"
+	case "local":
+		accountID = "local"
+	}
+	identity := cr.NativeIdentity{DriverID: "codex", Transport: "official-app-server", DriverVersion: "official-app-server-adapter-v1", ResumeProtocol: "thread-resume-exact-id-v1", Executable: cfg.Executable, Source: source, AccountID: accountID, ConfigDir: cfg.ConfigDir, Cwd: cfg.Cwd, ConfigGen: 1, ExecutableSize: bin.Size(), ExecutableMtimeMS: bin.ModTime().UnixMilli(), LaunchFingerprint: fp}
 	// Executable replacement is a different compatibility key, never a native-ID overwrite.
 	identity.DriverVersion += fmt.Sprintf(":%d:%d", bin.Size(), bin.ModTime().UnixNano())
 	return identity
@@ -134,6 +161,9 @@ func (f *Factory) Release(id string) {
 	f.mu.Unlock()
 	for _, r := range runtimes {
 		r.close()
+		if r.config.OnRelease != nil {
+			r.config.OnRelease()
+		}
 	}
 }
 

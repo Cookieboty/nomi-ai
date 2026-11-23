@@ -74,3 +74,56 @@ func TestFactorySupportsAllBuiltinAcpBackendsAndSeparatesCompatKeys(t *testing.T
 		})
 	}
 }
+
+func TestFactoryPermissionModesAndCompatKeys(t *testing.T) {
+	wantGrok := []string{"deny", "ask", "acceptEdits", "auto", "bypass"}
+	gotGrok := PermissionModes("grok")
+	if len(gotGrok) != len(wantGrok) {
+		t.Fatalf("PermissionModes(grok) = %v, want %v", gotGrok, wantGrok)
+	}
+	for i := range wantGrok {
+		if gotGrok[i] != wantGrok[i] {
+			t.Fatalf("PermissionModes(grok)[%d] = %q, want %q", i, gotGrok[i], wantGrok[i])
+		}
+	}
+	for _, id := range []string{"gemini", "minimax"} {
+		got := PermissionModes(id)
+		if len(got) == 0 {
+			t.Fatalf("PermissionModes(%s) should not be empty", id)
+		}
+	}
+
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "grok")
+	if err := os.WriteFile(exe, []byte("#!/bin/sh\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	mode := "ask"
+	f := New("grok", func(string) (Config, error) {
+		return Config{BackendID: "grok", Executable: exe, Cwd: dir, ConfigDir: dir, PermissionMode: mode}, nil
+	})
+	tAsk, err := f.Target("c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mode = "auto"
+	tAuto, err := f.Target("c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tAuto.Env.PermissionMode != "auto" {
+		t.Fatalf("expected Env.PermissionMode=auto, got %q", tAuto.Env.PermissionMode)
+	}
+	if tAsk.Identity.Key(tAsk.Env) == tAuto.Identity.Key(tAuto.Env) {
+		t.Fatal("different PermissionMode must yield distinct CompatibilityKey")
+	}
+
+	mode = "bogus"
+	tBogus, err := f.Target("c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tBogus.Env.PermissionMode != "bogus" {
+		t.Fatalf("explicit bogus PermissionMode must be preserved for session rejection, got %q", tBogus.Env.PermissionMode)
+	}
+}

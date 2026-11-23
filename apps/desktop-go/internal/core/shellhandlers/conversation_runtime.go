@@ -83,6 +83,9 @@ func RuntimeView(r *mainchat.Registry, id string) (any, error) {
 		}
 		out["failedRequest"] = fr
 	}
+	if s.Source != "" {
+		out["source"] = s.Source
+	}
 	if s.Model != "" {
 		out["model"] = s.Model
 	}
@@ -162,6 +165,9 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 			if len(c.PermissionModes) > 0 {
 				item["permissionModes"] = c.PermissionModes
 			}
+			if c.HasLocalLogin != nil {
+				item["hasLocalLogin"] = *c.HasLocalLogin
+			}
 			if c.Bridges != nil {
 				item["bridges"] = c.Bridges
 			}
@@ -174,7 +180,7 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 		router.Call("conversations.runtime"+op, func(ctx context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 			var in struct {
 				ID, Backend, MessageID, TurnID, Text, ApprovalID, Decision string
-				Model, Effort, PermissionMode, AccountID                   string
+				Source, Model, Effort, PermissionMode, AccountID           string
 				Images                                                     []string
 				ExpectedGeneration                                         *uint64
 				BeforeGeneration                                           *uint64
@@ -190,12 +196,19 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 			var err error
 			switch op {
 			case "Adopt":
-				err = registry.Adopt(in.ID, in.Backend, in.Confirm)
+				err = registry.AdoptWithOptions(in.ID, in.Backend, in.Confirm, mainchat.SwitchOptions{
+					Source:         in.Source,
+					Model:          in.Model,
+					Effort:         in.Effort,
+					PermissionMode: in.PermissionMode,
+					AccountID:      in.AccountID,
+				})
 			case "Select":
 				err = registry.Select(in.ID, in.Backend)
 			case "Switch":
 				_, err = registry.Switch(ctx, in.ID, mainchat.SwitchOptions{
 					Backend:            in.Backend,
+					Source:             in.Source,
 					Model:              in.Model,
 					Effort:             in.Effort,
 					PermissionMode:     in.PermissionMode,

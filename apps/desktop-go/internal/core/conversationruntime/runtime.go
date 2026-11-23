@@ -240,6 +240,7 @@ type Request struct {
 
 type SessionState struct {
 	Backend         string
+	Source          string `json:"source,omitempty"`
 	ConversationID  string
 	Generation      uint64
 	Phase           Phase
@@ -249,13 +250,13 @@ type SessionState struct {
 	Work            Activity
 	Queued          int
 	Approvals       []string
-	ApprovalDetails []ApprovalInfo     `json:"approvalDetails,omitempty"`
-	Trace           []TraceEntry       `json:"trace,omitempty"`
-	FailedRequest   *Request           `json:"failedRequest,omitempty"`
-	Model           string             `json:"model,omitempty"`
-	AccountID       string             `json:"accountId,omitempty"`
-	PermissionMode  string             `json:"permissionMode,omitempty"`
-	Effort          string             `json:"effort,omitempty"`
+	ApprovalDetails []ApprovalInfo `json:"approvalDetails,omitempty"`
+	Trace           []TraceEntry   `json:"trace,omitempty"`
+	FailedRequest   *Request       `json:"failedRequest,omitempty"`
+	Model           string         `json:"model,omitempty"`
+	AccountID       string         `json:"accountId,omitempty"`
+	PermissionMode  string         `json:"permissionMode,omitempty"`
+	Effort          string         `json:"effort,omitempty"`
 	Partial         string
 	Detail          string
 	PendingSwitch   *SwitchState       `json:"pendingSwitch,omitempty"`

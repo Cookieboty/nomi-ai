@@ -10,18 +10,18 @@ import (
 )
 
 type activeAttempt struct {
-	token     AttemptToken
-	request   Request
-	replyID   string
-	ctx       context.Context
-	cancel    context.CancelFunc
-	gate      chan struct{} // serializes Start/Approve/Cancel without holding session.mu
-	target    Target
-	caps      Capabilities
-	phase     Phase
-	recovery  RecoveryResult
-	binding   Binding
-	plan      Plan
+	token           AttemptToken
+	request         Request
+	replyID         string
+	ctx             context.Context
+	cancel          context.CancelFunc
+	gate            chan struct{} // serializes Start/Approve/Cancel without holding session.mu
+	target          Target
+	caps            Capabilities
+	phase           Phase
+	recovery        RecoveryResult
+	binding         Binding
+	plan            Plan
 	delivered       bool
 	text            string
 	approvals       map[string]bool
@@ -99,7 +99,7 @@ func validateAndNormalizeTarget(target Target) (Capabilities, error) {
 	modes := make([]string, 0, len(caps.PermissionModes))
 	for _, mode := range caps.PermissionModes {
 		switch mode {
-		case "ask", "acceptEdits", "deny", "bypass":
+		case "ask", "acceptEdits", "auto", "deny", "bypass":
 			modes = append(modes, mode)
 		default:
 			caps.Degraded = append(caps.Degraded, "unsupported product permission mode: "+mode)
@@ -143,12 +143,27 @@ func (c *Session) Select(target Target) error {
 	return c.persistLocked()
 }
 
+func normalizeSessionSource(backend, raw string) string {
+	if backend == "" || backend == "api" {
+		return ""
+	}
+	switch raw {
+	case "local", "official", "thirdParty":
+		return raw
+	case "official-default-login-unverified":
+		return "local"
+	default:
+		return ""
+	}
+}
+
 func (c *Session) State() SessionState {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.refreshLocked()
 	s := SessionState{
 		Backend:        c.target.Identity.DriverID,
+		Source:         normalizeSessionSource(c.target.Identity.DriverID, c.target.Identity.Source),
 		ConversationID: c.id,
 		Generation:     c.generation,
 		Phase:          PhaseIdle,

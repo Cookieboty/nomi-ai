@@ -49,7 +49,7 @@ func (r *Runtime) Capabilities() cr.Capabilities {
 		Resume:          true,
 		Cancel:          true,
 		Approval:        true,
-		PermissionModes: []string{"ask"},
+		PermissionModes: PermissionModes(r.config.BackendID),
 		Budget:          60000,
 		Degraded: []string{
 			"Experimental official " + name + " ACP profile: executable present; version and login not probed",
@@ -271,7 +271,7 @@ func (r *Runtime) applySessionSettings(ctx context.Context, w *worker) error {
 		if impl == nil || impl.Permissions == nil || impl.Permissions.ModeID == nil {
 			return
 		}
-		wantMode := impl.Permissions.ModeID("manual")
+		wantMode := impl.Permissions.ModeID(toCliPermissionMode(r.config.PermissionMode))
 		if wantMode == "" {
 			return
 		}
@@ -287,6 +287,9 @@ func (r *Runtime) applySessionSettings(ctx context.Context, w *worker) error {
 		if _, err := awaitPromise(ctx, modePromise); err != nil {
 			return err
 		}
+	}
+	if r.config.Source == "thirdParty" {
+		return nil
 	}
 	model := r.config.Model
 	if model == "cli-default" {
