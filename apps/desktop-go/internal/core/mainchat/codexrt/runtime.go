@@ -34,17 +34,33 @@ type turn struct {
 }
 
 func (r *Runtime) target() cr.Target {
-	return cr.Target{Runtime: r, Identity: r.identity, Env: r.env}
+	return cr.Target{Runtime: r, Identity: r.identity, Env: r.env, Effort: r.config.Effort}
 }
 
 func (r *Runtime) Capabilities() cr.Capabilities {
-	return cr.Capabilities{Resume: true, Cancel: true, Approval: true, PermissionModes: []string{"ask"}, Budget: 60000, Degraded: []string{
-		"Experimental official Codex profile: executable present; version and login not probed",
-		"Warm-process resume only; cold thread/resume is proven solely by an exact same-ID result or the official JSON-RPC message \"thread not found\"",
-		"Official app-server is started read-only with never-auto-approve; shell, edits, subagents, questions, MCP elicitation and background tasks fail closed and are never auto-approved",
-		"No Nomi computer/MCP/persona/memory/knowledge/skills/attachment bridge; no silent fallback to codex exec",
-		"Assistant text is buffered until a successful native turn result; no reasoning or native tool state is transferred",
-	}}
+	return cr.Capabilities{
+		Resume:          true,
+		Cancel:          true,
+		Approval:        true,
+		PermissionModes: []string{"ask"},
+		Budget:          60000,
+		Degraded: []string{
+			"Experimental official Codex profile: executable present; version and login not probed",
+			"Warm-process resume only; cold thread/resume is proven solely by an exact same-ID result or the official JSON-RPC message \"thread not found\"",
+			"Official app-server is started read-only with never-auto-approve; shell, edits, subagents, questions, MCP elicitation and background tasks fail closed and are never auto-approved",
+			"No Nomi computer/MCP/persona/memory/knowledge/skills/attachment bridge; no silent fallback to codex exec",
+			"Assistant text is buffered until a successful native turn result; no reasoning or native tool state is transferred",
+		},
+		Bridges: &cr.CapabilityBridges{
+			Computer:    cr.BridgeState{Status: "unsupported", Detail: "Official Codex app-server runs read-only; computer-use tools disabled"},
+			MCP:         cr.BridgeState{Status: "unsupported", Detail: "MCP tools and elicitations fail closed in official Codex profile"},
+			Persona:     cr.BridgeState{Status: "degraded", Detail: "Official Codex profile does not inject Nomi persona prompts"},
+			Memory:      cr.BridgeState{Status: "degraded", Detail: "Conversation history is synced via delta/full handoff only; Nomi memory store is not shared"},
+			Knowledge:   cr.BridgeState{Status: "unsupported", Detail: "Nomi knowledge base is not mounted into Codex"},
+			Skills:      cr.BridgeState{Status: "unsupported", Detail: "Nomi skills are not bridged into Codex app-server"},
+			Attachments: cr.BridgeState{Status: "unsupported", Detail: "Image attachments cannot be bridged in official Codex profile"},
+		},
+	}
 }
 
 // Recover prepares native transport without sending user input. The previous
@@ -129,6 +145,9 @@ func (r *Runtime) Recover(ctx context.Context, q cr.RecoveryRequest) cr.Recovery
 		}
 	}
 	if err != nil || sid == "" {
+		if ctx.Err() == nil && err != nil && explicitRefusal(err) && w != nil && stop(context.Background(), w) {
+			return cr.RecoveryResult{Kind: cr.RecoveryError, Detail: "official thread/start explicitly refused before user input"}
+		}
 		if w != nil && stop(ctx, w) {
 			if err != nil && startupFailed(err) {
 				return cr.RecoveryResult{Kind: cr.RecoveryError, Detail: "official CLI startup/initialization failed before user input"}

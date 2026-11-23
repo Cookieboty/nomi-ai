@@ -28,6 +28,7 @@ var OfficialAppServerArgs = []string{"-s", "read-only", "-a", "never", "-c", "an
 type Config struct {
 	Executable, Cwd, ConfigDir string
 	Model                      string
+	Effort                     string
 }
 type Factory struct {
 	mu        sync.Mutex
@@ -120,7 +121,7 @@ func (f *Factory) runtime(id string) (*Runtime, error) {
 }
 
 func identityFor(cfg Config, bin, dir os.FileInfo) cr.NativeIdentity {
-	identity := cr.NativeIdentity{DriverID: "codex", Transport: "official-app-server", DriverVersion: "official-app-server-adapter-v1", ResumeProtocol: "thread-resume-exact-id-v1", Executable: cfg.Executable, Source: "official-default-login-unverified", AccountID: "config-source:" + cfg.ConfigDir, ConfigDir: cfg.ConfigDir, Cwd: cfg.Cwd, ConfigGen: 1, ExecutableSize: bin.Size(), ExecutableMtimeMS: bin.ModTime().UnixMilli(), LaunchFingerprint: "read-only-never-approve-v1:" + directoryIdentity(dir)}
+	identity := cr.NativeIdentity{DriverID: "codex", Transport: "official-app-server", DriverVersion: "official-app-server-adapter-v1", ResumeProtocol: "thread-resume-exact-id-v1", Executable: cfg.Executable, Source: "official-default-login-unverified", AccountID: "config-source:" + cfg.ConfigDir, ConfigDir: cfg.ConfigDir, Cwd: cfg.Cwd, ConfigGen: 1, ExecutableSize: bin.Size(), ExecutableMtimeMS: bin.ModTime().UnixMilli(), LaunchFingerprint: "read-only-never-approve-v1:" + directoryIdentity(cfg.Cwd, dir)}
 	// Executable replacement is a different compatibility key, never a native-ID overwrite.
 	identity.DriverVersion += fmt.Sprintf(":%d:%d", bin.Size(), bin.ModTime().UnixNano())
 	return identity

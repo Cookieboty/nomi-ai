@@ -38,6 +38,7 @@ type acpLiveSession struct {
 	child            *gatedChild
 	driver           *drivers.AcpDriver
 	sessionID        *string
+	resumed          *bool
 	cwd              string
 	permissionMode   string
 	turn             *acpTurn
@@ -285,6 +286,9 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			if err == nil {
 				if s, ok := r.Get("sessionId").(string); ok {
 					sid = &s
+				}
+				if v, ok := r.Get("resumed").(bool); ok {
+					live.resumed = &v
 				}
 				modeNow = r.Get("currentModeId")
 			} else if err.Error() != "ACP agent returned no session" {

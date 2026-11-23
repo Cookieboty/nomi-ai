@@ -97,7 +97,7 @@ func openClaudeIPC(t *testing.T, s *convstore.Store, p *projects.Store) (*mainch
 
 func TestManagedClaudeFirstUseCapabilitiesIPC(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("managed persistence gate")
+		t.Skip("POSIX shell executable LookPath fixture")
 	}
 	t.Setenv("PATH", t.TempDir())
 	s := convstore.New(t.TempDir())
@@ -150,7 +150,7 @@ func TestManagedClaudeFirstUseCapabilitiesIPC(t *testing.T) {
 
 func TestManagedCodexFirstUseCapabilitiesIPC(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("managed persistence gate")
+		t.Skip("POSIX shell executable LookPath fixture")
 	}
 	t.Setenv("PATH", t.TempDir())
 	s := convstore.New(t.TempDir())

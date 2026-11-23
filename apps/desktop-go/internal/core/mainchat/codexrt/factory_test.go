@@ -14,9 +14,6 @@ import (
 )
 
 func TestFactoryImmutableCompatibilityAndScopedRelease(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("managed mode is gated")
-	}
 	dir := t.TempDir()
 	exe := filepath.Join(dir, "fake")
 	if err := os.WriteFile(exe, []byte("not executed"), 0700); err != nil {
@@ -62,7 +59,7 @@ func TestFactoryImmutableCompatibilityAndScopedRelease(t *testing.T) {
 
 func TestFactoryPhysicalCwdAndReplacementAreNewBindings(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("managed mode is gated")
+		t.Skip("POSIX symlink replacement fixture")
 	}
 	dir := t.TempDir()
 	exe := filepath.Join(dir, "fake")
@@ -97,9 +94,6 @@ func TestFactoryPhysicalCwdAndReplacementAreNewBindings(t *testing.T) {
 }
 
 func TestFactoryRefusesRelativeOrMissingProject(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("managed mode is gated")
-	}
 	dir := t.TempDir()
 	exe := filepath.Join(dir, "fake")
 	_ = os.WriteFile(exe, []byte("fake"), 0700)
@@ -125,9 +119,6 @@ func TestFactoryRefusesRelativeOrMissingProject(t *testing.T) {
 // the five pinned -c flags plus the subcommand, no computer/writable roots,
 // no bypass, no auto_review, and no API-key/CONFIG_HOME inheritance.
 func TestOfficialArgsAndEnv(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("managed mode is gated")
-	}
 	dir := t.TempDir()
 	cfg := Config{Executable: filepath.Join(dir, "codex"), Cwd: dir, ConfigDir: filepath.Join(dir, "codex-home")}
 	args := officialArgs(cfg)
@@ -212,7 +203,7 @@ func TestMissingThreadIsExactOnly(t *testing.T) {
 
 func TestDefaultConfigLookPathIsNotLogin(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("managed mode is gated")
+		t.Skip("POSIX shell executable LookPath fixture")
 	}
 	dir := t.TempDir()
 	bin := filepath.Join(dir, "bin")

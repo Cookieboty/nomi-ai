@@ -13,7 +13,7 @@ import (
 
 func TestManagedClaudeProductionRegistrationNoProviderOrLoginProbe(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("managed persistence gate")
+		t.Skip("POSIX shell executable LookPath fixture")
 	}
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "MUST-NOT-EXECUTE")

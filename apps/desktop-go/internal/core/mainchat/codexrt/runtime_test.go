@@ -54,7 +54,7 @@ for line in sys.stdin:
 func newFakeRuntime(t *testing.T, mode string) (*Runtime, func()) {
 	t.Helper()
 	if runtime.GOOS == "windows" {
-		t.Skip("managed mode is gated on Windows")
+		t.Skip("POSIX #!/bin/sh launcher for fake app-server")
 	}
 	py, err := findPython()
 	if err != nil {

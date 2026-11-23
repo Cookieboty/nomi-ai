@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/claude"
@@ -38,6 +39,17 @@ func (r *Runtime) spawn(sid string, resume bool) *worker {
 	// These documented flags preserve official login while removing discovery
 	// and limiting the native loop. No allowedTools/bypass permissions are added.
 	args := []string{"-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--permission-prompt-tool", "stdio", "--replay-user-messages", "--safe-mode", "--restricted", "--disable-slash-commands", "--setting-sources", "", "--settings", `{"disableAllHooks":true}`, "--tools", "Read,Glob,Grep", "--strict-mcp-config", "--mcp-config", `{"mcpServers":{}}`, "--disallowedTools", "mcp__*"}
+	if cfg.ComputerMcp != nil && cfg.ComputerMcp.Name != "" && cfg.ComputerMcp.Command != "" {
+		mcpCfg, _ := json.Marshal(map[string]any{
+			"mcpServers": map[string]any{
+				cfg.ComputerMcp.Name: map[string]any{"type": "stdio", "command": cfg.ComputerMcp.Command, "args": cfg.ComputerMcp.Args},
+			},
+		})
+		args = []string{"-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--permission-prompt-tool", "stdio", "--replay-user-messages", "--safe-mode", "--restricted", "--disable-slash-commands", "--setting-sources", "", "--settings", `{"disableAllHooks":true}`, "--tools", "Read,Glob,Grep", "--strict-mcp-config", "--mcp-config", string(mcpCfg), "--allowedTools", "mcp__" + cfg.ComputerMcp.Name}
+	}
+	if cfg.Effort != "" {
+		args = append(args, "--effort", cfg.Effort)
+	}
 	args = append(args, launch.Args...)
 	if resume {
 		args = append(args, "--resume", sid)
@@ -226,6 +238,9 @@ func (w *worker) line(line string, _ bool) bool {
 			return true
 		}
 		t.approvals[j.RequestID] = input
+		if t.approvalTools != nil {
+			t.approvalTools[j.RequestID] = j.Request.Tool
+		}
 	case "assistant", "stream_event", "system", "rate_limit_event", "error":
 	default:
 		w.fail("unknown native protocol event")
@@ -252,23 +267,43 @@ func (w *worker) parsed(ev *util.Obj) {
 		}
 	case "permission":
 		id := util.Str(ev.Get("id"))
-		if _, ok := t.approvals[id]; !ok {
+		rawInput, ok := t.approvals[id]
+		if !ok {
 			w.fail("permission lacks original native input")
 			return
 		}
+		toolName := t.approvalTools[id]
+		preview := util.Stringify(rawInput)
+		if len(preview) > 600 {
+			preview = preview[:600]
+		}
 		e := event(t, cr.EventApproval)
 		e.ApprovalID = id
+		e.ApprovalInfo = &cr.ApprovalInfo{
+			ID:          id,
+			Tool:        toolName,
+			Summary:     toolName,
+			ArgsPreview: preview,
+			Danger:      "read",
+		}
 		w.queue(e)
 	case "tool":
 		id := util.Str(ev.Get("detail"))
-		if ev.Get("status") == "start" {
-			if !readTool(util.Str(ev.Get("name"))) || id == "" {
+		name := util.Str(ev.Get("name"))
+		status := util.Str(ev.Get("status"))
+		if status == "start" {
+			if !readTool(name) || id == "" {
 				w.fail("unsupported native tool started")
 				return
 			}
 			t.tools[id] = true
 		} else {
 			delete(t.tools, id)
+		}
+		if id != "" && name != "" {
+			te := event(t, cr.EventTrace)
+			te.Trace = &cr.TraceEntry{ID: id, Kind: "tool", Tool: name, Summary: name, Status: status, At: time.Now().UnixMilli()}
+			w.queue(te)
 		}
 	case "error", "question", "agent":
 		w.fail("native error or unsupported interactive/background capability")

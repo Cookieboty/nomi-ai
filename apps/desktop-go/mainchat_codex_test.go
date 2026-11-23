@@ -14,7 +14,7 @@ import (
 
 func TestManagedCodexProductionRegistrationNoProviderOrLoginProbe(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("managed persistence gate")
+		t.Skip("POSIX shell executable LookPath fixture")
 	}
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "MUST-NOT-EXECUTE")
@@ -56,7 +56,7 @@ func TestManagedCodexProductionRegistrationNoProviderOrLoginProbe(t *testing.T) 
 
 func TestManagedCodexAndClaudeRegisterIndependently(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("managed persistence gate")
+		t.Skip("POSIX shell executable LookPath fixture")
 	}
 	dir := t.TempDir()
 	for _, name := range []string{"claude", "codex"} {
@@ -108,7 +108,7 @@ func TestManagedCodexMissingExecutableNotAdvertised(t *testing.T) {
 
 func TestManagedCodexChoicesLookPathIsNotLoginAndProjectGatesAdopt(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("managed persistence gate")
+		t.Skip("POSIX shell executable LookPath fixture")
 	}
 	dir := t.TempDir()
 	// An executable that never runs during registration; presence is not auth.
@@ -155,9 +155,8 @@ func TestManagedCodexChoicesLookPathIsNotLoginAndProjectGatesAdopt(t *testing.T)
 	}
 }
 
-// The platform gate is exercised on every host: on Windows both official
-// choices must be unsupported-platform and no factory registered; elsewhere
-// they must never report the platform as unsupported.
+// Managed durability is now implemented across platforms including Windows;
+// choices must never report unsupported-platform when binaries are absent.
 func TestManagedOfficialChoicesRespectPlatformGate(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	s := convstore.New(t.TempDir())
@@ -167,14 +166,8 @@ func TestManagedOfficialChoicesRespectPlatformGate(t *testing.T) {
 	wireManagedClaude(r, s, migrationStore(t.TempDir()))
 	for _, name := range []string{"claude", "codex"} {
 		c := namedChoice(t, r.Choices("c"), name)
-		if runtime.GOOS == "windows" {
-			if c.Status != "unsupported-platform" || c.Available || slices.Contains(r.Available(), name) {
-				t.Fatalf("%s Windows gate: %+v registered=%v", name, c, r.Available())
-			}
-			continue
-		}
 		if c.Status == "unsupported-platform" || slices.Contains(r.Available(), name) {
-			t.Fatalf("%s non-Windows choice %+v registered=%v", name, c, r.Available())
+			t.Fatalf("%s choice unexpectedly gated or registered=%v", name, c)
 		}
 	}
 }

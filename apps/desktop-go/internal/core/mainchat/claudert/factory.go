@@ -13,9 +13,18 @@ import (
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
 )
 
+type ComputerMcpConfig struct {
+	Name    string
+	Command string
+	Args    []string
+}
+
 type Config struct {
 	Executable, Cwd, ConfigDir string
 	Model                      string
+	Effort                     string
+	PermissionMode             string
+	ComputerMcp                *ComputerMcpConfig
 }
 type Factory struct {
 	mu        sync.Mutex
@@ -73,10 +82,18 @@ func (f *Factory) Target(id string) (cr.Target, error) {
 	if err != nil || !dir.IsDir() {
 		return cr.Target{}, errors.New("Claude working directory unavailable")
 	}
-	identity := cr.NativeIdentity{DriverID: "claude", Transport: "official-stream-json", DriverVersion: "contract-2.1.318-v1", ResumeProtocol: "confirmed-warm-only-v1", Executable: cfg.Executable, Source: "official-default-login-unverified", AccountID: "config-source:" + cfg.ConfigDir, ConfigDir: cfg.ConfigDir, Cwd: cfg.Cwd, ConfigGen: 1, ExecutableSize: bin.Size(), ExecutableMtimeMS: bin.ModTime().UnixMilli(), LaunchFingerprint: "safe-mode-restricted-read-only-v1:" + directoryIdentity(dir)}
+	fingerprint := "safe-mode-restricted-read-only-v1:" + directoryIdentity(cfg.Cwd, dir)
+	if cfg.ComputerMcp != nil && cfg.ComputerMcp.Name != "" {
+		fingerprint += ":mcp:" + cfg.ComputerMcp.Name
+	}
+	identity := cr.NativeIdentity{DriverID: "claude", Transport: "official-stream-json", DriverVersion: "contract-2.1.318-v1", ResumeProtocol: "confirmed-warm-only-v1", Executable: cfg.Executable, Source: "official-default-login-unverified", AccountID: "config-source:" + cfg.ConfigDir, ConfigDir: cfg.ConfigDir, Cwd: cfg.Cwd, ConfigGen: 1, ExecutableSize: bin.Size(), ExecutableMtimeMS: bin.ModTime().UnixMilli(), LaunchFingerprint: fingerprint}
 	// Executable replacement is a different compatibility key, never a native-ID overwrite.
 	identity.DriverVersion += fmt.Sprintf(":%d:%d", bin.Size(), bin.ModTime().UnixNano())
-	env := cr.CompatibilityKey{Model: cfg.Model, PermissionMode: "ask"}
+	mode := cfg.PermissionMode
+	if mode == "" {
+		mode = "ask"
+	}
+	env := cr.CompatibilityKey{Model: cfg.Model, PermissionMode: mode}
 	if env.Model == "" {
 		env.Model = "cli-default"
 	}
@@ -91,7 +108,7 @@ func (f *Factory) Target(id string) (cr.Target, error) {
 		r = &Runtime{config: cfg}
 		f.instances[id][key] = r
 	}
-	return cr.Target{Runtime: r, Identity: identity, Env: env}, nil
+	return cr.Target{Runtime: r, Identity: identity, Env: env, Effort: cfg.Effort}, nil
 }
 func (f *Factory) Release(id string) {
 	f.mu.Lock()

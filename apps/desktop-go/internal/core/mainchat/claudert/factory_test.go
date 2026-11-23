@@ -9,9 +9,6 @@ import (
 )
 
 func TestFactoryImmutableCompatibilityAndScopedRelease(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("managed mode is gated")
-	}
 	dir := t.TempDir()
 	exe := filepath.Join(dir, "fake")
 	if err := os.WriteFile(exe, []byte("not executed"), 0700); err != nil {
@@ -51,7 +48,7 @@ func TestFactoryImmutableCompatibilityAndScopedRelease(t *testing.T) {
 }
 func TestFactoryPhysicalCwdAndReplacementAreNewBindings(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("managed mode is gated")
+		t.Skip("POSIX symlink replacement fixture")
 	}
 	dir := t.TempDir()
 	exe := filepath.Join(dir, "fake")

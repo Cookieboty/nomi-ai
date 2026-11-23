@@ -15,7 +15,7 @@ func killGroup(pid int) {
 }
 func groupGone(pid int) bool { return pid <= 0 || syscall.Kill(-pid, 0) == syscall.ESRCH }
 
-func directoryIdentity(info os.FileInfo) string {
+func directoryIdentity(_ string, info os.FileInfo) string {
 	if st, ok := info.Sys().(*syscall.Stat_t); ok {
 		return fmt.Sprintf("%d:%d", st.Dev, st.Ino)
 	}

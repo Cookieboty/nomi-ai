@@ -43,6 +43,9 @@ func officialArgs(cfg Config) []string {
 	}
 	launch := codex.OfficialLaunch(clisdk.LaunchContext{Cwd: cfg.Cwd, PermissionMode: "manual", Model: modelPtr, AccountDir: &cfg.ConfigDir})
 	args := append([]string{}, OfficialAppServerArgs[:len(OfficialAppServerArgs)-1]...)
+	if cfg.Effort != "" {
+		args = append(args, "-c", `model_reasoning_effort="`+cfg.Effort+`"`)
+	}
 	args = append(args, launch.Args...)
 	args = append(args, OfficialAppServerArgs[len(OfficialAppServerArgs)-1])
 	return args
