@@ -95,7 +95,7 @@ type LauncherView struct {
 func LauncherViewFor(kind string) LauncherView {
 	return LauncherView{
 		LauncherSettings: LauncherFor(kind),
-		HasLocalLogin:    HasLocalLogin(kind, ""),
+		HasLocalLogin:    DetectLocalLogin(kind, ""),
 	}
 }
 
@@ -112,7 +112,7 @@ func Launchers() map[string]LauncherSettings {
 func LaunchersView() map[string]LauncherView {
 	out := map[string]LauncherView{}
 	for _, kind := range builtin.IDs {
-		if builtin.WithAccounts(kind) {
+		if builtin.WithAccounts(kind) || builtin.LocalOnly(kind) {
 			out[kind] = LauncherViewFor(kind)
 		}
 	}
@@ -466,11 +466,50 @@ func hasClaudeOAuthAccount(path string) bool {
 	return trimmed != "" && trimmed != "null" && trimmed != "{}"
 }
 
+var localAuthCache struct {
+	sync.RWMutex
+	m map[string]bool
+}
+
+// SetLocalAuthCache records the verified local sign-in state for a CLI kind.
+func SetLocalAuthCache(kind string, loggedIn bool) {
+	localAuthCache.Lock()
+	defer localAuthCache.Unlock()
+	if localAuthCache.m == nil {
+		localAuthCache.m = map[string]bool{}
+	}
+	localAuthCache.m[kind] = loggedIn
+}
+
+// ClearLocalAuthCache drops the cached local sign-in state for a CLI kind (or all kinds if empty).
+func ClearLocalAuthCache(kind string) {
+	localAuthCache.Lock()
+	defer localAuthCache.Unlock()
+	if kind == "" {
+		localAuthCache.m = nil
+		return
+	}
+	delete(localAuthCache.m, kind)
+}
+
+// CachedLocalAuth returns the cached local sign-in state for a CLI kind if present.
+func CachedLocalAuth(kind string) (bool, bool) {
+	localAuthCache.RLock()
+	defer localAuthCache.RUnlock()
+	v, ok := localAuthCache.m[kind]
+	return v, ok
+}
+
 // DetectLocalLogin probes whether any builtin CLI has local credentials or API keys
 // in its default home or process environment using read-only filesystem checks.
 func DetectLocalLogin(kind, home string) bool {
 	if builtin.WithAccounts(kind) {
 		return HasLocalLogin(kind, home)
+	}
+	if home == "" {
+		if v, ok := CachedLocalAuth(kind); ok {
+			return v
+		}
 	}
 	var env *util.Obj
 	if home == "" {
@@ -527,11 +566,17 @@ func hasAntigravityLocalLogin(home string, envMap map[string]string) bool {
 		if hasNonEmptyJSONObject(filepath.Join(dir, "oauth_creds.json")) ||
 			hasNonEmptyJSONObject(filepath.Join(dir, "auth.json")) ||
 			hasNonEmptyJSONObject(filepath.Join(dir, "credentials.json")) ||
-			hasActiveGoogleAccount(filepath.Join(dir, "google_accounts.json")) {
+			hasActiveGoogleAccount(filepath.Join(dir, "google_accounts.json")) ||
+			hasNonEmptyFile(filepath.Join(dir, "jetski_state.pbtxt")) {
 			return true
 		}
 	}
 	return hasGeminiLocalLogin(home, envMap)
+}
+
+func hasNonEmptyFile(path string) bool {
+	b, err := os.ReadFile(path)
+	return err == nil && strings.TrimSpace(string(b)) != ""
 }
 
 func hasNonEmptyJSONObject(path string) bool {

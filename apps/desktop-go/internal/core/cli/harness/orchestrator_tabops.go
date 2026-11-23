@@ -1550,7 +1550,7 @@ func (o *Orchestrator) ModelCatalogFor(backend string, refresh bool, source stri
 		gen := o.modelCatalogGen[cacheKey]
 		current := func() bool { return o.modelCatalogGen[cacheKey] == gen }
 		launchFn := func(b string) *tabLaunch {
-			if useLocal && isAccountBackend(b) {
+			if builtin.LocalOnly(b) || (useLocal && isAccountBackend(b)) {
 				return o.localLaunchFor(b)
 			}
 			return o.officialLaunchFor(b, nil)
@@ -1589,6 +1589,11 @@ func (o *Orchestrator) ModelCatalogFor(backend string, refresh bool, source stri
 		gh := usage.GrokHomeDir(o.home, usage.ProcessEnv())
 		deps.GrokModelsCachePath = filepath.Join(gh, "models_cache.json")
 		deps.GrokSettingsCachePath = filepath.Join(gh, "settings_cache.json")
+		if ah := os.Getenv("ANTIGRAVITY_CLI_HOME"); ah != "" {
+			deps.AntigravitySettingsPath = filepath.Join(ah, "settings.json")
+		} else {
+			deps.AntigravitySettingsPath = filepath.Join(o.home, ".gemini", "antigravity-cli", "settings.json")
+		}
 		disc := cli.DiscoverModels(backend, deps)
 		var run *jsrt.Promise[*util.Obj]
 		run = jsrt.Async(func() (*util.Obj, error) {
@@ -1725,6 +1730,14 @@ func (o *Orchestrator) turnModelResolver(tab *util.Obj) func(events []*util.Obj,
 		}
 		return fallback
 	}
+}
+
+// InvalidateModelCatalog 清空指定底座的模型目录缓存并推进世代号。
+func (o *Orchestrator) InvalidateModelCatalog(backend string) {
+	delete(o.modelCatalogs, backend)
+	delete(o.modelCatalogs, backend+":local")
+	o.modelCatalogGen[backend] = o.modelCatalogGen[backend] + 1
+	o.modelCatalogGen[backend+":local"] = o.modelCatalogGen[backend+":local"] + 1
 }
 
 // cachedCatalog：nil = null。

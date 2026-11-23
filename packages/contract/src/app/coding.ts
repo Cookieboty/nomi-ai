@@ -543,6 +543,38 @@ const cliProcedures = {
     input: z.object({ kind: cliKind, command: z.string().max(8192) }),
     output: z.object({ version: z.string() }),
   },
+  'cli.localAuthStatus': {
+    kind: 'query',
+    surfaces: ['chat', 'settings'],
+    input: z.object({ kind: cliKind, probe: z.boolean().optional() }),
+    output: z.object({
+      kind: cliKind,
+      loggedIn: z.boolean(),
+      canLogin: z.boolean(),
+      canLogout: z.boolean(),
+      detail: z.string().optional(),
+    }),
+  },
+  'cli.localAuthLoginStart': {
+    kind: 'mutation',
+    dangerous: true,
+    surfaces: ['chat', 'settings'],
+    input: z.object({ kind: cliKind }),
+    output: LoginEvent,
+  },
+  'cli.localAuthLoginCancel': {
+    kind: 'mutation',
+    surfaces: ['chat', 'settings'],
+    input: byId,
+    output: z.boolean(),
+  },
+  'cli.localAuthLogout': {
+    kind: 'mutation',
+    dangerous: true,
+    surfaces: ['chat', 'settings'],
+    input: z.object({ kind: cliKind }),
+    output: z.object({ loggedIn: z.boolean() }),
+  },
 } as const satisfies ProcedureMap;
 
 const cliAccountProcedures = {
@@ -806,6 +838,8 @@ export const codingEvents = {
   'cli.registryChanged': CliRegistrySnapshot,
   /** CLI 启动与账号源设置变化（主窗与独立弹窗实时同步） */
   'cli.launcherChanged': z.record(z.string(), CliLauncherSettings),
+  /** 本机 CLI 登录进度 */
+  'cli.localAuthEvent': LoginEvent,
   /** 账号列表变化，不带数据（ai:cli-account:changed） */
   'cliAccount.changed': z.null(),
   /** 登录进度（ai:cli-account:login） */
@@ -828,6 +862,7 @@ export const codingEventSurfaces = {
   'harness.events': ['chat', 'settings'],
   'harness.tabMessage': ['chat', 'settings'],
   'cli.launcherChanged': ['chat'],
+  'cli.localAuthEvent': ['chat', 'settings'],
   'fleet.changed': ['chat', 'settings'],
 } as const satisfies Partial<Record<keyof typeof codingEvents, readonly Surface[]>>;
 

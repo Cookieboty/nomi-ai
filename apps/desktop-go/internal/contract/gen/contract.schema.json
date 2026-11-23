@@ -7065,6 +7065,155 @@
     "additionalProperties": false
    }
   },
+  "cli.localAuthLoginCancel": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat",
+    "settings"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "boolean"
+   }
+  },
+  "cli.localAuthLoginStart": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat",
+    "settings"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "kind": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "kind": {
+      "type": "string"
+     },
+     "state": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "kind",
+     "state"
+    ],
+    "additionalProperties": {}
+   }
+  },
+  "cli.localAuthLogout": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat",
+    "settings"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "kind": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "loggedIn": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "loggedIn"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "cli.localAuthStatus": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [
+    "chat",
+    "settings"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "kind": {
+      "type": "string"
+     },
+     "probe": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "kind"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "kind": {
+      "type": "string"
+     },
+     "loggedIn": {
+      "type": "boolean"
+     },
+     "canLogin": {
+      "type": "boolean"
+     },
+     "canLogout": {
+      "type": "boolean"
+     },
+     "detail": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "loggedIn",
+     "canLogin",
+     "canLogout"
+    ],
+    "additionalProperties": false
+   }
+  },
   "cli.registry": {
    "kind": "query",
    "dangerous": false,
@@ -44171,6 +44320,27 @@
     ],
     "additionalProperties": false
    }
+  },
+  "cli.localAuthEvent": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "kind": {
+     "type": "string"
+    },
+    "state": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "kind",
+    "state"
+   ],
+   "additionalProperties": {}
   },
   "cli.registryChanged": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",

@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 515：mutation 369 / query 141 / stream 5
+// 合计 519：mutation 372 / query 142 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -92,6 +92,10 @@ var Procedures = []Procedure{
 	{Name: "cli.launcherGet", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "cli.launcherSet", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "cli.launcherTest", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "cli.localAuthLoginCancel", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat", "settings"}},
+	{Name: "cli.localAuthLoginStart", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat", "settings"}},
+	{Name: "cli.localAuthLogout", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat", "settings"}},
+	{Name: "cli.localAuthStatus", Kind: "query", Dangerous: false, Surfaces: []string{"chat", "settings"}},
 	{Name: "cli.registry", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "cliAccount.list", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "cliAccount.loginCancel", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -559,6 +563,7 @@ var Events = []string{
 	"chatWindow.dockRequest",
 	"chatWindow.tabDocked",
 	"cli.launcherChanged",
+	"cli.localAuthEvent",
 	"cli.registryChanged",
 	"cliAccount.changed",
 	"cliAccount.login",

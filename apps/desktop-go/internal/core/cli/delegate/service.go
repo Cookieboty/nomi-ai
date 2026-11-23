@@ -766,7 +766,7 @@ func (s *Service) Settings() *util.Obj {
 	c.Set("routes", routes)
 	localAvail := util.NewObj()
 	for _, id := range builtin.Ordered {
-		if builtin.WithAccounts(id) {
+		if builtin.WithAccounts(id) || builtin.LocalOnly(id) {
 			localAvail.Set(id, s.hasLocalLoginFor(id))
 		}
 	}

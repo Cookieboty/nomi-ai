@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/antigravity"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
@@ -297,6 +298,51 @@ func (r *Runtime) applySessionSettings(ctx context.Context, w *worker) error {
 	}
 	effort := r.config.Effort
 	if model == "" && effort == "" {
+		return nil
+	}
+	if r.config.BackendID == "antigravity" {
+		var parsedCatalog *util.Obj
+		var wireModel, wireEffort, cfgID string
+		var modelPromise, effortPromise *jsrt.Promise[struct{}]
+		jsrt.Run(func() {
+			if w == nil || w.driver == nil || w.driver.Closed() {
+				return
+			}
+			if w.driver.SessionRaw != nil {
+				c := antigravity.ParseModels(w.driver.SessionRaw)
+				if ms, ok := c.Get("models").([]any); ok && len(ms) > 0 {
+					parsedCatalog = c
+				}
+			}
+			wireModel, wireEffort, cfgID = antigravity.ResolveModelAndEffort(parsedCatalog, model, effort)
+			if wireModel == "" && model != "" {
+				wireModel = model
+			}
+			if wireModel != "" {
+				modelPromise = w.driver.SetSessionModel(wireModel)
+			}
+		})
+		if modelPromise != nil {
+			if _, err := awaitPromise(ctx, modelPromise); err != nil {
+				return err
+			}
+		}
+		if wireEffort != "" {
+			if cfgID == "" {
+				cfgID = "reasoning_effort"
+			}
+			jsrt.Run(func() {
+				if w == nil || w.driver == nil || w.driver.Closed() {
+					return
+				}
+				effortPromise = w.driver.SetConfigOption(cfgID, wireEffort)
+			})
+			if effortPromise != nil {
+				if _, err := awaitPromise(ctx, effortPromise); err != nil {
+					return err
+				}
+			}
+		}
 		return nil
 	}
 	var modelPromise *jsrt.Promise[string]

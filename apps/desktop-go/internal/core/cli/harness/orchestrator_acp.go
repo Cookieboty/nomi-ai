@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/antigravity"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
@@ -300,6 +301,9 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 					binName := backend
 					if bins := builtin.Binaries(backend); len(bins) > 0 && bins[0] != "" {
 						binName = bins[0]
+					}
+					if cli.LocalAuthSupported(backend) {
+						return struct{}{}, errors.New(i18n.T("electron.common.cli-local-auth-needs-sign-in", name, binName))
 					}
 					return struct{}{}, errors.New(i18n.T("electron.common.cli-local-needs-sign-in", name, binName))
 				}
@@ -667,10 +671,10 @@ func (o *Orchestrator) runAcp(tab *util.Obj, prompt string, signal *jsrt.AbortSi
 	})
 }
 
-// syncAcpOverrides：Grok 的模型 / 思考深度原地同步；false = 换新进程。
+// syncAcpOverrides：Grok / Antigravity 等支持原地选模型的 ACP 助手模型与思考深度同步；false = 换新进程。
 func (o *Orchestrator) syncAcpOverrides(tab *util.Obj, live *acpLiveSession) *jsrt.Promise[bool] {
 	return jsrt.Async(func() (bool, error) {
-		if live.backend != "grok" || live.sessionID == nil || *live.sessionID == "" {
+		if !builtin.UsesAcp(live.backend) || !cli.SupportsModelOverride(live.backend) || live.sessionID == nil || *live.sessionID == "" {
 			return true, nil
 		}
 		if o.sourceOf(tab) == "thirdParty" {
@@ -680,9 +684,51 @@ func (o *Orchestrator) syncAcpOverrides(tab *util.Obj, live *acpLiveSession) *js
 		if eqStrP(live.model, want.model) && eqStrP(live.effort, want.effort) {
 			return true, nil
 		}
-		catalog := o.cachedCatalog("grok")
+		catalog := o.cachedCatalog(live.backend)
 		fail := func(what string, e error) error {
-			return withCause(i18n.T("electron.common.grok-did-not-switch-the", what, rpc.InnermostMessage(e.Error())), e)
+			if live.backend == "grok" {
+				return withCause(i18n.T("electron.common.grok-did-not-switch-the", what, rpc.InnermostMessage(e.Error())), e)
+			}
+			return withCause(i18n.T("electron.common.cli-did-not-switch-the", acpDisplayName(live.backend), what, rpc.InnermostMessage(e.Error())), e)
+		}
+		if live.backend == "antigravity" {
+			if catalog == nil && live.driver != nil && live.driver.SessionRaw != nil {
+				if c := antigravity.ParseModels(live.driver.SessionRaw); c != nil {
+					if ms, ok := c.Get("models").([]any); ok && len(ms) > 0 {
+						catalog = c
+					}
+				}
+			}
+			wantModel := derefStr(want.model)
+			wantEffort := derefStr(want.effort)
+			wireModel, wireEffort, cfgID := antigravity.ResolveModelAndEffort(catalog, wantModel, wantEffort)
+			if want.model != nil && wireModel == "" {
+				return false, nil
+			}
+			if want.model == nil && live.model != nil && wireModel == "" {
+				return false, nil
+			}
+			needsModelSync := !eqStrP(live.model, want.model) || (wireEffort == "" && !eqStrP(live.effort, want.effort))
+			if needsModelSync && wireModel != "" {
+				if _, e := jsrt.Await(live.driver.SetSessionModel(wireModel)); e != nil {
+					return false, fail(i18n.T("electron.common.model"), e)
+				}
+				live.model = want.model
+				if wireEffort == "" {
+					live.effort = want.effort
+				} else {
+					live.effort = nil
+				}
+			}
+			if !eqStrP(live.effort, want.effort) {
+				if wireEffort != "" && cfgID != "" {
+					if _, e := jsrt.Await(live.driver.SetConfigOption(cfgID, wireEffort)); e != nil {
+						return false, fail(i18n.T("electron.common.reasoning-effort"), e)
+					}
+				}
+				live.effort = want.effort
+			}
+			return true, nil
 		}
 		defaultID := func() *string {
 			if want.model != nil {

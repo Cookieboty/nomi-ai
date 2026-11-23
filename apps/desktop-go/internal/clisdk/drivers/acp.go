@@ -127,6 +127,7 @@ type AcpDriver struct {
 	ModeID            *string
 	AvailableModes    []string
 	AgentCapabilities Json
+	SessionRaw        Json
 }
 
 func NewAcpDriver(o AcpDriverOptions) *AcpDriver {
@@ -453,6 +454,7 @@ func (d *AcpDriver) LoadSession(sessionID, cwd string, mcp any, extraDirs []stri
 		if ret := parseReturnedSessionID(r); ret != "" && ret != sessionID {
 			return nil, errors.New("ACP session/load returned mismatched sessionId")
 		}
+		d.SessionRaw = util.AsObj(r)
 		return d.finishSession(sessionID, getp(r, "modes"), true, true, nil), nil
 	})
 }
@@ -471,6 +473,7 @@ func (d *AcpDriver) NewSession(cwd string, mcp any, extraDirs []string, signal *
 		if sid == "" {
 			return nil, errors.New("ACP agent returned no session")
 		}
+		d.SessionRaw = util.AsObj(r)
 		return d.finishSession(sid, getp(r, "modes"), false, true, nil), nil
 	})
 }
@@ -495,6 +498,7 @@ func (d *AcpDriver) Start(o clisdk.StartOptions) *jsrt.Promise[StartResult] {
 			r, err := jsrt.Await(d.Conn.Request("session/load", d.withSessionDirs(O("sessionId", resumeID, "cwd", o.Cwd, "mcpServers", mcp), o.AdditionalDirectories), opts))
 			if err == nil {
 				modes = getp(r, "modes")
+				d.SessionRaw = util.AsObj(r)
 				resumed = true
 				sid = resumeID
 			}
@@ -506,6 +510,7 @@ func (d *AcpDriver) Start(o clisdk.StartOptions) *jsrt.Promise[StartResult] {
 			}
 			sid = parseReturnedSessionID(r)
 			modes = getp(r, "modes")
+			d.SessionRaw = util.AsObj(r)
 		}
 		if sid == "" {
 			return nil, errors.New("ACP agent returned no session")

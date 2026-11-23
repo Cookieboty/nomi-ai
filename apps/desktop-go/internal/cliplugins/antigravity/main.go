@@ -22,7 +22,7 @@ func OfficialLaunch(ctx clisdk.LaunchContext) clisdk.AgentLaunch {
 
 func CreateMain() *clisdk.CliMainImpl {
 	return &clisdk.CliMainImpl{
-		Launch:      clisdk.LaunchCapability{Official: OfficialLaunch},
+		Launch:      clisdk.LaunchCapability{Official: OfficialLaunch, ModelArgs: sh.ModelArgsFn(ModelArgs)},
 		Permissions: Permissions,
 		Terminal:    sh.ResumeTerminal("agy", "--conversation"),
 	}

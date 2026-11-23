@@ -1726,6 +1726,41 @@ type CliLauncherTestOutput struct {
 	Version string `json:"version"`
 }
 
+type CliLocalAuthLoginCancelInput struct {
+	Id string `json:"id"`
+}
+
+type CliLocalAuthLoginStartInput struct {
+	Kind string `json:"kind"`
+}
+
+type CliLocalAuthLoginStartOutput struct {
+	Id    string `json:"id"`
+	Kind  string `json:"kind"`
+	State string `json:"state"`
+}
+
+type CliLocalAuthLogoutInput struct {
+	Kind string `json:"kind"`
+}
+
+type CliLocalAuthLogoutOutput struct {
+	LoggedIn bool `json:"loggedIn"`
+}
+
+type CliLocalAuthStatusInput struct {
+	Kind  string `json:"kind"`
+	Probe *bool  `json:"probe,omitempty"`
+}
+
+type CliLocalAuthStatusOutput struct {
+	Kind      string  `json:"kind"`
+	LoggedIn  bool    `json:"loggedIn"`
+	CanLogin  bool    `json:"canLogin"`
+	CanLogout bool    `json:"canLogout"`
+	Detail    *string `json:"detail,omitempty"`
+}
+
 type CliRegistryOutputPluginsItem struct {
 	Id          string   `json:"id"`
 	DisplayName string   `json:"displayName"`
@@ -14263,6 +14298,12 @@ type EventCliLauncherChangedValue struct {
 	HasLocalLogin *bool                                      `json:"hasLocalLogin,omitempty"`
 }
 
+type EventCliLocalAuthEvent struct {
+	Id    string `json:"id"`
+	Kind  string `json:"kind"`
+	State string `json:"state"`
+}
+
 type EventCliRegistryChangedPluginsItem struct {
 	Id          string   `json:"id"`
 	DisplayName string   `json:"displayName"`
@@ -15848,6 +15889,22 @@ type CliLauncherSetOutputT = CliLauncherSetOutput
 // CliLauncherTestInputT 是 cli.launcherTest 的入参
 type CliLauncherTestInputT = CliLauncherTestInput
 type CliLauncherTestOutputT = CliLauncherTestOutput
+
+// CliLocalAuthLoginCancelInputT 是 cli.localAuthLoginCancel 的入参
+type CliLocalAuthLoginCancelInputT = CliLocalAuthLoginCancelInput
+type CliLocalAuthLoginCancelOutputT = bool
+
+// CliLocalAuthLoginStartInputT 是 cli.localAuthLoginStart 的入参
+type CliLocalAuthLoginStartInputT = CliLocalAuthLoginStartInput
+type CliLocalAuthLoginStartOutputT = CliLocalAuthLoginStartOutput
+
+// CliLocalAuthLogoutInputT 是 cli.localAuthLogout 的入参
+type CliLocalAuthLogoutInputT = CliLocalAuthLogoutInput
+type CliLocalAuthLogoutOutputT = CliLocalAuthLogoutOutput
+
+// CliLocalAuthStatusInputT 是 cli.localAuthStatus 的入参
+type CliLocalAuthStatusInputT = CliLocalAuthStatusInput
+type CliLocalAuthStatusOutputT = CliLocalAuthStatusOutput
 
 // CliRegistryInputT 是 cli.registry 的入参
 type CliRegistryInputT = any
@@ -17625,6 +17682,7 @@ type EventChatWindowDetachedChangedT = []string
 type EventChatWindowDockRequestT = EventChatWindowDockRequest
 type EventChatWindowTabDockedT = EventChatWindowTabDocked
 type EventCliLauncherChangedT = map[string]EventCliLauncherChangedValue
+type EventCliLocalAuthEventT = EventCliLocalAuthEvent
 type EventCliRegistryChangedT = EventCliRegistryChanged
 type EventCliAccountChangedT = any
 type EventCliAccountLoginT = EventCliAccountLogin

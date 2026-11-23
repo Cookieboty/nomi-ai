@@ -506,6 +506,9 @@ func DeriveEffectiveRoutingWithEnv(settings *util.Obj, env RoutingEnv) (bool, []
 			return "", "", ""
 		}
 		if builtin.LocalOnly(c) {
+			if m := DefaultOfficialSubTopModel(c, offModels(c, "local")); m != "" {
+				return "local", "", m
+			}
 			return "local", "", ""
 		}
 		if !builtin.WithAccounts(c) {

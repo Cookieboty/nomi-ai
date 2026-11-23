@@ -35,6 +35,8 @@ func CliNativeFamily(cli string) string {
 		return "gpt"
 	case "gemini":
 		return "gemini"
+	case "antigravity":
+		return "gemini"
 	case "grok":
 		return "grok"
 	case "dsh":
