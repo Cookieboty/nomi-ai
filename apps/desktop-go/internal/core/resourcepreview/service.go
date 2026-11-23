@@ -50,7 +50,6 @@ type capability struct {
 	revision   string
 }
 type Service struct {
-	ProtectedPaths func() []string
 	// ProjectRoots：path 所在项目此刻可用的文件夹（realpath，已经过项目文件夹的校验）。
 	// 项目的文件夹都是用户加过的工作区：链接跳到同项目的附加文件夹或别的项目文件夹时不再要求逐个文件授权，并且可以编辑
 	ProjectRoots func(path string) []string
@@ -213,9 +212,6 @@ func (s *Service) Open(cwd, input, home string, allowOutside bool, source ...boo
 	}
 	if err != nil {
 		return fail("missing")
-	}
-	if s.denyReason(p) != "" || s.denyReason(real) != "" {
-		return fail("denied")
 	}
 	inside := false
 	editRoot := cwd
@@ -441,7 +437,7 @@ func (s *Service) Middleware(next http.Handler) http.Handler {
 			ok = false
 		}
 		s.mu.Unlock()
-		if !ok || v.info != nil && s.denyReason(v.path) != "" {
+		if !ok {
 			http.NotFound(w, r)
 			return
 		}
@@ -477,23 +473,4 @@ func (s *Service) Middleware(next http.Handler) http.Handler {
 // Wrap composes with the shell's constructor-style middleware chain.
 func (s *Service) Wrap(next func(http.Handler) http.Handler) func(http.Handler) http.Handler {
 	return func(root http.Handler) http.Handler { return s.Middleware(next(root)) }
-}
-
-// Read current protection settings on every access, including already-issued capabilities.
-// Resolve policy aliases too, so a symlinked private-data root cannot bypass the guard.
-func (s *Service) denyReason(path string) string {
-	resolve := func(roots []string) []string {
-		out := append([]string(nil), roots...)
-		for _, root := range roots {
-			if real, err := filepath.EvalSymlinks(root); err == nil {
-				out = append(out, real)
-			}
-		}
-		return out
-	}
-	var protected []string
-	if s.ProtectedPaths != nil {
-		protected = s.ProtectedPaths()
-	}
-	return desktop.DenyReasonWith(path, platform(), resolve(s.DenyRoots), resolve(protected))
 }

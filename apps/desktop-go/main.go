@@ -720,7 +720,6 @@ func main() {
 	projs := wireProjects(router, userData, desktopSvc.Broker)
 	wireManagedClaude(bundle.ConversationRuntime, bundle.Conversations, projs)
 	previewResources := resourcepreview.New(userData)
-	previewResources.ProtectedPaths = desktopSvc.Broker.ProtectedPaths
 	previewResources.ProjectRoots = projectRootsOf(projs)
 	previewResources.OpenExternal = ports.OpenExternal
 	previewResources.OpenFile = func(path string) error {
