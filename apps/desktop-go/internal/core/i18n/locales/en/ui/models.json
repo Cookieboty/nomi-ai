@@ -271,5 +271,15 @@
   "ui.models.cli-welcome-setup-desc-tp-only": "{0} has no enabled third-party models yet. Add a third-party provider and enable a model first.",
   "ui.models.cli-welcome-configure": "Configure",
   "ui.models.cli-pick-model-before-send": "Choose a model in the composer before sending",
-  "ui.models.local-sign-in-only-desc": "{0} uses your local CLI login and settings ({1}) directly without separate account management or third-party providers."
+  "ui.models.local-sign-in-only-desc": "{0} uses your local CLI login and settings ({1}) directly without separate account management or third-party providers.",
+  "ui.models.local-auth-title": "Official sign-in",
+  "ui.models.local-auth-desc": "Sign in locally through the official {0} CLI ({1} acp --login) and reuse your local config ({2}); Nomi never stores credentials or reads the system keychain.",
+  "ui.models.local-auth-signed-in": "Signed in",
+  "ui.models.local-auth-logout": "Sign out",
+  "ui.models.local-auth-logging-out": "Signing out…",
+  "ui.models.local-auth-done": "Signed in to {0}.",
+  "ui.models.local-auth-dialog-note": "Authentication is handled directly by your local {0} CLI; credentials are managed only by the official CLI.",
+  "ui.models.local-auth-logout-title": "Sign out of {0}",
+  "ui.models.local-auth-logout-body": "Sign out of your local {0} session?",
+  "ui.models.local-auth-refresh-aria": "Refresh {0} sign-in status"
 }
