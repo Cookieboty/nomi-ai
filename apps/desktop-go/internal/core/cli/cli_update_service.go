@@ -48,10 +48,42 @@ func npmCommand() string {
 	return "npm"
 }
 
+func scriptForPlatform(kind, platform string) string {
+	if platform == "" {
+		platform = usage.Platform()
+	}
+	if platform == "win32" {
+		return builtin.WindowsInstallScript(kind)
+	}
+	return builtin.InstallScript(kind)
+}
+
+func scriptArgvForPlatform(kind, platform string) ([]string, string) {
+	if platform == "" {
+		platform = usage.Platform()
+	}
+	sc := scriptForPlatform(kind, platform)
+	if sc == "" {
+		return nil, ""
+	}
+	if platform == "win32" {
+		return []string{"powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "$ErrorActionPreference = 'Stop'; " + sc}, sc
+	}
+	return []string{"bash", "-o", "pipefail", "-c", sc}, sc
+}
+
 // UpdateRecipes = updateRecipes(kind, bin, method, scope)；bin "" = null，scope "" = global。
 func UpdateRecipes(kind, bin, method, scope string) []UpdateRecipe {
+	return UpdateRecipesForPlatform(kind, bin, method, scope, usage.Platform())
+}
+
+// UpdateRecipesForPlatform 按指定平台生成安装/更新配方（self → npm → 官方安装脚本）。
+func UpdateRecipesForPlatform(kind, bin, method, scope, platform string) []UpdateRecipe {
 	if scope == "" {
 		scope = "global"
+	}
+	if platform == "" {
+		platform = usage.Platform()
 	}
 	var recipes []UpdateRecipe
 	su := builtin.SelfUpdate(kind)
@@ -64,6 +96,8 @@ func UpdateRecipes(kind, bin, method, scope string) []UpdateRecipe {
 			argv = append(argv, "--prefix", UserPrefix())
 		}
 		recipes = append(recipes, UpdateRecipe{Kind: kind, Via: "npm", Argv: argv})
+	} else if argv, _ := scriptArgvForPlatform(kind, platform); len(argv) > 0 {
+		recipes = append(recipes, UpdateRecipe{Kind: kind, Via: "script", Argv: argv})
 	}
 	return recipes
 }
@@ -76,6 +110,27 @@ var allowedPkgs = func() map[string]bool {
 	for _, id := range builtin.Ordered {
 		if p := builtin.NpmPackage(id); p != "" {
 			m[p+"@latest"] = true
+		}
+	}
+	return m
+}()
+
+// allowedPosixScripts / allowedWinScripts：只许执行内置 CLI 清单登记的官方安装脚本
+var allowedPosixScripts = func() map[string]bool {
+	m := map[string]bool{}
+	for _, id := range builtin.Ordered {
+		if sc := builtin.InstallScript(id); sc != "" {
+			m[sc] = true
+		}
+	}
+	return m
+}()
+
+var allowedWinScripts = func() map[string]bool {
+	m := map[string]bool{}
+	for _, id := range builtin.Ordered {
+		if ws := builtin.WindowsInstallScript(id); ws != "" {
+			m["$ErrorActionPreference = 'Stop'; "+ws] = true
 		}
 	}
 	return m
@@ -104,6 +159,12 @@ func IsAllowedUpdateArgv(argv []string) bool {
 	cmd, rest := argv[0], argv[1:]
 	base := util.JSLower(cmdSuffixRe.ReplaceAllString(nodepath.Lib(usage.Platform()).Basename(cmd), ""))
 	if selfUpdating(cmd, base) && len(rest) == 1 && rest[0] == "update" {
+		return true
+	}
+	if base == "bash" && len(rest) == 4 && rest[0] == "-o" && rest[1] == "pipefail" && rest[2] == "-c" && allowedPosixScripts[rest[3]] {
+		return true
+	}
+	if (base == "powershell" || base == "powershell.exe") && len(rest) == 5 && rest[0] == "-NoProfile" && rest[1] == "-ExecutionPolicy" && rest[2] == "Bypass" && rest[3] == "-Command" && allowedWinScripts[rest[4]] {
 		return true
 	}
 	envNpm := util.JSTrim(os.Getenv("NOMI_NPM_BIN"))
@@ -171,6 +232,11 @@ type CliProbe interface {
 	CanWrite(dir string) bool
 }
 
+// CliToolProbe：可选探针扩展，用于检查官方安装脚本所需的系统工具（bash / curl / powershell.exe）。
+type CliToolProbe interface {
+	FindTool(name string) string
+}
+
 type defaultCliProbe struct{}
 
 // DefaultCliProbe = defaultProbe。
@@ -179,6 +245,9 @@ var DefaultCliProbe CliProbe = defaultCliProbe{}
 func (defaultCliProbe) NodeVersion() string { return ReadPathNodeVersionAsync() }
 func (defaultCliProbe) NodeBin() string     { return ResolveNodeBin() }
 func (defaultCliProbe) NpmBin() string      { return ResolveNpmBinAsync() }
+func (defaultCliProbe) FindTool(name string) string {
+	return FindOnPath(name, WithCliPath(nil), usage.Platform(), nil)
+}
 func (defaultCliProbe) NpmPrefix() string {
 	npm := ResolveNpmBinAsync()
 	if npm == "" {
@@ -220,9 +289,9 @@ func DefaultCliRunner(argv []string, onLine func(string), timeoutMs int) *jsrt.P
 	var child *nodeproc.Child
 	if cuIsWin() && isCmdBat(argv[0]) {
 		f, a, verbatim := execOpts(CommandLine(argv), nil, true)
-		child = nodeproc.Spawn(f, a, nodeproc.Options{Env: env, Verbatim: verbatim})
+		child = nodeproc.Spawn(f, a, nodeproc.Options{Env: env, Verbatim: verbatim, IgnoreStdin: true})
 	} else {
-		child = nodeproc.Spawn(argv[0], argv[1:], nodeproc.Options{Env: env})
+		child = nodeproc.Spawn(argv[0], argv[1:], nodeproc.Options{Env: env, IgnoreStdin: true})
 	}
 	output, pending := "", ""
 	feed := func(text string) {
@@ -447,15 +516,19 @@ func (s *CliUpdateService) setPreferred(kind, bin string) {
 
 // userBin：用户目录前缀里这个 CLI 的可执行文件（"" = 没有）
 func (s *CliUpdateService) userBin(kind string) string {
-	platform := s.d.Platform
-	if platform == "" {
-		platform = usage.Platform()
-	}
+	platform := s.effectivePlatform()
 	lib := nodepath.Lib(platform)
 	dir := NpmPrefixBinDir(UserPrefix(), platform)
-	names := []string{kind}
+	names := append([]string{}, builtin.Binaries(kind)...)
+	if len(names) == 0 {
+		names = []string{kind}
+	}
 	if platform == "win32" {
-		names = []string{kind + ".cmd", kind + ".exe", kind}
+		winNames := make([]string, 0, len(names)*3)
+		for _, n := range names {
+			winNames = append(winNames, n+".cmd", n+".exe", n)
+		}
+		names = winNames
 	}
 	for _, n := range names {
 		if p := lib.Join(dir, n); usage.ExistsSync(p) {
@@ -463,6 +536,20 @@ func (s *CliUpdateService) userBin(kind string) string {
 		}
 	}
 	return ""
+}
+
+func (s *CliUpdateService) effectivePlatform() string {
+	if s.d.Platform != "" {
+		return s.d.Platform
+	}
+	return usage.Platform()
+}
+
+func (s *CliUpdateService) findTool(name, platform string) string {
+	if tp, ok := s.probe.(CliToolProbe); ok {
+		return tp.FindTool(name)
+	}
+	return FindOnPath(name, WithCliPath(nil), platform, nil)
 }
 
 // Environment = environment()：PATH 上的 Node.js 与 npm，以及每个 CLI 要求的最低 Node 主版本与是否满足
@@ -740,9 +827,11 @@ func dshProblemObj(p *DshProblem) any {
 // emptyInspectRows：探测失败 / 超时时的占位（全部视为未安装，避免 UI 一直停在「检测中」）。
 func emptyInspectRows() []*util.Obj {
 	out := make([]*util.Obj, 0, len(inspectKinds))
+	platform := usage.Platform()
 	for _, kind := range inspectKinds {
 		hasNpm := NpmPkg[kind] != ""
-		installSup := IsUpdatable(kind) && hasNpm
+		hasScript := scriptForPlatform(kind, platform) != ""
+		installSup := IsUpdatable(kind) && (hasNpm || hasScript)
 		out = append(out, util.NewObj("kind", kind, "path", nil, "version", nil, "latest", nil,
 			"installMethod", "unknown", "updateAvailable", false,
 			"updateSupported", installSup, "installSupported", installSup))
@@ -763,20 +852,24 @@ func (s *CliUpdateService) rowsFromLocal(local []localProbe) ([]*util.Obj, error
 	if err != nil {
 		return nil, err
 	}
+	platform := s.effectivePlatform()
 	out := make([]*util.Obj, 0, len(local))
 	for _, r := range local {
 		var lv any
 		if v := lt.Get(r.kind); v != nil {
 			lv = v
 		}
+		hasNpm := NpmPkg[r.kind] != ""
+		hasScript := scriptForPlatform(r.kind, platform) != ""
 		method := GuessInstallMethod(r.bin)
 		if r.kind == "dsh" && r.bin != "" {
 			method = "npm"
+		} else if r.bin != "" && method == "unknown" && !hasNpm && hasScript {
+			method = "native"
 		}
-		hasNpm := NpmPkg[r.kind] != ""
 		updatable := IsUpdatable(r.kind)
-		installSup := updatable && hasNpm
-		sup := updatable && (hasNpm || (r.bin != "" && builtin.SelfUpdate(r.kind) != ""))
+		installSup := updatable && (hasNpm || hasScript)
+		sup := updatable && (hasNpm || hasScript || (r.bin != "" && builtin.SelfUpdate(r.kind) != ""))
 		ls, _ := lv.(string)
 		avail := sup && r.version != "" && ls != "" && IsNewer(ls, r.version)
 		// 假 CLI（2.0.0-mock）比正式版号旧，但不能拿 npm 安装盖掉它
@@ -1052,23 +1145,72 @@ type cuPlanned struct {
 	recipes []UpdateRecipe
 }
 
-func cliInstallScript(kind string) string {
-	m := builtin.Manifest(kind)
-	if m == nil {
-		return ""
+func scriptInstallDir(platform string) string {
+	if platform == "" {
+		platform = usage.Platform()
 	}
-	b, _ := m.Get("binary").(*util.Obj)
-	if b == nil {
-		return ""
+	lib := nodepath.Lib(platform)
+	home := usage.Homedir()
+	if platform == "win32" {
+		localAppData := util.JSTrim(os.Getenv("LOCALAPPDATA"))
+		if localAppData == "" {
+			localAppData = lib.Join(home, "AppData", "Local")
+		}
+		return lib.Join(localAppData, "agy", "bin")
 	}
-	in, _ := b.Get("install").(*util.Obj)
-	if in == nil {
-		return ""
+	return lib.Join(home, ".local", "bin")
+}
+
+func (s *CliUpdateService) checkScriptRequirements(kind, platform string) cuChecks {
+	var c cuChecks
+	c.requirements = []any{}
+	sc := scriptForPlatform(kind, platform)
+	if sc == "" {
+		return c
 	}
-	return util.Str(in.Get("script"))
+	if platform == "win32" {
+		ps := s.findTool("powershell.exe", platform)
+		detail := i18n.T("electron.common.not-found")
+		if ps != "" {
+			detail = ps
+		}
+		c.requirements = append(c.requirements, util.NewObj("id", "powershell", "ok", ps != "", "label", "PowerShell", "detail", detail))
+		if ps == "" {
+			c.blockers = append(c.blockers, i18n.T("electron.common.install-tool-not-found", "PowerShell"))
+		}
+	} else {
+		bashBin := s.findTool("bash", platform)
+		bashDetail := i18n.T("electron.common.not-found")
+		if bashBin != "" {
+			bashDetail = bashBin
+		}
+		c.requirements = append(c.requirements, util.NewObj("id", "bash", "ok", bashBin != "", "label", "bash", "detail", bashDetail))
+		if bashBin == "" {
+			c.blockers = append(c.blockers, i18n.T("electron.common.install-tool-not-found", "bash"))
+		}
+		if strings.Contains(sc, "curl") {
+			curlBin := s.findTool("curl", platform)
+			curlDetail := i18n.T("electron.common.not-found")
+			if curlBin != "" {
+				curlDetail = curlBin
+			}
+			c.requirements = append(c.requirements, util.NewObj("id", "curl", "ok", curlBin != "", "label", "curl", "detail", curlDetail))
+			if curlBin == "" {
+				c.blockers = append(c.blockers, i18n.T("electron.common.install-tool-not-found", "curl"))
+			}
+		}
+	}
+	dir := scriptInstallDir(platform)
+	writable := s.probe.CanWrite(dir)
+	c.requirements = append(c.requirements, util.NewObj("id", "write", "ok", writable, "label", i18n.T("electron.common.directory-writable"), "detail", dir))
+	if !writable {
+		c.blockers = append(c.blockers, i18n.T("electron.common.the-user-directory-is-not-writable", dir))
+	}
+	return c
 }
 
 func (s *CliUpdateService) plan(kind, scope string) cuPlanned {
+	platform := s.effectivePlatform()
 	bin := ResolveCliBinAsync(kind)
 	mode := "install"
 	if bin != "" {
@@ -1078,12 +1220,9 @@ func (s *CliUpdateService) plan(kind, scope string) cuPlanned {
 	if kind == "dsh" && bin != "" {
 		method = "npm"
 	}
-	recipes := UpdateRecipes(kind, bin, method, scope)
+	recipes := UpdateRecipesForPlatform(kind, bin, method, scope, platform)
 	if len(recipes) == 0 {
-		blocker := i18n.T("ui.cli-monitor.install-via-official-script")
-		if script := cliInstallScript(kind); script != "" {
-			blocker += " " + script
-		}
+		blocker := i18n.T("electron.common.the-command-is-not-on-the-allow-list")
 		plan := util.NewObj("kind", kind, "mode", mode, "scope", scope, "argv", []any{},
 			"command", "", "requirements", []any{}, "blockers", cuStrs([]string{blocker}))
 		return cuPlanned{plan: plan, argv: []string{}, command: "", mode: mode, blocks: []string{blocker}, recipes: recipes}
@@ -1092,16 +1231,23 @@ func (s *CliUpdateService) plan(kind, scope string) cuPlanned {
 	checks := cuChecks{requirements: []any{}}
 	if first.Via == "npm" {
 		checks = s.checkRequirements(kind, scope)
+	} else if first.Via == "script" {
+		checks = s.checkScriptRequirements(kind, platform)
 	}
 	blockers := append([]string{}, checks.blockers...)
 	if !IsAllowedUpdateArgv(first.Argv) {
 		blockers = append([]string{i18n.T("electron.common.the-command-is-not-on-the-allow-list")}, blockers...)
 	}
 	cmd := CommandLine(first.Argv)
+	if first.Via == "script" {
+		if _, displayCmd := scriptArgvForPlatform(kind, platform); displayCmd != "" {
+			cmd = displayCmd
+		}
+	}
 	plan := util.NewObj("kind", kind, "mode", mode, "scope", scope, "argv", cuStrs(first.Argv),
 		"command", cmd, "requirements", checks.requirements, "blockers", cuStrs(blockers))
 	if checks.needsUserScope {
-		plan.Set("userScopeCommand", CommandLine(UpdateRecipes(kind, bin, "npm", "user")[0].Argv))
+		plan.Set("userScopeCommand", CommandLine(UpdateRecipesForPlatform(kind, bin, "npm", "user", platform)[0].Argv))
 	}
 	return cuPlanned{plan: plan, argv: first.Argv, command: cmd, mode: mode, blocks: blockers, recipes: recipes}
 }
@@ -1245,10 +1391,7 @@ func (s *CliUpdateService) runJob(kind, scope string) *util.Obj {
 	if len(planned.blocks) > 0 {
 		return cuResult(false, strings.Join(planned.blocks, "\n"), "")
 	}
-	platform := s.d.Platform
-	if platform == "" {
-		platform = usage.Platform()
-	}
+	platform := s.effectivePlatform()
 	if platform == "win32" && s.d.Drain != nil {
 		busy, err := jsrt.Await(s.d.Drain(kind))
 		if err != nil {
@@ -1268,10 +1411,17 @@ func (s *CliUpdateService) runJob(kind, scope string) *util.Obj {
 	logLine := func(l string) { s.broadcast(util.NewObj("kind", kind, "mode", mode, "phase", "log", "line", l)) }
 	var logs []string
 	ok := false
+	usedScript := false
 	recipes := planned.recipes
 	for i, recipe := range recipes {
 		if recipe.Via == "npm" && i != 0 {
 			again := s.checkRequirements(kind, scope)
+			if len(again.blockers) > 0 {
+				logs = append(logs, again.blockers...)
+				break
+			}
+		} else if recipe.Via == "script" && i != 0 {
+			again := s.checkScriptRequirements(kind, platform)
 			if len(again.blockers) > 0 {
 				logs = append(logs, again.blockers...)
 				break
@@ -1282,6 +1432,11 @@ func (s *CliUpdateService) runJob(kind, scope string) *util.Obj {
 			continue
 		}
 		line := "$ " + CommandLine(recipe.Argv)
+		if recipe.Via == "script" {
+			if sc := scriptForPlatform(kind, platform); sc != "" {
+				line = "$ " + sc
+			}
+		}
 		logs = append(logs, line)
 		logLine(line)
 		argv := recipe.Argv
@@ -1304,6 +1459,7 @@ func (s *CliUpdateService) runJob(kind, scope string) *util.Obj {
 		}
 		if res.Code != nil && *res.Code == 0 {
 			ok = true
+			usedScript = recipe.Via == "script"
 			break
 		}
 		var code any = "—"
@@ -1313,6 +1469,12 @@ func (s *CliUpdateService) runJob(kind, scope string) *util.Obj {
 		logs = append(logs, i18n.T("electron.common.command-failed-exit-code", code))
 	}
 	log := util.UTF16Tail(strings.Join(logs, "\n"), 8000)
+	if ok {
+		ForgetMissingCliBins()
+		if usedScript {
+			RememberCliDir(scriptInstallDir(platform))
+		}
+	}
 	bin := ResolveCliBinAsync(kind)
 	npmBinDir := ""
 	if bin == "" && ok {

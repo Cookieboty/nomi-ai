@@ -195,8 +195,7 @@ func Binaries(id string) []string {
 	return out
 }
 
-// NpmPackage：npm 包名（清单 binary.install.npm）；不是 npm 装的返回空
-func NpmPackage(id string) string {
+func installField(id, key string) string {
 	m := Manifest(id)
 	if m == nil {
 		return ""
@@ -209,8 +208,17 @@ func NpmPackage(id string) string {
 	if in == nil {
 		return ""
 	}
-	return util.Str(in.Get("npm"))
+	return util.Str(in.Get(key))
 }
+
+// NpmPackage：npm 包名（清单 binary.install.npm）；不是 npm 装的返回空
+func NpmPackage(id string) string { return installField(id, "npm") }
+
+// InstallScript：macOS / Linux 官方安装脚本（清单 binary.install.script）
+func InstallScript(id string) string { return installField(id, "script") }
+
+// WindowsInstallScript：Windows PowerShell 官方安装脚本（清单 binary.install.windowsScript）
+func WindowsInstallScript(id string) string { return installField(id, "windowsScript") }
 
 // BinEnv：指定可执行文件路径的环境变量（NOMI_<ID>_BIN）
 func BinEnv(id string) string { return "NOMI_" + strings.ToUpper(id) + "_BIN" }

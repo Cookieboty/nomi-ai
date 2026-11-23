@@ -12,8 +12,10 @@ export type Ingress = 'messages' | 'responses' | 'chat' | 'gemini';
 export interface InstallSpec {
   /** npm 包名（`npm i -g <pkg>`） */
   npm?: string;
-  /** 官方安装脚本（展示给用户，宿主不自动执行） */
+  /** macOS / Linux 官方安装脚本命令 */
   script?: string;
+  /** Windows PowerShell 官方安装脚本命令 */
+  windowsScript?: string;
   /** 官方安装说明链接 */
   url?: string;
 }
@@ -192,6 +194,14 @@ export function validateManifest(m: unknown): string[] {
       }
     if (b.minVersion !== undefined && typeof b.minVersion !== 'string')
       errors.push('binary.minVersion must be a string');
+    if (b.install !== undefined) {
+      if (!isObj(b.install)) errors.push('binary.install must be an object');
+      else {
+        for (const k of ['npm', 'script', 'windowsScript', 'url'] as const)
+          if (b.install[k] !== undefined && typeof b.install[k] !== 'string')
+            errors.push(`binary.install.${k} must be a string`);
+      }
+    }
   }
   if (!TRANSPORTS.includes(String(m.transport)))
     errors.push(`transport must be one of ${TRANSPORTS.join(', ')}`);

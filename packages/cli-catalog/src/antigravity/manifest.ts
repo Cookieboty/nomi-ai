@@ -31,6 +31,7 @@ export const manifest: CliManifest = {
     versionPattern: '(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)',
     install: {
       script: 'curl -fsSL https://antigravity.google/cli/install.sh | bash',
+      windowsScript: 'irm https://antigravity.google/cli/install.ps1 | iex',
       url: 'https://antigravity.google/docs/cli/reference',
     },
   },

@@ -618,5 +618,6 @@
   "electron.common.no-official-account-signed-in-for": "{0} 还没有已登录的官方账号，请先登录官方账号或选择第三方模型",
   "electron.common.no-local-login-detected-for": "{0} 未检测到本机登录，请先在本机登录或选择第三方模型",
   "electron.common.cli-local-needs-sign-in": "{0} 还没有登录：请先在终端运行 {1} 完成本机登录，然后再试。",
-  "electron.common.cli-local-only": "{0} 仅使用本机登录，不支持通过网关切换第三方模型。"
+  "electron.common.cli-local-only": "{0} 仅使用本机登录，不支持通过网关切换第三方模型。",
+  "electron.common.install-tool-not-found": "未找到 {0}，无法运行官方安装脚本。请先安装 {0}，或在终端手动执行上述命令。"
 }

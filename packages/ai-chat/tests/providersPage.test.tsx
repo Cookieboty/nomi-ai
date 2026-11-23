@@ -375,8 +375,10 @@ describe('ProvidersPage', () => {
     expect(onOpenModels).toHaveBeenCalledTimes(1);
   });
 
-  it('antigravity（仅本机登录且非 npm）：展示本机说明与官方安装命令提示，不显示官方账号与第三方模型卡片', async () => {
+  it('antigravity（仅本机登录且支持官方脚本一键安装）：展示本机说明与一键安装按钮，不显示强制终端引导、官方账号与第三方模型卡片', async () => {
+    const calls: string[] = [];
     installFakeApi(async (ch: string) => {
+      calls.push(ch);
       if (ch === 'cliAccount.list') return [];
       if (ch === 'cliUpdate.inspect')
         return [
@@ -385,11 +387,34 @@ describe('ProvidersPage', () => {
             path: null,
             version: null,
             latest: null,
+            installMethod: 'unknown',
             updateAvailable: false,
-            updateSupported: false,
-            installSupported: false,
+            updateSupported: true,
+            installSupported: true,
           },
         ];
+      if (ch === 'cliUpdate.preview')
+        return {
+          kind: 'antigravity',
+          mode: 'install',
+          scope: 'global',
+          argv: [
+            'bash',
+            '-o',
+            'pipefail',
+            '-c',
+            'curl -fsSL https://antigravity.google/cli/install.sh | bash',
+          ],
+          command: 'curl -fsSL https://antigravity.google/cli/install.sh | bash',
+          requirements: [
+            { id: 'bash', ok: true, label: 'bash', detail: '/bin/bash' },
+            { id: 'curl', ok: true, label: 'curl', detail: '/usr/bin/curl' },
+            { id: 'write', ok: true, label: '目录可写', detail: '/Users/test/.local/bin' },
+          ],
+          blockers: [],
+        };
+      if (ch === 'cliUpdate.run')
+        return { ok: true, log: '', version: '1.5.0', path: '/Users/test/.local/bin/agy' };
       if (ch === 'cliUpdate.environment')
         return {
           nodeVersion: '22.12.0',
@@ -405,8 +430,12 @@ describe('ProvidersPage', () => {
     expect(r.getByTestId('cli-local-only-antigravity')).toBeTruthy();
     expect(r.queryByTestId('cli-accounts-antigravity')).toBeNull();
     expect(r.queryByTestId('cli-third-party-antigravity')).toBeNull();
-    expect(r.queryByTestId('cli-version-action-antigravity')).toBeNull();
-    const guide = await waitFor(() => r.getByTestId('cli-install-guide-antigravity'));
-    expect(guide.textContent).toContain('antigravity.google/cli/install.sh');
+    expect(r.queryByTestId('cli-install-guide-antigravity')).toBeNull();
+    const actionBtn = await waitFor(() => r.getByTestId('cli-version-action-antigravity'));
+    expect(actionBtn.textContent).toBe('一键安装');
+
+    fireEvent.click(actionBtn);
+    await waitFor(() => expect(calls).toContain('cliUpdate.preview'));
+    await waitFor(() => expect(calls).toContain('cliUpdate.run'));
   });
 });

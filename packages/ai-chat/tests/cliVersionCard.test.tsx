@@ -372,4 +372,117 @@ describe('CliVersionCard · task survives unmount (state lives in the main proce
       expect(r.getByTestId('cli-version-state-claude').getAttribute('data-state')).toBe('outdated'),
     );
   });
+
+  it('antigravity: one-click official script installs directly when requirements pass', async () => {
+    const { calls } = setup({
+      'cliUpdate.inspect': () => [
+        info({
+          kind: 'antigravity',
+          path: null,
+          version: null,
+          latest: null,
+          installMethod: 'unknown',
+          updateAvailable: false,
+          updateSupported: true,
+          installSupported: true,
+        }),
+      ],
+      'cliUpdate.preview': () =>
+        plan({
+          kind: 'antigravity',
+          mode: 'install',
+          argv: [
+            'bash',
+            '-o',
+            'pipefail',
+            '-c',
+            'curl -fsSL https://antigravity.google/cli/install.sh | bash',
+          ],
+          command: 'curl -fsSL https://antigravity.google/cli/install.sh | bash',
+          requirements: [
+            { id: 'bash', ok: true, label: 'bash', detail: '/bin/bash' },
+            { id: 'curl', ok: true, label: 'curl', detail: '/usr/bin/curl' },
+            { id: 'write', ok: true, label: '目录可写', detail: '/Users/test/.local/bin' },
+          ],
+          blockers: [],
+        }),
+      'cliUpdate.run': () => ({
+        ok: true,
+        log: '$ curl -fsSL https://antigravity.google/cli/install.sh | bash\ndone',
+        version: '1.5.0',
+        path: '/Users/test/.local/bin/agy',
+      }),
+    });
+    const r = render(<CliVersionCard kind="antigravity" />);
+    await waitFor(() =>
+      expect(r.getByTestId('cli-version-action-antigravity').textContent).toBe('一键安装'),
+    );
+    expect(r.queryByTestId('cli-install-guide-antigravity')).toBeNull();
+    fireEvent.click(r.getByTestId('cli-version-action-antigravity'));
+    await waitFor(() => expect(calls.filter(([c]) => c === 'cliUpdate.run')).toHaveLength(1));
+    await waitFor(() => expect(calls.some(([c]) => c === 'cliUpdate.dismiss')).toBe(true));
+  });
+
+  it('antigravity: opens CliPlanDialog with script command and blocker when curl is missing, and falls back to guide if updateSupported=false', async () => {
+    setup({
+      'cliUpdate.inspect': () => [
+        info({
+          kind: 'antigravity',
+          path: null,
+          version: null,
+          latest: null,
+          installMethod: 'unknown',
+          updateAvailable: false,
+          updateSupported: true,
+          installSupported: true,
+        }),
+      ],
+      'cliUpdate.preview': () =>
+        plan({
+          kind: 'antigravity',
+          mode: 'install',
+          argv: [
+            'bash',
+            '-o',
+            'pipefail',
+            '-c',
+            'curl -fsSL https://antigravity.google/cli/install.sh | bash',
+          ],
+          command: 'curl -fsSL https://antigravity.google/cli/install.sh | bash',
+          requirements: [
+            { id: 'bash', ok: true, label: 'bash', detail: '/bin/bash' },
+            { id: 'curl', ok: false, label: 'curl', detail: '未找到' },
+          ],
+          blockers: ['未找到 curl，无法运行官方安装脚本。'],
+        }),
+    });
+    const r = render(<CliVersionCard kind="antigravity" />);
+    fireEvent.click(await waitFor(() => r.getByTestId('cli-version-action-antigravity')));
+    await waitFor(() =>
+      expect(r.getByTestId('cli-version-command').textContent).toContain(
+        'antigravity.google/cli/install.sh',
+      ),
+    );
+    expect(r.getByTestId('cli-version-req-curl').getAttribute('data-ok')).toBe('0');
+    expect(r.getByTestId('cli-version-blocker').textContent).toContain('curl');
+
+    cleanup();
+    setup({
+      'cliUpdate.inspect': () => [
+        info({
+          kind: 'antigravity',
+          path: null,
+          version: null,
+          latest: null,
+          installMethod: 'unknown',
+          updateAvailable: false,
+          updateSupported: false,
+          installSupported: false,
+        }),
+      ],
+    });
+    const rFallback = render(<CliVersionCard kind="antigravity" />);
+    const guide = await waitFor(() => rFallback.getByTestId('cli-install-guide-antigravity'));
+    expect(guide.textContent).toContain('antigravity.google/cli/install.sh');
+  });
 });

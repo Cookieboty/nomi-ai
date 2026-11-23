@@ -730,6 +730,7 @@ export type TranslationKey =
   | 'electron.common.no-local-login-detected-for'
   | 'electron.common.cli-local-needs-sign-in'
   | 'electron.common.cli-local-only'
+  | 'electron.common.install-tool-not-found'
   | 'electron.image.service-returned'
   | 'electron.image.download-failed'
   | 'electron.image.too-large'

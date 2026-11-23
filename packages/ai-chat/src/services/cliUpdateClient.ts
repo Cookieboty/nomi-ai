@@ -19,7 +19,7 @@ export type CliUpdatableKind = BuiltinCliId;
 export type CliInstallScope = 'global' | 'user';
 
 export interface CliRequirement {
-  id: 'node' | 'npm' | 'write';
+  id: 'node' | 'npm' | 'write' | 'bash' | 'curl' | 'powershell' | (string & {});
   ok: boolean;
   label: string;
   detail: string;
