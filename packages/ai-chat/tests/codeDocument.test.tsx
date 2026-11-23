@@ -33,9 +33,22 @@ it.each([
   ['package.json', 'json'],
   ['notes.txt', 'text'],
   ['file.unknown', 'text'],
-  ['Dockerfile', 'text'],
-  ['Makefile', 'text'],
-  ['.dockerignore', 'text'],
+  ['Dockerfile', 'docker'],
+  ['Containerfile', 'docker'],
+  ['Dockerfile.dev', 'docker'],
+  ['Makefile', 'makefile'],
+  ['GNUmakefile', 'makefile'],
+  ['CMakeLists.txt', 'cmake'],
+  ['Gemfile', 'ruby'],
+  ['Rakefile', 'ruby'],
+  ['nginx.conf', 'nginx'],
+  ['.gitignore', 'gitignore'],
+  ['.dockerignore', 'gitignore'],
+  ['.prettierignore', 'gitignore'],
+  ['.gitattributes', 'gitignore'],
+  ['.editorconfig', 'editorconfig'],
+  ['.gitmodules', 'editorconfig'],
+  ['.gitconfig', 'editorconfig'],
   ['README', 'text'],
   ['', 'text'],
 ])(
@@ -87,6 +100,53 @@ it('highlights YAML keys and unquoted values like markdown code blocks do', () =
   expect(container.querySelector('.token.comment')?.textContent).toContain('# note');
 });
 
+it('highlights ignore files: comments, negation and wildcards', () => {
+  const text = '# deps\nnode_modules/\n!keep.env\n*.log';
+  const { container } = render(
+    <CodeDocument
+      text={text}
+      language="gitignore"
+      viewportRef={vi.fn()}
+      onRendered={vi.fn()}
+      onScroll={vi.fn()}
+    />,
+  );
+  expect(container.querySelector('.token.comment')?.textContent).toBe('# deps');
+  expect(container.querySelector('.token.keyword')?.textContent).toBe('!');
+  expect(container.querySelector('.token.string')?.textContent).toBe('node_modules/');
+});
+
+it('highlights .editorconfig sections, keys, values and comments', () => {
+  const text = 'root = true\n\n[*]\nindent_style = space\n# note';
+  const { container } = render(
+    <CodeDocument
+      text={text}
+      language="editorconfig"
+      viewportRef={vi.fn()}
+      onRendered={vi.fn()}
+      onScroll={vi.fn()}
+    />,
+  );
+  expect(container.querySelector('.token.tag')?.textContent?.trim()).toBe('root');
+  expect(container.querySelector('.token.string')?.textContent).toBe('true');
+  expect(container.querySelector('.token.keyword')?.textContent).toBe('[*]');
+  expect(container.querySelector('.token.comment')?.textContent).toBe('# note');
+});
+
+it('highlights nginx.conf with the bundled grammar', () => {
+  const text = 'worker_processes auto;\nserver {\n  listen 80;\n}\n# note';
+  const { container } = render(
+    <CodeDocument
+      text={text}
+      language="nginx"
+      viewportRef={vi.fn()}
+      onRendered={vi.fn()}
+      onScroll={vi.fn()}
+    />,
+  );
+  expect(container.querySelector('.token.comment')?.textContent).toBe('# note');
+});
+
 it('uses the real third-party Go grammar and preserves line ranges and searchable source text', async () => {
   const text = 'package main\n\nfunc main() {\n\tprintln("hello")\n}';
   const onRendered = vi.fn();
@@ -132,7 +192,7 @@ function props(activeKey = 'go') {
   return {
     entries: [
       { key: 'go', href: '/work/auth.go', scope: { id: 'test', cwd: '/work' } },
-      { key: 'unknown', href: '/work/.dockerignore', scope: { id: 'test', cwd: '/work' } },
+      { key: 'unknown', href: '/work/README', scope: { id: 'test', cwd: '/work' } },
     ],
     activeKey,
     expanded: true,
