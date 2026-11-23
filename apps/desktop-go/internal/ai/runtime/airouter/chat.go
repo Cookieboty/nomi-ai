@@ -26,11 +26,13 @@ type Logger interface{ Warn(msg string, data ...any) }
 
 // Options = AiRouterOptions（chat 部分）
 type Options struct {
-	Chat        *facade.Chat
-	Logger      Logger
-	PrepareChat PrepareChat
-	BatchMs     *int
-	IsManaged   func(string) bool
+	Chat                   *facade.Chat
+	Logger                 Logger
+	PrepareChat            PrepareChat
+	BatchMs                *int
+	IsManaged              func(string) bool
+	ProjectForConversation func(string) string
+	ManagedConfig          func(string) ManagedAPIConfig
 }
 
 // Handlers = createAiHandlers 的 chat 处理函数 + streamAborts

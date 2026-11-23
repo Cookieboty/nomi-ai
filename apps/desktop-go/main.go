@@ -461,6 +461,11 @@ func main() {
 			return resp.Content, nil
 		}))
 	chatHandlers := airouter.New(airouter.Options{IsManaged: bundle.Conversations.IsManaged, Chat: chatFacade, Logger: deps.StdLogger{Prefix: "[ai-runtime]"},
+		ProjectForConversation: func(id string) string { return conversationProjectID(bundle.Conversations, id) },
+		ManagedConfig: func(id string) airouter.ManagedAPIConfig {
+			cfg := bundle.ConversationRuntime.ConfigFor(id, "api")
+			return airouter.ManagedAPIConfig{Model: cfg.Model, PermissionMode: cfg.PermissionMode, Effort: cfg.Effort}
+		},
 		PrepareChat: func(options map[string]any, method string, signal <-chan struct{}) error {
 			// 侧边聊天：只用 Nomi 的模型与只读工具、不挂会话（internal/core/sidechat）
 			side := sidechat.Apply(options)
@@ -487,7 +492,7 @@ func main() {
 			return prep.PrepareChat(options, method, signal)
 		}})
 	chatHandlers.Register(router)
-	bundle.ConversationRuntime.Register("api", chatHandlers.ManagedTextTarget)
+	bundle.ConversationRuntime.Register("api", chatHandlers.ManagedAgentTarget)
 	defer bundle.ConversationRuntime.Close()
 	computerChats = chatHandlers
 	shellhandlers.OnConversationDeleted = func(id string) {
