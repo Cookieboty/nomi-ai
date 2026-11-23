@@ -304,5 +304,7 @@
   "ui.cli-monitor.fork-from-here": "从这里分叉",
   "ui.cli-monitor.fleet-dispatch": "派出 Claude Code 或 Codex",
   "ui.cli-monitor.fleet-dispatch-hint": "进度会出现在这张看板上。终端或 IDE 里已经开着的会话只读出现，不会被改。",
-  "ui.cli-monitor.fleet-dispatch-one": "派出 {0}"
+  "ui.cli-monitor.fleet-dispatch-one": "派出 {0}",
+  "ui.cli-monitor.install-via-official-script": "请使用官方命令在终端安装：",
+  "ui.cli-monitor.official-docs": "官方安装说明"
 }

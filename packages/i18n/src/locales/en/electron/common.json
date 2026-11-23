@@ -616,5 +616,7 @@
   "electron.common.cli-launcher-invalid": "Enter a program and optional arguments, such as claude. Quote paths containing spaces. Shell operators, line breaks and variable assignments are not supported.",
   "electron.common.cli-launcher-test-failed": "Could not read the launch command’s version. Run it with --version in a terminal to check it. This test does not send model requests.",
   "electron.common.no-official-account-signed-in-for": "No official account is signed in for {0}. Sign in or choose a third-party model first.",
-  "electron.common.no-local-login-detected-for": "No local sign-in detected for {0}. Sign in locally or choose a third-party model first."
+  "electron.common.no-local-login-detected-for": "No local sign-in detected for {0}. Sign in locally or choose a third-party model first.",
+  "electron.common.cli-local-needs-sign-in": "{0} isn't signed in. Run {1} in your terminal to sign in locally, then try again.",
+  "electron.common.cli-local-only": "{0} only uses local sign-in and does not support third-party gateway models."
 }

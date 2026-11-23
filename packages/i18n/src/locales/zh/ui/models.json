@@ -270,5 +270,6 @@
   "ui.models.cli-welcome-setup-desc": "{0} 还没有可用的官方账号或已启用三方模型。请先登录账号或添加三方供应商。",
   "ui.models.cli-welcome-setup-desc-tp-only": "{0} 还没有已启用的三方模型。请先配置三方供应商并启用模型。",
   "ui.models.cli-welcome-configure": "去配置",
-  "ui.models.cli-pick-model-before-send": "请先在输入栏选择一个模型再发送"
+  "ui.models.cli-pick-model-before-send": "请先在输入栏选择一个模型再发送",
+  "ui.models.local-sign-in-only-desc": "{0} 直接使用本机 CLI 登录与配置（{1}），无需单独管理账号或配置第三方供应商。"
 }

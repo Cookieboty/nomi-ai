@@ -270,5 +270,6 @@
   "ui.models.cli-welcome-setup-desc": "{0} has no usable official account or enabled third-party models yet. Sign in or add a third-party provider first.",
   "ui.models.cli-welcome-setup-desc-tp-only": "{0} has no enabled third-party models yet. Add a third-party provider and enable a model first.",
   "ui.models.cli-welcome-configure": "Configure",
-  "ui.models.cli-pick-model-before-send": "Choose a model in the composer before sending"
+  "ui.models.cli-pick-model-before-send": "Choose a model in the composer before sending",
+  "ui.models.local-sign-in-only-desc": "{0} uses your local CLI login and settings ({1}) directly without separate account management or third-party providers."
 }
