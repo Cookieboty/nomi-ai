@@ -56,13 +56,13 @@ Agents 以用户身份运行。Nomi 在 `internal/core/cli/harness` 加下面几
   条目由系统自己的访问控制保护。主目录下的 `~/.pypirc` 照样拒读，但只当包管理器的例行读取，不弹授权请求（`RoutineRead`）。
   `~/.npmrc` 能读不能写：里面常配镜像源，拒读会让沙箱里的 npm 走默认源、nvm 每开一个 shell 都报错；写入仍拒（`write:config`，
   `script-shell`、`node-options` 等配置会让沙箱外的 npm 执行命令）。
-- **写**放行：项目目录（计划模式除外）、临时目录、`/dev`、CLI 自己的目录（清单 `host.homeDirs`：`~/.claude`、`~/.codex`、`~/.kimi-code`、`~/.minimax` …，加 `~/.claude.json*`）
+- **写**放行：项目目录（计划模式除外）、临时目录、`/dev`、CLI 自己的目录（清单 `host.homeDirs`：`~/.claude`、`~/.codex`、`~/.kimi-code`、`~/.minimax`、`~/.gemini/antigravity-cli` …，加 `~/.claude.json*`）
   与 `host.homeEnv` 指向的账号目录 / 第三方私有目录、包管理器与构建缓存（`~/Library/Caches`、`~/.npm`、`go/pkg` …）、
   **工具状态**（主目录下的隐藏条目 `~/.*`、`~/.config`、`~/Library/Application Support`，`toolStateHome`：工具写日志、缓存、状态，
   如钩子脚本写 `~/.ai-usage`，不再弹授权请求）、用户授权过的文件夹 / 文件。主目录下的普通文件夹（文稿、桌面、下载、项目以外的代码目录）写之前要授权。
   放行之后再拒：没授权的凭据类别的文件夹与主目录这一层的凭据文件（`~/.ssh`、`~/.aws`、`~/.netrc` …，规则 `write`，照样弹授权请求）；
   「改了会在沙箱外执行命令」的东西（规则 `write:config`，不出授权请求）：CLI 的钩子与配置（`execConfigHome` 与清单 `host.execConfig`：
-  `~/.claude/settings.json`、`~/.claude/hooks`、`~/.codex/config.toml`、`~/.gemini/settings.json`、`~/.kimi-code/config.toml`、`~/.minimax/config.yaml`）、
+  `~/.claude/settings.json`、`~/.claude/hooks`、`~/.codex/config.toml`、`~/.gemini/settings.json`、`~/.kimi-code/config.toml`、`~/.minimax/config.yaml`、`~/.gemini/antigravity-cli/settings.json`）、
   别的工具启动时执行的配置（`homeExecConfig`：`~/.config/git`、Vim / Neovim、tmux、Hammerspoon、yarn / bun / curl 配置、direnv、
   Cursor / Windsurf / Claude 桌面版的 MCP 配置、VS Code / Cursor 的用户设置 …）、开机自启、PATH 里的可执行目录、shell 启动脚本与 `~/.gitconfig`；
   受保护文件夹与 Nomi 数据目录最后再拒一次。
