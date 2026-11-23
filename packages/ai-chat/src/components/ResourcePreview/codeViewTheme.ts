@@ -12,6 +12,8 @@ export const codeViewHighlight = syntaxHighlighting(
       tag: [tags.function(tags.variableName), tags.function(tags.propertyName)],
       class: 'token function',
     },
+    // 键名（YAML 键、JSON 键、CSS 属性名）；function(propertyName) 更具体，仍走 token function。
+    { tag: tags.propertyName, class: 'token property' },
     { tag: [tags.typeName, tags.className, tags.namespace], class: 'token class-name' },
     { tag: [tags.tagName, tags.attributeName], class: 'token tag' },
     { tag: tags.operator, class: 'token operator' },
@@ -62,7 +64,7 @@ export const codeViewTheme = EditorView.theme({
     color: 'var(--cd-color-text-on-accent)',
   },
   '.token.comment': { color: 'var(--cd-color-text-muted)', fontStyle: 'italic' },
-  '.token.keyword, .token.tag': { color: 'var(--cd-color-accent-strong)' },
+  '.token.keyword, .token.tag, .token.property': { color: 'var(--cd-color-accent-strong)' },
   '.token.string': { color: 'var(--cd-color-success)' },
   '.token.number, .token.function, .token.class-name': { color: 'var(--cd-color-warning)' },
 });

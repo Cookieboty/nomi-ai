@@ -91,13 +91,43 @@ const extensionLanguages: Record<string, string> = {
   mdx: 'markdown',
 };
 
+/** 按文件名识别的无扩展名 / 固定名文件：忽略文件沿用 Git 的语法规则，.editorconfig 与
+ * Git 配置用 INI 形状，其余是各语言的固定文件名（Dockerfile、Makefile 等）。 */
+const filenameLanguages: Record<string, string> = {
+  '.gitignore': 'gitignore',
+  '.dockerignore': 'gitignore',
+  '.npmignore': 'gitignore',
+  '.eslintignore': 'gitignore',
+  '.prettierignore': 'gitignore',
+  '.stylelintignore': 'gitignore',
+  '.gitattributes': 'gitignore',
+  '.editorconfig': 'editorconfig',
+  '.gitmodules': 'editorconfig',
+  '.gitconfig': 'editorconfig',
+  dockerfile: 'docker',
+  containerfile: 'docker',
+  makefile: 'makefile',
+  gnumakefile: 'makefile',
+  'cmakelists.txt': 'cmake',
+  gemfile: 'ruby',
+  rakefile: 'ruby',
+  vagrantfile: 'ruby',
+  podfile: 'ruby',
+  brewfile: 'ruby',
+  'nginx.conf': 'nginx',
+};
+
 /**
- * 直接根据文件后缀名识别高亮语言；
+ * 直接根据文件后缀名识别高亮语言（忽略文件与固定名配置文件按文件名）；
  * 没有文件名、无后缀名（含以 `.` 开头无扩展名的隐藏文件）或未知后缀名，统一默认按 txt 纯文本（'text'）打开，不做内容推断。
  */
 export function resolveCodeLanguage(path: string): string {
   const filename = path.replace(/\\/g, '/').split('/').pop()?.trim().toLowerCase() ?? '';
   if (!filename) return 'text';
+  const byName = filenameLanguages[filename];
+  if (byName && supported.has(byName)) return byName;
+  // Dockerfile.dev、Dockerfile.prod 这类变体沿用 Dockerfile 语法
+  if (filename.startsWith('dockerfile.') && supported.has('docker')) return 'docker';
   const dotIndex = filename.lastIndexOf('.');
   if (dotIndex <= 0 || dotIndex === filename.length - 1) return 'text';
   const extension = filename.slice(dotIndex + 1);

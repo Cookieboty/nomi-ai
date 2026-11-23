@@ -15,7 +15,13 @@ import { sql } from '@codemirror/lang-sql';
 import { vue } from '@codemirror/lang-vue';
 import { xml } from '@codemirror/lang-xml';
 import { yaml } from '@codemirror/lang-yaml';
-import { StreamLanguage, type StreamParser } from '@codemirror/language';
+import {
+  HighlightStyle,
+  StreamLanguage,
+  syntaxHighlighting,
+  type StreamParser,
+  type StringStream,
+} from '@codemirror/language';
 import { csharp, dart, kotlin, objectiveC, scala } from '@codemirror/legacy-modes/mode/clike';
 import { clojure } from '@codemirror/legacy-modes/mode/clojure';
 import { cmake } from '@codemirror/legacy-modes/mode/cmake';
@@ -26,6 +32,7 @@ import { erlang } from '@codemirror/legacy-modes/mode/erlang';
 import { haskell } from '@codemirror/legacy-modes/mode/haskell';
 import { lua } from '@codemirror/legacy-modes/mode/lua';
 import { fSharp } from '@codemirror/legacy-modes/mode/mllike';
+import { nginx } from '@codemirror/legacy-modes/mode/nginx';
 import { perl } from '@codemirror/legacy-modes/mode/perl';
 import { powerShell } from '@codemirror/legacy-modes/mode/powershell';
 import { properties } from '@codemirror/legacy-modes/mode/properties';
@@ -38,11 +45,54 @@ import { stex } from '@codemirror/legacy-modes/mode/stex';
 import { swift } from '@codemirror/legacy-modes/mode/swift';
 import { toml } from '@codemirror/legacy-modes/mode/toml';
 import type { Extension } from '@codemirror/state';
+import { tags } from '@lezer/highlight';
 import { hcl } from 'codemirror-lang-hcl';
 import { makefile } from 'codemirror-lang-makefile';
 import { zig } from 'codemirror-lang-zig';
 
 const stream = (parser: StreamParser<unknown>) => () => StreamLanguage.define(parser);
+/** YAML 语法把未加引号的标量（含数字与布尔）标成 content，全局主题不为 content 着色：
+ * 它还会命中 XML 文本等其它语法，影响面太大。这里只随 YAML 语法补一条规则，裸值按
+ * 字符串色显示，与 Markdown 代码块里的 YAML 观感一致。 */
+const yamlContentHighlight = syntaxHighlighting(
+  HighlightStyle.define([{ tag: tags.content, class: 'token string' }]),
+);
+/** 忽略文件（.gitignore / .dockerignore 等）没有官方语法包，规则很小，自己分词：
+ * 行首 # 是注释、行首 ! 是取反、* ? [...] 是通配符，其余按路径（字符串色）。 */
+const ignoreStream: StreamParser<null> = {
+  name: 'ignore',
+  token(stream: StringStream) {
+    if (stream.sol() && stream.peek() === '#') {
+      stream.skipToEnd();
+      return 'comment';
+    }
+    if (stream.sol() && stream.match('!')) return 'keyword';
+    if (stream.match(/^[*?[\]]+/)) return 'keyword';
+    if (stream.match(/^[^*?[\]\s]+/)) return 'string';
+    stream.next();
+    return null;
+  },
+};
+/** .editorconfig 是 INI 形状（[节] + 键 = 值），properties 旧模式只给注释上色，
+ * 节名与键名在主题里没有颜色，所以单独分词：注释灰色、节名与键名强调色、值字符串色。 */
+const editorconfigStream: StreamParser<null> = {
+  name: 'editorconfig',
+  token(stream: StringStream) {
+    if (stream.sol()) {
+      stream.match(/^\s*/); // 跳过行首空白
+      if (stream.peek() === '#' || stream.peek() === ';') {
+        stream.skipToEnd();
+        return 'comment';
+      }
+      if (stream.match(/^\[[^\]]*\]/)) return 'keyword';
+      if (stream.match(/^[^\s=:#;][^=:\n]*/)) return 'attribute';
+    }
+    if (stream.match(/^\s*[=:]\s*/)) return null;
+    if (stream.match(/^[^\n]+/)) return 'string';
+    stream.next();
+    return null;
+  },
+};
 /** Grammars are bundled with this isolated preview module. Parsing and DOM drawing
  * remain incremental; switching workspaces or editor mode never fetches a grammar. */
 const languages: Record<string, () => Extension> = {
@@ -68,7 +118,7 @@ const languages: Record<string, () => Extension> = {
   vue,
   sql,
   markdown,
-  yaml,
+  yaml: () => [yaml(), yamlContentHighlight],
   hcl,
   makefile,
   zig,
@@ -83,6 +133,9 @@ const languages: Record<string, () => Extension> = {
   dart: stream(dart),
   cmake: stream(cmake),
   docker: stream(dockerFile),
+  gitignore: stream(ignoreStream),
+  editorconfig: stream(editorconfigStream),
+  nginx: stream(nginx),
   ini: stream(properties),
   properties: stream(properties),
   toml: stream(toml),
