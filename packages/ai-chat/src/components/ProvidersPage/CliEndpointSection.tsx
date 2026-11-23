@@ -2,8 +2,6 @@
  * 单个 CLI 端点（Claude Code / Codex / dsh / Grok / Gemini）的分组：版本（检测 / 更新 / 安装）→
  * 本机环境登录 → 官方账号 → 新会话默认用 + 就地第三方主模型及各档位配置。
  */
-import { cliConfigPath, cliName } from '@nomi-ai/cli-catalog';
-import { SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import React from 'react';
 
 import { supportsCustomLauncher } from '../../services/cliLauncherClient';
@@ -11,6 +9,7 @@ import type { CliKind } from '../../services/cliSource';
 import { hasOfficialAccount, hasThirdParty, localOnly } from '../../utils/cliCaps';
 
 import { CliLauncherCard } from './CliLauncherCard';
+import { CliLocalAuthCard } from './CliLocalAuthCard';
 import { CliThirdPartyModelsCard } from './CliThirdPartyModelsCard';
 import { CliVersionCard } from './CliVersionCard';
 import styles from './index.module.css';
@@ -30,18 +29,7 @@ export const CliEndpointSection: React.FC<{ kind: CliKind; onOpenModels?: () => 
 
       {hasThirdParty(kind) && <CliThirdPartyModelsCard kind={kind} onOpenModels={onOpenModels} />}
 
-      {localOnly(kind) && (
-        <SettingsGroup data-testid={`cli-local-only-${kind}`}>
-          <SettingRow
-            title={t('ui.chat-settings.cli-launcher-local')}
-            description={t(
-              'ui.models.local-sign-in-only-desc',
-              cliName(kind),
-              cliConfigPath(kind) ?? '—',
-            )}
-          />
-        </SettingsGroup>
-      )}
+      {localOnly(kind) && <CliLocalAuthCard kind={kind} />}
     </div>
   );
 };

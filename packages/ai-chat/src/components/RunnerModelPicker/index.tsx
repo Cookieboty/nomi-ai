@@ -227,7 +227,9 @@ export const RunnerModelPicker: React.FC<RunnerModelPickerProps> = ({
   const isLocalOnly = localOnly(draft.cli);
   const supportsTp = hasThirdParty(draft.cli);
   const supportsOfficial = hasOfficialAccount(draft.cli);
-  const launcherLocal = useHasLocalLogin(open && supportsOfficial ? draft.cli : null);
+  const launcherLocal = useHasLocalLogin(
+    open && (supportsOfficial || isLocalOnly) ? draft.cli : null,
+  );
   const hasLocal =
     isLocalOnly ||
     (supportsOfficial &&
@@ -251,8 +253,8 @@ export const RunnerModelPicker: React.FC<RunnerModelPickerProps> = ({
     if (!open || (!isLocalOnly && !accountsReady)) return;
     setDraft((prev) => {
       if (localOnly(prev.cli)) {
-        if (prev.source === 'local' && prev.accountId == null && prev.model == null) return prev;
-        return { ...prev, source: 'local', accountId: null, model: null };
+        if (prev.source === 'local' && prev.accountId == null) return prev;
+        return { ...prev, source: 'local', accountId: null };
       }
       const tpFallback = defaultTpModel(prev.cli);
       if (!supportsOfficial || (!hasLocal && !hasOfficial)) {
@@ -295,7 +297,12 @@ export const RunnerModelPicker: React.FC<RunnerModelPickerProps> = ({
   const canConfirm = !isThirdParty || Boolean(draft.model);
 
   useEffect(() => {
-    if (!open || !supportsOfficial || (!hasLocal && !hasOfficial) || !harnessClient.available()) {
+    if (
+      !open ||
+      (!supportsOfficial && !isLocalOnly) ||
+      (!hasLocal && !hasOfficial) ||
+      !harnessClient.available()
+    ) {
       return;
     }
     let alive = true;
