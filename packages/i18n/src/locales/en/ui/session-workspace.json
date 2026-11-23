@@ -198,7 +198,7 @@
   "ui.session-workspace.preview-error-authorization": "Reading the file outside the workspace was not authorized.",
   "ui.session-workspace.preview-error-browser": "Could not open this address or file in the default application.",
   "ui.session-workspace.preview-error-changed": "The file changed while it was being read. Reload it.",
-  "ui.session-workspace.preview-error-denied": "This file is protected and cannot be previewed.",
+  "ui.session-workspace.preview-error-denied": "Permission denied to preview this file.",
   "ui.session-workspace.preview-error-encoding": "This file does not use a supported text encoding.",
   "ui.session-workspace.preview-error-invalid": "Not a valid file path or web URL.",
   "ui.session-workspace.preview-error-missing": "The file does not exist or has moved.",

@@ -198,7 +198,7 @@
   "ui.session-workspace.preview-error-authorization": "没有授权读取工作区外的文件。",
   "ui.session-workspace.preview-error-browser": "无法使用系统默认应用打开此地址或文件。",
   "ui.session-workspace.preview-error-changed": "文件在读取时发生变化，请重新加载。",
-  "ui.session-workspace.preview-error-denied": "此文件位于受保护目录，不能预览。",
+  "ui.session-workspace.preview-error-denied": "没有权限预览此文件。",
   "ui.session-workspace.preview-error-encoding": "此文件不是受支持的文本编码，无法按文本预览。",
   "ui.session-workspace.preview-error-invalid": "不是可预览的文件路径或网址。",
   "ui.session-workspace.preview-error-missing": "文件不存在或已被移动。",
