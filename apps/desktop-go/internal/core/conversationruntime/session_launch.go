@@ -46,6 +46,9 @@ func (c *Session) launch(a *activeAttempt) error {
 	a.recovery = recovered
 	switch recovered.Kind {
 	case RecoveryError:
+		if recovered.Lost && recovered.NativeSessionID == "" {
+			c.markLostLocked(key, recovered.Detail)
+		}
 		a.phase, a.detail = PhaseFailed, recovered.Detail
 		c.work = Activity{Known: true}
 		a.cancel()
@@ -117,7 +120,7 @@ func (c *Session) launch(a *activeAttempt) error {
 		c.mu.Unlock()
 		return err
 	}
-	request := RuntimeRequest{Token: a.token, NativeSessionID: recovered.NativeSessionID, Plan: clonePlan(plan)}
+	request := RuntimeRequest{Token: a.token, NativeSessionID: recovered.NativeSessionID, Plan: clonePlan(plan), Images: append([]string(nil), a.request.Images...)}
 	c.mu.Unlock()
 	// The per-attempt gate prevents a late Start racing AFTER a confirmed Cancel.
 	// Cancel first invalidates the token and context, then waits on this gate.
@@ -213,22 +216,6 @@ func (c *Session) handle(e Event) error {
 		if e.Delivery.NativeSessionID != a.recovery.NativeSessionID || e.Delivery.PlanID != a.plan.ID {
 			return ErrReceipt
 		}
-		// Recovery time already proved native loss (exact official "thread not
-		// found" AND the explicit thread/start refused before any user frame).
-		// A failed-delivery fact confirming that refusal is then a SAFE
-		// pre-input failure: it keeps the old native identity stale instead of
-		// pretending a new one exists. Every other unconfirmed delivery stays
-		// uncertain.
-		if e.Delivery.Kind == DeliveredPreSubmitFailed && a.recovery.Kind == RecoveryError && a.recovery.Lost {
-			if err := c.ledger.Commit(c.bindings, a.plan, e.Delivery); err != nil {
-				return err
-			}
-			a.phase, a.detail = PhaseFailed, "native submission refused before any user frame; no replay"
-			c.work = Activity{Known: true}
-			a.cancel()
-			c.markLostLocked(a.binding.CompatKey, "proven native loss; submission refused before user input")
-			return c.persistLocked()
-		}
 		if e.Delivery.Kind == DeliveredUnknown || e.Delivery.Kind == DeliveredPreSubmitFailed {
 			c.uncertainLocked(a, "delivery is unconfirmed after submission")
 			return ErrUnknownState
@@ -258,7 +245,28 @@ func (c *Session) handle(e Event) error {
 			return ErrPermission
 		}
 		a.approvals[e.ApprovalID] = true
+		if a.approvalDetails == nil {
+			a.approvalDetails = map[string]ApprovalInfo{}
+		}
+		info := ApprovalInfo{ID: e.ApprovalID}
+		if e.ApprovalInfo != nil {
+			info = *e.ApprovalInfo
+			info.ID = e.ApprovalID
+		}
+		a.approvalDetails[e.ApprovalID] = info
 		return c.persistLocked()
+	case EventTrace:
+		if e.Trace == nil {
+			return ErrBadEdit
+		}
+		if !utf8OK(e.Trace.ID) || !utf8OK(e.Trace.Kind) || !utf8OK(e.Trace.Tool) || !utf8OK(e.Trace.Summary) || !utf8OK(e.Trace.Status) || !utf8OK(e.Trace.Detail) {
+			return ErrInvalidUTF8
+		}
+		a.trace = append(a.trace, *e.Trace)
+		if len(a.trace) > 64 {
+			a.trace = append([]TraceEntry(nil), a.trace[len(a.trace)-64:]...)
+		}
+		return nil
 	case EventActivity:
 		c.work = e.Work
 		return c.persistLocked()

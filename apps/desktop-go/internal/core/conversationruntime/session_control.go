@@ -65,6 +65,7 @@ func (c *Session) cancelTurn(ctx context.Context, turn string, before *uint64) (
 	a.phase = PhaseCanceling
 	a.cancel()
 	a.approvals = map[string]bool{}
+	a.approvalDetails = map[string]ApprovalInfo{}
 	c.work = Activity{}
 	c.invalidateBindingLocked(a)
 	if err := c.persistLocked(); err != nil {
@@ -150,5 +151,6 @@ func (c *Session) Approve(ctx context.Context, token AttemptToken, id string, al
 		return err
 	}
 	delete(a.approvals, id)
+	delete(a.approvalDetails, id)
 	return c.persistLocked()
 }

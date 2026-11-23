@@ -3,8 +3,8 @@ package shellhandlers_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -75,9 +75,6 @@ func (f *ingressFake) call(i int) cr.RuntimeRequest {
 }
 func fixtureIngress(t *testing.T, dir string) (*convstore.Store, *mainchat.Registry, *convSession) {
 	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("managed durable writes are explicitly unavailable on Windows")
-	}
 	s := convstore.New(dir)
 	r := contract.NewRouter()
 	managed := shellhandlers.InstallConversationRuntime(r, s)
@@ -291,6 +288,8 @@ func TestManagedIPCActuallyConcurrentSendsAdmitOnce(t *testing.T) {
 	seedIngress(t, c)
 	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"claude","confirm":true}`))
 	g := generation(t, c)
+	leftCh := c.registerWaiter("left")
+	rightCh := c.registerWaiter("right")
 	start := make(chan struct{})
 	var wg sync.WaitGroup
 	for _, id := range []string{"left", "right"} {
@@ -304,13 +303,10 @@ func TestManagedIPCActuallyConcurrentSendsAdmitOnce(t *testing.T) {
 	close(start)
 	wg.Wait()
 	successes, failures := 0, 0
-	timeout := time.After(2 * time.Second)
-	for successes+failures < 2 {
+	timeout := time.After(5 * time.Second)
+	for _, ch := range []chan contract.ServerFrame{leftCh, rightCh} {
 		select {
-		case frame := <-c.ch:
-			if frame.ID != "left" && frame.ID != "right" {
-				continue
-			}
+		case frame := <-ch:
 			if frame.T == "res" {
 				successes++
 			} else if frame.T == "err" {
@@ -350,11 +346,6 @@ func TestManagedIPCUnavailableOrUnconfirmedNeverAdoptsLegacy(t *testing.T) {
 			t.Fatalf("unsafe adoption: %+v", got)
 		}
 	}
-	if runtime.GOOS == "windows" {
-		if got := c.call("conversations.runtimeAdopt", `{"id":"c","backend":"claude","confirm":true}`); got.T != "err" {
-			t.Fatal("Windows adopted unsupported durability")
-		}
-	}
 	if s.IsManaged("c") || f.count() != 0 {
 		t.Fatal("capability probe migrated or ran legacy chat")
 	}
@@ -381,6 +372,8 @@ func TestManagedIPCLeaseReleaseRacesAdmissionWithoutReplaying(t *testing.T) {
 			}
 			send := fmt.Sprintf(`{"t":"req","kind":"call","name":"conversations.runtimeSend","id":"send","input":{"id":"c","messageId":"m","turnId":"t","text":"once","expectedGeneration":%d}}`, g)
 			release := `{"t":"req","kind":"call","name":"conversations.runtimeRelease","id":"release","input":{"id":"c"}}`
+			sendCh := c.registerWaiter("send")
+			releaseCh := c.registerWaiter("release")
 			var wg sync.WaitGroup
 			start := make(chan struct{})
 			for _, frame := range []string{send, release} {
@@ -390,12 +383,15 @@ func TestManagedIPCLeaseReleaseRacesAdmissionWithoutReplaying(t *testing.T) {
 			close(start)
 			wg.Wait()
 			received := map[string]bool{}
-			timeout := time.After(2 * time.Second)
-			for len(received) < 2 {
+			timeout := time.After(5 * time.Second)
+			for _, entry := range []struct {
+				id string
+				ch chan contract.ServerFrame
+			}{{"send", sendCh}, {"release", releaseCh}} {
 				select {
-				case frame := <-c.ch:
-					if frame.ID == "send" || frame.ID == "release" {
-						received[frame.ID] = true
+				case frame := <-entry.ch:
+					if frame.ID == entry.id {
+						received[entry.id] = true
 					}
 				case <-timeout:
 					t.Fatal("release/admission deadlock")
@@ -439,4 +435,258 @@ func TestManagedIPCDeletingMultipleChatsKeepsOtherProjectionIdentities(t *testin
 			t.Fatalf("projection shifted: %s %+v %v", id, messages, err)
 		}
 	}
+}
+
+type switchAwareIngressFake struct {
+	*ingressFake
+	prepareErr error
+	prepCalls  int
+}
+
+func (f *switchAwareIngressFake) PrepareSwitch(context.Context) error {
+	f.mu.Lock()
+	f.prepCalls++
+	err := f.prepareErr
+	f.mu.Unlock()
+	return err
+}
+
+func (f *switchAwareIngressFake) Teardown(context.Context) error { return nil }
+
+func TestManagedIPCSwitchTransactionAndRollbackAfterFailureOrRestart(t *testing.T) {
+	dir := t.TempDir()
+	s, r, c := fixtureIngress(t, dir)
+	claude := &switchAwareIngressFake{ingressFake: &ingressFake{name: "claude"}}
+	codex := &switchAwareIngressFake{ingressFake: &ingressFake{name: "codex"}}
+	r.Register("claude", func(string) (cr.Target, error) {
+		tgt, err := claude.target("")
+		tgt.Runtime = claude
+		return tgt, err
+	})
+	r.Register("codex", func(string) (cr.Target, error) {
+		tgt, err := codex.target("")
+		tgt.Runtime = codex
+		return tgt, err
+	})
+	seedIngress(t, c)
+	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"claude","confirm":true}`))
+	requireOK(t, sendIngress(t, c, "one"))
+	msgsBefore, _ := s.Messages("c", 0)
+
+	g := generation(t, c)
+	out := requireOK(t, c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"c","backend":"codex","confirm":true,"expectedGeneration":%d}`, g)))
+	b, _ := json.Marshal(out)
+	var sw struct {
+		Backend    string
+		Generation uint64
+		LastSwitch struct {
+			FromBackend      string `json:"fromBackend"`
+			ToBackend        string `json:"toBackend"`
+			ExpectedStrategy string `json:"expectedStrategy"`
+			PlannedEntries   int    `json:"plannedEntries"`
+			ResumableBinding string `json:"resumableBinding"`
+		} `json:"lastSwitch"`
+	}
+	_ = json.Unmarshal(b, &sw)
+	if sw.Backend != "codex" || sw.LastSwitch.FromBackend != "claude" || sw.LastSwitch.ToBackend != "codex" || sw.LastSwitch.ExpectedStrategy != "new_session" || sw.LastSwitch.PlannedEntries != 3 || codex.prepCalls != 1 {
+		t.Fatalf("unexpected IPC switch view: %s", b)
+	}
+	msgsAfterSwitch, _ := s.Messages("c", 0)
+	if len(msgsAfterSwitch) != len(msgsBefore) {
+		t.Fatalf("switch dispatched unwanted turn messages: %d -> %d", len(msgsBefore), len(msgsAfterSwitch))
+	}
+
+	// Send once on Codex, then switch back to Claude and confirm delta preview + real delta send.
+	requireOK(t, sendIngress(t, c, "two"))
+	g = generation(t, c)
+	outBack := requireOK(t, c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"c","backend":"claude","confirm":true,"expectedGeneration":%d}`, g)))
+	b, _ = json.Marshal(outBack)
+	sw = struct {
+		Backend    string
+		Generation uint64
+		LastSwitch struct {
+			FromBackend      string `json:"fromBackend"`
+			ToBackend        string `json:"toBackend"`
+			ExpectedStrategy string `json:"expectedStrategy"`
+			PlannedEntries   int    `json:"plannedEntries"`
+			ResumableBinding string `json:"resumableBinding"`
+		} `json:"lastSwitch"`
+	}{}
+	_ = json.Unmarshal(b, &sw)
+	if sw.Backend != "claude" || sw.LastSwitch.ExpectedStrategy != "delta" || sw.LastSwitch.ResumableBinding == "" || sw.LastSwitch.PlannedEntries != 2 {
+		t.Fatalf("switch back failed delta preview: %s", b)
+	}
+	requireOK(t, sendIngress(t, c, "three"))
+	if last := claude.call(1); last.Plan.Strategy != cr.StrategyDelta || len(last.Plan.Selections) != 2 {
+		t.Fatalf("post-switch IPC send did not use delta: %+v", last.Plan)
+	}
+
+	// Target preparation failure rolls back to Claude cleanly.
+	codex.mu.Lock()
+	codex.prepareErr = errors.New("codex prepare failed")
+	codex.mu.Unlock()
+	g = generation(t, c)
+	failRes := c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"c","backend":"codex","confirm":true,"expectedGeneration":%d}`, g))
+	if failRes.T != "err" {
+		t.Fatalf("expected error on PrepareSwitch failure: %+v", failRes)
+	}
+	stateAfterFail, err := r.State("c")
+	if err != nil || stateAfterFail.Backend != "claude" || stateAfterFail.PendingSwitch != nil || stateAfterFail.Generation <= g {
+		t.Fatalf("failed IPC switch did not roll back cleanly: %+v err=%v", stateAfterFail, err)
+	}
+
+	// Simulate an interrupted switch persisted on disk across restart, then roll back via IPC.
+	requireOK(t, c.call("conversations.runtimeRelease", `{"id":"c"}`))
+	lease, err := s.OpenManaged("c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, err := lease.Session()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cp := sess.Checkpoint()
+	cp.PendingSwitch = &cr.SwitchState{
+		Phase: "handoff",
+		From:  cp.Selected,
+		To:    cr.TargetState{Identity: cr.NativeIdentity{DriverID: "codex", Transport: "fake", DriverVersion: "1", ResumeProtocol: "fake", Executable: "/fake/codex", Source: "local", AccountID: "test-account", ConfigDir: "/fake/config", Cwd: "/fake/project", ConfigGen: 1}, Env: cr.CompatibilityKey{Model: "fake", PermissionMode: "ask"}, Capabilities: cp.Selected.Capabilities},
+	}
+	if err := lease.Commit(cp); err != nil {
+		t.Fatal(err)
+	}
+	_ = lease.Close()
+
+	_, r2, c2 := func() (*convstore.Store, *mainchat.Registry, *convSession) {
+		router2 := contract.NewRouter()
+		managed2 := shellhandlers.InstallConversationRuntime(router2, s)
+		shellhandlers.InstallConversations(router2, s, managed2)
+		ch2 := make(chan contract.ServerFrame, 1024)
+		sess2 := router2.NewSession(context.Background(), contract.Caller{Surface: "chat"}, func(f contract.ServerFrame) { ch2 <- f })
+		t.Cleanup(func() { managed2.Close(); sess2.Close() })
+		return s, managed2, &convSession{t: t, s: sess2, ch: ch2}
+	}()
+	_ = r2
+	stView := requireOK(t, c2.call("conversations.runtimeState", `{"id":"c"}`))
+	b, _ = json.Marshal(stView)
+	var recovered struct {
+		Backend       string
+		Generation    uint64
+		Phase         string
+		PendingSwitch *struct{ Phase string } `json:"pendingSwitch"`
+	}
+	_ = json.Unmarshal(b, &recovered)
+	if recovered.Phase != "uncertain" || recovered.PendingSwitch == nil || recovered.PendingSwitch.Phase != "handoff" {
+		t.Fatalf("restarted interrupted switch did not surface pendingSwitch in uncertain state: %s", b)
+	}
+	resolved := requireOK(t, c2.call("conversations.runtimeResolve", fmt.Sprintf(`{"id":"c","decision":"rollback-switch","confirm":true,"expectedGeneration":%d}`, recovered.Generation)))
+	b, _ = json.Marshal(resolved)
+	var afterResolve struct {
+		Backend       string
+		Phase         string
+		PendingSwitch any `json:"pendingSwitch"`
+	}
+	_ = json.Unmarshal(b, &afterResolve)
+	if afterResolve.Phase != "idle" || afterResolve.Backend != "claude" || afterResolve.PendingSwitch != nil {
+		t.Fatalf("rollback-switch IPC resolve failed: %s", b)
+	}
+}
+
+func TestManagedIPCParityMetadataAbandonImagesAndConfig(t *testing.T) {
+	dir := t.TempDir()
+	_, r, c := fixtureIngress(t, dir)
+	apiFake := &ingressFake{name: "api"}
+	r.Register("api", func(id string) (cr.Target, error) {
+		tgt, err := apiFake.target(id)
+		cfg := r.ConfigFor(id, "api")
+		if cfg.Model != "" {
+			tgt.Env.Model = cfg.Model
+		}
+		if cfg.Effort != "" {
+			tgt.Effort = cfg.Effort
+		}
+		tgt.Runtime = &parityFake{ingressFake: apiFake, bridges: &cr.CapabilityBridges{
+			Computer:    cr.BridgeState{Status: "native"},
+			MCP:         cr.BridgeState{Status: "native"},
+			Persona:     cr.BridgeState{Status: "native"},
+			Memory:      cr.BridgeState{Status: "native"},
+			Knowledge:   cr.BridgeState{Status: "native"},
+			Skills:      cr.BridgeState{Status: "native"},
+			Attachments: cr.BridgeState{Status: "bridged"},
+		}}
+		return tgt, err
+	})
+	claudeFake := &ingressFake{name: "claude"}
+	r.Register("claude", claudeFake.target)
+
+	seedIngress(t, c)
+	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"claude","confirm":true}`))
+
+	// Attachments rejected cleanly when active backend lacks attachment bridge.
+	g := generation(t, c)
+	badImg := c.call("conversations.runtimeSend", fmt.Sprintf(`{"id":"c","messageId":"img-bad","turnId":"t-bad","text":"look","images":["data:image/png;base64,AAA"],"expectedGeneration":%d}`, g))
+	if badImg.T != "err" || claudeFake.count() != 0 {
+		t.Fatalf("unsupported image request was not rejected before runtime: %+v", badImg)
+	}
+
+	// Switch to API with explicit model + effort, and verify metadata, images, failure -> abandon.
+	g = generation(t, c)
+	swOut := requireOK(t, c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"c","backend":"api","model":"gpt-5","effort":"high","confirm":true,"expectedGeneration":%d}`, g)))
+	b, _ := json.Marshal(swOut)
+	var swState struct {
+		Backend    string
+		Generation uint64
+		Model      string
+		Effort     string
+		Capabilities struct {
+			Attachments bool
+			Bridges     *cr.CapabilityBridges
+		}
+	}
+	_ = json.Unmarshal(b, &swState)
+	if swState.Backend != "api" || swState.Model != "gpt-5" || swState.Effort != "high" || !swState.Capabilities.Attachments || swState.Capabilities.Bridges == nil || swState.Capabilities.Bridges.Attachments.Status != "bridged" {
+		t.Fatalf("switched state missing parity metadata: %s", b)
+	}
+
+	// Send fails after submit -> exposes failedRequest -> abandon clears to idle.
+	apiFake.hold = true
+	requireOK(t, c.call("conversations.runtimeSend", fmt.Sprintf(`{"id":"c","messageId":"img-ok","turnId":"t-ok","text":"see","images":["data:image/png;base64,BBB"],"expectedGeneration":%d}`, swState.Generation)))
+	if len(apiFake.call(0).Images) != 1 || apiFake.call(0).Images[0] != "data:image/png;base64,BBB" {
+		t.Fatalf("wired image lost before adapter: %+v", apiFake.call(0).Images)
+	}
+	tok := cr.AttemptToken{ConversationID: "c", AttemptID: fmt.Sprintf("a%d", swState.Generation+1), Generation: swState.Generation + 1}
+	requireOK(t, c.call("conversations.runtimeRelease", `{"id":"c"}`))
+	_ = tok
+
+	// Re-open runtime and verify phase=uncertain, then resolve via decision="abandon".
+	stRaw := requireOK(t, c.call("conversations.runtimeState", `{"id":"c"}`))
+	b, _ = json.Marshal(stRaw)
+	var unc struct {
+		Phase      string
+		Generation uint64
+	}
+	_ = json.Unmarshal(b, &unc)
+	if unc.Phase != "uncertain" {
+		t.Fatalf("expected uncertain after release during active send: %s", b)
+	}
+	abandoned := requireOK(t, c.call("conversations.runtimeResolve", fmt.Sprintf(`{"id":"c","decision":"abandon","confirm":true,"expectedGeneration":%d}`, unc.Generation)))
+	b, _ = json.Marshal(abandoned)
+	var afterAbandon struct {
+		Phase string
+	}
+	_ = json.Unmarshal(b, &afterAbandon)
+	if afterAbandon.Phase != "idle" {
+		t.Fatalf("abandon resolve failed: %s", b)
+	}
+}
+
+type parityFake struct {
+	*ingressFake
+	bridges *cr.CapabilityBridges
+}
+
+func (p *parityFake) Capabilities() cr.Capabilities {
+	caps := p.ingressFake.Capabilities()
+	caps.Attachments = true
+	caps.Bridges = p.bridges
+	return caps
 }

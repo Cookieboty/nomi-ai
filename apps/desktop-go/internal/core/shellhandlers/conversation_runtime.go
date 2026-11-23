@@ -57,8 +57,67 @@ func RuntimeView(r *mainchat.Registry, id string) (any, error) {
 	if recovery == "" {
 		recovery = "none"
 	}
+	caps := map[string]any{
+		"resume":          s.Capabilities.Resume,
+		"cancel":          s.Capabilities.Cancel,
+		"approval":        s.Capabilities.Approval,
+		"attachments":     s.Capabilities.Attachments,
+		"permissionModes": modes,
+		"degraded":        degraded,
+	}
+	if s.Capabilities.Bridges != nil {
+		caps["bridges"] = s.Capabilities.Bridges
+	}
 	out := map[string]any{"id": id, "backend": s.Backend, "generation": s.Generation, "phase": s.Phase, "queued": s.Queued, "partial": s.Partial, "detail": s.Detail, "approvals": approvals, "recovery": recovery,
-		"capabilities": map[string]any{"resume": s.Capabilities.Resume, "cancel": s.Capabilities.Cancel, "approval": s.Capabilities.Approval, "attachments": s.Capabilities.Attachments, "permissionModes": modes, "degraded": degraded}}
+		"capabilities": caps}
+	if len(s.ApprovalDetails) > 0 {
+		out["approvalDetails"] = s.ApprovalDetails
+	}
+	if len(s.Trace) > 0 {
+		out["trace"] = s.Trace
+	}
+	if s.FailedRequest != nil {
+		fr := map[string]any{"messageId": s.FailedRequest.MessageID, "turnId": s.FailedRequest.TurnID, "text": s.FailedRequest.Text}
+		if len(s.FailedRequest.Images) > 0 {
+			fr["images"] = s.FailedRequest.Images
+		}
+		out["failedRequest"] = fr
+	}
+	if s.Model != "" {
+		out["model"] = s.Model
+	}
+	if s.AccountID != "" {
+		out["accountId"] = s.AccountID
+	}
+	if s.PermissionMode != "" {
+		out["permissionMode"] = s.PermissionMode
+	}
+	if s.Effort != "" {
+		out["effort"] = s.Effort
+	}
+	if s.PendingSwitch != nil {
+		ps := map[string]any{
+			"phase":       s.PendingSwitch.Phase,
+			"fromBackend": s.PendingSwitch.From.Identity.DriverID,
+			"toBackend":   s.PendingSwitch.To.Identity.DriverID,
+		}
+		if s.PendingSwitch.ExpectedStrategy != "" {
+			ps["expectedStrategy"] = s.PendingSwitch.ExpectedStrategy
+		}
+		if s.PendingSwitch.PlannedEntries > 0 {
+			ps["plannedEntries"] = s.PendingSwitch.PlannedEntries
+		}
+		if s.PendingSwitch.OmittedEntries > 0 {
+			ps["omittedEntries"] = s.PendingSwitch.OmittedEntries
+		}
+		if s.PendingSwitch.Reason != "" {
+			ps["reason"] = s.PendingSwitch.Reason
+		}
+		out["pendingSwitch"] = ps
+	}
+	if s.LastSwitch != nil {
+		out["lastSwitch"] = s.LastSwitch
+	}
 	if s.Token.AttemptID != "" {
 		out["token"] = runtimeToken(s.Token)
 	}
@@ -79,7 +138,7 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 				return nil, badInput(err)
 			}
 		}
-		detail := "Experimental explicit opt-in; API mode is text-only; installed CLI backends have unverified login and declared capability limits"
+		detail := "Experimental explicit opt-in; API mode supports Nomi tools and approvals with a configured provider; installed CLI backends have unverified login and declared capability limits"
 		if !convstore.ManagedSupported() {
 			detail = "Managed runtime persistence is unsupported on this platform; existing API conversations remain available"
 		}
@@ -93,18 +152,33 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 			if degraded == nil {
 				degraded = []string{}
 			}
-			out = append(out, map[string]any{"id": c.ID, "available": c.Available, "status": c.Status, "detail": c.Detail, "login": c.Login, "requiresProject": c.RequiresProject, "degraded": degraded})
+			item := map[string]any{"id": c.ID, "available": c.Available, "status": c.Status, "detail": c.Detail, "login": c.Login, "requiresProject": c.RequiresProject, "degraded": degraded}
+			if len(c.Accounts) > 0 {
+				item["accounts"] = c.Accounts
+			}
+			if len(c.Models) > 0 {
+				item["models"] = c.Models
+			}
+			if len(c.PermissionModes) > 0 {
+				item["permissionModes"] = c.PermissionModes
+			}
+			if c.Bridges != nil {
+				item["bridges"] = c.Bridges
+			}
+			out = append(out, item)
 		}
 		return map[string]any{"supported": convstore.ManagedSupported(), "backends": registry.Available(), "detail": detail, "choices": out}, nil
 	})
-	for _, name := range []string{"State", "Adopt", "Select", "Send", "Cancel", "Approve", "Edit", "Release", "Resolve"} {
+	for _, name := range []string{"State", "Adopt", "Select", "Switch", "Send", "Cancel", "Approve", "Edit", "Release", "Resolve"} {
 		op := name
 		router.Call("conversations.runtime"+op, func(ctx context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 			var in struct {
 				ID, Backend, MessageID, TurnID, Text, ApprovalID, Decision string
-				ExpectedGeneration                                         uint64
+				Model, Effort, PermissionMode, AccountID                   string
+				Images                                                     []string
+				ExpectedGeneration                                         *uint64
 				BeforeGeneration                                           *uint64
-				Confirm, Retry, Allow                                      bool
+				Confirm, ConfirmUnsafe, Retry, Allow                       bool
 				Token                                                      struct {
 					ConversationID, AttemptID string
 					Generation                uint64
@@ -119,9 +193,24 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 				err = registry.Adopt(in.ID, in.Backend, in.Confirm)
 			case "Select":
 				err = registry.Select(in.ID, in.Backend)
+			case "Switch":
+				_, err = registry.Switch(ctx, in.ID, mainchat.SwitchOptions{
+					Backend:            in.Backend,
+					Model:              in.Model,
+					Effort:             in.Effort,
+					PermissionMode:     in.PermissionMode,
+					AccountID:          in.AccountID,
+					Confirm:            in.Confirm,
+					ConfirmUnsafe:      in.ConfirmUnsafe,
+					ExpectedGeneration: in.ExpectedGeneration,
+				})
 			case "Send":
+				var expected uint64
+				if in.ExpectedGeneration != nil {
+					expected = *in.ExpectedGeneration
+				}
 				var token cr.AttemptToken
-				token, err = registry.Send(ctx, in.ID, cr.Request{MessageID: in.MessageID, TurnID: in.TurnID, Text: in.Text, Retry: in.Retry}, in.ExpectedGeneration)
+				token, err = registry.Send(ctx, in.ID, cr.Request{MessageID: in.MessageID, TurnID: in.TurnID, Text: in.Text, Images: in.Images, Retry: in.Retry}, expected)
 				if err != nil {
 					return nil, runtimeFail(err)
 				}
@@ -142,11 +231,10 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 			case "Release":
 				return nil, registry.Release(in.ID)
 			case "Resolve":
-				if !bytes.Contains(raw, []byte("expectedGeneration")) {
+				if in.ExpectedGeneration == nil {
 					return nil, badInput(errors.New("expectedGeneration required"))
 				}
-				g := in.ExpectedGeneration
-				err = registry.Resolve(in.ID, in.Decision, in.Confirm, &g)
+				err = registry.Resolve(in.ID, in.Decision, in.Confirm, in.ExpectedGeneration)
 			}
 			if err != nil {
 				return nil, runtimeFail(err)

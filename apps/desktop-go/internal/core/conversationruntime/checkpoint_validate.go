@@ -98,14 +98,40 @@ func ValidateCheckpoint(c Checkpoint) error {
 		default:
 			return bad("switch phase")
 		}
-		if sw.From.Identity.DriverID == "" || sw.To.Identity.DriverID == "" || validateTargetState(sw.From) != nil || validateTargetState(sw.To) != nil {
+		if sw.To.Identity.DriverID == "" || validateTargetState(sw.From) != nil || validateTargetState(sw.To) != nil {
 			return bad("switch target")
+		}
+		if sw.PlannedEntries < 0 || sw.OmittedEntries < 0 {
+			return bad("switch plan counts")
+		}
+		switch sw.ExpectedStrategy {
+		case "", StrategyNone, StrategyDelta, StrategyNewSession:
+		default:
+			return bad("switch expected strategy")
+		}
+	}
+	if ls := c.LastSwitch; ls != nil {
+		if ls.ToBackend == "" || ls.PlannedEntries < 0 || ls.OmittedEntries < 0 {
+			return bad("last switch summary")
+		}
+		switch ls.ExpectedStrategy {
+		case StrategyNone, StrategyDelta, StrategyNewSession:
+		default:
+			return bad("last switch strategy")
 		}
 	}
 	queued := map[string]bool{}
 	for _, r := range c.Queue {
 		if r.MessageID == "" || r.TurnID == "" || !utf8OK(r.Text) || len(r.Attachments) > 0 || queued[r.MessageID] {
 			return bad("queued request")
+		}
+		if len(r.Images) > 0 && !c.Selected.Capabilities.Attachments {
+			return bad("queued images unsupported")
+		}
+		for _, img := range r.Images {
+			if img == "" || !utf8OK(img) {
+				return bad("queued image")
+			}
 		}
 		queued[r.MessageID] = true
 	}
@@ -156,6 +182,14 @@ func ValidateCheckpoint(c Checkpoint) error {
 		if len(a.Request.Attachments) > 0 || !utf8OK(a.Request.Text) {
 			return bad("active request content")
 		}
+		if len(a.Request.Images) > 0 && !c.Selected.Capabilities.Attachments {
+			return bad("active images unsupported")
+		}
+		for _, img := range a.Request.Images {
+			if img == "" || !utf8OK(img) {
+				return bad("active image")
+			}
+		}
 		if a.Plan.ID != "" {
 			if a.Plan.BindingID != a.BindingID || a.Plan.BindingKey != bindings[a.BindingID].CompatKey || jsonLen(a.Plan.Payload) != a.Plan.PayloadBytes || jsonLen(a.Plan.RequestBody) != a.Plan.RequestBytes {
 				return bad("active plan")
@@ -179,18 +213,28 @@ func ValidateCheckpoint(c Checkpoint) error {
 func validateTargetState(t TargetState) error {
 	if t.Identity.DriverID == "" {
 		// Initial unselected conversations have exactly the empty target.
-		if t.Identity != (NativeIdentity{}) || t.Env != (CompatibilityKey{}) || t.Capabilities.Budget != 0 || len(t.Capabilities.PermissionModes) != 0 || t.Capabilities.Resume || t.Capabilities.Cancel || t.Capabilities.Approval || t.Capabilities.Attachments {
+		if t.Identity != (NativeIdentity{}) || t.Env != (CompatibilityKey{}) || t.Effort != "" || t.Capabilities.Budget != 0 || len(t.Capabilities.PermissionModes) != 0 || t.Capabilities.Resume || t.Capabilities.Cancel || t.Capabilities.Approval || t.Capabilities.Attachments || t.Capabilities.Bridges != nil {
 			return ErrBadEdit
 		}
 		return nil
 	}
-	if resumeProblem(PlanInput{Target: TargetNew, Identity: t.Identity, Env: t.Env}) != "" || t.Capabilities.Budget < 2 || t.Capabilities.Attachments || !utf8OK(t.Capabilities.Wrapper.Prefix) || !utf8OK(t.Capabilities.Wrapper.Suffix) {
+	if b := t.Capabilities.Bridges; b != nil {
+		for _, s := range []BridgeState{b.Computer, b.MCP, b.Persona, b.Memory, b.Knowledge, b.Skills, b.Attachments} {
+			switch s.Status {
+			case "native", "bridged", "degraded", "unsupported":
+			default:
+				return ErrBadEdit
+			}
+		}
+	}
+	wiredAtt := t.Capabilities.Bridges != nil && (t.Capabilities.Bridges.Attachments.Status == "bridged" || t.Capabilities.Bridges.Attachments.Status == "native")
+	if resumeProblem(PlanInput{Target: TargetNew, Identity: t.Identity, Env: t.Env}) != "" || t.Capabilities.Budget < 2 || (t.Capabilities.Attachments && !wiredAtt) || !utf8OK(t.Capabilities.Wrapper.Prefix) || !utf8OK(t.Capabilities.Wrapper.Suffix) {
 		return ErrBadEdit
 	}
 	supported := false
 	for _, mode := range t.Capabilities.PermissionModes {
 		switch mode {
-		case "ask", "deny", "bypass":
+		case "ask", "acceptEdits", "deny", "bypass":
 		default:
 			return ErrPermission
 		}

@@ -30,3 +30,17 @@ func (o *observedRuntime) Recover(ctx context.Context, q cr.RecoveryRequest) cr.
 	}
 	return r
 }
+
+func (o *observedRuntime) PrepareSwitch(ctx context.Context) error {
+	if sw, ok := o.Runtime.(cr.SwitchAwareRuntime); ok {
+		return sw.PrepareSwitch(ctx)
+	}
+	return nil
+}
+
+func (o *observedRuntime) Teardown(ctx context.Context) error {
+	if sw, ok := o.Runtime.(cr.SwitchAwareRuntime); ok {
+		return sw.Teardown(ctx)
+	}
+	return nil
+}

@@ -1,6 +1,7 @@
 package mainchat
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
@@ -59,5 +60,68 @@ func TestOwnedReleaseOutsideLocksFencesReopenAndCloseWaits(t *testing.T) {
 	}
 	if calls.Load() != 1 {
 		t.Fatal("native owner released multiple times", calls.Load())
+	}
+}
+
+func (s stubRuntime) Capabilities() cr.Capabilities {
+	return cr.Capabilities{PermissionModes: []string{"ask"}, Budget: 4096}
+}
+
+type stubRuntime struct{}
+
+func (stubRuntime) Recover(context.Context, cr.RecoveryRequest) cr.RecoveryResult {
+	return cr.RecoveryResult{}
+}
+func (stubRuntime) Start(context.Context, cr.RuntimeRequest, func(cr.Event) error) cr.SubmitResult {
+	return cr.SubmitResult{}
+}
+func (stubRuntime) Cancel(context.Context, cr.AttemptToken) cr.CancelResult { return cr.CancelResult{} }
+func (stubRuntime) Approve(context.Context, cr.ApprovalDecision) error      { return nil }
+
+func TestSwitchEffortDefaultResetsConfig(t *testing.T) {
+	if !convstore.ManagedSupported() {
+		t.Skip("managed durability gate")
+	}
+	s := convstore.New(t.TempDir())
+	if _, err := s.Put(json.RawMessage(`{"id":"c-effort","backend":"nomi"}`), nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	r := New(s, nil)
+	r.Register("claude", func(string) (cr.Target, error) {
+		return cr.Target{
+			Runtime:  stubRuntime{},
+			Identity: cr.NativeIdentity{DriverID: "claude", Transport: "fake", DriverVersion: "1", ResumeProtocol: "none", Executable: "claude", Source: "local", ConfigDir: "/tmp/cfg", Cwd: "/tmp/ws", ConfigGen: 1},
+			Env:      cr.CompatibilityKey{PermissionMode: "ask"},
+		}, nil
+	})
+	if err := r.Adopt("c-effort", "claude", true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Switch(context.Background(), "c-effort", SwitchOptions{
+		Backend: "claude",
+		Effort:  "high",
+		Confirm: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.ConfigFor("c-effort", "claude").Effort; got != "high" {
+		t.Fatalf("expected effort high, got %q", got)
+	}
+	if _, err := r.Switch(context.Background(), "c-effort", SwitchOptions{
+		Backend: "claude",
+		Effort:  "default",
+		Confirm: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.ConfigFor("c-effort", "claude").Effort; got != "" {
+		t.Fatalf("expected effort reset to empty, got %q", got)
+	}
+	st, err := r.State("c-effort")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Effort != "" {
+		t.Fatalf("expected state effort empty after reset, got %q", st.Effort)
 	}
 }

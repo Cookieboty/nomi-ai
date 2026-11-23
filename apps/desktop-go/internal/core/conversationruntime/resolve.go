@@ -45,3 +45,70 @@ func (c *Session) ResolveUnprovenResume(expected *uint64) error {
 	c.work = Activity{Known: true}
 	return c.persistLocked()
 }
+
+// ResolveInterruptedSwitch rolls back an interrupted PendingSwitch to its durable
+// source target so the session returns to idle without executing any turn.
+func (c *Session) ResolveInterruptedSwitch(expected *uint64, decision string) error {
+	if decision != "rollback-switch" {
+		return ErrPermission
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.storageErr != nil {
+		return c.storageErr
+	}
+	if expected != nil && *expected != c.generation {
+		return ErrStaleEvent
+	}
+	sw := c.pendingSwitch
+	if sw == nil {
+		return ErrUnresolved
+	}
+	c.restoreTargetLocked(sw.From)
+	c.pendingSwitch = nil
+	if c.active != nil {
+		c.active.cancel()
+		if c.active.token.AttemptID == "interrupted-switch" || c.active.phase == PhaseUncertain {
+			c.active = nil
+		}
+	}
+	c.generation++
+	c.work = Activity{Known: true}
+	return c.persistLocked()
+}
+
+// ResolveAbandon discards a failed, canceled, or unproven turn (and rolls back
+// any interrupted switch) so the conversation returns cleanly to idle without
+// replaying the abandoned request automatically.
+func (c *Session) ResolveAbandon(expected *uint64) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.storageErr != nil {
+		return c.storageErr
+	}
+	if expected != nil && *expected != c.generation {
+		return ErrStaleEvent
+	}
+	a := c.active
+	sw := c.pendingSwitch
+	if sw == nil && (a == nil || (a.phase != PhaseUncertain && a.phase != PhaseFailed && a.phase != PhaseCanceled)) {
+		return ErrUnresolved
+	}
+	if a != nil {
+		if a.request.MessageID != "" && a.phase != PhaseCompleted {
+			if c.held == nil {
+				c.held = map[string]bool{}
+			}
+			c.held[a.request.MessageID] = true
+		}
+		a.cancel()
+		c.active = nil
+	}
+	if sw != nil {
+		c.restoreTargetLocked(sw.From)
+		c.pendingSwitch = nil
+	}
+	c.generation++
+	c.work = Activity{Known: true}
+	return c.persistLocked()
+}

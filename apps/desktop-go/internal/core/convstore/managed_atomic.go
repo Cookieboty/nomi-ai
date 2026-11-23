@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 )
 
 var ErrDurabilityUnsupported = errors.New("managed authority durability is not implemented on this platform")
@@ -27,7 +26,7 @@ type managedIO struct {
 }
 
 func defaultManagedIO() managedIO {
-	return managedIO{Write: func(f *os.File, b []byte) (int, error) { return f.Write(b) }, Rename: os.Rename}
+	return managedIO{Write: func(f *os.File, b []byte) (int, error) { return f.Write(b) }, Rename: replaceFile}
 }
 func (ops managedIO) point(stage string) error {
 	if ops.Point != nil {
@@ -35,24 +34,8 @@ func (ops managedIO) point(stage string) error {
 	}
 	return nil
 }
-func ManagedSupported() bool { return runtime.GOOS != "windows" }
-func syncDirectory(path string) error {
-	// Do not claim Unix fsync semantics on Windows. No production cutover there
-	// until a tested durable replacement primitive is implemented.
-	if runtime.GOOS == "windows" {
-		return ErrDurabilityUnsupported
-	}
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return f.Sync()
-}
+func ManagedSupported() bool { return true }
 func atomicManaged(path string, data []byte, ops managedIO) (err error) {
-	if runtime.GOOS == "windows" {
-		return ErrDurabilityUnsupported
-	}
 	if len(data) > maxManagedBytes {
 		return fmt.Errorf("%w: managed checkpoint exceeds %d bytes", ErrMigrationBlocked, maxManagedBytes)
 	}
@@ -87,7 +70,7 @@ func atomicManaged(path string, data []byte, ops managedIO) (err error) {
 	if err = ops.point("chmod"); err != nil {
 		return err
 	}
-	if err = f.Chmod(0600); err != nil {
+	if err = chmodPrivate(f); err != nil {
 		return err
 	}
 	if err = ops.point("write"); err != nil {

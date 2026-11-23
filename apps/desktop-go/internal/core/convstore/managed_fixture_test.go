@@ -2,7 +2,6 @@ package convstore
 
 import (
 	"context"
-	"runtime"
 	"sync"
 	"testing"
 
@@ -122,11 +121,7 @@ func completeDisk(t *testing.T, c *cr.Session, r cr.RuntimeRequest) {
 	}
 }
 
-// These success-path fixtures require the implemented Unix fsync primitive.
-// Windows has a separate executable fail-closed assertion, not fake durability.
+// Managed durability primitives are implemented across Unix and Windows.
 func requireManagedDurability(t *testing.T) {
 	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("v2 directory durability unsupported on Windows; platform gate is tested separately")
-	}
 }

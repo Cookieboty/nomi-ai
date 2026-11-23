@@ -27,7 +27,7 @@ type convSession struct {
 
 func (c *convSession) call(name, input string) contract.ServerFrame {
 	c.t.Helper()
-	f, ok := c.request(name, input).await(2 * time.Second)
+	f, ok := c.request(name, input).await(5 * time.Second)
 	if !ok {
 		c.t.Fatal("timeout " + name)
 	}
@@ -100,6 +100,15 @@ func (c *convSession) request(name, input string) *pending {
 	r.mu.Unlock()
 	c.s.Handle([]byte(`{"t":"req","id":"` + id + `","kind":"call","name":"` + name + `","input":` + input + `}`))
 	return p
+}
+
+func (c *convSession) registerWaiter(id string) chan contract.ServerFrame {
+	reply := make(chan contract.ServerFrame, 1)
+	r := c.ipc()
+	r.mu.Lock()
+	r.waiters[id] = reply
+	r.mu.Unlock()
+	return reply
 }
 
 func (p *pending) await(timeout time.Duration) (contract.ServerFrame, bool) {

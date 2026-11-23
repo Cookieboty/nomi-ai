@@ -22,10 +22,12 @@ type activeAttempt struct {
 	recovery  RecoveryResult
 	binding   Binding
 	plan      Plan
-	delivered bool
-	text      string
-	approvals map[string]bool
-	detail    string
+	delivered       bool
+	text            string
+	approvals       map[string]bool
+	approvalDetails map[string]ApprovalInfo
+	trace           []TraceEntry
+	detail          string
 }
 
 // Session serializes one stable product conversation. With an attached
@@ -34,6 +36,7 @@ type activeAttempt struct {
 // runtime adapters are not connected yet.
 type Session struct {
 	pendingSwitch  *SwitchState
+	lastSwitch     *LastSwitchSummary
 	committer      Committer
 	lastCheckpoint Checkpoint
 	storageErr     error
@@ -72,22 +75,31 @@ func NewSession(id string, history []Entry) (*Session, error) {
 	return c, nil
 }
 
-func (c *Session) Select(target Target) error {
+func validateAndNormalizeTarget(target Target) (Capabilities, error) {
 	if target.Runtime == nil {
-		return fmt.Errorf("%w: missing runtime", ErrBadEdit)
+		return Capabilities{}, fmt.Errorf("%w: missing runtime", ErrBadEdit)
 	}
 	caps := target.Runtime.Capabilities().clone()
-	// Product attachments are not wired even if the native CLI can accept them.
-	if caps.Attachments {
+	wiredAttachments := caps.Bridges != nil && (caps.Bridges.Attachments.Status == "bridged" || caps.Bridges.Attachments.Status == "native")
+	if caps.Attachments && !wiredAttachments {
 		caps.Degraded = append(caps.Degraded, "product attachment handoff is not implemented")
+		caps.Attachments = false
 	}
-	caps.Attachments = false
+	if caps.Bridges != nil {
+		for _, b := range []BridgeState{caps.Bridges.Computer, caps.Bridges.MCP, caps.Bridges.Persona, caps.Bridges.Memory, caps.Bridges.Knowledge, caps.Bridges.Skills, caps.Bridges.Attachments} {
+			switch b.Status {
+			case "native", "bridged", "degraded", "unsupported":
+			default:
+				return Capabilities{}, fmt.Errorf("%w: invalid capability bridge status %q", ErrBadEdit, b.Status)
+			}
+		}
+	}
 	// Only product-defined modes cross this boundary. Native flags do not
 	// acquire permission just because an adapter puts them in a string list.
 	modes := make([]string, 0, len(caps.PermissionModes))
 	for _, mode := range caps.PermissionModes {
 		switch mode {
-		case "ask", "deny", "bypass":
+		case "ask", "acceptEdits", "deny", "bypass":
 			modes = append(modes, mode)
 		default:
 			caps.Degraded = append(caps.Degraded, "unsupported product permission mode: "+mode)
@@ -101,17 +113,25 @@ func (c *Session) Select(target Target) error {
 		}
 	}
 	if !supported || (target.Env.PermissionMode == "bypass" && !target.ConfirmUnsafe) {
-		return ErrPermission
+		return Capabilities{}, ErrPermission
 	}
 	if !utf8OK(caps.Wrapper.Prefix) || !utf8OK(caps.Wrapper.Suffix) {
-		return ErrInvalidUTF8
+		return Capabilities{}, ErrInvalidUTF8
 	}
 	if caps.Budget < 2 {
-		return &ErrBudget{Need: 2, Limit: int(caps.Budget), What: "minimum prompt"}
+		return Capabilities{}, &ErrBudget{Need: 2, Limit: int(caps.Budget), What: "minimum prompt"}
 	}
 	// Validate identity independently of any previous binding.
 	if why := resumeProblem(PlanInput{Target: TargetNew, Identity: target.Identity, Env: target.Env}); why != "" {
-		return fmt.Errorf("%w: %s", ErrBadEdit, why)
+		return Capabilities{}, fmt.Errorf("%w: %s", ErrBadEdit, why)
+	}
+	return caps, nil
+}
+
+func (c *Session) Select(target Target) error {
+	caps, err := validateAndNormalizeTarget(target)
+	if err != nil {
+		return err
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -127,7 +147,21 @@ func (c *Session) State() SessionState {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.refreshLocked()
-	s := SessionState{Backend: c.target.Identity.DriverID, ConversationID: c.id, Generation: c.generation, Phase: PhaseIdle, Capabilities: c.caps.clone(), Work: c.work, Queued: len(c.queue)}
+	s := SessionState{
+		Backend:        c.target.Identity.DriverID,
+		ConversationID: c.id,
+		Generation:     c.generation,
+		Phase:          PhaseIdle,
+		Capabilities:   c.caps.clone(),
+		Work:           c.work,
+		Queued:         len(c.queue),
+		Model:          c.target.Env.Model,
+		AccountID:      c.target.Identity.AccountID,
+		PermissionMode: c.target.Env.PermissionMode,
+		Effort:         c.target.Effort,
+		PendingSwitch:  cloneSwitchState(c.pendingSwitch),
+		LastSwitch:     cloneLastSwitch(c.lastSwitch),
+	}
 	if c.storageErr != nil {
 		s.Detail = c.storageErr.Error()
 		s.Phase = PhaseUncertain
@@ -142,6 +176,28 @@ func (c *Session) State() SessionState {
 			s.Approvals = append(s.Approvals, id)
 		}
 		sort.Strings(s.Approvals)
+		if len(s.Approvals) > 0 {
+			s.ApprovalDetails = make([]ApprovalInfo, 0, len(s.Approvals))
+			for _, id := range s.Approvals {
+				if info, ok := a.approvalDetails[id]; ok {
+					s.ApprovalDetails = append(s.ApprovalDetails, info)
+				} else {
+					s.ApprovalDetails = append(s.ApprovalDetails, ApprovalInfo{ID: id})
+				}
+			}
+		}
+		if len(a.trace) > 0 {
+			s.Trace = append([]TraceEntry(nil), a.trace...)
+		}
+		if (a.phase == PhaseFailed || a.phase == PhaseUncertain || a.phase == PhaseCanceled) &&
+			a.request.MessageID != "" &&
+			a.token.AttemptID != "interrupted-switch" &&
+			a.token.AttemptID != "interrupted-work" {
+			reqCopy := a.request
+			reqCopy.Attachments = append([]string(nil), a.request.Attachments...)
+			reqCopy.Images = append([]string(nil), a.request.Images...)
+			s.FailedRequest = &reqCopy
+		}
 	}
 	return s
 }
@@ -227,6 +283,14 @@ func (c *Session) validateRequestLocked(r Request) error {
 	if len(r.Attachments) > 0 {
 		return fmt.Errorf("%w: product attachments unsupported", ErrBadEdit)
 	}
+	for _, img := range r.Images {
+		if strings.TrimSpace(img) == "" || !utf8OK(img) {
+			return ErrBadEdit
+		}
+	}
+	if len(r.Images) > 0 && !c.caps.Attachments {
+		return fmt.Errorf("%w: active backend %s does not support image attachments", ErrBadEdit, c.target.Identity.DriverID)
+	}
 	if a := c.active; a != nil {
 		if r.MessageID == a.replyID {
 			return ErrAlreadyExecuted
@@ -268,7 +332,7 @@ func (c *Session) beginLocked(ctx context.Context, r Request, queued bool) (*act
 	c.generation++
 	token := AttemptToken{ConversationID: c.id, AttemptID: fmt.Sprintf("a%d", c.generation), Generation: c.generation}
 	attemptCtx, cancel := context.WithCancel(ctx)
-	a := &activeAttempt{token: token, request: r, ctx: attemptCtx, cancel: cancel, gate: make(chan struct{}, 1), target: c.target, caps: c.caps.clone(), phase: PhasePreparing, approvals: map[string]bool{}}
+	a := &activeAttempt{token: token, request: r, ctx: attemptCtx, cancel: cancel, gate: make(chan struct{}, 1), target: c.target, caps: c.caps.clone(), phase: PhasePreparing, approvals: map[string]bool{}, approvalDetails: map[string]ApprovalInfo{}}
 	a.replyID = c.replyIDLocked("reply_" + token.AttemptID)
 	c.active = a
 	c.attempted[r.MessageID] = true
@@ -293,9 +357,26 @@ func (c *Session) idleLocked(ignoreQueue bool) bool {
 		switch a.phase {
 		case PhasePreparing, PhaseRunning, PhaseCanceling, PhaseUncertain:
 			return false
+		case PhaseCanceled:
+			if a.recovery.Kind == RecoveryUnknown && c.hasSafeBindingLocked(a.target) {
+				return false
+			}
 		}
 	}
 	return true
+}
+
+func (c *Session) hasSafeBindingLocked(target Target) bool {
+	if target.Identity.DriverID == "" {
+		return false
+	}
+	key := target.Identity.Key(target.Env)
+	for _, b := range c.bindings.All() {
+		if b.CompatKey == key && b.Status.Safe() && b.NativeSessionID != "" {
+			return true
+		}
+	}
+	return false
 }
 func (c *Session) ownerLocked(a *activeAttempt) bool {
 	return c.storageErr == nil && c.active == a && a.token.Generation == c.generation
@@ -313,6 +394,7 @@ func (c *Session) uncertainLocked(a *activeAttempt, why string) {
 	c.generation++
 	a.cancel()
 	a.approvals = map[string]bool{}
+	a.approvalDetails = map[string]ApprovalInfo{}
 	c.work = Activity{}
 	c.invalidateBindingLocked(a)
 	_ = c.persistLocked()

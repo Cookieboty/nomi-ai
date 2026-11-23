@@ -141,7 +141,7 @@ func (x *codexFixture) setMode(t *testing.T, mode string) {
 func codexIngress(t *testing.T, mode string) (*codexFixture, *convstore.Store, *mainchat.Registry, *convSession) {
 	t.Helper()
 	if runtime.GOOS == "windows" {
-		t.Skip("managed durable writes are explicitly unavailable on Windows")
+		t.Skip("POSIX #!/bin/sh launcher fixture requires Unix")
 	}
 	py, err := exec.LookPath("python3")
 	if err != nil {
@@ -507,11 +507,13 @@ func TestCodexOfficialSubprocessUnprovenResumesStayUnknown(t *testing.T) {
 			// Session.finishCancel records PhaseCanceled for proven stop, and
 			// the unproven native context is fenced, never certified.
 			canceled := mode == "hang"
-			if !canceled && sendIngress(t, c, "cold").T != "err" {
-				t.Fatal("unproven cold resumption accepted")
-			}
-			st := awaitCodex(t, c, cr.PhaseUncertain)
-			if canceled {
+			var st nativeView
+			if !canceled {
+				if sendIngress(t, c, "cold").T != "err" {
+					t.Fatal("unproven cold resumption accepted")
+				}
+				st = awaitCodex(t, c, cr.PhaseUncertain)
+			} else {
 				// A canceled turn is not a safe replay point: the attempt is
 				// durably canceled, nothing is queued, and the canceled
 				// unknown context still forbids an implicit new send or an
@@ -597,39 +599,6 @@ func TestCodexOfficialSubprocessApprovalsFailClosed(t *testing.T) {
 	if err != nil || len(doc.State.Completed) != 0 || len(doc.State.Receipts) != 0 {
 		t.Fatalf("approval fabricated delivery: %+v %v", doc.State, err)
 	}
-}
-
-// processGroupAlive reports whether any process in the fixture's group is
-// still running; the fake app-server is spawned detached as its own leader.
-func processGroupAlive(t *testing.T, pgid int, exclude int) bool {
-	t.Helper()
-	entries, err := os.ReadDir("/proc")
-	if err != nil {
-		t.Skip("/proc unavailable; process-group assertion skipped")
-	}
-	for _, e := range entries {
-		pid := 0
-		if _, err := fmt.Sscanf(e.Name(), "%d", &pid); err != nil || pid == exclude {
-			continue
-		}
-		b, err := os.ReadFile(filepath.Join("/proc", e.Name(), "stat"))
-		if err != nil {
-			continue
-		}
-		s := string(b)
-		i := strings.LastIndexByte(s, ')')
-		if i < 0 {
-			continue
-		}
-		fields := strings.Fields(s[i+1:])
-		if len(fields) < 3 || fields[2] != "0" {
-			continue
-		}
-		if fields[1] == fmt.Sprint(pgid) {
-			return true
-		}
-	}
-	return false
 }
 
 func TestCodexOfficialSubprocessCancelWaitsProcessGroupAndDropsLateEvents(t *testing.T) {

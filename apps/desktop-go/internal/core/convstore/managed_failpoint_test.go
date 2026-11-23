@@ -274,3 +274,77 @@ func TestManagedFailedCompletionRetainsDraftButNotUndurableReply(t *testing.T) {
 		t.Fatal("undurable assistant/completion coverage leaked")
 	}
 }
+
+func TestManagedSwitchTransactionCrashRecoversToUncertainAndRollsBack(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		failAtTx  int
+		failStage string
+		wantPhase string
+	}{
+		{name: "crash-during-write-after-saved-source", failAtTx: 2, failStage: "write", wantPhase: "saved-source"},
+		{name: "crash-after-rename-at-committing", failAtTx: 5, failStage: "after-rename", wantPhase: "committing"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir, _, lease, c, f := diskFixture(t)
+			startDisk(t, c)
+			r := f.call(t, 0)
+			ackDisk(t, c, r)
+			e := diskEvent(r, cr.EventText)
+			e.Text = "durable claude reply"
+			if err := c.AcceptRuntimeEvent(e); err != nil {
+				t.Fatal(err)
+			}
+			e = diskEvent(r, cr.EventCompleted)
+			e.Work = cr.Activity{Known: true}
+			if err := c.AcceptRuntimeEvent(e); err != nil {
+				t.Fatal(err)
+			}
+
+			commits := 0
+			lease.mu.Lock()
+			lease.ops.Point = func(stage string) error {
+				if stage == "create" {
+					commits++
+				}
+				if commits == tc.failAtTx && stage == tc.failStage {
+					return syscall.ENOSPC
+				}
+				return nil
+			}
+			lease.mu.Unlock()
+
+			sel := c.Checkpoint().Selected
+			codexIdent := sel.Identity
+			codexIdent.DriverID = "codex"
+			codexIdent.Transport = "fake"
+			codexIdent.Executable = "/fake/codex"
+			codexTarget := cr.Target{Runtime: f, Identity: codexIdent, Env: sel.Env}
+			if _, err := c.Switch(context.Background(), codexTarget, nil); err == nil {
+				t.Fatal("expected disk failpoint during switch transaction")
+			}
+			_ = lease.Close()
+
+			l2, err := New(dir).OpenManaged("c")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer l2.Close()
+			recovered, err := l2.Session()
+			if err != nil {
+				t.Fatal(err)
+			}
+			st := recovered.State()
+			if st.Phase != cr.PhaseUncertain || st.PendingSwitch == nil || st.PendingSwitch.Phase != tc.wantPhase {
+				t.Fatalf("unexpected crash-recovered switch state: %+v", st)
+			}
+			if err := recovered.ResolveInterruptedSwitch(&st.Generation, "rollback-switch"); err != nil {
+				t.Fatalf("rollback-switch failed: %v", err)
+			}
+			after := recovered.State()
+			if after.Phase != cr.PhaseIdle || after.Backend != sel.Identity.DriverID || after.PendingSwitch != nil {
+				t.Fatalf("rollback left broken state: %+v", after)
+			}
+		})
+	}
+}

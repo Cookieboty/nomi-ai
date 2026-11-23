@@ -22,11 +22,19 @@ type actor struct {
 	ctx     context.Context
 	cancel  context.CancelFunc
 }
+type RuntimeConfig struct {
+	Model          string `json:"model,omitempty"`
+	AccountID      string `json:"accountId,omitempty"`
+	PermissionMode string `json:"permissionMode,omitempty"`
+	Effort         string `json:"effort,omitempty"`
+}
+
 type Registry struct {
 	mu        sync.Mutex
 	store     *convstore.Store
 	factories map[string]Factory
 	actors    map[string]*actor
+	configs   map[string]map[string]RuntimeConfig
 	closed    bool
 	notify    func(string)
 	releases  map[string]func(string)
@@ -35,7 +43,7 @@ type Registry struct {
 }
 
 func New(s *convstore.Store, notify func(string)) *Registry {
-	return &Registry{store: s, factories: map[string]Factory{}, actors: map[string]*actor{}, notify: notify, releases: map[string]func(string){}, releasing: map[string]chan struct{}{}}
+	return &Registry{store: s, factories: map[string]Factory{}, actors: map[string]*actor{}, configs: map[string]map[string]RuntimeConfig{}, notify: notify, releases: map[string]func(string){}, releasing: map[string]chan struct{}{}}
 }
 func (r *Registry) Register(name string, f Factory) {
 	r.mu.Lock()
@@ -56,10 +64,45 @@ func (r *Registry) RegisterOwned(name string, f Factory, release func(string)) {
 	}
 }
 
+type RuntimeAccountOption struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+}
+
+type RuntimeModelOption struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+}
+
 type RuntimeChoice struct {
 	ID, Status, Detail, Login  string
 	Available, RequiresProject bool
 	Degraded                   []string
+	Accounts                   []RuntimeAccountOption
+	Models                     []RuntimeModelOption
+	PermissionModes            []string
+	Bridges                    *cr.CapabilityBridges
+}
+
+func (r *Registry) ConfigFor(id, backend string) RuntimeConfig {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if perConv := r.configs[id]; perConv != nil {
+		return perConv[backend]
+	}
+	return RuntimeConfig{}
+}
+
+func (r *Registry) SetConfig(id, backend string, cfg RuntimeConfig) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.configs == nil {
+		r.configs = map[string]map[string]RuntimeConfig{}
+	}
+	if r.configs[id] == nil {
+		r.configs[id] = map[string]RuntimeConfig{}
+	}
+	r.configs[id][backend] = cfg
 }
 
 func (r *Registry) SetProbe(probe func(string) []RuntimeChoice) {
@@ -179,27 +222,101 @@ func (r *Registry) Adopt(id, name string, confirm bool) error {
 	r.changed(id)
 	return nil
 }
+
+type SwitchOptions struct {
+	Backend            string
+	Model              string
+	Effort             string
+	PermissionMode     string
+	AccountID          string
+	Confirm            bool
+	ConfirmUnsafe      bool
+	ExpectedGeneration *uint64
+}
+
 func (r *Registry) Resolve(id, decision string, confirm bool, expected *uint64) error {
-	if !confirm || decision != "new-native" {
+	if !confirm {
 		return cr.ErrPermission
 	}
 	a, err := r.get(id)
 	if err != nil {
 		return err
 	}
-	if a.session.NeedsRuntime() {
-		name := a.session.Checkpoint().Selected.Identity.DriverID
-		t, e := r.target(id, name)
-		if e != nil {
-			return e
+	switch decision {
+	case "new-native":
+		if a.session.NeedsRuntime() {
+			name := a.session.Checkpoint().Selected.Identity.DriverID
+			t, e := r.target(id, name)
+			if e != nil {
+				return e
+			}
+			if e = a.session.Reattach(t); e != nil {
+				return e
+			}
 		}
-		if e = a.session.Reattach(t); e != nil {
-			return e
-		}
+		err = a.session.ResolveUnprovenResume(expected)
+	case "rollback-switch":
+		err = a.session.ResolveInterruptedSwitch(expected, decision)
+	case "abandon":
+		err = a.session.ResolveAbandon(expected)
+	default:
+		return cr.ErrPermission
 	}
-	err = a.session.ResolveUnprovenResume(expected)
 	r.changed(id)
 	return err
+}
+
+func (r *Registry) Switch(ctx context.Context, id string, opts SwitchOptions) (cr.SwitchOutcome, error) {
+	if !opts.Confirm {
+		return cr.SwitchOutcome{}, cr.ErrPermission
+	}
+	a, err := r.get(id)
+	if err != nil {
+		return cr.SwitchOutcome{}, err
+	}
+	prevCfg := r.ConfigFor(id, opts.Backend)
+	nextCfg := prevCfg
+	if opts.Model != "" {
+		nextCfg.Model = opts.Model
+	}
+	if opts.PermissionMode != "" {
+		nextCfg.PermissionMode = opts.PermissionMode
+	}
+	if opts.AccountID != "" {
+		nextCfg.AccountID = opts.AccountID
+	}
+	if opts.Effort == "default" {
+		nextCfg.Effort = ""
+	} else if opts.Effort != "" {
+		nextCfg.Effort = opts.Effort
+	}
+	r.SetConfig(id, opts.Backend, nextCfg)
+	t, err := r.target(id, opts.Backend)
+	if err != nil {
+		r.SetConfig(id, opts.Backend, prevCfg)
+		return cr.SwitchOutcome{}, err
+	}
+	if nextCfg.Model != "" {
+		t.Env.Model = nextCfg.Model
+	}
+	if nextCfg.PermissionMode != "" {
+		t.Env.PermissionMode = nextCfg.PermissionMode
+	}
+	if nextCfg.AccountID != "" {
+		t.Identity.AccountID = nextCfg.AccountID
+	}
+	if nextCfg.Effort != "" {
+		t.Effort = nextCfg.Effort
+	}
+	if opts.ConfirmUnsafe {
+		t.ConfirmUnsafe = true
+	}
+	outcome, err := a.session.Switch(ctx, t, opts.ExpectedGeneration)
+	if err != nil {
+		r.SetConfig(id, opts.Backend, prevCfg)
+	}
+	r.changed(id)
+	return outcome, err
 }
 
 func (r *Registry) Select(id, name string) error {

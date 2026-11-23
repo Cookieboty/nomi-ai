@@ -20,20 +20,56 @@ type Runtime interface {
 	Approve(context.Context, ApprovalDecision) error
 }
 
+// SwitchAwareRuntime may be implemented by runtimes that participate in
+// transactional target preparation or teardown without dispatching user turns.
+type SwitchAwareRuntime interface {
+	PrepareSwitch(context.Context) error
+	Teardown(context.Context) error
+}
+
+type SwitchOutcome struct {
+	FromBackend      string   `json:"fromBackend"`
+	ToBackend        string   `json:"toBackend"`
+	ExpectedStrategy Strategy `json:"expectedStrategy"`
+	PlannedEntries   int      `json:"plannedEntries"`
+	OmittedEntries   int      `json:"omittedEntries"`
+	ResumableBinding string   `json:"resumableBinding,omitempty"`
+}
+
+type BridgeState struct {
+	Status string `json:"status"`
+	Detail string `json:"detail,omitempty"`
+}
+
+type CapabilityBridges struct {
+	Computer    BridgeState `json:"computer"`
+	MCP         BridgeState `json:"mcp"`
+	Persona     BridgeState `json:"persona"`
+	Memory      BridgeState `json:"memory"`
+	Knowledge   BridgeState `json:"knowledge"`
+	Skills      BridgeState `json:"skills"`
+	Attachments BridgeState `json:"attachments"`
+}
+
 type Capabilities struct {
 	Resume          bool
 	Cancel          bool
 	Approval        bool
-	Attachments     bool // product bridge; Session currently clamps this to false
+	Attachments     bool
 	PermissionModes []string
 	Budget          ByteBudget
 	Wrapper         HandoffWrapper
 	Degraded        []string
+	Bridges         *CapabilityBridges `json:"bridges,omitempty"`
 }
 
 func (c Capabilities) clone() Capabilities {
 	c.PermissionModes = append([]string(nil), c.PermissionModes...)
 	c.Degraded = append([]string(nil), c.Degraded...)
+	if c.Bridges != nil {
+		b := *c.Bridges
+		c.Bridges = &b
+	}
 	return c
 }
 
@@ -44,6 +80,7 @@ type Target struct {
 	Runtime       Runtime
 	Identity      NativeIdentity
 	Env           CompatibilityKey
+	Effort        string
 	ConfirmUnsafe bool
 }
 
@@ -85,6 +122,7 @@ type RuntimeRequest struct {
 	Token           AttemptToken
 	NativeSessionID string
 	Plan            Plan // Send ONLY Plan.Payload, never another copy of RequestBody.
+	Images          []string
 }
 
 type SubmitKind string
@@ -133,10 +171,31 @@ const (
 	EventDelivered EventKind = "delivered"
 	EventText      EventKind = "text"
 	EventApproval  EventKind = "approval"
+	EventTrace     EventKind = "trace"
 	EventCompleted EventKind = "completed"
 	EventActivity  EventKind = "activity"
 	EventFailed    EventKind = "failed"
 )
+
+type ApprovalInfo struct {
+	ID          string `json:"id"`
+	Tool        string `json:"tool,omitempty"`
+	Summary     string `json:"summary,omitempty"`
+	ArgsPreview string `json:"argsPreview,omitempty"`
+	Danger      string `json:"danger,omitempty"`
+	Risk        string `json:"risk,omitempty"`
+	Rationale   string `json:"rationale,omitempty"`
+}
+
+type TraceEntry struct {
+	ID      string `json:"id"`
+	Kind    string `json:"kind"`
+	Tool    string `json:"tool,omitempty"`
+	Summary string `json:"summary,omitempty"`
+	Status  string `json:"status,omitempty"`
+	Detail  string `json:"detail,omitempty"`
+	At      int64  `json:"at"`
+}
 
 type Event struct {
 	Token           AttemptToken
@@ -145,6 +204,8 @@ type Event struct {
 	Delivery        Delivery
 	Text            string // delta only; never reasoning/tool state
 	ApprovalID      string
+	ApprovalInfo    *ApprovalInfo
+	Trace           *TraceEntry
 	Work            Activity // explicit quiescence evidence on completion/cancel/activity
 	Detail          string
 }
@@ -169,26 +230,36 @@ const (
 )
 
 type Request struct {
-	MessageID   string
-	TurnID      string
-	Text        string
-	Attachments []string // explicitly refused, never silently dropped
-	Retry       bool     // explicit user intent, never set by automatic recovery
+	MessageID   string   `json:"messageId"`
+	TurnID      string   `json:"turnId"`
+	Text        string   `json:"text"`
+	Attachments []string `json:"attachments,omitempty"` // explicitly refused when backend lacks attachment support
+	Images      []string `json:"images,omitempty"`
+	Retry       bool     `json:"retry,omitempty"` // explicit user intent, never set by automatic recovery
 }
 
 type SessionState struct {
-	Backend        string
-	ConversationID string
-	Generation     uint64
-	Phase          Phase
-	Token          AttemptToken
-	Recovery       RecoveryResult
-	Capabilities   Capabilities
-	Work           Activity
-	Queued         int
-	Approvals      []string
-	Partial        string
-	Detail         string
+	Backend         string
+	ConversationID  string
+	Generation      uint64
+	Phase           Phase
+	Token           AttemptToken
+	Recovery        RecoveryResult
+	Capabilities    Capabilities
+	Work            Activity
+	Queued          int
+	Approvals       []string
+	ApprovalDetails []ApprovalInfo     `json:"approvalDetails,omitempty"`
+	Trace           []TraceEntry       `json:"trace,omitempty"`
+	FailedRequest   *Request           `json:"failedRequest,omitempty"`
+	Model           string             `json:"model,omitempty"`
+	AccountID       string             `json:"accountId,omitempty"`
+	PermissionMode  string             `json:"permissionMode,omitempty"`
+	Effort          string             `json:"effort,omitempty"`
+	Partial         string
+	Detail          string
+	PendingSwitch   *SwitchState       `json:"pendingSwitch,omitempty"`
+	LastSwitch      *LastSwitchSummary `json:"lastSwitch,omitempty"`
 }
 
 var (
