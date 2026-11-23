@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/antigravity"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/claude"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/codex"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/dsh"
@@ -31,13 +32,14 @@ type Entry struct {
 
 // entries：每个内置 CLI 的代码；id 必须与 catalog 的清单一一对应（测试检查）
 var entries = map[string]Entry{
-	"claude":  {CreateMain: claude.CreateMain, Transcript: claude.ParseTranscript},
-	"codex":   {CreateMain: codex.CreateMain, Transcript: codex.ParseTranscript},
-	"dsh":     {CreateMain: dsh.CreateMain, Transcript: dsh.ParseTranscript},
-	"gemini":  {CreateMain: gemini.CreateMain, Transcript: gemini.ParseTranscript},
-	"grok":    {CreateMain: grok.CreateMain, Transcript: grok.ParseTranscript},
-	"kimi":    {CreateMain: kimi.CreateMain},
-	"minimax": {CreateMain: minimax.CreateMain},
+	"antigravity": {CreateMain: antigravity.CreateMain},
+	"claude":      {CreateMain: claude.CreateMain, Transcript: claude.ParseTranscript},
+	"codex":       {CreateMain: codex.CreateMain, Transcript: codex.ParseTranscript},
+	"dsh":         {CreateMain: dsh.CreateMain, Transcript: dsh.ParseTranscript},
+	"gemini":      {CreateMain: gemini.CreateMain, Transcript: gemini.ParseTranscript},
+	"grok":        {CreateMain: grok.CreateMain, Transcript: grok.ParseTranscript},
+	"kimi":        {CreateMain: kimi.CreateMain},
+	"minimax":     {CreateMain: minimax.CreateMain},
 }
 
 // IDs：内置 CLI 的 id，按 id 排序（与 cli-catalog 的 BUILTIN_CLI_IDS 一致）
@@ -241,3 +243,8 @@ func WithThirdParty(id string) bool { return Capability(id, "thirdParty") }
 
 // WithQuota：能查订阅额度（清单 usageQuota）
 func WithQuota(id string) bool { return Capability(id, "usageQuota") }
+
+// LocalOnly：既没有 Nomi 管理的官方账号也不走第三方网关转发，仅使用本机 CLI 登录
+func LocalOnly(id string) bool {
+	return IsBuiltinCliID(id) && !WithAccounts(id) && !WithThirdParty(id)
+}

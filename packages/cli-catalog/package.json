@@ -52,6 +52,11 @@
       "types": "./dist/minimax/manifest.d.ts",
       "import": "./dist/minimax/manifest.js",
       "require": "./dist/minimax/manifest.cjs"
+    },
+    "./antigravity/manifest": {
+      "types": "./dist/antigravity/manifest.d.ts",
+      "import": "./dist/antigravity/manifest.js",
+      "require": "./dist/antigravity/manifest.cjs"
     }
   },
   "files": [
@@ -100,6 +105,9 @@
       ],
       "minimax/manifest": [
         "./dist/minimax/manifest.d.ts"
+      ],
+      "antigravity/manifest": [
+        "./dist/antigravity/manifest.d.ts"
       ]
     }
   }

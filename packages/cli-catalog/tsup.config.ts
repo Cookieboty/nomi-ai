@@ -13,5 +13,6 @@ export default createTsup({
     'grok/manifest': 'src/grok/manifest.ts',
     'kimi/manifest': 'src/kimi/manifest.ts',
     'minimax/manifest': 'src/minimax/manifest.ts',
+    'antigravity/manifest': 'src/antigravity/manifest.ts',
   },
 });

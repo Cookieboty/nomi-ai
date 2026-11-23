@@ -2,6 +2,7 @@
 
 /** 内置插件的 id（目录名） */
 export const BUILTIN_CLI_IDS = [
+  'antigravity',
   'claude',
   'codex',
   'dsh',
