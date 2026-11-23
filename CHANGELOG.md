@@ -5,6 +5,15 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ## Unreleased
 
+### Features
+
+- **preview:** 常见配置文件与隐藏文件按文件名识别高亮
+- **preview:** 文件标签栏支持鼠标滚轮横向滚动
+
+### Fixes
+
+- **preview:** YAML 文件的键与未加引号的值补上语法着色
+
 ### Maintenance
 
 - **release:** empty changeset after archiving 2.4.2
