@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { syntaxTree } from '@codemirror/language';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 
@@ -187,4 +187,89 @@ it('keeps a 100,000-line source model while drawing a bounded viewport', () => {
   expect(editor.state.doc.line(99_990).text).toBe('line 99990');
   expect(container.querySelectorAll('.cm-line').length).toBeLessThan(500);
   expect(container.querySelectorAll('.cm-gutterElement').length).toBeLessThan(500);
+});
+
+it('overrides default CodeMirror selection colors for focused and unfocused states', async () => {
+  const rootStyle = document.documentElement.style;
+  rootStyle.setProperty('--cd-accent-rgb', '120, 135, 245');
+  rootStyle.setProperty('--cd-color-accent-soft', 'rgba(120, 135, 245, 0.16)');
+  const outside = document.createElement('button');
+  document.body.appendChild(outside);
+  try {
+    const { container } = render(
+      <CodeDocument
+        text={'SELECT 1;\nSELECT 2;'}
+        language="sql"
+        viewportRef={vi.fn()}
+        onRendered={vi.fn()}
+        onScroll={vi.fn()}
+      />,
+    );
+    const scroller = screen.getByTestId('resource-preview-source');
+    const editor = sourceView(scroller);
+
+    const cssText = Array.from(document.head.querySelectorAll('style'))
+      .map((el) => el.textContent ?? '')
+      .join('\n');
+
+    const unfocusedRule =
+      /\.cm-scroller\s*>\s*\.cm-selectionLayer\s+\.cm-selectionBackground[^{]*\{[^}]*background(?:-color)?:\s*var\(--cd-color-accent-soft\)/.exec(
+        cssText,
+      );
+    expect(unfocusedRule).not.toBeNull();
+
+    const focusedRule =
+      /\.cm-focused\s*>\s*\.cm-scroller\s*>\s*\.cm-selectionLayer\s+\.cm-selectionBackground[^{]*\{[^}]*background(?:-color)?:\s*rgba\(var\(--cd-accent-rgb\),\s*0\.26\)/.exec(
+        cssText,
+      );
+    expect(focusedRule).not.toBeNull();
+
+    const defaultLightFocused = cssText.indexOf('#d7d4f0');
+    if (defaultLightFocused !== -1) {
+      expect(focusedRule!.index).toBeGreaterThan(defaultLightFocused);
+    }
+    expect(unfocusedRule!.index).toBeLessThan(focusedRule!.index);
+
+    act(() => {
+      editor.contentDOM.focus();
+      fireEvent.focus(editor.contentDOM);
+      editor.dispatch({ selection: { anchor: 0, head: editor.state.doc.length } });
+    });
+
+    expect(editor.hasFocus).toBe(true);
+    expect(editor.dom.classList.contains('cm-focused')).toBe(true);
+    expect(editor.state.selection.main.from).toBe(0);
+    expect(editor.state.selection.main.to).toBe(editor.state.doc.length);
+
+    // happy-dom 缺少字体与布局几何测量，selectionLayer 不会自动画出矩形节点；
+    // 补齐同结构节点以验证聚焦/失焦态 CSS 级联确实覆盖 CodeMirror 默认规则
+    const layer = container.querySelector('.cm-selectionLayer') as HTMLElement;
+    expect(layer).not.toBeNull();
+    let selectionEl = layer.querySelector('.cm-selectionBackground') as HTMLElement | null;
+    if (!selectionEl) {
+      selectionEl = document.createElement('div');
+      selectionEl.className = 'cm-selectionBackground';
+      layer.appendChild(selectionEl);
+    }
+    const normalizeColor = (value: string) => value.replace(/\s+/g, '').toLowerCase();
+    const focusedBg = normalizeColor(getComputedStyle(selectionEl).backgroundColor);
+    expect(focusedBg).toBe('rgba(120,135,245,0.26)');
+    expect(focusedBg).not.toBe('#d7d4f0');
+    expect(focusedBg).not.toBe('rgb(215,212,240)');
+
+    act(() => {
+      outside.focus();
+      fireEvent.blur(editor.contentDOM);
+    });
+    await waitFor(() => {
+      expect(editor.dom.classList.contains('cm-focused')).toBe(false);
+    });
+    const unfocusedBg = normalizeColor(getComputedStyle(selectionEl).backgroundColor);
+    expect(unfocusedBg).toBe('rgba(120,135,245,0.16)');
+    expect(unfocusedBg).not.toBe('#d9d9d9');
+  } finally {
+    outside.remove();
+    rootStyle.removeProperty('--cd-accent-rgb');
+    rootStyle.removeProperty('--cd-color-accent-soft');
+  }
 });
