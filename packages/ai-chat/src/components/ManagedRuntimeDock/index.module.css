@@ -178,8 +178,7 @@
   font-weight: 600;
 }
 
-.badge,
-.capBadge {
+.badge {
   display: inline-flex;
   align-items: center;
   padding: 1px var(--cd-space-1-5);
@@ -187,13 +186,6 @@
   font-size: var(--cd-font-size-xs);
   background: var(--cd-color-surface-raised);
   border: 1px solid var(--cd-color-border);
-}
-
-.cap_native,
-.cap_bridged {
-  color: var(--cd-color-accent-strong);
-  background: var(--cd-color-accent-soft);
-  border-color: var(--cd-color-accent-strong);
 }
 
 .details {
@@ -216,29 +208,6 @@
   font-size: var(--cd-font-size-xs);
   overflow-x: auto;
   max-height: 140px;
-}
-
-.capGrid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-1);
-  margin-top: var(--cd-space-1);
-}
-
-.capRow {
-  display: grid;
-  grid-template-columns: auto auto 1fr;
-  align-items: baseline;
-  gap: var(--cd-space-2);
-}
-
-.capName {
-  font-weight: 500;
-  min-width: 72px;
-}
-
-.capDetail {
-  color: var(--cd-color-text-muted);
 }
 
 .projectPrompt {

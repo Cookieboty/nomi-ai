@@ -25,12 +25,11 @@ export interface ModelChoiceSource {
 export const ModelChoiceRow: React.FC<{
   source: ModelChoiceSource;
   testId: string;
-  position?: 'top' | 'bottom';
   onClick: () => void;
-}> = ({ source, testId, position = 'bottom', onClick }) => (
+}> = ({ source, testId, onClick }) => (
   <button
     type="button"
-    className={position === 'top' ? `${styles.modelRow} ${styles.modelRowTop}` : styles.modelRow}
+    className={styles.modelRow}
     data-testid={testId}
     aria-label={source.rowAriaLabel}
     disabled={source.disabled}

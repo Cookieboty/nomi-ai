@@ -109,11 +109,15 @@ export interface ManagedPermissionOverride {
 function toUiPermissionMode(raw: string | undefined): PermissionMode {
   switch (raw) {
     case 'deny':
+    case 'plan':
       return 'plan';
     case 'ask':
+    case 'manual':
       return 'manual';
     case 'acceptEdits':
       return 'acceptEdits';
+    case 'auto':
+      return 'auto';
     case 'bypass':
       return 'bypass';
     default:
@@ -129,10 +133,10 @@ function toManagedPermissionMode(mode: PermissionMode): string {
       return 'ask';
     case 'acceptEdits':
       return 'acceptEdits';
+    case 'auto':
+      return 'auto';
     case 'bypass':
       return 'bypass';
-    case 'auto':
-      return 'acceptEdits';
   }
 }
 

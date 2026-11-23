@@ -10,7 +10,7 @@
  * 侧边聊天（binding）：同一个按钮和浮层（模型 / 第三方模型 / 思考深度 / 长上下文），只是模型、档位与长上下文
  * 记在那个侧边聊天上，不改 Nomi 对话的模型分配，也不写会话 meta（docs/design/side-tabs-workspace.md）。
  */
-import { modelBrandOf, t } from '@nomi-ai/ui';
+import { BrandIcon, modelBrandOf, t } from '@nomi-ai/ui';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { selectIpcClient, useAiChatSelector } from '../../contexts/aiChatStore';
@@ -39,11 +39,12 @@ import {
 } from '../../services/providerClient';
 import { resolveThinkingLevel, thinkingProfileOf } from '../../services/thinkingDepth';
 import type { IPCClient } from '../../types/ipc';
+import { EndpointIcon } from '../EndpointIcon';
 import { thinkingLevelLabel } from '../ModelControls/effortLabel';
 import { ModelEffortChip, type ModelEffortSource } from '../ModelControls/ModelEffortChip';
 import { thirdPartyProviderSource } from '../ModelControls/providerSource';
 
-import { buildCliManagedSource, buildRuntimePageSource } from './managedAdapter';
+import { buildRuntimePageSource, useCliManagedSource } from './managedAdapter';
 
 type LongContextChoice = { model: string; on: boolean };
 
@@ -147,6 +148,7 @@ export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ bind
   );
   const usable = !override && providers.length > 0;
   const hasGateway = gatewayClientAvailable() && Boolean(state);
+  const [menuOpen, setMenuOpen] = useState(false);
   const runtimeSource = useMemo(
     () =>
       managed
@@ -158,15 +160,17 @@ export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ bind
         : null,
     [managed, providers.length, activeProjectId],
   );
+  const cliSource = useCliManagedSource({
+    managed,
+    runtime: runtimeSource,
+    menuKey: binding?.menuKey ?? NOMI_MODEL_MENU,
+    open: menuOpen,
+    gateway: state,
+  });
 
   if (!hasGateway && !managed?.view?.supported) return null;
 
-  if (managed?.isCliBackend && managed.view && runtimeSource) {
-    const cliSource = buildCliManagedSource({
-      managed,
-      runtime: runtimeSource,
-      menuKey: binding?.menuKey ?? NOMI_MODEL_MENU,
-    });
+  if (managed?.isCliBackend && managed.view && runtimeSource && cliSource) {
     return (
       <ModelEffortChip
         prefix={`${binding?.testPrefix ?? 'nomi'}-model`}
@@ -174,6 +178,7 @@ export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ bind
         wrapTestId={`${binding?.testPrefix ?? 'nomi'}-model-switch`}
         source={cliSource}
         onOpenChange={(open) => {
+          setMenuOpen(open);
           if (!open) managed.clearPendingProject();
         }}
       />
@@ -211,7 +216,8 @@ export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ bind
   const source: ModelEffortSource = {
     label: fallbackCliOnly ? t('ui.models.choose-a-model') : chipLabel,
     muted: fallbackCliOnly || (!level && !parts),
-    brand,
+    brand: fallbackCliOnly ? undefined : brand,
+    runtimeIcon: runtimeSource ? <EndpointIcon backend="nomi" size={16} decorative /> : undefined,
     ariaLabel: fallbackCliOnly
       ? t('ui.models.model-for-nomi-chat')
       : level
@@ -240,7 +246,6 @@ export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ bind
       value: level ?? null,
       explicit: !!stored,
       defaultUnknownNote: null,
-      unavailableHint: t('ui.chat-settings.this-model-has-no-reasoning-effort'),
       onCommit: (next) => {
         if (next && next !== level) save(next);
       },
@@ -257,6 +262,10 @@ export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ bind
       onPick: pickModel,
     },
     provider: fallbackCliOnly ? null : thirdPartyProviderSource(providers, activeRef, pickModel),
+    modelIcon:
+      !fallbackCliOnly && brand ? (
+        <BrandIcon brand={brand} name={modelLabel} size={15} inline />
+      ) : null,
     modelLabel,
     modelRowAria: t('ui.chat-settings.switch-model', modelLabel),
   };

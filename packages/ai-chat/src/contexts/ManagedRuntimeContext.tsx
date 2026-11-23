@@ -13,6 +13,7 @@ import { confirmDialog } from '../components/ConfirmDialog';
 import { backendName } from '../components/ManagedRuntimeDock/panel';
 import type {
   FailedRequestView,
+  ManagedRuntimeSource,
   ManagedRuntimeView,
   ManagedSwitchInput,
   RuntimeChoiceView,
@@ -40,7 +41,10 @@ export interface ManagedRuntimeContextValue {
   hasMessages: boolean;
   pendingProjectBackend: string | null;
   refresh: () => Promise<void>;
-  selectBackend: (backend: string) => Promise<boolean>;
+  selectBackend: (
+    backend: string,
+    init?: Partial<Omit<ManagedSwitchInput, 'backend'>>,
+  ) => Promise<boolean>;
   updateConfig: (patch: Partial<Omit<ManagedSwitchInput, 'backend'>>) => Promise<boolean>;
   bindProjectAndAdopt: (projectId: string) => Promise<boolean>;
   clearPendingProject: () => void;
@@ -82,6 +86,7 @@ async function fetchManagedView(conversationId?: string): Promise<ManagedRuntime
     next = {
       ...next,
       backend: state.backend,
+      source: state.source as ManagedRuntimeSource | undefined,
       phase: state.phase,
       recovery: state.recovery,
       generation: state.generation,
@@ -204,7 +209,10 @@ export const ManagedRuntimeProvider: React.FC<{
   }, [conversationId, ipc]);
 
   const selectBackend = useCallback(
-    async (backend: string): Promise<boolean> => {
+    async (
+      backend: string,
+      init?: Partial<Omit<ManagedSwitchInput, 'backend'>>,
+    ): Promise<boolean> => {
       if (!view) return false;
       if (backend === activeBackend || (!view.managed && backend === 'api')) {
         setPendingProjectBackend(null);
@@ -229,9 +237,20 @@ export const ManagedRuntimeProvider: React.FC<{
       const targetId = await ensurePersistedTarget();
       if (!targetId) return false;
       const store = ipc?.conversationStore?.() as ConversationStore | undefined;
+      const initPayload = {
+        ...(init?.source ? { source: init.source } : {}),
+        ...(init?.model ? { model: init.model } : {}),
+        ...(init?.accountId ? { accountId: init.accountId } : {}),
+        ...(init?.effort ? { effort: init.effort } : {}),
+      };
       if (!view.managed) {
         const ok = await act(async () => {
-          await api.conversations.runtimeAdopt({ id: targetId, backend, confirm: true });
+          await api.conversations.runtimeAdopt({
+            id: targetId,
+            backend,
+            confirm: true,
+            ...initPayload,
+          });
           await store?.refreshManaged?.(targetId);
         });
         return ok;
@@ -242,6 +261,7 @@ export const ManagedRuntimeProvider: React.FC<{
           backend,
           confirm: true,
           expectedGeneration: view.generation,
+          ...initPayload,
         }),
       );
     },
@@ -267,6 +287,7 @@ export const ManagedRuntimeProvider: React.FC<{
           confirm: true,
           confirmUnsafe,
           expectedGeneration: view.generation,
+          ...(patch.source ? { source: patch.source } : {}),
           ...(patch.model ? { model: patch.model } : {}),
           ...(patch.accountId ? { accountId: patch.accountId } : {}),
           ...(patch.permissionMode ? { permissionMode: patch.permissionMode } : {}),

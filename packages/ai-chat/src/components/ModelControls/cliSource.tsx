@@ -589,25 +589,12 @@ export function useCliModelEffortSource({
       }
     />
   );
-  // 模型页的提示（读不到目录的原因 / 后端没有思考深度控制）：放在选择器顶部
-  const pickerNotice =
-    catalog.error || backendBlocksEffort ? (
-      <>
-        {catalog.error && (
-          <div className="cd-model-picker__notice" role="status" data-testid="model-error">
-            {t('ui.chat-settings.couldn-t-read-the-model-list-from', sourceName, catalog.error)}
-          </div>
-        )}
-        {backendBlocksEffort && (
-          <div className="cd-model-picker__notice" role="status" data-testid="effort-hint">
-            {t(
-              'ui.chat-settings.has-no-documented-reasoning-effort-control-nomi-will',
-              backendName || tab.backend,
-            )}
-          </div>
-        )}
-      </>
-    ) : null;
+  // 模型页的提示（读不到目录的原因）：放在选择器顶部
+  const pickerNotice = catalog.error ? (
+    <div className="cd-model-picker__notice" role="status" data-testid="model-error">
+      {t('ui.chat-settings.couldn-t-read-the-model-list-from', sourceName, catalog.error)}
+    </div>
+  ) : null;
 
   const hasProvider = !!provider;
 
@@ -620,12 +607,6 @@ export function useCliModelEffortSource({
       (!thirdParty || nativeThirdParty) && !effort && !defaultEffort
         ? t('ui.chat-settings.effort-default-set-by-cli', backendName || tab.backend)
         : null,
-    unavailableHint: backendBlocksEffort
-      ? t(
-          'ui.chat-settings.has-no-documented-reasoning-effort-control-nomi-will',
-          backendName || tab.backend,
-        )
-      : t('ui.chat-settings.this-model-has-no-reasoning-effort'),
     onCommit: (e) => pickEffort(e as ReasoningEffort | null),
     onRestore: () => pickEffort(null),
   };

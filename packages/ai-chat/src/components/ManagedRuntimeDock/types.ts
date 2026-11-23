@@ -79,11 +79,15 @@ export type RuntimeChoiceView = {
   accounts?: RuntimeOptionItem[];
   models?: RuntimeOptionItem[];
   permissionModes?: string[];
+  hasLocalLogin?: boolean;
   bridges?: CapabilityBridgesView;
 };
 
+export type ManagedRuntimeSource = 'local' | 'official' | 'thirdParty';
+
 export type ManagedSwitchInput = {
   backend: string;
+  source?: ManagedRuntimeSource;
   model?: string;
   accountId?: string;
   permissionMode?: string;
@@ -101,6 +105,7 @@ export type ManagedRuntimeView = {
   supported: boolean;
   managed: boolean;
   backend: string;
+  source?: ManagedRuntimeSource;
   phase: string;
   recovery: string;
   generation: number;
