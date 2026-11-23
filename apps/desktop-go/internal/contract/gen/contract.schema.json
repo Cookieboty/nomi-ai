@@ -9391,6 +9391,114 @@
        "type": "string"
       }
      },
+     "approvalDetails": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "argsPreview": {
+         "type": "string"
+        },
+        "danger": {
+         "type": "string"
+        },
+        "risk": {
+         "type": "string"
+        },
+        "rationale": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "trace": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "status": {
+         "type": "string"
+        },
+        "detail": {
+         "type": "string"
+        },
+        "at": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "at"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "failedRequest": {
+      "type": "object",
+      "properties": {
+       "messageId": {
+        "type": "string"
+       },
+       "turnId": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "images": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "messageId",
+       "turnId",
+       "text"
+      ],
+      "additionalProperties": false
+     },
+     "model": {
+      "type": "string"
+     },
+     "accountId": {
+      "type": "string"
+     },
+     "permissionMode": {
+      "type": "string"
+     },
+     "effort": {
+      "type": "string"
+     },
      "token": {
       "type": "object",
       "properties": {
@@ -9425,6 +9533,110 @@
        "error"
       ]
      },
+     "pendingSwitch": {
+      "type": "object",
+      "properties": {
+       "phase": {
+        "type": "string",
+        "enum": [
+         "saved-source",
+         "preparing-target",
+         "recovering-target",
+         "handoff",
+         "committing"
+        ]
+       },
+       "fromBackend": {
+        "type": "string"
+       },
+       "toBackend": {
+        "type": "string"
+       },
+       "expectedStrategy": {
+        "anyOf": [
+         {
+          "type": "string",
+          "enum": [
+           "none",
+           "delta",
+           "blocked",
+           "new_session"
+          ]
+         },
+         {
+          "type": "string",
+          "const": ""
+         }
+        ]
+       },
+       "plannedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "omittedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "reason": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "phase",
+       "fromBackend",
+       "toBackend"
+      ],
+      "additionalProperties": false
+     },
+     "lastSwitch": {
+      "type": "object",
+      "properties": {
+       "fromBackend": {
+        "type": "string"
+       },
+       "toBackend": {
+        "type": "string"
+       },
+       "expectedStrategy": {
+        "type": "string",
+        "enum": [
+         "none",
+         "delta",
+         "blocked",
+         "new_session"
+        ]
+       },
+       "plannedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "omittedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "resumableBinding": {
+        "type": "string"
+       },
+       "committedAt": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "fromBackend",
+       "toBackend",
+       "expectedStrategy",
+       "plannedEntries",
+       "omittedEntries",
+       "committedAt"
+      ],
+      "additionalProperties": false
+     },
      "capabilities": {
       "type": "object",
       "properties": {
@@ -9451,6 +9663,168 @@
         "items": {
          "type": "string"
         }
+       },
+       "bridges": {
+        "type": "object",
+        "properties": {
+         "computer": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "mcp": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "persona": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "memory": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "knowledge": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "skills": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "attachments": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         }
+        },
+        "required": [
+         "computer",
+         "mcp",
+         "persona",
+         "memory",
+         "knowledge",
+         "skills",
+         "attachments"
+        ],
+        "additionalProperties": false
        }
       },
       "required": [
@@ -9576,6 +9950,114 @@
        "type": "string"
       }
      },
+     "approvalDetails": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "argsPreview": {
+         "type": "string"
+        },
+        "danger": {
+         "type": "string"
+        },
+        "risk": {
+         "type": "string"
+        },
+        "rationale": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "trace": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "status": {
+         "type": "string"
+        },
+        "detail": {
+         "type": "string"
+        },
+        "at": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "at"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "failedRequest": {
+      "type": "object",
+      "properties": {
+       "messageId": {
+        "type": "string"
+       },
+       "turnId": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "images": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "messageId",
+       "turnId",
+       "text"
+      ],
+      "additionalProperties": false
+     },
+     "model": {
+      "type": "string"
+     },
+     "accountId": {
+      "type": "string"
+     },
+     "permissionMode": {
+      "type": "string"
+     },
+     "effort": {
+      "type": "string"
+     },
      "token": {
       "type": "object",
       "properties": {
@@ -9610,6 +10092,110 @@
        "error"
       ]
      },
+     "pendingSwitch": {
+      "type": "object",
+      "properties": {
+       "phase": {
+        "type": "string",
+        "enum": [
+         "saved-source",
+         "preparing-target",
+         "recovering-target",
+         "handoff",
+         "committing"
+        ]
+       },
+       "fromBackend": {
+        "type": "string"
+       },
+       "toBackend": {
+        "type": "string"
+       },
+       "expectedStrategy": {
+        "anyOf": [
+         {
+          "type": "string",
+          "enum": [
+           "none",
+           "delta",
+           "blocked",
+           "new_session"
+          ]
+         },
+         {
+          "type": "string",
+          "const": ""
+         }
+        ]
+       },
+       "plannedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "omittedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "reason": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "phase",
+       "fromBackend",
+       "toBackend"
+      ],
+      "additionalProperties": false
+     },
+     "lastSwitch": {
+      "type": "object",
+      "properties": {
+       "fromBackend": {
+        "type": "string"
+       },
+       "toBackend": {
+        "type": "string"
+       },
+       "expectedStrategy": {
+        "type": "string",
+        "enum": [
+         "none",
+         "delta",
+         "blocked",
+         "new_session"
+        ]
+       },
+       "plannedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "omittedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "resumableBinding": {
+        "type": "string"
+       },
+       "committedAt": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "fromBackend",
+       "toBackend",
+       "expectedStrategy",
+       "plannedEntries",
+       "omittedEntries",
+       "committedAt"
+      ],
+      "additionalProperties": false
+     },
      "capabilities": {
       "type": "object",
       "properties": {
@@ -9636,6 +10222,168 @@
         "items": {
          "type": "string"
         }
+       },
+       "bridges": {
+        "type": "object",
+        "properties": {
+         "computer": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "mcp": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "persona": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "memory": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "knowledge": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "skills": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "attachments": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         }
+        },
+        "required": [
+         "computer",
+         "mcp",
+         "persona",
+         "memory",
+         "knowledge",
+         "skills",
+         "attachments"
+        ],
+        "additionalProperties": false
        }
       },
       "required": [
@@ -9737,6 +10485,114 @@
        "type": "string"
       }
      },
+     "approvalDetails": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "argsPreview": {
+         "type": "string"
+        },
+        "danger": {
+         "type": "string"
+        },
+        "risk": {
+         "type": "string"
+        },
+        "rationale": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "trace": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "status": {
+         "type": "string"
+        },
+        "detail": {
+         "type": "string"
+        },
+        "at": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "at"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "failedRequest": {
+      "type": "object",
+      "properties": {
+       "messageId": {
+        "type": "string"
+       },
+       "turnId": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "images": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "messageId",
+       "turnId",
+       "text"
+      ],
+      "additionalProperties": false
+     },
+     "model": {
+      "type": "string"
+     },
+     "accountId": {
+      "type": "string"
+     },
+     "permissionMode": {
+      "type": "string"
+     },
+     "effort": {
+      "type": "string"
+     },
      "token": {
       "type": "object",
       "properties": {
@@ -9771,6 +10627,110 @@
        "error"
       ]
      },
+     "pendingSwitch": {
+      "type": "object",
+      "properties": {
+       "phase": {
+        "type": "string",
+        "enum": [
+         "saved-source",
+         "preparing-target",
+         "recovering-target",
+         "handoff",
+         "committing"
+        ]
+       },
+       "fromBackend": {
+        "type": "string"
+       },
+       "toBackend": {
+        "type": "string"
+       },
+       "expectedStrategy": {
+        "anyOf": [
+         {
+          "type": "string",
+          "enum": [
+           "none",
+           "delta",
+           "blocked",
+           "new_session"
+          ]
+         },
+         {
+          "type": "string",
+          "const": ""
+         }
+        ]
+       },
+       "plannedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "omittedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "reason": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "phase",
+       "fromBackend",
+       "toBackend"
+      ],
+      "additionalProperties": false
+     },
+     "lastSwitch": {
+      "type": "object",
+      "properties": {
+       "fromBackend": {
+        "type": "string"
+       },
+       "toBackend": {
+        "type": "string"
+       },
+       "expectedStrategy": {
+        "type": "string",
+        "enum": [
+         "none",
+         "delta",
+         "blocked",
+         "new_session"
+        ]
+       },
+       "plannedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "omittedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "resumableBinding": {
+        "type": "string"
+       },
+       "committedAt": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "fromBackend",
+       "toBackend",
+       "expectedStrategy",
+       "plannedEntries",
+       "omittedEntries",
+       "committedAt"
+      ],
+      "additionalProperties": false
+     },
      "capabilities": {
       "type": "object",
       "properties": {
@@ -9797,6 +10757,168 @@
         "items": {
          "type": "string"
         }
+       },
+       "bridges": {
+        "type": "object",
+        "properties": {
+         "computer": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "mcp": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "persona": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "memory": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "knowledge": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "skills": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "attachments": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         }
+        },
+        "required": [
+         "computer",
+         "mcp",
+         "persona",
+         "memory",
+         "knowledge",
+         "skills",
+         "attachments"
+        ],
+        "additionalProperties": false
        }
       },
       "required": [
@@ -9899,6 +11021,212 @@
          "items": {
           "type": "string"
          }
+        },
+        "accounts": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "label": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "id",
+           "label"
+          ],
+          "additionalProperties": false
+         }
+        },
+        "models": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "label": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "id",
+           "label"
+          ],
+          "additionalProperties": false
+         }
+        },
+        "permissionModes": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        },
+        "bridges": {
+         "type": "object",
+         "properties": {
+          "computer": {
+           "type": "object",
+           "properties": {
+            "status": {
+             "type": "string",
+             "enum": [
+              "native",
+              "bridged",
+              "degraded",
+              "unsupported"
+             ]
+            },
+            "detail": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "status"
+           ],
+           "additionalProperties": false
+          },
+          "mcp": {
+           "type": "object",
+           "properties": {
+            "status": {
+             "type": "string",
+             "enum": [
+              "native",
+              "bridged",
+              "degraded",
+              "unsupported"
+             ]
+            },
+            "detail": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "status"
+           ],
+           "additionalProperties": false
+          },
+          "persona": {
+           "type": "object",
+           "properties": {
+            "status": {
+             "type": "string",
+             "enum": [
+              "native",
+              "bridged",
+              "degraded",
+              "unsupported"
+             ]
+            },
+            "detail": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "status"
+           ],
+           "additionalProperties": false
+          },
+          "memory": {
+           "type": "object",
+           "properties": {
+            "status": {
+             "type": "string",
+             "enum": [
+              "native",
+              "bridged",
+              "degraded",
+              "unsupported"
+             ]
+            },
+            "detail": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "status"
+           ],
+           "additionalProperties": false
+          },
+          "knowledge": {
+           "type": "object",
+           "properties": {
+            "status": {
+             "type": "string",
+             "enum": [
+              "native",
+              "bridged",
+              "degraded",
+              "unsupported"
+             ]
+            },
+            "detail": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "status"
+           ],
+           "additionalProperties": false
+          },
+          "skills": {
+           "type": "object",
+           "properties": {
+            "status": {
+             "type": "string",
+             "enum": [
+              "native",
+              "bridged",
+              "degraded",
+              "unsupported"
+             ]
+            },
+            "detail": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "status"
+           ],
+           "additionalProperties": false
+          },
+          "attachments": {
+           "type": "object",
+           "properties": {
+            "status": {
+             "type": "string",
+             "enum": [
+              "native",
+              "bridged",
+              "degraded",
+              "unsupported"
+             ]
+            },
+            "detail": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "status"
+           ],
+           "additionalProperties": false
+          }
+         },
+         "required": [
+          "computer",
+          "mcp",
+          "persona",
+          "memory",
+          "knowledge",
+          "skills",
+          "attachments"
+         ],
+         "additionalProperties": false
         }
        },
        "required": [
@@ -9997,6 +11325,114 @@
        "type": "string"
       }
      },
+     "approvalDetails": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "argsPreview": {
+         "type": "string"
+        },
+        "danger": {
+         "type": "string"
+        },
+        "risk": {
+         "type": "string"
+        },
+        "rationale": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "trace": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "status": {
+         "type": "string"
+        },
+        "detail": {
+         "type": "string"
+        },
+        "at": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "at"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "failedRequest": {
+      "type": "object",
+      "properties": {
+       "messageId": {
+        "type": "string"
+       },
+       "turnId": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "images": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "messageId",
+       "turnId",
+       "text"
+      ],
+      "additionalProperties": false
+     },
+     "model": {
+      "type": "string"
+     },
+     "accountId": {
+      "type": "string"
+     },
+     "permissionMode": {
+      "type": "string"
+     },
+     "effort": {
+      "type": "string"
+     },
      "token": {
       "type": "object",
       "properties": {
@@ -10031,6 +11467,110 @@
        "error"
       ]
      },
+     "pendingSwitch": {
+      "type": "object",
+      "properties": {
+       "phase": {
+        "type": "string",
+        "enum": [
+         "saved-source",
+         "preparing-target",
+         "recovering-target",
+         "handoff",
+         "committing"
+        ]
+       },
+       "fromBackend": {
+        "type": "string"
+       },
+       "toBackend": {
+        "type": "string"
+       },
+       "expectedStrategy": {
+        "anyOf": [
+         {
+          "type": "string",
+          "enum": [
+           "none",
+           "delta",
+           "blocked",
+           "new_session"
+          ]
+         },
+         {
+          "type": "string",
+          "const": ""
+         }
+        ]
+       },
+       "plannedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "omittedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "reason": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "phase",
+       "fromBackend",
+       "toBackend"
+      ],
+      "additionalProperties": false
+     },
+     "lastSwitch": {
+      "type": "object",
+      "properties": {
+       "fromBackend": {
+        "type": "string"
+       },
+       "toBackend": {
+        "type": "string"
+       },
+       "expectedStrategy": {
+        "type": "string",
+        "enum": [
+         "none",
+         "delta",
+         "blocked",
+         "new_session"
+        ]
+       },
+       "plannedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "omittedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "resumableBinding": {
+        "type": "string"
+       },
+       "committedAt": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "fromBackend",
+       "toBackend",
+       "expectedStrategy",
+       "plannedEntries",
+       "omittedEntries",
+       "committedAt"
+      ],
+      "additionalProperties": false
+     },
      "capabilities": {
       "type": "object",
       "properties": {
@@ -10057,6 +11597,168 @@
         "items": {
          "type": "string"
         }
+       },
+       "bridges": {
+        "type": "object",
+        "properties": {
+         "computer": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "mcp": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "persona": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "memory": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "knowledge": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "skills": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "attachments": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         }
+        },
+        "required": [
+         "computer",
+         "mcp",
+         "persona",
+         "memory",
+         "knowledge",
+         "skills",
+         "attachments"
+        ],
+        "additionalProperties": false
        }
       },
       "required": [
@@ -10124,7 +11826,11 @@
      },
      "decision": {
       "type": "string",
-      "const": "new-native"
+      "enum": [
+       "new-native",
+       "rollback-switch",
+       "abandon"
+      ]
      },
      "confirm": {
       "type": "boolean",
@@ -10189,6 +11895,114 @@
        "type": "string"
       }
      },
+     "approvalDetails": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "argsPreview": {
+         "type": "string"
+        },
+        "danger": {
+         "type": "string"
+        },
+        "risk": {
+         "type": "string"
+        },
+        "rationale": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "trace": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "status": {
+         "type": "string"
+        },
+        "detail": {
+         "type": "string"
+        },
+        "at": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "at"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "failedRequest": {
+      "type": "object",
+      "properties": {
+       "messageId": {
+        "type": "string"
+       },
+       "turnId": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "images": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "messageId",
+       "turnId",
+       "text"
+      ],
+      "additionalProperties": false
+     },
+     "model": {
+      "type": "string"
+     },
+     "accountId": {
+      "type": "string"
+     },
+     "permissionMode": {
+      "type": "string"
+     },
+     "effort": {
+      "type": "string"
+     },
      "token": {
       "type": "object",
       "properties": {
@@ -10223,6 +12037,110 @@
        "error"
       ]
      },
+     "pendingSwitch": {
+      "type": "object",
+      "properties": {
+       "phase": {
+        "type": "string",
+        "enum": [
+         "saved-source",
+         "preparing-target",
+         "recovering-target",
+         "handoff",
+         "committing"
+        ]
+       },
+       "fromBackend": {
+        "type": "string"
+       },
+       "toBackend": {
+        "type": "string"
+       },
+       "expectedStrategy": {
+        "anyOf": [
+         {
+          "type": "string",
+          "enum": [
+           "none",
+           "delta",
+           "blocked",
+           "new_session"
+          ]
+         },
+         {
+          "type": "string",
+          "const": ""
+         }
+        ]
+       },
+       "plannedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "omittedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "reason": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "phase",
+       "fromBackend",
+       "toBackend"
+      ],
+      "additionalProperties": false
+     },
+     "lastSwitch": {
+      "type": "object",
+      "properties": {
+       "fromBackend": {
+        "type": "string"
+       },
+       "toBackend": {
+        "type": "string"
+       },
+       "expectedStrategy": {
+        "type": "string",
+        "enum": [
+         "none",
+         "delta",
+         "blocked",
+         "new_session"
+        ]
+       },
+       "plannedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "omittedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "resumableBinding": {
+        "type": "string"
+       },
+       "committedAt": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "fromBackend",
+       "toBackend",
+       "expectedStrategy",
+       "plannedEntries",
+       "omittedEntries",
+       "committedAt"
+      ],
+      "additionalProperties": false
+     },
      "capabilities": {
       "type": "object",
       "properties": {
@@ -10249,6 +12167,168 @@
         "items": {
          "type": "string"
         }
+       },
+       "bridges": {
+        "type": "object",
+        "properties": {
+         "computer": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "mcp": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "persona": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "memory": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "knowledge": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "skills": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "attachments": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         }
+        },
+        "required": [
+         "computer",
+         "mcp",
+         "persona",
+         "memory",
+         "knowledge",
+         "skills",
+         "attachments"
+        ],
+        "additionalProperties": false
        }
       },
       "required": [
@@ -10348,6 +12428,114 @@
        "type": "string"
       }
      },
+     "approvalDetails": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "argsPreview": {
+         "type": "string"
+        },
+        "danger": {
+         "type": "string"
+        },
+        "risk": {
+         "type": "string"
+        },
+        "rationale": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "trace": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "status": {
+         "type": "string"
+        },
+        "detail": {
+         "type": "string"
+        },
+        "at": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "at"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "failedRequest": {
+      "type": "object",
+      "properties": {
+       "messageId": {
+        "type": "string"
+       },
+       "turnId": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "images": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "messageId",
+       "turnId",
+       "text"
+      ],
+      "additionalProperties": false
+     },
+     "model": {
+      "type": "string"
+     },
+     "accountId": {
+      "type": "string"
+     },
+     "permissionMode": {
+      "type": "string"
+     },
+     "effort": {
+      "type": "string"
+     },
      "token": {
       "type": "object",
       "properties": {
@@ -10382,6 +12570,110 @@
        "error"
       ]
      },
+     "pendingSwitch": {
+      "type": "object",
+      "properties": {
+       "phase": {
+        "type": "string",
+        "enum": [
+         "saved-source",
+         "preparing-target",
+         "recovering-target",
+         "handoff",
+         "committing"
+        ]
+       },
+       "fromBackend": {
+        "type": "string"
+       },
+       "toBackend": {
+        "type": "string"
+       },
+       "expectedStrategy": {
+        "anyOf": [
+         {
+          "type": "string",
+          "enum": [
+           "none",
+           "delta",
+           "blocked",
+           "new_session"
+          ]
+         },
+         {
+          "type": "string",
+          "const": ""
+         }
+        ]
+       },
+       "plannedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "omittedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "reason": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "phase",
+       "fromBackend",
+       "toBackend"
+      ],
+      "additionalProperties": false
+     },
+     "lastSwitch": {
+      "type": "object",
+      "properties": {
+       "fromBackend": {
+        "type": "string"
+       },
+       "toBackend": {
+        "type": "string"
+       },
+       "expectedStrategy": {
+        "type": "string",
+        "enum": [
+         "none",
+         "delta",
+         "blocked",
+         "new_session"
+        ]
+       },
+       "plannedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "omittedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "resumableBinding": {
+        "type": "string"
+       },
+       "committedAt": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "fromBackend",
+       "toBackend",
+       "expectedStrategy",
+       "plannedEntries",
+       "omittedEntries",
+       "committedAt"
+      ],
+      "additionalProperties": false
+     },
      "capabilities": {
       "type": "object",
       "properties": {
@@ -10408,6 +12700,168 @@
         "items": {
          "type": "string"
         }
+       },
+       "bridges": {
+        "type": "object",
+        "properties": {
+         "computer": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "mcp": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "persona": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "memory": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "knowledge": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "skills": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "attachments": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         }
+        },
+        "required": [
+         "computer",
+         "mcp",
+         "persona",
+         "memory",
+         "knowledge",
+         "skills",
+         "attachments"
+        ],
+        "additionalProperties": false
        }
       },
       "required": [
@@ -10468,6 +12922,14 @@
      "text": {
       "type": "string",
       "maxLength": 1048576
+     },
+     "images": {
+      "maxItems": 16,
+      "type": "array",
+      "items": {
+       "type": "string",
+       "maxLength": 16777216
+      }
      },
      "retry": {
       "type": "boolean"
@@ -10571,6 +13033,114 @@
        "type": "string"
       }
      },
+     "approvalDetails": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "argsPreview": {
+         "type": "string"
+        },
+        "danger": {
+         "type": "string"
+        },
+        "risk": {
+         "type": "string"
+        },
+        "rationale": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "trace": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "status": {
+         "type": "string"
+        },
+        "detail": {
+         "type": "string"
+        },
+        "at": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "at"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "failedRequest": {
+      "type": "object",
+      "properties": {
+       "messageId": {
+        "type": "string"
+       },
+       "turnId": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "images": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "messageId",
+       "turnId",
+       "text"
+      ],
+      "additionalProperties": false
+     },
+     "model": {
+      "type": "string"
+     },
+     "accountId": {
+      "type": "string"
+     },
+     "permissionMode": {
+      "type": "string"
+     },
+     "effort": {
+      "type": "string"
+     },
      "token": {
       "type": "object",
       "properties": {
@@ -10605,6 +13175,110 @@
        "error"
       ]
      },
+     "pendingSwitch": {
+      "type": "object",
+      "properties": {
+       "phase": {
+        "type": "string",
+        "enum": [
+         "saved-source",
+         "preparing-target",
+         "recovering-target",
+         "handoff",
+         "committing"
+        ]
+       },
+       "fromBackend": {
+        "type": "string"
+       },
+       "toBackend": {
+        "type": "string"
+       },
+       "expectedStrategy": {
+        "anyOf": [
+         {
+          "type": "string",
+          "enum": [
+           "none",
+           "delta",
+           "blocked",
+           "new_session"
+          ]
+         },
+         {
+          "type": "string",
+          "const": ""
+         }
+        ]
+       },
+       "plannedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "omittedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "reason": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "phase",
+       "fromBackend",
+       "toBackend"
+      ],
+      "additionalProperties": false
+     },
+     "lastSwitch": {
+      "type": "object",
+      "properties": {
+       "fromBackend": {
+        "type": "string"
+       },
+       "toBackend": {
+        "type": "string"
+       },
+       "expectedStrategy": {
+        "type": "string",
+        "enum": [
+         "none",
+         "delta",
+         "blocked",
+         "new_session"
+        ]
+       },
+       "plannedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "omittedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "resumableBinding": {
+        "type": "string"
+       },
+       "committedAt": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "fromBackend",
+       "toBackend",
+       "expectedStrategy",
+       "plannedEntries",
+       "omittedEntries",
+       "committedAt"
+      ],
+      "additionalProperties": false
+     },
      "capabilities": {
       "type": "object",
       "properties": {
@@ -10631,6 +13305,734 @@
         "items": {
          "type": "string"
         }
+       },
+       "bridges": {
+        "type": "object",
+        "properties": {
+         "computer": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "mcp": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "persona": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "memory": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "knowledge": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "skills": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "attachments": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         }
+        },
+        "required": [
+         "computer",
+         "mcp",
+         "persona",
+         "memory",
+         "knowledge",
+         "skills",
+         "attachments"
+        ],
+        "additionalProperties": false
+       }
+      },
+      "required": [
+       "resume",
+       "cancel",
+       "approval",
+       "attachments",
+       "permissionModes",
+       "degraded"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "required": [
+     "id",
+     "backend",
+     "generation",
+     "phase",
+     "queued",
+     "partial",
+     "detail",
+     "approvals",
+     "recovery",
+     "capabilities"
+    ],
+    "additionalProperties": false
+   }
+  },
+  "conversations.runtimeSwitch": {
+   "kind": "mutation",
+   "dangerous": true,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "backend": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+     },
+     "confirm": {
+      "type": "boolean",
+      "const": true
+     },
+     "confirmUnsafe": {
+      "type": "boolean"
+     },
+     "expectedGeneration": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "model": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+     },
+     "effort": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+     },
+     "permissionMode": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+     },
+     "accountId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+     }
+    },
+    "required": [
+     "id",
+     "backend",
+     "confirm"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "backend": {
+      "type": "string"
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "phase": {
+      "type": "string",
+      "enum": [
+       "idle",
+       "preparing",
+       "running",
+       "completed",
+       "failed-pre-submit",
+       "canceling",
+       "canceled",
+       "uncertain"
+      ]
+     },
+     "queued": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "partial": {
+      "type": "string"
+     },
+     "detail": {
+      "type": "string"
+     },
+     "approvals": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "approvalDetails": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "argsPreview": {
+         "type": "string"
+        },
+        "danger": {
+         "type": "string"
+        },
+        "risk": {
+         "type": "string"
+        },
+        "rationale": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "id"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "trace": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "kind": {
+         "type": "string"
+        },
+        "tool": {
+         "type": "string"
+        },
+        "summary": {
+         "type": "string"
+        },
+        "status": {
+         "type": "string"
+        },
+        "detail": {
+         "type": "string"
+        },
+        "at": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        }
+       },
+       "required": [
+        "id",
+        "kind",
+        "at"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "failedRequest": {
+      "type": "object",
+      "properties": {
+       "messageId": {
+        "type": "string"
+       },
+       "turnId": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "images": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "messageId",
+       "turnId",
+       "text"
+      ],
+      "additionalProperties": false
+     },
+     "model": {
+      "type": "string"
+     },
+     "accountId": {
+      "type": "string"
+     },
+     "permissionMode": {
+      "type": "string"
+     },
+     "effort": {
+      "type": "string"
+     },
+     "token": {
+      "type": "object",
+      "properties": {
+       "conversationId": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,128}$"
+       },
+       "attemptId": {
+        "type": "string"
+       },
+       "generation": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "conversationId",
+       "attemptId",
+       "generation"
+      ],
+      "additionalProperties": false
+     },
+     "recovery": {
+      "type": "string",
+      "enum": [
+       "none",
+       "resumed",
+       "new",
+       "fallback",
+       "unknown",
+       "error"
+      ]
+     },
+     "pendingSwitch": {
+      "type": "object",
+      "properties": {
+       "phase": {
+        "type": "string",
+        "enum": [
+         "saved-source",
+         "preparing-target",
+         "recovering-target",
+         "handoff",
+         "committing"
+        ]
+       },
+       "fromBackend": {
+        "type": "string"
+       },
+       "toBackend": {
+        "type": "string"
+       },
+       "expectedStrategy": {
+        "anyOf": [
+         {
+          "type": "string",
+          "enum": [
+           "none",
+           "delta",
+           "blocked",
+           "new_session"
+          ]
+         },
+         {
+          "type": "string",
+          "const": ""
+         }
+        ]
+       },
+       "plannedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "omittedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "reason": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "phase",
+       "fromBackend",
+       "toBackend"
+      ],
+      "additionalProperties": false
+     },
+     "lastSwitch": {
+      "type": "object",
+      "properties": {
+       "fromBackend": {
+        "type": "string"
+       },
+       "toBackend": {
+        "type": "string"
+       },
+       "expectedStrategy": {
+        "type": "string",
+        "enum": [
+         "none",
+         "delta",
+         "blocked",
+         "new_session"
+        ]
+       },
+       "plannedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "omittedEntries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       "resumableBinding": {
+        "type": "string"
+       },
+       "committedAt": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "fromBackend",
+       "toBackend",
+       "expectedStrategy",
+       "plannedEntries",
+       "omittedEntries",
+       "committedAt"
+      ],
+      "additionalProperties": false
+     },
+     "capabilities": {
+      "type": "object",
+      "properties": {
+       "resume": {
+        "type": "boolean"
+       },
+       "cancel": {
+        "type": "boolean"
+       },
+       "approval": {
+        "type": "boolean"
+       },
+       "attachments": {
+        "type": "boolean"
+       },
+       "permissionModes": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "degraded": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "bridges": {
+        "type": "object",
+        "properties": {
+         "computer": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "mcp": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "persona": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "memory": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "knowledge": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "skills": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         },
+         "attachments": {
+          "type": "object",
+          "properties": {
+           "status": {
+            "type": "string",
+            "enum": [
+             "native",
+             "bridged",
+             "degraded",
+             "unsupported"
+            ]
+           },
+           "detail": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "status"
+          ],
+          "additionalProperties": false
+         }
+        },
+        "required": [
+         "computer",
+         "mcp",
+         "persona",
+         "memory",
+         "knowledge",
+         "skills",
+         "attachments"
+        ],
+        "additionalProperties": false
        }
       },
       "required": [
@@ -40860,6 +44262,114 @@
       "type": "string"
      }
     },
+    "approvalDetails": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "tool": {
+        "type": "string"
+       },
+       "summary": {
+        "type": "string"
+       },
+       "argsPreview": {
+        "type": "string"
+       },
+       "danger": {
+        "type": "string"
+       },
+       "risk": {
+        "type": "string"
+       },
+       "rationale": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "id"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "trace": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "kind": {
+        "type": "string"
+       },
+       "tool": {
+        "type": "string"
+       },
+       "summary": {
+        "type": "string"
+       },
+       "status": {
+        "type": "string"
+       },
+       "detail": {
+        "type": "string"
+       },
+       "at": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "id",
+       "kind",
+       "at"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "failedRequest": {
+     "type": "object",
+     "properties": {
+      "messageId": {
+       "type": "string"
+      },
+      "turnId": {
+       "type": "string"
+      },
+      "text": {
+       "type": "string"
+      },
+      "images": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     },
+     "required": [
+      "messageId",
+      "turnId",
+      "text"
+     ],
+     "additionalProperties": false
+    },
+    "model": {
+     "type": "string"
+    },
+    "accountId": {
+     "type": "string"
+    },
+    "permissionMode": {
+     "type": "string"
+    },
+    "effort": {
+     "type": "string"
+    },
     "token": {
      "type": "object",
      "properties": {
@@ -40894,6 +44404,110 @@
       "error"
      ]
     },
+    "pendingSwitch": {
+     "type": "object",
+     "properties": {
+      "phase": {
+       "type": "string",
+       "enum": [
+        "saved-source",
+        "preparing-target",
+        "recovering-target",
+        "handoff",
+        "committing"
+       ]
+      },
+      "fromBackend": {
+       "type": "string"
+      },
+      "toBackend": {
+       "type": "string"
+      },
+      "expectedStrategy": {
+       "anyOf": [
+        {
+         "type": "string",
+         "enum": [
+          "none",
+          "delta",
+          "blocked",
+          "new_session"
+         ]
+        },
+        {
+         "type": "string",
+         "const": ""
+        }
+       ]
+      },
+      "plannedEntries": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "omittedEntries": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "reason": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "phase",
+      "fromBackend",
+      "toBackend"
+     ],
+     "additionalProperties": false
+    },
+    "lastSwitch": {
+     "type": "object",
+     "properties": {
+      "fromBackend": {
+       "type": "string"
+      },
+      "toBackend": {
+       "type": "string"
+      },
+      "expectedStrategy": {
+       "type": "string",
+       "enum": [
+        "none",
+        "delta",
+        "blocked",
+        "new_session"
+       ]
+      },
+      "plannedEntries": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "omittedEntries": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "resumableBinding": {
+       "type": "string"
+      },
+      "committedAt": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      }
+     },
+     "required": [
+      "fromBackend",
+      "toBackend",
+      "expectedStrategy",
+      "plannedEntries",
+      "omittedEntries",
+      "committedAt"
+     ],
+     "additionalProperties": false
+    },
     "capabilities": {
      "type": "object",
      "properties": {
@@ -40920,6 +44534,168 @@
        "items": {
         "type": "string"
        }
+      },
+      "bridges": {
+       "type": "object",
+       "properties": {
+        "computer": {
+         "type": "object",
+         "properties": {
+          "status": {
+           "type": "string",
+           "enum": [
+            "native",
+            "bridged",
+            "degraded",
+            "unsupported"
+           ]
+          },
+          "detail": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "status"
+         ],
+         "additionalProperties": false
+        },
+        "mcp": {
+         "type": "object",
+         "properties": {
+          "status": {
+           "type": "string",
+           "enum": [
+            "native",
+            "bridged",
+            "degraded",
+            "unsupported"
+           ]
+          },
+          "detail": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "status"
+         ],
+         "additionalProperties": false
+        },
+        "persona": {
+         "type": "object",
+         "properties": {
+          "status": {
+           "type": "string",
+           "enum": [
+            "native",
+            "bridged",
+            "degraded",
+            "unsupported"
+           ]
+          },
+          "detail": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "status"
+         ],
+         "additionalProperties": false
+        },
+        "memory": {
+         "type": "object",
+         "properties": {
+          "status": {
+           "type": "string",
+           "enum": [
+            "native",
+            "bridged",
+            "degraded",
+            "unsupported"
+           ]
+          },
+          "detail": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "status"
+         ],
+         "additionalProperties": false
+        },
+        "knowledge": {
+         "type": "object",
+         "properties": {
+          "status": {
+           "type": "string",
+           "enum": [
+            "native",
+            "bridged",
+            "degraded",
+            "unsupported"
+           ]
+          },
+          "detail": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "status"
+         ],
+         "additionalProperties": false
+        },
+        "skills": {
+         "type": "object",
+         "properties": {
+          "status": {
+           "type": "string",
+           "enum": [
+            "native",
+            "bridged",
+            "degraded",
+            "unsupported"
+           ]
+          },
+          "detail": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "status"
+         ],
+         "additionalProperties": false
+        },
+        "attachments": {
+         "type": "object",
+         "properties": {
+          "status": {
+           "type": "string",
+           "enum": [
+            "native",
+            "bridged",
+            "degraded",
+            "unsupported"
+           ]
+          },
+          "detail": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "status"
+         ],
+         "additionalProperties": false
+        }
+       },
+       "required": [
+        "computer",
+        "mcp",
+        "persona",
+        "memory",
+        "knowledge",
+        "skills",
+        "attachments"
+       ],
+       "additionalProperties": false
       }
      },
      "required": [

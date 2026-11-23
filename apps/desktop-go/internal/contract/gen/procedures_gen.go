@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 514：mutation 368 / query 141 / stream 5
+// 合计 515：mutation 369 / query 141 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -141,6 +141,7 @@ var Procedures = []Procedure{
 	{Name: "conversations.runtimeSelect", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "conversations.runtimeSend", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "conversations.runtimeState", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "conversations.runtimeSwitch", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "conversations.setPointers", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "conversations.state", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "delegate.clearPin", Kind: "mutation", Dangerous: false, Surfaces: nil},

@@ -9,6 +9,66 @@ export const RuntimeToken = z.object({
   attemptId: z.string(),
   generation: z.number().int().nonnegative(),
 });
+export const ApprovalDetail = z.object({
+  id: z.string(),
+  tool: z.string().optional(),
+  summary: z.string().optional(),
+  argsPreview: z.string().optional(),
+  danger: z.string().optional(),
+  risk: z.string().optional(),
+  rationale: z.string().optional(),
+});
+export const TraceEntry = z.object({
+  id: z.string(),
+  kind: z.string(),
+  tool: z.string().optional(),
+  summary: z.string().optional(),
+  status: z.string().optional(),
+  detail: z.string().optional(),
+  at: z.number().int(),
+});
+export const FailedRequestInfo = z.object({
+  messageId: z.string(),
+  turnId: z.string(),
+  text: z.string(),
+  images: z.array(z.string()).optional(),
+});
+export const BridgeState = z.object({
+  status: z.enum(['native', 'bridged', 'degraded', 'unsupported']),
+  detail: z.string().optional(),
+});
+export const CapabilityBridges = z.object({
+  computer: BridgeState,
+  mcp: BridgeState,
+  persona: BridgeState,
+  memory: BridgeState,
+  knowledge: BridgeState,
+  skills: BridgeState,
+  attachments: BridgeState,
+});
+export const RuntimeOptionItem = z.object({
+  id: z.string(),
+  label: z.string(),
+});
+const SwitchStrategy = z.enum(['none', 'delta', 'blocked', 'new_session']);
+export const PendingSwitchState = z.object({
+  phase: z.enum(['saved-source', 'preparing-target', 'recovering-target', 'handoff', 'committing']),
+  fromBackend: z.string(),
+  toBackend: z.string(),
+  expectedStrategy: SwitchStrategy.or(z.literal('')).optional(),
+  plannedEntries: z.number().int().nonnegative().optional(),
+  omittedEntries: z.number().int().nonnegative().optional(),
+  reason: z.string().optional(),
+});
+export const LastSwitchSummary = z.object({
+  fromBackend: z.string(),
+  toBackend: z.string(),
+  expectedStrategy: SwitchStrategy,
+  plannedEntries: z.number().int().nonnegative(),
+  omittedEntries: z.number().int().nonnegative(),
+  resumableBinding: z.string().optional(),
+  committedAt: z.number().int().nonnegative(),
+});
 export const RuntimeState = z.object({
   id: ConversationId,
   backend: z.string(),
@@ -27,8 +87,17 @@ export const RuntimeState = z.object({
   partial: z.string(),
   detail: z.string(),
   approvals: z.array(z.string()),
+  approvalDetails: z.array(ApprovalDetail).optional(),
+  trace: z.array(TraceEntry).optional(),
+  failedRequest: FailedRequestInfo.optional(),
+  model: z.string().optional(),
+  accountId: z.string().optional(),
+  permissionMode: z.string().optional(),
+  effort: z.string().optional(),
   token: RuntimeToken.optional(),
   recovery: z.enum(['none', 'resumed', 'new', 'fallback', 'unknown', 'error']),
+  pendingSwitch: PendingSwitchState.optional(),
+  lastSwitch: LastSwitchSummary.optional(),
   capabilities: z.object({
     resume: z.boolean(),
     cancel: z.boolean(),
@@ -36,6 +105,7 @@ export const RuntimeState = z.object({
     attachments: z.boolean(),
     permissionModes: z.array(z.string()),
     degraded: z.array(z.string()),
+    bridges: CapabilityBridges.optional(),
   }),
 });
 const chat = ['chat'] as const;
@@ -62,6 +132,10 @@ export const managedConversationProcedures = {
           login: z.enum(['unverified', 'not-advertised', 'not-applicable']),
           requiresProject: z.boolean(),
           degraded: z.array(z.string()),
+          accounts: z.array(RuntimeOptionItem).optional(),
+          models: z.array(RuntimeOptionItem).optional(),
+          permissionModes: z.array(z.string()).optional(),
+          bridges: CapabilityBridges.optional(),
         }),
       ),
     }),
@@ -82,10 +156,26 @@ export const managedConversationProcedures = {
     surfaces: chat,
     dangerous: true,
   },
+  'conversations.runtimeSwitch': {
+    kind: 'mutation',
+    input: id.extend({
+      backend,
+      confirm: z.literal(true),
+      confirmUnsafe: z.boolean().optional(),
+      expectedGeneration: z.number().int().nonnegative().optional(),
+      model: z.string().min(1).max(128).optional(),
+      effort: z.string().min(1).max(64).optional(),
+      permissionMode: z.string().min(1).max(64).optional(),
+      accountId: z.string().min(1).max(128).optional(),
+    }),
+    output: RuntimeState,
+    surfaces: chat,
+    dangerous: true,
+  },
   'conversations.runtimeResolve': {
     kind: 'mutation',
     input: id.extend({
-      decision: z.literal('new-native'),
+      decision: z.enum(['new-native', 'rollback-switch', 'abandon']),
       confirm: z.literal(true),
       expectedGeneration: z.number().int().nonnegative(),
     }),
@@ -100,6 +190,7 @@ export const managedConversationProcedures = {
       messageId: z.string().min(1).max(256),
       turnId: z.string().min(1).max(256),
       text: z.string().max(1048576),
+      images: z.array(z.string().max(16_777_216)).max(16).optional(),
       retry: z.boolean().optional(),
     }),
     output: RuntimeToken,
