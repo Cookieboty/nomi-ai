@@ -607,14 +607,14 @@
 }
 
 /* agents 进程已休眠的提示 */
-/* 会话中途换模型的弱提示：不打断，发送后消失 */
+/* 会话中途换模型的弱提示：与 AI 回复左对齐同宽，不打断，发送后消失 */
 .modelTip {
   display: flex;
   align-items: flex-start;
-  gap: var(--cd-space-1);
-  align-self: center;
+  gap: var(--cd-space-1-5);
+  align-self: stretch;
   max-width: 100%;
-  padding: var(--cd-space-1) var(--cd-space-3);
+  padding: var(--cd-space-1) 0;
   font-size: var(--conv-meta);
   line-height: 1.5;
   color: var(--cd-color-text-subtle);

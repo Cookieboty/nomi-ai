@@ -28,8 +28,8 @@ import {
   CONVERSATION_NAV_DEMO_EVENT,
   conversationNavDemoMessages,
 } from '../services/conversationNavDemo';
-import { derivedSwitchTip } from '../services/modelSwitchTip';
-import { nomiModelLabel, useGatewayState } from '../services/nomiModel';
+import { resolveMainChatSwitchTip } from '../services/modelSwitchTip';
+import { nomiMainRef, nomiModelLabel, refLabel, useGatewayState } from '../services/nomiModel';
 import type { TranscriptView } from '../services/transcriptView';
 import type { SlashHook } from '../slash/useSlashCommands';
 import type { ConvMessage } from '../types/conversation';
@@ -46,31 +46,33 @@ const NomiConversation: React.FC<Omit<React.ComponentProps<typeof ConversationVi
   const live = useLiveWithGatewayRetry(useAiChatSelector(selectNomiLive, sameLive));
   const managed = useManagedRuntime();
   // 换了 Nomi 的模型、还没发送：和最后一条助手消息的模型比（网关状态变化时重算）
-  useGatewayState();
+  const gateway = useGatewayState();
   const gatewayModel = nomiModelLabel();
-  const modelSwitchTip = useMemo(() => {
-    if (managed?.isCliBackend) {
-      const mModel = managed.view?.model;
-      if (!mModel || mModel === 'cli-default') return null;
-      const effort = managed.view?.effort;
-      if (effort) {
-        for (let i = props.messages.length - 1; i >= 0; i--) {
-          const msg = props.messages[i]!;
-          if (msg.role !== 'assistant') continue;
-          if (msg.model === `${mModel}-${effort}`) return null;
-          break;
-        }
-      }
-      return derivedSwitchTip(props.messages, mModel);
-    }
-    return derivedSwitchTip(props.messages, gatewayModel);
-  }, [
-    props.messages,
-    gatewayModel,
-    managed?.isCliBackend,
-    managed?.view?.model,
-    managed?.view?.effort,
-  ]);
+  const modelSwitchTip = useMemo(
+    () =>
+      resolveMainChatSwitchTip({
+        messages: props.messages,
+        isCliBackend: Boolean(managed?.isCliBackend),
+        currentBackend: managed?.view?.backend,
+        managedModel: managed?.view?.model,
+        managedSource: managed?.view?.source,
+        managedEffort: managed?.view?.effort,
+        gatewayModelLabel: gatewayModel,
+        gatewayModelRef: nomiMainRef(gateway),
+        normalizeModel: (m) => refLabel(gateway, m),
+        defaultModelLabel: t('ui.providers-schedule.default-model'),
+      }),
+    [
+      props.messages,
+      gateway,
+      gatewayModel,
+      managed?.isCliBackend,
+      managed?.view?.backend,
+      managed?.view?.source,
+      managed?.view?.model,
+      managed?.view?.effort,
+    ],
+  );
   return <ConversationView {...props} live={live} modelSwitchTip={modelSwitchTip} />;
 };
 
