@@ -9,8 +9,14 @@ type Port = Pick<AppClient, 'conversations' | 'on'>;
 export type ManagedRuntimeState = Awaited<ReturnType<Port['conversations']['runtimeState']>>;
 export type ManagedSendOptions = {
   images?: string[];
+  messageId?: string;
+  turnId?: string;
   retry?: { messageId: string; turnId: string };
 };
+
+export function createManagedMessageId(): string {
+  return `m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+}
 
 export function formatManagedRuntimeError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
@@ -64,10 +70,8 @@ export async function sendManagedConversation(
 ): Promise<void> {
   const initial = await api.conversations.runtimeState({ id });
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-  const messageId =
-    options?.retry?.messageId ??
-    `m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
-  const turnId = options?.retry?.turnId ?? `turn_${messageId}`;
+  const messageId = options?.retry?.messageId ?? options?.messageId ?? createManagedMessageId();
+  const turnId = options?.retry?.turnId ?? options?.turnId ?? `turn_${messageId}`;
   let token: Awaited<ReturnType<Port['conversations']['runtimeSend']>> | undefined;
   let events: ManagedRuntimeState[] = [];
   let revision = 0;

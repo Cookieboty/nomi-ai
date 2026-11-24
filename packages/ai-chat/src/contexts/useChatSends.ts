@@ -29,6 +29,7 @@ import {
 } from '../services/harnessClient';
 import { imageLinksNote, STEER_TAG } from '../services/history';
 import { kbClient } from '../services/kbClient';
+import { createManagedMessageId } from '../services/managedMainChat';
 import { memoryContext } from '../services/memClient';
 import { gatewayStateSnapshot } from '../services/nomiModel';
 import { nomiModelLabel, servedModelLabel } from '../services/nomiModel';
@@ -38,6 +39,7 @@ import { schedClient } from '../services/schedClient';
 import { screenClient, type ImageAttachment } from '../services/screenClient';
 import { tasksApi } from '../services/tasksClient';
 import type { ChatMessage } from '../types/chat';
+import type { IPCClient } from '../types/ipc';
 import { ENDPOINT_NAME } from '../utils/endpointBadge';
 import { closeOpenCalls } from '../utils/toolTrace';
 
@@ -48,7 +50,7 @@ import {
   type AiChatState,
   type ConvoOutcome,
 } from './aiChatState';
-import type { ActiveStream, InflightTurn } from './chatTurn';
+import type { ActiveStream, ConversationTurn, InflightTurn } from './chatTurn';
 import {
   finishDeliveredSteers,
   newReqId,
@@ -85,8 +87,125 @@ interface SendsOptions {
   steering: MutableRefObject<SteerLedger>;
 }
 
+interface ManagedSendParams {
+  client: IPCClient;
+  turn: ConversationTurn & { convoId: string };
+  reqId: string;
+  content: string;
+  images?: ImageAttachment[];
+  encodedImages?: string[];
+  stateRef: MutableRefObject<AiChatState>;
+  dispatch: Dispatch<AiChatAction>;
+  inflight: MutableRefObject<Map<string, InflightTurn>>;
+  signal?: AbortSignal;
+}
+
+/**
+ * 托管主对话发送共享入口：仅在内存中乐观上屏（绝不写入旧视图存储或触发 ADD_MESSAGE），
+ * 使用客户端预生成的幂等 messageId 登记 inflight 并在收到权威投影后整体替换；
+ * 若在首帧权威投影前失败，则从权威存储对齐回滚未落盘的乐观消息。
+ */
+async function runManagedSend({
+  client,
+  turn,
+  reqId,
+  content,
+  images,
+  encodedImages,
+  stateRef,
+  dispatch,
+  inflight,
+  signal,
+}: ManagedSendParams): Promise<void> {
+  if (typeof client.sendManagedConversation !== 'function')
+    throw new Error(t('ui.chat-settings.managed-ingress'));
+
+  const messageId = createManagedMessageId();
+  const turnKey = convoKey(turn.convoId);
+  const optimisticImages = images
+    ?.filter((i) => typeof i.thumb === 'string' && i.thumb.length > 0)
+    .map((i) => ({
+      thumb: i.thumb,
+      width: i.width,
+      height: i.height,
+      ...(i.source ? { source: i.source } : {}),
+    }));
+  const optimisticUser: ChatMessage = {
+    id: messageId,
+    role: 'user',
+    content,
+    timestamp: Date.now(),
+    ...(optimisticImages?.length ? { images: optimisticImages } : {}),
+  };
+  const cachedMessages = client.conversationStore?.()?.getMessages?.(turn.convoId);
+  const baseMessages: ChatMessage[] = turn.isActive()
+    ? stateRef.current.messages
+    : Array.isArray(cachedMessages)
+      ? cachedMessages
+      : [];
+
+  inflight.current.set(turnKey, {
+    reqId,
+    convoId: turn.convoId,
+    messages: [optimisticUser],
+  });
+  if (turn.isActive()) {
+    dispatch({
+      type: 'SET_MESSAGES',
+      payload: [...baseMessages, optimisticUser],
+      convoId: turn.convoId,
+    });
+  }
+  void maybeStartManagedSmartTitle(client, turn.convoId, content);
+
+  let authoritativeReceived = false;
+  const onUpdate = (messages: ChatMessage[]): void => {
+    authoritativeReceived = true;
+    if (inflight.current.get(turnKey)?.reqId === reqId) {
+      const liveTail = messages.filter((m) => m.id === messageId || m.id.startsWith('draft_'));
+      if (liveTail.length) {
+        inflight.current.set(turnKey, { reqId, convoId: turn.convoId, messages: liveTail });
+      } else {
+        inflight.current.delete(turnKey);
+      }
+    }
+    if (turn.isActive()) {
+      dispatch({ type: 'SET_MESSAGES', payload: messages, convoId: turn.convoId });
+    }
+  };
+
+  try {
+    await client.sendManagedConversation(turn.convoId, content, onUpdate, signal, {
+      messageId,
+      ...(encodedImages?.length ? { images: encodedImages } : {}),
+    });
+  } catch (err) {
+    if (inflight.current.get(turnKey)?.reqId === reqId) {
+      inflight.current.delete(turnKey);
+    }
+    if (!authoritativeReceived && turn.isActive()) {
+      let reconciled: ChatMessage[] = baseMessages;
+      if (typeof client.getChatHistory === 'function') {
+        try {
+          reconciled = await client.getChatHistory();
+        } catch {
+          reconciled = baseMessages;
+        }
+      }
+      if (turn.isActive()) {
+        dispatch({ type: 'SET_MESSAGES', payload: reconciled, convoId: turn.convoId });
+      }
+    }
+    throw err;
+  } finally {
+    if (inflight.current.get(turnKey)?.reqId === reqId) {
+      inflight.current.delete(turnKey);
+    }
+  }
+}
+
 /** 普通发送与知识库问答：一次性返回整段回复 */
-function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
+function usePlainSends({ stateRef, dispatch, inflight, maybeIngest }: SendsOptions) {
   // 发送普通消息
   const sendMessage = useCallback(
     async (content: string) => {
@@ -97,12 +216,14 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
         dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
         dispatch({ type: 'SET_ERROR', payload: undefined });
         if (turn.convoId && s.ipcClient.isManagedConversation?.(turn.convoId)) {
-          if (!s.ipcClient.sendManagedConversation)
-            throw new Error(t('ui.chat-settings.managed-ingress'));
-          void maybeStartManagedSmartTitle(s.ipcClient, turn.convoId, content);
-          await s.ipcClient.sendManagedConversation(turn.convoId, content, (messages) => {
-            if (turn.isActive())
-              dispatch({ type: 'SET_MESSAGES', payload: messages, convoId: turn.convoId });
+          await runManagedSend({
+            client: s.ipcClient,
+            turn: { ...turn, convoId: turn.convoId },
+            reqId: newReqId(),
+            content,
+            stateRef,
+            dispatch,
+            inflight,
           });
           return;
         }
@@ -175,7 +296,7 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
         dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId, outcome });
       }
     },
-    [stateRef, dispatch, maybeIngest],
+    [stateRef, dispatch, inflight, maybeIngest],
   );
 
   // 知识库问答：主进程检索本地索引 → 模型带引用回答
@@ -287,29 +408,18 @@ function useStreamSend({
           });
           owned = true;
           dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
-          void maybeStartManagedSmartTitle(client, turn.convoId, content);
-          if (encodedImages?.length) {
-            await client.sendManagedConversation(
-              turn.convoId,
-              content,
-              (messages) => {
-                if (turn.isActive())
-                  dispatch({ type: 'SET_MESSAGES', payload: messages, convoId: turn.convoId });
-              },
-              controller.signal,
-              { images: encodedImages },
-            );
-          } else {
-            await client.sendManagedConversation(
-              turn.convoId,
-              content,
-              (messages) => {
-                if (turn.isActive())
-                  dispatch({ type: 'SET_MESSAGES', payload: messages, convoId: turn.convoId });
-              },
-              controller.signal,
-            );
-          }
+          await runManagedSend({
+            client,
+            turn: { ...turn, convoId: turn.convoId },
+            reqId,
+            content,
+            images,
+            encodedImages,
+            stateRef,
+            dispatch,
+            inflight,
+            signal: controller.signal,
+          });
           return;
         }
 

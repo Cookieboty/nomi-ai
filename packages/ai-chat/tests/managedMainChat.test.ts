@@ -255,3 +255,23 @@ it('caches base messages across running stream deltas and emits structured trace
     client.close();
   }
 });
+
+it('uses caller-supplied messageId without marking the turn as a retry', async () => {
+  const f = fixture('fast');
+  const update = vi.fn();
+  try {
+    await sendManagedConversation(f.client.api, 'c', 'once', update, undefined, {
+      messageId: 'm_client_1',
+    });
+    const sent = f.calls.send.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(sent).toMatchObject({
+      id: 'c',
+      messageId: 'm_client_1',
+      turnId: 'turn_m_client_1',
+      text: 'once',
+    });
+    expect(sent.retry).toBeUndefined();
+  } finally {
+    f.client.close();
+  }
+});
