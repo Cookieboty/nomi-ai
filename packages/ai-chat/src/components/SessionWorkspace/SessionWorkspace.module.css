@@ -1064,18 +1064,10 @@
   border-color: var(--cd-color-accent-strong, #5b8def);
   background: color-mix(in srgb, var(--cd-color-accent, #5b8def) 10%, transparent);
 }
-.composerChangesWrap:hover .composerChangesPopover,
-.composerChangesWrap:focus-within .composerChangesPopover {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translate(-50%, 0);
-  visibility: visible;
-}
+/* portal 到 body 的悬停弹层：固定定位由组件按视口计算，层级要跳出卡片与侧栏的层叠上下文 */
 .composerChangesPopover {
-  position: absolute;
-  z-index: 60;
-  left: 50%;
-  bottom: calc(100% + 8px);
+  position: fixed;
+  z-index: var(--cd-z-modal);
   width: min(560px, calc(100vw - 24px));
   max-height: min(420px, 60vh);
   overflow-y: auto;
@@ -1084,14 +1076,6 @@
   border-radius: var(--cd-radius-lg, 12px);
   background: var(--cd-color-surface-raised, #202020);
   box-shadow: var(--cd-shadow-popover, 0 12px 36px rgb(0 0 0 / 32%));
-  opacity: 0;
-  pointer-events: none;
-  transform: translate(-50%, 4px);
-  transition:
-    opacity 120ms ease,
-    transform 120ms ease,
-    visibility 120ms ease;
-  visibility: hidden;
 }
 .composerChangeFile {
   display: flex;

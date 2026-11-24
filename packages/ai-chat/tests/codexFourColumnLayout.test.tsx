@@ -173,14 +173,18 @@ describe('Codex four-column changes layout', () => {
   });
 
   it('hovering the diff summary exposes each changed file and its line counts', () => {
-    render(
+    const view = render(
       <ChangesUiProvider>
         <FourColumnShell />
       </ChangesUiProvider>,
     );
 
     const pill = screen.getByTestId('composer-changes-pill');
-    fireEvent.mouseEnter(pill);
+    fireEvent.mouseOver(pill);
+    // 弹层 portal 到 body：留在会话卡片里会被卡片的 overflow: clip 与层叠上下文裁掉
+    const popover = screen.getByTestId('composer-changes-popover');
+    expect(popover.parentElement).toBe(document.body);
+    expect(view.container.contains(popover)).toBe(false);
     const files = screen.getAllByTestId('composer-change-file');
     expect(files).toHaveLength(2);
     expect(files[0]!.getAttribute('data-file')).toBe(
@@ -190,6 +194,8 @@ describe('Codex four-column changes layout', () => {
     expect(files[0].textContent).toMatch(/\+1/);
     expect(files[0].textContent).toMatch(/−1/);
     expect(files[1].textContent).toMatch(/windowBounds\.ts/);
+    fireEvent.mouseOut(pill, { relatedTarget: document.body });
+    expect(screen.queryByTestId('composer-changes-popover')).toBeNull();
   });
 
   it('not a git repo: 改动 falls back to the session change tree', async () => {
