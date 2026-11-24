@@ -34,7 +34,7 @@ export function createComposerDraftStore(initial?: Map<string, ComposerDraft>) {
   const emit = (key: string) => {
     for (const fn of listeners) fn(key);
   };
-  return {
+  const store = {
     read(key: string): ComposerDraft {
       const cur = map.get(key);
       if (!cur) return { text: '', images: [], files: [] };
@@ -62,7 +62,6 @@ export function createComposerDraftStore(initial?: Map<string, ComposerDraft>) {
       clear: () => void;
       release: () => void;
     } {
-      const store = this;
       locks.set(key, (locks.get(key) ?? 0) + 1);
       let local: ComposerDraft | null = null;
       let released = false;
@@ -78,7 +77,8 @@ export function createComposerDraftStore(initial?: Map<string, ComposerDraft>) {
           local = d;
           return { ...d, images: [...d.images], files: [...d.files] };
         },
-        write: (draft) => onChange({ text: draft.text, images: [...draft.images], files: [...draft.files] }),
+        write: (draft) =>
+          onChange({ text: draft.text, images: [...draft.images], files: [...draft.files] }),
         clear: () => onChange({ text: '', images: [], files: [] }),
         release: () => {
           if (released) return;
@@ -106,4 +106,5 @@ export function createComposerDraftStore(initial?: Map<string, ComposerDraft>) {
       };
     },
   };
+  return store;
 }

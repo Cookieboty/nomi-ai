@@ -54,6 +54,8 @@ export const manifest: CliManifest = {
     usageQuota: false,
     progressMonitor: false,
     terminalCommand: true,
+    // 应用内本机官方登录：入口走 `agy acp --login`，退出走 ACP `logout`（目前只有它实现）
+    localAuth: true,
   },
   modelSwitch: 'inplace',
   clientSpec: { client: 'antigravity' },

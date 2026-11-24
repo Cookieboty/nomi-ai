@@ -2,12 +2,20 @@
  * 引导里的「接上模型」：一个连贯的两段式流程，不弹对话框。
  *   1. 选第三方供应商（预设或自定义地址）→ 填 Key / 地址 → 检测并保存（与设置里的模型页同一套存储）；
  *   2. 供应商配好后列出它的对话模型，点一个即设为 Nomi 对话使用的模型。供应商没配好前第 2 段置灰。
+ * 下面是「或直接使用本机 CLI」：本机检测到可执行文件的 CLI（ready / no-project）可以直接点选，
+ * 记成后续对话的默认托管后端（与主对话底座栏同一个偏好），再选供应商或模型是可选的。
+ * 登录不在引导里验证（沿用各 CLI 自己的本机登录）；没有可执行文件的只展示状态、不可选。
  */
 import { Icon, t } from '@nomi-ai/ui';
 import { IconCircleCheck as CheckCircle2 } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 
 import { api, hasTransport } from '../../services/api';
+import {
+  getManagedDefaultRuntime,
+  saveManagedDefaultRuntime,
+  subscribeManagedDefaultRuntime,
+} from '../../services/chatPrefs';
 import { gatewayClient, type GatewayState } from '../../services/gatewayClient';
 import { nomiMainRef, refreshNomiModel, useGatewayState } from '../../services/nomiModel';
 import { backendName } from '../ManagedRuntimeDock/panel';
@@ -21,6 +29,11 @@ type LocalCliChoice = {
   status: string;
   requiresProject: boolean;
 };
+
+/** 本机检测到可执行文件、可作为「只用本机 CLI」进入路径的 CLI（登录仍未验证） */
+function cliSelectable(cli: Pick<LocalCliChoice, 'available' | 'status'>): boolean {
+  return cli.available || cli.status === 'no-project';
+}
 
 /** 已配置、可用于对话的供应商（启用且至少有一个启用的对话模型） */
 export function usableProviders(s: GatewayState | null) {
@@ -37,6 +50,18 @@ export const ProviderSetup: React.FC<{ onOpenModels: () => void }> = ({ onOpenMo
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [localClis, setLocalClis] = useState<LocalCliChoice[]>([]);
+  /** 后续对话的默认托管后端（与主对话底座栏同一个偏好） */
+  const [defaultBackend, setDefaultBackend] = useState<string | null>(
+    () => getManagedDefaultRuntime()?.backend ?? null,
+  );
+
+  useEffect(
+    () =>
+      subscribeManagedDefaultRuntime(() => {
+        setDefaultBackend(getManagedDefaultRuntime()?.backend ?? null);
+      }),
+    [],
+  );
 
   useEffect(() => {
     if (!hasTransport() || typeof api.conversations?.runtimeCapabilities !== 'function') return;
@@ -73,6 +98,11 @@ export const ProviderSetup: React.FC<{ onOpenModels: () => void }> = ({ onOpenMo
 
   const assign = (ref: string) => {
     setError(null);
+    // 已经选了本机 CLI 作为默认底座：再选模型说明要回到模型供应商，偏好一并切回
+    if (defaultBackend && defaultBackend !== 'api' && defaultBackend !== 'nomi') {
+      saveManagedDefaultRuntime({ backend: 'api' });
+      setDefaultBackend('api');
+    }
     gatewayClient
       .setAssignment('nomi', { models: { main: ref } })
       .then(refreshNomiModel)
@@ -80,6 +110,14 @@ export const ProviderSetup: React.FC<{ onOpenModels: () => void }> = ({ onOpenMo
   };
 
   const chatModels = provider?.models.filter((m) => m.enabled && m.toolCalling !== false) ?? [];
+
+  /** 只改偏好：引导里不 adopt / switch 任何会话（此时通常也还没有可绑定的会话） */
+  const chooseCli = (cli: LocalCliChoice) => {
+    if (!cliSelectable(cli)) return;
+    setError(null);
+    saveManagedDefaultRuntime({ backend: cli.id });
+    setDefaultBackend(cli.id);
+  };
 
   return (
     <>
@@ -183,20 +221,58 @@ export const ProviderSetup: React.FC<{ onOpenModels: () => void }> = ({ onOpenMo
             <span className={styles.subStepTitle}>{t('ui.chat-settings.onb-cli-card-title')}</span>
           </div>
           <p className={styles.note}>{t('ui.chat-settings.onb-cli-card-desc')}</p>
-          <div className={styles.chips}>
-            {localClis.map((cli) => (
-              <span
-                key={cli.id}
-                className={`${styles.chip} ${cli.available || cli.status === 'no-project' ? styles.chipOn : ''}`}
-                data-testid={`onb-cli-${cli.id}`}
-              >
-                {backendName(cli.id)}:{' '}
-                {cli.available || cli.status === 'no-project'
+          <div
+            className={styles.chips}
+            role="radiogroup"
+            aria-label={t('ui.chat-settings.onb-cli-card-title')}
+          >
+            {localClis.map((cli) => {
+              const label = backendName(cli.id);
+              const selectable = cliSelectable(cli);
+              const status = `${label}: ${
+                selectable
                   ? t('ui.chat-settings.onb-cli-status-ready')
-                  : t('ui.chat-settings.onb-cli-status-missing')}
-              </span>
-            ))}
+                  : t('ui.chat-settings.onb-cli-status-missing')
+              }`;
+              if (!selectable) {
+                return (
+                  <span
+                    key={cli.id}
+                    className={styles.chip}
+                    data-testid={`onb-cli-${cli.id}`}
+                    data-selectable="false"
+                    aria-label={status}
+                  >
+                    {status}
+                  </span>
+                );
+              }
+              const on = defaultBackend === cli.id;
+              return (
+                <button
+                  key={cli.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  className={`${styles.chip} ${on ? styles.chipOn : ''}`}
+                  data-testid={`onb-cli-${cli.id}`}
+                  data-selectable="true"
+                  onClick={() => chooseCli(cli)}
+                >
+                  {on && <Icon icon={CheckCircle2} size={14} />}
+                  <span>{status}</span>
+                </button>
+              );
+            })}
           </div>
+          {localClis.some(cliSelectable) && (
+            <p className={styles.note}>{t('ui.chat-settings.onb-cli-select-hint')}</p>
+          )}
+          {localClis.some((c) => cliSelectable(c) && c.id === defaultBackend) && (
+            <p className={styles.note} data-testid="onb-cli-default-on">
+              {t('ui.chat-settings.onb-cli-default-on')}
+            </p>
+          )}
         </section>
       )}
     </>

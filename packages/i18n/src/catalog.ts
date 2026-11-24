@@ -1550,6 +1550,8 @@ export type TranslationKey =
   | 'ui.chat-settings.onb-cli-card-desc'
   | 'ui.chat-settings.onb-cli-status-ready'
   | 'ui.chat-settings.onb-cli-status-missing'
+  | 'ui.chat-settings.onb-cli-select-hint'
+  | 'ui.chat-settings.onb-cli-default-on'
   | 'ui.chat-settings.managed-runtime-label'
   | 'ui.chat-settings.managed-runtime-switch'
   | 'ui.chat-settings.managed-runtime-api-desc'

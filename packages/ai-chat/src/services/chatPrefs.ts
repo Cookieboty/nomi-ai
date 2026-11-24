@@ -369,6 +369,7 @@ export function subscribeSmartTitle(fn: Listener): () => void {
 
 // ───── 新建 Nomi 对话时记住的上次默认底座与模型配置 ─────
 const MANAGED_DEFAULT_RUNTIME_KEY = 'ai-chat:managedDefaultRuntime';
+const managedDefaultSubs = new Set<Listener>();
 const MANAGED_SOURCES = new Set(['local', 'official', 'thirdParty']);
 
 export interface ManagedBackendDefaultPref {
@@ -468,6 +469,7 @@ export function saveManagedDefaultRuntime(input: {
   const next: ManagedDefaultRuntimePref =
     Object.keys(perBackend).length > 0 ? { backend, perBackend } : { backend };
   write(MANAGED_DEFAULT_RUNTIME_KEY, JSON.stringify(next));
+  managedDefaultSubs.forEach((fn) => fn());
 }
 
 export function clearManagedDefaultRuntime(): void {
@@ -476,4 +478,11 @@ export function clearManagedDefaultRuntime(): void {
   } catch {
     /* ignore */
   }
+  managedDefaultSubs.forEach((fn) => fn());
+}
+
+/** 默认托管后端变化（保存 / 清除）时通知，供引导等处同步选中态 */
+export function subscribeManagedDefaultRuntime(fn: Listener): () => void {
+  managedDefaultSubs.add(fn);
+  return () => void managedDefaultSubs.delete(fn);
 }

@@ -1,4 +1,4 @@
-import { BUILTIN_MANIFESTS, cliConfigPath, cliName } from '@nomi-ai/cli-catalog';
+import { BUILTIN_MANIFESTS, cliCapability, cliConfigPath, cliName } from '@nomi-ai/cli-catalog';
 import {
   Badge,
   Button,
@@ -65,11 +65,7 @@ const BlockedNotice: React.FC<{
               {t('ui.chat-settings.login-blocked-use-proxy-and-retry')}
             </Button>
           ) : (
-            <Button
-              size="sm"
-              data-testid="cli-local-auth-login-retry"
-              onClick={() => onRetry()}
-            >
+            <Button size="sm" data-testid="cli-local-auth-login-retry" onClick={() => onRetry()}>
               <Icon icon={RotateCw} size={13} />
               {t('ui.mascot-theme.retry')}
             </Button>
@@ -154,7 +150,8 @@ export const CliLocalAuthCard: React.FC<{ kind: CliKind }> = ({ kind }) => {
   const name = cliName(kind);
   const configPath = cliConfigPath(kind) ?? '—';
   const binName = BUILTIN_MANIFESTS[kind]?.binary.names[0] ?? kind;
-  const supportsAuth = kind === 'antigravity';
+  // 清单能力位：只有声明了「应用内本机官方登录管理」的 CLI 才显示登录 / 退出
+  const supportsAuth = cliCapability(kind, 'localAuth');
 
   const [status, setStatus] = useState<LocalAuthStatus | null>(null);
   const [probing, setProbing] = useState(supportsAuth && cliLocalAuthClient.available());

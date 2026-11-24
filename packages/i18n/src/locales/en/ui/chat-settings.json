@@ -798,6 +798,8 @@
   "ui.chat-settings.onb-cli-card-desc": "Even without configuring a model provider, you can opt in to use an installed local CLI in main chat (the official CLI uses its own local sign-in when you send; credentials are neither read nor verified here).",
   "ui.chat-settings.onb-cli-status-ready": "Executable found (needs a project; sign-in unverified)",
   "ui.chat-settings.onb-cli-status-missing": "Executable not found on PATH",
+  "ui.chat-settings.onb-cli-select-hint": "Pick one to make it the default runtime for new conversations (no provider required, or connect a model as well).",
+  "ui.chat-settings.onb-cli-default-on": "This CLI is the default runtime for new conversations",
   "ui.chat-settings.managed-runtime-label": "Runtime",
   "ui.chat-settings.managed-runtime-switch": "Switch runtime (current: {0})",
   "ui.chat-settings.managed-runtime-api-desc": "Built-in runtime",

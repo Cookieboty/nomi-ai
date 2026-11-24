@@ -5,6 +5,7 @@ import {
   clearManagedDefaultRuntime,
   getManagedDefaultRuntime,
   saveManagedDefaultRuntime,
+  subscribeManagedDefaultRuntime,
 } from '../src/services/chatPrefs';
 import {
   applyManagedDefaultToConversation,
@@ -391,6 +392,19 @@ describe('managed default runtime preference and new conversation adoption', () 
         effort: 'high',
       },
     ]);
+  });
+
+  it('notifies subscribers when the default runtime is saved or cleared', () => {
+    const seen: (string | null)[] = [];
+    const off = subscribeManagedDefaultRuntime(() => {
+      seen.push(getManagedDefaultRuntime()?.backend ?? null);
+    });
+    saveManagedDefaultRuntime({ backend: TEST_ACP_BACKEND });
+    saveManagedDefaultRuntime({ backend: 'claude' });
+    clearManagedDefaultRuntime();
+    off();
+    saveManagedDefaultRuntime({ backend: 'codex' });
+    expect(seen).toEqual([TEST_ACP_BACKEND, 'claude', null]);
   });
 
   it('skips adoption when conversation already has messages', async () => {

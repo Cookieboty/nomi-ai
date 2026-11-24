@@ -66,8 +66,9 @@ type LocalAuthService struct {
 }
 
 // LocalAuthSupported reports whether kind supports in-app local official sign-in management.
+// 按清单能力位 capabilities.localAuth 判断（与视图 cliCapability(kind, 'localAuth') 同一份清单），不按名字写死。
 func LocalAuthSupported(kind string) bool {
-	return kind == "antigravity"
+	return builtin.Capability(kind, "localAuth")
 }
 
 // NewLocalAuthService constructs a LocalAuthService.

@@ -50,6 +50,11 @@ export interface CliCapabilities {
    * Grok `_x.ai/interject`。不能的（Gemini、dsh）运行中发送一律排队到这一轮结束。
    */
   steer?: boolean;
+  /**
+   * 支持「应用内本机官方登录管理」：视图显示登录状态、登录 / 退出（契约 `cli.localAuthStatus` /
+   * `cli.localAuthLoginStart` / `cli.localAuthLogout`），内核经 CLI 自己的 ACP 登录走。没有的不显示。
+   */
+  localAuth?: boolean;
 }
 
 /**
@@ -136,6 +141,7 @@ const BOOL_CAPS = [
   'progressMonitor',
   'terminalCommand',
   'steer',
+  'localAuth',
 ] as const;
 
 const isObj = (v: unknown): v is Record<string, unknown> =>

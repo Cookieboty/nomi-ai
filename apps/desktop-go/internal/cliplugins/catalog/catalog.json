@@ -47,7 +47,8 @@
         "fork": false,
         "usageQuota": false,
         "progressMonitor": false,
-        "terminalCommand": true
+        "terminalCommand": true,
+        "localAuth": true
       },
       "modelSwitch": "inplace",
       "clientSpec": {
