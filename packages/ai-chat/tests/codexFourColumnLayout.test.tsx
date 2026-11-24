@@ -2,7 +2,7 @@
 /**
  * Codex 四栏：有 workbench 时 Diff 与 chat 横排（非竖叠在 chat-container 下）。
  */
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -180,22 +180,123 @@ describe('Codex four-column changes layout', () => {
     );
 
     const pill = screen.getByTestId('composer-changes-pill');
-    fireEvent.mouseOver(pill);
-    // 弹层 portal 到 body：留在会话卡片里会被卡片的 overflow: clip 与层叠上下文裁掉
-    const popover = screen.getByTestId('composer-changes-popover');
-    expect(popover.parentElement).toBe(document.body);
-    expect(view.container.contains(popover)).toBe(false);
-    const files = screen.getAllByTestId('composer-change-file');
-    expect(files).toHaveLength(2);
-    expect(files[0]!.getAttribute('data-file')).toBe(
-      'packages/host-electron/src/mascot/MascotWindowController.ts',
+    vi.useFakeTimers();
+    try {
+      fireEvent.mouseEnter(pill);
+      // 弹层 portal 到 body：留在会话卡片里会被卡片的 overflow: clip 与层叠上下文裁掉
+      const popover = screen.getByTestId('composer-changes-popover');
+      expect(popover.parentElement).toBe(document.body);
+      expect(view.container.contains(popover)).toBe(false);
+      const files = screen.getAllByTestId('composer-change-file');
+      expect(files).toHaveLength(2);
+      expect(files[0]!.getAttribute('data-file')).toBe(
+        'packages/host-electron/src/mascot/MascotWindowController.ts',
+      );
+      expect(files[0].textContent).toMatch(/MascotWindowController\.ts/);
+      expect(files[0].textContent).toMatch(/\+1/);
+      expect(files[0].textContent).toMatch(/−1/);
+      expect(files[1].textContent).toMatch(/windowBounds\.ts/);
+      fireEvent.mouseOut(pill, { relatedTarget: document.body });
+      // 关闭带 180ms 防抖：未到窗口期仍可见，过窗口期后才收起
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      expect(screen.getByTestId('composer-changes-popover')).toBeTruthy();
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      expect(screen.queryByTestId('composer-changes-popover')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('hovering ComposerChangesPill keeps popover open across close delay and clicking a file selects it in Diff workbench', () => {
+    render(
+      <ChangesUiProvider>
+        <FourColumnShell />
+      </ChangesUiProvider>,
     );
-    expect(files[0].textContent).toMatch(/MascotWindowController\.ts/);
-    expect(files[0].textContent).toMatch(/\+1/);
-    expect(files[0].textContent).toMatch(/−1/);
-    expect(files[1].textContent).toMatch(/windowBounds\.ts/);
-    fireEvent.mouseOut(pill, { relatedTarget: document.body });
+
+    const pill = screen.getByTestId('composer-changes-pill');
+    const wrap = pill.parentElement!;
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.mouseOver(pill);
+      expect(wrap.getAttribute('data-open')).toBe('true');
+      const popover = screen.getByTestId('composer-changes-popover');
+      expect(popover.parentElement).toBe(document.body);
+
+      // 离开胶囊并在延迟窗口内跨过 8px 空隙移入 portal 浮层，浮层应保持打开而不闪退
+      fireEvent.mouseOut(pill, { relatedTarget: document.body });
+      act(() => {
+        vi.advanceTimersByTime(80);
+      });
+      fireEvent.mouseOver(popover);
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(wrap.getAttribute('data-open')).toBe('true');
+      expect(screen.getByTestId('composer-changes-popover')).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const files = screen.getAllByTestId('composer-change-file');
+    const target = files[1]!;
+    expect(target.tagName).toBe('BUTTON');
+    expect(target.getAttribute('data-file')).toBe(
+      'packages/host-electron/src/utils/windowBounds.ts',
+    );
+    fireEvent.click(target);
+
+    expect(screen.getByTestId('center-changes-pane')).toBeTruthy();
+    const active = document.querySelector('[data-testid="center-diff-block"][data-active]');
+    expect(active).toBeTruthy();
+    expect(active?.getAttribute('data-file')).toBe(
+      'packages/host-electron/src/utils/windowBounds.ts',
+    );
+    expect(wrap.getAttribute('data-open')).toBeNull();
     expect(screen.queryByTestId('composer-changes-popover')).toBeNull();
+  });
+
+  it('closes hovered popover on global Escape and outside pointerdown, and clamps top in very short viewports', () => {
+    const origInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+    const origOffsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+    try {
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 100 });
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+        configurable: true,
+        get() {
+          return this.getAttribute('data-testid') === 'composer-changes-popover' ? 300 : 0;
+        },
+      });
+
+      render(
+        <ChangesUiProvider>
+          <FourColumnShell />
+        </ChangesUiProvider>,
+      );
+
+      const pill = screen.getByTestId('composer-changes-pill');
+      // 仅悬停（焦点未移入）时也应正确夹紧 top >= 12px，并可用 Esc 收起
+      fireEvent.mouseEnter(pill);
+      const popover = screen.getByTestId('composer-changes-popover');
+      expect(Number.parseFloat(popover.style.top)).toBeGreaterThanOrEqual(12);
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+      expect(screen.queryByTestId('composer-changes-popover')).toBeNull();
+
+      // 再次打开后点击外部区域也收起
+      fireEvent.mouseEnter(pill);
+      expect(screen.getByTestId('composer-changes-popover')).toBeTruthy();
+      fireEvent.pointerDown(document.body);
+      expect(screen.queryByTestId('composer-changes-popover')).toBeNull();
+    } finally {
+      if (origInnerHeight) Object.defineProperty(window, 'innerHeight', origInnerHeight);
+      if (origOffsetHeight)
+        Object.defineProperty(HTMLElement.prototype, 'offsetHeight', origOffsetHeight);
+    }
   });
 
   it('not a git repo: 改动 falls back to the session change tree', async () => {
