@@ -38,6 +38,7 @@ export const manifest: CliManifest = {
   },
   modelSwitch: 'inplace',
   clientSpec: { client: 'codex' },
+  branding: { modelBrand: 'openai' },
   configPath: '~/.codex/config.toml',
   host: {
     minNode: 16,

@@ -311,7 +311,15 @@ func TestCodexOfficialSubprocessActualIPCClaudeAPICodexFullDelta(t *testing.T) {
 			t.Fatalf("forbidden flag %q in %q", banned, rec.Args)
 		}
 	}
-	if rec.Cwd != filepath.Join(x.dir, "project") {
+	// The native cwd must be exactly the selected project, compared physically:
+	// macOS reports /private/var for the /var TMPDIR the project was created in.
+	physical := func(p string) string {
+		if r, err := filepath.EvalSymlinks(p); err == nil {
+			return r
+		}
+		return p
+	}
+	if physical(rec.Cwd) != physical(filepath.Join(x.dir, "project")) {
 		t.Fatalf("project cwd isolation: %q", rec.Cwd)
 	}
 	if rec.OpenAIKey || rec.CodexAPIKey || rec.OpenAIURL {

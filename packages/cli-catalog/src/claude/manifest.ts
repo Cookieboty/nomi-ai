@@ -38,6 +38,7 @@ export const manifest: CliManifest = {
   },
   modelSwitch: 'inplace',
   clientSpec: { client: 'claude' },
+  branding: { modelBrand: 'claude' },
   configPath: '~/.claude/settings.json',
   host: {
     minNode: 22,

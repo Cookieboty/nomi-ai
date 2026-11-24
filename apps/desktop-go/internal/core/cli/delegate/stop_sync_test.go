@@ -130,10 +130,8 @@ func tabSends(sent []any, tab string) int {
 }
 
 func recoverCount(log *envLog) int {
-	log.mu.Lock()
-	defer log.mu.Unlock()
 	n := 0
-	for _, x := range log.harness {
+	for _, x := range log.harnessLog() {
 		if a, _ := x.([]any); len(a) == 3 && a[0] == "recoverTab" {
 			n++
 		}
@@ -237,8 +235,10 @@ func TestStopSyncDelegateKeepsLaterDelegationsAndRetries(t *testing.T) {
 	if parent.Err() != nil {
 		t.Fatalf("stopping one delegation must not cancel the parent turn: %v", parent.Err())
 	}
-	kick := &stopHarness{fakeHarness: h.fakeHarness, sent: h.sent, gate: make(chan struct{})}
-	kick.gateCh = kick.gate
+	// 第二个委派只卡在 SendTab 里（不再放行第一个委派的那道门）：它的 runChild 收起 wait 子 goroutine
+	// 可能晚于这里等结果返回之前，等它跑完再换回 h，否则 h 的 fakeHarness 被一条旧 goroutine 与这里同时用
+	syncHarness := func() { e.svc.wg.Wait() }
+	kick := &stopHarness{fakeHarness: h.fakeHarness, sent: h.sent, gate: make(chan struct{}), gateCh: make(chan struct{})}
 	e.svc.d.Harness = kick
 	done2 := make(chan *util.Obj, 1)
 	go func() {
@@ -250,6 +250,7 @@ func TestStopSyncDelegateKeepsLaterDelegationsAndRetries(t *testing.T) {
 	if d := dataOf(r2); r2.Get("ok") != true || d.Get("status") != "running" {
 		t.Fatalf("a later delegation should have started: %s", util.Stringify(r2))
 	}
+	syncHarness()
 	e.svc.d.Harness = h
 	r3 := e.call(parent, "delegate_to_cli", delegateRaw("background", false), tools.ExecContext{})
 	if d3 := dataOf(r3); r3.Get("ok") != true || d3.Get("status") != "done" || d3.Get("taskId") == "tab-1" {

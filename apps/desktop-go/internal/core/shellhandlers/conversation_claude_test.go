@@ -14,66 +14,10 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mainchat/claudert"
 )
 
-// This is ONLY a fake executable. No installed Claude, login, provider, network
-// or model is used. It speaks the existing official driver's input/output frames.
-const fakeClaudeScript = `#!/usr/bin/python3
-import sys,os,json,time
-args=sys.argv[1:]
-root=os.path.dirname(os.path.realpath(__file__))
-def log(kind,data):
- with open(root+'/wire.jsonl','a') as f:f.write(json.dumps({'kind':kind,'data':data})+'\n')
-def out(data):print(json.dumps(data),flush=True)
-mode=open(root+'/mode').read().strip()
-log('launch',{'pid':os.getpid(),'args':args,'cwd':os.getcwd(),'apiKeyPresent':'ANTHROPIC_API_KEY' in os.environ,'config':os.getenv('CLAUDE_CONFIG_DIR')})
-if mode=='startup-error':sys.exit(17)
-resume='--resume' in args
-sid=args[args.index('--resume' if resume else '--session-id')+1]
-if mode=='missing' and resume:
- print('No conversation found with session ID: '+sid,file=sys.stderr,flush=True);sys.exit(1)
-pending=None
-n=0
-def finish(text):
- out({'type':'assistant','session_id':sid,'message':{'content':[{'type':'text','text':text}]}})
- out({'type':'result','subtype':'success','is_error':False,'session_id':sid,'result':text})
-for line in sys.stdin:
- q=json.loads(line);log('input',q)
- if q['type']=='control_request':
-  out({'type':'control_response','response':{'subtype':'success','request_id':q['request_id'],'response':{}}})
- elif q['type']=='user':
-  n+=1
-  if mode=='malformed':print('{not-json',flush=True);continue
-  if mode=='bad-utf8':os.write(1,b'{"type":"assistant","text":"\xff"}\n');continue
-  if mode=='malformed-then-echo':
-   q['session_id']=sid
-   os.write(1,('{not-json\n'+json.dumps({'type':'system','subtype':'init','session_id':sid})+'\n'+json.dumps(q)+'\n'+json.dumps({'type':'result','subtype':'success','session_id':sid,'result':'MUST_NOT_COMMIT'})+'\n').encode());continue
-  if mode=='oversize':print('x'*(3*1024*1024),flush=True);continue
-  if mode=='nonzero':sys.exit(19)
-  if mode=='clean-exit':sys.exit(0)
-  pm=args[args.index('--permission-mode')+1] if '--permission-mode' in args else 'default'
-  out({'type':'system','subtype':'init','session_id':('wrong-native-id' if mode=='bad-sid' else sid),'permissionMode':('bypassPermissions' if mode=='bad-mode' else pm)})
-  if mode not in ('no-echo','no-echo-hang'):q['session_id']=sid;out(q)
-  if mode in ('hang','no-echo-hang'):
-   out({'type':'assistant','session_id':sid,'message':{'content':[{'type':'text','text':'LATE_UNCOMMITTED'}]}});continue
-  if mode=='partial-exit':
-   out({'type':'assistant','session_id':sid,'message':{'content':[{'type':'text','text':'incomplete partial text'}]}});sys.exit(19)
-  if mode=='result-error':
-   out({'type':'result','subtype':'error_during_execution','is_error':True,'session_id':sid});continue
-  if mode in ('approval','unsupported'):
-   tool='Read' if mode=='approval' else 'Bash'
-   out({'type':'assistant','session_id':sid,'message':{'content':[{'type':'tool_use','id':'tool1','name':tool,'input':{'file_path':'fixture.txt'}}]}})
-   out({'type':'control_request','request_id':'permit','request':{'subtype':'can_use_tool','tool_name':tool,'tool_use_id':'tool1','input':{'file_path':'fixture.txt'}}});pending=q;continue
-  if mode=='split-unicode':
-   text='分块🙂结果';data=(json.dumps({'type':'assistant','session_id':sid,'message':{'content':[{'type':'text','text':text}]}},ensure_ascii=False)+'\n').encode();cut=data.index('🙂'.encode())+2
-   os.write(1,data[:cut]);time.sleep(0.03);os.write(1,data[cut:]);out({'type':'result','subtype':'success','session_id':sid,'result':text});continue
-  if mode=='result-only':out({'type':'result','subtype':'success','is_error':False,'session_id':sid,'result':'native result-only'})
-  else:finish('native reply '+str(n))
-  if mode=='late-background':out({'type':'system','subtype':'task_started','session_id':sid,'task_id':'unexpected','task_type':'local_agent'})
- elif q['type']=='control_response':
-  a=q['response']['response'];decision=a['behavior']
-  if decision=='allow' and a.get('updatedInput')!={'file_path':'fixture.txt'}:sys.exit(23)
-  out({'type':'user','session_id':sid,'message':{'content':[{'type':'tool_result','tool_use_id':'tool1','content':'fixture result'}]}})
-  finish('native '+decision)
-`
+// This is ONLY a fake executable: testdata/fakeclaude, built for this OS and
+// copied into the fixture (see conversation_claude_fake_test.go). No installed
+// Claude, login, provider, network or model is used. It speaks the existing
+// official driver's input/output frames over its own stdin/stdout/stderr.
 
 type claudeWire struct {
 	Kind string
@@ -87,10 +31,10 @@ func claudeFixture(t *testing.T, mode string) (*claudert.Factory, string) {
 func claudeFixtureWithRegistry(t *testing.T, mode string, reg *mainchat.Registry) (*claudert.Factory, string) {
 	t.Helper()
 	dir := t.TempDir()
-	exe := filepath.Join(dir, "fake-claude")
-	if err := os.WriteFile(exe, []byte(fakeClaudeScript), 0700); err != nil {
-		t.Fatal(err)
-	}
+	// The executable sits in the fixture directory the driver runs it in: the
+	// stand-in reads its mode and journals wire.jsonl from its working
+	// directory, never next to the binary.
+	exe := installFakeClaude(t, dir)
 	setClaudeMode(t, dir, mode)
 	f := claudert.New(func(convID string) (claudert.Config, error) {
 		cfg := claudert.Config{Executable: exe, Cwd: dir, ConfigDir: filepath.Join(dir, "config")}
@@ -194,7 +138,18 @@ func TestClaudeOfficialSubprocessActualIPCProviderlessWarmSwitch(t *testing.T) {
 					t.Fatalf("default auto profile should not pass legacy flag %s in %s", unwanted, args)
 				}
 			}
-			if d["apiKeyPresent"] != false || d["cwd"] != dir || d["config"] != filepath.Join(dir, "config") || strings.Contains(args, "--bare") {
+			// Compare physical paths: macOS reports /private/var for /var TMPDIR.
+			realDir, err := filepath.EvalSymlinks(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			physical := func(p string) string {
+				if r, err := filepath.EvalSymlinks(p); err == nil {
+					return r
+				}
+				return p
+			}
+			if d["apiKeyPresent"] != false || physical(fmt.Sprint(d["cwd"])) != realDir || physical(fmt.Sprint(d["config"])) != filepath.Join(realDir, "config") || strings.Contains(args, "--bare") {
 				t.Fatal("official login/source isolation broken", d)
 			}
 		}

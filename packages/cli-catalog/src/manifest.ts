@@ -96,6 +96,12 @@ export interface CliManifest {
   fullName?: string;
   /** CLI 自己的配置文件（只用于展示，Nomi 不读不写），如 `~/.claude/settings.json` */
   configPath?: string;
+  /**
+   * 视图的品牌元数据（纯展示）：自家模型品牌 id，与 `@nomi-ai/ui` 的 `modelBrandOf` 同一套
+   * （`claude-opus-…` → claude、`gpt-…` → openai、`gemini-…` → gemini）。胶囊里同品牌时只留底座图标；
+   * 没有自家品牌的 CLI（Antigravity 换底座 / 模型都走第三方）不写。
+   */
+  branding?: { modelBrand?: string };
   /** 内核运行它要知道的事（视图不用） */
   host?: CliHostSpec;
 }

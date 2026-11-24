@@ -37,6 +37,7 @@ export const manifest: CliManifest = {
   },
   modelSwitch: 'restart',
   clientSpec: { client: 'minimax' },
+  branding: { modelBrand: 'minimax' },
   configPath: '~/.minimax/config.yaml',
   host: {
     minNode: 22,

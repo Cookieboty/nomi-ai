@@ -21,7 +21,13 @@ describe('appContract · D3 coding', () => {
     expect(Object.keys(codingEvents)).toMatchSnapshot();
   });
 
-  it('预览过程仅允许 chat，旧过程保留原有 surfaces 与危险操作边界', () => {
+  /**
+   * surfaces：只给一个窗口用的过程写 surfaces（router 的守卫按它拒绝别的窗口）；两个窗口都会调的不写。
+   * 预览、输入框里的本机启动器、发给 agent 的消息只在对话窗口；本机官方登录管理（cli.localAuth*）在对话窗口的
+   * 模型菜单与设置页的 ProvidersPage/CliLocalAuthCard 两头都要（事件 cli.localAuthEvent 也推给两个窗口），
+   * 所以只允许 chat 与 settings、别的窗口仍然拒绝；写操作（开始登录 / 退出）仍按危险操作边界要 trusted。
+   */
+  it('预览过程仅允许 chat，本机登录仅限 chat 与 settings，旧过程保留原有 surfaces 与危险操作边界', () => {
     const ns = new Set([
       'project',
       'harness',
@@ -44,6 +50,9 @@ describe('appContract · D3 coding', () => {
         name.startsWith('cli.launcher')
       )
         expect(d.surfaces).toEqual(['chat']);
+      else if (name.startsWith('cli.localAuth'))
+        // 对话窗口与设置页都会读登录状态、拉起 / 取消登录、退出
+        expect([...d.surfaces!].sort()).toEqual(['chat', 'settings']);
       else expect(d.surfaces).toBeUndefined();
     }
     const dangerous = Object.entries(codingProcedures as Record<string, Def>)
@@ -53,6 +62,8 @@ describe('appContract · D3 coding', () => {
     expect(dangerous).toEqual([
       'cli.launcherSet',
       'cli.launcherTest',
+      'cli.localAuthLoginStart',
+      'cli.localAuthLogout',
       'delegate.dispatch',
       'fleet.closeIdle',
       'fleet.pause',

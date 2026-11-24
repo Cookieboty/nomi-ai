@@ -37,6 +37,7 @@ export const manifest: CliManifest = {
   // 模型写在只给这个进程用的叠加配置里（--patch），换模型要重启
   modelSwitch: 'restart',
   clientSpec: { client: 'dsh' },
+  branding: { modelBrand: 'deepseek' },
   host: {
     minNode: 24,
     vendor: 'deepseek',

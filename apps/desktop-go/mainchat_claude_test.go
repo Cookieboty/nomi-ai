@@ -85,12 +85,12 @@ func TestManagedClaudeChoicesAreAccurateWithoutLoginProbe(t *testing.T) {
 		t.Fatal("missing executable was advertised as logged in", claude)
 	}
 
+	// 真可执行假 CLI（claude.exe on Windows）：只验证存在性，被运行即失败。
+	// PATH 只含假目录（由 installFakeCLI 设置），不附加真实 PATH。
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "claude"), []byte("#!/bin/sh\nexit 19\n"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", dir)
+	_, marker := installFakeCLI(t, dir, "claude")
 	t.Setenv("HOME", dir)
+	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(dir, "fake-config"))
 	r2 := mainchat.New(convstore.New(t.TempDir()), nil)
 	defer r2.Close()
 	store := convstore.New(t.TempDir())
@@ -100,6 +100,7 @@ func TestManagedClaudeChoicesAreAccurateWithoutLoginProbe(t *testing.T) {
 	if !slices.Contains(r2.Available(), "claude") {
 		t.Fatal("present executable should be registered")
 	}
+	assertFakeCLINotExecuted(t, marker)
 	claudeNone := namedChoice(t, none, "claude")
 	if claudeNone.Status != "no-project" || claudeNone.Available {
 		t.Fatalf("no-project choice: %+v", none)
@@ -107,6 +108,7 @@ func TestManagedClaudeChoicesAreAccurateWithoutLoginProbe(t *testing.T) {
 	if claudeNone.Login != "not-advertised" {
 		t.Fatal("no-project advertised a login", claudeNone)
 	}
+	assertFakeCLINotExecuted(t, marker)
 }
 
 // namedChoice finds one backend among several official choices without

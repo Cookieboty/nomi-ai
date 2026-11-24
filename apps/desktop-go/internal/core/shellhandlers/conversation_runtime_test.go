@@ -88,7 +88,13 @@ func fixtureIngress(t *testing.T, dir string) (*convstore.Store, *mainchat.Regis
 func requireOK(t *testing.T, f contract.ServerFrame) any {
 	t.Helper()
 	if f.T != "res" {
-		t.Fatalf("IPC rejected: %+v", f)
+		// The frame carries *ErrorPayload: print the rejected call and the
+		// error's detail value (code/message/data), not a pointer.
+		var detail any = f.Error
+		if f.Error != nil {
+			detail = *f.Error
+		}
+		t.Fatalf("IPC rejected: id=%s error=%+v", f.ID, detail)
 	}
 	return f.Output
 }

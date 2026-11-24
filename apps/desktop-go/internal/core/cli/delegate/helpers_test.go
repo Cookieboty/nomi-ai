@@ -34,6 +34,34 @@ type envLog struct {
 
 func (l *envLog) add(dst *[]any, v any) { l.mu.Lock(); *dst = append(*dst, v); l.mu.Unlock() }
 
+// harnessLog / all：fakeHarness 的方法可能在被测服务自己的 goroutine 里调（取消、恢复标签），
+// 测试读这些字段要拿同一把锁；不能等到调用返回再读
+func (l *envLog) harnessLog() []any {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return append([]any{}, l.harness...)
+}
+
+// all：几个字段一起的快照（同一个锁里取，跨字段的顺序一致）
+func (l *envLog) desktopSnapshot() []any {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return append([]any{}, l.desktop...)
+}
+
+func (l *envLog) auditSnapshot() []any {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return append([]any{}, l.audit...)
+}
+
+func (l *envLog) all() (harness, sent, desktop, audit, events []any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return append([]any{}, l.harness...), append([]any{}, l.sent...), append([]any{}, l.desktop...),
+		append([]any{}, l.audit...), append([]any{}, l.events...)
+}
+
 type fakeHarness struct {
 	sc       *util.Obj
 	base     string

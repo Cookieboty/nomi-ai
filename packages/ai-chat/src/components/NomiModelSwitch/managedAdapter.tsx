@@ -1,9 +1,10 @@
-import { BUILTIN_MANIFESTS, isBuiltinCliId } from '@nomi-ai/cli-catalog';
+import { BUILTIN_MANIFESTS, BUILTIN_RENDERER, isBuiltinCliId } from '@nomi-ai/cli-catalog';
 import { brand } from '@nomi-ai/types';
 import {
   BrandIcon,
   Icon,
   IconButton,
+  modelBrandIsNative,
   modelBrandOf,
   t,
   type PickerModel,
@@ -60,16 +61,25 @@ import { ProjectPicker } from '../ProjectPicker';
 const OWN_TAB = '__cli';
 const CUSTOM = '__custom';
 const EFFORT_LEVELS = ['low', 'medium', 'high'] as const;
-/** 底座与其自有品牌模型对应表：同品牌时不重复在胶囊内展示双图标 */
-const ENDPOINT_NATIVE_MODEL_BRAND: Partial<Record<EndpointKey, string>> = {
-  claude: 'claude',
-  codex: 'openai',
-  dsh: 'deepseek',
-  grok: 'xai',
-  gemini: 'gemini',
-  kimi: 'kimi',
-  minimax: 'minimax',
-};
+/**
+ * 胶囊里要不要再画模型图标（同品牌不重复展示双图标）：底座自家模型品牌来自 cli-catalog 的清单
+ * （`branding.modelBrand`，与 `modelBrandOf` 同一套品牌 id：Claude Code → claude、Codex → openai、
+ * Grok → xai、Gemini → gemini、dsh → deepseek、Kimi / MiniMax → 同名），与模型认出的品牌相同就只留底座图标；
+ * 别家的模型、认不出厂商的模型、没有自家品牌的底座（`nomi` / `other` / Antigravity）照样画。
+ */
+export function chipBrandOf(
+  endpoint: EndpointKey,
+  modelBrand: string | undefined,
+): string | undefined {
+  return modelBrand && !modelBrandIsNative(modelBrand, nativeModelBrand(endpoint))
+    ? modelBrand
+    : undefined;
+}
+
+/** 底座自家模型的品牌（cli-catalog 清单里的 `branding.modelBrand`）：不是内置 agent 或没写时为 undefined */
+function nativeModelBrand(endpoint: EndpointKey): string | undefined {
+  return isBuiltinCliId(endpoint) ? BUILTIN_RENDERER[endpoint].brand?.modelBrand : undefined;
+}
 const EFFORT_ORDER: readonly ReasoningEffort[] = [
   'minimal',
   'low',
@@ -483,10 +493,7 @@ export function useCliManagedSource({
           parts && gateway ? providerBrand(gateway, parts.provider) : undefined,
         )
       : undefined;
-    const chipModelBrand =
-      modelBrand && ENDPOINT_NATIVE_MODEL_BRAND[endpointKey] !== modelBrand
-        ? modelBrand
-        : undefined;
+    const chipModelBrand = chipBrandOf(endpointKey, modelBrand);
 
     const profile = effectiveRef ? thinkingProfileOf(gateway, effectiveRef) : null;
     const levels = (profile?.levels ?? []) as ReasoningEffort[];
@@ -651,8 +658,7 @@ export function useCliManagedSource({
   const baseLabel = currentModel ? (rawModelLabel ?? currentModel) : cliTitle;
   const effectiveModelId = currentModel ?? catalog?.defaultModel?.id ?? null;
   const modelBrand = effectiveModelId ? modelBrandOf(effectiveModelId) : undefined;
-  const chipModelBrand =
-    modelBrand && ENDPOINT_NATIVE_MODEL_BRAND[endpointKey] !== modelBrand ? modelBrand : undefined;
+  const chipModelBrand = chipBrandOf(endpointKey, modelBrand);
 
   const backendBlocksEffort =
     thirdPartyOnly(backend) ||

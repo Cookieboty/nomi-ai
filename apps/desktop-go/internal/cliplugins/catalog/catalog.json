@@ -133,6 +133,9 @@
       "clientSpec": {
         "client": "claude"
       },
+      "branding": {
+        "modelBrand": "claude"
+      },
       "configPath": "~/.claude/settings.json",
       "host": {
         "minNode": 22,
@@ -196,6 +199,9 @@
       "clientSpec": {
         "client": "codex"
       },
+      "branding": {
+        "modelBrand": "openai"
+      },
       "configPath": "~/.codex/config.toml",
       "host": {
         "minNode": 16,
@@ -251,6 +257,9 @@
       "modelSwitch": "restart",
       "clientSpec": {
         "client": "dsh"
+      },
+      "branding": {
+        "modelBrand": "deepseek"
       },
       "host": {
         "minNode": 24,
@@ -313,6 +322,9 @@
         "client": "gemini"
       },
       "fullName": "Gemini CLI",
+      "branding": {
+        "modelBrand": "gemini"
+      },
       "configPath": "~/.gemini/settings.json",
       "host": {
         "minNode": 20,
@@ -387,6 +399,9 @@
         "client": "grok",
         "placeholderModel": "nomi"
       },
+      "branding": {
+        "modelBrand": "xai"
+      },
       "configPath": "~/.grok/config.toml",
       "host": {
         "minNode": 18,
@@ -450,6 +465,9 @@
       "clientSpec": {
         "client": "kimi"
       },
+      "branding": {
+        "modelBrand": "kimi"
+      },
       "configPath": "~/.kimi-code/config.toml",
       "host": {
         "minNode": 22,
@@ -502,6 +520,9 @@
       "modelSwitch": "restart",
       "clientSpec": {
         "client": "minimax"
+      },
+      "branding": {
+        "modelBrand": "minimax"
       },
       "configPath": "~/.minimax/config.yaml",
       "host": {

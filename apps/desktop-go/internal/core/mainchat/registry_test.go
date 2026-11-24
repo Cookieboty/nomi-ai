@@ -88,6 +88,7 @@ func TestSwitchEffortDefaultResetsConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := New(s, nil)
+	t.Cleanup(r.Close)
 	r.Register("claude", func(string) (cr.Target, error) {
 		return cr.Target{
 			Runtime:  stubRuntime{},

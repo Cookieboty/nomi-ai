@@ -73,6 +73,7 @@ type RecoverableHarness interface {
 
 // DefaultCliMaxRetries：agent 委派遇瞬时 / 执行中断错误时默认自动重试次数（至少尝试 5 次重试）
 const DefaultCliMaxRetries = 5
+
 // Desktop：DesktopService 的 broker / audit / receiversFor 子集（PermissionBroker 是同步的）
 type Desktop interface {
 	WorkspaceOf(projectID any) desktop.Workspace
@@ -2057,8 +2058,13 @@ func cancelledByParent(sig context.Context) bool {
 
 func (s *Service) runChild(task *bgTask, prompt string, linkAbort bool, sig context.Context) *util.Obj {
 	h := s.d.Harness
+	// 取消监控 goroutine 要用 taskId，登记后不再变；o 在运行期间被 finalize 写，goroutine 里不能再读 o
+	tabID := task.id()
 	if !linkAbort {
+		// 与 slotReleaser 里同一把锁：名额还回去时 noteLoadLocked 会读 o 的 status/background
+		s.mu.Lock()
 		task.o.Set("background", true)
+		s.mu.Unlock()
 	}
 	if task.iso != nil && task.iso.Kind == IsoInPlace {
 		s.d.Claims.Register(task.id(), task.iso.GitRoot, util.Str(task.o.Get("cwd")), util.Str(task.o.Get("priority")),
@@ -2074,7 +2080,7 @@ func (s *Service) runChild(task *bgTask, prompt string, linkAbort bool, sig cont
 				cmu.Lock()
 				cancelledByNomi = cancelledByParent(sig)
 				cmu.Unlock()
-				h.CancelTab(task.id())
+				h.CancelTab(tabID)
 			case <-done:
 			}
 		}()
