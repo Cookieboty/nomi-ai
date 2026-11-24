@@ -216,9 +216,3 @@
   flex-wrap: wrap;
   gap: var(--cd-space-2);
 }
-
-.traceLine {
-  font-family: var(--cd-font-mono);
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-muted);
-}

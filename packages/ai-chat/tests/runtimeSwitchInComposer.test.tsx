@@ -10,7 +10,11 @@ import { ManagedRuntimeDock } from '../src/components/ManagedRuntimeDock';
 import { NomiModelSwitch } from '../src/components/NomiModelSwitch';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { ManagedRuntimeProvider } from '../src/contexts/ManagedRuntimeContext';
-import { clearManagedDefaultRuntime, setChatMode } from '../src/services/chatPrefs';
+import {
+  clearManagedDefaultRuntime,
+  saveManagedDefaultRuntime,
+  setChatMode,
+} from '../src/services/chatPrefs';
 import type { ChatMessage } from '../src/types/chat';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
@@ -184,7 +188,7 @@ function setupBackendApi(opts?: {
       requiresProject: false,
       degraded: [],
       models: [{ id: 'chat-route', label: 'Gateway Default' }],
-      permissionModes: ['ask', 'acceptEdits', 'bypass', 'deny'],
+      permissionModes: ['deny', 'ask', 'acceptEdits', 'auto', 'bypass'],
       bridges,
     },
     {
@@ -236,6 +240,14 @@ function setupBackendApi(opts?: {
       degraded: [],
     },
   ];
+  const defaultModeFor = (backendId: string): string => {
+    const activeChoice = choices.find((c) => c.id === backendId);
+    const modes = (activeChoice?.permissionModes as string[] | undefined) ?? [];
+    for (const want of ['auto', 'acceptEdits', 'ask']) {
+      if (modes.includes(want)) return want;
+    }
+    return modes[0] ?? 'ask';
+  };
   const fake = installFakeApi((name, input) => {
     if (name === 'gateway.state') return opts?.gateway ?? gatewayWithProviders;
     if (name === 'providers.state') return { overrideId: null, effectiveModel: '' };
@@ -301,12 +313,14 @@ function setupBackendApi(opts?: {
         ...runtimeState,
         backend: b,
         ...cfg,
+        permissionMode: (input.permissionMode as string | undefined) ?? defaultModeFor(b),
         generation: runtimeState.generation + 1,
       };
       return runtimeState;
     }
     if (name === 'conversations.runtimeSwitch') {
       const nextBackend = (input.backend as string | undefined) ?? runtimeState.backend;
+      const isCrossBackend = nextBackend !== runtimeState.backend;
       const baseCfg: Cfg = backendConfigs.get(nextBackend) ?? {
         source: 'local',
         model: 'cli-default',
@@ -337,14 +351,18 @@ function setupBackendApi(opts?: {
         effort: nextEffort,
       };
       backendConfigs.set(nextBackend, nextCfg);
+      const nextPerm =
+        input.permissionMode !== undefined
+          ? (input.permissionMode as string)
+          : isCrossBackend
+            ? defaultModeFor(nextBackend)
+            : runtimeState.permissionMode;
       runtimeState = {
         ...runtimeState,
         backend: nextBackend,
         ...nextCfg,
+        permissionMode: nextPerm,
         generation: runtimeState.generation + 1,
-        ...(input.permissionMode !== undefined
-          ? { permissionMode: input.permissionMode as string }
-          : {}),
       };
       return runtimeState;
     }
@@ -444,7 +462,7 @@ describe('Composer runtime switching (scheme 1)', () => {
     expect(cliEffortView.lastElementChild).toBe(cliRuntimeRow);
   });
 
-  it('asks for confirmation when switching runtimes on a conversation with existing messages', async () => {
+  it('switches runtimes directly without a confirmation dialog even when the conversation has existing messages', async () => {
     harness.state.messages = [{ id: 'm1', role: 'user', content: 'hello', timestamp: 1 }];
     const fake = setupBackendApi({ initialManaged: true, initialBackend: 'claude' });
     mountComposer();
@@ -457,15 +475,12 @@ describe('Composer runtime switching (scheme 1)', () => {
     fireEvent.click(screen.getByTestId('nomi-model-runtime-open'));
     fireEvent.click(screen.getByTestId('runtime-option-api'));
 
-    // 应弹出 ConfirmDialog（确认按钮 testid 为 confirm-dialog-ok）
-    const confirmBtn = await waitFor(() => screen.getByTestId('confirm-dialog-ok'));
-    fireEvent.click(confirmBtn);
-
     await waitFor(() => {
       expect(fake.inputs('conversations.runtimeSwitch')).toContainEqual(
         expect.objectContaining({ id: 'c1', backend: 'api', confirm: true }),
       );
     });
+    expect(screen.queryByTestId('confirm-dialog')).toBeNull();
   });
 
   it('supports CLI model/effort changes, effort reset to default, omits capability matrix details, and hides model row for single-model CLIs', async () => {
@@ -1043,6 +1058,229 @@ describe('Composer runtime switching (scheme 1)', () => {
           confirmUnsafe: true,
         }),
       );
+    });
+  });
+
+  it('defaults to auto permission when switching runtimes or adopting after project selection even with cached ask preference', async () => {
+    harness.convo.projectId = undefined;
+    saveManagedDefaultRuntime({
+      backend: 'antigravity',
+      source: 'local',
+      model: 'gemini-4-neon',
+      effort: 'high',
+      permissionMode: 'ask',
+    });
+    saveManagedDefaultRuntime({
+      backend: 'grok',
+      source: 'local',
+      model: 'grok-3',
+      permissionMode: 'ask',
+    });
+
+    let managed = false;
+    let runtimeState = {
+      id: 'c1',
+      backend: 'api',
+      source: undefined as string | undefined,
+      generation: 1,
+      phase: 'idle',
+      queued: 0,
+      partial: '',
+      detail: '',
+      approvals: [] as string[],
+      recovery: 'none',
+      model: 'chat-route',
+      effort: '',
+      permissionMode: 'auto',
+      capabilities: {
+        resume: true,
+        cancel: true,
+        approval: true,
+        attachments: false,
+        permissionModes: ['deny', 'ask', 'acceptEdits', 'auto', 'bypass'],
+        degraded: [],
+        bridges,
+      },
+    };
+    const apiFake = installFakeApi((name, input) => {
+      if (name === 'gateway.state') return gatewayWithProviders;
+      if (name === 'providers.state') return { overrideId: null, effectiveModel: '' };
+      if (name === 'harness.modelCatalog') return {};
+      if (name === 'harness.tabs') {
+        return {
+          tabs: [{ id: 'main', backend: 'nomi', cwd: '/w', title: '', permissionMode: 'auto' }],
+          activeTabId: 'main',
+          running: 0,
+          queued: 0,
+        };
+      }
+      if (name === 'harness.state') {
+        return { backend: 'nomi', cwd: '/w', permissionMode: 'auto', bins: {} };
+      }
+      if (name === 'project.list') {
+        return [
+          { id: 'p1', name: 'nomi-ai', primary: '/w', folders: ['/w'], createdAt: 1, updatedAt: 1 },
+        ];
+      }
+      if (name === 'conversations.state') {
+        return { conversations: [], managed: managed ? ['c1'] : [] };
+      }
+      const projBound = Boolean(harness.convo.projectId);
+      const currentChoices = [
+        {
+          id: 'api',
+          available: true,
+          status: 'requires-provider',
+          detail: '',
+          login: 'not-applicable',
+          requiresProject: false,
+          degraded: [],
+          models: [{ id: 'chat-route', label: 'Gateway Default' }],
+          permissionModes: ['deny', 'ask', 'acceptEdits', 'auto', 'bypass'],
+          bridges,
+        },
+        {
+          id: 'antigravity',
+          available: projBound,
+          status: projBound ? 'ready' : 'no-project',
+          detail: '',
+          login: 'unverified',
+          requiresProject: true,
+          degraded: [],
+          models: [{ id: 'gemini-4-neon', label: 'Gemini 4 Neon' }],
+          permissionModes: ['deny', 'ask', 'acceptEdits', 'auto'],
+          bridges,
+        },
+        {
+          id: 'grok',
+          available: true,
+          status: 'ready',
+          detail: '',
+          login: 'unverified',
+          requiresProject: true,
+          degraded: [],
+          models: [{ id: 'grok-3', label: 'Grok 3' }],
+          permissionModes: ['deny', 'ask', 'acceptEdits', 'auto', 'bypass'],
+          bridges,
+        },
+      ];
+      if (name === 'conversations.runtimeCapabilities') {
+        return {
+          supported: true,
+          backends: ['api', 'antigravity', 'grok'],
+          detail: '',
+          choices: currentChoices,
+        };
+      }
+      if (name === 'conversations.runtimeState') {
+        const c = currentChoices.find((x) => x.id === runtimeState.backend);
+        return {
+          ...runtimeState,
+          capabilities: {
+            ...runtimeState.capabilities,
+            permissionModes: c?.permissionModes ?? ['auto'],
+          },
+        };
+      }
+      if (name === 'conversations.runtimeAdopt') {
+        managed = true;
+        const b = input.backend as string;
+        const c = currentChoices.find((x) => x.id === b);
+        runtimeState = {
+          ...runtimeState,
+          backend: b,
+          source: (input.source as string | undefined) ?? 'local',
+          model: (input.model as string | undefined) ?? 'cli-default',
+          effort: (input.effort as string | undefined) ?? '',
+          permissionMode: (input.permissionMode as string | undefined) ?? 'auto',
+          generation: runtimeState.generation + 1,
+          capabilities: {
+            ...runtimeState.capabilities,
+            permissionModes: c?.permissionModes ?? ['auto'],
+          },
+        };
+        return runtimeState;
+      }
+      if (name === 'conversations.runtimeSwitch') {
+        const b = input.backend as string;
+        const c = currentChoices.find((x) => x.id === b);
+        runtimeState = {
+          ...runtimeState,
+          backend: b,
+          source: (input.source as string | undefined) ?? runtimeState.source,
+          model: (input.model as string | undefined) ?? 'cli-default',
+          effort: (input.effort as string | undefined) ?? '',
+          permissionMode: (input.permissionMode as string | undefined) ?? 'auto',
+          generation: runtimeState.generation + 1,
+          capabilities: {
+            ...runtimeState.capabilities,
+            permissionModes: c?.permissionModes ?? ['auto'],
+          },
+        };
+        return runtimeState;
+      }
+      return {};
+    });
+
+    mountComposer();
+
+    // 1. 无项目时点选 antigravity，内联绑定项目后 adopt：应保留 model/effort/source，但不带缓存的 ask 权限
+    fireEvent.click(await waitFor(() => screen.getByTestId('nomi-model-chip')));
+    fireEvent.click(await waitFor(() => screen.getByTestId('nomi-model-runtime-open')));
+    fireEvent.click(await waitFor(() => screen.getByTestId('runtime-option-antigravity')));
+    await waitFor(() => expect(screen.getByTestId('runtime-project-prompt')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('runtime-project-picker-button'));
+    fireEvent.click(await waitFor(() => screen.getByTestId('project-picker-item')));
+
+    await waitFor(() => {
+      const adopts = apiFake.inputs('conversations.runtimeAdopt');
+      expect(adopts).toHaveLength(1);
+      expect(adopts[0]).toEqual({
+        id: 'c1',
+        backend: 'antigravity',
+        confirm: true,
+        source: 'local',
+        model: 'gemini-4-neon',
+        effort: 'high',
+      });
+      expect(adopts[0]).not.toHaveProperty('permissionMode');
+      expect(screen.getByTestId('permission-mode-chip').getAttribute('data-mode')).toBe('auto');
+    });
+
+    // 2. 从 antigravity 切换到 grok：不携带缓存的 permissionMode: 'ask'，保留 model/source，落地为 auto
+    fireEvent.click(screen.getByTestId('nomi-model-runtime-open'));
+    fireEvent.click(await waitFor(() => screen.getByTestId('runtime-option-grok')));
+
+    await waitFor(() => {
+      const switches = apiFake.inputs('conversations.runtimeSwitch');
+      expect(switches).toHaveLength(1);
+      expect(switches[0]).toEqual({
+        id: 'c1',
+        backend: 'grok',
+        confirm: true,
+        expectedGeneration: 2,
+        source: 'local',
+        model: 'grok-3',
+      });
+      expect(switches[0]).not.toHaveProperty('permissionMode');
+      expect(screen.getByTestId('permission-mode-chip').getAttribute('data-mode')).toBe('auto');
+    });
+
+    // 3. 再切回 Nomi 内置底座 api：直接默认进入 auto
+    fireEvent.click(screen.getByTestId('nomi-model-runtime-open'));
+    fireEvent.click(await waitFor(() => screen.getByTestId('runtime-option-api')));
+
+    await waitFor(() => {
+      const switches = apiFake.inputs('conversations.runtimeSwitch');
+      expect(switches).toHaveLength(2);
+      expect(switches[1]).toEqual({
+        id: 'c1',
+        backend: 'api',
+        confirm: true,
+        expectedGeneration: 3,
+      });
+      expect(screen.getByTestId('permission-mode-chip').getAttribute('data-mode')).toBe('auto');
     });
   });
 });

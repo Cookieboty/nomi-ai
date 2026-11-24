@@ -24,7 +24,7 @@ const choice = (
 
 afterEach(cleanup);
 
-it('renders nothing when unmanaged or idle with no alerts or active tools', () => {
+it('renders nothing when unmanaged, idle, or busy only with trace entries', () => {
   const { container, rerender } = render(
     <ManagedRuntimePanel
       view={{
@@ -60,6 +60,71 @@ it('renders nothing when unmanaged or idle with no alerts or active tools', () =
     />,
   );
   expect(container.firstChild).toBeNull();
+
+  rerender(
+    <ManagedRuntimePanel
+      view={{
+        supported: true,
+        managed: true,
+        backend: 'antigravity',
+        phase: 'running',
+        recovery: 'new',
+        generation: 9,
+        detail: '',
+        choices: [choice('antigravity', 'ready', true)],
+        busy: true,
+        trace: [
+          { id: 'tr-run', kind: 'tool', tool: 'run_shell_command', status: 'running', at: 1 },
+          { id: 'tr-done', kind: 'tool', tool: 'run_shell_command', status: 'completed', at: 2 },
+        ],
+      }}
+      onResolve={vi.fn()}
+    />,
+  );
+  expect(container.firstChild).toBeNull();
+  expect(screen.queryByTestId('managed-runtime-trace')).toBeNull();
+
+  // 手动停止或提交前失败后会话已回到空闲，不额外弹出「重新发送上次请求 / 放弃本次请求」条
+  rerender(
+    <ManagedRuntimePanel
+      view={{
+        supported: true,
+        managed: true,
+        backend: 'antigravity',
+        phase: 'canceled',
+        recovery: 'none',
+        generation: 10,
+        detail: '',
+        choices: [choice('antigravity', 'ready', true)],
+        busy: false,
+        failedRequest: { messageId: 'm-1', turnId: 't-1', text: 'stopped request' },
+      }}
+      onResolve={vi.fn()}
+    />,
+  );
+  expect(container.firstChild).toBeNull();
+  expect(screen.queryByTestId('managed-runtime-retry')).toBeNull();
+  expect(screen.queryByTestId('managed-runtime-abandon')).toBeNull();
+
+  rerender(
+    <ManagedRuntimePanel
+      view={{
+        supported: true,
+        managed: true,
+        backend: 'api',
+        phase: 'failed-pre-submit',
+        recovery: 'error',
+        generation: 11,
+        detail: 'pre-submit validation failed',
+        choices: [choice('api', 'requires-provider', true)],
+        busy: false,
+        failedRequest: { messageId: 'm-2', turnId: 't-2', text: 'failed pre-submit' },
+      }}
+      onResolve={vi.fn()}
+    />,
+  );
+  expect(container.firstChild).toBeNull();
+  expect(screen.queryByTestId('managed-runtime-retry')).toBeNull();
 });
 
 it('surfaces unknown recovery prompt on demand and triggers new-native decision', () => {
@@ -86,10 +151,9 @@ it('surfaces unknown recovery prompt on demand and triggers new-native decision'
   expect(onResolve).toHaveBeenCalledWith('new-native');
 });
 
-it('renders approval metadata, running trace, recovery actions, and dismissible error on demand', () => {
+it('renders approval metadata, recovery actions, and dismissible error without redundant tool trace banner', () => {
   const onApprove = vi.fn();
   const onResolve = vi.fn();
-  const onRetry = vi.fn();
   const onDismissError = vi.fn();
   const { rerender } = render(
     <ManagedRuntimePanel
@@ -118,11 +182,10 @@ it('renders approval metadata, running trace, recovery actions, and dismissible 
       }}
       onResolve={onResolve}
       onApprove={onApprove}
-      onRetry={onRetry}
       onDismissError={onDismissError}
     />,
   );
-  expect(screen.getByTestId('managed-runtime-trace').textContent).toContain('fs_write_text');
+  expect(screen.queryByTestId('managed-runtime-trace')).toBeNull();
   expect(screen.getByTestId('managed-approval-item-ap-1').textContent).toContain('workspace_run');
   fireEvent.click(screen.getByTestId('managed-approval-allow-ap-1'));
   expect(onApprove).toHaveBeenCalledWith('ap-1', true);
@@ -147,17 +210,15 @@ it('renders approval metadata, running trace, recovery actions, and dismissible 
       }}
       onResolve={onResolve}
       onApprove={onApprove}
-      onRetry={onRetry}
       onDismissError={onDismissError}
     />,
   );
+  expect(screen.queryByTestId('managed-runtime-retry')).toBeNull();
   expect(screen.getByTestId('managed-runtime-error').textContent).toBe('failed before send');
   fireEvent.click(screen.getByTestId('managed-runtime-error-dismiss'));
   expect(onDismissError).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByTestId('managed-runtime-rollback-switch'));
   expect(onResolve).toHaveBeenCalledWith('rollback-switch');
-  fireEvent.click(screen.getByTestId('managed-runtime-retry'));
-  expect(onRetry).toHaveBeenCalledWith({ messageId: 'm-9', turnId: 't-9', text: 'retry this' });
 
   rerender(
     <ManagedRuntimePanel
@@ -165,7 +226,7 @@ it('renders approval metadata, running trace, recovery actions, and dismissible 
         supported: true,
         managed: true,
         backend: 'api',
-        phase: 'failed-pre-submit',
+        phase: 'uncertain',
         recovery: 'error',
         generation: 12,
         detail: 'abandoned state',
@@ -175,9 +236,9 @@ it('renders approval metadata, running trace, recovery actions, and dismissible 
       }}
       onResolve={onResolve}
       onApprove={onApprove}
-      onRetry={onRetry}
     />,
   );
+  expect(screen.queryByTestId('managed-runtime-retry')).toBeNull();
   fireEvent.click(screen.getByTestId('managed-runtime-abandon'));
   expect(onResolve).toHaveBeenCalledWith('abandon');
 });

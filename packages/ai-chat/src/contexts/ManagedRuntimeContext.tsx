@@ -10,9 +10,7 @@ import React, {
 } from 'react';
 
 import { confirmDialog } from '../components/ConfirmDialog';
-import { backendName } from '../components/ManagedRuntimeDock/panel';
 import type {
-  FailedRequestView,
   ManagedRuntimeSource,
   ManagedRuntimeView,
   ManagedSwitchInput,
@@ -23,15 +21,9 @@ import { api, hasTransport } from '../services/api';
 import { getManagedDefaultRuntime, saveManagedDefaultRuntime } from '../services/chatPrefs';
 import { CONVERSATIONS_CHANGED_EVENT, type ConversationStore } from '../services/conversationStore';
 import { buildManagedRuntimeInitFromPref } from '../services/managedDefaultRuntime';
-import { formatManagedRuntimeError, sendManagedConversation } from '../services/managedMainChat';
-import type { ChatMessage } from '../types/chat';
+import { formatManagedRuntimeError } from '../services/managedMainChat';
 
-import {
-  selectIpcClient,
-  selectMessageCount,
-  useAiChatActions,
-  useAiChatSelector,
-} from './aiChatStore';
+import { selectIpcClient, selectMessageCount, useAiChatSelector } from './aiChatStore';
 
 export interface ManagedRuntimeContextValue {
   conversationId?: string;
@@ -53,7 +45,6 @@ export interface ManagedRuntimeContextValue {
   clearError: () => void;
   resolve: (decision?: 'new-native' | 'rollback-switch' | 'abandon') => Promise<void>;
   approve: (approvalId: string, allow: boolean) => Promise<void>;
-  retry: (request: FailedRequestView) => Promise<void>;
 }
 
 const ManagedRuntimeContext = createContext<ManagedRuntimeContextValue | null>(null);
@@ -147,7 +138,6 @@ export const ManagedRuntimeProvider: React.FC<{
   const viewRef = useRef<ManagedRuntimeView | null>(null);
   viewRef.current = view;
   const [pendingProjectBackend, setPendingProjectBackend] = useState<string | null>(null);
-  const { dispatch } = useAiChatActions();
   const ipc = useAiChatSelector(selectIpcClient);
   const messageCount = useAiChatSelector(selectMessageCount);
   const hasMessages = messageCount > 0;
@@ -304,12 +294,6 @@ export const ManagedRuntimeProvider: React.FC<{
         return false;
       }
       if (!choice?.available) return false;
-      if (hasMessages) {
-        const ok = await confirmDialog({
-          message: t('ui.chat-settings.managed-switch-confirm', backendName(backend)),
-        });
-        if (!ok) return false;
-      }
       setPendingProjectBackend(null);
       const targetId = await ensurePersistedTarget();
       if (!targetId) return false;
@@ -319,6 +303,7 @@ export const ManagedRuntimeProvider: React.FC<{
           ? buildManagedRuntimeInitFromPref(
               getManagedDefaultRuntime()?.perBackend?.[backend],
               choice,
+              { includePermissionMode: false },
             )
           : undefined;
       const effectiveInit = init ?? fallbackInit;
@@ -377,7 +362,7 @@ export const ManagedRuntimeProvider: React.FC<{
         rememberManagedState(state);
       });
     },
-    [view, activeBackend, idle, hasMessages, ensurePersistedTarget, ipc, act],
+    [view, activeBackend, idle, ensurePersistedTarget, ipc, act],
   );
 
   const updateConfig = useCallback(
@@ -430,6 +415,7 @@ export const ManagedRuntimeProvider: React.FC<{
       const initPayload = buildManagedRuntimeInitFromPref(
         getManagedDefaultRuntime()?.perBackend?.[targetBackend],
         targetChoice,
+        { includePermissionMode: false },
       );
       const hasInitExtras = Object.keys(initPayload).length > 0;
       const ok = await act(async () => {
@@ -505,36 +491,6 @@ export const ManagedRuntimeProvider: React.FC<{
     [conversationId, view?.token, act],
   );
 
-  const retry = useCallback(
-    async (req: FailedRequestView) => {
-      if (!conversationId) return;
-      await act(async () => {
-        const runSend = ipc?.sendManagedConversation
-          ? ipc.sendManagedConversation.bind(ipc)
-          : (
-              id: string,
-              text: string,
-              onUpdate: (messages: ChatMessage[]) => void,
-              signal?: AbortSignal,
-              options?: { images?: string[]; retry?: { messageId: string; turnId: string } },
-            ) => sendManagedConversation(api, id, text, onUpdate, signal, options);
-        await runSend(
-          conversationId,
-          req.text,
-          (messages) => {
-            dispatch({ type: 'SET_MESSAGES', payload: messages, convoId: conversationId });
-          },
-          undefined,
-          {
-            retry: { messageId: req.messageId, turnId: req.turnId },
-            ...(req.images?.length ? { images: req.images } : {}),
-          },
-        );
-      });
-    },
-    [conversationId, ipc, dispatch, act],
-  );
-
   const value = useMemo<ManagedRuntimeContextValue>(
     () => ({
       conversationId,
@@ -553,7 +509,6 @@ export const ManagedRuntimeProvider: React.FC<{
       clearError,
       resolve,
       approve,
-      retry,
     }),
     [
       conversationId,
@@ -572,7 +527,6 @@ export const ManagedRuntimeProvider: React.FC<{
       clearError,
       resolve,
       approve,
-      retry,
     ],
   );
 

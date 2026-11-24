@@ -6,7 +6,7 @@ import React from 'react';
 import { ApprovalCard } from './ApprovalCard';
 import styles from './index.module.css';
 import { RecoveryBanner } from './RecoveryBanner';
-import { backendLabelKey, type FailedRequestView, type ManagedRuntimeView } from './types';
+import { backendLabelKey, type ManagedRuntimeView } from './types';
 
 export type {
   ApprovalDetailView,
@@ -28,11 +28,9 @@ export const backendName = (id: string): string => {
 function hasRecoveryBanner(view: ManagedRuntimeView): boolean {
   if (!view.managed) return false;
   return Boolean(
-    (view.phase === 'uncertain' && view.recovery === 'unknown') ||
     view.pendingSwitch ||
-    view.failedRequest ||
-    view.phase === 'failed-pre-submit' ||
-    view.recovery === 'error',
+    view.phase === 'uncertain' ||
+    (view.phase === 'canceled' && view.recovery === 'unknown'),
   );
 }
 
@@ -40,20 +38,17 @@ export const ManagedRuntimePanel: React.FC<{
   view: ManagedRuntimeView;
   onResolve: (decision?: 'new-native' | 'rollback-switch' | 'abandon') => void;
   onApprove?: (approvalId: string, allow: boolean) => void;
-  onRetry?: (request: FailedRequestView) => void;
   onDismissError?: () => void;
-}> = ({ view, onResolve, onApprove, onRetry, onDismissError }) => {
+}> = ({ view, onResolve, onApprove, onDismissError }) => {
   const activeName = backendName(view.backend || '');
   const unknown = view.managed && view.phase === 'uncertain' && view.recovery === 'unknown';
-  const latestTrace = view.trace?.length ? view.trace[view.trace.length - 1] : undefined;
-  const activeTrace = view.busy && latestTrace ? latestTrace : undefined;
   const hasApprovals = Boolean(
     onApprove && view.approvalDetails && view.approvalDetails.length > 0,
   );
   const showRecovery = hasRecoveryBanner(view);
   const showUnknownGuidance = unknown && !view.pendingSwitch;
 
-  if (!hasApprovals && !showRecovery && !view.error && !activeTrace) {
+  if (!hasApprovals && !showRecovery && !view.error) {
     return null;
   }
 
@@ -66,13 +61,6 @@ export const ManagedRuntimePanel: React.FC<{
       {showUnknownGuidance && (
         <p className={styles.guidance} data-testid="managed-runtime-guidance">
           {t('ui.chat-settings.managed-recovery-unknown', activeName)}
-        </p>
-      )}
-      {activeTrace && (
-        <p className={styles.traceLine} data-testid="managed-runtime-trace">
-          {activeTrace.status === 'running' || activeTrace.status === 'start'
-            ? t('ui.chat-settings.managed-trace-running', activeTrace.tool || activeTrace.kind)
-            : t('ui.chat-settings.managed-trace-done', activeTrace.tool || activeTrace.kind)}
         </p>
       )}
       {view.error && (
@@ -93,7 +81,7 @@ export const ManagedRuntimePanel: React.FC<{
           )}
         </div>
       )}
-      <RecoveryBanner view={view} activeName={activeName} onResolve={onResolve} onRetry={onRetry} />
+      <RecoveryBanner view={view} activeName={activeName} onResolve={onResolve} />
       {hasApprovals && onApprove && view.approvalDetails && (
         <ApprovalCard
           approvals={view.approvalDetails}

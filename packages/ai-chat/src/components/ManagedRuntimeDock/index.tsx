@@ -15,7 +15,6 @@ export const ManagedRuntimeDock: React.FC = () => {
       view={managed.view}
       onResolve={(decision = 'new-native') => void managed.resolve(decision)}
       onApprove={(approvalId, allow) => void managed.approve(approvalId, allow)}
-      onRetry={(req) => void managed.retry(req)}
       onDismissError={managed.clearError}
     />
   );
