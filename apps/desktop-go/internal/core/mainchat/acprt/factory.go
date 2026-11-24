@@ -93,9 +93,11 @@ func toCliPermissionMode(managedMode string) string {
 
 func defaultPermissionMode(backendID string) string {
 	supported := PermissionModes(backendID)
-	for _, m := range supported {
-		if m == "ask" {
-			return "ask"
+	for _, want := range []string{"auto", "acceptEdits", "ask"} {
+		for _, m := range supported {
+			if m == want {
+				return want
+			}
 		}
 	}
 	return supported[0]

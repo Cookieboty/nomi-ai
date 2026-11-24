@@ -369,9 +369,14 @@ func (r *Registry) AdoptWithOptions(id, name string, confirm bool, opts SwitchOp
 		return convstore.ErrDurabilityUnsupported
 	}
 	prevCfg := r.ConfigFor(id, name)
-	hasCustom := opts.Source != "" || opts.Model != "" || opts.Effort != "" || opts.PermissionMode != "" || opts.AccountID != ""
+	baseCfg := prevCfg
+	resetPerm := opts.PermissionMode == "" && prevCfg.PermissionMode != ""
+	if resetPerm {
+		baseCfg.PermissionMode = ""
+	}
+	hasCustom := resetPerm || opts.Source != "" || opts.Model != "" || opts.Effort != "" || opts.PermissionMode != "" || opts.AccountID != ""
 	if hasCustom {
-		r.SetConfig(id, name, mergeRuntimeConfig(prevCfg, opts))
+		r.SetConfig(id, name, mergeRuntimeConfig(baseCfg, opts))
 	}
 	rollback := func() {
 		if hasCustom {
@@ -514,7 +519,13 @@ func (r *Registry) Switch(ctx context.Context, id string, opts SwitchOptions) (c
 		return cr.SwitchOutcome{}, err
 	}
 	prevCfg := r.ConfigFor(id, opts.Backend)
-	nextCfg := mergeRuntimeConfig(prevCfg, opts)
+	baseCfg := prevCfg
+	// Cross-backend switch resets any stale PermissionMode on the target backend
+	// unless the caller explicitly specifies a mode (same-backend updates keep it).
+	if currentBackend := a.session.Checkpoint().Selected.Identity.DriverID; opts.Backend != currentBackend && opts.PermissionMode == "" {
+		baseCfg.PermissionMode = ""
+	}
+	nextCfg := mergeRuntimeConfig(baseCfg, opts)
 	r.SetConfig(id, opts.Backend, nextCfg)
 	t, err := r.target(id, opts.Backend)
 	if err != nil {

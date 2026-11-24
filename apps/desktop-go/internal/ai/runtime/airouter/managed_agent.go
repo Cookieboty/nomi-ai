@@ -26,7 +26,7 @@ type ManagedAPIConfig struct {
 // workspace, persona, memory, knowledge, and approval parity. "deny" mode runs
 // purely via text-only Chat.Stream without advertising tools.
 func (h *Handlers) ManagedAgentTarget(id string) (cr.Target, error) {
-	cfg := ManagedAPIConfig{Model: "chat-route", PermissionMode: "ask"}
+	cfg := ManagedAPIConfig{Model: "chat-route", PermissionMode: "auto"}
 	if h.o.ManagedConfig != nil {
 		if over := h.o.ManagedConfig(id); over.Model != "" || over.PermissionMode != "" || over.Effort != "" {
 			if over.Model != "" {
@@ -95,7 +95,7 @@ func (m *managedAgent) Capabilities() cr.Capabilities {
 		Cancel:          true,
 		Approval:        true,
 		Attachments:     true,
-		PermissionModes: []string{"ask", "acceptEdits", "bypass", "deny"},
+		PermissionModes: []string{"deny", "ask", "acceptEdits", "auto", "bypass"},
 		Budget:          60000,
 		Degraded: []string{
 			"stateless native turns: switching back from another CLI backend replays bounded unseen history",
@@ -120,7 +120,7 @@ func mapManagedPermissionMode(productMode string) desktop.PermMode {
 	switch productMode {
 	case "acceptEdits":
 		return "acceptEdits"
-	case "bypass":
+	case "auto", "bypass":
 		return "auto"
 	default:
 		return "manual"

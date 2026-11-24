@@ -1,6 +1,7 @@
 package main
 
 import (
+	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/convstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mainchat"
@@ -329,8 +330,19 @@ func TestManagedChoicesGrokPermissionModes(t *testing.T) {
 	putConv(t, s, map[string]any{"id": "c-grok", "backend": "nomi", "projectId": proj.ID})
 	r := mainchat.New(s, nil)
 	defer r.Close()
+	r.Register("api", func(string) (cr.Target, error) { return cr.Target{}, nil })
 
 	choices := managedChoices(s, p, r, "c-grok")
+	apiChoice := namedChoice(t, choices, "api")
+	wantApi := []string{"deny", "ask", "acceptEdits", "auto", "bypass"}
+	if len(apiChoice.PermissionModes) != len(wantApi) {
+		t.Fatalf("api PermissionModes = %v, want %v", apiChoice.PermissionModes, wantApi)
+	}
+	for i := range wantApi {
+		if apiChoice.PermissionModes[i] != wantApi[i] {
+			t.Fatalf("api PermissionModes[%d] = %q, want %q", i, apiChoice.PermissionModes[i], wantApi[i])
+		}
+	}
 	grok := namedChoice(t, choices, "grok")
 	want := []string{"deny", "ask", "acceptEdits", "auto", "bypass"}
 	if len(grok.PermissionModes) != len(want) {

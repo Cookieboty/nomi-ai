@@ -18,8 +18,12 @@ func TestHelperDshProcess(t *testing.T) {
 	if mode == "" {
 		return
 	}
-	if os.Getenv("DSH_PERMISSION_MODE") != "read-only" {
-		fmt.Printf(`{"type":"error","message":"expected read-only sandbox, got %s"}`+"\n", os.Getenv("DSH_PERMISSION_MODE"))
+	wantPerm := os.Getenv("GO_DSH_EXPECT_PERM")
+	if wantPerm == "" {
+		wantPerm = "workspace-write"
+	}
+	if os.Getenv("DSH_PERMISSION_MODE") != wantPerm {
+		fmt.Printf(`{"type":"error","message":"expected %s sandbox, got %s"}`+"\n", wantPerm, os.Getenv("DSH_PERMISSION_MODE"))
 		os.Exit(1)
 	}
 	switch mode {
@@ -200,8 +204,8 @@ func TestDshPermissionModesAndEnv(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tDefault.Env.PermissionMode != "deny" {
-		t.Fatalf("empty PermissionMode should default to deny, got %q", tDefault.Env.PermissionMode)
+	if tDefault.Env.PermissionMode != "acceptEdits" {
+		t.Fatalf("empty PermissionMode should default to acceptEdits, got %q", tDefault.Env.PermissionMode)
 	}
 
 	permMode = "bogus"

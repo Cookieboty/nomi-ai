@@ -591,7 +591,7 @@ func managedChoices(s *convstore.Store, p *projects.Store, r *mainchat.Registry,
 			Degraded:        []string{"stateless native turns; history stays synced via bounded delta/full handoff"},
 			Accounts:        []mainchat.RuntimeAccountOption{{ID: "chat-route", Label: "Nomi Gateway Route"}},
 			Models:          []mainchat.RuntimeModelOption{{ID: "chat-route", Label: "Gateway Default (chat)"}},
-			PermissionModes: []string{"ask", "acceptEdits", "bypass", "deny"},
+			PermissionModes: []string{"deny", "ask", "acceptEdits", "auto", "bypass"},
 			Bridges:         apiBridges,
 		})
 	}

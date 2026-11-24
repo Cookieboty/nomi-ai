@@ -99,6 +99,9 @@ func TestManagedAgentTargetApprovalFlow(t *testing.T) {
 			h := New(Options{
 				Chat:                   chat,
 				ProjectForConversation: func(id string) string { return "proj-" + id },
+				ManagedConfig: func(string) ManagedAPIConfig {
+					return ManagedAPIConfig{PermissionMode: "ask"}
+				},
 				PrepareChat: func(options map[string]any, method string, _ <-chan struct{}) error {
 					prepMethod = method
 					if extra, ok := options["extra"].(map[string]any); ok {
@@ -260,4 +263,81 @@ func TestManagedAgentTargetDenyModeAndCancel(t *testing.T) {
 		t.Fatalf("restarted instance claimed known cancel: %+v", unk)
 	}
 	close(hold)
+}
+
+func TestManagedAgentTargetDefaultsToAutoPermission(t *testing.T) {
+	broker := desktop.NewPermissionBroker(filepath.Join(t.TempDir(), "perm.json"), desktop.GuardEnv{}, desktop.BrokerOpts{})
+	broker.PermissionMode = func() desktop.PermMode { return "manual" }
+
+	toolReg := tools.NewInMemory()
+	toolReg.Register(tools.Definition{Name: "fs_write_text"})
+
+	prov := &agentStubProvider{}
+	prov.onRun = func(ctx context.Context, r *blm.ChatRequest, emit func(blm.ChatChunk)) error {
+		dec := broker.Authorize(desktop.AuthorizeInput{
+			Tool:    "fs_write_text",
+			Danger:  "write",
+			Summary: "write note",
+			Signal:  ctx,
+		})
+		if dec != "auto" {
+			t.Fatalf("expected managed write tool in default auto mode to resolve as auto, got %q", dec)
+		}
+		emit(blm.ChatChunk{Type: "delta", Content: "auto-ok"})
+		return nil
+	}
+	h := New(Options{
+		Chat: facade.NewChat(facade.Deps{
+			LLM:   func() facade.Registry { return stubLLMRegistry{prov} },
+			Tools: func() tools.Registry { return toolReg },
+		}),
+	})
+	target, err := h.ManagedAgentTarget("c-auto")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if target.Env.PermissionMode != "auto" {
+		t.Fatalf("default ManagedAgentTarget Env.PermissionMode = %q, want auto", target.Env.PermissionMode)
+	}
+	caps := target.Runtime.Capabilities()
+	hasAuto := false
+	for _, m := range caps.PermissionModes {
+		if m == "auto" {
+			hasAuto = true
+			break
+		}
+	}
+	if !hasAuto {
+		t.Fatalf("Capabilities().PermissionModes = %v, expected to include auto", caps.PermissionModes)
+	}
+
+	done := make(chan struct{})
+	approvalCount := 0
+	var gotText string
+	rt := target.Runtime.(*managedAgent)
+	if res := rt.Start(context.Background(), cr.RuntimeRequest{
+		Token:           cr.AttemptToken{ConversationID: "c-auto", AttemptID: "att-auto", Generation: 1},
+		NativeSessionID: "api-auto-1",
+		Plan:            cr.Plan{ID: "p-auto", Payload: "write note"},
+	}, func(e cr.Event) error {
+		switch e.Kind {
+		case cr.EventApproval:
+			approvalCount++
+		case cr.EventText:
+			gotText += e.Text
+		case cr.EventCompleted, cr.EventFailed:
+			close(done)
+		}
+		return nil
+	}); res.Kind != cr.SubmitAccepted {
+		t.Fatalf("submit failed: %+v", res)
+	}
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for completion")
+	}
+	if approvalCount != 0 || gotText != "auto-ok" {
+		t.Fatalf("expected auto-approved completion without EventApproval, got approvals=%d text=%q", approvalCount, gotText)
+	}
 }

@@ -86,7 +86,7 @@ func (r *Runtime) Capabilities() cr.Capabilities {
 		Budget:          60000,
 		Degraded: []string{
 			"Experimental headless " + name + " profile: executable present; version and provider configuration not probed",
-			"Stateless per-turn exec with read-only sandbox (DSH_PERMISSION_MODE=read-only); history stays synced via bounded handoff",
+			"Stateless per-turn exec (DSH_PERMISSION_MODE follows selected permission mode); history stays synced via bounded handoff",
 			"No interactive approvals, subagents, Nomi computer/MCP/persona/memory/knowledge/skills/attachment bridge",
 		},
 		Bridges: &cr.CapabilityBridges{

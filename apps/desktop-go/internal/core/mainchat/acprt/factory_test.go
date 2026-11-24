@@ -13,6 +13,19 @@ func TestFactorySupportsAllBuiltinAcpBackendsAndSeparatesCompatKeys(t *testing.T
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX script fixture")
 	}
+	wantDefaults := map[string]string{
+		"antigravity": "auto",
+		"grok":        "auto",
+		"kimi":        "auto",
+		"gemini":      "acceptEdits",
+		"minimax":     "ask",
+	}
+	for id, wantMode := range wantDefaults {
+		if got := defaultPermissionMode(id); got != wantMode {
+			t.Fatalf("defaultPermissionMode(%s) = %q, want %q", id, got, wantMode)
+		}
+	}
+
 	dir := t.TempDir()
 	project := filepath.Join(dir, "proj")
 	cfg1 := filepath.Join(dir, "cfg-1")
@@ -46,7 +59,7 @@ func TestFactorySupportsAllBuiltinAcpBackendsAndSeparatesCompatKeys(t *testing.T
 			if err != nil {
 				t.Fatalf("Target(%s): %v", id, err)
 			}
-			if t1.Identity.DriverID != id || t1.Env.PermissionMode != "ask" || t1.Env.Model != "cli-default" {
+			if t1.Identity.DriverID != id || t1.Env.PermissionMode != defaultPermissionMode(id) || t1.Env.Model != "cli-default" {
 				t.Fatalf("unexpected target metadata: %+v / %+v", t1.Identity, t1.Env)
 			}
 			k1 := t1.Identity.Key(t1.Env)
@@ -90,6 +103,19 @@ func TestFactoryPermissionModesAndCompatKeys(t *testing.T) {
 		got := PermissionModes(id)
 		if len(got) == 0 {
 			t.Fatalf("PermissionModes(%s) should not be empty", id)
+		}
+	}
+
+	wantDefaults := map[string]string{
+		"antigravity": "auto",
+		"grok":        "auto",
+		"kimi":        "auto",
+		"gemini":      "acceptEdits",
+		"minimax":     "ask",
+	}
+	for id, wantMode := range wantDefaults {
+		if got := defaultPermissionMode(id); got != wantMode {
+			t.Fatalf("defaultPermissionMode(%s) = %q, want %q", id, got, wantMode)
 		}
 	}
 
