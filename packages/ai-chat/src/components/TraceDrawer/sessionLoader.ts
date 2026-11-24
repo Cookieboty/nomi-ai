@@ -9,10 +9,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { delegateClient, type DelegateResult } from '../../services/delegateClient';
-import {
-  diagnosticsClient,
-  type CliRecordsResult,
-} from '../../services/diagnosticsClient';
+import { diagnosticsClient, type CliRecordsResult } from '../../services/diagnosticsClient';
 import {
   harnessClient,
   type HarnessTabMeta,
@@ -35,6 +32,7 @@ import { liveFromView, nomiTaskMessages } from '../SubagentPane/project';
 
 import {
   buildTraceDocument,
+  inferMessageBackend,
   turnWindow,
   type SubTabPayload,
   type SubTaskPayload,
@@ -163,7 +161,8 @@ function inferMainEndpoint(
     if (b && b in ENDPOINT_NAME) return { name: ENDPOINT_NAME[b as EndpointKey], backend: b };
     if (task?.executor.kind === 'cli') {
       const cli = task.executor.cli ?? task.executor.presetId;
-      if (cli && cli in ENDPOINT_NAME) return { name: ENDPOINT_NAME[cli as EndpointKey], backend: cli as EndpointKey };
+      if (cli && cli in ENDPOINT_NAME)
+        return { name: ENDPOINT_NAME[cli as EndpointKey], backend: cli as EndpointKey };
     }
     return { name: ENDPOINT_NAME.other, backend: 'other' };
   }
@@ -305,7 +304,15 @@ export function useTraceData(target: TraceTarget): LoadedTraceState {
     return () => {
       alive = false;
     };
-  }, [targetKind, taskId, taskUpdatedAt, taskKind, taskGoal, taskInitialAttempts, lookups.metaById]);
+  }, [
+    targetKind,
+    taskId,
+    taskUpdatedAt,
+    taskKind,
+    taskGoal,
+    taskInitialAttempts,
+    lookups.metaById,
+  ]);
 
   // 阶段 2：加载子代理标签、子任务与网关请求 / 子进程收发
   const scan = useMemo(() => scanDelegateIds(baseMessages), [baseMessages]);
@@ -332,11 +339,7 @@ export function useTraceData(target: TraceTarget): LoadedTraceState {
   const relatedTasksRef = sessionRelatedTasks;
 
   const targetTitle =
-    target.kind === 'turn'
-      ? ''
-      : target.kind === 'session'
-        ? target.title
-        : target.task.title;
+    target.kind === 'turn' ? '' : target.kind === 'session' ? target.title : target.task.title;
   const targetGoal = target.kind === 'task' ? target.task.goal : '';
   const targetModel = target.kind === 'turn' ? target.message.model : undefined;
   const targetTask = target.kind === 'task' ? target.task : null;
@@ -354,7 +357,9 @@ export function useTraceData(target: TraceTarget): LoadedTraceState {
         const nextDelegateResults: Record<string, DelegateResult> = {};
         if (scan.pendingDelegateTaskIds.length > 0 && delegateClient.available()) {
           const settled = await Promise.allSettled(
-            scan.pendingDelegateTaskIds.map(async (id) => [id, await delegateClient.status(id)] as const),
+            scan.pendingDelegateTaskIds.map(
+              async (id) => [id, await delegateClient.status(id)] as const,
+            ),
           );
           if (!alive) return;
           for (const s of settled) {
@@ -373,7 +378,8 @@ export function useTraceData(target: TraceTarget): LoadedTraceState {
             d?.callId &&
             baseMessages.some((m) =>
               m.trace?.some(
-                (ev) => ('id' in ev && ev.id === d.callId) || ('detail' in ev && ev.detail === d.callId),
+                (ev) =>
+                  ('id' in ev && ev.id === d.callId) || ('detail' in ev && ev.detail === d.callId),
               ),
             )
           ) {
@@ -425,6 +431,7 @@ export function useTraceData(target: TraceTarget): LoadedTraceState {
             if (tk.executor.kind === 'nomi') taskIdsToLoad.add(tk.id);
           }
         }
+        let nextSubTasksCount = 0;
         if (taskIdsToLoad.size > 0 && tasksAvailable()) {
           const nextSubTasks: Record<string, SubTaskPayload> = {};
           await Promise.allSettled(
@@ -448,6 +455,7 @@ export function useTraceData(target: TraceTarget): LoadedTraceState {
             }),
           );
           if (!alive) return;
+          nextSubTasksCount = Object.keys(nextSubTasks).length;
           setSubTasks(nextSubTasks);
         }
 
@@ -458,17 +466,64 @@ export function useTraceData(target: TraceTarget): LoadedTraceState {
         if (qualityClient.available()) {
           const from = spanFrom - 2000;
           const to = spanTo + 2000;
-          const queries: Array<Promise<{ items: QualityRequestItem[] }>> = [
-            qualityClient.requests({
-              from,
-              to,
-              layer: 'gateway',
-              limit: REQUEST_LIMIT,
-              ...(effectiveSource.kind === 'cli'
-                ? { tabId: effectiveSource.tabId }
-                : { filters: { client: ['nomi'] } }),
-            }),
-          ];
+          const queries: Array<Promise<{ items: QualityRequestItem[] }>> = [];
+          const assistantMsgs = baseMessages.filter((m) => m.role === 'assistant');
+          const assistantTurnCount = assistantMsgs.length;
+          if (
+            effectiveSource.kind === 'nomi' &&
+            sessionLiveStartedAt === undefined &&
+            !taskLive &&
+            nextSubTasksCount === 0 &&
+            assistantMsgs.length > 0
+          ) {
+            const nomiTurns = assistantMsgs.filter(
+              (m) => inferMessageBackend(m, 'nomi') === 'nomi',
+            );
+            if (nomiTurns.length > 0) {
+              const rawWins = nomiTurns
+                .map((m) => {
+                  const w = turnWindow(m);
+                  return { from: w.from - 2000, to: w.to + 2000 };
+                })
+                .sort((a, b) => a.from - b.from);
+              const mergedWins: Array<{ from: number; to: number }> = [];
+              for (const w of rawWins) {
+                const last = mergedWins[mergedWins.length - 1];
+                if (last && w.from - last.to <= 60_000) {
+                  last.to = Math.max(last.to, w.to);
+                } else {
+                  mergedWins.push({ ...w });
+                }
+              }
+              const targetWins =
+                mergedWins.length <= 12
+                  ? mergedWins
+                  : [{ from: mergedWins[0]!.from, to: mergedWins[mergedWins.length - 1]!.to }];
+              for (const w of targetWins) {
+                queries.push(
+                  qualityClient.requests({
+                    from: w.from,
+                    to: w.to,
+                    layer: 'gateway',
+                    limit: REQUEST_LIMIT,
+                    filters: { client: ['nomi'] },
+                  }),
+                );
+              }
+            }
+          } else {
+            queries.push(
+              qualityClient.requests({
+                from,
+                to,
+                layer: 'gateway',
+                limit: REQUEST_LIMIT,
+                ...(effectiveSource.kind === 'cli'
+                  ? { tabId: effectiveSource.tabId }
+                  : { filters: { client: ['nomi'] } }),
+              }),
+            );
+          }
           if (targetKind !== 'turn') {
             for (const tid of tabIds) {
               queries.push(
@@ -482,7 +537,6 @@ export function useTraceData(target: TraceTarget): LoadedTraceState {
               );
             }
           }
-          const assistantTurnCount = baseMessages.filter((m) => m.role === 'assistant').length;
           const settledReqs = await Promise.allSettled(queries);
           if (!alive) return;
           const byReqId = new Map<string, QualityRequestItem>();
@@ -562,11 +616,7 @@ export function useTraceData(target: TraceTarget): LoadedTraceState {
           ? sessionTitle || t('ui.devtools.scope-session')
           : targetTitle;
     const subtitle =
-      targetKind === 'turn'
-        ? targetModel
-        : targetKind === 'session'
-          ? ep.name
-          : targetGoal;
+      targetKind === 'turn' ? targetModel : targetKind === 'session' ? ep.name : targetGoal;
 
     return buildTraceDocument({
       scope: targetKind,
@@ -672,10 +722,24 @@ export function useTraceData(target: TraceTarget): LoadedTraceState {
     taskJournal,
   ]);
 
+  const matchedRequests = useMemo(() => {
+    if (requests === null) return null;
+    if (doc.turns.length === 0) return requests;
+    const seen = new Set<string>();
+    const out: QualityRequestItem[] = [];
+    for (const id of doc.orderedNodeIds) {
+      const node = doc.nodesById[id];
+      if (node?.kind !== 'request' || !node.req || seen.has(node.req.id)) continue;
+      seen.add(node.req.id);
+      out.push(node.req);
+    }
+    return out;
+  }, [requests, doc.turns.length, doc.orderedNodeIds, doc.nodesById]);
+
   return {
     doc,
     source: effectiveSource,
-    requests,
+    requests: matchedRequests,
     reqError,
     proc,
     procError,

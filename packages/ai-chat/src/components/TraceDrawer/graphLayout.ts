@@ -29,6 +29,8 @@ export const GRAPH_METRICS = {
   WAVE_SUBROW_GAP_Y: 16,
   PAD_X: 22,
   HEADER_H: 38,
+  HEADER_META_H: 24,
+  SWITCH_MIN_GROUP_W: 344,
   PAD_BOTTOM: 18,
   TURN_GAP_Y: 24,
   CANVAS_PAD: 28,
@@ -84,6 +86,7 @@ export interface LayoutGroup {
   responseModel?: string;
   switchedFromModel?: string;
   auditVerdict?: ModelAuditVerdict;
+  hasMetaRow?: boolean;
   closed?: boolean;
   collapsed?: boolean;
   stepCount: number;
@@ -186,9 +189,7 @@ function translateBlock(b: MeasuredBlock, dx: number, dy: number): MeasuredBlock
   };
 }
 
-type StepItem =
-  | { kind: 'wave'; nodeIds: string[] }
-  | { kind: 'cluster'; cluster: ClusterMeta };
+type StepItem = { kind: 'wave'; nodeIds: string[] } | { kind: 'cluster'; cluster: ClusterMeta };
 
 function buildStepsForTurn(
   turn: TraceTurn,
@@ -242,7 +243,9 @@ function buildStepsForTurn(
       const starts = runNodes.map((rn) => rn.start).filter((x): x is number => x !== undefined);
       const ends = runNodes.map((rn) => rn.end).filter((x): x is number => x !== undefined);
       const dur =
-        starts.length && ends.length ? Math.max(0, Math.max(...ends) - Math.min(...starts)) : undefined;
+        starts.length && ends.length
+          ? Math.max(0, Math.max(...ends) - Math.min(...starts))
+          : undefined;
       if (opts.expandedClusters.has(clusterId)) {
         for (const rn of runNodes) steps.push({ kind: 'wave', nodeIds: [rn.id] });
       } else {
@@ -279,12 +282,23 @@ function measureTurnBlock(
     WAVE_SUBROW_GAP_Y,
     PAD_X,
     HEADER_H,
+    HEADER_META_H,
+    SWITCH_MIN_GROUP_W,
     PAD_BOTTOM,
     MAX_COLS,
     MAX_SUBGRAPH_ROW_W,
   } = GRAPH_METRICS;
 
   const turnCollapsed = wrapInTurnGroup && opts.collapsedTurns.has(turn.id);
+  const turnModel = turn.modelAudit?.requestedModel ?? turn.model;
+  const auditVerdict = turn.modelAudit?.verdict;
+  const hasMetaRow = Boolean(
+    (turn.switchedFromModel && turnModel) ||
+    turnModel ||
+    (auditVerdict && auditVerdict !== 'unverified'),
+  );
+  const headerH = hasMetaRow ? HEADER_H + HEADER_META_H : HEADER_H;
+  const minGroupW = turn.switchedFromModel ? SWITCH_MIN_GROUP_W : 0;
   const turnSubtitle = [
     formatDuration(turn.durationMs),
     t('ui.usage-tools.steps', String(turn.nodeIds.length)),
@@ -293,8 +307,8 @@ function measureTurnBlock(
     .join(' · ');
 
   if (turnCollapsed) {
-    const w = NODE_W + PAD_X * 2;
-    const h = HEADER_H;
+    const w = Math.max(NODE_W + PAD_X * 2, minGroupW);
+    const h = headerH;
     const g: LayoutGroup = {
       id: `grp-${turn.id}`,
       kind: 'turn',
@@ -303,10 +317,11 @@ function measureTurnBlock(
       status: turn.status,
       laneId: turn.laneId,
       turnId: turn.id,
-      model: turn.modelAudit?.requestedModel ?? turn.model,
+      model: turnModel,
       responseModel: turn.responseModel,
       switchedFromModel: turn.switchedFromModel,
-      auditVerdict: turn.modelAudit?.verdict,
+      auditVerdict,
+      hasMetaRow,
       collapsed: true,
       stepCount: turn.nodeIds.length,
       durationMs: turn.durationMs,
@@ -537,8 +552,8 @@ function measureTurnBlock(
     });
   }
 
-  const groupW = maxContentW + PAD_X * 2;
-  let curY = wrapInTurnGroup ? HEADER_H + 10 : 12;
+  const groupW = Math.max(maxContentW + PAD_X * 2, minGroupW);
+  let curY = wrapInTurnGroup ? headerH + 10 : 12;
   const allNodes: LayoutNode[] = [];
   const allGroups: LayoutGroup[] = [];
   const allEdges: LayoutEdge[] = [];
@@ -597,10 +612,11 @@ function measureTurnBlock(
       status: turn.status,
       laneId: turn.laneId,
       turnId: turn.id,
-      model: turn.modelAudit?.requestedModel ?? turn.model,
+      model: turnModel,
       responseModel: turn.responseModel,
       switchedFromModel: turn.switchedFromModel,
-      auditVerdict: turn.modelAudit?.verdict,
+      auditVerdict,
+      hasMetaRow,
       collapsed: false,
       stepCount: turn.nodeIds.length,
       durationMs: turn.durationMs,
@@ -662,7 +678,17 @@ function measureSubagentGroup(
       for (const pp of prevPorts) {
         for (const ep of placed.entryPorts) {
           edges.push(
-            makeEdge(`e-sub-${pp.id}-${ep.id}`, 'flow', pp.id, ep.id, pp.x, pp.y, ep.x, ep.y, ep.status),
+            makeEdge(
+              `e-sub-${pp.id}-${ep.id}`,
+              'flow',
+              pp.id,
+              ep.id,
+              pp.x,
+              pp.y,
+              ep.x,
+              ep.y,
+              ep.status,
+            ),
           );
         }
       }
@@ -744,7 +770,17 @@ export function buildGraphLayout(doc: TraceDocument, opts: GraphLayoutOptions): 
       for (const pp of prevExits) {
         for (const ep of placed.entryPorts) {
           edges.push(
-            makeEdge(`e-turn-${pp.id}-${ep.id}`, 'flow', pp.id, ep.id, pp.x, pp.y, ep.x, ep.y, ep.status),
+            makeEdge(
+              `e-turn-${pp.id}-${ep.id}`,
+              'flow',
+              pp.id,
+              ep.id,
+              pp.x,
+              pp.y,
+              ep.x,
+              ep.y,
+              ep.status,
+            ),
           );
         }
       }

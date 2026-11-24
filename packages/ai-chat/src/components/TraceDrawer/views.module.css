@@ -140,6 +140,8 @@
 
 .graphGroup {
   position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-lg);
   background: color-mix(in srgb, var(--cd-color-surface-sunken) 78%, transparent);
@@ -157,11 +159,19 @@
 }
 
 .graphGroupHead {
-  height: 36px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  overflow: hidden;
   display: flex;
   align-items: center;
   padding: 0 var(--cd-space-2);
   border-bottom: 1px solid var(--cd-color-border-subtle);
+}
+
+.graphGroupHead[data-has-meta='true'] {
+  height: 62px;
 }
 
 .graphGroup[data-collapsed='true'] .graphGroupHead {
@@ -185,15 +195,52 @@
 }
 
 .groupHeadBtn {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 3px;
+  height: 100%;
+  overflow: hidden;
   cursor: pointer;
 }
 
+.groupHeadPrimary {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.groupHeadPrimary > svg {
+  flex-shrink: 0;
+}
+
+.groupHeadMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.groupAuditWrap {
+  flex: none;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .groupTitle {
+  flex-shrink: 0;
   font-weight: var(--cd-font-weight-bold);
   white-space: nowrap;
 }
 
 .groupSub {
+  margin-inline-start: auto;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -204,21 +251,30 @@
 
 .groupModelPill,
 .turnModelPill {
-  display: inline-flex;
-  align-items: center;
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding: 1px var(--cd-space-1-5);
   border-radius: var(--cd-radius-full);
   background: var(--cd-color-surface-sunken);
   color: var(--cd-color-text-muted);
   font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-xs);
+  line-height: 1.35;
   white-space: nowrap;
 }
 
 .groupSwitchPill,
 .turnSwitchPill {
-  display: inline-flex;
-  align-items: center;
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding: 1px var(--cd-space-1-5);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-full);
@@ -226,6 +282,7 @@
   color: var(--cd-color-accent-strong);
   font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-xs);
+  line-height: 1.35;
   white-space: nowrap;
 }
 

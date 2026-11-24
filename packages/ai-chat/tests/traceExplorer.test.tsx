@@ -774,6 +774,113 @@ describe('多轮切换模型与指纹验真分析', () => {
       );
     });
   });
+
+  it('混合底座会话仅按 Nomi 轮次窗口拉取网关请求、过滤孤儿 MAAS 499，并为切换胶囊提供完整 title', async () => {
+    const tAgy = T0;
+    const tNomi = T0 + 180_000;
+    const mixedMessages: ConvMessage[] = [
+      { id: 'm-u1', role: 'user', text: '船长英文', at: tAgy },
+      {
+        id: 'm-a1',
+        role: 'assistant',
+        text: 'Captain',
+        at: tAgy + 8300,
+        durationMs: 8300,
+        label: 'Antigravity',
+        model: 'gemini-4-neon-high',
+        raw: { runtimeBackend: 'antigravity' },
+      },
+      { id: 'm-u2', role: 'user', text: '我前面说的是啥', at: tNomi },
+      {
+        id: 'm-a2',
+        role: 'assistant',
+        text: '你前面问的是船长英文',
+        at: tNomi + 5600,
+        durationMs: 5600,
+        label: 'Nomi',
+        model: 'maas/deepseek-v4.1-flash',
+        raw: { runtimeBackend: 'api' },
+        usage: { inputTokens: 3700, outputTokens: 165 },
+      },
+    ];
+
+    fake = installFakeApi({
+      'quality.requests': () => ({
+        items: [
+          {
+            id: 'qr-nomi-ok',
+            layer: 'gateway',
+            ts: tNomi + 300,
+            client: 'nomi',
+            source: 'thirdParty',
+            provider: 'maas',
+            providerName: 'MAAS',
+            model: 'maas/deepseek-v4.1-flash',
+            upstreamModel: 'deepseek-v4.1-flash',
+            wire: 'chat',
+            mode: 'passthrough',
+            stream: true,
+            outcome: 'ok',
+            status: 200,
+            timing: { firstContentMs: 400, lastContentMs: 5000, endMs: 5200 },
+            tokens: { input: 3700, output: 165 },
+          },
+          {
+            id: 'qr-orphan-499',
+            layer: 'gateway',
+            ts: tAgy + 900_000,
+            client: 'nomi',
+            source: 'thirdParty',
+            provider: 'maas',
+            providerName: 'MAAS',
+            model: 'maas/deepseek-v4.1-flash',
+            upstreamModel: 'deepseek-v4.1-flash',
+            wire: 'chat',
+            mode: 'passthrough',
+            stream: true,
+            outcome: 'client-cancel',
+            status: 499,
+            timing: { endMs: 54 },
+            tokens: {},
+          },
+        ],
+      }),
+      'diagnostics.cliRecords': () => ({ records: [], capped: false }),
+      'harness.tabs': () => ({ tabs: [], activeTabId: 'main', running: 0, queued: 0 }),
+    });
+
+    render(
+      <HarnessTabsProvider>
+        <TraceModal
+          target={{
+            kind: 'session',
+            title: '混合底座排查',
+            messages: mixedMessages,
+            source: { kind: 'nomi' },
+          }}
+          onClose={vi.fn()}
+        />
+      </HarnessTabsProvider>,
+    );
+    await act(() => fake.settle());
+
+    // 1) quality.requests 仅针对 Nomi 轮次窗口查询，不拉取 Antigravity 轮次时段
+    const reqQueries = fake.inputs<{ from?: number; to?: number }>('quality.requests');
+    expect(reqQueries.length).toBeGreaterThanOrEqual(1);
+    for (const q of reqQueries) {
+      expect(q.from).toBeGreaterThanOrEqual(tNomi - 2000);
+      expect(q.to).toBeLessThanOrEqual(tNomi + 5600 + 2000);
+    }
+
+    // 2) 切换胶囊提供完整 title，避免截断后丢失完整模型信息
+    const switchPill = await waitFor(() => screen.getByTestId('graph-model-switch'));
+    expect(switchPill.getAttribute('title')).toContain('gemini-4-neon-high');
+    expect(switchPill.getAttribute('title')).toContain('deepseek-v4.1-flash');
+
+    // 3) 网关请求标签页计数与轨迹图口径一致（仅 1 条有效请求，过滤 499 孤儿请求）
+    const requestsTab = screen.getByRole('tab', { name: /网关请求/ });
+    expect(requestsTab.textContent).toContain('1');
+  });
 });
 
 describe('会话工作区 Tabs 内打开运行轨迹（不以弹窗遮罩误触关闭）', () => {
