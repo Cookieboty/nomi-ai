@@ -622,5 +622,7 @@
   "electron.common.install-tool-not-found": "{0} was not found, so the official install script cannot run. Please install {0} or run the command above in your terminal.",
   "electron.common.cli-did-not-switch-the": "{0} did not switch {1}: {2}",
   "electron.common.cli-local-auth-needs-sign-in": "{0} is not signed in yet. Open Settings → Models & Agents → {0} to complete official sign-in, or run {1} acp --login in a terminal.",
-  "electron.common.cli-local-auth-not-supported": "{0} does not support in-app official sign-in"
+  "electron.common.cli-local-auth-not-supported": "{0} does not support in-app official sign-in",
+  "electron.common.self-update-version-unchanged-fallback": "Self-update exited without changing version ({0}); trying the next update method...",
+  "electron.common.update-version-unchanged": "Command finished, but the detected version is still {0} (latest {1})"
 }

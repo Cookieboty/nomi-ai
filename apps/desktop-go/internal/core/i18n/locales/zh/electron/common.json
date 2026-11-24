@@ -622,5 +622,7 @@
   "electron.common.install-tool-not-found": "未找到 {0}，无法运行官方安装脚本。请先安装 {0}，或在终端手动执行上述命令。",
   "electron.common.cli-did-not-switch-the": "{0} 没有切换{1}：{2}",
   "electron.common.cli-local-auth-needs-sign-in": "{0} 还没有登录。请打开「设置 → 模型与 Agents → {0}」完成官方登录，或在终端运行 {1} acp --login。",
-  "electron.common.cli-local-auth-not-supported": "{0} 不支持应用内官方登录管理"
+  "electron.common.cli-local-auth-not-supported": "{0} 不支持应用内官方登录管理",
+  "electron.common.self-update-version-unchanged-fallback": "自更新命令已退出，但版本仍为 {0}，改用下一种方式继续更新…",
+  "electron.common.update-version-unchanged": "命令已执行完成，但检测到的版本仍为 {0}（最新版本 {1}）"
 }

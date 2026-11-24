@@ -13,6 +13,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ### Fixes
 
+- **cli:** 修复 MiniMax Code 在应用内更新始终卡在旧版本的问题
 - **preview:** YAML 文件的键与未加引号的值补上语法着色
 
 ### Maintenance

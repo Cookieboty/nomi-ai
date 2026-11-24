@@ -629,6 +629,15 @@ func (s *CliUpdateService) cacheLatest() (*util.Obj, error) {
 	return nil, errCuTypeError
 }
 
+func (s *CliUpdateService) cachedLatest(kind string) string {
+	lt, err := s.cacheLatest()
+	if err != nil || lt == nil {
+		return ""
+	}
+	v, _ := lt.Get(kind).(string)
+	return v
+}
+
 // cuNumber = Number(v)。
 func cuNumber(v any) float64 {
 	switch x := v.(type) {
@@ -1384,9 +1393,16 @@ func (s *CliUpdateService) inNpmQueue(scope string, onWait func(), fn func() (Cl
 }
 
 func (s *CliUpdateService) runJob(kind, scope string) *util.Obj {
-	if bin := ResolveCliBinAsync(kind); bin != "" && MockCliUpdate(bin, ReadVersionAsync(bin)) {
-		return cuResult(false, i18n.T("electron.common.mock-coding-assistant-is-not-updated-from-nomi"), "")
+	initialBin := ResolveCliBinAsync(kind)
+	initialVersion := ""
+	if initialBin != "" {
+		initialVersion = ReadVersionAsync(initialBin)
+		if MockCliUpdate(initialBin, initialVersion) {
+			return cuResult(false, i18n.T("electron.common.mock-coding-assistant-is-not-updated-from-nomi"), "")
+		}
 	}
+	targetLatest := s.cachedLatest(kind)
+	expectUpgrade := initialVersion != "" && targetLatest != "" && IsNewer(targetLatest, initialVersion)
 	planned := s.plan(kind, scope)
 	if len(planned.blocks) > 0 {
 		return cuResult(false, strings.Join(planned.blocks, "\n"), "")
@@ -1458,6 +1474,29 @@ func (s *CliUpdateService) runJob(kind, scope string) *util.Obj {
 			logs = append(logs, res.Output)
 		}
 		if res.Code != nil && *res.Code == 0 {
+			if recipe.Via == "self" && expectUpgrade {
+				ForgetMissingCliBins()
+				curBin := ResolveCliBinAsync(kind)
+				curVer := ""
+				if curBin != "" {
+					curVer = ReadVersionAsync(curBin)
+				}
+				if curVer == "" || !IsNewer(curVer, initialVersion) {
+					shown := curVer
+					if shown == "" {
+						shown = initialVersion
+					}
+					var msg string
+					if i < len(recipes)-1 {
+						msg = i18n.T("electron.common.self-update-version-unchanged-fallback", shown)
+					} else {
+						msg = i18n.T("electron.common.update-version-unchanged", shown, targetLatest)
+					}
+					logs = append(logs, msg)
+					logLine(msg)
+					continue
+				}
+			}
 			ok = true
 			usedScript = recipe.Via == "script"
 			break
@@ -1507,6 +1546,15 @@ func (s *CliUpdateService) runJob(kind, scope string) *util.Obj {
 		version = ReadVersionAsync(bin)
 	}
 	if !ok {
+		s.finishJob(kind, cuResult(false, log, version))
+		s.broadcast(util.NewObj("kind", kind, "mode", mode, "phase", "error", "message", log))
+		return cuResult(false, log, version)
+	}
+	if expectUpgrade && version != "" && !IsNewer(version, initialVersion) {
+		msg := i18n.T("electron.common.update-version-unchanged", version, targetLatest)
+		logs = append(logs, msg)
+		logLine(msg)
+		log = util.UTF16Tail(strings.Join(logs, "\n"), 8000)
 		s.finishJob(kind, cuResult(false, log, version))
 		s.broadcast(util.NewObj("kind", kind, "mode", mode, "phase", "error", "message", log))
 		return cuResult(false, log, version)

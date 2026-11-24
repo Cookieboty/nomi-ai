@@ -505,7 +505,6 @@
       "configPath": "~/.minimax/config.yaml",
       "host": {
         "minNode": 22,
-        "selfUpdate": "always",
         "vendor": "minimax",
         "acpArgs": ["acp"],
         "homeEnv": "MINIMAX_DATA_DIR",

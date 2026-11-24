@@ -551,3 +551,215 @@ func TestAntigravityOneClickScriptInstallAndUpdateFallback(t *testing.T) {
 		t.Fatalf("unexpected runner call sequence: %#v", ran)
 	}
 }
+
+type mockNpmProbe struct {
+	prefix string
+}
+
+func (m mockNpmProbe) NodeVersion() string  { return "26.12.1" }
+func (m mockNpmProbe) NodeBin() string      { return "/usr/bin/node" }
+func (m mockNpmProbe) NpmBin() string       { return "/usr/bin/npm" }
+func (m mockNpmProbe) NpmPrefix() string    { return m.prefix }
+func (m mockNpmProbe) CanWrite(string) bool { return true }
+
+func writeFakeCliBin(t *testing.T, dir, name, version string) string {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(dir, name)
+	script := "#!/bin/sh\necho " + version + "\n"
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return bin
+}
+
+func TestMinimaxUpdateRecipesUseNpmWithoutSelfUpdate(t *testing.T) {
+	if builtin.SelfUpdate("minimax") != "" {
+		t.Fatalf("minimax selfUpdate = %q, want empty so non-TTY updates use npm directly", builtin.SelfUpdate("minimax"))
+	}
+	for _, caseSpec := range []struct {
+		name, bin, method, scope string
+	}{
+		{"missing global", "", "unknown", "global"},
+		{"installed npm global", "/Users/u/.nvm/versions/node/v26.12.1/bin/mcode", "npm", "global"},
+		{"installed npm user", "/Users/u/.nvm/versions/node/v26.12.1/bin/mcode", "npm", "user"},
+	} {
+		recipes := UpdateRecipesForPlatform("minimax", caseSpec.bin, caseSpec.method, caseSpec.scope, "darwin")
+		if len(recipes) != 1 || recipes[0].Via != "npm" {
+			t.Fatalf("%s recipes = %#v, want single npm recipe", caseSpec.name, recipes)
+		}
+		argv := recipes[0].Argv
+		if len(argv) < 4 || argv[1] != "install" || argv[2] != "-g" || argv[3] != "@minimax-ai/code@latest" {
+			t.Fatalf("%s unexpected npm argv: %#v", caseSpec.name, argv)
+		}
+		if caseSpec.scope == "user" && (len(argv) != 6 || argv[4] != "--prefix" || argv[5] != UserPrefix()) {
+			t.Fatalf("%s missing --prefix %q in argv: %#v", caseSpec.name, UserPrefix(), argv)
+		}
+		if !IsAllowedUpdateArgv(argv) {
+			t.Fatalf("%s recipe rejected by whitelist: %#v", caseSpec.name, argv)
+		}
+	}
+
+	if runtime.GOOS == "windows" {
+		return
+	}
+	ResetCliBinCache()
+	t.Cleanup(ResetCliBinCache)
+	home := t.TempDir()
+	binDir := filepath.Join(home, "bin")
+	writeFakeCliBin(t, binDir, "mcode", "0.7.6")
+	t.Setenv("HOME", home)
+	t.Setenv("PATH", binDir)
+	t.Setenv("NOMI_MINIMAX_BIN", "")
+	t.Setenv("NOMI_USE_MOCK_CLI", "")
+
+	s, err := NewCliUpdateService(CliUpdateOptions{
+		Root:     t.TempDir(),
+		Platform: "darwin",
+		Probe:    mockNpmProbe{prefix: home},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	planned := jsrt.Call(func() cuPlanned { return s.plan("minimax", "global") })
+	if len(planned.blocks) > 0 {
+		t.Fatalf("unexpected blockers: %v", planned.blocks)
+	}
+	if len(planned.argv) < 4 || planned.argv[1] != "install" || planned.argv[3] != "@minimax-ai/code@latest" {
+		t.Fatalf("plan argv = %#v, want npm install @minimax-ai/code@latest", planned.argv)
+	}
+	var hasNode, hasNpm, hasWrite bool
+	for _, r := range planned.plan.Get("requirements").([]any) {
+		if o, ok := r.(*util.Obj); ok {
+			switch o.Get("id") {
+			case "node":
+				hasNode = true
+			case "npm":
+				hasNpm = true
+			case "write":
+				hasWrite = true
+			}
+		}
+	}
+	if !hasNode || !hasNpm || !hasWrite {
+		t.Fatalf("expected node/npm/write checks in plan requirements: %v", util.Stringify(planned.plan))
+	}
+}
+
+func TestSelfUpdateZeroExitUnchangedFallsBackToNpm(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX script fixture uses shell executable")
+	}
+	ResetCliBinCache()
+	t.Cleanup(ResetCliBinCache)
+
+	home := t.TempDir()
+	binDir := filepath.Join(home, "bin")
+	grokBin := writeFakeCliBin(t, binDir, "grok", "1.0.0")
+	t.Setenv("HOME", home)
+	t.Setenv("PATH", binDir)
+	t.Setenv("NOMI_GROK_BIN", "")
+	t.Setenv("NOMI_USE_MOCK_CLI", "")
+
+	var ran [][]string
+	s, err := NewCliUpdateService(CliUpdateOptions{
+		Root:     t.TempDir(),
+		Platform: "darwin",
+		Probe:    mockNpmProbe{prefix: home},
+		Runner: func(argv []string, _ func(string), _ int) *jsrt.Promise[CliRunOutput] {
+			ran = append(ran, append([]string{}, argv...))
+			p := jsrt.NewPromise[CliRunOutput]()
+			c0 := 0
+			if len(argv) == 2 && argv[1] == "update" {
+				// 模拟自更新退出码为 0，但未写入新版本
+				p.Resolve(CliRunOutput{Code: &c0, Output: "No interactive confirmation is available."})
+				return p
+			}
+			// 回退 npm 更新把版本升到 1.1.0
+			if err := os.WriteFile(grokBin, []byte("#!/bin/sh\necho 1.1.0\n"), 0o755); err != nil {
+				p.Resolve(CliRunOutput{Output: err.Error()})
+				return p
+			}
+			p.Resolve(CliRunOutput{Code: &c0, Output: "added 1 package"})
+			return p
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	latest := util.NewObj()
+	latest.Set("grok", "1.1.0")
+	s.cache = util.NewObj("checkedAt", cuNow(), "latest", latest)
+
+	res, err := jsrt.Block(jsrt.Call(func() *jsrt.Promise[*util.Obj] { return s.Run("grok", "global") }))
+	if err != nil {
+		t.Fatalf("Run grok: %v", err)
+	}
+	if res.Get("ok") != true || res.Get("version") != "1.1.0" {
+		t.Fatalf("result = %v, want ok=true version=1.1.0", util.Stringify(res))
+	}
+	if len(ran) != 2 || ran[0][1] != "update" || ran[1][1] != "install" {
+		t.Fatalf("expected [self update, npm install], got %#v", ran)
+	}
+}
+
+func TestUpdateFailsWhenVersionUnchangedButAllowsReinstallAtLatest(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX script fixture uses shell executable")
+	}
+	ResetCliBinCache()
+	t.Cleanup(ResetCliBinCache)
+
+	home := t.TempDir()
+	binDir := filepath.Join(home, "bin")
+	mcodeBin := writeFakeCliBin(t, binDir, "mcode", "0.7.6")
+	t.Setenv("HOME", home)
+	t.Setenv("PATH", binDir)
+	t.Setenv("NOMI_MINIMAX_BIN", "")
+	t.Setenv("NOMI_USE_MOCK_CLI", "")
+
+	s, err := NewCliUpdateService(CliUpdateOptions{
+		Root:     t.TempDir(),
+		Platform: "darwin",
+		Probe:    mockNpmProbe{prefix: home},
+		Runner: func(_ []string, _ func(string), _ int) *jsrt.Promise[CliRunOutput] {
+			p := jsrt.NewPromise[CliRunOutput]()
+			c0 := 0
+			p.Resolve(CliRunOutput{Code: &c0, Output: "up to date"})
+			return p
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	latest := util.NewObj()
+	latest.Set("minimax", "0.7.9")
+	s.cache = util.NewObj("checkedAt", cuNow(), "latest", latest)
+
+	// 1. 已知有新版 0.7.9，但跑完仍停在 0.7.6 → 应判失败并保留版本号与未变更说明
+	res, err := jsrt.Block(jsrt.Call(func() *jsrt.Promise[*util.Obj] { return s.Run("minimax", "global") }))
+	if err != nil {
+		t.Fatalf("Run minimax: %v", err)
+	}
+	if res.Get("ok") != false || res.Get("version") != "0.7.6" {
+		t.Fatalf("unchanged update result = %v, want ok=false version=0.7.6", util.Stringify(res))
+	}
+	logText, _ := res.Get("log").(string)
+	if !strings.Contains(logText, "0.7.6") || !strings.Contains(logText, "0.7.9") {
+		t.Fatalf("expected version-unchanged message in log, got %q", logText)
+	}
+
+	// 2. 本机已是最新 0.7.9 时点「重装最新」→ 版本不变不应误报失败
+	if err := os.WriteFile(mcodeBin, []byte("#!/bin/sh\necho 0.7.9\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	res2, err := jsrt.Block(jsrt.Call(func() *jsrt.Promise[*util.Obj] { return s.Run("minimax", "global") }))
+	if err != nil {
+		t.Fatalf("Reinstall minimax at latest: %v", err)
+	}
+	if res2.Get("ok") != true || res2.Get("version") != "0.7.9" {
+		t.Fatalf("reinstall result = %v, want ok=true version=0.7.9", util.Stringify(res2))
+	}
+}
