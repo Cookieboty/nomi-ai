@@ -266,6 +266,7 @@ export const GatewayProviderInput = loose({
 
 export const GatewayDetectInput = z.object({
   providerId: z.string().optional(),
+  presetId: z.string().optional(),
   url: z.string().optional(),
   urls: WireUrls.optional(),
   keys: z.array(z.string()).optional(),

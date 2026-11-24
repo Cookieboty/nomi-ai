@@ -22888,6 +22888,9 @@
      "providerId": {
       "type": "string"
      },
+     "presetId": {
+      "type": "string"
+     },
      "url": {
       "type": "string"
      },

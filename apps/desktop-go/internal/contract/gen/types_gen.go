@@ -8018,6 +8018,7 @@ type GatewayConfirmPrivateHostInput struct {
 
 type GatewayDetectInput struct {
 	ProviderId    *string           `json:"providerId,omitempty"`
+	PresetId      *string           `json:"presetId,omitempty"`
 	Url           *string           `json:"url,omitempty"`
 	Urls          map[string]string `json:"urls,omitempty"`
 	Keys          []string          `json:"keys,omitempty"`

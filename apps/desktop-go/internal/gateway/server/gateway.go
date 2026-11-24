@@ -7,7 +7,9 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/subtle"
+	"encoding/hex"
 	"errors"
 	"io"
 	"math"
@@ -1166,7 +1168,7 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 		return body
 	}
 	if ingress.CountTokens {
-		g.countTokens(res, cfg, ingress, bodyFor(r.Candidates[0]), r.Candidates[0])
+		g.countTokens(res, cfg, ingress, bodyFor(r.Candidates[0]), r.Candidates[0], client)
 		return
 	}
 
@@ -1208,6 +1210,15 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 	var held func()
 	session := SessionKey(ingress.Wire, req.Header, body, client, true)
 	owner := SessionKey(ingress.Wire, req.Header, body, client, false)
+	// 发送给上游的会话 ID 不能在关闭追踪且无用户消息时退化成空串；同时保持 g.affinity 只索引真实 session，不被随机 ID 污染。
+	reqSession := session
+	if reqSession == "" {
+		if trace != nil && trace.ID != "" {
+			reqSession = trace.ID
+		} else {
+			reqSession = fallbackSessionID()
+		}
+	}
 	stripAll := false
 	var sticky *AffinityTarget
 	if session != "" {
@@ -1283,7 +1294,7 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 			continue
 		}
 		effort := requestEffort(binding, req.Header.Get(models.ReasoningEffortHeader))
-		last = g.attempt(cfg, resolveAs, req, ingress, c, sendBody, wantsStream, abortCtx, startedAt, session, trace, effort)
+		last = g.attempt(cfg, resolveAs, req, ingress, c, sendBody, wantsStream, abortCtx, startedAt, reqSession, trace, effort)
 		if last.kind == "response" && wantsStream && isSseResponse(last.res) {
 			got := *last
 			{
@@ -1822,8 +1833,12 @@ func (g *GatewayServer) attempt(cfg *config.GatewayConfig, client string, req *h
 	var firstByteFired atomic.Bool
 	timer := time.AfterFunc(time.Duration(firstByteMs*float64(time.Millisecond)), func() { firstByteFired.Store(true); cancelBoth() })
 	sess := session
-	if sess == "" && trace != nil {
-		sess = trace.ID
+	if sess == "" {
+		if trace != nil && trace.ID != "" {
+			sess = trace.ID
+		} else {
+			sess = fallbackSessionID()
+		}
 	}
 	headers := upstream.Headers(c, upstream.HeaderOpts{Stream: wantsStream, ClientHeaders: nodeHeaders(req.Header), SameWire: ingress.Wire == c.Wire, Session: sess})
 	if trace != nil {
@@ -2208,8 +2223,17 @@ func (g *GatewayServer) respond(res *gwRes, ingress *upstream.Ingress, c *cand.C
 	return stamp(responded{usage: usage, outcome: "ok", streamed: false, fingerprint: jsonFP, firstContentAt: fp(bodyAt), lastContentAt: fp(bodyAt), firstTextAt: fp(bodyAt)})
 }
 
+// fallbackSessionID 在既无稳定会话键又未开启追踪时生成一次请求级兜底 ID，供重试 / 回退复用。
+func fallbackSessionID() string {
+	var b [12]byte
+	if _, err := rand.Read(b[:]); err == nil {
+		return "nomi:req:" + hex.EncodeToString(b[:])
+	}
+	return "nomi:req:" + strconv.FormatInt(time.Now().UnixNano(), 36)
+}
+
 // countTokens: forward when both sides are Messages, else estimate.
-func (g *GatewayServer) countTokens(res *gwRes, cfg *config.GatewayConfig, ingress *upstream.Ingress, body any, c *cand.Candidate) {
+func (g *GatewayServer) countTokens(res *gwRes, cfg *config.GatewayConfig, ingress *upstream.Ingress, body any, c *cand.Candidate, client string) {
 	if ingress.Wire == "messages" && c.Wire == "messages" {
 		if done := func() bool {
 			target := upstream.URL("messages", urlOf(c, "messages"), c.UpstreamModel, upstream.URLOpts{CountTokens: true})
@@ -2226,7 +2250,15 @@ func (g *GatewayServer) countTokens(res *gwRes, cfg *config.GatewayConfig, ingre
 			if err != nil {
 				return false
 			}
-			h := upstream.Headers(c, upstream.HeaderOpts{Stream: false, ClientHeaders: map[string]any{}, SameWire: true})
+			var reqHdr http.Header
+			if res != nil && res.req != nil {
+				reqHdr = res.req.Header
+			}
+			sess := SessionKey(ingress.Wire, reqHdr, body, client, true)
+			if sess == "" {
+				sess = fallbackSessionID()
+			}
+			h := upstream.Headers(c, upstream.HeaderOpts{Stream: false, ClientHeaders: map[string]any{}, SameWire: true, Session: sess})
 			for _, k := range h.Keys() {
 				if s, ok := h.Get(k).(string); ok {
 					hreq.Header[k] = []string{s}

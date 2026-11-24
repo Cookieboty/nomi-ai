@@ -5,6 +5,7 @@ package gwstore
 import (
 	"strconv"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/config"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/probe"
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
@@ -19,6 +20,7 @@ func ProbeDetect(in *u.Obj) (*u.Obj, error) {
 		o.Keys = append(o.Keys, probe.Key{ID: id, Value: v})
 	}
 	o.FallbackModel, _ = strOf(in.Get("fallbackModel"))
+	o.SessionHeader, _ = strOf(in.Get("sessionHeader"))
 	for _, h := range arr(in.Get("allowedPrivateHosts")) {
 		if s, ok := h.(string); ok {
 			o.AllowedPrivateHosts = append(o.AllowedPrivateHosts, s)
@@ -88,8 +90,25 @@ func (s *Service) Detect(input *u.Obj) (*u.Obj, error) {
 			keys = append(keys, u.NewObj("id", "new-"+strconv.Itoa(i), "value", t))
 		}
 	}
+	sessionHeader, _ := strOf(input.Get("sessionHeader"))
+	if sessionHeader == "" && saved != nil {
+		if q := s.Store.quirksOf(saved); q != nil {
+			sessionHeader, _ = strOf(q.Get("sessionHeader"))
+		}
+	}
+	if sessionHeader == "" {
+		if pid, ok := strOf(input.Get("presetId")); ok && pid != "" && s.Store.preset.Quirks != nil {
+			if q := s.Store.preset.Quirks(pid); q != nil {
+				sessionHeader, _ = strOf(q.Get("sessionHeader"))
+			}
+		}
+	}
+	sessionHeader = config.SanitizeHeaderName(sessionHeader)
 	in := u.NewObj("bases", bases, "keys", keys, "fallbackModel", input.Get("fallbackModel"),
 		"allowedPrivateHosts", s.Store.Snapshot().Get("allowedPrivateHosts"))
+	if sessionHeader != "" {
+		in.Set("sessionHeader", sessionHeader)
+	}
 	if s.rt != nil {
 		if st := s.rt.proc.GetStatus(); st.State == "running" {
 			in.Set("selfPort", float64(st.Port))

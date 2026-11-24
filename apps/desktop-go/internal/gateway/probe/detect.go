@@ -5,15 +5,19 @@ package probe
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"io"
 	"math"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	gwcfg "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/config"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/ir"
 	gwnet "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/upstream"
@@ -72,6 +76,8 @@ type Options struct {
 	Bases               *u.Obj
 	Keys                []Key
 	FallbackModel       string
+	// SessionHeader 指定协议探测请求应携带的会话头名（如 OpenCode Go 的 x-opencode-session）。
+	SessionHeader       string
 	TimeoutMs           int
 	Concurrency         int
 	FetchImpl           gwnet.UpstreamFetch
@@ -80,6 +86,14 @@ type Options struct {
 	LookupAll           gwnet.LookupAll
 	// Now = Date.now（测试注入）
 	Now func() float64
+}
+
+func newProbeSessionID() string {
+	var b [12]byte
+	if _, err := rand.Read(b[:]); err == nil {
+		return "nomi:probe:" + hex.EncodeToString(b[:])
+	}
+	return "nomi:probe:" + strconv.FormatInt(time.Now().UnixNano(), 36)
 }
 
 const timeoutMs = 15_000
@@ -405,7 +419,7 @@ func listModels(o *Options, key string) listed {
 
 func line(kv ...any) *u.Obj { return u.NewObj(kv...) }
 
-func probeWire(wire, base string, key Key, model, auth string, o *Options) *u.Obj {
+func probeWire(wire, base string, key Key, model, auth, sessionHeader, probeSession string, o *Options) *u.Obj {
 	t0 := o.now()
 	if model == "" {
 		return line("wire", wire, "url", base, "ok", false, "error", "没有可用来测试的模型名，请手动填写一个", "ms", float64(0))
@@ -426,6 +440,9 @@ func probeWire(wire, base string, key Key, model, auth string, o *Options) *u.Ob
 			return result{}, err
 		}
 		req.Header = authHeaders(wire, style, key.Value)
+		if sessionHeader != "" && probeSession != "" {
+			req.Header[sessionHeader] = []string{probeSession}
+		}
 		res, err := o.fetch()(req)
 		if err != nil {
 			return result{}, err
@@ -503,6 +520,11 @@ func Detect(o Options) *u.Obj {
 		keys = []Key{{ID: "none"}}
 	}
 	l := listModels(&o, keys[0].Value)
+	sessionHeader := gwcfg.SanitizeHeaderName(o.SessionHeader)
+	probeSession := ""
+	if sessionHeader != "" {
+		probeSession = newProbeSessionID()
+	}
 	byKey := u.NewObj()
 	var mu sync.Mutex
 	queue := append([]Key{}, keys...)
@@ -545,7 +567,7 @@ func Detect(o Options) *u.Obj {
 					lw.Add(1)
 					go func(i int, w, auth string) {
 						defer lw.Done()
-						lines[i] = probeWire(w, o.base(w), key, pickModel(w, l.models, o.FallbackModel), auth, &o)
+						lines[i] = probeWire(w, o.base(w), key, pickModel(w, l.models, o.FallbackModel), auth, sessionHeader, probeSession, &o)
 					}(i, w, auth)
 				}
 				lw.Wait()
@@ -572,7 +594,7 @@ func Detect(o Options) *u.Obj {
 						auth = l.auth
 					}
 					for _, model := range FallbackModels(w, l.models, tried, okModel, 2) {
-						if nx := probeWire(w, o.base(w), key, model, auth, &o); nx.Get("ok") == true {
+						if nx := probeWire(w, o.base(w), key, model, auth, sessionHeader, probeSession, &o); nx.Get("ok") == true {
 							lines[i] = nx
 							break
 						}
