@@ -66,6 +66,43 @@ func (l *Ledger) Delete(store *BindingStore, id string) (Entry, error) {
 	return copyEntry(next), nil
 }
 
+// Rewind atomically tombstones fromID and every subsequent live entry in product
+// order, invalidating bindings that claimed delivered history of any removed entry.
+func (l *Ledger) Rewind(store *BindingStore, fromID string) ([]Entry, error) {
+	if l == nil || store == nil {
+		return nil, errors.New("conversationruntime: nil ledger or store")
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	cur, ok := l.latest[fromID]
+	if !ok {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownEntry, fromID)
+	}
+	if cur.Tombstone {
+		return nil, fmt.Errorf("%w: %q is already tombstoned", ErrBadEdit, fromID)
+	}
+	if cur.Role != "user" {
+		return nil, fmt.Errorf("%w: rewind target %q must be a user entry", ErrBadEdit, fromID)
+	}
+	var removed []Entry
+	for _, id := range l.order {
+		e := l.latest[id]
+		if e.Order < cur.Order || e.Tombstone {
+			continue
+		}
+		next := copyEntry(e)
+		next.Text = ""
+		next.Tombstone = true
+		next.Revision = e.Revision + 1
+		invalidateClaims(store, e.ID, next.Revision)
+		l.put(next)
+		removed = append(removed, copyEntry(next))
+	}
+	return removed, nil
+}
+
 // invalidateClaims drops covered claims of entry id older than rev, marks
 // native state stale when affected, and records a boundary for all outstanding
 // plans. The store lock must be held.

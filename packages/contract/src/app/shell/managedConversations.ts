@@ -235,6 +235,16 @@ export const managedConversationProcedures = {
     surfaces: chat,
     dangerous: true,
   },
+  'conversations.runtimeRewind': {
+    kind: 'mutation',
+    input: id.extend({
+      messageId: z.string().min(1).max(256),
+      expectedGeneration: z.number().int().nonnegative().optional(),
+    }),
+    output: RuntimeState,
+    surfaces: chat,
+    dangerous: true,
+  },
   'conversations.runtimeRelease': { kind: 'mutation', input: id, output: z.void(), surfaces: chat },
   'conversations.runtimeUpdateMeta': {
     kind: 'mutation',

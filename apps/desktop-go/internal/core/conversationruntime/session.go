@@ -244,6 +244,36 @@ func (c *Session) Edit(id, text string) error {
 	return err
 }
 
+func (c *Session) Rewind(fromID string, expected *uint64) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.storageErr != nil {
+		return c.storageErr
+	}
+	if expected != nil && *expected != c.generation {
+		return ErrStaleEvent
+	}
+	if !c.idleLocked(false) {
+		return ErrBusy
+	}
+	if _, err := c.ledger.Rewind(c.bindings, fromID); err != nil {
+		return err
+	}
+	if c.active != nil {
+		c.active.cancel()
+		c.active = nil
+	}
+	for key, bid := range c.preferred {
+		b, ok := c.bindings.Get(bid)
+		if !ok || !b.Status.Safe() {
+			delete(c.preferred, key)
+		}
+	}
+	c.generation++
+	c.work = Activity{Known: true}
+	return c.persistLocked()
+}
+
 // Enqueue never runs a turn automatically. StartNext is an explicit operation;
 // duplicate queued/completed IDs cannot become an accidental second execution.
 func (c *Session) Enqueue(r Request) error {

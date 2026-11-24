@@ -941,3 +941,120 @@ func TestManagedTitlePrecedenceAndPostTurnDiskLookup(t *testing.T) {
 		t.Fatalf("manual title was overwritten: got %v", got)
 	}
 }
+
+func TestManagedIPCRewindAndResendFollowsCurrentBackendAndReopensCleanly(t *testing.T) {
+	dir := t.TempDir()
+	_, r, c := fixtureIngress(t, dir)
+	claudeFake, grokFake := &ingressFake{name: "claude"}, &ingressFake{name: "grok"}
+	r.Register("claude", claudeFake.target)
+	r.Register("grok", func(id string) (cr.Target, error) {
+		tgt, err := grokFake.target(id)
+		cfg := r.ConfigFor(id, "grok")
+		if cfg.Model != "" {
+			tgt.Env.Model = cfg.Model
+		}
+		return tgt, err
+	})
+
+	requireOK(t, c.call("conversations.put", `{"meta":{"id":"c","backend":"nomi","name":"rewind test","createdAt":1000,"updatedAt":1000},"messages":[]}`))
+	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"claude","confirm":true}`))
+	requireOK(t, sendIngress(t, c, "m1"))
+	requireOK(t, sendIngress(t, c, "m2"))
+	if claudeFake.count() != 2 {
+		t.Fatalf("expected 2 claude turns before switch, got %d", claudeFake.count())
+	}
+
+	// Switch to grok with explicit model and verify runtimeRewind rejects non-user IDs with BAD_INPUT.
+	g := generation(t, c)
+	requireOK(t, c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"c","backend":"grok","model":"grok-4.7-build-fast","confirm":true,"expectedGeneration":%d}`, g)))
+
+	msgsRaw := requireOK(t, c.call("conversations.messages", `{"id":"c"}`))
+	msgsBytes, _ := json.Marshal(msgsRaw)
+	var beforeMsgs struct {
+		Messages []struct {
+			ID      string `json:"id"`
+			Role    string `json:"role"`
+			Content string `json:"content"`
+		} `json:"messages"`
+	}
+	_ = json.Unmarshal(msgsBytes, &beforeMsgs)
+	if len(beforeMsgs.Messages) != 4 {
+		t.Fatalf("expected 4 projected messages before rewind, got %s", msgsBytes)
+	}
+	assistantID := beforeMsgs.Messages[3].ID
+	if bad := c.call("conversations.runtimeRewind", fmt.Sprintf(`{"id":"c","messageId":%q}`, assistantID)); bad.T != "err" || bad.Error.Code != "BAD_INPUT" {
+		t.Fatalf("expected BAD_INPUT when rewinding assistant message, got %+v", bad)
+	}
+
+	// Rewind from second user message m2.
+	g = generation(t, c)
+	rwRaw := requireOK(t, c.call("conversations.runtimeRewind", fmt.Sprintf(`{"id":"c","messageId":"m2","expectedGeneration":%d}`, g)))
+	rwBytes, _ := json.Marshal(rwRaw)
+	var rwState struct {
+		Backend    string
+		Model      string
+		Generation uint64
+		Phase      string
+	}
+	_ = json.Unmarshal(rwBytes, &rwState)
+	if rwState.Backend != "grok" || rwState.Model != "grok-4.7-build-fast" || rwState.Phase != "idle" {
+		t.Fatalf("unexpected state after rewind: %s", rwBytes)
+	}
+
+	afterRewindRaw := requireOK(t, c.call("conversations.messages", `{"id":"c"}`))
+	afterRewindBytes, _ := json.Marshal(afterRewindRaw)
+	var afterRewind struct {
+		Messages []struct {
+			ID      string `json:"id"`
+			Role    string `json:"role"`
+			Content string `json:"content"`
+		} `json:"messages"`
+	}
+	_ = json.Unmarshal(afterRewindBytes, &afterRewind)
+	if len(afterRewind.Messages) != 2 || afterRewind.Messages[0].ID != "m1" {
+		t.Fatalf("expected only first turn projected after rewind m2, got %s", afterRewindBytes)
+	}
+
+	// Resend edited second turn -> must execute on currently active grok backend, handing off only m1 turn.
+	requireOK(t, c.call("conversations.runtimeSend", fmt.Sprintf(`{"id":"c","messageId":"m2_edit","turnId":"t_m2_edit","text":"edited second prompt","expectedGeneration":%d}`, rwState.Generation)))
+	if grokFake.count() != 1 || claudeFake.count() != 2 {
+		t.Fatalf("resend did not execute exclusively on active backend grok: grok=%d claude=%d", grokFake.count(), claudeFake.count())
+	}
+	grokCall := grokFake.call(0)
+	if grokCall.Plan.RequestBody != "edited second prompt" {
+		t.Fatalf("unexpected resend request body: %q", grokCall.Plan.RequestBody)
+	}
+	if !strings.Contains(grokCall.Plan.Payload, "request m1") || strings.Contains(grokCall.Plan.Payload, "request m2") {
+		t.Fatalf("resend payload did not accurately carry post-rewind history: %s", grokCall.Plan.Payload)
+	}
+
+	// Release and reopen from durable managed-v2 document to verify persistence integrity.
+	requireOK(t, c.call("conversations.runtimeRelease", `{"id":"c"}`))
+	_, r2, c2 := fixtureIngress(t, dir)
+	r2.Register("claude", claudeFake.target)
+	r2.Register("grok", grokFake.target)
+	reopenedStateRaw := requireOK(t, c2.call("conversations.runtimeState", `{"id":"c"}`))
+	reopenedStateBytes, _ := json.Marshal(reopenedStateRaw)
+	var reopenedState struct {
+		Backend string
+		Phase   string
+	}
+	_ = json.Unmarshal(reopenedStateBytes, &reopenedState)
+	if reopenedState.Backend != "grok" || reopenedState.Phase != "completed" {
+		t.Fatalf("reopened runtime state mismatch: %s", reopenedStateBytes)
+	}
+	reopenedRaw := requireOK(t, c2.call("conversations.messages", `{"id":"c"}`))
+	reopenedBytes, _ := json.Marshal(reopenedRaw)
+	var reopened struct {
+		Messages []struct {
+			ID      string `json:"id"`
+			Role    string `json:"role"`
+			Content string `json:"content"`
+		} `json:"messages"`
+	}
+	_ = json.Unmarshal(reopenedBytes, &reopened)
+	if len(reopened.Messages) != 4 || reopened.Messages[2].ID != "m2_edit" || reopened.Messages[2].Content != "edited second prompt" {
+		t.Fatalf("reopened messages after rewind+resend mismatch: %s", reopenedBytes)
+	}
+}
+

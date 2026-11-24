@@ -266,6 +266,20 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 			return RuntimeView(registry, in.ID)
 		})
 	}
+	router.Call("conversations.runtimeRewind", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+		var in struct {
+			ID                 string  `json:"id"`
+			MessageID          string  `json:"messageId"`
+			ExpectedGeneration *uint64 `json:"expectedGeneration"`
+		}
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, badInput(err)
+		}
+		if err := registry.Rewind(in.ID, in.MessageID, in.ExpectedGeneration); err != nil {
+			return nil, runtimeFail(err)
+		}
+		return RuntimeView(registry, in.ID)
+	})
 	router.Call("conversations.runtimeUpdateMeta", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		var in struct {
 			ID         string          `json:"id"`

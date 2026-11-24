@@ -1005,6 +1005,17 @@ func (r *Registry) Edit(id, message, text string) error {
 	r.changed(id)
 	return err
 }
+func (r *Registry) Rewind(id, message string, expected *uint64) error {
+	a, err := r.get(id)
+	if err != nil {
+		return err
+	}
+	if err = a.session.Rewind(message, expected); err != nil {
+		return err
+	}
+	r.changed(id)
+	return nil
+}
 func (r *Registry) Release(id string) error {
 	r.mu.Lock()
 	if done := r.releasing[id]; done != nil {

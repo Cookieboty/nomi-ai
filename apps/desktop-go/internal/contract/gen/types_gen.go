@@ -3924,6 +3924,273 @@ type ConversationsRuntimeResolveOutput struct {
 	Capabilities    ConversationsRuntimeResolveOutputCapabilities          `json:"capabilities"`
 }
 
+type ConversationsRuntimeRewindInput struct {
+	Id                 string `json:"id"`
+	MessageId          string `json:"messageId"`
+	ExpectedGeneration *int64 `json:"expectedGeneration,omitempty"`
+}
+
+// ConversationsRuntimeRewindOutputSource 枚举：local | official | thirdParty
+type ConversationsRuntimeRewindOutputSource = string
+
+const (
+	ConversationsRuntimeRewindOutputSourceLocal      ConversationsRuntimeRewindOutputSource = "local"
+	ConversationsRuntimeRewindOutputSourceOfficial   ConversationsRuntimeRewindOutputSource = "official"
+	ConversationsRuntimeRewindOutputSourceThirdParty ConversationsRuntimeRewindOutputSource = "thirdParty"
+)
+
+// ConversationsRuntimeRewindOutputPhase 枚举：idle | preparing | running | completed | failed-pre-submit | canceling | canceled | uncertain
+type ConversationsRuntimeRewindOutputPhase = string
+
+const (
+	ConversationsRuntimeRewindOutputPhaseIdle            ConversationsRuntimeRewindOutputPhase = "idle"
+	ConversationsRuntimeRewindOutputPhasePreparing       ConversationsRuntimeRewindOutputPhase = "preparing"
+	ConversationsRuntimeRewindOutputPhaseRunning         ConversationsRuntimeRewindOutputPhase = "running"
+	ConversationsRuntimeRewindOutputPhaseCompleted       ConversationsRuntimeRewindOutputPhase = "completed"
+	ConversationsRuntimeRewindOutputPhaseFailedPreSubmit ConversationsRuntimeRewindOutputPhase = "failed-pre-submit"
+	ConversationsRuntimeRewindOutputPhaseCanceling       ConversationsRuntimeRewindOutputPhase = "canceling"
+	ConversationsRuntimeRewindOutputPhaseCanceled        ConversationsRuntimeRewindOutputPhase = "canceled"
+	ConversationsRuntimeRewindOutputPhaseUncertain       ConversationsRuntimeRewindOutputPhase = "uncertain"
+)
+
+type ConversationsRuntimeRewindOutputApprovalDetailsItem struct {
+	Id          string  `json:"id"`
+	Tool        *string `json:"tool,omitempty"`
+	Summary     *string `json:"summary,omitempty"`
+	ArgsPreview *string `json:"argsPreview,omitempty"`
+	Danger      *string `json:"danger,omitempty"`
+	Risk        *string `json:"risk,omitempty"`
+	Rationale   *string `json:"rationale,omitempty"`
+}
+
+type ConversationsRuntimeRewindOutputTraceItem struct {
+	Id      string  `json:"id"`
+	Kind    string  `json:"kind"`
+	Tool    *string `json:"tool,omitempty"`
+	Summary *string `json:"summary,omitempty"`
+	Status  *string `json:"status,omitempty"`
+	Detail  *string `json:"detail,omitempty"`
+	Output  *string `json:"output,omitempty"`
+	At      int64   `json:"at"`
+}
+
+type ConversationsRuntimeRewindOutputFailedRequest struct {
+	MessageId string   `json:"messageId"`
+	TurnId    string   `json:"turnId"`
+	Text      string   `json:"text"`
+	Images    []string `json:"images,omitempty"`
+}
+
+type ConversationsRuntimeRewindOutputToken struct {
+	ConversationId string `json:"conversationId"`
+	AttemptId      string `json:"attemptId"`
+	Generation     int64  `json:"generation"`
+}
+
+// ConversationsRuntimeRewindOutputRecovery 枚举：none | resumed | new | fallback | unknown | error
+type ConversationsRuntimeRewindOutputRecovery = string
+
+const (
+	ConversationsRuntimeRewindOutputRecoveryNone     ConversationsRuntimeRewindOutputRecovery = "none"
+	ConversationsRuntimeRewindOutputRecoveryResumed  ConversationsRuntimeRewindOutputRecovery = "resumed"
+	ConversationsRuntimeRewindOutputRecoveryNew      ConversationsRuntimeRewindOutputRecovery = "new"
+	ConversationsRuntimeRewindOutputRecoveryFallback ConversationsRuntimeRewindOutputRecovery = "fallback"
+	ConversationsRuntimeRewindOutputRecoveryUnknown  ConversationsRuntimeRewindOutputRecovery = "unknown"
+	ConversationsRuntimeRewindOutputRecoveryError    ConversationsRuntimeRewindOutputRecovery = "error"
+)
+
+// ConversationsRuntimeRewindOutputPendingSwitchPhase 枚举：saved-source | preparing-target | recovering-target | handoff | committing
+type ConversationsRuntimeRewindOutputPendingSwitchPhase = string
+
+const (
+	ConversationsRuntimeRewindOutputPendingSwitchPhaseSavedSource      ConversationsRuntimeRewindOutputPendingSwitchPhase = "saved-source"
+	ConversationsRuntimeRewindOutputPendingSwitchPhasePreparingTarget  ConversationsRuntimeRewindOutputPendingSwitchPhase = "preparing-target"
+	ConversationsRuntimeRewindOutputPendingSwitchPhaseRecoveringTarget ConversationsRuntimeRewindOutputPendingSwitchPhase = "recovering-target"
+	ConversationsRuntimeRewindOutputPendingSwitchPhaseHandoff          ConversationsRuntimeRewindOutputPendingSwitchPhase = "handoff"
+	ConversationsRuntimeRewindOutputPendingSwitchPhaseCommitting       ConversationsRuntimeRewindOutputPendingSwitchPhase = "committing"
+)
+
+type ConversationsRuntimeRewindOutputPendingSwitch struct {
+	Phase            ConversationsRuntimeRewindOutputPendingSwitchPhase `json:"phase"`
+	FromBackend      string                                             `json:"fromBackend"`
+	ToBackend        string                                             `json:"toBackend"`
+	ExpectedStrategy *string                                            `json:"expectedStrategy,omitempty"`
+	PlannedEntries   *int64                                             `json:"plannedEntries,omitempty"`
+	OmittedEntries   *int64                                             `json:"omittedEntries,omitempty"`
+	Reason           *string                                            `json:"reason,omitempty"`
+}
+
+// ConversationsRuntimeRewindOutputLastSwitchExpectedStrategy 枚举：none | delta | blocked | new_session
+type ConversationsRuntimeRewindOutputLastSwitchExpectedStrategy = string
+
+const (
+	ConversationsRuntimeRewindOutputLastSwitchExpectedStrategyNone       ConversationsRuntimeRewindOutputLastSwitchExpectedStrategy = "none"
+	ConversationsRuntimeRewindOutputLastSwitchExpectedStrategyDelta      ConversationsRuntimeRewindOutputLastSwitchExpectedStrategy = "delta"
+	ConversationsRuntimeRewindOutputLastSwitchExpectedStrategyBlocked    ConversationsRuntimeRewindOutputLastSwitchExpectedStrategy = "blocked"
+	ConversationsRuntimeRewindOutputLastSwitchExpectedStrategyNewSession ConversationsRuntimeRewindOutputLastSwitchExpectedStrategy = "new_session"
+)
+
+type ConversationsRuntimeRewindOutputLastSwitch struct {
+	FromBackend      string                                                     `json:"fromBackend"`
+	ToBackend        string                                                     `json:"toBackend"`
+	ExpectedStrategy ConversationsRuntimeRewindOutputLastSwitchExpectedStrategy `json:"expectedStrategy"`
+	PlannedEntries   int64                                                      `json:"plannedEntries"`
+	OmittedEntries   int64                                                      `json:"omittedEntries"`
+	ResumableBinding *string                                                    `json:"resumableBinding,omitempty"`
+	CommittedAt      int64                                                      `json:"committedAt"`
+}
+
+// ConversationsRuntimeRewindOutputCapabilitiesBridgesComputerStatus 枚举：native | bridged | degraded | unsupported
+type ConversationsRuntimeRewindOutputCapabilitiesBridgesComputerStatus = string
+
+const (
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesComputerStatusNative      ConversationsRuntimeRewindOutputCapabilitiesBridgesComputerStatus = "native"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesComputerStatusBridged     ConversationsRuntimeRewindOutputCapabilitiesBridgesComputerStatus = "bridged"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesComputerStatusDegraded    ConversationsRuntimeRewindOutputCapabilitiesBridgesComputerStatus = "degraded"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesComputerStatusUnsupported ConversationsRuntimeRewindOutputCapabilitiesBridgesComputerStatus = "unsupported"
+)
+
+type ConversationsRuntimeRewindOutputCapabilitiesBridgesComputer struct {
+	Status ConversationsRuntimeRewindOutputCapabilitiesBridgesComputerStatus `json:"status"`
+	Detail *string                                                           `json:"detail,omitempty"`
+}
+
+// ConversationsRuntimeRewindOutputCapabilitiesBridgesMcpStatus 枚举：native | bridged | degraded | unsupported
+type ConversationsRuntimeRewindOutputCapabilitiesBridgesMcpStatus = string
+
+const (
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesMcpStatusNative      ConversationsRuntimeRewindOutputCapabilitiesBridgesMcpStatus = "native"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesMcpStatusBridged     ConversationsRuntimeRewindOutputCapabilitiesBridgesMcpStatus = "bridged"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesMcpStatusDegraded    ConversationsRuntimeRewindOutputCapabilitiesBridgesMcpStatus = "degraded"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesMcpStatusUnsupported ConversationsRuntimeRewindOutputCapabilitiesBridgesMcpStatus = "unsupported"
+)
+
+type ConversationsRuntimeRewindOutputCapabilitiesBridgesMcp struct {
+	Status ConversationsRuntimeRewindOutputCapabilitiesBridgesMcpStatus `json:"status"`
+	Detail *string                                                      `json:"detail,omitempty"`
+}
+
+// ConversationsRuntimeRewindOutputCapabilitiesBridgesPersonaStatus 枚举：native | bridged | degraded | unsupported
+type ConversationsRuntimeRewindOutputCapabilitiesBridgesPersonaStatus = string
+
+const (
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesPersonaStatusNative      ConversationsRuntimeRewindOutputCapabilitiesBridgesPersonaStatus = "native"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesPersonaStatusBridged     ConversationsRuntimeRewindOutputCapabilitiesBridgesPersonaStatus = "bridged"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesPersonaStatusDegraded    ConversationsRuntimeRewindOutputCapabilitiesBridgesPersonaStatus = "degraded"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesPersonaStatusUnsupported ConversationsRuntimeRewindOutputCapabilitiesBridgesPersonaStatus = "unsupported"
+)
+
+type ConversationsRuntimeRewindOutputCapabilitiesBridgesPersona struct {
+	Status ConversationsRuntimeRewindOutputCapabilitiesBridgesPersonaStatus `json:"status"`
+	Detail *string                                                          `json:"detail,omitempty"`
+}
+
+// ConversationsRuntimeRewindOutputCapabilitiesBridgesMemoryStatus 枚举：native | bridged | degraded | unsupported
+type ConversationsRuntimeRewindOutputCapabilitiesBridgesMemoryStatus = string
+
+const (
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesMemoryStatusNative      ConversationsRuntimeRewindOutputCapabilitiesBridgesMemoryStatus = "native"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesMemoryStatusBridged     ConversationsRuntimeRewindOutputCapabilitiesBridgesMemoryStatus = "bridged"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesMemoryStatusDegraded    ConversationsRuntimeRewindOutputCapabilitiesBridgesMemoryStatus = "degraded"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesMemoryStatusUnsupported ConversationsRuntimeRewindOutputCapabilitiesBridgesMemoryStatus = "unsupported"
+)
+
+type ConversationsRuntimeRewindOutputCapabilitiesBridgesMemory struct {
+	Status ConversationsRuntimeRewindOutputCapabilitiesBridgesMemoryStatus `json:"status"`
+	Detail *string                                                         `json:"detail,omitempty"`
+}
+
+// ConversationsRuntimeRewindOutputCapabilitiesBridgesKnowledgeStatus 枚举：native | bridged | degraded | unsupported
+type ConversationsRuntimeRewindOutputCapabilitiesBridgesKnowledgeStatus = string
+
+const (
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesKnowledgeStatusNative      ConversationsRuntimeRewindOutputCapabilitiesBridgesKnowledgeStatus = "native"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesKnowledgeStatusBridged     ConversationsRuntimeRewindOutputCapabilitiesBridgesKnowledgeStatus = "bridged"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesKnowledgeStatusDegraded    ConversationsRuntimeRewindOutputCapabilitiesBridgesKnowledgeStatus = "degraded"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesKnowledgeStatusUnsupported ConversationsRuntimeRewindOutputCapabilitiesBridgesKnowledgeStatus = "unsupported"
+)
+
+type ConversationsRuntimeRewindOutputCapabilitiesBridgesKnowledge struct {
+	Status ConversationsRuntimeRewindOutputCapabilitiesBridgesKnowledgeStatus `json:"status"`
+	Detail *string                                                            `json:"detail,omitempty"`
+}
+
+// ConversationsRuntimeRewindOutputCapabilitiesBridgesSkillsStatus 枚举：native | bridged | degraded | unsupported
+type ConversationsRuntimeRewindOutputCapabilitiesBridgesSkillsStatus = string
+
+const (
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesSkillsStatusNative      ConversationsRuntimeRewindOutputCapabilitiesBridgesSkillsStatus = "native"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesSkillsStatusBridged     ConversationsRuntimeRewindOutputCapabilitiesBridgesSkillsStatus = "bridged"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesSkillsStatusDegraded    ConversationsRuntimeRewindOutputCapabilitiesBridgesSkillsStatus = "degraded"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesSkillsStatusUnsupported ConversationsRuntimeRewindOutputCapabilitiesBridgesSkillsStatus = "unsupported"
+)
+
+type ConversationsRuntimeRewindOutputCapabilitiesBridgesSkills struct {
+	Status ConversationsRuntimeRewindOutputCapabilitiesBridgesSkillsStatus `json:"status"`
+	Detail *string                                                         `json:"detail,omitempty"`
+}
+
+// ConversationsRuntimeRewindOutputCapabilitiesBridgesAttachmentsStatus 枚举：native | bridged | degraded | unsupported
+type ConversationsRuntimeRewindOutputCapabilitiesBridgesAttachmentsStatus = string
+
+const (
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesAttachmentsStatusNative      ConversationsRuntimeRewindOutputCapabilitiesBridgesAttachmentsStatus = "native"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesAttachmentsStatusBridged     ConversationsRuntimeRewindOutputCapabilitiesBridgesAttachmentsStatus = "bridged"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesAttachmentsStatusDegraded    ConversationsRuntimeRewindOutputCapabilitiesBridgesAttachmentsStatus = "degraded"
+	ConversationsRuntimeRewindOutputCapabilitiesBridgesAttachmentsStatusUnsupported ConversationsRuntimeRewindOutputCapabilitiesBridgesAttachmentsStatus = "unsupported"
+)
+
+type ConversationsRuntimeRewindOutputCapabilitiesBridgesAttachments struct {
+	Status ConversationsRuntimeRewindOutputCapabilitiesBridgesAttachmentsStatus `json:"status"`
+	Detail *string                                                              `json:"detail,omitempty"`
+}
+
+type ConversationsRuntimeRewindOutputCapabilitiesBridges struct {
+	Computer    ConversationsRuntimeRewindOutputCapabilitiesBridgesComputer    `json:"computer"`
+	Mcp         ConversationsRuntimeRewindOutputCapabilitiesBridgesMcp         `json:"mcp"`
+	Persona     ConversationsRuntimeRewindOutputCapabilitiesBridgesPersona     `json:"persona"`
+	Memory      ConversationsRuntimeRewindOutputCapabilitiesBridgesMemory      `json:"memory"`
+	Knowledge   ConversationsRuntimeRewindOutputCapabilitiesBridgesKnowledge   `json:"knowledge"`
+	Skills      ConversationsRuntimeRewindOutputCapabilitiesBridgesSkills      `json:"skills"`
+	Attachments ConversationsRuntimeRewindOutputCapabilitiesBridgesAttachments `json:"attachments"`
+}
+
+type ConversationsRuntimeRewindOutputCapabilities struct {
+	Resume          bool                                                 `json:"resume"`
+	Cancel          bool                                                 `json:"cancel"`
+	Approval        bool                                                 `json:"approval"`
+	Attachments     bool                                                 `json:"attachments"`
+	PermissionModes []string                                             `json:"permissionModes"`
+	Degraded        []string                                             `json:"degraded"`
+	Bridges         *ConversationsRuntimeRewindOutputCapabilitiesBridges `json:"bridges,omitempty"`
+}
+
+type ConversationsRuntimeRewindOutput struct {
+	Id              string                                                `json:"id"`
+	Backend         string                                                `json:"backend"`
+	Source          *ConversationsRuntimeRewindOutputSource               `json:"source,omitempty"`
+	Generation      int64                                                 `json:"generation"`
+	Phase           ConversationsRuntimeRewindOutputPhase                 `json:"phase"`
+	Queued          int64                                                 `json:"queued"`
+	Partial         string                                                `json:"partial"`
+	Thinking        *string                                               `json:"thinking,omitempty"`
+	ThinkingActive  *bool                                                 `json:"thinkingActive,omitempty"`
+	Detail          string                                                `json:"detail"`
+	Approvals       []string                                              `json:"approvals"`
+	ApprovalDetails []ConversationsRuntimeRewindOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
+	Trace           []ConversationsRuntimeRewindOutputTraceItem           `json:"trace,omitempty"`
+	FailedRequest   *ConversationsRuntimeRewindOutputFailedRequest        `json:"failedRequest,omitempty"`
+	Model           *string                                               `json:"model,omitempty"`
+	AccountId       *string                                               `json:"accountId,omitempty"`
+	PermissionMode  *string                                               `json:"permissionMode,omitempty"`
+	Effort          *string                                               `json:"effort,omitempty"`
+	Token           *ConversationsRuntimeRewindOutputToken                `json:"token,omitempty"`
+	Recovery        ConversationsRuntimeRewindOutputRecovery              `json:"recovery"`
+	PendingSwitch   *ConversationsRuntimeRewindOutputPendingSwitch        `json:"pendingSwitch,omitempty"`
+	LastSwitch      *ConversationsRuntimeRewindOutputLastSwitch           `json:"lastSwitch,omitempty"`
+	Capabilities    ConversationsRuntimeRewindOutputCapabilities          `json:"capabilities"`
+}
+
 type ConversationsRuntimeSelectInput struct {
 	Id      string `json:"id"`
 	Backend string `json:"backend"`
@@ -16147,6 +16414,10 @@ type ConversationsRuntimeReleaseOutputT = any
 // ConversationsRuntimeResolveInputT 是 conversations.runtimeResolve 的入参
 type ConversationsRuntimeResolveInputT = ConversationsRuntimeResolveInput
 type ConversationsRuntimeResolveOutputT = ConversationsRuntimeResolveOutput
+
+// ConversationsRuntimeRewindInputT 是 conversations.runtimeRewind 的入参
+type ConversationsRuntimeRewindInputT = ConversationsRuntimeRewindInput
+type ConversationsRuntimeRewindOutputT = ConversationsRuntimeRewindOutput
 
 // ConversationsRuntimeSelectInputT 是 conversations.runtimeSelect 的入参
 type ConversationsRuntimeSelectInputT = ConversationsRuntimeSelectInput
