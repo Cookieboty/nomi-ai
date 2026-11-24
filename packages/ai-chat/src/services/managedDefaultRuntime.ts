@@ -11,9 +11,22 @@ type ManagedPrefStore = Pick<
   'flush' | 'hasMessages' | 'isManaged' | 'refreshManaged'
 >;
 
+const PREFERRED_MANAGED_MODES = ['auto', 'acceptEdits', 'ask'] as const;
+
+export function defaultManagedPermissionMode(
+  modes: readonly string[] | undefined,
+): string | undefined {
+  if (!modes?.length) return undefined;
+  for (const want of PREFERRED_MANAGED_MODES) {
+    if (modes.includes(want)) return want;
+  }
+  return modes[0];
+}
+
 export function buildManagedRuntimeInitFromPref(
   pref: ManagedBackendDefaultPref | undefined,
   choice?: Pick<RuntimeChoiceView, 'permissionModes'>,
+  options?: { includePermissionMode?: boolean },
 ): Partial<Omit<ManagedSwitchInput, 'backend'>> {
   if (!pref) return {};
   const out: Partial<Omit<ManagedSwitchInput, 'backend'>> = {};
@@ -37,6 +50,7 @@ export function buildManagedRuntimeInitFromPref(
     out.accountId = pref.accountId;
   }
   if (
+    options?.includePermissionMode !== false &&
     pref.permissionMode &&
     pref.permissionMode !== 'bypass' &&
     (!choice?.permissionModes?.length || choice.permissionModes.includes(pref.permissionMode))

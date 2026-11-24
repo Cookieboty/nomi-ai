@@ -21,7 +21,10 @@ import { useNomiProject } from '../../hooks/useNomiProject';
 import type { ConversationStore } from '../../services/conversationStore';
 import { gatewayClientAvailable } from '../../services/gatewayClient';
 import { MAIN_TAB_ID, harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
-import { applyManagedDefaultToConversation } from '../../services/managedDefaultRuntime';
+import {
+  applyManagedDefaultToConversation,
+  defaultManagedPermissionMode,
+} from '../../services/managedDefaultRuntime';
 import { useProject } from '../../services/projects';
 import type { IPCClient } from '../../types/ipc';
 import { BranchPicker } from '../BranchPicker';
@@ -93,7 +96,10 @@ export const EndpointControls: React.FC<{
     managedView && managedModes.length > 0
       ? {
           backend: managedView.backend,
-          mode: managedView.permissionMode || managedModes[0]!,
+          mode:
+            managedView.permissionMode ||
+            defaultManagedPermissionMode(managedModes) ||
+            managedModes[0]!,
           modes: managedModes,
           disabled: !managed!.idle,
           onChange: (nextMode: string) => {

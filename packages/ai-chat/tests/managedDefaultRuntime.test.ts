@@ -9,6 +9,7 @@ import {
 import {
   applyManagedDefaultToConversation,
   buildManagedRuntimeInitFromPref,
+  defaultManagedPermissionMode,
 } from '../src/services/managedDefaultRuntime';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
@@ -102,6 +103,31 @@ describe('managed default runtime preference and new conversation adoption', () 
       source: 'local',
       effort: 'medium',
     });
+
+    expect(
+      buildManagedRuntimeInitFromPref(
+        {
+          source: 'local',
+          model: 'model-x',
+          effort: 'high',
+          permissionMode: 'ask',
+        },
+        { permissionModes: ['ask', 'auto'] },
+        { includePermissionMode: false },
+      ),
+    ).toEqual({
+      source: 'local',
+      model: 'model-x',
+      effort: 'high',
+    });
+
+    expect(defaultManagedPermissionMode(['deny', 'ask', 'acceptEdits', 'auto', 'bypass'])).toBe(
+      'auto',
+    );
+    expect(defaultManagedPermissionMode(['deny', 'acceptEdits', 'bypass'])).toBe('acceptEdits');
+    expect(defaultManagedPermissionMode(['deny', 'ask'])).toBe('ask');
+    expect(defaultManagedPermissionMode(['deny'])).toBe('deny');
+    expect(defaultManagedPermissionMode([])).toBeUndefined();
   });
 
   it('auto-adopts new empty conversation with remembered backend, model, effort, source and permissionMode', async () => {
