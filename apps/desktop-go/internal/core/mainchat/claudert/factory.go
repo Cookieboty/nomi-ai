@@ -10,8 +10,98 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/claude"
+	sh "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
 )
+
+// PermissionModes 返回 Claude Code 底座支持的产品侧权限档位列表。
+func PermissionModes() []string {
+	supported := claude.Permissions.Supported
+	seen := make(map[string]struct{}, len(supported))
+	modes := make([]string, 0, len(supported))
+	for _, raw := range supported {
+		mode := toManagedPermissionMode(raw)
+		if mode == "" {
+			continue
+		}
+		if _, ok := seen[mode]; ok {
+			continue
+		}
+		seen[mode] = struct{}{}
+		modes = append(modes, mode)
+	}
+	if len(modes) == 0 {
+		return []string{"ask"}
+	}
+	return modes
+}
+
+func toManagedPermissionMode(cliMode string) string {
+	switch cliMode {
+	case "plan", "deny":
+		return "deny"
+	case "manual", "ask":
+		return "ask"
+	case "acceptEdits":
+		return "acceptEdits"
+	case "auto":
+		return "auto"
+	case "bypass":
+		return "bypass"
+	default:
+		return ""
+	}
+}
+
+func toCliPermissionMode(managedMode string) string {
+	switch managedMode {
+	case "deny", "plan":
+		return "plan"
+	case "ask", "manual":
+		return "manual"
+	case "acceptEdits":
+		return "acceptEdits"
+	case "auto", "":
+		return "auto"
+	case "bypass":
+		return "bypass"
+	default:
+		return "manual"
+	}
+}
+
+func defaultPermissionMode() string {
+	supported := PermissionModes()
+	for _, want := range []string{"auto", "acceptEdits", "ask"} {
+		for _, m := range supported {
+			if m == want {
+				return want
+			}
+		}
+	}
+	return supported[0]
+}
+
+func effectivePermissionMode(mode string) string {
+	if mode == "" {
+		return defaultPermissionMode()
+	}
+	return mode
+}
+
+func effectiveNativeMode(permMode, source string) string {
+	cliMode := toCliPermissionMode(effectivePermissionMode(permMode))
+	native := sh.ClaudeMode[cliMode]
+	if native == "" {
+		native = "default"
+	}
+	// Claude 原生 auto 依赖官方服务端分类器；第三方网关统一降级为 acceptEdits。
+	if source == "thirdParty" && native == "auto" {
+		return "acceptEdits"
+	}
+	return native
+}
 
 type ComputerMcpConfig struct {
 	Name    string
@@ -115,10 +205,7 @@ func (f *Factory) Target(id string) (cr.Target, error) {
 	identity := cr.NativeIdentity{DriverID: "claude", Transport: "official-stream-json", DriverVersion: "contract-2.1.318-v1", ResumeProtocol: "confirmed-warm-only-v1", Executable: cfg.Executable, Source: source, AccountID: accountID, ConfigDir: cfg.ConfigDir, Cwd: cfg.Cwd, ConfigGen: 1, ExecutableSize: bin.Size(), ExecutableMtimeMS: bin.ModTime().UnixMilli(), LaunchFingerprint: fingerprint}
 	// Executable replacement is a different compatibility key, never a native-ID overwrite.
 	identity.DriverVersion += fmt.Sprintf(":%d:%d", bin.Size(), bin.ModTime().UnixNano())
-	mode := cfg.PermissionMode
-	if mode == "" {
-		mode = "ask"
-	}
+	mode := effectivePermissionMode(cfg.PermissionMode)
 	env := cr.CompatibilityKey{Model: cfg.Model, PermissionMode: mode}
 	if env.Model == "" {
 		env.Model = "cli-default"

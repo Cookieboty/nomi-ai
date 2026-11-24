@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/codex"
@@ -24,6 +25,7 @@ type worker struct {
 	child                *nodeproc.Child
 	driver               *drivers.AppServerDriver
 	sid, stderr, failure string
+	permissionMode       string
 	closed               chan struct{}
 	closeOnce            sync.Once
 	active               *turn
@@ -33,21 +35,31 @@ type worker struct {
 	methods map[string]bool
 }
 
-// officialArgs assembles the pinned official app-server argv. The subcommand
-// is always last; OfficialLaunch flags (still read-only, never auto-approve)
-// go before it. Nothing enables computer use, writable roots or auto review.
+// officialArgs assembles the official app-server argv matching the selected permission policy.
+// The subcommand "app-server" is always last.
 func officialArgs(cfg Config) []string {
+	permMode := effectivePermissionMode(cfg.PermissionMode)
+	cliMode := toCliPermissionMode(permMode)
+	prefix := []string{"-c", "analytics.enabled=false"}
+	if permMode == "deny" {
+		prefix = []string{"-s", "read-only", "-a", "never", "-c", "analytics.enabled=false"}
+	}
 	model := cfg.Model
 	if model == "cli-default" {
 		model = ""
 	}
 	if cfg.Source == "thirdParty" {
-		args := append([]string{}, OfficialAppServerArgs[:len(OfficialAppServerArgs)-1]...)
+		args := append([]string{}, prefix...)
+		if cfg.Effort != "" {
+			args = append(args, "-c", `model_reasoning_effort="`+cfg.Effort+`"`)
+		}
+		permArgs, _ := codex.Permissions.Launch(cliMode, nil)
+		args = append(args, permArgs...)
 		args = append(args, cfg.ExtraArgs...)
 		if model != "" && !cfg.ModelInConfig {
 			args = append(args, "-c", `model="`+model+`"`)
 		}
-		args = append(args, OfficialAppServerArgs[len(OfficialAppServerArgs)-1])
+		args = append(args, "app-server")
 		return args
 	}
 	var modelPtr *string
@@ -58,14 +70,14 @@ func officialArgs(cfg Config) []string {
 	if cfg.Source != "local" && cfg.ConfigDir != "" {
 		accountDir = &cfg.ConfigDir
 	}
-	launch := codex.OfficialLaunch(clisdk.LaunchContext{Cwd: cfg.Cwd, PermissionMode: "manual", Model: modelPtr, AccountDir: accountDir})
-	args := append([]string{}, OfficialAppServerArgs[:len(OfficialAppServerArgs)-1]...)
+	launch := codex.OfficialLaunch(clisdk.LaunchContext{Cwd: cfg.Cwd, PermissionMode: cliMode, Model: modelPtr, AccountDir: accountDir})
+	args := append([]string{}, prefix...)
 	if cfg.Effort != "" {
 		args = append(args, "-c", `model_reasoning_effort="`+cfg.Effort+`"`)
 	}
 	args = append(args, launch.Args...)
 	args = append(args, cfg.ExtraArgs...)
-	args = append(args, OfficialAppServerArgs[len(OfficialAppServerArgs)-1])
+	args = append(args, "app-server")
 	return args
 }
 
@@ -97,7 +109,7 @@ func officialEnv(cfg Config) []string {
 		if cfg.Source != "local" && cfg.ConfigDir != "" {
 			accountDir = &cfg.ConfigDir
 		}
-		launch := codex.OfficialLaunch(clisdk.LaunchContext{Cwd: cfg.Cwd, PermissionMode: "manual", Model: modelPtr, AccountDir: accountDir})
+		launch := codex.OfficialLaunch(clisdk.LaunchContext{Cwd: cfg.Cwd, PermissionMode: toCliPermissionMode(effectivePermissionMode(cfg.PermissionMode)), Model: modelPtr, AccountDir: accountDir})
 		for _, k := range strippedEnv {
 			if cfg.Source == "local" && k == "CODEX_HOME" {
 				continue
@@ -134,18 +146,34 @@ func officialEnv(cfg Config) []string {
 	return env
 }
 
+func appendCappedStderr(cur, chunk string, limit int) string {
+	const suffix = "\n[truncated]"
+	if len(cur) >= limit || strings.HasSuffix(cur, suffix) {
+		return cur
+	}
+	remain := limit - len(cur)
+	if len(chunk) <= remain {
+		return cur + chunk
+	}
+	cut := remain
+	for cut > 0 && !utf8.ValidString(chunk[:cut]) {
+		cut--
+	}
+	return cur + chunk[:cut] + suffix
+}
+
 func (r *Runtime) spawn() *worker {
 	cfg := r.config
 	args := officialArgs(cfg)
 	env := officialEnv(cfg)
-	w := &worker{closed: make(chan struct{}), onTitle: r.emitTitle}
+	w := &worker{
+		permissionMode: effectivePermissionMode(cfg.PermissionMode),
+		closed:         make(chan struct{}),
+		onTitle:        r.emitTitle,
+	}
 	w.child = nodeproc.Spawn(cfg.Executable, args, nodeproc.Options{Cwd: cfg.Cwd, Env: env, Detached: true})
 	w.child.OnStderr(func(chunk string) {
-		if len(w.stderr)+len(chunk) > 8192 {
-			w.stderr = "[truncated]"
-			return
-		}
-		w.stderr += chunk
+		w.stderr = appendCappedStderr(w.stderr, chunk, 8192)
 	})
 	w.child.OnClose(func(*int, string) { w.closeOnce.Do(func() { close(w.closed) }) })
 	bounded := newBoundedChild(w)
@@ -155,17 +183,32 @@ func (r *Runtime) spawn() *worker {
 		NewID: func() string { return uuid.NewString() },
 		MapItem: func(phase string, item drivers.Json) []drivers.Json {
 			w.inspectItem(phase, item)
+			if item == nil {
+				return nil
+			}
+			itemType, _ := item.Get("type").(string)
+			isAgentMsg := itemType == "agentMessage"
+			if isAgentMsg && (phase != "completed" || (w.active != nil && w.active.text != "")) {
+				return nil
+			}
+			mapped := drivers.CodexExecItem(item)
+			if mapped == nil {
+				return nil
+			}
 			typ := "item.completed"
 			if phase == "started" {
 				typ = "item.started"
 			}
-			raw, err := json.Marshal(util.NewObj("type", typ, "item", item))
+			raw, err := json.Marshal(util.NewObj("type", typ, "item", mapped))
 			if err != nil {
 				return nil
 			}
 			evs := codex.ParseLine(string(raw))
 			out := make([]drivers.Json, 0, len(evs))
 			for _, ev := range evs {
+				if ev.Get("type") == "done" {
+					continue
+				}
 				out = append(out, ev)
 			}
 			return out
@@ -186,11 +229,78 @@ func (r *Runtime) spawn() *worker {
 			if m, _ := ev.Get("method").(string); m != "" && w.methods != nil {
 				w.methods[m] = true
 			}
-		case "permission", "question":
+		case "permission":
+			if w.permissionMode == "deny" {
+				w.fail("unsupported native approval/question; never auto-approved")
+				return
+			}
+			w.onPermission(ev)
+		case "question":
 			w.fail("unsupported native approval/question; never auto-approved")
 		}
 	})
 	return w
+}
+
+func (w *worker) queue(e cr.Event) {
+	t := w.active
+	if t == nil {
+		return
+	}
+	select {
+	case t.events <- e:
+	default:
+		w.fail("native event queue exceeds limit")
+	}
+}
+
+func codexApprovalToolName(method, summary string) string {
+	switch method {
+	case "item/commandExecution/requestApproval":
+		return "bash"
+	case "item/fileChange/requestApproval":
+		return "apply_patch"
+	default:
+		if strings.TrimSpace(summary) != "" {
+			return summary
+		}
+		return "codex"
+	}
+}
+
+func (w *worker) onPermission(se clisdk.SessionEvent) {
+	t := w.active
+	if t == nil || !t.started {
+		w.fail("unsolicited native permission outside active turn")
+		return
+	}
+	id := util.Str(se.Get("id"))
+	if id == "" {
+		w.fail("native permission missing id")
+		return
+	}
+	if _, exists := t.approvals[id]; exists {
+		w.fail("duplicate native approval")
+		return
+	}
+	req := util.AsObj(se.Get("request"))
+	summary := util.Str(req.Get("summary"))
+	method := util.Str(req.Get("method"))
+	if summary == "" {
+		summary = "tool action"
+	}
+	toolName := codexApprovalToolName(method, summary)
+	t.approvals[id] = req
+	e := event(t, cr.EventApproval)
+	e.ApprovalID = id
+	e.ApprovalInfo = &cr.ApprovalInfo{
+		ID:      id,
+		Tool:    toolName,
+		Summary: summary,
+		Danger:  "destructive",
+		Risk:    "high",
+	}
+	w.queue(e)
 }
 
 func (w *worker) kill() {
@@ -241,7 +351,9 @@ func (w *worker) inspectItem(phase string, item drivers.Json) {
 	case "collabAgentToolCall", "subAgentActivity", "subagent":
 		w.fail("unsupported native subagent/collab tool")
 	case "commandExecution", "fileChange", "mcpToolCall", "dynamicToolCall", "webSearch":
-		w.fail("unsupported native tool; never auto-approved")
+		if w.permissionMode == "deny" {
+			w.fail("unsupported native tool; never auto-approved")
+		}
 	}
 }
 
@@ -271,13 +383,53 @@ func (w *worker) parsed(ev *util.Obj) {
 		return
 	}
 	switch typ {
-	case "error", "question", "agent":
+	case "error":
+		msg := strings.TrimSpace(util.Str(ev.Get("message")))
+		if msg == "" {
+			msg = "native error event"
+		}
+		w.fail(msg)
+		return
+	case "question", "agent":
 		w.fail("native error or unsupported interactive/background capability")
 		return
-	case "permission", "tool":
+	case "permission":
 		t.unsupported = true
 		w.fail("unsupported native approval/tool; never auto-approved")
 		return
+	case "tool":
+		if w.permissionMode == "deny" {
+			t.unsupported = true
+			w.fail("unsupported native approval/tool; never auto-approved")
+			return
+		}
+		t.clearThinking()
+		name := util.Str(ev.Get("name"))
+		id := util.Str(ev.Get("id"))
+		if id == "" {
+			id = util.Str(ev.Get("detail"))
+		}
+		if id == "" {
+			id = name
+		}
+		if id != "" && name != "" {
+			detail := util.Str(ev.Get("input"))
+			if detail == "" {
+				detail = util.Str(ev.Get("detail"))
+			}
+			te := event(t, cr.EventTrace)
+			te.Trace = &cr.TraceEntry{
+				ID:      id,
+				Kind:    "tool",
+				Tool:    name,
+				Summary: name,
+				Detail:  detail,
+				Output:  util.Str(ev.Get("output")),
+				Status:  util.Str(ev.Get("status")),
+				At:      time.Now().UnixMilli(),
+			}
+			w.queue(te)
+		}
 	case "done":
 		t.clearThinking()
 		t.terminal = true

@@ -67,6 +67,7 @@ type Registry struct {
 	releases               map[string]func(string)
 	releasing              map[string]chan struct{}
 	probe                  func(string) []RuntimeChoice
+	permModes              func(string) []string
 }
 
 func New(s *convstore.Store, notify func(string)) *Registry {
@@ -224,6 +225,13 @@ func (r *Registry) SetProbe(probe func(string) []RuntimeChoice) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.probe = probe
+}
+
+// SetPermissionModesLookup 注册纯内存的权限档位查询函数，用于展示态刷新旧会话持久化能力。
+func (r *Registry) SetPermissionModesLookup(fn func(backend string) []string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.permModes = fn
 }
 func (r *Registry) Choices(id string) []RuntimeChoice {
 	r.mu.Lock()
@@ -567,7 +575,16 @@ func (r *Registry) State(id string) (cr.SessionState, error) {
 	if err != nil {
 		return cr.SessionState{}, err
 	}
-	return a.session.State(), nil
+	st := a.session.State()
+	r.mu.Lock()
+	lookup := r.permModes
+	r.mu.Unlock()
+	if lookup != nil && st.Backend != "" {
+		if modes := lookup(st.Backend); len(modes) > 0 {
+			st.Capabilities.PermissionModes = append([]string(nil), modes...)
+		}
+	}
+	return st, nil
 }
 func (r *Registry) Send(ctx context.Context, id string, request cr.Request, expected uint64) (cr.AttemptToken, error) {
 	if ctx == nil || ctx.Err() != nil {

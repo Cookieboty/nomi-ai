@@ -10,9 +10,85 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/codex"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
 )
+
+// PermissionModes 返回 Codex 底座支持的产品侧权限档位列表。
+func PermissionModes() []string {
+	supported := codex.Permissions.Supported
+	seen := make(map[string]struct{}, len(supported))
+	modes := make([]string, 0, len(supported))
+	for _, raw := range supported {
+		mode := toManagedPermissionMode(raw)
+		if mode == "" {
+			continue
+		}
+		if _, ok := seen[mode]; ok {
+			continue
+		}
+		seen[mode] = struct{}{}
+		modes = append(modes, mode)
+	}
+	if len(modes) == 0 {
+		return []string{"ask"}
+	}
+	return modes
+}
+
+func toManagedPermissionMode(cliMode string) string {
+	switch cliMode {
+	case "plan", "deny":
+		return "deny"
+	case "manual", "ask":
+		return "ask"
+	case "acceptEdits":
+		return "acceptEdits"
+	case "auto":
+		return "auto"
+	case "bypass":
+		return "bypass"
+	default:
+		return ""
+	}
+}
+
+func toCliPermissionMode(managedMode string) string {
+	switch managedMode {
+	case "deny", "plan":
+		return "plan"
+	case "ask", "manual":
+		return "manual"
+	case "acceptEdits":
+		return "acceptEdits"
+	case "auto", "":
+		return "auto"
+	case "bypass":
+		return "bypass"
+	default:
+		return "manual"
+	}
+}
+
+func defaultPermissionMode() string {
+	supported := PermissionModes()
+	for _, want := range []string{"auto", "acceptEdits", "ask"} {
+		for _, m := range supported {
+			if m == want {
+				return want
+			}
+		}
+	}
+	return supported[0]
+}
+
+func effectivePermissionMode(mode string) string {
+	if mode == "" {
+		return defaultPermissionMode()
+	}
+	return mode
+}
 
 // OfficialMissingThread is the exact JSON-RPC error.message observed in the
 // in-repo official Codex app-server driver fixtures and child-resume path
@@ -29,6 +105,7 @@ type Config struct {
 	Executable, Cwd, ConfigDir string
 	Model                      string
 	Effort                     string
+	PermissionMode             string
 	Source                     string
 	AccountID                  string
 	ExtraEnv                   map[string]string
@@ -110,7 +187,7 @@ func (f *Factory) runtime(id string) (*Runtime, error) {
 		return nil, errors.New("Codex working directory unavailable")
 	}
 	identity := identityFor(cfg, bin, dir)
-	env := cr.CompatibilityKey{Model: cfg.Model, PermissionMode: "ask"}
+	env := cr.CompatibilityKey{Model: cfg.Model, PermissionMode: effectivePermissionMode(cfg.PermissionMode)}
 	if env.Model == "" {
 		env.Model = "cli-default"
 	}

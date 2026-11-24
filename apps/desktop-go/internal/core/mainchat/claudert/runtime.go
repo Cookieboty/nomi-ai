@@ -49,6 +49,7 @@ type turn struct {
 	ctxTokens              *int64
 	ctxWindow              *int64
 	costUsd                *float64
+	lastRetryError         string
 }
 
 func (t *turn) pushStream(textDelta, thinkingDelta string, thinking bool) {
@@ -215,7 +216,7 @@ func (r *Runtime) NativeSessionMeta() (sessionID, configDir string) {
 }
 
 func (r *Runtime) Capabilities() cr.Capabilities {
-	computerBridge := cr.BridgeState{Status: "unsupported", Detail: "Read-only profile (Read/Glob/Grep); Nomi computer-use tools disabled"}
+	computerBridge := cr.BridgeState{Status: "unsupported", Detail: "Official Claude profile runs native tools via selected permission policy; Nomi computer-use tools disabled unless explicit computer bridge is attached"}
 	mcpBridge := cr.BridgeState{Status: "unsupported", Detail: "Strict empty MCP config unless explicit computer bridge is attached"}
 	if r.config.ComputerMcp != nil && r.config.ComputerMcp.Name != "" {
 		computerBridge = cr.BridgeState{Status: "bridged", Detail: "Nomi computer-use MCP bridged with host permission broker"}
@@ -225,12 +226,12 @@ func (r *Runtime) Capabilities() cr.Capabilities {
 		Resume:          true,
 		Cancel:          true,
 		Approval:        true,
-		PermissionModes: []string{"ask"},
+		PermissionModes: PermissionModes(),
 		Budget:          60000,
 		Degraded: []string{
 			"Experimental official Claude profile: executable present; version and login not probed",
 			"Warm-process resume only; cold --resume has no proven pre-prompt context acknowledgement and fails closed",
-			"Native default permission mode, Read/Glob/Grep only; read tools may run without prompting; no shell, edits, subagents or background tasks",
+			"Native permission mode matches selected product policy (default auto; read-only plan restricts tools to Read/Glob/Grep); interactive approvals route via Nomi",
 			"No Nomi computer/MCP/persona/memory/knowledge/skills/attachment bridge; customization discovery disabled; managed policy may still apply",
 			"Assistant text is buffered until a successful native result; no reasoning or native tool state is transferred",
 		},
@@ -287,8 +288,19 @@ func (r *Runtime) Recover(ctx context.Context, q cr.RecoveryRequest) cr.Recovery
 		w, err = r.prepare(ctx, sid, false)
 	}
 	if err != nil {
+		var failure, stderr string
+		jsrt.Run(func() {
+			if w != nil {
+				failure = w.failure
+				stderr = w.stderr
+			}
+		})
 		if stop(ctx, w) {
-			return cr.RecoveryResult{Kind: cr.RecoveryError, Detail: "official CLI startup/initialization failed before user input"}
+			msg := "official CLI startup/initialization failed before user input"
+			if detail := formatFailureDetail(failure, err, stderr, ""); detail != "" {
+				msg += ": " + detail
+			}
+			return cr.RecoveryResult{Kind: cr.RecoveryError, Detail: msg}
 		}
 		return cr.RecoveryResult{Kind: cr.RecoveryUnknown, Detail: "CLI startup termination unconfirmed"}
 	}
@@ -331,7 +343,7 @@ func (r *Runtime) prepare(ctx context.Context, sid string, resume bool) (*worker
 func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr.Event) error) cr.SubmitResult {
 	t := &turn{
 		request:       q,
-		events:        make(chan cr.Event, 16),
+		events:        make(chan cr.Event, 256),
 		finished:      make(chan struct{}),
 		approvals:     map[string]*util.Obj{},
 		approvalTools: map[string]string{},
@@ -395,7 +407,7 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 				}
 			drained:
 				res, err := p.Result()
-				var text, modelName, responseModel string
+				var text, modelName, responseModel, failure, stderr, retryErr string
 				var good, acked bool
 				var usage *cr.TurnUsage
 				durationMs := time.Since(t.startedAt).Milliseconds()
@@ -403,6 +415,9 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 					good = err == nil && w.failure == "" && t.success && len(t.approvals) == 0 && len(t.tools) == 0
 					text = t.text
 					acked = t.acked
+					failure = w.failure
+					stderr = w.stderr
+					retryErr = t.lastRetryError
 					if good {
 						modelName = t.model
 						if modelName == "" && r.config.Model != "" && r.config.Model != "cli-default" {
@@ -436,8 +451,11 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 						}
 					}
 				})
+				if failure == "" {
+					failure = retryErr
+				}
 				e := event(t, cr.EventFailed)
-				e.Detail = "native turn failed/terminated without a validated success result; no automatic replay"
+				e.Detail = formatFailureDetail(failure, err, stderr, "native turn failed/terminated without a validated success result; no automatic replay")
 				if good {
 					// A successful result is delivery evidence even when this CLI version
 					// omits replay-user-messages. Never ACK just because stdin accepted bytes.
@@ -461,15 +479,20 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 					// this turn's watcher before publishing that transition;
 					// factory ownership still closes the warm process on release.
 					unwatch()
+					var lateFailure, lateStderr string
 					jsrt.Run(func() {
 						if w.failure != "" {
 							good = false
+							lateFailure = w.failure
+							lateStderr = w.stderr
 							return
 						}
 						w.completed = true
 						w.active = nil
 					})
-					if good {
+					if !good {
+						e.Detail = formatFailureDetail(lateFailure, err, lateStderr, e.Detail)
+					} else {
 						e = event(t, cr.EventCompleted)
 						e.Work = cr.Activity{Known: true}
 						e.Model = modelName
@@ -492,6 +515,51 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 }
 func event(t *turn, k cr.EventKind) cr.Event {
 	return cr.Event{Token: t.request.Token, NativeSessionID: t.request.NativeSessionID, Kind: k}
+}
+
+func isKillFalloutErr(msg string) bool {
+	return msg == "process exited" || msg == "signal: killed" || msg == "exit code -1"
+}
+
+func clipCompactStderr(raw string, maxRunes int) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" || trimmed == "[truncated]" {
+		return ""
+	}
+	compact := strings.Join(strings.Fields(trimmed), " ")
+	runes := []rune(compact)
+	if len(runes) > maxRunes {
+		return string(runes[:maxRunes]) + "..."
+	}
+	return compact
+}
+
+func formatFailureDetail(failure string, err error, stderr string, fallback string) string {
+	var parts []string
+	add := func(s string) {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			return
+		}
+		for _, prev := range parts {
+			if prev == s || strings.Contains(prev, s) {
+				return
+			}
+		}
+		parts = append(parts, s)
+	}
+	add(failure)
+	if err != nil {
+		errMsg := strings.TrimSpace(err.Error())
+		if failure == "" || !isKillFalloutErr(errMsg) {
+			add(errMsg)
+		}
+	}
+	add(clipCompactStderr(stderr, 400))
+	if len(parts) == 0 {
+		return fallback
+	}
+	return strings.Join(parts, "; ")
 }
 func (r *Runtime) Cancel(ctx context.Context, token cr.AttemptToken) cr.CancelResult {
 	var w *worker

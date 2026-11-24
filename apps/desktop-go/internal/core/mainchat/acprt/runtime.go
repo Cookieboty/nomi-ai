@@ -12,6 +12,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/gemini"
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
@@ -392,8 +393,26 @@ func (r *Runtime) startNewSession(ctx context.Context, w *worker) (string, error
 	return sid, nil
 }
 
-func (r *Runtime) applySessionSettings(ctx context.Context, w *worker) error {
-	var modePromise *jsrt.Promise[string]
+// isUnsupportedAcpModeError 判断 ACP 对端是否明确拒绝目标权限模式 ID。
+func isUnsupportedAcpModeError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var re *rpc.Error
+	if errors.As(err, &re) && util.JSString(re.Code) == "-32602" {
+		return true
+	}
+	lower := strings.ToLower(err.Error())
+	return strings.Contains(lower, "unknown mode id") ||
+		strings.Contains(lower, "unsupported mode") ||
+		strings.Contains(lower, "invalid mode")
+}
+
+func (r *Runtime) applySessionMode(ctx context.Context, w *worker) error {
+	cliMode := toCliPermissionMode(r.config.PermissionMode)
+	var wantMode, modeNow string
+	var availModes []string
+	var knownUnsupported bool
 	jsrt.Run(func() {
 		if w == nil || w.driver == nil || w.driver.Closed() {
 			return
@@ -402,22 +421,71 @@ func (r *Runtime) applySessionSettings(ctx context.Context, w *worker) error {
 		if impl == nil || impl.Permissions == nil || impl.Permissions.ModeID == nil {
 			return
 		}
-		wantMode := impl.Permissions.ModeID(toCliPermissionMode(r.config.PermissionMode))
-		if wantMode == "" {
-			return
+		wantMode = impl.Permissions.ModeID(cliMode)
+		if w.driver.ModeID != nil {
+			modeNow = *w.driver.ModeID
 		}
-		if w.driver.ModeID != nil && *w.driver.ModeID == wantMode {
-			return
+		availModes = append([]string(nil), w.driver.AvailableModes...)
+		if w.unsupportedModes != nil {
+			knownUnsupported = w.unsupportedModes[wantMode]
 		}
-		if len(w.driver.AvailableModes) > 0 && !slices.Contains(w.driver.AvailableModes, wantMode) {
-			return
-		}
-		modePromise = w.driver.SetPermissionMode(wantMode)
 	})
-	if modePromise != nil {
-		if _, err := awaitPromise(ctx, modePromise); err != nil {
-			return err
+	if wantMode == "" || modeNow == wantMode {
+		return nil
+	}
+	// 只读计划（plan）绝不降级；非 plan 且非 default 模式当对端不支持该 modeId 时回退到 default（后续由宿主审批回调接管）。
+	canFallback := cliMode != "plan" && wantMode != "default"
+	shouldFallback := canFallback && (knownUnsupported || (len(availModes) > 0 && !slices.Contains(availModes, wantMode)))
+	if !shouldFallback {
+		var modePromise *jsrt.Promise[string]
+		jsrt.Run(func() {
+			if w != nil && w.driver != nil && !w.driver.Closed() {
+				modePromise = w.driver.SetPermissionMode(wantMode)
+			}
+		})
+		if modePromise == nil {
+			return nil
 		}
+		if _, err := awaitPromise(ctx, modePromise); err != nil {
+			if r.config.BackendID == "gemini" && gemini.IsUntrustedModeError(err.Error()) {
+				return err
+			}
+			if !canFallback || !isUnsupportedAcpModeError(err) {
+				return err
+			}
+			jsrt.Run(func() {
+				if w != nil {
+					if w.unsupportedModes == nil {
+						w.unsupportedModes = map[string]bool{}
+					}
+					w.unsupportedModes[wantMode] = true
+				}
+			})
+		} else {
+			return nil
+		}
+	}
+	if modeNow == "default" || (len(availModes) > 0 && !slices.Contains(availModes, "default")) {
+		return nil
+	}
+	var fallbackPromise *jsrt.Promise[string]
+	jsrt.Run(func() {
+		if w != nil && w.driver != nil && !w.driver.Closed() {
+			fallbackPromise = w.driver.SetPermissionMode("default")
+		}
+	})
+	if fallbackPromise == nil {
+		return nil
+	}
+	if _, err := awaitPromise(ctx, fallbackPromise); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *Runtime) applySessionSettings(ctx context.Context, w *worker) error {
+	if err := r.applySessionMode(ctx, w); err != nil {
+		return err
 	}
 	if r.config.Source == "thirdParty" {
 		jsrt.Run(func() {
@@ -704,20 +772,26 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 				}
 			drained:
 				res, err := p.Result()
-				var text, modelName, respModel, effortName string
-				var good, acked bool
+				var text, modelName, respModel, effortName, failure, stderr, stopReason string
+				var good, acked, denied bool
+				var pendingApprovals int
 				var usage *cr.TurnUsage
 				durationMs := time.Since(t.startedAt).Milliseconds()
 				jsrt.Run(func() {
-					stopReason, _ := res.Get("stopReason").(string)
-					denied := res != nil && res.Get("denied") == true
-					good = err == nil && w.failure == "" && len(t.approvals) == 0 && w.sid == q.NativeSessionID && !denied && stopReason != "cancelled" && stopReason != "error"
+					if res != nil {
+						stopReason, _ = res.Get("stopReason").(string)
+						denied = res.Get("denied") == true
+					}
+					pendingApprovals = len(t.approvals)
+					good = err == nil && w.failure == "" && pendingApprovals == 0 && w.sid == q.NativeSessionID && !denied && stopReason != "cancelled" && stopReason != "error"
 					text = t.text
 					if text == "" && res != nil {
 						text, _ = res.Get("text").(string)
 						t.text = text
 					}
 					acked = t.acked
+					failure = w.failure
+					stderr = w.stderr
 					if good {
 						t.success = true
 						modelName = w.effectiveModel
@@ -739,8 +813,18 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 						usage = buildTurnUsage(rawUsage, t.ctxTokens, t.ctxWindow, t.costUsd, durationMs)
 					}
 				})
+				if !good && failure == "" && err == nil {
+					switch {
+					case denied:
+						failure = "native ACP permission denied"
+					case stopReason == "error" || stopReason == "cancelled":
+						failure = "native ACP turn ended with stopReason: " + stopReason
+					case pendingApprovals > 0:
+						failure = "native ACP turn ended with unresolved approval"
+					}
+				}
 				e := event(t, cr.EventFailed)
-				e.Detail = "native ACP turn failed/terminated without a validated success result; no automatic replay"
+				e.Detail = formatFailureDetail(failure, err, stderr, "native ACP turn failed/terminated without a validated success result; no automatic replay")
 				if good {
 					if !acked {
 						a := event(t, cr.EventDelivered)
@@ -759,15 +843,20 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 						}
 					}
 					unwatch()
+					var lateFailure, lateStderr string
 					jsrt.Run(func() {
 						if w.failure != "" {
 							good = false
+							lateFailure = w.failure
+							lateStderr = w.stderr
 							return
 						}
 						w.completed = true
 						w.active = nil
 					})
-					if good {
+					if !good {
+						e.Detail = formatFailureDetail(lateFailure, err, lateStderr, e.Detail)
+					} else {
 						e = event(t, cr.EventCompleted)
 						e.Work = cr.Activity{Known: true}
 						e.Model = modelName
@@ -867,6 +956,41 @@ func buildTurnUsage(raw any, ctxTok, ctxWin *int64, costUsd *float64, durationMs
 
 func event(t *turn, k cr.EventKind) cr.Event {
 	return cr.Event{Token: t.request.Token, NativeSessionID: t.request.NativeSessionID, Kind: k}
+}
+
+func formatFailureDetail(failure string, err error, stderr string, fallback string) string {
+	var parts []string
+	add := func(s string) {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			return
+		}
+		for _, prev := range parts {
+			if prev == s || strings.Contains(prev, s) {
+				return
+			}
+		}
+		parts = append(parts, s)
+	}
+	add(failure)
+	if err != nil {
+		msg := strings.TrimSpace(err.Error())
+		if failure == "" || (msg != "process exited" && msg != "signal: killed" && msg != "exit code -1") {
+			add(msg)
+		}
+	}
+	if trimmed := strings.TrimSpace(stderr); trimmed != "" && trimmed != "[truncated]" {
+		compact := strings.Join(strings.Fields(trimmed), " ")
+		runes := []rune(compact)
+		if len(runes) > 400 {
+			compact = string(runes[:400]) + "..."
+		}
+		add(compact)
+	}
+	if len(parts) == 0 {
+		return fallback
+	}
+	return strings.Join(parts, "; ")
 }
 
 func (r *Runtime) Cancel(ctx context.Context, token cr.AttemptToken) cr.CancelResult {

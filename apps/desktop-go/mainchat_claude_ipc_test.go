@@ -100,6 +100,7 @@ func TestManagedClaudeFirstUseCapabilitiesIPC(t *testing.T) {
 		t.Skip("POSIX shell executable LookPath fixture")
 	}
 	t.Setenv("PATH", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
 	s := convstore.New(t.TempDir())
 	p := migrationStore(t.TempDir())
 	putConv(t, s, map[string]any{"id": "c", "backend": "nomi"})
@@ -153,6 +154,7 @@ func TestManagedCodexFirstUseCapabilitiesIPC(t *testing.T) {
 		t.Skip("POSIX shell executable LookPath fixture")
 	}
 	t.Setenv("PATH", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
 	s := convstore.New(t.TempDir())
 	p := migrationStore(t.TempDir())
 	putConv(t, s, map[string]any{"id": "c", "backend": "nomi"})

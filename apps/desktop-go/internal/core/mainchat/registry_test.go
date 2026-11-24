@@ -6,6 +6,7 @@ import (
 	"errors"
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/convstore"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -258,5 +259,50 @@ func TestCrossBackendSwitchResetsStalePermissionMode(t *testing.T) {
 	}
 	if st, err := r.State("c-switch-perm"); err != nil || st.PermissionMode != "auto" {
 		t.Fatalf("re-adopt grok PermissionMode = %q (%v), want auto", st.PermissionMode, err)
+	}
+}
+
+func TestStateRefreshesStalePermissionModesFromLookup(t *testing.T) {
+	if !convstore.ManagedSupported() {
+		t.Skip("managed durability gate")
+	}
+	s := convstore.New(t.TempDir())
+	if _, err := s.Put(json.RawMessage(`{"id":"c-stale-caps","backend":"nomi"}`), nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	r := New(s, nil)
+	defer r.Close()
+	r.Register("claude", func(string) (cr.Target, error) {
+		return cr.Target{
+			Runtime:  stubRuntime{},
+			Identity: cr.NativeIdentity{DriverID: "claude", Transport: "fake", DriverVersion: "1", ResumeProtocol: "none", Executable: "claude", Source: "local", ConfigDir: "/tmp/cfg", Cwd: "/tmp/ws", ConfigGen: 1},
+			Env:      cr.CompatibilityKey{PermissionMode: "ask"},
+		}, nil
+	})
+	if err := r.Adopt("c-stale-caps", "claude", true); err != nil {
+		t.Fatal(err)
+	}
+	// 未注册 lookup 时，原样返回持久化能力里的 ["ask"]
+	stBefore, err := r.State("c-stale-caps")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(stBefore.Capabilities.PermissionModes, []string{"ask"}) {
+		t.Fatalf("without lookup = %v, want [ask]", stBefore.Capabilities.PermissionModes)
+	}
+	// 注册 lookup 后，State 返回最新的完整档位列表而不破坏 checkpoint
+	wantModes := []string{"deny", "ask", "acceptEdits", "auto", "bypass"}
+	r.SetPermissionModesLookup(func(backend string) []string {
+		if backend == "claude" {
+			return wantModes
+		}
+		return nil
+	})
+	stAfter, err := r.State("c-stale-caps")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(stAfter.Capabilities.PermissionModes, wantModes) {
+		t.Fatalf("with lookup = %v, want %v", stAfter.Capabilities.PermissionModes, wantModes)
 	}
 }

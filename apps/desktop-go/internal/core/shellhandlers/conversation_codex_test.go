@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -101,11 +102,11 @@ for line in sys.stdin:
         out({"jsonrpc": "2.0", "id": mid, "result": {"turn": {"id": turn}}})
         out({"jsonrpc": "2.0", "method": "turn/started", "params": {"threadId": tid, "turn": {"id": turn, "status": "inProgress"}}})
         if mode == "approval":
-            out({"jsonrpc": "2.0", "method": "item/completed", "params": {"threadId": tid, "turnId": turn, "item": {
+            out({"jsonrpc": "2.0", "method": "item/started", "params": {"threadId": tid, "turnId": turn, "item": {
                 "id": "cmd1", "type": "commandExecution", "command": "echo fixture", "status": "inProgress"}}})
             out({"jsonrpc": "2.0", "id": "srv-approval", "method": "item/commandExecution/requestApproval",
                  "params": {"threadId": tid, "turnId": turn, "itemId": "cmd1", "reason": "fixture"}})
-            pending_approval[0] = tid
+            pending_approval[0] = (tid, turn)
             continue
         if mode == "hang":
             out({"jsonrpc": "2.0", "method": "item/agentMessage/delta", "params": {"threadId": tid, "turnId": turn, "itemId": "m", "delta": "LATE_UNCOMMITTED"}})
@@ -116,8 +117,17 @@ for line in sys.stdin:
             continue
         text = "native reply " + str(counter[0])
         out({"jsonrpc": "2.0", "method": "item/agentMessage/delta", "params": {"threadId": tid, "turnId": turn, "itemId": "m", "delta": text}})
-        out({"jsonrpc": "2.0", "method": "item/completed", "params": {"threadId": tid, "turnId": turn, "item": {
+        out({"jsonrpc": "2.0", "method": "item/completed", "params": {"threadId": tid, "turnId": turn, "itemId": "m", "item": {
             "id": "m", "type": "agentMessage", "text": text}}})
+        out({"jsonrpc": "2.0", "method": "turn/completed", "params": {"threadId": tid, "turn": {"id": turn, "status": "completed"}}})
+    elif method is None and "result" in m and pending_approval[0]:
+        tid, turn = pending_approval[0]
+        pending_approval[0] = False
+        dec = (m.get("result") or {}).get("decision") or "decline"
+        text = "native " + dec
+        out({"jsonrpc": "2.0", "method": "item/completed", "params": {"threadId": tid, "turnId": turn, "item": {
+            "id": "cmd1", "type": "commandExecution", "command": "echo fixture", "status": "completed"}}})
+        out({"jsonrpc": "2.0", "method": "item/agentMessage/delta", "params": {"threadId": tid, "turnId": turn, "itemId": "m", "delta": text}})
         out({"jsonrpc": "2.0", "method": "turn/completed", "params": {"threadId": tid, "turn": {"id": turn, "status": "completed"}}})
     elif mid is not None:
         out({"jsonrpc": "2.0", "id": mid, "result": {}})
@@ -165,10 +175,15 @@ func codexIngress(t *testing.T, mode string) (*codexFixture, *convstore.Store, *
 	}
 	x := &codexFixture{dir: dir}
 	x.setMode(t, mode)
-	f := codexrt.New(func(string) (codexrt.Config, error) {
-		return codexrt.Config{Executable: exe, Cwd: project, ConfigDir: config}, nil
-	})
 	store, r, c := fixtureIngress(t, filepath.Join(dir, "store"))
+	f := codexrt.New(func(convID string) (codexrt.Config, error) {
+		return codexrt.Config{
+			Executable:     exe,
+			Cwd:            project,
+			ConfigDir:      config,
+			PermissionMode: r.ConfigFor(convID, "codex").PermissionMode,
+		}, nil
+	})
 	r.RegisterOwned("codex", f.Target, f.Release)
 	r.Register("api", (&ingressFake{name: "api"}).target)
 	projs := codexProjectStore(dir)
@@ -279,16 +294,21 @@ func TestCodexOfficialSubprocessActualIPCClaudeAPICodexFullDelta(t *testing.T) {
 		t.Fatalf("warm Codex process relaunched: %d launches", len(records))
 	}
 	rec := records[0]
-	want := []string{"-s", "read-only", "-a", "never", "-c", "analytics.enabled=false",
-		"-c", `cli_auth_credentials_store="file"`, "-c", `sandbox_mode="read-only"`, "app-server"}
-	if strings.Join(rec.Args, "\x00") != strings.Join(want, "\x00") {
-		t.Fatalf("official pinned argv changed: %q", rec.Args)
+	want := []string{
+		"-c", "analytics.enabled=false",
+		"-c", `cli_auth_credentials_store="file"`,
+		"-c", `sandbox_mode="workspace-write"`,
+		"-c", "sandbox_workspace_write.network_access=true",
+		"-c", `approval_policy="on-request"`,
+		"-c", `approvals_reviewer="auto_review"`,
+		"app-server",
 	}
-	for _, banned := range []string{"danger-full-access", "workspace-write", "auto_review", "on-request", "--bare", "computer", "exec"} {
-		for _, a := range rec.Args {
-			if strings.Contains(a, banned) {
-				t.Fatalf("forbidden flag %q in %q", banned, rec.Args)
-			}
+	if strings.Join(rec.Args, "\x00") != strings.Join(want, "\x00") {
+		t.Fatalf("official auto argv changed: %q, want %q", rec.Args, want)
+	}
+	for _, banned := range []string{"-s", "-a", "danger-full-access", "read-only", "--bare", "computer", "exec"} {
+		if slices.Contains(rec.Args, banned) {
+			t.Fatalf("forbidden flag %q in %q", banned, rec.Args)
 		}
 	}
 	if rec.Cwd != filepath.Join(x.dir, "project") {
@@ -589,15 +609,61 @@ func TestCodexOfficialSubprocessStartupAndTurnFailuresNeverFabricate(t *testing.
 
 func TestCodexOfficialSubprocessApprovalsFailClosed(t *testing.T) {
 	_, store, _, c := codexIngress(t, "approval")
-	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"codex","confirm":true}`))
+	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"codex","permissionMode":"deny","confirm":true}`))
 	requireOK(t, sendIngress(t, c, "permission"))
 	awaitCodex(t, c, cr.PhaseUncertain)
 	if got := c.call("conversations.runtimeApprove", `{"id":"c","approvalId":"srv-approval","allow":true}`); got.T != "err" {
-		t.Fatal("Codex approval accepted instead of failing closed")
+		t.Fatal("Codex deny-mode approval accepted instead of failing closed")
 	}
 	doc, err := store.ReadManaged("c")
 	if err != nil || len(doc.State.Completed) != 0 || len(doc.State.Receipts) != 0 {
 		t.Fatalf("approval fabricated delivery: %+v %v", doc.State, err)
+	}
+}
+
+func TestCodexOfficialSubprocessApprovalExplicit(t *testing.T) {
+	for _, allow := range []bool{false, true} {
+		t.Run(fmt.Sprint(allow), func(t *testing.T) {
+			x, store, _, c := codexIngress(t, "approval")
+			requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"codex","confirm":true}`))
+			requireOK(t, sendIngress(t, c, "permission"))
+			st := waitClaudeState(t, c, func(st nativeView) bool { return len(st.Approvals) == 1 })
+			if c.call("conversations.runtimeSelect", `{"id":"c","backend":"codex"}`).T != "err" {
+				t.Fatal("switched with approval outstanding")
+			}
+			forged, _ := json.Marshal(map[string]any{"id": "c", "token": st.Token, "approvalId": "forged", "allow": true})
+			if c.call("conversations.runtimeApprove", string(forged)).T != "err" {
+				t.Fatal("forged approval accepted")
+			}
+			approvalID := st.Approvals[0]
+			input, _ := json.Marshal(map[string]any{"id": "c", "token": st.Token, "approvalId": approvalID, "allow": allow})
+			requireOK(t, c.call("conversations.runtimeApprove", string(input)))
+			awaitCodex(t, c, cr.PhaseCompleted)
+			messages, err := store.Messages("c", 0)
+			if err != nil || len(messages) != 3 {
+				t.Fatalf("permission completion %d %v", len(messages), err)
+			}
+			wantDec := "decline"
+			if allow {
+				wantDec = "accept"
+			}
+			answers := 0
+			for _, e := range codexWire(t, x.dir) {
+				var q map[string]any
+				_ = json.Unmarshal(e.Data, &q)
+				if e.Kind == "recv" && q["method"] == nil && q["id"] == "srv-approval" {
+					if res, ok := q["result"].(map[string]any); ok {
+						answers++
+						if res["decision"] != wantDec {
+							t.Fatalf("approval decision = %v, want %q", res["decision"], wantDec)
+						}
+					}
+				}
+			}
+			if answers != 1 {
+				t.Fatalf("expected exactly one explicit permission response, got %d", answers)
+			}
+		})
 	}
 }
 

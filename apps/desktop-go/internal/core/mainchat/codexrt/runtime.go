@@ -8,7 +8,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/codex"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/drivers"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -223,17 +225,17 @@ func (r *Runtime) Capabilities() cr.Capabilities {
 		Resume:          true,
 		Cancel:          true,
 		Approval:        true,
-		PermissionModes: []string{"ask"},
+		PermissionModes: PermissionModes(),
 		Budget:          60000,
 		Degraded: []string{
 			"Experimental official Codex profile: executable present; version and login not probed",
 			"Warm-process resume only; cold thread/resume is proven solely by an exact same-ID result or the official JSON-RPC message \"thread not found\"",
-			"Official app-server is started read-only with never-auto-approve; shell, edits, subagents, questions, MCP elicitation and background tasks fail closed and are never auto-approved",
+			"Official app-server enforces the selected permission policy (default auto via auto_review; read-only plan fails closed on edits/commands); interactive approvals route via Nomi",
 			"No Nomi computer/MCP/persona/memory/knowledge/skills/attachment bridge; no silent fallback to codex exec",
 			"Assistant text is buffered until a successful native turn result; no reasoning or native tool state is transferred",
 		},
 		Bridges: &cr.CapabilityBridges{
-			Computer:    cr.BridgeState{Status: "unsupported", Detail: "Official Codex app-server runs read-only; computer-use tools disabled"},
+			Computer:    cr.BridgeState{Status: "unsupported", Detail: "Official Codex app-server runs native tools via selected permission policy; Nomi computer-use tools disabled"},
 			MCP:         cr.BridgeState{Status: "unsupported", Detail: "MCP tools and elicitations fail closed in official Codex profile"},
 			Persona:     cr.BridgeState{Status: "degraded", Detail: "Official Codex profile does not inject Nomi persona prompts"},
 			Memory:      cr.BridgeState{Status: "degraded", Detail: "Conversation history is synced via delta/full handoff only; Nomi memory store is not shared"},
@@ -521,7 +523,7 @@ func threadTitleOf(res any) string {
 func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr.Event) error) cr.SubmitResult {
 	t := &turn{
 		request:    q,
-		events:     make(chan cr.Event, 16),
+		events:     make(chan cr.Event, 256),
 		finished:   make(chan struct{}),
 		approvals:  map[string]*util.Obj{},
 		streamWake: make(chan struct{}, 1),
@@ -529,6 +531,12 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 	}
 	var p *jsrt.Promise[clisdk.TurnResult]
 	var w *worker
+	cliMode := toCliPermissionMode(effectivePermissionMode(r.config.PermissionMode))
+	payload := q.Plan.Payload
+	if cliMode == "plan" && codex.Permissions.PlanPrefix != "" {
+		payload = codex.Permissions.PlanPrefix + payload
+	}
+	policy := drivers.CodexTurnPolicy(cliMode, true, false, nil)
 	jsrt.Run(func() {
 		w = r.worker
 		if r.closed || ctx.Err() != nil || w == nil || w.failure != "" || w.driver == nil || w.driver.Closed() || w.active != nil || r.token != q.Token || w.sid != q.NativeSessionID {
@@ -538,7 +546,7 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 		w.last = t
 		w.notify = accept
 		w.completed = false
-		p = w.driver.Send(clisdk.TurnInput{Text: q.Plan.Payload})
+		p = w.driver.Send(clisdk.TurnInput{Text: payload, Params: policy})
 		// The turn/start request frame is now queued. Anything the server wrote
 		// earlier was unsolicited and already ignored by parsed().
 		t.started = true
@@ -582,8 +590,9 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 				}
 			drained:
 				res, err := p.Result()
-				var text, modelName, responseModel string
-				var good, acked bool
+				var text, modelName, responseModel, failure, stderr, status string
+				var good, acked, unsupported bool
+				var pendingApprovals int
 				var usage *cr.TurnUsage
 				durationMs := time.Since(t.startedAt).Milliseconds()
 				jsrt.Run(func() {
@@ -591,14 +600,20 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 					// result: turn/completed status=completed (the driver maps it
 					// to stopReason). initialize / thread/start / thread/resume
 					// and a locally echoed user item are never ACK by themselves.
-					status, _ := res.Get("stopReason").(string)
-					good = err == nil && w.failure == "" && !t.unsupported && len(t.approvals) == 0 && status == "completed" && w.sid == q.NativeSessionID
+					if res != nil {
+						status, _ = res.Get("stopReason").(string)
+					}
+					unsupported = t.unsupported
+					pendingApprovals = len(t.approvals)
+					good = err == nil && w.failure == "" && !t.unsupported && pendingApprovals == 0 && status == "completed" && w.sid == q.NativeSessionID
 					text = t.text
 					if text == "" && res != nil {
 						text, _ = res.Get("text").(string)
 						t.text = text
 					}
 					acked = t.acked
+					failure = w.failure
+					stderr = w.stderr
 					if good {
 						t.success = true
 						modelName = t.model
@@ -633,8 +648,18 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 						}
 					}
 				})
+				if !good && failure == "" && err == nil {
+					switch {
+					case unsupported:
+						failure = "unsupported native capability requested"
+					case pendingApprovals > 0:
+						failure = "native turn ended with unresolved approval"
+					case status != "" && status != "completed":
+						failure = "native turn ended with status: " + status
+					}
+				}
 				e := event(t, cr.EventFailed)
-				e.Detail = "native turn failed/terminated without a validated success result; no automatic replay"
+				e.Detail = formatFailureDetail(failure, err, stderr, "native turn failed/terminated without a validated success result; no automatic replay")
 				if good {
 					// A successful native turn is delivery evidence even if the
 					// CLI omitted the user_message echo.
@@ -658,16 +683,21 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 					// ONLY this turn's watcher before publishing that transition;
 					// factory ownership still closes the warm process on release.
 					unwatch()
+					var lateFailure, lateStderr string
 					jsrt.Run(func() {
 						if w.failure != "" {
 							// A cancelled/closed attempt context is not idleness.
 							good = false
+							lateFailure = w.failure
+							lateStderr = w.stderr
 							return
 						}
 						w.completed = true
 						w.active = nil
 					})
-					if good {
+					if !good {
+						e.Detail = formatFailureDetail(lateFailure, err, lateStderr, e.Detail)
+					} else {
 						e = event(t, cr.EventCompleted)
 						e.Work = cr.Activity{Known: true}
 						e.Model = modelName
@@ -693,6 +723,41 @@ func event(t *turn, k cr.EventKind) cr.Event {
 	return cr.Event{Token: t.request.Token, NativeSessionID: t.request.NativeSessionID, Kind: k}
 }
 
+func formatFailureDetail(failure string, err error, stderr string, fallback string) string {
+	var parts []string
+	add := func(s string) {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			return
+		}
+		for _, prev := range parts {
+			if prev == s || strings.Contains(prev, s) {
+				return
+			}
+		}
+		parts = append(parts, s)
+	}
+	add(failure)
+	if err != nil {
+		msg := strings.TrimSpace(err.Error())
+		if failure == "" || (msg != "process exited" && msg != "signal: killed" && msg != "exit code -1") {
+			add(msg)
+		}
+	}
+	if trimmed := strings.TrimSpace(stderr); trimmed != "" && trimmed != "[truncated]" {
+		compact := strings.Join(strings.Fields(trimmed), " ")
+		runes := []rune(compact)
+		if len(runes) > 400 {
+			compact = string(runes[:400]) + "..."
+		}
+		add(compact)
+	}
+	if len(parts) == 0 {
+		return fallback
+	}
+	return strings.Join(parts, "; ")
+}
+
 func (r *Runtime) Cancel(ctx context.Context, token cr.AttemptToken) cr.CancelResult {
 	var w *worker
 	var owns bool
@@ -710,8 +775,29 @@ func (r *Runtime) Cancel(ctx context.Context, token cr.AttemptToken) cr.CancelRe
 }
 
 func (r *Runtime) Approve(ctx context.Context, a cr.ApprovalDecision) error {
-	// Experimental Codex chat fails closed on native approvals; nothing is auto-approved.
-	return cr.ErrStaleEvent
+	err := cr.ErrStaleEvent
+	if effectivePermissionMode(r.config.PermissionMode) == "deny" {
+		return err
+	}
+	jsrt.Run(func() {
+		w := r.worker
+		if ctx.Err() != nil || r.closed || w == nil || w.active == nil || w.active.request.Token != a.Token || w.sid != a.NativeSessionID || w.failure != "" || w.driver == nil {
+			return
+		}
+		t := w.active
+		if _, ok := t.approvals[a.ApprovalID]; !ok {
+			return
+		}
+		dec := "deny"
+		if a.Allow {
+			dec = "allow"
+		}
+		if w.driver.RespondPermission(a.ApprovalID, util.NewObj("decision", dec)) {
+			delete(t.approvals, a.ApprovalID)
+			err = nil
+		}
+	})
+	return err
 }
 
 func (r *Runtime) close() {

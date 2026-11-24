@@ -10,6 +10,7 @@ import (
 	"time"
 
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mainchat"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mainchat/claudert"
 )
 
@@ -48,7 +49,8 @@ for line in sys.stdin:
   if mode=='oversize':print('x'*(3*1024*1024),flush=True);continue
   if mode=='nonzero':sys.exit(19)
   if mode=='clean-exit':sys.exit(0)
-  out({'type':'system','subtype':'init','session_id':('wrong-native-id' if mode=='bad-sid' else sid),'permissionMode':('bypassPermissions' if mode=='bad-mode' else 'default')})
+  pm=args[args.index('--permission-mode')+1] if '--permission-mode' in args else 'default'
+  out({'type':'system','subtype':'init','session_id':('wrong-native-id' if mode=='bad-sid' else sid),'permissionMode':('bypassPermissions' if mode=='bad-mode' else pm)})
   if mode not in ('no-echo','no-echo-hang'):q['session_id']=sid;out(q)
   if mode in ('hang','no-echo-hang'):
    out({'type':'assistant','session_id':sid,'message':{'content':[{'type':'text','text':'LATE_UNCOMMITTED'}]}});continue
@@ -79,6 +81,10 @@ type claudeWire struct {
 }
 
 func claudeFixture(t *testing.T, mode string) (*claudert.Factory, string) {
+	return claudeFixtureWithRegistry(t, mode, nil)
+}
+
+func claudeFixtureWithRegistry(t *testing.T, mode string, reg *mainchat.Registry) (*claudert.Factory, string) {
 	t.Helper()
 	dir := t.TempDir()
 	exe := filepath.Join(dir, "fake-claude")
@@ -86,8 +92,12 @@ func claudeFixture(t *testing.T, mode string) (*claudert.Factory, string) {
 		t.Fatal(err)
 	}
 	setClaudeMode(t, dir, mode)
-	f := claudert.New(func(string) (claudert.Config, error) {
-		return claudert.Config{Executable: exe, Cwd: dir, ConfigDir: filepath.Join(dir, "config")}, nil
+	f := claudert.New(func(convID string) (claudert.Config, error) {
+		cfg := claudert.Config{Executable: exe, Cwd: dir, ConfigDir: filepath.Join(dir, "config")}
+		if reg != nil {
+			cfg.PermissionMode = reg.ConfigFor(convID, "claude").PermissionMode
+		}
+		return cfg, nil
 	})
 	return f, dir
 }
@@ -174,9 +184,14 @@ func TestClaudeOfficialSubprocessActualIPCProviderlessWarmSwitch(t *testing.T) {
 		if e.Kind == "launch" {
 			launches++
 			args := fmt.Sprint(d["args"])
-			for _, flag := range []string{"--input-format stream-json", "--output-format stream-json", "--permission-prompt-tool stdio", "--replay-user-messages", "--safe-mode", "--restricted", "--tools Read,Glob,Grep", "--permission-mode default", "--strict-mcp-config", "--session-id"} {
+			for _, flag := range []string{"--input-format stream-json", "--output-format stream-json", "--permission-prompt-tool stdio", "--replay-user-messages", "--permission-mode auto", "--strict-mcp-config", "--session-id"} {
 				if !strings.Contains(args, flag) {
 					t.Fatalf("missing official flag %s in %s", flag, args)
+				}
+			}
+			for _, unwanted := range []string{"--safe-mode", "--restricted", "--tools Read,Glob,Grep"} {
+				if strings.Contains(args, unwanted) {
+					t.Fatalf("default auto profile should not pass legacy flag %s in %s", unwanted, args)
 				}
 			}
 			if d["apiKeyPresent"] != false || d["cwd"] != dir || d["config"] != filepath.Join(dir, "config") || strings.Contains(args, "--bare") {
@@ -210,10 +225,14 @@ func TestClaudeOfficialSubprocessFailuresNeverFabricateDelivery(t *testing.T) {
 	for _, mode := range []string{"startup-error", "nonzero", "clean-exit", "partial-exit", "result-error", "malformed", "malformed-then-echo", "bad-utf8", "oversize", "bad-sid", "bad-mode", "unsupported"} {
 		t.Run(mode, func(t *testing.T) {
 			s, r, c := fixtureIngress(t, t.TempDir())
-			f, dir := claudeFixture(t, mode)
+			f, dir := claudeFixtureWithRegistry(t, mode, r)
 			r.RegisterOwned("claude", f.Target, f.Release)
 			seedIngress(t, c)
-			requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"claude","confirm":true}`))
+			adoptBody := `{"id":"c","backend":"claude","confirm":true}`
+			if mode == "unsupported" {
+				adoptBody = `{"id":"c","backend":"claude","permissionMode":"deny","confirm":true}`
+			}
+			requireOK(t, c.call("conversations.runtimeAdopt", adoptBody))
 			sent := sendIngress(t, c, "failed")
 			phase := cr.PhaseUncertain
 			if mode == "startup-error" {
@@ -250,49 +269,51 @@ func TestClaudeOfficialSubprocessFailuresNeverFabricateDelivery(t *testing.T) {
 	}
 }
 func TestClaudeOfficialSubprocessApprovalExplicitAndBoundToOriginalInput(t *testing.T) {
-	for _, allow := range []bool{false, true} {
-		t.Run(fmt.Sprint(allow), func(t *testing.T) {
-			s, r, c := fixtureIngress(t, t.TempDir())
-			f, dir := claudeFixture(t, "approval")
-			r.RegisterOwned("claude", f.Target, f.Release)
-			seedIngress(t, c)
-			requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"claude","confirm":true}`))
-			requireOK(t, sendIngress(t, c, "permission"))
-			st := waitClaudeState(t, c, func(st nativeView) bool { return len(st.Approvals) == 1 })
-			if c.call("conversations.runtimeSelect", `{"id":"c","backend":"claude"}`).T != "err" {
-				t.Fatal("switched with approval outstanding")
-			}
-			forged, _ := json.Marshal(map[string]any{"id": "c", "token": st.Token, "approvalId": "forged", "allow": true})
-			if c.call("conversations.runtimeApprove", string(forged)).T != "err" {
-				t.Fatal("forged approval accepted")
-			}
-			input, _ := json.Marshal(map[string]any{"id": "c", "token": st.Token, "approvalId": "permit", "allow": allow})
-			requireOK(t, c.call("conversations.runtimeApprove", string(input)))
-			awaitClaude(t, c, cr.PhaseCompleted)
-			messages, err := s.Messages("c", 0)
-			if err != nil || len(messages) != 3 {
-				t.Fatalf("permission completion %d %v", len(messages), err)
-			}
-			answers := 0
-			for _, e := range readClaudeWire(t, dir) {
-				var q map[string]any
-				_ = json.Unmarshal(e.Data, &q)
-				if e.Kind == "input" && q["type"] == "control_response" {
-					answers++
-					a := q["response"].(map[string]any)["response"].(map[string]any)
-					want := "deny"
-					if allow {
-						want = "allow"
-					}
-					if a["behavior"] != want {
-						t.Fatal("approval mapping", a)
+	for _, scriptMode := range []string{"approval", "unsupported"} {
+		for _, allow := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/%v", scriptMode, allow), func(t *testing.T) {
+				s, r, c := fixtureIngress(t, t.TempDir())
+				f, dir := claudeFixture(t, scriptMode)
+				r.RegisterOwned("claude", f.Target, f.Release)
+				seedIngress(t, c)
+				requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"claude","confirm":true}`))
+				requireOK(t, sendIngress(t, c, "permission"))
+				st := waitClaudeState(t, c, func(st nativeView) bool { return len(st.Approvals) == 1 })
+				if c.call("conversations.runtimeSelect", `{"id":"c","backend":"claude"}`).T != "err" {
+					t.Fatal("switched with approval outstanding")
+				}
+				forged, _ := json.Marshal(map[string]any{"id": "c", "token": st.Token, "approvalId": "forged", "allow": true})
+				if c.call("conversations.runtimeApprove", string(forged)).T != "err" {
+					t.Fatal("forged approval accepted")
+				}
+				input, _ := json.Marshal(map[string]any{"id": "c", "token": st.Token, "approvalId": "permit", "allow": allow})
+				requireOK(t, c.call("conversations.runtimeApprove", string(input)))
+				awaitClaude(t, c, cr.PhaseCompleted)
+				messages, err := s.Messages("c", 0)
+				if err != nil || len(messages) != 3 {
+					t.Fatalf("permission completion %d %v", len(messages), err)
+				}
+				answers := 0
+				for _, e := range readClaudeWire(t, dir) {
+					var q map[string]any
+					_ = json.Unmarshal(e.Data, &q)
+					if e.Kind == "input" && q["type"] == "control_response" {
+						answers++
+						a := q["response"].(map[string]any)["response"].(map[string]any)
+						want := "deny"
+						if allow {
+							want = "allow"
+						}
+						if a["behavior"] != want {
+							t.Fatal("approval mapping", a)
+						}
 					}
 				}
-			}
-			if answers != 1 {
-				t.Fatalf("expected exactly one explicit permission response, got %d", answers)
-			}
-		})
+				if answers != 1 {
+					t.Fatalf("expected exactly one explicit permission response, got %d", answers)
+				}
+			})
+		}
 	}
 }
 func TestClaudeOfficialSubprocessCancelDropsBufferedLateText(t *testing.T) {

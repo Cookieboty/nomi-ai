@@ -28,6 +28,7 @@ type worker struct {
 	appliedModel         string
 	appliedEffort        string
 	effectiveModel       string
+	unsupportedModes     map[string]bool
 	closed               chan struct{}
 	closeOnce            sync.Once
 	active               *turn
@@ -110,7 +111,11 @@ func (r *Runtime) spawn() *worker {
 	cfg := r.config
 	args := officialArgs(cfg)
 	env := officialEnv(cfg)
-	w := &worker{closed: make(chan struct{}), onTitle: r.emitTitle}
+	w := &worker{
+		closed:           make(chan struct{}),
+		onTitle:          r.emitTitle,
+		unsupportedModes: map[string]bool{},
+	}
 	w.child = nodeproc.Spawn(cfg.Executable, args, nodeproc.Options{Cwd: cfg.Cwd, Env: env, Detached: true})
 	w.child.OnStderr(func(chunk string) {
 		if len(w.stderr)+len(chunk) > 8192 {

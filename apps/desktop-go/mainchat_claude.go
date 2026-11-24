@@ -315,6 +315,16 @@ func applyManagedSource(cliID, convID, defaultDir string, pref mainchat.RuntimeC
 					res.ExtraEnv[k] = v
 				}
 			}
+			switch cliID {
+			case "claude":
+				if dir := strings.TrimSpace(res.ExtraEnv["CLAUDE_CONFIG_DIR"]); dir != "" && filepath.IsAbs(dir) {
+					res.ConfigDir = dir
+				}
+			case "codex":
+				if dir := strings.TrimSpace(res.ExtraEnv["CODEX_HOME"]); dir != "" && filepath.IsAbs(dir) {
+					res.ConfigDir = dir
+				}
+			}
 		}
 		res.StripEnv = append([]string{}, tl.Strip...)
 		res.ExtraArgs = append([]string{}, tl.Args...)
@@ -334,8 +344,32 @@ func wireManagedClaude(r *mainchat.Registry, s *convstore.Store, p *projects.Sto
 	_ = wireManagedCLIs(r, s, p, managedDeps{})
 }
 
+var apiManagedPermissionModes = []string{"deny", "ask", "acceptEdits", "auto", "bypass"}
+
+func managedPermissionModesLookup(backend string) []string {
+	if backend == "api" {
+		return append([]string(nil), apiManagedPermissionModes...)
+	}
+	if !builtin.IsBuiltinCliID(backend) {
+		return nil
+	}
+	switch builtin.Transport(backend) {
+	case "stream-json":
+		return claudert.PermissionModes()
+	case "app-server":
+		return codexrt.PermissionModes()
+	case "acp":
+		return acprt.PermissionModes(backend)
+	case "exec":
+		return dshrt.PermissionModes(backend)
+	default:
+		return nil
+	}
+}
+
 func wireManagedCLIs(r *mainchat.Registry, s *convstore.Store, p *projects.Store, deps managedDeps) func(cliID string) {
 	r.SetProbe(func(id string) []mainchat.RuntimeChoice { return managedChoices(s, p, r, id) })
+	r.SetPermissionModesLookup(managedPermissionModesLookup)
 	r.SetNativeTitleLookup(func(_ context.Context, backend, nativeSessionID, configDir string) string {
 		return cli.LookupNativeSessionTitle(backend, nativeSessionID, configDir)
 	})
@@ -484,6 +518,9 @@ func codexConfigFor(s *convstore.Store, p *projects.Store, base codexrt.Config, 
 	if pref.Effort != "" {
 		cfg.Effort = pref.Effort
 	}
+	if pref.PermissionMode != "" {
+		cfg.PermissionMode = pref.PermissionMode
+	}
 	cfg.ExtraEnv = res.ExtraEnv
 	cfg.StripEnv = res.StripEnv
 	cfg.ExtraArgs = res.ExtraArgs
@@ -591,7 +628,7 @@ func managedChoices(s *convstore.Store, p *projects.Store, r *mainchat.Registry,
 			Degraded:        []string{"stateless native turns; history stays synced via bounded delta/full handoff"},
 			Accounts:        []mainchat.RuntimeAccountOption{{ID: "chat-route", Label: "Nomi Gateway Route"}},
 			Models:          []mainchat.RuntimeModelOption{{ID: "chat-route", Label: "Gateway Default (chat)"}},
-			PermissionModes: []string{"deny", "ask", "acceptEdits", "auto", "bypass"},
+			PermissionModes: append([]string(nil), apiManagedPermissionModes...),
 			Bridges:         apiBridges,
 		})
 	}
@@ -614,7 +651,7 @@ func managedChoices(s *convstore.Store, p *projects.Store, r *mainchat.Registry,
 // choice never claims logged-in unless the user actually sends a turn.
 func claudeChoice(s *convstore.Store, p *projects.Store, r *mainchat.Registry, id string) mainchat.RuntimeChoice {
 	bridges := &cr.CapabilityBridges{
-		Computer:    cr.BridgeState{Status: "unsupported", Detail: "Read-only profile (Read/Glob/Grep); Nomi computer-use tools disabled"},
+		Computer:    cr.BridgeState{Status: "unsupported", Detail: "Official Claude profile runs native tools via selected permission policy; Nomi computer-use tools disabled"},
 		MCP:         cr.BridgeState{Status: "unsupported", Detail: "Strict empty MCP config; Nomi MCP servers not attached"},
 		Persona:     cr.BridgeState{Status: "degraded", Detail: "Runs official CLI without injecting Nomi persona prompts"},
 		Memory:      cr.BridgeState{Status: "degraded", Detail: "Conversation history is synced via delta/full handoff only; Nomi memory store is not shared"},
@@ -633,7 +670,7 @@ func claudeChoice(s *convstore.Store, p *projects.Store, r *mainchat.Registry, i
 			{ID: "claude-sonnet-4-5", Label: "Claude Sonnet 4.5"},
 			{ID: "claude-opus-4-5", Label: "Claude Opus 4.5"},
 		},
-		PermissionModes: []string{"ask"},
+		PermissionModes: claudert.PermissionModes(),
 		Bridges:         bridges,
 	}
 	if !convstore.ManagedSupported() {
@@ -664,11 +701,10 @@ func claudeChoice(s *convstore.Store, p *projects.Store, r *mainchat.Registry, i
 	return choice
 }
 
-// codexChoice mirrors the Claude rules. Codex app-server is read-only and
-// never auto-approves; a found executable is not proof of a login.
+// codexChoice mirrors the Claude rules; a found executable is not proof of a login.
 func codexChoice(s *convstore.Store, p *projects.Store, r *mainchat.Registry, id string) mainchat.RuntimeChoice {
 	bridges := &cr.CapabilityBridges{
-		Computer:    cr.BridgeState{Status: "unsupported", Detail: "Official Codex app-server runs read-only; computer-use tools disabled"},
+		Computer:    cr.BridgeState{Status: "unsupported", Detail: "Official Codex app-server runs native tools via selected permission policy; Nomi computer-use tools disabled"},
 		MCP:         cr.BridgeState{Status: "unsupported", Detail: "MCP tools and elicitations fail closed in official Codex profile"},
 		Persona:     cr.BridgeState{Status: "degraded", Detail: "Official Codex profile does not inject Nomi persona prompts"},
 		Memory:      cr.BridgeState{Status: "degraded", Detail: "Conversation history is synced via delta/full handoff only; Nomi memory store is not shared"},
@@ -681,13 +717,13 @@ func codexChoice(s *convstore.Store, p *projects.Store, r *mainchat.Registry, id
 		RequiresProject: true,
 		HasLocalLogin:   boolPtr(cli.DetectLocalLogin("codex", "")),
 		Login:           "not-advertised",
-		Degraded:        []string{"login unverified; official CLI consults its own login only when a turn is sent", "read-only, never auto-approve; tools, edits, subagents and background tasks fail closed"},
+		Degraded:        []string{"login unverified; official CLI consults its own login only when a turn is sent"},
 		Models: []mainchat.RuntimeModelOption{
 			{ID: "cli-default", Label: "CLI Default"},
 			{ID: "gpt-5-codex", Label: "GPT-5 Codex"},
 			{ID: "o4-mini", Label: "o4-mini"},
 		},
-		PermissionModes: []string{"ask"},
+		PermissionModes: codexrt.PermissionModes(),
 		Bridges:         bridges,
 	}
 	if !convstore.ManagedSupported() {

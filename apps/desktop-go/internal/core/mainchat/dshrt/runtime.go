@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/dsh"
@@ -36,8 +37,60 @@ type worker struct {
 	child     *nodeproc.Child
 	closed    chan struct{}
 	closeOnce sync.Once
+	stderr    string
 	failure   string
 	stopped   bool
+}
+
+func appendCappedStderr(cur, chunk string, limit int) string {
+	const suffix = "\n[truncated]"
+	if len(cur) >= limit || strings.HasSuffix(cur, suffix) {
+		return cur
+	}
+	remain := limit - len(cur)
+	if len(chunk) <= remain {
+		return cur + chunk
+	}
+	cut := remain
+	for cut > 0 && !utf8.ValidString(chunk[:cut]) {
+		cut--
+	}
+	return cur + chunk[:cut] + suffix
+}
+
+func formatFailureDetail(failure string, err error, stderr string, fallback string) string {
+	var parts []string
+	add := func(s string) {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			return
+		}
+		for _, prev := range parts {
+			if prev == s || strings.Contains(prev, s) {
+				return
+			}
+		}
+		parts = append(parts, s)
+	}
+	add(failure)
+	if err != nil {
+		msg := strings.TrimSpace(err.Error())
+		if failure == "" || (msg != "process exited" && msg != "signal: killed" && msg != "exit code -1") {
+			add(msg)
+		}
+	}
+	if trimmed := strings.TrimSpace(stderr); trimmed != "" && trimmed != "[truncated]" {
+		compact := strings.Join(strings.Fields(trimmed), " ")
+		runes := []rune(compact)
+		if len(runes) > 400 {
+			compact = string(runes[:400]) + "..."
+		}
+		add(compact)
+	}
+	if len(parts) == 0 {
+		return fallback
+	}
+	return strings.Join(parts, "; ")
 }
 
 func (r *Runtime) SetTitleHandler(fn func(string)) {
@@ -355,6 +408,9 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 				handleLine(line)
 			}
 		})
+		w.child.OnStderr(func(chunk string) {
+			w.stderr = appendCappedStderr(w.stderr, chunk, 8192)
+		})
 		w.child.OnError(func(err error) {
 			procErr = err
 		})
@@ -414,12 +470,14 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 				}
 			drained:
 				var good bool
-				var finalText, modelName string
+				var finalText, modelName, failure, stderr string
 				var finalUsage *cr.TurnUsage
 				durationMs := time.Since(startedAt).Milliseconds()
 				jsrt.Run(func() {
 					good = err == nil && w.failure == "" && ctx.Err() == nil && exitCode != nil && *exitCode == 0 && (completed || text != "")
 					finalText = text
+					failure = w.failure
+					stderr = w.stderr
 					if good {
 						streamMu.Lock()
 						modelName = turnModel
@@ -478,7 +536,12 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 					})
 					return
 				}
-				_ = accept(cr.Event{Token: q.Token, NativeSessionID: q.NativeSessionID, Kind: cr.EventFailed, Detail: "headless native execution failed without validated completion"})
+				_ = accept(cr.Event{
+					Token:           q.Token,
+					NativeSessionID: q.NativeSessionID,
+					Kind:            cr.EventFailed,
+					Detail:          formatFailureDetail(failure, err, stderr, "headless native execution failed without validated completion"),
+				})
 				return
 			}
 		}

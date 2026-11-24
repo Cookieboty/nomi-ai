@@ -23,6 +23,8 @@ type worker struct {
 	child                         *nodeproc.Child
 	driver                        *drivers.StreamJsonDriver
 	sid, lastID, stderr, failure  string
+	permissionMode                string
+	expectedNativeMode            string
 	closed                        chan struct{}
 	active                        *turn
 	confirmed, completed, stopped bool
@@ -30,6 +32,9 @@ type worker struct {
 
 func (r *Runtime) spawn(sid string, resume bool) *worker {
 	cfg := r.config
+	permMode := effectivePermissionMode(cfg.PermissionMode)
+	cliMode := toCliPermissionMode(permMode)
+	nativeMode := effectiveNativeMode(permMode, cfg.Source)
 	model := cfg.Model
 	if model == "cli-default" {
 		model = ""
@@ -40,15 +45,26 @@ func (r *Runtime) spawn(sid string, resume bool) *worker {
 	}
 	// --bare would DISABLE subscription login, so it must NOT be used here.
 	// These documented flags preserve official login while removing discovery
-	// and limiting the native loop. No allowedTools/bypass permissions are added.
-	args := []string{"-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--permission-prompt-tool", "stdio", "--replay-user-messages", "--safe-mode", "--restricted", "--disable-slash-commands", "--setting-sources", "", "--settings", `{"disableAllHooks":true}`, "--tools", "Read,Glob,Grep", "--strict-mcp-config", "--mcp-config", `{"mcpServers":{}}`, "--disallowedTools", "mcp__*"}
-	if cfg.ComputerMcp != nil && cfg.ComputerMcp.Name != "" && cfg.ComputerMcp.Command != "" {
+	// and binding MCP / hooks strictly to product policy.
+	mcpCfgRaw := `{"mcpServers":{}}`
+	hasComputerMcp := cfg.ComputerMcp != nil && cfg.ComputerMcp.Name != "" && cfg.ComputerMcp.Command != ""
+	if hasComputerMcp {
 		mcpCfg, _ := json.Marshal(map[string]any{
 			"mcpServers": map[string]any{
 				cfg.ComputerMcp.Name: map[string]any{"type": "stdio", "command": cfg.ComputerMcp.Command, "args": cfg.ComputerMcp.Args},
 			},
 		})
-		args = []string{"-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--permission-prompt-tool", "stdio", "--replay-user-messages", "--safe-mode", "--restricted", "--disable-slash-commands", "--setting-sources", "", "--settings", `{"disableAllHooks":true}`, "--tools", "Read,Glob,Grep", "--strict-mcp-config", "--mcp-config", string(mcpCfg), "--allowedTools", "mcp__" + cfg.ComputerMcp.Name}
+		mcpCfgRaw = string(mcpCfg)
+	}
+	args := []string{"-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--permission-prompt-tool", "stdio", "--replay-user-messages", "--disable-slash-commands", "--setting-sources", "", "--settings", `{"disableAllHooks":true}`}
+	if permMode == "deny" {
+		args = append(args, "--tools", "Read,Glob,Grep")
+	}
+	args = append(args, "--strict-mcp-config", "--mcp-config", mcpCfgRaw)
+	if hasComputerMcp {
+		args = append(args, "--allowedTools", "mcp__"+cfg.ComputerMcp.Name)
+	} else {
+		args = append(args, "--disallowedTools", "mcp__*")
 	}
 	stripped := map[string]bool{}
 	for _, k := range cfg.StripEnv {
@@ -59,6 +75,7 @@ func (r *Runtime) spawn(sid string, resume bool) *worker {
 	}
 	var launchEnv *util.Obj
 	if cfg.Source == "thirdParty" {
+		args = append(args, "--permission-mode", nativeMode)
 		args = append(args, cfg.ExtraArgs...)
 		if model != "" && !cfg.ModelInConfig {
 			args = append(args, "--model", model)
@@ -68,7 +85,7 @@ func (r *Runtime) spawn(sid string, resume bool) *worker {
 		if cfg.Source != "local" && cfg.ConfigDir != "" {
 			accountDir = &cfg.ConfigDir
 		}
-		launch := claude.OfficialLaunch(clisdk.LaunchContext{Cwd: cfg.Cwd, PermissionMode: "manual", Model: modelPtr, AccountDir: accountDir})
+		launch := claude.OfficialLaunch(clisdk.LaunchContext{Cwd: cfg.Cwd, PermissionMode: cliMode, Model: modelPtr, AccountDir: accountDir})
 		if cfg.Effort != "" {
 			args = append(args, "--effort", cfg.Effort)
 		}
@@ -106,14 +123,10 @@ func (r *Runtime) spawn(sid string, resume bool) *worker {
 	for k, v := range cfg.ExtraEnv {
 		env = append(env, k+"="+v)
 	}
-	w := &worker{sid: sid, closed: make(chan struct{}), onTitle: r.emitTitle}
+	w := &worker{sid: sid, permissionMode: permMode, expectedNativeMode: nativeMode, closed: make(chan struct{}), onTitle: r.emitTitle}
 	w.child = nodeproc.Spawn(cfg.Executable, args, nodeproc.Options{Cwd: cfg.Cwd, Env: env, Detached: true})
 	w.child.OnStderr(func(chunk string) {
-		if len(w.stderr)+len(chunk) > 8192 {
-			w.stderr = "[truncated]"
-			return
-		}
-		w.stderr += chunk
+		w.stderr = appendCappedStderr(w.stderr, chunk, 8192)
 	})
 	w.child.OnClose(func(*int, string) { close(w.closed) })
 	parse := claude.NewParser()
@@ -172,6 +185,120 @@ func (w *worker) ack() {
 	e.Delivery = cr.Delivery{PlanID: t.request.Plan.ID, NativeSessionID: w.sid, Kind: cr.DeliveredFull}
 	w.queue(e)
 }
+func appendCappedStderr(cur, chunk string, limit int) string {
+	const suffix = "\n[truncated]"
+	if len(cur) >= limit || strings.HasSuffix(cur, suffix) {
+		return cur
+	}
+	remain := limit - len(cur)
+	if len(chunk) <= remain {
+		return cur + chunk
+	}
+	cut := remain
+	for cut > 0 && !utf8.ValidString(chunk[:cut]) {
+		cut--
+	}
+	return cur + chunk[:cut] + suffix
+}
+
+func hasNonNullJSON(raw json.RawMessage) bool {
+	trimmed := strings.TrimSpace(string(raw))
+	return trimmed != "" && trimmed != "null" && trimmed != "false" && trimmed != "[]" && trimmed != "{}"
+}
+
+func hasNonEmptyJSONList(items []json.RawMessage) bool {
+	for _, item := range items {
+		if hasNonNullJSON(item) {
+			return true
+		}
+	}
+	return false
+}
+
+// isActiveClaudeWorkEvent reports top-level Claude stream-json events that initiate
+// or advance turn work/interactions (as opposed to system or passive lifecycle notices).
+func isActiveClaudeWorkEvent(typ string) bool {
+	switch typ {
+	case "user", "assistant", "stream_event", "result", "control_request", "error":
+		return true
+	default:
+		return false
+	}
+}
+
+func extractClaudeJSONText(raw json.RawMessage) string {
+	trimmed := strings.TrimSpace(string(raw))
+	if trimmed == "" || trimmed == "null" {
+		return ""
+	}
+	v, err := util.Parse(raw)
+	if err != nil || v == nil {
+		return ""
+	}
+	switch x := v.(type) {
+	case string:
+		return strings.TrimSpace(x)
+	case *util.Obj:
+		for _, k := range []string{"message", "error", "text"} {
+			if s := strings.TrimSpace(util.Str(x.Get(k))); s != "" {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
+func extractClaudeResultError(resultRaw json.RawMessage, errorsRaw []json.RawMessage, errRaw json.RawMessage, fallback string) string {
+	var parts []string
+	seen := map[string]bool{}
+	add := func(s string) {
+		s = strings.TrimSpace(s)
+		if s == "" || seen[s] {
+			return
+		}
+		seen[s] = true
+		parts = append(parts, s)
+	}
+	add(extractClaudeJSONText(resultRaw))
+	for _, item := range errorsRaw {
+		add(extractClaudeJSONText(item))
+	}
+	if len(parts) == 0 {
+		add(extractClaudeJSONText(errRaw))
+	}
+	if len(parts) == 0 {
+		add(fallback)
+	}
+	return strings.Join(parts, "; ")
+}
+
+func claudeNativeModeRank(mode string) (int, bool) {
+	switch mode {
+	case "plan":
+		return 1, true
+	case "default":
+		return 2, true
+	case "acceptEdits":
+		return 3, true
+	case "auto":
+		return 4, true
+	case "bypassPermissions":
+		return 5, true
+	default:
+		return 0, false
+	}
+}
+
+// isAllowedClaudeNativeMode 允许与请求相等或安全降级的模式，严格拒绝未知模式与提权。
+func isAllowedClaudeNativeMode(requested, reported string) bool {
+	if reported == "" {
+		return true
+	}
+	reqRank, ok1 := claudeNativeModeRank(requested)
+	repRank, ok2 := claudeNativeModeRank(reported)
+	return ok1 && ok2 && repRank <= reqRank
+}
+
 func (w *worker) line(line string, _ bool) bool {
 	if w.failure != "" {
 		return true
@@ -181,24 +308,23 @@ func (w *worker) line(line string, _ bool) bool {
 	}
 	var j struct {
 		Type, Subtype, UUID string
-		PermissionMode      string `json:"permissionMode"`
-		SessionID           string `json:"session_id"`
-		IsError             bool   `json:"is_error"`
-		Parent              any    `json:"parent_tool_use_id"`
-		RequestID           string `json:"request_id"`
-		Request             struct {
-			Subtype string
-			Tool    string `json:"tool_name"`
-			Input   json.RawMessage
-		}
-		Message struct{ Content json.RawMessage }
+		PermissionMode      string            `json:"permissionMode"`
+		SessionID           string            `json:"session_id"`
+		IsError             bool              `json:"is_error"`
+		Parent              any               `json:"parent_tool_use_id"`
+		RequestID           string            `json:"request_id"`
+		Request             json.RawMessage   `json:"request"`
+		Message             json.RawMessage   `json:"message"`
+		Result              json.RawMessage   `json:"result"`
+		Errors              []json.RawMessage `json:"errors"`
+		Error               json.RawMessage   `json:"error"`
 	}
 	if len(line) > 2<<20 || !utf8.ValidString(line) || json.Unmarshal([]byte(line), &j) != nil || j.Type == "" {
 		w.fail("malformed native event")
 		return true
 	}
-	if j.PermissionMode != "" && j.PermissionMode != "default" {
-		w.fail("native effective permission mode differs from requested default")
+	if j.PermissionMode != "" && !isAllowedClaudeNativeMode(w.expectedNativeMode, j.PermissionMode) {
+		w.fail("native effective permission mode differs from requested " + w.expectedNativeMode + ": " + j.PermissionMode)
 		return true
 	}
 	if j.SessionID != "" && j.SessionID != w.sid {
@@ -218,18 +344,27 @@ func (w *worker) line(line string, _ bool) bool {
 		w.ack()
 	}
 	if j.Type == "system" && (strings.HasPrefix(j.Subtype, "task_") || strings.HasPrefix(j.Subtype, "hook_")) {
-		w.fail("background work/hooks unsupported")
+		w.fail("background work/hooks unsupported: " + j.Subtype)
 		return true
 	}
-	isPassiveTitle := j.Type == "custom-title" || j.Type == "summary"
+	if j.Type != "control_request" && (j.RequestID != "" || hasNonNullJSON(j.Request)) {
+		w.fail("unsupported native request event: " + j.Type)
+		return true
+	}
+	isActive := isActiveClaudeWorkEvent(j.Type)
 	t := w.active
+	if t != nil && j.Type == "system" && j.Subtype == "api_retry" && len(j.Error) > 0 {
+		if retryMsg := extractClaudeJSONText(j.Error); retryMsg != "" {
+			t.lastRetryError = retryMsg
+		}
+	}
 	if t == nil {
-		if w.completed && j.Type != "rate_limit_event" && !isPassiveTitle {
-			w.fail("unsolicited native work after completion")
+		if w.completed && isActive {
+			w.fail("unsolicited native work after completion: " + j.Type)
 			return true
 		}
-		if j.Type != "system" && j.Type != "rate_limit_event" && !isPassiveTitle {
-			w.fail("unsolicited native event before turn")
+		if j.Type != "system" && isActive {
+			w.fail("unsolicited native event before turn: " + j.Type)
 			return true
 		}
 		return false
@@ -238,29 +373,57 @@ func (w *worker) line(line string, _ bool) bool {
 		return false
 	}
 	if t.terminal {
-		if isPassiveTitle {
-			return false
+		if isActive {
+			w.fail("native event after terminal result: " + j.Type)
+			return true
 		}
-		w.fail("native event after terminal result")
-		return true
+		return false
 	}
 	switch j.Type {
 	case "user":
+		var msg struct {
+			Content json.RawMessage `json:"content"`
+		}
 		var content string
-		if j.UUID == t.uuid && json.Unmarshal(j.Message.Content, &content) == nil && content == t.request.Plan.Payload {
+		if j.UUID == t.uuid && len(j.Message) > 0 && json.Unmarshal(j.Message, &msg) == nil &&
+			json.Unmarshal(msg.Content, &content) == nil && content == t.request.Plan.Payload {
 			t.echoed = true
 			w.ack()
 		}
 	case "result":
 		t.terminal = true
-		if j.Subtype != "success" || j.IsError || j.SessionID != w.sid || len(t.approvals) != 0 || len(t.tools) != 0 {
-			w.fail("native terminal result is not a quiescent success")
+		switch {
+		case j.IsError || j.Subtype != "success":
+			detail := extractClaudeResultError(j.Result, j.Errors, j.Error, t.lastRetryError)
+			if detail == "" {
+				if j.Subtype != "" && j.Subtype != "success" {
+					detail = "native terminal result failed: " + j.Subtype
+				} else {
+					detail = "native terminal result returned error"
+				}
+			} else if j.Subtype != "" && j.Subtype != "success" && !strings.Contains(detail, j.Subtype) {
+				detail = j.Subtype + ": " + detail
+			}
+			w.fail(detail)
+			return true
+		case j.SessionID != w.sid:
+			w.fail("native result session identity mismatch")
+			return true
+		case len(t.approvals) != 0 || len(t.tools) != 0:
+			w.fail("native terminal result arrived with pending approvals or tools")
 			return true
 		}
 		w.confirmed = true
 		t.success = true
 	case "control_request":
-		if j.Request.Subtype != "can_use_tool" || !readTool(j.Request.Tool) || j.RequestID == "" {
+		var req struct {
+			Subtype string          `json:"subtype"`
+			Tool    string          `json:"tool_name"`
+			Input   json.RawMessage `json:"input"`
+		}
+		if len(j.Request) == 0 || json.Unmarshal(j.Request, &req) != nil ||
+			req.Subtype != "can_use_tool" || req.Tool == "" || j.RequestID == "" ||
+			(w.permissionMode == "deny" && !readTool(req.Tool)) {
 			w.fail("unsupported native approval/tool")
 			return true
 		}
@@ -268,7 +431,7 @@ func (w *worker) line(line string, _ bool) bool {
 			w.fail("duplicate native approval")
 			return true
 		}
-		v, err := util.Parse(j.Request.Input)
+		v, err := util.Parse(req.Input)
 		input, ok := v.(*util.Obj)
 		if err != nil || !ok {
 			w.fail("invalid native approval input")
@@ -276,12 +439,15 @@ func (w *worker) line(line string, _ bool) bool {
 		}
 		t.approvals[j.RequestID] = input
 		if t.approvalTools != nil {
-			t.approvalTools[j.RequestID] = j.Request.Tool
+			t.approvalTools[j.RequestID] = req.Tool
 		}
-	case "assistant", "stream_event", "system", "rate_limit_event", "error", "custom-title", "summary":
+	case "assistant", "stream_event", "system", "error":
 	default:
-		w.fail("unknown native protocol event")
-		return true
+		if j.IsError || hasNonNullJSON(j.Error) || hasNonEmptyJSONList(j.Errors) {
+			w.fail(extractClaudeResultError(nil, j.Errors, j.Error, "native error event: "+j.Type))
+			return true
+		}
+		return false
 	}
 	return false
 }
@@ -364,6 +530,10 @@ func (w *worker) parsed(ev *util.Obj) {
 		if len(preview) > 600 {
 			preview = preview[:600]
 		}
+		danger := "destructive"
+		if readTool(toolName) {
+			danger = "read"
+		}
 		e := event(t, cr.EventApproval)
 		e.ApprovalID = id
 		e.ApprovalInfo = &cr.ApprovalInfo{
@@ -371,7 +541,7 @@ func (w *worker) parsed(ev *util.Obj) {
 			Tool:        toolName,
 			Summary:     toolName,
 			ArgsPreview: preview,
-			Danger:      "read",
+			Danger:      danger,
 		}
 		w.queue(e)
 	case "tool":
@@ -380,7 +550,7 @@ func (w *worker) parsed(ev *util.Obj) {
 		name := util.Str(ev.Get("name"))
 		status := util.Str(ev.Get("status"))
 		if status == "start" {
-			if !readTool(name) || id == "" {
+			if name == "" || id == "" || (w.permissionMode == "deny" && !readTool(name)) {
 				w.fail("unsupported native tool started")
 				return
 			}
@@ -402,8 +572,14 @@ func (w *worker) parsed(ev *util.Obj) {
 			}
 			w.queue(te)
 		}
-	case "error", "question", "agent":
-		w.fail("native error or unsupported interactive/background capability")
+	case "error":
+		msg := strings.TrimSpace(util.Str(ev.Get("message")))
+		if msg == "" {
+			msg = "native error event"
+		}
+		w.fail(msg)
+	case "question", "agent":
+		w.fail("unsupported interactive/background capability: " + typ)
 	}
 }
 

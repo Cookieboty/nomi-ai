@@ -6,6 +6,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mainchat"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mainchat/acprt"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mainchat/codexrt"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"os"
 	"path/filepath"
@@ -333,24 +334,30 @@ func TestManagedChoicesGrokPermissionModes(t *testing.T) {
 	r.Register("api", func(string) (cr.Target, error) { return cr.Target{}, nil })
 
 	choices := managedChoices(s, p, r, "c-grok")
-	apiChoice := namedChoice(t, choices, "api")
-	wantApi := []string{"deny", "ask", "acceptEdits", "auto", "bypass"}
-	if len(apiChoice.PermissionModes) != len(wantApi) {
-		t.Fatalf("api PermissionModes = %v, want %v", apiChoice.PermissionModes, wantApi)
+	expected := map[string][]string{
+		"api":         {"deny", "ask", "acceptEdits", "auto", "bypass"},
+		"claude":      {"deny", "ask", "acceptEdits", "auto", "bypass"},
+		"codex":       {"deny", "ask", "acceptEdits", "auto", "bypass"},
+		"dsh":         {"deny", "acceptEdits", "bypass"},
+		"grok":        {"deny", "ask", "acceptEdits", "auto", "bypass"},
+		"gemini":      {"deny", "ask", "acceptEdits", "bypass"},
+		"kimi":        {"deny", "ask", "auto", "bypass"},
+		"minimax":     {"deny", "ask"},
+		"antigravity": {"deny", "ask", "acceptEdits", "auto"},
 	}
-	for i := range wantApi {
-		if apiChoice.PermissionModes[i] != wantApi[i] {
-			t.Fatalf("api PermissionModes[%d] = %q, want %q", i, apiChoice.PermissionModes[i], wantApi[i])
+	for id, want := range expected {
+		got := namedChoice(t, choices, id)
+		if !slices.Equal(got.PermissionModes, want) {
+			t.Fatalf("%s PermissionModes = %v, want %v", id, got.PermissionModes, want)
 		}
 	}
-	grok := namedChoice(t, choices, "grok")
-	want := []string{"deny", "ask", "acceptEdits", "auto", "bypass"}
-	if len(grok.PermissionModes) != len(want) {
-		t.Fatalf("grok PermissionModes = %v, want %v", grok.PermissionModes, want)
+
+	// 验证 codexConfigFor 正确透传 PermissionMode
+	codexCfg, err := codexConfigFor(s, p, codexrt.Config{ConfigDir: filepath.Join(projDir, "codex")}, mainchat.RuntimeConfig{PermissionMode: "auto"}, "c-grok", managedDeps{}, nil)
+	if err != nil {
+		t.Fatalf("codexConfigFor: %v", err)
 	}
-	for i := range want {
-		if grok.PermissionModes[i] != want[i] {
-			t.Fatalf("grok PermissionModes[%d] = %q, want %q", i, grok.PermissionModes[i], want[i])
-		}
+	if codexCfg.PermissionMode != "auto" {
+		t.Fatalf("codexConfigFor PermissionMode = %q, want auto", codexCfg.PermissionMode)
 	}
 }

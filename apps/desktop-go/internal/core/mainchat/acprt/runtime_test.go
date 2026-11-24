@@ -89,6 +89,11 @@ func TestHelperAcpProcess(t *testing.T) {
 				}
 			}
 			res := map[string]any{"sessionId": fmt.Sprintf("acp-sess-%d", counter), "modes": map[string]any{"currentModeId": "default", "availableModes": availModes}}
+			if mode == "grok_unknown_accept_edits" {
+				res["modes"] = map[string]any{"currentModeId": "agent"}
+			} else if mode == "plan_rejected" {
+				res["modes"] = map[string]any{"currentModeId": "default"}
+			}
 			if mode == "title_and_config_model" {
 				res["title"] = "Handshake Title"
 				res["configOptions"] = []any{
@@ -111,9 +116,28 @@ func TestHelperAcpProcess(t *testing.T) {
 				"result":  res,
 			})
 		case "session/set_mode":
+			modeID, _ := req.Params["modeId"].(string)
 			if logPath := os.Getenv("GO_ACP_SET_MODE_LOG"); logPath != "" {
-				modeID, _ := req.Params["modeId"].(string)
-				_ = os.WriteFile(logPath, []byte(modeID), 0o600)
+				if os.Getenv("GO_ACP_SET_MODE_APPEND") == "1" {
+					f, _ := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+					if f != nil {
+						_, _ = f.WriteString(modeID + "\n")
+						_ = f.Close()
+					}
+				} else {
+					_ = os.WriteFile(logPath, []byte(modeID), 0o600)
+				}
+			}
+			if (mode == "grok_unknown_accept_edits" && modeID == "acceptEdits") || (mode == "plan_rejected" && modeID == "plan") {
+				send(map[string]any{
+					"jsonrpc": "2.0",
+					"id":      req.ID,
+					"error": map[string]any{
+						"code":    -32602,
+						"message": "Invalid params: unknown mode id: " + modeID,
+					},
+				})
+				continue
 			}
 			send(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": map[string]any{}})
 		case "session/set_model":
@@ -140,6 +164,9 @@ func TestHelperAcpProcess(t *testing.T) {
 		case "session/prompt":
 			sid, _ := req.Params["sessionId"].(string)
 			switch mode {
+			case "grok_unknown_accept_edits":
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "agent_message_chunk", "content": map[string]any{"type": "text", "text": "grok fallback ok"}}}})
+				send(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": map[string]any{"stopReason": "end_turn"}})
 			case "stream_generic":
 				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "usage_update", "used": float64(50), "size": float64(128000)}}})
 				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "agent_thought_chunk", "content": map[string]any{"type": "text", "text": "generic think"}}}})
@@ -765,6 +792,139 @@ func TestStartTraceApprovalAndCancel(t *testing.T) {
 		}()
 		if jsErr != "" {
 			t.Fatalf("post-turn title poisoned warm worker: %s", jsErr)
+		}
+	})
+
+	t.Run("grok_unknown_mode_id_falls_back_to_default_and_remembers", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("POSIX shell wrapper fixture")
+		}
+		exe, err := os.Executable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		dir := t.TempDir()
+		proj := filepath.Join(dir, "proj")
+		cfg := filepath.Join(dir, "cfg")
+		logPath := filepath.Join(dir, "set_mode.txt")
+		for _, d := range []string{proj, cfg} {
+			if err := os.MkdirAll(d, 0o700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		t.Setenv("GO_ACP_HELPER_MODE", "grok_unknown_accept_edits")
+		t.Setenv("GO_ACP_SET_MODE_LOG", logPath)
+		t.Setenv("GO_ACP_SET_MODE_APPEND", "1")
+		wrapper := filepath.Join(dir, "acp-cli")
+		script := fmt.Sprintf("#!/bin/sh\nexec %q -test.run=^TestHelperAcpProcess$\n", exe)
+		if err := os.WriteFile(wrapper, []byte(script), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		effort := "medium"
+		f := New("grok", func(string) (Config, error) {
+			return Config{BackendID: "grok", Executable: wrapper, Cwd: proj, ConfigDir: cfg, PermissionMode: "auto", Effort: effort}, nil
+		})
+		defer f.Release("conv-grok-fallback")
+		target, err := f.Target("conv-grok-fallback")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := target.Runtime.(*Runtime)
+		tok1 := cr.AttemptToken{ConversationID: "conv-grok-fallback", AttemptID: "gf1", Generation: 1}
+		rec1 := r.Recover(ctx, cr.RecoveryRequest{Token: tok1})
+		if rec1.Kind != cr.RecoveryNew || rec1.NativeSessionID == "" {
+			t.Fatalf("recover1 = %+v, want RecoveryNew", rec1)
+		}
+		done := make(chan cr.Event, 1)
+		var text string
+		r.Start(ctx, cr.RuntimeRequest{
+			Token:           tok1,
+			NativeSessionID: rec1.NativeSessionID,
+			Plan:            cr.Plan{ID: "p-gf1", Payload: "翻译俄罗斯语言"},
+		}, func(e cr.Event) error {
+			if e.Kind == cr.EventText {
+				text = e.Text
+			}
+			if e.Kind == cr.EventCompleted || e.Kind == cr.EventFailed {
+				done <- e
+			}
+			return nil
+		})
+		last := <-done
+		if last.Kind != cr.EventCompleted || text != "grok fallback ok" {
+			t.Fatalf("turn1 = %+v text=%q", last, text)
+		}
+		// 热复用且触发 applySessionSettings：不应再重发已被拒绝的 acceptEdits
+		effort = "high"
+		target2, err := f.Target("conv-grok-fallback")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r2 := target2.Runtime.(*Runtime)
+		tok2 := cr.AttemptToken{ConversationID: "conv-grok-fallback", AttemptID: "gf2", Generation: 2}
+		rec2 := r2.Recover(ctx, cr.RecoveryRequest{
+			Token:    tok2,
+			Previous: cr.Binding{ID: "b1", NativeSessionID: rec1.NativeSessionID, Status: cr.StatusLive},
+		})
+		if rec2.Kind != cr.RecoveryResumed {
+			t.Fatalf("warm recover2 = %+v, want RecoveryResumed", rec2)
+		}
+		raw, err := os.ReadFile(logPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines := strings.Fields(string(raw))
+		if len(lines) != 2 || lines[0] != "acceptEdits" || lines[1] != "default" {
+			t.Fatalf("session/set_mode sequence = %v, want [acceptEdits default]", lines)
+		}
+	})
+
+	t.Run("plan_mode_never_falls_back_when_rejected", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("POSIX shell wrapper fixture")
+		}
+		exe, err := os.Executable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		dir := t.TempDir()
+		proj := filepath.Join(dir, "proj")
+		cfg := filepath.Join(dir, "cfg")
+		logPath := filepath.Join(dir, "set_mode.txt")
+		for _, d := range []string{proj, cfg} {
+			if err := os.MkdirAll(d, 0o700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		t.Setenv("GO_ACP_HELPER_MODE", "plan_rejected")
+		t.Setenv("GO_ACP_SET_MODE_LOG", logPath)
+		t.Setenv("GO_ACP_SET_MODE_APPEND", "1")
+		wrapper := filepath.Join(dir, "acp-cli")
+		script := fmt.Sprintf("#!/bin/sh\nexec %q -test.run=^TestHelperAcpProcess$\n", exe)
+		if err := os.WriteFile(wrapper, []byte(script), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		f := New("grok", func(string) (Config, error) {
+			return Config{BackendID: "grok", Executable: wrapper, Cwd: proj, ConfigDir: cfg, PermissionMode: "deny"}, nil
+		})
+		defer f.Release("conv-plan-reject")
+		target, err := f.Target("conv-plan-reject")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := target.Runtime.(*Runtime)
+		tok := cr.AttemptToken{ConversationID: "conv-plan-reject", AttemptID: "pr1", Generation: 1}
+		rec := r.Recover(ctx, cr.RecoveryRequest{Token: tok})
+		if rec.Kind != cr.RecoveryError || !strings.Contains(rec.Detail, "unknown mode id: plan") {
+			t.Fatalf("plan reject recover = %+v, want RecoveryError with unknown mode id: plan", rec)
+		}
+		raw, err := os.ReadFile(logPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines := strings.Fields(string(raw))
+		if len(lines) != 1 || lines[0] != "plan" {
+			t.Fatalf("plan reject must not fall back to default, got %v", lines)
 		}
 	})
 }
