@@ -515,13 +515,20 @@ func main() {
 	b8.Tasks.RegisterExecutor("nomi", tasks.NewNomiExecutor(tasks.NomiDeps{
 		AgentStream: func(ctx context.Context, msgs []blm.ChatMessage, toolNames []string, extra map[string]any, emit func(blm.ChatChunk)) error {
 			role := "agent-tools"
+			if tm, ok := extra["taskModel"].(string); ok {
+				if _, valid := sidechat.ModelRef(sidechat.ModelRolePrefix + tm); valid {
+					role = sidechat.ModelRolePrefix + tm
+				}
+			}
 			o := &facade.ChatStreamOptions{Role: &role, Messages: msgs, Signal: ctx.Done(), Tools: toolNames, Quiet: true, Extra: extra}
-			// reqId 不是给工具的上下文：拿出来当这次请求的 id，侧栏插话（Steer）按它找到工具循环
+			// reqId 与 taskModel 不是给工具的上下文：剔除后再往下传
 			if id, ok := extra["reqId"].(string); ok && id != "" {
 				o.ReqID = &id
+			}
+			if _, hasReq := extra["reqId"]; hasReq || extra["taskModel"] != nil {
 				rest := make(map[string]any, len(extra))
 				for k, v := range extra {
-					if k != "reqId" {
+					if k != "reqId" && k != "taskModel" {
 						rest[k] = v
 					}
 				}
@@ -582,12 +589,32 @@ func main() {
 			_, _, ok := airouter.Routed{R: llmRegistry}.Resolve("agent-tools")
 			return ok
 		},
+		ReadyFor: func(role string) bool {
+			if role == "" {
+				role = "agent-tools"
+			}
+			_, _, ok := airouter.Routed{R: llmRegistry}.Resolve(role)
+			return ok
+		},
 		Route: func() (string, string) {
 			pid, model := "", ""
 			if p := desktopSvc.ProviderFor("agent-tools"); p != nil {
 				pid = p.ID
 			}
 			if _, m, ok := (airouter.Routed{R: llmRegistry}).Resolve("agent-tools"); ok && m != nil {
+				model = *m
+			}
+			return pid, model
+		},
+		RouteFor: func(role string) (string, string) {
+			if role == "" {
+				role = "agent-tools"
+			}
+			pid, model := "", ""
+			if p := desktopSvc.ProviderFor(desktop.Role(role)); p != nil {
+				pid = p.ID
+			}
+			if _, m, ok := (airouter.Routed{R: llmRegistry}).Resolve(role); ok && m != nil {
 				model = *m
 			}
 			return pid, model

@@ -25,6 +25,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codingcli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/sidechat"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -155,8 +156,12 @@ type NomiDeps struct {
 	// EventsFor：这次执行要处理的事件（事件触发时；Service.EventBatch）
 	EventsFor func(taskID string, eventKey *string) []SourceEvent
 	Ready     func() bool
+	// ReadyFor：按模型角色检查是否就绪（未配置时回退 Ready）；role 为 "agent-tools" 或 "model:<p>/<m>"
+	ReadyFor func(role string) bool
 	// Route：「带工具的 Nomi」当前路由到的供应商与模型（记进执行快照）；可为空
-	Route  func() (providerID, model string)
+	Route func() (providerID, model string)
+	// RouteFor：按模型角色解析供应商与模型（未配置时回退 Route）
+	RouteFor func(role string) (providerID, model string)
 	CostOf func(model string, input, output int64) (float64, bool)
 	Trace  func(taskID, attemptID string, line map[string]any)
 	Now    func() int64
@@ -423,22 +428,44 @@ func followUpImages(c AttemptCause) []blm.ChatImage {
 	return out
 }
 
+func nomiModelRole(ex ExecutorSpec) string {
+	if ex.Kind == "nomi" && ex.Model != nil {
+		if ref, ok := sidechat.ModelRef(sidechat.ModelRolePrefix + strings.TrimSpace(*ex.Model)); ok {
+			return sidechat.ModelRolePrefix + ref
+		}
+	}
+	return "agent-tools"
+}
+
 func (e *nomiExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
-	if e.d.Ready != nil && !e.d.Ready() {
+	role := nomiModelRole(t.Executor)
+	ready := true
+	if e.d.ReadyFor != nil {
+		ready = e.d.ReadyFor(role)
+	} else if e.d.Ready != nil {
+		ready = e.d.Ready()
+	}
+	if !ready {
 		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: configNoModel()}
 	}
-	// Nomi 任务一律用「带工具的 Nomi」的预设模型（对话用的同一条路由），不单独指定（#239）；
-	// 实际用到的供应商与模型记进快照
+	// 默认走「带工具的 Nomi」路由；任务显式指定合法模型时按 model:<p>/<m> 路由，实际供应商与模型记进快照
 	snap := ExecutionSnapshot{GrantVersion: t.Grant.Version}
-	if e.d.Route != nil {
-		if p, m := e.d.Route(); p != "" || m != "" {
-			if p != "" {
-				snap.ProviderID = ptr(p)
-			}
-			if m != "" {
-				snap.Model = ptr(m)
-			}
+	var p, m string
+	if e.d.RouteFor != nil {
+		p, m = e.d.RouteFor(role)
+	} else if e.d.Route != nil {
+		p, m = e.d.Route()
+	}
+	if p != "" || m != "" {
+		if p != "" {
+			snap.ProviderID = ptr(p)
 		}
+		if m != "" {
+			snap.Model = ptr(m)
+		}
+	}
+	if t.Executor.ReasoningEffort != nil && strings.TrimSpace(*t.Executor.ReasoningEffort) != "" {
+		snap.ReasoningEffort = ptr(strings.TrimSpace(*t.Executor.ReasoningEffort))
 	}
 	return snap, nil
 }
@@ -550,6 +577,14 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 	}
 	if t.Executor.Kind == "nomi" && t.Executor.Project != nil && *t.Executor.Project != "" {
 		extra["projectId"] = *t.Executor.Project
+	}
+	if t.Executor.Kind == "nomi" && t.Executor.Model != nil {
+		if ref, ok := sidechat.ModelRef(sidechat.ModelRolePrefix + strings.TrimSpace(*t.Executor.Model)); ok {
+			extra["taskModel"] = ref
+		}
+	}
+	if t.Executor.Kind == "nomi" && t.Executor.ReasoningEffort != nil && strings.TrimSpace(*t.Executor.ReasoningEffort) != "" {
+		extra["reasoningEffort"] = strings.TrimSpace(*t.Executor.ReasoningEffort)
 	}
 	// 工具调用进行中（生图、同步等 agent）流里没有片段：按间隔补心跳，免得被看守判成崩溃
 	var pmu sync.Mutex

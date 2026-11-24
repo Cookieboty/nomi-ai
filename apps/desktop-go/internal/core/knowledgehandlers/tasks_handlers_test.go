@@ -186,3 +186,32 @@ func (e *slowStubExec) Start(ctx tasks.AttemptContext) {
 func (e *slowStubExec) Resume(string, int, tasks.Answer) {}
 
 func (e *slowStubExec) Stop(string, int, string) {}
+
+func TestTaskHandlersUpdateModel(t *testing.T) {
+	svc := tasks.NewService(tasks.ServiceDeps{Root: t.TempDir(), Log: nopLog{}, Notify: func(string, string) {}})
+	svc.Start()
+	defer svc.Stop()
+	hs := taskHandlers(Services{Tasks: func() *tasks.Service { return svc }})
+	v, err := hs["tasks.create"](context.Background(), json.RawMessage(`{"title":"t","goal":"g","trigger":{"kind":"manual"},
+		"executor":{"kind":"nomi","tools":["read"]},"grant":{"level":1,"paths":[],"connections":[]}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := v.(tasks.Task).ID
+
+	uVal, err := hs["tasks.update"](context.Background(), json.RawMessage(`{"id":"`+id+`","model":"openai/gpt-5.4","reasoningEffort":"high"}`))
+	if err != nil {
+		t.Fatalf("tasks.update valid model failed: %v", err)
+	}
+	ut := uVal.(*tasks.Task)
+	if ut.Executor.Model == nil || *ut.Executor.Model != "openai/gpt-5.4" ||
+		ut.Executor.ReasoningEffort == nil || *ut.Executor.ReasoningEffort != "high" {
+		t.Fatalf("unexpected executor after update: %+v", ut.Executor)
+	}
+
+	if _, err := hs["tasks.update"](context.Background(), json.RawMessage(`{"id":"`+id+`","model":"not-a-ref"}`)); err == nil {
+		t.Fatal("expected BAD_INPUT for invalid model ref")
+	} else if ce, ok := err.(*contract.Error); !ok || ce.Code != "BAD_INPUT" {
+		t.Fatalf("expected BAD_INPUT, got %#v", err)
+	}
+}

@@ -193,8 +193,22 @@ beforeEach(() => {
             content: 'CLI 修复完成',
             timestamp: T0 + 1500,
             trace: [
-              { type: 'tool', name: 'Bash', status: 'start', id: 'cli-b1', input: '{"command":"git status"}', at: T0 + 400 },
-              { type: 'tool', name: 'Bash', status: 'done', id: 'cli-b1', output: 'clean', at: T0 + 700 },
+              {
+                type: 'tool',
+                name: 'Bash',
+                status: 'start',
+                id: 'cli-b1',
+                input: '{"command":"git status"}',
+                at: T0 + 400,
+              },
+              {
+                type: 'tool',
+                name: 'Bash',
+                status: 'done',
+                id: 'cli-b1',
+                output: 'clean',
+                at: T0 + 700,
+              },
             ],
           },
         ];
@@ -214,7 +228,10 @@ beforeEach(() => {
         updatedAt: T0,
         origin: { createdBy: 'user', createdAt: T0 },
         trigger: { kind: 'manual' },
-        executor: id === 'tk-nomi' ? { kind: 'nomi', tools: ['read'] } : { kind: 'cli', cwd: '/w/app', isolation: 'shared' },
+        executor:
+          id === 'tk-nomi'
+            ? { kind: 'nomi', tools: ['read'] }
+            : { kind: 'cli', cwd: '/w/app', isolation: 'shared' },
         grant: { version: 1, level: 1, paths: [], connections: [], grantedAt: T0 },
         budget: { maxRetries: 1 },
         acceptance: 'auto',
@@ -497,6 +514,8 @@ describe('任务详情运行轨迹入口', () => {
     const nomiTraceBtn = await screen.findByTestId('task-open-trace');
     fireEvent.click(nomiTraceBtn);
     await waitFor(() => {
+      expect(screen.getByTestId('task-side-drawer')).toBeTruthy();
+      expect(screen.queryByRole('dialog')).toBeNull();
       expect(screen.getByTestId('trace-graph-view')).toBeTruthy();
     });
     await waitFor(() => {
@@ -504,6 +523,8 @@ describe('任务详情运行轨迹入口', () => {
       expect(texts.some((txt) => txt.includes('先列出目录再读关键文件'))).toBe(true);
       expect(texts.some((txt) => txt.includes('src'))).toBe(true);
     });
+    fireEvent.click(screen.getByTestId('task-side-drawer-close'));
+    expect(screen.queryByTestId('task-side-drawer')).toBeNull();
     r1.unmount();
 
     // CLI 任务：由 carrier.tabId 加载对应 tab 消息并展示 bash 工具
@@ -556,8 +577,22 @@ describe('任务详情运行轨迹入口', () => {
           content: 'CLI 修复完成',
           timestamp: T0 + 1500,
           trace: [
-            { type: 'tool', name: 'Bash', status: 'start', id: 'cli-b1', input: '{"command":"git status"}', at: T0 + 400 },
-            { type: 'tool', name: 'Bash', status: 'done', id: 'cli-b1', output: 'clean', at: T0 + 700 },
+            {
+              type: 'tool',
+              name: 'Bash',
+              status: 'start',
+              id: 'cli-b1',
+              input: '{"command":"git status"}',
+              at: T0 + 400,
+            },
+            {
+              type: 'tool',
+              name: 'Bash',
+              status: 'done',
+              id: 'cli-b1',
+              output: 'clean',
+              at: T0 + 700,
+            },
           ],
         },
       ],
@@ -585,6 +620,8 @@ describe('任务详情运行轨迹入口', () => {
 
     fireEvent.click(screen.getByTestId('task-open-trace'));
     await waitFor(() => {
+      expect(screen.getByTestId('task-side-drawer')).toBeTruthy();
+      expect(screen.queryByRole('dialog')).toBeNull();
       expect(screen.getByTestId('trace-graph-view')).toBeTruthy();
     });
     await waitFor(() => {

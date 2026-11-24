@@ -181,6 +181,7 @@ export interface CliChipInput {
   defaultProviderId?: string | null;
   modelMeta?: ReadonlyMap<string, PickerModel> | null;
   hasLocalLogin?: boolean;
+  onTabUpdated?: (tab: HarnessTabMeta) => void;
 }
 
 /** agent 标签的数据适配器：读 tab / 目录 / 网关，写 harnessClient */
@@ -198,6 +199,7 @@ export function useCliModelEffortSource({
   defaultProviderId = null,
   modelMeta = null,
   hasLocalLogin: hasLocalLoginProp,
+  onTabUpdated,
 }: CliChipInput): ModelEffortSource {
   const tabSource = tabSourceOf(tab);
   const presets = useDelegatePresets(open);
@@ -348,7 +350,10 @@ export function useCliModelEffortSource({
   const run = async (fn: () => Promise<unknown>) => {
     setNote(null);
     try {
-      await fn();
+      const res = await fn();
+      if (res && typeof res === 'object' && 'id' in res) {
+        onTabUpdated?.(res as HarnessTabMeta);
+      }
     } catch (e) {
       setNote(e instanceof Error ? e.message : String(e));
     }
@@ -723,29 +728,32 @@ export function useCliModelEffortSource({
                   onClick={() => {
                     const hasMessages = !!tab.cliSessionId || (tab.carriedMessages ?? 0) > 0;
                     void run(async () => {
+                      let latest: HarnessTabMeta | null = null;
                       if (p.source !== tabSource) {
                         const switched = await switchTabSource(tab, p.source, {
                           model: p.model ?? undefined,
                           accountId: p.source === 'official' ? (p.accountId ?? null) : null,
                           hasMessages,
                         });
-                        if (!switched) return;
+                        if (!switched) return null;
+                        latest = switched;
                       } else {
                         if (
                           p.source === 'official' &&
                           (p.accountId ?? null) !== (tab.accountId ?? null)
                         ) {
-                          await harnessClient.setTabAccount(tab.id, p.accountId ?? null);
+                          latest = await harnessClient.setTabAccount(tab.id, p.accountId ?? null);
                         }
                         if ((p.model ?? '') !== (tab.modelOverride ?? '')) {
-                          await harnessClient.setTabModel(tab.id, p.model ?? '', {
+                          latest = await harnessClient.setTabModel(tab.id, p.model ?? '', {
                             expectSource: p.source,
                           });
                         }
                       }
                       if (p.reasoningEffort) {
-                        await harnessClient.setTabEffort(tab.id, p.reasoningEffort);
+                        latest = await harnessClient.setTabEffort(tab.id, p.reasoningEffort);
                       }
+                      return latest;
                     });
                   }}
                 >

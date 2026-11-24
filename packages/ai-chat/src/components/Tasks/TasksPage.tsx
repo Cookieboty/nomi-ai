@@ -23,6 +23,8 @@ import {
   type TaskStage,
   type TaskTrack,
 } from '../../services/tasksClient';
+import { shouldIgnoreEscape } from '../../utils/keyboard';
+import type { SubagentPaneActions } from '../SubagentPane';
 
 import { TaskBoard, type BoardGroup } from './Board';
 import styles from './index.module.css';
@@ -70,9 +72,16 @@ export const TasksPage: React.FC<{
   focus?: { id: string; nonce: number } | null;
   /** 命令面板「新建任务」：nonce 变了就再打开一次表单 */
   createNonce?: number;
-}> = ({ active, onBack, onOpenSchedule, focus, createNonce = 0 }) => {
+  paneActions?: SubagentPaneActions;
+}> = ({ active, onBack, onOpenSchedule, focus, createNonce = 0, paneActions }) => {
   const { data } = useTasks(active);
   const [selected, setSelected] = useState<string | null>(null);
+  const [sideExpanded, setSideExpanded] = useState(false);
+  const [sideSeenSelected, setSideSeenSelected] = useState<string | null>(null);
+  if (sideSeenSelected !== selected) {
+    setSideSeenSelected(selected);
+    setSideExpanded(false);
+  }
   const [focusSeen, setFocusSeen] = useState<number | undefined>(undefined);
   if (focus && focus.nonce !== focusSeen) {
     setFocusSeen(focus.nonce);
@@ -169,8 +178,9 @@ export const TasksPage: React.FC<{
   useEffect(() => {
     if (!active) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      if (e.key !== 'Escape' || shouldIgnoreEscape(e)) return;
       if (creating) setCreating(false);
+      else if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
       else if (selected) setSelected(null);
       else onBack();
     };
@@ -354,65 +364,69 @@ export const TasksPage: React.FC<{
         </div>
       )}
       <div className={styles.body}>
-        {track !== 'archived' &&
-          layout.view === 'board' &&
-          data &&
-          !activeTasks.length &&
-          !shownLegacy.length && (
-            <EmptyState
-              className={styles.boardEmpty}
-              icon={ListChecks}
-              title={t('ui.providers-schedule.tasks-empty')}
-              action={
-                <Button size="sm" variant="primary" onClick={() => setCreating(true)}>
-                  <Icon icon={Plus} size={14} />
-                  {t('ui.providers-schedule.new-task')}
-                </Button>
-              }
-              data-testid="tasks-board-empty"
-            />
-          )}
-        {track !== 'archived' &&
-          layout.view === 'board' &&
-          (activeTasks.length > 0 || shownLegacy.length > 0) && (
-            <TaskBoard
-              tasks={boardTasks}
-              queue={queue}
-              legacy={shownLegacy}
-              group={layout.group}
-              stages={stage === 'all' ? undefined : [stage]}
-              selected={selected}
-              onSelect={setSelected}
-              onOpenSchedule={onOpenSchedule}
-            />
-          )}
-        <div
-          className={styles.list}
-          data-testid="tasks-list"
-          hidden={track !== 'archived' && layout.view === 'board'}
-        >
-          {data && (
-            <TaskList
-              tasks={boardTasks}
-              legacy={shownLegacy}
-              queue={queue}
-              archivedMode={track === 'archived'}
-              selected={selected}
-              onSelect={setSelected}
-              onOpenSchedule={onOpenSchedule}
-              empty={
-                track === 'archived'
-                  ? t('ui.providers-schedule.task-unarchive-empty-hint')
-                  : t('ui.providers-schedule.tasks-empty')
-              }
-            />
-          )}
+        <div className={styles.leftColumn} hidden={sideExpanded && Boolean(current)}>
+          {track !== 'archived' &&
+            layout.view === 'board' &&
+            data &&
+            !activeTasks.length &&
+            !shownLegacy.length && (
+              <EmptyState
+                className={styles.boardEmpty}
+                icon={ListChecks}
+                title={t('ui.providers-schedule.tasks-empty')}
+                action={
+                  <Button size="sm" variant="primary" onClick={() => setCreating(true)}>
+                    <Icon icon={Plus} size={14} />
+                    {t('ui.providers-schedule.new-task')}
+                  </Button>
+                }
+                data-testid="tasks-board-empty"
+              />
+            )}
+          {track !== 'archived' &&
+            layout.view === 'board' &&
+            (activeTasks.length > 0 || shownLegacy.length > 0) && (
+              <TaskBoard
+                tasks={boardTasks}
+                queue={queue}
+                legacy={shownLegacy}
+                group={layout.group}
+                stages={stage === 'all' ? undefined : [stage]}
+                selected={selected}
+                onSelect={setSelected}
+                onOpenSchedule={onOpenSchedule}
+              />
+            )}
+          <div
+            className={styles.list}
+            data-testid="tasks-list"
+            hidden={track !== 'archived' && layout.view === 'board'}
+          >
+            {data && (
+              <TaskList
+                tasks={boardTasks}
+                legacy={shownLegacy}
+                queue={queue}
+                archivedMode={track === 'archived'}
+                selected={selected}
+                onSelect={setSelected}
+                onOpenSchedule={onOpenSchedule}
+                empty={
+                  track === 'archived'
+                    ? t('ui.providers-schedule.task-unarchive-empty-hint')
+                    : t('ui.providers-schedule.tasks-empty')
+                }
+              />
+            )}
+          </div>
         </div>
         {current && (
           <TaskDetail
             key={current.id}
             task={current}
             queueInfo={queue[current.id]}
+            paneActions={paneActions}
+            onSideExpandedChange={setSideExpanded}
             onClose={() => setSelected(null)}
           />
         )}

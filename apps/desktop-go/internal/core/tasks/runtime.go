@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/schedule"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/sidechat"
 )
 
 const (
@@ -944,7 +945,7 @@ func (r *Runtime) command(id string, c Command) CmdResult {
 	return res
 }
 
-// Patch：改标题、目标、完成标准、验收方式、触发器、预算、重要程度、类型（不碰授权与状态）
+// Patch：改标题、目标、完成标准、验收方式、触发器、预算、重要程度、类型与执行模型配置（不碰授权与状态）
 type Patch struct {
 	Title      *string      `json:"title,omitempty"`
 	Goal       *string      `json:"goal,omitempty"`
@@ -955,6 +956,14 @@ type Patch struct {
 	// Priority / Category：没给 = 不改；null = 清除
 	Priority NullableString `json:"priority"`
 	Category NullableString `json:"category"`
+	// Model / ReasoningEffort / Source / AccountID / PresetID：没给 = 不改；null / "" = 清除
+	Model           NullableString `json:"model"`
+	ReasoningEffort NullableString `json:"reasoningEffort"`
+	Source          NullableString `json:"source"`
+	AccountID       NullableString `json:"accountId"`
+	PresetID        NullableString `json:"presetId"`
+	// ResolvedCli：CLI 任务脱离档位且未存 cli 时由 Service.Update 填充，不参与 JSON 序列化
+	ResolvedCli *string `json:"-"`
 }
 
 // NullableString：补丁里可清除的字段。Set = 键出现过；Value 为 nil 表示 null（清除）
@@ -1050,6 +1059,98 @@ func (r *Runtime) Patch(id string, p Patch) *Task {
 			keys = append(keys, "trigger")
 			t.Trigger = *p.Trigger
 			t.NextRunAt = r.firstRunAt(t, now)
+		}
+		if t.Executor.Kind == "nomi" {
+			if p.Model.Set {
+				if p.Model.Value == nil || strings.TrimSpace(*p.Model.Value) == "" {
+					t.Executor.Model = nil
+					keys = append(keys, "model")
+				} else if ref, ok := sidechat.ModelRef(sidechat.ModelRolePrefix + strings.TrimSpace(*p.Model.Value)); ok {
+					t.Executor.Model = ptr(ref)
+					keys = append(keys, "model")
+				}
+			}
+			if p.ReasoningEffort.Set {
+				if p.ReasoningEffort.Value == nil || strings.TrimSpace(*p.ReasoningEffort.Value) == "" {
+					t.Executor.ReasoningEffort = nil
+				} else {
+					t.Executor.ReasoningEffort = ptr(strings.TrimSpace(*p.ReasoningEffort.Value))
+				}
+				keys = append(keys, "reasoningEffort")
+			}
+		} else if t.Executor.Kind == "cli" {
+			leavingPreset := t.Executor.PresetID != nil && *t.Executor.PresetID != "" &&
+				((p.PresetID.Set && (p.PresetID.Value == nil || strings.TrimSpace(*p.PresetID.Value) == "")) ||
+					p.Source.Set || p.AccountID.Set)
+			if leavingPreset {
+				t.Executor.PresetID = nil
+				if (t.Executor.Cli == nil || *t.Executor.Cli == "") && p.ResolvedCli != nil && *p.ResolvedCli != "" {
+					t.Executor.Cli = ptr(*p.ResolvedCli)
+				}
+				if !p.PresetID.Set {
+					keys = append(keys, "presetId")
+				}
+			}
+			if p.PresetID.Set {
+				if p.PresetID.Value == nil || strings.TrimSpace(*p.PresetID.Value) == "" {
+					t.Executor.PresetID = nil
+				} else {
+					t.Executor.PresetID = ptr(strings.TrimSpace(*p.PresetID.Value))
+					if !p.Source.Set {
+						t.Executor.Source = nil
+					}
+					if !p.AccountID.Set {
+						t.Executor.AccountID = nil
+					}
+				}
+				keys = append(keys, "presetId")
+			}
+			if p.Source.Set {
+				if p.Source.Value == nil || strings.TrimSpace(*p.Source.Value) == "" {
+					t.Executor.Source = nil
+				} else {
+					src := strings.TrimSpace(*p.Source.Value)
+					if src == "local" || src == "official" || src == "thirdParty" {
+						t.Executor.Source = ptr(src)
+						if src == "local" || src == "thirdParty" {
+							t.Executor.AccountID = nil
+						}
+					}
+				}
+				keys = append(keys, "source")
+			}
+			if p.AccountID.Set {
+				curSrc := ""
+				if t.Executor.Source != nil {
+					curSrc = *t.Executor.Source
+				}
+				if curSrc != "local" && curSrc != "thirdParty" {
+					if p.AccountID.Value == nil || strings.TrimSpace(*p.AccountID.Value) == "" {
+						t.Executor.AccountID = nil
+					} else {
+						t.Executor.AccountID = ptr(strings.TrimSpace(*p.AccountID.Value))
+					}
+				} else {
+					t.Executor.AccountID = nil
+				}
+				keys = append(keys, "accountId")
+			}
+			if p.Model.Set {
+				if p.Model.Value == nil || strings.TrimSpace(*p.Model.Value) == "" {
+					t.Executor.Model = nil
+				} else {
+					t.Executor.Model = ptr(strings.TrimSpace(*p.Model.Value))
+				}
+				keys = append(keys, "model")
+			}
+			if p.ReasoningEffort.Set {
+				if p.ReasoningEffort.Value == nil || strings.TrimSpace(*p.ReasoningEffort.Value) == "" {
+					t.Executor.ReasoningEffort = nil
+				} else {
+					t.Executor.ReasoningEffort = ptr(strings.TrimSpace(*p.ReasoningEffort.Value))
+				}
+				keys = append(keys, "reasoningEffort")
+			}
 		}
 		sort.Strings(keys)
 		if r.save(Record{Task: t, Attempts: rec.Attempts}) != nil {

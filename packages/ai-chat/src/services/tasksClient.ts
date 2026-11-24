@@ -38,6 +38,7 @@ export type ExecutorSpec =
   | {
       kind: 'nomi';
       model?: string;
+      reasoningEffort?: string;
       tools: ToolClass[];
       scenario?: string;
       toolset?: string;
@@ -373,7 +374,7 @@ export const tasksApi = {
       ok: boolean;
       reason?: string;
     },
-  /** 更新任务标题 / 目标 / 完成标准 / 验收方式 / 触发器 / 预算 / 重要程度 / 分类 */
+  /** 更新任务标题 / 目标 / 完成标准 / 验收方式 / 触发器 / 预算 / 重要程度 / 分类 / 模型配置 */
   update: (patch: {
     id: string;
     title?: string;
@@ -384,6 +385,11 @@ export const tasksApi = {
     budget?: { maxRetries?: number };
     priority?: TaskPriority | null;
     category?: TaskCategory | null;
+    model?: string | null;
+    reasoningEffort?: string | null;
+    source?: 'local' | 'official' | 'thirdParty' | null;
+    accountId?: string | null;
+    presetId?: string | null;
   }) => api.tasks.update(patch) as unknown as Promise<Task>,
   /** 前台长程任务主动转后台（并可中断当前前台请求） */
   handoffFromChat: (input: {

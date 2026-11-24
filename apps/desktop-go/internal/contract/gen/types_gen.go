@@ -12831,16 +12831,30 @@ const (
 	TasksUpdateInputCategoryChore    TasksUpdateInputCategory = "chore"
 )
 
+// TasksUpdateInputSource 枚举：local | official | thirdParty
+type TasksUpdateInputSource = string
+
+const (
+	TasksUpdateInputSourceLocal      TasksUpdateInputSource = "local"
+	TasksUpdateInputSourceOfficial   TasksUpdateInputSource = "official"
+	TasksUpdateInputSourceThirdParty TasksUpdateInputSource = "thirdParty"
+)
+
 type TasksUpdateInput struct {
-	Id         string                      `json:"id"`
-	Title      *string                     `json:"title,omitempty"`
-	Goal       *string                     `json:"goal,omitempty"`
-	DoneWhen   *string                     `json:"doneWhen,omitempty"`
-	Acceptance *TasksUpdateInputAcceptance `json:"acceptance,omitempty"`
-	Trigger    json.RawMessage             `json:"trigger,omitempty"`
-	Budget     *TasksUpdateInputBudget     `json:"budget,omitempty"`
-	Priority   *TasksUpdateInputPriority   `json:"priority,omitempty"`
-	Category   *TasksUpdateInputCategory   `json:"category,omitempty"`
+	Id              string                      `json:"id"`
+	Title           *string                     `json:"title,omitempty"`
+	Goal            *string                     `json:"goal,omitempty"`
+	DoneWhen        *string                     `json:"doneWhen,omitempty"`
+	Acceptance      *TasksUpdateInputAcceptance `json:"acceptance,omitempty"`
+	Trigger         json.RawMessage             `json:"trigger,omitempty"`
+	Budget          *TasksUpdateInputBudget     `json:"budget,omitempty"`
+	Priority        *TasksUpdateInputPriority   `json:"priority,omitempty"`
+	Category        *TasksUpdateInputCategory   `json:"category,omitempty"`
+	Model           *string                     `json:"model,omitempty"`
+	ReasoningEffort *string                     `json:"reasoningEffort,omitempty"`
+	Source          *TasksUpdateInputSource     `json:"source,omitempty"`
+	AccountId       *string                     `json:"accountId,omitempty"`
+	PresetId        *string                     `json:"presetId,omitempty"`
 }
 
 // TasksUpdateOutputStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired

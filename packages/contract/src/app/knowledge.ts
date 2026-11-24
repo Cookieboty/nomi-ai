@@ -394,6 +394,11 @@ export const knowledgeProcedures = {
       /** null = 清除 */
       priority: TaskPriority.nullable().optional(),
       category: TaskCategory.nullable().optional(),
+      model: z.string().max(300).nullable().optional(),
+      reasoningEffort: z.string().max(64).nullable().optional(),
+      source: z.enum(['local', 'official', 'thirdParty']).nullable().optional(),
+      accountId: z.string().max(200).nullable().optional(),
+      presetId: z.string().max(200).nullable().optional(),
     }),
     output: TaskView,
   },

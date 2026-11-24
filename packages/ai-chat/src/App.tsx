@@ -364,6 +364,7 @@ const AiChatContent: React.FC = () => {
     () => panels.openSettings('knowledge', 'schedule'),
     closeSettings,
     !!panels.settings,
+    paneActions,
   );
   const { openPage, leave: leavePage, openTask } = mainPages;
   const leaveSettingsPage = useCallback(() => {

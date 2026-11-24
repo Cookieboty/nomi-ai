@@ -13,7 +13,7 @@
 import { BrandIcon, modelBrandOf, t } from '@nomi-ai/ui';
 import React, { useEffect, useMemo, useState } from 'react';
 
-import { selectIpcClient, useAiChatSelector } from '../../contexts/aiChatStore';
+import { selectIpcClient, useOptionalAiChatSelector } from '../../contexts/aiChatStore';
 import { useManagedRuntime } from '../../contexts/ManagedRuntimeContext';
 import { useNomiProject } from '../../hooks/useNomiProject';
 import {
@@ -55,7 +55,7 @@ function useStoredNomiOverrides(): {
   longContext: LongContextChoice | undefined;
   saveLong: (next: LongContextChoice | undefined) => void;
 } {
-  const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
+  const ipc = useOptionalAiChatSelector(selectIpcClient) as IPCClient | undefined;
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const bump = () => setTick((n) => n + 1);

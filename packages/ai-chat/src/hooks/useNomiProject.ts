@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import type { AiChatState } from '../contexts/AiChatContext';
-import { selectIpcClient, useAiChatSelector } from '../contexts/aiChatStore';
+import { selectIpcClient, useOptionalAiChatSelector } from '../contexts/aiChatStore';
 import {
   CONVERSATIONS_CHANGED_EVENT,
   notifyConversationsChanged,
@@ -35,8 +35,8 @@ export interface NomiProject {
 
 export function useNomiProject(): NomiProject {
   // 没有对话上下文（独立渲染的控件 / 测试）时为空
-  const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
-  const signature = useAiChatSelector(selectConversationSignature);
+  const ipc = useOptionalAiChatSelector(selectIpcClient) as IPCClient | undefined;
+  const signature = useOptionalAiChatSelector(selectConversationSignature);
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const bump = () => setTick((n) => n + 1);

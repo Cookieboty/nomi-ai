@@ -341,6 +341,7 @@
   "ui.providers-schedule.task-section-what": "What",
   "ui.providers-schedule.task-section-when": "When",
   "ui.providers-schedule.task-section-who": "Who does it and what it may use",
+  "ui.providers-schedule.task-side-drawer": "Agents & trace",
   "ui.providers-schedule.task-source-app": "In-app event",
   "ui.providers-schedule.task-source-github": "GitHub repository",
   "ui.providers-schedule.task-source-mcp": "New results from an MCP tool",

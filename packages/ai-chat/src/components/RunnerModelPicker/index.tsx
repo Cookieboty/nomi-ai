@@ -51,6 +51,8 @@ export interface RunnerModelPickerProps {
   open: boolean;
   title?: string;
   value: RunnerSpecValue;
+  /** 仅允许切换来源 / 账号 / 模型 / 思考深度，禁止改选其它 CLI（如已创建任务的执行者） */
+  lockCli?: boolean;
   installed?: readonly DelegateCli[];
   localAvailable?: Partial<Record<DelegateCli, boolean>>;
   gateway: GatewayState | null;
@@ -203,6 +205,7 @@ export const RunnerModelPicker: React.FC<RunnerModelPickerProps> = ({
   open,
   title,
   value,
+  lockCli = false,
   installed,
   localAvailable,
   gateway,
@@ -460,35 +463,37 @@ export const RunnerModelPicker: React.FC<RunnerModelPickerProps> = ({
         footer={footer}
         data-testid="runner-model-picker"
       >
-        <div className={styles.body}>
-          <div className={styles.cliList} data-testid="runner-picker-clis">
-            <div className={styles.colHeading}>{t('ui.models.runner-picker-clis')}</div>
-            {CLI_KINDS.map((k) => {
-              const selected = draft.cli === k;
-              const isInstalled = installed ? installed.includes(k) : true;
-              return (
-                <button
-                  key={k}
-                  type="button"
-                  className={styles.cliBtn}
-                  data-selected={selected || undefined}
-                  aria-pressed={selected}
-                  data-testid={`runner-picker-cli-${k}`}
-                  onClick={() => switchCli(k)}
-                >
-                  <EndpointIcon backend={k} size={18} decorative />
-                  <span className={styles.cliBtnName}>{cliName(k)}</span>
-                  <span className={styles.cliBadge}>
-                    {t(
-                      isInstalled
-                        ? 'ui.knowledge-local.installed'
-                        : 'ui.mascot-theme.not-installed',
-                    )}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+        <div className={styles.body} data-locked={lockCli ? 'true' : undefined}>
+          {!lockCli && (
+            <div className={styles.cliList} data-testid="runner-picker-clis">
+              <div className={styles.colHeading}>{t('ui.models.runner-picker-clis')}</div>
+              {CLI_KINDS.map((k) => {
+                const selected = draft.cli === k;
+                const isInstalled = installed ? installed.includes(k) : true;
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    className={styles.cliBtn}
+                    data-selected={selected || undefined}
+                    aria-pressed={selected}
+                    data-testid={`runner-picker-cli-${k}`}
+                    onClick={() => switchCli(k)}
+                  >
+                    <EndpointIcon backend={k} size={18} decorative />
+                    <span className={styles.cliBtnName}>{cliName(k)}</span>
+                    <span className={styles.cliBadge}>
+                      {t(
+                        isInstalled
+                          ? 'ui.knowledge-local.installed'
+                          : 'ui.mascot-theme.not-installed',
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <div className={styles.sourcesCol} data-testid="runner-picker-sources">
             <div className={styles.colHeading}>{t('ui.models.runner-picker-sources')}</div>

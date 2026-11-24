@@ -341,6 +341,7 @@
   "ui.providers-schedule.task-section-what": "做什么",
   "ui.providers-schedule.task-section-when": "什么时候",
   "ui.providers-schedule.task-section-who": "谁来做、能做什么",
+  "ui.providers-schedule.task-side-drawer": "Agent 与运行轨迹",
   "ui.providers-schedule.task-source-app": "应用内事件",
   "ui.providers-schedule.task-source-github": "GitHub 仓库",
   "ui.providers-schedule.task-source-mcp": "MCP 工具的新结果",

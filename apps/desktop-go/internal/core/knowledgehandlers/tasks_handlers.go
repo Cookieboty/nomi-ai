@@ -96,6 +96,10 @@ func taskHandlers(sv Services) map[string]H {
 			}
 			t, err := s.Update(in.ID, in.Patch)
 			if err != nil {
+				var ie *tasks.InputError
+				if errors.As(err, &ie) {
+					return nil, &contract.Error{Code: "BAD_INPUT", Message: ie.Error()}
+				}
 				return tasksErr(nil, err)
 			}
 			if t == nil {

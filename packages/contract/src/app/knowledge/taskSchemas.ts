@@ -50,8 +50,9 @@ export const TaskExecutorSpec = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('notify'), text: z.string().min(1).max(2000) }),
   z.object({
     kind: z.literal('nomi'),
-    /** 不生效：Nomi 任务用「带工具的 Nomi」的预设模型（与对话同一路由），传了会被丢弃 */
+    /** 指定的网关模型（`<providerId>/<modelId>`）；未指定或非法时走「带工具的 Nomi」预设路由 */
     model: z.string().optional(),
+    reasoningEffort: z.string().optional(),
     tools: z.array(TaskToolClass),
     scenario: z.enum(['coding', 'prd', 'review', 'research']).optional(),
   }),

@@ -398,3 +398,81 @@ func TestCliPresetExplicitModelAndEffortOverrides(t *testing.T) {
 		t.Fatalf("changed preset CLI should not inherit stale explicit overrides: %+v ok=%v", spec, ok)
 	}
 }
+
+type syncRecordingCli struct {
+	*recordingCli
+	syncs   []string
+	syncErr error
+}
+
+func (s *syncRecordingCli) SyncTabConfig(id, source, accountID, model, effort string) error {
+	s.mu.Lock()
+	s.syncs = append(s.syncs, strings.Join([]string{id, source, accountID, model, effort}, "|"))
+	err := s.syncErr
+	s.mu.Unlock()
+	return err
+}
+
+func TestCliFollowUpModelSwitchSyncsOrRebuildsTab(t *testing.T) {
+	// 1) harness 支持 SyncTabConfig 且成功：在原标签同步模型/思考深度后继续复用
+	baseCli := newRecordingCli(map[string]bool{"codex": true})
+	syncCli := &syncRecordingCli{recordingCli: baseCli}
+	syncCli.tabs["tab_old"] = &fakeCliTab{cwd: "/repo"}
+	e := NewCliExecutor(CliDeps{
+		Harness: syncCli,
+		PrepareIsolation: func(cwd, key, _ string) (CliIsolation, error) {
+			return CliIsolation{Kind: "in-place", Cwd: cwd, SourceCwd: cwd, GitRoot: cwd}, nil
+		},
+		GitChanged:  func(string) []string { return nil },
+		BuildPrompt: func(goal, _, _, _ string) string { return goal },
+		ParseReport: func(string) *CliReport { return nil },
+		DirOk:       func(d string) bool { return d == "/repo" },
+	}).(*cliExecutor)
+
+	task := Task{
+		ID: "t1", Goal: "g",
+		Executor: ExecutorSpec{Kind: "cli", Cli: sp("codex"), Source: sp("thirdParty"), Model: sp("p1/m2"), ReasoningEffort: sp("high"), Cwd: sp("/repo")},
+	}
+	prev := &Attempt{
+		ID: "att1", TaskID: "t1", Gen: 1,
+		Snapshot: ExecutionSnapshot{Cli: sp("codex"), Source: sp("official"), AccountID: sp("acc-1"), Model: sp("gpt-5.4"), ReasoningEffort: sp("low")},
+		Carrier:  &Carrier{TabID: sp("tab_old"), Cwd: sp("/repo"), SourceCwd: sp("/repo")},
+	}
+	rep := &failReporter{beatReporter: beatReporter{completed: make(chan AttemptResult, 4)}}
+	e.Start(AttemptContext{
+		Task:     task,
+		Attempt:  Attempt{ID: "att2", TaskID: "t1", Gen: 2, Cause: AttemptCause{Kind: "followup", Note: sp("换模型再改一次")}},
+		Previous: prev,
+		Report:   rep,
+	})
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) && syncCli.sendCount() == 0 {
+		time.Sleep(2 * time.Millisecond)
+	}
+	if rep.failedCode() != "" || syncCli.sendCount() != 1 || syncCli.sendTabs[0] != "tab_old" || len(syncCli.createdTabs()) != 0 {
+		t.Fatalf("followup with SyncTabConfig should reuse tab_old: failed=%v sends=%v created=%d", rep.failed, syncCli.sendTabs, len(syncCli.createdTabs()))
+	}
+	if len(syncCli.syncs) != 1 || syncCli.syncs[0] != "tab_old|thirdParty||p1/m2|high" {
+		t.Fatalf("unexpected SyncTabConfig calls: %v", syncCli.syncs)
+	}
+	syncCli.finish("done")
+
+	// 2) harness 未实现 SyncTabConfig：同 CLI followup 切换模型时降级新建标签，不报 config_changed
+	eNoSync, fNoSync := presetExecutor(t, map[string]bool{"codex": true}, map[string]*CliPresetSpec{}, nil)
+	fNoSync.tabs["tab_old"] = &fakeCliTab{cwd: "/repo"}
+	rep2 := &failReporter{beatReporter: beatReporter{completed: make(chan AttemptResult, 4)}}
+	eNoSync.Start(AttemptContext{
+		Task:     task,
+		Attempt:  Attempt{ID: "att3", TaskID: "t1", Gen: 3, Cause: AttemptCause{Kind: "followup", Note: sp("新模型再跑")}},
+		Previous: prev,
+		Report:   rep2,
+	})
+	deadline2 := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline2) && fNoSync.sendCount() == 0 {
+		time.Sleep(2 * time.Millisecond)
+	}
+	if rep2.failedCode() != "" || fNoSync.sendCount() != 1 || len(fNoSync.createdTabs()) != 1 || fNoSync.sendTabs[0] == "tab_old" {
+		t.Fatalf("followup without SyncTabConfig should create new tab: failed=%v sends=%v created=%d", rep2.failed, fNoSync.sendTabs, len(fNoSync.createdTabs()))
+	}
+	fNoSync.finish("done")
+}

@@ -64,7 +64,7 @@ type ExecutorSpec struct {
 	Isolation *string `json:"isolation,omitempty"`
 	// BaseBranch：cli 的基线分支：是别的分支（不在当前分支历史里）时才开 worktree，否则直接在 cwd 里改
 	BaseBranch *string `json:"baseBranch,omitempty"`
-	// ReasoningEffort：cli 的思考深度（委派带过来的）
+	// ReasoningEffort：思考深度（nomi 与 cli 共用）
 	ReasoningEffort *string `json:"reasoningEffort,omitempty"`
 	// Source / AccountID / PresetID：多来源路由信息（local | official | thirdParty）
 	Source    *string `json:"source,omitempty"`

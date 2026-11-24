@@ -36623,6 +36623,9 @@
          "model": {
           "type": "string"
          },
+         "reasoningEffort": {
+          "type": "string"
+         },
          "tools": {
           "type": "array",
           "items": {
@@ -39171,6 +39174,65 @@
          "monitor",
          "chore"
         ]
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "model": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 300
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "reasoningEffort": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 64
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "source": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "local",
+         "official",
+         "thirdParty"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "accountId": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "presetId": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
        },
        {
         "type": "null"

@@ -20,6 +20,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/sidechat"
 )
 
 type ServiceDeps struct {
@@ -116,6 +117,11 @@ func (e *GrantError) Error() string { return e.Msg }
 
 // Code：bad_grant
 func (e *GrantError) Code() string { return "bad_grant" }
+
+// InputError：入参校验失败（契约里映射成 BAD_INPUT）
+type InputError struct{ Msg string }
+
+func (e *InputError) Error() string { return e.Msg }
 
 type ListResult struct {
 	Tasks  []Task               `json:"tasks"`
@@ -555,10 +561,13 @@ type CreateRequest struct {
 
 // Create：连接能力不合法时返回 *GrantError；事件触发器不合法时返回 *TriggerError
 func (s *Service) Create(in CreateRequest, createdBy string) (Task, error) {
-	// Nomi 任务用「带工具的 Nomi」的预设模型（对话用的同一条路由），不单独指定（#239）：
-	// 契约里的 model 不落盘，免得任务里留着一个其实不生效的「指定模型」
-	if in.Executor.Kind == "nomi" {
-		in.Executor.Model = nil
+	// Nomi 任务可指定合法网关模型（<provider>/<model>）；裸名等非法值忽略不落盘，走预设「带工具的 Nomi」路由
+	if in.Executor.Kind == "nomi" && in.Executor.Model != nil {
+		if ref, ok := sidechat.ModelRef(sidechat.ModelRolePrefix + strings.TrimSpace(*in.Executor.Model)); ok {
+			in.Executor.Model = ptr(ref)
+		} else {
+			in.Executor.Model = nil
+		}
 	}
 	if err := s.checkGrant(in.Grant.Level, in.Grant.Connections); err != nil {
 		return Task{}, err
@@ -1131,13 +1140,34 @@ func (s *Service) MarkAnnounced(id, attemptID string) {
 	_ = s.Store.Append(id, JournalEntry{T: "note", At: s.d.Now(), Msg: delegateAnnouncedMsg(attemptID), AttemptID: attemptID})
 }
 
-// Update：没有这个任务返回 nil, nil；事件触发器不合法返回 *TriggerError
+// Update：没有这个任务返回 nil, nil；事件触发器不合法返回 *TriggerError；入参模型/来源不合法返回 *InputError
 func (s *Service) Update(id string, p Patch) (*Task, error) {
 	rec := s.Runtime.Get(id)
 	if rec == nil {
 		return nil, nil
 	}
 	cur := rec.Task
+	if cur.Executor.Kind == "nomi" && p.Model.Set && p.Model.Value != nil {
+		if trimmed := strings.TrimSpace(*p.Model.Value); trimmed != "" {
+			if _, ok := sidechat.ModelRef(sidechat.ModelRolePrefix + trimmed); !ok {
+				return nil, &InputError{Msg: "invalid model ref"}
+			}
+		}
+	}
+	if cur.Executor.Kind == "cli" && p.Source.Set && p.Source.Value != nil {
+		if src := strings.TrimSpace(*p.Source.Value); src != "" && src != "local" && src != "official" && src != "thirdParty" {
+			return nil, &InputError{Msg: "invalid source"}
+		}
+	}
+	if cur.Executor.Kind == "cli" && cur.Executor.PresetID != nil && *cur.Executor.PresetID != "" &&
+		(cur.Executor.Cli == nil || *cur.Executor.Cli == "") &&
+		(p.Source.Set || p.AccountID.Set || (p.PresetID.Set && (p.PresetID.Value == nil || strings.TrimSpace(*p.PresetID.Value) == ""))) {
+		if res, ok := s.exec["cli"].(interface{ ResolvePresetCli(string) string }); ok {
+			if cliName := res.ResolvePresetCli(*cur.Executor.PresetID); cliName != "" {
+				p.ResolvedCli = &cliName
+			}
+		}
+	}
 	if p.Trigger != nil {
 		tr := *p.Trigger
 		// 改成自动执行是放宽授权：只能经 SetMode（dangerous，界面里先确认），这里保留原来的模式
