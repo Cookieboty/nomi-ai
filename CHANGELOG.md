@@ -9,6 +9,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 - **preview:** 常见配置文件与隐藏文件按文件名识别高亮
 - **preview:** 文件标签栏支持鼠标滚轮横向滚动
+- **providers:** 第三方供应商新增 OpenCode Go 预设
 
 ### Fixes
 

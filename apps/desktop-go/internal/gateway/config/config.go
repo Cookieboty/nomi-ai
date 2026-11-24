@@ -76,6 +76,7 @@ type ProviderQuirks struct {
 	DropParams          []string    `json:"dropParams,omitempty"`
 	ReasoningPassback   *bool       `json:"reasoningPassback,omitempty"`
 	UserAgent           string      `json:"userAgent,omitempty"`
+	SessionHeader       string      `json:"sessionHeader,omitempty"`
 	MaxConcurrency      *float64    `json:"maxConcurrency,omitempty"`
 	RPM                 *float64    `json:"rpm,omitempty"`
 	ExtraBody           *u.Obj      `json:"extraBody,omitempty"` // wire → fields (ordered)

@@ -61,6 +61,9 @@ func (q *ProviderQuirks) Obj() *u.Obj {
 	if q.UserAgent != "" {
 		o.Set("userAgent", q.UserAgent)
 	}
+	if q.SessionHeader != "" {
+		o.Set("sessionHeader", q.SessionHeader)
+	}
 	if q.MaxConcurrency != nil {
 		o.Set("maxConcurrency", *q.MaxConcurrency)
 	}
@@ -110,6 +113,9 @@ func QuirksFromObj(o *u.Obj) *ProviderQuirks {
 		if u.Truthy(v) {
 			q.UserAgent = u.JSString(v)
 		}
+	}
+	if v, ok := o.Get("sessionHeader").(string); ok {
+		q.SessionHeader = v
 	}
 	if v, ok := o.Get("maxConcurrency").(float64); ok { // typeof === 'number'
 		q.MaxConcurrency = &v

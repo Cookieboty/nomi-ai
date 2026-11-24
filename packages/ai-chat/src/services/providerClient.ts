@@ -48,6 +48,8 @@ export interface ProviderPreset {
     dropParams?: string[];
     reasoningPassback?: boolean;
     preferWire?: 'messages' | 'responses' | 'chat' | 'gemini';
+    /** 会话稳定 ID 放到这个请求头里（如 OpenCode Go 的 x-opencode-session） */
+    sessionHeader?: string;
     extraBody?: Partial<
       Record<'messages' | 'responses' | 'chat' | 'gemini', Record<string, unknown>>
     >;
