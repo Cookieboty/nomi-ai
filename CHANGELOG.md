@@ -5,6 +5,12 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ## Unreleased
 
+### Maintenance
+
+- **release:** empty changeset after archiving 2.5.0
+
+## 2.5.0 — 2026-11-25
+
 ### Features
 
 - **preview:** 常见配置文件与隐藏文件按文件名识别高亮
