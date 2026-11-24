@@ -137,6 +137,7 @@
   "ui.cli-monitor.success-confetti": "Success—confetti!",
   "ui.cli-monitor.surprised": "Surprised",
   "ui.cli-monitor.switch-to-tab-n-9-last-tab": "Switch to tab n (9 = last tab)",
+  "ui.cli-monitor.switched-runtime-mid-conversation": "Switched runtime to {0}. Switching runtimes mid-conversation hands over earlier context to the new runtime, so available tools, permissions, and behavior may differ.",
   "ui.cli-monitor.switched-to-changing-models-mid-conversation-means-the": "Switched to {0}. Changing models mid-conversation means the new model picks up the earlier context, which may affect how it understands and reasons about this conversation.",
   "ui.cli-monitor.task-done": "Task done!",
   "ui.cli-monitor.tears": "Tears",
