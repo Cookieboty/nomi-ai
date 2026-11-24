@@ -19,6 +19,7 @@ import (
 type worker struct {
 	last                          *turn
 	notify                        func(cr.Event) error
+	onTitle                       func(string)
 	child                         *nodeproc.Child
 	driver                        *drivers.StreamJsonDriver
 	sid, lastID, stderr, failure  string
@@ -105,7 +106,7 @@ func (r *Runtime) spawn(sid string, resume bool) *worker {
 	for k, v := range cfg.ExtraEnv {
 		env = append(env, k+"="+v)
 	}
-	w := &worker{sid: sid, closed: make(chan struct{})}
+	w := &worker{sid: sid, closed: make(chan struct{}), onTitle: r.emitTitle}
 	w.child = nodeproc.Spawn(cfg.Executable, args, nodeproc.Options{Cwd: cfg.Cwd, Env: env, Detached: true})
 	w.child.OnStderr(func(chunk string) {
 		if len(w.stderr)+len(chunk) > 8192 {
@@ -220,13 +221,14 @@ func (w *worker) line(line string, _ bool) bool {
 		w.fail("background work/hooks unsupported")
 		return true
 	}
+	isPassiveTitle := j.Type == "custom-title" || j.Type == "summary"
 	t := w.active
 	if t == nil {
-		if w.completed && j.Type != "rate_limit_event" {
+		if w.completed && j.Type != "rate_limit_event" && !isPassiveTitle {
 			w.fail("unsolicited native work after completion")
 			return true
 		}
-		if j.Type != "system" && j.Type != "rate_limit_event" {
+		if j.Type != "system" && j.Type != "rate_limit_event" && !isPassiveTitle {
 			w.fail("unsolicited native event before turn")
 			return true
 		}
@@ -236,6 +238,9 @@ func (w *worker) line(line string, _ bool) bool {
 		return false
 	}
 	if t.terminal {
+		if isPassiveTitle {
+			return false
+		}
 		w.fail("native event after terminal result")
 		return true
 	}
@@ -273,7 +278,7 @@ func (w *worker) line(line string, _ bool) bool {
 		if t.approvalTools != nil {
 			t.approvalTools[j.RequestID] = j.Request.Tool
 		}
-	case "assistant", "stream_event", "system", "rate_limit_event", "error":
+	case "assistant", "stream_event", "system", "rate_limit_event", "error", "custom-title", "summary":
 	default:
 		w.fail("unknown native protocol event")
 		return true
@@ -282,20 +287,70 @@ func (w *worker) line(line string, _ bool) bool {
 }
 func readTool(name string) bool { return name == "Read" || name == "Glob" || name == "Grep" }
 func (w *worker) parsed(ev *util.Obj) {
-	t := w.active
-	if t == nil || w.failure != "" {
+	if ev == nil || w.failure != "" {
 		return
 	}
 	typ := util.Str(ev.Get("type"))
+	if typ == "session-info" {
+		if title := strings.TrimSpace(util.Str(ev.Get("title"))); title != "" && w.onTitle != nil {
+			w.onTitle(title)
+		}
+		return
+	}
+	t := w.active
+	if t == nil {
+		return
+	}
 	switch typ {
 	case "done":
+		t.clearThinking()
 		if t.text == "" {
 			t.text = util.Str(ev.Get("text"))
 		}
+		if u := util.AsObj(ev.Get("usage")); u != nil {
+			t.usage = buildTurnUsage(u, t.ctxTokens, t.ctxWindow, t.costUsd, 0)
+			if m := util.Str(u.Get("model")); m != "" && m != "cli-default" {
+				t.model = m
+			}
+			if rm := util.Str(u.Get("responseModel")); rm != "" {
+				t.responseModel = rm
+			}
+		}
+		if m := util.Str(ev.Get("model")); m != "" && m != "cli-default" {
+			t.model = m
+		}
+		if rm := util.Str(ev.Get("responseModel")); rm != "" {
+			t.responseModel = rm
+		}
 	case "text", "text-delta":
+		prevLen := len(t.text)
 		t.text = clisdk.AppendText(t.text, ev)
 		if len(t.text) > 2<<20 {
 			w.fail("native assistant output exceeds limit")
+			return
+		}
+		if len(t.text) > prevLen {
+			t.pushStream(t.text[prevLen:], "", false)
+		}
+	case "thinking":
+		if th := util.Str(ev.Get("text")); th != "" {
+			t.pushStream("", th, true)
+		}
+	case "context":
+		if f, ok := asNonNegFloat(ev.Get("tokens")); ok {
+			v := int64(f)
+			t.ctxTokens = &v
+		}
+		if f, ok := asPosFloat(ev.Get("window")); ok {
+			v := int64(f)
+			t.ctxWindow = &v
+		}
+		if f, ok := asNonNegFloat(ev.Get("costUsd")); ok {
+			v := f
+			t.costUsd = &v
+		}
+		if m := util.Str(ev.Get("model")); m != "" && m != "cli-default" {
+			t.model = m
 		}
 	case "permission":
 		id := util.Str(ev.Get("id"))
@@ -320,6 +375,7 @@ func (w *worker) parsed(ev *util.Obj) {
 		}
 		w.queue(e)
 	case "tool":
+		t.clearThinking()
 		id := util.Str(ev.Get("detail"))
 		name := util.Str(ev.Get("name"))
 		status := util.Str(ev.Get("status"))
@@ -334,7 +390,16 @@ func (w *worker) parsed(ev *util.Obj) {
 		}
 		if id != "" && name != "" {
 			te := event(t, cr.EventTrace)
-			te.Trace = &cr.TraceEntry{ID: id, Kind: "tool", Tool: name, Summary: name, Status: status, At: time.Now().UnixMilli()}
+			te.Trace = &cr.TraceEntry{
+				ID:      id,
+				Kind:    "tool",
+				Tool:    name,
+				Summary: name,
+				Detail:  util.Str(ev.Get("input")),
+				Output:  util.Str(ev.Get("output")),
+				Status:  status,
+				At:      time.Now().UnixMilli(),
+			}
 			w.queue(te)
 		}
 	case "error", "question", "agent":

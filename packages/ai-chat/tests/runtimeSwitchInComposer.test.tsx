@@ -10,7 +10,7 @@ import { ManagedRuntimeDock } from '../src/components/ManagedRuntimeDock';
 import { NomiModelSwitch } from '../src/components/NomiModelSwitch';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { ManagedRuntimeProvider } from '../src/contexts/ManagedRuntimeContext';
-import { setChatMode } from '../src/services/chatPrefs';
+import { clearManagedDefaultRuntime, setChatMode } from '../src/services/chatPrefs';
 import type { ChatMessage } from '../src/types/chat';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
@@ -365,6 +365,7 @@ function mountComposer() {
 }
 
 beforeEach(() => {
+  clearManagedDefaultRuntime();
   setChatMode('dev');
   harness.convo.projectId = 'p1';
   harness.convo.reasoningEffort = undefined;

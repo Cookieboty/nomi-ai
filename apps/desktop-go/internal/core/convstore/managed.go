@@ -1,6 +1,7 @@
 package convstore
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -156,6 +157,85 @@ func (l *ManagedLease) commit(state cr.Checkpoint, deleted bool) error {
 		return err
 	}
 	if err = atomicManaged(l.store.managedPath(l.id), b, l.ops); err != nil {
+		return err
+	}
+	l.sequence = old.Sequence
+	return nil
+}
+
+// UpdateMeta atomically updates controlled sidebar metadata fields on a leased managed document
+// while keeping identity fields (id, createdAt, backend, projectId) and runtime state immutable.
+func (l *ManagedLease) UpdateMeta(fn func(meta map[string]any) bool) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.closed {
+		return ErrManagedConflict
+	}
+	if fn == nil {
+		return nil
+	}
+	done, err := l.store.lockStore()
+	if err != nil {
+		return err
+	}
+	defer done()
+	old, err := readManaged(l.store.managedPath(l.id))
+	if err != nil {
+		return err
+	}
+	if old.Deleted {
+		return ErrNotFound
+	}
+	if old.Sequence != l.sequence || old.Sequence == ^uint64(0) {
+		return ErrManagedConflict
+	}
+	var meta map[string]any
+	dec := json.NewDecoder(bytes.NewReader(old.Meta))
+	dec.UseNumber()
+	if err = dec.Decode(&meta); err != nil || meta == nil {
+		return ErrManagedCorrupt
+	}
+	origCreatedAt, hasCreatedAt := meta["createdAt"]
+	origBackend, hasBackend := meta["backend"]
+	origProjectID, hasProjectID := meta["projectId"]
+	if !fn(meta) {
+		return nil
+	}
+	meta["id"] = l.id
+	if hasCreatedAt {
+		meta["createdAt"] = origCreatedAt
+	} else {
+		delete(meta, "createdAt")
+	}
+	if hasBackend {
+		meta["backend"] = origBackend
+	} else {
+		delete(meta, "backend")
+	}
+	if hasProjectID {
+		meta["projectId"] = origProjectID
+	} else {
+		delete(meta, "projectId")
+	}
+	b, err := json.Marshal(meta)
+	if err != nil {
+		return err
+	}
+	norm, normID, err := normMeta(b, l.id)
+	if err != nil {
+		return err
+	}
+	if normID != l.id {
+		return ErrBadID
+	}
+	old.Sequence++
+	old.Meta = norm
+	old.Checksum = documentSum(old)
+	docBytes, err := json.Marshal(old)
+	if err != nil {
+		return err
+	}
+	if err = atomicManaged(l.store.managedPath(l.id), docBytes, l.ops); err != nil {
 		return err
 	}
 	l.sequence = old.Sequence

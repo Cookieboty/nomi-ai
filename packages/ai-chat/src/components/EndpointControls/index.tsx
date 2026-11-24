@@ -11,16 +11,19 @@ import { Icon, t } from '@nomi-ai/ui';
 import { IconHistory as History, IconX as X } from '@tabler/icons-react';
 import React from 'react';
 
-import { selectMessageCount, useAiChatSelector } from '../../contexts/aiChatStore';
+import { selectIpcClient, selectMessageCount, useAiChatSelector } from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useManagedRuntime } from '../../contexts/ManagedRuntimeContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { useGitBranch } from '../../hooks/useGitBranch';
 import { useHarnessState } from '../../hooks/useHarnessState';
 import { useNomiProject } from '../../hooks/useNomiProject';
+import type { ConversationStore } from '../../services/conversationStore';
 import { gatewayClientAvailable } from '../../services/gatewayClient';
 import { MAIN_TAB_ID, harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
+import { applyManagedDefaultToConversation } from '../../services/managedDefaultRuntime';
 import { useProject } from '../../services/projects';
+import type { IPCClient } from '../../types/ipc';
 import { BranchPicker } from '../BranchPicker';
 import { ModelControls } from '../ModelControls';
 import { NomiModelSwitch } from '../NomiModelSwitch';
@@ -182,13 +185,25 @@ const ContextBar: React.FC<{
 const NomiContextBar: React.FC = () => {
   const ws = useNomiProject();
   const project = useProject(ws.projectId);
+  const managed = useManagedRuntime();
+  const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
+  const nomiCount = useAiChatSelector(selectMessageCount);
   return (
     <ContextBar
       cwd={project?.primary ?? ''}
       picker={
         <ProjectPicker
           value={ws.projectId}
-          onChange={ws.set}
+          onChange={(pid) => {
+            ws.set(pid);
+            if (nomiCount === 0 && !managed?.view?.managed && !managed?.pendingProjectBackend) {
+              const store = ipc?.conversationStore?.() as ConversationStore | undefined;
+              const targetId = ws.conversationId ?? ipc?.currentConversationId?.();
+              void applyManagedDefaultToConversation(targetId, store).then((applied) => {
+                if (applied) void managed?.refresh();
+              });
+            }
+          }}
           onClear={ws.clear}
           emptyLabel={t('ui.cli-monitor.no-project')}
           size="sm"

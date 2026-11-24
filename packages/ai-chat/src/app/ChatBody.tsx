@@ -21,6 +21,7 @@ import {
   useAiChatSelector,
 } from '../contexts/aiChatStore';
 import { useHarnessLive, type HarnessTabsCore } from '../contexts/HarnessTabsContext';
+import { useManagedRuntime } from '../contexts/ManagedRuntimeContext';
 import { useLiveWithGatewayRetry } from '../hooks/useGatewayRetry';
 import { useTranscriptView } from '../hooks/useTranscriptView';
 import {
@@ -43,13 +44,33 @@ const NomiConversation: React.FC<Omit<React.ComponentProps<typeof ConversationVi
 ) => {
   // 网关在重连 / 换供应商时，等待态显示原因
   const live = useLiveWithGatewayRetry(useAiChatSelector(selectNomiLive, sameLive));
+  const managed = useManagedRuntime();
   // 换了 Nomi 的模型、还没发送：和最后一条助手消息的模型比（网关状态变化时重算）
   useGatewayState();
-  const current = nomiModelLabel();
-  const modelSwitchTip = useMemo(
-    () => derivedSwitchTip(props.messages, current),
-    [props.messages, current],
-  );
+  const gatewayModel = nomiModelLabel();
+  const modelSwitchTip = useMemo(() => {
+    if (managed?.isCliBackend) {
+      const mModel = managed.view?.model;
+      if (!mModel || mModel === 'cli-default') return null;
+      const effort = managed.view?.effort;
+      if (effort) {
+        for (let i = props.messages.length - 1; i >= 0; i--) {
+          const msg = props.messages[i]!;
+          if (msg.role !== 'assistant') continue;
+          if (msg.model === `${mModel}-${effort}`) return null;
+          break;
+        }
+      }
+      return derivedSwitchTip(props.messages, mModel);
+    }
+    return derivedSwitchTip(props.messages, gatewayModel);
+  }, [
+    props.messages,
+    gatewayModel,
+    managed?.isCliBackend,
+    managed?.view?.model,
+    managed?.view?.effort,
+  ]);
   return <ConversationView {...props} live={live} modelSwitchTip={modelSwitchTip} />;
 };
 

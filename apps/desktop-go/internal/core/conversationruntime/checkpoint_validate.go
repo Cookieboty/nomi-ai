@@ -16,8 +16,13 @@ func ValidateCheckpoint(c Checkpoint) error {
 	orders := map[int64]string{}
 	revisions := map[string]map[int]bool{}
 	for _, e := range c.History {
-		if e.ID == "" || !utf8OK(e.ID) || !utf8OK(e.TurnID) || e.Order < 1 || e.Revision < 1 || !utf8OK(e.Text) || (e.Role != "user" && e.Role != "assistant") {
+		if e.ID == "" || !utf8OK(e.ID) || !utf8OK(e.TurnID) || e.Order < 1 || e.Revision < 1 || !utf8OK(e.Text) || !utf8OK(e.Model) || !utf8OK(e.Effort) || !utf8OK(e.ResponseModel) || (e.Role != "user" && e.Role != "assistant") {
 			return bad("entry")
+		}
+		for _, tr := range e.Trace {
+			if !utf8OK(tr.ID) || !utf8OK(tr.Kind) || !utf8OK(tr.Tool) || !utf8OK(tr.Summary) || !utf8OK(tr.Status) || !utf8OK(tr.Detail) || !utf8OK(tr.Output) {
+				return bad("entry trace")
+			}
 		}
 		if id, ok := orders[e.Order]; ok && id != e.ID {
 			return bad("order collision")

@@ -20,6 +20,7 @@ import (
 type worker struct {
 	last                 *turn
 	notify               func(cr.Event) error
+	onTitle              func(string)
 	child                *nodeproc.Child
 	driver               *drivers.AppServerDriver
 	sid, stderr, failure string
@@ -137,7 +138,7 @@ func (r *Runtime) spawn() *worker {
 	cfg := r.config
 	args := officialArgs(cfg)
 	env := officialEnv(cfg)
-	w := &worker{closed: make(chan struct{})}
+	w := &worker{closed: make(chan struct{}), onTitle: r.emitTitle}
 	w.child = nodeproc.Spawn(cfg.Executable, args, nodeproc.Options{Cwd: cfg.Cwd, Env: env, Detached: true})
 	w.child.OnStderr(func(chunk string) {
 		if len(w.stderr)+len(chunk) > 8192 {
@@ -245,16 +246,16 @@ func (w *worker) inspectItem(phase string, item drivers.Json) {
 }
 
 func (w *worker) parsed(ev *util.Obj) {
-	if ev == nil {
-		return
-	}
-	if w.failure != "" {
-		return
-	}
-	t := w.active
 	if ev == nil || w.failure != "" {
 		return
 	}
+	if util.Str(ev.Get("type")) == "session-info" {
+		if title := strings.TrimSpace(util.Str(ev.Get("title"))); title != "" && w.onTitle != nil {
+			w.onTitle(title)
+		}
+		return
+	}
+	t := w.active
 	if t == nil || !t.started {
 		// Idle-only select: events outside an active turn (late output after
 		// cancel/switch/resolve) never mutate authority and never replay text.
@@ -278,14 +279,55 @@ func (w *worker) parsed(ev *util.Obj) {
 		w.fail("unsupported native approval/tool; never auto-approved")
 		return
 	case "done":
+		t.clearThinking()
 		t.terminal = true
 		if t.text == "" {
 			t.text = util.Str(ev.Get("text"))
 		}
+		if u := util.AsObj(ev.Get("usage")); u != nil {
+			t.usage = buildTurnUsage(u, t.ctxTokens, t.ctxWindow, t.costUsd, 0)
+			if m := util.Str(u.Get("model")); m != "" && m != "cli-default" {
+				t.model = m
+			}
+			if rm := util.Str(u.Get("responseModel")); rm != "" {
+				t.responseModel = rm
+			}
+		}
+		if m := util.Str(ev.Get("model")); m != "" && m != "cli-default" {
+			t.model = m
+		}
+		if rm := util.Str(ev.Get("responseModel")); rm != "" {
+			t.responseModel = rm
+		}
 	case "text", "text-delta":
+		prevLen := len(t.text)
 		t.text = clisdk.AppendText(t.text, ev)
 		if len(t.text) > 2<<20 {
 			w.fail("native assistant output exceeds limit")
+			return
+		}
+		if len(t.text) > prevLen {
+			t.pushStream(t.text[prevLen:], "", false)
+		}
+	case "thinking":
+		if th := util.Str(ev.Get("text")); th != "" {
+			t.pushStream("", th, true)
+		}
+	case "context":
+		if f, ok := asNonNegFloat(ev.Get("tokens")); ok {
+			v := int64(f)
+			t.ctxTokens = &v
+		}
+		if f, ok := asPosFloat(ev.Get("window")); ok {
+			v := int64(f)
+			t.ctxWindow = &v
+		}
+		if f, ok := asNonNegFloat(ev.Get("costUsd")); ok {
+			v := f
+			t.costUsd = &v
+		}
+		if m := util.Str(ev.Get("model")); m != "" && m != "cli-default" {
+			t.model = m
 		}
 	}
 }

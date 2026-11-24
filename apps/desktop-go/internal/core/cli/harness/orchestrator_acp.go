@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/antigravity"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
@@ -36,6 +35,7 @@ type acpLiveSession struct {
 	launchSig          string
 	backend            string // gemini | grok | 其余内置 ACP 助手
 	model, effort      *string
+	effectiveModel     string
 	child              *gatedChild
 	driver             *drivers.AcpDriver
 	sessionID          *string
@@ -218,8 +218,17 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 		}
 		driver.On(func(e clisdk.SessionEvent) {
 			live.lastActivityAt = nowMs()
-			if e.Get("kind") == "harness" && truthy(e.Get("turnId")) && live.turn != nil {
-				o.onAcpEvents(id, live, []*util.Obj{util.AsObj(e.Get("event"))})
+			if e.Get("kind") == "harness" {
+				ev := util.AsObj(e.Get("event"))
+				if ev != nil && ev.Get("type") == "session-info" {
+					if title := util.JSTrim(jsStr(ev.Get("title"))); title != "" {
+						o.applyAcpSessionTitle(id, live, title)
+					}
+					return
+				}
+				if truthy(e.Get("turnId")) && live.turn != nil {
+					o.onAcpEvents(id, live, []*util.Obj{ev})
+				}
 			}
 			if e.Get("kind") == "question" {
 				pid := jsStr(e.Get("id"))
@@ -326,6 +335,10 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 				return struct{}{}, errors.New(i18n.T("electron.common.aborted"))
 			}
 			live.sessionID = sid
+			live.effectiveModel = currentAcpSessionModel(driver.SessionRaw)
+			if title := util.JSTrim(driver.SessionTitle); title != "" {
+				o.applyAcpSessionTitle(id, live, title)
+			}
 			o.noteLiveSession(id, backend, startCwd, *sid)
 			initMode := str(tab, "permissionMode")
 			adoptedHistoryMode := false
@@ -626,8 +639,14 @@ func (o *Orchestrator) runAcp(tab *util.Obj, prompt string, signal *jsrt.AbortSi
 		if u := util.AsObj(sent.Get("usage")); u != nil {
 			ctx.Assign(u)
 		}
+		var topUsage any
+		if r != nil {
+			topUsage = r.Get("usage")
+		}
 		var turnUsage *util.Obj
-		if tc != nil && (tc.Has("input_tokens") || tc.Has("output_tokens")) {
+		if tu := shared.ParseUsage(topUsage, nil, nil); tu != nil {
+			turnUsage = tu
+		} else if tc != nil && (tc.Has("input_tokens") || tc.Has("output_tokens")) {
 			turnUsage = util.NewObj()
 			if tc.Has("input_tokens") {
 				turnUsage.Set("inputTokens", tc.Get("input_tokens"))
@@ -649,6 +668,15 @@ func (o *Orchestrator) runAcp(tab *util.Obj, prompt string, signal *jsrt.AbortSi
 		done := util.NewObj("type", "done", "text", turn.text)
 		if live.sessionID != nil {
 			done.Set("sessionId", *live.sessionID)
+		}
+		if effModel := extractAcpTabResponseModel(r, meta, ctx); effModel != "" {
+			done.Set("model", effModel)
+		} else if live.effectiveModel != "" && live.effectiveModel != "cli-default" {
+			done.Set("model", live.effectiveModel)
+		} else if live.driver != nil {
+			if curModel := currentAcpSessionModel(live.driver.SessionRaw); curModel != "" {
+				done.Set("model", curModel)
+			}
 		}
 		if usageObj != nil {
 			done.Set("usage", usageObj)
@@ -691,9 +719,13 @@ func (o *Orchestrator) syncAcpOverrides(tab *util.Obj, live *acpLiveSession) *js
 			}
 			return withCause(i18n.T("electron.common.cli-did-not-switch-the", acpDisplayName(live.backend), what, rpc.InnermostMessage(e.Error())), e)
 		}
-		if live.backend == "antigravity" {
-			if catalog == nil && live.driver != nil && live.driver.SessionRaw != nil {
-				if c := antigravity.ParseModels(live.driver.SessionRaw); c != nil {
+		var modelCap *clisdk.ModelCatalogCapability
+		if impl := builtin.Impl(live.backend); impl != nil {
+			modelCap = impl.Models
+		}
+		if modelCap != nil && modelCap.ResolveOverride != nil {
+			if catalog == nil && modelCap.ParseSession != nil && live.driver != nil && live.driver.SessionRaw != nil {
+				if c := modelCap.ParseSession(live.driver.SessionRaw); c != nil {
 					if ms, ok := c.Get("models").([]any); ok && len(ms) > 0 {
 						catalog = c
 					}
@@ -701,7 +733,8 @@ func (o *Orchestrator) syncAcpOverrides(tab *util.Obj, live *acpLiveSession) *js
 			}
 			wantModel := derefStr(want.model)
 			wantEffort := derefStr(want.effort)
-			wireModel, wireEffort, cfgID := antigravity.ResolveModelAndEffort(catalog, wantModel, wantEffort)
+			ov := modelCap.ResolveOverride(catalog, wantModel, wantEffort)
+			wireModel, wireEffort, cfgID := ov.ModelID, ov.Effort, ov.EffortConfigID
 			if want.model != nil && wireModel == "" {
 				return false, nil
 			}
@@ -713,6 +746,7 @@ func (o *Orchestrator) syncAcpOverrides(tab *util.Obj, live *acpLiveSession) *js
 				if _, e := jsrt.Await(live.driver.SetSessionModel(wireModel)); e != nil {
 					return false, fail(i18n.T("electron.common.model"), e)
 				}
+				live.effectiveModel = wireModel
 				live.model = want.model
 				if wireEffort == "" {
 					live.effort = want.effort
@@ -749,6 +783,7 @@ func (o *Orchestrator) syncAcpOverrides(tab *util.Obj, live *acpLiveSession) *js
 			if _, e := jsrt.Await(live.driver.SetSessionModel(*modelID)); e != nil {
 				return false, fail(i18n.T("electron.common.model"), e)
 			}
+			live.effectiveModel = *modelID
 			live.model = want.model
 			live.effort = nil
 		}
@@ -801,6 +836,96 @@ func (o *Orchestrator) teardownAcpLive(tabID string) {
 	o.live.delAcp(tabID)
 	live.cancelPerms()
 	live.driver.Close()
+}
+
+func currentAcpSessionModel(sessionRaw *util.Obj) string {
+	if sessionRaw == nil {
+		return ""
+	}
+	if ms := util.AsObj(sessionRaw.Get("models")); ms != nil {
+		if cur, ok := ms.Get("currentModelId").(string); ok {
+			cur = strings.TrimSpace(cur)
+			if cur != "" && cur != "cli-default" {
+				return cur
+			}
+		}
+	}
+	if opts, ok := sessionRaw.Get("configOptions").([]any); ok {
+		for _, item := range opts {
+			o := util.AsObj(item)
+			if o == nil {
+				continue
+			}
+			if util.Str(o.Get("id")) == "model" || strings.EqualFold(util.Str(o.Get("category")), "model") {
+				for _, key := range []string{"currentValue", "current_value"} {
+					if cur, ok := o.Get(key).(string); ok {
+						cur = strings.TrimSpace(cur)
+						if cur != "" && cur != "cli-default" {
+							return cur
+						}
+					}
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func extractAcpTabResponseModel(r, meta, ctx *util.Obj) string {
+	pick := func(v any) string {
+		if s, ok := v.(string); ok {
+			s = strings.TrimSpace(s)
+			if s != "" && s != "cli-default" {
+				return s
+			}
+		}
+		return ""
+	}
+	if r != nil {
+		if m := pick(r.Get("model")); m != "" {
+			return m
+		}
+		if u := util.AsObj(r.Get("usage")); u != nil {
+			if m := pick(u.Get("model")); m != "" {
+				return m
+			}
+		}
+	}
+	if meta != nil {
+		if m := pick(meta.Get("model")); m != "" {
+			return m
+		}
+	}
+	if ctx != nil {
+		if m := pick(ctx.Get("model")); m != "" {
+			return m
+		}
+	}
+	return ""
+}
+
+func (o *Orchestrator) applyTabNativeTitle(tabID, rawTitle string) {
+	tab := o.tab(tabID)
+	if tab == nil {
+		return
+	}
+	next := clisdk.Slice0(util.JSTrim(rawTitle), 60)
+	if next == "" || str(tab, "title") == next {
+		return
+	}
+	if _, pending := o.autoTitlePending[tabID]; !pending && !isGeneratedTabTitle(str(tab, "title"), str(tab, "backend")) {
+		return
+	}
+	tab.Set("title", next)
+	delete(o.autoTitlePending, tabID)
+	o.changed()
+}
+
+func (o *Orchestrator) applyAcpSessionTitle(tabID string, live *acpLiveSession, rawTitle string) {
+	if live == nil || o.live.acp[tabID] != live {
+		return
+	}
+	o.applyTabNativeTitle(tabID, rawTitle)
 }
 
 func envMap(e *util.Obj) map[string]string {

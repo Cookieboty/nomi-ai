@@ -477,7 +477,9 @@ export class SdkIPCClient implements IPCClient {
         opts?.notReuse,
       );
       if (empty) {
-        this.store.updateMeta(empty.id, {});
+        if (!this.store.isManaged(empty.id)) {
+          this.store.updateMeta(empty.id, {});
+        }
         this.store.switchTo(empty.id);
         return empty.id;
       }

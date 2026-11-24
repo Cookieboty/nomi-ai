@@ -9514,6 +9514,11 @@
       "minLength": 1,
       "maxLength": 64
      },
+     "permissionMode": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+     },
      "accountId": {
       "type": "string",
       "minLength": 1,
@@ -9570,6 +9575,12 @@
      },
      "partial": {
       "type": "string"
+     },
+     "thinking": {
+      "type": "string"
+     },
+     "thinkingActive": {
+      "type": "boolean"
      },
      "detail": {
       "type": "string"
@@ -9634,6 +9645,9 @@
          "type": "string"
         },
         "detail": {
+         "type": "string"
+        },
+        "output": {
          "type": "string"
         },
         "at": {
@@ -10138,6 +10152,12 @@
      "partial": {
       "type": "string"
      },
+     "thinking": {
+      "type": "string"
+     },
+     "thinkingActive": {
+      "type": "boolean"
+     },
      "detail": {
       "type": "string"
      },
@@ -10201,6 +10221,9 @@
          "type": "string"
         },
         "detail": {
+         "type": "string"
+        },
+        "output": {
          "type": "string"
         },
         "at": {
@@ -10681,6 +10704,12 @@
      "partial": {
       "type": "string"
      },
+     "thinking": {
+      "type": "string"
+     },
+     "thinkingActive": {
+      "type": "boolean"
+     },
      "detail": {
       "type": "string"
      },
@@ -10744,6 +10773,9 @@
          "type": "string"
         },
         "detail": {
+         "type": "string"
+        },
+        "output": {
          "type": "string"
         },
         "at": {
@@ -11532,6 +11564,12 @@
      "partial": {
       "type": "string"
      },
+     "thinking": {
+      "type": "string"
+     },
+     "thinkingActive": {
+      "type": "boolean"
+     },
      "detail": {
       "type": "string"
      },
@@ -11595,6 +11633,9 @@
          "type": "string"
         },
         "detail": {
+         "type": "string"
+        },
+        "output": {
          "type": "string"
         },
         "at": {
@@ -12110,6 +12151,12 @@
      "partial": {
       "type": "string"
      },
+     "thinking": {
+      "type": "string"
+     },
+     "thinkingActive": {
+      "type": "boolean"
+     },
      "detail": {
       "type": "string"
      },
@@ -12173,6 +12220,9 @@
          "type": "string"
         },
         "detail": {
+         "type": "string"
+        },
+        "output": {
          "type": "string"
         },
         "at": {
@@ -12651,6 +12701,12 @@
      "partial": {
       "type": "string"
      },
+     "thinking": {
+      "type": "string"
+     },
+     "thinkingActive": {
+      "type": "boolean"
+     },
      "detail": {
       "type": "string"
      },
@@ -12714,6 +12770,9 @@
          "type": "string"
         },
         "detail": {
+         "type": "string"
+        },
+        "output": {
          "type": "string"
         },
         "at": {
@@ -13264,6 +13323,12 @@
      "partial": {
       "type": "string"
      },
+     "thinking": {
+      "type": "string"
+     },
+     "thinkingActive": {
+      "type": "boolean"
+     },
      "detail": {
       "type": "string"
      },
@@ -13327,6 +13392,9 @@
          "type": "string"
         },
         "detail": {
+         "type": "string"
+        },
+        "output": {
          "type": "string"
         },
         "at": {
@@ -13846,6 +13914,12 @@
      "partial": {
       "type": "string"
      },
+     "thinking": {
+      "type": "string"
+     },
+     "thinkingActive": {
+      "type": "boolean"
+     },
      "detail": {
       "type": "string"
      },
@@ -13909,6 +13983,9 @@
          "type": "string"
         },
         "detail": {
+         "type": "string"
+        },
+        "output": {
          "type": "string"
         },
         "at": {
@@ -14315,6 +14392,61 @@
      "capabilities"
     ],
     "additionalProperties": false
+   }
+  },
+  "conversations.runtimeUpdateMeta": {
+   "kind": "mutation",
+   "dangerous": false,
+   "surfaces": [
+    "chat"
+   ],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+     },
+     "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+     },
+     "autoTitle": {
+      "type": "boolean"
+     },
+     "pinnedAt": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "archivedAt": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "id"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema"
    }
   },
   "conversations.setPointers": {
@@ -44622,6 +44754,12 @@
     "partial": {
      "type": "string"
     },
+    "thinking": {
+     "type": "string"
+    },
+    "thinkingActive": {
+     "type": "boolean"
+    },
     "detail": {
      "type": "string"
     },
@@ -44685,6 +44823,9 @@
         "type": "string"
        },
        "detail": {
+        "type": "string"
+       },
+       "output": {
         "type": "string"
        },
        "at": {

@@ -2393,13 +2393,14 @@ const (
 )
 
 type ConversationsRuntimeAdoptInput struct {
-	Id        string                                `json:"id"`
-	Backend   string                                `json:"backend"`
-	Confirm   bool                                  `json:"confirm"`
-	Source    *ConversationsRuntimeAdoptInputSource `json:"source,omitempty"`
-	Model     *string                               `json:"model,omitempty"`
-	Effort    *string                               `json:"effort,omitempty"`
-	AccountId *string                               `json:"accountId,omitempty"`
+	Id             string                                `json:"id"`
+	Backend        string                                `json:"backend"`
+	Confirm        bool                                  `json:"confirm"`
+	Source         *ConversationsRuntimeAdoptInputSource `json:"source,omitempty"`
+	Model          *string                               `json:"model,omitempty"`
+	Effort         *string                               `json:"effort,omitempty"`
+	PermissionMode *string                               `json:"permissionMode,omitempty"`
+	AccountId      *string                               `json:"accountId,omitempty"`
 }
 
 // ConversationsRuntimeAdoptOutputSource 枚举：local | official | thirdParty
@@ -2442,6 +2443,7 @@ type ConversationsRuntimeAdoptOutputTraceItem struct {
 	Summary *string `json:"summary,omitempty"`
 	Status  *string `json:"status,omitempty"`
 	Detail  *string `json:"detail,omitempty"`
+	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
 }
 
@@ -2644,6 +2646,8 @@ type ConversationsRuntimeAdoptOutput struct {
 	Phase           ConversationsRuntimeAdoptOutputPhase                 `json:"phase"`
 	Queued          int64                                                `json:"queued"`
 	Partial         string                                               `json:"partial"`
+	Thinking        *string                                              `json:"thinking,omitempty"`
+	ThinkingActive  *bool                                                `json:"thinkingActive,omitempty"`
 	Detail          string                                               `json:"detail"`
 	Approvals       []string                                             `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeAdoptOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -2713,6 +2717,7 @@ type ConversationsRuntimeApproveOutputTraceItem struct {
 	Summary *string `json:"summary,omitempty"`
 	Status  *string `json:"status,omitempty"`
 	Detail  *string `json:"detail,omitempty"`
+	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
 }
 
@@ -2915,6 +2920,8 @@ type ConversationsRuntimeApproveOutput struct {
 	Phase           ConversationsRuntimeApproveOutputPhase                 `json:"phase"`
 	Queued          int64                                                  `json:"queued"`
 	Partial         string                                                 `json:"partial"`
+	Thinking        *string                                                `json:"thinking,omitempty"`
+	ThinkingActive  *bool                                                  `json:"thinkingActive,omitempty"`
 	Detail          string                                                 `json:"detail"`
 	Approvals       []string                                               `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeApproveOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -2977,6 +2984,7 @@ type ConversationsRuntimeCancelOutputTraceItem struct {
 	Summary *string `json:"summary,omitempty"`
 	Status  *string `json:"status,omitempty"`
 	Detail  *string `json:"detail,omitempty"`
+	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
 }
 
@@ -3179,6 +3187,8 @@ type ConversationsRuntimeCancelOutput struct {
 	Phase           ConversationsRuntimeCancelOutputPhase                 `json:"phase"`
 	Queued          int64                                                 `json:"queued"`
 	Partial         string                                                `json:"partial"`
+	Thinking        *string                                               `json:"thinking,omitempty"`
+	ThinkingActive  *bool                                                 `json:"thinkingActive,omitempty"`
 	Detail          string                                                `json:"detail"`
 	Approvals       []string                                              `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeCancelOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -3412,6 +3422,7 @@ type ConversationsRuntimeEditOutputTraceItem struct {
 	Summary *string `json:"summary,omitempty"`
 	Status  *string `json:"status,omitempty"`
 	Detail  *string `json:"detail,omitempty"`
+	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
 }
 
@@ -3614,6 +3625,8 @@ type ConversationsRuntimeEditOutput struct {
 	Phase           ConversationsRuntimeEditOutputPhase                 `json:"phase"`
 	Queued          int64                                               `json:"queued"`
 	Partial         string                                              `json:"partial"`
+	Thinking        *string                                             `json:"thinking,omitempty"`
+	ThinkingActive  *bool                                               `json:"thinkingActive,omitempty"`
 	Detail          string                                              `json:"detail"`
 	Approvals       []string                                            `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeEditOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -3690,6 +3703,7 @@ type ConversationsRuntimeResolveOutputTraceItem struct {
 	Summary *string `json:"summary,omitempty"`
 	Status  *string `json:"status,omitempty"`
 	Detail  *string `json:"detail,omitempty"`
+	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
 }
 
@@ -3892,6 +3906,8 @@ type ConversationsRuntimeResolveOutput struct {
 	Phase           ConversationsRuntimeResolveOutputPhase                 `json:"phase"`
 	Queued          int64                                                  `json:"queued"`
 	Partial         string                                                 `json:"partial"`
+	Thinking        *string                                                `json:"thinking,omitempty"`
+	ThinkingActive  *bool                                                  `json:"thinkingActive,omitempty"`
 	Detail          string                                                 `json:"detail"`
 	Approvals       []string                                               `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeResolveOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -3953,6 +3969,7 @@ type ConversationsRuntimeSelectOutputTraceItem struct {
 	Summary *string `json:"summary,omitempty"`
 	Status  *string `json:"status,omitempty"`
 	Detail  *string `json:"detail,omitempty"`
+	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
 }
 
@@ -4155,6 +4172,8 @@ type ConversationsRuntimeSelectOutput struct {
 	Phase           ConversationsRuntimeSelectOutputPhase                 `json:"phase"`
 	Queued          int64                                                 `json:"queued"`
 	Partial         string                                                `json:"partial"`
+	Thinking        *string                                               `json:"thinking,omitempty"`
+	ThinkingActive  *bool                                                 `json:"thinkingActive,omitempty"`
 	Detail          string                                                `json:"detail"`
 	Approvals       []string                                              `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeSelectOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -4231,6 +4250,7 @@ type ConversationsRuntimeStateOutputTraceItem struct {
 	Summary *string `json:"summary,omitempty"`
 	Status  *string `json:"status,omitempty"`
 	Detail  *string `json:"detail,omitempty"`
+	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
 }
 
@@ -4433,6 +4453,8 @@ type ConversationsRuntimeStateOutput struct {
 	Phase           ConversationsRuntimeStateOutputPhase                 `json:"phase"`
 	Queued          int64                                                `json:"queued"`
 	Partial         string                                               `json:"partial"`
+	Thinking        *string                                              `json:"thinking,omitempty"`
+	ThinkingActive  *bool                                                `json:"thinkingActive,omitempty"`
 	Detail          string                                               `json:"detail"`
 	Approvals       []string                                             `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeStateOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -4511,6 +4533,7 @@ type ConversationsRuntimeSwitchOutputTraceItem struct {
 	Summary *string `json:"summary,omitempty"`
 	Status  *string `json:"status,omitempty"`
 	Detail  *string `json:"detail,omitempty"`
+	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
 }
 
@@ -4713,6 +4736,8 @@ type ConversationsRuntimeSwitchOutput struct {
 	Phase           ConversationsRuntimeSwitchOutputPhase                 `json:"phase"`
 	Queued          int64                                                 `json:"queued"`
 	Partial         string                                                `json:"partial"`
+	Thinking        *string                                               `json:"thinking,omitempty"`
+	ThinkingActive  *bool                                                 `json:"thinkingActive,omitempty"`
 	Detail          string                                                `json:"detail"`
 	Approvals       []string                                              `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeSwitchOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -4727,6 +4752,14 @@ type ConversationsRuntimeSwitchOutput struct {
 	PendingSwitch   *ConversationsRuntimeSwitchOutputPendingSwitch        `json:"pendingSwitch,omitempty"`
 	LastSwitch      *ConversationsRuntimeSwitchOutputLastSwitch           `json:"lastSwitch,omitempty"`
 	Capabilities    ConversationsRuntimeSwitchOutputCapabilities          `json:"capabilities"`
+}
+
+type ConversationsRuntimeUpdateMetaInput struct {
+	Id         string  `json:"id"`
+	Name       *string `json:"name,omitempty"`
+	AutoTitle  *bool   `json:"autoTitle,omitempty"`
+	PinnedAt   *int64  `json:"pinnedAt,omitempty"`
+	ArchivedAt *int64  `json:"archivedAt,omitempty"`
 }
 
 type ConversationsSetPointersInput struct {
@@ -14400,6 +14433,7 @@ type EventConversationsRuntimeChangedTraceItem struct {
 	Summary *string `json:"summary,omitempty"`
 	Status  *string `json:"status,omitempty"`
 	Detail  *string `json:"detail,omitempty"`
+	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
 }
 
@@ -14602,6 +14636,8 @@ type EventConversationsRuntimeChanged struct {
 	Phase           EventConversationsRuntimeChangedPhase                 `json:"phase"`
 	Queued          int64                                                 `json:"queued"`
 	Partial         string                                                `json:"partial"`
+	Thinking        *string                                               `json:"thinking,omitempty"`
+	ThinkingActive  *bool                                                 `json:"thinkingActive,omitempty"`
 	Detail          string                                                `json:"detail"`
 	Approvals       []string                                              `json:"approvals"`
 	ApprovalDetails []EventConversationsRuntimeChangedApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -16127,6 +16163,10 @@ type ConversationsRuntimeStateOutputT = ConversationsRuntimeStateOutput
 // ConversationsRuntimeSwitchInputT 是 conversations.runtimeSwitch 的入参
 type ConversationsRuntimeSwitchInputT = ConversationsRuntimeSwitchInput
 type ConversationsRuntimeSwitchOutputT = ConversationsRuntimeSwitchOutput
+
+// ConversationsRuntimeUpdateMetaInputT 是 conversations.runtimeUpdateMeta 的入参
+type ConversationsRuntimeUpdateMetaInputT = ConversationsRuntimeUpdateMetaInput
+type ConversationsRuntimeUpdateMetaOutputT = any
 
 // ConversationsSetPointersInputT 是 conversations.setPointers 的入参
 type ConversationsSetPointersInputT = ConversationsSetPointersInput

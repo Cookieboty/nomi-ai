@@ -10,24 +10,29 @@ import (
 )
 
 type activeAttempt struct {
-	token           AttemptToken
-	request         Request
-	replyID         string
-	ctx             context.Context
-	cancel          context.CancelFunc
-	gate            chan struct{} // serializes Start/Approve/Cancel without holding session.mu
-	target          Target
-	caps            Capabilities
-	phase           Phase
-	recovery        RecoveryResult
-	binding         Binding
-	plan            Plan
-	delivered       bool
-	text            string
-	approvals       map[string]bool
-	approvalDetails map[string]ApprovalInfo
-	trace           []TraceEntry
-	detail          string
+	token             AttemptToken
+	request           Request
+	replyID           string
+	ctx               context.Context
+	cancel            context.CancelFunc
+	gate              chan struct{} // serializes Start/Approve/Cancel without holding session.mu
+	target            Target
+	caps              Capabilities
+	phase             Phase
+	recovery          RecoveryResult
+	binding           Binding
+	plan              Plan
+	delivered         bool
+	text              string
+	startedAt         int64
+	streamText        string
+	streamThinking    string
+	thinkingStartedAt int64
+	thinkingActive    bool
+	approvals         map[string]bool
+	approvalDetails   map[string]ApprovalInfo
+	trace             []TraceEntry
+	detail            string
 }
 
 // Session serializes one stable product conversation. With an attached
@@ -184,6 +189,13 @@ func (c *Session) State() SessionState {
 	}
 	if a := c.active; a != nil {
 		s.Phase, s.Token, s.Recovery, s.Partial, s.Detail = a.phase, a.token, a.recovery, a.text, a.detail
+		if a.phase == PhaseRunning {
+			if s.Partial == "" && a.streamText != "" {
+				s.Partial = a.streamText
+			}
+			s.Thinking = a.streamThinking
+			s.ThinkingActive = a.thinkingActive
+		}
 		if c.storageErr != nil {
 			s.Phase = PhaseUncertain
 			s.Detail = c.storageErr.Error()
@@ -348,7 +360,7 @@ func (c *Session) beginLocked(ctx context.Context, r Request, queued bool) (*act
 	c.generation++
 	token := AttemptToken{ConversationID: c.id, AttemptID: fmt.Sprintf("a%d", c.generation), Generation: c.generation}
 	attemptCtx, cancel := context.WithCancel(ctx)
-	a := &activeAttempt{token: token, request: r, ctx: attemptCtx, cancel: cancel, gate: make(chan struct{}, 1), target: c.target, caps: c.caps.clone(), phase: PhasePreparing, approvals: map[string]bool{}, approvalDetails: map[string]ApprovalInfo{}}
+	a := &activeAttempt{token: token, request: r, ctx: attemptCtx, cancel: cancel, gate: make(chan struct{}, 1), target: c.target, caps: c.caps.clone(), phase: PhasePreparing, startedAt: time.Now().UnixMilli(), approvals: map[string]bool{}, approvalDetails: map[string]ApprovalInfo{}}
 	a.replyID = c.replyIDLocked("reply_" + token.AttemptID)
 	c.active = a
 	c.attempted[r.MessageID] = true

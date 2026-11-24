@@ -690,3 +690,254 @@ func (p *parityFake) Capabilities() cr.Capabilities {
 	caps.Bridges = p.bridges
 	return caps
 }
+
+type titleModelFake struct {
+	*ingressFake
+	mu      sync.Mutex
+	onTitle func(string)
+	model   string
+}
+
+func (f *titleModelFake) SetTitleHandler(fn func(string)) {
+	f.mu.Lock()
+	f.onTitle = fn
+	f.mu.Unlock()
+}
+
+func (f *titleModelFake) pushTitle(title string) {
+	f.mu.Lock()
+	fn := f.onTitle
+	f.mu.Unlock()
+	if fn != nil {
+		fn(title)
+	}
+}
+
+func (f *titleModelFake) Start(_ context.Context, r cr.RuntimeRequest, emit func(cr.Event) error) cr.SubmitResult {
+	f.mu.Lock()
+	f.ingressFake.mu.Lock()
+	f.calls = append(f.calls, r)
+	f.emits = append(f.emits, emit)
+	model := f.model
+	f.ingressFake.mu.Unlock()
+	f.mu.Unlock()
+	go func() {
+		e := cr.Event{Token: r.Token, NativeSessionID: r.NativeSessionID, Kind: cr.EventDelivered, Delivery: cr.Delivery{PlanID: r.Plan.ID, NativeSessionID: r.NativeSessionID, Kind: cr.DeliveredFull}}
+		if emit(e) != nil {
+			return
+		}
+		e.Kind = cr.EventText
+		e.Text = "reply from " + f.name
+		_ = emit(e)
+		e.Kind = cr.EventCompleted
+		e.Work = cr.Activity{Known: true}
+		e.Model = model
+		_ = emit(e)
+	}()
+	return cr.SubmitResult{Kind: cr.SubmitAccepted}
+}
+
+func TestManagedTitleLifecycleModelAndMetaPatch(t *testing.T) {
+	dir := t.TempDir()
+	s, r, c := fixtureIngress(t, dir)
+	tf := &titleModelFake{ingressFake: &ingressFake{name: "antigravity"}, model: "gemini-4-neon-medium"}
+	r.Register("antigravity", func(id string) (cr.Target, error) {
+		tgt, err := tf.ingressFake.target(id)
+		tgt.Runtime = tf
+		return tgt, err
+	})
+
+	requireOK(t, c.call("conversations.put", `{"meta":{"id":"c","backend":"nomi","name":"新对话","createdAt":1000,"updatedAt":1000,"projectId":"p1"},"messages":[]}`))
+	stRaw := requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"antigravity","permissionMode":"ask","confirm":true}`))
+	stBytes, _ := json.Marshal(stRaw)
+	var adopted struct {
+		Backend        string
+		PermissionMode string
+		Generation     uint64
+	}
+	_ = json.Unmarshal(stBytes, &adopted)
+	if adopted.Backend != "antigravity" || adopted.PermissionMode != "ask" {
+		t.Fatalf("adopted state = %s", stBytes)
+	}
+
+	g := generation(t, c)
+	requireOK(t, c.call("conversations.runtimeSend", fmt.Sprintf(`{"id":"c","messageId":"m1","turnId":"t1","text":"帮我检查 ACP 流式输出   \n <attached-file name=\"a.txt\" path=\"/tmp/a.txt\" />","expectedGeneration":%d}`, g)))
+
+	readMeta := func() map[string]any {
+		t.Helper()
+		raw := requireOK(t, c.call("conversations.state", `{}`))
+		b, _ := json.Marshal(raw)
+		var state struct {
+			Conversations []map[string]any `json:"conversations"`
+		}
+		_ = json.Unmarshal(b, &state)
+		for _, conv := range state.Conversations {
+			if conv["id"] == "c" {
+				return conv
+			}
+		}
+		t.Fatalf("conversation c missing from state: %s", b)
+		return nil
+	}
+
+	// Wait until turn completes and modelId + heuristic name + updatedAt are persisted.
+	var meta map[string]any
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		meta = readMeta()
+		if meta["modelId"] == "gemini-4-neon-medium" && meta["name"] == "帮我检查 ACP 流式输出" {
+			break
+		}
+		time.Sleep(15 * time.Millisecond)
+	}
+	if meta["name"] != "帮我检查 ACP 流式输出" || meta["modelId"] != "gemini-4-neon-medium" {
+		t.Fatalf("after first turn meta = %v", meta)
+	}
+	updatedAfterTurn := meta["updatedAt"]
+
+	// Native ACP title supersedes heuristic title.
+	tf.pushTitle("Native ACP Session Title")
+	meta = readMeta()
+	if meta["name"] != "Native ACP Session Title" {
+		t.Fatalf("expected native title to replace heuristic title, got %v", meta["name"])
+	}
+
+	// Blank rename rejected with BAD_INPUT.
+	if bad := c.call("conversations.runtimeUpdateMeta", `{"id":"c","name":"   "}`); bad.T != "err" || bad.Error.Code != "BAD_INPUT" {
+		t.Fatalf("expected BAD_INPUT on blank name, got %+v", bad)
+	}
+
+	// Manual user rename locks title against later native updates and preserves updatedAt.
+	requireOK(t, c.call("conversations.runtimeUpdateMeta", `{"id":"c","name":"Manual User Title"}`))
+	meta = readMeta()
+	if meta["name"] != "Manual User Title" {
+		t.Fatalf("manual rename failed: %v", meta)
+	}
+	tf.pushTitle("Should Not Overwrite Manual")
+	meta = readMeta()
+	if meta["name"] != "Manual User Title" {
+		t.Fatalf("native title overwrote manual rename: %v", meta["name"])
+	}
+
+	// Pin / unpin / archive / unarchive without bumping updatedAt.
+	requireOK(t, c.call("conversations.runtimeUpdateMeta", `{"id":"c","pinnedAt":123456}`))
+	meta = readMeta()
+	if meta["pinnedAt"] != float64(123456) {
+		t.Fatalf("pinnedAt missing: %v", meta)
+	}
+	requireOK(t, c.call("conversations.runtimeUpdateMeta", `{"id":"c","pinnedAt":null}`))
+	meta = readMeta()
+	if _, has := meta["pinnedAt"]; has {
+		t.Fatalf("pinnedAt not cleared: %v", meta)
+	}
+	requireOK(t, c.call("conversations.runtimeUpdateMeta", `{"id":"c","archivedAt":654321}`))
+	meta = readMeta()
+	if meta["archivedAt"] != float64(654321) {
+		t.Fatalf("archivedAt missing: %v", meta)
+	}
+	requireOK(t, c.call("conversations.runtimeUpdateMeta", `{"id":"c","archivedAt":null}`))
+	meta = readMeta()
+	if _, has := meta["archivedAt"]; has {
+		t.Fatalf("archivedAt not cleared: %v", meta)
+	}
+	if meta["updatedAt"] != updatedAfterTurn || meta["projectId"] != "p1" || meta["createdAt"] != float64(1000) {
+		t.Fatalf("metadata patch altered updatedAt/identity: %v (want updatedAt=%v)", meta, updatedAfterTurn)
+	}
+	_ = s
+}
+
+func TestManagedTitlePrecedenceAndPostTurnDiskLookup(t *testing.T) {
+	dir := t.TempDir()
+	_, r, c := fixtureIngress(t, dir)
+	r.SetNativeTitleRetryDelays([]time.Duration{0, 10 * time.Millisecond})
+
+	lookupCalls := 0
+	var lookupMu sync.Mutex
+	releaseDiskLookup := make(chan struct{})
+	r.SetNativeTitleLookup(func(ctx context.Context, backend, nativeSID, _ string) string {
+		lookupMu.Lock()
+		lookupCalls++
+		callNum := lookupCalls
+		lookupMu.Unlock()
+		if backend != "claude" || !strings.HasPrefix(nativeSID, "claude_") || callNum < 2 {
+			return ""
+		}
+		select {
+		case <-ctx.Done():
+			return ""
+		case <-releaseDiskLookup:
+			return "Disk Summary Native Title"
+		}
+	})
+
+	tf := &titleModelFake{ingressFake: &ingressFake{name: "claude"}, model: "claude-sonnet"}
+	r.Register("claude", func(id string) (cr.Target, error) {
+		tgt, err := tf.ingressFake.target(id)
+		tgt.Runtime = tf
+		return tgt, err
+	})
+
+	requireOK(t, c.call("conversations.put", `{"meta":{"id":"c","backend":"nomi","name":"新对话","createdAt":1000,"updatedAt":1000,"projectId":"p1"},"messages":[]}`))
+	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"claude","permissionMode":"ask","confirm":true}`))
+
+	g := generation(t, c)
+	requireOK(t, c.call("conversations.runtimeSend", fmt.Sprintf(`{"id":"c","messageId":"m1","turnId":"t1","text":"排查构建脚本为什么找不到依赖","expectedGeneration":%d}`, g)))
+
+	readMeta := func(id string) map[string]any {
+		t.Helper()
+		raw := requireOK(t, c.call("conversations.state", `{}`))
+		b, _ := json.Marshal(raw)
+		var state struct {
+			Conversations []map[string]any `json:"conversations"`
+		}
+		_ = json.Unmarshal(b, &state)
+		for _, conv := range state.Conversations {
+			if conv["id"] == id {
+				return conv
+			}
+		}
+		t.Fatalf("conversation %s missing", id)
+		return nil
+	}
+
+	waitName := func(id, want string) {
+		t.Helper()
+		deadline := time.Now().Add(3 * time.Second)
+		for time.Now().Before(deadline) {
+			if got, _ := readMeta(id)["name"].(string); got == want {
+				return
+			}
+			time.Sleep(15 * time.Millisecond)
+		}
+		t.Fatalf("conversation %s name = %v, want %q", id, readMeta(id)["name"], want)
+	}
+
+	// 1. Heuristic title set when turn starts.
+	waitName("c", "排查构建脚本为什么找不到依赖")
+
+	// 2. Smart title (autoTitle: true) upgrades heuristic title while disk lookup is gated.
+	requireOK(t, c.call("conversations.runtimeUpdateMeta", `{"id":"c","name":"构建依赖排查","autoTitle":true}`))
+	waitName("c", "构建依赖排查")
+
+	// 3. Disk native title lookup supersedes smart title on retry.
+	close(releaseDiskLookup)
+	waitName("c", "Disk Summary Native Title")
+
+	// 4. Late smart autoTitle must NOT overwrite native title.
+	requireOK(t, c.call("conversations.runtimeUpdateMeta", `{"id":"c","name":"迟到的智能标题","autoTitle":true}`))
+	if got := readMeta("c")["name"]; got != "Disk Summary Native Title" {
+		t.Fatalf("late smart autoTitle overwrote native title: got %v", got)
+	}
+
+	// 5. Real-time native push CAN still update an earlier native title before manual rename.
+	tf.pushTitle("Updated Stream Native Title")
+	waitName("c", "Updated Stream Native Title")
+
+	// 6. Manual rename locks against both late autoTitle and native title.
+	requireOK(t, c.call("conversations.runtimeUpdateMeta", `{"id":"c","name":"用户手动定稿标题"}`))
+	requireOK(t, c.call("conversations.runtimeUpdateMeta", `{"id":"c","name":"再次智能尝试","autoTitle":true}`))
+	tf.pushTitle("Should Not Replace Manual")
+	if got := readMeta("c")["name"]; got != "用户手动定稿标题" {
+		t.Fatalf("manual title was overwritten: got %v", got)
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -28,6 +29,11 @@ func TestHelperDshProcess(t *testing.T) {
 		fmt.Println(`{"type":"text","text":"dsh answer"}`)
 		fmt.Println(`{"type":"status","phase":"turn_end","usage":{"inputTokens":1,"outputTokens":1}}`)
 		fmt.Println(`{"type":"final","text":"dsh answer"}`)
+	case "session_title":
+		fmt.Println(`{"type":"session","sessionId":"session-real-dsh-1"}`)
+		fmt.Println(`{"type":"session/title","data":{"title":"DSH 流式标题"}}`)
+		fmt.Println(`{"type":"text","text":"ok"}`)
+		fmt.Println(`{"type":"final","text":"ok"}`)
 	case "agent_fail":
 		fmt.Println(`{"type":"tool_call","tool":"subagent","callId":"a1","input":{"task":"x"}}`)
 	case "hang":
@@ -205,5 +211,61 @@ func TestDshPermissionModesAndEnv(t *testing.T) {
 	}
 	if tBogus.Env.PermissionMode != "bogus" {
 		t.Fatalf("explicit bogus PermissionMode must be preserved for session rejection, got %q", tBogus.Env.PermissionMode)
+	}
+}
+
+func TestDshRuntimeSessionTitleAndNativeSessionMeta(t *testing.T) {
+	r, release := newHelperRuntime(t, "session_title")
+	defer release()
+
+	var mu sync.Mutex
+	var titles []string
+	titleCh := make(chan string, 1)
+	r.SetTitleHandler(func(title string) {
+		mu.Lock()
+		titles = append(titles, title)
+		mu.Unlock()
+		select {
+		case titleCh <- title:
+		default:
+		}
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	tok := cr.AttemptToken{ConversationID: "conv", AttemptID: "d-title", Generation: 1}
+	rec := r.Recover(ctx, cr.RecoveryRequest{Token: tok})
+	if rec.Kind != cr.RecoveryNew || rec.NativeSessionID == "" {
+		t.Fatalf("recover=%+v", rec)
+	}
+
+	done := make(chan cr.Event, 1)
+	r.Start(ctx, cr.RuntimeRequest{
+		Token:           tok,
+		NativeSessionID: rec.NativeSessionID,
+		Plan:            cr.Plan{ID: "p-title", Payload: "say ok"},
+	}, func(e cr.Event) error {
+		if e.Kind == cr.EventCompleted || e.Kind == cr.EventFailed {
+			done <- e
+		}
+		return nil
+	})
+	last := <-done
+	if last.Kind != cr.EventCompleted || last.NativeSessionID != rec.NativeSessionID {
+		t.Fatalf("completed event = %+v (want bound NativeSessionID %q)", last, rec.NativeSessionID)
+	}
+
+	select {
+	case got := <-titleCh:
+		if got != "DSH 流式标题" {
+			t.Fatalf("title = %q, want DSH 流式标题", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timed out waiting for dsh SetTitleHandler, titles=%v", titles)
+	}
+
+	sid, cfgDir := r.NativeSessionMeta()
+	if sid != "session-real-dsh-1" || cfgDir == "" {
+		t.Fatalf("NativeSessionMeta = (%q, %q), want session-real-dsh-1 + non-empty cfgDir", sid, cfgDir)
 	}
 }

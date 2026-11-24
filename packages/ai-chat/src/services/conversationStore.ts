@@ -843,17 +843,26 @@ export class ConversationStore {
       archivedAt: archived ? this.now() : undefined,
       updatedAt: meta.updatedAt,
     });
-    if (archived && this.current === id) {
-      const next = this.index
-        .filter((c) => c.backend === meta.backend && c.id !== id && !c.archivedAt)
-        .reduce<ConversationMeta | undefined>(
-          (acc, c) => (!acc || c.updatedAt > acc.updatedAt ? c : acc),
-          undefined,
-        );
-      if (next)
-        this.setPointers(next.id, next.backend === 'nomi' && !next.tabId ? next.id : undefined);
-      else this.setPointers(null, undefined);
+    if (archived) {
+      this.advanceFromArchived(id);
+      return;
     }
+    notifyConversationsChanged();
+  }
+
+  /** 托管会话在内核已归档时，将当前会话指针推进到同端最近未归档会话（无剩余时置空） */
+  advanceFromArchived(id: string): void {
+    const meta = this.get(id);
+    if (!meta || !meta.archivedAt || this.current !== id) return;
+    const next = this.index
+      .filter((c) => c.backend === meta.backend && c.id !== id && !c.archivedAt)
+      .reduce<ConversationMeta | undefined>(
+        (acc, c) => (!acc || c.updatedAt > acc.updatedAt ? c : acc),
+        undefined,
+      );
+    if (next)
+      this.setPointers(next.id, next.backend === 'nomi' && !next.tabId ? next.id : undefined);
+    else this.setPointers(null, undefined);
     notifyConversationsChanged();
   }
 

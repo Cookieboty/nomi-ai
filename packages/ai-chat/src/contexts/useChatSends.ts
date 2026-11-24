@@ -32,7 +32,7 @@ import { kbClient } from '../services/kbClient';
 import { memoryContext } from '../services/memClient';
 import { gatewayStateSnapshot } from '../services/nomiModel';
 import { nomiModelLabel, servedModelLabel } from '../services/nomiModel';
-import { maybeStartNomiSmartTitle } from '../services/nomiSmartTitle';
+import { maybeStartManagedSmartTitle, maybeStartNomiSmartTitle } from '../services/nomiSmartTitle';
 import { startReplySpeech, stopReplySpeech, type ReplySpeaker } from '../services/replySpeech';
 import { schedClient } from '../services/schedClient';
 import { screenClient, type ImageAttachment } from '../services/screenClient';
@@ -99,6 +99,7 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
         if (turn.convoId && s.ipcClient.isManagedConversation?.(turn.convoId)) {
           if (!s.ipcClient.sendManagedConversation)
             throw new Error(t('ui.chat-settings.managed-ingress'));
+          void maybeStartManagedSmartTitle(s.ipcClient, turn.convoId, content);
           await s.ipcClient.sendManagedConversation(turn.convoId, content, (messages) => {
             if (turn.isActive())
               dispatch({ type: 'SET_MESSAGES', payload: messages, convoId: turn.convoId });
@@ -286,6 +287,7 @@ function useStreamSend({
           });
           owned = true;
           dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
+          void maybeStartManagedSmartTitle(client, turn.convoId, content);
           if (encodedImages?.length) {
             await client.sendManagedConversation(
               turn.convoId,

@@ -20,7 +20,9 @@ import type {
 } from '../components/ManagedRuntimeDock/types';
 import { useNomiProject } from '../hooks/useNomiProject';
 import { api, hasTransport } from '../services/api';
+import { getManagedDefaultRuntime, saveManagedDefaultRuntime } from '../services/chatPrefs';
 import { CONVERSATIONS_CHANGED_EVENT, type ConversationStore } from '../services/conversationStore';
+import { buildManagedRuntimeInitFromPref } from '../services/managedDefaultRuntime';
 import { formatManagedRuntimeError, sendManagedConversation } from '../services/managedMainChat';
 import type { ChatMessage } from '../types/chat';
 
@@ -57,6 +59,30 @@ export interface ManagedRuntimeContextValue {
 const ManagedRuntimeContext = createContext<ManagedRuntimeContextValue | null>(null);
 
 const IDLE_PHASES = new Set(['idle', 'completed', 'canceled', 'failed-pre-submit']);
+
+function rememberManagedState(
+  state:
+    | {
+        backend?: string;
+        source?: string;
+        model?: string;
+        effort?: string;
+        accountId?: string;
+        permissionMode?: string;
+      }
+    | null
+    | undefined,
+): void {
+  if (!state || typeof state !== 'object' || !state.backend) return;
+  saveManagedDefaultRuntime({
+    backend: state.backend,
+    ...(state.source ? { source: state.source } : {}),
+    ...(state.model ? { model: state.model } : {}),
+    ...(state.effort ? { effort: state.effort } : {}),
+    ...(state.accountId ? { accountId: state.accountId } : {}),
+    ...(state.permissionMode ? { permissionMode: state.permissionMode } : {}),
+  });
+}
 
 async function fetchManagedView(conversationId?: string): Promise<ManagedRuntimeView | null> {
   if (!hasTransport() || typeof api.conversations?.runtimeCapabilities !== 'function') {
@@ -95,6 +121,9 @@ async function fetchManagedView(conversationId?: string): Promise<ManagedRuntime
       accountId: state.accountId,
       permissionMode: state.permissionMode,
       effort: state.effort,
+      partial: state.partial,
+      thinking: state.thinking,
+      thinkingActive: state.thinkingActive,
       token: state.token,
       approvals: state.approvals,
       approvalDetails: state.approvalDetails,
@@ -115,6 +144,8 @@ export const ManagedRuntimeProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ conversationId, hidden, children }) => {
   const [view, setView] = useState<ManagedRuntimeView | null>(null);
+  const viewRef = useRef<ManagedRuntimeView | null>(null);
+  viewRef.current = view;
   const [pendingProjectBackend, setPendingProjectBackend] = useState<string | null>(null);
   const { dispatch } = useAiChatActions();
   const ipc = useAiChatSelector(selectIpcClient);
@@ -161,7 +192,50 @@ export const ManagedRuntimeProvider: React.FC<{
     const offRuntime =
       typeof api.on === 'function'
         ? api.on('conversations.runtimeChanged', (state) => {
-            if (conversationId && state.id === conversationId) void refresh();
+            if (!conversationId || state.id !== conversationId) return;
+            if (state.phase === 'running') {
+              const cur = viewRef.current;
+              if (
+                cur &&
+                cur.managed &&
+                cur.backend === state.backend &&
+                cur.generation === state.generation
+              ) {
+                setView((prev) =>
+                  prev &&
+                  prev.managed &&
+                  prev.backend === state.backend &&
+                  prev.generation === state.generation
+                    ? {
+                        ...prev,
+                        source: (state.source as ManagedRuntimeSource | undefined) ?? prev.source,
+                        phase: state.phase,
+                        recovery: state.recovery,
+                        generation: state.generation,
+                        detail: state.detail,
+                        model: state.model,
+                        accountId: state.accountId,
+                        permissionMode: state.permissionMode,
+                        effort: state.effort,
+                        partial: state.partial,
+                        thinking: state.thinking,
+                        thinkingActive: state.thinkingActive,
+                        token: state.token,
+                        approvals: state.approvals,
+                        approvalDetails: state.approvalDetails,
+                        trace: state.trace,
+                        failedRequest: state.failedRequest,
+                        pendingSwitch: state.pendingSwitch,
+                        lastSwitch: state.lastSwitch,
+                        capabilities: state.capabilities,
+                        busy: true,
+                      }
+                    : prev,
+                );
+                return;
+              }
+            }
+            void refresh();
           })
         : () => undefined;
     const onConvChanged = () => {
@@ -215,6 +289,9 @@ export const ManagedRuntimeProvider: React.FC<{
     ): Promise<boolean> => {
       if (!view) return false;
       if (backend === activeBackend || (!view.managed && backend === 'api')) {
+        if (backend === 'api') {
+          saveManagedDefaultRuntime({ backend: 'api' });
+        }
         setPendingProjectBackend(null);
         return true;
       }
@@ -237,33 +314,68 @@ export const ManagedRuntimeProvider: React.FC<{
       const targetId = await ensurePersistedTarget();
       if (!targetId) return false;
       const store = ipc?.conversationStore?.() as ConversationStore | undefined;
+      const fallbackInit =
+        init === undefined && backend !== 'api'
+          ? buildManagedRuntimeInitFromPref(
+              getManagedDefaultRuntime()?.perBackend?.[backend],
+              choice,
+            )
+          : undefined;
+      const effectiveInit = init ?? fallbackInit;
       const initPayload = {
-        ...(init?.source ? { source: init.source } : {}),
-        ...(init?.model ? { model: init.model } : {}),
-        ...(init?.accountId ? { accountId: init.accountId } : {}),
-        ...(init?.effort ? { effort: init.effort } : {}),
+        ...(effectiveInit?.source ? { source: effectiveInit.source } : {}),
+        ...(effectiveInit?.model ? { model: effectiveInit.model } : {}),
+        ...(effectiveInit?.accountId ? { accountId: effectiveInit.accountId } : {}),
+        ...(effectiveInit?.effort ? { effort: effectiveInit.effort } : {}),
+        ...(effectiveInit?.permissionMode && effectiveInit.permissionMode !== 'bypass'
+          ? { permissionMode: effectiveInit.permissionMode }
+          : {}),
       };
+      const hasInitExtras = Object.keys(initPayload).length > 0;
       if (!view.managed) {
         const ok = await act(async () => {
-          await api.conversations.runtimeAdopt({
-            id: targetId,
-            backend,
-            confirm: true,
-            ...initPayload,
-          });
+          let state;
+          try {
+            state = await api.conversations.runtimeAdopt({
+              id: targetId,
+              backend,
+              confirm: true,
+              ...initPayload,
+            });
+          } catch (err) {
+            if (!hasInitExtras) throw err;
+            state = await api.conversations.runtimeAdopt({
+              id: targetId,
+              backend,
+              confirm: true,
+            });
+          }
+          rememberManagedState(state);
           await store?.refreshManaged?.(targetId);
         });
         return ok;
       }
-      return act(() =>
-        api.conversations.runtimeSwitch({
-          id: targetId,
-          backend,
-          confirm: true,
-          expectedGeneration: view.generation,
-          ...initPayload,
-        }),
-      );
+      return act(async () => {
+        let state;
+        try {
+          state = await api.conversations.runtimeSwitch({
+            id: targetId,
+            backend,
+            confirm: true,
+            expectedGeneration: view.generation,
+            ...initPayload,
+          });
+        } catch (err) {
+          if (!hasInitExtras) throw err;
+          state = await api.conversations.runtimeSwitch({
+            id: targetId,
+            backend,
+            confirm: true,
+            expectedGeneration: view.generation,
+          });
+        }
+        rememberManagedState(state);
+      });
     },
     [view, activeBackend, idle, hasMessages, ensurePersistedTarget, ipc, act],
   );
@@ -280,8 +392,8 @@ export const ManagedRuntimeProvider: React.FC<{
         if (!ok) return false;
         confirmUnsafe = true;
       }
-      return act(() =>
-        api.conversations.runtimeSwitch({
+      return act(async () => {
+        const state = await api.conversations.runtimeSwitch({
           id: conversationId,
           backend: view.backend,
           confirm: true,
@@ -292,8 +404,9 @@ export const ManagedRuntimeProvider: React.FC<{
           ...(patch.accountId ? { accountId: patch.accountId } : {}),
           ...(patch.permissionMode ? { permissionMode: patch.permissionMode } : {}),
           ...(patch.effort ? { effort: patch.effort } : {}),
-        }),
-      );
+        });
+        rememberManagedState(state);
+      });
     },
     [view, conversationId, idle, act],
   );
@@ -313,12 +426,30 @@ export const ManagedRuntimeProvider: React.FC<{
           : ipc?.currentConversationId?.() || ipc?.ensureConversationId?.();
       if (!targetId) return false;
       await store?.flush?.();
+      const targetChoice = view?.choices.find((c) => c.id === targetBackend);
+      const initPayload = buildManagedRuntimeInitFromPref(
+        getManagedDefaultRuntime()?.perBackend?.[targetBackend],
+        targetChoice,
+      );
+      const hasInitExtras = Object.keys(initPayload).length > 0;
       const ok = await act(async () => {
-        await api.conversations.runtimeAdopt({
-          id: targetId,
-          backend: targetBackend,
-          confirm: true,
-        });
+        let state;
+        try {
+          state = await api.conversations.runtimeAdopt({
+            id: targetId,
+            backend: targetBackend,
+            confirm: true,
+            ...initPayload,
+          });
+        } catch (err) {
+          if (!hasInitExtras) throw err;
+          state = await api.conversations.runtimeAdopt({
+            id: targetId,
+            backend: targetBackend,
+            confirm: true,
+          });
+        }
+        rememberManagedState(state);
         await store?.refreshManaged?.(targetId);
       });
       if (ok && mountedRef.current) {
@@ -326,7 +457,16 @@ export const ManagedRuntimeProvider: React.FC<{
       }
       return ok;
     },
-    [view?.managed, pendingProjectBackend, nomiProject, ipc, refresh, conversationId, act],
+    [
+      view?.managed,
+      view?.choices,
+      pendingProjectBackend,
+      nomiProject,
+      ipc,
+      refresh,
+      conversationId,
+      act,
+    ],
   );
 
   const clearPendingProject = useCallback(() => setPendingProjectBackend(null), []);

@@ -255,14 +255,18 @@ func (f *Factory) runtime(id string) (*Runtime, error) {
 	}
 	key := identity.Key(env)
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	if f.instances[id] == nil {
 		f.instances[id] = map[string]*Runtime{}
 	}
 	r := f.instances[id][key]
+	isCached := r != nil
 	if r == nil {
 		r = &Runtime{config: cfg, identity: identity, env: env}
 		f.instances[id][key] = r
+	}
+	f.mu.Unlock()
+	if isCached {
+		r.setEffort(cfg.Effort)
 	}
 	return r, nil
 }

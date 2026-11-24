@@ -3,11 +3,12 @@ package acprt
 import (
 	"context"
 	"errors"
+	"math"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/antigravity"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
@@ -25,6 +26,9 @@ type Runtime struct {
 	worker   *worker
 	token    cr.AttemptToken
 	closed   bool
+
+	titleMu sync.Mutex
+	onTitle func(string)
 }
 
 type turn struct {
@@ -35,6 +39,114 @@ type turn struct {
 	started, terminal bool
 	text              string
 	approvals         map[string]string
+	startedAt         time.Time
+	streamMu          sync.Mutex
+	pendingText       string
+	pendingThinking   string
+	thinkingActive    bool
+	streamDirty       bool
+	streamWake        chan struct{}
+	ctxTokens         *int64
+	ctxWindow         *int64
+	costUsd           *float64
+}
+
+func (t *turn) pushStream(textDelta, thinkingDelta string, thinking bool) {
+	if t == nil {
+		return
+	}
+	t.streamMu.Lock()
+	if textDelta != "" {
+		t.pendingText += textDelta
+	}
+	if thinkingDelta != "" {
+		t.pendingThinking += thinkingDelta
+	}
+	t.thinkingActive = thinking
+	t.streamDirty = true
+	t.streamMu.Unlock()
+	select {
+	case t.streamWake <- struct{}{}:
+	default:
+	}
+}
+
+func (t *turn) clearThinking() {
+	if t == nil {
+		return
+	}
+	t.streamMu.Lock()
+	wake := false
+	if t.thinkingActive {
+		t.thinkingActive = false
+		t.streamDirty = true
+		wake = true
+	}
+	t.streamMu.Unlock()
+	if wake {
+		select {
+		case t.streamWake <- struct{}{}:
+		default:
+		}
+	}
+}
+
+func (t *turn) drainStream() (text, thinking string, thinkingActive, ok bool) {
+	if t == nil {
+		return "", "", false, false
+	}
+	t.streamMu.Lock()
+	if !t.streamDirty {
+		t.streamMu.Unlock()
+		return "", "", false, false
+	}
+	text = t.pendingText
+	thinking = t.pendingThinking
+	t.pendingText = ""
+	t.pendingThinking = ""
+	thinkingActive = t.thinkingActive
+	t.streamDirty = false
+	t.streamMu.Unlock()
+	return text, thinking, thinkingActive, true
+}
+
+func (r *Runtime) setEffort(effort string) {
+	jsrt.Run(func() {
+		r.config.Effort = effort
+	})
+}
+
+// SetTitleHandler registers a callback invoked asynchronously when the ACP agent
+// reports a session title via handshake or session_info_update.
+func (r *Runtime) SetTitleHandler(fn func(string)) {
+	r.titleMu.Lock()
+	r.onTitle = fn
+	r.titleMu.Unlock()
+}
+
+func (r *Runtime) emitTitle(title string) {
+	trimmed := strings.TrimSpace(title)
+	if trimmed == "" {
+		return
+	}
+	r.titleMu.Lock()
+	fn := r.onTitle
+	r.titleMu.Unlock()
+	if fn != nil {
+		go fn(trimmed)
+	}
+}
+
+// NativeSessionMeta reports the active ACP session id and isolated config directory
+// outside runtime/jsrt locks.
+func (r *Runtime) NativeSessionMeta() (sessionID, configDir string) {
+	jsrt.Run(func() {
+		if r.worker != nil {
+			sessionID = r.worker.sid
+		}
+		configDir = r.config.ConfigDir
+	})
+	return sessionID, configDir
 }
 
 func (r *Runtime) target() cr.Target {
@@ -56,7 +168,6 @@ func (r *Runtime) Capabilities() cr.Capabilities {
 			"Experimental official " + name + " ACP profile: executable present; version and login not probed",
 			"Warm-process resume or explicit ACP session/load; unproven cold resumes fail closed as unknown",
 			"No Nomi computer/MCP/persona/memory/knowledge/skills/attachment bridge",
-			"Assistant text is buffered until a successful native turn result",
 		},
 		Bridges: &cr.CapabilityBridges{
 			Computer:    cr.BridgeState{Status: "unsupported", Detail: name + " ACP runs without Nomi computer-use tools"},
@@ -84,6 +195,16 @@ func (r *Runtime) Recover(ctx context.Context, q cr.RecoveryRequest) cr.Recovery
 		return cr.RecoveryResult{Kind: cr.RecoveryError, Detail: builtin.FullName(r.config.BackendID) + " owner closed before preparation"}
 	}
 	if warm {
+		var needSync bool
+		jsrt.Run(func() {
+			needSync = r.config.Model != w.appliedModel || r.config.Effort != w.appliedEffort
+		})
+		if needSync {
+			if serr := r.applySessionSettings(ctx, w); serr != nil {
+				halt(w)
+				return cr.RecoveryResult{Kind: cr.RecoveryUnknown, Detail: "ACP warm session configuration rejected: " + serr.Error()}
+			}
+		}
 		return cr.RecoveryResult{Kind: cr.RecoveryResumed, NativeSessionID: w.sid, Detail: "same confirmed native ACP process and immutable binding"}
 	}
 	if w != nil && !stop(ctx, w) {
@@ -216,6 +337,7 @@ func (r *Runtime) loadExisting(ctx context.Context, w *worker, previous string) 
 		return err
 	}
 	var ok bool
+	var initTitle string
 	jsrt.Run(func() {
 		if ctx.Err() != nil || w.driver == nil || w.failure != "" {
 			return
@@ -223,11 +345,15 @@ func (r *Runtime) loadExisting(ctx context.Context, w *worker, previous string) 
 		sid := w.driver.SessionID()
 		if sid != nil && *sid == previous {
 			w.sid = *sid
+			initTitle = strings.TrimSpace(w.driver.SessionTitle)
 			ok = true
 		}
 	})
 	if !ok {
 		return errors.New("ACP session/load did not confirm exact session id")
+	}
+	if initTitle != "" {
+		r.emitTitle(initTitle)
 	}
 	return nil
 }
@@ -246,7 +372,7 @@ func (r *Runtime) startNewSession(ctx context.Context, w *worker) (string, error
 	if _, err := awaitPromise(ctx, p); err != nil {
 		return "", err
 	}
-	var sid string
+	var sid, initTitle string
 	jsrt.Run(func() {
 		if ctx.Err() != nil || w.driver == nil || w.failure != "" {
 			return
@@ -254,10 +380,14 @@ func (r *Runtime) startNewSession(ctx context.Context, w *worker) (string, error
 		if id := w.driver.SessionID(); id != nil && *id != "" {
 			sid = *id
 			w.sid = sid
+			initTitle = strings.TrimSpace(w.driver.SessionTitle)
 		}
 	})
 	if sid == "" {
 		return "", errors.New("ACP agent returned no session")
+	}
+	if initTitle != "" {
+		r.emitTitle(initTitle)
 	}
 	return sid, nil
 }
@@ -290,6 +420,15 @@ func (r *Runtime) applySessionSettings(ctx context.Context, w *worker) error {
 		}
 	}
 	if r.config.Source == "thirdParty" {
+		jsrt.Run(func() {
+			if w != nil {
+				w.appliedModel = r.config.Model
+				w.appliedEffort = r.config.Effort
+				if eff := currentSessionModel(w); eff != "" {
+					w.effectiveModel = eff
+				}
+			}
+		})
 		return nil
 	}
 	model := r.config.Model
@@ -297,26 +436,49 @@ func (r *Runtime) applySessionSettings(ctx context.Context, w *worker) error {
 		model = ""
 	}
 	effort := r.config.Effort
+	var modelCap *clisdk.ModelCatalogCapability
+	if impl := builtin.Impl(r.config.BackendID); impl != nil {
+		modelCap = impl.Models
+	}
 	if model == "" && effort == "" {
+		jsrt.Run(func() {
+			if w != nil {
+				w.appliedModel = r.config.Model
+				w.appliedEffort = r.config.Effort
+				eff := currentSessionModel(w)
+				if eff == "" && modelCap != nil && modelCap.ParseSession != nil && w.driver != nil && w.driver.SessionRaw != nil {
+					eff = catalogDefaultModel(modelCap.ParseSession(w.driver.SessionRaw))
+				}
+				if eff != "" {
+					w.effectiveModel = eff
+				}
+			}
+		})
 		return nil
 	}
-	if r.config.BackendID == "antigravity" {
+	if modelCap != nil && modelCap.ResolveOverride != nil {
 		var parsedCatalog *util.Obj
-		var wireModel, wireEffort, cfgID string
+		var wireModel, wireEffort, cfgID, fallbackEff string
 		var modelPromise, effortPromise *jsrt.Promise[struct{}]
 		jsrt.Run(func() {
 			if w == nil || w.driver == nil || w.driver.Closed() {
 				return
 			}
-			if w.driver.SessionRaw != nil {
-				c := antigravity.ParseModels(w.driver.SessionRaw)
-				if ms, ok := c.Get("models").([]any); ok && len(ms) > 0 {
-					parsedCatalog = c
+			if modelCap.ParseSession != nil && w.driver.SessionRaw != nil {
+				if c := modelCap.ParseSession(w.driver.SessionRaw); c != nil {
+					if ms, ok := c.Get("models").([]any); ok && len(ms) > 0 {
+						parsedCatalog = c
+					}
 				}
 			}
-			wireModel, wireEffort, cfgID = antigravity.ResolveModelAndEffort(parsedCatalog, model, effort)
+			ov := modelCap.ResolveOverride(parsedCatalog, model, effort)
+			wireModel, wireEffort, cfgID = ov.ModelID, ov.Effort, ov.EffortConfigID
 			if wireModel == "" && model != "" {
 				wireModel = model
+			}
+			fallbackEff = currentSessionModel(w)
+			if fallbackEff == "" {
+				fallbackEff = catalogDefaultModel(parsedCatalog)
 			}
 			if wireModel != "" {
 				modelPromise = w.driver.SetSessionModel(wireModel)
@@ -343,6 +505,26 @@ func (r *Runtime) applySessionSettings(ctx context.Context, w *worker) error {
 				}
 			}
 		}
+		jsrt.Run(func() {
+			if w == nil {
+				return
+			}
+			w.appliedModel = r.config.Model
+			w.appliedEffort = r.config.Effort
+			eff := wireModel
+			if eff == "" {
+				eff = currentSessionModel(w)
+			}
+			if eff == "" {
+				eff = fallbackEff
+			}
+			if eff == "" {
+				eff = model
+			}
+			if eff != "" && eff != "cli-default" {
+				w.effectiveModel = eff
+			}
+		})
 		return nil
 	}
 	var modelPromise *jsrt.Promise[string]
@@ -364,11 +546,111 @@ func (r *Runtime) applySessionSettings(ctx context.Context, w *worker) error {
 			return err
 		}
 	}
+	jsrt.Run(func() {
+		if w == nil {
+			return
+		}
+		w.appliedModel = r.config.Model
+		w.appliedEffort = r.config.Effort
+		eff := model
+		if eff == "" {
+			eff = currentSessionModel(w)
+		}
+		if eff != "" && eff != "cli-default" {
+			w.effectiveModel = eff
+		}
+	})
 	return nil
 }
 
+func currentSessionModel(w *worker) string {
+	if w == nil || w.driver == nil || w.driver.SessionRaw == nil {
+		return ""
+	}
+	if ms := util.AsObj(w.driver.SessionRaw.Get("models")); ms != nil {
+		if cur, ok := ms.Get("currentModelId").(string); ok && cur != "" && cur != "cli-default" {
+			return cur
+		}
+	}
+	if opts, ok := w.driver.SessionRaw.Get("configOptions").([]any); ok {
+		for _, item := range opts {
+			o := util.AsObj(item)
+			if o == nil {
+				continue
+			}
+			if util.Str(o.Get("id")) == "model" || strings.EqualFold(util.Str(o.Get("category")), "model") {
+				for _, key := range []string{"currentValue", "current_value"} {
+					if cur, ok := o.Get(key).(string); ok && cur != "" && cur != "cli-default" {
+						return cur
+					}
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func extractAcpResponseModel(res *util.Obj) string {
+	if res == nil {
+		return ""
+	}
+	pickModel := func(o *util.Obj) string {
+		if o == nil {
+			return ""
+		}
+		if m, ok := o.Get("model").(string); ok {
+			m = strings.TrimSpace(m)
+			if m != "" && m != "cli-default" {
+				return m
+			}
+		}
+		if meta := util.AsObj(o.Get("_meta")); meta != nil {
+			if m, ok := meta.Get("model").(string); ok {
+				m = strings.TrimSpace(m)
+				if m != "" && m != "cli-default" {
+					return m
+				}
+			}
+		}
+		if u := util.AsObj(o.Get("usage")); u != nil {
+			if m, ok := u.Get("model").(string); ok {
+				m = strings.TrimSpace(m)
+				if m != "" && m != "cli-default" {
+					return m
+				}
+			}
+		}
+		return ""
+	}
+	if raw := util.AsObj(res.Get("raw")); raw != nil {
+		if m := pickModel(raw); m != "" {
+			return m
+		}
+	}
+	return pickModel(res)
+}
+
+func catalogDefaultModel(catalog *util.Obj) string {
+	if catalog == nil {
+		return ""
+	}
+	if dm := util.AsObj(catalog.Get("defaultModel")); dm != nil {
+		if id, ok := dm.Get("id").(string); ok && id != "" && id != "cli-default" {
+			return id
+		}
+	}
+	return ""
+}
+
 func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr.Event) error) cr.SubmitResult {
-	t := &turn{request: q, events: make(chan cr.Event, 32), finished: make(chan struct{}), approvals: map[string]string{}}
+	t := &turn{
+		request:    q,
+		events:     make(chan cr.Event, 32),
+		finished:   make(chan struct{}),
+		approvals:  map[string]string{},
+		streamWake: make(chan struct{}, 1),
+		startedAt:  time.Now(),
+	}
 	var p *jsrt.Promise[clisdk.TurnResult]
 	var w *worker
 	jsrt.Run(func() {
@@ -397,6 +679,17 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 					jsrt.Run(func() { w.fail("product rejected native event") })
 					return
 				}
+			case <-t.streamWake:
+				if stText, stThink, thActive, ok := t.drainStream(); ok {
+					se := event(t, cr.EventStream)
+					se.Text = stText
+					se.Thinking = stThink
+					se.ThinkingActive = thActive
+					if accept(se) != nil {
+						jsrt.Run(func() { w.fail("product rejected native stream event") })
+						return
+					}
+				}
 			case <-p.Done():
 				for {
 					select {
@@ -411,8 +704,10 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 				}
 			drained:
 				res, err := p.Result()
-				var text string
+				var text, modelName, respModel, effortName string
 				var good, acked bool
+				var usage *cr.TurnUsage
+				durationMs := time.Since(t.startedAt).Milliseconds()
 				jsrt.Run(func() {
 					stopReason, _ := res.Get("stopReason").(string)
 					denied := res != nil && res.Get("denied") == true
@@ -425,6 +720,23 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 					acked = t.acked
 					if good {
 						t.success = true
+						modelName = w.effectiveModel
+						if modelName == "" {
+							modelName = currentSessionModel(w)
+						}
+						if modelName == "" && r.config.Model != "" && r.config.Model != "cli-default" {
+							modelName = r.config.Model
+						}
+						respModel = extractAcpResponseModel(res)
+						if modelName == "" && respModel != "" {
+							modelName = respModel
+						}
+						effortName = r.config.Effort
+						var rawUsage any
+						if res != nil {
+							rawUsage = res.Get("usage")
+						}
+						usage = buildTurnUsage(rawUsage, t.ctxTokens, t.ctxWindow, t.costUsd, durationMs)
 					}
 				})
 				e := event(t, cr.EventFailed)
@@ -458,6 +770,13 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 					if good {
 						e = event(t, cr.EventCompleted)
 						e.Work = cr.Activity{Known: true}
+						e.Model = modelName
+						if respModel != "" && respModel != modelName {
+							e.ResponseModel = respModel
+						}
+						e.Effort = effortName
+						e.DurationMs = durationMs
+						e.Usage = usage
 					}
 				}
 				accepted := accept(e) == nil
@@ -471,6 +790,79 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 		}
 	}()
 	return cr.SubmitResult{Kind: cr.SubmitAccepted}
+}
+
+func asNonNegFloat(v any) (float64, bool) {
+	f, ok := v.(float64)
+	return f, ok && !math.IsInf(f, 0) && !math.IsNaN(f) && f >= 0
+}
+
+func asPosFloat(v any) (float64, bool) {
+	f, ok := v.(float64)
+	return f, ok && !math.IsInf(f, 0) && !math.IsNaN(f) && f > 0
+}
+
+func buildTurnUsage(raw any, ctxTok, ctxWin *int64, costUsd *float64, durationMs int64) *cr.TurnUsage {
+	u := util.AsObj(raw)
+	out := &cr.TurnUsage{}
+	hasMetric := false
+	pickInt := func(dst **int64, keys ...string) {
+		if u == nil {
+			return
+		}
+		for _, k := range keys {
+			if f, ok := asNonNegFloat(u.Get(k)); ok {
+				v := int64(f)
+				*dst = &v
+				hasMetric = true
+				return
+			}
+		}
+	}
+	pickInt(&out.InputTokens, "inputTokens", "input_tokens", "promptTokens", "prompt_tokens")
+	pickInt(&out.OutputTokens, "outputTokens", "output_tokens", "completionTokens", "completion_tokens")
+	pickInt(&out.CacheReadTokens, "cacheReadTokens", "cachedReadTokens", "cachedInputTokens", "cache_read_input_tokens", "cached_input_tokens", "cached_read_tokens")
+	pickInt(&out.CacheWriteTokens, "cacheWriteTokens", "cachedWriteTokens", "cache_creation_input_tokens", "cache_write_tokens", "cached_write_tokens")
+	pickInt(&out.ThoughtTokens, "thoughtTokens", "thought_tokens", "reasoningTokens", "reasoning_tokens")
+	pickInt(&out.TotalTokens, "totalTokens", "total_tokens")
+	pickInt(&out.ContextTokens, "contextTokens")
+	if out.ContextTokens == nil && ctxTok != nil {
+		v := *ctxTok
+		out.ContextTokens = &v
+		hasMetric = true
+	}
+	if u != nil {
+		if f, ok := asPosFloat(u.Get("contextWindow")); ok {
+			v := int64(f)
+			out.ContextWindow = &v
+			hasMetric = true
+		}
+	}
+	if out.ContextWindow == nil && ctxWin != nil {
+		v := *ctxWin
+		out.ContextWindow = &v
+		hasMetric = true
+	}
+	if u != nil {
+		if f, ok := asNonNegFloat(u.Get("costUsd")); ok {
+			v := f
+			out.CostUsd = &v
+			hasMetric = true
+		}
+	}
+	if out.CostUsd == nil && costUsd != nil {
+		v := *costUsd
+		out.CostUsd = &v
+		hasMetric = true
+	}
+	if !hasMetric {
+		return nil
+	}
+	if durationMs > 0 {
+		v := durationMs
+		out.DurationMs = &v
+	}
+	return out
 }
 
 func event(t *turn, k cr.EventKind) cr.Event {
@@ -523,6 +915,9 @@ func (r *Runtime) Approve(ctx context.Context, a cr.ApprovalDecision) error {
 }
 
 func (r *Runtime) close() {
+	r.titleMu.Lock()
+	r.onTitle = nil
+	r.titleMu.Unlock()
 	var w *worker
 	jsrt.Run(func() { r.closed = true; w = r.worker })
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)

@@ -88,10 +88,27 @@ func TestHelperAcpProcess(t *testing.T) {
 					map[string]any{"id": "plan"},
 				}
 			}
+			res := map[string]any{"sessionId": fmt.Sprintf("acp-sess-%d", counter), "modes": map[string]any{"currentModeId": "default", "availableModes": availModes}}
+			if mode == "title_and_config_model" {
+				res["title"] = "Handshake Title"
+				res["configOptions"] = []any{
+					map[string]any{"id": "cfg_model", "category": "model", "currentValue": "custom-config-model"},
+				}
+			}
+			if mode == "stream_agy" {
+				res["models"] = map[string]any{
+					"currentModelId": "auto",
+					"availableModels": []any{
+						map[string]any{"modelId": "auto", "name": "Auto"},
+						map[string]any{"modelId": "gemini-4-neon-medium", "name": "Gemini 4 Neon (Medium)"},
+						map[string]any{"modelId": "gemini-4-neon-high", "name": "Gemini 4 Neon (High)"},
+					},
+				}
+			}
 			send(map[string]any{
 				"jsonrpc": "2.0",
 				"id":      req.ID,
-				"result":  map[string]any{"sessionId": fmt.Sprintf("acp-sess-%d", counter), "modes": map[string]any{"currentModeId": "default", "availableModes": availModes}},
+				"result":  res,
 			})
 		case "session/set_mode":
 			if logPath := os.Getenv("GO_ACP_SET_MODE_LOG"); logPath != "" {
@@ -99,11 +116,50 @@ func TestHelperAcpProcess(t *testing.T) {
 				_ = os.WriteFile(logPath, []byte(modeID), 0o600)
 			}
 			send(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": map[string]any{}})
-		case "session/set_model", "session/set_config_option":
+		case "session/set_model":
+			if logPath := os.Getenv("GO_ACP_SET_MODEL_LOG"); logPath != "" {
+				modelID, _ := req.Params["modelId"].(string)
+				f, _ := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+				if f != nil {
+					_, _ = f.WriteString(modelID + "\n")
+					_ = f.Close()
+				}
+			}
+			send(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": map[string]any{}})
+		case "session/set_config_option":
+			if logPath := os.Getenv("GO_ACP_SET_CONFIG_LOG"); logPath != "" {
+				cfgID, _ := req.Params["configId"].(string)
+				val := fmt.Sprint(req.Params["value"])
+				f, _ := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+				if f != nil {
+					_, _ = f.WriteString(cfgID + "=" + val + "\n")
+					_ = f.Close()
+				}
+			}
 			send(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": map[string]any{}})
 		case "session/prompt":
 			sid, _ := req.Params["sessionId"].(string)
 			switch mode {
+			case "stream_generic":
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "usage_update", "used": float64(50), "size": float64(128000)}}})
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "agent_thought_chunk", "content": map[string]any{"type": "text", "text": "generic think"}}}})
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "agent_message_chunk", "content": map[string]any{"type": "text", "text": "generic ok"}}}})
+				send(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": map[string]any{"stopReason": "end_turn", "usage": map[string]any{"inputTokens": float64(42), "outputTokens": float64(8)}}})
+			case "title_and_config_model":
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "session_info_update", "title": "In-Turn Native Title"}}})
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "agent_message_chunk", "content": map[string]any{"type": "text", "text": "title answer"}}}})
+				send(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": map[string]any{"stopReason": "end_turn", "model": "actual-server-model"}})
+				time.Sleep(40 * time.Millisecond)
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "session_info_update", "title": "Post-Turn Async Title"}}})
+			case "stream_agy":
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "usage_update", "used": float64(0), "size": float64(1000000)}}})
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "agent_thought_chunk", "content": map[string]any{"type": "text", "text": "plan "}}}})
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "agent_thought_chunk", "content": map[string]any{"type": "text", "text": "step"}}}})
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "tool_call", "toolCallId": "tc-s1", "kind": "read", "title": "Read file", "status": "in_progress"}}})
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "tool_call_update", "toolCallId": "tc-s1", "kind": "read", "title": "Read file", "status": "completed", "content": []any{map[string]any{"type": "content", "content": map[string]any{"type": "text", "text": "file body"}}}}}})
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "agent_message_chunk", "content": map[string]any{"type": "text", "text": "part1 "}}}})
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "agent_message_chunk", "content": map[string]any{"type": "text", "text": "part2"}}}})
+				send(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": map[string]any{"stopReason": "end_turn", "usage": map[string]any{"inputTokens": float64(100), "outputTokens": float64(50), "cachedReadTokens": float64(40), "thoughtTokens": float64(10), "totalTokens": float64(200)}}})
 			case "trace":
 				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "tool_call", "toolCallId": "tc-1", "kind": "read", "title": "Read file", "status": "in_progress"}}})
 				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "tool_call_update", "toolCallId": "tc-1", "kind": "read", "title": "Read file", "status": "completed"}}})
@@ -415,6 +471,300 @@ func TestStartTraceApprovalAndCancel(t *testing.T) {
 		}
 		if string(raw) != "acceptEdits" {
 			t.Fatalf("session/set_mode modeId = %q, want acceptEdits", string(raw))
+		}
+	})
+
+	t.Run("streaming_thinking_usage_and_warm_effort_sync", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("POSIX shell wrapper fixture")
+		}
+		exe, err := os.Executable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		dir := t.TempDir()
+		proj := filepath.Join(dir, "proj")
+		cfg := filepath.Join(dir, "cfg")
+		logPath := filepath.Join(dir, "set_model.txt")
+		for _, d := range []string{proj, cfg} {
+			if err := os.MkdirAll(d, 0o700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		t.Setenv("GO_ACP_HELPER_MODE", "stream_agy")
+		t.Setenv("GO_ACP_SET_MODEL_LOG", logPath)
+		wrapper := filepath.Join(dir, "acp-cli")
+		script := fmt.Sprintf("#!/bin/sh\nexec %q -test.run=^TestHelperAcpProcess$\n", exe)
+		if err := os.WriteFile(wrapper, []byte(script), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		effort := "medium"
+		f := New("antigravity", func(string) (Config, error) {
+			return Config{
+				BackendID:  "antigravity",
+				Executable: wrapper,
+				Cwd:        proj,
+				ConfigDir:  cfg,
+				Source:     "local",
+				Model:      "gemini-4-neon",
+				Effort:     effort,
+			}, nil
+		})
+		defer f.Release("conv-stream")
+
+		target, err := f.Target("conv-stream")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := target.Runtime.(*Runtime)
+		tok1 := cr.AttemptToken{ConversationID: "conv-stream", AttemptID: "s1", Generation: 1}
+		rec1 := r.Recover(ctx, cr.RecoveryRequest{Token: tok1})
+		if rec1.Kind != cr.RecoveryNew {
+			t.Fatalf("recover1=%+v", rec1)
+		}
+
+		var evs []cr.Event
+		done := make(chan cr.Event, 1)
+		var mu sync.Mutex
+		r.Start(ctx, cr.RuntimeRequest{
+			Token:           tok1,
+			NativeSessionID: rec1.NativeSessionID,
+			Plan:            cr.Plan{ID: "p-s1", Payload: "hello"},
+		}, func(e cr.Event) error {
+			mu.Lock()
+			evs = append(evs, e)
+			mu.Unlock()
+			if e.Kind == cr.EventCompleted || e.Kind == cr.EventFailed {
+				done <- e
+			}
+			return nil
+		})
+		last := <-done
+		if last.Kind != cr.EventCompleted {
+			t.Fatalf("last=%+v", last)
+		}
+		if last.Model != "gemini-4-neon-medium" || last.Effort != "medium" {
+			t.Fatalf("completed model/effort = %q/%q, want gemini-4-neon-medium/medium", last.Model, last.Effort)
+		}
+		if last.Usage == nil || last.Usage.InputTokens == nil || *last.Usage.InputTokens != 100 ||
+			last.Usage.OutputTokens == nil || *last.Usage.OutputTokens != 50 ||
+			last.Usage.CacheReadTokens == nil || *last.Usage.CacheReadTokens != 40 ||
+			last.Usage.ThoughtTokens == nil || *last.Usage.ThoughtTokens != 10 ||
+			last.Usage.TotalTokens == nil || *last.Usage.TotalTokens != 200 ||
+			last.Usage.ContextTokens == nil || *last.Usage.ContextTokens != 0 ||
+			last.Usage.ContextWindow == nil || *last.Usage.ContextWindow != 1000000 {
+			t.Fatalf("completed usage = %+v", last.Usage)
+		}
+
+		var streamThinking, streamText, toolOut string
+		var sawStreamBeforeText bool
+		sawTextEvent := false
+		for _, e := range evs {
+			switch e.Kind {
+			case cr.EventStream:
+				if !sawTextEvent {
+					sawStreamBeforeText = true
+				}
+				streamThinking += e.Thinking
+				streamText += e.Text
+			case cr.EventTrace:
+				if e.Trace != nil && e.Trace.Output != "" {
+					toolOut = e.Trace.Output
+				}
+			case cr.EventText:
+				sawTextEvent = true
+			}
+		}
+		if !sawStreamBeforeText || streamThinking != "plan step" || streamText != "part1 part2" || toolOut != "file body" {
+			t.Fatalf("stream/trace check failed: beforeText=%v thinking=%q text=%q toolOut=%q", sawStreamBeforeText, streamThinking, streamText, toolOut)
+		}
+
+		// Warm reuse changing ONLY Effort must sync new suffixed model in place on the same session/process.
+		effort = "high"
+		target2, err := f.Target("conv-stream")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if target2.Runtime != r {
+			t.Fatalf("expected same cached Runtime instance on effort-only change")
+		}
+		tok2 := cr.AttemptToken{ConversationID: "conv-stream", AttemptID: "s2", Generation: 2}
+		rec2 := r.Recover(ctx, cr.RecoveryRequest{
+			Token:    tok2,
+			Previous: cr.Binding{ID: "b1", NativeSessionID: rec1.NativeSessionID, Status: cr.StatusLive},
+		})
+		if rec2.Kind != cr.RecoveryResumed || rec2.NativeSessionID != rec1.NativeSessionID {
+			t.Fatalf("warm effort-change recover=%+v", rec2)
+		}
+		rawModels, err := os.ReadFile(logPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines := strings.Fields(string(rawModels))
+		if len(lines) != 2 || lines[0] != "gemini-4-neon-medium" || lines[1] != "gemini-4-neon-high" {
+			t.Fatalf("session/set_model sequence = %v, want [gemini-4-neon-medium gemini-4-neon-high]", lines)
+		}
+	})
+
+	t.Run("generic_acp_standard_model_and_streaming", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("POSIX shell wrapper fixture")
+		}
+		exe, err := os.Executable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		dir := t.TempDir()
+		proj := filepath.Join(dir, "proj")
+		cfg := filepath.Join(dir, "cfg")
+		modelLog := filepath.Join(dir, "set_model.txt")
+		cfgLog := filepath.Join(dir, "set_config.txt")
+		for _, d := range []string{proj, cfg} {
+			if err := os.MkdirAll(d, 0o700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		t.Setenv("GO_ACP_HELPER_MODE", "stream_generic")
+		t.Setenv("GO_ACP_SET_MODEL_LOG", modelLog)
+		t.Setenv("GO_ACP_SET_CONFIG_LOG", cfgLog)
+		wrapper := filepath.Join(dir, "acp-cli")
+		script := fmt.Sprintf("#!/bin/sh\nexec %q -test.run=^TestHelperAcpProcess$\n", exe)
+		if err := os.WriteFile(wrapper, []byte(script), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		f := New("grok", func(string) (Config, error) {
+			return Config{
+				BackendID:  "grok",
+				Executable: wrapper,
+				Cwd:        proj,
+				ConfigDir:  cfg,
+				Source:     "local",
+				Model:      "grok-4",
+				Effort:     "high",
+			}, nil
+		})
+		defer f.Release("conv-generic")
+
+		target, err := f.Target("conv-generic")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := target.Runtime.(*Runtime)
+		tok := cr.AttemptToken{ConversationID: "conv-generic", AttemptID: "g1", Generation: 1}
+		rec := r.Recover(ctx, cr.RecoveryRequest{Token: tok})
+		if rec.Kind != cr.RecoveryNew {
+			t.Fatalf("recover=%+v", rec)
+		}
+
+		var streamThinking, streamText string
+		done := make(chan cr.Event, 1)
+		var mu sync.Mutex
+		r.Start(ctx, cr.RuntimeRequest{
+			Token:           tok,
+			NativeSessionID: rec.NativeSessionID,
+			Plan:            cr.Plan{ID: "p-g1", Payload: "hello"},
+		}, func(e cr.Event) error {
+			mu.Lock()
+			if e.Kind == cr.EventStream {
+				streamThinking += e.Thinking
+				streamText += e.Text
+			}
+			mu.Unlock()
+			if e.Kind == cr.EventCompleted || e.Kind == cr.EventFailed {
+				done <- e
+			}
+			return nil
+		})
+		last := <-done
+		if last.Kind != cr.EventCompleted {
+			t.Fatalf("last=%+v", last)
+		}
+		if last.Model != "grok-4" || last.Effort != "high" {
+			t.Fatalf("completed model/effort = %q/%q, want grok-4/high", last.Model, last.Effort)
+		}
+		if streamThinking != "generic think" || streamText != "generic ok" {
+			t.Fatalf("stream = %q / %q", streamThinking, streamText)
+		}
+		if last.Usage == nil || last.Usage.InputTokens == nil || *last.Usage.InputTokens != 42 ||
+			last.Usage.OutputTokens == nil || *last.Usage.OutputTokens != 8 ||
+			last.Usage.ContextTokens == nil || *last.Usage.ContextTokens != 50 ||
+			last.Usage.ContextWindow == nil || *last.Usage.ContextWindow != 128000 {
+			t.Fatalf("usage = %+v", last.Usage)
+		}
+		rawM, _ := os.ReadFile(modelLog)
+		rawC, _ := os.ReadFile(cfgLog)
+		if strings.TrimSpace(string(rawM)) != "grok-4" || strings.TrimSpace(string(rawC)) != "reasoning_effort=high" {
+			t.Fatalf("standard ACP model/config calls = %q / %q", string(rawM), string(rawC))
+		}
+	})
+
+	t.Run("title_updates_and_config_option_response_model", func(t *testing.T) {
+		r, release := newHelperRuntime(t, "gemini", "title_and_config_model")
+		defer release()
+		var tmu sync.Mutex
+		var titles []string
+		r.SetTitleHandler(func(title string) {
+			tmu.Lock()
+			titles = append(titles, title)
+			tmu.Unlock()
+		})
+		tok := cr.AttemptToken{ConversationID: "conv-title", AttemptID: "t-title-1", Generation: 1}
+		rec := r.Recover(ctx, cr.RecoveryRequest{Token: tok})
+		if rec.Kind != cr.RecoveryNew {
+			t.Fatalf("recover=%+v", rec)
+		}
+		done := make(chan cr.Event, 1)
+		r.Start(ctx, cr.RuntimeRequest{
+			Token:           tok,
+			NativeSessionID: rec.NativeSessionID,
+			Plan:            cr.Plan{ID: "p-title-1", Payload: "hello"},
+		}, func(e cr.Event) error {
+			if e.Kind == cr.EventCompleted || e.Kind == cr.EventFailed {
+				done <- e
+			}
+			return nil
+		})
+		last := <-done
+		if last.Kind != cr.EventCompleted {
+			t.Fatalf("last=%+v", last)
+		}
+		if last.Model != "custom-config-model" || last.ResponseModel != "actual-server-model" {
+			t.Fatalf("completed model/responseModel = %q / %q", last.Model, last.ResponseModel)
+		}
+		deadline := time.Now().Add(2 * time.Second)
+		for time.Now().Before(deadline) {
+			tmu.Lock()
+			joined := strings.Join(titles, "|")
+			tmu.Unlock()
+			if strings.Contains(joined, "Handshake Title") &&
+				strings.Contains(joined, "In-Turn Native Title") &&
+				strings.Contains(joined, "Post-Turn Async Title") {
+				break
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		tmu.Lock()
+		gotTitles := strings.Join(titles, "|")
+		tmu.Unlock()
+		if !strings.Contains(gotTitles, "Handshake Title") ||
+			!strings.Contains(gotTitles, "In-Turn Native Title") ||
+			!strings.Contains(gotTitles, "Post-Turn Async Title") {
+			t.Fatalf("expected handshake, in-turn, and post-turn titles, got %v", titles)
+		}
+		// Post-turn session_info_update must keep worker healthy (no failure).
+		jsErr := ""
+		func() {
+			tok2 := cr.AttemptToken{ConversationID: "conv-title", AttemptID: "t-title-2", Generation: 2}
+			rec2 := r.Recover(ctx, cr.RecoveryRequest{
+				Token:    tok2,
+				Previous: cr.Binding{ID: "b1", NativeSessionID: rec.NativeSessionID, Status: cr.StatusLive},
+			})
+			if rec2.Kind != cr.RecoveryResumed {
+				jsErr = rec2.Detail
+			}
+		}()
+		if jsErr != "" {
+			t.Fatalf("post-turn title poisoned warm worker: %s", jsErr)
 		}
 	})
 }

@@ -161,4 +161,32 @@ describe('回复来源图标', () => {
       ).toBe('true');
     },
   );
+
+  it('托管主对话消息：按 runtimeBackend 映射来源名称，非 CLI 回退 Nomi，并透传模型', () => {
+    const agyMsg: ChatMessage = {
+      id: 'm-agy',
+      role: 'assistant',
+      content: 'ok',
+      timestamp: 10,
+      runtimeBackend: 'antigravity',
+      modelId: 'gemini-4-neon-medium',
+    };
+    expect(fromChatMessage(agyMsg)).toMatchObject({
+      label: ENDPOINT_NAME.antigravity,
+      model: 'gemini-4-neon-medium',
+    });
+
+    const apiMsg: ChatMessage = {
+      id: 'm-api',
+      role: 'assistant',
+      content: 'ok',
+      timestamp: 11,
+      runtimeBackend: 'api',
+      modelId: 'gw/main',
+    };
+    expect(fromChatMessage(apiMsg)).toMatchObject({
+      label: ENDPOINT_NAME.nomi,
+      model: 'gw/main',
+    });
+  });
 });

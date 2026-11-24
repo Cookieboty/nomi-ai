@@ -14,7 +14,7 @@ import React, {
 } from 'react';
 
 import { startupBrandIntro } from '../components/BrandIntro/state';
-import { notifyConversationsChanged } from '../services/conversationStore';
+import { notifyConversationsChanged, type ConversationStore } from '../services/conversationStore';
 import { collectDelegateChanges, reportedFiles } from '../services/delegateChanges';
 import { delegateClient, type DelegateResult } from '../services/delegateClient';
 import { delegateResultMessage, hasDelegateCardForTask } from '../services/delegateMessage';
@@ -23,6 +23,7 @@ import { desktopClient } from '../services/desktopClient';
 import { harnessClient } from '../services/harnessClient';
 import { splitSteerContent } from '../services/history';
 import { createIPCClient } from '../services/IPCClient';
+import { applyManagedDefaultToConversation } from '../services/managedDefaultRuntime';
 import { stopReplySpeech } from '../services/replySpeech';
 import { schedClient } from '../services/schedClient';
 import type { ImageAttachment } from '../services/screenClient';
@@ -604,7 +605,14 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           ...activeStream.current.keys(),
           ...(current && (messages.length || isLoading) ? [current] : []),
         ].filter(Boolean);
-        await ipcClient.newConversation(undefined, { projectId: opts?.projectId, notReuse });
+        const convoId = await ipcClient.newConversation(undefined, {
+          projectId: opts?.projectId,
+          notReuse,
+        });
+        await applyManagedDefaultToConversation(
+          convoId,
+          ipcClient.conversationStore?.() as ConversationStore | undefined,
+        );
         historySeq.current++;
         dispatch({
           type: 'CLEAR_MESSAGES',

@@ -6,11 +6,13 @@ import { IconFolder as Folder } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { selectIpcClient, useAiChatActions, useAiChatSelector } from '../../contexts/aiChatStore';
+import { api } from '../../services/api';
 import {
   CONVERSATIONS_CHANGED_EVENT,
   type ConversationMeta,
   type ConversationStore,
 } from '../../services/conversationStore';
+import { updateManagedConversationMeta } from '../../services/managedMainChat';
 import { sessionPlace } from '../../services/projects';
 import type { IPCClient } from '../../types/ipc';
 import { confirmDialog } from '../ConfirmDialog';
@@ -39,7 +41,16 @@ export const ArchivedChats: React.FC = () => {
     return () => window.removeEventListener(CONVERSATIONS_CHANGED_EVENT, sync);
   }, [read]);
 
-  const restore = (id: string) => store?.setArchived(id, false);
+  const restore = (id: string) => {
+    if (store?.isManaged?.(id)) {
+      void updateManagedConversationMeta(api, id, { archivedAt: null })
+        .then(() => store.refreshManaged?.(id))
+        .then(() => setItems(read()))
+        .catch(() => undefined);
+      return;
+    }
+    store?.setArchived(id, false);
+  };
   const remove = async (c: ConversationMeta) => {
     const ok = await confirmDialog({
       message: t('ui.cli-monitor.delete-chat-permanently-confirm', t(c.name)),

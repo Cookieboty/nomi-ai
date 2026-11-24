@@ -76,6 +76,12 @@ func RuntimeView(r *mainchat.Registry, id string) (any, error) {
 	if len(s.Trace) > 0 {
 		out["trace"] = s.Trace
 	}
+	if s.Thinking != "" {
+		out["thinking"] = s.Thinking
+	}
+	if s.ThinkingActive {
+		out["thinkingActive"] = true
+	}
 	if s.FailedRequest != nil {
 		fr := map[string]any{"messageId": s.FailedRequest.MessageID, "turnId": s.FailedRequest.TurnID, "text": s.FailedRequest.Text}
 		if len(s.FailedRequest.Images) > 0 {
@@ -133,6 +139,11 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 			router.EmitTo("conversations.runtimeChanged", view, "chat")
 		}
 		router.EmitTo("conversations.changed", map[string]any{"source": "runtime", "ids": []string{id}, "index": true}, "chat")
+	})
+	registry.SetStreamNotify(func(id string) {
+		if view, err := RuntimeView(registry, id); err == nil {
+			router.EmitTo("conversations.runtimeChanged", view, "chat")
+		}
 	})
 	router.Call("conversations.runtimeCapabilities", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		var in struct{ ID string }
@@ -255,5 +266,51 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 			return RuntimeView(registry, in.ID)
 		})
 	}
+	router.Call("conversations.runtimeUpdateMeta", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
+		var in struct {
+			ID         string          `json:"id"`
+			Name       *string         `json:"name"`
+			AutoTitle  bool            `json:"autoTitle"`
+			PinnedAt   json.RawMessage `json:"pinnedAt"`
+			ArchivedAt json.RawMessage `json:"archivedAt"`
+		}
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, badInput(err)
+		}
+		parseOptTimestamp := func(field json.RawMessage) (set bool, val *int64, err error) {
+			trimmed := bytes.TrimSpace(field)
+			if len(trimmed) == 0 {
+				return false, nil, nil
+			}
+			if string(trimmed) == "null" {
+				return true, nil, nil
+			}
+			var v int64
+			if err := json.Unmarshal(trimmed, &v); err != nil || v < 0 {
+				return false, nil, errors.New("invalid timestamp")
+			}
+			return true, &v, nil
+		}
+		pinSet, pinVal, err := parseOptTimestamp(in.PinnedAt)
+		if err != nil {
+			return nil, badInput(err)
+		}
+		archSet, archVal, err := parseOptTimestamp(in.ArchivedAt)
+		if err != nil {
+			return nil, badInput(err)
+		}
+		err = registry.UpdateMeta(in.ID, mainchat.ManagedMetaPatch{
+			Name:          in.Name,
+			AutoTitle:     in.AutoTitle,
+			PinnedAtSet:   pinSet,
+			PinnedAt:      pinVal,
+			ArchivedAtSet: archSet,
+			ArchivedAt:    archVal,
+		})
+		if err != nil {
+			return nil, runtimeFail(err)
+		}
+		return nil, nil
+	})
 	return registry
 }

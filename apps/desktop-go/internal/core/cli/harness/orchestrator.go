@@ -1329,7 +1329,8 @@ func withModel(dst *util.Obj, model any) {
 func reportedModel(events []*util.Obj) string {
 	for i := len(events) - 1; i >= 0; i-- {
 		e := events[i]
-		if e.Get("type") == "context" {
+		typ := e.Get("type")
+		if typ == "context" || typ == "done" {
 			if m, ok := e.Get("model").(string); ok && m != "" {
 				return m
 			}

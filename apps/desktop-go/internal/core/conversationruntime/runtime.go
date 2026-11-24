@@ -169,6 +169,7 @@ type EventKind string
 
 const (
 	EventDelivered EventKind = "delivered"
+	EventStream    EventKind = "stream"
 	EventText      EventKind = "text"
 	EventApproval  EventKind = "approval"
 	EventTrace     EventKind = "trace"
@@ -194,7 +195,63 @@ type TraceEntry struct {
 	Summary string `json:"summary,omitempty"`
 	Status  string `json:"status,omitempty"`
 	Detail  string `json:"detail,omitempty"`
+	Output  string `json:"output,omitempty"`
 	At      int64  `json:"at"`
+}
+
+// TurnUsage holds non-authoritative turn token/context/cost metrics attached on completion.
+type TurnUsage struct {
+	InputTokens      *int64   `json:"inputTokens,omitempty"`
+	OutputTokens     *int64   `json:"outputTokens,omitempty"`
+	CacheReadTokens  *int64   `json:"cacheReadTokens,omitempty"`
+	CacheWriteTokens *int64   `json:"cacheWriteTokens,omitempty"`
+	ThoughtTokens    *int64   `json:"thoughtTokens,omitempty"`
+	TotalTokens      *int64   `json:"totalTokens,omitempty"`
+	ContextTokens    *int64   `json:"contextTokens,omitempty"`
+	ContextWindow    *int64   `json:"contextWindow,omitempty"`
+	CostUsd          *float64 `json:"costUsd,omitempty"`
+	DurationMs       *int64   `json:"durationMs,omitempty"`
+}
+
+func cloneInt64Ptr(p *int64) *int64 {
+	if p == nil {
+		return nil
+	}
+	v := *p
+	return &v
+}
+
+func cloneFloat64Ptr(p *float64) *float64 {
+	if p == nil {
+		return nil
+	}
+	v := *p
+	return &v
+}
+
+func cloneTurnUsage(u *TurnUsage) *TurnUsage {
+	if u == nil {
+		return nil
+	}
+	return &TurnUsage{
+		InputTokens:      cloneInt64Ptr(u.InputTokens),
+		OutputTokens:     cloneInt64Ptr(u.OutputTokens),
+		CacheReadTokens:  cloneInt64Ptr(u.CacheReadTokens),
+		CacheWriteTokens: cloneInt64Ptr(u.CacheWriteTokens),
+		ThoughtTokens:    cloneInt64Ptr(u.ThoughtTokens),
+		TotalTokens:      cloneInt64Ptr(u.TotalTokens),
+		ContextTokens:    cloneInt64Ptr(u.ContextTokens),
+		ContextWindow:    cloneInt64Ptr(u.ContextWindow),
+		CostUsd:          cloneFloat64Ptr(u.CostUsd),
+		DurationMs:       cloneInt64Ptr(u.DurationMs),
+	}
+}
+
+func cloneTraceEntries(in []TraceEntry) []TraceEntry {
+	if len(in) == 0 {
+		return nil
+	}
+	return append([]TraceEntry(nil), in...)
 }
 
 type Event struct {
@@ -203,11 +260,18 @@ type Event struct {
 	Kind            EventKind
 	Delivery        Delivery
 	Text            string // delta only; never reasoning/tool state
+	Thinking        string // non-authoritative streaming delta only (EventStream)
+	ThinkingActive  bool
 	ApprovalID      string
 	ApprovalInfo    *ApprovalInfo
 	Trace           *TraceEntry
 	Work            Activity // explicit quiescence evidence on completion/cancel/activity
 	Detail          string
+	Model           string
+	Effort          string
+	ResponseModel   string
+	DurationMs      int64
+	Usage           *TurnUsage
 }
 
 type ApprovalDecision struct {
@@ -258,6 +322,8 @@ type SessionState struct {
 	PermissionMode  string         `json:"permissionMode,omitempty"`
 	Effort          string         `json:"effort,omitempty"`
 	Partial         string
+	Thinking        string         `json:"thinking,omitempty"`
+	ThinkingActive  bool           `json:"thinkingActive,omitempty"`
 	Detail          string
 	PendingSwitch   *SwitchState       `json:"pendingSwitch,omitempty"`
 	LastSwitch      *LastSwitchSummary `json:"lastSwitch,omitempty"`

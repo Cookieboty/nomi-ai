@@ -11,6 +11,21 @@ const HomeEnv = "ANTIGRAVITY_CLI_HOME"
 
 var Permissions = sh.AcpPermissions(Manifest)
 
+// Models 注册 Antigravity 对 ACP 会话目录的解析及聚合模型-档位映射能力。
+var Models = &clisdk.ModelCatalogCapability{
+	ParseSession: func(sessionRaw *util.Obj) *util.Obj {
+		return ParseModels(sessionRaw)
+	},
+	ResolveOverride: func(catalog *util.Obj, modelID, effort string) clisdk.ModelOverride {
+		wireModel, wireEffort, cfgID := ResolveModelAndEffort(catalog, modelID, effort)
+		return clisdk.ModelOverride{
+			ModelID:        wireModel,
+			Effort:         wireEffort,
+			EffortConfigID: cfgID,
+		}
+	},
+}
+
 // OfficialLaunch：复用本机登录与 ~/.gemini/antigravity-cli/settings.json，不做 Nomi 账号隔离与网关转发。
 func OfficialLaunch(ctx clisdk.LaunchContext) clisdk.AgentLaunch {
 	args := []string{}
@@ -23,6 +38,7 @@ func OfficialLaunch(ctx clisdk.LaunchContext) clisdk.AgentLaunch {
 func CreateMain() *clisdk.CliMainImpl {
 	return &clisdk.CliMainImpl{
 		Launch:      clisdk.LaunchCapability{Official: OfficialLaunch, ModelArgs: sh.ModelArgsFn(ModelArgs)},
+		Models:      Models,
 		Permissions: Permissions,
 		Terminal:    sh.ResumeTerminal("agy", "--conversation"),
 	}

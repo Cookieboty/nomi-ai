@@ -187,3 +187,71 @@ it('forwards current-turn images, preserves retry ids, and renders tool trace dr
     f.client.close();
   }
 });
+
+it('caches base messages across running stream deltas and emits structured trace without cli-default model', async () => {
+  const calls = { send: vi.fn(), messages: vi.fn(() => ({ messages, bytes: 1 })) };
+  let state: Record<string, unknown> = { ...base };
+  const client: ReturnType<typeof createTestClient<typeof appContract>> = createTestClient(
+    appContract,
+    {
+      'conversations.runtimeState': () => state,
+      'conversations.messages': calls.messages,
+      'conversations.runtimeSend': (input: unknown) => {
+        calls.send(input);
+        state = { ...base, generation: 5, phase: 'running', token };
+        return token;
+      },
+      'conversations.runtimeCancel': () => state,
+    } as never,
+    { caller: { surface: 'chat', trusted: true } },
+  );
+  const update = vi.fn();
+  const publish = (extra: Record<string, unknown>) =>
+    client.router.events.publish('conversations.runtimeChanged', {
+      ...base,
+      backend: 'antigravity',
+      model: 'cli-default',
+      token,
+      ...extra,
+    } as never);
+  try {
+    const task = sendManagedConversation(client.api, 'c', 'hello', update);
+    await vi.waitFor(() => expect(calls.send).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(calls.messages).toHaveBeenCalledTimes(1));
+    publish({ phase: 'running', thinking: 'hmm', thinkingActive: true, partial: '' });
+    publish({
+      phase: 'running',
+      thinking: 'hmm',
+      thinkingActive: false,
+      partial: 'hello ',
+      trace: [
+        { id: 't1', kind: 'tool', tool: 'read_file', status: 'completed', output: 'ok', at: 2 },
+      ],
+    });
+    publish({
+      phase: 'running',
+      model: 'gemini-4-neon-medium',
+      thinking: 'hmm',
+      thinkingActive: false,
+      partial: 'hello world',
+    });
+    await vi.waitFor(() => expect(JSON.stringify(update.mock.calls)).toContain('hello world'));
+    // Multiple running stream frames only read messages once before completion.
+    expect(calls.messages).toHaveBeenCalledTimes(1);
+    const streamDraft = update.mock.calls.at(-1)?.[0].at(-1);
+    expect(streamDraft).toMatchObject({
+      role: 'assistant',
+      content: 'hello world',
+      runtimeBackend: 'antigravity',
+      modelId: 'gemini-4-neon-medium',
+      trace: [{ type: 'thinking', text: 'hmm' }],
+    });
+    state = { ...base, generation: 5, phase: 'completed', token };
+    client.router.events.publish('conversations.runtimeChanged', state as never);
+    await task;
+    expect(calls.messages).toHaveBeenCalledTimes(2);
+    expect(update).toHaveBeenLastCalledWith(messages);
+  } finally {
+    client.close();
+  }
+});

@@ -128,6 +128,7 @@ type AcpDriver struct {
 	AvailableModes    []string
 	AgentCapabilities Json
 	SessionRaw        Json
+	SessionTitle      string
 }
 
 func NewAcpDriver(o AcpDriverOptions) *AcpDriver {
@@ -173,6 +174,32 @@ func (d *AcpDriver) onNotification(method string, params Json) {
 	}
 	if ext && !strings.HasPrefix(strQ(u.Get("sessionUpdate")), "auto_compact_") {
 		return
+	}
+	if !ext {
+		switch u.Get("sessionUpdate") {
+		case "current_mode_update":
+			mid := strQ(u.Get("currentModeId"))
+			if mid == "" {
+				mid = strQ(u.Get("modeId"))
+			}
+			if mid != "" {
+				m := mid
+				d.ModeID = &m
+			}
+		case "config_option_update", "config_options_update":
+			if opts := u.Get("configOptions"); opts != nil {
+				if d.SessionRaw == nil {
+					d.SessionRaw = O()
+				}
+				d.SessionRaw.Set("configOptions", opts)
+			}
+		case "session_info_update":
+			if title, ok := u.Get("title").(string); ok {
+				if trimmed := strings.TrimSpace(title); trimmed != "" {
+					d.SessionTitle = trimmed
+				}
+			}
+		}
 	}
 	if u.Get("sessionUpdate") == "available_commands_update" {
 		d.hub.Emit(O("kind", "commands", "commands", parseCommands(u.Get("availableCommands"))))
@@ -383,6 +410,13 @@ func (d *AcpDriver) finishSession(sid string, modes any, resumed, hadResume bool
 	modeNow := getp(modes, "currentModeId")
 	if m, ok := modeNow.(string); ok {
 		d.ModeID = &m
+	}
+	if d.SessionRaw != nil {
+		if title, ok := d.SessionRaw.Get("title").(string); ok {
+			if trimmed := strings.TrimSpace(title); trimmed != "" {
+				d.SessionTitle = trimmed
+			}
+		}
 	}
 	d.hub.Emit(O("kind", "health", "state", "ready"))
 	res := O("sessionId", sid)
@@ -657,14 +691,21 @@ func (d *AcpDriver) runTurn(method string, params func(sessionID string) Json, i
 		for _, ev := range turn.mapper.Flush() {
 			emit(ev)
 		}
+		merged := extractAcpPromptUsage(r)
 		ctx := turn.mapper.Context()
+		if ctx != nil && ctx.Len() > 0 {
+			if merged == nil {
+				merged = O()
+			}
+			merged.Assign(ctx)
+		}
 		var stop any = "end_turn"
 		if v := getp(r, "stopReason"); v != nil {
 			stop = v
 		}
 		res := O("turnId", turn.id, "stopReason", stop, "text", turn.text, "sessionId", sessionID)
-		if ctx.Len() > 0 {
-			res.Set("usage", ctx)
+		if merged != nil && merged.Len() > 0 {
+			res.Set("usage", merged)
 		}
 		if turn.denied {
 			res.Set("denied", true)
@@ -674,6 +715,55 @@ func (d *AcpDriver) runTurn(method string, params func(sessionID string) Json, i
 		}
 		return res, nil
 	})
+}
+
+func pickNonNeg(u *util.Obj, keys ...string) (float64, bool) {
+	for _, k := range keys {
+		if f, ok := nonNegNum(u.Get(k)); ok {
+			return f, true
+		}
+	}
+	return 0, false
+}
+
+func extractAcpPromptUsage(r any) *util.Obj {
+	u := util.AsObj(getp(r, "usage"))
+	if u == nil {
+		return nil
+	}
+	out := O()
+	if v, ok := pickNonNeg(u, "inputTokens", "input_tokens", "promptTokens", "prompt_tokens"); ok {
+		out.Set("inputTokens", v)
+	}
+	if v, ok := pickNonNeg(u, "outputTokens", "output_tokens", "completionTokens", "completion_tokens"); ok {
+		out.Set("outputTokens", v)
+	}
+	if v, ok := pickNonNeg(u, "cachedReadTokens", "cacheReadTokens", "cachedInputTokens", "cache_read_input_tokens", "cached_input_tokens", "cached_read_tokens"); ok {
+		out.Set("cacheReadTokens", v)
+	}
+	if v, ok := pickNonNeg(u, "cachedWriteTokens", "cacheWriteTokens", "cache_creation_input_tokens", "cache_write_tokens", "cached_write_tokens"); ok {
+		out.Set("cacheWriteTokens", v)
+	}
+	if v, ok := pickNonNeg(u, "thoughtTokens", "thought_tokens", "reasoningTokens", "reasoning_tokens"); ok {
+		out.Set("thoughtTokens", v)
+	}
+	if v, ok := pickNonNeg(u, "totalTokens", "total_tokens"); ok {
+		out.Set("totalTokens", v)
+	}
+	if v, ok := nonNegNum(u.Get("costUsd")); ok {
+		out.Set("costUsd", v)
+	} else if c := util.AsObj(u.Get("cost")); c != nil {
+		if v, ok := nonNegNum(c.Get("amount")); ok {
+			cur := strings.TrimSpace(strQ(c.Get("currency")))
+			if cur == "" || strings.EqualFold(cur, "USD") {
+				out.Set("costUsd", v)
+			}
+		}
+	}
+	if out.Len() == 0 {
+		return nil
+	}
+	return out
 }
 
 // Steer：有扩展方法、有进行中的轮次和会话时发 {sessionId, text}；CLI 报错 = false。

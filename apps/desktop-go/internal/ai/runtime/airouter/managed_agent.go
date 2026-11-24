@@ -246,6 +246,14 @@ func (m *managedAgent) Start(ctx context.Context, r cr.RuntimeRequest, accept fu
 
 		var streamError error
 		seenTools := map[string]bool{}
+		startedAt := time.Now()
+		modelName := m.cfg.Model
+		if modelName == "chat-route" {
+			modelName = ""
+		}
+		var responseModel string
+		var turnUsage *cr.TurnUsage
+		thinkingActive := false
 		streamFn := m.h.o.Chat.AgentStream
 		if textOnly {
 			streamFn = m.h.o.Chat.Stream
@@ -263,8 +271,23 @@ func (m *managedAgent) Start(ctx context.Context, r cr.RuntimeRequest, accept fu
 				return
 			}
 			switch c.Type {
+			case "reasoning":
+				active := c.Phase != "end"
+				if c.Content != "" || thinkingActive != active {
+					se := event(cr.EventStream)
+					se.Thinking = c.Content
+					se.ThinkingActive = active
+					_ = accept(se)
+				}
+				thinkingActive = active
 			case "tool_call.delta":
 				_ = ack()
+				if thinkingActive {
+					se := event(cr.EventStream)
+					se.ThinkingActive = false
+					_ = accept(se)
+					thinkingActive = false
+				}
 				name := derefStr(c.Name)
 				id := derefStr(c.ID)
 				if name != "" && !seenTools[id+"|"+name] {
@@ -276,20 +299,73 @@ func (m *managedAgent) Start(ctx context.Context, r cr.RuntimeRequest, accept fu
 			case "tool_call.result":
 				_ = ack()
 				status := "completed"
-				detail := truncateStr(derefStr(c.Output), 240)
+				rawOut := derefStr(c.Output)
+				detail := truncateStr(rawOut, 240)
+				output := truncateStr(rawOut, 20_000)
 				if c.Error != nil && *c.Error != "" {
 					status = "error"
 					detail = truncateStr(*c.Error, 240)
+					output = truncateStr(*c.Error, 20_000)
 				}
 				te := event(cr.EventTrace)
-				te.Trace = &cr.TraceEntry{ID: derefStr(c.ID), Kind: "tool", Tool: derefStr(c.Name), Summary: derefStr(c.Name), Status: status, Detail: detail, At: time.Now().UnixMilli()}
+				te.Trace = &cr.TraceEntry{ID: derefStr(c.ID), Kind: "tool", Tool: derefStr(c.Name), Summary: derefStr(c.Name), Status: status, Detail: detail, Output: output, At: time.Now().UnixMilli()}
 				_ = accept(te)
 			case "delta":
+				if thinkingActive {
+					se := event(cr.EventStream)
+					se.ThinkingActive = false
+					_ = accept(se)
+					thinkingActive = false
+				}
 				if c.Content != "" && ack() {
 					e := event(cr.EventText)
 					e.Text = c.Content
 					if accept(e) != nil {
 						cancel()
+					}
+				}
+			case "usage":
+				if c.Model != nil && *c.Model != "" && *c.Model != "chat-route" {
+					modelName = *c.Model
+				}
+				if c.ResponseModel != nil && *c.ResponseModel != "" {
+					responseModel = *c.ResponseModel
+				}
+				if c.Usage != nil {
+					u := &cr.TurnUsage{}
+					hasMetric := false
+					if c.Usage.PromptTokens > 0 {
+						v := int64(c.Usage.PromptTokens)
+						u.InputTokens = &v
+						hasMetric = true
+					}
+					if c.Usage.CompletionTokens > 0 {
+						v := int64(c.Usage.CompletionTokens)
+						u.OutputTokens = &v
+						hasMetric = true
+					}
+					if c.Usage.TotalTokens > 0 {
+						v := int64(c.Usage.TotalTokens)
+						u.TotalTokens = &v
+						hasMetric = true
+					}
+					if c.Usage.CacheReadTokens != nil && *c.Usage.CacheReadTokens >= 0 {
+						v := int64(*c.Usage.CacheReadTokens)
+						u.CacheReadTokens = &v
+						hasMetric = true
+					}
+					if c.Usage.CacheWriteTokens != nil && *c.Usage.CacheWriteTokens >= 0 {
+						v := int64(*c.Usage.CacheWriteTokens)
+						u.CacheWriteTokens = &v
+						hasMetric = true
+					}
+					if c.Usage.ContextTokens != nil && *c.Usage.ContextTokens >= 0 {
+						v := int64(*c.Usage.ContextTokens)
+						u.ContextTokens = &v
+						hasMetric = true
+					}
+					if hasMetric {
+						turnUsage = u
 					}
 				}
 			}
@@ -313,8 +389,17 @@ func (m *managedAgent) Start(ctx context.Context, r cr.RuntimeRequest, accept fu
 			return
 		}
 		if ack() {
+			durationMs := time.Since(startedAt).Milliseconds()
 			e := event(cr.EventCompleted)
 			e.Work = cr.Activity{Known: true}
+			e.Model = modelName
+			e.ResponseModel = responseModel
+			e.DurationMs = durationMs
+			if turnUsage != nil && durationMs > 0 {
+				d := durationMs
+				turnUsage.DurationMs = &d
+			}
+			e.Usage = turnUsage
 			_ = accept(e)
 		}
 	}()

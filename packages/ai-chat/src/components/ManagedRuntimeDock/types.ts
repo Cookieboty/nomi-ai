@@ -37,6 +37,7 @@ export type TraceEntryView = {
   summary?: string;
   status?: string;
   detail?: string;
+  output?: string;
   at: number;
 };
 
@@ -118,6 +119,9 @@ export type ManagedRuntimeView = {
   accountId?: string;
   permissionMode?: string;
   effort?: string;
+  partial?: string;
+  thinking?: string;
+  thinkingActive?: boolean;
   approvals?: string[];
   approvalDetails?: ApprovalDetailView[];
   trace?: TraceEntryView[];

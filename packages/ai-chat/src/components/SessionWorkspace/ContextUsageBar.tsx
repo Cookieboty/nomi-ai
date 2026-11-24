@@ -8,6 +8,7 @@ import React, { useContext, useEffect, useMemo, useState } from 'react';
 
 import { AiChatStoreContext } from '../../contexts/aiChatStore';
 import { useHarnessTabsCore } from '../../contexts/HarnessTabsContext';
+import { useManagedRuntime } from '../../contexts/ManagedRuntimeContext';
 import {
   CONVERSATIONS_CHANGED_EVENT,
   notifyConversationsChanged,
@@ -92,11 +93,18 @@ export const ContextUsageBar: React.FC<{
   const nomiLong = longContextForRef(nomiRef, nomiChoice, gateway);
   const nomiLongOverride = nomiLong ? nomiChoice : undefined;
 
+  const managed = useManagedRuntime();
+  const isManagedCli = !tabs.isCliTab && Boolean(managed?.isCliBackend);
   const long = tab ? longContextFor(tab, gateway) : null;
   const injected = tab ? injectedWindowFor(tab, gateway) : null;
+  const effectiveModel = isManagedCli
+    ? managed?.view?.model && managed.view.model !== 'cli-default'
+      ? managed.view.model
+      : undefined
+    : (model ?? undefined);
   // Nomi 对话：窗口取内核按路由到的模型算的预算（与自动压缩同一份，gateway.nomiContext），
-  // 不再走按模型名猜的经验表——网关模型名（如 openai/gpt-6-astra）经验表认不出会落到 128K
-  const nomiWin = useNomiContextWindow(!tabs.isCliTab, gateway, nomiLongOverride);
+  // 托管 CLI 模式下优先使用 CLI 上报窗口或 CLI 模型对应的经验窗口
+  const nomiWin = useNomiContextWindow(!tabs.isCliTab && !isManagedCli, gateway, nomiLongOverride);
   const baseWin = useMemo(() => {
     const reported = reportedContextWindow(messages);
     // 第三方标签：上报的窗口来自换模型 / 切长上下文之前（与这次要注入的对不上）时已过期，
@@ -108,8 +116,8 @@ export const ContextUsageBar: React.FC<{
         size: nomiWin.size,
         source: nomiWin.source === 'default' ? ('default' as const) : ('reported' as const),
       };
-    return contextWindowFor(model ?? undefined, reported);
-  }, [model, messages, injected, nomiWin]);
+    return contextWindowFor(effectiveModel, reported);
+  }, [effectiveModel, messages, injected, nomiWin]);
   const est = useMemo(
     () =>
       estimateContext(
@@ -154,7 +162,10 @@ export const ContextUsageBar: React.FC<{
   // 快到标准窗口（将自动压缩）且这个模型能开长上下文：提议开启，而不是只看着它被压缩
   const activeLong = tab ? long : nomiLong;
   const offerLong =
-    !!activeLong && !activeLong.on && est.used >= activeLong.standard * LONG_CONTEXT_HINT_RATIO;
+    !isManagedCli &&
+    !!activeLong &&
+    !activeLong.on &&
+    est.used >= activeLong.standard * LONG_CONTEXT_HINT_RATIO;
   const enableLong = () => {
     if (tab) {
       setLongError(null);

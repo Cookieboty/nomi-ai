@@ -3,6 +3,8 @@ import { t } from '@nomi-ai/ui';
 
 import type { ChatMessage } from '../types/chat';
 
+import type { HarnessTraceEvent } from './harnessClient';
+
 type Port = Pick<AppClient, 'conversations' | 'on'>;
 export type ManagedRuntimeState = Awaited<ReturnType<Port['conversations']['runtimeState']>>;
 export type ManagedSendOptions = {
@@ -18,14 +20,37 @@ export function formatManagedRuntimeError(err: unknown): string {
   return msg;
 }
 
-function formatTraceSummary(trace: ManagedRuntimeState['trace']): string {
-  if (!trace?.length) return '';
-  const latest = trace[trace.length - 1]!;
-  const label = latest.tool || latest.summary || latest.kind;
-  if (!label) return '';
-  return latest.status === 'running' || latest.status === 'start'
-    ? t('ui.chat-settings.managed-trace-running', label)
-    : t('ui.chat-settings.managed-trace-done', label);
+function buildDraftTrace(state: ManagedRuntimeState): HarnessTraceEvent[] | undefined {
+  const out: HarnessTraceEvent[] = [];
+  if (state.thinking) {
+    out.push({ type: 'thinking', text: state.thinking });
+  }
+  for (const tr of state.trace ?? []) {
+    if (tr.kind === 'thinking') {
+      const text = tr.detail || tr.summary;
+      if (text) {
+        out.push({ type: 'thinking', text, ...(tr.at ? { at: tr.at } : {}) });
+      }
+      continue;
+    }
+    const status =
+      tr.status === 'completed' || tr.status === 'done'
+        ? 'done'
+        : tr.status === 'error' || tr.status === 'failed' || tr.status === 'denied'
+          ? 'error'
+          : 'start';
+    const name = tr.tool || tr.summary || tr.kind || 'tool';
+    out.push({
+      type: 'tool',
+      id: tr.id,
+      name,
+      status,
+      ...(tr.detail ? { input: tr.detail } : {}),
+      ...(tr.output ? { output: tr.output } : {}),
+      ...(tr.at ? { at: tr.at } : {}),
+    });
+  }
+  return out.length ? out : undefined;
 }
 
 /** Reads only authoritative projection. Never upserts user/assistant view copies. */
@@ -46,6 +71,8 @@ export async function sendManagedConversation(
   let token: Awaited<ReturnType<Port['conversations']['runtimeSend']>> | undefined;
   let events: ManagedRuntimeState[] = [];
   let revision = 0;
+  let baseMessages: ChatMessage[] | null = null;
+  let draftStartedAt = 0;
   let settled = false;
   let terminalSeen = false;
   let resolve!: () => void;
@@ -76,23 +103,41 @@ export async function sendManagedConversation(
     if (terminalSeen && !terminal) return;
     terminalSeen ||= terminal;
     const own = ++revision;
-    const result = await api.conversations.messages({ id });
-    if (own !== revision || settled) return;
-    const messages = result.messages as unknown as ChatMessage[];
-    const traceSummary = formatTraceSummary(state.trace);
-    const draftContent = state.partial || traceSummary;
+    let messages: ChatMessage[];
+    if (state.phase === 'running' && baseMessages !== null) {
+      messages = baseMessages;
+    } else {
+      const result = await api.conversations.messages({ id });
+      if (own !== revision || settled) return;
+      messages = result.messages as unknown as ChatMessage[];
+      if (state.phase === 'running') {
+        baseMessages = messages;
+      } else {
+        baseMessages = null;
+      }
+    }
+    const draftTrace = buildDraftTrace(state);
+    const hasDraft =
+      state.phase === 'running' &&
+      Boolean(state.partial || state.thinking || state.thinkingActive || draftTrace?.length);
+    if (hasDraft && !draftStartedAt) {
+      draftStartedAt = Date.now();
+    }
     onUpdate(
-      state.phase === 'running' && draftContent
+      hasDraft
         ? [
             ...messages,
             {
               id: `draft_${token.attemptId}`,
               role: 'assistant',
-              content:
-                state.partial && traceSummary
-                  ? `${state.partial}\n\n_${traceSummary}_`
-                  : draftContent,
-              timestamp: Date.now(),
+              content: state.partial || '',
+              timestamp: draftStartedAt,
+              ...(state.backend ? { runtimeBackend: state.backend } : {}),
+              ...(state.model && state.model !== 'cli-default' && state.model !== 'chat-route'
+                ? { modelId: state.model }
+                : {}),
+              ...(draftTrace?.length ? { trace: draftTrace } : {}),
+              ...(state.thinkingActive ? { thinking: true } : {}),
             },
           ]
         : messages,
@@ -161,4 +206,17 @@ export async function resolveManagedRuntime(
   input: Parameters<Port['conversations']['runtimeResolve']>[0],
 ): Promise<ManagedRuntimeState> {
   return api.conversations.runtimeResolve(input);
+}
+
+export async function updateManagedConversationMeta(
+  api: Pick<AppClient, 'conversations'>,
+  id: string,
+  patch: {
+    name?: string;
+    autoTitle?: boolean;
+    pinnedAt?: number | null;
+    archivedAt?: number | null;
+  },
+): Promise<void> {
+  await api.conversations.runtimeUpdateMeta({ id, ...patch });
 }

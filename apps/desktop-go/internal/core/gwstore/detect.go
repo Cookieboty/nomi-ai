@@ -21,6 +21,7 @@ func ProbeDetect(in *u.Obj) (*u.Obj, error) {
 	}
 	o.FallbackModel, _ = strOf(in.Get("fallbackModel"))
 	o.SessionHeader, _ = strOf(in.Get("sessionHeader"))
+	o.RequireInferenceOK = u.Truthy(in.Get("requireInferenceOK"))
 	for _, h := range arr(in.Get("allowedPrivateHosts")) {
 		if s, ok := h.(string); ok {
 			o.AllowedPrivateHosts = append(o.AllowedPrivateHosts, s)
@@ -90,8 +91,8 @@ func (s *Service) Detect(input *u.Obj) (*u.Obj, error) {
 			keys = append(keys, u.NewObj("id", "new-"+strconv.Itoa(i), "value", t))
 		}
 	}
-	sessionHeader, _ := strOf(input.Get("sessionHeader"))
-	if sessionHeader == "" && saved != nil {
+	sessionHeader := ""
+	if saved != nil {
 		if q := s.Store.quirksOf(saved); q != nil {
 			sessionHeader, _ = strOf(q.Get("sessionHeader"))
 		}
@@ -108,6 +109,7 @@ func (s *Service) Detect(input *u.Obj) (*u.Obj, error) {
 		"allowedPrivateHosts", s.Store.Snapshot().Get("allowedPrivateHosts"))
 	if sessionHeader != "" {
 		in.Set("sessionHeader", sessionHeader)
+		in.Set("requireInferenceOK", true)
 	}
 	if s.rt != nil {
 		if st := s.rt.proc.GetStatus(); st.State == "running" {

@@ -25,17 +25,23 @@ import (
 // Attachments is omitted with ReasonAttachment. Lists are never shared with
 // callers (defensive copies on ingest and on read).
 type Entry struct {
-	Timestamp   int64    `json:"timestamp,omitempty"`
-	Raw         []byte   `json:"raw,omitempty"` // exact legacy payload retained, never transferred to CLI
-	ID          string   `json:"id"`
-	Revision    int      `json:"revision"`
-	Order       int64    `json:"order"`
-	TurnID      string   `json:"turnId"`
-	Role        string   `json:"role"` // "user" or "assistant"
-	Origin      string   `json:"origin"`
-	Text        string   `json:"text"`
-	Attachments []string `json:"attachments,omitempty"`
-	Tombstone   bool     `json:"tombstone,omitempty"`
+	Timestamp     int64        `json:"timestamp,omitempty"`
+	Raw           []byte       `json:"raw,omitempty"` // exact legacy payload retained, never transferred to CLI
+	ID            string       `json:"id"`
+	Revision      int          `json:"revision"`
+	Order         int64        `json:"order"`
+	TurnID        string       `json:"turnId"`
+	Role          string       `json:"role"` // "user" or "assistant"
+	Origin        string       `json:"origin"`
+	Text          string       `json:"text"`
+	Attachments   []string     `json:"attachments,omitempty"`
+	Model         string       `json:"model,omitempty"`
+	Effort        string       `json:"effort,omitempty"`
+	ResponseModel string       `json:"responseModel,omitempty"`
+	DurationMs    int64        `json:"durationMs,omitempty"`
+	Usage         *TurnUsage   `json:"usage,omitempty"`
+	Trace         []TraceEntry `json:"trace,omitempty"`
+	Tombstone     bool         `json:"tombstone,omitempty"`
 }
 
 const (
@@ -158,5 +164,7 @@ func copyEntry(e Entry) Entry {
 	if e.Attachments != nil {
 		e.Attachments = append([]string(nil), e.Attachments...)
 	}
+	e.Usage = cloneTurnUsage(e.Usage)
+	e.Trace = cloneTraceEntries(e.Trace)
 	return e
 }

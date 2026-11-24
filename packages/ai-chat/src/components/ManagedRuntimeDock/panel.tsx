@@ -46,10 +46,7 @@ export const ManagedRuntimePanel: React.FC<{
   const activeName = backendName(view.backend || '');
   const unknown = view.managed && view.phase === 'uncertain' && view.recovery === 'unknown';
   const latestTrace = view.trace?.length ? view.trace[view.trace.length - 1] : undefined;
-  const activeTrace =
-    view.busy && latestTrace && (latestTrace.status === 'running' || latestTrace.status === 'start')
-      ? latestTrace
-      : undefined;
+  const activeTrace = view.busy && latestTrace ? latestTrace : undefined;
   const hasApprovals = Boolean(
     onApprove && view.approvalDetails && view.approvalDetails.length > 0,
   );
@@ -73,7 +70,9 @@ export const ManagedRuntimePanel: React.FC<{
       )}
       {activeTrace && (
         <p className={styles.traceLine} data-testid="managed-runtime-trace">
-          {t('ui.chat-settings.managed-trace-running', activeTrace.tool || activeTrace.kind)}
+          {activeTrace.status === 'running' || activeTrace.status === 'start'
+            ? t('ui.chat-settings.managed-trace-running', activeTrace.tool || activeTrace.kind)
+            : t('ui.chat-settings.managed-trace-done', activeTrace.tool || activeTrace.kind)}
         </p>
       )}
       {view.error && (

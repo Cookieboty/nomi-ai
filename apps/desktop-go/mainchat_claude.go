@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -335,6 +336,9 @@ func wireManagedClaude(r *mainchat.Registry, s *convstore.Store, p *projects.Sto
 
 func wireManagedCLIs(r *mainchat.Registry, s *convstore.Store, p *projects.Store, deps managedDeps) func(cliID string) {
 	r.SetProbe(func(id string) []mainchat.RuntimeChoice { return managedChoices(s, p, r, id) })
+	r.SetNativeTitleLookup(func(_ context.Context, backend, nativeSessionID, configDir string) string {
+		return cli.LookupNativeSessionTitle(backend, nativeSessionID, configDir)
+	})
 	if !convstore.ManagedSupported() {
 		return func(string) {}
 	}

@@ -133,6 +133,7 @@ describe('shell · 过程表', () => {
       'conversations.runtimeApprove': 'mutation surfaces=chat dangerous',
       'conversations.runtimeEdit': 'mutation surfaces=chat dangerous',
       'conversations.runtimeRelease': 'mutation surfaces=chat',
+      'conversations.runtimeUpdateMeta': 'mutation surfaces=chat',
       'conversations.messages': 'query surfaces=chat',
       'conversations.append': 'mutation surfaces=chat',
       'conversations.replace': 'mutation surfaces=chat',
@@ -576,5 +577,14 @@ describe('chatWindow · 多窗口交接与两阶段放回契约校验', () => {
     expect(S.DockAckInput.safeParse({ id: 'w1', transferId: 't1', ok: true }).success).toBe(true);
     expect(S.DockAckInput.safeParse({ id: 'w1', transferId: '', ok: true }).success).toBe(false);
     expect(S.DockRequestEvent.safeParse({ id: 'w1', transferId: 't1' }).success).toBe(true);
+  });
+});
+
+describe('managedConversations · autoTitle 契约校验', () => {
+  it('conversations.runtimeUpdateMeta 接受布尔 autoTitle 并拒绝非布尔值', () => {
+    const schema = shellProcedures['conversations.runtimeUpdateMeta'].input;
+    expect(schema.safeParse({ id: 'c1', name: '智能标题', autoTitle: true }).success).toBe(true);
+    expect(schema.safeParse({ id: 'c1', name: '手动标题', autoTitle: false }).success).toBe(true);
+    expect(schema.safeParse({ id: 'c1', name: '坏类型', autoTitle: 'yes' }).success).toBe(false);
   });
 });

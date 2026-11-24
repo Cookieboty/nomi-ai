@@ -236,6 +236,21 @@ func (c *Session) handle(e Event) error {
 		}
 		c.preferred[a.binding.CompatKey] = a.binding.ID
 		return c.persistLocked()
+	case EventStream:
+		if !utf8OK(e.Text) || !utf8OK(e.Thinking) {
+			return ErrInvalidUTF8
+		}
+		if e.Text != "" {
+			a.streamText += e.Text
+		}
+		if e.Thinking != "" {
+			if a.thinkingStartedAt == 0 {
+				a.thinkingStartedAt = time.Now().UnixMilli()
+			}
+			a.streamThinking += e.Thinking
+		}
+		a.thinkingActive = e.ThinkingActive
+		return nil
 	case EventText:
 		if !a.delivered {
 			return fmt.Errorf("%w: text before proven full delivery", ErrProtocol)
@@ -265,7 +280,7 @@ func (c *Session) handle(e Event) error {
 		if e.Trace == nil {
 			return ErrBadEdit
 		}
-		if !utf8OK(e.Trace.ID) || !utf8OK(e.Trace.Kind) || !utf8OK(e.Trace.Tool) || !utf8OK(e.Trace.Summary) || !utf8OK(e.Trace.Status) || !utf8OK(e.Trace.Detail) {
+		if !utf8OK(e.Trace.ID) || !utf8OK(e.Trace.Kind) || !utf8OK(e.Trace.Tool) || !utf8OK(e.Trace.Summary) || !utf8OK(e.Trace.Status) || !utf8OK(e.Trace.Detail) || !utf8OK(e.Trace.Output) {
 			return ErrInvalidUTF8
 		}
 		a.trace = append(a.trace, *e.Trace)
@@ -282,7 +297,63 @@ func (c *Session) handle(e Event) error {
 			return ErrProtocol
 		}
 		id := a.replyID
-		entry, err := c.ledger.Append(Entry{ID: id, TurnID: a.request.TurnID, Role: "assistant", Origin: a.target.Identity.DriverID, Timestamp: time.Now().UnixMilli(), Text: a.text})
+		durationMs := e.DurationMs
+		if durationMs <= 0 && a.startedAt > 0 {
+			if d := time.Now().UnixMilli() - a.startedAt; d > 0 {
+				durationMs = d
+			}
+		}
+		model := e.Model
+		if model == "" {
+			model = a.target.Env.Model
+		}
+		if model == "cli-default" || model == "chat-route" {
+			model = ""
+		}
+		effort := e.Effort
+		if effort == "" {
+			effort = a.target.Effort
+		}
+		var traceOut []TraceEntry
+		hasThinking := false
+		for _, tr := range a.trace {
+			if tr.Kind == "thinking" {
+				hasThinking = true
+				break
+			}
+		}
+		if a.streamThinking != "" && !hasThinking {
+			thAt := a.thinkingStartedAt
+			if thAt == 0 {
+				thAt = a.startedAt
+			}
+			if thAt == 0 {
+				thAt = time.Now().UnixMilli()
+			}
+			traceOut = append(traceOut, TraceEntry{
+				ID:     "thinking",
+				Kind:   "thinking",
+				Detail: a.streamThinking,
+				At:     thAt,
+			})
+		}
+		if len(a.trace) > 0 {
+			traceOut = append(traceOut, a.trace...)
+		}
+		entry, err := c.ledger.Append(Entry{
+			ID:            id,
+			TurnID:        a.request.TurnID,
+			Role:          "assistant",
+			Origin:        a.target.Identity.DriverID,
+			Timestamp:     time.Now().UnixMilli(),
+			Text:          a.text,
+			Model:         model,
+			Effort:        effort,
+			ResponseModel: e.ResponseModel,
+			DurationMs:    durationMs,
+			Usage:         cloneTurnUsage(e.Usage),
+			Trace:         traceOut,
+		})
 		if err != nil {
 			c.uncertainLocked(a, err.Error())
 			return err

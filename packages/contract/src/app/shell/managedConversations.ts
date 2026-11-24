@@ -26,6 +26,7 @@ export const TraceEntry = z.object({
   summary: z.string().optional(),
   status: z.string().optional(),
   detail: z.string().optional(),
+  output: z.string().optional(),
   at: z.number().int(),
 });
 export const FailedRequestInfo = z.object({
@@ -87,6 +88,8 @@ export const RuntimeState = z.object({
   ]),
   queued: z.number().int(),
   partial: z.string(),
+  thinking: z.string().optional(),
+  thinkingActive: z.boolean().optional(),
   detail: z.string(),
   approvals: z.array(z.string()),
   approvalDetails: z.array(ApprovalDetail).optional(),
@@ -152,6 +155,7 @@ export const managedConversationProcedures = {
       source: RuntimeSource.optional(),
       model: z.string().min(1).max(128).optional(),
       effort: z.string().min(1).max(64).optional(),
+      permissionMode: z.string().min(1).max(64).optional(),
       accountId: z.string().min(1).max(128).optional(),
     }),
     output: RuntimeState,
@@ -232,4 +236,15 @@ export const managedConversationProcedures = {
     dangerous: true,
   },
   'conversations.runtimeRelease': { kind: 'mutation', input: id, output: z.void(), surfaces: chat },
+  'conversations.runtimeUpdateMeta': {
+    kind: 'mutation',
+    input: id.extend({
+      name: z.string().min(1).max(200).optional(),
+      autoTitle: z.boolean().optional(),
+      pinnedAt: z.number().int().nonnegative().nullable().optional(),
+      archivedAt: z.number().int().nonnegative().nullable().optional(),
+    }),
+    output: z.void(),
+    surfaces: chat,
+  },
 } as const;

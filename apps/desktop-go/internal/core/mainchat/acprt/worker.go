@@ -15,12 +15,19 @@ import (
 	"github.com/google/uuid"
 )
 
+// CliTrap hooks spawned ACP subprocesses (nil disables tracing).
+var CliTrap func(child clisdk.ChildLike, command string, args []string, tabID string)
+
 type worker struct {
 	last                 *turn
 	notify               func(cr.Event) error
+	onTitle              func(string)
 	child                *nodeproc.Child
 	driver               *drivers.AcpDriver
 	sid, stderr, failure string
+	appliedModel         string
+	appliedEffort        string
+	effectiveModel       string
 	closed               chan struct{}
 	closeOnce            sync.Once
 	active               *turn
@@ -103,7 +110,7 @@ func (r *Runtime) spawn() *worker {
 	cfg := r.config
 	args := officialArgs(cfg)
 	env := officialEnv(cfg)
-	w := &worker{closed: make(chan struct{})}
+	w := &worker{closed: make(chan struct{}), onTitle: r.emitTitle}
 	w.child = nodeproc.Spawn(cfg.Executable, args, nodeproc.Options{Cwd: cfg.Cwd, Env: env, Detached: true})
 	w.child.OnStderr(func(chunk string) {
 		if len(w.stderr)+len(chunk) > 8192 {
@@ -113,8 +120,16 @@ func (r *Runtime) spawn() *worker {
 		w.stderr += chunk
 	})
 	w.child.OnClose(func(*int, string) { w.closeOnce.Do(func() { close(w.closed) }) })
+	child := clisdk.ProcChild{Child: w.child}
+	if CliTrap != nil {
+		tab := "managed:" + cfg.BackendID
+		if r.token.ConversationID != "" {
+			tab = "managed:" + r.token.ConversationID
+		}
+		CliTrap(child, cfg.Executable, args, tab)
+	}
 	w.driver = drivers.NewAcpDriver(drivers.AcpDriverOptions{
-		Child:              clisdk.ProcChild{Child: w.child},
+		Child:              child,
 		Kill:               func(clisdk.ChildLike) { killGroup(w.child.Pid) },
 		NewID:              func() string { return uuid.NewString() },
 		DisableElicitation: true,
@@ -181,10 +196,16 @@ func (w *worker) parsed(ev *util.Obj) {
 	if ev == nil || w.failure != "" {
 		return
 	}
-	t := w.active
 	typ := util.Str(ev.Get("type"))
+	if typ == "session-info" {
+		if title := strings.TrimSpace(util.Str(ev.Get("title"))); title != "" && w.onTitle != nil {
+			w.onTitle(title)
+		}
+		return
+	}
+	t := w.active
 	if t == nil {
-		if w.completed && typ != "" && typ != "context" && typ != "thinking" && typ != "done" {
+		if w.completed && typ != "" && typ != "context" && typ != "thinking" && typ != "done" && typ != "status" && typ != "session-info" {
 			w.fail("unsolicited native output after completion")
 		}
 		return
@@ -194,11 +215,35 @@ func (w *worker) parsed(ev *util.Obj) {
 	}
 	switch typ {
 	case "text", "text-delta":
+		prevLen := len(t.text)
 		t.text = clisdk.AppendText(t.text, ev)
 		if len(t.text) > 2<<20 {
 			w.fail("native assistant output exceeds limit")
+			return
 		}
+		if len(t.text) > prevLen {
+			t.pushStream(t.text[prevLen:], "", false)
+		}
+	case "thinking":
+		if th := util.Str(ev.Get("text")); th != "" {
+			t.pushStream("", th, true)
+		}
+	case "context":
+		if f, ok := asNonNegFloat(ev.Get("tokens")); ok {
+			v := int64(f)
+			t.ctxTokens = &v
+		}
+		if f, ok := asPosFloat(ev.Get("window")); ok {
+			v := int64(f)
+			t.ctxWindow = &v
+		}
+		if f, ok := asNonNegFloat(ev.Get("costUsd")); ok {
+			v := f
+			t.costUsd = &v
+		}
+	case "status", "session-info":
 	case "tool":
+		t.clearThinking()
 		id := util.Str(ev.Get("detail"))
 		name := util.Str(ev.Get("name"))
 		status := util.Str(ev.Get("status"))
@@ -213,12 +258,14 @@ func (w *worker) parsed(ev *util.Obj) {
 				Tool:    name,
 				Summary: name,
 				Detail:  util.Str(ev.Get("input")),
+				Output:  util.Str(ev.Get("output")),
 				Status:  status,
 				At:      time.Now().UnixMilli(),
 			}
 			w.queue(te)
 		}
 	case "done":
+		t.clearThinking()
 		t.terminal = true
 		if t.text == "" {
 			t.text = util.Str(ev.Get("text"))

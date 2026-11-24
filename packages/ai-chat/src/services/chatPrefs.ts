@@ -366,3 +366,114 @@ export function subscribeSmartTitle(fn: Listener): () => void {
   smartTitleSubs.add(fn);
   return () => void smartTitleSubs.delete(fn);
 }
+
+// ───── 新建 Nomi 对话时记住的上次默认底座与模型配置 ─────
+const MANAGED_DEFAULT_RUNTIME_KEY = 'ai-chat:managedDefaultRuntime';
+const MANAGED_SOURCES = new Set(['local', 'official', 'thirdParty']);
+
+export interface ManagedBackendDefaultPref {
+  source?: 'local' | 'official' | 'thirdParty';
+  model?: string;
+  effort?: string;
+  accountId?: string;
+  permissionMode?: string;
+}
+
+export interface ManagedDefaultRuntimePref {
+  backend: string;
+  perBackend?: Record<string, ManagedBackendDefaultPref>;
+}
+
+function sanitizeManagedBackendPref(raw: unknown): ManagedBackendDefaultPref | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const r = raw as Record<string, unknown>;
+  const out: ManagedBackendDefaultPref = {};
+  if (typeof r.source === 'string' && MANAGED_SOURCES.has(r.source)) {
+    out.source = r.source as ManagedBackendDefaultPref['source'];
+  }
+  if (typeof r.model === 'string') {
+    const model = r.model.trim();
+    if (model && model !== 'cli-default' && model !== 'chat-route') {
+      out.model = model;
+    }
+  }
+  if (typeof r.effort === 'string') {
+    const effort = r.effort.trim();
+    if (effort && effort !== 'default') {
+      out.effort = effort;
+    }
+  }
+  if (typeof r.accountId === 'string' && (!out.source || out.source === 'official')) {
+    const accountId = r.accountId.trim();
+    if (
+      accountId &&
+      accountId !== 'default' &&
+      accountId !== 'local' &&
+      accountId !== 'thirdParty' &&
+      !accountId.startsWith('config-source:')
+    ) {
+      out.accountId = accountId;
+    }
+  }
+  if (typeof r.permissionMode === 'string') {
+    const permissionMode = r.permissionMode.trim();
+    if (permissionMode && permissionMode !== 'bypass') {
+      out.permissionMode = permissionMode;
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+export function getManagedDefaultRuntime(): ManagedDefaultRuntimePref | null {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return null;
+    const raw = window.localStorage.getItem(MANAGED_DEFAULT_RUNTIME_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const obj = parsed as Record<string, unknown>;
+    const backend = typeof obj.backend === 'string' ? obj.backend.trim() : '';
+    if (!backend) return null;
+    const perBackend: Record<string, ManagedBackendDefaultPref> = {};
+    if (obj.perBackend && typeof obj.perBackend === 'object' && !Array.isArray(obj.perBackend)) {
+      for (const [k, v] of Object.entries(obj.perBackend as Record<string, unknown>)) {
+        const key = k.trim();
+        if (!key || key === 'api') continue;
+        const cleaned = sanitizeManagedBackendPref(v);
+        perBackend[key] = cleaned ?? {};
+      }
+    }
+    return Object.keys(perBackend).length > 0 ? { backend, perBackend } : { backend };
+  } catch {
+    return null;
+  }
+}
+
+export function saveManagedDefaultRuntime(input: {
+  backend: string;
+  source?: string;
+  model?: string;
+  effort?: string;
+  accountId?: string;
+  permissionMode?: string;
+}): void {
+  const backend = typeof input.backend === 'string' ? input.backend.trim() : '';
+  if (!backend) return;
+  const prev = getManagedDefaultRuntime();
+  const perBackend: Record<string, ManagedBackendDefaultPref> = { ...(prev?.perBackend ?? {}) };
+  if (backend !== 'api') {
+    const cleaned = sanitizeManagedBackendPref(input);
+    perBackend[backend] = cleaned ?? {};
+  }
+  const next: ManagedDefaultRuntimePref =
+    Object.keys(perBackend).length > 0 ? { backend, perBackend } : { backend };
+  write(MANAGED_DEFAULT_RUNTIME_KEY, JSON.stringify(next));
+}
+
+export function clearManagedDefaultRuntime(): void {
+  try {
+    window.localStorage?.removeItem(MANAGED_DEFAULT_RUNTIME_KEY);
+  } catch {
+    /* ignore */
+  }
+}
