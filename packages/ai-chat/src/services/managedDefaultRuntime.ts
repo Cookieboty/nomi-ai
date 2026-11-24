@@ -110,7 +110,9 @@ export async function applyManagedDefaultToConversation(
     if (!choice || !choice.available) {
       return false;
     }
-    const initPayload = buildManagedRuntimeInitFromPref(pref.perBackend?.[pref.backend], choice);
+    const initPayload = buildManagedRuntimeInitFromPref(pref.perBackend?.[pref.backend], choice, {
+      includePermissionMode: false,
+    });
     const hasInit = Object.keys(initPayload).length > 0;
 
     if (!managed) {

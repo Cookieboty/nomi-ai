@@ -130,13 +130,13 @@ describe('managed default runtime preference and new conversation adoption', () 
     expect(defaultManagedPermissionMode([])).toBeUndefined();
   });
 
-  it('auto-adopts new empty conversation with remembered backend, model, effort, source and permissionMode', async () => {
+  it('auto-adopts new empty conversation with remembered backend, model, effort and source while deferring permissionMode to default auto', async () => {
     saveManagedDefaultRuntime({
       backend: TEST_ACP_BACKEND,
       source: 'local',
       model: 'model-neon',
       effort: 'high',
-      permissionMode: 'acceptEdits',
+      permissionMode: 'ask',
     });
 
     const fake = installFakeApi((name, input) => {
@@ -154,7 +154,7 @@ describe('managed default runtime preference and new conversation adoption', () 
               login: 'unverified',
               requiresProject: true,
               degraded: [],
-              permissionModes: ['ask', 'acceptEdits'],
+              permissionModes: ['deny', 'ask', 'acceptEdits', 'auto', 'bypass'],
             },
           ],
         };
@@ -185,7 +185,6 @@ describe('managed default runtime preference and new conversation adoption', () 
         source: 'local',
         model: 'model-neon',
         effort: 'high',
-        permissionMode: 'acceptEdits',
       },
     ]);
   });

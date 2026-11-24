@@ -3,7 +3,10 @@ import { appContract } from '@nomi-ai/contract/app';
 import { createTestClient } from '@nomi-ai/contract/testing';
 import { afterEach, expect, it, vi } from 'vitest';
 
-import { sendManagedConversation } from '../src/services/managedMainChat';
+import {
+  rewindManagedConversation,
+  sendManagedConversation,
+} from '../src/services/managedMainChat';
 
 const base = {
   id: 'c',
@@ -273,5 +276,206 @@ it('uses caller-supplied messageId without marking the turn as a retry', async (
     expect(sent.retry).toBeUndefined();
   } finally {
     f.client.close();
+  }
+});
+
+it('auto-abandons non-unknown uncertain state on failure while rejecting with concrete detail', async () => {
+  const calls = { resolve: vi.fn(), send: vi.fn() };
+  let state: Record<string, unknown> = { ...base };
+  const client: ReturnType<typeof createTestClient<typeof appContract>> = createTestClient(
+    appContract,
+    {
+      'conversations.runtimeState': () => state,
+      'conversations.messages': () => ({ messages, bytes: 1 }),
+      'conversations.runtimeSend': (input: unknown) => {
+        calls.send(input);
+        state = {
+          ...base,
+          generation: 5,
+          phase: 'uncertain',
+          recovery: 'new',
+          detail: 'upstream quota exceeded',
+          token,
+        };
+        client.router.events.publish('conversations.runtimeChanged', state as never);
+        return token;
+      },
+      'conversations.runtimeResolve': (input: unknown) => {
+        calls.resolve(input);
+        state = { ...base, generation: 6, phase: 'idle', recovery: 'none', detail: '' };
+        client.router.events.publish('conversations.runtimeChanged', state as never);
+        return state;
+      },
+      'conversations.runtimeCancel': () => state,
+    } as never,
+    { caller: { surface: 'chat', trusted: true } },
+  );
+  try {
+    await expect(sendManagedConversation(client.api, 'c', 'once', vi.fn())).rejects.toThrow(
+      'upstream quota exceeded',
+    );
+    expect(calls.resolve).toHaveBeenCalledExactlyOnceWith({
+      id: 'c',
+      decision: 'abandon',
+      confirm: true,
+      expectedGeneration: 5,
+    });
+  } finally {
+    client.close();
+  }
+});
+
+it('auto-abandons stale non-unknown uncertain state before sending and never auto-abandons unknown recovery', async () => {
+  const calls = { resolve: vi.fn(), send: vi.fn() };
+  let state: Record<string, unknown> = {
+    ...base,
+    generation: 4,
+    phase: 'uncertain',
+    recovery: 'error',
+    detail: 'previous failure',
+  };
+  const nextToken = { conversationId: 'c', attemptId: 'attempt-6', generation: 6 };
+  const client: ReturnType<typeof createTestClient<typeof appContract>> = createTestClient(
+    appContract,
+    {
+      'conversations.runtimeState': () => state,
+      'conversations.messages': () => ({ messages, bytes: 1 }),
+      'conversations.runtimeResolve': (input: unknown) => {
+        calls.resolve(input);
+        state = { ...base, generation: 5, phase: 'idle', recovery: 'none', detail: '' };
+        return state;
+      },
+      'conversations.runtimeSend': (input: unknown) => {
+        calls.send(input);
+        state = {
+          ...base,
+          generation: 6,
+          phase: 'completed',
+          recovery: 'new',
+          token: nextToken,
+        };
+        client.router.events.publish('conversations.runtimeChanged', state as never);
+        return nextToken;
+      },
+      'conversations.runtimeCancel': () => state,
+    } as never,
+    { caller: { surface: 'chat', trusted: true } },
+  );
+  try {
+    await sendManagedConversation(client.api, 'c', 'next turn', vi.fn());
+    expect(calls.resolve).toHaveBeenCalledExactlyOnceWith({
+      id: 'c',
+      decision: 'abandon',
+      confirm: true,
+      expectedGeneration: 4,
+    });
+    expect(calls.send).toHaveBeenCalledWith(expect.objectContaining({ expectedGeneration: 5 }));
+
+    calls.resolve.mockClear();
+    calls.send.mockClear();
+    state = {
+      ...base,
+      generation: 7,
+      phase: 'uncertain',
+      recovery: 'unknown',
+      detail: 'cold resume unproven',
+    };
+    const nextToken8 = { conversationId: 'c', attemptId: 'attempt-8', generation: 8 };
+    // Even if runtimeState is uncertain/unknown before send, sendManagedConversation must NOT abandon it.
+    let sentGen: unknown;
+    const client2: ReturnType<typeof createTestClient<typeof appContract>> = createTestClient(
+      appContract,
+      {
+        'conversations.runtimeState': () => state,
+        'conversations.messages': () => ({ messages, bytes: 1 }),
+        'conversations.runtimeResolve': (input: unknown) => {
+          calls.resolve(input);
+          return state;
+        },
+        'conversations.runtimeSend': (input: { expectedGeneration: number }) => {
+          sentGen = input.expectedGeneration;
+          state = {
+            ...base,
+            generation: 8,
+            phase: 'completed',
+            recovery: 'new',
+            token: nextToken8,
+          };
+          client2.router.events.publish('conversations.runtimeChanged', state as never);
+          return nextToken8;
+        },
+        'conversations.runtimeCancel': () => state,
+      } as never,
+      { caller: { surface: 'chat', trusted: true } },
+    );
+    try {
+      await sendManagedConversation(client2.api, 'c', 'blocked', vi.fn());
+      expect(calls.resolve).not.toHaveBeenCalled();
+      expect(sentGen).toBe(7);
+    } finally {
+      client2.close();
+    }
+  } finally {
+    client.close();
+  }
+});
+
+it('rewindManagedConversation auto-abandons non-unknown uncertain state before rewinding and returns projected messages', async () => {
+  const calls = { resolve: vi.fn(), rewind: vi.fn(), messages: vi.fn() };
+  let state: Record<string, unknown> = {
+    ...base,
+    generation: 4,
+    phase: 'uncertain',
+    recovery: 'error',
+    detail: 'command_lifecycle error',
+  };
+  let projected = [
+    { id: 'm1', role: 'user', content: 'first', timestamp: 1 },
+    { id: 'a1', role: 'assistant', content: 'first reply', timestamp: 2 },
+    { id: 'm2', role: 'user', content: '翻译成韩文', timestamp: 3 },
+  ];
+  const client: ReturnType<typeof createTestClient<typeof appContract>> = createTestClient(
+    appContract,
+    {
+      'conversations.runtimeState': () => state,
+      'conversations.runtimeResolve': (input: unknown) => {
+        calls.resolve(input);
+        state = { ...base, generation: 5, phase: 'idle', recovery: 'none', detail: '' };
+        return state;
+      },
+      'conversations.runtimeRewind': (input: {
+        messageId: string;
+        expectedGeneration?: number;
+      }) => {
+        calls.rewind(input);
+        const cut = projected.findIndex((m) => m.id === input.messageId);
+        if (cut >= 0) projected = projected.slice(0, cut);
+        state = { ...base, generation: 6, phase: 'idle', recovery: 'none', detail: '' };
+        return state;
+      },
+      'conversations.messages': () => {
+        calls.messages();
+        return { messages: projected, bytes: 1 };
+      },
+    } as never,
+    { caller: { surface: 'chat', trusted: true } },
+  );
+  try {
+    const kept = await rewindManagedConversation(client.api, 'c', 'm2');
+    expect(calls.resolve).toHaveBeenCalledExactlyOnceWith({
+      id: 'c',
+      decision: 'abandon',
+      confirm: true,
+      expectedGeneration: 4,
+    });
+    expect(calls.rewind).toHaveBeenCalledExactlyOnceWith({
+      id: 'c',
+      messageId: 'm2',
+      expectedGeneration: 5,
+    });
+    expect(calls.messages).toHaveBeenCalledTimes(1);
+    expect(kept.map((m) => m.id)).toEqual(['m1', 'a1']);
+  } finally {
+    client.close();
   }
 });

@@ -214,23 +214,25 @@ it('renders approval metadata, recovery actions, and dismissible error without r
     />,
   );
   expect(screen.queryByTestId('managed-runtime-retry')).toBeNull();
+  expect(screen.queryByTestId('managed-runtime-abandon')).toBeNull();
   expect(screen.getByTestId('managed-runtime-error').textContent).toBe('failed before send');
   fireEvent.click(screen.getByTestId('managed-runtime-error-dismiss'));
   expect(onDismissError).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByTestId('managed-runtime-rollback-switch'));
   expect(onResolve).toHaveBeenCalledWith('rollback-switch');
 
+  // 普通运行失败进入 uncertain 且无 pendingSwitch 时，彻底不渲染「放弃本次请求」区块
   rerender(
     <ManagedRuntimePanel
       view={{
         supported: true,
         managed: true,
-        backend: 'api',
+        backend: 'claude',
         phase: 'uncertain',
-        recovery: 'error',
+        recovery: 'new',
         generation: 12,
         detail: 'abandoned state',
-        choices: [choice('api', 'requires-provider', true)],
+        choices: [choice('claude', 'ready', true)],
         busy: false,
         failedRequest: { messageId: 'm-9', turnId: 't-9', text: 'retry this' },
       }}
@@ -238,9 +240,10 @@ it('renders approval metadata, recovery actions, and dismissible error without r
       onApprove={onApprove}
     />,
   );
+  expect(screen.queryByTestId('managed-runtime-dock')).toBeNull();
+  expect(screen.queryByTestId('managed-recovery-banner')).toBeNull();
   expect(screen.queryByTestId('managed-runtime-retry')).toBeNull();
-  fireEvent.click(screen.getByTestId('managed-runtime-abandon'));
-  expect(onResolve).toHaveBeenCalledWith('abandon');
+  expect(screen.queryByTestId('managed-runtime-abandon')).toBeNull();
 });
 
 it('resolves display names for all builtin CLIs', () => {

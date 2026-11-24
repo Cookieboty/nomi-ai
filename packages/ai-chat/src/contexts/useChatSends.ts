@@ -94,6 +94,7 @@ interface ManagedSendParams {
   content: string;
   images?: ImageAttachment[];
   encodedImages?: string[];
+  baseMessagesOverride?: ChatMessage[];
   stateRef: MutableRefObject<AiChatState>;
   dispatch: Dispatch<AiChatAction>;
   inflight: MutableRefObject<Map<string, InflightTurn>>;
@@ -112,6 +113,7 @@ async function runManagedSend({
   content,
   images,
   encodedImages,
+  baseMessagesOverride,
   stateRef,
   dispatch,
   inflight,
@@ -138,11 +140,14 @@ async function runManagedSend({
     ...(optimisticImages?.length ? { images: optimisticImages } : {}),
   };
   const cachedMessages = client.conversationStore?.()?.getMessages?.(turn.convoId);
-  const baseMessages: ChatMessage[] = turn.isActive()
-    ? stateRef.current.messages
-    : Array.isArray(cachedMessages)
-      ? cachedMessages
-      : [];
+  const baseMessages: ChatMessage[] =
+    baseMessagesOverride !== undefined
+      ? baseMessagesOverride
+      : turn.isActive()
+        ? stateRef.current.messages
+        : Array.isArray(cachedMessages)
+          ? cachedMessages
+          : [];
 
   inflight.current.set(turnKey, {
     reqId,
@@ -1071,18 +1076,90 @@ function useStreamSend({
     [stateRef, dispatch],
   );
 
-  return { sendStreamMessage, handoffCurrentToBackground, sendAsBackgroundTask };
+  const resendManagedMessage = useCallback(
+    async (userMessageId: string, content: string) => {
+      const s = stateRef.current;
+      const client = s.ipcClient;
+      const turn = openTurn(client);
+      if (!turn.convoId || !client.isManagedConversation?.(turn.convoId)) return;
+      const reqId = newReqId();
+      const controller = new AbortController();
+      let owned = false;
+      let outcome: ConvoOutcome = 'done';
+      stopReplySpeech();
+      try {
+        dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
+        dispatch({ type: 'SET_ERROR', payload: undefined });
+        if (
+          typeof client.rewindManagedConversation !== 'function' ||
+          typeof client.sendManagedConversation !== 'function'
+        ) {
+          throw new Error(t('ui.chat-settings.managed-ingress'));
+        }
+        activeStream.current.set(convoKey(turn.convoId), {
+          reqId,
+          convoId: turn.convoId,
+          controller,
+        });
+        owned = true;
+        dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
+        const rewound = await client.rewindManagedConversation(turn.convoId, userMessageId);
+        if (turn.isActive()) {
+          dispatch({ type: 'SET_MESSAGES', payload: rewound, convoId: turn.convoId });
+        }
+        if (controller.signal.aborted) {
+          outcome = 'stopped';
+          return;
+        }
+        await runManagedSend({
+          client,
+          turn: { ...turn, convoId: turn.convoId },
+          reqId,
+          content,
+          baseMessagesOverride: rewound,
+          stateRef,
+          dispatch,
+          inflight,
+          signal: controller.signal,
+        });
+      } catch (error) {
+        outcome = controller.signal.aborted || isAbortError(error) ? 'stopped' : 'error';
+        dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
+      } finally {
+        if (controller.signal.aborted && outcome === 'done') outcome = 'stopped';
+        const key = convoKey(turn.convoId);
+        if (owned && activeStream.current.get(key)?.reqId === reqId)
+          activeStream.current.delete(key);
+        if (inflight.current.get(key)?.reqId === reqId) inflight.current.delete(key);
+        dispatch({ type: 'SET_STREAMING', payload: false, convoId: turn.convoId });
+        dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId, outcome });
+      }
+    },
+    [stateRef, dispatch, activeStream, inflight],
+  );
+
+  return {
+    sendStreamMessage,
+    resendManagedMessage,
+    handoffCurrentToBackground,
+    sendAsBackgroundTask,
+  };
 }
 
 /** 发送相关的全部动作 */
 export function useChatSends(options: SendsOptions) {
   const { sendMessage, askKnowledge } = usePlainSends(options);
-  const { sendStreamMessage, handoffCurrentToBackground, sendAsBackgroundTask } =
-    useStreamSend(options);
+  const {
+    sendStreamMessage,
+    resendManagedMessage,
+    handoffCurrentToBackground,
+    sendAsBackgroundTask,
+  } = useStreamSend(options);
   return {
     sendMessage,
     askKnowledge,
     sendStreamMessage,
+    resendManagedMessage,
     handoffCurrentToBackground,
     sendAsBackgroundTask,
   };

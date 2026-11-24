@@ -27,16 +27,12 @@ export const backendName = (id: string): string => {
 
 function hasRecoveryBanner(view: ManagedRuntimeView): boolean {
   if (!view.managed) return false;
-  return Boolean(
-    view.pendingSwitch ||
-    view.phase === 'uncertain' ||
-    (view.phase === 'canceled' && view.recovery === 'unknown'),
-  );
+  return Boolean(view.pendingSwitch || (view.phase === 'uncertain' && view.recovery === 'unknown'));
 }
 
 export const ManagedRuntimePanel: React.FC<{
   view: ManagedRuntimeView;
-  onResolve: (decision?: 'new-native' | 'rollback-switch' | 'abandon') => void;
+  onResolve: (decision?: 'new-native' | 'rollback-switch') => void;
   onApprove?: (approvalId: string, allow: boolean) => void;
   onDismissError?: () => void;
 }> = ({ view, onResolve, onApprove, onDismissError }) => {

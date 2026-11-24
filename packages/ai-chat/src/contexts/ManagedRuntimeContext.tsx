@@ -21,7 +21,7 @@ import { api, hasTransport } from '../services/api';
 import { getManagedDefaultRuntime, saveManagedDefaultRuntime } from '../services/chatPrefs';
 import { CONVERSATIONS_CHANGED_EVENT, type ConversationStore } from '../services/conversationStore';
 import { buildManagedRuntimeInitFromPref } from '../services/managedDefaultRuntime';
-import { formatManagedRuntimeError } from '../services/managedMainChat';
+import { formatManagedRuntimeError, isAutoAbandonableState } from '../services/managedMainChat';
 
 import { selectIpcClient, selectMessageCount, useAiChatSelector } from './aiChatStore';
 
@@ -241,8 +241,11 @@ export const ManagedRuntimeProvider: React.FC<{
   const activeBackend = view?.managed && view.backend ? view.backend : 'api';
   const isManagedActive = Boolean(view?.managed && view.backend);
   const isCliBackend = Boolean(view?.managed && view.backend && view.backend !== 'api');
+  const autoAbandonable = Boolean(view?.managed && isAutoAbandonableState(view));
   const idle = Boolean(
-    view && !view.busy && !view.pendingSwitch && (!view.managed || IDLE_PHASES.has(view.phase)),
+    view &&
+    !view.pendingSwitch &&
+    (!view.managed || (!view.busy && IDLE_PHASES.has(view.phase)) || autoAbandonable),
   );
 
   const act = useCallback(
@@ -341,13 +344,23 @@ export const ManagedRuntimeProvider: React.FC<{
         return ok;
       }
       return act(async () => {
+        let expectedGeneration = view.generation;
+        if (autoAbandonable && typeof api.conversations.runtimeResolve === 'function') {
+          const cleared = await api.conversations.runtimeResolve({
+            id: targetId,
+            decision: 'abandon',
+            confirm: true,
+            expectedGeneration,
+          });
+          expectedGeneration = cleared.generation;
+        }
         let state;
         try {
           state = await api.conversations.runtimeSwitch({
             id: targetId,
             backend,
             confirm: true,
-            expectedGeneration: view.generation,
+            expectedGeneration,
             ...initPayload,
           });
         } catch (err) {
@@ -356,13 +369,13 @@ export const ManagedRuntimeProvider: React.FC<{
             id: targetId,
             backend,
             confirm: true,
-            expectedGeneration: view.generation,
+            expectedGeneration,
           });
         }
         rememberManagedState(state);
       });
     },
-    [view, activeBackend, idle, ensurePersistedTarget, ipc, act],
+    [view, activeBackend, idle, autoAbandonable, ensurePersistedTarget, ipc, act],
   );
 
   const updateConfig = useCallback(
@@ -378,12 +391,22 @@ export const ManagedRuntimeProvider: React.FC<{
         confirmUnsafe = true;
       }
       return act(async () => {
+        let expectedGeneration = view.generation;
+        if (autoAbandonable && typeof api.conversations.runtimeResolve === 'function') {
+          const cleared = await api.conversations.runtimeResolve({
+            id: conversationId,
+            decision: 'abandon',
+            confirm: true,
+            expectedGeneration,
+          });
+          expectedGeneration = cleared.generation;
+        }
         const state = await api.conversations.runtimeSwitch({
           id: conversationId,
           backend: view.backend,
           confirm: true,
           confirmUnsafe,
-          expectedGeneration: view.generation,
+          expectedGeneration,
           ...(patch.source ? { source: patch.source } : {}),
           ...(patch.model ? { model: patch.model } : {}),
           ...(patch.accountId ? { accountId: patch.accountId } : {}),
@@ -393,7 +416,7 @@ export const ManagedRuntimeProvider: React.FC<{
         rememberManagedState(state);
       });
     },
-    [view, conversationId, idle, act],
+    [view, conversationId, idle, autoAbandonable, act],
   );
 
   const bindProjectAndAdopt = useCallback(

@@ -34,6 +34,7 @@ export interface StreamSendOptions {
 
 export interface IPCClient {
   isManagedConversation?(id: string): boolean;
+  rewindManagedConversation?(id: string, messageId: string): Promise<ChatMessage[]>;
   sendManagedConversation?(
     id: string,
     text: string,

@@ -114,6 +114,9 @@ function setupBackendApi(opts?: {
   initialSource?: 'local' | 'official' | 'thirdParty';
   initialModel?: string;
   initialAccountId?: string;
+  initialPhase?: string;
+  initialRecovery?: string;
+  initialDetail?: string;
   choices?: Array<Record<string, unknown>>;
   cliAccounts?: Array<Record<string, unknown>>;
   catalogResolver?: (input?: {
@@ -158,12 +161,12 @@ function setupBackendApi(opts?: {
     backend: initialB,
     source: opts?.initialSource,
     generation: 1,
-    phase: 'idle',
+    phase: opts?.initialPhase ?? 'idle',
     queued: 0,
     partial: '',
-    detail: '',
+    detail: opts?.initialDetail ?? '',
     approvals: [],
-    recovery: 'none',
+    recovery: opts?.initialRecovery ?? 'none',
     model: opts?.initialModel ?? 'cli-default',
     accountId: opts?.initialAccountId,
     permissionMode: 'ask',
@@ -203,7 +206,7 @@ function setupBackendApi(opts?: {
         { id: 'cli-default', label: 'CLI Default' },
         { id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
       ],
-      permissionModes: ['ask'],
+      permissionModes: ['deny', 'ask', 'acceptEdits', 'auto', 'bypass'],
       bridges,
     },
     {
@@ -215,7 +218,7 @@ function setupBackendApi(opts?: {
       requiresProject: true,
       degraded: [],
       models: [{ id: 'cli-default', label: 'CLI Default' }],
-      permissionModes: ['ask'],
+      permissionModes: ['deny', 'ask', 'acceptEdits', 'bypass'],
       bridges,
     },
     {
@@ -227,7 +230,7 @@ function setupBackendApi(opts?: {
       requiresProject: true,
       degraded: [],
       models: [{ id: 'cli-default', label: 'CLI Default' }],
-      permissionModes: ['ask'],
+      permissionModes: ['deny', 'ask', 'acceptEdits', 'auto'],
       bridges,
     },
     {
@@ -238,6 +241,7 @@ function setupBackendApi(opts?: {
       login: 'not-advertised',
       requiresProject: true,
       degraded: [],
+      permissionModes: ['deny', 'ask', 'acceptEdits', 'auto', 'bypass'],
     },
   ];
   const defaultModeFor = (backendId: string): string => {
@@ -314,6 +318,16 @@ function setupBackendApi(opts?: {
         backend: b,
         ...cfg,
         permissionMode: (input.permissionMode as string | undefined) ?? defaultModeFor(b),
+        generation: runtimeState.generation + 1,
+      };
+      return runtimeState;
+    }
+    if (name === 'conversations.runtimeResolve') {
+      runtimeState = {
+        ...runtimeState,
+        phase: 'idle',
+        recovery: 'none',
+        detail: '',
         generation: runtimeState.generation + 1,
       };
       return runtimeState;
@@ -443,15 +457,26 @@ describe('Composer runtime switching (scheme 1)', () => {
       });
     });
 
-    // 切到 Claude Code 本机默认（无具体模型）后：胶囊只展示底座图标且无竖线分隔；左下角权限同步为每次确认
+    // 切到 Claude Code 本机默认（无具体模型）后：胶囊只展示底座图标且无竖线分隔；左下角权限默认自动档并展示完整 5 项
     await waitFor(() => {
       const chip = screen.getByTestId('nomi-model-chip');
       expect(chip.textContent).toContain('Claude Code');
       expect(chip.textContent).not.toContain('CLI Default');
       expect(chip.firstElementChild?.getAttribute('data-testid')).toBe('endpoint-icon-claude');
       expect(chip.querySelector('[data-testid="nomi-model-chip-sep"]')).toBeNull();
-      expect(screen.getByTestId('permission-mode-chip').getAttribute('data-mode')).toBe('manual');
+      expect(screen.getByTestId('permission-mode-chip').getAttribute('data-mode')).toBe('auto');
     });
+    fireEvent.click(screen.getByTestId('permission-mode-chip'));
+    for (const id of [
+      'permission-mode-plan',
+      'permission-mode-manual',
+      'permission-mode-acceptEdits',
+      'permission-mode-auto',
+      'permission-mode-bypass',
+    ]) {
+      expect(screen.getByTestId(id)).toBeTruthy();
+    }
+    fireEvent.click(screen.getByTestId('permission-mode-chip'));
 
     // 浮层内模型行在未选具体模型时不展示底座图标，底座行仍在最下方
     const cliModelRow = await waitFor(() => screen.getByTestId('nomi-model-open'));
@@ -1282,5 +1307,128 @@ describe('Composer runtime switching (scheme 1)', () => {
       });
       expect(screen.getByTestId('permission-mode-chip').getAttribute('data-mode')).toBe('auto');
     });
+  });
+
+  it('hides abandon banner on uncertain failure and auto-abandons before switching backend', async () => {
+    const apiFake = setupBackendApi({
+      initialManaged: true,
+      initialBackend: 'claude',
+      initialSource: 'thirdParty',
+      initialModel: 'maas/deepseek-v4.1-flash',
+      initialPhase: 'uncertain',
+      initialRecovery: 'new',
+      initialDetail: 'native error',
+    });
+
+    mountComposer();
+
+    await waitFor(() => expect(screen.getByTestId('nomi-model-chip')).toBeTruthy());
+    expect(screen.queryByTestId('managed-runtime-dock')).toBeNull();
+    expect(screen.queryByTestId('managed-recovery-banner')).toBeNull();
+    expect(screen.queryByTestId('managed-runtime-abandon')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('nomi-model-chip'));
+    fireEvent.click(await waitFor(() => screen.getByTestId('nomi-model-runtime-open')));
+    fireEvent.click(await waitFor(() => screen.getByTestId('runtime-option-api')));
+
+    await waitFor(() => {
+      expect(apiFake.inputs('conversations.runtimeResolve')).toEqual([
+        {
+          id: 'c1',
+          decision: 'abandon',
+          confirm: true,
+          expectedGeneration: 1,
+        },
+      ]);
+      expect(apiFake.inputs('conversations.runtimeSwitch')).toEqual([
+        {
+          id: 'c1',
+          backend: 'api',
+          confirm: true,
+          expectedGeneration: 2,
+        },
+      ]);
+    });
+  });
+
+  it('defaults to auto and exposes all 5 permission options when switching between claude and codex', async () => {
+    setupBackendApi({
+      initialManaged: false,
+      choices: [
+        {
+          id: 'api',
+          available: true,
+          status: 'requires-provider',
+          detail: '',
+          login: 'not-applicable',
+          requiresProject: false,
+          degraded: [],
+          models: [{ id: 'chat-route', label: 'Gateway Default' }],
+          permissionModes: ['deny', 'ask', 'acceptEdits', 'auto', 'bypass'],
+          bridges,
+        },
+        {
+          id: 'claude',
+          available: true,
+          status: 'ready',
+          detail: '',
+          login: 'unverified',
+          requiresProject: true,
+          degraded: [],
+          models: [{ id: 'cli-default', label: 'CLI Default' }],
+          permissionModes: ['deny', 'ask', 'acceptEdits', 'auto', 'bypass'],
+          bridges,
+        },
+        {
+          id: 'codex',
+          available: true,
+          status: 'ready',
+          detail: '',
+          login: 'unverified',
+          requiresProject: true,
+          degraded: [],
+          models: [{ id: 'cli-default', label: 'CLI Default' }],
+          permissionModes: ['deny', 'ask', 'acceptEdits', 'auto', 'bypass'],
+          bridges,
+        },
+      ],
+    });
+    mountComposer();
+
+    // 切换到 Claude Code：默认选中 auto 且菜单列出全部 5 项
+    fireEvent.click(await waitFor(() => screen.getByTestId('nomi-model-chip')));
+    fireEvent.click(await waitFor(() => screen.getByTestId('nomi-model-runtime-open')));
+    fireEvent.click(await waitFor(() => screen.getByTestId('runtime-option-claude')));
+    await waitFor(() => {
+      expect(screen.getByTestId('permission-mode-chip').getAttribute('data-mode')).toBe('auto');
+    });
+    fireEvent.click(screen.getByTestId('permission-mode-chip'));
+    for (const id of [
+      'permission-mode-plan',
+      'permission-mode-manual',
+      'permission-mode-acceptEdits',
+      'permission-mode-auto',
+      'permission-mode-bypass',
+    ]) {
+      expect(screen.getByTestId(id)).toBeTruthy();
+    }
+
+    // 再切换到 Codex：同样默认选中 auto 且菜单列出全部 5 项
+    fireEvent.click(screen.getByTestId('permission-mode-chip'));
+    fireEvent.click(await waitFor(() => screen.getByTestId('nomi-model-runtime-open')));
+    fireEvent.click(await waitFor(() => screen.getByTestId('runtime-option-codex')));
+    await waitFor(() => {
+      expect(screen.getByTestId('permission-mode-chip').getAttribute('data-mode')).toBe('auto');
+    });
+    fireEvent.click(screen.getByTestId('permission-mode-chip'));
+    for (const id of [
+      'permission-mode-plan',
+      'permission-mode-manual',
+      'permission-mode-acceptEdits',
+      'permission-mode-auto',
+      'permission-mode-bypass',
+    ]) {
+      expect(screen.getByTestId(id)).toBeTruthy();
+    }
   });
 });

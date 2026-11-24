@@ -26,6 +26,23 @@ export function formatManagedRuntimeError(err: unknown): string {
   return msg;
 }
 
+export function isAutoAbandonableState(
+  state:
+    | {
+        phase?: string;
+        recovery?: string;
+        pendingSwitch?: unknown;
+      }
+    | null
+    | undefined,
+): boolean {
+  if (!state || state.pendingSwitch) return false;
+  return (
+    (state.phase === 'uncertain' && state.recovery !== 'unknown') ||
+    (state.phase === 'canceled' && state.recovery === 'unknown')
+  );
+}
+
 function buildDraftTrace(state: ManagedRuntimeState): HarnessTraceEvent[] | undefined {
   const out: HarnessTraceEvent[] = [];
   if (state.thinking) {
@@ -68,7 +85,15 @@ export async function sendManagedConversation(
   signal?: AbortSignal,
   options?: ManagedSendOptions,
 ): Promise<void> {
-  const initial = await api.conversations.runtimeState({ id });
+  let initial = await api.conversations.runtimeState({ id });
+  if (isAutoAbandonableState(initial) && typeof api.conversations.runtimeResolve === 'function') {
+    initial = await api.conversations.runtimeResolve({
+      id,
+      decision: 'abandon',
+      confirm: true,
+      expectedGeneration: initial.generation,
+    });
+  }
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
   const messageId = options?.retry?.messageId ?? options?.messageId ?? createManagedMessageId();
   const turnId = options?.retry?.turnId ?? options?.turnId ?? `turn_${messageId}`;
@@ -151,7 +176,18 @@ export async function sendManagedConversation(
       resolve();
     } else if (state.phase === 'uncertain' || state.phase === 'failed-pre-submit') {
       settled = true;
-      reject(new Error(state.detail || state.phase));
+      const detail = state.detail || state.phase;
+      if (isAutoAbandonableState(state) && typeof api.conversations.runtimeResolve === 'function') {
+        await api.conversations
+          .runtimeResolve({
+            id,
+            decision: 'abandon',
+            confirm: true,
+            expectedGeneration: state.generation,
+          })
+          .catch(() => undefined);
+      }
+      reject(new Error(detail));
     }
   };
   const update = (state: ManagedRuntimeState): void => {
@@ -196,6 +232,29 @@ export async function sendManagedConversation(
     signal?.removeEventListener('abort', cancel);
     off();
   }
+}
+
+export async function rewindManagedConversation(
+  api: Port,
+  id: string,
+  messageId: string,
+): Promise<ChatMessage[]> {
+  let initial = await api.conversations.runtimeState({ id });
+  if (isAutoAbandonableState(initial) && typeof api.conversations.runtimeResolve === 'function') {
+    initial = await api.conversations.runtimeResolve({
+      id,
+      decision: 'abandon',
+      confirm: true,
+      expectedGeneration: initial.generation,
+    });
+  }
+  await api.conversations.runtimeRewind({
+    id,
+    messageId,
+    expectedGeneration: initial.generation,
+  });
+  const result = await api.conversations.messages({ id });
+  return result.messages as unknown as ChatMessage[];
 }
 
 export async function switchManagedRuntime(
