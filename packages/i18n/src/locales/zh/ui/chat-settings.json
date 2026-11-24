@@ -257,7 +257,6 @@
   "ui.chat-settings.nomi-auto-approve-confirm-body": "Nomi 会直接读写对话工作区里的文件，不再逐项确认。只在你信任的文件夹里这样用。",
   "ui.chat-settings.nomi-auto-approve-confirm-title": "让 Nomi 在工作区里改文件不再问你？",
   "ui.chat-settings.nomi-can-hand-specific-coding-writing-review-and": "Nomi 可以把具体的开发、文档、审查、调研任务交给本机的 agent 去做，做完把结果带回对话；委派默认按该 agent 支持的最高权限档（通常为完全放开）运行并受宿主保护约束。对话里用 /agent 名字 可以临时指定交给谁。",
-  "ui.chat-settings.cli-processes-still-use-account": "还有 {0} 个 Nomi 之外的 CLI 进程在用这个账号（进程号 {1}），请先在终端里退出它们",
   "ui.chat-settings.stop-processes-range-changed": "确认之后，在用这个账号的 CLI 进程发生了变化（现在是进程号 {1}）。这些进程都没有被结束，请重新确认。",
   "ui.chat-settings.nomi-could-not-confirm-whether-a-cli-is": "无法确认是否还有 CLI 在用这个账号。请先在终端退出相关 CLI。确认没有进程占用后，仍要强制删除「{0}」吗？",
   "ui.chat-settings.nomi-handoff-help": "允许 Nomi 把开发、文档、审查、调研任务交给 agent，以及每类任务默认交给谁。",

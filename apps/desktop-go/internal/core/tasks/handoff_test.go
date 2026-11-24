@@ -113,7 +113,7 @@ func (h *handoffHarness) runnableQuery(t *testing.T) *Service {
 		return nil
 	}
 	deps.Ready = func() bool { return true }
-	deps.onExit = func(taskID string, gen int) { h.svc.Runtime.ExecutorExited(taskID, gen) }
+	deps.OnExit = func(taskID string, gen int) { h.svc.Runtime.ExecutorExited(taskID, gen) }
 	exec := NewNomiExecutor(deps)
 	h.svc.RegisterExecutor("nomi", exec)
 	h.svc.Start()

@@ -172,8 +172,8 @@ type NomiDeps struct {
 	Live func(taskID, attemptID string, ev map[string]any)
 	// Log：转后台带过来的原图首轮读不回来时记一条（#414）；可为空
 	Log Logger
-	// onExit：这次执行的协程要退出了（运行时据此知道之后的回报都不会再来）；服务里接上 Runtime.executorExited
-	onExit func(taskID string, gen int)
+	// OnExit：这次执行的协程要退出了（运行时据此知道之后的回报都不会再来）；服务里接上 Runtime.ExecutorExited
+	OnExit func(taskID string, gen int)
 }
 
 // DefaultApprovalTimeout：后台任务等人批准的默认上限（无人值守不永久卡在「等你批准」）
@@ -529,9 +529,9 @@ func (e *nomiExecutor) launchLocked(run *nomiRun) {
 }
 
 func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string) {
-	if e.d.onExit != nil {
+	if e.d.OnExit != nil {
 		// 这次执行的协程退出了：被停下之后迟到的落盘 / 回报到这里为止，运行时可以收拾了
-		defer e.d.onExit(run.ctx.Task.ID, run.gen)
+		defer e.d.OnExit(run.ctx.Task.ID, run.gen)
 	}
 	t, a, rep := run.ctx.Task, run.ctx.Attempt, run.ctx.Report
 	var text strings.Builder
