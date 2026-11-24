@@ -331,6 +331,8 @@ type attemptT struct {
 	retryAfter     *string
 	outcome        string // "" = undefined
 	errorKind      string // "" = undefined
+	// noSameKeyRetry：错误正文卡住 / 读失败（#427），按已知状态换供应商，不在同一 Key 上退避重连。
+	noSameKeyRetry bool
 }
 
 // responded is Responded.
@@ -724,6 +726,90 @@ func jsDecodeAll(c Chunks) (string, error) {
 	}
 	sb.WriteString(d.Flush())
 	return sb.String(), nil
+}
+
+// 上游报错后的正文只用来做诊断（错误消息、学习启发）：给的预算要小，超了就按已知状态
+// 与剩余回退预算决定是否换供应商，不能让它把后备供应商的机会吃掉（#427）。
+const (
+	// ErrorBodyMaxBytes 是读取诊断正文的上限；超出部分丢弃并停止读取。
+	ErrorBodyMaxBytes = 64 * 1024
+	// ErrorBodyMaxReadMs 是读完诊断正文的总时长上限。
+	ErrorBodyMaxReadMs = 5_000
+	// ErrorBodyIdleMs 是两次得到正文之间的最长等待；一直不来的正文不再等。
+	ErrorBodyIdleMs = 1_500
+	// errorBodyMinBudgetMs 是总时长上限之外至少留给正文的读取时间（预算快用完时仍然能拿到一小段错误消息）；
+	// 同一家的重连因此要等这段读取结束再退避，正文多读一会儿不会推后回退到下一家的时刻。
+	errorBodyMinBudgetMs = 500
+)
+
+// errorBodyStop is how readErrorBody stopped before EOF.
+type errorBodyStop int
+
+const (
+	errBodyDone errorBodyStop = iota
+	errBodyTimeout
+	errBodyTooLarge
+	errBodyReadErr
+)
+
+// readErrorBody 读非 2xx 响应正文做诊断。end 是本次尝试的时刻上限（毫秒）：
+// 读完、超过 ErrorBodyMaxBytes、IdleMs 没有新正文 / 到了 end、读取出错或 ctx 取消时
+// 立刻返回已读到的部分（解码好的文本）和停止原因；除读完外都 Close 取消读取。
+func readErrorBody(ctx context.Context, c Chunks, end float64) (string, errorBodyStop) {
+	if c == nil {
+		return "", errBodyDone
+	}
+	cutoff := time.Now().Add(time.Duration(end-NowMs()) * time.Millisecond)
+	if dl, ok := ctx.Deadline(); ok && dl.Before(cutoff) {
+		cutoff = dl
+	}
+	a := &asyncReader{c: c}
+	var d u.TextDecoder
+	var sb strings.Builder
+	size := 0
+	stop := func() {
+		_ = c.Close()
+	}
+	for {
+		budget := cutoff.Sub(time.Now())
+		idle := time.Duration(ErrorBodyIdleMs) * time.Millisecond
+		if budget < idle {
+			idle = budget
+		}
+		if idle <= 0 {
+			stop()
+			return sb.String(), errBodyTimeout
+		}
+		timer := time.NewTimer(idle)
+		select {
+		case r := <-a.read():
+			timer.Stop()
+			a.take()
+			if r.err != nil && r.err != io.EOF {
+				return sb.String(), errBodyReadErr
+			}
+			if len(r.b) > 0 {
+				if room := max(ErrorBodyMaxBytes-size, 0); len(r.b) > room {
+					r.b = r.b[:room]
+					sb.WriteString(d.Decode(r.b))
+					stop()
+					return sb.String() + d.Flush(), errBodyTooLarge
+				}
+				size += len(r.b)
+				sb.WriteString(d.Decode(r.b))
+			}
+			if r.err == io.EOF {
+				return sb.String() + d.Flush(), errBodyDone
+			}
+		case <-timer.C:
+			stop()
+			return sb.String(), errBodyTimeout
+		case <-ctx.Done():
+			timer.Stop()
+			stop()
+			return sb.String(), errBodyTimeout
+		}
+	}
 }
 
 // fetchErrMessage is the message of the error undici's fetch rejects with.
@@ -1197,7 +1283,7 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 			continue
 		}
 		effort := requestEffort(binding, req.Header.Get(models.ReasoningEffortHeader))
-		last = g.attempt(cfg, resolveAs, req, ingress, c, sendBody, wantsStream, abortCtx, trace, effort)
+		last = g.attempt(cfg, resolveAs, req, ingress, c, sendBody, wantsStream, abortCtx, startedAt, trace, effort)
 		if last.kind == "response" && wantsStream && isSseResponse(last.res) {
 			got := *last
 			{
@@ -1294,7 +1380,7 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 				g.cool.Fail(c, upstream.Failure{UpstreamStatus: ups, RetryAfter: failed.retryAfter, Message: strp(failed.message)})
 			}
 		}
-		sameKeyRetry := !aborted() &&
+		sameKeyRetry := !aborted() && !last.noSameKeyRetry &&
 			IsTransientFailure(last.status, last.upstreamStatus, last.network, last.errorKind) &&
 			retried < KeyRetryLimit(len(keysOf[c.Provider.ID])) &&
 			providerFails[c.Provider.ID]+1 < ProviderMaxFailures
@@ -1706,9 +1792,11 @@ func sseFailure(wire, message string) string {
 	return c.Push(ev) + c.End()
 }
 
-// attempt is one upstream try; a 2xx header counts as success.
+// attempt is one upstream try; a 2xx header counts as success. startedAt bounds
+// the diagnostic read of an error body (see readErrorBody).
 func (g *GatewayServer) attempt(cfg *config.GatewayConfig, client string, req *http.Request, ingress *upstream.Ingress, c *cand.Candidate,
-	body any, wantsStream bool, signal context.Context, trace *RequestTrace, bindingEffort *string) *attemptT {
+	body any, wantsStream bool, signal context.Context, startedAt float64,
+	trace *RequestTrace, bindingEffort *string) *attemptT {
 	base, _ := c.Provider.URLs.Get(c.Wire).(string)
 	target := upstream.URL(c.Wire, base, c.UpstreamModel, upstream.URLOpts{Stream: wantsStream})
 	var notes []string
@@ -1780,19 +1868,33 @@ func (g *GatewayServer) attempt(cfg *config.GatewayConfig, client string, req *h
 		}
 		return a
 	}
-	text, terr := jsDecodeAll(res.Body)
-	if res.Body != nil {
-		_ = res.Body.Close()
+	// 上游已经报错：正文只是诊断。读取受时间 / 大小 / 回退预算限制，超了就按已知状态换供应商。
+	deadline := startedAt + upstream.ResolveFirstByteBudgetMs(wantsStream, g.hooks.TimeoutHooks)
+	if remain := deadline - NowMs(); remain < errorBodyMinBudgetMs {
+		deadline = NowMs() + errorBodyMinBudgetMs
 	}
-	if terr != nil {
-		text = ""
-	}
+	text, rb := readErrorBody(both, res.Body, deadline)
 	s := hres.StatusCode
 	if trace != nil {
 		trace.AttemptResult(s, text)
 	}
+	if signal.Err() != nil {
+		// 客户端走了：正文没读完是取消，不是上游的问题。
+		return &attemptT{kind: "failed", retryable: false, cand: c, text: &text, sent: sent, upstreamStatus: ip(s), outcome: "client-cancel"}
+	}
+	cancelBoth()
 	retryable := s == 429 || s >= 500 || s == 401 || s == 403 || (s >= 300 && s < 400)
 	f := &attemptT{kind: "failed", retryable: retryable, cand: c, text: &text, sent: sent, upstreamStatus: ip(s), retryAfter: headerGet(hres.Header, "retry-after")}
+	if rb == errBodyTimeout || rb == errBodyReadErr {
+		// 正文卡住没有在读取上限内回来 / 读出错：这次尝试不算这个 Key 的临时错误，
+		// 按已知 HTTP 状态直接换供应商，别把同一 Key 的重连预算（et）吃完（#427）。
+		// 正文很快读完的错误不受影响，仍按退避重连。
+		f.noSameKeyRetry = true
+		// 回退预算已用完：不重连也不换供应商。
+		if NowMs()-startedAt >= upstream.ResolveFirstByteBudgetMs(wantsStream, g.hooks.TimeoutHooks) {
+			f.retryable = false
+		}
+	}
 	if s >= 300 && s < 400 {
 		f.status, f.message = 502, "上游返回重定向（"+strconv.Itoa(s)+"），网关不跟随"
 	} else {

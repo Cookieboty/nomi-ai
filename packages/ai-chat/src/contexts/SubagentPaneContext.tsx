@@ -31,6 +31,7 @@ import {
   createSideChat,
   discardSideChat,
   importSideChat,
+  importSideChatDraft,
   migrateSideChatsScope,
   sideChatState,
 } from '../services/sideChat';
@@ -209,6 +210,8 @@ export const SubagentPaneProvider: React.FC<{
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
   const settledDocksRef = useRef(new Set<string>());
+  /** 已经按快照收下过的侧边聊天放回（id → 传输 id）：别的窗口迟到的确认带的是同一份，不能把更新的草稿盖回去 */
+  const adoptedDocksRef = useRef(new Map<string, string>());
   const [projectId, setProjectId] = useState<string | null>(null);
   // 每个会话一份；只有真实会话（scope 非空）写本地存储，重开应用后恢复
   const [byScope, setByScope] = useState<Record<string, SideTabsState>>(readSideTabsStore);
@@ -470,7 +473,11 @@ export const SubagentPaneProvider: React.FC<{
         void detachedWindows
           .take(id, { direction: 'dock', transferId })
           .then((data) => {
-            const ok = importSideChat(data) === chatId || !!sideChatState(chatId);
+            // 草稿就是此刻窗口里的那份（放回等确认期间那边还可能改，迟到的那份只收草稿）
+            const ok =
+              importSideChat(data, { withDraft: true, draftOnly: adoptedDocksRef.current.has(id) }) ===
+                chatId || !!sideChatState(chatId);
+            if (ok) adoptedDocksRef.current.set(id, transferId);
             if (!ok) {
               void detachedWindows.dockAck(id, transferId, false);
               return;

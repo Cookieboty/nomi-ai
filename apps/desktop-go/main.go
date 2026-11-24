@@ -611,6 +611,8 @@ func main() {
 		Live: func(taskID, attemptID string, ev map[string]any) {
 			router.Emit("tasks.live", map[string]any{"id": taskID, "attemptId": attemptID, "event": ev})
 		},
+		// 这次的执行协程退出了：被停下之后迟到的回报到运行时为止（取消 / 停止后不再落盘，#419）
+		onExit: func(taskID string, gen int) { b8.Tasks.Runtime.ExecutorExited(taskID, gen) },
 		// 派给 Nomi 的执行用对话的工具集
 		ToolNames: func() []string {
 			defs := toolRegistry.List()

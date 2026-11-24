@@ -170,6 +170,10 @@ type NomiDeps struct {
 	Steer func(reqID, text string) bool
 	// Live：这次执行的实时事件（正文增量、思考、工具开始 / 结束、插话），子任务侧栏按它实时刷新；可为空
 	Live func(taskID, attemptID string, ev map[string]any)
+	// Log：转后台带过来的原图首轮读不回来时记一条（#414）；可为空
+	Log Logger
+	// onExit：这次执行的协程要退出了（运行时据此知道之后的回报都不会再来）；服务里接上 Runtime.executorExited
+	onExit func(taskID string, gen int)
 }
 
 // DefaultApprovalTimeout：后台任务等人批准的默认上限（无人值守不永久卡在「等你批准」）
@@ -283,7 +287,8 @@ func EventsSection(events []SourceEvent) string {
 }
 
 // BuildPrompt：任务目标、这次为什么跑、用户回答、退回意见、已有进展、触发的事件（prompts/text/task-run.md）
-func BuildPrompt(ctx AttemptContext, progress string, now int64, events []SourceEvent) []blm.ChatMessage {
+// log：转后台带过来的原图首轮读不回来时记一条（不静默换成纯文字）；可为 nil
+func BuildPrompt(ctx AttemptContext, progress string, now int64, events []SourceEvent, log Logger) []blm.ChatMessage {
 	t, a := ctx.Task, ctx.Attempt
 	cause := a.Cause
 	ex := t.Executor
@@ -337,7 +342,60 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 		d["Previous"] = shortN(ctx.Previous.Result.Summary, 4000)
 	}
 	return []blm.ChatMessage{{Role: "system", Content: prompts.Render("task-run", d)},
-		{Role: "user", Content: t.Goal, Images: followUpImages(cause)}}
+		{Role: "user", Content: t.Goal, Images: turnImages(t, cause, log)}}
+}
+
+// turnImages：这一轮要交给模型的图片：转后台带过来的原图（只在首轮，续跑 / 追问不再重复，免得每次重跑都重传、重计费）
+// 加上追问或排队补充带的图片（读不回来的跳过）
+func turnImages(t Task, cause AttemptCause, log Logger) []blm.ChatImage {
+	out := followUpImages(cause)
+	if isFirstHandoffRun(t, cause) {
+		out = append(out, readImages(t.Executor.Attachments, log)...)
+	}
+	return out
+}
+
+// isFirstHandoffRun：前台转后台后的首次执行
+func isFirstHandoffRun(t Task, cause AttemptCause) bool {
+	return t.Origin.Via != nil && *t.Origin.Via == "handoff" &&
+		cause.Kind != "rework" && cause.Kind != "followup" && cause.Kind != "retry" && cause.Kind != "resume"
+}
+
+// logHandoffImageMissing：转后台带过来的原图在前台已经发过、读过；首轮没读回来是异常，记进日志（不静默换成纯文字）
+func logHandoffImageMissing(log Logger, path string, err error) {
+	if log == nil {
+		return
+	}
+	msg := "unreadable"
+	if err != nil {
+		msg = err.Error()
+	}
+	log.Warn("任务附件图片读不回来", "path", path, "error", msg)
+}
+
+func readImages(paths []string, log Logger) []blm.ChatImage {
+	if len(paths) == 0 {
+		return nil
+	}
+	out := []blm.ChatImage{}
+	for _, p := range paths {
+		raw, err := os.ReadFile(p)
+		if err != nil || len(raw) == 0 {
+			logHandoffImageMissing(log, p, err)
+			continue
+		}
+		mime := "image/png"
+		for m, ext := range imageExt {
+			if strings.EqualFold(filepath.Ext(p), ext) {
+				mime = m
+			}
+		}
+		out = append(out, blm.ChatImage{Mime: mime, Data: base64.StdEncoding.EncodeToString(raw)})
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // followUpImages：追问或排队补充带的图片（读不回来的跳过）
@@ -471,6 +529,10 @@ func (e *nomiExecutor) launchLocked(run *nomiRun) {
 }
 
 func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string) {
+	if e.d.onExit != nil {
+		// 这次执行的协程退出了：被停下之后迟到的落盘 / 回报到这里为止，运行时可以收拾了
+		defer e.d.onExit(run.ctx.Task.ID, run.gen)
+	}
 	t, a, rep := run.ctx.Task, run.ctx.Attempt, run.ctx.Report
 	var text strings.Builder
 	// 这一轮产出的图片 / 写过的文件：做完时记进结果，回到来源对话
@@ -527,7 +589,7 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 		segReasoning.Reset()
 		segReasonStart = 0
 	}
-	err := e.d.AgentStream(ctx, BuildPrompt(run.ctx, prevProgress, e.d.Now(), events), tools,
+	err := e.d.AgentStream(ctx, BuildPrompt(run.ctx, prevProgress, e.d.Now(), events, e.d.Log), tools,
 		extra, func(c blm.ChatChunk) {
 			if ctx.Err() != nil {
 				return

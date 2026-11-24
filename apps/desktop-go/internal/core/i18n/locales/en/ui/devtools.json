@@ -1,5 +1,6 @@
 {
   "ui.devtools.agents-count": "Agents",
+  "ui.devtools.audit-turn-counts": "{0} requests · {1} turns",
   "ui.devtools.attempt-n": "Attempt {0}",
   "ui.devtools.avg-ttft": "Avg TTFT",
   "ui.devtools.background-follow-up": "Background follow-up",
@@ -28,6 +29,9 @@
   "ui.devtools.evidence-header-model-mismatch": "Header {0} reported model {1}, mismatching requested {2}",
   "ui.devtools.evidence-id-match": "Response ID format matches {0} ({1})",
   "ui.devtools.evidence-id-suspect": "Response ID ({0}) differs from typical {1} format; may be rewritten or served by another backend",
+  "ui.devtools.evidence-model-alias": "Response model {1} is a dated provider alias of requested {0}",
+  "ui.devtools.evidence-model-family-mismatch": "Returned model is a different version of the same series: requested {0}, upstream returned {1}; versions are not identical",
+  "ui.devtools.evidence-model-history-diff": "Historical turn shows a model difference from the reply record only: requested {0}, reply recorded {1} (no headers or fingerprint evidence)",
   "ui.devtools.evidence-model-absent": "Upstream response did not report a model name",
   "ui.devtools.evidence-model-cross-vendor": "Suspected cross-vendor substitution: requested {0} ({1}), upstream returned {2} ({3})",
   "ui.devtools.evidence-model-match": "Response model matches requested model ({0})",

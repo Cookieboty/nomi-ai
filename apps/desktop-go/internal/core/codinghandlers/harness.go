@@ -7,6 +7,7 @@ package codinghandlers
 import (
 	"context"
 	"encoding/json"
+	"math"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/gemini"
@@ -47,6 +48,19 @@ func (a in) strP(k string) *string {
 func (a in) list(k string) []any {
 	l, _ := a.o.Get(k).([]any)
 	return l
+}
+
+// pids：进程号数组（正整数；其余值丢掉）。用来把「用户确认过的进程快照」传回内核
+func (a in) pids(k string) []float64 {
+	var out []float64
+	for _, v := range a.list(k) {
+		f, ok := v.(float64)
+		if !ok || f != math.Trunc(f) || f <= 0 || math.IsInf(f, 0) {
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
 }
 
 // viewTabFields：视图建标签能给的字段（契约 harness.tabCreate 声明的）。delegation（委派与沙箱预授权）、source、

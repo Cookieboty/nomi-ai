@@ -5,6 +5,8 @@ package knowledgehandlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"strings"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/tasks"
@@ -24,6 +26,19 @@ type taskEventsView struct {
 
 // tasksErr：TriggerError → TASKS_BAD_TRIGGER、GrantError → TASKS_BAD_GRANT（mapped('TASKS', …)）
 func tasksErr(v any, err error) (any, error) { return mapped("TASKS", v, err) }
+
+// handoffErr：转后台没接管的错误码给视图（storage_error / image_unavailable / bad_input）。
+// 其余错误沿用原来的 BAD_INPUT
+func handoffErr(err error) error {
+	var he *tasks.HandoffError
+	if errors.As(err, &he) && he.Code != "" {
+		code := strings.ToUpper(he.Code)
+		if Declared["TASKS_"+code] {
+			return &contract.Error{Code: "TASKS_" + code, Message: he.Msg}
+		}
+	}
+	return &contract.Error{Code: "BAD_INPUT", Message: err.Error()}
+}
 
 func taskHandlers(sv Services) map[string]H {
 	get := func() (*tasks.Service, error) { return need(sv.Tasks, "tasks") }
@@ -98,15 +113,15 @@ func taskHandlers(sv Services) map[string]H {
 			}
 			return tasksErr(s.Command(in.ID, tasks.Command{Type: "grant", Grant: &in.Grant}))
 		}),
-		"tasks.revoke": cmd(tasks.Command{Type: "revoke"}),
-		"tasks.pause":  cmd(tasks.Command{Type: "pause"}),
-		"tasks.resume": cmd(tasks.Command{Type: "resume"}),
-		"tasks.cancel":          cmd(tasks.Command{Type: "cancel"}),
-		"tasks.runNow":          cmd(tasks.Command{Type: "runNow"}),
-		"tasks.accept":          cmd(tasks.Command{Type: "accept"}),
-		"tasks.archive":         cmd(tasks.Command{Type: "archive", Outcome: "user"}),
-		"tasks.unarchive":       cmd(tasks.Command{Type: "unarchive"}),
-		"tasks.ack":             cmd(tasks.Command{Type: "ack"}),
+		"tasks.revoke":    cmd(tasks.Command{Type: "revoke"}),
+		"tasks.pause":     cmd(tasks.Command{Type: "pause"}),
+		"tasks.resume":    cmd(tasks.Command{Type: "resume"}),
+		"tasks.cancel":    cmd(tasks.Command{Type: "cancel"}),
+		"tasks.runNow":    cmd(tasks.Command{Type: "runNow"}),
+		"tasks.accept":    cmd(tasks.Command{Type: "accept"}),
+		"tasks.archive":   cmd(tasks.Command{Type: "archive", Outcome: "user"}),
+		"tasks.unarchive": cmd(tasks.Command{Type: "unarchive"}),
+		"tasks.ack":       cmd(tasks.Command{Type: "ack"}),
 		"tasks.archiveAllEnded": on(get, func(_ context.Context, s *T, _ json.RawMessage) (any, error) {
 			return map[string]int{"archived": s.ArchiveAllEnded()}, nil
 		}),
@@ -164,22 +179,22 @@ func taskHandlers(sv Services) map[string]H {
 			}
 			return s.AppendQueued(in.ID, in.Text, in.Images...), nil
 		}),
+		// 转后台：先让后台接管（任务落盘、附图写入、启动态落盘、合法排队），只有接管成功后
+		// 才中止前台这一轮（AbortChatReq）；失败把 HandoffError.Code 映射给视图，前台流不动（#413 / #414）
 		"tasks.handoffFromChat": on(get, func(_ context.Context, s *T, raw json.RawMessage) (any, error) {
 			var in struct {
-				ReqID           string `json:"reqId"`
-				ConversationID  string `json:"conversationId"`
-				ProjectID       string `json:"projectId"`
-				Title           string `json:"title"`
-				UserGoal        string `json:"userGoal"`
-				PartialContent  string `json:"partialContent"`
-				ProgressSummary string `json:"progressSummary"`
-				HistoryContext  string `json:"historyContext"`
+				ReqID           string                `json:"reqId"`
+				ConversationID  string                `json:"conversationId"`
+				ProjectID       string                `json:"projectId"`
+				Title           string                `json:"title"`
+				UserGoal        string                `json:"userGoal"`
+				PartialContent  string                `json:"partialContent"`
+				ProgressSummary string                `json:"progressSummary"`
+				HistoryContext  string                `json:"historyContext"`
+				Images          []tasks.FollowUpImage `json:"images"`
 			}
 			if err := decode(raw, &in); err != nil {
 				return nil, err
-			}
-			if in.ReqID != "" && sv.AbortChatReq != nil {
-				sv.AbortChatReq(in.ReqID)
 			}
 			var cwd string
 			var paths []string
@@ -187,6 +202,7 @@ func taskHandlers(sv Services) map[string]H {
 				cwd, paths = sv.ResolveWorkspace(in.ProjectID)
 			}
 			task, err := s.CreateHandoff(tasks.HandoffInput{
+				SourceID:        in.ReqID,
 				ConversationID:  in.ConversationID,
 				ProjectID:       in.ProjectID,
 				Title:           in.Title,
@@ -196,9 +212,13 @@ func taskHandlers(sv Services) map[string]H {
 				HistoryContext:  in.HistoryContext,
 				Cwd:             cwd,
 				Paths:           paths,
+				Images:          in.Images,
 			})
 			if err != nil {
-				return nil, &contract.Error{Code: "BAD_INPUT", Message: err.Error()}
+				return nil, handoffErr(err)
+			}
+			if in.ReqID != "" && sv.AbortChatReq != nil {
+				sv.AbortChatReq(in.ReqID)
 			}
 			return task, nil
 		}),

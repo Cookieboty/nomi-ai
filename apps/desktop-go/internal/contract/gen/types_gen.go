@@ -1841,9 +1841,10 @@ type CliAccountRefreshOutputItem struct {
 }
 
 type CliAccountRemoveInput struct {
-	Id           string `json:"id"`
-	Force        *bool  `json:"force,omitempty"`
-	StopExternal *bool  `json:"stopExternal,omitempty"`
+	Id           string  `json:"id"`
+	Force        *bool   `json:"force,omitempty"`
+	StopExternal *bool   `json:"stopExternal,omitempty"`
+	StopPids     []int64 `json:"stopPids,omitempty"`
 }
 
 type CliAccountRenameInput struct {
@@ -12229,15 +12230,21 @@ type TasksGrantOutput struct {
 	Reason *string `json:"reason,omitempty"`
 }
 
+type TasksHandoffFromChatInputImagesItem struct {
+	Mime string `json:"mime"`
+	Data string `json:"data"`
+}
+
 type TasksHandoffFromChatInput struct {
-	ReqId           *string `json:"reqId,omitempty"`
-	ConversationId  string  `json:"conversationId"`
-	ProjectId       *string `json:"projectId,omitempty"`
-	Title           *string `json:"title,omitempty"`
-	UserGoal        string  `json:"userGoal"`
-	PartialContent  *string `json:"partialContent,omitempty"`
-	ProgressSummary *string `json:"progressSummary,omitempty"`
-	HistoryContext  *string `json:"historyContext,omitempty"`
+	ReqId           *string                               `json:"reqId,omitempty"`
+	ConversationId  string                                `json:"conversationId"`
+	ProjectId       *string                               `json:"projectId,omitempty"`
+	Title           *string                               `json:"title,omitempty"`
+	UserGoal        string                                `json:"userGoal"`
+	PartialContent  *string                               `json:"partialContent,omitempty"`
+	ProgressSummary *string                               `json:"progressSummary,omitempty"`
+	HistoryContext  *string                               `json:"historyContext,omitempty"`
+	Images          []TasksHandoffFromChatInputImagesItem `json:"images,omitempty"`
 }
 
 // TasksHandoffFromChatOutputStatus 枚举：idle | queued | running | waiting_user | needs_reconcile | awaiting_accept | done | failed | cancelled | expired

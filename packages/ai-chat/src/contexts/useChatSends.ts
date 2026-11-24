@@ -68,6 +68,11 @@ function nextMessageId(): string {
 
 const isAbortError = (err: unknown): boolean => err instanceof Error && err.name === 'AbortError';
 
+/** 转后台时随任务交给后台的原图上限（与契约 tasks.handoffFromChat.images 一致） */
+const MAX_HANDOFF_IMAGES = 8;
+/** 后台执行器认的原图类型（与服务端校验一致） */
+const HANDOFF_IMAGE_MIMES = new Set<string>(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
 interface SendsOptions {
   stateRef: MutableRefObject<AiChatState>;
   dispatch: Dispatch<AiChatAction>;
@@ -575,6 +580,17 @@ function useStreamSend({
               .slice(-4)
               .map((m) => `${m.role}: ${m.content.slice(0, 300)}`)
               .join('\n'),
+            // 用户这一轮附图的原图：后台接管时原样交给它（它读不到对话里的缩略图 / 素材库里的本地地址）
+            images: (images ?? [])
+              .slice(0, MAX_HANDOFF_IMAGES)
+              .filter(
+                (i): i is ImageAttachment & { data: string } =>
+                  typeof i.data === 'string' &&
+                  i.data.length > 0 &&
+                  !!i.mime &&
+                  HANDOFF_IMAGE_MIMES.has(i.mime),
+              )
+              .map((i) => ({ mime: i.mime, data: i.data })),
           }),
         };
         activeStream.current.set(convoKey(turn.convoId), streamEntry);
@@ -834,34 +850,57 @@ function useStreamSend({
     [stateRef, dispatch, activeStream, inflight, maybeIngest, notifyToolStart, steering],
   );
 
+  /**
+   * 前台长程对话主动转后台：把用户这一轮的原图、已生成的部分与进度交给后台任务（tasks.handoffFromChat）。
+   * 只有后台**真的接管了**（拿到 task.id）才中止前台这一轮；存储失败 / 图片不可用 / 这一轮已结束等
+   * 情况前台照常继续已输出的内容，这里只给出明确提示（返回 null，界面据此不停流）。
+   * 同一轮（reqId）重复点击只接管一次：成功复用同一个任务 id，失败复用同一次失败结果，不再重发。
+   */
   const handoffCurrentToBackground = useCallback(async (): Promise<string | null> => {
     const s = stateRef.current;
     if (s.ipcClient.isManagedConversation?.(s.ipcClient.currentConversationId?.() ?? ''))
       return null;
     const key = convoKey(s.ipcClient.currentConversationId?.());
     const stream = activeStream.current.get(key);
-    if (!stream) return null;
-    if (stream.handoffPromise) return stream.handoffPromise;
-    const snap = stream.getHandoffSnapshot?.();
-    const p = tasksApi
-      .handoffFromChat({
-        reqId: stream.reqId,
-        conversationId: stream.convoId ?? 'default',
-        ...(stream.projectId ? { projectId: stream.projectId } : {}),
-        userGoal: stream.userGoal ?? '',
-        ...(snap?.partialContent ? { partialContent: snap.partialContent } : {}),
-        ...(snap?.progressSummary ? { progressSummary: snap.progressSummary } : {}),
-        ...(snap?.historyContext ? { historyContext: snap.historyContext } : {}),
-      })
-      .then((task) => task.id)
-      .catch(() => null);
-    stream.handoffPromise = p;
-    const taskId = await p;
-    if (taskId && !stream.controller.signal.aborted) {
-      stream.controller.abort();
+    // 没有进行中的这一轮（已结束 / 期间切了会话）：没有可接管的内容，也不停任何东西
+    if (!stream || stream.controller.signal.aborted) return null;
+    if (!stream.handoffPromise) {
+      const run = async (): Promise<string | null> => {
+        const snap = stream.getHandoffSnapshot?.();
+        try {
+          const task = await tasksApi.handoffFromChat({
+            reqId: stream.reqId,
+            conversationId: stream.convoId ?? 'default',
+            ...(stream.projectId ? { projectId: stream.projectId } : {}),
+            userGoal: stream.userGoal ?? '',
+            ...(snap?.partialContent ? { partialContent: snap.partialContent } : {}),
+            ...(snap?.progressSummary ? { progressSummary: snap.progressSummary } : {}),
+            ...(snap?.historyContext ? { historyContext: snap.historyContext } : {}),
+            ...(snap?.images?.length ? { images: snap.images } : {}),
+          });
+          const taskId = typeof task?.id === 'string' && task.id ? task.id : null;
+          if (!taskId) throw new Error(t('ui.providers-schedule.task-handoff-failed-to-take-over'));
+          // 接管成功：才中止前台这一轮（内核建好任务后已自己中止上游；这里让本地循环立即退出）。
+          // 只有 task.id 不算数——抛错 / 没返回 id 的都走下面的失败分支，前台照常继续
+          stream.controller.abort();
+          return taskId;
+        } catch (err) {
+          // 没接管成：前台流保留已输出的内容，只提示失败原因
+          if (!stream.controller.signal.aborted)
+            dispatch({
+              type: 'SET_ERROR',
+              payload: t(
+                'ui.providers-schedule.task-handoff-failed-kept-foreground',
+                errorMessage(err),
+              ),
+            });
+          return null;
+        }
+      };
+      stream.handoffPromise = run();
     }
-    return taskId;
-  }, [stateRef, activeStream]);
+    return stream.handoffPromise;
+  }, [stateRef, activeStream, dispatch]);
 
   const sendAsBackgroundTask = useCallback(
     async (text: string): Promise<string | null> => {

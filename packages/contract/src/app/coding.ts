@@ -602,7 +602,10 @@ const cliAccountProcedures = {
   },
   /**
    * force：读不到是否还有 CLI 进程在用时也删除（界面先确认）；
-   * stopExternal：先结束 Nomi 之外还在用这个账号的 CLI 进程（ACCOUNT_EXTERNAL_BUSY 时界面让用户确认）再删除
+   * stopExternal：先结束 Nomi 之外还在用这个账号的 CLI 进程（ACCOUNT_EXTERNAL_BUSY 时界面让用户确认）再删除；
+   * stopPids：用户确认过的进程号快照（ACCOUNT_EXTERNAL_BUSY 的 data.pids）。只结束这几个；提交时重新扫描，
+   * 范围变了（有新进程出现 / 旧的已经不是原来那个）就再报 ACCOUNT_EXTERNAL_BUSY 让界面重新确认。不带 stopPids
+   * 等于没有确认过，不会结束任何进程。
    */
   'cliAccount.remove': {
     kind: 'mutation',
@@ -610,6 +613,7 @@ const cliAccountProcedures = {
       id: z.string(),
       force: z.boolean().optional(),
       stopExternal: z.boolean().optional(),
+      stopPids: z.array(z.number().int().positive()).max(256).optional(),
     }),
     output: z.void(),
   },
@@ -876,7 +880,10 @@ export const codingErrors = [
   'ACCOUNT_IN_USE',
   'ACCOUNT_UNSUPPORTED',
   'ACCOUNT_UNKNOWN_LIVE',
-  /** cliAccount.remove：Nomi 之外还有 CLI 进程在用这个账号目录（data.pids）；可以带 stopExternal 结束它们再删除 */
+  /**
+   * cliAccount.remove：Nomi 之外还有 CLI 进程在用这个账号目录（data.pids）；可以带 stopExternal + stopPids（这批进程号）
+   * 结束它们再删除。确认后进程范围变了也会再报这个错误，界面要按新的 pids 重新确认
+   */
   'ACCOUNT_EXTERNAL_BUSY',
   /** project.*：项目不存在 */
   'PROJECT_NOT_FOUND',

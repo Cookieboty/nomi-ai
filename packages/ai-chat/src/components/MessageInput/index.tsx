@@ -101,6 +101,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   delegate,
   draftStore,
   draftKey,
+  draftLock,
   endpointTab,
   modelControl,
   dropZoneRef,
@@ -113,6 +114,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const localDraftStore = useRef(createComposerDraftStore()).current;
   const activeDraftStore = draftStore ?? localDraftStore;
   const activeDraftKey = draftKey ?? SHARED_UNSENT;
+  // 锁住的草稿（放回等确认期间）：这个输入栏读写它自己的那份，不改已经交出去的那份
   const {
     text: rawDraft,
     setText: setRawDraft,
@@ -121,7 +123,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     files,
     setFiles,
     clearActive,
-  } = useComposerDraftBinding(activeDraftStore, activeDraftKey);
+  } = useComposerDraftBinding(activeDraftStore, activeDraftKey, draftLock);
   const linkedDraft = useReferenceDraft(rawDraft, setRawDraft);
   const { text: message, setText: setMessage } = linkedDraft;
   const [menuOpen, setMenuOpen] = useState(false);

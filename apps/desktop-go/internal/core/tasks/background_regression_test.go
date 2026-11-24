@@ -94,7 +94,7 @@ func TestNomiFollowUpRetryRetainsContext(t *testing.T) {
 		if next.Attempt.Cause.Kind != "retry" {
 			t.Fatal("retry cause must retain its reconciliation semantics")
 		}
-		msgs := BuildPrompt(AttemptContext{Task: next.Task, Attempt: *next.Attempt, Previous: savedAttempt}, "", 10000, nil)
+		msgs := BuildPrompt(AttemptContext{Task: next.Task, Attempt: *next.Attempt, Previous: savedAttempt}, "", 10000, nil, nil)
 		if !strings.Contains(msgs[0].Content, note) || !strings.Contains(msgs[0].Content, previous) || len(msgs[1].Images) != 1 {
 			t.Fatalf("retry %d lost follow-up context: cause=%+v images=%d prompt=%q", retry, next.Attempt.Cause, len(msgs[1].Images), msgs[0].Content)
 		}
@@ -112,7 +112,7 @@ func TestNomiFollowUpRetryRetainsContext(t *testing.T) {
 			t.Fatal(resumed)
 		}
 		tk, a = persist(resumed.Task, resumed.Attempt)
-		msgs := BuildPrompt(AttemptContext{Task: tk, Attempt: *a}, "", at+1, nil)
+		msgs := BuildPrompt(AttemptContext{Task: tk, Attempt: *a}, "", at+1, nil, nil)
 		if !strings.Contains(msgs[0].Content, note) || !strings.Contains(msgs[0].Content, previous) || len(msgs[1].Images) != 1 {
 			t.Fatalf("restart %d lost follow-up context: %+v", recovery, a.Cause)
 		}

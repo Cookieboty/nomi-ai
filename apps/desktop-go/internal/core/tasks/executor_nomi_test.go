@@ -186,18 +186,18 @@ func TestNomiExecutorLargeUsageKeepsRunning(t *testing.T) {
 
 func TestClassifyError(t *testing.T) {
 	for msg, code := range map[string]string{
-		"HTTP 429":                                      "upstream_transient",
-		"upstream 503":                                  "upstream_transient",
-		"error_during_execution: 529 Overloaded":        "upstream_transient",
-		"ACP 请求超时":                                    "upstream_transient",
-		"read: connection reset by peer":                "network",
-		"stream disconnected before completion":         "network",
-		"RPC connection closed":                         "network",
-		"error_during_execution":                        "executor_crashed",
-		"error_max_turns":                               "executor_crashed",
-		"The codex process exited":                      "executor_crashed",
-		"dsh 退出码 1":                                     "executor_crashed",
-		"grok exited with code 1":                       "executor_crashed",
+		"HTTP 429":                               "upstream_transient",
+		"upstream 503":                           "upstream_transient",
+		"error_during_execution: 529 Overloaded": "upstream_transient",
+		"ACP 请求超时":                               "upstream_transient",
+		"read: connection reset by peer":         "network",
+		"stream disconnected before completion":  "network",
+		"RPC connection closed":                  "network",
+		"error_during_execution":                 "executor_crashed",
+		"error_max_turns":                        "executor_crashed",
+		"The codex process exited":               "executor_crashed",
+		"dsh 退出码 1":                              "executor_crashed",
+		"grok exited with code 1":                "executor_crashed",
 		"无法启动 Kimi Code 的 ACP 会话：进程已退出":                 "executor_crashed",
 		"couldn't start an ACP session":                 "executor_crashed",
 		"empty_result":                                  "executor_crashed",
@@ -297,13 +297,13 @@ func TestNomiExecutorRetriesCarryProgressAndRecoverEmptyResult(t *testing.T) {
 
 func TestBuildPromptEvents(t *testing.T) {
 	ctx := AttemptContext{Task: Task{Title: "t", Goal: "g"}, Attempt: Attempt{Cause: AttemptCause{Kind: "event"}}}
-	msgs := BuildPrompt(ctx, "", 0, []SourceEvent{{Key: "k", Summary: "新文件：a.txt", Payload: map[string]any{"file": "a.txt"}}})
+	msgs := BuildPrompt(ctx, "", 0, []SourceEvent{{Key: "k", Summary: "新文件：a.txt", Payload: map[string]any{"file": "a.txt"}}}, nil)
 	sys := msgs[0].Content
 	if !strings.Contains(sys, "触发这次运行的事件（1 件") || !strings.Contains(sys, "1. 新文件：a.txt\n{\"file\":\"a.txt\"}") ||
 		!strings.Contains(sys, "</events>") {
 		t.Fatal(sys)
 	}
-	if EventsSection(nil) != "" || strings.Contains(BuildPrompt(ctx, "", 0, nil)[0].Content, "<events>") {
+	if EventsSection(nil) != "" || strings.Contains(BuildPrompt(ctx, "", 0, nil, nil)[0].Content, "<events>") {
 		t.Fatal("empty events should add nothing")
 	}
 }

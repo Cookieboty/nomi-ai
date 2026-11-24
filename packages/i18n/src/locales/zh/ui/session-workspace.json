@@ -296,6 +296,8 @@
   "ui.session-workspace.side-tab-detach": "在新窗口打开",
   "ui.session-workspace.side-tab-detached-missing": "这个子任务已经不在了（它的标签已关闭）。",
   "ui.session-workspace.side-tab-dock": "放回主窗口",
+  "ui.session-workspace.side-tab-dock-failed": "放回失败：主窗口没有收下，当前内容仍在这个窗口里，可以再试。",
+  "ui.session-workspace.side-tab-docking": "正在放回主窗口…",
   "ui.session-workspace.side-tab-main": "主会话",
   "ui.session-workspace.side-tab-maximize": "铺满（双击标签也可以）",
   "ui.session-workspace.side-tab-restore": "回到分栏（Esc）",

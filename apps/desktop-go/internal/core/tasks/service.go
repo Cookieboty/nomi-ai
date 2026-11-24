@@ -57,6 +57,15 @@ type Service struct {
 	changeMu  sync.Mutex
 	changeFns map[int]func(id string)
 	changeN   int
+	// handoffMu / handoffs：前台转后台按「来源轮次 + 会话」只接受一次接管（#413）：同一 reqId 重试复用同一个任务。
+	// 只记最近几次（重启后靠任务快照里的 SourceID 复用）
+	handoffMu  sync.Mutex
+	handoffs   map[string]*handoffSlot
+	handoffSeq []string // 插入顺序（先进先出淘汰）
+	// resumeMu / resumeFns：接管后前台流中止、后台重新接收（启动态落盘失败时不能在停下前台之后才失败，#413）
+	resumeMu  sync.Mutex
+	resumeFns []resumeEntry
+	resumeN   int
 }
 
 // OnChange：任务有变化时回调（与 tasks.changed 事件同时发）。回调可能在运行时持锁时触发：
@@ -143,7 +152,8 @@ func NewService(d ServiceDeps) *Service {
 			return func() { t.Stop() }
 		}
 	}
-	s := &Service{d: d, exec: map[string]Executor{}, reconcilers: map[string]Reconciler{}}
+	s := &Service{d: d, exec: map[string]Executor{}, reconcilers: map[string]Reconciler{},
+		handoffs: map[string]*handoffSlot{}}
 	s.Store = NewStore(d.Root, d.Log)
 	s.Outbox = NewOutbox(OutboxDeps{File: filepath.Join(d.Root, "outbox.json"), Now: d.Now, SetTimer: d.SetTimer,
 		NewID: func() string { return newID("o") }, QuietUntil: d.QuietUntil, Log: d.Log,
@@ -271,6 +281,8 @@ func (s *Service) Start() {
 
 func (s *Service) Stop() {
 	s.Events.Stop()
+	// 运行时只停调度、不改任务状态（进程退出时留下开放的外部动作，靠重启后对账）。这里不再等执行者：
+	// 等空不能靠改任务状态（把运行中落盘成 cancelled 会毁掉重启后的对账），而执行者本身也不受 Stop 约束
 	s.Runtime.Stop()
 	s.Outbox.Stop()
 }
@@ -513,6 +525,16 @@ func (s *Service) saveFollowUpImages(id string, images []FollowUpImage) ([]strin
 	return out, nil
 }
 
+// readableImageData：附图数据是合法的 base64（可带 data: 前缀），解码后非空
+func readableImageData(data string) bool {
+	d := strings.TrimSpace(data)
+	if i := strings.Index(d, ";base64,"); strings.HasPrefix(d, "data:") && i > 0 {
+		d = d[i+len(";base64,"):]
+	}
+	raw, err := base64.StdEncoding.DecodeString(d)
+	return err == nil && len(raw) > 0
+}
+
 var unsafeName = regexp.MustCompile(`[^\w-]`)
 
 func safeName(id string) string { return unsafeName.ReplaceAllString(id, "_") }
@@ -623,6 +645,8 @@ func (s *Service) CreateDelegated(i DelegatedInput) (Task, error) {
 
 // HandoffInput：前台长程对话主动转后台的任务入参
 type HandoffInput struct {
+	// SourceID：来源轮次（reqId）；同一轮重试复用同一个任务
+	SourceID        string
 	ConversationID  string
 	ProjectID       string
 	Title           string
@@ -632,17 +656,93 @@ type HandoffInput struct {
 	HistoryContext  string
 	Cwd             string
 	Paths           []string
+	// Images：这一轮用户已经发给前台、获准交给模型的附图（原图）；后台首轮同样带上（#414）。
+	// 读不回来或超出上限时整个接管失败，不改头换成纯文字
+	Images []FollowUpImage
+}
+
+// HandoffError：转后台没有接管（前台流要保留，#413 / #414）。Code 给契约错误码：
+// storage_error（创建 / 启动态没落盘）、image_unavailable（附图读不回来）、bad_input（入参不合法）
+type HandoffError struct {
+	Code string
+	Msg  string
+}
+
+func (e *HandoffError) Error() string { return e.Msg }
+
+// handoffSlot：同一轮（来源轮次 + 来源会话）的接管只发生一次
+type handoffSlot struct {
+	done chan struct{}
+	id   string
+	err  *HandoffError
+}
+
+// resumeEntry：重新接收的订阅（键稳定，取消时只删自己）
+type resumeEntry struct {
+	k  int
+	fn func(ts Task)
+}
+
+// OnHandoffResume：转后台接管后前台流被中止 / 启动态落盘失败后的重新接收（前台把已产出的内容接回去继续）。
+// 返回取消订阅
+func (s *Service) OnHandoffResume(fn func(ts Task)) func() {
+	s.resumeMu.Lock()
+	s.resumeN++
+	e := resumeEntry{k: s.resumeN, fn: fn}
+	s.resumeFns = append(s.resumeFns, e)
+	s.resumeMu.Unlock()
+	return func() {
+		s.resumeMu.Lock()
+		defer s.resumeMu.Unlock()
+		keep := s.resumeFns[:0:0]
+		for _, x := range s.resumeFns {
+			if x.k != e.k {
+				keep = append(keep, x)
+			}
+		}
+		s.resumeFns = keep
+	}
+}
+
+func (s *Service) handoffResumed(ts Task) {
+	s.resumeMu.Lock()
+	fns := append([]resumeEntry{}, s.resumeFns...)
+	s.resumeMu.Unlock()
+	for _, fn := range fns {
+		fn.fn(ts)
+	}
+}
+
+// handoffSource：接管键（也是落进任务快照 Origin.SourceID 的来源标识）：同一来源会话的同一轮 reqId 只接管一次。
+// 会话与轮次分隔用 "|"：请求 id 由内核生成（newID("req")），不含 "|"，不会误配
+func handoffSource(session, reqID string) string {
+	if reqID == "" {
+		return ""
+	}
+	return session + "|" + reqID
 }
 
 // CreateHandoff：把前台进行中的长程任务转入后台异步继续执行（via: "handoff"）。
 // 完成后通过 delegate.completed 回写来源对话，并进入自动验收与 24h 自动归档轨道。
+//
+// 只有后台确实接下了（任务已落盘、启动态已落盘、已在队列里合法排队）才返回任务并通知前台可以停下原流
+// （OnHandoffResume）；创建 / 启动态保存失败返回 *HandoffError（storage_error），前台流不动、已产出内容保留。
+// 同一 SourceID 的重试复用同一个任务，重复点击只接管一次（#413）。
 func (s *Service) CreateHandoff(in HandoffInput) (Task, error) {
 	goal := strings.TrimSpace(in.UserGoal)
 	if goal == "" {
 		goal = strings.TrimSpace(in.Title)
 	}
 	if goal == "" {
-		return Task{}, fmt.Errorf("handoff userGoal is required")
+		return Task{}, &HandoffError{Code: "bad_input", Msg: "handoff userGoal is required"}
+	}
+	if len(in.Images) > MaxFollowUpImages {
+		return Task{}, &HandoffError{Code: "bad_input", Msg: fmt.Sprintf("too many images (max %d)", MaxFollowUpImages)}
+	}
+	for _, im := range in.Images {
+		if _, ok := imageExt[strings.ToLower(im.Mime)]; !ok || !readableImageData(im.Data) {
+			return Task{}, &HandoffError{Code: "image_unavailable", Msg: "handoff image is not readable"}
+		}
 	}
 	title := strings.TrimSpace(in.Title)
 	if title == "" {
@@ -668,6 +768,126 @@ func (s *Service) CreateHandoff(in HandoffInput) (Task, error) {
 		joined := strings.Join(ctxParts, "\n\n")
 		ctxPtr = &joined
 	}
+	var convPtr *string
+	if strings.TrimSpace(in.ConversationID) != "" {
+		cid := strings.TrimSpace(in.ConversationID)
+		convPtr = &cid
+	}
+	// 接管键：同一轮（来源会话 + reqId）的重试复用同一个任务；没有 reqId 的调用各自是一次接管
+	key := ""
+	if in.SourceID != "" {
+		session := ""
+		if convPtr != nil {
+			session = *convPtr
+		}
+		key = handoffSource(session, in.SourceID)
+	}
+	var slot *handoffSlot
+	joined := false
+	settled := false
+	s.handoffMu.Lock()
+	if key != "" {
+		if prev := s.handoffs[key]; prev != nil {
+			slot = prev
+			select {
+			case <-slot.done:
+				// 这一轮已经接管过了：直接复用结果（不重新创建、不重新排队、不再通知一次停流）
+				settled = true
+			default:
+				joined = true
+			}
+		}
+	}
+	if slot == nil {
+		slot = &handoffSlot{done: make(chan struct{})}
+		if key != "" {
+			s.handoffs[key] = slot
+		}
+	}
+	s.handoffMu.Unlock()
+
+	if settled {
+		if slot.err != nil {
+			return Task{}, slot.err
+		}
+		if rec := s.Runtime.Get(slot.id); rec != nil {
+			return rec.Task, nil
+		}
+		return Task{}, &HandoffError{Code: "storage_error", Msg: "handoff task disappeared"}
+	}
+	if joined {
+		// 同一轮正在接管：等它的结果（不重复创建，也不重复排队）
+		<-slot.done
+		if slot.err != nil {
+			return Task{}, slot.err
+		}
+		if rec := s.Runtime.Get(slot.id); rec != nil {
+			return rec.Task, nil
+		}
+		return Task{}, &HandoffError{Code: "storage_error", Msg: "handoff task disappeared"}
+	}
+
+	task, herr := s.runHandoff(in, goal, title, ctxPtr, convPtr, key)
+	target := task.ID
+	if herr != nil && herr.Code == "storage_error" {
+		// 没接上：同一轮的重试重新来过
+		target = ""
+	}
+	s.handoffMu.Lock()
+	slot.id, slot.err = target, herr
+	if herr != nil && key != "" && s.handoffs[key] == slot {
+		// 失败的结果（storage_error / image_unavailable）也让同一轮的等待者拿到，再忘掉：之后的重试重新来过
+		delete(s.handoffs, key)
+		for i, k := range s.handoffSeq {
+			if k == key {
+				s.handoffSeq = append(s.handoffSeq[:i], s.handoffSeq[i+1:]...)
+				break
+			}
+		}
+	} else if herr == nil && key != "" {
+		s.handoffSeq = append(s.handoffSeq, key)
+		for len(s.handoffSeq) > maxHandoffSlots {
+			old := s.handoffSeq[0]
+			s.handoffSeq = s.handoffSeq[1:]
+			if s.handoffs[old] == slot {
+				delete(s.handoffs, old)
+			}
+		}
+	}
+	close(slot.done)
+	s.handoffMu.Unlock()
+	if herr != nil {
+		return Task{}, herr
+	}
+	return task, nil
+}
+
+// maxHandoffSlots：内存里记住多少次已经完成的接管（再往前的落在任务快照的 SourceID 里，照样能复用）
+const maxHandoffSlots = 256
+
+// reusableHandoff：这个接管键已有任务（同一内存里的重试 / 重启后重试）：只复用没被别的来源接管的那个
+func (s *Service) reusableHandoff(key string, conv *string) bool {
+	if key == "" {
+		return false
+	}
+	for _, t := range s.Runtime.List() {
+		if t.Origin.SourceID == nil || *t.Origin.SourceID != key || !IsConversationBacked(t) {
+			continue
+		}
+		if t.Origin.Via == nil || *t.Origin.Via != "handoff" {
+			continue
+		}
+		if t.Origin.ConversationID == nil || conv == nil || *t.Origin.ConversationID != *conv {
+			continue
+		}
+		if s.Runtime.Handoffable(t.ID, key) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) runHandoff(in HandoffInput, goal, title string, ctxPtr *string, conv *string, key string) (Task, *HandoffError) {
 	toolset := "conversation"
 	ex := ExecutorSpec{
 		Kind:    "nomi",
@@ -690,31 +910,198 @@ func (s *Service) CreateHandoff(in HandoffInput) (Task, error) {
 	if paths == nil {
 		paths = []string{}
 	}
-	var convPtr *string
-	if strings.TrimSpace(in.ConversationID) != "" {
-		cid := strings.TrimSpace(in.ConversationID)
-		convPtr = &cid
-	}
 	via := "handoff"
+	origin := Origin{ConversationID: conv, CreatedBy: "user", CreatedAt: s.d.Now(), Via: &via}
 	budget := &BudgetInput{MaxRetries: ptr(DelegatedMaxRetries)}
-	task, err := s.Runtime.CreateChecked(CreateInput{
-		Title:      title,
-		Goal:       goal,
-		Origin:     Origin{ConversationID: convPtr, CreatedBy: "user", CreatedAt: s.d.Now(), Via: &via},
-		Trigger:    Trigger{Kind: "manual"},
-		Executor:   ex,
-		Grant:      Grant{Level: 4, Paths: paths, Connections: []ConnectionGrant{}},
-		Budget:     budget,
-		Acceptance: "auto",
-	})
-	if err != nil {
-		return Task{}, err
+
+	// 重试：同一个任务身份（同一轮已经建过的任务，没被别的来源接管过就接着用它）
+	var task Task
+	reopened := ""
+	if key != "" {
+		for _, t := range s.Runtime.List() {
+			if t.Origin.SourceID == nil || *t.Origin.SourceID != key || t.Origin.Via == nil || *t.Origin.Via != "handoff" ||
+				t.Origin.ConversationID == nil || conv == nil || *t.Origin.ConversationID != *conv || t.ArchivedAt != nil {
+				continue
+			}
+			// 还没跑过（上次接管没接上，落到 idle）：直接接着接管；
+			// 上次已经跑完（快照里仍有这个来源轮次，内存里的接管记录可能重启后丢了）：同一个任务身份原地重跑，不新建
+			if !ranBefore(t) {
+				task = t
+				break
+			}
+			res := s.Runtime.ReopenHandoff(t.ID, key)
+			if res.OK {
+				task = t
+				reopened = t.ID
+				break
+			} else if res.Reason == "storage_error" {
+				s.logWarn("tasks handoff reopen", res.Reason+" "+t.ID)
+				return Task{}, &HandoffError{Code: "storage_error", Msg: "handoff task was not reopened"}
+			}
+		}
 	}
-	s.Runtime.Command(task.ID, Command{Type: "runNow"})
-	if rec := s.Runtime.Get(task.ID); rec != nil {
-		return rec.Task, nil
+	// 复用的任务已经跑过一轮：它的附图目录里是上一轮的图，这次的接管没接上就得整个收掉（不能连上一轮一起删）
+	priorAttach := ""
+	if reopened != "" {
+		priorAttach = filepath.Join(s.d.Root, "attachments", safeName(reopened))
 	}
-	return task, nil
+	cleanup := func() {
+		s.removeHandoffAttachments(task.ID)
+		if priorAttach != "" {
+			if err := os.MkdirAll(priorAttach, 0o700); err != nil {
+				s.logWarn("tasks handoff release", err.Error())
+			}
+		}
+	}
+	created := task.ID == ""
+	if created {
+		// 落盘的来源标识就是查找用的接管键（来源会话 + reqId）：重启后内存里的接管记录没了，
+		// 靠快照里的这个键找回同一个任务身份，不新建（#413）
+		if key != "" {
+			src := key
+			origin.SourceID = &src
+		}
+		t, err := s.Runtime.CreateChecked(CreateInput{
+			Title:      title,
+			Goal:       goal,
+			Origin:     origin,
+			Trigger:    Trigger{Kind: "manual"},
+			Executor:   ex,
+			Grant:      Grant{Level: 4, Paths: paths, Connections: []ConnectionGrant{}},
+			Budget:     budget,
+			Acceptance: "auto",
+		})
+		if err != nil {
+			s.logWarn("tasks handoff create", err.Error())
+			return Task{}, &HandoffError{Code: "storage_error", Msg: "handoff task was not saved"}
+		}
+		task = t
+	}
+	// 没接上：已经停下的执行者不会再写附件，这时才删这次接管放出去的附图与空目录（#413 / #414）。
+	// 失败不是靠 storage_error 判断的：故障注入下「停下执行者」本身也落不了盘（这时不会有人再跑它），
+	// 同样按没接上收回，等执行者停下才返回
+	settle := func() bool {
+		// 停执行者、放回 idle；有执行者在跑时等它真正停下再删附件（没在跑时立即返回）
+		res, await := s.Runtime.ReleaseUnstarted(task.ID, 0)
+		ok := await()
+		cleanup()
+		if !ok {
+			s.logWarn("tasks handoff release", "executor did not stop "+task.ID)
+		}
+		return res.OK
+	}
+	fail := func(code, msg string) (Task, *HandoffError) {
+		// 留下的是一个从没执行过的空任务：删掉，看板上不多一张坏卡
+		if created {
+			s.discardHandoffTask(task.ID)
+		}
+		settle()
+		return Task{}, &HandoffError{Code: code, Msg: msg}
+	}
+	// 这次接管的落盘没能同步成（被拒或落盘失败）：作废这次开始、停下已经启动的执行者，再收掉附件。
+	// 失败可能来自几处的联动（取得名额、执行者启动时的回报……），任何一处没同步成就不能当接手成功。
+	// gen：已经启动的那个执行者的编号（取得名额时带出来）；停执行者这一步也落不了盘时按它再停一次
+	var gen int
+	reject := func(code, msg string) (Task, *HandoffError) {
+		if gen > 0 {
+			res, await := s.Runtime.DiscardHandoffRun(task.ID, gen)
+			if !res.OK && res.Reason != "not_found" {
+				s.logWarn("tasks handoff discard", res.Reason+" "+task.ID)
+			}
+			if !await() {
+				s.logWarn("tasks handoff release", "executor did not stop "+task.ID)
+			}
+		}
+		return fail(code, msg)
+	}
+
+	// 附图：写进任务的附件目录，首轮执行读回来交给模型（#414）；写不进来就不接管
+	if len(in.Images) > 0 {
+		files, err := s.saveFollowUpImages(task.ID, in.Images)
+		if err != nil {
+			s.logWarn("tasks handoff images", err.Error())
+			// 保存失败时自己可能已经建了空的附件目录：一并收掉
+			return reject("image_unavailable", "handoff image is not readable")
+		}
+		if !s.Runtime.SetHandoffImages(task.ID, files) {
+			s.logWarn("tasks handoff images", "not saved "+task.ID)
+			return reject("storage_error", "handoff task was not saved")
+		}
+	}
+
+	// 接管：登记待跑并落盘
+	if res := s.Runtime.HandoffTakeover(task.ID, key); !res.OK {
+		s.logWarn("tasks handoff takeover", res.Reason+" "+task.ID)
+		return reject("storage_error", "handoff task was not accepted")
+	}
+
+	// 确认启动：排队立即取得名额时，启动态也要落盘（没落盘 = 没启动，前台流要保留）。
+	// 没落盘时带回来的 Gen 是已经启动（但没落盘）的执行者编号：要先停掉它才能删附件。
+	// 已经落定的失败（启动态没落盘后已经放回 idle）只等执行者停下，不按 Gen 再停一次（那会把别的状态改掉）
+	if started := s.Runtime.EnsureStarted(task.ID); !started.OK {
+		s.logWarn("tasks handoff start", started.Reason+" "+task.ID)
+		if started.Gen > 0 {
+			gen = started.Gen
+		}
+		return reject("storage_error", "handoff task was not started")
+	}
+	rec := s.Runtime.Get(task.ID)
+	if rec == nil {
+		s.logWarn("tasks handoff verify", "task disappeared "+task.ID)
+		return Task{}, &HandoffError{Code: "storage_error", Msg: "handoff task disappeared"}
+	}
+	// 排队 / 开跑 / 已经跑完（执行者很快就结束、还在等验收）都算接下：发起那一轮已经交出去了
+	if !acceptedByBackground(rec.Task.Status) {
+		s.logWarn("tasks handoff verify", "status "+rec.Task.Status+" "+task.ID)
+		return reject("storage_error", "handoff task was not accepted")
+	}
+	// 后台已接受接管：现在才让前台停下原流（已产出的内容由前台接回这一轮）
+	s.handoffResumed(rec.Task)
+	return rec.Task, nil
+}
+
+// acceptedByBackground：转后台已经接下（不再停在 idle 等开始）
+func acceptedByBackground(status string) bool {
+	switch status {
+	case StatusQueued, StatusRunning, StatusAwaitingAccept, StatusWaitingUser, StatusNeedsReconcile, StatusDone, StatusFailed, StatusCancelled, StatusExpired:
+		return true
+	}
+	return false
+}
+
+// ranBefore：已经执行过（跑完 / 失败 / 取消过）
+func ranBefore(t Task) bool { return IsTerminal(t.Status) || t.LastRunAt != nil }
+
+// removeHandoffAttachments：只删这个任务自己的附件目录 / 文件（任务留下，重试还会往里写）。
+// 调用前执行者必须已经停下（停了才删，不会被删完又写回来）
+func (s *Service) removeHandoffAttachments(id string) {
+	if id == "" {
+		return
+	}
+	if err := os.RemoveAll(filepath.Join(s.d.Root, "attachments", safeName(id))); err != nil {
+		s.logWarn("tasks handoff release", err.Error())
+	}
+}
+
+// discardHandoffTask：接管没成功、留下一个从没执行过的任务：删掉，不在看板上多一张坏卡
+func (s *Service) discardHandoffTask(id string) {
+	if id == "" {
+		return
+	}
+	rec := s.Runtime.Get(id)
+	if rec == nil || rec.Task.Status != StatusIdle {
+		return
+	}
+	if res := s.Runtime.Command(id, Command{Type: "cancel"}); !res.OK {
+		return
+	}
+	s.Remove(id)
+}
+
+func (s *Service) logWarn(what, msg string) {
+	if s.d.Log != nil {
+		s.d.Log.Warn(what, "error", msg)
+	}
 }
 
 func delegateAnnouncedMsg(attemptID string) string { return "delegate_announced:" + attemptID }

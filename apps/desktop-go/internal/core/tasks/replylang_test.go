@@ -27,7 +27,7 @@ func TestReplyLanguage(t *testing.T) {
 func TestBuildPromptUsesTaskLanguage(t *testing.T) {
 	sp := func(s string) *string { return &s }
 	msgs := BuildPrompt(AttemptContext{Task: Task{Title: "Posters", Goal: "Generate a series of 6 posters",
-		Executor: ExecutorSpec{Kind: "nomi", Toolset: sp("conversation")}}, Attempt: Attempt{Cause: AttemptCause{Kind: "manual"}}}, "", 0, nil)
+		Executor: ExecutorSpec{Kind: "nomi", Toolset: sp("conversation")}}, Attempt: Attempt{Cause: AttemptCause{Kind: "manual"}}}, "", 0, nil, nil)
 	if !strings.Contains(msgs[0].Content, "English") || strings.Contains(msgs[0].Content, "用中文") {
 		t.Fatal(msgs[0].Content)
 	}

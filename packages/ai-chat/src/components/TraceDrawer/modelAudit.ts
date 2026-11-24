@@ -61,6 +61,11 @@ export interface TurnModelAudit {
   avgTtftMs?: number;
   avgTps?: number;
   evidences: AuditEvidence[];
+  /**
+   * 请求级证据未能定论（unverified）时，仅凭回复消息记录得到的回退结论；
+   * 不替代 verdict，只在总览里按较低证据强度补上。
+   */
+  historyVerdict?: ModelAuditVerdict;
 }
 
 export interface TraceModelSwitch {
@@ -111,7 +116,14 @@ export interface TraceModelSummary {
 export interface TraceModelAuditSummary {
   distinctModels: Array<{ key: string; name: string; vendor: string | null; verdict: ModelAuditVerdict }>;
   switchCount: number;
+  /** 参与核验的请求数 */
   totalAuditedRequests: number;
+  /** 参与核验的回合数：有请求证据的回合 + 仅靠回复消息历史回退、未被请求覆盖的回合 */
+  totalAuditedTurns: number;
+  /** 有请求证据且该回合模型名本身就不一致的请求数 */
+  modelNameMismatchRequests: number;
+  /** 仅靠历史回复证据、模型名不一致的回合数（没有响应头 / 指纹，证据强度低于请求级 mismatch） */
+  historicalModelDiffTurns: number;
   verifiedCount: number;
   suspectCount: number;
   mismatchCount: number;
@@ -149,11 +161,8 @@ export function stripProviderPrefix(model: string): string {
   return cleaned;
 }
 
-/** 与 Go gateway/modelid Canonical 同口径 模型名归一化 */
-export function canonicalModelName(model: string): string {
-  let s = model.trim().toLowerCase();
-  if (!s) return '';
-  s = s.replace(/_/g, '-').replace(GEMINI_PATH_RE, '');
+function lowerBareModelName(model: string): string {
+  let s = model.trim().toLowerCase().replace(/_/g, '-').replace(GEMINI_PATH_RE, '');
   if (s.includes('/')) {
     const idx = s.indexOf('/');
     const lastIdx = s.lastIndexOf('/');
@@ -165,6 +174,13 @@ export function canonicalModelName(model: string): string {
       }
     }
   }
+  return s;
+}
+
+/** 与 Go gateway/modelid Canonical 同口径 模型名归一化 */
+export function canonicalModelName(model: string): string {
+  let s = lowerBareModelName(model);
+  if (!s) return '';
   s = s.replace(DOT_VER_RE, '$1-$2');
   for (;;) {
     let next = s;
@@ -179,6 +195,140 @@ export function canonicalModelName(model: string): string {
     s = next;
   }
   return s;
+}
+
+/** 保留显式版本标识（日期 / latest）的模型 ID，只去前缀、下划线与点版本号形态 */
+export function explicitModelId(model: string): string {
+  return lowerBareModelName(model).replace(DOT_VER_RE, '$1-$2');
+}
+
+const DATE_SUFFIX_RE = /-(?:(\d{4})-(\d{2})-(\d{2})|(\d{4})(\d{2})(\d{2}))$|[@:](?:(\d{4})(\d{2})(\d{2}))$/;
+const LATEST_SUFFIX_RE = /(?:-latest|:latest|@latest)$/;
+
+function snapshotDate(id: string): string | undefined {
+  const m = DATE_SUFFIX_RE.exec(id);
+  if (!m) return undefined;
+  if (m[1]) return `${m[1]}${m[2]}${m[3]}`;
+  if (m[4]) return `${m[4]}${m[5]}${m[6]}`;
+  return m[7] ? `${m[7]}${m[8]}${m[9]}` : undefined;
+}
+
+/** 去掉日期快照与 latest 后缀后的系列 ID（如 gpt-4o / claude-sonnet-4-5） */
+function seriesIdOf(id: string): string {
+  const s = id.replace(LATEST_SUFFIX_RE, '').replace(DATE_SUFFIX_RE, '').trim();
+  return s || id;
+}
+
+export type ModelNameMatch = 'exact' | 'alias' | 'family' | 'unknown';
+
+/** 相邻的大版本编号（claude-3-7 → claude-3、claude-4 → claude-3、gemini-2-5 → gemini-2） */
+function adjacentMajorSeries(series: string): string[] {
+  const m = /^(.*?)(\d+)$/.exec(series);
+  if (!m || !m[1]) return [];
+  const major = Number(m[2]);
+  return major > 1 ? [`${m[1]}${major - 1}`] : [];
+}
+
+function sameFamily(a: string, b: string): boolean {
+  const [lo, hi] = a.length <= b.length ? [a, b] : [b, a];
+  if (!lo.includes('-') || !hi.startsWith(`${lo}-`)) return false;
+  // 基础名必须落在版本段或已知变体前（o3-mini、claude-sonnet-4-5-...），
+  // 避免把 gemini-2-5-pro 与 gemini-2-5-flash 这类不同型号判成同系列。
+  return /^-(?:\d+|mini|nano|pro|turbo|flash|plus|high|medium)(?:-|:|$)/.test(hi.slice(lo.length));
+}
+
+/** 模型大小 / 档位变体，不属于同系列的版本差异 */
+const MODEL_SIZE_SET = new Set([
+  'mini',
+  'nano',
+  'pro',
+  'turbo',
+  'flash',
+  'plus',
+  'high',
+  'medium',
+  'low',
+  'air',
+  'lite',
+  'max',
+  'ultra',
+]);
+const VERSION_SEGMENT_RE = /^\d+$/;
+
+/**
+ * 同一版本线判定：head 相同、版本段按位相同、大小档位相同、其余修饰词相同。
+ * 因为 head 已相同，版本段只可能来自多级版本（gemini-2-5-pro 与 gemini-2-5-flash、claude-3-5 与 claude-3-7），
+ * 这里再按版本相同时的大小档位细分，避免把 pro 与 flash 这类不同型号当成同系列。
+ */
+function sameVersionLine(a: string, b: string): boolean {
+  const sa = a.split('-').filter(Boolean);
+  const sb = b.split('-').filter(Boolean);
+  if (!sa[0] || sa[0] !== sb[0]) return false;
+  const pick = (segs: string[], keep: (seg: string) => boolean) => segs.filter(keep).join('.');
+  const versionA = pick(sa, (seg) => VERSION_SEGMENT_RE.test(seg));
+  const versionB = pick(sb, (seg) => VERSION_SEGMENT_RE.test(seg));
+  const sizeA = pick(sa, (seg) => MODEL_SIZE_SET.has(seg));
+  const sizeB = pick(sb, (seg) => MODEL_SIZE_SET.has(seg));
+  const other = (seg: string) => !VERSION_SEGMENT_RE.test(seg) && !MODEL_SIZE_SET.has(seg);
+  const restA = sa.filter(other).sort();
+  const restB = sb.filter(other).sort();
+  return versionA === versionB && sizeA === sizeB && restA.join('.') === restB.join('.');
+}
+
+/**
+ * 区分请求模型与返回模型的关系，只认有依据的供应商别名：
+ * - exact：去掉前缀 / 大小写 / 下划线差异后完全相同；
+ * - alias：未写日期的系列名 vs 该系列自己的日期快照或 latest（绝不跨版本）；
+ * - family：同系列的其他版本（含 claude-3-7 vs claude-3-5 这类相邻代）；
+ * - unknown：其余一切。
+ * 两个不同的显式日期版、两个不同的显式版本号都属于 family，不是版本一致。
+ */
+export function classifyModelNameMatch(requested: string, observed: string): ModelNameMatch {
+  const reqId = explicitModelId(requested);
+  const obsId = explicitModelId(observed);
+  if (!reqId || !obsId) return 'unknown';
+  if (reqId === obsId) return 'exact';
+  const reqSeries = seriesIdOf(reqId);
+  const obsSeries = seriesIdOf(obsId);
+  // 两边的显式快照 / 版本号都互不相同：是同系列的其他快照，不是别名
+  const bothSnapshot = snapshotDate(reqId) !== undefined && snapshotDate(obsId) !== undefined;
+  const bothLatest = LATEST_SUFFIX_RE.test(reqId) && LATEST_SUFFIX_RE.test(obsId);
+  if (reqSeries === obsSeries) return bothSnapshot || bothLatest ? 'family' : 'alias';
+  const reqIsSeries = reqSeries === reqId;
+  const obsIsSeries = obsSeries === obsId;
+  if ((reqIsSeries && obsSeries === reqId) || (obsIsSeries && reqSeries === obsId)) return 'alias';
+  if (
+    reqSeries === obsSeries ||
+    adjacentMajorSeries(reqSeries).includes(obsSeries) ||
+    adjacentMajorSeries(obsSeries).includes(reqSeries) ||
+    sameFamily(reqSeries, obsSeries) ||
+    sameFamily(reqId, obsId) ||
+    sameFamily(reqId, obsId) ||
+    sameVersionLine(reqSeries, obsSeries)
+  ) {
+    return 'family';
+  }
+  return 'unknown';
+}
+
+function reportedModel(tr: TraceTurn, replyMsg?: { model?: string; responseModel?: string }): string | undefined {
+  return (tr.responseModel || tr.model || replyMsg?.model || '').trim() || undefined;
+}
+
+/**
+ * 仅凭回复消息（无网关请求）比对请求模型与回复记录：exact / alias 一致，mismatch 才是跨厂商冲突。
+ */
+function historyModelVerdict(
+  tr: TraceTurn,
+  replyMsg?: { model?: string; responseModel?: string },
+): ModelAuditVerdict {
+  const recorded = (replyMsg?.responseModel || '').trim();
+  const requested = reportedModel(tr, replyMsg);
+  if (!recorded || !requested) return 'unverified';
+  const expV = inferModelVendor(stripProviderPrefix(requested) || requested);
+  const obsV = inferModelVendor(stripProviderPrefix(recorded) || recorded);
+  if (expV && obsV && expV !== obsV) return 'mismatch';
+  return 'verified';
 }
 
 const VENDOR_PATTERNS: Array<[RegExp, string]> = [
@@ -277,10 +427,37 @@ export function auditQualityRequest(
   let hasFingerprintPass = false;
   let hasSuspectSignal = false;
 
-  // 1. 模型返回名核验
+  // 1. 模型返回名核验（区分精确 / 供应商别名 / 同系列 / 未知，同系列不等于版本一致）
   if (observedRaw && requestedRaw) {
-    const sameModel = canonicalModelName(observedRaw) === canonicalModelName(requestedRaw);
-    if (sameModel) {
+    const nameMatch = classifyModelNameMatch(requestedRaw, observedRaw);
+    const mismatchEvidence: AuditEvidence | null =
+      expectedVendor && observedVendor && expectedVendor !== observedVendor
+        ? {
+            id: 'model-cross-vendor',
+            status: 'fail',
+            category: 'model',
+            message: t(
+              'ui.devtools.evidence-model-cross-vendor',
+              requestedClean,
+              expectedVendor,
+              observedClean || observedRaw,
+              observedVendor,
+            ),
+          }
+        : nameMatch === 'family'
+          ? {
+              id: 'model-family',
+              status: 'fail',
+              category: 'model',
+              message: t('ui.devtools.evidence-model-family-mismatch', requestedClean, observedRaw),
+            }
+          : {
+              id: 'model-mismatch',
+              status: 'fail',
+              category: 'model',
+              message: t('ui.devtools.evidence-model-mismatch', requestedClean, observedRaw),
+            };
+    if (nameMatch === 'exact' || nameMatch === 'alias') {
       hasFingerprintPass = true;
       evidences.push({
         id: 'model-match',
@@ -288,28 +465,17 @@ export function auditQualityRequest(
         category: 'model',
         message: t('ui.devtools.evidence-model-match', observedRaw),
       });
-    } else if (expectedVendor && observedVendor && expectedVendor !== observedVendor) {
+      if (nameMatch === 'alias') {
+        evidences.push({
+          id: 'model-alias',
+          status: 'info',
+          category: 'model',
+          message: t('ui.devtools.evidence-model-alias', requestedClean, observedRaw),
+        });
+      }
+    } else if (mismatchEvidence) {
       hasFingerprintFail = true;
-      evidences.push({
-        id: 'model-cross-vendor',
-        status: 'fail',
-        category: 'model',
-        message: t(
-          'ui.devtools.evidence-model-cross-vendor',
-          requestedClean,
-          expectedVendor,
-          observedClean || observedRaw,
-          observedVendor,
-        ),
-      });
-    } else {
-      hasFingerprintFail = true;
-      evidences.push({
-        id: 'model-mismatch',
-        status: 'fail',
-        category: 'model',
-        message: t('ui.devtools.evidence-model-mismatch', requestedClean, observedRaw),
-      });
+      evidences.push(mismatchEvidence);
     }
   } else {
     evidences.push({
@@ -364,7 +530,8 @@ export function auditQualityRequest(
     for (const hk of HEADER_MODEL_KEYS) {
       const hv = hdrs[hk];
       if (!hv || !requestedRaw) continue;
-      if (canonicalModelName(hv) !== canonicalModelName(requestedRaw)) {
+      const hdrMatch = classifyModelNameMatch(requestedRaw, hv);
+      if (hdrMatch !== 'exact' && hdrMatch !== 'alias') {
         hasFingerprintFail = true;
         evidences.push({
           id: `hdr-model-${hk}`,
@@ -676,7 +843,8 @@ export function analyzeTraceModels(
         requestAuditsByReqId[rn.req!.id] = audit;
       }
 
-      // 若当轮无网关请求记录但消息自身携带了 responseModel（历史兼容或直连反馈），补一条核验依据
+      // 若当轮无网关请求记录但消息自身携带了 responseModel（历史兼容或直连反馈），补一条核验依据；
+      // 只有模型名本身，没有响应头 / 指纹，所以不一致时按证据强度记为 suspect 而不是 mismatch。
       const fallbackEvidences: AuditEvidence[] = [];
       let fallbackVerdict: ModelAuditVerdict = 'unverified';
       const msgRespModel = replyMsg?.responseModel?.trim();
@@ -685,7 +853,8 @@ export function analyzeTraceModels(
         const obsClean = stripProviderPrefix(msgRespModel) || msgRespModel;
         const expV = inferModelVendor(reqClean);
         const obsV = inferModelVendor(obsClean);
-        if (canonicalModelName(msgRespModel) === canonicalModelName(turnRawModel)) {
+        const msgMatch = classifyModelNameMatch(turnRawModel, msgRespModel);
+        if (msgMatch === 'exact' || msgMatch === 'alias') {
           fallbackVerdict = 'verified';
           fallbackEvidences.push({
             id: 'msg-model-match',
@@ -693,6 +862,14 @@ export function analyzeTraceModels(
             category: 'model',
             message: t('ui.devtools.evidence-model-match', msgRespModel),
           });
+          if (msgMatch === 'alias') {
+            fallbackEvidences.push({
+              id: 'msg-model-alias',
+              status: 'info',
+              category: 'model',
+              message: t('ui.devtools.evidence-model-alias', reqClean, msgRespModel),
+            });
+          }
         } else if (expV && obsV && expV !== obsV) {
           fallbackVerdict = 'mismatch';
           fallbackEvidences.push({
@@ -700,6 +877,14 @@ export function analyzeTraceModels(
             status: 'fail',
             category: 'model',
             message: t('ui.devtools.evidence-model-cross-vendor', reqClean, expV, obsClean, obsV),
+          });
+        } else if (msgMatch === 'family') {
+          fallbackVerdict = 'suspect';
+          fallbackEvidences.push({
+            id: 'msg-model-diff',
+            status: 'warn',
+            category: 'model',
+            message: t('ui.devtools.evidence-model-history-diff', reqClean, msgRespModel),
           });
         } else {
           fallbackVerdict = 'mismatch';
@@ -720,6 +905,31 @@ export function analyzeTraceModels(
           !turnRawModel || canonicalModelName(m) !== canonicalModelName(turnRawModel),
       ) ?? observedFromReqs[0] ?? msgRespModel;
 
+      const historyEvidence: AuditEvidence[] = [];
+      if (
+        auditsForTurn.some((a) => a.verdict !== 'mismatch') &&
+        msgRespModel &&
+        turnRawModel
+      ) {
+        const expV = inferModelVendor(stripProviderPrefix(turnRawModel) || turnRawModel);
+        const obsV = inferModelVendor(stripProviderPrefix(msgRespModel) || msgRespModel);
+        if (expV && obsV && expV !== obsV && !auditsForTurn.some((a) => a.verdict === 'mismatch')) {
+          historyEvidence.push({
+            id: 'msg-model-cross',
+            status: 'fail',
+            category: 'model',
+            message: t(
+              'ui.devtools.evidence-model-cross-vendor',
+              stripProviderPrefix(turnRawModel) || turnRawModel,
+              expV,
+              stripProviderPrefix(msgRespModel) || msgRespModel,
+              obsV,
+            ),
+          });
+        }
+      }
+
+      // 已被请求覆盖的回合只取请求侧判定，回复记录里的冲突出 historyVerdict 进总览，不重复加码
       const turnVerdict = auditsForTurn.length
         ? worstVerdict(auditsForTurn.map((a) => a.verdict))
         : fallbackVerdict;
@@ -744,9 +954,17 @@ export function analyzeTraceModels(
       const tpsVals = auditsForTurn
         .map((a) => a.tps)
         .filter((x): x is number => x !== undefined && Number.isFinite(x));
+      // 有请求的回合：回复消息记录与请求模型冲突（且请求本身没抓到时）也按回复证据记一次
       const combinedEvidences = auditsForTurn.length
-        ? auditsForTurn.flatMap((a) => a.evidences)
+        ? [...auditsForTurn.flatMap((a) => a.evidences), ...historyEvidence]
         : fallbackEvidences;
+      const historyVerdict = auditsForTurn.length
+        ? historyEvidence.length
+          ? ('mismatch' as const)
+          : ('unverified' as const)
+        : turnVerdict === 'unverified'
+          ? historyModelVerdict(tr, replyMsg)
+          : 'unverified';
 
       turnAuditsByTurnId[tr.id] = {
         turnId: tr.id,
@@ -763,6 +981,7 @@ export function analyzeTraceModels(
           ? { avgTps: tpsVals.reduce((s, x) => s + x, 0) / tpsVals.length }
           : {}),
         evidences: combinedEvidences,
+        historyVerdict,
       };
 
       if (modelInfo) {
@@ -877,9 +1096,21 @@ export function analyzeTraceModels(
     };
   });
 
-  const auditedPool: ModelAuditVerdict[] = requestAudits.length
-    ? requestAudits.map((r) => r.verdict)
-    : Object.values(turnAuditsByTurnId).map((tItem) => tItem.verdict);
+  // 请求证据与未被请求覆盖的历史回合（仅回复消息回退）一起参与总览：
+  // 已被请求覆盖的回合只计请求，避免同一回合双计；没有请求记录的历史回合不能因新请求的出现而被忽略。
+  const requestPool = requestAudits.map((r) => r.verdict);
+  const uncoveredTurnAudits = Object.values(turnAuditsByTurnId).filter((tItem) => tItem.requestCount === 0);
+  const historyPool: ModelAuditVerdict[] = Object.values(turnAuditsByTurnId)
+    .filter((tItem) => tItem.requestCount > 0 && tItem.historyVerdict && tItem.historyVerdict !== 'unverified')
+    .map((tItem) => tItem.historyVerdict!);
+  const auditedPool: ModelAuditVerdict[] = [
+    ...requestPool,
+    ...historyPool,
+    ...uncoveredTurnAudits.map((tItem) => tItem.verdict),
+  ];
+  const modelNameMismatchRequests = requestAudits.filter((r) =>
+    r.evidences.some((e) => e.status === 'fail' && e.category === 'model'),
+  ).length;
 
   const verifiedCount = auditedPool.filter((v) => v === 'verified').length;
   const suspectCount = auditedPool.filter((v) => v === 'suspect').length;
@@ -896,6 +1127,13 @@ export function analyzeTraceModels(
       })),
       switchCount: switches.length,
       totalAuditedRequests: requestAudits.length,
+      totalAuditedTurns:
+        Object.values(turnAuditsByTurnId).filter((tItem) => tItem.requestCount > 0).length +
+        uncoveredTurnAudits.length,
+      modelNameMismatchRequests,
+      historicalModelDiffTurns: uncoveredTurnAudits.filter(
+        (tItem) => tItem.verdict === 'mismatch' || tItem.verdict === 'suspect',
+      ).length,
       verifiedCount,
       suspectCount,
       mismatchCount,
