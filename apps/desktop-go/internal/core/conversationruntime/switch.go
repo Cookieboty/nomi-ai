@@ -2,7 +2,9 @@ package conversationruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"reflect"
 	"time"
 )
 
@@ -19,65 +21,115 @@ func (c *Session) Switch(ctx context.Context, target Target, expected *uint64) (
 		return SwitchOutcome{}, err
 	}
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.storageErr != nil {
-		err = c.storageErr
-		c.mu.Unlock()
-		return SwitchOutcome{}, err
+		return SwitchOutcome{}, c.storageErr
 	}
 	if expected != nil && *expected != c.generation {
-		c.mu.Unlock()
 		return SwitchOutcome{}, ErrStaleEvent
 	}
 	if !c.idleLocked(false) {
-		c.mu.Unlock()
 		return SwitchOutcome{}, ErrBusy
 	}
-	fromState := TargetState{Identity: c.target.Identity, Env: c.target.Env, Effort: c.target.Effort, Capabilities: c.caps.clone()}
+	gen := c.generation
+	source := c.target
+	distinctOwner := distinctSwitchRuntime(source, target)
+	aware, hasPreparation := target.Runtime.(SwitchAwareRuntime)
+	if hasPreparation && !distinctOwner && source.Identity.Key(source.Env) != target.Identity.Key(target.Env) {
+		// Refuse an incompatible target that aliases (or cannot prove ownership
+		// separate from) the source. Preparing/tearing it down would risk source.
+		return SwitchOutcome{}, ErrBadEdit
+	}
+	fromState := TargetState{Identity: source.Identity, Env: source.Env, Effort: source.Effort, Capabilities: c.caps.clone()}
 	toState := TargetState{Identity: target.Identity, Env: target.Env, Effort: target.Effort, Capabilities: caps.clone()}
-	c.pendingSwitch = &SwitchState{
-		Phase: "saved-source",
-		From:  fromState,
-		To:    toState,
+	sw := &SwitchState{Phase: "saved-source", From: fromState, To: toState}
+	c.pendingSwitch = sw
+	// This process-local lease also covers unlocked target cleanup. Explicit
+	// resolution must not make a cached target available to a second Switch
+	// while the first operation is still preparing or tearing it down.
+	c.switching = true
+	defer func() { c.switching = false }()
+	prepared := false
+	// An already selected/shared owner needs no preparation and must never be
+	// torn down as an abandoned target (including transparent wrapper aliases).
+	hasPreparation = hasPreparation && distinctOwner
+	abort := func(cause error) (SwitchOutcome, error) {
+		if prepared && distinctOwner {
+			// Caller cancellation is not permission to leak prepared resources.
+			// Teardown owns only the target, never the still-selected source.
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			c.mu.Unlock()
+			cleanupErr := aware.Teardown(cleanupCtx)
+			c.mu.Lock()
+			cancel()
+			if cleanupErr != nil {
+				if c.storageErr != nil {
+					return SwitchOutcome{}, errors.Join(cause, cleanupErr, c.storageErr)
+				}
+				c.refreshLocked()
+				if c.storageErr != nil {
+					return SwitchOutcome{}, errors.Join(cause, cleanupErr, c.storageErr)
+				}
+				// No claim of target quiescence: retain the durable pending marker
+				// for explicit recovery rather than reopening admission.
+				c.generation++
+				return SwitchOutcome{}, errors.Join(cause, cleanupErr, c.persistLocked())
+			}
+		}
+		if c.storageErr != nil {
+			return SwitchOutcome{}, errors.Join(cause, c.storageErr)
+		}
+		if c.pendingSwitch != sw {
+			return SwitchOutcome{}, errors.Join(cause, ErrStaleEvent)
+		}
+		// Refresh with the marker IN PLACE: it can itself persist uncertainty.
+		// Never restore an entry snapshot of Work over newer source evidence.
+		c.refreshLocked()
+		if c.storageErr != nil {
+			return SwitchOutcome{}, errors.Join(cause, c.storageErr)
+		}
+		return SwitchOutcome{}, errors.Join(cause, c.rollbackSwitchLocked("switch aborted"))
 	}
 	if err = c.persistLocked(); err != nil {
-		c.mu.Unlock()
 		return SwitchOutcome{}, err
 	}
-
-	// Stage 2: preparing-target (optional runtime readiness check; no user prompt).
-	c.pendingSwitch.Phase = "preparing-target"
+	sw.Phase = "preparing-target"
 	if err = c.persistLocked(); err != nil {
-		c.mu.Unlock()
 		return SwitchOutcome{}, err
 	}
-	if aware, ok := target.Runtime.(SwitchAwareRuntime); ok {
+	if hasPreparation {
+		prepared = true // a failing preparation may also own partial resources
 		c.mu.Unlock()
 		prepErr := aware.PrepareSwitch(ctx)
 		c.mu.Lock()
 		if c.storageErr != nil {
-			err = c.storageErr
-			c.mu.Unlock()
-			return SwitchOutcome{}, err
+			return abort(c.storageErr)
 		}
-		if c.pendingSwitch == nil {
-			c.mu.Unlock()
-			return SwitchOutcome{}, ErrStaleEvent
+		if c.pendingSwitch != sw {
+			return abort(ErrStaleEvent)
 		}
+		quiet := c.idleWorkLocked(false)
 		if prepErr != nil {
-			rbErr := c.rollbackSwitchLocked("target preparation failed: " + prepErr.Error())
-			c.mu.Unlock()
-			if rbErr != nil {
-				return SwitchOutcome{}, rbErr
-			}
-			return SwitchOutcome{}, fmt.Errorf("%w: %v", ErrUnconfirmed, prepErr)
+			return abort(fmt.Errorf("%w: %v", ErrUnconfirmed, prepErr))
 		}
+		if !quiet {
+			return abort(ErrBusy)
+		}
+		if c.generation != gen {
+			return abort(ErrStaleEvent)
+		}
+	}
+	// Cancellation observed before publication withdraws this metadata-only
+	// transaction, not the source turn. It proves neither stop nor recovery.
+	// Once final durable publication begins, commit may win a cancellation race.
+	if err = ctx.Err(); err != nil {
+		return abort(err)
 	}
 
 	// Stage 3: recovering-target (inspect existing compatible safe bindings; never fabricate cold handshakes).
 	c.pendingSwitch.Phase = "recovering-target"
 	if err = c.persistLocked(); err != nil {
-		c.mu.Unlock()
-		return SwitchOutcome{}, err
+		return abort(err)
 	}
 	key := target.Identity.Key(target.Env)
 	var resumable Binding
@@ -89,12 +141,7 @@ func (c *Session) Switch(ctx context.Context, target Target, expected *uint64) (
 			for _, b := range c.bindings.All() {
 				if b.CompatKey == key && b.Status.Safe() && b.NativeSessionID != "" {
 					if resumable.ID != "" {
-						rbErr := c.rollbackSwitchLocked("ambiguous compatible bindings for target")
-						c.mu.Unlock()
-						if rbErr != nil {
-							return SwitchOutcome{}, rbErr
-						}
-						return SwitchOutcome{}, ErrProtocol
+						return abort(ErrProtocol)
 					}
 					resumable = b
 				}
@@ -125,15 +172,10 @@ func (c *Session) Switch(ctx context.Context, target Target, expected *uint64) (
 		} else if plan.Error != "" {
 			reason = plan.Error
 		}
-		rbErr := c.rollbackSwitchLocked(reason)
-		c.mu.Unlock()
-		if rbErr != nil {
-			return SwitchOutcome{}, rbErr
-		}
 		if planErr != nil {
-			return SwitchOutcome{}, planErr
+			return abort(planErr)
 		}
-		return SwitchOutcome{}, ErrProtocol
+		return abort(fmt.Errorf("%w: %s", ErrProtocol, reason))
 	}
 	expectedStrategy := plan.Strategy
 	if resumable.ID == "" {
@@ -143,15 +185,16 @@ func (c *Session) Switch(ctx context.Context, target Target, expected *uint64) (
 	c.pendingSwitch.PlannedEntries = len(plan.Selections)
 	c.pendingSwitch.OmittedEntries = len(plan.Omitted)
 	if err = c.persistLocked(); err != nil {
-		c.mu.Unlock()
-		return SwitchOutcome{}, err
+		return abort(err)
 	}
 
 	// Stage 5: committing (publish durable switch, update selected target & clear pendingSwitch).
 	c.pendingSwitch.Phase = "committing"
 	if err = c.persistLocked(); err != nil {
-		c.mu.Unlock()
-		return SwitchOutcome{}, err
+		return abort(err)
+	}
+	if err = ctx.Err(); err != nil {
+		return abort(err)
 	}
 	summary := LastSwitchSummary{
 		FromBackend:      fromState.Identity.DriverID,
@@ -169,10 +212,8 @@ func (c *Session) Switch(ctx context.Context, target Target, expected *uint64) (
 	c.generation++
 	c.work = Activity{Known: true}
 	if err = c.persistLocked(); err != nil {
-		c.mu.Unlock()
-		return SwitchOutcome{}, err
+		return abort(err)
 	}
-	c.mu.Unlock()
 	return SwitchOutcome{
 		FromBackend:      summary.FromBackend,
 		ToBackend:        summary.ToBackend,
@@ -191,9 +232,9 @@ func (c *Session) rollbackSwitchLocked(reason string) error {
 	if c.active != nil && c.active.token.AttemptID == "interrupted-switch" {
 		c.active.cancel()
 		c.active = nil
+		c.work = Activity{Known: true}
 	}
 	c.generation++
-	c.work = Activity{Known: true}
 	return c.persistLocked()
 }
 
@@ -215,4 +256,32 @@ func (c *Session) restoreTargetLocked(from TargetState) {
 	c.target.Env = from.Env
 	c.target.Effort = from.Effort
 	c.caps = from.Capabilities.clone()
+}
+
+// Transparent application wrappers expose their owner so abandoning a target
+// can never tear down the selected source through a different wrapper pointer.
+func distinctSwitchRuntime(source, target Target) bool {
+	if source.Identity.Key(source.Env) == target.Identity.Key(target.Env) {
+		return false
+	}
+	unwrap := func(r Runtime) Runtime {
+		for i := 0; i < 16; i++ {
+			w, ok := r.(interface{ UnwrapRuntime() Runtime })
+			if !ok {
+				break
+			}
+			r = w.UnwrapRuntime()
+		}
+		return r
+	}
+	a, b := unwrap(source.Runtime), unwrap(target.Runtime)
+	if a == nil || b == nil {
+		return b != nil
+	}
+	// Unusual non-comparable value implementations cannot prove separate
+	// ownership; conservatively never call Teardown on a possible source alias.
+	if !reflect.ValueOf(a).Comparable() || !reflect.ValueOf(b).Comparable() {
+		return false
+	}
+	return a != b
 }

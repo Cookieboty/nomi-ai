@@ -44,3 +44,6 @@ func (o *observedRuntime) Teardown(ctx context.Context) error {
 	}
 	return nil
 }
+
+// UnwrapRuntime identifies the shared owner for switch target cleanup.
+func (o *observedRuntime) UnwrapRuntime() cr.Runtime { return o.Runtime }

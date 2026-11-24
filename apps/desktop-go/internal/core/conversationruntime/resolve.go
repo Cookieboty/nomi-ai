@@ -10,6 +10,9 @@ var ErrUnresolved = errors.New("conversationruntime: no unproven resume awaiting
 func (c *Session) ResolveUnprovenResume(expected *uint64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.switching {
+		return ErrBusy
+	}
 	if c.storageErr != nil {
 		return c.storageErr
 	}
@@ -47,13 +50,17 @@ func (c *Session) ResolveUnprovenResume(expected *uint64) error {
 }
 
 // ResolveInterruptedSwitch rolls back an interrupted PendingSwitch to its durable
-// source target so the session returns to idle without executing any turn.
+// source target without executing any turn. Real source uncertainty is kept;
+// only a pending-only interruption with no unsafe source work returns to idle.
 func (c *Session) ResolveInterruptedSwitch(expected *uint64, decision string) error {
 	if decision != "rollback-switch" {
 		return ErrPermission
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.switching {
+		return ErrBusy
+	}
 	if c.storageErr != nil {
 		return c.storageErr
 	}
@@ -64,17 +71,13 @@ func (c *Session) ResolveInterruptedSwitch(expected *uint64, decision string) er
 	if sw == nil {
 		return ErrUnresolved
 	}
-	c.restoreTargetLocked(sw.From)
-	c.pendingSwitch = nil
-	if c.active != nil {
-		c.active.cancel()
-		if c.active.token.AttemptID == "interrupted-switch" || c.active.phase == PhaseUncertain {
-			c.active = nil
-		}
+	// Rolling back metadata cannot prove that real source work stopped. Only
+	// the synthetic pending-only restart marker may become known-idle here.
+	c.refreshLocked()
+	if c.storageErr != nil {
+		return c.storageErr
 	}
-	c.generation++
-	c.work = Activity{Known: true}
-	return c.persistLocked()
+	return c.rollbackSwitchLocked("explicit interrupted switch rollback")
 }
 
 // ResolveAbandon discards a failed, canceled, or unproven turn (and rolls back
@@ -83,6 +86,9 @@ func (c *Session) ResolveInterruptedSwitch(expected *uint64, decision string) er
 func (c *Session) ResolveAbandon(expected *uint64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.switching {
+		return ErrBusy
+	}
 	if c.storageErr != nil {
 		return c.storageErr
 	}

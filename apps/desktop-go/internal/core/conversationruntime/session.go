@@ -35,6 +35,7 @@ type activeAttempt struct {
 // without one it is a pure in-memory harness. Production ingress and real
 // runtime adapters are not connected yet.
 type Session struct {
+	switching      bool // process-local preparation/cleanup lease; not restored from checkpoints
 	pendingSwitch  *SwitchState
 	lastSwitch     *LastSwitchSummary
 	committer      Committer
@@ -355,8 +356,17 @@ func (c *Session) beginLocked(ctx context.Context, r Request, queued bool) (*act
 	return a, nil
 }
 func (c *Session) idleLocked(ignoreQueue bool) bool {
+	if c.switching || c.pendingSwitch != nil {
+		return false
+	}
+	return c.idleWorkLocked(ignoreQueue)
+}
+
+// idleWorkLocked checks source work without hiding a live switch marker from
+// refreshLocked, whose uncertainty transition can write a checkpoint.
+func (c *Session) idleWorkLocked(ignoreQueue bool) bool {
 	c.refreshLocked()
-	if c.storageErr != nil || c.pendingSwitch != nil {
+	if c.storageErr != nil {
 		return false
 	}
 	if !ignoreQueue && len(c.queue) > 0 {

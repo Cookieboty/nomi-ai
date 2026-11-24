@@ -196,9 +196,15 @@ func validRecovery(old Binding, r RecoveryResult) bool {
 func (c *Session) handle(e Event) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.refreshLocked()
+	// Ownership is checked BEFORE any refresh: an event that does not own the
+	// active attempt (old generation, foreign conversation/native identity) must
+	// never rewrite this session's attempt/activity state.
 	a := c.active
 	if a == nil || !c.ownerLocked(a) || e.Token != a.token || e.NativeSessionID != a.recovery.NativeSessionID {
+		return ErrStaleEvent
+	}
+	c.refreshLocked()
+	if a = c.active; a == nil || !c.ownerLocked(a) || e.Token != a.token || e.NativeSessionID != a.recovery.NativeSessionID {
 		return ErrStaleEvent
 	}
 	if a.phase == PhaseCompleted && e.Kind == EventActivity {
