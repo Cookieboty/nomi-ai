@@ -18,6 +18,7 @@
   "ai-runtime.providers.preset-minimax": "MiniMax",
   "ai-runtime.providers.preset-xai": "xAI Grok",
   "ai-runtime.providers.preset-openrouter": "OpenRouter",
+  "ai-runtime.providers.preset-opencode-go": "OpenCode Go",
   "ai-runtime.providers.preset-siliconflow": "SiliconFlow",
   "ai-runtime.providers.preset-amux": "Amux AI",
   "ai-runtime.providers.preset-ollama": "Ollama (local)",
@@ -27,6 +28,7 @@
   "ai-runtime.providers.hint-qwen": "Replace {WorkspaceId} with your workspace ID",
   "ai-runtime.providers.hint-coding-plan": "Dedicated key for the coding plan",
   "ai-runtime.providers.hint-openrouter": "openrouter.ai · Use the model list to choose",
+  "ai-runtime.providers.hint-opencode-go": "opencode.ai/console · Requires an OpenCode Go subscription; use the model list to choose",
   "ai-runtime.providers.hint-amux": "amux.ai · Use the model list to choose (IDs look like vendor/model)",
   "ai-runtime.providers.hint-ollama": "Local service · use the model list to show downloaded models",
   "ai-runtime.providers.hint-lmstudio": "Local service · use the model list to show loaded models"

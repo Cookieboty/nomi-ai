@@ -58,6 +58,8 @@ type HeaderOpts struct {
 	Stream        bool
 	ClientHeaders map[string]any
 	SameWire      bool
+	// Session 是会话稳定的亲和 ID；供应商的 quirks.sessionHeader 指定头名时发出去
+	Session string
 }
 
 // standardClaudeWindow：超过这个窗口要 context-1m beta（Anthropic 的标准窗口）
@@ -194,6 +196,9 @@ func Headers(c *cand.Candidate, opts HeaderOpts) *u.Obj {
 	}
 	if ua != "" {
 		h.Set("User-Agent", ua)
+	}
+	if q := providers.QuirksOf(c.Provider, c.Wire); q != nil && q.SessionHeader != "" && opts.Session != "" {
+		h.Set(q.SessionHeader, opts.Session)
 	}
 	if c.Provider.Headers != nil {
 		h.Assign(c.Provider.Headers)

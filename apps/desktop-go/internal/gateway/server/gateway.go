@@ -1283,7 +1283,7 @@ func (g *GatewayServer) proxy(req *http.Request, res *gwRes, cfg *config.Gateway
 			continue
 		}
 		effort := requestEffort(binding, req.Header.Get(models.ReasoningEffortHeader))
-		last = g.attempt(cfg, resolveAs, req, ingress, c, sendBody, wantsStream, abortCtx, startedAt, trace, effort)
+		last = g.attempt(cfg, resolveAs, req, ingress, c, sendBody, wantsStream, abortCtx, startedAt, session, trace, effort)
 		if last.kind == "response" && wantsStream && isSseResponse(last.res) {
 			got := *last
 			{
@@ -1795,7 +1795,7 @@ func sseFailure(wire, message string) string {
 // attempt is one upstream try; a 2xx header counts as success. startedAt bounds
 // the diagnostic read of an error body (see readErrorBody).
 func (g *GatewayServer) attempt(cfg *config.GatewayConfig, client string, req *http.Request, ingress *upstream.Ingress, c *cand.Candidate,
-	body any, wantsStream bool, signal context.Context, startedAt float64,
+	body any, wantsStream bool, signal context.Context, startedAt float64, session string,
 	trace *RequestTrace, bindingEffort *string) *attemptT {
 	base, _ := c.Provider.URLs.Get(c.Wire).(string)
 	target := upstream.URL(c.Wire, base, c.UpstreamModel, upstream.URLOpts{Stream: wantsStream})
@@ -1821,7 +1821,11 @@ func (g *GatewayServer) attempt(cfg *config.GatewayConfig, client string, req *h
 	both, cancelBoth := context.WithCancel(signal)
 	var firstByteFired atomic.Bool
 	timer := time.AfterFunc(time.Duration(firstByteMs*float64(time.Millisecond)), func() { firstByteFired.Store(true); cancelBoth() })
-	headers := upstream.Headers(c, upstream.HeaderOpts{Stream: wantsStream, ClientHeaders: nodeHeaders(req.Header), SameWire: ingress.Wire == c.Wire})
+	sess := session
+	if sess == "" && trace != nil {
+		sess = trace.ID
+	}
+	headers := upstream.Headers(c, upstream.HeaderOpts{Stream: wantsStream, ClientHeaders: nodeHeaders(req.Header), SameWire: ingress.Wire == c.Wire, Session: sess})
 	if trace != nil {
 		kn := keyName(c)
 		trace.Attempt(u.NewObj("provider", c.Provider.Name, "key", kn, "wire", c.Wire, "url", target, "headers", headers, "body", sent))
