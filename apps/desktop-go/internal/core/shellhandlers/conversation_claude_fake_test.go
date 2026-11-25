@@ -85,3 +85,25 @@ func installFakeClaude(t *testing.T, dir string) string {
 	}
 	return exe
 }
+
+// replaceFakeClaudeWithBrokenImage rewrites the stand-in in place, keeping its
+// exact path, as a file the OS refuses to start as a process. It must stay in
+// place: claudert's Factory.Target (the production metadata check behind
+// conversations.runtimeAdopt) EvalSymlinks and Stat's the executable before any
+// spawn, so a fixture whose path is gone fails the adopt and never reaches the
+// launch this test is about.
+//
+// The whole header is zeroed, including the Windows PE "MZ" magic (at offset 0
+// of the .exe file too): Stat still sees a regular, non-empty file, while
+//   - POSIX: the kernel cannot exec a zero-magic image (ENOEXEC);
+//   - Windows: CreateProcess rejects the image (ERROR_BAD_EXE_FORMAT).
+//
+// Both are the OS refusing to start the process, not a permission-bit
+// refusal (chmod is advisory to Windows) and not a missing path.
+func replaceFakeClaudeWithBrokenImage(t *testing.T, exe string) {
+	t.Helper()
+	bad := make([]byte, 1024)
+	if err := os.WriteFile(exe, bad, 0o755); err != nil {
+		t.Fatal(err)
+	}
+}

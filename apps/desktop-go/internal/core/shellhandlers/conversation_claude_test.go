@@ -36,6 +36,12 @@ func claudeFixtureWithRegistry(t *testing.T, mode string, reg *mainchat.Registry
 	// directory, never next to the binary.
 	exe := installFakeClaude(t, dir)
 	setClaudeMode(t, dir, mode)
+	// The isolated account/config dir exists up front: the fixture must model a
+	// real selected config directory, never a path that only the assertion
+	// resolves (macOS /var vs /private/var, Windows TMP 8.3 short names).
+	if err := os.MkdirAll(filepath.Join(dir, "config"), 0o700); err != nil {
+		t.Fatal(err)
+	}
 	f := claudert.New(func(convID string) (claudert.Config, error) {
 		cfg := claudert.Config{Executable: exe, Cwd: dir, ConfigDir: filepath.Join(dir, "config")}
 		if reg != nil {
@@ -66,6 +72,25 @@ func readClaudeWire(t *testing.T, dir string) []claudeWire {
 		out = append(out, e)
 	}
 	return out
+}
+
+// sameDirectory reports whether got (as the CLI observed it) names exactly the
+// real directory at want. Both must exist; identity is the file's own stat, so
+// symlinked or 8.3-shortened spellings of the same directory pass and any other
+// directory (or a missing one) fails.
+func sameDirectory(got, want string) bool {
+	if got == "" || want == "" {
+		return false
+	}
+	g, err := os.Stat(got)
+	if err != nil {
+		return false
+	}
+	w, err := os.Stat(want)
+	if err != nil {
+		return false
+	}
+	return os.SameFile(g, w)
 }
 
 type nativeView struct {
@@ -138,18 +163,12 @@ func TestClaudeOfficialSubprocessActualIPCProviderlessWarmSwitch(t *testing.T) {
 					t.Fatalf("default auto profile should not pass legacy flag %s in %s", unwanted, args)
 				}
 			}
-			// Compare physical paths: macOS reports /private/var for /var TMPDIR.
-			realDir, err := filepath.EvalSymlinks(dir)
-			if err != nil {
-				t.Fatal(err)
-			}
-			physical := func(p string) string {
-				if r, err := filepath.EvalSymlinks(p); err == nil {
-					return r
-				}
-				return p
-			}
-			if d["apiKeyPresent"] != false || physical(fmt.Sprint(d["cwd"])) != realDir || physical(fmt.Sprint(d["config"])) != filepath.Join(realDir, "config") || strings.Contains(args, "--bare") {
+			// The selected cwd and config must both be the fixture's REAL
+			// directories, proven by filesystem identity (same inode/volume):
+			// macOS reports /private/var for the /var TMPDIR and Windows may
+			// hand back RUNNER~1 8.3 names, which a string compare would reject
+			// even though the process runs in exactly the isolated fixture.
+			if d["apiKeyPresent"] != false || !sameDirectory(fmt.Sprint(d["cwd"]), dir) || !sameDirectory(fmt.Sprint(d["config"]), filepath.Join(dir, "config")) || strings.Contains(args, "--bare") {
 				t.Fatal("official login/source isolation broken", d)
 			}
 		}
@@ -421,19 +440,80 @@ func TestClaudeOfficialSubprocessLateBackgroundNeverClaimsIdle(t *testing.T) {
 func TestClaudeOfficialSubprocessSpawnErrorBeforeSubmission(t *testing.T) {
 	s, r, c := fixtureIngress(t, t.TempDir())
 	f, dir := claudeFixture(t, "success")
-	if err := os.WriteFile(filepath.Join(dir, "fake-claude"), []byte("not an executable format"), 0700); err != nil {
-		t.Fatal(err)
+	exe := filepath.Join(dir, fakeClaudeExeName())
+	// A real OS-level start failure of the selected executable at its own
+	// path: the production Target still resolves it (adopt succeeds), and only
+	// the launch fails.
+	replaceFakeClaudeWithBrokenImage(t, exe)
+	if st, err := os.Stat(exe); err != nil || st.IsDir() || st.Size() == 0 {
+		t.Fatalf("fixture executable missing before Target: %v %v", st, err)
 	}
 	r.RegisterOwned("claude", f.Target, f.Release)
 	seedIngress(t, c)
 	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"claude","confirm":true}`))
 	if got := sendIngress(t, c, "one"); got.T != "err" {
-		t.Fatal("spawn error claimed submission")
+		t.Fatalf("spawn error claimed submission: %+v", got)
 	}
-	awaitClaude(t, c, cr.PhaseFailed)
+	st := awaitClaude(t, c, cr.PhaseFailed)
+	if len(st.Approvals) != 0 || !strings.Contains(st.Detail, "failed before user input") || !strings.Contains(st.Detail, "spawn") {
+		t.Fatalf("spawn failure misreported: %+v", st)
+	}
 	doc, err := s.ReadManaged("c")
 	if err != nil || len(doc.State.Receipts) != 0 || len(doc.State.Completed) != 0 {
-		t.Fatal("spawn failure created delivery", err)
+		t.Fatalf("spawn failure created delivery: %+v %v", doc.State, err)
+	}
+	// The failure is the spawn itself: the stand-in never ran, so it journaled
+	// no launch and accepted no user input.
+	if _, err := os.Stat(filepath.Join(dir, "wire.jsonl")); !os.IsNotExist(err) {
+		t.Fatalf("non-executable fixture was started (journal: %v)", err)
+	}
+}
+
+func TestClaudeOfficialSubprocessMissingExecutableFailsAdopt(t *testing.T) {
+	_, r, c := fixtureIngress(t, t.TempDir())
+	f, dir := claudeFixture(t, "success")
+	// Control for the spawn-failure test above: the production Target requires
+	// the executable to exist, so a fixture with no file there cannot be
+	// adopted and never reaches a spawn.
+	if err := os.Remove(filepath.Join(dir, fakeClaudeExeName())); err != nil {
+		t.Fatal(err)
+	}
+	r.RegisterOwned("claude", f.Target, f.Release)
+	seedIngress(t, c)
+	if got := c.call("conversations.runtimeAdopt", `{"id":"c","backend":"claude","confirm":true}`); got.T == "res" {
+		t.Fatalf("adopt accepted a conversation whose executable is gone: %+v", got.Output)
+	}
+}
+
+func TestSameDirectoryRequiresRealIdenticalDirectory(t *testing.T) {
+	root := t.TempDir()
+	a, b := filepath.Join(root, "a"), filepath.Join(root, "b")
+	for _, d := range []string{a, b} {
+		if err := os.Mkdir(d, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	file := filepath.Join(a, "f")
+	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// The OS's own spelling (macOS /private/var, Windows 8.3) must pass.
+	physical, err := filepath.EvalSymlinks(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sameDirectory(a, a) || !sameDirectory(physical, a) {
+		t.Fatal("same directory rejected")
+	}
+	if sameDirectory(b, a) {
+		t.Fatal("different existing directory accepted")
+	}
+	if sameDirectory(filepath.Join(root, "missing"), a) || sameDirectory("", a) || sameDirectory(a, "") {
+		t.Fatal("missing directory accepted")
+	}
+	// A regular file is not the directory merely because it exists.
+	if sameDirectory(file, a) || sameDirectory(file, b) {
+		t.Fatal("file accepted as directory")
 	}
 }
 

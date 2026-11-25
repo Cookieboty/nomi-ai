@@ -311,21 +311,19 @@ func TestCodexOfficialSubprocessActualIPCClaudeAPICodexFullDelta(t *testing.T) {
 			t.Fatalf("forbidden flag %q in %q", banned, rec.Args)
 		}
 	}
-	// The native cwd must be exactly the selected project, compared physically:
-	// macOS reports /private/var for the /var TMPDIR the project was created in.
-	physical := func(p string) string {
-		if r, err := filepath.EvalSymlinks(p); err == nil {
-			return r
-		}
-		return p
-	}
-	if physical(rec.Cwd) != physical(filepath.Join(x.dir, "project")) {
+	// The native cwd must be exactly the selected project, compared by
+	// filesystem identity: macOS reports /private/var for the /var TMPDIR the
+	// project was created in.
+	if !sameDirectory(rec.Cwd, filepath.Join(x.dir, "project")) {
 		t.Fatalf("project cwd isolation: %q", rec.Cwd)
 	}
 	if rec.OpenAIKey || rec.CodexAPIKey || rec.OpenAIURL {
 		t.Fatalf("credential/endpoint overrides inherited by official Codex: %+v", rec)
 	}
-	if rec.CodexHome != filepath.Join(x.dir, "codex-home") {
+	// CODEX_HOME is the isolated fixture home, held to the same identity rule as
+	// the cwd above (macOS reports /private/var for the /var TMPDIR); any other
+	// directory, including the user's real ~/.codex, is rejected.
+	if !sameDirectory(rec.CodexHome, filepath.Join(x.dir, "codex-home")) {
 		t.Fatalf("CODEX_HOME = %q", rec.CodexHome)
 	}
 	users := 0
