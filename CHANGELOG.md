@@ -14,6 +14,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 ### Fixes
 
 - **preview:** YAML 文件的键与未加引号的值补上语法着色
+- **preview:** 已更改文件弹层按指针与焦点分别判断，不再提前收起
 - **preview:** 已更改文件气泡的弹层不再被左侧会话栏遮挡
 
 ### Maintenance
