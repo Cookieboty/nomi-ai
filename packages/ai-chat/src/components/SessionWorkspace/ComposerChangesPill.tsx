@@ -1,12 +1,15 @@
 /** Composer 附近「N 个文件已更改 +x −y」pill；悬停延迟防抖 + body portal 浮层，点击文件或 pill 打开并排 Diff 工作台。
  * 文件清单弹层 portal 到 body：留在会话卡片里会被卡片的 overflow: clip 裁掉，
- * 也跳不出卡片的层叠上下文（卡片 z-index: 1，低于左侧会话栏的 3）。 */
+ * 也跳不出卡片的层叠上下文（卡片 z-index: 1，低于左侧会话栏的 3）。
+ * 指针与焦点分开记录，两者都离开才收起；指针离开留一段可取消的延迟，
+ * 才能跨过 pill 与弹层之间的间距去查看、滚动清单。 */
 import { t } from '@nomi-ai/ui';
 import { IconFileDiff as FileDiff } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import type { ConvMessage } from '../../types/conversation';
+import { isImeComposing } from '../../utils/keyboard';
 import {
   aggregateSessionChanges,
   splitPathDisplay,
@@ -16,6 +19,7 @@ import {
 import { useChangesUi } from './ChangesUiContext';
 import styles from './SessionWorkspace.module.css';
 
+/** 指针离开 pill 或弹层后多久收起；进入弹层或回到 pill 时取消。 */
 const POPOVER_CLOSE_DELAY_MS = 180;
 
 export const ComposerChangesPill: React.FC<{
@@ -24,7 +28,9 @@ export const ComposerChangesPill: React.FC<{
   const { openWorkbench } = useChangesUi();
   const changes = useMemo(() => aggregateSessionChanges(messages), [messages]);
   const summary = useMemo(() => summarizeChanges(changes), [changes]);
-  const [open, setOpen] = useState(false);
+  const [pointerInside, setPointerInside] = useState(false);
+  const [focusInside, setFocusInside] = useState(false);
+  const open = pointerInside || focusInside;
   const [position, setPosition] = useState<{ left: number; top: number; width: number } | null>(
     null,
   );
@@ -39,23 +45,29 @@ export const ComposerChangesPill: React.FC<{
     }
   }, []);
 
-  const handleOpen = useCallback(() => {
+  const handlePointerEnter = useCallback(() => {
     cancelClose();
-    setOpen(true);
+    setPointerInside(true);
+  }, [cancelClose]);
+
+  const handleFocus = useCallback(() => {
+    cancelClose();
+    setFocusInside(true);
   }, [cancelClose]);
 
   const handleCloseImmediate = useCallback(() => {
     cancelClose();
-    setOpen(false);
+    setPointerInside(false);
+    setFocusInside(false);
     setPosition(null);
   }, [cancelClose]);
 
+  // 指针离开后只撤掉指针这一半；焦点还在 pill 上时弹层不关
   const handleScheduleClose = useCallback(() => {
     cancelClose();
     closeTimerRef.current = window.setTimeout(() => {
       closeTimerRef.current = null;
-      setOpen(false);
-      setPosition(null);
+      setPointerInside(false);
     }, POPOVER_CLOSE_DELAY_MS);
   }, [cancelClose]);
 
@@ -112,7 +124,9 @@ export const ComposerChangesPill: React.FC<{
     };
   }, [open, place, changes.length]);
 
-  // 弹层展开后：点击外部收起（触屏无 hover），以及全局 Esc 收起（悬停打开时焦点未必在 wrap 内）
+  // 弹层展开后：点击外部收起（触屏无 hover）；Esc 监听挂在 window，悬停打开、
+  // 焦点还在输入框时也能收起。都不 preventDefault / stopPropagation，
+  // 输入框自己的 Esc 快捷键照常生效。
   useEffect(() => {
     if (!open) return;
     const outside = (event: PointerEvent) => {
@@ -121,15 +135,14 @@ export const ComposerChangesPill: React.FC<{
       handleCloseImmediate();
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.stopPropagation();
+      if (event.key !== 'Escape' || event.defaultPrevented || isImeComposing(event)) return;
       handleCloseImmediate();
     };
     window.addEventListener('pointerdown', outside, true);
-    window.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('keydown', onKeyDown);
     return () => {
       window.removeEventListener('pointerdown', outside, true);
-      window.removeEventListener('keydown', onKeyDown, true);
+      window.removeEventListener('keydown', onKeyDown);
     };
   }, [open, handleCloseImmediate]);
 
@@ -144,11 +157,11 @@ export const ComposerChangesPill: React.FC<{
       ref={wrap}
       className={styles.composerChangesWrap}
       data-open={open ? 'true' : undefined}
-      onMouseEnter={handleOpen}
+      onMouseEnter={handlePointerEnter}
       onMouseLeave={handleScheduleClose}
-      onFocus={handleOpen}
+      onFocus={handleFocus}
       onBlur={(event) => {
-        if (!inside(event.relatedTarget)) handleCloseImmediate();
+        if (!inside(event.relatedTarget)) setFocusInside(false);
       }}
     >
       <button
@@ -172,7 +185,7 @@ export const ComposerChangesPill: React.FC<{
             role="region"
             data-testid="composer-changes-popover"
             aria-label={t('ui.session-workspace.view-changes')}
-            onMouseEnter={handleOpen}
+            onMouseEnter={handlePointerEnter}
             onMouseLeave={handleScheduleClose}
             style={{
               left: position?.left ?? 0,

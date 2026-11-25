@@ -143,6 +143,12 @@ const FillProbe: React.FC = () => {
   return <pre data-testid="fill-probe">{composerFill?.text ?? ''}</pre>;
 };
 
+/** 等一段真实时间，让 180ms 的收起延迟有机会触发 */
+const wait = (ms: number) =>
+  act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  });
+
 describe('Codex four-column changes layout', () => {
   afterEach(() => {
     cleanup();
@@ -297,6 +303,79 @@ describe('Codex four-column changes layout', () => {
       if (origOffsetHeight)
         Object.defineProperty(HTMLElement.prototype, 'offsetHeight', origOffsetHeight);
     }
+  });
+
+  it('焦点留在 pill 上时鼠标移出、穿到弹层位置都不收起；焦点也离开才收起', async () => {
+    render(
+      <ChangesUiProvider>
+        <FourColumnShell />
+      </ChangesUiProvider>,
+    );
+    const pill = screen.getByTestId('composer-changes-pill');
+    fireEvent.focusIn(pill);
+    expect(screen.getByTestId('composer-changes-popover')).toBeTruthy();
+    fireEvent.mouseOver(pill);
+    fireEvent.mouseOut(pill, { relatedTarget: document.body });
+    await wait(250);
+    expect(screen.getByTestId('composer-changes-popover')).toBeTruthy();
+    fireEvent.focusOut(pill, { relatedTarget: document.body });
+    expect(screen.queryByTestId('composer-changes-popover')).toBeNull();
+  });
+
+  it('指针停在 pill 上时移走焦点不收起；指针离开后才收起', async () => {
+    render(
+      <ChangesUiProvider>
+        <FourColumnShell />
+      </ChangesUiProvider>,
+    );
+    const pill = screen.getByTestId('composer-changes-pill');
+    fireEvent.mouseOver(pill);
+    fireEvent.focusIn(pill);
+    fireEvent.focusOut(pill, { relatedTarget: document.body });
+    await wait(250);
+    expect(screen.getByTestId('composer-changes-popover')).toBeTruthy();
+    fireEvent.mouseOut(pill, { relatedTarget: document.body });
+    await waitFor(() => expect(screen.queryByTestId('composer-changes-popover')).toBeNull());
+  });
+
+  it('点击弹层自身不收起，点击外部才收起', () => {
+    render(
+      <ChangesUiProvider>
+        <FourColumnShell />
+      </ChangesUiProvider>,
+    );
+    const pill = screen.getByTestId('composer-changes-pill');
+    fireEvent.mouseOver(pill);
+    const popover = screen.getByTestId('composer-changes-popover');
+    fireEvent.pointerDown(popover);
+    expect(screen.getByTestId('composer-changes-popover')).toBeTruthy();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByTestId('composer-changes-popover')).toBeNull();
+  });
+
+  it('Esc 在输入框里也能收起悬停打开的弹层，且不拦截输入框自己的按键', () => {
+    const onInputKeyDown = vi.fn();
+    render(
+      <ChangesUiProvider>
+        <ComposerChangesPill messages={messages} />
+        <input data-testid="composer-input" onKeyDown={onInputKeyDown} />
+      </ChangesUiProvider>,
+    );
+    const pill = screen.getByTestId('composer-changes-pill');
+    fireEvent.mouseOver(pill);
+    expect(screen.getByTestId('composer-changes-popover')).toBeTruthy();
+    const input = screen.getByTestId('composer-input');
+    input.focus();
+    const notPrevented = fireEvent.keyDown(input, { key: 'Escape', code: 'Escape' });
+    expect(screen.queryByTestId('composer-changes-popover')).toBeNull();
+    expect(onInputKeyDown).toHaveBeenCalledTimes(1);
+    expect(notPrevented).toBe(true);
+    // 键盘入口：焦点在 pill 上时 Esc 同样收起
+    fireEvent.mouseOver(pill);
+    fireEvent.focusIn(pill);
+    expect(screen.getByTestId('composer-changes-popover')).toBeTruthy();
+    fireEvent.keyDown(pill, { key: 'Escape', code: 'Escape' });
+    expect(screen.queryByTestId('composer-changes-popover')).toBeNull();
   });
 
   it('not a git repo: 改动 falls back to the session change tree', async () => {

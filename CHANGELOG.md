@@ -10,6 +10,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **cli-catalog:** `gen:go` 生成 Go 内核清单时按仓库 prettier 规则格式化，并与清单核对一次
 - **delegate:** 委派结果收尾与任务状态对象并发读写（数据竞争）
 - **model-switch:** 模型胶囊按底座清单的品牌去重图标，不重复画同一个模型品牌的图标 (`@nomi-ai/cli-catalog` patch, `@nomi-ai/ui` patch)
+- **preview:** 已更改文件弹层按指针与焦点分别判断，不再提前收起
 
 ### Maintenance
 
