@@ -73,6 +73,7 @@ type RecoverableHarness interface {
 
 // DefaultCliMaxRetries：agent 委派遇瞬时 / 执行中断错误时默认自动重试次数（至少尝试 5 次重试）
 const DefaultCliMaxRetries = 5
+
 // Desktop：DesktopService 的 broker / audit / receiversFor 子集（PermissionBroker 是同步的）
 type Desktop interface {
 	WorkspaceOf(projectID any) desktop.Workspace
@@ -230,6 +231,9 @@ type bgTask struct {
 	ctx *execCtx
 	// lent：后台 Nomi 同步等它的结果，它在父任务的运行名额里跑（borrowSlot），不另算一个
 	lent bool
+	// stop：同步委派这一次运行自己的取消（从父这一轮的信号派生）；delegate_stop 用它停掉这一次，
+	// 不动父这一轮。受 Service.mu 保护；nomi 取消（父信号）不走这里，标的是 cancelledByNomi
+	stop context.CancelCauseFunc
 }
 
 type execCtx struct {
@@ -766,7 +770,7 @@ func (s *Service) Settings() *util.Obj {
 	c.Set("routes", routes)
 	localAvail := util.NewObj()
 	for _, id := range builtin.Ordered {
-		if builtin.WithAccounts(id) {
+		if builtin.WithAccounts(id) || builtin.LocalOnly(id) {
 			localAvail.Set(id, s.hasLocalLoginFor(id))
 		}
 	}
@@ -1147,8 +1151,10 @@ func (s *Service) executeStop(_ context.Context, raw any, _ tools.ExecContext) (
 	s.mu.Lock()
 	t := s.tasks[id]
 	st := ""
+	var stop context.CancelCauseFunc
 	if t != nil {
 		st = t.status()
+		stop = t.stop
 	}
 	s.mu.Unlock()
 	if t == nil {
@@ -1156,6 +1162,11 @@ func (s *Service) executeStop(_ context.Context, raw any, _ tools.ExecContext) (
 	}
 	if st != "running" {
 		return errResult("not_running", "这个委派已经结束（"+st+"）"), nil
+	}
+	// Issue 425：同步委派在等重试退避时，光 CancelTab 停不下来（退避结束还会 RecoverTab 再发）：
+	// 先取消这一次运行自己的信号，runChild 就会停在退避里，不再恢复标签、不再发送。只取消这一次，不动父这一轮
+	if stop != nil {
+		stop(stopReasonDiscarded{})
 	}
 	s.d.Harness.CancelTab(id)
 	s.audit("delegate_stop", util.NewObj("taskId", id), "allowed", "ok", s.d.Now())
@@ -1743,7 +1754,29 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64, dispatchOv *dis
 	if !lent {
 		release()
 	}
-	return s.runChild(task, prompt, true, c.sig), nil
+	// 同步委派这一次运行有自己的信号：继承父这一轮（父轮取消会连带取消，带上 BackgroundRun 等值），
+	// delegate_stop 只取消它，不取消父轮
+	// 父信号可能为 nil（调用方没有这一轮的信号）：派生时用 Background 兜底，cancelledByParent 按没取消处理
+	parent := c.sig
+	if parent == nil {
+		parent = context.Background()
+	}
+	runCtx, stop := context.WithCancelCause(parent)
+	s.mu.Lock()
+	task.stop = stop
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		task.stop = nil
+		s.mu.Unlock()
+		// 跑完就释放这次运行的信号；父轮没取消的话标成 delegate_stop 取消（别算成 nomi 取消）
+		if parent.Err() == nil {
+			stop(stopReasonDiscarded{})
+		} else {
+			stop(context.Cause(parent))
+		}
+	}()
+	return s.runChild(task, prompt, true, runCtx), nil
 }
 
 // preselectedModel：用户在设置 → 模型（侧栏「新标签默认」）里给这个 agent 标签预选的模型。
@@ -2011,10 +2044,27 @@ func isRetryableRunError(code string) bool {
 	return code == "upstream_transient" || code == "network" || code == "executor_crashed"
 }
 
+// stopReasonDiscarded：同步委派这一次运行自己的信号被 delegate_stop 取消时用的原因（父这一轮没被取消）
+type stopReasonDiscarded struct{}
+
+func (stopReasonDiscarded) Error() string { return "delegate stopped" }
+
+// cancelledByParent：这一次运行的信号被取消，取消是父这一轮带下来的（nomi 取消）还是 delegate_stop（user）。
+// 已经取消的子信号若父轮还没取消，Cause 就是 delegate_stop 标上的原因
+func cancelledByParent(sig context.Context) bool {
+	var d stopReasonDiscarded
+	return !errors.As(context.Cause(sig), &d)
+}
+
 func (s *Service) runChild(task *bgTask, prompt string, linkAbort bool, sig context.Context) *util.Obj {
 	h := s.d.Harness
+	// 取消监控 goroutine 要用 taskId，登记后不再变；o 在运行期间被 finalize 写，goroutine 里不能再读 o
+	tabID := task.id()
 	if !linkAbort {
+		// 与 slotReleaser 里同一把锁：名额还回去时 noteLoadLocked 会读 o 的 status/background
+		s.mu.Lock()
 		task.o.Set("background", true)
+		s.mu.Unlock()
 	}
 	if task.iso != nil && task.iso.Kind == IsoInPlace {
 		s.d.Claims.Register(task.id(), task.iso.GitRoot, util.Str(task.o.Get("cwd")), util.Str(task.o.Get("priority")),
@@ -2028,9 +2078,9 @@ func (s *Service) runChild(task *bgTask, prompt string, linkAbort bool, sig cont
 			select {
 			case <-sig.Done():
 				cmu.Lock()
-				cancelledByNomi = true
+				cancelledByNomi = cancelledByParent(sig)
 				cmu.Unlock()
-				h.CancelTab(task.id())
+				h.CancelTab(tabID)
 			case <-done:
 			}
 		}()
@@ -2063,7 +2113,7 @@ func (s *Service) runChild(task *bgTask, prompt string, linkAbort bool, sig cont
 		if sig != nil && sig.Err() != nil {
 			status = "cancelled"
 			cmu.Lock()
-			cancelledByNomi = true
+			cancelledByNomi = cancelledByParent(sig)
 			cmu.Unlock()
 			break
 		}
@@ -2083,7 +2133,7 @@ func (s *Service) runChild(task *bgTask, prompt string, linkAbort bool, sig cont
 				case <-sig.Done():
 					status = "cancelled"
 					cmu.Lock()
-					cancelledByNomi = true
+					cancelledByNomi = cancelledByParent(sig)
 					cmu.Unlock()
 				case <-time.After(wait):
 				}
@@ -2513,7 +2563,27 @@ func (s *Service) followup(taskID, message string, c *execCtx, t0 float64) (*uti
 	if !lent {
 		release()
 	}
-	return s.runChild(task, message, true, c.sig), nil
+	// 追问与同步委派一样有自己的信号：继承父这一轮，delegate_stop 只取消这次追问
+	parent := c.sig
+	if parent == nil {
+		parent = context.Background()
+	}
+	runCtx, stop := context.WithCancelCause(parent)
+	s.mu.Lock()
+	task.stop = stop
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		task.stop = nil
+		s.mu.Unlock()
+		// 跑完就释放这次运行的信号；父轮没取消的话标成 delegate_stop 取消（别算成 nomi 取消）
+		if parent.Err() == nil {
+			stop(stopReasonDiscarded{})
+		} else {
+			stop(context.Cause(parent))
+		}
+	}()
+	return s.runChild(task, message, true, runCtx), nil
 }
 
 // followupTask：后台委派任务的追问：做完等验收时 = 退回并带上追问（同一标签与 worktree 里接着改，异步）；

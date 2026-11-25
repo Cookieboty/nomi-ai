@@ -136,6 +136,7 @@ export const ProjectPicker: React.FC<{
             ref={menuRef}
             className={`${styles.menu} cd-motion-pop`}
             data-closing={menuP.closing || undefined}
+            data-nested-popover="true"
             style={pos}
             role="menu"
             data-testid={`${testId}-menu`}

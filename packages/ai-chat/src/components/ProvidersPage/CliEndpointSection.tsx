@@ -6,9 +6,10 @@ import React from 'react';
 
 import { supportsCustomLauncher } from '../../services/cliLauncherClient';
 import type { CliKind } from '../../services/cliSource';
-import { hasOfficialAccount } from '../../utils/cliCaps';
+import { hasOfficialAccount, hasThirdParty, localOnly } from '../../utils/cliCaps';
 
 import { CliLauncherCard } from './CliLauncherCard';
+import { CliLocalAuthCard } from './CliLocalAuthCard';
 import { CliThirdPartyModelsCard } from './CliThirdPartyModelsCard';
 import { CliVersionCard } from './CliVersionCard';
 import styles from './index.module.css';
@@ -26,7 +27,9 @@ export const CliEndpointSection: React.FC<{ kind: CliKind; onOpenModels?: () => 
 
       {hasOfficialAccount(kind) && <OfficialAccounts kind={kind} />}
 
-      <CliThirdPartyModelsCard kind={kind} onOpenModels={onOpenModels} />
+      {hasThirdParty(kind) && <CliThirdPartyModelsCard kind={kind} onOpenModels={onOpenModels} />}
+
+      {localOnly(kind) && <CliLocalAuthCard kind={kind} />}
     </div>
   );
 };

@@ -10,7 +10,7 @@ import { codingModelChoices, isCliKind, tabSourceOf, thirdPartyRefOf } from '../
 import { gatewayClientAvailable, type GatewayState } from '../services/gatewayClient';
 import type { HarnessTabMeta } from '../services/harnessClient';
 import { useGatewayState } from '../services/nomiModel';
-import { hasOfficialAccount, thirdPartyOnly } from '../utils/cliCaps';
+import { hasOfficialAccount, localOnly, thirdPartyOnly } from '../utils/cliCaps';
 import { ENDPOINT_NAME } from '../utils/endpointBadge';
 
 import { useCliAccounts } from './useCliAccounts';
@@ -50,6 +50,9 @@ export function cliTabReadiness({
   launcherReady = true,
 }: CliTabReadinessInput): CliTabReadiness {
   if (!tab || !isCliKind(tab.backend)) {
+    return { status: 'ready', reason: null, thirdPartyOnly: false };
+  }
+  if (localOnly(tab.backend)) {
     return { status: 'ready', reason: null, thirdPartyOnly: false };
   }
   const tpOnly = thirdPartyOnly(tab.backend);

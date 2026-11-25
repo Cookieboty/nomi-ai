@@ -1,6 +1,7 @@
 import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
+import type { Node } from 'unist';
 
 import { remarkEditableBlocks } from './markdownEditing';
 import { remarkPreviewSourceRanges } from './previewSourceRanges';
@@ -17,7 +18,7 @@ export const editableRemarkPlugins = [...previewRemarkPlugins, remarkEditableBlo
 
 /** The same remark pipeline runs in the worker and the synchronous fallback.
  * ReactMarkdown still owns HAST conversion, URL safety and component rendering. */
-export function parsePreviewMarkdown(text: string, editable: boolean) {
+export function parsePreviewMarkdown(text: string, editable: boolean): Node {
   const processor = unified()
     .use(remarkParse)
     .use(editable ? editableRemarkPlugins : previewRemarkPlugins);

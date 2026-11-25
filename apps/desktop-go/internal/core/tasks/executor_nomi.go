@@ -25,6 +25,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/codingcli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/prompts"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/sidechat"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
@@ -155,8 +156,12 @@ type NomiDeps struct {
 	// EventsFor：这次执行要处理的事件（事件触发时；Service.EventBatch）
 	EventsFor func(taskID string, eventKey *string) []SourceEvent
 	Ready     func() bool
+	// ReadyFor：按模型角色检查是否就绪（未配置时回退 Ready）；role 为 "agent-tools" 或 "model:<p>/<m>"
+	ReadyFor func(role string) bool
 	// Route：「带工具的 Nomi」当前路由到的供应商与模型（记进执行快照）；可为空
-	Route  func() (providerID, model string)
+	Route func() (providerID, model string)
+	// RouteFor：按模型角色解析供应商与模型（未配置时回退 Route）
+	RouteFor func(role string) (providerID, model string)
 	CostOf func(model string, input, output int64) (float64, bool)
 	Trace  func(taskID, attemptID string, line map[string]any)
 	Now    func() int64
@@ -170,6 +175,10 @@ type NomiDeps struct {
 	Steer func(reqID, text string) bool
 	// Live：这次执行的实时事件（正文增量、思考、工具开始 / 结束、插话），子任务侧栏按它实时刷新；可为空
 	Live func(taskID, attemptID string, ev map[string]any)
+	// Log：转后台带过来的原图首轮读不回来时记一条（#414）；可为空
+	Log Logger
+	// OnExit：这次执行的协程要退出了（运行时据此知道之后的回报都不会再来）；服务里接上 Runtime.ExecutorExited
+	OnExit func(taskID string, gen int)
 }
 
 // DefaultApprovalTimeout：后台任务等人批准的默认上限（无人值守不永久卡在「等你批准」）
@@ -283,7 +292,8 @@ func EventsSection(events []SourceEvent) string {
 }
 
 // BuildPrompt：任务目标、这次为什么跑、用户回答、退回意见、已有进展、触发的事件（prompts/text/task-run.md）
-func BuildPrompt(ctx AttemptContext, progress string, now int64, events []SourceEvent) []blm.ChatMessage {
+// log：转后台带过来的原图首轮读不回来时记一条（不静默换成纯文字）；可为 nil
+func BuildPrompt(ctx AttemptContext, progress string, now int64, events []SourceEvent, log Logger) []blm.ChatMessage {
 	t, a := ctx.Task, ctx.Attempt
 	cause := a.Cause
 	ex := t.Executor
@@ -337,7 +347,60 @@ func BuildPrompt(ctx AttemptContext, progress string, now int64, events []Source
 		d["Previous"] = shortN(ctx.Previous.Result.Summary, 4000)
 	}
 	return []blm.ChatMessage{{Role: "system", Content: prompts.Render("task-run", d)},
-		{Role: "user", Content: t.Goal, Images: followUpImages(cause)}}
+		{Role: "user", Content: t.Goal, Images: turnImages(t, cause, log)}}
+}
+
+// turnImages：这一轮要交给模型的图片：转后台带过来的原图（只在首轮，续跑 / 追问不再重复，免得每次重跑都重传、重计费）
+// 加上追问或排队补充带的图片（读不回来的跳过）
+func turnImages(t Task, cause AttemptCause, log Logger) []blm.ChatImage {
+	out := followUpImages(cause)
+	if isFirstHandoffRun(t, cause) {
+		out = append(out, readImages(t.Executor.Attachments, log)...)
+	}
+	return out
+}
+
+// isFirstHandoffRun：前台转后台后的首次执行
+func isFirstHandoffRun(t Task, cause AttemptCause) bool {
+	return t.Origin.Via != nil && *t.Origin.Via == "handoff" &&
+		cause.Kind != "rework" && cause.Kind != "followup" && cause.Kind != "retry" && cause.Kind != "resume"
+}
+
+// logHandoffImageMissing：转后台带过来的原图在前台已经发过、读过；首轮没读回来是异常，记进日志（不静默换成纯文字）
+func logHandoffImageMissing(log Logger, path string, err error) {
+	if log == nil {
+		return
+	}
+	msg := "unreadable"
+	if err != nil {
+		msg = err.Error()
+	}
+	log.Warn("任务附件图片读不回来", "path", path, "error", msg)
+}
+
+func readImages(paths []string, log Logger) []blm.ChatImage {
+	if len(paths) == 0 {
+		return nil
+	}
+	out := []blm.ChatImage{}
+	for _, p := range paths {
+		raw, err := os.ReadFile(p)
+		if err != nil || len(raw) == 0 {
+			logHandoffImageMissing(log, p, err)
+			continue
+		}
+		mime := "image/png"
+		for m, ext := range imageExt {
+			if strings.EqualFold(filepath.Ext(p), ext) {
+				mime = m
+			}
+		}
+		out = append(out, blm.ChatImage{Mime: mime, Data: base64.StdEncoding.EncodeToString(raw)})
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // followUpImages：追问或排队补充带的图片（读不回来的跳过）
@@ -365,22 +428,44 @@ func followUpImages(c AttemptCause) []blm.ChatImage {
 	return out
 }
 
+func nomiModelRole(ex ExecutorSpec) string {
+	if ex.Kind == "nomi" && ex.Model != nil {
+		if ref, ok := sidechat.ModelRef(sidechat.ModelRolePrefix + strings.TrimSpace(*ex.Model)); ok {
+			return sidechat.ModelRolePrefix + ref
+		}
+	}
+	return "agent-tools"
+}
+
 func (e *nomiExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
-	if e.d.Ready != nil && !e.d.Ready() {
+	role := nomiModelRole(t.Executor)
+	ready := true
+	if e.d.ReadyFor != nil {
+		ready = e.d.ReadyFor(role)
+	} else if e.d.Ready != nil {
+		ready = e.d.Ready()
+	}
+	if !ready {
 		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: configNoModel()}
 	}
-	// Nomi 任务一律用「带工具的 Nomi」的预设模型（对话用的同一条路由），不单独指定（#239）；
-	// 实际用到的供应商与模型记进快照
+	// 默认走「带工具的 Nomi」路由；任务显式指定合法模型时按 model:<p>/<m> 路由，实际供应商与模型记进快照
 	snap := ExecutionSnapshot{GrantVersion: t.Grant.Version}
-	if e.d.Route != nil {
-		if p, m := e.d.Route(); p != "" || m != "" {
-			if p != "" {
-				snap.ProviderID = ptr(p)
-			}
-			if m != "" {
-				snap.Model = ptr(m)
-			}
+	var p, m string
+	if e.d.RouteFor != nil {
+		p, m = e.d.RouteFor(role)
+	} else if e.d.Route != nil {
+		p, m = e.d.Route()
+	}
+	if p != "" || m != "" {
+		if p != "" {
+			snap.ProviderID = ptr(p)
 		}
+		if m != "" {
+			snap.Model = ptr(m)
+		}
+	}
+	if t.Executor.ReasoningEffort != nil && strings.TrimSpace(*t.Executor.ReasoningEffort) != "" {
+		snap.ReasoningEffort = ptr(strings.TrimSpace(*t.Executor.ReasoningEffort))
 	}
 	return snap, nil
 }
@@ -471,6 +556,10 @@ func (e *nomiExecutor) launchLocked(run *nomiRun) {
 }
 
 func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string) {
+	if e.d.OnExit != nil {
+		// 这次执行的协程退出了：被停下之后迟到的落盘 / 回报到这里为止，运行时可以收拾了
+		defer e.d.OnExit(run.ctx.Task.ID, run.gen)
+	}
 	t, a, rep := run.ctx.Task, run.ctx.Attempt, run.ctx.Report
 	var text strings.Builder
 	// 这一轮产出的图片 / 写过的文件：做完时记进结果，回到来源对话
@@ -488,6 +577,14 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 	}
 	if t.Executor.Kind == "nomi" && t.Executor.Project != nil && *t.Executor.Project != "" {
 		extra["projectId"] = *t.Executor.Project
+	}
+	if t.Executor.Kind == "nomi" && t.Executor.Model != nil {
+		if ref, ok := sidechat.ModelRef(sidechat.ModelRolePrefix + strings.TrimSpace(*t.Executor.Model)); ok {
+			extra["taskModel"] = ref
+		}
+	}
+	if t.Executor.Kind == "nomi" && t.Executor.ReasoningEffort != nil && strings.TrimSpace(*t.Executor.ReasoningEffort) != "" {
+		extra["reasoningEffort"] = strings.TrimSpace(*t.Executor.ReasoningEffort)
 	}
 	// 工具调用进行中（生图、同步等 agent）流里没有片段：按间隔补心跳，免得被看守判成崩溃
 	var pmu sync.Mutex
@@ -527,7 +624,7 @@ func (e *nomiExecutor) consume(ctx context.Context, run *nomiRun, tools []string
 		segReasoning.Reset()
 		segReasonStart = 0
 	}
-	err := e.d.AgentStream(ctx, BuildPrompt(run.ctx, prevProgress, e.d.Now(), events), tools,
+	err := e.d.AgentStream(ctx, BuildPrompt(run.ctx, prevProgress, e.d.Now(), events, e.d.Log), tools,
 		extra, func(c blm.ChatChunk) {
 			if ctx.Err() != nil {
 				return

@@ -7,6 +7,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/cand"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/config"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/intent"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/ir"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/models"
@@ -132,6 +133,18 @@ func shouldRenderReasoning(eff *intent.Intent, c *cand.Candidate) bool {
 	return true
 }
 
+func hasHeaderFold(h *u.Obj, name string) bool {
+	if h == nil {
+		return false
+	}
+	for _, k := range h.Keys() {
+		if strings.EqualFold(k, name) {
+			return true
+		}
+	}
+	return false
+}
+
 // Headers is upstreamHeaders: an ordered name → value object (JS key order).
 func Headers(c *cand.Candidate, opts HeaderOpts) *u.Obj {
 	h := u.NewObj("Content-Type", "application/json")
@@ -197,8 +210,10 @@ func Headers(c *cand.Candidate, opts HeaderOpts) *u.Obj {
 	if ua != "" {
 		h.Set("User-Agent", ua)
 	}
-	if q := providers.QuirksOf(c.Provider, c.Wire); q != nil && q.SessionHeader != "" && opts.Session != "" {
-		h.Set(q.SessionHeader, opts.Session)
+	if q := providers.QuirksOf(c.Provider, c.Wire); q != nil && opts.Session != "" {
+		if name := config.SanitizeHeaderName(q.SessionHeader); name != "" && !hasHeaderFold(c.Provider.Headers, name) {
+			h.Set(name, opts.Session)
+		}
 	}
 	if c.Provider.Headers != nil {
 		h.Assign(c.Provider.Headers)

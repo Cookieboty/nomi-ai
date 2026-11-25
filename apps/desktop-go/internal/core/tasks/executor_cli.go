@@ -515,8 +515,18 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 			sameSnapshotValue(prev.Snapshot.Model, model) &&
 			sameSnapshotValue(prev.Snapshot.ReasoningEffort, effort)
 		if !sameConfig {
-			rep.Failed(TaskError{Code: "config_changed", Message: carrierConfigChanged()})
-			return
+			if (k == "followup" || k == "rework") && sameSnapshotValue(prev.Snapshot.Cli, cliName) {
+				if syncer, ok := h.(interface {
+					SyncTabConfig(id, source, accountID, model, effort string) error
+				}); ok && syncer.SyncTabConfig(tabID, src, accID, model, effort) == nil {
+					// 已把旧标签同步到新来源/账号/模型/思考深度，接着在原会话上跑
+				} else {
+					reused = false
+				}
+			} else {
+				rep.Failed(TaskError{Code: "config_changed", Message: carrierConfigChanged()})
+				return
+			}
 		}
 	}
 	var before []string
@@ -1002,4 +1012,15 @@ func ResolveTaskRunSpec(resolve func(string) *CliPresetSpec, ex *ExecutorSpec) (
 		return spec, true
 	}
 	return TaskRunSpec{Cli: strOr(ex.Cli), Source: strOr(ex.Source), AccountID: strOr(ex.AccountID), Model: strOr(ex.Model), ReasoningEffort: strOr(ex.ReasoningEffort)}, true
+}
+
+// ResolvePresetCli：按 presetId 解析对应 CLI 名称（tasks.Update 脱离档位时回填 cli 用）
+func (e *cliExecutor) ResolvePresetCli(presetID string) string {
+	if presetID == "" || e.d.ResolvePreset == nil {
+		return ""
+	}
+	if ps := e.d.ResolvePreset(presetID); ps != nil {
+		return ps.Cli
+	}
+	return ""
 }

@@ -82,7 +82,10 @@ async function call<T>(run: () => Promise<unknown>): Promise<T> {
   } catch (e) {
     if (!(e instanceof Error)) throw e;
     const code = ACCOUNT_CODES[String((e as { code?: unknown }).code)];
-    throw Object.assign(new Error(e.message), code ? { code } : {});
+    // data 要原样带过来：external-busy 的 data.pids 是确认弹窗要结束的那批进程（#426）
+    throw Object.assign(new Error(e.message), code ? { code } : {}, {
+      ...('data' in e ? { data: (e as { data?: unknown }).data } : {}),
+    });
   }
 }
 
@@ -243,13 +246,20 @@ export const cliAccountClient = {
     if (acc) recordAccountLabels([acc]);
     return acc;
   },
-  /** stopExternal：先结束 Nomi 之外还在用这个账号的 CLI 进程（external-busy 时用户确认过）再删除 */
-  remove: async (id: string, opts?: { force?: boolean; stopExternal?: boolean }) => {
+  /**
+   * stopExternal：先结束 Nomi 之外还在用这个账号的 CLI 进程（external-busy 时用户确认过）再删除。
+   * stopPids：确认弹窗列出的那批进程号；内核只结束这几个，范围变了会再报 external-busy（界面重新确认）
+   */
+  remove: async (
+    id: string,
+    opts?: { force?: boolean; stopExternal?: boolean; stopPids?: number[] },
+  ) => {
     await call<void>(() =>
       api.cliAccount.remove({
         id,
         force: opts?.force === true,
         ...(opts?.stopExternal ? { stopExternal: true } : {}),
+        ...(opts?.stopPids?.length ? { stopPids: [...opts.stopPids] } : {}),
       }),
     );
     dropAccountLabel(id);

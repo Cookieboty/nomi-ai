@@ -7,6 +7,7 @@ import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { useHarnessLive, useHarnessTabsCore } from '../../contexts/HarnessTabsContext';
 import { harnessClient } from '../../services/harnessClient';
 import { modelSwitchTipFor, useModelSwitch } from '../../services/modelSwitchTip';
+import { refLabel, useGatewayState } from '../../services/nomiModel';
 import { tabLiveToConv } from '../../utils/convAdapters';
 
 import { TabSandboxRequests } from './SandboxRequests';
@@ -58,11 +59,16 @@ export const CliConversation: React.FC<Props> = (props) => {
   }, []);
   const scopeId = props.scopeId;
   // 会话中途换了模型、还没发送：弱提示（发送后消失，切回原模型也消失）
+  const gateway = useGatewayState();
   const switchedTo = useModelSwitch(scopeId);
-  const modelSwitchTip = useMemo(
-    () => modelSwitchTipFor(props.messages, switchedTo),
-    [props.messages, switchedTo],
-  );
+  const modelSwitchTip = useMemo(() => {
+    const tip = modelSwitchTipFor(props.messages, switchedTo, {
+      ignoreEffortSuffix: true,
+      normalize: (m) => refLabel(gateway, m),
+    });
+    if (!tip) return tip;
+    return refLabel(gateway, tip);
+  }, [props.messages, switchedTo, gateway]);
   const onStopAgent = useCallback(
     (agentId: string) => void harnessClient.stopAgent(scopeId, agentId).catch(() => undefined),
     [scopeId],

@@ -616,5 +616,13 @@
   "electron.common.cli-launcher-invalid": "请输入程序名和可选参数，例如 claude。路径含空格时请加双引号；不支持 shell 运算符、换行或变量赋值。",
   "electron.common.cli-launcher-test-failed": "无法获取启动命令的版本。请在终端运行该命令并追加 --version 检查；测试不会执行模型请求。",
   "electron.common.no-official-account-signed-in-for": "{0} 还没有已登录的官方账号，请先登录官方账号或选择第三方模型",
-  "electron.common.no-local-login-detected-for": "{0} 未检测到本机登录，请先在本机登录或选择第三方模型"
+  "electron.common.no-local-login-detected-for": "{0} 未检测到本机登录，请先在本机登录或选择第三方模型",
+  "electron.common.cli-local-needs-sign-in": "{0} 还没有登录：请先在终端运行 {1} 完成本机登录，然后再试。",
+  "electron.common.cli-local-only": "{0} 仅使用本机登录，不支持通过网关切换第三方模型。",
+  "electron.common.install-tool-not-found": "未找到 {0}，无法运行官方安装脚本。请先安装 {0}，或在终端手动执行上述命令。",
+  "electron.common.cli-did-not-switch-the": "{0} 没有切换{1}：{2}",
+  "electron.common.cli-local-auth-needs-sign-in": "{0} 还没有登录。请打开「设置 → 模型与 Agents → {0}」完成官方登录，或在终端运行 {1} acp --login。",
+  "electron.common.cli-local-auth-not-supported": "{0} 不支持应用内官方登录管理",
+  "electron.common.self-update-version-unchanged-fallback": "自更新命令已退出，但版本仍为 {0}，改用下一种方式继续更新…",
+  "electron.common.update-version-unchanged": "命令已执行完成，但检测到的版本仍为 {0}（最新版本 {1}）"
 }

@@ -3,8 +3,10 @@ import { useCallback, useLayoutEffect, useRef, type Dispatch, type SetStateActio
 
 import type { AiChatActionsValue, AiChatState } from '../../contexts/AiChatContext';
 import type { useHarnessTabs } from '../../contexts/HarnessTabsContext';
+import { api } from '../../services/api';
 import { MAIN_TAB_ID, harnessClient } from '../../services/harnessClient';
 import type { HistorySession } from '../../services/historyClient';
+import { updateManagedConversationMeta } from '../../services/managedMainChat';
 import { clearNomiAutoTitle } from '../../services/sessionTitle';
 import type { ConversationBackend } from '../../types/chat';
 import { confirmDialog } from '../ConfirmDialog';
@@ -198,7 +200,15 @@ export function useSidebarSessions({
       if (meta.tabId) void tabs.rename(meta.tabId, name).catch(() => undefined);
       else {
         clearNomiAutoTitle(id);
-        ipc.conversationStore?.()?.updateMeta(id, { name });
+        const store = ipc.conversationStore?.();
+        if (store?.isManaged?.(id)) {
+          void updateManagedConversationMeta(api, id, { name })
+            .then(() => store.refreshManaged?.(id))
+            .then(() => refresh())
+            .catch(() => undefined);
+          return;
+        }
+        store?.updateMeta(id, { name });
       }
       refresh();
     },
@@ -211,7 +221,15 @@ export function useSidebarSessions({
     const store = ipc?.conversationStore?.();
     const meta = list.find((x) => x.id === id);
     if (!store || !meta || meta.tabId) return;
-    store.setArchived(id, true);
+    if (store.isManaged?.(id)) {
+      await updateManagedConversationMeta(api, id, { archivedAt: Date.now() }).catch(
+        () => undefined,
+      );
+      await store.refreshManaged?.(id);
+      store.advanceFromArchived?.(id);
+    } else {
+      store.setArchived(id, true);
+    }
     if (id === current) {
       if (ipc?.currentConversationId?.()) await actions.loadChatHistory();
       else await actions.clearChatHistory();
@@ -230,6 +248,15 @@ export function useSidebarSessions({
       const meta = latest.current.list.find((x) => x.id === id);
       const store = ipc?.conversationStore?.();
       if (!meta || !store) return;
+      if (store.isManaged?.(id)) {
+        void updateManagedConversationMeta(api, id, {
+          pinnedAt: meta.pinnedAt ? null : Date.now(),
+        })
+          .then(() => store.refreshManaged?.(id))
+          .then(() => refresh())
+          .catch(() => undefined);
+        return;
+      }
       store.setPinned(id, !meta.pinnedAt);
       refresh();
     },

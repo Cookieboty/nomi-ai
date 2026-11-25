@@ -31,6 +31,7 @@ import {
   createSideChat,
   discardSideChat,
   importSideChat,
+  importSideChatDraft,
   migrateSideChatsScope,
   sideChatState,
 } from '../services/sideChat';
@@ -201,17 +202,24 @@ const EMPTY_DETACHED: ReadonlySet<string> = new Set();
 export const SubagentPaneProvider: React.FC<{
   scope?: string | null;
   detached?: boolean;
+  /** 局部隔离模式（如任务详情抽屉）：不读写全局 localStorage、不接管独立窗口或宿主终端 */
+  isolated?: boolean;
   children: React.ReactNode;
-}> = ({ scope: propScope, detached: isDetached = false, children }) => {
+}> = ({ scope: propScope, detached: isDetached = false, isolated = false, children }) => {
+  const skipDetachedHost = isDetached || isolated;
   const harnessTabs = useHarnessTabs();
   const [scopeState, setScopeState] = useState('');
   const scope = propScope !== undefined ? (propScope ?? '') : scopeState;
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
   const settledDocksRef = useRef(new Set<string>());
+  /** 已经按快照收下过的侧边聊天放回（id → 传输 id）：别的窗口迟到的确认带的是同一份，不能把更新的草稿盖回去 */
+  const adoptedDocksRef = useRef(new Map<string, string>());
   const [projectId, setProjectId] = useState<string | null>(null);
-  // 每个会话一份；只有真实会话（scope 非空）写本地存储，重开应用后恢复
-  const [byScope, setByScope] = useState<Record<string, SideTabsState>>(readSideTabsStore);
+  // 每个会话一份；只有真实会话（scope 非空）写本地存储，重开应用后恢复（隔离模式只存组件内内存）
+  const [byScope, setByScope] = useState<Record<string, SideTabsState>>(() =>
+    isolated ? {} : readSideTabsStore(),
+  );
   const byScopeRef = useRef(byScope);
   useEffect(() => {
     byScopeRef.current = byScope;
@@ -251,9 +259,9 @@ export const SubagentPaneProvider: React.FC<{
         }
         return { ...cur, [scope]: pref };
       });
-      persistSideTabsPanePref(pref);
+      if (!isolated) persistSideTabsPanePref(pref);
     },
-    [scope],
+    [scope, isolated],
   );
   // 委派标签被关掉、来源标签没了：对应的子任务标签不再显示（读的时候滤掉，下次改动时一并落盘）。
   // 不切换主列的当前标签。
@@ -269,10 +277,10 @@ export const SubagentPaneProvider: React.FC<{
           : true;
   }, [liveTabs]);
   const raw = byScope[scope] ?? EMPTY_SIDE_TABS;
-  const detachedIds = useDetachedIds(!isDetached);
+  const detachedIds = useDetachedIds(!skipDetachedHost);
   const detached = useMemo(
-    () => (isDetached ? EMPTY_DETACHED : detachedKeysFor(detachedIds, scope)),
-    [isDetached, detachedIds, scope],
+    () => (skipDetachedHost ? EMPTY_DETACHED : detachedKeysFor(detachedIds, scope)),
+    [skipDetachedHost, detachedIds, scope],
   );
   // 显示用：去掉没了的和弹出去的（弹出去的仍记在本地存储里，窗口关掉后回到标签栏）
   const tabs = useMemo(() => {
@@ -302,10 +310,10 @@ export const SubagentPaneProvider: React.FC<{
         const rest = { ...all };
         delete rest[scope];
         const out = { ...rest, [scope]: next };
-        if (scope) writeSideTabsStore(out);
+        if (scope && !isolated) writeSideTabsStore(out);
         return out;
       }),
-    [scope, alive],
+    [scope, alive, isolated],
   );
 
   const shownTarget = useMemo(() => {
@@ -319,12 +327,12 @@ export const SubagentPaneProvider: React.FC<{
   const revealPane = useCallback(() => {
     setPanePrefByScope((cur) => {
       if (cur[scope] === 'closed') {
-        persistSideTabsPanePref('open');
+        if (!isolated) persistSideTabsPanePref('open');
         return { ...cur, [scope]: 'open' };
       }
       return cur;
     });
-  }, [scope]);
+  }, [scope, isolated]);
   const open = useCallback(
     (target: SubagentTarget) => {
       const key = agentKey(target);
@@ -431,14 +439,14 @@ export const SubagentPaneProvider: React.FC<{
     (chatId: string) => {
       if (!chatId) return;
       const key = `side-chat:${chatId}`;
-      if (!isDetached && detached.has(key)) {
+      if (!skipDetachedHost && detached.has(key)) {
         detachedWindows.focus(scope, key);
         return;
       }
       revealPane();
       update((s) => openSideChatPage(s, chatId));
     },
-    [detached, isDetached, revealPane, scope, update],
+    [detached, skipDetachedHost, revealPane, scope, update],
   );
   const openSideChat = useCallback(
     (opts: { fresh?: boolean; quote?: SelectionQuote; replace?: string } = {}) => {
@@ -457,7 +465,7 @@ export const SubagentPaneProvider: React.FC<{
   );
   // 主窗口独占登记为弹出窗口放回接收者，并在两阶段 dockRequest 时完成接收再发送 dockAck
   useEffect(() => {
-    if (isDetached) return;
+    if (skipDetachedHost) return;
     void detachedWindows.registerHost();
     return detachedWindows.onDockRequest(({ id, transferId }) => {
       const p = parseDetachedId(id);
@@ -470,7 +478,13 @@ export const SubagentPaneProvider: React.FC<{
         void detachedWindows
           .take(id, { direction: 'dock', transferId })
           .then((data) => {
-            const ok = importSideChat(data) === chatId || !!sideChatState(chatId);
+            // 草稿就是此刻窗口里的那份（放回等确认期间那边还可能改，迟到的那份只收草稿）
+            const ok =
+              importSideChat(data, {
+                withDraft: true,
+                draftOnly: adoptedDocksRef.current.has(id),
+              }) === chatId || !!sideChatState(chatId);
+            if (ok) adoptedDocksRef.current.set(id, transferId);
             if (!ok) {
               void detachedWindows.dockAck(id, transferId, false);
               return;
@@ -511,12 +525,12 @@ export const SubagentPaneProvider: React.FC<{
       if (p.scope === scopeRef.current) revealPane();
       void detachedWindows.dockAck(id, transferId, true);
     });
-  }, [isDetached, revealPane]);
+  }, [skipDetachedHost, revealPane]);
   // 弹出去的侧边聊天直接关窗口（非两阶段放回）：收下交接内容并恢复页面；没有内容（窗口里关掉了）就关标签。
   // 按宿主的整份 id 列表比较（切换会话不算「回来」）
   const prevIds = useRef(detachedIds);
   useEffect(() => {
-    if (isDetached) return;
+    if (skipDetachedHost) return;
     const before = prevIds.current;
     prevIds.current = detachedIds;
     if (before === detachedIds) return;
@@ -554,7 +568,7 @@ export const SubagentPaneProvider: React.FC<{
         });
       });
     }
-  }, [isDetached, detachedIds]);
+  }, [skipDetachedHost, detachedIds]);
   const activate = useCallback((key: string) => update((s) => activateTab(s, key)), [update]);
   const toggle = useCallback((key?: string) => update((s) => toggleMaximized(s, key)), [update]);
   const restore = useCallback(
@@ -562,39 +576,42 @@ export const SubagentPaneProvider: React.FC<{
     [update],
   );
   const setScope = useCallback((next: string | null) => setScopeState(next ?? ''), []);
-  const migrateScope = useCallback((fromScope: string, toScope: string) => {
-    if (!fromScope || !toScope || fromScope === toScope) return;
-    migrateSideChatsScope(fromScope, toScope);
-    migrateSideTracesScope(fromScope, toScope);
-    setByScope((all) => {
-      const fromState = all[fromScope];
-      if (!fromState) return all;
-      const existing = all[toScope];
-      const merged: SideTabsState =
-        existing && (existing.agents.length > 0 || existing.pages.length > 0)
-          ? existing
-          : fromState;
-      const rest = { ...all };
-      delete rest[fromScope];
-      const out = { ...rest, [toScope]: merged };
-      writeSideTabsStore(out);
-      return out;
-    });
-    setFilesOpenByScope((cur) => {
-      if (!(fromScope in cur)) return cur;
-      const next = { ...cur };
-      if (!(toScope in next)) next[toScope] = cur[fromScope]!;
-      delete next[fromScope];
-      return next;
-    });
-    setPanePrefByScope((cur) => {
-      if (!(fromScope in cur)) return cur;
-      const next = { ...cur };
-      if (!(toScope in next)) next[toScope] = cur[fromScope]!;
-      delete next[fromScope];
-      return next;
-    });
-  }, []);
+  const migrateScope = useCallback(
+    (fromScope: string, toScope: string) => {
+      if (!fromScope || !toScope || fromScope === toScope) return;
+      migrateSideChatsScope(fromScope, toScope);
+      migrateSideTracesScope(fromScope, toScope);
+      setByScope((all) => {
+        const fromState = all[fromScope];
+        if (!fromState) return all;
+        const existing = all[toScope];
+        const merged: SideTabsState =
+          existing && (existing.agents.length > 0 || existing.pages.length > 0)
+            ? existing
+            : fromState;
+        const rest = { ...all };
+        delete rest[fromScope];
+        const out = { ...rest, [toScope]: merged };
+        if (!isolated) writeSideTabsStore(out);
+        return out;
+      });
+      setFilesOpenByScope((cur) => {
+        if (!(fromScope in cur)) return cur;
+        const next = { ...cur };
+        if (!(toScope in next)) next[toScope] = cur[fromScope]!;
+        delete next[fromScope];
+        return next;
+      });
+      setPanePrefByScope((cur) => {
+        if (!(fromScope in cur)) return cur;
+        const next = { ...cur };
+        if (!(toScope in next)) next[toScope] = cur[fromScope]!;
+        delete next[fromScope];
+        return next;
+      });
+    },
+    [isolated],
+  );
   const reportMeta = useCallback((key: string, value: SideTabMeta | null) => {
     setMeta((cur) => {
       const old = cur[key];
@@ -724,62 +741,66 @@ export const SubagentPaneProvider: React.FC<{
   );
 
   // 删除会话或关闭 CLI 会话标签时，回收该会话下的所有内置终端 PTY、内存轨迹与标签状态
-  const dropScopes = useCallback((scopes: readonly string[]) => {
-    const targets = [...new Set(scopes.filter(Boolean))];
-    if (!targets.length) return;
-    const snapshot = byScopeRef.current;
-    const toClosePanes = new Set<string>();
-    for (const s of targets) {
-      discardSideTracesInScope(s);
-      const cur = snapshot[s];
-      if (!cur) continue;
-      for (const p of cur.pages) {
-        if (p.kind !== 'terminal') continue;
-        for (const pid of terminalPaneIds(p)) {
-          toClosePanes.add(pid);
+  const dropScopes = useCallback(
+    (scopes: readonly string[]) => {
+      const targets = [...new Set(scopes.filter(Boolean))];
+      if (!targets.length) return;
+      const snapshot = byScopeRef.current;
+      const toClosePanes = new Set<string>();
+      for (const s of targets) {
+        discardSideTracesInScope(s);
+        const cur = snapshot[s];
+        if (!cur) continue;
+        for (const p of cur.pages) {
+          if (p.kind !== 'terminal') continue;
+          for (const pid of terminalPaneIds(p)) {
+            toClosePanes.add(pid);
+          }
         }
       }
-    }
-    for (const pid of toClosePanes) {
-      sideTerminalHost.close(sideTerminalIdFor(pid));
-    }
-    setByScope((all) => {
-      let changed = false;
-      const next = { ...all };
-      for (const s of targets) {
-        if (!(s in next)) continue;
-        delete next[s];
-        changed = true;
+      for (const pid of toClosePanes) {
+        sideTerminalHost.close(sideTerminalIdFor(pid));
       }
-      if (!changed) return all;
-      writeSideTabsStore(next);
-      return next;
-    });
-    setFilesOpenByScope((cur) => {
-      let changed = false;
-      const next = { ...cur };
-      for (const s of targets) {
-        if (s in next) {
+      setByScope((all) => {
+        let changed = false;
+        const next = { ...all };
+        for (const s of targets) {
+          if (!(s in next)) continue;
           delete next[s];
           changed = true;
         }
-      }
-      return changed ? next : cur;
-    });
-    setPanePrefByScope((cur) => {
-      let changed = false;
-      const next = { ...cur };
-      for (const s of targets) {
-        if (s in next) {
-          delete next[s];
-          changed = true;
+        if (!changed) return all;
+        if (!isolated) writeSideTabsStore(next);
+        return next;
+      });
+      setFilesOpenByScope((cur) => {
+        let changed = false;
+        const next = { ...cur };
+        for (const s of targets) {
+          if (s in next) {
+            delete next[s];
+            changed = true;
+          }
         }
-      }
-      return changed ? next : cur;
-    });
-  }, []);
+        return changed ? next : cur;
+      });
+      setPanePrefByScope((cur) => {
+        let changed = false;
+        const next = { ...cur };
+        for (const s of targets) {
+          if (s in next) {
+            delete next[s];
+            changed = true;
+          }
+        }
+        return changed ? next : cur;
+      });
+    },
+    [isolated],
+  );
 
   useEffect(() => {
+    if (isolated) return;
     const onConversationsChanged = (ev: Event) => {
       const removed = (ev as CustomEvent<ConversationsChangedDetail>).detail?.removed;
       if (!removed?.length) return;
@@ -792,10 +813,11 @@ export const SubagentPaneProvider: React.FC<{
     };
     window.addEventListener(CONVERSATIONS_CHANGED_EVENT, onConversationsChanged);
     return () => window.removeEventListener(CONVERSATIONS_CHANGED_EVENT, onConversationsChanged);
-  }, [dropScopes]);
+  }, [dropScopes, isolated]);
 
   const prevLiveTabsRef = useRef<typeof liveTabs>(undefined);
   useEffect(() => {
+    if (isolated) return;
     const prev = prevLiveTabsRef.current;
     prevLiveTabsRef.current = liveTabs;
     if (!prev || !liveTabs) return;
@@ -818,10 +840,11 @@ export const SubagentPaneProvider: React.FC<{
       };
     }
     return undefined;
-  }, [liveTabs, dropScopes]);
+  }, [liveTabs, dropScopes, isolated]);
 
-  // 汇总全部会话里仍开着的终端 id，去抖同步给宿主防孤儿进程；页面卸载时清理全部终端
+  // 汇总全部会话里仍开着的终端 id，去抖同步给宿主防孤儿进程；页面卸载时清理全部终端（隔离模式不接管终端）
   const liveTerminalIds = useMemo(() => {
+    if (isolated) return [];
     const ids: string[] = [];
     for (const s of Object.values(byScope)) {
       for (const p of s.pages) {
@@ -832,18 +855,20 @@ export const SubagentPaneProvider: React.FC<{
       }
     }
     return ids;
-  }, [byScope]);
+  }, [byScope, isolated]);
   const prevLiveKeyRef = useRef<string | null>(null);
   const hadTerminalsRef = useRef(false);
   useEffect(() => {
+    if (isolated) return;
     if (liveTerminalIds.length > 0) hadTerminalsRef.current = true;
     if (!hadTerminalsRef.current) return;
     const key = liveTerminalIds.join('\0');
     if (prevLiveKeyRef.current === key) return;
     prevLiveKeyRef.current = key;
     syncLiveTerminals(liveTerminalIds);
-  }, [liveTerminalIds]);
+  }, [liveTerminalIds, isolated]);
   useEffect(() => {
+    if (isolated) return;
     const closeIfNeeded = () => {
       if (hadTerminalsRef.current) sideTerminalHost.closeAll();
     };
@@ -854,7 +879,13 @@ export const SubagentPaneProvider: React.FC<{
       window.removeEventListener('beforeunload', closeIfNeeded);
       closeIfNeeded();
     };
-  }, []);
+  }, [isolated]);
+  useEffect(() => {
+    if (!isolated || !scope) return;
+    return () => {
+      discardSideTracesInScope(scope);
+    };
+  }, [isolated, scope]);
 
   const value = useMemo(
     () => ({

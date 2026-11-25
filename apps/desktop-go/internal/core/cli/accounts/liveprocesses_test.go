@@ -2,9 +2,12 @@ package accounts
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -129,9 +132,9 @@ func TestRemoveReportsExternalProcessesAndCanStopThem(t *testing.T) {
 	if len(signals) != 0 {
 		t.Fatalf("killed without consent: %v", signals)
 	}
-	// 用户确认「结束这些进程再删除」
+	// 用户确认「结束这些进程再删除」：提交时带上确认过的进程快照（#426）
 	if _, err := jsrt.Block(jsrt.Call(func() *jsrt.Promise[struct{}] {
-		return s.RemoveWith(id, RemoveOpts{StopExternal: true})
+		return s.RemoveWith(id, RemoveOpts{StopExternal: true, StopPids: []float64{4343}})
 	})); err != nil {
 		t.Fatalf("remove with stop: %v", err)
 	}
@@ -147,7 +150,7 @@ func TestRemoveReportsExternalProcessesAndCanStopThem(t *testing.T) {
 
 func TestRemoveStopDoesNotKillProcessesThatAppearedLater(t *testing.T) {
 	calls := 0
-	live := func() LiveCheck {
+	scan := func() LiveCheck {
 		calls++
 		if calls == 1 {
 			return LiveCheck{State: "busy", Pids: []float64{4343}}
@@ -156,12 +159,12 @@ func TestRemoveStopDoesNotKillProcessesThatAppearedLater(t *testing.T) {
 		return LiveCheck{State: "busy", Pids: []float64{9999}}
 	}
 	var signals []string
-	s, id := newTestService(t, live, func(pid int, sig string) error {
+	s, id := newTestService(t, scan, func(pid int, sig string) error {
 		signals = append(signals, strconv.Itoa(pid)+":"+sig)
 		return nil
 	})
 	_, err := jsrt.Block(jsrt.Call(func() *jsrt.Promise[struct{}] {
-		return s.RemoveWith(id, RemoveOpts{StopExternal: true})
+		return s.RemoveWith(id, RemoveOpts{StopExternal: true, StopPids: []float64{4343}})
 	}))
 	var ae *AccountError
 	if !errors.As(err, &ae) || ae.Code != "external-busy" || ae.Pids[0] != 9999 {
@@ -245,4 +248,236 @@ func TestRemovePreservesAccountUsedByPidMissingFromCachedProcessTable(t *testing
 			}
 		})
 	}
+}
+
+// #426：确认弹窗列出的是第一次扫描到的进程，提交时只结束这批；扫描范围变了就重新确认，不结束没确认过的进程。
+
+func TestRemoveWithStopOnlyHandlesConfirmedSnapshot(t *testing.T) {
+	cases := []struct {
+		name      string
+		confirmed []float64
+		stopPids  []float64
+		wantErr   bool      // true = 不删账号；false = 删除成功
+		wantPids  []float64 // wantErr 时 external-busy 里带上的当前进程
+		wantKill  []string
+		// after：开始提交前账号目录上的进程（模拟确认之后新进程出现 / 旧进程退出）
+		after func(m map[int]bool)
+	}{
+		{
+			name: "覆盖范围不变：只结束确认过的那几个", confirmed: []float64{4343}, stopPids: []float64{4343},
+			wantKill: []string{"4343:SIGTERM"},
+		},
+		{
+			name: "范围不变（同一批进程，扫描顺序不同）", confirmed: []float64{4242, 4343}, stopPids: []float64{4343, 4242},
+			wantKill: []string{"4242:SIGTERM", "4343:SIGTERM"},
+		},
+		{
+			name: "新进程出现：确认后又冒出一个没确认过的 9999，不动它，重新确认", confirmed: []float64{4343}, stopPids: []float64{4343},
+			after:    func(m map[int]bool) { m[9999] = true },
+			wantErr:  true,
+			wantPids: []float64{4343, 9999},
+		},
+		{
+			name: "新进程出现（旧进程已经退出）：只报新的那个", confirmed: []float64{4343}, stopPids: []float64{4343},
+			after:    func(m map[int]bool) { delete(m, 4343); m[9999] = true },
+			wantErr:  true,
+			wantPids: []float64{9999},
+		},
+		{
+			name: "旧进程退出：确认的那批都不在了，不结束任何进程，按新的范围（空）重新确认", confirmed: []float64{4343}, stopPids: []float64{4343},
+			after:   func(m map[int]bool) { delete(m, 4343) },
+			wantErr: true,
+		},
+		{
+			name: "没带确认快照：不结束任何进程（force 也不行）", confirmed: []float64{4343}, stopPids: nil,
+			wantErr:  true,
+			wantPids: []float64{4343},
+		},
+		{
+			name: "确认的快照和扫描到的不一样：不结束任何进程", confirmed: []float64{4343}, stopPids: []float64{5555},
+			wantErr:  true,
+			wantPids: []float64{4343},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			running := map[int]bool{4343: true}
+			scan := func() LiveCheck {
+				pids := []float64{}
+				for p := range running {
+					pids = append(pids, float64(p))
+				}
+				if len(pids) == 0 {
+					return LiveCheck{State: "idle"}
+				}
+				sort.Float64s(pids)
+				return LiveCheck{State: "busy", Pids: pids}
+			}
+			// 只记真正动过的进程（同一批里还没退出的）：已经退出的发信号失败不算
+			var signals []string
+			outcome := ""
+			kill := func(pid int, sig string) error {
+				if !running[pid] {
+					outcome = fmt.Sprintf("kill %d: no such process", pid)
+					return errors.New("no such process")
+				}
+				if sig == "SIGTERM" {
+					signals = append(signals, strconv.Itoa(pid)+":"+sig)
+				}
+				delete(running, pid)
+				return nil
+			}
+			// 确认弹窗看到的是 confirmed（按下单提交）；提交时的扫描必须已经是 after 之后的世界，
+			// 所以先落定进程状态，再调用 RemoveWith（StopPids = 确认快照）。
+			running = map[int]bool{}
+			for _, p := range tc.confirmed {
+				running[int(p)] = true
+			}
+			if tc.after != nil {
+				tc.after(running)
+			}
+			s, id := newTestService(t, scan, kill)
+			_, err := jsrt.Block(jsrt.Call(func() *jsrt.Promise[struct{}] {
+				return s.RemoveWith(id, RemoveOpts{StopExternal: true, StopPids: tc.stopPids})
+			}))
+			if !samePidsStr(signals, tc.wantKill) {
+				t.Fatalf("signals=%v want %v (outcome=%q)", signals, tc.wantKill, outcome)
+			}
+			var ae *AccountError
+			switch {
+			case tc.wantErr && len(tc.wantPids) == 0:
+				// 范围变了但已经没有进程在用：不结束任何进程、账号保留，不能报成功
+				if err == nil {
+					t.Fatalf("remove reported success although the confirmed range changed (outcome=%q)", outcome)
+				}
+			case tc.wantErr:
+				if !errors.As(err, &ae) || ae.Code != "external-busy" || !samePids(ae.Pids, tc.wantPids) {
+					t.Fatalf("err=%v, want external-busy %v", err, tc.wantPids)
+				}
+			case err != nil:
+				t.Fatalf("remove: %v", err)
+			}
+			listed := false
+			for _, a := range jsrt.Call(func() []any { return s.list("codex") }) {
+				if prop(a, "id") == id {
+					listed = true
+				}
+			}
+			if listed == !tc.wantErr {
+				t.Fatalf("account listed=%v, want deleted=%v", listed, !tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestRemoveStopKillsOnlyConfirmedPidsWhenNewProcessAppearsWhileStopping(t *testing.T) {
+	running := map[int]bool{4343: true}
+	live := func() LiveCheck {
+		pids := []float64{}
+		for p := range running {
+			pids = append(pids, float64(p))
+		}
+		sort.Float64s(pids)
+		return LiveCheck{State: "busy", Pids: pids}
+	}
+	var signals []string
+	kill := func(pid int, sig string) error {
+		signals = append(signals, strconv.Itoa(pid)+":"+sig)
+		if pid == 4343 {
+			delete(running, 4343)
+			running[9999] = true // 停止过程中又开了一个
+		}
+		return nil
+	}
+	s, id := newTestService(t, live, kill)
+	_, err := jsrt.Block(jsrt.Call(func() *jsrt.Promise[struct{}] {
+		return s.RemoveWith(id, RemoveOpts{StopExternal: true, StopPids: []float64{4343}})
+	}))
+	var ae *AccountError
+	if !errors.As(err, &ae) || ae.Code != "external-busy" || !samePids(ae.Pids, []float64{9999}) {
+		t.Fatalf("err=%v, want external-busy [9999] (not a success)", err)
+	}
+	for _, sg := range signals {
+		if strings.HasPrefix(sg, "9999:") {
+			t.Fatalf("killed a process the user never confirmed: %v", signals)
+		}
+	}
+	for _, a := range jsrt.Call(func() []any { return s.list("codex") }) {
+		if prop(a, "id") == id {
+			return
+		}
+	}
+	t.Fatalf("account %s deleted although 9999 still uses it", id)
+}
+
+// 用户确认后重新扫描读不到（unknown）：当成范围未知，不结束任何进程，也不删账号
+func TestRemoveWithStopDoesNotKillWhenRescanIsUnknown(t *testing.T) {
+	for _, force := range []bool{false, true} {
+		t.Run("force="+strconv.FormatBool(force), func(t *testing.T) {
+			calls := 0
+			scan := func() LiveCheck {
+				calls++
+				if calls == 1 {
+					return LiveCheck{State: "busy", Pids: []float64{4343}}
+				}
+				return LiveCheck{State: "unknown"}
+			}
+			var signals []string
+			s, id := newTestService(t, scan, func(pid int, sig string) error {
+				signals = append(signals, strconv.Itoa(pid)+":"+sig)
+				return nil
+			})
+			_, err := jsrt.Block(jsrt.Call(func() *jsrt.Promise[struct{}] {
+				return s.RemoveWith(id, RemoveOpts{Force: force, StopExternal: true, StopPids: []float64{4343}})
+			}))
+			if err == nil {
+				t.Fatalf("remove(force=%v) reported success although the confirmed processes could not be re-checked", force)
+			}
+			if len(signals) != 0 {
+				t.Fatalf("killed processes without re-checking the confirmed range: %v", signals)
+			}
+			if list := jsrt.Call(func() []any { return s.list("codex") }); len(list) != 1 || prop(list[0], "id") != id {
+				t.Fatalf("remove(force=%v) changed account records: %v", force, list)
+			}
+		})
+	}
+}
+
+func samePids(got, want []float64) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	g := append([]float64(nil), got...)
+	w := append([]float64(nil), want...)
+	sort.Float64s(g)
+	sort.Float64s(w)
+	for i := range g {
+		if g[i] != w[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// samePidsStr：结束进程的顺序不固定（stopConfirmed 按集合发信号），比内容不比顺序
+func samePidsStr(got, want []string) bool {
+	return sameStrings(sortedCopy(got), sortedCopy(want))
+}
+
+func sortedCopy(xs []string) []string {
+	out := append([]string(nil), xs...)
+	sort.Strings(out)
+	return out
+}
+
+func sameStrings(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
 }

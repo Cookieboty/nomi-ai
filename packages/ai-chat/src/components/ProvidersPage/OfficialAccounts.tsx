@@ -32,6 +32,11 @@ import {
   type CliAccount,
   type LoginEvent,
 } from '../../services/cliAccountClient';
+import {
+  busySnapshot,
+  confirmedPids,
+  stopConfirmedProcesses,
+} from '../../services/cliAccountRemoval';
 import { confirmDialog, promptDialog } from '../ConfirmDialog';
 import { EndpointIcon } from '../EndpointIcon';
 import ppStyles from '../ProviderPanel/index.module.css';
@@ -512,20 +517,34 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
                   try {
                     await cliAccountClient.remove(a.id);
                   } catch (e) {
-                    // Nomi 之外还有 CLI 进程在用这个账号：说明是哪些进程，用户确认后由 Nomi 结束它们再删除
-                    if (
-                      (e as { code?: unknown }).code === 'external-busy' &&
-                      (await confirmDialog({
-                        message: t(
-                          'ui.chat-settings.stop-these-cli-processes-and-remove-the-account',
-                          (e as Error).message,
-                          display,
-                        ),
-                        confirmLabel: t('ui.chat-settings.stop-processes-and-remove'),
-                        danger: true,
-                      }))
-                    ) {
-                      await cliAccountClient.remove(a.id, { stopExternal: true });
+                    // Nomi 之外还有 CLI 进程在用这个账号：说明是哪些进程，用户确认后由 Nomi 结束它们再删除。
+                    // 确认的是弹窗列出的这批进程（#426）：内核只结束它们，范围变了会再报 external-busy，再确认一次；
+                    // 取消就什么都不结束，也不报成功
+                    if ((e as { code?: unknown }).code === 'external-busy') {
+                      const failed = await stopConfirmedProcesses(
+                        a.id,
+                        confirmedPids(e, busySnapshot(e) ?? []),
+                        e,
+                        (list, retry) =>
+                          confirmDialog({
+                            // 第一次用内核给的文案（和弹窗里列出的进程一致）；范围变了就明说没结束任何进程、重新确认
+                            message: retry
+                              ? t(
+                                  'ui.chat-settings.stop-processes-range-changed',
+                                  display,
+                                  list.join(', '),
+                                )
+                              : t(
+                                  'ui.chat-settings.stop-these-cli-processes-and-remove-the-account',
+                                  (e as Error).message,
+                                  display,
+                                ),
+                            confirmLabel: t('ui.chat-settings.stop-processes-and-remove'),
+                            danger: true,
+                          }),
+                        (rid, opts) => cliAccountClient.remove(rid, opts),
+                      );
+                      if (failed) throw failed;
                       return;
                     }
                     // 按错误码判断（文案随语言变）：无法确认 Nomi 之外的 CLI 进程是否在用 → 让用户再确认一次后强制删除

@@ -18,9 +18,10 @@ func TestOrderedCoversAll(t *testing.T) {
 // 由插件能力推出来的名单（Gemini 没有官方账号：Google 不再让 Gemini CLI 用个人账号登录）
 func TestDerivedLists(t *testing.T) {
 	for name, c := range map[string]struct{ got, want []string }{
-		"accounts": {Where(WithAccounts), []string{"claude", "codex", "grok", "kimi", "minimax"}},
-		"history":  {Where(WithHistory), []string{"claude", "codex", "dsh", "grok", "gemini"}},
-		"quota":    {Where(WithQuota), []string{"claude", "codex", "grok"}},
+		"accounts":  {Where(WithAccounts), []string{"claude", "codex", "grok", "kimi", "minimax"}},
+		"history":   {Where(WithHistory), []string{"claude", "codex", "dsh", "grok", "gemini"}},
+		"quota":     {Where(WithQuota), []string{"claude", "codex", "grok"}},
+		"localOnly": {Where(LocalOnly), []string{"antigravity"}},
 	} {
 		if !slices.Equal(c.got, c.want) {
 			t.Errorf("%s = %v, want %v", name, c.got, c.want)
@@ -29,7 +30,7 @@ func TestDerivedLists(t *testing.T) {
 	for id, want := range map[string][2]string{
 		"claude": {"Claude Code", "Claude Code"}, "codex": {"Codex", "Codex"}, "grok": {"Grok", "Grok"},
 		"gemini": {"Gemini", "Gemini CLI"}, "dsh": {"dsh", "DeepSeek Harness"}, "kimi": {"Kimi Code", "Kimi Code"},
-		"minimax": {"MiniMax Code", "MiniMax Code"},
+		"minimax": {"MiniMax Code", "MiniMax Code"}, "antigravity": {"Antigravity", "Antigravity CLI"},
 	} {
 		if DisplayName(id) != want[0] || FullName(id) != want[1] {
 			t.Errorf("%s names = %q / %q", id, DisplayName(id), FullName(id))
@@ -69,6 +70,12 @@ func TestAcpPermissionsFromManifest(t *testing.T) {
 	if !slices.Equal(m.Supported, []string{"plan", "manual"}) || m.ModeID("bypass") != "default" {
 		t.Errorf("minimax %v %s", m.Supported, m.ModeID("bypass"))
 	}
+	a := Impl("antigravity").Permissions
+	for mode, id := range map[string]string{"plan": "plan", "manual": "default", "acceptEdits": "accept-edits", "auto": "auto", "bypass": "default"} {
+		if got := a.ModeID(mode); got != id {
+			t.Errorf("antigravity %s → %s, want %s", mode, got, id)
+		}
+	}
 }
 
 // 清单 host.homeEnv 与插件账号能力的 HomeEnv 一致（沙箱按清单放行这个变量指向的目录）；每个内置 CLI 都要有
@@ -103,6 +110,9 @@ func TestAutoModeIsCliJudgement(t *testing.T) {
 	}
 	if got := auto("gemini"); got != "autoEdit" {
 		t.Errorf("gemini auto → %q, want autoEdit", got)
+	}
+	if got := auto("antigravity"); got != "auto" {
+		t.Errorf("antigravity auto → %q, want auto", got)
 	}
 	// 除「完全放开」外，任何档都不能落成 bypassPermissions / yolo
 	for _, id := range []string{"claude", "grok"} {

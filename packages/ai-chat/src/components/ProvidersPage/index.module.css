@@ -282,6 +282,10 @@
   word-break: break-all;
   white-space: pre-wrap;
 }
+.installGuide {
+  display: grid;
+  gap: var(--cd-space-1-5);
+}
 .reqList {
   list-style: none;
   margin: var(--cd-space-2) 0;

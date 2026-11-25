@@ -143,7 +143,7 @@ const FillProbe: React.FC = () => {
   return <pre data-testid="fill-probe">{composerFill?.text ?? ''}</pre>;
 };
 
-/** 等一段真实时间，让 150ms 的收起延迟有机会触发 */
+/** 等一段真实时间，让 180ms 的收起延迟有机会触发 */
 const wait = (ms: number) =>
   act(async () => {
     await new Promise((resolve) => setTimeout(resolve, ms));
@@ -178,7 +178,7 @@ describe('Codex four-column changes layout', () => {
     expect(main!.contains(screen.getByTestId('chat-column'))).toBe(true);
   });
 
-  it('hovering the diff summary exposes each changed file and its line counts', async () => {
+  it('hovering the diff summary exposes each changed file and its line counts', () => {
     const view = render(
       <ChangesUiProvider>
         <FourColumnShell />
@@ -186,23 +186,123 @@ describe('Codex four-column changes layout', () => {
     );
 
     const pill = screen.getByTestId('composer-changes-pill');
-    fireEvent.mouseOver(pill);
-    // 弹层 portal 到 body：留在会话卡片里会被卡片的 overflow: clip 与层叠上下文裁掉
-    const popover = screen.getByTestId('composer-changes-popover');
-    expect(popover.parentElement).toBe(document.body);
-    expect(view.container.contains(popover)).toBe(false);
-    const files = screen.getAllByTestId('composer-change-file');
-    expect(files).toHaveLength(2);
-    expect(files[0]!.getAttribute('data-file')).toBe(
-      'packages/host-electron/src/mascot/MascotWindowController.ts',
+    vi.useFakeTimers();
+    try {
+      fireEvent.mouseEnter(pill);
+      // 弹层 portal 到 body：留在会话卡片里会被卡片的 overflow: clip 与层叠上下文裁掉
+      const popover = screen.getByTestId('composer-changes-popover');
+      expect(popover.parentElement).toBe(document.body);
+      expect(view.container.contains(popover)).toBe(false);
+      const files = screen.getAllByTestId('composer-change-file');
+      expect(files).toHaveLength(2);
+      expect(files[0]!.getAttribute('data-file')).toBe(
+        'packages/host-electron/src/mascot/MascotWindowController.ts',
+      );
+      expect(files[0].textContent).toMatch(/MascotWindowController\.ts/);
+      expect(files[0].textContent).toMatch(/\+1/);
+      expect(files[0].textContent).toMatch(/−1/);
+      expect(files[1].textContent).toMatch(/windowBounds\.ts/);
+      fireEvent.mouseOut(pill, { relatedTarget: document.body });
+      // 关闭带 180ms 防抖：未到窗口期仍可见，过窗口期后才收起
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      expect(screen.getByTestId('composer-changes-popover')).toBeTruthy();
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      expect(screen.queryByTestId('composer-changes-popover')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('hovering ComposerChangesPill keeps popover open across close delay and clicking a file selects it in Diff workbench', () => {
+    render(
+      <ChangesUiProvider>
+        <FourColumnShell />
+      </ChangesUiProvider>,
     );
-    expect(files[0].textContent).toMatch(/MascotWindowController\.ts/);
-    expect(files[0].textContent).toMatch(/\+1/);
-    expect(files[0].textContent).toMatch(/−1/);
-    expect(files[1].textContent).toMatch(/windowBounds\.ts/);
-    fireEvent.mouseOut(pill, { relatedTarget: document.body });
-    // 离开后留一段可取消的延迟，用来跨过间距；没人接住才收起
-    await waitFor(() => expect(screen.queryByTestId('composer-changes-popover')).toBeNull());
+
+    const pill = screen.getByTestId('composer-changes-pill');
+    const wrap = pill.parentElement!;
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.mouseOver(pill);
+      expect(wrap.getAttribute('data-open')).toBe('true');
+      const popover = screen.getByTestId('composer-changes-popover');
+      expect(popover.parentElement).toBe(document.body);
+
+      // 离开胶囊并在延迟窗口内跨过 8px 空隙移入 portal 浮层，浮层应保持打开而不闪退
+      fireEvent.mouseOut(pill, { relatedTarget: document.body });
+      act(() => {
+        vi.advanceTimersByTime(80);
+      });
+      fireEvent.mouseOver(popover);
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(wrap.getAttribute('data-open')).toBe('true');
+      expect(screen.getByTestId('composer-changes-popover')).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const files = screen.getAllByTestId('composer-change-file');
+    const target = files[1]!;
+    expect(target.tagName).toBe('BUTTON');
+    expect(target.getAttribute('data-file')).toBe(
+      'packages/host-electron/src/utils/windowBounds.ts',
+    );
+    fireEvent.click(target);
+
+    expect(screen.getByTestId('center-changes-pane')).toBeTruthy();
+    const active = document.querySelector('[data-testid="center-diff-block"][data-active]');
+    expect(active).toBeTruthy();
+    expect(active?.getAttribute('data-file')).toBe(
+      'packages/host-electron/src/utils/windowBounds.ts',
+    );
+    expect(wrap.getAttribute('data-open')).toBeNull();
+    expect(screen.queryByTestId('composer-changes-popover')).toBeNull();
+  });
+
+  it('closes hovered popover on global Escape and outside pointerdown, and clamps top in very short viewports', () => {
+    const origInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+    const origOffsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+    try {
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 100 });
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+        configurable: true,
+        get() {
+          return this.getAttribute('data-testid') === 'composer-changes-popover' ? 300 : 0;
+        },
+      });
+
+      render(
+        <ChangesUiProvider>
+          <FourColumnShell />
+        </ChangesUiProvider>,
+      );
+
+      const pill = screen.getByTestId('composer-changes-pill');
+      // 仅悬停（焦点未移入）时也应正确夹紧 top >= 12px，并可用 Esc 收起
+      fireEvent.mouseEnter(pill);
+      const popover = screen.getByTestId('composer-changes-popover');
+      expect(Number.parseFloat(popover.style.top)).toBeGreaterThanOrEqual(12);
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+      expect(screen.queryByTestId('composer-changes-popover')).toBeNull();
+
+      // 再次打开后点击外部区域也收起
+      fireEvent.mouseEnter(pill);
+      expect(screen.getByTestId('composer-changes-popover')).toBeTruthy();
+      fireEvent.pointerDown(document.body);
+      expect(screen.queryByTestId('composer-changes-popover')).toBeNull();
+    } finally {
+      if (origInnerHeight) Object.defineProperty(window, 'innerHeight', origInnerHeight);
+      if (origOffsetHeight)
+        Object.defineProperty(HTMLElement.prototype, 'offsetHeight', origOffsetHeight);
+    }
   });
 
   it('焦点留在 pill 上时鼠标移出、穿到弹层位置都不收起；焦点也离开才收起', async () => {
@@ -238,7 +338,7 @@ describe('Codex four-column changes layout', () => {
     await waitFor(() => expect(screen.queryByTestId('composer-changes-popover')).toBeNull());
   });
 
-  it('指针穿过间距进入弹层可以继续浏览，离开弹层后才收起', async () => {
+  it('点击弹层自身不收起，点击外部才收起', () => {
     render(
       <ChangesUiProvider>
         <FourColumnShell />
@@ -247,13 +347,10 @@ describe('Codex four-column changes layout', () => {
     const pill = screen.getByTestId('composer-changes-pill');
     fireEvent.mouseOver(pill);
     const popover = screen.getByTestId('composer-changes-popover');
-    fireEvent.mouseOut(pill, { relatedTarget: document.body });
-    fireEvent.mouseOver(popover);
-    await wait(250);
+    fireEvent.pointerDown(popover);
     expect(screen.getByTestId('composer-changes-popover')).toBeTruthy();
-    expect(screen.getAllByTestId('composer-change-file')).toHaveLength(2);
-    fireEvent.mouseOut(popover, { relatedTarget: document.body });
-    await waitFor(() => expect(screen.queryByTestId('composer-changes-popover')).toBeNull());
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByTestId('composer-changes-popover')).toBeNull();
   });
 
   it('Esc 在输入框里也能收起悬停打开的弹层，且不拦截输入框自己的按键', () => {
@@ -278,21 +375,6 @@ describe('Codex four-column changes layout', () => {
     fireEvent.focusIn(pill);
     expect(screen.getByTestId('composer-changes-popover')).toBeTruthy();
     fireEvent.keyDown(pill, { key: 'Escape', code: 'Escape' });
-    expect(screen.queryByTestId('composer-changes-popover')).toBeNull();
-  });
-
-  it('外部点击收起弹层，点击弹层自身不收起', () => {
-    render(
-      <ChangesUiProvider>
-        <FourColumnShell />
-      </ChangesUiProvider>,
-    );
-    const pill = screen.getByTestId('composer-changes-pill');
-    fireEvent.mouseOver(pill);
-    const popover = screen.getByTestId('composer-changes-popover');
-    fireEvent.pointerDown(popover);
-    expect(screen.getByTestId('composer-changes-popover')).toBeTruthy();
-    fireEvent.pointerDown(document.body);
     expect(screen.queryByTestId('composer-changes-popover')).toBeNull();
   });
 

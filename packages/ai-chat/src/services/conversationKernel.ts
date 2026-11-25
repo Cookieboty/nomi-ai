@@ -22,6 +22,7 @@ export interface ConversationSnapshot {
   current?: string;
   lastNomi?: string;
   migrated: boolean;
+  managed?: string[];
 }
 
 export interface ConversationsChangedEvent {
@@ -79,11 +80,21 @@ export function isConversationNotFound(e: unknown): boolean {
  * 重试也不会成功的写入错误（入参被契约 / 内核拒收、过程不存在、没权限）；其余（连接断了、内核 IO 出错）
  * 当作暂时的，退避重试
  */
+export function isManagedWriteError(e: unknown): boolean {
+  return isContractError(e) && e.code === 'CONVERSATION_MANAGED';
+}
+
 export function isPermanentWriteError(e: unknown): boolean {
   if (!isContractError(e)) return false;
-  return ['BAD_INPUT', 'BAD_REQUEST', 'NOT_FOUND', 'FORBIDDEN', 'VERSION_MISMATCH'].includes(
-    e.code,
-  );
+  return [
+    'BAD_INPUT',
+    'BAD_REQUEST',
+    'NOT_FOUND',
+    'FORBIDDEN',
+    'VERSION_MISMATCH',
+    'CONVERSATION_MANAGED',
+    'RUNTIME_BUSY',
+  ].includes(e.code);
 }
 
 export function newSourceId(): string {
@@ -108,6 +119,7 @@ export function createContractConversationKernel(
         ...(s.current ? { current: s.current } : {}),
         ...(s.lastNomi ? { lastNomi: s.lastNomi } : {}),
         migrated: s.migrated,
+        ...(s.managed ? { managed: s.managed } : {}),
       };
     },
     async messages(id, limit) {

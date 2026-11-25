@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 504：mutation 360 / query 139 / stream 5
+// 合计 521：mutation 374 / query 142 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -92,6 +92,10 @@ var Procedures = []Procedure{
 	{Name: "cli.launcherGet", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "cli.launcherSet", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "cli.launcherTest", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "cli.localAuthLoginCancel", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat", "settings"}},
+	{Name: "cli.localAuthLoginStart", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat", "settings"}},
+	{Name: "cli.localAuthLogout", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat", "settings"}},
+	{Name: "cli.localAuthStatus", Kind: "query", Dangerous: false, Surfaces: []string{"chat", "settings"}},
 	{Name: "cli.registry", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "cliAccount.list", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "cliAccount.loginCancel", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -131,6 +135,19 @@ var Procedures = []Procedure{
 	{Name: "conversations.messages", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "conversations.put", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "conversations.replace", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "conversations.runtimeAdopt", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "conversations.runtimeApprove", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "conversations.runtimeCancel", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "conversations.runtimeCapabilities", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "conversations.runtimeEdit", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "conversations.runtimeRelease", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "conversations.runtimeResolve", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "conversations.runtimeRewind", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "conversations.runtimeSelect", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "conversations.runtimeSend", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "conversations.runtimeState", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
+	{Name: "conversations.runtimeSwitch", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
+	{Name: "conversations.runtimeUpdateMeta", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "conversations.setPointers", Kind: "mutation", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "conversations.state", Kind: "query", Dangerous: false, Surfaces: []string{"chat"}},
 	{Name: "delegate.clearPin", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -548,6 +565,7 @@ var Events = []string{
 	"chatWindow.dockRequest",
 	"chatWindow.tabDocked",
 	"cli.launcherChanged",
+	"cli.localAuthEvent",
 	"cli.registryChanged",
 	"cliAccount.changed",
 	"cliAccount.login",
@@ -556,6 +574,7 @@ var Events = []string{
 	"computer.changed",
 	"connections.changed",
 	"conversations.changed",
+	"conversations.runtimeChanged",
 	"delegate.completed",
 	"desktop.bubble",
 	"desktop.changed",
@@ -621,4 +640,4 @@ var Events = []string{
 }
 
 // Errors 是契约声明的业务错误码
-var Errors = []string{"UNAVAILABLE", "PROVIDER_LINK_FAILED", "CONVERSATION_NOT_FOUND", "ACCOUNT_NOT_FOUND", "ACCOUNT_IN_USE", "ACCOUNT_UNSUPPORTED", "ACCOUNT_UNKNOWN_LIVE", "ACCOUNT_EXTERNAL_BUSY", "PROJECT_NOT_FOUND", "PROJECT_FOLDER_DENIED", "FLEET_NOT_IDLE", "TERMINAL_CWD_DENIED", "TERMINAL_NOT_FOUND", "FLEET_CLOSE_DENIED", "FLEET_CLOSE_FAILED", "FLEET_CLOSE_UNVERIFIED", "FLEET_NOT_PAUSABLE", "KB_DENIED", "KB_EMPTY", "KB_LOCAL_ONLY", "KB_USER_DENIED", "KB_OCR_MISSING", "MEM_BAD_SUMMARY", "MEM_SUMMARIZE_FAILED", "MEM_NOT_FOUND", "MEM_EMPTY", "SCHED_INVALID", "SCHED_NOT_FOUND", "SCHED_BUSY", "SCHED_EMPTY", "TASKS_NOT_FOUND", "TASKS_BAD_TRIGGER", "TASKS_BAD_GRANT", "CONNECTIONS_NOT_FOUND", "CONNECTIONS_NEEDS_LOGIN", "CONNECTIONS_UNAVAILABLE", "CONNECTIONS_BAD_PARAMS", "CONNECTIONS_FAILED", "CONNECTIONS_DUPLICATE", "CHAT_BG_TOO_LARGE", "CHAT_BG_UNSUPPORTED", "ASSET_NOT_FOUND"}
+var Errors = []string{"UNAVAILABLE", "CONVERSATION_MANAGED", "RUNTIME_UNAVAILABLE", "RUNTIME_BUSY", "RUNTIME_STALE", "RUNTIME_FAILED", "PROVIDER_LINK_FAILED", "CONVERSATION_NOT_FOUND", "ACCOUNT_NOT_FOUND", "ACCOUNT_IN_USE", "ACCOUNT_UNSUPPORTED", "ACCOUNT_UNKNOWN_LIVE", "ACCOUNT_EXTERNAL_BUSY", "PROJECT_NOT_FOUND", "PROJECT_FOLDER_DENIED", "FLEET_NOT_IDLE", "TERMINAL_CWD_DENIED", "TERMINAL_NOT_FOUND", "FLEET_CLOSE_DENIED", "FLEET_CLOSE_FAILED", "FLEET_CLOSE_UNVERIFIED", "FLEET_NOT_PAUSABLE", "KB_DENIED", "KB_EMPTY", "KB_LOCAL_ONLY", "KB_USER_DENIED", "KB_OCR_MISSING", "MEM_BAD_SUMMARY", "MEM_SUMMARIZE_FAILED", "MEM_NOT_FOUND", "MEM_EMPTY", "SCHED_INVALID", "SCHED_NOT_FOUND", "SCHED_BUSY", "SCHED_EMPTY", "TASKS_NOT_FOUND", "TASKS_BAD_TRIGGER", "TASKS_BAD_GRANT", "TASKS_STORAGE_ERROR", "TASKS_IMAGE_UNAVAILABLE", "CONNECTIONS_NOT_FOUND", "CONNECTIONS_NEEDS_LOGIN", "CONNECTIONS_UNAVAILABLE", "CONNECTIONS_BAD_PARAMS", "CONNECTIONS_FAILED", "CONNECTIONS_DUPLICATE", "CHAT_BG_TOO_LARGE", "CHAT_BG_UNSUPPORTED", "ASSET_NOT_FOUND"}

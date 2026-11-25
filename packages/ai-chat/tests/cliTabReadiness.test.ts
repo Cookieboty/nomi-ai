@@ -116,6 +116,18 @@ describe('cliTabReadiness', () => {
         launcherReady: false,
       }),
     ).toEqual({ status: 'ready', reason: null, thirdPartyOnly: true });
+
+    // localOnly（antigravity）直接复用本机登录，不依赖网关或账号列表
+    expect(
+      cliTabReadiness({
+        tab: makeTab({ backend: 'antigravity', source: 'local' }),
+        gateway: null,
+        accounts: [],
+        accountsReady: false,
+        hasLocalLogin: false,
+        launcherReady: false,
+      }),
+    ).toEqual({ status: 'ready', reason: null, thirdPartyOnly: false });
   });
 
   it('thirdParty 来源：多供应商无默认时 needs-model，单供应商或已选模型时 ready，已删模型转回 needs-model', () => {

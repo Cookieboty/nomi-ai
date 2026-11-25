@@ -689,6 +689,12 @@ func (o *Orchestrator) onClaudeLine(tabID string, live *claudeLiveSession, line 
 			}
 			continue
 		}
+		if ev.Get("type") == "session-info" {
+			if title := util.JSTrim(jsStr(ev.Get("title"))); title != "" {
+				o.applyTabNativeTitle(tabID, title)
+			}
+			continue
+		}
 		if ev.Get("type") == "error" {
 			if sid, _ := ev.Get("sessionId").(string); sid != "" {
 				if turn != nil {

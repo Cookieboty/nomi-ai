@@ -181,6 +181,7 @@ export interface CliChipInput {
   defaultProviderId?: string | null;
   modelMeta?: ReadonlyMap<string, PickerModel> | null;
   hasLocalLogin?: boolean;
+  onTabUpdated?: (tab: HarnessTabMeta) => void;
 }
 
 /** agent 标签的数据适配器：读 tab / 目录 / 网关，写 harnessClient */
@@ -198,6 +199,7 @@ export function useCliModelEffortSource({
   defaultProviderId = null,
   modelMeta = null,
   hasLocalLogin: hasLocalLoginProp,
+  onTabUpdated,
 }: CliChipInput): ModelEffortSource {
   const tabSource = tabSourceOf(tab);
   const presets = useDelegatePresets(open);
@@ -348,7 +350,10 @@ export function useCliModelEffortSource({
   const run = async (fn: () => Promise<unknown>) => {
     setNote(null);
     try {
-      await fn();
+      const res = await fn();
+      if (res && typeof res === 'object' && 'id' in res) {
+        onTabUpdated?.(res as HarnessTabMeta);
+      }
     } catch (e) {
       setNote(e instanceof Error ? e.message : String(e));
     }
@@ -589,25 +594,12 @@ export function useCliModelEffortSource({
       }
     />
   );
-  // 模型页的提示（读不到目录的原因 / 后端没有思考深度控制）：放在选择器顶部
-  const pickerNotice =
-    catalog.error || backendBlocksEffort ? (
-      <>
-        {catalog.error && (
-          <div className="cd-model-picker__notice" role="status" data-testid="model-error">
-            {t('ui.chat-settings.couldn-t-read-the-model-list-from', sourceName, catalog.error)}
-          </div>
-        )}
-        {backendBlocksEffort && (
-          <div className="cd-model-picker__notice" role="status" data-testid="effort-hint">
-            {t(
-              'ui.chat-settings.has-no-documented-reasoning-effort-control-nomi-will',
-              backendName || tab.backend,
-            )}
-          </div>
-        )}
-      </>
-    ) : null;
+  // 模型页的提示（读不到目录的原因）：放在选择器顶部
+  const pickerNotice = catalog.error ? (
+    <div className="cd-model-picker__notice" role="status" data-testid="model-error">
+      {t('ui.chat-settings.couldn-t-read-the-model-list-from', sourceName, catalog.error)}
+    </div>
+  ) : null;
 
   const hasProvider = !!provider;
 
@@ -620,12 +612,6 @@ export function useCliModelEffortSource({
       (!thirdParty || nativeThirdParty) && !effort && !defaultEffort
         ? t('ui.chat-settings.effort-default-set-by-cli', backendName || tab.backend)
         : null,
-    unavailableHint: backendBlocksEffort
-      ? t(
-          'ui.chat-settings.has-no-documented-reasoning-effort-control-nomi-will',
-          backendName || tab.backend,
-        )
-      : t('ui.chat-settings.this-model-has-no-reasoning-effort'),
     onCommit: (e) => pickEffort(e as ReasoningEffort | null),
     onRestore: () => pickEffort(null),
   };
@@ -742,29 +728,32 @@ export function useCliModelEffortSource({
                   onClick={() => {
                     const hasMessages = !!tab.cliSessionId || (tab.carriedMessages ?? 0) > 0;
                     void run(async () => {
+                      let latest: HarnessTabMeta | null = null;
                       if (p.source !== tabSource) {
                         const switched = await switchTabSource(tab, p.source, {
                           model: p.model ?? undefined,
                           accountId: p.source === 'official' ? (p.accountId ?? null) : null,
                           hasMessages,
                         });
-                        if (!switched) return;
+                        if (!switched) return null;
+                        latest = switched;
                       } else {
                         if (
                           p.source === 'official' &&
                           (p.accountId ?? null) !== (tab.accountId ?? null)
                         ) {
-                          await harnessClient.setTabAccount(tab.id, p.accountId ?? null);
+                          latest = await harnessClient.setTabAccount(tab.id, p.accountId ?? null);
                         }
                         if ((p.model ?? '') !== (tab.modelOverride ?? '')) {
-                          await harnessClient.setTabModel(tab.id, p.model ?? '', {
+                          latest = await harnessClient.setTabModel(tab.id, p.model ?? '', {
                             expectSource: p.source,
                           });
                         }
                       }
                       if (p.reasoningEffort) {
-                        await harnessClient.setTabEffort(tab.id, p.reasoningEffort);
+                        latest = await harnessClient.setTabEffort(tab.id, p.reasoningEffort);
                       }
+                      return latest;
                     });
                   }}
                 >

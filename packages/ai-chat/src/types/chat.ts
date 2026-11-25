@@ -10,6 +10,8 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   modelId?: string;
+  /** 托管主对话实际回复底座（如 antigravity / claude / codex），用于渲染助手署名与图标 */
+  runtimeBackend?: string;
   /**
    * 上游响应里的模型名，和这一轮请求的不是同一个时才有（中继换成了别的模型）。
    * 原始字符串，页脚原样显示，说明在提示里。

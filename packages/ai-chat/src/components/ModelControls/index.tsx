@@ -72,7 +72,10 @@ const LoadingChip: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
 };
 
 /** 输入栏入口：无模型目录的后端不渲染；第三方来源列网关的模型 */
-export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
+export const ModelControls: React.FC<{
+  tab: HarnessTabMeta;
+  onTabUpdated?: (tab: HarnessTabMeta) => void;
+}> = ({ tab, onTabUpdated }) => {
   const source = tabSourceOf(tab);
   const { catalog, refreshing, refresh } = useCatalog(tab.backend, source);
   const gateway = useGatewayState();
@@ -176,6 +179,7 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
     defaultProviderId,
     modelMeta,
     hasLocalLogin,
+    onTabUpdated,
   });
   if (scoped === null) return null;
   if (scoped === undefined) return <LoadingChip tab={tab} />;

@@ -136,7 +136,7 @@ export const ProviderForm: React.FC<Props> = ({ idPrefix, onSaved, onCancel }) =
       if (gen !== opGen.current) return;
       const hand = testModel.trim();
       const result = await gatewayClient.detect({
-        ...(preset ? { urls: presetUrls(preset) } : { url: baseUrl }),
+        ...(preset ? { presetId: preset.id, urls: presetUrls(preset) } : { url: baseUrl }),
         keys,
         fallbackModel: recommendedOf(preset)[0] || hand || undefined,
       });

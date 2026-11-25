@@ -448,3 +448,32 @@ describe('侧栏悬浮蒙版：时间被遮住', () => {
     expect(ruleBody(sidebar, '.row .thread')).toMatch(/z-index:\s*0/);
   });
 });
+
+describe('确认框与弹出菜单层级', () => {
+  it('确认框令牌（--cd-z-modal-top）严格高于弹出菜单/提示令牌（--cd-z-tooltip）且低于 toast', () => {
+    expect(token('--cd-z-modal')).toBeLessThan(token('--cd-z-tooltip'));
+    expect(token('--cd-z-tooltip')).toBeLessThan(token('--cd-z-modal-top'));
+    expect(token('--cd-z-modal-top')).toBeLessThan(token('--cd-z-toast'));
+
+    const shared = readFileSync(repoPath('packages/ui/src/styles/base.css'), 'utf8');
+    expect(ruleBody(shared, '.cd-modal-overlay--top')).toContain('z-index: var(--cd-z-modal-top)');
+  });
+
+  it('各浮层菜单使用 --cd-z-tooltip，避免压住顶层确认弹窗', () => {
+    const menus = [
+      'src/components/ModelControls/index.module.css',
+      'src/components/PermissionModeChip/index.module.css',
+      'src/components/BranchPicker/index.module.css',
+      'src/components/ProjectPicker/index.module.css',
+      'src/components/WorkspacePicker/index.module.css',
+      'src/components/PreviewChat/index.module.css',
+    ];
+    for (const file of menus) {
+      const menu = ruleBody(read(file), '.menu');
+      expect(menu, `${file} .menu 应使用 --cd-z-tooltip`).toContain('z-index: var(--cd-z-tooltip)');
+      expect(menu, `${file} .menu 不应使用 --cd-z-modal-top`).not.toMatch(
+        /z-index:\s*var\(--cd-z-modal-top\)/,
+      );
+    }
+  });
+});

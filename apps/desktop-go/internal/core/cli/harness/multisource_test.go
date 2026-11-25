@@ -355,3 +355,39 @@ func TestSingleThirdPartyProviderDefaultsWithoutExplicitAssignment(t *testing.T)
 		}
 	})
 }
+
+func TestLocalOnlyCLIUsesLocalSourceAndRefusesThirdParty(t *testing.T) {
+	o, _ := newMultiSourceOrch(t)
+	defer jsrt.Run(o.Dispose)
+
+	jsrt.Run(func() {
+		tab := o.CreateTab(util.NewObj("backend", "antigravity", "source", "thirdParty", "activate", false))
+		id := str(tab, "id")
+		if got := o.sourceOf(tab); got != "local" {
+			t.Fatalf("antigravity create source = %q, want local", got)
+		}
+		if errMsg := o.tabPreflightError(o.tab(id)); errMsg != "" {
+			t.Fatalf("antigravity preflight error = %q, want empty", errMsg)
+		}
+		for _, badSource := range []string{"thirdParty", "official"} {
+			var threw string
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						if j, ok := r.(jsrt.JSThrow); ok {
+							threw = j.Message
+						}
+					}
+				}()
+				o.SetTabSource(id, badSource, nil)
+			}()
+			if threw == "" {
+				t.Fatalf("antigravity SetTabSource(%q) must throw", badSource)
+			}
+		}
+		l := o.launchFor(o.tab(id))
+		if !l.official || l.sig != "local" {
+			t.Fatalf("antigravity launch = %+v, want official=true sig=local", l)
+		}
+	})
+}

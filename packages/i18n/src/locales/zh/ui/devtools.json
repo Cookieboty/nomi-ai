@@ -1,5 +1,6 @@
 {
   "ui.devtools.agents-count": "代理数",
+  "ui.devtools.audit-turn-counts": "请求 {0} · 回合 {1}",
   "ui.devtools.attempt-n": "第 {0} 次执行",
   "ui.devtools.avg-ttft": "平均首字",
   "ui.devtools.background-follow-up": "后台自动跟进",
@@ -28,6 +29,9 @@
   "ui.devtools.evidence-header-model-mismatch": "响应头 {0} 声明模型为 {1}，与期望 {2} 不符",
   "ui.devtools.evidence-id-match": "响应 ID 格式符合 {0} 协议特征（{1}）",
   "ui.devtools.evidence-id-suspect": "响应 ID 格式（{0}）与期望 {1} 常见格式不一致，可能经过中转改写或由其他后端提供",
+  "ui.devtools.evidence-model-alias": "响应模型名 {1} 是请求 {0} 的供应商日期别名，视为同一模型",
+  "ui.devtools.evidence-model-family-mismatch": "返回模型与请求为同系列的不同版本：请求 {0}，上游实际返回 {1}，不能视为版本一致",
+  "ui.devtools.evidence-model-history-diff": "历史回合仅凭回复记录显示模型差异：请求 {0}，回复记录为 {1}（无响应头/指纹证据）",
   "ui.devtools.evidence-model-absent": "上游响应未返回模型名，无法仅凭名称验证",
   "ui.devtools.evidence-model-cross-vendor": "疑似跨厂商替换：期望 {0}（{1}），上游实际返回 {2}（{3}）",
   "ui.devtools.evidence-model-match": "响应模型名与期望模型一致（{0}）",

@@ -45,8 +45,6 @@ export interface EffortPageSource {
   explicit: boolean;
   /** 沿用默认又不知道默认是哪一档时的说明；null 不显示 */
   defaultUnknownNote: string | null;
-  /** 不支持档位时的说明 */
-  unavailableHint: string;
   onCommit: (level: string | null) => void;
   /** 「恢复默认」：回到沿用模型默认 */
   onRestore: () => void;
@@ -87,6 +85,10 @@ export interface ProviderPageSource extends ModelChoiceSource {
   onChange: (id: string) => 'effort' | 'model' | 'close';
 }
 
+export interface RuntimePageSource extends ModelChoiceSource {
+  onChange: (id: string) => 'effort' | 'close' | 'stay' | Promise<'effort' | 'close' | 'stay'>;
+}
+
 /** 档位页里的长上下文开关 */
 export interface LongContextControl {
   standard: number;
@@ -97,12 +99,18 @@ export interface LongContextControl {
   onChange: (on: boolean) => void;
 }
 
+export interface SimpleModelChoiceSource extends ModelChoiceSource {
+  onChange: (value: string) => 'effort' | 'close';
+}
+
 export interface ModelEffortSource {
   /** 触发器上的名字（含档位，或只有模型名） */
   label: string;
   muted?: boolean;
   /** 品牌图标 id；没有时用通用芯片图标 */
   brand?: string;
+  /** 胶囊最左侧展示的底座图标，与右侧 brand 模型品牌图标并存并以细竖线分隔 */
+  runtimeIcon?: React.ReactNode;
   ariaLabel: string;
   /** 浮层标题 */
   menuLabel: string;
@@ -110,17 +118,26 @@ export interface ModelEffortSource {
   longBadge?: boolean;
   longContext?: LongContextControl | null;
   /** 点触发器打开时停在哪一页 */
-  initialView: 'effort' | 'model';
+  initialView: 'effort' | 'model' | 'runtime';
   /** `/model` 命令打开时停在哪一页 */
-  menuCommandView: 'effort' | 'model';
+  menuCommandView: 'effort' | 'model' | 'runtime';
   /** `/model` 命令登记的 key；空串 = 不登记 */
   menuKey: string;
   /** 浮层顶部额外控制区（如 agent 的三态来源与快捷切档药丸） */
   topBar?: React.ReactNode;
+  runtime?: RuntimePageSource | null;
+  /** 档位页顶部的来源分段条（仅在档位页内展示） */
+  sourceBar?: React.ReactNode;
+  /** 是否在档位页展示「模型 ›」行（默认 true） */
+  showModelRow?: boolean;
+  /** 轻量级单列表模型页（供托管 CLI 底座使用，不套多供应商 ModelPicker） */
+  simpleModelChoice?: SimpleModelChoiceSource | null;
   effort: EffortPageSource;
   model: ModelPageSource;
   account?: AccountPageSource | null;
   provider?: ProviderPageSource | null;
+  /** 「模型：xxx ›」行模型名左侧展示的图标（如托管 CLI 底座图标） */
+  modelIcon?: React.ReactNode;
   /** 「模型：xxx ›」行显示的名字 */
   modelLabel: string;
   modelRowAria: string;
@@ -150,7 +167,9 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
   disabled = null,
 }) => {
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<'effort' | 'model' | 'account' | 'provider'>(source.initialView);
+  const [view, setView] = useState<'effort' | 'model' | 'account' | 'provider' | 'runtime'>(
+    source.initialView,
+  );
   const [query, setQuery] = useState('');
   const [focusedProvider, setFocusedProvider] = useState<string>();
   /** 拖动滑杆时的预览档位（松手提交后清空，回到适配器给的值） */
@@ -267,7 +286,18 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
     else setView(next ?? 'effort');
   };
 
-  const { effort, model, account, provider, longContext } = source;
+  const onRuntimePick = async (id: string) => {
+    if (!source.runtime) return;
+    picked.current = true;
+    const next = await source.runtime.onChange(id);
+    setQuery('');
+    setPreview(null);
+    if (next === 'close') close();
+    else if (next === 'effort') setView('effort');
+  };
+
+  const { effort, model, account, provider, longContext, runtime } = source;
+  const showModelRow = source.showModelRow !== false;
   const providerRow = provider && (
     <ModelChoiceRow
       source={provider}
@@ -289,6 +319,10 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
         data-testid={`${prefix}-chip`}
         onClick={toggle}
       >
+        {source.runtimeIcon}
+        {source.runtimeIcon && source.brand && (
+          <span className={styles.chipSep} aria-hidden="true" data-testid={`${prefix}-chip-sep`} />
+        )}
         {source.brand && <BrandIcon brand={source.brand} name={source.label} size={16} inline />}
         <span className={styles.label}>{source.label}</span>
         {source.longBadge && (
@@ -315,7 +349,8 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
           {source.topBar}
           {view === 'effort' ? (
             <div className={styles.effortView} data-testid={`${effortPrefix}-view`}>
-              {effort.supported ? (
+              {source.sourceBar}
+              {effort.supported && (
                 <>
                   <div className={styles.effortHead}>
                     <span className={styles.effortHeadLabel}>
@@ -349,22 +384,6 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
                     onCommit={effort.onCommit}
                   />
                 </>
-              ) : (
-                <div
-                  className={`${styles.effortHead} ${styles.effortUnavailable}`}
-                  data-testid={`${effortPrefix}-unavailable`}
-                >
-                  <span className={styles.effortHeadLabel}>
-                    {t('ui.chat-settings.reasoning-effort')}
-                  </span>
-                  <p
-                    className={styles.effortHint}
-                    data-testid={`${effortPrefix}-hint`}
-                    role="status"
-                  >
-                    {effort.unavailableHint}
-                  </p>
-                </div>
               )}
               {longContext && (
                 <div
@@ -391,19 +410,22 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
                   </span>
                 </div>
               )}
-              <button
-                type="button"
-                className={styles.modelRow}
-                data-testid={`${prefix}-open`}
-                aria-label={source.modelRowAria}
-                onClick={() => setView('model')}
-              >
-                <span className={styles.modelRowLabel}>{t('ui.foundation.model')}</span>
-                <span className={styles.modelRowValue}>
-                  <span className={styles.modelLinkText}>{source.modelLabel}</span>
-                </span>
-                <Icon icon={ChevronRight} size={14} />
-              </button>
+              {showModelRow && (
+                <button
+                  type="button"
+                  className={styles.modelRow}
+                  data-testid={`${prefix}-open`}
+                  aria-label={source.modelRowAria}
+                  onClick={() => setView('model')}
+                >
+                  <span className={styles.modelRowLabel}>{t('ui.foundation.model')}</span>
+                  <span className={styles.modelRowValue}>
+                    {source.modelIcon}
+                    <span className={styles.modelLinkText}>{source.modelLabel}</span>
+                  </span>
+                  <Icon icon={ChevronRight} size={14} />
+                </button>
+              )}
               {account && (
                 <ModelChoiceRow
                   source={account}
@@ -412,7 +434,22 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
                 />
               )}
               {providerRow}
+              {runtime && (
+                <ModelChoiceRow
+                  source={runtime}
+                  testId={`${prefix}-runtime-open`}
+                  onClick={() => setView('runtime')}
+                />
+              )}
             </div>
+          ) : view === 'runtime' && runtime ? (
+            <ModelChoicePage
+              source={runtime}
+              prefix={`${prefix}-runtime`}
+              onBack={toEffort}
+              onChange={(id) => void onRuntimePick(id)}
+              onOpenChange={onPickerOpenChange}
+            />
           ) : view === 'account' && account ? (
             <ModelChoicePage
               source={account}
@@ -427,6 +464,19 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
               prefix={`${prefix}-provider`}
               onBack={() => setView(source.initialView)}
               onChange={onProviderPick}
+              onOpenChange={onPickerOpenChange}
+            />
+          ) : source.simpleModelChoice ? (
+            <ModelChoicePage
+              source={source.simpleModelChoice}
+              prefix={prefix}
+              onBack={toEffort}
+              onChange={(val) => {
+                picked.current = true;
+                const next = source.simpleModelChoice!.onChange(val);
+                if (next === 'close') close();
+                else setView('effort');
+              }}
               onOpenChange={onPickerOpenChange}
             />
           ) : (

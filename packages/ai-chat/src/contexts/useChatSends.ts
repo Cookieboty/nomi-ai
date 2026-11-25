@@ -5,6 +5,7 @@
 import { t } from '@nomi-ai/ui';
 import { useCallback, type Dispatch, type MutableRefObject } from 'react';
 
+import { api, hasTransport } from '../services/api';
 import { importChatImages } from '../services/chatImages';
 import { injectedMemoryIds, isCompaction } from '../services/compaction';
 import {
@@ -28,15 +29,17 @@ import {
 } from '../services/harnessClient';
 import { imageLinksNote, STEER_TAG } from '../services/history';
 import { kbClient } from '../services/kbClient';
+import { createManagedMessageId } from '../services/managedMainChat';
 import { memoryContext } from '../services/memClient';
 import { gatewayStateSnapshot } from '../services/nomiModel';
 import { nomiModelLabel, servedModelLabel } from '../services/nomiModel';
-import { maybeStartNomiSmartTitle } from '../services/nomiSmartTitle';
+import { maybeStartManagedSmartTitle, maybeStartNomiSmartTitle } from '../services/nomiSmartTitle';
 import { startReplySpeech, stopReplySpeech, type ReplySpeaker } from '../services/replySpeech';
 import { schedClient } from '../services/schedClient';
 import { screenClient, type ImageAttachment } from '../services/screenClient';
 import { tasksApi } from '../services/tasksClient';
 import type { ChatMessage } from '../types/chat';
+import type { IPCClient } from '../types/ipc';
 import { ENDPOINT_NAME } from '../utils/endpointBadge';
 import { closeOpenCalls } from '../utils/toolTrace';
 
@@ -47,7 +50,7 @@ import {
   type AiChatState,
   type ConvoOutcome,
 } from './aiChatState';
-import type { ActiveStream, InflightTurn } from './chatTurn';
+import type { ActiveStream, ConversationTurn, InflightTurn } from './chatTurn';
 import {
   finishDeliveredSteers,
   newReqId,
@@ -67,6 +70,11 @@ function nextMessageId(): string {
 
 const isAbortError = (err: unknown): boolean => err instanceof Error && err.name === 'AbortError';
 
+/** 转后台时随任务交给后台的原图上限（与契约 tasks.handoffFromChat.images 一致） */
+const MAX_HANDOFF_IMAGES = 8;
+/** 后台执行器认的原图类型（与服务端校验一致） */
+const HANDOFF_IMAGE_MIMES = new Set<string>(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
 interface SendsOptions {
   stateRef: MutableRefObject<AiChatState>;
   dispatch: Dispatch<AiChatAction>;
@@ -79,8 +87,130 @@ interface SendsOptions {
   steering: MutableRefObject<SteerLedger>;
 }
 
+interface ManagedSendParams {
+  client: IPCClient;
+  turn: ConversationTurn & { convoId: string };
+  reqId: string;
+  content: string;
+  images?: ImageAttachment[];
+  encodedImages?: string[];
+  baseMessagesOverride?: ChatMessage[];
+  stateRef: MutableRefObject<AiChatState>;
+  dispatch: Dispatch<AiChatAction>;
+  inflight: MutableRefObject<Map<string, InflightTurn>>;
+  signal?: AbortSignal;
+}
+
+/**
+ * 托管主对话发送共享入口：仅在内存中乐观上屏（绝不写入旧视图存储或触发 ADD_MESSAGE），
+ * 使用客户端预生成的幂等 messageId 登记 inflight 并在收到权威投影后整体替换；
+ * 若在首帧权威投影前失败，则从权威存储对齐回滚未落盘的乐观消息。
+ */
+async function runManagedSend({
+  client,
+  turn,
+  reqId,
+  content,
+  images,
+  encodedImages,
+  baseMessagesOverride,
+  stateRef,
+  dispatch,
+  inflight,
+  signal,
+}: ManagedSendParams): Promise<void> {
+  if (typeof client.sendManagedConversation !== 'function')
+    throw new Error(t('ui.chat-settings.managed-ingress'));
+
+  const messageId = createManagedMessageId();
+  const turnKey = convoKey(turn.convoId);
+  const optimisticImages = images
+    ?.filter((i) => typeof i.thumb === 'string' && i.thumb.length > 0)
+    .map((i) => ({
+      thumb: i.thumb,
+      width: i.width,
+      height: i.height,
+      ...(i.source ? { source: i.source } : {}),
+    }));
+  const optimisticUser: ChatMessage = {
+    id: messageId,
+    role: 'user',
+    content,
+    timestamp: Date.now(),
+    ...(optimisticImages?.length ? { images: optimisticImages } : {}),
+  };
+  const cachedMessages = client.conversationStore?.()?.getMessages?.(turn.convoId);
+  const baseMessages: ChatMessage[] =
+    baseMessagesOverride !== undefined
+      ? baseMessagesOverride
+      : turn.isActive()
+        ? stateRef.current.messages
+        : Array.isArray(cachedMessages)
+          ? cachedMessages
+          : [];
+
+  inflight.current.set(turnKey, {
+    reqId,
+    convoId: turn.convoId,
+    messages: [optimisticUser],
+  });
+  if (turn.isActive()) {
+    dispatch({
+      type: 'SET_MESSAGES',
+      payload: [...baseMessages, optimisticUser],
+      convoId: turn.convoId,
+    });
+  }
+  void maybeStartManagedSmartTitle(client, turn.convoId, content);
+
+  let authoritativeReceived = false;
+  const onUpdate = (messages: ChatMessage[]): void => {
+    authoritativeReceived = true;
+    if (inflight.current.get(turnKey)?.reqId === reqId) {
+      const liveTail = messages.filter((m) => m.id === messageId || m.id.startsWith('draft_'));
+      if (liveTail.length) {
+        inflight.current.set(turnKey, { reqId, convoId: turn.convoId, messages: liveTail });
+      } else {
+        inflight.current.delete(turnKey);
+      }
+    }
+    if (turn.isActive()) {
+      dispatch({ type: 'SET_MESSAGES', payload: messages, convoId: turn.convoId });
+    }
+  };
+
+  try {
+    await client.sendManagedConversation(turn.convoId, content, onUpdate, signal, {
+      messageId,
+      ...(encodedImages?.length ? { images: encodedImages } : {}),
+    });
+  } catch (err) {
+    if (inflight.current.get(turnKey)?.reqId === reqId) {
+      inflight.current.delete(turnKey);
+    }
+    if (!authoritativeReceived && turn.isActive()) {
+      let reconciled: ChatMessage[] = baseMessages;
+      if (typeof client.getChatHistory === 'function') {
+        try {
+          reconciled = await client.getChatHistory();
+        } catch {
+          reconciled = baseMessages;
+        }
+      }
+      if (turn.isActive()) {
+        dispatch({ type: 'SET_MESSAGES', payload: reconciled, convoId: turn.convoId });
+      }
+    }
+    throw err;
+  } finally {
+    if (inflight.current.get(turnKey)?.reqId === reqId) {
+      inflight.current.delete(turnKey);
+    }
+  }
+}
+
 /** 普通发送与知识库问答：一次性返回整段回复 */
-function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
+function usePlainSends({ stateRef, dispatch, inflight, maybeIngest }: SendsOptions) {
   // 发送普通消息
   const sendMessage = useCallback(
     async (content: string) => {
@@ -90,6 +220,18 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
       try {
         dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
         dispatch({ type: 'SET_ERROR', payload: undefined });
+        if (turn.convoId && s.ipcClient.isManagedConversation?.(turn.convoId)) {
+          await runManagedSend({
+            client: s.ipcClient,
+            turn: { ...turn, convoId: turn.convoId },
+            reqId: newReqId(),
+            content,
+            stateRef,
+            dispatch,
+            inflight,
+          });
+          return;
+        }
 
         const userMessage: ChatMessage = {
           id: nextMessageId(),
@@ -131,7 +273,13 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
         const mem = await memoryContext(content, injectedMemoryIds(history));
         if (mem.text.trim()) userMessage.memory = { text: mem.text, ids: mem.ids };
         await user.early();
-        const response = await s.ipcClient.sendMessage(content, history, undefined, mem.text);
+        const response = await s.ipcClient.sendMessage(
+          content,
+          history,
+          undefined,
+          mem.text,
+          turn.convoId ? { id: turn.convoId } : undefined,
+        );
 
         const aiMessage: ChatMessage = {
           id: nextMessageId(),
@@ -153,7 +301,7 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
         dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId, outcome });
       }
     },
-    [stateRef, dispatch, maybeIngest],
+    [stateRef, dispatch, inflight, maybeIngest],
   );
 
   // 知识库问答：主进程检索本地索引 → 模型带引用回答
@@ -165,6 +313,8 @@ function usePlainSends({ stateRef, dispatch, maybeIngest }: SendsOptions) {
       try {
         dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
         dispatch({ type: 'SET_ERROR', payload: undefined });
+        if (turn.convoId && s.ipcClient.isManagedConversation?.(turn.convoId))
+          throw new Error(t('ui.chat-settings.managed-unsupported'));
         const userMessage: ChatMessage = {
           id: nextMessageId(),
           role: 'user',
@@ -236,10 +386,47 @@ function useStreamSend({
       let outcome: ConvoOutcome = 'done';
       // 用户发了新消息：正在朗读的上一条回复立即停
       if (!bgFollow) stopReplySpeech();
+      const managed = !!(turn.convoId && client.isManagedConversation?.(turn.convoId));
       let speaker: ReplySpeaker | null = null;
       try {
         dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
         dispatch({ type: 'SET_ERROR', payload: undefined });
+        if (turn.convoId && managed) {
+          if (override) throw new Error(t('ui.chat-settings.managed-unsupported'));
+          if (!client.sendManagedConversation)
+            throw new Error(t('ui.chat-settings.managed-ingress'));
+          let encodedImages: string[] | undefined;
+          if (images?.length) {
+            if (!hasTransport()) throw new Error(t('ui.chat-settings.managed-unsupported'));
+            const runtime = await api.conversations.runtimeState({ id: turn.convoId });
+            if (!runtime.capabilities.attachments) {
+              throw new Error(
+                t('ui.chat-settings.managed-attachments-unsupported', runtime.backend || 'runtime'),
+              );
+            }
+            encodedImages = images.map((img) => `data:${img.mime};base64,${img.data}`);
+          }
+          activeStream.current.set(convoKey(turn.convoId), {
+            reqId,
+            convoId: turn.convoId,
+            controller,
+          });
+          owned = true;
+          dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
+          await runManagedSend({
+            client,
+            turn: { ...turn, convoId: turn.convoId },
+            reqId,
+            content,
+            images,
+            encodedImages,
+            stateRef,
+            dispatch,
+            inflight,
+            signal: controller.signal,
+          });
+          return;
+        }
 
         // 图片要离开本机前：云端模型首次告知 / 仅本地模式拦截
         if (images?.length && screenClient.available()) {
@@ -510,6 +697,17 @@ function useStreamSend({
               .slice(-4)
               .map((m) => `${m.role}: ${m.content.slice(0, 300)}`)
               .join('\n'),
+            // 用户这一轮附图的原图：后台接管时原样交给它（它读不到对话里的缩略图 / 素材库里的本地地址）
+            images: (images ?? [])
+              .slice(0, MAX_HANDOFF_IMAGES)
+              .filter(
+                (i): i is ImageAttachment & { data: string } =>
+                  typeof i.data === 'string' &&
+                  i.data.length > 0 &&
+                  !!i.mime &&
+                  HANDOFF_IMAGE_MIMES.has(i.mime),
+              )
+              .map((i) => ({ mime: i.mime, data: i.data })),
           }),
         };
         activeStream.current.set(convoKey(turn.convoId), streamEntry);
@@ -756,7 +954,8 @@ function useStreamSend({
         dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
       } finally {
         // 本轮未委派时清掉主进程 turn pin，避免泄漏到下一轮
-        void clearTurnPin(reqId);
+        if (!managed) void clearTurnPin(reqId);
+        if (controller.signal.aborted && outcome === 'done') outcome = 'stopped';
         const key = convoKey(turn.convoId);
         if (owned && activeStream.current.get(key)?.reqId === reqId)
           activeStream.current.delete(key);
@@ -768,32 +967,57 @@ function useStreamSend({
     [stateRef, dispatch, activeStream, inflight, maybeIngest, notifyToolStart, steering],
   );
 
+  /**
+   * 前台长程对话主动转后台：把用户这一轮的原图、已生成的部分与进度交给后台任务（tasks.handoffFromChat）。
+   * 只有后台**真的接管了**（拿到 task.id）才中止前台这一轮；存储失败 / 图片不可用 / 这一轮已结束等
+   * 情况前台照常继续已输出的内容，这里只给出明确提示（返回 null，界面据此不停流）。
+   * 同一轮（reqId）重复点击只接管一次：成功复用同一个任务 id，失败复用同一次失败结果，不再重发。
+   */
   const handoffCurrentToBackground = useCallback(async (): Promise<string | null> => {
     const s = stateRef.current;
+    if (s.ipcClient.isManagedConversation?.(s.ipcClient.currentConversationId?.() ?? ''))
+      return null;
     const key = convoKey(s.ipcClient.currentConversationId?.());
     const stream = activeStream.current.get(key);
-    if (!stream) return null;
-    if (stream.handoffPromise) return stream.handoffPromise;
-    const snap = stream.getHandoffSnapshot?.();
-    const p = tasksApi
-      .handoffFromChat({
-        reqId: stream.reqId,
-        conversationId: stream.convoId ?? 'default',
-        ...(stream.projectId ? { projectId: stream.projectId } : {}),
-        userGoal: stream.userGoal ?? '',
-        ...(snap?.partialContent ? { partialContent: snap.partialContent } : {}),
-        ...(snap?.progressSummary ? { progressSummary: snap.progressSummary } : {}),
-        ...(snap?.historyContext ? { historyContext: snap.historyContext } : {}),
-      })
-      .then((task) => task.id)
-      .catch(() => null);
-    stream.handoffPromise = p;
-    const taskId = await p;
-    if (taskId && !stream.controller.signal.aborted) {
-      stream.controller.abort();
+    // 没有进行中的这一轮（已结束 / 期间切了会话）：没有可接管的内容，也不停任何东西
+    if (!stream || stream.controller.signal.aborted) return null;
+    if (!stream.handoffPromise) {
+      const run = async (): Promise<string | null> => {
+        const snap = stream.getHandoffSnapshot?.();
+        try {
+          const task = await tasksApi.handoffFromChat({
+            reqId: stream.reqId,
+            conversationId: stream.convoId ?? 'default',
+            ...(stream.projectId ? { projectId: stream.projectId } : {}),
+            userGoal: stream.userGoal ?? '',
+            ...(snap?.partialContent ? { partialContent: snap.partialContent } : {}),
+            ...(snap?.progressSummary ? { progressSummary: snap.progressSummary } : {}),
+            ...(snap?.historyContext ? { historyContext: snap.historyContext } : {}),
+            ...(snap?.images?.length ? { images: snap.images } : {}),
+          });
+          const taskId = typeof task?.id === 'string' && task.id ? task.id : null;
+          if (!taskId) throw new Error(t('ui.providers-schedule.task-handoff-failed-to-take-over'));
+          // 接管成功：才中止前台这一轮（内核建好任务后已自己中止上游；这里让本地循环立即退出）。
+          // 只有 task.id 不算数——抛错 / 没返回 id 的都走下面的失败分支，前台照常继续
+          stream.controller.abort();
+          return taskId;
+        } catch (err) {
+          // 没接管成：前台流保留已输出的内容，只提示失败原因
+          if (!stream.controller.signal.aborted)
+            dispatch({
+              type: 'SET_ERROR',
+              payload: t(
+                'ui.providers-schedule.task-handoff-failed-kept-foreground',
+                errorMessage(err),
+              ),
+            });
+          return null;
+        }
+      };
+      stream.handoffPromise = run();
     }
-    return taskId;
-  }, [stateRef, activeStream]);
+    return stream.handoffPromise;
+  }, [stateRef, activeStream, dispatch]);
 
   const sendAsBackgroundTask = useCallback(
     async (text: string): Promise<string | null> => {
@@ -801,6 +1025,10 @@ function useStreamSend({
       if (!trimmed) return null;
       const s = stateRef.current;
       const turn = openTurn(s.ipcClient);
+      if (turn.convoId && s.ipcClient.isManagedConversation?.(turn.convoId)) {
+        dispatch({ type: 'SET_ERROR', payload: t('ui.chat-settings.managed-unsupported') });
+        return null;
+      }
       const userMessage: ChatMessage = {
         id: nextMessageId(),
         role: 'user',
@@ -848,18 +1076,90 @@ function useStreamSend({
     [stateRef, dispatch],
   );
 
-  return { sendStreamMessage, handoffCurrentToBackground, sendAsBackgroundTask };
+  const resendManagedMessage = useCallback(
+    async (userMessageId: string, content: string) => {
+      const s = stateRef.current;
+      const client = s.ipcClient;
+      const turn = openTurn(client);
+      if (!turn.convoId || !client.isManagedConversation?.(turn.convoId)) return;
+      const reqId = newReqId();
+      const controller = new AbortController();
+      let owned = false;
+      let outcome: ConvoOutcome = 'done';
+      stopReplySpeech();
+      try {
+        dispatch({ type: 'SET_LOADING', payload: true, convoId: turn.convoId });
+        dispatch({ type: 'SET_ERROR', payload: undefined });
+        if (
+          typeof client.rewindManagedConversation !== 'function' ||
+          typeof client.sendManagedConversation !== 'function'
+        ) {
+          throw new Error(t('ui.chat-settings.managed-ingress'));
+        }
+        activeStream.current.set(convoKey(turn.convoId), {
+          reqId,
+          convoId: turn.convoId,
+          controller,
+        });
+        owned = true;
+        dispatch({ type: 'SET_STREAMING', payload: true, convoId: turn.convoId });
+        const rewound = await client.rewindManagedConversation(turn.convoId, userMessageId);
+        if (turn.isActive()) {
+          dispatch({ type: 'SET_MESSAGES', payload: rewound, convoId: turn.convoId });
+        }
+        if (controller.signal.aborted) {
+          outcome = 'stopped';
+          return;
+        }
+        await runManagedSend({
+          client,
+          turn: { ...turn, convoId: turn.convoId },
+          reqId,
+          content,
+          baseMessagesOverride: rewound,
+          stateRef,
+          dispatch,
+          inflight,
+          signal: controller.signal,
+        });
+      } catch (error) {
+        outcome = controller.signal.aborted || isAbortError(error) ? 'stopped' : 'error';
+        dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
+      } finally {
+        if (controller.signal.aborted && outcome === 'done') outcome = 'stopped';
+        const key = convoKey(turn.convoId);
+        if (owned && activeStream.current.get(key)?.reqId === reqId)
+          activeStream.current.delete(key);
+        if (inflight.current.get(key)?.reqId === reqId) inflight.current.delete(key);
+        dispatch({ type: 'SET_STREAMING', payload: false, convoId: turn.convoId });
+        dispatch({ type: 'SET_LOADING', payload: false, convoId: turn.convoId, outcome });
+      }
+    },
+    [stateRef, dispatch, activeStream, inflight],
+  );
+
+  return {
+    sendStreamMessage,
+    resendManagedMessage,
+    handoffCurrentToBackground,
+    sendAsBackgroundTask,
+  };
 }
 
 /** 发送相关的全部动作 */
 export function useChatSends(options: SendsOptions) {
   const { sendMessage, askKnowledge } = usePlainSends(options);
-  const { sendStreamMessage, handoffCurrentToBackground, sendAsBackgroundTask } =
-    useStreamSend(options);
+  const {
+    sendStreamMessage,
+    resendManagedMessage,
+    handoffCurrentToBackground,
+    sendAsBackgroundTask,
+  } = useStreamSend(options);
   return {
     sendMessage,
     askKnowledge,
     sendStreamMessage,
+    resendManagedMessage,
     handoffCurrentToBackground,
     sendAsBackgroundTask,
   };

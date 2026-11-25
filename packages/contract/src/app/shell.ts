@@ -26,6 +26,7 @@ import { z } from 'zod';
 import type { EventMap, ProcedureMap } from '../contract';
 
 import * as BW from './shell/browserWindow';
+import { managedConversationProcedures, RuntimeState } from './shell/managedConversations';
 import * as S from './shell/schemas';
 import * as ST from './shell/sideTerminal';
 
@@ -35,6 +36,7 @@ const v = z.void();
 const CHAT = ['chat'] as const;
 
 export const shellProcedures = {
+  ...managedConversationProcedures,
   // ---- theme（ThemeService）----
   'theme.get': { kind: 'query', input: v, output: S.ThemeState },
   'theme.set': { kind: 'mutation', input: S.ThemeSetInput, output: S.ThemeState },
@@ -615,6 +617,7 @@ export const shellEvents = {
   'updates.changed': S.UpdateState,
   /** 会话存储变了（`source` 是写入方传的标记）：其他窗口重新取索引、丢掉这些会话的消息缓存 */
   'conversations.changed': S.ConversationsChanged,
+  'conversations.runtimeChanged': RuntimeState,
   /** 弹出窗口开 / 关之后的整份 id 列表 */
   'chatWindow.detachedChanged': z.array(z.string()),
   /** 弹出窗口里点了「放回主窗口」：宿主请求唯一主窗口接收交接并返回 dockAck */
@@ -634,6 +637,7 @@ export const shellEvents = {
 /** 只推给对话窗口的事件 */
 export const shellEventSurfaces = {
   'conversations.changed': ['chat'],
+  'conversations.runtimeChanged': ['chat'],
   'chatWindow.detachedChanged': ['chat'],
   'chatWindow.dockRequest': ['chat'],
   'chatWindow.tabDocked': ['chat'],
@@ -645,6 +649,11 @@ export const shellEventSurfaces = {
 
 /** 业务错误码（UPPER_SNAKE_CASE，不得与其他域重名）；处理函数用 `ctx.fail(code, message)` 抛出 */
 export const shellErrors = [
+  'CONVERSATION_MANAGED',
+  'RUNTIME_UNAVAILABLE',
+  'RUNTIME_BUSY',
+  'RUNTIME_STALE',
+  'RUNTIME_FAILED',
   /** 链接无法处理 / 授权失败；message 是错误码（bad_issuer、bad_manifest、network 等，见 docs/integrations/provider-link.md） */
   'PROVIDER_LINK_FAILED',
   /** 会话存储里没有这个会话（已删除） */

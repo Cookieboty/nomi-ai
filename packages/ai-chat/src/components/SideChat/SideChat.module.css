@@ -19,3 +19,14 @@
   margin: 0;
   font-size: var(--cd-font-size-sm);
 }
+
+/* 放回主窗口：等确认 / 失败可重试（对话区与输入栏这时仍可用，草稿不会被覆盖） */
+.dockNote {
+  margin: 0 0 var(--cd-space-2);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+
+.dockNote[data-state='failed'] {
+  color: var(--cd-color-warning);
+}

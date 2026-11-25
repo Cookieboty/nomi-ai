@@ -102,6 +102,7 @@ type indexDoc struct {
 // State 是 conversations.state 的返回值
 type State struct {
 	Conversations []json.RawMessage `json:"conversations"`
+	Managed       []string          `json:"managed,omitempty"`
 	Previews      map[string]string `json:"previews"`
 	Counts        map[string]int    `json:"counts"`
 	Current       string            `json:"current,omitempty"`
@@ -398,8 +399,11 @@ func (s *Store) setPreview(id string, p *string) bool {
 
 // State：索引快照（元信息、预览、条数、指针）
 func (s *Store) State() (State, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	done, lockErr := s.lockStore()
+	if lockErr != nil {
+		return State{}, lockErr
+	}
+	defer done()
 	if err := s.load(); err != nil {
 		return State{}, err
 	}
@@ -413,11 +417,14 @@ func (s *Store) State() (State, error) {
 	}
 	for _, e := range s.doc.Conversations {
 		id := metaID(e.Meta)
-		st.Conversations = append(st.Conversations, e.Meta)
+		st.Conversations = append(st.Conversations, append(json.RawMessage(nil), e.Meta...))
 		st.Counts[id] = e.Count
 		if p, ok := s.previews[id]; ok {
 			st.Previews[id] = p
 		}
+	}
+	if err := s.overlayManaged(&st); err != nil {
+		return State{}, err
 	}
 	return st, nil
 }
@@ -427,8 +434,19 @@ func (s *Store) Messages(id string, limit int) ([]json.RawMessage, error) {
 	if !ValidID(id) {
 		return nil, ErrBadID
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	done, lockErr := s.lockStore()
+	if lockErr != nil {
+		return nil, lockErr
+	}
+	defer done()
+	if d, err := readManaged(s.managedPath(id)); err == nil {
+		if d.Deleted {
+			return nil, ErrNotFound
+		}
+		return projectManaged(d, limit)
+	} else if !os.IsNotExist(err) {
+		return nil, err
+	}
 	if err := s.load(); err != nil {
 		return nil, err
 	}
@@ -551,8 +569,14 @@ func (s *Store) Append(in AppendInput) error {
 			return err
 		}
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	done, lockErr := s.lockStore()
+	if lockErr != nil {
+		return lockErr
+	}
+	defer done()
+	if err := s.legacyWritable(in.ID); err != nil {
+		return err
+	}
 	if err := s.load(); err != nil {
 		return err
 	}
@@ -602,8 +626,14 @@ func (s *Store) Replace(id string, msgs []json.RawMessage, meta json.RawMessage,
 			return err
 		}
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	done, lockErr := s.lockStore()
+	if lockErr != nil {
+		return lockErr
+	}
+	defer done()
+	if err := s.legacyWritable(id); err != nil {
+		return err
+	}
 	if err := s.load(); err != nil {
 		return err
 	}
@@ -638,8 +668,14 @@ func (s *Store) Put(meta json.RawMessage, msgs []json.RawMessage, preview *strin
 			return "", err
 		}
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	done, lockErr := s.lockStore()
+	if lockErr != nil {
+		return "", lockErr
+	}
+	defer done()
+	if err := s.legacyWritable(id); err != nil {
+		return "", err
+	}
 	if err := s.load(); err != nil {
 		return "", err
 	}
@@ -674,8 +710,14 @@ func (s *Store) Delete(id string) error {
 	if !ValidID(id) {
 		return ErrBadID
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	done, lockErr := s.lockStore()
+	if lockErr != nil {
+		return lockErr
+	}
+	defer done()
+	if err := s.legacyWritable(id); err != nil {
+		return err
+	}
 	if err := s.load(); err != nil {
 		return err
 	}
@@ -727,8 +769,11 @@ func (s *Store) SetPointers(current, lastNomi Pointer) error {
 			return ErrBadID
 		}
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	done, lockErr := s.lockStore()
+	if lockErr != nil {
+		return lockErr
+	}
+	defer done()
 	if err := s.load(); err != nil {
 		return err
 	}
@@ -771,8 +816,14 @@ func (s *Store) Import(in ImportInput) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	done, lockErr := s.lockStore()
+	if lockErr != nil {
+		return false, lockErr
+	}
+	defer done()
+	if err := s.legacyWritable(id); err != nil {
+		return false, err
+	}
 	if err := s.load(); err != nil {
 		return false, err
 	}
@@ -812,8 +863,11 @@ func (s *Store) Import(in ImportInput) (bool, error) {
 
 // MarkMigrated 记下已从视图旧的 localStorage 导入（count = 核对过的会话数）
 func (s *Store) MarkMigrated(count int) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	done, lockErr := s.lockStore()
+	if lockErr != nil {
+		return lockErr
+	}
+	defer done()
 	if err := s.load(); err != nil {
 		return err
 	}
@@ -831,8 +885,11 @@ func (s *Store) Root() string { return s.dir }
 // RewriteMetas：逐个会话的元信息过一遍 fn（解析成 map）；fn 返回 true = 改过，写回索引。
 // 一次性迁移用（如工作区目录 → projectId）。返回改了几个
 func (s *Store) RewriteMetas(fn func(meta map[string]any) bool) (int, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	done, err := s.lockStore()
+	if err != nil {
+		return 0, err
+	}
+	defer done()
 	if err := s.load(); err != nil {
 		return 0, err
 	}
@@ -840,6 +897,12 @@ func (s *Store) RewriteMetas(fn func(meta map[string]any) bool) (int, error) {
 	old := make([]json.RawMessage, len(s.doc.Conversations))
 	for i, e := range s.doc.Conversations {
 		old[i] = e.Meta
+		if err := s.legacyWritable(metaID(e.Meta)); err != nil {
+			if errors.Is(err, ErrManaged) {
+				continue
+			}
+			return 0, err
+		}
 		var m map[string]any
 		if json.Unmarshal(e.Meta, &m) != nil || m == nil {
 			continue

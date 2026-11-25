@@ -151,6 +151,13 @@ export const TraceModelAuditView: React.FC<TraceModelAuditViewProps> = ({
             </span>
           </div>
           <div className={styles.bannerStats}>
+            <span data-testid="model-audit-turn-counts">
+              {t(
+                'ui.devtools.audit-turn-counts',
+                String(summary.totalAuditedRequests),
+                String(summary.totalAuditedTurns),
+              )}
+            </span>
             <span>
               {t('ui.devtools.verdict-verified')}: {summary.verifiedCount}
             </span>

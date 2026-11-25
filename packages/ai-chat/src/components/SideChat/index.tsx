@@ -11,7 +11,7 @@ import {
   IconSquare as Square,
   IconX as X,
 } from '@tabler/icons-react';
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import { currentVision, visionOf } from '../../services/modelCapability';
@@ -34,6 +34,7 @@ import {
   stopSideChat,
   useSideChat,
 } from '../../services/sideChat';
+import type { ComposerDraftLock } from '../MessageInput/types';
 import type { ConvMessage } from '../../types/conversation';
 import { ConversationView } from '../Conversation/index';
 import type { ConvSlots } from '../Conversation/Messages';
@@ -75,12 +76,54 @@ const toSideChatImages = (images?: readonly ImageAttachment[]) =>
     height: i.height,
   }));
 
+/**
+ * 侧边聊天「正在放回主窗口」：独立窗口在等主窗口确认收下时传进来（见 DetachedApp 的 dock）。
+ * pending 带着这边锁住的草稿（输入栏照常能写，写的是锁里的那份）；failed 只是提示，草稿已经回到桶里。
+ */
+export type SideChatDockState =
+  | { status: 'pending'; lock: ComposerDraftLock }
+  | { status: 'failed'; lock?: ComposerDraftLock }
+  /** 第几次放回（被主窗口重新打开时换一个数，输入栏解锁到最新的草稿） */
+  | { status: 'aborted'; attempt: number };
+
+/**
+ * 放回等待期间锁住草稿：输入栏照常能写，但写的是锁里的那份，已经交出去的快照不变。
+ * 解锁（放回失败 / 超时 / 被重新打开）时锁里的那份就是最新的草稿，原样写回草稿桶，输入栏接着用它。
+ */
+function useDockDraftLock(
+  draftKey: string,
+  dock: SideChatDockState | undefined,
+): ComposerDraftLock | undefined {
+  const [lock, setLockState] = useState<ComposerDraftLock | null>(null);
+  // 换锁 / 解锁都只 setState 一次（句柄本身别变，变了输入栏会按它重新读一遍草稿）
+  const setLock = (next: ComposerDraftLock | null) =>
+    setLockState((cur) => (cur === next ? cur : next));
+  const [abort, setAbort] = useState(0);
+  useEffect(() => {
+    if (dock?.status === 'aborted') {
+      setAbort(dock.attempt);
+      return;
+    }
+    setLock(dock?.status === 'pending' ? dock.lock : null);
+    return () => setLockState(null);
+  }, [draftKey, dock]);
+  // 被主窗口重新打开了（放回实际没有成功，或这边迟到了）：草稿换成最新的那份
+  useEffect(() => {
+    if (!abort) return;
+    setLock(null);
+    const latest = sideChatDrafts.read(draftKey);
+    sideChatDrafts.write(draftKey, latest);
+  }, [abort, draftKey]);
+  return lock ?? undefined;
+}
+
 export const SideChatPane: React.FC<{
   chatId: string;
   slot: SideChatSlot;
   cwd?: string | null;
   onClose?: () => void;
-}> = ({ chatId, slot, cwd, onClose }) => {
+  dockState?: SideChatDockState;
+}> = ({ chatId, slot, cwd, onClose, dockState }) => {
   const chat = useSideChat(chatId);
   // 标签区里名字 / 状态在标签上、关闭在 ×、停止在输入栏：不再画面板头（见 SubagentPane/chrome）
   const inStrip = useInTabStrip();
@@ -92,6 +135,10 @@ export const SideChatPane: React.FC<{
   }, [report, slot.tabKey, name, running]);
   useEffect(() => () => report?.(slot.tabKey, null), [report, slot.tabKey]);
   useEffect(() => markSideChatComposer(chatId), [chatId]);
+  const draftKey = sideChatDraftKey(chatId);
+  const draftLock = useDockDraftLock(draftKey, dockState);
+  const dockPending = dockState?.status === 'pending';
+  const dockFailed = dockState?.status === 'failed';
   const vision = useVision(chat?.model ?? null);
   const paneRef = useRef<HTMLElement>(null);
   const binding = useMemo(
@@ -183,7 +230,21 @@ export const SideChatPane: React.FC<{
       </div>
       <footer className={paneStyles.composer} data-in-strip={inStrip || undefined}>
         {inStrip && <PaneBrief {...notes} />}
+        {(dockPending || dockFailed) && (
+          <p
+            className={styles.dockNote}
+            data-state={dockState?.status}
+            role="status"
+            data-testid="side-chat-dock-note"
+          >
+            {dockFailed
+              ? t('ui.session-workspace.side-tab-dock-failed')
+              : t('ui.session-workspace.side-tab-docking')}
+          </p>
+        )}
         <MessageInput
+          // 放回等待期间不发送（但输入框照常能打字）：发送会清掉草稿，结果可能是主窗口手里没有、这里也空了
+          onBeforeSend={() => !dockPending}
           onSend={(text, images) => void sendSideChat(chatId, text, toSideChatImages(images))}
           busyOverride={running}
           imageCapability={vision === false ? 'none' : 'full'}
@@ -199,7 +260,8 @@ export const SideChatPane: React.FC<{
           cwd={cwd}
           dropZoneRef={paneRef}
           draftStore={sideChatDrafts}
-          draftKey={sideChatDraftKey(chatId)}
+          draftKey={draftKey}
+          draftLock={draftLock}
           delegate={false}
           modelControl={<NomiModelSwitch binding={binding} />}
         />

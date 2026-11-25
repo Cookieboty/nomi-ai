@@ -17,6 +17,7 @@ type Accounts interface {
 	SetDefault(kind, id string) (*util.Obj, error)
 	Rename(id string, label any) (*util.Obj, error)
 	Remove(id string, force bool) *jsrt.Promise[struct{}]
+	// RemoveWith：o.StopExternal 时要带 o.StopPids（用户确认过的进程快照）
 	RemoveWith(id string, o accounts.RemoveOpts) *jsrt.Promise[struct{}]
 }
 
@@ -46,7 +47,8 @@ var accountCodes = map[string]string{
 	"no-account":   "ACCOUNT_NOT_FOUND",
 	"unsupported":  "ACCOUNT_UNSUPPORTED",
 	"unknown-live": "ACCOUNT_UNKNOWN_LIVE",
-	// Nomi 之外还有 CLI 进程在用这个账号目录：data.pids 是它们的进程号，界面可以让用户选择结束它们再删除
+	// Nomi 之外还有 CLI 进程在用这个账号目录：data.pids 是它们的进程号，界面可以让用户选择结束它们再删除；
+	// 用户确认后提交要带上这批进程号（stopExternal + stopPids），内核只结束它们，范围变了会再报这个错误
 	"external-busy": "ACCOUNT_EXTERNAL_BUSY",
 }
 
@@ -130,7 +132,12 @@ func RegisterAccounts(r *contract.Router, s AccountServices) {
 				l.Cancel(id)
 			}
 		}
-		awaitAccount(acc().RemoveWith(id, accounts.RemoveOpts{Force: a.is("force"), StopExternal: a.is("stopExternal")}))
+		// stopPids：确认弹窗里列出生效的那批进程（ACCOUNT_EXTERNAL_BUSY 的 data.pids），内核只结束这几个
+		awaitAccount(acc().RemoveWith(id, accounts.RemoveOpts{
+			Force:        a.is("force"),
+			StopExternal: a.is("stopExternal"),
+			StopPids:     a.pids("stopPids"),
+		}))
 		return nil
 	})
 	gil(r, "cliAccount.loginStart", func(a in) any {

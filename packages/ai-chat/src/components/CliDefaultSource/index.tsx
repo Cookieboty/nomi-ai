@@ -18,7 +18,7 @@ import {
 } from '../../services/cliSource';
 import { gatewayClient, gatewayClientAvailable } from '../../services/gatewayClient';
 import { pickerProviders, useGatewayState } from '../../services/nomiModel';
-import { thirdPartyOnly } from '../../utils/cliCaps';
+import { localOnly, thirdPartyOnly } from '../../utils/cliCaps';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
 import styles from './index.module.css';
@@ -33,7 +33,7 @@ export const CliDefaultSource: React.FC<{ backend: CliKind }> = ({ backend }) =>
   const localAvailable = useHasLocalLogin(backend);
   const picker = useMemo(() => pickerProviders(gateway?.providers ?? []), [gateway]);
   const [err, setErr] = useState('');
-  if (!gatewayClientAvailable() || !gateway) return null;
+  if (!gatewayClientAvailable() || !gateway || localOnly(backend)) return null;
   const client = gateway.clients[backend];
   const ctx = { kind: backend, client, gateway, accounts, localAvailable };
   const options = newTabOptions(ctx);

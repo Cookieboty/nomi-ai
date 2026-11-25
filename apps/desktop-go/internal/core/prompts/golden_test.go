@@ -85,7 +85,7 @@ func TestTaskRun(t *testing.T) {
 			Attempt: tasks.Attempt{Cause: cause},
 		}
 		var b strings.Builder
-		for _, m := range tasks.BuildPrompt(ctx, progress, now, ev) {
+		for _, m := range tasks.BuildPrompt(ctx, progress, now, ev, nil) {
 			b.WriteString("### " + m.Role + "\n" + m.Content + "\n")
 		}
 		return b.String()

@@ -1,6 +1,6 @@
 {
   "name": "@nomi-ai/contract",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "视图与内核之间的 API 契约：defineContract / createClient / implement、可序列化线协议与传输接口（不依赖 Electron）",
   "type": "module",

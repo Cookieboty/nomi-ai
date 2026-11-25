@@ -30,12 +30,19 @@ export const ChipMenu: React.FC<{
     const close = (e: Event) => {
       if (e instanceof KeyboardEvent) {
         if (e.key !== 'Escape') return;
+        if (document.querySelector('[data-nested-popover], [role="alertdialog"]')) return;
         onClose();
         btnRef.current?.focus();
         return;
       }
       const target = e.target as Node;
       if (menuRef.current?.contains(target)) return;
+      if (
+        target instanceof Element &&
+        target.closest('[data-nested-popover], [role="dialog"], [role="alertdialog"]')
+      ) {
+        return;
+      }
       onClose();
     };
     window.addEventListener('mousedown', close);

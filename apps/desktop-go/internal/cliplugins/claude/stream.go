@@ -283,6 +283,20 @@ func ParseLine(line string, state *StreamState) []Ev {
 		if sid := OptStr(j.Get("session_id")); sid != nil && parentID(j) == nil {
 			out = append(out, O("type", "session", "sessionId", *sid))
 		}
+	case typ == "custom-title":
+		if parentID(j) == nil {
+			title := strings.TrimSpace(JSString(Coalesce(j.Get("customTitle"), j.Get("title"), "")))
+			if title != "" {
+				out = append(out, O("type", "session-info", "title", title))
+			}
+		}
+	case typ == "summary":
+		if parentID(j) == nil {
+			title := strings.TrimSpace(JSString(Coalesce(j.Get("summary"), j.Get("title"), "")))
+			if title != "" {
+				out = append(out, O("type", "session-info", "title", title))
+			}
+		}
 	case typ == "system" && j.Get("subtype") == "api_retry":
 		if state != nil {
 			if e := strings.TrimSpace(util.Str(j.Get("error"))); e != "" {

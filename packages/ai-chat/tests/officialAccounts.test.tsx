@@ -6,6 +6,7 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { OfficialAccounts } from '../src/components/ProvidersPage/OfficialAccounts';
+import { resetAccountLabelCache } from '../src/services/cliAccountClient';
 
 import { installFakeApi, resetFakeApi } from './helpers/fakeApi';
 
@@ -16,6 +17,7 @@ vi.mock('../src/components/ConfirmDialog', () => import('./helpers/confirmViaWin
 // 官方账号（docs/development/coding-agents.md）：一个账号 = 一个 CLI 配置目录
 afterEach(() => {
   cleanup();
+  resetAccountLabelCache();
   resetFakeApi();
 });
 
@@ -90,6 +92,7 @@ describe('OfficialAccounts', () => {
     await waitFor(() => expect(r.getByTestId('cli-accounts-msg').textContent).toContain('b@x.com'));
 
     cleanup();
+    resetAccountLabelCache();
     mockIpc({
       'cliAccount.setDefault': () => {
         throw new ContractError('ACCOUNT_NOT_FOUND', '账号不存在');
@@ -154,13 +157,16 @@ describe('OfficialAccounts', () => {
 
   it('删除时 Nomi 之外还有 CLI 进程在用（external-busy）：说明进程号，确认后让 Nomi 结束它们再删除；不确认就不动', async () => {
     const calls: unknown[][] = [];
-    mockIpc({
-      'cliAccount.remove': ({ id, force, stopExternal }) => {
-        calls.push([id, force, stopExternal]);
+    const ipc = mockIpc({
+      // 确认快照随 external-busy 一起给出（data.pids）；确认后结束它们再删除
+      'cliAccount.remove': (o) => {
+        const { id, force, stopExternal, stopPids } = o ?? {};
+        calls.push([id, force, stopExternal, stopPids]);
         if (stopExternal === true) return undefined;
         throw new ContractError(
           'ACCOUNT_EXTERNAL_BUSY',
           '还有 2 个 Nomi 之外的 CLI 进程在用这个账号（进程号 26348, 26351），请先在终端里退出它们',
+          { pids: [26348, 26351] },
         );
       },
     });
@@ -174,14 +180,22 @@ describe('OfficialAccounts', () => {
     await act(async () => fireEvent.click(r.getAllByTestId('cli-account-remove')[0]!));
     await waitFor(() =>
       expect(calls).toEqual([
-        ['b', false, undefined],
-        ['b', false, true],
+        ['b', false, undefined, undefined],
+        // 提交的是确认弹窗列出（data.pids）的那批进程
+        ['b', false, true, [26348, 26351]],
       ]),
     );
+    expect(ipc.invoke).toHaveBeenCalledWith('cliAccount.remove', {
+      id: 'b',
+      force: false,
+      stopExternal: true,
+      stopPids: [26348, 26351],
+    });
     expect(messages[1]).toContain('26348, 26351');
     expect(messages[1]).toContain('结束这些进程');
 
     cleanup();
+    resetAccountLabelCache();
     calls.length = 0;
     let n = 0;
     (window as unknown as { confirm: () => boolean }).confirm = () => n++ === 0;
@@ -189,7 +203,77 @@ describe('OfficialAccounts', () => {
     await waitFor(() => expect(r2.getAllByTestId('cli-account-remove')).toHaveLength(3));
     await act(async () => fireEvent.click(r2.getAllByTestId('cli-account-remove')[0]!));
     await waitFor(() => expect(r2.getByTestId('cli-accounts-msg')).toBeTruthy());
-    expect(calls).toEqual([['b', false, undefined]]);
+    expect(calls).toEqual([['b', false, undefined, undefined]]);
+  });
+
+  it('删除时外部 CLI 进程范围变了：第二次确认带新快照；取消第二次确认不报成功（#426）', async () => {
+    const calls: unknown[][] = [];
+    const messages: string[] = [];
+    mockIpc({
+      'cliAccount.remove': (o) => {
+        const { id, force, stopExternal, stopPids } = o ?? {};
+        calls.push([id, force, stopExternal, stopPids]);
+        // 第一次 external-busy：26348、26351；确认后提交时范围已变（现在是 26348、9999），内核重新报 external-busy；
+        // 再确认（带新快照）才成功
+        if (stopExternal !== true) {
+          throw new ContractError(
+            'ACCOUNT_EXTERNAL_BUSY',
+            '还有 2 个 Nomi 之外的 CLI 进程在用这个账号（进程号 26348, 26351），请先在终端里退出它们',
+            { pids: [26348, 26351] },
+          );
+        }
+        if (stopPids.includes(9999)) return undefined;
+        throw new ContractError(
+          'ACCOUNT_EXTERNAL_BUSY',
+          '还有 2 个 Nomi 之外的 CLI 进程在用这个账号（进程号 26348, 26351），请先在终端里退出它们',
+          { pids: [26348, 9999] },
+        );
+      },
+    });
+    (window as unknown as { confirm: (m: string) => boolean }).confirm = (m: string) => {
+      messages.push(String(m));
+      return true;
+    };
+    const r = render(<OfficialAccounts kind="codex" />);
+    await waitFor(() => expect(r.getAllByTestId('cli-account-remove')).toHaveLength(3));
+    await act(async () => fireEvent.click(r.getAllByTestId('cli-account-remove')[0]!));
+    await waitFor(() =>
+      expect(calls).toEqual([
+        ['b', false, undefined, undefined],
+        ['b', false, true, [26348, 26351]],
+        ['b', false, true, [9999, 26348]],
+      ]),
+    );
+    // 范围变了要明说：没结束任何进程，按新的进程号重新确认
+    expect(messages).toHaveLength(3);
+    expect(messages[2]).toContain('9999, 26348');
+    expect(messages[2]).toContain('重新确认');
+    expect(r.queryByTestId('cli-accounts-msg')).toBeNull();
+
+    cleanup();
+    resetAccountLabelCache();
+    calls.length = 0;
+    messages.length = 0;
+    let n = 0;
+    (window as unknown as { confirm: (m: string) => boolean }).confirm = (m: string) => {
+      messages.push(String(m));
+      return n++ < 2;
+    };
+    const r2 = render(<OfficialAccounts kind="codex" />);
+    await waitFor(() => expect(r2.getAllByTestId('cli-account-remove')).toHaveLength(3));
+    await act(async () => fireEvent.click(r2.getAllByTestId('cli-account-remove')[0]!));
+    await waitFor(() => expect(messages).toHaveLength(3));
+    // 取消的是范围变化后的那次确认
+    expect(messages[2]).toContain('9999, 26348');
+    expect(messages[2]).toContain('重新确认');
+    // 取消第二次确认：不再提交，也不报成功（只认 data.pids，不从文案里「还有 2 个」抠进程号）
+    expect(calls).toEqual([
+      ['b', false, undefined, undefined],
+      ['b', false, true, [26348, 26351]],
+    ]);
+    await waitFor(() => expect(r2.getByTestId('cli-accounts-msg')).toBeTruthy());
+    expect(calls).toHaveLength(2);
+    expect(r2.getAllByTestId('cli-account-card')).toHaveLength(3);
   });
 
   it('删除：第二次确认取消、或者是别的错误（在用）都不强制删除', async () => {
@@ -208,6 +292,7 @@ describe('OfficialAccounts', () => {
     await waitFor(() => expect(calls).toEqual([['b', false]]));
 
     cleanup();
+    resetAccountLabelCache();
     calls.length = 0;
     mockIpc({
       'cliAccount.remove': ({ id, force }) => {

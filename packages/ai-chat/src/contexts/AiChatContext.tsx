@@ -14,7 +14,7 @@ import React, {
 } from 'react';
 
 import { startupBrandIntro } from '../components/BrandIntro/state';
-import { notifyConversationsChanged } from '../services/conversationStore';
+import { notifyConversationsChanged, type ConversationStore } from '../services/conversationStore';
 import { collectDelegateChanges, reportedFiles } from '../services/delegateChanges';
 import { delegateClient, type DelegateResult } from '../services/delegateClient';
 import { delegateResultMessage, hasDelegateCardForTask } from '../services/delegateMessage';
@@ -23,6 +23,7 @@ import { desktopClient } from '../services/desktopClient';
 import { harnessClient } from '../services/harnessClient';
 import { splitSteerContent } from '../services/history';
 import { createIPCClient } from '../services/IPCClient';
+import { applyManagedDefaultToConversation } from '../services/managedDefaultRuntime';
 import { stopReplySpeech } from '../services/replySpeech';
 import { schedClient } from '../services/schedClient';
 import type { ImageAttachment } from '../services/screenClient';
@@ -411,6 +412,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     sendMessage,
     askKnowledge,
     sendStreamMessage,
+    resendManagedMessage,
     handoffCurrentToBackground,
     sendAsBackgroundTask,
   } = useChatSends({
@@ -429,7 +431,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   const resendFrom = useCallback(
     async (userMessageId: string, newText?: string) => {
       const s = stateRef.current;
-      if (busyIn(s, s.ipcClient.currentConversationId?.())) return;
+      const convoId = s.ipcClient.currentConversationId?.();
+      if (busyIn(s, convoId)) return;
       const idx = s.messages.findIndex((m) => m.id === userMessageId && m.role === 'user');
       if (idx < 0) return;
       const target = s.messages[idx]!;
@@ -442,22 +445,25 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           steers.push(m.content);
         }
       }
-      const kept = s.messages.slice(0, idx);
-      const store = s.ipcClient.conversationStore?.();
-      const convoId = s.ipcClient.currentConversationId?.();
-      if (store && convoId) store.setMessages(convoId, kept);
-      dispatch({ type: 'SET_MESSAGES', payload: kept });
       const extra = steers
         .map((c) => splitSteerContent(c).text.trim())
         .filter((t) => t && t !== (newText ?? target.content).trim());
       const body = extra.length
         ? `${newText ?? target.content}\n\n${extra.join('\n\n')}`
         : (newText ?? target.content);
+      if (convoId && s.ipcClient.isManagedConversation?.(convoId)) {
+        await resendManagedMessage(userMessageId, body);
+        return;
+      }
+      const kept = s.messages.slice(0, idx);
+      const store = s.ipcClient.conversationStore?.();
+      if (store && convoId) store.setMessages(convoId, kept);
+      dispatch({ type: 'SET_MESSAGES', payload: kept });
       // 知识库问答的消息重新生成 / 编辑重发时仍走带引用的问答，不能无提示降级成普通对话
       if (target.kb) await askKnowledge(body, { history: kept });
       else await sendStreamMessage(body, undefined, { history: kept });
     },
-    [sendStreamMessage, askKnowledge],
+    [sendStreamMessage, askKnowledge, resendManagedMessage],
   );
 
   const compactConversation = useCallback(async (instructions?: string) => {
@@ -604,7 +610,14 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           ...activeStream.current.keys(),
           ...(current && (messages.length || isLoading) ? [current] : []),
         ].filter(Boolean);
-        await ipcClient.newConversation(undefined, { projectId: opts?.projectId, notReuse });
+        const convoId = await ipcClient.newConversation(undefined, {
+          projectId: opts?.projectId,
+          notReuse,
+        });
+        await applyManagedDefaultToConversation(
+          convoId,
+          ipcClient.conversationStore?.() as ConversationStore | undefined,
+        );
         historySeq.current++;
         dispatch({
           type: 'CLEAR_MESSAGES',

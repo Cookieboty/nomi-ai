@@ -1,6 +1,75 @@
 {
-  "order": ["claude", "codex", "dsh", "grok", "gemini", "kimi", "minimax"],
+  "order": ["claude", "codex", "dsh", "grok", "gemini", "kimi", "minimax", "antigravity"],
   "manifests": {
+    "antigravity": {
+      "id": "antigravity",
+      "apiVersion": 1,
+      "displayName": "Antigravity",
+      "icon": "antigravity",
+      "binary": {
+        "names": ["agy"],
+        "versionArgs": ["--version"],
+        "versionPattern": "(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?)",
+        "install": {
+          "script": "curl -fsSL https://antigravity.google/cli/install.sh | bash",
+          "windowsScript": "irm https://antigravity.google/cli/install.ps1 | iex",
+          "url": "https://antigravity.google/docs/cli/reference"
+        }
+      },
+      "transport": "acp",
+      "ingress": "gemini",
+      "capabilities": {
+        "officialAccount": false,
+        "thirdParty": false,
+        "images": "native",
+        "permissionModes": [
+          {
+            "mode": "plan",
+            "modeId": "plan"
+          },
+          {
+            "mode": "manual",
+            "modeId": "default"
+          },
+          {
+            "mode": "acceptEdits",
+            "modeId": "accept-edits"
+          },
+          {
+            "mode": "auto",
+            "modeId": "auto"
+          }
+        ],
+        "subagents": false,
+        "slashCommands": false,
+        "resume": true,
+        "history": false,
+        "fork": false,
+        "usageQuota": false,
+        "progressMonitor": false,
+        "terminalCommand": true,
+        "localAuth": true
+      },
+      "modelSwitch": "inplace",
+      "clientSpec": {
+        "client": "antigravity"
+      },
+      "fullName": "Antigravity CLI",
+      "configPath": "~/.gemini/antigravity-cli/settings.json",
+      "host": {
+        "selfUpdate": "always",
+        "vendor": "google",
+        "acpArgs": ["acp"],
+        "planFollowUp": true,
+        "homeEnv": "ANTIGRAVITY_CLI_HOME",
+        "homeDirs": [".gemini/antigravity-cli", ".gemini/antigravity"],
+        "execConfig": [
+          ".gemini/antigravity-cli/settings.json",
+          ".gemini/antigravity/mcp_config.json",
+          ".gemini/antigravity/plugins"
+        ]
+      }
+    },
     "claude": {
       "id": "claude",
       "apiVersion": 1,
@@ -63,6 +132,9 @@
       "modelSwitch": "inplace",
       "clientSpec": {
         "client": "claude"
+      },
+      "branding": {
+        "modelBrand": "claude"
       },
       "configPath": "~/.claude/settings.json",
       "host": {
@@ -127,6 +199,9 @@
       "clientSpec": {
         "client": "codex"
       },
+      "branding": {
+        "modelBrand": "openai"
+      },
       "configPath": "~/.codex/config.toml",
       "host": {
         "minNode": 16,
@@ -182,6 +257,9 @@
       "modelSwitch": "restart",
       "clientSpec": {
         "client": "dsh"
+      },
+      "branding": {
+        "modelBrand": "deepseek"
       },
       "host": {
         "minNode": 24,
@@ -244,6 +322,9 @@
         "client": "gemini"
       },
       "fullName": "Gemini CLI",
+      "branding": {
+        "modelBrand": "gemini"
+      },
       "configPath": "~/.gemini/settings.json",
       "host": {
         "minNode": 20,
@@ -318,6 +399,9 @@
         "client": "grok",
         "placeholderModel": "nomi"
       },
+      "branding": {
+        "modelBrand": "xai"
+      },
       "configPath": "~/.grok/config.toml",
       "host": {
         "minNode": 18,
@@ -381,6 +465,9 @@
       "clientSpec": {
         "client": "kimi"
       },
+      "branding": {
+        "modelBrand": "kimi"
+      },
       "configPath": "~/.kimi-code/config.toml",
       "host": {
         "minNode": 22,
@@ -434,10 +521,12 @@
       "clientSpec": {
         "client": "minimax"
       },
+      "branding": {
+        "modelBrand": "minimax"
+      },
       "configPath": "~/.minimax/config.yaml",
       "host": {
         "minNode": 22,
-        "selfUpdate": "always",
         "vendor": "minimax",
         "acpArgs": ["acp"],
         "homeEnv": "MINIMAX_DATA_DIR",

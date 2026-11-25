@@ -48,7 +48,7 @@ import {
 import { gatewayClient, type ClientModels, type GatewayState } from '../../services/gatewayClient';
 import { pickerProviders, useGatewayState } from '../../services/nomiModel';
 import { isNativeThirdPartyModel, thinkingProfileOf } from '../../services/thinkingDepth';
-import { thirdPartyOnly } from '../../utils/cliCaps';
+import { localOnly, thirdPartyOnly } from '../../utils/cliCaps';
 import { EndpointIcon } from '../EndpointIcon';
 import { thinkingLevelLabel } from '../ModelControls/effortLabel';
 import { RunnerModelPicker, type RunnerSpecValue } from '../RunnerModelPicker';
@@ -144,6 +144,9 @@ export const RoutingTab: React.FC<{ onOpenProviders: () => void }> = ({ onOpenPr
       };
     }
     const cli = (delegateState?.installed?.[0] ?? DELEGATE_CLIS[0]) as DelegateCli;
+    if (localOnly(cli)) {
+      return { cli, source: 'local', accountId: null, model: null, reasoningEffort: 'medium' };
+    }
     const tp = preferredThirdPartyModelForCli(gateway, cli);
     if (thirdPartyOnly(cli)) {
       return { cli, source: 'thirdParty', model: tp, reasoningEffort: 'medium' };

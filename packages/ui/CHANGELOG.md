@@ -1,5 +1,14 @@
 # @nomi-ai/ui
 
+## 0.2.4
+
+### Patch Changes
+
+- Updated dependencies [b00c72c]
+- Updated dependencies [eb42c70]
+- Updated dependencies [a520a7e]
+  - @nomi-ai/i18n@0.3.1
+
 ## 0.2.3
 
 ### Patch Changes

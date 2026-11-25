@@ -126,12 +126,19 @@ export function resolveCodeLanguage(path: string): string {
   if (!filename) return 'text';
   const byName = filenameLanguages[filename];
   if (byName && supported.has(byName)) return byName;
-  // Dockerfile.dev、Dockerfile.prod 这类变体沿用 Dockerfile 语法
-  if (filename.startsWith('dockerfile.') && supported.has('docker')) return 'docker';
   const dotIndex = filename.lastIndexOf('.');
   if (dotIndex <= 0 || dotIndex === filename.length - 1) return 'text';
   const extension = filename.slice(dotIndex + 1);
   const language =
     extensionLanguages[extension] ?? (supported.has(extension) ? extension : undefined);
-  return language && supported.has(language) ? language : 'text';
+  if (language === 'text' || (language && supported.has(language))) return language;
+  // Dockerfile.dev / Containerfile.prod 等未命中已知扩展名的变体沿用 Dockerfile 语法，
+  // 不劫持 Dockerfile.md / Dockerfile.json / Dockerfile.txt 等已知格式文件。
+  if (
+    (filename.startsWith('dockerfile.') || filename.startsWith('containerfile.')) &&
+    supported.has('docker')
+  ) {
+    return 'docker';
+  }
+  return 'text';
 }

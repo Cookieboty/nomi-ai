@@ -20,18 +20,18 @@ func TestReportFollowUp(t *testing.T) {
 	e.svc.ReportFollowUp("t1", "", false, "", &errMsg, 10)
 	e.svc.ReportFollowUp("missing", "", true, "x", nil, 1)
 
-	e.log.mu.Lock()
-	defer e.log.mu.Unlock()
-	if len(e.log.events) != 2 {
-		t.Fatalf("events = %v", util.Stringify(e.log.events))
+	// 快照在 all 里自己拿锁（Subscribe 的回调也可能在别的 goroutine 里写；这里不能再先拿一次）
+	_, _, _, _, events := e.log.all()
+	if len(events) != 2 {
+		t.Fatalf("events = %v", util.Stringify(events))
 	}
-	ok := arr(e.log.events[0])[1].(*util.Obj)
-	if arr(e.log.events[0])[0] != "delegate.completed" || ok.Get("followUp") != true || ok.Get("status") != "done" ||
+	ok := arr(events[0])[1].(*util.Obj)
+	if arr(events[0])[0] != "delegate.completed" || ok.Get("followUp") != true || ok.Get("status") != "done" ||
 		ok.Get("conversationId") != "conv_1" || ok.Get("cli") != "codex" || ok.Get("durationMs") != 1234.0 ||
 		util.Str(ok.Get("summary")) == "" {
 		t.Fatalf("follow-up = %v", util.Stringify(ok))
 	}
-	bad := arr(e.log.events[1])[1].(*util.Obj)
+	bad := arr(events[1])[1].(*util.Obj)
 	if bad.Get("status") != "error" || bad.Get("error") != "boom" {
 		t.Fatalf("failed follow-up = %v", util.Stringify(bad))
 	}
@@ -61,17 +61,17 @@ func TestReportFollowUpCarriesChangedFiles(t *testing.T) {
 	errMsg := "stopped"
 	e.svc.ReportFollowUp("t1", "tab_1", false, "", &errMsg, 5_000)
 
-	e.log.mu.Lock()
-	defer e.log.mu.Unlock()
-	if len(e.log.events) != 3 {
-		t.Fatalf("events = %v", util.Stringify(e.log.events))
+	// 快照在 all 里自己拿锁（Subscribe 的回调也可能在别的 goroutine 里写；这里不能再先拿一次）
+	_, _, _, _, events := e.log.all()
+	if len(events) != 3 {
+		t.Fatalf("events = %v", util.Stringify(events))
 	}
-	plain := arr(e.log.events[0])[1].(*util.Obj)
+	plain := arr(events[0])[1].(*util.Obj)
 	want := `["internal/upstream_protocol.go","internal/upstream_protocol_test.go"]`
 	if util.Stringify(plain.Get("changedFiles")) != want || plain.Get("tabId") != "tab_1" {
 		t.Fatalf("plain follow-up = %v", util.Stringify(plain))
 	}
-	withReport := arr(e.log.events[1])[1].(*util.Obj)
+	withReport := arr(events[1])[1].(*util.Obj)
 	rep, _ := withReport.Get("report").(*util.Obj)
 	files := util.Stringify(withReport.Get("changedFiles"))
 	if rep == nil || util.Stringify(rep.Get("changedFiles")) != files ||
@@ -79,7 +79,7 @@ func TestReportFollowUpCarriesChangedFiles(t *testing.T) {
 		t.Fatalf("report follow-up = %v", util.Stringify(withReport))
 	}
 	// 失败 / 被停下的一轮：已经改了的同样带上
-	failed := arr(e.log.events[2])[1].(*util.Obj)
+	failed := arr(events[2])[1].(*util.Obj)
 	if failed.Get("status") != "error" || util.Stringify(failed.Get("changedFiles")) != want {
 		t.Fatalf("failed follow-up = %v", util.Stringify(failed))
 	}

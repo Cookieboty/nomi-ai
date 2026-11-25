@@ -354,7 +354,12 @@ export const knowledgeProcedures = {
     }),
     output: TaskCmdResult,
   },
-  /** 将前台进行中的长程对话主动转入后台持续执行（中断前台流并生成 via=handoff 的后台任务） */
+  /**
+   * 将前台进行中的长程对话主动转入后台持续执行（生成 via=handoff 的后台任务）。
+   * 只有后台接管成功后才中止前台这一轮；失败抛 TASKS_STORAGE_ERROR / TASKS_IMAGE_UNAVAILABLE，前台流保留。
+   * reqId 是这一轮的来源轮次：同一轮重试复用同一个任务，重复点击只接管一次。
+   * images 是这一轮已获准可读的原图（最多 8 张，base64，可带 data: 前缀）；后台首轮同样带上，读不到就失败。
+   */
   'tasks.handoffFromChat': {
     kind: 'mutation',
     input: z.object({
@@ -366,6 +371,10 @@ export const knowledgeProcedures = {
       partialContent: z.string().max(20000).optional(),
       progressSummary: z.string().max(8000).optional(),
       historyContext: z.string().max(12000).optional(),
+      images: z
+        .array(z.object({ mime: z.string(), data: z.string() }))
+        .max(8)
+        .optional(),
     }),
     output: TaskView,
   },
@@ -385,6 +394,11 @@ export const knowledgeProcedures = {
       /** null = 清除 */
       priority: TaskPriority.nullable().optional(),
       category: TaskCategory.nullable().optional(),
+      model: z.string().max(300).nullable().optional(),
+      reasoningEffort: z.string().max(64).nullable().optional(),
+      source: z.enum(['local', 'official', 'thirdParty']).nullable().optional(),
+      accountId: z.string().max(200).nullable().optional(),
+      presetId: z.string().max(200).nullable().optional(),
     }),
     output: TaskView,
   },
@@ -651,6 +665,8 @@ export const knowledgeErrors = [
   'TASKS_NOT_FOUND',
   'TASKS_BAD_TRIGGER',
   'TASKS_BAD_GRANT',
+  'TASKS_STORAGE_ERROR',
+  'TASKS_IMAGE_UNAVAILABLE',
   'CONNECTIONS_NOT_FOUND',
   'CONNECTIONS_NEEDS_LOGIN',
   'CONNECTIONS_UNAVAILABLE',

@@ -1,4 +1,4 @@
-import { byCli, cliName } from '@nomi-ai/cli-catalog';
+import { BUILTIN_MANIFESTS, byCli, cliName } from '@nomi-ai/cli-catalog';
 /**
  * 端点页的「版本」分组：已装版本 / 最新版本 / 检查更新 / 一键更新；未安装时一键安装。
  * 点按钮先做前置检查（Node / npm / 写权限）：都通过就直接执行，不再二次确认；
@@ -183,6 +183,8 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
 
   const state = versionState(info);
   const name = NAME[kind];
+  const installSpec = BUILTIN_MANIFESTS[kind].binary.install;
+  const hasNpm = Boolean(installSpec?.npm);
 
   /** 前置检查通过就直接执行；有阻塞原因才弹框说明 */
   const start = async (scope: CliInstallScope = 'global') => {
@@ -256,7 +258,9 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
       ? t('ui.cli-monitor.install')
       : state === 'outdated'
         ? t('ui.cli-monitor.update-to', info?.latest ?? '')
-        : t('ui.cli-monitor.reinstall-latest');
+        : hasNpm
+          ? t('ui.cli-monitor.reinstall-latest')
+          : t('ui.provider-link.update');
 
   return (
     <SettingsGroup
@@ -318,6 +322,28 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
           {statusText}
         </Badge>
       </SettingRow>
+
+      {state === 'missing' &&
+        loaded &&
+        info &&
+        info.updateSupported === false &&
+        (installSpec?.script || installSpec?.url) && (
+          <Notice tone="info" data-testid={`cli-install-guide-${kind}`}>
+            <div className={styles.installGuide}>
+              {installSpec.script && (
+                <>
+                  <span>{t('ui.cli-monitor.install-via-official-script')}</span>
+                  <code className={styles.cmd}>{installSpec.script}</code>
+                </>
+              )}
+              {installSpec.url && (
+                <a href={installSpec.url} target="_blank" rel="noreferrer">
+                  {t('ui.cli-monitor.official-docs')}
+                </a>
+              )}
+            </div>
+          </Notice>
+        )}
 
       {info?.runtimeWarning && (
         <Notice tone="warning" data-testid={`cli-runtime-warning-${kind}`}>

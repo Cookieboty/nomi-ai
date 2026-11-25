@@ -33,6 +33,8 @@ type AcpDriverOptions struct {
 	// Grok 1.0.70：`_x.ai/interject`，应答 {status:'queued'}，在下一个工具 / 模型步骤并进这一轮。
 	// 空串 = 不支持（如 Gemini：新的 session/prompt 会中止当前这一轮）。
 	SteerMethod string
+	// DisableElicitation：不向 ACP 对端广告 form elicitation（托管只读运行时不支持交互弹窗）。
+	DisableElicitation bool
 }
 
 type acpTurn struct {
@@ -125,6 +127,8 @@ type AcpDriver struct {
 	ModeID            *string
 	AvailableModes    []string
 	AgentCapabilities Json
+	SessionRaw        Json
+	SessionTitle      string
 }
 
 func NewAcpDriver(o AcpDriverOptions) *AcpDriver {
@@ -170,6 +174,32 @@ func (d *AcpDriver) onNotification(method string, params Json) {
 	}
 	if ext && !strings.HasPrefix(strQ(u.Get("sessionUpdate")), "auto_compact_") {
 		return
+	}
+	if !ext {
+		switch u.Get("sessionUpdate") {
+		case "current_mode_update":
+			mid := strQ(u.Get("currentModeId"))
+			if mid == "" {
+				mid = strQ(u.Get("modeId"))
+			}
+			if mid != "" {
+				m := mid
+				d.ModeID = &m
+			}
+		case "config_option_update", "config_options_update":
+			if opts := u.Get("configOptions"); opts != nil {
+				if d.SessionRaw == nil {
+					d.SessionRaw = O()
+				}
+				d.SessionRaw.Set("configOptions", opts)
+			}
+		case "session_info_update":
+			if title, ok := u.Get("title").(string); ok {
+				if trimmed := strings.TrimSpace(title); trimmed != "" {
+					d.SessionTitle = trimmed
+				}
+			}
+		}
 	}
 	if u.Get("sessionUpdate") == "available_commands_update" {
 		d.hub.Emit(O("kind", "commands", "commands", parseCommands(u.Get("availableCommands"))))
@@ -342,10 +372,13 @@ func sigOpts(s *jsrt.AbortSignal) rpc.RequestOptions {
 }
 
 // acpClientCaps：会话握手广告 form elicitation（问题卡）。没广告的模式（URL）代理不该发。
-// 调用方已经给了非空的 elicitation 对象时保留，不覆盖。
-func acpClientCaps(caps Json) Json {
+// 调用方已经给了非空的 elicitation 对象时保留，不覆盖；disableElicitation 为 true 时跳过注入。
+func acpClientCaps(caps Json, disableElicitation bool) Json {
 	if caps == nil {
 		caps = O("fs", O("readTextFile", false, "writeTextFile", false))
+	}
+	if disableElicitation {
+		return caps
 	}
 	if elic, ok := caps.Get("elicitation").(*util.Obj); ok && elic != nil {
 		return caps
@@ -355,98 +388,172 @@ func acpClientCaps(caps Json) Json {
 	return next
 }
 
-func (d *AcpDriver) Start(o clisdk.StartOptions) *jsrt.Promise[StartResult] {
-	return jsrt.Async(func() (StartResult, error) {
-		opts := sigOpts(o.Signal)
-		initV, err := jsrt.Await(d.Conn.Request("initialize", O("protocolVersion", float64(1), "clientCapabilities", acpClientCaps(d.o.ClientCapabilities)), opts))
+func (d *AcpDriver) withSessionDirs(params *util.Obj, extraDirs []string) *util.Obj {
+	if len(extraDirs) == 0 {
+		return params
+	}
+	sc, _ := d.AgentCapabilities.Get("sessionCapabilities").(*util.Obj)
+	if sc == nil || !util.Truthy(sc.Get("additionalDirectories")) {
+		return params
+	}
+	dirs := make([]any, len(extraDirs))
+	for i, x := range extraDirs {
+		dirs[i] = x
+	}
+	return params.Set("additionalDirectories", dirs)
+}
+
+func (d *AcpDriver) finishSession(sid string, modes any, resumed, hadResume bool, pv any) StartResult {
+	s := sid
+	d.sid = &s
+	d.AvailableModes = parseAvailableModeIDs(modes)
+	modeNow := getp(modes, "currentModeId")
+	if m, ok := modeNow.(string); ok {
+		d.ModeID = &m
+	}
+	if d.SessionRaw != nil {
+		if title, ok := d.SessionRaw.Get("title").(string); ok {
+			if trimmed := strings.TrimSpace(title); trimmed != "" {
+				d.SessionTitle = trimmed
+			}
+		}
+	}
+	d.hub.Emit(O("kind", "health", "state", "ready"))
+	res := O("sessionId", sid)
+	if hadResume {
+		res.Set("resumed", resumed)
+	}
+	if m, ok := modeNow.(string); ok {
+		res.Set("currentModeId", m)
+	}
+	if ver, ok := pv.(float64); ok {
+		res.Set("version", util.FormatNumber(ver))
+	}
+	prompt := d.AgentCapabilities.Get("promptCapabilities")
+	res.Set("capabilities", O(
+		"loadSession", d.AgentCapabilities.Get("loadSession") == true,
+		"images", getp(prompt, "image") == true,
+		"audio", getp(prompt, "audio") == true,
+	))
+	return res
+}
+
+func parseReturnedSessionID(r any) string {
+	v := getp(r, "sessionId")
+	if v == nil {
+		return ""
+	}
+	if s, ok := v.(string); ok {
+		return s
+	}
+	if util.Truthy(v) {
+		return util.JSString(v)
+	}
+	return ""
+}
+
+// Initialize：仅发送 initialize 握手并保存对端 agentCapabilities。
+func (d *AcpDriver) Initialize(signal *jsrt.AbortSignal) *jsrt.Promise[Json] {
+	return jsrt.Async(func() (Json, error) {
+		initV, err := jsrt.Await(d.Conn.Request("initialize", O("protocolVersion", float64(1), "clientCapabilities", acpClientCaps(d.o.ClientCapabilities, d.o.DisableElicitation)), sigOpts(signal)))
 		if err != nil {
 			return nil, err
 		}
 		if ac, ok := getp(initV, "agentCapabilities").(*util.Obj); ok {
 			d.AgentCapabilities = ac
-		} else if v := getp(initV, "agentCapabilities"); v != nil {
-			d.AgentCapabilities = O() // 非对象：后续属性读取均为 undefined
 		} else {
 			d.AgentCapabilities = O()
 		}
-		prompt := d.AgentCapabilities.Get("promptCapabilities")
+		res := O()
+		if obj, ok := initV.(*util.Obj); ok {
+			res = obj
+		}
+		return res, nil
+	})
+}
+
+// LoadSession：仅发送 session/load（不静默退回 session/new）。
+func (d *AcpDriver) LoadSession(sessionID, cwd string, mcp any, extraDirs []string, signal *jsrt.AbortSignal) *jsrt.Promise[StartResult] {
+	return jsrt.Async(func() (StartResult, error) {
+		if sessionID == "" {
+			return nil, errors.New("ACP session/load requires sessionId")
+		}
+		if mcp == nil {
+			mcp = []any{}
+		}
+		r, err := jsrt.Await(d.Conn.Request("session/load", d.withSessionDirs(O("sessionId", sessionID, "cwd", cwd, "mcpServers", mcp), extraDirs), sigOpts(signal)))
+		if err != nil {
+			return nil, err
+		}
+		if ret := parseReturnedSessionID(r); ret != "" && ret != sessionID {
+			return nil, errors.New("ACP session/load returned mismatched sessionId")
+		}
+		d.SessionRaw = util.AsObj(r)
+		return d.finishSession(sessionID, getp(r, "modes"), true, true, nil), nil
+	})
+}
+
+// NewSession：仅发送 session/new。
+func (d *AcpDriver) NewSession(cwd string, mcp any, extraDirs []string, signal *jsrt.AbortSignal) *jsrt.Promise[StartResult] {
+	return jsrt.Async(func() (StartResult, error) {
+		if mcp == nil {
+			mcp = []any{}
+		}
+		r, err := jsrt.Await(d.Conn.Request("session/new", d.withSessionDirs(O("cwd", cwd, "mcpServers", mcp), extraDirs), sigOpts(signal)))
+		if err != nil {
+			return nil, err
+		}
+		sid := parseReturnedSessionID(r)
+		if sid == "" {
+			return nil, errors.New("ACP agent returned no session")
+		}
+		d.SessionRaw = util.AsObj(r)
+		return d.finishSession(sid, getp(r, "modes"), false, true, nil), nil
+	})
+}
+
+func (d *AcpDriver) Start(o clisdk.StartOptions) *jsrt.Promise[StartResult] {
+	return jsrt.Async(func() (StartResult, error) {
+		opts := sigOpts(o.Signal)
+		initV, err := jsrt.Await(d.Initialize(o.Signal))
+		if err != nil {
+			return nil, err
+		}
 		var mcp any = []any{}
 		if o.McpServers != nil {
 			mcp = o.McpServers
 		}
-		// 额外的根（ACP additionalDirectories，2026-06 稳定）：agent 声明支持才发，否则只在 cwd 里做
-		withDirs := func(params *util.Obj) *util.Obj {
-			if len(o.AdditionalDirectories) == 0 {
-				return params
-			}
-			sc, _ := d.AgentCapabilities.Get("sessionCapabilities").(*util.Obj)
-			if sc == nil || !util.Truthy(sc.Get("additionalDirectories")) {
-				return params
-			}
-			dirs := make([]any, len(o.AdditionalDirectories))
-			for i, x := range o.AdditionalDirectories {
-				dirs[i] = x
-			}
-			return params.Set("additionalDirectories", dirs)
-		}
-		var sid *string
-		var modeNow any
-		var availableModes []string
+		var sid string
+		var modes any
 		resumed := false
-		if o.ResumeID != nil && *o.ResumeID != "" {
+		hadResume := o.ResumeID != nil && *o.ResumeID != ""
+		if hadResume {
 			resumeID := *o.ResumeID
-			r, err := jsrt.Await(d.Conn.Request("session/load", withDirs(O("sessionId", resumeID, "cwd", o.Cwd, "mcpServers", mcp)), opts))
+			r, err := jsrt.Await(d.Conn.Request("session/load", d.withSessionDirs(O("sessionId", resumeID, "cwd", o.Cwd, "mcpServers", mcp), o.AdditionalDirectories), opts))
 			if err == nil {
-				modes := getp(r, "modes")
-				modeNow = getp(modes, "currentModeId")
-				availableModes = parseAvailableModeIDs(modes)
+				modes = getp(r, "modes")
+				d.SessionRaw = util.AsObj(r)
 				resumed = true
-				sid = &resumeID
+				sid = resumeID
 			}
 		}
-		if sid == nil {
-			r, err := jsrt.Await(d.Conn.Request("session/new", withDirs(O("cwd", o.Cwd, "mcpServers", mcp)), opts))
+		if sid == "" {
+			r, err := jsrt.Await(d.Conn.Request("session/new", d.withSessionDirs(O("cwd", o.Cwd, "mcpServers", mcp), o.AdditionalDirectories), opts))
 			if err != nil {
 				return nil, err
 			}
-			// r?.sessionId ?? null：值按原样（类型声明为 string）
-			if v := getp(r, "sessionId"); v != nil {
-				if s, ok := v.(string); ok {
-					sid = &s
-				} else if util.Truthy(v) {
-					s := util.JSString(v)
-					sid = &s // 非字符串真值：转成字符串存入
-				}
-			}
-			modes := getp(r, "modes")
-			modeNow = getp(modes, "currentModeId")
-			availableModes = parseAvailableModeIDs(modes)
+			sid = parseReturnedSessionID(r)
+			modes = getp(r, "modes")
+			d.SessionRaw = util.AsObj(r)
 		}
-		if sid == nil || *sid == "" {
+		if sid == "" {
 			return nil, errors.New("ACP agent returned no session")
 		}
-		d.sid = sid
-		d.AvailableModes = availableModes
-		if m, ok := modeNow.(string); ok {
-			d.ModeID = &m
+		var pv any
+		if initV != nil {
+			pv = initV.Get("protocolVersion")
 		}
-		d.hub.Emit(O("kind", "health", "state", "ready"))
-		res := O("sessionId", *sid)
-		if o.ResumeID != nil && *o.ResumeID != "" {
-			res.Set("resumed", resumed)
-		}
-		if m, ok := modeNow.(string); ok {
-			res.Set("currentModeId", m)
-		}
-		if pv, ok := getp(initV, "protocolVersion").(float64); ok {
-			res.Set("version", util.FormatNumber(pv))
-		}
-		res.Set("capabilities", O(
-			"loadSession", d.AgentCapabilities.Get("loadSession") == true,
-			"images", getp(prompt, "image") == true,
-			"audio", getp(prompt, "audio") == true,
-		))
-		return res, nil
+		return d.finishSession(sid, modes, resumed, hadResume, pv), nil
 	})
 }
 
@@ -584,14 +691,21 @@ func (d *AcpDriver) runTurn(method string, params func(sessionID string) Json, i
 		for _, ev := range turn.mapper.Flush() {
 			emit(ev)
 		}
+		merged := extractAcpPromptUsage(r)
 		ctx := turn.mapper.Context()
+		if ctx != nil && ctx.Len() > 0 {
+			if merged == nil {
+				merged = O()
+			}
+			merged.Assign(ctx)
+		}
 		var stop any = "end_turn"
 		if v := getp(r, "stopReason"); v != nil {
 			stop = v
 		}
 		res := O("turnId", turn.id, "stopReason", stop, "text", turn.text, "sessionId", sessionID)
-		if ctx.Len() > 0 {
-			res.Set("usage", ctx)
+		if merged != nil && merged.Len() > 0 {
+			res.Set("usage", merged)
 		}
 		if turn.denied {
 			res.Set("denied", true)
@@ -601,6 +715,55 @@ func (d *AcpDriver) runTurn(method string, params func(sessionID string) Json, i
 		}
 		return res, nil
 	})
+}
+
+func pickNonNeg(u *util.Obj, keys ...string) (float64, bool) {
+	for _, k := range keys {
+		if f, ok := nonNegNum(u.Get(k)); ok {
+			return f, true
+		}
+	}
+	return 0, false
+}
+
+func extractAcpPromptUsage(r any) *util.Obj {
+	u := util.AsObj(getp(r, "usage"))
+	if u == nil {
+		return nil
+	}
+	out := O()
+	if v, ok := pickNonNeg(u, "inputTokens", "input_tokens", "promptTokens", "prompt_tokens"); ok {
+		out.Set("inputTokens", v)
+	}
+	if v, ok := pickNonNeg(u, "outputTokens", "output_tokens", "completionTokens", "completion_tokens"); ok {
+		out.Set("outputTokens", v)
+	}
+	if v, ok := pickNonNeg(u, "cachedReadTokens", "cacheReadTokens", "cachedInputTokens", "cache_read_input_tokens", "cached_input_tokens", "cached_read_tokens"); ok {
+		out.Set("cacheReadTokens", v)
+	}
+	if v, ok := pickNonNeg(u, "cachedWriteTokens", "cacheWriteTokens", "cache_creation_input_tokens", "cache_write_tokens", "cached_write_tokens"); ok {
+		out.Set("cacheWriteTokens", v)
+	}
+	if v, ok := pickNonNeg(u, "thoughtTokens", "thought_tokens", "reasoningTokens", "reasoning_tokens"); ok {
+		out.Set("thoughtTokens", v)
+	}
+	if v, ok := pickNonNeg(u, "totalTokens", "total_tokens"); ok {
+		out.Set("totalTokens", v)
+	}
+	if v, ok := nonNegNum(u.Get("costUsd")); ok {
+		out.Set("costUsd", v)
+	} else if c := util.AsObj(u.Get("cost")); c != nil {
+		if v, ok := nonNegNum(c.Get("amount")); ok {
+			cur := strings.TrimSpace(strQ(c.Get("currency")))
+			if cur == "" || strings.EqualFold(cur, "USD") {
+				out.Set("costUsd", v)
+			}
+		}
+	}
+	if out.Len() == 0 {
+		return nil
+	}
+	return out
 }
 
 // Steer：有扩展方法、有进行中的轮次和会话时发 {sessionId, text}；CLI 报错 = false。

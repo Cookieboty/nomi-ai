@@ -543,6 +543,38 @@ const cliProcedures = {
     input: z.object({ kind: cliKind, command: z.string().max(8192) }),
     output: z.object({ version: z.string() }),
   },
+  'cli.localAuthStatus': {
+    kind: 'query',
+    surfaces: ['chat', 'settings'],
+    input: z.object({ kind: cliKind, probe: z.boolean().optional() }),
+    output: z.object({
+      kind: cliKind,
+      loggedIn: z.boolean(),
+      canLogin: z.boolean(),
+      canLogout: z.boolean(),
+      detail: z.string().optional(),
+    }),
+  },
+  'cli.localAuthLoginStart': {
+    kind: 'mutation',
+    dangerous: true,
+    surfaces: ['chat', 'settings'],
+    input: z.object({ kind: cliKind }),
+    output: LoginEvent,
+  },
+  'cli.localAuthLoginCancel': {
+    kind: 'mutation',
+    surfaces: ['chat', 'settings'],
+    input: byId,
+    output: z.boolean(),
+  },
+  'cli.localAuthLogout': {
+    kind: 'mutation',
+    dangerous: true,
+    surfaces: ['chat', 'settings'],
+    input: z.object({ kind: cliKind }),
+    output: z.object({ loggedIn: z.boolean() }),
+  },
 } as const satisfies ProcedureMap;
 
 const cliAccountProcedures = {
@@ -570,7 +602,10 @@ const cliAccountProcedures = {
   },
   /**
    * force：读不到是否还有 CLI 进程在用时也删除（界面先确认）；
-   * stopExternal：先结束 Nomi 之外还在用这个账号的 CLI 进程（ACCOUNT_EXTERNAL_BUSY 时界面让用户确认）再删除
+   * stopExternal：先结束 Nomi 之外还在用这个账号的 CLI 进程（ACCOUNT_EXTERNAL_BUSY 时界面让用户确认）再删除；
+   * stopPids：用户确认过的进程号快照（ACCOUNT_EXTERNAL_BUSY 的 data.pids）。只结束这几个；提交时重新扫描，
+   * 范围变了（有新进程出现 / 旧的已经不是原来那个）就再报 ACCOUNT_EXTERNAL_BUSY 让界面重新确认。不带 stopPids
+   * 等于没有确认过，不会结束任何进程。
    */
   'cliAccount.remove': {
     kind: 'mutation',
@@ -578,6 +613,7 @@ const cliAccountProcedures = {
       id: z.string(),
       force: z.boolean().optional(),
       stopExternal: z.boolean().optional(),
+      stopPids: z.array(z.number().int().positive()).max(256).optional(),
     }),
     output: z.void(),
   },
@@ -806,6 +842,8 @@ export const codingEvents = {
   'cli.registryChanged': CliRegistrySnapshot,
   /** CLI 启动与账号源设置变化（主窗与独立弹窗实时同步） */
   'cli.launcherChanged': z.record(z.string(), CliLauncherSettings),
+  /** 本机 CLI 登录进度 */
+  'cli.localAuthEvent': LoginEvent,
   /** 账号列表变化，不带数据（ai:cli-account:changed） */
   'cliAccount.changed': z.null(),
   /** 登录进度（ai:cli-account:login） */
@@ -828,6 +866,7 @@ export const codingEventSurfaces = {
   'harness.events': ['chat', 'settings'],
   'harness.tabMessage': ['chat', 'settings'],
   'cli.launcherChanged': ['chat'],
+  'cli.localAuthEvent': ['chat', 'settings'],
   'fleet.changed': ['chat', 'settings'],
 } as const satisfies Partial<Record<keyof typeof codingEvents, readonly Surface[]>>;
 
@@ -841,7 +880,10 @@ export const codingErrors = [
   'ACCOUNT_IN_USE',
   'ACCOUNT_UNSUPPORTED',
   'ACCOUNT_UNKNOWN_LIVE',
-  /** cliAccount.remove：Nomi 之外还有 CLI 进程在用这个账号目录（data.pids）；可以带 stopExternal 结束它们再删除 */
+  /**
+   * cliAccount.remove：Nomi 之外还有 CLI 进程在用这个账号目录（data.pids）；可以带 stopExternal + stopPids（这批进程号）
+   * 结束它们再删除。确认后进程范围变了也会再报这个错误，界面要按新的 pids 重新确认
+   */
   'ACCOUNT_EXTERNAL_BUSY',
   /** project.*：项目不存在 */
   'PROJECT_NOT_FOUND',

@@ -50,11 +50,20 @@ type History interface {
 	RemoveTab(id string) *jsrt.Promise[*util.Obj]
 }
 
+// LocalAuth = LocalAuthService 的公开面（仅管理支持本机官方登录的 localOnly CLI）
+type LocalAuth interface {
+	Status(kind string, probe bool) *jsrt.Promise[*util.Obj]
+	StartLogin(kind string) *jsrt.Promise[*util.Obj]
+	CancelLogin(id string) bool
+	Logout(kind string) *jsrt.Promise[*util.Obj]
+}
+
 var (
-	_ Plugins  = (*cli.CliPluginHost)(nil)
-	_ Updates  = (*cli.CliUpdateService)(nil)
-	_ Delegate = (*delegate.Service)(nil)
-	_ History  = (*cli.SessionHistoryService)(nil)
+	_ Plugins   = (*cli.CliPluginHost)(nil)
+	_ Updates   = (*cli.CliUpdateService)(nil)
+	_ Delegate  = (*delegate.Service)(nil)
+	_ History   = (*cli.SessionHistoryService)(nil)
+	_ LocalAuth = (*cli.LocalAuthService)(nil)
 )
 
 // CodingServices：getter 返回 nil（无类型）= 服务不可用
@@ -63,6 +72,7 @@ type CodingServices struct {
 	Updates         func() Updates
 	Delegate        func() Delegate
 	History         func() History
+	LocalAuth       func() LocalAuth
 	OnLauncherSaved func(kind string, prev, next cli.LauncherSettings)
 }
 
@@ -156,6 +166,7 @@ func RegisterCoding(r *contract.Router, s CodingServices) {
 	updates := func() Updates { return need(s.Updates, "cliUpdate") }
 	dlg := func() Delegate { return need(s.Delegate, "delegate") }
 	history := func() History { return need(s.History, "history") }
+	localAuth := func() LocalAuth { return need(s.LocalAuth, "cliLocalAuth") }
 
 	// ── cli：插件注册表 ──
 	gil(r, "cli.registry", func(in) any { return plugins().Snapshot() })
@@ -178,6 +189,18 @@ func RegisterCoding(r *contract.Router, s CodingServices) {
 		version, err := cli.TestLauncherVersion(a.str("kind"), a.str("command"))
 		throwIf(err)
 		return util.NewObj("version", version)
+	})
+	gil(r, "cli.localAuthStatus", func(a in) any {
+		return await(localAuth().Status(a.str("kind"), a.is("probe")))
+	})
+	gil(r, "cli.localAuthLoginStart", func(a in) any {
+		return await(localAuth().StartLogin(a.str("kind")))
+	})
+	gil(r, "cli.localAuthLoginCancel", func(a in) any {
+		return localAuth().CancelLogin(a.str("id"))
+	})
+	gil(r, "cli.localAuthLogout", func(a in) any {
+		return await(localAuth().Logout(a.str("kind")))
 	})
 
 	// ── cliUpdate：安装 / 更新 ──

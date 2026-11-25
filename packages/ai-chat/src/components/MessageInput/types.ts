@@ -1,13 +1,17 @@
 /** 发文框的属性（从 index.tsx 拆出，控制单文件行数） */
 import type React from 'react';
 
-import type { createComposerDraftStore } from '../../services/composerDrafts';
+import type { ComposerDraft, createComposerDraftStore } from '../../services/composerDrafts';
 import type { HarnessTabMeta } from '../../services/harnessClient';
 import type { ImageAttachment } from '../../services/screenClient';
 import type { SlashBridge } from '../../slash/types';
 import type { ConvMessage } from '../../types/conversation';
 import type { PendingMode } from '../../utils/pendingSends';
 import type { SettingsSectionInput } from '../SettingsView/sections';
+
+export type ComposerDraftLock = ReturnType<
+  ReturnType<typeof createComposerDraftStore>['lock']
+>;
 
 export interface MessageInputProps {
   /** 发送前守卫（返回 false 时中止发送并保留草稿；不拦截斜杠命令） */
@@ -72,6 +76,11 @@ export interface MessageInputProps {
   draftStore?: ReturnType<typeof createComposerDraftStore>;
   /** 当前激活草稿桶；勿用 React key 整棵重挂本组件 */
   draftKey?: string;
+  /**
+   * 锁住的草稿句柄（composerDrafts 的 lock()）：给了就读写它，而不是 draftStore / draftKey。
+   * 侧边聊天放回等待期间用：输入栏还能编辑，但不会改到已经交出去的快照。
+   */
+  draftLock?: ComposerDraftLock;
   /**
    * 模型 / 权限绑到这个标签，而不是当前标签。
    * 侧栏里的委派会话和主列同时开着时用它。

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { syntaxTree } from '@codemirror/language';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 
@@ -36,6 +36,11 @@ it.each([
   ['Dockerfile', 'docker'],
   ['Containerfile', 'docker'],
   ['Dockerfile.dev', 'docker'],
+  ['Containerfile.prod', 'docker'],
+  ['Dockerfile.md', 'markdown'],
+  ['Dockerfile.json', 'json'],
+  ['Dockerfile.txt', 'text'],
+  ['Dockerfile.', 'text'],
   ['Makefile', 'makefile'],
   ['GNUmakefile', 'makefile'],
   ['CMakeLists.txt', 'cmake'],
@@ -51,12 +56,9 @@ it.each([
   ['.gitconfig', 'editorconfig'],
   ['README', 'text'],
   ['', 'text'],
-])(
-  'resolves language strictly from file extension for %s (defaulting to text)',
-  (path, language) => {
-    expect(resolveCodeLanguage(path)).toBe(language);
-  },
-);
+])('resolves language from filename or extension for %s (defaulting to text)', (path, language) => {
+  expect(resolveCodeLanguage(path)).toBe(language);
+});
 it('never infers language from file contents or shebangs, defaulting extensionless or unnamed files to text', () => {
   expect(resolveCodeLanguage('script')).toBe('text');
   expect(resolveCodeLanguage('')).toBe('text');
@@ -100,6 +102,52 @@ it('highlights YAML keys and unquoted values like markdown code blocks do', () =
   expect(container.querySelector('.token.comment')?.textContent).toContain('# note');
 });
 
+it('limits propertyName highlighting to config and style languages instead of polluting code', () => {
+  const jsonDoc = render(
+    <CodeDocument
+      text={'{"name": "demo"}'}
+      language="json"
+      viewportRef={vi.fn()}
+      onRendered={vi.fn()}
+      onScroll={vi.fn()}
+    />,
+  );
+  expect(jsonDoc.container.querySelector('.token.property')?.textContent).toBe('"name"');
+
+  const cssDoc = render(
+    <CodeDocument
+      text={'.box { font-size: 14px; }'}
+      language="css"
+      viewportRef={vi.fn()}
+      onRendered={vi.fn()}
+      onScroll={vi.fn()}
+    />,
+  );
+  expect(cssDoc.container.querySelector('.token.property')?.textContent).toBe('font-size');
+
+  const tsDoc = render(
+    <CodeDocument
+      text={'const obj = { foo: 1 };\nobj.foo = 2;'}
+      language="typescript"
+      viewportRef={vi.fn()}
+      onRendered={vi.fn()}
+      onScroll={vi.fn()}
+    />,
+  );
+  expect(tsDoc.container.querySelector('.token.property')).toBeNull();
+
+  const goDoc = render(
+    <CodeDocument
+      text={'package main\nfunc main() { fmt.Println(s.Name) }'}
+      language="go"
+      viewportRef={vi.fn()}
+      onRendered={vi.fn()}
+      onScroll={vi.fn()}
+    />,
+  );
+  expect(goDoc.container.querySelector('.token.property')).toBeNull();
+});
+
 it('highlights ignore files: comments, negation and wildcards', () => {
   const text = '# deps\nnode_modules/\n!keep.env\n*.log';
   const { container } = render(
@@ -116,7 +164,7 @@ it('highlights ignore files: comments, negation and wildcards', () => {
   expect(container.querySelector('.token.string')?.textContent).toBe('node_modules/');
 });
 
-it('highlights .editorconfig sections, keys, values and comments', () => {
+it('highlights .editorconfig and .gitconfig sections, keys, values and inline comments cleanly', () => {
   const text = 'root = true\n\n[*]\nindent_style = space\n# note';
   const { container } = render(
     <CodeDocument
@@ -127,10 +175,35 @@ it('highlights .editorconfig sections, keys, values and comments', () => {
       onScroll={vi.fn()}
     />,
   );
-  expect(container.querySelector('.token.tag')?.textContent?.trim()).toBe('root');
+  expect(container.querySelector('.token.tag')?.textContent).toBe('root');
   expect(container.querySelector('.token.string')?.textContent).toBe('true');
   expect(container.querySelector('.token.keyword')?.textContent).toBe('[*]');
   expect(container.querySelector('.token.comment')?.textContent).toBe('# note');
+
+  const gitconfig = '[core] # sec comment\n\tname = Cookie # inline\n\tcolor = "#ff0000" # red';
+  const gitDoc = render(
+    <CodeDocument
+      text={gitconfig}
+      language="editorconfig"
+      viewportRef={vi.fn()}
+      onRendered={vi.fn()}
+      onScroll={vi.fn()}
+    />,
+  );
+  expect(
+    Array.from(gitDoc.container.querySelectorAll('.token.keyword'))
+      .map((el) => el.textContent)
+      .join(''),
+  ).toBe('[core]');
+  expect(
+    Array.from(gitDoc.container.querySelectorAll('.token.tag')).map((el) => el.textContent),
+  ).toEqual(['name', 'color']);
+  expect(
+    Array.from(gitDoc.container.querySelectorAll('.token.string')).map((el) => el.textContent),
+  ).toEqual(['Cookie', '"#ff0000"']);
+  expect(
+    Array.from(gitDoc.container.querySelectorAll('.token.comment')).map((el) => el.textContent),
+  ).toEqual(['# sec comment', '# inline', '# red']);
 });
 
 it('highlights nginx.conf with the bundled grammar', () => {
@@ -144,6 +217,11 @@ it('highlights nginx.conf with the bundled grammar', () => {
       onScroll={vi.fn()}
     />,
   );
+  const keywords = Array.from(container.querySelectorAll('.token.keyword')).map(
+    (el) => el.textContent,
+  );
+  expect(keywords).toContain('worker_processes');
+  expect(keywords).toContain('server');
   expect(container.querySelector('.token.comment')?.textContent).toBe('# note');
 });
 
@@ -252,6 +330,23 @@ it('scrolls the file tab strip horizontally with a vertical mouse wheel', async 
   strip.dispatchEvent(horizontal);
   expect(strip.scrollLeft).toBe(120);
   expect(horizontal.defaultPrevented).toBe(false);
+  // Shift+滚轮不拦截（happy-dom 的 WheelEvent 继承自 UIEvent，需显式定义 shiftKey）
+  const shiftWheel = new WheelEvent('wheel', {
+    deltaY: 120,
+    cancelable: true,
+    bubbles: true,
+  });
+  Object.defineProperty(shiftWheel, 'shiftKey', { value: true });
+  strip.dispatchEvent(shiftWheel);
+  expect(strip.scrollLeft).toBe(120);
+  expect(shiftWheel.defaultPrevented).toBe(false);
+  // 未溢出时不拦截
+  Object.defineProperty(strip, 'scrollWidth', { configurable: true, value: 100 });
+  strip.scrollLeft = 0;
+  const noOverflow = new WheelEvent('wheel', { deltaY: 120, cancelable: true, bubbles: true });
+  strip.dispatchEvent(noOverflow);
+  expect(strip.scrollLeft).toBe(0);
+  expect(noOverflow.defaultPrevented).toBe(false);
 });
 
 it('keeps the document and syntax tree when scroll handlers or host layout update', () => {
@@ -289,4 +384,89 @@ it('keeps a 100,000-line source model while drawing a bounded viewport', () => {
   expect(editor.state.doc.line(99_990).text).toBe('line 99990');
   expect(container.querySelectorAll('.cm-line').length).toBeLessThan(500);
   expect(container.querySelectorAll('.cm-gutterElement').length).toBeLessThan(500);
+});
+
+it('overrides default CodeMirror selection colors for focused and unfocused states', async () => {
+  const rootStyle = document.documentElement.style;
+  rootStyle.setProperty('--cd-accent-rgb', '120, 135, 245');
+  rootStyle.setProperty('--cd-color-accent-soft', 'rgba(120, 135, 245, 0.16)');
+  const outside = document.createElement('button');
+  document.body.appendChild(outside);
+  try {
+    const { container } = render(
+      <CodeDocument
+        text={'SELECT 1;\nSELECT 2;'}
+        language="sql"
+        viewportRef={vi.fn()}
+        onRendered={vi.fn()}
+        onScroll={vi.fn()}
+      />,
+    );
+    const scroller = screen.getByTestId('resource-preview-source');
+    const editor = sourceView(scroller);
+
+    const cssText = Array.from(document.head.querySelectorAll('style'))
+      .map((el) => el.textContent ?? '')
+      .join('\n');
+
+    const unfocusedRule =
+      /\.cm-scroller\s*>\s*\.cm-selectionLayer\s+\.cm-selectionBackground[^{]*\{[^}]*background(?:-color)?:\s*var\(--cd-color-accent-soft\)/.exec(
+        cssText,
+      );
+    expect(unfocusedRule).not.toBeNull();
+
+    const focusedRule =
+      /\.cm-focused\s*>\s*\.cm-scroller\s*>\s*\.cm-selectionLayer\s+\.cm-selectionBackground[^{]*\{[^}]*background(?:-color)?:\s*rgba\(var\(--cd-accent-rgb\),\s*0\.26\)/.exec(
+        cssText,
+      );
+    expect(focusedRule).not.toBeNull();
+
+    const defaultLightFocused = cssText.indexOf('#d7d4f0');
+    if (defaultLightFocused !== -1) {
+      expect(focusedRule!.index).toBeGreaterThan(defaultLightFocused);
+    }
+    expect(unfocusedRule!.index).toBeLessThan(focusedRule!.index);
+
+    act(() => {
+      editor.contentDOM.focus();
+      fireEvent.focus(editor.contentDOM);
+      editor.dispatch({ selection: { anchor: 0, head: editor.state.doc.length } });
+    });
+
+    expect(editor.hasFocus).toBe(true);
+    expect(editor.dom.classList.contains('cm-focused')).toBe(true);
+    expect(editor.state.selection.main.from).toBe(0);
+    expect(editor.state.selection.main.to).toBe(editor.state.doc.length);
+
+    // happy-dom 缺少字体与布局几何测量，selectionLayer 不会自动画出矩形节点；
+    // 补齐同结构节点以验证聚焦/失焦态 CSS 级联确实覆盖 CodeMirror 默认规则
+    const layer = container.querySelector('.cm-selectionLayer') as HTMLElement;
+    expect(layer).not.toBeNull();
+    let selectionEl = layer.querySelector('.cm-selectionBackground') as HTMLElement | null;
+    if (!selectionEl) {
+      selectionEl = document.createElement('div');
+      selectionEl.className = 'cm-selectionBackground';
+      layer.appendChild(selectionEl);
+    }
+    const normalizeColor = (value: string) => value.replace(/\s+/g, '').toLowerCase();
+    const focusedBg = normalizeColor(getComputedStyle(selectionEl).backgroundColor);
+    expect(focusedBg).toBe('rgba(120,135,245,0.26)');
+    expect(focusedBg).not.toBe('#d7d4f0');
+    expect(focusedBg).not.toBe('rgb(215,212,240)');
+
+    act(() => {
+      outside.focus();
+      fireEvent.blur(editor.contentDOM);
+    });
+    await waitFor(() => {
+      expect(editor.dom.classList.contains('cm-focused')).toBe(false);
+    });
+    const unfocusedBg = normalizeColor(getComputedStyle(selectionEl).backgroundColor);
+    expect(unfocusedBg).toBe('rgba(120,135,245,0.16)');
+    expect(unfocusedBg).not.toBe('#d9d9d9');
+  } finally {
+    outside.remove();
+    rootStyle.removeProperty('--cd-accent-rgb');
+    rootStyle.removeProperty('--cd-color-accent-soft');
+  }
 });

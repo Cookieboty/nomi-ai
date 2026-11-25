@@ -441,7 +441,8 @@ func (s *SessionHistoryService) inspect(backend string, f historyFile) *util.Obj
 	switch backend {
 	case "claude":
 		head := shReadHead(f.Path, 128*1024)
-		info := agents.ParseClaudeSession(head, "")
+		tail, _, _ := shReadTailText(f.Path, nativeTitleTailBytes)
+		info := agents.ParseClaudeSession(head, tail)
 		for _, e := range agents.JsonlEvents(head, 200) {
 			if t := e.Get("type"); t == "user" || t == "assistant" {
 				if e.Get("isSidechain") == true {

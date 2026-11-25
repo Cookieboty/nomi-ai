@@ -52,6 +52,12 @@ export function fromChatMessage(m: ChatMessage): ConvMessage | null {
 
 function buildChat(m: ChatMessage): ConvMessage | null {
   if (m.role === 'system' || m.hidden) return null;
+  const label =
+    m.role === 'assistant'
+      ? m.runtimeBackend && m.runtimeBackend !== 'api' && m.runtimeBackend !== 'nomi'
+        ? ((ENDPOINT_NAME as Record<string, string>)[m.runtimeBackend] ?? m.runtimeBackend)
+        : ENDPOINT_NAME.nomi
+      : undefined;
   return {
     id: m.id,
     role: m.role,
@@ -63,7 +69,7 @@ function buildChat(m: ChatMessage): ConvMessage | null {
     ...(m.origin ? { origin: m.origin } : {}),
     ...(m.durationMs !== undefined ? { durationMs: m.durationMs } : {}),
     ...(m.usage ? { usage: m.usage } : {}),
-    ...(m.role === 'assistant' ? { label: ENDPOINT_NAME.nomi } : {}),
+    ...(label ? { label } : {}),
     ...(m.role === 'assistant' && m.modelId ? { model: m.modelId } : {}),
     ...(m.role === 'assistant' && m.responseModel ? { responseModel: m.responseModel } : {}),
     raw: m,

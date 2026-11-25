@@ -9,7 +9,7 @@ import (
 
 // External opens websites/HTML in the browser and an allowlist of document/media
 // formats in their default applications. All local files keep workspace consent,
-// protected-directory, symlink and file-identity checks before reaching the shell.
+// symlink and file-identity checks before reaching the shell.
 func (s *Service) External(cwd, raw, home string, allowOutside bool) Result {
 	if len(raw) == 0 || len(raw) > 8192 || strings.IndexFunc(raw, unicode.IsControl) >= 0 {
 		return fail("invalid")
@@ -43,7 +43,7 @@ func (s *Service) External(cwd, raw, home string, allowOutside bool) Result {
 	if kindOf(raw) != "html" && !nativeFileKind(kindOf(raw)) {
 		return fail("invalid")
 	}
-	// Open checks symlinks, protected directories, file identity and explicit outside-file consent.
+	// Open checks symlinks, file identity and explicit outside-file consent.
 	result := s.Open(cwd, raw, home, allowOutside)
 	if !result.OK {
 		return result

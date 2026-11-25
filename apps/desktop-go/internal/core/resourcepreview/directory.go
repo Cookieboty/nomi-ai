@@ -44,9 +44,6 @@ func (s *Service) ListDirectory(url, input string) DirectoryResult {
 	if err != nil {
 		return fail("missing")
 	}
-	if s.denyReason(input) != "" || s.denyReason(path) != "" {
-		return fail("denied")
-	}
 	s.mu.Lock()
 	_, listed := cap.browseDirs[path]
 	s.mu.Unlock()
@@ -73,11 +70,8 @@ func (s *Service) ListDirectory(url, input string) DirectoryResult {
 	directories := []string{}
 	for _, entry := range items {
 		candidate := filepath.Join(path, entry.Name())
-		if s.denyReason(candidate) != "" {
-			continue
-		}
 		real, err := filepath.EvalSymlinks(candidate)
-		if err != nil || s.denyReason(real) != "" {
+		if err != nil {
 			continue
 		}
 		child, err := os.Stat(real)

@@ -258,16 +258,16 @@ describe('ModelControls', () => {
     expect(getByTestId('effort-default')).toBeTruthy();
   });
 
-  it('非推理模型（gpt-4.1）不显示滑杆，并说明当前模型无思考深度', async () => {
-    const { findByTestId, getByTestId, queryByTestId } = setup({
+  it('非推理模型（gpt-4.1）直接隐藏思考深度区块与滑杆', async () => {
+    const { findByTestId, queryByTestId } = setup({
       catalog,
       tabOver: { modelOverride: 'gpt-4.1' },
     });
     fireEvent.click(await findByTestId('model-chip'));
     expect(queryByTestId('effort-title')).toBeNull();
     expect(queryByTestId('effort-slider')).toBeNull();
-    expect(getByTestId('effort-unavailable')).toBeTruthy();
-    expect(getByTestId('effort-hint').textContent).toContain('当前模型无思考深度');
+    expect(queryByTestId('effort-unavailable')).toBeNull();
+    expect(queryByTestId('effort-hint')).toBeNull();
   });
 
   it('未知自定义模型仍显示滑杆，并在模型页标为当前', async () => {
@@ -820,8 +820,8 @@ describe('ModelControls', () => {
     fireEvent.click(await r.findByTestId('model-chip'));
     expect(r.queryByTestId('effort-title')).toBeNull();
     expect(r.queryByTestId('effort-slider')).toBeNull();
-    expect(r.getByTestId('effort-unavailable')).toBeTruthy();
-    expect(r.getByTestId('effort-hint').textContent).toContain('当前模型无思考深度');
+    expect(r.queryByTestId('effort-unavailable')).toBeNull();
+    expect(r.queryByTestId('effort-hint')).toBeNull();
   });
 
   it('读不到目录：只有默认，显示原因；刷新按钮让主进程重读', async () => {
@@ -832,7 +832,8 @@ describe('ModelControls', () => {
     fireEvent.click(await findByTestId('model-chip'));
     expect(queryByTestId('effort-slider')).toBeNull();
     expect(queryByTestId('effort-title')).toBeNull();
-    expect(getByTestId('effort-hint').textContent).toContain('当前模型无思考深度');
+    expect(queryByTestId('effort-unavailable')).toBeNull();
+    expect(queryByTestId('effort-hint')).toBeNull();
     fireEvent.click(getByTestId('model-open'));
     expect(getByTestId('model-error').textContent).toContain('not authenticated');
     expect(getByTestId('model-default')).toBeTruthy();
@@ -861,7 +862,7 @@ describe('ModelControls', () => {
     expect((await r.findByTestId('model-chip')).textContent).toContain('Opus 5.5');
     expect(r.queryByTestId('model-chip-loading')).toBeNull();
   });
-  it('Gemini：无文档化思考深度控制，浮层禁用档位并说明原因', async () => {
+  it('Gemini：无文档化思考深度控制，直接隐藏思考深度区块且不在模型页显示占位提示', async () => {
     const geminiCatalog: BackendModelCatalog = {
       backend: 'gemini',
       defaultModel: {
@@ -885,13 +886,13 @@ describe('ModelControls', () => {
     });
     fireEvent.click(await findByTestId('model-chip'));
     expect(queryByTestId('effort-slider')).toBeNull();
-    expect(getByTestId('effort-unavailable')).toBeTruthy();
-    expect(getByTestId('effort-hint').textContent).toMatch(/Gemini.*思考深度|不会假装/);
+    expect(queryByTestId('effort-unavailable')).toBeNull();
+    expect(queryByTestId('effort-hint')).toBeNull();
     fireEvent.click(getByTestId('model-open'));
-    expect(getByTestId('effort-hint').textContent).toMatch(/Gemini.*思考深度|不会假装/);
+    expect(queryByTestId('effort-hint')).toBeNull();
   });
 
-  it('dsh：无文档化思考深度控制，浮层禁用档位并说明原因', async () => {
+  it('dsh：无文档化思考深度控制，直接隐藏思考深度区块', async () => {
     const dshCatalog: BackendModelCatalog = {
       backend: 'dsh',
       defaultModel: {
@@ -902,14 +903,14 @@ describe('ModelControls', () => {
       },
       models: [{ id: 'deepseek-v4', label: 'DeepSeek V4', reasoning: true, efforts: ['medium'] }],
     };
-    const { findByTestId, getByTestId, queryByTestId } = setup({
+    const { findByTestId, queryByTestId } = setup({
       catalog: dshCatalog,
       tabOver: { backend: 'dsh', modelOverride: 'deepseek-v4' },
     });
     fireEvent.click(await findByTestId('model-chip'));
     expect(queryByTestId('effort-slider')).toBeNull();
-    expect(getByTestId('effort-unavailable')).toBeTruthy();
-    expect(getByTestId('effort-hint').textContent).toMatch(/dsh.*思考深度|不会假装/);
+    expect(queryByTestId('effort-unavailable')).toBeNull();
+    expect(queryByTestId('effort-hint')).toBeNull();
   });
 });
 

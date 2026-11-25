@@ -266,6 +266,7 @@ export const GatewayProviderInput = loose({
 
 export const GatewayDetectInput = z.object({
   providerId: z.string().optional(),
+  presetId: z.string().optional(),
   url: z.string().optional(),
   urls: WireUrls.optional(),
   keys: z.array(z.string()).optional(),
@@ -650,6 +651,7 @@ const ConversationMessages = z.array(opaqueObject);
 const ConversationSource = z.string().max(64).optional();
 
 export const ConversationsState = loose({
+  managed: z.array(ConversationId).optional(),
   /** 按视图的顺序（新建的在末尾） */
   conversations: z.array(z.looseObject({ id: z.string() })),
   /** 第一条用户消息的预览（侧栏搜索用） */

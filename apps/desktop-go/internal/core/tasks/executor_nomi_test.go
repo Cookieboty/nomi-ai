@@ -186,18 +186,18 @@ func TestNomiExecutorLargeUsageKeepsRunning(t *testing.T) {
 
 func TestClassifyError(t *testing.T) {
 	for msg, code := range map[string]string{
-		"HTTP 429":                                      "upstream_transient",
-		"upstream 503":                                  "upstream_transient",
-		"error_during_execution: 529 Overloaded":        "upstream_transient",
-		"ACP 请求超时":                                    "upstream_transient",
-		"read: connection reset by peer":                "network",
-		"stream disconnected before completion":         "network",
-		"RPC connection closed":                         "network",
-		"error_during_execution":                        "executor_crashed",
-		"error_max_turns":                               "executor_crashed",
-		"The codex process exited":                      "executor_crashed",
-		"dsh 退出码 1":                                     "executor_crashed",
-		"grok exited with code 1":                       "executor_crashed",
+		"HTTP 429":                               "upstream_transient",
+		"upstream 503":                           "upstream_transient",
+		"error_during_execution: 529 Overloaded": "upstream_transient",
+		"ACP 请求超时":                               "upstream_transient",
+		"read: connection reset by peer":         "network",
+		"stream disconnected before completion":  "network",
+		"RPC connection closed":                  "network",
+		"error_during_execution":                 "executor_crashed",
+		"error_max_turns":                        "executor_crashed",
+		"The codex process exited":               "executor_crashed",
+		"dsh 退出码 1":                              "executor_crashed",
+		"grok exited with code 1":                "executor_crashed",
 		"无法启动 Kimi Code 的 ACP 会话：进程已退出":                 "executor_crashed",
 		"couldn't start an ACP session":                 "executor_crashed",
 		"empty_result":                                  "executor_crashed",
@@ -297,13 +297,13 @@ func TestNomiExecutorRetriesCarryProgressAndRecoverEmptyResult(t *testing.T) {
 
 func TestBuildPromptEvents(t *testing.T) {
 	ctx := AttemptContext{Task: Task{Title: "t", Goal: "g"}, Attempt: Attempt{Cause: AttemptCause{Kind: "event"}}}
-	msgs := BuildPrompt(ctx, "", 0, []SourceEvent{{Key: "k", Summary: "新文件：a.txt", Payload: map[string]any{"file": "a.txt"}}})
+	msgs := BuildPrompt(ctx, "", 0, []SourceEvent{{Key: "k", Summary: "新文件：a.txt", Payload: map[string]any{"file": "a.txt"}}}, nil)
 	sys := msgs[0].Content
 	if !strings.Contains(sys, "触发这次运行的事件（1 件") || !strings.Contains(sys, "1. 新文件：a.txt\n{\"file\":\"a.txt\"}") ||
 		!strings.Contains(sys, "</events>") {
 		t.Fatal(sys)
 	}
-	if EventsSection(nil) != "" || strings.Contains(BuildPrompt(ctx, "", 0, nil)[0].Content, "<events>") {
+	if EventsSection(nil) != "" || strings.Contains(BuildPrompt(ctx, "", 0, nil, nil)[0].Content, "<events>") {
 		t.Fatal("empty events should add nothing")
 	}
 }
@@ -391,4 +391,51 @@ func TestNomiExecutorLiveGrant(t *testing.T) {
 		t.Fatal("revoked grant still live")
 	}
 	close(release)
+}
+
+func TestNomiExecutorExplicitModelAndEffort(t *testing.T) {
+	var readyRoles, routeRoles []string
+	var gotExtra map[string]any
+	exec := NewNomiExecutor(NomiDeps{
+		AgentStream: func(_ context.Context, _ []blm.ChatMessage, _ []string, extra map[string]any, emit func(blm.ChatChunk)) error {
+			gotExtra = extra
+			emit(blm.ChatChunk{Type: "delta", Content: "完成"})
+			return nil
+		},
+		ReadyFor: func(role string) bool {
+			readyRoles = append(readyRoles, role)
+			return role == "model:pb/mb"
+		},
+		RouteFor: func(role string) (string, string) {
+			routeRoles = append(routeRoles, role)
+			return "pb", "mb"
+		},
+	})
+	n := 0
+	rt := NewRuntime(RuntimeDeps{
+		Store: newMemStoreSafe(), Executors: map[string]Executor{"nomi": exec},
+		Now: func() int64 { return 1_800_000_000_000 }, SetTimer: func(func(), int64) func() { return func() {} },
+		NewID: func(p string) string { n++; return fmt.Sprintf("%s_%d", p, n) }, Log: &nopLog{},
+	})
+	rt.Start()
+	tools := []string{"read"}
+	id := rt.Create(CreateInput{
+		Title: "t", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools, Model: sp("pb/mb"), ReasoningEffort: sp("high")},
+		Grant:    Grant{Level: 1}, Acceptance: "auto",
+	}).ID
+	rt.Command(id, Command{Type: "runNow"})
+	waitFor(t, func() bool { return rt.Get(id).Task.Status == StatusDone })
+	rec := rt.Get(id)
+	snap := rec.Attempts[len(rec.Attempts)-1].Snapshot
+	if snap.ProviderID == nil || *snap.ProviderID != "pb" || snap.Model == nil || *snap.Model != "mb" ||
+		snap.ReasoningEffort == nil || *snap.ReasoningEffort != "high" {
+		t.Fatalf("unexpected snapshot: %+v", snap)
+	}
+	if len(readyRoles) == 0 || readyRoles[0] != "model:pb/mb" || len(routeRoles) == 0 || routeRoles[0] != "model:pb/mb" {
+		t.Fatalf("unexpected roles ready=%v route=%v", readyRoles, routeRoles)
+	}
+	if gotExtra["taskModel"] != "pb/mb" || gotExtra["reasoningEffort"] != "high" {
+		t.Fatalf("unexpected extra passed to AgentStream: %+v", gotExtra)
+	}
 }

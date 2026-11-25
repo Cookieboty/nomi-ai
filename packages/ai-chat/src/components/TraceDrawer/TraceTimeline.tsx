@@ -156,7 +156,11 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({
   }
 
   return (
-    <div className={styles.timelineRoot} data-testid="trace-timeline-view" onKeyDown={handleKeyDown}>
+    <div
+      className={styles.timelineRoot}
+      data-testid="trace-timeline-view"
+      onKeyDown={handleKeyDown}
+    >
       <div className={styles.timelineTopBar}>
         <div className={styles.segmented} role="group" aria-label={t('ui.model-quality.timeline')}>
           <button
@@ -225,15 +229,25 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({
                   >
                     <Icon icon={isTurnCollapsed ? ChevronRight : ChevronDown} size={14} />
                     <span className={styles.turnDividerTitle}>{turn.label}</span>
-                    {lane && lane.id !== 'main' && (
-                      <Badge tone="neutral">{lane.name}</Badge>
-                    )}
+                    {lane && lane.id !== 'main' && <Badge tone="neutral">{lane.name}</Badge>}
                     {turn.switchedFromModel && turn.model ? (
-                      <span className={styles.turnSwitchPill} data-testid="timeline-model-switch">
+                      <span
+                        className={styles.turnSwitchPill}
+                        data-testid="timeline-model-switch"
+                        title={t(
+                          'ui.devtools.model-switch-from-to',
+                          turn.switchedFromModel,
+                          turn.model,
+                        )}
+                      >
                         {t('ui.devtools.model-switch-from-to', turn.switchedFromModel, turn.model)}
                       </span>
                     ) : (
-                      turn.model && <span className={styles.turnModelPill}>{turn.model}</span>
+                      turn.model && (
+                        <span className={styles.turnModelPill} title={turn.model}>
+                          {turn.model}
+                        </span>
+                      )
                     )}
                     {turn.modelAudit && turn.modelAudit.verdict !== 'unverified' && (
                       <AuditBadge
@@ -307,9 +321,7 @@ export const TraceTimeline: React.FC<TraceTimelineProps> = ({
                               }
                             >
                               <Icon
-                                icon={
-                                  collapsedSubagents.has(node.id) ? ChevronRight : ChevronDown
-                                }
+                                icon={collapsedSubagents.has(node.id) ? ChevronRight : ChevronDown}
                                 size={13}
                               />
                             </button>

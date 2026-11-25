@@ -38,7 +38,7 @@ export function retainMarkdownParser() {
     if (!consumers) idle = setTimeout(dispose, 10_000);
   };
 }
-export function cachedMarkdown(text: string, editable: boolean) {
+export function cachedMarkdown(text: string, editable: boolean): PreviewMarkdownTree | undefined {
   return cached?.text === text && cached.editable === editable ? cached.tree : undefined;
 }
 export function prepareMarkdown(text: string, editable: boolean): Promise<PreviewMarkdownTree> {

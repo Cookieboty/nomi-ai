@@ -40,6 +40,7 @@ export const manifest: CliManifest = {
   },
   modelSwitch: 'restart',
   clientSpec: { client: 'kimi' },
+  branding: { modelBrand: 'kimi' },
   configPath: '~/.kimi-code/config.toml',
   host: {
     minNode: 22,

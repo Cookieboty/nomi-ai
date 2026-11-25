@@ -26,6 +26,7 @@ import { isConversationBackend } from '../types/chat';
 import {
   isConversationNotFound,
   isPermanentWriteError,
+  isManagedWriteError,
   type ConversationKernel,
   type ConversationMeta,
   type ConversationSnapshot,
@@ -196,6 +197,16 @@ export class ConversationStore {
   private readonly loads = new Map<string, Promise<ChatMessage[]>>();
   private readonly offKernel: () => void;
   private disposed = false;
+  private managed = new Set<string>();
+  isManaged(id: string): boolean {
+    return this.managed.has(id);
+  }
+  async refreshManaged(id: string): Promise<void> {
+    await this.refreshFromKernel([id]);
+  }
+  private assertViewWritable(id: string): void {
+    if (this.isManaged(id)) throw new Error(t('ui.chat-settings.managed-view-write'));
+  }
   /** 新 Nomi 对话没指定工作区时用的目录（IPCClient 注入主标签当前的目录；缺省没有） */
   /** 新 Nomi 对话没指定项目时用哪个：当前 Nomi 对话的项目（接着在同一个项目里聊） */
   defaultNomiProject = (): string | undefined => {
@@ -225,6 +236,7 @@ export class ConversationStore {
   }
 
   private applySnapshot(s: ConversationSnapshot | undefined): void {
+    this.managed = new Set(s?.managed ?? []);
     // 旧版无 backend 的行 → nomi；非法 backend 也回退 nomi（只在内存里改，下次写元信息时落盘）
     this.index = (s?.conversations ?? []).map((c) =>
       isConversationBackend(c.backend) ? c : { ...c, backend: 'nomi' as const },
@@ -544,6 +556,7 @@ export class ConversationStore {
   }
 
   setMessages(id: string, messages: ChatMessage[]): void {
+    this.assertViewWritable(id);
     if (!this.get(id)) return;
     const next = messages.slice(-this.maxMessages);
     this.remember(id, next, approxChars(next));
@@ -556,6 +569,7 @@ export class ConversationStore {
 
   append(message: ChatMessage, id: string | undefined = this.currentId()): void {
     if (!id || !this.get(id)) return;
+    this.assertViewWritable(id);
     const cached = this.messagesCache.get(id) ?? (this.kernel ? undefined : this.getMessages(id));
     let preview: { preview?: string };
     if (cached) {
@@ -588,6 +602,7 @@ export class ConversationStore {
    */
   async upsert(message: ChatMessage, id: string | undefined = this.currentId()): Promise<void> {
     if (!id || !this.get(id)) return;
+    this.assertViewWritable(id);
     let cached = this.messagesCache.get(id) ?? (this.kernel ? undefined : this.getMessages(id));
     if (!cached && this.kernel) {
       try {
@@ -617,6 +632,7 @@ export class ConversationStore {
     afterId?: string,
   ): Promise<void> {
     if (!id || !this.get(id)) return;
+    this.assertViewWritable(id);
     const cached = await this.cachedOrLoaded(id);
     // 会话在加载期间被删了
     if (!cached || !this.get(id)) return;
@@ -637,6 +653,7 @@ export class ConversationStore {
   /** 按 id 删掉一条（不存在什么都不做） */
   async removeMessage(messageId: string, id: string | undefined = this.currentId()): Promise<void> {
     if (!id || !this.get(id)) return;
+    this.assertViewWritable(id);
     const cached = await this.cachedOrLoaded(id);
     if (!cached || !this.get(id)) return;
     const next = cached.filter((m) => m.id !== messageId);
@@ -659,6 +676,7 @@ export class ConversationStore {
 
   /** 追加一条但不推进更新时间、不改标题（中途插入的消息不是新的一轮） */
   private appendQuiet(message: ChatMessage, id: string): void {
+    this.assertViewWritable(id);
     const cached = this.messagesCache.get(id);
     let preview: { preview?: string };
     if (cached) {
@@ -688,6 +706,7 @@ export class ConversationStore {
    * 普通的一轮只会追加。
    */
   private replaceMessages(id: string, messages: ChatMessage[]): void {
+    this.assertViewWritable(id);
     const next = messages.slice(-this.maxMessages);
     this.remember(id, next, approxChars(next));
     this.counts.set(id, next.length);
@@ -707,6 +726,7 @@ export class ConversationStore {
     id: string,
     patch: Partial<Omit<ConversationMeta, 'id' | 'createdAt'>>,
   ): ConversationMeta {
+    this.assertViewWritable(id);
     let updated: ConversationMeta | undefined;
     this.index = this.index.map((c) => {
       if (c.id !== id) return c;
@@ -823,17 +843,26 @@ export class ConversationStore {
       archivedAt: archived ? this.now() : undefined,
       updatedAt: meta.updatedAt,
     });
-    if (archived && this.current === id) {
-      const next = this.index
-        .filter((c) => c.backend === meta.backend && c.id !== id && !c.archivedAt)
-        .reduce<ConversationMeta | undefined>(
-          (acc, c) => (!acc || c.updatedAt > acc.updatedAt ? c : acc),
-          undefined,
-        );
-      if (next)
-        this.setPointers(next.id, next.backend === 'nomi' && !next.tabId ? next.id : undefined);
-      else this.setPointers(null, undefined);
+    if (archived) {
+      this.advanceFromArchived(id);
+      return;
     }
+    notifyConversationsChanged();
+  }
+
+  /** 托管会话在内核已归档时，将当前会话指针推进到同端最近未归档会话（无剩余时置空） */
+  advanceFromArchived(id: string): void {
+    const meta = this.get(id);
+    if (!meta || !meta.archivedAt || this.current !== id) return;
+    const next = this.index
+      .filter((c) => c.backend === meta.backend && c.id !== id && !c.archivedAt)
+      .reduce<ConversationMeta | undefined>(
+        (acc, c) => (!acc || c.updatedAt > acc.updatedAt ? c : acc),
+        undefined,
+      );
+    if (next)
+      this.setPointers(next.id, next.backend === 'nomi' && !next.tabId ? next.id : undefined);
+    else this.setPointers(null, undefined);
     notifyConversationsChanged();
   }
 
@@ -1008,7 +1037,13 @@ export class ConversationStore {
           attempt--;
           continue;
         }
+        if (id && isManagedWriteError(e)) {
+          this.managed.add(id);
+          this.forget(id);
+          this.pendingRefresh = [...(this.pendingRefresh ?? []), id];
+        }
         if (isPermanentWriteError(e)) {
+          if (id && name === 'delete') this.pendingRefresh = [...(this.pendingRefresh ?? []), id];
           // 重试也没用（被拒收）：不再重试，记下并提示
           log.error('conversation write rejected', { name, id, error });
           this.notifyWriteFailure();

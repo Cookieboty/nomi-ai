@@ -9,7 +9,7 @@ import type {
   RunnerEffort,
 } from '../../services/delegateClient';
 import type { GatewayState } from '../../services/gatewayClient';
-import { thirdPartyOnly } from '../../utils/cliCaps';
+import { localOnly, thirdPartyOnly } from '../../utils/cliCaps';
 import type { RunnerSpecValue } from '../RunnerModelPicker';
 
 export interface ScheduledCustomTarget {
@@ -93,7 +93,15 @@ export function resolveTaskCliSelection(params: {
       ? `${gateway.providers[0].id}/${gateway.providers[0].models[0].id}`
       : null);
   let initialCustomSpec: RunnerSpecValue;
-  if (thirdPartyOnly(baseCli)) {
+  if (localOnly(baseCli)) {
+    initialCustomSpec = {
+      cli: baseCli,
+      source: 'local',
+      accountId: null,
+      model: null,
+      reasoningEffort: null,
+    };
+  } else if (thirdPartyOnly(baseCli)) {
     initialCustomSpec = {
       cli: baseCli,
       source: 'thirdParty',

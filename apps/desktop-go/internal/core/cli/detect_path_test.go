@@ -311,3 +311,21 @@ func TestFindOnPathTargetPOSIXUsesPOSIXSeparators(t *testing.T) {
 		}
 	}
 }
+
+func TestCliSearchDirsIncludesAntigravityWindowsBin(t *testing.T) {
+	home := filepath.Join("C:", "Users", "alice")
+	localAppData := filepath.Join(home, "AppData", "Local")
+	env := util.NewObj("USERPROFILE", home, "LOCALAPPDATA", localAppData)
+	dirs := CliSearchDirs(home, "win32", env)
+	want := filepath.Join(localAppData, "agy", "bin")
+	found := false
+	for _, d := range dirs {
+		if d == want {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("CliSearchDirs win32 = %v, want to include %q", dirs, want)
+	}
+}

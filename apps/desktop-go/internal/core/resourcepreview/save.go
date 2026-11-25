@@ -56,7 +56,7 @@ func (s *Service) Save(url, revision, content string) SaveResult {
 	}
 	root := desktop.CheckWorkspaceRoot(cap.editRoot, desktop.WorkspaceEnv{Home: cap.home, Platform: platform(), DenyRoots: s.DenyRoots})
 	real, err := filepath.EvalSymlinks(cap.path)
-	if !root.OK || err != nil || real != cap.path || !desktop.IsInside(real, root.Real, platform()) || s.denyReason(real) != "" {
+	if !root.OK || err != nil || real != cap.path || !desktop.IsInside(real, root.Real, platform()) {
 		return saveFail("denied")
 	}
 	info, err := os.Stat(real)

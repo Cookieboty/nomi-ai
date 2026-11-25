@@ -81,6 +81,12 @@ function memoizedSnapshot<T>(
   };
 }
 
+const NOOP_SUBSCRIBE = () => () => undefined;
+const EMPTY_STORE: AiChatStore = {
+  get: () => undefined as unknown as AiChatState,
+  subscribe: NOOP_SUBSCRIBE,
+};
+
 /**
  * Subscribe to a slice of chat state. Rerenders only when `isEqual(prev, next)` is false.
  * Pass a module-level (stable) selector; an inline one works but is re-run on every render.
@@ -93,6 +99,31 @@ export function useAiChatSelector<T>(
   const getSnapshot = useMemo(
     () => memoizedSnapshot(store, selector, isEqual),
     [store, selector, isEqual],
+  );
+  return useSyncExternalStore(store.subscribe, getSnapshot, getSnapshot);
+}
+
+/** 可选订阅对话状态：没有 AiChatContextProvider（独立渲染控件 / 单元测试）时返回 undefined 而非抛错。 */
+export function useOptionalAiChatSelector<T>(
+  selector: (s: AiChatState) => T,
+  isEqual: (a: T, b: T) => boolean = Object.is,
+): T | undefined {
+  const ctx = useContext(AiChatStoreContext);
+  let legacyState: AiChatState | undefined;
+  if (!ctx) {
+    try {
+      legacyState = legacyAiChat().state;
+    } catch {
+      legacyState = undefined;
+    }
+  }
+  const store = ctx?.store ?? EMPTY_STORE;
+  const getSnapshot = useMemo(
+    () =>
+      ctx
+        ? memoizedSnapshot(ctx.store, selector, isEqual)
+        : () => (legacyState !== undefined ? selector(legacyState) : undefined),
+    [ctx, legacyState, selector, isEqual],
   );
   return useSyncExternalStore(store.subscribe, getSnapshot, getSnapshot);
 }
