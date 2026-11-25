@@ -33,7 +33,7 @@ func TestPreviewFileCapabilitiesAndRange(t *testing.T) {
 		t.Fatal("revoked capability remained valid")
 	}
 }
-func TestPreviewOutsideRequiresFileConsentAndRejectsSensitiveFiles(t *testing.T) {
+func TestPreviewOutsideRequiresFileConsentAndAllowsSensitiveFiles(t *testing.T) {
 	dir := t.TempDir()
 	inside := filepath.Join(dir, "project")
 	_ = os.Mkdir(inside, 0700)
@@ -43,14 +43,29 @@ func TestPreviewOutsideRequiresFileConsentAndRejectsSensitiveFiles(t *testing.T)
 	if r := s.Open(inside, p, "/nonexistent-home", false); r.Code != "authorization" {
 		t.Fatalf("outside: %+v", r)
 	}
-	if r := s.Open(inside, p, "/nonexistent-home", true); !r.OK {
+	if r := s.Open(inside, p, "/nonexistent-home", true); !r.OK || r.Editable {
 		t.Fatalf("explicit file consent: %+v", r)
 	}
 	secret := filepath.Join(dir, ".ssh", "id_rsa")
 	_ = os.Mkdir(filepath.Dir(secret), 0700)
 	_ = os.WriteFile(secret, []byte("private"), 0600)
-	if r := s.Open(inside, secret, "/nonexistent-home", true); r.Code != "denied" {
-		t.Fatalf("protected file: %+v", r)
+	if r := s.Open(inside, secret, "/nonexistent-home", false); r.Code != "authorization" {
+		t.Fatalf("outside sensitive file without consent: %+v", r)
+	}
+	if r := s.Open(inside, secret, "/nonexistent-home", true); !r.OK || r.Editable || r.Content != "private" {
+		t.Fatalf("outside sensitive file with consent: %+v", r)
+	}
+	dotenv := filepath.Join(inside, ".env")
+	_ = os.WriteFile(dotenv, []byte("TOKEN=1\n"), 0600)
+	envRes := s.Open(inside, dotenv, "/nonexistent-home", false)
+	if !envRes.OK || !envRes.Editable || envRes.Content != "TOKEN=1\n" {
+		t.Fatalf("workspace .env file: %+v", envRes)
+	}
+	if saved := s.Save(envRes.URL, envRes.Revision, "TOKEN=2\n"); !saved.OK {
+		t.Fatalf("save workspace .env: %+v", saved)
+	}
+	if b, _ := os.ReadFile(dotenv); string(b) != "TOKEN=2\n" {
+		t.Fatalf("saved .env disk content: %q", b)
 	}
 }
 func TestPreviewSymlinkEscapeAndReplacement(t *testing.T) {

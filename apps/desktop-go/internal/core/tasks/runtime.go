@@ -14,8 +14,10 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/schedule"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/sidechat"
 )
 
 const (
@@ -25,6 +27,8 @@ const (
 	DefaultMaxStartsPerHour   = 30
 	DefaultGrantMs            = int64(30 * 86_400_000)
 	maxSleepMs                = int64(60_000)
+	// CleanupWait：停掉执行者之后最多等它退出多久（执行者协程里出错时可能不等上下文就退出）
+	CleanupWait = 2 * time.Second
 )
 
 func DefaultBudget() Budget {
@@ -154,6 +158,10 @@ type Command struct {
 type CmdResult struct {
 	OK     bool   `json:"ok"`
 	Reason string `json:"reason,omitempty"`
+	// Settled：已经落定的合法等待（如接管时任务本来就在排队），不算失败
+	Settled bool `json:"-"`
+	// Gen：取得名额时这次尝试的执行编号（执行者按它停）；没取得名额不进 Started 的是 0
+	Gen int `json:"-"`
 }
 
 type queued struct {
@@ -171,7 +179,9 @@ type Runtime struct {
 	// admit：开始执行前的放行判断（SetAdmit；只在持有者里读写）
 	admit func(t Task) bool
 
-	recs        map[string]*Record
+	recs map[string]*Record
+	// from：被前台转后台接管的待跑是哪个来源发起的（按来源会话区分）；内存态，不落盘
+	from        map[string]string
 	order       []string // 任务插入顺序（Map 遍历顺序）
 	slots       map[string]bool
 	slotOrder   []string // 占名额先后（Set 遍历顺序）
@@ -187,6 +197,12 @@ type Runtime struct {
 	prepFailed  map[string]TaskError
 	cancelTimer func()
 	started     bool
+	// cleanupNeeded / cleanupDone：要停掉执行者的那一刻（attempt 不再可能在跑）到执行者真正结束。
+	// 只有从这种被自己停下、结果不再落盘的执行里发不出的落盘才算落定，#419
+	cleanupNeeded map[string]bool
+	cleanupDone   map[string]chan struct{}
+	// activeGen：最近一次启动的执行编号（mu 保护；先后顺序有持有者，执行者的迟到退出不持持有者）
+	activeGen map[string]int
 	// 调度策略（SetMaxConcurrent，Agent 看板）：> 0 时覆盖 RuntimeDeps 里的上限
 	limitConcurrent atomic.Int32
 	// running：占着名额的任务数（len(slots)），给委派那边合计上限用（不用拿锁）
@@ -225,7 +241,8 @@ func (r *Runtime) SetMaxConcurrent(n int) {
 
 func NewRuntime(d RuntimeDeps) *Runtime {
 	return &Runtime{d: d, recs: map[string]*Record{}, slots: map[string]bool{}, beats: map[string]int64{},
-		prepFailed: map[string]TaskError{}}
+		from: map[string]string{}, prepFailed: map[string]TaskError{},
+		cleanupNeeded: map[string]bool{}, cleanupDone: map[string]chan struct{}{}, activeGen: map[string]int{}}
 }
 
 func (r *Runtime) max() int {
@@ -341,10 +358,18 @@ func without(xs []string, id string) []string {
 	return out
 }
 
-// save：落盘成功才更新内存。失败时内存保持旧状态，调用方不得继续发布新状态或执行副作用（#237）
+// save：落盘成功才更新内存。失败时内存保持旧状态，调用方不得继续发布新状态或执行副作用（#237）。
+// 例外：停止已启动的执行者之后的落盘（等它退出）失败时，这份结果本来就不会再发布（内存里已是旧状态、
+// 执行者的流还在跑），按已落定处理：否则每次 Stop / 取消都会留下半截状态（#419）
 func (r *Runtime) save(rec Record) error {
 	saved, err := r.d.Store.Save(rec)
 	if err != nil {
+		if settle := r.awaitingCleanup(rec.Task.ID); settle != nil {
+			r.mu.Lock()
+			close(settle)
+			r.mu.Unlock()
+			return nil
+		}
 		r.d.Log.Warn("任务保存失败", "id", rec.Task.ID, "error", err.Error())
 		return err
 	}
@@ -389,6 +414,9 @@ func (r *Runtime) Start() {
 	})
 }
 
+// Stop：停定时器、标记未启动。只停调度，不改任何任务状态：
+// 进程中途退出时正在跑的任务要原样留在盘上（开放的外部动作由重启后的对账接手），
+// 不能当作用户取消落盘（那会让重启后找不到对账的 done / NeedsReconcile）
 func (r *Runtime) Stop() {
 	r.ownerMu.Lock()
 	defer r.ownerMu.Unlock()
@@ -397,6 +425,415 @@ func (r *Runtime) Stop() {
 		r.cancelTimer = nil
 	}
 	r.started = false
+}
+
+// ---------- 执行者清理（停止已启动的执行者） ----------
+
+// withAttempt：持 ownerMu 拿到这个任务当前的执行编号（正在跑的尝试；别的状态是任务级编号）
+func (r *Runtime) withAttempt(id string, fn func(gen int, running bool)) {
+	r.ownerMu.Lock()
+	defer r.ownerMu.Unlock()
+	rec := r.recs[id]
+	if rec == nil {
+		fn(0, false)
+		return
+	}
+	fn(r.genOf(id), rec.Task.Status == StatusRunning)
+}
+
+// ReleaseUnstarted：EnsureStarted 的启动态没落盘、这次接管作废。gen > 0 时按作废的那次尝试的编号停掉已经启动的
+// 执行者并把任务放回 idle；gen == 0 时任务还在跑就按当前的执行编号停、还在排队就放回 idle（不留痕迹，重试接着用
+// 同一个任务身份）。返回的 await：等执行者真正停下（这才是删附件、收拾目录的时机），没在跑的立即返回。
+// 状态已经落定（停执行者 / 放回 idle 已落盘）时 OK=false 只是说没落成，附件照常收拾；
+// 只有状态没动（比如停执行者那一步落盘失败）时的 Gen 才需要调用方再停一次（DiscardHandoffRun）
+func (r *Runtime) ReleaseUnstarted(id string, gen int) (res CmdResult, await func() bool) {
+	ready := make(chan struct{})
+	go func() {
+		defer close(ready)
+		r.own(func() { res, await = r.releaseUnstartedLocked(id, gen) })
+	}()
+	<-ready
+	return res, await
+}
+
+func (r *Runtime) releaseUnstartedLocked(id string, gen int) (CmdResult, func() bool) {
+	rec := r.recs[id]
+	if rec == nil {
+		return CmdResult{Reason: "not_found"}, func() bool { return true }
+	}
+	stop := func() (string, func() bool) {
+		g := r.genOf(id)
+		if gen > 0 {
+			g = gen
+		}
+		res := r.command(id, Command{Type: "cancel", Gen: &g})
+		return res.Reason, r.TrackCleanup(id)
+	}
+	switch rec.Task.Status {
+	case StatusRunning:
+		if reason, await := stop(); !isStopped(reason) {
+			return CmdResult{Reason: reason, Gen: r.genOf(id)}, await
+		}
+	case StatusQueued:
+		// 排队里还没跑起来：没有执行者要停，放回 idle
+		if res := r.command(id, Command{Type: "back_to_idle"}); !res.OK {
+			return res, func() bool { return true }
+		}
+		return CmdResult{OK: true}, func() bool { return true }
+	default:
+		// idle / 已结束 / 等验收：没有执行者在跑
+		return CmdResult{OK: true}, func() bool { return true }
+	}
+	rec = r.recs[id]
+	if rec == nil || rec.Task.Status != StatusCancelled {
+		return CmdResult{OK: true}, func() bool { return true }
+	}
+	// 停执行者已经落盘：放回 idle（重试接着用同一个任务身份）。这一步没落成时状态仍是 cancelled，附件照常收拾
+	if res := r.command(id, Command{Type: "back_to_idle"}); !res.OK {
+		return res, func() bool { return true }
+	}
+	return CmdResult{OK: true}, r.TrackCleanup(id)
+}
+
+// DiscardHandoffRun：接管 / 启动态已经作废：按这次尝试的编号停掉已经启动的执行者、回到 idle，并返回 await
+// （等执行者真正退出，这才是删附件的时机）。与 ReleaseUnstarted 相同：只停执行者、不往任务上留坏状态、
+// 不通知前台停流；执行者本来就没跑时立即返回。gen <= 0 时按当前的执行编号停
+func (r *Runtime) DiscardHandoffRun(id string, gen int) (res CmdResult, await func() bool) {
+	ready := make(chan struct{})
+	go func() {
+		defer close(ready)
+		r.own(func() { res, await = r.discardHandoffRunLocked(id, gen) })
+	}()
+	<-ready
+	return res, await
+}
+
+func (r *Runtime) discardHandoffRunLocked(id string, gen int) (CmdResult, func() bool) {
+	rec := r.recs[id]
+	if rec == nil {
+		return CmdResult{Reason: "not_found"}, func() bool { return true }
+	}
+	if rec.Task.Status == StatusQueued {
+		// 排队里还没跑起来：没有执行者要停，放回 idle
+		if res := r.command(id, Command{Type: "back_to_idle"}); !res.OK {
+			return res, func() bool { return true }
+		}
+		return CmdResult{OK: true}, func() bool { return true }
+	}
+	if rec.Task.Status != StatusRunning {
+		// idle / 已结束 / 等验收：没有执行者在跑
+		return CmdResult{OK: true}, func() bool { return true }
+	}
+	res := r.command(id, Command{Type: "cancel", Gen: ptr(r.genOf(id))})
+	if !res.OK && !isStopped(res.Reason) {
+		// 停执行者没落盘：状态没动，交给调用方按 Gen 再停一次
+		return CmdResult{Reason: res.Reason, Gen: r.genOf(id)}, r.TrackCleanup(id)
+	}
+	if rec := r.recs[id]; rec != nil && rec.Task.Status == StatusCancelled {
+		if res := r.command(id, Command{Type: "back_to_idle"}); !res.OK {
+			return res, func() bool { return true }
+		}
+	}
+	return CmdResult{OK: true}, r.TrackCleanup(id)
+}
+
+// isStopped：停执行者时这些理由不算落盘失败（本来就没在跑 / 已经结束了）
+func isStopped(reason string) bool {
+	return reason == "stale" || reason == "terminal" || reason == "illegal"
+}
+
+// TrackCleanup：停执行者的那一刻（状态已经落定、这次尝试不会再跑）：之后它的回报不算落盘失败。
+// 返回 await：等执行者真正退出（并且从它发起的落盘都处理完）；不等待时 Stop 完即可
+func (r *Runtime) TrackCleanup(id string) (await func() bool) {
+	ch := make(chan struct{})
+	r.mu.Lock()
+	r.cleanupNeeded[id] = true
+	r.cleanupDone[id] = ch
+	r.mu.Unlock()
+	return func() bool {
+		select {
+		case <-ch:
+			return true
+		case <-time.After(CleanupWait):
+			return false
+		}
+	}
+}
+
+// awaitingCleanup：这个任务正处於「执行者已停下、还在退出」的落盘：返回下一次要关闭的信号
+func (r *Runtime) awaitingCleanup(id string) chan struct{} {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.cleanupNeeded[id] {
+		return nil
+	}
+	if r.cleanupDone[id] == nil {
+		r.cleanupDone[id] = make(chan struct{})
+	}
+	return r.cleanupDone[id]
+}
+
+// ExecutorExited：执行者报告这次执行（gen）的协程退出了（执行者实现里自己调，别的 goroutine）：
+// 运行时据此知道之后的回报都不会再来
+func (r *Runtime) ExecutorExited(id string, gen int) {
+	r.mu.Lock()
+	cur, ok := r.activeGen[id]
+	r.mu.Unlock()
+	if ok && gen > 0 && cur != gen {
+		// 不是现在这次：之前那次的迟到退出，与现在的执行无关
+		return
+	}
+	r.executorExited(id)
+}
+
+// executorExited：执行者退出了（不管是从 Start 里同步停下还是之后才停）：停止之后迟到的回报也按已落定处理，
+// 然后忘掉这个任务（执行者退出后它不该再落盘）
+func (r *Runtime) executorExited(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.cleanupNeeded[id] {
+		return
+	}
+	if ch := r.cleanupDone[id]; ch != nil {
+		select {
+		case <-ch:
+		default:
+			close(ch)
+		}
+	}
+	delete(r.cleanupNeeded, id)
+	delete(r.cleanupDone, id)
+}
+
+// ---------- 前台转后台：接管（#413） ----------
+
+// Handoffable：能否把新的一轮前台（来源 key）接管到这个任务上。只有 idle / queued 可以：已经被接管过、
+// 正在跑或已结束的不能再被另一个来源接管
+func (r *Runtime) Handoffable(id, key string) bool {
+	r.ownerMu.Lock()
+	defer r.ownerMu.Unlock()
+	rec := r.recs[id]
+	if rec == nil {
+		return false
+	}
+	t := rec.Task
+	if t.Status != StatusIdle && t.Status != StatusQueued {
+		return false
+	}
+	// 被别的来源接管过的（来源与本次不同）：它的待跑是那个来源的，这里不能再当接管目标
+	if r.from[id] != "" && r.from[id] != key {
+		return false
+	}
+	return true
+}
+
+// legacyHandoffKey：旧版接管键是裸 reqId、新版是「来源会话|reqId」（落盘同一份）：同一轮取两种写法的短的那个比对
+func legacyHandoffKey(a, b string) bool {
+	short, long := a, b
+	if len(short) > len(long) {
+		short, long = long, short
+	}
+	if short == "" || !strings.HasSuffix(long, "|"+short) {
+		return false
+	}
+	return strings.Count(short, "|") == 0
+}
+
+// HandoffTakeover：把 idle 的任务登记为待跑，并在不再回到 idle 状态下重新落盘（#413）；
+// 已经在这个来源的队列里（queued 且来源一致）算合法排队：沿用原来的队位（Settled）。
+// 没落盘 = 没接管（状态与队列都不动）：调用方据此保留前台流。
+func (r *Runtime) HandoffTakeover(id, key string) CmdResult {
+	res := CmdResult{OK: true}
+	r.own(func() {
+		rec := r.recs[id]
+		if rec == nil {
+			res = CmdResult{Reason: "not_found"}
+			return
+		}
+		t := rec.Task
+		if t.Status == StatusQueued && r.from[id] == key {
+			res.Settled = true
+			return
+		}
+		if t.Status != StatusIdle {
+			res = CmdResult{Reason: "busy"}
+			return
+		}
+		// 走状态机登记待跑：idle → queued、落盘、排队（与手动重跑同一条路径：启停、授权过期等都在这里判）。
+		// 没落盘 = 没接管（状态与队列都不动）：调用方据此保留前台流
+		out := r.dispatch(id, Event{Type: "trigger", At: r.d.Now(), Cause: "manual"})
+		if !out.OK {
+			res = out
+			return
+		}
+		r.from[id] = key
+		if cur := r.recs[id]; cur != nil {
+			res.Settled = cur.Task.Status == StatusQueued
+			r.appendJ(id, JournalEntry{T: "state", At: r.d.Now(), Event: "handoff_takeover", From: StatusIdle, To: cur.Task.Status})
+		}
+		// 一登记就取得名额开跑（没排队）：待跑已经交出去了，来源占用随之结束，同一个来源重试走 ReopenHandoff
+		if cur := r.recs[id]; cur != nil && cur.Task.Status != StatusQueued {
+			delete(r.from, id)
+		}
+	})
+	return res
+}
+
+// ReopenHandoff：同一来源轮次重试，而原来那个任务已经跑完（快照里仍有这个来源轮次，进程重启后内存里的接管记录
+// 已经丢了）：把它放回 idle 原地重跑，不新建第二个任务身份。只有跑完 / 失败 / 取消 / 无结果结束过的可以（#413）；
+// 被别的来源接管着、等用户、对账中、归档了的不动
+func (r *Runtime) ReopenHandoff(id, key string) CmdResult {
+	res := CmdResult{Reason: "not_reopenable"}
+	r.own(func() {
+		rec := r.recs[id]
+		if rec == nil {
+			return
+		}
+		t := rec.Task
+		if t.ArchivedAt != nil || !ranBefore(t) {
+			return
+		}
+		// 待跑是别的来源的：不能当这次接管的目标
+		if r.from[id] != "" && r.from[id] != key && !legacyHandoffKey(r.from[id], key) {
+			return
+		}
+		now := r.d.Now()
+		prev := t.Status
+		t.Status, t.EndedAt, t.Wait, t.Pending = StatusIdle, nil, nil, nil
+		t.RetryCount, t.ConsecutiveFailures = 0, 0
+		t.UpdatedAt = now
+		if r.save(Record{Task: t, Attempts: rec.Attempts}) != nil {
+			res = CmdResult{Reason: "storage_error"}
+			return
+		}
+		r.from[id] = key
+		r.appendJ(id, JournalEntry{T: "state", At: now, Event: "handoff_reopen", From: prev, To: StatusIdle})
+		// 放回 idle 的这一刻来源占用就结束了：下一次接管（同一个来源或别处）都能把它捡起来
+		delete(r.from, id)
+		r.changed(r.recs[id].Task)
+		res = CmdResult{OK: true, Settled: true}
+	})
+	return res
+}
+
+// SetHandoffImages：接管时记下这一轮带过来的附图（随任务快照落盘，重新接管时沿用）；没落盘返回 false
+func (r *Runtime) SetHandoffImages(id string, files []string) bool {
+	ok := false
+	r.own(func() {
+		rec := r.recs[id]
+		if rec == nil {
+			return
+		}
+		t := rec.Task
+		ex := t.Executor
+		ex.Attachments = append([]string{}, files...)
+		t.Executor = ex
+		t.UpdatedAt = r.d.Now()
+		if r.save(Record{Task: t, Attempts: rec.Attempts}) != nil {
+			return
+		}
+		ok = true
+		r.changed(r.recs[id].Task)
+	})
+	return ok
+}
+
+// EnsureStarted：排队中的任务立即试一次取得名额（接管认启动态；没取得名额时它仍是合法排队）。
+// 没落盘的启动态由释放名额的逻辑退回 idle，这里报 OK=false，并把这次尝试的编号（Gen）带出去
+func (r *Runtime) EnsureStarted(id string) CmdResult {
+	res := CmdResult{OK: true, Settled: true}
+	r.own(func() { res = r.ensureStartedLocked(id) })
+	return res
+}
+
+// ensureStartedLocked：EnsureStarted 的本体，只在持有者里调用
+func (r *Runtime) ensureStartedLocked(id string) CmdResult {
+	rec := r.recs[id]
+	if rec == nil {
+		return CmdResult{Reason: "not_found"}
+	}
+	res := CmdResult{OK: true, Settled: true}
+	if rec.Task.Status != StatusQueued {
+		// 已经跑起来了：这次尝试的编号就是快照里的（执行者按它停）
+		res.Gen = r.genOf(id)
+		return res
+	}
+	if len(r.slots)+r.shared() >= r.max() || len(r.starts) >= r.maxStartsPerHour() {
+		return res
+	}
+	if r.admit != nil && !r.admit(rec.Task) {
+		return res
+	}
+	var snap ExecutionSnapshot
+	var perr *TaskError
+	if ex := r.executor(rec.Task); ex != nil {
+		snap, perr = ex.Prepare(rec.Task)
+	} else {
+		perr = &TaskError{Code: "executor_failed", Message: "no executor: " + rec.Task.Executor.Kind}
+	}
+	attemptID := r.d.NewID("att")
+	if perr != nil {
+		r.prepFailed[id] = *perr
+		snap = ExecutionSnapshot{GrantVersion: rec.Task.Grant.Version}
+	}
+	g := r.genOf(id)
+	out := r.dispatch(id, Event{Type: "slot_acquired", At: r.d.Now(), AttemptID: attemptID, Snapshot: &snap, Gen: &g})
+	delete(r.prepFailed, id)
+	if !out.OK && out.Reason == "storage_error" {
+		// 没落盘时状态没动，这次尝试的编号要带出去，调用方才停得掉已经启动的执行者
+		return CmdResult{OK: false, Reason: out.Reason, Settled: out.Settled, Gen: out.Gen}
+	}
+	// 被暂停 / 授权过期等拒掉：不是落盘问题，按合法等待算（状态已经落定）
+	return res
+}
+
+// genOf：当前这次尝试的执行编号（正在跑的是尝试上的编号；别的状态是任务级编号）。在持有者里调用
+func (r *Runtime) genOf(id string) int {
+	rec := r.recs[id]
+	if rec == nil {
+		return 0
+	}
+	if rec.Task.Status == StatusRunning {
+		if a := r.current(id); a != nil {
+			return a.Gen
+		}
+		return rec.Task.Gen
+	}
+	return rec.Task.Gen
+}
+
+func (r *Runtime) maxStartsPerHour() int {
+	if n := r.d.MaxStartsPerHour; n > 0 {
+		return n
+	}
+	return DefaultMaxStartsPerHour
+}
+
+// BackToIdle：接管的启动态没能落盘 / 已被别的状态取代时，把排队退回 idle（下次接管或手动重跑才再开始）
+func (r *Runtime) BackToIdle(id string) CmdResult {
+	res := CmdResult{OK: true}
+	r.own(func() { res = r.backToIdleLocked(id) })
+	return res
+}
+
+// backToIdleLocked：BackToIdle 的本体，只在持有者里调用
+func (r *Runtime) backToIdleLocked(id string) CmdResult {
+	rec := r.recs[id]
+	if rec == nil {
+		return CmdResult{Reason: "not_found"}
+	}
+	if rec.Task.Status != StatusQueued {
+		return CmdResult{OK: true}
+	}
+	at := r.d.Now()
+	t := rec.Task
+	t.Status, t.Pending, t.UpdatedAt = StatusIdle, nil, at
+	if r.save(Record{Task: t, Attempts: rec.Attempts}) != nil {
+		return CmdResult{Reason: "storage_error"}
+	}
+	delete(r.from, id)
+	r.changed(r.recs[id].Task)
+	return CmdResult{OK: true}
 }
 
 // ---------- 写 ----------
@@ -463,44 +900,52 @@ func (r *Runtime) CreateChecked(in CreateInput) (Task, error) {
 
 func (r *Runtime) Command(id string, c Command) CmdResult {
 	res := CmdResult{OK: true}
-	r.own(func() {
-		rec := r.recs[id]
-		if rec == nil {
-			res = CmdResult{Reason: "not_found"}
-			return
-		}
-		at := r.d.Now()
-		task := rec.Task
-		switch c.Type {
-		case "runNow":
-			res = r.trigger(id, "manual", "")
-		case "revoke":
-			res = r.dispatch(id, Event{Type: "grant_revoked", At: at})
-		case "grant":
-			g := Grant{}
-			if c.Grant != nil {
-				g = *c.Grant
-			}
-			if g.ExpiresAt == nil {
-				g.ExpiresAt = ptr(at + DefaultGrantMs)
-			}
-			if g.Paths == nil {
-				g.Paths = []string{}
-			}
-			if g.Connections == nil {
-				g.Connections = []ConnectionGrant{}
-			}
-			g.Version, g.GrantedAt = task.Grant.Version+1, at
-			res = r.dispatch(id, Event{Type: "grant_updated", At: at, Grant: &g})
-		default:
-			res = r.dispatch(id, Event{Type: c.Type, At: at, Gen: c.Gen, RequestID: c.RequestID,
-				Approve: c.Approve, Input: c.Input, Feedback: c.Feedback, Images: c.Images, Outcome: c.Outcome})
-		}
-	})
+	r.own(func() { res = r.command(id, c) })
 	return res
 }
 
-// Patch：改标题、目标、完成标准、验收方式、触发器、预算、重要程度、类型（不碰授权与状态）
+// command：Command 的本体，只在持有者里调用
+func (r *Runtime) command(id string, c Command) CmdResult {
+	res := CmdResult{OK: true}
+	rec := r.recs[id]
+	if rec == nil {
+		return CmdResult{Reason: "not_found"}
+	}
+	if c.Type == "back_to_idle" {
+		// 内部用：回到 idle 不落日志、按会话推送（就是 BackToIdle）
+		return r.backToIdleLocked(id)
+	}
+	at := r.d.Now()
+	task := rec.Task
+	switch c.Type {
+	case "runNow":
+		res = r.trigger(id, "manual", "")
+	case "revoke":
+		res = r.dispatch(id, Event{Type: "grant_revoked", At: at})
+	case "grant":
+		g := Grant{}
+		if c.Grant != nil {
+			g = *c.Grant
+		}
+		if g.ExpiresAt == nil {
+			g.ExpiresAt = ptr(at + DefaultGrantMs)
+		}
+		if g.Paths == nil {
+			g.Paths = []string{}
+		}
+		if g.Connections == nil {
+			g.Connections = []ConnectionGrant{}
+		}
+		g.Version, g.GrantedAt = task.Grant.Version+1, at
+		res = r.dispatch(id, Event{Type: "grant_updated", At: at, Grant: &g})
+	default:
+		res = r.dispatch(id, Event{Type: c.Type, At: at, Gen: c.Gen, RequestID: c.RequestID,
+			Approve: c.Approve, Input: c.Input, Feedback: c.Feedback, Images: c.Images, Outcome: c.Outcome})
+	}
+	return res
+}
+
+// Patch：改标题、目标、完成标准、验收方式、触发器、预算、重要程度、类型与执行模型配置（不碰授权与状态）
 type Patch struct {
 	Title      *string      `json:"title,omitempty"`
 	Goal       *string      `json:"goal,omitempty"`
@@ -511,6 +956,14 @@ type Patch struct {
 	// Priority / Category：没给 = 不改；null = 清除
 	Priority NullableString `json:"priority"`
 	Category NullableString `json:"category"`
+	// Model / ReasoningEffort / Source / AccountID / PresetID：没给 = 不改；null / "" = 清除
+	Model           NullableString `json:"model"`
+	ReasoningEffort NullableString `json:"reasoningEffort"`
+	Source          NullableString `json:"source"`
+	AccountID       NullableString `json:"accountId"`
+	PresetID        NullableString `json:"presetId"`
+	// ResolvedCli：CLI 任务脱离档位且未存 cli 时由 Service.Update 填充，不参与 JSON 序列化
+	ResolvedCli *string `json:"-"`
 }
 
 // NullableString：补丁里可清除的字段。Set = 键出现过；Value 为 nil 表示 null（清除）
@@ -606,6 +1059,98 @@ func (r *Runtime) Patch(id string, p Patch) *Task {
 			keys = append(keys, "trigger")
 			t.Trigger = *p.Trigger
 			t.NextRunAt = r.firstRunAt(t, now)
+		}
+		if t.Executor.Kind == "nomi" {
+			if p.Model.Set {
+				if p.Model.Value == nil || strings.TrimSpace(*p.Model.Value) == "" {
+					t.Executor.Model = nil
+					keys = append(keys, "model")
+				} else if ref, ok := sidechat.ModelRef(sidechat.ModelRolePrefix + strings.TrimSpace(*p.Model.Value)); ok {
+					t.Executor.Model = ptr(ref)
+					keys = append(keys, "model")
+				}
+			}
+			if p.ReasoningEffort.Set {
+				if p.ReasoningEffort.Value == nil || strings.TrimSpace(*p.ReasoningEffort.Value) == "" {
+					t.Executor.ReasoningEffort = nil
+				} else {
+					t.Executor.ReasoningEffort = ptr(strings.TrimSpace(*p.ReasoningEffort.Value))
+				}
+				keys = append(keys, "reasoningEffort")
+			}
+		} else if t.Executor.Kind == "cli" {
+			leavingPreset := t.Executor.PresetID != nil && *t.Executor.PresetID != "" &&
+				((p.PresetID.Set && (p.PresetID.Value == nil || strings.TrimSpace(*p.PresetID.Value) == "")) ||
+					p.Source.Set || p.AccountID.Set)
+			if leavingPreset {
+				t.Executor.PresetID = nil
+				if (t.Executor.Cli == nil || *t.Executor.Cli == "") && p.ResolvedCli != nil && *p.ResolvedCli != "" {
+					t.Executor.Cli = ptr(*p.ResolvedCli)
+				}
+				if !p.PresetID.Set {
+					keys = append(keys, "presetId")
+				}
+			}
+			if p.PresetID.Set {
+				if p.PresetID.Value == nil || strings.TrimSpace(*p.PresetID.Value) == "" {
+					t.Executor.PresetID = nil
+				} else {
+					t.Executor.PresetID = ptr(strings.TrimSpace(*p.PresetID.Value))
+					if !p.Source.Set {
+						t.Executor.Source = nil
+					}
+					if !p.AccountID.Set {
+						t.Executor.AccountID = nil
+					}
+				}
+				keys = append(keys, "presetId")
+			}
+			if p.Source.Set {
+				if p.Source.Value == nil || strings.TrimSpace(*p.Source.Value) == "" {
+					t.Executor.Source = nil
+				} else {
+					src := strings.TrimSpace(*p.Source.Value)
+					if src == "local" || src == "official" || src == "thirdParty" {
+						t.Executor.Source = ptr(src)
+						if src == "local" || src == "thirdParty" {
+							t.Executor.AccountID = nil
+						}
+					}
+				}
+				keys = append(keys, "source")
+			}
+			if p.AccountID.Set {
+				curSrc := ""
+				if t.Executor.Source != nil {
+					curSrc = *t.Executor.Source
+				}
+				if curSrc != "local" && curSrc != "thirdParty" {
+					if p.AccountID.Value == nil || strings.TrimSpace(*p.AccountID.Value) == "" {
+						t.Executor.AccountID = nil
+					} else {
+						t.Executor.AccountID = ptr(strings.TrimSpace(*p.AccountID.Value))
+					}
+				} else {
+					t.Executor.AccountID = nil
+				}
+				keys = append(keys, "accountId")
+			}
+			if p.Model.Set {
+				if p.Model.Value == nil || strings.TrimSpace(*p.Model.Value) == "" {
+					t.Executor.Model = nil
+				} else {
+					t.Executor.Model = ptr(strings.TrimSpace(*p.Model.Value))
+				}
+				keys = append(keys, "model")
+			}
+			if p.ReasoningEffort.Set {
+				if p.ReasoningEffort.Value == nil || strings.TrimSpace(*p.ReasoningEffort.Value) == "" {
+					t.Executor.ReasoningEffort = nil
+				} else {
+					t.Executor.ReasoningEffort = ptr(strings.TrimSpace(*p.ReasoningEffort.Value))
+				}
+				keys = append(keys, "reasoningEffort")
+			}
 		}
 		sort.Strings(keys)
 		if r.save(Record{Task: t, Attempts: rec.Attempts}) != nil {
@@ -788,12 +1333,34 @@ func (r *Runtime) apply(id string, ev Event) CmdResult {
 		}
 		attempts = next
 	}
+	// 从队列取得名额（开始执行）：没落盘 = 没启动。排队退回原状态、等下次接管或重跑，不丢用户已经交出的这件事（#413）
+	settledOnFailure := false
 	if r.save(Record{Task: res.Task, Attempts: attempts}) != nil {
-		// 没落盘：保持旧状态，不记日志、不执行 start / deliver 等副作用
-		return CmdResult{Reason: "storage_error"}
+		// 没落盘：保持旧状态，不记日志、不执行 start / deliver 等副作用。
+		// 取得名额那一步例外：这次尝试已经被拒绝再执行了，执行者的准备结果要收掉，名额与心跳放回去
+		if ev.Type == "slot_acquired" {
+			for _, e := range res.Effects {
+				if e.Kind == "release_slot" {
+					r.run(id, e, res.Task, nil)
+				}
+			}
+			settledOnFailure = r.releaseSlotOnSaveFailure(id)
+			// 这次尝试的编号：刚同步到的事件里的（上面的恢复可能已经改了快照）
+			gen := before.Gen
+			if ev.Gen != nil {
+				gen = *ev.Gen
+			}
+			return CmdResult{Reason: "storage_error", Settled: settledOnFailure, Gen: gen}
+		}
+		return CmdResult{Reason: "storage_error", Settled: settledOnFailure}
 	}
 	if before.Status != res.Task.Status || ev.Type == "slot_acquired" {
-		e := JournalEntry{T: "state", At: ev.At, Event: ev.Type, From: before.Status, To: res.Task.Status, Gen: ptr(res.Task.Gen)}
+		gen := res.Task.Gen
+		// 取得名额时：这次尝试的编号是刚同步到的事件里的，快照里可能还没有（等待中的更新没落盘）
+		if ev.Type == "slot_acquired" && ev.Gen != nil && res.Task.Status == StatusRunning {
+			gen = *ev.Gen
+		}
+		e := JournalEntry{T: "state", At: ev.At, Event: ev.Type, From: before.Status, To: res.Task.Status, Gen: ptr(gen)}
 		if res.Task.LastAttemptID != nil {
 			e.AttemptID = *res.Task.LastAttemptID
 		}
@@ -814,6 +1381,29 @@ func (r *Runtime) apply(id string, ev Event) CmdResult {
 	}
 	r.changed(saved)
 	return CmdResult{OK: true}
+}
+
+// releaseSlotOnSaveFailure：取得名额时没落盘：把任务放回 idle 并重新落盘（同样没落盘时只把队列放回去），
+// 名额与心跳一并释放。落定返回 true
+func (r *Runtime) releaseSlotOnSaveFailure(id string) bool {
+	rec := r.recs[id]
+	if rec == nil || rec.Task.Status != StatusQueued {
+		r.delSlot(id)
+		return false
+	}
+	at := r.d.Now()
+	t := rec.Task
+	t.Status, t.Pending, t.UpdatedAt = StatusIdle, nil, at
+	if r.save(Record{Task: t, Attempts: rec.Attempts}) == nil {
+		delete(r.from, id)
+		r.delSlot(id)
+		r.changed(r.recs[id].Task)
+		return true
+	}
+	r.queue = append(r.queue, queued{id: id, notBefore: 0, seq: r.seq})
+	r.seq++
+	r.delSlot(id)
+	return true
 }
 
 func (r *Runtime) changed(t Task) {
@@ -844,17 +1434,17 @@ func (r *Runtime) run(id string, e Effect, task Task, attempt *Attempt) {
 	}
 	switch e.Kind {
 	case "enqueue":
+		// 已经在队里：保留原来的队位（前台转后台的接管在落盘时已经排上，这里不再挪到最后，#413）
+		for _, x := range r.queue {
+			if x.id == id {
+				return
+			}
+		}
 		nb := int64(0)
 		if e.NotBefore != nil {
 			nb = *e.NotBefore
 		}
-		q := r.queue[:0:0]
-		for _, x := range r.queue {
-			if x.id != id {
-				q = append(q, x)
-			}
-		}
-		r.queue = append(q, queued{id: id, notBefore: nb, seq: r.seq})
+		r.queue = append(r.queue, queued{id: id, notBefore: nb, seq: r.seq})
 		r.seq++
 	case "release_slot":
 		r.delSlot(id)
@@ -876,6 +1466,11 @@ func (r *Runtime) run(id string, e Effect, task Task, attempt *Attempt) {
 			r.failLater(id, gen, TaskError{Code: "executor_failed", Message: "no executor: " + task.Executor.Kind})
 			return
 		}
+		// 新的一次执行从这里开始：此前停下的那些执行都已退出（停下后同一次执行不会再发 start）
+		r.executorExited(id)
+		r.mu.Lock()
+		r.activeGen[id] = gen
+		r.mu.Unlock()
 		func() {
 			defer func() {
 				if p := recover(); p != nil {
@@ -903,6 +1498,23 @@ func (r *Runtime) run(id string, e Effect, task Task, attempt *Attempt) {
 			ex.Resume(id, gen, a)
 		}
 	case "stop_attempt":
+		// 先标记再停：执行者停下之后才发来的回报（本次已作废）不算落盘失败。本次执行会再发 start，那里清掉标记；
+		// 执行者停了之后不再回来、或者从一开始就没启动的，由 TrackCleanup 的等多久兜底
+		r.mu.Lock()
+		r.cleanupNeeded[id] = true
+		ch, done := r.cleanupDone[id], false
+		if ch != nil {
+			select {
+			case <-ch:
+				done = true
+			default:
+			}
+		}
+		r.mu.Unlock()
+		if done {
+			// 已经退出过又被停：这次执行本来就不会再落盘
+			r.executorExited(id)
+		}
 		if ex := r.executor(task); ex != nil {
 			ex.Stop(id, gen, e.Reason)
 		}

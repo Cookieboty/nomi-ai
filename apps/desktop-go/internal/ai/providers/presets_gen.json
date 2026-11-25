@@ -536,7 +536,7 @@
     "protocol": "openai-chat",
     "baseURL": "https://opencode.ai/inference/go/openai/v1",
     "defaultModel": "",
-    "models": [],
+    "models": ["kimi-k3", "glm-5.3", "minimax-m3"],
     "requiresApiKey": true,
     "websiteUrl": "https://opencode.ai/console/go",
     "apiKeyUrl": "https://opencode.ai/console",
@@ -551,17 +551,6 @@
       "responses": "https://opencode.ai/inference/go/openai/v1",
       "messages": "https://opencode.ai/inference/go/anthropic/v1"
     },
-    "modelMeta": [
-      {
-        "id": "kimi-k3"
-      },
-      {
-        "id": "glm-5.3"
-      },
-      {
-        "id": "minimax-m3"
-      }
-    ],
     "quirks": {
       "sessionHeader": "x-opencode-session"
     },

@@ -40,6 +40,12 @@ func ParseLine(line string) []Ev {
 			return []Ev{O("type", "done", "text", "", "sessionId", s)}
 		}
 		return []Ev{}
+	case "session/title", "session_title":
+		title := or(str("title"), util.Str(util.AsObj(j.Get("data")).Get("title")))
+		if title != "" {
+			return []Ev{O("type", "session-info", "title", title)}
+		}
+		return []Ev{}
 	case "text":
 		src := Coalesce(j.Get("content"), j.Get("data"))
 		text := or(str("text"), sh.BlockText(src, 0))

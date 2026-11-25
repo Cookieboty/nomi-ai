@@ -49,8 +49,8 @@
 }
 .menu {
   position: fixed;
-  /* 高于新建任务等弹窗（--cd-z-modal），否则菜单开在对话框后面 */
-  z-index: var(--cd-z-modal-top);
+  /* 高于新建任务等弹窗（--cd-z-modal），低于确认框（--cd-z-modal-top） */
+  z-index: var(--cd-z-tooltip);
   min-width: 260px;
   max-width: 420px;
   padding: var(--cd-space-1-5);

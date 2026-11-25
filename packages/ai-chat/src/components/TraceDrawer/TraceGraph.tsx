@@ -22,12 +22,7 @@ import { formatDuration } from '../../utils/toolTrace';
 import { EndpointIcon } from '../EndpointIcon';
 
 import { buildGraphLayout, type LayoutGroup, type LayoutNode } from './graphLayout';
-import {
-  offsetLabel,
-  SLOW_STEP_MS,
-  type TraceDocument,
-  type TraceFilterResult,
-} from './model';
+import { offsetLabel, SLOW_STEP_MS, type TraceDocument, type TraceFilterResult } from './model';
 import { AuditBadge, HighlightText, NodeIconGlyph, statusTone } from './shared';
 import styles from './views.module.css';
 
@@ -424,7 +419,10 @@ export const TraceGraph: React.FC<TraceGraphProps> = ({
                 height: grp.height,
               }}
             >
-              <div className={styles.graphGroupHead}>
+              <div
+                className={styles.graphGroupHead}
+                data-has-meta={grp.hasMetaRow ? 'true' : undefined}
+              >
                 {grp.kind === 'turn' && grp.turnId ? (
                   <button
                     type="button"
@@ -432,26 +430,50 @@ export const TraceGraph: React.FC<TraceGraphProps> = ({
                     aria-expanded={!grp.collapsed}
                     onClick={() => toggleTurn(grp.turnId!)}
                   >
-                    <Icon icon={grp.collapsed ? ChevronRight : ChevronDown} size={14} />
-                    <span className={styles.groupTitle}>{grp.title}</span>
-                    {grp.subtitle && <span className={styles.groupSub}>{grp.subtitle}</span>}
-                    {grp.switchedFromModel && grp.model ? (
-                      <span className={styles.groupSwitchPill} data-testid="graph-model-switch">
-                        {t('ui.devtools.model-switch-from-to', grp.switchedFromModel, grp.model)}
+                    <span className={styles.groupHeadPrimary}>
+                      <Icon icon={grp.collapsed ? ChevronRight : ChevronDown} size={14} />
+                      <span className={styles.groupTitle}>{grp.title}</span>
+                      {grp.subtitle && <span className={styles.groupSub}>{grp.subtitle}</span>}
+                    </span>
+                    {grp.hasMetaRow && (
+                      <span className={styles.groupHeadMeta}>
+                        {grp.switchedFromModel && grp.model ? (
+                          <span
+                            className={styles.groupSwitchPill}
+                            data-testid="graph-model-switch"
+                            title={t(
+                              'ui.devtools.model-switch-from-to',
+                              grp.switchedFromModel,
+                              grp.model,
+                            )}
+                          >
+                            {t(
+                              'ui.devtools.model-switch-from-to',
+                              grp.switchedFromModel,
+                              grp.model,
+                            )}
+                          </span>
+                        ) : (
+                          grp.model && (
+                            <span className={styles.groupModelPill} title={grp.model}>
+                              {grp.model}
+                            </span>
+                          )
+                        )}
+                        {grp.auditVerdict && grp.auditVerdict !== 'unverified' && (
+                          <span className={styles.groupAuditWrap}>
+                            <AuditBadge
+                              verdict={grp.auditVerdict}
+                              extra={
+                                grp.auditVerdict === 'mismatch' && grp.responseModel
+                                  ? `→ ${grp.responseModel}`
+                                  : undefined
+                              }
+                              testId="graph-turn-audit"
+                            />
+                          </span>
+                        )}
                       </span>
-                    ) : (
-                      grp.model && <span className={styles.groupModelPill}>{grp.model}</span>
-                    )}
-                    {grp.auditVerdict && grp.auditVerdict !== 'unverified' && (
-                      <AuditBadge
-                        verdict={grp.auditVerdict}
-                        extra={
-                          grp.auditVerdict === 'mismatch' && grp.responseModel
-                            ? `→ ${grp.responseModel}`
-                            : undefined
-                        }
-                        testId="graph-turn-audit"
-                      />
                     )}
                   </button>
                 ) : (

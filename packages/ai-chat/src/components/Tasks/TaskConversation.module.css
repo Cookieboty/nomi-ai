@@ -83,15 +83,24 @@
   outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: 1px;
 }
-.inputRow {
+.composerBar {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--cd-space-2);
+  min-height: var(--cd-control-h-ms);
+}
+.composerModel {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
 }
 .input {
-  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
   min-width: 0;
-  min-height: 36px;
+  min-height: 44px;
   max-height: 112px;
   padding: var(--cd-space-1-5) var(--cd-space-2);
   border: 1px solid var(--cd-panel-border);

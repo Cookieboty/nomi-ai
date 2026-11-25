@@ -49,15 +49,15 @@ func TestDelegateToNomiCreatesTask(t *testing.T) {
 		c.Title != "Nomi · 做一套 10 页的 PPT" {
 		t.Fatalf("%+v %+v", c, ex)
 	}
-	logs := util.Stringify(e.log.desktop)
+	logs := util.Stringify(e.log.desktopSnapshot())
 	if !strings.Contains(logs, `"authorizeIn"`) || !strings.Contains(logs, `"delegate_to_nomi"`) {
 		t.Fatal(logs)
 	}
 	// 不需要 agent：没有标签
-	if len(e.log.harness) != 0 {
-		t.Fatal(e.log.harness)
+	if hl := e.log.harnessLog(); len(hl) != 0 {
+		t.Fatal(hl)
 	}
-	audit := util.Stringify(e.log.audit)
+	audit := util.Stringify(e.log.auditSnapshot())
 	if !strings.Contains(audit, `"delegate_to_nomi"`) || !strings.Contains(audit, `"allowed"`) {
 		t.Fatal(audit)
 	}
@@ -74,8 +74,8 @@ func TestDelegateToNomiModes(t *testing.T) {
 	if c.Level != 4 || len(c.Paths) != 0 || c.Executor.Cwd != nil || c.Category != "writing" {
 		t.Fatalf("%+v", c)
 	}
-	if !strings.Contains(util.Stringify(e.log.desktop), `["authorize",`) {
-		t.Fatal(util.Stringify(e.log.desktop))
+	if !strings.Contains(util.Stringify(e.log.desktopSnapshot()), `["authorize",`) {
+		t.Fatal(util.Stringify(e.log.desktopSnapshot()))
 	}
 	// 计划档拒绝
 	ft2 := newFakeTasks()
@@ -146,12 +146,13 @@ func TestDelegateToCliAutoModePassesBypass(t *testing.T) {
 	if r.Get("ok") != true {
 		t.Fatal(util.Stringify(r))
 	}
-	if len(e.log.harness) == 0 {
+	hl := e.log.harnessLog()
+	if len(hl) == 0 {
 		t.Fatal("delegate did not create a child tab")
 	}
-	created, ok := e.log.harness[0].([]any)
+	created, ok := hl[0].([]any)
 	if !ok || len(created) != 2 || created[0] != "createTab" {
-		t.Fatalf("unexpected harness log: %v", e.log.harness)
+		t.Fatalf("unexpected harness log: %v", hl)
 	}
 	opts, ok := created[1].(*util.Obj)
 	if !ok || opts.Get("permissionMode") != "bypass" {
@@ -179,9 +180,13 @@ func TestDelegateToCliAlwaysAutoRegardlessOfNomiMode(t *testing.T) {
 				if r.Get("ok") != true {
 					t.Fatalf("nomi=%s autoApprove=%v cli=%s err=%s", nomiMode, autoApprove, tc.cli, util.Stringify(r))
 				}
-				created, ok := e.log.harness[0].([]any)
+				hl := e.log.harnessLog()
+				if len(hl) != 1 {
+					t.Fatalf("expected exactly one createTab, got: %v", hl)
+				}
+				created, ok := hl[0].([]any)
 				if !ok || len(created) != 2 || created[0] != "createTab" {
-					t.Fatalf("unexpected harness log: %v", e.log.harness)
+					t.Fatalf("unexpected harness log: %v", hl)
 				}
 				opts := created[1].(*util.Obj)
 				if got := opts.Get("permissionMode"); got != tc.want {
@@ -265,18 +270,18 @@ func TestDelegateFromBackgroundForcesSync(t *testing.T) {
 	if len(ft.created) != 0 {
 		t.Fatal("后台执行里的委派不该建任务")
 	}
-	if len(e.log.sentSnapshot()) != 1 {
-		t.Fatal(e.log.sent)
+	if sent := e.log.sentSnapshot(); len(sent) != 1 {
+		t.Fatal(sent)
 	}
 }
 
 func TestDelegateConfirmationCarriesEffectiveModeAndHostProtections(t *testing.T) {
 	for _, tc := range []struct {
-		name        string
-		cli         string
-		wantMode    string
-		sandbox     string
-		background  bool
+		name       string
+		cli        string
+		wantMode   string
+		sandbox    string
+		background bool
 	}{
 		{"claude sync sandbox on", "claude", "bypass", "on", false},
 		{"minimax sync sandbox off", "minimax", "manual", "off", false},
@@ -331,9 +336,9 @@ func TestDelegateConfirmationCarriesEffectiveModeAndHostProtections(t *testing.T
 				t.Fatalf("unexpected DelegateConfirmMeta: %+v", gotMeta)
 			}
 			if !tc.background {
-				// 同步路径核对 CreateTab 实际传出的 permissionMode 与确认卡显示一致
+				// 同步路径核对 CreateTab 实际传出的 permissionMode 与确认卡显示一致（后台任务的标签在自己的 goroutine 里建）
 				var created *util.Obj
-				for _, ev := range log.harness {
+				for _, ev := range log.harnessLog() {
 					arr := ev.([]any)
 					if arr[0] == "createTab" {
 						created = arr[1].(*util.Obj)

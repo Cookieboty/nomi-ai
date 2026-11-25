@@ -206,6 +206,14 @@ func (o *Orchestrator) spawnCollect(tab *util.Obj, opts collectOpts) *jsrt.Promi
 			if sid := str(rawEv, "sessionId"); sid != "" {
 				o.bindRunningSession(tab, sid)
 			}
+			if rawEv.Get("type") == "session-info" {
+				if live {
+					if title := util.JSTrim(jsStr(rawEv.Get("title"))); title != "" {
+						o.applyTabNativeTitle(id, title)
+					}
+				}
+				return
+			}
 			if rawEv.Get("type") == "user-message" {
 				if live {
 					o.receiveUserImages(id, rawEv)

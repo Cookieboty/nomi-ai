@@ -237,6 +237,11 @@ export interface HandoffSnapshot {
   partialContent: string;
   progressSummary: string;
   historyContext: string;
+  /**
+   * 用户这一轮附图的原图（已通过发送前的隐私检查）：后台接管时原样交给它，
+   * 只随这次接管发送一次，不落进对话历史（历史里只有缩略图 / 本地地址）。
+   */
+  images?: Array<{ mime: string; data: string }>;
 }
 
 export interface ActiveStream extends SteerableStream {

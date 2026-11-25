@@ -164,11 +164,13 @@ func TestExternalDocumentsAndMediaUseDefaultAppsWithoutPreview(t *testing.T) {
 	if r := s.External(dir, link, "/nonexistent-home", false); r.Code != "authorization" || opened != "" {
 		t.Fatal("symlink bypassed consent")
 	}
-	denied := filepath.Join(dir, ".ssh", "private.pdf")
-	os.MkdirAll(filepath.Dir(denied), 0700)
-	os.WriteFile(denied, []byte("secret"), 0600)
-	if r := s.External(dir, denied, "/nonexistent-home", true); r.Code != "denied" {
-		t.Fatalf("protected file opened: %+v", r)
+	sensitive := filepath.Join(dir, ".ssh", "private.pdf")
+	os.MkdirAll(filepath.Dir(sensitive), 0700)
+	os.WriteFile(sensitive, []byte("secret"), 0600)
+	sensitiveReal, _ := filepath.EvalSymlinks(sensitive)
+	opened = ""
+	if r := s.External(dir, sensitive, "/nonexistent-home", false); !r.OK || r.Kind != "external" || opened != sensitiveReal {
+		t.Fatalf("sensitive file not opened: %+v %q", r, opened)
 	}
 }
 

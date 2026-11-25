@@ -155,11 +155,13 @@ func (e *taskEnv) call(ctx context.Context, name string, raw *util.Obj, ec tools
 }
 
 func delegateRaw(kv ...any) *util.Obj {
+	// 不让 normalizeDelegateInput（原地 Set kind / background 等）改到同一个对象：
+	// 同一个 raw 可能被别的 goroutine 里的调用复用，而 map 的读写在竞态检测里要串行
 	o := util.NewObj("goal", "修复登录 bug", "done_when", "npm test 通过")
 	for i := 0; i+1 < len(kv); i += 2 {
 		o.Set(kv[i].(string), kv[i+1])
 	}
-	return o
+	return o.Clone()
 }
 
 func errCode(r *util.Obj) string {
@@ -226,8 +228,8 @@ func TestDelegateBackgroundBecomesTask(t *testing.T) {
 	if r.Get("ok") != true || d.Get("taskId") != "task_1" || d.Get("task").(*util.Obj).Get("status") != "queued" {
 		t.Fatal(util.Stringify(r))
 	}
-	if len(e.log.harness) != 0 {
-		t.Fatal("legacy tab created", e.log.harness)
+	if hl := e.log.harnessLog(); len(hl) != 0 {
+		t.Fatal("legacy tab created", hl)
 	}
 	c := ft.created[0]
 	ex := c.Executor
@@ -237,8 +239,8 @@ func TestDelegateBackgroundBecomesTask(t *testing.T) {
 		*ex.Brief.Context != "在 src/login" || *ex.Brief.OutOfScope != "别动 CI" {
 		t.Fatalf("%+v %+v", c, ex)
 	}
-	if a := e.log.desktop; !strings.Contains(util.Stringify(a), `"authorize"`) || !strings.Contains(util.Stringify(a), `"delegate_to_cli"`) {
-		t.Fatal(util.Stringify(a))
+	if _, _, desktopLog, _, _ := e.log.all(); !strings.Contains(util.Stringify(desktopLog), `"authorize"`) || !strings.Contains(util.Stringify(desktopLog), `"delegate_to_cli"`) {
+		t.Fatal(util.Stringify(desktopLog))
 	}
 	// 命令一律交给命令审核按风险判断，不再因为前台权限模式留下「每条都问人」
 	ft2 := newFakeTasks()

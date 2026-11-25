@@ -24,6 +24,7 @@ import { OPEN_TASKS_PAGE_EVENT } from '../../services/workbenchNav';
 import { lazyComponent } from '../lazyPanels';
 import { SIDEBAR_ICONS } from '../Sidebar/icons';
 import { SideNavItem } from '../Sidebar/SideNavItem';
+import type { SubagentPaneActions } from '../SubagentPane';
 
 import styles from './index.module.css';
 import { useTasks } from './useTasks';
@@ -61,7 +62,11 @@ export const TasksNav: React.FC<{
   );
 };
 
-export function useTasksHost(collapsed: boolean, onOpenSchedule?: () => void) {
+export function useTasksHost(
+  collapsed: boolean,
+  onOpenSchedule?: () => void,
+  paneActions?: SubagentPaneActions,
+) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { data } = useTasks(tasksAvailable());
@@ -129,6 +134,7 @@ export function useTasksHost(collapsed: boolean, onOpenSchedule?: () => void) {
         onBack={close}
         focus={focus}
         createNonce={createNonce}
+        paneActions={paneActions}
         onOpenSchedule={
           onOpenSchedule
             ? () => {

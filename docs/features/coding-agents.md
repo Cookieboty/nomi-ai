@@ -4,7 +4,7 @@
 
 > 截图由模拟的 CLI 驱动真实界面生成，对话内容与路径仅作演示。
 
-Nomi·诺米 的对话窗口可以当作本机 agent 的界面：消息、工具确认、权限与进度都转给真实的 CLI，智能与工具由 CLI 自己完成。内置支持 **Claude Code**、**Codex**、**Grok**、**Gemini CLI**、**dsh**、**Kimi Code**、**MiniMax Code**，另外可以接入任意支持 ACP（Agent Client Protocol）的 CLI。
+Nomi·诺米 的对话窗口可以当作本机 agent 的界面：消息、工具确认、权限与进度都转给真实的 CLI，智能与工具由 CLI 自己完成。内置支持 **Claude Code**、**Codex**、**Grok**、**Gemini CLI**、**dsh**、**Kimi Code**、**MiniMax Code**、**Antigravity CLI**，另外可以接入任意支持 ACP（Agent Client Protocol）的 CLI。
 
 切到侧栏顶部的「工坊」后，在「新对话」菜单里选端点即可新建 agent 标签（`Ctrl/⌘+T`）。多个标签可以同时运行，在跑的会话在侧栏行里显示「进行中」。
 
@@ -20,7 +20,7 @@ Nomi·诺米 的对话窗口可以当作本机 agent 的界面：消息、工具
 每个标签在对话区右上角选来源，只影响这一个标签：
 
 - **官方账号**：CLI 自己的官方登录。可以添加多个官方账号：每个账号一个独立的配置目录，登录由 CLI 自己的官方流程完成，Nomi 不保存登录凭据；默认账号用于新标签和「跟随默认」的标签。dsh 和 Gemini CLI 没有官方账号，「默认」就是它们自己的配置：Gemini 用终端里 `~/.gemini` 的配置（API Key、Vertex AI 或企业版授权；Google 已不再让 Gemini CLI 用个人 Google 账号登录），也可以改用第三方供应商。
-  Kimi Code、MiniMax Code 用 Kimi / MiniMax 账号登录；没登录时标签里会提示去「设置 → Agents」登录。
+  Kimi Code、MiniMax Code 用 Kimi / MiniMax 账号登录；没登录时标签里会提示去「设置 → Agents」登录。Antigravity CLI（`agy`）直接使用本机 Google 登录与 `~/.gemini/antigravity-cli/settings.json`，不支持 Nomi 多账号隔离或第三方网关模型。
 - **第三方**：「设置 → 模型与供应商」里的任意模型，经 Nomi 的本机网关自动转换协议。只作用于 Nomi 启动的那个 CLI 进程，不改 `~/.claude`、`~/.codex`、`~/.grok`、`~/.gemini`、`~/.kimi-code`、`~/.minimax` 等全局配置；终端里直接运行的 CLI 仍是你自己的配置。
   Kimi Code、MiniMax Code 换第三方模型时会重启进程并续接同一个会话。
 - 「设置 → Agents → 通用 → 沿用终端里的代理」：所有 agent 的登录和对话都走终端里的 `https_proxy`（本机地址和 Nomi 自己的模型请求不走代理）；只此一处，不在各 agent 里分别设置。
@@ -54,7 +54,7 @@ Claude Code、Codex 的登录检测与订阅额度查询也会沿用自定义启
 | 完全放开   | 不再确认，由 CLI 自己决定  |
 
 不支持某一档的 CLI 会降到更安全的一档（dsh 只有计划 / 自动改文件 / 完全放开；Kimi Code 没有「自动改文件」；
-MiniMax Code 只有计划 / 逐项确认）。需要确认时，对话里出现允许 / 拒绝卡片，2 分钟没回应按拒绝处理。
+MiniMax Code 只有计划 / 逐项确认；Antigravity CLI 支持计划 / 逐项确认 / 自动改文件 / 自动）。需要确认时，对话里出现允许 / 拒绝卡片，2 分钟没回应按拒绝处理。
 Agents 要你做选择时（Claude Code 的提问、Codex app-server 的提问、ACP 的表单），输入栏上方用同一张问题卡，10 分钟没答按跳过。
 
 **全部自动**（「设置 → Agents → 助手 → 通用」，默认开）：新开的普通 agent 标签默认「完全放开」，改文件、跑命令都不再问你；关掉后新标签按默认档位逐项询问。只在你信任的文件夹里这样用。持续任务派出去的普通后台 agent 标签：任务授权到 L3（按风险自动判断，默认开）且有系统沙箱时（macOS）配合前台开着「全部自动」，跑命令交给命令审核、放行就不再逐项问人（无系统沙箱的 Windows / Linux 上普通后台任务仍逐条确认；沙箱被挡、要凭据仍会问你，见 [日程与任务](scheduling-calendar.md)）。**Nomi 在对话里委派的 agent** 不受此开关控制，默认按目标 agent 支持的最高档（通常为「完全放开」）运行，并在批准确认卡中标明实际档位与适用宿主保护。

@@ -301,7 +301,10 @@ func ParseUsage(usage any, costUsd, durationMs any) Ev {
 	WithOpt(out,
 		"inputTokens", pick("input_tokens", "inputTokens", "prompt_tokens", "promptTokens"),
 		"outputTokens", pick("output_tokens", "outputTokens", "completion_tokens", "completionTokens"),
-		"cacheReadTokens", pick("cache_read_input_tokens", "cached_input_tokens", "cacheReadTokens", "cachedInputTokens", "cachedReadTokens"),
+		"cacheReadTokens", pick("cache_read_input_tokens", "cached_input_tokens", "cacheReadTokens", "cachedInputTokens", "cachedReadTokens", "cached_read_tokens"),
+		"cacheWriteTokens", pick("cache_creation_input_tokens", "cache_write_tokens", "cacheWriteTokens", "cachedWriteTokens", "cached_write_tokens"),
+		"thoughtTokens", pick("thought_tokens", "thoughtTokens", "reasoning_tokens", "reasoningTokens"),
+		"totalTokens", pick("total_tokens", "totalTokens"),
 		"costUsd", Num(costUsd),
 		"durationMs", Num(durationMs),
 	)

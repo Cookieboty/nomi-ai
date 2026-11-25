@@ -460,7 +460,12 @@ func main() {
 			}
 			return resp.Content, nil
 		}))
-	chatHandlers := airouter.New(airouter.Options{Chat: chatFacade, Logger: deps.StdLogger{Prefix: "[ai-runtime]"},
+	chatHandlers := airouter.New(airouter.Options{IsManaged: bundle.Conversations.IsManaged, Chat: chatFacade, Logger: deps.StdLogger{Prefix: "[ai-runtime]"},
+		ProjectForConversation: func(id string) string { return conversationProjectID(bundle.Conversations, id) },
+		ManagedConfig: func(id string) airouter.ManagedAPIConfig {
+			cfg := bundle.ConversationRuntime.ConfigFor(id, "api")
+			return airouter.ManagedAPIConfig{Model: cfg.Model, PermissionMode: cfg.PermissionMode, Effort: cfg.Effort}
+		},
 		PrepareChat: func(options map[string]any, method string, signal <-chan struct{}) error {
 			// 侧边聊天：只用 Nomi 的模型与只读工具、不挂会话（internal/core/sidechat）
 			side := sidechat.Apply(options)
@@ -487,6 +492,8 @@ func main() {
 			return prep.PrepareChat(options, method, signal)
 		}})
 	chatHandlers.Register(router)
+	bundle.ConversationRuntime.Register("api", chatHandlers.ManagedAgentTarget)
+	defer bundle.ConversationRuntime.Close()
 	computerChats = chatHandlers
 	shellhandlers.OnConversationDeleted = func(id string) {
 		chatHandlers.AbortConversation(id)
@@ -508,13 +515,20 @@ func main() {
 	b8.Tasks.RegisterExecutor("nomi", tasks.NewNomiExecutor(tasks.NomiDeps{
 		AgentStream: func(ctx context.Context, msgs []blm.ChatMessage, toolNames []string, extra map[string]any, emit func(blm.ChatChunk)) error {
 			role := "agent-tools"
+			if tm, ok := extra["taskModel"].(string); ok {
+				if _, valid := sidechat.ModelRef(sidechat.ModelRolePrefix + tm); valid {
+					role = sidechat.ModelRolePrefix + tm
+				}
+			}
 			o := &facade.ChatStreamOptions{Role: &role, Messages: msgs, Signal: ctx.Done(), Tools: toolNames, Quiet: true, Extra: extra}
-			// reqId 不是给工具的上下文：拿出来当这次请求的 id，侧栏插话（Steer）按它找到工具循环
+			// reqId 与 taskModel 不是给工具的上下文：剔除后再往下传
 			if id, ok := extra["reqId"].(string); ok && id != "" {
 				o.ReqID = &id
+			}
+			if _, hasReq := extra["reqId"]; hasReq || extra["taskModel"] != nil {
 				rest := make(map[string]any, len(extra))
 				for k, v := range extra {
-					if k != "reqId" {
+					if k != "reqId" && k != "taskModel" {
 						rest[k] = v
 					}
 				}
@@ -575,12 +589,32 @@ func main() {
 			_, _, ok := airouter.Routed{R: llmRegistry}.Resolve("agent-tools")
 			return ok
 		},
+		ReadyFor: func(role string) bool {
+			if role == "" {
+				role = "agent-tools"
+			}
+			_, _, ok := airouter.Routed{R: llmRegistry}.Resolve(role)
+			return ok
+		},
 		Route: func() (string, string) {
 			pid, model := "", ""
 			if p := desktopSvc.ProviderFor("agent-tools"); p != nil {
 				pid = p.ID
 			}
 			if _, m, ok := (airouter.Routed{R: llmRegistry}).Resolve("agent-tools"); ok && m != nil {
+				model = *m
+			}
+			return pid, model
+		},
+		RouteFor: func(role string) (string, string) {
+			if role == "" {
+				role = "agent-tools"
+			}
+			pid, model := "", ""
+			if p := desktopSvc.ProviderFor(desktop.Role(role)); p != nil {
+				pid = p.ID
+			}
+			if _, m, ok := (airouter.Routed{R: llmRegistry}).Resolve(role); ok && m != nil {
 				model = *m
 			}
 			return pid, model
@@ -604,6 +638,8 @@ func main() {
 		Live: func(taskID, attemptID string, ev map[string]any) {
 			router.Emit("tasks.live", map[string]any{"id": taskID, "attemptId": attemptID, "event": ev})
 		},
+		// 这次的执行协程退出了：被停下之后迟到的回报到运行时为止（取消 / 停止后不再落盘，#419）
+		OnExit: func(taskID string, gen int) { b8.Tasks.Runtime.ExecutorExited(taskID, gen) },
 		// 派给 Nomi 的执行用对话的工具集
 		ToolNames: func() []string {
 			defs := toolRegistry.List()
@@ -712,7 +748,6 @@ func main() {
 	defer gatewayRequests.Dispose()
 	projs := wireProjects(router, userData, desktopSvc.Broker)
 	previewResources := resourcepreview.New(userData)
-	previewResources.ProtectedPaths = desktopSvc.Broker.ProtectedPaths
 	previewResources.ProjectRoots = projectRootsOf(projs)
 	previewResources.OpenExternal = ports.OpenExternal
 	previewResources.OpenFile = func(path string) error {
@@ -724,6 +759,7 @@ func main() {
 	defer previewResources.Shutdown()
 	cliPlugins, disposeHarness := wireHarness(router, userData, home, ports, gatewaySvc, shellP.Quality,
 		desktopSvc.Broker.CheckCliWorkspace, desktopSvc.Broker.CliEnvAllow, sandboxDeps(desktopSvc.Broker), projs)
+	refreshManagedCLI := wireManagedCLIs(bundle.ConversationRuntime, bundle.Conversations, projs, managedDeps{Gateway: gatewaySvc, Accounts: harnessAccounts})
 	jsrt.Run(func() { harnessOrch.AttachPreview(previewResources) })
 	wireNomiBroker(desktopSvc.Broker, harnessOrch)
 	wireComputerHarness(harnessOrch)
@@ -783,7 +819,7 @@ func main() {
 	desktopSvc.Broker.OnReviewed = func(tool string, r *desktop.CommandReview) {
 		log.Printf("[desktop] command reviewed tool=%s risk=%s authorization=%s outcome=%s", tool, r.Risk, r.Authorization, r.Outcome)
 	}
-	wireCoding(router, userData, cliPlugins, desktopSvc, gatewaySvc, toolRegistry, b8.Tasks)
+	defer wireCoding(router, userData, cliPlugins, desktopSvc, gatewaySvc, toolRegistry, b8.Tasks, refreshManagedCLI)()
 	defer wireAgents(router, userData, desktopSvc)()
 	defer wireFleet(router, userData, b8.Tasks, chatHandlers, toolRegistry)()
 	defer wireIslandPending(isl, islandPendingSources{orch: harnessOrch, tasks: b8.Tasks, desktop: desktopSvc,
@@ -896,6 +932,7 @@ func main() {
 	sh = wailsshell.New(wailsshell.Config{Assets: assets, Fragment: frag, Pages: pages, MascotSize: mascotCtl.WindowSize, MascotPos: mascotCtl.WindowPosition, OnWindow: onWindow,
 		// 退出：关窗之前等对话窗口排着的会话写入写完（最多 1.5 秒；最近没写过的立刻返回）
 		OnShutdown: func() {
+			bundle.ConversationRuntime.Close()
 			if !bundle.ConversationWrites.WaitIdle(1500*time.Millisecond, 200*time.Millisecond) {
 				log.Printf("[conversations] quit before pending writes finished")
 			}

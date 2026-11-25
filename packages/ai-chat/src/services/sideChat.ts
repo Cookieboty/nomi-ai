@@ -19,7 +19,7 @@ import { quoteMarkdown, type SelectionQuote } from '../utils/selectionQuote';
 import { closeOpenCalls } from '../utils/toolTrace';
 
 import { api, hasTransport } from './api';
-import { createComposerDraftStore } from './composerDrafts';
+import { createComposerDraftStore, type ComposerDraft } from './composerDrafts';
 import type { FileAttachment } from './fileAttachments';
 import type { HarnessTraceEvent } from './harnessClient';
 import { nomiLongContextOverride } from './longContext';
@@ -607,8 +607,14 @@ const isDraftFile = (v: unknown): v is FileAttachment =>
   typeof v.path === 'string' &&
   typeof v.size === 'number';
 
-/** 交接快照（不含正在跑的一轮与已发消息原图，保留草稿图片/附件与排队问题/图片）。正在回答时不交接。 */
-export function exportSideChat(id: string, opts?: { settle?: boolean }): string | null {
+/**
+ * 交接快照（不含正在跑的一轮与已发消息原图，保留草稿图片/附件与排队问题/图片）。正在回答时不交接。
+ * draft：用这份草稿代替 sideChatDrafts 里的（放回等待期间输入栏锁住了草稿，见 SideChatPane）。
+ */
+export function exportSideChat(
+  id: string,
+  opts?: { settle?: boolean; draft?: ComposerDraft },
+): string | null {
   const chat = chats.get(id);
   if (!chat || (chat.running && !opts?.settle)) return null;
   // settle：正在回答也导出，已经写出来的部分按「已停止」收进记录（独立窗口关掉 / 放回时用）
@@ -627,7 +633,7 @@ export function exportSideChat(id: string, opts?: { settle?: boolean }): string 
       ? { ...m, raw: { images: images.map(({ data: _data, ...rest }) => rest) } }
       : m;
   });
-  const draft = sideChatDrafts.read(sideChatDraftKey(id));
+  const draft = opts?.draft ?? sideChatDrafts.read(sideChatDraftKey(id));
   const queued = [...chat.queued];
   const queuedImages = (queuedImagesMap.get(id) ?? []).map((imgs) => imgs.map((img) => ({ ...img })));
   return JSON.stringify({
@@ -638,8 +644,16 @@ export function exportSideChat(id: string, opts?: { settle?: boolean }): string 
   });
 }
 
-/** 收下交接快照（已有同一个 id 时覆盖）；返回聊天 id */
-export function importSideChat(raw: string | null | undefined): string | null {
+/**
+ * 收下交接快照（已有同一个 id 时覆盖）；返回聊天 id。
+ * 草稿照旧写进 sideChatDrafts；放回的接收方收下时用 withDraft（快照里草稿是空的也写回，否则旧草稿会留下）。
+ * draftOnly：同一张快照已经按新内容收下过时再来的迟到快照，整份都不收（对话不能盖回去，草稿也可能已经是
+ * 主窗口里更新的那份，也不能盖）——只认领同一个 id。
+ */
+export function importSideChat(
+  raw: string | null | undefined,
+  opts?: { withDraft?: boolean; draftOnly?: boolean },
+): string | null {
   if (!raw) return null;
   try {
     const v = JSON.parse(raw) as {
@@ -677,6 +691,7 @@ export function importSideChat(raw: string | null | undefined): string | null {
       queued,
       fill: null,
     };
+    if (opts?.draftOnly) return chat.id;
     const restoredQueuedImgs: QueuedSideChatImages[] =
       Array.isArray(v.queuedImages) && queued.length > 0
         ? queued.map((_, idx) => {
@@ -690,19 +705,9 @@ export function importSideChat(raw: string | null | undefined): string | null {
       queuedImagesMap.delete(chat.id);
     }
     chats.set(chat.id, chat);
-    const draftImages = Array.isArray(v.draft?.images) ? v.draft.images.filter(isDraftImage) : [];
-    const draftFiles = Array.isArray(v.draft?.files) ? v.draft.files.filter(isDraftFile) : [];
-    if (
-      typeof v.draft?.text === 'string' ||
-      draftImages.length > 0 ||
-      draftFiles.length > 0
-    ) {
-      sideChatDrafts.write(sideChatDraftKey(chat.id), {
-        text: typeof v.draft?.text === 'string' ? v.draft.text : '',
-        images: draftImages,
-        files: draftFiles,
-      });
-    }
+    const draft = draftOf(v.draft);
+    if (opts?.withDraft || draft)
+      sideChatDrafts.write(sideChatDraftKey(chat.id), draft ?? { text: '', images: [], files: [] });
     emit();
     return chat.id;
   } catch (error) {
@@ -711,7 +716,31 @@ export function importSideChat(raw: string | null | undefined): string | null {
   }
 }
 
-/** 交出去之后这一侧不再持有（不停正在跑的：交接前已确认没在跑） */
+function draftOf(raw: unknown): ComposerDraft | null {
+  const d = (raw ?? {}) as { text?: unknown; images?: unknown; files?: unknown };
+  const images = Array.isArray(d.images) ? d.images.filter(isDraftImage) : [];
+  const files = Array.isArray(d.files) ? d.files.filter(isDraftFile) : [];
+  if (typeof d.text !== 'string' && !images.length && !files.length) return null;
+  return { text: typeof d.text === 'string' ? d.text : '', images, files };
+}
+
+/** 只收下快照里的草稿（快照里的对话部分已经不新了，不能覆盖现在的对话） */
+export function importSideChatDraft(raw: string | null | undefined): boolean {
+  if (!raw) return false;
+  try {
+    const v = JSON.parse(raw) as { v?: number; chat?: { id?: unknown }; draft?: unknown };
+    const id = v?.chat?.id;
+    if (v?.v !== 1 || typeof id !== 'string' || !id) return false;
+    const draft = draftOf(v.draft);
+    if (!draft) return false;
+    sideChatDrafts.write(sideChatDraftKey(id), draft);
+    return true;
+  } catch (error) {
+    log.warn('bad side chat draft handoff', error);
+    return false;
+  }
+}
+
 export function forgetSideChat(id: string): void {
   sideChatDrafts.dropPrivate(sideChatDraftKey(id));
   queuedImagesMap.delete(id);

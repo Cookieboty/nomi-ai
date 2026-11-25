@@ -133,21 +133,6 @@ func TestRenewRefusesExternalEditReplacementAndRevokedAccess(t *testing.T) {
 		}
 	})
 
-	t.Run("protected", func(t *testing.T) {
-		s, path, opened := expiredEditable(t, original)
-		root := filepath.Dir(path)
-		s.ProtectedPaths = func() []string { return []string{root} }
-		if renewed := s.Renew(opened.URL); renewed.OK || renewed.Code != "denied" {
-			t.Fatalf("renew %+v", renewed)
-		}
-		if saved := s.Save(opened.URL, opened.Revision, "overwrite"); saved.OK || (saved.Code != "expired" && saved.Code != "denied") {
-			t.Fatalf("save %+v", saved)
-		}
-		if b, _ := os.ReadFile(path); string(b) != original {
-			t.Fatalf("disk %q", b)
-		}
-	})
-
 	if runtime.GOOS == "windows" {
 		return
 	}

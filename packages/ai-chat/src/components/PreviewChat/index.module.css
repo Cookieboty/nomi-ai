@@ -77,7 +77,7 @@
 }
 .menu {
   position: fixed;
-  z-index: var(--cd-z-modal-top);
+  z-index: var(--cd-z-tooltip);
   width: min(21rem, calc(100vw - var(--cd-space-4)));
   max-height: calc(100vh - var(--cd-space-4));
   overflow: auto;

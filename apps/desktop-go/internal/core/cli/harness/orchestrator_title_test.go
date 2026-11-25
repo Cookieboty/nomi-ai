@@ -174,6 +174,41 @@ func TestCliSessionTitleReplacesHeuristic(t *testing.T) {
 	}
 }
 
+func TestApplyTabNativeTitleAcrossBackendsAndRenameGuard(t *testing.T) {
+	o := titleTestOrch(t)
+	defer jsrt.Run(o.Dispose)
+
+	for _, tc := range []struct {
+		backend, prompt, native string
+	}{
+		{"codex", "检查 Codex 标题回流", "Codex 原生标题"},
+		{"claude", "检查 Claude 标题回流", "Claude 原生标题"},
+		{"dsh", "检查 dsh 标题回流", "dsh 原生标题"},
+	} {
+		withThirdPartyGateway(o, tc.backend)
+		tab := jsrt.Call(func() *util.Obj {
+			return o.CreateTab(util.NewObj("backend", tc.backend))
+		})
+		id := str(tab, "id")
+		awaitSend(t, o, id, tc.prompt)
+
+		jsrt.Run(func() { o.applyTabNativeTitle(id, tc.native) })
+		if got := tabTitle(o, id); got != tc.native {
+			t.Fatalf("%s title = %q, want %q", tc.backend, got, tc.native)
+		}
+		if r := jsrt.Call(func() *util.Obj { return o.ApplyAutoTitle(id, "智能标题不应覆盖原生") }); r != nil {
+			t.Fatalf("%s ApplyAutoTitle after native title = %v, want nil", tc.backend, r)
+		}
+
+		// User manual rename locks against later native title updates.
+		jsrt.Run(func() { o.RenameTab(id, "用户手动标签名") })
+		jsrt.Run(func() { o.applyTabNativeTitle(id, "迟到的原生标题") })
+		if got := tabTitle(o, id); got != "用户手动标签名" {
+			t.Fatalf("%s native title overwrote manual rename: got %q", tc.backend, got)
+		}
+	}
+}
+
 // plainGateway：只给第三方来源一个默认模型、启动参数为空的网关（dsh / Gemini 没有官方账号，只能走第三方）
 type plainGateway struct{}
 

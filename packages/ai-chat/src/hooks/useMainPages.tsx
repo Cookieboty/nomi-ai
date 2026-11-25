@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 
 import { useAssetLibraryHost } from '../components/AssetLibrary';
 import { useFleetHost } from '../components/Fleet';
+import type { SubagentPaneActions } from '../components/SubagentPane';
 import { useTasksHost } from '../components/Tasks';
 
 export type MainPage = 'tasks' | 'assets' | 'fleet';
@@ -14,10 +15,11 @@ export function useMainPages(
   onOpenSchedule: () => void,
   onNavigate?: () => void,
   inactive = false,
+  paneActions?: SubagentPaneActions,
 ) {
   const assets = useAssetLibraryHost(true);
   // 任务页：旧的提醒 / 定时点开进日程面板
-  const tasks = useTasksHost(true, onOpenSchedule);
+  const tasks = useTasksHost(true, onOpenSchedule, paneActions);
   // Agent 看板：导航栏一项 + 标题栏负载指示（docs/development/agent-board.md）
   const fleet = useFleetHost(true);
   const closeAssets = assets.close;

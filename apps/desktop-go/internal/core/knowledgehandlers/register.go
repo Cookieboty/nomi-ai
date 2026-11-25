@@ -25,6 +25,7 @@ var Declared = map[string]bool{
 	"MEM_BAD_SUMMARY": true, "MEM_SUMMARIZE_FAILED": true, "MEM_NOT_FOUND": true, "MEM_EMPTY": true,
 	"SCHED_INVALID": true, "SCHED_NOT_FOUND": true, "SCHED_BUSY": true, "SCHED_EMPTY": true,
 	"TASKS_NOT_FOUND": true, "TASKS_BAD_TRIGGER": true, "TASKS_BAD_GRANT": true,
+	"TASKS_STORAGE_ERROR": true, "TASKS_IMAGE_UNAVAILABLE": true,
 	"CONNECTIONS_NOT_FOUND": true, "CONNECTIONS_NEEDS_LOGIN": true, "CONNECTIONS_UNAVAILABLE": true,
 	"CONNECTIONS_BAD_PARAMS": true, "CONNECTIONS_FAILED": true, "CONNECTIONS_DUPLICATE": true,
 }
@@ -37,11 +38,14 @@ func ErrorCode(prefix string, err error) string {
 	var se *schedule.SchedError
 	var te *tasks.TriggerError
 	var ge *tasks.GrantError
+	var he *tasks.HandoffError
 	switch {
 	case errors.As(err, &te):
 		code = te.Code()
 	case errors.As(err, &ge):
 		code = ge.Code()
+	case errors.As(err, &he):
+		code = he.Code
 	case errors.As(err, &kb):
 		code = kb.Code
 	case errors.As(err, &me):

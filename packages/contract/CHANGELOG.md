@@ -1,5 +1,12 @@
 # @nomi-ai/contract
 
+## 0.2.1
+
+### Patch Changes
+
+- eb42c70: 增加仅聊天窗口可用的托管对话契约、generation/turn 定向停止、运行时状态事件和明确的能力降级文案；发送、切换、迁移与审批保留危险操作权限检查。
+- a520a7e: 为托管运行时增加 runtimeResolve 与可选会话的 capabilities/choices 合同，并补充本机 Claude 首用、缺失可执行文件、未验证登录、无项目和恢复未知的中英说明。
+
 ## 0.2.0
 
 ### Minor Changes

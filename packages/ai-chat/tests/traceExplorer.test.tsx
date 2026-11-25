@@ -193,8 +193,22 @@ beforeEach(() => {
             content: 'CLI 修复完成',
             timestamp: T0 + 1500,
             trace: [
-              { type: 'tool', name: 'Bash', status: 'start', id: 'cli-b1', input: '{"command":"git status"}', at: T0 + 400 },
-              { type: 'tool', name: 'Bash', status: 'done', id: 'cli-b1', output: 'clean', at: T0 + 700 },
+              {
+                type: 'tool',
+                name: 'Bash',
+                status: 'start',
+                id: 'cli-b1',
+                input: '{"command":"git status"}',
+                at: T0 + 400,
+              },
+              {
+                type: 'tool',
+                name: 'Bash',
+                status: 'done',
+                id: 'cli-b1',
+                output: 'clean',
+                at: T0 + 700,
+              },
             ],
           },
         ];
@@ -214,7 +228,10 @@ beforeEach(() => {
         updatedAt: T0,
         origin: { createdBy: 'user', createdAt: T0 },
         trigger: { kind: 'manual' },
-        executor: id === 'tk-nomi' ? { kind: 'nomi', tools: ['read'] } : { kind: 'cli', cwd: '/w/app', isolation: 'shared' },
+        executor:
+          id === 'tk-nomi'
+            ? { kind: 'nomi', tools: ['read'] }
+            : { kind: 'cli', cwd: '/w/app', isolation: 'shared' },
         grant: { version: 1, level: 1, paths: [], connections: [], grantedAt: T0 },
         budget: { maxRetries: 1 },
         acceptance: 'auto',
@@ -497,6 +514,8 @@ describe('任务详情运行轨迹入口', () => {
     const nomiTraceBtn = await screen.findByTestId('task-open-trace');
     fireEvent.click(nomiTraceBtn);
     await waitFor(() => {
+      expect(screen.getByTestId('task-side-drawer')).toBeTruthy();
+      expect(screen.queryByRole('dialog')).toBeNull();
       expect(screen.getByTestId('trace-graph-view')).toBeTruthy();
     });
     await waitFor(() => {
@@ -504,6 +523,8 @@ describe('任务详情运行轨迹入口', () => {
       expect(texts.some((txt) => txt.includes('先列出目录再读关键文件'))).toBe(true);
       expect(texts.some((txt) => txt.includes('src'))).toBe(true);
     });
+    fireEvent.click(screen.getByTestId('task-side-drawer-close'));
+    expect(screen.queryByTestId('task-side-drawer')).toBeNull();
     r1.unmount();
 
     // CLI 任务：由 carrier.tabId 加载对应 tab 消息并展示 bash 工具
@@ -556,8 +577,22 @@ describe('任务详情运行轨迹入口', () => {
           content: 'CLI 修复完成',
           timestamp: T0 + 1500,
           trace: [
-            { type: 'tool', name: 'Bash', status: 'start', id: 'cli-b1', input: '{"command":"git status"}', at: T0 + 400 },
-            { type: 'tool', name: 'Bash', status: 'done', id: 'cli-b1', output: 'clean', at: T0 + 700 },
+            {
+              type: 'tool',
+              name: 'Bash',
+              status: 'start',
+              id: 'cli-b1',
+              input: '{"command":"git status"}',
+              at: T0 + 400,
+            },
+            {
+              type: 'tool',
+              name: 'Bash',
+              status: 'done',
+              id: 'cli-b1',
+              output: 'clean',
+              at: T0 + 700,
+            },
           ],
         },
       ],
@@ -585,6 +620,8 @@ describe('任务详情运行轨迹入口', () => {
 
     fireEvent.click(screen.getByTestId('task-open-trace'));
     await waitFor(() => {
+      expect(screen.getByTestId('task-side-drawer')).toBeTruthy();
+      expect(screen.queryByRole('dialog')).toBeNull();
       expect(screen.getByTestId('trace-graph-view')).toBeTruthy();
     });
     await waitFor(() => {
@@ -736,6 +773,113 @@ describe('多轮切换模型与指纹验真分析', () => {
         'x-ds-trace-id',
       );
     });
+  });
+
+  it('混合底座会话仅按 Nomi 轮次窗口拉取网关请求、过滤孤儿 MAAS 499，并为切换胶囊提供完整 title', async () => {
+    const tAgy = T0;
+    const tNomi = T0 + 180_000;
+    const mixedMessages: ConvMessage[] = [
+      { id: 'm-u1', role: 'user', text: '船长英文', at: tAgy },
+      {
+        id: 'm-a1',
+        role: 'assistant',
+        text: 'Captain',
+        at: tAgy + 8300,
+        durationMs: 8300,
+        label: 'Antigravity',
+        model: 'gemini-4-neon-high',
+        raw: { runtimeBackend: 'antigravity' },
+      },
+      { id: 'm-u2', role: 'user', text: '我前面说的是啥', at: tNomi },
+      {
+        id: 'm-a2',
+        role: 'assistant',
+        text: '你前面问的是船长英文',
+        at: tNomi + 5600,
+        durationMs: 5600,
+        label: 'Nomi',
+        model: 'maas/deepseek-v4.1-flash',
+        raw: { runtimeBackend: 'api' },
+        usage: { inputTokens: 3700, outputTokens: 165 },
+      },
+    ];
+
+    fake = installFakeApi({
+      'quality.requests': () => ({
+        items: [
+          {
+            id: 'qr-nomi-ok',
+            layer: 'gateway',
+            ts: tNomi + 300,
+            client: 'nomi',
+            source: 'thirdParty',
+            provider: 'maas',
+            providerName: 'MAAS',
+            model: 'maas/deepseek-v4.1-flash',
+            upstreamModel: 'deepseek-v4.1-flash',
+            wire: 'chat',
+            mode: 'passthrough',
+            stream: true,
+            outcome: 'ok',
+            status: 200,
+            timing: { firstContentMs: 400, lastContentMs: 5000, endMs: 5200 },
+            tokens: { input: 3700, output: 165 },
+          },
+          {
+            id: 'qr-orphan-499',
+            layer: 'gateway',
+            ts: tAgy + 900_000,
+            client: 'nomi',
+            source: 'thirdParty',
+            provider: 'maas',
+            providerName: 'MAAS',
+            model: 'maas/deepseek-v4.1-flash',
+            upstreamModel: 'deepseek-v4.1-flash',
+            wire: 'chat',
+            mode: 'passthrough',
+            stream: true,
+            outcome: 'client-cancel',
+            status: 499,
+            timing: { endMs: 54 },
+            tokens: {},
+          },
+        ],
+      }),
+      'diagnostics.cliRecords': () => ({ records: [], capped: false }),
+      'harness.tabs': () => ({ tabs: [], activeTabId: 'main', running: 0, queued: 0 }),
+    });
+
+    render(
+      <HarnessTabsProvider>
+        <TraceModal
+          target={{
+            kind: 'session',
+            title: '混合底座排查',
+            messages: mixedMessages,
+            source: { kind: 'nomi' },
+          }}
+          onClose={vi.fn()}
+        />
+      </HarnessTabsProvider>,
+    );
+    await act(() => fake.settle());
+
+    // 1) quality.requests 仅针对 Nomi 轮次窗口查询，不拉取 Antigravity 轮次时段
+    const reqQueries = fake.inputs<{ from?: number; to?: number }>('quality.requests');
+    expect(reqQueries.length).toBeGreaterThanOrEqual(1);
+    for (const q of reqQueries) {
+      expect(q.from).toBeGreaterThanOrEqual(tNomi - 2000);
+      expect(q.to).toBeLessThanOrEqual(tNomi + 5600 + 2000);
+    }
+
+    // 2) 切换胶囊提供完整 title，避免截断后丢失完整模型信息
+    const switchPill = await waitFor(() => screen.getByTestId('graph-model-switch'));
+    expect(switchPill.getAttribute('title')).toContain('gemini-4-neon-high');
+    expect(switchPill.getAttribute('title')).toContain('deepseek-v4.1-flash');
+
+    // 3) 网关请求标签页计数与轨迹图口径一致（仅 1 条有效请求，过滤 499 孤儿请求）
+    const requestsTab = screen.getByRole('tab', { name: /网关请求/ });
+    expect(requestsTab.textContent).toContain('1');
   });
 });
 

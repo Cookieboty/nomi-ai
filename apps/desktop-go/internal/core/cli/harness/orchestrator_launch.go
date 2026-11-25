@@ -262,6 +262,9 @@ func (o *Orchestrator) bindCliSession(tab *util.Obj, sessionID string) {
 }
 
 func (o *Orchestrator) requireAccountBackend(backend string) {
+	if builtin.LocalOnly(backend) {
+		throw(i18n.T("electron.common.cli-local-only", builtin.DisplayName(backend)))
+	}
 	if isBuiltin(backend) && !isAccountBackend(backend) {
 		if o.d.Gateway == nil {
 			throw(i18n.T("electron.common.the-model-gateway-isn-t-running-so-third"))
@@ -271,6 +274,9 @@ func (o *Orchestrator) requireAccountBackend(backend string) {
 }
 
 func (o *Orchestrator) localLaunchFor(backend string) *tabLaunch {
+	if builtin.LocalOnly(backend) {
+		return &tabLaunch{env: util.NewObj(), args: []string{}, strip: []string{}, official: true, sig: "local"}
+	}
 	o.requireAccountBackend(backend)
 	sig := "local"
 	if isAccountBackend(backend) {
@@ -376,6 +382,9 @@ func (o *Orchestrator) tabPreflightError(tab *util.Obj) string {
 	}
 	switch o.sourceOf(tab) {
 	case "thirdParty":
+		if isBuiltin(backend) && !builtin.WithThirdParty(backend) {
+			return i18n.T("electron.common.cli-local-only", builtin.DisplayName(backend))
+		}
 		if o.d.Gateway == nil {
 			return i18n.T("electron.common.the-model-gateway-isn-t-running-so-third")
 		}
@@ -384,6 +393,9 @@ func (o *Orchestrator) tabPreflightError(tab *util.Obj) string {
 			return i18n.T("electron.common.this-tab-has-no-third-party-model-yet")
 		}
 	case "local":
+		if builtin.LocalOnly(backend) {
+			return ""
+		}
 		if isBuiltin(backend) && !isAccountBackend(backend) {
 			return i18n.T("electron.common.only-third-party-models", builtin.DisplayName(backend))
 		}
@@ -391,6 +403,9 @@ func (o *Orchestrator) tabPreflightError(tab *util.Obj) string {
 			return i18n.T("electron.common.no-local-login-detected-for", builtin.DisplayName(backend))
 		}
 	case "official":
+		if builtin.LocalOnly(backend) {
+			return i18n.T("electron.common.cli-local-only", builtin.DisplayName(backend))
+		}
 		if isBuiltin(backend) && !isAccountBackend(backend) {
 			return i18n.T("electron.common.only-third-party-models", builtin.DisplayName(backend))
 		}

@@ -33,6 +33,20 @@ export interface StreamSendOptions {
 }
 
 export interface IPCClient {
+  isManagedConversation?(id: string): boolean;
+  rewindManagedConversation?(id: string, messageId: string): Promise<ChatMessage[]>;
+  sendManagedConversation?(
+    id: string,
+    text: string,
+    onUpdate: (messages: ChatMessage[]) => void,
+    signal?: AbortSignal,
+    options?: {
+      images?: string[];
+      messageId?: string;
+      turnId?: string;
+      retry?: { messageId: string; turnId: string };
+    },
+  ): Promise<void>;
   // 消息相关：history 为本轮之前的会话消息，与本轮输入一起发给模型（多轮上下文）
   /** memory：这一轮新召回的长期记忆（放在本轮用户原话前面发） */
   sendMessage(
@@ -40,6 +54,7 @@ export interface IPCClient {
     history?: ChatMessage[],
     extraSystem?: string,
     memory?: string,
+    conversation?: { id: string },
   ): Promise<string>;
   /** 上下文压缩：用 summary 角色的模型生成摘要（可选：测试桩 / 旧实现没有时不压缩） */
   summarize?(
@@ -103,7 +118,7 @@ export interface IPCClient {
    */
   saveDeliveredSteersTo?(
     conversationId: string,
-    payload: import('./chat').ChatSession['deliveredSteers'] | undefined,
+    payload: ChatSession['deliveredSteers'] | undefined,
   ): Promise<void>;
   /** 取当前会话 id，没有则新建（发起一轮对话时固定下来） */
   ensureConversationId?(): string;

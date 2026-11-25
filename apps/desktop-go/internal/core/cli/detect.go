@@ -271,7 +271,8 @@ func CliSearchDirs(home, platform string, env *util.Obj) []string {
 		}
 		d = append(d, filepath.Join(localAppData, "pnpm"),
 			filepath.Join(orDefault(t("VOLTA_HOME"), filepath.Join(localAppData, "Volta")), "bin"),
-			filepath.Join(winHome, ".bun", "bin"))
+			filepath.Join(winHome, ".bun", "bin"),
+			filepath.Join(localAppData, "agy", "bin"))
 		return unique(d)
 	}
 	d := remembered()

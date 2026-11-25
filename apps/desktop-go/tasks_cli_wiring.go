@@ -169,6 +169,80 @@ func (h taskCliHarness) ReplyPermission(tabID, requestID string, allow bool) boo
 	return jsrt.Call(func() bool { return o.ReplyTaskPermission(tabID, requestID, allow) })
 }
 
+func (h taskCliHarness) SyncTabConfig(id, source, accountID, model, effort string) error {
+	o := h.orch()
+	if o == nil {
+		return errors.New("harness not ready")
+	}
+	found, err := gilErr(func() bool {
+		findTab := func() *util.Obj {
+			tabs, _ := o.ListTabs().Get("tabs").([]any)
+			for _, t := range tabs {
+				if x, ok := t.(*util.Obj); ok && util.Str(x.Get("id")) == id {
+					return x
+				}
+			}
+			return nil
+		}
+		cur := findTab()
+		if cur == nil {
+			return false
+		}
+		curSource := util.Str(cur.Get("source"))
+		curAccount := util.Str(cur.Get("accountId"))
+		curModel := util.Str(cur.Get("modelOverride"))
+
+		if source != "" && source != curSource {
+			var mp *string
+			if model != "" {
+				m := model
+				mp = &m
+			}
+			o.SetTabSource(id, source, mp)
+			if cur = findTab(); cur == nil {
+				return false
+			}
+			curSource = util.Str(cur.Get("source"))
+			curAccount = util.Str(cur.Get("accountId"))
+			curModel = util.Str(cur.Get("modelOverride"))
+		}
+		effSource := source
+		if effSource == "" {
+			effSource = curSource
+		}
+		if effSource == "official" && accountID != curAccount {
+			if accountID == "" {
+				o.SetTabAccount(id, nil)
+			} else {
+				a := accountID
+				o.SetTabAccount(id, &a)
+			}
+		}
+		if model != curModel {
+			o.SetTabModel(id, model, "")
+		}
+		if cur = findTab(); cur == nil {
+			return false
+		}
+		curEffort := util.Str(cur.Get("reasoningEffort"))
+		if effort != curEffort {
+			if effort == "" {
+				o.SetTabReasoningEffort(id, nil)
+			} else {
+				o.SetTabReasoningEffort(id, effort)
+			}
+		}
+		return true
+	})
+	if err != nil {
+		return err
+	}
+	if !found {
+		return errors.New("tab not found")
+	}
+	return nil
+}
+
 func (h taskCliHarness) OnEvent(fn func(tasks.CliTabEvent)) func() {
 	o := h.orch()
 	if o == nil {

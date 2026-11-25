@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	antigravityp "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/antigravity"
 	claudep "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/claude"
 	codexp "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/codex"
 	grokp "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/grok"
@@ -33,12 +34,13 @@ type ClaudeDefaults struct {
 
 // ModelDiscoveryDeps：模型发现的依赖。Spawn 返回 nil = 找不到 CLI。
 type ModelDiscoveryDeps struct {
-	Spawn                 func(backend string, args []string) clisdk.ChildLike
-	ClaudeDefaults        *ClaudeDefaults
-	CodexConfigPath       string
-	GrokModelsCachePath   string // "" = undefined
-	GrokSettingsCachePath string // "" = undefined
-	TimeoutMs             *int
+	Spawn                   func(backend string, args []string) clisdk.ChildLike
+	ClaudeDefaults          *ClaudeDefaults
+	CodexConfigPath         string
+	GrokModelsCachePath     string // "" = undefined
+	GrokSettingsCachePath   string // "" = undefined
+	AntigravitySettingsPath string // "" = undefined
+	TimeoutMs               *int
 }
 
 // DiscoverModels：读 backend 的模型目录。
@@ -54,6 +56,8 @@ func DiscoverModels(backend string, deps ModelDiscoveryDeps) *jsrt.Promise[*util
 		return discoverCodex(deps, timeoutMs)
 	case "grok":
 		return discoverGrok(deps, timeoutMs)
+	case "antigravity":
+		return discoverAntigravity(deps, timeoutMs)
 	}
 	return jsrt.Rejected[*util.Obj](fmt.Errorf("no model discovery for %s", backend))
 }
@@ -356,4 +360,102 @@ func readGrokCache(deps ModelDiscoveryDeps) *util.Obj {
 		return nil
 	}
 	return catalog
+}
+
+func discoverAntigravityAcp(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promise[*util.Obj] {
+	child, err := mdSpawn(deps, "antigravity", []string{"acp", "--disable-telemetry"})
+	if err != nil {
+		return jsrt.Rejected[*util.Obj](err)
+	}
+	stderr := mdStderrTail(child)
+	return withTimeout(child, timeoutMs, func(done func(*util.Obj), fail func(error)) {
+		conn := gemini.NewAcpConnection(child, rpc.Handlers{
+			OnNotification: func(string, rpc.Json) {},
+			OnRequest: func(string, rpc.Json) *jsrt.Promise[any] {
+				return jsrt.Rejected[any](errors.New("not supported"))
+			},
+		})
+		opts := rpc.RequestOptions{TimeoutMs: &timeoutMs}
+		jsrt.Async(func() (struct{}, error) {
+			res, err := func() (*util.Obj, error) {
+				if _, err := jsrt.Await(conn.Request("initialize", util.NewObj("protocolVersion", float64(1), "clientCapabilities", util.NewObj()), opts)); err != nil {
+					return nil, err
+				}
+				sv, err := jsrt.Await(conn.Request("session/new", util.NewObj("cwd", nodepath.Tmpdir(), "mcpServers", []any{}), opts))
+				if err != nil {
+					return nil, err
+				}
+				session := sh.AsObj(sv)
+				catalog := antigravityp.ParseModels(session)
+				if sid, ok := session.Get("sessionId").(string); ok && sid != "" {
+					t := 3_000
+					_, _ = jsrt.Await(conn.Request("session/close", util.NewObj("sessionId", sid), rpc.RequestOptions{TimeoutMs: &t}))
+				}
+				return catalog, nil
+			}()
+			if err != nil {
+				if reason := stderr(); reason != "" {
+					fail(errors.New(reason))
+				} else {
+					fail(err)
+				}
+				return struct{}{}, nil
+			}
+			done(res)
+			return struct{}{}, nil
+		})
+	})
+}
+
+func discoverAntigravityCLI(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promise[*util.Obj] {
+	child, err := mdSpawn(deps, "antigravity", []string{"models"})
+	if err != nil {
+		return jsrt.Rejected[*util.Obj](err)
+	}
+	child.Stdin().End()
+	stderr := mdStderrTail(child)
+	return withTimeout(child, timeoutMs, func(done func(*util.Obj), fail func(error)) {
+		out := ""
+		child.OnStdout(func(c string) { out += c })
+		child.OnClose(func(code *int, _ string) {
+			if code == nil || *code != 0 {
+				fail(errors.New(orStr(stderr(), "agy models exited ("+exitStr(code)+")")))
+				return
+			}
+			settingsJSON := ""
+			if deps.AntigravitySettingsPath != "" {
+				if b, err := os.ReadFile(deps.AntigravitySettingsPath); err == nil {
+					settingsJSON = string(b)
+				}
+			}
+			done(antigravityp.ParseModelsCLI(out, settingsJSON))
+		})
+	})
+}
+
+func discoverAntigravity(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promise[*util.Obj] {
+	return jsrt.Async(func() (*util.Obj, error) {
+		acpCat, acpErr := jsrt.Await(discoverAntigravityAcp(deps, timeoutMs))
+		if acpErr == nil && acpCat != nil {
+			if models, _ := acpCat.Get("models").([]any); len(models) > 0 {
+				return acpCat, nil
+			}
+		}
+		if acpErr != nil && strings.Contains(acpErr.Error(), "CLI not found") {
+			return nil, acpErr
+		}
+		cliCat, cliErr := jsrt.Await(discoverAntigravityCLI(deps, timeoutMs))
+		if cliErr == nil && cliCat != nil {
+			if models, _ := cliCat.Get("models").([]any); len(models) > 0 {
+				return cliCat, nil
+			}
+		}
+		if acpErr != nil {
+			return nil, acpErr
+		}
+		if cliErr != nil {
+			return nil, cliErr
+		}
+		return nil, errors.New("antigravity returned no models")
+	})
 }

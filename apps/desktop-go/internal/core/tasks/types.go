@@ -64,7 +64,7 @@ type ExecutorSpec struct {
 	Isolation *string `json:"isolation,omitempty"`
 	// BaseBranch：cli 的基线分支：是别的分支（不在当前分支历史里）时才开 worktree，否则直接在 cwd 里改
 	BaseBranch *string `json:"baseBranch,omitempty"`
-	// ReasoningEffort：cli 的思考深度（委派带过来的）
+	// ReasoningEffort：思考深度（nomi 与 cli 共用）
 	ReasoningEffort *string `json:"reasoningEffort,omitempty"`
 	// Source / AccountID / PresetID：多来源路由信息（local | official | thirdParty）
 	Source    *string `json:"source,omitempty"`
@@ -76,6 +76,9 @@ type ExecutorSpec struct {
 	AskCommands *bool `json:"askCommands,omitempty"`
 	// CallID：对话里派出它的工具调用 id：对话里的子任务卡片据此找到标签（查看、停止、审批）
 	CallID *string `json:"callId,omitempty"`
+	// Attachments：handoff 带过来的附图（这一轮用户已发给前台的图；存 <Root>/attachments/<任务 id>/），
+	// 只在首轮交给模型（#414）
+	Attachments []string `json:"attachments,omitempty"`
 }
 
 // Brief：ExecutorSpec cli / nomi 的 brief（nomi 只用 doneWhen、context）
@@ -235,6 +238,9 @@ type Origin struct {
 	CreatedAt      int64   `json:"createdAt"`
 	// Via："delegate" = 对话里 delegate_to_cli/nomi 后台派出的；"handoff" = 前台长程任务主动转后台（完成后结果回到来源对话）
 	Via *string `json:"via,omitempty"`
+	// SourceID：handoff 的来源轮次（来源会话 + reqId，即接管键 handoffSource(来源会话, reqId)）：同一轮的重试复用
+	// 同一个任务（#413）。落盘的就是查找用的那个键，重启后内存里的接管记录丢了也能凭快照找回同一任务身份
+	SourceID *string `json:"sourceId,omitempty"`
 }
 
 // QueueInfo：任务在队列中的等待原因与顺位（运行时实时计算，不落盘）

@@ -61,6 +61,18 @@ export function modelVendorOf(modelId: string): ModelVendor | undefined {
   return match(PREFIX_ALIAS[prefix] ?? prefix);
 }
 
+/**
+ * 胶囊里还要不要加画模型图标（同品牌不重复展示双图标）：模型认出的品牌与底座「自家模型的品牌」相同时只留底座的图标。
+ * 底座的自家品牌不是这里的表单：它来自 cli-catalog 清单的 `branding.modelBrand`（调用方传入），本函数只做品牌 id 比较。
+ * 认不出模型厂商（显示通用图标）、别家的模型、底座没有自家品牌时返回 false（照样画）。
+ */
+export function modelBrandIsNative(
+  modelBrand: string | undefined,
+  backendBrand: string | undefined,
+): boolean {
+  return !!modelBrand && !!backendBrand && modelBrand === backendBrand;
+}
+
 /** 厂商在筛选栏里的顺序（认不出的排最后） */
 export function modelVendorRank(id: string): number {
   const i = VENDORS.findIndex(([, v]) => v.id === id);

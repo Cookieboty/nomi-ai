@@ -16,12 +16,14 @@ import {
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import { useChatMode } from '../../hooks/useChatMode';
+import { api } from '../../services/api';
 import {
   CONVERSATIONS_CHANGED_EVENT,
   notifyConversationsChanged,
   type ConversationMeta,
   type ConversationStore,
 } from '../../services/conversationStore';
+import { updateManagedConversationMeta } from '../../services/managedMainChat';
 import { sessionPlace } from '../../services/projects';
 import { clearNomiAutoTitle } from '../../services/sessionTitle';
 import { cliTranscriptKey } from '../../services/transcriptView';
@@ -114,12 +116,24 @@ export const SessionTitle: React.FC<{
     if (s.tabId) await tabs.rename(s.tabId, name).catch(() => undefined);
     else if (s.id && store) {
       clearNomiAutoTitle(s.id);
-      store.updateMeta(s.id, { name });
+      if (store.isManaged?.(s.id)) {
+        await updateManagedConversationMeta(api, s.id, { name });
+        await store.refreshManaged?.(s.id);
+      } else {
+        store.updateMeta(s.id, { name });
+      }
       notifyConversationsChanged();
     }
   };
   const archive = async () => {
     if (!s.id || !store) return;
+    if (store.isManaged?.(s.id)) {
+      await updateManagedConversationMeta(api, s.id, { archivedAt: Date.now() });
+      await store.refreshManaged?.(s.id);
+      store.advanceFromArchived?.(s.id);
+      await reload();
+      return;
+    }
     store.setArchived(s.id, true);
     await reload();
   };

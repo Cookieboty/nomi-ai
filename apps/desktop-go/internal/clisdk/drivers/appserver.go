@@ -50,8 +50,9 @@ type AppServerDriver struct {
 	questionOrder []string
 	turn          *appTurn
 	exited        bool
-	ThreadID      *string
-	Totals        *CodexTokenTotals
+	ThreadID     *string
+	SessionTitle string
+	Totals       *CodexTokenTotals
 	Context       Json // nil = null
 	// 压缩完成后还没收到新占用：旧 contextTokens 已作废。结束这一轮时在 usage 里写 contextTokens = 0，
 	// 落盘的消息就带着「压缩后大小未知」的边界，视图不会回扫到压缩前的值（#217）
@@ -127,6 +128,28 @@ func (d *AppServerDriver) threadEq(params Json) bool {
 	return ok && s == *d.ThreadID
 }
 
+func extractAppServerThreadTitle(v any) string {
+	pick := func(raw any) string {
+		s, ok := raw.(string)
+		if !ok {
+			return ""
+		}
+		return strings.TrimSpace(s)
+	}
+	if s := pick(getp(getp(v, "thread"), "name")); s != "" {
+		return s
+	}
+	if s := pick(getp(getp(v, "thread"), "title")); s != "" {
+		return s
+	}
+	for _, k := range []string{"threadName", "name", "title"} {
+		if s := pick(getp(v, k)); s != "" {
+			return s
+		}
+	}
+	return ""
+}
+
 func (d *AppServerDriver) onNotification(method string, params Json) {
 	if method == "thread/tokenUsage/updated" && d.threadEq(params) {
 		if t := CodexTokenTotalsOf(params.Get("tokenUsage")); t != nil {
@@ -148,8 +171,42 @@ func (d *AppServerDriver) onNotification(method string, params Json) {
 		}
 		return
 	}
+	if method == "thread/name/updated" {
+		tid := ""
+		hasTid := false
+		if params != nil {
+			if params.Has("threadId") {
+				hasTid = true
+				tid, _ = params.Get("threadId").(string)
+			} else if th := util.AsObj(params.Get("thread")); th != nil && th.Has("id") {
+				hasTid = true
+				tid, _ = th.Get("id").(string)
+			}
+		}
+		matchesMain := !hasTid || (d.ThreadID != nil && tid == *d.ThreadID)
+		if matchesMain && !d.knownChild(tid) {
+			if title := extractAppServerThreadTitle(params); title != "" {
+				d.SessionTitle = title
+				d.emit(O("type", "session-info", "title", title))
+			}
+		}
+		return
+	}
 	if method == "thread/started" {
 		d.onThreadStarted(params)
+		if th, _ := params.Get("thread").(*util.Obj); th != nil {
+			id, _ := th.Get("id").(string)
+			parent, _ := th.Get("parentThreadId").(string)
+			isMain := (d.ThreadID != nil && id == *d.ThreadID) || (d.ThreadID == nil && parent == "" && !d.knownChild(id))
+			if isMain {
+				if title := extractAppServerThreadTitle(params); title != "" {
+					d.SessionTitle = title
+					if d.ThreadID != nil {
+						d.emit(O("type", "session-info", "title", title))
+					}
+				}
+			}
+		}
 		return
 	}
 	// 子代理线程的通知：不管主线程这一轮在不在跑都转出去（直接对子代理说话时主线程是空闲的）
@@ -527,6 +584,9 @@ func (d *AppServerDriver) Start(o clisdk.StartOptions) *jsrt.Promise[StartResult
 				s := *o.ResumeID
 				d.ThreadID = &s
 			}
+			if title := extractAppServerThreadTitle(r); title != "" {
+				d.SessionTitle = title
+			}
 		}
 		d.hub.Emit(O("kind", "health", "state", "ready"))
 		var sid any
@@ -561,6 +621,9 @@ func (d *AppServerDriver) EnsureThread(cwd string) *jsrt.Promise[string] {
 		}
 		if d.ThreadID == nil || *d.ThreadID == "" {
 			return "", errors.New("app-server returned no thread")
+		}
+		if title := extractAppServerThreadTitle(r); title != "" {
+			d.SessionTitle = title
 		}
 		return *d.ThreadID, nil
 	})

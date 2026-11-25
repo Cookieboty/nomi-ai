@@ -4,6 +4,8 @@
  * 内核实现在 apps/desktop-go/internal/cliplugins。
  */
 
+import { manifest as antigravity } from './antigravity/manifest';
+import { renderer as antigravityRenderer } from './antigravity/renderer';
 import { manifest as claude } from './claude/manifest';
 import { renderer as claudeRenderer } from './claude/renderer';
 import { manifest as codex } from './codex/manifest';
@@ -39,6 +41,7 @@ export function isBuiltinCliId(v: unknown): v is BuiltinCliId {
 }
 
 export const BUILTIN_MANIFESTS: Readonly<Record<BuiltinCliId, CliManifest>> = {
+  antigravity,
   claude,
   codex,
   dsh,
@@ -60,6 +63,7 @@ export const BUILTIN_CLI_ORDER: readonly BuiltinCliId[] = [
   'gemini',
   'kimi',
   'minimax',
+  'antigravity',
 ];
 
 /** 显示名（「Gemini」）；不是内置的原样返回 */
@@ -99,6 +103,7 @@ export function cliCapability(id: string, name: keyof CliManifest['capabilities'
 }
 
 export const BUILTIN_RENDERER: Readonly<Record<BuiltinCliId, CliRendererInfo>> = {
+  antigravity: antigravityRenderer,
   claude: claudeRenderer,
   codex: codexRenderer,
   dsh: dshRenderer,

@@ -345,7 +345,7 @@ func TestDelegateSyncAndBackgroundShareOverridePrecedence(t *testing.T) {
 			if tc.effort != "" {
 				syncArgs.Set("reasoning_effort", tc.effort)
 			}
-			beforeCreate := len(log.harness)
+			beforeCreate := len(log.harnessLog())
 			syncRes, err := defs["delegate_to_cli"].Execute(context.Background(), syncArgs, tools.ExecContext{
 				ReqID:          "req-sync-" + string(rune('a'+i)),
 				ConversationID: "conv-sync",
@@ -354,7 +354,11 @@ func TestDelegateSyncAndBackgroundShareOverridePrecedence(t *testing.T) {
 				t.Fatalf("sync delegate failed: err=%v res=%s", err, util.Stringify(syncRes))
 			}
 			var syncCreateOpts *util.Obj
-			for _, ev := range log.harness[beforeCreate:] {
+			hl := log.harnessLog()
+			if beforeCreate > len(hl) {
+				beforeCreate = len(hl)
+			}
+			for _, ev := range hl[beforeCreate:] {
 				arr := ev.([]any)
 				if arr[0] == "createTab" {
 					syncCreateOpts = arr[1].(*util.Obj)

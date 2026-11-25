@@ -104,7 +104,7 @@ type acpMapper struct {
 	userText   string
 	userImages []any
 	userID     string
-	thought    string
+	thoughtLen int
 	context    Json
 	names      map[string]string
 	// inputs：进行中的工具调用最近一次带来的参数（rawInput / 标题 / 位置），做完时 update 里没有就用它。
@@ -124,13 +124,11 @@ func NewAcpMapper() AcpMapper {
 	return &acpMapper{context: O(), names: map[string]string{}, inputs: map[string]acpInput{}}
 }
 
+const maxAcpThoughtLen = 20_000
+
 func (m *acpMapper) Flush() []Ev {
-	if clisdk.JSTrim(m.thought) == "" {
-		return []Ev{}
-	}
-	ev := O("type", "thinking", "text", clip(m.thought, 20_000))
-	m.thought = ""
-	return []Ev{ev}
+	m.thoughtLen = 0
+	return []Ev{}
 }
 
 func (m *acpMapper) Context() Json { return m.context }
@@ -138,6 +136,11 @@ func (m *acpMapper) Context() Json { return m.context }
 func posNum(v any) (float64, bool) {
 	f, ok := v.(float64)
 	return f, ok && !math.IsInf(f, 0) && !math.IsNaN(f) && f > 0
+}
+
+func nonNegNum(v any) (float64, bool) {
+	f, ok := v.(float64)
+	return f, ok && !math.IsInf(f, 0) && !math.IsNaN(f) && f >= 0
 }
 
 // compactTokensAfter：auto_compact_completed 的 tokens_after（兼容驼峰）。
@@ -201,20 +204,36 @@ func (m *acpMapper) Update(u Json) []Ev {
 		return []Ev{O("type", "status", "kind", "clear"), O("type", "context", "tokens", tok)}
 	}
 	if kind == "agent_thought_chunk" {
-		if t, ok := getp(u.Get("content"), "text").(string); ok {
-			m.thought += t
+		if t, ok := getp(u.Get("content"), "text").(string); ok && t != "" {
+			if m.thoughtLen >= maxAcpThoughtLen {
+				return []Ev{}
+			}
+			rem := maxAcpThoughtLen - m.thoughtLen
+			if clisdk.Len(t) > rem {
+				t = clisdk.Slice0(t, rem) + "…"
+				m.thoughtLen = maxAcpThoughtLen
+			} else {
+				m.thoughtLen += clisdk.Len(t)
+			}
+			return []Ev{O("type", "thinking", "text", t)}
 		}
 		return []Ev{}
 	}
 	if kind == "usage_update" {
-		used, okU := posNum(u.Get("used"))
+		used, okU := nonNegNum(u.Get("used"))
 		size, okS := posNum(u.Get("size"))
+		costAmt, okC := nonNegNum(getp(u.Get("cost"), "amount"))
+		costCur := strings.TrimSpace(strQ(getp(u.Get("cost"), "currency")))
+		hasUsdCost := okC && (costCur == "" || strings.EqualFold(costCur, "USD"))
 		m.context = O()
 		if okU {
 			m.context.Set("contextTokens", used)
 		}
 		if okS {
 			m.context.Set("contextWindow", size)
+		}
+		if hasUsdCost {
+			m.context.Set("costUsd", costAmt)
 		}
 		if !okU {
 			return []Ev{}
@@ -223,7 +242,35 @@ func (m *acpMapper) Update(u Json) []Ev {
 		if okS {
 			ev.Set("window", size)
 		}
+		if hasUsdCost {
+			ev.Set("costUsd", costAmt)
+		}
 		return []Ev{ev}
+	}
+	if kind == "current_mode_update" {
+		modeID := strQ(u.Get("currentModeId"))
+		if modeID == "" {
+			modeID = strQ(u.Get("modeId"))
+		}
+		if modeID != "" {
+			return []Ev{O("type", "status", "permissionMode", modeID)}
+		}
+		return []Ev{}
+	}
+	if kind == "session_info_update" {
+		ev := O("type", "session-info")
+		if t, ok := u.Get("title").(string); ok {
+			if trimmed := strings.TrimSpace(t); trimmed != "" {
+				ev.Set("title", trimmed)
+			}
+		}
+		if len(ev.Keys()) > 1 {
+			return []Ev{ev}
+		}
+		return []Ev{}
+	}
+	if kind == "config_option_update" || kind == "config_options_update" {
+		return []Ev{}
 	}
 	out := m.Flush()
 	if kind == "agent_message_chunk" {

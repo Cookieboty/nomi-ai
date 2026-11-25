@@ -185,6 +185,9 @@ export interface HarnessUsage {
   inputTokens?: number;
   outputTokens?: number;
   cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  thoughtTokens?: number;
+  totalTokens?: number;
   costUsd?: number;
   durationMs?: number;
   /**

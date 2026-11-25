@@ -1,5 +1,11 @@
 # @nomi-ai/voice
 
+## 0.2.4
+
+### Patch Changes
+
+- @nomi-ai/ui@0.2.4
+
 ## 0.2.3
 
 ### Patch Changes

@@ -270,5 +270,16 @@
   "ui.models.cli-welcome-setup-desc": "{0} 还没有可用的官方账号或已启用三方模型。请先登录账号或添加三方供应商。",
   "ui.models.cli-welcome-setup-desc-tp-only": "{0} 还没有已启用的三方模型。请先配置三方供应商并启用模型。",
   "ui.models.cli-welcome-configure": "去配置",
-  "ui.models.cli-pick-model-before-send": "请先在输入栏选择一个模型再发送"
+  "ui.models.cli-pick-model-before-send": "请先在输入栏选择一个模型再发送",
+  "ui.models.local-sign-in-only-desc": "{0} 直接使用本机 CLI 登录与配置（{1}），无需单独管理账号或配置第三方供应商。",
+  "ui.models.local-auth-title": "官方登录",
+  "ui.models.local-auth-desc": "使用 {0} 官方命令（{1} acp --login）在本机完成登录，并复用本机配置（{2}）；Nomi 不保存凭据也不读取系统钥匙串。",
+  "ui.models.local-auth-signed-in": "已登录",
+  "ui.models.local-auth-logout": "退出登录",
+  "ui.models.local-auth-logging-out": "正在退出…",
+  "ui.models.local-auth-done": "已完成 {0} 官方登录。",
+  "ui.models.local-auth-dialog-note": "登录流程完全由本机 {0} 官方 CLI 执行，凭据仅由官方 CLI 自行管理。",
+  "ui.models.local-auth-logout-title": "退出 {0} 登录",
+  "ui.models.local-auth-logout-body": "确定要退出当前本机 {0} 登录状态吗？",
+  "ui.models.local-auth-refresh-aria": "刷新 {0} 登录状态"
 }

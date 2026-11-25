@@ -12,7 +12,7 @@ import {
 import { t, type SelectOption } from '@nomi-ai/ui';
 
 import { confirmDialog } from '../components/ConfirmDialog';
-import { hasOfficialAccount, thirdPartyOnly } from '../utils/cliCaps';
+import { hasOfficialAccount, localOnly, thirdPartyOnly } from '../utils/cliCaps';
 
 import { accountDisplayLabel, accountSubtitle, type CliAccount } from './cliAccountClient';
 import { launcherManagesLogin, supportsCustomLauncher } from './cliLauncherClient';
@@ -222,7 +222,7 @@ export function defaultSourceSwitch(
   availability?: { local?: boolean; official?: boolean },
 ): SourceSwitch | null {
   const kind = tab.backend;
-  if (!isCliKind(kind)) return null;
+  if (!isCliKind(kind) || localOnly(kind)) return null;
   const client = s?.clients[kind];
   if (!client) return null;
   const main = client.models.main ?? singleCodingProvider(s)?.models[0]?.ref ?? null;
@@ -331,6 +331,7 @@ export function newTabSelectValue(
   kind: CliKind,
   availability?: NewTabAvailability,
 ): string {
+  if (localOnly(kind)) return NEWTAB_LOCAL;
   const main = client?.models.main ?? null;
   if ((client?.newTabSource ?? 'official') === 'thirdParty' && main) {
     const p = providerOfRef(main);
@@ -378,6 +379,14 @@ export function newTabOptions({
   accounts,
   localAvailable,
 }: NewTabCtx): SelectOption[] {
+  if (localOnly(kind)) {
+    return [
+      {
+        value: NEWTAB_LOCAL,
+        label: t('ui.chat-settings.cli-launcher-local'),
+      },
+    ];
+  }
   const options: SelectOption[] = [];
   const official = hasOfficialAccount(kind);
   const providers = codingProviders(gateway);
@@ -493,6 +502,7 @@ export function newTabPatch(
   value: string,
   { kind, client, gateway }: NewTabCtx,
 ): NewTabPatch | null {
+  if (localOnly(kind)) return null;
   const main = client?.models.main ?? null;
   if (value === NEWTAB_FOLLOW && hasOfficialAccount(kind)) {
     return {

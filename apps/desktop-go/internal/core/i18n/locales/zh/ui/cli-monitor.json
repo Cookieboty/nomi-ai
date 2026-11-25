@@ -137,6 +137,7 @@
   "ui.cli-monitor.success-confetti": "成功啦，撒花！",
   "ui.cli-monitor.surprised": "惊讶",
   "ui.cli-monitor.switch-to-tab-n-9-last-tab": "切换到第 n 个标签（9 = 最后一个）",
+  "ui.cli-monitor.switched-runtime-mid-conversation": "已切换底座到 {0}。同一会话中途换底座，新底座会交接之前的上下文继续，可用工具、权限策略与推理表现可能与之前不同。",
   "ui.cli-monitor.switched-to-changing-models-mid-conversation-means-the": "已切换到 {0}。同一会话中途换模型，新模型会接着之前的上下文继续，可能影响它对这段会话的分析与判断。",
   "ui.cli-monitor.task-done": "任务搞定啦！",
   "ui.cli-monitor.tears": "流泪",
@@ -304,5 +305,7 @@
   "ui.cli-monitor.fork-from-here": "从这里分叉",
   "ui.cli-monitor.fleet-dispatch": "派出 Claude Code 或 Codex",
   "ui.cli-monitor.fleet-dispatch-hint": "进度会出现在这张看板上。终端或 IDE 里已经开着的会话只读出现，不会被改。",
-  "ui.cli-monitor.fleet-dispatch-one": "派出 {0}"
+  "ui.cli-monitor.fleet-dispatch-one": "派出 {0}",
+  "ui.cli-monitor.install-via-official-script": "请使用官方命令在终端安装：",
+  "ui.cli-monitor.official-docs": "官方安装说明"
 }

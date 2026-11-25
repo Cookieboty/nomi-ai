@@ -5,6 +5,19 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ## Unreleased
 
+### Fixes
+
+- **cli-catalog:** `gen:go` 生成 Go 内核清单时按仓库 prettier 规则格式化，并与清单核对一次
+- **delegate:** 委派结果收尾与任务状态对象并发读写（数据竞争）
+- **model-switch:** 模型胶囊按底座清单的品牌去重图标，不重复画同一个模型品牌的图标 (`@nomi-ai/cli-catalog` patch, `@nomi-ai/ui` patch)
+
+### Maintenance
+
+- **desktop-go:** 跨平台 Claude 协议替身与测试清理
+- **release:** empty changeset after archiving 2.5.0
+
+## 2.5.0 — 2026-11-25
+
 ### Features
 
 - **preview:** 常见配置文件与隐藏文件按文件名识别高亮
@@ -13,12 +26,30 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ### Fixes
 
+- **cli:** 修复 MiniMax Code 在应用内更新始终卡在旧版本的问题
 - **preview:** YAML 文件的键与未加引号的值补上语法着色
 - **preview:** 已更改文件气泡的弹层不再被左侧会话栏遮挡
+
+### Documentation
+
+- **design:** 更正 2.5.0 主对话 CLI 设计文档的 issue 与 dsh 权限档位过期口径，补充首用可选本机 CLI 的说明
 
 ### Maintenance
 
 - **release:** empty changeset after archiving 2.4.2
+- add storage-independent conversation runtime handoff foundations for 2.5.0 (`@nomi-ai/desktop-go` patch)
+- exercise conversation runtime recovery and fenced lifecycle with fake adapters (`@nomi-ai/desktop-go` patch)
+
+### Other
+
+- 为主对话 CLI 运行时增加默认未启用的 convstore S1 持久化基础：单个版本化会话提交单元保存完整转录修订、原生绑定、交付覆盖、attempt/generation、队列及原始迁移数据；先持久化再执行，异常重启保守进入 uncertain，不自动重放。增加逐写入边界失败、磁盘满、真实测试子进程重启和旧 API 回归测试。仅通过临时目录 fixtures 验证，尚未接入真实主对话、CLI 或用户数据；Windows 的 v2 持久写入显式拒绝，等待实现可验证的耐久替换原语。 (`@nomi-ai/desktop-go` patch)
+- 为托管运行时增加 runtimeResolve 与可选会话的 capabilities/choices 合同，并补充本机 Claude 首用、缺失可执行文件、未验证登录、无项目和恢复未知的中英说明。 (`@nomi-ai/contract` patch, `@nomi-ai/i18n` patch)
+- 为显式启用的托管主对话接通单写者会话、租约与 IPC：发送、切换、停止、审批、恢复状态和删除均保留同一对话身份；视图不再重复保存消息。新增实验性 API 纯文本适配，未管理的 API 对话保持原行为。CLI 官方驱动和首用选择界面尚未开放，Windows 在耐久写入实现完成前明确禁用托管模式。 (`@nomi-ai/desktop-go` patch, `@nomi-ai/ai-chat` patch)
+- 为显式托管、已选项目的主对话接通实验性官方 Claude CLI factory，复用既有官方 stream-json driver、独立 native loop 与本机登录来源，不依赖 API provider。支持同一 worker 切回增量交接、显式原生只读权限响应和保守进程组停止；所有验收仅用假 CLI 子进程。冷 resume 未证明时不发送请求，明确 missing-session 才 full fallback；首用/权限 UI、Codex、完整恢复切换、API 工具对齐及 Windows 托管写入仍待完成，旧 API 路径不替换。 (`@nomi-ai/desktop-go` patch)
+- 在冷 resume 无法证明时要求用户显式选择新建 Claude 会话并做全量交接，经真实 IPC 与主对话首用 UI 给出缺失可执行文件、未登录探测、无项目和恢复未知的准确说明。未证明的用户消息需显式重试，不会自动并入后一条独立请求；官方 Codex、完整切换事务、Windows 托管写入和 API 工具对齐仍待完成。 (`@nomi-ai/desktop-go` patch)
+- 增加仅聊天窗口可用的托管对话契约、generation/turn 定向停止、运行时状态事件和明确的能力降级文案；发送、切换、迁移与审批保留危险操作权限检查。 (`@nomi-ai/contract` patch, `@nomi-ai/i18n` patch)
+- 把应用内本机官方登录管理做成清单能力位，仅 Antigravity 打开；视图与内核按能力判断，不再按 CLI 名字分支。 (`@nomi-ai/cli-catalog` patch)
+- 首用引导可直接选择本机 CLI 作为进入路径：除「配供应商再选模型」外，检测到可执行文件的 CLI 可点选为后续对话的默认底座，点选不结束引导、不切换会话；登录不在引导里验证，没有可执行文件的 CLI 只展示状态、不可选。 (`@nomi-ai/i18n` patch)
 
 ## 2.4.2 — 2026-11-20
 

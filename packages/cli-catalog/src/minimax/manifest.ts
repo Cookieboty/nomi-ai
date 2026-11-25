@@ -37,10 +37,11 @@ export const manifest: CliManifest = {
   },
   modelSwitch: 'restart',
   clientSpec: { client: 'minimax' },
+  branding: { modelBrand: 'minimax' },
   configPath: '~/.minimax/config.yaml',
   host: {
     minNode: 22,
-    selfUpdate: 'always',
+    // mcode update 要求交互式 TTY 确认且不支持非交互参数，在 Nomi 非 TTY 子进程中只会打印提示并以退出码 0 退出，因此安装与更新统一走 npm
     vendor: 'minimax',
     acpArgs: ['acp'],
     homeEnv: 'MINIMAX_DATA_DIR',

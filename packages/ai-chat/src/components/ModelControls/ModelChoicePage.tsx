@@ -13,6 +13,11 @@ export interface ModelChoiceSource {
   rowLabel: string;
   rowValue: string;
   rowAriaLabel: string;
+  rowIcon?: React.ReactNode;
+  disabled?: boolean;
+  searchable?: boolean;
+  header?: React.ReactNode | ((actions: { toEffort: () => void }) => React.ReactNode);
+  footer?: React.ReactNode;
   value: string;
   options: SelectOption[];
 }
@@ -27,10 +32,12 @@ export const ModelChoiceRow: React.FC<{
     className={styles.modelRow}
     data-testid={testId}
     aria-label={source.rowAriaLabel}
+    disabled={source.disabled}
     onClick={onClick}
   >
     <span className={styles.modelRowLabel}>{source.rowLabel}</span>
     <span className={styles.modelRowValue}>
+      {source.rowIcon}
       <span className={styles.modelLinkText}>{source.rowValue}</span>
     </span>
     <Icon icon={ChevronRight} size={14} />
@@ -51,9 +58,11 @@ export const ModelChoicePage: React.FC<{
         {source.title}
       </button>
     </div>
+    {typeof source.header === 'function' ? source.header({ toEffort: onBack }) : source.header}
     <Select
       inline
       size="sm"
+      searchable={source.searchable}
       inlineMaxHeight={300}
       aria-label={source.title}
       data-testid={`${prefix}-picker`}
@@ -62,5 +71,6 @@ export const ModelChoicePage: React.FC<{
       onChange={(e) => onChange(e.target.value)}
       onOpenChange={onOpenChange}
     />
+    {source.footer}
   </>
 );

@@ -786,6 +786,9 @@ func (o *Orchestrator) defaultSource(backend, want string) string {
 		return "official"
 	}
 	if !isAccountBackend(backend) {
+		if builtin.LocalOnly(backend) {
+			return "local"
+		}
 		return "thirdParty"
 	}
 	if want == "local" {
@@ -1198,6 +1201,17 @@ func (o *Orchestrator) migrateLocalSignIn(tab *util.Obj) bool {
 		changed = true
 	}
 	b := str(tab, "backend")
+	if builtin.LocalOnly(b) {
+		if tab.Get("source") != "local" {
+			tab.Set("source", "local")
+			tab.Set("modelOverride", nil)
+			tab.Set("reasoningEffort", nil)
+			tab.Delete("modelByScope")
+			tab.Set("modelScope", anyOf(o.scopeOf(tab)))
+			changed = true
+		}
+		return changed
+	}
 	if isBuiltin(b) && !isAccountBackend(b) && tab.Get("source") != "thirdParty" {
 		tab.Set("source", "thirdParty")
 		tab.Set("modelOverride", nil)
@@ -1235,7 +1249,11 @@ func (o *Orchestrator) SetTabSource(id string, source any, model *string) *util.
 	if source != "local" && source != "official" && source != "thirdParty" {
 		throw(i18n.T("electron.common.unknown-source"))
 	}
-	if (source == "official" || source == "local") && isBuiltin(backend) && !isAccountBackend(backend) {
+	if builtin.LocalOnly(backend) {
+		if source != "local" {
+			throw(i18n.T("electron.common.cli-local-only", builtin.DisplayName(backend)))
+		}
+	} else if (source == "official" || source == "local") && isBuiltin(backend) && !isAccountBackend(backend) {
 		throw(i18n.T("electron.common.only-third-party-models", builtin.DisplayName(backend)))
 	}
 	if source == "thirdParty" && o.d.Gateway == nil {
@@ -1532,7 +1550,7 @@ func (o *Orchestrator) ModelCatalogFor(backend string, refresh bool, source stri
 		gen := o.modelCatalogGen[cacheKey]
 		current := func() bool { return o.modelCatalogGen[cacheKey] == gen }
 		launchFn := func(b string) *tabLaunch {
-			if useLocal && isAccountBackend(b) {
+			if builtin.LocalOnly(b) || (useLocal && isAccountBackend(b)) {
 				return o.localLaunchFor(b)
 			}
 			return o.officialLaunchFor(b, nil)
@@ -1571,6 +1589,11 @@ func (o *Orchestrator) ModelCatalogFor(backend string, refresh bool, source stri
 		gh := usage.GrokHomeDir(o.home, usage.ProcessEnv())
 		deps.GrokModelsCachePath = filepath.Join(gh, "models_cache.json")
 		deps.GrokSettingsCachePath = filepath.Join(gh, "settings_cache.json")
+		if ah := os.Getenv("ANTIGRAVITY_CLI_HOME"); ah != "" {
+			deps.AntigravitySettingsPath = filepath.Join(ah, "settings.json")
+		} else {
+			deps.AntigravitySettingsPath = filepath.Join(o.home, ".gemini", "antigravity-cli", "settings.json")
+		}
 		disc := cli.DiscoverModels(backend, deps)
 		var run *jsrt.Promise[*util.Obj]
 		run = jsrt.Async(func() (*util.Obj, error) {
@@ -1707,6 +1730,14 @@ func (o *Orchestrator) turnModelResolver(tab *util.Obj) func(events []*util.Obj,
 		}
 		return fallback
 	}
+}
+
+// InvalidateModelCatalog 清空指定底座的模型目录缓存并推进世代号。
+func (o *Orchestrator) InvalidateModelCatalog(backend string) {
+	delete(o.modelCatalogs, backend)
+	delete(o.modelCatalogs, backend+":local")
+	o.modelCatalogGen[backend] = o.modelCatalogGen[backend] + 1
+	o.modelCatalogGen[backend+":local"] = o.modelCatalogGen[backend+":local"] + 1
 }
 
 // cachedCatalog：nil = null。
@@ -1944,6 +1975,9 @@ func (o *Orchestrator) recycleLiveForOverride(tab *util.Obj) {
 // sourceOf = sourceOf。
 func (o *Orchestrator) sourceOf(tab *util.Obj) string {
 	b := str(tab, "backend")
+	if builtin.LocalOnly(b) {
+		return "local"
+	}
 	if isBuiltin(b) && tab.Get("source") == "thirdParty" && o.d.Gateway != nil {
 		return "thirdParty"
 	}

@@ -13,6 +13,7 @@ import {
 } from '../src/components/Onboarding/client';
 import { OnboardingHost, preloadOnboarding } from '../src/components/Onboarding/host';
 import { setCharacterNameForTest } from '../src/services/characterName';
+import { clearManagedDefaultRuntime, getManagedDefaultRuntime } from '../src/services/chatPrefs';
 import { cliUpdateClient } from '../src/services/cliUpdateClient';
 import { OPEN_FLEET_EVENT } from '../src/services/workbenchNav';
 
@@ -33,6 +34,23 @@ let nomiMain = 'p1/m1';
 let installedClis: string[] = ['claude'];
 let fleetOpened = 0;
 const onFleet = () => fleetOpened++;
+/** 本机 CLI 的运行时能力（conversations.runtimeCapabilities）；null = 不给（旧用例保持没有 CLI 卡片） */
+let runtimeChoices: unknown[] | null = null;
+
+const cliChoice = (
+  id: string,
+  status: 'ready' | 'no-project' | 'missing-executable' | 'unsupported-platform',
+) => ({
+  id,
+  available: status === 'ready',
+  status,
+  detail: id,
+  login: status === 'ready' ? 'not-advertised' : 'unverified',
+  requiresProject: true,
+  degraded: [],
+  models: [{ id: 'cli-default', label: 'Default' }],
+  permissionModes: ['deny', 'ask', 'acceptEdits'],
+});
 
 const PRESET = {
   id: 'deepseek',
@@ -85,6 +103,8 @@ beforeEach(() => {
   nomiMain = 'p1/m1';
   installedClis = ['claude'];
   fleetOpened = 0;
+  runtimeChoices = null;
+  clearManagedDefaultRuntime();
   cliUpdateClient.resetCache();
   window.addEventListener(OPEN_FLEET_EVENT, onFleet);
   // 「关于我」属于记忆域（memClient → mem.*），与引导、网关的过程同一个假内核
@@ -118,6 +138,14 @@ beforeEach(() => {
       return undefined;
     }
     if (ch === 'providers.presets') return [PRESET];
+    if (ch === 'conversations.runtimeCapabilities' && runtimeChoices) {
+      return {
+        supported: true,
+        backends: ['api', ...runtimeChoices.map((c) => (c as { id: string }).id)],
+        detail: '',
+        choices: runtimeChoices,
+      };
+    }
     if (ch === 'cliUpdate.inspect')
       return (['claude', 'codex'] as const).map((kind) => ({
         kind,
@@ -471,6 +499,98 @@ describe('first-launch onboarding', () => {
       '多用表情',
     ]);
     expect(matchTemplate('- 请称呼我：{0}', '- 别的')).toBeNull();
+  });
+
+  describe('local CLI as the first-use entry', () => {
+    const openCliCard = async () => {
+      render(<OnboardingHost />);
+      await screen.findByTestId('onboarding-step-welcome');
+      await skipTo('ai', 1);
+      fireEvent.click(screen.getByTestId('onb-model-expand'));
+      const ready = await screen.findByTestId('onb-cli-claude');
+      await screen.findByTestId('onb-cli-codex');
+      await screen.findByTestId('onb-cli-gemini');
+      return ready;
+    };
+
+    beforeEach(() => {
+      runtimeChoices = [
+        cliChoice('claude', 'ready'),
+        cliChoice('codex', 'no-project'),
+        cliChoice('gemini', 'missing-executable'),
+      ];
+    });
+
+    it('lists detected CLIs; only those with an executable can be picked', async () => {
+      await openCliCard();
+      expect(screen.getByTestId('onb-cli-first-use')).toBeTruthy();
+      // 有可执行文件的：可点的单选芯片（ready / no-project），默认都不选中
+      for (const id of ['claude', 'codex']) {
+        const el = screen.getByTestId(`onb-cli-${id}`);
+        expect(el.tagName).toBe('BUTTON');
+        expect(el.getAttribute('aria-checked')).toBe('false');
+        expect(el.getAttribute('data-selectable')).toBe('true');
+      }
+      // 没检测到可执行文件：只展示状态，不可选
+      const missing = screen.getByTestId('onb-cli-gemini');
+      expect(missing.tagName).toBe('SPAN');
+      expect(missing.getAttribute('aria-checked')).toBeNull();
+      expect(missing.getAttribute('data-selectable')).toBe('false');
+      expect(missing.textContent).toContain('未在 PATH 中检测到可执行文件');
+      // 没检测到可执行文件前，引导里不出现默认底座
+      expect(getManagedDefaultRuntime()).toBeNull();
+    });
+
+    it('picking a ready CLI stores it as the default runtime without adopting a conversation', async () => {
+      await openCliCard();
+      fireEvent.click(screen.getByTestId('onb-cli-claude'));
+      await waitFor(() =>
+        expect(screen.getByTestId('onb-cli-claude').getAttribute('aria-checked')).toBe('true'),
+      );
+      expect(getManagedDefaultRuntime()?.backend).toBe('claude');
+      expect(screen.getByTestId('onb-cli-claude').className).toMatch(/chipOn/);
+      expect(screen.getByTestId('onb-cli-codex').className).not.toMatch(/chipOn/);
+      expect(screen.getByTestId('onb-cli-codex').getAttribute('aria-checked')).toBe('false');
+      expect(screen.getByTestId('onb-cli-default-on')).toBeTruthy();
+      // 仍是引导的 AI 步骤：点了不结束引导
+      expect(screen.getByTestId('onboarding-step-ai')).toBeTruthy();
+      expect(calls.some((c) => c[0] === 'onboarding.complete')).toBe(false);
+      expect(calls.some((c) => c[0] === 'conversations.runtimeAdopt')).toBe(false);
+      expect(calls.some((c) => c[0] === 'conversations.runtimeSwitch')).toBe(false);
+      // 换选另一个：偏好跟着变，选中态只落在一个芯片上
+      fireEvent.click(screen.getByTestId('onb-cli-codex'));
+      await waitFor(() =>
+        expect(screen.getByTestId('onb-cli-codex').getAttribute('aria-checked')).toBe('true'),
+      );
+      expect(getManagedDefaultRuntime()?.backend).toBe('codex');
+      expect(screen.getByTestId('onb-cli-claude').className).not.toMatch(/chipOn/);
+      // 再配供应商选模型 = 回到模型供应商入口：供应商面板仍可用，旧断言（configured / 选模型）不受 CLI 卡片影响
+      expect(screen.getByTestId('onb-provider-section').getAttribute('data-state')).toBe('form');
+    });
+
+    it('a CLI without an executable never writes the default runtime', async () => {
+      await openCliCard();
+      const missing = screen.getByTestId('onb-cli-gemini');
+      fireEvent.click(missing);
+      fireEvent.click(missing);
+      await act(async () => undefined);
+      expect(getManagedDefaultRuntime()).toBeNull();
+      expect(missing.getAttribute('data-selectable')).toBe('false');
+    });
+
+    it('no-project CLI can be preferred while its copy keeps saying a project is needed and login is unverified', async () => {
+      await openCliCard();
+      fireEvent.click(screen.getByTestId('onb-cli-codex'));
+      await waitFor(() =>
+        expect(screen.getByTestId('onb-cli-codex').getAttribute('aria-checked')).toBe('true'),
+      );
+      expect(getManagedDefaultRuntime()?.backend).toBe('codex');
+      const card = screen.getByTestId('onb-cli-first-use').textContent ?? '';
+      expect(card).toContain('需先选择项目');
+      expect(card).toContain('未验证登录');
+      expect(card).not.toMatch(/已登录|登录成功|可以发送|立即使用/);
+      expect(calls.some((c) => c[0] === 'conversations.runtimeAdopt')).toBe(false);
+    });
   });
 
   it('covers viewport synchronously with gate while onboarding state is pending, and skips gate when preloaded', async () => {

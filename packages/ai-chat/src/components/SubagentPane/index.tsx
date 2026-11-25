@@ -37,7 +37,7 @@ import {
   type MessageAgentResult,
 } from '../../services/harnessClient';
 import type { ImageAttachment } from '../../services/screenClient';
-import { tasksApi, type TaskTraceView } from '../../services/tasksClient';
+import { tasksApi, type Task, type TaskTraceView } from '../../services/tasksClient';
 import { cliTranscriptKey } from '../../services/transcriptView';
 import { useSlashCommands } from '../../slash/useSlashCommands';
 import type { ConvLive, ConvMessage } from '../../types/conversation';
@@ -62,6 +62,7 @@ import { SessionDetailsProvider } from '../SessionDetails';
 import { CenterChangesHost, ChangesUiProvider, type ComposerFill } from '../SessionWorkspace';
 import type { SettingsSectionInput, SettingsTab } from '../SettingsView/sections';
 import { SideChatPane } from '../SideChat';
+import { TaskModelSwitch } from '../Tasks/TaskModelSwitch';
 import { UserQuestionDock } from '../UserQuestionCard/dock';
 
 import { PaneBrief, type PaneNotes, useInTabStrip } from './chrome';
@@ -714,6 +715,7 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSl
   slot,
 }) => {
   const actions = usePaneActions();
+  const [taskObj, setTaskObj] = React.useState<Task | null>(null);
   const [goal, setGoal] = React.useState('');
   const [title, setTitle] = React.useState('');
   const [status, setStatus] = React.useState('');
@@ -733,6 +735,7 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSl
         .get(taskId)
         .then((rec) => {
           if (!alive || !rec) return;
+          setTaskObj(rec.task);
           setGoal(rec.task.goal);
           setTitle(rec.task.title);
           setStatus(rec.task.status);
@@ -880,6 +883,15 @@ const NomiTaskChat: React.FC<{ taskId: string; onClose: () => void; slot: PaneSl
             id: `nomi-task:${taskId}`,
             hasCommittedUserContent: true,
           })}
+          modelControl={
+            taskObj?.executor ? (
+              <TaskModelSwitch
+                task={taskObj}
+                placement="subagent"
+                onOpenProviders={actions.openProviders}
+              />
+            ) : undefined
+          }
           delegate={false}
           {...panelButtons(actions, false)}
         />

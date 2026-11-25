@@ -1,7 +1,10 @@
 /** 执行轨迹模型、布局引擎与查询工具测试：时间窗、瀑布图、多层级轨迹文档、子代理嵌套与紧凑聚类 */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
-import { buildGraphLayout } from '../src/components/TraceDrawer/graphLayout';
+import { GRAPH_METRICS, buildGraphLayout } from '../src/components/TraceDrawer/graphLayout';
 import {
   FALLBACK_WINDOW_MS,
   barOf,
@@ -132,7 +135,14 @@ describe('buildTraceDocument：Nomi 工具语义、多轮与子代理', () => {
             input: JSON.stringify({ path: 'src/config.ts' }),
             at: T0 + 500,
           },
-          { type: 'tool', name: 'fs_read_text', status: 'done', id: 't1', output: 'ok', at: T0 + 700 },
+          {
+            type: 'tool',
+            name: 'fs_read_text',
+            status: 'done',
+            id: 't1',
+            output: 'ok',
+            at: T0 + 700,
+          },
           {
             type: 'tool',
             name: 'fs_write_text',
@@ -141,7 +151,14 @@ describe('buildTraceDocument：Nomi 工具语义、多轮与子代理', () => {
             input: JSON.stringify({ path: 'src/config.ts', text: 'export const x = 1;' }),
             at: T0 + 900,
           },
-          { type: 'tool', name: 'fs_write_text', status: 'done', id: 't2', output: 'written', at: T0 + 1200 },
+          {
+            type: 'tool',
+            name: 'fs_write_text',
+            status: 'done',
+            id: 't2',
+            output: 'written',
+            at: T0 + 1200,
+          },
           {
             type: 'tool',
             name: 'workspace_run',
@@ -150,7 +167,14 @@ describe('buildTraceDocument：Nomi 工具语义、多轮与子代理', () => {
             input: JSON.stringify({ command: 'pnpm test' }),
             at: T0 + 1400,
           },
-          { type: 'tool', name: 'workspace_run', status: 'done', id: 't3', output: 'pass', at: T0 + 4200 },
+          {
+            type: 'tool',
+            name: 'workspace_run',
+            status: 'done',
+            id: 't3',
+            output: 'pass',
+            at: T0 + 4200,
+          },
           {
             type: 'tool',
             name: 'browser_open',
@@ -159,7 +183,14 @@ describe('buildTraceDocument：Nomi 工具语义、多轮与子代理', () => {
             input: JSON.stringify({ url: 'https://example.com' }),
             at: T0 + 4400,
           },
-          { type: 'tool', name: 'browser_open', status: 'done', id: 't4', output: '200', at: T0 + 4800 },
+          {
+            type: 'tool',
+            name: 'browser_open',
+            status: 'done',
+            id: 't4',
+            output: '200',
+            at: T0 + 4800,
+          },
         ],
       },
     ];
@@ -194,12 +225,43 @@ describe('buildTraceDocument：Nomi 工具语义、多轮与子代理', () => {
     const nested = extractNestedAgentMessages(
       [
         { type: 'thinking', text: '子代理先读文件', parentId: 'call-sub', at: T0 + 200 },
-        { type: 'tool', name: 'Read', status: 'start', id: 'r1', parentId: 'call-sub', input: '{"file_path":"a.ts"}', at: T0 + 300 },
-        { type: 'tool', name: 'Read', status: 'done', id: 'r1', parentId: 'call-sub', output: 'code', at: T0 + 500 },
-        { type: 'tool', name: 'Agent', status: 'start', id: 'grand-sub', parentId: 'call-sub', at: T0 + 600 },
+        {
+          type: 'tool',
+          name: 'Read',
+          status: 'start',
+          id: 'r1',
+          parentId: 'call-sub',
+          input: '{"file_path":"a.ts"}',
+          at: T0 + 300,
+        },
+        {
+          type: 'tool',
+          name: 'Read',
+          status: 'done',
+          id: 'r1',
+          parentId: 'call-sub',
+          output: 'code',
+          at: T0 + 500,
+        },
+        {
+          type: 'tool',
+          name: 'Agent',
+          status: 'start',
+          id: 'grand-sub',
+          parentId: 'call-sub',
+          at: T0 + 600,
+        },
         { type: 'thinking', text: '孙代理思路', parentId: 'grand-sub', at: T0 + 650 },
         { type: 'agent-text', text: '孙代理汇总', parentId: 'grand-sub', at: T0 + 700 },
-        { type: 'tool', name: 'Agent', status: 'done', id: 'grand-sub', parentId: 'call-sub', output: 'ok', at: T0 + 800 },
+        {
+          type: 'tool',
+          name: 'Agent',
+          status: 'done',
+          id: 'grand-sub',
+          parentId: 'call-sub',
+          output: 'ok',
+          at: T0 + 800,
+        },
         { type: 'agent-text', text: '主结果第一段', parentId: 'call-sub', at: T0 + 900 },
         { type: 'agent-input', text: '继续补充检查', parentId: 'call-sub', at: T0 + 1000 },
         { type: 'thinking', text: '第二轮思考', parentId: 'call-sub', at: T0 + 1100 },
@@ -217,7 +279,9 @@ describe('buildTraceDocument：Nomi 工具语义、多轮与子代理', () => {
     expect(nested[1]).toMatchObject({ role: 'assistant', text: '主结果第一段' });
     // 直接子节点剥离 parentId 以免被 reduceTrace 丢弃，孙代理保留 parentId
     const directTrace = nested[1]!.trace!;
-    expect(directTrace.some((e) => e.type === 'thinking' && !e.parentId && e.text === '子代理先读文件')).toBe(true);
+    expect(
+      directTrace.some((e) => e.type === 'thinking' && !e.parentId && e.text === '子代理先读文件'),
+    ).toBe(true);
     expect(directTrace.some((e) => e.type === 'thinking' && e.parentId === 'grand-sub')).toBe(true);
     expect(nested[2]).toMatchObject({ role: 'user', text: '继续补充检查' });
     expect(nested[3]).toMatchObject({ role: 'assistant', text: '第二轮回答' });
@@ -246,7 +310,10 @@ describe('buildTraceDocument：Nomi 工具语义、多轮与子代理', () => {
             name: 'delegate_to_cli',
             status: 'done',
             id: 'del-1',
-            output: JSON.stringify({ ok: true, data: { taskId: 'dt-1', tabId: 'tab-shared', cli: 'codex', summary: '发现 1 处问题' } }),
+            output: JSON.stringify({
+              ok: true,
+              data: { taskId: 'dt-1', tabId: 'tab-shared', cli: 'codex', summary: '发现 1 处问题' },
+            }),
             at: T0 + 8000,
           },
           {
@@ -262,7 +329,10 @@ describe('buildTraceDocument：Nomi 工具语义、多轮与子代理', () => {
             name: 'delegate_to_cli',
             status: 'done',
             id: 'del-2',
-            output: JSON.stringify({ ok: true, data: { taskId: 'dt-2', tabId: 'tab-shared', cli: 'codex', summary: '已修复' } }),
+            output: JSON.stringify({
+              ok: true,
+              data: { taskId: 'dt-2', tabId: 'tab-shared', cli: 'codex', summary: '已修复' },
+            }),
             at: T0 + 22_000,
           },
           {
@@ -278,7 +348,10 @@ describe('buildTraceDocument：Nomi 工具语义、多轮与子代理', () => {
             name: 'delegate_to_cli',
             status: 'done',
             id: 'del-closed',
-            output: JSON.stringify({ ok: true, data: { taskId: 'dt-3', tabId: 'tab-gone', cli: 'claude', summary: '离线摘要' } }),
+            output: JSON.stringify({
+              ok: true,
+              data: { taskId: 'dt-3', tabId: 'tab-gone', cli: 'claude', summary: '离线摘要' },
+            }),
             at: T0 + 24_000,
           },
         ],
@@ -300,7 +373,10 @@ describe('buildTraceDocument：Nomi 工具语义、多轮与子代理', () => {
             name: 'delegate_to_cli',
             status: 'done',
             id: 'cycle-call',
-            output: JSON.stringify({ ok: true, data: { taskId: 'dt-cycle', tabId: 'tab-shared', cli: 'codex' } }),
+            output: JSON.stringify({
+              ok: true,
+              data: { taskId: 'dt-cycle', tabId: 'tab-shared', cli: 'codex' },
+            }),
             at: T0 + 4000,
           },
         ],
@@ -387,8 +463,22 @@ describe('buildTraceDocument：Nomi 工具语义、多轮与子代理', () => {
       messages: [],
       attempts,
       journal: [
-        { t: 'done', attemptId: 'att-1', seq: 1, action: 'git_status', summary: 'clean', at: T0 + 1200 },
-        { t: 'failed', attemptId: 'att-2', seq: 1, action: 'run_tests', msg: 'exit 1', at: T0 + 12_000 },
+        {
+          t: 'done',
+          attemptId: 'att-1',
+          seq: 1,
+          action: 'git_status',
+          summary: 'clean',
+          at: T0 + 1200,
+        },
+        {
+          t: 'failed',
+          attemptId: 'att-2',
+          seq: 1,
+          action: 'run_tests',
+          msg: 'exit 1',
+          at: T0 + 12_000,
+        },
       ],
     });
 
@@ -411,22 +501,78 @@ describe('查询、思考脉络、洞察与 DAG 图谱布局', () => {
       durationMs: 10_000,
       trace: [
         { type: 'thinking', text: '第一步思考读取三个文件\n第二行详细说明', at: T0 + 100 },
-        { type: 'tool', name: 'Read', status: 'start', id: 'r1', input: '{"file_path":"a.ts"}', at: T0 + 500 },
+        {
+          type: 'tool',
+          name: 'Read',
+          status: 'start',
+          id: 'r1',
+          input: '{"file_path":"a.ts"}',
+          at: T0 + 500,
+        },
         { type: 'tool', name: 'Read', status: 'done', id: 'r1', output: '1', at: T0 + 700 },
-        { type: 'tool', name: 'Read', status: 'start', id: 'r2', input: '{"file_path":"b.ts"}', at: T0 + 800 },
+        {
+          type: 'tool',
+          name: 'Read',
+          status: 'start',
+          id: 'r2',
+          input: '{"file_path":"b.ts"}',
+          at: T0 + 800,
+        },
         { type: 'tool', name: 'Read', status: 'done', id: 'r2', output: '2', at: T0 + 1000 },
-        { type: 'tool', name: 'Read', status: 'start', id: 'r3', input: '{"file_path":"c.ts"}', at: T0 + 1100 },
+        {
+          type: 'tool',
+          name: 'Read',
+          status: 'start',
+          id: 'r3',
+          input: '{"file_path":"c.ts"}',
+          at: T0 + 1100,
+        },
         { type: 'tool', name: 'Read', status: 'done', id: 'r3', output: '3', at: T0 + 1300 },
         // 并行两个 Bash（同毫秒开始，时间重叠）
-        { type: 'tool', name: 'Bash', status: 'start', id: 'b1', input: '{"command":"lint"}', at: T0 + 2000 },
-        { type: 'tool', name: 'Bash', status: 'start', id: 'b2', input: '{"command":"typecheck"}', at: T0 + 2000 },
+        {
+          type: 'tool',
+          name: 'Bash',
+          status: 'start',
+          id: 'b1',
+          input: '{"command":"lint"}',
+          at: T0 + 2000,
+        },
+        {
+          type: 'tool',
+          name: 'Bash',
+          status: 'start',
+          id: 'b2',
+          input: '{"command":"typecheck"}',
+          at: T0 + 2000,
+        },
         { type: 'tool', name: 'Bash', status: 'done', id: 'b1', output: 'ok', at: T0 + 3000 },
-        { type: 'tool', name: 'Bash', status: 'error', id: 'b2', output: 'type error', at: T0 + 5000 },
+        {
+          type: 'tool',
+          name: 'Bash',
+          status: 'error',
+          id: 'b2',
+          output: 'type error',
+          at: T0 + 5000,
+        },
         // 子代理
-        { type: 'tool', name: 'Agent', status: 'start', id: 'sub1', input: '{"subagent_type":"explorer","description":"查定义"}', at: T0 + 6000 },
+        {
+          type: 'tool',
+          name: 'Agent',
+          status: 'start',
+          id: 'sub1',
+          input: '{"subagent_type":"explorer","description":"查定义"}',
+          at: T0 + 6000,
+        },
         { type: 'thinking', text: '子代理内部思考', parentId: 'sub1', at: T0 + 6100 },
         { type: 'agent-text', text: '找到定义', parentId: 'sub1', at: T0 + 6500 },
-        { type: 'tool', name: 'Agent', status: 'done', id: 'sub1', output: '找到定义', at: T0 + 7000 },
+        {
+          type: 'tool',
+          name: 'Agent',
+          status: 'done',
+          id: 'sub1',
+          output: '找到定义',
+          at: T0 + 7000,
+        },
       ],
     },
   ];
@@ -494,7 +640,9 @@ describe('查询、思考脉络、洞察与 DAG 图谱布局', () => {
     );
     expect(parallelNodes.length).toBe(2);
     expect(parallelNodes[0]!.y).toBe(parallelNodes[1]!.y);
-    expect(parallelNodes[1]!.x).toBeGreaterThanOrEqual(parallelNodes[0]!.x + parallelNodes[0]!.width);
+    expect(parallelNodes[1]!.x).toBeGreaterThanOrEqual(
+      parallelNodes[0]!.x + parallelNodes[0]!.width,
+    );
 
     // 子代理展开时存在 spawn 边与 subagent 分组框
     expect(compactLayout.groups.some((g) => g.kind === 'subagent')).toBe(true);
@@ -515,5 +663,181 @@ describe('查询、思考脉络、洞察与 DAG 图谱布局', () => {
     });
     expect(expandedLayout.nodes.some((n) => n.kind === 'cluster')).toBe(false);
     expect(expandedLayout.groups.some((g) => g.kind === 'subagent')).toBe(false);
+  });
+
+  it('混合底座与时间窗外孤儿请求：不把 MAAS 499 或其他轮次请求误挂到第 1 轮 Antigravity 下，也不拉长总耗时', () => {
+    const tTurn1 = T0;
+    const tTurn2 = T0 + 120_000;
+    const msgs: ConvMessage[] = [
+      { id: 'u1', role: 'user', text: '船长的英文是啥', at: tTurn1 },
+      {
+        id: 'a1',
+        role: 'assistant',
+        text: 'Captain',
+        at: tTurn1 + 8300,
+        durationMs: 8300,
+        label: 'Antigravity',
+        model: 'gemini-4-neon-high',
+        raw: { runtimeBackend: 'antigravity' },
+      },
+      { id: 'u2', role: 'user', text: '我前面说的是啥', at: tTurn2 },
+      {
+        id: 'a2',
+        role: 'assistant',
+        text: '你问的是船长英文',
+        at: tTurn2 + 5600,
+        durationMs: 5600,
+        label: 'Nomi',
+        model: 'maas/deepseek-v4.1-flash',
+        raw: { runtimeBackend: 'api' },
+        usage: { inputTokens: 3700, outputTokens: 165 },
+      },
+    ];
+
+    const mkReq = (overrides: Partial<QualityRequestItem>): QualityRequestItem => ({
+      id: 'req-x',
+      layer: 'gateway',
+      ts: tTurn2 + 200,
+      client: 'nomi',
+      source: 'thirdParty',
+      model: 'maas/deepseek-v4.1-flash',
+      upstreamModel: 'deepseek-v4.1-flash',
+      provider: 'maas',
+      providerName: 'MAAS',
+      stream: true,
+      outcome: 'ok',
+      timing: { firstContentMs: 400, lastContentMs: 5000, endMs: 5200 },
+      tokens: { input: 3700, output: 165 },
+      ...overrides,
+    });
+
+    const doc = buildTraceDocument({
+      scope: 'session',
+      title: '混合底座会话',
+      mainLaneName: 'Nomi',
+      mainBackend: 'nomi',
+      messages: msgs,
+      requests: [
+        // 1) 即使时间戳落在第 1 轮 Antigravity 8 秒内，client: 'nomi' 也不允许挂给 Antigravity 轮次
+        mkReq({ id: 'req-cross-backend', ts: tTurn1 + 500, outcome: 'client-cancel', status: 499 }),
+        // 2) 第 2 轮 Nomi 真实匹配的请求
+        mkReq({ id: 'req-nomi-valid', ts: tTurn2 + 300, outcome: 'ok', status: 200 }),
+        // 3) +600s 与 +2000s 发生的其他会话取消请求（时间窗外孤儿请求）
+        mkReq({
+          id: 'req-orphan-600s',
+          ts: tTurn1 + 600_000,
+          outcome: 'client-cancel',
+          status: 499,
+        }),
+        mkReq({
+          id: 'req-orphan-2000s',
+          ts: tTurn1 + 2_000_000,
+          outcome: 'client-cancel',
+          status: 499,
+        }),
+      ],
+    });
+
+    const turn1 = doc.turns[0]!;
+    const turn2 = doc.turns[1]!;
+    expect(turn1.backend).toBe('antigravity');
+    expect(turn2.backend).toBe('nomi');
+    expect(turn1.requestNodeIds).toEqual([]);
+    expect(turn2.requestNodeIds).toHaveLength(1);
+    expect(doc.nodesById[turn2.requestNodeIds[0]!]?.req?.id).toBe('req-nomi-valid');
+
+    expect(doc.stats.requestCount).toBe(1);
+    expect(doc.stats.failedCount).toBe(0);
+    expect(doc.unassignedRequestIds).toEqual([
+      'req-cross-backend',
+      'req-orphan-600s',
+      'req-orphan-2000s',
+    ]);
+    // 总耗时只覆盖真实两轮（约 125.6s），不会被 +2000s 的孤儿请求拉长到 2000s+
+    expect(doc.to - doc.from).toBeLessThan(200_000);
+  });
+
+  it('buildGraphLayout 为模型切换轮次预留双行头部高度与足够最小宽度，且头与首节点不重叠', () => {
+    const msgs: ConvMessage[] = [
+      { id: 'u1', role: 'user', text: 'turn 1', at: T0 },
+      {
+        id: 'a1',
+        role: 'assistant',
+        text: 'ans 1',
+        at: T0 + 2000,
+        durationMs: 2000,
+        model: 'deepseek-v4.1-flash',
+      },
+      { id: 'u2', role: 'user', text: 'turn 2', at: T0 + 4000 },
+      {
+        id: 'a2',
+        role: 'assistant',
+        text: 'ans 2',
+        at: T0 + 7000,
+        durationMs: 3000,
+        model: 'gemini-4-neon-high',
+      },
+    ];
+    const doc = buildTraceDocument({
+      scope: 'session',
+      title: '切换布局测试',
+      mainLaneName: 'Nomi',
+      mainBackend: 'nomi',
+      messages: msgs,
+    });
+    const layout = buildGraphLayout(doc, {
+      compactTools: true,
+      collapsedTurns: new Set(),
+      collapsedAgents: new Set(),
+      expandedClusters: new Set(),
+      showRequests: false,
+    });
+
+    const grp2 = layout.groups.find((g) => g.turnId === doc.turns[1]!.id)!;
+    expect(grp2.hasMetaRow).toBe(true);
+    expect(grp2.switchedFromModel).toBe('deepseek-v4.1-flash');
+    expect(grp2.width).toBeGreaterThanOrEqual(GRAPH_METRICS.SWITCH_MIN_GROUP_W);
+    const turn2FirstNode = layout.nodes.find((n) => n.turnId === doc.turns[1]!.id)!;
+    expect(turn2FirstNode.y).toBeGreaterThanOrEqual(
+      grp2.y + GRAPH_METRICS.HEADER_H + GRAPH_METRICS.HEADER_META_H,
+    );
+  });
+
+  it('TraceGraph 分组头部样式契约：溢出裁剪与超长切换胶囊省略号截断', () => {
+    const rawCss = readFileSync(
+      resolve(__dirname, '../src/components/TraceDrawer/views.module.css'),
+      'utf8',
+    ).replace(/\/\*[\s\S]*?\*\//g, '');
+    const blocks = [...rawCss.matchAll(/([^{}]+)\{([^}]*)\}/g)];
+    const ruleBody = (selector: string): string => {
+      const matched = blocks
+        .filter((m) =>
+          (m[1] ?? '')
+            .split(',')
+            .map((s) => s.trim())
+            .includes(selector),
+        )
+        .map((m) => m[2] ?? '');
+      expect(matched.length, `找不到规则 ${selector}`).toBeGreaterThan(0);
+      return matched.join('\n');
+    };
+
+    const groupCss = ruleBody('.graphGroup');
+    expect(groupCss).toMatch(/box-sizing:\s*border-box/);
+    expect(groupCss).toMatch(/overflow:\s*hidden/);
+
+    const headCss = ruleBody('.graphGroupHead');
+    expect(headCss).toMatch(/box-sizing:\s*border-box/);
+    expect(headCss).toMatch(/overflow:\s*hidden/);
+
+    const metaHeadCss = ruleBody(".graphGroupHead[data-has-meta='true']");
+    expect(metaHeadCss).toMatch(/height:\s*62px/);
+
+    const switchPillCss = ruleBody('.groupSwitchPill');
+    expect(switchPillCss).toMatch(/min-width:\s*0/);
+    expect(switchPillCss).toMatch(/max-width:\s*100%/);
+    expect(switchPillCss).toMatch(/overflow:\s*hidden/);
+    expect(switchPillCss).toMatch(/text-overflow:\s*ellipsis/);
+    expect(switchPillCss).toMatch(/white-space:\s*nowrap/);
   });
 });

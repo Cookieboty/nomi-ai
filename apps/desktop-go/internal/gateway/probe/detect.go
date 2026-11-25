@@ -5,15 +5,19 @@ package probe
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"io"
 	"math"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	gwcfg "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/config"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/ir"
 	gwnet "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/net"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/upstream"
@@ -69,9 +73,14 @@ type Key struct{ ID, Value string }
 
 // Options = DetectOptions
 type Options struct {
-	Bases               *u.Obj
-	Keys                []Key
-	FallbackModel       string
+	Bases         *u.Obj
+	Keys          []Key
+	FallbackModel string
+	// SessionHeader 指定协议探测请求应携带的会话头名（如 OpenCode Go 的 x-opencode-session）。
+	SessionHeader string
+	// RequireInferenceOK 要求收到 2xx 最小有效推理响应才标为可用，不把 HTTP 400 JSON 错误当作协议可用。
+	// 配置了 SessionHeader 时自动启用。
+	RequireInferenceOK  bool
 	TimeoutMs           int
 	Concurrency         int
 	FetchImpl           gwnet.UpstreamFetch
@@ -80,6 +89,14 @@ type Options struct {
 	LookupAll           gwnet.LookupAll
 	// Now = Date.now（测试注入）
 	Now func() float64
+}
+
+func newProbeSessionID() string {
+	var b [12]byte
+	if _, err := rand.Read(b[:]); err == nil {
+		return "nomi:probe:" + hex.EncodeToString(b[:])
+	}
+	return "nomi:probe:" + strconv.FormatInt(time.Now().UnixNano(), 36)
 }
 
 const timeoutMs = 15_000
@@ -250,6 +267,40 @@ func looksLikeParamError(text string) bool {
 	return u.Truthy(j.Get("error")) || j.Get("type") == "error"
 }
 
+func looksLikeInferenceResponse(wire, text string) bool {
+	v, err := u.ParseString(text)
+	if err != nil {
+		return false
+	}
+	j, ok := v.(*u.Obj)
+	if !ok || j == nil {
+		return false
+	}
+	if u.Truthy(j.Get("error")) || j.Get("type") == "error" {
+		return false
+	}
+	switch wire {
+	case "chat":
+		_, ok := j.Get("choices").([]any)
+		return ok
+	case "responses":
+		if _, ok := j.Get("output").([]any); ok {
+			return true
+		}
+		_, ok := j.Get("output_text").(string)
+		return ok
+	case "messages":
+		if _, ok := j.Get("content").([]any); ok {
+			return true
+		}
+		return j.Get("type") == "message"
+	case "gemini":
+		_, ok := j.Get("candidates").([]any)
+		return ok
+	}
+	return false
+}
+
 func guarded(url string, o *Options) string {
 	if _, err := gwnet.CheckUpstream(context.Background(), url, o.guard()); err != nil {
 		return err.Error()
@@ -315,7 +366,7 @@ type listed struct {
 	auth   string
 }
 
-func listModels(o *Options, key string) listed {
+func listModels(o *Options, key, sessionHeader, probeSession string) listed {
 	base := o.base("chat")
 	if !o.Bases.Has("chat") || o.Bases.Get("chat") == nil {
 		base = o.base("responses")
@@ -336,6 +387,9 @@ func listModels(o *Options, key string) listed {
 				return listed{}, false
 			}
 			req.Header = authHeaders("chat", auth, key)
+			if sessionHeader != "" && probeSession != "" {
+				req.Header[sessionHeader] = []string{probeSession}
+			}
 			res, err := o.fetch()(req)
 			if err != nil {
 				return listed{}, false
@@ -405,7 +459,7 @@ func listModels(o *Options, key string) listed {
 
 func line(kv ...any) *u.Obj { return u.NewObj(kv...) }
 
-func probeWire(wire, base string, key Key, model, auth string, o *Options) *u.Obj {
+func probeWire(wire, base string, key Key, model, auth, sessionHeader, probeSession string, strict bool, o *Options) *u.Obj {
 	t0 := o.now()
 	if model == "" {
 		return line("wire", wire, "url", base, "ok", false, "error", "没有可用来测试的模型名，请手动填写一个", "ms", float64(0))
@@ -426,6 +480,9 @@ func probeWire(wire, base string, key Key, model, auth string, o *Options) *u.Ob
 			return result{}, err
 		}
 		req.Header = authHeaders(wire, style, key.Value)
+		if sessionHeader != "" && probeSession != "" {
+			req.Header[sessionHeader] = []string{probeSession}
+		}
 		res, err := o.fetch()(req)
 		if err != nil {
 			return result{}, err
@@ -459,7 +516,7 @@ func probeWire(wire, base string, key Key, model, auth string, o *Options) *u.Ob
 		if err != nil {
 			return fail(err)
 		}
-		if (r2.status >= 200 && r2.status <= 299) || r2.status == 400 {
+		if (r2.status >= 200 && r2.status <= 299) || (!strict && r2.status == 400) {
 			r, used = r2, alt
 		}
 	}
@@ -467,10 +524,13 @@ func probeWire(wire, base string, key Key, model, auth string, o *Options) *u.Ob
 	st := float64(r.status)
 	switch {
 	case r.status >= 200 && r.status <= 299:
+		if strict && !looksLikeInferenceResponse(wire, r.text) {
+			return line("wire", wire, "url", base, "ok", false, "status", st, "model", model, "auth", used, "error", "响应不是有效的推理结果", "ms", ms)
+		}
 		return line("wire", wire, "url", base, "ok", true, "status", st, "model", model, "auth", used, "ms", ms)
 	case r.status == 401 || r.status == 403:
 		return line("wire", wire, "url", base, "ok", false, "status", st, "model", model, "error", "Key 无效或没有权限（鉴权失败）", "ms", ms)
-	case r.status == 400 && looksLikeParamError(r.text):
+	case !strict && r.status == 400 && looksLikeParamError(r.text):
 		return line("wire", wire, "url", base, "ok", true, "status", float64(400), "model", model, "auth", used, "ms", ms)
 	}
 	return line("wire", wire, "url", base, "ok", false, "status", st, "model", model, "error", "HTTP "+itoa(r.status), "ms", ms)
@@ -502,7 +562,13 @@ func Detect(o Options) *u.Obj {
 	if len(keys) == 0 {
 		keys = []Key{{ID: "none"}}
 	}
-	l := listModels(&o, keys[0].Value)
+	sessionHeader := gwcfg.SanitizeHeaderName(o.SessionHeader)
+	probeSession := ""
+	if sessionHeader != "" {
+		probeSession = newProbeSessionID()
+	}
+	strict := o.RequireInferenceOK || sessionHeader != ""
+	l := listModels(&o, keys[0].Value, sessionHeader, probeSession)
 	byKey := u.NewObj()
 	var mu sync.Mutex
 	queue := append([]Key{}, keys...)
@@ -545,7 +611,7 @@ func Detect(o Options) *u.Obj {
 					lw.Add(1)
 					go func(i int, w, auth string) {
 						defer lw.Done()
-						lines[i] = probeWire(w, o.base(w), key, pickModel(w, l.models, o.FallbackModel), auth, &o)
+						lines[i] = probeWire(w, o.base(w), key, pickModel(w, l.models, o.FallbackModel), auth, sessionHeader, probeSession, strict, &o)
 					}(i, w, auth)
 				}
 				lw.Wait()
@@ -572,7 +638,7 @@ func Detect(o Options) *u.Obj {
 						auth = l.auth
 					}
 					for _, model := range FallbackModels(w, l.models, tried, okModel, 2) {
-						if nx := probeWire(w, o.base(w), key, model, auth, &o); nx.Get("ok") == true {
+						if nx := probeWire(w, o.base(w), key, model, auth, sessionHeader, probeSession, strict, &o); nx.Get("ok") == true {
 							lines[i] = nx
 							break
 						}

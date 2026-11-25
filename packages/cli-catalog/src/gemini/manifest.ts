@@ -52,6 +52,7 @@ export const manifest: CliManifest = {
   modelSwitch: 'inplace',
   clientSpec: { client: 'gemini' },
   fullName: 'Gemini CLI',
+  branding: { modelBrand: 'gemini' },
   configPath: '~/.gemini/settings.json',
   host: {
     minNode: 20,

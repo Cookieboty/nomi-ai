@@ -72,9 +72,15 @@ type ServiceDeps struct {
 	Sleep func(ms int)
 }
 
-// RemoveOpts：Force = 读不到是否有进程在用时也删除；StopExternal = 先结束 Nomi 之外还在用这个账号的 CLI 进程再删除
+// RemoveOpts：Force = 读不到是否有进程在用时也删除；StopExternal = 先结束 Nomi 之外还在用这个账号的 CLI 进程再删除，
+// 只认 StopPids 里那批（确认弹窗列出的进程快照），没给的进程一律不结束。
 type RemoveOpts struct {
 	Force, StopExternal bool
+	// StopPids：用户确认过的进程号（external-busy 错误的 Pids）。范围对不上就重新报 external-busy 让界面再确认
+	StopPids []float64
+	// stopChecked：已被确认过的那批进程已经被结束（提交时重新扫描 → 范围一致 → stopConfirmed）。
+	// 仅由 remove 在调用 stopConfirmed 后内部置位：之后扫描变成 idle 才允许删除，范围变了不许报成功
+	stopChecked bool
 }
 
 type storeT struct {
@@ -1070,15 +1076,47 @@ func externalBusyErr(live LiveCheck) *AccountError {
 		}
 		ps = append(ps, jsStr(p))
 	}
-	e := accountErr("external-busy", t("electron.common.cli-process-es-outside-nomi-still-use-this", jsStr(float64(len(live.Pids))), strings.Join(ps, ", ")))
+	msg := t("electron.common.cli-process-es-outside-nomi-still-use-this", jsStr(float64(len(live.Pids))), strings.Join(ps, ", "))
+	e := accountErr("external-busy", msg)
 	e.Pids = append([]float64(nil), live.Pids...)
 	return e
 }
 
-// stopExternal：用户确认后结束这些进程（先 SIGTERM，等一会儿还在再 SIGKILL），返回结束后的检查结果。
-// 只动刚才认出来的那几个 pid，并且发信号前再核对一次它们仍在用这个账号目录。
-func (s *AccountService) stopExternal(kind, dir string, live LiveCheck) LiveCheck {
-	if s.d.KillPid == nil {
+// stoppedCheck：结束确认的那批之后的扫描结果 → external-busy 用的检查结果。
+// 读不到（unknown）保留 unknown 的提示；除此之外一律当 busy，Pids 为空也照样报失败（不能把「确认的进程已经退出、
+// 又冒出没确认过的进程 / 范围变了」当成删除成功）。
+func stoppedCheck(live LiveCheck) LiveCheck {
+	if live.State == "unknown" {
+		return live
+	}
+	return LiveCheck{State: "busy", Pids: live.Pids}
+}
+
+// scopeUnchanged：这次扫描到的进程和用户确认过的是同一批（pid 变了、多了或少了都算范围变了）
+func scopeUnchanged(confirmed, live []float64) bool {
+	if len(confirmed) == 0 || len(live) != len(confirmed) {
+		return false
+	}
+	want := make(map[float64]bool, len(confirmed))
+	for _, p := range confirmed {
+		if want[p] {
+			return false
+		}
+		want[p] = true
+	}
+	for _, p := range live {
+		if !want[p] {
+			return false
+		}
+	}
+	return true
+}
+
+// stopConfirmed：用户确认后结束确认弹窗里列出的那批进程（先 SIGTERM，等一会儿还在再 SIGKILL），返回结束后的检查结果。
+// 只动 confirmed 里的 pid；扫描结果和确认的不一致（新进程出现 / 旧进程退出用了别的 pid）就不动，交给调用方重新确认。
+func (s *AccountService) stopConfirmed(kind, dir string, confirmed []float64) LiveCheck {
+	live := s.liveCheck(kind, dir)
+	if live.State != "busy" || !scopeUnchanged(confirmed, live.Pids) || s.d.KillPid == nil {
 		return live
 	}
 	sleep := s.d.Sleep
@@ -1088,7 +1126,7 @@ func (s *AccountService) stopExternal(kind, dir string, live LiveCheck) LiveChec
 		}
 	}
 	targets := map[float64]bool{}
-	for _, p := range live.Pids {
+	for _, p := range confirmed {
 		targets[p] = true
 	}
 	for _, sig := range []string{"SIGTERM", "SIGKILL"} {
@@ -1132,8 +1170,19 @@ func (s *AccountService) remove(id string, o RemoveOpts) {
 		panic(accountErr("in-use", t("electron.common.tab-s-still-use-this-account-close-them", jsStr(busy))))
 	}
 	live := s.liveCheck(kind, *dir)
-	if live.State == "busy" && o.StopExternal {
-		live = s.stopExternal(kind, *dir, live)
+	if o.StopExternal && len(o.StopPids) > 0 && live.State != "unknown" {
+		// 只结束用户确认过的那批：提交时重新扫描。
+		// - 读不到（unknown）：范围未知，即使 force 也不结束、不删除；
+		// - 和确认的范围一致：结束这批，之后还有没确认的进程就重新报 external-busy；
+		// - 范围变了（新进程出现 / 旧进程已退出）：一个都不结束，交给界面按新快照重新确认。
+		if live.State == "busy" && scopeUnchanged(o.StopPids, live.Pids) {
+			live = s.stopConfirmed(kind, *dir, o.StopPids)
+			o.stopChecked = true
+		}
+		// 只有结束确认的那批之后账号确实空闲才允许删除；范围变了（哪怕新扫描是 idle）也不能报成功
+		if !o.stopChecked || live.State != "idle" {
+			panic(externalBusyErr(stoppedCheck(live)))
+		}
 	}
 	switch {
 	case live.State == "busy":

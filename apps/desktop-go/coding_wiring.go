@@ -153,10 +153,14 @@ var _ delegate.Harness = delegateHarness{}
 // 账号（AccountService）提供 history 的 accountLabel / sessionAccount；网关提供 delegate 的 harnessGateway（defaults / models）
 // 与 history 的 gatewaySession = gateway.servedSession（gw 为 nil 时依赖为空，可选）；
 // history.delete permanently removes validated native session files after process exit.
-func wireCoding(router *contract.Router, userData string, plugins *cli.CliPluginHost, d *desktop.Service, gw *gwstore.Service, reg tools.Registry, taskSvc *tasks.Service) {
+func wireCoding(router *contract.Router, userData string, plugins *cli.CliPluginHost, d *desktop.Service, gw *gwstore.Service, reg tools.Registry, taskSvc *tasks.Service, onCliUpdated ...func(string)) func() {
 	o, acc := harnessOrch, harnessAccounts
 	var updates *cli.CliUpdateService
 	var err error
+	var refreshManaged func(string)
+	if len(onCliUpdated) > 0 {
+		refreshManaged = onCliUpdated[0]
+	}
 	jsrt.Run(func() {
 		updates, err = cli.NewCliUpdateService(cli.CliUpdateOptions{
 			Root: filepath.Join(userData, "cli-update"), Logger: stdLogger{}, Events: hostEvents{router},
@@ -170,7 +174,12 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 					return o.BusyTurns(kind), nil
 				})
 			},
-			OnUpdated: func(string, string) { plugins.RefreshVersions() },
+			OnUpdated: func(kind, _ string) {
+				plugins.RefreshVersions()
+				if refreshManaged != nil {
+					refreshManaged(kind)
+				}
+			},
 		})
 	})
 	if err != nil {
@@ -222,7 +231,7 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 		MemoryCritical:           fleetHolding,
 		HasOfficialAccount:       hasOfficialAcc,
 		DefaultOfficialAccountID: defaultOfficialAcc,
-		HasLocalLogin:            func(k string) bool { return cli.HasLocalLogin(k, "") },
+		HasLocalLogin:            func(k string) bool { return cli.DetectLocalLogin(k, "") },
 		OfficialModels:           officialModels,
 		SandboxStatus: func() string {
 			if harnessOrch != nil {
@@ -358,10 +367,24 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 			},
 		})
 	})
+	localAuth := cli.NewLocalAuthService(cli.LocalAuthDeps{
+		ResolveBin: harness.ResolveEffectiveHarnessBin,
+		Emit:       func(e *util.Obj) { router.Emit("cli.localAuthEvent", e) },
+		OnChanged: func(kind string) {
+			if o != nil {
+				o.InvalidateModelCatalog(kind)
+			}
+			if refreshManaged != nil {
+				go refreshManaged(kind)
+			}
+			router.EmitTo("cli.launcherChanged", cli.LaunchersView(), "chat")
+		},
+	})
 	svc := codinghandlers.CodingServices{
-		Plugins:  func() codinghandlers.Plugins { return plugins },
-		Delegate: func() codinghandlers.Delegate { return dlg },
-		History:  func() codinghandlers.History { return history },
+		Plugins:   func() codinghandlers.Plugins { return plugins },
+		Delegate:  func() codinghandlers.Delegate { return dlg },
+		History:   func() codinghandlers.History { return history },
+		LocalAuth: func() codinghandlers.LocalAuth { return localAuth },
 		Updates: func() codinghandlers.Updates {
 			if updates == nil {
 				return nil
@@ -375,6 +398,9 @@ func wireCoding(router *contract.Router, userData string, plugins *cli.CliPlugin
 		},
 	}
 	codinghandlers.RegisterCoding(router, svc)
+	return func() {
+		jsrt.Run(localAuth.Dispose)
+	}
 }
 
 // rethrow：账号服务的 JS 异常原样抛回

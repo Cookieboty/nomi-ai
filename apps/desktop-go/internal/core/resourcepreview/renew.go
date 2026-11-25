@@ -32,7 +32,7 @@ func (s *Service) Renew(url string) Result {
 	}
 	root := desktop.CheckWorkspaceRoot(cap.editRoot, desktop.WorkspaceEnv{Home: cap.home, Platform: platform(), DenyRoots: s.DenyRoots})
 	real, err := filepath.EvalSymlinks(cap.path)
-	if err != nil || !root.OK || real != cap.path || !desktop.IsInside(real, root.Real, platform()) || s.denyReason(real) != "" {
+	if err != nil || !root.OK || real != cap.path || !desktop.IsInside(real, root.Real, platform()) {
 		if err != nil && os.IsNotExist(err) {
 			return fail("missing")
 		}

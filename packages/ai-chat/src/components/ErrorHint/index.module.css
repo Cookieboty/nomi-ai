@@ -2,7 +2,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--cd-space-2);
-  margin-bottom: var(--cd-space-4);
+  /* 与消息列、输入框同宽居中（都按 --cd-chat-content-w） */
+  width: 100%;
+  max-width: var(--cd-chat-content-w);
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0 auto var(--cd-space-4);
   padding: var(--cd-space-3) var(--cd-space-4);
   border: 1px solid rgba(239, 68, 68, 0.4);
   border-radius: var(--cd-radius-lg);
@@ -26,6 +31,8 @@
 
 .errorHintTitle {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-weight: var(--cd-font-weight-bold);
   color: var(--cd-color-danger-text);
 }
@@ -36,6 +43,7 @@
 
 .errorHintDesc {
   /* 原始错误可能很长（上游返回的整段 JSON）：限高滚动，不把输入栏顶出屏幕（#78） */
+  min-width: 0;
   max-height: 96px;
   margin: 0;
   overflow-y: auto;

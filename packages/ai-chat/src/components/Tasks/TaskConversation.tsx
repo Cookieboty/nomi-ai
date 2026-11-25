@@ -34,6 +34,9 @@ import {
 } from '../SubagentPane/project';
 
 import styles from './TaskConversation.module.css';
+import { TaskModelSwitch } from './TaskModelSwitch';
+
+const EMPTY_MESSAGES: readonly ConvMessage[] = [];
 
 type InputMode = 'steer' | 'append' | 'reject' | 'followup' | 'none';
 
@@ -99,7 +102,9 @@ export const TaskConversation: React.FC<{
   task: Task;
   attempts: Attempt[];
   queueInfo?: TaskQueueInfo;
-}> = ({ task, attempts, queueInfo }) => {
+  onMessagesChange?: (messages: readonly ConvMessage[]) => void;
+  onOpenProviders?: () => void;
+}> = ({ task, attempts, queueInfo, onMessagesChange, onOpenProviders }) => {
   const isNomi = task.executor.kind === 'nomi';
   const isCli = task.executor.kind === 'cli';
 
@@ -266,6 +271,16 @@ export const TaskConversation: React.FC<{
   };
 
   const hasLiveCliStream = !!(liveTab && cliLiveMessages.length > 0);
+  const currentMessages = isNomi
+    ? nomiMessages
+    : isCli
+      ? hasLiveCliStream
+        ? cliLiveMessages
+        : cliFallbackMessages
+      : EMPTY_MESSAGES;
+  useEffect(() => {
+    onMessagesChange?.(currentMessages);
+  }, [onMessagesChange, currentMessages]);
   const showEmpty = isNomi
     ? nomiMessages.length === 0 && !convLive
     : isCli
@@ -353,24 +368,32 @@ export const TaskConversation: React.FC<{
               </button>
             </div>
           )}
-          <div className={styles.inputRow}>
-            <textarea
-              className={styles.input}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                  e.preventDefault();
-                  void handleSend();
-                }
-              }}
-              placeholder={placeholder}
-              aria-label={placeholder}
-              disabled={sending}
-              data-testid="task-conv-input"
-            />
+          <textarea
+            className={styles.input}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                void handleSend();
+              }
+            }}
+            placeholder={placeholder}
+            aria-label={placeholder}
+            disabled={sending}
+            data-testid="task-conv-input"
+          />
+          <div className={styles.composerBar}>
+            <div className={styles.composerModel}>
+              <TaskModelSwitch
+                task={task}
+                liveTab={liveTab}
+                placement="composer"
+                onOpenProviders={onOpenProviders}
+              />
+            </div>
             <Button
-              size="sm"
+              size="ms"
               variant="primary"
               disabled={sending || !draft.trim()}
               onClick={() => {

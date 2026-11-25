@@ -27,6 +27,7 @@ import {
   getConversationFontSize,
   subscribeConversationFontSize,
 } from '../../services/conversationFontSize';
+import type { SwitchTip } from '../../services/modelSwitchTip';
 import type { TranscriptView } from '../../services/transcriptView';
 import type { SlashCard } from '../../slash/types';
 import type { ConvLive, ConvMessage, ConvPhase } from '../../types/conversation';
@@ -54,7 +55,7 @@ import {
 } from './Messages';
 import { MinimalOpenProvider } from './MinimalSteps';
 import { PermissionCard } from './PermissionCard';
-import { HandoffTriggerButton, StatusLine } from './StatusLine';
+import { StatusLine } from './StatusLine';
 import { TranscriptViewProvider, useTranscriptViewMode } from './transcriptViewContext';
 import {
   captureScrollAnchor,
@@ -308,10 +309,10 @@ export interface ConversationViewProps {
   /** agent 进程因空闲被回收：显示提示，发送下一条消息会自动续接 */
   dormant?: boolean;
   /**
-   * 会话中途换了模型、还没发送下一条消息：切换后的模型名（空串 = 默认模型），显示一条弱提示。
-   * 由来源决定（agent 标签看切换记录，Nomi 对话比较最后一条助手消息的模型）
+   * 会话中途换了模型或底座、还没发送下一条消息：切换目标或结构化 SwitchTip（空串 = 默认模型），显示一条弱提示。
+   * 由来源决定（agent 标签看切换记录，Nomi 主对话结合底座与最后一条助手消息判断）
    */
-  modelSwitchTip?: string | null;
+  modelSwitchTip?: string | SwitchTip | null;
   /** 仍在运行的后台子代理（跨轮次）与后台任务总数（docs/development/coding-agents.md） */
   backgroundAgents?: ReadonlyArray<{
     id: string;
@@ -358,6 +359,12 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   const innerRef = useRef<HTMLDivElement>(null);
   const [away, setAway] = useState(false);
   const running = phase === 'running';
+  const normalizedSwitchTip: SwitchTip | null =
+    modelSwitchTip == null
+      ? null
+      : typeof modelSwitchTip === 'string'
+        ? { kind: 'model', target: modelSwitchTip }
+        : modelSwitchTip;
   const minimal = transcriptView === 'minimal';
   const [extra, setExtra] = useState(0);
   const rawFullStart = useMemo(
@@ -830,6 +837,13 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     status?.kind === 'permission' ||
     status?.kind === 'blocked' ||
     status?.kind === 'queued';
+  const handoffAction = onHandoffToBackground
+    ? {
+        forceShow: handoffForceShow,
+        blocked: handoffBlocked,
+        onHandoff: onHandoffToBackground,
+      }
+    : undefined;
   // 定稿消息已到、标签状态还没回到空闲的那一帧：不再画一个空的流式区（状态行会闪一下）
   const showLive = phase !== 'idle' && !(running && !live && last?.role === 'assistant');
   const liveNode = showLive ? (
@@ -842,7 +856,9 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
           live
           streaming
           thinking={live?.thinking}
-          liveStatus={status ? { status, startedAt: activeStartedAt } : undefined}
+          liveStatus={
+            status ? { status, startedAt: activeStartedAt, handoff: handoffAction } : undefined
+          }
           minimalStateKey={liveMinimalKey}
           extra={<PermissionQueue live={live} onPermission={onPermission} />}
         />
@@ -853,27 +869,8 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
           startedAt={activeStartedAt}
           stepCount={liveStepCount > 0 ? liveStepCount : undefined}
           minimal={transcriptView === 'minimal'}
-          handoff={
-            onHandoffToBackground
-              ? {
-                  forceShow: handoffForceShow,
-                  blocked: handoffBlocked,
-                  onHandoff: onHandoffToBackground,
-                }
-              : undefined
-          }
+          handoff={handoffAction}
         />
-      )}
-      {status && minimalStepsOwnsStatus && onHandoffToBackground && !handoffBlocked && (
-        <div className={styles.minimalHandoffRow}>
-          <HandoffTriggerButton
-            key={activeStartedAt ?? 'none'}
-            startedAt={activeStartedAt}
-            forceShow={handoffForceShow}
-            blocked={handoffBlocked}
-            onHandoff={onHandoffToBackground}
-          />
-        </div>
       )}
     </div>
   ) : null;
@@ -975,20 +972,29 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
             ))}
             <BackgroundBar agents={backgroundAgents} count={backgroundCount} onStop={onStopAgent} />
             {sandboxRequests}
-            {modelSwitchTip != null && !running && (
+            {normalizedSwitchTip != null && !running && (
               <div
                 className={styles.modelTip}
                 data-testid="conv-model-switch-tip"
+                data-switch-kind={normalizedSwitchTip.kind}
                 data-no-selection-toolbar=""
                 role="note"
                 aria-live="polite"
               >
-                <Icon icon={ArrowLeftRight} size={12} />
+                <Icon
+                  icon={normalizedSwitchTip.kind === 'runtime' ? Layers : ArrowLeftRight}
+                  size={12}
+                />
                 <span>
-                  {t(
-                    'ui.cli-monitor.switched-to-changing-models-mid-conversation-means-the',
-                    modelSwitchTip || t('ui.providers-schedule.default-model'),
-                  )}
+                  {normalizedSwitchTip.kind === 'runtime'
+                    ? t(
+                        'ui.cli-monitor.switched-runtime-mid-conversation',
+                        normalizedSwitchTip.target || t('ui.providers-schedule.default-model'),
+                      )
+                    : t(
+                        'ui.cli-monitor.switched-to-changing-models-mid-conversation-means-the',
+                        normalizedSwitchTip.target || t('ui.providers-schedule.default-model'),
+                      )}
                 </span>
               </div>
             )}

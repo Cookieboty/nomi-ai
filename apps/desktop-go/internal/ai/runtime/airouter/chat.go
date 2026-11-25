@@ -26,10 +26,13 @@ type Logger interface{ Warn(msg string, data ...any) }
 
 // Options = AiRouterOptions（chat 部分）
 type Options struct {
-	Chat        *facade.Chat
-	Logger      Logger
-	PrepareChat PrepareChat
-	BatchMs     *int
+	Chat                   *facade.Chat
+	Logger                 Logger
+	PrepareChat            PrepareChat
+	BatchMs                *int
+	IsManaged              func(string) bool
+	ProjectForConversation func(string) string
+	ManagedConfig          func(string) ManagedAPIConfig
 }
 
 // Handlers = createAiHandlers 的 chat 处理函数 + streamAborts
@@ -225,6 +228,9 @@ func (h *Handlers) sendMessage(ctx context.Context, _ contract.Caller, raw json.
 	if err != nil {
 		return nil, err
 	}
+	if h.o.IsManaged != nil && h.o.IsManaged(conversationOf(m)) {
+		return nil, &contract.Error{Code: "CONVERSATION_MANAGED", Message: "Use the leased conversation runtime ingress"}
+	}
 	if err := h.prepare(m, "sendMessage", nil); err != nil {
 		return nil, err
 	}
@@ -243,6 +249,9 @@ func (h *Handlers) chatStream(ctx context.Context, method string, raw json.RawMe
 	m, err := decodeOptions(raw)
 	if err != nil {
 		return err
+	}
+	if h.o.IsManaged != nil && h.o.IsManaged(conversationOf(m)) {
+		return &contract.Error{Code: "CONVERSATION_MANAGED", Message: "Use the leased conversation runtime ingress"}
 	}
 	reqID, _ := m["reqId"].(string)
 	if m["reqId"] == nil { // input.reqId ?? randomId()

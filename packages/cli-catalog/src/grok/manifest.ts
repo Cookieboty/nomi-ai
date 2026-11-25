@@ -60,6 +60,7 @@ export const manifest: CliManifest = {
   // 占位模型名 nomi：第三方换模型只改绑定；官方仍按 ACP set_model 原地切
   modelSwitch: 'gateway',
   clientSpec: { client: 'grok', placeholderModel: 'nomi' },
+  branding: { modelBrand: 'xai' },
   configPath: '~/.grok/config.toml',
   host: {
     minNode: 18,

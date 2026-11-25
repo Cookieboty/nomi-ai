@@ -1,10 +1,36 @@
 package config
 
 import (
+	"strings"
 	"unicode/utf8"
 
 	u "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
+
+func isHTTPTokenChar(b byte) bool {
+	if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') {
+		return true
+	}
+	switch b {
+	case '!', '#', '$', '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~':
+		return true
+	}
+	return false
+}
+
+// SanitizeHeaderName 清理并校验 HTTP 头名（RFC 9110 token）；空串或含非法字符返回 ""。
+func SanitizeHeaderName(s string) string {
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return ""
+	}
+	for i := 0; i < len(trimmed); i++ {
+		if !isHTTPTokenChar(trimmed[i]) {
+			return ""
+		}
+	}
+	return trimmed
+}
 
 // ProviderQuirks keeps the JS object it came from so merging and serialising
 // follow JS exactly: an override that is null or "" still wins (spread only
@@ -61,8 +87,8 @@ func (q *ProviderQuirks) Obj() *u.Obj {
 	if q.UserAgent != "" {
 		o.Set("userAgent", q.UserAgent)
 	}
-	if q.SessionHeader != "" {
-		o.Set("sessionHeader", q.SessionHeader)
+	if name := SanitizeHeaderName(q.SessionHeader); name != "" {
+		o.Set("sessionHeader", name)
 	}
 	if q.MaxConcurrency != nil {
 		o.Set("maxConcurrency", *q.MaxConcurrency)
@@ -115,7 +141,7 @@ func QuirksFromObj(o *u.Obj) *ProviderQuirks {
 		}
 	}
 	if v, ok := o.Get("sessionHeader").(string); ok {
-		q.SessionHeader = v
+		q.SessionHeader = SanitizeHeaderName(v)
 	}
 	if v, ok := o.Get("maxConcurrency").(float64); ok { // typeof === 'number'
 		q.MaxConcurrency = &v

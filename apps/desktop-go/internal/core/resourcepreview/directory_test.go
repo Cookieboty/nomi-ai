@@ -55,7 +55,7 @@ func TestPreviewDirectoryAncestorsAndExplicitTraversal(t *testing.T) {
 	}
 }
 
-func TestPreviewDirectoryProtectsNamesAndSymlinkTargets(t *testing.T) {
+func TestPreviewDirectoryListsDotenvAndProtectedNames(t *testing.T) {
 	dir := t.TempDir()
 	secret := filepath.Join(dir, ".ssh")
 	deny := filepath.Join(dir, "blocked")
@@ -67,18 +67,43 @@ func TestPreviewDirectoryProtectsNamesAndSymlinkTargets(t *testing.T) {
 	file := filepath.Join(dir, "note.md")
 	_ = os.WriteFile(file, []byte("# Notes"), 0600)
 	_ = os.WriteFile(filepath.Join(dir, ".env"), []byte("SECRET=value"), 0600)
-	_ = os.Symlink(secret, filepath.Join(dir, "alias"))
+	_ = os.WriteFile(filepath.Join(secret, "config"), []byte("Host *"), 0600)
+	symlinkOK := os.Symlink(secret, filepath.Join(dir, "alias")) == nil
 	s := New(deny)
 	opened := s.Open(dir, file, "/nonexistent-home", false)
 	if !opened.OK {
 		t.Fatal(opened)
 	}
 	result := s.ListDirectory(opened.URL, dir)
-	if !result.OK || len(result.Entries) != 1 || result.Entries[0].Name != "note.md" {
-		t.Fatalf("sensitive entries: %+v", result)
+	if !result.OK {
+		t.Fatalf("directory listing failed: %+v", result)
 	}
-	if r := s.ListDirectory(opened.URL, filepath.Join(dir, "alias")); r.Code != "denied" {
-		t.Fatal(r)
+	got := map[string]string{}
+	for _, entry := range result.Entries {
+		got[entry.Name] = entry.Kind
+	}
+	want := map[string]string{
+		".ssh":    "dir",
+		"blocked": "dir",
+		".env":    "file",
+		"note.md": "file",
+	}
+	if symlinkOK {
+		want["alias"] = "dir"
+	}
+	if len(got) != len(want) {
+		t.Fatalf("entries = %+v, want %+v", result.Entries, want)
+	}
+	for name, kind := range want {
+		if got[name] != kind {
+			t.Fatalf("entry %q = %q, want %q (all: %+v)", name, got[name], kind, result.Entries)
+		}
+	}
+	if symlinkOK {
+		r := s.ListDirectory(opened.URL, filepath.Join(dir, "alias"))
+		if !r.OK || len(r.Entries) != 1 || r.Entries[0].Name != "config" {
+			t.Fatalf("symlink alias listing: %+v", r)
+		}
 	}
 	token := strings.TrimPrefix(opened.URL, Prefix)
 	s.mu.Lock()

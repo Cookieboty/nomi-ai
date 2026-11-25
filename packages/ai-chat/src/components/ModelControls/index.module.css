@@ -29,6 +29,14 @@
 .chip > svg {
   flex: none;
 }
+.chipSep {
+  flex: none;
+  width: 1px;
+  height: 12px;
+  margin: 0 var(--cd-space-0-5);
+  background: var(--cd-color-border-strong);
+  opacity: 0.7;
+}
 .chipMuted {
   color: var(--cd-color-text-muted);
 }
@@ -87,20 +95,6 @@
   font-size: var(--cd-font-size-xs);
   font-weight: var(--cd-font-weight-bold);
   color: var(--cd-color-text-muted);
-}
-.effortUnavailable {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--cd-space-1);
-  opacity: 0.72;
-  pointer-events: none;
-}
-.effortHint {
-  margin: 0;
-  padding: 0 var(--cd-space-2);
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-muted);
-  line-height: 1.4;
 }
 /* 滑杆：细轨道 + 小圆点 + 白色滑块；点 / 滑块中心落在「轨道宽 - 滑块宽」区间里 */
 .sliderWrap {
@@ -215,9 +209,22 @@
   text-align: left;
   cursor: pointer;
 }
-.modelRow:hover,
-.modelRow:focus-visible {
+.modelRow:hover:not(:disabled),
+.modelRow:focus-visible:not(:disabled) {
   background: var(--cd-color-hover);
+}
+.modelRow:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.effortView > .modelRow:first-child,
+.effortView > .longContextRow:first-child {
+  border-top: none;
+  margin-top: calc(-1 * var(--cd-space-2));
+}
+.managedSourceBar + .modelRow,
+.managedSourceBar + .longContextRow {
+  border-top: none;
 }
 .modelRow > svg {
   flex: none;
@@ -435,11 +442,16 @@
 }
 .sourceTabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   gap: var(--cd-space-0-5);
   padding: var(--cd-space-0-5);
   border-radius: var(--cd-radius-md);
   background: var(--cd-color-surface-sunken);
+}
+.managedSourceBar {
+  padding-bottom: var(--cd-space-1-5);
+  border-bottom: 1px solid var(--cd-color-border);
 }
 .sourceTab {
   height: var(--cd-control-h-xs);
@@ -492,4 +504,20 @@
 }
 .presetPill:hover {
   background: var(--cd-color-hover);
+}
+.runtimeInlineBar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1-5);
+  padding: var(--cd-space-2);
+  margin: var(--cd-space-1) 0;
+  border-radius: var(--cd-radius-md);
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface-sunken);
+}
+.runtimeInlineHint {
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  line-height: 1.4;
 }

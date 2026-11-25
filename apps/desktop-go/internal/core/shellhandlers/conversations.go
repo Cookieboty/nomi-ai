@@ -9,6 +9,7 @@ import (
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/contract"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/convstore"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mainchat"
 )
 
 // OnConversationDeleted：会话删掉时收起还挂着的提问、中止这一轮（main 里接上）
@@ -62,7 +63,7 @@ func (w *ConversationWrites) WaitIdle(max, quiet time.Duration) bool {
 // InstallConversations 挂 conversations.*（对话窗口的会话存储，userData/conversations/）。
 // 每次写完推 conversations.changed（带调用方传的 source），别的窗口据此重新取索引。
 // 返回写入的进行情况（退出前等写完）。
-func InstallConversations(r *contract.Router, s *convstore.Store) *ConversationWrites {
+func InstallConversations(r *contract.Router, s *convstore.Store, runtimes ...*mainchat.Registry) *ConversationWrites {
 	w := &ConversationWrites{}
 	// 写入类的处理函数：记进行中 / 最近一次写
 	write := func(name string, f contract.CallFunc) {
@@ -80,6 +81,8 @@ func InstallConversations(r *contract.Router, s *convstore.Store) *ConversationW
 	}
 	fail := func(err error) error {
 		switch {
+		case errors.Is(err, convstore.ErrManaged):
+			return &contract.Error{Code: "CONVERSATION_MANAGED", Message: err.Error()}
 		case errors.Is(err, convstore.ErrNotFound):
 			return &contract.Error{Code: "CONVERSATION_NOT_FOUND", Message: err.Error()}
 		case errors.Is(err, convstore.ErrBadID), errors.Is(err, convstore.ErrBadMessage):
@@ -176,7 +179,13 @@ func InstallConversations(r *contract.Router, s *convstore.Store) *ConversationW
 		if err := json.Unmarshal(raw, &in); err != nil {
 			return nil, badInput(err)
 		}
-		if err := s.Delete(in.ID); err != nil {
+		err := s.Delete(in.ID)
+		if errors.Is(err, convstore.ErrManaged) && len(runtimes) > 0 {
+			err = runtimes[0].Delete(in.ID)
+			if err != nil {
+				return nil, runtimeFail(err)
+			}
+		} else if err != nil {
 			return nil, fail(err)
 		}
 		if OnConversationDeleted != nil {

@@ -3,6 +3,9 @@ package shellhandlers_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,26 +19,104 @@ type convSession struct {
 	s  *contract.Session
 	ch chan contract.ServerFrame
 	n  int
+
+	once sync.Once
+	seq  int64
+	ipcR *ipcRouter
 }
 
 func (c *convSession) call(name, input string) contract.ServerFrame {
 	c.t.Helper()
-	c.n++
-	id := string(rune('a' + c.n))
-	c.s.Handle([]byte(`{"t":"req","id":"` + id + `","kind":"call","name":"` + name + `","input":` + input + `}`))
-	for {
-		select {
-		case f := <-c.ch:
-			if f.T == "event" {
-				continue
-			}
-			if f.ID != id {
-				continue
-			}
-			return f
-		case <-time.After(2 * time.Second):
-			c.t.Fatal("timeout " + name)
+	f, ok := c.request(name, input).await(5 * time.Second)
+	if !ok {
+		c.t.Fatal("timeout " + name)
+	}
+	return f
+}
+
+// ipcRouter correlates contract.Session answers by request id, exactly like
+// the transport does for the renderer: every answer carries the id of the
+// request that produced it, regardless of completion order.
+type ipcRouter struct {
+	c       *convSession
+	ch      chan contract.ServerFrame
+	mu      sync.Mutex
+	waiters map[string]chan contract.ServerFrame
+}
+
+type pending struct {
+	c     *convSession
+	id    string
+	reply chan contract.ServerFrame
+}
+
+// until polls the live generation until check passes (bounded).
+func (c *convSession) until(check func() bool) bool {
+	deadline := time.Now().Add(4 * time.Second)
+	for time.Now().Before(deadline) {
+		if check() {
+			return true
 		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	return check()
+}
+
+// ipc answers are routed by request id to the requesting waiter; one
+// goroutine owns the session channel so call/request never compete for it.
+func (c *convSession) ipc() *ipcRouter {
+	c.once.Do(func() {
+		c.ipcR = &ipcRouter{c: c, waiters: map[string]chan contract.ServerFrame{}}
+		go c.ipcR.pump()
+	})
+	return c.ipcR
+}
+
+func (r *ipcRouter) pump() {
+	for f := range r.c.ch {
+		if f.T != "res" && f.T != "err" && f.T != "end" {
+			continue // events are not answers
+		}
+		r.mu.Lock()
+		w := r.waiters[f.ID]
+		delete(r.waiters, f.ID)
+		r.mu.Unlock()
+		if w != nil {
+			w <- f
+		}
+	}
+}
+
+// request dispatches a request frame with a unique id and returns a handle
+// that collects only this id's terminal frame.
+func (c *convSession) request(name, input string) *pending {
+	c.t.Helper()
+	n := atomic.AddInt64(&c.seq, 1)
+	id := fmt.Sprintf("ipc-%d", n)
+	p := &pending{c: c, id: id, reply: make(chan contract.ServerFrame, 1)}
+	r := c.ipc()
+	r.mu.Lock()
+	r.waiters[id] = p.reply
+	r.mu.Unlock()
+	c.s.Handle([]byte(`{"t":"req","id":"` + id + `","kind":"call","name":"` + name + `","input":` + input + `}`))
+	return p
+}
+
+func (c *convSession) registerWaiter(id string) chan contract.ServerFrame {
+	reply := make(chan contract.ServerFrame, 1)
+	r := c.ipc()
+	r.mu.Lock()
+	r.waiters[id] = reply
+	r.mu.Unlock()
+	return reply
+}
+
+func (p *pending) await(timeout time.Duration) (contract.ServerFrame, bool) {
+	select {
+	case f := <-p.reply:
+		return f, true
+	case <-time.After(timeout):
+		return contract.ServerFrame{}, false
 	}
 }
 

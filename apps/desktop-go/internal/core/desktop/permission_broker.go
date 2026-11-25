@@ -74,6 +74,44 @@ type ConfirmRequest struct {
 // ScopeDecision：allowed | pick | denied | timeout（pick = 用户要自己另选文件夹）
 type ScopeDecision = string
 
+// ManagedConfirmFunc：托管主对话工具确认钩子（不落入全局 pending 与桌面 ConfirmUI）
+type ManagedConfirmFunc func(ctx context.Context, req ConfirmRequest) (decision string, remember bool, session bool, out ConfirmRequest)
+
+type managedConfirmKey struct{}
+type managedModeKey struct{}
+
+// WithManagedConfirm 为当前工具调用 context 绑定托管对话专属审批通道。
+func WithManagedConfirm(ctx context.Context, fn ManagedConfirmFunc) context.Context {
+	if ctx == nil || fn == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, managedConfirmKey{}, fn)
+}
+
+func managedConfirmFrom(ctx context.Context) ManagedConfirmFunc {
+	if ctx == nil {
+		return nil
+	}
+	fn, _ := ctx.Value(managedConfirmKey{}).(ManagedConfirmFunc)
+	return fn
+}
+
+// WithManagedPermissionMode 在当前调用信号上覆盖全局权限模式（acceptEdits / manual / auto / plan）。
+func WithManagedPermissionMode(ctx context.Context, mode PermMode) context.Context {
+	if ctx == nil || mode == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, managedModeKey{}, mode)
+}
+
+func managedPermissionModeFrom(ctx context.Context) (PermMode, bool) {
+	if ctx == nil {
+		return "", false
+	}
+	mode, ok := ctx.Value(managedModeKey{}).(PermMode)
+	return mode, ok && mode != ""
+}
+
 type ConfirmUI interface {
 	Request(req ConfirmRequest)
 	Cancel(id string)
@@ -548,6 +586,9 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	mode := PermMode("acceptEdits")
 	if !i.IgnoreMode {
 		mode = b.PermissionMode()
+		if managedMode, ok := managedPermissionModeFrom(i.Signal); ok {
+			mode = managedMode
+		}
 	}
 	if mode == "plan" && i.Danger != "read" {
 		return "blocked"
@@ -605,7 +646,7 @@ func (b *PermissionBroker) Authorize(i AuthorizeInput) Decision {
 	if grantable && b.convGranted(conv, group) {
 		return "auto"
 	}
-	if b.UI == nil {
+	if b.UI == nil && managedConfirmFrom(i.Signal) == nil {
 		return "denied"
 	}
 	if i.Signal != nil && i.Signal.Err() != nil {
@@ -890,7 +931,7 @@ func (b *PermissionBroker) CanSendQuietly(p *Provider) bool {
 // 建议的文件夹先按工作区根的规则校验（绝对路径、存在、是文件夹、不过宽、不在黑名单），不过的不给
 // 「授权这个」，只能另选。allowed 时 path 为校验后的真实路径；没有界面时按拒绝处理。
 func (b *PermissionBroker) RequestScope(suggested, mode, reason string, signal context.Context) (ScopeDecision, string) {
-	if b.UI == nil || (signal != nil && signal.Err() != nil) {
+	if (b.UI == nil && managedConfirmFrom(signal) == nil) || (signal != nil && signal.Err() != nil) {
 		return "denied", ""
 	}
 	real := ""
@@ -940,6 +981,9 @@ func (b *PermissionBroker) ask(req ConfirmRequest, signal context.Context) (stri
 	}
 	req.ID = randomUUID()
 	req.ExpiresAt = b.nowFn() + float64(b.timeout.Milliseconds())
+	if fn := managedConfirmFrom(signal); fn != nil {
+		return fn(signal, req)
+	}
 	pc := &pendingConfirm{req: req, done: make(chan [2]any, 1)}
 	b.mu.Lock()
 	b.pending[req.ID] = pc

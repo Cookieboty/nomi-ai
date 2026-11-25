@@ -262,6 +262,7 @@ export interface ProviderInput {
     dropParams?: string[];
     reasoningPassback?: boolean;
     preferWire?: Wire;
+    sessionHeader?: string;
     extraBody?: Partial<Record<Wire, Record<string, unknown>>>;
   };
 }
@@ -288,6 +289,7 @@ export interface DetectResult {
 
 export interface DetectInput {
   providerId?: string;
+  presetId?: string;
   url?: string;
   urls?: Partial<Record<Wire, string>>;
   keys?: string[];

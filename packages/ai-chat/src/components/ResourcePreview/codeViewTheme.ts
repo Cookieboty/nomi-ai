@@ -12,8 +12,6 @@ export const codeViewHighlight = syntaxHighlighting(
       tag: [tags.function(tags.variableName), tags.function(tags.propertyName)],
       class: 'token function',
     },
-    // 键名（YAML 键、JSON 键、CSS 属性名）；function(propertyName) 更具体，仍走 token function。
-    { tag: tags.propertyName, class: 'token property' },
     { tag: [tags.typeName, tags.className, tags.namespace], class: 'token class-name' },
     { tag: [tags.tagName, tags.attributeName], class: 'token tag' },
     { tag: tags.operator, class: 'token operator' },
@@ -53,10 +51,16 @@ export const codeViewTheme = EditorView.theme({
     padding: '0 var(--cd-space-2) 0 var(--cd-space-4)',
   },
   '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'transparent' },
-  '.cm-cursor': { borderLeftColor: 'var(--cd-color-text)' },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
-    backgroundColor: 'var(--cd-color-accent-soft)',
+  '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--cd-color-text)' },
+  '.cm-specialChar': { color: 'var(--cd-color-danger)' },
+  // 匹配 CodeMirror baseTheme 的 5 级选择器特异性，避免聚焦选区回退为默认浅色 #d7d4f0
+  '& > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground': {
+    background: 'var(--cd-color-accent-soft)',
   },
+  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, &.cm-focused .cm-selectionBackground, .cm-content ::selection':
+    {
+      background: 'rgba(var(--cd-accent-rgb), 0.26)',
+    },
   '.preview-code-location': { backgroundColor: 'var(--cd-color-hover)' },
   '.preview-code-find-match': { backgroundColor: 'var(--cd-color-accent-soft)' },
   '.preview-code-find-current': {

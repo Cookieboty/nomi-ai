@@ -101,8 +101,20 @@ type SessionCustomization struct {
 	CreateDriver func(launch AgentLaunch, ctx LaunchContext) SessionDriver
 }
 
+// ModelOverride：将用户选择的 (model, effort) 映射为协议层实际下发的模型与配置项。
+type ModelOverride struct {
+	ModelID        string // 实际下发给协议的模型 ID（空 = 不下发）
+	Effort         string // 实际下发给协议的思考深度值（空 = 不单独下发）
+	EffortConfigID string // 思考深度对应的配置项 ID（如 "reasoning_effort"）
+}
+
 type ModelCatalogCapability struct {
 	List func(env Env) (*util.Obj, error)
+	// ParseSession：可选，从 ACP session/new 或 session/load 原始响应解析并归一化模型目录。
+	ParseSession func(sessionRaw *util.Obj) *util.Obj
+	// ResolveOverride：可选，将 (modelID, effort) 结合目录还原为协议层下发参数；
+	// 为 nil 时通用 ACP 适配器按标准协议直传模型与思考深度。
+	ResolveOverride func(catalog *util.Obj, modelID, effort string) ModelOverride
 }
 
 type PermissionCapability struct {

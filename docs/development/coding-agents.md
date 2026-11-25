@@ -33,15 +33,16 @@ Nomi 把 Claude Code、Codex、Gemini CLI、Grok、dsh 当作子进程驱动，�
 
 ## 会话传输
 
-| CLI         | 传输                     | 回退   |
-| ----------- | ------------------------ | ------ |
-| Claude Code | `stream-json`            | `exec` |
-| Codex       | `app-server`（JSON-RPC） | `exec` |
-| Gemini CLI  | `acp`                    | —      |
-| Grok        | `acp`                    | `exec` |
-| dsh         | `exec`                   | —      |
-| Kimi Code   | `acp`                    | —      |
-| MiniMax     | `acp`                    | —      |
+| CLI             | 传输                     | 回退   |
+| --------------- | ------------------------ | ------ |
+| Claude Code     | `stream-json`            | `exec` |
+| Codex           | `app-server`（JSON-RPC） | `exec` |
+| Gemini CLI      | `acp`                    | —      |
+| Grok            | `acp`                    | `exec` |
+| dsh             | `exec`                   | —      |
+| Kimi Code       | `acp`                    | —      |
+| MiniMax         | `acp`                    | —      |
+| Antigravity CLI | `acp`                    | —      |
 
 传输写在 `packages/cli-catalog/src/<cli>/manifest.ts` 的 `transport` / `fallbackTransport`。
 
@@ -64,14 +65,14 @@ npm 包、权限档位 → 原生模式、显示名与完整名称（`fullName`�
 **Go 只登记代码**：`internal/cliplugins/<id>/` 写主进程实现（`CreateMain()`：官方 / 第三方启动、账号目录、斜杠命令等），
 `builtin.entries` 登记它和会话记录解析。内核里要按 CLI 区分的东西都从 `internal/cliplugins/builtin` 取：
 
-| 要什么                                        | 从哪取                                                                                        |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| 有哪些内置 CLI                                | `builtin.IDs`（按 id 排序）、`builtin.Ordered`（界面与名单的顺序）                            |
-| 插件能力（权限、账号、历史、斜杠命令、终端…） | `builtin.Impl(id)`（各插件的 `CreateMain()`，只建一次）                                       |
-| 显示名                                        | `builtin.DisplayName`（「Gemini」）、`builtin.FullName`（「Gemini CLI」：看板、用量、灵动岛） |
-| 清单能力位、传输、可执行文件、npm 包          | `builtin.Capability`、`builtin.UsesAcp`、`builtin.Binaries`、`builtin.NpmPackage`             |
-| 清单 `host` 段                                | `builtin.MinNode`、`SelfUpdate`、`Vendor`、`AcpArgs`、`PlanFollowUp`、`NomiCommand`           |
-| 按能力筛的名单                                | `builtin.Where(builtin.WithAccounts / WithHistory / WithQuota / WithThirdParty / All)`        |
+| 要什么                                        | 从哪取                                                                                             |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 有哪些内置 CLI                                | `builtin.IDs`（按 id 排序）、`builtin.Ordered`（界面与名单的顺序）                                 |
+| 插件能力（权限、账号、历史、斜杠命令、终端…） | `builtin.Impl(id)`（各插件的 `CreateMain()`，只建一次）                                            |
+| 显示名                                        | `builtin.DisplayName`（「Gemini」）、`builtin.FullName`（「Gemini CLI」：看板、用量、灵动岛）      |
+| 清单能力位、传输、可执行文件、npm 包          | `builtin.Capability`、`builtin.UsesAcp`、`builtin.Binaries`、`builtin.NpmPackage`                  |
+| 清单 `host` 段                                | `builtin.MinNode`、`SelfUpdate`、`Vendor`、`AcpArgs`、`PlanFollowUp`、`NomiCommand`                |
+| 按能力筛的名单                                | `builtin.Where(builtin.WithAccounts / WithHistory / WithQuota / WithThirdParty / LocalOnly / All)` |
 
 视图侧用 `@nomi-ai/cli-catalog` 的 `BUILTIN_CLI_ORDER`、`cliCapability`、`cliName`、`cliFullName`、`cliConfigPath`、`byCli`。
 ACP 助手的权限能力由清单推出（`shared.AcpPermissions`），不在 Go 里再写映射。两个守卫测试拦下写死的名单（同一行或分行写的

@@ -211,3 +211,73 @@ func TestServiceRemovePublishesChangeAfterDeletion(t *testing.T) {
 		}
 	}
 }
+
+type stubPresetCliExec struct {
+	nopCliExec
+	presets map[string]string
+}
+
+func (e stubPresetCliExec) ResolvePresetCli(id string) string { return e.presets[id] }
+
+func TestServiceNomiModelAndCliUpdate(t *testing.T) {
+	s := NewService(ServiceDeps{Root: t.TempDir(), Log: &nopLog{}, SetTimer: func(func(), int64) func() { return func() {} }})
+	s.RegisterExecutor("cli", stubPresetCliExec{presets: map[string]string{"balanced": "codex"}})
+	tools := []string{"read"}
+
+	// 创建时传入合法 <provider>/<model> 与 reasoningEffort 应保留落盘
+	nomiTask, err := s.Create(CreateRequest{
+		Title: "nomi", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "nomi", Tools: &tools, Model: ptr("pb/mb"), ReasoningEffort: ptr("high")},
+		Grant:    Grant{Level: 1},
+	}, "user")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nomiTask.Executor.Model == nil || *nomiTask.Executor.Model != "pb/mb" ||
+		nomiTask.Executor.ReasoningEffort == nil || *nomiTask.Executor.ReasoningEffort != "high" {
+		t.Fatalf("valid nomi model/effort not saved: %+v", nomiTask.Executor)
+	}
+
+	// Update 更新与清除 Nomi model / reasoningEffort，非法模型报 *InputError
+	updated, err := s.Update(nomiTask.ID, Patch{Model: SetString("pa/ma"), ReasoningEffort: SetString("low")})
+	if err != nil || updated.Executor.Model == nil || *updated.Executor.Model != "pa/ma" ||
+		updated.Executor.ReasoningEffort == nil || *updated.Executor.ReasoningEffort != "low" {
+		t.Fatalf("update nomi model/effort failed: %+v err=%v", updated, err)
+	}
+	if _, err := s.Update(nomiTask.ID, Patch{Model: SetString("bad-model")}); err == nil {
+		t.Fatal("expected *InputError for invalid nomi model ref")
+	} else if _, ok := err.(*InputError); !ok {
+		t.Fatalf("expected *InputError, got %T: %v", err, err)
+	}
+	cleared, err := s.Update(nomiTask.ID, Patch{Model: ClearString(), ReasoningEffort: ClearString()})
+	if err != nil || cleared.Executor.Model != nil || cleared.Executor.ReasoningEffort != nil {
+		t.Fatalf("clear nomi model/effort failed: %+v err=%v", cleared, err)
+	}
+
+	// 仅存 presetId（Cli == nil）的 CLI 任务切换 Source 脱离档位时，应自动回填 Cli 并清除 PresetID
+	cliTask, err := s.Create(CreateRequest{
+		Title: "cli", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "cli", PresetID: ptr("balanced"), Cwd: ptr("/repo"), Isolation: ptr("worktree")},
+		Grant:    Grant{Level: 2, Clis: &[]string{"codex"}},
+	}, "user")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cliUpdated, err := s.Update(cliTask.ID, Patch{
+		Source:          SetString("official"),
+		AccountID:       SetString("acct-1"),
+		Model:           SetString("gpt-5.4"),
+		ReasoningEffort: SetString("medium"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ex := cliUpdated.Executor
+	if ex.PresetID != nil || ex.Cli == nil || *ex.Cli != "codex" ||
+		ex.Source == nil || *ex.Source != "official" ||
+		ex.AccountID == nil || *ex.AccountID != "acct-1" ||
+		ex.Model == nil || *ex.Model != "gpt-5.4" ||
+		ex.ReasoningEffort == nil || *ex.ReasoningEffort != "medium" {
+		t.Fatalf("cli update/detach preset failed: %+v", ex)
+	}
+}

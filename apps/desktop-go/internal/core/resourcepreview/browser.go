@@ -75,7 +75,7 @@ func (s *Service) serveBrowser(w http.ResponseWriter, r *http.Request) {
 		path = filepath.Join(v.assetsRoot, filepath.FromSlash(parts[1]))
 	}
 	real, err := filepath.EvalSymlinks(path)
-	if err != nil || s.denyReason(real) != "" {
+	if err != nil {
 		http.NotFound(w, r)
 		return
 	}

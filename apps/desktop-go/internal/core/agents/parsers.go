@@ -27,7 +27,7 @@ type LastPhase = string
 
 // SessionInfo：从会话文件推断出的信息（"" = undefined；LastAt nil = undefined）。
 type SessionInfo struct {
-	SessionID, ParentID, Cwd, Model, ReasoningEffort, Title string
+	SessionID, ParentID, Cwd, Model, ReasoningEffort, Title, NativeTitle string
 	// PermissionMode 可为已定义的空串（codex sandbox_policy: ""），故用指针：nil = undefined。
 	PermissionMode *string
 	// SetupOnly：只有 CLI 自己建会话时塞的上下文（Gemini 的 <session_context>），没有用户说过的话：不算一个会话
@@ -240,21 +240,47 @@ func claudeMeta(info *SessionInfo, e *util.Obj) {
 // ParseClaudeSession：解析 Claude Code 会话文件的开头与末尾。
 func ParseClaudeSession(head, tail string) SessionInfo {
 	info := SessionInfo{Phase: "unknown"}
+	var customTitle, summaryTitle string
+	scanClaudeTitle := func(e *util.Obj) {
+		if e.Get("isSidechain") == true {
+			return
+		}
+		if e.Get("parent_tool_use_id") != nil {
+			if s, ok := e.Get("parent_tool_use_id").(string); !ok || s != "" {
+				return
+			}
+		}
+		switch e.Get("type") {
+		case "custom-title":
+			if t := title(or(str(e.Get("customTitle")), str(e.Get("title")))); t != "" {
+				customTitle = t
+			}
+		case "summary":
+			if t := title(or(str(e.Get("summary")), str(e.Get("title")))); t != "" {
+				summaryTitle = t
+			}
+		}
+	}
 	for _, e := range JsonlEvents(head, 200) {
 		claudeMeta(&info, e)
 		if e.Get("isSidechain") == true && info.ParentID == "" {
 			info.ParentID = str(e.Get("sessionId"))
 		}
+		scanClaudeTitle(e)
 		if info.Title == "" && e.Get("type") == "user" && e.Get("isMeta") != true && e.Get("isSidechain") != true {
 			if msg := e.Get("message"); util.Truthy(msg) && !hasType(get(msg, "content"), "tool_result") {
 				info.Title = title(ctext(get(msg, "content")))
 			}
 		}
-		if info.Title == "" && e.Get("type") == "summary" {
-			info.Title = title(str(e.Get("summary")))
-		}
 	}
 	events := JsonlEvents(tail, 400)
+	for _, e := range events {
+		scanClaudeTitle(e)
+	}
+	info.NativeTitle = or(customTitle, summaryTitle)
+	if info.NativeTitle != "" {
+		info.Title = info.NativeTitle
+	}
 	for i := len(events) - 1; i >= 0; i-- {
 		e := events[i]
 		t := util.JSString(sh.Nullish(e.Get("type"), ""))
@@ -467,12 +493,20 @@ func ParseGrokSession(text, fallbackSessionID string) SessionInfo {
 		if info.Title == "" {
 			info.Title = title(t)
 		}
+		if str(get(update, "sessionUpdate")) == "session_info_update" {
+			if nt := title(str(get(update, "title"))); nt != "" {
+				info.NativeTitle = nt
+			}
+		}
 		if at := ts(sh.Nullish(e.Get("timestamp"), e.Get("time"), get(update, "timestamp"))); at != nil && *at != 0 {
 			info.LastAt = at
 		}
 		if str(get(update, "sessionUpdate")) == "turn_completed" {
 			info.Phase = "turn-done"
 		}
+	}
+	if info.NativeTitle != "" {
+		info.Title = info.NativeTitle
 	}
 	return info
 }
@@ -496,7 +530,8 @@ func ParseGeminiSession(raw string) SessionInfo {
 		}
 	}
 	info.SetupOnly = firstUser == nil
-	info.Title = or(title(j.Summary), title(gemini.Text(get(firstUser, "content"))))
+	info.NativeTitle = title(j.Summary)
+	info.Title = or(info.NativeTitle, title(gemini.Text(get(firstUser, "content"))))
 	for _, m := range msgs {
 		thinking := m.Get("thinkingConfig")
 		info.Model = or(str(m.Get("model")), str(m.Get("modelName")), str(get(m.Get("metadata"), "model")), info.Model)
@@ -571,8 +606,10 @@ func ParseDshSession(text, fallbackSessionID string) SessionInfo {
 		if typ == "approval/policy" && str(get(data, "policy")) != "" && prio < 1 {
 			permissionMode, prio = str(get(data, "policy")), 1
 		}
-		if info.Title == "" && typ == "session/title" {
-			info.Title = title(str(get(data, "title")))
+		if typ == "session/title" {
+			if nt := title(str(get(data, "title"))); nt != "" {
+				info.NativeTitle = nt
+			}
 		}
 		if info.Title == "" && (typ == "user/message" || typ == "agent/inbox/spliced") {
 			content := get(data, "content")
@@ -597,6 +634,9 @@ func ParseDshSession(text, fallbackSessionID string) SessionInfo {
 		if at := ts(sh.Nullish(e.Get("time"), e.Get("timestamp"))); at != nil && *at != 0 {
 			info.LastAt = at
 		}
+	}
+	if info.NativeTitle != "" {
+		info.Title = info.NativeTitle
 	}
 	if permissionMode != "" {
 		info.PermissionMode = &permissionMode
@@ -669,8 +709,8 @@ func DecideStatus(i StatusInput) AgentStatus {
 
 // DshProjcache：parseDshProjcache 的结果（不含 phase；Cwd nil = undefined）。
 type DshProjcache struct {
-	Cwd                   *string
-	Title, PermissionMode string
+	Cwd                                *string
+	Title, NativeTitle, PermissionMode string
 }
 
 // ParseDshProjcache：解析 dsh 的 projcache。
@@ -685,12 +725,14 @@ func ParseDshProjcache(raw string) DshProjcache {
 	record := get(v, "record")
 	rows := get(record, "rows")
 	ttl := ""
+	var nativeTitle string
 	if s, ok := get(get(rows, "title"), "val").(string); ok && s != "" {
 		ttl = s
+		nativeTitle = util.UTF16Slice0(s, 80)
 	} else if s, ok := get(get(get(get(rows, "titleInput"), "val"), "first"), "text").(string); ok && s != "" {
 		ttl = s
 	}
-	out := DshProjcache{}
+	out := DshProjcache{NativeTitle: nativeTitle}
 	if c, ok := get(get(record, "identity"), "cwd").(string); ok {
 		out.Cwd = &c
 	}

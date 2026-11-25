@@ -23,6 +23,7 @@ import { DesktopConfirmDock } from './components/DesktopConfirmDock';
 import { NewChatContext, SessionControls } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { prefetchPanels, SettingsView } from './components/lazyPanels';
+import { ManagedRuntimeDock } from './components/ManagedRuntimeDock';
 import { MessageInput } from './components/MessageInput';
 import { SendBlockedHint } from './components/MessageInput/SendBlockedHint';
 import { onboardingClient } from './components/Onboarding/client';
@@ -65,6 +66,7 @@ import {
   useAiChatSelector,
 } from './contexts/aiChatStore';
 import { HarnessTabsProvider, useHarnessTabsCore } from './contexts/HarnessTabsContext';
+import { ManagedRuntimeProvider } from './contexts/ManagedRuntimeContext';
 import { ResourceScopeProvider } from './contexts/ResourceContext';
 import { SelectionActionsContext } from './contexts/SelectionActionsContext';
 import { useChatMode } from './hooks/useChatMode';
@@ -362,6 +364,7 @@ const AiChatContent: React.FC = () => {
     () => panels.openSettings('knowledge', 'schedule'),
     closeSettings,
     !!panels.settings,
+    paneActions,
   );
   const { openPage, leave: leavePage, openTask } = mainPages;
   const leaveSettingsPage = useCallback(() => {
@@ -652,99 +655,102 @@ const AiChatContent: React.FC = () => {
                   {!mainHidden && (
                     <SessionDetailsDock overlay messages={rail.messages} cwd={rail.cwd} />
                   )}
-                  <main className="chat-container">
-                    {/* 每条回复末尾的「分叉」：从这条回复往前分叉，之后的消息不带 */}
-                    <ForkFromMessageContext.Provider value={commands.forkFromMessage}>
-                      <ChatBody
-                        tabs={tabs}
-                        isDev={isDev}
-                        sessionKey={sessionKey}
-                        cliMessages={cliConvMessages}
-                        nomiMessages={nomiMessages}
-                        slash={slash}
-                      />
-                    </ForkFromMessageContext.Provider>
-                  </main>
+                  <ManagedRuntimeProvider conversationId={nomiSessionId} hidden={tabs.isCliTab}>
+                    <main className="chat-container">
+                      {/* 每条回复末尾的「分叉」：从这条回复往前分叉，之后的消息不带 */}
+                      <ForkFromMessageContext.Provider value={commands.forkFromMessage}>
+                        <ChatBody
+                          tabs={tabs}
+                          isDev={isDev}
+                          sessionKey={sessionKey}
+                          cliMessages={cliConvMessages}
+                          nomiMessages={nomiMessages}
+                          slash={slash}
+                        />
+                      </ForkFromMessageContext.Provider>
+                    </main>
 
-                  <footer className="input-container" ref={resourcePreview.composerRef}>
-                    {/* 正在操作桌面（Nomi / agents）：紧急停止 */}
-                    <ComputerActivityBar />
-                    {/* Nomi 桌面工具的授权卡片：对话窗口开着时确认请求只发到这里 */}
-                    <DesktopConfirmDock />
-                    <UserQuestionDock
-                      conversationId={tabs.isCliTab ? undefined : nomiSessionId}
-                      tabId={tabs.isCliTab ? tabs.activeTab?.id : undefined}
-                    />
-                    <PendingDock
-                      items={pending.items}
-                      onWithdraw={pending.onWithdraw}
-                      onRemove={pending.onRemove}
-                      onFlush={pending.canFlush ? pending.onFlush : undefined}
-                      failure={pending.failure}
-                      failedText={pending.failedText}
-                      failedId={pending.failedId}
-                      onRetry={pending.onRetry}
-                      onSendTextOnly={pending.onSendTextOnly}
-                    />
-                    {/* 新会话：输入框上方的项目 · 分支，可以自由切换 */}
-                    <NewChatContext />
-                    {/* 预览属于别的会话 / 工作区时输入框不能用：必须说明原因，并能一键回到原会话（空会话时贴在输入框下沿） */}
-                    {resourcePreview.sendBlocked && (
-                      <SendBlockedHint
-                        reason={resourcePreview.sendBlocked}
-                        floating={chatEmpty}
-                        onReturn={returnToPreviewScope}
+                    <footer className="input-container" ref={resourcePreview.composerRef}>
+                      {/* 正在操作桌面（Nomi / agents）：紧急停止 */}
+                      <ComputerActivityBar />
+                      {/* Nomi 桌面工具的授权卡片：对话窗口开着时确认请求只发到这里 */}
+                      <DesktopConfirmDock />
+                      <UserQuestionDock
+                        conversationId={tabs.isCliTab ? undefined : nomiSessionId}
+                        tabId={tabs.isCliTab ? tabs.activeTab?.id : undefined}
                       />
-                    )}
-                    <MessageInput
-                      {...inputModeProps}
-                      disabled={resourcePreview.sendMismatch}
-                      cwd={rail.cwd ?? undefined}
-                      roots={rail.roots}
-                      delegate={slashBackend === 'nomi'}
-                      contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
-                      contextModel={
-                        tabs.isCliTab
-                          ? (tabs.activeTab?.modelOverride ??
-                            liveContext?.model ??
-                            reportedModel(cliConvMessages) ??
-                            tabs.activeTab?.backend)
-                          : undefined
-                      }
-                      slash={slash.bridge}
-                      fill={composerFill}
-                      dropZoneRef={chatColumnRef}
-                      dropEvent={CHAT_DROP_FILE_PATH_EVENT}
-                      draftStore={drafts.draftStore}
-                      draftKey={drafts.draftKey}
-                      // 只在 agent 标签里：Nomi 自己的 Skills / MCP 在「扩展」里管理
-                      onPluginsClick={slashBackend !== 'nomi' ? panels.openPlugins : undefined}
-                      onProvidersClick={panels.openProviders}
-                      onSettingsClick={panels.onInputSettings}
-                      onDesktopClick={panels.openDesktop}
-                      onHubClick={panels.openHub}
-                      onExtClick={panels.openExt}
-                      onLocalClick={panels.openLocal}
-                    />
-                    {/* 空会话主对话、输入框下方：缺模型时常驻「添加 / 选择模型」引导卡，否则是示例问题卡片；
-                      Agents 标签未选模型或未配置账号时在对应位置展示引导卡 */}
-                    {nomiEmpty && <WelcomeActions onOpenModels={panels.openProviders} />}
-                    {cliEmpty && cliActive && (
-                      <CliWelcomeActions
-                        tab={cliActive}
-                        readiness={cliReadiness}
-                        onPickModel={() => {
-                          if (!openModelMenu(cliActive.id)) {
-                            setToast(t('ui.models.cli-pick-model-before-send'));
-                          }
-                        }}
-                        onOpenSetup={() =>
-                          panels.onInputSettings('ai', cliActive.backend, 'assistants')
+                      <PendingDock
+                        items={pending.items}
+                        onWithdraw={pending.onWithdraw}
+                        onRemove={pending.onRemove}
+                        onFlush={pending.canFlush ? pending.onFlush : undefined}
+                        failure={pending.failure}
+                        failedText={pending.failedText}
+                        failedId={pending.failedId}
+                        onRetry={pending.onRetry}
+                        onSendTextOnly={pending.onSendTextOnly}
+                      />
+                      {/* 新会话：输入框上方的项目 · 分支，可以自由切换 */}
+                      <NewChatContext />
+                      <ManagedRuntimeDock />
+                      {/* 预览属于别的会话 / 工作区时输入框不能用：必须说明原因，并能一键回到原会话（空会话时贴在输入框下沿） */}
+                      {resourcePreview.sendBlocked && (
+                        <SendBlockedHint
+                          reason={resourcePreview.sendBlocked}
+                          floating={chatEmpty}
+                          onReturn={returnToPreviewScope}
+                        />
+                      )}
+                      <MessageInput
+                        {...inputModeProps}
+                        disabled={resourcePreview.sendMismatch}
+                        cwd={rail.cwd ?? undefined}
+                        roots={rail.roots}
+                        delegate={slashBackend === 'nomi'}
+                        contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
+                        contextModel={
+                          tabs.isCliTab
+                            ? (tabs.activeTab?.modelOverride ??
+                              liveContext?.model ??
+                              reportedModel(cliConvMessages) ??
+                              tabs.activeTab?.backend)
+                            : undefined
                         }
-                        onOpenProviders={panels.openProviders}
+                        slash={slash.bridge}
+                        fill={composerFill}
+                        dropZoneRef={chatColumnRef}
+                        dropEvent={CHAT_DROP_FILE_PATH_EVENT}
+                        draftStore={drafts.draftStore}
+                        draftKey={drafts.draftKey}
+                        // 只在 agent 标签里：Nomi 自己的 Skills / MCP 在「扩展」里管理
+                        onPluginsClick={slashBackend !== 'nomi' ? panels.openPlugins : undefined}
+                        onProvidersClick={panels.openProviders}
+                        onSettingsClick={panels.onInputSettings}
+                        onDesktopClick={panels.openDesktop}
+                        onHubClick={panels.openHub}
+                        onExtClick={panels.openExt}
+                        onLocalClick={panels.openLocal}
                       />
-                    )}
-                  </footer>
+                      {/* 空会话主对话、输入框下方：缺模型时常驻「添加 / 选择模型」引导卡，否则是示例问题卡片；
+                      Agents 标签未选模型或未配置账号时在对应位置展示引导卡 */}
+                      {nomiEmpty && <WelcomeActions onOpenModels={panels.openProviders} />}
+                      {cliEmpty && cliActive && (
+                        <CliWelcomeActions
+                          tab={cliActive}
+                          readiness={cliReadiness}
+                          onPickModel={() => {
+                            if (!openModelMenu(cliActive.id)) {
+                              setToast(t('ui.models.cli-pick-model-before-send'));
+                            }
+                          }}
+                          onOpenSetup={() =>
+                            panels.onInputSettings('ai', cliActive.backend, 'assistants')
+                          }
+                          onOpenProviders={panels.openProviders}
+                        />
+                      )}
+                    </footer>
+                  </ManagedRuntimeProvider>
                 </div>
 
                 {sideSplit && (

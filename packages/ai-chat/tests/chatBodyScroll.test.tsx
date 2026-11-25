@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatBody } from '../src/app/ChatBody';
 import type { AiChatState } from '../src/contexts/AiChatContext';
 import type * as AiChatStoreModule from '../src/contexts/aiChatStore';
+import type * as NomiModelModule from '../src/services/nomiModel';
 import type { ConvMessage } from '../src/types/conversation';
 
 const state = vi.hoisted(() => ({
@@ -20,8 +21,9 @@ vi.mock('../src/contexts/aiChatStore', async (original) => ({
   useAiChatSelector: (selector: (s: AiChatState) => unknown) => selector(state as AiChatState),
   useAiChatActions: () => ({ actions: { resendFrom: vi.fn() }, store: { get: () => state } }),
 }));
-vi.mock('../src/services/nomiModel', () => ({
-  useGatewayState: () => undefined,
+vi.mock('../src/services/nomiModel', async (original) => ({
+  ...(await original<typeof NomiModelModule>()),
+  useGatewayState: () => null,
   nomiModelLabel: () => '',
 }));
 

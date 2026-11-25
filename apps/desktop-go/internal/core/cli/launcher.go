@@ -11,6 +11,7 @@ import (
 	"unicode"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
+	sh "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/utils"
@@ -94,7 +95,7 @@ type LauncherView struct {
 func LauncherViewFor(kind string) LauncherView {
 	return LauncherView{
 		LauncherSettings: LauncherFor(kind),
-		HasLocalLogin:    HasLocalLogin(kind, ""),
+		HasLocalLogin:    DetectLocalLogin(kind, ""),
 	}
 }
 
@@ -111,7 +112,7 @@ func Launchers() map[string]LauncherSettings {
 func LaunchersView() map[string]LauncherView {
 	out := map[string]LauncherView{}
 	for _, kind := range builtin.IDs {
-		if builtin.WithAccounts(kind) {
+		if builtin.WithAccounts(kind) || builtin.LocalOnly(kind) {
 			out[kind] = LauncherViewFor(kind)
 		}
 	}
@@ -463,4 +464,193 @@ func hasClaudeOAuthAccount(path string) bool {
 	}
 	trimmed := strings.TrimSpace(string(doc.OAuthAccount))
 	return trimmed != "" && trimmed != "null" && trimmed != "{}"
+}
+
+var localAuthCache struct {
+	sync.RWMutex
+	m map[string]bool
+}
+
+// SetLocalAuthCache records the verified local sign-in state for a CLI kind.
+func SetLocalAuthCache(kind string, loggedIn bool) {
+	localAuthCache.Lock()
+	defer localAuthCache.Unlock()
+	if localAuthCache.m == nil {
+		localAuthCache.m = map[string]bool{}
+	}
+	localAuthCache.m[kind] = loggedIn
+}
+
+// ClearLocalAuthCache drops the cached local sign-in state for a CLI kind (or all kinds if empty).
+func ClearLocalAuthCache(kind string) {
+	localAuthCache.Lock()
+	defer localAuthCache.Unlock()
+	if kind == "" {
+		localAuthCache.m = nil
+		return
+	}
+	delete(localAuthCache.m, kind)
+}
+
+// CachedLocalAuth returns the cached local sign-in state for a CLI kind if present.
+func CachedLocalAuth(kind string) (bool, bool) {
+	localAuthCache.RLock()
+	defer localAuthCache.RUnlock()
+	v, ok := localAuthCache.m[kind]
+	return v, ok
+}
+
+// DetectLocalLogin probes whether any builtin CLI has local credentials or API keys
+// in its default home or process environment using read-only filesystem checks.
+func DetectLocalLogin(kind, home string) bool {
+	if builtin.WithAccounts(kind) {
+		return HasLocalLogin(kind, home)
+	}
+	if home == "" {
+		if v, ok := CachedLocalAuth(kind); ok {
+			return v
+		}
+	}
+	var env *util.Obj
+	if home == "" {
+		home = usage.Homedir()
+		env = usage.ProcessEnv()
+	} else {
+		env = util.NewObj()
+	}
+	envMap := map[string]string{}
+	for _, k := range env.Keys() {
+		if s, ok := env.Get(k).(string); ok {
+			envMap[k] = s
+		}
+	}
+	switch kind {
+	case "gemini":
+		return hasGeminiLocalLogin(home, envMap)
+	case "dsh":
+		return hasDshLocalLogin(home, envMap)
+	case "antigravity":
+		return hasAntigravityLocalLogin(home, envMap)
+	default:
+		return false
+	}
+}
+
+func hasGeminiLocalLogin(home string, envMap map[string]string) bool {
+	if strings.TrimSpace(envMap["GEMINI_API_KEY"]) != "" || strings.TrimSpace(envMap["GOOGLE_API_KEY"]) != "" {
+		return true
+	}
+	geminiDir := filepath.Join(sh.GeminiRoot(envMap, home), ".gemini")
+	return hasNonEmptyJSONObject(filepath.Join(geminiDir, "oauth_creds.json")) ||
+		hasActiveGoogleAccount(filepath.Join(geminiDir, "google_accounts.json")) ||
+		envFileHasAnyKey(filepath.Join(geminiDir, ".env"), "GEMINI_API_KEY", "GOOGLE_API_KEY")
+}
+
+func hasDshLocalLogin(home string, envMap map[string]string) bool {
+	if strings.TrimSpace(envMap["DEEPSEEK_API_KEY"]) != "" {
+		return true
+	}
+	dshDir := sh.CliHome("DSH_HOME", ".dsh", envMap, home)
+	return hasNonEmptyJSONObject(filepath.Join(dshDir, "auth.json")) ||
+		hasNonEmptyJSONObject(filepath.Join(dshDir, "credentials.json")) ||
+		hasSubstantialDshPatch(filepath.Join(dshDir, "cordis.patch.yml"))
+}
+
+func hasAntigravityLocalLogin(home string, envMap map[string]string) bool {
+	agyCliDir := sh.CliHome("ANTIGRAVITY_CLI_HOME", ".gemini/antigravity-cli", envMap, home)
+	agyDir := filepath.Join(home, ".gemini", "antigravity")
+	for _, dir := range []string{agyCliDir, agyDir} {
+		if dir == "" {
+			continue
+		}
+		if hasNonEmptyJSONObject(filepath.Join(dir, "oauth_creds.json")) ||
+			hasNonEmptyJSONObject(filepath.Join(dir, "auth.json")) ||
+			hasNonEmptyJSONObject(filepath.Join(dir, "credentials.json")) ||
+			hasActiveGoogleAccount(filepath.Join(dir, "google_accounts.json")) ||
+			hasNonEmptyFile(filepath.Join(dir, "jetski_state.pbtxt")) {
+			return true
+		}
+	}
+	return hasGeminiLocalLogin(home, envMap)
+}
+
+func hasNonEmptyFile(path string) bool {
+	b, err := os.ReadFile(path)
+	return err == nil && strings.TrimSpace(string(b)) != ""
+}
+
+func hasNonEmptyJSONObject(path string) bool {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	var doc map[string]any
+	return json.Unmarshal(b, &doc) == nil && len(doc) > 0
+}
+
+func hasActiveGoogleAccount(path string) bool {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	var doc struct {
+		Active string `json:"active"`
+	}
+	return json.Unmarshal(b, &doc) == nil && strings.TrimSpace(doc.Active) != ""
+}
+
+func envFileHasAnyKey(path string, keys ...string) bool {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "export ") || strings.HasPrefix(trimmed, "export\t") {
+			trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, "export"))
+		}
+		eq := strings.IndexByte(trimmed, '=')
+		if eq <= 0 {
+			continue
+		}
+		k := strings.TrimSpace(trimmed[:eq])
+		matched := false
+		for _, want := range keys {
+			if k == want {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			continue
+		}
+		val := strings.TrimSpace(trimmed[eq+1:])
+		if len(val) >= 2 && ((val[0] == '"' && val[len(val)-1] == '"') || (val[0] == '\'' && val[len(val)-1] == '\'')) {
+			val = val[1 : len(val)-1]
+		}
+		if strings.TrimSpace(val) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func hasSubstantialDshPatch(path string) bool {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	var lines []string
+	for _, line := range strings.Split(string(b), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		lines = append(lines, trimmed)
+	}
+	body := strings.TrimSpace(strings.Join(lines, "\n"))
+	return body != "" && body != "[]"
 }

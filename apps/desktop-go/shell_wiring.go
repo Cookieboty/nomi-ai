@@ -13,6 +13,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/deps"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/diagnostics"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/gwstore"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/mainchat/acprt"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/quality"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/services"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/shellhandlers"
@@ -70,6 +71,7 @@ func installShellProcs(router *contract.Router, userData string, sh *shell.Shell
 		},
 	})
 	harness.CliTrap = sp.Diagnostics.CliTrace.Tap
+	acprt.CliTrap = sp.Diagnostics.CliTrace.Tap
 	// quality.*（QualityService）：userData/usage/quality；enabled / cost 来自 UsageService（晚绑定）
 	sp.Quality = quality.New(quality.ServiceDeps{
 		Dir:     filepath.Join(userData, "usage", "quality"),

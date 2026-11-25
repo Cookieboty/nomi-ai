@@ -184,6 +184,14 @@ func (o *Orchestrator) ensureCodexLive(tab *util.Obj, signal *jsrt.AbortSignal) 
 				o.onCodexChildEvent(id, live, util.AsObj(e.Get("event")))
 				return
 			}
+			if e.Get("kind") == "harness" && !truthy(e.Get("child")) {
+				if ev := util.AsObj(e.Get("event")); ev != nil && ev.Get("type") == "session-info" {
+					if title := util.JSTrim(jsStr(ev.Get("title"))); title != "" {
+						o.applyTabNativeTitle(id, title)
+					}
+					return
+				}
+			}
 			if e.Get("kind") == "harness" && truthy(e.Get("turnId")) && live.turn != nil {
 				o.onCodexEvents(id, live, []*util.Obj{util.AsObj(e.Get("event"))})
 			}
@@ -255,6 +263,9 @@ func (o *Orchestrator) ensureCodexLive(tab *util.Obj, signal *jsrt.AbortSignal) 
 				return struct{}{}, err
 			}
 			live.threadID = driver.ThreadID
+			if title := util.JSTrim(driver.SessionTitle); title != "" {
+				o.applyTabNativeTitle(id, title)
+			}
 			return struct{}{}, nil
 		})
 		if _, e := jsrt.Await(live.ready); e != nil {
@@ -341,6 +352,9 @@ func (o *Orchestrator) runCodexLive(tab *util.Obj, prompt string, signal *jsrt.A
 				return nil, e
 			}
 			live.threadID = &tid
+			if title := util.JSTrim(live.driver.SessionTitle); title != "" {
+				o.applyTabNativeTitle(id, title)
+			}
 		}
 		if signal.Aborted() {
 			return nil, errors.New(i18n.T("electron.common.aborted"))

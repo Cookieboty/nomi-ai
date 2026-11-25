@@ -29,15 +29,14 @@ func TestDelegateRetriesFiveTimesAndRecoversSession(t *testing.T) {
 		t.Fatalf("expected 1 initial + 5 retries = 6 sends, got %d", got)
 	}
 	// 检查前两次重试保留会话（dropSession=false），第 3~5 次丢弃损坏会话（dropSession=true）
+	// 快照在 harnessLog 里自己拿锁（重试的运行在别的 goroutine 里写 recoverTab）
 	recovers := []bool{}
-	e.log.mu.Lock()
-	for _, item := range e.log.harness {
+	for _, item := range e.log.harnessLog() {
 		arr, _ := item.([]any)
 		if len(arr) == 3 && arr[0] == "recoverTab" {
 			recovers = append(recovers, arr[2].(bool))
 		}
 	}
-	e.log.mu.Unlock()
 	if want := []bool{false, false, true, true, true}; len(recovers) != len(want) {
 		t.Fatalf("recovers = %v, want %v", recovers, want)
 	} else {

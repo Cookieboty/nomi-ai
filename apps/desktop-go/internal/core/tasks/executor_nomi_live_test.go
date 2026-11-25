@@ -225,7 +225,7 @@ func TestFollowUpImagesReachTheModel(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := AttemptContext{Task: Task{Goal: "g"}, Attempt: Attempt{Cause: AttemptCause{Kind: "followup", Note: ptr("看图"), Images: []string{p, dir + "/missing.png"}}}}
-	msgs := BuildPrompt(ctx, "", 0, nil)
+	msgs := BuildPrompt(ctx, "", 0, nil, nil)
 	im := msgs[len(msgs)-1].Images
 	if len(im) != 1 || im[0].Mime != "image/jpeg" || im[0].Data != "/9j/" {
 		t.Fatalf("%+v", im)

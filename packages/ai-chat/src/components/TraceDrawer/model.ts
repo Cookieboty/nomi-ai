@@ -8,11 +8,7 @@
 import { t } from '@nomi-ai/ui';
 
 import type { DelegateResult } from '../../services/delegateClient';
-import type {
-  HarnessBackend,
-  HarnessTraceEvent,
-  HarnessUsage,
-} from '../../services/harnessClient';
+import type { HarnessBackend, HarnessTraceEvent, HarnessUsage } from '../../services/harnessClient';
 import type { QualityRequestItem } from '../../services/qualityClient';
 import { attemptStatusLabel, type Attempt, type JournalEntry } from '../../services/tasksClient';
 import type { ConvMessage } from '../../types/conversation';
@@ -123,6 +119,7 @@ export interface TraceTurn {
   endedAt?: number;
   durationMs?: number;
   status: TraceNodeStatus;
+  backend?: EndpointKey | null;
   model?: string;
   responseModel?: string;
   switchedFromModel?: string;
@@ -242,10 +239,48 @@ function buildSearchText(parts: Array<string | number | undefined | null>): stri
     .toLowerCase();
 }
 
-function inferEndpoint(backend?: string | null): EndpointKey | null {
-  if (!backend) return null;
-  if (backend in ENDPOINT_NAME) return backend as EndpointKey;
+function normalizeEndpointKey(raw?: string | null): EndpointKey | null {
+  const b = raw?.trim().toLowerCase() ?? '';
+  if (!b) return null;
+  if (b === 'api' || b === 'nomi') return 'nomi';
+  if (b in ENDPOINT_NAME) return b as EndpointKey;
+  if (b.endsWith('-code')) {
+    const base = b.slice(0, -5);
+    if (base in ENDPOINT_NAME) return base as EndpointKey;
+  }
   return 'other';
+}
+
+function inferEndpoint(backend?: string | null): EndpointKey | null {
+  return normalizeEndpointKey(backend);
+}
+
+/** 识别单条消息的实际执行底座（优先读取消息自带的 runtimeBackend / label，否则回退泳道底座）。 */
+export function inferMessageBackend(
+  msg?: ConvMessage,
+  fallback?: EndpointKey | null,
+): EndpointKey | null {
+  const rawB =
+    msg?.raw && typeof msg.raw === 'object'
+      ? (msg.raw as { runtimeBackend?: unknown }).runtimeBackend
+      : undefined;
+  if (typeof rawB === 'string' && rawB.trim()) return normalizeEndpointKey(rawB);
+  const label = msg?.label?.trim();
+  if (label) {
+    for (const [k, v] of Object.entries(ENDPOINT_NAME)) {
+      if (v === label) return k as EndpointKey;
+    }
+  }
+  return fallback ?? null;
+}
+
+function requestMatchesTurnBackend(r: QualityRequestItem, tr: TraceTurn): boolean {
+  if (!tr.backend) return true;
+  const reqBackend = normalizeEndpointKey(r.client);
+  if (!reqBackend || reqBackend === 'other') return true;
+  if (reqBackend === 'nomi' && tr.backend !== 'nomi') return false;
+  if (reqBackend !== 'nomi' && tr.backend !== reqBackend) return false;
+  return true;
 }
 
 interface PairedTurnInput {
@@ -299,7 +334,8 @@ function sliceTabMessagesForCall(
   if (siblings.length <= 1 || call.startedAt === undefined) return [...tabMsgs];
   const idx = siblings.findIndex((s) => s.id === call.id);
   const prevEnd = idx > 0 ? siblings[idx - 1]!.endedAt : undefined;
-  const nextStart = idx >= 0 && idx + 1 < siblings.length ? siblings[idx + 1]!.startedAt : undefined;
+  const nextStart =
+    idx >= 0 && idx + 1 < siblings.length ? siblings[idx + 1]!.startedAt : undefined;
   const from = Math.max(call.startedAt - 2500, prevEnd !== undefined ? prevEnd : -Infinity);
   const to =
     call.endedAt !== undefined
@@ -422,10 +458,7 @@ export function buildTraceDocument(input: BuildTraceDocumentInput): TraceDocumen
       const rawEvents = msg?.trace ?? ti.liveTrace ?? [];
       const entries = reduceTrace(rawEvents);
       const turnEnd = msg?.at;
-      const turnStart =
-        ti.liveStartedAt ??
-        ti.user?.at ??
-        (msg ? turnWindow(msg).from : undefined);
+      const turnStart = ti.liveStartedAt ?? ti.user?.at ?? (msg ? turnWindow(msg).from : undefined);
 
       let status: TraceNodeStatus = 'done';
       if (isLive) status = 'running';
@@ -476,7 +509,9 @@ export function buildTraceDocument(input: BuildTraceDocumentInput): TraceDocumen
               : nextEntry.at
             : undefined;
           const running = isLive && ei === entries.length - 1;
-          const end = running ? undefined : (nextAt ?? (nextEntry ? entry.lastAt : (turnEnd ?? entry.lastAt)));
+          const end = running
+            ? undefined
+            : (nextAt ?? (nextEntry ? entry.lastAt : (turnEnd ?? entry.lastAt)));
           const dur =
             entry.at !== undefined && end !== undefined && end >= entry.at
               ? end - entry.at
@@ -633,7 +668,8 @@ export function buildTraceDocument(input: BuildTraceDocumentInput): TraceDocumen
             const parsedIn = parseInput(c.input);
             const liveAg = Object.values(input.liveAgents ?? {}).find((a) => a.callId === c.id);
             const agentType = firstText(parsedIn?.subagent_type);
-            subName = liveAg?.label || liveAg?.agentType || agentType || t('ui.usage-tools.subagent');
+            subName =
+              liveAg?.label || liveAg?.agentType || agentType || t('ui.usage-tools.subagent');
             const nestedMsgs = extractNestedAgentMessages(
               rawEvents,
               c.id,
@@ -759,7 +795,11 @@ export function buildTraceDocument(input: BuildTraceDocumentInput): TraceDocumen
           text: replyText,
           message: msg,
           attempt: ti.attempt,
-          searchText: buildSearchText([t('ui.slash-commands.assistant-replies'), replyText, msg?.model]),
+          searchText: buildSearchText([
+            t('ui.slash-commands.assistant-replies'),
+            replyText,
+            msg?.model,
+          ]),
         });
       }
 
@@ -769,10 +809,8 @@ export function buildTraceDocument(input: BuildTraceDocumentInput): TraceDocumen
       const timedEnds = turnNodes
         .map((n) => n.end ?? n.start)
         .filter((x): x is number => x !== undefined && Number.isFinite(x));
-      const tStart =
-        turnStart ?? (timedStarts.length ? Math.min(...timedStarts) : undefined);
-      const tEnd =
-        turnEnd ?? (timedEnds.length ? Math.max(...timedEnds) : undefined);
+      const tStart = turnStart ?? (timedStarts.length ? Math.min(...timedStarts) : undefined);
+      const tEnd = turnEnd ?? (timedEnds.length ? Math.max(...timedEnds) : undefined);
       const tDur =
         msg?.durationMs ??
         (tStart !== undefined && tEnd !== undefined && tEnd >= tStart ? tEnd - tStart : undefined);
@@ -786,6 +824,7 @@ export function buildTraceDocument(input: BuildTraceDocumentInput): TraceDocumen
         endedAt: tEnd,
         durationMs: tDur,
         status,
+        backend: inferMessageBackend(msg, lanesById[laneId]?.backend ?? null),
         model: msg?.model,
         usage: msg?.usage,
         nodeIds: turnNodes.map((n) => n.id),
@@ -812,7 +851,9 @@ export function buildTraceDocument(input: BuildTraceDocumentInput): TraceDocumen
         .map((x) => x.ref);
       const summary = [
         a.result?.summary ?? '',
-        files.length ? `${t('ui.devtools.changed-files-list')}:\n${files.map((f) => `- ${f}`).join('\n')}` : '',
+        files.length
+          ? `${t('ui.devtools.changed-files-list')}:\n${files.map((f) => `- ${f}`).join('\n')}`
+          : '',
       ]
         .filter(Boolean)
         .join('\n\n');
@@ -884,23 +925,30 @@ export function buildTraceDocument(input: BuildTraceDocumentInput): TraceDocumen
     }
   }
 
-  // 关联网关请求到最近匹配的 Turn（优先同 tabId → 严格落入区间 → 距离与模型匹配度最优）
+  // 关联网关请求到最近匹配的 Turn（先验证底座与 tabId 一致性，再按严格时间窗 + 模型匹配度打分；绝不硬塞 pool[0]）
   const unassignedRequestIds: string[] = [];
   const sortedReqs = [...(input.requests ?? [])].sort((a, b) => a.ts - b.ts);
+  const hasTaggedLane = lanes.some((l) => Boolean(l.tabId));
   const pickTurnForRequest = (r: QualityRequestItem): TraceTurn | undefined => {
-    const laneMatches = r.tabId ? turns.filter((tr) => lanesById[tr.laneId]?.tabId === r.tabId) : [];
+    const laneMatches = r.tabId
+      ? turns.filter((tr) => lanesById[tr.laneId]?.tabId === r.tabId)
+      : [];
+    if (r.tabId && laneMatches.length === 0 && hasTaggedLane) return undefined;
     const pool = laneMatches.length ? laneMatches : turns;
     const reqCanon = canonicalModelName(r.upstreamModel || r.model || '');
 
     let best: TraceTurn | undefined;
     let bestScore = -Infinity;
     for (const tr of pool) {
-      if (tr.startedAt === undefined || tr.endedAt === undefined) continue;
-      if (r.ts < tr.startedAt - 2000 || r.ts > tr.endedAt + 2000) continue;
-      const inside = r.ts >= tr.startedAt && r.ts <= tr.endedAt;
+      if (!requestMatchesTurnBackend(r, tr)) continue;
+      if (tr.startedAt === undefined) continue;
+      const turnEndBound =
+        tr.endedAt ?? (tr.status === 'running' ? Number.POSITIVE_INFINITY : tr.startedAt);
+      if (r.ts < tr.startedAt - 2000 || r.ts > turnEndBound + 2000) continue;
+      const inside = r.ts >= tr.startedAt && r.ts <= turnEndBound;
       const modelOk =
         reqCanon !== '' && tr.model !== undefined && canonicalModelName(tr.model) === reqCanon;
-      const mid = (tr.startedAt + tr.endedAt) / 2;
+      const mid = Number.isFinite(turnEndBound) ? (tr.startedAt + turnEndBound) / 2 : tr.startedAt;
       const distPenalty = Math.abs(r.ts - mid) / 100_000;
       const score = (inside ? 10 : 0) + (modelOk ? 5 : 0) - distPenalty;
       if (score > bestScore) {
@@ -908,12 +956,16 @@ export function buildTraceDocument(input: BuildTraceDocumentInput): TraceDocumen
         best = tr;
       }
     }
-    return best ?? pool[0];
+    return best;
   };
 
   for (const r of sortedReqs) {
-    const reqEnd = r.ts + r.timing.endMs;
     const matchedTurn = pickTurnForRequest(r);
+    if (!matchedTurn && turns.length > 0) {
+      unassignedRequestIds.push(r.id);
+      continue;
+    }
+    const reqEnd = r.ts + r.timing.endMs;
     const reqId = nextId('n-req');
     const observedResp = r.fingerprint?.responseModel || r.responseModel;
     const baseReqTitle = r.display ?? r.model ?? t('ui.devtools.model-request');
