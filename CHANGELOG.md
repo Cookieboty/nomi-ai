@@ -5,6 +5,12 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ## Unreleased
 
+### Maintenance
+
+- **release:** empty changeset after archiving 2.5.1
+
+## 2.5.1 — 2026-11-25
+
 ### Fixes
 
 - **cli-catalog:** `gen:go` 生成 Go 内核清单时按仓库 prettier 规则格式化，并与清单核对一次
