@@ -1,16 +1,15 @@
 /*
- * withnomi.app 的脚本（2.3.10 改版）：
- * - 按访问者的系统预选下载（主按钮指向对应安装包，下载卡片标「推荐」），其他系统照样能选；
- * - 页面里写死的是当前版本的直链；加载后问 GitHub 最新 Release，按文件名换成最新的（问不到就保持原样）；
- * - 窄屏菜单、页头滚动后的分割线、截图点开看大图。
- * 文案都已经写在 HTML 里（中文页与 en/ 英文页各自静态），这里不做翻译，不会闪。
+ * withnomi.app 前端交互脚本：
+ * - 按访问者系统自动预选主下载按钮与高亮下载卡片；
+ * - 从 GitHub Latest Release 刷新直链与版本号；
+ * - 窄屏导航抽屉、吸顶页头滚动状态、截图 Lightbox；
+ * - 首页交互式 Showcase Tabs 与下载页命令行一键复制。
  */
 (function () {
   "use strict";
   var REPO = "Cookieboty/nomi-ai";
-  var lang = document.documentElement.lang === "en" ? "en" : "zh";
+  var lang = /^zh/i.test(document.documentElement.lang) ? "zh" : "en";
 
-  /* 安装包：data-asset 的名字 → 文件名规则 */
   var PATTERNS = {
     "mac-arm": /^Nomi-\d+\.\d+\.\d+-arm64\.dmg$/,
     "mac-intel": /^Nomi-\d+\.\d+\.\d+\.dmg$/,
@@ -36,7 +35,6 @@
   var os = detectOS();
   var primaryAsset = { mac: "mac-arm", win: "win", linux: "appimage" }[os];
 
-  /* 主按钮：指向当前系统的安装包；看不出系统就去下载页 */
   function preselect() {
     document.querySelectorAll("[data-download-primary]").forEach(function (btn) {
       if (!primaryAsset) return;
@@ -49,13 +47,11 @@
     document.querySelectorAll("[data-os]").forEach(function (card) {
       card.classList.toggle("is-current", card.getAttribute("data-os") === os);
     });
-    // 下载页：当前系统那张排到最前（其他系统照样在）
     var grid = document.querySelector("[data-os-grid]");
     var cur = os && grid && grid.querySelector('[data-os="' + os + '"]');
     if (cur) grid.insertBefore(cur, grid.firstChild);
   }
 
-  /* 最新 Release：换直链与版本号 */
   function refreshLatest() {
     if (!window.fetch) return;
     fetch("https://api.github.com/repos/" + REPO + "/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
@@ -103,7 +99,7 @@
     });
   }
 
-  /* 页头：滚动后显示分割线 */
+  /* 页头滚动 */
   var header = document.querySelector(".site-header");
   if (header) {
     var onScroll = function () {
@@ -113,7 +109,7 @@
     onScroll();
   }
 
-  /* 截图点开看大图（Esc 或点空白关闭） */
+  /* 截图点开看大图 */
   var box;
   document.querySelectorAll("a.zoom").forEach(function (a) {
     a.addEventListener("click", function (e) {
@@ -124,7 +120,7 @@
         box.setAttribute("role", "dialog");
         box.setAttribute("aria-modal", "true");
         box.tabIndex = -1;
-        box.innerHTML = "<img alt=\"\">";
+        box.innerHTML = '<img alt="">';
         box.addEventListener("click", function () {
           box.classList.remove("is-open");
         });
@@ -138,6 +134,51 @@
       img.alt = (a.querySelector("img") || {}).alt || "";
       box.classList.add("is-open");
       box.focus();
+    });
+  });
+
+  /* Showcase Tabs */
+  document.querySelectorAll("[data-showcase]").forEach(function (root) {
+    var tabs = Array.prototype.slice.call(root.querySelectorAll('[role="tab"]'));
+    var panels = Array.prototype.slice.call(root.querySelectorAll('[role="tabpanel"]'));
+    function activate(tab) {
+      var id = tab.getAttribute("aria-controls");
+      tabs.forEach(function (t) {
+        var on = t === tab;
+        t.setAttribute("aria-selected", on ? "true" : "false");
+        t.tabIndex = on ? 0 : -1;
+      });
+      panels.forEach(function (p) {
+        p.hidden = p.id !== id;
+      });
+    }
+    tabs.forEach(function (tab, idx) {
+      tab.addEventListener("click", function () {
+        activate(tab);
+      });
+      tab.addEventListener("keydown", function (e) {
+        if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+        e.preventDefault();
+        var next = tabs[(idx + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+        activate(next);
+        next.focus();
+      });
+    });
+  });
+
+  /* 一键复制命令 */
+  document.querySelectorAll("[data-copy-cmd]").forEach(function (btn) {
+    var originText = btn.textContent;
+    btn.addEventListener("click", function () {
+      var target = btn.parentElement && btn.parentElement.querySelector("code");
+      var text = target ? target.textContent : "";
+      if (!text || !navigator.clipboard) return;
+      navigator.clipboard.writeText(text).then(function () {
+        btn.textContent = btn.getAttribute("data-copied-label") || (lang === "en" ? "Copied" : "已复制");
+        setTimeout(function () {
+          btn.textContent = originText;
+        }, 1600);
+      }).catch(function () {});
     });
   });
 

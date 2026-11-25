@@ -1,4 +1,4 @@
-# 编程助手接入
+# Agents 接入
 
 Nomi 把 Claude Code、Codex、Gemini CLI、Grok、dsh 当作子进程驱动，在对话窗口里以「标签」呈现。用户的功能说明见
 [features/coding-agents.md](../features/coding-agents.md)；本页讲实现。
@@ -21,30 +21,35 @@ Nomi 把 Claude Code、Codex、Gemini CLI、Grok、dsh 当作子进程驱动，�
 | `apps/desktop-go/internal/clisdk`              | 插件契约（清单校验、能力接口、多选项权限回答）、外部 ACP 插件、子进程启动（`launch/`）与 JSON-RPC（`rpc/`） |
 | `apps/desktop-go/internal/clisdk/drivers`      | 四种会话驱动：`acp`、`streamjson`、`appserver`、`exec`                                                      |
 | `apps/desktop-go/internal/cliplugins/<cli>`    | 内置插件：启动注入、权限档位、官方账号目录、历史转录解析、模型目录、斜杠命令；共用部分在 `shared/`          |
-| `apps/desktop-go/internal/core/cli/sandbox`    | 系统级沙箱（macOS Seatbelt）：按标签生成配置、违规日志监听与分类，见 security.md「编程助手」                |
+| `apps/desktop-go/internal/core/cli/sandbox`    | 系统级沙箱（macOS Seatbelt）：按标签生成配置、违规日志监听与分类，见 security.md「Agents」                  |
 | `apps/desktop-go/internal/core/cli/harness`    | 编排器：标签、持久化、来源（官方 / 第三方）、权限队列、插话（steer）、空闲回收、升级重启                    |
 | `apps/desktop-go/internal/core/cli/accounts`   | 官方账号：识别终端里登录的账号、导入、登录、切换（各 CLI 自己的 HOME / 钥匙串）                             |
-| `apps/desktop-go/internal/core/cli/delegate`   | Nomi 把任务交给编程助手（`delegate_to_cli`）：直接改 + 按文件裁决，别的分支做基线时用 worktree，复用会话    |
+| `apps/desktop-go/internal/core/cli/delegate`   | Nomi 把任务交给 agent（`delegate_to_cli`）：直接改 + 按文件裁决，别的分支做基线时用 worktree，复用会话      |
 | `apps/desktop-go/internal/core/cli`（其余）    | CLI 探测与版本、安装 / 更新、历史会话、git 操作（变更面板）、斜杠命令发现、工作区文件                       |
-| `apps/desktop-go/internal/core/codinghandlers` | 编程助手相关的契约过程                                                                                      |
+| `apps/desktop-go/internal/core/codinghandlers` | agent 相关的契约过程                                                                                        |
 
 标签的消息存在 `harness/tabs/<标签>.json`（最多 300 条，写盘有 200 ms 防抖）。内核内存里只留最近读过的 6 个标签
 （`MaxCachedTabMessages`），多出来的在当前同步操作结束后回收；在跑 / 排队的、还有没写盘的、当前标签不回收，再读时从文件加载。
 
 ## 会话传输
 
-| CLI         | 传输                     | 回退   |
-| ----------- | ------------------------ | ------ |
-| Claude Code | `stream-json`            | `exec` |
-| Codex       | `app-server`（JSON-RPC） | `exec` |
-| Gemini CLI  | `acp`                    | —      |
-| Grok        | `acp`                    | `exec` |
-| dsh         | `exec`                   | —      |
-| Kimi Code   | `acp`                    | —      |
-| MiniMax     | `acp`                    | —      |
+| CLI             | 传输                     | 回退   |
+| --------------- | ------------------------ | ------ |
+| Claude Code     | `stream-json`            | `exec` |
+| Codex           | `app-server`（JSON-RPC） | `exec` |
+| Gemini CLI      | `acp`                    | —      |
+| Grok            | `acp`                    | `exec` |
+| dsh             | `exec`                   | —      |
+| Kimi Code       | `acp`                    | —      |
+| MiniMax         | `acp`                    | —      |
+| Antigravity CLI | `acp`                    | —      |
 
-传输写在 `packages/cli-catalog/src/<cli>/manifest.ts` 的 `transport` / `fallbackTransport`。外部 ACP 插件只有声明式清单
-（`userData/cli-plugins/external/*.json`），不加载代码。
+传输写在 `packages/cli-catalog/src/<cli>/manifest.ts` 的 `transport` / `fallbackTransport`。
+
+不再支持用户添加的「外部 CLI」（设置里的入口、`cli.pluginAdd / pluginRemove / pluginTest` 与 `backend: 'external'` 标签都已移除）。
+旧版本留下的数据启动时处理：`userData/cli-plugins/external/` 里的清单删掉；`backend: 'external'` 的标签不再恢复（连同它的消息与续接文件）；
+侧栏里绑着这些标签的会话随标签关掉一起移除；视图里存的「外部 CLI」选中项回到第一个助手，其余残留的 `backend: 'external'`
+记录按非法后端回退成 Nomi。
 
 协议细节都在驱动里；每个 CLI 的差异（流式事件解析、历史转录、模型目录、斜杠布局）在它的插件里。编排器按清单的能力位判断，
 不按 CLI 名字分支（视图侧由 eslint 规则 `nomi/no-cli-literal` 拦下，白名单在 `scripts/eslint/cli-literal-allowlist.mjs`）。
@@ -60,17 +65,17 @@ npm 包、权限档位 → 原生模式、显示名与完整名称（`fullName`�
 **Go 只登记代码**：`internal/cliplugins/<id>/` 写主进程实现（`CreateMain()`：官方 / 第三方启动、账号目录、斜杠命令等），
 `builtin.entries` 登记它和会话记录解析。内核里要按 CLI 区分的东西都从 `internal/cliplugins/builtin` 取：
 
-| 要什么                                        | 从哪取                                                                                        |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| 有哪些内置 CLI                                | `builtin.IDs`（按 id 排序）、`builtin.Ordered`（界面与名单的顺序）                            |
-| 插件能力（权限、账号、历史、斜杠命令、终端…） | `builtin.Impl(id)`（各插件的 `CreateMain()`，只建一次）                                       |
-| 显示名                                        | `builtin.DisplayName`（「Gemini」）、`builtin.FullName`（「Gemini CLI」：看板、用量、灵动岛） |
-| 清单能力位、传输、可执行文件、npm 包          | `builtin.Capability`、`builtin.UsesAcp`、`builtin.Binaries`、`builtin.NpmPackage`             |
-| 清单 `host` 段                                | `builtin.MinNode`、`SelfUpdate`、`Vendor`、`AcpArgs`、`PlanFollowUp`、`NomiCommand`           |
-| 按能力筛的名单                                | `builtin.Where(builtin.WithAccounts / WithHistory / WithQuota / WithThirdParty / All)`        |
+| 要什么                                        | 从哪取                                                                                             |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 有哪些内置 CLI                                | `builtin.IDs`（按 id 排序）、`builtin.Ordered`（界面与名单的顺序）                                 |
+| 插件能力（权限、账号、历史、斜杠命令、终端…） | `builtin.Impl(id)`（各插件的 `CreateMain()`，只建一次）                                            |
+| 显示名                                        | `builtin.DisplayName`（「Gemini」）、`builtin.FullName`（「Gemini CLI」：看板、用量、灵动岛）      |
+| 清单能力位、传输、可执行文件、npm 包          | `builtin.Capability`、`builtin.UsesAcp`、`builtin.Binaries`、`builtin.NpmPackage`                  |
+| 清单 `host` 段                                | `builtin.MinNode`、`SelfUpdate`、`Vendor`、`AcpArgs`、`PlanFollowUp`、`NomiCommand`                |
+| 按能力筛的名单                                | `builtin.Where(builtin.WithAccounts / WithHistory / WithQuota / WithThirdParty / LocalOnly / All)` |
 
 视图侧用 `@nomi-ai/cli-catalog` 的 `BUILTIN_CLI_ORDER`、`cliCapability`、`cliName`、`cliFullName`、`cliConfigPath`、`byCli`。
-ACP 助手的权限能力由清单推出（`shared.AcpPermissions`），不在 Go 里再写映射。两个守卫测试拦下写死的名单（同一行或分行写的
+ACP agent的权限能力由清单推出（`shared.AcpPermissions`），不在 Go 里再写映射。两个守卫测试拦下写死的名单（同一行或分行写的
 3 个及以上内置 id）：Go 侧 `internal/cliplugins/builtin/hardcoded_test.go`，视图侧
 `packages/cli-catalog/tests/no-hardcoded-lists.test.ts`；确实只属于某几个 CLI 的实现（额度查询、用量日志解析、品牌图标、
 网关客户端条目）登记在测试里的白名单并写明原因。`builtin_test.go` 检查代码条目与清单一一对应、清单的 `history` 与实现一致。
@@ -95,13 +100,13 @@ ACP 助手的权限能力由清单推出（`shared.AcpPermissions`），不在 G
 `folders` 是其余文件夹。模型与 ACP 的 [Additional Directories](https://agentclientprotocol.com/rfds/additional-directories) 一致：
 `cwd` 仍是主目录、相对路径的基准，其余文件夹只扩大读写范围；git、worktree、AGENTS.md 只看主文件夹。
 
-- **会话只记 projectId**：Nomi 对话在会话元信息里，编程助手在标签对象里（`tabs.json`）。目录不存进会话，每次用时由
+- **会话只记 projectId**：Nomi 对话在会话元信息里，agent 在标签对象里（`tabs.json`）。目录不存进会话，每次用时由
   `Store.Roots(id)` 实时取并按工作区根规则再查一遍：主文件夹不能用则整个项目不可用，其余文件夹不能用则跳过。
 - **Nomi**：`desktop.ApplyConversationWorkspace` 按 `extra.projectId` 取 `desktop.Workspace`，把 `extra.cwd` 改写成主文件夹（视图带来的丢掉）；
   文件工具每次调用按 `ExecContext.ProjectID` 重新取（`PermissionBroker.WorkspaceOf`），守卫的作用域是全部文件夹（`Workspace.Scopes`）。
-- **编程助手**：工作目录是主文件夹（委派的 worktree 标签例外），其余文件夹每次启动时由 `Orchestrator.extraDirs` 取：Claude Code `--add-dir`、
+- **Agents**：工作目录是主文件夹（委派的 worktree 标签例外），其余文件夹每次启动时由 `Orchestrator.extraDirs` 取：Claude Code `--add-dir`、
   Codex app-server 每轮 `sandboxPolicy.writableRoots`（exec 回退用 `-c sandbox_workspace_write.writable_roots`）、Gemini `--include-directories`、
-  其余 ACP 助手声明 `sessionCapabilities.additionalDirectories` 时在 `session/new` / `session/load` 里带上；Nomi 的系统沙箱也把它们加进可写目录。
+  其余 ACP agent声明 `sessionCapabilities.additionalDirectories` 时在 `session/new` / `session/load` 里带上；Nomi 的系统沙箱也把它们加进可写目录。
   项目改了（`Store.OnChange` → `Orchestrator.ProjectChanged`）：空闲标签断开常驻进程，下一轮按新的文件夹重启接着原会话；主文件夹换了的换工作目录、带上前文。
 - **右栏**：视图把项目的全部文件夹（工作目录在前）传给 `SessionChangesPanel` / 中栏 Diff / 全屏审查 / `@` 路径补全，每个文件夹照常调
   `harness.workspaceList` / `harness.gitDiff`（内核按项目文件夹认目录）。「改动」每个文件夹挂一个 `RepoGitSection`，按 `gitDiff` 返回的
@@ -122,23 +127,35 @@ ACP 助手的权限能力由清单推出（`shared.AcpPermissions`），不在 G
 自己的启动参数或会话模式（ACP 的 `session/set_mode`）。需要确认的工具调用进编排器的权限队列（`permissionqueue.go`），
 视图里回答；回答可以是多选项（允许一次 / 本会话 / 拒绝）。
 
+结构化提问不进权限队列，走 `internal/core/askuser` 的问题卡（对话输入栏上方，10 分钟超时）：Claude Code 的
+`AskUserQuestion`、Codex app-server 的 `item/tool/requestUserInput`、Codex 的表单式 `mcpServer/elicitation/request`，
+以及 ACP 的 `elicitation/create`（握手时广告 `elicitation.form`）。回答、跳过、取消、超时按各协议的结果写回。
+Codex 把 MCP 工具审批包成 elicitation 时（`codex_approval_kind: mcp_tool_call`）仍走允许 / 拒绝；URL elicitation 直接取消。
+Codex 的 exec 回退没有来回通道。Nomi 自己连上的 MCP 不广告 elicitation，也不进这张卡。
+
 ## 来源与标签令牌
 
-- **官方**：CLI 用它自己的登录态（可以在 Nomi 里管理多个官方账号，见 `accounts/`）。
+- **官方**：CLI 用 Nomi 管理的官方账号（每个账号一个独立的配置目录，登录由 CLI 自己完成，见 `accounts/`）。不再有「本机登录」：内置 agent 不用这台电脑上 CLI 默认目录里的登录；没有官方账号能力的（dsh、Gemini）只有第三方来源。旧版本存下的 `local-<kind>` 记录在读取时删掉，指向它的标签和「新会话默认用」改为跟随默认官方账号。
 - **第三方**：CLI 指向本机统一网关。启动前编排器签一个 `nomi-tab-` 令牌并登记绑定（标签、代次、模型、思考深度），收到确认才启动；
   换模型、换第三方供应商时重新登记，下一轮生效。
 
+官方账号登录：Codex 使用设备码，界面拿到登录链接和设备码后只自动打开浏览器一次；Grok 使用
+`grok login --oauth` 的浏览器回调流程，由 CLI 打开浏览器。登录弹窗不继承设置页的内嵌模式，
+只响应本页主动发起且尚未关闭的登录；关闭后的迟到事件不会再弹窗，启动响应也不会覆盖先到达的登录进度。
+
 ## 子任务（Nomi 委派的标签）
 
-- 子任务面板（`packages/ai-chat/src/components/SubagentPane`，状态在 `contexts/SubagentPaneContext`，与变更 / 文件查看区独立）：
-  运行中发送走 `harness.tabSteer`（不支持时排队到这一轮结束），空闲时 `harness.tabSend`，停止 `harness.tabCancel`。
+- 子任务侧栏（`packages/ai-chat/src/components/SubagentPane`，状态在 `contexts/SubagentPaneContext`）：
+  主列留在来源对话。委派标签用 `CliConversation` + `MessageInput`，按标签 id 调 `sendToTab` / `replyPermissionFor` / `cancelRun`，不 `activate`。
+  进程内子代理看父转录里 `parentId` 指到它的步骤；`delegate_to_nomi` 看 `tasks.trace`。
+  设计见 [docs/design/subagent-chat-parity.md](../design/subagent-chat-parity.md)。
 - 接手：只有委派正在跑时用户发消息才算接手（打断 Nomi 的这一轮，`delegation.takenOver`）；空闲时发消息就是接着对话，不标接手。
 - 回报：`TabFinished.Origin` 记这一轮是谁发起的（`user` / `sandbox` / 程序）。用户自己发的、沙箱授权后续跑的轮次，
   `coding_wiring.go` 交给 `delegate.ReportFollowUp`，经 `delegate.completed`（`followUp: true`）回到来源对话；委派自己的轮次由 `finalize` 回报。
 
 ## 本机保护
 
-工作目录策略、环境变量清理、Codex 联网默认关、系统级沙箱与按会话授权：见 [security.md「编程助手」](security.md#编程助手cli-子进程)。
+工作目录策略、环境变量清理、Codex 联网默认关、系统级沙箱与按会话授权：见 [security.md「Agents」](security.md#agents cli-子进程)。
 
 ## 测试
 

@@ -13,16 +13,16 @@ export const GROUPS = [
     zh: "开始",
     en: "Get started",
     pages: [
-      { slug: "getting-started", src: "getting-started.md", zh: ["快速上手", "安装、首次引导、开编程助手会话、添加模型、常用快捷键"], en: ["Getting started", "Install, onboarding, open a coding-agent session, add a model, shortcuts"] },
+      { slug: "getting-started", src: "getting-started.md", zh: ["快速上手", "安装、首次引导、开 agent 会话、添加模型、常用快捷键"], en: ["Getting started", "Install, onboarding, open an agent session, add a model, shortcuts"] },
     ],
   },
   {
     zh: "Agent 工作台",
     en: "Agent workbench",
     pages: [
-      { slug: "coding-agents", src: "features/coding-agents.md", zh: ["编程助手", "Claude Code / Codex / Gemini CLI 等：账号与第三方供应商、权限模式、工坊、会话"], en: ["Coding agents", "Claude Code / Codex / Gemini CLI and more: accounts, providers, permission modes, workbench"] },
+      { slug: "coding-agents", src: "features/coding-agents.md", zh: ["Agents", "Claude Code / Codex / Gemini CLI 等：账号与三方供应商、权限模式、侧边工作区、会话"], en: ["Agents", "Claude Code / Codex / Gemini CLI and more: accounts, providers, permission modes, side workspace, sessions"] },
       { slug: "agent-board", src: "development/agent-board.md", zh: ["Agent 看板", "谁在干活、做到哪了、内存与 CPU；内存守护自动暂停 / 恢复"], en: ["Agent board", "Who is working, how far along, memory and CPU; the memory guard pauses and resumes"] },
-      { slug: "agent-monitor", src: "features/agent-monitor.md", zh: ["编程助手监视", "本机编程工具的进度提醒"], en: ["Coding-agent monitor", "Progress notices for local coding tools"] },
+      { slug: "agent-monitor", src: "features/agent-monitor.md", zh: ["Agent 监视", "本机编程工具的进度提醒"], en: ["Agent monitor", "Progress notices for local coding tools"] },
       { slug: "slash-commands", src: "features/slash-commands.md", zh: ["斜杠命令", "输入 / 弹出命令，内置命令在界面里执行，其余转给 CLI"], en: ["Slash commands", "The / palette; built-ins run in the UI, the rest go to the CLI"] },
       { slug: "privacy-security", src: "features/privacy-security.md", zh: ["隐私与安全", "数据位置、仅本地模式、外发保护、权限确认、导出与清除"], en: ["Privacy & security", "Data location, local-only mode, outbound masking, prompts, export"] },
     ],
@@ -31,7 +31,7 @@ export const GROUPS = [
     zh: "模型与工具",
     en: "Models & tools",
     pages: [
-      { slug: "providers", src: "features/providers.md", zh: ["第三方供应商与模型", "给对话和各编程助手分配模型，多 Key，失败不换模型"], en: ["Providers & models", "Assign models to chat and each coding agent, multiple keys, no model switch on failure"] },
+      { slug: "providers", src: "features/providers.md", zh: ["第三方供应商与模型", "给对话和各 agent 分配模型，多 Key，失败不换模型"], en: ["Providers & models", "Assign models to chat and each agent, multiple keys, no model switch on failure"] },
       { slug: "local-models", src: "features/local-models.md", zh: ["本地模型", "一键运行开源小模型、Ollama、离线模式"], en: ["Local models", "One-click small models, Ollama, offline mode"] },
       { slug: "mcp-skills", src: "features/mcp-skills.md", zh: ["MCP 与技能", "MCP 服务器、SKILL.md 技能、从其他工具导入"], en: ["MCP & skills", "MCP servers, SKILL.md packs, importing from other tools"] },
       { slug: "automation", src: "features/automation.md", zh: ["自动化与桌面能力", "文件、命令、提醒与剪贴板、代码沙箱、工具权限、操作记录"], en: ["Automation", "Files, commands, reminders, clipboard, code sandbox, tool permissions"] },
@@ -41,7 +41,7 @@ export const GROUPS = [
     zh: "Nomi",
     en: "Nomi",
     pages: [
-      { slug: "chat", src: "features/chat.md", zh: ["AI 对话", "对话与工坊、图片与文件、生成图片与素材库、命令面板"], en: ["AI chat", "Assistant and workbench, images and files, image generation, command palette"] },
+      { slug: "chat", src: "features/chat.md", zh: ["AI 对话", "统一工作区、主对话直选 CLI 底座、图片与文件、生成图片与素材库、命令面板"], en: ["AI chat", "Unified workspace, direct CLI bases, images and files, image generation, command palette"] },
       { slug: "knowledge-base", src: "features/knowledge-base.md", zh: ["知识库", "基于你的文件夹回答，并给出引用"], en: ["Knowledge base", "Answers from your folders, with citations"] },
       { slug: "memory", src: "features/memory.md", zh: ["长期记忆", "Nomi 记得什么、怎么想起、怎么管理"], en: ["Long-term memory", "What Nomi remembers and how to manage it"] },
       { slug: "scheduling", src: "features/scheduling-calendar.md", zh: ["日程与任务", "提醒、定时任务、主动聊天、免打扰、持续任务"], en: ["Schedule & tasks", "Reminders, jobs, proactive chat, do-not-disturb, persistent tasks"] },
@@ -76,7 +76,7 @@ export const GROUPS = [
       { slug: "architecture", src: "development/architecture.md", zh: ["架构概览", "Go 内核、Wails 外壳与视图怎么分工"], en: ["Architecture", "How the Go core, the Wails shell and the views fit together"] },
       { slug: "contract", src: "development/contract.md", zh: ["应用契约", "视图与内核之间的过程、事件与传输"], en: ["App contract", "Procedures, events and transport between the views and the core"] },
       { slug: "gateway", src: "development/gateway.md", zh: ["统一网关", "四种协议互转、路由、供应商与模型"], en: ["Unified gateway", "Four protocols, routing, providers and models"] },
-      { slug: "dev-coding-agents", src: "development/coding-agents.md", zh: ["编程助手接入", "插件、会话驱动、编排器、权限档位"], en: ["Coding-agent integration", "Plugins, session drivers, the orchestrator, permission levels"] },
+      { slug: "dev-coding-agents", src: "development/coding-agents.md", zh: ["Agent 接入", "插件、会话驱动、编排器、权限档位"], en: ["Agent integration", "Plugins, session drivers, the orchestrator, permission levels"] },
       { slug: "security", src: "development/security.md", zh: ["安全边界", "路径授权、命令审核、代码沙箱、网络与密钥"], en: ["Security boundaries", "Path grants, command review, code sandbox, network and keys"] },
       { slug: "building", src: "development/building.md", zh: ["构建与运行", "开发环境、打包与本机运行"], en: ["Building", "Dev setup, packaging and running locally"] },
       { slug: "testing", src: "development/testing.md", zh: ["测试", "单元、Go 与端到端测试"], en: ["Testing", "Unit, Go and end-to-end tests"] },
@@ -94,13 +94,13 @@ const UI = {
   zh: {
     docs: "文档", search: "搜索文档", searchHint: "搜索文档…", noResults: "没有找到相关内容", onThisPage: "本页内容",
     prev: "上一篇", next: "下一篇", edit: "在 GitHub 上编辑此页", menu: "文档目录", close: "关闭目录", backTop: "回到顶部",
-    copy: "复制", copied: "已复制", homeTitle: "Nomi·诺米 文档", homeLead: "从安装到派出第一个编程助手，再到接模型、管权限、做角色包。每一篇都随版本更新。",
+    copy: "复制", copied: "已复制", homeTitle: "Nomi·诺米 文档", homeLead: "从安装到派出第一个 agent，再到接模型、管权限、做角色包。每一篇都随版本更新。",
     startHere: "从这里开始", allTopics: "全部主题", pages: "篇", zhOnly: "",
   },
   en: {
     docs: "Docs", search: "Search docs", searchHint: "Search docs…", noResults: "Nothing found", onThisPage: "On this page",
     prev: "Previous", next: "Next", edit: "Edit this page on GitHub", menu: "Docs menu", close: "Close menu", backTop: "Back to top",
-    copy: "Copy", copied: "Copied", homeTitle: "Nomi docs", homeLead: "From installing to your first coding agent, then models, permissions and character packs. Every page follows the latest release.",
+    copy: "Copy", copied: "Copied", homeTitle: "Nomi docs", homeLead: "From installing to your first agent, then models, permissions and character packs. Every page follows the latest release.",
     startHere: "Start here", allTopics: "All topics", pages: "pages", zhOnly: "This page has not been translated yet, so it is shown in Chinese.",
   },
 };
@@ -277,6 +277,11 @@ function splitLanguages(markdown) {
 /* ---------- Pages ---------- */
 
 function sourceFor(root, page, lang) {
+  const langOverride = join(root, `content/docs-${lang}`, page.src);
+  if (existsSync(langOverride)) {
+    const markdown = readFileSync(langOverride, "utf8");
+    return { markdown: markdown.replace(/^#\s+.*\n/, ""), translated: true };
+  }
   const markdown = readFileSync(join(root, "content/docs", page.src), "utf8");
   const body = markdown.replace(/^#\s+.*\n/, "");
   const halves = splitLanguages(body);
@@ -285,7 +290,7 @@ function sourceFor(root, page, lang) {
 }
 
 export function docFile(slug, lang) {
-  return `${lang === "en" ? "en/" : ""}docs/${slug}.html`;
+  return `${lang === "zh" ? "zh/" : ""}docs/${slug}.html`;
 }
 
 /**
@@ -317,7 +322,7 @@ export function buildDocs(root, lang) {
     const image = (src) => {
       if (/^https?:/.test(src)) return src;
       const name = posix.basename(src);
-      return `${lang === "en" ? "../../" : "../"}assets/docs/${name}`;
+      return `${lang === "zh" ? "../../" : "../"}assets/docs/${name}?v=20261125`;
     };
     const { html, headings } = renderMarkdown(markdown, { link, image });
     const [title, description] = page[lang];
@@ -349,7 +354,7 @@ ${html}
       ${toc}
     </div>`;
 
-    pages.push({ file: docFile(page.slug, lang), slug: page.slug, title, description, body, group: page.group[lang], inSubdir: true });
+    pages.push({ file: docFile(page.slug, lang), slug: page.slug, title, description, body, group: page.group[lang], inSubdir: true, translated });
     searchIndex.push({
       u: `${page.slug}.html`,
       t: title,
@@ -377,9 +382,9 @@ ${sidebar(lang, "", "docs/")}
           .map((p) => `<li><a href="docs/${p.slug}.html"><strong>${escapeHtml(p[lang][0])}</strong><span>${escapeHtml(p[lang][1])}</span></a></li>`).join("")}</ul></section>`).join("")}</div>
       </article>
     </div>`;
-  pages.unshift({ file: `${lang === "en" ? "en/" : ""}docs.html`, slug: "", title: ui.homeTitle, description: ui.homeLead, body: homeBody, inSubdir: false });
+  pages.unshift({ file: `${lang === "zh" ? "zh/" : ""}docs.html`, slug: "", title: ui.homeTitle, description: ui.homeLead, body: homeBody, inSubdir: false, translated: true });
 
-  return { pages, searchIndex: JSON.stringify(searchIndex), searchFile: `${lang === "en" ? "en/" : ""}docs/search.json`, otherLang };
+  return { pages, searchIndex: JSON.stringify(searchIndex), searchFile: `${lang === "zh" ? "zh/" : ""}docs/search.json`, otherLang };
 }
 
 function sidebar(lang, current, prefix) {

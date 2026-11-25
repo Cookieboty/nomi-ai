@@ -1,0 +1,63 @@
+# Nomi
+
+> Open-source, local-first AI agent workbench with a unified 4-protocol model gateway, built on Go + Wails v3 + React (~25 MB native installer, MIT license).
+
+- Website (EN, Default): https://withnomi.app/
+- Website (ZH): https://withnomi.app/zh/
+- Features: https://withnomi.app/features.html (https://withnomi.app/zh/features.html)
+- Download (v2.5.1): https://withnomi.app/download.html (https://withnomi.app/zh/download.html)
+- Changelog: https://withnomi.app/changelog.html (https://withnomi.app/zh/changelog.html)
+- Privacy & Security: https://withnomi.app/privacy.html (https://withnomi.app/zh/privacy.html)
+- Repository: https://github.com/Cookieboty/nomi-ai
+
+## Core Capabilities
+- **Parallel Agent Board**: Monitor Nomi chats, background sub-tasks, dispatched agents, and external terminal/IDE sessions (read-only) in one place, with automatic memory-pressure pause & resume.
+- **Unified Workspace & Direct CLI Base**: Manage all projects and agent endpoints in one unified sidebar, and pick installed official CLIs (Claude Code, Codex, Gemini CLI, etc.) per conversation in main chat.
+- **Multi-Tab Side Workspace**: Expand on demand with side-by-side Diff review, per-turn undo, run traces (graph/timeline/thinking), integrated split terminal, native embedded browser, and side chat.
+- **Models & Agents + Local Unified Gateway**: Configure task & cost routing, official accounts, third-party providers (4-protocol loopback translation across Anthropic Messages, OpenAI Responses, OpenAI Chat Completions, and Gemini generateContent), and local models (llama.cpp / Ollama) in one place; retries stay on the same model.
+- **Local-First Privacy & Sandbox**: No Nomi cloud account required. Chats, memories, and knowledge-base indexes stay local; API keys are stored in OS keychain; macOS system sandbox shields SSH/Git credentials and .env files.
+- **Optional Desktop Character**: Off by default on fresh installs; every workbench capability works identically with it off.
+
+## Installers (v2.5.1)
+- Windows (64-bit): https://github.com/Cookieboty/nomi-ai/releases/download/v2.5.1/Nomi-Setup-2.5.1.exe
+- macOS (Apple silicon): https://github.com/Cookieboty/nomi-ai/releases/download/v2.5.1/Nomi-2.5.1-arm64.dmg
+- macOS (Intel): https://github.com/Cookieboty/nomi-ai/releases/download/v2.5.1/Nomi-2.5.1.dmg
+- Linux (AppImage): https://github.com/Cookieboty/nomi-ai/releases/download/v2.5.1/Nomi-2.5.1.AppImage
+- Linux (Debian/Ubuntu .deb): https://github.com/Cookieboty/nomi-ai/releases/download/v2.5.1/nomi_2.5.1_amd64.deb
+
+## Documentation Index
+- [Docs Home (EN)](https://withnomi.app/docs.html) / [Docs Home (ZH)](https://withnomi.app/zh/docs.html)
+- [Getting started](https://withnomi.app/docs/getting-started.html): Install, onboarding, open an agent session, add a model, shortcuts
+- [Agents](https://withnomi.app/docs/coding-agents.html): Claude Code / Codex / Gemini CLI and more: accounts, providers, permission modes, side workspace, sessions
+- [Agent board](https://withnomi.app/docs/agent-board.html): Who is working, how far along, memory and CPU; the memory guard pauses and resumes
+- [Agent monitor](https://withnomi.app/docs/agent-monitor.html): Progress notices for local coding tools
+- [Slash commands](https://withnomi.app/docs/slash-commands.html): The / palette; built-ins run in the UI, the rest go to the CLI
+- [Privacy & security](https://withnomi.app/docs/privacy-security.html): Data location, local-only mode, outbound masking, prompts, export
+- [Providers & models](https://withnomi.app/docs/providers.html): Assign models to chat and each agent, multiple keys, no model switch on failure
+- [Local models](https://withnomi.app/docs/local-models.html): One-click small models, Ollama, offline mode
+- [MCP & skills](https://withnomi.app/docs/mcp-skills.html): MCP servers, SKILL.md packs, importing from other tools
+- [Automation](https://withnomi.app/docs/automation.html): Files, commands, reminders, clipboard, code sandbox, tool permissions
+- [AI chat](https://withnomi.app/docs/chat.html): Unified workspace, direct CLI bases, images and files, image generation, command palette
+- [Knowledge base](https://withnomi.app/docs/knowledge-base.html): Answers from your folders, with citations
+- [Long-term memory](https://withnomi.app/docs/memory.html): What Nomi remembers and how to manage it
+- [Schedule & tasks](https://withnomi.app/docs/scheduling.html): Reminders, jobs, proactive chat, do-not-disturb, persistent tasks
+- [Desktop character](https://withnomi.app/docs/mascot.html): Optional, close it any time: actions, display, toolbar, size, settings
+- [Voice](https://withnomi.app/docs/voice.html): Speech input, wake word, the character's voice
+- [Dynamic Island](https://withnomi.app/docs/dynamic-island.html): Notch-style notices on macOS
+- [Personalization](https://withnomi.app/docs/personalization.html): Themes, app icons, sidebar, shortcuts, language, accessibility
+- [Auto-update](https://withnomi.app/docs/auto-update.html): Background download; installs in place and relaunches when you confirm
+- [Character packs](https://withnomi.app/docs/character-pack.html): One complete character per build: validate, build, runtime override
+- [Replacing the character](https://withnomi.app/docs/character-pack-replacing.html): For forks: new pack, validation, build, remote assets
+- [Character pack contract](https://withnomi.app/docs/character-pack-contract.html): The manifest, persona and mapping schema
+- [Designer checklist](https://withnomi.app/docs/character-pack-checklist.html): What to check before handing over character assets
+- [Provider links](https://withnomi.app/docs/provider-link.html): The “Add to Nomi” button for relays and model platforms
+- [Architecture](https://withnomi.app/docs/architecture.html): How the Go core, the Wails shell and the views fit together
+- [App contract](https://withnomi.app/docs/contract.html): Procedures, events and transport between the views and the core
+- [Unified gateway](https://withnomi.app/docs/gateway.html): Four protocols, routing, providers and models
+- [Agent integration](https://withnomi.app/docs/dev-coding-agents.html): Plugins, session drivers, the orchestrator, permission levels
+- [Security boundaries](https://withnomi.app/docs/security.html): Path grants, command review, code sandbox, network and keys
+- [Building](https://withnomi.app/docs/building.html): Dev setup, packaging and running locally
+- [Testing](https://withnomi.app/docs/testing.html): Unit, Go and end-to-end tests
+- [CI](https://withnomi.app/docs/ci.html): Workflow triggers and retries
+- [i18n](https://withnomi.app/docs/i18n.html): Rules for UI strings and translations
+- [Frontend standards](https://withnomi.app/docs/frontend-standards.html): Tokens, components and styling rules

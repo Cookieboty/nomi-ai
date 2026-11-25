@@ -1,6 +1,6 @@
 # 统一网关
 
-一个第三方供应商配一次，Nomi 对话和所有编程助手（Claude Code、Codex、Gemini CLI、Grok、dsh）都能用。网关是 Go 内核里的
+一个第三方供应商配一次，Nomi 对话和所有 agent（Claude Code、Codex、Gemini CLI、Grok、dsh）都能用。网关是 Go 内核里的
 本机 HTTP 服务（`apps/desktop-go/internal/gateway`），只监听回环地址，默认端口 18721（`internal/core/gwstore`
 `DefaultGatewayPort`）。它接收各家客户端协议的请求，转成中间表示，按路由计划发给上游供应商，再把响应流转回客户端的协议。
 
