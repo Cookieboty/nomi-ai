@@ -1,231 +1,244 @@
 <p align="center"><img src="docs/brand/nomi-wordmark.svg" alt="Nomi" width="320"></p>
 
-<h1 align="center">Nomi·诺米</h1>
+<h1 align="center">Nomi</h1>
 
 <p align="center">
-  <b>让每一种 AI 能力，都为你所用。</b><br>
-  One place. Every AI capability.
+  <b>One place. Every AI capability.</b><br>
+  让每一种 AI 能力，都为你所用
 </p>
 
 <p align="center">
-  把 Claude Code、Codex 放到同一张看板上并行。模型只接一次，官方、第三方或本地都能用。不必绑定云账号，也不用改那些 CLI 的全局配置。<br>
-  桌面角色可选，不需要就关掉。
+  Run Claude Code, Codex, Gemini CLI, and Antigravity CLI in parallel on one board, or select an installed local CLI directly inside chat. Connect a model once — official APIs, third-party, or local. No Nomi cloud account. No edits to those CLIs' global config.<br>
+  The desktop character is optional. Turn it off if you don't want it.
 </p>
 
-<p align="center">macOS · Windows · Linux　|　Go 内核，安装包约 25 MB　|　MIT</p>
+<p align="center">macOS · Windows · Linux　|　Go + Wails core, ~25 MB installer　|　MIT</p>
 
 <p align="center">
   <a href="https://github.com/Cookieboty/nomi-ai/stargazers"><img src="https://img.shields.io/github/stars/Cookieboty/nomi-ai?style=flat&logo=github" alt="GitHub stars"></a>
-  <a href="https://github.com/Cookieboty/nomi-ai/releases"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FCookieboty%2Fnomi-ai%2Fbadges%2Fdownloads.json&style=flat" alt="下载次数"></a>
+  <a href="https://github.com/Cookieboty/nomi-ai/releases"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FCookieboty%2Fnomi-ai%2Fbadges%2Fdownloads.json&style=flat" alt="Downloads"></a>
   <a href="https://github.com/Cookieboty/nomi-ai/releases/latest"><img src="https://img.shields.io/github/v/release/Cookieboty/nomi-ai?style=flat" alt="Latest release"></a>
   <a href="https://github.com/Cookieboty/nomi-ai/commits/main"><img src="https://img.shields.io/github/last-commit/Cookieboty/nomi-ai?style=flat" alt="Last commit"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/Cookieboty/nomi-ai?style=flat" alt="License: MIT"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Cookieboty/nomi-ai/releases/latest">下载</a> ·
-  <a href="https://withnomi.app">官网</a> ·
-  <a href="docs/README.md">文档</a> ·
-  <a href="docs/development/architecture.md">架构</a> ·
-  <a href="CHANGELOG.md">更新日志</a>
+  <a href="https://github.com/Cookieboty/nomi-ai/releases/latest">Download</a> ·
+  <a href="https://withnomi.app">Website</a> ·
+  <a href="docs/README.md">Docs</a> ·
+  <a href="docs/development/architecture.md">Architecture</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
 </p>
 
-<p align="center"><b>中文</b> · <a href="README.en.md">English</a></p>
+<p align="center"><b>English</b> · <a href="README.zh-CN.md">简体中文</a></p>
 
 <p align="center">
-  <img src="docs/screenshots/agent-board.webp" alt="Agent 看板：谁在干活、做到哪了、占了多少资源" width="49%">
-  <img src="docs/screenshots/workspace.webp" alt="agent 三栏工作区" width="49%">
+  <img src="docs/screenshots/agent-board.webp" alt="Agent board: who is working, how far along, and what they use" width="49%">
+  <img src="docs/screenshots/workspace.webp" alt="Unified workspace with tabbed side panel for Diff, files, terminal, traces, and browser" width="49%">
 </p>
 
-## 工作台里有什么
+## What the workbench holds
 
-| 能力       | 在 Nomi 里                                                                                                                                               |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Agents** | Claude Code、Codex、Gemini CLI、Grok、dsh、Kimi Code、MiniMax Code，多个会话并行。终端或 IDE 里开着的会话在看板上只读；各 CLI 记下的历史可以在工坊里续接 |
-| **模型**   | 官方、第三方或本地模型，接一次，内置 agent 和 Nomi 都能用。另接的 ACP 助手不走这条网关                                                                   |
-| **工具**   | MCP、技能、浏览器、文件与命令，图形化管理，调用有审计日志                                                                                                |
-| **Nomi**   | 本身就是一个 agent：记忆、知识库、生图、提醒，还会把活派给 agent                                                                                         |
+| Capability | In Nomi                                                                                                                                                                                                                              |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Agents** | Eight built-in CLIs — Claude Code, Codex, Gemini CLI, Grok, dsh, Kimi Code, MiniMax Code, and Antigravity CLI (with in-app Google sign-in) — in parallel; pick a local CLI right inside main chat or resume CLI history on the board |
+| **Models** | Official APIs, third-party, or local models (llama.cpp / Ollama): connect once, and all built-in agents and Nomi can use them. Custom ACP agents bypass this gateway                                                                 |
+| **Tools**  | MCP, `SKILL.md` skills, embedded browser, project files, split-pane interactive terminal, and command approval with an audit log                                                                                                     |
+| **Nomi**   | An agent itself: long-term memory, folder knowledge base, image generation and asset library, voice and reminders, plus delegating tasks to agents                                                                                   |
 
-它们都在一个 **Agent 工作台**里：谁在干活、做到哪了、占了多少资源、卡在哪，一眼看清。
+Everything lives in one **unified workbench**: a single sidebar with conversations, tasks, the agent board, and assets — showing who is working, how far along they are, how much they use, and where they're stuck.
 
-## 为什么是 Nomi
+## Why Nomi
 
-### 1. 一张看板，并行跑、一起管
+### 1. One board & unified workspace
 
-**Agent 看板**把在干活的放在一起：Nomi 的对话与后台运行、派出的和工坊里的 agent，以及你在终端或 IDE 里自己开的会话（只读）。每张卡片写明状态、来源目录、内存与 CPU，等你授权、等你验收的排在前面。
-内存紧张时，自动暂停 Nomi 派出的 agent，缓解后从暂停处接着跑；也可以随时手动暂停、继续。标题栏常驻负载指示。
-Agents 会话直接在工作台里开：内置 Claude Code、Codex、Gemini CLI、Grok、dsh、Kimi Code、MiniMax Code，经四种会话驱动接入（ACP、stream-json、Codex app-server、exec），多个会话并行，三栏工作区里看 Diff、提交、撤销。接入层是插件化的，也可以再接 ACP 助手；外部助手不走网关，也不接官方账号。
-→ [agents](docs/features/coding-agents.md) · [Agent 看板](docs/development/agent-board.md) · [agent 接入](docs/development/coding-agents.md)
+Nomi uses a **single unified sidebar** (conversations, tasks, Agent Board, and assets, with endpoint filtering) and reveals agent entry points automatically whenever local CLIs are detected — no manual mode switch needed.
 
-### 2. 模型只接一次
+- **Agent Board**: gathers Nomi chats and background runs, dispatched agents, local agent sessions, and sessions you started yourself in a terminal or IDE (read-only). Each card shows status, project directory, memory, and CPU, with anything waiting on approval or review sorted first.
+- **Memory guard**: when memory runs low it pauses agents Nomi dispatched and resumes them where they stopped once pressure clears; you can pause and resume manually any time, with a live load indicator in the title bar.
+- **Tabbed side workspace**: opens beside any conversation on demand for **Changes & Git** (review diff, commit, undo), **Project files** (drag into the composer for `@path`), **Split-pane terminal**, **Run traces** (graph, timeline, thinking, model audit), **Embedded browser**, and **Side chat**.
+- **Eight built-in CLIs + plugin ACP**: Claude Code, Codex, Gemini CLI, Grok, dsh, Kimi Code, MiniMax Code, and Antigravity CLI (with in-app local Google sign-in), connected through four session drivers (`ACP`, `stream-json`, `Codex app-server`, `exec`). Additional custom ACP agents can join through the plugin layer (external ACP agents do not route through the gateway or official accounts).
 
-只添加一次供应商（选预设或填地址，粘贴 Key）。来源可以是官方、第三方或本地。Claude Code、Codex、Gemini CLI、Grok、dsh、Kimi Code、MiniMax Code 和 Nomi 都能用它的模型，也可以全部换成本地模型。
-本机网关自动识别并互转 **Anthropic Messages / OpenAI Responses / OpenAI Chat Completions / Gemini generateContent**，流式、工具调用、推理、图片、上下文压缩都照常工作，所以 Claude Code 里可以直接用第三方模型。断线会在同一把 Key 上重试；同一家反复失败后，换到也提供**同一个模型**的下一家。
-第三方只作用于 Nomi 启动的那个进程，不改 CLI 的全局配置，不碰官方登录。各 CLI 自己的官方登录仍然可用，而且不是必须的。Nomi 没有要注册的云账号。
-→ [统一网关设计](docs/development/gateway.md) · [第三方供应商与模型](docs/features/providers.md)
+→ [Agents](docs/features/coding-agents.md) · [Agent board](docs/development/agent-board.md) · [Agent integration](docs/development/coding-agents.md)
 
-### 3. 本地优先，不强制云账号
+### 2. Connect a model once
 
-对话、记忆、知识库默认只在本机。要用各 CLI 的官方登录可以，也可以只用你自己的 API Key 或本地模型。
-macOS 上 agent 在**系统沙箱**里运行（默认开）：读不到 SSH 与 Git 凭据、云账号凭据、浏览器数据和 `.env`，只能写项目文件夹；被挡下时在对话里按本会话或「始终允许（只对这个项目）」授权，允许后自动接着做。工作目录只能是项目文件夹，也不继承环境里的令牌和密钥。开着沙箱，可以放心让 agent 全部自动运行。
-命令执行前先由辅助模型按风险分级：低风险直接跑，高风险交给你确认；**这一轮读过外部内容（网页、MCP 返回、技能文件）后，中风险命令也要你确认**，防止提示注入借 Nomi 的手执行命令。
-对话、记忆、知识库默认只存在本机；发给第三方模型前自动隐藏密钥；API Key 存系统钥匙串。
-→ [隐私与安全](docs/features/privacy-security.md) · [agent 的本机保护](docs/features/coding-agents.md#本机保护)
+Configure a provider once under **Settings → Models & Agents** (pick a preset or enter a Base URL and paste a key) for official APIs, third-party relays, or local models — or select an already-installed official CLI directly per conversation inside main chat without adding a provider first (switching CLIs mid-thread and switching back restores the prior CLI session with incremental updates).
 
-### 4. Nomi 自己也是一个 agent
+- The local unified gateway detects and translates between **Anthropic Messages / OpenAI Responses / OpenAI Chat Completions / Gemini generateContent**. Streaming, tool calls, reasoning, images, and context compaction work end-to-end, so a third-party model runs cleanly inside Claude Code or Codex.
+- Dropped connections retry on the same key automatically; **cross-provider circuit-breaker fallback is off by default** and can be enabled per provider card to fail over only to another provider serving the **same model**.
+- Third-party routing applies strictly to processes Nomi launches. It never edits any CLI's global config or touches official sign-ins, and Nomi requires no cloud account.
 
-它能读写文件、跑命令、开浏览器、调 MCP 和技能，记得你说过的事（长期记忆），能在你的文件夹里查资料并给出可点击的引用，还能画图、改图、定提醒。
-写代码这类活，它会委派给 agent：子任务在对话旁边单独一栏打开，可以插话、停止、接着再做一轮，结果都回到主对话；它也会看着 Agent 看板调度。
-工具按需提供：闲聊时发给模型的工具定义约 2K token，聊到相关的事才展开。
-→ [AI 对话](docs/features/chat.md) · [长期记忆](docs/features/memory.md) · [知识库](docs/features/knowledge-base.md)
+→ [Unified gateway design](docs/development/gateway.md) · [Third-party providers](docs/features/providers.md)
 
-### 5. 桌面角色可选
+### 3. Local-first, no required cloud account
 
-桌面角色不是工作台的前提。需要时让它常驻：一个透明的小窗口，有表情、动作和口型；不需要，在它的工具栏「更多」里关掉，工作台照常用。
-开着它，很多事不用打开主窗口：任务完成或出错时用动作提示；回复的前一两句显示在旁边的气泡里；把文件拖到它身上直接总结；可以用语音对话；双击打开对话。
-→ [桌面角色](docs/features/mascot.md) · [语音](docs/features/voice.md)
+Chats, memory, and the knowledge base stay on your machine by default. Use each CLI's official sign-in, your own API keys, or local models only.
 
-### 6. 轻：Go 内核，原生 WebView
+- On macOS, agents run in a **system sandbox** (on by default): it blocks reads of SSH and Git credentials, cloud credentials, browser data, and `.env` files, and limits writes to the project directory; when blocked, allow for the current session or "always" (this project only) directly in chat. Working directories must be registered project folders, and agents do not inherit tokens or keys from your shell environment.
+- Before a command runs, a helper model classifies its risk: low risk executes, high risk prompts you, and **once a turn reads external content (web pages, MCP outputs, skill files), medium-risk commands prompt you too**, blocking prompt-injection command execution.
+- Secrets are redacted before reaching third-party models, and API keys are stored in the OS keychain.
 
-Go 内核 + [Wails v3](https://v3.wails.io)，不带 Chromium。macOS Apple 芯片上 DMG 约 24.5 MB，安装后约 49 MiB。
+→ [Privacy and security](docs/features/privacy-security.md) · [Local protection for agents](docs/features/coding-agents.md#本机保护)
 
-## 架构
+### 4. Nomi is an agent too
+
+Nomi reads and writes files, runs commands, operates an embedded browser, invokes MCP servers and skills, stores long-term memory, answers questions over your folders with clickable citations, generates and edits images, and manages reminders.
+
+- For implementation work, it delegates subtasks to agents that run beside the main conversation, where you can interject, stop, or continue another turn while results return to the main thread; it also schedules work against the agent board.
+- Tools load on demand: casual chat sends roughly 2K tokens of tool definitions, expanding only when the conversation needs them.
+
+→ [Chat](docs/features/chat.md) · [Memory](docs/features/memory.md) · [Knowledge base](docs/features/knowledge-base.md)
+
+### 5. The desktop character is optional
+
+The desktop character is not required to use Nomi. Keep it running in a small transparent window with expressions, gestures, and lip sync — or close it from its toolbar's "More" menu while the rest of the workbench stays unchanged.
+
+With it enabled, you can track finished or failed runs from character gestures, glance at reply previews in its speech bubble, drop files onto it for quick summaries, talk via voice with read-aloud replies, and double-click to open chat.
+
+→ [Desktop character](docs/features/mascot.md) · [Voice](docs/features/voice.md)
+
+### 6. Light: a Go core on the native WebView
+
+A Go core on [Wails v3](https://v3.wails.io) with no bundled Chromium. On macOS (Apple silicon), the DMG installer is about 24.5 MB and about 49 MiB installed.
+
+## Architecture
 
 ```mermaid
 flowchart LR
-  subgraph View["视图（React 19）"]
-    Bench["Agent 工作台<br/>看板 · 三栏工作区"]
-    Chat["Nomi 对话"]
-    Mascot["桌面角色（可选）"]
+  subgraph View["View (React 19)"]
+    Bench["Unified workbench<br/>Agent board · tabbed side workspace"]
+    Chat["Nomi chat<br/>gateway models or local CLI"]
+    Mascot["Desktop character (optional)"]
   end
-  subgraph Core["内核（Go）"]
-    Contract["类型化契约<br/>（surfaces / dangerous 判定）"]
-    Fleet["Agent 看板 · 内存守护"]
-    Agents["agent 驱动<br/>ACP · stream-json · app-server · exec"]
-    Tools["工具：文件 · 命令 · 浏览器 · MCP · 技能<br/>命令风险审核 + 外部内容污点"]
-    Mem["记忆 · 知识库 · 日程 · 生图"]
-    GW["统一网关<br/>Messages ⇄ Responses ⇄ Chat ⇄ Gemini"]
+  subgraph Core["Core (Go)"]
+    Contract["Typed contract<br/>(surfaces / dangerous checks)"]
+    Fleet["Agent board · memory guard"]
+    Agents["Agent drivers<br/>ACP · stream-json · app-server · exec"]
+    Tools["Tools: files · commands · browser · MCP · skills<br/>command risk review + external-content taint"]
+    Mem["Memory · knowledge base · schedule · images"]
+    GW["Unified gateway<br/>Messages ⇄ Responses ⇄ Chat ⇄ Gemini"]
   end
-  CLI["Claude Code · Codex · Gemini CLI · Grok · dsh · Kimi Code · MiniMax Code"]
-  Up["OpenAI · Anthropic · DeepSeek · GLM · Kimi · Qwen<br/>· 第三方 · Ollama / 本地模型"]
-  View -- "回环 WebSocket + 一次性令牌" --> Contract
+  CLI["Claude Code · Codex · Gemini CLI · Grok · dsh · Kimi Code · MiniMax Code · Antigravity CLI"]
+  Up["OpenAI · Anthropic · DeepSeek · GLM · Kimi · Qwen<br/>· third-party · Ollama / local models"]
+  View -- "loopback WebSocket + one-time token" --> Contract
   Contract --> Fleet & Agents & Tools & Mem
-  Fleet -- "暂停 / 恢复" --> Agents
+  Fleet -- "pause / resume" --> Agents
   Agents --> CLI
-  CLI -- "第三方请求" --> GW
-  Tools -- "委派子任务" --> Agents
+  CLI -- "third-party requests" --> GW
+  Tools -- "delegates subtasks" --> Agents
   Tools & Mem --> GW
   GW --> Up
 ```
 
-视图与内核之间只有一条类型化契约，没有零散的 IPC 通道；哪些窗口能调用哪些过程、哪些属于危险操作，都在契约里声明。详见 [架构](docs/development/architecture.md)、[应用契约](docs/development/contract.md)。
+The view talks to the Go core exclusively through one typed contract instead of ad-hoc IPC channels; which windows may call which procedures, and which operations require elevated confirmation, are declared in the contract. See [Architecture](docs/development/architecture.md) and [the app contract](docs/development/contract.md).
 
-## 功能一览
+## Features at a glance
 
-**Agent 工作台**
+**Unified workbench**
 
-- **Agent 看板**：看清谁在干活、做到哪了、各占多少内存与 CPU；内存守护自动暂停 / 恢复，标题栏常驻负载指示
-- **Agents**：七个内置 CLI、多会话并行，三栏工作区看 Diff、提交、撤销；官方账号或第三方模型任选；权限模式，系统沙箱目前在 macOS
-- **任务**：持续任务、定时任务，执行者可以是 Nomi 或 agent
+- **Agent board**: see who is working, how far along they are, and how much memory and CPU each session uses; a memory guard pauses and resumes automatically, with a live load indicator in the title bar
+- **Agents**: eight built-in CLIs (including Antigravity CLI with in-app Google sign-in), parallel sessions, and a tabbed side workspace for Diff & Git, project files, split-pane interactive terminal, run traces, embedded browser, and side chat; pick local CLI bases inside main chat, official accounts, or third-party/local models; permission modes and macOS system sandbox
+- **Tasks**: continuous and scheduled tasks, executed by Nomi or an agent
 
-**模型与工具**
+**Models, Agents, and tools**
 
-- **模型**：OpenAI、Anthropic、DeepSeek、Kimi、智谱、通义、豆包、Ollama 等预设；多 Key 自动切换；按每次上游请求记账，用量和费用看得见
-- **本地模型**：一键下载开源小模型（llama.cpp）或管理 Ollama；可以只用本地模型，也可以只让本地模型读文件
-- **MCP 与技能**：图形化管理 MCP 服务器与 `SKILL.md`，可从其他工具导入；工具调用有审计日志
-- **第三方供应商链接接入**：中转站和模型平台可以放一个「添加到 Nomi」链接，见下方[第三方供应商接入](#第三方供应商接入)
+- **Models & Agents**: five-tab settings (`Task & Cost Routing`, `Agents`, `Third-Party Providers`, `Local Models`, `Monitor & sessions`); presets for OpenAI, Anthropic, DeepSeek, Kimi, Zhipu, Qwen, Doubao, Ollama, and more; multi-key rotation, opt-in cross-provider fallback (off by default), and per-request usage/cost accounting
+- **Local models**: one-click open-source models (llama.cpp) or Ollama management; run purely local or restrict file-reading chats to local models
+- **MCP and skills**: manage MCP servers and `SKILL.md` skills in the UI or import from other tools, with audit logging on tool calls
+- **Third-party provider links**: relays and model platforms can offer an "Add to Nomi" link; see [Third-party provider integration](#third-party-provider-integration) below
 
 **Nomi**
 
-- **对话**：读写文件、跑命令、开浏览器，委派 agent；命令面板与斜杠命令
-- **知识库与记忆**：文件夹问答带可点击引用；对话自动整理成长期记忆，可导出
-- **生图**：直接画图、改图、以图生图，自动匹配同一厂商的图片模型；素材库统一管理
-- **语音与提醒**：本地 whisper.cpp 或云端语音输入、语音播报；提醒、免打扰
-- **桌面角色（可选）**：2D 立绘或 Rive 动画，表情与口型同步，任务进度用动作告诉你
+- **Chat**: reads and writes files, runs commands, drives the embedded browser, delegates to agents, and lets you select an installed official CLI right in main chat; command palette and slash commands
+- **Knowledge base and memory**: ask questions over a folder with clickable citations; conversations distill into exportable long-term memory
+- **Images**: generate, edit, and reference images with vendor-matched image models, organized in an asset library
+- **Voice and reminders**: local whisper.cpp or cloud speech input, read-aloud replies, reminders, and quiet hours
+- **Desktop character (optional)**: 2D art or Rive animation with expressions, lip sync, and task-status gestures
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/screenshots/coding-agent.webp" alt="agent 对话"><br><sub>agents</sub></td>
-    <td align="center" width="33%"><img src="docs/screenshots/settings-providers.webp" alt="供应商与模型"><br><sub>供应商与模型</sub></td>
-    <td align="center" width="33%"><img src="docs/screenshots/mascot.webp" alt="桌面角色"><br><sub>桌面角色（可选）</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/permission-modes.webp" alt="Agents and permission modes"><br><sub>Agents & permissions</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/settings-providers.webp" alt="Settings: Models & Agents"><br><sub>Models & Agents</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/mascot.webp" alt="Desktop character"><br><sub>Desktop character (optional)</sub></td>
   </tr>
 </table>
 
-更多界面见 [docs/screenshots](docs/screenshots/)。
+More screenshots in [docs/screenshots](docs/screenshots/).
 
-## 下载安装
+## Download
 
-前往 [GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases/latest)：
+From [GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases/latest):
 
-| 系统               | 安装包                                           | 说明                                    |
-| ------------------ | ------------------------------------------------ | --------------------------------------- |
-| macOS · Apple 芯片 | `Nomi-<版本>-arm64.dmg`                          | 拖进「应用程序」                        |
-| macOS · Intel      | `Nomi-<版本>.dmg`                                | 同上                                    |
-| Windows 10+（x64） | `Nomi-Setup-<版本>.exe`                          | 需要 WebView2（Windows 10/11 通常自带） |
-| Linux（x64）       | `Nomi-<版本>.AppImage` / `nomi_<版本>_amd64.deb` | AppImage 需 `chmod +x`                  |
+| System                | Installer                                              | Notes                                                  |
+| --------------------- | ------------------------------------------------------ | ------------------------------------------------------ |
+| macOS · Apple silicon | `Nomi-<version>-arm64.dmg`                             | Drag into Applications                                 |
+| macOS · Intel         | `Nomi-<version>.dmg`                                   | Same                                                   |
+| Windows 10+ (x64)     | `Nomi-Setup-<version>.exe`                             | Needs WebView2 (usually preinstalled on Windows 10/11) |
+| Linux (x64)           | `Nomi-<version>.AppImage` / `nomi_<version>_amd64.deb` | `chmod +x` the AppImage                                |
 
-已安装的版本会在应用内提示更新。
+Installed copies offer updates in-app.
 
-> **macOS 提示「已损坏」？** 当前包已签名但尚未公证。拖到「应用程序」后执行：
+> **macOS says the app is damaged?** The app is signed but not notarized yet. After moving it to Applications, run:
 >
 > ```bash
 > sudo xattr -dr com.apple.quarantine /Applications/Nomi.app
 > ```
 >
-> **Windows 弹出 SmartScreen？** 确认安装包来自本仓库 Releases 后，选「更多信息 → 仍要运行」。
+> **Windows SmartScreen?** Once you've confirmed the installer came from this repo's Releases, choose "More info → Run anyway".
 
-## 3 分钟上手
+## Get started in 3 minutes
 
-1. 打开 Nomi，完成首次引导（语言和外观、AI 能力、个性化）。桌面角色默认关闭。
-2. 新建一个 Claude Code / Codex 会话，选工作目录。可以用该 CLI 的官方登录，也可以先接模型再选「第三方」。左侧导航栏「Agents」打开看板。
-3. 「设置 → 模型与供应商」添加一次供应商与 API Key，或在「本机模型」下载一个本地模型。官方、第三方或本地都在这里，内置 agent 和 Nomi 都能选。
-4. 把任务交给 Nomi：`Ctrl/⌘+N` 新对话，`Ctrl/⌘+K` 命令面板（派出 agent、添加供应商、打开看板、新建任务）。写代码的活它可以再派给 agent。
+1. Open Nomi and finish onboarding (language and appearance, AI setup, personalization). The desktop character is off by default.
+2. Pick an installed local CLI (Claude Code, Codex, Gemini CLI, or Antigravity CLI) right in main chat and choose a project folder — or open **Agent Board** from the sidebar to run multiple sessions in parallel.
+3. Open **Settings → Models & Agents** to configure task & cost routing, manage CLI installations and official accounts, add a third-party provider key, or download a local model (llama.cpp / Ollama).
+4. Hand work to Nomi: `Ctrl/⌘+N` for a new chat, `Ctrl/⌘+K` for the command palette (dispatch an agent, add a provider, open the board, new task), and toggle the tabbed side workspace whenever you want Diff & Git, project files, a split terminal, run traces, or the embedded browser.
 
-更细的步骤见 [快速上手](docs/getting-started.md)。
+More detail in [Getting started](docs/getting-started.md).
 
-## 从源码构建
+## Build from source
 
-需要 Node.js ≥ 22.12、pnpm 9（`corepack enable`）、Go（版本见 `apps/desktop-go/go.mod`）与 cgo 工具链（Linux 还要 GTK3 与 WebKitGTK 4.1 开发包）。
+Needs Node.js ≥ 22.12, pnpm 9 (`corepack enable`), Go (see `apps/desktop-go/go.mod`) and a cgo toolchain (plus GTK3 and WebKitGTK 4.1 dev packages on Linux).
 
 ```bash
 git clone https://github.com/Cookieboty/nomi-ai.git && cd nomi-ai
 corepack enable && pnpm install
-pnpm dev          # 界面热更新，改 Go 代码自动重编译
-pnpm test         # 视图与共享包的单元测试
-(cd apps/desktop-go && go test ./...)   # Go 内核测试
+pnpm dev          # hot-reloads the UI, rebuilds on Go changes
+pnpm test         # unit tests for the views and shared packages
+(cd apps/desktop-go && go test ./...)   # Go core tests
 ```
 
-`pnpm run doctor` 检查开发环境。应用细节见 [apps/desktop-go](apps/desktop-go/README.md)；打包与发布见 [docs/RELEASE.md](docs/RELEASE.md)；开发指南见 [docs/development](docs/development/)。欢迎 PR，提交前请看 [AGENTS.md](AGENTS.md) 里的约定。
+`pnpm run doctor` checks your setup. Go details are in [apps/desktop-go](apps/desktop-go/README.md), packaging and releases in [docs/RELEASE.md](docs/RELEASE.md), and the developer guide in [docs/development](docs/development/). PRs welcome; see the conventions in [AGENTS.md](AGENTS.md) first.
 
-## 第三方供应商接入
+## Third-party provider integration
 
-中转站、模型平台可以在自己的网页上放一个「添加到 Nomi」按钮，用户点一下就把你加进 Nomi：
+Relays and model platforms can put an "Add to Nomi" button on their own site so users add them in one click:
 
-- `nomi://provider/import`：直接导入地址和 Key，几行模板就能接，兼容 Cherry Studio 的导入格式；
-- `nomi://provider/connect`：网页授权（OAuth + PKCE），Key 不出现在链接里。
+- `nomi://provider/import`: import the endpoint and key directly, with a few lines of template; Cherry Studio's import format also works.
+- `nomi://provider/connect`: web authorization (OAuth + PKCE), so the key never appears in a link.
 
-两种方式**最后都停在 Nomi 的确认框上，用户确认前不会保存任何东西**。链接格式、授权流程和处理规则见 [第三方供应商链接接入](docs/integrations/provider-link.md)。
+**Both end in a confirmation dialog in Nomi, and nothing is saved until the user confirms.** Link format, authorization flow, and handling rules: [Third-party provider links](docs/integrations/provider-link.md).
 
-## 联系与交流
+## Contact
 
-问题与建议请提 [GitHub Issues](https://github.com/Cookieboty/nomi-ai/issues)。微信扫码添加作者：
+Questions and ideas go to [GitHub Issues](https://github.com/Cookieboty/nomi-ai/issues). To reach the authors on WeChat:
 
 <table>
   <tr>
-    <td align="center"><img src="docs/contact/qr-author-yxf.png" alt="作者微信 · 言萧凡" width="160"><br><sub>言萧凡</sub></td>
-    <td align="center"><img src="docs/contact/qr-author.png" alt="作者微信 · Tomo" width="160"><br><sub>Tomo</sub></td>
+    <td align="center"><img src="docs/contact/qr-author-yxf.png" alt="Author WeChat · 言萧凡" width="160"><br><sub>言萧凡</sub></td>
+    <td align="center"><img src="docs/contact/qr-author.png" alt="Author WeChat · Tomo" width="160"><br><sub>Tomo</sub></td>
   </tr>
 </table>
 
-## 致谢
+## Acknowledgements
 
-- **赞助**：[Amux AI](https://amux.ai)、[@zihe-xu](https://github.com/zihe-xu) 赞助了 Nomi 的开发。
-- **社区**：[Linux.do](https://linux.do) 社区的佬友们提了大量反馈与建议。
+- **Sponsors**: [Amux AI](https://amux.ai) and [@zihe-xu](https://github.com/zihe-xu) sponsor Nomi's development.
+- **Community**: [Linux.do](https://linux.do), whose members have shared a great deal of feedback and ideas.
 
 <a href="https://github.com/zihe-xu"><img src="https://avatars.githubusercontent.com/u/25056086?v=4&s=96" width="48" height="48" alt="zihe-xu" /></a>
 
-Nomi 构建于 Go、Wails、React、Vite、Vercel AI SDK、MCP、whisper.cpp / llama.cpp、Rive 等开源项目之上，设计参考致谢见 [CREDITS.md](CREDITS.md)。
+Nomi is built on Go, Wails, React, Vite, Vercel AI SDK, MCP, whisper.cpp / llama.cpp, Rive, and other open-source projects; design credits are in [CREDITS.md](CREDITS.md).
 
-## 许可证
+## License
 
-[MIT](LICENSE)。第三方组件见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+[MIT](LICENSE). Third-party components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
