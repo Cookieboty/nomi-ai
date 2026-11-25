@@ -1,5 +1,12 @@
 # @nomi-ai/voice
 
+## 0.2.5
+
+### Patch Changes
+
+- Updated dependencies [780cb0e]
+  - @nomi-ai/ui@0.2.5
+
 ## 0.2.4
 
 ### Patch Changes
