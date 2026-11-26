@@ -104,6 +104,9 @@ func RuntimeView(r *mainchat.Registry, id string) (any, error) {
 	if s.Effort != "" {
 		out["effort"] = s.Effort
 	}
+	if lc := r.ConfigFor(id, s.Backend).LongContext; lc != nil {
+		out["longContext"] = *lc
+	}
 	if s.PendingSwitch != nil {
 		ps := map[string]any{
 			"phase":       s.PendingSwitch.Phase,
@@ -190,13 +193,13 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 		op := name
 		router.Call("conversations.runtime"+op, func(ctx context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 			var in struct {
-				ID, Backend, MessageID, TurnID, Text, ApprovalID, Decision string
-				Source, Model, Effort, PermissionMode, AccountID           string
-				Images                                                     []string
-				ExpectedGeneration                                         *uint64
-				BeforeGeneration                                           *uint64
-				Confirm, ConfirmUnsafe, Retry, Allow                       bool
-				Token                                                      struct {
+				ID, Backend, MessageID, TurnID, Text, ApprovalID, Decision    string
+				Source, Model, Effort, PermissionMode, AccountID, LongContext string
+				Images                                                        []string
+				ExpectedGeneration                                            *uint64
+				BeforeGeneration                                              *uint64
+				Confirm, ConfirmUnsafe, Retry, Allow                          bool
+				Token                                                         struct {
 					ConversationID, AttemptID string
 					Generation                uint64
 				}
@@ -213,6 +216,7 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 					Effort:         in.Effort,
 					PermissionMode: in.PermissionMode,
 					AccountID:      in.AccountID,
+					LongContext:    in.LongContext,
 				})
 			case "Select":
 				err = registry.Select(in.ID, in.Backend)
@@ -224,6 +228,7 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 					Effort:             in.Effort,
 					PermissionMode:     in.PermissionMode,
 					AccountID:          in.AccountID,
+					LongContext:        in.LongContext,
 					Confirm:            in.Confirm,
 					ConfirmUnsafe:      in.ConfirmUnsafe,
 					ExpectedGeneration: in.ExpectedGeneration,

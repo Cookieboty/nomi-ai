@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	blm "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/ai/bundleigbase/llm"
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
@@ -260,6 +261,7 @@ func (m *managedAgent) Start(ctx context.Context, r cr.RuntimeRequest, accept fu
 
 		var streamError error
 		seenTools := map[string]bool{}
+		toolArgs := map[string]string{}
 		startedAt := time.Now()
 		modelName := m.cfg.Model
 		if modelName == "chat-route" {
@@ -302,27 +304,36 @@ func (m *managedAgent) Start(ctx context.Context, r cr.RuntimeRequest, accept fu
 					_ = accept(se)
 					thinkingActive = false
 				}
-				name := derefStr(c.Name)
-				id := derefStr(c.ID)
+				name := strings.ToValidUTF8(derefStr(c.Name), "\uFFFD")
+				id := strings.ToValidUTF8(derefStr(c.ID), "\uFFFD")
+				rawArgs := derefStr(c.ArgumentsJSON)
+				if id != "" && rawArgs != "" {
+					if cur := toolArgs[id]; cur == "" {
+						toolArgs[id] = truncateUTF8(rawArgs, 20_000)
+					} else if len(cur) < 20_000 {
+						toolArgs[id] = truncateUTF8(cur+rawArgs, 20_000)
+					}
+				}
 				if name != "" && !seenTools[id+"|"+name] {
 					seenTools[id+"|"+name] = true
 					te := event(cr.EventTrace)
-					te.Trace = &cr.TraceEntry{ID: id, Kind: "tool", Tool: name, Summary: name, Status: "running", At: time.Now().UnixMilli()}
+					te.Trace = &cr.TraceEntry{ID: id, Kind: "tool", Tool: name, Summary: name, Detail: truncateUTF8(toolArgs[id], 20_000), Status: "running", At: time.Now().UnixMilli()}
 					_ = accept(te)
 				}
 			case "tool_call.result":
 				_ = ack()
+				id := strings.ToValidUTF8(derefStr(c.ID), "\uFFFD")
+				name := strings.ToValidUTF8(derefStr(c.Name), "\uFFFD")
 				status := "completed"
 				rawOut := derefStr(c.Output)
-				detail := truncateStr(rawOut, 240)
-				output := truncateStr(rawOut, 20_000)
+				output := truncateUTF8(rawOut, 20_000)
 				if c.Error != nil && *c.Error != "" {
 					status = "error"
-					detail = truncateStr(*c.Error, 240)
-					output = truncateStr(*c.Error, 20_000)
+					output = truncateUTF8(*c.Error, 20_000)
 				}
+				detail := truncateUTF8(toolArgs[id], 20_000)
 				te := event(cr.EventTrace)
-				te.Trace = &cr.TraceEntry{ID: derefStr(c.ID), Kind: "tool", Tool: derefStr(c.Name), Summary: derefStr(c.Name), Status: status, Detail: detail, Output: output, At: time.Now().UnixMilli()}
+				te.Trace = &cr.TraceEntry{ID: id, Kind: "tool", Tool: name, Summary: name, Status: status, Detail: detail, Output: output, At: time.Now().UnixMilli()}
 				_ = accept(te)
 			case "delta":
 				if thinkingActive {
@@ -490,9 +501,17 @@ func derefStr(p *string) string {
 	return *p
 }
 
-func truncateStr(s string, max int) string {
-	if len(s) <= max {
+func truncateUTF8(s string, maxBytes int) string {
+	s = strings.ToValidUTF8(s, "\uFFFD")
+	if maxBytes <= 0 {
+		return ""
+	}
+	if len(s) <= maxBytes {
 		return s
 	}
-	return s[:max]
+	i := maxBytes
+	for i > 0 && !utf8.RuneStart(s[i]) {
+		i--
+	}
+	return s[:i]
 }

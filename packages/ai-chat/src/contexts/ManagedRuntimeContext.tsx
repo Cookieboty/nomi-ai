@@ -112,6 +112,7 @@ async function fetchManagedView(conversationId?: string): Promise<ManagedRuntime
       accountId: state.accountId,
       permissionMode: state.permissionMode,
       effort: state.effort,
+      longContext: state.longContext,
       partial: state.partial,
       thinking: state.thinking,
       thinkingActive: state.thinkingActive,
@@ -207,6 +208,7 @@ export const ManagedRuntimeProvider: React.FC<{
                         accountId: state.accountId,
                         permissionMode: state.permissionMode,
                         effort: state.effort,
+                        longContext: state.longContext,
                         partial: state.partial,
                         thinking: state.thinking,
                         thinkingActive: state.thinkingActive,
@@ -412,6 +414,7 @@ export const ManagedRuntimeProvider: React.FC<{
           ...(patch.accountId ? { accountId: patch.accountId } : {}),
           ...(patch.permissionMode ? { permissionMode: patch.permissionMode } : {}),
           ...(patch.effort ? { effort: patch.effort } : {}),
+          ...(patch.longContext ? { longContext: patch.longContext } : {}),
         });
         rememberManagedState(state);
       });

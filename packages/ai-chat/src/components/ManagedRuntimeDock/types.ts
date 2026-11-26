@@ -93,6 +93,7 @@ export type ManagedSwitchInput = {
   accountId?: string;
   permissionMode?: string;
   effort?: string;
+  longContext?: 'default' | 'on' | 'off';
   confirmUnsafe?: boolean;
 };
 
@@ -119,6 +120,7 @@ export type ManagedRuntimeView = {
   accountId?: string;
   permissionMode?: string;
   effort?: string;
+  longContext?: boolean;
   partial?: string;
   thinking?: string;
   thinkingActive?: boolean;

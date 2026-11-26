@@ -1088,3 +1088,41 @@ func TestManagedIPCRewindAndResendFollowsCurrentBackendAndReopensCleanly(t *test
 		t.Fatalf("reopened messages after rewind+resend mismatch: %s", reopenedBytes)
 	}
 }
+
+func TestManagedSwitchExposesLongContextInRuntimeView(t *testing.T) {
+	dir := t.TempDir()
+	_, r, c := fixtureIngress(t, dir)
+	claudeFake := &ingressFake{name: "claude"}
+	r.Register("claude", func(id string) (cr.Target, error) {
+		tgt, err := claudeFake.target(id)
+		cfg := r.ConfigFor(id, "claude")
+		tgt.Identity.Source = cfg.Source
+		if cfg.Model != "" {
+			tgt.Env.Model = cfg.Model
+		}
+		return tgt, err
+	})
+
+	requireOK(t, c.call("conversations.put", `{"meta":{"id":"c","backend":"nomi","name":"lc view","createdAt":1000,"updatedAt":1000},"messages":[]}`))
+	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"claude","source":"thirdParty","model":"p/m1","confirm":true}`))
+
+	g := generation(t, c)
+	onRaw := requireOK(t, c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"c","backend":"claude","longContext":"on","confirm":true,"expectedGeneration":%d}`, g)))
+	onBytes, _ := json.Marshal(onRaw)
+	var onView struct {
+		LongContext *bool `json:"longContext"`
+	}
+	_ = json.Unmarshal(onBytes, &onView)
+	if onView.LongContext == nil || !*onView.LongContext {
+		t.Fatalf("expected longContext=true in RuntimeView, got %s", onBytes)
+	}
+
+	g = generation(t, c)
+	defRaw := requireOK(t, c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"c","backend":"claude","longContext":"default","confirm":true,"expectedGeneration":%d}`, g)))
+	defBytes, _ := json.Marshal(defRaw)
+	var defView map[string]any
+	_ = json.Unmarshal(defBytes, &defView)
+	if _, has := defView["longContext"]; has {
+		t.Fatalf("expected longContext omitted after default reset, got %s", defBytes)
+	}
+}

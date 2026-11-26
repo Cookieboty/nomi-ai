@@ -2392,15 +2392,25 @@ const (
 	ConversationsRuntimeAdoptInputSourceThirdParty ConversationsRuntimeAdoptInputSource = "thirdParty"
 )
 
+// ConversationsRuntimeAdoptInputLongContext 枚举：default | on | off
+type ConversationsRuntimeAdoptInputLongContext = string
+
+const (
+	ConversationsRuntimeAdoptInputLongContextDefault ConversationsRuntimeAdoptInputLongContext = "default"
+	ConversationsRuntimeAdoptInputLongContextOn      ConversationsRuntimeAdoptInputLongContext = "on"
+	ConversationsRuntimeAdoptInputLongContextOff     ConversationsRuntimeAdoptInputLongContext = "off"
+)
+
 type ConversationsRuntimeAdoptInput struct {
-	Id             string                                `json:"id"`
-	Backend        string                                `json:"backend"`
-	Confirm        bool                                  `json:"confirm"`
-	Source         *ConversationsRuntimeAdoptInputSource `json:"source,omitempty"`
-	Model          *string                               `json:"model,omitempty"`
-	Effort         *string                               `json:"effort,omitempty"`
-	PermissionMode *string                               `json:"permissionMode,omitempty"`
-	AccountId      *string                               `json:"accountId,omitempty"`
+	Id             string                                     `json:"id"`
+	Backend        string                                     `json:"backend"`
+	Confirm        bool                                       `json:"confirm"`
+	Source         *ConversationsRuntimeAdoptInputSource      `json:"source,omitempty"`
+	Model          *string                                    `json:"model,omitempty"`
+	Effort         *string                                    `json:"effort,omitempty"`
+	PermissionMode *string                                    `json:"permissionMode,omitempty"`
+	AccountId      *string                                    `json:"accountId,omitempty"`
+	LongContext    *ConversationsRuntimeAdoptInputLongContext `json:"longContext,omitempty"`
 }
 
 // ConversationsRuntimeAdoptOutputSource 枚举：local | official | thirdParty
@@ -2657,6 +2667,7 @@ type ConversationsRuntimeAdoptOutput struct {
 	AccountId       *string                                              `json:"accountId,omitempty"`
 	PermissionMode  *string                                              `json:"permissionMode,omitempty"`
 	Effort          *string                                              `json:"effort,omitempty"`
+	LongContext     *bool                                                `json:"longContext,omitempty"`
 	Token           *ConversationsRuntimeAdoptOutputToken                `json:"token,omitempty"`
 	Recovery        ConversationsRuntimeAdoptOutputRecovery              `json:"recovery"`
 	PendingSwitch   *ConversationsRuntimeAdoptOutputPendingSwitch        `json:"pendingSwitch,omitempty"`
@@ -2931,6 +2942,7 @@ type ConversationsRuntimeApproveOutput struct {
 	AccountId       *string                                                `json:"accountId,omitempty"`
 	PermissionMode  *string                                                `json:"permissionMode,omitempty"`
 	Effort          *string                                                `json:"effort,omitempty"`
+	LongContext     *bool                                                  `json:"longContext,omitempty"`
 	Token           *ConversationsRuntimeApproveOutputToken                `json:"token,omitempty"`
 	Recovery        ConversationsRuntimeApproveOutputRecovery              `json:"recovery"`
 	PendingSwitch   *ConversationsRuntimeApproveOutputPendingSwitch        `json:"pendingSwitch,omitempty"`
@@ -3198,6 +3210,7 @@ type ConversationsRuntimeCancelOutput struct {
 	AccountId       *string                                               `json:"accountId,omitempty"`
 	PermissionMode  *string                                               `json:"permissionMode,omitempty"`
 	Effort          *string                                               `json:"effort,omitempty"`
+	LongContext     *bool                                                 `json:"longContext,omitempty"`
 	Token           *ConversationsRuntimeCancelOutputToken                `json:"token,omitempty"`
 	Recovery        ConversationsRuntimeCancelOutputRecovery              `json:"recovery"`
 	PendingSwitch   *ConversationsRuntimeCancelOutputPendingSwitch        `json:"pendingSwitch,omitempty"`
@@ -3636,6 +3649,7 @@ type ConversationsRuntimeEditOutput struct {
 	AccountId       *string                                             `json:"accountId,omitempty"`
 	PermissionMode  *string                                             `json:"permissionMode,omitempty"`
 	Effort          *string                                             `json:"effort,omitempty"`
+	LongContext     *bool                                               `json:"longContext,omitempty"`
 	Token           *ConversationsRuntimeEditOutputToken                `json:"token,omitempty"`
 	Recovery        ConversationsRuntimeEditOutputRecovery              `json:"recovery"`
 	PendingSwitch   *ConversationsRuntimeEditOutputPendingSwitch        `json:"pendingSwitch,omitempty"`
@@ -3917,6 +3931,7 @@ type ConversationsRuntimeResolveOutput struct {
 	AccountId       *string                                                `json:"accountId,omitempty"`
 	PermissionMode  *string                                                `json:"permissionMode,omitempty"`
 	Effort          *string                                                `json:"effort,omitempty"`
+	LongContext     *bool                                                  `json:"longContext,omitempty"`
 	Token           *ConversationsRuntimeResolveOutputToken                `json:"token,omitempty"`
 	Recovery        ConversationsRuntimeResolveOutputRecovery              `json:"recovery"`
 	PendingSwitch   *ConversationsRuntimeResolveOutputPendingSwitch        `json:"pendingSwitch,omitempty"`
@@ -4184,6 +4199,7 @@ type ConversationsRuntimeRewindOutput struct {
 	AccountId       *string                                               `json:"accountId,omitempty"`
 	PermissionMode  *string                                               `json:"permissionMode,omitempty"`
 	Effort          *string                                               `json:"effort,omitempty"`
+	LongContext     *bool                                                 `json:"longContext,omitempty"`
 	Token           *ConversationsRuntimeRewindOutputToken                `json:"token,omitempty"`
 	Recovery        ConversationsRuntimeRewindOutputRecovery              `json:"recovery"`
 	PendingSwitch   *ConversationsRuntimeRewindOutputPendingSwitch        `json:"pendingSwitch,omitempty"`
@@ -4450,6 +4466,7 @@ type ConversationsRuntimeSelectOutput struct {
 	AccountId       *string                                               `json:"accountId,omitempty"`
 	PermissionMode  *string                                               `json:"permissionMode,omitempty"`
 	Effort          *string                                               `json:"effort,omitempty"`
+	LongContext     *bool                                                 `json:"longContext,omitempty"`
 	Token           *ConversationsRuntimeSelectOutputToken                `json:"token,omitempty"`
 	Recovery        ConversationsRuntimeSelectOutputRecovery              `json:"recovery"`
 	PendingSwitch   *ConversationsRuntimeSelectOutputPendingSwitch        `json:"pendingSwitch,omitempty"`
@@ -4731,6 +4748,7 @@ type ConversationsRuntimeStateOutput struct {
 	AccountId       *string                                              `json:"accountId,omitempty"`
 	PermissionMode  *string                                              `json:"permissionMode,omitempty"`
 	Effort          *string                                              `json:"effort,omitempty"`
+	LongContext     *bool                                                `json:"longContext,omitempty"`
 	Token           *ConversationsRuntimeStateOutputToken                `json:"token,omitempty"`
 	Recovery        ConversationsRuntimeStateOutputRecovery              `json:"recovery"`
 	PendingSwitch   *ConversationsRuntimeStateOutputPendingSwitch        `json:"pendingSwitch,omitempty"`
@@ -4747,17 +4765,27 @@ const (
 	ConversationsRuntimeSwitchInputSourceThirdParty ConversationsRuntimeSwitchInputSource = "thirdParty"
 )
 
+// ConversationsRuntimeSwitchInputLongContext 枚举：default | on | off
+type ConversationsRuntimeSwitchInputLongContext = string
+
+const (
+	ConversationsRuntimeSwitchInputLongContextDefault ConversationsRuntimeSwitchInputLongContext = "default"
+	ConversationsRuntimeSwitchInputLongContextOn      ConversationsRuntimeSwitchInputLongContext = "on"
+	ConversationsRuntimeSwitchInputLongContextOff     ConversationsRuntimeSwitchInputLongContext = "off"
+)
+
 type ConversationsRuntimeSwitchInput struct {
-	Id                 string                                 `json:"id"`
-	Backend            string                                 `json:"backend"`
-	Confirm            bool                                   `json:"confirm"`
-	ConfirmUnsafe      *bool                                  `json:"confirmUnsafe,omitempty"`
-	ExpectedGeneration *int64                                 `json:"expectedGeneration,omitempty"`
-	Source             *ConversationsRuntimeSwitchInputSource `json:"source,omitempty"`
-	Model              *string                                `json:"model,omitempty"`
-	Effort             *string                                `json:"effort,omitempty"`
-	PermissionMode     *string                                `json:"permissionMode,omitempty"`
-	AccountId          *string                                `json:"accountId,omitempty"`
+	Id                 string                                      `json:"id"`
+	Backend            string                                      `json:"backend"`
+	Confirm            bool                                        `json:"confirm"`
+	ConfirmUnsafe      *bool                                       `json:"confirmUnsafe,omitempty"`
+	ExpectedGeneration *int64                                      `json:"expectedGeneration,omitempty"`
+	Source             *ConversationsRuntimeSwitchInputSource      `json:"source,omitempty"`
+	Model              *string                                     `json:"model,omitempty"`
+	Effort             *string                                     `json:"effort,omitempty"`
+	PermissionMode     *string                                     `json:"permissionMode,omitempty"`
+	AccountId          *string                                     `json:"accountId,omitempty"`
+	LongContext        *ConversationsRuntimeSwitchInputLongContext `json:"longContext,omitempty"`
 }
 
 // ConversationsRuntimeSwitchOutputSource 枚举：local | official | thirdParty
@@ -5014,6 +5042,7 @@ type ConversationsRuntimeSwitchOutput struct {
 	AccountId       *string                                               `json:"accountId,omitempty"`
 	PermissionMode  *string                                               `json:"permissionMode,omitempty"`
 	Effort          *string                                               `json:"effort,omitempty"`
+	LongContext     *bool                                                 `json:"longContext,omitempty"`
 	Token           *ConversationsRuntimeSwitchOutputToken                `json:"token,omitempty"`
 	Recovery        ConversationsRuntimeSwitchOutputRecovery              `json:"recovery"`
 	PendingSwitch   *ConversationsRuntimeSwitchOutputPendingSwitch        `json:"pendingSwitch,omitempty"`
@@ -14921,6 +14950,7 @@ type EventConversationsRuntimeChanged struct {
 	AccountId       *string                                               `json:"accountId,omitempty"`
 	PermissionMode  *string                                               `json:"permissionMode,omitempty"`
 	Effort          *string                                               `json:"effort,omitempty"`
+	LongContext     *bool                                                 `json:"longContext,omitempty"`
 	Token           *EventConversationsRuntimeChangedToken                `json:"token,omitempty"`
 	Recovery        EventConversationsRuntimeChangedRecovery              `json:"recovery"`
 	PendingSwitch   *EventConversationsRuntimeChangedPendingSwitch        `json:"pendingSwitch,omitempty"`

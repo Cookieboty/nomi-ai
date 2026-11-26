@@ -3,6 +3,7 @@ package airouter
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -414,4 +415,85 @@ func TestManagedAgentTargetForwardsLiveReasoningEffortAndLongContext(t *testing.
 	if _, has := seenExtras[1]["longContext"]; has {
 		t.Fatalf("turn 2 unexpectedly kept longContext: %v", seenExtras[1])
 	}
+}
+
+func TestManagedAgentToolArgsAndUTF8Truncation(t *testing.T) {
+	longChinese := strings.Repeat("中文", 10_005) // 60,030 字节，跨越 20,000 字节边界
+	var seenTraces []cr.TraceEntry
+	var mu sync.Mutex
+
+	prov := &agentStubProvider{
+		onRun: func(_ context.Context, _ *blm.ChatRequest, emit func(blm.ChatChunk)) error {
+			callID := "tc-utf8"
+			toolName := "fs_read_text"
+			arg1 := `{"path":"`
+			arg2 := `docs/测试.md"}`
+			emit(blm.ChatChunk{Type: "tool_call.delta", ID: &callID, Name: &toolName, ArgumentsJSON: &arg1})
+			emit(blm.ChatChunk{Type: "tool_call.delta", ID: &callID, Name: &toolName, ArgumentsJSON: &arg2})
+			emit(blm.ChatChunk{Type: "tool_call.result", ID: &callID, Name: &toolName, Output: &longChinese})
+			emit(blm.ChatChunk{Type: "delta", Content: "done"})
+			return nil
+		},
+	}
+	h := New(Options{
+		Chat: facade.NewChat(facade.Deps{
+			LLM:   func() facade.Registry { return stubLLMRegistry{prov} },
+			Tools: func() tools.Registry { return tools.NewInMemory() },
+		}),
+	})
+	target, err := h.ManagedAgentTarget("c-utf8")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rt := target.Runtime.(*managedAgent)
+	done := make(chan struct{})
+	res := rt.Start(context.Background(), cr.RuntimeRequest{
+		Token:           cr.AttemptToken{ConversationID: "c-utf8", AttemptID: "att-utf8", Generation: 1},
+		NativeSessionID: "api-utf8",
+		Plan:            cr.Plan{ID: "p-utf8", Payload: "read"},
+	}, func(e cr.Event) error {
+		switch e.Kind {
+		case cr.EventTrace:
+			if e.Trace != nil {
+				mu.Lock()
+				seenTraces = append(seenTraces, *e.Trace)
+				mu.Unlock()
+			}
+		case cr.EventCompleted, cr.EventFailed:
+			close(done)
+		}
+		return nil
+	})
+	if res.Kind != cr.SubmitAccepted {
+		t.Fatalf("submit failed: %+v", res)
+	}
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out")
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(seenTraces) != 2 {
+		t.Fatalf("expected 2 trace events, got %d", len(seenTraces))
+	}
+	if seenTraces[0].Detail != `{"path":"` {
+		t.Fatalf("start Detail = %q, want initial argumentsJson", seenTraces[0].Detail)
+	}
+	resTrace := seenTraces[1]
+	wantArgs := `{"path":"docs/测试.md"}`
+	if resTrace.Detail != wantArgs {
+		t.Fatalf("result Detail = %q, want %q (must keep arguments, not output)", resTrace.Detail, wantArgs)
+	}
+	if len(resTrace.Output) > 20_000 || len(resTrace.Output) < 19_995 {
+		t.Fatalf("result Output len = %d, want ~20000", len(resTrace.Output))
+	}
+	if !strings.HasPrefix(resTrace.Output, "中文") || !isValidUTF8(resTrace.Output) {
+		t.Fatalf("result Output is not valid UTF-8 after truncation")
+	}
+}
+
+func isValidUTF8(s string) bool {
+	return len(s) == 0 || s == strings.ToValidUTF8(s, "")
 }

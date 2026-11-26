@@ -35,6 +35,15 @@ type RuntimeConfig struct {
 	AccountID      string `json:"accountId,omitempty"`
 	PermissionMode string `json:"permissionMode,omitempty"`
 	Effort         string `json:"effort,omitempty"`
+	LongContext    *bool  `json:"longContext,omitempty"`
+}
+
+func cloneRuntimeConfig(cfg RuntimeConfig) RuntimeConfig {
+	if cfg.LongContext != nil {
+		v := *cfg.LongContext
+		cfg.LongContext = &v
+	}
+	return cfg
 }
 
 type NativeTitleLookup func(ctx context.Context, backend, nativeSessionID, configDir string) string
@@ -204,7 +213,7 @@ func (r *Registry) ConfigFor(id, backend string) RuntimeConfig {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if perConv := r.configs[id]; perConv != nil {
-		return perConv[backend]
+		return cloneRuntimeConfig(perConv[backend])
 	}
 	return RuntimeConfig{}
 }
@@ -218,7 +227,7 @@ func (r *Registry) SetConfig(id, backend string, cfg RuntimeConfig) {
 	if r.configs[id] == nil {
 		r.configs[id] = map[string]RuntimeConfig{}
 	}
-	r.configs[id][backend] = cfg
+	r.configs[id][backend] = cloneRuntimeConfig(cfg)
 }
 
 func (r *Registry) SetProbe(probe func(string) []RuntimeChoice) {
@@ -382,7 +391,7 @@ func (r *Registry) AdoptWithOptions(id, name string, confirm bool, opts SwitchOp
 	if resetPerm {
 		baseCfg.PermissionMode = ""
 	}
-	hasCustom := resetPerm || opts.Source != "" || opts.Model != "" || opts.Effort != "" || opts.PermissionMode != "" || opts.AccountID != ""
+	hasCustom := resetPerm || opts.Source != "" || opts.Model != "" || opts.Effort != "" || opts.PermissionMode != "" || opts.AccountID != "" || opts.LongContext != ""
 	if hasCustom {
 		r.SetConfig(id, name, mergeRuntimeConfig(baseCfg, opts))
 	}
@@ -437,6 +446,7 @@ type SwitchOptions struct {
 	Effort             string
 	PermissionMode     string
 	AccountID          string
+	LongContext        string
 	Confirm            bool
 	ConfirmUnsafe      bool
 	ExpectedGeneration *uint64
@@ -475,17 +485,28 @@ func (r *Registry) Resolve(id, decision string, confirm bool, expected *uint64) 
 }
 
 func mergeRuntimeConfig(prev RuntimeConfig, opts SwitchOptions) RuntimeConfig {
-	next := prev
-	if opts.Source != "" && opts.Source != prev.Source {
+	next := cloneRuntimeConfig(prev)
+	sourceChanged := opts.Source != "" && opts.Source != prev.Source
+	modelChanged := false
+	if opts.Model == "cli-default" {
+		modelChanged = prev.Model != ""
+	} else if opts.Model != "" {
+		modelChanged = opts.Model != prev.Model
+	}
+	if sourceChanged {
 		next.Source = opts.Source
 		next.Model = ""
 		next.AccountID = ""
 		next.Effort = ""
+		next.LongContext = nil
 	}
 	if opts.Model == "cli-default" {
 		next.Model = ""
 	} else if opts.Model != "" {
 		next.Model = opts.Model
+	}
+	if modelChanged && opts.LongContext == "" {
+		next.LongContext = nil
 	}
 	if opts.PermissionMode != "" {
 		next.PermissionMode = opts.PermissionMode
@@ -499,6 +520,16 @@ func mergeRuntimeConfig(prev RuntimeConfig, opts SwitchOptions) RuntimeConfig {
 		next.Effort = ""
 	} else if opts.Effort != "" {
 		next.Effort = opts.Effort
+	}
+	switch opts.LongContext {
+	case "default":
+		next.LongContext = nil
+	case "on":
+		v := true
+		next.LongContext = &v
+	case "off":
+		v := false
+		next.LongContext = &v
 	}
 	return next
 }

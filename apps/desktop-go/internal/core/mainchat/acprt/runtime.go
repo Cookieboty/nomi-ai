@@ -713,7 +713,7 @@ func catalogDefaultModel(catalog *util.Obj) string {
 func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr.Event) error) cr.SubmitResult {
 	t := &turn{
 		request:    q,
-		events:     make(chan cr.Event, 32),
+		events:     make(chan cr.Event, 512),
 		finished:   make(chan struct{}),
 		approvals:  map[string]string{},
 		streamWake: make(chan struct{}, 1),

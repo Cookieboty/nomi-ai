@@ -9523,6 +9523,14 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 128
+     },
+     "longContext": {
+      "type": "string",
+      "enum": [
+       "default",
+       "on",
+       "off"
+      ]
      }
     },
     "required": [
@@ -9701,6 +9709,9 @@
      },
      "effort": {
       "type": "string"
+     },
+     "longContext": {
+      "type": "boolean"
      },
      "token": {
       "type": "object",
@@ -10278,6 +10289,9 @@
      "effort": {
       "type": "string"
      },
+     "longContext": {
+      "type": "boolean"
+     },
      "token": {
       "type": "object",
       "properties": {
@@ -10829,6 +10843,9 @@
      },
      "effort": {
       "type": "string"
+     },
+     "longContext": {
+      "type": "boolean"
      },
      "token": {
       "type": "object",
@@ -11690,6 +11707,9 @@
      "effort": {
       "type": "string"
      },
+     "longContext": {
+      "type": "boolean"
+     },
      "token": {
       "type": "object",
       "properties": {
@@ -12277,6 +12297,9 @@
      "effort": {
       "type": "string"
      },
+     "longContext": {
+      "type": "boolean"
+     },
      "token": {
       "type": "object",
       "properties": {
@@ -12832,6 +12855,9 @@
      "effort": {
       "type": "string"
      },
+     "longContext": {
+      "type": "boolean"
+     },
      "token": {
       "type": "object",
       "properties": {
@@ -13381,6 +13407,9 @@
      },
      "effort": {
       "type": "string"
+     },
+     "longContext": {
+      "type": "boolean"
      },
      "token": {
       "type": "object",
@@ -14004,6 +14033,9 @@
      "effort": {
       "type": "string"
      },
+     "longContext": {
+      "type": "boolean"
+     },
      "token": {
       "type": "object",
       "properties": {
@@ -14416,6 +14448,14 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 128
+     },
+     "longContext": {
+      "type": "string",
+      "enum": [
+       "default",
+       "on",
+       "off"
+      ]
      }
     },
     "required": [
@@ -14594,6 +14634,9 @@
      },
      "effort": {
       "type": "string"
+     },
+     "longContext": {
+      "type": "boolean"
      },
      "token": {
       "type": "object",
@@ -45470,6 +45513,9 @@
     },
     "effort": {
      "type": "string"
+    },
+    "longContext": {
+     "type": "boolean"
     },
     "token": {
      "type": "object",

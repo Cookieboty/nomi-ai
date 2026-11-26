@@ -39,15 +39,17 @@ func TestApprovalDetailsTraceAndFailedRequestExposure(t *testing.T) {
 	}
 	expectErrIs(t, call.deliver(), nil)
 
-	// Emit >64 trace events and verify bounded slice without dirtying ledger.
-	for i := 0; i < 70; i++ {
+	// Emit >maxActiveTraceEntries trace events and verify bounded slice without dirtying ledger.
+	totalTraces := maxActiveTraceEntries + 6
+	for i := 0; i < totalTraces; i++ {
 		tr := &TraceEntry{ID: fmt.Sprintf("tr-%d", i), Kind: "tool", Tool: "fs_read_text", Status: "completed", At: int64(i)}
 		ev := call.event(EventTrace)
 		ev.Trace = tr
 		expectErrIs(t, call.emit(ev), nil)
 	}
 	st := c.State()
-	if len(st.Trace) != 64 || st.Trace[0].ID != "tr-6" || st.Trace[63].ID != "tr-69" {
+	wantLast := fmt.Sprintf("tr-%d", totalTraces-1)
+	if len(st.Trace) != maxActiveTraceEntries || st.Trace[0].ID != "tr-6" || st.Trace[maxActiveTraceEntries-1].ID != wantLast {
 		t.Fatalf("trace buffer bounded incorrectly: len=%d first=%+v", len(st.Trace), st.Trace)
 	}
 	if len(c.Messages()) != 1 {

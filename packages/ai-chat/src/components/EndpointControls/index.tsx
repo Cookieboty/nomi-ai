@@ -194,13 +194,16 @@ const NomiContextBar: React.FC = () => {
   const managed = useManagedRuntime();
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
   const nomiCount = useAiChatSelector(selectMessageCount);
+  const lockedByManaged = Boolean(managed?.view?.managed);
   return (
     <ContextBar
       cwd={project?.primary ?? ''}
       picker={
         <ProjectPicker
           value={ws.projectId}
+          disabled={lockedByManaged}
           onChange={(pid) => {
+            if (lockedByManaged) return;
             ws.set(pid);
             if (nomiCount === 0 && !managed?.view?.managed && !managed?.pendingProjectBackend) {
               const store = ipc?.conversationStore?.() as ConversationStore | undefined;
@@ -210,7 +213,7 @@ const NomiContextBar: React.FC = () => {
               });
             }
           }}
-          onClear={ws.clear}
+          onClear={lockedByManaged ? undefined : ws.clear}
           emptyLabel={t('ui.cli-monitor.no-project')}
           size="sm"
           variant="ghost"
