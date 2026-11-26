@@ -7,6 +7,16 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ### Maintenance
 
+- **release:** empty changeset after archiving 2.5.2
+
+## 2.5.2 — 2026-11-26
+
+### Fixes
+
+- **chat:** 修复托管对话观察超时、ACP 工具展示与长上下文切换，加固工具参数与事件缓冲 (`@nomi-ai/contract` patch)
+
+### Maintenance
+
 - **release:** empty changeset after archiving 2.5.1
 
 ## 2.5.1 — 2026-11-25
