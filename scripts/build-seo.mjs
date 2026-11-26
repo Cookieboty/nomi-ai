@@ -3,7 +3,7 @@
 // `--check` fails when any output is out of date; `--icons` regenerates favicon.ico.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, posix } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 import { buildDocs, docFile, syncDocs } from "./docs.mjs";
@@ -105,8 +105,28 @@ function featureListFor(lang) {
       ];
 }
 
-function schemas({ lang, title, description, pageUrl, crumbs, isHome, isDownload, isDocArticle }) {
+function schemas({ lang, title, description, pageUrl, crumbs, isHome, isDownload, isDocArticle, docMeta, docItems }) {
   const brandName = siteName(lang);
+  const webPageNode = {
+    "@type": docItems ? ["WebPage", "CollectionPage"] : "WebPage",
+    "@id": pageUrl,
+    url: pageUrl,
+    name: title,
+    description,
+    inLanguage: hreflang[lang],
+    isPartOf: { "@id": `${origin}/#website` },
+  };
+  if (docItems) {
+    webPageNode.mainEntity = {
+      "@type": "ItemList",
+      itemListElement: docItems.map(([name, item], i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name,
+        url: item,
+      })),
+    };
+  }
   const graph = [
     {
       "@type": "Organization",
@@ -125,15 +145,7 @@ function schemas({ lang, title, description, pageUrl, crumbs, isHome, isDownload
       inLanguage: ["en", "zh-CN"],
       publisher: { "@id": `${origin}/#organization` },
     },
-    {
-      "@type": "WebPage",
-      "@id": pageUrl,
-      url: pageUrl,
-      name: title,
-      description,
-      inLanguage: hreflang[lang],
-      isPartOf: { "@id": `${origin}/#website` },
-    },
+    webPageNode,
   ];
 
   if (crumbs) {
@@ -186,23 +198,30 @@ function schemas({ lang, title, description, pageUrl, crumbs, isHome, isDownload
   }
 
   if (isDocArticle) {
-    graph.push({
+    const article = {
       "@type": "TechArticle",
       "@id": `${pageUrl}#article`,
+      mainEntityOfPage: { "@id": pageUrl },
       headline: title,
       description,
       url: pageUrl,
+      image: ogImage.url,
       inLanguage: hreflang[lang],
-      isPartOf: { "@id": `${origin}/#website` },
+      author: { "@id": `${origin}/#organization` },
       publisher: { "@id": `${origin}/#organization` },
-    });
+      isPartOf: { "@id": `${origin}/#website` },
+    };
+    if (docMeta?.section) article.articleSection = docMeta.section;
+    if (docMeta?.dateModified) article.dateModified = docMeta.dateModified;
+    if (docMeta?.wordCount) article.wordCount = docMeta.wordCount;
+    graph.push(article);
   }
 
   return `  <script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@graph": graph }, null, 2)}</script>`;
 }
 
 /** The generated <head> block. `urls` maps each language to that page's canonical URL. */
-function seoHead({ lang, title, description, urls, crumbs, isHome = false, isDownload = false, isDocArticle = false, indexable = true, hasEn = true }) {
+function seoHead({ lang, title, description, urls, crumbs, isHome = false, isDownload = false, isDocArticle = false, docMeta = null, docItems = null, indexable = true, hasEn = true }) {
   const other = lang === "en" ? "zh" : "en";
   const brandName = siteName(lang);
   const robots = indexable ? "index,follow,max-image-preview:large" : "noindex,follow";
@@ -231,7 +250,7 @@ ${alternates.join("\n")}
   <meta name="twitter:description" content="${escape(description)}" />
   <meta name="twitter:image" content="${ogImage.url}" />
   <meta name="twitter:image:alt" content="${escape(brandName)}" />
-${schemas({ lang, title, description, pageUrl: urls[lang], crumbs, isHome, isDownload, isDocArticle })}
+${schemas({ lang, title, description, pageUrl: urls[lang], crumbs, isHome, isDownload, isDocArticle, docMeta, docItems })}
   <!-- seo:end -->
 `;
 }
@@ -243,12 +262,14 @@ function seoBlock(page, lang) {
   return seoHead({ lang, title, description, urls, crumbs, isHome: page === "index", isDownload: page === "download" });
 }
 
-/** Rebuilds the EN / 中 toggle as links to the same page in each language. */
+/** Rebuilds the EN / 中 toggle as canonical links to the same page in each language. */
 function languageLinks(html, page, lang) {
   return html.replace(/(<div class="lang-toggle"[^>]*>)[\s\S]*?(\n?[ \t]*<\/div>)/, (_, open, close) => {
     const indent = close.match(/\n([ \t]*)/)?.[1] ?? "";
     const links = langs.map((target) => {
-      const href = target === lang ? `${page}.html` : lang === "zh" ? `../${page}.html` : `zh/${page}.html`;
+      const href = page === "index"
+        ? (target === lang ? "./" : lang === "zh" ? "../" : "zh/")
+        : (target === lang ? `${page}.html` : lang === "zh" ? `../${page}.html` : `zh/${page}.html`);
       const active = target === lang ? ' class="lang-btn is-active" aria-current="true"' : ' class="lang-btn"';
       return `${indent}  <a${active} data-lang="${target}" href="${href}" hreflang="${hreflang[target]}" lang="${hreflang[target]}">${target === "en" ? "EN" : "中"}</a>`;
     });
@@ -311,8 +332,10 @@ function chrome(lang, file, langHrefs) {
   const inSubdir = file.includes("docs/");
   const pagePrefix = inSubdir ? "../" : "";
   const assetPrefix = pagePrefix + (lang === "zh" ? "../" : "");
-  const fix = (part) => part.replace(/\s(href|src)="(?!https?:|#|\/|mailto:)([^"]+)"/g, (_, attr, value) =>
-    ` ${attr}="${/^(assets|css|js)\//.test(value) ? assetPrefix : pagePrefix}${value}"`);
+  const fix = (part) => part.replace(/\s(href|src)="(?!https?:|#|\/|mailto:)([^"]+)"/g, (_, attr, value) => {
+    if (value === "./") return ` ${attr}="${pagePrefix || "./"}"`;
+    return ` ${attr}="${/^(assets|css|js)\//.test(value) ? assetPrefix : pagePrefix}${value}"`;
+  });
   header = fix(header.replace(/\saria-current="page"/g, "")).replace(/(<a href="[^"]*docs\.html")/, '$1 aria-current="page"');
   header = header.replace(/(<div class="lang-toggle"[^>]*>)[\s\S]*?(\n?[ \t]*<\/div>)/, (_, open, close) => {
     const indent = close.match(/\n([ \t]*)/)?.[1] ?? "";
@@ -323,8 +346,7 @@ function chrome(lang, file, langHrefs) {
 
 /** Relative link from one site file to another. */
 function relative(from, to) {
-  const up = from.split("/").length - 1;
-  return "../".repeat(up) + to;
+  return posix.relative(posix.dirname(from), to);
 }
 
 const docsByLang = Object.fromEntries(langs.map((lang) => [lang, buildDocs(root, lang)]));
@@ -334,6 +356,9 @@ const docsSitemap = [];
 
 for (const lang of langs) {
   const { pages: docPages, searchIndex, searchFile } = docsByLang[lang];
+  const docItems = docPages
+    .filter((p) => p.slug)
+    .map((p) => [p.title, `${origin}/${docFile(p.slug, lang)}`]);
   docsOutputs[searchFile] = `${searchIndex}\n`;
   for (const page of docPages) {
     const files = { en: page.slug ? docFile(page.slug, "en") : "docs.html", zh: page.slug ? docFile(page.slug, "zh") : "zh/docs.html" };
@@ -342,12 +367,19 @@ for (const lang of langs) {
     const { header, footer, assetPrefix } = chrome(lang, page.file, langHrefs);
     const docsTitle = dict[lang]["nav.docs"];
     const title = page.slug ? `${page.title} — ${docsTitle} — ${siteName(lang)}` : meta("docs", lang).title;
-    const description = page.slug ? page.description : meta("docs", lang).description;
+    const description = page.slug ? (page.seoDescription || page.description) : meta("docs", lang).description;
     const crumbs = [[dict[lang]["nav.home"], url("index", lang)], [docsTitle, `${origin}/${lang === "zh" ? "zh/" : ""}docs.html`]];
     if (page.slug) crumbs.push([page.title, urls[lang]]);
 
     const hasEn = !page.slug || enTranslatedSlugs.has(page.slug);
     const indexable = lang === "zh" || page.translated;
+    const docMeta = page.slug
+      ? {
+          section: page.group,
+          wordCount: page.wordCount,
+          dateModified: page.sourceFile ? lastmod(page.sourceFile) : undefined,
+        }
+      : null;
 
     docsOutputs[page.file] = `<!doctype html>
 <html lang="${hreflang[lang]}">
@@ -356,7 +388,7 @@ for (const lang of langs) {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${escape(title)}</title>
   <meta name="description" content="${escape(description)}" />
-${seoHead({ lang, title, description, urls, crumbs, isDocArticle: Boolean(page.slug), indexable, hasEn })}  <meta name="theme-color" content="#14110F" />
+${seoHead({ lang, title, description, urls, crumbs, isDocArticle: Boolean(page.slug), docMeta, docItems: page.slug ? null : docItems, indexable, hasEn })}  <meta name="theme-color" content="#14110F" />
   <link rel="icon" href="${assetPrefix}assets/brand/favicon.ico" sizes="48x48" />
   <link rel="icon" href="${assetPrefix}assets/brand/nomi-mark.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" sizes="180x180" href="${assetPrefix}assets/brand/apple-touch-icon.png" />
@@ -379,29 +411,48 @@ ${footer}
 }
 Object.assign(outputs, docsOutputs);
 
-/* ---------- Legacy /en/ redirect stubs -> root English URLs ---------- */
-const legacyRedirects = [
-  ["en/index.html", "../", `${origin}/`],
-  ["en/features.html", "../features.html", `${origin}/features.html`],
-  ["en/download.html", "../download.html", `${origin}/download.html`],
-  ["en/changelog.html", "../changelog.html", `${origin}/changelog.html`],
-  ["en/privacy.html", "../privacy.html", `${origin}/privacy.html`],
-  ["en/docs.html", "../docs.html", `${origin}/docs.html`],
-  ["en/docs/getting-started.html", "../../docs/getting-started.html", `${origin}/docs/getting-started.html`],
-];
-for (const [legacyFile, relTarget, canonicalUrl] of legacyRedirects) {
-  outputs[legacyFile] = `<!doctype html>
-<html lang="en">
+/* ---------- Legacy /en/* & directory index redirects -> canonical URLs ---------- */
+// Do NOT add `noindex` on redirect stubs: Google treats 0-second meta refresh as a permanent
+// redirect and consolidates signals to the canonical URL; mixing `noindex` with redirects sends
+// conflicting signals.
+function redirectStub(relTarget, canonicalUrl, title = "Nomi", lang = "en") {
+  return `<!doctype html>
+<html lang="${lang}">
 <head>
   <meta charset="utf-8" />
-  <title>Nomi</title>
-  <meta name="robots" content="noindex" />
+  <title>${escape(title)}</title>
   <link rel="canonical" href="${canonicalUrl}" />
   <meta http-equiv="refresh" content="0; url=${relTarget}" />
+  <script>window.location.replace(${JSON.stringify(relTarget)});</script>
 </head>
-<body><a href="${relTarget}">Nomi</a></body>
+<body><p>Redirecting to <a href="${relTarget}">${escape(title)}</a>…</p></body>
 </html>
 `;
+}
+
+const redirectSpecs = [
+  ["en/index.html", "../", `${origin}/`, "Nomi", "en"],
+  ["en/features.html", "../features.html", `${origin}/features.html`, "Nomi — Features", "en"],
+  ["en/download.html", "../download.html", `${origin}/download.html`, "Nomi — Download", "en"],
+  ["en/changelog.html", "../changelog.html", `${origin}/changelog.html`, "Nomi — Changelog", "en"],
+  ["en/privacy.html", "../privacy.html", `${origin}/privacy.html`, "Nomi — Privacy", "en"],
+  ["en/docs.html", "../docs.html", `${origin}/docs.html`, "Nomi — Docs", "en"],
+  ...docsByLang.en.pages
+    .filter((p) => p.slug)
+    .map((p) => [
+      `en/docs/${p.slug}.html`,
+      `../../docs/${p.slug}.html`,
+      `${origin}/docs/${p.slug}.html`,
+      `${p.title} — Docs — Nomi`,
+      "en",
+    ]),
+  // GitHub Pages redirects `/docs` -> `/docs/` when both `docs.html` and `docs/` exist;
+  // providing directory index redirects avoids 404 on `/docs/` and `/zh/docs/`.
+  ["docs/index.html", "../docs.html", `${origin}/docs.html`, "Nomi — Docs", "en"],
+  ["zh/docs/index.html", "../docs.html", `${origin}/zh/docs.html`, "Nomi·诺米 — 文档", "zh-CN"],
+];
+for (const [stubFile, relTarget, canonicalUrl, title, lang] of redirectSpecs) {
+  outputs[stubFile] = redirectStub(relTarget, canonicalUrl, title, lang);
 }
 
 /* ---------- GEO: llms.txt for AI search engines & assistants ---------- */

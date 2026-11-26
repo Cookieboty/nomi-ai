@@ -1,4 +1,9 @@
 User-agent: *
 Allow: /
+Disallow: /content/
+Disallow: /scripts/
+Disallow: /README.md
+Disallow: /docs/search.json
+Disallow: /zh/docs/search.json
 
 Sitemap: https://withnomi.app/sitemap.xml

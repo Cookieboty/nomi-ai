@@ -4,7 +4,7 @@ Hosted at <https://withnomi.app> (`gh-pages` branch root, `CNAME` = `withnomi.ap
 
 - `index.html`, `features.html`, `download.html`, `changelog.html`, `privacy.html` — English default pages at the root.
 - `zh/` — Independent Chinese static pages, linked via the `EN / 中` toggle in the header.
-- `en/` — Legacy redirect stubs (`noindex`) forwarding `/en/*` to the root English URLs.
-- `docs.html`, `docs/*.html` (and `zh/docs.html`, `zh/docs/*.html`) — Generated documentation pages from `content/docs/`. Run `node scripts/build-seo.mjs --sync-docs <nomi-ai repo>/docs` to sync docs from the main repository.
+- `en/` — Legacy redirect stubs (`meta refresh` + `canonical`) forwarding `/en/*` and `/en/docs/*` to the root English URLs.
+- `docs.html`, `docs/*.html` (and `zh/docs.html`, `zh/docs/*.html`, plus `docs/index.html` and `zh/docs/index.html` directory redirects) — Generated documentation pages from `content/docs/`. Run `node scripts/build-seo.mjs --sync-docs <nomi-ai repo>/docs` to sync docs from the main repository.
 - `scripts/build-seo.mjs` — Renders English & Chinese pages from `js/i18n.js`, injects canonical/hreflang/Open Graph/JSON-LD, and writes `sitemap.xml` and `llms.txt`. Run `node scripts/build-seo.mjs` after edits and `node scripts/build-seo.mjs --check` before committing.
 - `css/site.css`, `js/site.js`, `js/docs.js` — Warm Ink dark-first design system and progressive-enhancement scripts (OS detection, Showcase tabs, command copy, Lightbox, docs search).

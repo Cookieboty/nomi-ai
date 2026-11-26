@@ -1,6 +1,6 @@
 // The on-site docs: renders content/docs/**/*.md (a copy of the repository's docs/, refreshed with
-// `node scripts/build-seo.mjs --sync-docs <repo>/docs`) into docs/<slug>.html and en/docs/<slug>.html,
-// plus the docs home (docs.html, en/docs.html) and a search index per language. build-seo.mjs calls
+// `node scripts/build-seo.mjs --sync-docs <repo>/docs`) into docs/<slug>.html and zh/docs/<slug>.html,
+// plus the docs home (docs.html, zh/docs.html) and a search index per language. build-seo.mjs calls
 // buildDocs() and adds the SEO head block and the sitemap entries; nothing here runs in the browser.
 import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join, posix } from "node:path";
@@ -277,16 +277,80 @@ function splitLanguages(markdown) {
 /* ---------- Pages ---------- */
 
 function sourceFor(root, page, lang) {
-  const langOverride = join(root, `content/docs-${lang}`, page.src);
+  const overrideRel = `content/docs-${lang}/${page.src}`;
+  const langOverride = join(root, overrideRel);
   if (existsSync(langOverride)) {
     const markdown = readFileSync(langOverride, "utf8");
-    return { markdown: markdown.replace(/^#\s+.*\n/, ""), translated: true };
+    return { markdown: markdown.replace(/^#\s+.*\n/, ""), translated: true, sourceFile: overrideRel };
   }
-  const markdown = readFileSync(join(root, "content/docs", page.src), "utf8");
+  const baseRel = `content/docs/${page.src}`;
+  const markdown = readFileSync(join(root, baseRel), "utf8");
   const body = markdown.replace(/^#\s+.*\n/, "");
   const halves = splitLanguages(body);
-  if (halves) return { markdown: halves[lang], translated: true };
-  return { markdown: body, translated: lang === "zh" };
+  if (halves) return { markdown: halves[lang], translated: true, sourceFile: baseRel };
+  return { markdown: body, translated: lang === "zh", sourceFile: baseRel };
+}
+
+function decodeHtml(text) {
+  return text.replaceAll("&quot;", '"').replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&amp;", "&");
+}
+
+/** Builds a rich, unique meta description without altering the concise on-page subtitle. */
+function buildSeoDescription(shortDesc, renderedHtml, lang) {
+  const minLen = lang === "zh" ? 60 : 115;
+  const maxLen = lang === "zh" ? 115 : 158;
+  const cleanShort = shortDesc.trim();
+  if (cleanShort.length >= minLen) return cleanShort;
+
+  const stripped = renderedHtml.replace(/<blockquote class="callout">[\s\S]*?<\/blockquote>/g, "");
+  const paragraphs = [];
+  for (const m of stripped.matchAll(/<p>([\s\S]*?)<\/p>/g)) {
+    const plain = decodeHtml(m[1].replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
+    if (plain.length >= (lang === "zh" ? 16 : 30)) paragraphs.push(plain);
+    if (paragraphs.length >= 3) break;
+  }
+  if (!paragraphs.length) return cleanShort;
+
+  const sep = lang === "zh" ? (/[。！？；.!?]$/.test(cleanShort) ? "" : "。") : (/[.!?]$/.test(cleanShort) ? " " : ". ");
+  const excerpt = paragraphs.join(lang === "zh" ? "" : " ");
+  let combined = excerpt.toLowerCase().startsWith(cleanShort.toLowerCase().slice(0, 16))
+    ? excerpt
+    : `${cleanShort}${sep}${excerpt}`;
+
+  if (combined.length <= maxLen) return combined;
+
+  const slice = combined.slice(0, maxLen);
+  if (lang === "zh") {
+    const punct = Math.max(slice.lastIndexOf("。"), slice.lastIndexOf("！"), slice.lastIndexOf("？"));
+    if (punct >= minLen) return slice.slice(0, punct + 1);
+    const semi = slice.lastIndexOf("；");
+    if (semi >= minLen) return `${slice.slice(0, semi)}。`;
+    let cut = slice;
+    const lastOpen = cut.lastIndexOf("（");
+    if (lastOpen > cut.lastIndexOf("）") && lastOpen >= minLen) cut = cut.slice(0, lastOpen);
+    const comma = Math.max(cut.lastIndexOf("，"), cut.lastIndexOf("、"));
+    if (comma >= minLen) return `${cut.slice(0, comma)}。`;
+    return `${cut.replace(/[，、；：:,\s（(]+$/, "")}…`;
+  }
+  const sentence = Math.max(slice.lastIndexOf(". "), slice.lastIndexOf("! "), slice.lastIndexOf("? "));
+  if (sentence >= minLen) return slice.slice(0, sentence + 1);
+  const space = slice.lastIndexOf(" ");
+  let cut = space > 90 ? slice.slice(0, space) : slice;
+  const lastOpen = cut.lastIndexOf("(");
+  if (lastOpen > cut.lastIndexOf(")") && lastOpen >= 90) cut = cut.slice(0, lastOpen);
+  return `${cut.replace(/[,;:\-\s(]+$/, "")}…`;
+}
+
+function countWords(renderedHtml) {
+  const plain = decodeHtml(
+    renderedHtml
+      .replace(/<div class="code"[\s\S]*?<\/div>/g, " ")
+      .replace(/<a class="anchor"[\s\S]*?<\/a>/g, " ")
+      .replace(/<[^>]+>/g, " "),
+  );
+  const cjk = (plain.match(/[\u4e00-\u9fff]/g) || []).length;
+  const latin = (plain.replace(/[\u4e00-\u9fff]/g, " ").match(/[A-Za-z0-9]+/g) || []).length;
+  return cjk + latin;
 }
 
 export function docFile(slug, lang) {
@@ -305,7 +369,7 @@ export function buildDocs(root, lang) {
 
   for (const [index, page] of PAGES.entries()) {
     const dir = posix.dirname(page.src);
-    const { markdown, translated } = sourceFor(root, page, lang);
+    const { markdown, translated, sourceFile } = sourceFor(root, page, lang);
     const link = (href) => {
       if (/^(https?:|mailto:|#)/.test(href)) return href;
       const [path, hash = ""] = href.split("#");
@@ -354,7 +418,22 @@ ${html}
       ${toc}
     </div>`;
 
-    pages.push({ file: docFile(page.slug, lang), slug: page.slug, title, description, body, group: page.group[lang], inSubdir: true, translated });
+    const seoDescription = buildSeoDescription(description, html, lang);
+    const wordCount = countWords(html);
+
+    pages.push({
+      file: docFile(page.slug, lang),
+      slug: page.slug,
+      sourceFile,
+      title,
+      description,
+      seoDescription,
+      wordCount,
+      body,
+      group: page.group[lang],
+      inSubdir: true,
+      translated,
+    });
     searchIndex.push({
       u: `${page.slug}.html`,
       t: title,
