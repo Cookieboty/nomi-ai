@@ -462,17 +462,23 @@ describe('Nomi builtin tools classification, description and diffs', () => {
       verb: '运行命令',
       target: 'git status',
     });
-    expect(describeCall(call('code_run', { language: 'python', code: 'print(1)\nprint(2)' }))).toMatchObject({
+    expect(
+      describeCall(call('code_run', { language: 'python', code: 'print(1)\nprint(2)' })),
+    ).toMatchObject({
       kind: 'command',
       verb: '运行命令',
       target: 'print(1)',
     });
-    expect(describeCall(call('fs_read_text', { path: 'packages/ai-chat/src/App.tsx' }))).toMatchObject({
+    expect(
+      describeCall(call('fs_read_text', { path: 'packages/ai-chat/src/App.tsx' })),
+    ).toMatchObject({
       kind: 'read',
       verb: '读取',
       target: 'packages/ai-chat/src/App.tsx',
     });
-    expect(describeCall(call('fs_search', { root: '/repo', contains: 'TraceDrawer' }))).toMatchObject({
+    expect(
+      describeCall(call('fs_search', { root: '/repo', contains: 'TraceDrawer' })),
+    ).toMatchObject({
       kind: 'search',
       verb: '搜索',
       target: 'TraceDrawer',
@@ -502,5 +508,63 @@ describe('Nomi builtin tools classification, description and diffs', () => {
       mode: 'create',
     });
     expect(diffStats(written)).toEqual({ added: 2, removed: 0, files: 1 });
+  });
+});
+
+describe('Antigravity ACP tools classification, description and diffs', () => {
+  it('classifies run_shell_command as command and extracts CommandLine / toolSummary', () => {
+    expect(classifyTool('run_shell_command')).toBe('command');
+    const c = call('run_shell_command', {
+      CommandLine: 'python3 check.py\ncat out.txt',
+      WaitMsBeforeAsync: 10000,
+      toolSummary: 'Analyze system prompts and deduplication patterns',
+    });
+    expect(describeCall(c)).toMatchObject({
+      kind: 'command',
+      verb: '运行命令',
+      target: 'Analyze system prompts and deduplication patterns',
+    });
+    expect(commandOf(c)).toBe('python3 check.py\ncat out.txt');
+  });
+
+  it('extracts Path, Content, Target and Replacement from Antigravity file tools', () => {
+    expect(
+      describeCall(call('read_file', { Path: '/Users/me/brain/scratch/explore_out.txt' })),
+    ).toMatchObject({
+      kind: 'read',
+      verb: '读取',
+      target: '/Users/me/brain/scratch/explore_out.txt',
+    });
+
+    const written = call('write_file', {
+      Path: '/Users/me/brain/scratch/explore.py',
+      Content: 'import csv\nprint(1)',
+      Overwrite: true,
+    });
+    expect(describeCall(written)).toMatchObject({
+      kind: 'write',
+      verb: '写入',
+      target: '/Users/me/brain/scratch/explore.py',
+    });
+    expect(diffStats(written)).toEqual({ added: 2, removed: 0, files: 1 });
+
+    // 兼容历史落盘（kind: edit + Content）
+    const legacyWritten = call('edit', {
+      Path: '/Users/me/brain/scratch/legacy.py',
+      Content: 'a\nb\nc',
+    });
+    expect(diffStats(legacyWritten)).toEqual({ added: 3, removed: 0, files: 1 });
+
+    const edited = call('edit', {
+      Path: '/Users/me/brain/scratch/explore.py',
+      Target: 'print(1)\nprint(2)',
+      Replacement: 'print(1)\nprint(3)\nprint(4)',
+    });
+    expect(describeCall(edited)).toMatchObject({
+      kind: 'edit',
+      verb: '编辑',
+      target: '/Users/me/brain/scratch/explore.py',
+    });
+    expect(diffStats(edited)).toEqual({ added: 2, removed: 1, files: 1 });
   });
 });

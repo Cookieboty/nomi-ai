@@ -307,3 +307,75 @@ func TestStateRefreshesStalePermissionModesFromLookup(t *testing.T) {
 		t.Fatalf("with lookup = %v, want %v", stAfter.Capabilities.PermissionModes, wantModes)
 	}
 }
+
+func TestManagedLongContextSwitchAndReset(t *testing.T) {
+	if !convstore.ManagedSupported() {
+		t.Skip("managed durability gate")
+	}
+	s := convstore.New(t.TempDir())
+	if _, err := s.Put(json.RawMessage(`{"id":"c-lc","backend":"nomi"}`), nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	r := New(s, nil)
+	defer r.Close()
+	r.Register("claude", func(id string) (cr.Target, error) {
+		cfg := r.ConfigFor(id, "claude")
+		return cr.Target{
+			Runtime:  &modeStubRuntime{modes: []string{"ask"}},
+			Identity: cr.NativeIdentity{DriverID: "claude", Transport: "fake", DriverVersion: "1", ResumeProtocol: "none", Executable: "claude", Source: cfg.Source, ConfigDir: "/tmp/cfg", Cwd: "/tmp/ws", ConfigGen: 1},
+			Env:      cr.CompatibilityKey{Model: cfg.Model, PermissionMode: "ask"},
+		}, nil
+	})
+	if err := r.AdoptWithOptions("c-lc", "claude", true, SwitchOptions{Source: "thirdParty", Model: "p/m1"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Switch(context.Background(), "c-lc", SwitchOptions{
+		Backend:     "claude",
+		LongContext: "on",
+		Confirm:     true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.ConfigFor("c-lc", "claude").LongContext; got == nil || !*got {
+		t.Fatalf("expected LongContext=true, got %v", got)
+	}
+	if _, err := r.Switch(context.Background(), "c-lc", SwitchOptions{
+		Backend:     "claude",
+		LongContext: "off",
+		Confirm:     true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.ConfigFor("c-lc", "claude").LongContext; got == nil || *got {
+		t.Fatalf("expected LongContext=false, got %v", got)
+	}
+	// 切换模型时未显式指定 LongContext 应清除旧模型的覆盖
+	if _, err := r.Switch(context.Background(), "c-lc", SwitchOptions{
+		Backend: "claude",
+		Model:   "p/m2",
+		Confirm: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.ConfigFor("c-lc", "claude").LongContext; got != nil {
+		t.Fatalf("expected LongContext reset to nil on model change, got %v", *got)
+	}
+	// 设置后再用 "default" 清除
+	if _, err := r.Switch(context.Background(), "c-lc", SwitchOptions{
+		Backend:     "claude",
+		LongContext: "on",
+		Confirm:     true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Switch(context.Background(), "c-lc", SwitchOptions{
+		Backend:     "claude",
+		LongContext: "default",
+		Confirm:     true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.ConfigFor("c-lc", "claude").LongContext; got != nil {
+		t.Fatalf("expected LongContext=nil after default reset, got %v", *got)
+	}
+}

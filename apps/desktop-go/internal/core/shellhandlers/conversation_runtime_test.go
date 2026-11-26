@@ -639,10 +639,10 @@ func TestManagedIPCParityMetadataAbandonImagesAndConfig(t *testing.T) {
 	swOut := requireOK(t, c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"c","backend":"api","model":"gpt-5","effort":"high","confirm":true,"expectedGeneration":%d}`, g)))
 	b, _ := json.Marshal(swOut)
 	var swState struct {
-		Backend    string
-		Generation uint64
-		Model      string
-		Effort     string
+		Backend      string
+		Generation   uint64
+		Model        string
+		Effort       string
 		Capabilities struct {
 			Attachments bool
 			Bridges     *cr.CapabilityBridges
@@ -845,6 +845,31 @@ func TestManagedTitleLifecycleModelAndMetaPatch(t *testing.T) {
 	meta = readMeta()
 	if _, has := meta["archivedAt"]; has {
 		t.Fatalf("archivedAt not cleared: %v", meta)
+	}
+
+	// Update and clear reasoningEffort / longContext on managed conversation without bumping updatedAt.
+	if bad := c.call("conversations.runtimeUpdateMeta", `{"id":"c","reasoningEffort":"   "}`); bad.T != "err" || bad.Error.Code != "BAD_INPUT" {
+		t.Fatalf("expected BAD_INPUT on blank reasoningEffort, got %+v", bad)
+	}
+	if bad := c.call("conversations.runtimeUpdateMeta", `{"id":"c","longContext":{"model":"p/m"}}`); bad.T != "err" || bad.Error.Code != "BAD_INPUT" {
+		t.Fatalf("expected BAD_INPUT on missing longContext.on, got %+v", bad)
+	}
+	requireOK(t, c.call("conversations.runtimeUpdateMeta", `{"id":"c","reasoningEffort":"high","longContext":{"model":"maas/deepseek-v4.1-flash","on":true}}`))
+	meta = readMeta()
+	if meta["reasoningEffort"] != "high" {
+		t.Fatalf("reasoningEffort missing: %v", meta)
+	}
+	lc, _ := meta["longContext"].(map[string]any)
+	if lc == nil || lc["model"] != "maas/deepseek-v4.1-flash" || lc["on"] != true {
+		t.Fatalf("longContext mismatch: %v", meta)
+	}
+	requireOK(t, c.call("conversations.runtimeUpdateMeta", `{"id":"c","reasoningEffort":null,"longContext":null}`))
+	meta = readMeta()
+	if _, has := meta["reasoningEffort"]; has {
+		t.Fatalf("reasoningEffort not cleared: %v", meta)
+	}
+	if _, has := meta["longContext"]; has {
+		t.Fatalf("longContext not cleared: %v", meta)
 	}
 	if meta["updatedAt"] != updatedAfterTurn || meta["projectId"] != "p1" || meta["createdAt"] != float64(1000) {
 		t.Fatalf("metadata patch altered updatedAt/identity: %v (want updatedAt=%v)", meta, updatedAfterTurn)
@@ -1064,3 +1089,40 @@ func TestManagedIPCRewindAndResendFollowsCurrentBackendAndReopensCleanly(t *test
 	}
 }
 
+func TestManagedSwitchExposesLongContextInRuntimeView(t *testing.T) {
+	dir := t.TempDir()
+	_, r, c := fixtureIngress(t, dir)
+	claudeFake := &ingressFake{name: "claude"}
+	r.Register("claude", func(id string) (cr.Target, error) {
+		tgt, err := claudeFake.target(id)
+		cfg := r.ConfigFor(id, "claude")
+		tgt.Identity.Source = cfg.Source
+		if cfg.Model != "" {
+			tgt.Env.Model = cfg.Model
+		}
+		return tgt, err
+	})
+
+	requireOK(t, c.call("conversations.put", `{"meta":{"id":"c","backend":"nomi","name":"lc view","createdAt":1000,"updatedAt":1000},"messages":[]}`))
+	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c","backend":"claude","source":"thirdParty","model":"p/m1","confirm":true}`))
+
+	g := generation(t, c)
+	onRaw := requireOK(t, c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"c","backend":"claude","longContext":"on","confirm":true,"expectedGeneration":%d}`, g)))
+	onBytes, _ := json.Marshal(onRaw)
+	var onView struct {
+		LongContext *bool `json:"longContext"`
+	}
+	_ = json.Unmarshal(onBytes, &onView)
+	if onView.LongContext == nil || !*onView.LongContext {
+		t.Fatalf("expected longContext=true in RuntimeView, got %s", onBytes)
+	}
+
+	g = generation(t, c)
+	defRaw := requireOK(t, c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"c","backend":"claude","longContext":"default","confirm":true,"expectedGeneration":%d}`, g)))
+	defBytes, _ := json.Marshal(defRaw)
+	var defView map[string]any
+	_ = json.Unmarshal(defBytes, &defView)
+	if _, has := defView["longContext"]; has {
+		t.Fatalf("expected longContext omitted after default reset, got %s", defBytes)
+	}
+}

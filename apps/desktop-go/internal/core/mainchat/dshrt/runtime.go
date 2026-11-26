@@ -219,7 +219,7 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 	args := append(append([]string{"--profile", "headless"}, cfg.ExtraArgs...), "--json", leadSpace(q.Plan.Payload))
 	env := execEnv(cfg)
 	var w *worker
-	events := make(chan cr.Event, 32)
+	events := make(chan cr.Event, 512)
 	doneCh := make(chan error, 1)
 
 	var (

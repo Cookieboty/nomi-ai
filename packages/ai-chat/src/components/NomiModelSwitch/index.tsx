@@ -16,6 +16,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { selectIpcClient, useOptionalAiChatSelector } from '../../contexts/aiChatStore';
 import { useManagedRuntime } from '../../contexts/ManagedRuntimeContext';
 import { useNomiProject } from '../../hooks/useNomiProject';
+import { api, hasTransport } from '../../services/api';
 import {
   CONVERSATIONS_CHANGED_EVENT,
   notifyConversationsChanged,
@@ -23,6 +24,7 @@ import {
 } from '../../services/conversationStore';
 import { gatewayClientAvailable } from '../../services/gatewayClient';
 import { longContextChoiceFor, longContextForRef } from '../../services/longContext';
+import { updateManagedConversationMeta } from '../../services/managedMainChat';
 import { NOMI_MODEL_MENU } from '../../services/modelMenu';
 import {
   nomiMainRef,
@@ -57,6 +59,13 @@ function useStoredNomiOverrides(): {
 } {
   const ipc = useOptionalAiChatSelector(selectIpcClient) as IPCClient | undefined;
   const [tick, setTick] = useState(0);
+  const [optimistic, setOptimistic] = useState<{
+    id?: string;
+    hasEffort?: boolean;
+    effort?: string | undefined;
+    hasLong?: boolean;
+    longContext?: LongContextChoice | undefined;
+  }>({});
   useEffect(() => {
     const bump = () => setTick((n) => n + 1);
     window.addEventListener(CONVERSATIONS_CHANGED_EVENT, bump);
@@ -68,10 +77,41 @@ function useStoredNomiOverrides(): {
   const meta = id && store?.get(id)?.backend === 'nomi' ? store.get(id) : undefined;
   const resolveTarget = () =>
     id && store?.get(id)?.backend === 'nomi' ? id : ipc?.ensureConversationId?.();
+  const clearOptimistic = (target: string, field: 'effort' | 'longContext') => {
+    setOptimistic((cur) => {
+      if (cur.id !== target) return cur;
+      const next = { ...cur };
+      if (field === 'effort') {
+        if (!next.hasEffort) return cur;
+        delete next.hasEffort;
+        delete next.effort;
+      } else {
+        if (!next.hasLong) return cur;
+        delete next.hasLong;
+        delete next.longContext;
+      }
+      return next;
+    });
+  };
   const saveEffort = (level: string | undefined) => {
     if (!store) return;
     const target = resolveTarget();
     if (!target) return;
+    if (store.isManaged?.(target)) {
+      if (!hasTransport()) return;
+      setOptimistic((cur) => ({
+        ...(cur.id === target ? cur : {}),
+        id: target,
+        hasEffort: true,
+        effort: level,
+      }));
+      void updateManagedConversationMeta(api, target, { reasoningEffort: level ?? null })
+        .then(() => store.refreshManaged?.(target))
+        .then(() => notifyConversationsChanged())
+        .catch(() => undefined)
+        .finally(() => clearOptimistic(target, 'effort'));
+      return;
+    }
     store.updateMeta(target, { reasoningEffort: level });
     notifyConversationsChanged();
   };
@@ -79,10 +119,31 @@ function useStoredNomiOverrides(): {
     if (!store) return;
     const target = resolveTarget();
     if (!target) return;
+    if (store.isManaged?.(target)) {
+      if (!hasTransport()) return;
+      setOptimistic((cur) => ({
+        ...(cur.id === target ? cur : {}),
+        id: target,
+        hasLong: true,
+        longContext: next,
+      }));
+      void updateManagedConversationMeta(api, target, { longContext: next ?? null })
+        .then(() => store.refreshManaged?.(target))
+        .then(() => notifyConversationsChanged())
+        .catch(() => undefined)
+        .finally(() => clearOptimistic(target, 'longContext'));
+      return;
+    }
     store.updateMeta(target, { longContext: next });
     notifyConversationsChanged();
   };
-  return { effort: meta?.reasoningEffort, saveEffort, longContext: meta?.longContext, saveLong };
+  const activeOpt = id && optimistic.id === id ? optimistic : undefined;
+  return {
+    effort: activeOpt?.hasEffort ? activeOpt.effort : meta?.reasoningEffort,
+    saveEffort,
+    longContext: activeOpt?.hasLong ? activeOpt.longContext : meta?.longContext,
+    saveLong,
+  };
 }
 
 /** 侧边聊天：模型 / 档位 / 长上下文绑在它自己身上 */

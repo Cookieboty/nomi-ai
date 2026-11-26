@@ -99,6 +99,7 @@ export const RuntimeState = z.object({
   accountId: z.string().optional(),
   permissionMode: z.string().optional(),
   effort: z.string().optional(),
+  longContext: z.boolean().optional(),
   token: RuntimeToken.optional(),
   recovery: z.enum(['none', 'resumed', 'new', 'fallback', 'unknown', 'error']),
   pendingSwitch: PendingSwitchState.optional(),
@@ -157,6 +158,7 @@ export const managedConversationProcedures = {
       effort: z.string().min(1).max(64).optional(),
       permissionMode: z.string().min(1).max(64).optional(),
       accountId: z.string().min(1).max(128).optional(),
+      longContext: z.enum(['default', 'on', 'off']).optional(),
     }),
     output: RuntimeState,
     surfaces: chat,
@@ -182,6 +184,7 @@ export const managedConversationProcedures = {
       effort: z.string().min(1).max(64).optional(),
       permissionMode: z.string().min(1).max(64).optional(),
       accountId: z.string().min(1).max(128).optional(),
+      longContext: z.enum(['default', 'on', 'off']).optional(),
     }),
     output: RuntimeState,
     surfaces: chat,
@@ -253,6 +256,14 @@ export const managedConversationProcedures = {
       autoTitle: z.boolean().optional(),
       pinnedAt: z.number().int().nonnegative().nullable().optional(),
       archivedAt: z.number().int().nonnegative().nullable().optional(),
+      reasoningEffort: z.string().min(1).max(64).nullable().optional(),
+      longContext: z
+        .object({
+          model: z.string().min(1).max(256),
+          on: z.boolean(),
+        })
+        .nullable()
+        .optional(),
     }),
     output: z.void(),
     surfaces: chat,

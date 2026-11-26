@@ -34,9 +34,25 @@ type managedDeps struct {
 }
 
 type cachedTabLaunch struct {
-	modelRef string
-	effort   string
-	launch   *gwstore.TabLaunch
+	modelRef    string
+	effort      string
+	longContext *bool
+	launch      *gwstore.TabLaunch
+}
+
+func boolPtrEqual(a, b *bool) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+
+func cloneBoolPtr(p *bool) *bool {
+	if p == nil {
+		return nil
+	}
+	v := *p
+	return &v
 }
 
 type managedLaunchCache struct {
@@ -53,20 +69,20 @@ func (c *managedLaunchCache) tabID(convID string) string {
 	return "mainchat:" + convID
 }
 
-func (c *managedLaunchCache) acquireThirdParty(cliID, convID, modelRef, effort string) (*gwstore.TabLaunch, error) {
+func (c *managedLaunchCache) acquireThirdParty(cliID, convID, modelRef, effort string, longContext *bool) (*gwstore.TabLaunch, error) {
 	if c == nil || c.gw == nil {
 		return nil, errors.New("gateway service unavailable for thirdParty source")
 	}
 	key := convID + "|" + cliID
 	c.mu.Lock()
-	if cur, ok := c.entries[key]; ok && cur.modelRef == modelRef && cur.effort == effort && cur.launch != nil {
+	if cur, ok := c.entries[key]; ok && cur.modelRef == modelRef && cur.effort == effort && boolPtrEqual(cur.longContext, longContext) && cur.launch != nil {
 		l := cur.launch
 		c.mu.Unlock()
 		return l, nil
 	}
 	c.mu.Unlock()
 
-	l, err := c.gw.CliLaunchForTab(cliID, c.tabID(convID), modelRef, effort, nil)
+	l, err := c.gw.CliLaunchForTab(cliID, c.tabID(convID), modelRef, effort, longContext)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +90,7 @@ func (c *managedLaunchCache) acquireThirdParty(cliID, convID, modelRef, effort s
 		return nil, errors.New("gateway is not ready or CLI endpoint unavailable for thirdParty source")
 	}
 	c.mu.Lock()
-	c.entries[key] = cachedTabLaunch{modelRef: modelRef, effort: effort, launch: l}
+	c.entries[key] = cachedTabLaunch{modelRef: modelRef, effort: effort, longContext: cloneBoolPtr(longContext), launch: l}
 	c.mu.Unlock()
 	return l, nil
 }
@@ -302,7 +318,7 @@ func applyManagedSource(cliID, convID, defaultDir string, pref mainchat.RuntimeC
 		if modelRef == "" {
 			return resolvedSourceConfig{}, fmt.Errorf("no third-party model selected or configured for %s", builtin.FullName(cliID))
 		}
-		tl, err := cache.acquireThirdParty(cliID, convID, modelRef, pref.Effort)
+		tl, err := cache.acquireThirdParty(cliID, convID, modelRef, pref.Effort, pref.LongContext)
 		if err != nil {
 			return resolvedSourceConfig{}, err
 		}
@@ -329,7 +345,15 @@ func applyManagedSource(cliID, convID, defaultDir string, pref mainchat.RuntimeC
 		res.StripEnv = append([]string{}, tl.Strip...)
 		res.ExtraArgs = append([]string{}, tl.Args...)
 		res.ModelInConfig = tl.ModelInConfig != nil && *tl.ModelInConfig
-		res.LaunchSig = fmt.Sprintf("thirdParty:%s:%s", modelRef, pref.Effort)
+		lcTag := "default"
+		if pref.LongContext != nil {
+			if *pref.LongContext {
+				lcTag = "on"
+			} else {
+				lcTag = "off"
+			}
+		}
+		res.LaunchSig = fmt.Sprintf("thirdParty:%s:%s:%s", modelRef, pref.Effort, lcTag)
 		res.OnRelease = func() { cache.releaseBackend(convID, cliID) }
 		return res, nil
 	default:
@@ -872,4 +896,32 @@ func conversationProjectID(s *convstore.Store, id string) string {
 		}
 	}
 	return ""
+}
+
+func conversationNomiOverrides(s *convstore.Store, id string) (effort string, longModel string, longOn *bool) {
+	if s == nil || id == "" {
+		return "", "", nil
+	}
+	st, err := s.State()
+	if err != nil {
+		return "", "", nil
+	}
+	for _, raw := range st.Conversations {
+		var meta struct {
+			ID              string `json:"id"`
+			ReasoningEffort string `json:"reasoningEffort"`
+			LongContext     *struct {
+				Model string `json:"model"`
+				On    bool   `json:"on"`
+			} `json:"longContext"`
+		}
+		if json.Unmarshal(raw, &meta) == nil && meta.ID == id {
+			if meta.LongContext != nil && meta.LongContext.Model != "" {
+				on := meta.LongContext.On
+				return meta.ReasoningEffort, meta.LongContext.Model, &on
+			}
+			return meta.ReasoningEffort, "", nil
+		}
+	}
+	return "", "", nil
 }

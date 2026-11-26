@@ -5,7 +5,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resetConfirmDialogForTest } from '../src/components/ConfirmDialog';
-import { EndpointControls } from '../src/components/EndpointControls';
+import { EndpointControls, NewChatContext } from '../src/components/EndpointControls';
 import { ManagedRuntimeDock } from '../src/components/ManagedRuntimeDock';
 import { NomiModelSwitch } from '../src/components/NomiModelSwitch';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
@@ -27,12 +27,15 @@ const harness = vi.hoisted(() => {
     backend: 'nomi',
     projectId: 'p1',
   } as { id: string; backend: string; projectId?: string; reasoningEffort?: string };
+  let managedFlag = false;
   const store = {
     isNomi: (id: string) => id === convo.id,
+    isManaged: () => managedFlag,
     get: (id: string) => (id === convo.id ? convo : undefined),
     currentId: () => convo.id,
     defaultNomiProject: () => convo.projectId,
     updateMeta: vi.fn((id: string, patch: Record<string, unknown>) => {
+      if (managedFlag) throw new Error('managed-view-write');
       if (id === convo.id) Object.assign(convo, patch);
     }),
     flush: vi.fn(async () => undefined),
@@ -47,7 +50,15 @@ const harness = vi.hoisted(() => {
     messages: [] as ChatMessage[],
     ipcClient,
   };
-  return { convo, store, ipcClient, state };
+  return {
+    convo,
+    store,
+    ipcClient,
+    state,
+    setManaged: (v: boolean) => {
+      managedFlag = v;
+    },
+  };
 });
 
 vi.mock('../src/contexts/AiChatContext', () => ({
@@ -347,7 +358,15 @@ function setupBackendApi(opts?: {
       let nextModel = sourceChanged ? 'cli-default' : baseCfg.model;
       let nextAccount = sourceChanged ? undefined : baseCfg.accountId;
       let nextEffort = sourceChanged ? '' : baseCfg.effort;
-      if (input.model !== undefined) nextModel = input.model as string;
+      let nextLongContext: boolean | undefined = sourceChanged
+        ? undefined
+        : (runtimeState.longContext as boolean | undefined);
+      if (input.model !== undefined) {
+        if (input.model !== baseCfg.model && input.longContext === undefined) {
+          nextLongContext = undefined;
+        }
+        nextModel = input.model as string;
+      }
       if (input.accountId !== undefined) {
         nextAccount = input.accountId === 'default' ? undefined : (input.accountId as string);
       }
@@ -357,6 +376,9 @@ function setupBackendApi(opts?: {
       }
       if (input.effort !== undefined) {
         nextEffort = input.effort === 'default' ? '' : (input.effort as string);
+      }
+      if (input.longContext !== undefined) {
+        nextLongContext = input.longContext === 'default' ? undefined : input.longContext === 'on';
       }
       const nextCfg: Cfg = {
         source: nextSource,
@@ -375,6 +397,7 @@ function setupBackendApi(opts?: {
         ...runtimeState,
         backend: nextBackend,
         ...nextCfg,
+        longContext: nextLongContext,
         permissionMode: nextPerm,
         generation: runtimeState.generation + 1,
       };
@@ -399,8 +422,10 @@ function mountComposer() {
 beforeEach(() => {
   clearManagedDefaultRuntime();
   setChatMode('dev');
+  harness.setManaged(false);
   harness.convo.projectId = 'p1';
   harness.convo.reasoningEffort = undefined;
+  harness.store.updateMeta.mockClear();
   harness.state.messages = [];
 });
 
@@ -1430,5 +1455,88 @@ describe('Composer runtime switching (scheme 1)', () => {
     ]) {
       expect(screen.getByTestId(id)).toBeTruthy();
     }
+  });
+
+  it('exposes longContext switch for managed CLI thirdParty model and passes runtimeSwitch longContext', async () => {
+    const gwLong = structuredClone(gatewayWithProviders);
+    (gwLong.providers[0]!.models[0]!.effective as Record<string, unknown>).longContext = {
+      standard: 262_144,
+      full: 1_048_576,
+      on: false,
+      price: { size: 262_144, input: 0.14, output: 0.42, tierInput: 0.28, tierOutput: 0.84 },
+    };
+    const fake = setupBackendApi({
+      gateway: gwLong,
+      initialManaged: true,
+      initialBackend: 'claude',
+      initialSource: 'thirdParty',
+      initialModel: 'amux/gpt-5',
+      catalogResolver: () => ({
+        models: [
+          {
+            id: 'amux/gpt-5',
+            label: 'GPT-5',
+            reasoning: true,
+            efforts: ['low', 'medium', 'high'],
+          },
+        ],
+      }),
+    });
+    mountComposer();
+
+    fireEvent.click(await waitFor(() => screen.getByTestId('nomi-model-chip')));
+    const sw = await waitFor(() => screen.getByTestId('nomi-model-long-context-switch'));
+    expect(sw.getAttribute('aria-checked')).toBe('false');
+
+    fireEvent.click(sw);
+    await waitFor(() =>
+      expect(fake.inputs('conversations.runtimeSwitch')).toContainEqual(
+        expect.objectContaining({
+          id: 'c1',
+          backend: 'claude',
+          longContext: 'on',
+        }),
+      ),
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('nomi-model-chip-long').textContent).toBe('长');
+      expect(
+        screen.getByTestId('nomi-model-long-context-switch').getAttribute('aria-checked'),
+      ).toBe('true');
+    });
+
+    fireEvent.click(screen.getByTestId('nomi-model-long-context-switch'));
+    await waitFor(() =>
+      expect(fake.inputs('conversations.runtimeSwitch')).toContainEqual(
+        expect.objectContaining({
+          id: 'c1',
+          backend: 'claude',
+          longContext: 'default',
+        }),
+      ),
+    );
+    await waitFor(() => expect(screen.queryByTestId('nomi-model-chip-long')).toBeNull());
+  });
+
+  it('disables project picker for managed conversations without triggering store.updateMeta', async () => {
+    harness.setManaged(true);
+    setupBackendApi({
+      initialManaged: true,
+      initialBackend: 'api',
+    });
+    render(
+      <HarnessTabsProvider>
+        <ManagedRuntimeProvider conversationId="c1" hidden={false}>
+          <ManagedRuntimeDock />
+          <EndpointControls />
+          <NewChatContext />
+        </ManagedRuntimeProvider>
+      </HarnessTabsProvider>,
+    );
+
+    const btn = await waitFor(() => screen.getByTestId('nomi-project-button'));
+    await waitFor(() => expect((btn as HTMLButtonElement).disabled).toBe(true));
+    fireEvent.click(btn);
+    expect(harness.store.updateMeta).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,11 @@
 # @nomi-ai/contract
 
+## 0.2.2
+
+### Patch Changes
+
+- fix(chat): 修复托管对话观察超时、ACP 工具展示与长上下文切换，加固工具参数与事件缓冲
+
 ## 0.2.1
 
 ### Patch Changes

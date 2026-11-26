@@ -34,6 +34,7 @@ import {
   type HarnessTabMeta,
   type ReasoningEffort,
 } from '../../services/harnessClient';
+import { longContextForRef } from '../../services/longContext';
 import { pickerProviders, providerBrand, splitRef } from '../../services/nomiModel';
 import {
   isNativeThirdPartyModel,
@@ -610,6 +611,7 @@ export function useCliManagedSource({
       }
       return afterThirdPartyPick(ref);
     });
+    const long = longContextForRef(effectiveRef, view.longContext, gateway);
 
     return {
       label: chipLabel,
@@ -620,6 +622,22 @@ export function useCliManagedSource({
         ? t('ui.chat-settings.model-and-reasoning-effort', chipLabel)
         : t('ui.chat-settings.model', cliTitle, chipLabel),
       menuLabel: t('ui.chat-settings.model-and-reasoning-effort-label'),
+      longBadge: Boolean(long?.on),
+      longContext: long
+        ? {
+            standard: long.standard,
+            full: long.full,
+            on: long.on,
+            note: long.priceNote,
+            disabled: !idle,
+            onChange: (on) => {
+              if (!idle || on === long.on) return;
+              pickManagedConfig({
+                longContext: on === long.modelDefault ? 'default' : on ? 'on' : 'off',
+              });
+            },
+          }
+        : null,
       initialView: 'effort',
       menuCommandView: 'model',
       menuKey,

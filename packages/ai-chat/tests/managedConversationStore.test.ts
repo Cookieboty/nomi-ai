@@ -145,3 +145,38 @@ it('advanceFromArchived moves current pointer only when archived and skips unarc
     store.dispose();
   }
 });
+
+it('savePendingSendsTo and saveDeliveredSteersTo skip managed conversations without throwing', async () => {
+  const kernel = createMemoryConversationKernel();
+  await kernel.put({
+    meta: {
+      id: 'c_managed',
+      backend: 'nomi',
+      name: '托管中',
+      createdAt: 1,
+      updatedAt: 1,
+    },
+    messages: [original],
+  });
+  const baseState = kernel.state.bind(kernel);
+  kernel.state = async () => ({ ...(await baseState()), managed: ['c_managed'] });
+
+  await prepareConversationStore({ kernel });
+  const ipc = new SdkIPCClient({ dispose: async () => undefined } as never);
+  try {
+    const putBefore = kernel.calls.filter((name) => name === 'put').length;
+    await expect(
+      ipc.savePendingSendsTo('c_managed', [{ id: 'q1', text: 'queued', mode: 'queue' }]),
+    ).resolves.toBeUndefined();
+    await expect(
+      ipc.saveDeliveredSteersTo('c_managed', {
+        turnId: 't1',
+        items: [{ id: 's1', text: 'steer', time: 2 }],
+      }),
+    ).resolves.toBeUndefined();
+    expect(kernel.calls.filter((name) => name === 'put')).toHaveLength(putBefore);
+  } finally {
+    await ipc.dispose();
+    resetPreparedConversationStore();
+  }
+});

@@ -96,6 +96,7 @@ export interface LongContextControl {
   on: boolean;
   note?: string;
   hint?: string;
+  disabled?: boolean;
   onChange: (on: boolean) => void;
 }
 
@@ -400,6 +401,7 @@ export const ModelEffortChip: React.FC<ModelEffortChipProps> = ({
                     </span>
                     <Switch
                       checked={longContext.on}
+                      disabled={longContext.disabled}
                       onChange={longContext.onChange}
                       aria-label={t('ui.models.long-context')}
                       data-testid={`${prefix}-long-context-switch`}

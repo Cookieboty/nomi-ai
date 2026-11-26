@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+const maxActiveTraceEntries = 512
+
 func (c *Session) launch(a *activeAttempt) error {
 	if err := gate(a.ctx, a); err != nil {
 		return err
@@ -284,8 +286,8 @@ func (c *Session) handle(e Event) error {
 			return ErrInvalidUTF8
 		}
 		a.trace = append(a.trace, *e.Trace)
-		if len(a.trace) > 64 {
-			a.trace = append([]TraceEntry(nil), a.trace[len(a.trace)-64:]...)
+		if len(a.trace) > maxActiveTraceEntries {
+			a.trace = append([]TraceEntry(nil), a.trace[len(a.trace)-maxActiveTraceEntries:]...)
 		}
 		return nil
 	case EventActivity:

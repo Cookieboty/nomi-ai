@@ -29,11 +29,16 @@ const session = vi.hoisted(() => {
     id: 'c1',
     backend: 'nomi',
   };
+  let managed = false;
+  const refreshManaged = vi.fn(async () => undefined);
   const updateMeta = vi.fn((id: string, patch: Record<string, unknown>) => {
+    if (managed) throw new Error('managed-view-write');
     if (id === convo.id) Object.assign(convo, patch);
   });
   const store = {
     get: (id: string) => (id === convo.id ? convo : undefined),
+    isManaged: () => managed,
+    refreshManaged,
     updateMeta,
   };
   const ipcClient = {
@@ -47,7 +52,15 @@ const session = vi.hoisted(() => {
     actions: { newConversation: async () => undefined },
     dispatch: () => undefined,
   };
-  return { convo, updateMeta, legacy };
+  return {
+    convo,
+    updateMeta,
+    refreshManaged,
+    legacy,
+    setManaged: (v: boolean) => {
+      managed = v;
+    },
+  };
 });
 
 vi.mock('../src/contexts/AiChatContext', () => ({
@@ -192,14 +205,30 @@ function setup(
     modelLabel?: string;
     providerState?: Partial<ProviderState>;
     gatewayState?: ReturnType<typeof gateway>;
+    managed?: boolean;
   } = {},
 ) {
-  const invoke = vi.fn(async (ch: string) => {
+  session.setManaged(Boolean(options.managed));
+  const invoke = vi.fn(async (ch: string, arg?: unknown) => {
     if (ch === 'gateway.state') return options.gatewayState ?? gateway(main, options.modelLabel);
     if (ch === 'providers.state')
       return { providers: [], envProviders: [], routes: {}, ...options.providerState };
     if (ch === 'harness.state') return { backend: 'nomi', cwd: '/w', bins: {} };
     if (ch === 'harness.tabs') return tabs;
+    if (ch === 'conversations.runtimeUpdateMeta') {
+      const p = (arg ?? {}) as Record<string, unknown>;
+      if ('reasoningEffort' in p) {
+        if (p.reasoningEffort === null) delete session.convo.reasoningEffort;
+        else if (typeof p.reasoningEffort === 'string')
+          session.convo.reasoningEffort = p.reasoningEffort;
+      }
+      if ('longContext' in p) {
+        if (p.longContext === null) delete session.convo.longContext;
+        else if (p.longContext && typeof p.longContext === 'object')
+          session.convo.longContext = p.longContext as { model: string; on: boolean };
+      }
+      return null;
+    }
     return null;
   });
   installFakeApi(invoke);
@@ -223,9 +252,11 @@ const modelOption = (ref: string) => document.querySelector<HTMLElement>(`[data-
 
 beforeEach(() => {
   setChatMode('dev');
+  session.setManaged(false);
   session.convo.reasoningEffort = undefined;
   session.convo.longContext = undefined;
   session.updateMeta.mockClear();
+  session.refreshManaged.mockClear();
 });
 afterEach(() => {
   cleanup();
@@ -443,6 +474,52 @@ describe('Nomi model chip', () => {
     await waitFor(() =>
       expect(session.updateMeta).toHaveBeenCalledWith('c1', { longContext: undefined }),
     );
+    expect(r.queryByTestId('nomi-model-chip-long')).toBeNull();
+  });
+
+  it('托管 Nomi 会话切换长上下文与思考深度走 conversations.runtimeUpdateMeta，不触发视图直接写入', async () => {
+    const stateWithLong = gateway();
+    (stateWithLong.providers[0]!.models[0]!.effective as Record<string, unknown>).longContext = {
+      standard: 262_144,
+      full: 1_048_576,
+      on: false,
+      price: { size: 262_144, input: 0.14, output: 0.42, tierInput: 0.28, tierOutput: 0.84 },
+    };
+    const r = setup(undefined, { gatewayState: stateWithLong, managed: true });
+    await r.open();
+
+    // 1) 开启长上下文
+    fireEvent.click(r.getByTestId('nomi-model-long-context-switch'));
+    await waitFor(() =>
+      expect(r.invoke).toHaveBeenCalledWith('conversations.runtimeUpdateMeta', {
+        id: 'c1',
+        longContext: { model: 'amux/gpt-5', on: true },
+      }),
+    );
+    expect(session.updateMeta).not.toHaveBeenCalled();
+    expect(session.refreshManaged).toHaveBeenCalledWith('c1');
+    expect(r.getByTestId('nomi-model-chip-long').textContent).toBe('长');
+
+    // 2) 调整思考深度
+    fireEvent.keyDown(r.getByTestId('effort-slider'), { key: 'ArrowRight' });
+    await waitFor(() =>
+      expect(r.invoke).toHaveBeenCalledWith('conversations.runtimeUpdateMeta', {
+        id: 'c1',
+        reasoningEffort: 'high',
+      }),
+    );
+    expect(session.updateMeta).not.toHaveBeenCalled();
+    expect(r.chip().textContent).toBe('gpt-5 · 高长');
+
+    // 3) 关闭长上下文：传 null 清除覆盖
+    fireEvent.click(r.getByTestId('nomi-model-long-context-switch'));
+    await waitFor(() =>
+      expect(r.invoke).toHaveBeenCalledWith('conversations.runtimeUpdateMeta', {
+        id: 'c1',
+        longContext: null,
+      }),
+    );
+    expect(session.updateMeta).not.toHaveBeenCalled();
     expect(r.queryByTestId('nomi-model-chip-long')).toBeNull();
   });
 });

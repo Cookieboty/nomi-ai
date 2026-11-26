@@ -67,7 +67,7 @@ export function useNomiProject(): NomiProject {
         id && typeof store.isNomi === 'function' && store.isNomi(id)
           ? id
           : ipc?.ensureConversationId?.();
-      if (!target) return;
+      if (!target || store.isManaged?.(target)) return;
       store.updateMeta(target, { projectId: next });
       notifyConversationsChanged();
     },

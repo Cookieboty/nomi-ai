@@ -76,6 +76,10 @@ function buildDraftTrace(state: ManagedRuntimeState): HarnessTraceEvent[] | unde
   return out.length ? out : undefined;
 }
 
+const ADMISSION_TIMEOUT_MS = 120_000;
+const OBSERVATION_PROBE_INTERVAL_MS = 120_000;
+const PROBE_TIMEOUT_MS = 15_000;
+
 /** Reads only authoritative projection. Never upserts user/assistant view copies. */
 export async function sendManagedConversation(
   api: Port,
@@ -104,6 +108,10 @@ export async function sendManagedConversation(
   let draftStartedAt = 0;
   let settled = false;
   let terminalSeen = false;
+  let probing = false;
+  let admissionTimer: ReturnType<typeof setTimeout> | undefined;
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  let probeTimer: ReturnType<typeof setTimeout> | undefined;
   let resolve!: () => void;
   let reject!: (error: unknown) => void;
   const done = new Promise<void>((ok, fail) => {
@@ -112,25 +120,60 @@ export async function sendManagedConversation(
   });
   // Attach a rejection handler before an IPC response can race a fast event.
   void done.catch(() => undefined);
+  const failTimeout = (): void => {
+    if (!settled) {
+      reject(new Error(t('ui.chat-settings.managed-observation-timeout')));
+    }
+  };
+  const isMatchingAttempt = (state: ManagedRuntimeState): boolean =>
+    Boolean(
+      token &&
+      state.id === id &&
+      state.token?.attemptId === token.attemptId &&
+      state.token.generation === token.generation &&
+      state.token.conversationId === id,
+    );
+  const clearTimers = (): void => {
+    if (admissionTimer !== undefined) {
+      clearTimeout(admissionTimer);
+      admissionTimer = undefined;
+    }
+    if (idleTimer !== undefined) {
+      clearTimeout(idleTimer);
+      idleTimer = undefined;
+    }
+    if (probeTimer !== undefined) {
+      clearTimeout(probeTimer);
+      probeTimer = undefined;
+    }
+  };
+  const armIdleProbe = (): void => {
+    if (idleTimer !== undefined) {
+      clearTimeout(idleTimer);
+      idleTimer = undefined;
+    }
+    if (!settled && token) {
+      idleTimer = setTimeout(() => {
+        idleTimer = undefined;
+        void probeRuntime();
+      }, OBSERVATION_PROBE_INTERVAL_MS);
+    }
+  };
   const accept = async (state: ManagedRuntimeState): Promise<void> => {
     if (state.id !== id) return;
     if (!token) {
       events.push(state);
       return;
     }
-    if (
-      state.id !== id ||
-      state.token?.attemptId !== token.attemptId ||
-      state.token.generation !== token.generation ||
-      state.token.conversationId !== id ||
-      settled
-    )
-      return;
+    if (!isMatchingAttempt(state) || settled) return;
     const terminal = ['completed', 'canceled', 'uncertain', 'failed-pre-submit'].includes(
       state.phase,
     );
     if (terminalSeen && !terminal) return;
     terminalSeen ||= terminal;
+    if (!terminal) {
+      armIdleProbe();
+    }
     const own = ++revision;
     let messages: ChatMessage[];
     if (state.phase === 'running' && baseMessages !== null) {
@@ -193,6 +236,44 @@ export async function sendManagedConversation(
   const update = (state: ManagedRuntimeState): void => {
     void accept(state).catch(reject);
   };
+  async function probeRuntime(): Promise<void> {
+    if (settled || !token || probing) return;
+    probing = true;
+    try {
+      const state = await Promise.race([
+        api.conversations.runtimeState({ id }),
+        new Promise<never>((_, fail) => {
+          probeTimer = setTimeout(
+            () => fail(new Error(t('ui.chat-settings.managed-observation-timeout'))),
+            PROBE_TIMEOUT_MS,
+          );
+        }),
+      ]);
+      if (settled) return;
+      if (!isMatchingAttempt(state)) {
+        failTimeout();
+        return;
+      }
+      if (['completed', 'canceled', 'uncertain', 'failed-pre-submit'].includes(state.phase)) {
+        update(state);
+        return;
+      }
+      if (state.phase === 'running') {
+        armIdleProbe();
+        update(state);
+        return;
+      }
+      failTimeout();
+    } catch {
+      failTimeout();
+    } finally {
+      if (probeTimer !== undefined) {
+        clearTimeout(probeTimer);
+        probeTimer = undefined;
+      }
+      probing = false;
+    }
+  }
   const off = api.on('conversations.runtimeChanged', update);
   const cancel = (): void => {
     void api.conversations
@@ -200,10 +281,9 @@ export async function sendManagedConversation(
       .then(update, reject);
   };
   signal?.addEventListener('abort', cancel, { once: true });
-  const timeout = setTimeout(
-    () => reject(new Error(t('ui.chat-settings.managed-observation-timeout'))),
-    120_000,
-  );
+  admissionTimer = setTimeout(() => {
+    if (!token) failTimeout();
+  }, ADMISSION_TIMEOUT_MS);
   try {
     token = await Promise.race([
       api.conversations.runtimeSend({
@@ -219,6 +299,11 @@ export async function sendManagedConversation(
         throw new Error(t('ui.chat-settings.managed-observation-timeout'));
       }),
     ]);
+    if (admissionTimer !== undefined) {
+      clearTimeout(admissionTimer);
+      admissionTimer = undefined;
+    }
+    armIdleProbe();
     const buffered = events;
     events = [];
     for (const event of buffered) update(event);
@@ -228,7 +313,7 @@ export async function sendManagedConversation(
     await done;
   } finally {
     settled = true;
-    clearTimeout(timeout);
+    clearTimers();
     signal?.removeEventListener('abort', cancel);
     off();
   }
@@ -279,6 +364,8 @@ export async function updateManagedConversationMeta(
     autoTitle?: boolean;
     pinnedAt?: number | null;
     archivedAt?: number | null;
+    reasoningEffort?: string | null;
+    longContext?: { model: string; on: boolean } | null;
   },
 ): Promise<void> {
   await api.conversations.runtimeUpdateMeta({ id, ...patch });

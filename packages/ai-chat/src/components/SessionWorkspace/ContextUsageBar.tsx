@@ -9,6 +9,7 @@ import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { AiChatStoreContext } from '../../contexts/aiChatStore';
 import { useHarnessTabsCore } from '../../contexts/HarnessTabsContext';
 import { useManagedRuntime } from '../../contexts/ManagedRuntimeContext';
+import { api, hasTransport } from '../../services/api';
 import {
   CONVERSATIONS_CHANGED_EVENT,
   notifyConversationsChanged,
@@ -24,6 +25,7 @@ import {
   longContextForRef,
   reportedMatchesInjected,
 } from '../../services/longContext';
+import { updateManagedConversationMeta } from '../../services/managedMainChat';
 import { nomiMainRef, useGatewayState } from '../../services/nomiModel';
 import {
   contextWindowFor,
@@ -180,8 +182,18 @@ export const ContextUsageBar: React.FC<{
           ? convId
           : ipc?.ensureConversationId?.();
       if (!target) return;
+      const nextLong = nomiLong.modelDefault ? undefined : { model: nomiLong.ref, on: true };
+      if (convStore.isManaged?.(target)) {
+        if (!hasTransport()) return;
+        setLongError(null);
+        void updateManagedConversationMeta(api, target, { longContext: nextLong ?? null })
+          .then(() => convStore.refreshManaged?.(target))
+          .then(() => notifyConversationsChanged())
+          .catch((e: unknown) => setLongError(e instanceof Error ? e.message : String(e)));
+        return;
+      }
       convStore.updateMeta(target, {
-        longContext: nomiLong.modelDefault ? undefined : { model: nomiLong.ref, on: true },
+        longContext: nextLong,
       });
       notifyConversationsChanged();
     }
