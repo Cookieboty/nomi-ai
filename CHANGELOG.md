@@ -5,6 +5,12 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ## Unreleased
 
+### Maintenance
+
+- **release:** empty changeset after archiving 2.5.3
+
+## 2.5.3 — 2026-11-26
+
 ### Fixes
 
 - **antigravity:** 将 Antigravity 收口为纯人工交互薄客户端并打磨官方 ACP 协议实现 (`@nomi-ai/cli-catalog` patch, `@nomi-ai/i18n` patch)
