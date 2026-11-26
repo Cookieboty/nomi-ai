@@ -14994,6 +14994,42 @@
         "type": "null"
        }
       ]
+     },
+     "reasoningEffort": {
+      "anyOf": [
+       {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "longContext": {
+      "anyOf": [
+       {
+        "type": "object",
+        "properties": {
+         "model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+         },
+         "on": {
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "model",
+         "on"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ]
      }
     },
     "required": [

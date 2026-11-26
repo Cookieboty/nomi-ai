@@ -860,16 +860,25 @@ func (r *Registry) ApplyNativeTitle(id, rawTitle string) {
 	}
 }
 
-type ManagedMetaPatch struct {
-	Name          *string
-	AutoTitle     bool
-	PinnedAtSet   bool
-	PinnedAt      *int64
-	ArchivedAtSet bool
-	ArchivedAt    *int64
+type ManagedLongContext struct {
+	Model string `json:"model"`
+	On    bool   `json:"on"`
 }
 
-// UpdateMeta applies controlled sidebar metadata changes (name, pinnedAt, archivedAt) on a managed conversation.
+type ManagedMetaPatch struct {
+	Name               *string
+	AutoTitle          bool
+	PinnedAtSet        bool
+	PinnedAt           *int64
+	ArchivedAtSet      bool
+	ArchivedAt         *int64
+	ReasoningEffortSet bool
+	ReasoningEffort    *string
+	LongContextSet     bool
+	LongContext        *ManagedLongContext
+}
+
+// UpdateMeta applies controlled sidebar metadata changes (name, pinnedAt, archivedAt, reasoningEffort, longContext) on a managed conversation.
 func (r *Registry) UpdateMeta(id string, patch ManagedMetaPatch) error {
 	var nextName *string
 	if patch.Name != nil {
@@ -883,6 +892,22 @@ func (r *Registry) UpdateMeta(id string, patch ManagedMetaPatch) error {
 			return cr.ErrBadEdit
 		}
 		nextName = &trimmed
+	}
+	var nextEffort *string
+	if patch.ReasoningEffortSet && patch.ReasoningEffort != nil {
+		trimmed := strings.TrimSpace(*patch.ReasoningEffort)
+		if trimmed == "" {
+			return cr.ErrBadEdit
+		}
+		nextEffort = &trimmed
+	}
+	var nextLong *ManagedLongContext
+	if patch.LongContextSet && patch.LongContext != nil {
+		trimmedModel := strings.TrimSpace(patch.LongContext.Model)
+		if trimmedModel == "" {
+			return cr.ErrBadEdit
+		}
+		nextLong = &ManagedLongContext{Model: trimmedModel, On: patch.LongContext.On}
 	}
 	a, err := r.get(id)
 	if err != nil {
@@ -943,6 +968,35 @@ func (r *Registry) UpdateMeta(id string, patch ManagedMetaPatch) error {
 				}
 			} else if _, exists := meta["archivedAt"]; exists {
 				delete(meta, "archivedAt")
+				dirty = true
+			}
+		}
+		if patch.ReasoningEffortSet {
+			if nextEffort != nil {
+				cur, has := meta["reasoningEffort"].(string)
+				if !has || cur != *nextEffort {
+					meta["reasoningEffort"] = *nextEffort
+					dirty = true
+				}
+			} else if _, exists := meta["reasoningEffort"]; exists {
+				delete(meta, "reasoningEffort")
+				dirty = true
+			}
+		}
+		if patch.LongContextSet {
+			if nextLong != nil {
+				curMap, ok := meta["longContext"].(map[string]any)
+				curModel, _ := curMap["model"].(string)
+				curOn, hasOn := curMap["on"].(bool)
+				if !ok || !hasOn || curModel != nextLong.Model || curOn != nextLong.On {
+					meta["longContext"] = map[string]any{
+						"model": nextLong.Model,
+						"on":    nextLong.On,
+					}
+					dirty = true
+				}
+			} else if _, exists := meta["longContext"]; exists {
+				delete(meta, "longContext")
 				dirty = true
 			}
 		}

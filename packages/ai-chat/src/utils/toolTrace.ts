@@ -418,6 +418,7 @@ const KIND_TABLE: Record<ToolKind, readonly string[]> = {
     'sh',
     'exec',
     'run_command',
+    'run_shell_command',
     'run_terminal_cmd',
     'terminal',
     'execute',
@@ -519,19 +520,33 @@ const firstString = (
 const PATH_KEYS = [
   'file_path',
   'path',
+  'Path',
   'filePath',
+  'FilePath',
   'file',
   'filename',
   'target_file',
+  'TargetFile',
   'notebook_path',
   'directory',
+  'Directory',
   'dir',
   'root',
   'from',
   'to',
 ] as const;
-const PATTERN_KEYS = ['pattern', 'query', 'regex', 'q', 'search', 'glob', 'text', 'contains', 'name'] as const;
-const COMMAND_KEYS = ['command', 'cmd', 'script', 'code'] as const;
+const PATTERN_KEYS = [
+  'pattern',
+  'query',
+  'regex',
+  'q',
+  'search',
+  'glob',
+  'text',
+  'contains',
+  'name',
+] as const;
+const COMMAND_KEYS = ['command', 'CommandLine', 'Command', 'cmd', 'script', 'code'] as const;
 
 /** 过长路径只保留末尾几段 */
 export function shortPath(p: string, max = 56): string {
@@ -584,11 +599,13 @@ export function describeCall(call: ToolCall): CallDescription {
         target: path ? shortPath(path) : undefined,
       };
     case 'command': {
+      const summary = firstString(o, ['toolSummary']);
       const cmd = firstString(o, COMMAND_KEYS) ?? (call.input && !o ? call.input : undefined);
+      const label = summary ?? (cmd ? firstLine(cmd) : undefined);
       return {
         kind,
         verb: t('ui.usage-tools.run-command'),
-        target: cmd ? trimTarget(firstLine(cmd)) : undefined,
+        target: label ? trimTarget(label) : undefined,
       };
     }
     case 'subagent': {
@@ -733,7 +750,15 @@ function computeDiffs(call: ToolCall): FileDiff[] {
   const pairs = edits ?? [o];
   const results: DiffResult[] = [];
   for (const e of pairs) {
-    const oldS = firstString(e, ['old_string', 'old_str', 'oldText', 'old_text', 'old', 'search']);
+    const oldS = firstString(e, [
+      'old_string',
+      'old_str',
+      'oldText',
+      'old_text',
+      'old',
+      'search',
+      'Target',
+    ]);
     const newS =
       typeof e.new_string === 'string'
         ? e.new_string
@@ -745,7 +770,9 @@ function computeDiffs(call: ToolCall): FileDiff[] {
               ? e.new_text
               : typeof e.replace === 'string'
                 ? e.replace
-                : undefined;
+                : typeof e.Replacement === 'string'
+                  ? e.Replacement
+                  : undefined;
     if (newS === undefined) continue;
     results.push(diffStrings(oldS ?? '', newS));
   }
@@ -764,8 +791,11 @@ function computeDiffs(call: ToolCall): FileDiff[] {
       ? o.content
       : typeof o.text === 'string'
         ? o.text
-        : undefined;
-  if (content !== undefined && kind === 'write') return [{ file, diff: diffAllAdded(content) }];
+        : typeof o.Content === 'string'
+          ? o.Content
+          : undefined;
+  if (content !== undefined && (kind === 'write' || kind === 'edit'))
+    return [{ file, diff: diffAllAdded(content) }];
   return [];
 }
 

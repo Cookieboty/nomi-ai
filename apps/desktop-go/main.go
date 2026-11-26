@@ -464,7 +464,20 @@ func main() {
 		ProjectForConversation: func(id string) string { return conversationProjectID(bundle.Conversations, id) },
 		ManagedConfig: func(id string) airouter.ManagedAPIConfig {
 			cfg := bundle.ConversationRuntime.ConfigFor(id, "api")
-			return airouter.ManagedAPIConfig{Model: cfg.Model, PermissionMode: cfg.PermissionMode, Effort: cfg.Effort}
+			effort, longModel, longOn := conversationNomiOverrides(bundle.Conversations, id)
+			eff := cfg.Effort
+			if eff == "" {
+				eff = effort
+			}
+			var lc *bool
+			if longModel != "" && longOn != nil && gatewaySvc != nil {
+				if cur := gatewaySvc.NomiContext("chat"); cur != nil {
+					if pubModel, _ := cur.Get("model").(string); pubModel == longModel {
+						lc = longOn
+					}
+				}
+			}
+			return airouter.ManagedAPIConfig{Model: cfg.Model, PermissionMode: cfg.PermissionMode, Effort: eff, LongContext: lc}
 		},
 		PrepareChat: func(options map[string]any, method string, signal <-chan struct{}) error {
 			// 侧边聊天：只用 Nomi 的模型与只读工具、不挂会话（internal/core/sidechat）

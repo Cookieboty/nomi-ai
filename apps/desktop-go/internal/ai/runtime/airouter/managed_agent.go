@@ -20,6 +20,7 @@ type ManagedAPIConfig struct {
 	Model          string
 	PermissionMode string
 	Effort         string
+	LongContext    *bool
 }
 
 // ManagedAgentTarget builds an in-process API Target with full Nomi tool,
@@ -28,7 +29,7 @@ type ManagedAPIConfig struct {
 func (h *Handlers) ManagedAgentTarget(id string) (cr.Target, error) {
 	cfg := ManagedAPIConfig{Model: "chat-route", PermissionMode: "auto"}
 	if h.o.ManagedConfig != nil {
-		if over := h.o.ManagedConfig(id); over.Model != "" || over.PermissionMode != "" || over.Effort != "" {
+		if over := h.o.ManagedConfig(id); over.Model != "" || over.PermissionMode != "" || over.Effort != "" || over.LongContext != nil {
 			if over.Model != "" {
 				cfg.Model = over.Model
 			}
@@ -36,6 +37,7 @@ func (h *Handlers) ManagedAgentTarget(id string) (cr.Target, error) {
 				cfg.PermissionMode = over.PermissionMode
 			}
 			cfg.Effort = over.Effort
+			cfg.LongContext = over.LongContext
 		}
 	}
 	proj := ""
@@ -159,6 +161,18 @@ func (m *managedAgent) Start(ctx context.Context, r cr.RuntimeRequest, accept fu
 		extra := map[string]any{"conversationId": m.convID}
 		if m.projID != "" {
 			extra["projectId"] = m.projID
+		}
+		liveCfg := m.cfg
+		if m.h.o.ManagedConfig != nil {
+			over := m.h.o.ManagedConfig(m.convID)
+			liveCfg.Effort = over.Effort
+			liveCfg.LongContext = over.LongContext
+		}
+		if liveCfg.Effort != "" {
+			extra["reasoningEffort"] = liveCfg.Effort
+		}
+		if liveCfg.LongContext != nil {
+			extra["longContext"] = *liveCfg.LongContext
 		}
 		userMsg := map[string]any{"role": "user", "content": r.Plan.Payload}
 		if imgs := decodeManagedImages(r.Images); len(imgs) > 0 {

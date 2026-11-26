@@ -5021,12 +5021,19 @@ type ConversationsRuntimeSwitchOutput struct {
 	Capabilities    ConversationsRuntimeSwitchOutputCapabilities          `json:"capabilities"`
 }
 
+type ConversationsRuntimeUpdateMetaInputLongContext struct {
+	Model string `json:"model"`
+	On    bool   `json:"on"`
+}
+
 type ConversationsRuntimeUpdateMetaInput struct {
-	Id         string  `json:"id"`
-	Name       *string `json:"name,omitempty"`
-	AutoTitle  *bool   `json:"autoTitle,omitempty"`
-	PinnedAt   *int64  `json:"pinnedAt,omitempty"`
-	ArchivedAt *int64  `json:"archivedAt,omitempty"`
+	Id              string                                          `json:"id"`
+	Name            *string                                         `json:"name,omitempty"`
+	AutoTitle       *bool                                           `json:"autoTitle,omitempty"`
+	PinnedAt        *int64                                          `json:"pinnedAt,omitempty"`
+	ArchivedAt      *int64                                          `json:"archivedAt,omitempty"`
+	ReasoningEffort *string                                         `json:"reasoningEffort,omitempty"`
+	LongContext     *ConversationsRuntimeUpdateMetaInputLongContext `json:"longContext,omitempty"`
 }
 
 type ConversationsSetPointersInput struct {

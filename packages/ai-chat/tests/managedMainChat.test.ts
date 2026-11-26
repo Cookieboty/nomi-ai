@@ -479,3 +479,92 @@ it('rewindManagedConversation auto-abandons non-unknown uncertain state before r
     client.close();
   }
 });
+
+it('renews observation deadline while running events continue past 120s', async () => {
+  vi.useFakeTimers();
+  const f = fixture('admitted');
+  const update = vi.fn();
+  try {
+    const task = sendManagedConversation(f.client.api, 'c', 'long task', update);
+    await vi.waitFor(() => expect(f.calls.send).toHaveBeenCalledTimes(1));
+    // 每 90 秒收到一次进展，累计超过 300 秒不应超时
+    for (let i = 1; i <= 3; i++) {
+      await vi.advanceTimersByTimeAsync(90_000);
+      f.publish({ phase: 'running', partial: `step-${i}` });
+      await Promise.resolve();
+    }
+    await vi.advanceTimersByTimeAsync(90_000);
+    f.complete();
+    await task;
+    expect(update).toHaveBeenLastCalledWith(messages);
+  } finally {
+    f.client.close();
+  }
+});
+
+it('probes runtimeState after 120s silence: keeps waiting on matching running, converges on completed, rejects on mismatch or probe timeout', async () => {
+  vi.useFakeTimers();
+  let state: Record<string, unknown> = { ...base };
+  let probeHandler: () => Promise<Record<string, unknown>> | Record<string, unknown> = () => state;
+  const client: ReturnType<typeof createTestClient<typeof appContract>> = createTestClient(
+    appContract,
+    {
+      'conversations.runtimeState': () => probeHandler(),
+      'conversations.messages': () => ({ messages, bytes: 1 }),
+      'conversations.runtimeSend': () => {
+        state = { ...base, generation: 5, phase: 'running', token };
+        return token;
+      },
+      'conversations.runtimeCancel': () => state,
+    } as never,
+    { caller: { surface: 'chat', trusted: true } },
+  );
+  try {
+    // 1) 120s 无事件时探活返回 running，继续等待直到后续再次 120s 探活拿到 completed 自动收敛
+    let reads = 0;
+    probeHandler = () => {
+      reads += 1;
+      if (reads === 1) return state; // initial
+      if (reads === 2) return state; // post-send reconcile
+      if (reads === 3) return { ...base, generation: 5, phase: 'running', token }; // first 120s probe
+      return { ...base, generation: 5, phase: 'completed', token }; // second 120s probe
+    };
+    const task = sendManagedConversation(client.api, 'c', 'silent long', vi.fn());
+    await vi.advanceTimersByTimeAsync(120_000);
+    await vi.advanceTimersByTimeAsync(120_000);
+    await task;
+    expect(reads).toBe(4);
+
+    // 2) 120s 探活返回失配状态（如已回到 idle）时按观察超时报错
+    state = { ...base };
+    let readsMismatch = 0;
+    probeHandler = () => {
+      readsMismatch += 1;
+      if (readsMismatch === 1) return { ...base };
+      if (readsMismatch === 2) return { ...base, generation: 5, phase: 'running', token };
+      return { ...base, generation: 5, phase: 'idle' };
+    };
+    const mismatchTask = sendManagedConversation(client.api, 'c', 'lost terminal', vi.fn());
+    const mismatchRejected =
+      expect(mismatchTask).rejects.toThrow('运行时观察超时，请查看恢复状态，不要自动重试。');
+    await vi.advanceTimersByTimeAsync(120_001);
+    await mismatchRejected;
+
+    // 3) 120s 探活自身超时（>15s）时报错
+    state = { ...base };
+    let readsHang = 0;
+    probeHandler = () => {
+      readsHang += 1;
+      if (readsHang === 1) return { ...base };
+      if (readsHang === 2) return { ...base, generation: 5, phase: 'running', token };
+      return new Promise(() => undefined);
+    };
+    const hangTask = sendManagedConversation(client.api, 'c', 'hung probe', vi.fn());
+    const hangRejected =
+      expect(hangTask).rejects.toThrow('运行时观察超时，请查看恢复状态，不要自动重试。');
+    await vi.advanceTimersByTimeAsync(120_000 + 15_001);
+    await hangRejected;
+  } finally {
+    client.close();
+  }
+});

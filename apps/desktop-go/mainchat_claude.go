@@ -873,3 +873,31 @@ func conversationProjectID(s *convstore.Store, id string) string {
 	}
 	return ""
 }
+
+func conversationNomiOverrides(s *convstore.Store, id string) (effort string, longModel string, longOn *bool) {
+	if s == nil || id == "" {
+		return "", "", nil
+	}
+	st, err := s.State()
+	if err != nil {
+		return "", "", nil
+	}
+	for _, raw := range st.Conversations {
+		var meta struct {
+			ID              string `json:"id"`
+			ReasoningEffort string `json:"reasoningEffort"`
+			LongContext     *struct {
+				Model string `json:"model"`
+				On    bool   `json:"on"`
+			} `json:"longContext"`
+		}
+		if json.Unmarshal(raw, &meta) == nil && meta.ID == id {
+			if meta.LongContext != nil && meta.LongContext.Model != "" {
+				on := meta.LongContext.On
+				return meta.ReasoningEffort, meta.LongContext.Model, &on
+			}
+			return meta.ReasoningEffort, "", nil
+		}
+	}
+	return "", "", nil
+}

@@ -253,6 +253,14 @@ export const managedConversationProcedures = {
       autoTitle: z.boolean().optional(),
       pinnedAt: z.number().int().nonnegative().nullable().optional(),
       archivedAt: z.number().int().nonnegative().nullable().optional(),
+      reasoningEffort: z.string().min(1).max(64).nullable().optional(),
+      longContext: z
+        .object({
+          model: z.string().min(1).max(256),
+          on: z.boolean(),
+        })
+        .nullable()
+        .optional(),
     }),
     output: z.void(),
     surfaces: chat,

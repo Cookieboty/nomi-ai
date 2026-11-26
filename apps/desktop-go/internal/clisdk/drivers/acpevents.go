@@ -63,6 +63,55 @@ func contentText(content any) string {
 	return strings.Join(out, "\n")
 }
 
+func rawOutputText(raw any) string {
+	if raw == nil {
+		return ""
+	}
+	switch v := raw.(type) {
+	case string:
+		return v
+	case []any:
+		return contentText(v)
+	case *util.Obj:
+		for _, k := range []string{"output", "text", "error"} {
+			if s, ok := v.Get(k).(string); ok && s != "" {
+				return s
+			}
+		}
+		if c := v.Get("content"); c != nil {
+			switch cv := c.(type) {
+			case string:
+				if cv != "" {
+					return cv
+				}
+			case []any:
+				if s := contentText(cv); s != "" {
+					return s
+				}
+			}
+		}
+		stdout, _ := v.Get("stdout").(string)
+		stderr, _ := v.Get("stderr").(string)
+		if stdout != "" && stderr != "" {
+			return stdout + "\n" + stderr
+		}
+		if stdout != "" {
+			return stdout
+		}
+		return stderr
+	}
+	return ""
+}
+
+func isWriteFileToolName(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "write_file", "create_file":
+		return true
+	default:
+		return false
+	}
+}
+
 var agentTitle = regexp.MustCompile(`(?i)agent|subagent|delegat`)
 
 func firstWord(title string) string {
@@ -318,6 +367,8 @@ func (m *acpMapper) Update(u Json) []Ev {
 			meta := getp(u.Get("_meta"), "x.ai/tool")
 			if n, ok := getp(meta, "name").(string); ok && n != "" {
 				name = n
+			} else if strQ(u.Get("kind")) == "edit" && isWriteFileToolName(strQ(u.Get("name"))) {
+				name = "write_file"
 			} else {
 				name = toolName(strQ(u.Get("kind")), title)
 			}
@@ -344,7 +395,11 @@ func (m *acpMapper) Update(u Json) []Ev {
 				st = "error"
 			}
 			ev := O("type", "tool", "name", name, "status", st, "detail", id, "input", input)
-			if o := clip(contentText(u.Get("content")), 20_000); o != "" {
+			outText := contentText(u.Get("content"))
+			if outText == "" {
+				outText = rawOutputText(u.Get("rawOutput"))
+			}
+			if o := clip(outText, 20_000); o != "" {
 				ev.Set("output", o)
 			}
 			out = append(out, ev)

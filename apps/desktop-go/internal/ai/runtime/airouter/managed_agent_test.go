@@ -341,3 +341,77 @@ func TestManagedAgentTargetDefaultsToAutoPermission(t *testing.T) {
 		t.Fatalf("expected auto-approved completion without EventApproval, got approvals=%d text=%q", approvalCount, gotText)
 	}
 }
+
+func TestManagedAgentTargetForwardsLiveReasoningEffortAndLongContext(t *testing.T) {
+	var seenExtras []map[string]any
+	prov := &agentStubProvider{
+		onRun: func(_ context.Context, _ *blm.ChatRequest, emit func(blm.ChatChunk)) error {
+			emit(blm.ChatChunk{Type: "delta", Content: "ok"})
+			return nil
+		},
+	}
+	curCfg := ManagedAPIConfig{Effort: "low"}
+	longTrue := true
+	curCfg.LongContext = &longTrue
+	h := New(Options{
+		Chat: facade.NewChat(facade.Deps{
+			LLM:   func() facade.Registry { return stubLLMRegistry{prov} },
+			Tools: func() tools.Registry { return tools.NewInMemory() },
+		}),
+		ManagedConfig: func(string) ManagedAPIConfig { return curCfg },
+		PrepareChat: func(options map[string]any, _ string, _ <-chan struct{}) error {
+			extra, _ := options["extra"].(map[string]any)
+			cp := map[string]any{}
+			for k, v := range extra {
+				cp[k] = v
+			}
+			seenExtras = append(seenExtras, cp)
+			return nil
+		},
+	})
+	target, err := h.ManagedAgentTarget("c-live")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rt := target.Runtime.(*managedAgent)
+
+	runTurn := func(attempt string) {
+		t.Helper()
+		done := make(chan struct{})
+		res := rt.Start(context.Background(), cr.RuntimeRequest{
+			Token:           cr.AttemptToken{ConversationID: "c-live", AttemptID: attempt, Generation: 1},
+			NativeSessionID: "api-live",
+			Plan:            cr.Plan{ID: "p-" + attempt, Payload: "hello"},
+		}, func(e cr.Event) error {
+			if e.Kind == cr.EventCompleted || e.Kind == cr.EventFailed {
+				close(done)
+			}
+			return nil
+		})
+		if res.Kind != cr.SubmitAccepted {
+			t.Fatalf("submit %s failed: %+v", attempt, res)
+		}
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("turn %s timed out", attempt)
+		}
+	}
+
+	runTurn("1")
+	curCfg = ManagedAPIConfig{Effort: "", LongContext: nil}
+	runTurn("2")
+
+	if len(seenExtras) != 2 {
+		t.Fatalf("expected 2 PrepareChat calls, got %d", len(seenExtras))
+	}
+	if seenExtras[0]["reasoningEffort"] != "low" || seenExtras[0]["longContext"] != true {
+		t.Fatalf("turn 1 extra = %v, want reasoningEffort=low longContext=true", seenExtras[0])
+	}
+	if _, has := seenExtras[1]["reasoningEffort"]; has {
+		t.Fatalf("turn 2 unexpectedly kept reasoningEffort: %v", seenExtras[1])
+	}
+	if _, has := seenExtras[1]["longContext"]; has {
+		t.Fatalf("turn 2 unexpectedly kept longContext: %v", seenExtras[1])
+	}
+}

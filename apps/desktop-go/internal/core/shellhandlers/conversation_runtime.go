@@ -282,11 +282,13 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 	})
 	router.Call("conversations.runtimeUpdateMeta", func(_ context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 		var in struct {
-			ID         string          `json:"id"`
-			Name       *string         `json:"name"`
-			AutoTitle  bool            `json:"autoTitle"`
-			PinnedAt   json.RawMessage `json:"pinnedAt"`
-			ArchivedAt json.RawMessage `json:"archivedAt"`
+			ID              string          `json:"id"`
+			Name            *string         `json:"name"`
+			AutoTitle       bool            `json:"autoTitle"`
+			PinnedAt        json.RawMessage `json:"pinnedAt"`
+			ArchivedAt      json.RawMessage `json:"archivedAt"`
+			ReasoningEffort json.RawMessage `json:"reasoningEffort"`
+			LongContext     json.RawMessage `json:"longContext"`
 		}
 		if err := json.Unmarshal(raw, &in); err != nil {
 			return nil, badInput(err)
@@ -305,6 +307,37 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 			}
 			return true, &v, nil
 		}
+		parseOptString := func(field json.RawMessage) (set bool, val *string, err error) {
+			trimmed := bytes.TrimSpace(field)
+			if len(trimmed) == 0 {
+				return false, nil, nil
+			}
+			if string(trimmed) == "null" {
+				return true, nil, nil
+			}
+			var s string
+			if err := json.Unmarshal(trimmed, &s); err != nil || len(bytes.TrimSpace([]byte(s))) == 0 {
+				return false, nil, errors.New("invalid string")
+			}
+			return true, &s, nil
+		}
+		parseOptLongContext := func(field json.RawMessage) (set bool, val *mainchat.ManagedLongContext, err error) {
+			trimmed := bytes.TrimSpace(field)
+			if len(trimmed) == 0 {
+				return false, nil, nil
+			}
+			if string(trimmed) == "null" {
+				return true, nil, nil
+			}
+			var obj struct {
+				Model *string `json:"model"`
+				On    *bool   `json:"on"`
+			}
+			if err := json.Unmarshal(trimmed, &obj); err != nil || obj.Model == nil || obj.On == nil || len(bytes.TrimSpace([]byte(*obj.Model))) == 0 {
+				return false, nil, errors.New("invalid longContext")
+			}
+			return true, &mainchat.ManagedLongContext{Model: *obj.Model, On: *obj.On}, nil
+		}
 		pinSet, pinVal, err := parseOptTimestamp(in.PinnedAt)
 		if err != nil {
 			return nil, badInput(err)
@@ -313,13 +346,25 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 		if err != nil {
 			return nil, badInput(err)
 		}
+		effortSet, effortVal, err := parseOptString(in.ReasoningEffort)
+		if err != nil {
+			return nil, badInput(err)
+		}
+		longSet, longVal, err := parseOptLongContext(in.LongContext)
+		if err != nil {
+			return nil, badInput(err)
+		}
 		err = registry.UpdateMeta(in.ID, mainchat.ManagedMetaPatch{
-			Name:          in.Name,
-			AutoTitle:     in.AutoTitle,
-			PinnedAtSet:   pinSet,
-			PinnedAt:      pinVal,
-			ArchivedAtSet: archSet,
-			ArchivedAt:    archVal,
+			Name:               in.Name,
+			AutoTitle:          in.AutoTitle,
+			PinnedAtSet:        pinSet,
+			PinnedAt:           pinVal,
+			ArchivedAtSet:      archSet,
+			ArchivedAt:         archVal,
+			ReasoningEffortSet: effortSet,
+			ReasoningEffort:    effortVal,
+			LongContextSet:     longSet,
+			LongContext:        longVal,
 		})
 		if err != nil {
 			return nil, runtimeFail(err)
