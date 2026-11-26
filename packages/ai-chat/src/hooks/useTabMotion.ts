@@ -258,7 +258,10 @@ export function useWorkspaceLayoutMotion(opts: {
     if (!host) return;
 
     const cleanups: Array<() => void> = [];
-    const chatEl = host.querySelector<HTMLElement>(':scope > [data-testid="chat-column"]');
+    // 主对话列：包在 .session-panes 里时用它的宽度（并排时是两个面板合起来），没有这层外壳时退回对话列本身
+    const chatEl =
+      host.querySelector<HTMLElement>(':scope > [data-testid="session-panes"]') ??
+      host.querySelector<HTMLElement>(':scope > [data-testid="chat-column"]');
     const workspaceEl = host.querySelector<HTMLElement>(':scope > [data-testid="side-workspace"]');
     const topStripEl = host.querySelector<HTMLElement>(':scope > [data-testid="side-tab-strip"]');
 

@@ -12,7 +12,7 @@ import { useSubagentPane } from '../components/SubagentPane';
 import type { HarnessTabsCore } from '../contexts/HarnessTabsContext';
 import { useNomiProject } from '../hooks/useNomiProject';
 import { persistFilesRailOpen, readFilesRailOpen } from '../services/filesRailPrefs';
-import type { HarnessState } from '../services/harnessClient';
+import type { HarnessState, HarnessTabMeta } from '../services/harnessClient';
 import { harnessClient } from '../services/harnessClient';
 import { projectRoots, useProject, type Project } from '../services/projects';
 import type { ConvMessage } from '../types/conversation';
@@ -38,25 +38,32 @@ export function useRail(opts: {
   busyHere: boolean;
   cliConvMessages: readonly ConvMessage[];
   nomiMessages: readonly ConvMessage[];
+  /**
+   * 并排会话时「焦点面板显示的 CLI 标签」：右栏跟着焦点面板的会话（它可能不是 harness 的当前标签）。
+   * 不给时沿用 tabs.activeTab（单面板与原来一致）。
+   */
+  focusedTab?: HarnessTabMeta | null;
 }) {
   const { tabs, isDev, harness, busyHere } = opts;
   const { workbench, previewOpen } = useChangesUi();
   const [railPref, setRailPref] = useState(readFilesRailOpen);
-  const cliTab = isDev && tabs.isCliTab;
-  const nomiOnMain = !tabs.isCliTab && harness?.backend === 'nomi' && harnessClient.available();
+  // 当前会话是不是 CLI 标签：焦点面板可能是别的标签（并排会话），所以由 App 指定
+  const activeTab = opts.focusedTab ?? tabs.activeTab;
+  const cliTab = isDev && (opts.focusedTab ? !!opts.focusedTab : tabs.isCliTab);
+  const nomiOnMain = !cliTab && harness?.backend === 'nomi' && harnessClient.available();
   const nomiProjectId = useNomiProject().projectId;
   const nomiProject = useProject(nomiProjectId);
-  const cliProject = useProject(cliTab ? tabs.activeTab?.projectId : undefined);
+  const cliProject = useProject(cliTab ? activeTab?.projectId : undefined);
   const cwd = cliTab
-    ? (tabs.activeTab?.cwd ?? null)
+    ? (activeTab?.cwd ?? null)
     : nomiOnMain && nomiProject
       ? nomiProject.primary
       : null;
   const project = cliTab ? cliProject : nomiOnMain ? nomiProject : undefined;
   const roots = useMemo(() => railRootsOf(cwd, project), [cwd, project]);
-  const messages = tabs.isCliTab ? opts.cliConvMessages : opts.nomiMessages;
-  const busy = tabs.isCliTab
-    ? tabs.activeTab?.status === 'running' || tabs.activeTab?.status === 'queued'
+  const messages = cliTab ? opts.cliConvMessages : opts.nomiMessages;
+  const busy = cliTab
+    ? activeTab?.status === 'running' || activeTab?.status === 'queued'
     : busyHere;
   // 开着子任务标签（标签区，开着时占对话旁；文件标签由 App 按预览区另算）
   const subagentOpen = (useSubagentPane()?.targets.length ?? 0) > 0;
@@ -77,7 +84,7 @@ export function useRail(opts: {
   }
   /** 当前会话所属的项目（侧边聊天按它带项目上下文） */
   const projectId =
-    (cliTab ? tabs.activeTab?.projectId : nomiOnMain ? nomiProjectId : undefined) ?? null;
+    (cliTab ? activeTab?.projectId : nomiOnMain ? nomiProjectId : undefined) ?? null;
   /** 项目主文件夹优先（即便是 worktree 里的 CLI 标签，默认终端也落到主工程路径） */
   const projectPrimary = project?.primary ?? cwd ?? null;
   return { cwd, roots, messages, busy, centerOpen, open, toggle, close, projectId, projectPrimary };

@@ -39,9 +39,9 @@ import { nomiLive, sameLive } from '../utils/convAdapters';
 const selectNomiLive = (s: AiChatState) => nomiLive(s.messages, selectBusyHere(s));
 
 /** The Nomi conversation: the only part that rerenders per streamed frame (its live turn). */
-const NomiConversation: React.FC<Omit<React.ComponentProps<typeof ConversationView>, 'live'>> = (
-  props,
-) => {
+export const NomiConversation: React.FC<
+  Omit<React.ComponentProps<typeof ConversationView>, 'live'>
+> = (props) => {
   // 网关在重连 / 换供应商时，等待态显示原因
   const live = useLiveWithGatewayRetry(useAiChatSelector(selectNomiLive, sameLive));
   const managed = useManagedRuntime();
@@ -91,7 +91,7 @@ const precedingUser = <T extends { id: string; role: string; steer?: boolean }>(
 };
 
 /** agent 标签：没有消息时是欢迎语，否则是会话（Gemini 不信任工作目录时错误卡片上有「信任此文件夹」） */
-const CliBody: React.FC<{
+export const CliBody: React.FC<{
   tabs: HarnessTabsCore;
   isDev: boolean;
   messages: ConvMessage[];
@@ -150,7 +150,8 @@ const CliBody: React.FC<{
  * Nomi 主对话还没有消息：欢迎屏（图标 + 标题 + 小标题）。
  * 示例问题卡片与模型引导都在输入框一侧，由 App 层渲染。
  */
-const NomiWelcome: React.FC = () => (
+/** 空会话的欢迎屏（非焦点面板没有消息时也用它） */
+export const NomiWelcome: React.FC = () => (
   <ConversationWelcome title={t('ui.foundation.what-would-you-like-to-do-today')} />
 );
 

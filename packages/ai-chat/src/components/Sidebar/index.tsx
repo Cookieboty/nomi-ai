@@ -79,6 +79,16 @@ interface SidebarProps {
   /** 搜索窗里打开某个任务 / 素材（任务页 / 素材库） */
   onOpenTask?: (id: string) => void;
   onOpenAsset?: (file: string) => void;
+  /**
+   * 「向右打开」：把这个会话放到右边面板（已拆分时换右面板的会话），左边保持不动。
+   * 由 App 经主区的会话面板状态给出；没给时不显示这一项。
+   */
+  onOpenToSide?: (sessionKey: string | null) => void;
+  /**
+   * 单击会话：让主区的焦点面板指向它（已开在某个面板里就只聚焦那个面板），另一个面板不动。
+   * 由 App 经主区的会话面板状态给出；没给时整块不动（独立渲染侧栏）。
+   */
+  onOpenInFocus?: (sessionKey: string | null) => void;
 }
 
 /** 侧栏：全部 / 按端 + 端点徽标；点击按后端路由到主对话或 CLI 标签 */
@@ -99,6 +109,8 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   onLeavePage,
   onOpenTask,
   onOpenAsset,
+  onOpenToSide,
+  onOpenInFocus,
 }) => {
   // Sidebar 是 React.memo，props 稳定时不随根组件重渲染：自己订阅语言，切换后文案才会刷新
   useLocale();
@@ -348,8 +360,13 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     togglePin,
     openMore,
     onCtx,
+    openToSide,
+    canOpenToSide,
   } = useSidebarSessions({
     ipc,
+    onOpenToSide,
+    // 单击走「只换焦点面板」，与「向右打开」互不串用
+    onOpenInFocus,
     actions,
     list,
     current,
@@ -722,6 +739,8 @@ const SidebarImpl: React.FC<SidebarProps> = ({
         archiveItem={(id) => void archiveItem(id)}
         removeItem={(id) => void removeItem(id)}
         onCtx={onCtx}
+        openToSide={openToSide}
+        canOpenToSide={canOpenToSide}
         ctxP={ctxP}
         setCtx={setCtx}
         listPeek={listPeek}

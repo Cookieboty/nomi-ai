@@ -1,0 +1,82 @@
+/* 会话面板：单面板铺满主对话列；并排时两个面板各占一半（宽度由外层容器按比例分，见 App.css 的 .session-panes） */
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  position: relative;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 并排时两个面板之间的一条分隔线（面板自己在主区里的左右边界） */
+.pane[data-split][data-pane-index='0'] {
+  border-right: 1px solid var(--cd-color-border-subtle);
+}
+
+/* 面板头：与对话头同一高度（--cd-chat-header-h），图标按钮与输入栏工具行同一档 sm */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  height: var(--cd-chat-header-h);
+  padding: 0 var(--cd-space-1-5) 0 var(--cd-space-4);
+  flex-shrink: 0;
+  min-width: 0;
+  position: relative;
+  z-index: 3;
+  background: var(--cd-color-surface);
+}
+/* 非焦点面板：标题略淡，焦点面板保持正文色（侧栏里两行都亮，靠这条区分谁在收键盘） */
+.pane:not([data-focused]) .header .name,
+.pane:not([data-focused]) .header .project {
+  color: var(--cd-color-text-muted);
+}
+
+.nameGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  min-width: 0;
+  flex: 1;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  line-height: var(--cd-line-height-sm);
+  color: var(--cd-color-text);
+}
+.folder {
+  flex-shrink: 0;
+  color: var(--cd-color-text-subtle);
+}
+.project {
+  flex-shrink: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cd-color-text-muted);
+}
+.sep {
+  flex-shrink: 0;
+  color: var(--cd-color-text-subtle);
+}
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-0-5);
+  flex-shrink: 0;
+}

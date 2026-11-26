@@ -1,4 +1,13 @@
 {
+  "ui.session-panes.close-pane": "关闭拆分面板",
+  "ui.session-panes.empty-title": "空面板",
+  "ui.session-panes.hint": "发消息或从左侧打开一个会话",
+  "ui.session-panes.handle": "拖动调整两个会话的宽度（双击回到一半）",
+  "ui.session-panes.label": "会话面板",
+  "ui.session-panes.merge": "合并为一个会话",
+  "ui.session-panes.open-to-the-side": "向右打开",
+  "ui.session-panes.running": "正在回复…",
+  "ui.session-panes.split-right": "在右侧拆分会话",
   "ui.session-workspace.agent-card-latest": "最近输出",
   "ui.session-workspace.agent-card-open": "点击打开",
   "ui.session-workspace.agent-card-running": "处理中",

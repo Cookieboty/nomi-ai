@@ -35,6 +35,9 @@ interface SidebarOverlaysProps {
   archiveItem: (id: string) => void;
   removeItem: (id: string) => void;
   onCtx: (id: string, e: React.MouseEvent) => void;
+  /** 右键 / 「更多」里的「向右打开」（主区右侧面板打开这个会话） */
+  openToSide?: (id: string) => void;
+  canOpenToSide?: boolean;
   ctxP: { value: Ctx | null; closing: boolean };
   setCtx: (v: Ctx | null) => void;
   listPeek: { peek: Peek; hold: () => void; release: () => void };
@@ -96,6 +99,8 @@ export const SidebarOverlays: React.FC<SidebarOverlaysProps> = ({
   archiveItem,
   removeItem,
   onCtx,
+  openToSide,
+  canOpenToSide,
   ctxP,
   setCtx,
   listPeek,
@@ -154,6 +159,10 @@ export const SidebarOverlays: React.FC<SidebarOverlaysProps> = ({
               meta && isInteractiveOnly(meta.backend) ? undefined : () => onForkRequest?.(ctx.id)
             }
             onClose={meta?.tabId ? () => closeItem(meta) : undefined}
+            // 磁盘历史没有在面板里打开的会话：只有会话本体的菜单才给「向右打开」
+            onOpenToSide={
+              meta && canOpenToSide && openToSide ? () => void openToSide(ctx.id) : undefined
+            }
             onArchive={meta && !meta.tabId ? () => archiveItem(ctx.id) : undefined}
             // 最近列表与本机历史统一确认后永久删除。
             onDelete={() => void removeItem(ctx.id)}

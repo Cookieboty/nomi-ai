@@ -14,6 +14,7 @@ import {
   useAiChatSelector,
 } from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
+import { useSessionPanes } from '../../contexts/SessionPanesContext';
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { api } from '../../services/api';
@@ -32,6 +33,7 @@ import type { ConvMessage } from '../../types/conversation';
 import type { IPCClient } from '../../types/ipc';
 import { isInteractiveOnly } from '../../utils/cliCaps';
 import { aggregateSessionChanges } from '../../utils/sessionChanges';
+import { nomiSessionKey } from '../../utils/sessionPanes';
 import { titlebarMenuTop } from '../../utils/titlebarMenu';
 import chatHeaderStyles from '../ChatHeader/index.module.css';
 import { confirmDialog, promptDialog } from '../ConfirmDialog';
@@ -100,6 +102,8 @@ export const SessionTitle: React.FC<{
   const s = useCurrentSession();
   const tabs = useHarnessTabs();
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
+  // 主区的会话面板：「向右打开」把当前会话放到右边，左边不动
+  const panes = useSessionPanes();
   const { actions } = useAiChatActions();
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
   // 菜单收起时先放完淡出动画再卸载
@@ -224,6 +228,20 @@ export const SessionTitle: React.FC<{
               : undefined
           }
           onClose={s.tabId ? () => void closeTab() : undefined}
+          // 当前的会话就是焦点面板：已经在右边时只聚焦它；放到右边后它成为焦点（当前会话同步由 App 负责）
+          onOpenToSide={
+            panes
+              ? () => {
+                  const active = tabs.activeTab;
+                  const key = s.tabId
+                    ? active
+                      ? cliTranscriptKey(active)
+                      : nomiSessionKey(s.id)
+                    : nomiSessionKey(s.id);
+                  if (key) panes.openToSide(key);
+                }
+              : undefined
+          }
           onArchive={s.tabId ? undefined : () => void archive()}
           onDelete={s.tabId ? undefined : () => void remove()}
         />
