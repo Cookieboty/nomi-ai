@@ -32,4 +32,11 @@ describe('cli-catalog', () => {
       if (id !== 'antigravity') expect(cliCapability(id, 'localAuth')).toBe(false);
     expect(cliCapability('unknown-cli', 'localAuth')).toBe(false);
   });
+
+  it('interactiveOnly 能力位只在 antigravity 上打开', () => {
+    expect(cliCapability('antigravity', 'interactiveOnly')).toBe(true);
+    for (const id of BUILTIN_CLI_IDS)
+      if (id !== 'antigravity') expect(cliCapability(id, 'interactiveOnly')).toBe(false);
+    expect(cliCapability('unknown-cli', 'interactiveOnly')).toBe(false);
+  });
 });

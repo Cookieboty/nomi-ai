@@ -414,7 +414,9 @@ func TestDetectLocalLoginAllBuiltins(t *testing.T) {
 		t.Fatal("dsh non-empty auth.json should be detected as logged in")
 	}
 
-	// 4. Antigravity：自身凭据目录（或回退到 Gemini 凭据）存在 oauth_creds.json 时为 true
+	// 4. Antigravity：合规下不再直接读取本地凭据文件或回退到 Gemini 登录态；仅接受会话级缓存
+	ClearLocalAuthCache("antigravity")
+	t.Cleanup(func() { ClearLocalAuthCache("antigravity") })
 	agyHome := t.TempDir()
 	agyCliDir := filepath.Join(agyHome, ".gemini", "antigravity-cli")
 	if err := os.MkdirAll(agyCliDir, 0o700); err != nil {
@@ -423,7 +425,11 @@ func TestDetectLocalLoginAllBuiltins(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(agyCliDir, "oauth_creds.json"), []byte(`{"refresh_token":"agy-rt"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if !DetectLocalLogin("antigravity", agyHome) {
-		t.Fatal("antigravity non-empty oauth_creds.json should be detected as logged in")
+	if DetectLocalLogin("antigravity", agyHome) {
+		t.Fatal("antigravity DetectLocalLogin must not read oauth_creds.json directly")
+	}
+	SetLocalAuthCache("antigravity", true)
+	if !DetectLocalLogin("antigravity", "") {
+		t.Fatal("antigravity DetectLocalLogin should use verified session cache when home is empty")
 	}
 }

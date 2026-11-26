@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
 )
 
@@ -46,6 +47,12 @@ func TestHelperAcpProcess(t *testing.T) {
 		if json.Unmarshal([]byte(line), &req) != nil {
 			continue
 		}
+		if rpcLog := os.Getenv("GO_ACP_RPC_LOG"); rpcLog != "" {
+			if f, err := os.OpenFile(rpcLog, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600); err == nil {
+				_, _ = f.WriteString(line + "\n")
+				_ = f.Close()
+			}
+		}
 		switch req.Method {
 		case "initialize":
 			if mode == "init_fail" {
@@ -53,12 +60,16 @@ func TestHelperAcpProcess(t *testing.T) {
 				continue
 			}
 			loadCap := mode != "no_load_cap"
+			agentCaps := map[string]any{"loadSession": loadCap}
+			if mode == "agy_compliance" {
+				agentCaps["sessionCapabilities"] = map[string]any{"close": map[string]any{}}
+			}
 			send(map[string]any{
 				"jsonrpc": "2.0",
 				"id":      req.ID,
 				"result": map[string]any{
 					"protocolVersion":   1,
-					"agentCapabilities": map[string]any{"loadSession": loadCap},
+					"agentCapabilities": agentCaps,
 				},
 			})
 		case "session/load":
@@ -239,6 +250,8 @@ func TestHelperAcpProcess(t *testing.T) {
 				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "agent_message_chunk", "content": map[string]any{"type": "text", "text": "hello from acp"}}}})
 				send(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": map[string]any{"stopReason": "end_turn"}})
 			}
+		case "session/close":
+			send(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": map[string]any{}})
 		}
 	}
 	os.Exit(0)
@@ -925,6 +938,132 @@ func TestStartTraceApprovalAndCancel(t *testing.T) {
 		lines := strings.Fields(string(raw))
 		if len(lines) != 1 || lines[0] != "plan" {
 			t.Fatalf("plan reject must not fall back to default, got %v", lines)
+		}
+	})
+
+	t.Run("antigravity_compliance_init_verbatim_reject_handoff_and_close", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("POSIX shell wrapper fixture")
+		}
+		exe, err := os.Executable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		cli.ClearLocalAuthCache("")
+		t.Cleanup(func() { cli.ClearLocalAuthCache("") })
+
+		dir := t.TempDir()
+		proj := filepath.Join(dir, "proj")
+		cfg := filepath.Join(dir, "cfg")
+		rpcLog := filepath.Join(dir, "rpc.log")
+		for _, d := range []string{proj, cfg} {
+			if err := os.MkdirAll(d, 0o700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		t.Setenv("GO_ACP_HELPER_MODE", "agy_compliance")
+		t.Setenv("GO_ACP_RPC_LOG", rpcLog)
+		wrapper := filepath.Join(dir, "acp-cli")
+		script := fmt.Sprintf("#!/bin/sh\nexec %q -test.run=^TestHelperAcpProcess$\n", exe)
+		if err := os.WriteFile(wrapper, []byte(script), 0o700); err != nil {
+			t.Fatal(err)
+		}
+
+		f := New("antigravity", func(string) (Config, error) {
+			return Config{BackendID: "antigravity", Executable: wrapper, Cwd: proj, ConfigDir: cfg}, nil
+		})
+		target, err := f.Target("conv-agy-comp")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := target.Runtime.(*Runtime)
+		if caps := r.Capabilities(); !strings.Contains(caps.Bridges.Memory.Detail, "cross-model context replay is disabled") {
+			t.Fatalf("antigravity Bridges.Memory.Detail = %q, want cross-model replay disabled notice", caps.Bridges.Memory.Detail)
+		}
+
+		tok1 := cr.AttemptToken{ConversationID: "conv-agy-comp", AttemptID: "ac1", Generation: 1}
+		rec := r.Recover(ctx, cr.RecoveryRequest{Token: tok1})
+		if rec.Kind != cr.RecoveryNew || rec.NativeSessionID == "" {
+			t.Fatalf("recover = %+v, want RecoveryNew", rec)
+		}
+		if !cli.DetectLocalLogin("antigravity", "") {
+			t.Fatal("DetectLocalLogin(\"antigravity\", \"\") must become true after session/new")
+		}
+
+		// Non-empty Handoff must be rejected without sending prompt.
+		subH := r.Start(ctx, cr.RuntimeRequest{
+			Token:           cr.AttemptToken{ConversationID: "conv-agy-comp", AttemptID: "ac_h", Generation: 1},
+			NativeSessionID: rec.NativeSessionID,
+			Plan:            cr.Plan{ID: "p-h", RequestBody: "raw", Handoff: "<handoff>prior</handoff>", Payload: "<handoff>prior</handoff>\n\nraw"},
+		}, func(cr.Event) error { return nil })
+		if subH.Kind != cr.SubmitNotSent {
+			t.Fatalf("antigravity Start with handoff = %+v, want SubmitNotSent", subH)
+		}
+
+		// Without Handoff, RequestBody must be forwarded verbatim instead of wrapped Payload.
+		done := make(chan cr.Event, 1)
+		exactBody := "exact user prompt verbatim"
+		subOk := r.Start(ctx, cr.RuntimeRequest{
+			Token:           tok1,
+			NativeSessionID: rec.NativeSessionID,
+			Plan:            cr.Plan{ID: "p-raw", RequestBody: exactBody, Payload: "WRAPPED_PAYLOAD_MUST_NOT_BE_SENT"},
+		}, func(e cr.Event) error {
+			if e.Kind == cr.EventCompleted || e.Kind == cr.EventFailed {
+				done <- e
+			}
+			return nil
+		})
+		if subOk.Kind != cr.SubmitAccepted {
+			t.Fatalf("antigravity Start verbatim = %+v, want SubmitAccepted", subOk)
+		}
+		if last := <-done; last.Kind != cr.EventCompleted {
+			t.Fatalf("turn completed = %+v", last)
+		}
+
+		// Releasing triggers close() -> session/close.
+		f.Release("conv-agy-comp")
+
+		raw, err := os.ReadFile(rpcLog)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var sawInit, sawPrompt, sawClose bool
+		for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
+			if line == "" {
+				continue
+			}
+			var msg map[string]any
+			if json.Unmarshal([]byte(line), &msg) != nil {
+				continue
+			}
+			params, _ := msg["params"].(map[string]any)
+			switch msg["method"] {
+			case "initialize":
+				sawInit = true
+				ci, _ := params["clientInfo"].(map[string]any)
+				if ci == nil || ci["name"] != "nomi" {
+					t.Fatalf("initialize missing clientInfo.name=nomi: %s", line)
+				}
+				cc, _ := params["clientCapabilities"].(map[string]any)
+				if cc == nil || cc["terminal"] != false {
+					t.Fatalf("initialize missing clientCapabilities.terminal=false: %s", line)
+				}
+			case "session/prompt":
+				sawPrompt = true
+				blocks, _ := params["prompt"].([]any)
+				if len(blocks) != 1 {
+					t.Fatalf("prompt blocks = %v, want 1", blocks)
+				}
+				b0, _ := blocks[0].(map[string]any)
+				if b0["text"] != exactBody {
+					t.Fatalf("session/prompt text = %q, want exact RequestBody %q", b0["text"], exactBody)
+				}
+			case "session/close":
+				sawClose = true
+			}
+		}
+		if !sawInit || !sawPrompt || !sawClose {
+			t.Fatalf("missing expected ACP calls (init=%v prompt=%v close=%v):\n%s", sawInit, sawPrompt, sawClose, string(raw))
 		}
 	})
 }

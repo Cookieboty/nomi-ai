@@ -769,7 +769,7 @@ func (s *Service) Settings() *util.Obj {
 	c.Set("presets", presets)
 	c.Set("routes", routes)
 	localAvail := util.NewObj()
-	for _, id := range builtin.Ordered {
+	for _, id := range DelegateClis {
 		if builtin.WithAccounts(id) || builtin.LocalOnly(id) {
 			localAvail.Set(id, s.hasLocalLoginFor(id))
 		}
@@ -865,6 +865,10 @@ func (s *Service) Pin(name any, turnID any) (string, error) {
 	}
 	cli := ResolveDelegateCli(name)
 	if cli == "" {
+		raw := strings.ToLower(trim(jsString(name)))
+		if builtin.InteractiveOnly(raw) {
+			return "", errors.New(builtin.DisplayName(raw) + " is interactive-only and cannot be used for delegation")
+		}
 		return "", errors.New("unknown cli: " + jsString(name))
 	}
 	if !contains(s.Installed(), cli) {
@@ -983,6 +987,9 @@ func (s *Service) Dispatch(sig context.Context, in DispatchInput) (*util.Obj, er
 	} else {
 		cli = ResolveDelegateCli(requested)
 		if cli == "" {
+			if builtin.InteractiveOnly(reqLower) {
+				return nil, derr("cli_unavailable", builtin.DisplayName(reqLower)+" 仅支持人工直接交互，不支持自动化委派")
+			}
 			return nil, derr("unknown_cli", "不认识这个 agent："+trim(requested))
 		}
 		if !contains(installed, cli) {
@@ -1452,6 +1459,17 @@ func (s *Service) delegate(in *util.Obj, c *execCtx, t0 float64, dispatchOv *dis
 	defaults, _ := settings.Get("defaults").(*util.Obj)
 	autoComplexity, presets, routes := s.effectiveRouting(settings)
 	reqPreset := optStr(in, "preset")
+	rawReqCli := strings.ToLower(trim(util.Str(in.Get("cli"))))
+	ovCli := ""
+	if dispatchOv != nil {
+		ovCli = strings.ToLower(trim(dispatchOv.cli))
+	}
+	if builtin.InteractiveOnly(rawReqCli) {
+		return nil, derr("cli_unavailable", builtin.DisplayName(rawReqCli)+" 仅支持人工直接交互，不支持自动化委派")
+	}
+	if builtin.InteractiveOnly(ovCli) {
+		return nil, derr("cli_unavailable", builtin.DisplayName(ovCli)+" 仅支持人工直接交互，不支持自动化委派")
+	}
 	reqCli := ResolveDelegateCli(in.Get("cli"))
 	reqSource, reqAccountID := "", ""
 	if dispatchOv != nil {

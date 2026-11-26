@@ -59,6 +59,7 @@ if (args.includes('--login')) {
     }, 30);
   }
 } else {
+  if (rpcLog) fs.appendFileSync(rpcLog, JSON.stringify({ argv: args }) + '\n', 'utf8');
   const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
   rl.on('line', (line) => {
     const trimmed = line.trim();
@@ -212,6 +213,13 @@ func TestLocalAuthServiceProbeLoginCancelLogoutAndCache(t *testing.T) {
 	if !strings.Contains(string(rawRPC), `"method":"logout"`) || strings.Contains(string(rawRPC), `"auth/logout"`) {
 		t.Fatalf("unexpected logout RPC payload:\n%s", string(rawRPC))
 	}
+	if !strings.Contains(string(rawRPC), `"clientInfo":{"name":"nomi"`) ||
+		!strings.Contains(string(rawRPC), `"clientCapabilities":{"fs":{"readTextFile":false,"writeTextFile":false},"terminal":false}`) {
+		t.Fatalf("antigravity initialize must declare clientInfo and explicit false fs/terminal capabilities:\n%s", string(rawRPC))
+	}
+	if strings.Contains(string(rawRPC), "--disable-telemetry") {
+		t.Fatalf("probe/logout must not force --disable-telemetry:\n%s", string(rawRPC))
+	}
 	if DetectLocalLogin("antigravity", "") {
 		t.Fatal("DetectLocalLogin must return false after Logout")
 	}
@@ -252,6 +260,9 @@ func TestLocalAuthServiceProbeLoginCancelLogoutAndCache(t *testing.T) {
 }
 
 func TestAntigravityJetskiStateDetection(t *testing.T) {
+	ClearLocalAuthCache("")
+	t.Cleanup(func() { ClearLocalAuthCache("") })
+
 	home := t.TempDir()
 	agyDir := filepath.Join(home, ".gemini", "antigravity")
 	if err := os.MkdirAll(agyDir, 0o700); err != nil {
@@ -267,7 +278,11 @@ func TestAntigravityJetskiStateDetection(t *testing.T) {
 	if err := os.WriteFile(pb, []byte("active_user: \"u@example.com\"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if !DetectLocalLogin("antigravity", home) {
-		t.Fatal("non-empty jetski_state.pbtxt should detect local login")
+	if DetectLocalLogin("antigravity", home) {
+		t.Fatal("non-empty jetski_state.pbtxt must not be read directly for antigravity login detection")
+	}
+	SetLocalAuthCache("antigravity", true)
+	if !DetectLocalLogin("antigravity", "") {
+		t.Fatal("verified session cache should mark antigravity as logged in")
 	}
 }

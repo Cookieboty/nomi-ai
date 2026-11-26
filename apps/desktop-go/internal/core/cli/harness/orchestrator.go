@@ -777,7 +777,7 @@ func (o *Orchestrator) load() {
 					pm = util.Undefined
 				}
 				restored.Set("permissionMode", o.restoredMode(be.(string), pm))
-				if migrateAuto && o.autoApprove && tab.Get("permissionMode") == o.defaultPermMode && !truthy(tab.Get("delegation")) {
+				if migrateAuto && o.autoApprove && tab.Get("permissionMode") == o.defaultPermMode && !truthy(tab.Get("delegation")) && !builtin.InteractiveOnly(be.(string)) {
 					m, _ := cli.EffectiveMode(be.(string), "bypass")
 					restored.Set("permissionMode", m)
 					migrated = true
@@ -965,7 +965,7 @@ func (o *Orchestrator) carryPath(id string) string {
 
 func (o *Orchestrator) carriedText(id string) *string {
 	t := o.tab(id)
-	if t == nil || !truthy(t.Get("carriedMessages")) {
+	if t == nil || builtin.InteractiveOnly(str(t, "backend")) || !truthy(t.Get("carriedMessages")) {
 		return nil
 	}
 	b, err := os.ReadFile(o.carryPath(id))
@@ -980,6 +980,9 @@ func (o *Orchestrator) carriedText(id string) *string {
 }
 
 func (o *Orchestrator) setCarried(tab *util.Obj, messages []*util.Obj, from string) {
+	if tab != nil && builtin.InteractiveOnly(str(tab, "backend")) {
+		messages = nil
+	}
 	var carried *cli.CarriedContext
 	if messages != nil {
 		if from == "" {

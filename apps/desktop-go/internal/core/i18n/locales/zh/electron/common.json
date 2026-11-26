@@ -623,6 +623,12 @@
   "electron.common.cli-did-not-switch-the": "{0} 没有切换{1}：{2}",
   "electron.common.cli-local-auth-needs-sign-in": "{0} 还没有登录。请打开「设置 → 模型与 Agents → {0}」完成官方登录，或在终端运行 {1} acp --login。",
   "electron.common.cli-local-auth-not-supported": "{0} 不支持应用内官方登录管理",
+  "electron.common.cli-interactive-only-no-delegate": "{0} 仅限在交互式对话中直接使用，不能用于自动委派、预设路由或定时后台任务",
+  "electron.common.cli-interactive-only-no-switch": "{0} 不支持与 {1} 之间互相切换，也禁止跨模型上下文回放，请新建对话使用",
+  "electron.common.cli-interactive-only-no-adopt-history": "{0} 只能在空白对话中启用，禁止接管包含其他模型历史消息的会话",
+  "electron.common.cli-interactive-only-locked": "当前会话处于 {0}，不允许切换到其他后端，请新建对话",
+  "electron.common.cli-interactive-only-no-switch-in": "不能从当前已有会话切换到 {0}，请在顶部新建对话菜单或空白会话中选择",
+  "electron.common.cli-interactive-only-no-fork": "{0} 不支持带入或复制对话历史进行分叉，请新建空白对话使用",
   "electron.common.self-update-version-unchanged-fallback": "自更新命令已退出，但版本仍为 {0}，改用下一种方式继续更新…",
   "electron.common.update-version-unchanged": "命令已执行完成，但检测到的版本仍为 {0}（最新版本 {1}）"
 }

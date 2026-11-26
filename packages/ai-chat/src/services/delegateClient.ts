@@ -1,4 +1,10 @@
-import { BUILTIN_CLI_ORDER, type BuiltinCliId, byCli, cliName } from '@nomi-ai/cli-catalog';
+import {
+  BUILTIN_CLI_ORDER,
+  type BuiltinCliId,
+  byCli,
+  cliCapability,
+  cliName,
+} from '@nomi-ai/cli-catalog';
 /**
  * Nomi 把 agent 当子代理调用（docs/development/coding-agents.md）：
  * - 设置：总开关 + 按任务类型的默认 agent；
@@ -22,7 +28,9 @@ import { refSlashLabel } from './cliSource';
 import type { GatewayState } from './gatewayClient';
 import type { HarnessUsage, ReasoningEffort } from './harnessClient';
 
-export const DELEGATE_CLIS = BUILTIN_CLI_ORDER;
+export const DELEGATE_CLIS = BUILTIN_CLI_ORDER.filter(
+  (id) => !cliCapability(id, 'interactiveOnly'),
+);
 export type DelegateCli = BuiltinCliId;
 
 export const DELEGATE_KINDS = ['coding', 'prd', 'review', 'research'] as const;

@@ -1126,3 +1126,47 @@ func TestManagedSwitchExposesLongContextInRuntimeView(t *testing.T) {
 		t.Fatalf("expected longContext omitted after default reset, got %s", defBytes)
 	}
 }
+
+func TestManagedInteractiveOnlyRuntimeLockAndAdoption(t *testing.T) {
+	dir := t.TempDir()
+	_, r, c := fixtureIngress(t, dir)
+	claudeFake := &ingressFake{name: "claude"}
+	agyFake := &ingressFake{name: "antigravity"}
+	r.Register("claude", claudeFake.target)
+	r.Register("antigravity", agyFake.target)
+
+	// 1. Non-empty conversation cannot adopt interactive-only antigravity -> BAD_INPUT
+	requireOK(t, c.call("conversations.put", `{"meta":{"id":"non_empty","backend":"nomi","name":"non empty","createdAt":1000,"updatedAt":1000},"messages":[{"id":"m1","role":"user","content":"hi","timestamp":1001}]}`))
+	fAdoptNonEmpty := c.call("conversations.runtimeAdopt", `{"id":"non_empty","backend":"antigravity","source":"local","confirm":true}`)
+	if fAdoptNonEmpty.T != "err" || fAdoptNonEmpty.Error == nil || fAdoptNonEmpty.Error.Code != "BAD_INPUT" {
+		t.Fatalf("runtimeAdopt antigravity on non-empty chat = %+v, want BAD_INPUT", fAdoptNonEmpty)
+	}
+
+	// 2. Empty conversation CAN adopt antigravity, then switching out to claude is forbidden -> BAD_INPUT
+	requireOK(t, c.call("conversations.put", `{"meta":{"id":"empty_agy","backend":"nomi","name":"empty","createdAt":1000,"updatedAt":1000},"messages":[]}`))
+	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"empty_agy","backend":"antigravity","source":"local","confirm":true}`))
+	fSwitchOut := c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"empty_agy","backend":"claude","source":"local","confirm":true,"expectedGeneration":%d}`, 1))
+	// Fetch current generation to ensure the failure is due to lock, not generation conflict.
+	stBytes, _ := json.Marshal(requireOK(t, c.call("conversations.runtimeState", `{"id":"empty_agy"}`)))
+	var agySt struct {
+		Generation int `json:"generation"`
+	}
+	_ = json.Unmarshal(stBytes, &agySt)
+	fSwitchOut = c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"empty_agy","backend":"claude","source":"local","confirm":true,"expectedGeneration":%d}`, agySt.Generation))
+	if fSwitchOut.T != "err" || fSwitchOut.Error == nil || fSwitchOut.Error.Code != "BAD_INPUT" {
+		t.Fatalf("runtimeSwitch out of antigravity = %+v, want BAD_INPUT", fSwitchOut)
+	}
+
+	// 3. Conversation on claude cannot switch into antigravity -> BAD_INPUT
+	requireOK(t, c.call("conversations.put", `{"meta":{"id":"on_claude","backend":"nomi","name":"claude","createdAt":1000,"updatedAt":1000},"messages":[]}`))
+	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"on_claude","backend":"claude","source":"local","confirm":true}`))
+	cBytes, _ := json.Marshal(requireOK(t, c.call("conversations.runtimeState", `{"id":"on_claude"}`)))
+	var claudeSt struct {
+		Generation int `json:"generation"`
+	}
+	_ = json.Unmarshal(cBytes, &claudeSt)
+	fSwitchIn := c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"on_claude","backend":"antigravity","source":"local","confirm":true,"expectedGeneration":%d}`, claudeSt.Generation))
+	if fSwitchIn.T != "err" || fSwitchIn.Error == nil || fSwitchIn.Error.Code != "BAD_INPUT" {
+		t.Fatalf("runtimeSwitch into antigravity from claude = %+v, want BAD_INPUT", fSwitchIn)
+	}
+}

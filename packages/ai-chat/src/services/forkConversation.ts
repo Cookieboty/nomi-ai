@@ -4,6 +4,7 @@
 import { t } from '@nomi-ai/ui';
 
 import type { ChatMessage, ConversationBackend } from '../types/chat';
+import { isInteractiveOnly } from '../utils/cliCaps';
 import { ENDPOINT_FULL, isCliBackend } from '../utils/endpointBadge';
 import {
   buildCliContextPreface,
@@ -12,6 +13,7 @@ import {
   keepLastTurns,
 } from '../utils/forkTranscript';
 
+import { api, hasTransport } from './api';
 import { notifyConversationsChanged, type ConversationStore } from './conversationStore';
 import {
   MAIN_TAB_ID,
@@ -91,6 +93,38 @@ async function sourceProject(meta: {
   return st?.tabs.find((x) => x.id === meta.tabId)?.projectId;
 }
 
+function labelForBackend(backend: string): string {
+  return (ENDPOINT_FULL as Record<string, (() => string) | undefined>)[backend]?.() ?? backend;
+}
+
+async function assertNotInteractiveOnlySource(
+  store: ConversationStore,
+  sourceId: string,
+  backend: string,
+  messages: readonly ChatMessage[],
+): Promise<void> {
+  if (isInteractiveOnly(backend)) {
+    throw new Error(t('ui.cli-monitor.fork-interactive-only-disabled', labelForBackend(backend)));
+  }
+  const msgInteractive = messages.find((m) => isInteractiveOnly(m.runtimeBackend));
+  if (msgInteractive?.runtimeBackend) {
+    throw new Error(
+      t(
+        'ui.cli-monitor.fork-interactive-only-disabled',
+        labelForBackend(msgInteractive.runtimeBackend),
+      ),
+    );
+  }
+  if (store.isManaged?.(sourceId) && hasTransport()) {
+    const st = await api.conversations.runtimeState({ id: sourceId }).catch(() => null);
+    if (st && isInteractiveOnly(st.backend)) {
+      throw new Error(
+        t('ui.cli-monitor.fork-interactive-only-disabled', labelForBackend(st.backend)),
+      );
+    }
+  }
+}
+
 /** 同端分叉：新会话 / 新 CLI 标签，复制可见消息 */
 export async function forkSameBackend(
   store: ConversationStore,
@@ -98,6 +132,7 @@ export async function forkSameBackend(
   opts: ForkOptions = {},
 ): Promise<ForkResult> {
   const { meta, messages } = await loadSourceMessages(store, sourceId);
+  await assertNotInteractiveOnlySource(store, sourceId, meta.backend, messages);
   const title = t('ui.cli-monitor.copy', meta.name);
   const kept = forkedMessages(cutAfter(messages, opts.upto), opts.turns, opts.inheritSettings);
 
@@ -191,6 +226,10 @@ export async function forkCrossBackend(
   opts: ForkOptions = {},
 ): Promise<ForkResult> {
   const { meta, messages } = await loadSourceMessages(store, sourceId);
+  await assertNotInteractiveOnlySource(store, sourceId, meta.backend, messages);
+  if (isInteractiveOnly(target)) {
+    throw new Error(t('ui.cli-monitor.fork-interactive-only-disabled', labelForBackend(target)));
+  }
   if (target === meta.backend) return forkSameBackend(store, sourceId, opts);
   const title = `${meta.name} → ${ENDPOINT_FULL[target]()}`;
   const compact = forkedMessages(cutAfter(messages, opts.upto), opts.turns);

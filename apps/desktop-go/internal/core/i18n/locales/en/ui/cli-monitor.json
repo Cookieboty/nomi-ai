@@ -307,5 +307,6 @@
   "ui.cli-monitor.fleet-dispatch-hint": "Progress shows up on this board. Sessions already open in a terminal or IDE appear read-only and are left alone.",
   "ui.cli-monitor.fleet-dispatch-one": "Dispatch {0}",
   "ui.cli-monitor.install-via-official-script": "Install via the official command in your terminal:",
-  "ui.cli-monitor.official-docs": "Official install guide"
+  "ui.cli-monitor.official-docs": "Official install guide",
+  "ui.cli-monitor.fork-interactive-only-disabled": "{0} conversations cannot be forked or copied across runtimes; start a new conversation instead"
 }

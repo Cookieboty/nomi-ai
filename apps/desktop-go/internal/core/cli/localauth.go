@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
+	antigravityp "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/antigravity"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/gemini"
@@ -222,7 +223,7 @@ func (s *LocalAuthService) Status(kind string, probe bool) *jsrt.Promise[*util.O
 		cachedVal, hadCached := CachedLocalAuth(kind)
 		gen := s.probeGen[kind]
 
-		loggedIn, probeErr := jsrt.Await(s.probeACP(bin))
+		loggedIn, probeErr := jsrt.Await(s.probeACP(kind, bin))
 		if probeErr == nil {
 			if s.probeGen[kind] == gen {
 				SetLocalAuthCache(kind, loggedIn)
@@ -269,9 +270,36 @@ func (s *LocalAuthService) Status(kind string, probe bool) *jsrt.Promise[*util.O
 	})
 }
 
-func (s *LocalAuthService) probeACP(bin string) *jsrt.Promise[bool] {
+func acpInitializeParams(kind string) *util.Obj {
+	if kind == "antigravity" {
+		return util.NewObj(
+			"protocolVersion", float64(1),
+			"clientInfo", antigravityp.ClientInfo(),
+			"clientCapabilities", antigravityp.ClientCapabilities(),
+		)
+	}
+	return util.NewObj("protocolVersion", float64(1), "clientCapabilities", util.NewObj())
+}
+
+func supportsAcpLogout(initResult any) bool {
+	res := util.AsObj(initResult)
+	if res == nil {
+		return true
+	}
+	ac := util.AsObj(res.Get("agentCapabilities"))
+	if ac == nil || ac.Len() == 0 {
+		return true
+	}
+	authObj := util.AsObj(ac.Get("auth"))
+	if authObj == nil {
+		return true
+	}
+	return authObj.Get("logout") != nil
+}
+
+func (s *LocalAuthService) probeACP(kind, bin string) *jsrt.Promise[bool] {
 	probeMs := s.probeMs()
-	child := s.spawn(bin, []string{"acp", "--disable-telemetry"}, os.TempDir())
+	child := s.spawn(bin, []string{"acp"}, os.TempDir())
 	return localAuthWithTimeout[bool](child, probeMs, func(done func(bool), fail func(error)) {
 		tail := ""
 		child.OnStderr(func(c string) { tail = clisdk.SliceFrom(tail+c, -600) })
@@ -283,7 +311,7 @@ func (s *LocalAuthService) probeACP(bin string) *jsrt.Promise[bool] {
 		})
 		opts := rpc.RequestOptions{TimeoutMs: &probeMs}
 		jsrt.Async(func() (struct{}, error) {
-			if _, err := jsrt.Await(conn.Request("initialize", util.NewObj("protocolVersion", float64(1), "clientCapabilities", util.NewObj()), opts)); err != nil {
+			if _, err := jsrt.Await(conn.Request("initialize", acpInitializeParams(kind), opts)); err != nil {
 				if msg := rpc.InnermostMessage(err.Error()); msg != "" {
 					fail(err)
 				} else if t := lastNonEmptyLines(tail, 3); t != "" {
@@ -481,7 +509,7 @@ func (s *LocalAuthService) Logout(kind string) *jsrt.Promise[*util.Obj] {
 		}
 		s.bumpGen(kind)
 		probeMs := s.probeMs()
-		child := s.spawn(bin, []string{"acp", "--disable-telemetry"}, os.TempDir())
+		child := s.spawn(bin, []string{"acp"}, os.TempDir())
 		_, err := jsrt.Await(localAuthWithTimeout[struct{}](child, probeMs, func(done func(struct{}), fail func(error)) {
 			tail := ""
 			child.OnStderr(func(c string) { tail = clisdk.SliceFrom(tail+c, -600) })
@@ -493,7 +521,8 @@ func (s *LocalAuthService) Logout(kind string) *jsrt.Promise[*util.Obj] {
 			})
 			opts := rpc.RequestOptions{TimeoutMs: &probeMs}
 			jsrt.Async(func() (struct{}, error) {
-				if _, err := jsrt.Await(conn.Request("initialize", util.NewObj("protocolVersion", float64(1), "clientCapabilities", util.NewObj()), opts)); err != nil {
+				initRes, err := jsrt.Await(conn.Request("initialize", acpInitializeParams(kind), opts))
+				if err != nil {
 					if msg := rpc.InnermostMessage(err.Error()); msg != "" {
 						fail(err)
 					} else if t := lastNonEmptyLines(tail, 3); t != "" {
@@ -501,6 +530,10 @@ func (s *LocalAuthService) Logout(kind string) *jsrt.Promise[*util.Obj] {
 					} else {
 						fail(err)
 					}
+					return struct{}{}, nil
+				}
+				if !supportsAcpLogout(initRes) {
+					fail(errors.New("ACP agent does not advertise auth.logout capability"))
 					return struct{}{}, nil
 				}
 				if _, err := jsrt.Await(conn.Request("logout", util.NewObj(), opts)); err != nil {

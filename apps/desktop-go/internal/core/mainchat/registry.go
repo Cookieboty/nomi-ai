@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"regexp"
 	"sort"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/convstore"
@@ -21,6 +23,7 @@ import (
 
 var ErrUnavailable = errors.New("managed runtime unavailable")
 var ErrClosed = errors.New("main chat registry closed")
+var ErrSwitchForbidden = errors.New("runtime switch forbidden for interactive-only backend")
 
 type Factory func(conversationID string) (cr.Target, error)
 type actor struct {
@@ -372,6 +375,27 @@ func (r *Registry) get(id string) (*actor, error) {
 	return a, nil
 }
 
+func (r *Registry) hasPriorMessages(id string) bool {
+	r.mu.Lock()
+	a := r.actors[id]
+	r.mu.Unlock()
+	if a != nil {
+		return len(a.session.Messages()) > 0
+	}
+	if r.store == nil {
+		return false
+	}
+	if msgs, err := r.store.Messages(id, 1); err == nil && len(msgs) > 0 {
+		return true
+	}
+	if r.store.IsManaged(id) {
+		if doc, err := r.store.ReadManaged(id); err == nil && len(doc.State.History) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // Adopt must be explicitly confirmed and must resolve a supported target BEFORE
 // publishing ownership. In particular Windows and missing CLIs cannot adopt.
 func (r *Registry) Adopt(id, name string, confirm bool) error {
@@ -384,6 +408,9 @@ func (r *Registry) AdoptWithOptions(id, name string, confirm bool, opts SwitchOp
 	}
 	if !convstore.ManagedSupported() {
 		return convstore.ErrDurabilityUnsupported
+	}
+	if builtin.InteractiveOnly(name) && r.hasPriorMessages(id) {
+		return fmt.Errorf("%w: %s", ErrSwitchForbidden, i18n.T("electron.common.cli-interactive-only-no-adopt-history", builtin.DisplayName(name)))
 	}
 	prevCfg := r.ConfigFor(id, name)
 	baseCfg := prevCfg
@@ -557,11 +584,22 @@ func (r *Registry) Switch(ctx context.Context, id string, opts SwitchOptions) (c
 	if err != nil {
 		return cr.SwitchOutcome{}, err
 	}
+	currentBackend := a.session.Checkpoint().Selected.Identity.DriverID
+	if opts.Backend != currentBackend {
+		if builtin.InteractiveOnly(currentBackend) {
+			return cr.SwitchOutcome{}, fmt.Errorf("%w: %s", ErrSwitchForbidden, i18n.T("electron.common.cli-interactive-only-locked", builtin.DisplayName(currentBackend)))
+		}
+		if builtin.InteractiveOnly(opts.Backend) {
+			if (currentBackend != "" && currentBackend != "api") || len(a.session.Messages()) > 0 {
+				return cr.SwitchOutcome{}, fmt.Errorf("%w: %s", ErrSwitchForbidden, i18n.T("electron.common.cli-interactive-only-no-switch-in", builtin.DisplayName(opts.Backend)))
+			}
+		}
+	}
 	prevCfg := r.ConfigFor(id, opts.Backend)
 	baseCfg := prevCfg
 	// Cross-backend switch resets any stale PermissionMode on the target backend
 	// unless the caller explicitly specifies a mode (same-backend updates keep it).
-	if currentBackend := a.session.Checkpoint().Selected.Identity.DriverID; opts.Backend != currentBackend && opts.PermissionMode == "" {
+	if opts.Backend != currentBackend && opts.PermissionMode == "" {
 		baseCfg.PermissionMode = ""
 	}
 	nextCfg := mergeRuntimeConfig(baseCfg, opts)
@@ -589,6 +627,15 @@ func (r *Registry) Select(id, name string) error {
 	a, err := r.get(id)
 	if err != nil {
 		return err
+	}
+	currentBackend := a.session.Checkpoint().Selected.Identity.DriverID
+	if currentBackend != "" && name != currentBackend {
+		if builtin.InteractiveOnly(currentBackend) {
+			return fmt.Errorf("%w: %s", ErrSwitchForbidden, i18n.T("electron.common.cli-interactive-only-locked", builtin.DisplayName(currentBackend)))
+		}
+		if builtin.InteractiveOnly(name) && (currentBackend != "api" || len(a.session.Messages()) > 0) {
+			return fmt.Errorf("%w: %s", ErrSwitchForbidden, i18n.T("electron.common.cli-interactive-only-no-switch-in", builtin.DisplayName(name)))
+		}
 	}
 	t, err := r.target(id, name)
 	if err != nil {

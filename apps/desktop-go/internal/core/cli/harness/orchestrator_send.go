@@ -145,7 +145,7 @@ func (o *Orchestrator) SendTab(id, prompt string, images []any, userInitiated bo
 		o.changed()
 		runCwd := str(current, "cwd")
 		var stored *string
-		if !truthy(tab.Get("cliSessionId")) {
+		if !builtin.InteractiveOnly(backend) && !truthy(tab.Get("cliSessionId")) {
 			stored = o.carriedText(id)
 		}
 		var carried *string
@@ -153,7 +153,10 @@ func (o *Orchestrator) SendTab(id, prompt string, images []any, userInitiated bo
 			c, _ := cli.FitCarried(*stored, cli.CarriedBudget(backend, usage.Platform()))
 			carried = &c
 		}
-		toCli := o.withSandboxNote(current, backend, cli.WithCarriedContext(carried, text))
+		toCli := text
+		if !builtin.InteractiveOnly(backend) {
+			toCli = o.withSandboxNote(current, backend, cli.WithCarriedContext(carried, text))
+		}
 		stageDir := ""
 		if len(normalized) > 0 {
 			stageDir = o.promptImageDir(id)

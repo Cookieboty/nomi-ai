@@ -281,3 +281,45 @@ func TestServiceNomiModelAndCliUpdate(t *testing.T) {
 		t.Fatalf("cli update/detach preset failed: %+v", ex)
 	}
 }
+
+func TestServiceRejectsInteractiveOnlyCli(t *testing.T) {
+	s := NewService(ServiceDeps{Root: t.TempDir(), Log: &nopLog{}, SetTimer: func(func(), int64) func() { return func() {} }})
+	s.RegisterExecutor("cli", stubPresetCliExec{presets: map[string]string{"agy": "antigravity"}})
+
+	if _, err := s.Create(CreateRequest{
+		Title: "agy", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "cli", Cli: ptr("antigravity"), Cwd: ptr("/repo")},
+		Grant:    Grant{Level: 2, Clis: &[]string{"antigravity"}},
+	}, "user"); err == nil {
+		t.Fatal("Create must reject interactive-only antigravity cli")
+	}
+
+	if _, err := s.Create(CreateRequest{
+		Title: "agy-preset", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "cli", PresetID: ptr("agy"), Cwd: ptr("/repo")},
+		Grant:    Grant{Level: 2, Clis: &[]string{"antigravity"}},
+	}, "user"); err == nil {
+		t.Fatal("Create must reject preset resolving to interactive-only antigravity cli")
+	}
+
+	if _, err := s.CreateDelegated(DelegatedInput{
+		Title:    "delegated-agy",
+		Goal:     "g",
+		Executor: ExecutorSpec{Kind: "cli", Cli: ptr("antigravity"), Cwd: ptr("/repo")},
+		Level:    3,
+	}); err == nil {
+		t.Fatal("CreateDelegated must reject interactive-only antigravity cli")
+	}
+
+	validTask, err := s.Create(CreateRequest{
+		Title: "codex", Goal: "g", Trigger: Trigger{Kind: "manual"},
+		Executor: ExecutorSpec{Kind: "cli", Cli: ptr("codex"), Cwd: ptr("/repo")},
+		Grant:    Grant{Level: 2, Clis: &[]string{"codex"}},
+	}, "user")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Update(validTask.ID, Patch{PresetID: SetString("agy")}); err == nil {
+		t.Fatal("Update must reject preset resolving to interactive-only antigravity cli")
+	}
+}

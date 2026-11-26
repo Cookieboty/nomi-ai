@@ -427,7 +427,7 @@ func (o *Orchestrator) inheritSettings(tab *util.Obj, explicitMode bool) {
 	if s == nil {
 		return
 	}
-	if pm, ok := s.Get("permissionMode").(string); !explicitMode && !o.autoApprove && pm != "" && ok {
+	if pm, ok := s.Get("permissionMode").(string); !explicitMode && (!o.autoApprove || builtin.InteractiveOnly(str(tab, "backend"))) && pm != "" && ok {
 		m, _ := cli.EffectiveMode(str(tab, "backend"), pm)
 		tab.Set("permissionMode", m)
 	}
@@ -454,6 +454,9 @@ func (o *Orchestrator) prewarm(id string) {
 		return
 	}
 	backend := str(tab, "backend")
+	if builtin.InteractiveOnly(backend) {
+		return
+	}
 	switch {
 	case backend == "claude" && o.live.claude[id] == nil:
 		if o.needsTabBinding(tab) {

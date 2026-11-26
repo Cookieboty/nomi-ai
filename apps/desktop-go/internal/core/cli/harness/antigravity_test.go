@@ -1,6 +1,7 @@
 package harness
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,17 +35,22 @@ func TestAntigravityModelCatalogForAndSyncAcpOverrides(t *testing.T) {
 	agyCliDir := filepath.Join(tmp, ".gemini", "antigravity-cli")
 	_ = os.MkdirAll(binDir, 0o755)
 	_ = os.MkdirAll(agyCliDir, 0o700)
-	_ = os.WriteFile(filepath.Join(agyCliDir, "oauth_creds.json"), []byte(`{"token":"ok"}`), 0o600)
 	_ = os.WriteFile(filepath.Join(agyCliDir, "settings.json"), []byte(`{"model":"gemini-4-neon-xhigh"}`), 0o600)
 
 	mockJS := filepath.Join(tmp, "mock-agy.js")
 	jsSrc := `'use strict';
+const fs = require('fs');
 const readline = require('readline');
 if (process.argv.slice(2)[0] === 'models') {
+  if (process.env.MOCK_AGY_FAIL_MODELS === '1') {
+    process.stderr.write('models subcommand failed\n');
+    process.exit(1);
+  }
   process.stdout.write([
     '  auto                           Auto',
     '  gemini-4-neon-low              Gemini 4 Neon (Low)',
     '  gemini-4-neon-xhigh            Gemini 4 Neon (Extra High)',
+    '  gemini-pro-orchestrator-neon   Gemini Pro Orchestrator Neon',
     '  gpt-oss-120b-medium            GPT-OSS 120B (Medium)'
   ].join('\n') + '\n');
   process.exit(0);
@@ -53,6 +59,9 @@ const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity 
 rl.on('line', (line) => {
   const s = line.trim();
   if (!s) return;
+  if (process.env.MOCK_AGY_RPC_LOG) {
+    fs.appendFileSync(process.env.MOCK_AGY_RPC_LOG, s + '\n', 'utf8');
+  }
   let m; try { m = JSON.parse(s); } catch { return; }
   if (m.id === undefined) return;
   const reply = (res) => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: m.id, result: res }) + '\n');
@@ -67,7 +76,6 @@ rl.on('line', (line) => {
           { modelId: 'auto', name: 'Auto' },
           { modelId: 'gemini-4-neon-low', name: 'Gemini 4 Neon (Low)' },
           { modelId: 'gemini-4-neon-xhigh', name: 'Gemini 4 Neon (Extra High)' },
-          { modelId: 'gemini-pro-orchestrator-neon', name: 'Gemini Pro Orchestrator Neon' },
           { modelId: 'gpt-oss-120b-medium', name: 'GPT-OSS 120B (Medium)' }
         ]
       }
@@ -108,6 +116,9 @@ rl.on('line', (line) => {
 	})
 	defer jsrt.Run(o.Dispose)
 
+	// 1. Prefer `agy models` CLI output (returns 4 aggregated models) without spawning ACP
+	rpcLog := filepath.Join(tmp, "cat-rpc.log")
+	t.Setenv("MOCK_AGY_RPC_LOG", rpcLog)
 	cat, err := jsrt.Block(jsrt.Call(func() *jsrt.Promise[*util.Obj] {
 		return o.ModelCatalogFor("antigravity", false, "local")
 	}))
@@ -117,6 +128,25 @@ rl.on('line', (line) => {
 	models, _ := cat.Get("models").([]any)
 	if len(models) != 4 {
 		t.Fatalf("len(models) = %d, want 4 (%s)", len(models), util.Stringify(cat))
+	}
+	if raw, _ := os.ReadFile(rpcLog); len(raw) > 0 {
+		t.Fatalf("expected agy models CLI discovery without ACP spawn, got RPC log:\n%s", string(raw))
+	}
+
+	// 2. Fallback to ACP session/new when `agy models` fails (ACP mock returns 3 aggregated models)
+	t.Setenv("MOCK_AGY_FAIL_MODELS", "1")
+	fbCat, err := jsrt.Block(jsrt.Call(func() *jsrt.Promise[*util.Obj] {
+		return o.ModelCatalogFor("antigravity", true, "local")
+	}))
+	if err != nil {
+		t.Fatalf("ModelCatalogFor ACP fallback: %v", err)
+	}
+	fbModels, _ := fbCat.Get("models").([]any)
+	if len(fbModels) != 3 {
+		t.Fatalf("fallback len(models) = %d, want 3 (%s)", len(fbModels), util.Stringify(fbCat))
+	}
+	if raw, _ := os.ReadFile(rpcLog); !strings.Contains(string(raw), `"clientInfo":{"name":"nomi"`) {
+		t.Fatalf("ACP discovery initialize must include clientInfo:\n%s", string(raw))
 	}
 
 	// Now verify syncAcpOverrides maps aggregated base + effort -> suffixed wire model ID using SessionRaw fallback when cache cleared
@@ -213,7 +243,6 @@ func TestAntigravityRunAcpTopLevelUsage(t *testing.T) {
 	agyCliDir := filepath.Join(tmp, ".gemini", "antigravity-cli")
 	_ = os.MkdirAll(binDir, 0o755)
 	_ = os.MkdirAll(agyCliDir, 0o700)
-	_ = os.WriteFile(filepath.Join(agyCliDir, "oauth_creds.json"), []byte(`{"token":"ok"}`), 0o600)
 
 	mockJS := filepath.Join(tmp, "mock-agy-usage.js")
 	jsSrc := `'use strict';
@@ -310,7 +339,6 @@ func TestAntigravityTabTitleSyncAndModelPersistence(t *testing.T) {
 	agyCliDir := filepath.Join(tmp, ".gemini", "antigravity-cli")
 	_ = os.MkdirAll(binDir, 0o755)
 	_ = os.MkdirAll(agyCliDir, 0o700)
-	_ = os.WriteFile(filepath.Join(agyCliDir, "oauth_creds.json"), []byte(`{"token":"ok"}`), 0o600)
 
 	mockJS := filepath.Join(tmp, "mock-agy-title.js")
 	jsSrc := `'use strict';
@@ -425,5 +453,260 @@ rl.on('line', (line) => {
 	time.Sleep(80 * time.Millisecond)
 	if curTitle := jsrt.Call(func() string { return str(o.tab(id), "title") }); curTitle != "Custom Tab Name" {
 		t.Fatalf("post-turn title overwrote manual rename: got %q, want Custom Tab Name", curTitle)
+	}
+}
+
+func TestAntigravityCompliancePolicies(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell mock required")
+	}
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node required on PATH")
+	}
+	if r, err := filepath.EvalSymlinks(node); err == nil {
+		node = r
+	}
+
+	cli.ClearLocalAuthCache("")
+	t.Cleanup(func() { cli.ClearLocalAuthCache("") })
+
+	tmp, _ := filepath.EvalSymlinks(t.TempDir())
+	binDir := filepath.Join(tmp, ".local", "bin")
+	agyCliDir := filepath.Join(tmp, ".gemini", "antigravity-cli")
+	_ = os.MkdirAll(binDir, 0o755)
+	_ = os.MkdirAll(agyCliDir, 0o700)
+	rpcLog := filepath.Join(tmp, "compliance-rpc.log")
+
+	mockJS := filepath.Join(tmp, "mock-agy-compliance.js")
+	jsSrc := `'use strict';
+const fs = require('fs');
+const readline = require('readline');
+const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+rl.on('line', (line) => {
+  const s = line.trim();
+  if (!s) return;
+  fs.appendFileSync(process.env.MOCK_AGY_RPC_LOG, s + '\n', 'utf8');
+  let m; try { m = JSON.parse(s); } catch { return; }
+  if (m.id === undefined) return;
+  const reply = (res) => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: m.id, result: res }) + '\n');
+  const notify = (update) => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', method: 'session/update', params: { sessionId: 's-comp-1', update } }) + '\n');
+  if (m.method === 'initialize') {
+    reply({
+      protocolVersion: 1,
+      agentCapabilities: { loadSession: true, sessionCapabilities: { close: {} } }
+    });
+  } else if (m.method === 'session/new') {
+    reply({ sessionId: 's-comp-1', modes: { currentModeId: 'default' } });
+  } else if (m.method === 'session/set_mode') {
+    reply({});
+  } else if (m.method === 'session/prompt') {
+    notify({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'ok' } });
+    reply({ stopReason: 'end_turn' });
+  } else if (m.method === 'session/close') {
+    reply({});
+  }
+});
+`
+	if err := os.WriteFile(mockJS, []byte(jsSrc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	agyBin := filepath.Join(binDir, "agy")
+	if err := os.WriteFile(agyBin, []byte("#!/bin/sh\nexec \""+node+"\" \""+mockJS+"\" \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("NOMI_USE_MOCK_CLI", "")
+	t.Setenv("HOME", tmp)
+	t.Setenv("ANTIGRAVITY_CLI_HOME", agyCliDir)
+	t.Setenv("MOCK_AGY_RPC_LOG", rpcLog)
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	cli.ResetCliBinCache()
+	t.Cleanup(cli.ResetCliBinCache)
+
+	root := filepath.Join(tmp, "harness")
+	work := filepath.Join(tmp, "docs", "nomi")
+	_ = os.MkdirAll(root, 0o755)
+	_ = os.MkdirAll(work, 0o755)
+	idle := 0.0
+	o := New(Deps{
+		Root:             root,
+		Home:             tmp,
+		DefaultCwd:       work,
+		LegacyDefaultCwd: filepath.Join(tmp, "docs"),
+		Logger:           nopLogger{},
+		Ports:            nopPorts{},
+		IdleReclaimMs:    &idle,
+	})
+	defer jsrt.Run(o.Dispose)
+
+	throws := func(label string, fn func()) {
+		t.Helper()
+		defer func() {
+			if recover() == nil {
+				t.Fatalf("%s: expected panic, got none", label)
+			}
+		}()
+		fn()
+	}
+
+	// 1. CreateTab rejects delegation / subagentOf for antigravity
+	throws("CreateTab delegation", func() {
+		jsrt.Run(func() {
+			o.CreateTab(util.NewObj(
+				"backend", "antigravity",
+				"delegation", util.NewObj("via", "delegate"),
+				"activate", false,
+			))
+		})
+	})
+	throws("CreateTab subagentOf", func() {
+		jsrt.Run(func() {
+			o.CreateTab(util.NewObj(
+				"backend", "antigravity",
+				"subagentOf", util.NewObj("parentTabId", "main"),
+				"activate", false,
+			))
+		})
+	})
+	throws("CreateTab seeded messages without cliSessionId", func() {
+		jsrt.Run(func() {
+			o.CreateTab(util.NewObj(
+				"backend", "antigravity",
+				"messages", []any{util.NewObj("id", "m1", "role", "user", "content", "copied")},
+				"activate", false,
+			))
+		})
+	})
+
+	// 2. SetTabBackend bidirectionally forbids switching into or out of antigravity
+	claudeTab := jsrt.Call(func() *util.Obj {
+		return o.CreateTab(util.NewObj("backend", "claude", "activate", false))
+	})
+	throws("SetTabBackend claude->antigravity", func() {
+		jsrt.Run(func() { o.SetTabBackend(str(claudeTab, "id"), "antigravity") })
+	})
+	agyTab := jsrt.Call(func() *util.Obj {
+		return o.CreateTab(util.NewObj("backend", "antigravity", "source", "local", "activate", false))
+	})
+	agyTabID := str(agyTab, "id")
+	if gotMode := str(agyTab, "permissionMode"); gotMode != "manual" {
+		t.Fatalf("antigravity default permissionMode = %q, want manual", gotMode)
+	}
+	throws("SeedTabMessages antigravity without cliSessionId", func() {
+		jsrt.Run(func() {
+			o.SeedTabMessages(agyTabID, []any{util.NewObj("id", "m1", "role", "user", "content", "copied")})
+		})
+	})
+	throws("SetTabBackend antigravity->claude", func() {
+		jsrt.Run(func() { o.SetTabBackend(agyTabID, "claude") })
+	})
+
+	// 2b. prewarm must NOT spawn agy acp or send session/new before any user prompt
+	oPre := New(Deps{
+		Root:             filepath.Join(tmp, "harness-prewarm"),
+		Home:             tmp,
+		DefaultCwd:       work,
+		LegacyDefaultCwd: filepath.Join(tmp, "docs"),
+		Logger:           nopLogger{},
+		Ports:            nopPorts{},
+		IdleReclaimMs:    &idle,
+		PrewarmClaude:    true,
+	})
+	preTab := jsrt.Call(func() *util.Obj {
+		return oPre.CreateTab(util.NewObj("backend", "antigravity", "source", "local", "activate", true))
+	})
+	jsrt.Run(func() { oPre.prewarm(str(preTab, "id")) })
+	time.Sleep(50 * time.Millisecond)
+	jsrt.Run(oPre.Dispose)
+	if rawPre, _ := os.ReadFile(rpcLog); len(rawPre) > 0 {
+		t.Fatalf("prewarm must not spawn antigravity ACP before user input, got:\n%s", string(rawPre))
+	}
+
+	// 3. Sandbox spec disabled & carried context ignored
+	jsrt.Run(func() {
+		tab := o.tab(agyTabID)
+		if spec := o.sandboxSpec(tab, work, util.NewObj()); spec != nil {
+			t.Fatalf("sandboxSpec(antigravity) = %v, want nil", spec)
+		}
+		o.setCarried(tab, []*util.Obj{util.NewObj("role", "user", "text", "prior")}, "claude")
+		if o.carriedText(agyTabID) != nil {
+			t.Fatalf("carriedText(antigravity) = %v, want nil", o.carriedText(agyTabID))
+		}
+		if o.withSandboxNote(tab, "antigravity", "exact user text") != "exact user text" {
+			t.Fatal("withSandboxNote modified antigravity prompt")
+		}
+	})
+
+	// 4. Send verbatim prompt, check initialize clientInfo/capabilities, mcpServers:[], and auth cache
+	exactPrompt := "Please inspect main.go verbatim."
+	awaitSend(t, o, agyTabID, exactPrompt)
+	if !cli.DetectLocalLogin("antigravity", "") {
+		t.Fatal("DetectLocalLogin(\"antigravity\", \"\") should be true after successful ACP session")
+	}
+
+	// 5. Explicit session/close on teardownAcpLive when peer advertises sessionCapabilities.close
+	jsrt.Run(func() {
+		o.teardownAcpLive(agyTabID)
+	})
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		raw, _ := os.ReadFile(rpcLog)
+		if strings.Contains(string(raw), `"method":"session/close"`) {
+			break
+		}
+		time.Sleep(15 * time.Millisecond)
+	}
+
+	raw, err := os.ReadFile(rpcLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sawInit, sawNew, sawPrompt, sawClose bool
+	for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
+		if line == "" {
+			continue
+		}
+		var msg map[string]any
+		if json.Unmarshal([]byte(line), &msg) != nil {
+			continue
+		}
+		params, _ := msg["params"].(map[string]any)
+		switch msg["method"] {
+		case "initialize":
+			sawInit = true
+			ci, _ := params["clientInfo"].(map[string]any)
+			if ci == nil || ci["name"] != "nomi" {
+				t.Fatalf("initialize missing clientInfo.name=nomi: %s", line)
+			}
+			cc, _ := params["clientCapabilities"].(map[string]any)
+			if cc == nil || cc["terminal"] != false {
+				t.Fatalf("initialize missing clientCapabilities.terminal=false: %s", line)
+			}
+			if _, hasElic := cc["elicitation"]; hasElic {
+				t.Fatalf("antigravity initialize must not advertise elicitation draft capability: %s", line)
+			}
+		case "session/new":
+			sawNew = true
+			mcp, _ := params["mcpServers"].([]any)
+			if len(mcp) != 0 {
+				t.Fatalf("antigravity session/new mcpServers must be empty, got %v", mcp)
+			}
+		case "session/prompt":
+			sawPrompt = true
+			blocks, _ := params["prompt"].([]any)
+			if len(blocks) != 1 {
+				t.Fatalf("expected 1 verbatim prompt block, got %v", blocks)
+			}
+			b0, _ := blocks[0].(map[string]any)
+			if b0["text"] != exactPrompt {
+				t.Fatalf("session/prompt text = %q, want exact %q", b0["text"], exactPrompt)
+			}
+		case "session/close":
+			sawClose = true
+		}
+	}
+	if !sawInit || !sawNew || !sawPrompt || !sawClose {
+		t.Fatalf("missing expected ACP RPC methods (init=%v new=%v prompt=%v close=%v):\n%s", sawInit, sawNew, sawPrompt, sawClose, string(raw))
 	}
 }

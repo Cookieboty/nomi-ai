@@ -623,6 +623,12 @@
   "electron.common.cli-did-not-switch-the": "{0} did not switch {1}: {2}",
   "electron.common.cli-local-auth-needs-sign-in": "{0} is not signed in yet. Open Settings → Models & Agents → {0} to complete official sign-in, or run {1} acp --login in a terminal.",
   "electron.common.cli-local-auth-not-supported": "{0} does not support in-app official sign-in",
+  "electron.common.cli-interactive-only-no-delegate": "{0} can only be used interactively in a direct conversation and cannot be used for delegation, routing presets, or scheduled tasks",
+  "electron.common.cli-interactive-only-no-switch": "Switching between {0} and {1} is disabled and cross-model context replay is not allowed; start a new conversation instead",
+  "electron.common.cli-interactive-only-no-adopt-history": "{0} can only be enabled on an empty conversation and cannot carry over messages from another model",
+  "electron.common.cli-interactive-only-locked": "This conversation is locked to {0}; switching to another runtime is disabled — start a new conversation instead",
+  "electron.common.cli-interactive-only-no-switch-in": "Cannot switch an existing conversation to {0}; start a new conversation or choose it in an empty chat instead",
+  "electron.common.cli-interactive-only-no-fork": "{0} does not support forking with copied conversation history; start a new empty conversation instead",
   "electron.common.self-update-version-unchanged-fallback": "Self-update exited without changing version ({0}); trying the next update method...",
   "electron.common.update-version-unchanged": "Command finished, but the detected version is still {0} (latest {1})"
 }

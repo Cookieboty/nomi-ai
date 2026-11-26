@@ -804,5 +804,7 @@
   "ui.chat-settings.managed-runtime-switch": "切换底座（当前：{0}）",
   "ui.chat-settings.managed-runtime-api-desc": "内置底座",
   "ui.chat-settings.managed-runtime-needs-project": "需选项目",
-  "ui.chat-settings.managed-runtime-select-project-hint": "选择项目后自动启用 {0}"
+  "ui.chat-settings.managed-runtime-select-project-hint": "选择项目后自动启用 {0}",
+  "ui.chat-settings.managed-runtime-new-chat-only": "仅限新建对话选择，不可切入",
+  "ui.chat-settings.managed-runtime-locked": "{0} 会话已锁定，不可切换"
 }

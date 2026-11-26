@@ -20,8 +20,9 @@ func TestDerivedLists(t *testing.T) {
 	for name, c := range map[string]struct{ got, want []string }{
 		"accounts":  {Where(WithAccounts), []string{"claude", "codex", "grok", "kimi", "minimax"}},
 		"history":   {Where(WithHistory), []string{"claude", "codex", "dsh", "grok", "gemini"}},
-		"quota":     {Where(WithQuota), []string{"claude", "codex", "grok"}},
-		"localOnly": {Where(LocalOnly), []string{"antigravity"}},
+		"quota":           {Where(WithQuota), []string{"claude", "codex", "grok"}},
+		"localOnly":       {Where(LocalOnly), []string{"antigravity"}},
+		"interactiveOnly": {Where(InteractiveOnly), []string{"antigravity"}},
 	} {
 		if !slices.Equal(c.got, c.want) {
 			t.Errorf("%s = %v, want %v", name, c.got, c.want)

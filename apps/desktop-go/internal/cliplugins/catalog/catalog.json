@@ -48,7 +48,8 @@
         "usageQuota": false,
         "progressMonitor": false,
         "terminalCommand": true,
-        "localAuth": true
+        "localAuth": true,
+        "interactiveOnly": true
       },
       "modelSwitch": "inplace",
       "clientSpec": {
@@ -60,7 +61,7 @@
         "selfUpdate": "always",
         "vendor": "google",
         "acpArgs": ["acp"],
-        "planFollowUp": true,
+        "planFollowUp": false,
         "homeEnv": "ANTIGRAVITY_CLI_HOME",
         "homeDirs": [".gemini/antigravity-cli", ".gemini/antigravity"],
         "execConfig": [

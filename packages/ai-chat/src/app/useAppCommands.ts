@@ -11,6 +11,7 @@ import type { ForkPick } from '../components/ForkMenu';
 import { SETTINGS_SECTIONS } from '../components/SettingsView/sections';
 import type { AiChatActions } from '../contexts/AiChatContext';
 import type { HarnessTabsCore } from '../contexts/HarnessTabsContext';
+import { api, hasTransport } from '../services/api';
 import { notifyConversationsChanged } from '../services/conversationStore';
 import { forkCrossBackend, forkSameBackend } from '../services/forkConversation';
 import { openProjectTerminal } from '../services/openProjectTerminal';
@@ -27,6 +28,8 @@ import {
 import { requestOpenFleet, requestOpenTasksPage } from '../services/workbenchNav';
 import type { ConversationBackend } from '../types/chat';
 import type { IPCClient } from '../types/ipc';
+import { isInteractiveOnly } from '../utils/cliCaps';
+import { ENDPOINT_FULL } from '../utils/endpointBadge';
 
 import type { AppPanels } from './useAppPanels';
 
@@ -116,18 +119,46 @@ export function useAppCommands(opts: {
   /** 打开分叉弹窗。upto：从这条消息分叉（消息末尾的「分叉」），之后的消息不带 */
   const onForkRequest = useCallback(
     (id: string, opts: { upto?: string } = {}) => {
-      const meta = ipcClient.conversationStore?.()?.get(id);
+      const store = ipcClient.conversationStore?.();
+      const meta = store?.get(id);
       if (!meta) return;
+      const denyInteractive = (b: string) => {
+        const label = (ENDPOINT_FULL as Record<string, (() => string) | undefined>)[b]?.() ?? b;
+        setToast(t('ui.cli-monitor.fork-interactive-only-disabled', label));
+      };
+      if (isInteractiveOnly(meta.backend)) {
+        denyInteractive(meta.backend);
+        return;
+      }
+      const cachedInteractive = store
+        ?.getMessages?.(id)
+        .find((m: { runtimeBackend?: string }) => isInteractiveOnly(m.runtimeBackend));
+      if (cachedInteractive?.runtimeBackend) {
+        denyInteractive(cachedInteractive.runtimeBackend);
+        return;
+      }
       const tab = tabs.activeTab;
       const tabProject = meta.tabId && tab && tab.id === meta.tabId ? tab.projectId : undefined;
-      setForkTarget({
-        id,
-        backend: meta.backend,
-        projectId: meta.projectId ?? tabProject,
-        upto: opts.upto,
-      });
+      const openDialog = () =>
+        setForkTarget({
+          id,
+          backend: meta.backend,
+          projectId: meta.projectId ?? tabProject,
+          upto: opts.upto,
+        });
+      if (store?.isManaged?.(id) && hasTransport()) {
+        void api.conversations
+          .runtimeState({ id })
+          .then((st) => {
+            if (isInteractiveOnly(st.backend)) denyInteractive(st.backend);
+            else openDialog();
+          })
+          .catch(() => openDialog());
+        return;
+      }
+      openDialog();
     },
-    [ipcClient, tabs],
+    [ipcClient, tabs, setToast],
   );
   /** 消息末尾的「分叉」：当前显示的会话从这条消息往前分叉 */
   const forkFromMessage = useCallback(

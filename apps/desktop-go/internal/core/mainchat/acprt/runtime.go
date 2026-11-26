@@ -12,6 +12,7 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/gemini"
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -159,6 +160,10 @@ func (r *Runtime) Capabilities() cr.Capabilities {
 	if name == "" {
 		name = r.config.BackendID
 	}
+	memoryDetail := "Conversation history is synced via delta/full handoff only; Nomi memory store is not shared"
+	if builtin.InteractiveOnly(r.config.BackendID) {
+		memoryDetail = name + " owns its own native conversation history; cross-model context replay is disabled"
+	}
 	return cr.Capabilities{
 		Resume:          true,
 		Cancel:          true,
@@ -174,7 +179,7 @@ func (r *Runtime) Capabilities() cr.Capabilities {
 			Computer:    cr.BridgeState{Status: "unsupported", Detail: name + " ACP runs without Nomi computer-use tools"},
 			MCP:         cr.BridgeState{Status: "unsupported", Detail: "Strict empty MCP list; Nomi MCP servers not attached"},
 			Persona:     cr.BridgeState{Status: "degraded", Detail: "Official " + name + " profile does not inject Nomi persona prompts"},
-			Memory:      cr.BridgeState{Status: "degraded", Detail: "Conversation history is synced via delta/full handoff only; Nomi memory store is not shared"},
+			Memory:      cr.BridgeState{Status: "degraded", Detail: memoryDetail},
 			Knowledge:   cr.BridgeState{Status: "unsupported", Detail: "Nomi knowledge base is not mounted into " + name},
 			Skills:      cr.BridgeState{Status: "degraded", Detail: "Nomi skills are not bridged into " + name + " ACP"},
 			Attachments: cr.BridgeState{Status: "unsupported", Detail: "Image attachments are not bridged in managed " + name + " profile"},
@@ -323,6 +328,17 @@ func (r *Runtime) initializeWorker(ctx context.Context) (*worker, bool, error) {
 	return w, loadSupported, nil
 }
 
+func isAcpAuthError(err error) bool {
+	if err == nil {
+		return false
+	}
+	lower := strings.ToLower(err.Error())
+	return strings.Contains(lower, "authentication required") ||
+		strings.Contains(lower, "auth_required") ||
+		strings.Contains(lower, "not authenticated") ||
+		strings.Contains(lower, "-32000")
+}
+
 func (r *Runtime) loadExisting(ctx context.Context, w *worker, previous string) error {
 	var p *jsrt.Promise[clisdk.StartResult]
 	jsrt.Run(func() {
@@ -335,6 +351,9 @@ func (r *Runtime) loadExisting(ctx context.Context, w *worker, previous string) 
 		return errors.New("owner closed")
 	}
 	if _, err := awaitPromise(ctx, p); err != nil {
+		if builtin.InteractiveOnly(r.config.BackendID) && isAcpAuthError(err) {
+			cli.SetLocalAuthCache(r.config.BackendID, false)
+		}
 		return err
 	}
 	var ok bool
@@ -352,6 +371,9 @@ func (r *Runtime) loadExisting(ctx context.Context, w *worker, previous string) 
 	})
 	if !ok {
 		return errors.New("ACP session/load did not confirm exact session id")
+	}
+	if builtin.InteractiveOnly(r.config.BackendID) {
+		cli.SetLocalAuthCache(r.config.BackendID, true)
 	}
 	if initTitle != "" {
 		r.emitTitle(initTitle)
@@ -371,6 +393,9 @@ func (r *Runtime) startNewSession(ctx context.Context, w *worker) (string, error
 		return "", errors.New("owner closed")
 	}
 	if _, err := awaitPromise(ctx, p); err != nil {
+		if builtin.InteractiveOnly(r.config.BackendID) && isAcpAuthError(err) {
+			cli.SetLocalAuthCache(r.config.BackendID, false)
+		}
 		return "", err
 	}
 	var sid, initTitle string
@@ -386,6 +411,9 @@ func (r *Runtime) startNewSession(ctx context.Context, w *worker) (string, error
 	})
 	if sid == "" {
 		return "", errors.New("ACP agent returned no session")
+	}
+	if builtin.InteractiveOnly(r.config.BackendID) {
+		cli.SetLocalAuthCache(r.config.BackendID, true)
 	}
 	if initTitle != "" {
 		r.emitTitle(initTitle)
@@ -721,9 +749,14 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 	}
 	var p *jsrt.Promise[clisdk.TurnResult]
 	var w *worker
+	var blockedReason string
 	jsrt.Run(func() {
 		w = r.worker
 		if r.closed || ctx.Err() != nil || w == nil || w.failure != "" || w.driver == nil || w.driver.Closed() || w.active != nil || r.token != q.Token || w.sid != q.NativeSessionID {
+			return
+		}
+		if builtin.InteractiveOnly(r.config.BackendID) && q.Plan.Handoff != "" {
+			blockedReason = builtin.FullName(r.config.BackendID) + " sessions do not allow replaying conversation history; please start a new conversation"
 			return
 		}
 		w.active = t
@@ -731,9 +764,16 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 		w.notify = accept
 		w.completed = false
 		t.started = true
-		p = w.driver.Send(clisdk.TurnInput{Text: q.Plan.Payload})
+		payload := q.Plan.Payload
+		if builtin.InteractiveOnly(r.config.BackendID) {
+			payload = q.Plan.RequestBody
+		}
+		p = w.driver.Send(clisdk.TurnInput{Text: payload})
 	})
 	if p == nil {
+		if blockedReason != "" {
+			return cr.SubmitResult{Kind: cr.SubmitNotSent, Detail: blockedReason}
+		}
 		return cr.SubmitResult{Kind: cr.SubmitNotSent, Detail: "native ACP transport not ready; no user frame queued"}
 	}
 	unwatch := context.AfterFunc(ctx, func() { jsrt.Run(func() { w.kill() }) })
@@ -1043,7 +1083,19 @@ func (r *Runtime) close() {
 	r.onTitle = nil
 	r.titleMu.Unlock()
 	var w *worker
-	jsrt.Run(func() { r.closed = true; w = r.worker })
+	var closeSession *jsrt.Promise[struct{}]
+	jsrt.Run(func() {
+		r.closed = true
+		w = r.worker
+		if w != nil && builtin.InteractiveOnly(r.config.BackendID) && w.driver != nil && !w.driver.Closed() && w.driver.SupportsCloseSession() && w.driver.SessionID() != nil {
+			closeSession = w.driver.CloseSession(1500)
+		}
+	})
+	if closeSession != nil {
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+		_, _ = awaitPromise(closeCtx, closeSession)
+		closeCancel()
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	_ = stop(ctx, w)

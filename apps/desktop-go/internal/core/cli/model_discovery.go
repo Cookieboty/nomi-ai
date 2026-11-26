@@ -363,7 +363,7 @@ func readGrokCache(deps ModelDiscoveryDeps) *util.Obj {
 }
 
 func discoverAntigravityAcp(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promise[*util.Obj] {
-	child, err := mdSpawn(deps, "antigravity", []string{"acp", "--disable-telemetry"})
+	child, err := mdSpawn(deps, "antigravity", []string{"acp"})
 	if err != nil {
 		return jsrt.Rejected[*util.Obj](err)
 	}
@@ -378,7 +378,12 @@ func discoverAntigravityAcp(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promis
 		opts := rpc.RequestOptions{TimeoutMs: &timeoutMs}
 		jsrt.Async(func() (struct{}, error) {
 			res, err := func() (*util.Obj, error) {
-				if _, err := jsrt.Await(conn.Request("initialize", util.NewObj("protocolVersion", float64(1), "clientCapabilities", util.NewObj()), opts)); err != nil {
+				initParams := util.NewObj(
+					"protocolVersion", float64(1),
+					"clientInfo", antigravityp.ClientInfo(),
+					"clientCapabilities", antigravityp.ClientCapabilities(),
+				)
+				if _, err := jsrt.Await(conn.Request("initialize", initParams, opts)); err != nil {
 					return nil, err
 				}
 				sv, err := jsrt.Await(conn.Request("session/new", util.NewObj("cwd", nodepath.Tmpdir(), "mcpServers", []any{}), opts))
@@ -435,19 +440,19 @@ func discoverAntigravityCLI(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promis
 
 func discoverAntigravity(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promise[*util.Obj] {
 	return jsrt.Async(func() (*util.Obj, error) {
-		acpCat, acpErr := jsrt.Await(discoverAntigravityAcp(deps, timeoutMs))
-		if acpErr == nil && acpCat != nil {
-			if models, _ := acpCat.Get("models").([]any); len(models) > 0 {
-				return acpCat, nil
-			}
-		}
-		if acpErr != nil && strings.Contains(acpErr.Error(), "CLI not found") {
-			return nil, acpErr
-		}
 		cliCat, cliErr := jsrt.Await(discoverAntigravityCLI(deps, timeoutMs))
 		if cliErr == nil && cliCat != nil {
 			if models, _ := cliCat.Get("models").([]any); len(models) > 0 {
 				return cliCat, nil
+			}
+		}
+		if cliErr != nil && strings.Contains(cliErr.Error(), "CLI not found") {
+			return nil, cliErr
+		}
+		acpCat, acpErr := jsrt.Await(discoverAntigravityAcp(deps, timeoutMs))
+		if acpErr == nil && acpCat != nil {
+			if models, _ := acpCat.Get("models").([]any); len(models) > 0 {
+				return acpCat, nil
 			}
 		}
 		if acpErr != nil {

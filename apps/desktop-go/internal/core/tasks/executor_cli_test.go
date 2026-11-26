@@ -914,3 +914,30 @@ func TestDelegatedCliTaskAlwaysAutoRegardlessOfNomiModeAndSandbox(t *testing.T) 
 		f.mu.Unlock()
 	}
 }
+
+func TestCliExecutorRejectsInteractiveOnlyPrepare(t *testing.T) {
+	e := NewCliExecutor(CliDeps{
+		Harness: newFakeCli(map[string]bool{"antigravity": true}),
+		DirOk:   func(d string) bool { return d == "/repo" },
+		ResolvePreset: func(id string) *CliPresetSpec {
+			if id == "agy_preset" {
+				return &CliPresetSpec{Cli: "antigravity"}
+			}
+			return nil
+		},
+	})
+	if _, err := e.Prepare(Task{
+		ID:       "t_agy_direct",
+		Goal:     "g",
+		Executor: ExecutorSpec{Kind: "cli", Cli: sp("antigravity"), Cwd: sp("/repo")},
+	}); err == nil || err.Code != "config_changed" {
+		t.Fatalf("Prepare direct antigravity = %+v, want config_changed error", err)
+	}
+	if _, err := e.Prepare(Task{
+		ID:       "t_agy_preset",
+		Goal:     "g",
+		Executor: ExecutorSpec{Kind: "cli", PresetID: sp("agy_preset"), Cwd: sp("/repo")},
+	}); err == nil || err.Code != "config_changed" {
+		t.Fatalf("Prepare preset antigravity = %+v, want config_changed error", err)
+	}
+}

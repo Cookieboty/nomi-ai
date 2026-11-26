@@ -92,6 +92,9 @@ func toCliPermissionMode(managedMode string) string {
 }
 
 func defaultPermissionMode(backendID string) string {
+	if builtin.InteractiveOnly(backendID) {
+		return "ask"
+	}
 	supported := PermissionModes(backendID)
 	for _, want := range []string{"auto", "acceptEdits", "ask"} {
 		for _, m := range supported {

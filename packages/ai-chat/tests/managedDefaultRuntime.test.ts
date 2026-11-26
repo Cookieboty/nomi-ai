@@ -419,4 +419,70 @@ describe('managed default runtime preference and new conversation adoption', () 
     expect(ok).toBe(false);
     expect(fake.inputs('conversations.runtimeCapabilities')).toHaveLength(0);
   });
+
+  it('never switches an existing managed conversation into or out of interactive-only antigravity', async () => {
+    const setupFake = (activeBackend: string) =>
+      installFakeApi((name) => {
+        if (name === 'conversations.runtimeCapabilities') {
+          return {
+            supported: true,
+            backends: ['api', 'claude', 'antigravity'],
+            detail: '',
+            choices: [
+              {
+                id: 'claude',
+                available: true,
+                status: 'ready',
+                detail: '',
+                login: 'unverified',
+                requiresProject: true,
+                degraded: [],
+              },
+              {
+                id: 'antigravity',
+                available: true,
+                status: 'ready',
+                detail: '',
+                login: 'unverified',
+                requiresProject: true,
+                degraded: [],
+              },
+            ],
+          };
+        }
+        if (name === 'conversations.runtimeState') {
+          return {
+            id: 'c_lock',
+            backend: activeBackend,
+            source: 'local',
+            model: 'm1',
+            phase: 'idle',
+            generation: 2,
+          };
+        }
+        return {};
+      });
+
+    saveManagedDefaultRuntime({ backend: 'antigravity', model: 'auto' });
+    const fake1 = setupFake('claude');
+    const switchedIn = await applyManagedDefaultToConversation('c_lock', {
+      flush: vi.fn(async () => undefined),
+      hasMessages: () => false,
+      isManaged: () => true,
+      refreshManaged: vi.fn(async () => undefined),
+    });
+    expect(switchedIn).toBe(false);
+    expect(fake1.inputs('conversations.runtimeSwitch')).toHaveLength(0);
+
+    saveManagedDefaultRuntime({ backend: 'claude', model: 'sonnet' });
+    const fake2 = setupFake('antigravity');
+    const switchedOut = await applyManagedDefaultToConversation('c_lock', {
+      flush: vi.fn(async () => undefined),
+      hasMessages: () => false,
+      isManaged: () => true,
+      refreshManaged: vi.fn(async () => undefined),
+    });
+    expect(switchedOut).toBe(false);
+    expect(fake2.inputs('conversations.runtimeSwitch')).toHaveLength(0);
+  });
 });

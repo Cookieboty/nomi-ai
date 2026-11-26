@@ -187,4 +187,44 @@ describe('forkConversation', () => {
     expect(harnessClient.setTabAccount).not.toHaveBeenCalled();
     expect(store.currentId()).toBe(src.id);
   });
+
+  it('blocks same-backend and cross-backend forking involving interactive-only antigravity', async () => {
+    const nomi = store.create({ name: 'N', backend: 'nomi' });
+    store.append(msg('1', 'user', 'hi'));
+    await expect(forkCrossBackend(store, nomi.id, 'antigravity')).rejects.toThrow(/Antigravity/);
+
+    const agyTab: HarnessTabMeta = {
+      id: 'agy-tab-1',
+      title: 'Agy',
+      backend: 'antigravity',
+      cwd: '/tmp/p',
+      cliSessionId: null,
+      status: 'idle',
+      unread: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    vi.mocked(harnessClient.tabs).mockResolvedValueOnce({
+      tabs: [agyTab],
+      activeTabId: agyTab.id,
+    });
+    vi.mocked(harnessClient.tabMessages).mockResolvedValueOnce([
+      { id: '1', role: 'user', content: 'hi', timestamp: 1 },
+    ]);
+    const agyMeta = store.upsertFromTab({ ...agyTab, cliSessionId: undefined });
+    await expect(forkSameBackend(store, agyMeta.id)).rejects.toThrow(/Antigravity/);
+    await expect(forkCrossBackend(store, agyMeta.id, 'codex')).rejects.toThrow(/Antigravity/);
+
+    const managedAgy = store.create({ name: 'ManagedAgy', backend: 'nomi' });
+    store.switchTo(managedAgy.id);
+    store.append({
+      id: 'm_agy',
+      role: 'assistant',
+      content: 'reply',
+      timestamp: 10,
+      runtimeBackend: 'antigravity',
+    } as ChatMessage);
+    await expect(forkSameBackend(store, managedAgy.id)).rejects.toThrow(/Antigravity/);
+    expect(harnessClient.createTab).not.toHaveBeenCalled();
+  });
 });

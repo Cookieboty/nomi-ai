@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
+	antigravityp "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/antigravity"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
@@ -202,14 +203,20 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 		if backend == "grok" {
 			steerMethod = grokSteerMethod
 		}
-		driver := drivers.NewAcpDriver(drivers.AcpDriverOptions{
+		driverOpts := drivers.AcpDriverOptions{
 			Child:              child,
 			PermissionIDPrefix: sp("gemini-perm-"),
 			SteerMethod:        steerMethod,
 			PromptIdleMs:       &idle,
 			RPC:                rpc.ConnectionOptions{TimeoutMessage: gemini.AcpTimeoutMessage},
 			Kill:               killTree,
-		})
+		}
+		if backend == "antigravity" {
+			driverOpts.ClientInfo = antigravityp.ClientInfo()
+			driverOpts.ClientCapabilities = antigravityp.ClientCapabilities()
+			driverOpts.DisableElicitation = true
+		}
+		driver := drivers.NewAcpDriver(driverOpts)
 		live := &acpLiveSession{
 			backend: backend, launchSig: spawnLaunch.sig, child: child, driver: driver, cwd: str(tab, "cwd"),
 			permissionMode: str(tab, "permissionMode"), perms: map[string]func(*bool){},
@@ -291,9 +298,16 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 				resume = &s
 			}
 			startCwd := str(tab, "cwd")
+			mcpServers := o.acpComputerServers(tab)
+			if builtin.InteractiveOnly(backend) {
+				mcpServers = []any{}
+			}
 			r, err := jsrt.Await(driver.Start(clisdk.StartOptions{Cwd: startCwd, ResumeID: resume, Signal: signal, AdditionalDirectories: o.extraDirs(tab),
-				McpServers: o.acpComputerServers(tab)}))
+				McpServers: mcpServers}))
 			if err == nil {
+				if backend == "antigravity" {
+					cli.SetLocalAuthCache("antigravity", true)
+				}
 				if s, ok := r.Get("sessionId").(string); ok {
 					sid = &s
 				}
@@ -307,6 +321,9 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 					return struct{}{}, errors.New(i18n.T("electron.common.cli-needs-sign-in", name))
 				}
 				if acpAuthRequiredRe.MatchString(err.Error()) && builtin.LocalOnly(backend) {
+					if backend == "antigravity" {
+						cli.SetLocalAuthCache("antigravity", false)
+					}
 					binName := backend
 					if bins := builtin.Binaries(backend); len(bins) > 0 && bins[0] != "" {
 						binName = bins[0]
@@ -336,6 +353,13 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			}
 			live.sessionID = sid
 			live.effectiveModel = currentAcpSessionModel(driver.SessionRaw)
+			if backend == "antigravity" && driver.SessionRaw != nil {
+				if cat := antigravityp.ParseModels(driver.SessionRaw); cat != nil {
+					if models, _ := cat.Get("models").([]any); len(models) > 0 {
+						o.modelCatalogs["antigravity"] = catalogEntry{at: nowMs(), catalog: cat}
+					}
+				}
+			}
 			if title := util.JSTrim(driver.SessionTitle); title != "" {
 				o.applyAcpSessionTitle(id, live, title)
 			}
@@ -835,6 +859,16 @@ func (o *Orchestrator) teardownAcpLive(tabID string) {
 	}
 	o.live.delAcp(tabID)
 	live.cancelPerms()
+	if live.backend == "antigravity" && !o.disposed && live.driver != nil && !live.driver.Closed() && live.driver.SupportsCloseSession() && live.driver.SessionID() != nil {
+		p := live.driver.CloseSession(1500)
+		drv := live.driver
+		jsrt.Async(func() (struct{}, error) {
+			_, _ = jsrt.Await(p)
+			drv.Close()
+			return struct{}{}, nil
+		})
+		return
+	}
 	live.driver.Close()
 }
 

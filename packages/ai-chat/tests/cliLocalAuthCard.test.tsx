@@ -3,7 +3,7 @@
  * 本机官方登录卡片按清单能力位 capabilities.localAuth 显示（不按 CLI 名字）：
  * 有能力的（现只有 antigravity）显示状态与登录；没有的不显示登录 / 退出，也不问内核。
  */
-import { cleanup, render, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -62,7 +62,7 @@ function setupLocalAuth(loggedIn: boolean) {
 }
 
 describe('CliLocalAuthCard 按能力位显示', () => {
-  it('antigravity 有 localAuth 能力：显示登录状态，未登录时可登录（不显示退出）', async () => {
+  it('antigravity 有 localAuth 能力：打开仅读缓存状态，不自动发起后台 ACP 探针，点击刷新才探针', async () => {
     setupLocalAuth(false);
     const r = render(<CliLocalAuthCard kind="antigravity" />);
     await waitFor(() =>
@@ -70,7 +70,11 @@ describe('CliLocalAuthCard 按能力位显示', () => {
     );
     expect(r.getByTestId('cli-local-auth-login')).toBeTruthy();
     expect(r.queryByTestId('cli-local-auth-logout')).toBeNull();
-    expect(calls.some((c) => c.startsWith('cli.localAuthStatus:antigravity'))).toBe(true);
+    expect(calls).toContain('cli.localAuthStatus:antigravity:0');
+    expect(calls).not.toContain('cli.localAuthStatus:antigravity:1');
+
+    fireEvent.click(r.getByTestId('cli-local-auth-refresh'));
+    await waitFor(() => expect(calls).toContain('cli.localAuthStatus:antigravity:1'));
   });
 
   it('没有 localAuth 能力的 CLI（claude）：只说明用本机登录，不渲染登录 / 退出，也不问内核', async () => {

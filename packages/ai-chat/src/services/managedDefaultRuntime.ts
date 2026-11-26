@@ -1,4 +1,5 @@
 import type { ManagedSwitchInput, RuntimeChoiceView } from '../components/ManagedRuntimeDock/types';
+import { isInteractiveOnly } from '../utils/cliCaps';
 
 import { api, hasTransport } from './api';
 import { getManagedDefaultRuntime, type ManagedBackendDefaultPref } from './chatPrefs';
@@ -93,7 +94,12 @@ export async function applyManagedDefaultToConversation(
     if (pref.backend === 'api') {
       if (!managed) return false;
       const st = await api.conversations.runtimeState({ id: convoId });
-      if (!IDLE_PHASES.has(st.phase) || st.pendingSwitch || st.backend === 'api') {
+      if (
+        !IDLE_PHASES.has(st.phase) ||
+        st.pendingSwitch ||
+        st.backend === 'api' ||
+        isInteractiveOnly(st.backend)
+      ) {
         return false;
       }
       await api.conversations.runtimeSwitch({
@@ -137,6 +143,12 @@ export async function applyManagedDefaultToConversation(
 
     const st = await api.conversations.runtimeState({ id: convoId });
     if (!IDLE_PHASES.has(st.phase) || st.pendingSwitch) {
+      return false;
+    }
+    if (
+      st.backend !== pref.backend &&
+      (isInteractiveOnly(st.backend) || isInteractiveOnly(pref.backend))
+    ) {
       return false;
     }
     const curModel =

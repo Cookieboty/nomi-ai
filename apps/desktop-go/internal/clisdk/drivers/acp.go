@@ -33,6 +33,8 @@ type AcpDriverOptions struct {
 	// Grok 1.0.70：`_x.ai/interject`，应答 {status:'queued'}，在下一个工具 / 模型步骤并进这一轮。
 	// 空串 = 不支持（如 Gemini：新的 session/prompt 会中止当前这一轮）。
 	SteerMethod string
+	// ClientInfo：initialize 握手声明的客户端标识（可选；由调用方显式指定，如 antigravity）。
+	ClientInfo Json
 	// DisableElicitation：不向 ACP 对端广告 form elicitation（托管只读运行时不支持交互弹窗）。
 	DisableElicitation bool
 }
@@ -455,7 +457,11 @@ func parseReturnedSessionID(r any) string {
 // Initialize：仅发送 initialize 握手并保存对端 agentCapabilities。
 func (d *AcpDriver) Initialize(signal *jsrt.AbortSignal) *jsrt.Promise[Json] {
 	return jsrt.Async(func() (Json, error) {
-		initV, err := jsrt.Await(d.Conn.Request("initialize", O("protocolVersion", float64(1), "clientCapabilities", acpClientCaps(d.o.ClientCapabilities, d.o.DisableElicitation)), sigOpts(signal)))
+		params := O("protocolVersion", float64(1), "clientCapabilities", acpClientCaps(d.o.ClientCapabilities, d.o.DisableElicitation))
+		if d.o.ClientInfo != nil {
+			params.Set("clientInfo", d.o.ClientInfo)
+		}
+		initV, err := jsrt.Await(d.Conn.Request("initialize", params, sigOpts(signal)))
 		if err != nil {
 			return nil, err
 		}
@@ -527,7 +533,7 @@ func (d *AcpDriver) Start(o clisdk.StartOptions) *jsrt.Promise[StartResult] {
 		var modes any
 		resumed := false
 		hadResume := o.ResumeID != nil && *o.ResumeID != ""
-		if hadResume {
+		if hadResume && d.supportsLoadSession() {
 			resumeID := *o.ResumeID
 			r, err := jsrt.Await(d.Conn.Request("session/load", d.withSessionDirs(O("sessionId", resumeID, "cwd", o.Cwd, "mcpServers", mcp), o.AdditionalDirectories), opts))
 			if err == nil {
@@ -785,6 +791,67 @@ func (d *AcpDriver) Interrupt() *jsrt.Promise[struct{}] {
 	}
 	d.cancelPermissions()
 	return jsrt.Resolved(struct{}{})
+}
+
+// SupportsCloseSession：检查对端是否在 agentCapabilities 中声明了 sessionCapabilities.close。
+func (d *AcpDriver) SupportsCloseSession() bool {
+	if d.AgentCapabilities == nil {
+		return false
+	}
+	for _, capKey := range []string{"sessionCapabilities", "session_capabilities"} {
+		if sc := util.AsObj(d.AgentCapabilities.Get(capKey)); sc != nil {
+			if v := sc.Get("close"); v != nil {
+				if b, ok := v.(bool); ok {
+					return b
+				}
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// supportsLoadSession：未返回 AgentCapabilities（精简 ACP 实现/测试桩）时默认允许尝试；
+// 声明了 AgentCapabilities 时仅在显式支持 loadSession / sessionCapabilities.load 时发送 session/load。
+func (d *AcpDriver) supportsLoadSession() bool {
+	if d.AgentCapabilities == nil || d.AgentCapabilities.Len() == 0 {
+		return true
+	}
+	for _, k := range []string{"loadSession", "load_session"} {
+		if v := d.AgentCapabilities.Get(k); v != nil {
+			b, ok := v.(bool)
+			return !ok || b
+		}
+	}
+	for _, capKey := range []string{"sessionCapabilities", "session_capabilities"} {
+		if sc := util.AsObj(d.AgentCapabilities.Get(capKey)); sc != nil {
+			if v := sc.Get("load"); v != nil {
+				if b, ok := v.(bool); ok {
+					return b
+				}
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// CloseSession：按 ACP sessionCapabilities.close 发送 session/close（best-effort）并清除 d.sid。
+func (d *AcpDriver) CloseSession(timeoutMs int) *jsrt.Promise[struct{}] {
+	if d.Closed() || d.sid == nil || *d.sid == "" || !d.SupportsCloseSession() {
+		return jsrt.Resolved(struct{}{})
+	}
+	sid := *d.sid
+	d.sid = nil
+	opts := rpc.RequestOptions{}
+	if timeoutMs > 0 {
+		opts.TimeoutMs = &timeoutMs
+	}
+	req := d.Conn.Request("session/close", O("sessionId", sid), opts)
+	return jsrt.Async(func() (struct{}, error) {
+		_, _ = jsrt.Await(req)
+		return struct{}{}, nil
+	})
 }
 
 func (d *AcpDriver) Close() *jsrt.Promise[struct{}] {

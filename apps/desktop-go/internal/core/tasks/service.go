@@ -18,6 +18,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/connections"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/sidechat"
@@ -559,8 +560,32 @@ type CreateRequest struct {
 	Category       *string      `json:"category,omitempty"`
 }
 
+func (s *Service) checkExecutorNotInteractiveOnly(spec ExecutorSpec, msgSuffix string) error {
+	if spec.Kind != "cli" {
+		return nil
+	}
+	if spec.Cli != nil {
+		if cliID := strings.TrimSpace(*spec.Cli); builtin.InteractiveOnly(cliID) {
+			return &InputError{Msg: builtin.DisplayName(cliID) + msgSuffix}
+		}
+	}
+	if spec.PresetID != nil {
+		if pid := strings.TrimSpace(*spec.PresetID); pid != "" {
+			if res, ok := s.exec["cli"].(interface{ ResolvePresetCli(string) string }); ok {
+				if cliName := res.ResolvePresetCli(pid); builtin.InteractiveOnly(cliName) {
+					return &InputError{Msg: builtin.DisplayName(cliName) + msgSuffix}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // Create：连接能力不合法时返回 *GrantError；事件触发器不合法时返回 *TriggerError
 func (s *Service) Create(in CreateRequest, createdBy string) (Task, error) {
+	if err := s.checkExecutorNotInteractiveOnly(in.Executor, " does not support scheduled or automated tasks"); err != nil {
+		return Task{}, err
+	}
 	// Nomi 任务可指定合法网关模型（<provider>/<model>）；裸名等非法值忽略不落盘，走预设「带工具的 Nomi」路由
 	if in.Executor.Kind == "nomi" && in.Executor.Model != nil {
 		if ref, ok := sidechat.ModelRef(sidechat.ModelRolePrefix + strings.TrimSpace(*in.Executor.Model)); ok {
@@ -609,11 +634,14 @@ func priorityOf(p string) *string {
 // 瞬时错误重试一次；创建后立即排队。
 // 派给 Nomi 的（executor: nomi）：放宽时长与 token、不设每日费用上限，自动验收（结果直接回对话）。
 func (s *Service) CreateDelegated(i DelegatedInput) (Task, error) {
+	if err := s.checkExecutorNotInteractiveOnly(i.Executor, " does not support automated delegation"); err != nil {
+		return Task{}, err
+	}
 	clis := []string{}
 	if i.Executor.Kind == "cli" {
 		cli := ""
 		if i.Executor.Cli != nil {
-			cli = *i.Executor.Cli
+			cli = strings.TrimSpace(*i.Executor.Cli)
 		}
 		clis = []string{cli}
 	}
@@ -1164,7 +1192,19 @@ func (s *Service) Update(id string, p Patch) (*Task, error) {
 		(p.Source.Set || p.AccountID.Set || (p.PresetID.Set && (p.PresetID.Value == nil || strings.TrimSpace(*p.PresetID.Value) == ""))) {
 		if res, ok := s.exec["cli"].(interface{ ResolvePresetCli(string) string }); ok {
 			if cliName := res.ResolvePresetCli(*cur.Executor.PresetID); cliName != "" {
+				if builtin.InteractiveOnly(cliName) {
+					return nil, &InputError{Msg: builtin.DisplayName(cliName) + " does not support scheduled or automated tasks"}
+				}
 				p.ResolvedCli = &cliName
+			}
+		}
+	}
+	if cur.Executor.Kind == "cli" && p.PresetID.Set && p.PresetID.Value != nil {
+		if pid := strings.TrimSpace(*p.PresetID.Value); pid != "" {
+			if res, ok := s.exec["cli"].(interface{ ResolvePresetCli(string) string }); ok {
+				if cliName := res.ResolvePresetCli(pid); builtin.InteractiveOnly(cliName) {
+					return nil, &InputError{Msg: builtin.DisplayName(cliName) + " does not support scheduled or automated tasks"}
+				}
 			}
 		}
 	}

@@ -556,27 +556,10 @@ func hasDshLocalLogin(home string, envMap map[string]string) bool {
 		hasSubstantialDshPatch(filepath.Join(dshDir, "cordis.patch.yml"))
 }
 
-func hasAntigravityLocalLogin(home string, envMap map[string]string) bool {
-	agyCliDir := sh.CliHome("ANTIGRAVITY_CLI_HOME", ".gemini/antigravity-cli", envMap, home)
-	agyDir := filepath.Join(home, ".gemini", "antigravity")
-	for _, dir := range []string{agyCliDir, agyDir} {
-		if dir == "" {
-			continue
-		}
-		if hasNonEmptyJSONObject(filepath.Join(dir, "oauth_creds.json")) ||
-			hasNonEmptyJSONObject(filepath.Join(dir, "auth.json")) ||
-			hasNonEmptyJSONObject(filepath.Join(dir, "credentials.json")) ||
-			hasActiveGoogleAccount(filepath.Join(dir, "google_accounts.json")) ||
-			hasNonEmptyFile(filepath.Join(dir, "jetski_state.pbtxt")) {
-			return true
-		}
-	}
-	return hasGeminiLocalLogin(home, envMap)
-}
-
-func hasNonEmptyFile(path string) bool {
-	b, err := os.ReadFile(path)
-	return err == nil && strings.TrimSpace(string(b)) != ""
+// hasAntigravityLocalLogin：不再直接读取 agy 私有凭据或回退到 Gemini 登录态；
+// Antigravity 的本机登录态完全通过 `agy acp` 握手/探针写入内存缓存（CachedLocalAuth）。
+func hasAntigravityLocalLogin(_ string, _ map[string]string) bool {
+	return false
 }
 
 func hasNonEmptyJSONObject(path string) bool {
