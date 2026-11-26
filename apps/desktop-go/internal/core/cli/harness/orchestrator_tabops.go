@@ -307,6 +307,14 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 		throw(i18n.T("electron.common.new-tabs-can-only-use-a-coding-agent"))
 	}
 	backend := backendV.(string)
+	if builtin.InteractiveOnly(backend) && (opts.Get("delegation") != nil || opts.Get("subagentOf") != nil) {
+		throw(i18n.T("electron.common.cli-interactive-only-no-delegate", backendTitle(backend)))
+	}
+	if builtin.InteractiveOnly(backend) && !truthy(opts.Get("cliSessionId")) {
+		if rawMsgs, ok := opts.Get("messages").([]any); ok && len(rawMsgs) > 0 {
+			throw(i18n.T("electron.common.cli-interactive-only-no-fork", backendTitle(backend)))
+		}
+	}
 	// 项目：工作目录默认是它的主文件夹（委派的 worktree 标签会另给 cwd）
 	projectID, _ := opts.Get("projectId").(string)
 	projectPrimary := ""
@@ -361,6 +369,9 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 	internalBypass := opts.Get("delegation") != nil || opts.Get("subagentOf") != nil
 	explicit := cli.IsPermissionMode(pm) && (pm != "bypass" || internalBypass)
 	mode := o.newTabMode()
+	if builtin.InteractiveOnly(backend) {
+		mode = "manual"
+	}
 	if explicit {
 		mode = pm.(string)
 	}
@@ -547,6 +558,9 @@ func (o *Orchestrator) SeedTabMessages(id string, messages []any) *util.Obj {
 	if id == MainTabID {
 		throw(i18n.T("electron.common.cannot-write-a-cli-transcript-on-the-main"))
 	}
+	if be := str(tab, "backend"); builtin.InteractiveOnly(be) && !truthy(tab.Get("cliSessionId")) && len(messages) > 0 {
+		throw(i18n.T("electron.common.cli-interactive-only-no-fork", backendTitle(be)))
+	}
 	seeded := seedMessages(messages, nowMs)
 	if o.d.ImageStore != nil {
 		o.imageStoreFor(id).Messages(seeded, str(tab, "backend"))
@@ -724,6 +738,10 @@ func (o *Orchestrator) SetTabBackend(id string, backendV any) *util.Obj {
 	}
 	switched := backend != str(tab, "backend")
 	if switched {
+		oldBackend := str(tab, "backend")
+		if builtin.InteractiveOnly(oldBackend) || builtin.InteractiveOnly(backend) {
+			throw(i18n.T("electron.common.cli-interactive-only-no-switch", backendTitle(oldBackend), backendTitle(backend)))
+		}
 		o.teardownClaudeLive(id)
 		o.teardownCodexLive(id)
 		o.teardownAcpLive(id)

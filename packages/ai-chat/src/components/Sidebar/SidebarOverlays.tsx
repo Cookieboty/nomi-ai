@@ -3,6 +3,7 @@ import { MAX_RESULTS } from '../../hooks/useHistorySearchIndex';
 import type { HarnessTabMeta } from '../../services/harnessClient';
 import type { HistorySession } from '../../services/historyClient';
 import type { Project } from '../../services/projects';
+import { isInteractiveOnly } from '../../utils/cliCaps';
 import { ConversationMenu } from '../ConversationMenu';
 import { ProjectDialog } from '../ProjectDialog';
 
@@ -149,7 +150,9 @@ export const SidebarOverlays: React.FC<SidebarOverlaysProps> = ({
             onRename={() => startRename(ctx.id)}
             onPin={meta ? () => togglePin(ctx.id) : undefined}
             pinned={Boolean(meta?.pinnedAt)}
-            onFork={() => onForkRequest?.(ctx.id)}
+            onFork={
+              meta && isInteractiveOnly(meta.backend) ? undefined : () => onForkRequest?.(ctx.id)
+            }
             onClose={meta?.tabId ? () => closeItem(meta) : undefined}
             onArchive={meta && !meta.tabId ? () => archiveItem(ctx.id) : undefined}
             // 最近列表与本机历史统一确认后永久删除。

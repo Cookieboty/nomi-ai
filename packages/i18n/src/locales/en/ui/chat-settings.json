@@ -804,5 +804,7 @@
   "ui.chat-settings.managed-runtime-switch": "Switch runtime (current: {0})",
   "ui.chat-settings.managed-runtime-api-desc": "Built-in runtime",
   "ui.chat-settings.managed-runtime-needs-project": "Project required",
-  "ui.chat-settings.managed-runtime-select-project-hint": "Select a project to use {0}"
+  "ui.chat-settings.managed-runtime-select-project-hint": "Select a project to use {0}",
+  "ui.chat-settings.managed-runtime-new-chat-only": "New chat only; cannot switch in",
+  "ui.chat-settings.managed-runtime-locked": "{0} session is locked; cannot switch"
 }

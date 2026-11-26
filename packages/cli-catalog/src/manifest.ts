@@ -55,6 +55,10 @@ export interface CliCapabilities {
    * `cli.localAuthLoginStart` / `cli.localAuthLogout`），内核经 CLI 自己的 ACP 登录走。没有的不显示。
    */
   localAuth?: boolean;
+  /**
+   * 仅限人工直接交互的薄客户端会话：禁止用于自动化委派 / 定时任务、跨模型上下文回放与外层系统提示注入。
+   */
+  interactiveOnly?: boolean;
 }
 
 /**
@@ -148,6 +152,7 @@ const BOOL_CAPS = [
   'terminalCommand',
   'steer',
   'localAuth',
+  'interactiveOnly',
 ] as const;
 
 const isObj = (v: unknown): v is Record<string, unknown> =>

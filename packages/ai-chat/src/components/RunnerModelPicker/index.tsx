@@ -19,12 +19,16 @@ import {
 } from '../../services/cliAccountClient';
 import { useHasLocalLogin } from '../../services/cliLauncherClient';
 import {
-  CLI_KINDS,
   codingProviders,
   preferredThirdPartyModelForCli,
   refSlashLabel,
 } from '../../services/cliSource';
-import type { DelegateCli, RunnerEffort, RunnerSource } from '../../services/delegateClient';
+import {
+  DELEGATE_CLIS,
+  type DelegateCli,
+  type RunnerEffort,
+  type RunnerSource,
+} from '../../services/delegateClient';
 import type { GatewayState } from '../../services/gatewayClient';
 import {
   harnessClient,
@@ -467,7 +471,7 @@ export const RunnerModelPicker: React.FC<RunnerModelPickerProps> = ({
           {!lockCli && (
             <div className={styles.cliList} data-testid="runner-picker-clis">
               <div className={styles.colHeading}>{t('ui.models.runner-picker-clis')}</div>
-              {CLI_KINDS.map((k) => {
+              {DELEGATE_CLIS.map((k) => {
                 const selected = draft.cli === k;
                 const isInstalled = installed ? installed.includes(k) : true;
                 return (

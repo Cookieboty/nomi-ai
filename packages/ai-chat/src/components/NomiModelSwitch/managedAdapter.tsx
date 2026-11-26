@@ -41,7 +41,12 @@ import {
   resolveThinkingLevel,
   thinkingProfileOf,
 } from '../../services/thinkingDepth';
-import { hasOfficialAccount, hasThirdParty, thirdPartyOnly } from '../../utils/cliCaps';
+import {
+  hasOfficialAccount,
+  hasThirdParty,
+  isInteractiveOnly,
+  thirdPartyOnly,
+} from '../../utils/cliCaps';
 import type { EndpointKey } from '../../utils/endpointBadge';
 import { EndpointIcon } from '../EndpointIcon';
 import { backendName } from '../ManagedRuntimeDock/panel';
@@ -135,15 +140,22 @@ export function buildRuntimePageSource(args: {
 
   const activeId = managed.activeBackend;
   const activeLabel = activeId === 'api' ? brand.appName : backendName(activeId);
+  const isInteractiveLocked = isInteractiveOnly(activeId);
   const options: SelectOption[] = sortRuntimeChoices(view.choices).map((c) => {
     const isApi = c.id === 'api';
-    const needsProjectAdopt = c.status === 'no-project' && !view.managed;
-    const disabled = isApi ? false : !c.available && !needsProjectAdopt;
+    const targetInteractive = isInteractiveOnly(c.id);
+    const blockedSwitch =
+      c.id !== activeId &&
+      (isInteractiveLocked || (targetInteractive && (activeId !== 'api' || managed.hasMessages)));
+    const needsProjectAdopt = c.status === 'no-project' && !view.managed && !blockedSwitch;
+    const disabled = blockedSwitch || (isApi ? false : !c.available && !needsProjectAdopt);
     return {
       value: c.id,
       label: isApi ? brand.appName : backendName(c.id),
       icon: <EndpointIcon backend={endpointKeyOf(c.id)} size={16} decorative />,
-      description: runtimeChoiceDesc(c, hasApiProviders),
+      description: blockedSwitch
+        ? t('ui.chat-settings.managed-runtime-new-chat-only')
+        : runtimeChoiceDesc(c, hasApiProviders),
       disabled,
       testId: `runtime-option-${c.id}`,
     };
@@ -180,8 +192,10 @@ export function buildRuntimePageSource(args: {
     rowLabel: t('ui.chat-settings.managed-runtime-label'),
     rowValue: activeLabel,
     rowIcon: <EndpointIcon backend={endpointKeyOf(activeId)} size={15} decorative />,
-    rowAriaLabel: t('ui.chat-settings.managed-runtime-switch', activeLabel),
-    disabled: !managed.idle,
+    rowAriaLabel: isInteractiveLocked
+      ? t('ui.chat-settings.managed-runtime-locked', activeLabel)
+      : t('ui.chat-settings.managed-runtime-switch', activeLabel),
+    disabled: !managed.idle || isInteractiveLocked,
     searchable: false,
     header,
     value: activeId,

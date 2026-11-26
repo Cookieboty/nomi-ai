@@ -9,6 +9,7 @@ import React, { useEffect, useState } from 'react';
 import { harnessClient } from '../../services/harnessClient';
 import type { ConversationBackend } from '../../types/chat';
 import { CONVERSATION_BACKENDS } from '../../types/chat';
+import { isInteractiveOnly } from '../../utils/cliCaps';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { DEFAULT_FORK_TURNS, FORK_TURN_CHOICES } from '../../utils/forkTranscript';
 import { EndpointIcon } from '../EndpointIcon';
@@ -59,9 +60,11 @@ export const ForkDialog: React.FC<{
       .catch(() => undefined);
   }, [open, allowCross]);
 
-  if (!open) return null;
+  if (!open || isInteractiveOnly(current)) return null;
   const missing = (b: ConversationBackend) => b !== 'nomi' && !bins[b];
-  const others = allowCross ? CONVERSATION_BACKENDS.filter((b) => b !== current) : [];
+  const others = allowCross
+    ? CONVERSATION_BACKENDS.filter((b) => b !== current && !isInteractiveOnly(b))
+    : [];
   const confirm = () =>
     onPick(target, {
       turns: turns ? Number(turns) : undefined,

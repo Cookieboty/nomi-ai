@@ -780,11 +780,15 @@ func codexChoice(s *convstore.Store, p *projects.Store, r *mainchat.Registry, id
 
 func acpChoice(cliID string, s *convstore.Store, p *projects.Store, r *mainchat.Registry, id string) mainchat.RuntimeChoice {
 	name := builtin.FullName(cliID)
+	memoryDetail := "Conversation history is synced via delta/full handoff only; Nomi memory store is not shared"
+	if builtin.InteractiveOnly(cliID) {
+		memoryDetail = name + " owns its own native conversation history; cross-model context replay is disabled"
+	}
 	bridges := &cr.CapabilityBridges{
 		Computer:    cr.BridgeState{Status: "unsupported", Detail: name + " ACP runs without Nomi computer-use tools"},
 		MCP:         cr.BridgeState{Status: "unsupported", Detail: "Strict empty MCP list; Nomi MCP servers not attached"},
 		Persona:     cr.BridgeState{Status: "degraded", Detail: "Official " + name + " profile does not inject Nomi persona prompts"},
-		Memory:      cr.BridgeState{Status: "degraded", Detail: "Conversation history is synced via delta/full handoff only; Nomi memory store is not shared"},
+		Memory:      cr.BridgeState{Status: "degraded", Detail: memoryDetail},
 		Knowledge:   cr.BridgeState{Status: "unsupported", Detail: "Nomi knowledge base is not mounted into " + name},
 		Skills:      cr.BridgeState{Status: "degraded", Detail: "Nomi skills are not bridged into " + name + " ACP"},
 		Attachments: cr.BridgeState{Status: "unsupported", Detail: "Image attachments cannot be bridged in managed " + name + " profile"},

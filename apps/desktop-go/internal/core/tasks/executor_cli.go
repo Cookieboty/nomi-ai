@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/sandbox"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/desktop"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
@@ -335,6 +336,9 @@ func (e *cliExecutor) Prepare(t Task) (ExecutionSnapshot, *TaskError) {
 		// 档位已删除或解析不出：不退回保存时的旧 cli
 		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: presetUnavailable(strOr(ex.PresetID))}
 	}
+	if builtin.InteractiveOnly(spec.Cli) {
+		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: configCliUnavailable(spec.Cli)}
+	}
 	// 用户点名的 agent 不可用：失败并提示，不悄悄换成别的
 	if !e.d.Harness.Bins()[spec.Cli] {
 		return ExecutionSnapshot{}, &TaskError{Code: "config_changed", Message: configCliUnavailable(spec.Cli)}
@@ -494,6 +498,10 @@ func (e *cliExecutor) start(ctx AttemptContext, p *cliPrep) {
 	cliName, src, accID, model, effort := spec.Cli, spec.Source, spec.AccountID, spec.Model, spec.ReasoningEffort
 	if cliName == "" {
 		rep.Failed(TaskError{Code: "prepare_failed", Message: "missing cli"})
+		return
+	}
+	if builtin.InteractiveOnly(cliName) {
+		rep.Failed(TaskError{Code: "config_changed", Message: configCliUnavailable(cliName)})
 		return
 	}
 	h := e.d.Harness

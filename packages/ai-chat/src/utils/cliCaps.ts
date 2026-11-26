@@ -59,3 +59,8 @@ export function canStopSubagent(backend: string | null | undefined): boolean {
 export function hasSlashCommands(backend: string | null | undefined): boolean {
   return cliInfo(backend)?.capabilities.slashCommands === true;
 }
+
+/** 仅限人工直接交互的薄客户端会话（禁止自动化委派、跨模型上下文回放与外层底座切换） */
+export function isInteractiveOnly(backend: string | null | undefined): boolean {
+  return cliInfo(backend)?.capabilities.interactiveOnly === true;
+}

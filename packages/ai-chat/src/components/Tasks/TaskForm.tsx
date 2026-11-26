@@ -19,6 +19,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 import { api } from '../../services/api';
 import {
+  DELEGATE_CLIS,
   delegateClient,
   formatRunnerSummary,
   presetDisplayLabel,
@@ -40,7 +41,6 @@ import {
   type TaskPriority,
   type ToolClass,
 } from '../../services/tasksClient';
-import { CONVERSATION_BACKENDS } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { confirmDialog } from '../ConfirmDialog';
 import { useConnections } from '../ConnectionsPanel';
@@ -54,7 +54,7 @@ import { buildTaskCliExecutor, resolveTaskCliSelection } from './taskCliHelpers'
 type When = 'manual' | 'once' | 'daily' | 'weekdays' | 'interval' | 'event';
 type Source = 'web' | 'github' | 'folder' | 'app' | 'mcp';
 type Who = 'nomi' | 'notify' | 'cli';
-const CLIS = CONVERSATION_BACKENDS.filter((b) => b !== 'nomi');
+const CLIS = DELEGATE_CLIS;
 
 const TOOLS: ToolClass[] = [
   'read',

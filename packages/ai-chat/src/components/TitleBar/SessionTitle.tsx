@@ -27,8 +27,10 @@ import { updateManagedConversationMeta } from '../../services/managedMainChat';
 import { sessionPlace } from '../../services/projects';
 import { clearNomiAutoTitle } from '../../services/sessionTitle';
 import { cliTranscriptKey } from '../../services/transcriptView';
+import type { ConversationBackend } from '../../types/chat';
 import type { ConvMessage } from '../../types/conversation';
 import type { IPCClient } from '../../types/ipc';
+import { isInteractiveOnly } from '../../utils/cliCaps';
 import { aggregateSessionChanges } from '../../utils/sessionChanges';
 import { titlebarMenuTop } from '../../utils/titlebarMenu';
 import chatHeaderStyles from '../ChatHeader/index.module.css';
@@ -43,6 +45,7 @@ interface CurrentSession {
   /** 会话列表里的 id（CLI 标签是它的镜像项） */
   id: string | undefined;
   tabId: string | undefined;
+  backend?: ConversationBackend;
   name: string;
   /** 会话在哪（项目名 / agent 标签的目录名）；title 是悬停提示 */
   place: { label: string; title: string };
@@ -70,6 +73,7 @@ function useCurrentSession(): CurrentSession | null {
     return {
       id: meta?.id,
       tabId: tab.id,
+      backend: tab.backend,
       name: tab.title,
       place: sessionPlace({}, tab),
       hasMessages: (tabs.messages ?? []).length > 0,
@@ -82,6 +86,7 @@ function useCurrentSession(): CurrentSession | null {
   return {
     id: meta.id,
     tabId: undefined,
+    backend: meta.backend,
     name: meta.name ? t(meta.name) : t('ui.chat-settings.new-chat'),
     place: sessionPlace(meta, undefined),
     hasMessages: count > 0,
@@ -213,7 +218,11 @@ export const SessionTitle: React.FC<{
           }
           onDismiss={() => setAt(null)}
           onRename={() => void rename()}
-          onFork={s.id && onFork ? () => onFork(s.id!) : undefined}
+          onFork={
+            s.id && onFork && !(s.backend && isInteractiveOnly(s.backend))
+              ? () => onFork(s.id!)
+              : undefined
+          }
           onClose={s.tabId ? () => void closeTab() : undefined}
           onArchive={s.tabId ? undefined : () => void archive()}
           onDelete={s.tabId ? undefined : () => void remove()}

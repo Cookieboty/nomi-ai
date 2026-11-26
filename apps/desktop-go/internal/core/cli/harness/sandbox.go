@@ -186,9 +186,9 @@ func newToken() string {
 	return hex.EncodeToString(b)
 }
 
-// sandboxSpec：这一次启动的沙箱配置；不包（关着 / 不支持）时 nil
+// sandboxSpec：这一次启动的沙箱配置；不包（关着 / 不支持 / interactiveOnly）时 nil
 func (o *Orchestrator) sandboxSpec(tab *util.Obj, cwd string, env *util.Obj) *sandbox.Spec {
-	if !o.SandboxActive() {
+	if !o.SandboxActive() || (tab != nil && builtin.InteractiveOnly(str(tab, "backend"))) {
 		return nil
 	}
 	return o.buildSandboxSpec(tab, cwd, env)
@@ -293,9 +293,9 @@ func (o *Orchestrator) claudeSandboxArgs() []string {
 }
 
 // withSandboxNote：别的 CLI 没有附加系统提示的参数：CLI 会话的第一条消息前面带上沙箱说明
-// （被拒时停下说明、等用户授权，不要绕路）
+// （被拒时停下说明、等用户授权，不要绕路）；interactiveOnly 保持用户原始 prompt 零注入透传。
 func (o *Orchestrator) withSandboxNote(tab *util.Obj, backend, toCli string) string {
-	if backend == "claude" || !o.SandboxActive() || truthy(tab.Get("cliSessionId")) {
+	if backend == "claude" || builtin.InteractiveOnly(backend) || !o.SandboxActive() || truthy(tab.Get("cliSessionId")) {
 		return toCli
 	}
 	return prompts.Text("cli-sandbox") + "\n\n" + toCli

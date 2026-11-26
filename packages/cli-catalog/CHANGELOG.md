@@ -1,5 +1,11 @@
 # @nomi-ai/cli-catalog
 
+## 0.1.4
+
+### Patch Changes
+
+- 386d751: fix(antigravity): 将 Antigravity 收口为纯人工交互薄客户端并打磨官方 ACP 协议实现
+
 ## 0.1.3
 
 ### Patch Changes

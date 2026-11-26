@@ -14,8 +14,8 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
-// DelegateClis：可以委派的内置 agent
-var DelegateClis = builtin.Ordered
+// DelegateClis：可以委派的内置 agent（排除 interactiveOnly：仅限人工直接交互的薄客户端）
+var DelegateClis = builtin.Where(func(id string) bool { return !builtin.InteractiveOnly(id) })
 
 // DelegateKinds：任务类型（设置里按类型配默认 agent）
 var DelegateKinds = []string{"coding", "prd", "review", "research"}
@@ -420,7 +420,12 @@ func DeriveEffectiveRoutingWithEnv(settings *util.Obj, env RoutingEnv) (bool, []
 		autoComplexity = b
 	}
 	defaults, _ := settings.Get("defaults").(*util.Obj)
-	installed := env.Installed
+	var installed []string
+	for _, c := range env.Installed {
+		if IsDelegateCli(c) {
+			installed = append(installed, c)
+		}
+	}
 	gwModels := env.GatewayModels
 	fallbackModel := ""
 	if len(gwModels) > 0 {
@@ -898,7 +903,7 @@ func jsString(v any) string {
 
 var aliases = func() map[string]string {
 	m := map[string]string{"claude-code": "claude", "claudecode": "claude", "cc": "claude"}
-	for _, id := range builtin.Ordered {
+	for _, id := range DelegateClis {
 		m[id] = id
 	}
 	return m

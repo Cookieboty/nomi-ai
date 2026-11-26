@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	antigravityp "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/antigravity"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/drivers"
@@ -133,12 +134,17 @@ func (r *Runtime) spawn() *worker {
 		}
 		CliTrap(child, cfg.Executable, args, tab)
 	}
-	w.driver = drivers.NewAcpDriver(drivers.AcpDriverOptions{
+	driverOpts := drivers.AcpDriverOptions{
 		Child:              child,
 		Kill:               func(clisdk.ChildLike) { killGroup(w.child.Pid) },
 		NewID:              func() string { return uuid.NewString() },
 		DisableElicitation: true,
-	})
+	}
+	if cfg.BackendID == "antigravity" {
+		driverOpts.ClientInfo = antigravityp.ClientInfo()
+		driverOpts.ClientCapabilities = antigravityp.ClientCapabilities()
+	}
+	w.driver = drivers.NewAcpDriver(driverOpts)
 	w.driver.On(func(ev clisdk.SessionEvent) {
 		if ev == nil || w.failure != "" {
 			return

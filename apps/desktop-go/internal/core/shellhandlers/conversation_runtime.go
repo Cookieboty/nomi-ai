@@ -28,7 +28,7 @@ func runtimeFail(err error) error {
 		code = "RUNTIME_UNRESOLVED"
 	case errors.Is(err, cr.ErrStaleEvent), errors.Is(err, cr.ErrStaleBinding):
 		code = "RUNTIME_STALE"
-	case errors.Is(err, cr.ErrBadEdit), errors.Is(err, cr.ErrPermission), errors.Is(err, convstore.ErrBadID):
+	case errors.Is(err, cr.ErrBadEdit), errors.Is(err, cr.ErrPermission), errors.Is(err, convstore.ErrBadID), errors.Is(err, mainchat.ErrSwitchForbidden):
 		code = "BAD_INPUT"
 	}
 	return &contract.Error{Code: code, Message: err.Error()}

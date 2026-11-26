@@ -154,7 +154,7 @@ export const CliLocalAuthCard: React.FC<{ kind: CliKind }> = ({ kind }) => {
   const supportsAuth = cliCapability(kind, 'localAuth');
 
   const [status, setStatus] = useState<LocalAuthStatus | null>(null);
-  const [probing, setProbing] = useState(supportsAuth && cliLocalAuthClient.available());
+  const [probing, setProbing] = useState(false);
   const [busyAction, setBusyAction] = useState<'refresh' | 'logout' | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [login, setLogin] = useState<LocalAuthEvent | null>(null);
@@ -183,24 +183,12 @@ export const CliLocalAuthCard: React.FC<{ kind: CliKind }> = ({ kind }) => {
     if (!supportsAuth) return;
     let alive = true;
     if (cliLocalAuthClient.available()) {
-      let probeSettled = false;
       void cliLocalAuthClient
         .status(kind, false)
         .then((res) => {
-          if (alive && !probeSettled && res && typeof res.loggedIn === 'boolean') setStatus(res);
-        })
-        .catch(() => undefined);
-      setProbing(true);
-      void cliLocalAuthClient
-        .status(kind, true)
-        .then((res) => {
-          probeSettled = true;
           if (alive && res && typeof res.loggedIn === 'boolean') setStatus(res);
         })
-        .catch(() => undefined)
-        .finally(() => {
-          if (alive) setProbing(false);
-        });
+        .catch(() => undefined);
     }
     const off = cliLocalAuthClient.onEvent((e) => {
       const attempt = loginAttempt.current;

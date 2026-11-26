@@ -42,6 +42,7 @@ describe('ForkDialog: one dialog for a new session or another endpoint', () => {
       expect(screen.getByTestId('fork-target-gemini').hasAttribute('disabled')).toBe(false),
     );
     expect(screen.getByTestId('fork-target-dsh').hasAttribute('disabled')).toBe(true);
+    expect(screen.queryByTestId('fork-target-antigravity')).toBeNull();
     fireEvent.click(screen.getByTestId('fork-target-gemini'));
     fireEvent.change(screen.getByTestId('fork-turns'), { target: { value: '' } });
     fireEvent.click(screen.getByTestId('fork-project-button'));
@@ -58,6 +59,11 @@ describe('ForkDialog: one dialog for a new session or another endpoint', () => {
 
   it('turn choices no longer include a single turn', () => {
     expect([...FORK_TURN_CHOICES]).toEqual([20, 10, 5, 3]);
+  });
+
+  it('does not render ForkDialog when current conversation is interactive-only antigravity', () => {
+    mount({ current: 'antigravity', allowCross: true });
+    expect(screen.queryByTestId('fork-target-menu')).toBeNull();
   });
 });
 

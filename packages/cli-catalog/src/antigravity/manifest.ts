@@ -56,6 +56,8 @@ export const manifest: CliManifest = {
     terminalCommand: true,
     // 应用内本机官方登录：入口走 `agy acp --login`，退出走 ACP `logout`（目前只有它实现）
     localAuth: true,
+    // 遵循 Google 服务条款：仅限人工直接交互，禁止自动化委派/定时任务、跨模型上下文回放及外层系统提示注入
+    interactiveOnly: true,
   },
   modelSwitch: 'inplace',
   clientSpec: { client: 'antigravity' },
@@ -65,7 +67,7 @@ export const manifest: CliManifest = {
     selfUpdate: 'always',
     vendor: 'google',
     acpArgs: ['acp'],
-    planFollowUp: true,
+    planFollowUp: false,
     homeEnv: 'ANTIGRAVITY_CLI_HOME',
     homeDirs: ['.gemini/antigravity-cli', '.gemini/antigravity'],
     execConfig: [

@@ -11,6 +11,7 @@ import { NewChatMenu } from '../src/components/NewChatMenu';
 import { TaskForm } from '../src/components/Tasks/TaskForm';
 import { cliLauncherClient } from '../src/services/cliLauncherClient';
 import {
+  DELEGATE_CLIS,
   bindNextDelegateConversation,
   consumeNextDelegate,
   setNextDelegate,
@@ -298,6 +299,8 @@ describe('阶段三：日常高频入口联动', () => {
 
     render(<TaskForm onClose={vi.fn()} onCreated={vi.fn()} />);
     await untilIdle();
+    expect(DELEGATE_CLIS).not.toContain('antigravity');
+    expect(screen.queryByText('Antigravity CLI')).toBeNull();
     fireEvent.change(screen.getByTestId('task-form-title'), { target: { value: '自动巡检' } });
     fireEvent.change(screen.getByTestId('task-form-goal'), { target: { value: '跑单测' } });
     fireEvent.change(screen.getByTestId('task-form-who'), { target: { value: 'cli' } });

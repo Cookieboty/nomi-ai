@@ -22,6 +22,7 @@ import { getManagedDefaultRuntime, saveManagedDefaultRuntime } from '../services
 import { CONVERSATIONS_CHANGED_EVENT, type ConversationStore } from '../services/conversationStore';
 import { buildManagedRuntimeInitFromPref } from '../services/managedDefaultRuntime';
 import { formatManagedRuntimeError, isAutoAbandonableState } from '../services/managedMainChat';
+import { isInteractiveOnly } from '../utils/cliCaps';
 
 import { selectIpcClient, selectMessageCount, useAiChatSelector } from './aiChatStore';
 
@@ -291,6 +292,12 @@ export const ManagedRuntimeProvider: React.FC<{
         return true;
       }
       if (!idle) return false;
+      if (
+        isInteractiveOnly(activeBackend) ||
+        (isInteractiveOnly(backend) && (activeBackend !== 'api' || hasMessages))
+      ) {
+        return false;
+      }
       const choice = view.choices.find((c) => c.id === backend);
       if (choice?.requiresProject && choice.status === 'no-project') {
         if (!view.managed) {

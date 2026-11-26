@@ -256,3 +256,6 @@ func WithQuota(id string) bool { return Capability(id, "usageQuota") }
 func LocalOnly(id string) bool {
 	return IsBuiltinCliID(id) && !WithAccounts(id) && !WithThirdParty(id)
 }
+
+// InteractiveOnly：仅限人工直接交互的薄客户端（禁止自动化编排、跨模型上下文回放与外层系统提示注入）
+func InteractiveOnly(id string) bool { return Capability(id, "interactiveOnly") }
