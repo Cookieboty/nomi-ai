@@ -5,7 +5,7 @@
 - Website (EN, Default): https://withnomi.app/
 - Website (ZH): https://withnomi.app/zh/
 - Features: https://withnomi.app/features.html (https://withnomi.app/zh/features.html)
-- Download (v2.5.2): https://withnomi.app/download.html (https://withnomi.app/zh/download.html)
+- Download (v2.5.3): https://withnomi.app/download.html (https://withnomi.app/zh/download.html)
 - Changelog: https://withnomi.app/changelog.html (https://withnomi.app/zh/changelog.html)
 - Privacy & Security: https://withnomi.app/privacy.html (https://withnomi.app/zh/privacy.html)
 - Repository: https://github.com/Cookieboty/nomi-ai
@@ -18,12 +18,12 @@
 - **Local-First Privacy & Sandbox**: No Nomi cloud account required. Chats, memories, and knowledge-base indexes stay local; API keys are stored in OS keychain; macOS system sandbox shields SSH/Git credentials and .env files.
 - **Optional Desktop Character**: Off by default on fresh installs; every workbench capability works identically with it off.
 
-## Installers (v2.5.2)
-- Windows (64-bit): https://github.com/Cookieboty/nomi-ai/releases/download/v2.5.2/Nomi-Setup-2.5.2.exe
-- macOS (Apple silicon): https://github.com/Cookieboty/nomi-ai/releases/download/v2.5.2/Nomi-2.5.2-arm64.dmg
-- macOS (Intel): https://github.com/Cookieboty/nomi-ai/releases/download/v2.5.2/Nomi-2.5.2.dmg
-- Linux (AppImage): https://github.com/Cookieboty/nomi-ai/releases/download/v2.5.2/Nomi-2.5.2.AppImage
-- Linux (Debian/Ubuntu .deb): https://github.com/Cookieboty/nomi-ai/releases/download/v2.5.2/nomi_2.5.2_amd64.deb
+## Installers (v2.5.3)
+- Windows (64-bit): https://github.com/Cookieboty/nomi-ai/releases/download/v2.5.3/Nomi-Setup-2.5.3.exe
+- macOS (Apple silicon): https://github.com/Cookieboty/nomi-ai/releases/download/v2.5.3/Nomi-2.5.3-arm64.dmg
+- macOS (Intel): https://github.com/Cookieboty/nomi-ai/releases/download/v2.5.3/Nomi-2.5.3.dmg
+- Linux (AppImage): https://github.com/Cookieboty/nomi-ai/releases/download/v2.5.3/Nomi-2.5.3.AppImage
+- Linux (Debian/Ubuntu .deb): https://github.com/Cookieboty/nomi-ai/releases/download/v2.5.3/nomi_2.5.3_amd64.deb
 
 ## Documentation Index
 - [Docs Home (EN)](https://withnomi.app/docs.html) / [Docs Home (ZH)](https://withnomi.app/zh/docs.html)
