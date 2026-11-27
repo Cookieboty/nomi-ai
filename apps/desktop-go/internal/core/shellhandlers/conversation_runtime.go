@@ -17,6 +17,7 @@ func runtimeFail(err error) error {
 		return nil
 	}
 	code := "RUNTIME_FAILED"
+	var budgetErr *cr.ErrBudget
 	switch {
 	case errors.Is(err, mainchat.ErrUnavailable), errors.Is(err, convstore.ErrDurabilityUnsupported):
 		code = "RUNTIME_UNAVAILABLE"
@@ -28,6 +29,8 @@ func runtimeFail(err error) error {
 		code = "RUNTIME_UNRESOLVED"
 	case errors.Is(err, cr.ErrStaleEvent), errors.Is(err, cr.ErrStaleBinding):
 		code = "RUNTIME_STALE"
+	case errors.As(err, &budgetErr):
+		code = "RUNTIME_REQUEST_TOO_LARGE"
 	case errors.Is(err, cr.ErrBadEdit), errors.Is(err, cr.ErrPermission), errors.Is(err, convstore.ErrBadID), errors.Is(err, mainchat.ErrSwitchForbidden):
 		code = "BAD_INPUT"
 	}

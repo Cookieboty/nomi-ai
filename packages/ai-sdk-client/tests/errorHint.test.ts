@@ -48,6 +48,19 @@ describe('P9-4 toErrorHint', () => {
     expect(h.action).toEqual({ kind: 'dismiss', label: '知道了' });
   });
 
+  it('E_PROFILE_MISS → 无对应提示或走默认；E_REQUEST_TOO_LARGE → 消息内容过长', () => {
+    const h = toErrorHint(
+      new SDKError(SDKErrorCodes.E_REQUEST_TOO_LARGE, '当前消息（121 KB）超出上限（59 KB）', {
+        retryable: false,
+        hint: 'dismiss',
+      }),
+    );
+    expect(h.code).toBe(SDKErrorCodes.E_REQUEST_TOO_LARGE);
+    expect(h.title).toBe('消息内容过长');
+    expect(h.description).toBe('当前消息（121 KB）超出上限（59 KB）');
+    expect(h.action).toEqual({ kind: 'dismiss', label: '知道了' });
+  });
+
   it('非 Error 值也能兜底', () => {
     const h = toErrorHint('some string');
     expect(h.code).toBe(SDKErrorCodes.IPC_ERROR);

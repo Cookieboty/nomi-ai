@@ -169,7 +169,8 @@ func (r *Runtime) Capabilities() cr.Capabilities {
 		Cancel:          true,
 		Approval:        true,
 		PermissionModes: PermissionModes(r.config.BackendID),
-		Budget:          60000,
+		Budget:          cr.DefaultHandoffBudget,
+		RequestBudget:   cr.DefaultStreamRequestBudget,
 		Degraded: []string{
 			"Experimental official " + name + " ACP profile: executable present; version and login not probed",
 			"Warm-process resume or explicit ACP session/load; unproven cold resumes fail closed as unknown",

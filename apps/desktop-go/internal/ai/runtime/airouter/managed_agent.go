@@ -99,7 +99,8 @@ func (m *managedAgent) Capabilities() cr.Capabilities {
 		Approval:        true,
 		Attachments:     true,
 		PermissionModes: []string{"deny", "ask", "acceptEdits", "auto", "bypass"},
-		Budget:          60000,
+		Budget:          cr.DefaultHandoffBudget,
+		RequestBudget:   cr.DefaultStreamRequestBudget,
 		Degraded: []string{
 			"stateless native turns: switching back from another CLI backend replays bounded unseen history",
 		},

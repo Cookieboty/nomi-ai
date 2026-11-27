@@ -107,6 +107,20 @@ const BLOCK = new RegExp(
   'g',
 );
 
+/**
+ * 托管 CLI / ACP 运行时能自行读取工作区或本机文件：对已带有非空本机路径的
+ * `<attached-file name="..." path="...">正文</attached-file>` 剥离内联全文，
+ * 转为自闭合路径引用 `<attached-file name="..." path="..." />`，避免大图/大文件撑爆预算。
+ * 无本机路径的附件及普通正文保持原样，且函数幂等。
+ */
+export function stripInlineTextForPathAttachments(full: string): string {
+  if (!full.includes(`<${TAG} `)) return full;
+  return full.replace(BLOCK, (match, name: string, path: string | undefined) => {
+    if (!path) return match;
+    return `<${TAG} name="${name}" path="${path}" />`;
+  });
+}
+
 /** 完整消息 → 正文 + 附件（显示 / 编辑重发用） */
 export function splitFileAttachments(full: string): { text: string; files: FileAttachment[] } {
   if (!full.includes(`<${TAG} `)) return { text: full, files: [] };

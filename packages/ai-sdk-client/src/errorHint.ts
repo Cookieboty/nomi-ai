@@ -60,6 +60,10 @@ const HINT_TEXT: Partial<Record<SDKErrorCode, { title: string; description: stri
     title: 'Profile 缺失',
     description: '未找到当前会话对应的 Profile 配置，请在 profile 管理中检查或重新指定。',
   },
+  [SDKErrorCodes.E_REQUEST_TOO_LARGE]: {
+    title: '消息内容过长',
+    description: '当前单条消息超出了该运行时的传输上限，请精简内容或分段发送。',
+  },
   [SDKErrorCodes.SEAM_NOT_INJECTED]: {
     title: '依赖未注入',
     description: '缺少对应的运行时依赖（如 ASR / TTS），请确认 Provider 挂载或稍后再试。',

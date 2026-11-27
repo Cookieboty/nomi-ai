@@ -1176,3 +1176,27 @@ func TestManagedInteractiveOnlyRuntimeLockAndAdoption(t *testing.T) {
 		t.Fatalf("runtimeSwitch into antigravity from non-empty claude = %+v, want BAD_INPUT", fSwitchIn)
 	}
 }
+
+func TestRuntimeSendBudgetOverflowReturnsRequestTooLargeCode(t *testing.T) {
+	dir := t.TempDir()
+	_, r, c := fixtureIngress(t, dir)
+	r.Register("claude", func(id string) (cr.Target, error) {
+		return (&ingressFake{name: "claude"}).target(id)
+	})
+
+	requireOK(t, c.call("conversations.put", `{"meta":{"id":"c_budget","backend":"nomi","name":"budget","createdAt":1000,"updatedAt":1000,"projectId":"p1"},"messages":[]}`))
+	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c_budget","backend":"claude","permissionMode":"ask","confirm":true}`))
+
+	stRaw := requireOK(t, c.call("conversations.runtimeState", `{"id":"c_budget"}`))
+	stBytes, _ := json.Marshal(stRaw)
+	var st struct {
+		Generation uint64
+	}
+	_ = json.Unmarshal(stBytes, &st)
+
+	tooBig := strings.Repeat("x", 9000)
+	resp := c.call("conversations.runtimeSend", fmt.Sprintf(`{"id":"c_budget","messageId":"m_big","turnId":"t_big","text":%q,"expectedGeneration":%d}`, tooBig, st.Generation))
+	if resp.T != "err" || resp.Error == nil || resp.Error.Code != "RUNTIME_REQUEST_TOO_LARGE" {
+		t.Fatalf("expected RUNTIME_REQUEST_TOO_LARGE error code, got %+v", resp)
+	}
+}

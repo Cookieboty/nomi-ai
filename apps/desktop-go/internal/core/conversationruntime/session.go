@@ -127,6 +127,9 @@ func validateAndNormalizeTarget(target Target) (Capabilities, error) {
 	if caps.Budget < 2 {
 		return Capabilities{}, &ErrBudget{Need: 2, Limit: int(caps.Budget), What: "minimum prompt"}
 	}
+	if caps.RequestBudget < 0 {
+		return Capabilities{}, &ErrBudget{Need: 0, Limit: int(caps.RequestBudget), What: "request budget"}
+	}
 	// Validate identity independently of any previous binding.
 	if why := resumeProblem(PlanInput{Target: TargetNew, Identity: target.Identity, Env: target.Env}); why != "" {
 		return Capabilities{}, fmt.Errorf("%w: %s", ErrBadEdit, why)
@@ -379,8 +382,9 @@ func (c *Session) beginLocked(ctx context.Context, r Request, queued bool) (*act
 	if err := c.validateRequestLocked(r); err != nil {
 		return nil, err
 	}
-	if jsonLen(r.Text) > int(c.caps.Budget) {
-		return nil, &ErrBudget{Need: jsonLen(r.Text), Limit: int(c.caps.Budget), What: "current request"}
+	reqLimit := int(effectiveRequestBudget(c.caps.Budget, c.caps.RequestBudget))
+	if jsonLen(r.Text) > reqLimit {
+		return nil, &ErrBudget{Need: jsonLen(r.Text), Limit: reqLimit, What: "current request"}
 	}
 	if _, ok := c.ledger.Latest(r.MessageID); !ok {
 		if _, err := c.ledger.Append(Entry{ID: r.MessageID, TurnID: r.TurnID, Role: "user", Origin: "user", Timestamp: time.Now().UnixMilli(), Text: r.Text}); err != nil {

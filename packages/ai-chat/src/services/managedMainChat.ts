@@ -1,8 +1,9 @@
-import type { AppClient } from '@nomi-ai/ai-sdk-client';
+import { SDKError, SDKErrorCodes, type AppClient } from '@nomi-ai/ai-sdk-client';
 import { t } from '@nomi-ai/ui';
 
 import type { ChatMessage } from '../types/chat';
 
+import { stripInlineTextForPathAttachments } from './fileAttachments';
 import type { HarnessTraceEvent } from './harnessClient';
 
 type Port = Pick<AppClient, 'conversations' | 'on'>;
@@ -18,12 +19,71 @@ export function createManagedMessageId(): string {
   return `m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
 }
 
-export function formatManagedRuntimeError(err: unknown): string {
+const RUNTIME_BUDGET_RE =
+  /conversationruntime:\s+.+?\s+is\s+(\d+)\s+serialized UTF-8 bytes,\s+budget is\s+(\d+)/i;
+
+function errorCodeOf(err: unknown): string {
+  if (err && typeof err === 'object' && 'code' in err && typeof err.code === 'string') {
+    return err.code;
+  }
+  return '';
+}
+
+function formatByteCount(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 1024) return `${Math.max(0, Math.round(bytes))} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function isRequestTooLargeError(err: unknown): boolean {
+  const code = errorCodeOf(err);
   const msg = err instanceof Error ? err.message : String(err);
-  if (msg.includes('RUNTIME_BUSY')) return t('ui.chat-settings.managed-error-busy');
-  if (msg.includes('RUNTIME_STALE')) return t('ui.chat-settings.managed-error-stale');
-  if (msg.includes('RUNTIME_UNAVAILABLE')) return t('ui.chat-settings.managed-error-unavailable');
+  return (
+    code === 'RUNTIME_REQUEST_TOO_LARGE' ||
+    msg.includes('RUNTIME_REQUEST_TOO_LARGE') ||
+    RUNTIME_BUDGET_RE.test(msg)
+  );
+}
+
+export function formatManagedRuntimeError(err: unknown): string {
+  const code = errorCodeOf(err);
+  const msg = err instanceof Error ? err.message : String(err);
+  if (code === 'RUNTIME_BUSY' || msg.includes('RUNTIME_BUSY')) {
+    return t('ui.chat-settings.managed-error-busy');
+  }
+  if (code === 'RUNTIME_STALE' || msg.includes('RUNTIME_STALE')) {
+    return t('ui.chat-settings.managed-error-stale');
+  }
+  if (code === 'RUNTIME_UNAVAILABLE' || msg.includes('RUNTIME_UNAVAILABLE')) {
+    return t('ui.chat-settings.managed-error-unavailable');
+  }
+  if (isRequestTooLargeError(err)) {
+    const m = RUNTIME_BUDGET_RE.exec(msg);
+    if (m) {
+      const need = Number(m[1]);
+      const limit = Number(m[2]);
+      if (Number.isFinite(need) && Number.isFinite(limit) && limit > 0) {
+        return t(
+          'ui.chat-settings.managed-error-request-too-large',
+          formatByteCount(need),
+          formatByteCount(limit),
+        );
+      }
+    }
+    return t('ui.chat-settings.managed-error-request-too-large-generic');
+  }
   return msg;
+}
+
+export function wrapManagedSendError(err: unknown): Error {
+  if (isRequestTooLargeError(err)) {
+    return new SDKError(SDKErrorCodes.E_REQUEST_TOO_LARGE, formatManagedRuntimeError(err), {
+      retryable: false,
+      hint: 'dismiss',
+      cause: err,
+    });
+  }
+  return err instanceof Error ? err : new Error(String(err));
 }
 
 export function isAutoAbandonableState(
@@ -230,7 +290,7 @@ export async function sendManagedConversation(
           })
           .catch(() => undefined);
       }
-      reject(new Error(detail));
+      reject(wrapManagedSendError(new Error(detail)));
     }
   };
   const update = (state: ManagedRuntimeState): void => {
@@ -285,12 +345,15 @@ export async function sendManagedConversation(
     if (!token) failTimeout();
   }, ADMISSION_TIMEOUT_MS);
   try {
+    const isCliBackend = Boolean(initial.backend && initial.backend !== 'api');
+    const wireText =
+      !options?.retry && isCliBackend ? stripInlineTextForPathAttachments(text) : text;
     token = await Promise.race([
       api.conversations.runtimeSend({
         id,
         messageId,
         turnId,
-        text,
+        text: wireText,
         expectedGeneration: initial.generation,
         ...(options?.images?.length ? { images: options.images } : {}),
         ...(options?.retry ? { retry: true } : {}),
@@ -311,6 +374,8 @@ export async function sendManagedConversation(
     // A slow reconciliation query must not hide an already observed terminal event.
     void api.conversations.runtimeState({ id }).then(update, reject);
     await done;
+  } catch (err) {
+    throw wrapManagedSendError(err);
   } finally {
     settled = true;
     clearTimers();

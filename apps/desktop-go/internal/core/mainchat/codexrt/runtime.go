@@ -226,7 +226,8 @@ func (r *Runtime) Capabilities() cr.Capabilities {
 		Cancel:          true,
 		Approval:        true,
 		PermissionModes: PermissionModes(),
-		Budget:          60000,
+		Budget:          cr.DefaultHandoffBudget,
+		RequestBudget:   cr.DefaultStreamRequestBudget,
 		Degraded: []string{
 			"Experimental official Codex profile: executable present; version and login not probed",
 			"Warm-process resume only; cold thread/resume is proven solely by an exact same-ID result or the official JSON-RPC message \"thread not found\"",

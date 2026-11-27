@@ -653,6 +653,7 @@ export const shellErrors = [
   'RUNTIME_UNAVAILABLE',
   'RUNTIME_BUSY',
   'RUNTIME_STALE',
+  'RUNTIME_REQUEST_TOO_LARGE',
   'RUNTIME_FAILED',
   /** 链接无法处理 / 授权失败；message 是错误码（bad_issuer、bad_manifest、network 等，见 docs/integrations/provider-link.md） */
   'PROVIDER_LINK_FAILED',

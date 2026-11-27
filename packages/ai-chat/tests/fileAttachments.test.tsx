@@ -12,6 +12,7 @@ import {
   isImagePath,
   joinFileAttachments,
   splitFileAttachments,
+  stripInlineTextForPathAttachments,
   type FileAttachment,
 } from '../src/services/fileAttachments';
 
@@ -63,6 +64,29 @@ describe('fileAttachments 序列化', () => {
 
   it('没有附件的消息原样返回', () => {
     expect(splitFileAttachments('普通消息')).toEqual({ text: '普通消息', files: [] });
+  });
+
+  it('stripInlineTextForPathAttachments 对带本地路径的附件仅发路径引用，无路径附件保留正文', () => {
+    const files = [
+      att({
+        name: 'say "hi" & <b>.md',
+        path: '/My Docs/say.md',
+        text: 'x </attached-file> y'.repeat(500),
+      }),
+      att({ name: 'clipboard.txt', path: '', text: 'inline-only-content' }),
+      att({ name: 'already-ref.bin', path: '/tmp/already-ref.bin' }),
+    ];
+    const joined = joinFileAttachments('请分析这些文件', files);
+    const stripped = stripInlineTextForPathAttachments(joined);
+    expect(stripInlineTextForPathAttachments(stripped)).toBe(stripped);
+
+    const parsed = splitFileAttachments(stripped);
+    expect(parsed.text).toBe('请分析这些文件');
+    expect(parsed.files.map(({ name, path, text }) => ({ name, path, text }))).toEqual([
+      { name: 'say "hi" & <b>.md', path: '/My Docs/say.md', text: undefined },
+      { name: 'clipboard.txt', path: '', text: 'inline-only-content' },
+      { name: 'already-ref.bin', path: '/tmp/already-ref.bin', text: undefined },
+    ]);
   });
 });
 

@@ -134,10 +134,26 @@ type PlanInput struct {
 	// Attachments of the current request. B1 cannot hand them to a CLI, so any
 	// attachment refuses the request before execution.
 	Attachments []string
+	// RequestBudget optionally raises the serialized UTF-8 byte limit for the
+	// current user request above Budget while keeping historical handoff bounded
+	// by Budget. Zero or <= Budget falls back to Budget.
+	RequestBudget ByteBudget
 	// Budget bounds json.Marshal(Plan.Payload), including the current request.
 	Budget ByteBudget
 	// Wrapper is the explicit transport framing of the handoff body.
 	Wrapper HandoffWrapper
+}
+
+const (
+	DefaultHandoffBudget       ByteBudget = 60000
+	DefaultStreamRequestBudget ByteBudget = 2 * 1024 * 1024
+)
+
+func effectiveRequestBudget(handoffBudget, requestBudget ByteBudget) ByteBudget {
+	if requestBudget > handoffBudget {
+		return requestBudget
+	}
+	return handoffBudget
 }
 
 // HandoffWrapper frames handoff lines (prefix/suffix). Its serialized size is

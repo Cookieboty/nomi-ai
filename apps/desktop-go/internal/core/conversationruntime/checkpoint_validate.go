@@ -218,7 +218,7 @@ func ValidateCheckpoint(c Checkpoint) error {
 func validateTargetState(t TargetState) error {
 	if t.Identity.DriverID == "" {
 		// Initial unselected conversations have exactly the empty target.
-		if t.Identity != (NativeIdentity{}) || t.Env != (CompatibilityKey{}) || t.Effort != "" || t.Capabilities.Budget != 0 || len(t.Capabilities.PermissionModes) != 0 || t.Capabilities.Resume || t.Capabilities.Cancel || t.Capabilities.Approval || t.Capabilities.Attachments || t.Capabilities.Bridges != nil {
+		if t.Identity != (NativeIdentity{}) || t.Env != (CompatibilityKey{}) || t.Effort != "" || t.Capabilities.Budget != 0 || t.Capabilities.RequestBudget != 0 || len(t.Capabilities.PermissionModes) != 0 || t.Capabilities.Resume || t.Capabilities.Cancel || t.Capabilities.Approval || t.Capabilities.Attachments || t.Capabilities.Bridges != nil {
 			return ErrBadEdit
 		}
 		return nil
@@ -233,7 +233,7 @@ func validateTargetState(t TargetState) error {
 		}
 	}
 	wiredAtt := t.Capabilities.Bridges != nil && (t.Capabilities.Bridges.Attachments.Status == "bridged" || t.Capabilities.Bridges.Attachments.Status == "native")
-	if resumeProblem(PlanInput{Target: TargetNew, Identity: t.Identity, Env: t.Env}) != "" || t.Capabilities.Budget < 2 || (t.Capabilities.Attachments && !wiredAtt) || !utf8OK(t.Capabilities.Wrapper.Prefix) || !utf8OK(t.Capabilities.Wrapper.Suffix) {
+	if resumeProblem(PlanInput{Target: TargetNew, Identity: t.Identity, Env: t.Env}) != "" || t.Capabilities.Budget < 2 || t.Capabilities.RequestBudget < 0 || (t.Capabilities.Attachments && !wiredAtt) || !utf8OK(t.Capabilities.Wrapper.Prefix) || !utf8OK(t.Capabilities.Wrapper.Suffix) {
 		return ErrBadEdit
 	}
 	supported := false

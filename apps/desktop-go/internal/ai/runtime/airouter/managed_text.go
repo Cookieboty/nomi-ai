@@ -56,7 +56,7 @@ type managedText struct {
 }
 
 func (m *managedText) Capabilities() cr.Capabilities {
-	return cr.Capabilities{Cancel: true, PermissionModes: []string{"deny"}, Budget: 60000, Degraded: []string{"Experimental API text only: no tool loop, native approvals, attachments, reasoning, memory or skills bridge; unmanaged API tools remain available"}}
+	return cr.Capabilities{Cancel: true, PermissionModes: []string{"deny"}, Budget: cr.DefaultHandoffBudget, RequestBudget: cr.DefaultStreamRequestBudget, Degraded: []string{"Experimental API text only: no tool loop, native approvals, attachments, reasoning, memory or skills bridge; unmanaged API tools remain available"}}
 }
 func (m *managedText) Recover(context.Context, cr.RecoveryRequest) cr.RecoveryResult {
 	return cr.RecoveryResult{Kind: cr.RecoveryNew, NativeSessionID: "api-execution-" + uuid.NewString()}
