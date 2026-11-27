@@ -675,12 +675,16 @@ html[data-chat-bg] .main-content--with-changes [data-testid='center-preview-pane
  * 并排：grid 左→右按 DOM 排 面板 | 分割线 | 面板（--session-pane-left 由 useSessionPaneLayout 给出）。
  */
 .session-panes {
+  position: relative;
   flex: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+.session-panes[hidden] {
+  display: none;
 }
 .session-panes--split {
   display: grid;
@@ -696,8 +700,31 @@ html[data-chat-bg] .main-content--with-changes [data-testid='center-preview-pane
 }
 /* 对话列仍是自己的 inline-size 容器（ChatHeader 的 @container 按这一列宽度换行），不继承外层容器 */
 .session-panes .chat-column {
+  flex: 1 1 0;
   container-type: inline-size;
   container-name: chat-column;
+}
+
+/* 非焦点面板的内容列：与 .chat-column 同构（竖排占满高度，空态时整体居中） */
+.session-pane-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+.session-pane-column[data-empty] {
+  justify-content: center;
+}
+.session-pane-column[data-empty] .session-pane-chat {
+  flex: 0 0 auto;
+  overflow-y: visible;
+  justify-content: flex-end;
+}
+.session-pane-column[data-empty] .session-pane-footer {
+  border-top: none;
+  background: transparent;
 }
 
 /* 并排时两个面板之间的分割线：与 .center-changes-splitter 一样细（5px 可拖、2px 可见线） */
@@ -799,7 +826,6 @@ html[data-chat-bg] .main-content--with-changes [data-testid='center-preview-pane
 }
 /* 收成右下角的圆形按钮：对话与输入框照样挂着（不丢草稿、不断流），只露出按钮。
    对话列是 inline-size 容器（container），宽度不能靠内容撑开，所以按钮尺寸写死、并关掉容器 */
-.main-content--resource-expanded > .session-panes[data-preview-chat-min],
 .main-content--resource-expanded > .chat-column[data-preview-chat-min] {
   inset-inline-start: auto;
   inset-inline-end: var(--cd-space-5);
@@ -819,7 +845,6 @@ html[data-chat-bg] .main-content--with-changes [data-testid='center-preview-pane
   > :not([data-preview-chat-pill]) {
   display: none;
 }
-.main-content--resource-expanded > .session-panes[data-preview-chat-open],
 .main-content--resource-expanded > .chat-column[data-preview-chat-open] {
   height: min(70%, 48rem);
 }
@@ -859,6 +884,7 @@ html[data-chat-bg] .main-content--with-changes [data-testid='center-preview-pane
   flex-direction: column;
   min-width: 0;
 }
+.main-content--side-max > .session-panes,
 .main-content--side-max > .chat-column {
   flex: 1 1 0;
   width: auto;

@@ -11,6 +11,7 @@ const read = (rel: string) => readFileSync(resolve(__dirname, '..', rel), 'utf8'
 const app = read('src/App.css');
 const welcome = read('src/components/ConversationWelcome/index.module.css');
 const appTsx = read('src/App.tsx');
+const chatColTsx = read('src/components/SessionPane/ChatColumn.tsx');
 const chatBody = read('src/app/ChatBody.tsx');
 const guideCss = read('src/components/ConversationWelcome/ModelSetupCard.module.css');
 const cardsCss = read('src/components/ConversationWelcome/PromptCards.module.css');
@@ -26,7 +27,8 @@ function ruleBody(css: string, selector: string): string {
 
 describe('空会话首页：整块居中', () => {
   it('空态由 .chat-column 的 data-empty 标记（新窗口 / 没发过消息）', () => {
-    expect(appTsx).toMatch(/data-empty=\{chatEmpty/);
+    expect(chatColTsx).toMatch(/data-empty=\{empty \? 'true' : undefined\}/);
+    expect(appTsx).toMatch(/empty=\{chatEmpty && mainShown\}/);
     // 空态口径：没有消息、没有斜杠卡
     expect(appTsx).toMatch(/const chatEmpty =/);
     expect(appTsx).toMatch(/slash\.cards\.length === 0/);
@@ -44,7 +46,8 @@ describe('空会话首页：整块居中', () => {
 
   it('发过消息后回到常规布局：data-empty 只在空态出现', () => {
     // 非空态不设置该属性
-    expect(appTsx).toMatch(/chatEmpty && mainShown \? 'true' : undefined/);
+    expect(chatColTsx).toMatch(/empty \? 'true' : undefined/);
+    expect(appTsx).toMatch(/empty=\{chatEmpty && mainShown\}/);
   });
 
   it('示例问题卡片 / 模型引导在输入框下方渲染，且只在空会话的主对话里', () => {
