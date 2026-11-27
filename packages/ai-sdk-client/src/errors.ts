@@ -30,6 +30,7 @@ export const SDKErrorCodes = {
   E_TIMEOUT: 'E_TIMEOUT',
   E_TOOL_DENIED: 'E_TOOL_DENIED',
   E_PROFILE_MISS: 'E_PROFILE_MISS',
+  E_REQUEST_TOO_LARGE: 'E_REQUEST_TOO_LARGE',
 } as const;
 
 export type SDKErrorCode = (typeof SDKErrorCodes)[keyof typeof SDKErrorCodes];

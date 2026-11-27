@@ -11,6 +11,7 @@ import type { ConvoOutcome } from '../../contexts/aiChatState';
 import type { HarnessTabMeta } from '../../services/harnessClient';
 import type { HistorySession } from '../../services/historyClient';
 import { isImeComposing } from '../../utils/keyboard';
+import { useIsSessionDragging } from '../../utils/sessionPaneDrag';
 import { EndpointIcon } from '../EndpointIcon';
 
 import { historyOrigin, routeInitial, routeTag } from './historyRoute';
@@ -126,6 +127,8 @@ const ThreadItemImpl: React.FC<{
   onMore?: (id: string, anchor: HTMLElement) => void;
   /** 悬停 / 聚焦：el 为 null 时收起详情卡片 */
   onPeek?: (id: string, el: HTMLElement | null) => void;
+  /** 按下拖出分屏 */
+  onDragPointerDown?: (id: string, e: React.PointerEvent) => void;
   /**
    * 行尾的端点品牌图标：只在工坊「全部」里给 agent 的会话标出端点；Nomi 是默认，不标。
    * 行首不画图标，所有标题左对齐（Codex 式）。
@@ -146,11 +149,13 @@ const ThreadItemImpl: React.FC<{
   onPinToggle,
   onMore,
   onPeek,
+  onDragPointerDown,
   showIcon = true,
   style,
 }) => {
   // 语言切换时重渲染：memo 挡住了根组件的更新，这里自己订阅（#140）
   useLocale();
+  const dragging = useIsSessionDragging(c.id);
   const cls = `${styles.thread} ${active ? styles.threadActive : ''}`;
   const live = rowLive(tab, running, done, outcome);
   const layout = 'plain';
@@ -191,6 +196,7 @@ const ThreadItemImpl: React.FC<{
       className={styles.row}
       style={style}
       data-active={active || undefined}
+      data-dragging={dragging || undefined}
       data-testid="conversation-row"
       data-pinned={c.pinnedAt ? true : undefined}
       onMouseEnter={onPeek ? (e) => onPeek(c.id, e.currentTarget) : undefined}
@@ -198,6 +204,7 @@ const ThreadItemImpl: React.FC<{
     >
       <button
         className={cls}
+        onPointerDown={onDragPointerDown ? (e) => onDragPointerDown(c.id, e) : undefined}
         onClick={() => {
           onPeek?.(c.id, null);
           void onOpen(c.id);
@@ -288,6 +295,7 @@ export type VirtualProps = {
   onPinToggle: (id: string) => void;
   onMore: (id: string, anchor: HTMLElement) => void;
   onPeek?: (id: string, el: HTMLElement | null) => void;
+  onDragPointerDown?: (id: string, e: React.PointerEvent) => void;
   showIcon?: boolean;
 };
 
@@ -308,6 +316,7 @@ export const VirtualRow = ({
   onPinToggle,
   onMore,
   onPeek,
+  onDragPointerDown,
   showIcon,
   ariaAttributes,
 }: RowComponentProps<VirtualProps>) => {
@@ -328,6 +337,7 @@ export const VirtualRow = ({
         onPinToggle={onPinToggle}
         onMore={onMore}
         onPeek={onPeek}
+        onDragPointerDown={onDragPointerDown}
         showIcon={showIcon}
       />
     </div>

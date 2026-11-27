@@ -58,6 +58,7 @@ type Capabilities struct {
 	Attachments     bool
 	PermissionModes []string
 	Budget          ByteBudget
+	RequestBudget   ByteBudget `json:"requestBudget,omitempty"`
 	Wrapper         HandoffWrapper
 	Degraded        []string
 	Bridges         *CapabilityBridges `json:"bridges,omitempty"`

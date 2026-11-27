@@ -66,8 +66,9 @@ func (l *Ledger) Plan(in PlanInput) (Plan, error) {
 		return p, fmt.Errorf("%w: current request entry %q", ErrUnknownEntry, cur)
 	}
 	// Even an empty JSON string costs two bytes. Never silently clip a request.
-	if p.RequestBytes > int(in.Budget) {
-		return p, &ErrBudget{Need: p.RequestBytes, Limit: int(in.Budget), What: "current request"}
+	reqLimit := int(effectiveRequestBudget(in.Budget, in.RequestBudget))
+	if p.RequestBytes > reqLimit {
+		return p, &ErrBudget{Need: p.RequestBytes, Limit: reqLimit, What: "current request"}
 	}
 	if why := resumeProblem(in); why != "" {
 		p.Strategy, p.Error = StrategyBlocked, why

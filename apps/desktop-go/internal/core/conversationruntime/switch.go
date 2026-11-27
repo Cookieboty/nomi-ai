@@ -152,13 +152,14 @@ func (c *Session) Switch(ctx context.Context, target Target, expected *uint64) (
 	// Stage 4: handoff (read-only bounded planning preview; never advances coverage).
 	c.pendingSwitch.Phase = "handoff"
 	planIn := PlanInput{
-		AttemptID: "switch_preview",
-		Identity:  target.Identity,
-		Env:       target.Env,
-		Target:    TargetNew,
-		Budget:    caps.Budget,
-		Wrapper:   caps.Wrapper,
-		HoldIDs:   copyHeld(c.held),
+		AttemptID:     "switch_preview",
+		Identity:      target.Identity,
+		Env:           target.Env,
+		Target:        TargetNew,
+		Budget:        caps.Budget,
+		RequestBudget: caps.RequestBudget,
+		Wrapper:       caps.Wrapper,
+		HoldIDs:       copyHeld(c.held),
 	}
 	if resumable.ID != "" {
 		planIn.Target = TargetResume

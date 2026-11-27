@@ -128,7 +128,7 @@ func mustPlan(t *testing.T, l *Ledger, in PlanInput) Plan {
 	if p.Strategy == StrategyBlocked && p.Error == "" {
 		t.Fatal("blocked plan must carry an actionable error")
 	}
-	assertPayload(t, p, in.Budget)
+	assertPayload(t, p, effectiveRequestBudget(in.Budget, in.RequestBudget))
 	return p
 }
 

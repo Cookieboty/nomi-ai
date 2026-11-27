@@ -227,7 +227,8 @@ func (r *Runtime) Capabilities() cr.Capabilities {
 		Cancel:          true,
 		Approval:        true,
 		PermissionModes: PermissionModes(),
-		Budget:          60000,
+		Budget:          cr.DefaultHandoffBudget,
+		RequestBudget:   cr.DefaultStreamRequestBudget,
 		Degraded: []string{
 			"Experimental official Claude profile: executable present; version and login not probed",
 			"Warm-process resume only; cold --resume has no proven pre-prompt context acknowledgement and fails closed",

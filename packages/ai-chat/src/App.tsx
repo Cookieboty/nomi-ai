@@ -1,16 +1,25 @@
 import type { ClientAIClient } from '@nomi-ai/ai-sdk-client';
 import * as AISdkReact from '@nomi-ai/ai-sdk-client/react';
 import { t, usePresence } from '@nomi-ai/ui';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 
 import { AppOverlays, useToast } from './app/AppOverlays';
 import { ChatBody } from './app/ChatBody';
+import {
+  SessionPanesHost,
+  SharedWorkspaceScopeProvider,
+  useActiveSessionInfo,
+  usePaneTabLookup,
+  useSharedWorkspaceScope,
+} from './app/SessionPanesHost';
 import { useAppCommands } from './app/useAppCommands';
 import { useAppPanels } from './app/useAppPanels';
 import { useAppSlash } from './app/useAppSlash';
 import { useCliContext } from './app/useCliContext';
+import { usePaneDraftKey } from './app/usePaneComposerDrafts';
 import { useRail } from './app/useRail';
 import { useSelectionActions } from './app/useSelectionActions';
+import { tabOfSessionKey, useSessionPaneLayout } from './app/useSessionPanes';
 import { useSplitWidths } from './app/useSplitWidths';
 import { StartupReady } from './components/BrandIntro/StartupReady';
 import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundLayer';
@@ -35,6 +44,18 @@ import { ReleaseNotesHost } from './components/ReleaseNotesModal';
 import { RestartUpdateButton } from './components/RestartUpdateButton';
 import { SelectionToolbar } from './components/SelectionToolbar';
 import { SessionDetailsDock, useSessionDetails } from './components/SessionDetails';
+import { SessionPane } from './components/SessionPane';
+import { ChatColumn } from './components/SessionPane/ChatColumn';
+import {
+  EmptySessionPane,
+  PaneChatColumnBody,
+  PaneSessionView,
+} from './components/SessionPane/PaneSessionView';
+import {
+  SessionDragGhost,
+  SessionDropZoneOverlay,
+} from './components/SessionPane/SessionDragOverlay';
+import { SplitTitleBarPanes } from './components/SessionPane/SplitTitleBar';
 import { useChangesUi } from './components/SessionWorkspace';
 import { Sidebar } from './components/Sidebar';
 import {
@@ -65,10 +86,16 @@ import {
   useAiChatActions,
   useAiChatSelector,
 } from './contexts/aiChatStore';
-import { HarnessTabsProvider, useHarnessTabsCore } from './contexts/HarnessTabsContext';
+import {
+  HarnessTabsProvider,
+  useHarnessTabs,
+  useHarnessTabMessages,
+  useHarnessTabsCore,
+} from './contexts/HarnessTabsContext';
 import { ManagedRuntimeProvider } from './contexts/ManagedRuntimeContext';
 import { ResourceScopeProvider } from './contexts/ResourceContext';
 import { SelectionActionsContext } from './contexts/SelectionActionsContext';
+import { useSessionPanes } from './contexts/SessionPanesContext';
 import { useChatMode } from './hooks/useChatMode';
 import { useCliTabReadiness } from './hooks/useCliTabReadiness';
 import { useComposerPending } from './hooks/useComposerPending';
@@ -84,63 +111,23 @@ import { useWindowEvent } from './hooks/useWindowEvent';
 import { toHarnessImages } from './services/chatImages';
 import { watchCliPresence } from './services/cliPresence';
 import { smartTitleOnFirstSend } from './services/cliSmartTitle';
-import {
-  CONVERSATIONS_CHANGED_EVENT,
-  notifyConversationsChanged,
-  type ConversationStore,
-} from './services/conversationStore';
+import { notifyConversationsChanged, type ConversationStore } from './services/conversationStore';
 import { openModelMenu } from './services/modelMenu';
 import { watchNomiModel } from './services/nomiModel';
 import type { ImageAttachment } from './services/screenClient';
-import { cliTranscriptKey } from './services/transcriptView';
 import { reportedModel } from './slash/tokens';
 import { CHAT_COL_RATIO_MAX, CHAT_COL_RATIO_MIN } from './utils/chatColumnWidth';
 import { useCliImageSupport } from './utils/cliImageSupport';
 import { cliTabPlaceholder } from './utils/cliTabPlaceholder';
 import { fromHarnessMessage, nomiConvMessages, settledNomiMessages } from './utils/convAdapters';
 import { CHAT_DROP_FILE_PATH_EVENT } from './utils/filePathDrag';
+import { aggregateSessionChanges } from './utils/sessionChanges';
+import { PANE_RATIO_MAX, PANE_RATIO_MIN } from './utils/sessionPanes';
 import { CHANGES_SIDE_TAB, MAIN_SIDE_TAB, OPEN_FILE_SIDE_TAB } from './utils/sideTabs';
 import './App.css';
 import './components/TitleBar/panels.css';
 
 const selectSettledNomi = (s: AiChatState) => settledNomiMessages(s.messages, selectBusyHere(s));
-
-/**
- * 实时计算当前主列会话的唯一标识：
- * - CLI 标签激活时使用 cliTranscriptKey（新标签为 tab:<id>，拿到会话 id 后升级为 cli:<backend>:<id>）；
- * - Nomi 会话监听 CONVERSATIONS_CHANGED_EVENT 与 viewConvoId，切换或新建会话的第 0ms 立即同步，
- *   且过滤掉 CLI 镜像项 id，绝不把镜像项误认成 Nomi 会话。
- */
-function useActiveSessionInfo() {
-  const ipcClient = useAiChatSelector(selectIpcClient);
-  const viewConvoId = useAiChatSelector(selectViewConvoId);
-  const tabs = useHarnessTabsCore();
-  const { isDev } = useChatMode();
-  const [storeVersion, setStoreVersion] = useState(0);
-  useEffect(() => {
-    const onChanged = () => setStoreVersion((v) => v + 1);
-    window.addEventListener(CONVERSATIONS_CHANGED_EVENT, onChanged);
-    return () => window.removeEventListener(CONVERSATIONS_CHANGED_EVENT, onChanged);
-  }, []);
-  const nomiSessionId = useMemo(() => {
-    void storeVersion;
-    const store = ipcClient?.conversationStore?.();
-    if (store) {
-      const cur = store.currentId();
-      if (cur && store.isNomi(cur)) return cur;
-      if (viewConvoId && store.isNomi(viewConvoId)) return viewConvoId;
-      return store.lastNomiId() ?? viewConvoId;
-    }
-    return viewConvoId ?? ipcClient?.currentConversationId?.();
-  }, [ipcClient, viewConvoId, storeVersion]);
-  const activeCliTab = isDev && tabs.isCliTab ? tabs.activeTab : null;
-  const sessionKey = activeCliTab
-    ? cliTranscriptKey(activeCliTab)
-    : nomiSessionId
-      ? `nomi:${nomiSessionId}`
-      : null;
-  return { sessionKey, nomiSessionId, activeCliTab };
-}
 
 /**
  * 对话窗口的组装：侧栏 | 对话卡片（对话列、中栏、会话详情、整页、右栏）+ 覆盖层。
@@ -160,20 +147,48 @@ const AiChatContent: React.FC = () => {
   const tabs = useHarnessTabsCore();
   const { isDev } = useChatMode();
   const harness = useHarnessState();
+  // ───── 主区的会话面板：并排时焦点面板就是「当前会话」 ─────
+  const allTabs = useHarnessTabs();
+  const sessionPanes = useSessionPanes();
+  const sharedWorkspace = useSharedWorkspaceScope();
+  // 面板标题要的 CLI 标签：会话键 → 标签（cli:<backend>:<会话 id> 按会话 id 反查）
+  const paneTabOf = usePaneTabLookup();
+  // 焦点面板绑定的 CLI 标签（并排时它可能还不是 harness 的当前标签）：标题、右栏、文件根都按它
+  const focusedPaneKey = sessionPanes?.focusedKey ?? null;
+  const focusedTab = useMemo(
+    () => tabOfSessionKey(allTabs.state?.tabs, focusedPaneKey) ?? null,
+    [allTabs.state?.tabs, focusedPaneKey],
+  );
   // 当前会话的键：CLI 标签与 Nomi 对话统一使用实时响应的 sessionKey，
-  // Transcript view、工作区 Tabs 与文件预览全部按这个键分开保存，切换会话互不影响。
-  const { sessionKey, nomiSessionId, activeCliTab } = useActiveSessionInfo();
+  // 并排时以焦点面板的会话与标签为准（见 useActiveSessionInfo）。
+  const { sessionKey, nomiSessionId, activeCliTab } = useActiveSessionInfo({
+    focusedPaneKey,
+    ...(sessionPanes ? { focusedTab } : {}),
+  });
   // agent 标签拿到会话 id 后，把按标签存的 Transcript view 覆盖搬到会话键（关标签、从历史重开也在）
   useMigrateCliTranscriptView(activeCliTab);
   // ───── 统一会话视图的数据：Nomi 主对话与 agent 标签走同一个 ConversationView ─────
   const nomiMessages = useMemo(() => nomiConvMessages(settledNomi), [settledNomi]);
-  const cliBackend = tabs.activeTab?.backend ?? 'claude';
-  const cliConvMessages = useMemo(
-    () => (tabs.isCliTab ? tabs.messages.map((m) => fromHarnessMessage(m, cliBackend)) : []),
-    [tabs.isCliTab, tabs.messages, cliBackend],
-  );
+  // 焦点面板的 CLI 标签：并排时可能是别的标签（不是 harness 当前标签），消息按它的 id 读
+  const focusedPaneIsCli = !!focusedTab;
+  const paneTabMessages = useHarnessTabMessages(focusedPaneIsCli ? focusedTab!.id : null);
+  const cliBackend = (focusedTab ?? tabs.activeTab)?.backend ?? 'claude';
+  const cliConvMessages = useMemo(() => {
+    const raw = focusedTab ? paneTabMessages : tabs.isCliTab ? tabs.messages : [];
+    return raw.map((m) => fromHarnessMessage(m, focusedTab?.backend ?? cliBackend));
+  }, [focusedTab, paneTabMessages, tabs.isCliTab, tabs.messages, cliBackend]);
   const { liveContext, cliContextMessages } = useCliContext(tabs, cliConvMessages);
-  const rail = useRail({ tabs, isDev, harness, busyHere, cliConvMessages, nomiMessages });
+  const rail = useRail({
+    tabs,
+    isDev,
+    harness,
+    busyHere,
+    cliConvMessages,
+    nomiMessages,
+    ...(sessionPanes
+      ? { focusedTab, focusedNomiId: activeCliTab ? undefined : nomiSessionId }
+      : {}),
+  });
   // 对话旁的标签区（子任务 + 文件）：外层 ScopedWorkspacePanes 已按 sessionKey 同帧同步注入 scope
   const pane = useSubagentPane();
   // 侧边聊天带上当前会话所属的项目（只读）
@@ -207,12 +222,19 @@ const AiChatContent: React.FC = () => {
     {
       id: sessionKey ?? '',
       cwd: rail.cwd,
-      source: isDev && tabs.isCliTab ? tabs.activeTab?.backend : 'nomi',
+      source:
+        isDev && (activeCliTab ? true : tabs.isCliTab)
+          ? (activeCliTab ?? tabs.activeTab)?.backend
+          : 'nomi',
       fallbackCwds,
     },
-    // 开了 / 切到一个文件：标签区切到文件；按会话分桶存储预览列表
+    // 开了 / 切到一个文件：标签区切到文件；并排时共享同一个文件区桶，打开文件覆盖同一文件区
     {
       scoped: true,
+      ...(sharedWorkspace?.workspaceScope ? { bucketId: sharedWorkspace.workspaceScope } : {}),
+      ...(sharedWorkspace?.allowedScopeIds
+        ? { allowedScopeIds: sharedWorkspace.allowedScopeIds }
+        : {}),
       onShow: (kind) => {
         if (kind === 'diff') {
           pane?.openChanges?.();
@@ -273,8 +295,9 @@ const AiChatContent: React.FC = () => {
     () => ipcClient.conversationStore?.(),
     () => actions.loadChatHistory(),
   );
-  // 输入草稿按会话隔离（空会话共用一份，发出后按会话 / 标签各存一份）
+  // 输入草稿按会话隔离（空会话共用一份，发出后按会话 / 标签各存一份；并排时用面板会话键统一分桶）
   const drafts = useSessionComposerDrafts();
+  const focusedPaneDraftKey = usePaneDraftKey({ sessionKey, tabId: activeCliTab?.id });
   // 输入框上方的待发列表（插入 / 排队，见 utils/pendingSends）：存在当前 Nomi 会话的元信息里，重启后恢复
   const viewConvoId = useAiChatSelector(selectViewConvoId);
   const pendingStore = ipcClient.conversationStore?.();
@@ -523,6 +546,14 @@ const AiChatContent: React.FC = () => {
     }
     pane?.togglePane();
   }, [pane, restoreSide, sideMaximized]);
+  const openSidePaneForPane = useCallback(() => {
+    if (sideMaximized) restoreSide();
+    pane?.showPane?.();
+  }, [pane, restoreSide, sideMaximized]);
+  const focusedChangesCount = useMemo(
+    () => aggregateSessionChanges(rail.messages).length,
+    [rail.messages],
+  );
   // 对话旁那一栏：子任务 / 文件标签，或右栏的未提交文件预览（挂载点）
   const centerOpen = side.open;
   const centerP = usePresence(centerOpen, 205);
@@ -538,6 +569,14 @@ const AiChatContent: React.FC = () => {
       hideDetails={sideMax}
     />
   );
+  const titleBarSessionTools = (hideDetails: boolean, hideRailToggle = false) => (
+    <SessionTools
+      messages={rail.messages}
+      rail={pane ? { open: side.open, onToggle: toggleSidePane } : null}
+      hideDetails={hideDetails}
+      hideRailToggle={hideRailToggle}
+    />
+  );
   const mainContentRef = useRef<HTMLDivElement>(null);
   const chatColumnRef = useRef<HTMLDivElement>(null);
   useWorkspaceLayoutMotion({
@@ -548,6 +587,170 @@ const AiChatContent: React.FC = () => {
     closing: centerP.closing,
     chatRatio: split.chatColumn.ratio,
   });
+  /**
+   * 一列会话（对话头 / 待带入前文条 / 会话主体 / 输入框）。单面板时是唯一的一列；
+   * 并排时左右各一列，焦点那一列（owned）带整列级的窗口组件：提交按钮下面的授权卡、会话详情、
+   * ManagedRuntime 的按当前会话的观察——它们都只认一个「当前会话」，不能两边各挂一份。
+   */
+  const renderChatColumn = (opts: {
+    hidden: boolean;
+    withSidePane: boolean;
+    /** 并排会话：列更窄，最小宽度比单面板时小 */
+    splitPanes?: boolean;
+  }): React.ReactNode => {
+    const inner = (
+      <>
+        {/* 桌面应用里会话名与工具在标题栏（与对话卡片对齐）；浏览器里没有标题栏，留一行顶栏 */}
+        {!titleBar && (
+          <ChatHeader
+            title={<SessionTitle onFork={commands.onForkRequest} />}
+            trailing={sessionTools}
+          />
+        )}
+        {/* 待带入的新会话前文属于当前对话状态，放在对话区顶部，避免和输入工具混在一起。 */}
+        <div className="session-bar chat-session-bar">
+          <SessionControls />
+        </div>
+        {/* 会话详情始终浮在对话列右上角，不参与分栏 */}
+        {!mainHidden && <SessionDetailsDock overlay messages={rail.messages} cwd={rail.cwd} />}
+        <ManagedRuntimeProvider conversationId={nomiSessionId} hidden={Boolean(activeCliTab)}>
+          <main className="chat-container">
+            {/* 每条回复末尾的「分叉」：从这条回复往前分叉，之后的消息不带 */}
+            <ForkFromMessageContext.Provider value={commands.forkFromMessage}>
+              <ChatBody
+                tabs={tabs}
+                isDev={isDev}
+                sessionKey={sessionKey}
+                cliMessages={cliConvMessages}
+                nomiMessages={nomiMessages}
+                slash={slash}
+              />
+            </ForkFromMessageContext.Provider>
+          </main>
+
+          <footer className="input-container" ref={resourcePreview.composerRef}>
+            {/* 正在操作桌面（Nomi / agents）：紧急停止 */}
+            <ComputerActivityBar />
+            {/* Nomi 桌面工具的授权卡片：对话窗口开着时确认请求只发到这里（整个窗口一份，归当前会话那一列） */}
+            <DesktopConfirmDock />
+            <UserQuestionDock
+              conversationId={tabs.isCliTab ? undefined : nomiSessionId}
+              tabId={tabs.isCliTab ? tabs.activeTab?.id : undefined}
+            />
+            <PendingDock
+              items={pending.items}
+              onWithdraw={pending.onWithdraw}
+              onRemove={pending.onRemove}
+              onFlush={pending.canFlush ? pending.onFlush : undefined}
+              failure={pending.failure}
+              failedText={pending.failedText}
+              failedId={pending.failedId}
+              onRetry={pending.onRetry}
+              onSendTextOnly={pending.onSendTextOnly}
+            />
+            {/* 新会话：输入框上方的项目 · 分支，可以自由切换 */}
+            <NewChatContext />
+            <ManagedRuntimeDock />
+            {/* 预览属于别的会话 / 工作区时输入框不能用：必须说明原因，并能一键回到原会话（空会话时贴在输入框下沿） */}
+            {resourcePreview.sendBlocked && (
+              <SendBlockedHint
+                reason={resourcePreview.sendBlocked}
+                floating={chatEmpty}
+                onReturn={returnToPreviewScope}
+              />
+            )}
+            <MessageInput
+              {...inputModeProps}
+              disabled={resourcePreview.sendMismatch}
+              cwd={rail.cwd ?? undefined}
+              roots={rail.roots}
+              endpointTab={paneLayout.split ? activeCliTab : undefined}
+              delegate={slashBackend === 'nomi'}
+              contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
+              contextModel={
+                tabs.isCliTab
+                  ? (tabs.activeTab?.modelOverride ??
+                    liveContext?.model ??
+                    reportedModel(cliConvMessages) ??
+                    tabs.activeTab?.backend)
+                  : undefined
+              }
+              slash={slash.bridge}
+              fill={composerFill}
+              dropZoneRef={chatColumnRef}
+              dropEvent={CHAT_DROP_FILE_PATH_EVENT}
+              draftStore={drafts.draftStore}
+              draftKey={paneLayout.split ? focusedPaneDraftKey : drafts.draftKey}
+              // 只在 agent 标签里：Nomi 自己的 Skills / MCP 在「扩展」里管理
+              onPluginsClick={slashBackend !== 'nomi' ? panels.openPlugins : undefined}
+              onProvidersClick={panels.openProviders}
+              onSettingsClick={panels.onInputSettings}
+              onDesktopClick={panels.openDesktop}
+              onHubClick={panels.openHub}
+              onExtClick={panels.openExt}
+              onLocalClick={panels.openLocal}
+            />
+            {/* 空会话主对话、输入框下方：缺模型时常驻「添加 / 选择模型」引导卡，否则是示例问题卡片；
+                      Agents 标签未选模型或未配置账号时在对应位置展示引导卡 */}
+            {nomiEmpty && <WelcomeActions onOpenModels={panels.openProviders} />}
+            {cliEmpty && cliActive && (
+              <CliWelcomeActions
+                tab={cliActive}
+                readiness={cliReadiness}
+                onPickModel={() => {
+                  if (!openModelMenu(cliActive.id)) {
+                    setToast(t('ui.models.cli-pick-model-before-send'));
+                  }
+                }}
+                onOpenSetup={() => panels.onInputSettings('ai', cliActive.backend, 'assistants')}
+                onOpenProviders={panels.openProviders}
+              />
+            )}
+          </footer>
+        </ManagedRuntimeProvider>
+      </>
+    );
+    return (
+      <ChatColumn
+        key="chat-column"
+        columnRef={chatColumnRef}
+        hidden={opts.hidden}
+        // 空会话：整块居中（欢迎区 + 输入框），见 App.css 的 [data-empty]
+        empty={chatEmpty && mainShown}
+        withSidePane={opts.withSidePane}
+        minWidth={opts.splitPanes ? 'var(--cd-chat-col-min-split)' : undefined}
+      >
+        {inner}
+      </ChatColumn>
+    );
+  };
+
+  // ───── 并排会话的布局 ─────
+  // 单面板时与原来一致（有中栏 / 文件时才分栏）；并排时总是 [会话 | 会话] 再与唯一的文件区分栏
+  const paneLayout = useSessionPaneLayout({
+    singlePaneWithSide: centerOpen && !sideMax,
+    tabOf: paneTabOf,
+  });
+  const splitTitleBar =
+    titleBar && paneLayout.split && !panels.settings && !mainHidden && mainShown;
+  const splitter = (
+    <div
+      key="session-pane-splitter"
+      className="session-pane-splitter"
+      data-testid="session-pane-splitter"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={t('ui.session-panes.handle')}
+      aria-valuenow={Math.round(paneLayout.ratio * 100)}
+      aria-valuemin={Math.round(PANE_RATIO_MIN * 100)}
+      aria-valuemax={Math.round(PANE_RATIO_MAX * 100)}
+      tabIndex={0}
+      onPointerDown={paneLayout.onPointerDown}
+      onDoubleClick={paneLayout.onDoubleClick}
+      onKeyDown={paneLayout.onKeyDown}
+    />
+  );
+
   return (
     <SelectionActionsContext.Provider value={selectionActions}>
       <ResourceScopeProvider value={resourcePreview.value}>
@@ -559,19 +762,39 @@ const AiChatContent: React.FC = () => {
             sidebarCollapsed={panels.sidebarCollapsed}
             filesOpen={!panels.settings && !mainHidden && rail.open}
             centerOpen={!panels.settings && !mainHidden && centerOpen && !sideMax}
-            layoutKey={`${panels.settings}:${openPage}:${sideMax}:${sideSplit}:${details?.visible}`}
+            layoutKey={`${panels.settings}:${openPage}:${sideMax}:${sideSplit}:${details?.visible}:${paneLayout.split}`}
             onToggleSidebar={panels.toggleSidebar}
             title={
               panels.settings ? null : (
                 <TitleBarTitle page={openPage} onFork={commands.onForkRequest} />
               )
             }
+            splitTitle={
+              splitTitleBar ? (
+                <SplitTitleBarPanes
+                  tabOf={paneLayout.tabOf}
+                  workspace={
+                    pane
+                      ? {
+                          open: side.open,
+                          focusedChangesCount,
+                          onToggleFocused: toggleSidePane,
+                          onOpenForPane: openSidePaneForPane,
+                        }
+                      : null
+                  }
+                  onFork={commands.onForkRequest}
+                />
+              ) : undefined
+            }
             trailing={
               titleBar ? (
                 <>
                   {/* 更新已下载好：设置页外在标题栏提示「重启更新」（设置页里在导航底部） */}
                   {!panels.settings && <RestartUpdateButton placement="titlebar" />}
-                  {!panels.settings && !mainHidden && sessionTools}
+                  {!panels.settings &&
+                    !mainHidden &&
+                    titleBarSessionTools(sideMax || splitTitleBar, splitTitleBar)}
                 </>
               ) : undefined
             }
@@ -591,6 +814,9 @@ const AiChatContent: React.FC = () => {
             topNav={mainPages.topNav}
             onOpenTask={mainPages.openTask}
             onOpenAsset={mainPages.openAsset}
+            onOpenToSide={sessionPanes?.openToSide}
+            onOpenOnSide={sessionPanes?.openOnSide}
+            onOpenInFocus={sessionPanes?.openSessionInFocus}
           />
 
           {/* 对话区（对话 / 中栏 / 任务 / 素材库 / 右栏）是白色圆角卡片；会话面板展开时是它左边的灰色半张 */}
@@ -624,133 +850,67 @@ const AiChatContent: React.FC = () => {
                     actionsInTitlebar={!panels.settings && !mainHidden}
                   />
                 )}
+                {/* 主区里的会话：单面板时就是原来那一列；「向右打开」后左右并排，中间可拖（App.css 的 .session-panes）。
+                    DOM 严格按左→右：pane-a、分割线、pane-b（焦点在右边时也不换顺序，否则视觉左右反了）。
+                    并排不换掉任何一边的会话，也不影响右边唯一的工作区。 */}
                 <div
-                  ref={chatColumnRef}
-                  className="chat-column"
-                  data-testid="chat-column"
-                  // 空会话：整块居中（欢迎区 + 输入框），见 App.css 的 [data-empty]
-                  data-empty={chatEmpty && mainShown ? 'true' : undefined}
+                  className={`session-panes${paneLayout.split ? ' session-panes--split' : ''}`}
+                  data-testid="session-panes"
+                  data-split={paneLayout.split ? 'true' : undefined}
+                  data-with-changes={paneLayout.withSidePane ? 'true' : undefined}
                   hidden={!mainShown}
                   style={{
-                    ...(centerOpen && !sideMax
-                      ? {
-                          // 窗口窄时最小宽度随窗口收缩（App.css 的 --cd-chat-col-min）
-                          minWidth: 'var(--cd-chat-col-min)',
-                        }
-                      : {}),
+                    ...paneLayout.style,
+                    ...(paneLayout.withSidePane ? { minWidth: 'var(--cd-chat-col-min)' } : {}),
                   }}
                 >
-                  {/* 桌面应用里会话名与工具在标题栏（与对话卡片对齐）；浏览器里没有标题栏，留一行顶栏 */}
-                  {!titleBar && (
-                    <ChatHeader
-                      title={<SessionTitle onFork={commands.onForkRequest} />}
-                      trailing={sessionTools}
-                    />
-                  )}
-                  {/* 待带入的新会话前文属于当前对话状态，放在对话区顶部，避免和输入工具混在一起。 */}
-                  <div className="session-bar chat-session-bar">
-                    <SessionControls />
-                  </div>
-                  {/* 会话详情始终浮在对话列右上角，不参与分栏 */}
-                  {!mainHidden && (
-                    <SessionDetailsDock overlay messages={rail.messages} cwd={rail.cwd} />
-                  )}
-                  <ManagedRuntimeProvider conversationId={nomiSessionId} hidden={tabs.isCliTab}>
-                    <main className="chat-container">
-                      {/* 每条回复末尾的「分叉」：从这条回复往前分叉，之后的消息不带 */}
-                      <ForkFromMessageContext.Provider value={commands.forkFromMessage}>
-                        <ChatBody
-                          tabs={tabs}
-                          isDev={isDev}
-                          sessionKey={sessionKey}
-                          cliMessages={cliConvMessages}
-                          nomiMessages={nomiMessages}
-                          slash={slash}
-                        />
-                      </ForkFromMessageContext.Provider>
-                    </main>
-
-                    <footer className="input-container" ref={resourcePreview.composerRef}>
-                      {/* 正在操作桌面（Nomi / agents）：紧急停止 */}
-                      <ComputerActivityBar />
-                      {/* Nomi 桌面工具的授权卡片：对话窗口开着时确认请求只发到这里 */}
-                      <DesktopConfirmDock />
-                      <UserQuestionDock
-                        conversationId={tabs.isCliTab ? undefined : nomiSessionId}
-                        tabId={tabs.isCliTab ? tabs.activeTab?.id : undefined}
+                  {paneLayout.columns.map((column, index) => {
+                    const focused = column.focus;
+                    const isEmptySplitPane = paneLayout.split && column.key === null;
+                    // 焦点面板 = 「当前会话」：就是 App 原来那一列（对话头、前文条、会话详情、授权卡、输入框、
+                    // 回到预览所在会话的提示都只在这里）；非焦点面板按它自己绑定的会话只读展示；
+                    // 拆分出的空面板单独展示占位提示，不重复渲染原会话也不留白。
+                    const body = isEmptySplitPane ? (
+                      <EmptySessionPane
+                        paneId={column.paneId}
+                        onNewChat={() => void handleNewChat()}
                       />
-                      <PendingDock
-                        items={pending.items}
-                        onWithdraw={pending.onWithdraw}
-                        onRemove={pending.onRemove}
-                        onFlush={pending.canFlush ? pending.onFlush : undefined}
-                        failure={pending.failure}
-                        failedText={pending.failedText}
-                        failedId={pending.failedId}
-                        onRetry={pending.onRetry}
-                        onSendTextOnly={pending.onSendTextOnly}
-                      />
-                      {/* 新会话：输入框上方的项目 · 分支，可以自由切换 */}
-                      <NewChatContext />
-                      <ManagedRuntimeDock />
-                      {/* 预览属于别的会话 / 工作区时输入框不能用：必须说明原因，并能一键回到原会话（空会话时贴在输入框下沿） */}
-                      {resourcePreview.sendBlocked && (
-                        <SendBlockedHint
-                          reason={resourcePreview.sendBlocked}
-                          floating={chatEmpty}
-                          onReturn={returnToPreviewScope}
-                        />
-                      )}
-                      <MessageInput
-                        {...inputModeProps}
-                        disabled={resourcePreview.sendMismatch}
-                        cwd={rail.cwd ?? undefined}
-                        roots={rail.roots}
-                        delegate={slashBackend === 'nomi'}
-                        contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
-                        contextModel={
-                          tabs.isCliTab
-                            ? (tabs.activeTab?.modelOverride ??
-                              liveContext?.model ??
-                              reportedModel(cliConvMessages) ??
-                              tabs.activeTab?.backend)
-                            : undefined
-                        }
-                        slash={slash.bridge}
-                        fill={composerFill}
-                        dropZoneRef={chatColumnRef}
-                        dropEvent={CHAT_DROP_FILE_PATH_EVENT}
-                        draftStore={drafts.draftStore}
-                        draftKey={drafts.draftKey}
-                        // 只在 agent 标签里：Nomi 自己的 Skills / MCP 在「扩展」里管理
-                        onPluginsClick={slashBackend !== 'nomi' ? panels.openPlugins : undefined}
-                        onProvidersClick={panels.openProviders}
-                        onSettingsClick={panels.onInputSettings}
-                        onDesktopClick={panels.openDesktop}
-                        onHubClick={panels.openHub}
-                        onExtClick={panels.openExt}
-                        onLocalClick={panels.openLocal}
-                      />
-                      {/* 空会话主对话、输入框下方：缺模型时常驻「添加 / 选择模型」引导卡，否则是示例问题卡片；
-                      Agents 标签未选模型或未配置账号时在对应位置展示引导卡 */}
-                      {nomiEmpty && <WelcomeActions onOpenModels={panels.openProviders} />}
-                      {cliEmpty && cliActive && (
-                        <CliWelcomeActions
-                          tab={cliActive}
-                          readiness={cliReadiness}
-                          onPickModel={() => {
-                            if (!openModelMenu(cliActive.id)) {
-                              setToast(t('ui.models.cli-pick-model-before-send'));
-                            }
-                          }}
-                          onOpenSetup={() =>
-                            panels.onInputSettings('ai', cliActive.backend, 'assistants')
-                          }
-                          onOpenProviders={panels.openProviders}
-                        />
-                      )}
-                    </footer>
-                  </ManagedRuntimeProvider>
+                    ) : focused ? (
+                      renderChatColumn({
+                        hidden: !mainShown,
+                        withSidePane: paneLayout.withSidePane,
+                        // 并排时每列只占一半宽，用较小的最小宽度避免两列撑爆主区
+                        splitPanes: paneLayout.split,
+                      })
+                    ) : (
+                      <PaneSessionView sessionKey={column.key}>
+                        {(view) => (
+                          <ChatColumn
+                            hidden={!mainShown}
+                            empty={!view.hasMessages && mainShown}
+                            withSidePane={paneLayout.withSidePane}
+                            minWidth={paneLayout.split ? 'var(--cd-chat-col-min-split)' : undefined}
+                          >
+                            <PaneChatColumnBody view={view} paneId={column.paneId} />
+                          </ChatColumn>
+                        )}
+                      </PaneSessionView>
+                    );
+                    return (
+                      <React.Fragment key={column.paneId}>
+                        {index > 0 && paneLayout.split && splitter}
+                        <SessionPane
+                          paneId={column.paneId}
+                          index={index}
+                          header={paneLayout.split && !titleBar}
+                          tabOf={paneLayout.tabOf}
+                        >
+                          {body}
+                        </SessionPane>
+                      </React.Fragment>
+                    );
+                  })}
+                  <SessionDropZoneOverlay />
                 </div>
 
                 {sideSplit && (
@@ -825,6 +985,7 @@ const AiChatContent: React.FC = () => {
             slashCwd={slashCwd}
             toast={toast}
           />
+          <SessionDragGhost />
         </div>
       </ResourceScopeProvider>
     </SelectionActionsContext.Provider>
@@ -844,8 +1005,34 @@ function useOptionalAIClient(): ClientAIClient | undefined {
 }
 
 const ScopedWorkspacePanes: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { sessionKey } = useActiveSessionInfo();
-  return <WorkspacePanesProvider scope={sessionKey}>{children}</WorkspacePanesProvider>;
+  const panes = useSessionPanes();
+  const allTabs = useHarnessTabs();
+  const focusedPaneKey = panes?.focusedKey ?? null;
+  const focusedTab = useMemo(
+    () => tabOfSessionKey(allTabs.state?.tabs, focusedPaneKey) ?? null,
+    [allTabs.state?.tabs, focusedPaneKey],
+  );
+  const { sessionKey } = useActiveSessionInfo({
+    focusedPaneKey,
+    ...(panes ? { focusedTab } : {}),
+  });
+  return (
+    <SharedWorkspaceScopeProvider sessionKey={sessionKey}>
+      <ScopedWorkspaceInner sessionKey={sessionKey}>{children}</ScopedWorkspaceInner>
+    </SharedWorkspaceScopeProvider>
+  );
+};
+
+const ScopedWorkspaceInner: React.FC<{
+  sessionKey: string | null;
+  children: React.ReactNode;
+}> = ({ sessionKey, children }) => {
+  const shared = useSharedWorkspaceScope();
+  return (
+    <WorkspacePanesProvider scope={shared?.workspaceScope ?? sessionKey}>
+      {children}
+    </WorkspacePanesProvider>
+  );
 };
 
 function App() {
@@ -854,11 +1041,13 @@ function App() {
     <ErrorBoundary>
       <AiChatContextProvider client={client}>
         <HarnessTabsProvider>
-          <ScopedWorkspacePanes>
-            <TitlebarPanelsProvider>
-              <AiChatContent />
-            </TitlebarPanelsProvider>
-          </ScopedWorkspacePanes>
+          <SessionPanesHost>
+            <ScopedWorkspacePanes>
+              <TitlebarPanelsProvider>
+                <AiChatContent />
+              </TitlebarPanelsProvider>
+            </ScopedWorkspacePanes>
+          </SessionPanesHost>
         </HarnessTabsProvider>
         {/* 首次启动引导（未完成时覆盖在对话窗口上；设置 → 通用 可重新打开） */}
         <OnboardingHost />

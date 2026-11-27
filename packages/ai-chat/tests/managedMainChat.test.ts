@@ -1,9 +1,12 @@
 // @vitest-environment happy-dom
+import { SDKErrorCodes, toErrorHint } from '@nomi-ai/ai-sdk-client';
 import { appContract } from '@nomi-ai/contract/app';
 import { createTestClient } from '@nomi-ai/contract/testing';
 import { afterEach, expect, it, vi } from 'vitest';
 
+import { joinFileAttachments } from '../src/services/fileAttachments';
 import {
+  formatManagedRuntimeError,
   rewindManagedConversation,
   sendManagedConversation,
 } from '../src/services/managedMainChat';
@@ -564,6 +567,129 @@ it('probes runtimeState after 120s silence: keeps waiting on matching running, c
       expect(hangTask).rejects.toThrow('运行时观察超时，请查看恢复状态，不要自动重试。');
     await vi.advanceTimersByTimeAsync(120_000 + 15_001);
     await hangRejected;
+  } finally {
+    client.close();
+  }
+});
+
+it('CLI/ACP 底座发送带本地路径的文件附件时自动剥离内联正文，API 底座与 retry 保持原样', async () => {
+  const sendCalls: Array<Record<string, unknown>> = [];
+  let backend = 'antigravity';
+  const client = createTestClient(
+    appContract,
+    {
+      'conversations.runtimeState': () => ({ ...base, backend }),
+      'conversations.messages': () => ({ messages, bytes: 1 }),
+      'conversations.runtimeSend': (input: unknown) => {
+        sendCalls.push(input as Record<string, unknown>);
+        const state = { ...base, backend, generation: 5, phase: 'completed', token };
+        client.router.events.publish('conversations.runtimeChanged', state as never);
+        return token;
+      },
+    } as never,
+    { caller: { surface: 'chat', trusted: true } },
+  );
+
+  const attached = joinFileAttachments('查看文件', [
+    { id: '1', name: 'big.log', path: '/tmp/big.log', size: 150000, text: 'x'.repeat(150000) },
+    { id: '2', name: 'paste.txt', path: '', size: 12, text: 'pasted-body' },
+  ]);
+
+  try {
+    await sendManagedConversation(client.api, 'c', attached, vi.fn());
+    expect(sendCalls[0]!.text).toContain('<attached-file name="big.log" path="/tmp/big.log" />');
+    expect(sendCalls[0]!.text).not.toContain('x'.repeat(100));
+    expect(sendCalls[0]!.text).toContain('pasted-body');
+
+    await sendManagedConversation(client.api, 'c', attached, vi.fn(), undefined, {
+      retry: { messageId: 'm1', turnId: 't1' },
+    });
+    expect(sendCalls[1]!.text).toBe(attached);
+
+    backend = 'api';
+    await sendManagedConversation(client.api, 'c', attached, vi.fn());
+    expect(sendCalls[2]!.text).toBe(attached);
+  } finally {
+    client.close();
+  }
+});
+
+it('RUNTIME_REQUEST_TOO_LARGE 与 ErrBudget 均转换为 E_REQUEST_TOO_LARGE，不再显示发生了未知错误', async () => {
+  const client = createTestClient(
+    appContract,
+    {
+      'conversations.runtimeState': () => ({ ...base, backend: 'antigravity' }),
+      'conversations.messages': () => ({ messages, bytes: 1 }),
+      'conversations.runtimeSend': () => {
+        const err = new Error(
+          'conversationruntime: current request is 123486 serialized UTF-8 bytes, budget is 60000; shorten or split the request before sending (never truncated)',
+        );
+        err.name = 'ContractError';
+        (err as { code?: string }).code = 'RUNTIME_REQUEST_TOO_LARGE';
+        throw err;
+      },
+    } as never,
+    { caller: { surface: 'chat', trusted: true } },
+  );
+
+  try {
+    let caught: unknown;
+    try {
+      await sendManagedConversation(client.api, 'c', 'too long', vi.fn());
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    const hint = toErrorHint(caught);
+    expect(hint.code).toBe(SDKErrorCodes.E_REQUEST_TOO_LARGE);
+    expect(hint.title).toBe('消息内容过长');
+    expect(hint.description).toContain('121 KB');
+    expect(hint.description).toContain('59 KB');
+
+    const fallbackMsg = formatManagedRuntimeError(
+      Object.assign(new Error('budget exceeded'), { code: 'RUNTIME_REQUEST_TOO_LARGE' }),
+    );
+    expect(fallbackMsg).toBe('当前单条消息超出了该运行时的传输上限，请精简内容或分段发送。');
+  } finally {
+    client.close();
+  }
+});
+
+it('异步 failed-pre-submit 返回 ErrBudget 文案时也转换为 E_REQUEST_TOO_LARGE', async () => {
+  const client = createTestClient(
+    appContract,
+    {
+      'conversations.runtimeState': () => ({ ...base, backend: 'antigravity' }),
+      'conversations.messages': () => ({ messages, bytes: 1 }),
+      'conversations.runtimeSend': () => {
+        const failedState = {
+          ...base,
+          backend: 'antigravity',
+          generation: 5,
+          phase: 'failed-pre-submit',
+          detail:
+            'conversationruntime: current request is 2500000 serialized UTF-8 bytes, budget is 2097152; shorten or split the request before sending (never truncated)',
+          token,
+        };
+        client.router.events.publish('conversations.runtimeChanged', failedState as never);
+        return token;
+      },
+    } as never,
+    { caller: { surface: 'chat', trusted: true } },
+  );
+
+  try {
+    let caught: unknown;
+    try {
+      await sendManagedConversation(client.api, 'c', 'too long async', vi.fn());
+    } catch (e) {
+      caught = e;
+    }
+    const hint = toErrorHint(caught);
+    expect(hint.code).toBe(SDKErrorCodes.E_REQUEST_TOO_LARGE);
+    expect(hint.title).toBe('消息内容过长');
+    expect(hint.description).toContain('2.4 MB');
+    expect(hint.description).toContain('2.0 MB');
   } finally {
     client.close();
   }

@@ -94,7 +94,8 @@ function useChatColumnSplit(): SplitRatio {
     if (hostW <= 0) return;
     e.preventDefault();
     const avail = Math.max(1, hostW - 1);
-    const chatEl = host.querySelector<HTMLElement>(':scope > [data-testid="chat-column"]');
+    // 对话列包在 .session-panes 里（与文件区并列的是这一层）：按它的宽度与最小宽度算比例
+    const chatEl = host.querySelector<HTMLElement>(':scope > [data-testid="session-panes"]');
     const wsEl = host.querySelector<HTMLElement>(':scope > [data-testid="side-workspace"]');
     const parseMin = (el: HTMLElement | null) => {
       if (!el) return 0;

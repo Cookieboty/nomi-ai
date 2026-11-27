@@ -1142,31 +1142,61 @@ func TestManagedInteractiveOnlyRuntimeLockAndAdoption(t *testing.T) {
 		t.Fatalf("runtimeAdopt antigravity on non-empty chat = %+v, want BAD_INPUT", fAdoptNonEmpty)
 	}
 
-	// 2. Empty conversation CAN adopt antigravity, then switching out to claude is forbidden -> BAD_INPUT
+	// 2. Empty conversation CAN adopt antigravity, switch out to claude, and switch back while still empty.
 	requireOK(t, c.call("conversations.put", `{"meta":{"id":"empty_agy","backend":"nomi","name":"empty","createdAt":1000,"updatedAt":1000},"messages":[]}`))
 	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"empty_agy","backend":"antigravity","source":"local","confirm":true}`))
-	fSwitchOut := c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"empty_agy","backend":"claude","source":"local","confirm":true,"expectedGeneration":%d}`, 1))
-	// Fetch current generation to ensure the failure is due to lock, not generation conflict.
-	stBytes, _ := json.Marshal(requireOK(t, c.call("conversations.runtimeState", `{"id":"empty_agy"}`)))
-	var agySt struct {
-		Generation int `json:"generation"`
+	genOf := func(id string) int {
+		stBytes, _ := json.Marshal(requireOK(t, c.call("conversations.runtimeState", fmt.Sprintf(`{"id":%q}`, id))))
+		var st struct {
+			Generation int `json:"generation"`
+		}
+		_ = json.Unmarshal(stBytes, &st)
+		return st.Generation
 	}
-	_ = json.Unmarshal(stBytes, &agySt)
-	fSwitchOut = c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"empty_agy","backend":"claude","source":"local","confirm":true,"expectedGeneration":%d}`, agySt.Generation))
+	requireOK(t, c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"empty_agy","backend":"claude","source":"local","confirm":true,"expectedGeneration":%d}`, genOf("empty_agy"))))
+	requireOK(t, c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"empty_agy","backend":"antigravity","source":"local","confirm":true,"expectedGeneration":%d}`, genOf("empty_agy"))))
+
+	// Once empty_agy has sent a message, switching out of antigravity is forbidden -> BAD_INPUT
+	requireOK(t, c.call("conversations.runtimeSend", fmt.Sprintf(`{"id":"empty_agy","messageId":"m_agy_1","turnId":"t_agy_1","text":"hi","expectedGeneration":%d}`, genOf("empty_agy"))))
+	fSwitchOut := c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"empty_agy","backend":"claude","source":"local","confirm":true,"expectedGeneration":%d}`, genOf("empty_agy")))
 	if fSwitchOut.T != "err" || fSwitchOut.Error == nil || fSwitchOut.Error.Code != "BAD_INPUT" {
-		t.Fatalf("runtimeSwitch out of antigravity = %+v, want BAD_INPUT", fSwitchOut)
+		t.Fatalf("runtimeSwitch out of non-empty antigravity = %+v, want BAD_INPUT", fSwitchOut)
 	}
 
-	// 3. Conversation on claude cannot switch into antigravity -> BAD_INPUT
+	// 3. Empty conversation on claude CAN switch into antigravity, while non-empty claude cannot -> BAD_INPUT
 	requireOK(t, c.call("conversations.put", `{"meta":{"id":"on_claude","backend":"nomi","name":"claude","createdAt":1000,"updatedAt":1000},"messages":[]}`))
 	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"on_claude","backend":"claude","source":"local","confirm":true}`))
-	cBytes, _ := json.Marshal(requireOK(t, c.call("conversations.runtimeState", `{"id":"on_claude"}`)))
-	var claudeSt struct {
-		Generation int `json:"generation"`
-	}
-	_ = json.Unmarshal(cBytes, &claudeSt)
-	fSwitchIn := c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"on_claude","backend":"antigravity","source":"local","confirm":true,"expectedGeneration":%d}`, claudeSt.Generation))
+	requireOK(t, c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"on_claude","backend":"antigravity","source":"local","confirm":true,"expectedGeneration":%d}`, genOf("on_claude"))))
+
+	requireOK(t, c.call("conversations.put", `{"meta":{"id":"non_empty_claude","backend":"nomi","name":"claude hist","createdAt":1000,"updatedAt":1000},"messages":[]}`))
+	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"non_empty_claude","backend":"claude","source":"local","confirm":true}`))
+	requireOK(t, c.call("conversations.runtimeSend", fmt.Sprintf(`{"id":"non_empty_claude","messageId":"m_c_1","turnId":"t_c_1","text":"hi","expectedGeneration":%d}`, genOf("non_empty_claude"))))
+	fSwitchIn := c.call("conversations.runtimeSwitch", fmt.Sprintf(`{"id":"non_empty_claude","backend":"antigravity","source":"local","confirm":true,"expectedGeneration":%d}`, genOf("non_empty_claude")))
 	if fSwitchIn.T != "err" || fSwitchIn.Error == nil || fSwitchIn.Error.Code != "BAD_INPUT" {
-		t.Fatalf("runtimeSwitch into antigravity from claude = %+v, want BAD_INPUT", fSwitchIn)
+		t.Fatalf("runtimeSwitch into antigravity from non-empty claude = %+v, want BAD_INPUT", fSwitchIn)
+	}
+}
+
+func TestRuntimeSendBudgetOverflowReturnsRequestTooLargeCode(t *testing.T) {
+	dir := t.TempDir()
+	_, r, c := fixtureIngress(t, dir)
+	r.Register("claude", func(id string) (cr.Target, error) {
+		return (&ingressFake{name: "claude"}).target(id)
+	})
+
+	requireOK(t, c.call("conversations.put", `{"meta":{"id":"c_budget","backend":"nomi","name":"budget","createdAt":1000,"updatedAt":1000,"projectId":"p1"},"messages":[]}`))
+	requireOK(t, c.call("conversations.runtimeAdopt", `{"id":"c_budget","backend":"claude","permissionMode":"ask","confirm":true}`))
+
+	stRaw := requireOK(t, c.call("conversations.runtimeState", `{"id":"c_budget"}`))
+	stBytes, _ := json.Marshal(stRaw)
+	var st struct {
+		Generation uint64
+	}
+	_ = json.Unmarshal(stBytes, &st)
+
+	tooBig := strings.Repeat("x", 9000)
+	resp := c.call("conversations.runtimeSend", fmt.Sprintf(`{"id":"c_budget","messageId":"m_big","turnId":"t_big","text":%q,"expectedGeneration":%d}`, tooBig, st.Generation))
+	if resp.T != "err" || resp.Error == nil || resp.Error.Code != "RUNTIME_REQUEST_TOO_LARGE" {
+		t.Fatalf("expected RUNTIME_REQUEST_TOO_LARGE error code, got %+v", resp)
 	}
 }

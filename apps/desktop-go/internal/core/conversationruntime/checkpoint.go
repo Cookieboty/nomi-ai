@@ -272,6 +272,12 @@ func (c *Session) Reattach(target Target) error {
 		return ErrStaleBinding
 	}
 	c.target.Runtime = target.Runtime
+	if liveReqBudget := target.Runtime.Capabilities().RequestBudget; liveReqBudget > c.caps.RequestBudget {
+		c.caps.RequestBudget = liveReqBudget
+		if c.active != nil && liveReqBudget > c.active.caps.RequestBudget {
+			c.active.caps.RequestBudget = liveReqBudget
+		}
+	}
 	if c.active != nil {
 		c.active.target.Runtime = target.Runtime
 	}

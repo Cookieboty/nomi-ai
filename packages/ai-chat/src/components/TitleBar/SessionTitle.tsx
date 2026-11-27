@@ -14,6 +14,7 @@ import {
   useAiChatSelector,
 } from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
+import { useSessionPanes } from '../../contexts/SessionPanesContext';
 import { useSubagentPane } from '../../contexts/SubagentPaneContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { api } from '../../services/api';
@@ -32,11 +33,12 @@ import type { ConvMessage } from '../../types/conversation';
 import type { IPCClient } from '../../types/ipc';
 import { isInteractiveOnly } from '../../utils/cliCaps';
 import { aggregateSessionChanges } from '../../utils/sessionChanges';
+import { nomiSessionKey } from '../../utils/sessionPanes';
 import { titlebarMenuTop } from '../../utils/titlebarMenu';
 import chatHeaderStyles from '../ChatHeader/index.module.css';
 import { confirmDialog, promptDialog } from '../ConfirmDialog';
 import { ConversationMenu } from '../ConversationMenu';
-import { SessionDetailsToggle } from '../SessionDetails';
+import { SessionDetailsToggle, useSessionDetails } from '../SessionDetails';
 import { FilesRailToggle } from '../SessionWorkspace';
 
 import { TitlebarContent } from './panels';
@@ -100,6 +102,8 @@ export const SessionTitle: React.FC<{
   const s = useCurrentSession();
   const tabs = useHarnessTabs();
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
+  // 主区的会话面板：「向右打开」把当前会话放到右边，左边不动
+  const panes = useSessionPanes();
   const { actions } = useAiChatActions();
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
   // 菜单收起时先放完淡出动画再卸载
@@ -224,6 +228,19 @@ export const SessionTitle: React.FC<{
               : undefined
           }
           onClose={s.tabId ? () => void closeTab() : undefined}
+          // 单面板时在右侧开一个空面板（不把当前会话左右复制成两份）；已拆分且在左面板时移到右面板
+          onOpenToSide={(() => {
+            if (!panes) return undefined;
+            if (!panes.isSplit) return () => panes.openToSide(null);
+            const active = tabs.activeTab;
+            const key = s.tabId
+              ? active
+                ? cliTranscriptKey(active)
+                : nomiSessionKey(s.id)
+              : nomiSessionKey(s.id);
+            if (!key || panes.panes[1]?.sessionKey === key) return undefined;
+            return () => panes.openToSide(key);
+          })()}
           onArchive={s.tabId ? undefined : () => void archive()}
           onDelete={s.tabId ? undefined : () => void remove()}
         />
@@ -239,22 +256,28 @@ export const SessionTools: React.FC<{
   rail: { open: boolean; onToggle: () => void } | null;
   /** 工作区全屏铺满时直接隐藏会话详情按钮 */
   hideDetails?: boolean;
-}> = ({ messages, rail, hideDetails = false }) => {
+  /** 分屏顶栏每个格已常驻各自的工作区开关，隐藏全局重复开关 */
+  hideRailToggle?: boolean;
+}> = ({ messages, rail, hideDetails = false, hideRailToggle = false }) => {
   const s = useCurrentSession();
   const pane = useSubagentPane();
+  const details = useSessionDetails();
+  const setRailOpen = details?.setRailOpen;
+  const railOpen = !!rail?.open;
+  useEffect(() => setRailOpen?.(railOpen), [setRailOpen, railOpen]);
   const hasTerminals = !!pane?.pages.some((p) => p.kind === 'terminal');
   const count = useMemo(() => aggregateSessionChanges(messages).length, [messages]);
   return (
     <>
       <TitlebarContent name="session">
-        {!hideDetails && (s?.hasMessages || hasTerminals) && (
+        {!hideDetails && (messages.length > 0 || s?.hasMessages || hasTerminals) && (
           <SessionDetailsToggle
             railOpen={!!rail?.open}
             bubbleClassName={chatHeaderStyles.actionsTipBubble}
           />
         )}
       </TitlebarContent>
-      {rail && (
+      {rail && !hideRailToggle && (
         <TitlebarContent name="rail-toggle">
           <FilesRailToggle
             open={rail.open}

@@ -30,6 +30,8 @@ export interface ConversationMenuProps {
   /** Nomi 对话：归档（不在侧栏显示，可在设置里找回）；有归档时「删除」写成「永久删除」 */
   onArchive?: () => void;
   onDelete?: () => void;
+  /** 「向右打开」：主区右侧的面板打开这个会话，左侧保持不动（没会话面板时不给） */
+  onOpenToSide?: () => void;
   /** 仅标题菜单传入；侧栏右键菜单保持轻量。 */
   sessionKey?: string;
   onDismiss: () => void;
@@ -53,6 +55,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
   onCloseRight,
   onArchive,
   onDelete,
+  onOpenToSide,
   onDismiss,
   sessionKey,
   closing,
@@ -116,7 +119,13 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
 
   // 贴边时往里收一点，避免菜单被窗口裁掉
   const left = Math.max(4, Math.min(x, window.innerWidth - 210));
-  const menuHeight = sessionKey ? 440 : onCloseLeft || onCloseRight ? 330 : 260;
+  const menuHeight = sessionKey
+    ? 470
+    : onCloseLeft || onCloseRight
+      ? 360
+      : onOpenToSide
+        ? 300
+        : 260;
   const top = Math.max(4, Math.min(y, window.innerHeight - menuHeight));
 
   return (
@@ -139,6 +148,17 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
           data-testid="conversation-open"
         >
           {t('ui.cli-monitor.open-in-a-tab')}
+        </button>
+      )}
+      {onOpenToSide && (
+        <button
+          type="button"
+          role="menuitem"
+          className={styles.item}
+          onClick={act(onOpenToSide)}
+          data-testid="conversation-open-to-side"
+        >
+          {t('ui.session-panes.open-to-the-side')}
         </button>
       )}
       {onRename && (

@@ -186,3 +186,37 @@ func TestHistoryCutoffCannotPretendExistingNativeWasRewound(t *testing.T) {
 		t.Fatal("cutoff silently treated resumed native as rewound")
 	}
 }
+
+func TestRequestBudgetAllowsLargeRequestWhileKeepingHandoffBounded(t *testing.T) {
+	l := NewLedger()
+	appendMsg(t, l, "old_1", "t0", "user", strings.Repeat("h", 4000))
+	appendMsg(t, l, "old_2", "t0", "assistant", strings.Repeat("a", 4000))
+
+	reqText := strings.Repeat("r", 125000)
+	in := newSession(fakeIdent(), reqText, "t1", "")
+	in.Budget = DefaultHandoffBudget
+	in.RequestBudget = DefaultStreamRequestBudget
+
+	p := mustPlan(t, l, in)
+	if p.RequestBody != reqText || p.Payload != reqText {
+		t.Fatalf("large request within RequestBudget must pass untouched without stuffing over-budget handoff")
+	}
+	if len(p.Selections) != 0 || len(p.Omitted) != 2 {
+		t.Fatalf("expected all history omitted due to handoff budget, got selections=%d omitted=%d", len(p.Selections), len(p.Omitted))
+	}
+	for _, o := range p.Omitted {
+		if o.Reason != ReasonBudget {
+			t.Fatalf("expected ReasonBudget omission, got %+v", o)
+		}
+	}
+
+	// Exceeding RequestBudget still rejects before execution with ErrBudget reporting RequestBudget.
+	tooBig := newSession(fakeIdent(), strings.Repeat("x", int(DefaultStreamRequestBudget)), "t2", "")
+	tooBig.Budget = DefaultHandoffBudget
+	tooBig.RequestBudget = DefaultStreamRequestBudget
+	_, err := l.Plan(tooBig)
+	var over *ErrBudget
+	if !errors.As(err, &over) || over.Limit != int(DefaultStreamRequestBudget) {
+		t.Fatalf("expected ErrBudget with limit %d, got %v", DefaultStreamRequestBudget, err)
+	}
+}

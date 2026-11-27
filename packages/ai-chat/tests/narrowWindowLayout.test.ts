@@ -19,8 +19,12 @@ const sideWsCss = readFileSync(
   resolve(__dirname, '../src/components/SideWorkspace/SideWorkspace.module.css'),
   'utf8',
 );
-// 对话列在 App.tsx，右栏在 app/FilesRail.tsx
-const app = ['../src/App.tsx', '../src/app/FilesRail.tsx']
+// 对话列最小宽度在 SessionPane/ChatColumn（从 App 拆出），右栏在 app/FilesRail.tsx
+const app = [
+  '../src/App.tsx',
+  '../src/app/FilesRail.tsx',
+  '../src/components/SessionPane/ChatColumn.tsx',
+]
   .map((f) => readFileSync(resolve(__dirname, f), 'utf8'))
   .join('\n');
 

@@ -11,7 +11,7 @@ import {
   IconPinned as Pinned,
   IconSettings as Settings,
 } from '@tabler/icons-react';
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 
 import { projectRoots } from '../../services/projects';
@@ -29,62 +29,108 @@ export interface ProjectPeekState {
   anchor: HTMLElement;
 }
 
+export interface ProjectPeekController {
+  getSnapshot: () => ProjectPeekState | null;
+  subscribe: (listener: () => void) => () => void;
+  onPeek: (projectId: string, el: HTMLElement | null) => void;
+  hide: () => void;
+  hold: () => void;
+  release: () => void;
+}
+
+function createProjectPeekController(initialDelay: number): ProjectPeekController & {
+  setDelay: (next: number) => void;
+  dispose: () => void;
+} {
+  let delay = initialDelay;
+  let value: ProjectPeekState | null = null;
+  let timer: number | undefined;
+  let open = false;
+  const listeners = new Set<() => void>();
+  const clear = () => {
+    if (timer !== undefined) {
+      window.clearTimeout(timer);
+      timer = undefined;
+    }
+  };
+  const emit = () => {
+    for (const fn of [...listeners]) fn();
+  };
+  const setValue = (next: ProjectPeekState | null) => {
+    if (
+      value === next ||
+      (value && next && value.projectId === next.projectId && value.anchor === next.anchor)
+    ) {
+      return;
+    }
+    value = next;
+    emit();
+  };
+  return {
+    getSnapshot: () => value,
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    onPeek: (projectId, el) => {
+      clear();
+      if (!el) {
+        timer = window.setTimeout(() => {
+          open = false;
+          setValue(null);
+        }, HIDE_DELAY);
+        return;
+      }
+      const show = () => {
+        open = true;
+        setValue({ projectId, anchor: el });
+      };
+      if (open || delay <= 0) show();
+      else timer = window.setTimeout(show, delay);
+    },
+    hide: () => {
+      clear();
+      open = false;
+      setValue(null);
+    },
+    hold: () => clear(),
+    release: () => {
+      clear();
+      timer = window.setTimeout(() => {
+        open = false;
+        setValue(null);
+      }, HIDE_DELAY);
+    },
+    setDelay: (next) => {
+      delay = next;
+    },
+    dispose: () => clear(),
+  };
+}
+
+/** 外部订阅版项目悬停控制器：悬停变化不触发 Sidebar 顶层重渲染 */
+export function useProjectPeekController(delay = 220): ProjectPeekController {
+  const [ctrl] = useState(() => createProjectPeekController(delay));
+  useEffect(() => {
+    ctrl.setDelay(delay);
+  }, [ctrl, delay]);
+  useEffect(() => () => ctrl.dispose(), [ctrl]);
+  return ctrl;
+}
+
+export function useProjectPeekValue(ctrl: ProjectPeekController): ProjectPeekState | null {
+  return useSyncExternalStore(ctrl.subscribe, ctrl.getSnapshot, () => null);
+}
+
 /**
  * 项目悬停卡片状态管理：
  * - 首次进入延迟 `delay` 毫秒后弹出，避免鼠标快速划过整列时闪烁；
  * - 卡片已显示时切到相邻项目立即更新，移出后延迟 `HIDE_DELAY` 收起以便鼠标进入卡片交互。
  */
 export function useProjectPeek(delay = 220) {
-  const [peek, setPeek] = useState<ProjectPeekState | null>(null);
-  const timerRef = useRef<number | undefined>(undefined);
-  const openRef = useRef(false);
-
-  const clear = useCallback(() => {
-    if (timerRef.current !== undefined) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = undefined;
-    }
-  }, []);
-
-  const hide = useCallback(() => {
-    clear();
-    openRef.current = false;
-    setPeek(null);
-  }, [clear]);
-
-  const onPeek = useCallback(
-    (projectId: string, el: HTMLElement | null) => {
-      clear();
-      if (!el) {
-        timerRef.current = window.setTimeout(() => {
-          openRef.current = false;
-          setPeek(null);
-        }, HIDE_DELAY);
-        return;
-      }
-      const show = () => {
-        openRef.current = true;
-        setPeek({ projectId, anchor: el });
-      };
-      if (openRef.current || delay <= 0) show();
-      else timerRef.current = window.setTimeout(show, delay);
-    },
-    [clear, delay],
-  );
-
-  const hold = useCallback(() => clear(), [clear]);
-
-  const release = useCallback(() => {
-    clear();
-    timerRef.current = window.setTimeout(() => {
-      openRef.current = false;
-      setPeek(null);
-    }, HIDE_DELAY);
-  }, [clear]);
-
-  useEffect(() => clear, [clear]);
-
-  return { peek, onPeek, hide, hold, release };
+  const ctrl = useProjectPeekController(delay);
+  const peek = useProjectPeekValue(ctrl);
+  return { peek, onPeek: ctrl.onPeek, hide: ctrl.hide, hold: ctrl.hold, release: ctrl.release };
 }
 
 export const ProjectPeek: React.FC<{

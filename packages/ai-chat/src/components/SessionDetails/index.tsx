@@ -629,7 +629,11 @@ export const SessionDetailsDock: React.FC<Props & { overlay?: boolean }> = ({
     // 浮层只收回（还是自动收起的状态）；平时的一栏是用户关掉
     if (v?.dismissible) v.dismiss();
     else v?.close();
-    document.querySelector<HTMLElement>('[data-testid="session-details-toggle"]')?.focus();
+    (
+      document.querySelector<HTMLElement>(
+        '[data-testid="app-titlebar-split-pane"][data-focused="true"] [data-testid="session-details-toggle"]',
+      ) ?? document.querySelector<HTMLElement>('[data-testid="session-details-toggle"]')
+    )?.focus();
   }, [v]);
   const show =
     !!v?.visible && (props.messages.length > 0 || hasTerminals) && overlay === v.floating;

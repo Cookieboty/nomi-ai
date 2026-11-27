@@ -1,4 +1,4 @@
-import { toErrorHint, type ErrorAction } from '@nomi-ai/ai-sdk-client';
+import { SDKErrorCodes, toErrorHint, type ErrorAction } from '@nomi-ai/ai-sdk-client';
 import { t, Icon } from '@nomi-ai/ui';
 import { Button, IconButton } from '@nomi-ai/ui';
 import { IconAlertTriangle as TriangleAlert, IconX as X } from '@tabler/icons-react';
@@ -15,6 +15,10 @@ interface ErrorHintProps {
 export const ErrorHint: React.FC<ErrorHintProps> = ({ error, onAction, onDismiss }) => {
   if (error === null || error === undefined || error === '') return null;
   const hint = toErrorHint(error instanceof Error ? error : new Error(String(error)));
+  const titleText =
+    hint.code === SDKErrorCodes.E_REQUEST_TOO_LARGE
+      ? t('ui.chat-settings.managed-error-request-too-large-title')
+      : t(hint.title);
 
   const handleAction = () => {
     if (!hint.action) return;
@@ -31,7 +35,7 @@ export const ErrorHint: React.FC<ErrorHintProps> = ({ error, onAction, onDismiss
         <span className={styles.errorHintIcon} aria-hidden>
           <Icon icon={TriangleAlert} size={18} />
         </span>
-        <strong className={styles.errorHintTitle}>{t(hint.title)}</strong>
+        <strong className={styles.errorHintTitle}>{titleText}</strong>
         {onDismiss && (
           <IconButton
             size="sm"

@@ -1,4 +1,13 @@
 {
+  "ui.session-panes.close-pane": "Close split pane",
+  "ui.session-panes.empty-title": "Empty pane",
+  "ui.session-panes.hint": "Send a message or pick a conversation on the left",
+  "ui.session-panes.handle": "Drag to resize both sessions (double-click for half)",
+  "ui.session-panes.label": "Conversation pane",
+  "ui.session-panes.merge": "Merge into one session",
+  "ui.session-panes.open-to-the-side": "Open to the side",
+  "ui.session-panes.running": "Replying…",
+  "ui.session-panes.split-right": "Split into two sessions",
   "ui.session-workspace.agent-card-latest": "Latest output",
   "ui.session-workspace.agent-card-open": "Click to open",
   "ui.session-workspace.agent-card-running": "Working",

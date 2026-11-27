@@ -103,10 +103,15 @@ func (c *Session) launch(a *activeAttempt) error {
 		target = TargetResume
 	}
 	plan, err := c.ledger.Plan(PlanInput{AttemptID: a.token.AttemptID, Binding: a.binding, Identity: a.target.Identity, Env: a.target.Env, Target: target,
-		RequestText: a.request.Text, CurrentEntryID: a.request.MessageID, CurrentTurnID: a.request.TurnID, RequestInLedger: true, Budget: a.caps.Budget, Wrapper: a.caps.Wrapper, HoldIDs: copyHeld(c.held)})
+		RequestText: a.request.Text, CurrentEntryID: a.request.MessageID, CurrentTurnID: a.request.TurnID, RequestInLedger: true, Budget: a.caps.Budget, RequestBudget: a.caps.RequestBudget, Wrapper: a.caps.Wrapper, HoldIDs: copyHeld(c.held)})
 	if err != nil || plan.Strategy == StrategyBlocked {
 		// No turn has been submitted. Recovery itself must not execute user tools.
 		a.phase = PhaseFailed
+		if err != nil {
+			a.detail = err.Error()
+		} else {
+			a.detail = plan.Error
+		}
 		c.work = Activity{Known: true}
 		a.cancel()
 		_ = c.persistLocked()

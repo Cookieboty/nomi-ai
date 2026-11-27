@@ -16,7 +16,7 @@ import {
   type ConversationStore,
 } from '../../services/conversationStore';
 import { gatewayClient, type GatewayState } from '../../services/gatewayClient';
-import { harnessClient } from '../../services/harnessClient';
+import { harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
 import {
   injectedWindowFor,
   LONG_CONTEXT_HINT_RATIO,
@@ -70,11 +70,13 @@ function useNomiContextWindow(
 export const ContextUsageBar: React.FC<{
   messages: readonly ConvMessage[];
   model?: string | null;
-}> = ({ messages, model }) => {
+  tab?: HarnessTabMeta | null;
+}> = ({ messages, model, tab: forcedTab }) => {
   const [hover, setHover] = useState(false);
   // 当前 agent 标签：第三方模型快到标准窗口时，就地提议开启长上下文
   const tabs = useHarnessTabsCore();
-  const tab = tabs.isCliTab ? tabs.activeTab : null;
+  const tab = forcedTab === undefined ? (tabs.isCliTab ? tabs.activeTab : null) : forcedTab;
+  const isCliTab = forcedTab === undefined ? tabs.isCliTab : Boolean(forcedTab);
   const [longError, setLongError] = useState<string | null>(null);
   const gateway = useGatewayState();
   const storeCtx = useContext(AiChatStoreContext);
@@ -85,18 +87,18 @@ export const ContextUsageBar: React.FC<{
     return () => window.removeEventListener(CONVERSATIONS_CHANGED_EVENT, bump);
   }, []);
   void convTick;
+  const managed = useManagedRuntime();
   const ipc = storeCtx?.store.get().ipcClient as IPCClient | undefined;
   const convStore = ipc?.conversationStore?.() as ConversationStore | undefined;
-  const convId = ipc?.currentConversationId?.();
+  const convId = managed?.conversationId ?? ipc?.currentConversationId?.();
   const nomiMeta =
     convId && convStore?.get(convId)?.backend === 'nomi' ? convStore.get(convId) : undefined;
-  const nomiRef = !tabs.isCliTab ? nomiMainRef(gateway) : null;
+  const nomiRef = !isCliTab ? nomiMainRef(gateway) : null;
   const nomiChoice = longContextChoiceFor(nomiMeta?.longContext, nomiRef);
   const nomiLong = longContextForRef(nomiRef, nomiChoice, gateway);
   const nomiLongOverride = nomiLong ? nomiChoice : undefined;
 
-  const managed = useManagedRuntime();
-  const isManagedCli = !tabs.isCliTab && Boolean(managed?.isCliBackend);
+  const isManagedCli = !isCliTab && Boolean(managed?.isCliBackend);
   const long = tab ? longContextFor(tab, gateway) : null;
   const injected = tab ? injectedWindowFor(tab, gateway) : null;
   const effectiveModel = isManagedCli
@@ -106,7 +108,7 @@ export const ContextUsageBar: React.FC<{
     : (model ?? undefined);
   // Nomi 对话：窗口取内核按路由到的模型算的预算（与自动压缩同一份，gateway.nomiContext），
   // 托管 CLI 模式下优先使用 CLI 上报窗口或 CLI 模型对应的经验窗口
-  const nomiWin = useNomiContextWindow(!tabs.isCliTab && !isManagedCli, gateway, nomiLongOverride);
+  const nomiWin = useNomiContextWindow(!isCliTab && !isManagedCli, gateway, nomiLongOverride);
   const baseWin = useMemo(() => {
     const reported = reportedContextWindow(messages);
     // 第三方标签：上报的窗口来自换模型 / 切长上下文之前（与这次要注入的对不上）时已过期，

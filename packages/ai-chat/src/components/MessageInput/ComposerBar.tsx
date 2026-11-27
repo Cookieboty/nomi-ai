@@ -127,7 +127,7 @@ export const ComposerBar: React.FC<ComposerBarProps> = ({
       {compact && !modelControl && <EndpointControls part="mode" tab={endpointTab} />}
       {!compact && <VoiceButtons cv={cv} disabled={disabled} />}
       {!compact && contextMessages?.length ? (
-        <ContextUsageBar messages={contextMessages} model={contextModel} />
+        <ContextUsageBar messages={contextMessages} model={contextModel} tab={endpointTab} />
       ) : null}
       {canStop ? (
         <button

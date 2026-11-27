@@ -8,15 +8,94 @@ import { ConversationMenu } from '../ConversationMenu';
 import { ProjectDialog } from '../ProjectDialog';
 
 import type { ProjectGroup } from './projectGrouping';
-import { ProjectPeek, type useProjectPeek } from './ProjectPeek';
+import {
+  ProjectPeek,
+  useProjectPeekValue,
+  type ProjectPeekController,
+  type ProjectPeekState,
+} from './ProjectPeek';
 import { SearchDialog } from './SearchDialog';
-import { SessionPeek, type useSessionPeek } from './SessionPeek';
+import {
+  SessionPeek,
+  useSessionPeekValue,
+  type SessionPeekController,
+  type SessionPeekPos,
+} from './SessionPeek';
 import type { Meta } from './types';
 
-type Peek = ReturnType<typeof useSessionPeek>['peek'];
-type ProjectPeekVal = ReturnType<typeof useProjectPeek>;
+type Peek = SessionPeekPos | null;
 type Ctx = { x: number; y: number; anchor?: HTMLElement; id: string };
 type HistMenu = { x: number; y: number; anchor?: HTMLElement; h: HistorySession };
+
+interface ListPeekInput {
+  peek?: Peek;
+  getSnapshot?: SessionPeekController['getSnapshot'];
+  subscribe?: SessionPeekController['subscribe'];
+  hold: () => void;
+  release: () => void;
+}
+
+interface ProjectPeekInput {
+  peek?: ProjectPeekState | null;
+  getSnapshot?: ProjectPeekController['getSnapshot'];
+  subscribe?: ProjectPeekController['subscribe'];
+  hold: () => void;
+  release: () => void;
+  hide: () => void;
+}
+
+const SessionPeekControlled: React.FC<{
+  ctrl: SessionPeekController;
+  visible: Meta[];
+  tabById: Map<string, HarnessTabMeta>;
+  runningIds: Set<string>;
+  doneIds: Set<string>;
+  outcomes?: Readonly<Record<string, ConvoOutcome>>;
+  commitRename: (id: string, name: string | null) => void;
+}> = ({ ctrl, visible, tabById, runningIds, doneIds, outcomes, commitRename }) => {
+  const peek = useSessionPeekValue(ctrl);
+  if (!peek) return null;
+  const c = visible.find((x) => x.id === peek.id);
+  if (!c) return null;
+  const tab = c.tabId ? tabById.get(c.tabId) : undefined;
+  return (
+    <SessionPeek
+      c={c}
+      tab={tab}
+      running={c.tabId ? undefined : runningIds.has(c.id)}
+      done={c.tabId ? undefined : doneIds.has(c.id)}
+      outcome={c.tabId ? undefined : outcomes?.[c.id]}
+      top={peek.top}
+      left={peek.left}
+      onRename={commitRename}
+      onHold={ctrl.hold}
+      onRelease={ctrl.release}
+    />
+  );
+};
+
+const ProjectPeekControlled: React.FC<{
+  ctrl: ProjectPeekController;
+  projectGroups: readonly ProjectGroup[];
+  onToggleProjectPin: (projectId: string) => void;
+  onEditProject: (group: ProjectGroup) => void;
+}> = ({ ctrl, projectGroups, onToggleProjectPin, onEditProject }) => {
+  const peek = useProjectPeekValue(ctrl);
+  if (!peek) return null;
+  const g = projectGroups.find((x) => x.key === peek.projectId);
+  if (!g) return null;
+  return (
+    <ProjectPeek
+      group={g}
+      anchor={peek.anchor}
+      onTogglePin={onToggleProjectPin}
+      onEdit={onEditProject}
+      onHold={ctrl.hold}
+      onRelease={ctrl.release}
+      onClose={ctrl.hide}
+    />
+  );
+};
 
 interface SidebarOverlaysProps {
   list: Meta[];
@@ -35,15 +114,13 @@ interface SidebarOverlaysProps {
   archiveItem: (id: string) => void;
   removeItem: (id: string) => void;
   onCtx: (id: string, e: React.MouseEvent) => void;
+  /** 右键 / 「更多」里的「向右打开」（主区右侧面板打开这个会话） */
+  openToSide?: (id: string) => void;
+  canOpenToSide?: boolean;
   ctxP: { value: Ctx | null; closing: boolean };
   setCtx: (v: Ctx | null) => void;
-  listPeek: { peek: Peek; hold: () => void; release: () => void };
-  projectPeek: {
-    peek: ProjectPeekVal['peek'];
-    hold: () => void;
-    release: () => void;
-    hide: () => void;
-  };
+  listPeek: ListPeekInput;
+  projectPeek: ProjectPeekInput;
   projectGroups: readonly ProjectGroup[];
   onToggleProjectPin: (projectId: string) => void;
   onEditProject: (group: ProjectGroup) => void;
@@ -96,6 +173,8 @@ export const SidebarOverlays: React.FC<SidebarOverlaysProps> = ({
   archiveItem,
   removeItem,
   onCtx,
+  openToSide,
+  canOpenToSide,
   ctxP,
   setCtx,
   listPeek,
@@ -154,6 +233,10 @@ export const SidebarOverlays: React.FC<SidebarOverlaysProps> = ({
               meta && isInteractiveOnly(meta.backend) ? undefined : () => onForkRequest?.(ctx.id)
             }
             onClose={meta?.tabId ? () => closeItem(meta) : undefined}
+            // 磁盘历史没有在面板里打开的会话：只有会话本体的菜单才给「向右打开」
+            onOpenToSide={
+              meta && canOpenToSide && openToSide ? () => void openToSide(ctx.id) : undefined
+            }
             onArchive={meta && !meta.tabId ? () => archiveItem(ctx.id) : undefined}
             // 最近列表与本机历史统一确认后永久删除。
             onDelete={() => void removeItem(ctx.id)}
@@ -161,7 +244,18 @@ export const SidebarOverlays: React.FC<SidebarOverlaysProps> = ({
         );
       })()}
 
-    {listPeek.peek &&
+    {listPeek.getSnapshot && listPeek.subscribe ? (
+      <SessionPeekControlled
+        ctrl={listPeek as SessionPeekController}
+        visible={visible}
+        tabById={tabById}
+        runningIds={runningIds}
+        doneIds={doneIds}
+        outcomes={outcomes}
+        commitRename={commitRename}
+      />
+    ) : (
+      listPeek.peek &&
       (() => {
         const c = visible.find((x) => x.id === listPeek.peek?.id);
         if (!c) return null;
@@ -181,25 +275,35 @@ export const SidebarOverlays: React.FC<SidebarOverlaysProps> = ({
             onRelease={listPeek.release}
           />
         );
-      })()}
+      })()
+    )}
 
     {!projectDialog &&
-      projectPeek.peek &&
-      (() => {
-        const g = projectGroups.find((x) => x.key === projectPeek.peek?.projectId);
-        if (!g) return null;
-        return (
-          <ProjectPeek
-            group={g}
-            anchor={projectPeek.peek.anchor}
-            onTogglePin={onToggleProjectPin}
-            onEdit={onEditProject}
-            onHold={projectPeek.hold}
-            onRelease={projectPeek.release}
-            onClose={projectPeek.hide}
-          />
-        );
-      })()}
+      (projectPeek.getSnapshot && projectPeek.subscribe ? (
+        <ProjectPeekControlled
+          ctrl={projectPeek as ProjectPeekController}
+          projectGroups={projectGroups}
+          onToggleProjectPin={onToggleProjectPin}
+          onEditProject={onEditProject}
+        />
+      ) : (
+        projectPeek.peek &&
+        (() => {
+          const g = projectGroups.find((x) => x.key === projectPeek.peek?.projectId);
+          if (!g) return null;
+          return (
+            <ProjectPeek
+              group={g}
+              anchor={projectPeek.peek.anchor}
+              onTogglePin={onToggleProjectPin}
+              onEdit={onEditProject}
+              onHold={projectPeek.hold}
+              onRelease={projectPeek.release}
+              onClose={projectPeek.hide}
+            />
+          );
+        })()
+      ))}
 
     {projectDialog && (
       <ProjectDialog

@@ -138,11 +138,20 @@ const SINGLE_BUCKET = '__single__';
  */
 export function useResourcePreview(
   scope: ResourceScope,
-  opts?: { onShow?: (kind: 'file' | 'diff') => void; scoped?: boolean },
+  opts?: {
+    onShow?: (kind: 'file' | 'diff') => void;
+    scoped?: boolean;
+    /** 覆盖预览分桶键（并排会话时两端共享同一文件区桶，打开文件直接覆盖同一工作区） */
+    bucketId?: string;
+    /** 允许视为当前工作区来源的会话键列表（并排时任一面板打开的文件不禁用另一面板的输入框） */
+    allowedScopeIds?: readonly string[];
+  },
 ) {
   const scoped = !!opts?.scoped;
   const scopeId = scope.id;
-  const activeBucket = scoped ? scopeId : SINGLE_BUCKET;
+  const bucketOverride = opts?.bucketId;
+  const allowedScopeIds = opts?.allowedScopeIds;
+  const activeBucket = bucketOverride ?? (scoped ? scopeId : SINGLE_BUCKET);
   const onShowRef = useRef(opts?.onShow);
   useLayoutEffect(() => {
     onShowRef.current = opts?.onShow;
@@ -201,7 +210,7 @@ export function useResourcePreview(
         );
         return;
       }
-      const targetBucket = scoped ? origin.id || scopeId : SINGLE_BUCKET;
+      const targetBucket = bucketOverride ?? (scoped ? origin.id || scopeId : SINGLE_BUCKET);
       if (!isOpen && targetBucket === activeBucket) {
         resetLayout();
         setConnected(null);
@@ -224,11 +233,11 @@ export function useResourcePreview(
           protectedPreviewKeys(old.entries),
         ),
       );
-      if (!scoped || targetBucket === scopeId) {
+      if (!scoped || !!bucketOverride || targetBucket === scopeId) {
         onShowRef.current?.('file');
       }
     },
-    [scoped, scopeId, activeBucket, isOpen, resetLayout, updateBucket],
+    [scoped, scopeId, bucketOverride, activeBucket, isOpen, resetLayout, updateBucket],
   );
   const scopeCwd = scope.cwd;
   const scopeSource = scope.source;
@@ -297,7 +306,7 @@ export function useResourcePreview(
   const closeEntries = useCallback(
     (keys: string[], targetScopeId?: string) => {
       if (keys.length === 0) return;
-      const bucket = scoped ? (targetScopeId ?? activeBucket) : SINGLE_BUCKET;
+      const bucket = bucketOverride ?? (scoped ? (targetScopeId ?? activeBucket) : SINGLE_BUCKET);
       setTabsByBucket((all) => {
         const prev = all[bucket];
         if (!prev) return all;
@@ -311,10 +320,12 @@ export function useResourcePreview(
         return { ...all, [bucket]: next };
       });
       setConnected((old) =>
-        old && (!scoped || old.scope.id === bucket) && keys.includes(old.key) ? null : old,
+        old && (!scoped || !!bucketOverride || old.scope.id === bucket) && keys.includes(old.key)
+          ? null
+          : old,
       );
     },
-    [scoped, activeBucket],
+    [scoped, bucketOverride, activeBucket],
   );
   const closeEntriesForActive = useCallback(
     (keys: string[]) => closeEntries(keys, activeBucket),
@@ -387,6 +398,7 @@ export function useResourcePreview(
   const scopeSettled = !!scopeId;
   const entryMismatch = (e: ResourceEntry) =>
     scopeSettled &&
+    !allowedScopeIds?.includes(e.scope.id) &&
     (e.scope.id !== scopeId || (e.scope.cwd != null && e.scope.cwd !== (scopeCwd ?? null)));
   const mismatch = !!active && entryMismatch(active);
   const connectConversation = useCallback(
@@ -422,7 +434,12 @@ export function useResourcePreview(
     [scopeId, scopeCwd, scopeSource, scopeFallbacks, open, openDiff, updateDiff, syncDiffs],
   );
   const visibleImageEntry =
-    imageEntry && (!scoped || imageEntry.scope.id === scope.id) ? imageEntry : null;
+    imageEntry &&
+    (!scoped ||
+      imageEntry.scope.id === scope.id ||
+      !!allowedScopeIds?.includes(imageEntry.scope.id))
+      ? imageEntry
+      : null;
   const overlays = (
     <>
       {visibleImageEntry && (

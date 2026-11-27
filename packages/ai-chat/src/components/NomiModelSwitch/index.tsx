@@ -51,7 +51,7 @@ import { buildRuntimePageSource, useCliManagedSource } from './managedAdapter';
 type LongContextChoice = { model: string; on: boolean };
 
 /** 会话上存着的思考档位与长上下文覆盖（与消息一起保存，切换会话后各自独立） */
-function useStoredNomiOverrides(): {
+function useStoredNomiOverrides(conversationId?: string): {
   effort: string | undefined;
   saveEffort: (level: string | undefined) => void;
   longContext: LongContextChoice | undefined;
@@ -73,7 +73,7 @@ function useStoredNomiOverrides(): {
   }, []);
   void tick;
   const store = ipc?.conversationStore?.() as ConversationStore | undefined;
-  const id = ipc?.currentConversationId?.();
+  const id = conversationId ?? ipc?.currentConversationId?.();
   const meta = id && store?.get(id)?.backend === 'nomi' ? store.get(id) : undefined;
   const resolveTarget = () =>
     id && store?.get(id)?.backend === 'nomi' ? id : ipc?.ensureConversationId?.();
@@ -164,7 +164,8 @@ export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ bind
   const state = useGatewayState();
   const managedFromCtx = useManagedRuntime();
   const managed = binding ? null : managedFromCtx;
-  const nomiProject = useNomiProject();
+  const targetConvoId = managed?.conversationId;
+  const nomiProject = useNomiProject(targetConvoId);
   const activeProjectId = managed ? nomiProject.projectId : undefined;
   const providers = useMemo(() => pickerProviders(state?.providers ?? []), [state]);
   // NOMI_PROVIDER 环境变量锁定时，网关的分配不生效
@@ -184,7 +185,7 @@ export const NomiModelSwitch: React.FC<{ binding?: NomiModelBinding }> = ({ bind
     return providerClient.onChanged(apply);
   }, []);
 
-  const conversationOverrides = useStoredNomiOverrides();
+  const conversationOverrides = useStoredNomiOverrides(targetConvoId);
   const stored = binding ? binding.effort : conversationOverrides.effort;
   const save = binding ? binding.onEffort : conversationOverrides.saveEffort;
   const storedLong = binding ? binding.longContext : conversationOverrides.longContext;

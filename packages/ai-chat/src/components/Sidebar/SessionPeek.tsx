@@ -6,7 +6,7 @@
 import { brand } from '@nomi-ai/types';
 import { Icon, t, useLocale } from '@nomi-ai/ui';
 import { IconFolder as Folder } from '@tabler/icons-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 
 import type { ConvoOutcome } from '../../contexts/aiChatState';
@@ -52,10 +52,94 @@ const baseName = (p: string) =>
 
 const HIDE_DELAY = 180;
 
-interface PeekPos {
+export interface SessionPeekPos {
   id: string;
   top: number;
   left: number;
+}
+
+export interface SessionPeekController {
+  getSnapshot: () => SessionPeekPos | null;
+  subscribe: (listener: () => void) => () => void;
+  onPeek: (id: string, el: HTMLElement | null) => void;
+  hide: () => void;
+  hold: () => void;
+  release: () => void;
+}
+
+function createSessionPeekController(initialDelay: number): SessionPeekController & {
+  setDelay: (next: number) => void;
+  dispose: () => void;
+} {
+  let delay = initialDelay;
+  let value: SessionPeekPos | null = null;
+  let timer: number | undefined;
+  const listeners = new Set<() => void>();
+  const clear = () => {
+    if (timer !== undefined) window.clearTimeout(timer);
+    timer = undefined;
+  };
+  const emit = () => {
+    for (const fn of [...listeners]) fn();
+  };
+  const setValue = (next: SessionPeekPos | null) => {
+    if (
+      value === next ||
+      (value && next && value.id === next.id && value.top === next.top && value.left === next.left)
+    ) {
+      return;
+    }
+    value = next;
+    emit();
+  };
+  return {
+    getSnapshot: () => value,
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    onPeek: (id, el) => {
+      clear();
+      if (!el) {
+        // 稍等再收：鼠标从行移到右边的卡片上（中间隔着一点缝）时卡片不消失，可以在卡片里改标题
+        timer = window.setTimeout(() => setValue(null), HIDE_DELAY);
+        return;
+      }
+      const show = () => {
+        const r = el.getBoundingClientRect();
+        setValue({ id, top: r.top + r.height / 2, left: r.right + 8 });
+      };
+      if (delay <= 0) show();
+      else timer = window.setTimeout(show, delay);
+    },
+    hide: () => {
+      clear();
+      setValue(null);
+    },
+    hold: () => clear(),
+    release: () => {
+      clear();
+      timer = window.setTimeout(() => setValue(null), HIDE_DELAY);
+    },
+    setDelay: (next) => {
+      delay = next;
+    },
+    dispose: () => clear(),
+  };
+}
+
+/** 外部订阅版会话悬停控制器：悬停变化不触发 Sidebar 顶层重渲染 */
+export function useSessionPeekController(delay: number): SessionPeekController {
+  const [ctrl] = useState(() => createSessionPeekController(delay));
+  useEffect(() => {
+    ctrl.setDelay(delay);
+  }, [ctrl, delay]);
+  useEffect(() => () => ctrl.dispose(), [ctrl]);
+  return ctrl;
+}
+
+export function useSessionPeekValue(ctrl: SessionPeekController): SessionPeekPos | null {
+  return useSyncExternalStore(ctrl.subscribe, ctrl.getSnapshot, () => null);
 }
 
 /**
@@ -63,42 +147,9 @@ interface PeekPos {
  * 免得鼠标划过整列时卡片一路闪。
  */
 export function useSessionPeek(delay: number) {
-  const [peek, setPeek] = useState<PeekPos | null>(null);
-  const timer = useRef<number | undefined>(undefined);
-  const clear = () => {
-    if (timer.current !== undefined) window.clearTimeout(timer.current);
-    timer.current = undefined;
-  };
-  const onPeek = useCallback(
-    (id: string, el: HTMLElement | null) => {
-      clear();
-      if (!el) {
-        // 稍等再收：鼠标从行移到右边的卡片上（中间隔着一点缝）时卡片不消失，可以在卡片里改标题
-        timer.current = window.setTimeout(() => setPeek(null), HIDE_DELAY);
-        return;
-      }
-      const show = () => {
-        const r = el.getBoundingClientRect();
-        setPeek({ id, top: r.top + r.height / 2, left: r.right + 8 });
-      };
-      if (delay <= 0) show();
-      else timer.current = window.setTimeout(show, delay);
-    },
-    [delay],
-  );
-  const hide = useCallback(() => {
-    clear();
-    setPeek(null);
-  }, []);
-  /** 鼠标进了卡片：别收 */
-  const hold = useCallback(() => clear(), []);
-  /** 鼠标离开卡片：稍等再收 */
-  const release = useCallback(() => {
-    clear();
-    timer.current = window.setTimeout(() => setPeek(null), HIDE_DELAY);
-  }, []);
-  useEffect(() => clear, []);
-  return { peek, onPeek, hide, hold, release };
+  const ctrl = useSessionPeekController(delay);
+  const peek = useSessionPeekValue(ctrl);
+  return { peek, onPeek: ctrl.onPeek, hide: ctrl.hide, hold: ctrl.hold, release: ctrl.release };
 }
 
 export const SessionPeek: React.FC<{

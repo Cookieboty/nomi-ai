@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -119,5 +120,28 @@ func TestCheckpointRoundtripCopiesRawCapabilitiesRangesAndPendingSwitch(t *testi
 	got.PendingSwitch.From.Capabilities.PermissionModes[0] = "view-mutation"
 	if restored.Checkpoint().PendingSwitch.From.Capabilities.PermissionModes[0] == "view-mutation" {
 		t.Fatal("snapshot shared switch slices")
+	}
+}
+
+func TestLegacyCheckpointInheritsStreamRequestBudgetOnReattach(t *testing.T) {
+	f := newFakeRuntime("fake")
+	f.caps.Budget = DefaultHandoffBudget
+	c := testSession(t, f, nil)
+	cp := c.Checkpoint()
+	if cp.Selected.Capabilities.RequestBudget != 0 {
+		t.Fatalf("expected legacy zero RequestBudget in seed, got %d", cp.Selected.Capabilities.RequestBudget)
+	}
+	restored, err := RestoreCheckpoint(cp)
+	expectErrIs(t, err, nil)
+
+	upgraded := newFakeRuntime("fake")
+	upgraded.caps.Budget = DefaultHandoffBudget
+	upgraded.caps.RequestBudget = DefaultStreamRequestBudget
+	expectErrIs(t, restored.Reattach(sessionTarget(upgraded, "claude")), nil)
+
+	largePrompt := strings.Repeat("a", 123486)
+	_, err = restored.StartAt(context.Background(), Request{MessageID: "m_big", TurnID: "t_big", Text: largePrompt}, restored.State().Generation)
+	if err != nil {
+		t.Fatalf("upgraded runtime after Reattach should accept 123KB prompt, got %v", err)
 	}
 }
