@@ -5,6 +5,10 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ## Unreleased
 
+### Features
+
+- **chat:** 主区可并排打开跨项目会话；左侧项目/会话列表与右侧文件区全局唯一，打开文件会覆盖同一文件区。 (`@nomi-ai/i18n` patch)
+
 ### Maintenance
 
 - **release:** empty changeset after archiving 2.5.3
