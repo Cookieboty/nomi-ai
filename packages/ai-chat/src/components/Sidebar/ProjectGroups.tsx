@@ -58,6 +58,7 @@ const Rows: React.FC<{ items: readonly Meta[]; activeId?: string; rows: VirtualP
         onPinToggle={rows.onPinToggle}
         onMore={rows.onMore}
         onPeek={rows.onPeek}
+        onDragPointerDown={rows.onDragPointerDown}
         showIcon={rows.showIcon}
       />
     ))}

@@ -3,6 +3,7 @@ import { useCallback, useLayoutEffect, useRef, type Dispatch, type SetStateActio
 
 import type { AiChatActionsValue, AiChatState } from '../../contexts/AiChatContext';
 import type { useHarnessTabs } from '../../contexts/HarnessTabsContext';
+import { useSessionPanes } from '../../contexts/SessionPanesContext';
 import { api } from '../../services/api';
 import type { ConversationStore } from '../../services/conversationStore';
 import { MAIN_TAB_ID, harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
@@ -11,7 +12,13 @@ import { updateManagedConversationMeta } from '../../services/managedMainChat';
 import { clearNomiAutoTitle } from '../../services/sessionTitle';
 import { cliTranscriptKey } from '../../services/transcriptView';
 import type { ConversationBackend } from '../../types/chat';
-import { cliSessionKey, nomiSessionKey } from '../../utils/sessionPanes';
+import { startSessionPaneDrag } from '../../utils/sessionPaneDrag';
+import {
+  canDropSessionOnSide,
+  cliSessionKey,
+  nomiSessionKey,
+  type SessionPaneSide,
+} from '../../utils/sessionPanes';
 import { confirmDialog } from '../ConfirmDialog';
 
 import type { Meta } from './types';
@@ -60,8 +67,12 @@ interface SidebarSessionsOptions {
   setRenamingId: Dispatch<SetStateAction<string | null>>;
   /** 「向右打开」：右面板打开这个会话（左面板不动）；没给时不显示菜单项 */
   onOpenToSide?: (sessionKey: string | null) => void;
+  /** 拖放分屏：把会话放到主区左半或右半 */
+  onOpenOnSide?: (sessionKey: string | null, side: SessionPaneSide) => void;
   /** 单击会话时让主区焦点面板指向它（openSessionInFocus）；没给时整块不动（独立渲染侧栏） */
   onOpenInFocus?: (sessionKey: string | null) => void;
+  /** 开始拖动会话行时收起悬停预览卡片 */
+  onDragActivate?: () => void;
 }
 
 /**
@@ -88,8 +99,13 @@ export function useSidebarSessions({
   setHistMenu,
   setRenamingId,
   onOpenToSide,
+  onOpenOnSide,
   onOpenInFocus,
+  onDragActivate,
 }: SidebarSessionsOptions) {
+  const sessionPanes = useSessionPanes();
+  const panesRef = useRef(sessionPanes);
+  const dragActivateRef = useRef(onDragActivate);
   // 行回调读最新的 list / current / tabs（经 ref），回调本身保持稳定：
   // 否则每次渲染换引用，ThreadItem 的 React.memo 全部失效
   const latest = useRef({
@@ -100,6 +116,7 @@ export function useSidebarSessions({
     removeItem: undefined as ((id: string) => Promise<void>) | undefined,
     archiveItem: undefined as ((id: string) => Promise<void>) | undefined,
     onOpenToSide,
+    onOpenOnSide,
     openInFocus: onOpenInFocus,
     /** 共用的会话存储（已拆分时切会话前看左边是不是 Nomi 会话） */
     store: undefined as ConversationStore | undefined,
@@ -191,11 +208,11 @@ export function useSidebarSessions({
   };
 
   /**
-   * 「向右打开」：右面板打开这个会话（已拆分时换右面板的会话，左面板不动），焦点跟到右边；
-   * 再把「当前会话」切过去（与单击一样）。放在右键 / 「更多」菜单里，标题菜单也用它。
+   * 拖放分屏 / 「向右打开」：把会话放到主区左半或右半（右半时另一边不动，左半时新会话在左）；
+   * 再把「当前会话」切过去（与单击一样）。
    */
-  const openToSide = useCallback(
-    async (id: string) => {
+  const openOnSide = useCallback(
+    async (id: string, side: SessionPaneSide) => {
       setCtx(null);
       if (!ipc) return;
       leaveRef.current?.();
@@ -203,8 +220,8 @@ export function useSidebarSessions({
       const meta = list.find((x) => x.id === id);
       if (!meta) return;
       const key = sessionKeyOfMeta(meta, tabs.state?.tabs);
-      const toSide = latest.current.onOpenToSide;
-      toSide?.(key);
+      if (latest.current.onOpenOnSide) latest.current.onOpenOnSide(key, side);
+      else if (side === 'right') latest.current.onOpenToSide?.(key);
       actions.clearDone?.(id);
       if (meta.backend !== 'nomi' && meta.tabId) {
         await tabs.activate(meta.tabId).catch(() => undefined);
@@ -212,17 +229,12 @@ export function useSidebarSessions({
         refresh();
         return;
       }
-      const store = latest.current.store ?? ipc.conversationStore?.();
-      // Nomi 会话：已拆分时右面板可能是别的 Nomi 会话，左边的当前会话要留在左边 —— 指针直接切到目标，
-      // 不能再让 seed 把焦点面板（= 右面板）拉回左边那个会话
-      const cur = store?.isNomi(store.currentId()) ? store.currentId() : undefined;
-      if (cur && cur !== id) {
-        const keep = latest.current.tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID);
-        if (latest.current.tabs.available && latest.current.tabs.state?.activeTabId !== MAIN_TAB_ID)
-          void latest.current.tabs.activate(MAIN_TAB_ID);
-        if (harnessClient.available() && keep?.backend !== 'nomi')
-          void harnessClient.setBackend('nomi').catch(() => undefined);
-      }
+      // Nomi 会话：若当前还停在 CLI 标签则切回 Nomi 主标签，再把指针切到目标会话
+      const keep = latest.current.tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID);
+      if (latest.current.tabs.available && latest.current.tabs.state?.activeTabId !== MAIN_TAB_ID)
+        void latest.current.tabs.activate(MAIN_TAB_ID);
+      if (harnessClient.available() && keep?.backend !== 'nomi')
+        void harnessClient.setBackend('nomi').catch(() => undefined);
       if (id !== ipc.currentConversationId?.()) {
         await ipc.switchConversation(id);
         await actions.loadChatHistory();
@@ -230,6 +242,37 @@ export function useSidebarSessions({
       refresh();
     },
     [ipc, refresh, actions, setCtx],
+  );
+
+  const openToSide = useCallback((id: string) => openOnSide(id, 'right'), [openOnSide]);
+
+  const onDragPointerDown = useCallback(
+    (id: string, e: React.PointerEvent) => {
+      const { list, tabs, onOpenOnSide: toSideOpt, onOpenToSide: rightOpt } = latest.current;
+      if (!toSideOpt && !rightOpt) return;
+      const meta = list.find((x) => x.id === id);
+      if (!meta) return;
+      const key = sessionKeyOfMeta(meta, tabs.state?.tabs);
+      if (!key) return;
+      const title = meta.name ? t(meta.name) : t('ui.chat-settings.new-chat');
+      startSessionPaneDrag(e, {
+        id,
+        sessionKey: key,
+        title,
+        canDrop: (side) => {
+          const panes = panesRef.current;
+          if (!panes) return true;
+          return canDropSessionOnSide(
+            { panes: [...panes.panes], focusedPaneId: panes.focusedPaneId },
+            key,
+            side,
+          );
+        },
+        onActivate: () => dragActivateRef.current?.(),
+        onDrop: (side) => void openOnSide(id, side),
+      });
+    },
+    [openOnSide],
   );
 
   const removeItem = async (id: string) => {
@@ -320,6 +363,8 @@ export function useSidebarSessions({
   };
 
   useLayoutEffect(() => {
+    panesRef.current = sessionPanes;
+    dragActivateRef.current = onDragActivate;
     latest.current = {
       ...latest.current,
       list,
@@ -328,6 +373,9 @@ export function useSidebarSessions({
       isDev,
       removeItem,
       archiveItem,
+      onOpenToSide,
+      onOpenOnSide,
+      openInFocus: onOpenInFocus,
       store: ipc?.conversationStore?.(),
     };
   });
@@ -388,7 +436,9 @@ export function useSidebarSessions({
     openMore,
     onCtx,
     openToSide,
-    /** 有会话面板时菜单里才有「向右打开」 */
-    canOpenToSide: !!onOpenToSide || !!onOpenInFocus,
+    openOnSide,
+    onDragPointerDown: onOpenOnSide || onOpenToSide ? onDragPointerDown : undefined,
+    /** 有会话面板「向右打开」回调时菜单里才显示「向右打开」 */
+    canOpenToSide: !!(onOpenToSide || onOpenOnSide),
   };
 }

@@ -143,6 +143,7 @@ export const SidebarThreads: React.FC<SidebarThreadsProps> = ({
             onPinToggle={rows.onPinToggle}
             onMore={rows.onMore}
             onPeek={rows.onPeek}
+            onDragPointerDown={rows.onDragPointerDown}
             showIcon={showIcon}
           />
         ))}

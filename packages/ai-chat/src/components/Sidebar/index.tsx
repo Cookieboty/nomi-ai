@@ -1,6 +1,6 @@
 import { byCli } from '@nomi-ai/cli-catalog';
 import { t, useLocale, usePresence } from '@nomi-ai/ui';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import type { ConvoOutcome } from '../../contexts/aiChatState';
 import {
@@ -29,6 +29,8 @@ import type { HistorySession } from '../../services/historyClient';
 import { useProjects, type Project } from '../../services/projects';
 import { formatCombo, useShortcutBindings } from '../../services/shortcuts';
 import { CONVERSATION_BACKENDS, type ConversationBackend } from '../../types/chat';
+import { isSessionPaneDragging } from '../../utils/sessionPaneDrag';
+import type { SessionPaneSide } from '../../utils/sessionPanes';
 import { startupBrandIntro } from '../BrandIntro/state';
 import { EndpointInfoCard } from '../EndpointInfo';
 import { GettingStarted } from '../GettingStarted';
@@ -39,9 +41,9 @@ import { sameMetaList } from './listEquality';
 import { NewChatButton } from './NewChatButton';
 import { useProjectGrouping, projectBackend, pinnedFirst } from './projectGrouping';
 import { NewProjectButton, OrganizeMenu, SECTION_WORKSPACES } from './ProjectGroups';
-import { useProjectPeek } from './ProjectPeek';
+import { useProjectPeekController } from './ProjectPeek';
 import { SearchIcon } from './searchSupport';
-import { useSessionPeek } from './SessionPeek';
+import { useSessionPeekController } from './SessionPeek';
 import { SidebarOverlays } from './SidebarOverlays';
 import { SidebarRail } from './SidebarRail';
 import { SidebarThreads } from './SidebarThreads';
@@ -85,6 +87,10 @@ interface SidebarProps {
    */
   onOpenToSide?: (sessionKey: string | null) => void;
   /**
+   * 拖放分屏：把会话放到主区左半或右半（未拆分时挤开另一边，已拆分时换对应边）。
+   */
+  onOpenOnSide?: (sessionKey: string | null, side: SessionPaneSide) => void;
+  /**
    * 单击会话：让主区的焦点面板指向它（已开在某个面板里就只聚焦那个面板），另一个面板不动。
    * 由 App 经主区的会话面板状态给出；没给时整块不动（独立渲染侧栏）。
    */
@@ -110,6 +116,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
   onOpenTask,
   onOpenAsset,
   onOpenToSide,
+  onOpenOnSide,
   onOpenInFocus,
 }) => {
   // Sidebar 是 React.memo，props 稳定时不随根组件重渲染：自己订阅语言，切换后文案才会刷新
@@ -349,6 +356,11 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     refreshHistory: history.refresh,
   });
 
+  const hideSessionPeekRef = useRef<() => void>(() => undefined);
+  const handleDragActivate = useCallback(() => {
+    hideSessionPeekRef.current();
+  }, []);
+
   const {
     leaveRef,
     open,
@@ -361,12 +373,15 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     openMore,
     onCtx,
     openToSide,
+    onDragPointerDown,
     canOpenToSide,
   } = useSidebarSessions({
     ipc,
     onOpenToSide,
+    onOpenOnSide,
     // 单击走「只换焦点面板」，与「向右打开」互不串用
     onOpenInFocus,
+    onDragActivate: handleDragActivate,
     actions,
     list,
     current,
@@ -396,23 +411,34 @@ const SidebarImpl: React.FC<SidebarProps> = ({
     return () => window.removeEventListener(OPEN_CONVERSATION_EVENT, on);
   }, [open]);
 
-  const listPeek = useSessionPeek(400);
-  const projectPeek = useProjectPeek(220);
+  const listPeek = useSessionPeekController(400);
+  const projectPeek = useProjectPeekController(220);
   const { onPeek: onSessionPeek, hide: hideSessionPeek } = listPeek;
+  useLayoutEffect(() => {
+    hideSessionPeekRef.current = hideSessionPeek;
+  }, [hideSessionPeek]);
   const { onPeek: onProjectPeek, hide: hideProjectPeek } = projectPeek;
   const handleSessionPeek = useCallback(
     (id: string, el: HTMLElement | null) => {
+      if (el && isSessionPaneDragging()) {
+        hideSessionPeek();
+        return;
+      }
       if (el) hideProjectPeek();
       onSessionPeek(id, el);
     },
-    [hideProjectPeek, onSessionPeek],
+    [hideProjectPeek, hideSessionPeek, onSessionPeek],
   );
   const handleProjectPeek = useCallback(
     (projectId: string, el: HTMLElement | null) => {
+      if (el && isSessionPaneDragging()) {
+        hideProjectPeek();
+        return;
+      }
       if (el) hideSessionPeek();
       onProjectPeek(projectId, el);
     },
-    [hideSessionPeek, onProjectPeek],
+    [hideProjectPeek, hideSessionPeek, onProjectPeek],
   );
 
   const handleNewClick = () => {
@@ -548,6 +574,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       onPinToggle: togglePin,
       onMore: openMore,
       onPeek: handleSessionPeek,
+      onDragPointerDown,
       showIcon: isDev && view === 'all',
     }),
     [
@@ -564,6 +591,7 @@ const SidebarImpl: React.FC<SidebarProps> = ({
       togglePin,
       openMore,
       handleSessionPeek,
+      onDragPointerDown,
       isDev,
       view,
     ],

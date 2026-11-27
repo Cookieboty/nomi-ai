@@ -617,6 +617,9 @@
   min-width: 0;
   border-radius: var(--cd-radius-md);
 }
+.row[data-dragging] {
+  opacity: 0.45;
+}
 .row .thread {
   position: relative;
   z-index: 0;
