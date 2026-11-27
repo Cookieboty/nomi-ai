@@ -43,6 +43,7 @@ import { TitlebarPanelsProvider } from '../src/components/TitleBar/panels';
 import type * as AiChatStoreModule from '../src/contexts/aiChatStore';
 import type * as HarnessTabsModule from '../src/contexts/HarnessTabsContext';
 import { ManagedRuntimeProvider } from '../src/contexts/ManagedRuntimeContext';
+import { ResourceScopeProvider } from '../src/contexts/ResourceContext';
 import {
   SessionPanesProvider,
   useSessionPanes,
@@ -900,15 +901,18 @@ describe('并排会话：从侧栏会话行拖进主区分屏', () => {
 });
 
 describe('并排会话：桌面端分屏一体化顶栏与 hover 防重绘', () => {
-  it('SplitTitleBarPanes 左右两格常驻菜单/关闭/详情图标，切焦点位置与数量不变，点非焦点详情自动聚焦并打开', () => {
+  it('SplitTitleBarPanes 左右两格常驻菜单/关闭/详情/打开文件图标，切焦点位置与数量不变，点非焦点按钮自动聚焦并打开', () => {
     document.documentElement.dataset.platform = 'darwin';
     const apiRef = { current: undefined as SessionPanesValue | undefined };
     const detailsRef = { current: null as ReturnType<typeof useSessionDetails> };
+    const onToggleFocused = vi.fn();
+    const onOpenForPane = vi.fn();
     const tabOf = () => undefined;
 
     const Scene: React.FC = () => {
       const panes = useSessionPanes()!;
       const details = useSessionDetails();
+      const [workspaceOpen, setWorkspaceOpen] = React.useState(false);
       useEffect(() => {
         apiRef.current = panes;
         detailsRef.current = details;
@@ -918,7 +922,23 @@ describe('并排会话：桌面端分屏一体化顶栏与 hover 防重绘', () 
           <AppTitleBar
             sidebarCollapsed={false}
             onToggleSidebar={() => undefined}
-            splitTitle={<SplitTitleBarPanes tabOf={tabOf} />}
+            splitTitle={
+              <SplitTitleBarPanes
+                tabOf={tabOf}
+                workspace={{
+                  open: workspaceOpen,
+                  focusedChangesCount: 2,
+                  onToggleFocused: () => {
+                    onToggleFocused();
+                    setWorkspaceOpen((v) => !v);
+                  },
+                  onOpenForPane: () => {
+                    onOpenForPane();
+                    setWorkspaceOpen(true);
+                  },
+                }}
+              />
+            }
           />
           <div data-testid="session-panes" data-split="true">
             {panes.panes.map((p, index) => (
@@ -960,9 +980,11 @@ describe('并排会话：桌面端分屏一体化顶栏与 hover 防重绘', () 
     // 会话内不重复渲染第二行面板头
     expect(screen.queryByTestId('session-pane-header')).toBeNull();
 
-    // 左右两格常驻 ⋮ / × / i，右格含合并按钮
+    // 左右两格常驻 ⋮ / × / i / 打开文件，右格含合并按钮
     const leftDetails = within(leftHead!).getByTestId('session-details-toggle');
     const rightDetails = within(rightHead!).getByTestId('session-details-toggle');
+    const leftFiles = within(leftHead!).getByTestId('side-tabs-toggle');
+    const rightFiles = within(rightHead!).getByTestId('side-tabs-toggle');
     expect(within(leftHead!).getByTestId('session-pane-menu')).toBeTruthy();
     expect(within(leftHead!).getByTestId('session-pane-close')).toBeTruthy();
     expect(within(rightHead!).getByTestId('session-pane-menu')).toBeTruthy();
@@ -971,10 +993,41 @@ describe('并排会话：桌面端分屏一体化顶栏与 hover 防重绘', () 
     expect(leftHead!.getAttribute('data-focused')).toBe('true');
     expect(leftDetails.getAttribute('aria-pressed')).toBe('false');
     expect(rightDetails.getAttribute('aria-pressed')).toBe('false');
+    expect(leftFiles.getAttribute('aria-pressed')).toBe('false');
+    expect(rightFiles.getAttribute('aria-pressed')).toBe('false');
 
-    // 先打开左面板详情，再点击非焦点右面板的常驻 i：应切换焦点到右面板并保持详情打开（不误关）
+    // 点击左格打开文件开关：展开工作区并高亮左格开关
+    fireEvent.click(within(leftHead!).getByTestId('side-tabs-toggle'));
+    expect(onToggleFocused).toHaveBeenCalledTimes(1);
+    expect(within(leftHead!).getByTestId('side-tabs-toggle').getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    expect(within(rightHead!).getByTestId('side-tabs-toggle').getAttribute('aria-pressed')).toBe(
+      'false',
+    );
+
+    // 工作区已展开时点击非焦点右格打开文件开关：聚焦右面板且保持工作区打开（不误关）
+    fireEvent.click(within(rightHead!).getByTestId('side-tabs-toggle'));
+    expect(onOpenForPane).toHaveBeenCalledTimes(1);
+    expect(apiRef.current!.focusedPaneId).toBe('pane-b');
+    expect(within(leftHead!).getByTestId('side-tabs-toggle').getAttribute('aria-pressed')).toBe(
+      'false',
+    );
+    expect(within(rightHead!).getByTestId('side-tabs-toggle').getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+
+    // 再点已聚焦右格打开文件开关：触发切换收起工作区
+    fireEvent.click(within(rightHead!).getByTestId('side-tabs-toggle'));
+    expect(onToggleFocused).toHaveBeenCalledTimes(2);
+    expect(within(rightHead!).getByTestId('side-tabs-toggle').getAttribute('aria-pressed')).toBe(
+      'false',
+    );
+
+    // 点左格的常驻 i：切换回左焦点并打开详情；再点击非焦点右格的常驻 i：切换焦点到右面板并保持详情打开
     fireEvent.click(within(leftHead!).getByTestId('session-details-toggle'));
     expect(detailsRef.current!.visible).toBe(true);
+    expect(apiRef.current!.focusedPaneId).toBe('pane-a');
     expect(
       within(leftHead!).getByTestId('session-details-toggle').getAttribute('aria-pressed'),
     ).toBe('true');
@@ -1275,5 +1328,67 @@ describe('并排会话：非焦点面板输入栏模型与运行时隔离', () =
       expect(placeholder).toContain('输入消息');
       expect(placeholder).not.toContain('发消息或从左侧打开一个会话');
     });
+  });
+
+  it('非焦点面板点击对话内文件链接时立即聚焦并按本会话项目目录打开（而非焦点面板目录）', async () => {
+    installManagedSplitApi();
+    ipc.MESSAGES.b1 = [
+      { id: 'u-b', role: 'user', content: '看下位置', timestamp: 10 },
+      {
+        id: 'a-b',
+        role: 'assistant',
+        content: '位置：[model_endpoint_upstream.go:60](model_endpoint_upstream.go:60)',
+        timestamp: 20,
+      },
+    ];
+    const openSpy = vi.fn();
+    const apiRef = { current: undefined as SessionPanesValue | undefined };
+
+    render(
+      <ResourceScopeProvider
+        value={{
+          scope: { id: A, cwd: '/w/app', source: 'nomi' },
+          open: openSpy,
+        }}
+      >
+        <SessionPanesProvider
+          persist={false}
+          initial={{
+            panes: [
+              { id: 'pane-a', sessionKey: A },
+              { id: 'pane-b', sessionKey: B },
+            ],
+            focusedPaneId: 'pane-a',
+          }}
+        >
+          <Probe
+            onReady={(v) => {
+              apiRef.current = v;
+            }}
+          />
+          <SessionPane paneId="pane-b" index={1} header={false}>
+            <PaneSessionView sessionKey={B}>
+              {(view) => <PaneChatColumnBody view={view} paneId="pane-b" />}
+            </PaneSessionView>
+          </SessionPane>
+        </SessionPanesProvider>
+      </ResourceScopeProvider>,
+    );
+
+    const link = await screen.findByText('model_endpoint_upstream.go:60');
+    fireEvent.mouseDown(link);
+    fireEvent.click(link);
+
+    expect(apiRef.current!.focusedPaneId).toBe('pane-b');
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledWith(
+      'model_endpoint_upstream.go:60',
+      expect.objectContaining({
+        id: B,
+        cwd: '/w/api',
+        source: 'nomi',
+      }),
+      expect.objectContaining({ origin: 'assistant' }),
+    );
   });
 });

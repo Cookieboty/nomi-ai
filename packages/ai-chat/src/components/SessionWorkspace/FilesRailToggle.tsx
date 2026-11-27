@@ -17,7 +17,9 @@ export const FilesRailToggle: React.FC<{
   onToggle: () => void;
   /** 传给 Tooltip 气泡的额外 class（如顶栏右对齐时修正定位） */
   bubbleClassName?: string;
-}> = ({ open, count, onToggle, bubbleClassName }) => {
+  /** 分屏顶栏区分归属哪个面板 */
+  paneId?: string;
+}> = ({ open, count, onToggle, bubbleClassName, paneId }) => {
   const bindings = useShortcutBindings();
   const combo = formatCombo(bindings.toggleTabs);
   const label = open ? t('ui.session-workspace.hide-tabs') : t('ui.session-workspace.show-tabs');
@@ -38,6 +40,7 @@ export const FilesRailToggle: React.FC<{
         aria-label={count ? t('ui.session-workspace.files-changed', label, String(count)) : label}
         aria-pressed={open}
         data-open={open || undefined}
+        data-pane={paneId}
         data-testid="side-tabs-toggle"
         onClick={onToggle}
       >

@@ -43,6 +43,8 @@ export function useRail(opts: {
    * 不给时沿用 tabs.activeTab（单面板与原来一致）。
    */
   focusedTab?: HarnessTabMeta | null;
+  /** 并排会话时焦点面板绑定的 Nomi 会话 id：第 0ms 切换项目目录，不等待 store 异步切换 */
+  focusedNomiId?: string;
 }) {
   const { tabs, isDev, harness, busyHere } = opts;
   const { workbench, previewOpen } = useChangesUi();
@@ -52,7 +54,7 @@ export function useRail(opts: {
   const activeTab = hasFocusedOverride ? opts.focusedTab : tabs.activeTab;
   const cliTab = isDev && (hasFocusedOverride ? !!opts.focusedTab : tabs.isCliTab);
   const nomiOnMain = !cliTab && harness?.backend === 'nomi' && harnessClient.available();
-  const nomiProjectId = useNomiProject().projectId;
+  const nomiProjectId = useNomiProject(opts.focusedNomiId).projectId;
   const nomiProject = useProject(nomiProjectId);
   const cliProject = useProject(cliTab ? activeTab?.projectId : undefined);
   const cwd = cliTab

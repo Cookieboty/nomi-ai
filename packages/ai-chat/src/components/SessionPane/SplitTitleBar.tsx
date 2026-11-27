@@ -14,7 +14,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { tabOfSessionKey } from '../../app/useSessionPanes';
 import { selectIpcClient, useAiChatActions, useAiChatSelector } from '../../contexts/aiChatStore';
-import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
+import { useHarnessTabMessages, useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useSessionPanes, type SessionPanesValue } from '../../contexts/SessionPanesContext';
 import { api } from '../../services/api';
 import {
@@ -27,29 +27,40 @@ import { clearNomiAutoTitle } from '../../services/sessionTitle';
 import type { ConversationBackend } from '../../types/chat';
 import type { IPCClient } from '../../types/ipc';
 import { isInteractiveOnly } from '../../utils/cliCaps';
+import { fromHarnessMessage, nomiConvMessages } from '../../utils/convAdapters';
+import { aggregateSessionChanges } from '../../utils/sessionChanges';
 import { parseSessionKey, type SessionPane } from '../../utils/sessionPanes';
 import { titlebarMenuTop } from '../../utils/titlebarMenu';
 import chatHeaderStyles from '../ChatHeader/index.module.css';
 import { confirmDialog, promptDialog } from '../ConfirmDialog';
 import { ConversationMenu } from '../ConversationMenu';
 import { useSessionDetails } from '../SessionDetails';
+import { FilesRailToggle } from '../SessionWorkspace';
 
 import { EMPTY_PANE_TITLE, usePaneTitle } from './usePaneTitle';
 
 import type { PaneTabLookup } from './index';
+
+export interface SplitTitleBarWorkspace {
+  open: boolean;
+  focusedChangesCount: number;
+  onToggleFocused: () => void;
+  onOpenForPane: () => void;
+}
 
 const SplitTitleBarPane: React.FC<{
   pane: SessionPane;
   index: number;
   panes: SessionPanesValue;
   tabOf: PaneTabLookup;
+  workspace?: SplitTitleBarWorkspace | null;
   onFork?: (id: string) => void;
-}> = ({ pane, index, panes, tabOf, onFork }) => {
+}> = ({ pane, index, panes, tabOf, workspace, onFork }) => {
   useLocale();
   const tabs = useHarnessTabs();
   const ipc = useAiChatSelector(selectIpcClient) as IPCClient | undefined;
   const { actions } = useAiChatActions();
-  const [, bump] = useState(0);
+  const [tick, bump] = useState(0);
   useEffect(() => {
     const onChanged = () => bump((n) => n + 1);
     window.addEventListener(CONVERSATIONS_CHANGED_EVENT, onChanged);
@@ -67,6 +78,7 @@ const SplitTitleBarPane: React.FC<{
     () => tabOfSessionKey(tabs.state?.tabs, pane.sessionKey),
     [tabs.state?.tabs, pane.sessionKey],
   );
+  const tabMessages = useHarnessTabMessages(tab?.id ?? null);
   const convoId =
     parsed?.kind === 'nomi'
       ? parsed.id
@@ -77,6 +89,23 @@ const SplitTitleBarPane: React.FC<{
           : undefined;
   const meta = convoId ? store?.get(convoId) : undefined;
   const backend = tab?.backend ?? meta?.backend;
+  const nomiMessagesVersion = useAiChatSelector((s) =>
+    convoId && s.viewConvoId === convoId ? s.messages.length : 0,
+  );
+  const nomiLoaded = parsed?.kind === 'nomi' && !!store?.isLoaded(parsed.id);
+  const changesCount = useMemo(() => {
+    void tick;
+    void nomiMessagesVersion;
+    if (focused && workspace) return workspace.focusedChangesCount;
+    if (tab) {
+      return aggregateSessionChanges(tabMessages.map((m) => fromHarnessMessage(m, tab.backend)))
+        .length;
+    }
+    if (parsed?.kind === 'nomi' && nomiLoaded && store) {
+      return aggregateSessionChanges(nomiConvMessages(store.getMessages(parsed.id))).length;
+    }
+    return 0;
+  }, [tick, nomiMessagesVersion, focused, workspace, tab, tabMessages, parsed, nomiLoaded, store]);
 
   const title = usePaneTitle(pane.sessionKey, store, tabOf(pane.sessionKey));
   const info = pane.sessionKey ? title : EMPTY_PANE_TITLE;
@@ -247,6 +276,22 @@ const SplitTitleBarPane: React.FC<{
             </button>
           </Tooltip>
         )}
+        {workspace && pane.sessionKey && (
+          <FilesRailToggle
+            open={focused && workspace.open}
+            count={changesCount}
+            paneId={pane.id}
+            bubbleClassName={chatHeaderStyles.actionsTipBubble}
+            onToggle={() => {
+              if (focused) {
+                workspace.onToggleFocused();
+                return;
+              }
+              panes.focusPane(pane.id);
+              workspace.onOpenForPane();
+            }}
+          />
+        )}
         {index === 1 && (
           <button
             type="button"
@@ -291,8 +336,9 @@ const SplitTitleBarPane: React.FC<{
 
 export const SplitTitleBarPanes: React.FC<{
   tabOf: PaneTabLookup;
+  workspace?: SplitTitleBarWorkspace | null;
   onFork?: (id: string) => void;
-}> = ({ tabOf, onFork }) => {
+}> = ({ tabOf, workspace, onFork }) => {
   const panes = useSessionPanes();
   if (!panes || !panes.isSplit) return null;
   return (
@@ -304,6 +350,7 @@ export const SplitTitleBarPanes: React.FC<{
           index={index}
           panes={panes}
           tabOf={tabOf}
+          workspace={workspace}
           onFork={onFork}
         />
       ))}

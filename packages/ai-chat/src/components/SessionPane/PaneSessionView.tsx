@@ -10,6 +10,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { CliBody, NomiWelcome, useNomiModelSwitchTip } from '../../app/ChatBody';
 import { usePaneDraftKey } from '../../app/usePaneComposerDrafts';
+import { railRootsOf } from '../../app/useRail';
 import { resolveTabId, tabOfSessionKey } from '../../app/useSessionPanes';
 import type { AiChatState } from '../../contexts/AiChatContext';
 import {
@@ -30,11 +31,19 @@ import {
   useHarnessTabsCore,
 } from '../../contexts/HarnessTabsContext';
 import { ManagedRuntimeProvider } from '../../contexts/ManagedRuntimeContext';
+import {
+  ResourceScopeProvider,
+  useResourceContext,
+  type ResourceContextValue,
+  type ResourceScope,
+} from '../../contexts/ResourceContext';
+import { useSessionPanes } from '../../contexts/SessionPanesContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { useSessionComposerDrafts } from '../../hooks/useSessionComposerDrafts';
 import { useTranscriptView } from '../../hooks/useTranscriptView';
 import { CONVERSATIONS_CHANGED_EVENT } from '../../services/conversationStore';
 import type { HarnessTabMeta } from '../../services/harnessClient';
+import { useProject } from '../../services/projects';
 import { reportedModel } from '../../slash/tokens';
 import type { SlashCard } from '../../slash/types';
 import type { SlashHook } from '../../slash/useSlashCommands';
@@ -238,13 +247,58 @@ export const PaneChatColumnBody: React.FC<{
   const draftKey = usePaneDraftKey({ sessionKey: view.sessionKey, tabId: view.cliTabId });
   const { view: transcriptView } = useTranscriptView(view.sessionKey);
   const tabs = useMemo(() => paneTabs(core, tab), [core, tab]);
+  const project = useProject(view.projectId);
+  const paneCwd = view.cliTabId
+    ? (view.cwd ?? project?.primary ?? null)
+    : (project?.primary ?? null);
+  const paneRoots = useMemo(() => railRootsOf(paneCwd, project), [paneCwd, project]);
+  const fallbackCwds = useMemo(() => {
+    const rest = (paneRoots ?? []).filter((r) => r && r !== paneCwd);
+    return rest.length > 0 ? rest : undefined;
+  }, [paneRoots, paneCwd]);
+  const parentResource = useResourceContext();
+  const panes = useSessionPanes();
+  const paneResource = useMemo<ResourceContextValue | null>(() => {
+    if (!parentResource) return null;
+    const scope: ResourceScope = {
+      id: view.sessionKey,
+      cwd: paneCwd,
+      source: view.cliTabId ? view.backend : 'nomi',
+      ...(fallbackCwds ? { fallbackCwds } : {}),
+    };
+    return {
+      ...parentResource,
+      scope,
+      open: (href, targetScope, image) => {
+        if (panes && panes.focusedPaneId !== paneId) panes.focusPane(paneId);
+        parentResource.open(href, { ...scope, ...targetScope }, image);
+      },
+      ...(parentResource.openDiff
+        ? {
+            openDiff: (diff) => {
+              if (panes && panes.focusedPaneId !== paneId) panes.focusPane(paneId);
+              parentResource.openDiff?.({ ...diff, cwd: diff.cwd ?? paneCwd });
+            },
+          }
+        : {}),
+    };
+  }, [
+    parentResource,
+    view.sessionKey,
+    view.cliTabId,
+    view.backend,
+    paneCwd,
+    fallbackCwds,
+    panes,
+    paneId,
+  ]);
   const empty = !view.hasMessages;
   const placeholder = view.running
     ? t('ui.session-panes.running')
     : !view.cliTabId && empty
       ? t('ui.foundation.type-for-commands-for-knowledge-base-voice-models')
       : undefined;
-  return (
+  const columnBody = (
     <ManagedRuntimeProvider conversationId={view.nomiId} hidden={!!view.cliTabId}>
       <div
         className="session-pane-column"
@@ -276,7 +330,8 @@ export const PaneChatColumnBody: React.FC<{
         <footer className="input-container session-pane-footer" inert>
           <MessageInput
             disabled
-            cwd={view.cwd ?? undefined}
+            cwd={paneCwd ?? undefined}
+            roots={paneRoots ?? undefined}
             endpointTab={view.cliTabId ? (tab ?? null) : null}
             contextMessages={view.cliTabId ? view.cliMessages : view.nomiMessages}
             contextModel={
@@ -291,6 +346,11 @@ export const PaneChatColumnBody: React.FC<{
         </footer>
       </div>
     </ManagedRuntimeProvider>
+  );
+  return paneResource ? (
+    <ResourceScopeProvider value={paneResource}>{columnBody}</ResourceScopeProvider>
+  ) : (
+    columnBody
   );
 });
 

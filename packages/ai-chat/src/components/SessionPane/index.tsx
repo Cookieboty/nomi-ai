@@ -56,7 +56,7 @@ export const SessionPane: React.FC<{
               const target = e.target as HTMLElement | null;
               if (
                 target?.closest(
-                  '[data-testid="session-pane-header"] button, [data-testid="session-pane-empty-new"]',
+                  '[data-testid="session-pane-header"] button, [data-testid="session-pane-empty-new"], [data-resource-preview="true"]',
                 )
               )
                 return;

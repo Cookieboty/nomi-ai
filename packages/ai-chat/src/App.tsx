@@ -121,6 +121,7 @@ import { useCliImageSupport } from './utils/cliImageSupport';
 import { cliTabPlaceholder } from './utils/cliTabPlaceholder';
 import { fromHarnessMessage, nomiConvMessages, settledNomiMessages } from './utils/convAdapters';
 import { CHAT_DROP_FILE_PATH_EVENT } from './utils/filePathDrag';
+import { aggregateSessionChanges } from './utils/sessionChanges';
 import { PANE_RATIO_MAX, PANE_RATIO_MIN } from './utils/sessionPanes';
 import { CHANGES_SIDE_TAB, MAIN_SIDE_TAB, OPEN_FILE_SIDE_TAB } from './utils/sideTabs';
 import './App.css';
@@ -184,7 +185,9 @@ const AiChatContent: React.FC = () => {
     busyHere,
     cliConvMessages,
     nomiMessages,
-    ...(sessionPanes ? { focusedTab } : {}),
+    ...(sessionPanes
+      ? { focusedTab, focusedNomiId: activeCliTab ? undefined : nomiSessionId }
+      : {}),
   });
   // 对话旁的标签区（子任务 + 文件）：外层 ScopedWorkspacePanes 已按 sessionKey 同帧同步注入 scope
   const pane = useSubagentPane();
@@ -543,6 +546,14 @@ const AiChatContent: React.FC = () => {
     }
     pane?.togglePane();
   }, [pane, restoreSide, sideMaximized]);
+  const openSidePaneForPane = useCallback(() => {
+    if (sideMaximized) restoreSide();
+    pane?.showPane?.();
+  }, [pane, restoreSide, sideMaximized]);
+  const focusedChangesCount = useMemo(
+    () => aggregateSessionChanges(rail.messages).length,
+    [rail.messages],
+  );
   // 对话旁那一栏：子任务 / 文件标签，或右栏的未提交文件预览（挂载点）
   const centerOpen = side.open;
   const centerP = usePresence(centerOpen, 205);
@@ -558,11 +569,12 @@ const AiChatContent: React.FC = () => {
       hideDetails={sideMax}
     />
   );
-  const titleBarSessionTools = (hideDetails: boolean) => (
+  const titleBarSessionTools = (hideDetails: boolean, hideRailToggle = false) => (
     <SessionTools
       messages={rail.messages}
       rail={pane ? { open: side.open, onToggle: toggleSidePane } : null}
       hideDetails={hideDetails}
+      hideRailToggle={hideRailToggle}
     />
   );
   const mainContentRef = useRef<HTMLDivElement>(null);
@@ -759,7 +771,20 @@ const AiChatContent: React.FC = () => {
             }
             splitTitle={
               splitTitleBar ? (
-                <SplitTitleBarPanes tabOf={paneLayout.tabOf} onFork={commands.onForkRequest} />
+                <SplitTitleBarPanes
+                  tabOf={paneLayout.tabOf}
+                  workspace={
+                    pane
+                      ? {
+                          open: side.open,
+                          focusedChangesCount,
+                          onToggleFocused: toggleSidePane,
+                          onOpenForPane: openSidePaneForPane,
+                        }
+                      : null
+                  }
+                  onFork={commands.onForkRequest}
+                />
               ) : undefined
             }
             trailing={
@@ -769,7 +794,7 @@ const AiChatContent: React.FC = () => {
                   {!panels.settings && <RestartUpdateButton placement="titlebar" />}
                   {!panels.settings &&
                     !mainHidden &&
-                    titleBarSessionTools(sideMax || splitTitleBar)}
+                    titleBarSessionTools(sideMax || splitTitleBar, splitTitleBar)}
                 </>
               ) : undefined
             }

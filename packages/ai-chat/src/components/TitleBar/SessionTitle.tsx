@@ -256,7 +256,9 @@ export const SessionTools: React.FC<{
   rail: { open: boolean; onToggle: () => void } | null;
   /** 工作区全屏铺满时直接隐藏会话详情按钮 */
   hideDetails?: boolean;
-}> = ({ messages, rail, hideDetails = false }) => {
+  /** 分屏顶栏每个格已常驻各自的工作区开关，隐藏全局重复开关 */
+  hideRailToggle?: boolean;
+}> = ({ messages, rail, hideDetails = false, hideRailToggle = false }) => {
   const s = useCurrentSession();
   const pane = useSubagentPane();
   const details = useSessionDetails();
@@ -275,7 +277,7 @@ export const SessionTools: React.FC<{
           />
         )}
       </TitlebarContent>
-      {rail && (
+      {rail && !hideRailToggle && (
         <TitlebarContent name="rail-toggle">
           <FilesRailToggle
             open={rail.open}

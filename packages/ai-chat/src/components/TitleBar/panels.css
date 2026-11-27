@@ -326,9 +326,15 @@ html[data-platform='darwin'] .app-titlebar-split-pane[data-pane-index='0'] {
   -webkit-app-region: no-drag;
   --wails-draggable: no-drag;
 }
-.app-titlebar-split-actions .app-titlebar-btn {
+.app-titlebar-split-actions .app-titlebar-btn,
+.app-titlebar-split-actions button {
   -webkit-app-region: no-drag;
   --wails-draggable: no-drag;
+}
+.app-titlebar-split-actions button > svg.tabler-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 @media (prefers-reduced-motion: reduce) {
   .app-titlebar-split-title {
