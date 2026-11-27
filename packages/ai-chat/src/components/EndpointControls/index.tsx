@@ -59,7 +59,12 @@ export const EndpointControls: React.FC<{
   const { tabs, harness } = endpoint;
   const managed = useManagedRuntime();
   const tab = forced === undefined ? endpoint.tab : forced;
-  const cli = forced ? (forced.backend !== 'nomi' ? forced.backend : null) : endpoint.cli;
+  const cli =
+    forced === undefined
+      ? endpoint.cli
+      : forced && forced.backend !== 'nomi'
+        ? forced.backend
+        : null;
   // 主对话标签切到 CLI 后端时也有权限模式（主进程里它同样是一个标签）
   const modeTab = tab ?? tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID) ?? null;
   // Nomi 对话（主标签）：权限模式作用在 Nomi 自己的工具上；主标签不在标签列表里，用 harness 状态
@@ -75,7 +80,7 @@ export const EndpointControls: React.FC<{
         }
       : null;
 
-  const managedActive = !forced && !cli && Boolean(managed?.isManagedActive && managed.view);
+  const managedActive = !cli && Boolean(managed?.isManagedActive && managed.view);
   const managedView = managedActive ? managed!.view! : null;
   const managedChoice = managedView?.choices.find((c) => c.id === managedView.backend);
   const managedModes =
@@ -133,7 +138,12 @@ export const PermissionTip: React.FC<{ tab?: HarnessTabMeta | null }> = ({ tab: 
   const endpoint = useEndpoint();
   const { tabs } = endpoint;
   const tab = forced === undefined ? endpoint.tab : forced;
-  const cli = forced ? (forced.backend !== 'nomi' ? forced.backend : null) : endpoint.cli;
+  const cli =
+    forced === undefined
+      ? endpoint.cli
+      : forced && forced.backend !== 'nomi'
+        ? forced.backend
+        : null;
   const modeTab = tab ?? tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID) ?? null;
   if (!cli || !modeTab) return null;
   // 「全部自动」开着时完全放开就是默认档：不再每个标签都弹提示（权限按钮仍标红）

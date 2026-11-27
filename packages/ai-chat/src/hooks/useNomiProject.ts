@@ -33,7 +33,7 @@ export interface NomiProject {
   clear: () => void;
 }
 
-export function useNomiProject(): NomiProject {
+export function useNomiProject(targetConversationId?: string): NomiProject {
   // 没有对话上下文（独立渲染的控件 / 测试）时为空
   const ipc = useOptionalAiChatSelector(selectIpcClient) as IPCClient | undefined;
   const signature = useOptionalAiChatSelector(selectConversationSignature);
@@ -45,7 +45,7 @@ export function useNomiProject(): NomiProject {
   }, []);
 
   const store = ipc?.conversationStore?.() as ConversationStore | undefined;
-  const id = ipc?.currentConversationId?.();
+  const id = targetConversationId ?? ipc?.currentConversationId?.();
   const isNomiStore = store && typeof store.isNomi === 'function';
   const meta = id && isNomiStore && store.isNomi(id) ? store.get(id) : undefined;
   // 还没有会话：显示新会话会用的项目

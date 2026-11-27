@@ -38,20 +38,16 @@ import { nomiLive, sameLive } from '../utils/convAdapters';
 // 回复中只看当前展示的会话：切到别的会话时，那个会话的最后一条回复不能被当成「进行中」
 const selectNomiLive = (s: AiChatState) => nomiLive(s.messages, selectBusyHere(s));
 
-/** The Nomi conversation: the only part that rerenders per streamed frame (its live turn). */
-export const NomiConversation: React.FC<
-  Omit<React.ComponentProps<typeof ConversationView>, 'live'>
-> = (props) => {
-  // 网关在重连 / 换供应商时，等待态显示原因
-  const live = useLiveWithGatewayRetry(useAiChatSelector(selectNomiLive, sameLive));
+/** 结合面板托管运行时与网关状态，计算「中途换底座 / 换模型」弱提示 */
+export function useNomiModelSwitchTip(messages: readonly ConvMessage[]) {
   const managed = useManagedRuntime();
   // 换了 Nomi 的模型、还没发送：和最后一条助手消息的模型比（网关状态变化时重算）
   const gateway = useGatewayState();
   const gatewayModel = nomiModelLabel();
-  const modelSwitchTip = useMemo(
+  return useMemo(
     () =>
       resolveMainChatSwitchTip({
-        messages: props.messages,
+        messages,
         isCliBackend: Boolean(managed?.isCliBackend),
         currentBackend: managed?.view?.backend,
         managedModel: managed?.view?.model,
@@ -63,7 +59,7 @@ export const NomiConversation: React.FC<
         defaultModelLabel: t('ui.providers-schedule.default-model'),
       }),
     [
-      props.messages,
+      messages,
       gateway,
       gatewayModel,
       managed?.isCliBackend,
@@ -73,6 +69,15 @@ export const NomiConversation: React.FC<
       managed?.view?.effort,
     ],
   );
+}
+
+/** The Nomi conversation: the only part that rerenders per streamed frame (its live turn). */
+export const NomiConversation: React.FC<
+  Omit<React.ComponentProps<typeof ConversationView>, 'live'>
+> = (props) => {
+  // 网关在重连 / 换供应商时，等待态显示原因
+  const live = useLiveWithGatewayRetry(useAiChatSelector(selectNomiLive, sameLive));
+  const modelSwitchTip = useNomiModelSwitchTip(props.messages);
   return <ConversationView {...props} live={live} modelSwitchTip={modelSwitchTip} />;
 };
 

@@ -52,6 +52,39 @@ const ManagedRuntimeContext = createContext<ManagedRuntimeContextValue | null>(n
 
 const IDLE_PHASES = new Set(['idle', 'completed', 'canceled', 'failed-pre-submit']);
 
+const managedViewCacheByTransport = new WeakMap<object, Map<string, ManagedRuntimeView>>();
+
+function getManagedViewCache(): Map<string, ManagedRuntimeView> | null {
+  const fn = api.conversations?.runtimeState;
+  if (!hasTransport() || typeof fn !== 'function') return null;
+  let map = managedViewCacheByTransport.get(fn);
+  if (!map) {
+    map = new Map<string, ManagedRuntimeView>();
+    managedViewCacheByTransport.set(fn, map);
+  }
+  return map;
+}
+
+function readCachedView(
+  conversationId: string | undefined,
+  hidden: boolean | undefined,
+  store?: ConversationStore,
+): ManagedRuntimeView | null {
+  if (hidden || !conversationId) return null;
+  const cache = getManagedViewCache();
+  const cached = cache?.get(conversationId) ?? null;
+  if (!cached) return null;
+  if (
+    store &&
+    typeof store.isManaged === 'function' &&
+    store.isManaged(conversationId) !== cached.managed
+  ) {
+    cache?.delete(conversationId);
+    return null;
+  }
+  return cached;
+}
+
 function rememberManagedState(
   state:
     | {
@@ -136,14 +169,26 @@ export const ManagedRuntimeProvider: React.FC<{
   hidden?: boolean;
   children: React.ReactNode;
 }> = ({ conversationId, hidden, children }) => {
-  const [view, setView] = useState<ManagedRuntimeView | null>(null);
+  const ipc = useAiChatSelector(selectIpcClient);
+  const messageCount = useAiChatSelector(selectMessageCount);
+  const ipcStore = ipc?.conversationStore?.() as ConversationStore | undefined;
+  const currentViewKey = `${hidden ? '1' : '0'}:${conversationId ?? ''}`;
+  const [viewKey, setViewKey] = useState(currentViewKey);
+  const [view, setView] = useState<ManagedRuntimeView | null>(() =>
+    readCachedView(conversationId, hidden, ipcStore),
+  );
+  if (viewKey !== currentViewKey) {
+    setViewKey(currentViewKey);
+    setView(readCachedView(conversationId, hidden, ipcStore));
+  }
   const viewRef = useRef<ManagedRuntimeView | null>(null);
   viewRef.current = view;
   const [pendingProjectBackend, setPendingProjectBackend] = useState<string | null>(null);
-  const ipc = useAiChatSelector(selectIpcClient);
-  const messageCount = useAiChatSelector(selectMessageCount);
-  const hasMessages = messageCount > 0;
-  const nomiProject = useNomiProject();
+  const hasMessages =
+    conversationId && ipcStore && typeof ipcStore.hasMessages === 'function'
+      ? ipcStore.hasMessages(conversationId)
+      : messageCount > 0;
+  const nomiProject = useNomiProject(conversationId);
   const seqRef = useRef(0);
   const mountedRef = useRef(true);
 
@@ -167,6 +212,11 @@ export const ManagedRuntimeProvider: React.FC<{
     try {
       const next = await fetchManagedView(conversationId);
       if (!mountedRef.current || reqId !== seqRef.current) return;
+      if (conversationId) {
+        const cache = getManagedViewCache();
+        if (next) cache?.set(conversationId, next);
+        else cache?.delete(conversationId);
+      }
       setView(next);
     } catch {
       if (!mountedRef.current || reqId !== seqRef.current) return;
@@ -193,38 +243,43 @@ export const ManagedRuntimeProvider: React.FC<{
                 cur.backend === state.backend &&
                 cur.generation === state.generation
               ) {
-                setView((prev) =>
-                  prev &&
-                  prev.managed &&
-                  prev.backend === state.backend &&
-                  prev.generation === state.generation
-                    ? {
-                        ...prev,
-                        source: (state.source as ManagedRuntimeSource | undefined) ?? prev.source,
-                        phase: state.phase,
-                        recovery: state.recovery,
-                        generation: state.generation,
-                        detail: state.detail,
-                        model: state.model,
-                        accountId: state.accountId,
-                        permissionMode: state.permissionMode,
-                        effort: state.effort,
-                        longContext: state.longContext,
-                        partial: state.partial,
-                        thinking: state.thinking,
-                        thinkingActive: state.thinkingActive,
-                        token: state.token,
-                        approvals: state.approvals,
-                        approvalDetails: state.approvalDetails,
-                        trace: state.trace,
-                        failedRequest: state.failedRequest,
-                        pendingSwitch: state.pendingSwitch,
-                        lastSwitch: state.lastSwitch,
-                        capabilities: state.capabilities,
-                        busy: true,
-                      }
-                    : prev,
-                );
+                setView((prev) => {
+                  if (
+                    prev &&
+                    prev.managed &&
+                    prev.backend === state.backend &&
+                    prev.generation === state.generation
+                  ) {
+                    const updated: ManagedRuntimeView = {
+                      ...prev,
+                      source: (state.source as ManagedRuntimeSource | undefined) ?? prev.source,
+                      phase: state.phase,
+                      recovery: state.recovery,
+                      generation: state.generation,
+                      detail: state.detail,
+                      model: state.model,
+                      accountId: state.accountId,
+                      permissionMode: state.permissionMode,
+                      effort: state.effort,
+                      longContext: state.longContext,
+                      partial: state.partial,
+                      thinking: state.thinking,
+                      thinkingActive: state.thinkingActive,
+                      token: state.token,
+                      approvals: state.approvals,
+                      approvalDetails: state.approvalDetails,
+                      trace: state.trace,
+                      failedRequest: state.failedRequest,
+                      pendingSwitch: state.pendingSwitch,
+                      lastSwitch: state.lastSwitch,
+                      capabilities: state.capabilities,
+                      busy: true,
+                    };
+                    getManagedViewCache()?.set(conversationId, updated);
+                    return updated;
+                  }
+                  return prev;
+                });
                 return;
               }
             }
@@ -384,7 +439,7 @@ export const ManagedRuntimeProvider: React.FC<{
         rememberManagedState(state);
       });
     },
-    [view, activeBackend, idle, autoAbandonable, ensurePersistedTarget, ipc, act],
+    [view, activeBackend, idle, hasMessages, autoAbandonable, ensurePersistedTarget, ipc, act],
   );
 
   const updateConfig = useCallback(
