@@ -113,6 +113,8 @@ export const AppTitleBar: React.FC<{
   onToggleSidebar: () => void;
   /** 对话卡片上方左侧：当前会话（工作区图标 + 名称）；新会话时为空 */
   title?: React.ReactNode;
+  /** 分屏时直接铺在顶栏上的左右两格标题（替代默认单列 .app-titlebar-main） */
+  splitTitle?: React.ReactNode;
   /** 对话卡片上方右侧：会话菜单「…」、工具栏开关 */
   trailing?: React.ReactNode;
   /** 紧跟在侧栏收起按钮后面、任何页面都显示：Agent 看板的负载指示 */
@@ -121,6 +123,7 @@ export const AppTitleBar: React.FC<{
   sidebarCollapsed,
   onToggleSidebar,
   title,
+  splitTitle,
   trailing,
   lead,
   filesOpen = false,
@@ -156,6 +159,7 @@ export const AppTitleBar: React.FC<{
       data-sidebar={sidebarCollapsed ? 'collapsed' : 'expanded'}
       data-files={filesOpen || undefined}
       data-center={centerOpen || undefined}
+      data-split-panes={splitTitle ? 'true' : undefined}
       onDoubleClick={onTitleBarDoubleClick}
     >
       <button
@@ -173,16 +177,20 @@ export const AppTitleBar: React.FC<{
           {lead}
         </div>
       )}
-      {/* 与对话卡片左边对齐：会话名在这里，不再显示产品名 */}
-      <div className="app-titlebar-main">
-        <div className="app-titlebar-title" data-testid="titlebar-title">
-          {title}
+      {splitTitle ? (
+        splitTitle
+      ) : (
+        /* 与对话卡片左边对齐：会话名在这里，不再显示产品名 */
+        <div className="app-titlebar-main">
+          <div className="app-titlebar-title" data-testid="titlebar-title">
+            {title}
+          </div>
+          <div className="app-titlebar-actions">
+            {trailing}
+            <TitlebarSlot name="session" className="app-titlebar-slot" />
+          </div>
         </div>
-        <div className="app-titlebar-actions">
-          {trailing}
-          <TitlebarSlot name="session" className="app-titlebar-slot" />
-        </div>
-      </div>
+      )}
       {centerOpen && (
         <div className="app-titlebar-center app-titlebar-column">
           <TitlebarSlot name="center" className="app-titlebar-slot app-titlebar-panel-tools" />
@@ -194,6 +202,7 @@ export const AppTitleBar: React.FC<{
         </div>
       )}
       <div ref={railRef} className="app-titlebar-rail-toggle">
+        {splitTitle && trailing}
         <TitlebarSlot name="workspace-actions" className="app-titlebar-slot" />
         <TitlebarSlot name="rail-toggle" className="app-titlebar-slot" />
       </div>

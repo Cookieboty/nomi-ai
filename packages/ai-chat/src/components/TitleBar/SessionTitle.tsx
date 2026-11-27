@@ -38,7 +38,7 @@ import { titlebarMenuTop } from '../../utils/titlebarMenu';
 import chatHeaderStyles from '../ChatHeader/index.module.css';
 import { confirmDialog, promptDialog } from '../ConfirmDialog';
 import { ConversationMenu } from '../ConversationMenu';
-import { SessionDetailsToggle } from '../SessionDetails';
+import { SessionDetailsToggle, useSessionDetails } from '../SessionDetails';
 import { FilesRailToggle } from '../SessionWorkspace';
 
 import { TitlebarContent } from './panels';
@@ -228,20 +228,19 @@ export const SessionTitle: React.FC<{
               : undefined
           }
           onClose={s.tabId ? () => void closeTab() : undefined}
-          // 当前的会话就是焦点面板：已经在右边时只聚焦它；放到右边后它成为焦点（当前会话同步由 App 负责）
-          onOpenToSide={
-            panes
-              ? () => {
-                  const active = tabs.activeTab;
-                  const key = s.tabId
-                    ? active
-                      ? cliTranscriptKey(active)
-                      : nomiSessionKey(s.id)
-                    : nomiSessionKey(s.id);
-                  if (key) panes.openToSide(key);
-                }
-              : undefined
-          }
+          // 单面板时在右侧开一个空面板（不把当前会话左右复制成两份）；已拆分且在左面板时移到右面板
+          onOpenToSide={(() => {
+            if (!panes) return undefined;
+            if (!panes.isSplit) return () => panes.openToSide(null);
+            const active = tabs.activeTab;
+            const key = s.tabId
+              ? active
+                ? cliTranscriptKey(active)
+                : nomiSessionKey(s.id)
+              : nomiSessionKey(s.id);
+            if (!key || panes.panes[1]?.sessionKey === key) return undefined;
+            return () => panes.openToSide(key);
+          })()}
           onArchive={s.tabId ? undefined : () => void archive()}
           onDelete={s.tabId ? undefined : () => void remove()}
         />
@@ -260,12 +259,16 @@ export const SessionTools: React.FC<{
 }> = ({ messages, rail, hideDetails = false }) => {
   const s = useCurrentSession();
   const pane = useSubagentPane();
+  const details = useSessionDetails();
+  const setRailOpen = details?.setRailOpen;
+  const railOpen = !!rail?.open;
+  useEffect(() => setRailOpen?.(railOpen), [setRailOpen, railOpen]);
   const hasTerminals = !!pane?.pages.some((p) => p.kind === 'terminal');
   const count = useMemo(() => aggregateSessionChanges(messages).length, [messages]);
   return (
     <>
       <TitlebarContent name="session">
-        {!hideDetails && (s?.hasMessages || hasTerminals) && (
+        {!hideDetails && (messages.length > 0 || s?.hasMessages || hasTerminals) && (
           <SessionDetailsToggle
             railOpen={!!rail?.open}
             bubbleClassName={chatHeaderStyles.actionsTipBubble}

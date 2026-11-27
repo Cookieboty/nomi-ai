@@ -4,10 +4,10 @@ import { useLayoutEffect, type RefObject } from 'react';
 export const LAYOUT_SETTLED_EVENT = 'nomi:layout-settled';
 
 const LAYOUT_PANEL_SELECTOR =
-  '[data-testid="chat-sidebar"], [data-testid="sidebar-panel"]:not([data-floating]), [data-testid="workspace-card"], [data-testid="chat-column"], [data-testid="side-workspace"], [data-testid="files-rail"], [data-testid="settings-view"], [data-testid="settings-nav"], .settings-workspace, .main-content';
+  '[data-testid="chat-sidebar"], [data-testid="sidebar-panel"]:not([data-floating]), [data-testid="workspace-card"], [data-testid="session-panes"], [data-testid="session-pane"], [data-testid="chat-column"], [data-testid="side-workspace"], [data-testid="files-rail"], [data-testid="settings-view"], [data-testid="settings-nav"], .settings-workspace, .main-content';
 
 const IGNORED_SUBTREE_SELECTOR =
-  '.chat-container, .input-container, [data-testid="conversation-list"], [data-testid="sidebar-panel"][data-floating]';
+  '.chat-container, .input-container, [data-testid="conversation-list"], [data-testid="sidebar-panel"][data-floating], [data-testid="app-titlebar"], [data-testid="session-pane-body"]';
 
 const isLayoutMotionTarget = (target: EventTarget | null): boolean =>
   target instanceof Element && target.matches(LAYOUT_PANEL_SELECTOR);
@@ -65,7 +65,14 @@ export function usePanelColumns(ref: RefObject<HTMLDivElement | null>, key: stri
 
     const sync = () => {
       const card = queryVisibleOrFirst('workspace-card');
-      const chat = queryVisibleOrFirst('chat-column');
+      const panesHost = queryVisibleOrFirst('session-panes');
+      const chat = panesHost ?? queryVisibleOrFirst('chat-column');
+      const splitPanes =
+        panesHost?.dataset.split === 'true'
+          ? Array.from(
+              panesHost.querySelectorAll<HTMLElement>(':scope > [data-testid="session-pane"]'),
+            )
+          : [];
       const center = queryVisibleOrFirst('side-workspace');
       const files = queryVisibleOrFirst('files-rail');
       // 悬停弹出的浮层（data-floating）覆盖在对话区之上，不占用文档流宽度，不能作为停靠边界推右标题栏
@@ -79,7 +86,9 @@ export function usePanelColumns(ref: RefObject<HTMLDivElement | null>, key: stri
       for (const el of [
         app,
         card,
+        panesHost,
         chat,
+        ...splitPanes,
         center,
         files,
         panel,
@@ -108,6 +117,23 @@ export function usePanelColumns(ref: RefObject<HTMLDivElement | null>, key: stri
       if (bar.dataset.columnsSynced !== 'true') bar.dataset.columnsSynced = 'true';
       setVar('--titlebar-main-left', `${mainLeft}px`);
       setVar('--titlebar-main-right', `${window.innerWidth - main.right}px`);
+      if (splitPanes.length >= 2) {
+        const r0 = visibleRect(splitPanes[0]!);
+        const r1 = visibleRect(splitPanes[1]!);
+        if (r0 && r1) {
+          const p0Left = Math.max(r0.left, mainLeft);
+          const p0RightEdge = Math.min(r0.right, r1.left);
+          const p0Width = Math.max(0, p0RightEdge - p0Left);
+          const p0Right = Math.max(0, window.innerWidth - p0RightEdge);
+          const p1Left = Math.max(r1.left, mainLeft);
+          const p1Width = Math.max(0, main.right - p1Left);
+          setVar('--titlebar-pane-0-left', `${p0Left}px`);
+          setVar('--titlebar-pane-0-w', `${p0Width}px`);
+          setVar('--titlebar-pane-0-right', `${p0Right}px`);
+          setVar('--titlebar-pane-1-left', `${p1Left}px`);
+          setVar('--titlebar-pane-1-w', `${p1Width}px`);
+        }
+      }
       setVar('--titlebar-center-left', `${centerLeft}px`);
       setVar('--titlebar-center-w', `${centerWidth}px`);
       setVar('--titlebar-files-left', `${right?.left ?? bounds.right}px`);

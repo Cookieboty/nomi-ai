@@ -567,3 +567,86 @@ it('excludes sideMax from AppTitleBar centerOpen and keeps fixed titlebar contro
   expect(leadZ).toBeLessThan(windowControlsZ);
   expect(railToggleZ).toBeLessThan(windowControlsZ);
 });
+
+it('measures split session panes across the whole session-panes container and ignores titlebar hover mutations', async () => {
+  vi.spyOn(HTMLElement.prototype, 'getClientRects').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return [this.getBoundingClientRect()] as unknown as DOMRectList;
+  });
+  const rectSpy = vi
+    .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+    .mockImplementation(function (this: HTMLElement) {
+      const id = this.dataset.testid;
+      const pane = this.dataset.pane;
+      const left =
+        id === 'sidebar-panel'
+          ? 52
+          : id === 'workspace-card' || id === 'session-panes' || pane === 'pane-a'
+            ? 312
+            : pane === 'pane-b'
+              ? 760
+              : id === 'files-rail'
+                ? 1160
+                : 312;
+      const right =
+        id === 'sidebar-panel'
+          ? 312
+          : pane === 'pane-a'
+            ? 755
+            : pane === 'pane-b' || id === 'session-panes'
+              ? 1160
+              : 1360;
+      return {
+        x: left,
+        y: 38,
+        left,
+        right,
+        top: 38,
+        bottom: 800,
+        width: right - left,
+        height: 762,
+        toJSON: () => ({}),
+      };
+    });
+
+  const r = render(
+    <div className="ai-chat-app">
+      <AppTitleBar sidebarCollapsed={false} onToggleSidebar={() => {}} />
+      <div data-testid="sidebar-panel" />
+      <div data-testid="workspace-card">
+        <div data-testid="session-panes" data-split="true">
+          <section data-testid="session-pane" data-pane="pane-a">
+            <div data-testid="chat-column" />
+          </section>
+          <section data-testid="session-pane" data-pane="pane-b" />
+        </div>
+        <aside data-testid="files-rail" />
+      </div>
+    </div>,
+  );
+
+  const bar = r.getByTestId('app-titlebar');
+  expect(bar.style.getPropertyValue('--titlebar-main-left')).toBe('312px');
+  expect(bar.style.getPropertyValue('--titlebar-pane-0-left')).toBe('312px');
+  expect(bar.style.getPropertyValue('--titlebar-pane-0-w')).toBe('443px');
+  expect(
+    Number.parseFloat(bar.style.getPropertyValue('--titlebar-pane-0-right')),
+  ).toBeGreaterThanOrEqual(window.innerWidth - 760);
+  expect(bar.style.getPropertyValue('--titlebar-pane-1-left')).toBe('760px');
+  expect(bar.style.getPropertyValue('--titlebar-pane-1-w')).toBe('400px');
+
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  });
+  rectSpy.mockClear();
+
+  // 顶栏内部因 hover 挂载提示或状态节点时，不触发全局布局重测
+  await act(async () => {
+    const tip = document.createElement('div');
+    tip.setAttribute('data-testid', 'chat-column');
+    bar.appendChild(tip);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  });
+  expect(rectSpy).not.toHaveBeenCalled();
+});

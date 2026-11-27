@@ -55,6 +55,7 @@ interface DetailsValue {
   /** 浮层是自动收起后手动打开的：点外面收回 */
   dismissible: boolean;
   toggle: () => void;
+  open: () => void;
   close: () => void;
   /** 收回浮层（回到自动收起，不改用户的开关选择） */
   dismiss: () => void;
@@ -100,6 +101,10 @@ export const SessionDetailsProvider: React.FC<{ children: React.ReactNode }> = (
     setPref(false);
     setOverride(false);
   }, [setPref]);
+  const open = useCallback(() => {
+    setPref(true);
+    setOverride(crowded);
+  }, [crowded, setPref]);
   const dismissible = visible && crowded;
   const floating = visible;
   const dismiss = useCallback(() => setOverride(false), []);
@@ -117,11 +122,12 @@ export const SessionDetailsProvider: React.FC<{ children: React.ReactNode }> = (
       floating,
       dismissible,
       toggle,
+      open,
       close,
       dismiss,
       setRailOpen,
     }),
-    [visible, pref, floating, dismissible, toggle, close, dismiss],
+    [visible, pref, floating, dismissible, toggle, open, close, dismiss],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };
