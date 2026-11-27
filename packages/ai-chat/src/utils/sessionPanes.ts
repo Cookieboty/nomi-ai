@@ -79,8 +79,25 @@ export function singlePaneFor(
   sessionKey: string | null,
 ): SessionPanesState {
   if (sessionKey && paneForSession(current, sessionKey)) return current;
+  // 冷启动恢复拆分时，currentKey 尚未就绪（null）不能清空已恢复的拆分状态
+  if (sessionKey === null && current.panes.length > 1) return current;
   if (current.panes.length === 1 && current.panes[0]!.sessionKey === sessionKey) return current;
   return { panes: [{ id: PANE_A, sessionKey }], focusedPaneId: PANE_A };
+}
+
+/**
+ * 运行中「当前会话」在面板外部发生变化（如新建对话、灵动岛跳转、关掉 CLI 标签）：
+ * - 已开在某个面板里：只聚焦那个面板（保持拆分）；
+ * - 没开：只替换焦点面板（保持另一个面板不塌缩）。
+ */
+export function syncExternalSession(
+  current: SessionPanesState,
+  sessionKey: string | null,
+): SessionPanesState {
+  if (!sessionKey) return current;
+  const hit = paneForSession(current, sessionKey);
+  if (hit) return focusPane(current, hit.id);
+  return openSessionInFocus(current, sessionKey);
 }
 
 /** 把一个面板绑到会话上（同值返回原对象，不触发重渲染） */
@@ -119,13 +136,26 @@ export function setPaneSession(
 
 /**
  * 侧栏单击会话：
+ * - 若已拆分且当前焦点面板已有会话、另一面板为空面板：把新会话填入那个空面板并切过去；
  * - 已开在某个面板里：聚焦那个面板，别的面板不动；
  * - 没开：把焦点面板换成它（另一个面板不动）。
  */
-export const openSessionInFocus = (
+export function openSessionInFocus(
   state: SessionPanesState,
   sessionKey: string | null,
-): SessionPanesState => setPaneSession(state, focusedPane(state).id, sessionKey);
+): SessionPanesState {
+  if (sessionKey && !paneForSession(state, sessionKey) && state.panes.length > 1) {
+    const focus = focusedPane(state);
+    const empty = otherPane(state);
+    if (focus.sessionKey !== null && empty && empty.sessionKey === null) {
+      return focusPane(setPaneSession(state, empty.id, sessionKey), empty.id);
+    }
+  }
+  return setPaneSession(state, focusedPane(state).id, sessionKey);
+}
+
+/** 拖放分屏的目标侧 */
+export type SessionPaneSide = 'left' | 'right';
 
 /**
  * 「向右打开 / Open to the side」（与 Cursor 一致）：
@@ -140,6 +170,8 @@ export function openSessionToSide(
   const [first] = state.panes;
   if (!first) return state;
   if (state.panes.length < MAX_SESSION_PANES) {
+    // 同一会话不能同时出现在两个面板里
+    if (sessionKey !== null && first.sessionKey === sessionKey) return state;
     return {
       panes: [first, { id: PANE_B, sessionKey }],
       focusedPaneId: PANE_B,
@@ -147,14 +179,85 @@ export function openSessionToSide(
   }
   const left = state.panes[0]!;
   const right = state.panes[1]!;
-  if (left.sessionKey === sessionKey) {
+  if (sessionKey !== null && left.sessionKey === sessionKey) {
     // 交换两边的内容（id 跟着位置）；「向右打开」的那个会话到了右边，焦点也跟着它到右边
     return {
       panes: [bind(left, right.sessionKey), bind(right, left.sessionKey)],
       focusedPaneId: right.id,
     };
   }
+  if (right.sessionKey === sessionKey) {
+    return state.focusedPaneId === right.id ? state : { ...state, focusedPaneId: right.id };
+  }
   return { panes: [left, bind(right, sessionKey)], focusedPaneId: right.id };
+}
+
+/**
+ * 拖放会话到主区左半或右半（复刻拖拽分屏）：
+ * - 单面板时：
+ *   - 拖的是当前会话：把它固定到落点那一侧，另一侧拆出空面板等待选会话；
+ *   - 拖的是别的会话：`right` 与「向右打开」一致；`left` 把新会话放左面板、原会话顺移到右面板；
+ * - 已拆分时：`right` 与「向右打开」一致；`left` 若已在右面板则左右交换，否则替换左面板并聚焦它。
+ */
+export function openSessionOnSide(
+  state: SessionPanesState,
+  sessionKey: string | null,
+  side: SessionPaneSide,
+): SessionPanesState {
+  const [first] = state.panes;
+  if (!first) return state;
+  if (state.panes.length < MAX_SESSION_PANES) {
+    if (sessionKey !== null && first.sessionKey === sessionKey) {
+      return side === 'left'
+        ? {
+            panes: [
+              { id: PANE_A, sessionKey },
+              { id: PANE_B, sessionKey: null },
+            ],
+            focusedPaneId: PANE_A,
+          }
+        : {
+            panes: [
+              { id: PANE_A, sessionKey: null },
+              { id: PANE_B, sessionKey },
+            ],
+            focusedPaneId: PANE_B,
+          };
+    }
+    if (side === 'right') return openSessionToSide(state, sessionKey);
+    return {
+      panes: [
+        { id: PANE_A, sessionKey },
+        { id: PANE_B, sessionKey: first.sessionKey },
+      ],
+      focusedPaneId: PANE_A,
+    };
+  }
+  if (side === 'right') return openSessionToSide(state, sessionKey);
+  const left = state.panes[0]!;
+  const right = state.panes[1]!;
+  if (sessionKey !== null && right.sessionKey === sessionKey) {
+    return {
+      panes: [bind(left, right.sessionKey), bind(right, left.sessionKey)],
+      focusedPaneId: left.id,
+    };
+  }
+  if (left.sessionKey === sessionKey) {
+    return state.focusedPaneId === left.id ? state : { ...state, focusedPaneId: left.id };
+  }
+  return { panes: [bind(left, sessionKey), right], focusedPaneId: left.id };
+}
+
+/** 判断把某会话拖放到主区指定侧是否有效（单面板均可拆出，已拆分时不放回自己已所在的侧） */
+export function canDropSessionOnSide(
+  state: SessionPanesState,
+  sessionKey: string | null,
+  side: SessionPaneSide,
+): boolean {
+  if (!sessionKey) return false;
+  if (state.panes.length < MAX_SESSION_PANES) return true;
+  const target = side === 'left' ? state.panes[0] : state.panes[1];
+  return target?.sessionKey !== sessionKey;
 }
 
 /**

@@ -16,11 +16,6 @@
   flex-direction: column;
 }
 
-/* 并排时两个面板之间的一条分隔线（面板自己在主区里的左右边界） */
-.pane[data-split][data-pane-index='0'] {
-  border-right: 1px solid var(--cd-color-border-subtle);
-}
-
 /* 面板头：与对话头同一高度（--cd-chat-header-h），图标按钮与输入栏工具行同一档 sm */
 .header {
   display: flex;
@@ -33,6 +28,9 @@
   position: relative;
   z-index: 3;
   background: var(--cd-color-surface);
+}
+:global(html[data-chat-bg]) .header {
+  background: transparent;
 }
 /* 非焦点面板：标题略淡，焦点面板保持正文色（侧栏里两行都亮，靠这条区分谁在收键盘） */
 .pane:not([data-focused]) .header .name,
@@ -79,4 +77,47 @@
   align-items: center;
   gap: var(--cd-space-0-5);
   flex-shrink: 0;
+}
+
+.emptyPane {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cd-space-3);
+  padding: var(--cd-space-6) var(--cd-space-4);
+  text-align: center;
+}
+
+.emptyHint {
+  margin: 0;
+  font-size: var(--cd-font-size-sm);
+  line-height: var(--cd-line-height-sm);
+  color: var(--cd-color-text-muted);
+}
+
+.emptyAction {
+  height: var(--cd-control-h-ms);
+  padding: 0 var(--cd-space-3);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-btn-secondary-bg);
+  color: var(--cd-color-btn-secondary-text);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  cursor: pointer;
+  transition: background-color var(--cd-duration-fast) var(--cd-ease);
+}
+
+.emptyAction:hover {
+  background: var(--cd-color-hover);
+}
+
+.emptyAction:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
 }

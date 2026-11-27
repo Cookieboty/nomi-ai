@@ -4,19 +4,20 @@
  * - `planPaneLayout`：按面板状态算出主区里的列。单面板时就是原来那一列（焦点在右边也渲染成那一列，
  *   DOM 与拆分前一致）；并排时左右各一列，每一列注明是否焦点、是否带整列级窗口组件；
  * - `syncCurrentToPane`：焦点面板 = 「当前会话」。焦点变了就把 ConversationStore.currentId /
- *   harness 当前标签切过去，于是发送、斜杠命令、工作区标签、文件区（SideWorkspace 按会话分桶）
- *   都沿用原来按当前会话的路径；
- * - `useSessionPaneLayout`：布局 + 中间分割线的拖动（复用 startSplitDrag，与现有分栏手感一致）；
- * - 另一个面板**不跟着 current 走**：App 按它自己绑定的会话键读（见 App 的 paneViews），
- *   焦点切换不会把它卸掉或换成 current。
+ *   harness 当前标签切过去并加载历史，于是发送、斜杠命令、工作区标签都沿用原来按当前会话的路径；
+ * - `useSessionPaneLayout`：布局 + 中间分割线的拖动（复用 startSplitDrag，与现有分栏手感一致）。
  */
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import type {
+  CSSProperties,
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+} from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 
 import type { PaneTabInfo } from '../components/SessionPane';
 import { useSessionPanes } from '../contexts/SessionPanesContext';
 import type { ConversationStore } from '../services/conversationStore';
-import type { HarnessTabMeta } from '../services/harnessClient';
+import { MAIN_TAB_ID, type HarnessTabMeta } from '../services/harnessClient';
 import {
   clampPaneRatio,
   PANE_RATIO_DEFAULT,
@@ -107,19 +108,41 @@ export function planPaneLayout(
   );
 }
 
-/** 会话键 → harness 标签 id（Nomi 会话为 undefined） */
+/**
+ * 会话键里直接带的 harness 标签 id：
+ * 只有 `tab:<id>` 带真实标签 id；`cli:<backend>:<sessionId>` 带的是 CLI 会话 id（不是 tab.id），
+ * 必须用 `tabOfSessionKey` 在标签列表里按 `(backend, cliSessionId)` 反查。
+ */
 export function tabIdOfSessionKey(key: string | null): string | undefined {
   const parsed = parseSessionKey(key);
-  if (!parsed || parsed.kind === 'nomi') return undefined;
-  return parsed.kind === 'tab' ? parsed.id : parsed.sessionId;
+  if (!parsed || parsed.kind !== 'tab') return undefined;
+  return parsed.id;
+}
+
+/** 会话键 → harness 标签（Nomi 会话为 undefined）：tab 用标签 id，cli 用会话 id 反查 */
+export function tabOfSessionKey(
+  tabs: readonly HarnessTabMeta[] | undefined,
+  key: string | null,
+): HarnessTabMeta | undefined {
+  const parsed = parseSessionKey(key);
+  if (!parsed || parsed.kind === 'nomi' || !tabs) return undefined;
+  if (parsed.kind === 'tab') return tabs.find((t) => t.id === parsed.id);
+  return tabs.find((t) => t.backend === parsed.backend && t.cliSessionId === parsed.sessionId);
+}
+
+/** 结合标签列表把会话键解析成真实 harness tab.id */
+export function resolveTabId(
+  tabs: readonly HarnessTabMeta[] | undefined,
+  key: string | null,
+): string | undefined {
+  return tabOfSessionKey(tabs, key)?.id ?? tabIdOfSessionKey(key);
 }
 
 /**
- * 把焦点面板的会话同步成「当前会话」（只改指针，不重载消息：各列按自己的会话键读）：
- * - Nomi 会话：ConversationStore.switchTo（currentId 与「最近 Nomi 会话」一起变）；
- * - CLI 标签：harness 切到那个标签（窗口里已经有标签时）。
- * CLI 会话在左边时，currentId 也切到它的镜像项（与点侧栏的 CLI 会话一致）：下一次回到主标签，
- * 现成的 useRestoreNomiOnMain 会把 Nomi 当前会话拉回最近的 Nomi 会话。
+ * 把焦点面板的会话同步成「当前会话」：
+ * - Nomi 会话：先切 ConversationStore.switchTo（在激活 main 标签前完成，防止 useRestoreNomiOnMain 拉回旧会话），
+ *   必要时激活 MAIN_TAB_ID 并设 backend 为 nomi，并触发 loadChatHistory 刷新视图消息；
+ * - CLI 标签：harness 切到该标签，同时把 store 指针切到它的镜像项（与侧栏点击一致）。
  */
 export function syncCurrentToPane(
   key: string | null,
@@ -127,25 +150,53 @@ export function syncCurrentToPane(
     store: ConversationStore | undefined;
     tabIdOf: (key: string) => string | undefined;
     currentTabId: string | undefined;
-    activateTab: (id: string) => void;
+    activateTab: (id: string) => void | Promise<void>;
     /** 窗口里有没有 harness 标签（没有时只切 Nomi 会话） */
     hasTabs: boolean;
+    viewConvoId?: string;
+    loadChatHistory?: () => Promise<void> | void;
+    setNomiBackend?: () => void;
+    notifyChanged?: () => void;
   },
 ): void {
   const parsed = parseSessionKey(key);
   if (!parsed) return;
   if (parsed.kind === 'nomi') {
-    if (deps.store?.get(parsed.id) && deps.store.currentId() !== parsed.id) {
+    const exists = !!deps.store?.get(parsed.id);
+    let switched = false;
+    if (exists && deps.store!.currentId() !== parsed.id) {
       try {
-        deps.store.switchTo(parsed.id);
+        deps.store!.switchTo(parsed.id);
+        switched = true;
+        deps.notifyChanged?.();
       } catch {
         /* 会话在这期间被删了：不动 */
       }
     }
+    if (deps.hasTabs && deps.currentTabId && deps.currentTabId !== MAIN_TAB_ID) {
+      void deps.activateTab(MAIN_TAB_ID);
+      deps.setNomiBackend?.();
+    }
+    if (exists && (switched || deps.viewConvoId !== parsed.id)) {
+      void deps.loadChatHistory?.();
+    }
     return;
   }
   const tabId = deps.tabIdOf(key!);
-  if (deps.hasTabs && tabId && tabId !== deps.currentTabId) deps.activateTab(tabId);
+  if (deps.hasTabs && tabId && tabId !== deps.currentTabId) {
+    void deps.activateTab(tabId);
+  }
+  if (tabId && deps.store) {
+    const mirror = deps.store.findByTabId(tabId);
+    if (mirror && deps.store.currentId() !== mirror.id) {
+      try {
+        deps.store.switchTo(mirror.id);
+        deps.notifyChanged?.();
+      } catch {
+        /* 镜像项已被移除：不动 */
+      }
+    }
+  }
 }
 
 /** 面板绑定的 CLI 标签（标题用） */
@@ -169,6 +220,7 @@ export function useSessionPaneLayout(opts: {
   style: CSSProperties | undefined;
   onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => void;
   onDoubleClick: () => void;
+  onKeyDown: (e: ReactKeyboardEvent<HTMLDivElement>) => void;
 } {
   const panes = useSessionPanes();
   const ratio = panes?.ratio ?? PANE_RATIO_DEFAULT;
@@ -214,6 +266,19 @@ export function useSessionPaneLayout(opts: {
   const onDoubleClick = useCallback(() => {
     setRatio?.(PANE_RATIO_DEFAULT);
   }, [setRatio]);
+  const onKeyDown = useCallback(
+    (e: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (!setRatio) return;
+      let next: number | null = null;
+      if (e.key === 'ArrowLeft') next = clampPaneRatio(ratioRef.current - 0.05);
+      else if (e.key === 'ArrowRight') next = clampPaneRatio(ratioRef.current + 0.05);
+      else if (e.key === 'Home' || e.key === 'Enter') next = PANE_RATIO_DEFAULT;
+      if (next === null) return;
+      e.preventDefault();
+      setRatio(next);
+    },
+    [setRatio],
+  );
   return {
     ...plan,
     ratio,
@@ -225,26 +290,6 @@ export function useSessionPaneLayout(opts: {
       : undefined,
     onPointerDown,
     onDoubleClick,
+    onKeyDown,
   };
-}
-
-/** 焦点会话变成 store 的 current 之后：把当前会话的消息补回给「当前」那一份（只做一次，避免循环） */
-export function useSyncFocusedPaneSession(opts: {
-  store: ConversationStore | undefined;
-  scheduleSync: (key: string | null) => void;
-}): void {
-  const panes = useSessionPanes();
-  const key = panes?.focusedKey ?? null;
-  const prev = useRef<string | null | undefined>(undefined);
-  const schedule = opts.scheduleSync;
-  useEffect(() => {
-    // 挂载时那一次不补（当前的会话就是它，消息已经在了）
-    if (prev.current === undefined) {
-      prev.current = key;
-      return;
-    }
-    if (prev.current === key) return;
-    prev.current = key;
-    schedule(key);
-  }, [key, schedule]);
 }

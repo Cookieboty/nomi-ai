@@ -47,9 +47,10 @@ export function useRail(opts: {
   const { tabs, isDev, harness, busyHere } = opts;
   const { workbench, previewOpen } = useChangesUi();
   const [railPref, setRailPref] = useState(readFilesRailOpen);
-  // 当前会话是不是 CLI 标签：焦点面板可能是别的标签（并排会话），所以由 App 指定
-  const activeTab = opts.focusedTab ?? tabs.activeTab;
-  const cliTab = isDev && (opts.focusedTab ? !!opts.focusedTab : tabs.isCliTab);
+  // 当前会话是不是 CLI 标签：焦点面板可能是 Nomi（显式传 null）或别的标签，未传时沿用 tabs
+  const hasFocusedOverride = opts.focusedTab !== undefined;
+  const activeTab = hasFocusedOverride ? opts.focusedTab : tabs.activeTab;
+  const cliTab = isDev && (hasFocusedOverride ? !!opts.focusedTab : tabs.isCliTab);
   const nomiOnMain = !cliTab && harness?.backend === 'nomi' && harnessClient.available();
   const nomiProjectId = useNomiProject().projectId;
   const nomiProject = useProject(nomiProjectId);

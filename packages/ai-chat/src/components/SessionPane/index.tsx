@@ -15,7 +15,6 @@ import React from 'react';
 import { selectIpcClient, useAiChatSelector } from '../../contexts/aiChatStore';
 import { useSessionPanes } from '../../contexts/SessionPanesContext';
 import type { ConversationStore } from '../../services/conversationStore';
-import type { HarnessTabMeta } from '../../services/harnessClient';
 import type { IPCClient } from '../../types/ipc';
 
 import styles from './index.module.css';
@@ -49,14 +48,19 @@ export const SessionPane: React.FC<{
       data-split={split ? 'true' : undefined}
       aria-label={t('ui.session-panes.label')}
       // 在非焦点面板里按下鼠标（输入框、消息、空白）：把它切成焦点，「当前会话」、发送目标与文件区都跟着它。
-      // 焦点面板上的点击不清除文本选区（含输入框里的选区）。
+      // 点面板头的操作按钮（如关闭、合并）时不抢焦点，避免触发一次多余的切会话后再关闭。
       onMouseDownCapture={
         focused
           ? undefined
           : (e) => {
-              panes?.focusPane(paneId);
               const target = e.target as HTMLElement | null;
-              if (target?.closest('input, textarea, [contenteditable="true"]')) e.preventDefault();
+              if (
+                target?.closest(
+                  '[data-testid="session-pane-header"] button, [data-testid="session-pane-empty-new"]',
+                )
+              )
+                return;
+              panes?.focusPane(paneId);
             }
       }
     >
@@ -152,9 +156,3 @@ const SessionPaneName: React.FC<{ paneId: string; tabOf?: PaneTabLookup }> = ({
     </div>
   );
 };
-
-/** CLI 标签 → 面板标题需要的字段 */
-export const paneTabOf = (tab: HarnessTabMeta | undefined): PaneTabInfo | undefined =>
-  tab
-    ? { title: tab.title, backend: tab.backend, projectId: tab.projectId, cwd: tab.cwd }
-    : undefined;

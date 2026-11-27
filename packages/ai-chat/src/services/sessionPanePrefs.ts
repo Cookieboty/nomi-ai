@@ -54,21 +54,22 @@ export function readPaneSplit(): PaneSplitSnapshot | null {
     const v = JSON.parse(raw) as Partial<PaneSplitSnapshot> | null;
     if (!v || typeof v !== 'object') return null;
     if (!isKey(v.left) || !isKey(v.right)) return null;
-    if (!v.right || v.right === v.left) return null;
+    if (!v.left || !v.right || v.right === v.left) return null;
     return { left: v.left, right: v.right };
   } catch {
     return null;
   }
 }
 
-/** 只有拆分（两个面板、且右边有一个会话）才写；到单面板 / 两边同一会话时清掉，下次启动是单面板 */
+/** 只有拆分（两个面板且两边各有一个不同会话）才写；到单面板 / 含空面板 / 两边同一会话时清掉，下次启动是单面板 */
 export function persistPaneSplit(panes: readonly SessionPane[]): void {
   try {
     const [left, right] = panes;
     if (
       panes.length < MAX_SESSION_PANES ||
+      !left?.sessionKey ||
       !right?.sessionKey ||
-      right.sessionKey === left?.sessionKey
+      right.sessionKey === left.sessionKey
     ) {
       localStorage.removeItem(PANE_SPLIT_KEY);
       return;

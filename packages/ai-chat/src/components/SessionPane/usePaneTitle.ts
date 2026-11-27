@@ -11,7 +11,7 @@ import {
   CONVERSATIONS_CHANGED_EVENT,
   type ConversationStore,
 } from '../../services/conversationStore';
-import { projectById } from '../../services/projects';
+import { projectById, useProjects } from '../../services/projects';
 import type { ConversationBackend } from '../../types/chat';
 import { parseSessionKey } from '../../utils/sessionPanes';
 
@@ -67,6 +67,7 @@ export function usePaneTitle(
   tab: PaneTabInfo | undefined,
 ): PaneTitleInfo {
   useLocale();
+  useProjects();
   const [, bump] = useState(0);
   useEffect(() => {
     const on = () => bump((n) => n + 1);

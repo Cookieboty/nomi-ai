@@ -32,13 +32,16 @@ import {
   focusPane as focusPaneState,
   focusedPane,
   openSessionInFocus as openSessionInFocusState,
+  openSessionOnSide as openSessionOnSideState,
   openSessionToSide as openSessionToSideState,
   PANE_RATIO_DEFAULT,
   paneForSession,
   paneKeysKey,
   setPaneSession as setPaneSessionState,
   singlePaneFor,
+  syncExternalSession as syncExternalSessionState,
   type SessionPane,
+  type SessionPaneSide,
   type SessionPanesState,
 } from '../utils/sessionPanes';
 
@@ -61,6 +64,8 @@ export interface SessionPanesValue {
   openSessionInFocus: (sessionKey: string | null) => void;
   /** 「向右打开」：右面板打开这个会话 */
   openToSide: (sessionKey: string | null) => void;
+  /** 拖放打开到主区左半或右半 */
+  openOnSide: (sessionKey: string | null, side: SessionPaneSide) => void;
   /** 关掉一个面板（剩下的铺满主对话列） */
   closePane: (paneId: string) => void;
   /** 取消拆分：只留焦点面板 */
@@ -69,6 +74,8 @@ export interface SessionPanesValue {
   dropSession: (sessionKey: string) => void;
   /** 冷启动时：单面板指向这个会话（已打开在某个面板里时不动） */
   seed: (sessionKey: string | null) => void;
+  /** 运行中外部会话切换（新建 / 灵动岛跳转等）：聚焦已有面板或替换焦点面板，保持拆分 */
+  syncExternal: (sessionKey: string | null) => void;
 }
 
 export const SessionPanesContext = createContext<SessionPanesValue | null>(null);
@@ -157,6 +164,34 @@ export const SessionPanesProvider: React.FC<SessionPanesProviderProps> = ({
     [persist],
   );
 
+  // 各个动作引用稳定：拖动分割线改 ratio 时，Sidebar 等消费方不会因此失 memo
+  const focusPane = useCallback((id: string) => apply((s) => focusPaneState(s, id)), [apply]);
+  const setPaneSession = useCallback(
+    (id: string, k: string | null) => apply((s) => setPaneSessionState(s, id, k)),
+    [apply],
+  );
+  const openSessionInFocus = useCallback(
+    (k: string | null) => apply((s) => openSessionInFocusState(s, k)),
+    [apply],
+  );
+  const openToSide = useCallback(
+    (k: string | null) => apply((s) => openSessionToSideState(s, k)),
+    [apply],
+  );
+  const openOnSide = useCallback(
+    (k: string | null, side: SessionPaneSide) => apply((s) => openSessionOnSideState(s, k, side)),
+    [apply],
+  );
+  const closePane = useCallback((id: string) => apply((s) => closePaneState(s, id)), [apply]);
+  const leaveSplit = useCallback(() => apply((s) => collapseSplitState(s)), [apply]);
+  const dropSession = useCallback((k: string) => apply((s) => dropSessionState(s, k)), [apply]);
+  const seed = useCallback((k: string | null) => apply((s) => singlePaneFor(s, k)), [apply]);
+  const syncExternal = useCallback(
+    (k: string | null) => apply((s) => syncExternalSessionState(s, k)),
+    [apply],
+  );
+  const paneFor = useCallback((k: string | null) => paneForSession(state, k), [state]);
+
   const value = useMemo<SessionPanesValue>(() => {
     return {
       panes: state.panes,
@@ -165,17 +200,34 @@ export const SessionPanesProvider: React.FC<SessionPanesProviderProps> = ({
       ratio,
       setRatio,
       isSplit: state.panes.length > 1,
-      paneFor: (k) => paneForSession(state, k),
-      focusPane: (id) => apply((s) => focusPaneState(s, id)),
-      setPaneSession: (id, k) => apply((s) => setPaneSessionState(s, id, k)),
-      openSessionInFocus: (k) => apply((s) => openSessionInFocusState(s, k)),
-      openToSide: (k) => apply((s) => openSessionToSideState(s, k)),
-      closePane: (id) => apply((s) => closePaneState(s, id)),
-      leaveSplit: () => apply((s) => collapseSplitState(s)),
-      dropSession: (k) => apply((s) => dropSessionState(s, k)),
-      seed: (k) => apply((s) => singlePaneFor(s, k)),
+      paneFor,
+      focusPane,
+      setPaneSession,
+      openSessionInFocus,
+      openToSide,
+      openOnSide,
+      closePane,
+      leaveSplit,
+      dropSession,
+      seed,
+      syncExternal,
     };
-  }, [state, ratio, setRatio, apply]);
+  }, [
+    state,
+    ratio,
+    setRatio,
+    paneFor,
+    focusPane,
+    setPaneSession,
+    openSessionInFocus,
+    openToSide,
+    openOnSide,
+    closePane,
+    leaveSplit,
+    dropSession,
+    seed,
+    syncExternal,
+  ]);
 
   return <SessionPanesContext.Provider value={value}>{children}</SessionPanesContext.Provider>;
 };
