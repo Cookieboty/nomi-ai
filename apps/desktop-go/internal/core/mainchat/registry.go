@@ -586,13 +586,12 @@ func (r *Registry) Switch(ctx context.Context, id string, opts SwitchOptions) (c
 	}
 	currentBackend := a.session.Checkpoint().Selected.Identity.DriverID
 	if opts.Backend != currentBackend {
-		if builtin.InteractiveOnly(currentBackend) {
+		hasHistory := len(a.session.Messages()) > 0
+		if builtin.InteractiveOnly(currentBackend) && hasHistory {
 			return cr.SwitchOutcome{}, fmt.Errorf("%w: %s", ErrSwitchForbidden, i18n.T("electron.common.cli-interactive-only-locked", builtin.DisplayName(currentBackend)))
 		}
-		if builtin.InteractiveOnly(opts.Backend) {
-			if (currentBackend != "" && currentBackend != "api") || len(a.session.Messages()) > 0 {
-				return cr.SwitchOutcome{}, fmt.Errorf("%w: %s", ErrSwitchForbidden, i18n.T("electron.common.cli-interactive-only-no-switch-in", builtin.DisplayName(opts.Backend)))
-			}
+		if builtin.InteractiveOnly(opts.Backend) && hasHistory {
+			return cr.SwitchOutcome{}, fmt.Errorf("%w: %s", ErrSwitchForbidden, i18n.T("electron.common.cli-interactive-only-no-switch-in", builtin.DisplayName(opts.Backend)))
 		}
 	}
 	prevCfg := r.ConfigFor(id, opts.Backend)
@@ -630,10 +629,11 @@ func (r *Registry) Select(id, name string) error {
 	}
 	currentBackend := a.session.Checkpoint().Selected.Identity.DriverID
 	if currentBackend != "" && name != currentBackend {
-		if builtin.InteractiveOnly(currentBackend) {
+		hasHistory := len(a.session.Messages()) > 0
+		if builtin.InteractiveOnly(currentBackend) && hasHistory {
 			return fmt.Errorf("%w: %s", ErrSwitchForbidden, i18n.T("electron.common.cli-interactive-only-locked", builtin.DisplayName(currentBackend)))
 		}
-		if builtin.InteractiveOnly(name) && (currentBackend != "api" || len(a.session.Messages()) > 0) {
+		if builtin.InteractiveOnly(name) && hasHistory {
 			return fmt.Errorf("%w: %s", ErrSwitchForbidden, i18n.T("electron.common.cli-interactive-only-no-switch-in", builtin.DisplayName(name)))
 		}
 	}

@@ -914,17 +914,35 @@ describe('Composer runtime switching (scheme 1)', () => {
       expect(screen.queryByTestId('nomi-effort-unavailable')).toBeNull();
     });
 
-    // 在非空白 CLI (Gemini) 会话中，禁止切入 Antigravity（置灰禁用）
+    // 在空白 Gemini 会话中可以切入 Antigravity；在非空白 Gemini 会话中才禁止切入 Antigravity（置灰禁用）
     fireEvent.click(screen.getByTestId('nomi-model-runtime-open'));
+    const emptyAgyOpt = screen.getByTestId('runtime-option-antigravity');
+    expect(emptyAgyOpt.getAttribute('aria-disabled')).not.toBe('true');
+
+    cleanup();
+    resetFakeApi();
+    harness.state.messages = [
+      { id: 'm-gem-1', role: 'user', content: 'hello', timestamp: 1 } as ChatMessage,
+    ];
+    setupBackendApi({
+      initialManaged: true,
+      initialBackend: 'gemini',
+      initialSource: 'thirdParty',
+      initialModel: 'amux/gpt-5',
+    });
+    mountComposer();
+    fireEvent.click(await waitFor(() => screen.getByTestId('nomi-model-chip')));
+    fireEvent.click(await waitFor(() => screen.getByTestId('nomi-model-runtime-open')));
     const agyOpt = screen.getByTestId('runtime-option-antigravity');
     expect(agyOpt.getAttribute('aria-disabled')).toBe('true');
     fireEvent.click(agyOpt);
     expect(screen.getByTestId('nomi-model-chip').textContent).toContain('GPT-5');
     expect(screen.getByTestId('nomi-model-chip').textContent).not.toContain('Antigravity');
 
-    // 独立新建的 Antigravity 单态底座会话不渲染来源分段条，且底座切换按钮置灰锁定
+    // 独立新建的空白 Antigravity 单态底座会话不渲染来源分段条且仍可切换底座；已有消息后底座切换按钮置灰锁定
     cleanup();
     resetFakeApi();
+    harness.state.messages = [];
     setupBackendApi({
       initialManaged: true,
       initialBackend: 'antigravity',
@@ -936,9 +954,28 @@ describe('Composer runtime switching (scheme 1)', () => {
     });
     fireEvent.click(screen.getByTestId('nomi-model-chip'));
     expect(screen.queryByTestId('managed-source-tabs')).toBeNull();
+    const unlockedRow = screen.getByTestId('nomi-model-runtime-open') as HTMLButtonElement;
+    expect(unlockedRow.disabled).toBe(false);
+
+    cleanup();
+    resetFakeApi();
+    harness.state.messages = [
+      { id: 'm-agy-1', role: 'user', content: 'hi', timestamp: 1 } as ChatMessage,
+    ];
+    setupBackendApi({
+      initialManaged: true,
+      initialBackend: 'antigravity',
+      initialSource: 'local',
+    });
+    mountComposer();
+    await waitFor(() => {
+      expect(screen.getByTestId('nomi-model-chip').textContent).toContain('Antigravity');
+    });
+    fireEvent.click(screen.getByTestId('nomi-model-chip'));
     const lockedRow = screen.getByTestId('nomi-model-runtime-open') as HTMLButtonElement;
     expect(lockedRow.disabled).toBe(true);
     expect(lockedRow.getAttribute('aria-label')).toContain('Antigravity CLI');
+    harness.state.messages = [];
   });
 
   it('renders catalog error notice and refreshes catalog on click without crashing chip', async () => {
@@ -1316,14 +1353,60 @@ describe('Composer runtime switching (scheme 1)', () => {
       expect(screen.getByTestId('permission-mode-chip').getAttribute('data-mode')).toBe('auto');
     });
 
-    // 2. 会话处于 antigravity 后，底座切换按钮置灰禁用，不可切换出去
+    // 2. 空对话处于 antigravity 时，仍可自由切换出到其他底座（如 grok）；仅在已有消息后才锁定
+    const emptyRuntimeRow = (await waitFor(() =>
+      screen.getByTestId('nomi-model-runtime-open'),
+    )) as HTMLButtonElement;
+    expect(emptyRuntimeRow.disabled).toBe(false);
+    fireEvent.click(emptyRuntimeRow);
+    fireEvent.click(await waitFor(() => screen.getByTestId('runtime-option-grok')));
+
+    await waitFor(() => {
+      const switches = apiFake.inputs('conversations.runtimeSwitch');
+      expect(switches).toHaveLength(1);
+      expect(switches[0]).toMatchObject({
+        id: 'c1',
+        backend: 'grok',
+        confirm: true,
+      });
+    });
+
+    // 2b. 一旦对话已有消息：antigravity 不可切出，非 antigravity 不可切入
+    cleanup();
+    resetFakeApi();
+    harness.state.messages = [{ id: 'm-1', role: 'user', content: 'hi', timestamp: 1 }];
+    const agyLockedFake = setupBackendApi({
+      initialManaged: true,
+      initialBackend: 'antigravity',
+      initialSource: 'local',
+      initialModel: 'gemini-4-neon',
+    });
+    mountComposer();
+    fireEvent.click(await waitFor(() => screen.getByTestId('nomi-model-chip')));
     const lockedRow = (await waitFor(() =>
       screen.getByTestId('nomi-model-runtime-open'),
     )) as HTMLButtonElement;
     expect(lockedRow.disabled).toBe(true);
     fireEvent.click(lockedRow);
     expect(screen.queryByTestId('runtime-option-grok')).toBeNull();
-    expect(apiFake.inputs('conversations.runtimeSwitch')).toHaveLength(0);
+    expect(agyLockedFake.inputs('conversations.runtimeSwitch')).toHaveLength(0);
+
+    cleanup();
+    resetFakeApi();
+    const nonEmptyGrokFake = setupBackendApi({
+      initialManaged: true,
+      initialBackend: 'grok',
+      initialSource: 'local',
+      initialModel: 'grok-3',
+    });
+    mountComposer();
+    fireEvent.click(await waitFor(() => screen.getByTestId('nomi-model-chip')));
+    fireEvent.click(await waitFor(() => screen.getByTestId('nomi-model-runtime-open')));
+    const agyOption = await waitFor(() => screen.getByTestId('runtime-option-antigravity'));
+    expect(agyOption.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(agyOption);
+    expect(nonEmptyGrokFake.inputs('conversations.runtimeSwitch')).toHaveLength(0);
+    harness.state.messages = [];
 
     // 3. 常规 CLI (grok) 切回 Nomi 内置底座 api 时直接默认进入 auto
     cleanup();

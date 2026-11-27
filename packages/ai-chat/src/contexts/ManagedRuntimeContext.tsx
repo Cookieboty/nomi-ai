@@ -184,9 +184,10 @@ export const ManagedRuntimeProvider: React.FC<{
   const viewRef = useRef<ManagedRuntimeView | null>(null);
   viewRef.current = view;
   const [pendingProjectBackend, setPendingProjectBackend] = useState<string | null>(null);
+  const isCurrentConvo = !conversationId || conversationId === ipc?.currentConversationId?.();
   const hasMessages =
     conversationId && ipcStore && typeof ipcStore.hasMessages === 'function'
-      ? ipcStore.hasMessages(conversationId)
+      ? ipcStore.hasMessages(conversationId) || (isCurrentConvo && messageCount > 0)
       : messageCount > 0;
   const nomiProject = useNomiProject(conversationId);
   const seqRef = useRef(0);
@@ -347,10 +348,7 @@ export const ManagedRuntimeProvider: React.FC<{
         return true;
       }
       if (!idle) return false;
-      if (
-        isInteractiveOnly(activeBackend) ||
-        (isInteractiveOnly(backend) && (activeBackend !== 'api' || hasMessages))
-      ) {
+      if (hasMessages && (isInteractiveOnly(activeBackend) || isInteractiveOnly(backend))) {
         return false;
       }
       const choice = view.choices.find((c) => c.id === backend);

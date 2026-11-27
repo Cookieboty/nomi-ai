@@ -140,13 +140,12 @@ export function buildRuntimePageSource(args: {
 
   const activeId = managed.activeBackend;
   const activeLabel = activeId === 'api' ? brand.appName : backendName(activeId);
-  const isInteractiveLocked = isInteractiveOnly(activeId);
+  const isInteractiveLocked = isInteractiveOnly(activeId) && managed.hasMessages;
   const options: SelectOption[] = sortRuntimeChoices(view.choices).map((c) => {
     const isApi = c.id === 'api';
     const targetInteractive = isInteractiveOnly(c.id);
     const blockedSwitch =
-      c.id !== activeId &&
-      (isInteractiveLocked || (targetInteractive && (activeId !== 'api' || managed.hasMessages)));
+      c.id !== activeId && (isInteractiveLocked || (targetInteractive && managed.hasMessages));
     const needsProjectAdopt = c.status === 'no-project' && !view.managed && !blockedSwitch;
     const disabled = blockedSwitch || (isApi ? false : !c.available && !needsProjectAdopt);
     return {
