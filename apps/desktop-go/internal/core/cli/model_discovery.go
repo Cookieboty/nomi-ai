@@ -11,13 +11,13 @@ import (
 	"time"
 
 	antigravityp "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/antigravity"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	claudep "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/claude"
 	codexp "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/codex"
 	grokp "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/grok"
 	sh "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/gemini"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/nodepath"
@@ -222,76 +222,89 @@ func discoverCodex(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promise[*util.O
 	})
 }
 
-func discoverGrok(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promise[*util.Obj] {
-	// spawnOrThrow 在 .catch 之前同步抛出：找不到 CLI 时不走缓存兜底。
-	child, err := mdSpawn(deps, "grok", []string{"agent", "stdio"})
+func discoverModelsViaAcp(backend string, deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promise[*util.Obj] {
+	args := builtin.AcpArgs(backend)
+	if len(args) == 0 {
+		args = []string{"acp"}
+	}
+	child, err := mdSpawn(deps, backend, args)
 	if err != nil {
 		return jsrt.Rejected[*util.Obj](err)
 	}
-	inner := func() *jsrt.Promise[*util.Obj] {
-		stderr := mdStderrTail(child)
-		return withTimeout(child, timeoutMs, func(done func(*util.Obj), fail func(error)) {
-			conn := gemini.NewAcpConnection(child, rpc.Handlers{
-				OnNotification: func(string, rpc.Json) {},
-				OnRequest: func(string, rpc.Json) *jsrt.Promise[any] {
-					return jsrt.Rejected[any](errors.New("not supported"))
-				},
-			})
-			opts := rpc.RequestOptions{TimeoutMs: &timeoutMs}
-			jsrt.Async(func() (struct{}, error) {
-				res, err := func() (*util.Obj, error) {
-					if _, err := jsrt.Await(conn.Request("initialize", util.NewObj("protocolVersion", float64(1), "clientCapabilities", util.NewObj()), opts)); err != nil {
-						return nil, err
-					}
-					sv, err := jsrt.Await(conn.Request("session/new", util.NewObj("cwd", nodepath.Tmpdir(), "mcpServers", []any{}), opts))
-					if err != nil {
-						return nil, err
-					}
-					session := sh.AsObj(sv)
-					acp := grokp.ParseModels(session)
-					catalog := acp
-					if cache := readGrokCache(deps); cache != nil {
-						acpModels, _ := acp.Get("models").([]any)
-						merged := append([]any{}, acpModels...)
-						cacheModels, _ := cache.Get("models").([]any)
-						for _, m := range cacheModels {
-							dup := false
-							for _, ex := range acpModels {
-								if sh.AsObj(ex).Get("id") == sh.AsObj(m).Get("id") {
-									dup = true
-									break
-								}
-							}
-							if !dup {
-								merged = append(merged, m)
-							}
-						}
-						def := acp.Get("defaultModel")
-						if def == nil {
-							def = cache.Get("defaultModel")
-						}
-						catalog = acp.Clone().Set("models", merged).Set("defaultModel", def)
-					}
-					if sid, ok := session.Get("sessionId").(string); ok && sid != "" {
-						t := 3_000
-						_, _ = jsrt.Await(conn.Request("session/close", util.NewObj("sessionId", sid), rpc.RequestOptions{TimeoutMs: &t}))
-					}
-					return catalog, nil
-				}()
-				if err != nil {
-					if reason := stderr(); reason != "" {
-						fail(errors.New(reason))
-					} else {
-						fail(err)
-					}
-					return struct{}{}, nil
+	stderr := mdStderrTail(child)
+	return withTimeout(child, timeoutMs, func(done func(*util.Obj), fail func(error)) {
+		conn := rpc.NewConnection(child, rpc.Handlers{
+			OnNotification: func(string, rpc.Json) {},
+			OnRequest: func(string, rpc.Json) *jsrt.Promise[any] {
+				return jsrt.Rejected[any](errors.New("not supported"))
+			},
+		}, rpc.ConnectionOptions{TimeoutMessage: AcpTimeoutMessageFor(backend)})
+		opts := rpc.RequestOptions{TimeoutMs: &timeoutMs}
+		jsrt.Async(func() (struct{}, error) {
+			res, err := func() (*util.Obj, error) {
+				if _, err := jsrt.Await(conn.Request("initialize", AcpInitializeParams(backend), opts)); err != nil {
+					return nil, err
 				}
-				done(res)
+				sv, err := jsrt.Await(conn.Request("session/new", util.NewObj("cwd", nodepath.Tmpdir(), "mcpServers", []any{}), opts))
+				if err != nil {
+					return nil, err
+				}
+				session := sh.AsObj(sv)
+				catalog := ParseAcpSessionCatalog(backend, session)
+				if sid, ok := session.Get("sessionId").(string); ok && sid != "" {
+					t := 3_000
+					_, _ = jsrt.Await(conn.Request("session/close", util.NewObj("sessionId", sid), rpc.RequestOptions{TimeoutMs: &t}))
+				}
+				return catalog, nil
+			}()
+			if err != nil {
+				if reason := stderr(); reason != "" {
+					fail(errors.New(reason))
+				} else {
+					fail(err)
+				}
 				return struct{}{}, nil
-			})
+			}
+			done(res)
+			return struct{}{}, nil
 		})
+	})
+}
+
+func mergeGrokCache(acp, cache *util.Obj) *util.Obj {
+	if cache == nil {
+		return acp
 	}
-	src := inner()
+	acpModels, _ := acp.Get("models").([]any)
+	merged := append([]any{}, acpModels...)
+	cacheModels, _ := cache.Get("models").([]any)
+	for _, m := range cacheModels {
+		dup := false
+		for _, ex := range acpModels {
+			if sh.AsObj(ex).Get("id") == sh.AsObj(m).Get("id") {
+				dup = true
+				break
+			}
+		}
+		if !dup {
+			merged = append(merged, m)
+		}
+	}
+	def := acp.Get("defaultModel")
+	if def == nil {
+		def = cache.Get("defaultModel")
+	}
+	return acp.Clone().Set("models", merged).Set("defaultModel", def)
+}
+
+func discoverGrok(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promise[*util.Obj] {
+	src := jsrt.Async(func() (*util.Obj, error) {
+		acp, err := jsrt.Await(discoverModelsViaAcp("grok", deps, timeoutMs))
+		if err != nil {
+			return nil, err
+		}
+		return mergeGrokCache(acp, readGrokCache(deps)), nil
+	})
 	out := jsrt.NewPromise[*util.Obj]()
 	go func() {
 		v, err := jsrt.Block(src)
@@ -362,56 +375,6 @@ func readGrokCache(deps ModelDiscoveryDeps) *util.Obj {
 	return catalog
 }
 
-func discoverAntigravityAcp(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promise[*util.Obj] {
-	child, err := mdSpawn(deps, "antigravity", []string{"acp"})
-	if err != nil {
-		return jsrt.Rejected[*util.Obj](err)
-	}
-	stderr := mdStderrTail(child)
-	return withTimeout(child, timeoutMs, func(done func(*util.Obj), fail func(error)) {
-		conn := gemini.NewAcpConnection(child, rpc.Handlers{
-			OnNotification: func(string, rpc.Json) {},
-			OnRequest: func(string, rpc.Json) *jsrt.Promise[any] {
-				return jsrt.Rejected[any](errors.New("not supported"))
-			},
-		})
-		opts := rpc.RequestOptions{TimeoutMs: &timeoutMs}
-		jsrt.Async(func() (struct{}, error) {
-			res, err := func() (*util.Obj, error) {
-				initParams := util.NewObj(
-					"protocolVersion", float64(1),
-					"clientInfo", antigravityp.ClientInfo(),
-					"clientCapabilities", antigravityp.ClientCapabilities(),
-				)
-				if _, err := jsrt.Await(conn.Request("initialize", initParams, opts)); err != nil {
-					return nil, err
-				}
-				sv, err := jsrt.Await(conn.Request("session/new", util.NewObj("cwd", nodepath.Tmpdir(), "mcpServers", []any{}), opts))
-				if err != nil {
-					return nil, err
-				}
-				session := sh.AsObj(sv)
-				catalog := antigravityp.ParseModels(session)
-				if sid, ok := session.Get("sessionId").(string); ok && sid != "" {
-					t := 3_000
-					_, _ = jsrt.Await(conn.Request("session/close", util.NewObj("sessionId", sid), rpc.RequestOptions{TimeoutMs: &t}))
-				}
-				return catalog, nil
-			}()
-			if err != nil {
-				if reason := stderr(); reason != "" {
-					fail(errors.New(reason))
-				} else {
-					fail(err)
-				}
-				return struct{}{}, nil
-			}
-			done(res)
-			return struct{}{}, nil
-		})
-	})
-}
-
 func discoverAntigravityCLI(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promise[*util.Obj] {
 	child, err := mdSpawn(deps, "antigravity", []string{"models"})
 	if err != nil {
@@ -449,7 +412,7 @@ func discoverAntigravity(deps ModelDiscoveryDeps, timeoutMs int) *jsrt.Promise[*
 		if cliErr != nil && strings.Contains(cliErr.Error(), "CLI not found") {
 			return nil, cliErr
 		}
-		acpCat, acpErr := jsrt.Await(discoverAntigravityAcp(deps, timeoutMs))
+		acpCat, acpErr := jsrt.Await(discoverModelsViaAcp("antigravity", deps, timeoutMs))
 		if acpErr == nil && acpCat != nil {
 			if models, _ := acpCat.Get("models").([]any); len(models) > 0 {
 				return acpCat, nil

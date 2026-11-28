@@ -9755,6 +9755,11 @@
          "minimum": -9007199254740991,
          "maximum": 9007199254740991
         },
+        "endedAt": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
         "textAt": {
          "type": "integer",
          "minimum": 0,
@@ -10435,6 +10440,11 @@
          "minimum": -9007199254740991,
          "maximum": 9007199254740991
         },
+        "endedAt": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
         "textAt": {
          "type": "integer",
          "minimum": 0,
@@ -11083,6 +11093,11 @@
          "type": "string"
         },
         "at": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
+        "endedAt": {
          "type": "integer",
          "minimum": -9007199254740991,
          "maximum": 9007199254740991
@@ -12047,6 +12062,11 @@
          "minimum": -9007199254740991,
          "maximum": 9007199254740991
         },
+        "endedAt": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
         "textAt": {
          "type": "integer",
          "minimum": 0,
@@ -12734,6 +12754,11 @@
          "minimum": -9007199254740991,
          "maximum": 9007199254740991
         },
+        "endedAt": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
         "textAt": {
          "type": "integer",
          "minimum": 0,
@@ -13389,6 +13414,11 @@
          "minimum": -9007199254740991,
          "maximum": 9007199254740991
         },
+        "endedAt": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
         "textAt": {
          "type": "integer",
          "minimum": 0,
@@ -14035,6 +14065,11 @@
          "type": "string"
         },
         "at": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
+        "endedAt": {
          "type": "integer",
          "minimum": -9007199254740991,
          "maximum": 9007199254740991
@@ -14761,6 +14796,11 @@
          "minimum": -9007199254740991,
          "maximum": 9007199254740991
         },
+        "endedAt": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
         "textAt": {
          "type": "integer",
          "minimum": 0,
@@ -15456,6 +15496,11 @@
          "type": "string"
         },
         "at": {
+         "type": "integer",
+         "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
+        "endedAt": {
          "type": "integer",
          "minimum": -9007199254740991,
          "maximum": 9007199254740991
@@ -46551,6 +46596,11 @@
         "type": "string"
        },
        "at": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+       },
+       "endedAt": {
         "type": "integer",
         "minimum": -9007199254740991,
         "maximum": 9007199254740991

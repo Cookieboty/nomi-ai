@@ -138,11 +138,8 @@
   "electron.common.full-access-can-t-be-the-default-mode": "Full access can't be the default mode",
   "electron.common.full-access-requires-confirmation-first": "Full access requires confirmation first",
   "electron.common.full-text-in-the-chat-window": "{0}… (full text in the chat window)",
-  "electron.common.gemini-cli-couldn-t-start-an-acp-session": "Gemini CLI couldn't start an ACP session; it may be too old. Update it under Agents → Gemini and try again.",
   "electron.common.gemini-cli-does-not-trust-the-current-folder": "Gemini CLI does not trust the current folder ({0}) and refused to run here. Click “Trust this folder” below, or run `gemini` once in that folder from a terminal and choose to trust it, then try again.",
-  "electron.common.gemini-cli-not-found-set-nomi-use-mock": "Gemini CLI not found (set NOMI_USE_MOCK_CLI=1 for the mock CLI)",
   "electron.common.gemini-did-not-respond-for-seconds-so-the": "Gemini did not respond for {0} seconds, so the request was cancelled. Please try again; if it keeps happening, check your network or restart the session.",
-  "electron.common.gemini-didn-t-return-a-session": "Gemini didn't return a session",
   "electron.common.gemini-has-encrypted-credential-storage-turned-on-gemini": "Gemini has encrypted credential storage turned on (GEMINI_FORCE_ENCRYPTED_FILE_STORAGE), which doesn’t separate account folders, so multiple accounts aren’t supported",
   "electron.common.gemini-is-updating-its-trusted-folders-list-please": "Gemini is updating its trusted folders list. Please try again in a moment.",
   "electron.common.gemini-s-trusted-folders-list-is-malformed-so": "Gemini’s trusted folders list ({0}) is malformed, so Nomi left it unchanged. Fix or delete that file and try again.",
@@ -151,9 +148,6 @@
   "electron.common.good-night": "Good night",
   "electron.common.grant": "Grant",
   "electron.common.grant-nomi-access-to-this-folder": "Grant Nomi access to this folder",
-  "electron.common.grok-could-not-start-an-acp-session": "Grok could not start an ACP session",
-  "electron.common.grok-did-not-return-a-session": "Grok did not return a session",
-  "electron.common.grok-did-not-switch-the": "Grok did not switch the {0} ({1})",
   "electron.common.grok-error": "Grok error",
   "electron.common.grok-not-found-set-nomi-use-mock-cli": "Grok not found (set NOMI_USE_MOCK_CLI=1 for the mock CLI)",
   "electron.common.hand-off-tasks-one-at-a-time-or": "hand off tasks one at a time, or initialize the directory as a git repository so worktree isolation can be used automatically.",
@@ -470,7 +464,6 @@
   "electron.common.the-gateway-process-can-t-be-started-in": "The gateway process can't be started in this environment",
   "electron.common.the-gateway-process-exited-abnormally-times-within-s": "The gateway process exited abnormally {1} times within {0}s (last exit code {2}); auto-restart stopped",
   "electron.common.the-gateway-rejected-the-tab-binding": "The gateway rejected the tab binding: {0}",
-  "electron.common.the-gemini-session-ended-this-message-was-not": "The Gemini session ended; this message was not sent",
   "electron.common.the-inference-server-exited-unexpectedly-code": "The inference server exited unexpectedly (code {0}): {1}",
   "electron.common.the-inference-server-timed-out-while-starting": "The inference server timed out while starting",
   "electron.common.the-knowledge-base-is-empty-add-folders": "The knowledge base is empty: add folders in \"Knowledge base\" and build the index first",
@@ -630,5 +623,7 @@
   "electron.common.cli-interactive-only-no-switch-in": "Cannot switch an existing conversation to {0}; start a new conversation or choose it in an empty chat instead",
   "electron.common.cli-interactive-only-no-fork": "{0} does not support forking with copied conversation history; start a new empty conversation instead",
   "electron.common.self-update-version-unchanged-fallback": "Self-update exited without changing version ({0}); trying the next update method...",
-  "electron.common.update-version-unchanged": "Command finished, but the detected version is still {0} (latest {1})"
+  "electron.common.update-version-unchanged": "Command finished, but the detected version is still {0} (latest {1})",
+  "electron.common.cli-did-not-respond-for-seconds-so-the": "{0} did not respond for {1} seconds, so the request was cancelled. Please try again; if it keeps happening, check your network or restart the session.",
+  "electron.common.the-cli-session-ended-this-message-was-not": "The {0} session ended; this message was not sent"
 }

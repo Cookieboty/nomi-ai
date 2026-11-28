@@ -357,7 +357,10 @@ func isWriteFileToolName(name string) bool {
 	}
 }
 
-var agentTitle = regexp.MustCompile(`(?i)agent|subagent|delegat`)
+var (
+	agentTitle   = regexp.MustCompile(`(?i)agent|subagent|delegat`)
+	identPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{1,48}$`)
+)
 
 func firstWord(title string) string {
 	// title.split(/\s/)[0]
@@ -371,7 +374,160 @@ func firstWord(title string) string {
 
 func isJSSpace(r rune) bool { return clisdk.JSTrim(string(r)) == "" }
 
+func normalizeToolIdent(s string) string {
+	n := strings.ToLower(strings.TrimSpace(s))
+	return strings.NewReplacer("-", "_", " ", "_", "\t", "_").Replace(n)
+}
+
+func isFocusToolRawName(name string) bool {
+	n := normalizeToolIdent(name)
+	return n == "update_focus" || n == "updatefocus"
+}
+
+func isFocusToolInput(raw any) bool {
+	o, ok := raw.(*util.Obj)
+	if !ok || o == nil {
+		return false
+	}
+	return firstNonEmptyStr(o.Get("focus"), o.Get("Focus")) != "" &&
+		o.Get("thought") == nil && o.Get("CommandLine") == nil && o.Get("command") == nil &&
+		o.Get("Path") == nil && o.Get("path") == nil
+}
+
+func isFocusToolCall(rawName, title string, raw any) bool {
+	if isFocusToolRawName(rawName) {
+		return true
+	}
+	if rawName == "" {
+		if isFocusToolRawName(title) || isFocusToolRawName(firstWord(title)) || isFocusToolInput(raw) {
+			return true
+		}
+	}
+	return false
+}
+
+func parseUpdateStepsInput(rawName, title string, raw any) ([]any, bool) {
+	isSteps := normalizeToolIdent(rawName) == "update_steps"
+	o, ok := raw.(*util.Obj)
+	if !isSteps && rawName == "" {
+		if normalizeToolIdent(title) == "update_steps" {
+			isSteps = true
+		} else if ok && o != nil {
+			if _, isArr := o.Get("steps").([]any); isArr && o.Get("CommandLine") == nil && o.Get("command") == nil {
+				isSteps = true
+			}
+		}
+	}
+	if !isSteps {
+		return nil, false
+	}
+	if ok && o != nil {
+		return parsePlanEntries(o.Get("steps")), true
+	}
+	return nil, true
+}
+
+func isDirOnlyRawInput(raw any) bool {
+	o, ok := raw.(*util.Obj)
+	if !ok || o == nil {
+		return false
+	}
+	if firstNonEmptyStr(o.Get("DirectoryPath"), o.Get("directoryPath")) == "" {
+		return false
+	}
+	for _, k := range []string{"Path", "path", "file_path", "targetFile", "target_file", "absolutePath", "AbsolutePath"} {
+		if firstNonEmptyStr(o.Get(k)) != "" {
+			return false
+		}
+	}
+	return true
+}
+
+func isWriteFileRawInput(raw any) bool {
+	o, ok := raw.(*util.Obj)
+	if !ok || o == nil {
+		return false
+	}
+	hasContent := o.Get("Content") != nil || o.Get("CodeContent") != nil || o.Get("file_text") != nil
+	if !hasContent {
+		return false
+	}
+	for _, k := range []string{"Target", "TargetContent", "ReplacementChunks", "old_string", "OldString", "edits", "oldText"} {
+		if o.Has(k) {
+			return false
+		}
+	}
+	return true
+}
+
+func isSubagentRawInput(raw any) bool {
+	o, ok := raw.(*util.Obj)
+	if !ok || o == nil {
+		return false
+	}
+	return firstNonEmptyStr(o.Get("Prompt"), o.Get("prompt")) != "" &&
+		firstNonEmptyStr(o.Get("TypeName"), o.Get("Role"), o.Get("subagent_type")) != ""
+}
+
+func inferAcpToolName(tcKind, rawName, title string, raw any) string {
+	if isFocusToolCall(rawName, title, raw) {
+		return "update_focus"
+	}
+	if rawName != "" {
+		if tcKind == "edit" && isWriteFileToolName(rawName) {
+			return "write_file"
+		}
+		if _, mapped := kindTool[tcKind]; !mapped && tcKind != "think" {
+			return rawName
+		}
+		if tcKind == "think" && rawName != "think" {
+			if agentTitle.MatchString(rawName) {
+				return "invoke_agent"
+			}
+			return rawName
+		}
+		return toolName(tcKind, title)
+	}
+	switch tcKind {
+	case "read":
+		if strings.HasPrefix(title, "Directory ") || isDirOnlyRawInput(raw) {
+			return "list_dir"
+		}
+		return "read_file"
+	case "search":
+		if strings.HasSuffix(title, " on Web") {
+			return "web_search"
+		}
+		return "search"
+	case "edit":
+		if isWriteFileRawInput(raw) {
+			return "write_file"
+		}
+		return "edit"
+	case "execute":
+		if o, ok := raw.(*util.Obj); ok && o != nil {
+			if tn := firstNonEmptyStr(o.Get("tool_name"), o.Get("toolName")); tn != "" {
+				return tn
+			}
+		}
+		return "run_shell_command"
+	case "switch_mode":
+		return "exit_plan_mode"
+	default:
+		if isSubagentRawInput(raw) || (tcKind == "think" && agentTitle.MatchString(title)) {
+			return "invoke_agent"
+		}
+		if ident := normalizeToolIdent(title); identPattern.MatchString(ident) {
+			return ident
+		}
+		return toolName(tcKind, title)
+	}
+}
+
 func toolName(kind, title string) string {
+	if isFocusToolRawName(firstWord(title)) {
+		return "update_focus"
+	}
 	if kind == "think" && agentTitle.MatchString(title) {
 		return "invoke_agent"
 	}
@@ -410,7 +566,8 @@ type acpMapper struct {
 	// inputs：进行中的工具调用最近一次带来的参数（rawInput / 标题 / 位置），做完时 update 里没有就用它。
 	// Kimi Code 先用第一段流式参数建 tool_call（只有工具名），开始执行时才用 tool_call_update 补上 rawInput，
 	// 做完的那条又只带结果；不记下来，命令就丢了
-	inputs map[string]acpInput
+	inputs          map[string]acpInput
+	extractToolName func(u *util.Obj) string
 }
 
 type acpInput struct {
@@ -421,16 +578,22 @@ type acpInput struct {
 
 // NewAcpMapper：新建 AcpMapper（Gemini 也用它）。
 func NewAcpMapper() AcpMapper {
+	return NewAcpMapperWithOptions(nil)
+}
+
+// NewAcpMapperWithOptions：新建带可选工具名提取钩子的 AcpMapper。
+func NewAcpMapperWithOptions(extractToolName func(u *util.Obj) string) AcpMapper {
 	return &acpMapper{
-		context:     O(),
-		names:       map[string]string{},
-		outputs:     map[string]string{},
-		termOutputs: map[string]string{},
-		termMeta:    map[string]*util.Obj{},
-		msgText:     map[string]string{},
-		thoughtText: map[string]string{},
-		subagents:   map[string]bool{},
-		inputs:      map[string]acpInput{},
+		context:         O(),
+		names:           map[string]string{},
+		outputs:         map[string]string{},
+		termOutputs:     map[string]string{},
+		termMeta:        map[string]*util.Obj{},
+		msgText:         map[string]string{},
+		thoughtText:     map[string]string{},
+		subagents:       map[string]bool{},
+		inputs:          map[string]acpInput{},
+		extractToolName: extractToolName,
 	}
 }
 
@@ -495,7 +658,7 @@ func parsePlanEntries(raw any) []any {
 	out := make([]any, 0, len(arr))
 	for _, item := range arr {
 		var content string
-		for _, k := range []string{"content", "title", "step", "text"} {
+		for _, k := range []string{"content", "title", "step", "text", "description"} {
 			if s, ok := getp(item, k).(string); ok {
 				if trimmed := strings.TrimSpace(s); trimmed != "" {
 					content = trimmed
@@ -1010,6 +1173,9 @@ func (m *acpMapper) Update(u Json) []Ev {
 		}
 		ev := O("type", "tool", "name", name, "status", "start", "detail", id, "output", mergedOut)
 		if prev, ok := m.inputs[id]; ok {
+			if prev.title != "" {
+				ev.Set("title", prev.title)
+			}
 			if prev.raw != nil {
 				ev.Set("input", util.Stringify(prev.raw))
 			} else if prev.title != "" || prev.loc != nil {
@@ -1123,6 +1289,19 @@ func (m *acpMapper) Update(u Json) []Ev {
 		if chunkOut == "" {
 			chunkOut = rawOutputText(u.Get("rawOutput"))
 		}
+		rawName := strings.TrimSpace(strQ(u.Get("name")))
+		if entries, isSteps := parseUpdateStepsInput(rawName, prev.title, prev.raw); isSteps || m.names[id] == "update_steps" {
+			m.names[id] = "update_steps"
+			if len(entries) > 0 {
+				out = append(out, O("type", "plan", "planId", "steps", "entries", entries))
+			}
+			if terminal {
+				delete(m.names, id)
+				delete(m.inputs, id)
+				delete(m.outputs, id)
+			}
+			return out
+		}
 		if !terminal && kind == "tool_call_update" {
 			if _, has := m.names[id]; has {
 				if chunkOut == "" {
@@ -1136,20 +1315,14 @@ func (m *acpMapper) Update(u Json) []Ev {
 
 		name, has := m.names[id]
 		if !has {
-			meta := getp(u.Get("_meta"), "x.ai/tool")
 			tcKind := strQ(u.Get("kind"))
-			if n, ok := getp(meta, "name").(string); ok && n != "" {
-				name = n
-			} else if tcKind == "edit" && isWriteFileToolName(strQ(u.Get("name"))) {
-				name = "write_file"
-			} else if _, mapped := kindTool[tcKind]; !mapped && tcKind != "think" {
-				if rawName := strings.TrimSpace(strQ(u.Get("name"))); rawName != "" {
-					name = rawName
-				} else {
-					name = toolName(tcKind, title)
+			if m.extractToolName != nil {
+				if n := m.extractToolName(u); n != "" {
+					name = n
 				}
-			} else {
-				name = toolName(tcKind, title)
+			}
+			if name == "" {
+				name = inferAcpToolName(tcKind, rawName, title, prev.raw)
 			}
 		}
 		m.names[id] = name
@@ -1176,6 +1349,9 @@ func (m *acpMapper) Update(u Json) []Ev {
 				st = "error"
 			}
 			ev := O("type", "tool", "name", name, "status", st, "detail", id, "input", input)
+			if prev.title != "" {
+				ev.Set("title", prev.title)
+			}
 			outText := chunkOut
 			if outText == "" {
 				outText = prevOut
@@ -1189,6 +1365,9 @@ func (m *acpMapper) Update(u Json) []Ev {
 			}
 		} else {
 			ev := O("type", "tool", "name", name, "status", "start", "detail", id, "input", input)
+			if prev.title != "" {
+				ev.Set("title", prev.title)
+			}
 			if curOut := m.outputs[id]; curOut != "" {
 				ev.Set("output", curOut)
 			}

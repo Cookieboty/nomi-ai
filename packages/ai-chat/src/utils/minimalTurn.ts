@@ -10,6 +10,8 @@
  *   - 用户中途插话（interject）、委派子任务卡（delegate_to_cli）以及成功生成的图片始终外显。
  */
 import { layoutBody, planBody, planLength, sliceBody, type BodySegment } from './convSegments';
+import { activeFocusSliceStart, isFocusToolName } from './focusSummary';
+import { thoughtTitle } from './timelineShape';
 import { classifyTool, type TimelineItem, type ToolCall, type TraceEntry } from './toolTrace';
 
 const DELEGATE_TOOL = 'delegate_to_cli';
@@ -39,6 +41,8 @@ export interface MinimalTurnSplit {
 export interface MinimalTurnSection {
   /** 触发该新阶段的插话条目（第 0 阶段为 undefined，后续阶段为对应的 interject） */
   interject?: InterjectItem;
+  /** 该阶段的固定焦点摘要（来自 update_focus 或 fixedThoughtSummary 首条思考首句） */
+  focusTitle?: string;
   /** 该阶段是否为当前仍在运行中的末尾活跃阶段 */
   live: boolean;
   /** 该阶段独立的极简切分（passthrough 仅含 delegate_to_cli 等非 interject 外显项） */
@@ -66,7 +70,25 @@ function itemStepCount(it: TimelineItem): number {
       return it.calls.length;
     case 'interject':
     case 'plan':
+    case 'focus':
       return 0;
+  }
+}
+
+function isRunningStepItem(it: TimelineItem): boolean {
+  switch (it.type) {
+    case 'thinking':
+      return Boolean(it.running);
+    case 'call':
+      return it.call.status === 'running';
+    case 'group':
+      return it.calls.some((c) => c.status === 'running');
+    case 'subagent':
+      return it.call.status === 'running';
+    case 'interject':
+    case 'plan':
+    case 'focus':
+      return false;
   }
 }
 
@@ -114,6 +136,16 @@ function minCollapsedStart(collapsed: readonly MinimalCollapsedSegment[]): numbe
   return starts.length ? Math.min(...starts) : undefined;
 }
 
+function minSegmentsStart(segments: readonly BodySegment[] | undefined): number | undefined {
+  if (!segments) return undefined;
+  const starts: number[] = [];
+  const ends: number[] = [];
+  for (const seg of segments) {
+    if (seg.type === 'activity') collectSpans(seg.items, starts, ends);
+  }
+  return starts.length ? Math.min(...starts) : undefined;
+}
+
 function computeWorkedMs(
   collapsed: readonly MinimalCollapsedSegment[],
   durationMs?: number,
@@ -138,6 +170,8 @@ export interface SplitMinimalTurnOptions {
   live?: boolean;
   thinking?: boolean;
   startedAt?: number;
+  /** 是否在缺失 update_focus 时回退锁定该阶段首条思考的首句为焦点标题 */
+  fixedThoughtSummary?: boolean;
 }
 
 interface BuildMinimalSplitOptions extends SplitMinimalTurnOptions {
@@ -208,6 +242,37 @@ function buildMinimalSplit(
         break;
       }
     }
+  } else {
+    const hasActiveStep =
+      Boolean(opts.thinking) ||
+      segments.some(
+        (seg) =>
+          seg.type === 'activity' &&
+          seg.items.some(
+            (it) =>
+              !isPassthroughItem(it, opts.includeInterjectInPassthrough) && isRunningStepItem(it),
+          ),
+      );
+    if (!hasActiveStep) {
+      let lastStepSegIdx = -1;
+      for (let i = segments.length - 1; i >= 0; i--) {
+        const seg = segments[i]!;
+        if (
+          seg.type === 'activity' &&
+          seg.items.some((it) => !isPassthroughItem(it, opts.includeInterjectInPassthrough))
+        ) {
+          lastStepSegIdx = i;
+          break;
+        }
+      }
+      for (let i = segments.length - 1; i > lastStepSegIdx; i--) {
+        const seg = segments[i]!;
+        if (seg.type === 'text' && seg.text.trim()) {
+          summaryIdx = i;
+          break;
+        }
+      }
+    }
   }
   const summarySeg = summaryIdx >= 0 ? segments[summaryIdx] : undefined;
   const summaryText = summarySeg?.type === 'text' ? summarySeg.text : null;
@@ -251,15 +316,22 @@ export function splitMinimalTurn(
 }
 
 /**
- * 按用户中途插话（interject）切分为多个独立 AI 返回阶段：
- * 每个 interject 之前的阶段已封存结算，interject 之后形成新的 AI 返回阶段（运行中则作为末尾活跃阶段）。
+ * 按用户中途插话（interject）及多阶段 update_focus 切分为多个独立 AI 返回阶段：
+ * 每个 interject / 后续新 focus 之前的阶段已封存结算，之后形成新的阶段（运行中则作为末尾活跃阶段）。
  */
 export function splitMinimalTurnSections(
   segments: readonly BodySegment[],
   opts?: SplitMinimalTurnOptions,
 ): MinimalTurnSection[] {
-  const rawSections: { interject?: InterjectItem; segments: BodySegment[] }[] = [];
+  const rawSections: {
+    interject?: InterjectItem;
+    focusTitle?: string;
+    focusAt?: number;
+    segments: BodySegment[];
+  }[] = [];
   let pendingInterject: InterjectItem | undefined;
+  let currentFocus: { text: string; at?: number } | undefined;
+  let hasToolInCurrent = false;
   let currentSegs: BodySegment[] = [];
 
   for (const seg of segments) {
@@ -276,18 +348,49 @@ export function splitMinimalTurnSections(
         }
         rawSections.push({
           ...(pendingInterject ? { interject: pendingInterject } : {}),
+          ...(currentFocus ? { focusTitle: currentFocus.text, focusAt: currentFocus.at } : {}),
           segments: currentSegs,
         });
         pendingInterject = it;
+        currentFocus = undefined;
+        hasToolInCurrent = false;
         currentSegs = [];
-      } else {
-        buf.push(it);
+        continue;
       }
+      if (it.type === 'focus') {
+        if (!currentFocus && !hasToolInCurrent) {
+          currentFocus = { text: it.text, at: it.at };
+        } else if (currentFocus?.text !== it.text) {
+          if (buf.length) {
+            currentSegs.push({ type: 'activity', items: buf });
+            buf = [];
+          }
+          rawSections.push({
+            ...(pendingInterject ? { interject: pendingInterject } : {}),
+            ...(currentFocus ? { focusTitle: currentFocus.text, focusAt: currentFocus.at } : {}),
+            segments: currentSegs,
+          });
+          pendingInterject = undefined;
+          currentFocus = { text: it.text, at: it.at };
+          hasToolInCurrent = false;
+          currentSegs = [];
+        }
+        continue;
+      }
+      if (
+        it.type === 'call' ||
+        it.type === 'group' ||
+        (it.type === 'subagent' && !isDelegateItem(it))
+      ) {
+        hasToolInCurrent = true;
+      }
+      buf.push(it);
     }
     if (buf.length) currentSegs.push({ type: 'activity', items: buf });
   }
   rawSections.push({
     ...(pendingInterject ? { interject: pendingInterject } : {}),
+    ...(currentFocus ? { focusTitle: currentFocus.text, focusAt: currentFocus.at } : {}),
     segments: currentSegs,
   });
 
@@ -295,7 +398,7 @@ export function splitMinimalTurnSections(
   return rawSections.map((raw, idx) => {
     const isLast = idx === total - 1;
     const sectionLive = Boolean(opts?.live && isLast);
-    const sectionStartedAt = raw.interject?.at ?? opts?.startedAt;
+    const sectionStartedAt = raw.interject?.at ?? raw.focusAt ?? opts?.startedAt;
     let split = buildMinimalSplit(raw.segments, {
       live: sectionLive,
       thinking: opts?.thinking,
@@ -304,6 +407,9 @@ export function splitMinimalTurnSections(
       includeInterjectInPassthrough: false,
       summaryAfterLastStep: !isLast,
     });
+    if (sectionLive && raw.focusTitle && split.stepCount === 0) {
+      split = { ...split, stepCount: 1 };
+    }
     if (
       total > 1 &&
       !sectionLive &&
@@ -311,14 +417,33 @@ export function splitMinimalTurnSections(
       split.stepCount > 0 &&
       split.workedMs === undefined
     ) {
-      const nextAt = rawSections[idx + 1]?.interject?.at;
-      const minStart = minCollapsedStart(split.collapsed);
+      const nextRaw = rawSections[idx + 1];
+      const nextAt =
+        nextRaw?.interject?.at ?? nextRaw?.focusAt ?? minSegmentsStart(nextRaw?.segments);
+      const minStart = minCollapsedStart(split.collapsed) ?? raw.focusAt;
       if (minStart !== undefined && nextAt !== undefined && nextAt > minStart) {
         split = { ...split, workedMs: nextAt - minStart };
       }
     }
+    let focusTitle = raw.focusTitle;
+    if (!focusTitle && opts?.fixedThoughtSummary) {
+      for (const seg of split.collapsed) {
+        if (seg.type !== 'activity') continue;
+        for (const it of seg.items) {
+          if (it.type === 'thinking') {
+            const first = thoughtTitle(it.text, 'first', 80);
+            if (first) {
+              focusTitle = first;
+              break;
+            }
+          }
+        }
+        if (focusTitle) break;
+      }
+    }
     return {
       ...(raw.interject ? { interject: raw.interject } : {}),
+      ...(focusTitle ? { focusTitle } : {}),
       live: sectionLive,
       split,
       rawSegments: split.stepCount === 0 ? raw.segments : [],
@@ -351,6 +476,7 @@ function countStepsInSlice(
 ): number {
   let steps = 0;
   let hasThinking = false;
+  let hasFocus = false;
   for (const e of entries) {
     if (e.type === 'thinking') {
       if (e.text.trim()) {
@@ -360,12 +486,17 @@ function countStepsInSlice(
       continue;
     }
     if (e.type === 'tool') {
+      if (isFocusToolName(e.call.name)) {
+        hasFocus = true;
+        continue;
+      }
       if (e.call.name === DELEGATE_TOOL) continue;
       if (e.call.parentId && subIds.has(e.call.parentId) && e.call.id !== e.call.parentId) continue;
       steps++;
     }
   }
   if (!hasThinking && thinking === true) steps++;
+  if (steps === 0 && hasFocus) steps = 1;
   return steps;
 }
 
@@ -374,29 +505,30 @@ export function countLiveSteps(entries: readonly TraceEntry[], thinking?: boolea
   return countStepsInSlice(entries, collectSubagentIds(entries), thinking);
 }
 
-/** 运行中统计最后一次插话之后的活跃阶段内部步骤数；无插话时等同 countLiveSteps */
+/** 运行中统计当前活跃阶段（最后一个 interject 及后续新 update_focus 之后）的内部步骤数 */
 export function countActiveLiveSteps(entries: readonly TraceEntry[], thinking?: boolean): number {
-  let lastIdx = -1;
-  for (let i = entries.length - 1; i >= 0; i--) {
-    if (entries[i]!.type === 'interject') {
-      lastIdx = i;
-      break;
-    }
-  }
-  if (lastIdx < 0) return countLiveSteps(entries, thinking);
+  const from = activeFocusSliceStart(entries);
+  if (from === 0) return countLiveSteps(entries, thinking);
   const subIds = collectSubagentIds(entries);
-  return countStepsInSlice(entries.slice(lastIdx + 1), subIds, thinking);
+  return countStepsInSlice(entries.slice(from), subIds, thinking);
 }
 
-/** 当前活跃阶段的起始时间戳：若存在插话则从最后一次插话时间重新计时 */
+/** 当前活跃阶段的起始时间戳：从最新插话或新阶段 update_focus 重新计时 */
 export function activeStageStartedAt(
   entries: readonly TraceEntry[],
   fallbackStartedAt?: number,
 ): number | undefined {
-  for (let i = entries.length - 1; i >= 0; i--) {
-    const e = entries[i]!;
-    if (e.type === 'interject') {
-      return typeof e.at === 'number' ? e.at : fallbackStartedAt;
+  const from = activeFocusSliceStart(entries);
+  if (from > 0) {
+    const head = entries[from - 1];
+    const startEntry = entries[from];
+    if (startEntry?.type === 'tool' && isFocusToolName(startEntry.call.name)) {
+      return typeof startEntry.call.startedAt === 'number'
+        ? startEntry.call.startedAt
+        : fallbackStartedAt;
+    }
+    if (head?.type === 'interject') {
+      return typeof head.at === 'number' ? head.at : fallbackStartedAt;
     }
   }
   return fallbackStartedAt;

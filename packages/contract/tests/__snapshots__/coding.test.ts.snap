@@ -70,6 +70,8 @@ exports[`appContract · D3 coding > 过程表快照：名字、kind、surfaces�
   "harness.workspaceGitCheckout mutation",
   "harness.geminiTrustFolder mutation dangerous",
   "harness.replyPermission mutation dangerous",
+  "harness.tabCommands query",
+  "harness.listAcpSessions query",
   "harness.openTerminal mutation",
   "harness.sandboxReply mutation dangerous",
   "harness.replyApprovePlan mutation dangerous",

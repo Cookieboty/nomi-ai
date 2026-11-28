@@ -103,6 +103,9 @@ func projectTrace(entries []cr.TraceEntry) []map[string]any {
 			if tr.At != 0 {
 				item["at"] = tr.At
 			}
+			if tr.EndedAt > 0 {
+				item["endedAt"] = tr.EndedAt
+			}
 			if tr.TextAt != nil {
 				item["textAt"] = *tr.TextAt
 			}
@@ -169,6 +172,9 @@ func projectTrace(entries []cr.TraceEntry) []map[string]any {
 			if tr.ID != "" {
 				item["id"] = tr.ID
 			}
+			if tr.Summary != "" && tr.Summary != name {
+				item["title"] = tr.Summary
+			}
 			if tr.Detail != "" {
 				item["input"] = tr.Detail
 				if tr.ID == "" {
@@ -180,6 +186,9 @@ func projectTrace(entries []cr.TraceEntry) []map[string]any {
 			}
 			if tr.At != 0 {
 				item["at"] = tr.At
+			}
+			if tr.EndedAt > 0 {
+				item["endedAt"] = tr.EndedAt
 			}
 			if tr.TextAt != nil {
 				item["textAt"] = *tr.TextAt

@@ -62,5 +62,10 @@ func CreateMain() *clisdk.CliMainImpl {
 		Models:      Models,
 		Permissions: Permissions,
 		Terminal:    sh.ResumeTerminal("agy", "--conversation"),
+		Acp: &clisdk.AcpCapability{
+			ClientInfo:         ClientInfo,
+			ClientCapabilities: ClientCapabilities,
+			DisableElicitation: true,
+		},
 	}
 }

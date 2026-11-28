@@ -55,30 +55,48 @@ function nativePermissionModes(
   if (!values?.length) return null;
   const out: PermissionMode[] = [];
   for (const raw of values) {
-    const v = raw.trim().toLowerCase();
+    const v = raw
+      .trim()
+      .toLowerCase()
+      .replace(/[_\s]+/g, '-');
     const mode =
       v === 'plan' || v === 'read-only' || v === 'readonly'
         ? 'plan'
-        : v === 'manual' || v === 'default' || v === 'ask'
+        : v === 'manual' ||
+            v === 'default' ||
+            v === 'ask' ||
+            v === 'request-review' ||
+            v === 'strict' ||
+            v === 'untrusted'
           ? 'manual'
           : v === 'on-request'
             ? // eslint-disable-next-line nomi/no-cli-literal -- Codex 的 on-request 是自动审批，其它 CLI 的同名值是逐项确认
               backend === 'codex'
               ? 'auto'
               : 'manual'
-            : v === 'acceptedits' || v === 'autoedit' || v === 'workspace-write'
+            : v === 'acceptedits' ||
+                v === 'accept-edits' ||
+                v === 'autoedit' ||
+                v === 'auto-edit' ||
+                v === 'workspace-write' ||
+                v === 'workspacewrite'
               ? 'acceptEdits'
-              : v === 'workspacewrite'
-                ? 'acceptEdits'
-                : v === 'auto' || v === 'dontask' || v === 'on_request'
-                  ? 'auto'
-                  : v === 'bypass' ||
-                      v === 'bypasspermissions' ||
-                      v === 'yolo' ||
-                      v === 'danger-full-access' ||
-                      v === 'dangerfullaccess'
-                    ? 'bypass'
-                    : null;
+              : v === 'auto' ||
+                  v === 'dontask' ||
+                  v === 'dont-ask' ||
+                  v === 'on-request-auto' ||
+                  v === 'proceed-in-sandbox'
+                ? 'auto'
+                : v === 'bypass' ||
+                    v === 'bypasspermissions' ||
+                    v === 'bypass-permissions' ||
+                    v === 'yolo' ||
+                    v === 'danger-full-access' ||
+                    v === 'dangerfullaccess' ||
+                    v === 'always-proceed' ||
+                    v === 'turbo'
+                  ? 'bypass'
+                  : null;
     if (mode && !out.includes(mode)) out.push(mode);
   }
   return out.length ? out : null;
@@ -96,7 +114,8 @@ interface BypassTarget {
 export type PermissionTab = Pick<
   HarnessTabMeta,
   'id' | 'backend' | 'cwd' | 'title' | 'permissionMode'
->;
+> &
+  Partial<Pick<HarnessTabMeta, 'source'>>;
 
 export interface ManagedPermissionOverride {
   backend: string;
@@ -182,8 +201,10 @@ export const PermissionModeChip: React.FC<{
       setCliModes(null);
       return;
     }
+    const opts =
+      tab.source === 'local' || tab.source === 'thirdParty' ? { source: tab.source } : {};
     void harnessClient
-      .modelCatalog(backend as HarnessBackend)
+      .modelCatalog(backend as HarnessBackend, opts)
       .then((catalog) => {
         if (alive) setCliModes(nativePermissionModes(catalog?.permissionModes, backend));
       })
@@ -193,12 +214,15 @@ export const PermissionModeChip: React.FC<{
     return () => {
       alive = false;
     };
-  }, [backend, managedOverride]);
+  }, [backend, managedOverride, tab.source]);
   const supported = managedOverride
     ? mapManagedSupportedModes(managedOverride.modes)
     : (cliModes ?? supportedModes(backend));
-  const hintBackend: HarnessBackend =
-    managedOverride?.backend === 'api' || backend === 'nomi' ? 'nomi' : backend;
+  const hintBackend: HarnessBackend = managedOverride
+    ? !managedOverride.backend || managedOverride.backend === 'api'
+      ? 'nomi'
+      : (managedOverride.backend as HarnessBackend)
+    : backend;
   const name = backend === 'nomi' ? '' : ENDPOINT_NAME[backend];
 
   /** target：「完全放开」确认时冻结的标签；主进程再核对一次后端 / 目录，变了就拒绝 */
@@ -224,8 +248,8 @@ export const PermissionModeChip: React.FC<{
           text: t(
             'ui.chat-settings.doesn-t-support-using',
             name,
-            modeLabel(next),
-            modeLabel(r.permissionMode),
+            modeLabel(next, hintBackend),
+            modeLabel(r.permissionMode, hintBackend),
           ),
         });
     } catch (e) {
@@ -316,13 +340,13 @@ export const PermissionModeChip: React.FC<{
         disabled={managedDisabled}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={t('ui.chat-settings.permission-mode', modeLabel(mode))}
+        aria-label={t('ui.chat-settings.permission-mode', modeLabel(mode, hintBackend))}
         data-testid="permission-mode-chip"
         data-mode={mode}
         onClick={() => setOpen((o) => !o)}
       >
         <Icon icon={ICON[mode]} />
-        <span className={styles.label}>{modeLabel(mode)}</span>
+        <span className={styles.label}>{modeLabel(mode, hintBackend)}</span>
         <Icon icon={ChevronDown} size={12} />
       </button>
       {noteText && (
@@ -355,7 +379,7 @@ export const PermissionModeChip: React.FC<{
                   <Icon icon={ICON[m]} size={15} />
                 </span>
                 <span className={styles.itemText}>
-                  <span className={styles.itemLabel}>{modeLabel(m)}</span>
+                  <span className={styles.itemLabel}>{modeLabel(m, hintBackend)}</span>
                   <span className={styles.itemHint}>{modeHint(m, hintBackend)}</span>
                 </span>
                 {mode === m && (
@@ -387,7 +411,10 @@ export const PermissionModeChip: React.FC<{
                         .then(() =>
                           setNote({
                             tabId,
-                            text: t('ui.chat-settings.new-tabs-now-default-to', modeLabel(mode)),
+                            text: t(
+                              'ui.chat-settings.new-tabs-now-default-to',
+                              modeLabel(mode, hintBackend),
+                            ),
                           }),
                         )
                         .catch(() => undefined);

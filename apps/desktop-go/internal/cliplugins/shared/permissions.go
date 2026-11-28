@@ -59,18 +59,18 @@ func ModeFromNative(supported []string, raw any, onRequest string) string {
 	switch lower {
 	case "plan", "read-only", "readonly":
 		mode = "plan"
-	case "default", "manual", "ask":
+	case "default", "manual", "ask", "request-review", "strict", "untrusted":
 		mode = "manual"
 	case "on-request":
 		mode = onRequest
 		if mode == "" {
 			mode = "manual"
 		}
-	case "acceptedits", "autoedit", "workspace-write", "workspacewrite", "workspace":
+	case "acceptedits", "accept-edits", "autoedit", "auto-edit", "workspace-write", "workspacewrite", "workspace":
 		mode = "acceptEdits"
-	case "auto", "dontask", "on-request-auto":
+	case "auto", "dontask", "dont-ask", "on-request-auto", "proceed-in-sandbox":
 		mode = "auto"
-	case "bypass", "bypasspermissions", "yolo", "danger-full-access", "dangerfullaccess", "danger":
+	case "bypass", "bypasspermissions", "bypass-permissions", "yolo", "danger-full-access", "dangerfullaccess", "danger", "always-proceed", "turbo":
 		mode = "bypass"
 	}
 	if mode == "" {

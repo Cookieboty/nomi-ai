@@ -188,6 +188,22 @@ type TerminalCapability struct {
 	Command func(cwd string, resumeID *string, env *util.Obj) Command
 }
 
+// AcpCapability 收敛某个 CLI 在通用 ACP 运行时上的专属协议扩展或策略钩子。
+// 所有字段均可选，无专属扩展的 ACP CLI 保持 CliMainImpl.Acp 为 nil。
+type AcpCapability struct {
+	ClientInfo           func() *util.Obj
+	ClientCapabilities   func() *util.Obj
+	DisableElicitation   bool
+	ExtraArgs            func(extraDirs []string) []string
+	SteerMethod          string
+	CompactMethod        string
+	SessionNotifyMethod  func(method string) bool
+	ExtractToolName      func(u *util.Obj) string
+	IsUntrustedModeError func(msg string) bool
+	IsUntrustedExit      func(exitCode *int, stderr string) bool
+	AuthRequiredKey      string
+}
+
 type CliMainImpl struct {
 	Detect      *DetectCapability
 	Update      *UpdateCapability
@@ -201,6 +217,7 @@ type CliMainImpl struct {
 	Accounts    *AccountCapability
 	Slash       *SlashDiscoveryCapability
 	Terminal    *TerminalCapability
+	Acp         *AcpCapability
 }
 
 type CliPlugin struct {

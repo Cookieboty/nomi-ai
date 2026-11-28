@@ -49,6 +49,7 @@ export const TraceEntry = z.object({
   detail: z.string().optional(),
   output: z.string().optional(),
   at: z.number().int(),
+  endedAt: z.number().int().optional(),
   textAt: z.number().int().nonnegative().optional(),
 });
 export const FailedRequestInfo = z.object({

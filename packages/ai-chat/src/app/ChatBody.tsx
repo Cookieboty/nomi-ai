@@ -75,10 +75,14 @@ export function useNomiModelSwitchTip(messages: readonly ConvMessage[]) {
 export const NomiConversation: React.FC<
   Omit<React.ComponentProps<typeof ConversationView>, 'live'>
 > = (props) => {
+  const managed = useManagedRuntime();
   // 网关在重连 / 换供应商时，等待态显示原因
   const live = useLiveWithGatewayRetry(useAiChatSelector(selectNomiLive, sameLive));
   const modelSwitchTip = useNomiModelSwitchTip(props.messages);
-  return <ConversationView {...props} live={live} modelSwitchTip={modelSwitchTip} />;
+  const backend = props.backend ?? (managed?.isCliBackend ? managed.view?.backend : 'nomi');
+  return (
+    <ConversationView {...props} backend={backend} live={live} modelSwitchTip={modelSwitchTip} />
+  );
 };
 
 /** 重新生成 / 重试：找到这条助手消息之前的用户消息，从那里重发 */
@@ -138,6 +142,7 @@ export const CliBody: React.FC<{
   return (
     <CliConversation
       scopeId={tabId}
+      backend={tabBackend}
       messages={messages}
       transcriptView={transcriptView}
       phase={tab.status === 'running' ? 'running' : tab.status === 'queued' ? 'queued' : 'idle'}

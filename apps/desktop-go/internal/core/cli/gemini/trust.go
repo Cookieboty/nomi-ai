@@ -1,19 +1,16 @@
 package gemini
 
 import (
-	"regexp"
-
+	geminip "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/gemini"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 )
 
 // GeminiUntrustedExitCode = GEMINI_UNTRUSTED_EXIT_CODE。
-const GeminiUntrustedExitCode = 55
-
-var untrustedRe = regexp.MustCompile(`(?i)not running in a trusted directory|--skip-trust|GEMINI_CLI_TRUST_WORKSPACE`)
+const GeminiUntrustedExitCode = geminip.UntrustedExitCode
 
 // IsGeminiUntrustedExit = isGeminiUntrustedExit（exitCode nil = null）。
 func IsGeminiUntrustedExit(exitCode *int, stderr string) bool {
-	return (exitCode != nil && *exitCode == GeminiUntrustedExitCode) || untrustedRe.MatchString(stderr)
+	return geminip.IsUntrustedExit(exitCode, stderr)
 }
 
 // GeminiUntrustedMessage = geminiUntrustedMessage。
@@ -36,7 +33,5 @@ func NewUntrustedError(folder string, cause error) error {
 	return &UntrustedError{Folder: folder, Cause: cause}
 }
 
-var untrustedModeRe = regexp.MustCompile(`(?i)approval modes? in an untrusted folder`)
-
 // IsUntrustedModeError：Gemini 拒绝在没信任的文件夹里切到「自动编辑 / 完全放开」
-func IsUntrustedModeError(msg string) bool { return untrustedModeRe.MatchString(msg) }
+func IsUntrustedModeError(msg string) bool { return geminip.IsUntrustedModeError(msg) }

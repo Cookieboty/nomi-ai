@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
-	antigravityp "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/antigravity"
-
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/drivers"
@@ -84,10 +82,7 @@ func (l *acpLiveSession) setQuestion(id string, f func(*util.Obj, bool)) {
 }
 func (l *acpLiveSession) delQuestion(id string) { delete(l.questions, id) }
 
-// grokSteerMethod = GROK_STEER_METHOD：Grok 的 ACP 扩展，一轮进行中插入用户消息（参数 {sessionId, text}，实测 1.0.70）。
-const grokSteerMethod = "_x.ai/interject"
-
-// acpUnavailableError = AcpUnavailableError（Grok 退回 `grok -p`）。
+// acpUnavailableError = AcpUnavailableError（如带 fallbackTransport 的 CLI 退回 exec）。
 type acpUnavailableError struct {
 	msg   string
 	cause error
@@ -112,10 +107,26 @@ var acpAuthRequiredRe = regexp.MustCompile(`(?i)authentication required|auth_req
 
 // acpDisplayName：内置助手的显示名（没有时统称 CLI）。
 func acpDisplayName(backend string) string {
-	if n := builtin.DisplayName(backend); n != "" {
-		return n
+	return cli.AcpDisplayName(backend)
+}
+
+func acpUntrustedModeErr(backend, cwd string, err error) error {
+	if err == nil {
+		return nil
 	}
-	return "CLI"
+	cap := builtin.Acp(backend)
+	if cap != nil && cap.IsUntrustedModeError != nil && cap.IsUntrustedModeError(err.Error()) {
+		return gemini.NewUntrustedError(cwd, err)
+	}
+	return nil
+}
+
+func acpUntrustedExitErr(backend, cwd string, exitCode *int, stderr string, err error) error {
+	cap := builtin.Acp(backend)
+	if cap != nil && cap.IsUntrustedExit != nil && cap.IsUntrustedExit(exitCode, stderr) {
+		return gemini.NewUntrustedError(cwd, err)
+	}
+	return nil
 }
 
 func strsOf(v any) []string {
@@ -154,9 +165,9 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 		if err != nil {
 			return nil, err
 		}
-		backend := "gemini"
-		if b := str(tab, "backend"); builtin.UsesAcp(b) {
-			backend = b
+		backend := str(tab, "backend")
+		if !builtin.UsesAcp(backend) {
+			return nil, errors.New(i18n.T("electron.common.cli-not-found-set-nomi-use-mock", builtin.FullName(backend)))
 		}
 		name := acpDisplayName(backend)
 		var bin string
@@ -166,22 +177,11 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			found, leading := resolveSessionBin(backend, launch.official)
 			prefix = leading
 			if found == "" {
-				switch backend {
-				case "grok":
-					throw(i18n.T("electron.common.grok-not-found-set-nomi-use-mock-cli"))
-				case "gemini":
-					throw(i18n.T("electron.common.gemini-cli-not-found-set-nomi-use-mock"))
-				}
 				throw(i18n.T("electron.common.cli-not-found-set-nomi-use-mock", builtin.FullName(backend)))
 			}
 			bin = found
 			argv = builtin.AcpArgs(backend)
-			// Gemini：项目的其余文件夹用 --include-directories（ACP 的 additionalDirectories 它不一定声明）
-			if backend == "gemini" {
-				for _, d := range o.extraDirs(tab) {
-					argv = append(argv, "--include-directories", d)
-				}
-			}
+			argv = append(argv, cli.AcpExtraArgs(backend, o.extraDirs(tab))...)
 		}
 		useNode := IsScript(bin)
 		o.checkCwd(str(tab, "cwd"))
@@ -200,23 +200,14 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 		if o.d.GeminiPromptIdleMs != nil {
 			idle = int(*o.d.GeminiPromptIdleMs)
 		}
-		steerMethod := ""
-		if backend == "grok" {
-			steerMethod = grokSteerMethod
-		}
 		driverOpts := drivers.AcpDriverOptions{
 			Child:              child,
-			PermissionIDPrefix: sp("gemini-perm-"),
-			SteerMethod:        steerMethod,
+			PermissionIDPrefix: sp("acp-perm-"),
 			PromptIdleMs:       &idle,
-			RPC:                rpc.ConnectionOptions{TimeoutMessage: gemini.AcpTimeoutMessage},
+			RPC:                rpc.ConnectionOptions{TimeoutMessage: cli.AcpTimeoutMessageFor(backend)},
 			Kill:               killTree,
 		}
-		if backend == "antigravity" {
-			driverOpts.ClientInfo = antigravityp.ClientInfo()
-			driverOpts.ClientCapabilities = antigravityp.ClientCapabilities()
-			driverOpts.DisableElicitation = true
-		}
+		cli.ApplyAcpCapability(&driverOpts, backend)
 		driver := drivers.NewAcpDriver(driverOpts)
 		live := &acpLiveSession{
 			backend: backend, launchSig: spawnLaunch.sig, child: child, driver: driver, cwd: str(tab, "cwd"),
@@ -348,8 +339,8 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			r, err := jsrt.Await(driver.Start(clisdk.StartOptions{Cwd: startCwd, ResumeID: resume, Signal: signal, AdditionalDirectories: o.extraDirs(tab),
 				McpServers: mcpServers}))
 			if err == nil {
-				if backend == "antigravity" {
-					cli.SetLocalAuthCache("antigravity", true)
+				if cli.LocalAuthSupported(backend) {
+					cli.SetLocalAuthCache(backend, true)
 				}
 				if s, ok := r.Get("sessionId").(string); ok {
 					sid = &s
@@ -364,8 +355,8 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 					return struct{}{}, errors.New(i18n.T("electron.common.cli-needs-sign-in", name))
 				}
 				if acpAuthRequiredRe.MatchString(err.Error()) && builtin.LocalOnly(backend) {
-					if backend == "antigravity" {
-						cli.SetLocalAuthCache("antigravity", false)
+					if cli.LocalAuthSupported(backend) {
+						cli.SetLocalAuthCache(backend, false)
 					}
 					binName := backend
 					if bins := builtin.Binaries(backend); len(bins) > 0 && bins[0] != "" {
@@ -376,19 +367,14 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 					}
 					return struct{}{}, errors.New(i18n.T("electron.common.cli-local-needs-sign-in", name, binName))
 				}
-				// Gemini 没有官方账号（Google 不再让 Gemini CLI 用个人账号登录）：指给能用的路
-				if acpAuthRequiredRe.MatchString(err.Error()) && backend == "gemini" {
-					return struct{}{}, errors.New(i18n.T("electron.common.gemini-needs-auth"))
+				if acpAuthRequiredRe.MatchString(err.Error()) {
+					if cap := builtin.Acp(backend); cap != nil && cap.AuthRequiredKey != "" {
+						return struct{}{}, errors.New(i18n.T(cap.AuthRequiredKey))
+					}
 				}
 				return struct{}{}, err
 			}
 			if sid == nil || *sid == "" {
-				switch backend {
-				case "grok":
-					return struct{}{}, errors.New(i18n.T("electron.common.grok-did-not-return-a-session"))
-				case "gemini":
-					return struct{}{}, errors.New(i18n.T("electron.common.gemini-didn-t-return-a-session"))
-				}
 				return struct{}{}, errors.New(i18n.T("electron.common.didn-t-return-a-session", name))
 			}
 			if signal.Aborted() || o.tab(id) != tab || o.live.acp[id] != live {
@@ -396,10 +382,19 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			}
 			live.sessionID = sid
 			live.effectiveModel = currentAcpSessionModel(driver.SessionRaw)
-			if backend == "antigravity" && driver.SessionRaw != nil {
-				if cat := antigravityp.ParseModels(driver.SessionRaw); cat != nil {
-					if models, _ := cat.Get("models").([]any); len(models) > 0 {
-						o.modelCatalogs["antigravity"] = catalogEntry{at: nowMs(), catalog: cat}
+			if driver.SessionRaw != nil {
+				if cat := cli.ParseAcpSessionCatalog(backend, driver.SessionRaw); cat != nil {
+					if live.effectiveModel == "" {
+						if dm := util.AsObj(cat.Get("defaultModel")); dm != nil {
+							if mid := strings.TrimSpace(util.Str(dm.Get("id"))); mid != "" && mid != "cli-default" {
+								live.effectiveModel = mid
+							}
+						}
+					}
+					if models, _ := cat.Get("models").([]any); len(models) > 0 && cli.SupportsModelOverride(backend) {
+						if _, exists := o.modelCatalogs[backend]; !exists || builtin.LocalOnly(backend) {
+							o.modelCatalogs[backend] = catalogEntry{at: nowMs(), catalog: cat}
+						}
 					}
 				}
 			}
@@ -437,8 +432,8 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 				appliedModeID, e := jsrt.Await(o.applyAcpSessionMode(live, initMode, modeNow, signal))
 				if e != nil {
 					why := rpc.InnermostMessage(e.Error())
-					if backend == "gemini" && gemini.IsUntrustedModeError(e.Error()) {
-						return struct{}{}, gemini.NewUntrustedError(str(tab, "cwd"), e)
+					if ue := acpUntrustedModeErr(backend, str(tab, "cwd"), e); ue != nil {
+						return struct{}{}, ue
 					}
 					return struct{}{}, withCause(i18n.T("electron.common.cli-did-not-confirm-the-permission-mode-so", name, why), e)
 				}
@@ -453,22 +448,18 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 				return nil, withCause(i18n.T("electron.common.aborted"), e)
 			}
 			exited := e.Error() == rpc.RPCExited
-			if backend == "grok" && exited {
-				return nil, &acpUnavailableError{i18n.T("electron.common.grok-could-not-start-an-acp-session"), e}
-			}
-			// Gemini 以外的内置 CLI：报它自己的名字和最后的错误输出（不套 Gemini 的「版本过旧」提示）
-			if exited && backend != "gemini" {
+			if exited {
+				if ue := acpUntrustedExitErr(backend, str(tab, "cwd"), child.ExitCode(), stderrTail, e); ue != nil {
+					return nil, ue
+				}
+				if builtin.FallbackTransport(backend) != "" {
+					return nil, &acpUnavailableError{i18n.T("electron.common.couldn-t-start-an-acp-session", name, i18n.T("electron.common.the-process-exited")), e}
+				}
 				tail := clisdk.SliceFrom(util.JSTrim(stderrTail), -300)
 				if tail == "" {
 					tail = i18n.T("electron.common.the-process-exited")
 				}
 				return nil, withCause(i18n.T("electron.common.couldn-t-start-an-acp-session", name, tail), e)
-			}
-			if exited && gemini.IsGeminiUntrustedExit(child.ExitCode(), stderrTail) {
-				return nil, gemini.NewUntrustedError(str(tab, "cwd"), e)
-			}
-			if exited {
-				return nil, withCause(i18n.T("electron.common.gemini-cli-couldn-t-start-an-acp-session"), e)
 			}
 			return nil, e
 		}
@@ -529,7 +520,7 @@ func (o *Orchestrator) applyAcpSessionMode(live *acpLiveSession, mode string, mo
 			if _, e := jsrt.Await(live.driver.SetPermissionModeSignal(want, signal)); e == nil {
 				return want, nil
 			} else {
-				if live.backend == "gemini" && gemini.IsUntrustedModeError(e.Error()) {
+				if ue := acpUntrustedModeErr(live.backend, live.cwd, e); ue != nil {
 					return "", e
 				}
 				if !canFallback || !isUnsupportedAcpModeError(e) {
@@ -568,7 +559,7 @@ func (o *Orchestrator) confirmAcpMode(tab *util.Obj, live *acpLiveSession) *jsrt
 		if failure != nil {
 			return nil, failure
 		}
-		return nil, errors.New(i18n.T("electron.common.the-gemini-session-ended-this-message-was-not"))
+		return nil, errors.New(i18n.T("electron.common.the-cli-session-ended-this-message-was-not", acpDisplayName(live.backend)))
 	})
 }
 
@@ -622,10 +613,6 @@ func (o *Orchestrator) onAcpEvents(tabID string, live *acpLiveSession, evs []*ut
 	}
 }
 
-// grokCompactMethod：Grok 的手动压缩，ACP 扩展方法 x.ai/compact_conversation
-// （1.0.70 内置文档；线上带扩展前缀 _）。
-const grokCompactMethod = "_x.ai/compact_conversation"
-
 func (o *Orchestrator) runAcp(tab *util.Obj, prompt string, signal *jsrt.AbortSignal, images []cli.NormalizedImage) *jsrt.Promise[*util.Obj] {
 	return jsrt.Async(func() (*util.Obj, error) {
 		id := str(tab, "id")
@@ -649,7 +636,11 @@ func (o *Orchestrator) runAcp(tab *util.Obj, prompt string, signal *jsrt.AbortSi
 		if live.turn != nil {
 			return nil, errors.New(i18n.T("electron.common.previous-turn-still-running"))
 		}
-		compact := live.backend == "grok" && isCompactCommand(prompt) && len(images) == 0
+		compactMethod := ""
+		if cap := builtin.Acp(live.backend); cap != nil {
+			compactMethod = cap.CompactMethod
+		}
+		compact := compactMethod != "" && isCompactCommand(prompt) && len(images) == 0
 		// 新会话还没发过消息：没有可压缩的内容
 		if compact && str(tab, "cliSessionId") == "" && !live.used {
 			return nil, errors.New(i18n.T("electron.common.nothing-to-compact-yet"))
@@ -674,8 +665,8 @@ func (o *Orchestrator) runAcp(tab *util.Obj, prompt string, signal *jsrt.AbortSi
 		}
 		var sent clisdk.TurnResult
 		if compact {
-			sent, err = jsrt.Await(live.driver.Compact(grokCompactMethod, clisdk.TurnInput{OnTimeout: in.OnTimeout}))
-			// 这个版本没有压缩扩展方法：退回原样发 /compact（Grok 自己的命令）
+			sent, err = jsrt.Await(live.driver.Compact(compactMethod, clisdk.TurnInput{OnTimeout: in.OnTimeout}))
+			// 这个版本没有压缩扩展方法：退回原样发 /compact（CLI 自己的命令）
 			var re *rpc.Error
 			if errors.As(err, &re) && util.JSString(re.Code) == "-32601" {
 				sent, err = jsrt.Await(live.driver.Send(in))
@@ -784,27 +775,19 @@ func (o *Orchestrator) syncAcpOverrides(tab *util.Obj, live *acpLiveSession) *js
 			return true, nil
 		}
 		catalog := o.cachedCatalog(live.backend)
-		fail := func(what string, e error) error {
-			if live.backend == "grok" {
-				return withCause(i18n.T("electron.common.grok-did-not-switch-the", what, rpc.InnermostMessage(e.Error())), e)
-			}
-			return withCause(i18n.T("electron.common.cli-did-not-switch-the", acpDisplayName(live.backend), what, rpc.InnermostMessage(e.Error())), e)
-		}
-		var modelCap *clisdk.ModelCatalogCapability
-		if impl := builtin.Impl(live.backend); impl != nil {
-			modelCap = impl.Models
-		}
-		if modelCap != nil && modelCap.ResolveOverride != nil {
-			if catalog == nil && modelCap.ParseSession != nil && live.driver != nil && live.driver.SessionRaw != nil {
-				if c := modelCap.ParseSession(live.driver.SessionRaw); c != nil {
-					if ms, ok := c.Get("models").([]any); ok && len(ms) > 0 {
-						catalog = c
-					}
+		if catalog == nil && live.driver != nil && live.driver.SessionRaw != nil {
+			if c := cli.ParseAcpSessionCatalog(live.backend, live.driver.SessionRaw); c != nil {
+				if ms, ok := c.Get("models").([]any); ok && len(ms) > 0 {
+					catalog = c
 				}
 			}
-			wantModel := derefStr(want.model)
-			wantEffort := derefStr(want.effort)
-			ov := modelCap.ResolveOverride(catalog, wantModel, wantEffort)
+		}
+		fail := func(what string, e error) error {
+			return withCause(i18n.T("electron.common.cli-did-not-switch-the", acpDisplayName(live.backend), what, rpc.InnermostMessage(e.Error())), e)
+		}
+		wantModel := derefStr(want.model)
+		wantEffort := derefStr(want.effort)
+		if ov, hasCustom := cli.ResolveAcpOverride(live.backend, catalog, wantModel, wantEffort); hasCustom {
 			wireModel, wireEffort, cfgID := ov.ModelID, ov.Effort, ov.EffortConfigID
 			if want.model != nil && wireModel == "" {
 				return false, nil
@@ -876,7 +859,13 @@ func (o *Orchestrator) syncAcpOverrides(tab *util.Obj, live *acpLiveSession) *js
 			if !truthy(value) {
 				return want.effort == nil, nil
 			}
-			if _, e := jsrt.Await(live.driver.SetConfigOption("reasoning_effort", value)); e != nil {
+			cfgID := "reasoning_effort"
+			if catalog != nil {
+				if id, ok := catalog.Get("effortConfigId").(string); ok && id != "" {
+					cfgID = id
+				}
+			}
+			if _, e := jsrt.Await(live.driver.SetConfigOption(cfgID, value)); e != nil {
 				return false, fail(i18n.T("electron.common.reasoning-effort"), e)
 			}
 			live.effort = want.effort
@@ -906,7 +895,7 @@ func (o *Orchestrator) teardownAcpLive(tabID string) {
 	}
 	o.live.delAcp(tabID)
 	live.cancelPerms()
-	if live.backend == "antigravity" && !o.disposed && live.driver != nil && !live.driver.Closed() && live.driver.SupportsCloseSession() && live.driver.SessionID() != nil {
+	if !o.disposed && live.driver != nil && !live.driver.Closed() && live.driver.SupportsCloseSession() && live.driver.SessionID() != nil {
 		p := live.driver.CloseSession(1500)
 		drv := live.driver
 		jsrt.Async(func() (struct{}, error) {
@@ -1066,12 +1055,11 @@ func (o *Orchestrator) ListAcpSessions(backend, cwd, cursor string) *jsrt.Promis
 		driverOpts := drivers.AcpDriverOptions{
 			Child:              child,
 			Kill:               killTree,
+			RPC:                rpc.ConnectionOptions{TimeoutMessage: cli.AcpTimeoutMessageFor(backend)},
 			DisableElicitation: true,
 		}
-		if backend == "antigravity" {
-			driverOpts.ClientInfo = antigravityp.ClientInfo()
-			driverOpts.ClientCapabilities = antigravityp.ClientCapabilities()
-		}
+		cli.ApplyAcpCapability(&driverOpts, backend)
+		driverOpts.DisableElicitation = true
 		driver := drivers.NewAcpDriver(driverOpts)
 		defer driver.Close()
 		ac := jsrt.NewAbortController()

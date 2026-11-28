@@ -10,10 +10,8 @@ import (
 	"time"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
-	antigravityp "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/antigravity"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/gemini"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -271,14 +269,14 @@ func (s *LocalAuthService) Status(kind string, probe bool) *jsrt.Promise[*util.O
 }
 
 func acpInitializeParams(kind string) *util.Obj {
-	if kind == "antigravity" {
-		return util.NewObj(
-			"protocolVersion", float64(1),
-			"clientInfo", antigravityp.ClientInfo(),
-			"clientCapabilities", antigravityp.ClientCapabilities(),
-		)
+	return AcpInitializeParams(kind)
+}
+
+func localAuthAcpArgs(kind string) []string {
+	if args := builtin.AcpArgs(kind); len(args) > 0 {
+		return args
 	}
-	return util.NewObj("protocolVersion", float64(1), "clientCapabilities", util.NewObj())
+	return []string{"acp"}
 }
 
 func supportsAcpLogout(initResult any) bool {
@@ -299,16 +297,16 @@ func supportsAcpLogout(initResult any) bool {
 
 func (s *LocalAuthService) probeACP(kind, bin string) *jsrt.Promise[bool] {
 	probeMs := s.probeMs()
-	child := s.spawn(bin, []string{"acp"}, os.TempDir())
+	child := s.spawn(bin, localAuthAcpArgs(kind), os.TempDir())
 	return localAuthWithTimeout[bool](child, probeMs, func(done func(bool), fail func(error)) {
 		tail := ""
 		child.OnStderr(func(c string) { tail = clisdk.SliceFrom(tail+c, -600) })
-		conn := gemini.NewAcpConnection(clisdk.ProcChild{Child: child}, rpc.Handlers{
+		conn := rpc.NewConnection(clisdk.ProcChild{Child: child}, rpc.Handlers{
 			OnNotification: func(string, rpc.Json) {},
 			OnRequest: func(string, rpc.Json) *jsrt.Promise[any] {
 				return jsrt.Rejected[any](errors.New("not supported"))
 			},
-		})
+		}, rpc.ConnectionOptions{TimeoutMessage: AcpTimeoutMessageFor(kind)})
 		opts := rpc.RequestOptions{TimeoutMs: &probeMs}
 		jsrt.Async(func() (struct{}, error) {
 			if _, err := jsrt.Await(conn.Request("initialize", acpInitializeParams(kind), opts)); err != nil {
@@ -509,16 +507,16 @@ func (s *LocalAuthService) Logout(kind string) *jsrt.Promise[*util.Obj] {
 		}
 		s.bumpGen(kind)
 		probeMs := s.probeMs()
-		child := s.spawn(bin, []string{"acp"}, os.TempDir())
+		child := s.spawn(bin, localAuthAcpArgs(kind), os.TempDir())
 		_, err := jsrt.Await(localAuthWithTimeout[struct{}](child, probeMs, func(done func(struct{}), fail func(error)) {
 			tail := ""
 			child.OnStderr(func(c string) { tail = clisdk.SliceFrom(tail+c, -600) })
-			conn := gemini.NewAcpConnection(clisdk.ProcChild{Child: child}, rpc.Handlers{
+			conn := rpc.NewConnection(clisdk.ProcChild{Child: child}, rpc.Handlers{
 				OnNotification: func(string, rpc.Json) {},
 				OnRequest: func(string, rpc.Json) *jsrt.Promise[any] {
 					return jsrt.Rejected[any](errors.New("not supported"))
 				},
-			})
+			}, rpc.ConnectionOptions{TimeoutMessage: AcpTimeoutMessageFor(kind)})
 			opts := rpc.RequestOptions{TimeoutMs: &probeMs}
 			jsrt.Async(func() (struct{}, error) {
 				initRes, err := jsrt.Await(conn.Request("initialize", acpInitializeParams(kind), opts))

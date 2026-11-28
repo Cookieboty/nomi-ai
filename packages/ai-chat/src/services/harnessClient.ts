@@ -237,17 +237,26 @@ export type HarnessTraceEvent =
       type: 'tool';
       name: string;
       status: 'start' | 'done' | 'error';
+      title?: string;
       detail?: string;
       id?: string;
       input?: string;
       output?: string;
       parentId?: string;
       at?: number;
+      endedAt?: number;
       /** 事件发生时助手正文的字符下标 */
       textAt?: number;
     }
   /** 思考；parentId = 子代理的思考（主时间线不画，子任务侧栏里显示） */
-  | { type: 'thinking'; text: string; parentId?: string; at?: number; textAt?: number }
+  | {
+      type: 'thinking';
+      text: string;
+      parentId?: string;
+      at?: number;
+      endedAt?: number;
+      textAt?: number;
+    }
   /** 一轮进行中用户插入的消息（已交给 CLI / Nomi，下一步取走），按 textAt 显示在回复中间 */
   | { type: 'interject'; text: string; at?: number; textAt?: number }
   /** 结构化执行计划（ACP sessionUpdate: plan / plan_update） */
@@ -433,6 +442,92 @@ async function call<T>(run: () => Promise<unknown>): Promise<T> {
 /** 订阅主进程推送；没有契约传输时不订阅 */
 function on(subscribe: () => () => void): () => void {
   return hasTransport() ? subscribe() : () => undefined;
+}
+
+const MODEL_CATALOG_CACHE_KEY = '__nomiHarnessModelCatalogCache';
+const MODEL_CATALOG_FRESH_MS = 60_000;
+
+interface ModelCatalogCacheEntry {
+  at: number;
+  catalog: BackendModelCatalog | null;
+}
+
+interface ModelCatalogCacheStore {
+  entries: Map<string, ModelCatalogCacheEntry>;
+  inflight: Map<string, Promise<BackendModelCatalog | null>>;
+}
+
+function getModelCatalogStore(): ModelCatalogCacheStore {
+  const g = globalThis as unknown as Record<string, ModelCatalogCacheStore | undefined>;
+  return (g[MODEL_CATALOG_CACHE_KEY] ??= {
+    entries: new Map<string, ModelCatalogCacheEntry>(),
+    inflight: new Map<string, Promise<BackendModelCatalog | null>>(),
+  });
+}
+
+function modelCatalogCacheKey(backend: string, source?: TabSource): string {
+  return `${backend}|${source ?? ''}`;
+}
+
+export function clearModelCatalogCache(): void {
+  const s = getModelCatalogStore();
+  s.entries.clear();
+  s.inflight.clear();
+}
+
+function readModelCatalogCache(
+  backend: HarnessBackend,
+  source?: TabSource,
+): BackendModelCatalog | null | undefined {
+  const entry = getModelCatalogStore().entries.get(modelCatalogCacheKey(backend, source));
+  return entry ? entry.catalog : undefined;
+}
+
+function isModelCatalogFresh(backend: HarnessBackend, source?: TabSource): boolean {
+  if (source === 'thirdParty') return false;
+  const entry = getModelCatalogStore().entries.get(modelCatalogCacheKey(backend, source));
+  if (!entry) return false;
+  if (entry.catalog && entry.catalog.error) return false;
+  return Date.now() - entry.at < MODEL_CATALOG_FRESH_MS;
+}
+
+function fetchModelCatalogCached(
+  backend: HarnessBackend,
+  opts: { refresh?: boolean; source?: TabSource } = {},
+): Promise<BackendModelCatalog | null> {
+  const store = getModelCatalogStore();
+  const key = modelCatalogCacheKey(backend, opts.source);
+  if (!opts.refresh && opts.source !== 'thirdParty') {
+    const entry = store.entries.get(key);
+    if (
+      entry &&
+      Date.now() - entry.at < MODEL_CATALOG_FRESH_MS &&
+      (!entry.catalog || !entry.catalog.error)
+    ) {
+      return Promise.resolve(entry.catalog);
+    }
+    const pending = store.inflight.get(key);
+    if (pending) return pending;
+  }
+  const req = call<BackendModelCatalog | null>(() =>
+    api.harness.modelCatalog({ backend, refresh: opts.refresh, source: opts.source }),
+  ).then(
+    (res) => {
+      if (store.inflight.get(key) === req) store.inflight.delete(key);
+      if (!res || !res.error) {
+        store.entries.set(key, { at: Date.now(), catalog: res ?? null });
+      }
+      return res ?? null;
+    },
+    (err) => {
+      if (store.inflight.get(key) === req) store.inflight.delete(key);
+      throw err;
+    },
+  );
+  if (!opts.refresh) {
+    store.inflight.set(key, req);
+  }
+  return req;
 }
 
 /** 斜杠命令 / skill / 插件的只读发现结果（主进程只读文件名与 frontmatter；见 cli/slashDiscovery） */
@@ -723,10 +818,12 @@ export const harnessClient = {
    * 模型目录：官方来源从 CLI 读（主进程缓存），第三方来源（source: 'thirdParty'）是网关里能给 agent 用的模型；
    * 不支持切换模型的后端返回 null；refresh 强制重读
    */
+  cachedModelCatalog: (backend: HarnessBackend, opts: { source?: TabSource } = {}) =>
+    readModelCatalogCache(backend, opts.source),
+  isModelCatalogFresh: (backend: HarnessBackend, opts: { source?: TabSource } = {}) =>
+    isModelCatalogFresh(backend, opts.source),
   modelCatalog: (backend: HarnessBackend, opts: { refresh?: boolean; source?: TabSource } = {}) =>
-    call<BackendModelCatalog | null>(() =>
-      api.harness.modelCatalog({ backend, refresh: opts.refresh, source: opts.source }),
-    ),
+    fetchModelCatalogCached(backend, opts),
   /** 切换标签来源；第三方时 model 是网关的 `供应商/模型`（省略 = 这个 CLI 分配的默认模型）；官方时可带 accountId */
   setTabSource: (id: string, source: TabSource, model?: string, accountId?: string | null) =>
     call<HarnessTabMeta>(() =>

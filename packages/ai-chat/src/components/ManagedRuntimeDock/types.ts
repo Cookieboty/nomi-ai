@@ -64,6 +64,7 @@ export type TraceEntryView = {
   detail?: string;
   output?: string;
   at: number;
+  endedAt?: number;
 };
 
 export type FailedRequestView = {

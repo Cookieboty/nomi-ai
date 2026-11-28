@@ -80,6 +80,9 @@ func BuildTrace(events []Ev) []Ev {
 					if n := util.Str(ev.Get("name")); n != "" && n != "tool" {
 						merged.Set("name", n)
 					}
+					if tl := util.Str(ev.Get("title")); tl != "" {
+						merged.Set("title", tl)
+					}
 					if in := util.Str(ev.Get("input")); in != "" {
 						merged.Set("input", in)
 					}

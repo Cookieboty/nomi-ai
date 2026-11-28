@@ -13,7 +13,6 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/gemini"
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/jsrt"
@@ -29,14 +28,16 @@ type Runtime struct {
 	token    cr.AttemptToken
 	closed   bool
 
-	titleMu    sync.Mutex
-	onTitle    func(string)
-	modeMu     sync.Mutex
-	onMode     func(string)
-	cmdMu      sync.Mutex
-	onCommands func([]cr.SlashCommandInfo)
-	modelMu    sync.Mutex
-	onModel    func(string, string)
+	titleMu      sync.Mutex
+	onTitle      func(string)
+	modeMu       sync.Mutex
+	onMode       func(string)
+	availModesMu sync.Mutex
+	onAvailModes func([]string)
+	cmdMu        sync.Mutex
+	onCommands   func([]cr.SlashCommandInfo)
+	modelMu      sync.Mutex
+	onModel      func(string, string)
 }
 
 type turn struct {
@@ -57,6 +58,11 @@ type turn struct {
 	ctxTokens         *int64
 	ctxWindow         *int64
 	costUsd           *float64
+	thinkSeq          int
+	thinkID           string
+	thinkText         string
+	thinkStart        int64
+	thinkTextAt       int
 }
 
 func (t *turn) pushStream(textDelta, thinkingDelta string, thinking bool) {
@@ -90,6 +96,10 @@ func (t *turn) clearThinking() {
 		t.streamDirty = true
 		wake = true
 	}
+	t.thinkID = ""
+	t.thinkText = ""
+	t.thinkStart = 0
+	t.thinkTextAt = 0
 	t.streamMu.Unlock()
 	if wake {
 		select {
@@ -162,6 +172,45 @@ func (r *Runtime) emitMode(mode string) {
 	r.modeMu.Unlock()
 	if fn != nil {
 		go fn(trimmed)
+	}
+}
+
+// SetAvailableModesHandler registers a callback invoked asynchronously when ACP handshake
+// reports native availableModes.
+func (r *Runtime) SetAvailableModesHandler(fn func([]string)) {
+	r.availModesMu.Lock()
+	r.onAvailModes = fn
+	r.availModesMu.Unlock()
+}
+
+func (r *Runtime) emitAvailableModes(rawModes []string) {
+	if len(rawModes) == 0 {
+		return
+	}
+	r.availModesMu.Lock()
+	fn := r.onAvailModes
+	r.availModesMu.Unlock()
+	if fn == nil {
+		return
+	}
+	seen := map[string]bool{}
+	for _, raw := range rawModes {
+		mapped := toManagedPermissionMode(cli.FromCliPermissionMode(r.config.BackendID, raw))
+		if mapped != "" {
+			seen[mapped] = true
+		}
+	}
+	if len(seen) == 0 {
+		return
+	}
+	ordered := make([]string, 0, len(seen))
+	for _, canonical := range []string{"deny", "ask", "acceptEdits", "auto", "bypass"} {
+		if seen[canonical] {
+			ordered = append(ordered, canonical)
+		}
+	}
+	if len(ordered) > 0 {
+		go fn(ordered)
 	}
 }
 
@@ -448,7 +497,7 @@ func (r *Runtime) loadExisting(ctx context.Context, w *worker, previous string) 
 		return errors.New("owner closed")
 	}
 	if _, err := awaitPromise(ctx, p); err != nil {
-		if builtin.InteractiveOnly(r.config.BackendID) && isAcpAuthError(err) {
+		if cli.LocalAuthSupported(r.config.BackendID) && isAcpAuthError(err) {
 			cli.SetLocalAuthCache(r.config.BackendID, false)
 		}
 		return err
@@ -456,6 +505,7 @@ func (r *Runtime) loadExisting(ctx context.Context, w *worker, previous string) 
 	var ok bool
 	var initTitle string
 	var initCmds []cr.SlashCommandInfo
+	var initAvailModes []string
 	jsrt.Run(func() {
 		if ctx.Err() != nil || w.driver == nil || w.failure != "" {
 			return
@@ -467,13 +517,16 @@ func (r *Runtime) loadExisting(ctx context.Context, w *worker, previous string) 
 			if len(w.driver.AvailableCommands) > 0 {
 				initCmds = parseSlashCommands(w.driver.AvailableCommands)
 			}
+			if len(w.driver.AvailableModes) > 0 {
+				initAvailModes = append([]string(nil), w.driver.AvailableModes...)
+			}
 			ok = true
 		}
 	})
 	if !ok {
 		return errors.New("ACP session/load did not confirm exact session id")
 	}
-	if builtin.InteractiveOnly(r.config.BackendID) {
+	if cli.LocalAuthSupported(r.config.BackendID) {
 		cli.SetLocalAuthCache(r.config.BackendID, true)
 	}
 	if initTitle != "" {
@@ -481,6 +534,9 @@ func (r *Runtime) loadExisting(ctx context.Context, w *worker, previous string) 
 	}
 	if len(initCmds) > 0 {
 		r.emitCommands(initCmds)
+	}
+	if len(initAvailModes) > 0 {
+		r.emitAvailableModes(initAvailModes)
 	}
 	return nil
 }
@@ -497,7 +553,7 @@ func (r *Runtime) resumeExisting(ctx context.Context, w *worker, previous string
 		return errors.New("owner closed")
 	}
 	if _, err := awaitPromise(ctx, p); err != nil {
-		if builtin.InteractiveOnly(r.config.BackendID) && isAcpAuthError(err) {
+		if cli.LocalAuthSupported(r.config.BackendID) && isAcpAuthError(err) {
 			cli.SetLocalAuthCache(r.config.BackendID, false)
 		}
 		return err
@@ -505,6 +561,7 @@ func (r *Runtime) resumeExisting(ctx context.Context, w *worker, previous string
 	var ok bool
 	var initTitle string
 	var initCmds []cr.SlashCommandInfo
+	var initAvailModes []string
 	jsrt.Run(func() {
 		if ctx.Err() != nil || w.driver == nil || w.failure != "" {
 			return
@@ -516,13 +573,16 @@ func (r *Runtime) resumeExisting(ctx context.Context, w *worker, previous string
 			if len(w.driver.AvailableCommands) > 0 {
 				initCmds = parseSlashCommands(w.driver.AvailableCommands)
 			}
+			if len(w.driver.AvailableModes) > 0 {
+				initAvailModes = append([]string(nil), w.driver.AvailableModes...)
+			}
 			ok = true
 		}
 	})
 	if !ok {
 		return errors.New("ACP session/resume did not confirm exact session id")
 	}
-	if builtin.InteractiveOnly(r.config.BackendID) {
+	if cli.LocalAuthSupported(r.config.BackendID) {
 		cli.SetLocalAuthCache(r.config.BackendID, true)
 	}
 	if initTitle != "" {
@@ -530,6 +590,9 @@ func (r *Runtime) resumeExisting(ctx context.Context, w *worker, previous string
 	}
 	if len(initCmds) > 0 {
 		r.emitCommands(initCmds)
+	}
+	if len(initAvailModes) > 0 {
+		r.emitAvailableModes(initAvailModes)
 	}
 	return nil
 }
@@ -546,13 +609,14 @@ func (r *Runtime) startNewSession(ctx context.Context, w *worker) (string, error
 		return "", errors.New("owner closed")
 	}
 	if _, err := awaitPromise(ctx, p); err != nil {
-		if builtin.InteractiveOnly(r.config.BackendID) && isAcpAuthError(err) {
+		if cli.LocalAuthSupported(r.config.BackendID) && isAcpAuthError(err) {
 			cli.SetLocalAuthCache(r.config.BackendID, false)
 		}
 		return "", err
 	}
 	var sid, initTitle string
 	var initCmds []cr.SlashCommandInfo
+	var initAvailModes []string
 	jsrt.Run(func() {
 		if ctx.Err() != nil || w.driver == nil || w.failure != "" {
 			return
@@ -564,12 +628,15 @@ func (r *Runtime) startNewSession(ctx context.Context, w *worker) (string, error
 			if len(w.driver.AvailableCommands) > 0 {
 				initCmds = parseSlashCommands(w.driver.AvailableCommands)
 			}
+			if len(w.driver.AvailableModes) > 0 {
+				initAvailModes = append([]string(nil), w.driver.AvailableModes...)
+			}
 		}
 	})
 	if sid == "" {
 		return "", errors.New("ACP agent returned no session")
 	}
-	if builtin.InteractiveOnly(r.config.BackendID) {
+	if cli.LocalAuthSupported(r.config.BackendID) {
 		cli.SetLocalAuthCache(r.config.BackendID, true)
 	}
 	if initTitle != "" {
@@ -577,6 +644,9 @@ func (r *Runtime) startNewSession(ctx context.Context, w *worker) (string, error
 	}
 	if len(initCmds) > 0 {
 		r.emitCommands(initCmds)
+	}
+	if len(initAvailModes) > 0 {
+		r.emitAvailableModes(initAvailModes)
 	}
 	return sid, nil
 }
@@ -593,14 +663,15 @@ func isUnsupportedAcpModeError(err error) bool {
 	lower := strings.ToLower(err.Error())
 	return strings.Contains(lower, "unknown mode id") ||
 		strings.Contains(lower, "unsupported mode") ||
-		strings.Contains(lower, "invalid mode")
+		strings.Contains(lower, "invalid mode") ||
+		strings.Contains(lower, "not available")
 }
 
 func (r *Runtime) applySessionMode(ctx context.Context, w *worker) error {
 	cliMode := toCliPermissionMode(r.config.PermissionMode)
-	var wantMode, modeNow string
+	var wantMode, editMode, modeNow string
 	var availModes []string
-	var knownUnsupported bool
+	var unsupported map[string]bool
 	jsrt.Run(func() {
 		if w == nil || w.driver == nil || w.driver.Closed() {
 			return
@@ -610,63 +681,94 @@ func (r *Runtime) applySessionMode(ctx context.Context, w *worker) error {
 			return
 		}
 		wantMode = impl.Permissions.ModeID(cliMode)
+		if cliMode == "auto" {
+			editMode = impl.Permissions.ModeID("acceptEdits")
+		}
 		if w.driver.ModeID != nil {
 			modeNow = *w.driver.ModeID
 		}
 		availModes = append([]string(nil), w.driver.AvailableModes...)
 		if w.unsupportedModes != nil {
-			knownUnsupported = w.unsupportedModes[wantMode]
+			unsupported = make(map[string]bool, len(w.unsupportedModes))
+			for k, v := range w.unsupportedModes {
+				unsupported[k] = v
+			}
 		}
 	})
-	if wantMode == "" || modeNow == wantMode {
+	if wantMode == "" {
 		return nil
 	}
-	// 只读计划（plan）绝不降级；非 plan 且非 default 模式当对端不支持该 modeId 时回退到 default（后续由宿主审批回调接管）。
-	canFallback := cliMode != "plan" && wantMode != "default"
-	shouldFallback := canFallback && (knownUnsupported || (len(availModes) > 0 && !slices.Contains(availModes, wantMode)))
-	if !shouldFallback {
+	trySetMode := func(targetModeID string) (ok bool, err error) {
+		if targetModeID == "" {
+			return false, nil
+		}
+		if modeNow == targetModeID {
+			return true, nil
+		}
+		if unsupported[targetModeID] || (len(availModes) > 0 && !slices.Contains(availModes, targetModeID)) {
+			return false, nil
+		}
 		var modePromise *jsrt.Promise[string]
 		jsrt.Run(func() {
 			if w != nil && w.driver != nil && !w.driver.Closed() {
-				modePromise = w.driver.SetPermissionMode(wantMode)
+				modePromise = w.driver.SetPermissionMode(targetModeID)
 			}
 		})
 		if modePromise == nil {
-			return nil
+			return true, nil
 		}
 		if _, err := awaitPromise(ctx, modePromise); err != nil {
-			if r.config.BackendID == "gemini" && gemini.IsUntrustedModeError(err.Error()) {
-				return err
+			if cliMode == "plan" && targetModeID == wantMode {
+				return false, err
 			}
-			if !canFallback || !isUnsupportedAcpModeError(err) {
-				return err
+			if acpCap := builtin.Acp(r.config.BackendID); acpCap != nil && acpCap.IsUntrustedModeError != nil && acpCap.IsUntrustedModeError(err.Error()) {
+				return false, err
+			}
+			if !isUnsupportedAcpModeError(err) {
+				return false, err
 			}
 			jsrt.Run(func() {
 				if w != nil {
 					if w.unsupportedModes == nil {
 						w.unsupportedModes = map[string]bool{}
 					}
-					w.unsupportedModes[wantMode] = true
+					w.unsupportedModes[targetModeID] = true
 				}
 			})
-		} else {
+			return false, nil
+		}
+		return true, nil
+	}
+	ok, err := trySetMode(wantMode)
+	if err != nil {
+		return err
+	}
+	if ok {
+		return nil
+	}
+	// 只读计划（plan）与默认模式（default）不做权限放宽或越级回退。
+	if cliMode == "plan" || wantMode == "default" {
+		return nil
+	}
+	// 当 auto 模式不可用或未在对端放行时，优先回退到最接近自动的 acceptEdits，其次才回退到 default。
+	type fallbackCandidate struct {
+		modeID      string
+		managedMode string
+	}
+	var candidates []fallbackCandidate
+	if editMode != "" && editMode != wantMode && editMode != "default" {
+		candidates = append(candidates, fallbackCandidate{modeID: editMode, managedMode: "acceptEdits"})
+	}
+	candidates = append(candidates, fallbackCandidate{modeID: "default", managedMode: "ask"})
+	for _, cand := range candidates {
+		ok, err := trySetMode(cand.modeID)
+		if err != nil {
+			return err
+		}
+		if ok {
+			r.emitMode(cand.managedMode)
 			return nil
 		}
-	}
-	if modeNow == "default" || (len(availModes) > 0 && !slices.Contains(availModes, "default")) {
-		return nil
-	}
-	var fallbackPromise *jsrt.Promise[string]
-	jsrt.Run(func() {
-		if w != nil && w.driver != nil && !w.driver.Closed() {
-			fallbackPromise = w.driver.SetPermissionMode("default")
-		}
-	})
-	if fallbackPromise == nil {
-		return nil
-	}
-	if _, err := awaitPromise(ctx, fallbackPromise); err != nil {
-		return err
 	}
 	return nil
 }
@@ -675,6 +777,11 @@ func (r *Runtime) applySessionSettings(ctx context.Context, w *worker) error {
 	if err := r.applySessionMode(ctx, w); err != nil {
 		return err
 	}
+	defer jsrt.Run(func() {
+		if w != nil {
+			w.modeSyncReady = true
+		}
+	})
 	if r.config.Source == "thirdParty" {
 		jsrt.Run(func() {
 			if w != nil {
@@ -692,18 +799,14 @@ func (r *Runtime) applySessionSettings(ctx context.Context, w *worker) error {
 		model = ""
 	}
 	effort := r.config.Effort
-	var modelCap *clisdk.ModelCatalogCapability
-	if impl := builtin.Impl(r.config.BackendID); impl != nil {
-		modelCap = impl.Models
-	}
 	if model == "" && effort == "" {
 		jsrt.Run(func() {
 			if w != nil {
 				w.appliedModel = r.config.Model
 				w.appliedEffort = r.config.Effort
 				eff := currentSessionModel(w)
-				if eff == "" && modelCap != nil && modelCap.ParseSession != nil && w.driver != nil && w.driver.SessionRaw != nil {
-					eff = catalogDefaultModel(modelCap.ParseSession(w.driver.SessionRaw))
+				if eff == "" && w.driver != nil && w.driver.SessionRaw != nil {
+					eff = catalogDefaultModel(cli.ParseAcpSessionCatalog(r.config.BackendID, w.driver.SessionRaw))
 				}
 				if eff != "" {
 					w.effectiveModel = eff
@@ -712,94 +815,58 @@ func (r *Runtime) applySessionSettings(ctx context.Context, w *worker) error {
 		})
 		return nil
 	}
-	if modelCap != nil && modelCap.ResolveOverride != nil {
-		var parsedCatalog *util.Obj
-		var wireModel, wireEffort, cfgID, fallbackEff string
-		var modelPromise, effortPromise *jsrt.Promise[struct{}]
-		jsrt.Run(func() {
-			if w == nil || w.driver == nil || w.driver.Closed() {
-				return
-			}
-			if modelCap.ParseSession != nil && w.driver.SessionRaw != nil {
-				if c := modelCap.ParseSession(w.driver.SessionRaw); c != nil {
-					if ms, ok := c.Get("models").([]any); ok && len(ms) > 0 {
-						parsedCatalog = c
-					}
-				}
-			}
-			ov := modelCap.ResolveOverride(parsedCatalog, model, effort)
-			wireModel, wireEffort, cfgID = ov.ModelID, ov.Effort, ov.EffortConfigID
-			if wireModel == "" && model != "" {
-				wireModel = model
-			}
-			fallbackEff = currentSessionModel(w)
-			if fallbackEff == "" {
-				fallbackEff = catalogDefaultModel(parsedCatalog)
-			}
-			if wireModel != "" {
-				modelPromise = w.driver.SetSessionModel(wireModel)
-			}
-		})
-		if modelPromise != nil {
-			if _, err := awaitPromise(ctx, modelPromise); err != nil {
-				return err
-			}
-		}
-		if wireEffort != "" {
-			if cfgID == "" {
-				cfgID = "reasoning_effort"
-			}
-			jsrt.Run(func() {
-				if w == nil || w.driver == nil || w.driver.Closed() {
-					return
-				}
-				effortPromise = w.driver.SetConfigOption(cfgID, wireEffort)
-			})
-			if effortPromise != nil {
-				if _, err := awaitPromise(ctx, effortPromise); err != nil {
-					return err
-				}
-			}
-		}
-		jsrt.Run(func() {
-			if w == nil {
-				return
-			}
-			w.appliedModel = r.config.Model
-			w.appliedEffort = r.config.Effort
-			eff := wireModel
-			if eff == "" {
-				eff = currentSessionModel(w)
-			}
-			if eff == "" {
-				eff = fallbackEff
-			}
-			if eff == "" {
-				eff = model
-			}
-			if eff != "" && eff != "cli-default" {
-				w.effectiveModel = eff
-			}
-		})
-		return nil
-	}
-	var modelPromise *jsrt.Promise[string]
+	var parsedCatalog *util.Obj
+	var ov clisdk.ModelOverride
+	var hasCustom bool
+	var fallbackEff string
+	var modelPromise, effortPromise *jsrt.Promise[struct{}]
 	jsrt.Run(func() {
 		if w == nil || w.driver == nil || w.driver.Closed() {
 			return
 		}
-		var mp, ep *string
-		if model != "" {
-			mp = &model
+		if w.driver.SessionRaw != nil {
+			if c := cli.ParseAcpSessionCatalog(r.config.BackendID, w.driver.SessionRaw); c != nil {
+				if ms, ok := c.Get("models").([]any); ok && len(ms) > 0 {
+					parsedCatalog = c
+				}
+			}
 		}
-		if effort != "" {
-			ep = &effort
+		ov, hasCustom = cli.ResolveAcpOverride(r.config.BackendID, parsedCatalog, model, effort)
+		if !hasCustom && effort == "" {
+			// 标准 ACP 未显式指定 effort 时不额外触发 session/set_config_option
+			ov.Effort = ""
 		}
-		modelPromise = w.driver.SetModel(mp, ep)
+		if ov.ModelID == "" && model != "" {
+			ov.ModelID = model
+		}
+		fallbackEff = currentSessionModel(w)
+		if fallbackEff == "" {
+			fallbackEff = catalogDefaultModel(parsedCatalog)
+		}
+		if ov.ModelID != "" {
+			modelPromise = w.driver.SetSessionModel(ov.ModelID)
+		}
 	})
 	if modelPromise != nil {
 		if _, err := awaitPromise(ctx, modelPromise); err != nil {
 			return err
+		}
+	}
+	if ov.Effort != "" {
+		cfgID := ov.EffortConfigID
+		if cfgID == "" {
+			cfgID = "reasoning_effort"
+		}
+		jsrt.Run(func() {
+			if w == nil || w.driver == nil || w.driver.Closed() {
+				return
+			}
+			effortPromise = w.driver.SetConfigOption(cfgID, ov.Effort)
+		})
+		if effortPromise != nil {
+			if _, err := awaitPromise(ctx, effortPromise); err != nil {
+				return err
+			}
 		}
 	}
 	jsrt.Run(func() {
@@ -808,9 +875,15 @@ func (r *Runtime) applySessionSettings(ctx context.Context, w *worker) error {
 		}
 		w.appliedModel = r.config.Model
 		w.appliedEffort = r.config.Effort
-		eff := model
+		eff := ov.ModelID
 		if eff == "" {
 			eff = currentSessionModel(w)
+		}
+		if eff == "" {
+			eff = fallbackEff
+		}
+		if eff == "" {
+			eff = model
 		}
 		if eff != "" && eff != "cli-default" {
 			w.effectiveModel = eff
@@ -1294,6 +1367,9 @@ func (r *Runtime) close() {
 	r.modeMu.Lock()
 	r.onMode = nil
 	r.modeMu.Unlock()
+	r.availModesMu.Lock()
+	r.onAvailModes = nil
+	r.availModesMu.Unlock()
 	r.cmdMu.Lock()
 	r.onCommands = nil
 	r.cmdMu.Unlock()
@@ -1308,7 +1384,7 @@ func (r *Runtime) close() {
 	jsrt.Run(func() {
 		r.closed = true
 		w = r.worker
-		if w != nil && builtin.InteractiveOnly(r.config.BackendID) && w.driver != nil && !w.driver.Closed() && w.driver.SupportsCloseSession() && w.driver.SessionID() != nil {
+		if w != nil && w.driver != nil && !w.driver.Closed() && w.driver.SupportsCloseSession() && w.driver.SessionID() != nil {
 			closeSession = w.driver.CloseSession(1500)
 		}
 	})

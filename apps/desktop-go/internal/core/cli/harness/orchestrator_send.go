@@ -215,10 +215,8 @@ func (o *Orchestrator) runTurn(tab *util.Obj, backend, toCli string, abort *jsrt
 		p = o.runDsh(tab, toCli)
 	case "grok":
 		p = o.runGrokTurn(tab, toCli, abort.Signal, normalized)
-	case "gemini":
-		p = o.runAcp(tab, toCli, abort.Signal, normalized)
 	default:
-		// 其余内置的 ACP 助手（清单 transport 为 acp）；剩下的是 codex
+		// 全部内置 ACP 助手（清单 transport 为 acp）；剩下的是 codex
 		if builtin.UsesAcp(backend) {
 			p = o.runAcp(tab, toCli, abort.Signal, normalized)
 			break

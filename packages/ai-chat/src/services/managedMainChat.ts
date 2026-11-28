@@ -106,7 +106,8 @@ export function isAutoAbandonableState(
 
 function buildDraftTrace(state: ManagedRuntimeState): HarnessTraceEvent[] | undefined {
   const out: HarnessTraceEvent[] = [];
-  if (state.thinking) {
+  const hasTraceThinking = (state.trace ?? []).some((tr) => tr.kind === 'thinking');
+  if (state.thinking && !hasTraceThinking) {
     out.push({ type: 'thinking', text: state.thinking });
   }
   for (const tr of state.trace ?? []) {
@@ -128,6 +129,7 @@ function buildDraftTrace(state: ManagedRuntimeState): HarnessTraceEvent[] | unde
           type: 'thinking',
           text,
           ...(tr.at ? { at: tr.at } : {}),
+          ...(tr.endedAt ? { endedAt: tr.endedAt } : {}),
           ...(tr.textAt !== undefined ? { textAt: tr.textAt } : {}),
         });
       }
@@ -173,9 +175,11 @@ function buildDraftTrace(state: ManagedRuntimeState): HarnessTraceEvent[] | unde
       id: tr.id,
       name,
       status,
+      ...(tr.summary && tr.summary !== name ? { title: tr.summary } : {}),
       ...(tr.detail ? { input: tr.detail } : {}),
       ...(tr.output ? { output: tr.output } : {}),
       ...(tr.at ? { at: tr.at } : {}),
+      ...(tr.endedAt ? { endedAt: tr.endedAt } : {}),
       ...(tr.textAt !== undefined ? { textAt: tr.textAt } : {}),
     });
   }

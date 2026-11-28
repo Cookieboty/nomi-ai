@@ -2,7 +2,6 @@ package drivers
 
 import (
 	"errors"
-	"regexp"
 	"strings"
 	"time"
 
@@ -13,9 +12,6 @@ import (
 )
 
 const AcpPromptIdleMs = 10 * 60_000
-
-// xaiSessionNotify：Grok 的会话扩展通知（x.ai/session_notification 带 auto-compact）。
-var xaiSessionNotify = regexp.MustCompile(`^_?x\.ai/session(?:_notification|/update)$`)
 
 var _ = time.Millisecond
 
@@ -30,13 +26,16 @@ type AcpDriverOptions struct {
 	ClientCapabilities Json
 	NewID              func() string
 	// SteerMethod：一轮进行中插入用户消息的扩展方法（ACP 本身没有），参数 {sessionId, text}。
-	// Grok 1.0.70：`_x.ai/interject`，应答 {status:'queued'}，在下一个工具 / 模型步骤并进这一轮。
-	// 空串 = 不支持（如 Gemini：新的 session/prompt 会中止当前这一轮）。
+	// 空串 = 不支持（如新的 session/prompt 会中止当前这一轮）。
 	SteerMethod string
-	// ClientInfo：initialize 握手声明的客户端标识（可选；由调用方显式指定，如 antigravity）。
+	// ClientInfo：initialize 握手声明的客户端标识（可选；由插件显式指定）。
 	ClientInfo Json
-	// DisableElicitation：不向 ACP 对端广告 form elicitation（托管只读运行时不支持交互弹窗）。
+	// DisableElicitation：不向 ACP 对端广告 form elicitation（托管只读运行时或合规禁用）。
 	DisableElicitation bool
+	// SessionNotifyMethod：可选，识别 CLI 专属的扩展会话通知方法（如自动压缩通知）。
+	SessionNotifyMethod func(method string) bool
+	// ExtractToolName：可选，从 tool_call / tool_call_update 的扩展元数据提取真实工具名。
+	ExtractToolName func(u *util.Obj) string
 }
 
 type acpTurn struct {
@@ -163,10 +162,16 @@ func (d *AcpDriver) Closed() bool                    { return d.exited || d.Conn
 func (d *AcpDriver) TurnDenied() bool                { return d.turn != nil && d.turn.denied }
 func (d *AcpDriver) InTurn() bool                    { return d.turn != nil }
 
+func (d *AcpDriver) newMapper() AcpMapper {
+	if d.o.Mapper != nil {
+		return d.o.Mapper()
+	}
+	return NewAcpMapperWithOptions(d.o.ExtractToolName)
+}
+
 func (d *AcpDriver) onNotification(method string, params Json) {
-	// Grok 的自动压缩走 x.ai 扩展通知（x.ai/session_notification；线上可能带 ACP 扩展前缀 _）。
-	// 扩展通知里只取 auto_compact_*，其它内容与标准 session/update 重复
-	ext := xaiSessionNotify.MatchString(method)
+	// 扩展通知（如自动压缩）：仅由对应插件声明 SessionNotifyMethod 时放行，只取 auto_compact_*，其它内容与标准 session/update 重复
+	ext := d.o.SessionNotifyMethod != nil && d.o.SessionNotifyMethod(method)
 	if method != "session/update" && !ext {
 		return
 	}
@@ -215,7 +220,7 @@ func (d *AcpDriver) onNotification(method string, params Json) {
 	if turn != nil {
 		evs = turn.mapper.Update(u)
 	} else {
-		evs = NewAcpMapper().Update(u)
+		evs = d.newMapper().Update(u)
 	}
 	for _, ev := range evs {
 		if turn != nil {
@@ -749,11 +754,7 @@ func (d *AcpDriver) runTurn(method string, params func(sessionID string) Json, i
 		if d.turn != nil {
 			return nil, errors.New("previous turn still running")
 		}
-		mk := d.o.Mapper
-		if mk == nil {
-			mk = NewAcpMapper
-		}
-		turn := &acpTurn{id: pick(d.o.NewID)(), mapper: mk()}
+		turn := &acpTurn{id: pick(d.o.NewID)(), mapper: d.newMapper()}
 		d.turn = turn
 		emit := func(ev Ev) {
 			turn.text = clisdk.AppendText(turn.text, ev)

@@ -60,10 +60,12 @@ export const StatusLineContent: React.FC<{
     elapsed !== undefined && status.kind !== 'queued' && (minimal || elapsed >= 1000);
   return (
     <>
-      <span className={`${styles.statusIcon} ${SPIN.has(status.kind) ? styles.statusSpin : ''}`}>
-        <Icon icon={ICONS[status.kind]} size={14} />
-      </span>
-      {stepCount !== undefined && stepCount > 0 && (
+      {!status.fixed && (
+        <span className={`${styles.statusIcon} ${SPIN.has(status.kind) ? styles.statusSpin : ''}`}>
+          <Icon icon={ICONS[status.kind]} size={14} />
+        </span>
+      )}
+      {!status.fixed && stepCount !== undefined && stepCount > 0 && (
         <span className={styles.statusStep} data-testid="conv-status-step">
           {t('ui.usage-tools.step-n', stepCount)}
         </span>

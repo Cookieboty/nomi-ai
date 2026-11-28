@@ -176,6 +176,22 @@ func Transport(id string) string {
 	return ""
 }
 
+// FallbackTransport：清单的退路传输（如 grok 的 exec）；没有返回空
+func FallbackTransport(id string) string {
+	if m := Manifest(id); m != nil {
+		return util.Str(m.Get("fallbackTransport"))
+	}
+	return ""
+}
+
+// Acp：插件声明的 ACP 专属扩展能力；没有返回 nil
+func Acp(id string) *clisdk.AcpCapability {
+	if m := Impl(id); m != nil {
+		return m.Acp
+	}
+	return nil
+}
+
 // Binaries：可执行文件名（清单 binary.names）
 func Binaries(id string) []string {
 	m := Manifest(id)

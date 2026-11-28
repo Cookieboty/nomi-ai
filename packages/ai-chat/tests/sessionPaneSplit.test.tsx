@@ -1245,7 +1245,7 @@ describe('并排会话：非焦点面板输入栏模型与运行时隔离', () =
       );
       expect(within(focusedWrap).getByTestId('nomi-model-chip').textContent).toContain('中');
       expect(within(focusedWrap).getByTestId('permission-mode-chip').textContent).toContain(
-        '逐项确认',
+        '默认 · Default',
       );
       expect(within(unfocusedWrap).getByTestId('nomi-model-chip').textContent).toContain(
         'gemini-4-neon',
@@ -1269,7 +1269,7 @@ describe('并排会话：非焦点面板输入栏模型与运行时隔离', () =
     expect(unfocusedImmediate).not.toContain('deepseek-v4.1-flash');
     expect(
       within(r.getByTestId('unfocused-wrap')).getByTestId('permission-mode-chip').textContent,
-    ).toContain('逐项确认');
+    ).toContain('默认 · Default');
   });
 
   it('显式 tab={null} 的 Nomi 面板在活跃标签为 CLI 时不被全局 CLI 标签覆盖', async () => {

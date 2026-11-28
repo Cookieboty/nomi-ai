@@ -206,14 +206,19 @@ export function buildRuntimePageSource(args: {
   };
 }
 
+function managedCatalogSource(source: ManagedRuntimeSource): 'local' | 'thirdParty' | undefined {
+  return source === 'local' || source === 'thirdParty' ? source : undefined;
+}
+
 function fetchManagedCatalog(
   backend: string,
   refresh: boolean,
   source: ManagedRuntimeSource,
 ): Promise<BackendModelCatalog | null> {
+  const src = managedCatalogSource(source);
   const opts = {
     ...(refresh ? { refresh: true } : {}),
-    ...(source === 'thirdParty' ? { source: 'thirdParty' as const } : {}),
+    ...(src ? { source: src } : {}),
   };
   return harnessClient
     .modelCatalog(backend as HarnessTabMeta['backend'], opts)
@@ -223,9 +228,17 @@ function fetchManagedCatalog(
 
 function useManagedCatalog(backend: string | null, source: ManagedRuntimeSource) {
   const key = backend ? `${backend}|${source}` : '';
+  const src = managedCatalogSource(source);
+  const memCached = backend
+    ? harnessClient.cachedModelCatalog(
+        backend as HarnessTabMeta['backend'],
+        src ? { source: src } : {},
+      )
+    : undefined;
+  const cached = memCached === undefined ? undefined : validCatalog(memCached);
   const [st, setSt] = useState<{ key: string; catalog: BackendModelCatalog | null } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const catalog = key && st?.key === key ? st.catalog : undefined;
+  const catalog = key ? (st?.key === key ? st.catalog : cached) : undefined;
 
   useEffect(() => {
     if (!backend) return;

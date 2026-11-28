@@ -2,6 +2,7 @@ package grok
 
 import (
 	"path/filepath"
+	"regexp"
 
 	sh "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
@@ -91,16 +92,40 @@ var Slash = &clisdk.SlashDiscoveryCapability{Sources: func(projectChain []string
 		clisdk.SlashSource{Kind: "workflows", Path: filepath.Join(bundled, "workflows"), Scope: "bundled"})
 }}
 
+var xaiSessionNotify = regexp.MustCompile(`^_?x\.ai/session(?:_notification|/update)$`)
+
+// Acp 收敛 Grok 专属 ACP 扩展：steer、手动压缩、x.ai 会话通知及工具名提取。
+var Acp = &clisdk.AcpCapability{
+	SteerMethod:         "_x.ai/interject",
+	CompactMethod:       "_x.ai/compact_conversation",
+	SessionNotifyMethod: xaiSessionNotify.MatchString,
+	ExtractToolName: func(u *util.Obj) string {
+		if u == nil {
+			return ""
+		}
+		if meta, ok := u.Get("_meta").(*util.Obj); ok {
+			if xt, ok := meta.Get("x.ai/tool").(*util.Obj); ok {
+				if n, ok := xt.Get("name").(string); ok {
+					return n
+				}
+			}
+		}
+		return ""
+	},
+}
+
 func CreateMain() *clisdk.CliMainImpl {
 	return &clisdk.CliMainImpl{
 		Session:     &clisdk.SessionCustomization{Exec: Exec},
 		Slash:       Slash,
 		Launch:      clisdk.LaunchCapability{Official: OfficialLaunch, PlaceholderModel: "nomi", ModelArgs: sh.ModelArgsFn(ModelArgs)},
+		Models:      &clisdk.ModelCatalogCapability{ParseSession: func(raw *util.Obj) *util.Obj { return ParseModels(raw) }},
 		Permissions: Permissions,
 		Accounts:    Accounts,
 		History:     History,
 		Progress:    &clisdk.ProgressCapability{WatchRoots: sh.Roots1(UserHome, "sessions")},
 		Usage:       &clisdk.UsageCapability{LogRoots: sh.Roots1(UserHome, "sessions")},
 		Terminal:    sh.ResumeTerminal("grok", "--resume"),
+		Acp:         Acp,
 	}
 }

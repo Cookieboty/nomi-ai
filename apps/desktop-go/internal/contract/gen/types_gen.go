@@ -2480,6 +2480,7 @@ type ConversationsRuntimeAdoptOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	EndedAt *int64  `json:"endedAt,omitempty"`
 	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
@@ -2787,6 +2788,7 @@ type ConversationsRuntimeApproveOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	EndedAt *int64  `json:"endedAt,omitempty"`
 	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
@@ -3086,6 +3088,7 @@ type ConversationsRuntimeCancelOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	EndedAt *int64  `json:"endedAt,omitempty"`
 	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
@@ -3556,6 +3559,7 @@ type ConversationsRuntimeEditOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	EndedAt *int64  `json:"endedAt,omitempty"`
 	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
@@ -3869,6 +3873,7 @@ type ConversationsRuntimeResolveOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	EndedAt *int64  `json:"endedAt,omitempty"`
 	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
@@ -4168,6 +4173,7 @@ type ConversationsRuntimeRewindOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	EndedAt *int64  `json:"endedAt,omitempty"`
 	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
@@ -4466,6 +4472,7 @@ type ConversationsRuntimeSelectOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	EndedAt *int64  `json:"endedAt,omitempty"`
 	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
@@ -4779,6 +4786,7 @@ type ConversationsRuntimeStateOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	EndedAt *int64  `json:"endedAt,omitempty"`
 	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
@@ -5104,6 +5112,7 @@ type ConversationsRuntimeSwitchOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	EndedAt *int64  `json:"endedAt,omitempty"`
 	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
@@ -15077,6 +15086,7 @@ type EventConversationsRuntimeChangedTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	EndedAt *int64  `json:"endedAt,omitempty"`
 	TextAt  *int64  `json:"textAt,omitempty"`
 }
 

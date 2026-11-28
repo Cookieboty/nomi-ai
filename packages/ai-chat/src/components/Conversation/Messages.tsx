@@ -16,6 +16,7 @@ import React, { memo, useContext, useEffect, useMemo, useRef, useState } from 'r
 import { joinFileAttachments, splitFileAttachments } from '../../services/fileAttachments';
 import { refLabel, useGatewayState } from '../../services/nomiModel';
 import type { ConvMessage } from '../../types/conversation';
+import { hasFixedThoughtSummary } from '../../utils/cliCaps';
 import {
   layoutBody,
   planBody,
@@ -46,7 +47,7 @@ import styles from './index.module.css';
 import { Markdown } from './Markdown';
 import { MessageResourceBoundary } from './MessageResourceBoundary';
 import { MinimalSteps, type MinimalLiveStatus } from './MinimalSteps';
-import { GeneratedImageBlock, ToolTimeline } from './ToolTimeline';
+import { FixedThoughtContext, GeneratedImageBlock, ToolTimeline } from './ToolTimeline';
 import { useTranscriptViewMode } from './transcriptViewContext';
 import { UserMessageLinks } from './UserMessageLinks';
 
@@ -205,6 +206,7 @@ export const AssistantBody: React.FC<{
   thinking?: boolean;
   liveStatus?: MinimalLiveStatus;
   minimalStateKey?: string;
+  backend?: string;
   extra?: React.ReactNode;
 }> = ({
   text,
@@ -218,9 +220,11 @@ export const AssistantBody: React.FC<{
   thinking,
   liveStatus,
   minimalStateKey,
+  backend,
   extra,
 }) => {
   const transcriptView = useTranscriptViewMode();
+  const fixedThought = hasFixedThoughtSummary(backend);
   const entries = useMemo(() => {
     // 已结束的一轮：旧消息里悬空的工具调用按已停止显示（不再一直转圈）
     const all = trace?.length
@@ -247,9 +251,16 @@ export const AssistantBody: React.FC<{
     if (transcriptView !== 'minimal') return null;
     return splitMinimalTurnSections(
       segments,
-      live ? { live: true, thinking, startedAt: liveStatus?.startedAt } : { durationMs },
+      live
+        ? {
+            live: true,
+            thinking,
+            startedAt: liveStatus?.startedAt,
+            fixedThoughtSummary: fixedThought,
+          }
+        : { durationMs, fixedThoughtSummary: fixedThought },
     );
-  }, [transcriptView, segments, live, thinking, liveStatus?.startedAt, durationMs]);
+  }, [transcriptView, segments, live, thinking, liveStatus?.startedAt, durationMs, fixedThought]);
 
   if (transcriptView === 'minimal' && minimalSections) {
     const activeLiveSteps = live ? countActiveLiveSteps(entries, thinking) : 0;
@@ -261,7 +272,7 @@ export const AssistantBody: React.FC<{
         : minimalSections[0]!.split.stepCount > 0;
     if (hasAnyMinimalSteps) {
       return (
-        <>
+        <FixedThoughtContext.Provider value={fixedThought}>
           {minimalSections.map((sec, idx) => {
             const secKey = minimalStateKey
               ? idx === 0
@@ -280,6 +291,7 @@ export const AssistantBody: React.FC<{
                       stepCount={sec.live ? activeLiveSteps : sec.split.stepCount}
                       workedMs={sec.live ? undefined : sec.split.workedMs}
                       liveStatus={sec.live ? liveStatus : undefined}
+                      focusTitle={sec.focusTitle}
                       stateKey={secKey}
                     />
                     {sec.split.passthrough.length > 0 && (
@@ -288,9 +300,13 @@ export const AssistantBody: React.FC<{
                     {sec.split.generatedImages.map((c) => (
                       <GeneratedImageBlock key={c.id} call={c} />
                     ))}
-                    {!sec.live && sec.split.summaryText && (
+                    {sec.split.summaryText && (
                       <div className={styles.segment} data-testid="conv-segment">
-                        <Markdown text={sec.split.summaryText} settled />
+                        <Markdown
+                          text={sec.split.summaryText}
+                          settled={!sec.live || !streaming}
+                          streaming={sec.live && !!streaming}
+                        />
                       </div>
                     )}
                   </>
@@ -301,7 +317,7 @@ export const AssistantBody: React.FC<{
             );
           })}
           {extra}
-        </>
+        </FixedThoughtContext.Provider>
       );
     }
   }
@@ -314,7 +330,7 @@ export const AssistantBody: React.FC<{
     else if (hasRunning(s.items)) runningAt = i;
   });
   return (
-    <>
+    <FixedThoughtContext.Provider value={fixedThought}>
       {segments.map((seg, i) =>
         seg.type === 'text' ? (
           <div key={`t-${i}`} className={styles.segment} data-testid="conv-segment">
@@ -332,7 +348,7 @@ export const AssistantBody: React.FC<{
         ),
       )}
       {extra && runningAt < 0 ? extra : null}
-    </>
+    </FixedThoughtContext.Provider>
   );
 };
 
@@ -529,6 +545,7 @@ export const AssistantMessage = memo(function AssistantMessage({
           endedAt={message.at}
           durationMs={message.durationMs ?? message.usage?.durationMs}
           minimalStateKey={minimalStateKey ?? `msg:${message.id}`}
+          backend={backend}
         />
         {body}
         {message.error && (

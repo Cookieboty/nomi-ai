@@ -12,7 +12,7 @@ import (
 var (
 	effortSuffixRe = regexp.MustCompile(`(?i)^(.+?)-(minimal|low|medium|high|xhigh|max)$`)
 	labelSuffixRe  = regexp.MustCompile(`(?i)\s*\((Minimal|Low|Medium|High|XHigh|Extra High|Max)\)\s*$`)
-	cliModelLineRe = regexp.MustCompile(`^([A-Za-z0-9][A-Za-z0-9._:/-]*)\s{2,}(.+?)\s*$`)
+	cliModelLineRe = regexp.MustCompile(`^([A-Za-z0-9][A-Za-z0-9._:/-]*)(?:\t+|\s{2,})(.+?)\s*$`)
 )
 
 type rawModel struct {

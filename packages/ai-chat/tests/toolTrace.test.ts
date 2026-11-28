@@ -4,6 +4,7 @@ import type { HarnessTraceEvent } from '../src/services/harnessClient';
 import { diffAllAdded, diffStrings, parsePatch } from '../src/utils/lineDiff';
 import {
   buildTimeline,
+  callDuration,
   classifyTool,
   closeOpenCalls,
   commandOf,
@@ -523,10 +524,41 @@ describe('Antigravity ACP tools classification, description and diffs', () => {
     });
     expect(describeCall(c)).toMatchObject({
       kind: 'command',
-      verb: '运行命令',
+      verb: '已运行',
       target: 'Analyze system prompts and deduplication patterns',
+      desc: true,
+    });
+    expect(describeCall({ ...c, status: 'running' })).toMatchObject({
+      kind: 'command',
+      verb: '正在运行',
+      target: 'Analyze system prompts and deduplication patterns',
+      desc: true,
     });
     expect(commandOf(c)).toBe('python3 check.py\ncat out.txt');
+  });
+
+  it('uses ACP title as command desc when useful and ignores generic tool titles', () => {
+    const withTitle = {
+      ...call('run_command', { CommandLine: 'git status' }),
+      title: 'Check workspace git status',
+    };
+    expect(describeCall(withTitle)).toMatchObject({
+      kind: 'command',
+      verb: '已运行',
+      target: 'Check workspace git status',
+      desc: true,
+    });
+
+    const genericTitle = {
+      ...call('run_command', { CommandLine: 'git status' }),
+      title: 'Bash',
+    };
+    expect(describeCall(genericTitle)).toMatchObject({
+      kind: 'command',
+      verb: '运行命令',
+      target: 'git status',
+    });
+    expect(describeCall(genericTitle).desc).toBeUndefined();
   });
 
   it('extracts Path, Content, Target and Replacement from Antigravity file tools', () => {
@@ -661,5 +693,76 @@ describe('ACP plan events and todo tool extraction', () => {
     expect(extractPlanFromTodoTool(todoWriteCall)).toEqual([
       { content: 'Fix lint', status: 'pending', priority: 'medium' },
     ]);
+  });
+
+  it('hides update_focus as a dedicated focus timeline marker while preserving read/search/subagent details and real durations', () => {
+    const entries = reduceTrace([
+      {
+        type: 'thinking',
+        id: 'th-1',
+        text: '先分析事件链路',
+        at: 1000,
+        endedAt: 2200,
+        textAt: 0,
+      },
+      {
+        type: 'tool',
+        id: 'f1',
+        name: 'update_focus',
+        status: 'start',
+        input: '{"focus":"Checking ACP"}',
+        at: 2200,
+      },
+      { type: 'tool', id: 'f1', name: 'update_focus', status: 'done', at: 2200 },
+      {
+        type: 'tool',
+        id: 'c1',
+        name: 'read_file',
+        status: 'done',
+        input: JSON.stringify({ Path: '/repo/src/a.ts', StartLine: 1, EndLine: 80 }),
+        at: 2300,
+        endedAt: 2750,
+      },
+      {
+        type: 'tool',
+        id: 'c2',
+        name: 'bash',
+        status: 'done',
+        title: 'Run python3 -c "print(1)"',
+        input: JSON.stringify({ CommandLine: 'python3 -c "print(1)"' }),
+        at: 2800,
+        endedAt: 2800,
+      },
+    ]);
+    expect(entries).toHaveLength(4);
+    const timeline = buildTimeline(entries);
+    expect(timeline.map((x) => x.type)).toEqual(['thinking', 'focus', 'call', 'call']);
+    expect(timeline[0]).toMatchObject({ type: 'thinking', startedAt: 1000, endedAt: 2200 });
+    expect(timeline[1]).toMatchObject({ type: 'focus', id: 'f1', text: 'Checking ACP' });
+    expect(timeline[2]).toMatchObject({ type: 'call', call: { id: 'c1', name: 'read_file' } });
+    expect(timeline[3]).toMatchObject({ type: 'call', call: { id: 'c2', name: 'bash' } });
+    if (timeline[2]?.type === 'call' && timeline[3]?.type === 'call') {
+      expect(callDuration(timeline[2].call)).toBe(450);
+      // at === endedAt (0ms) 不展示耗时
+      expect(callDuration(timeline[3].call)).toBeUndefined();
+      // "Run python3 ..." 不当作可读 desc
+      expect(describeCall(timeline[3].call).verb).toBe('运行命令');
+      expect(describeCall(timeline[3].call).desc).toBeUndefined();
+    }
+
+    expect(
+      describeCall(call('read_file', { Path: '/repo/src/a.ts', StartLine: 1, EndLine: 80 })).target,
+    ).toBe('/repo/src/a.ts#L1-80');
+    expect(describeCall(call('grep_search', { Query: 'ToolCall' })).target).toBe('ToolCall');
+    expect(describeCall(call('grep_search', { SearchPath: '/repo/src' })).target).toBe('/repo/src');
+    expect(
+      describeCall(
+        call('invoke_agent', {
+          TypeName: 'research',
+          Role: 'Protocol Researcher',
+          Prompt: 'Inspect ACP stream',
+        }),
+      ).target,
+    ).toBe('Protocol Researcher');
   });
 });

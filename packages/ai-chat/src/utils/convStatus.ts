@@ -27,6 +27,8 @@ export interface StatusInfo {
   label: string;
   /** 补充说明（工具目标 / 错误原因等） */
   detail?: string;
+  /** 固定阶段焦点态：仅展示固定描述与耗时，不渲染旋转图标与「第 N 步」 */
+  fixed?: boolean;
 }
 
 function lastRunning(items: readonly TimelineItem[]): { call?: ToolCall; subagent?: ToolCall } {
@@ -53,8 +55,10 @@ export function deriveStatus(args: {
   phase: ConvPhase;
   live?: ConvLive | null;
   items: readonly TimelineItem[];
+  focusTitle?: string;
+  fixedMode?: boolean;
 }): StatusInfo | null {
-  const { phase, live, items } = args;
+  const { phase, live, items, focusTitle, fixedMode } = args;
   if (phase === 'queued')
     return { kind: 'queued', label: t('ui.usage-tools.queued-starts-when-other-tabs-finish') };
   if (phase !== 'running') return null;
@@ -93,6 +97,13 @@ export function deriveStatus(args: {
       kind: 'working',
       label: st.text || t('ui.chat-settings.processing'),
     };
+  if (fixedMode) {
+    return {
+      kind: 'thinking',
+      label: focusTitle || t('ui.usage-tools.thinking-fixed'),
+      fixed: true,
+    };
+  }
   const { call, subagent } = lastRunning(items);
   if (subagent) {
     const d = describeCall(subagent);

@@ -163,3 +163,24 @@ func TestResolveModelAndEffortAndArgs(t *testing.T) {
 		t.Fatalf("ModelArgs = %#v", args)
 	}
 }
+
+func TestParseModelsCLIParsesSingleTabTSV(t *testing.T) {
+	tsv := "gemini-4-neon-low\tGemini 4 Neon (Low)\n" +
+		"gemini-4-neon-high\tGemini 4 Neon (High)\n" +
+		"claude-sonnet-5-5-medium\tClaude Sonnet 5.5 (Medium)\n"
+	cat := ParseModelsCLI(tsv, `{"model":"gemini-4-neon-high"}`)
+	neon := findCatalogModel(t, cat, "gemini-4-neon")
+	if neon == nil {
+		t.Fatalf("expected gemini-4-neon from single-tab TSV, got %s", util.Stringify(cat))
+	}
+	if got := neon.Get("efforts"); !reflect.DeepEqual(got, []any{"low", "high"}) {
+		t.Fatalf("neon efforts = %#v, want [low high]", got)
+	}
+	if dm := sh.AsObj(cat.Get("defaultModel")); dm == nil || dm.Get("id") != "gemini-4-neon" {
+		t.Fatalf("defaultModel = %s, want gemini-4-neon", util.Stringify(dm))
+	}
+	claude := findCatalogModel(t, cat, "claude-sonnet-5-5-medium")
+	if claude == nil || claude.Get("reasoning") != false {
+		t.Fatalf("single variant TSV model mismatch: %s", util.Stringify(claude))
+	}
+}

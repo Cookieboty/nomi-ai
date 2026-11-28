@@ -75,8 +75,9 @@ export const MinimalSteps: React.FC<{
   stepCount: number;
   workedMs?: number;
   liveStatus?: MinimalLiveStatus;
+  focusTitle?: string;
   stateKey?: string;
-}> = ({ segments, stepCount, workedMs, liveStatus, stateKey }) => {
+}> = ({ segments, stepCount, workedMs, liveStatus, focusTitle, stateKey }) => {
   useLocale();
   const store = useContext(MinimalOpenContext);
   const [localOpen, setLocalOpen] = useState(false);
@@ -171,6 +172,15 @@ export const MinimalSteps: React.FC<{
                 minimal
               />
             </span>
+          ) : focusTitle ? (
+            <>
+              <span className={styles.minimalLabel} title={focusTitle}>
+                {focusTitle}
+              </span>
+              {workedMs !== undefined && (
+                <span className={styles.statusTime}>{formatWorkedDuration(workedMs)}</span>
+              )}
+            </>
           ) : (
             <span className={styles.minimalLabel}>{label}</span>
           )}

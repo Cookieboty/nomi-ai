@@ -14,7 +14,6 @@ import (
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
-	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/gemini"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/ports"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/i18n"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/usage"
@@ -369,8 +368,8 @@ func (o *Orchestrator) CreateTab(opts *util.Obj) *util.Obj {
 	internalBypass := opts.Get("delegation") != nil || opts.Get("subagentOf") != nil
 	explicit := cli.IsPermissionMode(pm) && (pm != "bypass" || internalBypass)
 	mode := o.newTabMode()
-	if builtin.InteractiveOnly(backend) {
-		mode = "manual"
+	if builtin.InteractiveOnly(backend) && mode == "bypass" {
+		mode = "auto"
 	}
 	if explicit {
 		mode = pm.(string)
@@ -1507,8 +1506,8 @@ func (o *Orchestrator) switchAcpMode(id string, gl *acpLiveSession, mode string)
 			o.teardownAcpLive(id)
 		}
 		why := rpc.InnermostMessage(errMsg(err))
-		if gl.backend == "gemini" && gemini.IsUntrustedModeError(why) {
-			return struct{}{}, gemini.NewUntrustedError(str(o.tab(id), "cwd"), err)
+		if ue := acpUntrustedModeErr(gl.backend, str(o.tab(id), "cwd"), err); ue != nil {
+			return struct{}{}, ue
 		}
 		return struct{}{}, fmt.Errorf("%s", i18n.T("electron.common.cli-did-not-confirm-the-permission-mode-change",
 			acpDisplayName(gl.backend), why))
@@ -1559,84 +1558,95 @@ func (o *Orchestrator) ModelCatalogFor(backend string, refresh bool, source stri
 				), nil
 			}
 		}
-		if c, ok := o.modelCatalogs[cacheKey]; ok && !refresh && nowMs()-c.at < modelCatalogTTLMs {
-			return c.catalog, nil
-		}
-		if inflight := o.modelCatalogInflight[cacheKey]; inflight != nil {
-			return jsrt.Await(inflight)
-		}
-		gen := o.modelCatalogGen[cacheKey]
-		current := func() bool { return o.modelCatalogGen[cacheKey] == gen }
-		launchFn := func(b string) *tabLaunch {
-			if builtin.LocalOnly(b) || (useLocal && isAccountBackend(b)) {
-				return o.localLaunchFor(b)
+		startDiscover := func() *jsrt.Promise[*util.Obj] {
+			if existing := o.modelCatalogInflight[cacheKey]; existing != nil {
+				return existing
 			}
-			return o.officialLaunchFor(b, nil)
-		}
-		var claudeEnv *util.Obj
-		if backend == "claude" {
-			claudeEnv = o.childEnv(false, launchFn("claude"), nil)
-		}
-		deps := cli.ModelDiscoveryDeps{
-			Spawn: func(b string, args []string) clisdk.ChildLike {
-				bin, prefix := resolveSessionBin(b, true)
-				if bin == "" {
-					return nil
+			gen := o.modelCatalogGen[cacheKey]
+			current := func() bool { return o.modelCatalogGen[cacheKey] == gen }
+			launchFn := func(b string) *tabLaunch {
+				if builtin.LocalOnly(b) || (useLocal && isAccountBackend(b)) {
+					return o.localLaunchFor(b)
 				}
-				useNode := IsScript(bin)
-				l := launchFn(b)
-				cmd, full := bin, append(append(prefix, args...), l.args...)
-				if useNode {
-					cmd, full = nodeExecPath(), append([]string{bin}, full...)
-				}
-				return SpawnHarness(cmd, full, os.TempDir(), o.childEnv(useNode, l, nil), "models:"+b)
-			},
-		}
-		if claudeEnv != nil {
-			cd := &cli.ClaudeDefaults{SettingsPath: sp(filepath.Join(usage.ClaudeConfigDir(o.home, claudeEnv), "settings.json"))}
-			if v, ok := claudeEnv.Get("CLAUDE_CODE_EFFORT_LEVEL").(string); ok {
-				cd.EffortEnv = &v
+				return o.officialLaunchFor(b, nil)
 			}
-			deps.ClaudeDefaults = cd
-		}
-		if ch := os.Getenv("CODEX_HOME"); ch != "" {
-			deps.CodexConfigPath = filepath.Join(ch, "config.toml")
-		} else {
-			deps.CodexConfigPath = filepath.Join(o.home, ".codex", "config.toml")
-		}
-		gh := usage.GrokHomeDir(o.home, usage.ProcessEnv())
-		deps.GrokModelsCachePath = filepath.Join(gh, "models_cache.json")
-		deps.GrokSettingsCachePath = filepath.Join(gh, "settings_cache.json")
-		if ah := os.Getenv("ANTIGRAVITY_CLI_HOME"); ah != "" {
-			deps.AntigravitySettingsPath = filepath.Join(ah, "settings.json")
-		} else {
-			deps.AntigravitySettingsPath = filepath.Join(o.home, ".gemini", "antigravity-cli", "settings.json")
-		}
-		disc := cli.DiscoverModels(backend, deps)
-		var run *jsrt.Promise[*util.Obj]
-		run = jsrt.Async(func() (*util.Obj, error) {
-			catalog, err := jsrt.Await(disc)
-			if err != nil {
-				e := errMsg(err)
-				o.d.Logger.Warn("harness model discovery failed", util.NewObj("backend", backend, "error", e))
-				catalog = util.NewObj("backend", backend, "models", []any{}, "defaultModel", nil, "error", e)
+			var claudeEnv *util.Obj
+			if backend == "claude" {
+				claudeEnv = o.childEnv(false, launchFn("claude"), nil)
 			}
-			if current() {
-				if truthy(catalog.Get("error")) {
-					delete(o.modelCatalogs, cacheKey)
-				} else {
-					o.modelCatalogs[cacheKey] = catalogEntry{at: nowMs(), catalog: catalog}
-				}
+			deps := cli.ModelDiscoveryDeps{
+				Spawn: func(b string, args []string) clisdk.ChildLike {
+					bin, prefix := resolveSessionBin(b, true)
+					if bin == "" {
+						return nil
+					}
+					useNode := IsScript(bin)
+					l := launchFn(b)
+					cmd, full := bin, append(append(prefix, args...), l.args...)
+					if useNode {
+						cmd, full = nodeExecPath(), append([]string{bin}, full...)
+					}
+					return SpawnHarness(cmd, full, os.TempDir(), o.childEnv(useNode, l, nil), "models:"+b)
+				},
 			}
-			jsrt.QueueMicrotask(func() {
-				if o.modelCatalogInflight[cacheKey] == run {
-					delete(o.modelCatalogInflight, cacheKey)
+			if claudeEnv != nil {
+				cd := &cli.ClaudeDefaults{SettingsPath: sp(filepath.Join(usage.ClaudeConfigDir(o.home, claudeEnv), "settings.json"))}
+				if v, ok := claudeEnv.Get("CLAUDE_CODE_EFFORT_LEVEL").(string); ok {
+					cd.EffortEnv = &v
 				}
+				deps.ClaudeDefaults = cd
+			}
+			if ch := os.Getenv("CODEX_HOME"); ch != "" {
+				deps.CodexConfigPath = filepath.Join(ch, "config.toml")
+			} else {
+				deps.CodexConfigPath = filepath.Join(o.home, ".codex", "config.toml")
+			}
+			gh := usage.GrokHomeDir(o.home, usage.ProcessEnv())
+			deps.GrokModelsCachePath = filepath.Join(gh, "models_cache.json")
+			deps.GrokSettingsCachePath = filepath.Join(gh, "settings_cache.json")
+			if ah := os.Getenv("ANTIGRAVITY_CLI_HOME"); ah != "" {
+				deps.AntigravitySettingsPath = filepath.Join(ah, "settings.json")
+			} else {
+				deps.AntigravitySettingsPath = filepath.Join(o.home, ".gemini", "antigravity-cli", "settings.json")
+			}
+			disc := cli.DiscoverModels(backend, deps)
+			var run *jsrt.Promise[*util.Obj]
+			run = jsrt.Async(func() (*util.Obj, error) {
+				catalog, err := jsrt.Await(disc)
+				if err != nil {
+					e := errMsg(err)
+					o.d.Logger.Warn("harness model discovery failed", util.NewObj("backend", backend, "error", e))
+					catalog = util.NewObj("backend", backend, "models", []any{}, "defaultModel", nil, "error", e)
+				}
+				if current() {
+					if truthy(catalog.Get("error")) {
+						delete(o.modelCatalogs, cacheKey)
+					} else {
+						o.modelCatalogs[cacheKey] = catalogEntry{at: nowMs(), catalog: catalog}
+					}
+					o.saveModelCatalogs()
+				}
+				jsrt.QueueMicrotask(func() {
+					if o.modelCatalogInflight[cacheKey] == run {
+						delete(o.modelCatalogInflight, cacheKey)
+					}
+				})
+				return catalog, nil
 			})
-			return catalog, nil
-		})
-		o.modelCatalogInflight[cacheKey] = run
-		return jsrt.Await(run)
+			o.modelCatalogInflight[cacheKey] = run
+			return run
+		}
+		if c, ok := o.modelCatalogs[cacheKey]; ok && !refresh {
+			age := nowMs() - c.at
+			if age < modelCatalogTTLMs {
+				return c.catalog, nil
+			}
+			if age < modelCatalogHardTTLMs {
+				_ = startDiscover()
+				return c.catalog, nil
+			}
+		}
+		return jsrt.Await(startDiscover())
 	})
 }
 
@@ -1756,6 +1766,7 @@ func (o *Orchestrator) InvalidateModelCatalog(backend string) {
 	delete(o.modelCatalogs, backend+":local")
 	o.modelCatalogGen[backend] = o.modelCatalogGen[backend] + 1
 	o.modelCatalogGen[backend+":local"] = o.modelCatalogGen[backend+":local"] + 1
+	o.saveModelCatalogs()
 }
 
 // cachedCatalog：nil = null。

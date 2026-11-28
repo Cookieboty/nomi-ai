@@ -52,14 +52,15 @@ func (o *Orchestrator) restoredMode(backend string, raw any) string {
 	switch {
 	case cli.IsPermissionMode(raw) && raw != "bypass":
 		mode = raw.(string)
-	case builtin.InteractiveOnly(backend):
-		mode = "manual"
 	case raw == util.Undefined && backend == "claude":
 		mode = "manual"
 	case backend == "nomi":
 		mode = o.defaultPermMode
 	default:
 		mode = o.newTabMode()
+		if builtin.InteractiveOnly(backend) && mode == "bypass" {
+			mode = "auto"
+		}
 	}
 	m, _ := cli.EffectiveMode(backend, mode)
 	return m

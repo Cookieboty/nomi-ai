@@ -149,6 +149,10 @@
   font-size: var(--conv-meta, 13px);
   color: var(--cd-color-text-subtle);
 }
+.targetProse {
+  font-family: inherit;
+  font-size: inherit;
+}
 .meta {
   display: inline-flex;
   align-items: center;
@@ -724,6 +728,12 @@
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-subtle);
   overflow-wrap: anywhere;
+}
+
+.focusRow {
+  padding: var(--cd-space-0-5) 0;
+  font-size: var(--conv-meta, var(--cd-font-size-xs));
+  color: var(--cd-color-text-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {

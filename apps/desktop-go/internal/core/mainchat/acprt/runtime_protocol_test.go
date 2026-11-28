@@ -7,9 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
@@ -201,4 +205,113 @@ func splitNonEmptyLines(s string) []string {
 		}
 	}
 	return out
+}
+
+func TestAntigravityDefaultAutoFallsBackToAcceptEditsAndSyncsAvailableModes(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell wrapper fixture")
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cli.ClearLocalAuthCache("")
+	t.Cleanup(func() { cli.ClearLocalAuthCache("") })
+
+	dir := t.TempDir()
+	proj := filepath.Join(dir, "proj")
+	cfg := filepath.Join(dir, "cfg")
+	modeLog := filepath.Join(dir, "set_mode.txt")
+	for _, d := range []string{proj, cfg} {
+		if err := os.MkdirAll(d, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("GO_ACP_HELPER_MODE", "agy_auto_fallback")
+	t.Setenv("GO_ACP_SET_MODE_LOG", modeLog)
+	t.Setenv("GO_ACP_SET_MODE_APPEND", "1")
+	wrapper := filepath.Join(dir, "acp-cli")
+	script := fmt.Sprintf("#!/bin/sh\nexec %q -test.run=^TestHelperAcpProcess$\n", exe)
+	if err := os.WriteFile(wrapper, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	f := New("antigravity", func(string) (Config, error) {
+		return Config{BackendID: "antigravity", Executable: wrapper, Cwd: proj, ConfigDir: cfg}, nil
+	})
+	defer f.Release("conv-agy-fallback")
+
+	target, err := f.Target("conv-agy-fallback")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if target.Env.PermissionMode != "auto" {
+		t.Fatalf("default antigravity PermissionMode = %q, want auto", target.Env.PermissionMode)
+	}
+	r := target.Runtime.(*Runtime)
+
+	var (
+		mu         sync.Mutex
+		gotMode    string
+		gotAvail   []string
+		gotModeCh  = make(chan struct{}, 1)
+		gotAvailCh = make(chan struct{}, 1)
+	)
+	r.SetModeHandler(func(mode string) {
+		mu.Lock()
+		gotMode = mode
+		mu.Unlock()
+		select {
+		case gotModeCh <- struct{}{}:
+		default:
+		}
+	})
+	r.SetAvailableModesHandler(func(modes []string) {
+		mu.Lock()
+		gotAvail = append([]string(nil), modes...)
+		mu.Unlock()
+		select {
+		case gotAvailCh <- struct{}{}:
+		default:
+		}
+	})
+
+	rec := r.Recover(context.Background(), cr.RecoveryRequest{
+		Token: cr.AttemptToken{ConversationID: "conv-agy-fallback", AttemptID: "af1", Generation: 1},
+	})
+	if rec.Kind != cr.RecoveryNew || rec.NativeSessionID == "" {
+		t.Fatalf("Recover = %+v, want RecoveryNew", rec)
+	}
+
+	select {
+	case <-gotAvailCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for availableModes callback")
+	}
+	select {
+	case <-gotModeCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for fallback mode callback")
+	}
+
+	mu.Lock()
+	modeCopy := gotMode
+	availCopy := append([]string(nil), gotAvail...)
+	mu.Unlock()
+	if modeCopy != "acceptEdits" {
+		t.Fatalf("fallback emitted mode = %q, want acceptEdits", modeCopy)
+	}
+	wantAvail := []string{"deny", "ask", "acceptEdits", "auto"}
+	if !slices.Equal(availCopy, wantAvail) {
+		t.Fatalf("availableModes = %v, want %v", availCopy, wantAvail)
+	}
+
+	raw, err := os.ReadFile(modeLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Fields(string(raw))
+	if !slices.Equal(lines, []string{"auto", "accept-edits"}) {
+		t.Fatalf("session/set_mode sequence = %v, want [auto accept-edits]", lines)
+	}
 }

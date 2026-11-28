@@ -477,3 +477,67 @@ func TestManagedLeaseUpdateMetaPreservesStateAndIdentity(t *testing.T) {
 		t.Fatalf("legacy Put succeeded after UpdateMeta: %v", err)
 	}
 }
+
+func TestManagedProjectionPreservesToolTitleEndedAtAndSegmentedThinking(t *testing.T) {
+	_, s, _, c, f := diskFixture(t)
+	startDisk(t, c)
+	r := f.call(t, 0)
+	ackDisk(t, c, r)
+
+	p0, p1 := 0, 12
+	th1 := diskEvent(r, cr.EventTrace)
+	th1.Trace = &cr.TraceEntry{ID: "th-1", Kind: "thinking", Detail: "first thought", At: 100, EndedAt: 420, TextAt: &p0}
+	if err := c.AcceptRuntimeEvent(th1); err != nil {
+		t.Fatal(err)
+	}
+	tcStart := diskEvent(r, cr.EventTrace)
+	tcStart.Trace = &cr.TraceEntry{ID: "tc1", Kind: "tool", Tool: "run_shell_command", Summary: "Inspect repo", Detail: `{"CommandLine":"git status"}`, Status: "start", At: 450, TextAt: &p0}
+	if err := c.AcceptRuntimeEvent(tcStart); err != nil {
+		t.Fatal(err)
+	}
+	tcDone := diskEvent(r, cr.EventTrace)
+	tcDone.Trace = &cr.TraceEntry{ID: "tc1", Kind: "tool", Tool: "run_shell_command", Summary: "Inspect repo", Detail: `{"CommandLine":"git status"}`, Output: "clean", Status: "completed", At: 980, TextAt: &p0}
+	if err := c.AcceptRuntimeEvent(tcDone); err != nil {
+		t.Fatal(err)
+	}
+	th2 := diskEvent(r, cr.EventTrace)
+	th2.Trace = &cr.TraceEntry{ID: "th-2", Kind: "thinking", Detail: "second thought", At: 1020, EndedAt: 1300, TextAt: &p1}
+	if err := c.AcceptRuntimeEvent(th2); err != nil {
+		t.Fatal(err)
+	}
+	txtEv := diskEvent(r, cr.EventText)
+	txtEv.Text = "Middle text final reply"
+	if err := c.AcceptRuntimeEvent(txtEv); err != nil {
+		t.Fatal(err)
+	}
+	comp := diskEvent(r, cr.EventCompleted)
+	comp.Work = cr.Activity{Known: true}
+	if err := c.AcceptRuntimeEvent(comp); err != nil {
+		t.Fatal(err)
+	}
+
+	msgs, err := s.Messages("c", 0)
+	if err != nil || len(msgs) == 0 {
+		t.Fatalf("Messages failed: %d %v", len(msgs), err)
+	}
+	var last map[string]any
+	if err := json.Unmarshal(msgs[len(msgs)-1], &last); err != nil {
+		t.Fatal(err)
+	}
+	tr, _ := last["trace"].([]any)
+	if len(tr) != 3 {
+		t.Fatalf("projected trace len = %d, want 3 (%v)", len(tr), tr)
+	}
+	t0, _ := tr[0].(map[string]any)
+	t1, _ := tr[1].(map[string]any)
+	t2, _ := tr[2].(map[string]any)
+	if t0["type"] != "thinking" || t0["at"] != float64(100) || t0["endedAt"] != float64(420) {
+		t.Fatalf("first thinking = %v", t0)
+	}
+	if t1["type"] != "tool" || t1["title"] != "Inspect repo" || t1["at"] != float64(450) || t1["endedAt"] != float64(980) {
+		t.Fatalf("tool projection = %v", t1)
+	}
+	if t2["type"] != "thinking" || t2["at"] != float64(1020) || t2["endedAt"] != float64(1300) || t2["textAt"] != float64(12) {
+		t.Fatalf("second thinking = %v", t2)
+	}
+}

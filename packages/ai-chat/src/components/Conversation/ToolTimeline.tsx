@@ -28,6 +28,7 @@ import {
 } from '@tabler/icons-react';
 import type { TablerIcon as IconGlyph } from '@tabler/icons-react';
 import React, {
+  createContext,
   memo,
   useContext,
   useEffect,
@@ -68,6 +69,7 @@ import {
   groupTitle,
   baseToolName,
   parseInput,
+  shortPath,
   type Bucket,
   type CallStatus,
   type TimelineItem,
@@ -85,6 +87,8 @@ import { MarkdownImage } from './MarkdownImage';
 import { PlanCard, PlanEntryList } from './PlanCard';
 import styles from './Tool.module.css';
 import { useTranscriptViewMode } from './transcriptViewContext';
+
+export const FixedThoughtContext = createContext(false);
 
 const KIND_ICON: Record<ToolKind, IconGlyph> = {
   read: FileText,
@@ -247,16 +251,27 @@ function prettyInput(input: string | undefined): string | undefined {
   return o ? JSON.stringify(o, null, 2) : input;
 }
 
+const commandCwdOf = (call: ToolCall): string | undefined => {
+  const o = parseInput(call.input);
+  if (!o) return undefined;
+  for (const k of ['Cwd', 'cwd', 'workdir', 'workingDirectory', 'working_directory'] as const) {
+    const v = o[k];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return undefined;
+};
+
 const CallBody: React.FC<{ call: ToolCall }> = ({ call }) => {
   const d = describeCall(call);
   const err = call.status === 'error';
   if (d.kind === 'command') {
     const cmd = commandOf(call);
+    const cwd = commandCwdOf(call);
     return (
       <>
         {cmd && (
           <pre className={`${styles.pre} ${styles.cmd}`} data-testid="tool-command" tabIndex={0}>
-            {`$ ${cmd}`}
+            {cwd ? `${shortPath(cwd, 40)} $ ${cmd}` : `$ ${cmd}`}
           </pre>
         )}
         <Output text={call.output} error={err} />
@@ -323,7 +338,10 @@ const CallLabel: React.FC<{ call: ToolCall }> = ({ call }) => {
     <>
       <span className={styles.verb}>{d.verb}</span>
       {d.target && (
-        <span className={styles.target} title={d.target}>
+        <span
+          className={d.desc ? `${styles.target} ${styles.targetProse}` : styles.target}
+          title={d.target}
+        >
           {d.target}
         </span>
       )}
@@ -422,7 +440,8 @@ const GeneratedImageCaption: React.FC<{ call: ToolCall }> = ({ call }) => {
 
 function generatedImageAlt(call: ToolCall): string {
   try {
-    const p = (JSON.parse(call.input ?? '{}') as { prompt?: unknown }).prompt;
+    const parsed = JSON.parse(call.input ?? '{}') as { prompt?: unknown; Prompt?: unknown };
+    const p = parsed.prompt ?? parsed.Prompt;
     return typeof p === 'string' ? p.slice(0, 120) : '';
   } catch {
     return '';
@@ -436,6 +455,7 @@ export function sameCall(a: ToolCall, b: ToolCall): boolean {
     (a.id === b.id &&
       a.name === b.name &&
       a.status === b.status &&
+      a.title === b.title &&
       a.input === b.input &&
       a.output === b.output &&
       a.startedAt === b.startedAt &&
@@ -707,7 +727,8 @@ const ThinkingLabel: React.FC<{
   /** 展开着：不显示那一句 */
   open?: boolean;
 }> = ({ text, running, startedAt, ms, open }) => {
-  const title = open ? '' : thoughtTitle(text, running ? 'last' : 'first');
+  const fixedThought = useContext(FixedThoughtContext);
+  const title = open ? '' : thoughtTitle(text, !running || fixedThought ? 'first' : 'last');
   return (
     <span className={running ? styles.live : undefined} data-testid="tool-thinking-label">
       <span className={styles.verb}>
@@ -1035,6 +1056,12 @@ export const ToolTimeline = memo(function ToolTimeline({
             );
           case 'interject':
             return <InterjectRow key={it.id} text={it.text} />;
+          case 'focus':
+            return (
+              <div key={it.id} className={styles.focusRow} data-testid="tool-focus-row">
+                {it.text}
+              </div>
+            );
           case 'plan':
             return (
               <PlanCard key={it.id} entries={it.entries} markdown={it.markdown} uri={it.uri} />

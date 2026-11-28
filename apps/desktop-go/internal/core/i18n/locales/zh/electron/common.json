@@ -138,11 +138,8 @@
   "electron.common.full-access-can-t-be-the-default-mode": "完全放开不能设为默认模式",
   "electron.common.full-access-requires-confirmation-first": "完全放开需要先确认",
   "electron.common.full-text-in-the-chat-window": "{0}…（完整内容在对话窗口）",
-  "electron.common.gemini-cli-couldn-t-start-an-acp-session": "Gemini CLI 没能启动 ACP 会话，可能版本过旧。请在「agents → Gemini」里更新后再试。",
   "electron.common.gemini-cli-does-not-trust-the-current-folder": "Gemini CLI 不信任当前文件夹（{0}），已拒绝在这里运行。可以点下方「信任此文件夹」，或在终端里进入该文件夹运行一次 `gemini` 并选择信任，然后重试。",
-  "electron.common.gemini-cli-not-found-set-nomi-use-mock": "未找到 Gemini CLI（可设 NOMI_USE_MOCK_CLI=1）",
   "electron.common.gemini-did-not-respond-for-seconds-so-the": "Gemini 响应超时（{0} 秒没有响应），已取消这次请求。请重试，若反复出现请检查网络或重启该会话。",
-  "electron.common.gemini-didn-t-return-a-session": "Gemini 没有返回会话",
   "electron.common.gemini-has-encrypted-credential-storage-turned-on-gemini": "Gemini 开启了加密凭据存储（GEMINI_FORCE_ENCRYPTED_FILE_STORAGE），它不区分账号目录，暂不支持多个账号",
   "electron.common.gemini-is-updating-its-trusted-folders-list-please": "Gemini 正在修改受信任文件夹列表，请稍后再试。",
   "electron.common.gemini-s-trusted-folders-list-is-malformed-so": "Gemini 的受信任文件夹列表（{0}）格式有误，Nomi 没有改动它。请先修复或删除这个文件后再试。",
@@ -151,9 +148,6 @@
   "electron.common.good-night": "晚安",
   "electron.common.grant": "授权",
   "electron.common.grant-nomi-access-to-this-folder": "授权 Nomi 访问这个文件夹",
-  "electron.common.grok-could-not-start-an-acp-session": "Grok 没能启动 ACP 会话",
-  "electron.common.grok-did-not-return-a-session": "Grok 没有返回会话",
-  "electron.common.grok-did-not-switch-the": "Grok 没有切换{0}（{1}）",
   "electron.common.grok-error": "Grok 错误",
   "electron.common.grok-not-found-set-nomi-use-mock-cli": "未找到 Grok（可设 NOMI_USE_MOCK_CLI=1）",
   "electron.common.hand-off-tasks-one-at-a-time-or": "请串行委派，或先把该目录初始化为 git 仓库以便自动使用 worktree 隔离。",
@@ -470,7 +464,6 @@
   "electron.common.the-gateway-process-can-t-be-started-in": "当前环境无法启动网关进程",
   "electron.common.the-gateway-process-exited-abnormally-times-within-s": "网关进程在 {0} 秒内异常退出 {1} 次（最近退出码 {2}），已停止自动重启",
   "electron.common.the-gateway-rejected-the-tab-binding": "网关拒绝了标签绑定：{0}",
-  "electron.common.the-gemini-session-ended-this-message-was-not": "Gemini 会话已结束，这条消息没有发送",
   "electron.common.the-inference-server-exited-unexpectedly-code": "推理服务意外退出（code {0}）：{1}",
   "electron.common.the-inference-server-timed-out-while-starting": "推理服务启动超时",
   "electron.common.the-knowledge-base-is-empty-add-folders": "知识库还是空的：先在「知识库」里添加文件夹并建立索引",
@@ -630,5 +623,7 @@
   "electron.common.cli-interactive-only-no-switch-in": "不能从当前已有会话切换到 {0}，请在顶部新建对话菜单或空白会话中选择",
   "electron.common.cli-interactive-only-no-fork": "{0} 不支持带入或复制对话历史进行分叉，请新建空白对话使用",
   "electron.common.self-update-version-unchanged-fallback": "自更新命令已退出，但版本仍为 {0}，改用下一种方式继续更新…",
-  "electron.common.update-version-unchanged": "命令已执行完成，但检测到的版本仍为 {0}（最新版本 {1}）"
+  "electron.common.update-version-unchanged": "命令已执行完成，但检测到的版本仍为 {0}（最新版本 {1}）",
+  "electron.common.cli-did-not-respond-for-seconds-so-the": "{0} 响应超时（{1} 秒没有响应），已取消这次请求。请重试，若反复出现请检查网络或重启该会话。",
+  "electron.common.the-cli-session-ended-this-message-was-not": "{0} 会话已结束，这条消息没有发送"
 }

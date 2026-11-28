@@ -58,6 +58,7 @@ export const manifest: CliManifest = {
     localAuth: true,
     // 遵循 Google 服务条款：仅限人工直接交互，禁止自动化委派/定时任务、跨模型上下文回放及外层系统提示注入
     interactiveOnly: true,
+    fixedThoughtSummary: true,
   },
   modelSwitch: 'inplace',
   clientSpec: { client: 'antigravity' },

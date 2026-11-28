@@ -7,7 +7,24 @@ import { t } from '@nomi-ai/ui';
 
 import type { HarnessTraceEvent, PlanEntry } from '../services/harnessClient';
 
+import {
+  COMMAND_KEYS,
+  extractCommandDesc,
+  extractFocusTextFromCall,
+  extractLineRangeSuffix,
+  extractPrefixedTitlePath,
+  extractWebQueryFromTitle,
+  firstLineOf as firstLine,
+  isFocusToolName,
+  parseJsonObject as parseInput,
+  PATH_KEYS,
+  PATTERN_KEYS,
+  pickFirstString as firstString,
+  shortPath,
+} from './focusSummary';
 import { diffAllAdded, diffStrings, parsePatch, type DiffResult } from './lineDiff';
+
+export { parseInput, shortPath };
 
 export {
   extractPlanFromTodoTool,
@@ -25,6 +42,7 @@ export interface ToolCall {
   id: string;
   name: string;
   status: CallStatus;
+  title?: string;
   input?: string;
   output?: string;
   startedAt?: number;
@@ -33,7 +51,15 @@ export interface ToolCall {
 }
 
 export type TraceEntry =
-  | { type: 'thinking'; id: string; text: string; at?: number; lastAt?: number; textAt?: number }
+  | {
+      type: 'thinking';
+      id: string;
+      text: string;
+      at?: number;
+      lastAt?: number;
+      explicitEnd?: number;
+      textAt?: number;
+    }
   | { type: 'tool'; call: ToolCall; textAt?: number }
   /** 一轮进行中用户插入的消息 */
   | { type: 'interject'; id: string; text: string; at?: number; textAt?: number }
@@ -65,6 +91,8 @@ export type TimelineItem =
   | { type: 'call'; call: ToolCall }
   /** 用户在这一轮中途插入的消息 */
   | { type: 'interject'; id: string; text: string; at?: number }
+  /** 阶段焦点声明（来自 update_focus，用于切分多阶段折叠栏或展示焦点标题） */
+  | { type: 'focus'; id: string; text: string; at?: number }
   /** 结构化执行计划卡片 */
   | {
       type: 'plan';
@@ -140,7 +168,8 @@ function foldTrace(
   const finish = (c0: ToolCall, ev: Extract<HarnessTraceEvent, { type: 'tool' }>) => {
     const c = writable(c0);
     c.status = ev.status === 'error' ? 'error' : 'done';
-    c.endedAt = ev.at ?? c.endedAt;
+    c.endedAt = ev.endedAt ?? ev.at ?? c.endedAt;
+    if (ev.title !== undefined && c.title === undefined) c.title = ev.title;
     if (ev.output !== undefined) c.output = ev.output;
     if (ev.input !== undefined && c.input === undefined) c.input = ev.input;
     if (c.name === 'tool' && ev.name !== 'tool') c.name = ev.name;
@@ -159,7 +188,9 @@ function foldTrace(
         const th = owned && !owned.has(last) ? own({ ...last }) : last;
         entries[entries.length - 1] = th;
         th.text += ev.text;
-        if (ev.at !== undefined) th.lastAt = ev.at;
+        const end = ev.endedAt ?? ev.at;
+        if (end !== undefined) th.lastAt = end;
+        if (ev.endedAt !== undefined) th.explicitEnd = ev.endedAt;
       } else
         entries.push(
           own({
@@ -167,7 +198,8 @@ function foldTrace(
             id: `th-${st.seq++}`,
             text: ev.text,
             at: ev.at,
-            lastAt: ev.at,
+            lastAt: ev.endedAt ?? ev.at,
+            ...(ev.endedAt !== undefined ? { explicitEnd: ev.endedAt } : {}),
             ...(ev.textAt !== undefined ? { textAt: ev.textAt } : {}),
           }),
         );
@@ -224,6 +256,7 @@ function foldTrace(
       if (existing) {
         // 重复的 start（如 Grok / ACP 的 tool_call 更新）：补全参数、实时输出与工具名
         const w = writable(existing);
+        if (ev.title !== undefined) w.title = ev.title;
         if (ev.input !== undefined) w.input = ev.input;
         if (ev.output !== undefined) w.output = ev.output;
         if (w.name === 'tool' && ev.name !== 'tool') w.name = ev.name;
@@ -233,6 +266,7 @@ function foldTrace(
         id: key ?? `call-${st.seq++}`,
         name: ev.name,
         status: 'running',
+        ...(ev.title !== undefined ? { title: ev.title } : {}),
         input: ev.input,
         output: ev.output,
         startedAt: ev.at,
@@ -261,10 +295,11 @@ function foldTrace(
         id: key ?? `call-${st.seq++}`,
         name: ev.name,
         status: ev.status === 'error' ? 'error' : 'done',
+        ...(ev.title !== undefined ? { title: ev.title } : {}),
         input: ev.input,
         output: ev.output,
         startedAt: ev.at,
-        endedAt: ev.at,
+        endedAt: ev.endedAt ?? ev.at,
         parentId: ev.parentId,
       });
       if (key) byKey.set(key, call);
@@ -516,6 +551,8 @@ const KIND_TABLE: Record<ToolKind, readonly string[]> = {
     'delegate',
     'spawn_agent',
     'dispatch_agent',
+    'invoke_agent',
+    'invoke_subagent',
   ],
   web: [
     'websearch',
@@ -577,79 +614,14 @@ export function bucketOf(kind: ToolKind): Bucket {
   }
 }
 
-export function parseInput(input: string | undefined): Record<string, unknown> | null {
-  if (!input) return null;
-  try {
-    const v = JSON.parse(input) as unknown;
-    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
-
-const firstString = (
-  o: Record<string, unknown> | null,
-  keys: readonly string[],
-): string | undefined => {
-  if (!o) return undefined;
-  for (const k of keys) {
-    const v = o[k];
-    if (typeof v === 'string' && v.trim()) return v.trim();
-    if (Array.isArray(v) && v.every((x) => typeof x === 'string') && v.length) return v.join(' ');
-  }
-  return undefined;
-};
-
-const PATH_KEYS = [
-  'file_path',
-  'path',
-  'Path',
-  'filePath',
-  'FilePath',
-  'file',
-  'filename',
-  'target_file',
-  'TargetFile',
-  'notebook_path',
-  'directory',
-  'Directory',
-  'dir',
-  'root',
-  'from',
-  'to',
-] as const;
-const PATTERN_KEYS = [
-  'pattern',
-  'query',
-  'regex',
-  'q',
-  'search',
-  'glob',
-  'text',
-  'contains',
-  'name',
-] as const;
-const COMMAND_KEYS = ['command', 'CommandLine', 'Command', 'cmd', 'script', 'code'] as const;
-
-/** 过长路径只保留末尾几段 */
-export function shortPath(p: string, max = 56): string {
-  if (p.length <= max) return p;
-  const parts = p.split(/[\\/]/).filter(Boolean);
-  let out = parts[parts.length - 1] ?? p;
-  for (let i = parts.length - 2; i >= 0; i--) {
-    const next = `${parts[i]}/${out}`;
-    if (next.length + 2 > max) break;
-    out = next;
-  }
-  return `…/${out}`;
-}
-
 export interface CallDescription {
   kind: ToolKind;
   /** 动作（已翻译）：读取 / 搜索 / 运行命令 … */
   verb: string;
-  /** 对象：路径 / 模式 / 命令 / 工具名；等宽显示 */
+  /** 对象：路径 / 模式 / 命令 / 工具名；等宽显示（若 desc 为 true 则用自然语言字体） */
   target?: string;
+  /** 是否为人类可读命令简述 */
+  desc?: boolean;
 }
 
 export function describeCall(call: ToolCall): CallDescription {
@@ -659,16 +631,37 @@ export function describeCall(call: ToolCall): CallDescription {
   const pattern = firstString(o, PATTERN_KEYS);
   const trimTarget = (s: string, n = 120) => (s.length > n ? `${s.slice(0, n)}…` : s);
   switch (kind) {
-    case 'read':
-      return { kind, verb: t('ui.chat-settings.read'), target: path ? shortPath(path) : undefined };
-    case 'search':
+    case 'read': {
+      const targetPath = path ?? extractPrefixedTitlePath(call.title, 'File ');
+      const lineSuffix = targetPath ? extractLineRangeSuffix(o) : '';
+      return {
+        kind,
+        verb: t('ui.chat-settings.read'),
+        target: targetPath ? `${shortPath(targetPath)}${lineSuffix}` : undefined,
+      };
+    }
+    case 'search': {
+      const target = pattern
+        ? trimTarget(pattern, 80)
+        : path
+          ? shortPath(path)
+          : call.title && call.title !== call.name
+            ? trimTarget(call.title, 80)
+            : undefined;
       return {
         kind,
         verb: t('ui.knowledge-local.search-action'),
-        target: pattern ? trimTarget(pattern, 80) : path ? shortPath(path) : undefined,
+        target,
       };
-    case 'list':
-      return { kind, verb: t('ui.usage-tools.list'), target: path ? shortPath(path) : undefined };
+    }
+    case 'list': {
+      const dirPath = path ?? extractPrefixedTitlePath(call.title, 'Directory ');
+      return {
+        kind,
+        verb: t('ui.usage-tools.list'),
+        target: dirPath ? shortPath(dirPath) : undefined,
+      };
+    }
     case 'edit':
       return {
         kind,
@@ -682,17 +675,39 @@ export function describeCall(call: ToolCall): CallDescription {
         target: path ? shortPath(path) : undefined,
       };
     case 'command': {
-      const summary = firstString(o, ['toolSummary']);
+      const desc = extractCommandDesc(call);
+      if (desc) {
+        return {
+          kind,
+          verb: t(
+            call.status === 'running'
+              ? 'ui.slash-commands.running'
+              : 'ui.usage-tools.ran-command-desc',
+          ),
+          target: trimTarget(desc),
+          desc: true,
+        };
+      }
       const cmd = firstString(o, COMMAND_KEYS) ?? (call.input && !o ? call.input : undefined);
-      const label = summary ?? (cmd ? firstLine(cmd) : undefined);
       return {
         kind,
         verb: t('ui.usage-tools.run-command'),
-        target: label ? trimTarget(label) : undefined,
+        target: cmd ? trimTarget(firstLine(cmd)) : undefined,
       };
     }
     case 'subagent': {
-      const d = firstString(o, ['description', 'prompt', 'task', 'message', 'goal']);
+      const d = firstString(o, [
+        'Role',
+        'role',
+        'description',
+        'Description',
+        'Prompt',
+        'prompt',
+        'task',
+        'Task',
+        'message',
+        'goal',
+      ]);
       return {
         kind,
         verb: t('ui.usage-tools.subagent'),
@@ -710,10 +725,11 @@ export function describeCall(call: ToolCall): CallDescription {
           target: selector ? `${call.name} · ${trimTarget(firstLine(selector), 80)}` : call.name,
         };
       }
+      const webQ = pattern ?? extractWebQueryFromTitle(call.title);
       return {
         kind,
         verb: t('ui.usage-tools.search-the-web'),
-        target: pattern ? trimTarget(pattern, 80) : undefined,
+        target: webQ ? trimTarget(webQ, 80) : undefined,
       };
     }
     case 'todo':
@@ -728,8 +744,6 @@ export function describeCall(call: ToolCall): CallDescription {
     }
   }
 }
-
-const firstLine = (s: string): string => s.split('\n', 1)[0] ?? s;
 
 function changePath(o: Record<string, unknown> | null): string | undefined {
   const ch = o?.changes;
@@ -976,13 +990,19 @@ export function buildTimeline(
         const next = list[idx + 1];
         const nextAt = next ? (next.type === 'tool' ? next.call.startedAt : next.at) : undefined;
         const running = isLive && idx === list.length - 1;
+        const explicitEnd =
+          e.explicitEnd !== undefined && e.at !== undefined && e.explicitEnd > e.at
+            ? e.explicitEnd
+            : undefined;
         items.push({
           type: 'thinking',
           id: e.id,
           text: e.text,
           running,
           startedAt: e.at,
-          endedAt: running ? undefined : (nextAt ?? (next ? e.lastAt : (endAt ?? e.lastAt))),
+          endedAt: running
+            ? undefined
+            : (explicitEnd ?? nextAt ?? (next ? e.lastAt : (endAt ?? e.lastAt))),
         });
         return;
       }
@@ -1002,6 +1022,22 @@ export function buildTimeline(
           ...(e.uri ? { uri: e.uri } : {}),
           ...(e.at !== undefined ? { at: e.at } : {}),
         });
+        return;
+      }
+      if (isFocusToolName(e.call.name)) {
+        const focus = extractFocusTextFromCall(e.call);
+        if (focus) {
+          flush();
+          const prev = items[items.length - 1];
+          if (!(prev?.type === 'focus' && prev.text === focus)) {
+            items.push({
+              type: 'focus',
+              id: e.call.id,
+              text: focus,
+              ...(e.call.startedAt !== undefined ? { at: e.call.startedAt } : {}),
+            });
+          }
+        }
         return;
       }
       const kind = classifyTool(e.call.name);
@@ -1129,7 +1165,7 @@ export function groupTitle(bucket: Bucket, calls: readonly ToolCall[]): string {
 export function callDuration(c: Pick<ToolCall, 'startedAt' | 'endedAt'>): number | undefined {
   if (c.startedAt === undefined || c.endedAt === undefined) return undefined;
   const d = c.endedAt - c.startedAt;
-  return d >= 0 ? d : undefined;
+  return d > 0 ? d : undefined;
 }
 
 export function groupDuration(calls: readonly ToolCall[]): number | undefined {
@@ -1154,7 +1190,7 @@ export function hasRunning(items: readonly TimelineItem[]): boolean {
     if (it.type === 'call') return it.call.status === 'running';
     if (it.type === 'group') return it.calls.some((c) => c.status === 'running');
     if (it.type === 'subagent') return it.call.status === 'running' || hasRunning(it.children);
-    if (it.type === 'interject' || it.type === 'plan') return false;
+    if (it.type === 'interject' || it.type === 'plan' || it.type === 'focus') return false;
     return it.running;
   });
 }

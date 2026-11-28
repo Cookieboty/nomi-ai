@@ -107,15 +107,20 @@ export function validCatalog(c: unknown): BackendModelCatalog | null {
   return { ...cat, defaultModel: cat.defaultModel ?? null } as BackendModelCatalog;
 }
 
+function catalogSourceArg(source: TabSource): 'local' | 'thirdParty' | undefined {
+  return source === 'local' || source === 'thirdParty' ? source : undefined;
+}
+
 /** 向主进程要目录（官方：主进程从 CLI 读取并缓存；第三方：网关的模型）；IPC 本身失败当作不支持 */
 function fetchCatalog(
   backend: string,
   refresh: boolean,
   source: TabSource,
 ): Promise<BackendModelCatalog | null> {
+  const src = catalogSourceArg(source);
   const opts = {
     ...(refresh ? { refresh } : {}),
-    ...(source === 'thirdParty' ? { source } : {}),
+    ...(src ? { source: src } : {}),
   };
   return harnessClient
     .modelCatalog(backend as HarnessTabMeta['backend'], opts)
@@ -130,8 +135,14 @@ function fetchCatalog(
 export function useCatalog(backend: string, source: TabSource) {
   // 目录按「后端 + 来源」存放：换了来源（官方 / 第三方）旧目录自动作废，回到「还在读」
   const key = `${backend}|${source}`;
+  const src = catalogSourceArg(source);
+  const memCached = harnessClient.cachedModelCatalog(
+    backend as HarnessTabMeta['backend'],
+    src ? { source: src } : {},
+  );
+  const cached = memCached === undefined ? undefined : validCatalog(memCached);
   const [st, setSt] = useState<{ key: string; catalog: BackendModelCatalog | null } | null>(null);
-  const catalog = st?.key === key ? st.catalog : undefined;
+  const catalog = st?.key === key ? st.catalog : cached;
   const [refreshing, setRefreshing] = useState(false);
   useEffect(() => {
     let alive = true;

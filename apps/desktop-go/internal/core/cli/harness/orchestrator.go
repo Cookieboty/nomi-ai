@@ -99,6 +99,7 @@ const (
 	claudeControlTimeoutMs = 10_000
 	claudeInterruptGraceMs = 5_000
 	modelCatalogTTLMs      = 10 * 60_000
+	modelCatalogHardTTLMs  = 24 * 60 * 60_000
 	gatewayScope           = "gateway"
 )
 
@@ -260,7 +261,7 @@ type Orchestrator struct {
 	lastSettings    *util.Obj // backend → LastTabSettings
 	codexNetwork    bool
 
-	home, statePath, tabsPath, tabsDir, recentPath string
+	home, statePath, tabsPath, tabsDir, recentPath, catalogCachePath string
 	recent                                         []string
 	writer                                         *utils.FileWriter
 	sessionModels                                  *cli.SessionModelTable
@@ -373,6 +374,7 @@ func New(d Deps) *Orchestrator {
 	o.tabsPath = filepath.Join(d.Root, "tabs.json")
 	o.tabsDir = filepath.Join(d.Root, "tabs")
 	o.recentPath = filepath.Join(d.Root, "recent-cwds.json")
+	o.catalogCachePath = filepath.Join(d.Root, "model-catalogs.json")
 	o.sessionModels = cli.NewSessionModelTable(d.Root, func(msg string, e error) { d.Logger.Warn(msg, e) })
 	o.autoMode = cli.NewAutoModeTable(d.Root, func(msg string, e error) { d.Logger.Warn(msg, e) })
 	o.writer = utils.NewFileWriter(persistDebounceMs, func(file string, e error) {
@@ -391,6 +393,7 @@ func New(d Deps) *Orchestrator {
 		"permissionMode", cli.DefaultPermissionMode,
 	))
 	o.load()
+	o.loadModelCatalogs()
 	// 上次崩溃 / 被强杀时还冻着的 CLI 进程：先恢复（只恢复启动时间对得上的）
 	o.recoverFrozen()
 	if b, err := os.ReadFile(o.recentPath); err == nil {
@@ -809,6 +812,55 @@ func (o *Orchestrator) load() {
 	if migrated || migrateAuto {
 		o.persist()
 	}
+}
+
+func (o *Orchestrator) loadModelCatalogs() {
+	if o.catalogCachePath == "" {
+		return
+	}
+	raw, ok := readJSONFile(o.catalogCachePath)
+	if !ok {
+		return
+	}
+	obj, ok := raw.(*util.Obj)
+	if !ok {
+		return
+	}
+	now := nowMs()
+	for _, key := range obj.Keys() {
+		entry, ok := obj.Get(key).(*util.Obj)
+		if !ok {
+			continue
+		}
+		at, _ := entry.Get("at").(float64)
+		cat, _ := entry.Get("catalog").(*util.Obj)
+		if at <= 0 || cat == nil || truthy(cat.Get("error")) || now-at >= modelCatalogHardTTLMs {
+			continue
+		}
+		if models, ok := cat.Get("models").([]any); !ok || len(models) == 0 {
+			continue
+		}
+		o.modelCatalogs[key] = catalogEntry{at: at, catalog: cat}
+	}
+}
+
+func (o *Orchestrator) saveModelCatalogs() {
+	if o.catalogCachePath == "" || o.writer == nil {
+		return
+	}
+	out := util.NewObj()
+	now := nowMs()
+	for key, entry := range o.modelCatalogs {
+		if entry.catalog == nil || truthy(entry.catalog.Get("error")) || now-entry.at >= modelCatalogHardTTLMs {
+			continue
+		}
+		if models, ok := entry.catalog.Get("models").([]any); !ok || len(models) == 0 {
+			continue
+		}
+		out.Set(key, util.NewObj("at", entry.at, "catalog", entry.catalog))
+	}
+	payload := util.Stringify(out)
+	o.writer.Schedule(o.catalogCachePath, func() (string, error) { return payload, nil })
 }
 
 // dropLegacyExternalTab：旧版本「外部 CLI」标签留下的消息与续接文件（标签本身不再恢复）。

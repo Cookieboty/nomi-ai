@@ -14,7 +14,7 @@ func TestFactorySupportsAllBuiltinAcpBackendsAndSeparatesCompatKeys(t *testing.T
 		t.Skip("POSIX script fixture")
 	}
 	wantDefaults := map[string]string{
-		"antigravity": "ask",
+		"antigravity": "auto",
 		"grok":        "auto",
 		"kimi":        "auto",
 		"gemini":      "acceptEdits",
@@ -107,7 +107,7 @@ func TestFactoryPermissionModesAndCompatKeys(t *testing.T) {
 	}
 
 	wantDefaults := map[string]string{
-		"antigravity": "ask",
+		"antigravity": "auto",
 		"grok":        "auto",
 		"kimi":        "auto",
 		"gemini":      "acceptEdits",

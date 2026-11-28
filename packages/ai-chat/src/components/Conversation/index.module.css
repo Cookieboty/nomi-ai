@@ -252,22 +252,61 @@
   font-size: var(--conv-meta);
   color: var(--cd-color-text-subtle);
 }
-.permSummary {
-  display: block;
-  padding: var(--cd-space-1-5) 10px;
+.permSummaryWrap {
+  position: relative;
   border-radius: var(--cd-radius-sm);
   background: var(--cd-color-surface-sunken);
   border: 1px solid var(--cd-color-border);
+}
+.permSummaryCollapsed {
+  max-height: 68px;
+  overflow: hidden;
+}
+.permSummaryExpanded {
+  max-height: 280px;
+  overflow-y: auto;
+}
+.permSummary {
+  display: block;
+  padding: var(--cd-space-1-5) 10px;
   font-family: var(--cd-font-mono);
   font-size: var(--conv-code);
   color: var(--cd-color-text);
   word-break: break-all;
   white-space: pre-wrap;
 }
+.permSummaryFade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 20px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--cd-color-surface-sunken));
+}
 .permActions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   gap: var(--cd-space-2);
+}
+.permExpandToggle {
+  margin-right: auto;
+  padding: 2px 0;
+  border: none;
+  background: transparent;
+  color: var(--cd-color-accent-strong);
+  font-size: var(--conv-meta);
+  cursor: pointer;
+}
+.permExpandToggle:hover {
+  text-decoration: underline;
+}
+.permExpandToggle:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+  border-radius: var(--cd-radius-sm);
 }
 .permAllow,
 .permDeny {

@@ -59,6 +59,8 @@ export interface CliCapabilities {
    * 仅限人工直接交互的薄客户端会话：禁止用于自动化委派 / 定时任务、跨模型上下文回放与外层系统提示注入。
    */
   interactiveOnly?: boolean;
+  /** 思考中与过程折叠头优先锁定固定阶段焦点，避免频繁跳变 */
+  fixedThoughtSummary?: boolean;
 }
 
 /**
@@ -153,6 +155,7 @@ const BOOL_CAPS = [
   'steer',
   'localAuth',
   'interactiveOnly',
+  'fixedThoughtSummary',
 ] as const;
 
 const isObj = (v: unknown): v is Record<string, unknown> =>

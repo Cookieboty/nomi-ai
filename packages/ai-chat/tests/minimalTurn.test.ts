@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { BodySegment } from '../src/utils/convSegments';
+import { resolveStageFocusTitle, stageSlices } from '../src/utils/focusSummary';
 import {
   activeStageStartedAt,
   countActiveLiveSteps,
@@ -145,22 +146,44 @@ describe('splitMinimalTurn', () => {
     expect(splitMinimalTurn(segments, { durationMs: 12_500 }).workedMs).toBe(12_500);
   });
 
-  it('运行中 live: true 时不提取最终总结，全部文字与步骤均收进 collapsed', () => {
-    const segments: BodySegment[] = [
+  it('运行中 live: true 且仍有执行中步骤时收入 collapsed，步骤全部完成后末尾流式正文实时外显', () => {
+    const runningSegments: BodySegment[] = [
       { type: 'text', text: '正在检查配置文件。' },
       {
         type: 'activity',
-        items: [{ type: 'call', call: call('c1', 'read_file', { startedAt: 1000 }) }],
+        items: [
+          { type: 'call', call: call('c1', 'read_file', { status: 'running', startedAt: 1000 }) },
+        ],
       },
       { type: 'text', text: '准备继续执行测试。' },
     ];
-    const split = splitMinimalTurn(segments, { live: true });
-    expect(split.stepCount).toBe(1);
-    expect(split.summaryText).toBeNull();
-    expect(split.workedMs).toBeUndefined();
-    expect(split.collapsed).toHaveLength(3);
-    expect(split.collapsed[0]).toEqual({ type: 'text', text: '正在检查配置文件。' });
-    expect(split.collapsed[2]).toEqual({ type: 'text', text: '准备继续执行测试。' });
+    const whileRunning = splitMinimalTurn(runningSegments, { live: true });
+    expect(whileRunning.stepCount).toBe(1);
+    expect(whileRunning.summaryText).toBeNull();
+    expect(whileRunning.workedMs).toBeUndefined();
+    expect(whileRunning.collapsed).toHaveLength(3);
+    expect(whileRunning.collapsed[0]).toEqual({ type: 'text', text: '正在检查配置文件。' });
+    expect(whileRunning.collapsed[2]).toEqual({ type: 'text', text: '准备继续执行测试。' });
+
+    const streamingFinalSegments: BodySegment[] = [
+      { type: 'text', text: '先检查配置文件。' },
+      {
+        type: 'activity',
+        items: [
+          {
+            type: 'call',
+            call: call('c1', 'read_file', { status: 'done', startedAt: 1000, endedAt: 2000 }),
+          },
+        ],
+      },
+      { type: 'text', text: '正在流式输出最终回复...' },
+    ];
+    const whileStreamingFinal = splitMinimalTurn(streamingFinalSegments, { live: true });
+    expect(whileStreamingFinal.stepCount).toBe(1);
+    expect(whileStreamingFinal.summaryText).toBe('正在流式输出最终回复...');
+    expect(whileStreamingFinal.workedMs).toBeUndefined();
+    expect(whileStreamingFinal.collapsed).toHaveLength(2);
+    expect(whileStreamingFinal.collapsed[0]).toEqual({ type: 'text', text: '先检查配置文件。' });
   });
 
   it('运行中 live: true 且 thinking: true 无工具记录时生成 1 步思考占位', () => {
@@ -246,8 +269,8 @@ describe('splitMinimalTurnSections / countActiveLiveSteps / activeStageStartedAt
     expect(s1[1]!.live).toBe(true);
     expect(s1[1]!.split.stepCount).toBe(0);
 
-    // 插话后产生了新的工具步骤
-    const afterCall = call('c2', 'bash', { startedAt: 6500 });
+    // 插话后产生了新的执行中工具步骤
+    const afterCall = call('c2', 'bash', { status: 'running', startedAt: 6500 });
     const segsWithNewStep: BodySegment[] = [
       ...segsJustInterjected,
       { type: 'text', text: '收到，我现在跑一下命令验证。' },
@@ -344,5 +367,86 @@ describe('splitMinimalTurnSections / countActiveLiveSteps / activeStageStartedAt
     expect(split.stepCount).toBe(1);
     expect(split.passthrough).toEqual([planItem]);
     expect(split.summaryText).toBe('最终总结。');
+  });
+
+  it('update_focus 不占步数（仅有 update_focus 时计 1 步），并按阶段解析固定焦点', () => {
+    const entries: TraceEntry[] = [
+      { type: 'thinking', id: 'th1', text: '第一句思考。\n第二句补充。', at: 1000 },
+      {
+        type: 'tool',
+        call: call('f1', 'update_focus', { input: JSON.stringify({ focus: '检查 CLI 能力位' }) }),
+      },
+      { type: 'tool', call: call('c1', 'read_file', { startedAt: 1100 }) },
+      { type: 'interject', id: 'ij1', text: '再看看状态栏', at: 2000 },
+      { type: 'thinking', id: 'th2', text: '第二阶段首句焦点。\n后续细化内容。', at: 2100 },
+    ];
+    expect(countLiveSteps(entries)).toBe(3);
+    expect(countActiveLiveSteps(entries)).toBe(1);
+
+    const onlyFocus: TraceEntry[] = [
+      {
+        type: 'tool',
+        call: call('f0', 'update_focus', { input: JSON.stringify({ focus: '仅聚焦' }) }),
+      },
+    ];
+    expect(countLiveSteps(onlyFocus)).toBe(1);
+
+    const slices = stageSlices(entries);
+    expect(slices).toHaveLength(2);
+    expect(resolveStageFocusTitle(slices[0]!, true)).toBe('检查 CLI 能力位');
+    expect(resolveStageFocusTitle(slices[1]!, true)).toBe('第二阶段首句焦点。');
+    expect(resolveStageFocusTitle(slices[1]!, false)).toBeUndefined();
+  });
+
+  it('一轮内多次 update_focus 自动切分为多个独立阶段（各自带 focusTitle、workedMs 与阶段总结）', () => {
+    const segments: BodySegment[] = [
+      {
+        type: 'activity',
+        items: [
+          think('th1', { text: '初始思考。', startedAt: 1000, endedAt: 2000 }),
+          { type: 'focus', id: 'f1', text: '第一阶段：调研结构', at: 2000 },
+          { type: 'call', call: call('c1', 'read_file', { startedAt: 2100, endedAt: 3500 }) },
+        ],
+      },
+      { type: 'text', text: '已完成第一阶段调研。' },
+      {
+        type: 'activity',
+        items: [
+          { type: 'focus', id: 'f2', text: '第二阶段：执行验证', at: 4000 },
+          { type: 'call', call: call('c2', 'run_command', { startedAt: 4100, endedAt: 6500 }) },
+        ],
+      },
+      { type: 'text', text: '全部验证完成。' },
+    ];
+    const sections = splitMinimalTurnSections(segments, { fixedThoughtSummary: true });
+    expect(sections).toHaveLength(2);
+
+    expect(sections[0]!.focusTitle).toBe('第一阶段：调研结构');
+    expect(sections[0]!.split.stepCount).toBe(2);
+    expect(sections[0]!.split.workedMs).toBe(2500);
+    expect(sections[0]!.split.summaryText).toBe('已完成第一阶段调研。');
+
+    expect(sections[1]!.focusTitle).toBe('第二阶段：执行验证');
+    expect(sections[1]!.split.stepCount).toBe(1);
+    expect(sections[1]!.split.workedMs).toBe(2400);
+    expect(sections[1]!.split.summaryText).toBe('全部验证完成。');
+  });
+
+  it('countActiveLiveSteps 与 activeStageStartedAt 跟随新阶段 update_focus 重新计算', () => {
+    const entries: TraceEntry[] = [
+      { type: 'thinking', id: 'th1', text: '前置', at: 1000 },
+      {
+        type: 'tool',
+        call: call('f1', 'update_focus', { input: '{"focus":"阶段一"}', startedAt: 1100 }),
+      },
+      { type: 'tool', call: call('c1', 'read_file', { startedAt: 1200 }) },
+      {
+        type: 'tool',
+        call: call('f2', 'update_focus', { input: '{"focus":"阶段二"}', startedAt: 5000 }),
+      },
+      { type: 'tool', call: call('c2', 'bash', { startedAt: 5200, status: 'running' }) },
+    ];
+    expect(countActiveLiveSteps(entries, false)).toBe(1);
+    expect(activeStageStartedAt(entries, 1000)).toBe(5000);
   });
 });

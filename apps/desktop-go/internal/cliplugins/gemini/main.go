@@ -3,6 +3,7 @@ package gemini
 import (
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	sh "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/shared"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
@@ -69,6 +70,33 @@ func OfficialLaunch(ctx clisdk.LaunchContext) clisdk.AgentLaunch {
 
 var Exec = sh.UsageDone
 
+// UntrustedExitCode 是 Gemini CLI 拒绝在未信任目录运行的退出码。
+const UntrustedExitCode = 55
+
+var (
+	untrustedRe     = regexp.MustCompile(`(?i)not running in a trusted directory|--skip-trust|GEMINI_CLI_TRUST_WORKSPACE`)
+	untrustedModeRe = regexp.MustCompile(`(?i)approval modes? in an untrusted folder`)
+)
+
+// ExtraAcpArgs：Gemini ACP 额外目录通过 --include-directories 参数传入。
+func ExtraAcpArgs(dirs []string) []string {
+	var out []string
+	for _, d := range dirs {
+		if strings.TrimSpace(d) != "" {
+			out = append(out, "--include-directories", d)
+		}
+	}
+	return out
+}
+
+// IsUntrustedModeError：Gemini 拒绝在没信任的文件夹里切到「自动编辑 / 完全放开」。
+func IsUntrustedModeError(msg string) bool { return untrustedModeRe.MatchString(msg) }
+
+// IsUntrustedExit：判断 Gemini CLI 是否因未信任目录而退出。
+func IsUntrustedExit(exitCode *int, stderr string) bool {
+	return (exitCode != nil && *exitCode == UntrustedExitCode) || untrustedRe.MatchString(stderr)
+}
+
 func CreateMain() *clisdk.CliMainImpl {
 	return &clisdk.CliMainImpl{
 		Session:     &clisdk.SessionCustomization{Exec: Exec},
@@ -77,5 +105,11 @@ func CreateMain() *clisdk.CliMainImpl {
 		History:     History,
 		Progress:    &clisdk.ProgressCapability{WatchRoots: sh.Roots1(UserHome, ".gemini", "tmp")},
 		Terminal:    sh.ResumeTerminal("gemini", "--resume"),
+		Acp: &clisdk.AcpCapability{
+			ExtraArgs:            ExtraAcpArgs,
+			IsUntrustedModeError: IsUntrustedModeError,
+			IsUntrustedExit:      IsUntrustedExit,
+			AuthRequiredKey:      "electron.common.gemini-needs-auth",
+		},
 	}
 }

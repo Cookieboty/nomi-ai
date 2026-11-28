@@ -254,3 +254,44 @@ it('resolves display names for all builtin CLIs', () => {
   expect(backendName('antigravity')).toBe('Antigravity CLI');
   expect(backendName('dsh')).toBe('DeepSeek Harness');
 });
+
+it('collapses long approval preview by default and toggles expand/collapse', () => {
+  const longArgs = '{"command":"' + 'echo long-step; '.repeat(20) + '"}';
+  render(
+    <ManagedRuntimePanel
+      view={{
+        supported: true,
+        managed: true,
+        backend: 'antigravity',
+        phase: 'running',
+        recovery: 'new',
+        generation: 15,
+        detail: '',
+        choices: [choice('antigravity', 'ready', true)],
+        busy: true,
+        approvalDetails: [
+          {
+            id: 'ap-long',
+            tool: 'run_shell',
+            summary: 'Run shell script in sandbox',
+            argsPreview: longArgs,
+          },
+        ],
+      }}
+      onResolve={vi.fn()}
+      onApprove={vi.fn()}
+    />,
+  );
+  const preview = screen.getByTestId('managed-approval-preview-ap-long');
+  const toggle = screen.getByTestId('managed-approval-expand-ap-long');
+  expect(preview.getAttribute('data-expanded')).toBe('false');
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
+
+  fireEvent.click(toggle);
+  expect(preview.getAttribute('data-expanded')).toBe('true');
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
+
+  fireEvent.click(toggle);
+  expect(preview.getAttribute('data-expanded')).toBe('false');
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
+});

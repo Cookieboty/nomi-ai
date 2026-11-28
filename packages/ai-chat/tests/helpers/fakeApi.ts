@@ -22,6 +22,10 @@ import { createTestClient, type TestClient } from '@nomi-ai/contract/testing';
 import { act } from '@testing-library/react';
 import { vi } from 'vitest';
 
+function clearModelCatalogCache(): void {
+  delete (globalThis as Record<string, unknown>).__nomiHarnessModelCatalogCache;
+}
+
 export type FakeHandler = (input: any) => unknown;
 export type FakeHandlers = Record<string, FakeHandler>;
 /** 一个函数接住全部过程：`(过程名, 入参)` */
@@ -99,6 +103,7 @@ const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 /** 装上假内核（替换上一个用例的处理函数，清空调用记录） */
 export function installFakeApi(impl: FakeHandlers | FakeInvoke, caller: Caller = CHAT): FakeApi {
+  clearModelCatalogCache();
   const s = state();
   if (s.client && (caller.surface !== s.caller.surface || caller.trusted !== s.caller.trusted)) {
     s.client.close();
@@ -160,6 +165,7 @@ export async function untilIdle(maxRounds = 200): Promise<void> {
 
 /** 卸下假内核：`hasTransport()` 回到 false，再调用以 UNAVAILABLE 失败 */
 export function resetFakeApi(): void {
+  clearModelCatalogCache();
   const s = state();
   s.impl = null;
   s.calls = [];

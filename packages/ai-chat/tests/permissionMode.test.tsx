@@ -101,7 +101,7 @@ describe('权限模式表', () => {
     expect(fallbackMode('dsh', 'manual')).toBe('plan');
     // Codex / Grok 走长驻会话后都能逐项确认
     expect(fallbackMode('codex', 'manual')).toBe('manual');
-    // Grok 有「自动」档：原样保留，不再降级（落到 CLI 的 acceptEdits）
+    // Grok 没有能自己判风险的档：「自动」映射到 acceptEdits（与 Go 侧 builtin 保持一致）
     expect(supportedModes('grok')).toContain('auto');
     expect(fallbackMode('grok', 'auto')).toBe('auto');
     expect(

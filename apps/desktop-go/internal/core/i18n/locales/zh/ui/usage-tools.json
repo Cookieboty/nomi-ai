@@ -363,5 +363,7 @@
   "ui.usage-tools.plan-progress": "已完成 {0}/{1}",
   "ui.usage-tools.allow-once": "允许一次",
   "ui.usage-tools.reject-once": "拒绝一次",
-  "ui.usage-tools.reject-always": "始终拒绝"
+  "ui.usage-tools.reject-always": "始终拒绝",
+  "ui.usage-tools.ran-command-desc": "已运行",
+  "ui.usage-tools.thinking-fixed": "思考中…"
 }

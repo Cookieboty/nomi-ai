@@ -31,8 +31,10 @@ import type { SwitchTip } from '../../services/modelSwitchTip';
 import type { TranscriptView } from '../../services/transcriptView';
 import type { SlashCard } from '../../slash/types';
 import type { ConvLive, ConvMessage, ConvPhase } from '../../types/conversation';
+import { hasFixedThoughtSummary } from '../../utils/cliCaps';
 import { deriveStatus } from '../../utils/convStatus';
 import { timeLabels } from '../../utils/convTime';
+import { activeFocusSliceStart, resolveStageFocusTitle } from '../../utils/focusSummary';
 import { activeStageStartedAt, countActiveLiveSteps } from '../../utils/minimalTurn';
 import { buildTimeline, reduceTraceCached } from '../../utils/toolTrace';
 import { SystemCardView } from '../SystemCards';
@@ -329,6 +331,8 @@ export interface ConversationViewProps {
   sandboxRequests?: React.ReactNode;
   /** 当前会话的 Transcript view；由 ChatBody 按会话注入；不传则跟随外层会话 */
   transcriptView?: TranscriptView;
+  /** 当前会话后端 id（用于能力位识别，如思考过程锁定固定焦点） */
+  backend?: string;
   /** 前台长程 Nomi 对话流支持「主动转后台」时的回调 */
   onHandoffToBackground?: () => Promise<unknown> | void;
 }
@@ -351,6 +355,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   backgroundCount,
   onStopAgent,
   sandboxRequests,
+  backend,
   onHandoffToBackground,
 }) => {
   const fontSize = useSyncExternalStore(subscribeConversationFontSize, getConversationFontSize);
@@ -612,7 +617,18 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     () => (running ? activeStageStartedAt(liveEntries, live?.startedAt) : undefined),
     [running, liveEntries, live?.startedAt],
   );
-  const status = deriveStatus({ phase, live, items: liveItems });
+  const fixedThought = hasFixedThoughtSummary(backend);
+  const activeFocusTitle = useMemo(() => {
+    const from = activeFocusSliceStart(liveEntries);
+    return resolveStageFocusTitle(liveEntries.slice(from), fixedThought);
+  }, [liveEntries, fixedThought]);
+  const status = deriveStatus({
+    phase,
+    live,
+    items: liveItems,
+    focusTitle: activeFocusTitle,
+    fixedMode: fixedThought,
+  });
   const liveNotice = live?.notice;
   const showNotice = useRecent(liveNotice?.at, 12_000) && !!liveNotice?.text;
 
@@ -865,6 +881,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
             status ? { status, startedAt: activeStartedAt, handoff: handoffAction } : undefined
           }
           minimalStateKey={liveMinimalKey}
+          backend={backend}
           extra={<PermissionQueue live={live} onPermission={onPermission} />}
         />
       )}

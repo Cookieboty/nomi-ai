@@ -80,6 +80,7 @@ type Registry struct {
 	releasing              map[string]chan struct{}
 	probe                  func(string) []RuntimeChoice
 	permModes              func(string) []string
+	liveModes              map[string][]string
 }
 
 func New(s *convstore.Store, notify func(string)) *Registry {
@@ -103,6 +104,10 @@ type sessionTitleSource interface {
 
 type sessionModeSource interface {
 	SetModeHandler(func(string))
+}
+
+type sessionAvailModesSource interface {
+	SetAvailableModesHandler(func([]string))
 }
 
 type sessionCommandsSource interface {
@@ -301,6 +306,9 @@ func (r *Registry) target(id, name string) (cr.Target, error) {
 	}
 	if src, ok := t.Runtime.(sessionModeSource); ok {
 		src.SetModeHandler(func(mode string) { r.applyRuntimeMode(id, mode) })
+	}
+	if src, ok := t.Runtime.(sessionAvailModesSource); ok {
+		src.SetAvailableModesHandler(func(modes []string) { r.applyRuntimeAvailableModes(id, modes) })
 	}
 	if src, ok := t.Runtime.(sessionCommandsSource); ok {
 		src.SetCommandsHandler(func(cmds []cr.SlashCommandInfo) { r.applyRuntimeCommands(id, cmds) })
@@ -638,6 +646,9 @@ func (r *Registry) Switch(ctx context.Context, id string, opts SwitchOptions) (c
 		r.SetConfig(id, opts.Backend, prevCfg)
 	} else {
 		r.cancelTitleLookup(id)
+		r.mu.Lock()
+		delete(r.liveModes, id)
+		r.mu.Unlock()
 	}
 	r.changed(id)
 	return outcome, err
@@ -665,6 +676,9 @@ func (r *Registry) Select(id, name string) error {
 	err = a.session.Select(t)
 	if err == nil {
 		r.cancelTitleLookup(id)
+		r.mu.Lock()
+		delete(r.liveModes, id)
+		r.mu.Unlock()
 	}
 	r.changed(id)
 	return err
@@ -677,8 +691,26 @@ func (r *Registry) State(id string) (cr.SessionState, error) {
 	st := a.session.State()
 	r.mu.Lock()
 	lookup := r.permModes
+	var live []string
+	if m := r.liveModes[id]; len(m) > 0 {
+		live = append([]string(nil), m...)
+	}
 	r.mu.Unlock()
-	if lookup != nil && st.Backend != "" {
+	if len(live) > 0 {
+		if st.PermissionMode != "" {
+			hasCur := false
+			for _, m := range live {
+				if m == st.PermissionMode {
+					hasCur = true
+					break
+				}
+			}
+			if !hasCur {
+				live = append(live, st.PermissionMode)
+			}
+		}
+		st.Capabilities.PermissionModes = live
+	} else if lookup != nil && st.Backend != "" {
 		if modes := lookup(st.Backend); len(modes) > 0 {
 			st.Capabilities.PermissionModes = append([]string(nil), modes...)
 		}
@@ -1171,6 +1203,23 @@ func (r *Registry) applyRuntimeMode(id, mode string) {
 	r.streamChanged(id)
 }
 
+func (r *Registry) applyRuntimeAvailableModes(id string, modes []string) {
+	if len(modes) == 0 {
+		return
+	}
+	r.mu.Lock()
+	if r.actors[id] == nil {
+		r.mu.Unlock()
+		return
+	}
+	if r.liveModes == nil {
+		r.liveModes = map[string][]string{}
+	}
+	r.liveModes[id] = append([]string(nil), modes...)
+	r.mu.Unlock()
+	r.changed(id)
+}
+
 func (r *Registry) applyRuntimeCommands(id string, cmds []cr.SlashCommandInfo) {
 	r.mu.Lock()
 	a := r.actors[id]
@@ -1246,6 +1295,7 @@ func (r *Registry) Release(id string) error {
 	delete(r.actors, id)
 	delete(r.autoTitles, id)
 	delete(r.titleGens, id)
+	delete(r.liveModes, id)
 	lookupEntry, hasLookup := r.titleLookups[id]
 	if hasLookup {
 		delete(r.titleLookups, id)

@@ -1,7 +1,7 @@
 /** 权限请求卡片：agent 标签的审批队列和 Nomi 派出的子任务卡片共用（注明来源子代理与自动拒绝倒计时） */
 import { Icon, t } from '@nomi-ai/ui';
 import { IconShieldExclamation as ShieldAlert } from '@tabler/icons-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import type { AcpPermissionOption } from '../../services/harnessClient';
 
@@ -28,6 +28,10 @@ function optionFallbackLabel(kind?: string): string {
   }
 }
 
+function needsSummaryExpand(text: string): boolean {
+  return text.length > 140 || text.split('\n').length > 3;
+}
+
 /** 剩余秒数（每秒刷新）；没有截止时间返回 null */
 function useSecondsLeft(expiresAt: number | undefined): number | null {
   const [now, setNow] = useState(() => Date.now());
@@ -48,6 +52,18 @@ export const PermissionCard: React.FC<{
   onReply: (allow: boolean, optionId?: string) => void;
 }> = ({ summary, agent, expiresAt, options, onReply }) => {
   const left = useSecondsLeft(expiresAt);
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const summaryRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const el = summaryRef.current;
+    if (!el || expanded) return;
+    setOverflows(el.scrollHeight > el.clientHeight + 2);
+  }, [summary, expanded]);
+
+  const canExpand = expanded || overflows || needsSummaryExpand(summary);
+
   return (
     <div
       className={styles.perm}
@@ -73,8 +89,29 @@ export const PermissionCard: React.FC<{
           </span>
         )}
       </div>
-      <code className={styles.permSummary}>{summary}</code>
+      <div
+        ref={summaryRef}
+        data-testid="conv-permission-summary-box"
+        data-expanded={expanded}
+        className={`${styles.permSummaryWrap} ${
+          expanded ? styles.permSummaryExpanded : styles.permSummaryCollapsed
+        }`}
+      >
+        <code className={styles.permSummary}>{summary}</code>
+        {!expanded && canExpand && <div className={styles.permSummaryFade} aria-hidden />}
+      </div>
       <div className={styles.permActions}>
+        {canExpand && (
+          <button
+            type="button"
+            className={styles.permExpandToggle}
+            data-testid="conv-permission-expand"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {expanded ? t('ui.chat-settings.collapse-full') : t('ui.chat-settings.expand-full')}
+          </button>
+        )}
         {options && options.length > 0 ? (
           options.map((opt) => {
             const reject = isRejectOption(opt.kind);

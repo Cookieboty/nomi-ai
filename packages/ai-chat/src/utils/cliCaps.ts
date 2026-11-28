@@ -64,3 +64,8 @@ export function hasSlashCommands(backend: string | null | undefined): boolean {
 export function isInteractiveOnly(backend: string | null | undefined): boolean {
   return cliInfo(backend)?.capabilities.interactiveOnly === true;
 }
+
+/** 思考中与过程折叠头使用固定焦点摘要（不按实时句子频繁跳变） */
+export function hasFixedThoughtSummary(backend: string | null | undefined): boolean {
+  return cliInfo(backend)?.capabilities.fixedThoughtSummary === true;
+}

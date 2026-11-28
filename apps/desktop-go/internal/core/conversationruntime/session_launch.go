@@ -344,6 +344,27 @@ func (c *Session) handle(e Event) error {
 				}
 			}
 		}
+		if e.Trace.Kind == "thinking" && e.Trace.ID != "" {
+			for i := range a.trace {
+				if a.trace[i].Kind == "thinking" && a.trace[i].ID == e.Trace.ID {
+					if e.Trace.Detail != "" {
+						a.trace[i].Detail = e.Trace.Detail
+					}
+					if e.Trace.Summary != "" {
+						a.trace[i].Summary = e.Trace.Summary
+					}
+					if a.trace[i].At == 0 && e.Trace.At != 0 {
+						a.trace[i].At = e.Trace.At
+					}
+					if e.Trace.EndedAt != 0 {
+						a.trace[i].EndedAt = e.Trace.EndedAt
+					} else if e.Trace.At != 0 && e.Trace.At > a.trace[i].At {
+						a.trace[i].EndedAt = e.Trace.At
+					}
+					return nil
+				}
+			}
+		}
 		if (e.Trace.Kind == "tool" || e.Trace.Kind == "agent") && e.Trace.ID != "" {
 			for i := range a.trace {
 				if a.trace[i].Kind == e.Trace.Kind && a.trace[i].ID == e.Trace.ID {
@@ -362,8 +383,13 @@ func (c *Session) handle(e Event) error {
 					if e.Trace.Output != "" {
 						a.trace[i].Output = e.Trace.Output
 					}
-					if e.Trace.At != 0 {
+					if a.trace[i].At == 0 && e.Trace.At != 0 {
 						a.trace[i].At = e.Trace.At
+					}
+					if e.Trace.EndedAt != 0 {
+						a.trace[i].EndedAt = e.Trace.EndedAt
+					} else if e.Trace.At != 0 && e.Trace.At >= a.trace[i].At {
+						a.trace[i].EndedAt = e.Trace.At
 					}
 					return nil
 				}

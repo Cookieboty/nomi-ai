@@ -185,7 +185,7 @@ async function runMode(raw: string, backend: ConversationBackend): Promise<Slash
   const arg = raw.trim().toLowerCase();
   const list = supportedModes(backend)
     .filter((m) => m !== 'bypass')
-    .map((m) => `${modeLabel(m)}：${modeHint(m, backend)}`)
+    .map((m) => `${modeLabel(m, backend)}：${modeHint(m, backend)}`)
     .join('\n');
   if (!arg)
     return card(
@@ -226,10 +226,10 @@ async function runMode(raw: string, backend: ConversationBackend): Promise<Slash
         ? t(
             'ui.chat-settings.doesnt-support-using-period',
             ENDPOINT_FULL[backend](),
-            modeLabel(want),
-            modeLabel(got),
+            modeLabel(want, backend),
+            modeLabel(got, backend),
           )
-        : t('ui.chat-settings.switched-to', modeLabel(got), modeHint(got, backend)),
+        : t('ui.chat-settings.switched-to', modeLabel(got, backend), modeHint(got, backend)),
       r.degraded ? 'warn' : 'info',
     ),
   );

@@ -1,15 +1,16 @@
 package acprt
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
-	antigravityp "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/antigravity"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/drivers"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/clisdk/rpc"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
@@ -39,6 +40,7 @@ type worker struct {
 	closeOnce            sync.Once
 	active               *turn
 	completed, stopped   bool
+	modeSyncReady        bool
 }
 
 func officialLaunchFor(cfg Config) clisdk.AgentLaunch {
@@ -66,6 +68,7 @@ func officialLaunchFor(cfg Config) clisdk.AgentLaunch {
 
 func officialArgs(cfg Config) []string {
 	args := append([]string{}, builtin.AcpArgs(cfg.BackendID)...)
+	args = append(args, cli.AcpExtraArgs(cfg.BackendID, cfg.ExtraDirs)...)
 	if len(cfg.ExtraArgs) > 0 {
 		args = append(args, cfg.ExtraArgs...)
 	}
@@ -143,16 +146,16 @@ func (r *Runtime) spawn() *worker {
 		}
 		CliTrap(child, cfg.Executable, args, tab)
 	}
-	disableElicitation := cfg.BackendID == "antigravity" || cfg.OnQuestion == nil
 	driverOpts := drivers.AcpDriverOptions{
 		Child:              child,
 		Kill:               func(clisdk.ChildLike) { killGroup(w.child.Pid) },
 		NewID:              func() string { return uuid.NewString() },
-		DisableElicitation: disableElicitation,
+		RPC:                rpc.ConnectionOptions{TimeoutMessage: cli.AcpTimeoutMessageFor(cfg.BackendID)},
+		DisableElicitation: cfg.OnQuestion == nil,
 	}
-	if cfg.BackendID == "antigravity" {
-		driverOpts.ClientInfo = antigravityp.ClientInfo()
-		driverOpts.ClientCapabilities = antigravityp.ClientCapabilities()
+	cli.ApplyAcpCapability(&driverOpts, cfg.BackendID)
+	if cfg.OnQuestion == nil {
+		driverOpts.DisableElicitation = true
 	}
 	w.driver = drivers.NewAcpDriver(driverOpts)
 	w.driver.On(func(ev clisdk.SessionEvent) {
@@ -213,6 +216,25 @@ func parseSlashCommands(raw any) []cr.SlashCommandInfo {
 	return out
 }
 
+func briefApprovalTitle(kind, summary string) string {
+	line := summary
+	if i := strings.IndexAny(line, "\r\n"); i >= 0 {
+		line = line[:i]
+	}
+	line = strings.Join(strings.Fields(line), " ")
+	runes := []rune(line)
+	if len(runes) > 48 {
+		return string(runes[:48]) + "…"
+	}
+	if line != "" {
+		return line
+	}
+	if kind != "" {
+		return kind
+	}
+	return "tool"
+}
+
 func (w *worker) onPermission(se clisdk.SessionEvent) {
 	t := w.active
 	if t == nil {
@@ -236,7 +258,10 @@ func (w *worker) onPermission(se clisdk.SessionEvent) {
 		summary = "tool action"
 	}
 	if toolName == "" {
-		toolName = summary
+		toolName = briefApprovalTitle(strings.TrimSpace(util.Str(req.Get("kind"))), summary)
+	}
+	if strings.TrimSpace(argsPreview) == strings.TrimSpace(summary) {
+		argsPreview = ""
 	}
 	var opts []cr.ApprovalOption
 	if rawOpts, ok := req.Get("options").([]any); ok {
@@ -289,7 +314,7 @@ func (w *worker) parsed(ev *util.Obj) {
 		return
 	}
 	if typ == "status" {
-		if pm := strings.TrimSpace(util.Str(ev.Get("permissionMode"))); pm != "" && w.onMode != nil {
+		if pm := strings.TrimSpace(util.Str(ev.Get("permissionMode"))); pm != "" && w.onMode != nil && w.modeSyncReady {
 			if mapped := toManagedPermissionMode(cli.FromCliPermissionMode(w.backendID, pm)); mapped != "" {
 				w.onMode(mapped)
 			}
@@ -328,11 +353,36 @@ func (w *worker) parsed(ev *util.Obj) {
 			return
 		}
 		if len(t.text) > prevLen {
+			t.clearThinking()
 			t.pushStream(t.text[prevLen:], "", false)
 		}
 	case "thinking":
 		if th := util.Str(ev.Get("text")); th != "" {
 			t.pushStream("", th, true)
+			now := time.Now().UnixMilli()
+			if t.thinkID == "" {
+				t.thinkSeq++
+				t.thinkID = fmt.Sprintf("th-%d", t.thinkSeq)
+				t.thinkStart = now
+				t.thinkTextAt = util.UTF16Len(t.text)
+				t.thinkText = th
+			} else {
+				t.thinkText += th
+			}
+			if clisdk.Len(t.thinkText) > 20_000 {
+				t.thinkText = clisdk.Slice0(t.thinkText, 20_000)
+			}
+			textAt := t.thinkTextAt
+			te := event(t, cr.EventTrace)
+			te.Trace = &cr.TraceEntry{
+				ID:      t.thinkID,
+				Kind:    "thinking",
+				Detail:  t.thinkText,
+				At:      t.thinkStart,
+				EndedAt: now,
+				TextAt:  &textAt,
+			}
+			w.queue(te)
 		}
 	case "context":
 		var tokPtr, winPtr *int64
@@ -468,13 +518,17 @@ func (w *worker) parsed(ev *util.Obj) {
 			id = name
 		}
 		if id != "" && name != "" {
+			summary := util.Str(ev.Get("title"))
+			if summary == "" {
+				summary = name
+			}
 			textAt := util.UTF16Len(t.text)
 			te := event(t, cr.EventTrace)
 			te.Trace = &cr.TraceEntry{
 				ID:      id,
 				Kind:    "tool",
 				Tool:    name,
-				Summary: name,
+				Summary: summary,
 				Detail:  util.Str(ev.Get("input")),
 				Output:  util.Str(ev.Get("output")),
 				Status:  status,

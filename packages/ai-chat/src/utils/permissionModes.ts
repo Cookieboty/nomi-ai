@@ -45,7 +45,94 @@ export function fallbackMode(backend: HarnessBackend, mode: PermissionMode): Per
   return ok.includes(next) || !ok.length ? next : ok[0]!;
 }
 
-export function modeLabel(mode: PermissionMode): string {
+const BACKEND_MODE_LABEL: Partial<Record<HarnessBackend, Partial<Record<PermissionMode, string>>>> =
+  {
+    antigravity: {
+      plan: 'ui.chat-settings.perm-cli-plan',
+      manual: 'ui.chat-settings.perm-cli-default',
+      acceptEdits: 'ui.chat-settings.perm-agy-accept-edits',
+      auto: 'ui.chat-settings.perm-agy-auto',
+    },
+    gemini: {
+      plan: 'ui.chat-settings.perm-cli-plan',
+      manual: 'ui.chat-settings.perm-cli-default',
+      acceptEdits: 'ui.chat-settings.perm-gemini-auto-edit',
+      bypass: 'ui.chat-settings.perm-cli-yolo',
+    },
+    kimi: {
+      plan: 'ui.chat-settings.perm-cli-plan',
+      manual: 'ui.chat-settings.perm-cli-default',
+      auto: 'ui.chat-settings.perm-cli-yolo',
+      bypass: 'ui.chat-settings.perm-agy-auto',
+    },
+    minimax: {
+      plan: 'ui.chat-settings.perm-cli-plan',
+      manual: 'ui.chat-settings.perm-cli-default',
+    },
+    grok: {
+      plan: 'ui.chat-settings.perm-cli-plan',
+      manual: 'ui.chat-settings.perm-cli-default',
+      acceptEdits: 'ui.chat-settings.perm-grok-accept-edits',
+      auto: 'ui.chat-settings.perm-grok-accept-edits',
+      bypass: 'ui.chat-settings.perm-grok-bypass',
+    },
+  };
+
+const BACKEND_MODE_HINT: Partial<Record<HarnessBackend, Partial<Record<PermissionMode, string>>>> =
+  {
+    antigravity: {
+      plan: 'ui.chat-settings.perm-hint-agy-plan',
+      manual: 'ui.chat-settings.perm-hint-agy-manual',
+      acceptEdits: 'ui.chat-settings.perm-hint-agy-accept',
+      auto: 'ui.chat-settings.perm-hint-agy-auto',
+    },
+    gemini: {
+      plan: 'ui.chat-settings.perm-hint-gemini-plan',
+      manual: 'ui.chat-settings.perm-hint-gemini-manual',
+      acceptEdits: 'ui.chat-settings.perm-hint-gemini-accept',
+      bypass: 'ui.chat-settings.perm-hint-gemini-bypass',
+    },
+    kimi: {
+      plan: 'ui.chat-settings.perm-hint-kimi-plan',
+      manual: 'ui.chat-settings.perm-hint-kimi-manual',
+      auto: 'ui.chat-settings.perm-hint-kimi-auto',
+      bypass: 'ui.chat-settings.perm-hint-kimi-bypass',
+    },
+    minimax: {
+      plan: 'ui.chat-settings.perm-hint-minimax-plan',
+      manual: 'ui.chat-settings.perm-hint-minimax-manual',
+    },
+    claude: {
+      plan: 'ui.chat-settings.perm-hint-claude-plan',
+      manual: 'ui.chat-settings.perm-hint-claude-manual',
+      acceptEdits: 'ui.chat-settings.perm-hint-claude-accept',
+      auto: 'ui.chat-settings.perm-hint-claude-auto',
+      bypass: 'ui.chat-settings.perm-hint-claude-bypass',
+    },
+    codex: {
+      plan: 'ui.chat-settings.perm-hint-codex-plan',
+      manual: 'ui.chat-settings.perm-hint-codex-manual',
+      acceptEdits: 'ui.chat-settings.perm-hint-codex-accept',
+      auto: 'ui.chat-settings.perm-hint-codex-auto',
+      bypass: 'ui.chat-settings.perm-hint-codex-bypass',
+    },
+    grok: {
+      plan: 'ui.chat-settings.perm-hint-grok-plan',
+      manual: 'ui.chat-settings.perm-hint-grok-manual',
+      acceptEdits: 'ui.chat-settings.perm-hint-grok-accept',
+      auto: 'ui.chat-settings.perm-hint-grok-auto',
+      bypass: 'ui.chat-settings.perm-hint-grok-bypass',
+    },
+    dsh: {
+      plan: 'ui.chat-settings.perm-hint-dsh-plan',
+      acceptEdits: 'ui.chat-settings.perm-hint-dsh-accept',
+      bypass: 'ui.chat-settings.perm-hint-dsh-bypass',
+    },
+  };
+
+export function modeLabel(mode: PermissionMode, backend?: HarnessBackend): string {
+  const custom = backend ? BACKEND_MODE_LABEL[backend]?.[mode] : undefined;
+  if (custom) return t(custom as never);
   switch (mode) {
     case 'plan':
       return t('ui.chat-settings.plan');
@@ -60,7 +147,7 @@ export function modeLabel(mode: PermissionMode): string {
   }
 }
 
-/** 档位说明；Nomi 的档位作用在它自己的工具（文件、剪贴板、浏览器、扩展）上，说法不同 */
+/** 档位说明；Nomi 与各内置 CLI 均精确匹配其原生策略行为 */
 export function modeHint(mode: PermissionMode, backend?: HarnessBackend): string {
   if (backend === 'nomi') {
     switch (mode) {
@@ -76,6 +163,8 @@ export function modeHint(mode: PermissionMode, backend?: HarnessBackend): string
         break;
     }
   }
+  const custom = backend ? BACKEND_MODE_HINT[backend]?.[mode] : undefined;
+  if (custom) return t(custom as never);
   switch (mode) {
     case 'plan':
       return t('ui.chat-settings.read-only-proposes-a-plan-without-changing-files');

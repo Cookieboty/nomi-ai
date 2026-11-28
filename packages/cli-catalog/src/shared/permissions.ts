@@ -66,24 +66,44 @@ export function modeFromNative(
   const lower = value.toLowerCase().replace(/[_\s]+/g, '-');
   let mode: HarnessPermissionMode | null = null;
   if (lower === 'plan' || lower === 'read-only' || lower === 'readonly') mode = 'plan';
-  else if (lower === 'default' || lower === 'manual' || lower === 'ask') mode = 'manual';
+  else if (
+    lower === 'default' ||
+    lower === 'manual' ||
+    lower === 'ask' ||
+    lower === 'request-review' ||
+    lower === 'strict' ||
+    lower === 'untrusted'
+  )
+    mode = 'manual';
   else if (lower === 'on-request') mode = o.onRequest ?? 'manual';
   else if (
     lower === 'acceptedits' ||
+    lower === 'accept-edits' ||
     lower === 'autoedit' ||
+    lower === 'auto-edit' ||
     lower === 'workspace-write' ||
     lower === 'workspacewrite' ||
     lower === 'workspace'
   )
     mode = 'acceptEdits';
-  else if (lower === 'auto' || lower === 'dontask' || lower === 'on-request-auto') mode = 'auto';
+  else if (
+    lower === 'auto' ||
+    lower === 'dontask' ||
+    lower === 'dont-ask' ||
+    lower === 'on-request-auto' ||
+    lower === 'proceed-in-sandbox'
+  )
+    mode = 'auto';
   else if (
     lower === 'bypass' ||
     lower === 'bypasspermissions' ||
+    lower === 'bypass-permissions' ||
     lower === 'yolo' ||
     lower === 'danger-full-access' ||
     lower === 'dangerfullaccess' ||
-    lower === 'danger'
+    lower === 'danger' ||
+    lower === 'always-proceed' ||
+    lower === 'turbo'
   )
     mode = 'bypass';
   return mode ? degradeMode(supported, mode).mode : null;

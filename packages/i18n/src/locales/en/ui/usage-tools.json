@@ -363,5 +363,7 @@
   "ui.usage-tools.plan-progress": "{0}/{1} completed",
   "ui.usage-tools.allow-once": "Allow once",
   "ui.usage-tools.reject-once": "Reject once",
-  "ui.usage-tools.reject-always": "Always reject"
+  "ui.usage-tools.reject-always": "Always reject",
+  "ui.usage-tools.ran-command-desc": "Ran",
+  "ui.usage-tools.thinking-fixed": "Thinking…"
 }

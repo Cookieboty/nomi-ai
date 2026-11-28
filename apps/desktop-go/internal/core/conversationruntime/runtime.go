@@ -225,6 +225,7 @@ type TraceEntry struct {
 	Detail  string `json:"detail,omitempty"`
 	Output  string `json:"output,omitempty"`
 	At      int64  `json:"at"`
+	EndedAt int64  `json:"endedAt,omitempty"`
 	TextAt  *int   `json:"textAt,omitempty"`
 }
 

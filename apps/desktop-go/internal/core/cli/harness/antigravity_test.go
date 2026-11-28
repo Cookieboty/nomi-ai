@@ -590,8 +590,8 @@ rl.on('line', (line) => {
 		return o.CreateTab(util.NewObj("backend", "antigravity", "source", "local", "activate", false))
 	})
 	agyTabID := str(agyTab, "id")
-	if gotMode := str(agyTab, "permissionMode"); gotMode != "manual" {
-		t.Fatalf("antigravity default permissionMode = %q, want manual", gotMode)
+	if gotMode := str(agyTab, "permissionMode"); gotMode != "auto" {
+		t.Fatalf("antigravity default permissionMode = %q, want auto", gotMode)
 	}
 	throws("SeedTabMessages antigravity without cliSessionId", func() {
 		jsrt.Run(func() {

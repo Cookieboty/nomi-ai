@@ -143,3 +143,42 @@ describe('被权限系统拒掉的动作', () => {
     expect(st.detail).toBeUndefined();
   });
 });
+
+describe('fixedMode 固定焦点状态', () => {
+  it('使用 focusTitle 或兜底思考中文案，同时权限与阻塞依然优先', () => {
+    const withFocus = deriveStatus({
+      phase: 'running',
+      live: { text: '', firstEventAt: 1 },
+      items: items([tool('bash', 'start', 'b', { command: 'pnpm test' })]),
+      fixedMode: true,
+      focusTitle: '正在检验前后端改动',
+    })!;
+    expect(withFocus).toMatchObject({
+      kind: 'thinking',
+      label: '正在检验前后端改动',
+      fixed: true,
+    });
+
+    const fallback = deriveStatus({
+      phase: 'running',
+      live: { text: '', firstEventAt: 1 },
+      items: [],
+      fixedMode: true,
+    })!;
+    expect(fallback).toMatchObject({
+      kind: 'thinking',
+      label: '思考中…',
+      fixed: true,
+    });
+
+    const perm = deriveStatus({
+      phase: 'running',
+      live: { text: '', permissions: [{ id: 'p1', summary: 'run bash' }] },
+      items: [],
+      fixedMode: true,
+      focusTitle: '正在检验前后端改动',
+    })!;
+    expect(perm.kind).toBe('permission');
+    expect(perm.fixed).toBeUndefined();
+  });
+});

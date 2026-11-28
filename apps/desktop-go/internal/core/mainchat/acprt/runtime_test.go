@@ -98,6 +98,13 @@ func TestHelperAcpProcess(t *testing.T) {
 					map[string]any{"id": "bypassPermissions"},
 					map[string]any{"id": "plan"},
 				}
+			} else if mode == "agy_auto_fallback" {
+				availModes = []any{
+					map[string]any{"id": "default"},
+					map[string]any{"id": "accept-edits"},
+					map[string]any{"id": "auto"},
+					map[string]any{"id": "plan"},
+				}
 			}
 			res := map[string]any{"sessionId": fmt.Sprintf("acp-sess-%d", counter), "modes": map[string]any{"currentModeId": "default", "availableModes": availModes}}
 			if mode == "grok_unknown_accept_edits" {
@@ -146,6 +153,17 @@ func TestHelperAcpProcess(t *testing.T) {
 					"error": map[string]any{
 						"code":    -32602,
 						"message": "Invalid params: unknown mode id: " + modeID,
+					},
+				})
+				continue
+			}
+			if mode == "agy_auto_fallback" && modeID == "auto" {
+				send(map[string]any{
+					"jsonrpc": "2.0",
+					"id":      req.ID,
+					"error": map[string]any{
+						"code":    -32603,
+						"message": "Auto mode is not available: it needs the OS terminal sandbox enabled",
 					},
 				})
 				continue
