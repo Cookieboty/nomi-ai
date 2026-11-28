@@ -107,3 +107,19 @@ func TestAcpWriteFileNamePreserved(t *testing.T) {
 		t.Fatalf("input = %s", in)
 	}
 }
+
+func TestAcpUpdateStepsAndCancelledTool(t *testing.T) {
+	m := NewAcpMapper()
+	startEvs := m.Update(upd(t, `{"sessionUpdate":"tool_call","toolCallId":"s1","name":"update_steps","kind":"other","status":"in_progress",
+		"title":"Update Steps","rawInput":{"steps":[{"title":"Analyze code","status":"completed"},{"title":"Run tests","status":"in_progress"}]}}`))
+	if len(startEvs) != 1 || startEvs[0].Get("name") != "update_steps" || startEvs[0].Get("status") != "start" {
+		t.Fatalf("start update_steps = %v", startEvs)
+	}
+	doneEvs := m.Update(upd(t, `{"sessionUpdate":"tool_call_update","toolCallId":"s1","status":"cancelled"}`))
+	if len(doneEvs) != 1 || doneEvs[0].Get("name") != "update_steps" || doneEvs[0].Get("status") != "error" {
+		t.Fatalf("cancelled update_steps = %v", doneEvs)
+	}
+	if len(m.(*acpMapper).inputs) != 0 || len(m.(*acpMapper).names) != 0 {
+		t.Fatalf("cancelled tool must clear mapper state")
+	}
+}

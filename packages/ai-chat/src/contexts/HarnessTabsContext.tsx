@@ -27,7 +27,9 @@ import type { RunnerPreset } from '../services/delegateClient';
 import {
   MAIN_TAB_ID,
   harnessClient,
+  type AcpSlashCommand,
   type HarnessBackend,
+  type HarnessLiveEvent,
   type HarnessTabMessage,
   type HarnessTabMeta,
   type HarnessTabsState,
@@ -90,14 +92,14 @@ export interface HarnessTabsCore extends HarnessPendingQueueApi {
   replyPermission: (
     requestId: string,
     allow: boolean,
-    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny'; optionId?: string },
   ) => Promise<void>;
   /** 回指定标签的权限（侧栏里的委派标签不是当前标签） */
   replyPermissionFor: (
     tabId: string,
     requestId: string,
     allow: boolean,
-    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny'; optionId?: string },
   ) => Promise<void>;
   /** 从指定标签的某条用户消息重新发送 */
   resendFromTab: (tabId: string, messageId: string, text: string) => Promise<void>;
@@ -140,6 +142,43 @@ function createCacheStore(): CacheStore {
 
 const EMPTY_CACHE_STORE = createCacheStore();
 const CacheCtx = createContext<CacheStore>(EMPTY_CACHE_STORE);
+
+interface CommandsStore {
+  get(): Record<string, AcpSlashCommand[]>;
+  setTab(tabId: string, commands: AcpSlashCommand[]): void;
+  deleteTab(tabId: string): void;
+  subscribe(listener: () => void): () => void;
+}
+
+function createCommandsStore(): CommandsStore {
+  let map: Record<string, AcpSlashCommand[]> = {};
+  const listeners = new Set<() => void>();
+  const notify = () => {
+    for (const l of [...listeners]) l();
+  };
+  return {
+    get: () => map,
+    setTab(tabId, commands) {
+      map = { ...map, [tabId]: commands };
+      notify();
+    },
+    deleteTab(tabId) {
+      if (!(tabId in map)) return;
+      const next = { ...map };
+      delete next[tabId];
+      map = next;
+      notify();
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+}
+
+const EMPTY_COMMANDS_STORE = createCommandsStore();
+const CommandsCtx = createContext<CommandsStore>(EMPTY_COMMANDS_STORE);
+const EMPTY_COMMANDS: readonly AcpSlashCommand[] = [];
 
 interface TabCacheApi {
   pin(id: string): void;
@@ -188,6 +227,8 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   useLayoutEffect(() => {
     detachedStore.set(detached);
   }, [detachedStore, detached]);
+  const [commandsStore] = useState(createCommandsStore);
+  const fetchedCmdTabsRef = useRef<Set<string>>(new Set());
   const [lastBackend, setLastBackend] = useState<HarnessBackend>(() => {
     try {
       const v = localStorage.getItem(LAST_BACKEND_KEY);
@@ -276,8 +317,27 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
           return next;
         });
     });
-    const off3 = harnessClient.onEvents((batch) => batch.forEach(stream.handle));
-    const off4 = harnessClient.onEvent(stream.handle);
+    const applyCommandsFromRaw = (raw: unknown) => {
+      const ev = raw as Partial<HarnessLiveEvent> | null;
+      if (
+        ev &&
+        typeof ev.tabId === 'string' &&
+        ev.type === 'commands' &&
+        Array.isArray(ev.commands)
+      ) {
+        commandsStore.setTab(ev.tabId, ev.commands);
+      }
+    };
+    const off3 = harnessClient.onEvents((batch) => {
+      for (const item of batch) {
+        applyCommandsFromRaw(item);
+        stream.handle(item);
+      }
+    });
+    const off4 = harnessClient.onEvent((raw) => {
+      applyCommandsFromRaw(raw);
+      stream.handle(raw);
+    });
     return () => {
       off1();
       off2();
@@ -285,7 +345,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       off4();
       stream.dispose();
     };
-  }, [available, queue.deliverSteer]);
+  }, [available, queue.deliverSteer, commandsStore]);
 
   useEffect(() => {
     if (!state) return;
@@ -323,6 +383,20 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     if (state && (!isCliTab || cache[activeId])) startupBrandIntro.taskDone('tabs');
   }, [state, isCliTab, activeId, cache]);
 
+  // 切到 CLI 标签时补拉一次缓存的 ACP 斜杠命令（每标签首次）
+  useEffect(() => {
+    if (!available || !isCliTab || fetchedCmdTabsRef.current.has(activeId)) return;
+    fetchedCmdTabsRef.current.add(activeId);
+    void harnessClient
+      .tabCommands(activeId)
+      .then((res) => {
+        if (Array.isArray(res?.commands) && res.commands.length > 0) {
+          commandsStore.setTab(activeId, res.commands);
+        }
+      })
+      .catch(() => undefined);
+  }, [available, isCliTab, activeId, commandsStore]);
+
   // 缓存只留最近用过的几个标签：切走后不再占内存，回来时重新读取。
   // 侧栏钉住的标签（委派会话）不在当前标签里，也不能被这轮回收丢掉。
   const recentRef = useRef<string[]>([]);
@@ -349,13 +423,15 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       if (!(await confirmStopBackground(stateRef.current?.tabs.find((x) => x.id === id)))) return;
       await harnessClient.closeTab(id);
       queue.dropTab(id);
+      fetchedCmdTabsRef.current.delete(id);
+      commandsStore.deleteTab(id);
       setCache((cur) => {
         const next = { ...cur };
         delete next[id];
         return next;
       });
     },
-    [queue.dropTab],
+    [queue.dropTab, commandsStore],
   );
   const rename = useCallback(async (id: string, title: string) => {
     await harnessClient.renameTab(id, title);
@@ -487,7 +563,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       tabId: string,
       requestId: string,
       allow: boolean,
-      opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+      opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny'; optionId?: string },
     ) => {
       if (tabId === MAIN_TAB_ID) return;
       const tab = stateRef.current?.tabs.find((t) => t.id === tabId);
@@ -496,6 +572,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       // 持续任务的委派先经任务回应，失败再回标签（与主列同一条 replyPermissionRequest）
       const ok = await replyPermissionRequest(tabId, requestId, allow, {
         ...(opts?.approvePlan ? { approvePlan: opts.approvePlan } : {}),
+        ...(opts?.optionId ? { optionId: opts.optionId } : {}),
         ...(taskId ? { taskId } : {}),
       }).catch(() => false);
       if (!ok) return;
@@ -513,7 +590,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     async (
       requestId: string,
       allow: boolean,
-      opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+      opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny'; optionId?: string },
     ) => {
       if (!isCliTab) return;
       await replyPermissionFor(activeId, requestId, allow, opts);
@@ -617,7 +694,9 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
         <LiveCtx.Provider value={liveStore}>
           <DetachedCtx.Provider value={detachedStore}>
             <CacheCtx.Provider value={cacheStore}>
-              <PinCtx.Provider value={tabCacheApi}>{children}</PinCtx.Provider>
+              <CommandsCtx.Provider value={commandsStore}>
+                <PinCtx.Provider value={tabCacheApi}>{children}</PinCtx.Provider>
+              </CommandsCtx.Provider>
             </CacheCtx.Provider>
           </DetachedCtx.Provider>
         </LiveCtx.Provider>
@@ -702,5 +781,15 @@ export function useHarnessTabMessages(tabId: string | null): readonly HarnessTab
     store.subscribe,
     () => (tabId ? store.get()[tabId] : undefined) ?? EMPTY_MESSAGES,
     () => EMPTY_MESSAGES,
+  );
+}
+
+/** 订阅指定标签缓存的 ACP 动态斜杠命令（跨回合保留，不受回合末清空 TabLive 影响） */
+export function useHarnessTabCommands(tabId: string | null): readonly AcpSlashCommand[] {
+  const store = useContext(CommandsCtx);
+  return useSyncExternalStore(
+    store.subscribe,
+    () => (tabId ? store.get()[tabId] : undefined) ?? EMPTY_COMMANDS,
+    () => EMPTY_COMMANDS,
   );
 }

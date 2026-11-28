@@ -553,6 +553,40 @@ export function buildTraceDocument(input: BuildTraceDocumentInput): TraceDocumen
           continue;
         }
 
+        if (entry.type === 'plan') {
+          const total = entry.entries.length;
+          const done = entry.entries.filter((x) => x.status === 'completed').length;
+          const summaryText = entry.entries
+            .map((x) => `[${x.status}] ${x.content}`)
+            .join('\n')
+            .trim();
+          const detailText = summaryText || entry.markdown || entry.uri || '';
+          const progress =
+            total > 0 ? t('ui.usage-tools.plan-progress', String(done), String(total)) : undefined;
+          pushTurnNode({
+            id: nextId('n-plan'),
+            kind: 'status',
+            toolKind: 'todo',
+            laneId,
+            turnId,
+            depth,
+            title: progress
+              ? `${t('ui.usage-tools.plan-title')} · ${progress}`
+              : t('ui.usage-tools.plan-title'),
+            subtitle: progress,
+            status: entry.entries.some((x) => x.status === 'failed')
+              ? 'error'
+              : entry.entries.some((x) => x.status === 'in_progress')
+                ? 'running'
+                : 'done',
+            start: entry.at,
+            end: entry.at,
+            text: detailText,
+            searchText: buildSearchText([t('ui.usage-tools.plan-title'), progress, detailText]),
+          });
+          continue;
+        }
+
         const c = entry.call;
         const toolKind = classifyTool(c.name);
         const desc = describeCall(c);

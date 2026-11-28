@@ -44,12 +44,17 @@ func (o *Orchestrator) TabContext(tabID string) *jsrt.Promise[*util.Obj] {
 	return ioAsync(func() *util.Obj { return cli.ClaudeTranscriptContext(dir, cwd, s) })
 }
 
-// AnswerPermission = answerPermission：带 approvePlan（三选一）时按计划处理，否则允许 / 拒绝。
+// AnswerPermission = answerPermission：带 approvePlan（三选一）时按计划处理，否则允许 / 拒绝（可带 ACP optionId）。
 func (o *Orchestrator) AnswerPermission(tabID, requestID string, allow bool, approvePlan any) bool {
+	return o.AnswerPermissionOption(tabID, requestID, allow, approvePlan, "")
+}
+
+// AnswerPermissionOption = 带可选 optionId 的权限答复。
+func (o *Orchestrator) AnswerPermissionOption(tabID, requestID string, allow bool, approvePlan any, optionID string) bool {
 	if p, ok := approvePlan.(string); ok && (p == "acceptEdits" || p == "manual" || p == "deny") {
 		return o.ReplyApprovePlan(tabID, requestID, p)
 	}
-	return o.replyPermission(tabID, requestID, allow)
+	return o.ReplyPermissionOption(tabID, requestID, allow, "", "", optionID)
 }
 
 // AnswerApprovePlan = answerApprovePlan：其他值报错。

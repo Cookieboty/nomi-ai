@@ -2,7 +2,11 @@
  * 统一会话模型：Nomi 普通对话与 Claude Code / Codex / Grok / dsh 标签共用同一套会话视图，
  * 视图只认这里的形状；各来源（ChatMessage / HarnessTabMessage）经 utils/convAdapters 转换。
  */
-import type { HarnessTraceEvent, HarnessUsage } from '../services/harnessClient';
+import type {
+  AcpPermissionOption,
+  HarnessTraceEvent,
+  HarnessUsage,
+} from '../services/harnessClient';
 import type { LiveAgent } from '../utils/liveState';
 
 export interface ConvMessage {
@@ -57,19 +61,21 @@ export interface ConvLive {
     expiresAt?: number;
     kind?: 'tool' | 'approve-plan';
     toolName?: string;
+    options?: AcpPermissionOption[];
   }>;
   /** 最近一次超时自动拒绝 */
   permissionExpired?: { summary: string; agent?: string; at: number };
   /** 本轮出现过的子代理（按 id），卡片按 callId 关联到派生它的工具调用 */
   agents?: Record<string, LiveAgent>;
   status?: {
-    kind: 'retry' | 'reconnect' | 'compact' | 'blocked';
+    kind: 'retry' | 'reconnect' | 'compact' | 'blocked' | 'working';
     /** 替换默认的状态文案（如「正在换到 ProvB」） */
     label?: string;
     text?: string;
     attempt?: number;
     max?: number;
   };
+  notice?: { tag: string; text: string; at: number };
 }
 
 export type ConvPhase = 'idle' | 'queued' | 'running';

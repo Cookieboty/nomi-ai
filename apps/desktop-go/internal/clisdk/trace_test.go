@@ -28,3 +28,36 @@ func TestTraceMergesAgentText(t *testing.T) {
 		t.Fatal(out)
 	}
 }
+
+func TestTraceMergesPlanInPlace(t *testing.T) {
+	p1 := StampEvent(util.NewObj("type", "plan", "planId", "p1", "textAt", 5.0,
+		"entries", []any{util.NewObj("content", "Step 1", "status", "in_progress")}), 10)
+	tool := StampEvent(util.NewObj("type", "tool", "name", "read_file", "status", "done", "detail", "t1", "textAt", 5.0), 11)
+	p2 := StampEvent(util.NewObj("type", "plan", "planId", "p1", "textAt", 18.0,
+		"entries", []any{util.NewObj("content", "Step 1", "status", "completed")}), 12)
+	out := BuildTrace([]Ev{p1, tool, p2})
+	if len(out) != 2 {
+		t.Fatalf("len(out) = %d, want 2 (%v)", len(out), out)
+	}
+	if out[0].Get("type") != "plan" || out[0].Get("textAt") != 5.0 || out[0].Get("at") != 12.0 {
+		t.Fatalf("merged plan = %v", out[0])
+	}
+	entries, _ := out[0].Get("entries").([]any)
+	if len(entries) != 1 || entries[0].(*util.Obj).Get("status") != "completed" {
+		t.Fatalf("merged entries = %v", entries)
+	}
+}
+
+func TestTracePlanRemovedAndToolDedup(t *testing.T) {
+	p1 := StampEvent(util.NewObj("type", "plan", "planId", "p-rm", "entries", []any{util.NewObj("content", "Step", "status", "pending")}), 10)
+	t1 := StampEvent(util.NewObj("type", "tool", "name", "terminal", "status", "start", "detail", "term:1", "output", "a"), 11)
+	t2 := StampEvent(util.NewObj("type", "tool", "name", "terminal", "status", "start", "detail", "term:1", "output", "ab"), 12)
+	rm := StampEvent(util.NewObj("type", "plan-removed", "planId", "p-rm"), 13)
+	out := BuildTrace([]Ev{p1, t1, t2, rm})
+	if len(out) != 1 {
+		t.Fatalf("len(out) = %d, want 1 (%v)", len(out), out)
+	}
+	if out[0].Get("type") != "tool" || out[0].Get("output") != "ab" {
+		t.Fatalf("deduped tool = %v", out[0])
+	}
+}

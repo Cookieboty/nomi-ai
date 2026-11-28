@@ -358,5 +358,10 @@
   "ui.usage-tools.your-turn": "Your turn!",
   "ui.usage-tools.zoom-in": "Zoom in",
   "ui.usage-tools.zoom-out": "Zoom out",
-  "ui.usage-tools.local-image-unavailable": "Can't show this local image"
+  "ui.usage-tools.local-image-unavailable": "Can't show this local image",
+  "ui.usage-tools.plan-title": "Plan",
+  "ui.usage-tools.plan-progress": "{0}/{1} completed",
+  "ui.usage-tools.allow-once": "Allow once",
+  "ui.usage-tools.reject-once": "Reject once",
+  "ui.usage-tools.reject-always": "Always reject"
 }

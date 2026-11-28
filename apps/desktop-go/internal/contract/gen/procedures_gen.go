@@ -13,7 +13,7 @@ type Procedure struct {
 	Surfaces  []string
 }
 
-// 合计 521：mutation 374 / query 142 / stream 5
+// 合计 523：mutation 374 / query 144 / stream 5
 var Procedures = []Procedure{
 	{Name: "agents.scan", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "agents.setSettings", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -256,6 +256,7 @@ var Procedures = []Procedure{
 	{Name: "harness.gitSyncStatus", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.gitUnstage", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.gitWorktrees", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "harness.listAcpSessions", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.messageAgent", Kind: "mutation", Dangerous: true, Surfaces: []string{"chat"}},
 	{Name: "harness.modelCatalog", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.openTerminal", Kind: "mutation", Dangerous: false, Surfaces: nil},
@@ -285,6 +286,7 @@ var Procedures = []Procedure{
 	{Name: "harness.tabCancel", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabCarryClear", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabClose", Kind: "mutation", Dangerous: false, Surfaces: nil},
+	{Name: "harness.tabCommands", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabContext", Kind: "query", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabCreate", Kind: "mutation", Dangerous: false, Surfaces: nil},
 	{Name: "harness.tabEffort", Kind: "mutation", Dangerous: false, Surfaces: nil},

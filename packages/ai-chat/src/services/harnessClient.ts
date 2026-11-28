@@ -222,6 +222,15 @@ export interface MessageAgentResult {
   tabId?: string;
 }
 
+export type PlanEntryStatus = 'pending' | 'in_progress' | 'completed' | 'failed' | 'skipped';
+export type PlanEntryPriority = 'high' | 'medium' | 'low';
+
+export interface PlanEntry {
+  content: string;
+  status: PlanEntryStatus;
+  priority?: PlanEntryPriority;
+}
+
 /** 工具调用 / 思考事件（主进程 stampEvent 带 at 时间戳；detail 为调用 id，codex 为命令行） */
 export type HarnessTraceEvent =
   | {
@@ -241,6 +250,16 @@ export type HarnessTraceEvent =
   | { type: 'thinking'; text: string; parentId?: string; at?: number; textAt?: number }
   /** 一轮进行中用户插入的消息（已交给 CLI / Nomi，下一步取走），按 textAt 显示在回复中间 */
   | { type: 'interject'; text: string; at?: number; textAt?: number }
+  /** 结构化执行计划（ACP sessionUpdate: plan / plan_update） */
+  | {
+      type: 'plan';
+      planId?: string;
+      entries: PlanEntry[];
+      markdown?: string;
+      uri?: string;
+      at?: number;
+      textAt?: number;
+    }
   /** 子代理（Task / Agent）自己说的话，parentId 是派生它的调用；主时间线不画，子任务侧栏里是它的正文 */
   | {
       type: 'agent-text';
@@ -269,26 +288,49 @@ export interface AgentTextDelta {
   itemId: string;
 }
 
+export interface AcpPermissionOption {
+  id: string;
+  kind?: string;
+  name?: string;
+}
+
+export interface AcpSlashCommand {
+  name: string;
+  description?: string;
+  hint?: string;
+}
+
+export interface AcpSessionSummary {
+  sessionId: string;
+  cwd?: string;
+  title?: string;
+  updatedAt?: number | string;
+}
+
 export type HarnessLiveEvent =
   | { tabId: string; type: 'text-delta' | 'text'; text: string }
   | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'tool' }>)
   | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'thinking' }>)
   | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'interject' }>)
+  | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'plan' }>)
+  | { tabId: string; type: 'plan-removed'; planId?: string }
   | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'agent-text' }>)
   | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'agent-input' }>)
   | ({ tabId: string } & AgentTextDelta)
   | {
       tabId: string;
       type: 'status';
-      kind: 'retry' | 'reconnect' | 'compact' | 'clear' | 'blocked';
+      kind: 'retry' | 'reconnect' | 'compact' | 'clear' | 'blocked' | 'working';
       text?: string;
       attempt?: number;
       max?: number;
     }
   /** 某个动作被权限系统拒了（自动模式校验不了 / 策略拒绝）；不然这类拒绝会整个消失 */
   | { tabId: string; type: 'permission-denied'; tool: string; code?: string; reason?: string }
-  /** 会话级提示（Claude 自己说明，如自动模式无法校验动作） */
+  /** 会话级提示（Claude / ACP 会话提示） */
   | { tabId: string; type: 'notice'; tag: string; text: string }
+  /** ACP 推送的可用斜杠命令列表 */
+  | { tabId: string; type: 'commands'; commands: AcpSlashCommand[] }
   /** 一轮进行中的实时上下文占用（每次主线程请求 / 压缩后）；null = 压缩了但大小未知 */
   | { tabId: string; type: 'context'; tokens: number | null; model?: string; window?: number }
   | { tabId: string; type: 'done'; text: string; sessionId?: string; usage?: HarnessUsage }
@@ -306,6 +348,8 @@ export type HarnessLiveEvent =
       /** ExitPlanMode / 按此方案执行（PR3） */
       kind?: 'tool' | 'approve-plan';
       toolName?: string;
+      /** ACP 协议的多选项权限 */
+      options?: AcpPermissionOption[];
     }
   | ({ tabId: string } & LiveAgentEvent)
   | {
@@ -775,10 +819,22 @@ export const harnessClient = {
     tabId: string,
     requestId: string,
     allow: boolean,
-    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny'; optionId?: string },
   ) =>
     call<boolean>(() =>
-      api.harness.replyPermission({ tabId, requestId, allow, approvePlan: opts?.approvePlan }),
+      api.harness.replyPermission({
+        tabId,
+        requestId,
+        allow,
+        approvePlan: opts?.approvePlan,
+        ...(opts?.optionId ? { optionId: opts.optionId } : {}),
+      }),
+    ),
+  tabCommands: (tabId: string) =>
+    call<{ commands: AcpSlashCommand[] }>(() => api.harness.tabCommands({ tabId })),
+  listAcpSessions: (input: { backend: string; cwd: string; cursor?: string }) =>
+    call<{ sessions: AcpSessionSummary[]; nextCursor?: string }>(() =>
+      api.harness.listAcpSessions(input),
     ),
   /** PR3：批准计划卡（批准并自动改文件 / 批准并逐项确认 / 继续修改） */
   replyApprovePlan: (tabId: string, requestId: string, choice: 'acceptEdits' | 'manual' | 'deny') =>

@@ -45,7 +45,7 @@ export interface ManagedRuntimeContextValue {
   clearPendingProject: () => void;
   clearError: () => void;
   resolve: (decision?: 'new-native' | 'rollback-switch' | 'abandon') => Promise<void>;
-  approve: (approvalId: string, allow: boolean) => Promise<void>;
+  approve: (approvalId: string, allow: boolean, optionId?: string) => Promise<void>;
 }
 
 const ManagedRuntimeContext = createContext<ManagedRuntimeContextValue | null>(null);
@@ -150,6 +150,11 @@ async function fetchManagedView(conversationId?: string): Promise<ManagedRuntime
       partial: state.partial,
       thinking: state.thinking,
       thinkingActive: state.thinkingActive,
+      contextTokens: state.contextTokens,
+      contextWindow: state.contextWindow,
+      status: state.status,
+      notice: state.notice,
+      commands: state.commands,
       token: state.token,
       approvals: state.approvals,
       approvalDetails: state.approvalDetails,
@@ -266,6 +271,11 @@ export const ManagedRuntimeProvider: React.FC<{
                       partial: state.partial,
                       thinking: state.thinking,
                       thinkingActive: state.thinkingActive,
+                      contextTokens: state.contextTokens,
+                      contextWindow: state.contextWindow,
+                      status: state.status,
+                      notice: state.notice,
+                      commands: state.commands,
                       token: state.token,
                       approvals: state.approvals,
                       approvalDetails: state.approvalDetails,
@@ -562,7 +572,7 @@ export const ManagedRuntimeProvider: React.FC<{
   );
 
   const approve = useCallback(
-    async (approvalId: string, allow: boolean) => {
+    async (approvalId: string, allow: boolean, optionId?: string) => {
       if (!conversationId || !view?.token) return;
       const token = view.token;
       await act(() =>
@@ -571,6 +581,7 @@ export const ManagedRuntimeProvider: React.FC<{
           token,
           approvalId,
           allow,
+          ...(optionId ? { optionId } : {}),
         }),
       );
     },

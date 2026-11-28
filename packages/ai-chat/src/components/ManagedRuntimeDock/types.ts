@@ -20,14 +20,39 @@ export type RuntimeOptionItem = {
   label: string;
 };
 
+export type ApprovalOptionView = {
+  id: string;
+  kind?: string;
+  name?: string;
+};
+
 export type ApprovalDetailView = {
   id: string;
+  kind?: string;
   tool?: string;
   summary?: string;
   argsPreview?: string;
   danger?: string;
   risk?: string;
   rationale?: string;
+  options?: ApprovalOptionView[];
+};
+
+export type RuntimeStatusView = {
+  kind: string;
+  text?: string;
+};
+
+export type RuntimeNoticeView = {
+  tag: string;
+  text: string;
+  at: number;
+};
+
+export type SlashCommandView = {
+  name: string;
+  description?: string;
+  hint?: string;
 };
 
 export type TraceEntryView = {
@@ -124,6 +149,11 @@ export type ManagedRuntimeView = {
   partial?: string;
   thinking?: string;
   thinkingActive?: boolean;
+  contextTokens?: number;
+  contextWindow?: number;
+  status?: RuntimeStatusView;
+  notice?: RuntimeNoticeView;
+  commands?: SlashCommandView[];
   approvals?: string[];
   approvalDetails?: ApprovalDetailView[];
   trace?: TraceEntryView[];

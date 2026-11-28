@@ -14,7 +14,7 @@ export const ManagedRuntimeDock: React.FC = () => {
     <ManagedRuntimePanel
       view={managed.view}
       onResolve={(decision = 'new-native') => void managed.resolve(decision)}
-      onApprove={(approvalId, allow) => void managed.approve(approvalId, allow)}
+      onApprove={(approvalId, allow, optionId) => void managed.approve(approvalId, allow, optionId)}
       onDismissError={managed.clearError}
     />
   );

@@ -10,11 +10,15 @@ import { backendLabelKey, type ManagedRuntimeView } from './types';
 
 export type {
   ApprovalDetailView,
+  ApprovalOptionView,
   CapabilityBridgesView,
   FailedRequestView,
   ManagedRuntimeView,
   ManagedSwitchInput,
   RuntimeChoiceView,
+  RuntimeNoticeView,
+  RuntimeStatusView,
+  SlashCommandView,
   TraceEntryView,
 } from './types';
 
@@ -33,7 +37,7 @@ function hasRecoveryBanner(view: ManagedRuntimeView): boolean {
 export const ManagedRuntimePanel: React.FC<{
   view: ManagedRuntimeView;
   onResolve: (decision?: 'new-native' | 'rollback-switch') => void;
-  onApprove?: (approvalId: string, allow: boolean) => void;
+  onApprove?: (approvalId: string, allow: boolean, optionId?: string) => void;
   onDismissError?: () => void;
 }> = ({ view, onResolve, onApprove, onDismissError }) => {
   const activeName = backendName(view.backend || '');
@@ -43,8 +47,9 @@ export const ManagedRuntimePanel: React.FC<{
   );
   const showRecovery = hasRecoveryBanner(view);
   const showUnknownGuidance = unknown && !view.pendingSwitch;
+  const noticeText = view.managed ? view.notice?.text?.trim() : '';
 
-  if (!hasApprovals && !showRecovery && !view.error) {
+  if (!hasApprovals && !showRecovery && !view.error && !noticeText) {
     return null;
   }
 
@@ -57,6 +62,16 @@ export const ManagedRuntimePanel: React.FC<{
       {showUnknownGuidance && (
         <p className={styles.guidance} data-testid="managed-runtime-guidance">
           {t('ui.chat-settings.managed-recovery-unknown', activeName)}
+        </p>
+      )}
+      {noticeText && (
+        <p
+          className={styles.note}
+          role="status"
+          data-testid="managed-runtime-notice"
+          data-tag={view.notice?.tag || undefined}
+        >
+          {noticeText}
         </p>
       )}
       {view.error && (

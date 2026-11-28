@@ -85,6 +85,21 @@ func RuntimeView(r *mainchat.Registry, id string) (any, error) {
 	if s.ThinkingActive {
 		out["thinkingActive"] = true
 	}
+	if s.ContextTokens != nil {
+		out["contextTokens"] = *s.ContextTokens
+	}
+	if s.ContextWindow != nil {
+		out["contextWindow"] = *s.ContextWindow
+	}
+	if s.Status != nil {
+		out["status"] = s.Status
+	}
+	if s.Notice != nil {
+		out["notice"] = s.Notice
+	}
+	if len(s.Commands) > 0 {
+		out["commands"] = s.Commands
+	}
 	if s.FailedRequest != nil {
 		fr := map[string]any{"messageId": s.FailedRequest.MessageID, "turnId": s.FailedRequest.TurnID, "text": s.FailedRequest.Text}
 		if len(s.FailedRequest.Images) > 0 {
@@ -196,13 +211,13 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 		op := name
 		router.Call("conversations.runtime"+op, func(ctx context.Context, _ contract.Caller, raw json.RawMessage) (any, error) {
 			var in struct {
-				ID, Backend, MessageID, TurnID, Text, ApprovalID, Decision    string
-				Source, Model, Effort, PermissionMode, AccountID, LongContext string
-				Images                                                        []string
-				ExpectedGeneration                                            *uint64
-				BeforeGeneration                                              *uint64
-				Confirm, ConfirmUnsafe, Retry, Allow                          bool
-				Token                                                         struct {
+				ID, Backend, MessageID, TurnID, Text, ApprovalID, OptionID, Decision string
+				Source, Model, Effort, PermissionMode, AccountID, LongContext        string
+				Images                                                               []string
+				ExpectedGeneration                                                   *uint64
+				BeforeGeneration                                                     *uint64
+				Confirm, ConfirmUnsafe, Retry, Allow                                 bool
+				Token                                                                struct {
 					ConversationID, AttemptID string
 					Generation                uint64
 				}
@@ -257,7 +272,7 @@ func InstallConversationRuntime(router *contract.Router, s *convstore.Store) *ma
 					_, err = registry.Cancel(ctx, in.ID)
 				}
 			case "Approve":
-				err = registry.Approve(ctx, in.ID, cr.AttemptToken{ConversationID: in.Token.ConversationID, AttemptID: in.Token.AttemptID, Generation: in.Token.Generation}, in.ApprovalID, in.Allow)
+				err = registry.ApproveOption(ctx, in.ID, cr.AttemptToken{ConversationID: in.Token.ConversationID, AttemptID: in.Token.AttemptID, Generation: in.Token.Generation}, in.ApprovalID, in.Allow, in.OptionID)
 			case "Edit":
 				err = registry.Edit(in.ID, in.MessageID, in.Text)
 			case "Release":

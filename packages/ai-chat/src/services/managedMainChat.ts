@@ -2,6 +2,7 @@ import { SDKError, SDKErrorCodes, type AppClient } from '@nomi-ai/ai-sdk-client'
 import { t } from '@nomi-ai/ui';
 
 import type { ChatMessage } from '../types/chat';
+import { normalizePlanEntries } from '../utils/toolTrace';
 
 import { stripInlineTextForPathAttachments } from './fileAttachments';
 import type { HarnessTraceEvent } from './harnessClient';
@@ -109,11 +110,55 @@ function buildDraftTrace(state: ManagedRuntimeState): HarnessTraceEvent[] | unde
     out.push({ type: 'thinking', text: state.thinking });
   }
   for (const tr of state.trace ?? []) {
+    if (tr.kind === 'agent') continue;
+    if (tr.kind === 'plan-removed') {
+      const targetId = tr.detail?.trim() || 'default';
+      for (let i = out.length - 1; i >= 0; i--) {
+        const cur = out[i]!;
+        if (cur.type === 'plan' && (cur.planId || 'default') === targetId) {
+          out.splice(i, 1);
+        }
+      }
+      continue;
+    }
     if (tr.kind === 'thinking') {
       const text = tr.detail || tr.summary;
       if (text) {
-        out.push({ type: 'thinking', text, ...(tr.at ? { at: tr.at } : {}) });
+        out.push({
+          type: 'thinking',
+          text,
+          ...(tr.at ? { at: tr.at } : {}),
+          ...(tr.textAt !== undefined ? { textAt: tr.textAt } : {}),
+        });
       }
+      continue;
+    }
+    if (tr.kind === 'plan') {
+      if (!tr.detail) continue;
+      let parsed: Record<string, unknown> | null = null;
+      try {
+        const v = JSON.parse(tr.detail) as unknown;
+        if (v && typeof v === 'object' && !Array.isArray(v)) {
+          parsed = v as Record<string, unknown>;
+        }
+      } catch {
+        continue;
+      }
+      if (!parsed) continue;
+      const entries = normalizePlanEntries(parsed.entries);
+      const planId = typeof parsed.planId === 'string' ? parsed.planId.trim() : '';
+      const markdown = typeof parsed.markdown === 'string' ? parsed.markdown.trim() : '';
+      const uri = typeof parsed.uri === 'string' ? parsed.uri.trim() : '';
+      if (!entries.length && !markdown && !uri) continue;
+      out.push({
+        type: 'plan',
+        entries,
+        ...(planId ? { planId } : {}),
+        ...(markdown ? { markdown } : {}),
+        ...(uri ? { uri } : {}),
+        ...(tr.at ? { at: tr.at } : {}),
+        ...(tr.textAt !== undefined ? { textAt: tr.textAt } : {}),
+      });
       continue;
     }
     const status =
@@ -131,6 +176,7 @@ function buildDraftTrace(state: ManagedRuntimeState): HarnessTraceEvent[] | unde
       ...(tr.detail ? { input: tr.detail } : {}),
       ...(tr.output ? { output: tr.output } : {}),
       ...(tr.at ? { at: tr.at } : {}),
+      ...(tr.textAt !== undefined ? { textAt: tr.textAt } : {}),
     });
   }
   return out.length ? out : undefined;

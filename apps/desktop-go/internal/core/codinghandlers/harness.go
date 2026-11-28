@@ -266,7 +266,13 @@ func RegisterHarness(r *contract.Router, get func() *harness.Orchestrator) {
 		return trust(await(h().TrustGeminiFolder(a.str("tabId"), a.str("messageId"), a.is("confirmed"))))
 	})
 	call("harness.replyPermission", func(a in) any {
-		return h().AnswerPermission(a.str("tabId"), a.str("requestId"), a.is("allow"), a.any("approvePlan"))
+		return h().AnswerPermissionOption(a.str("tabId"), a.str("requestId"), a.is("allow"), a.any("approvePlan"), a.str("optionId"))
+	})
+	call("harness.tabCommands", func(a in) any {
+		return util.NewObj("commands", h().TabCommands(a.str("tabId")))
+	})
+	call("harness.listAcpSessions", func(a in) any {
+		return await(h().ListAcpSessions(a.str("backend"), a.str("cwd"), a.str("cursor")))
 	})
 	call("harness.replyApprovePlan", func(a in) any {
 		return h().AnswerApprovePlan(a.str("tabId"), a.str("requestId"), a.any("choice"))

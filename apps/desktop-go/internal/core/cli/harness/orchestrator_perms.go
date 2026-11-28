@@ -69,6 +69,11 @@ func (o *Orchestrator) tryWarn(msg string, fn func()) {
 // ReplyPermission = replyPermission(tabId, requestId, allow, reason?, {approvePlan?})；
 // reason "" = 缺省（按 allow），approvePlan "" = undefined。
 func (o *Orchestrator) ReplyPermission(tabID, requestID string, allow bool, reason, approvePlan string) bool {
+	return o.ReplyPermissionOption(tabID, requestID, allow, reason, approvePlan, "")
+}
+
+// ReplyPermissionOption 支持透传 ACP 原生 permission optionId。
+func (o *Orchestrator) ReplyPermissionOption(tabID, requestID string, allow bool, reason, approvePlan, optionID string) bool {
 	o.thawIfFrozen(tabID)
 	if reason == "" {
 		reason = "denied"
@@ -128,21 +133,26 @@ func (o *Orchestrator) ReplyPermission(tabID, requestID string, allow bool, reas
 		}
 		return true
 	}
-	var gemini func(*bool)
-	if gl := o.live.acp[tabID]; gl != nil {
-		gemini = gl.perms[requestID]
-	}
-	if gemini == nil {
-		if cl := o.live.codex[tabID]; cl != nil {
-			gemini = cl.perms[requestID]
-		}
-	}
 	approve := func(msg string) {
 		if allow && approvePlan != "" && approvePlan != "deny" {
 			if mode := ApprovePlanMode(approvePlan); mode != "" {
 				o.tryWarn(msg, func() { o.SetTabPermissionMode(tabID, mode, PermOpts{}) })
 			}
 		}
+	}
+	if gl := o.live.acp[tabID]; gl != nil {
+		if acpReply := gl.perms[requestID]; acpReply != nil {
+			o.clearOnePermissionTimeout(tabID, requestID)
+			a := allow
+			acpReply(&a, optionID)
+			o.emitEvent(tabID, util.NewObj("type", "permission-resolved", "id", requestID, "reason", reason))
+			approve("harness approve-plan mode switch failed")
+			return true
+		}
+	}
+	var gemini func(*bool)
+	if cl := o.live.codex[tabID]; cl != nil {
+		gemini = cl.perms[requestID]
 	}
 	if gemini != nil {
 		o.clearOnePermissionTimeout(tabID, requestID)

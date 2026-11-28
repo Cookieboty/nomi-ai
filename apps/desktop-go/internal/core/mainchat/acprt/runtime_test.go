@@ -203,6 +203,14 @@ func TestHelperAcpProcess(t *testing.T) {
 				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "tool_call_update", "toolCallId": "tc-1", "kind": "read", "title": "Read file", "status": "completed"}}})
 				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "agent_message_chunk", "content": map[string]any{"type": "text", "text": "traced ok"}}}})
 				send(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": map[string]any{"stopReason": "end_turn"}})
+			case "plan_agy":
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "agent_message_chunk", "content": map[string]any{"type": "text", "text": "Intro "}}}})
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "plan", "planId": "main", "entries": []any{map[string]any{"content": "Step A", "status": "in_progress"}}}}})
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "agent_message_chunk", "content": map[string]any{"type": "text", "text": "body"}}}})
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "plan", "planId": "main", "entries": []any{map[string]any{"content": "Step A", "status": "completed"}}}}})
+				send(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": map[string]any{"stopReason": "end_turn"}})
+				time.Sleep(40 * time.Millisecond)
+				send(map[string]any{"jsonrpc": "2.0", "method": "session/update", "params": map[string]any{"sessionId": sid, "update": map[string]any{"sessionUpdate": "plan", "planId": "main", "entries": []any{map[string]any{"content": "Late", "status": "completed"}}}}})
 			case "approval_allow", "approval_deny":
 				permMode := mode
 				go func(promptID any) {
@@ -1064,6 +1072,60 @@ func TestStartTraceApprovalAndCancel(t *testing.T) {
 		}
 		if !sawInit || !sawPrompt || !sawClose {
 			t.Fatalf("missing expected ACP calls (init=%v prompt=%v close=%v):\n%s", sawInit, sawPrompt, sawClose, string(raw))
+		}
+	})
+
+	t.Run("agy_plan_stream_merge_textAt_and_late_plan", func(t *testing.T) {
+		r, release := newHelperRuntime(t, "antigravity", "plan_agy")
+		defer release()
+		tok1 := cr.AttemptToken{ConversationID: "conv-plan-agy", AttemptID: "pa1", Generation: 1}
+		rec1 := r.Recover(ctx, cr.RecoveryRequest{Token: tok1})
+		if rec1.Kind != cr.RecoveryNew {
+			t.Fatalf("recover=%+v", rec1)
+		}
+		done := make(chan cr.Event, 1)
+		var mu sync.Mutex
+		var planTraces []*cr.TraceEntry
+		r.Start(ctx, cr.RuntimeRequest{
+			Token:           tok1,
+			NativeSessionID: rec1.NativeSessionID,
+			Plan:            cr.Plan{ID: "p-agy-1", RequestBody: "do plan"},
+		}, func(e cr.Event) error {
+			if e.Kind == cr.EventTrace && e.Trace != nil && e.Trace.Kind == "plan" {
+				mu.Lock()
+				planTraces = append(planTraces, e.Trace)
+				mu.Unlock()
+			}
+			if e.Kind == cr.EventCompleted || e.Kind == cr.EventFailed {
+				done <- e
+			}
+			return nil
+		})
+		last := <-done
+		if last.Kind != cr.EventCompleted {
+			t.Fatalf("last=%+v", last)
+		}
+		mu.Lock()
+		gotTraces := append([]*cr.TraceEntry(nil), planTraces...)
+		mu.Unlock()
+		if len(gotTraces) != 2 {
+			t.Fatalf("planTraces len = %d, want 2", len(gotTraces))
+		}
+		if gotTraces[0].ID != "plan:main" || gotTraces[0].TextAt == nil || *gotTraces[0].TextAt != len("Intro ") {
+			t.Fatalf("planTraces[0] = %+v", gotTraces[0])
+		}
+		if gotTraces[1].ID != "plan:main" || gotTraces[1].TextAt == nil || *gotTraces[1].TextAt != len("Intro body") {
+			t.Fatalf("planTraces[1] = %+v", gotTraces[1])
+		}
+		// Post-turn late plan update must keep warm worker alive.
+		time.Sleep(80 * time.Millisecond)
+		tok2 := cr.AttemptToken{ConversationID: "conv-plan-agy", AttemptID: "pa2", Generation: 2}
+		rec2 := r.Recover(ctx, cr.RecoveryRequest{
+			Token:    tok2,
+			Previous: cr.Binding{ID: "b1", NativeSessionID: rec1.NativeSessionID, Status: cr.StatusLive},
+		})
+		if rec2.Kind != cr.RecoveryResumed {
+			t.Fatalf("late plan poisoned warm worker: %+v", rec2)
 		}
 	})
 }

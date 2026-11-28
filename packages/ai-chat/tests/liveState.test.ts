@@ -209,4 +209,32 @@ describe('subagent text deltas', () => {
     expect(d.trace).toBeUndefined();
     expect(d.agents?.th1?.status).toBe('completed');
   });
+
+  it('records plan events into live trace with textAt cursor and clears transient status', () => {
+    const s = applyLiveEvents(
+      undefined,
+      [
+        { tabId: 't', type: 'status', kind: 'retry', attempt: 1, max: 3 },
+        { tabId: 't', type: 'text-delta', text: 'Intro' },
+        {
+          tabId: 't',
+          type: 'plan',
+          planId: 'p1',
+          entries: [{ content: 'Step 1', status: 'in_progress' }],
+        },
+      ],
+      42,
+    );
+    expect(s.status).toBeUndefined();
+    expect(s.firstEventAt).toBe(42);
+    expect(s.trace).toEqual([
+      {
+        type: 'plan',
+        planId: 'p1',
+        entries: [{ content: 'Step 1', status: 'in_progress' }],
+        textAt: 5,
+        at: 42,
+      },
+    ]);
+  });
 });

@@ -15,7 +15,12 @@ export interface PermissionReplyDeps {
   /** 任务回应（后台委派）；任务不在了返回 ok:false 或抛错 */
   decide?: (a: { id: string; requestId: string; approve: boolean }) => Promise<unknown>;
   /** 直接回标签（所有标签都支持的兜底） */
-  reply: (tabId: string, requestId: string, allow: boolean) => Promise<boolean | undefined>;
+  reply: (
+    tabId: string,
+    requestId: string,
+    allow: boolean,
+    optionId?: string,
+  ) => Promise<boolean | undefined>;
   /** 计划批准卡（只走标签） */
   replyApprovePlan?: (
     tabId: string,
@@ -26,7 +31,8 @@ export interface PermissionReplyDeps {
 
 const defaultDeps = (): PermissionReplyDeps => ({
   decide: (a) => api.tasks.decide(a),
-  reply: (tabId, requestId, allow) => harnessClient.replyPermission(tabId, requestId, allow),
+  reply: (tabId, requestId, allow, optionId) =>
+    harnessClient.replyPermission(tabId, requestId, allow, optionId ? { optionId } : undefined),
   replyApprovePlan: (tabId, requestId, choice) =>
     harnessClient.replyApprovePlan(tabId, requestId, choice),
 });
@@ -49,6 +55,8 @@ function decideOk(r: unknown): boolean {
 export interface PermissionReplyOptions {
   /** 计划批准的选择（批准并自动改文件 / 批准并逐项确认 / 拒绝） */
   approvePlan?: 'acceptEdits' | 'manual' | 'deny';
+  /** ACP 协议选项 id（如 allow_once / allow_always / reject_once） */
+  optionId?: string;
   /** 这个标签所属的持续任务：给了就先经任务回应 */
   taskId?: string;
 }
@@ -61,8 +69,8 @@ export async function replyPermissionRequest(
   opts: PermissionReplyOptions = {},
   deps: PermissionReplyDeps = defaultDeps(),
 ): Promise<boolean> {
-  // 计划批准卡的内核路径只在标签上（任务回应不带 approvePlan）
-  if (opts.taskId && !opts.approvePlan && deps.decide) {
+  // 计划批准卡或带精确 ACP optionId 的请求只在标签上处理
+  if (opts.taskId && !opts.approvePlan && !opts.optionId && deps.decide) {
     try {
       if (decideOk(await deps.decide({ id: opts.taskId, requestId, approve: allow }))) return true;
     } catch {
@@ -71,6 +79,8 @@ export async function replyPermissionRequest(
   }
   const r = opts.approvePlan
     ? await deps.replyApprovePlan?.(tabId, requestId, opts.approvePlan)
-    : await deps.reply(tabId, requestId, allow);
+    : opts.optionId
+      ? await deps.reply(tabId, requestId, allow, opts.optionId)
+      : await deps.reply(tabId, requestId, allow);
   return r !== false;
 }

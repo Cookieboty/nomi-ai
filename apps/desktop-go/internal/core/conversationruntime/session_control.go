@@ -110,6 +110,11 @@ func (c *Session) finishCancel(a *activeAttempt, round uint64, r CancelResult) e
 // Approve routes only an explicit decision on the active generation. No
 // unsupported permission/capability is ever translated to allow/bypass.
 func (c *Session) Approve(ctx context.Context, token AttemptToken, id string, allow bool) error {
+	return c.ApproveOption(ctx, token, id, allow, "")
+}
+
+// ApproveOption routes an explicit approval decision with an optional runtime optionId.
+func (c *Session) ApproveOption(ctx context.Context, token AttemptToken, id string, allow bool, optionID string) error {
 	if ctx == nil {
 		return ErrBadEdit
 	}
@@ -140,7 +145,7 @@ func (c *Session) Approve(ctx context.Context, token AttemptToken, id string, al
 	operationCtx, cancel := context.WithCancel(ctx)
 	stop := context.AfterFunc(a.ctx, cancel)
 	defer func() { stop(); cancel() }()
-	err := a.target.Runtime.Approve(operationCtx, ApprovalDecision{Token: token, NativeSessionID: nativeID, ApprovalID: id, Allow: allow})
+	err := a.target.Runtime.Approve(operationCtx, ApprovalDecision{Token: token, NativeSessionID: nativeID, ApprovalID: id, Allow: allow, OptionID: optionID})
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if !c.ownerLocked(a) {

@@ -1,5 +1,13 @@
 import { t as tr, useLocale } from '@nomi-ai/ui';
-import React, { memo, useCallback, useEffect, useLayoutEffect, useState, useRef } from 'react';
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useRef,
+} from 'react';
 
 import {
   selectError,
@@ -8,6 +16,7 @@ import {
   useAiChatActions,
   useAiChatSelector,
 } from '../../contexts/aiChatStore';
+import { useManagedRuntime } from '../../contexts/ManagedRuntimeContext';
 import { useComposerDraftBinding } from '../../hooks/useComposerDraftBinding';
 import { useNextDelegate } from '../../hooks/useNextDelegate';
 import { SHARED_UNSENT, createComposerDraftStore } from '../../services/composerDrafts';
@@ -21,6 +30,7 @@ import { currentVision } from '../../services/modelCapability';
 import { gatewayStateSnapshot } from '../../services/nomiModel';
 import { type ImageAttachment } from '../../services/screenClient';
 import { useShortcutBindings } from '../../services/shortcuts';
+import { acpCommandsToSlashCommands } from '../../slash/acpCommands';
 import { agentArgQuery, filterAgents, type AgentOption } from '../../slash/agentComplete';
 import {
   atPathToken,
@@ -32,6 +42,7 @@ import {
 import { filterModelOptions, modelArgQuery } from '../../slash/modelComplete';
 import { argPhase, paletteQuery } from '../../slash/parse';
 import { findCommand, flattenGroups, searchCommands } from '../../slash/registry';
+import { withLiveContext } from '../../slash/tokens';
 import type { ModelArgOption, SlashCommand } from '../../slash/types';
 import { useAtPathOptions } from '../../slash/useAtPathOptions';
 import {
@@ -420,9 +431,37 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   );
   const commands = allCommands.filter((c) => c.show);
   const uiSlash = commandsToSlashCommands(commands);
+  const managed = useManagedRuntime();
+  const managedCommands = !onSend && managed?.isManagedActive ? managed.view?.commands : undefined;
+  const managedSlash = useMemo(
+    () => acpCommandsToSlashCommands(managedCommands),
+    [managedCommands],
+  );
+  const managedCtxTokens =
+    !onSend && managed?.isManagedActive ? managed.view?.contextTokens : undefined;
+  const managedCtxWindow =
+    !onSend && managed?.isManagedActive ? managed.view?.contextWindow : undefined;
+  const effectiveContextMessages = useMemo(() => {
+    if (managedCtxTokens !== undefined && managedCtxTokens > 0) {
+      return withLiveContext(contextMessages ?? [], {
+        tokens: managedCtxTokens,
+        ...(managedCtxWindow ? { window: managedCtxWindow } : {}),
+      });
+    }
+    return contextMessages;
+  }, [contextMessages, managedCtxTokens, managedCtxWindow]);
+  const managedModel =
+    !onSend &&
+    managed?.isManagedActive &&
+    managed.view?.model &&
+    managed.view.model !== 'cli-default' &&
+    managed.view.model !== 'chat-route'
+      ? managed.view.model
+      : undefined;
+  const effectiveContextModel = contextModel ?? managedModel;
   // 函数声明（提升）：handleSend 在渲染期就捕获了这个引用
   function getRegistry() {
-    return buildCommandRegistry(uiSlash, slash);
+    return buildCommandRegistry([...uiSlash, ...managedSlash], slash);
   }
   const inSlash = message.startsWith('/');
   const registry = inSlash ? getRegistry() : [];
@@ -721,8 +760,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
           endpointTab={endpointTab}
           cv={cv}
           disabled={disabled}
-          contextMessages={contextMessages}
-          contextModel={contextModel}
+          contextMessages={effectiveContextMessages}
+          contextModel={effectiveContextModel}
           canStop={canStop}
           stopFn={stopFn}
           onSend={() => void handleSend()}

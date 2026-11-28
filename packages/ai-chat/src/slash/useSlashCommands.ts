@@ -19,6 +19,7 @@ import type { ConversationStore } from '../services/conversationStore';
 import { extClient } from '../services/extClient';
 import {
   harnessClient,
+  type AcpSlashCommand,
   type HarnessTabMeta,
   type SlashDiscoveryEntry,
 } from '../services/harnessClient';
@@ -30,6 +31,7 @@ import type { ConvMessage } from '../types/conversation';
 import type { IPCClient } from '../types/ipc';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
 
+import { acpCommandsToSlashCommands } from './acpCommands';
 import { adapterFor, scopeOrderFor } from './adapters';
 import { modelArgOptions, notice } from './cards';
 import { loadSlashData } from './data';
@@ -77,6 +79,8 @@ export interface SlashHookParams {
   onOpenPlugins: () => void;
   onOpenProviders: () => void;
   onOpenSettings: () => void;
+  /** ACP available_commands_update 动态下发的斜杠命令 */
+  dynamicCommands?: readonly AcpSlashCommand[];
 }
 
 export interface SlashHook {
@@ -159,8 +163,11 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
   }, [refresh]);
 
   const raw = useMemo(
-    () => adapterFor(backend, { backend, discovered, nomiSkills }),
-    [backend, discovered, nomiSkills],
+    () => [
+      ...adapterFor(backend, { backend, discovered, nomiSkills }),
+      ...acpCommandsToSlashCommands(p.dynamicCommands),
+    ],
+    [backend, discovered, nomiSkills, p.dynamicCommands],
   );
   const order = useMemo(() => scopeOrderFor(backend), [backend]);
   const commands = useMemo(() => buildRegistry(raw, order), [raw, order]);

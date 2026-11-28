@@ -283,6 +283,39 @@ func (c *Session) handle(e Event) error {
 		}
 		a.approvalDetails[e.ApprovalID] = info
 		return c.persistLocked()
+	case EventContext:
+		if e.Usage != nil {
+			if e.Usage.ContextTokens != nil {
+				a.ctxTokens = cloneInt64Ptr(e.Usage.ContextTokens)
+			}
+			if e.Usage.ContextWindow != nil {
+				a.ctxWindow = cloneInt64Ptr(e.Usage.ContextWindow)
+			}
+		}
+		if e.ContextTokens != nil {
+			a.ctxTokens = cloneInt64Ptr(e.ContextTokens)
+		}
+		if e.ContextWindow != nil {
+			a.ctxWindow = cloneInt64Ptr(e.ContextWindow)
+		}
+		return nil
+	case EventMeta:
+		if e.Status != nil {
+			if e.Status.Kind == "clear" {
+				a.status = nil
+			} else {
+				st := *e.Status
+				a.status = &st
+			}
+		}
+		if e.Notice != nil {
+			nt := *e.Notice
+			a.notice = &nt
+		}
+		if e.Commands != nil {
+			c.commands = append([]SlashCommandInfo(nil), e.Commands...)
+		}
+		return nil
 	case EventTrace:
 		if e.Trace == nil {
 			return ErrBadEdit
@@ -290,7 +323,58 @@ func (c *Session) handle(e Event) error {
 		if !utf8OK(e.Trace.ID) || !utf8OK(e.Trace.Kind) || !utf8OK(e.Trace.Tool) || !utf8OK(e.Trace.Summary) || !utf8OK(e.Trace.Status) || !utf8OK(e.Trace.Detail) || !utf8OK(e.Trace.Output) {
 			return ErrInvalidUTF8
 		}
-		a.trace = append(a.trace, *e.Trace)
+		if e.Trace.Kind == "plan-removed" && e.Trace.ID != "" {
+			for i := range a.trace {
+				if a.trace[i].Kind == "plan" && a.trace[i].ID == e.Trace.ID {
+					a.trace = append(a.trace[:i], a.trace[i+1:]...)
+					break
+				}
+			}
+			return nil
+		}
+		if e.Trace.Kind == "plan" && e.Trace.ID != "" {
+			for i := range a.trace {
+				if a.trace[i].Kind == "plan" && a.trace[i].ID == e.Trace.ID {
+					a.trace[i].Summary = e.Trace.Summary
+					a.trace[i].Status = e.Trace.Status
+					a.trace[i].Detail = e.Trace.Detail
+					a.trace[i].Output = e.Trace.Output
+					a.trace[i].At = e.Trace.At
+					return nil
+				}
+			}
+		}
+		if (e.Trace.Kind == "tool" || e.Trace.Kind == "agent") && e.Trace.ID != "" {
+			for i := range a.trace {
+				if a.trace[i].Kind == e.Trace.Kind && a.trace[i].ID == e.Trace.ID {
+					if e.Trace.Tool != "" {
+						a.trace[i].Tool = e.Trace.Tool
+					}
+					if e.Trace.Summary != "" {
+						a.trace[i].Summary = e.Trace.Summary
+					}
+					if e.Trace.Status != "" {
+						a.trace[i].Status = e.Trace.Status
+					}
+					if e.Trace.Detail != "" {
+						a.trace[i].Detail = e.Trace.Detail
+					}
+					if e.Trace.Output != "" {
+						a.trace[i].Output = e.Trace.Output
+					}
+					if e.Trace.At != 0 {
+						a.trace[i].At = e.Trace.At
+					}
+					return nil
+				}
+			}
+		}
+		entry := *e.Trace
+		if e.Trace.TextAt != nil {
+			v := *e.Trace.TextAt
+			entry.TextAt = &v
+		}
+		a.trace = append(a.trace, entry)
 		if len(a.trace) > maxActiveTraceEntries {
 			a.trace = append([]TraceEntry(nil), a.trace[len(a.trace)-maxActiveTraceEntries:]...)
 		}
@@ -370,6 +454,7 @@ func (c *Session) handle(e Event) error {
 			return err
 		}
 		a.phase = PhaseCompleted
+		a.status = nil
 		c.completed[a.request.MessageID] = a.plan.TargetRev
 		c.work = e.Work
 		if e.Work.Idle() {

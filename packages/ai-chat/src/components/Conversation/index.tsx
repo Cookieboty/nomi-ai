@@ -229,7 +229,7 @@ const PermissionQueue: React.FC<{
   onPermission?: (
     requestId: string,
     allow: boolean,
-    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny'; optionId?: string },
   ) => void;
 }> = ({ live, onPermission }) => {
   const list = live?.permissions ?? [];
@@ -263,7 +263,10 @@ const PermissionQueue: React.FC<{
             summary={p.summary}
             agent={p.agent}
             expiresAt={p.expiresAt}
-            onReply={(allow) => onPermission(p.id, allow)}
+            options={p.options}
+            onReply={(allow, optionId) =>
+              optionId ? onPermission(p.id, allow, { optionId }) : onPermission(p.id, allow)
+            }
           />
         ),
       )}
@@ -295,7 +298,7 @@ export interface ConversationViewProps {
   onPermission?: (
     requestId: string,
     allow: boolean,
-    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny'; optionId?: string },
   ) => void;
   /** 重新生成 / 重试（传入出错或最后一条助手消息的 id） */
   onRetry?: (assistantId: string) => void;
@@ -610,6 +613,8 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     [running, liveEntries, live?.startedAt],
   );
   const status = deriveStatus({ phase, live, items: liveItems });
+  const liveNotice = live?.notice;
+  const showNotice = useRecent(liveNotice?.at, 12_000) && !!liveNotice?.text;
 
   // 分批往上补消息时不读 scrollHeight：待每批提交后在下面的 layoutEffect 中统一处理（贴底同步贴底 / 上滑精准锚定）。
   useEffect(() => {
@@ -862,6 +867,17 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
           minimalStateKey={liveMinimalKey}
           extra={<PermissionQueue live={live} onPermission={onPermission} />}
         />
+      )}
+      {showNotice && liveNotice && (
+        <div
+          className={styles.noticeBar}
+          role="status"
+          data-testid="conv-notice"
+          data-tag={liveNotice.tag || undefined}
+          data-no-selection-toolbar=""
+        >
+          {liveNotice.text}
+        </div>
       )}
       {status && !minimalStepsOwnsStatus && (
         <StatusLine

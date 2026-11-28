@@ -840,4 +840,43 @@ describe('查询、思考脉络、洞察与 DAG 图谱布局', () => {
     expect(switchPillCss).toMatch(/text-overflow:\s*ellipsis/);
     expect(switchPillCss).toMatch(/white-space:\s*nowrap/);
   });
+
+  it('支持包含 plan 轨迹条目的消息：waterfallRows 跳过且 buildTraceDocument 生成 todo 状态节点', () => {
+    const msgs: ConvMessage[] = [
+      { id: 'u1', role: 'user', text: '执行计划测试', at: T0 },
+      {
+        id: 'a1',
+        role: 'assistant',
+        text: '完成。',
+        at: T0 + 3000,
+        durationMs: 3000,
+        trace: [
+          {
+            type: 'plan',
+            planId: 'p1',
+            entries: [
+              { content: '分析需求', status: 'completed' },
+              { content: '编写实现', status: 'in_progress' },
+            ],
+            at: T0 + 1000,
+            textAt: 0,
+          },
+        ],
+      },
+    ];
+    expect(waterfallRows(msgs[1]!, [])).toEqual([]);
+    const doc = buildTraceDocument({
+      scope: 'turn',
+      title: 'Plan 轨迹测试',
+      mainLaneName: 'Antigravity',
+      mainBackend: 'antigravity',
+      messages: msgs,
+    });
+    const nodes = Object.values(doc.nodesById);
+    const planNode = nodes.find((n) => n.kind === 'status' && n.toolKind === 'todo');
+    expect(planNode).toBeTruthy();
+    expect(planNode?.status).toBe('running');
+    expect(planNode?.text).toContain('[completed] 分析需求');
+    expect(planNode?.text).toContain('[in_progress] 编写实现');
+  });
 });

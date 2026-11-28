@@ -32,6 +32,10 @@ type activeAttempt struct {
 	approvals         map[string]bool
 	approvalDetails   map[string]ApprovalInfo
 	trace             []TraceEntry
+	ctxTokens         *int64
+	ctxWindow         *int64
+	status            *RuntimeStatus
+	notice            *RuntimeNotice
 	detail            string
 }
 
@@ -61,6 +65,10 @@ type Session struct {
 	held           map[string]bool
 	preferred      map[string]string
 	work           Activity
+	commands       []SlashCommandInfo
+	liveMode       string
+	liveModel      string
+	liveEffort     string
 }
 
 // NewSession seeds ordered, unrevisioned fixtures only. It is deliberately not
@@ -137,6 +145,29 @@ func validateAndNormalizeTarget(target Target) (Capabilities, error) {
 	return caps, nil
 }
 
+func (c *Session) SetCommands(cmds []SlashCommandInfo) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.commands = append([]SlashCommandInfo(nil), cmds...)
+}
+
+func (c *Session) SyncPermissionMode(mode string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.liveMode = mode
+}
+
+func (c *Session) SyncModel(model, effort string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if model != "" {
+		c.liveModel = model
+	}
+	if effort != "" {
+		c.liveEffort = effort
+	}
+}
+
 func (c *Session) Select(target Target) error {
 	caps, err := validateAndNormalizeTarget(target)
 	if err != nil {
@@ -149,6 +180,10 @@ func (c *Session) Select(target Target) error {
 	}
 	c.generation++
 	c.target, c.caps = target, caps
+	c.commands = nil
+	c.liveMode = ""
+	c.liveModel = ""
+	c.liveEffort = ""
 	return c.persistLocked()
 }
 
@@ -186,6 +221,18 @@ func (c *Session) State() SessionState {
 		PendingSwitch:  cloneSwitchState(c.pendingSwitch),
 		LastSwitch:     cloneLastSwitch(c.lastSwitch),
 	}
+	if c.liveModel != "" {
+		s.Model = c.liveModel
+	}
+	if c.liveMode != "" {
+		s.PermissionMode = c.liveMode
+	}
+	if c.liveEffort != "" {
+		s.Effort = c.liveEffort
+	}
+	if len(c.commands) > 0 {
+		s.Commands = append([]SlashCommandInfo(nil), c.commands...)
+	}
 	if c.storageErr != nil {
 		s.Detail = c.storageErr.Error()
 		s.Phase = PhaseUncertain
@@ -198,6 +245,20 @@ func (c *Session) State() SessionState {
 			}
 			s.Thinking = a.streamThinking
 			s.ThinkingActive = a.thinkingActive
+			if a.ctxTokens != nil {
+				s.ContextTokens = cloneInt64Ptr(a.ctxTokens)
+			}
+			if a.ctxWindow != nil {
+				s.ContextWindow = cloneInt64Ptr(a.ctxWindow)
+			}
+			if a.status != nil {
+				st := *a.status
+				s.Status = &st
+			}
+			if a.notice != nil {
+				nt := *a.notice
+				s.Notice = &nt
+			}
 		}
 		if c.storageErr != nil {
 			s.Phase = PhaseUncertain

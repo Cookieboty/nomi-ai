@@ -13,10 +13,10 @@ const (
 // IsTraceEvent reports whether ev belongs in a turn's trace.
 func IsTraceEvent(ev Ev) bool {
 	t := ev.Get("type")
-	return t == "tool" || t == "thinking" || t == "interject" || t == "agent-text" || t == "agent-input"
+	return t == "tool" || t == "thinking" || t == "interject" || t == "agent-text" || t == "agent-input" || t == "plan" || t == "plan-removed"
 }
 
-// StampEvent：tool / thinking / interject / agent-text 打主进程时间戳。
+// StampEvent：tool / thinking / interject / agent-text / plan 打主进程时间戳。
 func StampEvent(ev Ev, now float64) Ev {
 	if IsTraceEvent(ev) && !ev.Has("at") {
 		ev.Set("at", now)
@@ -27,8 +27,78 @@ func StampEvent(ev Ev, now float64) Ev {
 // BuildTrace builds a turn's trace from its events.
 func BuildTrace(events []Ev) []Ev {
 	out := []Ev{}
+	planIdx := map[string]int{}
+	toolIdx := map[string]int{}
+	rebuildIndexes := func() {
+		planIdx = map[string]int{}
+		toolIdx = map[string]int{}
+		for i, item := range out {
+			switch item.Get("type") {
+			case "plan":
+				planIdx[util.Str(item.Get("planId"))] = i
+			case "tool":
+				if item.Get("status") == "start" {
+					if d := util.Str(item.Get("detail")); d != "" {
+						toolIdx[d] = i
+					}
+				}
+			}
+		}
+	}
 	for _, ev := range events {
 		if !IsTraceEvent(ev) {
+			continue
+		}
+		if ev.Get("type") == "plan-removed" {
+			key := util.Str(ev.Get("planId"))
+			if idx, ok := planIdx[key]; ok {
+				out = append(out[:idx], out[idx+1:]...)
+				rebuildIndexes()
+			}
+			continue
+		}
+		if ev.Get("type") == "plan" {
+			key := util.Str(ev.Get("planId"))
+			if idx, ok := planIdx[key]; ok {
+				prev := out[idx]
+				next := ev.Clone()
+				if prev.Has("textAt") {
+					next.Set("textAt", prev.Get("textAt"))
+				}
+				out[idx] = next
+				continue
+			}
+			planIdx[key] = len(out)
+			out = append(out, ev.Clone())
+			continue
+		}
+		if ev.Get("type") == "tool" {
+			key := util.Str(ev.Get("detail"))
+			if key != "" {
+				if idx, ok := toolIdx[key]; ok && out[idx].Get("status") == "start" && ev.Get("status") == "start" {
+					merged := out[idx].Clone()
+					if n := util.Str(ev.Get("name")); n != "" && n != "tool" {
+						merged.Set("name", n)
+					}
+					if in := util.Str(ev.Get("input")); in != "" {
+						merged.Set("input", in)
+					}
+					if o := util.Str(ev.Get("output")); o != "" {
+						merged.Set("output", o)
+					}
+					if ev.Has("at") {
+						merged.Set("at", ev.Get("at"))
+					}
+					out[idx] = merged
+					continue
+				}
+			}
+			if ev.Get("status") == "start" && key != "" {
+				toolIdx[key] = len(out)
+			} else if key != "" {
+				delete(toolIdx, key)
+			}
+			out = append(out, ev.Clone())
 			continue
 		}
 		if len(out) > 0 {

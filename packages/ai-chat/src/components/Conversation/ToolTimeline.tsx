@@ -61,6 +61,7 @@ import {
   describeCall,
   diffStats,
   diffsOf,
+  extractPlanFromTodoTool,
   formatDuration,
   groupDuration,
   groupStats,
@@ -81,6 +82,7 @@ import { DelegateCard, DelegateGroup } from './DelegateCard';
 import { DiffView } from './DiffView';
 import { Markdown } from './Markdown';
 import { MarkdownImage } from './MarkdownImage';
+import { PlanCard, PlanEntryList } from './PlanCard';
 import styles from './Tool.module.css';
 import { useTranscriptViewMode } from './transcriptViewContext';
 
@@ -277,6 +279,17 @@ const CallBody: React.FC<{ call: ToolCall }> = ({ call }) => {
         {err && <Output text={call.output} error />}
       </>
     );
+  }
+  if (d.kind === 'todo') {
+    const planEntries = extractPlanFromTodoTool(call);
+    if (planEntries?.length) {
+      return (
+        <>
+          <PlanEntryList entries={planEntries} />
+          {err && <Output text={call.output} error />}
+        </>
+      );
+    }
   }
   return (
     <>
@@ -1022,6 +1035,10 @@ export const ToolTimeline = memo(function ToolTimeline({
             );
           case 'interject':
             return <InterjectRow key={it.id} text={it.text} />;
+          case 'plan':
+            return (
+              <PlanCard key={it.id} entries={it.entries} markdown={it.markdown} uri={it.uri} />
+            );
           case 'group':
             return (
               <ToolGroup

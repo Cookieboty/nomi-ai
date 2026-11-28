@@ -877,3 +877,118 @@ describe('Markdown 组件', () => {
     expect(container.querySelector('script')).toBeNull();
   });
 });
+
+describe('PlanCard 与 update_steps 清单渲染', () => {
+  it('在普通与极简模式下渲染实时结构化 PlanCard 并随更新就地变更状态', () => {
+    const livePlan1: TabLive = {
+      text: '已完成静态审查。',
+      startedAt: 1000,
+      firstEventAt: 1100,
+      trace: [
+        {
+          type: 'plan',
+          planId: 'main',
+          entries: [
+            { content: '统一全7篇样式与审计工具', status: 'completed' },
+            { content: '浏览器实测全篇排版与运行时检查', status: 'in_progress' },
+            { content: '输出验收报告', status: 'pending' },
+          ],
+          textAt: 9,
+          at: 1200,
+        },
+      ],
+    };
+
+    const { getAllByTestId, rerender } = render(
+      <CliConversation
+        tab={tab({ backend: 'antigravity', status: 'running' })}
+        messages={[{ id: 'u-p1', role: 'user', content: '检查课件', timestamp: 1 }]}
+        live={livePlan1}
+        transcriptView="normal"
+      />,
+    );
+
+    expect(getAllByTestId('plan-card')).toHaveLength(1);
+    const items1 = getAllByTestId('plan-item');
+    expect(items1.map((el) => el.getAttribute('data-status'))).toEqual([
+      'completed',
+      'in_progress',
+      'pending',
+    ]);
+    expect(items1[1]!.textContent).toContain('浏览器实测全篇排版与运行时检查');
+
+    // 极简模式下同一次计划更新仍外显且原地刷新为最新状态
+    const livePlan2: TabLive = {
+      ...livePlan1,
+      trace: [
+        ...livePlan1.trace!,
+        {
+          type: 'plan',
+          planId: 'main',
+          entries: [
+            { content: '统一全7篇样式与审计工具', status: 'completed' },
+            { content: '浏览器实测全篇排版与运行时检查', status: 'completed' },
+            { content: '输出验收报告', status: 'in_progress' },
+          ],
+          textAt: 99,
+          at: 1500,
+        },
+      ],
+    };
+
+    rerender(
+      <CliConversation
+        tab={tab({ backend: 'antigravity', status: 'running' })}
+        messages={[{ id: 'u-p1', role: 'user', content: '检查课件', timestamp: 1 }]}
+        live={livePlan2}
+        transcriptView="minimal"
+      />,
+    );
+
+    expect(getAllByTestId('plan-card')).toHaveLength(1);
+    const items2 = getAllByTestId('plan-item');
+    expect(items2.map((el) => el.getAttribute('data-status'))).toEqual([
+      'completed',
+      'completed',
+      'in_progress',
+    ]);
+  });
+
+  it('展开 update_steps 工具行时渲染结构化清单列表', () => {
+    const todoMsg: HarnessTabMessage = {
+      id: 'a-todo',
+      role: 'assistant',
+      content: '已更新步骤。',
+      timestamp: 20,
+      trace: [
+        {
+          type: 'tool',
+          name: 'update_steps',
+          status: 'done',
+          id: 't-steps',
+          input: JSON.stringify({
+            steps: [
+              { title: '第一阶段检查', status: 'done' },
+              { title: '第二阶段验证', status: 'in_progress' },
+            ],
+          }),
+          at: 10,
+        },
+      ],
+    };
+
+    const { getByTestId, getAllByTestId } = render(
+      <CliConversation
+        tab={tab()}
+        messages={[{ id: 'u-todo', role: 'user', content: '继续', timestamp: 1 }, todoMsg]}
+        transcriptView="normal"
+      />,
+    );
+
+    const row = getByTestId('tool-row');
+    fireEvent.click(row.querySelector('button')!);
+    const items = getAllByTestId('plan-item');
+    expect(items).toHaveLength(2);
+    expect(items.map((el) => el.getAttribute('data-status'))).toEqual(['completed', 'in_progress']);
+  });
+});

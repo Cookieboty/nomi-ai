@@ -2,13 +2,18 @@
  * 运行中标签的实时状态：把一批 harness 事件折叠进 TabLive（纯函数，便于单测）。
  * 渲染层按帧（rAF）合批调用：一帧里到达上千个事件也只产生一次新状态、一次数组复制。
  */
-import type { HarnessLiveEvent, HarnessTraceEvent } from '../services/harnessClient';
+import type {
+  AcpPermissionOption,
+  AcpSlashCommand,
+  HarnessLiveEvent,
+  HarnessTraceEvent,
+} from '../services/harnessClient';
 
 import { mergeAssistantText } from './textCursor';
 
 /** 等待 / 恢复状态（来自 CLI 的重试、重连、上下文压缩提示） */
 export interface LiveStatus {
-  kind: 'retry' | 'reconnect' | 'compact' | 'blocked';
+  kind: 'retry' | 'reconnect' | 'compact' | 'blocked' | 'working';
   text?: string;
   attempt?: number;
   max?: number;
@@ -37,6 +42,10 @@ export interface TabLive {
   /** 本轮出现过的子代理（按 id）；卡片按 callId 关联到派生它的工具调用 */
   agents?: Record<string, LiveAgent>;
   status?: LiveStatus;
+  /** 会话级提示（ACP notice 等） */
+  notice?: { tag: string; text: string; at: number };
+  /** ACP 推送的可用斜杠命令列表 */
+  commands?: AcpSlashCommand[];
   /**
    * 本轮最近一次主线程请求的上下文占用（或压缩后的新占用）。轮末 usage 落盘前，上下文环以它为准；
    * tokens 为 null：刚压缩、大小未知。model：CLI 实际使用的模型（标签没设模型时用来查窗口）；
@@ -74,6 +83,8 @@ export interface PendingPermission {
   /** ExitPlanMode / 按此方案执行（PR3） */
   kind?: 'tool' | 'approve-plan';
   toolName?: string;
+  /** ACP 协议的多选项权限 */
+  options?: AcpPermissionOption[];
 }
 
 /** 实时轨迹最多保留的事件数：超出后丢弃最早的（落盘轨迹另有 300 条 / 400KB 上限） */
@@ -117,6 +128,7 @@ export function applyLiveEvents(
       case 'tool':
       case 'thinking':
       case 'interject':
+      case 'plan':
       case 'agent-input':
       case 'agent-text': {
         if (e.type === 'agent-text' && e.itemId && next.agentDeltas?.[e.itemId]) {
@@ -135,6 +147,19 @@ export function applyLiveEvents(
         touch();
         break;
       }
+      case 'plan-removed': {
+        const key = e.planId || 'default';
+        const matchPlan = (ev: HarnessTraceEvent) =>
+          ev.type === 'plan' && (ev.planId || 'default') === key;
+        if (next.trace?.some(matchPlan)) {
+          next.trace = next.trace.filter((ev) => !matchPlan(ev));
+        }
+        if (added?.some(matchPlan)) {
+          added = added.filter((ev) => !matchPlan(ev));
+          if (!added.length) added = null;
+        }
+        break;
+      }
       case 'permission': {
         const list = next.permissions ?? [];
         if (!list.some((p) => p.id === e.id))
@@ -147,6 +172,7 @@ export function applyLiveEvents(
               ...(e.expiresAt !== undefined ? { expiresAt: e.expiresAt } : {}),
               ...(e.kind ? { kind: e.kind } : {}),
               ...(e.toolName ? { toolName: e.toolName } : {}),
+              ...(e.options?.length ? { options: e.options } : {}),
             },
           ];
         break;
@@ -200,7 +226,10 @@ export function applyLiveEvents(
         break;
       }
       case 'notice':
-        // 会话级提示（目前只有自动模式无法校验动作）已由 permission-denied 体现，不单独播。
+        if (e.text?.trim()) next.notice = { tag: e.tag, text: e.text, at: now };
+        break;
+      case 'commands':
+        next.commands = e.commands;
         break;
       case 'status':
         if (e.kind === 'clear') delete next.status;

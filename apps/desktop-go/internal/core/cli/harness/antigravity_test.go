@@ -710,3 +710,229 @@ rl.on('line', (line) => {
 		t.Fatalf("missing expected ACP RPC methods (init=%v new=%v prompt=%v close=%v):\n%s", sawInit, sawNew, sawPrompt, sawClose, string(raw))
 	}
 }
+
+func TestAntigravityPlanUpdateMergedInTrace(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell mock required")
+	}
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node required on PATH")
+	}
+	if r, err := filepath.EvalSymlinks(node); err == nil {
+		node = r
+	}
+
+	tmp, _ := filepath.EvalSymlinks(t.TempDir())
+	binDir := filepath.Join(tmp, ".local", "bin")
+	agyCliDir := filepath.Join(tmp, ".gemini", "antigravity-cli")
+	_ = os.MkdirAll(binDir, 0o755)
+	_ = os.MkdirAll(agyCliDir, 0o700)
+
+	mockJS := filepath.Join(tmp, "mock-agy-plan.js")
+	jsSrc := `'use strict';
+const readline = require('readline');
+const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+rl.on('line', (line) => {
+  const s = line.trim();
+  if (!s) return;
+  let m; try { m = JSON.parse(s); } catch { return; }
+  if (m.id === undefined) return;
+  const reply = (res) => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: m.id, result: res }) + '\n');
+  const notify = (update) => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', method: 'session/update', params: { sessionId: 's-plan-1', update } }) + '\n');
+  if (m.method === 'initialize') {
+    reply({ protocolVersion: 1 });
+  } else if (m.method === 'session/new') {
+    reply({ sessionId: 's-plan-1', modes: { currentModeId: 'default' } });
+  } else if (m.method === 'session/set_mode' || m.method === 'session/close') {
+    reply({});
+  } else if (m.method === 'session/prompt') {
+    notify({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Working...' } });
+    notify({
+      sessionUpdate: 'plan',
+      planId: 'p1',
+      entries: [
+        { content: 'Audit slides', status: 'in_progress', priority: 'high' },
+        { content: 'Run browser check', status: 'pending' }
+      ]
+    });
+    notify({ sessionUpdate: 'tool_call', toolCallId: 'tc-1', kind: 'read', title: 'Read file', status: 'completed' });
+    notify({
+      sessionUpdate: 'plan',
+      planId: 'p1',
+      entries: [
+        { content: 'Audit slides', status: 'completed', priority: 'high' },
+        { content: 'Run browser check', status: 'in_progress' }
+      ]
+    });
+    notify({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: ' Done.' } });
+    reply({ stopReason: 'end_turn' });
+  }
+});
+`
+	if err := os.WriteFile(mockJS, []byte(jsSrc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	agyBin := filepath.Join(binDir, "agy")
+	if err := os.WriteFile(agyBin, []byte("#!/bin/sh\nexec \""+node+"\" \""+mockJS+"\" \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("NOMI_USE_MOCK_CLI", "")
+	t.Setenv("HOME", tmp)
+	t.Setenv("ANTIGRAVITY_CLI_HOME", agyCliDir)
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	cli.ResetCliBinCache()
+	t.Cleanup(cli.ResetCliBinCache)
+
+	root := filepath.Join(tmp, "harness")
+	work := filepath.Join(tmp, "docs", "nomi")
+	_ = os.MkdirAll(root, 0o755)
+	_ = os.MkdirAll(work, 0o755)
+	idle := 0.0
+	o := New(Deps{
+		Root:             root,
+		Home:             tmp,
+		DefaultCwd:       work,
+		LegacyDefaultCwd: filepath.Join(tmp, "docs"),
+		Logger:           nopLogger{},
+		Ports:            nopPorts{},
+		IdleReclaimMs:    &idle,
+	})
+	defer jsrt.Run(o.Dispose)
+
+	tab := jsrt.Call(func() *util.Obj {
+		return o.CreateTab(util.NewObj("backend", "antigravity", "source", "local", "activate", false))
+	})
+	id := str(tab, "id")
+	awaitSend(t, o, id, "build slides")
+
+	msgs := jsrt.Call(func() []*util.Obj { return o.TabMessages(id) })
+	last := msgs[len(msgs)-1]
+	trace := evs(last.Get("trace"))
+	if len(trace) != 2 {
+		t.Fatalf("len(trace) = %d, want 2 (%v)", len(trace), trace)
+	}
+	p0 := trace[0]
+	if p0 == nil || p0.Get("type") != "plan" || p0.Get("planId") != "p1" {
+		t.Fatalf("trace[0] = %v", trace[0])
+	}
+	if p0.Get("textAt") != float64(len("Working...")) {
+		t.Fatalf("plan textAt = %v, want %d", p0.Get("textAt"), len("Working..."))
+	}
+	entries, _ := p0.Get("entries").([]any)
+	if len(entries) != 2 || util.AsObj(entries[0]).Get("status") != "completed" || util.AsObj(entries[1]).Get("status") != "in_progress" {
+		t.Fatalf("merged plan entries = %v", entries)
+	}
+}
+
+func TestAntigravityCommandsPlanRemovedAndListSessions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell mock required")
+	}
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node required on PATH")
+	}
+	if r, err := filepath.EvalSymlinks(node); err == nil {
+		node = r
+	}
+
+	tmp, _ := filepath.EvalSymlinks(t.TempDir())
+	binDir := filepath.Join(tmp, ".local", "bin")
+	agyCliDir := filepath.Join(tmp, ".gemini", "antigravity-cli")
+	_ = os.MkdirAll(binDir, 0o755)
+	_ = os.MkdirAll(agyCliDir, 0o700)
+
+	mockJS := filepath.Join(tmp, "mock-agy-ext.js")
+	jsSrc := `'use strict';
+const readline = require('readline');
+const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+rl.on('line', (line) => {
+  const s = line.trim();
+  if (!s) return;
+  let m; try { m = JSON.parse(s); } catch { return; }
+  if (m.id === undefined) return;
+  const reply = (res) => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: m.id, result: res }) + '\n');
+  const notify = (update) => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', method: 'session/update', params: { sessionId: 's-ext-1', update } }) + '\n');
+  if (m.method === 'initialize') {
+    reply({ protocolVersion: 1, agentCapabilities: { sessionCapabilities: { close: {}, list: {} } } });
+  } else if (m.method === 'session/new') {
+    reply({ sessionId: 's-ext-1', modes: { currentModeId: 'default' } });
+    notify({ sessionUpdate: 'available_commands_update', availableCommands: [{ name: 'audit', description: 'Run audit', input: { hint: '[path]' } }] });
+  } else if (m.method === 'session/list') {
+    reply({ sessions: [{ sessionId: 's-hist-1', title: 'Prior Session', cwd: '/tmp' }] });
+  } else if (m.method === 'session/set_mode' || m.method === 'session/close') {
+    reply({});
+  } else if (m.method === 'session/prompt') {
+    notify({ sessionUpdate: 'plan', planId: 'p-drop', entries: [{ content: 'Temp', status: 'in_progress' }] });
+    notify({ sessionUpdate: 'plan_removed', planId: 'p-drop' });
+    notify({ sessionUpdate: 'subagent_update', subagentId: 'sa-1', label: 'Worker', status: 'running' });
+    notify({ sessionUpdate: 'subagent_update', subagentId: 'sa-1', status: 'completed', summary: 'Done' });
+    notify({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'ok' } });
+    reply({ stopReason: 'end_turn' });
+  }
+});
+`
+	if err := os.WriteFile(mockJS, []byte(jsSrc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	agyBin := filepath.Join(binDir, "agy")
+	if err := os.WriteFile(agyBin, []byte("#!/bin/sh\nexec \""+node+"\" \""+mockJS+"\" \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("NOMI_USE_MOCK_CLI", "")
+	t.Setenv("HOME", tmp)
+	t.Setenv("ANTIGRAVITY_CLI_HOME", agyCliDir)
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	cli.ResetCliBinCache()
+	t.Cleanup(cli.ResetCliBinCache)
+
+	root := filepath.Join(tmp, "harness")
+	work := filepath.Join(tmp, "docs", "nomi")
+	_ = os.MkdirAll(root, 0o755)
+	_ = os.MkdirAll(work, 0o755)
+	idle := 0.0
+	o := New(Deps{
+		Root:             root,
+		Home:             tmp,
+		DefaultCwd:       work,
+		LegacyDefaultCwd: filepath.Join(tmp, "docs"),
+		Logger:           nopLogger{},
+		Ports:            nopPorts{},
+		IdleReclaimMs:    &idle,
+	})
+	defer jsrt.Run(o.Dispose)
+
+	tab := jsrt.Call(func() *util.Obj {
+		return o.CreateTab(util.NewObj("backend", "antigravity", "source", "local", "activate", false))
+	})
+	id := str(tab, "id")
+	awaitSend(t, o, id, "check features")
+
+	cmds := jsrt.Call(func() []any { return o.TabCommands(id) })
+	if len(cmds) != 1 || util.AsObj(cmds[0]) == nil || util.AsObj(cmds[0]).Get("name") != "audit" || util.AsObj(cmds[0]).Get("hint") != "[path]" {
+		t.Fatalf("TabCommands = %v", cmds)
+	}
+
+	msgs := jsrt.Call(func() []*util.Obj { return o.TabMessages(id) })
+	last := msgs[len(msgs)-1]
+	trace := evs(last.Get("trace"))
+	for _, ev := range trace {
+		if ev.Get("type") == "plan" {
+			t.Fatalf("plan-removed should have removed p-drop from final trace: %v", trace)
+		}
+	}
+
+	listed, err := jsrt.Block(jsrt.Call(func() *jsrt.Promise[*util.Obj] {
+		return o.ListAcpSessions("antigravity", work, "")
+	}))
+	if err != nil {
+		t.Fatalf("ListAcpSessions: %v", err)
+	}
+	sessions, _ := listed.Get("sessions").([]any)
+	if len(sessions) != 1 || util.AsObj(sessions[0]).Get("sessionId") != "s-hist-1" {
+		t.Fatalf("ListAcpSessions = %v", listed)
+	}
+}

@@ -101,6 +101,18 @@ type sessionTitleSource interface {
 	SetTitleHandler(func(string))
 }
 
+type sessionModeSource interface {
+	SetModeHandler(func(string))
+}
+
+type sessionCommandsSource interface {
+	SetCommandsHandler(func([]cr.SlashCommandInfo))
+}
+
+type sessionModelSource interface {
+	SetModelHandler(func(string, string))
+}
+
 type sessionNativeMetaSource interface {
 	NativeSessionMeta() (sessionID, configDir string)
 }
@@ -286,6 +298,15 @@ func (r *Registry) target(id, name string) (cr.Target, error) {
 	}
 	if src, ok := t.Runtime.(sessionTitleSource); ok {
 		src.SetTitleHandler(func(title string) { r.ApplyNativeTitle(id, title) })
+	}
+	if src, ok := t.Runtime.(sessionModeSource); ok {
+		src.SetModeHandler(func(mode string) { r.applyRuntimeMode(id, mode) })
+	}
+	if src, ok := t.Runtime.(sessionCommandsSource); ok {
+		src.SetCommandsHandler(func(cmds []cr.SlashCommandInfo) { r.applyRuntimeCommands(id, cmds) })
+	}
+	if src, ok := t.Runtime.(sessionModelSource); ok {
+		src.SetModelHandler(func(model, effort string) { r.applyRuntimeModel(id, model, effort) })
 	}
 	rawRuntime := t.Runtime
 	t.Runtime = &observedRuntime{
@@ -1136,12 +1157,55 @@ func (r *Registry) Cancel(ctx context.Context, id string) (cr.CancelResult, erro
 	r.changed(id)
 	return result, err
 }
+func (r *Registry) applyRuntimeMode(id, mode string) {
+	if mode == "" {
+		return
+	}
+	r.mu.Lock()
+	a := r.actors[id]
+	r.mu.Unlock()
+	if a == nil {
+		return
+	}
+	a.session.SyncPermissionMode(mode)
+	r.streamChanged(id)
+}
+
+func (r *Registry) applyRuntimeCommands(id string, cmds []cr.SlashCommandInfo) {
+	r.mu.Lock()
+	a := r.actors[id]
+	r.mu.Unlock()
+	if a == nil {
+		return
+	}
+	a.session.SetCommands(cmds)
+	r.streamChanged(id)
+}
+
+func (r *Registry) applyRuntimeModel(id, model, effort string) {
+	if model == "" && effort == "" {
+		return
+	}
+	r.mu.Lock()
+	a := r.actors[id]
+	r.mu.Unlock()
+	if a == nil {
+		return
+	}
+	a.session.SyncModel(model, effort)
+	r.streamChanged(id)
+}
+
 func (r *Registry) Approve(ctx context.Context, id string, token cr.AttemptToken, approval string, allow bool) error {
+	return r.ApproveOption(ctx, id, token, approval, allow, "")
+}
+
+func (r *Registry) ApproveOption(ctx context.Context, id string, token cr.AttemptToken, approval string, allow bool, optionID string) error {
 	a, err := r.get(id)
 	if err != nil {
 		return err
 	}
-	err = a.session.Approve(ctx, token, approval, allow)
+	err = a.session.ApproveOption(ctx, token, approval, allow, optionID)
 	r.changed(id)
 	return err
 }

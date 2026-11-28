@@ -174,19 +174,46 @@ const (
 	EventText      EventKind = "text"
 	EventApproval  EventKind = "approval"
 	EventTrace     EventKind = "trace"
+	EventContext   EventKind = "context"
+	EventMeta      EventKind = "meta"
 	EventCompleted EventKind = "completed"
 	EventActivity  EventKind = "activity"
 	EventFailed    EventKind = "failed"
 )
 
+type ApprovalOption struct {
+	ID   string `json:"id"`
+	Kind string `json:"kind,omitempty"`
+	Name string `json:"name,omitempty"`
+}
+
 type ApprovalInfo struct {
-	ID          string `json:"id"`
-	Tool        string `json:"tool,omitempty"`
-	Summary     string `json:"summary,omitempty"`
-	ArgsPreview string `json:"argsPreview,omitempty"`
-	Danger      string `json:"danger,omitempty"`
-	Risk        string `json:"risk,omitempty"`
-	Rationale   string `json:"rationale,omitempty"`
+	ID          string           `json:"id"`
+	Kind        string           `json:"kind,omitempty"`
+	Tool        string           `json:"tool,omitempty"`
+	Summary     string           `json:"summary,omitempty"`
+	ArgsPreview string           `json:"argsPreview,omitempty"`
+	Danger      string           `json:"danger,omitempty"`
+	Risk        string           `json:"risk,omitempty"`
+	Rationale   string           `json:"rationale,omitempty"`
+	Options     []ApprovalOption `json:"options,omitempty"`
+}
+
+type RuntimeStatus struct {
+	Kind string `json:"kind"`
+	Text string `json:"text,omitempty"`
+}
+
+type RuntimeNotice struct {
+	Tag  string `json:"tag"`
+	Text string `json:"text"`
+	At   int64  `json:"at"`
+}
+
+type SlashCommandInfo struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Hint        string `json:"hint,omitempty"`
 }
 
 type TraceEntry struct {
@@ -198,6 +225,7 @@ type TraceEntry struct {
 	Detail  string `json:"detail,omitempty"`
 	Output  string `json:"output,omitempty"`
 	At      int64  `json:"at"`
+	TextAt  *int   `json:"textAt,omitempty"`
 }
 
 // TurnUsage holds non-authoritative turn token/context/cost metrics attached on completion.
@@ -252,7 +280,15 @@ func cloneTraceEntries(in []TraceEntry) []TraceEntry {
 	if len(in) == 0 {
 		return nil
 	}
-	return append([]TraceEntry(nil), in...)
+	out := make([]TraceEntry, len(in))
+	for i, e := range in {
+		out[i] = e
+		if e.TextAt != nil {
+			v := *e.TextAt
+			out[i].TextAt = &v
+		}
+	}
+	return out
 }
 
 type Event struct {
@@ -266,6 +302,12 @@ type Event struct {
 	ApprovalID      string
 	ApprovalInfo    *ApprovalInfo
 	Trace           *TraceEntry
+	ContextTokens   *int64
+	ContextWindow   *int64
+	CostUsd         *float64
+	Status          *RuntimeStatus
+	Notice          *RuntimeNotice
+	Commands        []SlashCommandInfo
 	Work            Activity // explicit quiescence evidence on completion/cancel/activity
 	Detail          string
 	Model           string
@@ -279,6 +321,7 @@ type ApprovalDecision struct {
 	Token                       AttemptToken
 	NativeSessionID, ApprovalID string
 	Allow                       bool
+	OptionID                    string
 }
 
 type Phase string
@@ -323,8 +366,13 @@ type SessionState struct {
 	PermissionMode  string         `json:"permissionMode,omitempty"`
 	Effort          string         `json:"effort,omitempty"`
 	Partial         string
-	Thinking        string         `json:"thinking,omitempty"`
-	ThinkingActive  bool           `json:"thinkingActive,omitempty"`
+	Thinking        string             `json:"thinking,omitempty"`
+	ThinkingActive  bool               `json:"thinkingActive,omitempty"`
+	ContextTokens   *int64             `json:"contextTokens,omitempty"`
+	ContextWindow   *int64             `json:"contextWindow,omitempty"`
+	Status          *RuntimeStatus     `json:"status,omitempty"`
+	Notice          *RuntimeNotice     `json:"notice,omitempty"`
+	Commands        []SlashCommandInfo `json:"commands,omitempty"`
 	Detail          string
 	PendingSwitch   *SwitchState       `json:"pendingSwitch,omitempty"`
 	LastSwitch      *LastSwitchSummary `json:"lastSwitch,omitempty"`

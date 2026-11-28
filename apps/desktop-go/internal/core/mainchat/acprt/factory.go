@@ -9,16 +9,19 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/catalog"
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/gateway/util"
 )
 
 type Config struct {
 	BackendID, Executable, Cwd, ConfigDir string
+	ExtraDirs                             []string
 	Model                                 string
 	Effort                                string
 	PermissionMode                        string
@@ -30,6 +33,8 @@ type Config struct {
 	ModelInConfig                         bool
 	LaunchSig                             string
 	OnRelease                             func()
+	OnQuestion                            func(id string, params *util.Obj, reply func(body *util.Obj, cancel bool))
+	OnQuestionsCleared                    func()
 }
 
 // PermissionModes 返回指定 ACP 底座支持的产品侧权限模式列表。
@@ -278,6 +283,11 @@ func (f *Factory) runtime(id string) (*Runtime, error) {
 
 func identityFor(cfg Config, bin, dir os.FileInfo) cr.NativeIdentity {
 	fp := "acp-managed-v1:" + strings.Join(builtin.AcpArgs(cfg.BackendID), ",") + ":" + directoryIdentity(cfg.Cwd, dir)
+	if len(cfg.ExtraDirs) > 0 {
+		extra := slices.Clone(cfg.ExtraDirs)
+		slices.Sort(extra)
+		fp += ":dirs=" + strings.Join(extra, ",")
+	}
 	if cfg.LaunchSig != "" {
 		fp += ":" + cfg.LaunchSig
 	}

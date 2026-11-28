@@ -55,6 +55,7 @@ export function waterfallRows(
       rows.push({ kind: 'interject', id: e.id, start: e.at, end: e.at, text: e.text });
       continue;
     }
+    if (e.type === 'plan') continue;
     const c = e.call;
     const depth = c.parentId ? (depthOf.get(c.parentId) ?? 0) + 1 : 0;
     depthOf.set(c.id, depth);

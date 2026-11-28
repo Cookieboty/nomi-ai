@@ -27,8 +27,8 @@ func (o *observedRuntime) Start(ctx context.Context, request cr.RuntimeRequest, 
 	res := o.Runtime.Start(ctx, request, func(e cr.Event) error {
 		err := accept(e)
 		if err == nil {
-			if e.Kind == cr.EventStream || e.Kind == cr.EventTrace {
-				o.scheduleStream(e.Kind == cr.EventTrace)
+			if e.Kind == cr.EventStream || e.Kind == cr.EventTrace || e.Kind == cr.EventContext || e.Kind == cr.EventMeta {
+				o.scheduleStream(e.Kind != cr.EventStream)
 				return nil
 			}
 			if e.Kind == cr.EventCompleted && o.onCompleted != nil {

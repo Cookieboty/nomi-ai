@@ -44,9 +44,10 @@ type acpLiveSession struct {
 	cwd                string
 	permissionMode     string
 	turn               *acpTurn
-	perms              map[string]func(allow *bool)
+	perms              map[string]func(allow *bool, optionID string)
 	permOrder          []string
 	questions          map[string]func(*util.Obj, bool)
+	commands           []any
 	lastActivityAt     float64
 	ready              *jsrt.Promise[struct{}]
 	modeChange         *modeChange
@@ -55,7 +56,7 @@ type acpLiveSession struct {
 	used               bool
 }
 
-func (l *acpLiveSession) setPerm(id string, f func(*bool)) {
+func (l *acpLiveSession) setPerm(id string, f func(*bool, string)) {
 	if _, ok := l.perms[id]; !ok {
 		l.permOrder = append(l.permOrder, id)
 	}
@@ -70,7 +71,7 @@ func (l *acpLiveSession) delPerm(id string) {
 func (l *acpLiveSession) cancelPerms() {
 	for _, id := range append([]string{}, l.permOrder...) {
 		if f := l.perms[id]; f != nil {
-			f(nil)
+			f(nil, "")
 		}
 	}
 }
@@ -219,23 +220,52 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 		driver := drivers.NewAcpDriver(driverOpts)
 		live := &acpLiveSession{
 			backend: backend, launchSig: spawnLaunch.sig, child: child, driver: driver, cwd: str(tab, "cwd"),
-			permissionMode: str(tab, "permissionMode"), perms: map[string]func(*bool){},
+			permissionMode: str(tab, "permissionMode"), perms: map[string]func(*bool, string){},
 			questions: map[string]func(*util.Obj, bool){}, unsupportedModeIDs: map[string]bool{},
 			lastActivityAt: nowMs(), ready: jsrt.Resolved(struct{}{}),
 		}
 		driver.On(func(e clisdk.SessionEvent) {
 			live.lastActivityAt = nowMs()
+			if e.Get("kind") == "commands" {
+				cmds, _ := e.Get("commands").([]any)
+				if cmds == nil {
+					cmds = []any{}
+				}
+				live.commands = cmds
+				o.emitEvent(id, util.NewObj("type", "commands", "commands", cmds))
+				return
+			}
 			if e.Get("kind") == "harness" {
 				ev := util.AsObj(e.Get("event"))
-				if ev != nil && ev.Get("type") == "session-info" {
+				if ev == nil {
+					return
+				}
+				evTyp := ev.Get("type")
+				if evTyp == "session-info" {
 					if title := util.JSTrim(jsStr(ev.Get("title"))); title != "" {
 						o.applyAcpSessionTitle(id, live, title)
+					}
+					return
+				}
+				if evTyp == "config-update" {
+					if m := util.JSTrim(jsStr(ev.Get("model"))); m != "" && m != "cli-default" {
+						live.effectiveModel = m
+					}
+					o.emitEvent(id, ev)
+					return
+				}
+				if evTyp == "agent" || evTyp == "agent-text" || evTyp == "agent-text-delta" {
+					if live.turn != nil {
+						o.onAcpEvents(id, live, []*util.Obj{ev})
+					} else {
+						o.emitEvent(id, ev)
 					}
 					return
 				}
 				if truthy(e.Get("turnId")) && live.turn != nil {
 					o.onAcpEvents(id, live, []*util.Obj{ev})
 				}
+				return
 			}
 			if e.Get("kind") == "question" {
 				pid := jsStr(e.Get("id"))
@@ -257,10 +287,14 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 				return
 			}
 			pid := jsStr(e.Get("id"))
-			live.setPerm(pid, func(allow *bool) {
+			live.setPerm(pid, func(allow *bool, optionID string) {
 				live.delPerm(pid)
 				if allow != nil && !*allow && live.turn != nil {
 					live.turn.denied = true
+				}
+				if optionID != "" {
+					driver.RespondPermission(pid, util.NewObj("optionId", optionID))
+					return
 				}
 				dec := "cancel"
 				if allow != nil {
@@ -272,12 +306,21 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 				driver.RespondPermission(pid, util.NewObj("decision", dec))
 			})
 			req := util.AsObj(e.Get("request"))
-			var summary any
+			var summary, toolName, opts any
 			if req != nil {
 				summary = req.Get("summary")
+				toolName = req.Get("toolName")
+				opts = req.Get("options")
+			}
+			pev := util.NewObj("type", "permission", "id", pid, "summary", summary)
+			if toolName != nil && util.Str(toolName) != "" {
+				pev.Set("toolName", toolName)
+			}
+			if opts != nil {
+				pev.Set("options", opts)
 			}
 			o.onAcpEvents(id, live, []*util.Obj{
-				WithPermissionExpiry(util.NewObj("type", "permission", "id", pid, "summary", summary), o.PermissionTimeoutMs(id)),
+				WithPermissionExpiry(pev, o.PermissionTimeoutMs(id)),
 			})
 		})
 		child.OnClose(func(*int, string) {
@@ -362,6 +405,10 @@ func (o *Orchestrator) ensureAcpLive(tab *util.Obj, signal *jsrt.AbortSignal) *j
 			}
 			if title := util.JSTrim(driver.SessionTitle); title != "" {
 				o.applyAcpSessionTitle(id, live, title)
+			}
+			if len(driver.AvailableCommands) > 0 {
+				live.commands = driver.AvailableCommands
+				o.emitEvent(id, util.NewObj("type", "commands", "commands", driver.AvailableCommands))
 			}
 			o.noteLiveSession(id, backend, startCwd, *sid)
 			initMode := str(tab, "permissionMode")
@@ -970,4 +1017,78 @@ func envMap(e *util.Obj) map[string]string {
 		}
 	}
 	return m
+}
+
+// TabCommands 返回指定标签已缓存的 ACP 动态斜杠命令。
+func (o *Orchestrator) TabCommands(tabID string) []any {
+	if gl := o.live.acp[tabID]; gl != nil && len(gl.commands) > 0 {
+		return gl.commands
+	}
+	return []any{}
+}
+
+// ListAcpSessions 按需经 ACP session/list 列举对端历史会话（不触发 prewarm）。
+func (o *Orchestrator) ListAcpSessions(backend, cwd, cursor string) *jsrt.Promise[*util.Obj] {
+	return jsrt.Async(func() (*util.Obj, error) {
+		if !builtin.UsesAcp(backend) || strings.TrimSpace(cwd) == "" {
+			return util.NewObj("sessions", []any{}, "supported", false), nil
+		}
+		for _, id := range o.live.acpOrder {
+			live := o.live.acp[id]
+			if live == nil || live.backend != backend || live.driver == nil || live.driver.Closed() {
+				continue
+			}
+			if cwd != "" && live.cwd != cwd {
+				continue
+			}
+			if !live.driver.SupportsListSessions() {
+				return util.NewObj("sessions", []any{}, "supported", false), nil
+			}
+			res, err := jsrt.Await(live.driver.ListSessions(cwd, cursor, nil))
+			if err != nil {
+				return nil, err
+			}
+			out := res.Clone()
+			out.Set("supported", true)
+			return out, nil
+		}
+		bin, prefix := resolveSessionBin(backend, true)
+		if bin == "" {
+			return util.NewObj("sessions", []any{}, "supported", false), nil
+		}
+		useNode := IsScript(bin)
+		argv := builtin.AcpArgs(backend)
+		cmd, args := bin, append(prefix, argv...)
+		if useNode {
+			cmd, args = nodeExecPath(), append([]string{bin}, args...)
+		}
+		child := gate(o.spawnCLI(util.NewObj("backend", backend), cmd, args, cwd, o.childEnv(useNode, &tabLaunch{sig: "list-sessions", official: true}, nil)))
+		driverOpts := drivers.AcpDriverOptions{
+			Child:              child,
+			Kill:               killTree,
+			DisableElicitation: true,
+		}
+		if backend == "antigravity" {
+			driverOpts.ClientInfo = antigravityp.ClientInfo()
+			driverOpts.ClientCapabilities = antigravityp.ClientCapabilities()
+		}
+		driver := drivers.NewAcpDriver(driverOpts)
+		defer driver.Close()
+		ac := jsrt.NewAbortController()
+		timer := jsrt.SetTimeout(5*time.Second, func() { ac.Abort() })
+		defer jsrt.ClearTimeout(timer)
+		if _, err := jsrt.Await(driver.Initialize(ac.Signal)); err != nil {
+			return nil, err
+		}
+		if !driver.SupportsListSessions() {
+			return util.NewObj("sessions", []any{}, "supported", false), nil
+		}
+		res, err := jsrt.Await(driver.ListSessions(cwd, cursor, ac.Signal))
+		if err != nil {
+			return nil, err
+		}
+		out := res.Clone()
+		out.Set("supported", true)
+		return out, nil
+	})
 }

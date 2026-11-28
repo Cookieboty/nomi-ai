@@ -3,7 +3,30 @@ import { Icon, t } from '@nomi-ai/ui';
 import { IconShieldExclamation as ShieldAlert } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 
+import type { AcpPermissionOption } from '../../services/harnessClient';
+
 import styles from './index.module.css';
+
+function isRejectOption(kind?: string): boolean {
+  if (!kind) return false;
+  const k = kind.toLowerCase();
+  return k.includes('reject') || k.includes('deny');
+}
+
+function optionFallbackLabel(kind?: string): string {
+  switch (kind?.toLowerCase()) {
+    case 'allow_once':
+      return t('ui.usage-tools.allow-once');
+    case 'allow_always':
+      return t('ui.chat-settings.sandbox-allow-always');
+    case 'reject_once':
+      return t('ui.usage-tools.reject-once');
+    case 'reject_always':
+      return t('ui.usage-tools.reject-always');
+    default:
+      return isRejectOption(kind) ? t('ui.chat-settings.deny') : t('ui.chat-settings.allow');
+  }
+}
 
 /** 剩余秒数（每秒刷新）；没有截止时间返回 null */
 function useSecondsLeft(expiresAt: number | undefined): number | null {
@@ -21,8 +44,9 @@ export const PermissionCard: React.FC<{
   summary: string;
   agent?: string;
   expiresAt?: number;
-  onReply: (allow: boolean) => void;
-}> = ({ summary, agent, expiresAt, onReply }) => {
+  options?: AcpPermissionOption[];
+  onReply: (allow: boolean, optionId?: string) => void;
+}> = ({ summary, agent, expiresAt, options, onReply }) => {
   const left = useSecondsLeft(expiresAt);
   return (
     <div
@@ -51,22 +75,41 @@ export const PermissionCard: React.FC<{
       </div>
       <code className={styles.permSummary}>{summary}</code>
       <div className={styles.permActions}>
-        <button
-          type="button"
-          className={styles.permAllow}
-          data-testid="conv-permission-allow"
-          onClick={() => onReply(true)}
-        >
-          {t('ui.chat-settings.allow')}
-        </button>
-        <button
-          type="button"
-          className={styles.permDeny}
-          data-testid="conv-permission-deny"
-          onClick={() => onReply(false)}
-        >
-          {t('ui.chat-settings.deny')}
-        </button>
+        {options && options.length > 0 ? (
+          options.map((opt) => {
+            const reject = isRejectOption(opt.kind);
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                className={reject ? styles.permDeny : styles.permAllow}
+                data-testid={`conv-permission-option-${opt.id}`}
+                onClick={() => onReply(!reject, opt.id)}
+              >
+                {opt.name?.trim() || optionFallbackLabel(opt.kind)}
+              </button>
+            );
+          })
+        ) : (
+          <>
+            <button
+              type="button"
+              className={styles.permAllow}
+              data-testid="conv-permission-allow"
+              onClick={() => onReply(true)}
+            >
+              {t('ui.chat-settings.allow')}
+            </button>
+            <button
+              type="button"
+              className={styles.permDeny}
+              data-testid="conv-permission-deny"
+              onClick={() => onReply(false)}
+            >
+              {t('ui.chat-settings.deny')}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

@@ -12,11 +12,13 @@ import {
   diffsOf,
   diffStats,
   entriesFromLegacyTools,
+  extractPlanFromTodoTool,
   formatDuration,
   groupDuration,
   groupStats,
   groupTitle,
   reduceTrace,
+  reduceTraceCached,
   settleTrace,
   shortPath,
   type ToolCall,
@@ -566,5 +568,98 @@ describe('Antigravity ACP tools classification, description and diffs', () => {
       target: '/Users/me/brain/scratch/explore.py',
     });
     expect(diffStats(edited)).toEqual({ added: 2, removed: 1, files: 1 });
+  });
+});
+
+describe('ACP plan events and todo tool extraction', () => {
+  it('merges plan events in-place by planId while preserving cached immutability', () => {
+    const e1: HarnessTraceEvent = {
+      type: 'plan',
+      planId: 'p1',
+      entries: [
+        { content: 'Audit slides', status: 'in_progress', priority: 'high' },
+        { content: 'Run Chrome probe', status: 'pending' },
+      ],
+      at: 100,
+      textAt: 10,
+    };
+    const t1: HarnessTraceEvent = {
+      type: 'tool',
+      name: 'read_file',
+      status: 'done',
+      id: 'c1',
+      at: 150,
+      textAt: 10,
+    };
+    const e2: HarnessTraceEvent = {
+      type: 'plan',
+      planId: 'p1',
+      entries: [
+        { content: 'Audit slides', status: 'completed', priority: 'high' },
+        { content: 'Run Chrome probe', status: 'in_progress' },
+      ],
+      at: 200,
+      textAt: 30,
+    };
+
+    const prefix = [e1, t1];
+    const entries1 = reduceTraceCached(prefix);
+    expect(entries1).toHaveLength(2);
+    expect(entries1[0]).toMatchObject({ type: 'plan', planId: 'p1', textAt: 10, at: 100 });
+
+    const extended = [e1, t1, e2];
+    const entries2 = reduceTraceCached(extended);
+    expect(entries2).toHaveLength(2);
+    // Original cached entry must not be mutated.
+    expect(entries1[0]).toMatchObject({
+      entries: [
+        { content: 'Audit slides', status: 'in_progress' },
+        { content: 'Run Chrome probe', status: 'pending' },
+      ],
+    });
+    expect(entries2[0]).toMatchObject({
+      type: 'plan',
+      id: entries1[0]!.id,
+      textAt: 10,
+      at: 200,
+      entries: [
+        { content: 'Audit slides', status: 'completed' },
+        { content: 'Run Chrome probe', status: 'in_progress' },
+      ],
+    });
+
+    const timeline = buildTimeline(entries2);
+    expect(timeline.map((x) => x.type)).toEqual(['plan', 'call']);
+  });
+
+  it('classifies update_steps as todo and extracts structured entries from todo tools', () => {
+    expect(classifyTool('update_steps')).toBe('todo');
+    expect(classifyTool('TaskCreate')).toBe('todo');
+    expect(classifyTool('TaskUpdate')).toBe('todo');
+
+    const stepsCall = call('update_steps', {
+      steps: [
+        { title: 'Step A', status: 'done' },
+        { title: 'Step B', status: 'in_progress' },
+      ],
+    });
+    expect(extractPlanFromTodoTool(stepsCall)).toEqual([
+      { content: 'Step A', status: 'completed' },
+      { content: 'Step B', status: 'in_progress' },
+    ]);
+
+    const updatePlanCall = call('update_plan', {
+      plan: [{ step: 'Check tests', status: 'completed' }],
+    });
+    expect(extractPlanFromTodoTool(updatePlanCall)).toEqual([
+      { content: 'Check tests', status: 'completed' },
+    ]);
+
+    const todoWriteCall = call('TodoWrite', {
+      todos: [{ content: 'Fix lint', status: 'pending', priority: 'medium' }],
+    });
+    expect(extractPlanFromTodoTool(todoWriteCall)).toEqual([
+      { content: 'Fix lint', status: 'pending', priority: 'medium' },
+    ]);
   });
 });

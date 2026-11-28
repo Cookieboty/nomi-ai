@@ -3,7 +3,7 @@
  * 当前是哪个端、在哪个目录、属于哪个会话（异步命令的结果回到发起命令的会话，与现在显示哪个标签无关）。
  */
 import type { AiChatActions } from '../contexts/AiChatContext';
-import type { HarnessTabsCore } from '../contexts/HarnessTabsContext';
+import { useHarnessTabCommands, type HarnessTabsCore } from '../contexts/HarnessTabsContext';
 import { setProviderEndpoint } from '../services/chatPrefs';
 import type { HarnessState } from '../services/harnessClient';
 import { nomiScopeKey } from '../slash/nomiScope';
@@ -30,6 +30,7 @@ export function useAppSlash(opts: {
 }) {
   const { isDev, tabs, harness, ipcClient, actions, busyHere, enqueue, panels } = opts;
   const slashTab = isDev && tabs.isCliTab ? tabs.activeTab : null;
+  const dynamicCommands = useHarnessTabCommands(slashTab?.id ?? null);
   const backend: ConversationBackend = !isDev
     ? 'nomi'
     : (slashTab?.backend ?? harness?.backend ?? 'nomi');
@@ -83,6 +84,7 @@ export function useAppSlash(opts: {
       if (backend !== 'nomi') setProviderEndpoint(backend);
       panels.openSettings('ai', 'assistants');
     },
+    dynamicCommands,
   });
   return { slash, backend, cwd };
 }

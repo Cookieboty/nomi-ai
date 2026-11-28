@@ -10,14 +10,35 @@ export const RuntimeToken = z.object({
   attemptId: z.string(),
   generation: z.number().int().nonnegative(),
 });
+export const ApprovalOption = z.object({
+  id: z.string(),
+  kind: z.string().optional(),
+  name: z.string().optional(),
+});
 export const ApprovalDetail = z.object({
   id: z.string(),
+  kind: z.string().optional(),
   tool: z.string().optional(),
   summary: z.string().optional(),
   argsPreview: z.string().optional(),
   danger: z.string().optional(),
   risk: z.string().optional(),
   rationale: z.string().optional(),
+  options: z.array(ApprovalOption).optional(),
+});
+export const RuntimeStatusInfo = z.object({
+  kind: z.string(),
+  text: z.string().optional(),
+});
+export const RuntimeNoticeInfo = z.object({
+  tag: z.string(),
+  text: z.string(),
+  at: z.number().int(),
+});
+export const SlashCommandInfo = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  hint: z.string().optional(),
 });
 export const TraceEntry = z.object({
   id: z.string(),
@@ -28,6 +49,7 @@ export const TraceEntry = z.object({
   detail: z.string().optional(),
   output: z.string().optional(),
   at: z.number().int(),
+  textAt: z.number().int().nonnegative().optional(),
 });
 export const FailedRequestInfo = z.object({
   messageId: z.string(),
@@ -90,6 +112,11 @@ export const RuntimeState = z.object({
   partial: z.string(),
   thinking: z.string().optional(),
   thinkingActive: z.boolean().optional(),
+  contextTokens: z.number().int().nonnegative().optional(),
+  contextWindow: z.number().int().positive().optional(),
+  status: RuntimeStatusInfo.optional(),
+  notice: RuntimeNoticeInfo.optional(),
+  commands: z.array(SlashCommandInfo).optional(),
   detail: z.string(),
   approvals: z.array(z.string()),
   approvalDetails: z.array(ApprovalDetail).optional(),
@@ -226,7 +253,12 @@ export const managedConversationProcedures = {
   },
   'conversations.runtimeApprove': {
     kind: 'mutation',
-    input: id.extend({ token: RuntimeToken, approvalId: z.string().min(1), allow: z.boolean() }),
+    input: id.extend({
+      token: RuntimeToken,
+      approvalId: z.string().min(1),
+      allow: z.boolean(),
+      optionId: z.string().min(1).optional(),
+    }),
     output: RuntimeState,
     surfaces: chat,
     dangerous: true,

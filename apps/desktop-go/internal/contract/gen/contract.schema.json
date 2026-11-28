@@ -9590,6 +9590,74 @@
      "thinkingActive": {
       "type": "boolean"
      },
+     "contextTokens": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "contextWindow": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+     },
+     "status": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind"
+      ],
+      "additionalProperties": false
+     },
+     "notice": {
+      "type": "object",
+      "properties": {
+       "tag": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "at": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "tag",
+       "text",
+       "at"
+      ],
+      "additionalProperties": false
+     },
+     "commands": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "description": {
+         "type": "string"
+        },
+        "hint": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "name"
+       ],
+       "additionalProperties": false
+      }
+     },
      "detail": {
       "type": "string"
      },
@@ -9605,6 +9673,9 @@
        "type": "object",
        "properties": {
         "id": {
+         "type": "string"
+        },
+        "kind": {
          "type": "string"
         },
         "tool": {
@@ -9624,6 +9695,27 @@
         },
         "rationale": {
          "type": "string"
+        },
+        "options": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "kind": {
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "id"
+          ],
+          "additionalProperties": false
+         }
         }
        },
        "required": [
@@ -9661,6 +9753,11 @@
         "at": {
          "type": "integer",
          "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
+        "textAt": {
+         "type": "integer",
+         "minimum": 0,
          "maximum": 9007199254740991
         }
        },
@@ -10109,6 +10206,10 @@
      },
      "allow": {
       "type": "boolean"
+     },
+     "optionId": {
+      "type": "string",
+      "minLength": 1
      }
     },
     "required": [
@@ -10169,6 +10270,74 @@
      "thinkingActive": {
       "type": "boolean"
      },
+     "contextTokens": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "contextWindow": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+     },
+     "status": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind"
+      ],
+      "additionalProperties": false
+     },
+     "notice": {
+      "type": "object",
+      "properties": {
+       "tag": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "at": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "tag",
+       "text",
+       "at"
+      ],
+      "additionalProperties": false
+     },
+     "commands": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "description": {
+         "type": "string"
+        },
+        "hint": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "name"
+       ],
+       "additionalProperties": false
+      }
+     },
      "detail": {
       "type": "string"
      },
@@ -10184,6 +10353,9 @@
        "type": "object",
        "properties": {
         "id": {
+         "type": "string"
+        },
+        "kind": {
          "type": "string"
         },
         "tool": {
@@ -10203,6 +10375,27 @@
         },
         "rationale": {
          "type": "string"
+        },
+        "options": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "kind": {
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "id"
+          ],
+          "additionalProperties": false
+         }
         }
        },
        "required": [
@@ -10240,6 +10433,11 @@
         "at": {
          "type": "integer",
          "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
+        "textAt": {
+         "type": "integer",
+         "minimum": 0,
          "maximum": 9007199254740991
         }
        },
@@ -10724,6 +10922,74 @@
      "thinkingActive": {
       "type": "boolean"
      },
+     "contextTokens": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "contextWindow": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+     },
+     "status": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind"
+      ],
+      "additionalProperties": false
+     },
+     "notice": {
+      "type": "object",
+      "properties": {
+       "tag": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "at": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "tag",
+       "text",
+       "at"
+      ],
+      "additionalProperties": false
+     },
+     "commands": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "description": {
+         "type": "string"
+        },
+        "hint": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "name"
+       ],
+       "additionalProperties": false
+      }
+     },
      "detail": {
       "type": "string"
      },
@@ -10739,6 +11005,9 @@
        "type": "object",
        "properties": {
         "id": {
+         "type": "string"
+        },
+        "kind": {
          "type": "string"
         },
         "tool": {
@@ -10758,6 +11027,27 @@
         },
         "rationale": {
          "type": "string"
+        },
+        "options": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "kind": {
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "id"
+          ],
+          "additionalProperties": false
+         }
         }
        },
        "required": [
@@ -10795,6 +11085,11 @@
         "at": {
          "type": "integer",
          "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
+        "textAt": {
+         "type": "integer",
+         "minimum": 0,
          "maximum": 9007199254740991
         }
        },
@@ -11587,6 +11882,74 @@
      "thinkingActive": {
       "type": "boolean"
      },
+     "contextTokens": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "contextWindow": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+     },
+     "status": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind"
+      ],
+      "additionalProperties": false
+     },
+     "notice": {
+      "type": "object",
+      "properties": {
+       "tag": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "at": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "tag",
+       "text",
+       "at"
+      ],
+      "additionalProperties": false
+     },
+     "commands": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "description": {
+         "type": "string"
+        },
+        "hint": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "name"
+       ],
+       "additionalProperties": false
+      }
+     },
      "detail": {
       "type": "string"
      },
@@ -11602,6 +11965,9 @@
        "type": "object",
        "properties": {
         "id": {
+         "type": "string"
+        },
+        "kind": {
          "type": "string"
         },
         "tool": {
@@ -11621,6 +11987,27 @@
         },
         "rationale": {
          "type": "string"
+        },
+        "options": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "kind": {
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "id"
+          ],
+          "additionalProperties": false
+         }
         }
        },
        "required": [
@@ -11658,6 +12045,11 @@
         "at": {
          "type": "integer",
          "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
+        "textAt": {
+         "type": "integer",
+         "minimum": 0,
          "maximum": 9007199254740991
         }
        },
@@ -12177,6 +12569,74 @@
      "thinkingActive": {
       "type": "boolean"
      },
+     "contextTokens": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "contextWindow": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+     },
+     "status": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind"
+      ],
+      "additionalProperties": false
+     },
+     "notice": {
+      "type": "object",
+      "properties": {
+       "tag": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "at": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "tag",
+       "text",
+       "at"
+      ],
+      "additionalProperties": false
+     },
+     "commands": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "description": {
+         "type": "string"
+        },
+        "hint": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "name"
+       ],
+       "additionalProperties": false
+      }
+     },
      "detail": {
       "type": "string"
      },
@@ -12192,6 +12652,9 @@
        "type": "object",
        "properties": {
         "id": {
+         "type": "string"
+        },
+        "kind": {
          "type": "string"
         },
         "tool": {
@@ -12211,6 +12674,27 @@
         },
         "rationale": {
          "type": "string"
+        },
+        "options": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "kind": {
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "id"
+          ],
+          "additionalProperties": false
+         }
         }
        },
        "required": [
@@ -12248,6 +12732,11 @@
         "at": {
          "type": "integer",
          "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
+        "textAt": {
+         "type": "integer",
+         "minimum": 0,
          "maximum": 9007199254740991
         }
        },
@@ -12735,6 +13224,74 @@
      "thinkingActive": {
       "type": "boolean"
      },
+     "contextTokens": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "contextWindow": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+     },
+     "status": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind"
+      ],
+      "additionalProperties": false
+     },
+     "notice": {
+      "type": "object",
+      "properties": {
+       "tag": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "at": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "tag",
+       "text",
+       "at"
+      ],
+      "additionalProperties": false
+     },
+     "commands": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "description": {
+         "type": "string"
+        },
+        "hint": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "name"
+       ],
+       "additionalProperties": false
+      }
+     },
      "detail": {
       "type": "string"
      },
@@ -12750,6 +13307,9 @@
        "type": "object",
        "properties": {
         "id": {
+         "type": "string"
+        },
+        "kind": {
          "type": "string"
         },
         "tool": {
@@ -12769,6 +13329,27 @@
         },
         "rationale": {
          "type": "string"
+        },
+        "options": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "kind": {
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "id"
+          ],
+          "additionalProperties": false
+         }
         }
        },
        "required": [
@@ -12806,6 +13387,11 @@
         "at": {
          "type": "integer",
          "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
+        "textAt": {
+         "type": "integer",
+         "minimum": 0,
          "maximum": 9007199254740991
         }
        },
@@ -13288,6 +13874,74 @@
      "thinkingActive": {
       "type": "boolean"
      },
+     "contextTokens": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "contextWindow": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+     },
+     "status": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind"
+      ],
+      "additionalProperties": false
+     },
+     "notice": {
+      "type": "object",
+      "properties": {
+       "tag": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "at": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "tag",
+       "text",
+       "at"
+      ],
+      "additionalProperties": false
+     },
+     "commands": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "description": {
+         "type": "string"
+        },
+        "hint": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "name"
+       ],
+       "additionalProperties": false
+      }
+     },
      "detail": {
       "type": "string"
      },
@@ -13303,6 +13957,9 @@
        "type": "object",
        "properties": {
         "id": {
+         "type": "string"
+        },
+        "kind": {
          "type": "string"
         },
         "tool": {
@@ -13322,6 +13979,27 @@
         },
         "rationale": {
          "type": "string"
+        },
+        "options": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "kind": {
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "id"
+          ],
+          "additionalProperties": false
+         }
         }
        },
        "required": [
@@ -13359,6 +14037,11 @@
         "at": {
          "type": "integer",
          "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
+        "textAt": {
+         "type": "integer",
+         "minimum": 0,
          "maximum": 9007199254740991
         }
        },
@@ -13913,6 +14596,74 @@
      "thinkingActive": {
       "type": "boolean"
      },
+     "contextTokens": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "contextWindow": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+     },
+     "status": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind"
+      ],
+      "additionalProperties": false
+     },
+     "notice": {
+      "type": "object",
+      "properties": {
+       "tag": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "at": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "tag",
+       "text",
+       "at"
+      ],
+      "additionalProperties": false
+     },
+     "commands": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "description": {
+         "type": "string"
+        },
+        "hint": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "name"
+       ],
+       "additionalProperties": false
+      }
+     },
      "detail": {
       "type": "string"
      },
@@ -13928,6 +14679,9 @@
        "type": "object",
        "properties": {
         "id": {
+         "type": "string"
+        },
+        "kind": {
          "type": "string"
         },
         "tool": {
@@ -13947,6 +14701,27 @@
         },
         "rationale": {
          "type": "string"
+        },
+        "options": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "kind": {
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "id"
+          ],
+          "additionalProperties": false
+         }
         }
        },
        "required": [
@@ -13984,6 +14759,11 @@
         "at": {
          "type": "integer",
          "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
+        "textAt": {
+         "type": "integer",
+         "minimum": 0,
          "maximum": 9007199254740991
         }
        },
@@ -14515,6 +15295,74 @@
      "thinkingActive": {
       "type": "boolean"
      },
+     "contextTokens": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     },
+     "contextWindow": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+     },
+     "status": {
+      "type": "object",
+      "properties": {
+       "kind": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "kind"
+      ],
+      "additionalProperties": false
+     },
+     "notice": {
+      "type": "object",
+      "properties": {
+       "tag": {
+        "type": "string"
+       },
+       "text": {
+        "type": "string"
+       },
+       "at": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+       }
+      },
+      "required": [
+       "tag",
+       "text",
+       "at"
+      ],
+      "additionalProperties": false
+     },
+     "commands": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "description": {
+         "type": "string"
+        },
+        "hint": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "name"
+       ],
+       "additionalProperties": false
+      }
+     },
      "detail": {
       "type": "string"
      },
@@ -14530,6 +15378,9 @@
        "type": "object",
        "properties": {
         "id": {
+         "type": "string"
+        },
+        "kind": {
          "type": "string"
         },
         "tool": {
@@ -14549,6 +15400,27 @@
         },
         "rationale": {
          "type": "string"
+        },
+        "options": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "kind": {
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "id"
+          ],
+          "additionalProperties": false
+         }
         }
        },
        "required": [
@@ -14586,6 +15458,11 @@
         "at": {
          "type": "integer",
          "minimum": -9007199254740991,
+         "maximum": 9007199254740991
+        },
+        "textAt": {
+         "type": "integer",
+         "minimum": 0,
          "maximum": 9007199254740991
         }
        },
@@ -26640,6 +27517,74 @@
     ]
    }
   },
+  "harness.listAcpSessions": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "backend": {
+      "type": "string"
+     },
+     "cwd": {
+      "type": "string"
+     },
+     "cursor": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "backend",
+     "cwd"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "supported": {
+      "type": "boolean"
+     },
+     "sessions": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "sessionId": {
+         "type": "string"
+        },
+        "cwd": {
+         "type": "string"
+        },
+        "title": {
+         "type": "string"
+        },
+        "updatedAt": {
+         "type": [
+          "number",
+          "string"
+         ]
+        }
+       },
+       "required": [
+        "sessionId"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "nextCursor": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "supported",
+     "sessions"
+    ],
+    "additionalProperties": false
+   }
+  },
   "harness.messageAgent": {
    "kind": "mutation",
    "dangerous": true,
@@ -27485,6 +28430,9 @@
        "manual",
        "deny"
       ]
+     },
+     "optionId": {
+      "type": "string"
      }
     },
     "required": [
@@ -28605,6 +29553,54 @@
      "queued"
     ],
     "additionalProperties": {}
+   }
+  },
+  "harness.tabCommands": {
+   "kind": "query",
+   "dangerous": false,
+   "surfaces": [],
+   "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "tabId": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "tabId"
+    ]
+   },
+   "output": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "commands": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "description": {
+         "type": "string"
+        },
+        "hint": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "name"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    "required": [
+     "commands"
+    ],
+    "additionalProperties": false
    }
   },
   "harness.tabContext": {
@@ -45394,6 +46390,74 @@
     "thinkingActive": {
      "type": "boolean"
     },
+    "contextTokens": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "contextWindow": {
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "status": {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string"
+      },
+      "text": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "kind"
+     ],
+     "additionalProperties": false
+    },
+    "notice": {
+     "type": "object",
+     "properties": {
+      "tag": {
+       "type": "string"
+      },
+      "text": {
+       "type": "string"
+      },
+      "at": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      }
+     },
+     "required": [
+      "tag",
+      "text",
+      "at"
+     ],
+     "additionalProperties": false
+    },
+    "commands": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "name": {
+        "type": "string"
+       },
+       "description": {
+        "type": "string"
+       },
+       "hint": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "name"
+      ],
+      "additionalProperties": false
+     }
+    },
     "detail": {
      "type": "string"
     },
@@ -45409,6 +46473,9 @@
       "type": "object",
       "properties": {
        "id": {
+        "type": "string"
+       },
+       "kind": {
         "type": "string"
        },
        "tool": {
@@ -45428,6 +46495,27 @@
        },
        "rationale": {
         "type": "string"
+       },
+       "options": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "kind": {
+           "type": "string"
+          },
+          "name": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "id"
+         ],
+         "additionalProperties": false
+        }
        }
       },
       "required": [
@@ -45465,6 +46553,11 @@
        "at": {
         "type": "integer",
         "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+       },
+       "textAt": {
+        "type": "integer",
+        "minimum": 0,
         "maximum": 9007199254740991
        }
       },

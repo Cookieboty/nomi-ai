@@ -51,7 +51,7 @@ const isDelegateItem = (it: TimelineItem): boolean =>
   it.type === 'subagent' && it.call.name === DELEGATE_TOOL;
 
 const isPassthroughItem = (it: TimelineItem, includeInterject = true): boolean =>
-  (includeInterject && it.type === 'interject') || isDelegateItem(it);
+  (includeInterject && it.type === 'interject') || it.type === 'plan' || isDelegateItem(it);
 
 const isGeneratedImageCall = (call: ToolCall): boolean =>
   call.name === IMAGE_TOOL && call.status === 'done' && GENERATED_IMAGE.test(call.output ?? '');
@@ -65,6 +65,7 @@ function itemStepCount(it: TimelineItem): number {
     case 'group':
       return it.calls.length;
     case 'interject':
+    case 'plan':
       return 0;
   }
 }

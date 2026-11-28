@@ -479,8 +479,44 @@ const harnessProcedures = {
       requestId: z.string(),
       allow: z.boolean(),
       approvePlan: ApprovePlanChoice.optional(),
+      optionId: z.string().optional(),
     }),
     output: z.boolean(),
+  },
+  /** 返回活跃 ACP 标签缓存的动态斜杠命令 */
+  'harness.tabCommands': {
+    kind: 'query',
+    input: z.object({ tabId: z.string() }),
+    output: z.object({
+      commands: z.array(
+        z.object({
+          name: z.string(),
+          description: z.string().optional(),
+          hint: z.string().optional(),
+        }),
+      ),
+    }),
+  },
+  /** 按需经 ACP session/list 列举对端历史会话 */
+  'harness.listAcpSessions': {
+    kind: 'query',
+    input: z.object({
+      backend: z.string(),
+      cwd: z.string(),
+      cursor: z.string().optional(),
+    }),
+    output: z.object({
+      supported: z.boolean(),
+      sessions: z.array(
+        z.object({
+          sessionId: z.string(),
+          cwd: z.string().optional(),
+          title: z.string().optional(),
+          updatedAt: z.union([z.number(), z.string()]).optional(),
+        }),
+      ),
+      nextCursor: z.string().optional(),
+    }),
   },
   /**
    * 回答沙箱挡下后挂在标签上的授权请求（标签状态的 sandboxPending）：session = 本会话允许、

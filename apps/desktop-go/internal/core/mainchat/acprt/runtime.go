@@ -29,8 +29,14 @@ type Runtime struct {
 	token    cr.AttemptToken
 	closed   bool
 
-	titleMu sync.Mutex
-	onTitle func(string)
+	titleMu    sync.Mutex
+	onTitle    func(string)
+	modeMu     sync.Mutex
+	onMode     func(string)
+	cmdMu      sync.Mutex
+	onCommands func([]cr.SlashCommandInfo)
+	modelMu    sync.Mutex
+	onModel    func(string, string)
 }
 
 type turn struct {
@@ -139,6 +145,64 @@ func (r *Runtime) emitTitle(title string) {
 	}
 }
 
+// SetModeHandler registers a callback invoked asynchronously when ACP pushes current_mode_update.
+func (r *Runtime) SetModeHandler(fn func(string)) {
+	r.modeMu.Lock()
+	r.onMode = fn
+	r.modeMu.Unlock()
+}
+
+func (r *Runtime) emitMode(mode string) {
+	trimmed := strings.TrimSpace(mode)
+	if trimmed == "" {
+		return
+	}
+	r.modeMu.Lock()
+	fn := r.onMode
+	r.modeMu.Unlock()
+	if fn != nil {
+		go fn(trimmed)
+	}
+}
+
+// SetCommandsHandler registers a callback invoked asynchronously when ACP pushes available_commands_update.
+func (r *Runtime) SetCommandsHandler(fn func([]cr.SlashCommandInfo)) {
+	r.cmdMu.Lock()
+	r.onCommands = fn
+	r.cmdMu.Unlock()
+}
+
+func (r *Runtime) emitCommands(cmds []cr.SlashCommandInfo) {
+	r.cmdMu.Lock()
+	fn := r.onCommands
+	r.cmdMu.Unlock()
+	if fn != nil {
+		copied := append([]cr.SlashCommandInfo(nil), cmds...)
+		go fn(copied)
+	}
+}
+
+// SetModelHandler registers a callback invoked asynchronously when ACP pushes config_option_update for model/effort.
+func (r *Runtime) SetModelHandler(fn func(string, string)) {
+	r.modelMu.Lock()
+	r.onModel = fn
+	r.modelMu.Unlock()
+}
+
+func (r *Runtime) emitModel(model, effort string) {
+	model = strings.TrimSpace(model)
+	effort = strings.TrimSpace(effort)
+	if model == "" && effort == "" {
+		return
+	}
+	r.modelMu.Lock()
+	fn := r.onModel
+	r.modelMu.Unlock()
+	if fn != nil {
+		go fn(model, effort)
+	}
+}
+
 // NativeSessionMeta reports the active ACP session id and isolated config directory
 // outside runtime/jsrt locks.
 func (r *Runtime) NativeSessionMeta() (sessionID, configDir string) {
@@ -164,17 +228,23 @@ func (r *Runtime) Capabilities() cr.Capabilities {
 	if builtin.InteractiveOnly(r.config.BackendID) {
 		memoryDetail = name + " owns its own native conversation history; cross-model context replay is disabled"
 	}
+	attachState := cr.BridgeState{Status: "unsupported", Detail: "Image attachments are not bridged in managed " + name + " profile"}
+	attachSupported := cli.ImageSupportFor(r.config.BackendID) != "none"
+	if attachSupported {
+		attachState = cr.BridgeState{Status: "bridged", Detail: "Current-turn image attachments supported via ACP content blocks"}
+	}
 	return cr.Capabilities{
 		Resume:          true,
 		Cancel:          true,
 		Approval:        true,
+		Attachments:     attachSupported,
 		PermissionModes: PermissionModes(r.config.BackendID),
 		Budget:          cr.DefaultHandoffBudget,
 		RequestBudget:   cr.DefaultStreamRequestBudget,
 		Degraded: []string{
 			"Experimental official " + name + " ACP profile: executable present; version and login not probed",
 			"Warm-process resume or explicit ACP session/load; unproven cold resumes fail closed as unknown",
-			"No Nomi computer/MCP/persona/memory/knowledge/skills/attachment bridge",
+			"No Nomi computer/MCP/persona/memory/knowledge/skills bridge",
 		},
 		Bridges: &cr.CapabilityBridges{
 			Computer:    cr.BridgeState{Status: "unsupported", Detail: name + " ACP runs without Nomi computer-use tools"},
@@ -183,7 +253,7 @@ func (r *Runtime) Capabilities() cr.Capabilities {
 			Memory:      cr.BridgeState{Status: "degraded", Detail: memoryDetail},
 			Knowledge:   cr.BridgeState{Status: "unsupported", Detail: "Nomi knowledge base is not mounted into " + name},
 			Skills:      cr.BridgeState{Status: "degraded", Detail: "Nomi skills are not bridged into " + name + " ACP"},
-			Attachments: cr.BridgeState{Status: "unsupported", Detail: "Image attachments are not bridged in managed " + name + " profile"},
+			Attachments: attachState,
 		},
 	}
 }
@@ -217,7 +287,7 @@ func (r *Runtime) Recover(ctx context.Context, q cr.RecoveryRequest) cr.Recovery
 	if w != nil && !stop(ctx, w) {
 		return cr.RecoveryResult{Kind: cr.RecoveryUnknown, Detail: "old native process termination unconfirmed"}
 	}
-	w, loadSupported, err := r.initializeWorker(ctx)
+	w, loadSupported, resumeSupported, err := r.initializeWorker(ctx)
 	if ctx.Err() != nil {
 		halt(w)
 		return cr.RecoveryResult{Kind: cr.RecoveryUnknown, Detail: "preparation interrupted before ACP handshake; no user input sent"}
@@ -231,14 +301,25 @@ func (r *Runtime) Recover(ctx context.Context, q cr.RecoveryRequest) cr.Recovery
 
 	old := q.Previous.NativeSessionID
 	if old != "" {
-		if !loadSupported {
+		if !loadSupported && !resumeSupported {
 			halt(w)
-			return cr.RecoveryResult{Kind: cr.RecoveryUnknown, Detail: builtin.FullName(r.config.BackendID) + " agent did not advertise ACP loadSession; cold resumption unproven"}
+			return cr.RecoveryResult{Kind: cr.RecoveryUnknown, Detail: builtin.FullName(r.config.BackendID) + " agent did not advertise ACP loadSession/resume; cold resumption unproven"}
 		}
-		err = r.loadExisting(ctx, w, old)
+		if loadSupported {
+			err = r.loadExisting(ctx, w, old)
+			if ctx.Err() != nil {
+				halt(w)
+				return cr.RecoveryResult{Kind: cr.RecoveryUnknown, Detail: "ACP session/load interrupted; no user input sent"}
+			}
+			if err != nil && resumeSupported && isMethodNotFoundErr(err) {
+				err = r.resumeExisting(ctx, w, old)
+			}
+		} else {
+			err = r.resumeExisting(ctx, w, old)
+		}
 		if ctx.Err() != nil {
 			halt(w)
-			return cr.RecoveryResult{Kind: cr.RecoveryUnknown, Detail: "ACP session/load interrupted; no user input sent"}
+			return cr.RecoveryResult{Kind: cr.RecoveryUnknown, Detail: "ACP session resumption interrupted; no user input sent"}
 		}
 		if err == nil {
 			if serr := r.applySessionSettings(ctx, w); serr != nil {
@@ -298,7 +379,7 @@ func (r *Runtime) Recover(ctx context.Context, q cr.RecoveryRequest) cr.Recovery
 	return cr.RecoveryResult{Kind: cr.RecoveryNew, NativeSessionID: sid, Detail: "initialized official ACP session"}
 }
 
-func (r *Runtime) initializeWorker(ctx context.Context) (*worker, bool, error) {
+func (r *Runtime) initializeWorker(ctx context.Context) (*worker, bool, bool, error) {
 	var w *worker
 	var p *jsrt.Promise[clisdk.Ev]
 	jsrt.Run(func() {
@@ -310,23 +391,38 @@ func (r *Runtime) initializeWorker(ctx context.Context) (*worker, bool, error) {
 		p = w.driver.Initialize(nil)
 	})
 	if w == nil || p == nil {
-		return nil, false, errors.New("owner closed")
+		return nil, false, false, errors.New("owner closed")
 	}
 	if _, err := awaitPromise(ctx, p); err != nil {
-		return w, false, err
+		return w, false, false, err
 	}
 	var failure string
-	var loadSupported bool
+	var loadSupported, resumeSupported bool
 	jsrt.Run(func() {
 		failure = w.failure
 		if w.driver != nil && w.driver.AgentCapabilities != nil {
 			loadSupported = w.driver.AgentCapabilities.Get("loadSession") == true
+			if !loadSupported {
+				if sc := util.AsObj(w.driver.AgentCapabilities.Get("sessionCapabilities")); sc != nil && sc.Get("load") != nil {
+					b, ok := sc.Get("load").(bool)
+					loadSupported = !ok || b
+				}
+			}
+			resumeSupported = w.driver.SupportsResumeSession()
 		}
 	})
 	if failure != "" {
-		return w, false, errors.New("native protocol invalid")
+		return w, false, false, errors.New("native protocol invalid")
 	}
-	return w, loadSupported, nil
+	return w, loadSupported, resumeSupported, nil
+}
+
+func isMethodNotFoundErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	var re *rpc.Error
+	return errors.As(err, &re) && util.JSString(re.Code) == "-32601"
 }
 
 func isAcpAuthError(err error) bool {
@@ -346,7 +442,7 @@ func (r *Runtime) loadExisting(ctx context.Context, w *worker, previous string) 
 		if w == nil || w.driver == nil || r.closed {
 			return
 		}
-		p = w.driver.LoadSession(previous, r.config.Cwd, []any{}, nil, nil)
+		p = w.driver.LoadSession(previous, r.config.Cwd, []any{}, r.config.ExtraDirs, nil)
 	})
 	if p == nil {
 		return errors.New("owner closed")
@@ -359,6 +455,7 @@ func (r *Runtime) loadExisting(ctx context.Context, w *worker, previous string) 
 	}
 	var ok bool
 	var initTitle string
+	var initCmds []cr.SlashCommandInfo
 	jsrt.Run(func() {
 		if ctx.Err() != nil || w.driver == nil || w.failure != "" {
 			return
@@ -367,6 +464,9 @@ func (r *Runtime) loadExisting(ctx context.Context, w *worker, previous string) 
 		if sid != nil && *sid == previous {
 			w.sid = *sid
 			initTitle = strings.TrimSpace(w.driver.SessionTitle)
+			if len(w.driver.AvailableCommands) > 0 {
+				initCmds = parseSlashCommands(w.driver.AvailableCommands)
+			}
 			ok = true
 		}
 	})
@@ -379,6 +479,58 @@ func (r *Runtime) loadExisting(ctx context.Context, w *worker, previous string) 
 	if initTitle != "" {
 		r.emitTitle(initTitle)
 	}
+	if len(initCmds) > 0 {
+		r.emitCommands(initCmds)
+	}
+	return nil
+}
+
+func (r *Runtime) resumeExisting(ctx context.Context, w *worker, previous string) error {
+	var p *jsrt.Promise[clisdk.StartResult]
+	jsrt.Run(func() {
+		if w == nil || w.driver == nil || r.closed {
+			return
+		}
+		p = w.driver.ResumeSession(previous, r.config.Cwd, []any{}, r.config.ExtraDirs, nil)
+	})
+	if p == nil {
+		return errors.New("owner closed")
+	}
+	if _, err := awaitPromise(ctx, p); err != nil {
+		if builtin.InteractiveOnly(r.config.BackendID) && isAcpAuthError(err) {
+			cli.SetLocalAuthCache(r.config.BackendID, false)
+		}
+		return err
+	}
+	var ok bool
+	var initTitle string
+	var initCmds []cr.SlashCommandInfo
+	jsrt.Run(func() {
+		if ctx.Err() != nil || w.driver == nil || w.failure != "" {
+			return
+		}
+		sid := w.driver.SessionID()
+		if sid != nil && *sid == previous {
+			w.sid = *sid
+			initTitle = strings.TrimSpace(w.driver.SessionTitle)
+			if len(w.driver.AvailableCommands) > 0 {
+				initCmds = parseSlashCommands(w.driver.AvailableCommands)
+			}
+			ok = true
+		}
+	})
+	if !ok {
+		return errors.New("ACP session/resume did not confirm exact session id")
+	}
+	if builtin.InteractiveOnly(r.config.BackendID) {
+		cli.SetLocalAuthCache(r.config.BackendID, true)
+	}
+	if initTitle != "" {
+		r.emitTitle(initTitle)
+	}
+	if len(initCmds) > 0 {
+		r.emitCommands(initCmds)
+	}
 	return nil
 }
 
@@ -388,7 +540,7 @@ func (r *Runtime) startNewSession(ctx context.Context, w *worker) (string, error
 		if w == nil || w.driver == nil || r.closed {
 			return
 		}
-		p = w.driver.NewSession(r.config.Cwd, []any{}, nil, nil)
+		p = w.driver.NewSession(r.config.Cwd, []any{}, r.config.ExtraDirs, nil)
 	})
 	if p == nil {
 		return "", errors.New("owner closed")
@@ -400,6 +552,7 @@ func (r *Runtime) startNewSession(ctx context.Context, w *worker) (string, error
 		return "", err
 	}
 	var sid, initTitle string
+	var initCmds []cr.SlashCommandInfo
 	jsrt.Run(func() {
 		if ctx.Err() != nil || w.driver == nil || w.failure != "" {
 			return
@@ -408,6 +561,9 @@ func (r *Runtime) startNewSession(ctx context.Context, w *worker) (string, error
 			sid = *id
 			w.sid = sid
 			initTitle = strings.TrimSpace(w.driver.SessionTitle)
+			if len(w.driver.AvailableCommands) > 0 {
+				initCmds = parseSlashCommands(w.driver.AvailableCommands)
+			}
 		}
 	})
 	if sid == "" {
@@ -418,6 +574,9 @@ func (r *Runtime) startNewSession(ctx context.Context, w *worker) (string, error
 	}
 	if initTitle != "" {
 		r.emitTitle(initTitle)
+	}
+	if len(initCmds) > 0 {
+		r.emitCommands(initCmds)
 	}
 	return sid, nil
 }
@@ -769,7 +928,19 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 		if builtin.InteractiveOnly(r.config.BackendID) {
 			payload = q.Plan.RequestBody
 		}
-		p = w.driver.Send(clisdk.TurnInput{Text: payload})
+		in := clisdk.TurnInput{Text: payload}
+		if len(q.Images) > 0 {
+			var imgs []cli.NormalizedImage
+			for _, rawImg := range q.Images {
+				if im, ok := parseManagedDataImage(rawImg); ok {
+					imgs = append(imgs, im)
+				}
+			}
+			if len(imgs) > 0 {
+				in.Blocks = cli.AcpPromptParts(payload, imgs)
+			}
+		}
+		p = w.driver.Send(in)
 	})
 	if p == nil {
 		if blockedReason != "" {
@@ -800,6 +971,16 @@ func (r *Runtime) Start(ctx context.Context, q cr.RuntimeRequest, accept func(cr
 					}
 				}
 			case <-p.Done():
+				if stText, stThink, thActive, ok := t.drainStream(); ok {
+					se := event(t, cr.EventStream)
+					se.Text = stText
+					se.Thinking = stThink
+					se.ThinkingActive = thActive
+					if accept(se) != nil {
+						jsrt.Run(func() { w.fail("product rejected native stream event") })
+						return
+					}
+				}
 				for {
 					select {
 					case e := <-t.events:
@@ -1034,7 +1215,28 @@ func formatFailureDetail(failure string, err error, stderr string, fallback stri
 	return strings.Join(parts, "; ")
 }
 
+func parseManagedDataImage(raw string) (cli.NormalizedImage, bool) {
+	s := strings.TrimSpace(raw)
+	if !strings.HasPrefix(s, "data:") {
+		return cli.NormalizedImage{}, false
+	}
+	rest := strings.TrimPrefix(s, "data:")
+	semi := strings.Index(rest, ";base64,")
+	if semi <= 0 {
+		return cli.NormalizedImage{}, false
+	}
+	mime := strings.TrimSpace(strings.ToLower(rest[:semi]))
+	data := strings.TrimSpace(rest[semi+len(";base64,"):])
+	if mime == "" || data == "" {
+		return cli.NormalizedImage{}, false
+	}
+	return cli.NormalizedImage{Mime: mime, Data: data}, true
+}
+
 func (r *Runtime) Cancel(ctx context.Context, token cr.AttemptToken) cr.CancelResult {
+	if r.config.OnQuestionsCleared != nil {
+		r.config.OnQuestionsCleared()
+	}
 	var w *worker
 	var owns bool
 	jsrt.Run(func() {
@@ -1067,11 +1269,17 @@ func (r *Runtime) Approve(ctx context.Context, a cr.ApprovalDecision) error {
 		if _, ok := t.approvals[a.ApprovalID]; !ok {
 			return
 		}
-		dec := "deny"
-		if a.Allow {
-			dec = "allow"
+		var ans *util.Obj
+		if strings.TrimSpace(a.OptionID) != "" {
+			ans = util.NewObj("optionId", strings.TrimSpace(a.OptionID))
+		} else {
+			dec := "deny"
+			if a.Allow {
+				dec = "allow"
+			}
+			ans = util.NewObj("decision", dec)
 		}
-		if w.driver.RespondPermission(a.ApprovalID, util.NewObj("decision", dec)) {
+		if w.driver.RespondPermission(a.ApprovalID, ans) {
 			delete(t.approvals, a.ApprovalID)
 			err = nil
 		}
@@ -1083,6 +1291,18 @@ func (r *Runtime) close() {
 	r.titleMu.Lock()
 	r.onTitle = nil
 	r.titleMu.Unlock()
+	r.modeMu.Lock()
+	r.onMode = nil
+	r.modeMu.Unlock()
+	r.cmdMu.Lock()
+	r.onCommands = nil
+	r.cmdMu.Unlock()
+	r.modelMu.Lock()
+	r.onModel = nil
+	r.modelMu.Unlock()
+	if r.config.OnQuestionsCleared != nil {
+		r.config.OnQuestionsCleared()
+	}
 	var w *worker
 	var closeSession *jsrt.Promise[struct{}]
 	jsrt.Run(func() {

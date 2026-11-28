@@ -128,6 +128,7 @@ type AcpDriver struct {
 	exited            bool
 	ModeID            *string
 	AvailableModes    []string
+	AvailableCommands []any
 	AgentCapabilities Json
 	SessionRaw        Json
 	SessionTitle      string
@@ -204,7 +205,9 @@ func (d *AcpDriver) onNotification(method string, params Json) {
 		}
 	}
 	if u.Get("sessionUpdate") == "available_commands_update" {
-		d.hub.Emit(O("kind", "commands", "commands", parseCommands(u.Get("availableCommands"))))
+		cmds := parseCommands(u.Get("availableCommands"))
+		d.AvailableCommands = cmds
+		d.hub.Emit(O("kind", "commands", "commands", cmds))
 		return
 	}
 	turn := d.turn
@@ -247,6 +250,14 @@ func (d *AcpDriver) onRequest(method string, params Json) *jsrt.Promise[any] {
 	req := O("summary", PermissionSummary(params))
 	if t, ok := getp(call, "toolCallId").(string); ok {
 		req.Set("toolUseId", t)
+	}
+	if tn := firstNonEmptyStr(getp(call, "title"), getp(call, "name"), getp(call, "kind")); tn != "" {
+		req.Set("toolName", tn)
+	}
+	if ri := getp(call, "rawInput"); ri != nil {
+		if preview := clip(util.Stringify(ri), 2000); preview != "" && preview != "{}" {
+			req.Set("argsPreview", preview)
+		}
 	}
 	req.Set("options", options).Set("method", method)
 	e := O("kind", "permission", "id", id, "request", req)
@@ -433,7 +444,9 @@ func (d *AcpDriver) finishSession(sid string, modes any, resumed, hadResume bool
 	}
 	prompt := d.AgentCapabilities.Get("promptCapabilities")
 	res.Set("capabilities", O(
-		"loadSession", d.AgentCapabilities.Get("loadSession") == true,
+		"loadSession", d.supportsLoadSession(),
+		"resumeSession", d.SupportsResumeSession(),
+		"listSessions", d.SupportsListSessions(),
 		"images", getp(prompt, "image") == true,
 		"audio", getp(prompt, "audio") == true,
 	))
@@ -499,6 +512,75 @@ func (d *AcpDriver) LoadSession(sessionID, cwd string, mcp any, extraDirs []stri
 	})
 }
 
+// ResumeSession：发送 session/resume（不静默退回 session/new）。
+func (d *AcpDriver) ResumeSession(sessionID, cwd string, mcp any, extraDirs []string, signal *jsrt.AbortSignal) *jsrt.Promise[StartResult] {
+	return jsrt.Async(func() (StartResult, error) {
+		if sessionID == "" {
+			return nil, errors.New("ACP session/resume requires sessionId")
+		}
+		if mcp == nil {
+			mcp = []any{}
+		}
+		r, err := jsrt.Await(d.Conn.Request("session/resume", d.withSessionDirs(O("sessionId", sessionID, "cwd", cwd, "mcpServers", mcp), extraDirs), sigOpts(signal)))
+		if err != nil {
+			return nil, err
+		}
+		if ret := parseReturnedSessionID(r); ret != "" && ret != sessionID {
+			return nil, errors.New("ACP session/resume returned mismatched sessionId")
+		}
+		d.SessionRaw = util.AsObj(r)
+		return d.finishSession(sessionID, getp(r, "modes"), true, true, nil), nil
+	})
+}
+
+// ListSessions：发送 session/list 列举对端历史会话。
+func (d *AcpDriver) ListSessions(cwd, cursor string, signal *jsrt.AbortSignal) *jsrt.Promise[Json] {
+	return jsrt.Async(func() (Json, error) {
+		params := O()
+		if strings.TrimSpace(cwd) != "" {
+			params.Set("cwd", cwd)
+		}
+		if strings.TrimSpace(cursor) != "" {
+			params.Set("cursor", cursor)
+		}
+		r, err := jsrt.Await(d.Conn.Request("session/list", params, sigOpts(signal)))
+		if err != nil {
+			return nil, err
+		}
+		sessions := []any{}
+		if arr, ok := getp(r, "sessions").([]any); ok {
+			for _, item := range arr {
+				o := util.AsObj(item)
+				if o == nil {
+					continue
+				}
+				sid := firstNonEmptyStr(o.Get("sessionId"), o.Get("id"))
+				if sid == "" {
+					continue
+				}
+				row := O("sessionId", sid)
+				if c := firstNonEmptyStr(o.Get("cwd")); c != "" {
+					row.Set("cwd", c)
+				}
+				if title := firstNonEmptyStr(o.Get("title")); title != "" {
+					row.Set("title", title)
+				}
+				if updated := o.Get("updatedAt"); updated != nil {
+					row.Set("updatedAt", updated)
+				} else if updated := o.Get("updated_at"); updated != nil {
+					row.Set("updatedAt", updated)
+				}
+				sessions = append(sessions, row)
+			}
+		}
+		out := O("sessions", sessions)
+		if nc := firstNonEmptyStr(getp(r, "nextCursor"), getp(r, "next_cursor")); nc != "" {
+			out.Set("nextCursor", nc)
+		}
+		return out, nil
+	})
+}
+
 // NewSession：仅发送 session/new。
 func (d *AcpDriver) NewSession(cwd string, mcp any, extraDirs []string, signal *jsrt.AbortSignal) *jsrt.Promise[StartResult] {
 	return jsrt.Async(func() (StartResult, error) {
@@ -536,6 +618,16 @@ func (d *AcpDriver) Start(o clisdk.StartOptions) *jsrt.Promise[StartResult] {
 		if hadResume && d.supportsLoadSession() {
 			resumeID := *o.ResumeID
 			r, err := jsrt.Await(d.Conn.Request("session/load", d.withSessionDirs(O("sessionId", resumeID, "cwd", o.Cwd, "mcpServers", mcp), o.AdditionalDirectories), opts))
+			if err == nil {
+				modes = getp(r, "modes")
+				d.SessionRaw = util.AsObj(r)
+				resumed = true
+				sid = resumeID
+			}
+		}
+		if sid == "" && hadResume && d.SupportsResumeSession() {
+			resumeID := *o.ResumeID
+			r, err := jsrt.Await(d.Conn.Request("session/resume", d.withSessionDirs(O("sessionId", resumeID, "cwd", o.Cwd, "mcpServers", mcp), o.AdditionalDirectories), opts))
 			if err == nil {
 				modes = getp(r, "modes")
 				d.SessionRaw = util.AsObj(r)
@@ -795,12 +887,26 @@ func (d *AcpDriver) Interrupt() *jsrt.Promise[struct{}] {
 
 // SupportsCloseSession：检查对端是否在 agentCapabilities 中声明了 sessionCapabilities.close。
 func (d *AcpDriver) SupportsCloseSession() bool {
+	return d.hasSessionCapability("close")
+}
+
+// SupportsResumeSession：检查对端是否声明了 sessionCapabilities.resume。
+func (d *AcpDriver) SupportsResumeSession() bool {
+	return d.hasSessionCapability("resume")
+}
+
+// SupportsListSessions：检查对端是否声明了 sessionCapabilities.list。
+func (d *AcpDriver) SupportsListSessions() bool {
+	return d.hasSessionCapability("list")
+}
+
+func (d *AcpDriver) hasSessionCapability(name string) bool {
 	if d.AgentCapabilities == nil {
 		return false
 	}
 	for _, capKey := range []string{"sessionCapabilities", "session_capabilities"} {
 		if sc := util.AsObj(d.AgentCapabilities.Get(capKey)); sc != nil {
-			if v := sc.Get("close"); v != nil {
+			if v := sc.Get(name); v != nil {
 				if b, ok := v.(bool); ok {
 					return b
 				}

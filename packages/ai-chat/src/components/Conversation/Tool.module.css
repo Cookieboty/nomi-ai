@@ -633,3 +633,101 @@
   padding-inline: 0;
   border-left: none;
 }
+
+/* ACP 结构化执行计划卡片（与截图中的圆角任务清单风格一致） */
+.planCard {
+  margin: var(--cd-space-1) 0;
+  padding: var(--cd-space-2) var(--cd-space-3);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-chat-tool-detail-bg);
+  min-width: 0;
+}
+
+.planList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1-5);
+}
+
+.planList[data-scrollable='true'] {
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: var(--cd-space-1);
+}
+
+.planItem {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cd-space-2);
+  font-size: var(--conv-ui, var(--cd-font-size-sm));
+  line-height: 1.45;
+  color: var(--cd-color-text-muted);
+  min-width: 0;
+}
+
+.planIcon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 20px;
+  color: var(--cd-color-text-subtle);
+}
+
+.planItem[data-status='completed'] .planIcon {
+  color: var(--cd-color-success);
+}
+
+.planItem[data-status='in_progress'] .planIcon {
+  color: var(--cd-color-accent-strong);
+}
+
+.planItem[data-status='in_progress'] .planIcon > svg {
+  animation: toolSpin 0.9s linear infinite;
+}
+
+.planItem[data-status='in_progress'] .planText {
+  color: var(--cd-color-text);
+  font-weight: var(--cd-font-weight-medium);
+}
+
+.planItem[data-status='failed'] .planIcon {
+  color: var(--cd-color-danger);
+}
+
+.planItem[data-status='failed'] .planText {
+  color: var(--cd-color-danger-text);
+}
+
+.planItem[data-status='skipped'] .planText {
+  text-decoration: line-through;
+  color: var(--cd-color-text-subtle);
+}
+
+.planText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.planMarkdown {
+  font-size: var(--conv-ui, var(--cd-font-size-sm));
+}
+
+.planUri {
+  margin-top: var(--cd-space-1);
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .planItem[data-status='in_progress'] .planIcon > svg {
+    animation: none;
+  }
+}

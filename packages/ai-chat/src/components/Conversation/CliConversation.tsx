@@ -36,7 +36,11 @@ export const CliConversation: React.FC<Props> = (props) => {
     messagesRef.current = props.messages;
   });
   const onPermission = useCallback(
-    (id: string, allow: boolean, opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' }) => {
+    (
+      id: string,
+      allow: boolean,
+      opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny'; optionId?: string },
+    ) => {
       void tabsRef.current.replyPermissionFor(scopeRef.current, id, allow, opts);
     },
     [],

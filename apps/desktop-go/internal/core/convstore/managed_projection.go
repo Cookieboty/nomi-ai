@@ -103,7 +103,49 @@ func projectTrace(entries []cr.TraceEntry) []map[string]any {
 			if tr.At != 0 {
 				item["at"] = tr.At
 			}
+			if tr.TextAt != nil {
+				item["textAt"] = *tr.TextAt
+			}
 			out = append(out, item)
+		case "plan":
+			var payload struct {
+				PlanID   string           `json:"planId"`
+				Entries  []map[string]any `json:"entries"`
+				Markdown string           `json:"markdown"`
+				URI      string           `json:"uri"`
+			}
+			if tr.Detail == "" || json.Unmarshal([]byte(tr.Detail), &payload) != nil {
+				continue
+			}
+			if len(payload.Entries) == 0 && strings.TrimSpace(payload.Markdown) == "" && strings.TrimSpace(payload.URI) == "" {
+				continue
+			}
+			entries := payload.Entries
+			if entries == nil {
+				entries = []map[string]any{}
+			}
+			item := map[string]any{
+				"type":    "plan",
+				"entries": entries,
+			}
+			if payload.PlanID != "" {
+				item["planId"] = payload.PlanID
+			}
+			if payload.Markdown != "" {
+				item["markdown"] = payload.Markdown
+			}
+			if payload.URI != "" {
+				item["uri"] = payload.URI
+			}
+			if tr.At != 0 {
+				item["at"] = tr.At
+			}
+			if tr.TextAt != nil {
+				item["textAt"] = *tr.TextAt
+			}
+			out = append(out, item)
+		case "plan-removed", "agent":
+			continue
 		default:
 			name := tr.Tool
 			if name == "" {
@@ -138,6 +180,9 @@ func projectTrace(entries []cr.TraceEntry) []map[string]any {
 			}
 			if tr.At != 0 {
 				item["at"] = tr.At
+			}
+			if tr.TextAt != nil {
+				item["textAt"] = *tr.TextAt
 			}
 			out = append(out, item)
 		}

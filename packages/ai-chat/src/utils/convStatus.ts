@@ -88,6 +88,11 @@ export function deriveStatus(args: {
       label: t('ui.usage-tools.connection-lost-reconnecting', attemptText(st.attempt, st.max)),
       detail: st.text,
     };
+  if (st?.kind === 'working')
+    return {
+      kind: 'working',
+      label: st.text || t('ui.chat-settings.processing'),
+    };
   const { call, subagent } = lastRunning(items);
   if (subagent) {
     const d = describeCall(subagent);
@@ -135,5 +140,13 @@ export function deriveStatus(args: {
   const activeText =
     interjectAt !== undefined ? live?.text.slice(interjectAt).trim() : live?.text.trim();
   if (activeText) return { kind: 'writing', label: t('ui.usage-tools.writing-reply') };
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i]!;
+    if (it.type !== 'plan') continue;
+    const activeEntry = it.entries.find((e) => e.status === 'in_progress');
+    if (activeEntry) {
+      return { kind: 'working', label: activeEntry.content };
+    }
+  }
   return { kind: 'working', label: t('ui.chat-settings.processing') };
 }

@@ -208,6 +208,10 @@ func (c *Session) Switch(ctx context.Context, target Target, expected *uint64) (
 	}
 	c.target = target
 	c.caps = caps
+	c.commands = nil
+	c.liveMode = ""
+	c.liveModel = ""
+	c.liveEffort = ""
 	c.lastSwitch = &summary
 	c.pendingSwitch = nil
 	c.generation++

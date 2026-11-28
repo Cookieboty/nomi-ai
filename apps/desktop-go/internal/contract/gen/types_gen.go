@@ -2436,14 +2436,39 @@ const (
 	ConversationsRuntimeAdoptOutputPhaseUncertain       ConversationsRuntimeAdoptOutputPhase = "uncertain"
 )
 
+type ConversationsRuntimeAdoptOutputStatus struct {
+	Kind string  `json:"kind"`
+	Text *string `json:"text,omitempty"`
+}
+
+type ConversationsRuntimeAdoptOutputNotice struct {
+	Tag  string `json:"tag"`
+	Text string `json:"text"`
+	At   int64  `json:"at"`
+}
+
+type ConversationsRuntimeAdoptOutputCommandsItem struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+	Hint        *string `json:"hint,omitempty"`
+}
+
+type ConversationsRuntimeAdoptOutputApprovalDetailsItemOptionsItem struct {
+	Id   string  `json:"id"`
+	Kind *string `json:"kind,omitempty"`
+	Name *string `json:"name,omitempty"`
+}
+
 type ConversationsRuntimeAdoptOutputApprovalDetailsItem struct {
-	Id          string  `json:"id"`
-	Tool        *string `json:"tool,omitempty"`
-	Summary     *string `json:"summary,omitempty"`
-	ArgsPreview *string `json:"argsPreview,omitempty"`
-	Danger      *string `json:"danger,omitempty"`
-	Risk        *string `json:"risk,omitempty"`
-	Rationale   *string `json:"rationale,omitempty"`
+	Id          string                                                          `json:"id"`
+	Kind        *string                                                         `json:"kind,omitempty"`
+	Tool        *string                                                         `json:"tool,omitempty"`
+	Summary     *string                                                         `json:"summary,omitempty"`
+	ArgsPreview *string                                                         `json:"argsPreview,omitempty"`
+	Danger      *string                                                         `json:"danger,omitempty"`
+	Risk        *string                                                         `json:"risk,omitempty"`
+	Rationale   *string                                                         `json:"rationale,omitempty"`
+	Options     []ConversationsRuntimeAdoptOutputApprovalDetailsItemOptionsItem `json:"options,omitempty"`
 }
 
 type ConversationsRuntimeAdoptOutputTraceItem struct {
@@ -2455,6 +2480,7 @@ type ConversationsRuntimeAdoptOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
 type ConversationsRuntimeAdoptOutputFailedRequest struct {
@@ -2658,6 +2684,11 @@ type ConversationsRuntimeAdoptOutput struct {
 	Partial         string                                               `json:"partial"`
 	Thinking        *string                                              `json:"thinking,omitempty"`
 	ThinkingActive  *bool                                                `json:"thinkingActive,omitempty"`
+	ContextTokens   *int64                                               `json:"contextTokens,omitempty"`
+	ContextWindow   *int64                                               `json:"contextWindow,omitempty"`
+	Status          *ConversationsRuntimeAdoptOutputStatus               `json:"status,omitempty"`
+	Notice          *ConversationsRuntimeAdoptOutputNotice               `json:"notice,omitempty"`
+	Commands        []ConversationsRuntimeAdoptOutputCommandsItem        `json:"commands,omitempty"`
 	Detail          string                                               `json:"detail"`
 	Approvals       []string                                             `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeAdoptOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -2686,6 +2717,7 @@ type ConversationsRuntimeApproveInput struct {
 	Token      ConversationsRuntimeApproveInputToken `json:"token"`
 	ApprovalId string                                `json:"approvalId"`
 	Allow      bool                                  `json:"allow"`
+	OptionId   *string                               `json:"optionId,omitempty"`
 }
 
 // ConversationsRuntimeApproveOutputSource 枚举：local | official | thirdParty
@@ -2711,14 +2743,39 @@ const (
 	ConversationsRuntimeApproveOutputPhaseUncertain       ConversationsRuntimeApproveOutputPhase = "uncertain"
 )
 
+type ConversationsRuntimeApproveOutputStatus struct {
+	Kind string  `json:"kind"`
+	Text *string `json:"text,omitempty"`
+}
+
+type ConversationsRuntimeApproveOutputNotice struct {
+	Tag  string `json:"tag"`
+	Text string `json:"text"`
+	At   int64  `json:"at"`
+}
+
+type ConversationsRuntimeApproveOutputCommandsItem struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+	Hint        *string `json:"hint,omitempty"`
+}
+
+type ConversationsRuntimeApproveOutputApprovalDetailsItemOptionsItem struct {
+	Id   string  `json:"id"`
+	Kind *string `json:"kind,omitempty"`
+	Name *string `json:"name,omitempty"`
+}
+
 type ConversationsRuntimeApproveOutputApprovalDetailsItem struct {
-	Id          string  `json:"id"`
-	Tool        *string `json:"tool,omitempty"`
-	Summary     *string `json:"summary,omitempty"`
-	ArgsPreview *string `json:"argsPreview,omitempty"`
-	Danger      *string `json:"danger,omitempty"`
-	Risk        *string `json:"risk,omitempty"`
-	Rationale   *string `json:"rationale,omitempty"`
+	Id          string                                                            `json:"id"`
+	Kind        *string                                                           `json:"kind,omitempty"`
+	Tool        *string                                                           `json:"tool,omitempty"`
+	Summary     *string                                                           `json:"summary,omitempty"`
+	ArgsPreview *string                                                           `json:"argsPreview,omitempty"`
+	Danger      *string                                                           `json:"danger,omitempty"`
+	Risk        *string                                                           `json:"risk,omitempty"`
+	Rationale   *string                                                           `json:"rationale,omitempty"`
+	Options     []ConversationsRuntimeApproveOutputApprovalDetailsItemOptionsItem `json:"options,omitempty"`
 }
 
 type ConversationsRuntimeApproveOutputTraceItem struct {
@@ -2730,6 +2787,7 @@ type ConversationsRuntimeApproveOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
 type ConversationsRuntimeApproveOutputFailedRequest struct {
@@ -2933,6 +2991,11 @@ type ConversationsRuntimeApproveOutput struct {
 	Partial         string                                                 `json:"partial"`
 	Thinking        *string                                                `json:"thinking,omitempty"`
 	ThinkingActive  *bool                                                  `json:"thinkingActive,omitempty"`
+	ContextTokens   *int64                                                 `json:"contextTokens,omitempty"`
+	ContextWindow   *int64                                                 `json:"contextWindow,omitempty"`
+	Status          *ConversationsRuntimeApproveOutputStatus               `json:"status,omitempty"`
+	Notice          *ConversationsRuntimeApproveOutputNotice               `json:"notice,omitempty"`
+	Commands        []ConversationsRuntimeApproveOutputCommandsItem        `json:"commands,omitempty"`
 	Detail          string                                                 `json:"detail"`
 	Approvals       []string                                               `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeApproveOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -2979,14 +3042,39 @@ const (
 	ConversationsRuntimeCancelOutputPhaseUncertain       ConversationsRuntimeCancelOutputPhase = "uncertain"
 )
 
+type ConversationsRuntimeCancelOutputStatus struct {
+	Kind string  `json:"kind"`
+	Text *string `json:"text,omitempty"`
+}
+
+type ConversationsRuntimeCancelOutputNotice struct {
+	Tag  string `json:"tag"`
+	Text string `json:"text"`
+	At   int64  `json:"at"`
+}
+
+type ConversationsRuntimeCancelOutputCommandsItem struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+	Hint        *string `json:"hint,omitempty"`
+}
+
+type ConversationsRuntimeCancelOutputApprovalDetailsItemOptionsItem struct {
+	Id   string  `json:"id"`
+	Kind *string `json:"kind,omitempty"`
+	Name *string `json:"name,omitempty"`
+}
+
 type ConversationsRuntimeCancelOutputApprovalDetailsItem struct {
-	Id          string  `json:"id"`
-	Tool        *string `json:"tool,omitempty"`
-	Summary     *string `json:"summary,omitempty"`
-	ArgsPreview *string `json:"argsPreview,omitempty"`
-	Danger      *string `json:"danger,omitempty"`
-	Risk        *string `json:"risk,omitempty"`
-	Rationale   *string `json:"rationale,omitempty"`
+	Id          string                                                           `json:"id"`
+	Kind        *string                                                          `json:"kind,omitempty"`
+	Tool        *string                                                          `json:"tool,omitempty"`
+	Summary     *string                                                          `json:"summary,omitempty"`
+	ArgsPreview *string                                                          `json:"argsPreview,omitempty"`
+	Danger      *string                                                          `json:"danger,omitempty"`
+	Risk        *string                                                          `json:"risk,omitempty"`
+	Rationale   *string                                                          `json:"rationale,omitempty"`
+	Options     []ConversationsRuntimeCancelOutputApprovalDetailsItemOptionsItem `json:"options,omitempty"`
 }
 
 type ConversationsRuntimeCancelOutputTraceItem struct {
@@ -2998,6 +3086,7 @@ type ConversationsRuntimeCancelOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
 type ConversationsRuntimeCancelOutputFailedRequest struct {
@@ -3201,6 +3290,11 @@ type ConversationsRuntimeCancelOutput struct {
 	Partial         string                                                `json:"partial"`
 	Thinking        *string                                               `json:"thinking,omitempty"`
 	ThinkingActive  *bool                                                 `json:"thinkingActive,omitempty"`
+	ContextTokens   *int64                                                `json:"contextTokens,omitempty"`
+	ContextWindow   *int64                                                `json:"contextWindow,omitempty"`
+	Status          *ConversationsRuntimeCancelOutputStatus               `json:"status,omitempty"`
+	Notice          *ConversationsRuntimeCancelOutputNotice               `json:"notice,omitempty"`
+	Commands        []ConversationsRuntimeCancelOutputCommandsItem        `json:"commands,omitempty"`
 	Detail          string                                                `json:"detail"`
 	Approvals       []string                                              `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeCancelOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -3418,14 +3512,39 @@ const (
 	ConversationsRuntimeEditOutputPhaseUncertain       ConversationsRuntimeEditOutputPhase = "uncertain"
 )
 
+type ConversationsRuntimeEditOutputStatus struct {
+	Kind string  `json:"kind"`
+	Text *string `json:"text,omitempty"`
+}
+
+type ConversationsRuntimeEditOutputNotice struct {
+	Tag  string `json:"tag"`
+	Text string `json:"text"`
+	At   int64  `json:"at"`
+}
+
+type ConversationsRuntimeEditOutputCommandsItem struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+	Hint        *string `json:"hint,omitempty"`
+}
+
+type ConversationsRuntimeEditOutputApprovalDetailsItemOptionsItem struct {
+	Id   string  `json:"id"`
+	Kind *string `json:"kind,omitempty"`
+	Name *string `json:"name,omitempty"`
+}
+
 type ConversationsRuntimeEditOutputApprovalDetailsItem struct {
-	Id          string  `json:"id"`
-	Tool        *string `json:"tool,omitempty"`
-	Summary     *string `json:"summary,omitempty"`
-	ArgsPreview *string `json:"argsPreview,omitempty"`
-	Danger      *string `json:"danger,omitempty"`
-	Risk        *string `json:"risk,omitempty"`
-	Rationale   *string `json:"rationale,omitempty"`
+	Id          string                                                         `json:"id"`
+	Kind        *string                                                        `json:"kind,omitempty"`
+	Tool        *string                                                        `json:"tool,omitempty"`
+	Summary     *string                                                        `json:"summary,omitempty"`
+	ArgsPreview *string                                                        `json:"argsPreview,omitempty"`
+	Danger      *string                                                        `json:"danger,omitempty"`
+	Risk        *string                                                        `json:"risk,omitempty"`
+	Rationale   *string                                                        `json:"rationale,omitempty"`
+	Options     []ConversationsRuntimeEditOutputApprovalDetailsItemOptionsItem `json:"options,omitempty"`
 }
 
 type ConversationsRuntimeEditOutputTraceItem struct {
@@ -3437,6 +3556,7 @@ type ConversationsRuntimeEditOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
 type ConversationsRuntimeEditOutputFailedRequest struct {
@@ -3640,6 +3760,11 @@ type ConversationsRuntimeEditOutput struct {
 	Partial         string                                              `json:"partial"`
 	Thinking        *string                                             `json:"thinking,omitempty"`
 	ThinkingActive  *bool                                               `json:"thinkingActive,omitempty"`
+	ContextTokens   *int64                                              `json:"contextTokens,omitempty"`
+	ContextWindow   *int64                                              `json:"contextWindow,omitempty"`
+	Status          *ConversationsRuntimeEditOutputStatus               `json:"status,omitempty"`
+	Notice          *ConversationsRuntimeEditOutputNotice               `json:"notice,omitempty"`
+	Commands        []ConversationsRuntimeEditOutputCommandsItem        `json:"commands,omitempty"`
 	Detail          string                                              `json:"detail"`
 	Approvals       []string                                            `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeEditOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -3700,14 +3825,39 @@ const (
 	ConversationsRuntimeResolveOutputPhaseUncertain       ConversationsRuntimeResolveOutputPhase = "uncertain"
 )
 
+type ConversationsRuntimeResolveOutputStatus struct {
+	Kind string  `json:"kind"`
+	Text *string `json:"text,omitempty"`
+}
+
+type ConversationsRuntimeResolveOutputNotice struct {
+	Tag  string `json:"tag"`
+	Text string `json:"text"`
+	At   int64  `json:"at"`
+}
+
+type ConversationsRuntimeResolveOutputCommandsItem struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+	Hint        *string `json:"hint,omitempty"`
+}
+
+type ConversationsRuntimeResolveOutputApprovalDetailsItemOptionsItem struct {
+	Id   string  `json:"id"`
+	Kind *string `json:"kind,omitempty"`
+	Name *string `json:"name,omitempty"`
+}
+
 type ConversationsRuntimeResolveOutputApprovalDetailsItem struct {
-	Id          string  `json:"id"`
-	Tool        *string `json:"tool,omitempty"`
-	Summary     *string `json:"summary,omitempty"`
-	ArgsPreview *string `json:"argsPreview,omitempty"`
-	Danger      *string `json:"danger,omitempty"`
-	Risk        *string `json:"risk,omitempty"`
-	Rationale   *string `json:"rationale,omitempty"`
+	Id          string                                                            `json:"id"`
+	Kind        *string                                                           `json:"kind,omitempty"`
+	Tool        *string                                                           `json:"tool,omitempty"`
+	Summary     *string                                                           `json:"summary,omitempty"`
+	ArgsPreview *string                                                           `json:"argsPreview,omitempty"`
+	Danger      *string                                                           `json:"danger,omitempty"`
+	Risk        *string                                                           `json:"risk,omitempty"`
+	Rationale   *string                                                           `json:"rationale,omitempty"`
+	Options     []ConversationsRuntimeResolveOutputApprovalDetailsItemOptionsItem `json:"options,omitempty"`
 }
 
 type ConversationsRuntimeResolveOutputTraceItem struct {
@@ -3719,6 +3869,7 @@ type ConversationsRuntimeResolveOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
 type ConversationsRuntimeResolveOutputFailedRequest struct {
@@ -3922,6 +4073,11 @@ type ConversationsRuntimeResolveOutput struct {
 	Partial         string                                                 `json:"partial"`
 	Thinking        *string                                                `json:"thinking,omitempty"`
 	ThinkingActive  *bool                                                  `json:"thinkingActive,omitempty"`
+	ContextTokens   *int64                                                 `json:"contextTokens,omitempty"`
+	ContextWindow   *int64                                                 `json:"contextWindow,omitempty"`
+	Status          *ConversationsRuntimeResolveOutputStatus               `json:"status,omitempty"`
+	Notice          *ConversationsRuntimeResolveOutputNotice               `json:"notice,omitempty"`
+	Commands        []ConversationsRuntimeResolveOutputCommandsItem        `json:"commands,omitempty"`
 	Detail          string                                                 `json:"detail"`
 	Approvals       []string                                               `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeResolveOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -3968,14 +4124,39 @@ const (
 	ConversationsRuntimeRewindOutputPhaseUncertain       ConversationsRuntimeRewindOutputPhase = "uncertain"
 )
 
+type ConversationsRuntimeRewindOutputStatus struct {
+	Kind string  `json:"kind"`
+	Text *string `json:"text,omitempty"`
+}
+
+type ConversationsRuntimeRewindOutputNotice struct {
+	Tag  string `json:"tag"`
+	Text string `json:"text"`
+	At   int64  `json:"at"`
+}
+
+type ConversationsRuntimeRewindOutputCommandsItem struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+	Hint        *string `json:"hint,omitempty"`
+}
+
+type ConversationsRuntimeRewindOutputApprovalDetailsItemOptionsItem struct {
+	Id   string  `json:"id"`
+	Kind *string `json:"kind,omitempty"`
+	Name *string `json:"name,omitempty"`
+}
+
 type ConversationsRuntimeRewindOutputApprovalDetailsItem struct {
-	Id          string  `json:"id"`
-	Tool        *string `json:"tool,omitempty"`
-	Summary     *string `json:"summary,omitempty"`
-	ArgsPreview *string `json:"argsPreview,omitempty"`
-	Danger      *string `json:"danger,omitempty"`
-	Risk        *string `json:"risk,omitempty"`
-	Rationale   *string `json:"rationale,omitempty"`
+	Id          string                                                           `json:"id"`
+	Kind        *string                                                          `json:"kind,omitempty"`
+	Tool        *string                                                          `json:"tool,omitempty"`
+	Summary     *string                                                          `json:"summary,omitempty"`
+	ArgsPreview *string                                                          `json:"argsPreview,omitempty"`
+	Danger      *string                                                          `json:"danger,omitempty"`
+	Risk        *string                                                          `json:"risk,omitempty"`
+	Rationale   *string                                                          `json:"rationale,omitempty"`
+	Options     []ConversationsRuntimeRewindOutputApprovalDetailsItemOptionsItem `json:"options,omitempty"`
 }
 
 type ConversationsRuntimeRewindOutputTraceItem struct {
@@ -3987,6 +4168,7 @@ type ConversationsRuntimeRewindOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
 type ConversationsRuntimeRewindOutputFailedRequest struct {
@@ -4190,6 +4372,11 @@ type ConversationsRuntimeRewindOutput struct {
 	Partial         string                                                `json:"partial"`
 	Thinking        *string                                               `json:"thinking,omitempty"`
 	ThinkingActive  *bool                                                 `json:"thinkingActive,omitempty"`
+	ContextTokens   *int64                                                `json:"contextTokens,omitempty"`
+	ContextWindow   *int64                                                `json:"contextWindow,omitempty"`
+	Status          *ConversationsRuntimeRewindOutputStatus               `json:"status,omitempty"`
+	Notice          *ConversationsRuntimeRewindOutputNotice               `json:"notice,omitempty"`
+	Commands        []ConversationsRuntimeRewindOutputCommandsItem        `json:"commands,omitempty"`
 	Detail          string                                                `json:"detail"`
 	Approvals       []string                                              `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeRewindOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -4235,14 +4422,39 @@ const (
 	ConversationsRuntimeSelectOutputPhaseUncertain       ConversationsRuntimeSelectOutputPhase = "uncertain"
 )
 
+type ConversationsRuntimeSelectOutputStatus struct {
+	Kind string  `json:"kind"`
+	Text *string `json:"text,omitempty"`
+}
+
+type ConversationsRuntimeSelectOutputNotice struct {
+	Tag  string `json:"tag"`
+	Text string `json:"text"`
+	At   int64  `json:"at"`
+}
+
+type ConversationsRuntimeSelectOutputCommandsItem struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+	Hint        *string `json:"hint,omitempty"`
+}
+
+type ConversationsRuntimeSelectOutputApprovalDetailsItemOptionsItem struct {
+	Id   string  `json:"id"`
+	Kind *string `json:"kind,omitempty"`
+	Name *string `json:"name,omitempty"`
+}
+
 type ConversationsRuntimeSelectOutputApprovalDetailsItem struct {
-	Id          string  `json:"id"`
-	Tool        *string `json:"tool,omitempty"`
-	Summary     *string `json:"summary,omitempty"`
-	ArgsPreview *string `json:"argsPreview,omitempty"`
-	Danger      *string `json:"danger,omitempty"`
-	Risk        *string `json:"risk,omitempty"`
-	Rationale   *string `json:"rationale,omitempty"`
+	Id          string                                                           `json:"id"`
+	Kind        *string                                                          `json:"kind,omitempty"`
+	Tool        *string                                                          `json:"tool,omitempty"`
+	Summary     *string                                                          `json:"summary,omitempty"`
+	ArgsPreview *string                                                          `json:"argsPreview,omitempty"`
+	Danger      *string                                                          `json:"danger,omitempty"`
+	Risk        *string                                                          `json:"risk,omitempty"`
+	Rationale   *string                                                          `json:"rationale,omitempty"`
+	Options     []ConversationsRuntimeSelectOutputApprovalDetailsItemOptionsItem `json:"options,omitempty"`
 }
 
 type ConversationsRuntimeSelectOutputTraceItem struct {
@@ -4254,6 +4466,7 @@ type ConversationsRuntimeSelectOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
 type ConversationsRuntimeSelectOutputFailedRequest struct {
@@ -4457,6 +4670,11 @@ type ConversationsRuntimeSelectOutput struct {
 	Partial         string                                                `json:"partial"`
 	Thinking        *string                                               `json:"thinking,omitempty"`
 	ThinkingActive  *bool                                                 `json:"thinkingActive,omitempty"`
+	ContextTokens   *int64                                                `json:"contextTokens,omitempty"`
+	ContextWindow   *int64                                                `json:"contextWindow,omitempty"`
+	Status          *ConversationsRuntimeSelectOutputStatus               `json:"status,omitempty"`
+	Notice          *ConversationsRuntimeSelectOutputNotice               `json:"notice,omitempty"`
+	Commands        []ConversationsRuntimeSelectOutputCommandsItem        `json:"commands,omitempty"`
 	Detail          string                                                `json:"detail"`
 	Approvals       []string                                              `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeSelectOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -4517,14 +4735,39 @@ const (
 	ConversationsRuntimeStateOutputPhaseUncertain       ConversationsRuntimeStateOutputPhase = "uncertain"
 )
 
+type ConversationsRuntimeStateOutputStatus struct {
+	Kind string  `json:"kind"`
+	Text *string `json:"text,omitempty"`
+}
+
+type ConversationsRuntimeStateOutputNotice struct {
+	Tag  string `json:"tag"`
+	Text string `json:"text"`
+	At   int64  `json:"at"`
+}
+
+type ConversationsRuntimeStateOutputCommandsItem struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+	Hint        *string `json:"hint,omitempty"`
+}
+
+type ConversationsRuntimeStateOutputApprovalDetailsItemOptionsItem struct {
+	Id   string  `json:"id"`
+	Kind *string `json:"kind,omitempty"`
+	Name *string `json:"name,omitempty"`
+}
+
 type ConversationsRuntimeStateOutputApprovalDetailsItem struct {
-	Id          string  `json:"id"`
-	Tool        *string `json:"tool,omitempty"`
-	Summary     *string `json:"summary,omitempty"`
-	ArgsPreview *string `json:"argsPreview,omitempty"`
-	Danger      *string `json:"danger,omitempty"`
-	Risk        *string `json:"risk,omitempty"`
-	Rationale   *string `json:"rationale,omitempty"`
+	Id          string                                                          `json:"id"`
+	Kind        *string                                                         `json:"kind,omitempty"`
+	Tool        *string                                                         `json:"tool,omitempty"`
+	Summary     *string                                                         `json:"summary,omitempty"`
+	ArgsPreview *string                                                         `json:"argsPreview,omitempty"`
+	Danger      *string                                                         `json:"danger,omitempty"`
+	Risk        *string                                                         `json:"risk,omitempty"`
+	Rationale   *string                                                         `json:"rationale,omitempty"`
+	Options     []ConversationsRuntimeStateOutputApprovalDetailsItemOptionsItem `json:"options,omitempty"`
 }
 
 type ConversationsRuntimeStateOutputTraceItem struct {
@@ -4536,6 +4779,7 @@ type ConversationsRuntimeStateOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
 type ConversationsRuntimeStateOutputFailedRequest struct {
@@ -4739,6 +4983,11 @@ type ConversationsRuntimeStateOutput struct {
 	Partial         string                                               `json:"partial"`
 	Thinking        *string                                              `json:"thinking,omitempty"`
 	ThinkingActive  *bool                                                `json:"thinkingActive,omitempty"`
+	ContextTokens   *int64                                               `json:"contextTokens,omitempty"`
+	ContextWindow   *int64                                               `json:"contextWindow,omitempty"`
+	Status          *ConversationsRuntimeStateOutputStatus               `json:"status,omitempty"`
+	Notice          *ConversationsRuntimeStateOutputNotice               `json:"notice,omitempty"`
+	Commands        []ConversationsRuntimeStateOutputCommandsItem        `json:"commands,omitempty"`
 	Detail          string                                               `json:"detail"`
 	Approvals       []string                                             `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeStateOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -4811,14 +5060,39 @@ const (
 	ConversationsRuntimeSwitchOutputPhaseUncertain       ConversationsRuntimeSwitchOutputPhase = "uncertain"
 )
 
+type ConversationsRuntimeSwitchOutputStatus struct {
+	Kind string  `json:"kind"`
+	Text *string `json:"text,omitempty"`
+}
+
+type ConversationsRuntimeSwitchOutputNotice struct {
+	Tag  string `json:"tag"`
+	Text string `json:"text"`
+	At   int64  `json:"at"`
+}
+
+type ConversationsRuntimeSwitchOutputCommandsItem struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+	Hint        *string `json:"hint,omitempty"`
+}
+
+type ConversationsRuntimeSwitchOutputApprovalDetailsItemOptionsItem struct {
+	Id   string  `json:"id"`
+	Kind *string `json:"kind,omitempty"`
+	Name *string `json:"name,omitempty"`
+}
+
 type ConversationsRuntimeSwitchOutputApprovalDetailsItem struct {
-	Id          string  `json:"id"`
-	Tool        *string `json:"tool,omitempty"`
-	Summary     *string `json:"summary,omitempty"`
-	ArgsPreview *string `json:"argsPreview,omitempty"`
-	Danger      *string `json:"danger,omitempty"`
-	Risk        *string `json:"risk,omitempty"`
-	Rationale   *string `json:"rationale,omitempty"`
+	Id          string                                                           `json:"id"`
+	Kind        *string                                                          `json:"kind,omitempty"`
+	Tool        *string                                                          `json:"tool,omitempty"`
+	Summary     *string                                                          `json:"summary,omitempty"`
+	ArgsPreview *string                                                          `json:"argsPreview,omitempty"`
+	Danger      *string                                                          `json:"danger,omitempty"`
+	Risk        *string                                                          `json:"risk,omitempty"`
+	Rationale   *string                                                          `json:"rationale,omitempty"`
+	Options     []ConversationsRuntimeSwitchOutputApprovalDetailsItemOptionsItem `json:"options,omitempty"`
 }
 
 type ConversationsRuntimeSwitchOutputTraceItem struct {
@@ -4830,6 +5104,7 @@ type ConversationsRuntimeSwitchOutputTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
 type ConversationsRuntimeSwitchOutputFailedRequest struct {
@@ -5033,6 +5308,11 @@ type ConversationsRuntimeSwitchOutput struct {
 	Partial         string                                                `json:"partial"`
 	Thinking        *string                                               `json:"thinking,omitempty"`
 	ThinkingActive  *bool                                                 `json:"thinkingActive,omitempty"`
+	ContextTokens   *int64                                                `json:"contextTokens,omitempty"`
+	ContextWindow   *int64                                                `json:"contextWindow,omitempty"`
+	Status          *ConversationsRuntimeSwitchOutputStatus               `json:"status,omitempty"`
+	Notice          *ConversationsRuntimeSwitchOutputNotice               `json:"notice,omitempty"`
+	Commands        []ConversationsRuntimeSwitchOutputCommandsItem        `json:"commands,omitempty"`
 	Detail          string                                                `json:"detail"`
 	Approvals       []string                                              `json:"approvals"`
 	ApprovalDetails []ConversationsRuntimeSwitchOutputApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -9024,6 +9304,25 @@ type HarnessGitWorktreesOutput struct {
 	Worktrees []HarnessGitWorktreesOutputWorktreesItem `json:"worktrees"`
 }
 
+type HarnessListAcpSessionsInput struct {
+	Backend string  `json:"backend"`
+	Cwd     string  `json:"cwd"`
+	Cursor  *string `json:"cursor,omitempty"`
+}
+
+type HarnessListAcpSessionsOutputSessionsItem struct {
+	SessionId string          `json:"sessionId"`
+	Cwd       *string         `json:"cwd,omitempty"`
+	Title     *string         `json:"title,omitempty"`
+	UpdatedAt json.RawMessage `json:"updatedAt,omitempty"`
+}
+
+type HarnessListAcpSessionsOutput struct {
+	Supported  bool                                       `json:"supported"`
+	Sessions   []HarnessListAcpSessionsOutputSessionsItem `json:"sessions"`
+	NextCursor *string                                    `json:"nextCursor,omitempty"`
+}
+
 type HarnessMessageAgentInputImagesItem struct {
 	Mime   string   `json:"mime"`
 	Data   string   `json:"data"`
@@ -9307,6 +9606,7 @@ type HarnessReplyPermissionInput struct {
 	RequestId   string                                  `json:"requestId"`
 	Allow       bool                                    `json:"allow"`
 	ApprovePlan *HarnessReplyPermissionInputApprovePlan `json:"approvePlan,omitempty"`
+	OptionId    *string                                 `json:"optionId,omitempty"`
 }
 
 // HarnessSandboxReplyInputChoice 枚举：session | always | deny
@@ -9709,6 +10009,20 @@ type HarnessTabCloseOutput struct {
 	AutoApprove           *bool                           `json:"autoApprove,omitempty"`
 	AiReview              *bool                           `json:"aiReview,omitempty"`
 	NomiAutoApprove       *bool                           `json:"nomiAutoApprove,omitempty"`
+}
+
+type HarnessTabCommandsInput struct {
+	TabId string `json:"tabId"`
+}
+
+type HarnessTabCommandsOutputCommandsItem struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+	Hint        *string `json:"hint,omitempty"`
+}
+
+type HarnessTabCommandsOutput struct {
+	Commands []HarnessTabCommandsOutputCommandsItem `json:"commands"`
 }
 
 type HarnessTabContextInput struct {
@@ -14719,14 +15033,39 @@ const (
 	EventConversationsRuntimeChangedPhaseUncertain       EventConversationsRuntimeChangedPhase = "uncertain"
 )
 
+type EventConversationsRuntimeChangedStatus struct {
+	Kind string  `json:"kind"`
+	Text *string `json:"text,omitempty"`
+}
+
+type EventConversationsRuntimeChangedNotice struct {
+	Tag  string `json:"tag"`
+	Text string `json:"text"`
+	At   int64  `json:"at"`
+}
+
+type EventConversationsRuntimeChangedCommandsItem struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+	Hint        *string `json:"hint,omitempty"`
+}
+
+type EventConversationsRuntimeChangedApprovalDetailsItemOptionsItem struct {
+	Id   string  `json:"id"`
+	Kind *string `json:"kind,omitempty"`
+	Name *string `json:"name,omitempty"`
+}
+
 type EventConversationsRuntimeChangedApprovalDetailsItem struct {
-	Id          string  `json:"id"`
-	Tool        *string `json:"tool,omitempty"`
-	Summary     *string `json:"summary,omitempty"`
-	ArgsPreview *string `json:"argsPreview,omitempty"`
-	Danger      *string `json:"danger,omitempty"`
-	Risk        *string `json:"risk,omitempty"`
-	Rationale   *string `json:"rationale,omitempty"`
+	Id          string                                                           `json:"id"`
+	Kind        *string                                                          `json:"kind,omitempty"`
+	Tool        *string                                                          `json:"tool,omitempty"`
+	Summary     *string                                                          `json:"summary,omitempty"`
+	ArgsPreview *string                                                          `json:"argsPreview,omitempty"`
+	Danger      *string                                                          `json:"danger,omitempty"`
+	Risk        *string                                                          `json:"risk,omitempty"`
+	Rationale   *string                                                          `json:"rationale,omitempty"`
+	Options     []EventConversationsRuntimeChangedApprovalDetailsItemOptionsItem `json:"options,omitempty"`
 }
 
 type EventConversationsRuntimeChangedTraceItem struct {
@@ -14738,6 +15077,7 @@ type EventConversationsRuntimeChangedTraceItem struct {
 	Detail  *string `json:"detail,omitempty"`
 	Output  *string `json:"output,omitempty"`
 	At      int64   `json:"at"`
+	TextAt  *int64  `json:"textAt,omitempty"`
 }
 
 type EventConversationsRuntimeChangedFailedRequest struct {
@@ -14941,6 +15281,11 @@ type EventConversationsRuntimeChanged struct {
 	Partial         string                                                `json:"partial"`
 	Thinking        *string                                               `json:"thinking,omitempty"`
 	ThinkingActive  *bool                                                 `json:"thinkingActive,omitempty"`
+	ContextTokens   *int64                                                `json:"contextTokens,omitempty"`
+	ContextWindow   *int64                                                `json:"contextWindow,omitempty"`
+	Status          *EventConversationsRuntimeChangedStatus               `json:"status,omitempty"`
+	Notice          *EventConversationsRuntimeChangedNotice               `json:"notice,omitempty"`
+	Commands        []EventConversationsRuntimeChangedCommandsItem        `json:"commands,omitempty"`
 	Detail          string                                                `json:"detail"`
 	Approvals       []string                                              `json:"approvals"`
 	ApprovalDetails []EventConversationsRuntimeChangedApprovalDetailsItem `json:"approvalDetails,omitempty"`
@@ -16908,6 +17253,10 @@ type HarnessGitUnstageOutputT = HarnessGitUnstageOutput
 type HarnessGitWorktreesInputT = HarnessGitWorktreesInput
 type HarnessGitWorktreesOutputT = *HarnessGitWorktreesOutput
 
+// HarnessListAcpSessionsInputT 是 harness.listAcpSessions 的入参
+type HarnessListAcpSessionsInputT = HarnessListAcpSessionsInput
+type HarnessListAcpSessionsOutputT = HarnessListAcpSessionsOutput
+
 // HarnessMessageAgentInputT 是 harness.messageAgent 的入参
 type HarnessMessageAgentInputT = HarnessMessageAgentInput
 type HarnessMessageAgentOutputT = HarnessMessageAgentOutput
@@ -17023,6 +17372,10 @@ type HarnessTabCarryClearOutputT = HarnessTabCarryClearOutput
 // HarnessTabCloseInputT 是 harness.tabClose 的入参
 type HarnessTabCloseInputT = HarnessTabCloseInput
 type HarnessTabCloseOutputT = HarnessTabCloseOutput
+
+// HarnessTabCommandsInputT 是 harness.tabCommands 的入参
+type HarnessTabCommandsInputT = HarnessTabCommandsInput
+type HarnessTabCommandsOutputT = HarnessTabCommandsOutput
 
 // HarnessTabContextInputT 是 harness.tabContext 的入参
 type HarnessTabContextInputT = HarnessTabContextInput

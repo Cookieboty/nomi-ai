@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/cliplugins/builtin"
+	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/askuser"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli"
 	"github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/cli/accounts"
 	cr "github.com/Cookieboty/nomi-ai/apps/desktop-go/internal/core/conversationruntime"
@@ -554,8 +555,29 @@ func codexConfigFor(s *convstore.Store, p *projects.Store, base codexrt.Config, 
 	return cfg, nil
 }
 
+func projectRoots(s *convstore.Store, p *projects.Store, id string) (projects.Roots, error) {
+	st, err := s.State()
+	if err != nil {
+		return projects.Roots{}, err
+	}
+	for _, raw := range st.Conversations {
+		var meta struct {
+			ID        string
+			ProjectID string `json:"projectId"`
+		}
+		if json.Unmarshal(raw, &meta) != nil || meta.ID != id {
+			continue
+		}
+		if r := p.Roots(meta.ProjectID); !r.Empty() {
+			return r, nil
+		}
+		return projects.Roots{}, errNoProject
+	}
+	return projects.Roots{}, errNoConversation
+}
+
 func acpConfigFor(s *convstore.Store, p *projects.Store, base acprt.Config, pref mainchat.RuntimeConfig, id string, deps managedDeps, cache *managedLaunchCache) (acprt.Config, error) {
-	cwd, err := projectCwd(s, p, id)
+	roots, err := projectRoots(s, p, id)
 	if err != nil {
 		return acprt.Config{}, err
 	}
@@ -564,7 +586,8 @@ func acpConfigFor(s *convstore.Store, p *projects.Store, base acprt.Config, pref
 		return acprt.Config{}, err
 	}
 	cfg := base
-	cfg.Cwd = cwd
+	cfg.Cwd = roots.Primary
+	cfg.ExtraDirs = roots.Extra
 	cfg.ConfigDir = res.ConfigDir
 	cfg.Source = res.Source
 	cfg.AccountID = res.AccountID
@@ -581,6 +604,26 @@ func acpConfigFor(s *convstore.Store, p *projects.Store, base acprt.Config, pref
 	cfg.ModelInConfig = res.ModelInConfig
 	cfg.LaunchSig = res.LaunchSig
 	cfg.OnRelease = res.OnRelease
+	if askBroker != nil {
+		cfg.OnQuestion = func(qid string, params *util.Obj, reply func(body *util.Obj, cancel bool)) {
+			if qid == "" {
+				return
+			}
+			form, ok := askuser.QuestionsFromElicitation(params)
+			if !ok {
+				reply(askuser.ElicitationResult(askuser.ElicitationForm{}, askuser.Result{Action: askuser.ActionCancel}), false)
+				return
+			}
+			if !askBroker.Offer(qid, askuser.SourceAcp, id, "", form.Questions, func(res askuser.Result) {
+				reply(askuser.ElicitationResult(form, res), false)
+			}) {
+				reply(askuser.ElicitationResult(askuser.ElicitationForm{}, askuser.Result{Action: askuser.ActionCancel}), false)
+			}
+		}
+		cfg.OnQuestionsCleared = func() {
+			askBroker.CancelConversation(id)
+		}
+	}
 	return cfg, nil
 }
 
@@ -784,6 +827,10 @@ func acpChoice(cliID string, s *convstore.Store, p *projects.Store, r *mainchat.
 	if builtin.InteractiveOnly(cliID) {
 		memoryDetail = name + " owns its own native conversation history; cross-model context replay is disabled"
 	}
+	attachState := cr.BridgeState{Status: "unsupported", Detail: "Image attachments cannot be bridged in managed " + name + " profile"}
+	if cli.ImageSupportFor(cliID) != "none" {
+		attachState = cr.BridgeState{Status: "bridged", Detail: "Current-turn image attachments supported via ACP content blocks"}
+	}
 	bridges := &cr.CapabilityBridges{
 		Computer:    cr.BridgeState{Status: "unsupported", Detail: name + " ACP runs without Nomi computer-use tools"},
 		MCP:         cr.BridgeState{Status: "unsupported", Detail: "Strict empty MCP list; Nomi MCP servers not attached"},
@@ -791,7 +838,7 @@ func acpChoice(cliID string, s *convstore.Store, p *projects.Store, r *mainchat.
 		Memory:      cr.BridgeState{Status: "degraded", Detail: memoryDetail},
 		Knowledge:   cr.BridgeState{Status: "unsupported", Detail: "Nomi knowledge base is not mounted into " + name},
 		Skills:      cr.BridgeState{Status: "degraded", Detail: "Nomi skills are not bridged into " + name + " ACP"},
-		Attachments: cr.BridgeState{Status: "unsupported", Detail: "Image attachments cannot be bridged in managed " + name + " profile"},
+		Attachments: attachState,
 	}
 	choice := mainchat.RuntimeChoice{
 		ID:              cliID,

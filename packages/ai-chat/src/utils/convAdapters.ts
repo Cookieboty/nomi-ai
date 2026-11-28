@@ -88,6 +88,7 @@ export function tabLiveToConv(l: TabLive | undefined): ConvLive | undefined {
     ...(l.permissionExpired ? { permissionExpired: l.permissionExpired } : {}),
     ...(l.agents ? { agents: l.agents } : {}),
     ...(l.status ? { status: l.status } : {}),
+    ...(l.notice ? { notice: l.notice } : {}),
   };
 }
 

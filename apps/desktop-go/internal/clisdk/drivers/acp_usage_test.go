@@ -81,6 +81,73 @@ func TestAcpMapperUsageModesAndSessionInfo(t *testing.T) {
 	}
 }
 
+func TestAcpMapperPlanAndPlanUpdate(t *testing.T) {
+	m := NewAcpMapper()
+	// Plan updates must not reset the streaming thought budget.
+	th1 := m.Update(upd(t, `{"sessionUpdate":"agent_thought_chunk","content":{"type":"text","text":"`+strings.Repeat("a", maxAcpThoughtLen-5)+`"}}`))
+	if len(th1) != 1 {
+		t.Fatalf("thought 1 = %v", th1)
+	}
+
+	evPlan := m.Update(upd(t, `{
+		"sessionUpdate":"plan",
+		"planId":"p-main",
+		"entries":[
+			{"content":"Step 1","status":"done","priority":"HIGH"},
+			{"title":"Step 2","status":"in-progress","priority":"medium"},
+			{"step":"Step 3","status":"cancelled","priority":"unknown"},
+			{"text":"Step 4","status":"error"},
+			{"content":"   ","status":"pending"},
+			{"content":"Step 5"}
+		]
+	}`))
+	if len(evPlan) != 1 {
+		t.Fatalf("plan events = %v", evPlan)
+	}
+	if evPlan[0].Get("type") != "plan" || evPlan[0].Get("planId") != "p-main" {
+		t.Fatalf("plan meta = %v", evPlan[0])
+	}
+	entries, _ := evPlan[0].Get("entries").([]any)
+	if len(entries) != 5 {
+		t.Fatalf("entries len = %d, want 5 (%v)", len(entries), entries)
+	}
+	if entries[0].(*util.Obj).Get("status") != "completed" || entries[0].(*util.Obj).Get("priority") != "high" {
+		t.Fatalf("entry 0 = %v", entries[0])
+	}
+	if entries[1].(*util.Obj).Get("content") != "Step 2" || entries[1].(*util.Obj).Get("status") != "in_progress" {
+		t.Fatalf("entry 1 = %v", entries[1])
+	}
+	if entries[2].(*util.Obj).Get("status") != "skipped" || entries[2].(*util.Obj).Has("priority") {
+		t.Fatalf("entry 2 = %v", entries[2])
+	}
+	if entries[3].(*util.Obj).Get("status") != "failed" || entries[4].(*util.Obj).Get("status") != "pending" {
+		t.Fatalf("entry 3/4 = %v / %v", entries[3], entries[4])
+	}
+
+	// Thought budget was preserved across plan notification (only 5 chars left).
+	th2 := m.Update(upd(t, `{"sessionUpdate":"agent_thought_chunk","content":{"type":"text","text":"1234567890"}}`))
+	if len(th2) != 1 || th2[0].Get("text") != "12345…" {
+		t.Fatalf("thought budget lost across plan: %v", th2)
+	}
+
+	// plan_update: items / markdown / file + empty plan ignored.
+	evItems := m.Update(upd(t, `{"sessionUpdate":"plan_update","plan":{"type":"items","planId":"p-2","entries":[{"content":"Run tests","status":"active"}]}}`))
+	if len(evItems) != 1 || evItems[0].Get("planId") != "p-2" {
+		t.Fatalf("plan_update items = %v", evItems)
+	}
+	evMd := m.Update(upd(t, `{"sessionUpdate":"plan_update","plan":{"type":"markdown","planId":"p-md","content":"## Plan\n- A"}}`))
+	if len(evMd) != 1 || evMd[0].Get("markdown") != "## Plan\n- A" {
+		t.Fatalf("plan_update markdown = %v", evMd)
+	}
+	evFile := m.Update(upd(t, `{"sessionUpdate":"plan_update","plan":{"type":"file","planId":"p-file","uri":"file:///tmp/plan.md"}}`))
+	if len(evFile) != 1 || evFile[0].Get("uri") != "file:///tmp/plan.md" {
+		t.Fatalf("plan_update file = %v", evFile)
+	}
+	if evEmpty := m.Update(upd(t, `{"sessionUpdate":"plan","entries":[]}`)); len(evEmpty) != 0 {
+		t.Fatalf("empty plan must emit nothing, got %v", evEmpty)
+	}
+}
+
 func TestAcpDriverUsageAndNotifications(t *testing.T) {
 	jsrt.Run(func() {
 		child := newFakeChild()

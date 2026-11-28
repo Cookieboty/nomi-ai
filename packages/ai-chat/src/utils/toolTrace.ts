@@ -5,9 +5,16 @@
  */
 import { t } from '@nomi-ai/ui';
 
-import type { HarnessTraceEvent } from '../services/harnessClient';
+import type { HarnessTraceEvent, PlanEntry } from '../services/harnessClient';
 
 import { diffAllAdded, diffStrings, parsePatch, type DiffResult } from './lineDiff';
+
+export {
+  extractPlanFromTodoTool,
+  normalizePlanEntries,
+  normalizePlanPriority,
+  normalizePlanStatus,
+} from './planExtract';
 
 export type ToolKind =
   'read' | 'search' | 'list' | 'edit' | 'write' | 'command' | 'subagent' | 'web' | 'todo' | 'other';
@@ -29,7 +36,18 @@ export type TraceEntry =
   | { type: 'thinking'; id: string; text: string; at?: number; lastAt?: number; textAt?: number }
   | { type: 'tool'; call: ToolCall; textAt?: number }
   /** 一轮进行中用户插入的消息 */
-  | { type: 'interject'; id: string; text: string; at?: number; textAt?: number };
+  | { type: 'interject'; id: string; text: string; at?: number; textAt?: number }
+  /** 结构化执行计划（同一 planId 就地覆盖为最新快照，保留首条位置） */
+  | {
+      type: 'plan';
+      id: string;
+      planId?: string;
+      entries: PlanEntry[];
+      markdown?: string;
+      uri?: string;
+      at?: number;
+      textAt?: number;
+    };
 
 /** 分组桶：同桶的连续调用折叠成一组 */
 export type Bucket = 'explore' | 'command' | 'edit' | 'other';
@@ -47,6 +65,16 @@ export type TimelineItem =
   | { type: 'call'; call: ToolCall }
   /** 用户在这一轮中途插入的消息 */
   | { type: 'interject'; id: string; text: string; at?: number }
+  /** 结构化执行计划卡片 */
+  | {
+      type: 'plan';
+      id: string;
+      planId?: string;
+      entries: PlanEntry[];
+      markdown?: string;
+      uri?: string;
+      at?: number;
+    }
   | { type: 'group'; id: string; bucket: Bucket; calls: ToolCall[] }
   | { type: 'subagent'; call: ToolCall; children: TimelineItem[] };
 
@@ -56,6 +84,7 @@ export type TimelineItem =
 interface ReduceState {
   entries: TraceEntry[];
   byKey: Map<string, ToolCall>;
+  planByKey: Map<string, number>;
   running: ToolCall[];
   /** 每个调用所在的条目下标（增量折叠时换掉被改的调用） */
   entryOf: Map<ToolCall, number>;
@@ -63,7 +92,14 @@ interface ReduceState {
 }
 
 function emptyReduceState(): ReduceState {
-  return { entries: [], byKey: new Map(), running: [], entryOf: new Map(), seq: 0 };
+  return {
+    entries: [],
+    byKey: new Map(),
+    planByKey: new Map(),
+    running: [],
+    entryOf: new Map(),
+    seq: 0,
+  };
 }
 
 /**
@@ -149,12 +185,48 @@ function foldTrace(
       );
       continue;
     }
+    if (ev.type === 'plan') {
+      const key = ev.planId || 'default';
+      const existingIdx = st.planByKey.get(key);
+      const prev = existingIdx !== undefined ? entries[existingIdx] : undefined;
+      if (existingIdx !== undefined && prev?.type === 'plan') {
+        entries[existingIdx] = own({
+          type: 'plan',
+          id: prev.id,
+          ...(ev.planId ? { planId: ev.planId } : {}),
+          entries: ev.entries,
+          ...(ev.markdown ? { markdown: ev.markdown } : {}),
+          ...(ev.uri ? { uri: ev.uri } : {}),
+          ...(ev.at !== undefined ? { at: ev.at } : prev.at !== undefined ? { at: prev.at } : {}),
+          ...(prev.textAt !== undefined ? { textAt: prev.textAt } : {}),
+        });
+      } else {
+        const idx = entries.length;
+        entries.push(
+          own({
+            type: 'plan',
+            id: `pl-${st.seq++}`,
+            ...(ev.planId ? { planId: ev.planId } : {}),
+            entries: ev.entries,
+            ...(ev.markdown ? { markdown: ev.markdown } : {}),
+            ...(ev.uri ? { uri: ev.uri } : {}),
+            ...(ev.at !== undefined ? { at: ev.at } : {}),
+            ...(ev.textAt !== undefined ? { textAt: ev.textAt } : {}),
+          }),
+        );
+        st.planByKey.set(key, idx);
+      }
+      continue;
+    }
     const key = ev.id ?? ev.detail;
     if (ev.status === 'start') {
       const existing = key ? byKey.get(key) : undefined;
       if (existing) {
-        // 重复的 start（如 Grok 的 tool_call 更新）：补全参数即可
-        if (ev.input !== undefined) writable(existing).input = ev.input;
+        // 重复的 start（如 Grok / ACP 的 tool_call 更新）：补全参数、实时输出与工具名
+        const w = writable(existing);
+        if (ev.input !== undefined) w.input = ev.input;
+        if (ev.output !== undefined) w.output = ev.output;
+        if (w.name === 'tool' && ev.name !== 'tool') w.name = ev.name;
         continue;
       }
       const call: ToolCall = own({
@@ -162,6 +234,7 @@ function foldTrace(
         name: ev.name,
         status: 'running',
         input: ev.input,
+        output: ev.output,
         startedAt: ev.at,
         parentId: ev.parentId,
       });
@@ -305,8 +378,8 @@ export function reduceTraceCached(events: readonly HarnessTraceEvent[]): TraceEn
   const prev = first ? resumeCache.get(first) : undefined;
   let st: ReduceState;
   if (prev && prev.len > 0 && extendsPrefix(prev, events)) {
-    // 接着上一份折叠：内部索引直接接手（上一份状态作废），条目数组复制一份
-    st = { ...prev.st, entries: prev.st.entries.slice() };
+    // 接着上一份折叠：内部索引直接接手（上一份状态作废），条目数组与 planByKey 浅拷一份
+    st = { ...prev.st, entries: prev.st.entries.slice(), planByKey: new Map(prev.st.planByKey) };
     foldTrace(st, events, prev.len, new Set());
   } else {
     st = emptyReduceState();
@@ -458,7 +531,17 @@ const KIND_TABLE: Record<ToolKind, readonly string[]> = {
     'browser_type',
     'browser_close',
   ],
-  todo: ['todowrite', 'todo_write', 'todo', 'update_plan', 'plan', 'exitplanmode'],
+  todo: [
+    'todowrite',
+    'todo_write',
+    'todo',
+    'update_plan',
+    'update_steps',
+    'plan',
+    'exitplanmode',
+    'taskcreate',
+    'taskupdate',
+  ],
   other: [],
 };
 
@@ -684,14 +767,17 @@ export const DIFF_CACHE_MAX_CHARS = 16_000_000;
  * 键直接用 input 原串（与 trace 事件共享同一个字符串对象，哈希只算一次、相等比较走指针），
  * 不再拼 `name + input` 这种每次都要重新哈希整段文件内容的新串；name 存在值里校验。
  */
-const diffCache = new Map<string, { name: string; diffs: FileDiff[] }>();
+const diffCache = new Map<
+  string,
+  { name: string; output: string | undefined; diffs: FileDiff[] }
+>();
 let diffCacheChars = 0;
 
 /** 编辑 / 写入类调用 → 每个文件一份 diff；识别不了返回空数组（按名称 + 参数缓存，避免每次渲染重算 LCS） */
 export function diffsOf(call: ToolCall): FileDiff[] {
   const key = call.input ?? '';
   const hit = diffCache.get(key);
-  if (hit && hit.name === call.name) {
+  if (hit && hit.name === call.name && hit.output === call.output) {
     diffCache.delete(key);
     diffCache.set(key, hit);
     return hit.diffs;
@@ -709,23 +795,49 @@ export function diffsOf(call: ToolCall): FileDiff[] {
     diffCache.delete(oldest);
     diffCacheChars -= oldest.length;
   }
-  diffCache.set(key, { name: call.name, diffs });
+  diffCache.set(key, { name: call.name, output: call.output, diffs });
   diffCacheChars += key.length;
   return diffs;
 }
 
+function parseUnifiedDiffOutput(output: string | undefined): FileDiff[] {
+  if (!output || !/^---\s+/m.test(output) || !/^\+\+\+\s+/m.test(output)) return [];
+  const chunks = output
+    .split(/(?=^---\s+)/m)
+    .filter((c) => /^---\s+/m.test(c) && /^\+\+\+\s+/m.test(c));
+  const out: FileDiff[] = [];
+  for (const chunk of chunks) {
+    const plusMatch = /^\+\+\+\s+(?:b\/)?(.+?)(?:\t.*)?$/m.exec(chunk);
+    const minusMatch = /^---\s+(?:a\/)?(.+?)(?:\t.*)?$/m.exec(chunk);
+    const rawFile = (plusMatch?.[1] ?? minusMatch?.[1] ?? '').trim();
+    const file = rawFile === '/dev/null' ? (minusMatch?.[1]?.trim() ?? '') : rawFile;
+    const diff = parsePatch(chunk);
+    if (
+      diff.lines.length > 0 &&
+      (diff.added > 0 || diff.removed > 0 || diff.lines.some((l) => l.type === 'hunk'))
+    ) {
+      out.push({ file, diff });
+    }
+  }
+  return out;
+}
+
 function computeDiffs(call: ToolCall): FileDiff[] {
   const kind = classifyTool(call.name);
-  if (kind !== 'edit' && kind !== 'write') return [];
+  if (kind !== 'edit' && kind !== 'write') {
+    if (kind === 'read' || kind === 'search' || kind === 'list' || kind === 'web') return [];
+    return parseUnifiedDiffOutput(call.output);
+  }
   const o = parseInput(call.input);
   const rawPatch = !o && call.input ? call.input : undefined;
   if (rawPatch) {
     const diff = parsePatch(rawPatch);
     const file =
       /^\*\*\* (?:Update|Add|Delete) File: (.+)$/m.exec(rawPatch)?.[1] ?? t('ui.usage-tools.patch');
-    return diff.lines.length ? [{ file, diff }] : [];
+    if (diff.lines.length) return [{ file, diff }];
+    return parseUnifiedDiffOutput(call.output);
   }
-  if (!o) return [];
+  if (!o) return parseUnifiedDiffOutput(call.output);
   const file = firstString(o, PATH_KEYS) ?? '';
 
   const changes = o.changes;
@@ -796,7 +908,7 @@ function computeDiffs(call: ToolCall): FileDiff[] {
           : undefined;
   if (content !== undefined && (kind === 'write' || kind === 'edit'))
     return [{ file, diff: diffAllAdded(content) }];
-  return [];
+  return parseUnifiedDiffOutput(call.output);
 }
 
 export function diffStats(
@@ -877,6 +989,19 @@ export function buildTimeline(
       if (e.type === 'interject') {
         flush();
         items.push({ type: 'interject', id: e.id, text: e.text, at: e.at });
+        return;
+      }
+      if (e.type === 'plan') {
+        flush();
+        items.push({
+          type: 'plan',
+          id: e.id,
+          ...(e.planId ? { planId: e.planId } : {}),
+          entries: e.entries,
+          ...(e.markdown ? { markdown: e.markdown } : {}),
+          ...(e.uri ? { uri: e.uri } : {}),
+          ...(e.at !== undefined ? { at: e.at } : {}),
+        });
         return;
       }
       const kind = classifyTool(e.call.name);
@@ -1029,7 +1154,7 @@ export function hasRunning(items: readonly TimelineItem[]): boolean {
     if (it.type === 'call') return it.call.status === 'running';
     if (it.type === 'group') return it.calls.some((c) => c.status === 'running');
     if (it.type === 'subagent') return it.call.status === 'running' || hasRunning(it.children);
-    if (it.type === 'interject') return false;
+    if (it.type === 'interject' || it.type === 'plan') return false;
     return it.running;
   });
 }

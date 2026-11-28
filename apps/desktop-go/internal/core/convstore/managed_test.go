@@ -336,6 +336,68 @@ func TestManagedProjectionPreservesRuntimeMetadataAndSkipsOriginPollution(t *tes
 	}
 }
 
+func TestManagedProjectionMergesPlanAndPreservesTextAt(t *testing.T) {
+	_, s, _, c, f := diskFixture(t)
+	startDisk(t, c)
+	r := f.call(t, 0)
+	ackDisk(t, c, r)
+
+	pos1 := 6
+	pos2 := 20
+	ev1 := diskEvent(r, cr.EventTrace)
+	ev1.Trace = &cr.TraceEntry{
+		ID:     "plan:p1",
+		Kind:   "plan",
+		Detail: `{"planId":"p1","entries":[{"content":"Analyze","status":"in_progress"}]}`,
+		At:     100,
+		TextAt: &pos1,
+	}
+	if err := c.AcceptRuntimeEvent(ev1); err != nil {
+		t.Fatal(err)
+	}
+	ev2 := diskEvent(r, cr.EventTrace)
+	ev2.Trace = &cr.TraceEntry{
+		ID:     "plan:p1",
+		Kind:   "plan",
+		Detail: `{"planId":"p1","entries":[{"content":"Analyze","status":"completed"},{"content":"Edit","status":"in_progress"}]}`,
+		At:     200,
+		TextAt: &pos2,
+	}
+	if err := c.AcceptRuntimeEvent(ev2); err != nil {
+		t.Fatal(err)
+	}
+	txtEv := diskEvent(r, cr.EventText)
+	txtEv.Text = "Intro body result"
+	if err := c.AcceptRuntimeEvent(txtEv); err != nil {
+		t.Fatal(err)
+	}
+	comp := diskEvent(r, cr.EventCompleted)
+	comp.Work = cr.Activity{Known: true}
+	if err := c.AcceptRuntimeEvent(comp); err != nil {
+		t.Fatal(err)
+	}
+	msgs, err := s.Messages("c", 0)
+	if err != nil || len(msgs) == 0 {
+		t.Fatalf("Messages failed: %d %v", len(msgs), err)
+	}
+	var last map[string]any
+	if err := json.Unmarshal(msgs[len(msgs)-1], &last); err != nil {
+		t.Fatal(err)
+	}
+	tr, _ := last["trace"].([]any)
+	if len(tr) != 1 {
+		t.Fatalf("projected trace len = %d, want 1 (%v)", len(tr), tr)
+	}
+	p, _ := tr[0].(map[string]any)
+	if p["type"] != "plan" || p["planId"] != "p1" || p["textAt"] != float64(6) || p["at"] != float64(200) {
+		t.Fatalf("projected plan = %v", p)
+	}
+	entries, _ := p["entries"].([]any)
+	if len(entries) != 2 {
+		t.Fatalf("projected entries = %v", entries)
+	}
+}
+
 func TestManagedLeaseUpdateMetaPreservesStateAndIdentity(t *testing.T) {
 	dir := t.TempDir()
 	s := New(dir)

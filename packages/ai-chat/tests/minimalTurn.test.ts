@@ -322,4 +322,27 @@ describe('splitMinimalTurnSections / countActiveLiveSteps / activeStageStartedAt
     expect(countActiveLiveSteps(withNewStep, false)).toBe(1);
     expect(activeStageStartedAt([], 1000)).toBe(1000);
   });
+
+  it('plan 条目直接归入 passthrough 外显且不计入步数', () => {
+    const planItem: TimelineItem = {
+      type: 'plan',
+      id: 'pl-0',
+      planId: 'main',
+      entries: [
+        { content: 'Step 1', status: 'completed' },
+        { content: 'Step 2', status: 'in_progress' },
+      ],
+    };
+    const segments: BodySegment[] = [
+      {
+        type: 'activity',
+        items: [planItem, { type: 'call', call: call('c1', 'read_file') }],
+      },
+      { type: 'text', text: '最终总结。' },
+    ];
+    const split = splitMinimalTurn(segments);
+    expect(split.stepCount).toBe(1);
+    expect(split.passthrough).toEqual([planItem]);
+    expect(split.summaryText).toBe('最终总结。');
+  });
 });
